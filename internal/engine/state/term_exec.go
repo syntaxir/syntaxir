@@ -272,10 +272,10 @@ func (p *Parser) termLogic(op int, x any) (bool, error) {
 }
 
 // termMember reads the member name of x, whose kind is kind (ops.MemberKinds) and which reads the field or
-// capture field. Start, End and Value of a node read its range and value; a capture of a node reads it with a box
-// opened, nil if it did not match; a field reads what the value holds, and of a struct the zero value of the declared
-// type of a field that is not set. A value that has no members, a capture of a struct and a field that a struct does
-// not declare fail.
+// capture field. Start, End and Value of a node read its range and value; a recovered value has a range and a nil
+// value. A capture of a node reads it with a box opened, nil if it did not match; a field reads what the value holds,
+// and of a struct the zero value of the declared type of a field that is not set. A value that has no members, a
+// capture of a struct and a field that a struct does not declare fail.
 //
 // Printed from Exec IR function member of internal/ir/exec/core.
 func (p *Parser) termMember(c *EvalCtx, kind int, x any, name string, field string) (any, error) {
@@ -290,6 +290,9 @@ func (p *Parser) termMember(c *EvalCtx, kind int, x any, name string, field stri
 			}
 			if kind == 2 {
 				return any(int(value.D(n).End)), nil
+			}
+			if int(value.ShapeOf(n)) == 3 {
+				return nil, nil
 			}
 			return p.nodeValue(n), nil
 		}
@@ -387,7 +390,8 @@ func (p *Parser) termFilterKeep(v any) (bool, error) {
 }
 
 // termLength is the built-in function len: the length of a string in the position unit, of the range of a string
-// node, and the number of elements of a list, a tuple or another node; nil has length 0. Any other value fails.
+// node, and the number of elements of a list, a tuple or another node; nil and a recovered value have length 0. Any
+// other value fails.
 //
 // Printed from Exec IR function length of internal/ir/exec/core.
 func (p *Parser) termLength(x any) (any, error) {
@@ -401,6 +405,9 @@ func (p *Parser) termLength(x any) (any, error) {
 	n, ok := nodeOf(x)
 	if ok {
 		if value.D(n).Terminal {
+			if int(value.ShapeOf(n)) == 3 {
+				return any(0), nil
+			}
 			return any(int(value.D(n).End - value.D(n).Start)), nil
 		}
 		return any(len(value.D(n).Children)), nil
@@ -408,8 +415,8 @@ func (p *Parser) termLength(x any) (any, error) {
 	return nil, p.termError(13, x, nil, 0, 0)
 }
 
-// termText is the built-in function text: a string itself, the text that a string node or an error holds,
-// the input of the range of any other node, and the empty string for nil. Any other value fails.
+// termText is the built-in function text: a string itself, the text that a string node holds, the input of the range
+// of any other node, a recovered value among them, and the empty string for nil. Any other value fails.
 //
 // Printed from Exec IR function text of internal/ir/exec/core.
 func (p *Parser) termText(x any) (string, error) {
@@ -423,7 +430,7 @@ func (p *Parser) termText(x any) (string, error) {
 	n, ok := nodeOf(x)
 	if ok {
 		t, held := value.D(n).Text, value.D(n).Terminal
-		if held {
+		if held && int(value.ShapeOf(n)) != 3 {
 			return t, nil
 		}
 		return p.Text(int(value.D(n).Start), int(value.D(n).End)), nil

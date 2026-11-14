@@ -34,6 +34,9 @@ type TermCase struct {
 	// Recovers is set if the rule recovers from an error on some input, so that its parse reports the
 	// syntax errors it recovered from besides the value.
 	Recovers bool
+	// MissingTokens is set if the rule inserts a missing token on some input: only the engine's closure
+	// backend parses it, with the insertion of missing tokens enabled.
+	MissingTokens bool
 }
 
 // Capture is a node that a capture holds after a match, with its range in characters of the input: a
@@ -57,6 +60,8 @@ const (
 	ListCapture
 	// ErrorCapture is an error value of recovery over [From, To).
 	ErrorCapture
+	// MissingCapture is the error value of a missing token at From, whose range [From, To) is empty.
+	MissingCapture
 )
 
 // litCap is the string node of the literal at character i.
@@ -920,6 +925,76 @@ func ErrorCastTermCases() []TermCase {
 				e := Capture{Shape: StringCapture, From: 1, To: 2}
 				if in == "a;" {
 					e.Shape = ErrorCapture
+				}
+				return map[string]Capture{"x": litCap(0), "e": e}
+			},
+		})
+	}
+	return out
+}
+
+// recoveredTerms are the terms of RecoveredTermCases and MissingTermCases, with the Type of each, over $e,
+// a capture whose value is a string node or a recovered value: its range, its value, which a recovered
+// value has none of, its text and its length, which is that of nil for a recovered value, read directly,
+// as an element of a list and after a cast to the type of recovered values.
+var recoveredTerms = []struct{ typ, term string }{
+	{"int", "$e.Start"},
+	{"int", "$e.End"},
+	{"*string", "$e.Value"},
+	{"bool", "$e.Value == nil"},
+	{"int", "len($e)"},
+	{"string", "text($e)"},
+	{"int", "len(text($e)) * 10 + len($e)"},
+	{"int", "len(list($e)[0])"},
+	{"string", "text(list($e)[0])"},
+	{"[]bool", "map(list($e), (i) => i.Value == nil)"},
+	{"int", "len(concat(list($e.Value)))"},
+	{"bool", "$e.(error).Value == nil"},
+	{"int", "len($e.(error))"},
+	{"string", "text($e.(error))"},
+	{"int", "$e.(error).End - $e.(error).Start"},
+}
+
+// RecoveredTermCases returns fixed terms (recoveredTerms) that read the value of a capture that holds an error
+// value of recovery or a string node. The rule captures the string node $x and $e, the value of
+// "b" #recover(skip=";;"), which is a string node on the input "ab" and an error value that covers the ";;" on
+// the input "a;;", whose text and length differ from those of the node.
+func RecoveredTermCases() []TermCase {
+	var out []TermCase
+	for _, r := range recoveredTerms {
+		out = append(out, TermCase{
+			Case: Case{Name: "recovered: " + r.term,
+				Src:    fmt.Sprintf("@start\nrule main %s = x:\"a\" e:(\"b\" #recover(skip=\";;\")) $$ => %s\n", r.typ, r.term),
+				Inputs: []string{"ab", "a;;"}},
+			Term: r.term, Type: r.typ, Kind: TermAction, Lit: "a", Recovers: true,
+			Captures: func(in string) map[string]Capture {
+				e := Capture{Shape: StringCapture, From: 1, To: 2}
+				if in == "a;;" {
+					e = Capture{Shape: ErrorCapture, From: 1, To: 3}
+				}
+				return map[string]Capture{"x": litCap(0), "e": e}
+			},
+		})
+	}
+	return out
+}
+
+// MissingTermCases returns the fixed terms of RecoveredTermCases over a capture that holds a missing token or
+// a string node. The rule captures the string node $x and $e, the value of the rule semi, ";" #missing,
+// which is a string node on the input "a;" and the missing token inserted at the end of the input "a".
+// Only the engine's closure backend parses the rule (MissingTokens).
+func MissingTermCases() []TermCase {
+	var out []TermCase
+	for _, r := range recoveredTerms {
+		out = append(out, TermCase{
+			Case: Case{Name: "missing: " + r.term,
+				Src:    fmt.Sprintf("@start\nrule main %s = x:\"a\" e:semi $$ => %s\nrule semi = \";\" #missing\n", r.typ, r.term),
+				Inputs: []string{"a;", "a"}},
+			Term: r.term, Type: r.typ, Kind: TermAction, Lit: "a", Recovers: true, MissingTokens: true,
+			Captures: func(in string) map[string]Capture {
+				e := Capture{Shape: StringCapture, From: 1, To: 2}
+				if in == "a" {
+					e = Capture{Shape: MissingCapture, From: 1, To: 1}
 				}
 				return map[string]Capture{"x": litCap(0), "e": e}
 			},

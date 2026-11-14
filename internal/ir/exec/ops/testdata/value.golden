@@ -647,7 +647,7 @@ op node.value(n Obj) Datum
   contract:
     // Returns the value of n: its text, or the value its node type holds.
   requires:
-    // node.isNode(n).
+    // node.isNode(n), and n is not an error.
 
 op node.isStruct(n Obj) bool
   component value
@@ -721,8 +721,8 @@ op node.heldText(n Obj) (Str, bool)
   component value
   cost <= 0
   contract:
-    // Returns the text that n holds and true if n is a string node or an error, and false otherwise; the
-    // text is then not meaningful.
+    // Returns the text that n holds and true if n is a string node or an error, and false otherwise. The
+    // text is meaningful only for a string node.
 
 host op node.rangeText(n Obj) Str
   component value

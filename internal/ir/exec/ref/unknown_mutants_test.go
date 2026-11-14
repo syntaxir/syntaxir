@@ -15,7 +15,7 @@ var unknownMutants = []struct{ name, file, old, new string }{
 	{"an operator reads Unknown", "term.go", "\tneed(l, r)\n", ""},
 	{"a unary operator reads Unknown", "term.go", "need(x)\n\t\tv, msg := Unary", "v, msg := Unary"},
 	{"Unknown has elements", "term.go", "[]V {\n\tneed(v)\n", "[]V {\n"},
-	{"Unknown has a length", "term.go", "need(x)\n\t\tswitch x.Kind {\n\t\tcase KNil:\n\t\t\treturn Int(0)", "switch x.Kind {\n\t\tcase KNil:\n\t\t\treturn Int(0)"},
+	{"Unknown has a length", "term.go", "need(x)\n\t\tswitch x.Kind {\n\t\tcase KNil, KError:", "switch x.Kind {\n\t\tcase KNil, KError:"},
 	{"Unknown has a text", "term.go", "need(x)\n\t\tswitch x.Kind {\n\t\tcase KNil:\n\t\t\treturn Str(\"\")", "switch x.Kind {\n\t\tcase KNil:\n\t\t\treturn Str(\"\")"},
 	{"filter keeps by Unknown", "term.go", "\t\t\tneed(keep)\n", ""},
 	{"a type admits or rejects Unknown", "term.go", "bool {\n\tneed(x)\n", "bool {\n"},
@@ -35,7 +35,7 @@ var unknownMutants = []struct{ name, file, old, new string }{
 	{"a constructor keeps the alias", "term.go", "x.Type = e.typeName(t.Type)", "x.Type = t.Type"},
 }
 
-// errorMutants each break one way in which the cast and the list built-ins treat an error value.
+// errorMutants each break one way in which the casts, the members and the built-ins treat an error value.
 var errorMutants = []struct{ name, file, old, new string }{
 	{"error admits no value", "term.go", "return x.Kind == KError\n", "return false\n"},
 	{"error admits every node", "term.go", "return x.Kind == KError\n", "return x.Kind == KError || x.Kind == KNode\n"},
@@ -43,6 +43,10 @@ var errorMutants = []struct{ name, file, old, new string }{
 	{"missing admits no token", "term.go", "return x.Kind == KError && x.Missing\n", "return false\n"},
 	{"a type name reads the node of the error", "value.go", "\tcase KError:\n\t\tif v.Missing {\n\t\t\treturn \"missing\"\n\t\t}\n\t\treturn \"error\"\n", "\tcase KError:\n\t\treturn \"error\"\n"},
 	{"an error value is not a list", "term.go", "case KNil, KError: // an error value counts as an empty list", "case KNil:"},
+	{"an error value has the length of its range", "term.go", "case KNil, KError: // a recovered value has no value and counts as nil\n\t\t\treturn Int(0)\n\t\tcase KStr:", "case KNil:\n\t\t\treturn Int(0)\n\t\tcase KError:\n\t\t\treturn Int(int64(x.End - x.Start))\n\t\tcase KStr:"},
+	{"an error value has no text", "term.go", "case KStr, KNode, KError: // the text of a recovered value is the input of its range", "case KError:\n\t\t\treturn Str(\"\")\n\t\tcase KStr, KNode:"},
+	{"an error value has its text as its value", "term.go", "\t\treturn Nil\n\t}\n\tfail(\"cannot select", "\t\treturn Str(x.S)\n\t}\n\tfail(\"cannot select"},
+	{"an error value has no range", "term.go", "\tcase KError:\n\t\t// A recovered value has a range and no value; a field or capture it does not declare reads as nil.\n\t\tswitch name {\n\t\tcase \"Start\":\n\t\t\treturn Int(int64(x.Start))", "\tcase KError:\n\t\t// A recovered value has a range and no value; a field or capture it does not declare reads as nil.\n\t\tswitch name {\n\t\tcase \"Start\":\n\t\t\treturn Int(0)"},
 }
 
 // TestUnknownMutants is the proof that TestUnknownNeverLeaks and TestUnknownResults, with

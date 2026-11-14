@@ -11,10 +11,12 @@ import (
 // evaluation. The reference evaluator covers every term of a value or predicate action: literals,
 // captures and lambda parameters, the members of nodes (.Start, .End, .Value and captures) and of
 // structs, struct, tuple and named node constructors, the built-in functions, the operators and casts
-// to every type (spec/language/actions.md). An error value of recovery (ErrorValue) is modelled as far as
-// the specification defines what a term does with one: a cast to a type that admits it, a comparison with
-// nil, and the list built-ins, which take it as an empty list. A term that reads its range, text or
-// members, takes its length or converts it is not modelled, and the evaluation panics.
+// to every type (spec/language/actions.md). An error value of recovery (ErrorValue) is a node with a range
+// and no value: .Start and .End read its range, .Value reads nil, text gives the input of its range, len and
+// the list built-ins take it as nil, and a cast tests it against the types that admit it. A field or capture
+// that it does not declare, which another member of a join may, reads nil. A conversion of one, which the
+// checker rejects, and the expected and message fields of a missing token, which the value does not hold, are
+// not modelled, and the evaluation panics.
 type TermEnv struct {
 	// Captures are the captures by name, made with Node; a capture that did not match is absent.
 	Captures map[string]V
@@ -134,8 +136,8 @@ func (e *TermEnv) eval(t grammar.Term, p params) V {
 	panic(fmt.Sprintf("ref: unsupported term %T", t))
 }
 
-// unmodelled panics if x is an error value, which the specification does not say what the operation does
-// with (see TermEnv).
+// unmodelled panics if x is an error value, for an operation on one that the evaluator does not model (see
+// TermEnv).
 func unmodelled(x V, what string) {
 	if x.Kind == KError {
 		panic("ref: " + what + " an error value is not modelled")
@@ -178,8 +180,21 @@ func (e *TermEnv) member(x V, name string) V {
 			fail("ref: the zero value of field %s of %s is not declared", name, x.Type)
 		}
 		return z
+	case KError:
+		// A recovered value has a range and no value; a field or capture it does not declare reads as nil.
+		switch name {
+		case "Start":
+			return Int(int64(x.Start))
+		case "End":
+			return Int(int64(x.End))
+		case "expected", "message":
+			if x.Missing {
+				// The string fields of a missing token are not held by the value.
+				unmodelled(x, "the field "+name+" of")
+			}
+		}
+		return Nil
 	}
-	unmodelled(x, "a member of")
 	fail("cannot select %s from %s", name, x.TypeName())
 	return Nil
 }
@@ -247,7 +262,7 @@ func (e *TermEnv) call(c *grammar.Call, p params) V {
 		x := e.eval(c.Args[0], p)
 		need(x)
 		switch x.Kind {
-		case KNil:
+		case KNil, KError: // a recovered value has no value and counts as nil
 			return Int(0)
 		case KStr:
 			return Int(int64(unitLen(x.S, e.Bytes)))
@@ -262,7 +277,6 @@ func (e *TermEnv) call(c *grammar.Call, p params) V {
 		case KList, KTuple:
 			return Int(int64(len(x.Items)))
 		}
-		unmodelled(x, "the length of")
 		fail("len: invalid argument %s", x.TypeName())
 	case "text":
 		x := e.eval(c.Args[0], p)
@@ -270,10 +284,9 @@ func (e *TermEnv) call(c *grammar.Call, p params) V {
 		switch x.Kind {
 		case KNil:
 			return Str("")
-		case KStr, KNode:
+		case KStr, KNode, KError: // the text of a recovered value is the input of its range
 			return Str(x.S)
 		}
-		unmodelled(x, "the text of")
 		fail("text: invalid argument %s", x.TypeName())
 	case "foldl", "foldr":
 		acc := e.eval(c.Args[0], p)

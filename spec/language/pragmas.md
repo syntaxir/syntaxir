@@ -114,7 +114,8 @@ Recovery proceeds in these steps.
 
 The error value has the skipped input as its range and the recorded error with its
 position as its message (`1:5: expected a name`); `Node.Text()` returns the
-message. Its `Kind` is `KindError`, and it encodes as `{"start", "end", "error"}`
+message. In an action it is a node with that range and no value: `text(x)` is the
+skipped input and `.Value` is `nil` (see [Field Access](actions.md#field-access)). Its `Kind` is `KindError`, and it encodes as `{"start", "end", "error"}`
 (see [Nodes and Values](../runtime/nodes.md#json-encoding)).
 
 Recovery applies to every failure inside the annotated expression, however deeply

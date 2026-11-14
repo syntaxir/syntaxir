@@ -30,6 +30,9 @@ func addValue(m *Module) {
 	// fail returns the failure code with the values a and b and the operator o; n is a count.
 	fail := func(b *Builder, code int, a, bb, o, n Expr) { b.Return(none, failure(code, a, bb, o, n)) }
 	opIs := func(c int) Expr { return Eq(op, k(c)) }
+	// isError reports whether the node n is a recovered value: an error value of recovery or a missing token.
+	isError := func(n Expr) Expr { return Eq(C("node.shape", n), k(ops.ShapeError)) }
+	notError := func(n Expr) Expr { return Bin("!=", C("node.shape", n), k(ops.ShapeError)) }
 
 	equal := m.AddFunc("equal", []Param{P("l", datum), P("r", datum)}, []Type{TBool, TBool}, nil, func(b *Builder) {
 		b.Let("a", C("val.unbox", l))
@@ -142,6 +145,8 @@ wraparound, and ! negates a bool. Any other operand fails.`
 			b.If(C("node.isNode", n), func(b *Builder) {
 				b.If(kindIs(ops.MemberStart), func(b *Builder) { b.Return(C("node.start", n), ok) })
 				b.If(kindIs(ops.MemberEnd), func(b *Builder) { b.Return(C("node.end", n), ok) })
+				// A recovered value has a range and no value: its Value is nil.
+				b.If(isError(n), func(b *Builder) { b.Return(none, ok) })
 				b.Return(C("node.value", n), ok)
 			})
 		})
@@ -162,10 +167,10 @@ wraparound, and ! negates a bool. Any other operand fails.`
 		fail(b, ops.ErrNoField, x, C("val.name", L("field")), Int(0), Int(0))
 	})
 	member.Doc = `member reads the member name of x, whose kind is kind (ops.MemberKinds) and which reads the field or
-capture field. Start, End and Value of a node read its range and value; a capture of a node reads it with a box
-opened, nil if it did not match; a field reads what the value holds, and of a struct the zero value of the declared
-type of a field that is not set. A value that has no members, a capture of a struct and a field that a struct does
-not declare fail.`
+capture field. Start, End and Value of a node read its range and value; a recovered value has a range and a nil
+value. A capture of a node reads it with a box opened, nil if it did not match; a field reads what the value holds,
+and of a struct the zero value of the declared type of a field that is not set. A value that has no members, a
+capture of a struct and a field that a struct does not declare fail.`
 
 	fn, act := P("fn", THandle(ops.Name)), P("c", THandle(ops.Act))
 	isScalar := func(e Expr) Expr {
@@ -239,14 +244,18 @@ nothing; the loop charges the step (seq.step) before it, so that itemAt stays sm
 		o := b.LetN([]string{"n", "ok"}, C("node.of", x))
 		b.If(o[1], func(b *Builder) {
 			// The text of a string node is the input of its range, whose length the range holds in the
-			// position unit.
-			b.If(C("node.hasText", o[0]), func(b *Builder) { b.Return(C("node.width", o[0]), ok) })
+			// position unit. A recovered value has no value and counts as nil.
+			b.If(C("node.hasText", o[0]), func(b *Builder) {
+				b.If(isError(o[0]), func(b *Builder) { b.Return(C("val.fromInt", Int(0)), ok) })
+				b.Return(C("node.width", o[0]), ok)
+			})
 			b.Return(C("node.count", o[0]), ok)
 		})
 		fail(b, ops.ErrLenArg, x, none, Int(0), Int(0))
 	})
 	length.Doc = `length is the built-in function len: the length of a string in the position unit, of the range of a string
-node, and the number of elements of a list, a tuple or another node; nil has length 0. Any other value fails.`
+node, and the number of elements of a list, a tuple or another node; nil and a recovered value have length 0. Any
+other value fails.`
 
 	text := m.AddFunc("text", []Param{P("x", datum)}, []Type{THandle(ops.Str), failT}, nil, func(b *Builder) {
 		kx := b.Let("k", kind(x))
@@ -254,16 +263,16 @@ node, and the number of elements of a list, a tuple or another node; nil has len
 		b.If(Eq(kx, k(ops.KindString)), func(b *Builder) { b.Return(C("str.of", x), ok) })
 		o := b.LetN([]string{"n", "ok"}, C("node.of", x))
 		b.If(o[1], func(b *Builder) {
-			// A string node or an error holds its text; the text of any other node is the input of its
-			// range.
+			// A string node holds its text; the text of any other node, a recovered value among them, is the
+			// input of its range.
 			h := b.LetN([]string{"t", "held"}, C("node.heldText", o[0]))
-			b.If(h[1], func(b *Builder) { b.Return(h[0], ok) })
+			b.If(And(h[1], notError(o[0])), func(b *Builder) { b.Return(h[0], ok) })
 			b.Return(C("node.rangeText", o[0]), ok)
 		})
 		b.Return(C("str.empty"), failure(ops.ErrTextArg, x, none, Int(0), Int(0)))
 	})
-	text.Doc = `text is the built-in function text: a string itself, the text that a string node or an error holds,
-the input of the range of any other node, and the empty string for nil. Any other value fails.`
+	text.Doc = `text is the built-in function text: a string itself, the text that a string node holds, the input of the range
+of any other node, a recovered value among them, and the empty string for nil. Any other value fails.`
 
 	convert := m.AddFunc("convert", []Param{P("t", THandle(ops.NodeType)), P("x", datum)}, val, nil, func(b *Builder) {
 		o := b.LetN([]string{"n", "ok"}, C("node.of", x))

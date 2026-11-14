@@ -320,10 +320,10 @@ func (p *Parser) TermLogic(op int, x any) (bool, any) {
 }
 
 // TermMember reads the member name of x, whose kind is kind (ops.MemberKinds) and which reads the field or
-// capture field. Start, End and Value of a node read its range and value; a capture of a node reads it with a box
-// opened, nil if it did not match; a field reads what the value holds, and of a struct the zero value of the declared
-// type of a field that is not set. A value that has no members, a capture of a struct and a field that a struct does
-// not declare fail.
+// capture field. Start, End and Value of a node read its range and value; a recovered value has a range and a nil
+// value. A capture of a node reads it with a box opened, nil if it did not match; a field reads what the value holds,
+// and of a struct the zero value of the declared type of a field that is not set. A value that has no members, a
+// capture of a struct and a field that a struct does not declare fail.
 // TermMember is for generated parsers; not a stable API.
 //
 // Printed from Exec IR function member of internal/ir/exec/core.
@@ -339,6 +339,9 @@ func (p *Parser) TermMember(c *ActCtx, kind int, x any, name string, field strin
 			}
 			if kind == 2 {
 				return any(int(D(n).End)), nil
+			}
+			if int(shape(n)) == 3 {
+				return nil, nil
 			}
 			return p.nodeValue(n), nil
 		}
@@ -442,7 +445,8 @@ func (p *Parser) TermFilterKeep(v any) (bool, any) {
 }
 
 // TermLength is the built-in function len: the length of a string in the position unit, of the range of a string
-// node, and the number of elements of a list, a tuple or another node; nil has length 0. Any other value fails.
+// node, and the number of elements of a list, a tuple or another node; nil and a recovered value have length 0. Any
+// other value fails.
 // TermLength is for generated parsers; not a stable API.
 //
 // Printed from Exec IR function length of internal/ir/exec/core.
@@ -457,6 +461,9 @@ func (p *Parser) TermLength(x any) (any, any) {
 	n, ok := nodeOf(x)
 	if ok {
 		if D(n).Terminal {
+			if int(shape(n)) == 3 {
+				return any(0), nil
+			}
 			return any(int(D(n).End - D(n).Start)), nil
 		}
 		return any(len(D(n).Children)), nil
@@ -464,8 +471,8 @@ func (p *Parser) TermLength(x any) (any, any) {
 	return nil, p.termError(13, x, nil, 0, 0)
 }
 
-// TermText is the built-in function text: a string itself, the text that a string node or an error holds,
-// the input of the range of any other node, and the empty string for nil. Any other value fails.
+// TermText is the built-in function text: a string itself, the text that a string node holds, the input of the range
+// of any other node, a recovered value among them, and the empty string for nil. Any other value fails.
 // TermText is for generated parsers; not a stable API.
 //
 // Printed from Exec IR function text of internal/ir/exec/core.
@@ -480,7 +487,7 @@ func (p *Parser) TermText(x any) (string, any) {
 	n, ok := nodeOf(x)
 	if ok {
 		t, held := D(n).Text, D(n).Terminal
-		if held {
+		if held && int(shape(n)) != 3 {
 			return t, nil
 		}
 		return p.Text(int(D(n).Start), int(D(n).End)), nil
@@ -890,10 +897,10 @@ func (p *TParser) TermLogic(op int, x any) (bool, any) {
 }
 
 // TermMember reads the member name of x, whose kind is kind (ops.MemberKinds) and which reads the field or
-// capture field. Start, End and Value of a node read its range and value; a capture of a node reads it with a box
-// opened, nil if it did not match; a field reads what the value holds, and of a struct the zero value of the declared
-// type of a field that is not set. A value that has no members, a capture of a struct and a field that a struct does
-// not declare fail.
+// capture field. Start, End and Value of a node read its range and value; a recovered value has a range and a nil
+// value. A capture of a node reads it with a box opened, nil if it did not match; a field reads what the value holds,
+// and of a struct the zero value of the declared type of a field that is not set. A value that has no members, a
+// capture of a struct and a field that a struct does not declare fail.
 // TermMember is for generated parsers; not a stable API.
 //
 // Printed from Exec IR function member of internal/ir/exec/core.
@@ -909,6 +916,9 @@ func (p *TParser) TermMember(c *TActCtx, kind int, x any, name string, field str
 			}
 			if kind == 2 {
 				return tnodeEnd(n), nil
+			}
+			if int(tshape(n)) == 3 {
+				return nil, nil
 			}
 			return p.nodeValue(n), nil
 		}
@@ -1012,7 +1022,8 @@ func (p *TParser) TermFilterKeep(v any) (bool, any) {
 }
 
 // TermLength is the built-in function len: the length of a string in the position unit, of the range of a string
-// node, and the number of elements of a list, a tuple or another node; nil has length 0. Any other value fails.
+// node, and the number of elements of a list, a tuple or another node; nil and a recovered value have length 0. Any
+// other value fails.
 // TermLength is for generated parsers; not a stable API.
 //
 // Printed from Exec IR function length of internal/ir/exec/core.
@@ -1027,6 +1038,9 @@ func (p *TParser) TermLength(x any) (any, any) {
 	n, ok := tnodeOf(x)
 	if ok {
 		if tnodeHasText(n) {
+			if int(tshape(n)) == 3 {
+				return any(0), nil
+			}
 			return tnodeWidth(n), nil
 		}
 		return any(len(n.TKids())), nil
@@ -1034,8 +1048,8 @@ func (p *TParser) TermLength(x any) (any, any) {
 	return nil, p.termError(13, x, nil, 0, 0)
 }
 
-// TermText is the built-in function text: a string itself, the text that a string node or an error holds,
-// the input of the range of any other node, and the empty string for nil. Any other value fails.
+// TermText is the built-in function text: a string itself, the text that a string node holds, the input of the range
+// of any other node, a recovered value among them, and the empty string for nil. Any other value fails.
 // TermText is for generated parsers; not a stable API.
 //
 // Printed from Exec IR function text of internal/ir/exec/core.
@@ -1050,7 +1064,7 @@ func (p *TParser) TermText(x any) (string, any) {
 	n, ok := tnodeOf(x)
 	if ok {
 		t, held := n.TText()
-		if held {
+		if held && int(tshape(n)) != 3 {
 			return t, nil
 		}
 		return p.Text(n.TSpan()), nil

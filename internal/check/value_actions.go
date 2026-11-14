@@ -836,12 +836,12 @@ func (v *ValueInference) member(x Ty, m *grammar.Member) Ty {
 			switch {
 			case a == TyAny:
 				return TyAny
-			case a == TyErr && (m.Name == "Start" || m.Name == "End"):
-				found = append(found, TyInt)
+			case a == TyErr:
+				found = append(found, recoveredMember(m.Name)...)
 			}
 		case NamedTy:
-			if a == TyMissing && (m.Name == "Start" || m.Name == "End") {
-				found = append(found, TyInt)
+			if a == TyMissing {
+				found = append(found, recoveredMember(m.Name)...)
 			}
 			if st, ok := v.Prog.TypeDecls()[a.Name].(*grammar.TypeDef); ok {
 				if f := FieldOf(st, m.Name); f != nil {
@@ -878,6 +878,19 @@ func (v *ValueInference) member(x Ty, m *grammar.Member) Ty {
 		return types.Vopt(Vjoin(found...))
 	}
 	return Vjoin(found...)
+}
+
+// recoveredMember returns the type of the node member name of a recovered value (error or missing), none
+// if it is not a node member: a recovered value is a node with a range and no value, so .Start and .End
+// are ints and .Value is nil.
+func recoveredMember(name string) []Ty {
+	switch name {
+	case "Start", "End":
+		return []Ty{TyInt}
+	case "Value":
+		return []Ty{TyNil}
+	}
+	return nil
 }
 
 // noteMember records whether the member access m reads only node members (.Start, .End and
@@ -1069,17 +1082,18 @@ func (v *ValueInference) call(t *grammar.Call, env *valueEnv) Ty {
 			case NodeTy, ListTy, TupleTy:
 				return true
 			}
-			return x == TyString
+			return x == TyString || x == TyErr || x == TyMissing
 		}) {
 			v.errorf(t.Diagnostic(), "len: invalid argument %s", a)
 		}
 		return TyInt
 	case "text":
-		// text(x) is the input that node x spans; nil and strings are kept as they are.
+		// text(x) is the input that node x spans, a recovered value among them; nil and strings are kept as
+		// they are.
 		a := arg(0)
 		if !v.everyAlt(a, func(x Ty) bool {
 			_, ok := x.(NodeTy)
-			return ok || x == TyString
+			return ok || x == TyString || x == TyErr || x == TyMissing
 		}) {
 			v.errorf(t.Diagnostic(), "text: invalid argument %s", a)
 		}

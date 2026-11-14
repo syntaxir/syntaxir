@@ -1,25 +1,37 @@
 package compile_test
 
 import (
-	"strings"
+	"errors"
 	"testing"
 
+	"zeroparse.dev/zp/core"
 	"zeroparse.dev/zp/engine"
 )
 
-// An error value that #recover produces carries a range and a message, not matched text, so
-// text(x) rejects a value that can be one at compile time: an action or predicate never reads the
-// text of an error node.
-func TestTextRejectsErrorValues(t *testing.T) {
+// An error value that #recover produces is a node with a range and no value, so text(x) accepts a value
+// that can be one and gives the input that the recovery skipped, and len(x) treats it as nil.
+func TestTextOfErrorValues(t *testing.T) {
 	t.Parallel()
-	for _, src := range []string{
-		"rule main = x:(\"a\" #recover(skip=\"b\")) => text($x)\n",
-		"rule main = x:(\"a\" #recover(skip=\"b\")) {text($x) == \"b\"} \"c\"\n",
-		"rule main = x:(\"a\" #recover(skip=\"b\")) => len(text($x))\n",
+	for _, c := range []struct{ src, in, want string }{
+		{"@start\nrule main = x:(\"a\" #recover(skip=\"bb\")) => text($x)\n", "bb", `"bb"`},
+		{"@start\nrule main = x:(\"a\" #recover(skip=\"bb\")) {text($x) == \"bb\"} \"c\" => 1\n", "bbc", "1"},
+		{"@start\nrule main = x:(\"a\" #recover(skip=\"bb\")) => len(text($x))\n", "bb", "2"},
+		{"@start\nrule main = x:(\"a\" #recover(skip=\"bb\")) => len($x)\n", "bb", "0"},
+		{"@start\nrule main = x:(\"a\" #recover(skip=\"bb\")) => $x.Value == nil\n", "bb", "true"},
 	} {
-		_, err := engine.CompileSource(src, "main")
-		if err == nil || !strings.Contains(err.Error(), "text: invalid argument") {
-			t.Errorf("%q: error %v, want text: invalid argument", src, err)
+		p, err := engine.CompileSource(c.src, "main")
+		if err != nil {
+			t.Errorf("%q: %v", c.src, err)
+			continue
+		}
+		n, err := p.Parse(c.in)
+		var recovered core.SyntaxErrors
+		if !errors.As(err, &recovered) {
+			t.Errorf("%q on %q: error %v, want the recovered syntax error", c.src, c.in, err)
+			continue
+		}
+		if got := n.String(); got != c.want {
+			t.Errorf("%q on %q = %s, want %s", c.src, c.in, got, c.want)
 		}
 	}
 }

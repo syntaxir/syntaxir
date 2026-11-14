@@ -713,7 +713,7 @@ func TestTermReferenceEvaluator(t *testing.T) {
 				if c.Kind == codegentest.TermPredicate {
 					in += "b"
 				}
-				checkReference(t, c, prog, term, env, unit, in)
+				checkReference(t, c, prog, term, env, unit, in, engine.Closure)
 				checked++
 			}
 		}
@@ -723,52 +723,62 @@ func TestTermReferenceEvaluator(t *testing.T) {
 	}
 }
 
-// checkReference compares the engine's closure backend on the input in with the reference evaluator
-// in env: the value or the error of an action, and for a predicate, which precedes an optional "b",
-// whether the predicate held, by whether an input that ends in "b" parses.
-func checkReference(t *testing.T, c codegentest.TermCase, prog *engine.Program, term grammar.Term, env *ref.TermEnv, unit core.PositionUnit, in string) {
+// checkReference compares the backends of the engine on the input in with the reference evaluator in env: the
+// value or the error of an action, and for a predicate, which precedes an optional "b", whether the predicate
+// held, by whether an input that ends in "b" parses. A case that inserts missing tokens runs on the closure
+// backend only, which backends lists first, with the insertion enabled.
+func checkReference(t *testing.T, c codegentest.TermCase, prog *engine.Program, term grammar.Term, env *ref.TermEnv, unit core.PositionUnit, in string,
+	backends ...engine.Backend) {
 	t.Helper()
 	v, msg := env.Eval(term)
-	n, err := prog.ParseWith("main", in, engine.ParseOptions{Backend: engine.Closure, Unit: unit})
-	var recovered core.SyntaxErrors
-	if c.Recovers && n != nil && errors.As(err, &recovered) {
-		err = nil // the recovered syntax errors are not what the term gives; the value is
+	missing := 0
+	if c.MissingTokens {
+		backends, missing = backends[:1], 4
 	}
-	if c.Kind == codegentest.TermPredicate {
-		held := err == nil && n != nil
-		if want := !strings.HasSuffix(in, "b") || ref.Holds(v, msg); held != want {
-			t.Errorf("%s: input %q unit %d: the engine parses: %v, the reference evaluator: %v (%s)", c.Name, in, unit, held, want, msg)
+	for _, b := range backends {
+		n, err := prog.ParseWith("main", in, engine.ParseOptions{Backend: b, Unit: unit, MissingTokens: missing})
+		var recovered core.SyntaxErrors
+		if c.Recovers && errors.As(err, &recovered) {
+			err = nil // the recovered syntax errors are not what the term gives; the value, nil among them, is
 		}
-		return
-	}
-	want := map[string]any{"node": nil}
-	if msg != "" {
-		want["err"] = "action in main: " + msg
-	} else {
-		want["node"] = env.Plain(v)
-	}
-	wantJSON, _ := json.Marshal(want)
-	got := codegentest.ResultJSON(n, err)
-	var gotAny, wantAny any
-	if json.Unmarshal([]byte(got), &gotAny) != nil || json.Unmarshal(wantJSON, &wantAny) != nil || !reflect.DeepEqual(gotAny, wantAny) {
-		t.Errorf("%s: input %q unit %d: the engine gives\n %s\nthe reference evaluator\n %s", c.Name, in, unit, got, wantJSON)
+		if c.Kind == codegentest.TermPredicate {
+			held := err == nil && n != nil
+			if want := !strings.HasSuffix(in, "b") || ref.Holds(v, msg); held != want {
+				t.Errorf("%s: input %q unit %d backend %d: the engine parses: %v, the reference evaluator: %v (%s)", c.Name, in, unit, b, held, want, msg)
+			}
+			continue
+		}
+		want := map[string]any{"node": nil}
+		if msg != "" {
+			want["err"] = "action in main: " + msg
+		} else {
+			want["node"] = env.Plain(v)
+		}
+		wantJSON, _ := json.Marshal(want)
+		got := codegentest.ResultJSON(n, err)
+		var gotAny, wantAny any
+		if json.Unmarshal([]byte(got), &gotAny) != nil || json.Unmarshal(wantJSON, &wantAny) != nil || !reflect.DeepEqual(gotAny, wantAny) {
+			t.Errorf("%s: input %q unit %d backend %d: the engine gives\n %s\nthe reference evaluator\n %s", c.Name, in, unit, b, got, wantJSON)
+		}
 	}
 }
 
 // fixedTermCases returns the fixed term sets of codegentest other than the members, which
-// TestTermGeneratedTargets reads: conversions, structs, casts, list and tuple values, iteration, pushes
-// and scalar operators.
+// TestTermGeneratedTargets reads: conversions, structs, casts, list and tuple values, iteration, pushes,
+// scalar operators and the terms over recovered values.
 func fixedTermCases() []codegentest.TermCase {
 	var all []codegentest.TermCase
 	for _, set := range [][]codegentest.TermCase{codegentest.ConvertTermCases(), codegentest.StructTermCases(), codegentest.CastTermCases(),
-		codegentest.HullTermCases(), codegentest.IterTermCases(), codegentest.PushTermCases(), codegentest.ScalarTermCases(), codegentest.ErrorCastTermCases()} {
+		codegentest.HullTermCases(), codegentest.IterTermCases(), codegentest.PushTermCases(), codegentest.ScalarTermCases(), codegentest.ErrorCastTermCases(),
+		codegentest.RecoveredTermCases()} {
 		all = append(all, set...)
 	}
 	return all
 }
 
-// TestTermFixedReference checks the engine's closure backend against the reference evaluator on the
-// fixed term sets and the members, in both position units: the same value or error for every input of an action, and
+// TestTermFixedReference checks the engine's backends (closure, VM and iterative VM) against the reference
+// evaluator on the fixed term sets, the members and the terms over a missing token (closure only), in both
+// position units: the same value or error for every input of an action, and
 // whether a predicate held. The captures come from the hand-written tables of the cases, so the
 // reference evaluator reads the nodes that the rules define, not the engine's. With
 // TestTermFixedGeneratedTargets, which compares the generated targets with the engine on the same
@@ -776,7 +786,7 @@ func fixedTermCases() []codegentest.TermCase {
 func TestTermFixedReference(t *testing.T) {
 	t.Parallel()
 	checked := 0
-	for _, c := range append(codegentest.MemberTermCases(), fixedTermCases()...) {
+	for _, c := range append(append(codegentest.MemberTermCases(), fixedTermCases()...), codegentest.MissingTermCases()...) {
 		g, err := parseTest(c.Src)
 		if err != nil {
 			t.Fatalf("%s: %v", c.Name, err)
@@ -803,7 +813,7 @@ func TestTermFixedReference(t *testing.T) {
 					end = len(in)
 				}
 				env := &ref.TermEnv{Captures: referenceCaptures(c.Captures(in), in, bytes), Bytes: bytes, Start: 0, End: end, Line: 1, Col: 1, Zeros: zeros}
-				checkReference(t, c, prog, term, env, unit, in)
+				checkReference(t, c, prog, term, env, unit, in, engine.Closure, engine.Bytecode, engine.BytecodeIterative)
 				checked++
 			}
 		}
@@ -825,8 +835,8 @@ func referenceCaptures(caps map[string]codegentest.Capture, in string, bytes boo
 	}
 	var node func(c codegentest.Capture) ref.V
 	node = func(c codegentest.Capture) ref.V {
-		if c.Shape == codegentest.ErrorCapture {
-			return ref.ErrorValue(offset(c.From), offset(c.To), false)
+		if c.Shape == codegentest.ErrorCapture || c.Shape == codegentest.MissingCapture {
+			return ref.ErrorValue(string(runes[c.From:c.To]), offset(c.From), offset(c.To), c.Shape == codegentest.MissingCapture)
 		}
 		shape := map[codegentest.CaptureShape]ref.Shape{codegentest.StringCapture: ref.StringNode, codegentest.TupleCapture: ref.TupleNode,
 			codegentest.ListCapture: ref.ListNode}

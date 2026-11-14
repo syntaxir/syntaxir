@@ -449,7 +449,7 @@ node or an error, and not a struct, a list value or a tuple value.`})
 	pure(&exec.Op{Name: "node.end", Params: []exec.Param{n}, Results: []exec.Type{datum},
 		Contract: `Returns the end of the range of n as an int.`, Requires: `node.isNode(n).`})
 	pure(&exec.Op{Name: "node.value", Params: []exec.Param{n}, Results: []exec.Type{datum},
-		Contract: `Returns the value of n: its text, or the value its node type holds.`, Requires: `node.isNode(n).`})
+		Contract: `Returns the value of n: its text, or the value its node type holds.`, Requires: `node.isNode(n), and n is not an error.`})
 	pure(&exec.Op{Name: "node.isStruct", Params: []exec.Param{n}, Results: []exec.Type{exec.TBool},
 		Contract: `Reports whether n is a value of a struct type.`})
 	pure(&exec.Op{Name: "node.field", Params: []exec.Param{n, nm}, Results: []exec.Type{datum, exec.TBool},
@@ -483,8 +483,8 @@ bounds the work charges for the box it makes.`,
 	pure(&exec.Op{Name: "node.count", Params: []exec.Param{n}, Results: []exec.Type{datum},
 		Contract: `Returns the number of elements or children of n as an int.`})
 	pure(&exec.Op{Name: "node.heldText", Params: []exec.Param{n}, Results: []exec.Type{exec.THandle(Str), exec.TBool},
-		Contract: `Returns the text that n holds and true if n is a string node or an error, and false otherwise; the
-text is then not meaningful.`})
+		Contract: `Returns the text that n holds and true if n is a string node or an error, and false otherwise. The
+text is meaningful only for a string node.`})
 	pure(&exec.Op{Name: "node.rangeText", Params: []exec.Param{n}, Results: []exec.Type{exec.THandle(Str)},
 		Host: true, NoReturn: true, Cost: exec.Cost{Const: 1, Terms: []exec.CostTerm{{Coef: 1, Quantity: QValueBytes}}},
 		Contract: `Returns the input of the range of n. A target that bounds the work may charge for the read of the

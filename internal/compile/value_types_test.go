@@ -184,9 +184,18 @@ func TestValueActionTypes(t *testing.T) {
 		{`rule a = x:"a"? => $x`, "a", `*node[string]`},
 		// .$y on a union needs every argument to capture y, and joins their capture types.
 		{"rule a = x:(b / c) => $x.$y\nrule b = y:\"b\" \"1\"\nrule c = y:d \"2\"\nrule d = \"d\"", "a", `node[string] | d`},
-		// A member that only some arguments of a union have is optional.
+		// A recovered value is a node with a range and no value: its .Value is nil, so on a union with one
+		// it is optional; len and text accept it.
 		{`rule a = x:"a" #missing => $x.Value`, "a", `*string`},
 		{`rule a = x:"a" #missing => $x.Start`, "a", `int`},
+		{`rule a = x:("a" #recover(skip="x")) => $x.Value`, "a", `*string`},
+		{`rule a = x:("a" #recover(skip="x")) => $x.(error).Value`, "a", `nil`},
+		{`rule a = x:("a" #recover(skip="x")) => $x.(missing).Value`, "a", `nil`},
+		{`rule a = x:("a" #recover(skip="x")) => $x.(error).End`, "a", `int`},
+		{`rule a = x:("a" #recover(skip="x")) => len($x)`, "a", `int`},
+		{`rule a = x:("a" #recover(skip="x")) => text($x)`, "a", `string`},
+		{`rule a = x:"a" #missing => text($x) + text($x.(missing))`, "a", `string`},
+		{`rule a = x:"a" #missing => len($x.(missing))`, "a", `int`},
 		// Indexing a tuple with a constant reads that element.
 		{"rule a = x:(b c) => $x.Value[1]\nrule b = \"b\"\nrule c = \"c\"", "a", `c`},
 		{"rule a = x:(b c) => $x.Value[0]\nrule b = \"b\"\nrule c = \"c\"", "a", `b`},

@@ -25,7 +25,7 @@ func typeOf(s string) grammar.TypeExpr {
 // Values and Constructors): error admits a skipped range and a missing token, missing only the token,
 // and _ every value; no other type does, node[_] among them.
 func TestErrorValueCast(t *testing.T) {
-	skipped, missing := ErrorValue(1, 3, false), ErrorValue(3, 3, true)
+	skipped, missing := ErrorValue("b;", 1, 3, false), ErrorValue("", 3, 3, true)
 	env := &TermEnv{Captures: map[string]V{"s": skipped, "m": missing, "n": Node(StringNode, "ab", 0, 2, nil, nil)},
 		Aliases: map[string]grammar.TypeExpr{"E": tref("error"), "M": &grammar.TypeGroup{Type: tref("missing")}}}
 	for _, c := range []struct {
@@ -53,10 +53,11 @@ func TestErrorValueCast(t *testing.T) {
 	}
 }
 
-// TestErrorValueTerms pins the other terms that the model gives an error value: it is not nil, and the list
-// built-ins take it as an empty list.
+// TestErrorValueTerms pins the other terms that the model gives an error value, a skipped range and a missing
+// token: it is not nil, it is a node with a range and no value, whose fields read nil, whose text is the input
+// of its range and whose length is that of nil, and the list built-ins take it as an empty list.
 func TestErrorValueTerms(t *testing.T) {
-	env := &TermEnv{Captures: map[string]V{"e": ErrorValue(1, 3, false)}}
+	env := &TermEnv{Captures: map[string]V{"e": ErrorValue("b;", 1, 3, false), "m": ErrorValue("", 3, 3, true)}}
 	for _, c := range []struct {
 		name string
 		term grammar.Term
@@ -68,29 +69,34 @@ func TestErrorValueTerms(t *testing.T) {
 		{"foldl(0, e)", fn("foldl", ilit(7), capt("e"), lam(param("a"), "a", "i")), "7"},
 		{"filter(e)", fn("filter", capt("e"), lam(&grammar.BoolLit{Value: true}, "i")), "[]"},
 		{"concat(e)", fn("concat", capt("e")), "[]"},
+		{"e.Start", mem(capt("e"), "Start"), "1"},
+		{"e.End", mem(capt("e"), "End"), "3"},
+		{"e.Value", mem(capt("e"), "Value"), "nil"},
+		{"e.F", mem(capt("e"), "F"), "nil"},
+		{"e.$y", mem(capt("e"), "$y"), "nil"},
+		{"len(e)", fn("len", capt("e")), "0"},
+		{"text(e)", fn("text", capt("e")), `"b;"`},
+		{"m.Start", mem(capt("m"), "Start"), "3"},
+		{"m.End", mem(capt("m"), "End"), "3"},
+		{"m.Value", mem(capt("m"), "Value"), "nil"},
+		{"len(m)", fn("len", capt("m")), "0"},
+		{"text(m)", fn("text", capt("m")), `""`},
 	} {
 		if v, msg := env.Eval(c.term); msg != "" || v.String() != c.want {
 			t.Errorf("%s = %v, %q; want %s", c.name, v, msg, c.want)
 		}
 	}
-	// A term that the specification leaves open for an error value is not modelled and does not give a value.
-	for name, term := range map[string]grammar.Term{
-		"e.Start": mem(capt("e"), "Start"), "len(e)": fn("len", capt("e")), "text(e)": fn("text", capt("e")),
-		"e == 1": bin("==", capt("e"), ilit(1)),
-	} {
-		func() {
-			defer func() {
-				r := recover()
-				if name == "e == 1" {
-					return // an invalid comparison is an evaluation error, which Eval reports
-				}
-				if s, _ := r.(string); !strings.Contains(s, "is not modelled") {
-					t.Errorf("%s: panic %v, want an unmodelled operation", name, r)
-				}
-			}()
-			if _, msg := env.Eval(term); name == "e == 1" && msg == "" {
-				t.Errorf("%s gives a value", name)
+	// An invalid comparison is an evaluation error, which Eval reports.
+	if v, msg := env.Eval(bin("==", capt("e"), ilit(1))); msg == "" {
+		t.Errorf("e == 1 gives %v", v)
+	}
+	// The string fields of a missing token are not held by the value, so reading one is not modelled.
+	func() {
+		defer func() {
+			if s, _ := recover().(string); !strings.Contains(s, "is not modelled") {
+				t.Errorf("m.expected: panic %q, want an unmodelled operation", s)
 			}
 		}()
-	}
+		env.Eval(mem(capt("m"), "expected"))
+	}()
 }

@@ -43,7 +43,7 @@ type V struct {
 	// Start and End are the range of a node, in the units of the input.
 	Start, End int
 	// Shape is the shape of a node: its value is the string S (the text of its range), or the tuple
-	// or the list of Items. S is the text of the range of every node.
+	// or the list of Items. S is the text of the range of every node and of an error value.
 	Shape Shape
 	// Caps are the captures of a node by name; a capture that did not match is absent and reads as nil.
 	// For a node of UnknownShape, a nil Caps means that its captures are unknown as well.
@@ -72,10 +72,10 @@ func Node(shape Shape, text string, start, end int, items []V, caps map[string]V
 	return V{Kind: KNode, Shape: shape, S: text, Start: start, End: end, Items: items, Caps: caps}
 }
 
-// ErrorValue returns an error value of recovery over the range [start, end) of the input: that of a missing
-// token if missing is set, whose range is empty.
-func ErrorValue(start, end int, missing bool) V {
-	return V{Kind: KError, Start: start, End: end, Missing: missing}
+// ErrorValue returns an error value of recovery over the range [start, end) of the input, whose text is
+// text: that of a missing token if missing is set, whose range and text are empty.
+func ErrorValue(text string, start, end int, missing bool) V {
+	return V{Kind: KError, S: text, Start: start, End: end, Missing: missing}
 }
 
 // nodeValue is the value of a node, .Value: its string, its tuple or its list of elements.

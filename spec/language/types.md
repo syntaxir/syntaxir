@@ -347,7 +347,7 @@ declared type of a rule, and so on) if any of the following holds:
 - `T` is a join type and `V` is assignable to one of its members.
 - `T` is `*U`, and `V` is `nil`, or `V` is `*W` with `W` assignable to `U`, or
   `V` is assignable to `U`.
-- `T` is `node[_]` and `V` is `node[W]` for any `W`: every node is a `node[_]`.
+- `T` is `node[_]` and `V` is `node[W]` for any `W`: every string, tuple or list node is a `node[_]`.
 - `T` is `node[U]` and `V` is `node[W]` with `W` assignable to `U`, whatever
   captures the node has.
 - `V` is a named node type `N` with underlying `node[W]`, and `T` is `node[U]` with `W` assignable to

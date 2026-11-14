@@ -103,14 +103,14 @@ A named node type is printed by its name, as `Num`, and `cannot convert X to N` 
 A cast tests a value as the value types describe it. `node[T]` takes
 a node whose value `T` takes, so `node[string]` takes a string node,
 `node[(A, B)]` a tuple node of two elements of types `A` and `B`, and
-`node[[]A]` a list node of elements of type `A`; `node[_]` takes every node; a
+`node[[]A]` a list node of elements of type `A`; `node[_]` takes every string, tuple or list node; a
 tuple Type takes a tuple value of as many elements; a list Type takes a list
 value, such as one an action builds, and not the node of a repetition, whose
 list is its `Value`; `[]_` and `[]any` take every list value; and an error
 value from recovery fits only a Type that admits `error`. A cast in a predicate that fails
 makes the predicate fail.
 
-The argument of `len` and `text` MUST be a string or a node (possibly `nil`);
+The argument of `len` and `text` MUST be a string, a node or a recovered value (possibly `nil`);
 the list arguments of `foldl`, `foldr`, `map` and `concat` MUST be lists, and
 an error value (from [error recovery](pragmas.md#recover)) counts as an empty list.
 A function (`(acc, item) => ...`) can appear only as an argument of `foldl`,

@@ -208,7 +208,8 @@ evaluated:
 - a struct Type admits only values of that Type;
 - `node[T]` admits a node whose value `T` admits: `node[string]` every string
   node, `node[(A, B)]` a tuple node of two elements and `node[[]A]` a list
-  node; `node[_]` admits every node, including every named node type;
+  node; `node[_]` admits every string, tuple or list node, including every named node type, and no
+  recovered value, which has no value;
 - a named node type `N` admits only a node whose run-time type name is `N`.
 - `(A, B, ...)` admits a tuple value of as many elements, each admitted by its
   Type;
@@ -257,13 +258,16 @@ below; naming another field is a compile-time error. Accessing a field on `nil` 
 runtime error; an explicitly optional receiver type is rejected by type checking.
 
 The built-in members `.Start`, `.End` and `.Value` are available on every node
-that has a range, that is, a string, tuple or list node, and on a named node type, which has the members of its
-underlying `node[U]`. The built-in functions `len` and `text` accept a named node type as they accept its
-underlying node type. `.Start` and `.End` are
+that has a range, that is, a string, tuple or list node, a recovered value (`error` or `missing`), and a named
+node type, which has the members of its underlying `node[U]`. The built-in functions `len` and `text` accept a
+named node type as they accept its underlying node type. `.Start` and `.End` are
 the `int` range of the node in the parse's selected position unit. `.Value` is the
 value of the node, of type `T` for a `node[T]`: the string of a string node, the
 tuple of elements of a tuple node and the list of elements of a list node, as in
-`$xs.Value[0]`; an element is a value or `nil`. A struct value
+`$xs.Value[0]`; an element is a value or `nil`. A recovered value has a range and no value: `.Start` and
+`.End` are the range that the recovery skipped, or the empty range where a `missing` token was inserted, and
+`.Value` reads as `nil`. So `.Value` of `error` has type `nil`, and on a join with a recovered
+value among the members it is optional: `.Value` of `node[string] | error` has type `*string`. A struct value
 has no range members: `.Start` on a struct is a compile-time error.
 
 `x.$y` reads capture `y` of node `x`, such as an element of a repetition
@@ -408,10 +412,11 @@ cast it first, as in `$n.([]_)`.
 
 #### `len`
 
-`len(x)` accepts a string, node or `nil` and returns `int`. For a string, it
+`len(x)` accepts a string, node, recovered value or `nil` and returns `int`. For a string, it
 returns the length in the selected position unit. For a string node, it
 returns the length of matched text in that unit. For a tuple or list node or a
-list value, it returns the number of elements. For `nil`, it returns `0`.
+list value, it returns the number of elements. For `nil`, it returns `0`, and so it does for a recovered
+value, which has no value.
 
 The length of a node takes constant time: the matched text of a string node is
 the input of its range, so its length is the end of the range minus its start,
@@ -422,10 +427,11 @@ strings are UTF-16. In bytes in Go, it takes constant time.
 
 #### `text`
 
-`text(x)` accepts a string, node or `nil` and returns `string`. It returns a
+`text(x)` accepts a string, node, recovered value or `nil` and returns `string`. It returns a
 string argument unchanged, returns `""` for `nil`, returns a string node's
 matched text, and returns the input text covered by the range of a tuple or list
-node. A list value and a struct have no range and are rejected as arguments.
+node or of a recovered value: the input that the recovery skipped, and `""` for a `missing` token, whose range
+is empty. A list value and a struct have no range and are rejected as arguments.
 The text of a node denotes a range of the input and costs a constant, except in
 a stream, where it costs its length (see [Cost](../runtime/parsing.md#cost)).
 
