@@ -846,7 +846,12 @@ type TParser struct {
 	memoIndexBytes uint64
 	// TypedDocument is set only by typed Document parses (TypedDocumentParse).
 	TypedDocument *typedDocumentState
-	free          [8][]*TCaptureFrame // frames freed by FreeFrame, by size
+	// memoExamined holds the end of the input that the call of each memo entry examined, recorded in a
+	// parse that tracks it (Parser.track) outside a typed Document, which keeps its record beside the
+	// entry too (typedDocumentMeta). The entries leave it out, so that a parse that tracks nothing
+	// allocates nothing for it. An entry is read only after the parse that stores it records it here.
+	memoExamined map[*tmemoEntry]int
+	free         [8][]*TCaptureFrame // frames freed by FreeFrame, by size
 	// cutFailed reports that a candidate of the last longest failed after a cut. It is last, so
 	// that it moves no other field.
 	cutFailed bool
@@ -992,16 +997,20 @@ type tmemoEntry struct {
 	env      []any
 	end      int
 	far      int
-	// examined is the end of the input that the call examined, recorded in a parse that tracks it
-	// (Parser.track) outside a typed Document, which keeps its record beside the entry
-	// (typedDocumentMeta).
-	examined int
 	rule     int32
 	min      int32
 	ok       bool
 	silent   bool
 	present  uint32 // as in memoEntry
 	seen     uint32 // as in memoEntry
+}
+
+// examine records the examined end of the memo entry e (memoExamined).
+func (p *TParser) examine(e *tmemoEntry, end int) {
+	if p.memoExamined == nil {
+		p.memoExamined = make(map[*tmemoEntry]int)
+	}
+	p.memoExamined[e] = end
 }
 
 func (p *TParser) memoGet(rule, pos, min int, env []any, docOnly bool) *tmemoEntry {

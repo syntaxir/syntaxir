@@ -489,6 +489,9 @@ func goTarget(s goSpec) *gogen.Target {
 			if s.docMeta {
 				return "p.TypedDocument.meta[" + a[0] + "].examined"
 			}
+			if typed {
+				return "p.memoExamined[" + a[0] + "]"
+			}
 			return a[0] + ".examined"
 		case "doc.evaluated":
 			return "p.Document.stats.Evaluated++"
@@ -501,8 +504,9 @@ func goTarget(s goSpec) *gogen.Target {
 				return "p.TypedDocument.meta[" + a[0] + "] = typedDocumentMeta{examined: " + a[2] + ", recorded: true, before: " + a[1] + "}"
 			}
 			if typed {
-				// Outside a Document the entry keeps only the end (typedTrack records no start).
-				return a[0] + ".examined = " + a[2]
+				// Outside a Document the parser keeps only the end, beside the entry (typedTrack records no
+				// start).
+				return "p.examine(" + a[0] + ", " + a[2] + ")"
 			}
 			return fmt.Sprintf("%s.examined, %s.from, %s.pinned = %s, examinedFromOf(%s), false", a[0], a[0], a[0], a[2], a[1])
 		case "call.body":

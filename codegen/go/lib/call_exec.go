@@ -307,7 +307,7 @@ func (p *TParser) callBody(r *TRule, min int) (any, bool) {
 	if found && c.memoAllows(e.present) && (!e.silent || p.Silent > 0) {
 		p.Observation.memoHit()
 		if p.track {
-			p.documentTouch(e.examined)
+			p.documentTouch(p.memoExamined[e])
 		}
 		p.MergeExpected(e.far, e.expected)
 		if !e.ok {
@@ -348,7 +348,7 @@ func (p *TParser) callBody(r *TRule, min int) (any, bool) {
 		entry.present = c.present
 		entry.far, entry.expected = far, kept
 		if p.track {
-			entry.examined = p.docExamined
+			p.examine(entry, p.docExamined)
 		}
 	} else if store == storeCtx {
 		p.ctxKeep(&c, r.Id, start, min, env, &ctxResult{val: v, ok: ok, end: p.Pos, examined: p.examinedNow(), silent: p.Silent > 0, errs: p.recSince(rec), far: far, expected: kept})
@@ -391,7 +391,7 @@ func (p *TParser) CallMemo(r *TRule, inv func(*TParser) (any, bool)) (any, bool)
 	if found && c.memoAllows(e.present) && (!e.silent || p.Silent > 0) {
 		p.Observation.memoHit()
 		if p.track {
-			p.documentTouch(e.examined)
+			p.documentTouch(p.memoExamined[e])
 		}
 		p.MergeExpected(e.far, e.expected)
 		if !e.ok {
@@ -432,7 +432,7 @@ func (p *TParser) CallMemo(r *TRule, inv func(*TParser) (any, bool)) (any, bool)
 		entry.present = c.present
 		entry.far, entry.expected = far, kept
 		if p.track {
-			entry.examined = p.docExamined
+			p.examine(entry, p.docExamined)
 		}
 	} else if store == storeCtx {
 		p.ctxKeep(&c, r.Id, start, 0, env, &ctxResult{val: v, ok: ok, end: p.Pos, examined: p.examinedNow(), silent: p.Silent > 0, errs: p.recSince(rec), far: far, expected: kept})
