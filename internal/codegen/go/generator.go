@@ -1,6 +1,7 @@
 package gogen
 
 import (
+	"cmp"
 	"fmt"
 	"go/format"
 	"go/token"
@@ -189,7 +190,7 @@ func generateOnce(g *grammar.Grammar, c codegen.Compiler, opts codegen.GenOption
 			return nil, fmt.Errorf("stream generation needs a #stream repetition at the top level of the start rule %s", start.Name)
 		}
 	}
-	genGo := &Generator{typedOnly: (opts.TypedOnly || opts.RecognizeOnly) && !opts.KeepNodes, Observability: opts.Observability, Document: opts.Document, NoBudget: !opts.LimitControls, Ordinary: !opts.LimitControls && !opts.Document, Prog: prog, Table: "rules", Opt: settings, CoreRun: h.CoreRun, FlowRun: h.FlowRun, ExecRun: h.ExecRun, PrintAfter: printAfter, PrintTo: opts.PrintTo, VerifyEach: opts.VerifyEachPass, hooks: *h, live: live, collect: collect, keepTableRules: (opts.TypedOnly || opts.RecognizeOnly) && !opts.KeepNodes}
+	genGo := &Generator{typedOnly: (opts.TypedOnly || opts.RecognizeOnly) && !opts.KeepNodes, Document: opts.Document, NoBudget: !opts.LimitControls, Ordinary: !opts.LimitControls && !opts.Document, Prog: prog, Table: "rules", Opt: settings, CoreRun: h.CoreRun, FlowRun: h.FlowRun, ExecRun: h.ExecRun, PrintAfter: printAfter, PrintTo: opts.PrintTo, VerifyEach: opts.VerifyEachPass, hooks: *h, live: live, collect: collect, keepTableRules: (opts.TypedOnly || opts.RecognizeOnly) && !opts.KeepNodes}
 	if live != nil {
 		genGo.SeedDescs()
 		for _, d := range live.descs[len(genGo.Descs):] {
@@ -368,6 +369,14 @@ func ParseRule(name, input string, opts ...ParseOption) (*Node, error) {
 		// which a typed-only parser writes only after its typed code.
 		genGo.Init.WriteString("\tzpRecGrammar.Share(zpGrammar)\n")
 	}
+	// The bodies above are those of a parser without observability; an observed parse runs the
+	// traced copies of the tables, generated last.
+	var tracedInit string
+	if opts.Observability {
+		if tracedInit, err = genGo.tracedTables(prog, rec); err != nil {
+			return nil, err
+		}
+	}
 	if err := genGo.finishReach(prog, rec); err != nil {
 		return nil, err
 	}
@@ -375,6 +384,10 @@ func ParseRule(name, input string, opts ...ParseOption) (*Node, error) {
 	out.WriteString("\nfunc init() {\n")
 	out.WriteString(genGo.Init.String())
 	out.WriteString("}\n\n")
+	if tracedInit != "" {
+		// After the init function above, which builds the tables that the traced copies copy.
+		out.WriteString("func init() {\n" + tracedInit + "}\n\n")
+	}
 	out.WriteString(genGo.Methods.String())
 	whole, err := format.Source([]byte("package " + opts.Package + "\n" + out.String()))
 	if err != nil {
@@ -507,6 +520,8 @@ type Generator struct {
 	typedEntry map[int]bool
 	bodySet    map[ruleKey]bool
 	reachErr   error
+	// typedTable reports that the typed rule table is generated.
+	typedTable bool
 }
 
 func (g *Generator) literal(value string) string {
@@ -620,7 +635,7 @@ func (g *Generator) rules() {
 			// for one whose types it cannot name; such a rule takes its framed body below and is called through
 			// the rule table (plainCall).
 			if d := g.flowRecRule(r); d != nil {
-				if g.hooks.LeanRoute != nil && g.collect == nil {
+				if g.hooks.LeanRoute != nil && g.collect == nil && !g.Traced {
 					g.hooks.LeanRoute(g.Table, r)
 				}
 				flats[r] = d
@@ -633,7 +648,7 @@ func (g *Generator) rules() {
 		if _, ok := r.Def.Expr.(*grammar.OperatorsRule); !ok {
 			if g.Table != "trules" {
 				if body := g.flowNodeFrameBody(r, s); body != "" {
-					if g.hooks.FramedRoute != nil && g.collect == nil {
+					if g.hooks.FramedRoute != nil && g.collect == nil && !g.Traced {
 						g.hooks.FramedRoute(g.Table, r)
 					}
 					bodies[r] = body
@@ -654,13 +669,22 @@ func (g *Generator) rules() {
 			g.collect.scopes[ruleKey{g.Table, r.ID, false}] = append([]string(nil), scopes[r].Names...)
 		}
 	}
-	if g.Table == "rules" {
+	if g.Table == "rules" && !g.Traced {
 		g.NodeScopes = make(map[*compile.Rule][]string, len(all))
 		for _, r := range all {
 			g.NodeScopes[r] = append([]string(nil), scopes[r].Names...)
 		}
 	}
-	if g.Table == "trules" {
+	if g.Traced {
+		// The traced copy of the table: the same rows with the traced bodies, which the init function
+		// that follows the one that builds the table sets.
+		copyOf := "TraceRules"
+		if g.Table == "trules" {
+			copyOf = "TraceTRules"
+		}
+		fmt.Fprintf(init, "\t%s = %s(%s)\n", g.tableVar(), copyOf, g.Table)
+		fmt.Fprintf(&g.Methods, "// %s is the traced copy of %s, which an observed parse runs.\nvar %[1]s []*%[3]s\n\n", g.tableVar(), g.Table, g.pick("Rule", "TRule"))
+	} else if g.Table == "trules" {
 		// The typed rules share the analysis results of the rules.
 		init.WriteString("\ttrules = NewTRules(rules)\n\tdefer tinit()\n")
 		g.Methods.WriteString("// trules is the typed rule table.\nvar trules []*TRule\n\n")
@@ -770,8 +794,8 @@ func (g *Generator) rules() {
 		if pr, ok := r.Def.Expr.(*grammar.OperatorsRule); ok {
 			g.Cur = r
 			g.operatorsRule(r, pr)
-			if r.Action != nil && !r.Novalue {
-				// The whole-rule action, which the library runs on the folded value after each call.
+			if r.Action != nil && !r.Novalue && !g.Traced {
+				// The whole-rule action (a traced copy has it from its row), which the library runs on the folded value after each call.
 				if g.Table == "trules" {
 				}
 				locals := map[string]string{compile.OperatorsRuleValue: "c.Value"}
@@ -784,10 +808,12 @@ func (g *Generator) rules() {
 			continue
 		}
 		if g.slotReached(r) {
-			fmt.Fprintf(init, "\t%s[%d].Body = %s\n", g.Table, r.ID, bodies[r])
+			fmt.Fprintf(init, "\t%s[%d].Body = %s\n", g.tableVar(), r.ID, bodies[r])
 			g.printedBody(r)
 		}
-		if r.Action != nil && g.Table == "trules" {
+		if g.Traced {
+			// A traced copy has the action of its row.
+		} else if r.Action != nil && g.Table == "trules" {
 			// A function of its own, which typedCall calls directly.
 			g.Proj = g.Projections(r)
 			fmt.Fprintf(&g.Methods, "// The action of %s.\nfunc ta%d(c *TActCtx) (any, any) { %s }\n\n", r.Name, r.ID, g.actionBody(g.CoreAction(r), scopes[r], nil))
@@ -803,7 +829,7 @@ func (g *Generator) rules() {
 		} else if r.Plain {
 			start := g.Methods.Len()
 			if d := flats[r]; d != nil {
-				g.flatMethod(r, d, fmt.Sprintf("%s%d", g.plainPrefix(), r.ID), "called as by invokePlain", true)
+				g.flatMethod(r, d, g.ruleFunc(g.plainPrefix(), r.ID), "called as by invokePlain", true)
 			} else {
 				g.plainCall(r, bodies[r])
 			}
@@ -817,7 +843,7 @@ func (g *Generator) rules() {
 		s := compile.NewScope()
 		body := g.flowStreamBody(r, s)
 		if body != "" {
-			if g.hooks.StreamRoute != nil && g.collect == nil {
+			if g.hooks.StreamRoute != nil && g.collect == nil && !g.Traced {
 				g.hooks.StreamRoute(g.Table, r)
 			}
 		} else {
@@ -827,12 +853,17 @@ func (g *Generator) rules() {
 			// The copied action addresses captures by the batch body's slots.
 			g.streamErr = fmt.Errorf("internal error: the stream body of %s has a different capture layout", r.Name)
 		}
-		fmt.Fprintf(init, "\tstreamRule = new(Rule)\n\t*streamRule = *rules[%d]\n\tstreamRule.Scope = %s\n\tstreamRule.Body = %s\n", r.ID, goStrings(s.Names), body)
-		g.Methods.WriteString("// streamRule is the start rule of ParseStream.\nvar streamRule *Rule\n\n")
+		if g.Traced {
+			fmt.Fprintf(init, "\tstreamRuleTraced = TraceRule(streamRule)\n\tstreamRuleTraced.Body = %s\n", body)
+			g.Methods.WriteString("// streamRuleTraced is the traced copy of streamRule, which an observed parse runs.\nvar streamRuleTraced *Rule\n\n")
+		} else {
+			fmt.Fprintf(init, "\tstreamRule = new(Rule)\n\t*streamRule = *rules[%d]\n\tstreamRule.Scope = %s\n\tstreamRule.Body = %s\n", r.ID, goStrings(s.Names), body)
+			g.Methods.WriteString("// streamRule is the start rule of ParseStream.\nvar streamRule *Rule\n\n")
+		}
 	}
 	g.dropUnusedWrappers()
-	if g.Table != "rules" {
-		return // the recognizer shares the struct fields
+	if g.Table != "rules" || g.Traced {
+		return // the recognizer and the traced copy share the struct fields
 	}
 	// Struct fields, used to detect references to undeclared fields at run time and to read the
 	// fields that a constructor left unset.
@@ -923,13 +954,13 @@ func (g *Generator) typedCall(r *compile.Rule, body string, s *compile.Scope, d 
 		return // the general call
 	}
 	m := &g.Methods
-	entry := fmt.Sprintf("u%d", r.ID)
+	entry := g.ruleFunc("u", r.ID)
 	if r.Plain {
-		entry = fmt.Sprintf("s%d", r.ID)
+		entry = g.ruleFunc("s", r.ID)
 	}
 	if g.typedEntry[r.ID] {
 		// Only a typed entry point runs an Entry; every other call names the function.
-		fmt.Fprintf(&g.Init, "\ttrules[%d].Entry = %s\n", r.ID, entry)
+		fmt.Fprintf(&g.Init, "\t%s[%d].Entry = %s\n", g.tableVar(), r.ID, entry)
 	}
 	ncaps := len(s.Names)
 	if d != nil {
@@ -977,19 +1008,20 @@ func (g *Generator) typedCall(r *compile.Rule, body string, s *compile.Scope, d 
 	}
 	if r.Plain {
 		if g.directTypedDocument {
-			name := fmt.Sprintf("s%d", r.ID)
+			name := g.ruleFunc("s", r.ID)
 			if g.Observability {
 				name = g.traceCallWrapper(r, name, false)
 			}
-			fmt.Fprintf(m, "func %s(p *TParser) (any, bool) {\n if p.TypedDocument != nil { return p.DocumentCall(trules[%d], 0, ds%d) }; return ds%d(p)\n}\n", name, r.ID, r.ID, r.ID)
-			plain(fmt.Sprintf("ds%d", r.ID))
+			ds := g.ruleFunc("ds", r.ID)
+			fmt.Fprintf(m, "func %s(p *TParser) (any, bool) {\n if p.TypedDocument != nil { return p.DocumentCall(trules[%d], 0, %s) }; return %[3]s(p)\n}\n", name, r.ID, ds)
+			plain(ds)
 			return
 		}
-		plain(fmt.Sprintf("s%d", r.ID))
+		plain(g.ruleFunc("s", r.ID))
 		return
 	}
 	// u<id>: the call. An unmemoized call of a rule without captures is plain.
-	name := fmt.Sprintf("u%d", r.ID)
+	name := g.ruleFunc("u", r.ID)
 	if g.Observability {
 		name = g.traceCallWrapper(r, name, false)
 	}
@@ -999,9 +1031,9 @@ func (g *Generator) typedCall(r *compile.Rule, body string, s *compile.Scope, d 
 	// harmlessly, so one body serves both. A Document records the exact end of the input the body
 	// examined, which does not depend on the position a failed invocation leaves.
 	merged := d != nil && ncaps == 0
-	iname := fmt.Sprintf("i%d", r.ID)
+	iname := g.ruleFunc("i", r.ID)
 	if merged {
-		iname = fmt.Sprintf("v%d", r.ID)
+		iname = g.ruleFunc("v", r.ID)
 	}
 	if g.directTypedDocument {
 		fmt.Fprintf(m, " if p.TypedDocument != nil { return p.DocumentCall(trules[%d], 0, %s) }\n", r.ID, iname)
@@ -1011,20 +1043,20 @@ func (g *Generator) typedCall(r *compile.Rule, body string, s *compile.Scope, d 
 		fmt.Fprintf(m, "\tif !p.FirstCall(rules[%d]) {\n\t\treturn p.CallMemo(trules[%d], %s)\n\t}\n", r.ID, r.ID, iname)
 	}
 	if ncaps == 0 {
-		fmt.Fprintf(m, "\treturn v%d(p)\n}\n\n", r.ID)
-		plain(fmt.Sprintf("v%d", r.ID))
+		fmt.Fprintf(m, "\treturn %s(p)\n}\n\n", g.ruleFunc("v", r.ID))
+		plain(g.ruleFunc("v", r.ID))
 	} else {
-		fmt.Fprintf(m, "\t%s := %s\n\tv, ok := i%d(p)\n\tif !ok {\n\t\t%s\n\t}\n\treturn v, ok\n}\n\n", g.saveRec(""), g.saveRecValues(""), r.ID, g.restoreRec("start", "rec"))
+		fmt.Fprintf(m, "\t%s := %s\n\tv, ok := %s(p)\n\tif !ok {\n\t\t%s\n\t}\n\treturn v, ok\n}\n\n", g.saveRec(""), g.saveRecValues(""), g.ruleFunc("i", r.ID), g.restoreRec("start", "rec"))
 	}
 	// i<id>: the invocation (also used by the memo).
 	if merged {
 		return // v<id>
 	}
 	if d != nil {
-		g.flatMethod(r, d, fmt.Sprintf("i%d", r.ID), "invoked as by invoke", false)
+		g.flatMethod(r, d, g.ruleFunc("i", r.ID), "invoked as by invoke", false)
 		return
 	}
-	fmt.Fprintf(m, "// %s, invoked as by invoke\nfunc i%d(p *TParser) (any, bool) {\n", r.Name, r.ID)
+	fmt.Fprintf(m, "// %s, invoked as by invoke\nfunc %s(p *TParser) (any, bool) {\n", r.Name, g.ruleFunc("i", r.ID))
 	fmt.Fprintf(m, "\tf := p.NewFrame(%d)\n\tprevFrame, prevEnv, prevCut, trail := p.Frame, p.Env, p.Cut, len(p.Trail)\n\tp.Frame, p.Cut = f, false\n%s\tstart := p.Pos\n\t_ = start\n", len(s.Names), enterRec(r))
 	if g.Observability {
 		m.WriteString("p.Observation.Evaluated()\n")
@@ -1032,6 +1064,47 @@ func (g *Generator) typedCall(r *compile.Rule, body string, s *compile.Scope, d 
 	fmt.Fprintf(m, "\tv, ok := %s(p, 0)\n%s\tp.Frame, p.Cut = prevFrame, prevCut\n\tp.DropTrail(trail)\n\tif ok {\n", body, leaveRec(r))
 	finish("f")
 	m.WriteString("\t}\n\tp.Env = prevEnv\n\tp.FreeFrame(f)\n\treturn v, ok\n}\n\n")
+}
+
+// tracedTables prints the traced copies of the rule tables that the generator printed (Traced), which an
+// observed parse runs, and returns the statements of the init function that makes them. It runs after
+// the tables, whose bodies stay those of a parser without observability.
+func (g *Generator) tracedTables(prog, rec *compile.Program) (string, error) {
+	init, descs, ordinary := g.Init.String(), len(g.Descs), g.Ordinary
+	g.Init.Reset()
+	g.Traced, g.Observability, g.Ordinary = true, true, false
+	defer func() { g.Traced, g.Observability, g.Ordinary = false, false, ordinary }()
+	pass := func(p *compile.Program, table string, start func() error) error {
+		g.Prog, g.Table, g.plainCalled = p, table, nil
+		defer func() { g.Prog, g.Table, g.Flow = prog, "rules", nil }()
+		if err := start(); err != nil {
+			return err
+		}
+		g.rules()
+		return cmp.Or(g.streamErr, g.tableErr, g.FlowErr)
+	}
+	if !g.typedOnly {
+		if err := pass(prog, "rules", func() error { return g.StartRecFlow(prog) }); err != nil {
+			return "", err
+		}
+	}
+	if rec != nil {
+		if err := pass(rec, "recRules", func() error { return g.StartRecFlow(rec) }); err != nil {
+			return "", err
+		}
+	}
+	if g.typedTable {
+		if err := pass(prog, "trules", g.startFlow); err != nil {
+			return "", err
+		}
+	}
+	if len(g.Descs) != descs {
+		return "", fmt.Errorf("internal error: the traced bodies record expectations that the rule tables do not")
+	}
+	traced := g.Init.String()
+	g.Init.Reset()
+	g.Init.WriteString(init)
+	return traced, nil
 }
 
 // wrapperSpan is the span [start, end) of the methods of a plain rule's wrapper in generator.methods.
@@ -1070,6 +1143,16 @@ func (g *Generator) plainPrefix() string {
 		return "s"
 	}
 	return "q"
+}
+
+// tableVar is the variable of the rule table being generated: the table of the kind Table, or its
+// traced copy in the traced pass.
+func (g *Generator) tableVar() string { return g.Table + g.TracedSuffix() }
+
+// ruleFunc names the generated function prefix<id> of the rule id, with the suffix of the traced
+// pass (TracedSuffix), which prints a copy of each function for observed parses.
+func (g *Generator) ruleFunc(prefix string, id int) string {
+	return prefix + strconv.Itoa(id) + g.TracedSuffix()
 }
 
 // pick returns untyped for the Node library and typed for the typed library (trules).
@@ -1161,7 +1244,7 @@ func shaperLit(prog *compile.Program, e grammar.Expr) string {
 // plainCall writes the method r<id>, which does what invokePlain does for the rule r (a rule never
 // memoized and without captures) with a direct call of its body.
 func (g *Generator) plainCall(r *compile.Rule, body string) {
-	name := fmt.Sprintf("%s%d", g.plainPrefix(), r.ID)
+	name := g.ruleFunc(g.plainPrefix(), r.ID)
 	if g.Observability {
 		name = g.tracePlainWrapper(r, name)
 	}
@@ -1175,7 +1258,7 @@ func (g *Generator) plainCall(r *compile.Rule, body string) {
 	if r.Novalue {
 		g.Methods.WriteString("\t\tv = nil\n")
 	} else {
-		fmt.Fprintf(&g.Methods, "\t\tv = p.Finish(%s[%d], %s, v, start)\n", g.Table, r.ID, g.frameVar())
+		fmt.Fprintf(&g.Methods, "\t\tv = p.Finish(%s[%d], %s, v, start)\n", g.tableVar(), r.ID, g.frameVar())
 	}
 	g.Methods.WriteString("\t} else {\n\t\t" + g.restoreRec("start", "rec") + "\n\t}\n")
 	g.Methods.WriteString(`	p.Env = prevEnv
@@ -1291,7 +1374,7 @@ func classReject(e *grammar.CharClass) string {
 
 func (g *Generator) operatorsRule(r *compile.Rule, e *grammar.OperatorsRule) {
 	var b strings.Builder
-	fmt.Fprintf(&b, "\t%s[%d].OperatorsRule = &%s{\n", g.Table, r.ID, g.pick("OperatorsRule", "TOperatorsRule"))
+	fmt.Fprintf(&b, "\t%s[%d].OperatorsRule = &%s{\n", g.tableVar(), r.ID, g.pick("OperatorsRule", "TOperatorsRule"))
 	// The lines of the rule's Core IR, in the order of e, if they are printed from Flow IR.
 	co := g.flowOperatorsRule(r)
 	if e.Skip != nil {
@@ -1336,7 +1419,7 @@ func (g *Generator) operatorsRule(r *compile.Rule, e *grammar.OperatorsRule) {
 	fmt.Fprintf(&b, "\t\tPrefix: []*%s{%s},\n", op, strings.Join(prefix, ",\n"))
 	fmt.Fprintf(&b, "\t\tLed: []*%s{%s},\n", op, strings.Join(led, ",\n"))
 	b.WriteString("\t}\n")
-	fmt.Fprintf(&b, "\t%s[%d].Body = func(p *%s, min int) (%s, bool) { return p.OperatorsRuleParse(%s[%d], min) }\n", g.Table, r.ID, g.recv(), g.valType(), g.Table, r.ID)
+	fmt.Fprintf(&b, "\t%s[%d].Body = func(p *%s, min int) (%s, bool) { return p.OperatorsRuleParse(%s[%d], min) }\n", g.tableVar(), r.ID, g.recv(), g.valType(), g.tableVar(), r.ID)
 	g.printedBody(r)
 	g.Init.WriteString(b.String())
 }
@@ -1380,9 +1463,9 @@ func (g *Generator) ruleCall(r *compile.Rule, min int) string {
 	case g.Document && g.Table == "rules":
 		// Document parses route every call through call, which memoizes per rule.docMemo,
 		// including otherwise plain rules.
-		return fmt.Sprintf("p.Call(%s[%d], %d)", g.Table, r.ID, min)
+		return fmt.Sprintf("p.Call(%s[%d], %d)", g.tableVar(), r.ID, min)
 	case g.directTypedDocument && g.Table == "trules" && operatorsRule:
-		return fmt.Sprintf("p.Call(%s[%d], %d)", g.Table, r.ID, min)
+		return fmt.Sprintf("p.Call(%s[%d], %d)", g.tableVar(), r.ID, min)
 	case r.Plain && !operatorsRule:
 		// Never memoized and without captures: call does nothing but invokePlain, which a
 		// method of its own does with a direct call of the body (see plainCalls).
@@ -1390,14 +1473,14 @@ func (g *Generator) ruleCall(r *compile.Rule, min int) string {
 			g.plainCalled = map[*compile.Rule]bool{}
 		}
 		g.plainCalled[r] = true
-		return fmt.Sprintf("%s%d(p)", g.plainPrefix(), r.ID)
+		return g.ruleFunc(g.plainPrefix(), r.ID) + "(p)"
 	case g.Table == "trules" && !operatorsRule && !r.Leader:
 		// The typed library calls a method of the rule's own (typedCall).
-		return fmt.Sprintf("u%d(p)", r.ID)
+		return g.ruleFunc("u", r.ID) + "(p)"
 	case r.Plain:
-		return fmt.Sprintf("p.InvokePlain(%s[%d], %d)", g.Table, r.ID, min)
+		return fmt.Sprintf("p.InvokePlain(%s[%d], %d)", g.tableVar(), r.ID, min)
 	}
-	return fmt.Sprintf("p.Call(%s[%d], %d)", g.Table, r.ID, min)
+	return fmt.Sprintf("p.Call(%s[%d], %d)", g.tableVar(), r.ID, min)
 }
 
 // ControlledClassReject preserves the compact inactive condition while bounded
@@ -1449,7 +1532,17 @@ func (g *Generator) helper(name string) string {
 	if g.Ordinary && ordinaryHelperName(name) {
 		return name + "Ordinary"
 	}
+	if g.tracedRead(name) {
+		return name + "Traced"
+	}
 	return name
+}
+
+// tracedRead reports whether a traced body calls the traced form of the read name: the Node
+// rules, which a stream parse runs, read a stream through it so that only an observed parse
+// records the examined end of a stream read.
+func (g *Generator) tracedRead(name string) bool {
+	return g.Traced && g.Table == "rules" && tracedHelperName(name)
 }
 
 // leanTyped reports whether typed rule bodies are emitted in their ordinary form only.

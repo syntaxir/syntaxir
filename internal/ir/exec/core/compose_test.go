@@ -305,7 +305,7 @@ func (m *machine) Call(o *exec.Op, args []any) []any {
 		m.events = append(m.events, fmt.Sprintf("enter %d at %d level %d", args[0].(*trule).id, args[1], args[2]))
 		return nil
 	case "obs.exit":
-		m.events = append(m.events, fmt.Sprintf("exit %v at %d examined %d %v", args[0], args[1], args[2], args[3]))
+		m.events = append(m.events, fmt.Sprintf("exit %v at %d examined %d", args[0], args[1], args[2]))
 		return nil
 	case "doc.examinedBegin":
 		h := m.examinedEnd
@@ -314,7 +314,7 @@ func (m *machine) Call(o *exec.Op, args []any) []any {
 	case "doc.examinedEnd":
 		x := m.examinedEnd
 		m.examinedEnd = max(args[0].(int64), x)
-		return []any{x, true}
+		return []any{x}
 	case "doc.enter":
 		h, l := m.examinedEnd, m.low
 		m.examinedEnd, m.low = args[0].(int64), args[0].(int64)
@@ -341,6 +341,8 @@ func (m *machine) Call(o *exec.Op, args []any) []any {
 		return []any{m.obsActive}
 	case "doc.active":
 		return []any{m.docActive}
+	case "doc.tracking":
+		return []any{m.docActive || m.obsActive}
 	case "doc.touch":
 		m.examinedEnd = max(m.examinedEnd, args[0].(int64))
 		return nil
@@ -769,7 +771,7 @@ func TestObserved(t *testing.T) {
 			if got != ok || (ok && v != "v") || r.runs != 1 {
 				t.Errorf("%v %v after %d evaluations, want the body's result after one", v, got, r.runs)
 			}
-			want := []string{"enter 2 at 3 level 0", "body", fmt.Sprintf("exit %v at 5 examined 9 true", ok)}
+			want := []string{"enter 2 at 3 level 0", "body", fmt.Sprintf("exit %v at 5 examined 9", ok)}
 			if !slices.Equal(m.events, want) {
 				t.Errorf("observed %q, want %q", m.events, want)
 			}

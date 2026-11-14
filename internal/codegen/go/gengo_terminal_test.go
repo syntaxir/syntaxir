@@ -146,7 +146,9 @@ func TestTerminalProgramEligibility(t *testing.T) {
 		{"captured", "rule main = x:" + choice16 + " $$ => $x\n", codegen.GenOptions{}, false},
 		{"too few leaves", "rule main = -" + choice15 + " $$\n", codegen.GenOptions{}, false},
 		{"no choice", "rule main = -(" + seq16 + ") $$\n", codegen.GenOptions{}, false},
-		{"observability", "rule main = -" + choice16 + " $$\n", codegen.GenOptions{Observability: true}, false},
+		// The untraced bodies are those of the build without observability; the traced bodies, which
+		// record every read, hold none (checked below).
+		{"observability", "rule main = -" + choice16 + " $$\n", codegen.GenOptions{Observability: true}, true},
 		{"budget controls", "rule main = -" + choice16 + " $$\n", codegen.GenOptions{LimitControls: true}, false},
 		{"document", "rule main = -" + choice16 + " $$\n", codegen.GenOptions{Document: true}, false},
 		{"disabled", "rule main = -" + choice16 + " $$\n", codegen.GenOptions{NoOpt: []string{"terminals"}}, false},
@@ -174,6 +176,17 @@ func TestTerminalProgramEligibility(t *testing.T) {
 		}
 		if c.want && !regexp.MustCompile(`(?m)^var (term\d+)Data = \w+\.TerminalProgram\{Code: .*\n^var (term\d+) = (term\d+)Data\.Prepare\(\)$`).MatchString(code) {
 			t.Errorf("%s: the program is not static data prepared at initialization", c.name)
+		}
+		if opts.Observability {
+			plainOpts := opts
+			plainOpts.Observability = false
+			plain, err := codegentest.Generate(t, g, plainOpts)
+			if err != nil {
+				t.Fatalf("%s without observability: %v", c.name, err)
+			}
+			if got, want := strings.Count(code, "SkipTerminal("), strings.Count(string(codegentest.MergeGenerated(plain)), "SkipTerminal("); got != want {
+				t.Errorf("%s: %d programs, want the %d of the untraced bodies: a traced body runs a program", c.name, got, want)
+			}
 		}
 		fn := ""
 		for i, line := range strings.Split(code, "\n") {

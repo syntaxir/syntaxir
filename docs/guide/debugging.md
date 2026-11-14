@@ -487,8 +487,8 @@ _, err := pairsparser.Parse(input,
 ```
 
 Filtering a rule includes its named descendants, and unknown names match nothing. Depth starts at one for the start
-rule. `TraceSkipped` is not paired with an exit event, and in batch parses `Examined` is not a complete input range
-(`ExaminedKnown` is false). The [specification](../../spec/runtime/observability.md#generated-go-batch-tracing) defines the
+rule. `TraceSkipped` is not paired with an exit event, and `Examined` on an exit event is the end of the input that the
+call's result depends on. The [specification](../../spec/runtime/observability.md#generated-go-batch-tracing) defines the
 events, the filters and what an aborted parse omits.
 
 With `-types`, `ParseValue` and `ParseRuleValue` accept the same trace options. This
@@ -542,9 +542,9 @@ data, err := json.Marshal(snapshot)
 
 `Snapshot` sorts rule rows and skip reasons and copies their slices. The
 snapshot separates entered calls from calls that completed, counts skips
-independently of trace filters, and reports `ExaminedKnown`/`WastedKnown` as
-false for rules called in batch parses, because their examined ranges are not
-tracked.
+independently of trace filters, and sums for each rule the input its calls
+examined (`Examined`) and the part of it that evaluated calls which failed
+examined (`Wasted`).
 Position counts use the unit of each parse; avoid combining profiles collected
 with different units. A `Profile` is not safe for concurrent use, though
 reentrant parses on one goroutine have independent invocation state.
@@ -610,8 +610,7 @@ at and possibly one past the end of the input, so use it to see why reuse
 stopped rather than as an exact read count. Edits that complete a UTF-8
 sequence just before them, and left-recursive results still growing, also
 prevent reuse. Profiles of Document parses sum it into per-rule `Examined` and
-`Wasted` (failed calls only); mixing batch parses into the same `Profile` makes
-those values unknown. Generated Documents do not resume repetition bodies, so there is no
+`Wasted` (failed calls only), as for batch parses. Generated Documents do not resume repetition bodies, so there is no
 `ReusedElements` count.
 
 A trace callback cannot call `Parse`, `ParseValue` or `Edit` on the Document

@@ -596,6 +596,10 @@ var tsDocTarget = func() *Target {
 		switch c.Callee {
 		case "doc.active":
 			return "true"
+		case "doc.tracking":
+			// The TypeScript runtime tracks the examined input only in a Document parse, which these
+			// functions serve.
+			return "true"
 		case "rule.docMemo", "rule.positional":
 			return a[0] + "." + strings.TrimPrefix(c.Callee, "rule.")
 		case "rule.docOnlyMemo":

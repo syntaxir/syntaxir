@@ -186,7 +186,7 @@ func TestExpectRecordMatchesReference(t *testing.T) {
 					newP := func() *Parser {
 						p := &Parser{Expectations: recording}
 						if document {
-							p.Document = &documentState{}
+							p.Document, p.track = &documentState{}, true
 						}
 						if controlled {
 							p.Control = newBudgetControl(nil, core.Limits{Compute: 1 << 40})

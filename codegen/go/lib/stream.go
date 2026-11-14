@@ -158,12 +158,13 @@ func RunParseStreamWithBudget(r *Rule, reader io.Reader, emit func(*core.Node, *
 	p.Expectations = o.expectations
 	p.Control = o.control
 	p.Observation = newObservation(&o.observe)
+	p.setTracking()
 	p.Stream = &streamInput{reader: bufio.NewReader(reader), baseLine: 1, baseCol: 1, Emit: emit, diagnostic: o.diagnostic, start: r.Id}
 	p.Stream.tail.limit = o.diagnosticLimit
 	p.Stream.maxInput = o.maxInput
 	o.control.attachMemory(p)
 	p.Control.Check()
-	_, ok := p.Call(r, 0)
+	_, ok := p.Call(r.forParse(p), 0)
 	p.Control.Check()
 	if ok && p.streamAtEnd() {
 		// Recoveries in the successful suffix are reported before the result.
@@ -662,6 +663,147 @@ func (p *Parser) streamPeek() (rune, int, bool) {
 	p.SpendRead(uint64(min(utf8.UTFMax, len(b))))
 	r, size := utf8.DecodeRune(b)
 	return r, size, true
+}
+
+// The traced forms of the reads below are what the traced rule bodies call: an observed parse
+// reports the exact examined end of every call, and a stream records it only in them, so that
+// the plain bodies of a stream parse read as they would without observability. Outside a stream
+// each one is the plain read, which records the examined end of a parse that tracks it.
+
+// PeekTraced is Peek in a traced rule body.
+//
+// PeekTraced is for generated parsers; not a stable API.
+func (p *Parser) PeekTraced() (rune, int, bool) {
+	if p.Stream == nil {
+		return p.Peek()
+	}
+	r, size, ok := p.streamPeek()
+	end := p.Pos + size
+	if !ok {
+		end = p.Pos + 1
+	} else if size == 1 && r == utf8.RuneError && p.unit == core.Bytes {
+		end = decodedEndBytes(p.Stream.bs[p.Pos-p.Stream.base:], p.Pos, size)
+	}
+	p.documentTouch(end)
+	return r, size, ok
+}
+
+// MatchLiteralTraced is MatchLiteral in a traced rule body.
+//
+// MatchLiteralTraced is for generated parsers; not a stable API.
+func (p *Parser) MatchLiteralTraced(rs []rune, text string, desc ExpID, build bool) (*core.Node, bool) {
+	if p.Stream == nil {
+		return p.MatchLiteral(rs, text, desc, build)
+	}
+	start := p.Pos
+	s := p.Stream
+	if p.unit == core.Bytes {
+		for i := 0; i < len(text); i++ {
+			if c, ok := p.streamByte(p.Pos); !ok || c != text[i] {
+				p.documentTouch(p.Pos + 1)
+				p.Pos = start
+				return p.matchReplacementLiteralTraced(rs, text, desc, build)
+			}
+			p.Pos++
+		}
+	} else {
+		for _, r := range rs {
+			p.SpendRead(1)
+			if p.Pos < s.base || !p.streamFill(p.Pos+1) || s.in[p.Pos-s.base] != r {
+				p.documentTouch(p.Pos + 1)
+				p.Pos = start
+				p.Expect(start, desc)
+				return nil, false
+			}
+			p.Pos++
+		}
+	}
+	p.documentTouch(p.Pos)
+	if !build {
+		return nil, true
+	}
+	return p.NewNode(Data{Kind: coreimpl.MatchKind, Start: int32(start), End: int32(p.Pos), Text: p.LiteralText(start, text), Terminal: true, Fresh: true}), true
+}
+
+// matchReplacementLiteralTraced is matchReplacementLiteral on a stream in a traced rule body.
+func (p *Parser) matchReplacementLiteralTraced(rs []rune, text string, desc ExpID, build bool) (*core.Node, bool) {
+	start := p.Pos
+	if !p.literalHasReplacement(rs) {
+		p.Expect(start, desc)
+		return nil, false
+	}
+	for _, want := range rs {
+		got, size, ok := p.PeekTraced()
+		if !ok || got != want {
+			p.Expect(start, desc)
+			return nil, false
+		}
+		p.Pos += size
+	}
+	if !build {
+		return nil, true
+	}
+	return p.NewNode(Data{Kind: coreimpl.MatchKind, Start: int32(start), End: int32(p.Pos), Text: p.LiteralText(start, text), Terminal: true, Fresh: true}), true
+}
+
+// MatchLiteralFoldTraced is MatchLiteralFold in a traced rule body.
+//
+// MatchLiteralFoldTraced is for generated parsers; not a stable API.
+func (p *Parser) MatchLiteralFoldTraced(rs []rune, desc ExpID, build bool) (*core.Node, bool) {
+	if p.Stream == nil {
+		return p.MatchLiteralFold(rs, desc, build)
+	}
+	start := p.Pos
+	for _, want := range rs {
+		got, size, ok := p.PeekTraced()
+		if !ok || foldASCIIRune(got) != want {
+			p.Expect(start, desc)
+			return nil, false
+		}
+		p.Pos += size
+	}
+	if !build {
+		return nil, true
+	}
+	return p.NewNode(Data{Kind: coreimpl.MatchKind, Start: int32(start), End: int32(p.Pos), Text: p.Text(start, p.Pos), Terminal: true, Fresh: true}), true
+}
+
+// MatchAnyTraced is MatchAny in a traced rule body.
+//
+// MatchAnyTraced is for generated parsers; not a stable API.
+func (p *Parser) MatchAnyTraced(build bool) (*core.Node, bool) {
+	if p.Stream == nil {
+		return p.MatchAny(build)
+	}
+	_, size, ok := p.PeekTraced()
+	if !ok {
+		p.Expect(p.Pos, IdAny)
+		return nil, false
+	}
+	return p.Single(size, build)
+}
+
+// AtLineEndTraced is AtLineEnd in a traced rule body.
+//
+// AtLineEndTraced is for generated parsers; not a stable API.
+func (p *Parser) AtLineEndTraced() bool {
+	if p.Stream == nil {
+		return p.AtLineEnd()
+	}
+	ch, _, ok := p.PeekTraced()
+	return !ok || ch == '\n' || ch == '\r'
+}
+
+// decodedEndBytes is decodedEnd for the loaded bytes b of a stream.
+func decodedEndBytes(b []byte, pos, size int) int {
+	if size > 1 {
+		return pos + size
+	}
+	k := 1
+	for k <= len(b) && !utf8.FullRune(b[:k]) {
+		k++
+	}
+	return pos + k
 }
 
 // streamByte returns the byte at position i (Bytes).

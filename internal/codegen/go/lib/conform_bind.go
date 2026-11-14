@@ -40,7 +40,7 @@ var docBindingEngineOps = []string{"doc.enter", "doc.leave", "doc.active", "doc.
 	"doc.reused", "doc.evaluated"}
 
 // docBindingOps are the doc operations of the node library.
-var docBindingOps = []string{"doc.examinedBegin", "doc.examinedEnd", "doc.enter", "doc.leave", "doc.active", "doc.touch",
+var docBindingOps = []string{"doc.examinedBegin", "doc.examinedEnd", "doc.enter", "doc.leave", "doc.active", "doc.tracking", "doc.touch",
 	"doc.touchFrom", "doc.low", "doc.examined", "doc.reused", "doc.evaluated"}
 
 // oprBindingDescriptorOps are the operations of the Operators Rule descriptors and of the matches of

@@ -44,6 +44,7 @@ func newRuleMachine(cfg ref.Config, controlled bool) conform.Impl {
 	if cfg.Document {
 		base.p.Document = &documentState{}
 	}
+	base.p.track = cfg.Document || cfg.Observed
 	m := &ruleMachine{docMachine: &docMachine{rtMachine: base}, specs: cfg.RuleSpecs, evals: map[int64]int64{}}
 	scriptRules(base.env.rules, cfg, m.evaluate)
 	if controlled {

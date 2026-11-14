@@ -1327,8 +1327,8 @@ func TestTraceAndProfile(t *testing.T) {
 		case zprt.TraceExit:
 			depth--
 		}
-		if e.ExaminedKnown {
-			t.Fatal("stream claimed an examined range", e)
+		if (e.Kind == zprt.TraceExit) != e.ExaminedKnown || e.Kind == zprt.TraceExit && (e.Examined < e.Pos || e.Matched && e.Examined < e.End) {
+			t.Fatal("examined end", e)
 		}
 	}
 	if depth != 0 || items != 4 { // three elements and the failed attempt at the end

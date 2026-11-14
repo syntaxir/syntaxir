@@ -32,6 +32,9 @@ type goSpec struct {
 	name  string // the Go name
 	body  string // the method that call.body calls
 	plain bool   // printed as a function of its package, without the parser as receiver
+	// docMeta keeps the Document record of a typed memo entry beside the entry (typedDocumentState.meta),
+	// as a typed Document does; other typed calls keep the examined end in the entry.
+	docMeta bool
 }
 
 // goSpecs are the functions of the Go library that the compositions replace.
@@ -64,7 +67,7 @@ var goSpecs = []goSpec{
 	{fn: "body", on: []string{ops.Document, ops.Budget}, name: "callBody"},
 	{fn: "tracked", on: []string{ops.Document, ops.Observe}, name: "callTracked"},
 	// The rule call of a Document parse in the typed library.
-	{fn: "typedDocument", typed: true, on: []string{ops.Document, ops.Observe, ops.Typed, ops.Budget}, name: "DocumentCall"},
+	{fn: "typedDocument", typed: true, on: []string{ops.Document, ops.Observe, ops.Typed, ops.Budget}, name: "DocumentCall", docMeta: true},
 	// The predicates and bindings of both libraries.
 	{fn: "predicate", name: "Predicate"},
 	{fn: "bind", name: "Bind"},
@@ -445,7 +448,7 @@ func goTarget(s goSpec) *gogen.Target {
 		case "obs.enter":
 			return fmt.Sprintf("p.Observation.Enter(%s.Name, %s, %s)", a[0], a[1], a[2])
 		case "obs.exit":
-			return fmt.Sprintf("p.Observation.Exit(%s, %s, %s, %s)", a[0], a[1], a[2], a[3])
+			return fmt.Sprintf("p.Observation.Exit(%s, %s, %s)", a[0], a[1], a[2])
 		case "doc.examinedBegin":
 			return "p.ExaminedBegin()"
 		case "doc.examinedEnd":
@@ -476,12 +479,14 @@ func goTarget(s goSpec) *gogen.Target {
 			return "p.Observation != nil"
 		case "doc.active":
 			return "p.Document != nil"
+		case "doc.tracking":
+			return "p.track"
 		case "doc.touch":
 			return "p.documentTouch(" + a[0] + ")"
 		case "doc.examined":
 			return "p.docExamined"
 		case "memo.examined":
-			if typed {
+			if s.docMeta {
 				return "p.TypedDocument.meta[" + a[0] + "].examined"
 			}
 			return a[0] + ".examined"
@@ -492,8 +497,12 @@ func goTarget(s goSpec) *gogen.Target {
 		case "doc.reused":
 			return "p.Document.stats.Reused++"
 		case "memo.examine":
-			if typed {
+			if s.docMeta {
 				return "p.TypedDocument.meta[" + a[0] + "] = typedDocumentMeta{examined: " + a[2] + ", recorded: true, before: " + a[1] + "}"
+			}
+			if typed {
+				// Outside a Document the entry keeps only the end (typedTrack records no start).
+				return a[0] + ".examined = " + a[2]
 			}
 			return fmt.Sprintf("%s.examined, %s.from, %s.pinned = %s, examinedFromOf(%s), false", a[0], a[0], a[0], a[2], a[1])
 		case "call.body":

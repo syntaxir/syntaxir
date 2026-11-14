@@ -23,13 +23,13 @@ const DocStatOp = "test.docStat"
 
 // DocOps are the doc operations of the examined input of a Document parse.
 var DocOps = []string{
-	"doc.examinedBegin", "doc.examinedEnd", "doc.enter", "doc.leave", "doc.active", "doc.touch",
+	"doc.examinedBegin", "doc.examinedEnd", "doc.tracking", "doc.enter", "doc.leave", "doc.active", "doc.touch",
 	"doc.touchFrom", "doc.low", "doc.examined", "doc.reused", "doc.evaluated",
 }
 
-// DocCoreOps are the doc operations of a target that does not observe calls: all but
-// doc.examinedBegin and doc.examinedEnd.
-var DocCoreOps = DocOps[2:]
+// DocCoreOps are the doc operations of a target that does not observe calls and tracks the examined
+// input of every parse: all but doc.examinedBegin, doc.examinedEnd and doc.tracking.
+var DocCoreOps = DocOps[3:]
 
 // DocModule returns the declarations of Module with those of the transitional operations, which
 // hold the doc operations, and DocStatOp.
@@ -53,6 +53,7 @@ func DocCases() []Case {
 		cs = append(cs, Case{Module: m, Func: m.AddFunc(name, nil, nil, docRegs(), body), Config: cfg})
 	}
 	doc := ref.Config{Document: true}
+	observed := ref.Config{Observed: true}
 	low := func() exec.Expr { return exec.C("doc.low") }
 	high := func() exec.Expr { return exec.C("doc.examined") }
 	i := exec.Int
@@ -64,12 +65,20 @@ func DocCases() []Case {
 
 	add("doc_active", ref.Config{}, func(b *exec.Builder) {
 		b.Assert(exec.Not(exec.C("doc.active")), "a parse from scratch reads no Document")
+		b.Assert(exec.Not(exec.C("doc.tracking")), "nor tracks the examined input unless it is observed")
 		b.Do("doc.touch", i(9))
 		b.Do("doc.touchFrom", i(0))
 		b.Assert(exec.Not(exec.C("doc.active")), "touching the input does not make a Document")
 	})
 	add("doc_active_document", doc, func(b *exec.Builder) {
 		b.Assert(exec.C("doc.active"), "a Document parse reads a Document")
+		b.Assert(exec.C("doc.tracking"), "and tracks the examined input")
+	})
+	add("doc_tracking_observed", observed, func(b *exec.Builder) {
+		b.Assert(exec.Not(exec.C("doc.active")), "an observed parse from scratch reads no Document")
+		b.Assert(exec.C("doc.tracking"), "but tracks the examined input")
+		b.Do("doc.touch", i(6))
+		b.Assert(exec.Eq(high(), i(6)), "and reading extends its examined end")
 	})
 
 	add("doc_enter_leave", doc, func(b *exec.Builder) {
@@ -123,22 +132,23 @@ func DocCases() []Case {
 		b.Assert(exec.Eq(h, i(3)), "an observed call encloses the examined end before it")
 		b.Assert(exec.Eq(high(), i(4)), "its own examined end starts at the position")
 		b.Do("doc.touch", i(9))
-		r := b.LetN([]string{"x", "known"}, exec.C("doc.examinedEnd", h))
-		b.Assert(exec.And(r[1], exec.Eq(r[0], i(9))), "it returns its examined end, known in a Document parse")
+		x := b.Let("x", exec.C("doc.examinedEnd", h))
+		b.Assert(exec.Eq(x, i(9)), "it returns its examined end")
 		b.Assert(exec.Eq(high(), i(9)), "and merges it into the enclosing one")
 		b.SetReg(ops.Pos, i(1))
 		g := b.Let("g", exec.C("doc.examinedBegin"))
 		b.Assert(exec.Eq(g, i(9)), "the next observed call encloses what the last one left")
-		r2 := b.LetN([]string{"y", "known2"}, exec.C("doc.examinedEnd", g))
-		b.Assert(exec.And(r2[1], exec.Eq(r2[0], i(1))), "a call that read nothing examined up to its position")
+		y := b.Let("y", exec.C("doc.examinedEnd", g))
+		b.Assert(exec.Eq(y, i(1)), "a call that read nothing examined up to its position")
 		b.Assert(exec.Eq(high(), i(9)), "and leaves the enclosing examined end as it was")
 	})
 
-	add("doc_examined_no_document", ref.Config{}, func(b *exec.Builder) {
+	add("doc_examined_observed", observed, func(b *exec.Builder) {
 		b.SetReg(ops.Pos, i(4))
 		h := b.Let("h", exec.C("doc.examinedBegin"))
-		r := b.LetN([]string{"x", "known"}, exec.C("doc.examinedEnd", h))
-		b.Assert(exec.Not(r[1]), "outside a Document parse the examined end is unknown")
+		b.Do("doc.touch", i(7))
+		x := b.Let("x", exec.C("doc.examinedEnd", h))
+		b.Assert(exec.Eq(x, i(7)), "an observed parse from scratch measures the examined end as a Document parse does")
 	})
 	return cs
 }
@@ -203,7 +213,7 @@ func RandomDoc(name string, rng *rand.Rand, opNames []string, n int, cfg ref.Con
 				begins = append(begins, pair2{name: v, high: res[0].(int64)})
 			case "doc.examinedEnd":
 				begins = begins[:len(begins)-1]
-				b.LetN([]string{v, v + "k"}, exec.C(o.Name, exprs...))
+				b.Let(v, exec.C(o.Name, exprs...))
 			default:
 				if len(o.Results) > 0 {
 					b.Let(v, exec.C(o.Name, exprs...))

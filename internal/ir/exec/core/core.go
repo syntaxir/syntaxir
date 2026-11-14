@@ -19,13 +19,16 @@ import (
 type docMode int
 
 const (
-	// noDoc keeps no Document bookkeeping.
-	noDoc docMode = iota
-	// nodeDoc keeps it when the parse reads a Document (doc.active), with the record in the entry.
-	nodeDoc
+	// nodeDoc keeps it when the parse reads a Document (doc.active), with the record in the entry, and
+	// the examined end when the parse tracks it (doc.tracking).
+	nodeDoc docMode = iota
 	// typedDoc keeps it always, in a call that only a Document parse makes, with the record beside
 	// the entry, which a call forgets when it replaces the entry.
 	typedDoc
+	// typedTrack keeps only the examined end, in the typed runtime's call outside a Document parse,
+	// when the parse tracks it (doc.tracking): an observed parse reports it. The node runtime's call
+	// leaves such a parse to its tracked path (memoized), so only the typed form keeps it.
+	typedTrack
 	// engineDoc keeps it always, with the record in the entry, as the engine does in every parse.
 	// A call's examined input starts empty and ends where its matches read to; a call restores the
 	// enclosing call's examined input when it ends; and a reused entry's value is moved after the
@@ -70,6 +73,19 @@ func Build() *Module {
 		switch doc {
 		case nodeDoc:
 			b.If(C("doc.active"), body)
+		case typedDoc, engineDoc:
+			body(b)
+		}
+	}
+	// tracking adds body, the record of an examined end, where the parse tracks it as doc tells: under
+	// doc.tracking in the node runtime, which tracks in Document and observed parses, and in the typed
+	// runtime's call outside a Document parse; always where the Document bookkeeping is kept always.
+	tracking := func(b *Builder, doc docMode, body func(b *Builder)) {
+		switch doc {
+		case nodeDoc:
+			b.If(C("doc.tracking"), body)
+		case typedTrack:
+			b.If(F(ops.Typed), func(b *Builder) { b.If(C("doc.tracking"), body) })
 		case typedDoc, engineDoc:
 			body(b)
 		}
@@ -139,10 +155,14 @@ func Build() *Module {
 		}
 		b.If(reusable, func(b *Builder) {
 			b.If(F(ops.Observe), func(b *Builder) { b.Do("obs.memoHit") })
-			inDocument(b, doc, func(b *Builder) {
+			// A Document parse tracks the examined end, so its bookkeeping nests in the tracking: a parse
+			// that tracks nothing tests once, as before a parse could track without a Document.
+			tracking(b, doc, func(b *Builder) {
 				b.Do("doc.touch", C("memo.examined", e))
-				b.If(C("memo.before", e), func(b *Builder) { b.Do("doc.touchFrom", Add(L("start"), Int(-1))) })
-				b.Do("doc.reused")
+				inDocument(b, doc, func(b *Builder) {
+					b.If(C("memo.before", e), func(b *Builder) { b.Do("doc.touchFrom", Add(L("start"), Int(-1))) })
+					b.Do("doc.reused")
+				})
 			})
 			b.Do("mergeKept", C("memo.far", e), C("memo.expected", e))
 			if doc == engineDoc {
@@ -195,9 +215,25 @@ func Build() *Module {
 				L("v"), C("rec.since", L("rec")), C("rule.docOnlyMemo", r)))
 			b.Do("memo.setPresent", entry, c)
 			b.Do("memo.setExpected", entry, L("far"), L("kept"))
-			inDocument(b, doc, func(b *Builder) {
-				b.Do("memo.examine", entry, Bin("<", C("doc.low"), L("start")), C("doc.examined"))
-				b.If(C("rule.positional", r), func(b *Builder) { b.Do("memo.pin", entry) })
+			// The start of the examined input serves only a Document (doc.low), the end also the report of a
+			// reuse in an observed parse.
+			examine := func(before Expr) func(b *Builder) {
+				return func(b *Builder) { b.Do("memo.examine", entry, before, C("doc.examined")) }
+			}
+			pin := func(b *Builder) { b.If(C("rule.positional", r), func(b *Builder) { b.Do("memo.pin", entry) }) }
+			tracking(b, doc, func(b *Builder) {
+				switch doc {
+				case nodeDoc:
+					b.IfElse(C("doc.active"), func(b *Builder) {
+						examine(Bin("<", C("doc.low"), L("start")))(b)
+						pin(b)
+					}, examine(BoolC(false)))
+				case typedTrack:
+					examine(BoolC(false))(b)
+				default:
+					examine(Bin("<", C("doc.low"), L("start")))(b)
+					pin(b)
+				}
 			})
 		}, func(b *Builder) {
 			b.If(Eq(L("store"), C("ctx.storeCtx")), func(b *Builder) {
@@ -259,9 +295,9 @@ func Build() *Module {
 			charge(b)
 			b.Let("start", R(ops.Pos))
 			b.If(Bin("||", And(Not(C("rule.memo", r)), Not(C("rule.leader", r))), C("call.first", r)), func(b *Builder) { unmemoized(b, false) })
-			reuse(b, L("min"), noDoc, exit)
+			reuse(b, L("min"), typedTrack, exit)
 			evaluate(b, L("min"), invoke)
-			finish(b, L("min"), noDoc)
+			finish(b, L("min"), typedTrack)
 		})
 	call.Doc = `call calls rule r at binding level min: unmemoized while its memoization is deferred, and
 otherwise through the memo and the dependency memo of left-recursion contexts, growing the seed of
@@ -272,9 +308,9 @@ a left-recursion leader.`
 			locals(b)
 			tracked(b, C("call.trackBody", r, L("inv")))
 			b.Let("start", R(ops.Pos))
-			reuse(b, Int(0), noDoc, exit)
+			reuse(b, Int(0), typedTrack, exit)
 			evaluate(b, Int(0), func(b *Builder) { b.SetN(pair, C("rule.run", L("inv"))) })
-			finish(b, Int(0), noDoc)
+			finish(b, Int(0), typedTrack)
 		})
 	callMemo.Doc = `callMemo is the memoized part of a rule call, for the rule r at binding level 0 invoked by inv:
 the rule is called at the position again, or its memoization is no longer deferred.`
@@ -298,12 +334,12 @@ the match gets longer, and returns the last longer result.`
 			b.Do("obs.enter", r, R(ops.Pos), L("min"))
 			b.Let("h", C("doc.examinedBegin"))
 			b.LetN([]string{"v", "ok"}, C("call.body", r, L("min")))
-			b.LetN([]string{"x", "known"}, C("doc.examinedEnd", L("h")))
-			b.Do("obs.exit", L("ok"), R(ops.Pos), L("x"), L("known"))
+			b.Let("x", C("doc.examinedEnd", L("h")))
+			b.Do("obs.exit", L("ok"), R(ops.Pos), L("x"))
 			b.Return(L("v"), L("ok"))
 		})
 	observed.Doc = `observed is a rule call in an observed parse: it reports the call to the observation, with how
-far it examined the input in a Document parse, around the call without observation.`
+far it examined the input, around the call without observation.`
 	callUnmemoized := m.AddFunc("unmemoized", []Param{P("r", rule), P("min", TInt)}, result, nil, func(b *Builder) {
 		b.Var("v", value)
 		b.Var("ok", TBool)

@@ -74,3 +74,45 @@ func TestFlowNodeObservationMutants(t *testing.T) {
 		})
 	}
 }
+
+// TestFlowNodeObservationExaminedMutants checks that the comparison with the engine notices a traced body that
+// reads the input without recording how far it read: each mutant replaces the recording read of a character
+// or of a literal with its ordinary form, and the examined end of some call must then differ from the engine's.
+func TestFlowNodeObservationExaminedMutants(t *testing.T) {
+	t.Parallel()
+	if testing.Short() {
+		t.Skip("builds generated consumers")
+	}
+	codegentest.PinOrdinary(t)
+	cases := append(codegentest.Representative(codegentest.GenCorpus(t)), observeShapes...)
+	detail := make([]int, len(cases))
+	for i, c := range cases {
+		detail[i] = len(c.Inputs)
+	}
+	for _, m := range []struct{ name, read, unrecorded string }{
+		{"unrecorded character read", "p.PeekTraced()", "p.PeekOrdinary()"},
+		{"unrecorded literal read", "p.MatchLiteralTraced(", "p.MatchLiteralOrdinary("},
+	} {
+		t.Run(m.name, func(t *testing.T) {
+			t.Parallel()
+			replaced := 0
+			mutate := func(code []byte) []byte {
+				replaced += strings.Count(string(code), m.read)
+				return []byte(strings.ReplaceAll(string(code), m.read, m.unrecorded))
+			}
+			lines := runObserveProbes(t, cases, "main", detail, mutate)
+			if replaced == 0 {
+				t.Fatalf("no %s in the generated code", m.read)
+			}
+			examined := 0
+			for _, msg := range observationMismatches(t, cases, "main", detail, lines) {
+				if strings.Contains(msg, "examined end of") {
+					examined++
+				}
+			}
+			if examined == 0 {
+				t.Errorf("the mutant %q changes no examined end: the examined ends are not compared", m.name)
+			}
+		})
+	}
+}

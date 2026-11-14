@@ -39,8 +39,8 @@ func (m *obsMachine) deliver(e TraceEvent) {
 	case TraceEnter:
 		m.events = append(m.events, fmt.Sprintf("enter %s pos=%d level=%d depth=%d", e.Rule, e.Pos, e.Level, e.Depth))
 	case TraceExit:
-		m.events = append(m.events, fmt.Sprintf("exit %s matched=%v end=%d examined=%d known=%v memo=%v depth=%d",
-			e.Rule, e.Matched, e.End, e.Examined, e.ExaminedKnown, e.Memo, e.Depth))
+		m.events = append(m.events, fmt.Sprintf("exit %s matched=%v end=%d examined=%d memo=%v depth=%d",
+			e.Rule, e.Matched, e.End, e.Examined, e.Memo, e.Depth))
 	}
 }
 
@@ -64,7 +64,7 @@ func (m *obsMachine) Call(o *exec.Op, args []any) (res []any) {
 		p.confObsEnter(args[0].(*Rule), int(args[1].(int64)), int(args[2].(int64)))
 		return nil
 	case "obs.exit":
-		p.confObsExit(args[0].(bool), int(args[1].(int64)), int(args[2].(int64)), args[3].(bool))
+		p.confObsExit(args[0].(bool), int(args[1].(int64)), int(args[2].(int64)))
 		return nil
 	}
 	return m.rtMachine.Call(o, args)
@@ -122,12 +122,12 @@ func TestExecConformanceObsDetectsBrokenLib(t *testing.T) {
 			m.p.Observation.Enter(args[0].(*Rule).Name, int(args[1].(int64)), 0)
 			return nil
 		},
-		"obs.exit reports the examined input without being told": func(m *obsMachine, args []any) []any {
-			m.p.Observation.Exit(args[0].(bool), int(args[1].(int64)), int(args[2].(int64)), true)
+		"obs.exit reports the position as the examined end": func(m *obsMachine, args []any) []any {
+			m.p.Observation.Exit(args[0].(bool), int(args[1].(int64)), int(args[1].(int64)))
 			return nil
 		},
 		"obs.exit reports a failure": func(m *obsMachine, args []any) []any {
-			m.p.Observation.Exit(false, int(args[1].(int64)), int(args[2].(int64)), args[3].(bool))
+			m.p.Observation.Exit(false, int(args[1].(int64)), int(args[2].(int64)))
 			return nil
 		},
 		"obs.active is true": func(m *obsMachine, args []any) []any { return []any{true} },

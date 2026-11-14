@@ -284,7 +284,7 @@ func (it *StreamValueIterator) Close() { it.pull.Close() }
 			return typedOutput{}, g.FlowErr
 		}
 		g.Flow = nil
-		g.Table = "rules"
+		g.Table, g.typedTable = "rules", true
 		t.typedLib(&b)
 	}
 	if needNodes {

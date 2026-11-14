@@ -77,8 +77,9 @@ func (c *coreGenCase) altOrigin(x *core.Choice, i int) (grammar.Expr, bool) {
 }
 
 // coreGenerate generates the parser of the grammar source with the options and returns the
-// generator that wrote it, for the Core IR of the same options (gogen.Generator.TypedCore). It reports
-// false for a grammar that the generator rejects.
+// generator that wrote it, for the Core IR of the same options (gogen.Generator.TypedCore), in the
+// state of its traced pass with observability. It reports false for a grammar that the generator
+// rejects.
 func coreGenerate(src string, opts codegen.GenOptions) (*gogen.Generator, bool) {
 	g, err := parseTest(src)
 	if err != nil {
@@ -89,6 +90,11 @@ func coreGenerate(src string, opts codegen.GenOptions) (*gogen.Generator, bool) 
 	opts.Module = "example.com/p"
 	if _, err := gogen.GenerateParser(g, compileForGenerator, codegentest.WithLib(opts), h); err != nil || gen == nil {
 		return nil, false
+	}
+	if opts.Observability {
+		// The bodies that observe are the traced copies, which the generator prints in its traced pass;
+		// the other bodies are those of the build without observability.
+		gen.Traced, gen.Observability, gen.Ordinary = true, true, false
 	}
 	return gen, true
 }
@@ -437,10 +443,11 @@ func TestCoreTypedDecisionsFrozen(t *testing.T) {
 	typedGolden.freeze(t, coreGenModes, func(t *testing.T, mode coreGenMode) []*coreGenCase {
 		return coreGenCases(t, mode, nil)
 	}, func(t *testing.T, mode coreGenMode, n *coreDecisionCounts) {
-		lean := !mode.opts.LimitControls
-		terminals := lean && !mode.opts.Observability
+		// The observing bodies of a build with observability are its traced copies, which record every
+		// read and so are not lean: they have no terminal programs, class runs or guarded classes.
+		lean := !mode.opts.LimitControls && !mode.opts.Observability
 		if n.guards == 0 || n.scans == 0 || n.scopes == 0 ||
-			(n.terminals > 0) != terminals || (n.classRuns > 0) != lean || (n.guardedClasses > 0) != lean {
+			(n.terminals > 0) != lean || (n.classRuns > 0) != lean || (n.guardedClasses > 0) != lean {
 			t.Errorf("counts %+v", n)
 		}
 	})

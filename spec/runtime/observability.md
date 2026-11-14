@@ -115,10 +115,9 @@ Event positions use the selected position unit. `Memo=true` means the call
 reused an existing memo result without evaluating its body, so `Evals` is zero.
 Calls that evaluate left-recursion growth attempts have `Memo=false`; their
 `Evals` counts their own body attempts, including growth attempts. Recursive
-calls that reuse the growing seed have `Memo=true` and `Evals=0`. Generated
-batch parses report `ExaminedKnown` as false; consumers MUST NOT treat
-`Examined` as a complete examined-input range when it is false. Generated Go
-Document parses report a known examined end, described below.
+calls that reuse the growing seed have `Memo=true` and `Evals=0`. Every exit
+event MUST report in `Examined` the call's exact examined end, as defined for
+Document parses below, and set `ExaminedKnown`.
 
 Trace callbacks receive copied scalar and string event fields synchronously.
 Events do not expose parser state or input text. Callback panics propagate with
@@ -151,11 +150,9 @@ identifiable generated dispatch skips independently of trace filters; skips
 are not entered calls. Position counts use each invocation's configured unit
 and MUST NOT be treated as normalized when a sink accumulates multiple units.
 
-`Examined` and `Wasted` are unavailable for generated batch parses, so a rule
-with a completed call outside a Document parse MUST report `ExaminedKnown` and
-`WastedKnown` as false, and a rule with no completed call MUST also report them
-as false; implementations MUST NOT infer these values from matched ranges.
-Generated Go Document profiling defines them below. Root `Time` sums completed root rule calls
+`Examined` and `Wasted` are defined with Document profiling below; a rule with
+no completed call MUST report them as zero, with `ExaminedKnown` and
+`WastedKnown` false. Root `Time` sums completed root rule calls
 and excludes input setup, whole-input end checks and typed-result conversion.
 Per-rule `Time` counts recursive calls of the same rule once within each
 invocation, while `SelfTime` excludes child time. Both include instrumentation
@@ -195,10 +192,8 @@ call that reuses a growing left-recursive seed extends its end to the end
 stored with that seed; these results are never reused after an edit.
 
 A rule's profile `Examined` sums, over completed calls, `Examined - Pos`;
-`Wasted` sums the same over completed failed calls with `Memo=false`. Both, and
-their `Known` flags, are known only when every completed call of the rule in the
-profile reported a known examined end; a profile that also accumulates batch parses
-of the rule reports them as unknown.
+`Wasted` sums the same over completed failed calls with `Memo=false`. Batch and
+Document parses of a rule accumulate into the same sums.
 
 After a completed parse, the invocation's increases in profile `Evals` and
 `MemoHits` MUST equal `Document.Stats().Evaluated` and `.Reused`, respectively.

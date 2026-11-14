@@ -55,12 +55,8 @@ func (m *Model) callObs(o *exec.Op, args []any) ([]any, bool) {
 	case "obs.exit":
 		c := s.open[len(s.open)-1]
 		s.open = s.open[:len(s.open)-1]
-		examined, known := args[2].(int64), args[3].(bool)
-		if !known {
-			examined = 0
-		}
-		s.events = append(s.events, fmt.Sprintf("exit %s matched=%v end=%d examined=%d known=%v memo=%v depth=%d",
-			c.rule, args[0], args[1], examined, known, c.memo, c.depth))
+		s.events = append(s.events, fmt.Sprintf("exit %s matched=%v end=%d examined=%d memo=%v depth=%d",
+			c.rule, args[0], args[1], args[2].(int64), c.memo, c.depth))
 		return nil, true
 	}
 	return nil, false

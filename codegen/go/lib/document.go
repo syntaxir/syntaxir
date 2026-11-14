@@ -509,6 +509,7 @@ func DocumentParseConverted[T any](d *documentState, o parseOptions, convert fun
 		d.memo, d.moves = memoTable{}, 0
 	}
 	p.Document, p.memo = d, d.memo
+	p.setTracking()
 	d.pending = 0
 	o.control.attachMemory(p)
 	d.stats = documentStats{}
@@ -520,7 +521,7 @@ func DocumentParseConverted[T any](d *documentState, o parseOptions, convert fun
 		d.memo = p.memo
 	}()
 	p.Control.Check()
-	v, ok := p.Call(d.root, 0)
+	v, ok := p.Call(d.root.forParse(p), 0)
 	p.Control.Check()
 	var n *core.Node
 	if ok && p.Pos == p.n {

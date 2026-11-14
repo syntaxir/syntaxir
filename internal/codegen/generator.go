@@ -30,7 +30,11 @@ type Generator struct {
 	// lean lowering (terminal programs, class runs and tables, guarded classes).
 	Ordinary bool
 	Document bool
-	FlowErr  error // the first rule, line or stream body that Flow IR does not print, or the first internal error of the unread-variable check
+	// Traced reports the traced pass of a Go parser generated with observability: it prints the copies
+	// of the rule tables that an observed parse runs (named with TracedSuffix), whose bodies report the
+	// rule calls and record, in the primitives that read the input, how far each call examined it.
+	Traced  bool
+	FlowErr error // the first rule, line or stream body that Flow IR does not print, or the first internal error of the unread-variable check
 	// TypeScript reports that the generator prints TypeScript, whose literal tables are shared only
 	// with the optimization ts-literal-sharing.
 	TypeScript bool
@@ -232,8 +236,8 @@ func (g *Generator) FlowPasses(f *flow.Func, err error) (*flow.Func, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := g.RunFlow(g.irTable(), f, g.Observability); err != nil && g.FlowErr == nil {
-		g.FlowErr = fmt.Errorf("function %s of table %s: %w", f.Name, g.irTable(), err)
+	if err := g.RunFlow(g.IRTable(), f, g.Observability); err != nil && g.FlowErr == nil {
+		g.FlowErr = fmt.Errorf("function %s of table %s: %w", f.Name, g.IRTable(), err)
 	}
 	return f, nil
 }
@@ -244,12 +248,12 @@ func (g *Generator) FlowPasses(f *flow.Func, err error) (*flow.Func, error) {
 // the locals l.Vars, so a pass keeps that function in the module and those locals in it (the
 // pipeline contract of Exec IR); a run that breaks this is an internal error too.
 func (g *Generator) ExecPasses(l *lower.Lowered) {
-	err := g.RunExec(g.irTable(), l.Module, g.Observability)
+	err := g.RunExec(g.IRTable(), l.Module, g.Observability)
 	if err == nil {
 		err = keepsLowered(l)
 	}
 	if err != nil && g.FlowErr == nil {
-		g.FlowErr = fmt.Errorf("module %s of table %s: %w", l.Module.Name, g.irTable(), err)
+		g.FlowErr = fmt.Errorf("module %s of table %s: %w", l.Module.Name, g.IRTable(), err)
 	}
 }
 
@@ -267,13 +271,34 @@ func keepsLowered(l *lower.Lowered) error {
 	return nil
 }
 
-// irTable is the name of the table being generated in the dumps of the IR: "typed" for the typed
-// rules, as Core IR names it, and the name of the table otherwise.
-func (g *Generator) irTable() string {
+// IRTable is the name of the table being generated in the dumps of the IR: "typed" for the typed
+// rules, as Core IR names it, and the name of the table otherwise; with TracedSuffix in the traced pass.
+func (g *Generator) IRTable() string {
 	if g.Table == "trules" {
-		return "typed"
+		return "typed" + g.TracedSuffix()
 	}
-	return g.Table
+	return g.Table + g.TracedSuffix()
+}
+
+// TracedSuffix is the suffix of the names that the traced pass allocates (Traced), and "" otherwise.
+func (g *Generator) TracedSuffix() string {
+	if g.Traced {
+		return "Traced"
+	}
+	return ""
+}
+
+// RecordsExamined reports whether the bodies being lowered record how far each call examines the
+// input in the primitives that read it: those of a build with Documents, and the traced bodies.
+func (g *Generator) RecordsExamined() bool { return g.Document || g.Traced }
+
+// InlineLiterals is the lowering's InlineLiterals: the traced bodies read every literal through the
+// primitive that records it.
+func (g *Generator) InlineLiterals() int {
+	if g.Traced {
+		return 0
+	}
+	return g.Opt.Value("inline-literals")
 }
 
 // FrameScope returns the scope of the frame whose slots the captures c name.
@@ -306,12 +331,12 @@ func (g *Generator) StartRecFlow(rec *compile.Program) error {
 			}
 		}
 	}
-	if err := g.RunCore(g.Table, m, core.Mode{Ordinary: g.Ordinary, Observe: g.Observability}, nil, prepare); err != nil {
+	if err := g.RunCore(g.IRTable(), m, core.Mode{Ordinary: g.Ordinary, Observe: g.Observability}, nil, prepare); err != nil {
 		return err
 	}
 	// Classes are inline tests, as the Node library's generated code writes them.
 	opts := flowlower.Options{Budget: !g.NoBudget, Recovers: flowlower.Recovers(m), GuardedClasses: g.GuardedClasses(),
-		InlineLiterals: g.Opt.Value("inline-literals"), Observe: g.Observability, Node: true, Document: g.Document}
+		InlineLiterals: g.InlineLiterals(), Observe: g.Observability, Node: true, Document: g.RecordsExamined()}
 	g.Flow = &FlowState{M: m, Origin: origin, Opts: opts, Rules: append(append([]*compile.Rule(nil), rec.RuleList...), rec.Twins...)}
 	return nil
 }

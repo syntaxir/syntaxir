@@ -105,7 +105,7 @@ func TestTrace(t *testing.T){
    if len(events)<2 || events[0].Rule!="main" || events[0].Depth!=1 {t.Fatal(events)}
    var stack []zprt.TraceEvent
    for _,e:=range events{
-    if e.ExaminedKnown {t.Fatal("unavailable range claimed",e)}
+    if (e.Kind==zprt.TraceExit)!=e.ExaminedKnown||e.Kind==zprt.TraceExit&&(e.Examined<e.Pos||e.Matched&&e.Examined<e.End) {t.Fatal("examined end",e)}
     switch e.Kind{
     case zprt.TraceEnter:if e.Depth!=len(stack)+1 {t.Fatal("entry depth",e,stack)};stack=append(stack,e)
     case zprt.TraceExit:if len(stack)==0 {t.Fatal("unpaired exit",e)};in:=stack[len(stack)-1];stack=stack[:len(stack)-1];if in.Rule!=e.Rule||in.Pos!=e.Pos||in.Depth!=e.Depth||in.Level!=e.Level {t.Fatal("exit mismatch",in,e)};if e.Memo&&e.Evals!=0 {t.Fatal("memo evaluated",e)};if !e.Memo&&e.Evals<1 {t.Fatal("missing body evaluation",e)}

@@ -23,8 +23,8 @@ func %[1]s(p *%[2]s) (%[3]s, bool) {
  p.Observation.Enter(%[5]q, p.Pos, 0)
  h := p.ExaminedBegin()
  %[6]sv, ok := %[4]s(p)
- x, known := p.ExaminedEnd(h)
- p.Observation.Exit(ok, p.Pos, x, known)
+ x := p.ExaminedEnd(h)
+ p.Observation.Exit(ok, p.Pos, x)
  return v, ok
 }
 

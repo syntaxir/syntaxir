@@ -306,6 +306,9 @@ func (p *TParser) callBody(r *TRule, min int) (any, bool) {
 	found := e != nil
 	if found && c.memoAllows(e.present) && (!e.silent || p.Silent > 0) {
 		p.Observation.memoHit()
+		if p.track {
+			p.documentTouch(e.examined)
+		}
 		p.MergeExpected(e.far, e.expected)
 		if !e.ok {
 			return nil, false
@@ -344,6 +347,9 @@ func (p *TParser) callBody(r *TRule, min int) (any, bool) {
 		p.memoPut(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader), entry)
 		entry.present = c.present
 		entry.far, entry.expected = far, kept
+		if p.track {
+			entry.examined = p.docExamined
+		}
 	} else if store == storeCtx {
 		p.ctxKeep(&c, r.Id, start, min, env, &ctxResult{val: v, ok: ok, end: p.Pos, examined: p.examinedNow(), silent: p.Silent > 0, errs: p.recSince(rec), far: far, expected: kept})
 	}
@@ -384,6 +390,9 @@ func (p *TParser) CallMemo(r *TRule, inv func(*TParser) (any, bool)) (any, bool)
 	found := e != nil
 	if found && c.memoAllows(e.present) && (!e.silent || p.Silent > 0) {
 		p.Observation.memoHit()
+		if p.track {
+			p.documentTouch(e.examined)
+		}
 		p.MergeExpected(e.far, e.expected)
 		if !e.ok {
 			return nil, false
@@ -422,6 +431,9 @@ func (p *TParser) CallMemo(r *TRule, inv func(*TParser) (any, bool)) (any, bool)
 		p.memoPut(r.Id, start, 0, env, (r.DocMemo && !r.Memo && !r.Leader), entry)
 		entry.present = c.present
 		entry.far, entry.expected = far, kept
+		if p.track {
+			entry.examined = p.docExamined
+		}
 	} else if store == storeCtx {
 		p.ctxKeep(&c, r.Id, start, 0, env, &ctxResult{val: v, ok: ok, end: p.Pos, examined: p.examinedNow(), silent: p.Silent > 0, errs: p.recSince(rec), far: far, expected: kept})
 	}
@@ -451,54 +463,54 @@ func (p *TParser) grow(r *TRule, min int) (any, bool) {
 }
 
 // callObserved is a rule call in an observed parse: it reports the call to the observation, with how
-// far it examined the input in a Document parse, around the call without observation.
+// far it examined the input, around the call without observation.
 //
 // Printed from Exec IR function observed of internal/ir/exec/core, specialized for document, observe.
 func (p *Parser) callObserved(r *Rule, min int) (*core.Node, bool) {
 	p.Observation.Enter(r.Name, p.Pos, min)
 	h := p.ExaminedBegin()
 	v, ok := p.callBody(r, min)
-	x, known := p.ExaminedEnd(h)
-	p.Observation.Exit(ok, p.Pos, x, known)
+	x := p.ExaminedEnd(h)
+	p.Observation.Exit(ok, p.Pos, x)
 	return v, ok
 }
 
 // invokePlainObserved is a rule call in an observed parse: it reports the call to the observation, with how
-// far it examined the input in a Document parse, around the call without observation.
+// far it examined the input, around the call without observation.
 //
 // Printed from Exec IR function observed of internal/ir/exec/core, specialized for document, observe.
 func (p *Parser) invokePlainObserved(r *Rule, min int) (*core.Node, bool) {
 	p.Observation.Enter(r.Name, p.Pos, min)
 	h := p.ExaminedBegin()
 	v, ok := p.invokePlainBody(r, min)
-	x, known := p.ExaminedEnd(h)
-	p.Observation.Exit(ok, p.Pos, x, known)
+	x := p.ExaminedEnd(h)
+	p.Observation.Exit(ok, p.Pos, x)
 	return v, ok
 }
 
 // callObserved is a rule call in an observed parse: it reports the call to the observation, with how
-// far it examined the input in a Document parse, around the call without observation.
+// far it examined the input, around the call without observation.
 //
 // Printed from Exec IR function observed of internal/ir/exec/core, specialized for document, observe.
 func (p *TParser) callObserved(r *TRule, min int) (any, bool) {
 	p.Observation.Enter(r.Name, p.Pos, min)
 	h := p.ExaminedBegin()
 	v, ok := p.callBody(r, min)
-	x, known := p.ExaminedEnd(h)
-	p.Observation.Exit(ok, p.Pos, x, known)
+	x := p.ExaminedEnd(h)
+	p.Observation.Exit(ok, p.Pos, x)
 	return v, ok
 }
 
 // invokePlainObserved is a rule call in an observed parse: it reports the call to the observation, with how
-// far it examined the input in a Document parse, around the call without observation.
+// far it examined the input, around the call without observation.
 //
 // Printed from Exec IR function observed of internal/ir/exec/core, specialized for document, observe.
 func (p *TParser) invokePlainObserved(r *TRule, min int) (any, bool) {
 	p.Observation.Enter(r.Name, p.Pos, min)
 	h := p.ExaminedBegin()
 	v, ok := p.invokePlainBody(r, min)
-	x, known := p.ExaminedEnd(h)
-	p.Observation.Exit(ok, p.Pos, x, known)
+	x := p.ExaminedEnd(h)
+	p.Observation.Exit(ok, p.Pos, x)
 	return v, ok
 }
 
@@ -584,12 +596,14 @@ func (p *Parser) callMemo(r *Rule, min int) (*core.Node, bool) {
 	found := e != nil
 	if found && c.memoAllows(e.present) && (!e.silent || p.Silent > 0) && (!(p.Document != nil) || p.documentMove(e)) {
 		p.Observation.memoHit()
-		if p.Document != nil {
+		if p.track {
 			p.documentTouch(e.examined)
-			if e.from == fromBefore {
-				p.documentTouchFrom(start + -1)
+			if p.Document != nil {
+				if e.from == fromBefore {
+					p.documentTouchFrom(start + -1)
+				}
+				p.Document.stats.Reused++
 			}
-			p.Document.stats.Reused++
 		}
 		p.MergeExpected(e.far, e.expected)
 		if !e.ok {
@@ -648,10 +662,14 @@ func (p *Parser) callMemo(r *Rule, min int) (*core.Node, bool) {
 		p.memoPut(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader), entry)
 		entry.present = c.present
 		entry.far, entry.expected = far, kept
-		if p.Document != nil {
-			entry.examined, entry.from, entry.pinned = p.docExamined, examinedFromOf(p.docLow < start), false
-			if r.Positional {
-				entry.pinned = true
+		if p.track {
+			if p.Document != nil {
+				entry.examined, entry.from, entry.pinned = p.docExamined, examinedFromOf(p.docLow < start), false
+				if r.Positional {
+					entry.pinned = true
+				}
+			} else {
+				entry.examined, entry.from, entry.pinned = p.docExamined, examinedFromOf(false), false
 			}
 		}
 	} else if store == storeCtx {

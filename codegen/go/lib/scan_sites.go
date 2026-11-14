@@ -84,7 +84,7 @@ func (p *Parser) ScanReach(site, start, count int) int {
 		rec, ok = p.scanTables[site][start]
 	}
 	if !ok {
-		if p.Document != nil {
+		if p.track {
 			// The walk records itself: measure what the rest of it examines.
 			w.savedExamined, p.docExamined = p.docExamined, p.Pos
 		}
@@ -98,9 +98,9 @@ func (p *Parser) ScanReach(site, start, count int) int {
 }
 
 // scanExamined returns the end of the input that the rest of a walk that records itself examined
-// (ScanReach), restoring that of the enclosing call, or 0 outside a Document parse.
+// (ScanReach), restoring that of the enclosing call, or 0 in a parse that does not track it.
 func (p *Parser) scanExamined() int {
-	if p.Document == nil {
+	if !p.track {
 		return 0
 	}
 	x := p.docExamined

@@ -26,6 +26,7 @@ func newDocMachine(cfg ref.Config) conform.Impl {
 	if cfg.Document {
 		rm.p.Document = &documentState{}
 	}
+	rm.p.track = cfg.Document || cfg.Observed
 	return &docMachine{rtMachine: rm}
 }
 
@@ -47,8 +48,7 @@ func (m *docMachine) Call(o *exec.Op, args []any) (res []any) {
 		p.Pos = int(m.regs["pos"].(int64))
 		return []any{int64(p.confDocExaminedBegin())}
 	case "doc.examinedEnd":
-		x, known := p.confDocExaminedEnd(int(args[0].(int64)))
-		return []any{int64(x), known}
+		return []any{int64(p.confDocExaminedEnd(int(args[0].(int64))))}
 	case "doc.enter":
 		examined, low := p.confDocEnter(int(args[0].(int64)))
 		return []any{int64(examined), int64(low)}
@@ -57,6 +57,8 @@ func (m *docMachine) Call(o *exec.Op, args []any) (res []any) {
 		return nil
 	case "doc.active":
 		return []any{p.confDocActive()}
+	case "doc.tracking":
+		return []any{p.confDocTracking()}
 	case "doc.touch":
 		p.confDocTouch(int(args[0].(int64)))
 		return nil
@@ -100,7 +102,7 @@ func docConformanceFailures(s conform.Suite, seeds, n int) (fails []error, ran i
 	}
 	for seed := range seeds {
 		rng := rand.New(rand.NewPCG(uint64(seed), 66))
-		run(conform.RandomDoc(fmt.Sprint("random_", seed), rng, s.Ops, n, ref.Config{Document: seed%3 != 2}))
+		run(conform.RandomDoc(fmt.Sprint("random_", seed), rng, s.Ops, n, ref.Config{Document: seed%3 != 2, Observed: seed%6 == 2}))
 	}
 	return fails, ran
 }

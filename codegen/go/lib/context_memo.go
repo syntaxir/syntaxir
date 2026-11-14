@@ -297,10 +297,10 @@ func (p *Parser) seedAt(i int) *ctxResult {
 	return &p.gamma[i].inl
 }
 
-// examinedNow returns the examined input of the current evaluation: the Document examined end, or 0
-// outside a Document parse.
+// examinedNow returns the examined input of the current evaluation: its examined end, or 0 in a parse
+// that does not track it.
 func (p *Parser) examinedNow() int {
-	if p.Document != nil {
+	if p.track {
 		return p.docExamined
 	}
 	return 0
@@ -905,9 +905,9 @@ func (p *Parser) lookBegin(site int) {
 	{
 		f := &p.frames[len(p.frames)-1]
 		if g := len(p.gamma); f.pos == p.Pos && f.gp < g && p.gamma[g-1].pos == p.Pos && p.gamma[g-1].cycle == p.gamma[f.gp].cycle {
-			// The Document examined end of the lookahead is part of its observation.
+			// The examined end of the lookahead is part of its observation.
 			p.looks = append(p.looks, lookRec{site: int32(site), examined: p.docExamined})
-			if p.Document != nil {
+			if p.track {
 				p.docExamined = p.Pos
 			}
 			p.pushFrame(p.Pos, f.gp)
@@ -926,7 +926,7 @@ func (p *Parser) lookEnd(ok bool) {
 	}
 	f, ds := p.popFrame()
 	examined := f.pos
-	if p.Document != nil {
+	if p.track {
 		examined = p.docExamined
 		p.docExamined = max(l.examined, p.docExamined)
 	}
@@ -1053,9 +1053,9 @@ func (p *Parser) growNext(g *growState) bool {
 			}
 			continue
 		}
-		// Evaluate the step, with its own frame, Document examined end and expectations.
+		// Evaluate the step, with its own frame, examined end and expectations.
 		p.pushFrame(g.start, g.gp)
-		if p.Document != nil {
+		if p.track {
 			g.savedExamined = p.docExamined
 			p.docExamined = g.start
 		}
@@ -1087,7 +1087,7 @@ func (p *Parser) growStep(g *growState, node *core.Node, val any, ok bool) {
 	exp := p.Keep(inner)
 	examined := p.examinedNow()
 	p.MergeExpected(far, inner)
-	if p.Document != nil {
+	if p.track {
 		p.docExamined = max(g.savedExamined, p.docExamined)
 	}
 	res := &ctxResult{node: node, val: val, ok: ok, end: p.Pos, examined: examined, silent: p.Silent > 0}

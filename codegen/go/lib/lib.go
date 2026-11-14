@@ -248,6 +248,53 @@ type Rule struct {
 	g        *grammar // the grammar whose rule table holds the rule (grammar.SetRules)
 }
 
+// tracedCopies maps each rule and typed rule of a parser generated with observability to its traced
+// copy (TraceRules, TraceTRules), which an observed parse runs (forParse). The generated code records
+// the copies at initialization; keeping them out of the rules keeps the rules, and the plain parses
+// that read them, as they are without observability.
+var tracedCopies sync.Map
+
+// TraceRules returns the traced copies of rules, one for one: a copy of each rule, recorded as its
+// traced copy (forParse), whose Body and OperatorsRule the generated code sets to forms that report
+// their calls to the observation and track the examined input. A copy starts without them, so that a
+// form the generated code leaves out fails instead of running untraced.
+//
+// TraceRules is for generated parsers; not a stable API.
+func TraceRules(rules []*Rule) []*Rule {
+	table := make([]Rule, len(rules))
+	traced := make([]*Rule, len(rules))
+	for i, r := range rules {
+		traced[i] = r.trace(&table[i])
+	}
+	return traced
+}
+
+// TraceRule returns the traced copy of the rule r, as TraceRules does for a table.
+//
+// TraceRule is for generated parsers; not a stable API.
+func TraceRule(r *Rule) *Rule { return r.trace(new(Rule)) }
+
+// trace makes t the traced copy of r.
+func (r *Rule) trace(t *Rule) *Rule {
+	*t = *r
+	t.Body, t.OperatorsRule = nil, nil
+	tracedCopies.Store(r, t)
+	tracedCopies.Store(t, t)
+	return t
+}
+
+// forParse returns the rule that the parse p runs for r: its traced copy in an observed parse.
+func (r *Rule) forParse(p *Parser) *Rule {
+	if p.Observation == nil {
+		return r
+	}
+	t, ok := tracedCopies.Load(r)
+	if !ok {
+		panic("internal error: an observed parse of a rule without a traced copy")
+	}
+	return t.(*Rule)
+}
+
 // grammar holds the tables of one generated grammar. The generated code builds
 // one for its rule table and, with Recognize, one for the recognizer's rule
 // table, which shares the other tables. Every rule refers to its grammar.
@@ -661,6 +708,7 @@ func parseResolvedSpend(r *Rule, input string, o parseOptions) (n *core.Node, er
 	p.Control = o.control
 	o.control.attachMemory(p)
 	p.Observation = newObservation(&o.observe)
+	p.setTracking()
 	p.MaxDepth = o.maxDepth
 	if o.unit == core.Bytes {
 		p.unit, p.bs, p.n = core.Bytes, input, len(input)
@@ -669,7 +717,7 @@ func parseResolvedSpend(r *Rule, input string, o parseOptions) (n *core.Node, er
 	}
 	p.memo.sparse = p.memo.stride > 64 && p.n > 1024
 	p.Control.Check()
-	v, ok := p.Call(r, 0)
+	v, ok := p.Call(r.forParse(p), 0)
 	p.Control.Check()
 	if ok && p.Pos == p.n {
 		if len(p.Recovered) > 0 {
@@ -750,11 +798,14 @@ type Parser struct {
 	Observation *observation
 	// SourceInfo is g.SourceInfo, read where values are made.
 	sourceInfo bool
+	// track reports that the parse tracks the examined end of each rule call (docExamined): a
+	// Document parse, which reuses results by it, or an observed parse, which reports it (setTracking).
+	track bool
 	// Document is set only by the private incremental runner.
 	Document *documentState
-	// docExamined is the exact end of the input that the active rule call of a Document parse examined:
-	// one past the last unit that can influence its result, with the end of the input counting as
-	// the unit at its length (docLow).
+	// docExamined is the exact end of the input that the active rule call of a parse that tracks it
+	// examined: one past the last unit that can influence its result, with the end of the input
+	// counting as the unit at its length (docLow).
 	docExamined int
 	// The state of left recursion (context_memo.go): the growths in progress, innermost last; the
 	// frames that record dependencies, and their dependencies; the dependencies of the call that
@@ -900,11 +951,12 @@ func (p *Parser) setGrammar(g *grammar) {
 	}
 }
 
-// documentTouch records that the active rule call of a Document parse examined the input before
-// end. Every caller passes the exact end of what it read: one past the last unit that its outcome
-// depends on, so that an edit at or after that end leaves the outcome as it was.
+// documentTouch records that the active rule call of a parse that tracks the examined input (track)
+// examined the input before end. Every caller passes the exact end of what it read: one past the last
+// unit that its outcome depends on, so that an edit at or after that end leaves the outcome as it
+// was, and an observed call reports exactly the input its result depends on.
 func (p *Parser) documentTouch(end int) {
-	if p.Document != nil && end > p.docExamined {
+	if p.track && end > p.docExamined {
 		p.docExamined = end
 	}
 }
@@ -943,8 +995,10 @@ func (p *Parser) documentTouchFrom(from int) {
 
 // documentTouchLine records that a line start test at the position examined the unit before it.
 func (p *Parser) documentTouchLine() {
-	if p.Document != nil {
+	if p.track {
 		p.docExamined = max(p.docExamined, p.Pos)
+	}
+	if p.Document != nil {
 		p.docLow = min(p.docLow, p.Pos-1)
 	}
 }
@@ -1861,7 +1915,7 @@ func (p *Parser) Peek() (rune, int, bool) {
 		}
 		p.SpendRead(uint64(min(utf8.UTFMax, p.n-p.Pos)))
 		r, size := utf8.DecodeRuneInString(p.bs[p.Pos:])
-		if p.Document != nil {
+		if p.track {
 			p.documentTouch(decodedEnd(p.bs[p.Pos:], p.Pos, size))
 		}
 		return r, size, true
@@ -2015,33 +2069,38 @@ func (p *Parser) MakeError(pos int, expected []ExpID) *core.SyntaxError {
 
 // --- Rule calls ---
 
-// ExaminedBegin starts measuring the examined end of an observed call in a
-// Document parse, returning that of the enclosing call for ExaminedEnd. The call
-// itself, and any memo entry it reads or records, extends the end as in an
-// unobserved parse, so observation does not change reuse.
+// ExaminedBegin starts measuring the examined end of an observed call, returning
+// that of the enclosing call for ExaminedEnd. The call itself, and any memo entry
+// it reads or records, extends the end as in an unobserved parse, so observation
+// does not change reuse.
+//
+// ExaminedBegin is for generated parsers; not a stable API.
 func (p *Parser) ExaminedBegin() int {
 	h := p.docExamined
-	if p.Document != nil {
-		p.docExamined = p.Pos
-	}
+	p.docExamined = p.Pos
 	return h
 }
 
-// ExaminedEnd returns the examined end of the call and merges it into the
-// enclosing one. Outside a Document parse the end is unknown.
-func (p *Parser) ExaminedEnd(enclosing int) (int, bool) {
-	if p.Document == nil {
-		return 0, false
-	}
+// ExaminedEnd returns the examined end of the call that ExaminedBegin began and
+// merges it into the enclosing one.
+//
+// ExaminedEnd is for generated parsers; not a stable API.
+func (p *Parser) ExaminedEnd(enclosing int) int {
 	x := p.docExamined
 	p.docExamined = max(enclosing, x)
-	return x, true
+	return x
 }
 
 // releaseObservation ends the parse's observation.
 func (p *Parser) releaseObservation() {
 	p.Observation.release()
 	p.Observation = nil
+	p.setTracking()
+}
+
+// setTracking sets track from the Document and the observation of the parse.
+func (p *Parser) setTracking() {
+	p.track = p.Document != nil || p.Observation != nil
 }
 
 // invoke evaluates the body of r and makes the rule's value.
@@ -2341,7 +2400,7 @@ func (p *Parser) MatchLiteral(rs []rune, text string, desc ExpID, build bool) (*
 	start := p.Pos
 	if p.unit == core.Bytes {
 		if !p.hasLiteralPrefix(text) {
-			if p.Document != nil {
+			if p.track {
 				p.documentTouchLiteral(text)
 			}
 			return p.matchReplacementLiteral(rs, text, desc, build)

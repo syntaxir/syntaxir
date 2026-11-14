@@ -10,12 +10,11 @@ const (
 )
 
 // TraceEvent observes actual generated rule execution. Positions use the
-// invocation's selected unit. Examined is valid only when ExaminedKnown, which
-// holds for exits of Document parses: it is then the exclusive end of the input
-// the Document treats the call as having examined when deciding reuse after an
-// edit. That end is exact: one past the last unit whose content the call or a
+// invocation's selected unit. Examined, on an exit, is the exclusive end of the
+// input the call examined, which a Document also uses when deciding reuse after
+// an edit. That end is exact: one past the last unit whose content the call or a
 // call it used could have observed, so no unit at or beyond it can change the
-// call's result.
+// call's result. ExaminedKnown is true on every exit.
 // An aborted parse may leave enters without exits.
 type TraceEvent struct {
 	Kind              TraceKind
@@ -32,8 +31,7 @@ type TraceEvent struct {
 
 // WithTrace observes actual generated calls synchronously. Callback panics
 // propagate unchanged after cleanup; an aborted parse can omit exit events.
-// Events do not expose input or parser state. ExaminedKnown is true only for
-// Document parses, where Examined is the examined end used for edit reuse.
+// Events do not expose input or parser state.
 func WithTrace(trace func(TraceEvent)) ParseOption {
 	return func(o *parseOptions) { o.observe.trace = trace }
 }
@@ -157,15 +155,13 @@ func (o *observation) memoHit() {
 	}
 }
 
-func (o *observation) Exit(matched bool, end, examined int, examinedKnown bool) {
+func (o *observation) Exit(matched bool, end, examined int) {
 	i := len(o.stack) - 1
 	call := o.stack[i]
 	o.stack = o.stack[:i]
 	e := call.event
 	e.Kind, e.Matched, e.End = TraceExit, matched, end
-	if examinedKnown {
-		e.Examined, e.ExaminedKnown = examined, true
-	}
+	e.Examined, e.ExaminedKnown = examined, true
 	if o.profile == nil {
 		o.deliver(e, call.selected)
 		return

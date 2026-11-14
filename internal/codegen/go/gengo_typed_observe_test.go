@@ -24,7 +24,7 @@ func TestGeneratedTypedTrace(t *testing.T) {
 	}{
 		{name: "plain", grammar: `type W = { Text string }
 rule main W = t:(part) #atomic => W{Text: text($t)}
-rule part W = t:("a") #atomic => W{Text: text($t)}`, input: "a", checks: `expectedEvents:=[]TraceEvent{{Kind:TraceEnter,Rule:"main",Depth:1},{Kind:TraceEnter,Rule:"part",Depth:2},{Kind:TraceExit,Rule:"part",Depth:2,Matched:true,End:1,Evals:1},{Kind:TraceExit,Rule:"main",Depth:1,Matched:true,End:1,Evals:1}};if !reflect.DeepEqual(events,expectedEvents){t.Fatal("exact plain calls",events)}`},
+rule part W = t:("a") #atomic => W{Text: text($t)}`, input: "a", checks: `expectedEvents:=[]TraceEvent{{Kind:TraceEnter,Rule:"main",Depth:1},{Kind:TraceEnter,Rule:"part",Depth:2},{Kind:TraceExit,Rule:"part",Depth:2,Matched:true,End:1,Evals:1,Examined:1,ExaminedKnown:true},{Kind:TraceExit,Rule:"main",Depth:1,Matched:true,End:1,Evals:1,Examined:1,ExaminedKnown:true}};if !reflect.DeepEqual(events,expectedEvents){t.Fatal("exact plain calls",events)}`},
 		{name: "lean", grammar: `type W = { Text string }
 rule main W = t:(-space part) #atomic => W{Text: text($t)}
 rule space = " "
@@ -138,7 +138,7 @@ func checkTypedTrace(t *testing.T, events []TraceEvent){
  t.Helper();if len(events)<2 || events[0].Depth!=1 {t.Fatal(events)}
  var stack []TraceEvent
  for _,e:=range events {
-  if e.ExaminedKnown {t.Fatal("unknown examined",e)}
+  if (e.Kind==TraceExit)!=e.ExaminedKnown||e.Kind==TraceExit&&(e.Examined<e.Pos||e.Matched&&e.Examined<e.End) {t.Fatal("examined end",e)}
   switch e.Kind {
   case TraceEnter:if e.Depth!=len(stack)+1{t.Fatal("depth",e,stack)};stack=append(stack,e)
   case TraceExit:if len(stack)==0{t.Fatal("unpaired exit",e)};in:=stack[len(stack)-1];stack=stack[:len(stack)-1];if in.Rule!=e.Rule||in.Pos!=e.Pos||in.Level!=e.Level||in.Depth!=e.Depth {t.Fatal("exit mismatch",in,e)};if e.Memo&&e.Evals!=0||!e.Memo&&e.Evals<1{t.Fatal("body count",e)}

@@ -54,7 +54,7 @@ func (g *Generator) FlowOptions(m *core.Module) flowlower.Options {
 		tableRanges = g.Opt.Value("class-tables")
 	}
 	return flowlower.Options{Budget: !g.NoBudget, Recovers: flowlower.Recovers(m), ClassTableRanges: tableRanges,
-		GuardedClasses: g.GuardedClasses(), InlineLiterals: g.Opt.Value("inline-literals"), Observe: g.Observability, Document: g.Document}
+		GuardedClasses: g.GuardedClasses(), InlineLiterals: g.InlineLiterals(), Observe: g.Observability, Document: g.RecordsExamined()}
 }
 
 // flowTypedRule prints the rule r from Flow IR as a flat rule, or returns nil if r is not
@@ -170,7 +170,7 @@ func (g *Generator) flowOperatorsRuleBody(l *core.OpLine, e grammar.Expr, scope 
 	g.Proj = nil // the actions of the lines use no projections of the rule
 	defer func() { g.Proj = prev }()
 	if g.Table != "trules" {
-		if g.hooks.OperatorsRoute != nil && g.collect == nil {
+		if g.hooks.OperatorsRoute != nil && g.collect == nil && !g.Traced {
 			g.hooks.OperatorsRoute(g.Table, g.Cur)
 		}
 		return g.flowFramed(f, l.Scope, scope, g.Cur.Name+" (OperatorsRule body inlined)", false)
@@ -366,14 +366,9 @@ func (p *flowPrinter) stmt(s flow.Stmt) {
 		p.scopeNames(s.N)
 		p.declare(s.N)
 	case *flow.ObserveSkip:
-		// The alternative's expression begins with the call it skips, if any; a blank line follows
-		// the report, except in the ordinary form, which has none.
+		// The alternative's expression begins with the call it skips, if any.
 		if trace := p.g.traceSkip(p.g.Flow.Origin[s.Alt]); trace != "" {
-			trace = strings.TrimPrefix(trace, "\n")
-			if !p.g.Ordinary {
-				trace += "\n"
-			}
-			p.write(trace)
+			p.write(strings.TrimPrefix(trace, "\n"))
 		}
 	default:
 		panic(fmt.Sprintf("flow printer: statement %T", s))
@@ -390,6 +385,10 @@ func (p *flowPrinter) peekText(ch, size, ok string) string {
 	// The inlined read and its fallback are one call of the library, which the compiler inlines.
 	if p.g.Ordinary {
 		return fmt.Sprintf("%s, %s, %s = p.NextOrdinary()\n", ch, size, ok)
+	}
+	if p.g.Traced {
+		// A traced body runs only in an observed parse, which records every read.
+		return fmt.Sprintf("%s, %s, %s = p.%s()\n", ch, size, ok, p.g.helper("Peek"))
 	}
 	guard := "p.Pos < len(p.In)"
 	if p.document {
@@ -498,6 +497,9 @@ func (p *flowPrinter) expr(x flow.Expr) string {
 	case *flow.Cmp:
 		return p.expr(x.L) + " " + x.Op + " " + p.expr(x.R)
 	case *flow.HasLit:
+		if g.Traced {
+			panic("internal error: an in-place read of a literal in a traced body")
+		}
 		rs := []rune(x.Lit.Text)
 		cond := fmt.Sprintf("p.Pos+%d <= len(p.In)", len(rs))
 		if len(rs) == 1 {

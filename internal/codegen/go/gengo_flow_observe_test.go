@@ -192,11 +192,11 @@ type observedEvent struct {
 	kind                   int
 	rule                   string
 	level, depth, pos, end int
-	evals                  int
-	matched, memo          bool
+	evals, examined        int
+	matched, memo, known   bool
 }
 
-var observedEventLine = regexp.MustCompile(`^# (\d+)/(\d+) (parse|recognize) \{Kind:(\d) Rule:(\S*) Level:(\d+) Depth:(\d+) Pos:(\d+) Matched:(\w+) End:(\d+) Memo:(\w+) Evals:(\d+) `)
+var observedEventLine = regexp.MustCompile(`^# (\d+)/(\d+) (parse|recognize) \{Kind:(\d) Rule:(\S*) Level:(\d+) Depth:(\d+) Pos:(\d+) Matched:(\w+) End:(\d+) Memo:(\w+) Evals:(\d+) Examined:(\d+) ExaminedKnown:(\w+) `)
 
 // observedProfile is the profile line of a probe report.
 type observedProfile struct {
@@ -228,6 +228,7 @@ func detailReports(t *testing.T, lines []string) map[string]*observedReport {
 			e.kind, e.rule = atoiOr0(m[4]), m[5]
 			e.level, e.depth, e.pos, e.end, e.evals = atoiOr0(m[6]), atoiOr0(m[7]), atoiOr0(m[8]), atoiOr0(m[10]), atoiOr0(m[12])
 			e.matched, e.memo = m[9] == "true", m[11] == "true"
+			e.examined, e.known = atoiOr0(m[13]), m[14] == "true"
 			r.events = append(r.events, e)
 			continue
 		}
@@ -318,8 +319,9 @@ func profileMismatch(r *observedReport) string {
 }
 
 // engineTraceMismatch compares the calls of a generated parse (the events of got, skipped events set aside)
-// with the engine's trace eng of the same input and entry, and returns the first difference. An engine call
-// that fails having looked at no more than its first character may be missing from the generated trace.
+// with the engine's trace eng of the same input and entry, examined ends included, and returns the first
+// difference. An engine call that fails having looked at no more than its first character may be missing
+// from the generated trace.
 func engineTraceMismatch(eng []engine.TraceEvent, got []observedEvent, in string) string {
 	var g []observedEvent
 	for _, e := range got {
@@ -348,6 +350,9 @@ func engineTraceMismatch(eng []engine.TraceEvent, got []observedEvent, in string
 			x := g[gi]
 			if x.kind != 1 || x.rule != e.Rule || x.pos != e.Pos || x.matched != e.Matched || x.end != e.End || x.memo != e.Memo || x.evals != e.Evals {
 				return fmt.Sprintf("exit of %s@%d: engine {end %d matched %v memo %v evals %d}, generated %+v", e.Rule, e.Pos, e.End, e.Matched, e.Memo, e.Evals, x)
+			}
+			if !x.known || x.examined != e.Examined {
+				return fmt.Sprintf("examined end of %s@%d: engine %d, generated %d (known %v)", e.Rule, e.Pos, e.Examined, x.examined, x.known)
 			}
 			gi++
 			ei++
@@ -387,7 +392,18 @@ func checkObservations(t *testing.T, group string, cases []codegentest.Case, sta
 		}
 	}
 	lines := runObserveProbes(t, cases, start, detail, nil)
+	for _, msg := range observationMismatches(t, cases, start, detail, lines) {
+		t.Error(msg)
+	}
+	observationGoldenFile.CheckSampled(t, group+"/"+codegentest.FixtureForm(t)+"/", observationDigests(t, group, cases, lines))
+}
+
+// observationMismatches checks the detailed reports of lines, those of the first detail[i] inputs of case i,
+// against the engine and the profiles against the events, and returns the differences.
+func observationMismatches(t *testing.T, cases []codegentest.Case, start string, detail []int, lines []string) []string {
+	t.Helper()
 	reports := detailReports(t, lines)
+	var out []string
 	events, checked := 0, 0
 	for i, c := range cases {
 		prog := mustCompile(t, c.Src)
@@ -395,23 +411,20 @@ func checkObservations(t *testing.T, group string, cases []codegentest.Case, sta
 			for _, entry := range []string{"parse", "recognize"} {
 				r := reports[fmt.Sprintf("%d/%d %s", i, j, entry)]
 				if r == nil {
-					t.Errorf("%s %q %s: no report", c.Name, c.Inputs[j], entry)
+					out = append(out, fmt.Sprintf("%s %q %s: no report", c.Name, c.Inputs[j], entry))
 					continue
 				}
 				checked++
 				events += len(r.events)
 				var eng []engine.TraceEvent
-				// Generated parsers record no examined range outside a Document parse, so they reuse
-				// the steps and lookahead outcomes of left-recursion contexts that differ only in it.
-				o := engine.ParseOptions{Expectations: true, Backend: engine.Closure, Unit: core.CodePoints, Recognize: entry == "recognize",
-					ContextMemoUnexamined: true}
+				o := engine.ParseOptions{Expectations: true, Backend: engine.Closure, Unit: core.CodePoints, Recognize: entry == "recognize"}
 				o.Trace = func(e engine.TraceEvent) { eng = append(eng, e) }
 				prog.ParseWith(start, c.Inputs[j], o)
 				if msg := engineTraceMismatch(eng, r.events, c.Inputs[j]); msg != "" {
-					t.Errorf("%s %q %s: %s", c.Name, c.Inputs[j], entry, msg)
+					out = append(out, fmt.Sprintf("%s %q %s: %s", c.Name, c.Inputs[j], entry, msg))
 				}
 				if msg := profileMismatch(r); msg != "" {
-					t.Errorf("%s %q %s: profile: %s", c.Name, c.Inputs[j], entry, msg)
+					out = append(out, fmt.Sprintf("%s %q %s: profile: %s", c.Name, c.Inputs[j], entry, msg))
 				}
 			}
 		}
@@ -419,7 +432,7 @@ func checkObservations(t *testing.T, group string, cases []codegentest.Case, sta
 	if checked == 0 || events == 0 {
 		t.Fatalf("%d reports checked with %d events", checked, events)
 	}
-	observationGoldenFile.CheckSampled(t, group+"/"+codegentest.FixtureForm(t)+"/", observationDigests(t, group, cases, lines))
+	return out
 }
 
 const observationGoldenHeader = "# Digests of the observations (trace and profile) of the generated Node parsers, by group, mode and case\n" +

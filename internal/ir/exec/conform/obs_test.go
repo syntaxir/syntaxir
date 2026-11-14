@@ -23,13 +23,13 @@ func obsMutants() map[string]mutant {
 			return obsCall(m, "obs.enter", a[0], a[1], int64(0))
 		}},
 		"exit reports a failure for a match": {op: "obs.exit", edit: func(m *ref.Model, a []any) []any {
-			return obsCall(m, "obs.exit", !a[0].(bool), a[1], a[2], a[3])
+			return obsCall(m, "obs.exit", !a[0].(bool), a[1], a[2])
 		}},
 		"exit forgets how far the call examined": {op: "obs.exit", edit: func(m *ref.Model, a []any) []any {
-			return obsCall(m, "obs.exit", a[0], a[1], a[2], false)
+			return obsCall(m, "obs.exit", a[0], a[1], int64(0))
 		}},
 		"exit reports the start of the call": {op: "obs.exit", edit: func(m *ref.Model, a []any) []any {
-			return obsCall(m, "obs.exit", a[0], int64(0), a[2], a[3])
+			return obsCall(m, "obs.exit", a[0], int64(0), a[2])
 		}},
 		"active is always true":  {op: "obs.active", edit: func(m *ref.Model, a []any) []any { return []any{true} }},
 		"active is always false": {op: "obs.active", edit: func(m *ref.Model, a []any) []any { return []any{false} }},

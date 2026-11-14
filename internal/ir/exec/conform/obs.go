@@ -52,20 +52,20 @@ func ObsCases() []Case {
 	add("obs_call", true, func(b *exec.Builder) {
 		b.Assert(active, "an observed parse is observed")
 		b.Do("obs.enter", rule(1), exec.Int(4), exec.Int(0))
-		b.Do("obs.exit", exec.BoolC(true), exec.Int(9), exec.Int(0), exec.BoolC(false))
+		b.Do("obs.exit", exec.BoolC(true), exec.Int(9), exec.Int(0))
 		b.Do("obs.enter", rule(2), exec.Int(9), exec.Int(2))
-		b.Do("obs.exit", exec.BoolC(false), exec.Int(9), exec.Int(12), exec.BoolC(true))
+		b.Do("obs.exit", exec.BoolC(false), exec.Int(9), exec.Int(12))
 	})
 
 	add("obs_nested", true, func(b *exec.Builder) {
 		b.Do("obs.enter", rule(0), exec.Int(0), exec.Int(0))
 		b.Do("obs.enter", rule(1), exec.Int(0), exec.Int(1))
 		b.Do("obs.enter", rule(2), exec.Int(3), exec.Int(0))
-		b.Do("obs.exit", exec.BoolC(true), exec.Int(5), exec.Int(7), exec.BoolC(true))
-		b.Do("obs.exit", exec.BoolC(false), exec.Int(0), exec.Int(5), exec.BoolC(true))
+		b.Do("obs.exit", exec.BoolC(true), exec.Int(5), exec.Int(7))
+		b.Do("obs.exit", exec.BoolC(false), exec.Int(0), exec.Int(5))
 		b.Do("obs.enter", rule(1), exec.Int(0), exec.Int(0))
-		b.Do("obs.exit", exec.BoolC(true), exec.Int(2), exec.Int(2), exec.BoolC(false))
-		b.Do("obs.exit", exec.BoolC(true), exec.Int(5), exec.Int(5), exec.BoolC(false))
+		b.Do("obs.exit", exec.BoolC(true), exec.Int(2), exec.Int(2))
+		b.Do("obs.exit", exec.BoolC(true), exec.Int(5), exec.Int(5))
 	})
 
 	add("obs_memo_hit", true, func(b *exec.Builder) {
@@ -74,12 +74,12 @@ func ObsCases() []Case {
 		b.Do("obs.enter", rule(0), exec.Int(0), exec.Int(0))
 		b.Do("obs.enter", rule(1), exec.Int(2), exec.Int(0))
 		b.Do("obs.memoHit")
-		b.Do("obs.exit", exec.BoolC(true), exec.Int(4), exec.Int(4), exec.BoolC(false))
+		b.Do("obs.exit", exec.BoolC(true), exec.Int(4), exec.Int(4))
 		b.Do("obs.enter", rule(2), exec.Int(4), exec.Int(0))
-		b.Do("obs.exit", exec.BoolC(true), exec.Int(6), exec.Int(6), exec.BoolC(false))
+		b.Do("obs.exit", exec.BoolC(true), exec.Int(6), exec.Int(6))
 		b.Do("obs.memoHit")
 		b.Do("obs.memoHit")
-		b.Do("obs.exit", exec.BoolC(false), exec.Int(0), exec.Int(6), exec.BoolC(true))
+		b.Do("obs.exit", exec.BoolC(false), exec.Int(0), exec.Int(6))
 	})
 	return cs
 }
@@ -108,7 +108,6 @@ func RandomObs(name string, rng *rand.Rand, n int, observed bool) Case {
 				boolArg(rng.IntN(2) == 0)
 				intArg(rng.Int64N(8))
 				intArg(rng.Int64N(10))
-				boolArg(rng.IntN(2) == 0)
 			}
 			if !mirror.Allows(o, args) {
 				continue

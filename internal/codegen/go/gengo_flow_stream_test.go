@@ -106,6 +106,15 @@ func testFlowStreamBodyIsBatchBody(t *testing.T) {
 				if stripped != batch {
 					t.Errorf("without its stream statements, the stream body differs from the batch body:\n%s", firstLineDifference(stripped, batch))
 				}
+				if form.observe {
+					// The traced copy of the stream body is the traced copy of the batch body in the same way.
+					stream, batch := bodyClosure(t, src, tracedStreamBodyRef), bodyClosure(t, src, tracedBatchBodyRef)
+					if stripped := streamStatements.ReplaceAllString(stream, ""); stripped == stream {
+						t.Error("the traced stream body has no stream statement")
+					} else if stripped != batch {
+						t.Errorf("without its stream statements, the traced stream body differs from the traced batch body:\n%s", firstLineDifference(stripped, batch))
+					}
+				}
 			})
 		}
 	}
@@ -135,11 +144,14 @@ func firstLineDifference(a, b string) string {
 }
 
 var (
-	streamBodyRef  = regexp.MustCompile(`(?m)^\tstreamRule\.Body = (e\d+)$`)
-	batchBodyRef   = regexp.MustCompile(`(?m)^\trules\[\d+\]\.Body = (e\d+)$`)
-	streamMethodRe = regexp.MustCompile(`(?ms)^func (e\d+)\(p \*rt\.Parser(?:, _ int)?\) \(\*core\.Node, bool\) \{\n.*?^\}\n`)
-	methodRefRe    = regexp.MustCompile(`\be\d+\b`)
-	scopeVarRe     = regexp.MustCompile(`\bscope\d+\b`)
+	streamBodyRef = regexp.MustCompile(`(?m)^\tstreamRule\.Body = (e\d+)$`)
+	batchBodyRef  = regexp.MustCompile(`(?m)^\trules\[\d+\]\.Body = (e\d+)$`)
+	// The traced copies, in a build with observability.
+	tracedStreamBodyRef = regexp.MustCompile(`(?m)^\tstreamRuleTraced\.Body = (e\d+)$`)
+	tracedBatchBodyRef  = regexp.MustCompile(`(?m)^\trulesTraced\[\d+\]\.Body = (e\d+)$`)
+	streamMethodRe      = regexp.MustCompile(`(?ms)^func (e\d+)\(p \*rt\.Parser(?:, _ int)?\) \(\*core\.Node, bool\) \{\n.*?^\}\n`)
+	methodRefRe         = regexp.MustCompile(`\be\d+\b`)
+	scopeVarRe          = regexp.MustCompile(`\bscope\d+\b`)
 	// streamStatements are the statements that the stream repetition adds to the batch body.
 	streamStatements = regexp.MustCompile(`(?m)^\t+if p\.StreamsIn\(\d+, (?:true|false)\) \{\n(\t+p\.StreamStart\(\)\n|\t+p\.EmitStream\(.*\)\n\t+if p\.Pos == x\d+\.Pos \{\n\t+break\n\t+\}\n\t+continue\n)\t+\}\n`)
 )
@@ -465,25 +477,42 @@ func testFlowStreamObservationsMatchGolden(t *testing.T) {
 	}
 }
 
-// streamPlacement checks the placement of the stream statements in generated code that has one stream body (two
-// variants of it, ordinary and controlled, in a budget-controlled build): each variant has exactly one StreamStart
-// and one delivery (EmitStream), the delivery inside a loop and the start outside that loop and before it.
-// The comparison with the batch body cannot see where a statement is, as it removes them.
+// streamPlacement checks the placement of the stream statements in generated code that has one stream body, and
+// its traced copy in a build with observability (each in two variants, ordinary and controlled, in a
+// budget-controlled build): each body holds the starts and deliveries of its variants, and each variant has
+// exactly one StreamStart and one delivery (EmitStream), the delivery inside a loop and the start outside that
+// loop and before it. The comparison with the batch body cannot see where a statement is, as it removes them.
 func streamPlacement(src string) error {
 	starts, emits := strings.Count(src, "p.StreamStart()"), strings.Count(src, "p.EmitStream(")
-	if starts != emits || starts < 1 || starts > 2 {
+	if starts != emits || starts < 1 || starts > 4 {
 		return fmt.Errorf("%d stream starts and %d deliveries, want one of each per variant", starts, emits)
 	}
 	if n := len(streamStatements.FindAllString(src, -1)); n != 2*starts {
 		return fmt.Errorf("%d guarded stream statements, want %d", n, 2*starts)
 	}
-	var method string
+	var methods []string
+	inMethods := 0
 	for _, m := range streamMethodRe.FindAllString(src, -1) {
 		if strings.Contains(m, "p.EmitStream(") {
-			method = m
+			methods = append(methods, m)
+			inMethods += strings.Count(m, "p.StreamStart()")
 		}
 	}
-	if strings.Count(method, "p.StreamStart()") != starts || strings.Count(method, "p.EmitStream(") != emits {
+	if len(methods) > 2 || inMethods != starts {
+		return fmt.Errorf("the stream statements are in different methods")
+	}
+	for _, method := range methods {
+		if err := streamPlacementIn(method); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// streamPlacementIn checks the placement of the stream statements in the method of one stream body.
+func streamPlacementIn(method string) error {
+	starts, emits := strings.Count(method, "p.StreamStart()"), strings.Count(method, "p.EmitStream(")
+	if starts != emits || starts > 2 {
 		return fmt.Errorf("the stream statements are in different methods")
 	}
 	lines := strings.Split(method, "\n")

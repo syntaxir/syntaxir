@@ -177,7 +177,7 @@ func TestDocumentDefaultsAndIsolation(t *testing.T){
  d.Parse(zprt.WithProfile(nil),zprt.WithTrace(nil));if defaults.Snapshot().Parses!=1||len(defaultEvents)!=n{t.Fatal("invocation override ignored")};d.Parse();if defaults.Snapshot().Parses!=2||len(defaultEvents)<=n{t.Fatal("defaults lost")};released(t)
  makeDoc:=func()*Document{d,err:=NewDocument(testInput());if err!=nil{t.Fatal(err)};return d}
  var unfiltered zprt.Profile;makeDoc().Parse(zprt.WithProfile(&unfiltered));for _,opts:=range [][]ParseOption{{zprt.WithTraceFilter("unknown")},{zprt.WithTraceMaxDepth(1)},{zprt.WithTraceFilter("main")}}{var filtered zprt.Profile;opts=append(opts,zprt.WithProfile(&filtered),zprt.WithTrace(func(zprt.TraceEvent){}));makeDoc().Parse(opts...);if !reflect.DeepEqual(scalarProfile(unfiltered.Snapshot()),scalarProfile(filtered.Snapshot())){t.Fatal("profile depends on trace filter")}};released(t)
- var nested zprt.Profile;entered:=false;makeDoc().Parse(zprt.WithProfile(&nested),zprt.WithTrace(func(zprt.TraceEvent){if !entered{entered=true;other:=makeDoc();other.Parse(zprt.WithProfile(&nested));Parse(testInput(),zprt.WithProfile(&nested))}}));if nested.Snapshot().Parses!=3{t.Fatal("independent reentry lost")};for _,r:=range nested.Snapshot().Rules{if r.ExaminedKnown||r.WastedKnown{t.Fatal("batch calls left examined input known",r)}};released(t)
+ var nested zprt.Profile;entered:=false;makeDoc().Parse(zprt.WithProfile(&nested),zprt.WithTrace(func(zprt.TraceEvent){if !entered{entered=true;other:=makeDoc();other.Parse(zprt.WithProfile(&nested));Parse(testInput(),zprt.WithProfile(&nested))}}));if nested.Snapshot().Parses!=3{t.Fatal("independent reentry lost")};for _,r:=range nested.Snapshot().Rules{if r.ExaminedKnown!=(r.Calls>0)||r.WastedKnown!=r.ExaminedKnown{t.Fatal("examined input of the calls",r)}};released(t)
 }
 func TestDocumentReentryRejected(t *testing.T){
  routes:=[]func(*Document,...ParseOption)(any,error){func(d *Document,opts ...ParseOption)(any,error){return d.Parse(opts...)}}
@@ -227,13 +227,15 @@ func observedLib(t *testing.T) string {
 			// The printed calls name the stored entry entry and the reused entry e.
 			stores := []string{"entry.examined, entry.from, entry.pinned = p.docExamined, examinedFromOf(p.docLow < start), false\n",
 				"p.TypedDocument.meta[entry] = typedDocumentMeta{examined: p.docExamined, recorded: true, before: p.docLow < start}"}
-			hits := []string{"e.examined", "p.TypedDocument.meta[e].examined"}
+			// The node runtime's hit is the one that moves the entry in a Document (documentMove); the typed
+			// runtime's batch call touches the same way outside Documents.
+			hits := map[string]string{"e.examined": "p.documentMove(e)) {\n\t\tp.Observation.memoHit()\n\t\tif p.track {\n\t\t\t", "p.TypedDocument.meta[e].examined": ""}
 			keep := "ExaminedHook(r.Name, start, min, p.docExamined, false); "
 			for _, old := range stores {
 				src = replace(src, old, keep+old, 1)
 			}
-			for _, examined := range hits {
-				old := "p.documentTouch(" + examined + ")\n"
+			for examined, before := range hits {
+				old := before + "p.documentTouch(" + examined + ")\n"
 				src = replace(src, old, old+"ExaminedHook(r.Name, start, min, "+examined+", true)\n", 1)
 			}
 		}

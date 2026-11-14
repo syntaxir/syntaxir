@@ -481,6 +481,37 @@ func NewTRules(rules []*Rule) []*TRule {
 	return trules
 }
 
+// TraceTRules returns the traced copies of the typed rules, one for one, as TraceRules does for rules:
+// the generated code sets their Body, OperatorsRule and Entry. A copy shares the analysis results
+// of its rule (Rule).
+//
+// TraceTRules is for generated parsers; not a stable API.
+func TraceTRules(trules []*TRule) []*TRule {
+	table := make([]TRule, len(trules))
+	traced := make([]*TRule, len(trules))
+	for i, r := range trules {
+		t := &table[i]
+		*t = *r
+		t.Body, t.OperatorsRule, t.Entry = nil, nil, nil
+		tracedCopies.Store(r, t)
+		tracedCopies.Store(t, t)
+		traced[i] = t
+	}
+	return traced
+}
+
+// forParse returns the typed rule that the parse p runs for r: its traced copy in an observed parse.
+func (r *TRule) forParse(p *Parser) *TRule {
+	if p.Observation == nil {
+		return r
+	}
+	t, ok := tracedCopies.Load(r)
+	if !ok {
+		panic("internal error: an observed parse of a rule without a traced copy")
+	}
+	return t.(*TRule)
+}
+
 // TRule is a rule of the typed library: the rule's analysis results and its typed body.
 //
 // TRule is for generated parsers; not a stable API.
@@ -671,6 +702,8 @@ func (p *TParser) run(r *TRule, input string, o parseOptions, ext any) (v any, e
 	if p.TypedDocument != nil {
 		p.Document = p.TypedDocument.owner
 	}
+	p.setTracking()
+	r = r.forParse(p.Parser)
 	p.memo.sparse = p.memo.stride > 64 && p.n > 1024
 	defer func() {
 		if x := recover(); x != nil {
@@ -959,6 +992,10 @@ type tmemoEntry struct {
 	env      []any
 	end      int
 	far      int
+	// examined is the end of the input that the call examined, recorded in a parse that tracks it
+	// (Parser.track) outside a typed Document, which keeps its record beside the entry
+	// (typedDocumentMeta).
+	examined int
 	rule     int32
 	min      int32
 	ok       bool

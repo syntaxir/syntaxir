@@ -9,9 +9,9 @@ import (
 )
 
 // docConfig returns the configuration of the randomized case with the seed: every third parse reads no
-// Document.
+// Document, and every other of those is observed.
 func docConfig(seed uint64) ref.Config {
-	return ref.Config{Document: seed%3 != 2}
+	return ref.Config{Document: seed%3 != 2, Observed: seed%6 == 2}
 }
 
 // docSuite is a suite of the doc operations over the model with mu.
@@ -129,10 +129,12 @@ func docMutants() map[string]mutant {
 		"examinedEnd drops the enclosing end": {op: "doc.examinedEnd", edit: func(m *ref.Model, a []any) []any {
 			return docCall(m, "doc.examinedEnd", int64(0))
 		}},
-		"examinedEnd is unknown": {op: "doc.examinedEnd", edit: func(m *ref.Model, a []any) []any {
-			r := docCall(m, "doc.examinedEnd", a...)
-			return []any{r[0], false}
+		"examinedEnd reports the enclosing end": {op: "doc.examinedEnd", edit: func(m *ref.Model, a []any) []any {
+			docCall(m, "doc.examinedEnd", a...)
+			return []any{a[0]}
 		}},
+		"tracking is always true":  {op: "doc.tracking", edit: func(m *ref.Model, a []any) []any { return []any{true} }},
+		"tracking is always false": {op: "doc.tracking", edit: func(m *ref.Model, a []any) []any { return []any{false} }},
 	}
 }
 

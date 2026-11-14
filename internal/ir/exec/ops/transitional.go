@@ -365,21 +365,21 @@ recorded as rec.add does, at no cost; in that mode as missing.replay does.`})
 min begins.`,
 		Requires: `The parse is observed.`})
 	m.AddOp(&exec.Op{Name: "obs.exit", Component: Obs, Params: []exec.Param{exec.P("ok", exec.TBool), exec.P("pos", exec.TInt),
-		exec.P("examined", exec.TInt), exec.P("known", exec.TBool)}, Writes: []string{Obs}, Features: []string{Observe}, NoReturn: true,
+		exec.P("examined", exec.TInt)}, Writes: []string{Obs}, Features: []string{Observe}, NoReturn: true,
 		Contract: `Reports to the observation of the parse that the call that the last unmatched obs.enter began
-ends, with its success ok, at pos, and with the end of the input it examined if known.`,
+ends, with its success ok, at pos, and with the end of the input it examined.`,
 		Requires: `The parse is observed, and a call that obs.enter began has not ended.`})
 	m.AddOp(&exec.Op{Name: "doc.examinedBegin", Component: Call, Results: []exec.Type{exec.TInt}, Reads: []string{Call, Pos},
 		Writes: []string{Call}, Features: []string{Document},
-		Contract: `Starts measuring how far an observed call examines the input: in a Document parse, the
-examined end of the call starts at the position. Returns the enclosing call's examined end, for
-doc.examinedEnd. The call itself, and any memo entry it reads or records, extends the end as in
-an unobserved parse, so that observation does not change reuse. Outside a Document parse it starts
-nothing and returns 0.`})
+		Contract: `Starts measuring how far an observed call examines the input: the examined end of the call
+starts at the position. Returns the enclosing call's examined end, for doc.examinedEnd. The call
+itself, and any memo entry it reads or records, extends the end as in an unobserved parse, so that
+observation does not change reuse.`,
+		Requires: `The parse tracks the examined input (doc.tracking).`})
 	m.AddOp(&exec.Op{Name: "doc.examinedEnd", Component: Call, Params: []exec.Param{exec.P("enclosing", exec.TInt)},
-		Results: []exec.Type{exec.TInt, exec.TBool}, Reads: []string{Call}, Writes: []string{Call}, Features: []string{Document},
+		Results: []exec.Type{exec.TInt}, Reads: []string{Call}, Writes: []string{Call}, Features: []string{Document},
 		Contract: `Ends measuring the examined end of an observed call and merges it into the enclosing one; returns
-the call's examined end and true in a Document parse, and false otherwise.`,
+the call's examined end: one past the last unit that the call's result depends on.`,
 		Requires: `enclosing is the result of the matching doc.examinedBegin.`})
 	m.AddOp(&exec.Op{Name: "doc.enter", Component: Call, Params: []exec.Param{exec.P("pos", exec.TInt)},
 		Results: []exec.Type{exec.TInt, exec.TInt}, Reads: []string{Call}, Writes: []string{Call}, Features: []string{Document},
@@ -396,10 +396,15 @@ range that holds [low, examined) and the call's.`,
 	inDoc := `The parse reads a Document.`
 	m.AddOp(&exec.Op{Name: "doc.active", Component: Call, Results: []exec.Type{exec.TBool}, Reads: []string{Call}, Features: doc,
 		Contract: `Reports whether the parse reads a Document.`})
+	m.AddOp(&exec.Op{Name: "doc.tracking", Component: Call, Results: []exec.Type{exec.TBool}, Reads: []string{Call}, Features: doc,
+		Contract: `Reports whether the parse tracks how far each call examines the input: a Document parse, which
+reuses results by it, and an observed parse, which reports it. Every input unit that can influence a
+call's result then lies below the call's examined end.`})
 	m.AddOp(&exec.Op{Name: "doc.touch", Component: Call, Params: []exec.Param{exec.P("end", exec.TInt)}, Reads: []string{Call},
 		Writes: []string{Call}, Features: doc,
 		Contract: `Extends the examined end of the current call to end, if end is past it: end is exactly one past the
-last unit that what the call read depends on. A parse that reads no Document keeps none.`})
+last unit that what the call read depends on. A parse that does not track the examined input
+(doc.tracking) keeps none.`})
 	m.AddOp(&exec.Op{Name: "doc.touchFrom", Component: Call, Params: []exec.Param{exec.P("from", exec.TInt)}, Reads: []string{Call},
 		Writes: []string{Call}, Features: doc,
 		Contract: `Extends the examined input of the current call back to from, if from is before its start. A parse
@@ -408,7 +413,7 @@ that reads no Document keeps none.`})
 		Features: doc, Contract: `Returns the start of the input that the current call examined so far.`, Requires: inDoc})
 	m.AddOp(&exec.Op{Name: "doc.examined", Component: Call, Results: []exec.Type{exec.TInt}, Reads: []string{Call},
 		Features: doc, Contract: `Returns the examined end of the current call: the exact end of the input it examined
-so far, exclusive.`, Requires: inDoc})
+so far, exclusive.`, Requires: `The parse tracks the examined input (doc.tracking).`})
 	m.AddOp(&exec.Op{Name: "doc.reused", Component: Call, Writes: []string{Call}, Features: doc,
 		Contract: `Counts a reused memo entry in the statistics of the Document.`, Requires: inDoc})
 	m.AddOp(&exec.Op{Name: "doc.evaluated", Component: Call, Writes: []string{Call}, Features: doc,

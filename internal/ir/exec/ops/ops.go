@@ -188,8 +188,9 @@ memo.prune.`})
 		Reads:  []string{Memo}, Writes: []string{Memo}, Features: doc,
 		Contract: `Records with entry e the input that the call which computed it examined, for the reuse of e
 after an edit (memo.splice): from the position of e, or from the unit before it if before (a call
-reads at most that unit before its position, to tell a line start), to end, exclusive. The record
-replaces those that memo.examine and memo.pin made before.`,
+reads at most that unit before its position, to tell a line start), to end, exclusive, and for the
+report of a call that reuses e in an observed parse (memo.examined). The record replaces those that
+memo.examine and memo.pin made before.`,
 		Requires: `end is at or after the position of e.`})
 	m.AddOp(&exec.Op{Name: "memo.examined", Component: Memo, Params: []exec.Param{exec.P("e", entry)},
 		Results: []exec.Type{exec.TInt}, Reads: []string{Memo}, Features: doc,

@@ -234,8 +234,9 @@ op memo.examine(e Entry, before bool, end int)
   contract:
     // Records with entry e the input that the call which computed it examined, for the reuse of e
     // after an edit (memo.splice): from the position of e, or from the unit before it if before (a call
-    // reads at most that unit before its position, to tell a line start), to end, exclusive. The record
-    // replaces those that memo.examine and memo.pin made before.
+    // reads at most that unit before its position, to tell a line start), to end, exclusive, and for the
+    // report of a call that reuses e in an observed parse (memo.examined). The record replaces those that
+    // memo.examine and memo.pin made before.
   requires:
     // end is at or after the position of e.
 
@@ -1043,7 +1044,7 @@ op obs.enter(r Rule, pos int, min int)
   requires:
     // The parse is observed.
 
-op obs.exit(ok bool, pos int, examined int, known bool)
+op obs.exit(ok bool, pos int, examined int)
   component observe
   writes observe
   features observe
@@ -1051,7 +1052,7 @@ op obs.exit(ok bool, pos int, examined int, known bool)
   cost <= 0
   contract:
     // Reports to the observation of the parse that the call that the last unmatched obs.enter began
-    // ends, with its success ok, at pos, and with the end of the input it examined if known.
+    // ends, with its success ok, at pos, and with the end of the input it examined.
   requires:
     // The parse is observed, and a call that obs.enter began has not ended.
 
@@ -1062,13 +1063,14 @@ op doc.examinedBegin() int
   features document
   cost <= 0
   contract:
-    // Starts measuring how far an observed call examines the input: in a Document parse, the
-    // examined end of the call starts at the position. Returns the enclosing call's examined end, for
-    // doc.examinedEnd. The call itself, and any memo entry it reads or records, extends the end as in
-    // an unobserved parse, so that observation does not change reuse. Outside a Document parse it starts
-    // nothing and returns 0.
+    // Starts measuring how far an observed call examines the input: the examined end of the call
+    // starts at the position. Returns the enclosing call's examined end, for doc.examinedEnd. The call
+    // itself, and any memo entry it reads or records, extends the end as in an unobserved parse, so that
+    // observation does not change reuse.
+  requires:
+    // The parse tracks the examined input (doc.tracking).
 
-op doc.examinedEnd(enclosing int) (int, bool)
+op doc.examinedEnd(enclosing int) int
   component call
   reads call
   writes call
@@ -1076,7 +1078,7 @@ op doc.examinedEnd(enclosing int) (int, bool)
   cost <= 0
   contract:
     // Ends measuring the examined end of an observed call and merges it into the enclosing one; returns
-    // the call's examined end and true in a Document parse, and false otherwise.
+    // the call's examined end: one past the last unit that the call's result depends on.
   requires:
     // enclosing is the result of the matching doc.examinedBegin.
 
@@ -1113,6 +1115,16 @@ op doc.active() bool
   contract:
     // Reports whether the parse reads a Document.
 
+op doc.tracking() bool
+  component call
+  reads call
+  features document
+  cost <= 0
+  contract:
+    // Reports whether the parse tracks how far each call examines the input: a Document parse, which
+    // reuses results by it, and an observed parse, which reports it. Every input unit that can influence a
+    // call's result then lies below the call's examined end.
+
 op doc.touch(end int)
   component call
   reads call
@@ -1121,7 +1133,8 @@ op doc.touch(end int)
   cost <= 0
   contract:
     // Extends the examined end of the current call to end, if end is past it: end is exactly one past the
-    // last unit that what the call read depends on. A parse that reads no Document keeps none.
+    // last unit that what the call read depends on. A parse that does not track the examined input
+    // (doc.tracking) keeps none.
 
 op doc.touchFrom(from int)
   component call
@@ -1152,7 +1165,7 @@ op doc.examined() int
     // Returns the examined end of the current call: the exact end of the input it examined
     // so far, exclusive.
   requires:
-    // The parse reads a Document.
+    // The parse tracks the examined input (doc.tracking).
 
 op doc.reused()
   component call

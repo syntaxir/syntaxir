@@ -233,7 +233,7 @@ func (p *Parser) SkipVisit() {
 	p.skipClose()
 	w.visits = append(w.visits, skipVisit{pos: p.Pos})
 	w.open, w.savedExamined = true, p.docExamined
-	if p.Document != nil {
+	if p.track {
 		p.docExamined = p.Pos
 	}
 	w.mk = p.Isolate(p.Pos)
