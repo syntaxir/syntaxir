@@ -16,6 +16,7 @@ import (
 //     Vars;
 //   - a Set has as many places as values, or one value with that many results (Results);
 //   - a loop without a bound (Counter or While) can be left: its body exits to it;
+//   - a traced function (Traced) reads no input in place;
 //   - a function lowered with budget controls (Budget) charges a step before it consumes input and in each
 //     iteration of a loop without a Counter (verifySpend).
 //
@@ -260,6 +261,11 @@ func (v *verifier) expr(xs ...Expr) error {
 		if err := v.runtime(x); err != nil {
 			return err
 		}
+		if v.f.Traced {
+			if err := v.recorded(x); err != nil {
+				return err
+			}
+		}
 		Uses(x, func(u *Var) {
 			if err == nil {
 				err = v.use(u)
@@ -335,6 +341,32 @@ func (v *verifier) runtime(x Expr) error {
 	Subexprs(x, func(y Expr) {
 		if err == nil {
 			err = v.runtime(y)
+		}
+	})
+	return err
+}
+
+// recorded checks that x reads no input in place, in a traced function (Func.Traced): an observed parse
+// runs it, and a read in place would leave out of its examined end the input that the read looked at.
+func (v *verifier) recorded(x Expr) error {
+	var form string
+	switch x.(type) {
+	case *HasLit:
+		form = "an in-place literal read"
+	case *MatchClass:
+		form = "a class table read"
+	case *SkipTerminal:
+		form = "a terminal program"
+	case *SkipClasses:
+		form = "a class run"
+	}
+	if form != "" {
+		return fmt.Errorf("%s: %s in a traced function", v.f.Name, form)
+	}
+	var err error
+	Subexprs(x, func(y Expr) {
+		if err == nil {
+			err = v.recorded(y)
 		}
 	})
 	return err

@@ -66,6 +66,9 @@ type Options struct {
 	// the recording primitive (MatchLit) as its alternative, which the target takes when the parse is a
 	// Document's. Verify rejects an in-place read without one in a function lowered with it (Func.Document).
 	Document bool
+	// Traced lowers the traced copy of a rule that an observed parse runs (Func.Traced): every read of the
+	// input records how far the parse examined, and Verify rejects a read in place in the function.
+	Traced bool
 	// Outline, if not nil, selects the nodes of a framed function that run as functions of their own: the
 	// function calls them (CallOutline) under its frame and lowers them with LowerOutline. A node it selects
 	// must be Outlinable; the lowering keeps every node in a function lowered with Observe.
@@ -158,7 +161,7 @@ func lowerFrameBody(m *core.Module, r *core.Rule, n core.Node, slots []core.Slot
 	if !FramedBody(n) {
 		return nil, fmt.Errorf("a body of rule %s is not lowered to a framed function", r.Name)
 	}
-	f := &flow.Func{Name: name, Rule: r, Fail: &flow.Label{Name: "fail"}, Frame: true, Node: opts.Node, Budget: opts.Budget, Document: opts.Document, Entered: opts.Budget, Binds: n.Attrs().Eff.Set&core.EffBind != 0}
+	f := &flow.Func{Name: name, Rule: r, Fail: &flow.Label{Name: "fail"}, Frame: true, Node: opts.Node, Budget: opts.Budget, Document: opts.Document, Traced: opts.Traced, Entered: opts.Budget, Binds: n.Attrs().Eff.Set&core.EffBind != 0}
 	l := &lowerer{m: m, opts: opts, f: f, used: map[*flow.Label]bool{}, frame: true}
 	l.top = n
 	l.stack = []*[]flow.Stmt{&f.Body}
@@ -203,6 +206,7 @@ func Lower(m *core.Module, r *core.Rule, name string, opts Options) (*flow.Func,
 		Node:     opts.Node,
 		Budget:   opts.Budget,
 		Document: opts.Document,
+		Traced:   opts.Traced,
 		Entered:  opts.Budget, // the method that calls the function charges the step of entering the rule
 		Binds:    r.Body.Attrs().Eff.Set&core.EffBind != 0}
 	l := &lowerer{m: m, opts: opts, f: f, used: map[*flow.Label]bool{}}

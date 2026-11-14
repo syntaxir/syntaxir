@@ -55,6 +55,10 @@ type Func struct {
 	// Document reports a function lowered for a build with Documents (Options.Document); Verify then checks
 	// that every in-place read has the recording primitive as its alternative.
 	Document bool
+	// Traced reports a function of the traced copies that an observed parse runs (Options.Traced). Every
+	// read of the input in it records how far the parse examined, so Verify rejects each form that reads in
+	// place (HasLit, MatchClass, SkipTerminal, SkipClasses), with or without a recording alternative.
+	Traced bool
 	// Entered reports a function lowered with budget controls, whose entry the generator charges: the method
 	// that holds the function (g.method, flatMethod or plainCall) begins with one Spend, for the body of
 	// a rule, of a frame and of a line or the skip of an Operators Rule alike. The function charges nothing

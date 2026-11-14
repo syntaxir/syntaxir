@@ -6,6 +6,8 @@ import (
 	"go/token"
 	"strings"
 	"testing"
+
+	"zeroparse.dev/zp/internal/ir/core"
 )
 
 // TestVerifyRejects checks that Verify rejects functions that break each invariant it checks.
@@ -14,6 +16,11 @@ func TestVerifyRejects(t *testing.T) {
 		return &Func{Name: "f", Body: body, Fail: &Label{Name: "fail"},
 			Start: &Var{Name: "start", Type: TypeInt, Entry: true}, Result: &Var{Name: "v", Type: TypeValue, Entry: true},
 			Ctx: &Var{Name: "c", Type: TypeCtx, Entry: true}}
+	}
+	traced := func(body ...Stmt) *Func {
+		f := newFunc(body...)
+		f.Document, f.Traced = true, true
+		return f
 	}
 	inner, outer := &Label{Name: "L1"}, &Label{Name: "L2"}
 	stray := &Var{Name: "x9", Type: TypeInt}
@@ -68,6 +75,14 @@ func TestVerifyRejects(t *testing.T) {
 			f.Node = true
 			return f
 		}(), "stream element outside a framed Node function"},
+		// A traced function records every read, so even a guarded read in place, which a Document function
+		// may have, is an error in it.
+		{"guarded in-place literal read in a traced function", traced(&If{Cond: &HasLit{Lit: &core.Lit{Text: "a"}},
+			Then: []Stmt{&Set{Dst: []LValue{RegPos}, X: []Expr{&Int{N: 1}}}},
+			Else: []Stmt{&Set{Dst: []LValue{&Discard{}, &Discard{}}, X: []Expr{&MatchLit{Lit: &core.Lit{Text: "a"}}}}}}), "an in-place literal read in a traced function"},
+		{"class table read in a traced function", traced(&Set{Dst: []LValue{&Discard{}}, X: []Expr{&MatchClass{Class: &core.Class{}}}}), "a class table read in a traced function"},
+		{"terminal program in a traced function", traced(&Set{Dst: []LValue{&Discard{}}, X: []Expr{&Not{X: &SkipTerminal{T: &core.Terminal{}}}}}), "a terminal program in a traced function"},
+		{"class run in a traced function", traced(&Set{Dst: []LValue{&Discard{}}, X: []Expr{&SkipClasses{Run: &core.ClassRun{}}}}), "a class run in a traced function"},
 		{"undeclared cut flag", func() *Func {
 			return &Func{Name: "f", Fail: &Label{Name: "fail"}, Frame: true, Cut: &Var{Name: "cut1", Type: TypeBool}}
 		}(), "not declared"},
@@ -88,6 +103,21 @@ func TestVerifyRejects(t *testing.T) {
 	ok.Body = append(ok.Body, &Exit{To: ok.Fail})
 	if err := Verify(ok); err != nil {
 		t.Errorf("a valid function: %v", err)
+	}
+	// The guarded read in place that a traced function may not have is valid in a Document function, and a
+	// traced function that reads through the recording primitive only verifies.
+	guarded := func() []Stmt {
+		return []Stmt{&If{Cond: &HasLit{Lit: &core.Lit{Text: "a"}},
+			Then: []Stmt{&Set{Dst: []LValue{RegPos}, X: []Expr{&Int{N: 1}}}},
+			Else: []Stmt{&Set{Dst: []LValue{&Discard{}, &Discard{}}, X: []Expr{&MatchLit{Lit: &core.Lit{Text: "a"}}}}}}}
+	}
+	document := newFunc(guarded()...)
+	document.Document = true
+	if err := Verify(document); err != nil {
+		t.Errorf("a guarded read in place in a Document function: %v", err)
+	}
+	if err := Verify(traced(&Set{Dst: []LValue{&Discard{}, &Discard{}}, X: []Expr{&MatchLit{Lit: &core.Lit{Text: "a"}}}})); err != nil {
+		t.Errorf("a traced function that reads through the recording primitive: %v", err)
 	}
 }
 

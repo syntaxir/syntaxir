@@ -336,7 +336,7 @@ func (g *Generator) StartRecFlow(rec *compile.Program) error {
 	}
 	// Classes are inline tests, as the Node library's generated code writes them.
 	opts := flowlower.Options{Budget: !g.NoBudget, Recovers: flowlower.Recovers(m), GuardedClasses: g.GuardedClasses(),
-		InlineLiterals: g.InlineLiterals(), Observe: g.Observability, Node: true, Document: g.RecordsExamined()}
+		InlineLiterals: g.InlineLiterals(), Observe: g.Observability, Node: true, Document: g.RecordsExamined(), Traced: g.Traced}
 	g.Flow = &FlowState{M: m, Origin: origin, Opts: opts, Rules: append(append([]*compile.Rule(nil), rec.RuleList...), rec.Twins...)}
 	return nil
 }
