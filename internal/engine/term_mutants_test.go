@@ -53,7 +53,7 @@ var engineMutants = []engineMutant{
 	{"concat takes a value that is not a list", "term_exec.go", "termPushItems", "if ok {", "if ok || true {"},
 	{"concat charges nothing for the elements it pushes", "term_exec.go", "termPushItems", "AppendSpend(p, p.KidStack, items)", "append(p.KidStack, items...)"},
 	{"concat takes any value", "term_exec.go", "termItems", "return items, p.termError(12, v, any(fn), 0, 0)", "return items, nil"},
-	{"the text of a string node is the input", "term_exec.go", "termText", "if held {", "if held && false {"},
+	{"the text of a string node is the input", "term_exec.go", "termText", "if held && int(value.ShapeOf(n)) != 3 {", "if held && false {"},
 	{"a list value converts", "term_exec.go", "termConvert", "if value.HasBase(n) {", "if true {"},
 	{"a value that does not convert is nil", "term_exec.go", "termConvert", "return nil, p.termError(15, x, any(t[0].Type), 0, 0)", "return nil, nil"},
 	{"a node field value does not cover", "term_exec.go", "termCover", "if !ok {\n\t\treturn first", "if !ok && false {\n\t\treturn first"},
