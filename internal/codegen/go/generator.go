@@ -1035,6 +1035,9 @@ func (g *Generator) typedCall(r *compile.Rule, body string, s *compile.Scope, d 
 	if merged {
 		iname = g.ruleFunc("v", r.ID)
 	}
+	// The calls below name the row of trules, also in the traced pass: they read only its analysis
+	// (Seen, Id, Memo, Scope), which the traced copy shares, and run the body they are passed. Only the
+	// general call runs a row's body, and the early return above keeps Leaders and Operators Rules on it.
 	if g.directTypedDocument {
 		fmt.Fprintf(m, " if p.TypedDocument != nil { return p.DocumentCall(trules[%d], 0, %s) }\n", r.ID, iname)
 	}

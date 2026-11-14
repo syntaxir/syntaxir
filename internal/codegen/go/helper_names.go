@@ -15,7 +15,7 @@ func ordinaryHelperName(name string) bool {
 // the examined end of a stream read, for the traced Node bodies (the library writes them by hand).
 func tracedHelperName(name string) bool {
 	switch name {
-	case "Peek", "MatchLiteral", "MatchLiteralFold", "MatchAny", "AtLineEnd":
+	case "Peek", "MatchLiteral", "MatchLiteralFold", "AtLineEnd":
 		return true
 	}
 	return false

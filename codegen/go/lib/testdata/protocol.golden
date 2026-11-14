@@ -170,7 +170,6 @@ method (*Parser) MakeError(int, []ExpID) *zeroparse.dev/zp/core.SyntaxError
 method (*Parser) Mark() Mark
 method (*Parser) MatchAny(bool) (*zeroparse.dev/zp/core.Node, bool)
 method (*Parser) MatchAnyOrdinary(bool) (*zeroparse.dev/zp/core.Node, bool)
-method (*Parser) MatchAnyTraced(bool) (*zeroparse.dev/zp/core.Node, bool)
 method (*Parser) MatchLiteral([]rune, string, ExpID, bool) (*zeroparse.dev/zp/core.Node, bool)
 method (*Parser) MatchLiteralFold([]rune, ExpID, bool) (*zeroparse.dev/zp/core.Node, bool)
 method (*Parser) MatchLiteralFoldOrdinary([]rune, ExpID, bool) (*zeroparse.dev/zp/core.Node, bool)

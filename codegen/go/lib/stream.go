@@ -768,21 +768,6 @@ func (p *Parser) MatchLiteralFoldTraced(rs []rune, desc ExpID, build bool) (*cor
 	return p.NewNode(Data{Kind: coreimpl.MatchKind, Start: int32(start), End: int32(p.Pos), Text: p.Text(start, p.Pos), Terminal: true, Fresh: true}), true
 }
 
-// MatchAnyTraced is MatchAny in a traced rule body.
-//
-// MatchAnyTraced is for generated parsers; not a stable API.
-func (p *Parser) MatchAnyTraced(build bool) (*core.Node, bool) {
-	if p.Stream == nil {
-		return p.MatchAny(build)
-	}
-	_, size, ok := p.PeekTraced()
-	if !ok {
-		p.Expect(p.Pos, IdAny)
-		return nil, false
-	}
-	return p.Single(size, build)
-}
-
 // AtLineEndTraced is AtLineEnd in a traced rule body.
 //
 // AtLineEndTraced is for generated parsers; not a stable API.
