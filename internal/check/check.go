@@ -85,8 +85,9 @@ type TypeInfo struct {
 	valuesOnce sync.Once
 	Fields     map[string][]typedField // the fields of each struct type, in declaration order
 	Aliases    map[string]Ty           // the type each alias stands for
-	// NodeMembers reports, for each member access of an action, whether it reads only node
-	// members (.Start, .End, .Value) and never a struct field.
+	// NodeMembers reports, for each member access of an action, whether it reads only members of
+	// nodes and recovered values (.Start, .End and .Value, and the fields expected and message of
+	// missing) and never a struct field.
 	NodeMembers map[*grammar.Member]bool
 	// rec holds the types of the terms, scopes and rules of the checked program, recorded by the
 	// inference of the type check (or, for type information made without it, on first use by

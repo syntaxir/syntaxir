@@ -17,8 +17,8 @@ import (
 // tests it against the types that admit it. A missing token also has the string fields expected and message. A field or capture that a recovered value
 // does not declare, which another member of a join may, reads nil. A conversion N{x} of a value that is not a
 // string, tuple or list node, a recovered value among them, does not type-check, so the evaluator does not
-// take one, and panics. The range of a struct that holds a recovered value in a field is not modelled, and
-// the evaluation panics.
+// take one, and panics. As a field of a struct or an element of a list or a tuple, a recovered value covers
+// its range like a node, and its encoding shows its range, its message and the literal of a missing token.
 type TermEnv struct {
 	// Captures are the captures by name, made with Node; a capture that did not match is absent.
 	Captures map[string]V
@@ -137,14 +137,6 @@ func (e *TermEnv) eval(t grammar.Term, p params) V {
 		return e.cast(t, e.eval(t.X, p))
 	}
 	panic(fmt.Sprintf("ref: unsupported term %T", t))
-}
-
-// unmodelled panics if x is an error value, for an operation on one that the evaluator does not model (see
-// TermEnv).
-func unmodelled(x V, what string) {
-	if x.Kind == KError {
-		panic("ref: " + what + " an error value is not modelled")
-	}
 }
 
 func (e *TermEnv) terms(ts []grammar.Term, p params) []V {
@@ -482,6 +474,12 @@ func (e *TermEnv) plain(v V, result bool) any {
 			out["type"] = v.Type
 		}
 		return out
+	case KError:
+		out := map[string]any{"start": v.Start, "end": v.End, "error": v.Fields["message"].S}
+		if v.Missing {
+			out["expected"] = v.Fields["expected"].S
+		}
+		return out
 	case KStruct:
 		fields := map[string]any{}
 		for k, x := range v.Fields {
@@ -501,9 +499,8 @@ func (e *TermEnv) plain(v V, result bool) any {
 func (e *TermEnv) structRange(v V) (start, end int) {
 	first := true
 	for _, x := range v.Fields {
-		unmodelled(x, "the range of a struct that holds")
-		if x.Kind != KList && x.Kind != KTuple && x.Kind != KStruct && x.Kind != KNode {
-			continue // a scalar or nil field is not a node
+		if x.Kind != KList && x.Kind != KTuple && x.Kind != KStruct && x.Kind != KNode && x.Kind != KError {
+			continue // a scalar or nil field is not a node; a recovered value is one
 		}
 		s, t := e.nodeRange(x)
 		if first || s < start {
@@ -520,13 +517,13 @@ func (e *TermEnv) structRange(v V) (start, end int) {
 	return start, end
 }
 
-// nodeRange is the range of a value as a node: the range of a capture, the range that covers the
-// elements of a list or a tuple that are not nil, which is empty at the start of the rule when there
+// nodeRange is the range of a value as a node: the range of a capture or a recovered value, the range that
+// covers the elements of a list or a tuple that are not nil, which is empty at the start of the rule when there
 // are none, and the range of a struct. An int, a string or a bool, which an element holds as a node of
 // its own, has the range of the rule.
 func (e *TermEnv) nodeRange(v V) (start, end int) {
 	switch v.Kind {
-	case KNode:
+	case KNode, KError:
 		return v.Start, v.End
 	case KStruct:
 		return e.structRange(v)

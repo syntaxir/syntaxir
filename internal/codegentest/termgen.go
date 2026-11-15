@@ -47,8 +47,9 @@ type Capture struct {
 	From, To int
 	Elems    []Capture
 	Caps     map[string]Capture
-	// Expected and Diagnostic are the fields of a MissingCapture: the literal that the token inserted, and
-	// the message of the error it recovered, without its position, when the parse records expectations.
+	// Expected is the literal that the token of a MissingCapture inserted. Diagnostic is the message of the
+	// error that an ErrorCapture or a MissingCapture recovered, without its position, when the parse records
+	// expectations.
 	Expected, Diagnostic string
 }
 
@@ -927,7 +928,7 @@ func ErrorCastTermCases() []TermCase {
 			Captures: func(in string) map[string]Capture {
 				e := Capture{Shape: StringCapture, From: 1, To: 2}
 				if in == "a;" {
-					e.Shape = ErrorCapture
+					e.Shape, e.Diagnostic = ErrorCapture, `syntax error: expected "b"`
 				}
 				return map[string]Capture{"x": litCap(0), "e": e}
 			},
@@ -973,7 +974,7 @@ func RecoveredTermCases() []TermCase {
 			Captures: func(in string) map[string]Capture {
 				e := Capture{Shape: StringCapture, From: 1, To: 2}
 				if in == "a;;" {
-					e = Capture{Shape: ErrorCapture, From: 1, To: 3}
+					e = Capture{Shape: ErrorCapture, From: 1, To: 3, Diagnostic: `syntax error: expected "b"`}
 				}
 				return map[string]Capture{"x": litCap(0), "e": e}
 			},
@@ -1002,6 +1003,63 @@ func MissingTermCases() []TermCase {
 				return map[string]Capture{"x": litCap(0), "e": e}
 			},
 		})
+	}
+	return out
+}
+
+// recoveredStructPrelude declares the structs of RecoveredStructTermCases: S holds a value that may be a
+// recovered value, alone or with a string node, and T holds an S.
+const recoveredStructPrelude = "type S = { F *(node[string] | error); G *node[string] }\ntype T = { S S }\n" +
+	"type L = { L []*(node[string] | error) }\n@start\n"
+
+// recoveredStructTerms are the terms of RecoveredStructTermCases over $x, the string node of the literal at the
+// start, and $e, a string node or a recovered value after it: structs that are not the value of the rule, whose
+// ranges the encoding shows, and that cover the range of a recovered value in a field as that of a node,
+// alone, with $x, nested in a struct and as an element of a list in a field.
+var recoveredStructTerms = []struct{ typ, term string }{
+	{"[]S", "list(S{F: $e})"},
+	{"[]S", "list(S{F: $e, G: $x})"},
+	{"[]S", "list(S{G: $x}, S{F: $e})"},
+	{"T", "T{S: S{F: $e}}"},
+	{"[]L", "list(L{L: list($e)})"},
+}
+
+// RecoveredStructTermCases returns the fixed terms (recoveredStructTerms) that hold the value of $e in a field of a
+// struct. Over a recovered value of #recover, the rule captures $x, the literal "é", whose width differs in the two
+// position units, and $e, the value of "b" #recover(skip=";;"), which is a string node on the input "éb" and an error
+// value that covers ";;" on the input "é;;". With missing set, $e is the value of the rule semi, ";" #missing,
+// which is a string node on the input "é;" and the token inserted at the end of the input "é", and only the
+// engine's closure backend parses the rule (MissingTokens).
+func RecoveredStructTermCases(missing bool) []TermCase {
+	var out []TermCase
+	for _, r := range recoveredStructTerms {
+		c := TermCase{
+			Case: Case{Name: "recovered struct: " + r.term,
+				Src:    fmt.Sprintf("%srule main %s = x:\"é\" e:(\"b\" #recover(skip=\";;\")) $$ => %s\n", recoveredStructPrelude, r.typ, r.term),
+				Inputs: []string{"éb", "é;;"}},
+			Term: r.term, Type: r.typ, Kind: TermAction, Lit: "é", Recovers: true,
+			Captures: func(in string) map[string]Capture {
+				e := Capture{Shape: StringCapture, From: 1, To: 2}
+				if in == "é;;" {
+					e = Capture{Shape: ErrorCapture, From: 1, To: 3, Diagnostic: `syntax error: expected "b"`}
+				}
+				return map[string]Capture{"x": litCap(0), "e": e}
+			},
+		}
+		if missing {
+			c.Name = "missing struct: " + r.term
+			c.Src = fmt.Sprintf("%srule main %s = x:\"é\" e:semi $$ => %s\nrule semi = \";\" #missing\n", recoveredStructPrelude, r.typ, r.term)
+			c.Inputs = []string{"é;", "é"}
+			c.MissingTokens = true
+			c.Captures = func(in string) map[string]Capture {
+				e := Capture{Shape: StringCapture, From: 1, To: 2}
+				if in == "é" {
+					e = Capture{Shape: MissingCapture, From: 1, To: 1, Expected: ";", Diagnostic: `syntax error: expected ";"`}
+				}
+				return map[string]Capture{"x": litCap(0), "e": e}
+			}
+		}
+		out = append(out, c)
 	}
 	return out
 }

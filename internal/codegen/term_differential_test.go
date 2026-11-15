@@ -772,16 +772,16 @@ func fixedTermCases() []codegentest.TermCase {
 	var all []codegentest.TermCase
 	for _, set := range [][]codegentest.TermCase{codegentest.ConvertTermCases(), codegentest.StructTermCases(), codegentest.CastTermCases(),
 		codegentest.HullTermCases(), codegentest.IterTermCases(), codegentest.PushTermCases(), codegentest.ScalarTermCases(), codegentest.ErrorCastTermCases(),
-		codegentest.RecoveredTermCases()} {
+		codegentest.RecoveredTermCases(), codegentest.RecoveredStructTermCases(false)} {
 		all = append(all, set...)
 	}
 	return all
 }
 
 // TestTermFixedReference checks the engine's backends (closure, VM and iterative VM) against the reference
-// evaluator on the fixed term sets, the members and the terms over a missing token and its fields (closure
-// only, with and without recording expectations, which sets the message of the token), in both
-// position units: the same value or error for every input of an action, and
+// evaluator on the fixed term sets, the members and the terms over a missing token, its fields and structs that
+// hold one (closure only), in both position units, and for a case that recovers, with and without recording
+// expectations, which sets the message of a recovered value: the same value or error for every input of an action, and
 // whether a predicate held. The captures come from the hand-written tables of the cases, so the
 // reference evaluator reads the nodes that the rules define, not the engine's. With
 // TestTermFixedGeneratedTargets, which compares the generated targets with the engine on the same
@@ -790,7 +790,7 @@ func TestTermFixedReference(t *testing.T) {
 	t.Parallel()
 	checked := 0
 	cases := append(append(codegentest.MemberTermCases(), fixedTermCases()...), codegentest.MissingTermCases()...)
-	for _, c := range append(cases, codegentest.MissingFieldTermCases()...) {
+	for _, c := range append(append(cases, codegentest.MissingFieldTermCases()...), codegentest.RecoveredStructTermCases(true)...) {
 		g, err := parseTest(c.Src)
 		if err != nil {
 			t.Fatalf("%s: %v", c.Name, err)
@@ -810,7 +810,7 @@ func TestTermFixedReference(t *testing.T) {
 		zeros := referenceZeros(t, prog.Static(), structs...)
 		term := referenceTerm(t, c)
 		recording := []bool{false}
-		if c.MissingTokens {
+		if c.Recovers {
 			recording = append(recording, true)
 		}
 		for _, in := range c.Inputs {
@@ -835,9 +835,10 @@ func TestTermFixedReference(t *testing.T) {
 }
 
 // referenceCaptures turns the captures of a fixed case, in characters of the input in, into nodes of the
-// reference evaluator in the position unit; a capture that did not match is left out. The message of a missing
-// token is the position of the token, as line:column in the unit, and its diagnostic if the parse records
-// expectations (expectations), or "syntax error" otherwise (spec/runtime/parsing.md, Syntax Errors).
+// reference evaluator in the position unit; a capture that did not match is left out. The message of a
+// recovered value is the position where it starts, which is where its error was recorded, as line:column in
+// the unit, and its diagnostic if the parse records expectations (expectations), or "syntax error" otherwise
+// (spec/runtime/parsing.md, Syntax Errors).
 func referenceCaptures(caps map[string]codegentest.Capture, in string, bytes, expectations bool) map[string]ref.V {
 	runes := []rune(in)
 	offset := func(i int) int {
@@ -849,9 +850,7 @@ func referenceCaptures(caps map[string]codegentest.Capture, in string, bytes, ex
 	var node func(c codegentest.Capture) ref.V
 	node = func(c codegentest.Capture) ref.V {
 		switch c.Shape {
-		case codegentest.ErrorCapture:
-			return ref.ErrorValue(string(runes[c.From:c.To]), offset(c.From), offset(c.To))
-		case codegentest.MissingCapture:
+		case codegentest.ErrorCapture, codegentest.MissingCapture:
 			before := string(runes[:c.From])
 			line := 1 + strings.Count(before, "\n")
 			col := 1 + offset(c.From) - offset(len([]rune(before[:strings.LastIndex(before, "\n")+1])))
@@ -859,7 +858,11 @@ func referenceCaptures(caps map[string]codegentest.Capture, in string, bytes, ex
 			if expectations {
 				diagnostic = c.Diagnostic
 			}
-			return ref.MissingToken(offset(c.From), c.Expected, fmt.Sprintf("%d:%d: %s", line, col, diagnostic))
+			message := fmt.Sprintf("%d:%d: %s", line, col, diagnostic)
+			if c.Shape == codegentest.ErrorCapture {
+				return ref.ErrorValue(string(runes[c.From:c.To]), offset(c.From), offset(c.To), message)
+			}
+			return ref.MissingToken(offset(c.From), c.Expected, message)
 		}
 		shape := map[codegentest.CaptureShape]ref.Shape{codegentest.StringCapture: ref.StringNode, codegentest.TupleCapture: ref.TupleNode,
 			codegentest.ListCapture: ref.ListNode}

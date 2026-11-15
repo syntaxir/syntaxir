@@ -25,7 +25,7 @@ func typeOf(s string) grammar.TypeExpr {
 // Values and Constructors): error admits a skipped range and a missing token, missing only the token,
 // and _ every value; no other type does, node[_] among them.
 func TestErrorValueCast(t *testing.T) {
-	skipped, missing := ErrorValue("b;", 1, 3), MissingToken(3, ";", "1:4: syntax error")
+	skipped, missing := ErrorValue("b;", 1, 3, "1:2: syntax error"), MissingToken(3, ";", "1:4: syntax error")
 	env := &TermEnv{Captures: map[string]V{"s": skipped, "m": missing, "n": Node(StringNode, "ab", 0, 2, nil, nil)},
 		Aliases: map[string]grammar.TypeExpr{"E": tref("error"), "M": &grammar.TypeGroup{Type: tref("missing")}}}
 	for _, c := range []struct {
@@ -58,7 +58,7 @@ func TestErrorValueCast(t *testing.T) {
 // length is that of nil, and the list built-ins take it as an empty list. A missing token has the string
 // fields expected and message; every other field reads nil.
 func TestErrorValueTerms(t *testing.T) {
-	env := &TermEnv{Captures: map[string]V{"e": ErrorValue("b;", 1, 3), "m": MissingToken(3, ";", `1:4: syntax error: expected ";"`)}}
+	env := &TermEnv{Captures: map[string]V{"e": ErrorValue("b;", 1, 3, "1:2: syntax error"), "m": MissingToken(3, ";", `1:4: syntax error: expected ";"`)}}
 	for _, c := range []struct {
 		name string
 		term grammar.Term

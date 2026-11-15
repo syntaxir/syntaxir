@@ -48,8 +48,8 @@ type V struct {
 	// Caps are the captures of a node by name; a capture that did not match is absent and reads as nil.
 	// For a node of UnknownShape, a nil Caps means that its captures are unknown as well.
 	Caps map[string]V
-	// Missing is set for a KError value that is a missing token, which is an error value of the type missing
-	// and holds the string fields expected and message in Fields.
+	// Missing is set for a KError value that is a missing token, which is an error value of the type missing.
+	// Fields holds the message of a KError value, and the expected literal of a missing token.
 	Missing bool
 }
 
@@ -74,9 +74,9 @@ func Node(shape Shape, text string, start, end int, items []V, caps map[string]V
 }
 
 // ErrorValue returns the error value of #recover that skipped the range [start, end) of the input, whose
-// text is text.
-func ErrorValue(text string, start, end int) V {
-	return V{Kind: KError, S: text, Start: start, End: end}
+// text is text, with the message of the error it recovered, which only its encoding shows.
+func ErrorValue(text string, start, end int, message string) V {
+	return V{Kind: KError, S: text, Start: start, End: end, Fields: map[string]V{"message": Str(message)}}
 }
 
 // MissingToken returns the error value of the missing token that #missing inserted at the position pos: its

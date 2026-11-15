@@ -898,9 +898,10 @@ func recoveredMember(name string, missing bool) []Ty {
 	return nil
 }
 
-// noteMember records whether the member access m reads only node members (.Start, .End and
-// .Value), never a struct field: an access typed several times (in a lambda body) must read node
-// members every time.
+// noteMember records whether the member access m reads only members of nodes and recovered values
+// (.Start, .End and .Value, and the fields expected and message of missing), never a struct field,
+// which holds when every type its receiver may have is a node, a recovered value or _|_: an access
+// typed several times (in a lambda body) must read such members every time.
 func (v *ValueInference) noteMember(m *grammar.Member, nodeOnly bool) {
 	if v.nodeMembers == nil || v.Quiet {
 		return

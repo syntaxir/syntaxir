@@ -946,7 +946,8 @@ func (t *TypedGen) plainField(x compile.Ty) bool {
 	return false
 }
 
-// nodeMember reports whether the member access m reads only .Start, .End or .Value of nodes.
+// nodeMember reports whether the member access m reads only members of nodes and recovered values, never a
+// struct field (check.TypeInfo.NodeMembers).
 func (t *TypedGen) nodeMember(m *grammar.Member) bool {
 	return t.Info.NodeMembers[m]
 }
