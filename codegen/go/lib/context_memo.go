@@ -1046,6 +1046,9 @@ func (p *Parser) growNext(g *growState) bool {
 		if s := p.ctxFind(g.start, g.gp, h, nil); s != nil && p.reusable(s.silent) {
 			p.replayDeps(g.start, g.gp, g.present, s.deps)
 			p.MergeExpected(s.far, s.exp)
+			// A step taken from the context records what it examined, like every other reuse. In the
+			// grammars known to reach it, the call that memoized the step already recorded as much in the
+			// same frame, but that is not proven in general.
 			p.documentTouch(s.examined)
 			p.documentTouchFrom(g.start - 1) // conservative, like the touch of replayCtx
 			if !p.advance(g, s.e, s.id, runStep{seed: id, far: s.far, exp: s.exp, examined: s.examined, silent: s.silent, deps: s.deps}) {

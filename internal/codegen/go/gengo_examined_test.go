@@ -337,5 +337,8 @@ rule m = &(e "x" t) e "x" / t
 rule t = [0-9]+`, Inputs: []string{"1x2", "1x2+3", "1+2x34", "1x23x4", "1x2x3", "1+2+3x45"}},
 		{Name: "recovery that ends its rule", Src: `rule main = (x "d" / [ace])* $$
 rule x = "b" #recover(skip=[ac]+)`, Inputs: []string{strings.Repeat(unit, 6), "b" + strings.Repeat("a", 40) + "cd", strings.Repeat("b"+unit, 4)}},
+		{Name: "growth steps of a leader taken again from the context", Src: `rule main = a $$
+rule a = b "1" / b "2" / "a"
+rule b = a "x" / b "y" / "b"`, Inputs: []string{"b1", "by2", "ax2", "byy1x2", "b1x1y2", "ax1yx2", "byyyy1x2", "byyyyyy2x1"}},
 	}
 }
