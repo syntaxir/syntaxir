@@ -36,6 +36,9 @@ type ParseOptions struct {
 	// Trace, if not nil, receives an event at the start and at the end of every rule call (see
 	// TraceEvent). Tracing does not change the result of the parse.
 	Trace func(TraceEvent)
+	// Profiles record the rule calls of the parse (see core.ProfileRecorder): each records an event
+	// before Trace handles it. A profiled parse is traced (Traced).
+	Profiles []*core.Profile
 	// DiagnosticCallback receives committed recoveries during stream parsing, immediately before
 	// the corresponding element. It is invalid for batch parses and Documents.
 	DiagnosticCallback func(*core.SyntaxError) error
@@ -56,6 +59,11 @@ type ParseOptions struct {
 	// compare the traces of generated parsers with, which record no examined range outside a
 	// Document parse.
 	ContextMemoUnexamined bool
+}
+
+// Traced reports whether the parse reports its rule calls: to a trace function or to profiles.
+func (o ParseOptions) Traced() bool {
+	return o.Trace != nil || len(o.Profiles) > 0
 }
 
 // Default limits on call nesting depth. Backends that run recursively use the host stack, so

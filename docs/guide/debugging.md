@@ -418,36 +418,38 @@ main failed: 1:7: syntax error: expected [0-9]
 1:7: syntax error: expected [0-9]
 ```
 
-A `TraceEvent` has `Kind` (`TraceEnter` or `TraceExit`), `Rule`, `Level`, `Depth`, `Pos` and `Lookahead`; exit events
+A `TraceEvent`, the event type of the package `core` that generated parsers report too, has `Kind` (`TraceEnter` or `TraceExit`), `Rule`, `Level`, `Depth`, `Pos` and `Lookahead`; exit events
 also have `Matched`, `End`, `Memo`, `Evals`, `ReusedElements` and `Examined`, and the methods `Text` (the input matched), `Failure`
 (the farthest failure recorded during the call, as a `*SyntaxError`, or nil) and `Recovered` (the errors `#recover`
 recovered from during the call, whose expectations `Failure` does not include). `LineCol` converts a position.
 
-`engine.WithProfile` adds a parse to a `engine.Profile`, which can collect any number of parses, for example a whole test
-corpus:
+`engine.WithProfile` adds a parse to a `engine.Profile` (the `Profile` of the package `core`, which generated parsers
+fill too), which can collect any number of parses, for example a whole test corpus. `Snapshot` reads it:
 
 ```go
 var prof engine.Profile
 for _, input := range inputs {
 	p.Parse(input, engine.WithProfile(&prof))
 }
-for _, r := range prof.Rules {
+snap := prof.Snapshot()
+for _, r := range snap.Rules {
 	fmt.Println(r.Rule, r.Calls, r.Evals, r.Repeats, r.Wasted, r.SelfTime)
 }
-for _, h := range prof.Hints() {
+for _, h := range snap.Hints() {
 	fmt.Println(h)
 }
 ```
 
 `TraceExit.ReusedElements` counts repetition elements reused during that call, including nested calls.
 `RuleProfile.ReusedElements` accumulates the same inclusive counts; parent and child rows can describe the same
-reuse, so do not sum them. `Profile.ReusedElements` counts reuse once, from completed root exits. The profile JSON
+reuse, so do not sum them. `ProfileSnapshot.ReusedElements` counts reuse once, from completed root exits. The profile JSON
 key is `reusedElements`. These counts describe reuse in the current parse; memo hits do not replay earlier reuse.
 
 Profile text prints the root-only total on its own summary line and the inclusive per-rule counts in the final
 `reused` column. JSON includes `reusedElements` in the profile and each rule row, including zero values.
 
-`Profile.Rules` lists the rules in the order they were first called; sort them as you need. Engine tracing works with
+`ProfileSnapshot.Rules` lists the rules sorted by name; sort them as you need. The times in a profile exclude the time
+of the `WithTrace` functions. Engine tracing works with
 every backend, with `RecognizeOnly`, `ParseStream` and `Document` (the option given to `NewDocument` traces each
 `Document.Parse`), and several `WithTrace` and `WithProfile` options can be combined. A `Profile` is not safe for
 concurrent parses. Generated Go Node and typed parsers have separate opt-in

@@ -36,6 +36,9 @@ func (p *Parser) streamDropRecords(pos int) {
 		p.Backend.ClearInactive()
 	}
 	p.PruneSkipRecords(pos)
+	if p.Tr != nil {
+		p.Tr.discard(pos)
+	}
 }
 
 // streamSettleErrors forgets the recovered errors before the boundary (stream.settleErrors). The

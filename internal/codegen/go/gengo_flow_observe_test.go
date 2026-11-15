@@ -188,15 +188,6 @@ func observationDigests(t *testing.T, group string, cases []codegentest.Case, li
 	return out
 }
 
-// observedEvent is an event of a generated parser, read from its probe line.
-type observedEvent struct {
-	kind                     int
-	rule                     string
-	level, depth, pos, end   int
-	evals, examined          int
-	matched, memo, lookahead bool
-}
-
 // observedEventLine is a probe line with an event in JSON.
 var observedEventLine = regexp.MustCompile(`^# (\d+)/(\d+) (parse|recognize) event (\{.*\})$`)
 
@@ -211,7 +202,7 @@ type observedProfile struct {
 
 // observedReport is the events and the profile of one entry of one input.
 type observedReport struct {
-	events  []observedEvent
+	events  []core.TraceEvent
 	profile *observedProfile
 }
 
@@ -230,8 +221,7 @@ func detailReports(t *testing.T, lines []string) map[string]*observedReport {
 			if err := json.Unmarshal([]byte(m[4]), &x); err != nil {
 				t.Fatalf("event line %q: %v", l, err)
 			}
-			r.events = append(r.events, observedEvent{kind: int(x.Kind), rule: x.Rule, level: x.Level, depth: x.Depth, pos: x.Pos,
-				end: x.End, evals: x.Evals, examined: x.Examined, matched: x.Matched, memo: x.Memo, lookahead: x.Lookahead})
+			r.events = append(r.events, x)
 			continue
 		}
 		if rest, ok := strings.CutPrefix(l, "# "); ok {
@@ -260,7 +250,7 @@ func atoiOr0(s string) int {
 }
 
 // profileMismatch checks that the counters of the profile are what the events add up to, and returns the
-// first difference. Skipped events (kind 2) count as skipped calls, which are not calls.
+// first difference. Skipped events count as skipped calls, which are not calls.
 func profileMismatch(r *observedReport) string {
 	type tally struct{ entered, calls, evals, memo, matched, failed, consumed, skipped int }
 	byRule := map[string]*tally{}
@@ -272,27 +262,27 @@ func profileMismatch(r *observedReport) string {
 	}
 	var total tally
 	for _, e := range r.events {
-		x := get(e.rule)
-		switch e.kind {
-		case 0:
+		x := get(e.Rule)
+		switch e.Kind {
+		case core.TraceEnter:
 			x.entered++
 			total.entered++
-		case 1:
+		case core.TraceExit:
 			x.calls++
 			total.calls++
-			x.evals += e.evals
-			total.evals += e.evals
-			if e.memo {
+			x.evals += e.Evals
+			total.evals += e.Evals
+			if e.Memo {
 				x.memo++
 				total.memo++
 			}
-			if e.matched {
+			if e.Matched {
 				x.matched++
-				x.consumed += e.end - e.pos
+				x.consumed += e.End - e.Pos
 			} else {
 				x.failed++
 			}
-		case 2:
+		case core.TraceSkipped:
 			x.skipped++
 			total.skipped++
 		}
@@ -316,71 +306,6 @@ func profileMismatch(r *observedReport) string {
 		if !seen[rule] && (x.entered != 0 || x.skipped != 0) {
 			return fmt.Sprintf("rule %s has events %+v but no profile row", rule, *x)
 		}
-	}
-	return ""
-}
-
-// engineTraceMismatch compares the calls of a generated parse (the events of got, skipped events set aside)
-// with the engine's trace eng of the same input and entry, examined ends included, and returns the first
-// difference. An engine call that fails having looked at no more than its first character may be missing
-// from the generated trace.
-func engineTraceMismatch(eng []engine.TraceEvent, got []observedEvent, in string) string {
-	var g []observedEvent
-	for _, e := range got {
-		if e.kind != 2 {
-			g = append(g, e)
-		}
-	}
-	subtreeEnd := func(ei int) int {
-		depth := 0
-		for k := ei; k < len(eng); k++ {
-			if eng[k].Kind == engine.TraceEnter {
-				depth++
-			} else if depth--; depth == 0 {
-				return k + 1
-			}
-		}
-		return len(eng)
-	}
-	gi := 0
-	for ei := 0; ei < len(eng); {
-		e := eng[ei]
-		if e.Kind == engine.TraceExit {
-			if gi >= len(g) {
-				return "the generated trace ends before the exit of " + e.Rule
-			}
-			x := g[gi]
-			if x.kind != 1 || x.rule != e.Rule || x.pos != e.Pos || x.matched != e.Matched || x.end != e.End || x.memo != e.Memo || x.evals != e.Evals ||
-				x.lookahead != e.Lookahead {
-				return fmt.Sprintf("exit of %s@%d: engine {end %d matched %v memo %v evals %d lookahead %v}, generated %+v",
-					e.Rule, e.Pos, e.End, e.Matched, e.Memo, e.Evals, e.Lookahead, x)
-			}
-			if x.examined != e.Examined {
-				return fmt.Sprintf("examined end of %s@%d: engine %d, generated %d", e.Rule, e.Pos, e.Examined, x.examined)
-			}
-			gi++
-			ei++
-			continue
-		}
-		if gi < len(g) && g[gi].kind == 0 && g[gi].rule == e.Rule && g[gi].pos == e.Pos && g[gi].level == e.Level && g[gi].depth == e.Depth &&
-			g[gi].lookahead == e.Lookahead {
-			gi++
-			ei++
-			continue
-		}
-		end := subtreeEnd(ei)
-		if exit := eng[end-1]; !exit.Matched && exit.Examined <= firstCharEnd(in, e.Pos, core.CodePoints) {
-			ei = end
-			continue
-		}
-		var next any = "the end"
-		if gi < len(g) {
-			next = g[gi]
-		}
-		return fmt.Sprintf("the engine calls %s@%d (level %d, depth %d); the generated trace has %v", e.Rule, e.Pos, e.Level, e.Depth, next)
-	}
-	if gi != len(g) {
-		return fmt.Sprintf("the generated trace has %d more events", len(g)-gi)
 	}
 	return ""
 }
@@ -425,7 +350,7 @@ func observationMismatches(t *testing.T, cases []codegentest.Case, start string,
 				o := engine.ParseOptions{Expectations: true, Backend: engine.Closure, Unit: core.CodePoints, Recognize: entry == "recognize"}
 				o.Trace = func(e engine.TraceEvent) { eng = append(eng, e) }
 				prog.ParseWith(start, c.Inputs[j], o)
-				if msg := engineTraceMismatch(eng, r.events, c.Inputs[j]); msg != "" {
+				if _, msg := callsAgree(eng, r.events, c.Inputs[j], core.CodePoints); msg != "" {
 					out = append(out, fmt.Sprintf("%s %q %s: %s", c.Name, c.Inputs[j], entry, msg))
 				}
 				if msg := profileMismatch(r); msg != "" {

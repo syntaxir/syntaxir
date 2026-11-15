@@ -157,17 +157,18 @@ func RecognizeOnly() ParseOption {
 	return func(o *engine.ParseOptions) { o.Recognize = true }
 }
 
-// TraceEvent describes the start (TraceEnter) or the end (TraceExit) of a rule call. See WithTrace.
-type TraceEvent = engine.TraceEvent
+// TraceEvent describes the start (TraceEnter) or the end (TraceExit) of a rule call. See WithTrace. It is
+// the trace event of every ZeroParse parser, generated parsers included.
+type TraceEvent = core.TraceEvent
 
 // TraceKind tells whether a TraceEvent starts or ends a rule call.
-type TraceKind = engine.TraceKind
+type TraceKind = core.TraceKind
 
 const (
 	// TraceEnter is reported when a rule is called, before the memo is consulted.
-	TraceEnter = engine.TraceEnter
+	TraceEnter = core.TraceEnter
 	// TraceExit is reported when a rule call returns.
-	TraceExit = engine.TraceExit
+	TraceExit = core.TraceExit
 )
 
 // WithTrace calls f at the start and at the end of every rule call of the parse, in order, so that the
@@ -214,26 +215,32 @@ func WithDiagnosticLimit(n int) ParseOption {
 	}
 }
 
-// Profile accumulates the cost of each rule over the parses given WithProfile: calls, body evaluations,
-// memo hits, matches and failures, the input consumed and the input examined by failed calls, repeated
-// evaluations at a position, and time. Hints summarizes where to look. A Profile is not safe for
+// Profile accumulates the cost of each rule over the parses given WithProfile; Snapshot reads it. It is
+// the profile of every ZeroParse parser, generated parsers included. A Profile is not safe for
 // concurrent use.
-type Profile = engine.Profile
+type Profile = core.Profile
 
-// RuleProfile is the cost of one rule in a Profile.
-type RuleProfile = engine.RuleProfile
+// ProfileSnapshot is a copy of the counts of a Profile; Hints summarizes where to look.
+type ProfileSnapshot = core.ProfileSnapshot
+
+// RuleProfile is the cost of one rule in a ProfileSnapshot.
+type RuleProfile = core.RuleProfile
 
 // Location is a position with its line and column.
-type Location = engine.Location
+type Location = core.Location
+
+// CallSite is the location and the binding level of a call.
+type CallSite = core.CallSite
 
 // WithProfile adds the cost of the parse to prof. It traces the parse (see WithTrace), so the parse is
-// several times slower, and the times in prof are meaningful relative to each other only. A nil prof is
-// ignored.
+// several times slower, and the times in prof are meaningful relative to each other only; they do not
+// include the time of the functions given WithTrace. A nil prof is ignored.
 func WithProfile(prof *Profile) ParseOption {
-	if prof == nil {
-		return WithTrace(nil)
+	return func(o *engine.ParseOptions) {
+		if prof != nil {
+			o.Profiles = append(o.Profiles, prof)
+		}
 	}
-	return WithTrace(prof.Trace)
 }
 
 func parseOptions(opts []ParseOption) engine.ParseOptions {

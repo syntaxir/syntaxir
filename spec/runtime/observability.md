@@ -14,13 +14,11 @@ the parse, in order, so that the events nest like the calls. With several
 Tracing works with every backend, with `Parse`, `ParsePrefix`, recognition,
 `ParseStream` and `Document` (an option given to `NewDocument` applies to every
 `Document.Parse`). Generated parsers do not provide this API; they have their own
-options defined below.
+options defined below. The events are the `TraceEvent` of the package `core`,
+which every producer of events uses; `engine.TraceEvent` names the same type.
 
-The engine reports the calls that its backend makes. A call that is skipped
-because the next character cannot start the rule (first-character dispatch,
-which [Evaluations of Rules](parsing.md#evaluations-of-rules) limits) is
-not reported, and the backends do not skip the same calls, so event streams of
-different backends MAY differ in the calls that cannot match.
+The engine reports the calls that its backend makes, as defined in
+[Reported Calls](#reported-calls). It never reports `TraceSkipped`.
 
 A `TraceEvent` has the following fields.
 
@@ -31,7 +29,7 @@ A `TraceEvent` has the following fields.
 | `Level` | The binding level the rule was called with, or 0 for a call without a level |
 | `Depth` | The nesting depth of the call; the start rule has depth 1 |
 | `Pos` | The position at which the call starts, in the position unit |
-| `Lookahead` | True if the call is made where failures record no expectations: inside a lookahead, or inside the `skip` expression of an Operators Rule, which is matched as in a lookahead |
+| `Lookahead` | True if the call is made where failures record no expectations: inside a lookahead, or inside the `skip` expression of an Operators Rule, which is matched as in a lookahead. It has the same value on the call's exit |
 
 An exit event also has the fields below.
 
@@ -42,47 +40,83 @@ An exit event also has the fields below.
 | `Memo` | True if the result came from the memo table without evaluating the body |
 | `Evals` | The number of times this call evaluated the rule body: 0 for a memo result, usually 1, and one more for each step that a left-recursive match grows. Bodies of nested calls are not included |
 | `ReusedElements` | The number of repetition elements of a `Document` reused during this call, nested calls included. It measures resumption in this invocation, not work from the parse that built a memo result |
-| `Examined` | The exclusive end of the input that the call examined; looking at a character to reject it and lookahead count |
+| `Examined` | The call's exact examined end, as defined for Document parses in [Generated Go Document Tracing and Profiling](#generated-go-document-tracing-and-profiling); looking at a character to reject it and lookahead count |
 
 The methods `LineCol(pos)`, `Text()`, `Failure()` and `Recovered()` read the
 state of the parser and MUST be called only from the trace function, while it
 handles the event. `Text` returns the input the call matched. `Failure` returns
 the farthest failure recorded during the call as a `*SyntaxError`, or nil.
 `Recovered` returns the errors that `#recover` recovered from during the call,
-which `Failure` does not include. The fields can be kept after the call. Tracing
-does not change the result.
+which `Failure` does not include. `LineCol` returns 0, 0 for a position in input
+that a stream parse has discarded. The fields can be kept after the call.
+Tracing does not change the result.
+
+## Reported Calls
+
+Every producer of events, the engine with each backend and every generated
+parser, reports the rule calls that it makes. A call that a producer does not
+make because the next character cannot start the rule (first-character
+dispatch, which [Evaluations of Rules](parsing.md#evaluations-of-rules)
+limits) is not reported as a call; a generated parser MAY report it as
+`TraceSkipped`. Producers do not skip the same calls, so the events of two
+producers for the same parse, in the same position unit, agree on every call
+that can match and MAY differ only in calls that cannot match: calls skipped by
+dispatch, and calls that fail having examined no further than the character at
+their position. On the calls that both make, every field of their events is
+equal. The same holds for their profiles once the counts of those calls are
+taken out. Document parses after an edit are the exception: producers keep and
+resume different results, so they make different calls, and agree only on the
+`Examined` of calls that both make.
 
 ## Engine Profiling
 
-`engine.WithProfile(prof)` adds the cost of a parse to a `engine.Profile`, which
-accumulates any number of parses. It traces the parse, so it composes with
-`WithTrace`; a nil `prof` is ignored. A `Profile` is not safe for concurrent use.
-Times include the cost of measuring them and are comparable with each other
-only.
+`engine.WithProfile(prof)` adds the cost of a parse to `prof`, a `Profile` of
+the package `core`, which accumulates any number of parses of any producer;
+`engine.Profile` names the same type. The profiled parse is traced; a nil
+`prof` is ignored, and several `WithProfile` and `WithTrace` options compose. A
+`Profile` is not safe for concurrent use and keeps nothing of a parse after it
+returns. A stream parse keeps the memory of the profile bounded: the profile
+forgets the positions that the stream has discarded, where no rule is evaluated
+again.
 
-`Profile` has the fields `Parses`, `Calls`, `Evals`, `MemoHits`,
-`ReusedElements` (completed root calls only, counted once), `Examined` (the end
-of the input that the start rule examined, totaled over parses), `Time` (the time
-of the start rule's calls) and `Rules`, a list of `*RuleProfile` in the order of
-their first call. `Profile.Hints()` returns text that points at costly rules. A
+The engine records each event in the profile before the trace functions
+receive it, so a snapshot taken by a trace function on an exit includes that
+call, and the times exclude the time of the trace functions. Times include the
+cost of measuring them and are comparable with each other only.
+
+`Profile.Snapshot()` returns a `ProfileSnapshot`, an owned copy of the counts
+with the rules sorted by name and each rule's skip reasons sorted by reason. It
+has the totals `Parses`, `Entered`, `Calls`, `Evals`, `MemoHits`, `Skipped`,
+`ReusedElements` (completed root calls only, counted once), `Examined` (over
+completed root calls, the input from each call's position to its `Examined`),
+`Time` (the time of the completed root calls) and `Rules`, a list of
+`RuleProfile`. `ProfileSnapshot.Hints()` returns text that points at costly
+rules. `Entered` counts calls that began, including calls interrupted before
+their exit; the other counts and the times cover completed calls only. A
 `RuleProfile` has the fields below.
 
 | Field | Meaning |
 |:--|:--|
 | `Rule` | The rule name. Calls of a rule's value-free twin count as calls of the rule |
-| `Calls`, `MemoHits`, `Matched`, `Failed` | Each call either evaluated the body or took the memoized result, and either matched or failed |
+| `Entered` | The calls that began |
+| `Calls`, `MemoHits`, `Matched`, `Failed` | Each completed call either evaluated the body or took the memoized result, and either matched or failed |
 | `Evals` | Body evaluations: one per call not answered by the memo and one more for each growth step of a left-recursive match |
 | `ReusedElements` | Repetition elements reused during the calls, nested calls included. A nested call can report the same reuse as its parent, so parent and child rows MUST NOT be summed |
 | `Consumed` | The input matched by calls that matched |
-| `Wasted` | The input examined by calls that evaluated the body and failed. It is inclusive of the calls they made |
-| `LongestFail`, `LongestFailAt` | The most input one failed call examined, and where |
+| `Skipped`, `SkipReasons` | The calls reported as `TraceSkipped`, in all and by reason; always zero for the engine |
+| `Examined` | The sum, over the calls, of `Examined - Pos` |
+| `Wasted` | The same sum over the calls that evaluated the body and failed. It is inclusive of the calls they made |
+| `LongestFail`, `LongestFailAt` | The most input one failed call that evaluated the body examined, and where |
 | `Repeats` | The number of calls that evaluated the body at a position and level where an earlier call of the same parse had evaluated it |
 | `MaxEvals`, `MaxEvalsAt` | The most evaluating calls at one position and level, and where |
 | `Time`, `SelfTime` | The time spent in the calls, nested calls included (a call within a call of the same rule counts once), and excluding nested calls |
 
-In JSON, `Time` and `SelfTime` are in nanoseconds and the key for the reuse
-counts is `reusedElements`. A `Location` has `Pos`, `Line` and `Col`; its line is 0
-when the position lies in input that a stream parse has discarded.
+`LongestFailAt` and `MaxEvalsAt` are a `CallSite`: a `Location` (`Pos`, `Line`
+and `Col`) with the `Level` of the call. Tied maxima keep the first location.
+The line of a location is 0 when the producer has no line information, as for
+generated parsers, or when the position lies in input that a stream parse has
+discarded; such a location prints as `position N`. In JSON, the keys are the
+camel-case field names, and `Time` and `SelfTime` are in nanoseconds.
 
 ## Generated Go Batch Tracing
 
@@ -155,14 +189,9 @@ name and each rule's skip reasons sorted by reason; callers may marshal the
 snapshot for deterministic JSON, whose keys are the camel-case field names.
 `ProfileSnapshot.Hints()` returns text that points at costly rules.
 
-The snapshot has the totals `Parses`, `Entered`, `Calls`, `Evals`, `MemoHits`,
-`Skipped`, `ReusedElements` and `Examined` (over completed root calls, the
-input from each call's position to its `Examined`), `Time` and the rows
-`Rules`. A `RuleProfile` has the fields of the engine's `RuleProfile` above,
-plus `Entered`, `Examined`, `Skipped` and `SkipReasons`, with these differences:
-`LongestFailAt` and `MaxEvalsAt` are a `CallSite`, a `Location` with the `Level`
-of the call, and their `Line` and `Col` are 0 because generated events carry no
-line information (a `Location` then prints as `position N`).
+The snapshot and its rows are those of [Engine Profiling](#engine-profiling).
+The `Line` and `Col` of `LongestFailAt` and `MaxEvalsAt` are 0 because
+generated events carry no line information.
 
 `Parses` counts root invocations and `Entered` counts rule calls that began,
 including calls interrupted before exit. `Calls`, `Evals`, `MemoHits`, match and

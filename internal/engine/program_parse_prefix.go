@@ -52,7 +52,10 @@ func (prog *Program) ParsePrefixWith(start, input string, o ParseOptions) (resul
 	p.MaxDepth, _ = state.DepthLimit(o, o.Backend) // admitParse rejected an invalid limit
 	p.Expectations = o.Expectations
 	p.DeferMemo = true
-	p.SetTrace(o.Trace)
+	if o.Traced() {
+		p.SetTrace(o.Trace, o.Profiles)
+		defer p.CloseTrace()
+	}
 	result, err = active.runPrefix(p, o.Backend, start)
 	if !p.Aborted {
 		control.Check()

@@ -47,9 +47,10 @@ func profileCmd(args []string, stdin io.Reader, stdout io.Writer) error {
 	}
 	var prof engine.Profile
 	_, perr := p.Parse(src, append(opts, engine.WithProfile(&prof))...)
-	rules := slices.Clone(prof.Rules)
-	slices.SortStableFunc(rules, func(a, b *engine.RuleProfile) int {
-		return cmp.Or(less(a, b), cmp.Compare(a.Rule, b.Rule))
+	snap := prof.Snapshot()
+	rules := slices.Clone(snap.Rules)
+	slices.SortStableFunc(rules, func(a, b engine.RuleProfile) int {
+		return cmp.Or(less(&a, &b), cmp.Compare(a.Rule, b.Rule))
 	})
 	if *rows > 0 && len(rules) > *rows {
 		rules = rules[:*rows]
@@ -58,9 +59,9 @@ func profileCmd(args []string, stdin io.Reader, stdout io.Writer) error {
 		// The profile with the rules shown, in their order, and the hints
 		out := struct {
 			Result string `json:"result"`
-			engine.Profile
+			engine.ProfileSnapshot
 			Hints []string `json:"hints"`
-		}{"ok", prof, prof.Hints()}
+		}{"ok", snap, snap.Hints()}
 		out.Rules = rules
 		if perr != nil {
 			out.Result = perr.Error()
@@ -69,10 +70,10 @@ func profileCmd(args []string, stdin io.Reader, stdout io.Writer) error {
 		enc.SetIndent("", "  ")
 		return enc.Encode(out)
 	}
-	return printProfile(stdout, &prof, rules, perr, len(prof.Rules))
+	return printProfile(stdout, &snap, rules, perr, len(snap.Rules))
 }
 
-func printProfile(w io.Writer, prof *engine.Profile, rules []*engine.RuleProfile, perr error, all int) error {
+func printProfile(w io.Writer, prof *engine.ProfileSnapshot, rules []engine.RuleProfile, perr error, all int) error {
 	result := "ok"
 	if perr != nil {
 		result = strings.ReplaceAll(perr.Error(), "\n", "; ")

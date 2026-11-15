@@ -84,7 +84,7 @@ func TestLeaderGrowthEvals(t *testing.T) {
 			var prof engine.Profile
 			_, _ = p.Parse(c.Input, engine.WithBackend(backend), engine.WithProfile(&prof))
 			got := -1
-			for _, r := range prof.Rules {
+			for _, r := range prof.Snapshot().Rules {
 				if r.Rule == "e" {
 					got = r.Evals
 				}

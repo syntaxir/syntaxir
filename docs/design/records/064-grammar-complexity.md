@@ -304,7 +304,7 @@ The automatic budget is opt-in: a parse option sets the budget to c · (n + 1) +
 c is c_G of a `Linear` start rule, times a safety factor. For other verdicts the caller must give c explicitly. Without
 the option, parses stay unbounded, as today. Exhausting the automatic budget returns the ordinary budget limit error. When
 profiling is active, the error names the rule with the most repeated evaluations at one position, as `Profile` reports
-them (`internal/engine/profile.go:66-72`).
+them (`MaxEvals` of its rule rows, in package `core`).
 
 ### Specification
 

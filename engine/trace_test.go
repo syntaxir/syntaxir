@@ -64,8 +64,9 @@ rule num = [0-9]+ #atomic " "?`, "main")
 	if _, err := p.Parse("1 x", engine.WithProfile(&prof), engine.WithBackend(engine.BytecodeIterative)); err != nil {
 		t.Fatal(err)
 	}
+	snap := prof.Snapshot()
 	counts := map[string]string{}
-	for _, r := range prof.Rules {
+	for _, r := range snap.Rules {
 		counts[r.Rule] = fmt.Sprintf("calls=%d matched=%d failed=%d consumed=%d", r.Calls, r.Matched, r.Failed, r.Consumed)
 	}
 	want := map[string]string{
@@ -74,8 +75,8 @@ rule num = [0-9]+ #atomic " "?`, "main")
 		"word": "calls=7 matched=3 failed=4 consumed=6",
 		"num":  "calls=4 matched=2 failed=2 consumed=5",
 	}
-	if fmt.Sprint(counts) != fmt.Sprint(want) || prof.Parses != 2 || len(prof.Hints()) == 0 {
-		t.Errorf("profile %v (%d parses), want %v", counts, prof.Parses, want)
+	if fmt.Sprint(counts) != fmt.Sprint(want) || snap.Parses != 2 || len(snap.Hints()) == 0 {
+		t.Errorf("profile %v (%d parses), want %v", counts, snap.Parses, want)
 	}
 }
 

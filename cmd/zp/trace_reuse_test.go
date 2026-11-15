@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"zeroparse.dev/zp/core"
 
 	"zeroparse.dev/zp/engine"
 )
@@ -24,12 +25,13 @@ rule line = [a-z]+ #atomic "\n"`, "main")
 			}
 			var out bytes.Buffer
 			printer := tracePrinter{w: bufio.NewWriter(&out), json: format == "json", rules: []string{"main"}, showDepth: 1}
+			// The profile records the parses after the edit only, from the trace.
 			var profile engine.Profile
-			active := false
+			var rec *core.ProfileRecorder
 			doc, err := p.NewDocument(strings.Repeat("ab\n", 32), engine.WithTrace(func(e engine.TraceEvent) {
-				if active {
+				if rec != nil {
 					printer.event(e)
-					profile.Trace(e)
+					rec.Record(e)
 				}
 			}))
 			if err != nil {
@@ -41,12 +43,13 @@ rule line = [a-z]+ #atomic "\n"`, "main")
 			if err := doc.Edit(48, 49, "long"); err != nil {
 				t.Fatal(err)
 			}
-			active = true
 			for round := 0; round < 2; round++ {
 				out.Reset()
+				rec = profile.Recorder()
 				if _, err := doc.Parse(); err != nil {
 					t.Fatal(err)
 				}
+				rec.Close()
 				printer.flush()
 				if err := printer.w.Flush(); err != nil {
 					t.Fatal(err)
@@ -90,7 +93,8 @@ rule line = [a-z]+ #atomic "\n"`, "main")
 			// Both root and enclosing repetition rows report inclusive reuse;
 			// the total counts that reuse once across the two parses above.
 			out.Reset()
-			if err := printProfile(&out, &profile, profile.Rules, nil, len(profile.Rules)); err != nil {
+			snap := profile.Snapshot()
+			if err := printProfile(&out, &snap, snap.Rules, nil, len(snap.Rules)); err != nil {
 				t.Fatal(err)
 			}
 			if !strings.Contains(out.String(), "31 reused repetition elements (completed root calls)\n") {

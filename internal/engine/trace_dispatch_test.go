@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+	"zeroparse.dev/zp/core"
 
 	"zeroparse.dev/zp/internal/codegentest"
 )
@@ -50,12 +51,12 @@ rule tail = "b"`)
 			wantResult := codegentest.ResultJSON(n, err)
 			for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
 				t.Run(fmt.Sprint(backend), func(t *testing.T) {
-					var pr Profile
+					var pr core.Profile
 					var got []event
 					n, err := prog.ParseWith("main", tc.input, ParseOptions{
-						Backend: backend,
+						Backend:  backend,
+						Profiles: []*core.Profile{&pr},
 						Trace: func(e TraceEvent) {
-							pr.Trace(e)
 							got = append(got, event{kind: e.Kind, rule: e.Rule, depth: e.Depth,
 								pos: e.Pos, level: e.Level, lookahead: e.Lookahead,
 								matched: e.Matched, end: e.End, evals: e.Evals,
@@ -87,11 +88,12 @@ rule tail = "b"`)
 					if enteredTail {
 						calls++
 					}
-					if pr.Parses != 1 || pr.Calls != calls || pr.Evals != calls ||
-						pr.MemoHits != 0 || pr.Examined != 1 || len(pr.Rules) != calls {
-						t.Fatalf("profile totals = %+v; want %d executed calls/evaluations", pr, calls)
+					ps := pr.Snapshot()
+					if ps.Parses != 1 || ps.Calls != calls || ps.Evals != calls ||
+						ps.MemoHits != 0 || ps.Examined != 1 || len(ps.Rules) != calls {
+						t.Fatalf("profile totals = %+v; want %d executed calls/evaluations", ps, calls)
 					}
-					for i, r := range pr.Rules {
+					for i, r := range ps.Rules {
 						name := "main"
 						if i == 1 {
 							name = "tail"

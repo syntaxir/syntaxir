@@ -238,11 +238,9 @@ docs/design/records/063-configurable-optimization-pass-pipeline.md	qualified	low
 docs/design/records/063-configurable-optimization-pass-pipeline.md	qualified	pipeline.Pass	1
 docs/design/records/064-grammar-complexity.md	gofile	internal/compile/analysis.go	1
 docs/design/records/064-grammar-complexity.md	gofile	internal/engine/state/runtime.go	2
-docs/design/records/064-grammar-complexity.md	gofile	internal/engine/profile.go	1
 docs/design/records/064-grammar-complexity.md	gofile	runtime.go	1
 docs/design/records/064-grammar-complexity.md	lineref	internal/engine/state/runtime.go:142	1
 docs/design/records/064-grammar-complexity.md	lineref	internal/engine/state/runtime.go:490	1
-docs/design/records/064-grammar-complexity.md	lineref	internal/engine/profile.go:66	1
 docs/design/records/064-grammar-complexity.md	lineref	runtime.go:490	1
 docs/design/records/065-exec-ir-parser-vm.md	gofile	budget.go	2
 docs/design/records/065-exec-ir-parser-vm.md	gofile	call_ops.go	1
