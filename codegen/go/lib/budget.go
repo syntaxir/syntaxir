@@ -1102,6 +1102,18 @@ func clearSpend[T any](p *Parser, values []T) {
 	clear(values)
 }
 
+// moveBudgetControlled copies src to dst and clears src, charging two units for each element: one for
+// the copy and one for taking it off. It charges each chunk once, before moving it.
+func moveBudgetControlled[T any](p *Parser, dst, src []T) {
+	for off, end := 0, min(len(dst), len(src)); off < end; {
+		n := min(spendValueChunk, end-off)
+		p.Control.Charge(2 * uint64(n))
+		copy(dst[off:off+n], src[off:off+n])
+		clear(src[off : off+n])
+		off += n
+	}
+}
+
 func clearBudgetControlled[T any](p *Parser, values []T) {
 	for off := 0; off < len(values); {
 		n := min(spendValueChunk, len(values)-off)

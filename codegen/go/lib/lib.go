@@ -1547,9 +1547,19 @@ func (p *Parser) fields(n int) coreimpl.Fields {
 // Kids returns p.KidStack[base:] as a child list and pops it, charging under budget controls one unit
 // for each element it copies and one for each it takes off.
 func (p *Parser) Kids(base int) []*core.Node {
+	if p.Control != nil {
+		return p.kidsControlled(base)
+	}
 	ks := p.Nodes(len(p.KidStack) - base)
-	copySpend(p, ks, p.KidStack[base:])
-	clearSpend(p, p.KidStack[base:])
+	copy(ks, p.KidStack[base:])
+	clear(p.KidStack[base:])
+	p.KidStack = p.KidStack[:base]
+	return ks
+}
+
+func (p *Parser) kidsControlled(base int) []*core.Node {
+	ks := p.Nodes(len(p.KidStack) - base)
+	moveBudgetControlled(p, ks, p.KidStack[base:])
 	p.KidStack = p.KidStack[:base]
 	return ks
 }
