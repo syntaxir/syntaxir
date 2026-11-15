@@ -724,7 +724,8 @@ func addTerms(m *Module) {
 	}
 	predicate := m.AddFunc("predicate", []Param{t}, []Type{TBool}, nil, func(b *Builder) {
 		v := evaluate(b)
-		b.Return(Not(C("term.isFalse", v)))
+		// Only the boolean false fails: a box of false is a value of another kind.
+		b.Return(Bin("||", Bin("!=", C("val.kind", v), Int(ops.KindBool)), C("val.toBool", v)))
 	})
 	predicate.Doc = `predicate applies the term of a predicate to the context that term.ctx makes. It fails on the boolean
 false and on a term that fails, and holds on every other value. The value of a term is never a function.`

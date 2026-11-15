@@ -2788,12 +2788,6 @@ func (p *Parser) actionFailed(where string, f any) {
 	panic(fatal{p.wrapEvalError(where, f.(evalError).msg)})
 }
 
-// isFalse is the operation term.isFalse.
-func isFalse(v any) bool {
-	b, isBool := v.(bool)
-	return isBool && !b
-}
-
 func (c *ActCtx) Cap(slot int) any { return UnboxNode(c.f.Vals[slot]) }
 
 // Var returns the value of the variable in slot i.

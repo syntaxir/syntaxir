@@ -23,7 +23,7 @@ func predicate(p *state.Parser, t *termSite) bool {
 	if len(p.Created) > created {
 		p.DropCreated(created)
 	}
-	return !state.IsFalse(v)
+	return state.ValKind(v) != 3 || v.(bool)
 }
 
 // bind binds the value of the term of a binding to the variable in slot. A term that fails fails the

@@ -77,11 +77,9 @@ func (p *Parser) DropCreated(base int) {
 	p.Created = p.Created[:base]
 }
 
-// IsFalse is the operation term.isFalse.
-func IsFalse(v any) bool {
-	b, ok := v.(bool)
-	return ok && !b
-}
+// ValKind is the operation val.kind, for the term compositions that the engine's backends print into
+// their own packages.
+func ValKind(x any) int { return valKind(x) }
 
 func TypeName(v any) string {
 	switch v := v.(type) {

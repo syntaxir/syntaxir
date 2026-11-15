@@ -206,8 +206,20 @@ func (m *machine) Call(o *exec.Op, args []any) []any {
 		m.spends += m.kids - mark
 		m.kids = mark
 		return nil
-	case "term.isFalse":
-		return []any{args[0] == false}
+	case "val.kind":
+		switch args[0].(type) {
+		case nil:
+			return []any{int64(ops.KindNil)}
+		case int64:
+			return []any{int64(ops.KindInt)}
+		case string:
+			return []any{int64(ops.KindString)}
+		case bool:
+			return []any{int64(ops.KindBool)}
+		}
+		return []any{int64(ops.KindOther)}
+	case "val.toBool":
+		return []any{args[0].(bool)}
 	case "call.tracked":
 		return []any{false}
 	case "budget.charge":
@@ -1223,6 +1235,8 @@ func TestTerms(t *testing.T) {
 		{name: "false", t: term{value: false}, bind: true, binds: true},
 		{name: "nil holds", t: term{value: nil}, predicate: true, bind: true, binds: true},
 		{name: "a number holds", t: term{value: int64(0)}, predicate: true, bind: true, binds: true},
+		{name: "an empty string holds", t: term{value: ""}, predicate: true, bind: true, binds: true},
+		{name: "another value holds", t: term{value: struct{}{}}, predicate: true, bind: true, binds: true},
 		{name: "created nodes go", t: term{value: true, created: 3}, predicate: true, bind: true, binds: true, charge: 3},
 		// A successful term consumed its gathered values into a list; none stays above the mark.
 		{name: "kept kids stay", t: term{value: true, kids: 2}, predicate: true, bind: true, binds: true, kidsLeft: 2},

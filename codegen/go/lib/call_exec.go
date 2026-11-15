@@ -885,7 +885,7 @@ func (p *Parser) Predicate(t func(*ActCtx) (any, any)) bool {
 	}
 	clearSpend(p, p.created[created:])
 	p.created = p.created[:created]
-	return !isFalse(v)
+	return valKind(v) != 3 || v.(bool)
 }
 
 // Bind binds the value of the term of a binding to the variable in slot. A term that fails fails the
@@ -929,7 +929,7 @@ func (p *TParser) Predicate(t func(*TActCtx) (any, any)) bool {
 	}
 	clearSpend(p.Parser, p.Created[created:])
 	p.Created = p.Created[:created]
-	return !isFalse(v)
+	return valKind(v) != 3 || v.(bool)
 }
 
 // Bind binds the value of the term of a binding to the variable in slot. A term that fails fails the

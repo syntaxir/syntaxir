@@ -151,8 +151,10 @@ func engineTerms(pkg string, t *gogen.Target, term string, apply func(t, ctx str
 			return "len(p.KidStack)"
 		case "term.dropKids":
 			return "p.DropKids(" + a[0] + ")"
-		case "term.isFalse":
-			return "state.IsFalse(" + a[0] + ")"
+		case "val.kind":
+			return "state.ValKind(" + a[0] + ")"
+		case "val.toBool":
+			return a[0] + ".(bool)"
 		case "env.bind":
 			return fmt.Sprintf("p.Bind(%s, %s)", a[0], a[1])
 		}

@@ -1518,12 +1518,6 @@ transitional op term.dropKids(mark int)
   requires:
     // mark came from term.kids, and nothing dropped it since.
 
-transitional op term.isFalse(v Datum) bool
-  component host
-  cost <= 0
-  contract:
-    // Reports whether v is the boolean false. Any other value, nil among them, is not.
-
 op call.state() CallState
   component suspended
   writes suspended

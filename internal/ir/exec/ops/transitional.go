@@ -433,10 +433,9 @@ that the target's observed function wraps.`})
 	framesAndOperators(m, add, rule, value, errs)
 }
 
-// addTerms adds the operations that release what a term gathered and created, and test its value.
+// addTerms adds the operations that release what a term gathered and created.
 // The compositions predicate and bind apply the term and call them (AddTermCode).
 func addTerms(m *exec.Module, add func(*exec.Op)) {
-	datum := exec.THandle(Datum)
 	mark := exec.P("mark", exec.TInt)
 	dropped := exec.Cost{Terms: []exec.CostTerm{{Coef: 1, Quantity: QDropped}}}
 	add(&exec.Op{Name: "term.created", Component: Host, Results: []exec.Type{exec.TInt}, Reads: []string{Host},
@@ -451,6 +450,4 @@ func addTerms(m *exec.Module, add func(*exec.Op)) {
 		NoReturn: true, Cost: dropped,
 		Contract: `Drops the values gathered after the mark and charges one unit for each.`,
 		Requires: `mark came from term.kids, and nothing dropped it since.`})
-	add(&exec.Op{Name: "term.isFalse", Component: Host, Params: []exec.Param{exec.P("v", datum)}, Results: []exec.Type{exec.TBool},
-		Contract: `Reports whether v is the boolean false. Any other value, nil among them, is not.`})
 }

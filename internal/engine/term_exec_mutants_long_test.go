@@ -12,15 +12,15 @@ import "testing"
 // composition finds nothing above its mark; the bytecode backends gather without such a drop, and
 // their mutant below fails.
 func TestTermMutantsFail(t *testing.T) {
-	const predicateEnd = "\tif len(p.Created) > created {\n\t\tp.DropCreated(created)\n\t}\n\treturn !state.IsFalse(v)\n"
+	const predicateEnd = "\tif len(p.Created) > created {\n\t\tp.DropCreated(created)\n\t}\n\treturn state.ValKind(v) != 3 || v.(bool)\n"
 	const bindEnd = "\tif len(p.Created) > created {\n\t\tp.DropCreated(created)\n\t}\n\tp.Bind(slot, v)\n"
 	common := func() []printedMutant {
 		return []printedMutant{
 			{"a predicate holds on false",
-				[]printedEdit{{"return !state.IsFalse(v)", "_ = v\n\treturn true"}},
+				[]printedEdit{{"return state.ValKind(v) != 3 || v.(bool)", "_ = v\n\treturn true"}},
 				"^TestPredicateOutcomes$", []string{"."}},
 			{"a predicate fails on any value but true",
-				[]printedEdit{{"return !state.IsFalse(v)", "b, _ := v.(bool)\n\treturn b"}},
+				[]printedEdit{{"return state.ValKind(v) != 3 || v.(bool)", "b, _ := v.(bool)\n\treturn b"}},
 				"^TestPredicateOutcomes$", []string{"."}},
 			{"a predicate holds on a term that failed",
 				[]printedEdit{{"\t\treturn false\n\t}\n" + predicateEnd, "\t\treturn true\n\t}\n" + predicateEnd}},
@@ -29,7 +29,7 @@ func TestTermMutantsFail(t *testing.T) {
 				[]printedEdit{{"\t\treturn false\n\t}\n" + bindEnd, "\t\tp.Bind(slot, 0)\n\t\treturn true\n\t}\n" + bindEnd}},
 				"^TestBindingFailure$", []string{"."}},
 			{"a predicate keeps the nodes its term created",
-				[]printedEdit{{predicateEnd, "\treturn !state.IsFalse(v)\n"}},
+				[]printedEdit{{predicateEnd, "\treturn state.ValKind(v) != 3 || v.(bool)\n"}},
 				"^TestTermChargesCreatedNodes$", []string{"."}},
 		}
 	}
