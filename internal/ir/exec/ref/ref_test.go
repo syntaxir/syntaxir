@@ -138,7 +138,7 @@ func TestCaptureFields(t *testing.T) {
 	}}}, RuleVars: make([][]int64, 1)})
 	m.UseRegisters(map[string]any{ops.Pos: int64(0), ops.Silent: false})
 	full := ops.Pilot()
-	ops.Transitional(full)
+	ops.AddBeyondPilot(full)
 	invoke := full.Op("rule.invoke")
 	args := []any{RuleRef{Index: 0}, int64(0)}
 	// c2 after c0: 3 + (1 + 4); then c0, c1, c2: 3 + (1 + 4) + 2*(1 + 4); then none, and a failure.

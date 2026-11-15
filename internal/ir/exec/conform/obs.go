@@ -26,7 +26,7 @@ func ObsConfig(observed bool) ref.Config {
 // the observation.
 func ObsModule() *exec.Module {
 	m := Module()
-	ops.Transitional(m)
+	ops.AddBeyondPilot(m)
 	return m
 }
 

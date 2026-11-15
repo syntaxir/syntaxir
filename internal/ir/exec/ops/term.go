@@ -26,7 +26,7 @@ const QDropped = "dropped"
 
 // AddTermCode adds the handle type and the operation of applying a term of a predicate or a binding to m,
 // which declares the handles Datum, Fail and Act and the component Made (AddValue), the register Pos and the
-// component Host (Pilot and Transitional). A term is lowered from Core IR to a function of Exec IR that each
+// component Host (Pilot and AddBeyondPilot). A term is lowered from Core IR to a function of Exec IR that each
 // target holds in its own form; the type Term, whose application the verifier checks, is how Exec IR names
 // that form without writing the function in the module. Applying a term charges nothing itself: what a term
 // charges is what the operations of its code charge.

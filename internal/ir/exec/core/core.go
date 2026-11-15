@@ -44,7 +44,7 @@ const streamPruneWindow = 1024
 // Build returns the module of the operations and the compositions, verified.
 func Build() *Module {
 	m := ops.Pilot()
-	ops.Transitional(m)
+	ops.AddBeyondPilot(m)
 	rule, value := THandle(ops.Rule), THandle(ops.Value)
 	result := []Type{value, TBool}
 	r := L("r")

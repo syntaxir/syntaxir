@@ -12,13 +12,13 @@ import (
 
 var update = flag.Bool("update", false, "update golden files")
 
-// TestPilotGolden checks that the pilot declarations, and those with the transitional operations,
-// verify and that their listings are testdata/pilot.golden and testdata/transitional.golden: a change
+// TestPilotGolden checks that the pilot declarations, and those of the whole parser VM (AddBeyondPilot),
+// verify and that their listings are testdata/pilot.golden and testdata/parser.golden: a change
 // of a contract, a precondition or a cost bound shows in review.
 func TestPilotGolden(t *testing.T) {
-	withTransitional := Pilot()
-	Transitional(withTransitional)
-	for golden, m := range map[string]*exec.Module{"testdata/pilot.golden": Pilot(), "testdata/transitional.golden": withTransitional} {
+	parser := Pilot()
+	AddBeyondPilot(parser)
+	for golden, m := range map[string]*exec.Module{"testdata/pilot.golden": Pilot(), "testdata/parser.golden": parser} {
 		if err := exec.Verify(m); err != nil {
 			t.Fatal(err)
 		}
@@ -43,7 +43,7 @@ func TestPilotGolden(t *testing.T) {
 // record recovered errors again. Another writer needs a reason recorded here.
 func TestCrossComponentWriters(t *testing.T) {
 	m := Pilot()
-	Transitional(m)
+	AddBeyondPilot(m)
 	var got []string
 	for _, o := range m.Ops {
 		for _, s := range o.Writes {
@@ -94,7 +94,7 @@ func TestValueGolden(t *testing.T) {
 // and transitional operations they extend, and what the listing says of them.
 func TestTermCodeGolden(t *testing.T) {
 	m := ValueModule()
-	Transitional(m)
+	AddBeyondPilot(m)
 	AddTermCode(m)
 	if err := exec.Verify(m); err != nil {
 		t.Fatal(err)

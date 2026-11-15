@@ -35,7 +35,7 @@ var DocCoreOps = DocOps[3:]
 // hold the doc operations, and DocStatOp.
 func DocModule() *exec.Module {
 	m := Module()
-	ops.Transitional(m)
+	ops.AddBeyondPilot(m)
 	m.AddOp(&exec.Op{Name: DocStatOp, Component: ops.Call, Params: []exec.Param{exec.P("i", exec.TInt)},
 		Results:  []exec.Type{exec.TInt},
 		Contract: "Returns the statistic i of the Document: the memo entries reused for 0, the rule bodies evaluated for 1."})

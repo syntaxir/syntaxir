@@ -37,7 +37,7 @@ func MissingConfig(missing bool) ref.Config {
 // hold the missing-token mode, and MissingInsertOp and MissingSeedOp.
 func MissingModule() *exec.Module {
 	m := Module()
-	ops.Transitional(m)
+	ops.AddBeyondPilot(m)
 	m.AddOp(&exec.Op{Name: MissingInsertOp, Component: ops.Rec,
 		Params:  []exec.Param{exec.P("site", exec.TInt), exec.P("pos", exec.TInt), exec.P("e", exec.THandle(ops.Err))},
 		Results: []exec.Type{exec.TBool}, Writes: []string{ops.Rec}, Features: []string{ops.Missing},
