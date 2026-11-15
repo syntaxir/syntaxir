@@ -196,6 +196,10 @@ func TestValueActionTypes(t *testing.T) {
 		{`rule a = x:("a" #recover(skip="x")) => text($x)`, "a", `string`},
 		{`rule a = x:"a" #missing => text($x) + text($x.(missing))`, "a", `string`},
 		{`rule a = x:"a" #missing => len($x.(missing))`, "a", `int`},
+		// A missing token also has the string fields expected and message.
+		{`rule a = x:"a" #missing => $x.(missing).expected`, "a", `string`},
+		{`rule a = x:"a" #missing => $x.(missing).message`, "a", `string`},
+		{`rule a = x:"a" #missing => map(list($x.(missing)), (i) => i.expected + i.message)`, "a", `[]string`},
 		// Indexing a tuple with a constant reads that element.
 		{"rule a = x:(b c) => $x.Value[1]\nrule b = \"b\"\nrule c = \"c\"", "a", `c`},
 		{"rule a = x:(b c) => $x.Value[0]\nrule b = \"b\"\nrule c = \"c\"", "a", `b`},
@@ -310,6 +314,10 @@ func TestValueActionErrors(t *testing.T) {
 		{`rule a = x:"x" => map($x, (i) => i)`, "map: expected a list, got node[string]"},
 		{"type Foo = { Name string }\nrule a = x:\"x\" => Foo{Name: $x}", "cannot use node[string] as string in field Name of Foo"},
 		{"type Foo = { Name node[string] }\nrule a = x:\"x\" #missing => Foo{Name: $x}", "cannot use node[string] | missing as node[string] in field Name of Foo"},
+		// Only a missing token has the fields expected and message.
+		{`rule a = x:"x" #missing => $x.expected`, "node[string] | missing has no field expected in every member: node[string] lacks it; cast the value to a member that has it, as in x.(T).expected"},
+		{`rule a = x:("x" #recover(skip="y")) => $x.(error).message`, "error has no field message"},
+		{`rule a = x:"x" => $x.expected`, "node[string] has no field expected"},
 		{"type Foo = {}\nrule a = x:\"x\" => []Foo{$x}", "cannot use node[string] as Foo in list constructor"},
 		// A rule of a text struct type without an action does not produce one.
 		{"type Word = { Text string }\nrule a Word = [a-z]+", "rule a produces node[[]node[string]], which is not assignable to Word"},

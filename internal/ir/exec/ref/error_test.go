@@ -25,7 +25,7 @@ func typeOf(s string) grammar.TypeExpr {
 // Values and Constructors): error admits a skipped range and a missing token, missing only the token,
 // and _ every value; no other type does, node[_] among them.
 func TestErrorValueCast(t *testing.T) {
-	skipped, missing := ErrorValue("b;", 1, 3, false), ErrorValue("", 3, 3, true)
+	skipped, missing := ErrorValue("b;", 1, 3), MissingToken(3, ";", "1:4: syntax error")
 	env := &TermEnv{Captures: map[string]V{"s": skipped, "m": missing, "n": Node(StringNode, "ab", 0, 2, nil, nil)},
 		Aliases: map[string]grammar.TypeExpr{"E": tref("error"), "M": &grammar.TypeGroup{Type: tref("missing")}}}
 	for _, c := range []struct {
@@ -54,10 +54,11 @@ func TestErrorValueCast(t *testing.T) {
 }
 
 // TestErrorValueTerms pins the other terms that the model gives an error value, a skipped range and a missing
-// token: it is not nil, it is a node with a range and no value, whose fields read nil, whose text is the input
-// of its range and whose length is that of nil, and the list built-ins take it as an empty list.
+// token: it is not nil, it is a node with a range and no value, whose text is the input of its range and whose
+// length is that of nil, and the list built-ins take it as an empty list. A missing token has the string
+// fields expected and message; every other field reads nil.
 func TestErrorValueTerms(t *testing.T) {
-	env := &TermEnv{Captures: map[string]V{"e": ErrorValue("b;", 1, 3, false), "m": ErrorValue("", 3, 3, true)}}
+	env := &TermEnv{Captures: map[string]V{"e": ErrorValue("b;", 1, 3), "m": MissingToken(3, ";", `1:4: syntax error: expected ";"`)}}
 	for _, c := range []struct {
 		name string
 		term grammar.Term
@@ -81,6 +82,11 @@ func TestErrorValueTerms(t *testing.T) {
 		{"m.Value", mem(capt("m"), "Value"), "nil"},
 		{"len(m)", fn("len", capt("m")), "0"},
 		{"text(m)", fn("text", capt("m")), `""`},
+		{"m.expected", mem(capt("m"), "expected"), `";"`},
+		{"m.message", mem(capt("m"), "message"), `"1:4: syntax error: expected \";\""`},
+		{"m.F", mem(capt("m"), "F"), "nil"},
+		{"e.expected", mem(capt("e"), "expected"), "nil"},
+		{"e.message", mem(capt("e"), "message"), "nil"},
 	} {
 		if v, msg := env.Eval(c.term); msg != "" || v.String() != c.want {
 			t.Errorf("%s = %v, %q; want %s", c.name, v, msg, c.want)
@@ -90,13 +96,15 @@ func TestErrorValueTerms(t *testing.T) {
 	if v, msg := env.Eval(bin("==", capt("e"), ilit(1))); msg == "" {
 		t.Errorf("e == 1 gives %v", v)
 	}
-	// The string fields of a missing token are not held by the value, so reading one is not modelled.
-	func() {
-		defer func() {
-			if s, _ := recover().(string); !strings.Contains(s, "is not modelled") {
-				t.Errorf("m.expected: panic %q, want an unmodelled operation", s)
-			}
+	// A conversion of a recovered value does not type-check, so the evaluator does not take one.
+	for _, name := range []string{"e", "m"} {
+		func() {
+			defer func() {
+				if s, _ := recover().(string); !strings.Contains(s, "which does not type-check") {
+					t.Errorf("N{%s}: panic %q, want a term that does not type-check", name, s)
+				}
+			}()
+			env.Eval(&grammar.New{Type: "N", Args: []grammar.Term{capt(name)}})
 		}()
-		env.Eval(mem(capt("m"), "expected"))
-	}()
+	}
 }

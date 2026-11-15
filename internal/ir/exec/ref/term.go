@@ -11,12 +11,14 @@ import (
 // evaluation. The reference evaluator covers every term of a value or predicate action: literals,
 // captures and lambda parameters, the members of nodes (.Start, .End, .Value and captures) and of
 // structs, struct, tuple and named node constructors, the built-in functions, the operators and casts
-// to every type (spec/language/actions.md). An error value of recovery (ErrorValue) is a node with a range
-// and no value: .Start and .End read its range, .Value reads nil, text gives the input of its range, len and
-// the list built-ins take it as nil, and a cast tests it against the types that admit it. A field or capture
-// that it does not declare, which another member of a join may, reads nil. A conversion of one, which the
-// checker rejects, and the expected and message fields of a missing token, which the value does not hold, are
-// not modelled, and the evaluation panics.
+// to every type (spec/language/actions.md). A recovered value, the error value of #recover (ErrorValue) or
+// of a missing token (MissingToken), is a node with a range and no value: .Start and .End read its range,
+// .Value reads nil, text gives the input of its range, len and the list built-ins take it as nil, and a cast
+// tests it against the types that admit it. A missing token also has the string fields expected and message. A field or capture that a recovered value
+// does not declare, which another member of a join may, reads nil. A conversion N{x} of a value that is not a
+// string, tuple or list node, a recovered value among them, does not type-check, so the evaluator does not
+// take one, and panics. The range of a struct that holds a recovered value in a field is not modelled, and
+// the evaluation panics.
 type TermEnv struct {
 	// Captures are the captures by name, made with Node; a capture that did not match is absent.
 	Captures map[string]V
@@ -101,12 +103,13 @@ func (e *TermEnv) eval(t grammar.Term, p params) V {
 	case *grammar.New:
 		if len(t.Args) > 0 {
 			// N{x} converts the node x to the named node type N: it keeps the range and the content
-			// of x and carries the name N (types.md, Named Node Types). The checker admits only nodes.
+			// of x and carries the name N (types.md, Named Node Types). The conversion type-checks only
+			// where every alternative of the static type of x is a string, tuple or list node, so x is
+			// one: a recovered value, a scalar, nil or a struct here is a term that the checker rejects.
 			x := e.eval(t.Args[0], p)
 			need(x)
-			unmodelled(x, "the conversion of")
 			if x.Kind != KNode {
-				panic("ref: conversion of a value that is not a node: " + x.TypeName())
+				panic("ref: conversion of a value that is not a string, tuple or list node, which does not type-check: " + x.TypeName())
 			}
 			x.Type = e.typeName(t.Type)
 			return x
@@ -189,8 +192,7 @@ func (e *TermEnv) member(x V, name string) V {
 			return Int(int64(x.End))
 		case "expected", "message":
 			if x.Missing {
-				// The string fields of a missing token are not held by the value.
-				unmodelled(x, "the field "+name+" of")
+				return x.Fields[name] // the string fields of a missing token
 			}
 		}
 		return Nil

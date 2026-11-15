@@ -837,11 +837,11 @@ func (v *ValueInference) member(x Ty, m *grammar.Member) Ty {
 			case a == TyAny:
 				return TyAny
 			case a == TyErr:
-				found = append(found, recoveredMember(m.Name)...)
+				found = append(found, recoveredMember(m.Name, false)...)
 			}
 		case NamedTy:
 			if a == TyMissing {
-				found = append(found, recoveredMember(m.Name)...)
+				found = append(found, recoveredMember(m.Name, true)...)
 			}
 			if st, ok := v.Prog.TypeDecls()[a.Name].(*grammar.TypeDef); ok {
 				if f := FieldOf(st, m.Name); f != nil {
@@ -880,15 +880,20 @@ func (v *ValueInference) member(x Ty, m *grammar.Member) Ty {
 	return Vjoin(found...)
 }
 
-// recoveredMember returns the type of the node member name of a recovered value (error or missing), none
-// if it is not a node member: a recovered value is a node with a range and no value, so .Start and .End
-// are ints and .Value is nil.
-func recoveredMember(name string) []Ty {
+// recoveredMember returns the type of the member name of a recovered value, an error value of recovery
+// if missing is false and a missing token if it is true, none if the value has no such member: a recovered
+// value is a node with a range and no value, so .Start and .End are ints and .Value is nil, and a missing
+// token also has the string fields expected and message.
+func recoveredMember(name string, missing bool) []Ty {
 	switch name {
 	case "Start", "End":
 		return []Ty{TyInt}
 	case "Value":
 		return []Ty{TyNil}
+	case "expected", "message":
+		if missing {
+			return []Ty{TyString}
+		}
 	}
 	return nil
 }

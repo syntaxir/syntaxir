@@ -46,6 +46,9 @@ var errorMutants = []struct{ name, file, old, new string }{
 	{"an error value has the length of its range", "term.go", "case KNil, KError: // a recovered value has no value and counts as nil\n\t\t\treturn Int(0)\n\t\tcase KStr:", "case KNil:\n\t\t\treturn Int(0)\n\t\tcase KError:\n\t\t\treturn Int(int64(x.End - x.Start))\n\t\tcase KStr:"},
 	{"an error value has no text", "term.go", "case KStr, KNode, KError: // the text of a recovered value is the input of its range", "case KError:\n\t\t\treturn Str(\"\")\n\t\tcase KStr, KNode:"},
 	{"an error value has its text as its value", "term.go", "\t\treturn Nil\n\t}\n\tfail(\"cannot select", "\t\treturn Str(x.S)\n\t}\n\tfail(\"cannot select"},
+	{"a missing token has no fields", "term.go", "return x.Fields[name] // the string fields of a missing token", "return Nil"},
+	{"expected reads the message", "term.go", "return x.Fields[name] // the string fields of a missing token", "return x.Fields[\"message\"]"},
+	{"a recovered value converts", "term.go", "if x.Kind != KNode {\n\t\t\t\tpanic(\"ref: conversion", "if x.Kind != KNode && x.Kind != KError {\n\t\t\t\tpanic(\"ref: conversion"},
 	{"an error value has no range", "term.go", "\tcase KError:\n\t\t// A recovered value has a range and no value; a field or capture it does not declare reads as nil.\n\t\tswitch name {\n\t\tcase \"Start\":\n\t\t\treturn Int(int64(x.Start))", "\tcase KError:\n\t\t// A recovered value has a range and no value; a field or capture it does not declare reads as nil.\n\t\tswitch name {\n\t\tcase \"Start\":\n\t\t\treturn Int(0)"},
 }
 

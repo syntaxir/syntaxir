@@ -267,7 +267,9 @@ tuple of elements of a tuple node and the list of elements of a list node, as in
 `$xs.Value[0]`; an element is a value or `nil`. A recovered value has a range and no value: `.Start` and
 `.End` are the range that the recovery skipped, or the empty range where a `missing` token was inserted, and
 `.Value` reads as `nil`. So `.Value` of `error` has type `nil`, and on a join with a recovered
-value among the members it is optional: `.Value` of `node[string] | error` has type `*string`. A struct value
+value among the members it is optional: `.Value` of `node[string] | error` has type `*string`. A `missing`
+value also has the `string` fields `expected` and `message` ([`#missing`](pragmas.md#missing)), as in
+`$x.(missing).expected`; an `error` value has neither. A struct value
 has no range members: `.Start` on a struct is a compile-time error.
 
 `x.$y` reads capture `y` of node `x`, such as an element of a repetition

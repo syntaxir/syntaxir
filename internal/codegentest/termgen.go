@@ -47,6 +47,9 @@ type Capture struct {
 	From, To int
 	Elems    []Capture
 	Caps     map[string]Capture
+	// Expected and Diagnostic are the fields of a MissingCapture: the literal that the token inserted, and
+	// the message of the error it recovered, without its position, when the parse records expectations.
+	Expected, Diagnostic string
 }
 
 // CaptureShape is the shape of the node of a Capture.
@@ -994,11 +997,59 @@ func MissingTermCases() []TermCase {
 			Captures: func(in string) map[string]Capture {
 				e := Capture{Shape: StringCapture, From: 1, To: 2}
 				if in == "a" {
-					e = Capture{Shape: MissingCapture, From: 1, To: 1}
+					e = Capture{Shape: MissingCapture, From: 1, To: 1, Expected: ";", Diagnostic: `syntax error: expected ";"`}
 				}
 				return map[string]Capture{"x": litCap(0), "e": e}
 			},
 		})
+	}
+	return out
+}
+
+// missingFieldTerms are the terms of MissingFieldTermCases, with the Type of each, over $e, a capture whose value
+// is a string node or a missing token: the fields expected and message of the token, read after a cast, which
+// fails for the string node, and through a list of the tokens among the value of $e.
+var missingFieldTerms = []struct{ typ, term string }{
+	{"string", "$e.(missing).expected"},
+	{"string", "$e.(missing).message"},
+	{"int", "len($e.(missing).expected) * 100 + len($e.(missing).message)"},
+	{"[]string", "map(filter(list($e), (i) => i.Value == nil), (i) => i.(missing).expected)"},
+	{"[]string", "map(filter(list($e), (i) => i.Value == nil), (i) => i.(missing).message)"},
+}
+
+// missingSites are the rules semi of MissingFieldTermCases: each inserts a literal, whose spelling expected
+// is the field expected of the token and is what the input with matches; diagnostic is the message of the
+// error it recovered, without its position, when the parse records expectations: the literal as an expected
+// item, with the suffix of a case-insensitive literal, or the message of an enclosing @error.
+var missingSites = []struct{ rule, expected, with, diagnostic string }{
+	{`";" #missing`, ";", ";", `syntax error: expected ";"`},
+	{`"Ab"i #missing`, "Ab", "aB", `syntax error: expected "Ab"i`},
+	{`(";" #missing) @error("a semicolon")`, ";", ";", "a semicolon"},
+}
+
+// MissingFieldTermCases returns the fixed terms (missingFieldTerms) that read the fields of a missing token. The
+// rule captures the string node $x of "é", whose width differs in the two position units, and $e, the value of
+// the rule semi of each of missingSites, which is a string node on the input that ends in the spelling of the
+// literal and the token inserted at the end of the input "é". Only the engine's closure backend parses the
+// rule (MissingTokens).
+func MissingFieldTermCases() []TermCase {
+	var out []TermCase
+	for _, site := range missingSites {
+		for _, r := range missingFieldTerms {
+			out = append(out, TermCase{
+				Case: Case{Name: "missing field: " + site.rule + ": " + r.term,
+					Src:    fmt.Sprintf("@start\nrule main %s = x:\"é\" e:semi $$ => %s\nrule semi = %s\n", r.typ, r.term, site.rule),
+					Inputs: []string{"é" + site.with, "é"}},
+				Term: r.term, Type: r.typ, Kind: TermAction, Lit: "é", Recovers: true, MissingTokens: true,
+				Captures: func(in string) map[string]Capture {
+					e := Capture{Shape: StringCapture, From: 1, To: 1 + len([]rune(site.with))}
+					if in == "é" {
+						e = Capture{Shape: MissingCapture, From: 1, To: 1, Expected: site.expected, Diagnostic: site.diagnostic}
+					}
+					return map[string]Capture{"x": litCap(0), "e": e}
+				},
+			})
+		}
 	}
 	return out
 }

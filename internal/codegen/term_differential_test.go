@@ -713,7 +713,7 @@ func TestTermReferenceEvaluator(t *testing.T) {
 				if c.Kind == codegentest.TermPredicate {
 					in += "b"
 				}
-				checkReference(t, c, prog, term, env, unit, in, engine.Closure)
+				checkReference(t, c, prog, term, env, unit, in, false, engine.Closure)
 				checked++
 			}
 		}
@@ -725,10 +725,11 @@ func TestTermReferenceEvaluator(t *testing.T) {
 
 // checkReference compares the backends of the engine on the input in with the reference evaluator in env: the
 // value or the error of an action, and for a predicate, which precedes an optional "b", whether the predicate
-// held, by whether an input that ends in "b" parses. A case that inserts missing tokens runs on the closure
-// backend only, which backends lists first, with the insertion enabled.
+// held, by whether an input that ends in "b" parses. The parse records expectations if expectations is set. A
+// case that inserts missing tokens runs on the closure backend only, which backends lists first, with the
+// insertion enabled.
 func checkReference(t *testing.T, c codegentest.TermCase, prog *engine.Program, term grammar.Term, env *ref.TermEnv, unit core.PositionUnit, in string,
-	backends ...engine.Backend) {
+	expectations bool, backends ...engine.Backend) {
 	t.Helper()
 	v, msg := env.Eval(term)
 	missing := 0
@@ -736,7 +737,7 @@ func checkReference(t *testing.T, c codegentest.TermCase, prog *engine.Program, 
 		backends, missing = backends[:1], 4
 	}
 	for _, b := range backends {
-		n, err := prog.ParseWith("main", in, engine.ParseOptions{Backend: b, Unit: unit, MissingTokens: missing})
+		n, err := prog.ParseWith("main", in, engine.ParseOptions{Backend: b, Unit: unit, MissingTokens: missing, Expectations: expectations})
 		var recovered core.SyntaxErrors
 		if c.Recovers && errors.As(err, &recovered) {
 			err = nil // the recovered syntax errors are not what the term gives; the value, nil among them, is
@@ -758,7 +759,8 @@ func checkReference(t *testing.T, c codegentest.TermCase, prog *engine.Program, 
 		got := codegentest.ResultJSON(n, err)
 		var gotAny, wantAny any
 		if json.Unmarshal([]byte(got), &gotAny) != nil || json.Unmarshal(wantJSON, &wantAny) != nil || !reflect.DeepEqual(gotAny, wantAny) {
-			t.Errorf("%s: input %q unit %d backend %d: the engine gives\n %s\nthe reference evaluator\n %s", c.Name, in, unit, b, got, wantJSON)
+			t.Errorf("%s: input %q unit %d expectations %v backend %d: the engine gives\n %s\nthe reference evaluator\n %s", c.Name, in, unit,
+				expectations, b, got, wantJSON)
 		}
 	}
 }
@@ -777,7 +779,8 @@ func fixedTermCases() []codegentest.TermCase {
 }
 
 // TestTermFixedReference checks the engine's backends (closure, VM and iterative VM) against the reference
-// evaluator on the fixed term sets, the members and the terms over a missing token (closure only), in both
+// evaluator on the fixed term sets, the members and the terms over a missing token and its fields (closure
+// only, with and without recording expectations, which sets the message of the token), in both
 // position units: the same value or error for every input of an action, and
 // whether a predicate held. The captures come from the hand-written tables of the cases, so the
 // reference evaluator reads the nodes that the rules define, not the engine's. With
@@ -786,7 +789,8 @@ func fixedTermCases() []codegentest.TermCase {
 func TestTermFixedReference(t *testing.T) {
 	t.Parallel()
 	checked := 0
-	for _, c := range append(append(codegentest.MemberTermCases(), fixedTermCases()...), codegentest.MissingTermCases()...) {
+	cases := append(append(codegentest.MemberTermCases(), fixedTermCases()...), codegentest.MissingTermCases()...)
+	for _, c := range append(cases, codegentest.MissingFieldTermCases()...) {
 		g, err := parseTest(c.Src)
 		if err != nil {
 			t.Fatalf("%s: %v", c.Name, err)
@@ -805,16 +809,23 @@ func TestTermFixedReference(t *testing.T) {
 		}
 		zeros := referenceZeros(t, prog.Static(), structs...)
 		term := referenceTerm(t, c)
+		recording := []bool{false}
+		if c.MissingTokens {
+			recording = append(recording, true)
+		}
 		for _, in := range c.Inputs {
 			for _, unit := range []core.PositionUnit{core.CodePoints, core.Bytes} {
-				bytes := unit == core.Bytes
-				end := utf8.RuneCountInString(in)
-				if bytes {
-					end = len(in)
+				for _, exp := range recording {
+					bytes := unit == core.Bytes
+					end := utf8.RuneCountInString(in)
+					if bytes {
+						end = len(in)
+					}
+					env := &ref.TermEnv{Captures: referenceCaptures(c.Captures(in), in, bytes, exp), Bytes: bytes, Start: 0, End: end, Line: 1, Col: 1,
+						Zeros: zeros}
+					checkReference(t, c, prog, term, env, unit, in, exp, engine.Closure, engine.Bytecode, engine.BytecodeIterative)
+					checked++
 				}
-				env := &ref.TermEnv{Captures: referenceCaptures(c.Captures(in), in, bytes), Bytes: bytes, Start: 0, End: end, Line: 1, Col: 1, Zeros: zeros}
-				checkReference(t, c, prog, term, env, unit, in, engine.Closure, engine.Bytecode, engine.BytecodeIterative)
-				checked++
 			}
 		}
 	}
@@ -824,8 +835,10 @@ func TestTermFixedReference(t *testing.T) {
 }
 
 // referenceCaptures turns the captures of a fixed case, in characters of the input in, into nodes of the
-// reference evaluator in the position unit; a capture that did not match is left out.
-func referenceCaptures(caps map[string]codegentest.Capture, in string, bytes bool) map[string]ref.V {
+// reference evaluator in the position unit; a capture that did not match is left out. The message of a missing
+// token is the position of the token, as line:column in the unit, and its diagnostic if the parse records
+// expectations (expectations), or "syntax error" otherwise (spec/runtime/parsing.md, Syntax Errors).
+func referenceCaptures(caps map[string]codegentest.Capture, in string, bytes, expectations bool) map[string]ref.V {
 	runes := []rune(in)
 	offset := func(i int) int {
 		if bytes {
@@ -835,8 +848,18 @@ func referenceCaptures(caps map[string]codegentest.Capture, in string, bytes boo
 	}
 	var node func(c codegentest.Capture) ref.V
 	node = func(c codegentest.Capture) ref.V {
-		if c.Shape == codegentest.ErrorCapture || c.Shape == codegentest.MissingCapture {
-			return ref.ErrorValue(string(runes[c.From:c.To]), offset(c.From), offset(c.To), c.Shape == codegentest.MissingCapture)
+		switch c.Shape {
+		case codegentest.ErrorCapture:
+			return ref.ErrorValue(string(runes[c.From:c.To]), offset(c.From), offset(c.To))
+		case codegentest.MissingCapture:
+			before := string(runes[:c.From])
+			line := 1 + strings.Count(before, "\n")
+			col := 1 + offset(c.From) - offset(len([]rune(before[:strings.LastIndex(before, "\n")+1])))
+			diagnostic := "syntax error"
+			if expectations {
+				diagnostic = c.Diagnostic
+			}
+			return ref.MissingToken(offset(c.From), c.Expected, fmt.Sprintf("%d:%d: %s", line, col, diagnostic))
 		}
 		shape := map[codegentest.CaptureShape]ref.Shape{codegentest.StringCapture: ref.StringNode, codegentest.TupleCapture: ref.TupleNode,
 			codegentest.ListCapture: ref.ListNode}
@@ -847,7 +870,7 @@ func referenceCaptures(caps map[string]codegentest.Capture, in string, bytes boo
 		for _, e := range c.Elems {
 			items = append(items, node(e))
 		}
-		return ref.Node(shape[c.Shape], string(runes[c.From:c.To]), offset(c.From), offset(c.To), items, referenceCaptures(c.Caps, in, bytes))
+		return ref.Node(shape[c.Shape], string(runes[c.From:c.To]), offset(c.From), offset(c.To), items, referenceCaptures(c.Caps, in, bytes, expectations))
 	}
 	out := map[string]ref.V{}
 	for name, c := range caps {
