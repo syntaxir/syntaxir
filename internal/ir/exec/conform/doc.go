@@ -31,11 +31,9 @@ var DocOps = []string{
 // input of every parse: all but doc.examinedBegin, doc.examinedEnd and doc.tracking.
 var DocCoreOps = DocOps[3:]
 
-// DocModule returns the declarations of Module with those of the transitional operations, which
-// hold the doc operations, and DocStatOp.
+// DocModule returns the declarations of Module with DocStatOp.
 func DocModule() *exec.Module {
 	m := Module()
-	ops.AddCallProtocol(m)
 	m.AddOp(&exec.Op{Name: DocStatOp, Component: ops.Call, Params: []exec.Param{exec.P("i", exec.TInt)},
 		Results:  []exec.Type{exec.TInt},
 		Contract: "Returns the statistic i of the Document: the memo entries reused for 0, the rule bodies evaluated for 1."})

@@ -2830,7 +2830,7 @@ op term.elemsAbove(mark int) Seq
   contract:
     // Takes the elements gathered after the mark off the elements gathered and returns them in order, for a
     // list or a tuple to take over. It charges two units for each: one for copying it and one for taking it off, as
-    // term.dropKids charges for dropping it.
+    // term.dropKids charges for dropping it, in one reservation before it moves any.
   requires:
     // mark came from term.kids and is at most the number of the elements gathered.
 

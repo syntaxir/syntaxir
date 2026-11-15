@@ -564,7 +564,7 @@ func TestValueModelPassesItsCases(t *testing.T) {
 	if err := RunValues(s); err != nil {
 		t.Fatal(err)
 	}
-	if err := exec.Verify(ops.ValueModule()); err != nil {
+	if err := exec.Verify(ops.Parser()); err != nil {
 		t.Fatal(err)
 	}
 }

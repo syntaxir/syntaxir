@@ -38,11 +38,9 @@ var ExpOps = []string{
 // RecordOps are the operations of the expectation record alone, which randomized cases draw from.
 var RecordOps = ExpOps[:18]
 
-// ExpModule returns the declarations of Module with those of ops.AddCallProtocol, which declares the
-// operations of the expectation record, and ExpOp and PlaceholderOp.
+// ExpModule returns the declarations of Module with ExpOp and PlaceholderOp.
 func ExpModule() *exec.Module {
 	m := Module()
-	ops.AddCallProtocol(m)
 	m.AddOp(&exec.Op{Name: ExpOp, Component: ops.Exp, Params: []exec.Param{exec.P("id", exec.TInt)},
 		Results:  []exec.Type{exec.THandle(ops.ExpID)},
 		Contract: "Returns the expectation of a conformance identifier; equal identifiers are equal expectations."})

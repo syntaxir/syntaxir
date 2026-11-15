@@ -8,7 +8,7 @@ import (
 	"zeroparse.dev/zp/internal/ir/exec/ref"
 )
 
-var obsModule = ObsModule()
+var obsModule = Module()
 
 func obsCall(m *ref.Model, name string, args ...any) []any { return m.Call(obsModule.Op(name), args) }
 

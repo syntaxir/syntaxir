@@ -98,11 +98,17 @@ func (p *Parser) Nodes(n int) []*core.Node {
 	return s
 }
 
-// Kids returns p.KidStack[base:] as a child slice and resets the stack to base.
+// Kids returns p.KidStack[base:] as a child slice and resets the stack to base. Under budget controls
+// it reserves two units for each element, one for copying it and one for taking it off, in one
+// reservation before it moves any.
 func (p *Parser) Kids(base int) []*core.Node {
-	ks := p.Nodes(len(p.KidStack) - base)
-	CopySpend(p, ks, p.KidStack[base:])
-	ClearSpend(p, p.KidStack[base:])
+	n := len(p.KidStack) - base
+	ks := p.Nodes(n)
+	if n > 0 {
+		p.SpendValue(2 * n)
+	}
+	copy(ks, p.KidStack[base:])
+	clear(p.KidStack[base:])
 	p.KidStack = p.KidStack[:base]
 	return ks
 }

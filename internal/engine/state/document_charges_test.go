@@ -274,7 +274,7 @@ func TestMemoChainChargesAtItsBounds(t *testing.T) {
 // what stores charge, after edits that move and widen the gap.
 func TestMemoStoreChargesTheSlotsOfTheGap(t *testing.T) {
 	t.Parallel()
-	parseState := ops.ParseState()
+	parseState := ops.Parser()
 	store, splice := parseState.Op("memo.store"), parseState.Op("memo.splice")
 	grown := 0
 	for seed := range uint64(200) {
@@ -333,7 +333,7 @@ func TestMemoStoreChargesTheSlotsOfTheGap(t *testing.T) {
 // the declaration is a bound for them by design.
 func TestMemoChargesMatchTheModel(t *testing.T) {
 	t.Parallel()
-	parseState := ops.ParseState()
+	parseState := ops.Parser()
 	lookupOp, storeOp, spliceOp, examineOp := parseState.Op("memo.lookup"), parseState.Op("memo.store"), parseState.Op("memo.splice"), parseState.Op("memo.examine")
 	const positions, rule = 14, 1
 	var absent, valid, held, overstated, stores int

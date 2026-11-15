@@ -288,14 +288,6 @@ var MemberKinds = []struct{ Name, Spelling string }{
 	MemberCapture: {"Capture", "$"},
 }
 
-// ValueModule returns the declarations of the parse state with the value primitives, for the cases of
-// the value primitives and of what terms make.
-func ValueModule() *exec.Module {
-	m := ParseState()
-	AddValue(m)
-	return m
-}
-
 // Seq is the handle type of the elements of a list or a tuple.
 const Seq = "Seq"
 
@@ -347,13 +339,13 @@ const QSeqLen = "seq_len"
 // between them, which a target that bounds the work assembles piece by piece, charging each.
 const QErrParts = "error_parts"
 
-// AddValue adds the value component and its primitives to m, which declares the handle Datum.
+// addValue adds the value component and its primitives to m, which declares the handle Datum.
 //
 // A value is nil, an int, a string, a bool, or a structured value (a node, list, tuple or struct)
 // that the primitives accept only where they say so. An int is 64 bits wide with wraparound. A
 // primitive is pure unless its contract says it charges: the string primitives read their operands,
 // and val.fail makes a text, which a target that bounds the work does piece by piece.
-func AddValue(m *exec.Module) {
+func addValue(m *exec.Module) {
 	m.AddComponent(Val, `The operations on the values of terms. They read and write no state.`)
 	datum := exec.THandle(Datum)
 	items := m.AddHandle(Seq, Val, "The elements of a list or a tuple, as seq.items returns them.")

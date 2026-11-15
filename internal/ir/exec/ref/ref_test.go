@@ -10,7 +10,7 @@ import (
 
 // The model is the executable contract; these tests pin the behaviors its contract text states.
 
-var parseState = ops.ParseState()
+var parseState = ops.Parser()
 
 func call(m *Model, name string, args ...any) []any {
 	return m.Call(parseState.Op(name), args)
@@ -137,9 +137,7 @@ func TestCaptureFields(t *testing.T) {
 		{OK: true, Captures: []int64{0, 2}}, {OK: true, Captures: []int64{2, 1, 0}}, {OK: true}, {Captures: []int64{1}},
 	}}}, RuleVars: make([][]int64, 1)})
 	m.UseRegisters(map[string]any{ops.Pos: int64(0), ops.Silent: false})
-	full := ops.ParseState()
-	ops.AddCallProtocol(full)
-	invoke := full.Op("rule.invoke")
+	invoke := ops.Parser().Op("rule.invoke")
 	args := []any{RuleRef{Index: 0}, int64(0)}
 	// c2 after c0: 3 + (1 + 4); then c0, c1, c2: 3 + (1 + 4) + 2*(1 + 4); then none, and a failure.
 	for k, want := range []int64{8, 18, 0, 0} {

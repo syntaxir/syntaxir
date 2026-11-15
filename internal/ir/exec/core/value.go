@@ -6,7 +6,7 @@ import (
 )
 
 // addValue adds the compositions of the operators of terms: the policy of which operands an operator
-// accepts, over the primitives of the value component (ops.AddValue), which act on one kind of value
+// accepts, over the primitives of the value component (the component values of ops.Parser), which act on one kind of value
 // each. A composition returns its value and, in place of an exception, the failure that val.fail
 // made (nil if there is none), which the caller reports as the failure of the term. Every target
 // prints them, so the operators mean the same on all.

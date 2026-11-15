@@ -9,7 +9,7 @@ import (
 	"zeroparse.dev/zp/internal/value"
 )
 
-// The value primitives of terms (ops.AddValue) of the engine. The compositions of the operators in
+// The value primitives of terms (the component values of ops.Parser) of the engine. The compositions of the operators in
 // term_exec.go decide which of them applies; each acts on one kind of value.
 
 // binaryCode returns the code of the binary operator op, or false if op is not one of ops.BinaryOps.

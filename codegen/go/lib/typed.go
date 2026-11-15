@@ -958,8 +958,8 @@ func (p *TParser) tfields(n int) []tfield {
 	return p.fields.slice(n)[:0]
 }
 
-// Kids returns p.KidStack[base:] as a value list and pops it, charging under budget controls one unit
-// for each element it copies and one for each it takes off.
+// Kids returns p.KidStack[base:] as a value list and pops it. Under budget controls it reserves one unit
+// for each element it copies and one for each it takes off, in one reservation before it moves any.
 func (p *TParser) Kids(base int) []any {
 	if p.Control != nil {
 		return p.kidsControlled(base)
@@ -971,9 +971,16 @@ func (p *TParser) Kids(base int) []any {
 	return ks
 }
 
+// kidsControlled is Kids under budget controls: it reserves the two units of each element in one
+// reservation before it moves any.
 func (p *TParser) kidsControlled(base int) []any {
-	ks := p.NewVals(len(p.KidStack) - base)
-	moveBudgetControlled(p.Parser, ks, p.KidStack[base:])
+	n := len(p.KidStack) - base
+	ks := p.NewVals(n)
+	if n > 0 {
+		p.Control.Charge(2 * uint64(n))
+	}
+	copy(ks, p.KidStack[base:])
+	clear(p.KidStack[base:])
 	p.KidStack = p.KidStack[:base]
 	return ks
 }

@@ -12,27 +12,26 @@ import (
 
 var update = flag.Bool("update", false, "update golden files")
 
-// TestModuleGolden checks that the declarations of the parse state (ParseState) and those of the whole
-// parser VM (Parser) verify and that their listings are testdata/parsestate.golden and
-// testdata/parser.golden: a change of a contract, a precondition or a cost bound shows in review.
-func TestModuleGolden(t *testing.T) {
-	for golden, m := range map[string]*exec.Module{"testdata/parsestate.golden": ParseState(), "testdata/parser.golden": Parser()} {
-		if err := exec.Verify(m); err != nil {
+// TestParserGolden checks that the declarations of the whole parser VM verify and that their listing
+// is testdata/parser.golden: a change of a contract, a precondition or a cost bound shows in review.
+func TestParserGolden(t *testing.T) {
+	m := Parser()
+	if err := exec.Verify(m); err != nil {
+		t.Fatal(err)
+	}
+	got := exec.String(m)
+	const golden = "testdata/parser.golden"
+	if *update {
+		if err := os.WriteFile(golden, []byte(got), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		got := exec.String(m)
-		if *update {
-			if err := os.WriteFile(golden, []byte(got), 0o644); err != nil {
-				t.Fatal(err)
-			}
-		}
-		want, err := os.ReadFile(golden)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if got != string(want) {
-			t.Errorf("listing differs from %s; run go test -run TestModuleGolden -update", golden)
-		}
+	}
+	want, err := os.ReadFile(golden)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != string(want) {
+		t.Errorf("listing differs from %s; run go test -run TestParserGolden -update", golden)
 	}
 }
 
@@ -63,29 +62,6 @@ func isComponent(m *exec.Module, name string) bool {
 		}
 	}
 	return false
-}
-
-// TestValueGolden checks that the declarations with the value primitives verify and that their listing
-// is testdata/value.golden.
-func TestValueGolden(t *testing.T) {
-	m := ValueModule()
-	if err := exec.Verify(m); err != nil {
-		t.Fatal(err)
-	}
-	got := exec.String(m)
-	const golden = "testdata/value.golden"
-	if *update {
-		if err := os.WriteFile(golden, []byte(got), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	want, err := os.ReadFile(golden)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got != string(want) {
-		t.Errorf("listing differs from %s; run go test -run TestValueGolden -update", golden)
-	}
 }
 
 // TestTermCodeGolden checks that the declarations of applying a term verify in the whole module, and

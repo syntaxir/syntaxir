@@ -33,6 +33,12 @@ type limitAgreementCase struct {
 	// units is a limit of the window at which the failing reservation is a unit of a run that a backend
 	// may make at once: every backend must report the limit as used and one unit requested.
 	units uint64
+	// lists are the sizes of reservations that take the elements of a list off, two units for each,
+	// which every backend makes at once. The backends charge the work before them differently, so they
+	// make them after different numbers of units: each backend must report each size as the failing
+	// reservation over as many consecutive limits as it has units, which a backend that splits it
+	// into a copy and a take-off, or into chunks, does not.
+	lists []uint64
 }
 
 var limitAgreementCases = []limitAgreementCase{
@@ -65,6 +71,25 @@ rule main = #operators {
 		max:    220,
 		window: [2]uint64{1, 198}, tsWindow: [2]uint64{26, 198},
 		units: 31,
+	},
+	{
+		// A list of seven elements, taken off with 14 units, and the five that filter keeps, taken off
+		// with 10.
+		name:    "list",
+		grammar: "@start\nrule main int = \"x\" => len(filter(list(1, 2, 3, 4, 5, 6, 7), (e) => e > 2))",
+		input:   "x",
+		max:     120,
+		window:  [2]uint64{1, 10}, tsWindow: [2]uint64{1, 10},
+		lists: []uint64{14, 10},
+	},
+	{
+		// A list of 150 elements, more than a chunk of a copy, taken off with 300 units.
+		name:    "long list",
+		grammar: "@start\nrule main int = \"x\" => len(filter(concat(" + strings.TrimSuffix(strings.Repeat("list(1, 2, 3, 4, 5, 6, 7, 8, 9, 10), ", 15), ", ") + "), (e) => e > 2))",
+		input:   "x",
+		max:     700,
+		window:  [2]uint64{1, 153}, tsWindow: [2]uint64{1, 153},
+		lists: []uint64{300},
 	},
 }
 
@@ -199,6 +224,29 @@ func generatedTSLimitReports(t *testing.T, c limitAgreementCase, patch func(stri
 	return reports
 }
 
+// listReservationMissing reports whether got lacks a failing reservation of size units that holds
+// over size consecutive limits: from the units used before it, or from 1 if none were, up to the
+// limit just below the one at which it fits.
+func listReservationMissing(got []string, size uint64) bool {
+	for l := uint64(1); l < uint64(len(got)); l++ {
+		var used, requested uint64
+		if _, err := fmt.Sscanf(got[l], "%d/%d", &used, &requested); err != nil || requested != size || used != l && !(used == 0 && l == 1) {
+			continue
+		}
+		end := used + size - 1
+		if end >= uint64(len(got)) {
+			return true
+		}
+		for m := l; m <= end; m++ {
+			if got[m] != got[l] {
+				return true
+			}
+		}
+		return false
+	}
+	return true
+}
+
 // limitDisagreements returns the limits of the window w at which got differs from want.
 func limitDisagreements(want, got []string, w [2]uint64) []string {
 	var d []string
@@ -243,6 +291,14 @@ func TestLimitErrorAgreement(t *testing.T) {
 			}
 			for _, d := range limitDisagreements(want, ts, c.tsWindow) {
 				t.Errorf("generated TypeScript: %s", d)
+			}
+			reports["closure"], reports["generated TypeScript"] = want, ts
+			for name, got := range reports {
+				for _, size := range c.lists {
+					if listReservationMissing(got, size) {
+						t.Errorf("%s: no reservation of %d units over %d limits", name, size, size)
+					}
+				}
 			}
 		})
 	}

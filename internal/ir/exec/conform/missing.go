@@ -33,11 +33,9 @@ func MissingConfig(missing bool) ref.Config {
 		Missing: missing, MissingRules: []bool{true, false, true}}
 }
 
-// MissingModule returns the declarations of Module with those of the transitional operations, which
-// hold the missing-token mode, and MissingInsertOp and MissingSeedOp.
+// MissingModule returns the declarations of Module with MissingInsertOp and MissingSeedOp.
 func MissingModule() *exec.Module {
 	m := Module()
-	ops.AddCallProtocol(m)
 	m.AddOp(&exec.Op{Name: MissingInsertOp, Component: ops.Rec,
 		Params:  []exec.Param{exec.P("site", exec.TInt), exec.P("pos", exec.TInt), exec.P("e", exec.THandle(ops.Err))},
 		Results: []exec.Type{exec.TBool}, Writes: []string{ops.Rec}, Features: []string{ops.Missing},

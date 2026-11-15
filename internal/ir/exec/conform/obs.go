@@ -5,7 +5,6 @@ import (
 	"math/rand/v2"
 
 	"zeroparse.dev/zp/internal/ir/exec"
-	"zeroparse.dev/zp/internal/ir/exec/ops"
 	"zeroparse.dev/zp/internal/ir/exec/ref"
 )
 
@@ -22,20 +21,12 @@ func ObsConfig(observed bool) ref.Config {
 	return ref.Config{Vars: []int64{0}, RuleVars: make([][]int64, ObsRules), Observed: observed}
 }
 
-// ObsModule returns the declarations of Module with those of the transitional operations, which hold
-// the observation.
-func ObsModule() *exec.Module {
-	m := Module()
-	ops.AddCallProtocol(m)
-	return m
-}
-
 var obsFeatures = []string{"budget", "stream", "document", "observe"}
 
 // ObsCases returns the handwritten conformance cases of the observation, in one module. As with Cases,
 // the model checks each case first.
 func ObsCases() []Case {
-	m := ObsModule()
+	m := Module()
 	var cs []Case
 	add := func(name string, observed bool, body func(b *exec.Builder)) {
 		cs = append(cs, Case{Module: m, Func: m.AddFunc(name, nil, nil, obsFeatures, body), Config: ObsConfig(observed)})
@@ -88,7 +79,7 @@ func ObsCases() []Case {
 // that meets every precondition: a call ends only while one is open, and an observation exists for
 // obs.enter and obs.exit only in an observed parse. Positions and levels come from small domains.
 func RandomObs(name string, rng *rand.Rand, n int, observed bool) Case {
-	m := ObsModule()
+	m := Module()
 	cfg := ObsConfig(observed)
 	mirror := ref.New(cfg)
 	f := m.AddFunc(name, nil, nil, obsFeatures, func(b *exec.Builder) {

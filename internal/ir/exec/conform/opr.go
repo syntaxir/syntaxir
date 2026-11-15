@@ -75,11 +75,10 @@ var OprSupportOps = []string{"rec.push", "rec.since", "env.bind", "env.scope"}
 // OprSuiteOps returns OprOps and OprSupportOps, the operations a suite of the family provides.
 func OprSuiteOps() []string { return append(slices.Clone(OprOps), OprSupportOps...) }
 
-// OprModule returns the declarations of Module with those of the transitional operations, which
-// hold the Operators Rule family, and the operations that make the handles of its cases.
+// OprModule returns the declarations of Module with the operations that make the handles of the
+// cases of the Operators Rule family.
 func OprModule() *exec.Module {
 	m := Module()
-	ops.AddCallProtocol(m)
 	test := func(name string, handle string) {
 		m.AddOp(&exec.Op{Name: name, Component: ops.Rules, Results: []exec.Type{exec.THandle(handle)},
 			Contract: "Returns a new handle for a conformance case."})

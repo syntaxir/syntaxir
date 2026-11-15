@@ -471,7 +471,7 @@ because the call or the step around it has paid. By it, an empty memo key costs 
 each value it reads and each node on the path to that value, a capture write costs nothing where `frame.undo` costs
 one unit for each write it undoes, forgetting the values of a term costs one unit for each value, and taking the n
 elements of a list or a tuple off the elements gathered costs 2n, one unit for copying each and one for taking it off,
-as for dropping it, on every target and for grammar code too. Four charges do not follow the rule yet, and the targets
+as for dropping it, reserved at once before any element moves, on every target and for grammar code too. Four charges do not follow the rule yet, and the targets
 differ on them until they are settled:
 
 - `frame.open` charges one unit for each slot in TypeScript, and nothing in Go and the engine, within its bound

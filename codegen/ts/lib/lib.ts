@@ -3061,16 +3061,21 @@ export class Parser {
     return f;
   }
 
-  // kids returns kidStack[base:] as a child list and pops it, charging under budget controls one unit for
-  // each element it copies and one for each it takes off.
+  // kids returns kidStack[base:] as a child list and pops it. Under budget controls it reserves two units
+  // for each element, one for copying it and one for taking it off, in one reservation before it moves
+  // any.
   kids(base: number): (Node | null)[] {
-    if (this.control === null) {
+    const c = this.control;
+    if (c === null) {
       const ks = this.kidStack.slice(base);
       this.kidStack.length = base;
       return ks;
     }
-    const ks = copyNodesSpend(this.kidStack, base, this.kidStack.length, this.control);
-    this.dropSpend(this.kidStack, base);
+    const n = this.kidStack.length - base;
+    c.mem += arrayBytes(n);
+    if (n > 0) c.charge(2 * n);
+    const ks = this.kidStack.slice(base);
+    this.kidStack.length = base;
     return ks;
   }
 

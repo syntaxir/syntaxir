@@ -11,7 +11,7 @@ import (
 	"zeroparse.dev/zp/internal/ir/exec/ref"
 )
 
-// ValueImpl is an implementation of the value primitives (ops.AddValue) under test.
+// ValueImpl is an implementation of the value primitives (the component values of ops.Parser) under test.
 type ValueImpl interface {
 	exec.Machine
 	// Datum returns the implementation's value for the scalar v of the model.

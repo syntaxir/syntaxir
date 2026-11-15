@@ -25,13 +25,13 @@ const (
 // (term.elemsAbove).
 const QDropped = "dropped"
 
-// AddTermCode adds the handle type and the operation of applying a term of a predicate or a binding to m,
-// which declares the handles Datum, Fail and Act and the component Made (AddValue), the register Pos and the
-// component Host (ParseState and AddCallProtocol). A term is lowered from Core IR to a function of Exec IR that each
+// addTermCode adds the handle type and the operation of applying a term of a predicate or a binding to m,
+// which declares the handles Datum, Fail and Act and the component Made (addValue), the register Pos and the
+// component Host (memoizedCall and addParsing). A term is lowered from Core IR to a function of Exec IR that each
 // target holds in its own form; the type Term, whose application the verifier checks, is how Exec IR names
 // that form without writing the function in the module. Applying a term charges nothing itself: what a term
 // charges is what the operations of its code charge.
-func AddTermCode(m *exec.Module) {
+func addTermCode(m *exec.Module) {
 	datum, fail := exec.THandle(Datum), exec.THandle(Fail)
 	act := exec.THandle(Act)
 	m.AddCallable(Term, Host, "A term of a predicate or a binding, in the form the target holds: code that is applied to a context.",
@@ -70,7 +70,7 @@ unit for each element it copies.`,
 		Reads: []string{Gathered}, Writes: []string{Gathered}, Cost: exec.Cost{Terms: []exec.CostTerm{{Coef: 2, Quantity: QDropped}}},
 		Contract: `Takes the elements gathered after the mark off the elements gathered and returns them in order, for a
 list or a tuple to take over. It charges two units for each: one for copying it and one for taking it off, as
-term.dropKids charges for dropping it.`,
+term.dropKids charges for dropping it, in one reservation before it moves any.`,
 		Requires: `mark came from term.kids and is at most the number of the elements gathered.`})
 	m.AddOp(&exec.Op{Name: "term.keep", Component: Gathered, Params: []exec.Param{exec.P("items", items), exec.P("i", exec.TInt)},
 		Writes: []string{Gathered}, NoReturn: true,

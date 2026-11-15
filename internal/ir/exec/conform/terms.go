@@ -106,7 +106,7 @@ func (p *pair) compareTermState(o *exec.Op, want, got []any) {
 
 // TermStateModule returns the value declarations with the conformance operations of what terms make.
 func TermStateModule() *exec.Module {
-	m := ops.ValueModule()
+	m := ops.Parser()
 	m.AddOp(&exec.Op{Name: ActOp, Component: ops.Host, Results: []exec.Type{exec.THandle(ops.Act)},
 		Contract: "Returns the context of the terms of the case; every call returns the same one."})
 	m.AddOp(&exec.Op{Name: ElemOp, Component: ops.Host, Params: []exec.Param{exec.P("id", exec.TInt)},
