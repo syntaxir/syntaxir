@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"zeroparse.dev/zp/engine"
 	"zeroparse.dev/zp/internal/starttest"
@@ -411,10 +410,16 @@ rule r = "a" (";" r / ";" "b")*`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	start := time.Now()
 	g.Next()
-	if d := time.Since(start); d > 3*time.Second {
-		t.Errorf("one attempt took %v", d)
+	// The checks run the attempt out of its matcher budget, and the attempt gives up within one match
+	// of it. Without the charge the work reads zero here (and the attempt runs on until the text is
+	// complete); without the bound it runs past the budget.
+	work, budget := sample.MatchWork(g), sample.MatchBudget(g)
+	if work < budget || work > budget+sample.MatchSteps {
+		t.Errorf("one attempt took %d matcher steps, want %d to %d", work, budget, budget+sample.MatchSteps)
+	}
+	if s := g.Stats(); s.Exhausted != 1 {
+		t.Errorf("the attempt did not run out of its budget: %+v", s)
 	}
 	// A lookahead per character over the whole text: cubic work in the length.
 	p = compile(t, `rule main = (!(x* "b") "a") #repeat(200) "c" $$
