@@ -28,6 +28,9 @@ type Act struct{}
 
 type termState struct {
 	gathered, made []int64
+	// recorded holds every struct that act.made recorded, those dropped since included: a struct is
+	// recorded at most once in a parse.
+	recorded map[int64]bool
 }
 
 // Gathered returns the identifiers of the elements gathered, from the bottom of the stack, 0 for a null
@@ -57,7 +60,7 @@ func (m *Model) allowsTermState(o *exec.Op, args []any) (allowed, ok bool) {
 		return args[0].(int64) >= 0 && args[0].(int64) <= int64(len(s.gathered)), true
 	case "act.made":
 		n, isStruct := args[1].(Struct)
-		return isStruct && !slices.Contains(s.made, n.ID), true
+		return isStruct && !s.recorded[n.ID], true
 	case "term.dropCreated":
 		return args[0].(int64) >= 0 && args[0].(int64) <= int64(len(s.made)), true
 	case "act.push", "term.kids", "term.created":
@@ -101,7 +104,12 @@ func (m *Model) callTermState(o *exec.Op, args []any) ([]any, bool) {
 	case "term.dropKids":
 		s.gathered = s.gathered[:args[0].(int64)]
 	case "act.made":
-		s.made = append(s.made, args[1].(Struct).ID)
+		id := args[1].(Struct).ID
+		if s.recorded == nil {
+			s.recorded = map[int64]bool{}
+		}
+		s.recorded[id] = true
+		s.made = append(s.made, id)
 	case "term.created":
 		return []any{int64(len(s.made))}, true
 	case "term.dropCreated":
