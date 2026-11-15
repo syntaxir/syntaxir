@@ -36,9 +36,10 @@ func TestModuleGolden(t *testing.T) {
 	}
 }
 
-// TestCrossComponentWriters pins the transitional operations that write a component other than
-// their own, which Verify allows only for transitional operations: the growth operations that
-// record recovered errors again. Another writer needs a reason recorded here.
+// TestCrossComponentWriters pins the transitional operations of the whole module (Parser) that write
+// a component other than their own, which Verify allows only for transitional operations: the growth
+// operations that record recovered errors again. Another writer needs a reason recorded here. The
+// leaves of terms, which the lowering declares, are pinned there (TestTermLeavesWriteOwnComponent).
 func TestCrossComponentWriters(t *testing.T) {
 	m := Parser()
 	var got []string
