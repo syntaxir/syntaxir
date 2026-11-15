@@ -375,8 +375,8 @@ takes its elements off it when it is made (the lowering's `term.elemsAbove`, and
 transitional leaves of terms), and `term.kids` and `term.dropKids` mark it and drop what a failed term left. It is not
 a host operation's private state, since the engine's grammar code collects the elements of a repetition on the same
 stack, above the elements it finds, and the charge of a drop is observable. The component `made` is the list of the
-structs that terms and actions made: `act.made` records one, `term.created` and `term.dropCreated` mark the list and
-forget what a term made, and `term.ctx` gives a context the mark, from which an action's result that it recorded takes
+structs that terms and actions made: `act.made` records one, `term.created` marks the list and the matching drop
+forgets what a term made, and `term.ctx` gives a context the mark, from which an action's result that it recorded takes
 the rule's range. Both have reference models, with the entries of each, by identity, compared after every write, and handwritten and
 randomized conformance cases with a negative control of broken models; the cases run on the engine and on generated
 Go (node and typed) through bindings that each target's printer prints from the operations, the engine's from the
