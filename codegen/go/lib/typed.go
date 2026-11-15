@@ -671,7 +671,6 @@ func TParseResolved[T any](r *TRule, input string, o parseOptions, ext any, conv
 	p.Control = o.control
 	o.control.attachTypedMemory(p, ext)
 	p.Observation = newObservation(&o.observe, &p.Silent)
-	defer p.releaseObservation()
 	if o.control != nil {
 		if target, ok := ext.(budgetControlSetter); ok {
 			target.SetBudgetControl(o.control)
@@ -747,9 +746,11 @@ func (p *TParser) run(r *TRule, input string, o parseOptions, ext any) (v any, e
 // consumed by the parse itself (typed values come from the generated code's chunks, ext).
 var tpool sync.Pool
 
-// recycle clears the parser for the next parse, keeping its scratch memory.
+// recycle ends the parse's observation and clears the parser for the next parse, keeping its
+// scratch memory.
 func (p *TParser) recycle() {
 	q := p.Parser
+	q.Observation.release()
 	memo := memoTable{seen: q.memo.seen, calls: q.memo.calls, pages: q.memo.pages, bitPages: q.memo.bitPages}
 	// Retain useful sparse pages for large inputs, capped at 32 MiB of backing
 	// storage. The next small parse trims this cache when it finishes.

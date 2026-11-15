@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
@@ -477,10 +478,10 @@ func engineObservation(t *testing.T, prog *engine.Program, r agreeReport, in str
 // sameCallExamined is the relation between the events of two producers of a Document parse after an
 // edit that the section "Reported Calls" of the specification of tracing and profiling defines: the
 // engine may resume repetitions and reuse failed results, so the producers report different calls, but
-// every call that both make has the same Examined in both. A call is the exit of a rule at a position,
-// level and depth, with its end and outcome. A producer may make one call more than once with different
-// examined ends (within the growth of a left-recursive seed), so each exit of either producer must have
-// an Examined that the other reports for the call. It returns the number of exits compared and the
+// the calls that both make with the same rule, position, level, depth, end and outcome pair in the
+// order they are made, and paired calls have the same Examined. A producer can make such a call more
+// than once with different examined ends, within the growth of a left-recursive seed, because Examined
+// depends on the seed, which those fields leave out. It returns the number of exits compared and the
 // differences.
 func sameCallExamined(a, b []core.TraceEvent) (compared int, diffs []string) {
 	type key struct {
@@ -488,35 +489,61 @@ func sameCallExamined(a, b []core.TraceEvent) (compared int, diffs []string) {
 		level, depth, pos, end int
 		matched                bool
 	}
-	keyOf := func(e core.TraceEvent) key { return key{e.Rule, e.Level, e.Depth, e.Pos, e.End, e.Matched} }
-	ends := func(evs []core.TraceEvent) map[key]map[int]bool {
-		m := map[key]map[int]bool{}
+	ends := func(evs []core.TraceEvent) (map[key][]int, []key) {
+		m, order := map[key][]int{}, []key(nil)
 		for _, e := range evs {
 			if e.Kind == core.TraceExit {
-				k := keyOf(e)
+				k := key{e.Rule, e.Level, e.Depth, e.Pos, e.End, e.Matched}
 				if m[k] == nil {
-					m[k] = map[int]bool{}
+					order = append(order, k)
 				}
-				m[k][e.Examined] = true
+				m[k] = append(m[k], e.Examined)
 			}
 		}
-		return m
+		return m, order
 	}
-	check := func(evs []core.TraceEvent, other map[key]map[int]bool, who string) {
-		for _, e := range evs {
-			want := other[keyOf(e)]
-			if e.Kind != core.TraceExit || want == nil {
-				continue
-			}
-			compared++
-			if !want[e.Examined] {
-				diffs = append(diffs, fmt.Sprintf("examined end of %s@%d (level %d, depth %d, end %d, matched %v) in %s: %d, the other reports %v", e.Rule, e.Pos, e.Level, e.Depth, e.End, e.Matched, who, e.Examined, want))
-			}
+	ea, order := ends(a)
+	eb, _ := ends(b)
+	for _, k := range order {
+		x, y := ea[k], eb[k]
+		if y == nil {
+			continue
+		}
+		compared += min(len(x), len(y))
+		if !slices.Equal(x, y) {
+			diffs = append(diffs, fmt.Sprintf("examined ends of %s@%d (level %d, depth %d, end %d, matched %v) in the order made: %v, %v", k.rule, k.pos, k.level, k.depth, k.end, k.matched, x, y))
 		}
 	}
-	check(a, ends(b), "a")
-	check(b, ends(a), "b")
 	return compared, diffs
+}
+
+// swapGrowthExamined returns a copy of evs in which the examined ends of the first two exits of one call
+// (the same rule, position, level, depth, end and outcome) that differ are swapped, or nil if no call
+// has two. Such exits are steps of the growth of a left-recursive seed.
+func swapGrowthExamined(evs []core.TraceEvent) []core.TraceEvent {
+	type key struct {
+		rule                   string
+		level, depth, pos, end int
+		matched                bool
+	}
+	first := map[key]int{}
+	for i, e := range evs {
+		if e.Kind != core.TraceExit {
+			continue
+		}
+		k := key{e.Rule, e.Level, e.Depth, e.Pos, e.End, e.Matched}
+		j, ok := first[k]
+		if !ok {
+			first[k] = i
+			continue
+		}
+		if evs[j].Examined != e.Examined {
+			out := slices.Clone(evs)
+			out[i].Examined, out[j].Examined = out[j].Examined, out[i].Examined
+			return out
+		}
+	}
+	return nil
 }
 
 // oneByteReader returns one byte per Read, as the consumer's reader does.
@@ -533,6 +560,9 @@ func (r *oneByteReader) Read(b []byte) (int, error) {
 // agreementStats counts what agreementMismatches compared, by entry.
 type agreementStats struct {
 	reports, compared, paired, unpaired, engineOnly, generatedOnly int
+	// swaps counts the edit observations whose growth steps were swapped (swapGrowthExamined) to check
+	// that sameCallExamined tells them apart.
+	swaps int
 }
 
 // agreementMismatches checks each report against the same parse on each engine backend with callsAgree
@@ -571,6 +601,12 @@ func agreementMismatches(t *testing.T, cases []codegentest.Case, reports []agree
 				st.compared += n
 				for _, msg := range d {
 					diffs[r.Entry] = append(diffs[r.Entry], where+": "+msg)
+				}
+				if swapped := swapGrowthExamined(events); swapped != nil && len(d) == 0 {
+					st.swaps++
+					if _, d := sameCallExamined(swapped, r.Events); len(d) == 0 {
+						diffs[r.Entry] = append(diffs[r.Entry], where+": swapped examined ends of growth steps not told apart")
+					}
 				}
 				continue
 			}
@@ -618,6 +654,12 @@ func TestEngineObservationsAgreeWithGenerated(t *testing.T) {
 		}
 		t.Logf("%s: %d reports, %d events compared; %d skipped events paired, %d unpaired; %d calls of the engine only, %d of the generated parser only",
 			entry, st.reports, st.compared, st.paired, st.unpaired, st.engineOnly, st.generatedOnly)
+		if entry == "edit" {
+			if st.swaps == 0 {
+				t.Error("no edit observation had growth steps to swap")
+			}
+			t.Logf("edit: %d observations with swapped growth steps told apart", st.swaps)
+		}
 		for i, msg := range diffs[entry] {
 			if i == 10 {
 				t.Errorf("%d more differences of %s", len(diffs[entry])-i, entry)

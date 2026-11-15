@@ -9,7 +9,7 @@
 A parse can report every rule call to a function (`engine.WithTrace`): the rule, its position and binding level, the
 nesting depth, and at the end of the call its outcome, end position, whether the memo answered it, how many times it
 evaluated the body, how far it examined the input, and the farthest failure it recorded. A per-rule profile
-(`engine.Profile`, `engine.WithProfile`) is built on the same events. The `zp` command gains `trace`, `profile` and
+(`engine.WithProfile`, which fills a `Profile` of the package `core`) is built on the same events. The `zp` command gains `trace`, `profile` and
 `explain`. Tracing works on the closure backend and both bytecode VMs, in recognition mode, in stream parses and in
 `Document`; the engine tracing API does not instrument standalone generated Go parsers (see [Generated Parser Tracing and Profiling](043-generated-parser-observability.md)). When tracing is off, an ordinary parse pays one nil check per call
 that goes through the general call path, and nothing on the plain call path. The user guide is
@@ -88,14 +88,18 @@ during the trace function; the fields can be kept.
 
 ### Profile
 
-`Profile.Trace` is an ordinary trace function. It keeps a stack of calls with their start times and the time of their
-nested calls, and per rule name (so that a value-free twin counts as its rule) it adds up:
+The engine and the generated parsers share one profile, the `Profile` of the package `core`; `engine.Profile` names
+it. A producer records a parse through a recorder that the profile hands out for that parse: the parser passes it every
+event of the parse in order, calling it before the trace functions handle the event and telling it after they have, so
+that their time is not counted, and closes it when the parse returns. The recorder keeps a stack of calls with their
+start times and the time of their nested calls, and per rule name (so that a value-free twin counts as its rule) it
+adds up:
 
 - calls, memo hits, matches, failures and body evaluations;
 - **reused elements** (`RuleProfile.ReusedElements`, JSON `reusedElements`): repetition elements reused during
   completed calls, nested calls included. Parent and child rows can report the same reuse; these rows are inclusive
-  and must not be summed to obtain a parse total. `Profile.ReusedElements` counts only completed root exits, so each
-  reuse contributes once to that total;
+  and must not be summed to obtain a parse total. `ProfileSnapshot.ReusedElements` counts only completed root exits, so
+  each reuse contributes once to that total;
 - **consumed**: the input matched by matching calls;
 - **wasted**: for each call that evaluated its body and failed, the input from its position to the end of what it
   examined. This is precise for what it counts: input the rule examined in a call whose result was a failure. It does
@@ -105,14 +109,18 @@ nested calls, and per rule name (so that a value-free twin counts as its rule) i
 - **repeats**: calls that evaluated the body at a (position, binding level) where the rule had been evaluated before in
   the same parse, and the most such evaluations at one position. Since memoization is deferred to the second call at a
   position (performance.md, change 18), a memoized rule has at most one repeat per position; more points at a rule that
-  is not memoized and whose callers are retried. The positions evaluated are kept in a map, from which those that a
-  stream parse has discarded (and so can never return to) are dropped whenever it doubles, so profiling a stream
-  keeps its memory bounded;
+  is not memoized and whose callers are retried. The positions evaluated are kept in a map. A stream parse tells the
+  recorder when it discards input, and the recorder drops the positions before it, where no rule is evaluated again,
+  so profiling a stream keeps its memory bounded; nothing else trims the map;
 - **time**: inclusive time, counted only for the outermost call of a rule in progress (so that recursion does not count
   the same time twice), and self time, the inclusive time minus that of the nested calls.
 
-A new parse begins with an enter event at depth 1, which resets the per-parse state (the call stack and the
-positions evaluated), so one `Profile` collects any number of parses, including those of a `Document`.
+Each parse has its own recorder, so one `Profile` collects any number of parses, including those of a `Document`, and
+a parse run from a trace function is accounted separately from the parse that runs it. A closed recorder leaves its
+emptied buffers (the map of positions, the call stack) to the profile for the next parse, which reuses their capacity
+and none of their contents; a recorder opened while another is open allocates its own. Clearing a map costs its
+capacity, so the profile drops a map that once held several times more entries than the parse that closes it, rather
+than make every later small parse pay for one large one.
 
 `Hints` reports the rules with the most self time, rules evaluated more than twice at one position, failed calls that
 examined at least 16 positions, and rules whose failed calls examined more input in all than the parse did. They are
@@ -216,7 +224,7 @@ one that gave a `Document` parse a fresh memo fails the document comparison 573 
 - A `Document` can resume a repetition without executing the calls inside its unchanged elements. Those omitted
   calls remain absent from call, evaluation and memo-hit counts. `TraceExit.ReusedElements` and the profile
   `ReusedElements` fields report repetition reuse separately. An aborted parse without a root exit contributes no
-  reuse to `Profile.ReusedElements`, even if completed child rows already reported reuse.
+  reuse to `ProfileSnapshot.ReusedElements`, even if completed child rows already reported reuse.
 - A `Profile` must not be shared by concurrent parses.
 - In a stream parse, `LineCol` knows the lines of the input still held only; for other positions it gives 0, 0 (and a
   profile `Location` prints as `position N`). Keeping the line starts of discarded input would make a stream's memory

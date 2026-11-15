@@ -40,7 +40,18 @@ An exit event also has the fields below.
 | `Memo` | True if the result came from the memo table without evaluating the body |
 | `Evals` | The number of times this call evaluated the rule body: 0 for a memo result, usually 1, and one more for each step that a left-recursive match grows. Bodies of nested calls are not included |
 | `ReusedElements` | The number of repetition elements of a `Document` reused during this call, nested calls included. It measures resumption in this invocation, not work from the parse that built a memo result |
-| `Examined` | The call's exact examined end, as defined for Document parses in [Generated Go Document Tracing and Profiling](#generated-go-document-tracing-and-profiling); looking at a character to reject it and lookahead count |
+| `Examined` | The call's exact examined end, defined below |
+
+`Examined` is the exact end h of the call's
+[examined range](documents.md#reuse-model): one past the greatest slot that the
+call, or a call within it, examined. Looking at a character to reject it counts,
+and so does input examined inside a lookahead. It is at least the call's start
+and its end, is one past the length of the input when the call tested the end of
+the input, and never includes input examined by the caller before the call. A
+memo hit reports the end stored with the result it reuses. A call that reuses a
+growing left-recursive seed extends its end to the end stored with that seed, so
+the `Examined` of a call depends on the seed it reuses as well as on its other
+fields.
 
 The methods `LineCol(pos)`, `Text()`, `Failure()` and `Recovered()` read the
 state of the parser and MUST be called only from the trace function, while it
@@ -66,11 +77,12 @@ their position. On the calls that both make, every field of their events is
 equal. The same holds for their profiles once the counts of those calls are
 taken out. Document parses after an edit are the exception: the engine MAY
 resume repetitions and reuse failed results of the previous parse, so the
-producers report different calls. Every call that both make, the same rule at
-the same position, level and depth with the same end and outcome, has the same
-`Examined` in both. A producer MAY make such a call more than once with
-different `Examined`, as within the growth of a left-recursive seed; then each
-of its `Examined` is one that the other producer reports for the call.
+producers report different calls. The calls that both make with the same rule,
+position, level, depth, end and outcome pair in the order they are made, and
+paired calls have the same `Examined`. A producer can make such a call more
+than once with different `Examined`, within the growth of a left-recursive
+seed: `Examined` depends on the seed that the call reuses, which those fields
+leave out.
 
 ## Engine Profiling
 
@@ -164,7 +176,7 @@ their `Evals` counts their own body attempts, including growth attempts.
 Recursive calls that reuse the growing seed have `Memo=true` and `Evals=0`.
 Generated parsers do not resume repetitions, so `ReusedElements` is always 0.
 Every exit event MUST report in `Examined` the call's exact examined end, as
-defined for Document parses below.
+[Engine Tracing](#engine-tracing) defines it.
 
 Trace callbacks receive a copied event synchronously. Generated events carry no
 parser state: their `LineCol` returns 0, 0, `Text` returns the empty string, and
@@ -237,16 +249,12 @@ emit a rule event. A memoized whole-call reuse MUST report that call with
 replayed. Generated Documents do not resume repetition bodies, so their
 `ReusedElements` is 0.
 
-In a Document parse, an exit event's `Examined` is the exact end h of the call's
-[examined range](documents.md#reuse-model): one past the greatest
-slot that the call, or a call within it, examined, and the end against which a
-later edit decides whether the call's memo result is reused. It is at least the
-call's start and its end, and is one past the length of the input when the
-call tested the end of the input. A call that records a memo result MUST report
-the end stored with that result, and a memo hit the end stored with the result
-it reuses. It never includes input examined by the caller before the call. A
-call that reuses a growing left-recursive seed extends its end to the end
-stored with that seed; these results are never reused after an edit.
+In a Document parse, an exit event's `Examined`, as
+[Engine Tracing](#engine-tracing) defines it, is also the end against which a
+later edit decides whether the call's memo result is reused. A call that
+records a memo result MUST report the end stored with that result, and a memo
+hit the end stored with the result it reuses. Results that reuse a growing
+left-recursive seed are never reused after an edit.
 
 A rule's profile `Examined` sums, over completed calls, `Examined - Pos`;
 `Wasted` sums the same over completed failed calls with `Memo=false`. Batch and

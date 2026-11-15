@@ -161,7 +161,8 @@ func RecognizeOnly() ParseOption {
 // the trace event of every ZeroParse parser, generated parsers included.
 type TraceEvent = core.TraceEvent
 
-// TraceKind tells whether a TraceEvent starts or ends a rule call.
+// TraceKind tells whether a TraceEvent starts or ends a rule call, or reports a call that a parser
+// skipped (core.TraceSkipped, which the engine never reports).
 type TraceKind = core.TraceKind
 
 const (

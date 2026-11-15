@@ -27,14 +27,19 @@ type recorderBuffers struct {
 	stack []profileFrame
 	seen  map[profileKey]int32
 	open  []int32
-	// seenPeak is the most entries seen has held.
+	// seenPeak is the most entries seen has held, over every parse that used it: its capacity.
 	seenPeak int
 }
 
-// spareSeenLimit is the most entries the seen map of a closed recorder may have held for the
-// profile to keep it: clearing a map costs its capacity, which a larger parse would leave to every
-// later one, and the profile would hold its memory.
-const spareSeenLimit = 1 << 16
+// A closed recorder's seen map is kept for the next parse unless it once held more than
+// spareSeenRatio times the entries of the parse that closes it, and more than spareSeenFloor.
+// Clearing a map costs its capacity, so a small parse after a large one would pay for the large
+// one's capacity at every close; dropping the map keeps that cost within a multiple of the parse's
+// own work, and the profile does not hold memory that its parses no longer need.
+const (
+	spareSeenRatio = 4
+	spareSeenFloor = 256
+)
 
 // ProfileSnapshot is a copy of the counts of a Profile, with Rules sorted by rule name. Entered
 // counts calls that began; the other counts and the times cover only the calls that completed
@@ -151,6 +156,7 @@ type ProfileRecorder struct {
 	// level, which in a stream parse the parser bounds by discarding the positions it no longer
 	// holds (Discard); open counts per row the calls in progress (for Time).
 	recorderBuffers
+	parsePeak int // the most entries seen has held in this parse
 	// excluded is the time excluded from the calls so far (the trace functions), and paused the
 	// time the parse was paused for one.
 	excluded time.Duration
@@ -287,8 +293,9 @@ func (r *ProfileRecorder) exit(e TraceEvent, now time.Time) {
 		k := profileKey{row: int32(c.row), level: int32(e.Level), pos: e.Pos}
 		n := r.seen[k] + 1
 		r.seen[k] = n
-		if n == 1 && len(r.seen) > r.seenPeak {
-			r.seenPeak = len(r.seen)
+		if n == 1 && len(r.seen) > r.parsePeak {
+			r.parsePeak = len(r.seen)
+			r.seenPeak = max(r.seenPeak, r.parsePeak)
 		}
 		if n > 1 {
 			row.Repeats++
@@ -328,11 +335,12 @@ func (r *ProfileRecorder) Close() {
 	}
 	if pr := r.pr; pr != nil && pr.spare.stack == nil && pr.spare.seen == nil && pr.spare.open == nil {
 		seen := r.seen
-		if r.seenPeak > spareSeenLimit {
-			seen = nil
+		peak := r.seenPeak
+		if peak > spareSeenFloor && peak > spareSeenRatio*r.parsePeak {
+			seen, peak = nil, 0
 		}
 		clear(seen)
-		pr.spare = recorderBuffers{stack: r.stack[:0], seen: seen, open: r.open[:0]}
+		pr.spare = recorderBuffers{stack: r.stack[:0], seen: seen, open: r.open[:0], seenPeak: peak}
 	}
 	*r = ProfileRecorder{}
 }

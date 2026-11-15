@@ -154,6 +154,42 @@ func TestProfileRecorderReuse(t *testing.T) {
 	}
 }
 
+// TestProfileRecorderKeepsSeenRelative checks when a profile keeps the seen map of a closed recorder:
+// unless the map once held more than spareSeenRatio times the entries of the parse that closes it,
+// and more than spareSeenFloor. A parse of n calls of x has n+1 entries (with s).
+func TestProfileRecorderKeepsSeenRelative(t *testing.T) {
+	var pr Profile
+	parse := func(n int) {
+		r := pr.Recorder()
+		r.Record(enter("s", 1, 0))
+		for pos := range n {
+			r.Record(enter("x", 2, pos))
+			r.Record(exit("x", 2, pos, pos+1, true, 1, pos+1))
+		}
+		r.Record(exit("s", 1, 0, n, true, 1, n))
+		r.Close()
+	}
+	for _, c := range []struct {
+		n    int
+		kept bool
+	}{
+		{4096, true},               // the first parse keeps its map: 4097 entries
+		{2048, true},               // within the ratio
+		{1024, true},               // 1025 entries: 4 times them reach the map's peak
+		{1023, false},              // 1024 entries: past the ratio, so dropped
+		{10, true},                 // a new map, small
+		{spareSeenFloor * 2, true}, // grows the map
+		{10, false},                // past the ratio and the floor
+		{spareSeenFloor - 1, true}, // a new map, at the floor
+		{spareSeenFloor / 8, true}, // past the ratio but within the floor
+	} {
+		parse(c.n)
+		if kept := pr.spare.seen != nil; kept != c.kept {
+			t.Fatalf("after a parse of %d entries kept = %v, want %v (peak %d)", c.n, kept, c.kept, pr.spare.seenPeak)
+		}
+	}
+}
+
 func TestTraceEventJSON(t *testing.T) {
 	b, err := json.Marshal(TraceEvent{Kind: TraceSkipped, Rule: "r", SkipReason: SkipFirstCharacter})
 	if err != nil {

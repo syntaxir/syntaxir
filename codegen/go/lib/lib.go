@@ -708,7 +708,6 @@ func parseResolvedSpend(r *Rule, input string, o parseOptions) (n *core.Node, er
 	p.Control = o.control
 	o.control.attachMemory(p)
 	p.Observation = newObservation(&o.observe, &p.Silent)
-	defer p.releaseObservation()
 	p.setTracking()
 	p.MaxDepth = o.maxDepth
 	if o.unit == core.Bytes {
@@ -737,9 +736,10 @@ func parseResolvedSpend(r *Rule, input string, o parseOptions) (n *core.Node, er
 // capture frames and slots are private scratch, and node text slices the input string.
 var ppool sync.Pool
 
-// release clears the parser and returns it to ppool, keeping decoded input, memo storage,
-// capture scratch and construction stacks within their retention bounds.
+// release ends the parse's observation, clears the parser and returns it to ppool, keeping decoded
+// input, memo storage, capture scratch and construction stacks within their retention bounds.
 func (p *Parser) release() {
+	p.Observation.release()
 	m := &p.memo
 	discardMemo := cap(m.slots) > 1<<20 || len(m.chunks) > 1<<12 || cap(m.seen) > 1<<20
 	clear(m.slots)
