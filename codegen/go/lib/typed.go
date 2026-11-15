@@ -958,11 +958,13 @@ func (p *TParser) tfields(n int) []tfield {
 	return p.fields.slice(n)[:0]
 }
 
-// Kids returns p.KidStack[base:] as a value list and pops it.
+// Kids returns p.KidStack[base:] as a value list and pops it, charging under budget controls one unit
+// for each element it copies and one for each it takes off.
 func (p *TParser) Kids(base int) []any {
 	ks := p.NewVals(len(p.KidStack) - base)
 	copySpend(p.Parser, ks, p.KidStack[base:])
-	p.DropKids(base)
+	clearSpend(p.Parser, p.KidStack[base:])
+	p.KidStack = p.KidStack[:base]
 	return ks
 }
 

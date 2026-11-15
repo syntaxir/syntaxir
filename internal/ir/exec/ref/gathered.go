@@ -42,7 +42,8 @@ func (m *Model) Made() []int64 { return slices.Clone(m.terms.made) }
 
 func isTermStateOp(name string) bool {
 	switch name {
-	case "act.push", "act.pushAll", "term.kids", "term.dropKids", "act.made", "term.created", "term.dropCreated":
+	case "act.push", "act.pushAll", "term.kids", "term.dropKids", "term.elemsAbove", "term.keep",
+		"act.made", "term.created", "term.dropCreated":
 		return true
 	}
 	return false
@@ -56,8 +57,11 @@ func (m *Model) allowsTermState(o *exec.Op, args []any) (allowed, ok bool) {
 	case "act.pushAll":
 		_, isItems := args[1].(*Items)
 		return isItems, true
-	case "term.dropKids":
+	case "term.dropKids", "term.elemsAbove":
 		return args[0].(int64) >= 0 && args[0].(int64) <= int64(len(s.gathered)), true
+	case "term.keep":
+		items, isItems := args[0].(*Items)
+		return isItems && args[1].(int64) >= 0 && args[1].(int64) < int64(len(items.IDs)), true
 	case "act.made":
 		n, isStruct := args[1].(Struct)
 		return isStruct && !s.recorded[n.ID], true
@@ -76,7 +80,7 @@ func (m *Model) termStateQuantity(name string, o *exec.Op, args []any) (int64, b
 		return 0, false
 	}
 	switch {
-	case name == ops.QDropped && o.Name == "term.dropKids":
+	case name == ops.QDropped && (o.Name == "term.dropKids" || o.Name == "term.elemsAbove"):
 		return int64(len(m.terms.gathered)) - args[0].(int64), true
 	case name == ops.QDropped && o.Name == "term.dropCreated":
 		return int64(len(m.terms.made)) - args[0].(int64), true
@@ -103,6 +107,13 @@ func (m *Model) callTermState(o *exec.Op, args []any) ([]any, bool) {
 		return []any{int64(len(s.gathered))}, true
 	case "term.dropKids":
 		s.gathered = s.gathered[:args[0].(int64)]
+	case "term.elemsAbove":
+		k := args[0].(int64)
+		items := &Items{IDs: slices.Clone(s.gathered[k:])}
+		s.gathered = s.gathered[:k]
+		return []any{items}, true
+	case "term.keep":
+		s.gathered = append(s.gathered, args[0].(*Items).IDs[args[1].(int64)])
 	case "act.made":
 		id := args[1].(Struct).ID
 		if s.recorded == nil {

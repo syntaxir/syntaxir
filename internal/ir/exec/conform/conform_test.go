@@ -676,4 +676,6 @@ func (m modelImpl) Elem(id int64) any { return ref.Elem{ID: id} }
 
 func (m modelImpl) Items(ids []int64) any { return &ref.Items{IDs: ids} }
 
+func (m modelImpl) ItemIDs(items any) []int64 { return items.(*ref.Items).IDs }
+
 func (m modelImpl) Struct(id int64) any { return ref.Struct{ID: id} }

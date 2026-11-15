@@ -370,9 +370,11 @@ alternative. A term never evaluates to a function: the lowering accepts a lambda
 a value of that kind or a test for one.
 
 **Elements gathered and values made.** Two stacks with marks hold what terms make. The component `gathered` is the
-stack of the elements of the lists and tuples being made: `act.push` and `act.pushAll` push on it, a list or a tuple
-takes its elements off it when it is made (the lowering's `term.elemsAbove`, and `term.keep` for `filter`, which stay
-transitional leaves of terms), and `term.kids` and `term.dropKids` mark it and drop what a failed term left. It is not
+stack of the elements of the lists and tuples being made: `act.push`, `act.pushAll` and `term.keep` (for `filter`)
+push on it, a list or a tuple takes its elements off it in one piece when it is made (`term.elemsAbove`), and
+`term.kids` and `term.dropKids` mark it and drop what a failed term left. Taking an element off charges a unit, as
+dropping it does, besides the unit for copying it, so that making a list of n elements costs 2n on every target,
+whether a term or grammar code makes it. It is not
 a host operation's private state, since the engine's grammar code collects the elements of a repetition on the same
 stack, above the elements it finds, and the charge of a drop is observable. The component `made` is the list of the
 structs that terms and actions made: `act.made` records one, `term.created` and `term.dropCreated` mark the list and
@@ -380,8 +382,8 @@ forget what a term made, and `term.ctx` gives a context the mark, from which an 
 the rule's range. Both have reference models, with the entries of each, by identity, compared after every write, and handwritten and
 randomized conformance cases with a negative control of broken models; the cases run on the engine and on generated
 Go (node and typed) through bindings that each target's printer prints from the operations, the engine's from the
-forms its backends print, and the metered targets charge each drop and copy to the unit, which a control that charges
-nothing fails. TypeScript implements the same operations and stays on its parity tests and on the push table, which
+forms its backends print, and the metered targets charge each drop, copy and take-off to the unit, which a control that
+charges nothing, or only for the copy, fails. TypeScript implements the same operations and stays on its parity tests and on the push table, which
 it runs with the other value tables, as [Completion](#completion) records. Forgetting what an action recorded once its
 result has its range, and Flow IR's drop of gathered values, are each target's own code outside these operations, and
 their charges still differ ([Cost Contracts](#cost-contracts)). *Target*: the representation of the stacks, which
@@ -467,8 +469,10 @@ A charge inside an operation pays for work whose size depends on the operation's
 record, growing the memo, inspecting input. The rule settles what an operation of constant work charges: nothing,
 because the call or the step around it has paid. By it, an empty memo key costs nothing, a key costs one unit for
 each value it reads and each node on the path to that value, a capture write costs nothing where `frame.undo` costs
-one unit for each write it undoes, and forgetting the values of a term costs one unit for each value. Four charges
-do not follow the rule yet, and the targets differ on them until they are settled:
+one unit for each write it undoes, forgetting the values of a term costs one unit for each value, and taking the n
+elements of a list or a tuple off the elements gathered costs 2n, one unit for copying each and one for taking it off,
+as for dropping it, on every target and for grammar code too. Four charges do not follow the rule yet, and the targets
+differ on them until they are settled:
 
 - `frame.open` charges one unit for each slot in TypeScript, and nothing in Go and the engine, within its bound
   of one unit per slot;
@@ -476,8 +480,8 @@ do not follow the rule yet, and the targets differ on them until they are settle
   the levels+1 nodes of the same walk;
 - forgetting the nodes that an action created is free in generated Go and costs one unit for each node in the
   engine;
-- dropping gathered values (`flow.DropKids` of Flow IR) is free in generated Go and TypeScript and costs one unit
-  for each value in the engine.
+- dropping the gathered values of a failed alternative (`flow.DropKids` of Flow IR) is free in generated Go and
+  TypeScript and costs one unit for each value in the engine.
 
 The specification already lets budget counts depend on the backend and
 the generated artifact as long as they are deterministic ([Cancellation and Budget

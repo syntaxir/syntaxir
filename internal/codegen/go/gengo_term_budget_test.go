@@ -31,9 +31,9 @@ var termChargePairs = []struct {
 	engine         int64
 }{
 	{"a predicate forgets the nodes its term created",
-		termPredicate(`list(T{N: 1})`), termPredicate(`list(T{N: 1}, T{N: 2})`), 6, 4, 6},
+		termPredicate(`list(T{N: 1})`), termPredicate(`list(T{N: 1}, T{N: 2})`), 7, 5, 6},
 	{"a binding forgets the nodes its term created",
-		termBinding(`len(list(T{N: 1}))`), termBinding(`len(list(T{N: 1}, T{N: 2}))`), 6, 4, 6},
+		termBinding(`len(list(T{N: 1}))`), termBinding(`len(list(T{N: 1}, T{N: 2}))`), 7, 5, 6},
 	{"a failed predicate forgets the values its term gathered",
 		termFailedPredicate(`concat(list(1), list(10 / (1 - len($x))))`), termFailedPredicate(`concat(list(1, 2), list(10 / (1 - len($x))))`), 3, 2, 2},
 	{"a failed binding forgets the values its term gathered",

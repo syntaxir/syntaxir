@@ -42,8 +42,8 @@ component made
 
 component gathered
   // The elements gathered for the lists and tuples that terms make: a stack, on which
-  // act.push and act.pushAll push, from which a list or a tuple takes its elements when it is made, and from which
-  // term.dropKids drops the elements of a term that the parser abandons.
+  // act.push, act.pushAll and term.keep push, from which a list or a tuple takes its elements when it is made
+  // (term.elemsAbove), and from which term.dropKids drops the elements of a term that the parser abandons.
 
 handle Entry of memo
   // A memo entry: the result of a rule call with its outcome and end.
@@ -872,6 +872,29 @@ op term.dropKids(mark int)
     // Drops the elements gathered after the mark, and charges one unit for each.
   requires:
     // mark came from term.kids and is at most the number of the elements gathered.
+
+op term.elemsAbove(mark int) Seq
+  component gathered
+  reads gathered
+  writes gathered
+  cost <= 0 + 2*dropped
+  contract:
+    // Takes the elements gathered after the mark off the elements gathered and returns them in order, for a
+    // list or a tuple to take over. It charges two units for each: one for copying it and one for taking it off, as
+    // term.dropKids charges for dropping it.
+  requires:
+    // mark came from term.kids and is at most the number of the elements gathered.
+
+op term.keep(items Seq, i int)
+  component gathered
+  writes gathered
+  noreturn
+  cost <= 0
+  contract:
+    // Pushes element i of items as it is (a box stays a box), as act.push pushes an element, as the next
+    // element of the list that filter makes.
+  requires:
+    // items came from seq.items, and i is at least 0 and less than the number of its elements.
 
 host op val.seq(c Act, tuple bool, kids Seq) Obj
   component value

@@ -78,6 +78,8 @@ func (m *termStateMachine) list(ns []*core.Node) []int64 {
 
 func (m *termStateMachine) Gathered() []int64 { return m.list(m.p.KidStack) }
 
+func (m *termStateMachine) ItemIDs(items any) []int64 { return m.list(items.(*itemsBox).items) }
+
 func (m *termStateMachine) Made() []int64 { return m.list(m.p.Created) }
 
 func (m *termStateMachine) Call(o *exec.Op, args []any) []any {
@@ -88,7 +90,8 @@ func (m *termStateMachine) Call(o *exec.Op, args []any) []any {
 	return m.binder.Call(o, args)
 }
 
-// termStateConv converts the elements of a list to the slice that the bindings take.
+// termStateConv converts the elements of a list to the slice that the bindings take, and the slice that
+// term.elemsAbove returns to the elements of a list.
 type termStateConv struct{}
 
 func (termStateConv) ToImpl(arg any, t reflect.Type) (reflect.Value, bool) {
@@ -98,7 +101,12 @@ func (termStateConv) ToImpl(arg any, t reflect.Type) (reflect.Value, bool) {
 	return reflect.Value{}, false
 }
 
-func (termStateConv) FromImpl(v reflect.Value) (any, bool) { return nil, false }
+func (termStateConv) FromImpl(v reflect.Value) (any, bool) {
+	if ns, ok := v.Interface().([]*core.Node); ok {
+		return &itemsBox{items: ns}, true
+	}
+	return nil, false
+}
 
 // termStateSuite is the suite of the engine's operations of the elements gathered or the values made, metered
 // if controlled; a metered engine charges each drop and copy to the unit.
@@ -109,7 +117,7 @@ func termStateSuite(ops []string, controlled bool) conform.Suite {
 	}
 	s := conform.Suite{Name: name, Ops: ops, New: func(c ref.Config) conform.Impl { return newTermStateMachine(c, controlled) }}
 	if controlled {
-		s.Exact = []string{"act.pushAll", "term.dropKids", "term.dropCreated"}
+		s.Exact = []string{"act.pushAll", "term.dropKids", "term.elemsAbove", "term.keep", "term.dropCreated"}
 	}
 	return s
 }
@@ -181,10 +189,12 @@ func (b brokenTermState) Call(o *exec.Op, args []any) []any {
 	return b.edit(func(op string, a ...any) []any { return b.termStateMachine.Call(mod.Op(op), a) }, args)
 }
 
-// brokenTermStateCharge is the metered engine whose op charges nothing.
+// brokenTermStateCharge is the metered engine whose op charges nothing, or half of what it charges if half
+// is set: term.elemsAbove charging for the copy and not for taking the elements off.
 type brokenTermStateCharge struct {
 	meteredTermState
-	op string
+	op   string
+	half bool
 }
 
 func (b brokenTermStateCharge) Call(o *exec.Op, args []any) []any {
@@ -192,7 +202,13 @@ func (b brokenTermStateCharge) Call(o *exec.Op, args []any) []any {
 		return b.meteredTermState.Call(o, args)
 	}
 	used := b.p.Control.Used
-	defer func() { b.p.Control.Used = used }()
+	defer func() {
+		if b.half {
+			b.p.Control.Used = used + (b.p.Control.Used-used)/2
+		} else {
+			b.p.Control.Used = used
+		}
+	}()
 	return b.meteredTermState.Call(o, args)
 }
 
@@ -212,14 +228,21 @@ func TestEngineTermStateConformanceDetectsBrokenEngine(t *testing.T) {
 				}
 			})
 		}
-		for _, op := range []string{"act.pushAll", "term.dropKids", "term.dropCreated"} {
-			if !slices.Contains(fam.ops, op) {
+		for _, br := range []struct {
+			op   string
+			half bool
+		}{{"act.pushAll", false}, {"term.dropKids", false}, {"term.elemsAbove", false}, {"term.elemsAbove", true}, {"term.dropCreated", false}} {
+			if !slices.Contains(fam.ops, br.op) {
 				continue
 			}
-			t.Run(op+" charges nothing", func(t *testing.T) {
+			name := br.op + " charges nothing"
+			if br.half {
+				name = br.op + " charges only the copy"
+			}
+			t.Run(name, func(t *testing.T) {
 				s := termStateSuite(fam.ops, true)
 				s.New = func(c ref.Config) conform.Impl {
-					return brokenTermStateCharge{newTermStateMachine(c, true).(meteredTermState), op}
+					return brokenTermStateCharge{newTermStateMachine(c, true).(meteredTermState), br.op, br.half}
 				}
 				if fails, _ := termStateConformanceFailures(fam, s, 30, 120); len(fails) == 0 {
 					t.Fatal("no case detected the broken engine")

@@ -1544,11 +1544,13 @@ func (p *Parser) fields(n int) coreimpl.Fields {
 	return fs
 }
 
-// Kids returns p.KidStack[base:] as a child list and pops it.
+// Kids returns p.KidStack[base:] as a child list and pops it, charging under budget controls one unit
+// for each element it copies and one for each it takes off.
 func (p *Parser) Kids(base int) []*core.Node {
 	ks := p.Nodes(len(p.KidStack) - base)
 	copySpend(p, ks, p.KidStack[base:])
-	p.DropKids(base)
+	clearSpend(p, p.KidStack[base:])
+	p.KidStack = p.KidStack[:base]
 	return ks
 }
 

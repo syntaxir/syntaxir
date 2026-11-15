@@ -183,6 +183,10 @@ func engineTermOp(callee string, a []string, qual string) (string, bool) {
 		return "len(p.KidStack)", true
 	case "term.dropKids":
 		return "p.DropKids(" + a[0] + ")", true
+	case "term.elemsAbove":
+		return "p.Kids(" + a[0] + ")", true
+	case "term.keep":
+		return fmt.Sprintf("p.KidStack = append(p.KidStack, %s[%s])", a[0], a[1]), true
 	}
 	return "", false
 }

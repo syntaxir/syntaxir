@@ -30,6 +30,20 @@ func (p *Parser) confTermDropKids(mark int) {
 	p.DropKids(mark)
 }
 
+// confTermElemsAbove runs term.elemsAbove for the conformance suite.
+// Printed from Exec IR function confTermElemsAbove of internal/ir/exec/core.
+func (p *Parser) confTermElemsAbove(mark int) []*core.Node {
+	var r []*core.Node
+	r = p.Kids(mark)
+	return r
+}
+
+// confTermKeep runs term.keep for the conformance suite.
+// Printed from Exec IR function confTermKeep of internal/ir/exec/core.
+func (p *Parser) confTermKeep(items []*core.Node, i int) {
+	p.KidStack = append(p.KidStack, items[i])
+}
+
 // confActMade runs act.made for the conformance suite.
 // Printed from Exec IR function confActMade of internal/ir/exec/core.
 func (p *Parser) confActMade(c *EvalCtx, n *core.Node) {
@@ -59,6 +73,8 @@ func confTermStateBindings(p *Parser) map[string]any {
 		"act.pushAll":      p.confActPushAll,
 		"term.kids":        p.confTermKids,
 		"term.dropKids":    p.confTermDropKids,
+		"term.elemsAbove":  p.confTermElemsAbove,
+		"term.keep":        p.confTermKeep,
 		"act.made":         p.confActMade,
 		"term.created":     p.confTermCreated,
 		"term.dropCreated": p.confTermDropCreated,

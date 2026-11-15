@@ -45,6 +45,9 @@ type Gathering interface {
 	// Gathered returns the identifiers of the elements gathered, from the bottom of the stack, 0 for a
 	// null element.
 	Gathered() []int64
+	// ItemIDs returns the identifiers of the elements of items, a list that term.elemsAbove returned,
+	// 0 for a null element.
+	ItemIDs(items any) []int64
 }
 
 // Making is an Impl that provides the values that terms made (ops.Made). After each call of an operation
@@ -80,8 +83,15 @@ func (p *pair) termStateHandle(name string, args []any) any {
 	return p.wrap(ref.Struct{ID: id}, p.impl.(Making).Struct(id))
 }
 
-// compareTermState compares the elements gathered and the values made after a call of o that writes them.
-func (p *pair) compareTermState(o *exec.Op) {
+// compareTermState compares the elements gathered and the values made after a call of o that writes them,
+// and the elements that term.elemsAbove returned: want are the model's results and got the
+// implementation's.
+func (p *pair) compareTermState(o *exec.Op, want, got []any) {
+	if g, ok := p.impl.(Gathering); ok && o.Name == "term.elemsAbove" {
+		if w, x := want[0].(*ref.Items).IDs, g.ItemIDs(got[0]); !slices.Equal(w, x) {
+			panic(mismatch(fmt.Sprintf("elements taken off: model %v, implementation %v", w, x)))
+		}
+	}
 	if g, ok := p.impl.(Gathering); ok && slices.Contains(o.Writes, ops.Gathered) {
 		if w, x := p.model.Gathered(), g.Gathered(); !slices.Equal(w, x) {
 			panic(mismatch(fmt.Sprintf("elements gathered: model %v, implementation %v", w, x)))
@@ -110,7 +120,7 @@ func TermStateModule() *exec.Module {
 }
 
 // GatheredOps are the operations of the elements gathered, which the cases of the family cover.
-var GatheredOps = []string{"act.push", "act.pushAll", "term.kids", "term.dropKids"}
+var GatheredOps = []string{"act.push", "act.pushAll", "term.kids", "term.dropKids", "term.elemsAbove", "term.keep"}
 
 // MadeOps are the operations of the values made, which the cases of the family cover.
 var MadeOps = []string{"act.made", "term.created", "term.dropCreated"}
@@ -119,8 +129,9 @@ var MadeOps = []string{"act.made", "term.created", "term.dropCreated"}
 var termStateFeatures = []string{"budget", "stream", "document", "missing"}
 
 // GatheredCases returns the handwritten conformance cases of the elements gathered, in one module: the
-// elements of nested lists pushed one by one and from a list, null elements, and drops to marks, of
-// nothing among them, as the predicate and the binding drop what a failed term gathered.
+// elements of nested lists pushed one by one, from a list and kept from a list, null elements, the elements
+// of a list or a tuple taken off when it is made, and drops to marks, of nothing among them, as the predicate
+// and the binding drop what a failed term gathered.
 func GatheredCases() []Case {
 	m := TermStateModule()
 	var cs []Case
@@ -173,6 +184,28 @@ func GatheredCases() []Case {
 		b.Do("term.dropKids", k)
 		b.Do("term.dropKids", i(0))
 		b.Assert(kids(0), "a drop to the start drops everything")
+	})
+	add("gathered_take", func(b *exec.Builder, c exec.Expr) {
+		push(b, c, 1)
+		outer := b.Let("outer", exec.C("term.kids"))
+		push(b, c, 2)
+		inner := b.Let("inner", exec.C("term.kids"))
+		push(b, c, 3)
+		b.Do("act.push", c, null)
+		b.Do("act.pushAll", c, exec.C(ItemsOp, i(10), i(2)))
+		b.Let("t1", exec.C("term.elemsAbove", inner))
+		b.Assert(kids(2), "making the inner list takes its elements off, a null one and those of a list among them")
+		b.Let("t2", exec.C("term.elemsAbove", inner))
+		b.Assert(kids(2), "a list of no elements takes none")
+		x := b.Let("x", exec.C(ItemsOp, i(20), i(3)))
+		b.Do("term.keep", x, i(2))
+		b.Do("term.keep", x, i(0))
+		b.Assert(kids(4), "each element kept counts")
+		b.Let("t3", exec.C("term.elemsAbove", outer))
+		b.Assert(kids(1), "making the outer list takes off what the inner one left and the elements kept")
+		push(b, c, 4)
+		b.Let("t4", exec.C("term.elemsAbove", i(0)))
+		b.Assert(kids(0), "taking off from the start takes everything")
 	})
 	return cs
 }
@@ -299,6 +332,18 @@ func randomTermState(name string, rng *rand.Rand, opNames []string, n int) Case 
 				call(op, nil)
 			case "term.dropKids":
 				drop(op, kidsMarks, len(mirror.Gathered()))
+			case "term.elemsAbove":
+				drop(op, kidsMarks, len(mirror.Gathered()))
+			case "term.keep":
+				k := 1 + rng.Int64N(3)
+				first := id(k)
+				ids := make([]int64, k)
+				for j := range ids {
+					ids[j] = first + int64(j)
+				}
+				x := b.Let(fresh(), exec.C(ItemsOp, exec.Int(first), exec.Int(k)))
+				at := rng.Int64N(k)
+				call(op, []any{&ref.Items{IDs: ids}, at}, x, exec.Int(at))
 			case "term.dropCreated":
 				drop(op, madeMarks, len(mirror.Made()))
 			}
@@ -331,7 +376,27 @@ type TermStateBroken struct {
 // GatheredBrokenOps returns the broken versions of the operations of the elements gathered that the cases
 // must tell from the correct ones.
 func GatheredBrokenOps() []TermStateBroken {
-	return termStateBroken("act.push", "act.pushAll", "term.kids", "term.dropKids", true)
+	bs := termStateBroken("act.push", "act.pushAll", "term.kids", "term.dropKids", true)
+	add := func(name, op string, edit func(call func(string, ...any) []any, a []any) []any) {
+		bs = append(bs, TermStateBroken{Name: name, Op: op, Edit: edit})
+	}
+	const take, keep = "term.elemsAbove", "term.keep"
+	add(take+" leaves the elements", take, func(call func(string, ...any) []any, a []any) []any {
+		n := call("term.kids")[0].(int64) - a[0].(int64)
+		res := call(take, a[0])
+		for j := range n {
+			call(keep, res[0], j)
+		}
+		return res
+	})
+	add(take+" takes one fewer", take, func(call func(string, ...any) []any, a []any) []any {
+		return call(take, min(a[0].(int64)+1, call("term.kids")[0].(int64)))
+	})
+	add(keep+" is ignored", keep, func(call func(string, ...any) []any, a []any) []any { return nil })
+	add(keep+" keeps the first element", keep, func(call func(string, ...any) []any, a []any) []any {
+		return call(keep, a[0], int64(0))
+	})
+	return bs
 }
 
 // MadeBrokenOps returns the broken versions of the operations of the values made that the cases must tell

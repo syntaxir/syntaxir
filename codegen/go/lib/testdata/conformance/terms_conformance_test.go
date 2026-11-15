@@ -121,6 +121,14 @@ func (m *termStateMachine) Gathered() []int64 {
 	return listIDs(m.ids, m.p.KidStack)
 }
 
+func (m *termStateMachine) ItemIDs(items any) []int64 {
+	if b := items.(*itemsBox); m.tp != nil {
+		return listIDs(m.ids, b.vals)
+	} else {
+		return listIDs(m.ids, b.nodes)
+	}
+}
+
 func (m *termStateMachine) Made() []int64 {
 	if m.tp != nil {
 		return listIDs(m.ids, m.tp.Created)
@@ -140,7 +148,8 @@ func (m *termStateMachine) Call(o *exec.Op, args []any) []any {
 	return m.binder.Call(o, args)
 }
 
-// termStateConv converts the elements of a list to the slice that the bindings take.
+// termStateConv converts the elements of a list to the slice that the bindings take, and the slice that
+// term.elemsAbove returns to the elements of a list.
 type termStateConv struct{}
 
 func (termStateConv) ToImpl(arg any, t reflect.Type) (reflect.Value, bool) {
@@ -154,7 +163,15 @@ func (termStateConv) ToImpl(arg any, t reflect.Type) (reflect.Value, bool) {
 	return reflect.ValueOf(b.nodes), true
 }
 
-func (termStateConv) FromImpl(v reflect.Value) (any, bool) { return nil, false }
+func (termStateConv) FromImpl(v reflect.Value) (any, bool) {
+	switch x := v.Interface().(type) {
+	case []*core.Node:
+		return &itemsBox{nodes: x}, true
+	case []any:
+		return &itemsBox{vals: x}, true
+	}
+	return nil, false
+}
 
 // termStateSuite is the suite of the operations of the elements gathered or the values made of the node or
 // the typed library, metered if controlled; a metered library charges each drop and copy to the unit.
@@ -168,7 +185,7 @@ func termStateSuite(ops []string, typed, controlled bool) conform.Suite {
 	}
 	s := conform.Suite{Name: name, Ops: ops, New: func(c ref.Config) conform.Impl { return newTermStateMachine(c, typed, controlled) }}
 	if controlled {
-		s.Exact = []string{"act.pushAll", "term.dropKids", "term.dropCreated"}
+		s.Exact = []string{"act.pushAll", "term.dropKids", "term.elemsAbove", "term.keep", "term.dropCreated"}
 	}
 	return s
 }
@@ -243,10 +260,12 @@ func (b brokenTermState) Call(o *exec.Op, args []any) []any {
 }
 
 // brokenTermStateCharge is the metered library whose op does its work without charging, as a printed line
-// without the charge would.
+// without the charge would, or, if copy is set, charging only for the copy: term.elemsAbove that takes the
+// elements off for free.
 type brokenTermStateCharge struct {
 	meteredTermState
-	op string
+	op   string
+	copy bool
 }
 
 func (b brokenTermStateCharge) Call(o *exec.Op, args []any) []any {
@@ -274,6 +293,22 @@ func (b brokenTermStateCharge) Call(o *exec.Op, args []any) []any {
 		} else {
 			m.p.created = m.p.created[:k]
 		}
+	case "term.elemsAbove":
+		k := int(args[0].(int64))
+		if tp != nil {
+			vs := slices.Clone(tp.KidStack[k:])
+			if b.copy {
+				copySpend(tp.Parser, vs, tp.KidStack[k:])
+			}
+			tp.KidStack = tp.KidStack[:k]
+			return []any{&itemsBox{vals: vs}}
+		}
+		ns := slices.Clone(m.p.KidStack[k:])
+		if b.copy {
+			copySpend(m.p, ns, m.p.KidStack[k:])
+		}
+		m.p.KidStack = m.p.KidStack[:k]
+		return []any{&itemsBox{nodes: ns}}
 	}
 	return nil
 }
@@ -295,14 +330,21 @@ func TestExecConformanceTermStateDetectsBrokenLib(t *testing.T) {
 					}
 				})
 			}
-			for _, op := range []string{"act.pushAll", "term.dropKids", "term.dropCreated"} {
-				if !slices.Contains(fam.ops, op) {
+			for _, br := range []struct {
+				op   string
+				copy bool
+			}{{"act.pushAll", false}, {"term.dropKids", false}, {"term.elemsAbove", false}, {"term.elemsAbove", true}, {"term.dropCreated", false}} {
+				if !slices.Contains(fam.ops, br.op) {
 					continue
 				}
-				t.Run(fmt.Sprint(op, " charges nothing typed=", typed), func(t *testing.T) {
+				what := " charges nothing"
+				if br.copy {
+					what = " charges only the copy"
+				}
+				t.Run(fmt.Sprint(br.op, what, " typed=", typed), func(t *testing.T) {
 					s := termStateSuite(fam.ops, typed, true)
 					s.New = func(c ref.Config) conform.Impl {
-						return brokenTermStateCharge{newTermStateMachine(c, typed, true).(meteredTermState), op}
+						return brokenTermStateCharge{newTermStateMachine(c, typed, true).(meteredTermState), br.op, br.copy}
 					}
 					if fails, _ := termStateConformanceFailures(fam, s, 30, 120); len(fails) == 0 {
 						t.Fatal("no case detected the broken library")

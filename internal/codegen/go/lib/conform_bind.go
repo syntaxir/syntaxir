@@ -320,7 +320,7 @@ func printEngineMissingBindings() (string, error) {
 }
 
 // termStateBindingOps are the operations of the elements gathered and the values made.
-var termStateBindingOps = []string{"act.push", "act.pushAll", "term.kids", "term.dropKids", "act.made", "term.created", "term.dropCreated"}
+var termStateBindingOps = []string{"act.push", "act.pushAll", "term.kids", "term.dropKids", "term.elemsAbove", "term.keep", "act.made", "term.created", "term.dropCreated"}
 
 // engineTermStateBindingsFile is the file of the engine's conformance bindings of the elements gathered and the
 // values made, relative to the directory of this package. It is a test file of package state of the engine.

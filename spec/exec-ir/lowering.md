@@ -172,11 +172,9 @@ The operations of the leaves are transitional, of the component `runtime`:
 | `term.textEqual` | none | Returns whether two strings are equal, as `==` compares them. |
 | `term.fromStr` | none | Returns a string as a value. |
 | `term.spend` | none | Charges one step of the budget, under budget controls. |
-| `term.elemsAbove` | none | Takes the elements gathered above a mark of `term.kids` off the component `gathered` and returns them, for `hull` to take over. |
 | `term.struct` | the struct literal | Returns a new struct of the type of the literal with no field set and an empty range. |
 | `term.setField` | the name of the field | Sets the field of a struct that the term is making to a value. |
 | `term.fromObj` | none | Returns a struct, list value or tuple value as a value. |
-| `term.keep` | none | Pushes an element of the elements that `items` returned, as it is, on the component `gathered`, as the next element of the list that `filter` makes, charging nothing. |
 | `term.copyList` | none | Returns a new list value of the elements that `items` returned, as they are, charging for copying them under budget controls. |
 | `term.new`*N* | the struct literal | Returns the struct that the constructor of its type makes of the values of its N declared fields. |
 | `term.fieldOperand` | the name of the member | Reads the field of a value as `member` does and returns it as an operand of `term.compare`, with the failure of the read; a string field stays a string. |

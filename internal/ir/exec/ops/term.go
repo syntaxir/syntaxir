@@ -21,7 +21,8 @@ const (
 )
 
 // QDropped is the number of the entries above the mark of the call, which it drops: elements gathered
-// (term.dropKids) or values made (term.dropCreated).
+// (term.dropKids) or values made (term.dropCreated), or which it takes off the elements gathered
+// (term.elemsAbove).
 const QDropped = "dropped"
 
 // AddTermCode adds the handle type and the operation of applying a term of a predicate or a binding to m,
@@ -41,15 +42,14 @@ position, and the mark of the values made so far, as term.created returns it.`})
 }
 
 // addGathered adds the component Gathered and its operations, which push the elements of the lists and
-// tuples that a term makes on the stack and drop the elements of a term that the parser abandons. A list
-// or a tuple takes its elements off the stack in one piece when it is made, which the lowering of terms
-// does (lower.OpTermElemsAbove). The stack is the parser's: grammar code that collects the elements of a
-// repetition may use it too, above the elements it finds and taking off what it pushes, so that what a
-// term finds is what it left.
+// tuples that a term makes on the stack, take them off in one piece when the list or the tuple is made,
+// and drop the elements of a term that the parser abandons. The stack is the parser's: grammar code that
+// collects the elements of a repetition may use it too, above the elements it finds and taking off what
+// it pushes, so that what a term finds is what it left.
 func addGathered(m *exec.Module, act exec.Type, items exec.Type) {
 	m.AddComponent(Gathered, `The elements gathered for the lists and tuples that terms make: a stack, on which
-act.push and act.pushAll push, from which a list or a tuple takes its elements when it is made, and from which
-term.dropKids drops the elements of a term that the parser abandons.`)
+act.push, act.pushAll and term.keep push, from which a list or a tuple takes its elements when it is made
+(term.elemsAbove), and from which term.dropKids drops the elements of a term that the parser abandons.`)
 	c := exec.P("c", act)
 	m.AddOp(&exec.Op{Name: "act.push", Component: Gathered, Params: []exec.Param{c, exec.P("e", exec.THandle(Elem))},
 		Writes: []string{Gathered}, NoReturn: true,
@@ -66,6 +66,17 @@ unit for each element it copies.`,
 		Writes: []string{Gathered}, NoReturn: true, Cost: exec.Cost{Terms: []exec.CostTerm{{Coef: 1, Quantity: QDropped}}},
 		Contract: `Drops the elements gathered after the mark, and charges one unit for each.`,
 		Requires: `mark came from term.kids and is at most the number of the elements gathered.`})
+	m.AddOp(&exec.Op{Name: "term.elemsAbove", Component: Gathered, Params: []exec.Param{exec.P("mark", exec.TInt)}, Results: []exec.Type{items},
+		Reads: []string{Gathered}, Writes: []string{Gathered}, Cost: exec.Cost{Terms: []exec.CostTerm{{Coef: 2, Quantity: QDropped}}},
+		Contract: `Takes the elements gathered after the mark off the elements gathered and returns them in order, for a
+list or a tuple to take over. It charges two units for each: one for copying it and one for taking it off, as
+term.dropKids charges for dropping it.`,
+		Requires: `mark came from term.kids and is at most the number of the elements gathered.`})
+	m.AddOp(&exec.Op{Name: "term.keep", Component: Gathered, Params: []exec.Param{exec.P("items", items), exec.P("i", exec.TInt)},
+		Writes: []string{Gathered}, NoReturn: true,
+		Contract: `Pushes element i of items as it is (a box stays a box), as act.push pushes an element, as the next
+element of the list that filter makes.`,
+		Requires: `items came from seq.items, and i is at least 0 and less than the number of its elements.`})
 }
 
 // addMade adds the component Made and its operations, which record the structs that terms and actions make

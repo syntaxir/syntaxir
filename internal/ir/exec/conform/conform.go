@@ -421,7 +421,7 @@ func (p *pair) Call(o *exec.Op, args []any) []any {
 			panic(mismatch(fmt.Sprintf("listing %d recovered errors visits %d lists, not fewer than %d", k, n, 2*k)))
 		}
 	}
-	p.compareTermState(o)
+	p.compareTermState(o, want.res, got.res)
 	p.writeRegisters(o, want.res)
 	if ob, ok := p.impl.(Observer); ok {
 		for _, c := range o.Writes {

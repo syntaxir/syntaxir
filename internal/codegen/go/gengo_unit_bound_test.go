@@ -27,11 +27,11 @@ func TestGeneratedGoChargesEachElement(t *testing.T) {
 		pkg, src, before, unit, after string
 		step                          uint64
 	}{
-		{"repeat", `rule main = ("a" "b")* $$`, "", "ab", "", 11},
-		{"scan", `rule main = [a-z]* $$`, "", "a", "", 6},
-		{"call", "rule main = item* $$\nrule item = \"a\"", "", "a", "", 8},
-		{"capturecall", "rule main = item* $$\nrule item = x:\"a\" {len(text($x)) == 1}", "", "a", "", 12},
-		{"projected", "type L = { N int }\nrule main = xs:(-\",\" r:x)* $$ => L{N: len(map($xs, (e) => e.$r))}\nrule x = [a-z] #atomic", "", ",a", "", 13},
+		{"repeat", `rule main = ("a" "b")* $$`, "", "ab", "", 12},
+		{"scan", `rule main = [a-z]* $$`, "", "a", "", 7},
+		{"call", "rule main = item* $$\nrule item = \"a\"", "", "a", "", 9},
+		{"capturecall", "rule main = item* $$\nrule item = x:\"a\" {len(text($x)) == 1}", "", "a", "", 13},
+		{"projected", "type L = { N int }\nrule main = xs:(-\",\" r:x)* $$ => L{N: len(map($xs, (e) => e.$r))}\nrule x = [a-z] #atomic", "", ",a", "", 14},
 		{"prefix", "rule main = expr $$\nrule expr = #operators {\n    operand \"a\"\n    level {\n        infix left \"+\"\n    }\n    level {\n        prefix \"-\"\n    }\n}", "", "-", "a", 11},
 		{"infix", "rule main = expr $$\nrule expr = #operators {\n    operand \"a\"\n    level {\n        infix left \"+\"\n    }\n}", "a", "+a", "", 17},
 	}

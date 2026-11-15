@@ -181,8 +181,9 @@ The component `host` holds these operations, which write the host and so are not
 ## Elements Gathered
 
 The operations of the component `gathered`: a stack of the elements of the lists and tuples that terms are making.
-A list or a tuple takes its elements off the stack in one piece when it is made, and a term that the parser abandons
-leaves its elements, which the predicate and the binding drop. The stack is the parser's: grammar code that collects
+A list or a tuple takes its elements off the stack in one piece when it is made, which charges for copying each element
+and for taking it off, and a term that the parser abandons leaves its elements, which the predicate and the binding
+drop. The stack is the parser's: grammar code that collects
 the elements of a repetition may use it too, above the elements it finds and taking off what it pushes, so that a
 term finds the stack as it left it.
 
@@ -192,6 +193,8 @@ term finds the stack as it left it.
 | `op act.pushAll(c Act, items Seq) noreturn` | writes gathered | `0 + 1*seq_len` | Pushes the elements of items in order, as act.push pushes each. A target that bounds the work charges one unit for each element it copies. Requires: items came from seq.items. |
 | `op term.kids() int` | reads gathered | `0` | Returns the number of the elements gathered, which term.dropKids takes as a mark. |
 | `op term.dropKids(mark int) noreturn` | writes gathered | `0 + 1*dropped` | Drops the elements gathered after the mark, and charges one unit for each. Requires: mark came from term.kids and is at most the number of the elements gathered. |
+| `op term.elemsAbove(mark int) Seq` | reads gathered; writes gathered | `0 + 2*dropped` | Takes the elements gathered after the mark off the elements gathered and returns them in order, for a list or a tuple to take over. It charges two units for each: one for copying it and one for taking it off, as term.dropKids charges for dropping it. Requires: mark came from term.kids and is at most the number of the elements gathered. |
+| `op term.keep(items Seq, i int) noreturn` | writes gathered | `0` | Pushes element i of items as it is (a box stays a box), as act.push pushes an element, as the next element of the list that filter makes. Requires: items came from seq.items, and i is at least 0 and less than the number of its elements. |
 
 ## Values Made
 
