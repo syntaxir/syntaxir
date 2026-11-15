@@ -474,10 +474,14 @@ func engineObservation(t *testing.T, prog *engine.Program, r agreeReport, in str
 	return events, snap, err
 }
 
-// sameCallExamined compares the examined ends of the exits of b with those of the exits of a for the
-// same calls: of the same rule at the same position, level and depth, with the same outcome. It returns
-// the number of exits compared and the differences. A call that a makes more than once may have any of
-// its ends.
+// sameCallExamined is the relation between the events of two producers of a Document parse after an
+// edit that the section "Reported Calls" of the specification of tracing and profiling defines: the
+// engine may resume repetitions and reuse failed results, so the producers report different calls, but
+// every call that both make has the same Examined in both. A call is the exit of a rule at a position,
+// level and depth, with its end and outcome. A producer may make one call more than once with different
+// examined ends (within the growth of a left-recursive seed), so each exit of either producer must have
+// an Examined that the other reports for the call. It returns the number of exits compared and the
+// differences.
 func sameCallExamined(a, b []core.TraceEvent) (compared int, diffs []string) {
 	type key struct {
 		rule                   string
@@ -485,26 +489,33 @@ func sameCallExamined(a, b []core.TraceEvent) (compared int, diffs []string) {
 		matched                bool
 	}
 	keyOf := func(e core.TraceEvent) key { return key{e.Rule, e.Level, e.Depth, e.Pos, e.End, e.Matched} }
-	ends := map[key]map[int]bool{}
-	for _, e := range a {
-		if e.Kind == core.TraceExit {
-			k := keyOf(e)
-			if ends[k] == nil {
-				ends[k] = map[int]bool{}
+	ends := func(evs []core.TraceEvent) map[key]map[int]bool {
+		m := map[key]map[int]bool{}
+		for _, e := range evs {
+			if e.Kind == core.TraceExit {
+				k := keyOf(e)
+				if m[k] == nil {
+					m[k] = map[int]bool{}
+				}
+				m[k][e.Examined] = true
 			}
-			ends[k][e.Examined] = true
+		}
+		return m
+	}
+	check := func(evs []core.TraceEvent, other map[key]map[int]bool, who string) {
+		for _, e := range evs {
+			want := other[keyOf(e)]
+			if e.Kind != core.TraceExit || want == nil {
+				continue
+			}
+			compared++
+			if !want[e.Examined] {
+				diffs = append(diffs, fmt.Sprintf("examined end of %s@%d (level %d, depth %d, end %d, matched %v) in %s: %d, the other reports %v", e.Rule, e.Pos, e.Level, e.Depth, e.End, e.Matched, who, e.Examined, want))
+			}
 		}
 	}
-	for _, e := range b {
-		want := ends[keyOf(e)]
-		if e.Kind != core.TraceExit || want == nil {
-			continue
-		}
-		compared++
-		if !want[e.Examined] {
-			diffs = append(diffs, fmt.Sprintf("examined end of %s@%d (level %d, depth %d, end %d, matched %v): %v, %d", e.Rule, e.Pos, e.Level, e.Depth, e.End, e.Matched, want, e.Examined))
-		}
-	}
+	check(a, ends(b), "a")
+	check(b, ends(a), "b")
 	return compared, diffs
 }
 
@@ -556,9 +567,6 @@ func agreementMismatches(t *testing.T, cases []codegentest.Case, reports []agree
 				continue
 			}
 			if r.Entry == "edit" {
-				// The engine resumes the repetitions of a Document and keeps other results than a
-				// generated Document does, so after an edit the producers make different calls. The
-				// examined ends of the calls both make are compared.
 				n, d := sameCallExamined(events, r.Events)
 				st.compared += n
 				for _, msg := range d {

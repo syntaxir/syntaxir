@@ -11,12 +11,30 @@ import (
 // Profile accumulates the cost of each rule over the parses it is given to. Its zero value is
 // ready to use. It is not safe for concurrent use; parses that run one within another on the same
 // goroutine (from a trace function) are accounted separately. It keeps no input, nodes or history
-// of a parse after the parse returns. Snapshot reads it.
+// of a parse after the parse returns, only the emptied buffers of its recorder for the next parse
+// to reuse. Snapshot reads it.
 type Profile struct {
 	totals ProfileSnapshot
 	rows   []*RuleProfile
 	index  map[string]int
+	// spare holds the emptied buffers of the last closed recorder, so that the next parse
+	// reuses their capacity; they hold no data of a parse.
+	spare recorderBuffers
 }
+
+// recorderBuffers are the buffers of a ProfileRecorder, which grow with the parse.
+type recorderBuffers struct {
+	stack []profileFrame
+	seen  map[profileKey]int32
+	open  []int32
+	// seenPeak is the most entries seen has held.
+	seenPeak int
+}
+
+// spareSeenLimit is the most entries the seen map of a closed recorder may have held for the
+// profile to keep it: clearing a map costs its capacity, which a larger parse would leave to every
+// later one, and the profile would hold its memory.
+const spareSeenLimit = 1 << 16
 
 // ProfileSnapshot is a copy of the counts of a Profile, with Rules sorted by rule name. Entered
 // counts calls that began; the other counts and the times cover only the calls that completed
@@ -128,12 +146,11 @@ func (pr *Profile) row(name string) int {
 // (Profile.Recorder), pass it every event of the parse in order (Record), and close it when the
 // parse returns (Close).
 type ProfileRecorder struct {
-	pr    *Profile
-	stack []profileFrame
-	// seen counts the evaluating calls per rule, position and level; in a stream parse the parser
-	// bounds it by discarding the positions it no longer holds (Discard).
-	seen map[profileKey]int32
-	open []int32 // per row, the calls in progress (for Time)
+	pr *Profile
+	// stack holds the calls in progress; seen counts the evaluating calls per rule, position and
+	// level, which in a stream parse the parser bounds by discarding the positions it no longer
+	// holds (Discard); open counts per row the calls in progress (for Time).
+	recorderBuffers
 	// excluded is the time excluded from the calls so far (the trace functions), and paused the
 	// time the parse was paused for one.
 	excluded time.Duration
@@ -153,12 +170,15 @@ type profileKey struct {
 }
 
 // Recorder returns a recorder of one parse into pr, or nil if pr is nil. The methods of a nil
-// recorder do nothing.
+// recorder do nothing. The recorder reuses the capacity of the buffers of the last recorder of pr
+// that was closed, unless a recorder still open (an enclosing parse) took them.
 func (pr *Profile) Recorder() *ProfileRecorder {
 	if pr == nil {
 		return nil
 	}
-	return &ProfileRecorder{pr: pr}
+	r := &ProfileRecorder{pr: pr, recorderBuffers: pr.spare}
+	pr.spare = recorderBuffers{}
+	return r
 }
 
 // Record adds the event e. A parser calls it before the trace functions of the parse handle e,
@@ -267,6 +287,9 @@ func (r *ProfileRecorder) exit(e TraceEvent, now time.Time) {
 		k := profileKey{row: int32(c.row), level: int32(e.Level), pos: e.Pos}
 		n := r.seen[k] + 1
 		r.seen[k] = n
+		if n == 1 && len(r.seen) > r.seenPeak {
+			r.seenPeak = len(r.seen)
+		}
 		if n > 1 {
 			row.Repeats++
 		}
@@ -297,11 +320,21 @@ func (r *ProfileRecorder) Discard(pos int) {
 }
 
 // Close ends the recording of the parse. Calls that began and did not complete stay counted in
-// Entered only.
+// Entered only. Close empties the buffers of r and gives their capacity back to the profile, for
+// the next recorder; r must not be used after it.
 func (r *ProfileRecorder) Close() {
-	if r != nil {
-		*r = ProfileRecorder{}
+	if r == nil {
+		return
 	}
+	if pr := r.pr; pr != nil && pr.spare.stack == nil && pr.spare.seen == nil && pr.spare.open == nil {
+		seen := r.seen
+		if r.seenPeak > spareSeenLimit {
+			seen = nil
+		}
+		clear(seen)
+		pr.spare = recorderBuffers{stack: r.stack[:0], seen: seen, open: r.open[:0]}
+	}
+	*r = ProfileRecorder{}
 }
 
 // Thresholds of Hints

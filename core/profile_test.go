@@ -96,6 +96,64 @@ func TestProfileRepeats(t *testing.T) {
 	}
 }
 
+// TestProfileRecorderReuse checks that a recorder takes over the buffers of the last closed one
+// without its data: the counts of a parse do not depend on the parses before it, including one
+// interrupted with calls in progress and one nested within another, and a parse after the first
+// allocates only its recorder.
+func TestProfileRecorderReuse(t *testing.T) {
+	var pr Profile
+	parse := func(r *ProfileRecorder) {
+		r.Record(enter("s", 1, 0))
+		for range 2 {
+			r.Record(enter("e", 2, 4))
+			r.Record(exit("e", 2, 4, 4, false, 1, 5))
+		}
+		r.Record(exit("s", 1, 0, 0, false, 1, 5))
+	}
+	repeats := func() int {
+		for _, row := range pr.Snapshot().Rules {
+			if row.Rule == "e" {
+				return row.Repeats
+			}
+		}
+		return -1
+	}
+	// An interrupted parse leaves calls in progress and an evaluation of e at 4.
+	r := pr.Recorder()
+	r.Record(enter("s", 1, 0))
+	r.Record(enter("e", 2, 4))
+	r.Record(exit("e", 2, 4, 4, false, 1, 5))
+	r.Record(enter("e", 2, 4))
+	r.Close()
+	before := repeats()
+	r = pr.Recorder()
+	parse(r)
+	r.Close()
+	if got := repeats() - before; got != 1 {
+		t.Errorf("repeats of a parse after an interrupted one = %d, want 1", got)
+	}
+	if s := pr.Snapshot(); s.Rules[0].Rule != "e" || s.Rules[0].Time == 0 {
+		t.Errorf("time of e after an interrupted parse: %+v", s.Rules[0])
+	}
+	// A nested recorder neither shares the buffers of the enclosing one nor leaves it data.
+	before = repeats()
+	outer := pr.Recorder()
+	outer.Record(enter("s", 1, 0))
+	outer.Record(enter("e", 2, 4))
+	outer.Record(exit("e", 2, 4, 4, false, 1, 5))
+	inner := pr.Recorder()
+	parse(inner)
+	inner.Close()
+	outer.Record(exit("s", 1, 0, 0, false, 1, 5))
+	outer.Close()
+	if got := repeats() - before; got != 1 {
+		t.Errorf("repeats of a nested parse and its enclosing one = %d, want 1 (the nested one's)", got)
+	}
+	if n := testing.AllocsPerRun(10, func() { r := pr.Recorder(); parse(r); r.Close() }); n > 1 {
+		t.Errorf("a parse after the first allocates %v times, want only its recorder", n)
+	}
+}
+
 func TestTraceEventJSON(t *testing.T) {
 	b, err := json.Marshal(TraceEvent{Kind: TraceSkipped, Rule: "r", SkipReason: SkipFirstCharacter})
 	if err != nil {

@@ -64,9 +64,13 @@ that can match and MAY differ only in calls that cannot match: calls skipped by
 dispatch, and calls that fail having examined no further than the character at
 their position. On the calls that both make, every field of their events is
 equal. The same holds for their profiles once the counts of those calls are
-taken out. Document parses after an edit are the exception: producers keep and
-resume different results, so they make different calls, and agree only on the
-`Examined` of calls that both make.
+taken out. Document parses after an edit are the exception: the engine MAY
+resume repetitions and reuse failed results of the previous parse, so the
+producers report different calls. Every call that both make, the same rule at
+the same position, level and depth with the same end and outcome, has the same
+`Examined` in both. A producer MAY make such a call more than once with
+different `Examined`, as within the growth of a left-recursive seed; then each
+of its `Examined` is one that the other producer reports for the call.
 
 ## Engine Profiling
 

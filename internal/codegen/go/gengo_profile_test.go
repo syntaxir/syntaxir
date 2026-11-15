@@ -59,6 +59,9 @@ func TestGeneratedGoProfile(t *testing.T) {
 			typed = strings.ReplaceAll(typed, "INPUT", fmt.Sprintf("%q", f.input))
 			consumer := strings.NewReplacer("PACKAGE", pkg, "INPUT", fmt.Sprintf("%q", f.input), "CHECKS", f.checks, "TYPED", typed, "PLAIN", fmt.Sprint(f.name == "plain")).Replace(generatedProfileConsumer)
 			write(pkg+"/profile_test.go", []byte(consumer))
+			if f.name == "plain" {
+				write(pkg+"/alloc_test.go", []byte(strings.ReplaceAll(generatedProfileAllocs, "PACKAGE", pkg)))
+			}
 		}
 	}
 	cmd := exec.Command("go", "test", "-p", "4", "-race", "-count=1", "./...")
@@ -66,7 +69,34 @@ func TestGeneratedGoProfile(t *testing.T) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("generated profiles: %v\n%s", err, out)
 	}
+	// The race detector drops pooled parsers at random, so allocations are counted without it.
+	if codegentest.Sampled("plain") {
+		cmd = exec.Command("go", "test", "-count=1", "-run", "^TestProfileAllocs$", "./plain_node", "./plain_direct", "./plain_convert")
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("generated profile allocations: %v\n%s", err, out)
+		}
+	}
 }
+
+// generatedProfileAllocs checks that a profiled parse reuses the buffers of the profile's recorder:
+// after the first, it allocates no more than a traced parse and its recorder.
+const generatedProfileAllocs = `//go:build !race
+
+package PACKAGE
+
+import zprt "zeroparse.dev/zp/codegen/go/lib"
+import zpcore "zeroparse.dev/zp/core"
+import "testing"
+func TestProfileAllocs(t *testing.T){
+ for _,unit:=range []PositionUnit{CodePoints,Bytes}{for op,parse:=range []func(...ParseOption){func(opts ...ParseOption){Parse("aa",opts...)},func(opts ...ParseOption){ParseRule("main","aa",opts...)},func(opts ...ParseOption){Recognize("aa",opts...)}}{
+  var pr zpcore.Profile;parse(WithUnit(unit),zprt.WithProfile(&pr))
+  profiled:=testing.AllocsPerRun(20,func(){parse(WithUnit(unit),zprt.WithProfile(&pr))})
+  traced:=testing.AllocsPerRun(20,func(){parse(WithUnit(unit),zprt.WithTrace(func(zpcore.TraceEvent){}))})
+  if profiled>traced+1{t.Fatal("a profiled parse allocates more than its recorder over a traced one",op,unit,profiled,traced)}
+ }}
+}
+`
 
 const generatedProfileConsumer = `package PACKAGE
 
