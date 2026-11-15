@@ -59,8 +59,8 @@ has the following components.
 | `window` | The window of a stream parse: the input read and kept, the callback that receives the elements of the #stream repetition, the recovered errors delivered so far, and the memory that the delivered elements held. |
 | `runs` | The repetition runs of a Document: for each repetition of the last parse that a parse may resume, the positions, the examined input, the value and the expectations of its elements. |
 | `suspended` | The calls whose rule body runs between the begin and the end of the split call protocol, each with the state that its begin saved for its end in a record that its caller holds. |
-| `gathered` | The elements gathered for the lists and tuples that terms make: a stack, on which act.push and act.pushAll push, from which a list or a tuple takes its elements when it is made, and from which term.dropKids drops the elements of a term that the parser abandons. |
-| `made` | The values that terms and actions made: a list of the structs that act.made recorded, which the context of a term or an action marks when it is made. The struct that an action returns takes the range of the rule if the action recorded it, and what a term or an action recorded is forgotten when it ends. |
+| `gathered` | The elements gathered for the lists and tuples that terms make: a stack, on which `act.push` and `act.pushAll` push, from which a list or a tuple takes its elements when it is made, and from which `term.dropKids` drops the elements of a term that the parser abandons. |
+| `made` | The values that terms and actions made: a list of the structs that `act.made` recorded, which the context of a term or an action marks when it is made. The struct that an action returns takes the range of the rule if the action recorded it, and what a term or an action recorded is forgotten when it ends. |
 | `frames` | The capture frames: the frame that captures write to, the slots of each frame and the trail of the writes that a reset undoes. |
 | `operators` | The bookkeeping of the Operators Rule loop: whether a candidate of the last longest match failed after a cut. |
 | `value` | The operations on the values of terms. They read and write no state. |
@@ -186,21 +186,21 @@ quantities are the following.
 | `captures` | When the body of the call matched and the rule makes its value from its captures (not with an action, not spliced and not value-free), the number of the capture names of the rule, which it searches for those that matched; zero otherwise. |
 | `covered` | The number of positions the memo covers from its floor: the slots that a target keeps per position pays for when it prunes them, moves the rest and drops the indexes of crowded positions. |
 | `deps` | The number of dependencies that the call passes to the enclosing evaluation or stores: those that the frame of the evaluation it ends recorded, and those stored with the results, steps and jumps it reuses, with the observations they lead to. |
-| `dropped` | The number of the entries above the mark of the call, which it drops: elements gathered (term.dropKids) or values made (term.dropCreated). |
+| `dropped` | The number of the entries above the mark of the call, which it drops: elements gathered (`term.dropKids`) or values made (`term.dropCreated`). |
 | `env_path` | The number of nodes on the path to a slot of a persistent vector of the variables with 16 children for each node: the levels above the leaves, and the leaf. It is the same for every slot. |
 | `env_reads` | `vars` times `env_path`. |
 | `env_rebind` | `env_path` when the value of the call differs from the one the slot holds, and 0 when they are equal: the nodes that a rebind copies. |
 | `error_parts` | The number of fragments of the text of a failure: the fixed pieces and the values between them, which a target that bounds the work assembles piece by piece, charging each. |
 | `errs` | The number of recovered errors that the call copies: those of its argument, or those recovered after its mark. |
 | `fields_read` | The number of fields of a value that a read of one of them scans. |
-| `key_scan` | The sum, over the entries stored at the call's position for any rule, of one more than the number of their key values, a string counting two more for each of its bytes: what scanning the position and comparing keys inspects. It counts the entries that memo.splice removed and that a target may still hold there, because it applies edits to an entry when it finds the entry. |
+| `key_scan` | The sum, over the entries stored at the call's position for any rule, of one more than the number of their key values, a string counting two more for each of its bytes: what scanning the position and comparing keys inspects. It counts the entries that `memo.splice` removed and that a target may still hold there, because it applies edits to an entry when it finds the entry. |
 | `merge` | The units that the compositions over the expectation record (keep, mergeKept, mergeExpected, and the calls of expect they make) charge for the sets that the call keeps or merges. |
 | `move_edits` | The edits that the call replays to learn how far a node moves that another result moved since the entry's value was made: for each generation of the value's nodes other than the entry's, the edits since that generation. It is zero for a target that keeps no generations. |
 | `moved` | The size of the value of the entry that the call moves: for each distinct node in it, one and the number of its children and fields. |
 | `n` | The argument n of budget.charge. |
 | `page_index` | The call's position divided by 1,024. |
 | `pages` | The number of 1,024-position regions of all rules that deferred memoization has recorded calls in. |
-| `pending_edits` | The number of edits since the entry under the call's key was stored or last found, counting an entry that memo.splice removed and a target may still hold: the edits that a target which applies them to an entry when it finds it has yet to apply. |
+| `pending_edits` | The number of edits since the entry under the call's key was stored or last found, counting an entry that `memo.splice` removed and a target may still hold: the edits that a target which applies them to an entry when it finds it has yet to apply. |
 | `present` | The work of naming the present set of the call's context when a leader in it has no bit in a word of bits: one for each growth of the context, and one more when no operation named that set since the first growth in progress began; 0 when every leader of the context has a bit. Which leaders of a cycle have a bit depends on the target, because the width of the word of bits does: 63 in the engine and 31 in the generated Go and TypeScript parsers and the model, so the quantity is the one of the target that runs. |
 | `pruned` | The number of memo entries stored before the call's position argument. |
 | `run_elems` | The number of elements of the finished run. |

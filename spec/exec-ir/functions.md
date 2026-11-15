@@ -87,7 +87,7 @@ bound as the results of any call are. The verifier requires the callee to have a
 to have the types of its parameters; an application has no immediate operand. The application of a `Term` to a
 context returns the value of the term and its failure, which is null when the term does not fail. A term that fails, on
 a list element or a conversion it cannot make, may leave elements gathered and values made (the components `gathered`
-and `made`), which term.dropKids and term.dropCreated release. An interruption ends the parse and leaves them too, for the next parse starts without them.
+and `made`), which `term.dropKids` and `term.dropCreated` release. An interruption ends the parse and leaves them too, for the next parse starts without them.
 
 An application is not an operation. It has no contract, no cost bound and no component of its own, because what it
 reads, writes and charges, and whether it ends the parse, are those of the code it runs, which is built from the

@@ -196,9 +196,9 @@ term finds the stack as it left it.
 ## Values Made
 
 The operations of the component `made`: a list of the structs that terms and actions made. The context of a term or an
-action holds the length of the list when it is made (term.ctx). When an action returns a struct that it recorded, the
+action holds the length of the list when it is made (`term.ctx`). When an action returns a struct that it recorded, the
 struct takes the range of the rule; when a term or an action ends, what it recorded is forgotten, which the predicate
-and the binding do with term.dropCreated.
+and the binding do with `term.dropCreated`.
 
 | Declaration | State | Cost | Contract |
 |:--|:--|:--|:--|

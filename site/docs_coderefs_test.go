@@ -51,6 +51,10 @@ type repoCode struct {
 	// publicExports holds, by package name, the exported top-level names of the public packages;
 	// a qualified name that a public package of that name exports refers to the public package.
 	publicExports map[string]map[string]bool
+	// execOps holds the names of the operations of Exec IR, such as term.dropKids: the
+	// specification and the design define them, so a page may name them, though a part of the
+	// name may match a Go identifier.
+	execOps map[string]bool
 }
 
 var (
@@ -71,6 +75,10 @@ var (
 	exportRe     = regexp.MustCompile(`^(?:func (?:\([^)]*\) )?|type |var |const )([A-Z]\w*)\b`)
 	exportSpecRe = regexp.MustCompile(`^\t([A-Z]\w*)\b`)
 	packageRe    = regexp.MustCompile(`^package (\w+)`)
+	// execOpDeclRe matches the declaration of an Exec IR operation's name, as a field of the
+	// operation or as a constant, and dottedRe a dotted name written in a document.
+	execOpDeclRe = regexp.MustCompile(`(?:\bName:\s*|\bOp\w*\s*=\s*)"([a-z]\w*\.[a-z]\w*)"`)
+	dottedRe     = regexp.MustCompile(`\b[a-z]\w*\.[a-z]\w*\b`)
 	// publicNames are public names that coincide with identifiers of the code: a field of the
 	// Playground messages and a table of generated parsers.
 	publicNames = map[string]bool{"maxDepth": true, "recRules": true}
@@ -84,7 +92,7 @@ func loadRepoCode(t *testing.T, root string) *repoCode {
 	t.Helper()
 	c := &repoCode{root: root, goFiles: map[string]bool{}, goBases: map[string]bool{}, goDirs: map[string]bool{},
 		codeDirs: map[string]bool{}, declared: map[string]bool{}, unexported: map[string]bool{}, internalPkg: map[string]bool{},
-		publicExports: map[string]map[string]bool{}}
+		publicExports: map[string]map[string]bool{}, execOps: map[string]bool{}}
 	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -128,7 +136,13 @@ func loadRepoCode(t *testing.T, root string) *repoCode {
 		sc := bufio.NewScanner(f)
 		sc.Buffer(make([]byte, 1<<20), 1<<24)
 		inBlock := false
+		execIR := under(rel, "internal/ir/exec")
 		for sc.Scan() {
+			if execIR {
+				for _, m := range execOpDeclRe.FindAllStringSubmatch(sc.Text(), -1) {
+					c.execOps[m[1]] = true
+				}
+			}
 			if m := packageRe.FindStringSubmatch(sc.Text()); m != nil && (internal || public) && exports == nil {
 				name := strings.TrimSuffix(m[1], "_test")
 				if internal {
@@ -347,13 +361,20 @@ func (c *repoCode) codeRefsIn(rel string, data []byte, internal bool) []codeRef 
 				continue // a quoted message
 			}
 			seen := map[string]bool{}
-			for _, id := range identPartRe.FindAllString(m[1], -1) {
+			// An Exec IR operation's name is not code, whatever its parts match.
+			span := dottedRe.ReplaceAllStringFunc(m[1], func(d string) string {
+				if c.execOps[d] {
+					return strings.Repeat(" ", len(d))
+				}
+				return d
+			})
+			for _, id := range identPartRe.FindAllString(span, -1) {
 				if c.unexported[id] && !seen[id] && !fencedIdents[id] && !publicNames[id] {
 					seen[id] = true
 					add(i, refUnexport, id)
 				}
 			}
-			for _, q := range qualifiedRe.FindAllStringSubmatch(m[1], -1) {
+			for _, q := range qualifiedRe.FindAllStringSubmatch(span, -1) {
 				if c.internalPkg[q[1]] && !c.publicExports[q[1]][q[2]] && !seen[q[0]] {
 					seen[q[0]] = true
 					add(i, refQualified, q[0])
@@ -533,5 +554,35 @@ func TestCodeReferencesScanner(t *testing.T) {
 	}
 	if !strings.Contains(strings.Join(got, "|"), "internal internal/engine/state/sub") {
 		t.Error("a path below a package is not a violation in an internal document")
+	}
+}
+
+// TestCodeReferencesExecOps checks that a page may name an operation of Exec IR, whose parts may
+// match Go identifiers, and that the parts alone and a qualified Go name stay references to code.
+func TestCodeReferencesExecOps(t *testing.T) {
+	c := &repoCode{
+		declared:    map[string]bool{"dropCreated": true},
+		unexported:  map[string]bool{"dropCreated": true},
+		internalPkg: map[string]bool{"state": true},
+		execOps:     map[string]bool{"term.dropCreated": true},
+	}
+	doc := "The drop `term.dropCreated`, applied as `term.dropCreated(mark)`, is not code.\n" +
+		"The function `dropCreated` is, and so is `state.dropCreated` and `other.dropCreated`.\n"
+	var got []string
+	for _, r := range c.codeRefsIn("docs/design/x.md", []byte(doc), true) {
+		got = append(got, fmt.Sprintf("%d %s %s", r.line, r.kind, r.token))
+	}
+	want := []string{"2 unexport dropCreated", "2 unexport dropCreated", "2 unexport dropCreated"}
+	if strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Errorf("references:\n got %q\nwant %q", got, want)
+	}
+	repo := loadRepoCode(t, "..")
+	for _, op := range []string{"term.dropCreated", "term.dropKids", "term.elemsAbove", "memo.lookup", "budget.charge"} {
+		if !repo.execOps[op] {
+			t.Errorf("the operations of Exec IR lack %s", op)
+		}
+	}
+	if !repo.unexported["dropCreated"] {
+		t.Error("the unexported Go function dropCreated is not code")
 	}
 }

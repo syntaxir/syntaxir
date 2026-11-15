@@ -56,7 +56,8 @@ a file or directory of the repository's code (the programs of `examples/` are wr
 this sense), any name of a Go file of the repository, any path under `internal/`, a line of a source file and any
 identifier that matches an unexported Go declaration or an exported name that an internal package qualifies. The names
 of files that a reader creates or that `zp gen` writes (`main.go`, `parser.go`, `types/types.go`), the line numbers of
-error-message examples and public API names are not references.
+error-message examples, public API names and the names of Exec IR operations (`term.dropKids`), which the
+specification defines, are not references.
 
 The test also checks the internal documents: a link to a file of the code, a Go file name, a path below a package, a
 line number and an unexported identifier are violations there too. Violations that existed when the rule was adopted
