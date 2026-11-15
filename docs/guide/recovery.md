@@ -378,9 +378,10 @@ diagnostic, and its `Text()` returns the diagnostic message. A literal with
 `#missing` has the type `node[string] | missing`: when no semicolon was read,
 the value is a `missing`, a kind of `error`, and not a string node. An action
 reads the two as `string` fields after a cast, as in
-`x:(";" #missing) => $x.(missing).expected`, a run-time action error when the semicolon was
-read; `map(filter(list($x), (i) => i.Value == nil), (i) => i.(missing).message)`
-gives the message of an inserted token and nothing for a string node.
+`x:(";" #missing) => $x.(missing).expected`, a run-time action error when the
+semicolon was read;
+`map(filter(list($x), (i) => i.Value == nil), (i) => i.(missing).message)` gives
+the message of an inserted token and nothing for a string node.
 
 The limit counts abandoned attempts too. Exhaustion returns
 `*core.MissingTokenLimitError` with no tree. VM backends, generated parsers,

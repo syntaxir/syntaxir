@@ -14,11 +14,14 @@ import (
 )
 
 // recoveredMutants each give a recovered value a wrong field or a wrong range in a struct: the engine's fields
-// of a missing token, in MissingLiteral or MissingErrorScope of internal/engine/state/missing_token.go, and the
-// ranges of the reference model, in internal/ir/exec/ref/term.go.
+// of a missing token, in MissingLiteral or MissingErrorScope of internal/engine/state/missing_token.go and in
+// the literal that the closure builder passes to it, and the ranges of the reference model, in
+// internal/ir/exec/ref/term.go.
 var recoveredMutants = []struct{ name, file, fn, old, new string }{
 	{"expected holds the message", "internal/engine/state/missing_token.go", "MissingLiteral", `{Name: "expected", Value: expected}`, `{Name: "expected", Value: p.RecoveryErrorText(e)}`},
 	{"expected is quoted", "internal/engine/state/missing_token.go", "MissingLiteral", `{Name: "expected", Value: expected}`, `{Name: "expected", Value: "\"" + expected + "\""}`},
+	{"expected is the spelling in the grammar", "internal/engine/closure/build.go", "node", "n.Lit.Text, want)",
+		`fmt.Sprintf("%+q", n.Lit.Text)[1:len(fmt.Sprintf("%+q", n.Lit.Text))-1], want)`},
 	{"message holds the literal", "internal/engine/state/missing_token.go", "MissingLiteral", `{Name: "message", Value: p.RecoveryErrorText(e)}`, `{Name: "message", Value: expected}`},
 	{"message has no position", "internal/engine/state/missing_token.go", "MissingLiteral", `{Name: "message", Value: p.RecoveryErrorText(e)}`, `{Name: "message", Value: e.Message()}`},
 	{"message ignores @error", "internal/engine/state/missing_token.go", "MissingErrorScope", "if p.Expectations && p.Missing != nil && p.Missing.label == 0 {", "if false {"},

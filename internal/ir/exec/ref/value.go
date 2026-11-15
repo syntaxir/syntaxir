@@ -33,12 +33,14 @@ const (
 // list or a tuple holds its elements, a struct its fields by name. A field that was never set is
 // absent from Fields and reads as nil.
 type V struct {
-	Kind   Kind
-	I      int64
-	S      string
-	B      bool
-	Items  []V
-	Type   string
+	Kind  Kind
+	I     int64
+	S     string
+	B     bool
+	Items []V
+	Type  string
+	// Fields are the fields of a struct by name, and the fields of a KError value: its message, and the
+	// expected literal of a missing token.
 	Fields map[string]V
 	// Start and End are the range of a node, in the units of the input.
 	Start, End int
@@ -49,7 +51,6 @@ type V struct {
 	// For a node of UnknownShape, a nil Caps means that its captures are unknown as well.
 	Caps map[string]V
 	// Missing is set for a KError value that is a missing token, which is an error value of the type missing.
-	// Fields holds the message of a KError value, and the expected literal of a missing token.
 	Missing bool
 }
 

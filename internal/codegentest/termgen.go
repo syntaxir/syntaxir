@@ -1075,13 +1075,15 @@ var missingFieldTerms = []struct{ typ, term string }{
 	{"[]string", "map(filter(list($e), (i) => i.Value == nil), (i) => i.(missing).message)"},
 }
 
-// missingSites are the rules semi of MissingFieldTermCases: each inserts a literal, whose spelling expected
-// is the field expected of the token and is what the input with matches; diagnostic is the message of the
+// missingSites are the rules semi of MissingFieldTermCases: each inserts a literal, whose value expected, with
+// its escapes decoded and without the suffix of a case-insensitive literal, is the field expected of the token
+// and is what the input with matches; diagnostic is the message of the
 // error it recovered, without its position, when the parse records expectations: the literal as an expected
 // item, with the suffix of a case-insensitive literal, or the message of an enclosing @error.
 var missingSites = []struct{ rule, expected, with, diagnostic string }{
 	{`";" #missing`, ";", ";", `syntax error: expected ";"`},
 	{`"Ab"i #missing`, "Ab", "aB", `syntax error: expected "Ab"i`},
+	{`"\té" #missing`, "\té", "\té", `syntax error: expected "\té"`},
 	{`(";" #missing) @error("a semicolon")`, ";", ";", "a semicolon"},
 }
 

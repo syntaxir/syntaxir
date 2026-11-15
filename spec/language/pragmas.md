@@ -206,13 +206,22 @@ rule name = [a-z]+ #atomic
 Parsing `name` with insertion enabled produces an error value of type `missing`
 at EOF and a recovered `SyntaxErrors` entry. The value's `Start` and `End` are
 equal, and it has two `string` fields that an action reads as `$x.(missing).expected`
-and `$x.(missing).message`: `expected` is the spelling of the inserted literal, as
-inserted (`;` here), and `message` is the recorded error with its position, as
-`Node.Text()` returns it: `1:5: syntax error: expected ";"`, or `1:5: syntax error`
-when the parse does not [record expectations](../runtime/parsing.md#recording-expectations).
-It encodes with an `expected` member. Partial literal matches are restored completely before insertion;
-no source text is invented. An enclosing `@error` labels the insertion diagnostic;
-nested labels use the outermost applicable explicit label. Ordinary successful
+and `$x.(missing).message`.
+
+- `expected` is the text that the literal inserts: the value of the literal, with its
+  escapes decoded and without the `i` suffix of a case-insensitive literal, not its
+  spelling in the grammar. It is `;` here, `Ab` for `"Ab"i #missing` and a tab character
+  for `"\t" #missing`.
+- `message` is the error that the insertion recorded, with its position, as `Node.Text()`
+  returns it. When the parse [records expectations](../runtime/parsing.md#recording-expectations),
+  it is the position followed by the message of the outermost applicable `@error` around the
+  insertion, as in `1:5: a semicolon`, or, without one, by `syntax error: expected` and the
+  literal as an expected item, as in `1:5: syntax error: expected ";"`. When the parse does
+  not record expectations, it is `1:5: syntax error`, with or without an `@error`.
+
+The value encodes with an `expected` member. Partial literal matches are restored completely before insertion;
+no source text is invented. An enclosing `@error` labels the insertion diagnostic, as for
+`message` above; nested labels use the outermost applicable explicit label. Ordinary successful
 consuming recovery keeps its existing label behavior.
 
 Insertion succeeds at most once per literal site and position on the current
