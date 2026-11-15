@@ -255,28 +255,38 @@ func TestProfileRecorderStreamBound(t *testing.T) {
 	}
 }
 
-// TestProfileRecorderExcludesTraceFunctions checks that the time between Record and Resume, when the
-// trace functions run, is not counted, and that it is counted without Resume (the negative control).
+// TestProfileRecorderExcludesTraceFunctions checks that the time between Record and Resume, where the
+// trace functions run, is not counted, and is counted without Resume. Both bounds hold at any machine
+// load: with Resume, the times lie within the recording less the measured pauses; without it, the time
+// of a call includes every pause measured between its enter and exit events.
 func TestProfileRecorderExcludesTraceFunctions(t *testing.T) {
-	const pause = 20 * time.Millisecond
+	const pause = 2 * time.Millisecond
+	events := []TraceEvent{enter("s", 1, 0), enter("a", 2, 0), exit("a", 2, 0, 1, true, 1, 1), exit("s", 1, 0, 1, true, 1, 1)}
 	for _, resume := range []bool{true, false} {
 		var pr Profile
+		var paused [4]time.Duration // after each event
+		start := time.Now()
 		r := pr.Recorder()
-		for _, e := range []TraceEvent{enter("s", 1, 0), enter("a", 2, 0), exit("a", 2, 0, 1, true, 1, 1), exit("s", 1, 0, 1, true, 1, 1)} {
+		for i, e := range events {
 			r.Record(e)
+			p := time.Now()
 			time.Sleep(pause)
+			paused[i] = time.Since(p)
 			if resume {
 				r.Resume()
 			}
 		}
 		r.Close()
+		wall := time.Since(start)
 		s := pr.Snapshot()
 		a, root := s.Rules[0], s.Rules[1]
-		if resume && (s.Time >= pause || a.Time >= pause || root.SelfTime >= pause) {
-			t.Errorf("trace function time counted: total %v, a %v, s self %v", s.Time, a.Time, root.SelfTime)
-		}
-		if !resume && (s.Time < 3*pause || a.Time < pause || root.SelfTime < 2*pause) {
-			t.Errorf("time without Resume: total %v, a %v, s self %v", s.Time, a.Time, root.SelfTime)
+		if resume {
+			limit := wall - (paused[0] + paused[1] + paused[2] + paused[3])
+			if s.Time > limit || a.Time > limit || root.Time > limit || root.SelfTime > limit {
+				t.Errorf("trace function time counted: total %v, a %v, s %v self %v, limit %v", s.Time, a.Time, root.Time, root.SelfTime, limit)
+			}
+		} else if s.Time < paused[0]+paused[1]+paused[2] || a.Time < paused[1] || root.SelfTime < paused[0]+paused[2] {
+			t.Errorf("time without Resume: total %v, a %v, s self %v, pauses %v", s.Time, a.Time, root.SelfTime, paused)
 		}
 	}
 }

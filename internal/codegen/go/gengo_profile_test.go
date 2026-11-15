@@ -98,6 +98,10 @@ func TestProfileAllocs(t *testing.T){
 }
 `
 
+// generatedProfileConsumer checks the profile of every operation against its events. In the plain
+// fixture it also checks that the time of trace functions is not counted, with a bound that holds at
+// any machine load: the profile's times lie within the parse, less the sleeps measured inside the
+// trace function, so they are at most the parse's wall time less those sleeps.
 const generatedProfileConsumer = `package PACKAGE
 
 import zprt "zeroparse.dev/zp/codegen/go/lib"
@@ -124,7 +128,7 @@ func TestProfile(t *testing.T){
   var aborted zpcore.Profile;marker:=new(int);func(){defer func(){if recover()!=marker{t.Fatal("panic identity")}}();parse(zprt.WithProfile(&aborted),zprt.WithTrace(func(zpcore.TraceEvent){panic(marker)}));t.Fatal("missing panic")}();a:=aborted.Snapshot();if a.Parses!=1||a.Entered!=1||a.Calls!=0||a.Evals!=0||a.Time!=0{t.Fatal("fabricated completion",a)}
   parse(zprt.WithProfile(&aborted));a=aborted.Snapshot();if a.Parses!=2||a.Calls!=before.Calls||a.Entered!=before.Entered+1{t.Fatal("abort poisoned next parse",a)}
   var exitPanic zpcore.Profile;func(){defer func(){if recover()!=marker{t.Fatal("exit panic identity")}}();parse(zprt.WithProfile(&exitPanic),zprt.WithTrace(func(e zpcore.TraceEvent){if e.Kind==zpcore.TraceExit{panic(marker)}}));t.Fatal("missing exit panic")}();if x:=exitPanic.Snapshot();x.Calls!=1{t.Fatal("exit panic lost completed call",x)}
-  if PLAIN&&op==0{var timed zpcore.Profile;parse(zprt.WithProfile(&timed),zprt.WithTrace(func(e zpcore.TraceEvent){if e.Rule=="part"{time.Sleep(time.Millisecond)}}));ts:=timed.Snapshot();if ts.Time>=3*time.Millisecond{t.Fatal("trace function time counted",ts.Time)};for _,r:=range ts.Rules{if r.Time>=3*time.Millisecond||r.SelfTime>=3*time.Millisecond{t.Fatal("trace function time counted in a rule",r)}}}
+  if PLAIN&&op==0{var timed zpcore.Profile;var slept time.Duration;start:=time.Now();parse(zprt.WithProfile(&timed),zprt.WithTrace(func(e zpcore.TraceEvent){if e.Rule=="part"{s:=time.Now();time.Sleep(time.Millisecond);slept+=time.Since(s)}}));limit:=time.Since(start)-slept;if slept<4*time.Millisecond{t.Fatal("trace function not called for every event of part",slept)};ts:=timed.Snapshot();if ts.Time>limit{t.Fatal("trace function time counted",ts.Time,limit)};for _,r:=range ts.Rules{if r.Time>limit||r.SelfTime>limit{t.Fatal("trace function time counted in a rule",r,limit)}}}
   ctx,cancel:=context.WithCancel(context.Background());cancel();var canceled zpcore.Profile;parse(zprt.WithProfile(&canceled),WithContext(ctx));if canceled.Snapshot().Entered!=0{t.Fatal("canceled call entered")}
   var wg sync.WaitGroup;for range 4{wg.Go(func(){var p zpcore.Profile;parse(zprt.WithProfile(&p));if p.Snapshot().Parses!=1{t.Error("concurrent isolation")}})};wg.Wait()
  }}
