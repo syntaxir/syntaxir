@@ -177,6 +177,31 @@ The component `host` holds these operations, which write the host and so are not
 | Declaration | State | Cost | Contract |
 |:--|:--|:--|:--|
 | `op node.setSpan(n Obj, start int, end int) noreturn` | writes host | `0` | Sets the range of n to start and end. It is for a value that a term is making, which no one has read. |
-| `op act.made(c Act, n Obj) noreturn` | writes host | `0` | Records n as a value that c made, which the parser drops with the values of a term that it abandons. Requires: n is a struct that c made and has not recorded. |
-| `op act.push(c Act, e Elem) noreturn` | writes host | `0` | Pushes e above the elements gathered for the lists and tuples that c is making, as the next element of the innermost one. The host gathers them so that a list or a tuple takes its elements in one piece when it is made, and drops them with the values of a term that it abandons. |
-| `op act.pushAll(c Act, items Seq) noreturn` | writes host | `0 + 1*seq_len` | Pushes the elements of items in order, as act.push pushes each. A target that bounds the work charges one unit for each element it copies. Requires: items came from seq.items. |
+
+## Elements Gathered
+
+The operations of the component `gathered`: a stack of the elements of the lists and tuples that terms are making.
+A list or a tuple takes its elements off the stack in one piece when it is made, and a term that the parser abandons
+leaves its elements, which the predicate and the binding drop. The stack is the parser's: grammar code that collects
+the elements of a repetition may use it too, above the elements it finds and taking off what it pushes, so that a
+term finds the stack as it left it.
+
+| Declaration | State | Cost | Contract |
+|:--|:--|:--|:--|
+| `op act.push(c Act, e Elem) noreturn` | writes gathered | `0` | Pushes e on the elements gathered, as the next element of the innermost list or tuple that c is making. |
+| `op act.pushAll(c Act, items Seq) noreturn` | writes gathered | `0 + 1*seq_len` | Pushes the elements of items in order, as act.push pushes each. A target that bounds the work charges one unit for each element it copies. Requires: items came from seq.items. |
+| `op term.kids() int` | reads gathered | `0` | Returns the number of the elements gathered, which term.dropKids takes as a mark. |
+| `op term.dropKids(mark int) noreturn` | writes gathered | `0 + 1*dropped` | Drops the elements gathered after the mark, and charges one unit for each. Requires: mark came from term.kids and is at most the number of the elements gathered. |
+
+## Values Made
+
+The operations of the component `made`: a list of the structs that terms and actions made. The context of a term or an
+action holds the length of the list when it is made (term.ctx). When an action returns a struct that it recorded, the
+struct takes the range of the rule; when a term or an action ends, what it recorded is forgotten, which the predicate
+and the binding do with term.dropCreated.
+
+| Declaration | State | Cost | Contract |
+|:--|:--|:--|:--|
+| `op act.made(c Act, n Obj) noreturn` | writes made | `0` | Records n after the values made, as a value that c made. Requires: n is a struct that c made, and no act.made recorded it. |
+| `op term.created() int` | reads made | `0` | Returns the number of the values made, which term.dropCreated takes as a mark. |
+| `op term.dropCreated(mark int) noreturn` | writes made | `0 + 1*dropped` | Forgets the values made after the mark, without changing them, and charges one unit for each. Requires: mark came from term.created and is at most the number of the values made. |

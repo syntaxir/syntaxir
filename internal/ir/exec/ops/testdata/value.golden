@@ -35,6 +35,16 @@ component rules
 component value
   // The operations on the values of terms. They read and write no state.
 
+component made
+  // The values that terms and actions made: a list of the structs that act.made recorded,
+  // which the context of a term or an action marks when it is made. The struct that an action returns takes the
+  // range of the rule if the action recorded it, and what a term or an action recorded is forgotten when it ends.
+
+component gathered
+  // The elements gathered for the lists and tuples that terms make: a stack, on which
+  // act.push and act.pushAll push, from which a list or a tuple takes its elements when it is made, and from which
+  // term.dropKids drops the elements of a term that the parser abandons.
+
 handle Entry of memo
   // A memo entry: the result of a rule call with its outcome and end.
 
@@ -800,28 +810,44 @@ op act.span(c Act) (int, int)
     // Returns the start and the end of the range of the rule that c evaluates the term of, as ints.
 
 op act.made(c Act, n Obj)
-  component host
-  writes host
+  component made
+  writes made
   noreturn
   cost <= 0
   contract:
-    // Records n as a value that c made, which the parser drops with the values of a term that it abandons.
+    // Records n after the values made, as a value that c made.
   requires:
-    // n is a struct that c made and has not recorded.
+    // n is a struct that c made, and no act.made recorded it.
+
+op term.created() int
+  component made
+  reads made
+  cost <= 0
+  contract:
+    // Returns the number of the values made, which term.dropCreated takes as a mark.
+
+op term.dropCreated(mark int)
+  component made
+  writes made
+  noreturn
+  cost <= 0 + 1*dropped
+  contract:
+    // Forgets the values made after the mark, without changing them, and charges one unit for each.
+  requires:
+    // mark came from term.created and is at most the number of the values made.
 
 op act.push(c Act, e Elem)
-  component host
-  writes host
+  component gathered
+  writes gathered
   noreturn
   cost <= 0
   contract:
-    // Pushes e above the elements gathered for the lists and tuples that c is making, as the next element of the
-    // innermost one. The host gathers them so that a list or a tuple takes its elements in one piece when it is made, and
-    // drops them with the values of a term that it abandons.
+    // Pushes e on the elements gathered, as the next element of the innermost list or tuple that c is
+    // making.
 
 op act.pushAll(c Act, items Seq)
-  component host
-  writes host
+  component gathered
+  writes gathered
   noreturn
   cost <= 0 + 1*seq_len
   contract:
@@ -829,6 +855,23 @@ op act.pushAll(c Act, items Seq)
     // unit for each element it copies.
   requires:
     // items came from seq.items.
+
+op term.kids() int
+  component gathered
+  reads gathered
+  cost <= 0
+  contract:
+    // Returns the number of the elements gathered, which term.dropKids takes as a mark.
+
+op term.dropKids(mark int)
+  component gathered
+  writes gathered
+  noreturn
+  cost <= 0 + 1*dropped
+  contract:
+    // Drops the elements gathered after the mark, and charges one unit for each.
+  requires:
+    // mark came from term.kids and is at most the number of the elements gathered.
 
 host op val.seq(c Act, tuple bool, kids Seq) Obj
   component value

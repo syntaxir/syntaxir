@@ -169,6 +169,9 @@ type Model struct {
 
 	// missing-token mode
 	missing missingState
+
+	// what terms make: the elements gathered and the values made
+	terms termState
 }
 
 // Err is an Err handle of the model.
@@ -377,6 +380,9 @@ func (m *Model) Allows(o *exec.Op, args []any) bool {
 	case "rec.truncate", "rec.since":
 		return args[0].(int64) >= 0 && args[0].(int64) <= int64(len(m.rec))
 	}
+	if allowed, ok := m.allowsTermState(o, args); ok {
+		return allowed
+	}
 	if allowed, ok := m.allowsObs(o); ok {
 		return allowed
 	}
@@ -396,6 +402,9 @@ func (m *Model) Quantity(name string, o *exec.Op, args []any) int64 {
 		return q
 	}
 	if q, ok := m.frameQuantity(name, o, args); ok {
+		return q
+	}
+	if q, ok := m.termStateQuantity(name, o, args); ok {
 		return q
 	}
 	switch name {
@@ -608,6 +617,9 @@ func (m *Model) Call(o *exec.Op, args []any) []any {
 	case "stream.settleErrors":
 		m.rec = nil
 		return nil
+	}
+	if res, ok := m.callTermState(o, args); ok {
+		return res
 	}
 	if res, ok := m.callExp(o, args); ok {
 		return res

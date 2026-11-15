@@ -398,14 +398,15 @@ func addTermOps(m *exec.Module) {
 	obj, seq := exec.THandle(ops.Obj), exec.THandle(ops.Seq)
 	op(&exec.Op{Name: OpTermFromObj, Params: []exec.Param{exec.P("n", obj)}, Results: []exec.Type{datum},
 		Contract: "Returns the struct, list value or tuple value n as a value."})
-	op(&exec.Op{Name: OpTermElemsAbove, Params: []exec.Param{exec.P("base", exec.TInt)}, Results: []exec.Type{seq}, Reads: reads, Writes: reads,
+	gathered := []string{Component, ops.Gathered}
+	op(&exec.Op{Name: OpTermElemsAbove, Params: []exec.Param{exec.P("base", exec.TInt)}, Results: []exec.Type{seq}, Reads: gathered, Writes: gathered,
 		Contract: "Takes the elements gathered above base, which term.kids returned, off the gathered elements and returns them, for hull to take over."})
 	op(&exec.Op{Name: OpTermStruct, Results: []exec.Type{obj}, Reads: reads, Writes: reads, NoReturn: true, Imm: "the struct literal (TermNew)",
 		Contract: "Returns a new struct of the type of the literal in Imm with no field set and an empty range, with room for the fields the literal gives."})
 	op(&exec.Op{Name: OpTermSetField, Params: []exec.Param{exec.P("n", obj), exec.P("v", datum)}, Reads: reads, Writes: reads, NoReturn: true,
 		Imm:      "the name of the field (a string)",
 		Contract: "Sets the field in Imm of the struct n, which a term is making, to v. A target that bounds the work charges for the fields it scans and the bytes of the names it compares."})
-	op(&exec.Op{Name: OpTermKeep, Params: []exec.Param{exec.P("items", seq), exec.P("i", exec.TInt)}, Reads: reads, Writes: reads, NoReturn: true,
+	op(&exec.Op{Name: OpTermKeep, Params: []exec.Param{exec.P("items", seq), exec.P("i", exec.TInt)}, Reads: gathered, Writes: gathered, NoReturn: true,
 		Contract: "Pushes element i of items, which items returned, as it is (a box stays a box) as the next element of the list that filter makes, charging nothing."})
 	op(&exec.Op{Name: OpTermCopyList, Params: []exec.Param{exec.P("items", seq)}, Results: []exec.Type{datum}, Reads: reads, Writes: reads,
 		Contract: "Returns a new list value of the elements items, which items returned, as they are, charging for copying them under budget controls."})

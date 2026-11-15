@@ -1484,40 +1484,6 @@ host op run.finish(r Run)
     // Records the run of a repetition that matched for the next parse, unless it is too short, or recovered
     // errors, or read the seed of a growth.
 
-transitional op term.created() int
-  component host
-  reads host
-  cost <= 0
-  contract:
-    // Returns the mark of the nodes that terms and actions created, which term.dropCreated takes.
-
-transitional op term.dropCreated(mark int)
-  component host
-  writes host
-  noreturn
-  cost <= 0 + 1*dropped
-  contract:
-    // Forgets the nodes created after the mark, without changing them, and charges one unit for each.
-  requires:
-    // mark came from term.created, and nothing dropped it since.
-
-transitional op term.kids() int
-  component host
-  reads host
-  cost <= 0
-  contract:
-    // Returns the mark of the values that list built-ins gather, which term.dropKids takes.
-
-transitional op term.dropKids(mark int)
-  component host
-  writes host
-  noreturn
-  cost <= 0 + 1*dropped
-  contract:
-    // Drops the values gathered after the mark and charges one unit for each.
-  requires:
-    // mark came from term.kids, and nothing dropped it since.
-
 op call.state() CallState
   component suspended
   writes suspended

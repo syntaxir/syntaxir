@@ -225,16 +225,13 @@ The operations of the component `rules`.
 
 ## Host
 
-The operations of the component `host`. The operations that write the range of a node and the values that an action made are specified with the
-values in [Operations That Write Host State](values.md#operations-that-write-host-state).
+The operations of the component `host`. The operation that writes the range of a node is specified with the values in
+[Operations That Write Host State](values.md#operations-that-write-host-state), and the elements that terms gather and
+the values they make in [Elements Gathered](values.md#elements-gathered) and [Values Made](values.md#values-made).
 
 | Declaration | State | Cost | Contract |
 |:--|:--|:--|:--|
-| `host op term.ctx() Act` | reads host, pos; writes host | `0` | Returns the context in which a term runs: the current capture frame, an empty span at the position, and the mark of the nodes created so far. |
-| `transitional op term.created() int` | reads host | `0` | Returns the mark of the nodes that terms and actions created, which term.dropCreated takes. |
-| `transitional op term.dropCreated(mark int) noreturn` | writes host | `0 + 1*dropped` | Forgets the nodes created after the mark, without changing them, and charges one unit for each. Requires: mark came from term.created, and nothing dropped it since. |
-| `transitional op term.kids() int` | reads host | `0` | Returns the mark of the values that list built-ins gather, which term.dropKids takes. |
-| `transitional op term.dropKids(mark int) noreturn` | writes host | `0 + 1*dropped` | Drops the values gathered after the mark and charges one unit for each. Requires: mark came from term.kids, and nothing dropped it since. |
+| `host op term.ctx() Act` | reads host, pos, made; writes host | `0` | Returns the context in which a term runs: the current capture frame, an empty span at the position, and the mark of the values made so far, as term.created returns it. |
 | `transitional op opr.lineValue(r Rule, l Line, f Frame, v Value, start int) Value noreturn` | reads frames; writes host | `0` | Returns the value of the operand line l of the rule r that matched from start to the position with the value v and the captures of f: the line's action, or its shaped value with its captures. |
 | `transitional op opr.build(r Rule, a Attempt, lhs Value, rhs Value) Value noreturn` | reads operators, frames; writes host | `0` | Returns the value of the application of the operator of a to lhs (null for a prefix operator) and rhs (null for a postfix operator), which ends at the position: the action of the operator's line, or the node of the tuple (lhs, operator, rhs) with the line's captures. |
 | `transitional op opr.buildTyped(r Rule, a Attempt, lhs Value, lstart int, rhs Value) (Value, int) [typed] noreturn` | reads operators, frames; writes host | `0` | Is opr.build for typed values, where lhs, if it is not a node, starts at lstart; it also returns where the value of the application starts. |

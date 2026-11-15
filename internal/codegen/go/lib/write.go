@@ -34,6 +34,7 @@ var outputs = []struct {
 	{engineExpBindingsFile, printEngineExpBindings},
 	{engineRuleBindingsFile, printEngineRuleBindings},
 	{engineMissingBindingsFile, printEngineMissingBindings},
+	{engineTermStateBindingsFile, printEngineTermStateBindings},
 }
 
 // Write prints every file of outputs and writes it. Paths are relative to the directory of this

@@ -79,8 +79,6 @@ const (
 	QCaptureFields = "capture_fields"
 	// QSteps is the number of memoized steps and jumps that the call takes.
 	QSteps = "steps"
-	// QDropped is the number of values above the mark of the call.
-	QDropped = "dropped"
 	// QStreamScan is the number of input elements that the call copies when it compacts the buffer,
 	// and of those it scans for line starts: every loaded element when the whole input is loaded from
 	// its first element and no table of its lines exists yet, otherwise those before its argument
@@ -428,26 +426,6 @@ that the target's observed function wraps.`})
 	documentMove(m)
 	documentEdits(m)
 	documentRuns(m, value)
-	addTerms(m, add)
 	splitCall(m, add, rule, values, ctx, mark, entry)
 	framesAndOperators(m, add, rule, value, errs)
-}
-
-// addTerms adds the operations that release what a term gathered and created.
-// The compositions predicate and bind apply the term and call them (AddTermCode).
-func addTerms(m *exec.Module, add func(*exec.Op)) {
-	mark := exec.P("mark", exec.TInt)
-	dropped := exec.Cost{Terms: []exec.CostTerm{{Coef: 1, Quantity: QDropped}}}
-	add(&exec.Op{Name: "term.created", Component: Host, Results: []exec.Type{exec.TInt}, Reads: []string{Host},
-		Contract: `Returns the mark of the nodes that terms and actions created, which term.dropCreated takes.`})
-	add(&exec.Op{Name: "term.dropCreated", Component: Host, Params: []exec.Param{mark}, Writes: []string{Host},
-		NoReturn: true, Cost: dropped,
-		Contract: `Forgets the nodes created after the mark, without changing them, and charges one unit for each.`,
-		Requires: `mark came from term.created, and nothing dropped it since.`})
-	add(&exec.Op{Name: "term.kids", Component: Host, Results: []exec.Type{exec.TInt}, Reads: []string{Host},
-		Contract: `Returns the mark of the values that list built-ins gather, which term.dropKids takes.`})
-	add(&exec.Op{Name: "term.dropKids", Component: Host, Params: []exec.Param{mark}, Writes: []string{Host},
-		NoReturn: true, Cost: dropped,
-		Contract: `Drops the values gathered after the mark and charges one unit for each.`,
-		Requires: `mark came from term.kids, and nothing dropped it since.`})
 }

@@ -139,18 +139,10 @@ func engineTerms(pkg string, t *gogen.Target, term string, apply func(t, ctx str
 	t.Handle = func(name string) string { return map[string]string{ops.Term: term, ops.Datum: "any"}[name] }
 	t.Apply = func(fn string, args []string) string { return apply(fn, args[0]) }
 	t.Op = func(c *exec.Call, a []string) string {
+		if s, ok := engineTermOp(c.Callee, a, "state."); ok {
+			return s
+		}
 		switch c.Callee {
-		case "term.ctx":
-			return "p.UseCtx(state.EvalCtx{P: p, Frame: p.Frame, Start: p.Pos, End: p.Pos, Cbase: len(p.Created)})"
-		case "term.created":
-			return "len(p.Created)"
-		case "term.dropCreated":
-			// Most terms create nothing, and the call is on the path of every matcher of a term.
-			return fmt.Sprintf("if len(p.Created) > %s {\np.DropCreated(%[1]s)\n}", a[0])
-		case "term.kids":
-			return "len(p.KidStack)"
-		case "term.dropKids":
-			return "p.DropKids(" + a[0] + ")"
 		case "val.kind":
 			return "state.ValKind(" + a[0] + ")"
 		case "val.toBool":
@@ -172,6 +164,27 @@ func engineTerms(pkg string, t *gogen.Target, term string, apply func(t, ctx str
 		b.WriteString("\n" + src)
 	}
 	return b.String(), nil
+}
+
+// engineTermOp returns the engine's Go form of term.ctx and of the marks and drops of the elements gathered
+// and the values made, given its printed arguments, or reports false for another operation. The backends
+// print them into their own packages and the conformance bindings into package state, so qual qualifies a
+// name of package state: "state." outside it and "" in it.
+func engineTermOp(callee string, a []string, qual string) (string, bool) {
+	switch callee {
+	case "term.ctx":
+		return "p.UseCtx(" + qual + "EvalCtx{P: p, Frame: p.Frame, Start: p.Pos, End: p.Pos, Cbase: len(p.Created)})", true
+	case "term.created":
+		return "len(p.Created)", true
+	case "term.dropCreated":
+		// Most terms create nothing, and the call is on the path of every matcher of a term.
+		return fmt.Sprintf("if len(p.Created) > %s {\np.DropCreated(%[1]s)\n}", a[0]), true
+	case "term.kids":
+		return "len(p.KidStack)", true
+	case "term.dropKids":
+		return "p.DropKids(" + a[0] + ")", true
+	}
+	return "", false
 }
 
 // printEngineSpecs returns the Go file of the printed functions specs, importing the packages that
@@ -234,6 +247,9 @@ func engineTarget() *gogen.Target {
 	}
 	t.Op = func(c *exec.Call, a []string) string {
 		if s, ok := engineValueOp(c.Callee, a); ok {
+			return s
+		}
+		if s, ok := engineTermOp(c.Callee, a, ""); ok {
 			return s
 		}
 		// The records of the split forms of the Operators Rule loop have a Go field for each field.

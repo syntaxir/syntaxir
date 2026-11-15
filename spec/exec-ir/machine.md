@@ -59,6 +59,8 @@ has the following components.
 | `window` | The window of a stream parse: the input read and kept, the callback that receives the elements of the #stream repetition, the recovered errors delivered so far, and the memory that the delivered elements held. |
 | `runs` | The repetition runs of a Document: for each repetition of the last parse that a parse may resume, the positions, the examined input, the value and the expectations of its elements. |
 | `suspended` | The calls whose rule body runs between the begin and the end of the split call protocol, each with the state that its begin saved for its end in a record that its caller holds. |
+| `gathered` | The elements gathered for the lists and tuples that terms make: a stack, on which act.push and act.pushAll push, from which a list or a tuple takes its elements when it is made, and from which term.dropKids drops the elements of a term that the parser abandons. |
+| `made` | The values that terms and actions made: a list of the structs that act.made recorded, which the context of a term or an action marks when it is made. The struct that an action returns takes the range of the rule if the action recorded it, and what a term or an action recorded is forgotten when it ends. |
 | `frames` | The capture frames: the frame that captures write to, the slots of each frame and the trail of the writes that a reset undoes. |
 | `operators` | The bookkeeping of the Operators Rule loop: whether a candidate of the last longest match failed after a cut. |
 | `value` | The operations on the values of terms. They read and write no state. |
@@ -184,7 +186,7 @@ quantities are the following.
 | `captures` | When the body of the call matched and the rule makes its value from its captures (not with an action, not spliced and not value-free), the number of the capture names of the rule, which it searches for those that matched; zero otherwise. |
 | `covered` | The number of positions the memo covers from its floor: the slots that a target keeps per position pays for when it prunes them, moves the rest and drops the indexes of crowded positions. |
 | `deps` | The number of dependencies that the call passes to the enclosing evaluation or stores: those that the frame of the evaluation it ends recorded, and those stored with the results, steps and jumps it reuses, with the observations they lead to. |
-| `dropped` | The number of values above the mark of the call. |
+| `dropped` | The number of the entries above the mark of the call, which it drops: elements gathered (term.dropKids) or values made (term.dropCreated). |
 | `env_path` | The number of nodes on the path to a slot of a persistent vector of the variables with 16 children for each node: the levels above the leaves, and the leaf. It is the same for every slot. |
 | `env_reads` | `vars` times `env_path`. |
 | `env_rebind` | `env_path` when the value of the call differs from the one the slot holds, and 0 when they are equal: the nodes that a rebind copies. |

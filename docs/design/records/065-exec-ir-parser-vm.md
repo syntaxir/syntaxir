@@ -369,6 +369,24 @@ alternative. A term never evaluates to a function: the lowering accepts a lambda
 `map`, `filter`, `foldl` or `foldr`, which it turns into loops, and the built-ins are a closed set, so no target keeps
 a value of that kind or a test for one.
 
+**Elements gathered and values made.** Two stacks with marks hold what terms make. The component `gathered` is the
+stack of the elements of the lists and tuples being made: `act.push` and `act.pushAll` push on it, a list or a tuple
+takes its elements off it when it is made (the lowering's `term.elemsAbove`, and `term.keep` for `filter`, which stay
+transitional leaves of terms), and `term.kids` and `term.dropKids` mark it and drop what a failed term left. It is not
+a host operation's private state, since the engine's grammar code collects the elements of a repetition on the same
+stack, above the elements it finds, and the charge of a drop is observable. The component `made` is the list of the
+structs that terms and actions made: `act.made` records one, `term.created` and `term.dropCreated` mark the list and
+forget what a term made, and `term.ctx` gives a context the mark, from which an action's result that it recorded takes
+the rule's range. Both have reference models, with the entries of each, by identity, compared after every write, and handwritten and
+randomized conformance cases with a negative control of broken models; the cases run on the engine and on generated
+Go (node and typed) through bindings that each target's printer prints from the operations, the engine's from the
+forms its backends print, and the metered targets charge each drop and copy to the unit, which a control that charges
+nothing fails. TypeScript implements the same operations and stays on its parity tests and on the push table, which
+it runs with the other value tables, as [Completion](#completion) records. Forgetting what an action recorded once its
+result has its range, and Flow IR's drop of gathered values, are each target's own code outside these operations, and
+their charges still differ ([Cost Contracts](#cost-contracts)). *Target*: the representation of the stacks, which
+the engine shares with grammar code.
+
 **Capture frames.** Slots of a rule body or a line, and a trail of writes that a backtracking point undoes. A mark
 is the position, the environment, the recovered errors and the length of the trail; what a reset restores from it
 is the composition `reset`. The operations have a reference model, with conformance cases that run on the engine

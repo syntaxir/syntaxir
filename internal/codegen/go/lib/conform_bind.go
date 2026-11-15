@@ -318,3 +318,29 @@ var missingBindingOps = []string{"missing.active", "missing.recompute", "missing
 func printEngineMissingBindings() (string, error) {
 	return bindingFile("state", missingBindingOps, engineTarget(), "")
 }
+
+// termStateBindingOps are the operations of the elements gathered and the values made.
+var termStateBindingOps = []string{"act.push", "act.pushAll", "term.kids", "term.dropKids", "act.made", "term.created", "term.dropCreated"}
+
+// engineTermStateBindingsFile is the file of the engine's conformance bindings of the elements gathered and the
+// values made, relative to the directory of this package. It is a test file of package state of the engine.
+const engineTermStateBindingsFile = "../../../engine/state/terms_bind_exec_test.go"
+
+// printEngineTermStateBindings returns the Go test file of the conformance bindings of the elements gathered
+// and the values made for package state of the engine, printed as the backends print them into their own
+// packages (engineTermOp).
+func printEngineTermStateBindings() (string, error) {
+	return bindingFile("state", termStateBindingOps, engineTarget(), "confTermStateBindings")
+}
+
+// GoTermStateBindings returns the Go test file of the conformance bindings of the elements gathered and the
+// values made for package libgo, for the node library's Parser.
+func GoTermStateBindings() (string, error) {
+	return bindingFile("libgo", termStateBindingOps, goTarget(goSpec{fn: "expect", name: "Expect"}), "confTermStateBindings")
+}
+
+// GoTypedTermStateBindings returns the Go test file of the conformance bindings of the elements gathered and
+// the values made for package libgo, for the typed library's TParser.
+func GoTypedTermStateBindings() (string, error) {
+	return bindingFile("libgo", termStateBindingOps, goTarget(goSpec{fn: "reset", typed: true, name: "Reset"}), "confTTermStateBindings")
+}

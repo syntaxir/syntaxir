@@ -112,7 +112,7 @@ func TestTermCodeGolden(t *testing.T) {
 	got := exec.String(m)
 	for _, want := range []string{
 		"handle Term of host callable (Act) (Datum, Fail)\n",
-		"host op term.ctx() Act\n  component host\n  reads host, pos\n  writes host\n  cost <= 0\n",
+		"host op term.ctx() Act\n  component host\n  reads host, pos, made\n  writes host\n  cost <= 0\n",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("listing lacks\n%s", want)

@@ -669,3 +669,11 @@ func TestValueConformanceDetectsMutants(t *testing.T) {
 		}
 	}
 }
+
+func (m modelImpl) Act() any { return ref.Act{} }
+
+func (m modelImpl) Elem(id int64) any { return ref.Elem{ID: id} }
+
+func (m modelImpl) Items(ids []int64) any { return &ref.Items{IDs: ids} }
+
+func (m modelImpl) Struct(id int64) any { return ref.Struct{ID: id} }
