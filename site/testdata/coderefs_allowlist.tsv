@@ -262,11 +262,6 @@ docs/design/records/065-exec-ir-parser-vm.md	gofile	lib.go	1
 docs/design/records/065-exec-ir-parser-vm.md	gofile	memo.go	2
 docs/design/records/065-exec-ir-parser-vm.md	gofile	missing_token.go	1
 docs/design/records/065-exec-ir-parser-vm.md	gofile	operators_rule.go	1
-docs/design/records/065-exec-ir-parser-vm.md	gofile	ops/document.go	1
-docs/design/records/065-exec-ir-parser-vm.md	gofile	ops/operators.go	1
-docs/design/records/065-exec-ir-parser-vm.md	gofile	ops/split.go	1
-docs/design/records/065-exec-ir-parser-vm.md	gofile	ops/transitional.go	1
-docs/design/records/065-exec-ir-parser-vm.md	gofile	ops/window.go	1
 docs/design/records/065-exec-ir-parser-vm.md	gofile	profile.go	1
 docs/design/records/065-exec-ir-parser-vm.md	gofile	resume.go	1
 docs/design/records/065-exec-ir-parser-vm.md	gofile	runtime.go	3
@@ -932,7 +927,6 @@ docs/optimizations/mechanisms/R170-left-recursion-member-memo.md	codelink	intern
 docs/optimizations/mechanisms/R170-left-recursion-member-memo.md	codelink	internal/engine/state/runtime.go	1
 docs/optimizations/mechanisms/R170-left-recursion-member-memo.md	codelink	codegen/ts/lib/lib.ts	1
 docs/optimizations/mechanisms/R170-left-recursion-member-memo.md	codelink	internal/ir/exec/core/core.go	1
-docs/optimizations/mechanisms/R170-left-recursion-member-memo.md	codelink	internal/ir/exec/ops/transitional.go	1
 docs/optimizations/mechanisms/R170-left-recursion-member-memo.md	codelink	codegen/go/lib/call_exec.go	1
 docs/optimizations/mechanisms/R170-left-recursion-member-memo.md	codelink	codegen/go/lib/context_memo.go	1
 docs/optimizations/mechanisms/R170-left-recursion-member-memo.md	gofile	internal/compile/compile.go	1
@@ -941,7 +935,6 @@ docs/optimizations/mechanisms/R170-left-recursion-member-memo.md	gofile	internal
 docs/optimizations/mechanisms/R170-left-recursion-member-memo.md	gofile	internal/engine/state/context_memo.go	1
 docs/optimizations/mechanisms/R170-left-recursion-member-memo.md	gofile	internal/engine/state/runtime.go	1
 docs/optimizations/mechanisms/R170-left-recursion-member-memo.md	gofile	internal/ir/exec/core/core.go	1
-docs/optimizations/mechanisms/R170-left-recursion-member-memo.md	gofile	internal/ir/exec/ops/transitional.go	1
 docs/optimizations/mechanisms/R170-left-recursion-member-memo.md	gofile	codegen/go/lib/call_exec.go	1
 docs/optimizations/mechanisms/R170-left-recursion-member-memo.md	gofile	codegen/go/lib/context_memo.go	1
 docs/optimizations/mechanisms/R170-left-recursion-member-memo.md	unexport	ctxEnter	1
