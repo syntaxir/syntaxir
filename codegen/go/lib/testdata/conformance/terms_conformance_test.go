@@ -19,7 +19,7 @@ import (
 // the library's compositions run.
 
 // termStateMachine binds the operations of the elements gathered and the values made of the node or the
-// typed library, and the rest through the machine of the pilot operations.
+// typed library, and the rest through the machine of the parse state.
 type termStateMachine struct {
 	conform.Impl
 	p      *Parser

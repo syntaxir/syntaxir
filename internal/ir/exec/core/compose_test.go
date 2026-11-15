@@ -13,7 +13,7 @@ import (
 )
 
 // The tests of this file run the compositions on a model of the operations: the reference model of
-// the pilot operations (ref.Model) and a model of the transitional ones written from their
+// the modelled operations (ref.Model) and a model of the transitional ones written from their
 // contracts, with rules whose bodies the tests script. They check the contracts of the compositions
 // (what a call leaves in the parser state, what it charges, which entries it reuses) without a
 // generated parser, and where a generated parser cannot tell (it restores the position after a failed call itself).
@@ -108,16 +108,16 @@ type growth struct {
 	done       bool
 }
 
-// callState is the record of a suspended call in the model (call.state).
-type callState struct {
+// parseState is the record of a suspended call in the model (call.state).
+type parseState struct {
 	start, min, key, rec, examined, low, missing any
 	ctx, mark                                    any
 	saved                                        bool
 }
 
 // stateOf returns the record st of a suspended call, which call.save must have filled.
-func stateOf(x any) *callState {
-	st := x.(*callState)
+func stateOf(x any) *parseState {
+	st := x.(*parseState)
 	if !st.saved {
 		panic(exec.Interrupt{Reason: "the state of a call is read before call.save"})
 	}
@@ -430,17 +430,17 @@ func (m *machine) Call(o *exec.Op, args []any) []any {
 		return nil
 	// The record of a suspended call, and the missing-token mode, which no call of the model is in.
 	case "call.state":
-		return []any{&callState{}}
+		return []any{&parseState{}}
 	case "call.save":
-		st := args[0].(*callState)
+		st := args[0].(*parseState)
 		st.start, st.min, st.key, st.ctx, st.rec, st.mark, st.saved = args[1], args[2], args[3], args[4], args[5], args[6], true
 		return nil
 	case "call.saveExamined":
-		st := args[0].(*callState)
+		st := args[0].(*parseState)
 		st.examined, st.low = args[1], args[2]
 		return nil
 	case "call.saveMissing":
-		args[0].(*callState).missing = args[1]
+		args[0].(*parseState).missing = args[1]
 		return nil
 	case "call.start":
 		return []any{stateOf(args[0]).start}

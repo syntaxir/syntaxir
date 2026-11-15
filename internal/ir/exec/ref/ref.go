@@ -98,7 +98,7 @@ func cachedString(id int64, c string, n int) string {
 	return s.(string)
 }
 
-// Model is the reference model of the pilot components. It implements exec.Machine.
+// Model is the reference model of the components of the parser VM. It implements exec.Machine.
 type Model struct {
 	cfg Config
 

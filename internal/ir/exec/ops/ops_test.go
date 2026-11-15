@@ -12,13 +12,11 @@ import (
 
 var update = flag.Bool("update", false, "update golden files")
 
-// TestPilotGolden checks that the pilot declarations, and those of the whole parser VM (AddBeyondPilot),
-// verify and that their listings are testdata/pilot.golden and testdata/parser.golden: a change
-// of a contract, a precondition or a cost bound shows in review.
-func TestPilotGolden(t *testing.T) {
-	parser := Pilot()
-	AddBeyondPilot(parser)
-	for golden, m := range map[string]*exec.Module{"testdata/pilot.golden": Pilot(), "testdata/parser.golden": parser} {
+// TestModuleGolden checks that the declarations of the parse state (ParseState) and those of the whole
+// parser VM (Parser) verify and that their listings are testdata/parsestate.golden and
+// testdata/parser.golden: a change of a contract, a precondition or a cost bound shows in review.
+func TestModuleGolden(t *testing.T) {
+	for golden, m := range map[string]*exec.Module{"testdata/parsestate.golden": ParseState(), "testdata/parser.golden": Parser()} {
 		if err := exec.Verify(m); err != nil {
 			t.Fatal(err)
 		}
@@ -33,7 +31,7 @@ func TestPilotGolden(t *testing.T) {
 			t.Fatal(err)
 		}
 		if got != string(want) {
-			t.Errorf("listing differs from %s; run go test -run TestPilotGolden -update", golden)
+			t.Errorf("listing differs from %s; run go test -run TestModuleGolden -update", golden)
 		}
 	}
 }
@@ -42,8 +40,7 @@ func TestPilotGolden(t *testing.T) {
 // their own, which Verify allows only for transitional operations: the growth operations that
 // record recovered errors again. Another writer needs a reason recorded here.
 func TestCrossComponentWriters(t *testing.T) {
-	m := Pilot()
-	AddBeyondPilot(m)
+	m := Parser()
 	var got []string
 	for _, o := range m.Ops {
 		for _, s := range o.Writes {
@@ -90,12 +87,10 @@ func TestValueGolden(t *testing.T) {
 	}
 }
 
-// TestTermCodeGolden checks that the declarations of applying a term verify, on the pilot and the value
-// and transitional operations they extend, and what the listing says of them.
+// TestTermCodeGolden checks that the declarations of applying a term verify in the whole module, and
+// what the listing says of them.
 func TestTermCodeGolden(t *testing.T) {
-	m := ValueModule()
-	AddBeyondPilot(m)
-	AddTermCode(m)
+	m := Parser()
 	if err := exec.Verify(m); err != nil {
 		t.Fatal(err)
 	}

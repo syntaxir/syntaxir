@@ -26,7 +26,7 @@ func ObsConfig(observed bool) ref.Config {
 // the observation.
 func ObsModule() *exec.Module {
 	m := Module()
-	ops.AddBeyondPilot(m)
+	ops.AddCallProtocol(m)
 	return m
 }
 

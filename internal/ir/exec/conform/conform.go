@@ -106,9 +106,9 @@ const RuleOp = "test.rule"
 // not an operation of the parser VM.
 const ErrOp = "test.err"
 
-// Module returns the pilot declarations with ValuesOp, ready for cases.
+// Module returns the declarations of the parse state with ValuesOp, ready for cases.
 func Module() *exec.Module {
-	m := ops.Pilot()
+	m := ops.ParseState()
 	m.AddOp(&exec.Op{Name: ValuesOp, Component: ops.Env, Params: []exec.Param{exec.P("id", exec.TInt)},
 		Results:  []exec.Type{exec.THandle(ops.Values)},
 		Contract: "Returns the Values handle of a conformance identifier; equal identifiers are equal values."})

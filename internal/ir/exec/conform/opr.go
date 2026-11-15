@@ -79,7 +79,7 @@ func OprSuiteOps() []string { return append(slices.Clone(OprOps), OprSupportOps.
 // hold the Operators Rule family, and the operations that make the handles of its cases.
 func OprModule() *exec.Module {
 	m := Module()
-	ops.AddBeyondPilot(m)
+	ops.AddCallProtocol(m)
 	test := func(name string, handle string) {
 		m.AddOp(&exec.Op{Name: name, Component: ops.Rules, Results: []exec.Type{exec.THandle(handle)},
 			Contract: "Returns a new handle for a conformance case."})

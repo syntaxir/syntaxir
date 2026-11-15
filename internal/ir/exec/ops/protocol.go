@@ -6,12 +6,12 @@ import (
 	"zeroparse.dev/zp/internal/ir/exec"
 )
 
-// State components of the transitional operations.
+// State components of the call protocol.
 const (
 	// Exp is the expectation record.
 	Exp = "expected"
-	// Call is the call bookkeeping of the target outside the pilot: the tracked path of Documents and
-	// observation.
+	// Call is the call bookkeeping of the target outside the call protocol: the tracked path of Documents
+	// and observation.
 	Call = "call"
 	// Obs is the observation of a parse.
 	Obs = "observe"
@@ -22,7 +22,7 @@ const (
 	Win = "window"
 )
 
-// Names of the handle types of the transitional operations.
+// Names of the handle types of the call protocol.
 const (
 	Body = "Body"
 	Mark = "ExpMark"
@@ -38,7 +38,7 @@ const (
 	Grow = "Grow"
 )
 
-// Cost quantities of the transitional operations: measures of their arguments and of the state
+// Cost quantities of the call protocol: measures of their arguments and of the state
 // before the call.
 const (
 	// QSet is the number of expectations of the set that the call takes.
@@ -99,14 +99,14 @@ const (
 	Silent = "silent"
 )
 
-// AddBeyondPilot adds to m, a module made by Pilot, the declarations of the parser VM beyond the pilot
-// set: the registers the call protocol reads, the components it writes and their operations. Some of
+// AddCallProtocol adds to m, a module made by ParseState, the declarations of the call protocol: the
+// registers it reads, the components it writes and their operations. Some of
 // the operations have reference models and conformance cases; the others are transitional: existing functions
 // of the hand-written runtimes, declared with their current behavior and no conformance cases (design
 // 065, Migration Order), until the stage that migrates their mechanism replaces them. A rule body runs
 // grammar code, which may change any state; the declarations name only the operation's own component
 // and the registers. It also adds the host operations of the stream window (streamWindow).
-func AddBeyondPilot(m *exec.Module) {
+func AddCallProtocol(m *exec.Module) {
 	m.AddRegister(Pos, exec.TInt, "The position of the parse in the input.")
 	m.AddRegister(Silent, exec.TInt, "The depth of lookaheads, inside which expectations are not recorded.")
 	m.AddComponent(Exp, `The expectation record: the expectations at the farthest position.`)

@@ -288,10 +288,10 @@ var MemberKinds = []struct{ Name, Spelling string }{
 	MemberCapture: {"Capture", "$"},
 }
 
-// ValueModule returns the pilot declarations with the value primitives. The primitives are not part
-// of Pilot until a composition calls them.
+// ValueModule returns the declarations of the parse state with the value primitives, for the cases of
+// the value primitives and of what terms make.
 func ValueModule() *exec.Module {
-	m := Pilot()
+	m := ParseState()
 	AddValue(m)
 	return m
 }

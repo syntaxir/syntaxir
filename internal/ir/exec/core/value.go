@@ -16,7 +16,6 @@ import (
 // that is not evaluated yet, and Exec IR has no such value. The caller checks each operand it
 // evaluates with logic.
 func addValue(m *Module) {
-	ops.AddValue(m)
 	datum, failT := THandle(ops.Datum), THandle(ops.Fail)
 	val := []Type{datum, failT}
 	l, r, x, op := L("l"), L("r"), L("x"), L("op")

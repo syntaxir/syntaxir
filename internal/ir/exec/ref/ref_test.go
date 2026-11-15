@@ -10,10 +10,10 @@ import (
 
 // The model is the executable contract; these tests pin the behaviors its contract text states.
 
-var pilot = ops.Pilot()
+var parseState = ops.ParseState()
 
 func call(m *Model, name string, args ...any) []any {
-	return m.Call(pilot.Op(name), args)
+	return m.Call(parseState.Op(name), args)
 }
 
 func TestMemoModel(t *testing.T) {
@@ -45,7 +45,7 @@ func TestMemoModel(t *testing.T) {
 		t.Fatal("a live entry is dead")
 	}
 	e3 := call(m, "memo.store", append(k, false, int64(5), false, nil, nil)...)[0]
-	if !m.Dead(e) || m.Dead(e3) || m.Allows(pilot.Op("memo.ok"), []any{e}) {
+	if !m.Dead(e) || m.Dead(e3) || m.Allows(parseState.Op("memo.ok"), []any{e}) {
 		t.Fatal("the replaced entry is not dead")
 	}
 	if got := m.Quantity(ops.QKeyScan, nil, k); got != 4 {
@@ -119,7 +119,7 @@ func TestEmptyExaminedRecord(t *testing.T) {
 	k := []any{int64(1), int64(0), int64(0), int64(7)}
 	e := call(m, "memo.store", append(k, true, int64(0), false, nil, nil)...)[0]
 	args := []any{e, false, int64(0)}
-	if !m.Allows(pilot.Op("memo.examine"), args) {
+	if !m.Allows(parseState.Op("memo.examine"), args) {
 		t.Fatal("an empty examined input at the entry's position is not allowed")
 	}
 	call(m, "memo.examine", args...)
@@ -137,8 +137,8 @@ func TestCaptureFields(t *testing.T) {
 		{OK: true, Captures: []int64{0, 2}}, {OK: true, Captures: []int64{2, 1, 0}}, {OK: true}, {Captures: []int64{1}},
 	}}}, RuleVars: make([][]int64, 1)})
 	m.UseRegisters(map[string]any{ops.Pos: int64(0), ops.Silent: false})
-	full := ops.Pilot()
-	ops.AddBeyondPilot(full)
+	full := ops.ParseState()
+	ops.AddCallProtocol(full)
 	invoke := full.Op("rule.invoke")
 	args := []any{RuleRef{Index: 0}, int64(0)}
 	// c2 after c0: 3 + (1 + 4); then c0, c1, c2: 3 + (1 + 4) + 2*(1 + 4); then none, and a failure.

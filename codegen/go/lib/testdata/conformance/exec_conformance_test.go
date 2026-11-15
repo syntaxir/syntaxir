@@ -14,7 +14,7 @@ import (
 	"zeroparse.dev/zp/internal/ir/exec/ref"
 )
 
-// The generated Go library is the first implementation of the parser VM's pilot operations under
+// The generated Go library is the first implementation of the parser VM's operations under
 // conformance (design 065). The binding calls the library's own functions; where an operation is
 // inline code of a composition, it does what that code does: memo.store allocates an entry and
 // stores it with memoPut as the call does. A stream parse also provides the pruning of its memo.

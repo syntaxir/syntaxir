@@ -21,7 +21,7 @@ import (
 // frames that frame.close ends.
 
 // frameMachine binds the frame operations of the node or the typed library, and the rest through
-// the machine of the pilot operations.
+// the machine of the parse state.
 type frameMachine struct {
 	conform.Impl
 	p      *Parser

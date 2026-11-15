@@ -18,7 +18,7 @@ var noValue, noErrs = exec.Null(exec.THandle(ops.Value)), exec.Null(exec.THandle
 // memoizes too. The cases leave the rules that only a Document memoizes to the tests of the budget.
 var noDocOnly = exec.BoolC(false)
 
-// Cases returns the handwritten conformance cases of the pilot operations, in one module. Each case
+// Cases returns the handwritten conformance cases of the operations of the parse state, in one module. Each case
 // states the behavior it checks; the model checks it too, so a case that is wrong about the
 // contract fails on the model before it judges an implementation.
 func Cases() []Case {

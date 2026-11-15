@@ -4,8 +4,8 @@
 // (internal/ir/exec/conform) checks an implementation against a reference model
 // (internal/ir/exec/ref).
 //
-// The module holds the operations of the pilot set: the memo table, deferred memoization, the
-// budget and the nesting depth. Cost quantities are named by the constants Q…, which the reference
+// Parser returns the whole module; ParseState and the Add… functions build parts of it for the
+// conformance cases of one family. Cost quantities are named by the constants Q…, which the reference
 // models compute.
 package ops
 
@@ -115,8 +115,21 @@ const (
 	Rule = "Rule"
 )
 
-// Pilot returns the module of the pilot operations, without functions.
-func Pilot() *exec.Module {
+// Parser returns the module of every operation of the parser VM, without functions: the parse state
+// (ParseState), the call protocol (AddCallProtocol), the value primitives (AddValue) and the application
+// of terms (AddTermCode). The compositions of the parser VM are written over it.
+func Parser() *exec.Module {
+	m := ParseState()
+	AddCallProtocol(m)
+	AddValue(m)
+	AddTermCode(m)
+	return m
+}
+
+// ParseState returns the module of the state that the calls of a parse share, without functions: the memo table,
+// deferred memoization, the budget, the nesting depth, the variable environment and the recovered errors,
+// with the host and the rules they refer to.
+func ParseState() *exec.Module {
 	m := exec.NewModule("parser", Budget, Document, Observe, Missing, Stream, Typed)
 	m.AddComponent(Memo, `The memo table: results of rule calls by key. A key is a rule, a position,
 a binding level and the values of the rule's variables.`)

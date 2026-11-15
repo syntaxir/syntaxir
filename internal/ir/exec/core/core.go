@@ -43,8 +43,7 @@ const streamPruneWindow = 1024
 
 // Build returns the module of the operations and the compositions, verified.
 func Build() *Module {
-	m := ops.Pilot()
-	ops.AddBeyondPilot(m)
+	m := ops.Parser()
 	rule, value := THandle(ops.Rule), THandle(ops.Value)
 	result := []Type{value, TBool}
 	r := L("r")
@@ -689,7 +688,6 @@ code and not a stable API.`
 	addOperators(m)
 	addDocument(m)
 	addValue(m)
-	ops.AddTermCode(m)
 	addTerms(m)
 
 	if err := Verify(m); err != nil {
