@@ -191,60 +191,60 @@ the unit of the call comes before the nesting level, as in rule.invoke.`,
 position is unspecified. The evaluation does not count in the statistics of a Document parse, which
 the caller counts with doc.evaluated.`})
 
-	add(&exec.Op{Name: "exp.isolate", Component: Exp, Params: []exec.Param{exec.P("pos", exec.TInt)}, Results: []exec.Type{mark},
-		Writes:   []string{Exp},
+	m.AddOp(&exec.Op{Name: "exp.isolate", Component: Exp, Params: []exec.Param{exec.P("pos", exec.TInt)}, Results: []exec.Type{mark},
+		Reads: []string{Exp}, Writes: []string{Exp},
 		Contract: `Sets the record aside and starts an empty one at pos.`})
-	add(&exec.Op{Name: "exp.unisolate", Component: Exp, Params: []exec.Param{exec.P("m", mark)}, Results: []exec.Type{exec.TInt, set},
-		Writes: []string{Exp}, Requires: `m is the innermost isolation that has not ended.`,
+	m.AddOp(&exec.Op{Name: "exp.unisolate", Component: Exp, Params: []exec.Param{exec.P("m", mark)}, Results: []exec.Type{exec.TInt, set},
+		Reads: []string{Exp}, Writes: []string{Exp}, Requires: `m is the innermost isolation that has not ended.`,
 		Contract: `Ends the record that the isolation m started and restores the one set aside; returns the
 farthest position of the ended record and its expectations.`})
 
 	// The operations of recording one expectation.
 	expArg := []exec.Param{exec.P("id", expID)}
-	add(&exec.Op{Name: "exp.farthest", Component: Exp, Results: []exec.Type{exec.TInt}, Reads: []string{Exp},
+	m.AddOp(&exec.Op{Name: "exp.farthest", Component: Exp, Results: []exec.Type{exec.TInt}, Reads: []string{Exp},
 		Contract: `Returns the farthest position of the current record.`})
-	add(&exec.Op{Name: "exp.recording", Component: Exp, Results: []exec.Type{exec.TBool}, Reads: []string{Exp},
+	m.AddOp(&exec.Op{Name: "exp.recording", Component: Exp, Results: []exec.Type{exec.TBool}, Reads: []string{Exp},
 		Contract: `Reports whether the parse records expectations. A parse that does not keeps one placeholder
 entry in the record of a failure, which stands for the failure at the farthest position and is not an
 expectation.`})
-	add(&exec.Op{Name: "exp.reset", Component: Exp, Params: []exec.Param{exec.P("pos", exec.TInt)}, Writes: []string{Exp},
+	m.AddOp(&exec.Op{Name: "exp.reset", Component: Exp, Params: []exec.Param{exec.P("pos", exec.TInt)}, Writes: []string{Exp},
 		Contract: `Starts the current record anew at pos: the farthest position becomes pos and the entries are
 dropped.`})
-	add(&exec.Op{Name: "exp.fresh", Component: Exp, Results: []exec.Type{exec.TBool}, Reads: []string{Exp},
+	m.AddOp(&exec.Op{Name: "exp.fresh", Component: Exp, Results: []exec.Type{exec.TBool}, Reads: []string{Exp},
 		Contract: `Reports whether the current record has no entry.`})
-	add(&exec.Op{Name: "exp.placeholder", Component: Exp, Reads: []string{Exp}, Writes: []string{Exp},
+	m.AddOp(&exec.Op{Name: "exp.placeholder", Component: Exp, Reads: []string{Exp}, Writes: []string{Exp},
 		Contract: `Adds the placeholder entry to the current record.`})
-	add(&exec.Op{Name: "exp.maybe", Component: Exp, Params: expArg, Results: []exec.Type{exec.TBool}, Reads: []string{Exp},
+	m.AddOp(&exec.Op{Name: "exp.maybe", Component: Exp, Params: expArg, Results: []exec.Type{exec.TBool}, Reads: []string{Exp},
 		Requires: `id is an expectation, not the placeholder.`,
 		Contract: `Reports whether id may be in the current record: false means it is not; true means it may be.`})
-	add(&exec.Op{Name: "exp.count", Component: Exp, Results: []exec.Type{exec.TInt}, Reads: []string{Exp},
+	m.AddOp(&exec.Op{Name: "exp.count", Component: Exp, Results: []exec.Type{exec.TInt}, Reads: []string{Exp},
 		Contract: `Returns the number of entries of the current record.`})
-	add(&exec.Op{Name: "exp.at", Component: Exp, Params: []exec.Param{exec.P("i", exec.TInt)}, Results: []exec.Type{expID},
+	m.AddOp(&exec.Op{Name: "exp.at", Component: Exp, Params: []exec.Param{exec.P("i", exec.TInt)}, Results: []exec.Type{expID},
 		Reads: []string{Exp}, Requires: `0 <= i < exp.count.`,
 		Contract: `Returns entry i of the current record, in the order they were added.`})
-	add(&exec.Op{Name: "exp.add", Component: Exp, Params: expArg, Reads: []string{Exp}, Writes: []string{Exp},
+	m.AddOp(&exec.Op{Name: "exp.add", Component: Exp, Params: expArg, Reads: []string{Exp}, Writes: []string{Exp},
 		Contract: `Adds id to the current record, after its other entries.`})
-	add(&exec.Op{Name: "exp.setCount", Component: Exp, Params: []exec.Param{exec.P("s", set)}, Results: []exec.Type{exec.TInt},
+	m.AddOp(&exec.Op{Name: "exp.setCount", Component: Exp, Params: []exec.Param{exec.P("s", set)}, Results: []exec.Type{exec.TInt},
 		Contract: `Returns the number of expectations of s.`})
-	add(&exec.Op{Name: "exp.setAt", Component: Exp, Params: []exec.Param{exec.P("s", set), exec.P("i", exec.TInt)},
-		Results: []exec.Type{expID}, Requires: `0 <= i < exp.setCount(s); s is the set that exp.unisolate returned last, no
+	m.AddOp(&exec.Op{Name: "exp.setAt", Component: Exp, Params: []exec.Param{exec.P("s", set), exec.P("i", exec.TInt)},
+		Results: []exec.Type{expID}, Reads: []string{Exp}, Requires: `0 <= i < exp.setCount(s); s is the set that exp.unisolate returned last, no
 isolation began or ended since, and every entry written to the record since then was written at an
 index below n + i, where n is the number of entries of the record when exp.unisolate returned s.
 Merging s into the record entry by entry, reading each entry before the write that follows it, meets
 this.`,
 		Contract: `Returns expectation i of s, in the order they were recorded.`})
-	add(&exec.Op{Name: "exp.keptCount", Component: Exp, Params: []exec.Param{exec.P("k", kept)}, Results: []exec.Type{exec.TInt},
+	m.AddOp(&exec.Op{Name: "exp.keptCount", Component: Exp, Params: []exec.Param{exec.P("k", kept)}, Results: []exec.Type{exec.TInt},
 		Contract: `Returns the number of expectations of k.`})
-	add(&exec.Op{Name: "exp.keptAt", Component: Exp, Params: []exec.Param{exec.P("k", kept), exec.P("i", exec.TInt)},
+	m.AddOp(&exec.Op{Name: "exp.keptAt", Component: Exp, Params: []exec.Param{exec.P("k", kept), exec.P("i", exec.TInt)},
 		Results: []exec.Type{expID}, Requires: `0 <= i < exp.keptCount(k).`,
 		Contract: `Returns expectation i of k, in the order they were recorded.`})
 
 	// The operations of keeping a set beyond the record.
-	add(&exec.Op{Name: "exp.empty", Component: Exp, Results: []exec.Type{kept},
+	m.AddOp(&exec.Op{Name: "exp.empty", Component: Exp, Results: []exec.Type{kept},
 		Contract: `Returns the kept set with no expectations.`})
-	add(&exec.Op{Name: "exp.last", Component: Exp, Results: []exec.Type{kept}, Reads: []string{Exp},
+	m.AddOp(&exec.Op{Name: "exp.last", Component: Exp, Results: []exec.Type{kept}, Reads: []string{Exp},
 		Contract: `Returns the set that exp.copy made last in the parse, and the empty set before the first.`})
-	add(&exec.Op{Name: "exp.copy", Component: Exp, Params: []exec.Param{exec.P("s", set)}, Results: []exec.Type{kept},
+	m.AddOp(&exec.Op{Name: "exp.copy", Component: Exp, Params: []exec.Param{exec.P("s", set)}, Results: []exec.Type{kept},
 		Reads: []string{Exp}, Writes: []string{Exp}, NoReturn: true, Cost: exec.Cost{Terms: []exec.CostTerm{{Coef: 1, Quantity: QSet}}},
 		Requires: `s has at least one expectation, and exp.setAt may read each of them.`,
 		Contract: `Copies the expectations of s, in order, into a set that outlives the record, makes it the set

@@ -289,11 +289,12 @@ break each check, and the linearity tests of the growth shapes remain the checks
 position. Recording an expectation, keeping a set (which reuses the set kept last when it holds the same
 expectations) and merging a set at a position are compositions over the operations of the record. `isolate` and
 `unisolate` stay operations because what they save and restore is the layout of the record, which differs by
-target. The operations of the record are declared transitional; their observable contract is the farthest
-position and the exact order of the set, which error messages expose. A reference model states it, with
-conformance cases (handwritten, randomized and a negative control of broken models) that run on the engine
+target. The observable contract of the record is the farthest position and the exact order of the set,
+which error messages expose. A reference model states it, and the operations of the record are under
+conformance: handwritten and randomized cases and a negative control of broken models run on the engine
 and the generated Go runtime through bindings that each target's printer prints from the operations, so
-that the suite runs the code the compositions run. A set that `unisolate` returns may stay where the record
+that the suite runs the code the compositions run. TypeScript implements the same operations and stays on
+its parity tests, as [Completion](#completion) records. A set that `unisolate` returns may stay where the record
 grows next, so the model allows reading an entry of it only until a write reaches that entry's place, which
 merging the set entry by entry respects. *Target*: membership filters, stack layout, where kept sets live
 and how their memory is accounted.

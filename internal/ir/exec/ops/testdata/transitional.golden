@@ -654,15 +654,17 @@ transitional op rule.run(inv Body) (Value, bool)
     // position is unspecified. The evaluation does not count in the statistics of a Document parse, which
     // the caller counts with doc.evaluated.
 
-transitional op exp.isolate(pos int) ExpMark
+op exp.isolate(pos int) ExpMark
   component expected
+  reads expected
   writes expected
   cost <= 0
   contract:
     // Sets the record aside and starts an empty one at pos.
 
-transitional op exp.unisolate(m ExpMark) (int, ExpSet)
+op exp.unisolate(m ExpMark) (int, ExpSet)
   component expected
+  reads expected
   writes expected
   cost <= 0
   contract:
@@ -671,14 +673,14 @@ transitional op exp.unisolate(m ExpMark) (int, ExpSet)
   requires:
     // m is the innermost isolation that has not ended.
 
-transitional op exp.farthest() int
+op exp.farthest() int
   component expected
   reads expected
   cost <= 0
   contract:
     // Returns the farthest position of the current record.
 
-transitional op exp.recording() bool
+op exp.recording() bool
   component expected
   reads expected
   cost <= 0
@@ -687,7 +689,7 @@ transitional op exp.recording() bool
     // entry in the record of a failure, which stands for the failure at the farthest position and is not an
     // expectation.
 
-transitional op exp.reset(pos int)
+op exp.reset(pos int)
   component expected
   writes expected
   cost <= 0
@@ -695,14 +697,14 @@ transitional op exp.reset(pos int)
     // Starts the current record anew at pos: the farthest position becomes pos and the entries are
     // dropped.
 
-transitional op exp.fresh() bool
+op exp.fresh() bool
   component expected
   reads expected
   cost <= 0
   contract:
     // Reports whether the current record has no entry.
 
-transitional op exp.placeholder()
+op exp.placeholder()
   component expected
   reads expected
   writes expected
@@ -710,7 +712,7 @@ transitional op exp.placeholder()
   contract:
     // Adds the placeholder entry to the current record.
 
-transitional op exp.maybe(id ExpID) bool
+op exp.maybe(id ExpID) bool
   component expected
   reads expected
   cost <= 0
@@ -719,14 +721,14 @@ transitional op exp.maybe(id ExpID) bool
   requires:
     // id is an expectation, not the placeholder.
 
-transitional op exp.count() int
+op exp.count() int
   component expected
   reads expected
   cost <= 0
   contract:
     // Returns the number of entries of the current record.
 
-transitional op exp.at(i int) ExpID
+op exp.at(i int) ExpID
   component expected
   reads expected
   cost <= 0
@@ -735,7 +737,7 @@ transitional op exp.at(i int) ExpID
   requires:
     // 0 <= i < exp.count.
 
-transitional op exp.add(id ExpID)
+op exp.add(id ExpID)
   component expected
   reads expected
   writes expected
@@ -743,14 +745,15 @@ transitional op exp.add(id ExpID)
   contract:
     // Adds id to the current record, after its other entries.
 
-transitional op exp.setCount(s ExpSet) int
+op exp.setCount(s ExpSet) int
   component expected
   cost <= 0
   contract:
     // Returns the number of expectations of s.
 
-transitional op exp.setAt(s ExpSet, i int) ExpID
+op exp.setAt(s ExpSet, i int) ExpID
   component expected
+  reads expected
   cost <= 0
   contract:
     // Returns expectation i of s, in the order they were recorded.
@@ -761,13 +764,13 @@ transitional op exp.setAt(s ExpSet, i int) ExpID
     // Merging s into the record entry by entry, reading each entry before the write that follows it, meets
     // this.
 
-transitional op exp.keptCount(k ExpKept) int
+op exp.keptCount(k ExpKept) int
   component expected
   cost <= 0
   contract:
     // Returns the number of expectations of k.
 
-transitional op exp.keptAt(k ExpKept, i int) ExpID
+op exp.keptAt(k ExpKept, i int) ExpID
   component expected
   cost <= 0
   contract:
@@ -775,20 +778,20 @@ transitional op exp.keptAt(k ExpKept, i int) ExpID
   requires:
     // 0 <= i < exp.keptCount(k).
 
-transitional op exp.empty() ExpKept
+op exp.empty() ExpKept
   component expected
   cost <= 0
   contract:
     // Returns the kept set with no expectations.
 
-transitional op exp.last() ExpKept
+op exp.last() ExpKept
   component expected
   reads expected
   cost <= 0
   contract:
     // Returns the set that exp.copy made last in the parse, and the empty set before the first.
 
-transitional op exp.copy(s ExpSet) ExpKept
+op exp.copy(s ExpSet) ExpKept
   component expected
   reads expected
   writes expected

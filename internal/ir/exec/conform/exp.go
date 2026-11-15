@@ -38,8 +38,8 @@ var ExpOps = []string{
 // RecordOps are the operations of the expectation record alone, which randomized cases draw from.
 var RecordOps = ExpOps[:18]
 
-// ExpModule returns the declarations of Module with those of the transitional operations, which
-// hold the expectation record, and ExpOp and PlaceholderOp.
+// ExpModule returns the declarations of Module with those of ops.Transitional, which declares the
+// operations of the expectation record, and ExpOp and PlaceholderOp.
 func ExpModule() *exec.Module {
 	m := Module()
 	ops.Transitional(m)
