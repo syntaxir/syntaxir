@@ -77,9 +77,10 @@ their position. On the calls that both make, every field of their events is
 equal. The same holds for their profiles once the counts of those calls are
 taken out. Document parses after an edit are the exception: the engine MAY
 resume repetitions and reuse failed results of the previous parse, so the
-producers report different calls. The calls that both make with the same rule,
-position, level, depth, end and outcome pair in the order they are made, and
-paired calls have the same `Examined`. A producer can make such a call more
+producers report different calls. Of the calls with the same rule, position,
+level, depth, end and outcome, if both producers make any, both make the same
+number; they pair one to one in the order they are made, and paired calls have
+the same `Examined`. A producer can make such a call more
 than once with different `Examined`, within the growth of a left-recursive
 seed: `Examined` depends on the seed that the call reuses, which those fields
 leave out.

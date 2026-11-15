@@ -478,8 +478,9 @@ func engineObservation(t *testing.T, prog *engine.Program, r agreeReport, in str
 // sameCallExamined is the relation between the events of two producers of a Document parse after an
 // edit that the section "Reported Calls" of the specification of tracing and profiling defines: the
 // engine may resume repetitions and reuse failed results, so the producers report different calls, but
-// the calls that both make with the same rule, position, level, depth, end and outcome pair in the
-// order they are made, and paired calls have the same Examined. A producer can make such a call more
+// of the calls with the same rule, position, level, depth, end and outcome, if both make any, both make
+// the same number, they pair one to one in the order they are made, and paired calls have the same
+// Examined. A producer can make such a call more
 // than once with different examined ends, within the growth of a left-recursive seed, because Examined
 // depends on the seed, which those fields leave out. It returns the number of exits compared and the
 // differences.
