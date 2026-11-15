@@ -497,7 +497,7 @@ func DocumentParseConverted[T any](d *documentState, o parseOptions, convert fun
 	p := &Parser{unit: d.unit, MaxDepth: o.maxDepth, Control: o.control}
 	p.setGrammar(d.root.g)
 	p.Expectations = o.expectations
-	p.Observation = newObservation(&o.observe)
+	p.Observation = newObservation(&o.observe, &p.Silent)
 	defer p.releaseObservation()
 	if d.unit == core.Bytes {
 		p.bs, p.n = d.text, len(d.text)

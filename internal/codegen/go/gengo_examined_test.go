@@ -67,9 +67,9 @@ func main() {
 		for j, in := range inputs[i] {
 			for _, unit := range []core.PositionUnit{core.CodePoints, core.Bytes} {
 				for _, e := range entries[i] {
-					var exits []zprt.TraceEvent
-					err := e.run(string(in), zprt.WithUnit(unit), zprt.WithTrace(func(ev zprt.TraceEvent) {
-						if ev.Kind == zprt.TraceExit {
+					var exits []core.TraceEvent
+					err := e.run(string(in), zprt.WithUnit(unit), zprt.WithTrace(func(ev core.TraceEvent) {
+						if ev.Kind == core.TraceExit {
 							exits = append(exits, ev)
 						}
 					}))
@@ -77,7 +77,7 @@ func main() {
 						Case, Input int
 						Bytes       bool
 						Entry       string
-						Exits       []zprt.TraceEvent
+						Exits       []core.TraceEvent
 						Err         string
 					}{i, j, unit == core.Bytes, e.name, exits, fmt.Sprint(err)})
 					fmt.Println(string(b))
@@ -101,7 +101,7 @@ type examinedReport struct {
 type examinedExit struct {
 	Rule                      string
 	Level, Pos, End, Examined int
-	Matched, ExaminedKnown    bool
+	Matched                   bool
 }
 
 // examinedKey identifies the calls that a reference and a generated parse both make: a call of the same
@@ -237,10 +237,6 @@ func examinedDiffs(got, ref []examinedExit, skip string) (compared int, diffs []
 		if x.Rule == skip {
 			continue
 		}
-		if !x.ExaminedKnown {
-			diffs = append(diffs, fmt.Sprintf("the exit of %s@%d has no examined end", x.Rule, x.Pos))
-			continue
-		}
 		want := ends[examinedKey{x.Rule, x.Level, x.Pos, x.End, x.Matched}]
 		if want == nil {
 			continue
@@ -289,7 +285,7 @@ func examinedMismatches(t *testing.T, cases []codegentest.Case, reports []examin
 			}
 			o.Trace = func(e engine.TraceEvent) {
 				if e.Kind == engine.TraceExit {
-					ref = append(ref, examinedExit{e.Rule, e.Level, e.Pos, e.End, e.Examined, e.Matched, true})
+					ref = append(ref, examinedExit{e.Rule, e.Level, e.Pos, e.End, e.Examined, e.Matched})
 				}
 			}
 			prog.ParseWith("main", in, o)

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"zeroparse.dev/zp/core"
 	"zeroparse.dev/zp/internal/ir/exec"
 	"zeroparse.dev/zp/internal/ir/exec/conform"
 	"zeroparse.dev/zp/internal/ir/exec/ref"
@@ -28,17 +29,17 @@ func newObsMachine(cfg ref.Config) conform.Impl {
 		r.Name = ref.RuleName(int64(i))
 	}
 	if cfg.Observed {
-		m.p.Observation = &observation{trace: m.deliver}
+		m.p.Observation = &observation{trace: m.deliver, silent: &m.p.Silent}
 	}
 	return m
 }
 
 // deliver records an event of the trace as the model lists it.
-func (m *obsMachine) deliver(e TraceEvent) {
+func (m *obsMachine) deliver(e core.TraceEvent) {
 	switch e.Kind {
-	case TraceEnter:
+	case core.TraceEnter:
 		m.events = append(m.events, fmt.Sprintf("enter %s pos=%d level=%d depth=%d", e.Rule, e.Pos, e.Level, e.Depth))
-	case TraceExit:
+	case core.TraceExit:
 		m.events = append(m.events, fmt.Sprintf("exit %s matched=%v end=%d examined=%d memo=%v depth=%d",
 			e.Rule, e.Matched, e.End, e.Examined, e.Memo, e.Depth))
 	}

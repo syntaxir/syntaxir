@@ -1,0 +1,253 @@
+{
+  "events": [
+    {
+      "kind": "enter",
+      "rule": "s",
+      "level": 0,
+      "depth": 1,
+      "pos": 0,
+      "lookahead": false,
+      "matched": false,
+      "end": 0,
+      "memo": false,
+      "evals": 0,
+      "reusedElements": 0,
+      "examined": 0,
+      "skipReason": ""
+    },
+    {
+      "kind": "skipped",
+      "rule": "b",
+      "level": 0,
+      "depth": 2,
+      "pos": 0,
+      "lookahead": false,
+      "matched": false,
+      "end": 0,
+      "memo": false,
+      "evals": 0,
+      "reusedElements": 0,
+      "examined": 0,
+      "skipReason": "first-character"
+    },
+    {
+      "kind": "enter",
+      "rule": "a",
+      "level": 2,
+      "depth": 2,
+      "pos": 0,
+      "lookahead": true,
+      "matched": false,
+      "end": 0,
+      "memo": false,
+      "evals": 0,
+      "reusedElements": 0,
+      "examined": 0,
+      "skipReason": ""
+    },
+    {
+      "kind": "exit",
+      "rule": "a",
+      "level": 2,
+      "depth": 2,
+      "pos": 0,
+      "lookahead": true,
+      "matched": false,
+      "end": 0,
+      "memo": false,
+      "evals": 1,
+      "reusedElements": 0,
+      "examined": 3,
+      "skipReason": ""
+    },
+    {
+      "kind": "enter",
+      "rule": "a",
+      "level": 0,
+      "depth": 2,
+      "pos": 0,
+      "lookahead": false,
+      "matched": false,
+      "end": 0,
+      "memo": false,
+      "evals": 0,
+      "reusedElements": 0,
+      "examined": 0,
+      "skipReason": ""
+    },
+    {
+      "kind": "exit",
+      "rule": "a",
+      "level": 0,
+      "depth": 2,
+      "pos": 0,
+      "lookahead": false,
+      "matched": true,
+      "end": 2,
+      "memo": false,
+      "evals": 1,
+      "reusedElements": 0,
+      "examined": 2,
+      "skipReason": ""
+    },
+    {
+      "kind": "enter",
+      "rule": "a",
+      "level": 0,
+      "depth": 2,
+      "pos": 2,
+      "lookahead": false,
+      "matched": false,
+      "end": 0,
+      "memo": false,
+      "evals": 0,
+      "reusedElements": 0,
+      "examined": 0,
+      "skipReason": ""
+    },
+    {
+      "kind": "exit",
+      "rule": "a",
+      "level": 0,
+      "depth": 2,
+      "pos": 2,
+      "lookahead": false,
+      "matched": false,
+      "end": 2,
+      "memo": true,
+      "evals": 0,
+      "reusedElements": 0,
+      "examined": 3,
+      "skipReason": ""
+    },
+    {
+      "kind": "exit",
+      "rule": "s",
+      "level": 0,
+      "depth": 1,
+      "pos": 0,
+      "lookahead": false,
+      "matched": true,
+      "end": 2,
+      "memo": false,
+      "evals": 1,
+      "reusedElements": 4,
+      "examined": 3,
+      "skipReason": ""
+    }
+  ],
+  "snapshot": {
+    "parses": 1,
+    "entered": 4,
+    "calls": 4,
+    "evals": 3,
+    "memoHits": 1,
+    "skipped": 1,
+    "reusedElements": 4,
+    "examined": 3,
+    "time": 0,
+    "rules": [
+      {
+        "rule": "a",
+        "entered": 3,
+        "calls": 3,
+        "memoHits": 1,
+        "matched": 1,
+        "failed": 2,
+        "evals": 2,
+        "reusedElements": 0,
+        "consumed": 2,
+        "skipped": 0,
+        "skipReasons": [],
+        "examined": 6,
+        "wasted": 3,
+        "longestFail": 3,
+        "longestFailAt": {
+          "pos": 0,
+          "line": 0,
+          "col": 0,
+          "level": 2
+        },
+        "repeats": 0,
+        "maxEvals": 1,
+        "maxEvalsAt": {
+          "pos": 0,
+          "line": 0,
+          "col": 0,
+          "level": 2
+        },
+        "time": 0,
+        "selfTime": 0
+      },
+      {
+        "rule": "b",
+        "entered": 0,
+        "calls": 0,
+        "memoHits": 0,
+        "matched": 0,
+        "failed": 0,
+        "evals": 0,
+        "reusedElements": 0,
+        "consumed": 0,
+        "skipped": 1,
+        "skipReasons": [
+          {
+            "reason": "first-character",
+            "count": 1
+          }
+        ],
+        "examined": 0,
+        "wasted": 0,
+        "longestFail": 0,
+        "longestFailAt": {
+          "pos": 0,
+          "line": 0,
+          "col": 0,
+          "level": 0
+        },
+        "repeats": 0,
+        "maxEvals": 0,
+        "maxEvalsAt": {
+          "pos": 0,
+          "line": 0,
+          "col": 0,
+          "level": 0
+        },
+        "time": 0,
+        "selfTime": 0
+      },
+      {
+        "rule": "s",
+        "entered": 1,
+        "calls": 1,
+        "memoHits": 0,
+        "matched": 1,
+        "failed": 0,
+        "evals": 1,
+        "reusedElements": 4,
+        "consumed": 2,
+        "skipped": 0,
+        "skipReasons": [],
+        "examined": 3,
+        "wasted": 0,
+        "longestFail": 0,
+        "longestFailAt": {
+          "pos": 0,
+          "line": 0,
+          "col": 0,
+          "level": 0
+        },
+        "repeats": 0,
+        "maxEvals": 1,
+        "maxEvalsAt": {
+          "pos": 0,
+          "line": 0,
+          "col": 0,
+          "level": 0
+        },
+        "time": 0,
+        "selfTime": 0
+      }
+    ]
+  }
+}

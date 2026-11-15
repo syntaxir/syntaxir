@@ -39,7 +39,7 @@ func TestGeneratedGoProfile(t *testing.T) {
 		{"operators", "rule main = level(expr, product) \"+\" expr\nrule num = [0-9]+\nrule expr = #operators {operand num;level sum {infix left \"+\"};level product {infix left \"*\"}}", "1+2*3", ``},
 		{"recover", "rule main = (first / second) #recover(skip=\"!\")\nrule first = \"a\"\nrule second = \"b\"", "!", `if s.Skipped!=2{t.Fatal(s)}`},
 		{"unicode", "type N = { Text string }\nrule main N = t:(part part) #atomic => N{Text: text($t)}\nrule part = \"é\"", "éé", `for _,r:=range s.Rules{if r.Rule=="main"{n:=2;if unit==Bytes{n=4};if r.Consumed!=n{t.Fatal(r)}}}`},
-		{"collision", "type Profile = { Text string }\ntype ProfileSnapshot = { Text string }\ntype RuleProfile = { Text string }\ntype ProfileLocation = { Text string }\ntype SkipReasonCount = { Text string }\ntype WithProfile = { Text string }\nrule main Profile = t:(part) #atomic => Profile{Text: text($t)}\nrule part WithProfile = t:(\"a\") #atomic => WithProfile{Text: text($t)}", "a", ``},
+		{"collision", "type Profile = { Text string }\ntype ProfileSnapshot = { Text string }\ntype RuleProfile = { Text string }\ntype Location = { Text string }\ntype CallSite = { Text string }\ntype SkipReason = { Text string }\ntype SkipReasonCount = { Text string }\ntype WithProfile = { Text string }\nrule main Profile = t:(part) #atomic => Profile{Text: text($t)}\nrule part WithProfile = t:(\"a\") #atomic => WithProfile{Text: text($t)}", "a", ``},
 	} {
 		if !codegentest.Sampled(f.name) {
 			continue
@@ -71,13 +71,14 @@ func TestGeneratedGoProfile(t *testing.T) {
 const generatedProfileConsumer = `package PACKAGE
 
 import zprt "zeroparse.dev/zp/codegen/go/lib"
+import zpcore "zeroparse.dev/zp/core"
 import("context";"encoding/json";"fmt";"reflect";"sync";"testing";"time")
 func TestProfile(t *testing.T){
  operations:=[]func(...ParseOption)(any,error){func(opts ...ParseOption)(any,error){return Parse(INPUT,opts...)},func(opts ...ParseOption)(any,error){return ParseRule("main",INPUT,opts...)},func(opts ...ParseOption)(any,error){return nil,Recognize(INPUT,opts...)}}
  TYPED
  for _,unit:=range []PositionUnit{CodePoints,Bytes}{for op,parse:=range operations{
-  var pr zprt.Profile;var events []zprt.TraceEvent
-  got,err:=parse(WithUnit(unit),zprt.WithProfile(&pr),zprt.WithTrace(func(e zprt.TraceEvent){events=append(events,e)}));expected,base:=parse(WithUnit(unit));if !reflect.DeepEqual(got,expected){t.Fatal("profile changed value")}
+  var pr zpcore.Profile;var events []zpcore.TraceEvent
+  got,err:=parse(WithUnit(unit),zprt.WithProfile(&pr),zprt.WithTrace(func(e zpcore.TraceEvent){events=append(events,e)}));expected,base:=parse(WithUnit(unit));if !reflect.DeepEqual(got,expected){t.Fatal("profile changed value")}
   if fmt.Sprint(err)!=fmt.Sprint(base){t.Fatal("error changed",err,base)}
   s:=pr.Snapshot();checkProfile(t,s,events)
   if op<2{CHECKS}
@@ -85,20 +86,20 @@ func TestProfile(t *testing.T){
   bytes1,_:=json.Marshal(s);bytes2,_:=json.Marshal(pr.Snapshot());if string(bytes1)!=string(bytes2){t.Fatal("unstable snapshot")}
   if len(s.Rules)>0{s.Rules[0].Rule="mutated";if len(s.Rules[0].SkipReasons)>0{s.Rules[0].SkipReasons[0].Count=999}}
   if b,_:=json.Marshal(pr.Snapshot());string(b)!=string(bytes1){t.Fatal("snapshot aliases sink")}
-  before:=pr.Snapshot();parse(WithUnit(unit),zprt.WithProfile(&pr),zprt.WithTrace(func(zprt.TraceEvent){t.Fatal("filtered event")}),zprt.WithTraceFilter("absent"),zprt.WithTraceMaxDepth(1));after:=pr.Snapshot()
+  before:=pr.Snapshot();parse(WithUnit(unit),zprt.WithProfile(&pr),zprt.WithTrace(func(zpcore.TraceEvent){t.Fatal("filtered event")}),zprt.WithTraceFilter("absent"),zprt.WithTraceMaxDepth(1));after:=pr.Snapshot()
   if after.Parses!=2||after.Calls!=2*before.Calls||after.Evals!=2*before.Evals||after.Skipped!=2*before.Skipped{t.Fatal("filter affected profile",before,after)}
   for i,r:=range after.Rules{if r.Repeats!=2*before.Rules[i].Repeats||r.MaxEvals!=before.Rules[i].MaxEvals{t.Fatal("history crossed invocation",r,before.Rules[i])}}
   saved:=pr.Snapshot();parse(zprt.WithProfile(nil));if !reflect.DeepEqual(saved,pr.Snapshot()){t.Fatal("sink retained")}
-  var reentrant zprt.Profile;once:=false;parse(zprt.WithProfile(&reentrant),zprt.WithTrace(func(zprt.TraceEvent){if !once{once=true;parse(zprt.WithProfile(&reentrant))}}));re:=reentrant.Snapshot();if re.Parses!=2||re.Calls!=2*before.Calls{t.Fatal("reentrant state",re,before)}
-  var aborted zprt.Profile;marker:=new(int);func(){defer func(){if recover()!=marker{t.Fatal("panic identity")}}();parse(zprt.WithProfile(&aborted),zprt.WithTrace(func(zprt.TraceEvent){panic(marker)}));t.Fatal("missing panic")}();a:=aborted.Snapshot();if a.Parses!=1||a.Entered!=1||a.Calls!=0||a.Evals!=0||a.Time!=0{t.Fatal("fabricated completion",a)}
+  var reentrant zpcore.Profile;once:=false;parse(zprt.WithProfile(&reentrant),zprt.WithTrace(func(zpcore.TraceEvent){if !once{once=true;parse(zprt.WithProfile(&reentrant))}}));re:=reentrant.Snapshot();if re.Parses!=2||re.Calls!=2*before.Calls{t.Fatal("reentrant state",re,before)}
+  var aborted zpcore.Profile;marker:=new(int);func(){defer func(){if recover()!=marker{t.Fatal("panic identity")}}();parse(zprt.WithProfile(&aborted),zprt.WithTrace(func(zpcore.TraceEvent){panic(marker)}));t.Fatal("missing panic")}();a:=aborted.Snapshot();if a.Parses!=1||a.Entered!=1||a.Calls!=0||a.Evals!=0||a.Time!=0{t.Fatal("fabricated completion",a)}
   parse(zprt.WithProfile(&aborted));a=aborted.Snapshot();if a.Parses!=2||a.Calls!=before.Calls||a.Entered!=before.Entered+1{t.Fatal("abort poisoned next parse",a)}
-  var exitPanic zprt.Profile;func(){defer func(){if recover()!=marker{t.Fatal("exit panic identity")}}();parse(zprt.WithProfile(&exitPanic),zprt.WithTrace(func(e zprt.TraceEvent){if e.Kind==zprt.TraceExit{panic(marker)}}));t.Fatal("missing exit panic")}();if x:=exitPanic.Snapshot();x.Calls!=1{t.Fatal("exit panic lost completed call",x)}
-  if PLAIN&&op==0{var timed zprt.Profile;var delay time.Duration;parse(zprt.WithProfile(&timed),zprt.WithTrace(func(e zprt.TraceEvent){if e.Rule=="part"&&e.Kind==zprt.TraceExit{start:=time.Now();time.Sleep(time.Millisecond);delay+=time.Since(start)}}));for _,r:=range timed.Snapshot().Rules{if r.Rule=="part"&&r.Time<delay{t.Fatal("child exit callback attributed outside child",r.Time,delay)}}}
-  ctx,cancel:=context.WithCancel(context.Background());cancel();var canceled zprt.Profile;parse(zprt.WithProfile(&canceled),WithContext(ctx));if canceled.Snapshot().Entered!=0{t.Fatal("canceled call entered")}
-  var wg sync.WaitGroup;for range 4{wg.Go(func(){var p zprt.Profile;parse(zprt.WithProfile(&p));if p.Snapshot().Parses!=1{t.Error("concurrent isolation")}})};wg.Wait()
+  var exitPanic zpcore.Profile;func(){defer func(){if recover()!=marker{t.Fatal("exit panic identity")}}();parse(zprt.WithProfile(&exitPanic),zprt.WithTrace(func(e zpcore.TraceEvent){if e.Kind==zpcore.TraceExit{panic(marker)}}));t.Fatal("missing exit panic")}();if x:=exitPanic.Snapshot();x.Calls!=1{t.Fatal("exit panic lost completed call",x)}
+  if PLAIN&&op==0{var timed zpcore.Profile;parse(zprt.WithProfile(&timed),zprt.WithTrace(func(e zpcore.TraceEvent){if e.Rule=="part"{time.Sleep(time.Millisecond)}}));ts:=timed.Snapshot();if ts.Time>=3*time.Millisecond{t.Fatal("trace function time counted",ts.Time)};for _,r:=range ts.Rules{if r.Time>=3*time.Millisecond||r.SelfTime>=3*time.Millisecond{t.Fatal("trace function time counted in a rule",r)}}}
+  ctx,cancel:=context.WithCancel(context.Background());cancel();var canceled zpcore.Profile;parse(zprt.WithProfile(&canceled),WithContext(ctx));if canceled.Snapshot().Entered!=0{t.Fatal("canceled call entered")}
+  var wg sync.WaitGroup;for range 4{wg.Go(func(){var p zpcore.Profile;parse(zprt.WithProfile(&p));if p.Snapshot().Parses!=1{t.Error("concurrent isolation")}})};wg.Wait()
  }}
- var rejected zprt.Profile;_,rejectedError:=Parse("\x00",zprt.WithProfile(&rejected));if rejectedError==nil{t.Fatal("invalid input accepted")};failedRoot:=false;for _,r:=range rejected.Snapshot().Rules{if r.Rule=="main"&&r.Failed==1{failedRoot=true}};if !failedRoot{t.Fatal("failed root unrecorded",rejected.Snapshot())}
- var nilProfile *zprt.Profile;if len(nilProfile.Snapshot().Rules)!=0{t.Fatal("nil snapshot")}
+ var rejected zpcore.Profile;_,rejectedError:=Parse("\x00",zprt.WithProfile(&rejected));if rejectedError==nil{t.Fatal("invalid input accepted")};failedRoot:=false;for _,r:=range rejected.Snapshot().Rules{if r.Rule=="main"&&r.Failed==1{failedRoot=true}};if !failedRoot{t.Fatal("failed root unrecorded",rejected.Snapshot())}
+ var nilProfile *zpcore.Profile;if len(nilProfile.Snapshot().Rules)!=0{t.Fatal("nil snapshot")}
 }
 ` + generatedProfileCheck
 
@@ -107,7 +108,9 @@ func checkProfile(t *testing.T,s ProfileSnapshot,events []TraceEvent){
  t.Helper();entered,calls,evals,memo,skips:=0,0,0,0,0
  rows:=map[string][]TraceEvent{};for _,e:=range events{rows[e.Rule]=append(rows[e.Rule],e);switch e.Kind{case TraceEnter:entered++;case TraceExit:calls++;evals+=e.Evals;if e.Memo{memo++};case TraceSkipped:skips++}}
  if s.Entered!=entered||s.Calls!=calls||s.Evals!=evals||s.MemoHits!=memo||s.Skipped!=skips{t.Fatal("event totals",s,events)}
+ rootExamined:=0;for _,e:=range events{if e.ReusedElements!=0{t.Fatal("generated parsers resume no repetitions",e)};if e.Kind==TraceExit&&e.Depth==1{rootExamined+=e.Examined-e.Pos}};if s.Examined!=rootExamined||s.ReusedElements!=0{t.Fatal("root totals",s,rootExamined)}
+ if len(s.Hints())==0&&s.Calls>0{t.Fatal("no hints",s)}
  if len(s.Rules)!=len(rows){t.Fatal("row count",s)}
- for i,r:=range s.Rules{if i>0&&s.Rules[i-1].Rule>=r.Rule{t.Fatal("ordering",s)};n,m,f,c,ev,mm,sk:=0,0,0,0,0,0,0;for _,e:=range rows[r.Rule]{switch e.Kind{case TraceEnter:n++;case TraceSkipped:sk++;case TraceExit:c++;ev+=e.Evals;if e.Memo{mm++};if e.Matched{m++;f+=e.End-e.Pos}}};if r.Entered!=n||r.Calls!=c||r.Matched!=m||r.Failed!=c-m||r.Consumed!=f||r.Evals!=ev||r.MemoHits!=mm||r.Skipped!=sk{t.Fatal("row counters",r,rows[r.Rule])};x,w,known:=0,0,c>0;for _,e:=range rows[r.Rule]{if e.Kind!=TraceExit{continue};if !e.ExaminedKnown{t.Fatal("exit without examined end",e)};if e.Examined<e.Pos||e.Matched&&e.Examined<e.End{t.Fatal("examined end before the call or its match",e)};x+=e.Examined-e.Pos;if !e.Matched&&!e.Memo{w+=e.Examined-e.Pos}};if !known{x,w=0,0};if r.ExaminedKnown!=known||r.WastedKnown!=known||r.Examined!=x||r.Wasted!=w{t.Fatal("examined range",r,known,x,w)};if r.Time<0||r.SelfTime<0||r.Time<r.SelfTime{t.Fatal("time accounting",r)}}
+ for i,r:=range s.Rules{if i>0&&s.Rules[i-1].Rule>=r.Rule{t.Fatal("ordering",s)};n,m,f,c,ev,mm,sk:=0,0,0,0,0,0,0;for _,e:=range rows[r.Rule]{switch e.Kind{case TraceEnter:n++;case TraceSkipped:sk++;case TraceExit:c++;ev+=e.Evals;if e.Memo{mm++};if e.Matched{m++;f+=e.End-e.Pos}}};if r.Entered!=n||r.Calls!=c||r.Matched!=m||r.Failed!=c-m||r.Consumed!=f||r.Evals!=ev||r.MemoHits!=mm||r.Skipped!=sk{t.Fatal("row counters",r,rows[r.Rule])};x,w:=0,0;for _,e:=range rows[r.Rule]{if e.Kind!=TraceExit{continue};if e.Examined<e.Pos||e.Matched&&e.Examined<e.End{t.Fatal("examined end before the call or its match",e)};x+=e.Examined-e.Pos;if !e.Matched&&!e.Memo{w+=e.Examined-e.Pos}};if r.Examined!=x||r.Wasted!=w{t.Fatal("examined range",r,x,w)};if r.Time<0||r.SelfTime<0||r.Time<r.SelfTime{t.Fatal("time accounting",r)}}
 }
 `

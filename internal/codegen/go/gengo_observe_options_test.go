@@ -53,13 +53,14 @@ import (
 	"testing"
 
 	zprt "zeroparse.dev/zp/codegen/go/lib"
+	zpcore "zeroparse.dev/zp/core"
 )
 
 func TestTraceOptions(t *testing.T) {
 	observed := `+want+`
 	var events int
-	var profile zprt.Profile
-	trace := func(zprt.TraceEvent) { events++ }
+	var profile zpcore.Profile
+	trace := func(zpcore.TraceEvent) { events++ }
 	for name, opts := range map[string][]ParseOption{
 		"trace":       {zprt.WithTrace(trace)},
 		"profile":     {zprt.WithProfile(&profile)},

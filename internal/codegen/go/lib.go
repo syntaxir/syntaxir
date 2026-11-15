@@ -489,8 +489,9 @@ func apiNames(opts codegen.GenOptions) []string {
 		names = append(names, "WithContext")
 	}
 	if opts.Observability {
-		names = append(names, "TraceKind", "TraceEnter", "TraceExit", "TraceSkipped", "TraceEvent", "WithTrace", "WithTraceFilter", "WithTraceMaxDepth",
-			"WithProfile", "Profile", "ProfileSnapshot", "RuleProfile", "ProfileLocation", "SkipReasonCount")
+		names = append(names, "TraceKind", "TraceEnter", "TraceExit", "TraceSkipped", "TraceEvent", "SkipReason", "SkipFirstCharacter",
+			"WithTrace", "WithTraceFilter", "WithTraceMaxDepth",
+			"WithProfile", "Profile", "ProfileSnapshot", "RuleProfile", "Location", "CallSite", "SkipReasonCount")
 	}
 	if opts.Stream {
 		names = append(names, "StreamIterator", "ErrStreamClosed", "WithDiagnosticCallback", "WithDiagnosticLimit", "TruncatedSyntaxErrors")

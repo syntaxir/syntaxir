@@ -83,7 +83,7 @@ func TypedDocumentParse[T any](d *Document, root *TRule, o parseOptions, a budge
 		o.control.attachTypedMemory(p, a)
 		o.control.mem = cache.retainedBytes()
 	}
-	p.Observation = newObservation(&o.observe)
+	p.Observation = newObservation(&o.observe, &p.Silent)
 	defer p.releaseObservation()
 	// Do not recycle p: memo values and expectations may refer into its arenas.
 	a.SetBudgetControl(o.control)

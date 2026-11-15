@@ -707,7 +707,7 @@ func parseResolvedSpend(r *Rule, input string, o parseOptions) (n *core.Node, er
 	p.Expectations = o.expectations
 	p.Control = o.control
 	o.control.attachMemory(p)
-	p.Observation = newObservation(&o.observe)
+	p.Observation = newObservation(&o.observe, &p.Silent)
 	p.setTracking()
 	p.MaxDepth = o.maxDepth
 	if o.unit == core.Bytes {

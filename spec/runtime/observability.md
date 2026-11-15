@@ -31,7 +31,7 @@ A `TraceEvent` has the following fields.
 | `Level` | The binding level the rule was called with, or 0 for a call without a level |
 | `Depth` | The nesting depth of the call; the start rule has depth 1 |
 | `Pos` | The position at which the call starts, in the position unit |
-| `Lookahead` | True if the call is inside a lookahead, where failures record no expectations |
+| `Lookahead` | True if the call is made where failures record no expectations: inside a lookahead, or inside the `skip` expression of an Operators Rule, which is matched as in a lookahead |
 
 An exit event also has the fields below.
 
@@ -102,26 +102,39 @@ A parser generated without observability does not observe: passing it the trace 
 profile options (`WithTrace`, `WithProfile`, `WithTraceFilter`, `WithTraceMaxDepth`)
 returns an error before the parse instead of delivering partial data.
 
-The generated package defines its own `TraceEvent` and trace options. Events
-observe actual generated execution, not an event-for-event replay of engine
-parser calls. `TraceEnter` begins a rule call before its memo lookup or body
-dispatch; `TraceExit` reports the call's result and end position. The start
+The generated package re-exports the event types of the package `core`
+(`TraceEvent`, `TraceKind` with `TraceEnter`, `TraceExit` and `TraceSkipped`,
+`SkipReason` and `SkipFirstCharacter`) and defines its own trace options.
+Events observe actual generated execution, not an event-for-event replay of
+engine parser calls. `TraceEnter` begins a rule call before its memo lookup or
+body dispatch; `TraceExit` reports the call's result and end position. The start
 rule has depth 1. An exit describes the rule call only: whole-input acceptance
 can still fail because input remains after the rule returns. `TraceSkipped` is
-unpaired and is emitted only for identifiable first-character dispatch skips.
-A call aborted by a runtime error or callback panic may have no exit event.
+unpaired; it is emitted only for identifiable first-character dispatch skips,
+with the `SkipReason` `SkipFirstCharacter` (`"first-character"`), and is not an
+entered call. A call aborted by a runtime error or callback panic may have no
+exit event.
 
-Event positions use the selected position unit. `Memo=true` means the call
-reused an existing memo result without evaluating its body, so `Evals` is zero.
-Calls that evaluate left-recursion growth attempts have `Memo=false`; their
-`Evals` counts their own body attempts, including growth attempts. Recursive
-calls that reuse the growing seed have `Memo=true` and `Evals=0`. Every exit
-event MUST report in `Examined` the call's exact examined end, as defined for
-Document parses below, and set `ExaminedKnown`.
+An event has the fields of the engine's `TraceEvent` above, plus `SkipReason`
+on a skipped event. Event positions use the selected position unit.
+`Lookahead` is true for a call made where failures record no expectations:
+inside a lookahead, or inside the `skip` expression of an Operators Rule, which
+is matched as in a lookahead. It has the same value on the call's exit. `Memo=true` means the
+call reused an existing memo result without evaluating its body, so `Evals` is
+zero. Calls that evaluate left-recursion growth attempts have `Memo=false`;
+their `Evals` counts their own body attempts, including growth attempts.
+Recursive calls that reuse the growing seed have `Memo=true` and `Evals=0`.
+Generated parsers do not resume repetitions, so `ReusedElements` is always 0.
+Every exit event MUST report in `Examined` the call's exact examined end, as
+defined for Document parses below.
 
-Trace callbacks receive copied scalar and string event fields synchronously.
-Events do not expose parser state or input text. Callback panics propagate with
-their original value after cleanup. `WithTraceFilter` limits callback delivery
+Trace callbacks receive a copied event synchronously. Generated events carry no
+parser state: their `LineCol` returns 0, 0, `Text` returns the empty string, and
+`Failure` and `Recovered` return nil. In JSON an event has the keys `kind` (the
+string `"enter"`, `"exit"` or `"skipped"`), `rule`, `level`, `depth`, `pos`,
+`lookahead`, `matched`, `end`, `memo`, `evals`, `reusedElements`, `examined`
+and `skipReason`. Callback panics propagate with their original value after
+cleanup. `WithTraceFilter` limits callback delivery
 to named rules and their descendants; an unknown name matches no rule, and an
 empty filter selects every rule. `WithTraceMaxDepth` limits delivered events;
 the start rule counts as depth 1, and zero or a negative value means no limit.
@@ -131,13 +144,25 @@ invocation.
 ### Generated Go Batch Profiling
 
 Generated Go Node and typed batch packages generated with
-`Observability` MUST expose `Profile`, `ProfileSnapshot`,
-`RuleProfile`, `ProfileLocation`, `SkipReasonCount` and `WithProfile`. The zero
-value of `Profile` MUST be ready to use; passing a nil profile disables
-collection. A profile sink is not safe for concurrent use. Reentrant parses on
-one goroutine MUST keep separate per-invocation accounting. `Snapshot()` MUST
-return an owned copy with rules sorted by name and each rule's skip reasons
-sorted by reason; callers may marshal the snapshot for deterministic JSON.
+`Observability` MUST expose `WithProfile` and re-export from the package `core`
+`Profile`, `ProfileSnapshot`, `RuleProfile`, `Location`, `CallSite` and
+`SkipReasonCount`. A `Profile` is opaque. The zero value of `Profile` MUST be
+ready to use; passing a nil profile disables collection. A profile sink is not
+safe for concurrent use. Reentrant parses on one goroutine MUST keep separate
+per-invocation accounting, and a profile MUST NOT retain anything of a parse
+after it returns. `Snapshot()` MUST return an owned copy with rules sorted by
+name and each rule's skip reasons sorted by reason; callers may marshal the
+snapshot for deterministic JSON, whose keys are the camel-case field names.
+`ProfileSnapshot.Hints()` returns text that points at costly rules.
+
+The snapshot has the totals `Parses`, `Entered`, `Calls`, `Evals`, `MemoHits`,
+`Skipped`, `ReusedElements` and `Examined` (over completed root calls, the
+input from each call's position to its `Examined`), `Time` and the rows
+`Rules`. A `RuleProfile` has the fields of the engine's `RuleProfile` above,
+plus `Entered`, `Examined`, `Skipped` and `SkipReasons`, with these differences:
+`LongestFailAt` and `MaxEvalsAt` are a `CallSite`, a `Location` with the `Level`
+of the call, and their `Line` and `Col` are 0 because generated events carry no
+line information (a `Location` then prints as `position N`).
 
 `Parses` counts root invocations and `Entered` counts rule calls that began,
 including calls interrupted before exit. `Calls`, `Evals`, `MemoHits`, match and
@@ -151,14 +176,14 @@ are not entered calls. Position counts use each invocation's configured unit
 and MUST NOT be treated as normalized when a sink accumulates multiple units.
 
 `Examined` and `Wasted` are defined with Document profiling below; a rule with
-no completed call MUST report them as zero, with `ExaminedKnown` and
-`WastedKnown` false. Root `Time` sums completed root rule calls
-and excludes input setup, whole-input end checks and typed-result conversion.
-Per-rule `Time` counts recursive calls of the same rule once within each
-invocation, while `SelfTime` excludes child time. Both include instrumentation
-and synchronous enter/exit callback time. A completed-exit update is published
-after the exit callback returns or panics; a snapshot taken inside that
-callback may omit its exit until it unwinds. Callback panics MUST propagate
+no completed call reports them as zero. `LongestFail` is the most input one
+completed failed call with `Memo=false` examined. Root `Time` sums completed
+root rule calls and excludes input setup, whole-input end checks and
+typed-result conversion. Per-rule `Time` counts recursive calls of the same
+rule once within each invocation, while `SelfTime` excludes child time. Both
+include instrumentation and exclude the time of trace callbacks. A call is
+added to the profile before the trace callback receives its exit, so a
+snapshot taken inside that callback includes it. Callback panics MUST propagate
 unchanged after cleanup. A panic in an exit callback MUST still count that
 completed call; a panic in an enter callback does not synthesize an exit.
 
@@ -176,11 +201,10 @@ Events MUST report actual rule calls in the current invocation, including Node,
 direct typed and Node-conversion fallback calls. Conversion itself MUST NOT
 emit a rule event. A memoized whole-call reuse MUST report that call with
 `Memo=true` and `Evals=0`; nested events from earlier parses MUST NOT be
-replayed. Generated Documents do not resume repetition bodies and MUST NOT
-report a `ReusedElements` count.
+replayed. Generated Documents do not resume repetition bodies, so their
+`ReusedElements` is 0.
 
-Every exit event of a Document parse MUST report `ExaminedKnown=true`.
-`Examined` is then the exact end h of the call's
+In a Document parse, an exit event's `Examined` is the exact end h of the call's
 [examined range](documents.md#reuse-model): one past the greatest
 slot that the call, or a call within it, examined, and the end against which a
 later edit decides whether the call's memo result is reused. It is at least the

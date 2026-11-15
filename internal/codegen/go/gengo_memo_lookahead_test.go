@@ -44,7 +44,7 @@ func testGeneratedMemoLookaheadState(t *testing.T) {
 			codegentest.GeneratePackage(t, dir, pkg, mustParse(c.Src), codegen.GenOptions{Start: "s", Types: true, Recognize: true, Observability: true, LimitControls: pkg[0] == 'l'})
 			fmt.Fprintf(&imports, "\t%q\n", "codegentest/"+pkg)
 			for _, op := range []string{"_, _ = %s.Parse(%s, zprt.WithProfile(&p))", "_, _ = %s.ParseValue(%s, zprt.WithProfile(&p))", "_ = %s.Recognize(%s, zprt.WithProfile(&p))"} {
-				fmt.Fprintf(&calls, "\t{ var p zprt.Profile; "+op+"; fmt.Print(evals(p), \" \") }\n", pkg, in)
+				fmt.Fprintf(&calls, "\t{ var p zpcore.Profile; "+op+"; fmt.Print(evals(p), \" \") }\n", pkg, in)
 			}
 		}
 		calls.WriteString("\tfmt.Println()\n")
@@ -55,9 +55,10 @@ import (
 	"fmt"
 
 	zprt "zeroparse.dev/zp/codegen/go/lib"
+	zpcore "zeroparse.dev/zp/core"
 ` + imports.String() + `)
 
-func evals(p zprt.Profile) int {
+func evals(p zpcore.Profile) int {
 	for _, r := range p.Snapshot().Rules {
 		if r.Rule == "a" {
 			return r.Evals

@@ -1,44 +1,19 @@
 package libgo
 
-// TraceKind distinguishes entered calls, completed calls and skipped dispatch.
-type TraceKind uint8
-
-const (
-	TraceEnter TraceKind = iota
-	TraceExit
-	TraceSkipped
-)
-
-// TraceEvent observes actual generated rule execution. Positions use the
-// invocation's selected unit. Examined, on an exit, is the exclusive end of the
-// input the call examined, which a Document also uses when deciding reuse after
-// an edit. That end is exact: one past the last unit whose content the call or a
-// call it used could have observed, so no unit at or beyond it can change the
-// call's result. ExaminedKnown is true on every exit.
-// An aborted parse may leave enters without exits.
-type TraceEvent struct {
-	Kind              TraceKind
-	Rule              string
-	Level, Depth, Pos int
-	Matched           bool
-	End               int
-	Memo              bool
-	Evals             int
-	Examined          int
-	ExaminedKnown     bool
-	SkipReason        string
-}
+import "zeroparse.dev/zp/core"
 
 // WithTrace observes actual generated calls synchronously. Callback panics
 // propagate unchanged after cleanup; an aborted parse can omit exit events.
-// Events do not expose input or parser state.
-func WithTrace(trace func(TraceEvent)) ParseOption {
+// The events carry no parser state: their LineCol, Text, Failure and Recovered
+// return zero values.
+func WithTrace(trace func(core.TraceEvent)) ParseOption {
 	return func(o *parseOptions) { o.observe.trace = trace }
 }
 
-// WithProfile accumulates complete generated rule-call metrics. It is independent
-// of trace delivery filters. A Profile must not be shared by concurrent parses.
-func WithProfile(profile *Profile) ParseOption {
+// WithProfile adds the rule calls of the parse to profile. It is independent of
+// trace delivery filters, and its times exclude the trace function. A Profile
+// must not be shared by concurrent parses.
+func WithProfile(profile *core.Profile) ParseOption {
 	return func(o *parseOptions) { o.observe.profile = profile }
 }
 
@@ -57,18 +32,19 @@ func WithTraceMaxDepth(n int) ParseOption {
 
 // observeOptions are the parse options that select an observation.
 type observeOptions struct {
-	trace    func(TraceEvent)
-	profile  *Profile
+	trace    func(core.TraceEvent)
+	profile  *core.Profile
 	rules    []string
 	maxDepth int
 }
 
 // newObservation returns the observation that o selects for one parse, or nil.
-func newObservation(o *observeOptions) *observation {
+// silent is the parser's lookahead counter (Parser.Silent).
+func newObservation(o *observeOptions, silent *int) *observation {
 	if o.trace == nil && o.profile == nil {
 		return nil
 	}
-	out := &observation{trace: o.trace, maxDepth: o.maxDepth, profile: newProfileObservation(o.profile)}
+	out := &observation{trace: o.trace, maxDepth: o.maxDepth, profile: o.profile.Recorder(), silent: silent}
 	if len(o.rules) != 0 {
 		out.rules = make(map[string]bool, len(o.rules))
 		for _, name := range o.rules {
@@ -81,9 +57,7 @@ func newObservation(o *observeOptions) *observation {
 // release drops what the observation refers to once its parse returns.
 func (o *observation) release() {
 	if o != nil {
-		if o.profile != nil {
-			*o.profile = profileObservation{}
-		}
+		o.profile.Close()
 		*o = observation{}
 	}
 }
@@ -91,27 +65,23 @@ func (o *observation) release() {
 // dropDiscarded forgets the profile's evaluation counts before pos, which a
 // stream discarded: no rule is evaluated there again.
 func (o *observation) dropDiscarded(pos int) {
-	if o == nil || o.profile == nil {
-		return
-	}
-	for k := range o.profile.seen {
-		if k.pos < pos {
-			delete(o.profile.seen, k)
-		}
+	if o != nil {
+		o.profile.Discard(pos)
 	}
 }
 
 // Of its fields and methods, Enter, Evaluated, Exit, Skipped are for generated parsers; not a stable API.
 type observation struct {
-	trace    func(TraceEvent)
-	profile  *profileObservation
+	trace    func(core.TraceEvent)
+	profile  *core.ProfileRecorder
 	rules    map[string]bool
 	maxDepth int
+	silent   *int
 	stack    []observationCall
 }
 
 type observationCall struct {
-	event    TraceEvent
+	event    core.TraceEvent
 	selected bool
 }
 
@@ -119,16 +89,29 @@ type observationCall struct {
 // handling its own private interruption types, preserving every callback value.
 type tracePanic struct{ value any }
 
-func (o *observation) deliver(e TraceEvent, selected bool) {
+// record adds e to the profile and delivers it to the trace function. The
+// profile records e first and resumes after the trace function returns, so
+// that profile times exclude it. e is read before record returns and not kept.
+func (o *observation) record(e *core.TraceEvent, selected bool) {
+	if o.profile != nil {
+		o.profile.Record(*e)
+	}
 	if o.trace == nil || !selected || o.maxDepth > 0 && e.Depth > o.maxDepth {
 		return
 	}
+	o.deliver(e)
+	if o.profile != nil {
+		o.profile.Resume()
+	}
+}
+
+func (o *observation) deliver(e *core.TraceEvent) {
 	defer func() {
 		if x := recover(); x != nil {
 			panic(tracePanic{x})
 		}
 	}()
-	o.trace(e)
+	o.trace(*e)
 }
 
 func (o *observation) selected(rule string) bool {
@@ -137,10 +120,10 @@ func (o *observation) selected(rule string) bool {
 
 func (o *observation) Enter(rule string, pos, level int) {
 	selected := o.selected(rule)
-	e := TraceEvent{Kind: TraceEnter, Rule: rule, Pos: pos, Level: level, Depth: len(o.stack) + 1}
+	e := core.TraceEvent{Kind: core.TraceEnter, Rule: rule, Pos: pos, Level: level, Depth: len(o.stack) + 1,
+		Lookahead: *o.silent > 0}
 	o.stack = append(o.stack, observationCall{event: e, selected: selected})
-	o.profile.enter(e)
-	o.deliver(e, selected)
+	o.record(&e, selected)
 }
 
 func (o *observation) Evaluated() {
@@ -157,26 +140,17 @@ func (o *observation) memoHit() {
 
 func (o *observation) Exit(matched bool, end, examined int) {
 	i := len(o.stack) - 1
-	call := o.stack[i]
+	call := &o.stack[i]
 	o.stack = o.stack[:i]
-	e := call.event
-	e.Kind, e.Matched, e.End = TraceExit, matched, end
-	e.Examined, e.ExaminedKnown = examined, true
-	if o.profile == nil {
-		o.deliver(e, call.selected)
-		return
-	}
-	// Include the exit callback in this call, even when it panics. Its parent
-	// then excludes the same interval from self time.
-	defer o.profile.exit(e)
-	o.deliver(e, call.selected)
+	e := &call.event
+	e.Kind, e.Matched, e.End, e.Examined = core.TraceExit, matched, end, examined
+	o.record(e, call.selected)
 }
 
 func (o *observation) Skipped(rule string, pos, level int) {
 	if o != nil {
-		e := TraceEvent{Kind: TraceSkipped, Rule: rule, Pos: pos, Level: level,
-			Depth: len(o.stack) + 1, SkipReason: "first-character"}
-		o.profile.skipped(e)
-		o.deliver(e, o.selected(rule))
+		e := core.TraceEvent{Kind: core.TraceSkipped, Rule: rule, Pos: pos, Level: level,
+			Depth: len(o.stack) + 1, Lookahead: *o.silent > 0, SkipReason: core.SkipFirstCharacter}
+		o.record(&e, o.selected(rule))
 	}
 }

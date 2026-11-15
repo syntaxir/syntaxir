@@ -1,0 +1,286 @@
+package core
+
+import (
+	"encoding/json"
+	"flag"
+	"os"
+	"reflect"
+	"strings"
+	"testing"
+	"time"
+)
+
+func enter(rule string, depth, pos int) TraceEvent {
+	return TraceEvent{Kind: TraceEnter, Rule: rule, Depth: depth, Pos: pos}
+}
+
+func exit(rule string, depth, pos, end int, matched bool, evals, examined int) TraceEvent {
+	return TraceEvent{Kind: TraceExit, Rule: rule, Depth: depth, Pos: pos, End: end, Matched: matched,
+		Memo: evals == 0, Evals: evals, Examined: examined}
+}
+
+// TestProfileRecorderCounts replays a parse: s calls a twice at 0 (the second time from the
+// memo), b fails after examining to 5, and a skipped call of c.
+func TestProfileRecorderCounts(t *testing.T) {
+	var pr Profile
+	r := pr.Recorder()
+	for _, e := range []TraceEvent{
+		enter("s", 1, 0),
+		enter("b", 2, 0), exit("b", 2, 0, 0, false, 1, 5),
+		enter("a", 2, 0), exit("a", 2, 0, 2, true, 1, 3),
+		enter("a", 2, 0), exit("a", 2, 0, 2, true, 0, 3),
+		{Kind: TraceSkipped, Rule: "c", Depth: 2, Pos: 2, SkipReason: SkipFirstCharacter},
+		exit("s", 1, 0, 2, true, 1, 5),
+	} {
+		r.Record(e)
+		r.Resume()
+	}
+	r.Close()
+	s := pr.Snapshot()
+	if s.Parses != 1 || s.Entered != 4 || s.Calls != 4 || s.Evals != 3 || s.MemoHits != 1 || s.Skipped != 1 || s.Examined != 5 {
+		t.Fatalf("totals %+v", s)
+	}
+	var names []string
+	for _, row := range s.Rules {
+		names = append(names, row.Rule)
+	}
+	if !reflect.DeepEqual(names, []string{"a", "b", "c", "s"}) {
+		t.Fatalf("rules %v, want sorted by name", names)
+	}
+	a, b, c := s.Rules[0], s.Rules[1], s.Rules[2]
+	if a.Calls != 2 || a.MemoHits != 1 || a.Consumed != 4 || a.Examined != 6 || a.Repeats != 0 || a.MaxEvals != 1 {
+		t.Errorf("a %+v", a)
+	}
+	if b.Failed != 1 || b.Wasted != 5 || b.LongestFail != 5 || b.LongestFailAt.Pos != 0 {
+		t.Errorf("b %+v", b)
+	}
+	if c.Skipped != 1 || c.Entered != 0 || !reflect.DeepEqual(c.SkipReasons, []SkipReasonCount{{SkipFirstCharacter, 1}}) {
+		t.Errorf("c %+v", c)
+	}
+}
+
+// TestProfileRecorderInterrupted checks that a call without an exit counts in Entered only, and that
+// a recorder of a parse within a callback is independent.
+func TestProfileRecorderInterrupted(t *testing.T) {
+	var pr Profile
+	outer := pr.Recorder()
+	outer.Record(enter("s", 1, 0))
+	inner := pr.Recorder()
+	inner.Record(enter("s", 1, 0))
+	inner.Record(exit("s", 1, 0, 1, true, 1, 1))
+	inner.Close()
+	outer.Record(enter("x", 2, 0))
+	outer.Close()
+	s := pr.Snapshot()
+	if s.Parses != 2 || s.Entered != 3 || s.Calls != 1 {
+		t.Fatalf("totals %+v", s)
+	}
+}
+
+// TestProfileRepeats checks Repeats and MaxEvals per position and level, and Discard.
+func TestProfileRepeats(t *testing.T) {
+	var pr Profile
+	r := pr.Recorder()
+	r.Record(enter("s", 1, 0))
+	for range 3 {
+		r.Record(enter("e", 2, 4))
+		r.Record(exit("e", 2, 4, 4, false, 1, 5))
+	}
+	r.Discard(5)
+	r.Record(enter("e", 2, 4))
+	r.Record(exit("e", 2, 4, 4, false, 1, 5))
+	r.Record(exit("s", 1, 0, 0, false, 1, 5))
+	e := pr.Snapshot().Rules[0]
+	if e.Repeats != 2 || e.MaxEvals != 3 || e.MaxEvalsAt.Pos != 4 {
+		t.Fatalf("e %+v", e)
+	}
+}
+
+func TestTraceEventJSON(t *testing.T) {
+	b, err := json.Marshal(TraceEvent{Kind: TraceSkipped, Rule: "r", SkipReason: SkipFirstCharacter})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{"kind":"skipped","rule":"r","level":0,"depth":0,"pos":0,"lookahead":false,"matched":false,"end":0,"memo":false,"evals":0,"reusedElements":0,"examined":0,"skipReason":"first-character"}`
+	if string(b) != want {
+		t.Fatalf("got %s", b)
+	}
+	var e TraceEvent
+	if err := json.Unmarshal(b, &e); err != nil || e.Kind != TraceSkipped {
+		t.Fatalf("round trip %+v %v", e, err)
+	}
+	if e.Text() != "" || e.Failure() != nil || e.Recovered() != nil {
+		t.Fatal("accessors of an event without a source")
+	}
+	if l, c := e.LineCol(3); l != 0 || c != 0 {
+		t.Fatal("LineCol without a source")
+	}
+}
+
+func TestProfileHints(t *testing.T) {
+	var pr Profile
+	r := pr.Recorder()
+	r.Record(enter("s", 1, 0))
+	r.Record(enter("x", 2, 0))
+	r.Record(exit("x", 2, 0, 0, false, 1, 40))
+	r.Record(exit("s", 1, 0, 0, false, 1, 40))
+	hints := pr.Snapshot().Hints()
+	if !strings.Contains(strings.Join(hints, "\n"), "x (40 positions from position 0)") {
+		t.Fatalf("hints %q", hints)
+	}
+	if (*Profile)(nil).Snapshot().Rules == nil {
+		t.Fatal("nil profile snapshot has nil Rules")
+	}
+}
+
+// TestProfileRecorderStreamBound checks that the evaluation counts of a long stream stay bounded:
+// the positions a stream discards are dropped, and only those.
+func TestProfileRecorderStreamBound(t *testing.T) {
+	var pr Profile
+	r := pr.Recorder()
+	r.Record(enter("s", 1, 0))
+	const n, keep = 100_000, 10
+	for pos := range n {
+		r.Record(enter("line", 2, pos))
+		r.Record(exit("line", 2, pos, pos+1, true, 1, pos+1))
+		if pos%100 == 0 {
+			r.Discard(pos - keep)
+		}
+	}
+	if len(r.seen) > 100+keep {
+		t.Fatalf("%d positions kept", len(r.seen))
+	}
+	for k := range r.seen {
+		if k.pos < n-100-keep {
+			t.Fatalf("position %d kept after it was discarded", k.pos)
+		}
+	}
+	r.Record(exit("s", 1, 0, n, true, 1, n))
+	if row := pr.Snapshot().Rules[0]; row.Calls != n || row.Repeats != 0 {
+		t.Fatalf("line %+v", row)
+	}
+}
+
+// TestProfileRecorderExcludesTraceFunctions checks that the time between Record and Resume, when the
+// trace functions run, is not counted, and that it is counted without Resume (the negative control).
+func TestProfileRecorderExcludesTraceFunctions(t *testing.T) {
+	const pause = 20 * time.Millisecond
+	for _, resume := range []bool{true, false} {
+		var pr Profile
+		r := pr.Recorder()
+		for _, e := range []TraceEvent{enter("s", 1, 0), enter("a", 2, 0), exit("a", 2, 0, 1, true, 1, 1), exit("s", 1, 0, 1, true, 1, 1)} {
+			r.Record(e)
+			time.Sleep(pause)
+			if resume {
+				r.Resume()
+			}
+		}
+		r.Close()
+		s := pr.Snapshot()
+		a, root := s.Rules[0], s.Rules[1]
+		if resume && (s.Time >= pause || a.Time >= pause || root.SelfTime >= pause) {
+			t.Errorf("trace function time counted: total %v, a %v, s self %v", s.Time, a.Time, root.SelfTime)
+		}
+		if !resume && (s.Time < 3*pause || a.Time < pause || root.SelfTime < 2*pause) {
+			t.Errorf("time without Resume: total %v, a %v, s self %v", s.Time, a.Time, root.SelfTime)
+		}
+	}
+}
+
+// TestProfileRecorderNesting checks the time of a rule called within a call of itself (counted once),
+// self times, the counts of a left-recursive growth, and Lookahead not changing the counts.
+func TestProfileRecorderNesting(t *testing.T) {
+	var pr Profile
+	r := pr.Recorder()
+	la := enter("e", 3, 0)
+	la.Lookahead = true
+	lax := exit("e", 3, 0, 0, false, 1, 1)
+	lax.Lookahead = true
+	for _, e := range []TraceEvent{
+		enter("s", 1, 0),
+		enter("e", 2, 0),
+		la, lax,
+		enter("e", 3, 0), exit("e", 3, 0, 1, true, 0, 1),
+		exit("e", 2, 0, 3, true, 3, 4), // two growth steps
+		exit("s", 1, 0, 3, true, 1, 4),
+	} {
+		r.Record(e)
+		time.Sleep(time.Millisecond)
+	}
+	r.Close()
+	s := pr.Snapshot()
+	e, root := s.Rules[0], s.Rules[1]
+	if e.Entered != 3 || e.Calls != 3 || e.Evals != 4 || e.MemoHits != 1 || e.Failed != 1 || e.Wasted != 1 || e.Examined != 6 || e.Consumed != 4 {
+		t.Errorf("e %+v", e)
+	}
+	if e.Time > root.Time || e.SelfTime > e.Time || root.SelfTime+e.Time > root.Time+time.Millisecond/2 {
+		t.Errorf("times: e %v self %v, s %v self %v", e.Time, e.SelfTime, root.Time, root.SelfTime)
+	}
+	if e.Time < 5*time.Millisecond {
+		t.Errorf("outer e call time %v, want the nested calls counted once within it", e.Time)
+	}
+	if s.Evals != 5 || s.Examined != 4 || s.Time != root.Time {
+		t.Errorf("totals %+v", s)
+	}
+}
+
+// TestProfileSnapshotJSON pins the JSON of a snapshot and of events of every kind
+// (testdata/profile.golden.json; go test -run TestProfileSnapshotJSON -update rewrites it).
+func TestProfileSnapshotJSON(t *testing.T) {
+	var pr Profile
+	r := pr.Recorder()
+	events := []TraceEvent{
+		enter("s", 1, 0),
+		{Kind: TraceSkipped, Rule: "b", Depth: 2, Pos: 0, SkipReason: SkipFirstCharacter},
+		{Kind: TraceEnter, Rule: "a", Level: 2, Depth: 2, Pos: 0, Lookahead: true},
+		{Kind: TraceExit, Rule: "a", Level: 2, Depth: 2, Pos: 0, Lookahead: true, Matched: false, End: 0, Evals: 1, Examined: 3},
+		enter("a", 2, 0), exit("a", 2, 0, 2, true, 1, 2),
+		enter("a", 2, 2), exit("a", 2, 2, 2, false, 0, 3),
+		{Kind: TraceExit, Rule: "s", Depth: 1, Pos: 0, Matched: true, End: 2, Evals: 1, ReusedElements: 4, Examined: 3},
+	}
+	for _, e := range events {
+		r.Record(e)
+	}
+	r.Close()
+	s := pr.Snapshot()
+	s.Time = 0
+	for i := range s.Rules {
+		s.Rules[i].Time, s.Rules[i].SelfTime = 0, 0
+	}
+	got, err := json.MarshalIndent(struct {
+		Events   []TraceEvent    `json:"events"`
+		Snapshot ProfileSnapshot `json:"snapshot"`
+	}{events, s}, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got = append(got, '\n')
+	const golden = "testdata/profile.golden.json"
+	if *update {
+		if err := os.MkdirAll("testdata", 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(golden, got, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want, err := os.ReadFile(golden)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(want) {
+		t.Fatalf("JSON differs from %s (-update rewrites it):\n%s", golden, got)
+	}
+	var back struct {
+		Events   []TraceEvent    `json:"events"`
+		Snapshot ProfileSnapshot `json:"snapshot"`
+	}
+	if err := json.Unmarshal(want, &back); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(back.Events, events) || !reflect.DeepEqual(back.Snapshot, s) {
+		t.Fatalf("round trip: %+v", back)
+	}
+}
+
+var update = flag.Bool("update", false, "rewrite the golden files")

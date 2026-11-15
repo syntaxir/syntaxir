@@ -33,7 +33,7 @@ import (
 	"os"
 	"strings"
 
-	zprt "zeroparse.dev/zp/codegen/go/lib"
+	zprt "zeroparse.dev/zp/codegen/go/lib"; zpcore "zeroparse.dev/zp/core"
 IMPORTS)
 
 var entries = []struct{ parse, recognize func(string, ...zprt.ParseOption) error }{
@@ -45,9 +45,9 @@ func sum(v any) string {
 }
 
 func report(id, name string, run func(string, ...zprt.ParseOption) error, in string, detail bool) {
-	var events []zprt.TraceEvent
-	err := run(in, zprt.WithTrace(func(e zprt.TraceEvent) { events = append(events, e) }))
-	var prof zprt.Profile
+	var events []zpcore.TraceEvent
+	err := run(in, zprt.WithTrace(func(e zpcore.TraceEvent) { events = append(events, e) }))
+	var prof zpcore.Profile
 	perr := run(in, zprt.WithProfile(&prof))
 	snap := prof.Snapshot()
 	snap.Time = 0
@@ -57,7 +57,8 @@ func report(id, name string, run func(string, ...zprt.ParseOption) error, in str
 	fmt.Printf("%s %s events=%d trace=%s profile=%s entered=%d err=%q perr=%q\n", id, name, len(events), sum(events), sum(snap), snap.Entered, fmt.Sprint(err), fmt.Sprint(perr))
 	if detail {
 		for _, e := range events {
-			fmt.Printf("# %s %s %+v\n", id, name, e)
+			b, _ := json.Marshal(e)
+			fmt.Printf("# %s %s event %s\n", id, name, b)
 		}
 		b, _ := json.Marshal(snap)
 		fmt.Printf("# %s %s profile %s\n", id, name, strings.ReplaceAll(string(b), "\n", " "))
@@ -189,14 +190,15 @@ func observationDigests(t *testing.T, group string, cases []codegentest.Case, li
 
 // observedEvent is an event of a generated parser, read from its probe line.
 type observedEvent struct {
-	kind                   int
-	rule                   string
-	level, depth, pos, end int
-	evals, examined        int
-	matched, memo, known   bool
+	kind                     int
+	rule                     string
+	level, depth, pos, end   int
+	evals, examined          int
+	matched, memo, lookahead bool
 }
 
-var observedEventLine = regexp.MustCompile(`^# (\d+)/(\d+) (parse|recognize) \{Kind:(\d) Rule:(\S*) Level:(\d+) Depth:(\d+) Pos:(\d+) Matched:(\w+) End:(\d+) Memo:(\w+) Evals:(\d+) Examined:(\d+) ExaminedKnown:(\w+) `)
+// observedEventLine is a probe line with an event in JSON.
+var observedEventLine = regexp.MustCompile(`^# (\d+)/(\d+) (parse|recognize) event (\{.*\})$`)
 
 // observedProfile is the profile line of a probe report.
 type observedProfile struct {
@@ -224,12 +226,12 @@ func detailReports(t *testing.T, lines []string) map[string]*observedReport {
 				r = &observedReport{}
 				out[m[1]+"/"+m[2]+" "+m[3]] = r
 			}
-			var e observedEvent
-			e.kind, e.rule = atoiOr0(m[4]), m[5]
-			e.level, e.depth, e.pos, e.end, e.evals = atoiOr0(m[6]), atoiOr0(m[7]), atoiOr0(m[8]), atoiOr0(m[10]), atoiOr0(m[12])
-			e.matched, e.memo = m[9] == "true", m[11] == "true"
-			e.examined, e.known = atoiOr0(m[13]), m[14] == "true"
-			r.events = append(r.events, e)
+			var x core.TraceEvent
+			if err := json.Unmarshal([]byte(m[4]), &x); err != nil {
+				t.Fatalf("event line %q: %v", l, err)
+			}
+			r.events = append(r.events, observedEvent{kind: int(x.Kind), rule: x.Rule, level: x.Level, depth: x.Depth, pos: x.Pos,
+				end: x.End, evals: x.Evals, examined: x.Examined, matched: x.Matched, memo: x.Memo, lookahead: x.Lookahead})
 			continue
 		}
 		if rest, ok := strings.CutPrefix(l, "# "); ok {
@@ -348,17 +350,20 @@ func engineTraceMismatch(eng []engine.TraceEvent, got []observedEvent, in string
 				return "the generated trace ends before the exit of " + e.Rule
 			}
 			x := g[gi]
-			if x.kind != 1 || x.rule != e.Rule || x.pos != e.Pos || x.matched != e.Matched || x.end != e.End || x.memo != e.Memo || x.evals != e.Evals {
-				return fmt.Sprintf("exit of %s@%d: engine {end %d matched %v memo %v evals %d}, generated %+v", e.Rule, e.Pos, e.End, e.Matched, e.Memo, e.Evals, x)
+			if x.kind != 1 || x.rule != e.Rule || x.pos != e.Pos || x.matched != e.Matched || x.end != e.End || x.memo != e.Memo || x.evals != e.Evals ||
+				x.lookahead != e.Lookahead {
+				return fmt.Sprintf("exit of %s@%d: engine {end %d matched %v memo %v evals %d lookahead %v}, generated %+v",
+					e.Rule, e.Pos, e.End, e.Matched, e.Memo, e.Evals, e.Lookahead, x)
 			}
-			if !x.known || x.examined != e.Examined {
-				return fmt.Sprintf("examined end of %s@%d: engine %d, generated %d (known %v)", e.Rule, e.Pos, e.Examined, x.examined, x.known)
+			if x.examined != e.Examined {
+				return fmt.Sprintf("examined end of %s@%d: engine %d, generated %d", e.Rule, e.Pos, e.Examined, x.examined)
 			}
 			gi++
 			ei++
 			continue
 		}
-		if gi < len(g) && g[gi].kind == 0 && g[gi].rule == e.Rule && g[gi].pos == e.Pos && g[gi].level == e.Level && g[gi].depth == e.Depth {
+		if gi < len(g) && g[gi].kind == 0 && g[gi].rule == e.Rule && g[gi].pos == e.Pos && g[gi].level == e.Level && g[gi].depth == e.Depth &&
+			g[gi].lookahead == e.Lookahead {
 			gi++
 			ei++
 			continue

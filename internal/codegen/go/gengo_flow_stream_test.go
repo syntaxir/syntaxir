@@ -230,7 +230,7 @@ import (
 	"os"
 	"strings"
 
-	zprt "zeroparse.dev/zp/codegen/go/lib"
+	zprt "zeroparse.dev/zp/codegen/go/lib"; zpcore "zeroparse.dev/zp/core"
 	"zeroparse.dev/zp/core"
 IMPORTS)
 
@@ -272,12 +272,12 @@ func main() {
 	for i := range inputs {
 		for j, in := range inputs[i] {
 			for _, chunk := range []int{0, 1, 5} {
-				var events []zprt.TraceEvent
+				var events []zpcore.TraceEvent
 				var elems []any
 				reads := 0
 				emit := func(n *core.Node) error { elems = append(elems, [2]any{reads, n}); return nil }
-				err := entries[i](&reader{s: in, chunk: chunk, reads: &reads}, emit, zprt.WithTrace(func(e zprt.TraceEvent) { events = append(events, e) }))
-				var prof zprt.Profile
+				err := entries[i](&reader{s: in, chunk: chunk, reads: &reads}, emit, zprt.WithTrace(func(e zpcore.TraceEvent) { events = append(events, e) }))
+				var prof zpcore.Profile
 				reads = 0
 				elems2 := 0
 				perr := entries[i](&reader{s: in, chunk: chunk, reads: &reads}, func(*core.Node) error { elems2++; return nil }, zprt.WithProfile(&prof))

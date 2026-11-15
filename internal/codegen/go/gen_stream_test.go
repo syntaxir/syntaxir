@@ -1293,7 +1293,7 @@ func TestParseStreamValueBudgetControls(t *testing.T) {
 const generatedStreamConsumer = `package fixture
 
 import (
-	zprt "zeroparse.dev/zp/codegen/go/lib"
+	zprt "zeroparse.dev/zp/codegen/go/lib"; zpcore "zeroparse.dev/zp/core"
 	"context"
 	"errors"
 	"io"
@@ -1305,29 +1305,29 @@ import (
 const input = "a=1\nbc=22\nd=3\n"
 
 func TestTraceAndProfile(t *testing.T) {
-	var events []zprt.TraceEvent
-	profile := &zprt.Profile{}
+	var events []zpcore.TraceEvent
+	profile := &zpcore.Profile{}
 	n := 0
 	err := ParseStream(strings.NewReader(input), func(*Node) error { n++; return nil },
-		zprt.WithTrace(func(e zprt.TraceEvent) { events = append(events, e) }), zprt.WithProfile(profile))
+		zprt.WithTrace(func(e zpcore.TraceEvent) { events = append(events, e) }), zprt.WithProfile(profile))
 	if err != nil || n != 3 {
 		t.Fatal(err, n)
 	}
-	if len(events) == 0 || events[0].Rule != "main" || events[0].Kind != zprt.TraceEnter {
+	if len(events) == 0 || events[0].Rule != "main" || events[0].Kind != zpcore.TraceEnter {
 		t.Fatal(events)
 	}
 	depth, items := 0, 0
 	for _, e := range events {
 		switch e.Kind {
-		case zprt.TraceEnter:
+		case zpcore.TraceEnter:
 			depth++
 			if e.Rule == "item" {
 				items++
 			}
-		case zprt.TraceExit:
+		case zpcore.TraceExit:
 			depth--
 		}
-		if (e.Kind == zprt.TraceExit) != e.ExaminedKnown || e.Kind == zprt.TraceExit && (e.Examined < e.Pos || e.Matched && e.Examined < e.End) {
+		if e.Kind == zpcore.TraceExit && (e.Examined < e.Pos || e.Matched && e.Examined < e.End) {
 			t.Fatal("examined end", e)
 		}
 	}
@@ -1427,7 +1427,7 @@ func TestMemoryIsBounded(t *testing.T) {
 const generatedStreamListsConsumer = `package lists
 
 import (
-	zprt "zeroparse.dev/zp/codegen/go/lib"
+	zprt "zeroparse.dev/zp/codegen/go/lib"; zpcore "zeroparse.dev/zp/core"
 	"io"
 	"runtime"
 	"testing"
@@ -1467,7 +1467,7 @@ func TestMemoryIsBounded(t *testing.T) {
 			count := 0
 			opts := []ParseOption{WithUnit(unit)}
 			if profiled {
-				opts = append(opts, zprt.WithProfile(&zprt.Profile{}))
+				opts = append(opts, zprt.WithProfile(&zpcore.Profile{}))
 			}
 			err := ParseStream(&listReader{n: n, seed: 1}, func(*Node) error {
 				count++
@@ -1493,7 +1493,7 @@ func TestMemoryIsBounded(t *testing.T) {
 const generatedStreamMemoConsumer = `package memo
 
 import (
-	zprt "zeroparse.dev/zp/codegen/go/lib"
+	zprt "zeroparse.dev/zp/codegen/go/lib"; zpcore "zeroparse.dev/zp/core"
 	"io"
 	"runtime"
 	"testing"
@@ -1528,7 +1528,7 @@ func TestMemoryIsBounded(t *testing.T) {
 			count := 0
 			opts := []ParseOption{WithUnit(unit)}
 			if profiled {
-				opts = append(opts, zprt.WithProfile(&zprt.Profile{}))
+				opts = append(opts, zprt.WithProfile(&zpcore.Profile{}))
 			}
 			err := ParseStream(&lineReader{line: "key=42\n", n: n}, func(*Node) error {
 				count++

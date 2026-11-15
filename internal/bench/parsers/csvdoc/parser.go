@@ -494,4 +494,4 @@ fail:
 	return nil, false
 }
 
-const _ = rt.Protocol17
+const _ = rt.Protocol18

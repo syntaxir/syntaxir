@@ -1,4 +1,4 @@
-protocol 17
+protocol 18
 const BaseString untyped int = 0
 const ExpFar ExpID = 536870912
 const IdAny ExpID = 0
@@ -44,9 +44,6 @@ const TerminalNoTable uint16 = 65535
 const TerminalNot uint16 = 5
 const TerminalOptional uint16 = 4
 const TerminalSeq uint16 = 2
-const TraceEnter TraceKind = 0
-const TraceExit TraceKind = 1
-const TraceSkipped TraceKind = 2
 const TypeListValue untyped string = "(list)"
 const TypeTupleValue untyped string = "(tuple)"
 func AllocSlice[T any](*Chunk[T], int) []T
@@ -107,8 +104,8 @@ func WithDiagnosticCallback(func(*zeroparse.dev/zp/core.SyntaxError) error) Pars
 func WithDiagnosticLimit(int) ParseOption
 func WithExpectations() ParseOption
 func WithLimits(zeroparse.dev/zp/core.Limits) ParseOption
-func WithProfile(*Profile) ParseOption
-func WithTrace(func(TraceEvent)) ParseOption
+func WithProfile(*zeroparse.dev/zp/core.Profile) ParseOption
+func WithTrace(func(zeroparse.dev/zp/core.TraceEvent)) ParseOption
 func WithTraceFilter(...string) ParseOption
 func WithTraceMaxDepth(int) ParseOption
 func WithUnit(zeroparse.dev/zp/core.PositionUnit) ParseOption
@@ -235,7 +232,6 @@ method (*Parser) Text(int, int) string
 method (*Parser) TextEqual(string, string) bool
 method (*Parser) TooDeep()
 method (*Parser) Unisolate(ExpMark) (int, []ExpID)
-method (*Profile) Snapshot() ProfileSnapshot
 method (*Span) TSetSpan(int, int)
 method (*Span) TSpan() (int, int)
 method (*StreamPull) Close()
@@ -376,15 +372,10 @@ type OperatorsRuleLine struct{Scope []string; M matcher; Action func(*ActCtx) (a
 type OperatorsRuleOp struct{Id int; Kind string; Assoc string; Level int; Line *OperatorsRuleLine}
 type ParseOption func(*parseOptions)
 type Parser struct{Control *BudgetControl; Observation *observation; Document *documentState; In []rune; Pos int; MaxDepth int; Depth int; Env *Env; Frame *CaptureFrame; Trail []undo; Cut bool; Silent int; Expectations bool; Recovered []recEntry; KidStack []*zeroparse.dev/zp/core.Node; Stream *streamInput}
-type Profile struct{}
-type ProfileLocation struct{Pos int; Level int}
-type ProfileSnapshot struct{Parses int; Entered int; Calls int; Evals int; MemoHits int; Skipped int; Time time.Duration; Rules []RuleProfile}
 type Rule struct{Id int; Name string; Scope []string; Body func(*Parser, int) (*zeroparse.dev/zp/core.Node, bool); Action func(*ActCtx) (any, any); Value Shaper; NodeType string; OpNodeType string; Memo bool; Leader bool; Rec bool; Cycle int32; DocMemo bool; Positional bool; Seen int; OperatorsRule *OperatorsRule; Novalue bool; Splice bool; Where string; Vars []string}
 type RuleExtra struct{Id int; Where string; NodeType string; OpNodeType string; Cycle int32}
-type RuleProfile struct{Rule string; Entered int; Calls int; Evals int; MemoHits int; Matched int; Failed int; Consumed int; Skipped int; SkipReasons []SkipReasonCount; Repeats int; MaxEvals int; MaxEvalsAt ProfileLocation; Examined int; ExaminedKnown bool; Wasted int; WastedKnown bool; Time time.Duration; SelfTime time.Duration}
 type RuleSpec struct{Name string; Value *Shaper; Flags uint8; Seen int32; Scope uint16; Vars uint16}
 type Shaper struct{Elems bool; K int; Mode singleMode; Tuple bool; Shared bool}
-type SkipReasonCount struct{Reason string; Count int}
 type Span struct{Start int; End int}
 type StreamPull[T any] struct{}
 type TActCtx struct{P *TParser; F *TCaptureFrame; Start int; End int; Cbase int; Lhs any; Rhs any; Op any; Value any}
@@ -403,8 +394,6 @@ type TSeq struct{Span; Typ string; Kids []any}
 type TVal interface{TField(string) (any, bool); TFresh() bool; TKids() []any; TName() string; TSetFresh(bool); TSetSpan(int, int); TSpan() (int, int); TStruct() bool; TText() (string, bool)}
 type TerminalProgram struct{Code []uint16; Classes []*Class; Literals []TerminalText}
 type TerminalText struct{Runes []rune; Text string}
-type TraceEvent struct{Kind TraceKind; Rule string; Level int; Depth int; Pos int; Matched bool; End int; Memo bool; Evals int; Examined int; ExaminedKnown bool; SkipReason string}
-type TraceKind uint8
 type TypedDocumentCloneBase struct{Control *BudgetControl; Values map[any]any; Slices map[DocumentSliceKey]any; Tasks []TypedDocumentCloneTask}
 type TypedDocumentCloneTask struct{Source any; Target any}
 type budgetControlSetter interface{SetBudgetControl(*BudgetControl)}

@@ -28,8 +28,8 @@ import "zeroparse.dev/zp/core/impl"
 // coreimpl's testdata/representation.golden records), coreimpl replaces its constant with the one of
 // that version, and the library refers to the new constant.
 
-// Protocol17 is declared because the library implements protocol version 17.
-const Protocol17 = 17
+// Protocol18 is declared because the library implements protocol version 18.
+const Protocol18 = 18
 
 // The node representation of protocol version 15, which core/impl must serve.
 const _ = coreimpl.Protocol15

@@ -157,7 +157,7 @@ func RunParseStreamWithBudget(r *Rule, reader io.Reader, emit func(*core.Node, *
 	p.setGrammar(r.g)
 	p.Expectations = o.expectations
 	p.Control = o.control
-	p.Observation = newObservation(&o.observe)
+	p.Observation = newObservation(&o.observe, &p.Silent)
 	p.setTracking()
 	p.Stream = &streamInput{reader: bufio.NewReader(reader), baseLine: 1, baseCol: 1, Emit: emit, diagnostic: o.diagnostic, start: r.Id}
 	p.Stream.tail.limit = o.diagnosticLimit

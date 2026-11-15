@@ -466,8 +466,9 @@ zp gen -g pairs.zp -module example.com/pairs/pairsparser -types -observability -
 A parser generated without `-observability` has no tracing: it returns an error for the trace and profile options
 (`WithTrace`, `WithProfile`, `WithTraceFilter`, `WithTraceMaxDepth`) instead of delivering partial data.
 
-The generated package provides its own `TraceEvent` and options. Its callbacks
-run synchronously and receive events for actual generated calls:
+The generated package provides its own trace options; its `TraceEvent` is the one of the package `core`, whose
+`LineCol`, `Text`, `Failure` and `Recovered` return zero values for generated events. Its callbacks run synchronously and
+receive events for actual generated calls:
 
 ```go
 _, err := pairsparser.Parse(input,
@@ -487,8 +488,8 @@ _, err := pairsparser.Parse(input,
 ```
 
 Filtering a rule includes its named descendants, and unknown names match nothing. Depth starts at one for the start
-rule. `TraceSkipped` is not paired with an exit event, and `Examined` on an exit event is the end of the input that the
-call's result depends on. The [specification](../../spec/runtime/observability.md#generated-go-batch-tracing) defines the
+rule. `TraceSkipped` is not paired with an exit event, and `Examined` on an exit event is the exact end of the input
+that the call examined. `Lookahead` tells a call inside a lookahead, and `ReusedElements` is always 0. The [specification](../../spec/runtime/observability.md#generated-go-batch-tracing) defines the
 events, the filters and what an aborted parse omits.
 
 With `-types`, `ParseValue` and `ParseRuleValue` accept the same trace options. This
@@ -549,12 +550,11 @@ Position counts use the unit of each parse; avoid combining profiles collected
 with different units. A `Profile` is not safe for concurrent use, though
 reentrant parses on one goroutine have independent invocation state.
 
-Times include synchronous enter and exit callback durations when tracing is
-also enabled. Root time excludes input setup, whole-input end checks and typed
-conversion. A same-rule recursive call is counted once per invocation for its
-rule time; self time subtracts child time. Completed-call counters are
-published after the exit callback returns or panics, so a snapshot inside that
-callback can omit that call until the callback unwinds. Callback panics still
+Times exclude trace callbacks. Root time excludes input setup, whole-input end
+checks and typed conversion. A same-rule recursive call is counted once per
+invocation for its rule time; self time subtracts child time. A call is counted
+before the callback receives its exit, so a snapshot inside that callback
+includes it. `Snapshot().Hints()` points at costly rules. Callback panics still
 propagate unchanged after cleanup. In focused synthetic runs, `WithProfile`
 was 3.8–26.9× the ordinary package time depending on API and fixture, adding
 about 45–395 KB/op and 25–50 allocations/op across the measured cases. The
@@ -601,17 +601,14 @@ not replayed. Direct typed parsing and Node-conversion fallback report their
 actual parser calls, without a separate conversion event. For completed parses,
 the invocation's increases in profile `Evals` and `MemoHits` match
 `doc.Stats().Evaluated` and `.Reused`, respectively; an interrupted parse can
-include calls that began but did not complete. Exit events report
-`ExaminedKnown=true`, and `Examined` is the end of the input the Document
-treats the call as having read: an edit starting before that position
-discards the call's memo result, as does an edit at or before the call's
-position. It is conservative, typically one position past what the call looked
-at and possibly one past the end of the input, so use it to see why reuse
-stopped rather than as an exact read count. Edits that complete a UTF-8
+include calls that began but did not complete. On an exit event, `Examined`
+is the exact end of the input the call examined, one past the end of the input
+when the call tested the end: an edit starting before that position discards
+the call's memo result, as does an edit at or before the call's position. Edits that complete a UTF-8
 sequence just before them, and left-recursive results still growing, also
 prevent reuse. Profiles of Document parses sum it into per-rule `Examined` and
-`Wasted` (failed calls only), as for batch parses. Generated Documents do not resume repetition bodies, so there is no
-`ReusedElements` count.
+`Wasted` (failed calls only), as for batch parses. Generated Documents do not resume repetition bodies, so `ReusedElements` is
+0.
 
 A trace callback cannot call `Parse`, `ParseValue` or `Edit` on the Document
 being parsed: those calls return `ErrDocumentBusy` and leave the Document

@@ -670,7 +670,7 @@ func TParseResolved[T any](r *TRule, input string, o parseOptions, ext any, conv
 	defer func() { p.recycle(); tpool.Put(p) }()
 	p.Control = o.control
 	o.control.attachTypedMemory(p, ext)
-	p.Observation = newObservation(&o.observe)
+	p.Observation = newObservation(&o.observe, &p.Silent)
 	if o.control != nil {
 		if target, ok := ext.(budgetControlSetter); ok {
 			target.SetBudgetControl(o.control)
