@@ -18,7 +18,7 @@ package documentation as its part is implemented.
   (grammar syntax or JSON). Its fields are unexported, which guarantees that it has exactly one supplier. A reader is
   read in full when the source is loaded, because a diagnostic needs the text of any line.
 - **Loading** a source gives the grammar AST. A program that builds an AST by hand can validate it. Formatting and
-  conversion between the two formats are in the same package.
+  conversion between the two encodings are in the same package.
 - Action expressions have one name in the AST, in the JSON form and in the syntax: the name that the specification
   gives Action Expressions.
 - A grammar source shares no type with the parse input of the runtime input package. The parse input is the abstraction

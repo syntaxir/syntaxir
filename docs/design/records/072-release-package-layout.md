@@ -119,8 +119,8 @@ compiler side. The rules, which a test enforces, are these.
      `internal/testing/**` from non-test code.
 
 The library printer of each host language prints the compositions of the Exec dialect into its runtime library. For Go,
-that is the generated-parser library and the shared engine state. That is an edge of generation through the code
-generation command, not an import edge, so it does not make the runtime side depend on the printer; a freshness test
+that is the generated-parser library and the shared engine state. That is an edge of generation through
+`go:generate`, not an import edge, so it does not make the runtime side depend on the printer; a freshness test
 keeps the printed files and the embedded copy current.
 
 The consequences are concrete. Loading a compiled file never constructs a grammar AST or runs the type checker, because
@@ -323,7 +323,7 @@ preserved sets that say which analyses a transform keeps. Its exact shapes are n
 | `typescript/pass`, `typescript/print`, `typescript/lib` | The passes of TypeScript, its printer and its runtime library. |
 | `golib` | The support library of generated Go parsers. |
 | `valueimpl` | The package name of the node representation under `value/impl`. |
-| `archtest` | The import-graph test. It runs under the default tags and under the reference tags of the script `hack/test-reference-tags.sh`. |
+| `archtest` | The import-graph test. It runs under the default tags and under the reference tag sets of the reference build. |
 | `exectest` | Test support for the Exec stage, which calls passes and printers. |
 | `codegentest`, `compiletest`, `enginetest`, `factstest`, `starttest`, `complexitytest`, `recoveryquality` | Repository test support, one package per kind of test. The tree names them and gives no further role. |
 

@@ -205,7 +205,7 @@ inline and `-o` names an output.
 | Static analysis, formatting and editor support | `lint`; `fmt`, with `-w` and `-check`; `lsp` | Runs the checks and reports the complexity class; formats grammars keeping comments, or reports whether a change is needed; starts the grammar language server |
 | Grammars and schemas | `convert`, with `-to zp` or `-to json`; `schema`, with `-all-rules` and `-o`; `schema diff` | Converts between grammar source and JSON; writes the output schema; compares two schemas and reports the effect of their difference |
 | Compilation and code generation | `compile`, with `-mode parse`, `recognize` or `document`; `gen`, with `-module`, `-types`, `-lang ts`, `-recognize`, `-recognize-only`, `-lib import` or `-lib embed` and `-print-after core,flow,exec` | Writes a compiled grammar in one of its modes; generates a parser in a host language, optionally with types and with a Recognize function (`-recognize-only` generates only that function); dumps the IR after the named stages |
-| Testing | `test`, with `-f`, `-backend`, `-equivalence` and `-update`; `sample`, with `-n` and `-coverage`; `edit-fuzz`, with `-minimize`, `-save-failures` and `-replay` | Runs JSON fixture suites; generates accepted inputs; fuzzes edit sequences |
+| Testing | `test`, with `-f`, `-backend`, `-equivalence` and `-update`; `sample`, with `-n` and `-coverage`; `edit-fuzz`, with `-minimize` and `-save-failures` | Runs JSON fixture suites; generates accepted inputs; fuzzes edit sequences |
 
 ## The Package Layout
 
