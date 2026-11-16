@@ -2648,6 +2648,142 @@ lookahead state, in a context of growths or of the other variant, and a link
 that meets a result kept in a context of growths can lead into a lookahead that
 the result observed; such a link can lead to an activation held by a head.
 
+**Iterations at one scan.** Let $T$ be an evaluation of a repetition, and
+call an iteration of $T$ **reaching** when it contains one of the successful
+activations $\alpha_1, \alpha_2, \ldots$ of $\sigma$ at $q$. Let $it_k$ and
+$it_{k'}$, $k < k'$, be consecutive reaching iterations of $T$, starting at
+$s_k < s_{k'}$, let $\alpha_{i-1}$ be the last activation in $it_k$, and let
+the first abandoned evaluation below $T$ on the path to $\alpha_{i-1}$ be a
+unit, with no growth on the path from $T$ down to it. Then:
+
+1. $\alpha_i$ is the first activation in $it_{k'}$, the innermost evaluation
+   $N_i$ that contains $\alpha_{i-1}$ and $\alpha_i$ is $T$, and $w_i$, that
+   unit, lies strictly inside $it_k$.
+2. If $i$ is linked, $e'_i$ lies inside $it_{k'}$, so $s_{k'} \le t_i$, the
+   position of $e_i$ and $e'_i$. Let $c_1, \ldots, c_j$ be the calls that
+   $w_i$ shares with $\kappa_i$ up to the call of $e_i$, evaluated in $w_i$
+   at $\tau_0 = $ the start of $w_i$, $\tau_1, \ldots, \tau_{j-1} = t_i$, and
+   call $B_i = \{\tau_0, \ldots, \tau_{j-1}\}$ the **boundaries** of the link.
+   Every iteration $it_x$ with $k \le x < k'$ that ends after the last start
+   of $\kappa_i$ ends at a position in $B_i$, and so does $it_k$ when
+   $\kappa_i$ last starts inside it; in particular $s_{k'} \in B_i$, whatever
+   iterations that reach nothing lie between $it_k$ and $it_{k'}$.
+3. If $i$ is linked, then either $e'_i$ succeeds and no evaluation from
+   $it_{k'}$ down to $e'_i$ is abandoned, and then $it_{k'}$ is the last
+   reaching iteration of $T$ when $e'_i$ ends after $q$, and $e'_i$ is a
+   **$q$-frame**, an evaluation of a call that succeeds, ends at or before
+   $q$ and contains a successful activation of $\sigma$ at $q$, when it ends
+   at or before $q$; or an evaluation from $it_{k'}$ down to $e'_i$ is
+   abandoned, and then, when $\alpha_i$ is also the last activation in
+   $it_{k'}$, a later reaching iteration follows and its abandoned evaluation
+   is a unit as above, $w_{i+1}$ contains $e'_i$, and $e_{i+1}$ contains
+   $e'_i$ or lies inside it, the second only when the rule of $e'_i$ calls a
+   rule. At most two iterations of $T$ are charged to one $q$-frame position
+   by the first case: those whose start and end enclose it.
+4. Let $it_{k_1}, \ldots, it_{k_n}$ be consecutive reaching iterations, with
+   $i_a$ the index of the first activation in $it_{k_{a+1}}$, each meeting
+   the hypothesis above, no growth on the paths from $T$ down to the
+   evaluations of the shared calls of the units and of their continuations
+   up to $e'_{i_a}$, each $i_a$ linked with $e_{i_{a+1}} = e'_{i_a}$ for
+   $a < n - 1$, and no shared call of $w_{i_{a+1}}$ before $e_{i_{a+1}}$
+   inside the evaluation that $\kappa_{i_a}$ makes of a shared call of
+   $w_{i_a}$ (**no refinement**). Then $B_{i_{a+1}} \subseteq B_{i_a}$ for
+   each $a$, and $n - 1$ is at most the number $j$ of shared calls of
+   $w_{i_1}$ up to the call of $e_{i_1}$: $n \le 2$ when that call is the
+   first.
+
+*Proof.* The activations start in the order of their indices, and the
+iterations of $T$ follow one another in time, so the activations in $it_k$
+have consecutive indices, and since the iterations between $it_k$ and
+$it_{k'}$ reach nothing, the first activation in $it_{k'}$ is $\alpha_i$.
+The two lie in different children of $T$, so $N_i = T$. $T$ evaluates
+$it_{k'}$ after $it_k$, so $it_k$ succeeded; it is not the expression of a
+lookahead, and by the hypothesis no dropped step lies on the path, so the
+first abandoned evaluation below $T$ on the path to $\alpha_{i-1}$ lies
+strictly inside $it_k$, and it is $w_i$ (*Restarts*, *Repeats*). This is 1.
+
+For 2, $e'_i$ starts after $w_i$ ends, while $T$ is in progress, so it lies
+inside $T$; it contains $\alpha_i$, which lies in $it_{k'}$, and as an
+evaluation of a call it is no iteration of $T$, so it lies inside $it_{k'}$,
+and $s_{k'} \le t_i$. After an iteration $it_x$ of $T$ ends, the parser
+starts no evaluation before $\mathrm{end}(it_x)$ until $\alpha_i$: an
+evaluation in progress that started before that end encloses $it_x$ or ended
+inside it, so it is $T$ or encloses $T$, which contains $\alpha_i$ and is not
+abandoned before it; the parser returns to an earlier position only by
+abandoning such an evaluation or by a later step of a growth that encloses
+$it_x$, which encloses $T$ and starts its later step only after its step
+that holds $T$ ends (*Restarts*). So the last start of $\kappa_i$, at
+$\tau_0$, is inside $it_k$ or at its end, and from it to $e'_i$ the parser
+keeps, on its way to $e'_i$, the evaluations of $c_1, \ldots, c_{j-1}$ at
+$\tau_0, \ldots, \tau_{j-2}$, which end at $\tau_1, \ldots, \tau_{j-1}$, and
+examines no other input (*Direct activations*: every path of $\kappa_i$ that
+examines the input begins with the shared calls, each with the result that
+it has in $w_i$). An iteration $it_x$ that ends in that time contains every
+evaluation of a call that starts in it, and is contained in none, since its
+parent is $T$; so it ends between two of these evaluations, at a position of
+$B_i$.
+
+For 3, in the first case $e'_i$ lies in the match of $it_{k'}$, which ends
+at or after $\mathrm{end}(e'_i)$. If that is after $q$, every later iteration
+starts after $q$ and contains no activation at $q$; otherwise $e'_i$ ends at
+or before $q$ and contains $\alpha_i$. In the second case the first abandoned
+evaluation below $T$ on the path to $\alpha_i$ is below $it_{k'}$, which
+succeeded, and at or above $e'_i$, since one of those is abandoned; it is
+$w_{i+1}$ by 1 applied to $it_{k'}$ and the next reaching iteration. So
+$w_{i+1}$ contains $e'_i$, and $e_{i+1}$, an evaluation of a call that
+contains $\alpha_i$ (*Repeats*), contains $e'_i$ or lies inside it, and then
+it is a call made in the body of the rule of $e'_i$. The iterations of $T$
+whose start and end enclose a position $t$ satisfy $s_x \le t \le
+\mathrm{end}(it_x) = s_{x+1}$ for all but the last, and the starts increase,
+so there are at most two.
+
+For 4, an evaluation $x$ is **kept before** an evaluation $z$ when $x$ ends
+before $z$ starts and no evaluation from the child, of the innermost
+evaluation $A$ that contains both, that contains $x$ down to $x$ is
+abandoned. If $x$ and $y$ are kept before $z$ and $y$ starts after $x$
+ends, $y$ starts at or after $\mathrm{end}(x)$: the evaluations in progress
+at the end of $x$ that started before it are the evaluations from $x$ up to
+$A$, which are not abandoned and end before $z$, and those that enclose $A$,
+which enclose $z$; with no growth on these paths the parser returns before
+$\mathrm{end}(x)$ through neither. So two such evaluations nest or have
+spans in their order, the earlier ending at or before the start of the
+later. The evaluations of $c_1, \ldots, c_{j-1}$ that $\kappa_{i_a}$ keeps on
+its way to $e'_{i_a}$, and those of the shared calls of $w_{i_{a+1}}$ before
+$e_{i_{a+1}} = e'_{i_a}$, are kept before $e'_{i_a}$. $w_{i_{a+1}}$ lies in
+$it_{k_{a+1}}$, which starts at $s_{k_{a+1}} \in B_{i_a}$ by 2, so every
+boundary $\tau'$ of $w_{i_{a+1}}$, the start or end of the evaluation $d$ of
+one of its shared calls, lies between $\tau_0$ and $\tau_{j-1} = t_{i_a}$
+of $B_{i_a}$. If $\tau'$ lay strictly between two consecutive members of
+$B_{i_a}$, the boundaries of the evaluation $c$ that $\kappa_{i_a}$ makes of
+one shared call, $d$ and $c$ would not have spans in their order, so they
+would nest, and $d$ would not contain $c$, since $\tau'$ lies strictly
+inside the span of $c$; so $d$ would lie inside $c$, which no refinement
+excludes. So $B_{i_{a+1}} \subseteq B_{i_a}$, and the starts $s_{k_2} <
+\cdots < s_{k_n}$ are distinct members of $B_{i_1}$, which has $j$ members.
+$\square$
+
+The claim bounds a run of linked reaching iterations of one repetition at
+one position without the growth hypothesis of *Calls that call no rule*,
+and whether or not the shared call is the first, but only inside $T$; the
+frames left outside it stay as in step 1 of [Open Steps](#open-steps). Four
+parts of a bound on the reaching iterations of $T$, and through them on the
+activations that one head holds, are not shown. A refinement can occur when
+the evaluation of a shared call in $\kappa_{i_a}$ has calls or literals
+inside it that $w_{i_{a+1}}$ shares by looking through it: a literal in the
+body of a rule that calls no rule, or a memoized call evaluated again, in a
+lookahead state or variant other than that of its first evaluation, instead
+of answered; that the depth of refinement is a constant is not shown. A
+**memoized break**, the second case of 3 in which $e_{i+1}$ strictly
+contains $e'_i$, is an evaluation of a memoized call, or one through which
+the unit looks, at a position $t_{i+1} \le t_i$; it is a $q$-frame when it
+succeeds and ends at or before $q$, but neither the number of break
+positions per $q$ nor the iterations that hold an abandoned evaluation at
+one such position are bounded. When a reaching iteration holds more than
+one activation, $e$ of its last need not be $e'$ of its first, and that case
+is not followed. And the hypothesis leaves out dropped steps and growths on
+the path from $T$ down to the unit, case 5, the exception of the restarts,
+and the cases of a Document parse.
+
 ## Lemma 5 (Growth)
 
 *Outline.* Under conditions 2, 3 and 5, and with the growths at the calls
@@ -6378,7 +6514,14 @@ condition of the cost view that the [Cost View](cost-view.md) proof leaves open.
    linked by a leaf link at a position before the scan are not treated. So the outer links do not bound the
    runs, and the count of the
    runs, of the heads that start before the position of the scan and of the
-   activations that one head holds stays open. Second, the leaf links when the shared call follows other
+   activations that one head holds stays open. Inside one evaluation of a
+   repetition, *Iterations at one scan* bounds a run of linked reaching
+   iterations at one position by the shared calls of its first unit, and
+   charges an iteration whose linked evaluation it keeps to the position of
+   a $q$-frame, at most two per position, apart from refinements, memoized
+   breaks, iterations that hold more than one activation, and dropped steps,
+   growths, case 5 and the exception of the restarts below the repetition,
+   which it leaves open. Second, the leaf links when the shared call follows other
    shared calls: the continuation then leaves frames at the ends of the
    shared calls before the call, at positions before the scan, and between
    them, as in `e = "(" (e R "x" / e) / "."` with `R = [ ]*`, where the call
