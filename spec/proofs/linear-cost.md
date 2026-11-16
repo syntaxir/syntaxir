@@ -236,8 +236,10 @@ exceptions above decide it for both variants. In a recognition, a rule that no c
 inside a capture that a predicate can read reaches has no twin, and all its calls
 are of one variant. The
 **lookahead state** of an
-evaluation is $\lambda$ of the [memoization proof](memoization.md#setting): $1$ inside a lookahead and
-$0$ elsewhere.
+evaluation is $\lambda$ of the [memoization proof](memoization.md#setting): $1$ inside a lookahead or
+the `skip` of an Operators Rule, and $0$ elsewhere. Where this proof speaks of
+the lookahead state, or of memo entries and calls inside or outside a
+lookahead, the `skip` of an Operators Rule counts as a lookahead.
 
 The number of body evaluations of memoized rules that are neither growth
 steps nor in a context of growths is at most
