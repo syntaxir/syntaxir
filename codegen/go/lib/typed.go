@@ -962,7 +962,7 @@ func (p *TParser) tfields(n int) []tfield {
 // Kids returns p.KidStack[base:] as a value list and pops it. Under budget controls it reserves one unit
 // for each element it copies and one for each it takes off, in one reservation before it moves any.
 func (p *TParser) Kids(base int) []any {
-	if p.Control != nil {
+	if usedFeatures&featureBudget != 0 && p.Control != nil {
 		return p.kidsControlled(base)
 	}
 	ks := p.NewVals(len(p.KidStack) - base)
@@ -1037,7 +1037,7 @@ func (p *TParser) examine(e *tmemoEntry, end int) {
 
 func (p *TParser) memoGet(rule, pos, min int, env []any, docOnly bool) *tmemoEntry {
 	p.use(featureMemo)
-	if p.Control != nil {
+	if usedFeatures&featureBudget != 0 && p.Control != nil {
 		return p.memoGetControlled(rule, pos, min, env, docOnly)
 	}
 	if pos >= len(p.memoSlots) {
@@ -1118,7 +1118,7 @@ func (p *TParser) memoGetControlled(rule, pos, min int, key []any, ident bool) *
 }
 
 func (p *TParser) memoPut(rule, pos, min int, env []any, docOnly bool, e *tmemoEntry) {
-	if p.Control != nil {
+	if usedFeatures&featureBudget != 0 && p.Control != nil {
 		p.memoPutControlled(rule, pos, min, env, docOnly, e)
 		return
 	}
@@ -1360,7 +1360,7 @@ func (d *typedDocumentState) pin(e *tmemoEntry) {
 // --- Rule calls ---
 
 func (p *TParser) Call(r *TRule, min int) (any, bool) {
-	if p.Observation != nil {
+	if usedFeatures&featureObserve != 0 && p.Observation != nil {
 		return p.callObserved(r, min)
 	}
 	return p.callBody(r, min)
@@ -1393,7 +1393,7 @@ func (p *TParser) invoke(r *TRule, min int) (any, bool) {
 }
 
 func (p *TParser) InvokePlain(r *TRule, min int) (any, bool) {
-	if p.Observation != nil {
+	if usedFeatures&featureObserve != 0 && p.Observation != nil {
 		return p.invokePlainObserved(r, min)
 	}
 	return p.invokePlainBody(r, min)
@@ -2149,7 +2149,7 @@ func (p *TParser) convertOperator(r *TRule, v any) any {
 
 func (p *TParser) PushKid(v any) { p.Spend(); p.KidStack = append(p.KidStack, v) }
 func (p *TParser) setValueField(n *TSeq, name string, v any) {
-	if p.Control != nil {
+	if usedFeatures&featureBudget != 0 && p.Control != nil {
 		p.setValueFieldControlled(n, name, v)
 		return
 	}
@@ -2176,7 +2176,7 @@ func (p *TParser) undoCaptures(from int) {
 }
 
 func (p *TParser) valueField(n TVal, name string) (any, bool) {
-	if p.Control != nil {
+	if usedFeatures&featureBudget != 0 && p.Control != nil {
 		return p.valueFieldControlled(n, name)
 	}
 	return n.TField(name)
