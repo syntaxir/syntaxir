@@ -20,9 +20,10 @@ description: Maintain ZeroParse user documentation, contracts, design records an
   site workflows. `docs/performance.md` and `docs/optimizations/` hold method,
   applicability and evidence. `docs/benchmarks.md` is generated.
 - Design pages (`docs/design/`) describe only the target architecture; migration plans live in the issue tracker.
-  They contain no code: no code listings, no signatures and no code blocks. Naming packages, types, functions and flags
-  in prose is fine, and a decided interface may be named in full. They describe language-specific parts in terms of the
-  host language, the language of the generated parser, naming Go and TypeScript only as current instances.
+  They contain no code: no code listings, signatures or code blocks. Public API names are allowed, as the style guide's
+  Code References rule states; internal code is named only at the level of packages (no internal functions, types,
+  fields, files or lines). They describe language-specific parts in terms of the host language, the language of the
+  generated parser, naming Go and TypeScript only as current instances.
   Design pages describe what the target has; they do not deny what the target lacks (no "there is no layer",
   "nothing else", "not a utility"). Keep the negative statements that are contracts the target enforces, such as
   "the runtime never links the compiler".
