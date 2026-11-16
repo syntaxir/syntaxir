@@ -480,8 +480,10 @@ differ on them until they are settled:
   the levels+1 nodes of the same walk;
 - forgetting the nodes that an action created is free in generated Go and costs one unit for each node in the
   engine;
-- dropping the gathered values of a failed alternative (`flow.DropKids` of Flow IR) is free in generated Go and
-  TypeScript and costs one unit for each value in the engine.
+- dropping the gathered values of a failed alternative (`flow.DropKids` of Flow IR), and those of a repetition
+  that fails below its minimum, is free in generated Go and TypeScript and costs one unit for each value in the
+  engine; within the engine only the closure backend charges it (n units on a failed repetition), and the
+  bytecode backends charge nothing.
 
 The specification already lets budget counts depend on the backend and
 the generated artifact as long as they are deterministic ([Cancellation and Budget

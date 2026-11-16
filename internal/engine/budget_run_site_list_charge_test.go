@@ -86,7 +86,9 @@ func TestFailedRepetitionDropsItsElements(t *testing.T) {
 			}
 		})
 	}
-	// The closure backend drops the three elements of the failed repetition as units of a run.
+	// The closure backend drops the three elements of the failed repetition as units of a run; the
+	// bytecode backends, generated Go and TypeScript charge nothing for the drop. That difference is the
+	// open one of the drop charge of a failed alternative (#7).
 	var dropped bool
 	for l := uint64(1); l < 200 && !dropped; l++ {
 		_, err := prog.ParseWith("main", "abc", ParseOptions{Backend: Closure, Limits: core.Limits{Compute: l}})

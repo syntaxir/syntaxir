@@ -2483,7 +2483,8 @@ the list or the parse builds it, as for the list of a repetition. A list that
 reuses the elements kept in the record of an earlier walk ([Run Sites](#run-sites))
 takes off only the elements gathered before them. A repetition that fails
 below its minimum makes no list, so the values it gathered are dropped, not
-taken off. Where two
+taken off; this specification does not fix what dropping them charges, and
+backends may charge it differently. Where two
 backends make the same charges, they report the same `Used` and `Requested`.
 
 ### Memory Limit
