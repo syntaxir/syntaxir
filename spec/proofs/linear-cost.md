@@ -2899,7 +2899,8 @@ Then:
    evaluation of a call of a rule that calls a rule and that the parse
    memoizes at that call.
 2. When $e'_i$ is an evaluation of a key, no evaluation of a key that
-   strictly contains it holds $\alpha_i$. The link $i$ is memoized, so
+   strictly contains it holds $\alpha_i$. The link $i$ is memoized, its
+   rule memoized at both calls (*Memoized links*), so
    under the hypothesis on growths of *Links lead to repeated evaluations*
    no evaluation of a key that holds $\alpha_i$ is the head of its class,
    unless case (a) or (b) of the covered keys arises as that claim states.
@@ -6701,8 +6702,8 @@ condition of the cost view that the [Cost View](cost-view.md) proof leaves open.
    a $q$-frame, at most two per position; *Memoized breaks* keeps a run
    that passes through a memoized break at those boundaries and ends it at
    a free index when the memo answers the call. *Restarts through a
-   frame* shows that a run ends at a $q$-frame with a later reaching
-   iteration only when the next unit lies inside the $q$-frame, an
+   frame* shows, under the hypotheses of that claim, that a run ends at a
+   $q$-frame with a later reaching iteration only when the next unit lies inside the $q$-frame, an
    evaluation of a rule that the parse memoizes at its call, and the
    activation of its iteration is then held inside it when it is an
    evaluation of a key, and that the next run starts its
