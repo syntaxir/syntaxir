@@ -218,6 +218,17 @@ func (c *repoCode) repoGoFile(name string, readerFiles map[string]bool) bool {
 	return c.goBases[name] && !readerFileNames[name] && !readerFiles[name]
 }
 
+// underPackage reports whether a directory above the repository path rel, up to and including
+// internal, holds a Go package. A directory with no Go package under no package is a target path.
+func (c *repoCode) underPackage(rel string) bool {
+	for dir := path.Dir(rel); dir != "." && dir != "/"; dir = path.Dir(dir) {
+		if c.goDirs[dir] {
+			return true
+		}
+	}
+	return false
+}
+
 // exists reports whether the repository holds a Go file or a directory of Go files at rel.
 func (c *repoCode) exists(rel string) bool { return c.goFiles[rel] || c.codeDirs[rel] }
 
@@ -357,9 +368,10 @@ func (c *repoCode) codeRefsIn(rel string, data []byte, internal bool) []codeRef 
 			if strings.HasSuffix(m, ".go") || !c.exists(m) {
 				continue // reported as a Go file, or a path that does not exist
 			}
-			if internal {
-				// An internal document may name a package. A path that exists without a Go
-				// package in it is a target path, the same case as a path that does not exist.
+			if internal && (c.goDirs[m] || !c.underPackage(m)) {
+				// An internal document may name a package. A directory with no Go package that
+				// lies under no package is a target path, the same case as a missing path. A
+				// directory below a package is code of that package, and is reported.
 				continue
 			}
 			add(i, refInternal, m)
@@ -560,13 +572,13 @@ func TestCodeReferencesScanner(t *testing.T) {
 	for _, r := range c.codeRefsIn("docs/design/x.md", []byte(doc), true) {
 		got = append(got, r.kind+" "+r.token)
 	}
-	// The directory below the package has no Go package of its own, so it is a target path, the
-	// same as a missing path, and an internal document may name it. The reader page still
-	// reports both directories.
 	for _, g := range got {
-		if strings.HasPrefix(g, "internal ") {
-			t.Errorf("an internal document may name a directory of the code: %q", g)
+		if g == "internal internal/engine/state" {
+			t.Error("a package path is a violation in an internal document")
 		}
+	}
+	if !strings.Contains(strings.Join(got, "|"), "internal internal/engine/state/sub") {
+		t.Error("a path below a package is not a violation in an internal document")
 	}
 }
 
