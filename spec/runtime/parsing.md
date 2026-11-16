@@ -2274,6 +2274,16 @@ error.
   end leaves undone stay counted.
   Allocation, runtime growth, garbage collection and the callbacks of the
   caller are outside the budget.
+- **Reservations keep their place among what is observed.** No reservation is
+  moved or merged across a trace event, the delivery of a stream element or of
+  recovered errors to a callback, any other callback of the caller, or the
+  commit of an element. An interruption therefore exposes exactly the trace
+  events, deliveries, callbacks and commits that precede the reservation that
+  interrupted, in the order of evaluation, and none that follow it, on every
+  backend and whatever the optimizations. Only the profile statistics of calls
+  that began but did not complete may differ, as
+  [Generated Go Document Tracing and Profiling](observability.md#generated-go-document-tracing-and-profiling)
+  allows.
 - **Streams.** In a stream, an error other than the end of the input that a
   reader returns together with data wins over a cancellation first observed
   after that read. The emission of an element observes the context before it

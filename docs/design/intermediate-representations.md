@@ -165,8 +165,16 @@ and no in-place reads in a traced parse. The passes, their order and their oblig
 A charge of one step is one reservation of one unit, so a printer that charges several steps, or the code points of a
 literal, with one call keeps them separate reservations: the runtime reserves a run that fits at once and, when the run
 does not fit, fails at the unit that does not, as the separate charges would, and reports that unit as the reservation
-that failed. The charge pass keeps the total charge, charges every loop iteration, charges input before examining it
-and never moves a charge across a commit.
+that failed. The charge pass keeps the total charge, charges every loop iteration, charges input before examining it and
+never moves or merges a charge across a write to the observation or to the stream window, a callback of the caller, or a
+commit. An interruption therefore leaves exactly the trace events, stream deliveries, callbacks and commits that come
+before the reservation that failed, as the parse without the pass would.
+
+Marks are typed locals of the Flow and Exec stages, not values that can be used once: a choice restores the same mark
+before each of its next alternatives, and a loop restores the mark of its iteration. Both verifiers check how marks
+nest: every use of a mark is dominated by its definition, and the marks of one component are used last in, first out.
+The preconditions of the operations that take marks (truncating the recovered errors, resetting the record of missing
+input, ending the innermost isolation of expectations and the like) are checks of the verifier.
 
 Every Flow operation states its contract, its cost, the features it needs and its laws, and carries a **reference
 expansion** into Exec operations. The conformance suite compares each implementation of an operation with its
@@ -187,13 +195,23 @@ call, Documents and streams.
 expansion, and the verifier checks the postcondition that no Flow operation remains. The rules of a grammar enter the
 Exec stage only this way; the compositions are written in the Exec dialect directly.
 
+The properties that passes ask of an operation are derived from its declaration, not declared beside it, so they cannot
+disagree with it. An operation is **pure** when it writes nothing, cannot end the parse and, while the budget is on, has
+no cost: a call that charges the budget is not pure in a budget-controlled build, because removing it changes where a
+limit interrupts. It is **zero-width** when it does not write the position, and **infallible** when it neither fails nor
+ends the parse. Dead-store removal, save-elide and the charge pass read these properties.
+
+Every law of an operation is typed: it has a kind that passes read, such as purity (equal arguments give equal results),
+a stable read (two reads with no write of the component between them give the same result) or the merge of two charges,
+and a conformance property that tests it. A pass relies only on laws of a kind it names.
+
 Two kinds of checking keep the freedom of the targets safe. A conformance suite runs sequences of operations on a
 reference model, written for clarity and never printed, and on an implementation, and fails on the first difference in
-results or in the cost charged beyond the bound. Passes on the Exec stage keep a function's behavior: specializing a
-function for the set of features of one build turns each feature into a constant, and simplification removes what then
-cannot run, so the ordinary, budget-controlled, observed and Document variants of a mechanism are specializations of
-one composition. These passes depend only on the reads and writes that each operation declares, so they are shared
-across dialects.
+results or in the cost charged beyond the bound, or on a change to state that the operation does not declare that it
+writes. Passes on the Exec stage keep a function's behavior: specializing a function for the set of features of one
+build turns each feature into a constant, and canonicalization removes what then cannot run, so the ordinary,
+budget-controlled, observed and Document variants of a mechanism are specializations of one composition. These passes
+depend only on the reads and writes that each operation declares, so they are shared across dialects.
 
 ## How Targets Use the Result
 

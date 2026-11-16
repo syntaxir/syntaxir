@@ -139,7 +139,7 @@ An operation is a transition of the abstract state. Its declaration has the foll
 | Contract | What every implementation does, observable through its results, the state afterwards, the statistics it counts and what it charges |
 | Requires | The precondition that its callers guarantee. Behavior outside it is unspecified: implementations may differ on states that no function reaches, and conformance never exercises them |
 | Cost | The bound on the units that one call charges the budget (below) |
-| Laws | Facts about the operation that passes may use, such as that equal arguments give equal results |
+| Laws | Facts about the operation that passes may use. Each law has a kind that passes read: purity (equal arguments give equal results), a stable read (two calls with no write of the component between them give the same result) or the merge of two charges. Each kind has a conformance property that tests the law, and a pass relies only on laws of a kind it names |
 | Immediate operand | A static datum of a call that is not a value of Exec IR, such as a literal, a character class, an expectation or a term of the grammar. A call of an operation that declares one holds it, and passes keep it |
 
 An operation is of one of three kinds.

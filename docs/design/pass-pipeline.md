@@ -74,6 +74,10 @@ generic over the input and output IR of a pass and has four parts.
 When a transform returns a different IR value, the whole cache is invalidated: a preserved set has meaning only for a
 rewrite of the same unit.
 
+Passes run one at a time, in the order of the pipeline. A pass that works on one function reads only analyses of the
+module that were computed before it runs, and never the body of another function, so what it does to a function depends
+only on that function and on facts fixed beforehand.
+
 The attributes on Core nodes (nullability, first sets, effects) are not cached analyses. They are invariants of the IR,
 stored on the nodes and checked by the verifier. What the manager caches is derived results that are not written into
 the IR: rule facts, site numbers, the call graph, the cost view, lookahead sets, liveness and the control-flow views that
@@ -152,9 +156,19 @@ preserves, and the analyses it needs and keeps. The table is in the order the pi
 | 4 | match-form | The same input consumed and the same expectations recorded; the charging invariants hold | Features (Budget, Document, Traced) |
 | 5 | save-elide | No save that no failure path reads | Core effects, liveness |
 | 6 | fail-merge/thread | The same behavior on every reachable path | Reachability |
-| 7 | charge | The same total charge; every loop iteration charges, input is charged before it is examined, and no charge crosses a commit | Charge flow |
+| 7 | charge | The same total charge; every loop iteration charges, input is charged before it is examined, and no charge moves or merges across a write to the observation or to the stream window, a callback of the caller, or a commit | Charge flow |
 | 8 | slots | Locals share a slot only when their types are equal and their live ranges do not overlap | Liveness |
 | 9 | outline (module) | The same behavior; enabled by the size profile | Structural hashes |
+
+Save-elide narrows each mark to the parts that a failure path reads. A mark that no failure path reads at all is a dead
+store, and save-elide removes it through dead-store removal, so dead state has one mechanism.
+
+Marks stay typed locals: a choice restores the same mark before each of its next alternatives, and a loop restores the
+mark of its iteration. The verifier checks how marks nest: every use of a mark is dominated by the mark's definition in
+the structured body, and the marks of one component are used last in, first out, so no mark is used after a restore to
+an older mark of the same component. The preconditions of the operations that take marks, such as truncating the
+recovered errors to a mark, resetting the record of missing input or ending the innermost isolation of expectations, are
+checked by the verifier, not only stated in their contracts.
 
 The Flow stage stays structured. A pass that needs a control-flow graph asks the analysis manager for a graph view, so
 the form that is printed and verified is the structured one. The Flow verifier runs right after `flowlower`, where the
@@ -165,10 +179,24 @@ in place.
 ## Dialect-Independent Passes of Code IR
 
 The dialect-independent passes are the passes of Code IR that every dialect can run, in the `codepass` package. They
-specialize functions for the features of a build, simplify, remove dead stores and share identical helpers and literal
-tables. They depend only on the reads and writes that each operation declares, so they work for every dialect. They never
-see Core IR; the Core passes are the ones that work on Core IR. The host-language passes run after them, on the Exec
-stage.
+specialize functions for the features of a build, canonicalize, remove dead stores and share identical helpers and
+literal tables. They depend only on the reads and writes that each operation declares, so they work for every dialect.
+They never see Core IR; the Core passes are the ones that work on Core IR. The host-language passes run after them, on
+the Exec stage.
+
+### Canonicalization
+
+One pass, `canonicalize`, applies the local rewrite patterns of Code IR until none applies. A pattern rewrites one
+operation, or a few adjacent ones, into a simpler form: it folds a constant, removes code after an exit or splices a
+block into its parent. Each pattern has a name in the registry, so `-opt` and `-no-opt` turn it on or off,
+`-opt-bisect-limit` counts each of its applications as a run, `-print-pipeline` lists it under the pass, and the
+statistics count its applications. The pass tries the patterns in a fixed order, so it reaches the same fixed point and
+the same output on every run. Running the patterns together to a fixed point lets one rewrite expose the next without
+another pass in the pipeline, and the names of the patterns keep each rewrite measurable and bisectable by itself.
+
+Rewrites that are not local patterns, such as specialization for the features of a build, dead-store removal and the
+sharing of helpers, stay passes with names of their own. Instruction selection in `vmlower` is a table of local patterns
+of the same kind: it is deterministic and counts the matches of each pattern.
 
 ## The Registry
 
@@ -176,8 +204,9 @@ An optimization is a **flag** with a name in one registry, the generic registry 
 the pipeline registers its own passes where the part is defined (name, description, default and applicability), and the
 controls of printers and libraries are registered with the kind `library` by the code generators that own them. Each
 name is declared in one place, and every name differs from the others, so one name selects one pass in the flags and in
-the dumps. A flag has a kind, which says what it changes: a pass of the pipeline, or a library control (the runtime
-structures and helpers that the printers emit, such as allocating typed objects in slabs or sparse memo tables).
+the dumps. A flag has a kind, which says what it changes: a pass of the pipeline, a pattern of `canonicalize`, or a
+library control (the runtime structures and helpers that the printers emit, such as allocating typed objects in slabs or
+sparse memo tables).
 
 A flag is on or off, or it has an integer parameter, where 0 turns it off. The registry checks itself: names and
 descriptions exist and are unique, a value is 0 or 1 unless the flag takes a count, and a flag that **changes the output**
@@ -269,24 +298,29 @@ overrides of individual flags.
 - `-print-before` takes pass names and `all`, and dumps the module that each named pass receives.
 - `-verify-each` runs the verifier after every transform, so that an error names the first pass that left the module
   invalid.
+- `-print-changed` dumps the module after each pass that changed it, and nothing after a pass that left it as it was.
 - `-print-pipeline` prints the pipeline that the driver assembled for the build, as the names of its passes in order,
-  with the required passes marked.
+  with the required passes marked and the patterns of `canonicalize` listed under it.
+- `-stats` prints, after the build, the counters of each pass: what it rewrote, and for `canonicalize` and instruction
+  selection the applications of each pattern. The counters are summed over the units and printed in a fixed order.
+- `-time-passes` prints the time each pass took, summed over the units it ran on.
 
 These settings do not change the parser that is built, so they are not part of `Optimize`. In Go they are a value of
-`Debug`, given with `WithDebug`. Five of its fields mirror the flags one to one: the passes to print before
-(`-print-before`) and after (`-print-after`), verification after each transform (`-verify-each`), printing the pipeline
-(`-print-pipeline`) and the bisection limit (`-opt-bisect-limit`). The sixth, the writer the output goes to, has no
-flag: the command writes to standard error. A test and the command line therefore see the same pipeline and the same
-dumps.
+`Debug`, given with `WithDebug`. Eight of its fields mirror the flags one to one: the passes to print before
+(`-print-before`) and after (`-print-after`), printing after a change (`-print-changed`), verification after each
+transform (`-verify-each`), printing the pipeline (`-print-pipeline`), the statistics (`-stats`), the timing
+(`-time-passes`) and the bisection limit (`-opt-bisect-limit`). The ninth, the writer the output goes to, has no flag:
+the command writes to standard error. A test and the command line therefore see the same pipeline and the same dumps.
 
 ### Bisecting Passes
 
 `-opt-bisect-limit N` numbers the runs of optional passes in the order the pipeline makes them, runs those numbered up
 to N and skips the later ones. A run is one pass on one unit, so a pass that runs per function counts once for each
-function. Required passes always run, so the output stays a valid parser whatever N is. Each decision is reported with
-its number, the name of the pass, the unit and whether the pass ran. In Go, the limit is the bisection field of `Debug`.
-A differential test against the closure reference parser can then search for the smallest N at which the generated
-parser differs from the reference, and that run names the pass, and the unit, that introduced the difference.
+function, and each application of a pattern of `canonicalize` is a run of its own. Required passes always run, so the
+output stays a valid parser whatever N is. Each decision is reported with its number, the name of the pass, the unit and
+whether the pass ran. In Go, the limit is the bisection field of `Debug`. A differential test against the closure
+reference parser can then search for the smallest N at which the generated parser differs from the reference, and that
+run names the pass, and the unit, that introduced the difference.
 
 ### Textual Pipelines
 

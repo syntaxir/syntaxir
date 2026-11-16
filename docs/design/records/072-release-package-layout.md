@@ -271,6 +271,43 @@ The pass model is described in [the pass pipeline](../pass-pipeline.md). Its dec
 - **Profiles.** A user chooses speed, memory or size. The table from profile to pass flags lives in the driver, and the
   public setting carries the profile and the overrides.
 
+### Operations, Laws, Marks and Rewrites
+
+- **Properties of operations are derived.** Pure, zero-width and infallible are computed from what an operation
+  declares: the state it reads and writes, whether it can fail or end the parse, and its cost. A call that has a cost is
+  not pure while the budget is on, because removing it changes where a limit interrupts. A second, declared set of
+  properties would be a second source of truth that could disagree with the declarations. The conformance suite checks
+  that an operation leaves the state it does not declare unchanged, so the declarations, and what is derived from them,
+  can be trusted.
+- **Every law is typed and tested.** A law has a kind that passes read (purity, a stable read, the merge of two charges)
+  and a conformance property that tests it. A pass relies only on laws of a kind it names, so no optimization depends on
+  a sentence that nothing checks.
+- **Charges keep their place among what is observed.** A budget charge never moves or merges across a write to the
+  observation or to the stream window, a callback of the caller, or a commit. Trace events, stream deliveries and
+  callbacks are visible after an interruption, so a parse that a limit interrupts reports exactly what precedes the
+  reservation that failed, whatever the passes did. The runtime specification states what an interrupted parse exposes,
+  and the charge law of the Exec specification states the rule.
+- **Marks are typed locals that nest.** A mark is not a value that can be used once: a choice restores the same mark
+  before each next alternative, and a loop restores the mark of its iteration, so a discipline of single use would force
+  a new mark per use and change the generated code. The Code IR is structured with mutable locals and is printed as it
+  is, which a form with single assignments would need to undo before printing. What holds instead is nesting: the
+  verifier checks that every use of a mark is dominated by its definition and that the marks of one component are used
+  last in, first out, and it checks the preconditions of the operations that take marks, which were stated only in their
+  contracts. Save-elide stays a pass, because it narrows a live mark to the parts a failure path reads; its case of a
+  mark that nothing reads is dead-store removal.
+- **One canonicalize pass for local patterns.** The local rewrite patterns of Code IR run in one pass to a fixed point,
+  so a rewrite can expose the next without another pass. Each pattern has a name in the registry: `-opt` and `-no-opt`
+  turn it on or off, `-opt-bisect-limit` counts each application, `-print-pipeline` lists it and the statistics count
+  it, so a pattern stays as measurable and bisectable as a pass. The pass tries the patterns in a fixed order, so the
+  output is the same on every run. Rewrites that are not local patterns stay named passes. Instruction selection in
+  `vmlower` is a deterministic table of local patterns that counts its matches.
+- **Passes run one at a time, and a function pass sees only its function.** A pass on one function reads only analyses
+  of the module computed before it runs and never another function's body. Running passes one at a time keeps the
+  numbering of `-opt-bisect-limit` and the output deterministic; the isolation of functions keeps running them in
+  parallel possible later without a change of contract.
+- **The pipeline is instrumented.** `-print-changed`, `-stats` and `-time-passes` show which passes changed a module,
+  what each rewrote and how long it took, without changing the parser.
+
 ### Naming
 
 - **Action expressions.** The grammar AST, the Core IR and the specification use one name for them: Action Expression.
@@ -349,9 +386,12 @@ setting that does so is an error. [Controlling Passes](../pass-pipeline.md#contr
 | `-print-after` | Dumps the module after the named stages (`core`, `flow`, `exec`) and passes, or after all of them with `all`. |
 | `-print-before` | Dumps the module that each named pass receives, or that every pass receives with `all`. |
 | `-verify-each` | Runs the verifier after every transform. |
-| `-print-pipeline` | Prints the assembled pipeline as pass names in order, with the required passes marked. |
-| `-opt-bisect-limit` | Runs the optional pass runs numbered up to N in pipeline order and skips the later ones. A run is one pass on one unit, so a pass that runs per function counts once per function. Required passes always run, and each decision is reported with the pass and the unit. |
-| `Debug` | The public setting of `pkg/compiler` for observation and bisection. Five fields mirror the flags one to one: print before, print after, verify each, print pipeline and bisect limit. The sixth, the writer the output goes to, has no flag; the command writes to standard error. It does not change the parser that is built, so it is apart from `Optimize`. |
+| `-print-changed` | Dumps the module after each pass that changed it. |
+| `-print-pipeline` | Prints the assembled pipeline as pass names in order, with the required passes marked and the patterns of `canonicalize` listed under it. |
+| `-stats` | Prints the counters of each pass after the build, including the applications of each pattern, summed over the units in a fixed order. |
+| `-time-passes` | Prints the time each pass took, summed over the units it ran on. |
+| `-opt-bisect-limit` | Runs the optional pass runs numbered up to N in pipeline order and skips the later ones. A run is one pass on one unit, so a pass that runs per function counts once per function, and each application of a pattern of `canonicalize` is a run. Required passes always run, and each decision is reported with the pass and the unit. |
+| `Debug` | The public setting of `pkg/compiler` for observation and bisection. Eight fields mirror the flags one to one: print before, print after, print changed, verify each, print pipeline, stats, time passes and bisect limit. The ninth, the writer the output goes to, has no flag; the command writes to standard error. It does not change the parser that is built, so it is apart from `Optimize`. |
 | `WithDebug` | The option that gives a `Debug` value to a compile call. |
 
 A textual description of a pipeline, which can reorder or repeat optional passes and is checked against the declared
