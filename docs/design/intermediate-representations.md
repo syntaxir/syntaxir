@@ -1,4 +1,7 @@
 # Core IR and Code IR
+> [!WARNING]
+> This page describes the target architecture. The code may still differ from it.
+
 
 Core IR and Code IR are the two internal representations between a checked grammar and what a backend runs or emits.
 This page explains why there are two, what each one is for, how Code IR is divided into the Flow, Action and Exec
@@ -145,9 +148,9 @@ consumes or expects.
 Code IR at the Flow stage holds the body of each rule variant as operations of grammar control with structured
 control: variables for positions and results, labeled blocks and loops, and the operations of the Flow dialect
 (matching, mark and restore for backtracking, expectations, captures, rule calls under a policy, charging for budgets,
-recovery), with action expressions as operations of the Action dialect. It holds no host-language text. It is structured
-code, not a control-flow graph: a pass that needs a graph gets one as an analysis view from the analysis manager, so the
-form that is printed and verified stays structured.
+recovery), with action expressions as operations of the Action dialect. It holds no host-language text. Its control is structured and
+nested: labeled blocks and loops are regions inside the operation that owns them, and the form that is printed and
+verified keeps that nesting. A pass that needs a graph view asks the analysis manager for one.
 
 `flowlower` produces the Flow stage from Core IR in one uniform shape and fails loudly on a construct it does not
 support rather than guess. The shape is then chosen by the Flow passes, which hold every control-level decision: call

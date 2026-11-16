@@ -1,4 +1,7 @@
 # Package Layering
+> [!WARNING]
+> This page describes the target architecture. The code may still differ from it.
+
 
 The module has two sides. The runtime side runs parsers, and the compiler side makes them. The runtime side never
 links the compiler side, and a test of the import graph enforces the rules on this page. Read it before you add an
@@ -42,7 +45,7 @@ flowchart TD
   front --> gram
   util --> gram
   C -.->|allowed| R
-  R -. "forbidden" .-x C
+  R -.->|forbidden| C
 ```
 
 ## The Rules
@@ -52,8 +55,7 @@ flowchart TD
 - **Rule 1a (generated parsers).** The support library of generated Go parsers imports only the runtime packages
   `runtime`, `input`, `value`, `value/impl` and `instrument`, and `schema` where the typed API needs it. It does not
   import the VM or the internal runtime packages, so a generated parser links neither the VM nor the engine. The embedded
-  copy of the library compiles by itself in a temporary module that imitates a user's module. The same rule holds for
-  the library of any host language.
+  copy of the library compiles by itself in a temporary module that imitates a user's module.
 - **Rule 2 (layers).**
   - The pass infrastructure imports no package of the module.
   - The IR packages (the Core IR package, and the Code IR base with everything below it) import only IR packages, the
@@ -71,7 +73,7 @@ flowchart TD
 
 ## How the Import-Graph Test Enforces the Rules
 
-The architecture test runs the dependency listing of the Go tool for every package under the default build tags and under
+The architecture test (`archtest`) runs the dependency listing of the Go tool for every package under the default build tags and under
 each reference tag set (those of the reference build in [Development](../development.md)). On a violation it prints the
 shortest import chain that causes it. A deliberately wrong edge, which exists only in the test, is the negative control,
 so the test is shown to fail when an edge that the rules forbid appears. The test also checks the dependencies of parsers

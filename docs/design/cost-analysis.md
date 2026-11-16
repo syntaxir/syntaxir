@@ -1,4 +1,7 @@
 # Cost Analysis
+> [!WARNING]
+> This page describes the target architecture. The code may still differ from it.
+
 
 `zp lint -classify` tells you how the cost of a parse can grow with the length of the input. This page explains how that
 answer is built: a normalized view of the grammar that analyses read instead of the source, a classifier that finds the
@@ -144,10 +147,10 @@ input. [Run Sites](../../spec/runtime/parsing.md#run-sites) is the contract and
 [optimization 133](../optimizations/133-run-records-of-restarted-repetitions.md) is the measurement.
 
 Run records and the classifier meet at one point: a repetition that records is not a scanning source, because its second
-walk costs a constant. The engine implements and uses run records. The classifier counts them only once the bounds they give are
-proved; until then the marking is kept behind a switch that the tests and the measurements turn on, so the classes users
-see do not move. The design records say which further stages (records for the
-Operators Rule, a size argument for copying, runs in the generated runtimes) are still to do.
+walk costs a constant. The engine implements and uses run records. The classifier counts them only when the bounds they give are
+proved, so the classes that users see change only with such a proof. The design records name the further cases that the
+mechanism may extend to: records for the Operators Rule, a size argument for copying, and runs in the generated
+runtimes.
 
 ## Where the Pieces Are
 

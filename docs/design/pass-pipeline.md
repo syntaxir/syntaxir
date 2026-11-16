@@ -1,4 +1,7 @@
 # The Pass Pipeline
+> [!WARNING]
+> This page describes the target architecture. The code may still differ from it.
+
 
 The compiler rewrites a grammar on its way to every backend, and it checks the code that the rewrites produce. This page
 explains how that work is organized: passes that are declared and run by one manager, an analysis manager that computes
@@ -158,9 +161,9 @@ mechanism. A flag is how an optimization becomes something that can be measured 
 
 ## Profiles
 
-A profile is only a preset: a name for fixed values of flags. A user chooses it through the public optimization setting of
-`pkg/compiler` (`speed`, `memory` or `size`, with overrides of flags), and the same setting applies to every backend: the
-closure backend, the VM and the generators. The table from profile names to values is in the driver, which resolves the
+A profile is only a preset: a name for fixed values of flags. A user chooses it through the public type `Optimize` of
+`pkg/compiler`, whose profiles are `Speed`, `Memory` and `Size`, with overrides of flags. The option `WithOptimize` gives
+the setting to a call, and the same setting applies to every backend: the closure backend, the VM and the generators. The table from profile names to values is in the driver, which resolves the
 setting once and passes it to every pipeline.
 
 | Profile | For | Differs from the default by |
@@ -188,8 +191,8 @@ at the end of its pipeline. That tells a user that something broke, and not whic
 after **every** pass: the error then names the first pass that left the module invalid. Tests and diagnosis ask for
 this; it costs compile time and changes no output.
 
-A run can also **dump** the module as text after a stage or after a pass. The generator command takes the stage names
-`core`, `flow` and `exec` and the names of passes (or `all`), and prints to standard error. A pass that did not apply
+A run can also **dump** the module as text after a stage or after a pass. The `-print-after` flag of the gen command takes the stage
+names `core`, `flow` and `exec`, and the names of passes, and prints to standard error. A pass that did not apply
 prints nothing, which is itself information: the dump is the way to see why an optimization did not happen for a parser.
 
 ```mermaid
