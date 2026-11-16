@@ -1227,7 +1227,7 @@ $e'_j$ and is not $e'_j$.
 link with $e'_j = Y_{l'}$, at a position $s_0 < p$, and let the parse keep no
 records of scan sites. Then, after $e_j$ ends, $w_j$ evaluates no call of
 $r$ at $p$, unless the sequence of the activations of $\sigma$ at $q$ leaves
-out the activation at $q$ of that call, and if $w_j$ starts before $w_l$ ends and reaches $e_j$ on the first way through its alternatives that it takes, this is the case that
+out the activation at $q$ of that call, and if $w_j$ starts before $w_l$ ends and no evaluation inside $w_j$ fails before $e_j$ starts, this is the case that
 *Nesting at one end* rules out, with $e_j$ as $X$ and $Y_l$ as $T$, unless $r$
 is a scan-only rule.
 
@@ -1253,9 +1253,10 @@ starts no earlier than $\alpha_l$, after $w_l$ ends, and it was not started
 inside $w_l$, so it encloses $w_l$, as $Y_l$ does. It does not lie inside
 $Y_l$, which ends before $\alpha_l$ starts, so it encloses $Y_l$. The shared
 calls that $w_j$ evaluates before $e_j$ end at or before $s_0 < p$, and $w_j$
-examines no input before its shared calls; let $w_j$ also reach $e_j$ on the
-first way through its alternatives that it takes, so that no alternative
-inside $w_j$ fails before the one that holds $e_j$. Then $Y_l$, which examines the input
+examines no input before its shared calls on each way through it; by the
+hypothesis no evaluation inside $w_j$ fails before $e_j$ starts, so before
+$e_j$ the parser evaluates in $w_j$ only the shared calls and what examines
+no input on the one way that reaches $e_j$. Then $Y_l$, which examines the input
 from before $p$ to $p$, lies in none of them and is not evaluated before
 $e_j$; it does not start after $e_j$ ends, since $e_j$ contains
 $\alpha_{j-1}$, which starts after $Y_l$ ends. So $Y_l$ lies inside $e_j$, and
@@ -1271,8 +1272,10 @@ $r$ is a scan-only rule. *Calls of scan-only rules* treats that rule in a
 parse with the records of scan sites, which this claim excludes, so a
 scan-only $r$ in a parse without them is not treated here. $\square$
 
-Without that hypothesis $Y_l$ can lie in an earlier alternative of $w_j$, in
-no evaluation of a call of $Y$ around it, and the claim does not apply. In
+Without that hypothesis $Y_l$ can lie in an evaluation inside $w_j$ that
+fails before $e_j$ starts, such as an earlier alternative, an option or a
+repetition whose expression fails, or the expression of a negative lookahead,
+in no evaluation of a call of $Y$ around it, and the claim does not apply. In
 `main = "[" -(A "x" / C "z")? B "y" / P`, with `A = {v := 1} Z`,
 `C = {v := 3} Y {v == 7} ws`, `B = {v := 2} Z`, `Z = Y {v >= 0} ws`,
 `Y = S (ws ";")?`, `S = "a"+`, `ws = ([ ] {true})*`, which is not a scan-only
@@ -1284,7 +1287,7 @@ compute of a recognition is $16n + 151$ on the closure backend and $16n +
 161$ on the bytecode backend for $n$ from $250$ to $2000$. That case is not
 shown.
 
-Apart from that scan-only case, the case $e'_j = Y_{l'}$ that remains is that of a unit $w_j$ that starts
+Apart from that scan-only case and the case of the paragraph above, in which an evaluation inside $w_j$ fails before $e_j$ starts, the case $e'_j = Y_{l'}$ that remains is that of a unit $w_j$ that starts
 after $w_l$ ends and evaluates no call of $r$ at $p$ after $e_j$, unless the
 sequence of the activations of $\sigma$ at $q$ leaves out the activation at
 $q$ of that call. Let $m$ be the least index
@@ -1631,8 +1634,9 @@ $w_{\bar{m}}$, since $Z_l$ does, and $\hat{\kappa}$ makes $F_2$ (the first
 form). The memo answers neither call, since $F_1$ holds the body evaluation
 $Z_l$ and $F_2$ the body evaluation $Z_{l'}$, and a call that the memo
 answers holds no evaluation. Neither is in a context of growths, which only a
-body evaluation of a rule of a left-recursion cycle can be in. A call reads
-only growths of the cycle of its rule at its position ([Lemma 2 of the
+body evaluation of a rule of a left-recursion cycle can be in. Of the
+growths open at its start, a call reads only those of the cycle of its rule
+at its position ([Lemma 2 of the
 memoization proof](memoization.md#lemma-2-reading-an-open-growth)), so
 neither call reads a growth open at its start. Nor does one read a growth
 open at the start of the other: $F_2$ starts after $F_1$ ends, so a growth
@@ -2194,7 +2198,8 @@ activation holds one either, since $\beta'$ is the first after $\beta$, which
 lies in $w$. So $\beta'$ is that activation. $\square$
 
 The claim needs no hypothesis on the growths open at the start of the shared
-calls: a call reads only growths of its own cycle at its position, and
+calls: of the growths open at its start, a call reads only those of its own
+cycle at its position, and
 sharing keeps the two calls of a rule of a cycle in the same growths of the
 cycle.
 
@@ -2274,7 +2279,8 @@ current result does not change. When $N$ is a growth, the two activations are
 of the first case of *Repeats inside a growth* of Lemma 5, in different steps
 of $N$. Every other growth open at the start of both contains $N$, and so
 lies around one step of it as above. Neither call reads the growing result of
-$N$: a call reads only growths of the cycle of its rule at its position
+$N$, which is open at the start of both: of the growths open at its start, a
+call reads only those of the cycle of its rule at its position
 ([Lemma 2 of the memoization
 proof](memoization.md#lemma-2-reading-an-open-growth)), and a call of a rule
 of that cycle that $w_i$ and $\kappa_i$ share is reached in $\kappa_i$ without
@@ -6191,8 +6197,9 @@ condition of the cost view that the [Cost View](cost-view.md) proof leaves open.
    of the later link (*Outer links inside a memoized link*), which covers that
    grammar. When that later evaluation ends before the later outer link and is
    the frame that the later outer link leaves, a unit of the index that
-   starts before the unit of the earlier outer link ends meets *Nesting at
-   one end*, apart from a scan-only rule of the scan in a parse without
+   starts before the unit of the earlier outer link ends, and in which no
+   evaluation fails before the earlier evaluation of the link starts, meets
+   *Nesting at one end*, apart from a scan-only rule of the scan in a parse without
    records of scan sites, which no claim treats, and in a parse that keeps no records of scan sites the unit of
    the index evaluates no call of the rule of the scan at the position of the
    scan after its shared call, unless the sequence of activations leaves out
@@ -6248,8 +6255,9 @@ condition of the cost view that the [Cost View](cost-view.md) proof leaves open.
    restriction; in the other cases of the first form a head can hold the later
    outer activation, which then belongs to the count of the activations that
    heads hold, open above. Nor is the case shown in which the unit of the
-   memoized link between two outer links reaches its shared call on a later
-   way through its alternatives than one that holds the earlier frame. Nor are the cases
+   memoized link between two outer links starts before the unit of the
+   earlier outer link ends and an evaluation inside it fails before the
+   earlier evaluation of the link starts. Nor are the cases
    shown in which the frame of the later outer link encloses the later
    evaluation of the call, or in which the continuation
    reaches the activation of the index in a later evaluation of the call. A later
