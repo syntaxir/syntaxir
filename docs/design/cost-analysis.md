@@ -8,10 +8,6 @@ engine keeps so that some of the rest stop being a problem. The contract that a 
 [record 064](records/064-grammar-complexity.md), [record 069](records/069-exclusion-analysis.md) and
 [record 067](records/067-repetition-run-records.md).
 
-> [!WARNING]
-> The code is being migrated to the architecture that [Architecture](architecture.md) describes and still differs from it
-> in places. The package comments describe the code as it is.
-
 ## The Problem
 
 Memoization bounds how often a rule body runs at one position, and that is not the same as linear time. A repetition

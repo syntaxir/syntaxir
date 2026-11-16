@@ -5,10 +5,6 @@ what it did, through one model of events and profiles. This page explains that m
 backends and what it costs. The user-facing contract is [Observability](../../spec/runtime/observability.md); the
 architecture as a whole is in [Architecture](architecture.md).
 
-> [!WARNING]
-> The code is being migrated to the architecture this page describes and still differs from it in places. The package
-> comments describe the code as it is.
-
 ## The Event and Profile Model
 
 The model of events and profiles lives in the `instrument` package of the runtime. It holds the trace function with its

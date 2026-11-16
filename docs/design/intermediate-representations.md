@@ -3,11 +3,8 @@
 Core IR and Code IR are the two internal representations between a checked grammar and what a backend runs or emits.
 This page explains why there are two, what each one is for, how Code IR is divided into the Flow, Action and Exec
 dialects, and how optimization works on them. It omits field tables, node inventories and call sites: the code,
-starting with the package comments of the IR packages, is their source of truth. Nothing here is a public API.
-
-> [!WARNING]
-> The code is being migrated to the architecture this page describes and still differs from it in places. The package
-> comments describe the code as it is.
+starting with the package comments of the IR packages, is their source of truth. The representations are internal; they
+are not a public API.
 
 The whole system is in [Architecture](architecture.md). The exact definitions are in the
 [Core IR Specification](../../spec/core-ir/README.md), including the [text form](../../spec/core-ir/text-form.md),
@@ -42,7 +39,9 @@ flowchart TD
 | Operations | A tree of grammar-level expressions, each carrying facts | Flow and Action dialects: matching, mark and restore, expectations, captures, calls under a policy, charges, recovery, action evaluation | Exec and Action dialects: operations of the abstract machine and the compositions over them |
 | Optimized by | Rewrites that are valid for any backend | Control-level decisions with stated obligations | Behavior-preserving passes: specializing a function for the features of a build, removing what cannot run, legalizing for a language |
 | Knows about | Input consumed, expectations, captures, failure | Parser state, control flow, the features of a build (budget, Document, tracing) | The abstract state of the parser (memo table, budget, ...) and the contract of each operation |
-| Knows nothing about | Modes, targets, and parser state layout | How a target stores state or implements an operation | How a target stores that state or implements an operation |
+
+Core IR is independent of the mode, of the target and of the layout of parser state. Code IR at the Flow stage is
+independent of how a target stores state or implements an operation, and so is the Exec stage.
 
 The split keeps two kinds of reasoning apart. Whether a rewrite preserves what the grammar means is a question about
 grammars and is answered once, on Core IR, where it is easy to state. How to turn the result into fast code is a
@@ -88,7 +87,7 @@ The Core IR verifier checks, by default once after the last pass, that the modul
 on it are true. With verification after each pass requested, it also runs after every pass and names the pass that
 broke an invariant; see [Verification Between Passes](records/063-configurable-optimization-pass-pipeline.md#verification-between-passes).
 It recomputes the attributes to compare them with the module, which is why it lives with the attribute computation in
-the Core IR package. In principle it guarantees four things.
+the Core IR package. It guarantees four things.
 
 - **Referential integrity.** Every call, capture and slot reference points at something that exists in the scope it
   names, and the call graph equals the one computed from the bodies.
@@ -146,9 +145,9 @@ consumes or expects.
 Code IR at the Flow stage holds the body of each rule variant as operations of grammar control with structured
 control: variables for positions and results, labeled blocks and loops, and the operations of the Flow dialect
 (matching, mark and restore for backtracking, expectations, captures, rule calls under a policy, charging for budgets,
-recovery), with action expressions as operations of the Action dialect. It contains no host-language text. It is not a
-control-flow graph: a pass that needs a graph gets one as an analysis view from the analysis manager, so the form that
-is printed and verified stays structured.
+recovery), with action expressions as operations of the Action dialect. It holds no host-language text. It is structured
+code, not a control-flow graph: a pass that needs a graph gets one as an analysis view from the analysis manager, so the
+form that is printed and verified stays structured.
 
 `flowlower` produces the Flow stage from Core IR in one uniform shape and fails loudly on a construct it does not
 support rather than guess. The shape is then chosen by the Flow passes, which hold every control-level decision: call
@@ -195,7 +194,7 @@ across dialects.
 ## How Targets Use the Result
 
 - **The closure backend** builds one closure for each node of Core IR, after the Core pipeline, and evaluates action
-  expressions directly. It deliberately does not share the lowering to Code IR, so that a bug in that lowering shows up
+  expressions directly. It is built independently of the lowering to Code IR, so that a bug in that lowering shows up
   as a difference between backends.
 - **The VM** takes Code IR at the Flow stage: `vmlower` selects instructions almost one for one from Flow operations,
   with superinstructions for calls of compositions and for common match patterns. The compositions are native in the VM
@@ -204,14 +203,15 @@ across dialects.
   language that legalize and optimize it, and print it as structured source. The printers print the compositions of the
   runtimes too, so the rules of a generated parser and the shared mechanisms they call come from the same
   representation.
-- **A future LLVM backend** lowers the Exec stage to LLVM IR.
+- **A future native-code backend** would lower the Exec stage to LLVM IR.
 
-The VM, every host language and a future LLVM backend therefore take grammar code from one Code IR, and charging and the propagation of
-options cannot drift between two lowerings of grammar code.
+The VM, every host language and a future native-code backend therefore take grammar code from one Code IR, so charging
+and the propagation of options cannot drift between two lowerings of grammar code.
 
 ## Related Topics
 
 - [Architecture](architecture.md): the stages around these representations, the backends and the packages.
+- [Code Generation for Host Languages](host-code-generation.md): how the Exec stage becomes parser source.
 - [The pass pipeline](pass-pipeline.md): how the passes are declared, configured and verified.
 - [Record 072](records/072-release-package-layout.md): one Code IR with three dialects, and the alternatives.
 - [Record 065](records/065-exec-ir-parser-vm.md): the abstract machine, its operations, compositions and conformance suite.
