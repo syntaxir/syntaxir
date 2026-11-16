@@ -355,10 +355,12 @@ func (c *repoCode) codeRefsIn(rel string, data []byte, internal bool) []codeRef 
 		for _, m := range internalRe.FindAllString(text, -1) {
 			m = strings.TrimRight(m, "./-")
 			if strings.HasSuffix(m, ".go") || !c.exists(m) {
-				continue // reported as a Go file, or a path of generated code
+				continue // reported as a Go file, or a path that does not exist
 			}
-			if internal && c.goDirs[m] {
-				continue // a package
+			if internal {
+				// An internal document may name a package. A path that exists without a Go
+				// package in it is a target path, the same case as a path that does not exist.
+				continue
 			}
 			add(i, refInternal, m)
 		}
@@ -558,13 +560,41 @@ func TestCodeReferencesScanner(t *testing.T) {
 	for _, r := range c.codeRefsIn("docs/design/x.md", []byte(doc), true) {
 		got = append(got, r.kind+" "+r.token)
 	}
+	// The directory below the package has no Go package of its own, so it is a target path, the
+	// same as a missing path, and an internal document may name it. The reader page still
+	// reports both directories.
 	for _, g := range got {
-		if g == "internal internal/engine/state" {
-			t.Error("a package path is a violation in an internal document")
+		if strings.HasPrefix(g, "internal ") {
+			t.Errorf("an internal document may name a directory of the code: %q", g)
 		}
 	}
-	if !strings.Contains(strings.Join(got, "|"), "internal internal/engine/state/sub") {
-		t.Error("a path below a package is not a violation in an internal document")
+}
+
+// TestCodeReferencesTargetPaths checks that a path which exists as a directory without a Go
+// package is a target path, the same case as a path that does not exist: an internal document
+// may name it, and a reader page may not name any path under internal/.
+func TestCodeReferencesTargetPaths(t *testing.T) {
+	c := &repoCode{
+		goDirs:   map[string]bool{"internal/engine/state": true},
+		codeDirs: map[string]bool{"internal": true, "internal/engine": true, "internal/engine/state": true, "internal/bench": true, "internal/bench/parsers": true},
+	}
+	doc := "The package `internal/engine/state`, the directory `internal/bench` and the missing `internal/absent`.\n"
+	kinds := func(file string, internal bool) []string {
+		var got []string
+		for _, r := range c.codeRefsIn(file, []byte(doc), internal) {
+			if r.kind == refInternal {
+				got = append(got, r.token)
+			}
+		}
+		sort.Strings(got)
+		return got
+	}
+	if got := kinds("docs/design/x.md", true); len(got) != 0 {
+		t.Errorf("an internal document names no code directory as a violation: got %q", got)
+	}
+	want := []string{"internal/bench", "internal/engine/state"}
+	if got := kinds("README.md", false); strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Errorf("reader page:\n got %q\nwant %q", got, want)
 	}
 }
 
