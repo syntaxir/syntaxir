@@ -260,6 +260,95 @@ The pass model is described in [the pass pipeline](../pass-pipeline.md). Its dec
   the same choice. "Validate" and "validation" mean only the structural check of an artifact (a grammar AST, a schema, a
   module).
 
+## Decided Interfaces
+
+The names below are decided, and they are the names of the approved design; the rest of the public layer follows the
+current API and is settled in the package documentation as each package is implemented. [The Public API](../public-api.md)
+describes the packages and points here for the decided shapes.
+
+### Grammar Source and Loading
+
+| Name | Role |
+|:--|:--|
+| `Source` | One grammar input, a named value with a format. Its fields are not exported, so a source has exactly one supplier. |
+| `FromBytes`, `FromString`, `FromReader` | Constructors from bytes, from a string and from a reader. A reader is read in full when the source is loaded, because a diagnostic may need the text of any line. |
+| `FromFS` | Constructor from a path in a file system. The name of the source is the path, and a future import resolves against the same file system. The command line reads grammars through this constructor. |
+| `As` | Gives a source an explicit format. |
+| `Format` with `FormatAuto`, `FormatZP` and `FormatJSON` | The format of a source. `FormatAuto` decides in this order: the explicit format, the extension, then the content, where a leading brace means JSON. |
+| `Load` | Gives the grammar AST of a source in grammar syntax or in JSON. A compiled file is rejected with an explicit error. |
+| `Validate` | Checks the structure of an AST that a program has built. |
+| `Format` (function) and `Convert` | Format a grammar AST, and convert a source to the other format. |
+
+The approved design gives both a type and a function the name `Format` in the grammar package. One package cannot declare
+two identifiers with one name, so one of the two names is open (see Limitations and Open Questions).
+
+The action expression names of the grammar AST (`ActionExpr`, `ActionGroup`) and the JSON field `action` are the names
+of [Naming](#naming).
+
+### Compiler Entry Points
+
+| Name | Role |
+|:--|:--|
+| `Compile` | Makes the parser on the bytecode VM, the default backend, from a source. |
+| `CompileGrammar` | Makes the same kind of parser from an AST that a program has built. |
+| `NewReferenceParser` | Makes the closure reference parser for differential tests. It is the only public access to the closure backend. |
+| `Optimize` with `Speed`, `Memory` and `Size` | The one optimization setting. A value of `Optimize` holds a profile, and `Speed`, `Memory` and `Size` are the three profiles. Overrides of individual flags are part of the value. |
+| `WithOptimize` | The option that gives a setting to a compile call. |
+
+### Structural Queries and Instrumentation
+
+| Name | Role |
+|:--|:--|
+| `Pattern` | The programmatic pattern of a structural query, type-checked against the output schema. |
+| `Query`, `Match`, and the `Matches` method of `Query` | A query is made from a pattern and an output schema by the `Compile` function of the query package. `Matches` runs it on a parse value and returns the matches. |
+| `TraceKind` with `enter`, `exit` and `skipped` | The kind of a trace event. |
+| `TraceEvent` | One trace event: the rule, the position, the result and the examined input. A failure in an event is a syntax error. |
+| `TraceSource` | The interface of the parser state that the methods of an event read. |
+| `Profile` | The per-rule profile: calls, time, exact examined input and wasted input. |
+
+The meaning of the trace function, its filters and its depth is defined by the specification of the runtime, not here.
+
+### Pass Infrastructure
+
+The pass infrastructure is internal to the module. Its decided shape is:
+
+| Name | Role |
+|:--|:--|
+| `PreservedSet` | The analyses that a transform keeps. `PreserveAll` keeps every analysis, `PreserveNone` keeps none and is the default of a set, `Preserve` names the kept analyses, and `Has` asks whether one is kept. |
+| `AnalysisKey` and `NewAnalysisKey` | A key of an analysis, with its name and its run function. The constructor rejects a second key with the same name when it is registered. |
+| `AnalysisManager` and `Get` | The manager computes an analysis when `Get` asks for it, and caches the result. `Invalidate` drops the analyses that were not kept and the analyses that depend on them. |
+| `TransformPass` | A pass: its name, the passes it must follow, its obligation, the `Features` under which it applies, and its run function, which returns the new IR and the preserved set. |
+| `Manager` | Runs the enabled passes in order, invalidates after each one, and verifies and dumps on request. |
+| `Registry` | The registry of the passes and their control flags. |
+
+### Decided Package Names
+
+| Name | Role |
+|:--|:--|
+| `common` | Parts that all host languages share, under the code generation package. |
+| `golang/pass`, `golang/print` | The passes of Go and the Go printer. |
+| `golang/libprint` | Prints the compositions of the Exec dialect into the Go library and the shared engine state. It is an edge of code generation through go:generate. |
+| `golang/libsrc` | The go:generate copy of the Go library, which the embedded library mode uses. It has a freshness test. |
+| `typescript/pass`, `typescript/print`, `typescript/lib` | The passes of TypeScript, its printer and its runtime library. |
+| `golib` | The support library of generated Go parsers. |
+| `valueimpl` | The package name of the node representation under `value/impl`. |
+| `archtest` | The import-graph test. It runs under the default tags and under the reference tags of the script `hack/test-reference-tags.sh`. |
+| `exectest` | Test support for the Exec stage, which calls passes and printers. |
+| `codegentest`, `compiletest`, `enginetest`, `factstest`, `starttest`, `complexitytest`, `recoveryquality` | Repository test support, one package per kind of test. The tree names them and gives no further role. |
+
+## Alternatives Considered
+
+- **Keep three representations, with Flow and Exec as separate IRs.** Each representation needs its own structure,
+  printer, verifier and interpreter, and the shared parts (action evaluation, the call protocol) are written twice. One
+  base with dialects states each of these once and lets a verifier check the relation between stages.
+- **Make Flow a control-flow graph.** Flow is a structured language over the shared base. A graph is built when a pass
+  needs it, as an analysis, so that the representation that is printed and verified stays structured.
+- **One public compiler package for every tool.** The linter, the sampler and the edit fuzzer would then share a package
+  with options that have nothing in common. Small packages with their own vocabulary are easier to use and to keep
+  stable.
+- **Enforce the runtime separation by review.** Dependencies grow silently and the loss shows up as binary size. A test
+  that fails on the first wrong edge is cheaper and does not depend on who reviews.
+
 ## Testing
 
 The import-graph test covers rules 1, 1a and 2 with a negative control. Generated output is compared against the
@@ -270,6 +359,10 @@ and VM throughput are within the noise of the previous construction, measured in
 ## Limitations and Open Questions
 
 The layout is the target; until the migration completes, the code differs from it. The shapes of the grammar source and
-of loading, of the compile entry point, of the query and instrument packages and of the pass infrastructure are decided
-and given in [The Public API](../public-api.md); the other shapes of the public layer are rough, and are settled in the
-package documentation as they are implemented.
+of loading, of the compile entry points, of the query and instrument packages and of the pass infrastructure are decided
+and listed in [Decided Interfaces](#decided-interfaces) of this record; [The Public API](../public-api.md) links to that
+section. The other shapes of the public layer are rough, and are settled in the package documentation as they are
+implemented.
+
+Open: the approved design names both a type and a function `Format` in the grammar package. One package cannot declare
+both, so one of the two names must change; the owner decides which.
