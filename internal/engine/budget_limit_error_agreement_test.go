@@ -278,10 +278,21 @@ func TestLimitErrorAgreement(t *testing.T) {
 				"bytecode-iterative": engineLimitReports(t, c, BytecodeIterative),
 			}
 			reports["generated Go"], reports["generated Go typed"] = generatedGoLimitReports(t, c, runtime)
-			ts := generatedTSLimitReports(t, c, nil)
+			// Without Node.js only the TypeScript part is skipped: the engine and generated Go are compared
+			// on every run.
+			var ts []string
+			if _, err := exec.LookPath("node"); err == nil {
+				ts = generatedTSLimitReports(t, c, nil)
+			} else {
+				t.Log("node not found: generated TypeScript is not compared")
+			}
 			if os.Getenv("ZP_LIMIT_AGREEMENT_DUMP") != "" {
 				for l := uint64(1); l <= c.max; l++ {
-					t.Logf("%d closure=%s bytecode=%s iterative=%s go=%s typed=%s ts=%s", l, want[l], reports["bytecode"][l], reports["bytecode-iterative"][l], reports["generated Go"][l], reports["generated Go typed"][l], ts[l])
+					tsl := "-"
+					if ts != nil {
+						tsl = ts[l]
+					}
+					t.Logf("%d closure=%s bytecode=%s iterative=%s go=%s typed=%s ts=%s", l, want[l], reports["bytecode"][l], reports["bytecode-iterative"][l], reports["generated Go"][l], reports["generated Go typed"][l], tsl)
 				}
 			}
 			for name, got := range reports {
@@ -289,10 +300,13 @@ func TestLimitErrorAgreement(t *testing.T) {
 					t.Errorf("%s: %s", name, d)
 				}
 			}
-			for _, d := range limitDisagreements(want, ts, c.tsWindow) {
-				t.Errorf("generated TypeScript: %s", d)
+			reports["closure"] = want
+			if ts != nil {
+				for _, d := range limitDisagreements(want, ts, c.tsWindow) {
+					t.Errorf("generated TypeScript: %s", d)
+				}
+				reports["generated TypeScript"] = ts
 			}
-			reports["closure"], reports["generated TypeScript"] = want, ts
 			for name, got := range reports {
 				for _, size := range c.lists {
 					if listReservationMissing(got, size) {
