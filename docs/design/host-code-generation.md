@@ -35,8 +35,9 @@ flowchart LR
 1. The Exec stage is complete: `execlower` has converted every Flow operation.
 2. The dialect-independent passes run. They specialize functions for the features of the build, simplify, remove dead
    stores and share identical helpers and literal tables.
-3. The host-language pipeline runs its enabled passes in order, under the same manager as every other pipeline. Its
-   flags are in the registry, and its dumps and verification work as for the other stages.
+3. The enabled passes of the host language run in order, as the last part of the same pipeline and under the same
+   manager as every other pass. Their flags are in the registry, and their dumps and verification work as for the other
+   stages.
 4. The printer prints the legalized Exec stage. The generated parser and the library it uses come from the same
    representation, so the rules of a generated parser and the mechanisms they call agree.
 
@@ -92,7 +93,7 @@ parsers.
 ## Related Topics
 
 - [Architecture](architecture.md): the backends, the package layout and the driver flow.
-- [The Pass Pipeline](pass-pipeline.md): the pass infrastructure that the host-language pipelines run on, and the registry.
+- [The Pass Pipeline](pass-pipeline.md): the pass infrastructure that the host-language passes run on, and the registry.
 - [Core IR and Code IR](intermediate-representations.md): the Exec stage, which the host languages consume.
 - [Package Layering](layering.md): the rule that generated parsers must not link the VM or the engine.
 - [Code Generation](../guide/code-generation.md#optimizations): the generator flags, with their defaults.

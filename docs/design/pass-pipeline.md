@@ -4,13 +4,13 @@
 > This page describes the target architecture. The code may still differ from it.
 
 The compiler rewrites a grammar on its way to every backend, and it checks the code that the rewrites produce. This page
-explains how that work is organized: passes that are declared and run by one manager, an analysis manager that computes
-and caches what the passes need, a registry that gives each optimization a name, profiles that choose values for the
-names, and verifiers and dumps. It is the one place where the pass model is explained. The rewrites themselves, and why
-each one is safe, are in [Core IR and Code IR](intermediate-representations.md). The code generation passes of host
-languages are in [Code Generation for Host Languages](host-code-generation.md). The decisions are
-[record 063](records/063-configurable-optimization-pass-pipeline.md) and
-[record 072](records/072-release-package-layout.md).
+explains how that work is organized: one pipeline of declared passes, lowerings among them, run by one manager, an
+analysis manager that computes and caches what the passes need, a registry that gives each optimization a name, profiles
+that choose values for the names, and verifiers and dumps. It is the one place where the pass model is explained. The
+rewrites themselves, and why each one is safe, are in [Core IR and Code IR](intermediate-representations.md). The code
+generation passes of host languages are in [Code Generation for Host Languages](host-code-generation.md). The decisions
+are [record 063](records/063-configurable-optimization-pass-pipeline.md) and [record
+072](records/072-release-package-layout.md).
 
 ## Why a Pipeline
 
@@ -39,9 +39,10 @@ A pass is a value, not just a function. It declares:
 - the **analyses it asks for**, and the analyses it **preserves**.
 
 A pass runs on one unit of IR and returns the new unit with the set of analyses it preserved. The manager runs the
-enabled passes of a pipeline in order, invalidates what each pass did not preserve, and on request verifies and dumps
-after each pass. One generic manager, in the pass infrastructure, runs every pipeline: Core, the Code IR stages and the
-pipeline of each host language.
+enabled passes in order, invalidates what each pass did not preserve, and on request verifies and dumps after each pass.
+A compilation is one pipeline, assembled by the driver and run by the generic manager of the pass infrastructure. It
+holds every step of the compiler in order: the transforms, the steps that analyses drive, and the lowerings from one
+dialect or IR to the next.
 
 The declarations are checked before anything runs: names are non-empty and distinct, every requested analysis has a
 key, and every pass named in a follow list precedes the pass that names it. A declaration that cannot be satisfied is an
@@ -75,7 +76,7 @@ the IR: rule facts, site numbers, the call graph, the cost view, lookahead sets,
 some Flow passes use. The optimization passes, the linter, the complexity classifier and the generators share them, so a
 fact has one implementation.
 
-## The Pipelines
+## The Pipeline
 
 ```mermaid
 flowchart LR
@@ -92,20 +93,41 @@ flowchart LR
   AM -.asked for.-> XP
 ```
 
+The pipeline runs these parts in order. Each part is a sequence of passes; the order within a part is in its
+declarations.
+
 - **Core passes** rewrite meaning-preserving forms and compute the facts: guard sets, first sets, effects, rule
   policies, normalization, and turning a value-free repetition of a class into a scan. They are independent of the mode,
   and they are the only passes that work on Core IR.
+- **`flowlower`** lowers Core IR to Code IR at the Flow stage, in one uniform shape that the Flow passes then refine.
 - **Flow passes** make the control-level decisions, listed below. Their applicability is where the features matter: a
   rewrite is sound for a parser only if the parser does not observe what the rewrite removes. A match form that skips
   charging input applies only when no budget and no Document is in effect, and a form that hides rule entries applies
   only when the parser is not traced.
+- **`vmlower`**, for the VM, selects bytecode instructions from the Flow stage, and the pipeline ends there.
+- **`execlower`**, for host code generation, converts the Flow stage to the Exec stage completely.
 - **Dialect-independent passes** run on the Exec stage, in the `codepass` package. They are described in their own
   section below.
 - **Host language passes** legalize and optimize the Exec stage for one host language before it is printed. They are
   described in [Code Generation for Host Languages](host-code-generation.md).
 
-Lowerings are not passes. `flowlower`, `execlower` and `vmlower` change the dialect and have postconditions of their own,
-so they are steps between pipelines.
+### Lowerings
+
+A lowering is a pass whose result is in another dialect or another IR. It declares its input stage and its output
+stage, preserves no analysis, and has a postcondition that the verifier checks after it runs, as it checks the
+invariants after every pass: after `execlower`, no Flow operation remains. Like every pass, a lowering has a name in the
+registry, so the flags, the dumps, verification after each pass and the profiles treat it the same way. This follows
+LLVM and MLIR, where a conversion between dialects is a pass.
+
+`execlower` works within Code IR, from the Flow stage to the Exec stage of the same module, so it is an ordinary pass of
+Code IR. `flowlower` takes Core IR to Code IR, and `vmlower` takes the Flow stage to bytecode: both change the type of
+the IR. The pipeline therefore runs on the compilation unit, which holds the current IR. A pass that works on one IR,
+such as a Core pass or a Flow pass, runs inside the pipeline through an adaptor that hands it that IR and its analysis
+manager, as LLVM's pass adaptors run a function pass inside a module pipeline. Each pass keeps the shape of a pass on
+one IR, and the pipeline stays one sequence.
+
+The lowerings are packages of their own, outside the IR packages and apart from the passes of each dialect. That
+placement says where the code lives; in the pipeline, each lowering runs as a pass.
 
 ## The Flow Passes
 
@@ -139,11 +161,11 @@ stage.
 
 ## The Registry
 
-An optimization is a **flag** with a name in one registry, the generic registry of the pass infrastructure. Each pipeline
-registers its own passes in the definition of the pipeline (name, description, default and applicability), and the
+An optimization is a **flag** with a name in one registry, the generic registry of the pass infrastructure. Each part of
+the pipeline registers its own passes where the part is defined (name, description, default and applicability), and the
 controls of printers and libraries are registered with the kind `library` by the code generators that own them. Each name
 is declared in one place, and every name differs from the others, so one name selects one pass in the flags and in the
-dumps. A flag has a kind, which says what it changes: a pass of one of the pipelines, or a library control (the runtime
+dumps. A flag has a kind, which says what it changes: a pass of the pipeline, or a library control (the runtime
 structures and helpers that the printers emit, such as allocating typed objects in slabs or sparse memo tables).
 
 A flag is on or off, or it has an integer parameter, where 0 turns it off. The registry checks itself: names and
@@ -164,7 +186,7 @@ mechanism. A flag is how an optimization becomes something that can be measured 
 A profile is only a preset: a name for fixed values of flags. A user chooses it through the public type `Optimize` of
 `pkg/compiler`, whose profiles are `Speed`, `Memory` and `Size`, with overrides of flags. The option `WithOptimize` gives
 the setting to a call, and the same setting applies to every backend: the closure backend, the VM and the generators. The table from profile names to values is in the driver, which resolves the
-setting once and passes it to every pipeline.
+setting once and passes it to the pipeline.
 
 | Profile | For | Differs from the default by |
 |:--|:--|:--|
@@ -186,13 +208,16 @@ with one flag set differently is a valid setting, and a name that no flag has is
 After a pass, the manager can run the verifier of the stage: for Core IR, the checks listed in
 [What the Verifier Guarantees](intermediate-representations.md#what-the-verifier-guarantees); for the Flow stage, the
 structure, the variables, one runtime per function, the budget invariants, recorded reads under a Document and no
-in-place reads in a traced parse; after `execlower`, that no Flow operation remains. By default each verifier runs once,
-at the end of its pipeline. That tells a user that something broke, and not which pass broke it, so a run can verify
+in-place reads in a traced parse; after `execlower`, its postcondition that no Flow operation remains. By default each
+verifier runs once, where the pipeline leaves its stage, and the postcondition of a lowering is checked with the
+invariants of its output stage. That tells a user that something broke, and not which pass broke it, so a run can verify
 after **every** pass: the error then names the first pass that left the module invalid. Tests and diagnosis ask for
 this; it costs compile time and changes no output.
 
 A run can also **dump** the module as text after a stage or after a pass. The `-print-after` flag of the gen command takes the stage
-names `core`, `flow` and `exec`, and the names of passes, and prints to standard error. A pass that did not apply
+names `core`, `flow` and `exec`, and the names of passes, and prints to standard error. The stage names are points in the
+one pipeline: `core` is Core IR before the first Core pass, `flow` is the Flow stage as `flowlower` produced it, and
+`exec` is the Exec stage as `execlower` produced it. A pass that did not apply
 prints nothing, which is itself information: the dump is the way to see why an optimization did not happen for a parser.
 
 ```mermaid

@@ -39,7 +39,8 @@ The packages grew with the features, and four problems follow from how they grew
 - A runtime that cannot depend on the compiler, enforced mechanically.
 - Every piece of knowledge has one home, and each structure has one printer and one verifier. A rule's policy flags and
   site numbers come from Core IR facts.
-- A pass model that every pipeline shares, so that a pass says what it needs, what it keeps and when it applies.
+- One compiler pipeline with one pass model, so that every pass, lowerings included, says what it needs, what it keeps
+  and when it applies.
 
 ## Non-Goals
 
@@ -200,10 +201,18 @@ A Flow operation states its contract, cost, the features it needs and its laws, 
 Exec operations. An Exec operation has a reference model, and a conformance suite compares every implementation with the
 reference expansions and models.
 
-Lowering between levels is a separate step with its own invariant, never a pass: lowering from Core takes it to the Flow
-stage in a uniform shape, and the Flow passes choose the shape; the conversion from the Flow stage to the Exec stage is
-complete, and the verifier checks that no Flow operation remains; instruction selection produces bytecode. Lowering
-between dialects is *lower*, and *legalize* is used only for adjustments inside a target.
+Lowering between levels is a pass of the one compiler pipeline, as a dialect conversion is a pass in LLVM and MLIR.
+The driver assembles that pipeline and the pass manager runs it: the Core passes, `flowlower`, the Flow passes, then
+`vmlower` for the VM, or `execlower`, the dialect-independent passes of Code IR and the passes of the host language for
+host code generation. A lowering declares its input and output stages, preserves no analysis, and has a postcondition
+that the verifier checks after it runs, as after every pass. Lowering from Core takes it to the Flow stage in a uniform
+shape, and the Flow passes choose the shape; the conversion from the Flow stage to the Exec stage is complete, a pass
+within Code IR whose postcondition is that no Flow operation remains; instruction selection produces bytecode.
+`flowlower` and `vmlower` change the type of the IR, so the pipeline runs on the compilation unit, which holds the
+current IR, and a pass on one IR runs inside it through an adaptor, as in LLVM's pass adaptors. The registry, the dumps,
+verification after each pass, the flags and the profiles cover the lowerings as they cover every other pass, and the
+stage names of the dumps are points in the pipeline. Lowering between dialects is *lower*, and *legalize* is used only
+for adjustments inside a target.
 
 **Bytecode comes from the Flow stage.** The instruction set is at the level of grammar control, so instructions can be
 chosen from Flow operations almost one for one, with superinstruction selection: a call of a composition is one
@@ -226,8 +235,8 @@ The pass model is described in [the pass pipeline](../pass-pipeline.md). Its dec
 
 - **Registration.** A pass declares its name (the same as its flag), its default, its applicability condition (a
   feature such as budgeting, Documents or tracing), the property it must preserve (its obligation), the ordering it
-  needs, the analyses it needs and the ones it keeps. The registry is shared; each pipeline (Core, Flow, Exec and each
-  host language) registers its own passes, and printers and library controls register under their own kind, so no name
+  needs, the analyses it needs and the ones it keeps. The registry is shared; each part of the pipeline (Core, the
+  lowerings, Flow, Exec and each host language) registers its own passes, and printers and library controls register under their own kind, so no name
   is declared twice.
 - **Analyses.** An analysis is computed when a pass asks for it and cached. What a pass preserves is a set that defaults
   to nothing: forgetting to declare it invalidates everything, which is the safe side. An analysis key is registered by
@@ -243,7 +252,7 @@ The pass model is described in [the pass pipeline](../pass-pipeline.md). Its dec
   receives it.
 - **Decisions.** Control-level decisions (call specialization, inlining, dispatch, the form of a match, removal of
   redundant saves, merging failure paths, where to charge, sharing slots and outlining) are Flow passes with stated
-  obligations; target-specific legalization is in the host-language pipelines; passes that depend only on an operation's
+  obligations; target-specific legalization is in the passes of each host language; passes that depend only on an operation's
   reads and writes are dialect-independent passes of Code IR.
 - **Profiles.** A user chooses speed, memory or size. The table from profile to pass flags lives in the driver, and the
   public setting carries the profile and the overrides.

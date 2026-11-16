@@ -115,22 +115,25 @@ flowchart TD
 - **Core passes** rewrite the Core IR in ways that keep its meaning, and compute its facts: guard sets, first sets,
   effects, rule policies, the normalization of level O and the conversion of value-free class repetitions into scans.
   They are independent of the mode. See [The Pass Pipeline](pass-pipeline.md).
-- **Lowering to the Flow stage** (`flowlower`) produces the Flow stage in one uniform shape: rule bodies become Flow
+- **Lowering to the Flow stage** (`flowlower`), a pass of the pipeline like the others, produces the Flow stage in one uniform shape: rule bodies become Flow
   operations and action expressions become Action operations. The Flow passes then choose the shape.
 - **Flow passes** make the control-level decisions: call specialization, inlining, dispatch, the form of a match,
   removal of saves, merging and threading of failure paths, charging, slot sharing and outlining. Each declares its
   obligation, its applicability and the analyses it uses, and a verifier runs after it. The passes, in order, are in
   [The Flow Passes](pass-pipeline.md#the-flow-passes).
-- **The Exec stage** is produced by a complete conversion from the Flow stage (`execlower`), whose postcondition, that
+- **The Exec stage** is produced by a complete conversion from the Flow stage (`execlower`), a pass of Code IR whose
+  postcondition, that
   no Flow operation remains, is checked by the verifier. The **Exec dialect** specifies the abstract machine and the
   compositions over it: the call protocol, memoization, left-recursion growth, Operators Rules, Documents and streams.
   Each operation has a reference model and conformance cases. See [Core IR and Code IR](intermediate-representations.md).
 - **Dialect-independent passes** of Code IR (`codepass`) are the passes that every dialect can run. They work only from
   the reads and writes that each operation declares. See [The Pass Pipeline](pass-pipeline.md#dialect-independent-passes-of-code-ir).
 
-A conversion between dialects is a **lowering** (`flowlower`, `execlower`, `vmlower`). **Legalize** is used only for
-adjustments inside one target, such as the passes of a host language. The stage names that the dumps use are `core`,
-`flow` and `exec`.
+A conversion between dialects, or from one IR to another, is a **lowering** (`flowlower`, `execlower`, `vmlower`). A
+lowering is a pass: the compiler from Core IR to bytecode or to the Exec stage of a host language is one pipeline of
+passes, in which the lowerings take their places between the passes of each stage, as dialect conversions do in MLIR. **Legalize** is used only for adjustments
+inside one target, such as the passes of a host language. The stage names that the dumps use, `core`, `flow` and
+`exec`, are points in that pipeline. See [Lowerings](pass-pipeline.md#lowerings).
 
 ## Backends
 
@@ -233,7 +236,7 @@ in [Package Layering](layering.md), and the public packages are described in [Th
 | `pkg/runtime/instrument` | Trace events, filters, depth and profiles |
 | `pkg/runtime/vm` | Loading a compiled file into a parser, and the parser and Document of the VM |
 | `pkg/runtime/golib` | The support library of generated Go parsers |
-| `internal/driver` | Drives the pipelines; the table of optimization profiles; the body of `pkg/compiler` and `cmd/zp` |
+| `internal/driver` | Assembles and drives the compiler pipeline; the table of optimization profiles; the body of `pkg/compiler` and `cmd/zp` |
 | `internal/diagnostic` | Positioned static errors |
 | `internal/cancel` | Cancellation of static work |
 | `internal/cliflag` | Flag names of backends and position units |
@@ -305,7 +308,8 @@ The repository also holds `bench/`, `spec/`, `site/` and `examples/`.
   computation, verifiers and printers**; the transformation and analysis passes are in the middle end. A verifier checks
   that facts agree with the structure by recomputing the attributes, so it lives with the attribute computation.
 - **The dialects are nested under the base.** The tree and the import paths say that Flow, Action and Exec are dialects of
-  Code IR. The lowerings are packages of their own outside the IR packages, apart from the passes of each dialect.
+  Code IR. The lowerings are packages of their own outside the IR packages, apart from the passes of each dialect. This
+  is where their code lives; each one runs as a pass of the pipeline.
 - **Names avoid clashes that matter**: `internal/lsp/zpls` is not named like `pkg/grammar`, and
   `ir/code/exec/compose` is not named like `ir/core`.
 
@@ -314,22 +318,25 @@ The repository also holds `bench/`, `spec/`, `site/` and `examples/`.
 ```mermaid
 flowchart LR
   S["Grammar source"] --> L["Load grammar"] --> F["front end: parse, desugar, check, elaborate"]
-  F --> CP["Core pipeline (corepass)"]
+  F --> CP["Core passes (corepass)"]
   CP --> CL["closure (reference parser)"]
-  CP --> FL["flowlower"] --> FP["Flow pipeline (flowpass)"]
+  CP --> FL["flowlower"] --> FP["Flow passes (flowpass)"]
   FP --> VL["vmlower"] --> P["runtime program and bytecode"]
-  FP --> EL["execlower"] --> XP["codepass"] --> LP["language pipelines, one per host language"] --> PR["print: generators of each host language"]
+  FP --> EL["execlower"] --> XP["codepass"] --> LP["host-language passes, one package per host language"] --> PR["print: generators of each host language"]
 ```
 
 1. Every entry point of the compiler package calls the driver. The driver resolves the optimization setting through the
-   profile table and passes the same settings to every pipeline.
+   profile table, assembles the one pipeline for the backend and passes the settings to it.
 2. The front end builds the semantic model and Core IR.
-3. The Core pipeline runs. The closure backend branches off here.
-4. `flowlower`, then the Flow pipeline. For the VM, `vmlower` selects instructions from here, and they are combined with
-   the runtime program built from Core IR and Code IR into a compiled module.
-5. For host languages: `execlower`, `codepass`, the language pipeline, then printing.
-6. Each manager dumps at the stages that the dump flag names, and when verification after each pass is requested, an
-   error names the pass. Analyses are shared through the analysis manager of each stage.
+3. The pipeline runs the Core passes. The closure backend branches off here.
+4. The pipeline runs `flowlower`, then the Flow passes. For the VM, its last pass is `vmlower`, which selects
+   instructions from here; they are combined with the runtime program built from Core IR and Code IR into a compiled
+   module.
+5. For host languages, the pipeline continues with `execlower`, the `codepass` passes and the passes of the host
+   language, and printing follows.
+6. The manager dumps at the stages and passes that the dump flag names, lowerings included, and when verification after
+   each pass is requested, an error names the pass. Analyses are shared through the analysis manager of each IR, which
+   the adaptor of a pass on that IR hands to it.
 
 ## Values, Documents and Streams
 

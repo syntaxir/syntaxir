@@ -152,8 +152,8 @@ recovery), with action expressions as operations of the Action dialect. It holds
 nested: labeled blocks and loops are regions inside the operation that owns them, and the form that is printed and
 verified keeps that nesting. A pass that needs a graph view asks the analysis manager for one.
 
-`flowlower` produces the Flow stage from Core IR in one uniform shape and fails loudly on a construct it does not
-support rather than guess. The shape is then chosen by the Flow passes, which hold every control-level decision: call
+`flowlower`, the pass that lowers Core IR to Code IR, produces the Flow stage in one uniform shape and fails loudly on
+a construct it does not support rather than guess. The shape is then chosen by the Flow passes, which hold every control-level decision: call
 specialization, inlining, dispatch, the form of a match, removal of saves that no failure path reads, merging and
 threading of failure paths, where to charge, sharing slots between locals, and outlining. Each pass declares an
 obligation, the property it preserves, and the features under which it applies, and the Flow verifier runs after it:
@@ -182,9 +182,9 @@ and not how. The second part is **compositions**: functions in structured code o
 every runtime: the call protocol of a rule with memoization, left-recursion growth, Operators Rules, the observation of a
 call, Documents and streams.
 
-`execlower` converts the Flow stage to the Exec stage completely: each Flow operation becomes its expansion, and the
-verifier checks the postcondition that no Flow operation remains. The rules of a grammar enter the Exec stage only this
-way; the compositions are written in the Exec dialect directly.
+`execlower`, a pass of Code IR, converts the Flow stage to the Exec stage completely: each Flow operation becomes its
+expansion, and the verifier checks the postcondition that no Flow operation remains. The rules of a grammar enter the
+Exec stage only this way; the compositions are written in the Exec dialect directly.
 
 Two kinds of checking keep the freedom of the targets safe. A conformance suite runs sequences of operations on a
 reference model, written for clarity and never printed, and on an implementation, and fails on the first difference in
