@@ -109,8 +109,10 @@ func (termStateConv) FromImpl(v reflect.Value) (any, bool) {
 }
 
 // termStateSuite is the suite of the engine's operations of the elements gathered or the values made, metered
-// if controlled; a metered engine charges each drop and copy to the unit.
+// if controlled; a metered engine charges each drop and copy to the unit. The reference build has no budget
+// controls, so there the suite checks the behavior alone.
 func termStateSuite(ops []string, controlled bool) conform.Suite {
+	controlled = controlled && BudgetControlsEnabled
 	name := "engine terms"
 	if controlled {
 		name += " (budget)"
@@ -240,6 +242,9 @@ func TestEngineTermStateConformanceDetectsBrokenEngine(t *testing.T) {
 				name = br.op + " charges only the copy"
 			}
 			t.Run(name, func(t *testing.T) {
+				if !BudgetControlsEnabled {
+					t.Skip("budget controls are unavailable in the reference build")
+				}
 				s := termStateSuite(fam.ops, true)
 				s.New = func(c ref.Config) conform.Impl {
 					return brokenTermStateCharge{newTermStateMachine(c, true).(meteredTermState), br.op, br.half}
