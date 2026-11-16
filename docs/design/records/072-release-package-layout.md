@@ -201,18 +201,23 @@ A Flow operation states its contract, cost, the features it needs and its laws, 
 Exec operations. An Exec operation has a reference model, and a conformance suite compares every implementation with the
 reference expansions and models.
 
-Lowering between levels is a pass of the one compiler pipeline, as a dialect conversion is a pass in LLVM and MLIR.
-The driver assembles that pipeline and the pass manager runs it: the Core passes, `flowlower`, the Flow passes, then
+Lowering between levels is a pass of the one compiler pipeline, as a dialect conversion is a pass in LLVM and MLIR. The
+driver assembles that pipeline and the pass manager runs it: the Core passes, `flowlower`, the Flow passes, then
 `vmlower` for the VM, or `execlower`, the dialect-independent passes of Code IR and the passes of the host language for
 host code generation. A lowering declares its input and output stages, preserves no analysis, and has a postcondition
 that the verifier checks after it runs, as after every pass. Lowering from Core takes it to the Flow stage in a uniform
 shape, and the Flow passes choose the shape; the conversion from the Flow stage to the Exec stage is complete, a pass
-within Code IR whose postcondition is that no Flow operation remains; instruction selection produces bytecode.
-`flowlower` and `vmlower` change the type of the IR, so the pipeline runs on the compilation unit, which holds the
-current IR, and a pass on one IR runs inside it through an adaptor, as in LLVM's pass adaptors. The registry, the dumps,
-verification after each pass, the flags and the profiles cover the lowerings as they cover every other pass, and the
-stage names of the dumps are points in the pipeline. Lowering between dialects is *lower*, and *legalize* is used only
-for adjustments inside a target.
+within Code IR whose postcondition is that no Flow operation remains; instruction selection produces bytecode. A pass is
+typed by its input and output IR, Pass[I, O]; a transform is Pass[T, T]. `flowlower` (Core IR to Code IR) and `vmlower`
+(the Flow stage to bytecode) change the type of the IR, and `execlower` is Pass[Code, Code], a dialect conversion inside
+Code IR. The pipeline is a typed composition of these passes, a sequence of transforms on one IR and then a lowering to
+the next, so the Go type checker ensures that each pass gets the IR the previous one produced. Each IR has its own
+analysis manager, and since a lowering preserves nothing, the passes after it start with a fresh one. The registry, the
+flags, the dumps and verification after each pass reach every pass through a description that does not depend on its
+types: its name, whether it is required, and how to dump and verify its output. A lowering is a required pass, as in
+LLVM: it has a name in the registry, the dumps can name it and the verifier checks it after it runs, but no flag or
+profile turns it off. The stage names of the dumps are points in the pipeline. Lowering between dialects is *lower*, and
+*legalize* is used only for adjustments inside a target.
 
 **Bytecode comes from the Flow stage.** The instruction set is at the level of grammar control, so instructions can be
 chosen from Flow operations almost one for one, with superinstruction selection: a call of a composition is one
@@ -317,9 +322,9 @@ The meaning of the trace function, its filters and its depth is defined by the s
 
 ### Pass Infrastructure
 
-The pass infrastructure is internal, in `internal/pass`. It provides the pass manager that runs the passes of every
-pipeline, the registry of passes and their control flags, the caching of analyses with their invalidation, and the
-preserved sets that say which analyses a transform keeps. Its exact shapes are not given in this record.
+The pass infrastructure is internal, in `internal/pass`. It provides the pass manager that runs the passes of the
+compiler pipeline, the registry of passes and their control flags, the caching of analyses with their invalidation, and
+the preserved sets that say which analyses a transform keeps. Its exact shapes are not given in this record.
 
 ### Decided Package Names
 

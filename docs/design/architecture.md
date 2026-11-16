@@ -335,8 +335,8 @@ flowchart LR
 5. For host languages, the pipeline continues with `execlower`, the `codepass` passes and the passes of the host
    language, and printing follows.
 6. The manager dumps at the stages and passes that the dump flag names, lowerings included, and when verification after
-   each pass is requested, an error names the pass. Analyses are shared through the analysis manager of each IR, which
-   the adaptor of a pass on that IR hands to it.
+   each pass is requested, an error names the pass. Each IR has its own analysis manager, through which its
+   passes share analyses; a lowering preserves nothing, so the passes after it start with a fresh one.
 
 ## Values, Documents and Streams
 

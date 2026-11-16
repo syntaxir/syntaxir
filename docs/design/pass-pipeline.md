@@ -28,8 +28,9 @@ The pipeline moves that knowledge out of the calling code and into declarations 
 
 A pass is a value, not just a function. It declares:
 
-- its **name**, which is also the name of the flag that turns it off, of the dump that shows its result and of the error
-  that names it when it fails;
+- its **name**, which is also the name of the dump that shows its result and of the error that names it when it fails,
+  and, for an optional pass, the name of the flag that turns it off. A **required** pass, such as a lowering, runs
+  whenever the pipeline reaches it: no flag or profile turns it off;
 - the passes it must **follow**, for passes that share no data and that an analysis would not order;
 - when it **applies**: a set of features (budget controls, Documents, tracing and the like). Core IR has no mode, so a
   Core pass that applies to every build declares no feature. A pass that does not apply never runs, whatever its flag
@@ -38,11 +39,14 @@ A pass is a value, not just a function. It declares:
   recorded and the values built stay the same;
 - the **analyses it asks for**, and the analyses it **preserves**.
 
-A pass runs on one unit of IR and returns the new unit with the set of analyses it preserved. The manager runs the
-enabled passes in order, invalidates what each pass did not preserve, and on request verifies and dumps after each pass.
-A compilation is one pipeline, assembled by the driver and run by the generic manager of the pass infrastructure. It
-holds every step of the compiler in order: the transforms, the steps that analyses drive, and the lowerings from one
-dialect or IR to the next.
+A pass is typed by the IR it takes and the IR it returns, Pass[I, O] in the pass infrastructure: it takes a unit of
+its input IR and returns a unit of its output IR with the set of analyses it preserved. A transform takes and returns
+the same IR, Pass[T, T]; a lowering returns another IR or another dialect. A compilation is one pipeline, assembled by
+the driver as a typed composition of passes: a sequence of transforms on one IR, then a lowering to the next IR, and so
+on. Because each pass takes the type its predecessor returns, the Go type checker ensures that every pass receives the
+IR that the previous pass produced. The generic manager of the pass infrastructure runs the enabled passes in order,
+invalidates what each pass did not preserve, and on request verifies and dumps after each pass. The pipeline holds
+every step of the compiler in order: the transforms, the steps that analyses drive, and the lowerings.
 
 The declarations are checked before anything runs: names are non-empty and distinct, every requested analysis has a
 key, and every pass named in a follow list precedes the pass that names it. A declaration that cannot be satisfied is an
@@ -51,7 +55,7 @@ error of every run, before any pass runs.
 ## The Pass Model
 
 Transforms run in an explicit list, in order; analyses are computed when they are requested and cached. The model is
-generic over the unit of IR and has four parts.
+generic over the input and output IR of a pass and has four parts.
 
 - **Preserved sets.** A transform declares the set of analyses it keeps. A preserved set **preserves nothing by
   default**: a pass that forgets to declare what it keeps invalidates everything, which costs time but never gives a
@@ -113,18 +117,23 @@ declarations.
 
 ### Lowerings
 
-A lowering is a pass whose result is in another dialect or another IR. It declares its input stage and its output
-stage, preserves no analysis, and has a postcondition that the verifier checks after it runs, as it checks the
-invariants after every pass: after `execlower`, no Flow operation remains. Like every pass, a lowering has a name in the
-registry, so the flags, the dumps, verification after each pass and the profiles treat it the same way. This follows
-LLVM and MLIR, where a conversion between dialects is a pass.
+A lowering is a pass whose result is in another dialect or another IR. It declares its input stage and its output stage,
+preserves no analysis, and has a postcondition that the verifier checks after it runs, as it checks the invariants after
+every pass: after `execlower`, no Flow operation remains. A lowering is a required pass, as in LLVM: it has a name in
+the registry, `-print-after` can name it, and the verifier checks it after it runs, but no flag or profile turns it off,
+because the stages after it need its output. This follows LLVM and MLIR, where a conversion between dialects is a pass.
 
 `execlower` works within Code IR, from the Flow stage to the Exec stage of the same module, so it is an ordinary pass of
-Code IR. `flowlower` takes Core IR to Code IR, and `vmlower` takes the Flow stage to bytecode: both change the type of
-the IR. The pipeline therefore runs on the compilation unit, which holds the current IR. A pass that works on one IR,
-such as a Core pass or a Flow pass, runs inside the pipeline through an adaptor that hands it that IR and its analysis
-manager, as LLVM's pass adaptors run a function pass inside a module pipeline. Each pass keeps the shape of a pass on
-one IR, and the pipeline stays one sequence.
+Code IR, from Code IR to Code IR, as a dialect conversion inside one IR. `flowlower`, from Core IR to Code IR, and
+`vmlower`, from Code IR at the Flow stage to bytecode, change the type of the IR: in the typed composition they are the
+points where the type changes.
+
+Each IR has its own analysis manager. A lowering preserves nothing, so the passes after it start with a fresh analysis
+manager for its output IR, and after `execlower` no analysis of the Flow stage survives into the Exec stage.
+
+The registry, the flags, `-print-after`, the dumps and verification after each pass work on every pass, whatever its
+types, through a description of the pass that does not depend on them: its name, whether it is required, and how to
+dump and verify its output.
 
 The lowerings are packages of their own, outside the IR packages and apart from the passes of each dialect. That
 placement says where the code lives; in the pipeline, each lowering runs as a pass.
