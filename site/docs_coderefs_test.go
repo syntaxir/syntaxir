@@ -51,6 +51,11 @@ type repoCode struct {
 	// publicExports holds, by package name, the exported top-level names of the public packages;
 	// a qualified name that a public package of that name exports refers to the public package.
 	publicExports map[string]map[string]bool
+	// internalExports holds, by package name, the exported names that the internal packages
+	// declare. A qualified name is a reference to code only when an internal package of that
+	// name declares it: testing.F names the standard library, which no package of the repository
+	// declares, so it is not a reference to code of this repository.
+	internalExports map[string]map[string]bool
 	// execOps holds the names of the operations of Exec IR, such as term.dropKids: the
 	// specification and the design define them, so a page may name them, though a part of the
 	// name may match a Go identifier.
@@ -92,7 +97,7 @@ func loadRepoCode(t *testing.T, root string) *repoCode {
 	t.Helper()
 	c := &repoCode{root: root, goFiles: map[string]bool{}, goBases: map[string]bool{}, goDirs: map[string]bool{},
 		codeDirs: map[string]bool{}, declared: map[string]bool{}, unexported: map[string]bool{}, internalPkg: map[string]bool{},
-		publicExports: map[string]map[string]bool{}, execOps: map[string]bool{}}
+		publicExports: map[string]map[string]bool{}, internalExports: map[string]map[string]bool{}, execOps: map[string]bool{}}
 	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -147,6 +152,10 @@ func loadRepoCode(t *testing.T, root string) *repoCode {
 				name := strings.TrimSuffix(m[1], "_test")
 				if internal {
 					c.internalPkg[name] = true
+					if c.internalExports[name] == nil {
+						c.internalExports[name] = map[string]bool{}
+					}
+					exports = c.internalExports[name]
 				}
 				if public {
 					if c.publicExports[name] == nil {
@@ -375,7 +384,7 @@ func (c *repoCode) codeRefsIn(rel string, data []byte, internal bool) []codeRef 
 				}
 			}
 			for _, q := range qualifiedRe.FindAllStringSubmatch(span, -1) {
-				if c.internalPkg[q[1]] && !c.publicExports[q[1]][q[2]] && !seen[q[0]] {
+				if c.internalPkg[q[1]] && c.internalExports[q[1]][q[2]] && !c.publicExports[q[1]][q[2]] && !seen[q[0]] {
 					seen[q[0]] = true
 					add(i, refQualified, q[0])
 				}
@@ -523,6 +532,8 @@ func TestCodeReferencesScanner(t *testing.T) {
 		internalPkg: map[string]bool{"core": true},
 		// a public package core, whose exports a qualified core name may refer to
 		publicExports: map[string]map[string]bool{"core": {"Node": true}},
+		// the internal package core declares ScanHotSpan, which a qualified core name refers to
+		internalExports: map[string]map[string]bool{"core": {"ScanHotSpan": true}},
 	}
 	doc := "See [scan](internal/engine/state/scan.go) and `scanSpan` and `core.ScanHotSpan`, beside `core.Node`.\n" +
 		"The file scan.go:42 and line 7 of internal/engine/state/scan.go, in internal/engine/state and internal/engine/state/sub.\n" +
@@ -554,6 +565,29 @@ func TestCodeReferencesScanner(t *testing.T) {
 	}
 	if !strings.Contains(strings.Join(got, "|"), "internal internal/engine/state/sub") {
 		t.Error("a path below a package is not a violation in an internal document")
+	}
+}
+
+// TestCodeReferencesQualifiedNames checks that a qualified name is a reference to code only when an
+// internal package of that name declares the name. The qualifier testing matches an internal package
+// here, but the standard library's F is not declared by it, so testing.F is not reported.
+func TestCodeReferencesQualifiedNames(t *testing.T) {
+	c := &repoCode{
+		internalPkg:     map[string]bool{"state": true, "testing": true},
+		internalExports: map[string]map[string]bool{"state": {"Declared": true}, "testing": {"Helper": true}},
+	}
+	doc := "The `state.Declared` and `state.Missing` names, and `testing.F` and `testing.Helper`.\n"
+	var got []string
+	for _, r := range c.codeRefsIn("README.md", []byte(doc), false) {
+		if r.kind == refQualified {
+			got = append(got, r.token)
+		}
+	}
+	want := []string{"state.Declared", "testing.Helper"}
+	sort.Strings(got)
+	sort.Strings(want)
+	if strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Errorf("qualified names:\n got %q\nwant %q", got, want)
 	}
 }
 
