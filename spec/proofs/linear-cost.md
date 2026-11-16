@@ -2648,13 +2648,17 @@ lookahead state, in a context of growths or of the other variant, and a link
 that meets a result kept in a context of growths can lead into a lookahead that
 the result observed; such a link can lead to an activation held by a head.
 
-**Iterations at one scan.** Let $T$ be an evaluation of a repetition, and
-call an iteration of $T$ **reaching** when it contains one of the successful
-activations $\alpha_1, \alpha_2, \ldots$ of $\sigma$ at $q$. Let $it_k$ and
-$it_{k'}$, $k < k'$, be consecutive reaching iterations of $T$, starting at
-$s_k < s_{k'}$, let $\alpha_{i-1}$ be the last activation in $it_k$, and let
-the first abandoned evaluation below $T$ on the path to $\alpha_{i-1}$ be a
-unit, with no growth on the path from $T$ down to it. Then:
+**Iterations at one scan.** Let $\alpha_1, \alpha_2, \ldots$, the units
+$w_i$, the continuations $\kappa_i$ and the links be as in *Repeats*, outside
+case 5, the third case of *Dropped steps* and the repeats at the position of
+a growth that *Repeats inside a growth* of Lemma 5 leaves out. Let $T$ be an
+evaluation of a repetition, and call an iteration of $T$ **reaching** when
+it contains one of the successful activations $\alpha_1, \alpha_2, \ldots$
+of $\sigma$ at $q$. Let $it_k$ and $it_{k'}$, $k < k'$, be consecutive
+reaching iterations of $T$, starting at $s_k < s_{k'}$, let $\alpha_{i-1}$ be
+the last activation in $it_k$, and let the first abandoned evaluation below
+$T$ on the path to $\alpha_{i-1}$ be a unit, with no growth on the path from
+$T$ down to it. Then:
 
 1. $\alpha_i$ is the first activation in $it_{k'}$, the innermost evaluation
    $N_i$ that contains $\alpha_{i-1}$ and $\alpha_i$ is $T$, and $w_i$, that
@@ -2675,11 +2679,13 @@ unit, with no growth on the path from $T$ down to it. Then:
    $q$ and contains a successful activation of $\sigma$ at $q$, when it ends
    at or before $q$; or an evaluation from $it_{k'}$ down to $e'_i$ is
    abandoned, and then, when $\alpha_i$ is also the last activation in
-   $it_{k'}$, a later reaching iteration follows and its abandoned evaluation
-   is a unit as above, $w_{i+1}$ contains $e'_i$, and $e_{i+1}$ contains
-   $e'_i$ or lies inside it, the second only when the rule of $e'_i$ calls a
-   rule. At most two iterations of $T$ are charged to one $q$-frame position
-   by the first case: those whose start and end enclose it.
+   $it_{k'}$ and a later reaching iteration follows such that $it_{k'}$ and
+   that iteration meet the hypothesis above, with the first abandoned
+   evaluation below $T$ on the path to $\alpha_i$ a unit, $w_{i+1}$ contains
+   $e'_i$, and $e_{i+1}$ contains $e'_i$ or lies inside it, the second only
+   when the rule of $e'_i$ calls a rule. At most two iterations of $T$ are
+   charged to one $q$-frame position by the first case: those whose start
+   and end enclose it.
 4. Let $it_{k_1}, \ldots, it_{k_n}$ be consecutive reaching iterations, with
    $i_a$ the index of the first activation in $it_{k_{a+1}}$, each meeting
    the hypothesis above, no growth on the paths from $T$ down to the
@@ -2721,15 +2727,20 @@ examines the input begins with the shared calls, each with the result that
 it has in $w_i$). An iteration $it_x$ that ends in that time contains every
 evaluation of a call that starts in it, and is contained in none, since its
 parent is $T$; so it ends between two of these evaluations, at a position of
-$B_i$.
+$B_i$. This argument does not use the order of kept evaluations that
+the proof of 4 shows.
 
 For 3, in the first case $e'_i$ lies in the match of $it_{k'}$, which ends
-at or after $\mathrm{end}(e'_i)$. If that is after $q$, every later iteration
-starts after $q$ and contains no activation at $q$; otherwise $e'_i$ ends at
-or before $q$ and contains $\alpha_i$. In the second case the first abandoned
-evaluation below $T$ on the path to $\alpha_i$ is below $it_{k'}$, which
-succeeded, and at or above $e'_i$, since one of those is abandoned; it is
-$w_{i+1}$ by 1 applied to $it_{k'}$ and the next reaching iteration. So
+at or after $\mathrm{end}(e'_i)$. If $e'_i$ ends after $q$, so does
+$it_{k'}$, and every later iteration starts at or after the end of $it_{k'}$,
+after $q$, and contains no activation at $q$. If $e'_i$ ends at or before
+$q$, it is a $q$-frame, since it succeeds and contains $\alpha_i$, whether
+$it_{k'}$ ends after $q$ or not; when it does, $it_{k'}$ is also the last
+reaching iteration, which the claim does not need. In the second case,
+under its condition, the first abandoned evaluation below $T$ on the path to
+$\alpha_i$ is below $it_{k'}$, which succeeded, and at or above $e'_i$, since
+one of those is abandoned; it is $w_{i+1}$ by 1 applied to $it_{k'}$ and the
+next reaching iteration, which meet the hypothesis by that condition. So
 $w_{i+1}$ contains $e'_i$, and $e_{i+1}$, an evaluation of a call that
 contains $\alpha_i$ (*Repeats*), contains $e'_i$ or lies inside it, and then
 it is a call made in the body of the rule of $e'_i$. The iterations of $T$
@@ -2749,7 +2760,13 @@ $\mathrm{end}(x)$ through neither. So two such evaluations nest or have
 spans in their order, the earlier ending at or before the start of the
 later. The evaluations of $c_1, \ldots, c_{j-1}$ that $\kappa_{i_a}$ keeps on
 its way to $e'_{i_a}$, and those of the shared calls of $w_{i_{a+1}}$ before
-$e_{i_{a+1}} = e'_{i_a}$, are kept before $e'_{i_a}$. $w_{i_{a+1}}$ lies in
+$e_{i_{a+1}} = e'_{i_a}$, are kept before $e'_{i_a}$. These are the
+evaluations on the path to $e_{i_{a+1}}$, not ones in an alternative that
+was abandoned before it: every path of $w_{i_{a+1}}$ begins with its shared
+calls, so the path to $e_{i_{a+1}}$ passes an evaluation of each of them, at
+the positions where $w_{i_{a+1}}$ evaluates them. In the same way the
+evaluation $c$ of a shared call of $w_{i_a}$ named below is the one that
+$\kappa_{i_a}$ keeps on its way to $e'_{i_a}$. $w_{i_{a+1}}$ lies in
 $it_{k_{a+1}}$, which starts at $s_{k_{a+1}} \in B_{i_a}$ by 2, so every
 boundary $\tau'$ of $w_{i_{a+1}}$, the start or end of the evaluation $d$ of
 one of its shared calls, lies between $\tau_0$ and $\tau_{j-1} = t_{i_a}$
@@ -2757,15 +2774,15 @@ of $B_{i_a}$. If $\tau'$ lay strictly between two consecutive members of
 $B_{i_a}$, the boundaries of the evaluation $c$ that $\kappa_{i_a}$ makes of
 one shared call, $d$ and $c$ would not have spans in their order, so they
 would nest, and $d$ would not contain $c$, since $\tau'$ lies strictly
-inside the span of $c$; so $d$ would lie inside $c$, which no refinement
-excludes. So $B_{i_{a+1}} \subseteq B_{i_a}$, and the starts $s_{k_2} <
-\cdots < s_{k_n}$ are distinct members of $B_{i_1}$, which has $j$ members.
-$\square$
+inside the span of $c$; so $d$ would lie inside $c$, which the hypothesis
+of no refinement excludes. So $B_{i_{a+1}} \subseteq B_{i_a}$, and the starts
+$s_{k_2} < \cdots < s_{k_n}$ are distinct members of $B_{i_1}$, which has $j$
+members. $\square$
 
 The claim bounds a run of linked reaching iterations of one repetition at
 one position without the growth hypothesis of *Calls that call no rule*,
 and whether or not the shared call is the first, but only inside $T$; the
-frames left outside it stay as in step 1 of [Open Steps](#open-steps). Four
+frames left outside it stay as in step 1 of [Open Steps](#open-steps). Five
 parts of a bound on the reaching iterations of $T$, and through them on the
 activations that one head holds, are not shown. A refinement can occur when
 the evaluation of a shared call in $\kappa_{i_a}$ has calls or literals
@@ -2778,7 +2795,9 @@ contains $e'_i$, is an evaluation of a memoized call, or one through which
 the unit looks, at a position $t_{i+1} \le t_i$; it is a $q$-frame when it
 succeeds and ends at or before $q$, but neither the number of break
 positions per $q$ nor the iterations that hold an abandoned evaluation at
-one such position are bounded. When a reaching iteration holds more than
+one such position are bounded. The first case of 3 charges iterations to
+$q$-frame positions, at most two to each, but the number of distinct
+$q$-frame positions per $q$ is not bounded here either. When a reaching iteration holds more than
 one activation, $e$ of its last need not be $e'$ of its first, and that case
 is not followed. And the hypothesis leaves out dropped steps and growths on
 the path from $T$ down to the unit, case 5, the exception of the restarts,
