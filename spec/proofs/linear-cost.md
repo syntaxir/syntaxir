@@ -1227,7 +1227,7 @@ $e'_j$ and is not $e'_j$.
 link with $e'_j = Y_{l'}$, at a position $s_0 < p$, and let the parse keep no
 records of scan sites. Then, after $e_j$ ends, $w_j$ evaluates no call of
 $r$ at $p$, unless the sequence of the activations of $\sigma$ at $q$ leaves
-out the activation at $q$ of that call, and if $w_j$ starts before $w_l$ ends, this is the case that
+out the activation at $q$ of that call, and if $w_j$ starts before $w_l$ ends and reaches $e_j$ on the first way through its alternatives that it takes, this is the case that
 *Nesting at one end* rules out, with $e_j$ as $X$ and $Y_l$ as $T$, unless $r$
 is a scan-only rule.
 
@@ -1253,7 +1253,9 @@ starts no earlier than $\alpha_l$, after $w_l$ ends, and it was not started
 inside $w_l$, so it encloses $w_l$, as $Y_l$ does. It does not lie inside
 $Y_l$, which ends before $\alpha_l$ starts, so it encloses $Y_l$. The shared
 calls that $w_j$ evaluates before $e_j$ end at or before $s_0 < p$, and $w_j$
-examines no input before its shared calls, so $Y_l$, which examines the input
+examines no input before its shared calls; let $w_j$ also reach $e_j$ on the
+first way through its alternatives that it takes, so that no alternative
+inside $w_j$ fails before the one that holds $e_j$. Then $Y_l$, which examines the input
 from before $p$ to $p$, lies in none of them and is not evaluated before
 $e_j$; it does not start after $e_j$ ends, since $e_j$ contains
 $\alpha_{j-1}$, which starts after $Y_l$ ends. So $Y_l$ lies inside $e_j$, and
@@ -1268,6 +1270,19 @@ the body of $Y_l$, in what follows $\pi_l$, so the call is not shared unless
 $r$ is a scan-only rule. *Calls of scan-only rules* treats that rule in a
 parse with the records of scan sites, which this claim excludes, so a
 scan-only $r$ in a parse without them is not treated here. $\square$
+
+Without that hypothesis $Y_l$ can lie in an earlier alternative of $w_j$, in
+no evaluation of a call of $Y$ around it, and the claim does not apply. In
+`main = "[" -(A "x" / C "z")? B "y" / P`, with `A = {v := 1} Z`,
+`C = {v := 3} Y {v == 7} ws`, `B = {v := 2} Z`, `Z = Y {v >= 0} ws`,
+`Y = S (ws ";")?`, `S = "a"+`, `ws = ([ ] {true})*`, which is not a scan-only
+rule, and `P` as in *Outer links across runs*, which the conditions accept,
+the unit of the index between the two outer links through the call of `Y`
+in `Z` is the choice inside the option, which holds $Y_l$ in `A "x"` and
+$e_j$ in `C "z"`; on `[` followed by $n$ `a`s, $n$ spaces and `y`, the
+compute of a recognition is $16n + 151$ on the closure backend and $16n +
+161$ on the bytecode backend for $n$ from $250$ to $2000$. That case is not
+shown.
 
 Apart from that scan-only case, the case $e'_j = Y_{l'}$ that remains is that of a unit $w_j$ that starts
 after $w_l$ ends and evaluates no call of $r$ at $p$ after $e_j$, unless the
@@ -1622,10 +1637,10 @@ memoization proof](memoization.md#lemma-2-reading-an-open-growth)), so
 neither call reads a growth open at its start. Nor does one read a growth
 open at the start of the other: $F_2$ starts after $F_1$ ends, so a growth
 open at the start of $F_1$ that $F_2$ reads is in progress from the start of
-$F_1$ to that read and so open at the start of $F_2$, and a growth open at
+$F_1$ to that read and so open at the start of $F_2$, so that $F_2$ would read a growth open at its start, and a growth open at
 the start of $F_2$ that $F_1$ reads was started before that read and is in
 progress after $F_1$ ends, so it was not started inside $F_1$ and is open at
-the start of $F_1$. So every growth at their position that is open at the
+the start of $F_1$, so that $F_1$ would read a growth open at its start. So every growth at their position that is open at the
 start of one is read by neither. These are the hypotheses of
 *Evaluated pairs of a shared call*, and the reduction above, with $F_2$ in the
 place of $E_2$, gives the rest. $\square$
@@ -1649,6 +1664,15 @@ between the two outer links through that call of `Y` is free, so the grammar
 shows the shape, not a case of placement 1; on `[` followed by $n$ `a`s, $n$
 spaces and `y`, the compute of a recognition is $14n + 163$ on the closure
 backend and $14n + 168$ on the bytecode backend for $n$ from $250$ to $2000$.
+
+In those cases, then, the evaluation that holds $\alpha_{l'}$ can be the head
+of its class, so the route through *Outer links inside a memoized link*
+cannot close them. They go to the count of the activations held by heads:
+$\alpha_{l'}$ is held by a head, at most one of each class, and is counted
+among the activations that the head holds, which *Activations held by heads*
+bounds only together with the bound on the heads and on the activations that
+one head holds that step 1 of [Open Steps](#open-steps) leaves open. Nothing
+more is shown for them here.
 
 In the first case the parse evaluates three calls of $Y$ at the start of
 $Y_{l'}$ that the memo answers none of: $E_1$, $e_j$ and $E_2$, in this order,
@@ -6221,7 +6245,11 @@ condition of the cost view that the [Cost View](cost-view.md) proof leaves open.
    made by calls with which the unit and its continuation start where they
    evaluate the shared call, and their rule reads no variable, is memoized at
    both calls, lies on no left-recursion cycle and is called with one level
-   restriction; the other cases of the first form are not shown. Nor are the cases
+   restriction; in the other cases of the first form a head can hold the later
+   outer activation, which then belongs to the count of the activations that
+   heads hold, open above. Nor is the case shown in which the unit of the
+   memoized link between two outer links reaches its shared call on a later
+   way through its alternatives than one that holds the earlier frame. Nor are the cases
    shown in which the frame of the later outer link encloses the later
    evaluation of the call, or in which the continuation
    reaches the activation of the index in a later evaluation of the call. A later
