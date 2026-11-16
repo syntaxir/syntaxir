@@ -16,6 +16,10 @@
 - Near a token-limit reset, unused budget is waste: open every unblocked lane. Make every
   lane safe to stop at any moment. Push at each coherent step, and keep the handover and
   the issue checklist current after each step.
+- Keep a documentation lane running beside the code lanes. It closes documentation gaps
+  early, one commit per issue, in files that active branches do not touch. Every
+  implementation brief still says "update affected docs in the same change". A full
+  documentation audit gates the release.
 - Run a stall sweep at least daily, and after every train or scope cut. Look for READY
   lines not on main, unmerged remote branches, issues In progress, Pending or In review
   with no activity for over 12 hours, milestone rows past their start date, open questions
