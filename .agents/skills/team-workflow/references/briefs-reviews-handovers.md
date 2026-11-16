@@ -48,7 +48,7 @@ A brief is the member's only context. It states:
 - the hand-back format: at most 12 lines with the branch and SHA, what changed, the exact
   checks with their exit statuses, and open questions.
 
-For docs or backlog sidekicks, give exact targets and one literal example line of the target
+For the backlog writer and other light sidekicks, give exact targets and one literal example line of the target
 format. A light model copies the wrong style when it is told to "match existing entries".
 Audit its result with a cheap diff or grep.
 

@@ -55,9 +55,9 @@ with implementation changes; regenerate generated files.
   Required local validation still applies.
 - Ask the owner about unspecified language semantics, with alternatives,
   tradeoffs and a recommendation; wait for answers before dependent work.
-- Reuse the established Luna documentation/backlog sidekick and independent
+- Reuse the established backlog writer (a light sidekick) and independent
   reviewer where appropriate. The primary owns implementation, tests, site
-  code, Git operations and main integration; the documentation sidekick owns
+  code, Git operations and main integration; the backlog writer owns
   documentation context and backlog issue management after handoff.
 
 - For high-impact changes, request critical review from a reviewer whose context

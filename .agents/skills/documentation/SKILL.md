@@ -36,6 +36,6 @@ description: Maintain ZeroParse user documentation, contracts, design records an
 - Keep `AGENTS.md` concise. Follow existing indexes and templates, remove
   authoring prompts from finished pages, verify examples and links, and keep
   published docs independent of chats and issue numbers.
-- The documentation sidekick owns documentation context and backlog issue management
+- The backlog writer (a light sidekick) owns documentation context and backlog issue management
   after handoff. The primary owns site code, other implementation, tests and Git.
   The primary must review documentation changes and verify saved results.
