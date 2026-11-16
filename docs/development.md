@@ -316,6 +316,8 @@ regenerated files uncommitted in the checkout and does not rewrite `generate.go`
 Commit the result in the alpha-parsers repository whenever a change of the generator, the library or the grammars
 changes the generated files.
 
+Regenerate committed generated files with `go run ./cmd/zp` or `go generate`, never with a built `zp`: a built binary stamps a version in the header, and committed files carry `(devel)`, which a test checks.
+
 ## Language Feature Status
 
 | Status | Category | Feature |

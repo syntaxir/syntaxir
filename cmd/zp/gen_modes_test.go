@@ -1,8 +1,10 @@
 package main
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -386,5 +388,39 @@ func TestGenImportKeepsSharedLib(t *testing.T) {
 	gen("-g", g, "-lib", "import", "-lib-module", "./lib.ts")
 	if got := readTS(t, dir, "lib.ts"); got != "export const x = 1;\n" {
 		t.Errorf("a hand-written lib.ts was changed: %q", got)
+	}
+}
+
+// TestGenIsReproducible checks that two generations of one grammar by one generator write
+// byte-identical trees, Go and TypeScript, so the version stamp does not make output vary.
+func TestGenIsReproducible(t *testing.T) {
+	g := writeFile(t, "kv.zp", kv)
+	for _, args := range [][]string{
+		{"-module", "example.com/kv"},
+		{"-lang", "ts", "-lib", "embed"},
+	} {
+		var trees [2]map[string]string
+		for i := range trees {
+			dir := filepath.Join(t.TempDir(), "out")
+			if _, err := runCLI(t, "", append([]string{"gen", "-g", g, "-o", dir}, args...)...); err != nil {
+				t.Fatalf("%v: %v", args, err)
+			}
+			trees[i] = map[string]string{}
+			err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+				if err != nil || d.IsDir() {
+					return err
+				}
+				data, err := os.ReadFile(p)
+				rel, _ := filepath.Rel(dir, p)
+				trees[i][rel] = string(data)
+				return err
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		if len(trees[0]) == 0 || !reflect.DeepEqual(trees[0], trees[1]) {
+			t.Errorf("%v: generations differ (%d and %d files)", args, len(trees[0]), len(trees[1]))
+		}
 	}
 }

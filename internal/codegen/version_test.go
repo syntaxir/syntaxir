@@ -17,6 +17,7 @@ func TestVersionOf(t *testing.T) {
 	}{
 		{"main module", debug.BuildInfo{Main: zp("v0.2.0", nil)}, "v0.2.0"},
 		{"main module pseudo-version", debug.BuildInfo{Main: zp("v0.0.0-20261101000000-0123456789ab", nil)}, "v0.0.0-20261101000000-0123456789ab"},
+		{"main module dirty tree", debug.BuildInfo{Main: zp("v0.0.0-20261101000000-0123456789ab+dirty", nil)}, "(devel)"},
 		{"main module from a checkout", debug.BuildInfo{Main: zp("(devel)", nil)}, "(devel)"},
 		{"main module without version", debug.BuildInfo{Main: zp("", nil)}, "(devel)"},
 		{"dependency", debug.BuildInfo{Main: debug.Module{Path: "example.com/tool", Version: "v1.0.0"}, Deps: []*debug.Module{{Path: "zeroparse.dev/zp/codegen/go/lib", Version: "v0.9.0"}, dep(zp("v0.3.1", nil))}}, "v0.3.1"},
