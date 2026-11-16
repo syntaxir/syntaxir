@@ -581,7 +581,7 @@ func (b *Builder) scanSiteList(m state.Matcher, elemValue func(*state.Parser, *c
 			if count >= span {
 				p.Hw = max(hw0, p.Hw)
 			}
-			p.Kids(base)
+			p.DropKids(base)
 			return nil, false
 		}
 		if !build {
@@ -749,7 +749,7 @@ func (b *Builder) repeat(n *ir.Repeat, m state.Matcher, elemScope *compile.Scope
 			if !ok {
 				p.Reset(m0)
 				if cut {
-					p.Kids(base)
+					p.DropKids(base)
 					return nil, false
 				}
 				break
@@ -778,7 +778,7 @@ func (b *Builder) repeat(n *ir.Repeat, m state.Matcher, elemScope *compile.Scope
 			}
 		}
 		if count < min {
-			p.Kids(base)
+			p.DropKids(base)
 			return nil, false
 		}
 		if run != 0 && p.Pos-start >= state.RunHotSpan {
@@ -814,7 +814,7 @@ func (b *Builder) projectRepeat(min, max int, m state.Matcher, slot, n int) stat
 			if !ok {
 				p.Reset(m0)
 				if cut {
-					p.Kids(base)
+					p.DropKids(base)
 					return nil, false
 				}
 				break
@@ -826,7 +826,7 @@ func (b *Builder) projectRepeat(min, max int, m state.Matcher, slot, n int) stat
 			}
 		}
 		if count < min {
-			p.Kids(base)
+			p.DropKids(base)
 			return nil, false
 		}
 		return p.NewNode(value.Data{Kind: coreimpl.ListKind, Start: int32(start), End: int32(p.Pos), Children: p.Kids(base), Fresh: true}), true

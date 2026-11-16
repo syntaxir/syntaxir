@@ -2480,8 +2480,10 @@ n elements of a list or a tuple off the values gathered for it is one
 reservation of 2n units, one for copying each element and one for taking it
 off, made before any element moves, however long the list, whether a term makes
 the list or the parse builds it, as for the list of a repetition. A list that
-reuses the elements kept in the record of an earlier walk ([Scan Sites](#scan-sites))
-takes off only the elements gathered before them. Where two
+reuses the elements kept in the record of an earlier walk ([Run Sites](#run-sites))
+takes off only the elements gathered before them. A repetition that fails
+below its minimum makes no list, so the values it gathered are dropped, not
+taken off. Where two
 backends make the same charges, they report the same `Used` and `Requested`.
 
 ### Memory Limit
