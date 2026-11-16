@@ -1,5 +1,8 @@
 # Architecture
 
+> [!WARNING]
+> This page describes the target architecture. The code may still differ from it.
+
 ZeroParse is a parser compiler: it turns a grammar written in an extended PEG language into parsers for several
 backends, and every backend gives the same parse result for the same grammar and input. This page is the overview of
 the system: what it provides, the execution model, the two intermediate representations and the pipeline between them,
@@ -41,8 +44,8 @@ public contract that the specification defines.
 - **Recognition** decides, without building a tree, whether the input matches the grammar, and returns the same success
   and the same syntax errors (recovered ones included) as a parse. Predicates, and the actions that predicates read,
   run; the runtime errors of other actions and the conversion to typed values are not checked, so a recognition can
-  succeed where a parse fails. "Recognize" is the one term for this mode in the command line, the API, the
-  specification and the documents. "Validate" and "validation" mean only the structural check of an artifact: a grammar
+  succeed where a parse fails. The parser's `Recognize` method and the command-line recognition mode express it, and
+  "Recognize" is the one term for this mode in the command line, the API, the specification and the documents. "Validate" and "validation" mean only the structural check of an artifact: a grammar
   AST, a schema or a module.
 - **Document mode** keeps the input and the parse state between edits and parses again only what an edit changed. It
   serves editors and other real-time analysis.
@@ -139,7 +142,7 @@ host language is added as a new backend in the same pattern, without changing th
 
 - **Closure.** A reference parser built from Core IR, and the oracle of the differential tests. It is built independently
   of the lowering of grammar code through Flow and Exec, so a bug in that lowering shows up as a difference between
-  backends. It needs Core IR, so it belongs to the compiler side, and it is public only as a constructor of the compiler
+  backends. It needs Core IR, so it belongs to the compiler side, and it is public only through `NewReferenceParser` of the compiler
   package.
 - **Bytecode and the VM.** The default backend: the compiler returns a parser on the VM. Instructions are selected from
   Code IR at the **Flow stage**, with superinstruction selection. The instruction set is at the level of grammar control
@@ -151,9 +154,9 @@ host language is added as a new backend in the same pattern, without changing th
   choice every practical backend (the VM, every host language and a future native-code backend) takes grammar code from
   one Code IR, so charging and the propagation of options cannot drift between two lowerings of grammar code.
 - **Host code generation.** The Exec stage is legalized and optimized by the passes of each host language, and then
-  printed. Each host language has one package with the same three parts: passes, a printer and a runtime library. The
-  details, with the instances for the two host languages of today, are in
-  [Code Generation for Host Languages](host-code-generation.md).
+  printed. Each host language has its own subpackages for its passes, its printer and its runtime library, and the parts
+  that all host languages share sit beside them. The details, with the instances for the two host languages of today,
+  are in [Code Generation for Host Languages](host-code-generation.md).
 
 The future native-code backend would lower the Exec stage to LLVM IR. It is a low-priority plan, not a commitment of the
 present design.
@@ -192,16 +195,17 @@ Run-time observation is described in [Observability](observability.md).
 
 ## The Command Line
 
-The `zp` command groups its subcommands by task.
+The `zp` command groups its subcommands by task. A command that reads a grammar takes it with `-g`, `-i` gives an input
+inline and `-o` names an output.
 
-| Task | Commands | Purpose |
+| Task | Commands and flags | Purpose |
 |:--|:--|:--|
-| Parsing and recognition | `parse` | Prints the parse result as JSON or as an S-expression; its recognition mode prints success and syntax errors without a tree |
-| Run-time observation | `explain`, `trace`, `profile` | Explains the rule calls behind a syntax error; traces the rules with filters and a depth limit; reports cost and wasted backtracking per rule |
-| Static analysis, formatting and editor support | `lint`, `fmt`, `lsp` | Runs the checks and reports the complexity class; formats keeping comments, with a check mode; starts the grammar language server |
-| Grammars and schemas | `convert`, `schema` | Converts between grammar source and JSON; writes the output schema and compares two schemas |
-| Compilation and code generation | `compile`, `gen` | Writes a compiled grammar in one of its modes; generates a parser in a host language, optionally with types and with Recognize, and dumps the IR after each stage |
-| Testing | `test`, `sample`, `edit-fuzz` | Runs JSON fixture suites; generates accepted inputs; fuzzes edit sequences |
+| Parsing and recognition | `parse`, with `-f` for the output format (JSON or `sexpr`) and `-recognize` for recognition | Prints the parse result; in recognition mode prints success and syntax errors without building a tree |
+| Run-time observation | `explain`; `trace`, with `-failures`, `-rule`, `-show-depth` and `-f json`; `profile` | Explains the rule calls behind a syntax error; traces rules, filtered by failure or by rule and limited in depth; reports the cost and the wasted backtracking of each rule |
+| Static analysis, formatting and editor support | `lint`; `fmt`, with `-w` and `-check`; `lsp` | Runs the checks and reports the complexity class; formats grammars keeping comments, or reports whether a change is needed; starts the grammar language server |
+| Grammars and schemas | `convert`, with `-to zp` or `-to json`; `schema`, with `-all-rules` and `-o`; `schema diff` | Converts between grammar source and JSON; writes the output schema; compares two schemas and reports the effect of their difference |
+| Compilation and code generation | `compile`, with `-mode parse`, `recognize` or `document`; `gen`, with `-module`, `-types`, `-lang ts`, `-recognize`, `-recognize-only`, `-lib import` or `-lib embed` and `-print-after core,flow,exec` | Writes a compiled grammar in one of its modes; generates a parser in a host language, optionally with types and with a Recognize function (`-recognize-only` generates only that function); dumps the IR after the named stages |
+| Testing | `test`, with `-f`, `-backend`, `-equivalence` and `-update`; `sample`, with `-n` and `-coverage`; `edit-fuzz`, with `-minimize`, `-save-failures` and `-replay` | Runs JSON fixture suites; generates accepted inputs; fuzzes edit sequences |
 
 ## The Package Layout
 
@@ -256,7 +260,14 @@ in [Package Layering](layering.md), and the public packages are described in [Th
 | `internal/backend/closure` | The reference parser, built from Core IR |
 | `internal/backend/vmlower` | Instruction selection from the Flow stage to bytecode |
 | `internal/backend/llvm` | The future native-code backend |
-| `internal/backend/codegen` | Parts shared by all host languages (`common`) and one package per host language; see [Code Generation for Host Languages](host-code-generation.md) |
+| `internal/backend/codegen/common` | Options and parts shared by the host languages; see [Code Generation for Host Languages](host-code-generation.md) |
+| `internal/backend/codegen/golang/pass` | The Go passes on the Exec stage |
+| `internal/backend/codegen/golang/print` | The printer of Go parsers |
+| `internal/backend/codegen/golang/libprint` | The printer of the Exec compositions into the Go library and the shared engine state |
+| `internal/backend/codegen/golang/libsrc` | The go:generate copy of the Go library, used when the library is embedded |
+| `internal/backend/codegen/typescript/pass` | The TypeScript passes on the Exec stage |
+| `internal/backend/codegen/typescript/print` | The printer of TypeScript parsers |
+| `internal/backend/codegen/typescript/lib` | The TypeScript runtime library |
 | `internal/runtime/program` | The runtime program (what a compiled file holds) |
 | `internal/runtime/state` | The parser state that every backend shares |
 | `internal/runtime/document` | The incremental Document |
@@ -269,8 +280,8 @@ in [Package Layering](layering.md), and the public packages are described in [Th
 | `internal/analysis/complexity` | The cost view and the complexity classification |
 | `internal/lsp/protocol` | JSON-RPC and LSP messages |
 | `internal/lsp/zpls` | The grammar language server |
-| `internal/testing` | Repository test support, one package per kind of test (for example the import-graph test, the Exec conformance printer and the code generation tests) |
-| Benchmark support (benchmark inputs, size measurement, generated benchmark parsers) | Kept beside the benchmark sources, not in the public or the runtime layer |
+| `internal/testing` | Repository test support, one package per kind of test: `codegentest`, `compiletest`, `enginetest`, `factstest`, `starttest`, `complexitytest`, `recoveryquality`, `archtest` (the import-graph test) and `exectest` |
+| `internal/bench` | Benchmark inputs, size measurement and generated benchmark parsers; not part of the public or the runtime layer |
 
 The repository also holds `bench/`, `spec/`, `site/` and `examples/`.
 
