@@ -5,7 +5,7 @@ This document describes the repository layout and architecture, how to run tests
 ## Directory Layout
 
 > [!WARNING]
-> The code is being migrated to the target that [Architecture](design/architecture.md#the-go-packages) describes and
+> The code is being migrated to the target that [Architecture](design/architecture.md#the-package-layout) describes and
 > still differs from it in places. This section and the next name the paths of the tree as it is, which the tests and
 > commands below use.
 

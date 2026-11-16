@@ -11,8 +11,9 @@
 
 ZeroParse is released with one package layout. A public layer `pkg/` is the only Go API, the runtime side of the module
 never links the compiler side, and the middle of the pipeline is one Code IR with three dialects. This record fixes that
-layout as the **target** and gives the reasons for it. The complete architecture (the package tree, the public API, the
-import rules, the pass infrastructure and the driver) is [Architecture](../architecture.md). This record keeps the
+layout as the **target** and gives the reasons for it. The complete architecture is [Architecture](../architecture.md); its import rules are in
+[Package Layering](../layering.md), its public API in [The Public API](../public-api.md) and its host-language
+packages in [Code Generation for Host Languages](../host-code-generation.md). This record keeps the
 decision: the problems, what was decided, why, and what was rejected. The plan for reaching the layout is kept in the
 project's issue tracker, not in this record.
 
@@ -55,8 +56,8 @@ from Code IR at the Flow stage. None of these is kept compatible with the earlie
 
 ## Design
 
-The sections below state each decision with its reason. The full package tree and the public API are in
-[Architecture](../architecture.md).
+The sections below state each decision with its reason. The full package layout is in
+[Architecture](../architecture.md), and the public API is in [The Public API](../public-api.md).
 
 ### The Public Layer
 
@@ -270,5 +271,5 @@ and VM throughput are within the noise of the previous construction, measured in
 
 The layout is the target; until the migration completes, the code differs from it. The shapes of the grammar source and
 of loading, of the compile entry point, of the query and instrument packages and of the pass infrastructure are decided
-and given in [Architecture](../architecture.md); the other shapes of the public layer are rough, and are settled in the
+and given in [The Public API](../public-api.md); the other shapes of the public layer are rough, and are settled in the
 package documentation as they are implemented.

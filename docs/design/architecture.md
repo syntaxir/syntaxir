@@ -1,20 +1,12 @@
 # Architecture
 
 ZeroParse is a parser compiler: it turns a grammar written in an extended PEG language into parsers for several
-backends, and every backend gives the same parse result for the same grammar and input. This page describes the
-architecture of the system as a whole: the execution model, the intermediate representations and the pipeline between
-them, the backends, the tools and the command line, and the package layout that implements them, with the public API,
-the import rules and the driver. Read it before you work in any part of the compiler or the runtime.
+backends, and every backend gives the same parse result for the same grammar and input. This page is the overview of
+the system: what it provides, the execution model, the two intermediate representations and the pipeline between them,
+the backends, the tools and the command line, and the package layout. Each part is explained in full on its own page,
+which the sections below link to. Read this page before you work in any part of the compiler or the runtime.
 
-> [!WARNING]
-> The code is being migrated to the architecture this page describes and still differs from it in places. The package
-> comments describe the code as it is.
-
-The contracts that every backend must keep are in the [specification](../../spec/README.md); the representations are
-explained in [Core IR and Code IR](intermediate-representations.md), the pass infrastructure in
-[the pass pipeline](pass-pipeline.md), the code generation of host languages in
-[the pass pipeline](pass-pipeline.md), and the decision behind the layout,
-with its alternatives, in [record 072](records/072-release-package-layout.md).
+The contracts that every backend must keep are in the [specification](../../spec/README.md).
 
 ## What ZeroParse Provides
 
@@ -61,8 +53,8 @@ public contract that the specification defines.
 
 There are two intermediate representations.
 
-- **Core IR** holds the meaning of a grammar as trees and facts. It is the minimal, typed form after desugaring and knows
-  nothing of the mode: budgets, Documents, observation and the target are not part of it.
+- **Core IR** holds the meaning of a grammar as trees and facts. It is the minimal, typed form after desugaring. It has
+  no mode: budgets, Documents, observation and the target are not part of it.
 - **Code IR** is the shared base of structured code: modules, functions, statements and expressions, the machinery that
   declares operations, a verifier, a printer and a reference interpreter. Its dialects are tables of operations, which
   are data. There are three.
@@ -107,40 +99,35 @@ flowchart TD
 - **Semantic model.** A read-only result of analysis over the GST: name resolution (each reference to its
   declaration), the types of expressions and captures, scopes, the start rules and the table of type declarations. It
   is the one place that answers questions tied to a source range (hover and go to definition in the language server,
-  lint findings, type errors). It transforms nothing.
+  lint findings, type errors).
 - **Core IR** is elaborated once from the semantic model. The policy of a rule (Memo, Leader, Member, Cycle,
   Transient, Plain and the like) and the site numbers come only from facts and analyses on Core IR.
 - **Runtime program.** Only the tables a parse needs: the rule table with the policies, the expectation table, the node
   kinds of types with their struct fields and zero values, the initial values of variables and the start rules. It is
   built at compile time from Core IR and Code IR, and a compiled file is its serialization. It holds no grammar AST, no
-  type checker and no compile options, so loading a compiled file does not use the compiler.
+  type checker and no compile options. Loading a compiled file therefore uses none of the compiler.
 
 ### The Middle End
 
-- **Core passes.** Rewrites that keep the meaning, and the facts: guard sets, first sets, effects, rule policies, the
-  normalization of level O and the conversion of value-free class repetitions into scans. They know nothing of the mode.
-- **Lowering from Core to Code IR** produces the Flow stage in one uniform shape: rule bodies become Flow operations and
-  action expressions become Action operations. The Flow passes choose the shape.
-- **Flow passes** are the layer where control-level decisions are made: call specialization, inlining, dispatch, the
-  form of a match, removal of saves, merging and threading of failure paths, charging, slot sharing and outlining. Each
-  declares its obligation, its applicability and the analyses it uses, and the Flow verifier runs after it. The table of
-  passes, in order, with their obligations, is in [the pass pipeline](pass-pipeline.md#the-flow-passes). Flow is not a
-  control-flow graph: a pass that needs one gets it as an analysis view.
-- **Flow operations** carry a contract, a cost, the features they need, their laws and a **reference expansion** into
-  Exec operations. The conformance suite compares every implementation of an operation with its reference expansion.
-- **The Exec stage** is produced by a complete conversion from the Flow stage. Its postcondition, that no Flow operation
-  remains, is checked by the verifier.
-- **The Exec dialect** is the specification of the abstract machine (its components, registers, operations, contracts
-  and cost bounds) together with the compositions: the call protocol, memoization, left-recursion growth, Operators
-  Rules, Documents and streams. Grammar-specific code enters through the conversion from the Flow dialect. Every operation
-  has a reference model in the Exec reference package and conformance cases.
-- **Dialect-independent passes of Code IR** (the `codepass` package) are the passes that every dialect can run: function
-  specialization, simplification and dead store elimination. They work only from the reads and writes that each
-  operation declares, and they are not Core passes.
+- **Core passes** rewrite the Core IR in ways that keep its meaning, and compute its facts: guard sets, first sets,
+  effects, rule policies, the normalization of level O and the conversion of value-free class repetitions into scans.
+  They are independent of the mode. See [The Pass Pipeline](pass-pipeline.md).
+- **Lowering to the Flow stage** (`flowlower`) produces the Flow stage in one uniform shape: rule bodies become Flow
+  operations and action expressions become Action operations. The Flow passes then choose the shape.
+- **Flow passes** make the control-level decisions: call specialization, inlining, dispatch, the form of a match,
+  removal of saves, merging and threading of failure paths, charging, slot sharing and outlining. Each declares its
+  obligation, its applicability and the analyses it uses, and a verifier runs after it. The passes, in order, are in
+  [The Flow Passes](pass-pipeline.md#the-flow-passes).
+- **The Exec stage** is produced by a complete conversion from the Flow stage (`execlower`), whose postcondition, that
+  no Flow operation remains, is checked by the verifier. The **Exec dialect** specifies the abstract machine and the
+  compositions over it: the call protocol, memoization, left-recursion growth, Operators Rules, Documents and streams.
+  Each operation has a reference model and conformance cases. See [Core IR and Code IR](intermediate-representations.md).
+- **Dialect-independent passes** of Code IR (`codepass`) are the passes that every dialect can run. They work only from
+  the reads and writes that each operation declares. See [The Pass Pipeline](pass-pipeline.md#dialect-independent-passes-of-code-ir).
 
-A conversion between dialects is a **lowering** (`flowlower`, the conversion to the Exec stage, `vmlower`). **Legalize**
-is used only for adjustments inside a target, the language passes of each host language. The stage names of the dumps
-are `core`, `flow` and `exec`.
+A conversion between dialects is a **lowering** (`flowlower`, `execlower`, `vmlower`). **Legalize** is used only for
+adjustments inside one target, such as the passes of a host language. The stage names that the dumps use are `core`,
+`flow` and `exec`.
 
 ## Backends
 
@@ -150,25 +137,26 @@ code, and the reference models of the Exec dialect for the contract of each oper
 The **host language** is the language of a generated parser. Go and TypeScript are the host languages today; another
 host language is added as a new backend in the same pattern, without changing the representations.
 
-- **Closure.** A reference parser built from Core IR, and the oracle of the differential tests. It deliberately does not
-  share the lowering of grammar code through Flow and Exec: if it did, a bug in that lowering could not show up as a
-  difference between backends. It needs Core IR, so it belongs to the compiler side, and it is public only as a
-  constructor of the compiler package.
+- **Closure.** A reference parser built from Core IR, and the oracle of the differential tests. It is built independently
+  of the lowering of grammar code through Flow and Exec, so a bug in that lowering shows up as a difference between
+  backends. It needs Core IR, so it belongs to the compiler side, and it is public only as a constructor of the compiler
+  package.
 - **Bytecode and the VM.** The default backend: the compiler returns a parser on the VM. Instructions are selected from
-  Code IR at the **Flow stage**, with superinstruction selection (`internal/backend/vmlower`). The instruction set is at
-  the level of grammar control (string matches, classes, choices and so on), so instructions follow Flow operations almost
-  one for one; mapping a mark that names a set of state to a choice instruction is a sound over-approximation. A call of
-  a composition is one instruction, and common match patterns fuse into high-level instructions. The compositions are
-  implemented natively in the VM and checked by the conformance suite of the Exec dialect. The VM has two drivers,
-  recursive and iterative. A compiled file consists of the closed instruction set and the runtime program, and loads
-  without the grammar. With this choice every practical backend (the VM, every host language and a future LLVM backend)
-  takes grammar code from one Code IR, so charging and the propagation of options cannot drift between two lowerings of
-  grammar code.
+  Code IR at the **Flow stage**, with superinstruction selection. The instruction set is at the level of grammar control
+  (string matches, classes, choices and so on), so instructions follow Flow operations almost one for one; mapping a
+  mark that names a set of state to a choice instruction is a sound over-approximation. A call of a composition is one
+  instruction, and common match patterns fuse into high-level instructions. The compositions are implemented natively in
+  the VM and checked by the conformance suite of the Exec dialect. The VM has two drivers, recursive and iterative. A
+  compiled file consists of the closed instruction set and the runtime program, and loads without the grammar. With this
+  choice every practical backend (the VM, every host language and a future native-code backend) takes grammar code from
+  one Code IR, so charging and the propagation of options cannot drift between two lowerings of grammar code.
 - **Host code generation.** The Exec stage is legalized and optimized by the passes of each host language, and then
   printed. Each host language has one package with the same three parts: passes, a printer and a runtime library. The
-  shared dialect-independent passes run before them. The details, with the examples for the two host languages of today,
-  are in [the pass pipeline](pass-pipeline.md#host-language-passes); the runtime library of generated parsers is either imported
-  as a library or embedded in the generated output, as far as the packaging of the host language allows.
+  details, with the instances for the two host languages of today, are in
+  [Code Generation for Host Languages](host-code-generation.md).
+
+The future native-code backend would lower the Exec stage to LLVM IR. It is a low-priority plan, not a commitment of the
+present design.
 
 ## Tools
 
@@ -215,116 +203,82 @@ The `zp` command groups its subcommands by task.
 | Compilation and code generation | `compile`, `gen` | Writes a compiled grammar in one of its modes; generates a parser in a host language, optionally with types and with Recognize, and dumps the IR after each stage |
 | Testing | `test`, `sample`, `edit-fuzz` | Runs JSON fixture suites; generates accepted inputs; fuzzes edit sequences |
 
-## The Go Packages
+## The Package Layout
 
-The packages are cut by three criteria: cohesion (one concern per package), clarity for the user who imports them,
-and the separation of the runtime side from the compiler side. The public API for users is under `pkg/`; the
-implementation is under `internal/`. The compiler itself is written in Go.
+The packages are cut by three criteria: cohesion (one concern per package), clarity for the user who imports them, and
+the separation of the runtime side from the compiler side. The public API for users is under `pkg/`; the
+implementation is under `internal/`. The compiler is written in Go. The import rules that hold the layout together are
+in [Package Layering](layering.md), and the public packages are described in [The Public API](public-api.md).
 
-### The Package Tree
+| Package | Holds |
+|:--|:--|
+| `cmd/zp` | The command line; reaches every feature through the driver |
+| `cmd/playground` | The WebAssembly side of the playground |
+| `pkg/compiler` | Makes executable artifacts from a grammar: parsers on the VM, reference parsers, compiled files, host-language parsers, the output schema, the optimization setting |
+| `pkg/grammar` | The grammar AST, its JSON form, loading of sources, formatting and conversion |
+| `pkg/lint` | Checks, findings and suggested rewrites; the complexity classification |
+| `pkg/sample` | Generation of accepted inputs |
+| `pkg/editfuzz` | Edit fuzzing of Documents, replay and minimization |
+| `pkg/bytecode` | The instruction set and the compiled-file codec |
+| `pkg/runtime` | The parser interface, options, limits and statistics |
+| `pkg/runtime/input` | Position units, locations, edits and kinds of change |
+| `pkg/runtime/value` | Nodes, cursors, traversal, JSON, syntax errors |
+| `pkg/runtime/value/impl` | The node representation |
+| `pkg/runtime/schema` | The output schema: types, JSON form, validation, comparison |
+| `pkg/runtime/query` | Structural queries |
+| `pkg/runtime/instrument` | Trace events, filters, depth and profiles |
+| `pkg/runtime/vm` | Loading a compiled file into a parser, and the parser and Document of the VM |
+| `pkg/runtime/golib` | The support library of generated Go parsers |
+| `internal/driver` | Drives the pipelines; the table of optimization profiles; the body of `pkg/compiler` and `cmd/zp` |
+| `internal/diagnostic` | Positioned static errors |
+| `internal/cancel` | Cancellation of static work |
+| `internal/cliflag` | Flag names of backends and position units |
+| `internal/fixture` | JSON fixture suites of `zp test` (a tool: it uses `pkg/compiler`) |
+| `internal/pass` | The generic pass infrastructure: manager, analysis manager, preserved sets, registry |
+| `internal/ir/core` | Core IR: the meaning tree, attributes, verifier, printer |
+| `internal/ir/code` | The Code IR base: structure, operation declarations, verifier, printer, reference interpreter, builder |
+| `internal/ir/code/flow` | The Flow dialect: grammar-control operations, reference expansions, its invariants |
+| `internal/ir/code/action` | The Action dialect: operations that evaluate action expressions |
+| `internal/ir/code/exec` | The Exec dialect: operations of the abstract machine, with `compose` (compositions), `ref` (reference models), `conform` (conformance suite) and `spectest` (specification tests) below it |
+| `internal/frontend` | Drives the front end and returns the semantic model and Core IR; the facts are computed by the analyses of the Core passes |
+| `internal/frontend/parser` | `.zp` to grammar AST, with `zpparser`, the parser generated from the grammar of the grammar language |
+| `internal/frontend/desugar` | Rewriting into a smaller language |
+| `internal/frontend/check` | Name resolution and the checks of the value model: the semantic model |
+| `internal/frontend/types` | The type model |
+| `internal/frontend/astfacts` | Conservative facts on the AST |
+| `internal/frontend/elaborate` | Semantic model to Core IR |
+| `internal/frontend/schemaexport` | Export of the output schema |
+| `internal/middleend/corepass` | Core rewrites and the analyses of facts |
+| `internal/middleend/flowlower` | Core IR to Code IR at the Flow stage |
+| `internal/middleend/flowpass` | The Flow passes |
+| `internal/middleend/execlower` | Complete conversion from the Flow stage to the Exec stage |
+| `internal/middleend/codepass` | Dialect-independent passes of Code IR |
+| `internal/backend/closure` | The reference parser, built from Core IR |
+| `internal/backend/vmlower` | Instruction selection from the Flow stage to bytecode |
+| `internal/backend/llvm` | The future native-code backend |
+| `internal/backend/codegen` | Parts shared by all host languages (`common`) and one package per host language; see [Code Generation for Host Languages](host-code-generation.md) |
+| `internal/runtime/program` | The runtime program (what a compiled file holds) |
+| `internal/runtime/state` | The parser state that every backend shares |
+| `internal/runtime/document` | The incremental Document |
+| `internal/runtime/vm` | The bytecode VM, recursive and iterative |
+| `internal/runtime/engine` | The run-time entry points: parse, Document, stream |
+| `internal/runtime/nodes` | The engine's access to the node representation |
+| `internal/runtime/limits` | Defaults of the limits and overflow-safe budget arithmetic |
+| `internal/syntax/fmt` | The grammar formatter |
+| `internal/analysis/lint` | The linter |
+| `internal/analysis/complexity` | The cost view and the complexity classification |
+| `internal/lsp/protocol` | JSON-RPC and LSP messages |
+| `internal/lsp/zpls` | The grammar language server |
+| `internal/testing` | Repository test support, one package per kind of test (for example the import-graph test, the Exec conformance printer and the code generation tests) |
+| Benchmark support (benchmark inputs, size measurement, generated benchmark parsers) | Kept beside the benchmark sources, not in the public or the runtime layer |
 
-```text
-zeroparse/
-├── cmd/
-│   ├── zp/                       # the command line; reaches every feature through internal/driver
-│   └── playground/               # the WebAssembly side of the playground
-│
-├── pkg/                          # the public API
-│   ├── compiler/                 # makes executable artifacts from a grammar: parsers on the VM, reference parsers,
-│   │                             #   compiled files, host-language parsers, the output schema, the optimization setting
-│   ├── grammar/                  # grammar AST, its JSON form, loading of sources, formatting and conversion
-│   ├── lint/                     # checks, findings and suggested rewrites; the complexity classification
-│   ├── sample/                   # generation of accepted inputs
-│   ├── editfuzz/                 # edit fuzzing of Documents, replay and minimization
-│   ├── bytecode/                 # the instruction set and the compiled-file codec
-│   └── runtime/                  # the parser interface, options, limits and statistics
-│       ├── input/                # position units, locations, edits and kinds of change
-│       ├── value/                # nodes, cursors, traversal, JSON, syntax errors
-│       │   └── impl/             # the node representation
-│       ├── schema/               # the output schema: types, JSON form, validation, comparison
-│       ├── query/               # structural queries
-│       ├── instrument/           # trace events, filters, depth and profiles
-│       ├── vm/                   # loading a compiled file into a parser, and the parser and Document of the VM
-│       └── golib/                # the support library of generated Go parsers
-│
-├── internal/
-│   ├── driver/                   # drives the pipelines; the table of optimization profiles; the body of
-│   │                             #   pkg/compiler and cmd/zp
-│   ├── diagnostic/               # positioned static errors
-│   ├── cancel/                   # cancellation of static work
-│   ├── cliflag/                  # flag names of backends and position units
-│   ├── fixture/                  # JSON fixture suites of zp test (a tool: it uses pkg/compiler)
-│   ├── pass/                     # generic pass infrastructure: manager, analysis manager, preserved sets, registry
-│   ├── ir/
-│   │   ├── core/                 # Core IR: the meaning tree, attributes, verifier, printer
-│   │   └── code/                 # the Code IR base: structure, operation declarations, verifier, printer,
-│   │       │                     #   reference interpreter, builder
-│   │       ├── flow/             # Flow dialect: grammar-control operations, reference expansions, its invariants
-│   │       ├── action/           # Action dialect: operations that evaluate action expressions
-│   │       └── exec/             # Exec dialect: operations of the abstract machine
-│   │           ├── compose/      # compositions
-│   │           ├── ref/          # reference models of the operations
-│   │           ├── conform/      # conformance suite
-│   │           └── spectest/     # specification tests
-│   ├── frontend/                 # drives the front end; returns the semantic model and Core IR (the facts are
-│   │                             #   computed by the analyses of the Core passes)
-│   │   ├── parser/               # .zp to grammar AST
-│   │   │   └── zpparser/         # the parser generated from the grammar of the grammar language
-│   │   ├── desugar/              # rewriting into a smaller language
-│   │   ├── check/                # name resolution and the checks of the value model (the semantic model)
-│   │   ├── types/                # the type model
-│   │   ├── astfacts/             # conservative facts on the AST
-│   │   ├── elaborate/            # semantic model to Core IR
-│   │   └── schemaexport/         # export of the output schema
-│   ├── middleend/
-│   │   ├── corepass/             # Core rewrites and the analyses of facts
-│   │   ├── flowlower/            # Core IR to Code IR at the Flow stage
-│   │   ├── flowpass/             # Flow passes
-│   │   ├── execlower/            # complete conversion from the Flow stage to the Exec stage
-│   │   └── codepass/             # dialect-independent passes of Code IR
-│   ├── backend/
-│   │   ├── closure/              # the reference parser, built from Core IR
-│   │   ├── vmlower/              # instruction selection from the Flow stage to bytecode
-│   │   ├── llvm/                 # (future)
-│   │   └── codegen/
-│   │       ├── common/           # parts shared by all host languages
-│   │       └── <host>/           # one package per host language, with the same three parts (Go and TypeScript
-│   │           │                 #   are the current instances)
-│   │           ├── pass/         #   language passes: Exec stage to Exec stage, registered in the registry
-│   │           ├── print/        #   the printer of the legalized Exec stage
-│   │           └── lib/          #   the runtime library of generated parsers, and the printer of it
-│   ├── runtime/                  # the internal implementation of the runtime side
-│   │   ├── program/              # the runtime program (what a compiled file holds)
-│   │   ├── state/               # the parser state that every backend shares
-│   │   ├── document/             # the incremental Document
-│   │   ├── vm/                   # the bytecode VM, recursive and iterative
-│   │   ├── engine/               # the run-time entry points: parse, Document, stream
-│   │   ├── nodes/                # the engine's access to the node representation
-│   │   └── limits/               # defaults of the limits and overflow-safe budget arithmetic
-│   ├── syntax/fmt/               # the grammar formatter
-│   ├── analysis/
-│   │   ├── lint/                 # the linter
-│   │   └── complexity/           # the cost view and the complexity classification
-│   ├── lsp/
-│   │   ├── protocol/             # JSON-RPC and LSP messages
-│   │   └── zpls/                 # the grammar language server
-│   ├── testing/                  # repository test support, one package per kind of test (for example the
-│   │                             #   import-graph test, the Exec conformance printer and the code generation tests)
-│   └── bench/                    # benchmark inputs, size measurement, generated benchmark parsers
-├── bench/  spec/  site/  examples/
-└── go.mod
-```
-
-Within `codegen`, the host-language packages are the same pattern: a host language gets one package with the passes, the
-printer and the runtime library. For Go, the library part holds the printer that prints the compositions into the
-generated-parser library and into the shared engine state, and the copy of the library that is embedded when the
-library is not imported. The passes that run on the Exec stage before any host language are in `codepass`.
+The repository also holds `bench/`, `spec/`, `site/` and `examples/`.
 
 ### Placement Principles
 
-- **`pkg/compiler` makes executable artifacts from a grammar.** Lint, sampling and edit fuzzing each
-  have their own vocabulary (check names and severities, generation options, the format of an edit sequence), so each
-  is a small, cohesive package of its own.
+- **`pkg/compiler` makes executable artifacts from a grammar.** Lint, sampling and edit fuzzing each have their own
+  vocabulary (check names and severities, generation options, the format of an edit sequence), so each is a small,
+  cohesive package of its own.
 - **The grammar AST is in `pkg/grammar`.** The JSON form is a public contract of the specification, and the AST is its
   typed form, so it follows the language specification, which changes slowly, rather than an IR, which changes often.
   The front end receives it as the GST.
@@ -334,8 +288,8 @@ library is not imported. The passes that run on the Exec stage before any host l
 - **The support library of generated Go parsers is `pkg/runtime/golib`.** It holds many support declarations that are
   versioned by the library protocol; keeping them apart from the user API avoids name clashes, such as the names of
   parsers and documents.
-- **The node representation (`pkg/runtime/value/impl`) cannot be internal**, because a support library copied into a
-  user's module by embedding imports it. It sits below `value` because `value` reads it.
+- **The node representation (`pkg/runtime/value/impl`) is public**, because a support library copied into a user's
+  module by embedding imports it. It sits below `value` because `value` reads it.
 - **The IR packages (`internal/ir/core`, and `internal/ir/code` with everything below it) hold data, attribute
   computation, verifiers and printers**; the transformation and analysis passes are in the middle end. A verifier checks
   that facts agree with the structure by recomputing the attributes, so it lives with the attribute computation.
@@ -343,141 +297,6 @@ library is not imported. The passes that run on the Exec stage before any host l
   Code IR. The lowerings are packages of their own outside the IR packages, apart from the passes of each dialect.
 - **Names avoid clashes that matter**: `internal/lsp/zpls` is not named like `pkg/grammar`, and
   `ir/code/exec/compose` is not named like `ir/core`.
-
-## The Public API
-
-The public API is the set of packages under `pkg/`. Its shapes are of two kinds. The grammar source and its loading,
-the compile entry point, the query and instrument packages, and the pass infrastructure are decided. The other shapes
-follow today's API; they are settled in the package documentation as each part is implemented. The reference
-documentation lists the names.
-
-- **`pkg/grammar`.** A grammar source is one grammar input: a named value made from bytes, a string, a reader or a path
-  in a file system, with an explicit or detected format (grammar source or JSON). It is made by a constructor and its
-  fields are unexported, which guarantees that it has exactly one supplier. Loading a source gives the grammar AST, which
-  can be validated when a program builds it by hand; formatting and conversion between the two formats are in the same
-  package. Action expressions have one name in the AST, in the JSON form and in the syntax: the name the specification
-  gives Action Expressions.
-  A grammar source shares no type with the parse input of the runtime input package. The parse input is the abstraction
-  of what a parser reads: position units, sequential reads of a stream, the chunks and edits of a Document, and charging
-  against a budget. A grammar source is read once at compile time and may span several files. The two share only the
-  naming convention of their constructors. The command line reads grammars through the same type, from a file system.
-- **`pkg/compiler`.** Turns a grammar into executable artifacts: a parser on the VM (the default backend), a parser from an
-  AST that a program builds, the reference parser for differential tests, a compiled file, host-language parsers, and
-  the output schema. One optimization setting, with the profiles `speed`, `memory` and `size` and overrides of
-  individual flags, is received by every backend: the closure backend, the VM and the generators. The table from profile
-  names to values is in the driver.
-- **`pkg/lint`, `pkg/sample` and `pkg/editfuzz`.** Lint runs checks over the grammar AST and returns findings, each with a
-  check name, a severity, a source range and, where one exists, a suggested rewrite; it also gives the complexity class,
-  which is the public way to reach the classification. Sampling generates inputs that a grammar accepts, with a
-  coverage-guided mode. Edit fuzzing generates, runs, replays and minimizes edit sequences, which are versioned JSON.
-- **`pkg/bytecode`.** The module, the instruction set and its encoding, the compiled-file format and its validation. The
-  instruction set is public, and its fields are documented as unstable until the release.
-- **`pkg/runtime` and its subpackages.** The parser interface parses an input, recognizes it, parses a stream and emits
-  each top-level element, creates a Document for edits, and gives the output schema. Parse options set limits, the
-  context, the position unit, expectations, missing tokens, tracing, profiling and diagnostics. Recognition is expressed
-  only by the parser's recognition method; no option switches a parse into a recognition. The API of generated parsers
-  offers the same choice with the same meaning.
-  - `input`: position units, locations, text edits and the kinds of change of a Document.
-  - `value`: nodes, cursors, traversal, JSON and syntax errors. A recovered error is a node value, and a failure in a
-    trace event carries a syntax error too.
-  - `value/impl`: the node representation that the runtime and generated parsers share.
-  - `schema`: the types of the output schema, its JSON form, validation and comparison.
-  - `query`: structural queries, compiled against an output schema.
-  - `instrument`: the model of trace events and profiles; see [Observability](observability.md).
-  - `vm`: loads a compiled file into a parser, without the grammar and without the compiler.
-  - `golib`: support declarations that only generated Go parsers use. It is not an API that users call.
-
-## Dependencies and the Import-Graph Test
-
-The runtime side never links the compiler side, and a test of the import graph enforces it.
-
-- **The runtime side R**: `pkg/runtime` and everything under it (`input`, `value`, `value/impl`, `schema`, `query`,
-  `instrument`, `vm`, `golib`), `pkg/bytecode` and `internal/runtime/**`.
-- **The compiler side**: everything else: `pkg/compiler`, `pkg/grammar`, `pkg/lint`, `pkg/sample`, `pkg/editfuzz`, the
-  other packages of `internal/**` and `cmd/**`.
-
-```mermaid
-flowchart TD
-  subgraph C["Compiler side"]
-    cmd["cmd/zp, cmd/playground"]
-    pub["pkg/compiler, pkg/lint, pkg/sample, pkg/editfuzz, internal/fixture"]
-    lsp["internal/lsp/**"]
-    driver["internal/driver"]
-    analysis["internal/analysis/**"]
-    backend["internal/backend/**"]
-    middle["internal/middleend/**"]
-    front["internal/frontend/**, internal/syntax/fmt"]
-    ir["internal/ir/**"]
-    pass["internal/pass"]
-    gram["pkg/grammar"]
-    util["internal/diagnostic, cancel, cliflag"]
-  end
-  subgraph R["Runtime side R"]
-    rt["pkg/runtime/**"]
-    bc["pkg/bytecode"]
-    irt["internal/runtime/**"]
-  end
-  cmd --> pub --> driver
-  cmd --> lsp --> analysis
-  driver --> analysis --> backend --> middle --> front --> ir --> pass
-  middle --> ir
-  backend --> ir
-  ir --> gram
-  front --> gram
-  util --> gram
-  C -.->|allowed| R
-  R -. "forbidden" .-x C
-```
-
-- **Rule 1.** For every non-test package P of R, every package of the module that P depends on is in R. R imports no
-  third-party package.
-- **Rule 1a (generated parsers).** The support library of generated Go parsers imports only `pkg/runtime`, `input`,
-  `value`, `value/impl` and `instrument` (and `schema` where the typed API needs it). It imports neither `vm` nor
-  `internal/runtime/**`, so a generated parser links neither the VM nor the engine. The embedded copy of the library
-  compiles by itself in a temporary module that imitates a user's module. The same rule holds for the library of any
-  host language.
-- **Rule 2 (layers).**
-  - `internal/pass` imports no package of the module.
-  - The IR packages (`internal/ir/core`, and `internal/ir/code` with everything below it) import only IR packages,
-    `internal/pass`, `internal/cancel` and `pkg/grammar`. Among them, the Code IR base imports no dialect; the Flow dialect
-    imports only the base and Core IR (to refer to immediates); the Action and Exec dialects import only the base, and the
-    packages under the Exec dialect may also import the Exec and Action dialects. Only the lowerings of the middle end and
-    the checks that span dialects import several dialects at once.
-  - The front end imports no middle end, backend, analysis or language server; the middle end imports no backend,
-    analysis or language server; a backend imports no analysis or language server.
-  - The utility packages (`internal/diagnostic`, `internal/cancel`, `internal/cliflag`) may import `pkg/grammar`,
-    because diagnostics carry source positions. `internal/fixture` is a tool that uses `pkg/compiler`, in the
-    layer of the public tool packages.
-  - Only the commands and `internal/testing` import `internal/lsp/**`. Of the non-test packages, only those inside
-    `internal/testing` import `internal/testing/**`.
-- **How it is enforced.** A test in `internal/testing` runs the dependency listing of the Go tool for every package under
-  the default build tags and under each reference tag set (those of the reference build in [Development](../development.md)),
-  and on a violation prints the shortest import chain that causes it. A deliberately wrong edge, which exists only in the
-  test, is the negative control. The test also checks the dependencies of parsers generated in both library modes. The
-  test has no allowlist: a violation fails it.
-
-## The Pass Infrastructure
-
-Transforms run in an explicit list, in order; analyses are computed when they are requested and cached. The pass
-infrastructure of `internal/pass` holds this model, generic over the unit of IR: a preserved set that preserves nothing
-unless declared, analysis keys with names that are checked for duplicates, an analysis manager that caches results and
-records their dependencies, a transform interface, a manager and a registry. Its rules, and the list of passes of each
-pipeline, are in [the pass pipeline](pass-pipeline.md).
-
-- A failed analysis returns an error; it never degrades silently.
-- When a transform returns a different IR value, the whole cache is invalidated.
-- The attributes on Core nodes (nullability, first sets, effects) are invariants of the IR: they are stored on the nodes
-  and the verifier checks them, and they are not cached. What is cached is derived results that are not written into the
-  IR (rule facts, site numbers, the call graph, the cost view, lookahead sets and the like), which the optimization
-  passes, lint, the complexity classifier and the generators share.
-
-### Registration, Profiles and Driving
-
-Optimization is divided into three concerns: **registration** (each pass declares its name, description, default and
-applicability, and registers in the generic registry; printers and libraries register their controls with the kind
-`library`), **profiles** (the choice a user makes, the public optimization setting of `pkg/compiler`, whose table is in
-the driver) and **driving** (`internal/driver` runs the pipelines in order, and dumps and verification after each pass
-are features of the manager). Details are in [the pass pipeline](pass-pipeline.md#the-registry).
 
 ## The Driver Flow
 
@@ -491,12 +310,12 @@ flowchart LR
   FP --> EL["execlower"] --> XP["codepass"] --> LP["language pipelines, one per host language"] --> PR["print: generators of each host language"]
 ```
 
-1. Every entry point of the compiler package calls `internal/driver`. The driver resolves the optimization setting
-   through the profile table and passes the same settings to every pipeline.
+1. Every entry point of the compiler package calls the driver. The driver resolves the optimization setting through the
+   profile table and passes the same settings to every pipeline.
 2. The front end builds the semantic model and Core IR.
 3. The Core pipeline runs. The closure backend branches off here.
-4. `flowlower`, then the Flow pipeline. For the VM, `vmlower` selects instructions from here, and they are combined
-   with the runtime program built from Core IR and Code IR into a compiled module.
+4. `flowlower`, then the Flow pipeline. For the VM, `vmlower` selects instructions from here, and they are combined with
+   the runtime program built from Core IR and Code IR into a compiled module.
 5. For host languages: `execlower`, `codepass`, the language pipeline, then printing.
 6. Each manager dumps at the stages that the dump flag names, and when verification after each pass is requested, an
    error names the pass. Analyses are shared through the analysis manager of each stage.
@@ -523,9 +342,9 @@ These mechanisms change how a parse treats input and results, so they cut across
   `#missing`) instead of approximating.
 - **Specification first.** The specification states the contract; the runtime and the generators implement it. A
   behavior that only one of them has is a defect or a documented limit.
-- **Generated code mirrors the engine.** The support library of each host language must match the behavior of the engine,
-  and tests compare them; both are printed from the same compositions. Names that generated code calls are not an API
-  for users.
+- **Generated code mirrors the engine.** The support library of each host language must match the behavior of the
+  engine, and tests compare them; both are printed from the same compositions. The names that generated code calls are
+  internal to the generated code, not an API for users.
 - **One home for each fact.** Facts such as nullability, first sets and rule policies have one implementation, on Core
   IR, which the optimization passes, the linter, the complexity classifier and the generators share through the analysis
   manager.
@@ -533,14 +352,16 @@ These mechanisms change how a parse treats input and results, so they cut across
   side and for generated parsers.
 - **Positions and units.** Input is measured in one chosen unit (code points or bytes) everywhere a position,
   expectation or edit is reported.
-- **Not stable before release.** Compiled files, JSON forms and bytecode may change between versions; there are no
-  compatibility shims.
+- **Unstable before the release.** Compiled files, JSON forms and bytecode may change between versions until the release.
 
 ## Related Topics
 
 - [Core IR and Code IR](intermediate-representations.md): the representations, their verifiers and how optimization
   works on them.
-- [The pass pipeline](pass-pipeline.md): declared passes, the analysis manager, the registry, profiles and verification.
+- [The Pass Pipeline](pass-pipeline.md): declared passes, the analysis manager, the registry, profiles and verification.
+- [Package Layering](layering.md): the runtime side and the compiler side, and the import-graph test.
+- [The Public API](public-api.md): the packages under `pkg/`.
+- [Code Generation for Host Languages](host-code-generation.md): the host-language packages and their passes.
 - [Cost analysis](cost-analysis.md): the cost view and the complexity classification.
 - [Observability](observability.md): the run-time observation model.
 - [Record 072](records/072-release-package-layout.md): the decision on the release layout and its alternatives.
