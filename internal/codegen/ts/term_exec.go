@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"zeroparse.dev/zp/internal/compile"
+	"zeroparse.dev/zp/internal/frontend/check"
 	irc "zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/ir/exec"
 	"zeroparse.dev/zp/internal/ir/exec/lower"
@@ -22,7 +23,7 @@ import (
 // printed from Exec IR. The scope s and the locals resolve the leaves (leaf). A predicate that
 // compares the text of a capture with literals tests them at once without limit controls if
 // dispatch is set (text-dispatch).
-func (g *Generator) termStmts(ct irc.Term, s *compile.Scope, locals map[string]string, dispatch bool) string {
+func (g *Generator) termStmts(ct irc.Term, s *check.Scope, locals map[string]string, dispatch bool) string {
 	if ct == nil {
 		panic(fmt.Errorf("rule %s: a term without Core IR", g.Cur.Name))
 	}
@@ -39,14 +40,14 @@ func (g *Generator) termStmts(ct irc.Term, s *compile.Scope, locals map[string]s
 }
 
 // actionFunc returns the function that evaluates the term ct of Core IR, declared with the name name.
-func (g *Generator) actionFunc(name string, ct irc.Term, s *compile.Scope, locals map[string]string) string {
+func (g *Generator) actionFunc(name string, ct irc.Term, s *check.Scope, locals map[string]string) string {
 	body := g.termStmts(ct, s, locals, false)
 	return fmt.Sprintf("function %s(%s: Actx): [Value, Value] {\n%s}\n\n", name, tsActxParam(body), body)
 }
 
 // predicateFunc returns the arrow function of a predicate with the term ct of Core IR: a membership
 // of a captured text in literals tests them at once without limit controls (text-dispatch).
-func (g *Generator) predicateFunc(ct irc.Term, s *compile.Scope) string {
+func (g *Generator) predicateFunc(ct irc.Term, s *check.Scope) string {
 	body := g.termStmts(ct, s, nil, g.Opt.On("text-dispatch"))
 	return fmt.Sprintf("(%s): [Value, Value] => {\n%s}", tsActxParam(body), body)
 }
@@ -54,7 +55,7 @@ func (g *Generator) predicateFunc(ct irc.Term, s *compile.Scope) string {
 // leaf returns the expression that reads the capture (or, if variable is set, the variable) name of
 // an action: a local that holds it (a parameter or $lhs, $rhs and $op, which may hold boxes that
 // stand for their values), or the slot of the scope s.
-func (g *Generator) leaf(name string, variable bool, s *compile.Scope, locals map[string]string) string {
+func (g *Generator) leaf(name string, variable bool, s *check.Scope, locals map[string]string) string {
 	if variable {
 		return fmt.Sprintf("c.variable(%d)", g.Prog.Vars.Index(name))
 	}
@@ -66,7 +67,7 @@ func (g *Generator) leaf(name string, variable bool, s *compile.Scope, locals ma
 
 // termTarget returns the TypeScript implementation of the operations of a lowered term whose leaves
 // the scope s and the locals resolve.
-func (g *Generator) termTarget(s *compile.Scope, locals map[string]string) *Target {
+func (g *Generator) termTarget(s *check.Scope, locals map[string]string) *Target {
 	return &Target{
 		Stmt: func(c *exec.Call, a []string, dst []string, decl string) (string, bool) {
 			if c.Callee != lower.OpTermTextIn || len(dst) != 1 || dst[0] == "_" {

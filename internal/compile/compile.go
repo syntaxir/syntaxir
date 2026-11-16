@@ -20,14 +20,13 @@ import (
 // its types and expectations, and its bytecode module. Every backend and generator reads it; the
 // engine's Program adds what the parser runs.
 type Program struct {
+	// Model is the semantic model of the grammar: the grammar, its types, variables and start
+	// rules. Check and the loading of a compiled grammar always set it.
+	*check.Model
 	HasMissing bool // immutable syntax metadata; bytecode/generation are unsupported
 	// chk checks the types of the program (Checker), made on first use.
 	chk         *check.Checker
 	checkerOnce sync.Once
-	Grammar     *grammar.Grammar
-	// Source is the grammar as written when Grammar is its lowering (inline actions replaced by
-	// hidden rules, inline_actions.go); nil when Grammar is the grammar itself.
-	Source *grammar.Grammar
 	// unsupportedSeen holds the type syntax reported as not supported yet while compiling, so that
 	// an alias resolved from several places, by several checkers, is reported once.
 	unsupportedSeen map[grammar.TypeExpr]bool
@@ -43,13 +42,6 @@ type Program struct {
 	// (Options.DefaultValue).
 	MakesDefaultValue bool
 	ByName            map[string]*Rule
-	// StartRules holds the start rules in declaration order and DefaultStartRule the default one
-	// (desugar.ResolveStarts).
-	StartRules       []string
-	DefaultStartRule string
-	Types            map[string]grammar.TypeDecl
-	// Vars holds the declared variables (nil if there are none).
-	Vars *VarTable
 	// fieldTypes caches the types of casts (castType).
 	fieldTypes sync.Map
 	// structZeros caches the zero descriptors of the struct types (StructZeroOf) by name.
@@ -149,7 +141,7 @@ type Rule struct {
 	ID     int
 	Name   string
 	Def    *grammar.RuleDef
-	Scope  *Scope
+	Scope  *check.Scope
 	Action grammar.Term
 	// NodeType, if not "", is the named node type the rule's value is converted to
 	// (Program.ruleNodeType).
@@ -205,29 +197,6 @@ type Rule struct {
 	// Lean reports that the body's value is unused (an action, which reads captures only), so the
 	// body runs value-free. Captures still build values.
 	Lean bool
-}
-
-// Scope maps capture names to slots. Each rule body, repetition element, and Operators Rule line has its
-// own scope.
-type Scope struct {
-	Names []string
-	Slots map[string]int
-	// outer is the scope of the rule body that contains a repetition element's scope, for error
-	// messages: its captures are not visible in the element.
-	outer *Scope
-}
-
-// NewScope returns an empty scope.
-func NewScope() *Scope { return &Scope{Slots: map[string]int{}} }
-
-// Slot returns the slot of the capture name, adding one if the scope has none.
-func (s *Scope) Slot(name string) int {
-	if i, ok := s.Slots[name]; ok {
-		return i
-	}
-	s.Slots[name] = len(s.Names)
-	s.Names = append(s.Names, name)
-	return s.Slots[name]
 }
 
 // ErrSchemaUnavailable reports that the checked grammar metadata an output schema is exported
@@ -457,7 +426,7 @@ func Check(g *grammar.Grammar, opts Options, flags []RuleFlags, names desugar.In
 		return nil, err
 	}
 	g, source, starts, defaultStart, startErrors := canon.Grammar, canon.Source, canon.Starts, canon.DefaultStart, canon.StartErrors
-	prog := &Program{Grammar: g, Source: source, ByName: map[string]*Rule{}, Types: map[string]grammar.TypeDecl{},
+	prog := &Program{Model: check.NewModel(g, source), ByName: map[string]*Rule{},
 		DescTable: append([]string(nil), FixedDescs...)}
 	c := &Compiler{Control: control, Prog: prog, opts: opts}
 	if control != nil {
@@ -498,7 +467,7 @@ func Check(g *grammar.Grammar, opts Options, flags []RuleFlags, names desugar.In
 	c.errs = append(c.errs, redeclared...)
 	for _, rd := range rules {
 		control.Poll()
-		r := &Rule{ID: len(prog.RuleList), Name: rd.Name, Def: rd, Scope: NewScope(), Action: rd.Action, Splice: SpliceRule(rd)}
+		r := &Rule{ID: len(prog.RuleList), Name: rd.Name, Def: rd, Scope: check.NewScope(), Action: rd.Action, Splice: SpliceRule(rd)}
 		if r.Splice && rd.Type != nil {
 			c.errorf(rd.Diagnostic(), "rule %s makes no node of its own, so it cannot have a result type", rd.Name)
 		}
@@ -736,7 +705,7 @@ func (p *Program) defsByName() map[string]*grammar.RuleDef {
 func (c *Compiler) twinOf(r *Rule) *Rule {
 	if r.Twin == nil {
 		prog := c.Prog
-		r.Twin = &Rule{ID: len(prog.RuleList) + len(prog.Twins), Name: r.Name, Def: r.Def, Scope: NewScope(),
+		r.Twin = &Rule{ID: len(prog.RuleList) + len(prog.Twins), Name: r.Name, Def: r.Def, Scope: check.NewScope(),
 			Memo: r.Memo, Missing: r.Missing, Transient: r.Transient, Rec: r.Rec, Vars: r.Vars, Positional: r.Positional, Novalue: true}
 		prog.Twins = append(prog.Twins, r.Twin)
 	}

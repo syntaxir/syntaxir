@@ -49,20 +49,8 @@ func (p *Program) Checker() *check.Checker {
 	return p.chk
 }
 
-// Has and InEnclosing make a scope the check.ScopeView of CheckTerm.
-func (s *Scope) Has(name string) bool { _, ok := s.Slots[name]; return ok }
-
-func (s *Scope) InEnclosing(name string) bool {
-	for o := s.outer; o != nil; o = o.outer {
-		if _, ok := o.Slots[name]; ok {
-			return true
-		}
-	}
-	return false
-}
-
 // CheckTerm is check.TermChecker.CheckTerm over the compiler's errors.
-func (c *Compiler) CheckTerm(t grammar.Term, s *Scope, locals []string) {
+func (c *Compiler) CheckTerm(t grammar.Term, s *check.Scope, locals []string) {
 	(&check.TermChecker{Control: c.Control, Prog: c.Prog.Checker(), Errs: &c.errs}).CheckTerm(t, s, locals)
 }
 

@@ -15,6 +15,7 @@ import (
 	"zeroparse.dev/zp/grammar"
 	"zeroparse.dev/zp/internal/codegen"
 	"zeroparse.dev/zp/internal/compile"
+	"zeroparse.dev/zp/internal/frontend/check"
 	"zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/ir/exec"
 	"zeroparse.dev/zp/internal/ir/flow"
@@ -436,7 +437,7 @@ func tsActxParam(body string) string {
 
 // action emits a function that evaluates the term ct of Core IR (an action or a predicate) and
 // returns its name.
-func (g *Generator) action(ct core.Term, s *compile.Scope, locals map[string]string) string {
+func (g *Generator) action(ct core.Term, s *check.Scope, locals map[string]string) string {
 	name := g.Name("a")
 	g.Methods.WriteString(g.actionFunc(name, ct, s, locals))
 	return name
@@ -446,7 +447,7 @@ func (g *Generator) rules() {
 	g.startTSFlow()
 	init := &g.Init
 	bodies := map[*compile.Rule]string{}
-	scopes := map[*compile.Rule]*compile.Scope{}
+	scopes := map[*compile.Rule]*check.Scope{}
 	var all []*compile.Rule
 	for _, r := range append(append([]*compile.Rule(nil), g.Prog.RuleList...), g.Prog.Twins...) {
 		if !g.pruned(r) {
@@ -454,7 +455,7 @@ func (g *Generator) rules() {
 		}
 	}
 	for _, r := range all {
-		s := compile.NewScope()
+		s := check.NewScope()
 		scopes[r] = s
 		if _, ok := r.Def.Expr.(*grammar.OperatorsRule); !ok {
 			g.Cur, g.Proj = r, g.Projections(r)
@@ -537,7 +538,7 @@ func (g *Generator) rules() {
 			if r.Action != nil && !r.Novalue {
 				// The whole-rule action, which the library runs on the folded value after each call.
 				locals := map[string]string{compile.OperatorsRuleValue: "c.value"}
-				fmt.Fprintf(init, "%s.action = %s;\n", g.ruleVar(r), g.action(g.CoreAction(r), compile.NewScope(), locals))
+				fmt.Fprintf(init, "%s.action = %s;\n", g.ruleVar(r), g.action(g.CoreAction(r), check.NewScope(), locals))
 			}
 			continue
 		}
@@ -649,7 +650,7 @@ func (g *Generator) operatorsRule(r *compile.Rule, e *grammar.OperatorsRule) {
 		if co != nil {
 			skip = co.Skip
 		}
-		m, ok := g.flowLine(skip, e.Skip, compile.NewScope(), false)
+		m, ok := g.flowLine(skip, e.Skip, check.NewScope(), false)
 		if !ok {
 			g.FailFlow("the skip of an Operators Rule of rule " + r.Name)
 			m = "null"
@@ -694,7 +695,7 @@ func (g *Generator) operatorsRule(r *compile.Rule, e *grammar.OperatorsRule) {
 // operatorsRuleLine returns the line of an Operators Rule with the expression e and the action; l is
 // its Core IR if the printer prints it from Flow IR, or nil.
 func (g *Generator) operatorsRuleLine(e grammar.Expr, action grammar.Term, operator bool, l *core.OpLine) string {
-	s := compile.NewScope()
+	s := check.NewScope()
 	var locals []string
 	if operator {
 		locals = []string{"lhs", "rhs", "op"}

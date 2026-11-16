@@ -15,6 +15,7 @@ import (
 	"zeroparse.dev/zp/grammar"
 	"zeroparse.dev/zp/internal/codegen"
 	"zeroparse.dev/zp/internal/compile"
+	"zeroparse.dev/zp/internal/frontend/check"
 	"zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/ir/exec"
 	"zeroparse.dev/zp/internal/ir/flow"
@@ -613,11 +614,11 @@ func (g *Generator) rules() {
 	init := &g.Init
 	methodsBefore := g.Methods.String()
 	bodies := map[*compile.Rule]string{}
-	scopes := map[*compile.Rule]*compile.Scope{}
+	scopes := map[*compile.Rule]*check.Scope{}
 	flats := map[*compile.Rule]*flatRule{}
 	all := append(append([]*compile.Rule(nil), g.Prog.RuleList...), g.Prog.Twins...)
 	for _, r := range all {
-		s := compile.NewScope()
+		s := check.NewScope()
 		scopes[r] = s
 		if g.pruned(r) {
 			// Not printed; its table row keeps the capture layout of the first pass.
@@ -799,7 +800,7 @@ func (g *Generator) rules() {
 				if g.Table == "trules" {
 				}
 				locals := map[string]string{compile.OperatorsRuleValue: "c.Value"}
-				fmt.Fprintf(init, "\t%s[%d].Action = func(c *%s) (any, any) { %s }\n", g.Table, r.ID, g.ctxType(), g.actionBody(g.CoreAction(r), compile.NewScope(), locals))
+				fmt.Fprintf(init, "\t%s[%d].Action = func(c *%s) (any, any) { %s }\n", g.Table, r.ID, g.ctxType(), g.actionBody(g.CoreAction(r), check.NewScope(), locals))
 			}
 			continue
 		}
@@ -840,7 +841,7 @@ func (g *Generator) rules() {
 		// ParseStream calls a copy of the start rule whose body emits the
 		// #stream elements, generated last so that the batch code is the same
 		// as without streams. Its captures have a layout of their own.
-		s := compile.NewScope()
+		s := check.NewScope()
 		body := g.flowStreamBody(r, s)
 		if body != "" {
 			if g.hooks.StreamRoute != nil && g.collect == nil && !g.Traced {
@@ -949,7 +950,7 @@ func (g *Generator) ownsBody(r *compile.Rule) bool {
 //
 // For a flat rule (d, see flowrule.go), the method that runs the body (s<id>, v<id> or i<id>)
 // has it inlined, with the action.
-func (g *Generator) typedCall(r *compile.Rule, body string, s *compile.Scope, d *flatRule) {
+func (g *Generator) typedCall(r *compile.Rule, body string, s *check.Scope, d *flatRule) {
 	if _, operatorsRule := r.Def.Expr.(*grammar.OperatorsRule); operatorsRule || r.Leader {
 		return // the general call
 	}
@@ -1381,7 +1382,7 @@ func (g *Generator) operatorsRule(r *compile.Rule, e *grammar.OperatorsRule) {
 	// The lines of the rule's Core IR, in the order of e, if they are printed from Flow IR.
 	co := g.flowOperatorsRule(r)
 	if e.Skip != nil {
-		s := compile.NewScope()
+		s := check.NewScope()
 		var skip *core.OpLine
 		if co != nil {
 			skip = co.Skip
@@ -1430,7 +1431,7 @@ func (g *Generator) operatorsRule(r *compile.Rule, e *grammar.OperatorsRule) {
 // operatorsRuleLine returns the line of an Operators Rule with the expression e and the action;
 // l is its Core IR if it is printed from Flow IR, or nil.
 func (g *Generator) operatorsRuleLine(e grammar.Expr, action grammar.Term, operator bool, l *core.OpLine) string {
-	s := compile.NewScope()
+	s := check.NewScope()
 	var locals []string
 	if operator {
 		locals = []string{"lhs", "rhs", "op"}

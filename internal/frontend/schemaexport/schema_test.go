@@ -8,6 +8,7 @@ import (
 
 	"zeroparse.dev/zp/grammar"
 	"zeroparse.dev/zp/internal/compile"
+	"zeroparse.dev/zp/internal/frontend/check"
 	"zeroparse.dev/zp/internal/testing/compiletest"
 	"zeroparse.dev/zp/schema"
 )
@@ -80,7 +81,7 @@ func TestOutputSchemaInferredCaptureAndDynamic(t *testing.T) {
 }
 
 func TestOutputSchemaRejectsUnresolvedShapes(t *testing.T) {
-	p := &compile.Program{Types: map[string]grammar.TypeDecl{"Known": &grammar.TypeDef{Name: "Known", Type: &grammar.StructType{}}}}
+	p := &compile.Program{Model: &check.Model{Types: map[string]grammar.TypeDecl{"Known": &grammar.TypeDef{Name: "Known", Type: &grammar.StructType{}}}}}
 	// The checker reports undefined names, which resolve to _ so that checking can go on; a
 	// checked program has none. *_ is _, since _ includes nil.
 	for _, expr := range []grammar.TypeExpr{

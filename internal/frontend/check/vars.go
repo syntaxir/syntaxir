@@ -1,5 +1,7 @@
-// Package check holds the checker of the value model: the variable table, type resolution, value
-// inference and term checking, over the type model in internal/frontend/types.
+// Package check holds the semantic model of a grammar (Model: the grammar, its type declarations,
+// variables and start rules, and the capture scopes of its rules) and the checker of its value
+// model: the variable table, type resolution, value inference and term checking, over the type
+// model in internal/frontend/types.
 package check
 
 import (

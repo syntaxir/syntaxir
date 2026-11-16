@@ -13,7 +13,7 @@ import (
 // registers outlive the evaluation in the parser (and in a pooled parser, the parse), so a value
 // left in one would stay reachable after its term returned.
 func TestTermEvalClearsRegisters(t *testing.T) {
-	prog, err := CompileTerm(&ir.Local{Kind: ir.LocalOp, Name: "op"}, TermEnv{Prog: &compile.Program{}, Scope: &compile.Scope{}})
+	prog, err := CompileTerm(&ir.Local{Kind: ir.LocalOp, Name: "op"}, TermEnv{Prog: compile.NewProgram(nil), Scope: &compile.Scope{}})
 	if err != nil {
 		t.Fatal(err)
 	}

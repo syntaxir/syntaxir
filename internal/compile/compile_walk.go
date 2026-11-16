@@ -33,7 +33,7 @@ func (c *walker) compileRule(r *Rule) {
 }
 
 // Expr walks the expression. If build is false, the expression is matched without building values.
-func (c *walker) Expr(e grammar.Expr, s *Scope, build bool) {
+func (c *walker) Expr(e grammar.Expr, s *check.Scope, build bool) {
 	c.Control.Poll()
 	control := c.Control
 	switch e := e.(type) {
@@ -106,7 +106,7 @@ func (c *walker) Expr(e grammar.Expr, s *Scope, build bool) {
 		if field := c.proj[e.Name]; field != "" {
 			// A projected repetition (project.go): its elements share one scope of their own and
 			// build no values.
-			c.Expr(e.Expr.(*grammar.Repeat).Expr, NewScope(), false)
+			c.Expr(e.Expr.(*grammar.Repeat).Expr, check.NewScope(), false)
 			return
 		}
 		c.Expr(e.Expr, s, true)
@@ -129,7 +129,7 @@ func (c *walker) Expr(e grammar.Expr, s *Scope, build bool) {
 }
 
 // repeat walks a repetition.
-func (c *walker) repeat(e *grammar.Repeat, s *Scope, build bool) {
+func (c *walker) repeat(e *grammar.Repeat, s *check.Scope, build bool) {
 	if c.Prog.SkipSite(e) != 0 {
 		// A skip-run site has no captures, values or stream.
 		c.Expr(e.Expr, s, false)
@@ -137,14 +137,13 @@ func (c *walker) repeat(e *grammar.Repeat, s *Scope, build bool) {
 	}
 	elemScope := s
 	if elementScopedControlled(e.Expr, c.Control) {
-		elemScope = NewScope()
-		elemScope.outer = s
+		elemScope = check.NewElementScope(s)
 	}
 	c.Expr(e.Expr, elemScope, build)
 }
 
 // predicate checks a Predicate Action { ... } and walks it.
-func (c *walker) predicate(e *grammar.Predicate, s *Scope) {
+func (c *walker) predicate(e *grammar.Predicate, s *check.Scope) {
 	if a, ok := e.Term.(*grammar.Bind); ok {
 		if c.Prog.Vars.Lookup(a.Name) == nil {
 			c.errorf(a.Diagnostic(), "undefined variable %s; declare it with var %s at the top level", a.Name, a.Name)
@@ -156,7 +155,7 @@ func (c *walker) predicate(e *grammar.Predicate, s *Scope) {
 }
 
 // attributed walks an attributed expression and checks its attributes.
-func (c *walker) attributed(e *grammar.Attributed, s *Scope, build bool) {
+func (c *walker) attributed(e *grammar.Attributed, s *check.Scope, build bool) {
 	c.Expr(e.Expr, s, build)
 	for _, a := range e.Attrs {
 		switch a.Name {
@@ -264,7 +263,7 @@ func (c *walker) compileOperatorsRule(r *Rule, e *grammar.OperatorsRule) {
 
 // checkValueCaptures reports a capture named value in the scope of the operand or operator line
 // at d: the name is reserved for the folded value, which the whole-rule action reads as $value.
-func (c *walker) checkValueCaptures(d grammar.Pos, scope *Scope) {
+func (c *walker) checkValueCaptures(d grammar.Pos, scope *check.Scope) {
 	for _, name := range scope.Names {
 		if name == OperatorsRuleValue {
 			c.errorf(d, "capture name %s is reserved for the whole-rule action of an Operators Rule, which reads the folded value as $%s", name, name)
@@ -280,8 +279,8 @@ var OperatorsRuleActionLocals = []string{OperatorsRuleValue}
 
 // operatorsRuleLine walks the line e of an Operators Rule and checks its action, whose locals are
 // locals, and returns the line's scope.
-func (c *walker) operatorsRuleLine(e grammar.Expr, action grammar.Term, locals []string) *Scope {
-	s := NewScope()
+func (c *walker) operatorsRuleLine(e grammar.Expr, action grammar.Term, locals []string) *check.Scope {
+	s := check.NewScope()
 	c.Expr(e, s, !c.rule.Novalue && !LeanLine(action, locals))
 	if action != nil && !c.rule.Novalue {
 		c.CheckTerm(action, s, locals)

@@ -7,7 +7,6 @@ import (
 	"testing"
 	"zeroparse.dev/zp/internal/diagnostic"
 
-	"zeroparse.dev/zp/grammar"
 	"zeroparse.dev/zp/internal/compile"
 )
 
@@ -65,7 +64,7 @@ func captureCheckProgram(src string) (*Program, error) {
 	if err != nil {
 		return nil, err
 	}
-	p := newProgram(&compile.Program{Grammar: g, Types: map[string]grammar.TypeDecl{}}, nil, nil)
+	p := newProgram(compile.NewProgram(g), nil, nil)
 	for _, d := range g.Types() {
 		p.Types[d.DeclName()] = d
 	}

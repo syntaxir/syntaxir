@@ -37,15 +37,6 @@ type TermChecker struct {
 	Errs    *diagnostic.ErrorList
 }
 
-// ScopeView is what CheckTerm reads of the captures in scope.
-type ScopeView interface {
-	// Has reports whether the scope defines the capture name.
-	Has(name string) bool
-	// InEnclosing reports whether a scope that encloses this one, outside a repetition element,
-	// defines name.
-	InEnclosing(name string) bool
-}
-
 // OperatorsRuleValue is the local name of the final folded value of an Operators Rule in its
 // whole-rule action.
 const OperatorsRuleValue = "value"
@@ -55,7 +46,7 @@ func (c *TermChecker) errorf(pos grammar.Pos, format string, args ...any) {
 }
 
 // CheckTerm resolves the names in a value expression and reports statically detectable errors.
-func (c *TermChecker) CheckTerm(t grammar.Term, s ScopeView, locals []string) {
+func (c *TermChecker) CheckTerm(t grammar.Term, s *Scope, locals []string) {
 	c.Control.Poll()
 	switch t := t.(type) {
 	case *grammar.CaptureRef:

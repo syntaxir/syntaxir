@@ -10,6 +10,7 @@ import (
 	"zeroparse.dev/zp/grammar"
 	"zeroparse.dev/zp/internal/codegen"
 	"zeroparse.dev/zp/internal/compile"
+	"zeroparse.dev/zp/internal/frontend/check"
 	"zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/ir/flow"
 	flowlower "zeroparse.dev/zp/internal/ir/flow/lower"
@@ -80,7 +81,7 @@ func (g *Generator) flowTypedRule(r *compile.Rule) *flatRule {
 
 // flowFrameBody prints the body of the typed rule r from Flow IR as the matcher of its frame
 // body, or returns "" if Flow IR does not print r that way.
-func (g *Generator) flowFrameBody(r *compile.Rule, scope *compile.Scope) string {
+func (g *Generator) flowFrameBody(r *compile.Rule, scope *check.Scope) string {
 	if g.Flow == nil || g.Table != "trules" {
 		return ""
 	}
@@ -109,7 +110,7 @@ func (g *Generator) flowFrameBody(r *compile.Rule, scope *compile.Scope) string 
 // (Options.Budget) the method that holds the body charges one step on entry (Func.Entered) and the
 // body charges one on each iteration of a repetition, plus the input spend of each Peek; the limits
 // of a parse hold at these charges.
-func (g *Generator) flowNodeFrameBody(r *compile.Rule, scope *compile.Scope) string {
+func (g *Generator) flowNodeFrameBody(r *compile.Rule, scope *check.Scope) string {
 	cr, ok := g.FlowNodeFrameOK(r)
 	if !ok {
 		return ""
@@ -130,7 +131,7 @@ func (g *Generator) flowNodeFrameBody(r *compile.Rule, scope *compile.Scope) str
 // frame body, with the repetition of its #stream delivering the elements (flowlower.Options.Stream), or
 // returns "" if the rule is not printed that way: a rule is eligible as for flowNodeFrameBody. The
 // capture layout of the printed body must be the batch body's, which the action addresses by slot.
-func (g *Generator) flowStreamBody(r *compile.Rule, scope *compile.Scope) string {
+func (g *Generator) flowStreamBody(r *compile.Rule, scope *check.Scope) string {
 	cr, ok := g.FlowNodeFrameOK(r)
 	if !ok || !g.Flow.Opts.Node {
 		return ""
@@ -155,7 +156,7 @@ func (g *Generator) flowStreamBody(r *compile.Rule, scope *compile.Scope) string
 // on the shape of every capture, and the checker lets an action name only captures of its line. With budget
 // controls (Options.Budget) the method that holds the function charges its entry and the function charges
 // each iteration of a repetition, as Flow IR makes them explicit.
-func (g *Generator) flowOperatorsRuleBody(l *core.OpLine, e grammar.Expr, scope *compile.Scope, build bool) string {
+func (g *Generator) flowOperatorsRuleBody(l *core.OpLine, e grammar.Expr, scope *check.Scope, build bool) string {
 	if g.Flow == nil || l == nil || !flowlower.LineOK(e) || !flowlower.FramedBody(l.Body) {
 		return ""
 	}
@@ -192,7 +193,7 @@ func (g *Generator) flowOperatorsRule(r *compile.Rule) *core.OperatorsRule {
 // flowFramed prints the framed function f, whose capture scope has the slots, as a matcher method
 // with the comment, as finishFrameBody does, and sets scope to its capture scope. A rule body (ruleBody)
 // has the signature of the Body field of the rule table (see bodyMethod).
-func (g *Generator) flowFramed(f *flow.Func, slots []core.Slot, scope *compile.Scope, comment string, ruleBody bool) string {
+func (g *Generator) flowFramed(f *flow.Func, slots []core.Slot, scope *check.Scope, comment string, ruleBody bool) string {
 	p := newFlowPrinter(g, true)
 	p.document = f.Document
 	return g.execFramed(p, f, slots, scope, comment, ruleBody)
@@ -637,7 +638,7 @@ func (p *flowPrinter) expr(x flow.Expr) string {
 		return fmt.Sprintf("p.UseCtx(TActCtx{P: p, Start: %s, End: p.Pos, Cbase: len(p.Created)})", p.expr(x.Start))
 	case *flow.Eval:
 		defer p.caps(x.Caps)()
-		stmts, res := g.loweredStmts(x.Term, compile.NewScope(), nil)
+		stmts, res := g.loweredStmts(x.Term, check.NewScope(), nil)
 		p.pre += stmts
 		return res
 	case *flow.CtxFinish:
@@ -687,14 +688,14 @@ func (p *flowPrinter) not(x flow.Expr) string {
 			return fmt.Sprintf("!p.Predicate(func(c *%s) (any, any) { %s })", g.ctxType(), g.predicate(x.Node.Term, codegen.FrameScope(x.Caps)))
 		}
 		defer p.caps(x.Caps)()
-		return fmt.Sprintf("!p.Predicate(func(c *TActCtx) (any, any) { %s })", g.predicate(x.Node.Term, compile.NewScope()))
+		return fmt.Sprintf("!p.Predicate(func(c *TActCtx) (any, any) { %s })", g.predicate(x.Node.Term, check.NewScope()))
 	case *flow.Bind:
 		b := p.term(x.Node).(*grammar.Bind)
 		if x.Caps.Vars == nil {
 			return fmt.Sprintf("!p.Bind(%d, func(c *%s) (any, any) { %s })", g.Prog.Vars.Index(b.Name), g.ctxType(), g.actionBody(x.Node.Term, codegen.FrameScope(x.Caps), nil))
 		}
 		defer p.caps(x.Caps)()
-		return fmt.Sprintf("!p.Bind(%d, func(c *TActCtx) (any, any) { %s })", g.Prog.Vars.Index(b.Name), g.actionBody(x.Node.Term, compile.NewScope(), nil))
+		return fmt.Sprintf("!p.Bind(%d, func(c *TActCtx) (any, any) { %s })", g.Prog.Vars.Index(b.Name), g.actionBody(x.Node.Term, check.NewScope(), nil))
 	}
 	return "!" + p.expr(x)
 }

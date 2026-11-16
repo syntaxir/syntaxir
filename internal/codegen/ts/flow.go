@@ -9,6 +9,7 @@ import (
 	"zeroparse.dev/zp/grammar"
 	"zeroparse.dev/zp/internal/codegen"
 	"zeroparse.dev/zp/internal/compile"
+	"zeroparse.dev/zp/internal/frontend/check"
 	"zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/ir/flow"
 	flowlower "zeroparse.dev/zp/internal/ir/flow/lower"
@@ -53,7 +54,7 @@ func (g *Generator) startTSFlow() bool {
 // flowlower.LocalRule accepts prints as a flat function; a rule whose body is a framed body prints under the
 // frame the library owns, which also runs its action and finish. On success it sets scope to the
 // capture scope of the printed body.
-func (g *Generator) flowRule(r *compile.Rule, scope *compile.Scope) (call string, ok bool) {
+func (g *Generator) flowRule(r *compile.Rule, scope *check.Scope) (call string, ok bool) {
 	if g.Flow == nil {
 		return "", false
 	}
@@ -85,7 +86,7 @@ func (g *Generator) flowRule(r *compile.Rule, scope *compile.Scope) (call string
 // flowFunc prints the function f, whose capture scope has the slots, as a function of its own and
 // returns the call expression that runs it, or false if the printer does not print f. On success it
 // sets scope to the capture scope of a framed f. The comment describes the function.
-func (g *Generator) flowFunc(f *flow.Func, slots []core.Slot, scope *compile.Scope, comment string) (call string, ok bool) {
+func (g *Generator) flowFunc(f *flow.Func, slots []core.Slot, scope *check.Scope, comment string) (call string, ok bool) {
 	defer func() {
 		if e := recover(); e != nil {
 			if _, unsupported := e.(tsFlowUnsupported); !unsupported {
@@ -104,7 +105,7 @@ func (g *Generator) flowFunc(f *flow.Func, slots []core.Slot, scope *compile.Sco
 	}
 	b.WriteString(indent(body))
 	if f.Frame {
-		*scope = *compile.NewScope()
+		*scope = *check.NewScope()
 		for _, sl := range slots {
 			scope.Slot(sl.Name)
 		}
@@ -944,7 +945,7 @@ func tsUnisolate(s *flow.Set) (*flow.Unisolate, bool) {
 // function and returns the call expression that runs it, or false if the printer does not print
 // the line. It sets scope to the capture scope of the line. With budget controls the library loop that
 // runs the line charges its entry and the function charges each iteration of a repetition.
-func (g *Generator) flowLine(l *core.OpLine, e grammar.Expr, scope *compile.Scope, build bool) (string, bool) {
+func (g *Generator) flowLine(l *core.OpLine, e grammar.Expr, scope *check.Scope, build bool) (string, bool) {
 	if g.Flow == nil || l == nil || !flowlower.LineOK(e) || !flowlower.FramedBody(l.Body) {
 		return "", false
 	}
@@ -972,7 +973,7 @@ func (p *tsFlowPrinter) outline(x *flow.CallOutline) string {
 	if err != nil {
 		panic(fmt.Errorf("outlined node of rule %s in table %s: %w", g.Cur.Name, g.Table, err)) // Outlinable holds
 	}
-	call, ok := g.flowFunc(f, x.Slots, compile.NewScope(), g.Cur.Name+" (outlined)")
+	call, ok := g.flowFunc(f, x.Slots, check.NewScope(), g.Cur.Name+" (outlined)")
 	if !ok {
 		panic(tsFlowUnsupported("an outlined node"))
 	}

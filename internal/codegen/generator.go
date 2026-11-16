@@ -7,6 +7,7 @@ import (
 
 	"zeroparse.dev/zp/grammar"
 	"zeroparse.dev/zp/internal/compile"
+	"zeroparse.dev/zp/internal/frontend/check"
 	irbuild "zeroparse.dev/zp/internal/frontend/elaborate"
 	"zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/ir/exec"
@@ -302,8 +303,8 @@ func (g *Generator) InlineLiterals() int {
 }
 
 // FrameScope returns the scope of the frame whose slots the captures c name.
-func FrameScope(c flow.Captures) *compile.Scope {
-	s := compile.NewScope()
+func FrameScope(c flow.Captures) *check.Scope {
+	s := check.NewScope()
 	for _, name := range c.Names {
 		s.Slot(name)
 	}

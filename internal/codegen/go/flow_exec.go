@@ -8,7 +8,7 @@ import (
 
 	goast "go/ast"
 
-	"zeroparse.dev/zp/internal/compile"
+	"zeroparse.dev/zp/internal/frontend/check"
 	irc "zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/ir/exec"
 	"zeroparse.dev/zp/internal/ir/exec/lower"
@@ -288,7 +288,7 @@ func (g *Generator) execRecRule(p *flowPrinter, f *flow.Func) *flatRule {
 }
 
 // execFramed prints the framed function f from Exec IR as flowFramed does.
-func (g *Generator) execFramed(p *flowPrinter, f *flow.Func, slots []irc.Slot, scope *compile.Scope, comment string, ruleBody bool) string {
+func (g *Generator) execFramed(p *flowPrinter, f *flow.Func, slots []irc.Slot, scope *check.Scope, comment string, ruleBody bool) string {
 	res := p.execBody(f)
 	st := res.Stores
 	var vars []dvar
@@ -311,7 +311,7 @@ func (g *Generator) execFramed(p *flowPrinter, f *flow.Func, slots []irc.Slot, s
 		fmt.Fprintf(&b, "%s_ = %s\n", strings.Repeat("_, ", len(unread)-1), strings.Join(unread, ", "))
 	}
 	b.WriteString(res.Text)
-	*scope = *compile.NewScope()
+	*scope = *check.NewScope()
 	for _, sl := range slots {
 		scope.Slot(sl.Name)
 	}

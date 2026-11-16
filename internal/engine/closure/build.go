@@ -8,6 +8,7 @@ import (
 	"zeroparse.dev/zp/internal/cancel"
 	"zeroparse.dev/zp/internal/compile"
 	"zeroparse.dev/zp/internal/engine/state"
+	"zeroparse.dev/zp/internal/frontend/check"
 	"zeroparse.dev/zp/internal/frontend/elaborate"
 	ir "zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/value"
@@ -110,8 +111,8 @@ func Matcher(prog *compile.Program, m *ir.Module, n ir.Node, scope []ir.Slot, pl
 }
 
 // scopeOf returns the capture scope of the Core IR slots s.
-func scopeOf(s []ir.Slot) *compile.Scope {
-	sc := compile.NewScope()
+func scopeOf(s []ir.Slot) *check.Scope {
+	sc := check.NewScope()
 	for i, x := range s {
 		sc.Names = append(sc.Names, x.Name)
 		sc.Slots[x.Name] = i

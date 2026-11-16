@@ -34,7 +34,7 @@ func catchStreamPanic(f func()) (val any) { defer func() { val = recover() }(); 
 
 func stateBudgetParser(lim core.Limits) *state.Parser {
 	prog := &state.SharedProgram{}
-	state.InitSharedProgram(prog, &compile.Program{})
+	state.InitSharedProgram(prog, compile.NewProgram(nil))
 	return &state.Parser{Prog: prog, Input: state.Input{Control: state.NewBudgetControl(nil, lim)}}
 }
 

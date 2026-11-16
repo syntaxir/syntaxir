@@ -235,7 +235,7 @@ func prepareClassifierWith(g *grammar.Grammar, start string, control *cancel.Con
 	defined := func(name string) bool {
 		return slices.ContainsFunc(rules, func(rd *grammar.RuleDef) bool { return rd.Name == name })
 	}
-	if err := compile.CheckStartName(starts, def, defined, start); err != nil {
+	if err := check.CheckStartName(starts, def, defined, start); err != nil {
 		return nil, nil, err
 	}
 	if start == "" {
