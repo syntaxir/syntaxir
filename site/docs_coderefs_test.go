@@ -582,9 +582,9 @@ func TestCodeReferencesScanner(t *testing.T) {
 	}
 }
 
-// TestCodeReferencesTargetPaths checks that a path which exists as a directory without a Go
-// package is a target path, the same case as a path that does not exist: an internal document
-// may name it, and a reader page may not name any path under internal/.
+// TestCodeReferencesTargetPaths checks that a directory without a Go package, under no package,
+// is a target path, the same case as a path that does not exist: an internal document may name
+// it, and a reader page may not name any path under internal/.
 func TestCodeReferencesTargetPaths(t *testing.T) {
 	c := &repoCode{
 		goDirs:   map[string]bool{"internal/engine/state": true},
