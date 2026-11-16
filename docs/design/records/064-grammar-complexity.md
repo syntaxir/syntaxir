@@ -238,7 +238,7 @@ hint with a witness, not a proof that a slow input exists.
 
 ### Where It Plugs In
 
-- The classifier (`internal/complexity/complexity*.go`) is a pass over the grammar that the compiler runs: inline actions
+- The classifier (the classifier files of the complexity package) is a pass over the grammar that the compiler runs: inline actions
   lowered to hidden rules and attributes normalized. It reuses the analyses of `internal/compile/analysis.go`
   (nullability, rules that always succeed, the left-call graph, its SCCs, leaders and cycle members) and runs only when
   asked, not at every compile. It assumes that the memo answers exactly the rules that every parse memoizes, and a test
@@ -358,7 +358,7 @@ budget is not implemented.
 
 ## Testing
 
-- **Step-ratio suite** (`internal/complexitytest`). Each E-series control and each corpus grammar is measured at input
+- **Step-ratio suite** (the complexity test support). Each E-series control and each corpus grammar is measured at input
   sizes n, 2n and 4n on the three backends, with steps found by bisection over the budget limit. A control must show
   its order from the table above; a corpus grammar's worst cost per byte may grow by at most 1.1 from 2n to 4n. Steps
   are deterministic, so the suite is stable without timing.
@@ -386,13 +386,13 @@ so a verdict alone does not tell whether a cause is imprecision of the classifie
 or a cost inherent in the language. Every cause is therefore sorted by measurement.
 
 The causes of each grammar are grouped by shape, and every witness and every reason belongs to exactly one group.
-`internal/complexitytest/testdata/triage/<grammar>.txt` lists the causes of each group, and `TestTriageCoverage` keeps
+the `testdata/triage/<grammar>.txt` files of the complexity test support lists the causes of each group, and `TestTriageCoverage` keeps
 the lists complete and current. Each group has adversarial input families derived from its witness paths, in
-`internal/complexitytest/triage_*.go`. Each family is measured at three or four doubling sizes, with steps found by
+the triage files of the complexity test support. Each family is measured at three or four doubling sizes, with steps found by
 bisection over the budget limit, on the closure backend, both bytecode VMs and a generated Go parser:
 
 ```sh
-ZP_TRIAGE=. ZP_TRIAGE_GO=1 go test -run TestTriageMeasure -v ./internal/complexitytest
+ZP_TRIAGE=. ZP_TRIAGE_GO=1 go test -run TestTriageMeasure -v ./internal/testing/complexitytest
 ```
 
 The variable is a regular expression over `grammar/group/family`. The test prints one row per family and backend, and

@@ -162,7 +162,7 @@ restore legacy attribute syntax or accept naked multiline operator headers.
 
 ## Motivation
 
-The ordinary compatibility path handles each message synchronously. Its `didOpen`, `didChange` and `didSave` analyze and publish before reading the next message, and it ignores `$/cancelRequest`; the opt-in actor addresses this limitation. The implemented design measured roughly 12 ms for the largest example grammars at the time of design 017; that measurement does not establish the cost of linting or future grammars. `internal/lsp/analysis.go` tokenizes and parses every version and compiles only when syntax is valid. `internal/lsp/server.go` publishes only those diagnostics and serializes all requests.
+The ordinary compatibility path handles each message synchronously. Its `didOpen`, `didChange` and `didSave` analyze and publish before reading the next message, and it ignores `$/cancelRequest`; the opt-in actor addresses this limitation. The implemented design measured roughly 12 ms for the largest example grammars at the time of design 017; that measurement does not establish the cost of linting or future grammars. The language server's analysis tokenizes and parses every version and compiles only when syntax is valid. The language server publishes only those diagnostics and serializes all requests.
 
 The public linter already defines stable check names and severities, returns source positions, rule names, messages and human-readable `Fix` suggestions, and applies `lint:ignore` / `lint:file-ignore` directives before returning findings (`internal/lint/lint.go`, `docs/design/records/018-grammar-linting.md`). `Fix` is explanatory text, not an edit. A grammar with syntax errors cannot be linted by `lint.Config.Run` because lint requires a valid, compiling grammar. The editor should therefore show lint findings only for a version whose grammar compiled successfully.
 
@@ -392,7 +392,7 @@ other allocation counts were effectively unchanged, except for one additional
 allocation in the Go Analyze case. The larger validation fixtures and all LSP
 cases have paired ranges crossing parity, so they do not establish a stable
 time change. Sources are `grammar/validate_bench_test.go` and
-`internal/lsp/responsive_bench_test.go`. These measurements do not cover the
+the responsive benchmark of the language server. These measurements do not cover the
 cancellable-context path, cancellation latency or input parsing.
 
 A focused end-to-end compilation comparison of the normalization change used
@@ -449,7 +449,7 @@ context-aware compilation; B/op differences were at most 28 bytes out of about
 3.6 MB. These are whole compile/lint calls, not proof-only cost, parser runtime,
 cancellation latency, peak memory, or real-editor behavior. Sources are
 `internal/compile/normalize_context_bench_test.go` and
-`internal/lint/context_bench_test.go`.
+the context benchmark of the linter.
 
 ### Lint Metadata Cancellation
 
@@ -533,7 +533,7 @@ context −1 to 0); B/op varied by −64 to +182 for ordinary and −4 to 0 for
 context compilation. Other B/op differences were at most 4 bytes. The
 benchmarks use the existing compiler/lint drivers and
 `internal/compile/class_context_bench_test.go` plus
-`internal/lint/class_context_bench_test.go`; baseline overlays add the same
+the class-context benchmark of the linter; baseline overlays add the same
 drivers. These results measure whole compile/lint calls, not parser execution,
 cancellation latency, peak memory or real-editor behavior. They do not support
 a general speedup or regression claim.
@@ -574,9 +574,9 @@ about 52% fewer bytes/op. Other lint fixtures were effectively unchanged.
 These focused measurements cover successful formatter and lint calls, not
 parsing, editor interaction, cancellation latency or peak memory. Benchmark
 drivers are `grammar/format_context_bench_test.go`,
-`internal/lint/format_context_bench_test.go`, the existing
-`internal/lint/context_bench_test.go`, and
-`internal/lsp/format_context_bench_test.go`; the same drivers were applied to
+the format-context benchmark of the linter, the existing
+the context benchmark of the linter, and
+the format-context benchmark of the language server; the same drivers were applied to
 the baseline. Raw results remain outside the repository.
 
 ### LSP Symbol, Hover, and Completion Rendering
@@ -615,7 +615,7 @@ to 216,269 B/op. Source-grammar completion instead used 674 to 661
 allocations. These are focused synthetic rendering measurements, not a claim
 of zero overhead or a general speed result. They exclude analysis, parsing,
 wire encoding, cancellation latency, real-editor behavior, and peak memory.
-The benchmark is `internal/lsp/render_context_bench_test.go`; raw results are
+The benchmark is the render-context benchmark of the language server; raw results are
 outside the repository.
 
 ### Occurrence Request Cancellation
@@ -656,7 +656,7 @@ measurements exclude grammar analysis, parser execution, wire encoding,
 cancellation latency, peak memory, and real-editor behavior; request decoding,
 occurrence lookup and response construction are included. They are not a
 general performance result. The shared harness is
-`internal/lsp/occurrence_context_bench_test.go`; raw results remain outside
+the occurrence-context benchmark of the language server; raw results remain outside
 the repository.
 
 ### Semantic-Token Request Cancellation
@@ -703,7 +703,7 @@ most 13 bytes and allocation counts were unchanged. Live-context cases added
 (4,096 repeated lines plus the trailing empty line) and 2,050 nonempty comment
 records; `comment4096` is the fixture label. Fifteen historical response and
 error fingerprints matched exactly. The harness is
-`internal/lsp/semantic_context_bench_test.go`; raw results remain outside the
+the semantic-context benchmark of the language server; raw results remain outside the
 repository.
 
 ### Code-Action Request Cancellation
@@ -758,7 +758,7 @@ standalone parser throughput, wire encoding, retained memory or real-editor
 behavior. Fifty historical response and error fingerprints matched exactly.
 The existing panic-to-error conversion in candidate analysis is unchanged;
 new polling rethrows unrelated panics. The harness is
-`internal/lsp/code_action_context_bench_test.go`; raw results remain outside
+the code-action-context benchmark of the language server; raw results remain outside
 the repository.
 
 ### LSP Analysis Metadata Cancellation
@@ -812,7 +812,7 @@ for full-path 512 compile errors (+2.2%, 1.004–1.066), metadata-only JSON (+3.
 establish a broad speedup.
 Eighteen historical fingerprints and fourteen cancellation-phase controls
 matched their expected results, and targeted race checks passed. The harness
-is `internal/lsp/metadata_context_bench_test.go`; raw results remain outside
+is the metadata-context benchmark of the language server; raw results remain outside
 the repository.
 
 ### Responsive Request Resource Probe
@@ -857,7 +857,7 @@ state and are not a leak test. Cumulative `TotalAlloc` includes client and
 server transport activity, so it is not a per-request allocation rate. This
 probe does not measure peak RSS, handler throughput, natural cancellation
 latency, or real-editor behavior, and does not justify changing defaults. The
-harness is `internal/lsp/responsive_resources_test.go`; raw results remain
+harness is the responsive-resources harness of the language server; raw results remain
 outside the repository.
 
 ### Bounded Request Dispatch

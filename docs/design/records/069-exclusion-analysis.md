@@ -512,7 +512,7 @@ k = 3. The comparison of the language decides them, but the strict comparison do
 
 ### Controls
 
-`TestExclusionControls` classifies every grammar of the linear-cost controls in `internal/complexitytest` under four
+`TestExclusionControls` classifies every grammar of the linear-cost controls in the complexity test support under four
 settings: decided units alone and with trivia, and trivia rules treated as memoized, without and with decided units.
 Every positive control stays linear, and no negative control is classified linear without the memo assumption. With the memo
 assumption, eight negative controls are classified linear. Their whitespace rules are trivia, and their measured cost of
@@ -572,12 +572,12 @@ In `internal/compile`:
 - `TestSharedContinuationsFlip`: the grammars of `complexitytest.SharedContinuationGrammars`, a family whose
   continuations share prefixes, trailing separators, trivia calls and lookaheads, include grammars that the classifier
   calls linear with decided units and trivia rules on and does not without them. `TestLinearClaims` in
-  `internal/complexitytest` measures those claims on the input families of the family, so it fails when the analysis
+  the complexity test support measures those claims on the input families of the family, so it fails when the analysis
   accepts a unit that costs more: it fails with a continuation lookahead taken as cheap instead of fresh, with trivia
   calls passed without the cheap condition, and with the nesting mark left out of the cheap condition.
 - `TestExclusionReport`: the measurements, behind `ZP_EXCLUSION_REPORT`.
 
-The controls in `internal/complexitytest` for the fresh symbols are "Scanning lookahead of a later alternative" and
+The controls in the complexity test support for the fresh symbols are "Scanning lookahead of a later alternative" and
 "Scanning first alternative of a later lookahead", which `TestExclusionControls` classifies with each setting.
 
 ## Limitations and Open Questions

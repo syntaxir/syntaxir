@@ -120,7 +120,7 @@ groups, and the adapter assigns a gap's groups to the outermost node that starts
 or ends at its token (`Positions.Claim`), in the order the hand-written parser
 completes nodes. The grammar adds no wrapper node per expression.
 
-`internal/syntax.FromSourceTree` builds the public `grammar.Grammar` from the
+`FromSourceTree` in the grammar parser builds the public `grammar.Grammar` from the
 canonical tree: it decodes literals and character classes, flattens chains,
 resolves lambda parameters, merges attribute runs and applies the checks that
 the grammar does not make. The raw formatter state (`SourceInfo.Layout`, the
@@ -537,7 +537,7 @@ measured.
 
 ### Frontend Baseline
 
-`BenchmarkFrontend` of `internal/syntax` parses each source with each frontend,
+`BenchmarkFrontend` of the grammar parser parses each source with each frontend,
 and [`bench/sourceparser.sh`](../../../bench/sourceparser.sh) runs it in 20
 rounds of 500 ms per source and frontend, rotating the order of the frontends
 from round to round. `manual` is the hand-written lexer and parser returning the

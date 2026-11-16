@@ -244,7 +244,7 @@ delimiter belong to that head, since the delimiter is not a node and could not
 own a trailing group: they lead the first element as if they stood on lines of
 their own, and only a closing delimiter right after them keeps them with the
 delimiter. The source adapter
-(`internal/syntax/sourceast`, `Positions.Items`) joins these records into
+(the source AST of the grammar parser, `Positions.Items`) joins these records into
 `grammar.SourceInfo` without moving a group between boundaries. Parity with the
 hand-written frontend is tested over crafted comment cases and every grammar in
 the repository.
@@ -258,7 +258,7 @@ instead keeps every comment-bearing gap between two tokens (`File.Gaps`): the
 trailing, leading and detached groups of the gap, whether the trailing group
 exists and whether a token follows. A gap node spans exactly the trivia, so the
 gap a node starts at and the gap it ends at follow from the node's span. The
-source adapter (`internal/syntax/sourceast`, `Positions.Claim`) replays the claims the
+source adapter (the source AST of the grammar parser, `Positions.Claim`) replays the claims the
 hand-written parser makes as it completes nodes, inner before outer: the node
 completed last at a token takes its groups and the inner node loses them, a gap
 with no next token leads nobody, a node completed again by a later suffix keeps
@@ -272,7 +272,7 @@ tested for every node of the public AST over crafted cases, a comment inserted
 at every offset of grammars with every kind of node, pairs of comments at random offsets and
 every grammar in the repository.
 
-`internal/syntax.FromSourceTree` builds the public AST from the canonical tree.
+`FromSourceTree` in the grammar parser builds the public AST from the canonical tree.
 It creates the nodes (flat sequences, choices, joins and meets, the pragma and
 attribute completions, hidden literals) in the order the hand-written parser
 completes them and passes them to `Claim`; the parity tests compare the result

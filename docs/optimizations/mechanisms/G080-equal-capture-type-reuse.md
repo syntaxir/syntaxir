@@ -32,9 +32,7 @@ arbitrary joins.
 Evidence records:
 [072](../072-reuse-structurally-equal-duplicate-capture-types.md).
 
-Source owners: [`equal captured type
-merge`](../../../internal/check/), [`immutable inferred type
-structures`](../../../internal/types/).
+Source owners: the equal captured type merge of the checker package, and the immutable inferred type structures of the types package.
 
 The [comparison policy](../../design/records/024-optimization-mechanism-controls.md)
 distinguishes same-source controls, historical changes and full checkpoints.

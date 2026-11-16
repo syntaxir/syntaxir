@@ -117,8 +117,8 @@ compiler side. The rules, which a test enforces, are these.
    - The utility packages (diagnostics, cancellation and command-line flag names) may import `pkg/grammar`, because
      diagnostics carry source positions. The fixture suite of `zp test` is a tool that uses the
      compiler, in the same layer as the public tool packages.
-   - Only the commands and the repository's test support import `internal/lsp/**`, and only test support imports
-     `internal/testing/**` from non-test code.
+   - Only the commands and the repository's test support import the language server packages, and only test support imports
+     the test-support packages from non-test code.
 
 The library printer of each host language prints the compositions of the Exec dialect into its runtime library. For Go,
 that is the generated-parser library and the shared engine state. That is an edge of generation through

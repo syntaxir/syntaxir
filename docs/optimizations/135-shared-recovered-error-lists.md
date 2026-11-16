@@ -38,7 +38,7 @@ completes a parse, found by bisection, of the two grammars of the
 revision it was rebased onto; (B) 20 rounds over the 13 rows that an earlier comparison flagged, before that rebase;
 (C) 10 rounds over the 24 bytecode rows of JSON and XML and five closure and generated rows, with a variant whose engine
 memo entry is padded back to its former 168 bytes, run only while the load average stayed below 2. Tests:
-`TestSlopeGateCountsRecoveredErrors` in `internal/complexitytest`, `TestGeneratedGoRecoveredErrorsLinear` and
+`TestSlopeGateCountsRecoveredErrors` in the complexity test support, `TestGeneratedGoRecoveredErrorsLinear` and
 `TestGeneratedTSRecoveredErrorsLinear`.
 
 ## Results

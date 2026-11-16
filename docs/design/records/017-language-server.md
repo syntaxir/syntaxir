@@ -14,7 +14,7 @@ types, hover with inferred rule types, rename and completion.
 A minimal VS Code extension (`editors/vscode/`) starts the server and adds a TextMate grammar for syntax
 highlighting, which works without the server too.
 
-The server is the package `internal/lsp`, written with the standard library only, so the root module gains no
+The server is the language server package, written with the standard library only, so the root module gains no
 dependency.
 How to use it is in the [editor support guide](../../guide/editor-support.md).
 
@@ -23,7 +23,7 @@ How to use it is in the [editor support guide](../../guide/editor-support.md).
 ### Base Protocol and Lifecycle
 
 The base protocol is small: each message is a `Content-Length` header, a blank line and a JSON-RPC 2.0 object.
-`internal/lsp/jsonrpc.go` reads and writes it; a third-party LSP library would have added a dependency for little
+the JSON-RPC framing of the protocol package reads and writes it; a third-party LSP library would have added a dependency for little
 gain.
 
 The server handles messages one at a time, in the order they arrive, on one goroutine.
@@ -66,7 +66,7 @@ Three kinds of positions meet in the server:
 | ZeroParse `grammar.Pos` (lexer, parser, compiler) | `\n`, `\r\n` or `\r` | code points, from 1 (the `\r` of `\r\n` is a column) |
 | byte offsets into the document text | | bytes |
 
-Every conversion goes through byte offsets (`internal/lsp/text.go`): a `textIndex` holds the offsets at which lines
+Every conversion goes through byte offsets (the text conversions of the language server): a `textIndex` holds the offsets at which lines
 start and converts each kind of position to and from an offset.
 Columns come from checkpoints: every 64 bytes, the index records how many UTF-16 code units and code points precede
 that offset, so converting a position walks at most 64 bytes, however long its line (walking from the start of the
@@ -84,7 +84,7 @@ LSP positions, of the text after the previous change.
 ### Analysis
 
 Each version of a document is analyzed once, when a request or a diagnostics notification first needs it
-(`analyze` in `internal/lsp/analysis.go`):
+(`analyze` in the analysis of the language server):
 
 1. `syntax.Tokenize` splits the text into tokens, comments included, with their start and end positions.
 2. `syntax.ParsePartial` parses the text and returns the grammar even when there are errors.
@@ -209,7 +209,7 @@ The node modules and the packaged `.vsix` are not committed.
 
 ## Testing
 
-`internal/lsp` is tested with in-process JSON-RPC conversations over pipes: the lifecycle (initialize, shutdown,
+The language server is tested with in-process JSON-RPC conversations over pipes: the lifecycle (initialize, shutdown,
 exit with and without shutdown, requests before initialize and after shutdown), malformed messages (invalid JSON, a
 batch, a wrong `jsonrpc` version, a request without a method, missing and invalid parameters, string ids,
 case-insensitive headers, a header without `Content-Length`, the input ending), diagnostics with exact ranges after
