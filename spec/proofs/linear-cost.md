@@ -2887,6 +2887,83 @@ not to the memo; the number of runs in $T$, which begin at the first
 reaching iteration of $T$, at a free index, after a $q$-frame or where
 $e_{i+1}$ lies strictly inside $e'_i$, is not bounded here.
 
+**Restarts through a frame.** Under the hypotheses of *Iterations at one
+scan*, let $i$ be linked, let $e'_i$ succeed with no evaluation from
+$it_{k'}$ down to $e'_i$ abandoned and end at or before $q$, so that it is a
+$q$-frame (the first case of 3), and let $\alpha_i$ be the last activation in
+$it_{k'}$ and the next reaching iteration $it_{k''}$ follow, such that
+$it_{k'}$ and $it_{k''}$ meet the hypothesis of *Iterations at one scan*.
+Then:
+
+1. $w_{i+1}$ and $e_{i+1}$ lie strictly inside $e'_i$, and $e'_i$ is an
+   evaluation of a call of a rule that calls a rule and that the parse
+   memoizes at that call.
+2. When $e'_i$ is an evaluation of a key, no evaluation of a key that
+   strictly contains it holds $\alpha_i$. The link $i$ is memoized, so
+   under the hypothesis on growths of *Links lead to repeated evaluations*
+   no evaluation of a key that holds $\alpha_i$ is the head of its class,
+   unless case (a) or (b) of the covered keys arises as that claim states.
+3. The parser leaves $e'_i$, which succeeds, by its end between the end of
+   $w_{i+1}$ and the start of $\alpha_{i+1}$.
+4. When $i + 1$ is linked, a sequence of consecutive reaching iterations
+   that contains $it_{k'}$ and $it_{k''}$ and meets the hypotheses of 4 of
+   *Iterations at one scan*, or those of 4 of *Memoized breaks*, begins at
+   $it_{k'}$, and the starts of its iterations after the first are distinct
+   members of $B_{i+1}$ at or after $\mathrm{end}(e'_i)$. So it has at most
+   two iterations when $t_{i+1} \le \mathrm{end}(e'_i)$.
+
+*Proof.* By 1 of *Iterations at one scan* applied to $it_{k'}$ and
+$it_{k''}$, $\alpha_{i+1}$ is the first activation in $it_{k''}$, and
+$w_{i+1}$ is the first abandoned evaluation below $T$ on the path to
+$\alpha_i$ and lies strictly inside $it_{k'}$. The path passes $e'_i$, which
+contains $\alpha_i$, and no evaluation from $it_{k'}$ down to $e'_i$ is
+abandoned, so $w_{i+1}$ lies strictly inside $e'_i$. By *Repeats*,
+$e_{i+1}$ lies inside $w_{i+1}$, so strictly inside $e'_i$, and it is the
+evaluation of a call that contains $\alpha_i$. That call is made inside the
+body evaluation of the rule of $e'_i$, directly or inside the evaluation of
+another call made there, so the rule of $e'_i$ calls a rule. $e'_i$ is the
+evaluation in $\kappa_i$ of a call that $w_i$ and $\kappa_i$ share, and a
+shared call of a rule that calls a rule is of a rule that the parse memoizes
+at each of the two calls (the definition of sharing in [Conditions for
+Linear Cost](../runtime/parsing.md#conditions-for-linear-cost)). This is 1.
+
+For 2, an evaluation of a key inside another lies outside the own region of
+the other (*Keys and classes*), so when $e'_i$ is an evaluation of a key,
+$\alpha_i$, which lies in it, lies in the own region of none that strictly
+contains it. By 1 the rule of the link $i$ is memoized at both calls, and
+the rest is *Links lead to repeated evaluations*.
+
+For 3, $e'_i$ succeeds by the hypothesis and contains $w_{i+1}$ by 1, so
+it ends after $w_{i+1}$ ends. It lies in $it_{k'}$, while $\alpha_{i+1}$
+lies in $it_{k''}$, which starts after $it_{k'}$ ends, so $e'_i$ ends
+before $\alpha_{i+1}$ starts.
+
+For 4, let the sequence be $it_{k_1}, \ldots, it_{k_n}$ with $it_{k_a} =
+it_{k'}$ and $it_{k_{a+1}} = it_{k''}$. If $a \ge 2$, then $i_{a-1} = i$
+and $i_a = i + 1$, the indices of the first activations in $it_{k'}$ and
+$it_{k''}$, and $a - 1 < n - 1$, so the hypotheses require that
+$e_{i+1}$ be $e'_i$ or contain it, while by 1 it lies strictly inside it.
+So $a = 1$ and $i_1 = i + 1$, and by the proof of 4 of *Iterations at one
+scan*, which *Memoized breaks* applies to its form, the starts $s_{k_2} <
+\cdots < s_{k_n}$ are distinct members of $B_{i+1}$. $e'_i$ lies in the
+match of $it_{k'}$, since nothing from $it_{k'}$ down to it is abandoned,
+so $s_{k_2} = s_{k''} \ge \mathrm{end}(it_{k'}) \ge \mathrm{end}(e'_i)$.
+The largest member of $B_{i+1}$ is $t_{i+1}$, so when $t_{i+1} \le
+\mathrm{end}(e'_i)$ at most one member is at or after
+$\mathrm{end}(e'_i)$, and $n \le 2$. $\square$
+
+So a run that ends at a $q$-frame, with a later reaching iteration, ends
+because the next unit lies inside the $q$-frame, and the restart is a
+return through that frame, a frame that the parse memoizes at its call.
+When the $q$-frame is an evaluation of a key, the activation of the
+iteration that holds it is held inside it, by 2, and so by no evaluation
+of a key that contains $T$. Item 4 gives two iterations only when
+$t_{i+1} \le \mathrm{end}(e'_i)$: the shared calls of $w_{i+1}$ lie inside
+the $q$-frame but in $w_{i+1}$, which is abandoned, so they are not held
+to the match of the frame, and the claim does not exclude members of
+$B_{i+1}$ after its end. Nor does it bound the number of $q$-frames in $T$,
+and so the number of runs.
+
 ## Lemma 5 (Growth)
 
 *Outline.* Under conditions 2, 3 and 5, and with the growths at the calls
@@ -6623,7 +6700,14 @@ condition of the cost view that the [Cost View](cost-view.md) proof leaves open.
    charges an iteration whose linked evaluation it keeps to the position of
    a $q$-frame, at most two per position; *Memoized breaks* keeps a run
    that passes through a memoized break at those boundaries and ends it at
-   a free index when the memo answers the call. Refinements, the number of
+   a free index when the memo answers the call. *Restarts through a
+   frame* shows that a run ends at a $q$-frame with a later reaching
+   iteration only when the next unit lies inside the $q$-frame, an
+   evaluation of a rule that the parse memoizes at its call, and the
+   activation of its iteration is then held inside it when it is an
+   evaluation of a key, and that the next run starts its
+   later iterations at boundaries of its first link at or after the end of
+   the $q$-frame. Refinements, the number of
    runs in one evaluation $T$ of a repetition, the number of repetition
    evaluations $T$ that reach $q$, the number of $q$-frame positions,
    iterations that hold more than one activation, and dropped steps,
