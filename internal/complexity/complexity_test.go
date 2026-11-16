@@ -476,6 +476,30 @@ func TestClassifyComplexity(t *testing.T) {
 	}
 }
 
+// TestSharedCallThroughRulesThatReadVariables pins that only the shared call itself must read no
+// variable: the unit A "!" and its continuation B ws "y" reach the call of Y through calls of A
+// and B, which read v, and share Y and then ws and "x", so no scanning source remains in the unit.
+// Without a call that both reach, as with Y2 in place of Y in B, the unit is not committing.
+func TestSharedCallThroughRulesThatReadVariables(t *testing.T) {
+	t.Parallel()
+	const head = "var v int\n@start\nrule main = k:K { v := len($k) } \"[\" (A \"!\" / B ws \"y\") / P\n" +
+		"rule K = \"+\"*\nrule P = (\" \" \" \")* ws \"?\"\nrule ws = [ ]*\nrule A = Y { v == 1 } ws \"x\"\n"
+	for _, tc := range []struct {
+		name, src string
+		class     ComplexityClass
+	}{
+		{"one call looked through", head + "rule B = Y { v == 2 } ws \"x\"\nrule Y = \"a\"+ (ws \";\")?\n", ClassLinearEnv},
+		{"no call in common", head + "rule B = Y2 { v == 2 } ws \"x\"\nrule Y = \"a\"+ (ws \";\")?\nrule Y2 = \"a\"+ (ws \";\")?\n", ClassUnknown},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := classifySource(t, tc.src)
+			if c.Class != tc.class {
+				t.Errorf("class %v, want %v\ncauses %v\nreasons %v", c.Class, tc.class, c.Causes, c.Reasons)
+			}
+		})
+	}
+}
+
 // TestComplexityReasonsOutrankPolynomialCauses checks that a reason for the class unknown outranks
 // polynomial causes: each grammar has causes of degree 2 and reasons whose places multiply the
 // cost, which TestSlopeGateGrowth measures as cubic on every backend. The class is unknown, the
