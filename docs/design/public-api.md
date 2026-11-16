@@ -1,19 +1,22 @@
 # The Public API
 
+> [!WARNING]
+> This page describes the target architecture. The code may still differ from it.
+
 The public API is the set of packages under `pkg/`. It is the only Go API that users import, and it joins the runtime
-side and the compiler side of the module, which [Package Layering](layering.md) keeps apart. The shape of each part
-is of one of two kinds. The grammar source and its loading, the compile entry point, the query and instrument packages
-and the pass infrastructure have decided shapes. The other shapes follow the current API; each is settled in the package
-documentation as its part is implemented. The reference documentation lists the names.
+side and the compiler side of the module, which [Package Layering](layering.md) keeps apart. The decided shapes, their
+names and their roles are listed in [Decided Interfaces](records/072-release-package-layout.md#decided-interfaces) of
+[Record 072](records/072-release-package-layout.md). The other shapes follow the current API, and each is settled in the
+package documentation as its part is implemented.
 
 ## Grammar Source and Grammar AST
 
 `pkg/grammar` owns the grammar AST and the grammar source.
 
 - A **grammar source** is one grammar input: a named value made from bytes, a string, a reader or a path in a file
-  system, with an explicit or detected format (grammar source or JSON). It is made by a constructor, and its fields are
-  unexported, which guarantees that it has exactly one supplier. A reader is read in full when the source is loaded,
-  because a diagnostic needs the text of any line.
+  system (the constructors `FromBytes`, `FromString`, `FromReader` and `FromFS`), with an explicit or detected format
+  (grammar source or JSON). Its fields are unexported, which guarantees that it has exactly one supplier. A reader is
+  read in full when the source is loaded, because a diagnostic needs the text of any line.
 - **Loading** a source gives the grammar AST. A program that builds an AST by hand can validate it. Formatting and
   conversion between the two formats are in the same package.
 - Action expressions have one name in the AST, in the JSON form and in the syntax: the name that the specification
@@ -30,9 +33,9 @@ documentation as its part is implemented. The reference documentation lists the 
 AST that a program builds, the reference parser for differential tests, a compiled file, host-language parsers, and the
 output schema.
 
-- One optimization setting, with the profiles `speed`, `memory` and `size` and overrides of individual flags, is received
-  by every backend: the closure backend, the VM and the generators. The table from profile names to values is in the
-  driver.
+- One optimization setting, `Optimize`, holds a profile (`Speed`, `Memory` or `Size`) and overrides of individual flags.
+  The closure backend, the VM and the generators all receive it, through the option `WithOptimize`. The table from
+  profile names to values is in the driver.
 - A compiled file is made in one of three modes: parse, recognize or document.
 
 ## Tool Packages
@@ -54,8 +57,8 @@ instruction set is public, and its fields are documented as unstable until the r
 element, creates a Document for edits, and gives the output schema. Parse options set limits, the context, the position
 unit, expectations, missing tokens, tracing, profiling and diagnostics.
 
-Recognition is expressed only by the parser's recognition method; no option switches a parse into a recognition. The API
-of generated parsers offers the same choice with the same meaning.
+Recognition is expressed only by the `Recognize` method of a parser; no option switches a parse into a recognition. The
+API of generated parsers offers the same choice with the same meaning.
 
 - **`input`**: position units, locations, text edits and the kinds of change of a Document.
 - **`value`**: nodes, cursors, traversal, JSON and syntax errors. A recovered error is a node value, and a failure in a
@@ -70,13 +73,14 @@ of generated parsers offers the same choice with the same meaning.
 
 ## The Pass Infrastructure
 
-The pass infrastructure is the generic machinery that every pipeline runs on. It is an internal package, and its shape
-is decided because drivers and generators use it directly. Its model is in [The Pass Pipeline](pass-pipeline.md).
+The pass infrastructure is internal. Its model is in [The Pass Pipeline](pass-pipeline.md), and its decided shape is in
+[Decided Interfaces](records/072-release-package-layout.md#pass-infrastructure).
 
 ## Related Topics
 
 - [Architecture](architecture.md): the overview and the package layout.
 - [Package Layering](layering.md): the rules on which packages may import which, including the runtime side.
-- [The Pass Pipeline](pass-pipeline.md): the pass infrastructure.
+- [The Pass Pipeline](pass-pipeline.md): the pass model that the pass infrastructure implements.
 - [Observability](observability.md): the run-time observation model.
-- [Record 072](records/072-release-package-layout.md): the decision on the public layer and its alternatives.
+- [Record 072](records/072-release-package-layout.md): the decision on the public layer, its decided interfaces and its
+  alternatives.
