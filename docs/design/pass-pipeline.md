@@ -239,6 +239,52 @@ flowchart TD
   D -- no --> Y[Verify once at the end]
 ```
 
+## Controlling Passes
+
+The passes are controlled as in LLVM: the gen command takes flags that set which optional passes run and what is
+observed, and a Go program gives the same settings to the compiler package. The command builds the same settings that a
+Go program gives, and the driver reads only those, so the command line and the Go API cannot drift apart.
+
+### Choosing Optimizations
+
+- `-optimize` chooses the profile: `speed`, `memory` or `size`.
+- `-opt` takes a list of names separated by commas and is applied after the profile: a name alone turns on a flag that
+  the profile leaves off, a name with `=0` turns it off, and a name with `=N` sets a flag that takes a count to N.
+- `-no-opt` takes a list of names and turns them off after `-opt` is applied, to isolate a miscompilation or to measure
+  one optimization.
+
+These flags name the optional entries of the registry: the optional passes and the library controls. A required pass,
+and every lowering is one, cannot be turned on or off: naming it in `-opt` or `-no-opt`, or in an override of the Go
+setting, is an error. In Go, the setting is a value of `Optimize`, given with `WithOptimize`: a profile and the
+overrides of individual flags.
+
+### Observing the Pipeline
+
+- `-print-after` takes stage names and pass names and dumps the module after each, as described above.
+- `-print-before` takes pass names and dumps the module that each named pass receives.
+- `-verify-each` runs the verifier after every pass, so that an error names the first pass that left the module invalid.
+- `-print-pipeline` prints the pipeline that the driver assembled for the build, as the names of its passes in order,
+  with the required passes marked.
+
+A Go program reaches the same observation through the same settings, so a test and the command line see the same
+pipeline and the same dumps.
+
+### Bisecting Passes
+
+`-opt-bisect-limit N` numbers the runs of optional passes in the order the pipeline makes them, runs those numbered up
+to N and skips the later ones. Required passes always run, so the output stays a valid parser whatever N is. Each
+decision is reported with its number and the name of the pass, and whether the pass ran. A differential test against the
+closure reference parser can then search for the smallest N at which the generated parser differs from the reference,
+and that run is the pass that introduced the difference.
+
+### Textual Pipelines
+
+For development, a pipeline can also be given as a text that names its passes in order, as LLVM's `-passes` does. The
+text can reorder optional passes or repeat them. The driver checks it as it checks a pipeline it assembles: each pass
+takes the IR that the previous one returns, the ordering that the passes declare holds, and every required pass is in
+its place. An invalid pipeline is an error before any pass runs. Internal test support uses the textual form to test a
+pass in a chosen context; it belongs to neither the public API nor the public command line.
+
 ## Related Topics
 
 - [Core IR and Code IR](intermediate-representations.md): the representations the passes work on and the rewrites.

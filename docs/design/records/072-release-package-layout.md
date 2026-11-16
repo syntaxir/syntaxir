@@ -326,6 +326,27 @@ The pass infrastructure is internal, in `internal/pass`. It provides the pass ma
 compiler pipeline, the registry of passes and their control flags, the caching of analyses with their invalidation, and
 the preserved sets that say which analyses a transform keeps. Its exact shapes are not given in this record.
 
+### Pass Control
+
+The passes are controlled as in LLVM, by flags of `zp gen` and by the same settings in Go, which the driver reads, so
+the command line and the Go API cannot drift. A required pass, and every lowering is one, cannot be turned on or off;
+naming it in a setting that does so is an error. [Controlling Passes](../pass-pipeline.md#controlling-passes) describes
+the behavior.
+
+| Name | Role |
+|:--|:--|
+| `-optimize` | Chooses the profile: `speed`, `memory` or `size`. In Go, the profile of the `Optimize` value. |
+| `-opt` | Sets optional flags after the profile: a name alone turns one on, `=0` turns it off, `=N` sets a count. In Go, the overrides of the `Optimize` value. |
+| `-no-opt` | Turns the named optional flags off after `-opt`. |
+| `-print-after` | Dumps the module after the named stages and passes. |
+| `-print-before` | Dumps the module that each named pass receives. |
+| `-verify-each` | Runs the verifier after every pass. |
+| `-print-pipeline` | Prints the assembled pipeline as pass names in order, with the required passes marked. |
+| `-opt-bisect-limit` | Runs the optional pass runs numbered up to N in pipeline order and skips the later ones; required passes always run, and each decision is reported. |
+
+A textual description of a pipeline, which can reorder or repeat optional passes and is checked against the declared
+ordering and the required passes, is internal test support, outside the public API and the public command line.
+
 ### Decided Package Names
 
 | Name | Role |
