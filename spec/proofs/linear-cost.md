@@ -238,8 +238,10 @@ are of one variant. The
 **lookahead state** of an
 evaluation is $\lambda$ of the [memoization proof](memoization.md#setting): $1$ inside a lookahead or
 the `skip` of an Operators Rule, and $0$ elsewhere. Where this proof speaks of
-the lookahead state, or of memo entries and calls inside or outside a
-lookahead, the `skip` of an Operators Rule counts as a lookahead.
+the lookahead state, or of memo entries stored, or calls answered, inside or
+outside a lookahead, the `skip` of an Operators Rule counts as a lookahead.
+Everywhere else a lookahead is a lookahead expression, after which the parser
+returns to the position where it started.
 
 The number of body evaluations of memoized rules that are neither growth
 steps nor in a context of growths is at most
