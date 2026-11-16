@@ -123,12 +123,12 @@ func TestClassConstructionCompileContextParity(t *testing.T) {
 		g := &grammar.Grammar{File: grammar.File{Decls: []grammar.Decl{&grammar.RuleDef{Name: "main", Expr: e}}}}
 		starttest.MarkAll(g)
 		for _, compiledRecognition := range []bool{false, true} {
-			a, err := Compile(g, compile.Options{Recognize: compiledRecognition})
+			a, err := Compile(g, compile.Options{Recognition: recognitionMode(compiledRecognition)})
 			if err != nil {
 				t.Fatal(err)
 			}
 			ctx, cancel := context.WithCancel(context.Background())
-			b, err := CompileContext(ctx, g, compile.Options{Recognize: compiledRecognition})
+			b, err := CompileContext(ctx, g, compile.Options{Recognition: recognitionMode(compiledRecognition)})
 			cancel()
 			if err != nil {
 				t.Fatal(err)

@@ -55,7 +55,7 @@ func testOperatorsRuleWholeActionCompiles(t *testing.T) {
 				t.Run(input.name, func(t *testing.T) {
 					for name, run := range map[string]func() error{
 						"compile":            func() error { _, err := Compile(input.g, compile.Options{}); return err },
-						"recognizer compile": func() error { _, err := Compile(input.g, compile.Options{Recognize: true}); return err },
+						"recognizer compile": func() error { _, err := Compile(input.g, compile.Options{Recognition: compile.RecognizeStreams}); return err },
 						"saved AST rebuild":  func() error { _, err := build(input.g, compile.Options{}, []compile.RuleFlags{{}}); return err },
 						"Go generator": func() error {
 							_, err := codegentest.GenerateCode(t, input.g, codegen.GenOptions{Start: "main", Package: "p"})
@@ -82,7 +82,7 @@ func testOperatorsRuleWholeActionCompiles(t *testing.T) {
 								if perr != nil {
 									t.Fatal(perr)
 								}
-								_, oerr := Compile(o, compile.Options{Recognize: true})
+								_, oerr := Compile(o, compile.Options{Recognition: compile.RecognizeStreams})
 								if (err == nil) != (oerr == nil) || err != nil && !strings.Contains(err.Error(), strings.SplitN(oerr.Error(), ": ", 2)[1]) {
 									t.Fatalf("got %v; an ordinary rule gives %v", err, oerr)
 								}

@@ -138,7 +138,7 @@ func TestStartRestriction(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		prog, err := Compile(g, compile.Options{Recognize: recognition})
+		prog, err := Compile(g, compile.Options{Recognition: recognitionMode(recognition)})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -160,7 +160,7 @@ func TestStartRoundTrip(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			prog, err := Compile(g, compile.Options{Recognize: recognition})
+			prog, err := Compile(g, compile.Options{Recognition: recognitionMode(recognition)})
 			if err != nil {
 				t.Fatal(err)
 			}
