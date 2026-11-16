@@ -331,6 +331,9 @@ type Canonical struct {
 // names receives the hidden rules that the lowering of inline actions generates.
 func Canonicalize(g *grammar.Grammar, opts Options, names desugar.InlineNames, control *cancel.Control) (*Canonical, error) {
 	control.Check()
+	if opts.Recognizer && !opts.Recognize {
+		return nil, errors.New("option Recognizer needs Recognize")
+	}
 	if !opts.DefaultValue {
 		if err := validateGrammar(g, control); err != nil {
 			return nil, err

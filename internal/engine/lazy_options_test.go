@@ -10,10 +10,13 @@ import (
 	"zeroparse.dev/zp/internal/engine/state"
 )
 
+// lazyOverride gives, for an option the build sets itself, the value of the lazily built program:
+// nil keeps the program's own.
+type lazyOverride struct{ controlled, recognizer, insertion *bool }
+
 // lazyOverrides are the options that a lazily built program sets itself, by the field of
-// compile.Options, for the controlled graph and for the recognizer. Every other option must be the
-// program's own.
-var lazyOverrides = map[string]struct{ controlled, recognizer *bool }{
+// compile.Options. Every other option must be the program's own.
+var lazyOverrides = map[string]lazyOverride{
 	"Recognize":  {recognizer: ptr(true)},
 	"Recognizer": {recognizer: ptr(true)},
 }
@@ -21,9 +24,9 @@ var lazyOverrides = map[string]struct{ controlled, recognizer *bool }{
 func ptr[T any](v T) *T { return &v }
 
 // TestLazyProgramsCarryEveryOption compiles a program with each compile option on in turn, builds
-// its controlled closure graph and its recognizer, and checks that each option reaches both, except
-// those that the build sets itself. A new option fails the test until it is carried or listed in
-// lazyOverrides.
+// its controlled closure graph, its recognizer and its program of missing-token insertion, and
+// checks that each option reaches all three, except those that the build sets itself. A new option
+// fails the test until it is carried or listed in lazyOverrides.
 func TestLazyProgramsCarryEveryOption(t *testing.T) {
 	if !state.BudgetControlsEnabled {
 		t.Skip("budget controls are unavailable in the reference build")
@@ -37,6 +40,7 @@ func TestLazyProgramsCarryEveryOption(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var o compile.Options
 			reflect.ValueOf(&o).Elem().FieldByName(name).SetBool(true)
+			o.Recognize = o.Recognize || o.Recognizer // Recognizer needs Recognize
 			o.LeftRecursionBindings = true // the grammar below needs it
 			prog := mustCompile(t, codegentest.LRBindingSource, o)
 			if _, err := prog.ParseWith("main", "x", ParseOptions{Backend: Closure, Limits: core.Limits{Compute: 1 << 30}}); err != nil {
@@ -49,15 +53,22 @@ func TestLazyProgramsCarryEveryOption(t *testing.T) {
 			if prog.budgetProgram == nil {
 				t.Fatal("the controlled graph was not built")
 			}
+			// The insertion program is built from a grammar that has an insertion.
+			withIns := mustCompile(t, insertionCycle, o)
+			withIns.ParseWith("main", "yx", ParseOptions{MissingTokens: 1000}) // only builds the program
+			if withIns.ins == nil {
+				t.Fatal("the insertion program was not built")
+			}
 			for _, c := range []struct {
-				what string
-				got  compile.Options
-				pick func(struct{ controlled, recognizer *bool }) *bool
+				what      string
+				from, got compile.Options
+				pick      func(lazyOverride) *bool
 			}{
-				{"controlled graph", prog.budgetProgram.Opts, func(s struct{ controlled, recognizer *bool }) *bool { return s.controlled }},
-				{"recognizer", rec.Opts, func(s struct{ controlled, recognizer *bool }) *bool { return s.recognizer }},
+				{"controlled graph", prog.Opts, prog.budgetProgram.Opts, func(s lazyOverride) *bool { return s.controlled }},
+				{"recognizer", prog.Opts, rec.Opts, func(s lazyOverride) *bool { return s.recognizer }},
+				{"insertion program", withIns.Opts, withIns.ins.Opts, func(s lazyOverride) *bool { return s.insertion }},
 			} {
-				got, want := reflect.ValueOf(c.got), reflect.ValueOf(prog.Opts)
+				got, want := reflect.ValueOf(c.got), reflect.ValueOf(c.from)
 				for j := 0; j < typ.NumField(); j++ {
 					f := typ.Field(j).Name
 					expected := want.Field(j).Bool()
@@ -102,5 +113,18 @@ func TestLeftRecursionBindingsOnTheLazyClosureGraph(t *testing.T) {
 				t.Errorf("recognizer, %s: input %q: error %v, the parse's is %v", b, in, err, werr)
 			}
 		}
+	}
+}
+
+// TestRecognizerOptionNeedsRecognize checks that Recognizer, which marks the recognizer program
+// that Program.Recognizer builds and only has a meaning with Recognize, is rejected without it
+// instead of being ignored.
+func TestRecognizerOptionNeedsRecognize(t *testing.T) {
+	g := mustParse(`rule main = "x"`)
+	if _, err := Compile(g, compile.Options{Recognizer: true}); err == nil {
+		t.Fatal("Recognizer without Recognize was accepted")
+	}
+	if _, err := Compile(g, compile.Options{Recognize: true, Recognizer: true}); err != nil {
+		t.Fatal(err)
 	}
 }
