@@ -262,8 +262,9 @@ The pass model is described in [the pass pipeline](../pass-pipeline.md). Its dec
 
 ## Decided Interfaces
 
-The names below are decided, and they are the names of the approved design; the rest of the public layer follows the
-current API and is settled in the package documentation as each package is implemented. [The Public API](../public-api.md)
+The public names below are decided, and they are the names of the approved design; the rest of the public layer follows
+the current API and is settled in the package documentation as each package is implemented. The decided package names
+are at the end of this section. [The Public API](../public-api.md)
 describes the packages and points here for the decided shapes.
 
 ### Grammar Source and Loading
@@ -310,16 +311,9 @@ The meaning of the trace function, its filters and its depth is defined by the s
 
 ### Pass Infrastructure
 
-The pass infrastructure is internal to the module. Its decided shape is:
-
-| Name | Role |
-|:--|:--|
-| `PreservedSet` | The analyses that a transform keeps. `PreserveAll` keeps every analysis, `PreserveNone` keeps none and is the default of a set, `Preserve` names the kept analyses, and `Has` asks whether one is kept. |
-| `AnalysisKey` and `NewAnalysisKey` | A key of an analysis, with its name and its run function. The constructor rejects a second key with the same name when it is registered. |
-| `AnalysisManager` and `Get` | The manager computes an analysis when `Get` asks for it, and caches the result. `Invalidate` drops the analyses that were not kept and the analyses that depend on them. |
-| `TransformPass` | A pass: its name, the passes it must follow, its obligation, the `Features` under which it applies, and its run function, which returns the new IR and the preserved set. |
-| `Manager` | Runs the enabled passes in order, invalidates after each one, and verifies and dumps on request. |
-| `Registry` | The registry of the passes and their control flags. |
+The pass infrastructure is internal, in `internal/pass`. It provides the pass manager that runs the passes of every
+pipeline, the registry of passes and their control flags, the caching of analyses with their invalidation, and the
+preserved sets that say which analyses a transform keeps. Its exact shapes are not given in this record.
 
 ### Decided Package Names
 
@@ -359,8 +353,8 @@ and VM throughput are within the noise of the previous construction, measured in
 ## Limitations and Open Questions
 
 The layout is the target; until the migration completes, the code differs from it. The shapes of the grammar source and
-of loading, of the compile entry points, of the query and instrument packages and of the pass infrastructure are decided
-and listed in [Decided Interfaces](#decided-interfaces) of this record; [The Public API](../public-api.md) links to that
+of loading, of the compile entry points and of the query and instrument packages are decided and listed in
+[Decided Interfaces](#decided-interfaces) of this record; [The Public API](../public-api.md) links to that
 section. The other shapes of the public layer are rough, and are settled in the package documentation as they are
 implemented.
 

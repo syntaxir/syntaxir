@@ -73,8 +73,7 @@ API of generated parsers offers the same choice with the same meaning.
 
 ## The Pass Infrastructure
 
-The pass infrastructure is internal. Its model is in [The Pass Pipeline](pass-pipeline.md), and its decided shape is in
-[Decided Interfaces](records/072-release-package-layout.md#pass-infrastructure).
+The pass infrastructure is internal, in `internal/pass`. Its model is in [The Pass Pipeline](pass-pipeline.md).
 
 ## Related Topics
 
