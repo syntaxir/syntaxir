@@ -72,9 +72,11 @@ Format: READY <branch> <sha> base <sha> | <scope, Refs #N> | <checks run, each w
 ## Fast lane
 
 A candidate that changes only docs, spec, site or skills, or only moves or edits test files
-(no non-test Go code), takes the light gate from `AGENTS.md`, run directly with the throttle prefix
-`nice -n 15 env GOMAXPROCS=4`: `go vet ./...`, `cd site && go test -count=1 ./...` and the
-tests of the packages whose files changed. It skips zp_long, generation and alpha. The
+(no non-test Go code), takes the light gate from `AGENTS.md`: `go vet ./...`,
+`cd site && go test -count=1 ./...` and the tests of the packages whose files changed. Vet
+and the site checks run directly with the throttle prefix `nice -n 15 env GOMAXPROCS=4`; the
+package tests run in the class [machine load](machine-load.md) gives them (test slots, or the
+queue for whole large packages). It skips zp_long, generation and alpha. The
 integrator may land it between trains. A train then rebases onto it
 without rerunning its gate when the intervening commits are fast-lane only. Before queuing a
 full gate, check its scope against what the batch actually touches.
