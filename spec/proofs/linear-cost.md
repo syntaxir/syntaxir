@@ -1619,8 +1619,14 @@ answers holds no evaluation. Neither is in a context of growths, which only a
 body evaluation of a rule of a left-recursion cycle can be in. A call reads
 only growths of the cycle of its rule at its position ([Lemma 2 of the
 memoization proof](memoization.md#lemma-2-reading-an-open-growth)), so
-neither call reads a growth, and every growth at their position that is open
-at the start of one is read by neither. These are the hypotheses of
+neither call reads a growth open at its start. Nor does one read a growth
+open at the start of the other: $F_2$ starts after $F_1$ ends, so a growth
+open at the start of $F_1$ that $F_2$ reads is in progress from the start of
+$F_1$ to that read and so open at the start of $F_2$, and a growth open at
+the start of $F_2$ that $F_1$ reads was started before that read and is in
+progress after $F_1$ ends, so it was not started inside $F_1$ and is open at
+the start of $F_1$. So every growth at their position that is open at the
+start of one is read by neither. These are the hypotheses of
 *Evaluated pairs of a shared call*, and the reduction above, with $F_2$ in the
 place of $E_2$, gives the rest. $\square$
 
