@@ -1227,7 +1227,7 @@ $e'_j$ and is not $e'_j$.
 link with $e'_j = Y_{l'}$, at a position $s_0 < p$, and let the parse keep no
 records of scan sites. Then, after $e_j$ ends, $w_j$ evaluates no call of
 $r$ at $p$, unless the sequence of the activations of $\sigma$ at $q$ leaves
-out the activation at $q$ of that call, and if $w_j$ starts before $w_l$ ends and no evaluation inside $w_j$ fails before $e_j$ starts, this is the case that
+out the activation at $q$ of that call, and if $w_j$ starts before $w_l$ ends, no evaluation inside $w_j$ outside the shared calls that it evaluates before $e_j$ fails before $e_j$ starts, and $Y_l$ lies in none of those shared calls, this is the case that
 *Nesting at one end* rules out, with $e_j$ as $X$ and $Y_l$ as $T$, unless $r$
 is a scan-only rule.
 
@@ -1253,12 +1253,13 @@ starts no earlier than $\alpha_l$, after $w_l$ ends, and it was not started
 inside $w_l$, so it encloses $w_l$, as $Y_l$ does. It does not lie inside
 $Y_l$, which ends before $\alpha_l$ starts, so it encloses $Y_l$. The shared
 calls that $w_j$ evaluates before $e_j$ end at or before $s_0 < p$, and $w_j$
-examines no input before its shared calls on each way through it; by the
-hypothesis no evaluation inside $w_j$ fails before $e_j$ starts, so before
-$e_j$ the parser evaluates in $w_j$ only the shared calls and what examines
-no input on the one way that reaches $e_j$. Then $Y_l$, which examines the input
-from before $p$ to $p$, lies in none of them and is not evaluated before
-$e_j$; it does not start after $e_j$ ends, since $e_j$ contains
+examines no input outside its shared calls before $e_j$ on each way through
+it. By the hypothesis no evaluation inside $w_j$ outside those shared calls
+fails before $e_j$ starts, so before $e_j$ the parser takes one way through
+$w_j$ and evaluates on it, outside the shared calls, only what examines no
+input. $Y_l$ examines the input from before $p$ to $p$, so it lies in no such
+evaluation, and by the hypothesis it lies in none of the shared calls; so it
+is not evaluated before $e_j$; it does not start after $e_j$ ends, since $e_j$ contains
 $\alpha_{j-1}$, which starts after $Y_l$ ends. So $Y_l$ lies inside $e_j$, and
 is not $e_j$. $e_j$ succeeds and ends at $p$, and $Y_l$ is an evaluation of
 $\pi_l$ that starts before $p$, ends at $p$ and contains $\alpha_{l-1}$; $Y$
@@ -1272,8 +1273,12 @@ $r$ is a scan-only rule. *Calls of scan-only rules* treats that rule in a
 parse with the records of scan sites, which this claim excludes, so a
 scan-only $r$ in a parse without them is not treated here. $\square$
 
-Without that hypothesis $Y_l$ can lie in an evaluation inside $w_j$ that
-fails before $e_j$ starts, such as an earlier alternative, an option or a
+The end of a shared call before $e_j$ at or before $s_0$ does not keep $Y_l$
+out of it: an abandoned evaluation inside the call, such as the expression of
+a lookahead, can examine the input up to $p$ and hold the whole of the link
+$l$, and no claim here rules that out, so the hypothesis states it. Without
+the first part of the hypothesis $Y_l$ can lie in an evaluation inside $w_j$,
+outside the shared calls, that fails before $e_j$ starts, such as an earlier alternative, an option or a
 repetition whose expression fails, or the expression of a negative lookahead,
 in no evaluation of a call of $Y$ around it, and the claim does not apply. In
 `main = "[" -(A "x" / C "z")? B "y" / P`, with `A = {v := 1} Z`,
@@ -1287,7 +1292,7 @@ compute of a recognition is $16n + 151$ on the closure backend and $16n +
 161$ on the bytecode backend for $n$ from $250$ to $2000$. That case is not
 shown.
 
-Apart from that scan-only case and the case of the paragraph above, in which an evaluation inside $w_j$ fails before $e_j$ starts, the case $e'_j = Y_{l'}$ that remains is that of a unit $w_j$ that starts
+Apart from that scan-only case and the cases of the paragraph above, in which an evaluation inside $w_j$ outside the shared calls that it evaluates before $e_j$ fails before $e_j$ starts or $Y_l$ lies in one of those shared calls, the case $e'_j = Y_{l'}$ that remains is that of a unit $w_j$ that starts
 after $w_l$ ends and evaluates no call of $r$ at $p$ after $e_j$, unless the
 sequence of the activations of $\sigma$ at $q$ leaves out the activation at
 $q$ of that call. Let $m$ be the least index
@@ -6197,8 +6202,10 @@ condition of the cost view that the [Cost View](cost-view.md) proof leaves open.
    of the later link (*Outer links inside a memoized link*), which covers that
    grammar. When that later evaluation ends before the later outer link and is
    the frame that the later outer link leaves, a unit of the index that
-   starts before the unit of the earlier outer link ends, and in which no
-   evaluation fails before the earlier evaluation of the link starts, meets
+   starts before the unit of the earlier outer link ends, in which no
+   evaluation outside the shared calls before the earlier evaluation of the
+   link fails before that evaluation starts, and none of whose shared calls
+   before that evaluation holds the frame of the earlier outer link, meets
    *Nesting at one end*, apart from a scan-only rule of the scan in a parse without
    records of scan sites, which no claim treats, and in a parse that keeps no records of scan sites the unit of
    the index evaluates no call of the rule of the scan at the position of the
@@ -6256,8 +6263,10 @@ condition of the cost view that the [Cost View](cost-view.md) proof leaves open.
    outer activation, which then belongs to the count of the activations that
    heads hold, open above. Nor is the case shown in which the unit of the
    memoized link between two outer links starts before the unit of the
-   earlier outer link ends and an evaluation inside it fails before the
-   earlier evaluation of the link starts. Nor are the cases
+   earlier outer link ends and an evaluation inside it, outside its shared
+   calls before the earlier evaluation of the link, fails before that
+   evaluation starts, or one of those shared calls holds the frame of the
+   earlier outer link. Nor are the cases
    shown in which the frame of the later outer link encloses the later
    evaluation of the call, or in which the continuation
    reaches the activation of the index in a later evaluation of the call. A later
