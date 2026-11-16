@@ -338,7 +338,7 @@ allocated the following, in megabytes (10^6 bytes) of `TotalAlloc` measured arou
 These choices matter most when a grammar captures many repeated values. Measure your own input and inspect the resulting tree to ensure that discarding text does not remove information your application needs.
 
 If you only need to know whether the input is valid, use `zp parse -check` (`engine.RecognizeOnly()`): it builds no
-values and runs no actions.
+values and skips the actions that no predicate needs.
 
 ## Troubleshooting
 

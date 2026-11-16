@@ -409,15 +409,16 @@ Each check came from a kind of bug:
 |:--|:--|
 | The parse returns, with a tree or an error | A panic or an endless loop, reported by the test run |
 | All backends return the same tree and error | A bug in one of the three engines, or an action that depends on something other than its inputs (the three are specified to agree: see the [Choosing a Backend](backends.md)) |
-| `RecognizeOnly` agrees with `Parse` | Recognition and a full parse that diverge: a bug in one of them, or an action that fails at run time (recognition does not run actions) |
+| `RecognizeOnly` agrees with `Parse` | Recognition and a full parse that diverge: a bug in one of them, or an action whose value no predicate needs and that fails at run time (recognition skips it) |
 | The error position lies inside the input | Off-by-one positions of errors, most often at the end of input |
 | Every node lies inside its parent, and a string node's `Text()` is the input at its position | Wrong `Start` and `End`, such as a rule that consumes trailing space but reports a range without it |
 
 Add the properties of your own grammar. Typical ones: formatting the tree back to text and parsing it again gives the
 same tree; the elements of a tree come in order of position; every identifier of the tree is a word, not a keyword.
 
-`RecognizeOnly` does not run actions. If an action can fail at run time (`division by zero`), `Parse` fails and
-recognition succeeds, and the check above fails for the right reason. For such a grammar, compare only the syntax
+`RecognizeOnly` skips the actions whose values no predicate needs; the actions that predicates need still run. If a
+skipped action can fail at run time (`division by zero`), `Parse` fails and recognition succeeds, and the check above
+fails for the right reason. For such a grammar, compare only the syntax
 errors, or skip inputs that fail with an error that is not a `*core.SyntaxError`.
 
 ## Generated Inputs
