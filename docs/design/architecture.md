@@ -119,9 +119,9 @@ flowchart TD
   uniform shape: rule bodies become Flow operations and action expressions become Action operations. The Flow passes
   then choose the shape.
 - **Flow passes** make the control-level decisions: call specialization, inlining, dispatch, the form of a match,
-  removal of saves, merging and threading of failure paths, charging, slot sharing and outlining. Each declares its
-  obligation, its applicability and the analyses it uses, and the Flow verifier checks what they leave. The passes, in
-  order, are in [The Flow Passes](pass-pipeline.md#the-flow-passes).
+  removal of saves, merging and threading of failure paths, canonicalization, charging, slot sharing and outlining. Each
+  declares its obligation, its applicability and the analyses it uses, and the Flow verifier checks what they leave. The
+  passes, in order, are in [The Flow Passes](pass-pipeline.md#the-flow-passes).
 - **The Exec stage** is produced by a complete conversion from the Flow stage (`execlower`), a pass of Code IR whose
   postcondition, that no Flow operation remains, is checked by the verifier. The **Exec dialect** specifies the abstract
   machine and the compositions over it: the call protocol, memoization, left-recursion growth, Operators Rules,

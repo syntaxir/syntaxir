@@ -156,9 +156,10 @@ preserves, and the analyses it needs and keeps. The table is in the order the pi
 | 4 | match-form | The same input consumed and the same expectations recorded; the charging invariants hold | Features (Budget, Document, Traced) |
 | 5 | save-elide | No save that no failure path reads | Core effects, liveness |
 | 6 | fail-merge/thread | The same behavior on every reachable path | Reachability |
-| 7 | charge | The same total charge; every loop iteration charges, input is charged before it is examined, and no charge moves or merges across a write to the observation or to the stream window, a callback of the caller, or a commit | Charge flow |
-| 8 | slots | Locals share a slot only when their types are equal and their live ranges do not overlap | Liveness |
-| 9 | outline (module) | The same behavior; enabled by the size profile | Structural hashes |
+| 7 | canonicalize | The same behavior; each pattern keeps the behavior of the operations it rewrites | None beyond the operations it matches |
+| 8 | charge | The same total charge; every loop iteration charges, input is charged before it is examined, and no charge moves or merges across a write to the observation or to the stream window, a callback of the caller, or a commit | Charge flow |
+| 9 | slots | Locals share a slot only when their types are equal and their live ranges do not overlap | Liveness |
+| 10 | outline (module) | The same behavior; enabled by the size profile | Structural hashes |
 
 Save-elide narrows each mark to the parts that a failure path reads. A mark that no failure path reads at all is a dead
 store, and save-elide removes it through dead-store removal, so dead state has one mechanism.
@@ -186,13 +187,17 @@ the Exec stage.
 
 ### Canonicalization
 
-One pass, `canonicalize`, applies the local rewrite patterns of Code IR until none applies. A pattern rewrites one
-operation, or a few adjacent ones, into a simpler form: it folds a constant, removes code after an exit or splices a
-block into its parent. Each pattern has a name in the registry, so `-opt` and `-no-opt` turn it on or off,
-`-opt-bisect-limit` counts each of its applications as a run, `-print-pipeline` lists it under the pass, and the
-statistics count its applications. The pass tries the patterns in a fixed order, so it reaches the same fixed point and
-the same output on every run. Running the patterns together to a fixed point lets one rewrite expose the next without
-another pass in the pipeline, and the names of the patterns keep each rewrite measurable and bisectable by itself.
+One pass of Code IR, `canonicalize`, applies local rewrite patterns until none applies. Each dialect declares the
+patterns of its own operations, and the pass runs at both stages: at the Flow stage after fail-merge/thread and before
+charge, so that charges are placed in code that is already simplified, and at the Exec stage after specialization for
+the features of a build and before dead-store removal, so that what specialization made unreachable is gone before
+liveness is computed. A pattern rewrites one operation, or a few adjacent ones, into a simpler form: it folds a
+constant, removes code after an exit or splices a block into its parent. Each pattern has a name in the registry, so
+`-opt` and `-no-opt` turn it on or off, `-opt-bisect-limit` counts each of its applications as a run, `-print-pipeline`
+lists it under the pass, and the statistics count its applications. The pass tries the patterns in a fixed order, so it
+reaches the same fixed point and the same output on every run. Running the patterns together to a fixed point lets one
+rewrite expose the next without another pass in the pipeline, and the names of the patterns keep each rewrite measurable
+and bisectable by itself.
 
 Rewrites that are not local patterns, such as specialization for the features of a build, dead-store removal and the
 sharing of helpers, stay passes with names of their own. Instruction selection in `vmlower` is a table of local patterns
@@ -253,8 +258,10 @@ in-place reads in a traced parse; for the Exec stage, among its checks, that no 
 a lowering's output stage is its postcondition, and it always runs right after the lowering, so an error names the
 lowering. The other runs of the verifiers are where the pipeline leaves a stage. That tells a user that a transform
 broke something, and not which one, so a run can verify after **every** transform, with `-verify-each`: the error then
-names the first pass that left the module invalid. Tests and diagnosis ask for this; it costs compile time and changes
-no output.
+names the first pass that left the module invalid. Under `-verify-each` the pipeline also checks what each transform
+claims to preserve: a pass that declares that it preserves every analysis must leave the text form of the unit
+unchanged, and the pipeline reports a pass that changed it, because the analyses it kept would then be stale. Tests and
+diagnosis ask for this; it costs compile time and changes no output.
 
 A run can also **dump** the module as text after a stage or after a pass. The `-print-after` flag of the gen command
 takes the stage names `core`, `flow` and `exec`, the names of passes, and `all` for every stage and pass, and prints to
@@ -297,7 +304,7 @@ overrides of individual flags.
 - `-print-after` takes stage names, pass names and `all`, and dumps the module after each, as described above.
 - `-print-before` takes pass names and `all`, and dumps the module that each named pass receives.
 - `-verify-each` runs the verifier after every transform, so that an error names the first pass that left the module
-  invalid.
+  invalid, and reports a pass that claims to preserve everything but changed the text form of the unit.
 - `-print-changed` dumps the module after each pass that changed it, and nothing after a pass that left it as it was.
 - `-print-pipeline` prints the pipeline that the driver assembled for the build, as the names of its passes in order,
   with the required passes marked and the patterns of `canonicalize` listed under it.

@@ -295,16 +295,21 @@ The pass model is described in [the pass pipeline](../pass-pipeline.md). Its dec
   last in, first out, and it checks the preconditions of the operations that take marks, which were stated only in their
   contracts. Save-elide stays a pass, because it narrows a live mark to the parts a failure path reads; its case of a
   mark that nothing reads is dead-store removal.
-- **One canonicalize pass for local patterns.** The local rewrite patterns of Code IR run in one pass to a fixed point,
-  so a rewrite can expose the next without another pass. Each pattern has a name in the registry: `-opt` and `-no-opt`
-  turn it on or off, `-opt-bisect-limit` counts each application, `-print-pipeline` lists it and the statistics count
-  it, so a pattern stays as measurable and bisectable as a pass. The pass tries the patterns in a fixed order, so the
-  output is the same on every run. Rewrites that are not local patterns stay named passes. Instruction selection in
-  `vmlower` is a deterministic table of local patterns that counts its matches.
+- **One canonicalize pass for local patterns.** The local rewrite patterns of Code IR, declared by each dialect for its
+  operations, run in one pass to a fixed point, at the Flow stage after fail-merge/thread and before charge, and at the
+  Exec stage after specialization and before dead-store removal, so a rewrite can expose the next without another pass.
+  Each pattern has a name in the registry: `-opt` and `-no-opt` turn it on or off, `-opt-bisect-limit` counts each
+  application, `-print-pipeline` lists it and the statistics count it, so a pattern stays as measurable and bisectable
+  as a pass. The pass tries the patterns in a fixed order, so the output is the same on every run. Rewrites that are not
+  local patterns stay named passes. Instruction selection in `vmlower` is a deterministic table of local patterns that
+  counts its matches.
 - **Passes run one at a time, and a function pass sees only its function.** A pass on one function reads only analyses
   of the module computed before it runs and never another function's body. Running passes one at a time keeps the
   numbering of `-opt-bisect-limit` and the output deterministic; the isolation of functions keeps running them in
   parallel possible later without a change of contract.
+- **Preservation is checked.** Under `-verify-each`, a pass that claims to preserve every analysis must leave the text
+  form of the unit unchanged, or the pipeline reports it. A wrong claim leaves stale analyses for the passes after it,
+  which fail far from the cause; comparing the text catches it at the pass.
 - **The pipeline is instrumented.** `-print-changed`, `-stats` and `-time-passes` show which passes changed a module,
   what each rewrote and how long it took, without changing the parser.
 
@@ -385,7 +390,7 @@ setting that does so is an error. [Controlling Passes](../pass-pipeline.md#contr
 | `-no-opt` | Turns the named optional flags off after `-opt`. |
 | `-print-after` | Dumps the module after the named stages (`core`, `flow`, `exec`) and passes, or after all of them with `all`. |
 | `-print-before` | Dumps the module that each named pass receives, or that every pass receives with `all`. |
-| `-verify-each` | Runs the verifier after every transform. |
+| `-verify-each` | Runs the verifier after every transform, and reports a pass that claims to preserve every analysis but changed the text form of the unit. |
 | `-print-changed` | Dumps the module after each pass that changed it. |
 | `-print-pipeline` | Prints the assembled pipeline as pass names in order, with the required passes marked and the patterns of `canonicalize` listed under it. |
 | `-stats` | Prints the counters of each pass after the build, including the applications of each pattern, summed over the units in a fixed order. |

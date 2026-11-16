@@ -155,11 +155,11 @@ verified keeps that nesting. A pass that needs a graph view asks the analysis ma
 `flowlower`, the pass that lowers Core IR to Code IR, produces the Flow stage in one uniform shape and fails loudly on a
 construct it does not support rather than guess. The shape is then chosen by the Flow passes, which hold every
 control-level decision: call specialization, inlining, dispatch, the form of a match, removal of saves that no failure
-path reads, merging and threading of failure paths, where to charge, sharing slots between locals, and outlining. Each
-pass declares an obligation, the property it preserves, and the features under which it applies, and the Flow verifier
-checks the result, right after `flowlower`, where the pipeline leaves the Flow stage, and after every pass with
-`-verify-each`: structure, variables, one runtime per function, the budget invariants, recorded reads under a Document
-and no in-place reads in a traced parse. The passes, their order and their obligations are listed in
+path reads, merging and threading of failure paths, canonicalization, where to charge, sharing slots between locals, and
+outlining. Each pass declares an obligation, the property it preserves, and the features under which it applies, and the
+Flow verifier checks the result, right after `flowlower`, where the pipeline leaves the Flow stage, and after every pass
+with `-verify-each`: structure, variables, one runtime per function, the budget invariants, recorded reads under a
+Document and no in-place reads in a traced parse. The passes, their order and their obligations are listed in
 [the pass pipeline](pass-pipeline.md#the-flow-passes).
 
 A charge of one step is one reservation of one unit, so a printer that charges several steps, or the code points of a
