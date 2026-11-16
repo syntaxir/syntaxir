@@ -2012,8 +2012,9 @@ the variant added (see the counterparts below). Its **class** is the key
 without the variant: a rule and its twin have keys of one class at a position.
 An **evaluation of a key** is a body evaluation of a rule that the parse
 memoizes, other than a leader, made by a call with that key that reads no
-growth open at its start. A memoized evaluation is one, since a call reads only
-growths of the cycle of its rule at its position ([Lemma 2 of the memoization
+growth open at its start. A memoized evaluation is one, since, of the growths
+open at its start, a call reads only those of the cycle of its rule at its
+position ([Lemma 2 of the memoization
 proof](memoization.md#lemma-2-reading-an-open-growth)) and a memoized
 evaluation is in no context of growths. An evaluation in a context of growths
 whose call reads no growing result is one too. The first evaluation of a key of
