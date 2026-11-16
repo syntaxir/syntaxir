@@ -9,8 +9,8 @@ analysis manager that computes and caches what the passes need, a registry that 
 that choose values for the names, and verifiers and dumps. It is the one place where the pass model is explained. The
 rewrites themselves, and why each one is safe, are in [Core IR and Code IR](intermediate-representations.md). The code
 generation passes of host languages are in [Code Generation for Host Languages](host-code-generation.md). The decisions
-are [record 063](records/063-configurable-optimization-pass-pipeline.md) and [record
-072](records/072-release-package-layout.md).
+are [record 063](records/063-configurable-optimization-pass-pipeline.md) and
+[record 072](records/072-release-package-layout.md).
 
 ## Why a Pipeline
 
@@ -28,9 +28,9 @@ The pipeline moves that knowledge out of the calling code and into declarations 
 
 A pass is a value, not just a function. It declares:
 
-- its **name**, which is also the name of the dump that shows its result and of the error that names it when it fails,
-  and, for an optional pass, the name of the flag that turns it off. A **required** pass, such as a lowering, runs
-  whenever the pipeline reaches it: no flag or profile turns it off;
+- its **name**, which is the name of the dump that shows its result and of the error that names it when it fails. An
+  **optional** pass has a flag of the same name, which turns it off. A **required** pass, such as a lowering, has a
+  name and no flag: it runs whenever the pipeline reaches it, and no flag or profile turns it off;
 - the passes it must **follow**, for passes that share no data and that an analysis would not order;
 - when it **applies**: a set of features (budget controls, Documents, tracing and the like). Core IR has no mode, so a
   Core pass that applies to every build declares no feature. A pass that does not apply never runs, whatever its flag
@@ -39,14 +39,14 @@ A pass is a value, not just a function. It declares:
   recorded and the values built stay the same;
 - the **analyses it asks for**, and the analyses it **preserves**.
 
-A pass is typed by the IR it takes and the IR it returns, Pass[I, O] in the pass infrastructure: it takes a unit of
-its input IR and returns a unit of its output IR with the set of analyses it preserved. A transform takes and returns
-the same IR, Pass[T, T]; a lowering returns another IR or another dialect. A compilation is one pipeline, assembled by
-the driver as a typed composition of passes: a sequence of transforms on one IR, then a lowering to the next IR, and so
-on. Because each pass takes the type its predecessor returns, the Go type checker ensures that every pass receives the
-IR that the previous pass produced. The generic manager of the pass infrastructure runs the enabled passes in order,
-invalidates what each pass did not preserve, and on request verifies and dumps after each pass. The pipeline holds
-every step of the compiler in order: the transforms, the steps that analyses drive, and the lowerings.
+A pass is typed by the IR it takes and the IR it returns: it is a pass from one IR to another, which takes a unit of its
+input IR and returns a unit of its output IR with the set of analyses it preserved. A transform keeps its IR; a lowering
+returns another IR or another dialect. A compilation is one pipeline, assembled by the driver as a typed composition of
+passes: a sequence of transforms on one IR, then a lowering to the next IR, and so on. Because each pass takes the type
+its predecessor returns, the Go type checker ensures that every pass receives the IR that the previous pass produced.
+The generic manager of the pass infrastructure runs the enabled passes in order, invalidates what each pass did not
+preserve, and on request verifies and dumps after each pass. The pipeline holds every step of the compiler in order: the
+transforms, the steps that analyses drive, and the lowerings.
 
 The declarations are checked before anything runs: names are non-empty and distinct, every requested analysis has a
 key, and every pass named in a follow list precedes the pass that names it. A declaration that cannot be satisfied is an
@@ -118,22 +118,23 @@ declarations.
 ### Lowerings
 
 A lowering is a pass whose result is in another dialect or another IR. It declares its input stage and its output stage,
-preserves no analysis, and has a postcondition that the verifier checks after it runs, as it checks the invariants after
-every pass: after `execlower`, no Flow operation remains. A lowering is a required pass, as in LLVM: it has a name in
-the registry, `-print-after` can name it, and the verifier checks it after it runs, but no flag or profile turns it off,
-because the stages after it need its output. This follows LLVM and MLIR, where a conversion between dialects is a pass.
+preserves no analysis, and has a postcondition: the verifier of its output stage, which always runs right after the
+lowering, so that an error names the lowering. After `execlower`, for example, no Flow operation remains. A lowering is
+a required pass: it has a name in the registry and the dumps can name it, but no flag or profile turns it off, because
+the stages after it need its output. Making it a pass gives it the registry, the dumps and the verification that every
+other step of the compiler has, and keeps the order of the whole compilation in one pipeline.
 
 `execlower` works within Code IR, from the Flow stage to the Exec stage of the same module, so it is an ordinary pass of
-Code IR, from Code IR to Code IR, as a dialect conversion inside one IR. `flowlower`, from Core IR to Code IR, and
-`vmlower`, from Code IR at the Flow stage to bytecode, change the type of the IR: in the typed composition they are the
-points where the type changes.
+Code IR that keeps its IR and converts the dialect. `flowlower`, from Core IR to Code IR, and `vmlower`, from Code IR at
+the Flow stage to bytecode, change the type of the IR: in the typed composition they are the points where the type
+changes.
 
 Each IR has its own analysis manager. A lowering preserves nothing, so the passes after it start with a fresh analysis
 manager for its output IR, and after `execlower` no analysis of the Flow stage survives into the Exec stage.
 
-The registry, the flags, `-print-after`, the dumps and verification after each pass work on every pass, whatever its
-types, through a description of the pass that does not depend on them: its name, whether it is required, and how to
-dump and verify its output.
+The registry, `-print-after`, `-print-before`, the dumps and verification work on every pass, and the flags on every
+optional pass, whatever its types, through a description of the pass that does not depend on them: its name, whether it
+is required, and how to dump and verify its output.
 
 The lowerings are packages of their own, outside the IR packages and apart from the passes of each dialect. That
 placement says where the code lives; in the pipeline, each lowering runs as a pass.
@@ -155,10 +156,11 @@ preserves, and the analyses it needs and keeps. The table is in the order the pi
 | 8 | slots | Locals share a slot only when their types are equal and their live ranges do not overlap | Liveness |
 | 9 | outline (module) | The same behavior; enabled by the size profile | Structural hashes |
 
-The Flow stage stays structured. A pass that needs a control-flow graph asks the analysis manager for a graph view, so the
-form that is printed and verified is the structured one. After each pass, the Flow verifier runs: it checks the structure,
-the variables, one runtime per function, the budget invariants, recorded reads under a Document, and that a traced parse
-does not read in place.
+The Flow stage stays structured. A pass that needs a control-flow graph asks the analysis manager for a graph view, so
+the form that is printed and verified is the structured one. The Flow verifier runs right after `flowlower`, where the
+pipeline leaves the Flow stage, and with `-verify-each` after every Flow pass: it checks the structure, the variables,
+one runtime per function, the budget invariants, recorded reads under a Document, and that a traced parse does not read
+in place.
 
 ## Dialect-Independent Passes of Code IR
 
@@ -172,9 +174,9 @@ stage.
 
 An optimization is a **flag** with a name in one registry, the generic registry of the pass infrastructure. Each part of
 the pipeline registers its own passes where the part is defined (name, description, default and applicability), and the
-controls of printers and libraries are registered with the kind `library` by the code generators that own them. Each name
-is declared in one place, and every name differs from the others, so one name selects one pass in the flags and in the
-dumps. A flag has a kind, which says what it changes: a pass of the pipeline, or a library control (the runtime
+controls of printers and libraries are registered with the kind `library` by the code generators that own them. Each
+name is declared in one place, and every name differs from the others, so one name selects one pass in the flags and in
+the dumps. A flag has a kind, which says what it changes: a pass of the pipeline, or a library control (the runtime
 structures and helpers that the printers emit, such as allocating typed objects in slabs or sparse memo tables).
 
 A flag is on or off, or it has an integer parameter, where 0 turns it off. The registry checks itself: names and
@@ -193,9 +195,10 @@ mechanism. A flag is how an optimization becomes something that can be measured 
 ## Profiles
 
 A profile is only a preset: a name for fixed values of flags. A user chooses it through the public type `Optimize` of
-`pkg/compiler`, whose profiles are `Speed`, `Memory` and `Size`, with overrides of flags. The option `WithOptimize` gives
-the setting to a call, and the same setting applies to every backend: the closure backend, the VM and the generators. The table from profile names to values is in the driver, which resolves the
-setting once and passes it to the pipeline.
+`pkg/compiler`, whose profiles are `Speed`, `Memory` and `Size`, with overrides of flags. The option `WithOptimize`
+gives the setting to a call, and the same setting applies to every backend: the closure backend, the VM and the
+generators. The table from profile names to values is in the driver, which resolves the setting once and passes it to
+the pipeline.
 
 | Profile | For | Differs from the default by |
 |:--|:--|:--|
@@ -214,20 +217,22 @@ with one flag set differently is a valid setting, and a name that no flag has is
 
 ## Verification and Dumps
 
-After a pass, the manager can run the verifier of the stage: for Core IR, the checks listed in
+Each stage has a verifier: for Core IR, the checks listed in
 [What the Verifier Guarantees](intermediate-representations.md#what-the-verifier-guarantees); for the Flow stage, the
 structure, the variables, one runtime per function, the budget invariants, recorded reads under a Document and no
-in-place reads in a traced parse; after `execlower`, its postcondition that no Flow operation remains. By default each
-verifier runs once, where the pipeline leaves its stage, and the postcondition of a lowering is checked with the
-invariants of its output stage. That tells a user that something broke, and not which pass broke it, so a run can verify
-after **every** pass: the error then names the first pass that left the module invalid. Tests and diagnosis ask for
-this; it costs compile time and changes no output.
+in-place reads in a traced parse; for the Exec stage, among its checks, that no Flow operation remains. The verifier of
+a lowering's output stage is its postcondition, and it always runs right after the lowering, so an error names the
+lowering. The other runs of the verifiers are where the pipeline leaves a stage. That tells a user that a transform
+broke something, and not which one, so a run can verify after **every** transform, with `-verify-each`: the error then
+names the first pass that left the module invalid. Tests and diagnosis ask for this; it costs compile time and changes
+no output.
 
-A run can also **dump** the module as text after a stage or after a pass. The `-print-after` flag of the gen command takes the stage
-names `core`, `flow` and `exec`, and the names of passes, and prints to standard error. The stage names are points in the
-one pipeline: `core` is Core IR before the first Core pass, `flow` is the Flow stage as `flowlower` produced it, and
-`exec` is the Exec stage as `execlower` produced it. A pass that did not apply
-prints nothing, which is itself information: the dump is the way to see why an optimization did not happen for a parser.
+A run can also **dump** the module as text after a stage or after a pass. The `-print-after` flag of the gen command
+takes the stage names `core`, `flow` and `exec`, the names of passes, and `all` for every stage and pass, and prints to
+standard error. The stage names are points in the one pipeline: `core` is Core IR before the first Core pass, `flow` is
+the Flow stage as `flowlower` produced it, and `exec` is the Exec stage as `execlower` produced it. A pass that did not
+apply prints nothing, which is itself information: the dump is the way to see why an optimization did not happen for a
+parser.
 
 ```mermaid
 flowchart TD
@@ -236,12 +241,12 @@ flowchart TD
   M --> R[Run the applicable enabled passes]
   R --> D{Dump or verify each?}
   D -- yes --> X[Dump text, verify after the pass]
-  D -- no --> Y[Verify once at the end]
+  D -- no --> Y[Verify after each lowering and where a stage ends]
 ```
 
 ## Controlling Passes
 
-The passes are controlled as in LLVM: the gen command takes flags that set which optional passes run and what is
+The passes are controlled by the gen command, which takes flags that set which optional passes run and what is
 observed, and a Go program gives the same settings to the compiler package. The command builds the same settings that a
 Go program gives, and the driver reads only those, so the command line and the Go API cannot drift apart.
 
@@ -260,34 +265,36 @@ overrides of individual flags.
 
 ### Observing the Pipeline
 
-- `-print-after` takes stage names and pass names and dumps the module after each, as described above.
-- `-print-before` takes pass names and dumps the module that each named pass receives.
-- `-verify-each` runs the verifier after every pass, so that an error names the first pass that left the module invalid.
+- `-print-after` takes stage names, pass names and `all`, and dumps the module after each, as described above.
+- `-print-before` takes pass names and `all`, and dumps the module that each named pass receives.
+- `-verify-each` runs the verifier after every transform, so that an error names the first pass that left the module
+  invalid.
 - `-print-pipeline` prints the pipeline that the driver assembled for the build, as the names of its passes in order,
   with the required passes marked.
 
 These settings do not change the parser that is built, so they are not part of `Optimize`. In Go they are a value of
-`Debug`, given with `WithDebug`, whose fields mirror the flags one to one: the passes to print before and after,
-verification after each pass, printing the pipeline, the bisection limit, and the writer the output goes to. A test and
-the command line therefore see the same pipeline and the same dumps.
+`Debug`, given with `WithDebug`. Five of its fields mirror the flags one to one: the passes to print before
+(`-print-before`) and after (`-print-after`), verification after each transform (`-verify-each`), printing the pipeline
+(`-print-pipeline`) and the bisection limit (`-opt-bisect-limit`). The sixth, the writer the output goes to, has no
+flag: the command writes to standard error. A test and the command line therefore see the same pipeline and the same
+dumps.
 
 ### Bisecting Passes
 
 `-opt-bisect-limit N` numbers the runs of optional passes in the order the pipeline makes them, runs those numbered up
 to N and skips the later ones. A run is one pass on one unit, so a pass that runs per function counts once for each
-function, as in LLVM. Required passes always run, so the output stays a valid parser whatever N is. Each decision is
-reported with its number, the name of the pass, the unit and whether the pass ran. In Go, the limit is the bisection
-field of `Debug`. A differential test against the closure reference parser can then search for the smallest N at which
-the generated parser differs from the reference, and that run names the pass, and the unit, that introduced the
-difference.
+function. Required passes always run, so the output stays a valid parser whatever N is. Each decision is reported with
+its number, the name of the pass, the unit and whether the pass ran. In Go, the limit is the bisection field of `Debug`.
+A differential test against the closure reference parser can then search for the smallest N at which the generated
+parser differs from the reference, and that run names the pass, and the unit, that introduced the difference.
 
 ### Textual Pipelines
 
-For development, a pipeline can also be given as a text that names its passes in order, as LLVM's `-passes` does. The
-text can reorder optional passes or repeat them. The driver checks it as it checks a pipeline it assembles: each pass
-takes the IR that the previous one returns, the ordering that the passes declare holds, and every required pass is in
-its place. An invalid pipeline is an error before any pass runs. Internal test support uses the textual form to test a
-pass in a chosen context; it belongs to neither the public API nor the public command line.
+For development, a pipeline can also be given as a text that names its passes in order. The text can reorder optional
+passes or repeat them. The driver checks it as it checks a pipeline it assembles: each pass takes the IR that the
+previous one returns, the ordering that the passes declare holds, and every required pass is in its place. An invalid
+pipeline is an error before any pass runs. Internal test support uses the textual form to test a pass in a chosen
+context; it belongs to neither the public API nor the public command line.
 
 ## Related Topics
 

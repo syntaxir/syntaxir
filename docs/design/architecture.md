@@ -115,25 +115,28 @@ flowchart TD
 - **Core passes** rewrite the Core IR in ways that keep its meaning, and compute its facts: guard sets, first sets,
   effects, rule policies, the normalization of level O and the conversion of value-free class repetitions into scans.
   They are independent of the mode. See [The Pass Pipeline](pass-pipeline.md).
-- **Lowering to the Flow stage** (`flowlower`), a pass of the pipeline like the others, produces the Flow stage in one uniform shape: rule bodies become Flow
-  operations and action expressions become Action operations. The Flow passes then choose the shape.
+- **Lowering to the Flow stage** (`flowlower`), a pass of the pipeline like the others, produces the Flow stage in one
+  uniform shape: rule bodies become Flow operations and action expressions become Action operations. The Flow passes
+  then choose the shape.
 - **Flow passes** make the control-level decisions: call specialization, inlining, dispatch, the form of a match,
   removal of saves, merging and threading of failure paths, charging, slot sharing and outlining. Each declares its
-  obligation, its applicability and the analyses it uses, and a verifier runs after it. The passes, in order, are in
-  [The Flow Passes](pass-pipeline.md#the-flow-passes).
+  obligation, its applicability and the analyses it uses, and the Flow verifier checks what they leave. The passes, in
+  order, are in [The Flow Passes](pass-pipeline.md#the-flow-passes).
 - **The Exec stage** is produced by a complete conversion from the Flow stage (`execlower`), a pass of Code IR whose
-  postcondition, that
-  no Flow operation remains, is checked by the verifier. The **Exec dialect** specifies the abstract machine and the
-  compositions over it: the call protocol, memoization, left-recursion growth, Operators Rules, Documents and streams.
-  Each operation has a reference model and conformance cases. See [Core IR and Code IR](intermediate-representations.md).
+  postcondition, that no Flow operation remains, is checked by the verifier. The **Exec dialect** specifies the abstract
+  machine and the compositions over it: the call protocol, memoization, left-recursion growth, Operators Rules,
+  Documents and streams. Each operation has a reference model and conformance cases. See
+  [Core IR and Code IR](intermediate-representations.md).
 - **Dialect-independent passes** of Code IR (`codepass`) are the passes that every dialect can run. They work only from
-  the reads and writes that each operation declares. See [The Pass Pipeline](pass-pipeline.md#dialect-independent-passes-of-code-ir).
+  the reads and writes that each operation declares. See
+  [The Pass Pipeline](pass-pipeline.md#dialect-independent-passes-of-code-ir).
 
 A conversion between dialects, or from one IR to another, is a **lowering** (`flowlower`, `execlower`, `vmlower`). A
 lowering is a pass: the compiler from Core IR to bytecode or to the Exec stage of a host language is one pipeline of
-passes, in which the lowerings take their places between the passes of each stage, as dialect conversions do in MLIR. **Legalize** is used only for adjustments
-inside one target, such as the passes of a host language. The stage names that the dumps use, `core`, `flow` and
-`exec`, are points in that pipeline. See [Lowerings](pass-pipeline.md#lowerings).
+passes, in which the lowerings take their places between the passes of each stage. As passes, the lowerings have the
+registry, the dumps and the verification that every other step has. **Legalize** is used only for adjustments inside one
+target, such as the passes of a host language. The stage names that the dumps use, `core`, `flow` and `exec`, are points
+in that pipeline. See [Lowerings](pass-pipeline.md#lowerings).
 
 ## Backends
 

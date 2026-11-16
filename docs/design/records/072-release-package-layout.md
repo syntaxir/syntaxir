@@ -11,11 +11,12 @@
 
 ZeroParse is released with one package layout. A public layer `pkg/` is the only Go API, the runtime side of the module
 never links the compiler side, and the middle of the pipeline is one Code IR with three dialects. This record fixes that
-layout as the **target** and gives the reasons for it. The complete architecture is [Architecture](../architecture.md); its import rules are in
-[Package Layering](../layering.md), its public API in [The Public API](../public-api.md) and its host-language
-packages in [Code Generation for Host Languages](../host-code-generation.md). This record keeps the
-decision: the problems, what was decided, why, and what was rejected. The plan for reaching the layout is kept in the
-project's issue tracker, not in this record.
+layout as the **target** and gives the reasons for it. The complete architecture is [Architecture](../architecture.md);
+its import rules are in [Package Layering](../layering.md), its public API in [The Public API](../public-api.md) and its
+host-language packages in [Code Generation for Host Languages](../host-code-generation.md). This record keeps the
+decision: the problems, what was decided, why, and what was rejected. Where records 062 and 063 describe separate
+pipelines for Core, Flow and Exec, this record supersedes them: the compiler is one pipeline, and the lowerings are
+passes of it. The plan for reaching the layout is kept in the project's issue tracker, not in this record.
 
 ## Motivation
 
@@ -201,23 +202,29 @@ A Flow operation states its contract, cost, the features it needs and its laws, 
 Exec operations. An Exec operation has a reference model, and a conformance suite compares every implementation with the
 reference expansions and models.
 
-Lowering between levels is a pass of the one compiler pipeline, as a dialect conversion is a pass in LLVM and MLIR. The
-driver assembles that pipeline and the pass manager runs it: the Core passes, `flowlower`, the Flow passes, then
-`vmlower` for the VM, or `execlower`, the dialect-independent passes of Code IR and the passes of the host language for
-host code generation. A lowering declares its input and output stages, preserves no analysis, and has a postcondition
-that the verifier checks after it runs, as after every pass. Lowering from Core takes it to the Flow stage in a uniform
-shape, and the Flow passes choose the shape; the conversion from the Flow stage to the Exec stage is complete, a pass
-within Code IR whose postcondition is that no Flow operation remains; instruction selection produces bytecode. A pass is
-typed by its input and output IR, Pass[I, O]; a transform is Pass[T, T]. `flowlower` (Core IR to Code IR) and `vmlower`
-(the Flow stage to bytecode) change the type of the IR, and `execlower` is Pass[Code, Code], a dialect conversion inside
-Code IR. The pipeline is a typed composition of these passes, a sequence of transforms on one IR and then a lowering to
-the next, so the Go type checker ensures that each pass gets the IR the previous one produced. Each IR has its own
-analysis manager, and since a lowering preserves nothing, the passes after it start with a fresh one. The registry, the
-flags, the dumps and verification after each pass reach every pass through a description that does not depend on its
-types: its name, whether it is required, and how to dump and verify its output. A lowering is a required pass, as in
-LLVM: it has a name in the registry, the dumps can name it and the verifier checks it after it runs, but no flag or
-profile turns it off. The stage names of the dumps are points in the pipeline. Lowering between dialects is *lower*, and
-*legalize* is used only for adjustments inside a target.
+Lowering between levels is a pass of the one compiler pipeline. The driver assembles that pipeline and the pass
+manager runs it: the Core passes, `flowlower`, the Flow passes, then `vmlower` for the VM, or `execlower`, the
+dialect-independent passes of Code IR and the passes of the host language for host code generation. Making the
+lowerings passes gives them the registry, the dumps and the verification that every other step has, and keeps the order
+of the whole compilation in one place. Lowering from Core takes it to the Flow stage in a uniform shape, and the Flow
+passes choose the shape; the conversion from the Flow stage to the Exec stage is complete; instruction selection
+produces bytecode.
+
+A pass is typed by the IR it takes and the IR it returns: a transform keeps its IR, and a lowering is a pass from one IR
+to another, or from one dialect to another. `flowlower` (Core IR to Code IR) and `vmlower` (the Flow stage to bytecode)
+change the type of the IR, and `execlower` keeps Code IR and converts the dialect. The pipeline is a typed composition
+of these passes, a sequence of transforms on one IR and then a lowering to the next, so the Go type checker ensures that
+each pass gets the IR the previous one produced. Each IR has its own analysis manager, and since a lowering preserves
+nothing, the passes after it start with a fresh one. The registry, the dumps and verification reach every pass, and the
+flags every optional pass, through a description that does not depend on its types: its name, whether it is required,
+and how to dump and verify its output.
+
+A lowering declares its input and output stages and preserves no analysis. It is a required pass: it has a name in the
+registry and the dumps can name it, but no flag or profile turns it off, because the stages after it need its output.
+Its postcondition is the verifier of its output stage, which always runs right after the lowering, so that an error
+names the lowering; after `execlower`, no Flow operation remains. The other verifiers run where the pipeline leaves a
+stage, and after every transform only on request. The stage names of the dumps are points in the pipeline. Lowering
+between dialects is *lower*, and *legalize* is used only for adjustments inside a target.
 
 **Bytecode comes from the Flow stage.** The instruction set is at the level of grammar control, so instructions can be
 chosen from Flow operations almost one for one, with superinstruction selection: a call of a composition is one
@@ -238,11 +245,12 @@ optimizations rewrite; it reaches users through the lint package.
 
 The pass model is described in [the pass pipeline](../pass-pipeline.md). Its decisions are these.
 
-- **Registration.** A pass declares its name (the same as its flag), its default, its applicability condition (a
-  feature such as budgeting, Documents or tracing), the property it must preserve (its obligation), the ordering it
-  needs, the analyses it needs and the ones it keeps. The registry is shared; each part of the pipeline (Core, the
-  lowerings, Flow, Exec and each host language) registers its own passes, and printers and library controls register under their own kind, so no name
-  is declared twice.
+- **Registration.** A pass declares its name, its default, its applicability condition (a feature such as budgeting,
+  Documents or tracing), the property it must preserve (its obligation), the ordering it needs, the analyses it needs
+  and the ones it keeps. An optional pass has a flag of the same name; a required pass, such as a lowering, has a name
+  and no flag. The registry is shared; each part of the pipeline (Core, the lowerings, Flow, Exec and each host
+  language) registers its own passes, and printers and library controls register under their own kind, so no name is
+  declared twice.
 - **Analyses.** An analysis is computed when a pass asks for it and cached. What a pass preserves is a set that defaults
   to nothing: forgetting to declare it invalidates everything, which is the safe side. An analysis key is registered by
   name, and a second key with the same name is rejected, so two analyses of one name and different result types cannot
@@ -251,14 +259,15 @@ The pass model is described in [the pass pipeline](../pass-pipeline.md). Its dec
   analysis returns an error and never degrades silently. Facts about rules are computed once on Core, through the
   analysis manager, and read by the generators, the engine, the linter and the complexity classifier. Attributes that
   live on Core nodes (nullability, first sets, effects) are invariants that the verifier recomputes, not cached analyses.
-- **Verification.** After a pass, the stage's verifier runs on request and names the pass that broke an invariant. The
-  Flow verifier checks structure, variables, one runtime per function, the budget invariants and the rules about reading
-  input under a Document or a trace. A dump after any stage (`core`, `flow`, `exec`) shows the module as the next stage
-  receives it.
+- **Verification.** The verifier of a lowering's output stage always runs right after the lowering. The other verifiers
+  run where the pipeline leaves a stage, and after every transform on request, so that an error names the pass that
+  broke an invariant. The Flow verifier checks structure, variables, one runtime per function, the budget invariants and
+  the rules about reading input under a Document or a trace. A dump after any stage (`core`, `flow`, `exec`) shows the
+  module as the next stage receives it.
 - **Decisions.** Control-level decisions (call specialization, inlining, dispatch, the form of a match, removal of
   redundant saves, merging failure paths, where to charge, sharing slots and outlining) are Flow passes with stated
-  obligations; target-specific legalization is in the passes of each host language; passes that depend only on an operation's
-  reads and writes are dialect-independent passes of Code IR.
+  obligations; target-specific legalization is in the passes of each host language; passes that depend only on an
+  operation's reads and writes are dialect-independent passes of Code IR.
 - **Profiles.** A user chooses speed, memory or size. The table from profile to pass flags lives in the driver, and the
   public setting carries the profile and the overrides.
 
@@ -328,23 +337,22 @@ the preserved sets that say which analyses a transform keeps. Its exact shapes a
 
 ### Pass Control
 
-The passes are controlled as in LLVM, by flags of `zp gen` and by the same settings in Go, which the driver reads, so
-the command line and the Go API cannot drift. A required pass, and every lowering is one, cannot be turned on or off;
-naming it in a setting that does so is an error. [Controlling Passes](../pass-pipeline.md#controlling-passes) describes
-the behavior.
+The passes are controlled by flags of `zp gen` and by the same settings in Go, which the driver reads, so the command
+line and the Go API cannot drift. A required pass, and every lowering is one, cannot be turned on or off; naming it in a
+setting that does so is an error. [Controlling Passes](../pass-pipeline.md#controlling-passes) describes the behavior.
 
 | Name | Role |
 |:--|:--|
 | `-optimize` | Chooses the profile: `speed`, `memory` or `size`. In Go, the profile of the `Optimize` value. |
 | `-opt` | Sets optional flags after the profile: a name alone turns one on, `=0` turns it off, `=N` sets a count. In Go, the overrides of the `Optimize` value. |
 | `-no-opt` | Turns the named optional flags off after `-opt`. |
-| `-print-after` | Dumps the module after the named stages and passes. |
-| `-print-before` | Dumps the module that each named pass receives. |
-| `-verify-each` | Runs the verifier after every pass. |
+| `-print-after` | Dumps the module after the named stages (`core`, `flow`, `exec`) and passes, or after all of them with `all`. |
+| `-print-before` | Dumps the module that each named pass receives, or that every pass receives with `all`. |
+| `-verify-each` | Runs the verifier after every transform. |
 | `-print-pipeline` | Prints the assembled pipeline as pass names in order, with the required passes marked. |
 | `-opt-bisect-limit` | Runs the optional pass runs numbered up to N in pipeline order and skips the later ones. A run is one pass on one unit, so a pass that runs per function counts once per function. Required passes always run, and each decision is reported with the pass and the unit. |
-| `Debug` | Proposed name, pending review. The public setting of `pkg/compiler` for observation and bisection. Its fields mirror the flags one to one: print before, print after, verify each, print pipeline, bisect limit, and the writer the output goes to. It does not change the parser that is built, so it is apart from `Optimize`. |
-| `WithDebug` | Proposed name, pending review. The option that gives a `Debug` value to a compile call. |
+| `Debug` | The public setting of `pkg/compiler` for observation and bisection. Five fields mirror the flags one to one: print before, print after, verify each, print pipeline and bisect limit. The sixth, the writer the output goes to, has no flag; the command writes to standard error. It does not change the parser that is built, so it is apart from `Optimize`. |
+| `WithDebug` | The option that gives a `Debug` value to a compile call. |
 
 A textual description of a pipeline, which can reorder or repeat optional passes and is checked against the declared
 ordering and the required passes, is internal test support, outside the public API and the public command line.
