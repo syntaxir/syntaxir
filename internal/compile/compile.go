@@ -107,11 +107,15 @@ type Options struct {
 	// types (defaultValueGrammar).
 	DefaultValue bool
 	// Recognize builds a program that only checks whether the input conforms to the grammar, without
-	// building a tree (the engine's Program.Recognizer).
+	// building a tree. The rules that predicates read, and the rules with a #stream repetition,
+	// whose elements a stream parse hands to its caller, still build their values (the program of a
+	// compiled grammar in recognize mode serves stream parses).
 	Recognize bool
-	// Recognizer marks the program the engine's Program.Recognizer builds, which only runs
-	// with Recognize: it builds no stream elements either.
-	Recognizer bool
+	// DropStreamValues, with Recognize, also leaves out the values of the rules with a #stream
+	// repetition: the program the engine's Program.Recognizer builds runs recognition parses only,
+	// which never hand elements to a caller. It has no meaning without Recognize, which
+	// compilation rejects.
+	DropStreamValues bool
 	// NoProjections compiles repetitions as written (project.go), for tests: with projections in
 	// every backend, only a program without them can check what they produce.
 	NoProjections bool
@@ -331,8 +335,8 @@ type Canonical struct {
 // names receives the hidden rules that the lowering of inline actions generates.
 func Canonicalize(g *grammar.Grammar, opts Options, names desugar.InlineNames, control *cancel.Control) (*Canonical, error) {
 	control.Check()
-	if opts.Recognizer && !opts.Recognize {
-		return nil, errors.New("option Recognizer needs Recognize")
+	if opts.DropStreamValues && !opts.Recognize {
+		return nil, errors.New("option DropStreamValues needs Recognize")
 	}
 	if !opts.DefaultValue {
 		if err := validateGrammar(g, control); err != nil {
@@ -557,7 +561,7 @@ func Check(g *grammar.Grammar, opts Options, flags []RuleFlags, names desugar.In
 		// Only rules whose values are referenced by predicates, and the rules needed to build those
 		// values, are evaluated as usual; so are the rules with a #stream repetition, whose elements
 		// a stream hands to its caller, unless the program is the recognizer, which only recognizes.
-		needed := valueNeededRules(rules, control, !opts.Recognizer)
+		needed := valueNeededRules(rules, control, !opts.DropStreamValues)
 		for _, r := range prog.RuleList {
 			control.Poll()
 			if !needed[r.Name] {

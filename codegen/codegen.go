@@ -342,7 +342,7 @@ func compileForGenerator(g *grammar.Grammar, opts compile.Options) (*compile.Pro
 			source = prog.Source
 		}
 		o := prog.Opts
-		o.Recognize, o.Recognizer = true, true
+		o.Recognize, o.DropStreamValues = true, true
 		return check(source, o, prog.Flags())
 	}
 	return prog, recognizer, nil

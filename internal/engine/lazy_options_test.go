@@ -17,8 +17,8 @@ type lazyOverride struct{ controlled, recognizer, insertion *bool }
 // lazyOverrides are the options that a lazily built program sets itself, by the field of
 // compile.Options. Every other option must be the program's own.
 var lazyOverrides = map[string]lazyOverride{
-	"Recognize":  {recognizer: ptr(true)},
-	"Recognizer": {recognizer: ptr(true)},
+	"Recognize":        {recognizer: ptr(true)},
+	"DropStreamValues": {recognizer: ptr(true)},
 }
 
 func ptr[T any](v T) *T { return &v }
@@ -40,8 +40,8 @@ func TestLazyProgramsCarryEveryOption(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var o compile.Options
 			reflect.ValueOf(&o).Elem().FieldByName(name).SetBool(true)
-			o.Recognize = o.Recognize || o.Recognizer // Recognizer needs Recognize
-			o.LeftRecursionBindings = true // the grammar below needs it
+			o.Recognize = o.Recognize || o.DropStreamValues // DropStreamValues needs Recognize
+			o.LeftRecursionBindings = true                  // the grammar below needs it
 			prog := mustCompile(t, codegentest.LRBindingSource, o)
 			if _, err := prog.ParseWith("main", "x", ParseOptions{Backend: Closure, Limits: core.Limits{Compute: 1 << 30}}); err != nil {
 				t.Fatal(err)
@@ -116,15 +116,14 @@ func TestLeftRecursionBindingsOnTheLazyClosureGraph(t *testing.T) {
 	}
 }
 
-// TestRecognizerOptionNeedsRecognize checks that Recognizer, which marks the recognizer program
-// that Program.Recognizer builds and only has a meaning with Recognize, is rejected without it
-// instead of being ignored.
-func TestRecognizerOptionNeedsRecognize(t *testing.T) {
+// TestDropStreamValuesNeedsRecognize checks that DropStreamValues, which only has a meaning with
+// Recognize, is rejected without it instead of being ignored.
+func TestDropStreamValuesNeedsRecognize(t *testing.T) {
 	g := mustParse(`rule main = "x"`)
-	if _, err := Compile(g, compile.Options{Recognizer: true}); err == nil {
-		t.Fatal("Recognizer without Recognize was accepted")
+	if _, err := Compile(g, compile.Options{DropStreamValues: true}); err == nil {
+		t.Fatal("DropStreamValues without Recognize was accepted")
 	}
-	if _, err := Compile(g, compile.Options{Recognize: true, Recognizer: true}); err != nil {
+	if _, err := Compile(g, compile.Options{Recognize: true, DropStreamValues: true}); err != nil {
 		t.Fatal(err)
 	}
 }
