@@ -2791,17 +2791,89 @@ body of a rule that calls no rule, or a memoized call evaluated again, in a
 lookahead state or variant other than that of its first evaluation, instead
 of answered; that the depth of refinement is a constant is not shown. A
 **memoized break**, the second case of 3 in which $e_{i+1}$ strictly
-contains $e'_i$, is an evaluation of a memoized call, or one through which
-the unit looks, at a position $t_{i+1} \le t_i$; it is a $q$-frame when it
-succeeds and ends at or before $q$, but neither the number of break
-positions per $q$ nor the iterations that hold an abandoned evaluation at
-one such position are bounded. The first case of 3 charges iterations to
-$q$-frame positions, at most two to each, but the number of distinct
-$q$-frame positions per $q$ is not bounded here either. When a reaching iteration holds more than
-one activation, $e$ of its last need not be $e'$ of its first, and that case
-is not followed. And the hypothesis leaves out dropped steps and growths on
-the path from $T$ down to the unit, case 5, the exception of the restarts,
-and the cases of a Document parse.
+contains $e'_i$, is placed by *Memoized breaks* below: a run continues
+through it only at a member of the boundaries of its first link and to a
+later evaluation of its class, but the number of runs in $T$ is not
+bounded. The first case of 3 charges iterations to $q$-frame positions, at
+most two to each, but the number of distinct $q$-frame positions per $q$ is
+not bounded here either. When a reaching iteration holds more than one
+activation, $e$ of its last need not be $e'$ of its first, and that case is
+not followed. And the hypothesis leaves out dropped steps and growths on the
+path from $T$ down to the unit, case 5, the exception of the restarts, and
+the cases of a Document parse.
+
+**Memoized breaks.** Under the hypotheses of *Iterations at one scan*, let
+$i$ be linked, let an evaluation from $it_{k'}$ down to $e'_i$ be abandoned,
+let the condition of the second case of 3 hold, and let $e_{i+1}$ strictly
+contain $e'_i$. Then:
+
+1. $e_{i+1}$ is an evaluation of a call of a rule that the parse memoizes
+   at that call, and when it is an evaluation of a key, no evaluation of a
+   key that contains it holds $\alpha_i$.
+2. $t_{i+1} \in B_i$.
+3. When the memo answers the call that $\kappa_{i+1}$ makes at $t_{i+1}$,
+   $i + 1$ is free. Otherwise, when $i + 1$ is linked, $e'_{i+1}$ is a
+   later evaluation of the rule of $e_{i+1}$ at the same position and
+   level, and when both are evaluations of keys, $e'_{i+1}$ is no head.
+4. Item 4 of *Iterations at one scan* holds with "$e_{i_{a+1}}$ contains
+   $e'_{i_a}$" in place of "$e_{i_{a+1}} = e'_{i_a}$".
+
+*Proof.* By *Repeats*, $e_{i+1}$ is the evaluation inside $w_{i+1}$ of a
+call that $w_{i+1}$ and $\kappa_{i+1}$ share. It strictly contains
+$e'_i$, the evaluation of a call, so it is no literal and its rule calls a
+rule, and a shared call of such a rule is of a rule that the parse
+memoizes at the call ([Evaluations of
+Rules](../runtime/parsing.md#evaluations-of-rules)). An evaluation of a key
+inside another lies outside the own region of the other (*Keys and
+classes*), so when $e_{i+1}$ is an evaluation of a key, $\alpha_i$, which
+lies in it, lies in the own region of none that contains it. This is 1.
+
+For 2, $e_{i+1}$ lies in $w_{i+1}$, which lies inside $it_{k'}$ by 1 applied
+to $it_{k'}$ and the next reaching iteration, so it starts after $it_k$
+ends. $\kappa_i$ starts from the start of $w_i$ when $w_i$ is abandoned,
+while $it_k$, which contains $w_i$, is in progress, so its last start is
+before $e_{i+1}$ starts. $e_{i+1}$ contains $\alpha_i$, so it is in
+progress when $e'_i$ starts. By the proof of 2, from the last start of
+$\kappa_i$ to $e'_i$ the parser keeps the evaluations of $c_1, \ldots,
+c_{j-1}$, which start at $\tau_0, \ldots, \tau_{j-2}$ and end at
+$\tau_1, \ldots, \tau_{j-1}$, and examines no other input, so outside
+them it is at $\tau_0$ before the first, at $\tau_y$ between the $y$-th
+and the next, and at $t_i$ after the last. $e_{i+1}$ starts inside none of
+them, since an evaluation of a call that starts inside another ends inside
+it, and so before $e'_i$ starts. So $t_{i+1}$ is a member of $B_i$.
+
+For 3, when the memo answers the call, $\kappa_{i+1}$ makes no evaluation of
+it at $t_{i+1}$, so $\alpha_{i+1}$ lies in none and $i + 1$ is free. When
+$i + 1$ is linked, $e'_{i+1}$ is the evaluation of the shared call that
+$\kappa_{i+1}$ makes at $t_{i+1}$, after $e_{i+1}$: a call of the same rule,
+or of its twin, with the same level restriction, of a rule that reads no
+variable, so the key of $e'_{i+1}$ has the class of the key of $e_{i+1}$,
+and when both are evaluations of keys, $e_{i+1}$ is an earlier evaluation
+of a key of that class.
+
+For 4, let $x$ be the evaluation of a shared call of $w_{i_{a+1}}$ before
+$e_{i_{a+1}}$, kept before $e_{i_{a+1}}$. It is kept before $e'_{i_a}$
+too: it ends before $e'_{i_a}$ starts, and the evaluations that contain
+$e'_{i_a}$ but not $e_{i_{a+1}}$ lie inside $e_{i_{a+1}}$, which $x$ does not
+meet, so the innermost evaluation that contains $x$ and $e'_{i_a}$ is the
+one that contains $x$ and $e_{i_{a+1}}$. The members of $B_{i_{a+1}}$ are
+at most $t_{i_{a+1}} \le t_{i_a}$, since $w_{i_{a+1}}$ evaluates its shared
+calls one after another at its boundaries, and $t_{i_{a+1}}$ is a member of
+$B_{i_a}$ by 2. With these, the proof of 4 of *Iterations at one scan*
+applies to the boundaries that are starts or ends of such an $x$, and so
+$B_{i_{a+1}} \subseteq B_{i_a}$. $\square$
+
+So a memoized break holds $\alpha_i$ through the link $i$, which enters the
+evaluation of its call, not through a link that leaves it: the frames that
+the link $i + 1$ leaves lie above $w_{i+1}$, which contains $e_{i+1}$. A run
+of linked reaching iterations goes on through a break only to a later
+evaluation of the class of the break, and in a run that meets the
+hypotheses of 4 the breaks fall at members of the boundaries of its first
+link, at most $j$ positions; a break whose call the memo answers ends the
+run at a free index. So the breaks of a run are charged to the run and
+not to the memo; the number of runs in $T$, which begin at the first
+reaching iteration of $T$, at a free index, after a $q$-frame or where
+$e_{i+1}$ lies strictly inside $e'_i$, is not bounded here.
 
 ## Lemma 5 (Growth)
 
@@ -6537,10 +6609,13 @@ condition of the cost view that the [Cost View](cost-view.md) proof leaves open.
    repetition, *Iterations at one scan* bounds a run of linked reaching
    iterations at one position by the shared calls of its first unit, and
    charges an iteration whose linked evaluation it keeps to the position of
-   a $q$-frame, at most two per position, apart from refinements, memoized
-   breaks, iterations that hold more than one activation, and dropped steps,
-   growths, case 5 and the exception of the restarts below the repetition,
-   which it leaves open. Second, the leaf links when the shared call follows other
+   a $q$-frame, at most two per position; *Memoized breaks* keeps a run
+   that passes through a memoized break at those boundaries and ends it at
+   a free index when the memo answers the call. Refinements, the number of
+   runs in one evaluation of a repetition and of $q$-frame positions,
+   iterations that hold more than one activation, and dropped steps,
+   growths, case 5 and the exception of the restarts below the repetition
+   stay open. Second, the leaf links when the shared call follows other
    shared calls: the continuation then leaves frames at the ends of the
    shared calls before the call, at positions before the scan, and between
    them, as in `e = "(" (e R "x" / e) / "."` with `R = [ ]*`, where the call
