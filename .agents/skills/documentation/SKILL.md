@@ -22,6 +22,17 @@ description: Maintain ZeroParse user documentation, contracts, design records an
 - Style: follow `docs/documentation-style.md` for page kinds, link directions,
   titles and headings, voice and terms, openings, and examples. The site tests
   enforce link directions and heading capitalization.
+- Describe only the current product. Before the first release, breaking changes are
+  routine, so reader docs never explain history: no former names, no "earlier versions",
+  no old spellings. Each implementation change updates the docs it affects in the same
+  change. Write a spec early and keep it current, rather than waiting for the code to
+  settle, since proofs and tests depend on it.
+- Present the precise types: `node[T]` is the node type for any `T`, and `node[_]` is
+  only a fallback for a statically unknown value.
+- Public positioning is a universal parser platform: any target language, optimization,
+  engine and usage, with the best speed in each. Never frame the project around one host
+  language. Pair each universal claim with its current status. Narrowing it needs the
+  owner.
 - Keep `AGENTS.md` concise. Follow existing indexes and templates, remove
   authoring prompts from finished pages, verify examples and links, and keep
   published docs independent of chats and issue numbers.

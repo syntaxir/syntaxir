@@ -25,6 +25,23 @@ description: Keep ZeroParse backlog issues and the Issue #1 work-status page cur
 - Check current state with `gh issue view <n>`, `gh project field-list 2 --owner zeroparse`
   and `gh project item-list 2 --owner zeroparse`.
 
+## Categories
+
+Pick the Category by these definitions before filing or moving an item:
+
+- Bug: defect fixes.
+- Docs: documentation work. Proofs are not documentation work.
+- Ready-made parser: problems specific to one bundled parser.
+- Feature: user-visible new behavior, normally with a design record. The mechanism that
+  controls optimizations is a Feature; an individual optimization flag is an Optimization.
+- Optimization: changes that affect performance, whether or not users see them.
+- Improvement: internal mechanisms and refactoring other than for performance, including
+  classifier precision.
+- Quality: verification and developer tooling. Other tools take the category of the change.
+
+Order work by layer first: core first-release work comes before ecosystem work (language
+server, editors, playground), ready-made parsers and compatibility extensions.
+
 ## Issue lifecycle
 
 Decisions left only in chat are lost to compaction and get asked again, so do each step

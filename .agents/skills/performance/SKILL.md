@@ -20,3 +20,13 @@ description: Maintain ZeroParse's optimization method and reproducible performan
   Serialize benchmark runs and follow `docs/performance.md`; keep claims limited
   to measured paths and retain raw evidence outside Git unless deliberately
   versioned.
+- Landing rule for a performance-sensitive change: at least 20 interleaved rounds against
+  an A/A copy, with the geomean within the A/A spread. Record `uptime` with each run and
+  discard runs whose A/A spread exceeds 1.5%.
+- New structural or feature work lands reasonably optimized. Profile it before landing and
+  fix egregious regressions (tens of percent on any path, size blow-ups) and cheap wins in
+  the same unit. File the remaining tuning, with the measured gap, for the performance
+  milestone.
+- "No slowdown" gates the default path, not every trade-off. When a change trades speed
+  for memory or size, consider offering it as a selectable optimization profile or flag at
+  zero cost on the default path, instead of dropping it.

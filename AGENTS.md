@@ -21,8 +21,8 @@ At the start of every development session, use the `onboarding` skill in
   strategy, including performance targets.
 - `site/`: ZeroSite configuration and wrapper; `bench/`: benchmark sources.
 
-Use the `documentation`, `performance`, `backlog` and `zerosite` skills when
-relevant.
+Use the `documentation`, `performance`, `backlog`, `zerosite` and `team-workflow`
+skills when relevant.
 Keep reader-facing docs independent of chat history and backlog labels. Write
 repository docs and comments in English. Update affected contracts and guides
 with implementation changes; regenerate generated files.

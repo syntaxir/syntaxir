@@ -17,5 +17,8 @@ task's authorization boundaries.
 - For selecting checks, measurement and integration evidence, read
   [verification and integration](references/verification-and-integration.md).
 
+When several agents work in parallel on one machine, also follow the
+[team workflow](../team-workflow/SKILL.md) skill for worktrees, the run queue and landing.
+
 Load only the references relevant to the task. Consult the linked project documents
 and specialized skills at the point of use; verify current backlog and Git state live.
