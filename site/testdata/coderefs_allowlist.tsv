@@ -339,7 +339,6 @@ docs/optimizations/015-allocation-free-action-plumbing-in-all-backends.md	unexpo
 docs/optimizations/016-start-positions-and-lambdas-from-chunks-in-the-vms.md	unexport	newPos	1
 docs/optimizations/018-memoizing-from-the-second-call-at-a-position.md	unexport	memoTable	1
 docs/optimizations/020-splicing-the-memo-table-on-document-edits.md	unexport	memoTable	1
-docs/optimizations/021-changes-18-and-19-in-the-generated-parsers.md	internal	internal/bench/parsers	1
 docs/optimizations/022-bounded-memory-and-less-copying-in-stream-parsing.md	unexport	splitChunks	1
 docs/optimizations/024-the-plain-call-path-in-the-iterative-vm.md	unexport	firstCall	1
 docs/optimizations/034-one-frame-per-plain-call-in-the-iterative-vm.md	unexport	plainCallFrame	1
@@ -364,7 +363,6 @@ docs/optimizations/068-release-construction-tracking-when-an-action-returns-nil.
 docs/optimizations/069-bound-persistent-variable-binding-histories.md	gofile	eval.go	1
 docs/optimizations/069-bound-persistent-variable-binding-histories.md	gofile	runtime.go	1
 docs/optimizations/069-bound-persistent-variable-binding-histories.md	gofile	vm.go	1
-docs/optimizations/069-bound-persistent-variable-binding-histories.md	internal	internal/bench/parsers	1
 docs/optimizations/071-dependency-propagation-for-sample-constructor-analysis.md	gofile	sample/analysis.go	1
 docs/optimizations/072-reuse-structurally-equal-duplicate-capture-types.md	gofile	check.go	1
 docs/optimizations/073-dependency-component-propagation-of-variable-reads.md	gofile	analysis.go	1
@@ -949,4 +947,3 @@ docs/optimizations/mechanisms/R180-skip-run-records.md	gofile	internal/ir/flow/l
 docs/optimizations/mechanisms/R180-skip-run-records.md	gofile	codegen/go/lib/skip_runs.go	1
 docs/optimizations/mechanisms/R180-skip-run-records.md	qualified	state.SkipRecordsOff	1
 docs/performance.md	gofile	internal/codegen/go/gengo_typed_output_retention_test.go	1
-docs/performance.md	internal	internal/bench/parsers	1
