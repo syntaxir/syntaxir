@@ -6,6 +6,7 @@ import (
 	"zeroparse.dev/zp/internal/cancel"
 
 	"zeroparse.dev/zp/grammar"
+	"zeroparse.dev/zp/internal/frontend/check"
 	"zeroparse.dev/zp/internal/frontend/desugar"
 	"zeroparse.dev/zp/internal/frontend/parser"
 )
@@ -104,7 +105,7 @@ func inferredType(p *Program, name string) (string, bool) {
 	if !ok {
 		return "", false
 	}
-	v := &ValueInference{Prog: p.Checker(), Out: p.Typed.Values}
+	v := &check.ValueInference{Prog: p.Checker(), Out: p.Typed.Values}
 	return v.Expand(t).String(), true
 }
 

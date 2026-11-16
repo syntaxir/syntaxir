@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"zeroparse.dev/zp/internal/compile"
 	"zeroparse.dev/zp/internal/frontend/check"
+	"zeroparse.dev/zp/internal/frontend/types"
 	irc "zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/ir/exec"
 	"zeroparse.dev/zp/internal/ir/exec/lower"
@@ -158,7 +158,7 @@ func (g *Generator) termTarget(s *check.Scope, locals map[string]string) *Target
 
 // castTypeVar returns the constant of the checked type of the cast x.
 func (g *Generator) castTypeVar(x *irc.Cast) string {
-	return g.FieldTypeVar(x.Key, x.Check.(compile.Ty), tsFieldTypeDecl)
+	return g.FieldTypeVar(x.Key, x.Check.(types.Ty), tsFieldTypeDecl)
 }
 
 // tsCastFailure is the check function castFailure of fieldCheckSource.

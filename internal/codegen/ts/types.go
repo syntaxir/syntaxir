@@ -11,6 +11,8 @@ import (
 	"zeroparse.dev/zp/grammar"
 	"zeroparse.dev/zp/internal/codegen"
 	"zeroparse.dev/zp/internal/compile"
+	"zeroparse.dev/zp/internal/frontend/check"
+	"zeroparse.dev/zp/internal/frontend/types"
 )
 
 // TsReservedTypes are the names types.ts declares itself, or imports. A grammar type with one of
@@ -33,12 +35,12 @@ func qualifyTypes(typ string) string {
 }
 
 // typedTS returns the declarations of types.ts and the code that parser.ts adds for typed values.
-func (g *Generator) typedTS(start *compile.Rule) (types, parser string, err error) {
+func (g *Generator) typedTS(start *compile.Rule) (typesSrc, parser string, err error) {
 	if g.Prog.Typed == nil {
 		return "", "", fmt.Errorf("typed values need the grammar's types (type checking did not run)")
 	}
 	t := &tsTypedGen{info: g.Prog.Typed, names: map[string]string{}, joins: map[string]bool{}, ids: map[string]int{}}
-	t.ValueResolver = codegen.NewValueResolver(g.Prog, func(x compile.Ty) bool { return t.joins[x.String()] })
+	t.ValueResolver = codegen.NewValueResolver(g.Prog, func(x types.Ty) bool { return t.joins[x.String()] })
 	reserved := map[string]bool{}
 	for _, n := range TsReservedTypes {
 		reserved[n] = true
@@ -52,7 +54,7 @@ func (g *Generator) typedTS(start *compile.Rule) (types, parser string, err erro
 			return "", "", fmt.Errorf("the grammar type %s cannot be generated for TypeScript: types.ts declares a type with that name (reserved: %s)", name, strings.Join(TsReservedTypes, ", "))
 		}
 		t.names[name] = name
-		if a, ok := t.info.Aliases[name].(compile.JoinTy); ok && tsNodeJoin(a) {
+		if a, ok := t.info.Aliases[name].(types.JoinTy); ok && tsNodeJoin(a) {
 			t.joins[a.String()] = true
 		}
 	}
@@ -82,14 +84,14 @@ func (g *Generator) typedTS(start *compile.Rule) (types, parser string, err erro
 				t.recipe(f.T)
 			}
 			b.WriteString("}\n\n")
-			t.recipe(compile.NamedTy{Name: name, Kind: 's'})
+			t.recipe(types.NamedTy{Name: name, Kind: 's'})
 		case *grammar.TypeAlias:
 			fmt.Fprintf(&b, "/** Grammar alias %s = %s. */\nexport type %s = %s;\n\n", name, grammar.FormatType(spec.Type), t.names[name], t.tsType(t.info.Aliases[name]))
 			t.recipe(t.info.Aliases[name])
 		}
 	}
 	fmt.Fprintf(&b, "%s%s;\n\n", tsTypedValueDeclaration, strings.Join(open, " | "))
-	types = b.String()
+	typesSrc = b.String()
 	b.Reset()
 	st := t.RuleRef(start.Name)
 	repr := t.recipe(st)
@@ -109,15 +111,15 @@ func (g *Generator) typedTS(start *compile.Rule) (types, parser string, err erro
 	b.WriteString(runtime)
 	// recipe() reserves an ID before visiting child types, so recursive fields
 	// reference the same representation. Write the table after all registration.
-	t.recipe(compile.TyMatch)
-	t.recipe(compile.TyError)
-	openID, elemsID := t.recipe(openNode), t.recipe(compile.ListTy{Elem: compile.TyAny})
+	t.recipe(types.TyMatch)
+	t.recipe(types.TyError)
+	openID, elemsID := t.recipe(openNode), t.recipe(types.ListTy{Elem: types.TyAny})
 	b.WriteString(tsTypedRecipeTable)
 	for _, r := range t.recipes {
 		b.WriteString("  " + r + ",\n")
 	}
 	b.WriteString(tsTypedNodeRecipeTable)
-	for _, n := range []compile.NamedTy{compile.TyMatch, compile.TyError} {
+	for _, n := range []types.NamedTy{types.TyMatch, types.TyError} {
 		fmt.Fprintf(&b, "  [%s, %d],\n", TsString(n.Name), t.recipe(n))
 	}
 	// Open values: tuple and list nodes become TNode<unknown>, and tuple and list values arrays.
@@ -133,15 +135,15 @@ func (g *Generator) typedTS(start *compile.Rule) (types, parser string, err erro
 				fmt.Fprintf(&b, "  [%s, %d],\n", TsString(name), t.recipe(n))
 				continue
 			}
-			fmt.Fprintf(&b, "  [%s, %d],\n", TsString(name), t.recipe(compile.NamedTy{Name: name, Kind: 's'}))
+			fmt.Fprintf(&b, "  [%s, %d],\n", TsString(name), t.recipe(types.NamedTy{Name: name, Kind: 's'}))
 		}
 	}
 	b.WriteString("]);\n\n")
-	return types, b.String(), nil
+	return typesSrc, b.String(), nil
 }
 
 type tsTypedGen struct {
-	info *compile.TypeInfo
+	info *check.TypeInfo
 	// ValueResolver selects the rules whose typed values come from their value types, as in the Go
 	// generator: node[T] becomes TNode<T>, a tuple a readonly array type and () the empty
 	// tuple type.
@@ -153,73 +155,73 @@ type tsTypedGen struct {
 	recipes []string
 }
 
-func tsNodeJoin(u compile.JoinTy) bool {
+func tsNodeJoin(u types.JoinTy) bool {
 	for _, a := range u.Alts {
-		if !compile.IsNode(a) {
+		if !types.IsNode(a) {
 			return false
 		}
 	}
 	return true
 }
 
-func (t *tsTypedGen) tsType(x compile.Ty) string {
+func (t *tsTypedGen) tsType(x types.Ty) string {
 	switch x := x.(type) {
-	case compile.BasicTy:
+	case types.BasicTy:
 		switch x {
-		case compile.TyInt:
+		case types.TyInt:
 			return "number | bigint"
-		case compile.TyString:
+		case types.TyString:
 			return "string"
-		case compile.TyBool:
+		case types.TyBool:
 			return "boolean"
-		case compile.TyErr:
+		case types.TyErr:
 			return "RecoveredError | null"
 		}
 	case codegen.Vrule:
 		return t.tsType(t.Vres[x.Name])
-	case compile.TupleTy:
+	case types.TupleTy:
 		elems := make([]string, len(x.Elems))
 		for i, e := range x.Elems {
 			elems[i] = t.tsType(e)
 		}
 		return "readonly [" + strings.Join(elems, ", ") + "]"
-	case compile.NodeTy:
+	case types.NodeTy:
 		if x.Name != "" {
 			return t.names[x.Name] + " | null"
 		}
-		if x.Value == compile.TyTop || x.Value == compile.TyAny {
+		if x.Value == types.TyTop || x.Value == types.TyAny {
 			return "TNode<unknown> | null" // the value of an open node is its text or its elements
 		}
 		return "TNode<" + t.tsType(x.Value) + "> | null"
-	case compile.NamedTy:
+	case types.NamedTy:
 		switch {
-		case x == compile.TyMatch:
+		case x == types.TyMatch:
 			return "StringNode | null"
-		case x == compile.TyError:
+		case x == types.TyError:
 			return "RecoveredError | null"
 		case x.Kind == 'c':
 			return "TNode<unknown> | null"
 		}
 		return t.names[x.Name] + " | null"
-	case compile.OptTy:
-		if _, ok := x.Elem.(compile.TupleTy); ok || x.Elem == compile.TyInt || x.Elem == compile.TyString || x.Elem == compile.TyBool {
+	case types.OptTy:
+		if _, ok := x.Elem.(types.TupleTy); ok || x.Elem == types.TyInt || x.Elem == types.TyString || x.Elem == types.TyBool {
 			return t.tsType(x.Elem) + " | null"
 		}
 		return t.tsType(x.Elem)
-	case compile.ListTy:
+	case types.ListTy:
 		return "readonly (" + t.tsType(x.Elem) + ")[] | null"
-	case compile.RecordTy:
+	case types.RecordTy:
 		return "TNode<unknown> | null"
-	case compile.JoinTy:
+	case types.JoinTy:
 		if t.joins[x.String()] {
 			parts := []string{"RecoveredError", "null"}
 			for _, a := range x.Alts {
 				switch a := a.(type) {
-				case compile.NamedTy:
-					if a == compile.TyMatch || a.Kind == 's' {
+				case types.NamedTy:
+					if a == types.TyMatch || a.Kind == 's' {
 						parts = append(parts, strings.TrimSuffix(t.tsType(a), " | null"))
 					}
-				case compile.NodeTy:
+				case types.NodeTy:
 					if a.Name != "" {
 						parts = append(parts, strings.TrimSuffix(t.tsType(a), " | null"))
 					}
@@ -239,7 +241,7 @@ func (t *tsTypedGen) tsType(x compile.Ty) string {
 
 // commonRecipe reports whether the arguments of a union share a recipe (and with it a TypeScript
 // type), and returns its key.
-func (t *tsTypedGen) commonRecipe(x compile.JoinTy) (string, bool) {
+func (t *tsTypedGen) commonRecipe(x types.JoinTy) (string, bool) {
 	common := ""
 	for _, a := range x.Alts {
 		key := t.conversionKey(a)
@@ -254,46 +256,46 @@ func (t *tsTypedGen) commonRecipe(x compile.JoinTy) (string, bool) {
 // conversionKey identifies a canonical recipe without expanding named fields.
 // Optional node recipes and broad any/node/terminal recipes can share outputs;
 // list element recipes retain distinctions such as optional scalars and joins.
-func (t *tsTypedGen) conversionKey(x compile.Ty) string {
+func (t *tsTypedGen) conversionKey(x types.Ty) string {
 	switch x := x.(type) {
-	case compile.BasicTy:
-		if x == compile.TyInt || x == compile.TyString || x == compile.TyBool {
+	case types.BasicTy:
+		if x == types.TyInt || x == types.TyString || x == types.TyBool {
 			return x.String()
 		}
-		if x == compile.TyErr {
+		if x == types.TyErr {
 			return "named:Error"
 		}
 	case codegen.Vrule:
 		return t.conversionKey(t.Vres[x.Name])
-	case compile.TupleTy:
+	case types.TupleTy:
 		keys := make([]string, len(x.Elems))
 		for i, e := range x.Elems {
 			keys[i] = t.conversionKey(e)
 		}
 		return "tuple(" + strings.Join(keys, ",") + ")"
-	case compile.NodeTy:
+	case types.NodeTy:
 		if x.Name != "" {
 			return "tnode:named:" + x.Name
 		}
 		return "tnode:" + tnodeMode(x) + ":" + t.conversionKey(x.Value)
-	case compile.NamedTy:
-		if x.Kind != 'c' || x == compile.TyMatch || x == compile.TyError {
+	case types.NamedTy:
+		if x.Kind != 'c' || x == types.TyMatch || x == types.TyError {
 			return "named:" + x.Name
 		}
 		return t.conversionKey(openNode)
-	case compile.RecordTy:
+	case types.RecordTy:
 		return t.conversionKey(openNode)
-	case compile.OptTy:
-		if x.Elem == compile.TyInt || x.Elem == compile.TyString || x.Elem == compile.TyBool {
+	case types.OptTy:
+		if x.Elem == types.TyInt || x.Elem == types.TyString || x.Elem == types.TyBool {
 			return "opt" + x.Elem.String()
 		}
-		if _, ok := x.Elem.(compile.TupleTy); ok {
+		if _, ok := x.Elem.(types.TupleTy); ok {
 			return "opt:" + t.conversionKey(x.Elem)
 		}
 		return t.conversionKey(x.Elem)
-	case compile.ListTy:
+	case types.ListTy:
 		return "list:" + t.conversionKey(x.Elem)
-	case compile.JoinTy:
+	case types.JoinTy:
 		if t.joins[x.String()] {
 			return "union:" + x.String()
 		}
@@ -305,16 +307,16 @@ func (t *tsTypedGen) conversionKey(x compile.Ty) string {
 }
 
 // openNode is the type of the nodes of CST types: their values are their text or their elements.
-var openNode = compile.NodeTy{Value: compile.TyTop}
+var openNode = types.NodeTy{Value: types.TyTop}
 
 // tnodeMode returns where the value of a node of type x comes from: its text ("text"), the node
 // itself for a tuple or list value ("self"), or the text or elements of the node ("value").
-func tnodeMode(x compile.NodeTy) string {
+func tnodeMode(x types.NodeTy) string {
 	switch x.Value.(type) {
-	case compile.TupleTy, compile.ListTy:
+	case types.TupleTy, types.ListTy:
 		return "self"
 	}
-	if x.Value == compile.TyString {
+	if x.Value == types.TyString {
 		return "text"
 	}
 	return "value"
@@ -322,48 +324,48 @@ func tnodeMode(x compile.NodeTy) string {
 
 // recipe follows the existing Go Node-converter recipes, including anyValue
 // for mixed/open or nondeclared joins and CST retention in declared joins.
-func (t *tsTypedGen) recipe(x compile.Ty) int {
+func (t *tsTypedGen) recipe(x types.Ty) int {
 	kind, key := "any", "any"
 	switch a := x.(type) {
-	case compile.BasicTy:
+	case types.BasicTy:
 		switch a {
-		case compile.TyInt, compile.TyString, compile.TyBool:
+		case types.TyInt, types.TyString, types.TyBool:
 			kind, key = string(a), string(a)
-		case compile.TyErr:
-			return t.recipe(compile.TyError)
+		case types.TyErr:
+			return t.recipe(types.TyError)
 		}
 	case codegen.Vrule:
 		return t.recipe(t.Vres[a.Name])
-	case compile.TupleTy:
+	case types.TupleTy:
 		kind, key = "tuple", t.conversionKey(a)
-	case compile.NodeTy:
+	case types.NodeTy:
 		kind, key = "tnode", t.conversionKey(a)
 		if a.Name != "" {
 			// The type's definition gives its value, also inside the type itself.
 			x, _ = t.Prog.NodeTypeOf(a.Name)
 		}
-	case compile.NamedTy:
+	case types.NamedTy:
 		kind, key = "terminal", "named:"+a.Name
-		if a == compile.TyError {
+		if a == types.TyError {
 			kind = "error"
 		} else if a.Kind == 's' {
 			kind = "struct"
-		} else if a.Kind == 'c' && a != compile.TyMatch {
+		} else if a.Kind == 'c' && a != types.TyMatch {
 			return t.recipe(openNode)
 		}
-	case compile.OptTy:
-		if a.Elem == compile.TyInt || a.Elem == compile.TyString || a.Elem == compile.TyBool {
+	case types.OptTy:
+		if a.Elem == types.TyInt || a.Elem == types.TyString || a.Elem == types.TyBool {
 			kind, key = "opt"+a.Elem.String(), "opt"+a.Elem.String()
-		} else if _, ok := a.Elem.(compile.TupleTy); ok {
+		} else if _, ok := a.Elem.(types.TupleTy); ok {
 			kind, key = "opt", t.conversionKey(a)
 		} else {
 			return t.recipe(a.Elem)
 		}
-	case compile.ListTy:
+	case types.ListTy:
 		kind, key = "list", "list:"+t.conversionKey(a.Elem)
-	case compile.RecordTy:
+	case types.RecordTy:
 		return t.recipe(openNode)
-	case compile.JoinTy:
+	case types.JoinTy:
 		if t.joins[a.String()] {
 			kind, key = "union", "union:"+a.String()
 		} else if _, ok := t.commonRecipe(a); ok {
@@ -378,7 +380,7 @@ func (t *tsTypedGen) recipe(x compile.Ty) int {
 	t.recipes = append(t.recipes, "")
 	r := "{ kind: " + TsString(kind)
 	switch a := x.(type) {
-	case compile.NamedTy:
+	case types.NamedTy:
 		if kind == "struct" || kind == "terminal" || kind == "error" {
 			r += ", name: " + TsString(a.Name)
 		}
@@ -389,29 +391,29 @@ func (t *tsTypedGen) recipe(x compile.Ty) int {
 			}
 			r += ", fields: [" + strings.Join(fields, ", ") + "]"
 		}
-	case compile.ListTy:
+	case types.ListTy:
 		r += ", elem: " + strconv.Itoa(t.recipe(a.Elem))
-	case compile.OptTy:
+	case types.OptTy:
 		r += ", elem: " + strconv.Itoa(t.recipe(a.Elem))
-	case compile.NodeTy:
+	case types.NodeTy:
 		if a.Name != "" {
 			r += ", name: " + TsString(a.Name)
 		}
 		r += ", mode: " + TsString(tnodeMode(a)) + ", elem: " + strconv.Itoa(t.recipe(a.Value))
-	case compile.TupleTy:
+	case types.TupleTy:
 		elems := make([]string, len(a.Elems))
 		for i, e := range a.Elems {
 			elems[i] = strconv.Itoa(t.recipe(e))
 		}
 		r += ", elems: [" + strings.Join(elems, ", ") + "]"
-	case compile.JoinTy:
+	case types.JoinTy:
 		if kind == "union" {
-			members := []string{fmt.Sprintf("[%s, %d]", TsString(coreimpl.TypeError), t.recipe(compile.TyError))}
+			members := []string{fmt.Sprintf("[%s, %d]", TsString(coreimpl.TypeError), t.recipe(types.TyError))}
 			for _, m := range a.Alts {
-				if m, ok := m.(compile.NamedTy); ok && (m == compile.TyMatch || m.Kind == 's') {
+				if m, ok := m.(types.NamedTy); ok && (m == types.TyMatch || m.Kind == 's') {
 					members = append(members, fmt.Sprintf("[%s, %d]", TsString(m.Name), t.recipe(m)))
 				}
-				if m, ok := m.(compile.NodeTy); ok && m.Name != "" {
+				if m, ok := m.(types.NodeTy); ok && m.Name != "" {
 					members = append(members, fmt.Sprintf("[%s, %d]", TsString(m.Name), t.recipe(m)))
 				}
 			}

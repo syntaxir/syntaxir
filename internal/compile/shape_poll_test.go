@@ -7,6 +7,7 @@ import (
 	"zeroparse.dev/zp/internal/cancel"
 
 	"zeroparse.dev/zp/grammar"
+	"zeroparse.dev/zp/internal/frontend/check"
 )
 
 // checks returns how many context checks ctx has seen, for a context from compileTestContext
@@ -70,7 +71,7 @@ func TestRuleCyclesPollsContext(t *testing.T) {
 		byName[rd.Name] = rd
 	}
 	ctx := compileTestContext(t, 1<<20)
-	cycles := ruleCycles(defs, byName, &cancel.Control{Ctx: ctx})
+	cycles := check.RuleCycles(defs, byName, &cancel.Control{Ctx: ctx})
 	if len(cycles) != rules || len(cycles["r0"]) != rules {
 		t.Fatalf("cycles for %d rules, the first of %d", len(cycles), len(cycles["r0"]))
 	}

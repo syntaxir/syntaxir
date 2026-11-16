@@ -6,6 +6,8 @@ import (
 
 	"zeroparse.dev/zp/grammar"
 	"zeroparse.dev/zp/internal/compile"
+	"zeroparse.dev/zp/internal/frontend/check"
+	"zeroparse.dev/zp/internal/frontend/types"
 )
 
 // Vrule is a reference to a rule whose Go type is that of its value in the value model; the rule's
@@ -18,22 +20,22 @@ func (r Vrule) String() string { return r.Name }
 // ValueResolver resolves the value types of the rules whose typed values come from them.
 type ValueResolver struct {
 	Prog *compile.Program
-	info *compile.TypeInfo
+	info *check.TypeInfo
 	// values holds the value types of the rules and ruleDefs their definitions; Vres holds the
 	// resolved value types of the rules whose typed values come from them, and resolving the rules
 	// being resolved.
-	values    map[string]compile.Ty
+	values    map[string]types.Ty
 	ruleDefs  map[string]*grammar.RuleDef
-	Vres      map[string]compile.Ty
+	Vres      map[string]types.Ty
 	resolving map[string]bool
 	// ownType reports that a legacy type has a typed representation of its own (a named join).
-	ownType func(compile.Ty) bool
+	ownType func(types.Ty) bool
 }
 
 // NewValueResolver returns a resolver for the rules of p; ownType reports the legacy types that
 // have a typed representation of their own.
-func NewValueResolver(p *compile.Program, ownType func(compile.Ty) bool) ValueResolver {
-	r := ValueResolver{Prog: p, info: p.Typed, values: p.ValueTypes(), ruleDefs: map[string]*grammar.RuleDef{}, Vres: map[string]compile.Ty{}, resolving: map[string]bool{}, ownType: ownType}
+func NewValueResolver(p *compile.Program, ownType func(types.Ty) bool) ValueResolver {
+	r := ValueResolver{Prog: p, info: p.Typed, values: p.ValueTypes(), ruleDefs: map[string]*grammar.RuleDef{}, Vres: map[string]types.Ty{}, resolving: map[string]bool{}, ownType: ownType}
 	for _, rl := range p.RuleList {
 		r.ruleDefs[rl.Name] = rl.Def
 	}
@@ -43,10 +45,10 @@ func NewValueResolver(p *compile.Program, ownType func(compile.Ty) bool) ValueRe
 // RuleRef returns the type of a reference to the rule name: its declared legacy type when its
 // typed value does not come from its value type, and otherwise a Vrule, resolving the rule's
 // value type into Vres first. A reference made while the rule is being resolved is TyTop.
-func (t *ValueResolver) RuleRef(name string) compile.Ty {
-	var legacy compile.Ty = compile.TyAny
+func (t *ValueResolver) RuleRef(name string) types.Ty {
+	var legacy types.Ty = types.TyAny
 	if def := t.ruleDefs[name]; def != nil && def.Type != nil {
-		legacy = (&compile.TypeResolver{Prog: t.Prog.Checker()}).Resolve(def.Type)
+		legacy = (&check.TypeResolver{Prog: t.Prog.Checker()}).Resolve(def.Type)
 	}
 	if !t.usesValue(name, legacy) {
 		return legacy
@@ -55,7 +57,7 @@ func (t *ValueResolver) RuleRef(name string) compile.Ty {
 		return Vrule{name}
 	}
 	if t.resolving[name] {
-		return compile.TyTop // a cycle: the reference becomes any
+		return types.TyTop // a cycle: the reference becomes any
 	}
 	t.resolving[name] = true
 	res := t.ResolveValue(t.values[name])
@@ -66,10 +68,10 @@ func (t *ValueResolver) RuleRef(name string) compile.Ty {
 
 // A rule has the Go type of its value if it has no declared type; a declared type is the rule's Go
 // type, node[_] included.
-func (t *ValueResolver) usesValue(name string, legacy compile.Ty) bool {
+func (t *ValueResolver) usesValue(name string, legacy types.Ty) bool {
 	v, ok := t.values[name]
 	def := t.ruleDefs[name]
-	if !ok || v == nil || v == compile.TyAny || def == nil {
+	if !ok || v == nil || v == types.TyAny || def == nil {
 		return false
 	}
 	if def.Type != nil && def.Action != nil {
@@ -85,31 +87,31 @@ func (t *ValueResolver) usesValue(name string, legacy compile.Ty) bool {
 }
 
 // ResolveValue replaces the rule references in a value type.
-func (t *ValueResolver) ResolveValue(x compile.Ty) compile.Ty {
+func (t *ValueResolver) ResolveValue(x types.Ty) types.Ty {
 	switch x := x.(type) {
-	case compile.RuleTy:
+	case types.RuleTy:
 		return t.RuleRef(x.Name)
-	case compile.TupleTy:
-		elems := make([]compile.Ty, len(x.Elems))
+	case types.TupleTy:
+		elems := make([]types.Ty, len(x.Elems))
 		for i, e := range x.Elems {
 			elems[i] = t.ResolveValue(e)
 		}
-		return compile.TupleTy{Elems: elems}
-	case compile.NodeTy:
-		return compile.NodeTy{Value: t.ResolveValue(x.Value)}
-	case compile.ListTy:
-		return compile.ListTy{Elem: t.ResolveValue(x.Elem)}
-	case compile.OptTy:
-		return compile.OptTy{Elem: t.ResolveValue(x.Elem)}
-	case compile.JoinTy:
-		alts := make([]compile.Ty, len(x.Alts))
+		return types.TupleTy{Elems: elems}
+	case types.NodeTy:
+		return types.NodeTy{Value: t.ResolveValue(x.Value)}
+	case types.ListTy:
+		return types.ListTy{Elem: t.ResolveValue(x.Elem)}
+	case types.OptTy:
+		return types.OptTy{Elem: t.ResolveValue(x.Elem)}
+	case types.JoinTy:
+		alts := make([]types.Ty, len(x.Alts))
 		for i, a := range x.Alts {
 			alts[i] = t.ResolveValue(a)
 		}
-		return compile.JoinTy{Alts: alts}
-	case compile.BasicTy:
-		if x == compile.TyBottom || x == compile.TyNil {
-			return compile.TyTop
+		return types.JoinTy{Alts: alts}
+	case types.BasicTy:
+		if x == types.TyBottom || x == types.TyNil {
+			return types.TyTop
 		}
 	}
 	return x
@@ -119,7 +121,7 @@ func (t *ValueResolver) ResolveValue(x compile.Ty) compile.Ty {
 // it: the type of a field, of a list element or option, or the value type of a rule.
 type anonJoin struct {
 	// Members are the distinct declared node types in the order written, nested joins flattened.
-	Members compile.JoinTy
+	Members types.JoinTy
 	// Alias is the alias that declares the same members, or empty if none does; then the join is
 	// the type of that alias.
 	Alias string
@@ -142,7 +144,7 @@ func (r *ValueResolver) AnonJoins() []anonJoin {
 	}
 	sort.Strings(aliasNames)
 	for _, name := range aliasNames {
-		if u, ok := r.info.Aliases[name].(compile.JoinTy); ok {
+		if u, ok := r.info.Aliases[name].(types.JoinTy); ok {
 			if m, ok := joinKey(u); ok {
 				if _, dup := aliasOf[joinSetKey(m)]; !dup {
 					aliasOf[joinSetKey(m)] = name
@@ -152,20 +154,20 @@ func (r *ValueResolver) AnonJoins() []anonJoin {
 	}
 	var out []anonJoin
 	index := map[string]int{}
-	var collect func(x compile.Ty)
-	collect = func(x compile.Ty) {
+	var collect func(x types.Ty)
+	collect = func(x types.Ty) {
 		switch x := x.(type) {
-		case compile.ListTy:
+		case types.ListTy:
 			collect(x.Elem)
-		case compile.OptTy:
+		case types.OptTy:
 			collect(x.Elem)
-		case compile.NodeTy:
+		case types.NodeTy:
 			collect(x.Value)
-		case compile.TupleTy:
+		case types.TupleTy:
 			for _, e := range x.Elems {
 				collect(e)
 			}
-		case compile.JoinTy:
+		case types.JoinTy:
 			for _, a := range x.Alts {
 				collect(a)
 			}
@@ -205,7 +207,7 @@ func (r *ValueResolver) AnonJoins() []anonJoin {
 			}
 		case *grammar.TypeAlias:
 			// The members of an alias are joined by the alias itself, but a member can be a join.
-			if u, ok := r.info.Aliases[d.Name].(compile.JoinTy); ok {
+			if u, ok := r.info.Aliases[d.Name].(types.JoinTy); ok {
 				for _, a := range u.Alts {
 					collect(a)
 				}
@@ -231,13 +233,13 @@ func (r *ValueResolver) AnonJoins() []anonJoin {
 // joinKey returns the members of a join as anonJoins compares them, and whether the join is one
 // that has an interface: at least two distinct members, or one with error, all of them declared
 // node types. Error is no member to compare: it implements every interface of a join.
-func joinKey(u compile.JoinTy) (compile.JoinTy, bool) {
-	var alts []compile.Ty
+func joinKey(u types.JoinTy) (types.JoinTy, bool) {
+	var alts []types.Ty
 	seen := map[string]bool{}
 	hasError := false
-	var add func(x compile.Ty) bool
-	add = func(x compile.Ty) bool {
-		if m, ok := compile.JoinMembers(x).(compile.JoinTy); ok {
+	var add func(x types.Ty) bool
+	add = func(x types.Ty) bool {
+		if m, ok := check.JoinMembers(x).(types.JoinTy); ok {
 			for _, a := range m.Alts {
 				if !add(a) {
 					return false
@@ -245,17 +247,17 @@ func joinKey(u compile.JoinTy) (compile.JoinTy, bool) {
 			}
 			return true
 		}
-		x = compile.JoinMembers(compile.JoinTy{Alts: []compile.Ty{x}}).(compile.JoinTy).Alts[0]
+		x = check.JoinMembers(types.JoinTy{Alts: []types.Ty{x}}).(types.JoinTy).Alts[0]
 		switch a := x.(type) {
-		case compile.NamedTy:
-			if a == compile.TyError {
+		case types.NamedTy:
+			if a == types.TyError {
 				hasError = true // every interface of a join has the Error member
 				return true
 			}
 			if a.Kind != 's' {
 				return false
 			}
-		case compile.NodeTy:
+		case types.NodeTy:
 			if a.Name == "" {
 				return false
 			}
@@ -270,13 +272,13 @@ func joinKey(u compile.JoinTy) (compile.JoinTy, bool) {
 	}
 	// A declared node type with error is a join, too: the value of a rule that recovers.
 	if !add(u) || len(alts) < 2 && !(len(alts) == 1 && hasError) {
-		return compile.JoinTy{}, false
+		return types.JoinTy{}, false
 	}
-	return compile.JoinTy{Alts: alts}, true
+	return types.JoinTy{Alts: alts}, true
 }
 
 // joinSetKey returns a string that is the same for joins with the same members in any order.
-func joinSetKey(u compile.JoinTy) string {
+func joinSetKey(u types.JoinTy) string {
 	names := make([]string, len(u.Alts))
 	for i, a := range u.Alts {
 		names[i] = a.String()

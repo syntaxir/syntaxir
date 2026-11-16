@@ -1,9 +1,13 @@
 package compile
 
-import "strings"
+import (
+	"strings"
+	"zeroparse.dev/zp/internal/frontend/check"
+	"zeroparse.dev/zp/internal/frontend/types"
+)
 
 // HasZero is Checker.HasZero.
-func (p *Program) HasZero(t Ty) bool { return p.Checker().HasZero(t) }
+func (p *Program) HasZero(t types.Ty) bool { return p.Checker().HasZero(t) }
 
 // StructZero describes how the fields of a struct type read when a constructor left them unset: Names
 // holds the field names in declaration order and Zeros the zero descriptor of each (ZeroDesc).
@@ -29,9 +33,9 @@ func (p *Program) StructZeroOf(name string) *StructZero {
 	if st == nil {
 		return nil
 	}
-	k := &TypeResolver{Prog: p.Checker()}
+	k := &check.TypeResolver{Prog: p.Checker()}
 	z := &StructZero{Zeros: map[string]string{}}
-	for _, f := range DefFields(st) {
+	for _, f := range check.DefFields(st) {
 		z.Names = append(z.Names, f.Name)
 		z.Zeros[f.Name] = p.ZeroDesc(k.Resolve(f.Type))
 	}
@@ -44,24 +48,24 @@ func (p *Program) StructZeroOf(name string) *StructZero {
 // tuple of the zero values of the elements, written one after the other; {Name} for the struct type
 // Name with no field set (a runtime does not build the zero values of its fields, which a read of one of
 // them builds from the descriptor of the field); and NoZeroDesc for a type that has none (HasZero).
-func (p *Program) ZeroDesc(t Ty) string {
+func (p *Program) ZeroDesc(t types.Ty) string {
 	if !p.HasZero(t) {
 		return NoZeroDesc
 	}
 	switch t := t.(type) {
-	case BasicTy:
+	case types.BasicTy:
 		switch t {
-		case TyInt:
+		case types.TyInt:
 			return "i"
-		case TyString:
+		case types.TyString:
 			return "s"
-		case TyBool:
+		case types.TyBool:
 			return "b"
 		}
 		return "n"
-	case NamedTy:
+	case types.NamedTy:
 		return "{" + t.Name + "}"
-	case TupleTy:
+	case types.TupleTy:
 		var b strings.Builder
 		b.WriteByte('(')
 		for _, e := range t.Elems {
@@ -69,7 +73,7 @@ func (p *Program) ZeroDesc(t Ty) string {
 		}
 		b.WriteByte(')')
 		return b.String()
-	case ListTy:
+	case types.ListTy:
 		return "l"
 	}
 	return "n"

@@ -2,20 +2,9 @@ package compile
 
 import (
 	"zeroparse.dev/zp/grammar"
-	"zeroparse.dev/zp/internal/bytecode"
 	"zeroparse.dev/zp/internal/frontend/check"
+	"zeroparse.dev/zp/internal/frontend/types"
 )
-
-// The variable table lives in internal/frontend/check; these aliases keep the packages that name it through
-// compile building and go with the other aliases.
-
-type (
-	VarDecl  = check.VarDecl
-	VarTable = check.VarTable
-)
-
-// ModuleVarTable is check.ModuleVarTable.
-func ModuleVarTable(m *bytecode.Module) *VarTable { return check.ModuleVarTable(m) }
 
 // constantValue returns the value of an initializer: an int, a string or a bool literal, or an
 // int literal with a minus sign. ok is false for any other expression.
@@ -55,32 +44,32 @@ func (c *Compiler) declareVars(g *grammar.Grammar) {
 		decl := c.varDecl(vd)
 		if decl == nil {
 			// Keep the name declared, so that its uses do not add errors of their own.
-			decl = &VarDecl{Name: vd.Name, Typ: TyInt, Init: 0}
+			decl = &check.VarDecl{Name: vd.Name, Typ: types.TyInt, Init: 0}
 		}
 		c.Prog.Vars.Add(decl)
 	}
 }
 
 // varDecl returns the declaration of vd, or nil after reporting why it is invalid.
-func (c *Compiler) varDecl(vd *grammar.VarDef) *VarDecl {
-	var typ BasicTy
+func (c *Compiler) varDecl(vd *grammar.VarDef) *check.VarDecl {
+	var typ types.BasicTy
 	if vd.Type != nil {
 		ref, ok := vd.Type.(*grammar.TypeRef)
 		if ok {
 			switch ref.Name {
 			case "int":
-				typ = TyInt
+				typ = types.TyInt
 			case "string":
-				typ = TyString
+				typ = types.TyString
 			case "bool":
-				typ = TyBool
+				typ = types.TyBool
 			default:
 				ok = false
 			}
 		}
 		if !ok {
 			if ref, isRef := vd.Type.(*grammar.TypeRef); isRef {
-				if to, retired := retiredTypeNames[ref.Name]; retired {
+				if to, retired := check.RetiredTypeNames[ref.Name]; retired {
 					c.errorf(vd.Diagnostic(), "%s is not a type; write %s", ref.Name, to)
 					return nil
 				}
@@ -94,20 +83,20 @@ func (c *Compiler) varDecl(vd *grammar.VarDef) *VarDecl {
 			c.errorf(vd.Diagnostic(), "variable %s needs a type or an initial value", vd.Name)
 			return nil
 		}
-		return &VarDecl{Name: vd.Name, Typ: typ, Init: check.ZeroValue(typ)}
+		return &check.VarDecl{Name: vd.Name, Typ: typ, Init: check.ZeroValue(typ)}
 	}
 	if _, isNil := vd.Value.(*grammar.NilLit); isNil {
-		c.errorf(termPos(vd.Value, vd.Diagnostic()), "variable %s cannot be nil; its type is int, string, or bool", vd.Name)
+		c.errorf(check.TermPos(vd.Value, vd.Diagnostic()), "variable %s cannot be nil; its type is int, string, or bool", vd.Name)
 		return nil
 	}
 	v, ok := constantValue(vd.Value)
 	if !ok {
-		c.errorf(termPos(vd.Value, vd.Diagnostic()), "the initial value of variable %s must be an int, string, or bool literal", vd.Name)
+		c.errorf(check.TermPos(vd.Value, vd.Diagnostic()), "the initial value of variable %s must be an int, string, or bool literal", vd.Name)
 		return nil
 	}
 	if vd.Type != nil && check.ValueType(v) != typ {
-		c.errorf(termPos(vd.Value, vd.Diagnostic()), "cannot use %s as %s in the initial value of variable %s", check.ValueType(v), typ, vd.Name)
+		c.errorf(check.TermPos(vd.Value, vd.Diagnostic()), "cannot use %s as %s in the initial value of variable %s", check.ValueType(v), typ, vd.Name)
 		return nil
 	}
-	return &VarDecl{Name: vd.Name, Typ: check.ValueType(v), Init: v}
+	return &check.VarDecl{Name: vd.Name, Typ: check.ValueType(v), Init: v}
 }

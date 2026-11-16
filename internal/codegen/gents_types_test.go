@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"zeroparse.dev/zp/internal/codegen"
-	"zeroparse.dev/zp/internal/compile"
+	"zeroparse.dev/zp/internal/frontend/types"
 	"zeroparse.dev/zp/internal/testing/codegentest"
 )
 
@@ -13,17 +13,17 @@ import (
 // or inferred for a field: both forms share one TypeScript union and one recipe.
 func TestGeneratedTypedErrorJoinHasNoOpenMember(t *testing.T) {
 	t.Parallel()
-	if codegen.CstJoin(compile.JoinTy{Alts: []compile.Ty{compile.NamedTy{Name: "A", Kind: 's'}, compile.TyErr}}) {
+	if codegen.CstJoin(types.JoinTy{Alts: []types.Ty{types.NamedTy{Name: "A", Kind: 's'}, types.TyErr}}) {
 		t.Error("cstJoin counts the error member as an open node")
 	}
-	if !codegen.CstJoin(compile.JoinTy{Alts: []compile.Ty{compile.NamedTy{Name: "A", Kind: 's'}, compile.TyInt}}) {
+	if !codegen.CstJoin(types.JoinTy{Alts: []types.Ty{types.NamedTy{Name: "A", Kind: 's'}, types.TyInt}}) {
 		t.Error("cstJoin must keep counting a scalar member as an open node")
 	}
 	// The raw spelling of node[_] is an open member, with or without error next to it.
-	if !codegen.CstJoin(compile.JoinTy{Alts: []compile.Ty{compile.NamedTy{Name: "A", Kind: 's'}, compile.NodeTy{Value: compile.TyTop}}}) {
+	if !codegen.CstJoin(types.JoinTy{Alts: []types.Ty{types.NamedTy{Name: "A", Kind: 's'}, types.NodeTy{Value: types.TyTop}}}) {
 		t.Error("cstJoin does not count a raw node[_] member as an open node")
 	}
-	if !codegen.CstJoin(compile.JoinTy{Alts: []compile.Ty{compile.NamedTy{Name: "A", Kind: 's'}, compile.NodeTy{Value: compile.TyTop}, compile.TyErr}}) {
+	if !codegen.CstJoin(types.JoinTy{Alts: []types.Ty{types.NamedTy{Name: "A", Kind: 's'}, types.NodeTy{Value: types.TyTop}, types.TyErr}}) {
 		t.Error("cstJoin does not count a raw node[_] member next to error as an open node")
 	}
 	src := `type Block = { Body []Stmt }

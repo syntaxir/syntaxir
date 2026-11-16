@@ -9,6 +9,8 @@ import (
 
 	"zeroparse.dev/zp/grammar"
 	"zeroparse.dev/zp/internal/compile"
+	"zeroparse.dev/zp/internal/frontend/check"
+	"zeroparse.dev/zp/internal/frontend/types"
 	"zeroparse.dev/zp/schema"
 )
 
@@ -55,7 +57,7 @@ func Export(p *compile.Program, start string, allRules bool) (*schema.Output, er
 			continue
 		}
 		shape := schema.Shape{Kind: "struct"}
-		for _, f := range compile.DefFields(spec) {
+		for _, f := range check.DefFields(spec) {
 			fieldShape, err := declared(p, f.Type)
 			if err != nil {
 				return nil, fmt.Errorf("schema type %q field %q: %w", td.DeclName(), f.Name, err)
@@ -172,42 +174,42 @@ func cutPrefix(s, prefix string) (string, bool) {
 
 // declared describes the type a field declares.
 func declared(p *compile.Program, t grammar.TypeExpr) (schema.Shape, error) {
-	k := &compile.TypeResolver{Prog: p.Checker()}
+	k := &check.TypeResolver{Prog: p.Checker()}
 	return shapeOf(k.Resolve(t))
 }
 
 // shapeOf describes a type of the value model.
-func shapeOf(t compile.Ty) (schema.Shape, error) {
+func shapeOf(t types.Ty) (schema.Shape, error) {
 	switch t := t.(type) {
-	case compile.BasicTy:
+	case types.BasicTy:
 		switch t {
-		case compile.TyBottom:
+		case types.TyBottom:
 			return schema.Shape{Kind: "join"}, nil // no values
-		case compile.TyInt, compile.TyString, compile.TyBool:
+		case types.TyInt, types.TyString, types.TyBool:
 			return schema.Shape{Kind: "scalar", Scalar: string(t)}, nil
-		case compile.TyNil:
+		case types.TyNil:
 			return schema.Shape{Kind: "nil"}, nil
-		case compile.TyErr:
+		case types.TyErr:
 			return schema.Shape{Kind: "error"}, nil
-		case compile.TyTop, compile.TyAny:
+		case types.TyTop, types.TyAny:
 			return schema.Shape{Kind: "top"}, nil
 		}
 		return schema.Shape{}, fmt.Errorf("unsupported schema type %q", t)
-	case compile.NamedTy:
-		if t == compile.TyMissing {
+	case types.NamedTy:
+		if t == types.TyMissing {
 			return schema.Shape{Kind: "missing"}, nil
 		}
 		if t.Kind != 's' {
-			v := compile.FromLegacy(t)
-			if n, ok := v.(compile.NamedTy); !ok || n.Kind == 's' {
+			v := types.FromLegacy(t)
+			if n, ok := v.(types.NamedTy); !ok || n.Kind == 's' {
 				return shapeOf(v)
 			}
 			return schema.Shape{}, fmt.Errorf("unresolved schema type %s", t.Name)
 		}
 		return schema.Shape{Kind: "ref", Ref: "declared/" + t.Name}, nil
-	case compile.RuleTy:
+	case types.RuleTy:
 		return schema.Shape{Kind: "ref", Ref: "inferred/" + t.Name}, nil
-	case compile.NodeTy:
+	case types.NodeTy:
 		if t.Name != "" {
 			return schema.Shape{Kind: "ref", Ref: "declared/" + t.Name}, nil
 		}
@@ -223,7 +225,7 @@ func shapeOf(t compile.Ty) (schema.Shape, error) {
 			name  string
 			paths [][]int
 			side  bool
-			types []compile.Ty
+			types []types.Ty
 		}
 		var groups []*capGroup
 		index := map[string]*capGroup{}
@@ -244,14 +246,14 @@ func shapeOf(t compile.Ty) (schema.Shape, error) {
 		}
 		sort.Slice(groups, func(i, j int) bool { return groups[i].name < groups[j].name })
 		for _, g := range groups {
-			cs, err := shapeOf(compile.Vjoin(g.types...))
+			cs, err := shapeOf(types.Vjoin(g.types...))
 			if err != nil {
 				return schema.Shape{}, fmt.Errorf("capture %s: %w", g.name, err)
 			}
 			s.Captures = append(s.Captures, schema.Capture{Name: g.name, Paths: g.paths, Side: g.side, Shape: cs})
 		}
 		return s, nil
-	case compile.TupleTy:
+	case types.TupleTy:
 		s := schema.Shape{Kind: "tuple"}
 		for _, e := range t.Elems {
 			es, err := shapeOf(e)
@@ -261,13 +263,13 @@ func shapeOf(t compile.Ty) (schema.Shape, error) {
 			s.Elements = append(s.Elements, es)
 		}
 		return s, nil
-	case compile.ListTy:
+	case types.ListTy:
 		e, err := shapeOf(t.Elem)
 		return schema.Shape{Kind: "list", Element: &e}, err
-	case compile.OptTy:
+	case types.OptTy:
 		e, err := shapeOf(t.Elem)
 		return schema.Shape{Kind: "optional", Element: &e}, err
-	case compile.JoinTy:
+	case types.JoinTy:
 		s := schema.Shape{Kind: "join"}
 		for _, a := range t.Alts {
 			v, err := shapeOf(a)
@@ -278,8 +280,8 @@ func shapeOf(t compile.Ty) (schema.Shape, error) {
 		}
 		sortSchemaAlternatives(s.Alternatives)
 		return s, nil
-	case compile.RecordTy:
-		return shapeOf(compile.FromLegacy(t))
+	case types.RecordTy:
+		return shapeOf(types.FromLegacy(t))
 	}
 	return schema.Shape{}, fmt.Errorf("unresolved schema type %T", t)
 }

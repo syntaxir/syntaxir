@@ -16,6 +16,7 @@ import (
 	"zeroparse.dev/zp/internal/codegen"
 	"zeroparse.dev/zp/internal/compile"
 	"zeroparse.dev/zp/internal/frontend/check"
+	"zeroparse.dev/zp/internal/frontend/types"
 	"zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/ir/exec"
 	"zeroparse.dev/zp/internal/ir/flow"
@@ -298,12 +299,12 @@ func (g *Generator) fieldCheckSource() string {
 }
 
 // tsFieldTypeDecl declares the check type variable v.
-func tsFieldTypeDecl(v string, t *compile.FieldType) string {
+func tsFieldTypeDecl(v string, t *types.FieldType) string {
 	return fmt.Sprintf("const %s: FieldType = %s;\n", v, tsFieldType(t))
 }
 
 // tsFieldType writes a field type as a generated FieldType value.
-func tsFieldType(t *compile.FieldType) string {
+func tsFieldType(t *types.FieldType) string {
 	elem := "null"
 	if t.Elem != nil {
 		elem = tsFieldType(t.Elem)

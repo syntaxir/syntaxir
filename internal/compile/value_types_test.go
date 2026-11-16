@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 	"zeroparse.dev/zp/internal/diagnostic"
+	"zeroparse.dev/zp/internal/frontend/types"
 )
 
 // The value types of rules follow the value model (spec/language/types.md).
@@ -113,7 +114,7 @@ func TestValueTypesOfRepositoryGrammars(t *testing.T) {
 		}
 		p.Checker().ValueErrors() // checks every action without failing
 		for _, rd := range g.Rules() {
-			if v, ok := p.ValueTypes()[rd.Name]; !ok || v == nil || v == TyBottom {
+			if v, ok := p.ValueTypes()[rd.Name]; !ok || v == nil || v == types.TyBottom {
 				t.Errorf("%s: rule %s has value type %v", path, rd.Name, v)
 			}
 		}
@@ -130,11 +131,11 @@ func TestValueTypesOptionalCaptures(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	outer := p.ValueTypes()["a"].(NodeTy)
+	outer := p.ValueTypes()["a"].(types.NodeTy)
 	if len(outer.Caps) != 1 || outer.Caps[0].T.String() != "*b" {
 		t.Fatalf("outer captures %+v", outer.Caps)
 	}
-	inner := outer.Value.(TupleTy).Elems[0].(OptTy).Elem.(NodeTy)
+	inner := outer.Value.(types.TupleTy).Elems[0].(types.OptTy).Elem.(types.NodeTy)
 	if len(inner.Caps) != 1 || inner.Caps[0].T.String() != "b" {
 		t.Fatalf("inner captures %+v", inner.Caps)
 	}
@@ -142,7 +143,7 @@ func TestValueTypesOptionalCaptures(t *testing.T) {
 
 // valueTypesOf builds src without running the type check, as a compiled grammar is rebuilt, and returns the value types of its rules and
 // the errors of its actions.
-func valueTypesOf(t *testing.T, src string) (map[string]Ty, diagnostic.ErrorList) {
+func valueTypesOf(t *testing.T, src string) (map[string]types.Ty, diagnostic.ErrorList) {
 	t.Helper()
 	g, err := parseTest(src)
 	if err != nil {

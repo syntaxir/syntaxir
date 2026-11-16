@@ -6,6 +6,7 @@ import (
 	"zeroparse.dev/zp/internal/cancel"
 
 	"zeroparse.dev/zp/grammar"
+	"zeroparse.dev/zp/internal/frontend/check"
 )
 
 // markMissingRules records transitive insertion dependencies before matchers or
@@ -59,7 +60,7 @@ func (prog *Program) markMissingRules(control *cancel.Control) {
 	for _, td := range control.Types(prog.Grammar) {
 		switch t := td.(type) {
 		case *grammar.TypeDef:
-			for _, f := range DefFields(t) {
+			for _, f := range check.DefFields(t) {
 				if usesMissingType(f.Type) {
 					prog.HasMissing = true
 				}

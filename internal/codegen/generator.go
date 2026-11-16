@@ -9,6 +9,7 @@ import (
 	"zeroparse.dev/zp/internal/compile"
 	"zeroparse.dev/zp/internal/frontend/check"
 	irbuild "zeroparse.dev/zp/internal/frontend/elaborate"
+	"zeroparse.dev/zp/internal/frontend/types"
 	"zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/ir/exec"
 	"zeroparse.dev/zp/internal/ir/exec/lower"
@@ -75,7 +76,7 @@ type Generator struct {
 
 // FieldTypeVar returns the variable holding check type ft of key, declaring it with decl the
 // first time.
-func (g *Generator) FieldTypeVar(key any, ft compile.Ty, decl func(v string, t *compile.FieldType) string) string {
+func (g *Generator) FieldTypeVar(key any, ft types.Ty, decl func(v string, t *types.FieldType) string) string {
 	v, ok := g.FieldTypes[key]
 	if !ok {
 		if g.FieldTypes == nil {
@@ -84,7 +85,7 @@ func (g *Generator) FieldTypeVar(key any, ft compile.Ty, decl func(v string, t *
 		v = fmt.Sprintf("fieldType%d", len(g.FieldTypes)+1)
 		g.FieldTypes[key] = v
 		g.fieldTypeKeys = append(g.fieldTypeKeys, key)
-		g.Vars.WriteString(decl(v, compile.NewFieldType(ft)))
+		g.Vars.WriteString(decl(v, types.NewFieldType(ft)))
 	}
 	return v
 }
@@ -352,17 +353,17 @@ func (g *Generator) GuardedClasses() bool {
 // CstJoin reports whether the join has members that stay *Node. The members are read as
 // joinMembers writes them, so a join that is spelled with node[_] or error has the same answer as
 // the alias that names it: node[_] stays a node, and error converts to an Error.
-func CstJoin(u compile.JoinTy) bool {
-	if m, ok := compile.JoinMembers(u).(compile.JoinTy); ok {
+func CstJoin(u types.JoinTy) bool {
+	if m, ok := check.JoinMembers(u).(types.JoinTy); ok {
 		u = m
 	}
 	for _, a := range u.Alts {
 		switch a := a.(type) {
-		case compile.NamedTy:
-			if a.Kind == 'c' && a != compile.TyMatch && a != compile.TyError {
+		case types.NamedTy:
+			if a.Kind == 'c' && a != types.TyMatch && a != types.TyError {
 				return true
 			}
-		case compile.BasicTy, compile.ListTy, compile.RecordTy:
+		case types.BasicTy, types.ListTy, types.RecordTy:
 			return true
 		}
 	}

@@ -3,39 +3,9 @@ package compile
 import (
 	"zeroparse.dev/zp/grammar"
 	"zeroparse.dev/zp/internal/bytecode"
+	"zeroparse.dev/zp/internal/frontend/check"
 	"zeroparse.dev/zp/internal/frontend/types"
 )
-
-// The field types live in internal/frontend/types; these aliases keep the packages that name them
-// through compile building and go with the other type aliases.
-
-type FieldType = types.FieldType
-
-const (
-	FtInt        = types.FtInt
-	FtString     = types.FtString
-	FtBool       = types.FtBool
-	FtNil        = types.FtNil
-	FtNode       = types.FtNode
-	FtNamed      = types.FtNamed
-	FtStringNode = types.FtStringNode
-	FtError      = types.FtError
-	FtMissing    = types.FtMissing
-	FtList       = types.FtList
-	FtOptional   = types.FtOptional
-	FtJoin       = types.FtJoin
-	FtNodeOf     = types.FtNodeOf
-	FtTuple      = types.FtTuple
-	FtTop        = types.FtTop
-)
-
-// NewFieldType is types.NewFieldType.
-func NewFieldType(t Ty) *FieldType { return types.NewFieldType(t) }
-
-// ParseFieldType is types.ParseFieldType.
-func ParseFieldType(text string, declared map[string]bool) (*FieldType, error) {
-	return types.ParseFieldType(text, declared)
-}
 
 // ValidateModule checks the module m (bytecode.ValidateModule), with the field types parsed against
 // the types that m declares.
@@ -45,7 +15,7 @@ func ValidateModule(m *bytecode.Module) error {
 		if typeNames == nil {
 			typeNames = ModuleTypeNames(m)
 		}
-		_, err := ParseFieldType(text, typeNames)
+		_, err := types.ParseFieldType(text, typeNames)
 		return err
 	})
 }
@@ -63,27 +33,27 @@ func ModuleTypeNames(m *bytecode.Module) map[string]bool {
 
 // ResolveCheck resolves a type for a cast, as a value type. It returns nil for _, which every
 // value fits.
-func (prog *Program) ResolveCheck(t grammar.TypeExpr) Ty {
+func (prog *Program) ResolveCheck(t grammar.TypeExpr) types.Ty {
 	if t == nil {
 		return nil
 	}
-	if r := (&TypeResolver{Prog: prog.Checker()}).Resolve(t); NewFieldType(r) != nil {
+	if r := (&check.TypeResolver{Prog: prog.Checker()}).Resolve(t); types.NewFieldType(r) != nil {
 		return r
 	}
 	return nil
 }
 
 // CastType returns the type cast t checks its value against, or nil if every value fits it.
-func (prog *Program) CastType(t *grammar.Cast) *FieldType {
+func (prog *Program) CastType(t *grammar.Cast) *types.FieldType {
 	if v, ok := prog.fieldTypes.Load(t); ok {
-		return v.(*FieldType)
+		return v.(*types.FieldType)
 	}
-	var ft *FieldType
+	var ft *types.FieldType
 	if r := prog.ResolveCheck(t.Type); r != nil {
-		ft = NewFieldType(r)
+		ft = types.NewFieldType(r)
 	}
 	v, _ := prog.fieldTypes.LoadOrStore(t, ft)
-	return v.(*FieldType)
+	return v.(*types.FieldType)
 }
 
 // CastPos returns the grammar position of the cast t as line and column, or 0, 0 when the program

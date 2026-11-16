@@ -9,6 +9,7 @@ import (
 	"zeroparse.dev/zp/grammar"
 	"zeroparse.dev/zp/internal/compile"
 	"zeroparse.dev/zp/internal/frontend/check"
+	"zeroparse.dev/zp/internal/frontend/types"
 	"zeroparse.dev/zp/internal/testing/compiletest"
 	"zeroparse.dev/zp/schema"
 )
@@ -33,7 +34,7 @@ func TestOutputSchemaEmptyJoinRoundTrip(t *testing.T) {
 rule main = "a"`); !strings.Contains(message, "no values") {
 		t.Fatalf("field without values: %s", message)
 	}
-	empty, err := shapeOf(compile.TyBottom)
+	empty, err := shapeOf(types.TyBottom)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,12 +57,12 @@ rule main = "a"`); !strings.Contains(message, "no values") {
 }
 
 func TestOutputSchemaInferredCaptureAndDynamic(t *testing.T) {
-	shape, err := shapeOf(compile.NodeTy{
-		Value: compile.TupleTy{Elems: []compile.Ty{compile.TyStringNode, compile.TyTop, compile.OptTy{Elem: compile.ListTy{Elem: compile.TyString}}}},
-		Caps: []compile.CapIndex{
-			{Name: "z", Paths: [][]int{{1}}, T: compile.TyTop},
-			{Name: "a", Paths: [][]int{{2}, {0}}, T: compile.OptTy{Elem: compile.ListTy{Elem: compile.TyString}}},
-			{Name: "s", Side: true, T: compile.TyStringNode},
+	shape, err := shapeOf(types.NodeTy{
+		Value: types.TupleTy{Elems: []types.Ty{types.TyStringNode, types.TyTop, types.OptTy{Elem: types.ListTy{Elem: types.TyString}}}},
+		Caps: []types.CapIndex{
+			{Name: "z", Paths: [][]int{{1}}, T: types.TyTop},
+			{Name: "a", Paths: [][]int{{2}, {0}}, T: types.OptTy{Elem: types.ListTy{Elem: types.TyString}}},
+			{Name: "s", Side: true, T: types.TyStringNode},
 		},
 	})
 	if err != nil {
@@ -74,7 +75,7 @@ func TestOutputSchemaInferredCaptureAndDynamic(t *testing.T) {
 		len(shape.Captures[1].Paths) != 0 || shape.Captures[2].Name != "z" || shape.Captures[2].Shape.Kind != "top" {
 		t.Fatalf("shape %+v", shape)
 	}
-	joinShape, err := shapeOf(compile.JoinTy{Alts: []compile.Ty{compile.TyString, compile.TyInt}})
+	joinShape, err := shapeOf(types.JoinTy{Alts: []types.Ty{types.TyString, types.TyInt}})
 	if err != nil || len(joinShape.Alternatives) != 2 {
 		t.Fatalf("join %+v %v", joinShape, err)
 	}
@@ -99,12 +100,12 @@ func TestOutputSchemaRejectsUnresolvedShapes(t *testing.T) {
 	if message := compileError(t, "type T = { F UnknownShape }\nrule main = \"a\""); !strings.Contains(message, "UnknownShape") {
 		t.Errorf("undefined field type: %s", message)
 	}
-	for _, inferred := range []compile.Ty{compile.BasicTy("other"), compile.NamedTy{Name: "Known", Kind: '?'}, (*compile.ListTy)(nil)} {
+	for _, inferred := range []types.Ty{types.BasicTy("other"), types.NamedTy{Name: "Known", Kind: '?'}, (*types.ListTy)(nil)} {
 		if shape, err := shapeOf(inferred); err == nil {
 			t.Errorf("accepted unresolved inferred shape %T: %+v", inferred, shape)
 		}
 	}
-	if shape, err := shapeOf(compile.TyBottom); err != nil || shape.Kind != "join" || len(shape.Alternatives) != 0 {
+	if shape, err := shapeOf(types.TyBottom); err != nil || shape.Kind != "join" || len(shape.Alternatives) != 0 {
 		t.Errorf("_|_ is not the empty join: %+v %v", shape, err)
 	}
 }
@@ -112,14 +113,14 @@ func TestOutputSchemaRejectsUnresolvedShapes(t *testing.T) {
 // TestOutputSchemaCaptureOrderIndependent checks that the capture entries of a node do not depend on
 // the order in which the captures are listed.
 func TestOutputSchemaCaptureOrderIndependent(t *testing.T) {
-	caps := []compile.CapIndex{
-		{Name: "b", Paths: [][]int{{1}}, T: compile.TyString},
-		{Name: "a", Paths: [][]int{{0}}, T: compile.ListTy{Elem: compile.TyString}},
-		{Name: "a", Paths: [][]int{{2}}, T: compile.TyString},
+	caps := []types.CapIndex{
+		{Name: "b", Paths: [][]int{{1}}, T: types.TyString},
+		{Name: "a", Paths: [][]int{{0}}, T: types.ListTy{Elem: types.TyString}},
+		{Name: "a", Paths: [][]int{{2}}, T: types.TyString},
 	}
-	reversed := []compile.CapIndex{caps[2], caps[1], caps[0]}
-	render := func(caps []compile.CapIndex) string {
-		v, err := shapeOf(compile.NodeTy{Value: compile.TyString, Caps: caps})
+	reversed := []types.CapIndex{caps[2], caps[1], caps[0]}
+	render := func(caps []types.CapIndex) string {
+		v, err := shapeOf(types.NodeTy{Value: types.TyString, Caps: caps})
 		if err != nil {
 			t.Fatal(err)
 		}

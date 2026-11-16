@@ -6,6 +6,7 @@ import (
 	"zeroparse.dev/zp/internal/frontend/check"
 
 	"zeroparse.dev/zp/grammar"
+	"zeroparse.dev/zp/internal/frontend/types"
 )
 
 // A grammar that default-value mode accepts because it drops the actions is accepted with inline
@@ -121,18 +122,18 @@ func TestPruneSpliceTypesFollowsTheStructureOfTypes(t *testing.T) {
 	rules := p.Grammar.Rules()
 	for _, c := range []struct {
 		name string
-		main Ty
+		main types.Ty
 		kept bool
 	}{
-		{"element", TupleTy{Elems: []Ty{TyStringNode, OptTy{Elem: RuleTy{Name: "_m"}}}}, true},
-		{"list", ListTy{Elem: RuleTy{Name: "_m"}}, true},
-		{"join", JoinTy{Alts: []Ty{TyStringNode, RuleTy{Name: "_m"}}}, true},
-		{"capture", NodeTy{Value: TyStringNode, Caps: []CapIndex{{Name: "x", Paths: [][]int{{0}}, T: RuleTy{Name: "_m"}}}}, true},
-		{"capture set", NodeTy{Value: TyStringNode, Caps: []CapIndex{{Name: "x", Paths: [][]int{{0}}, T: TyStringNode, Maybe: true, Set: RuleTy{Name: "_m"}}}}, true},
-		{"no reference", TupleTy{Elems: []Ty{TyStringNode}}, false},
-		{"a name that holds the rule's", RuleTy{Name: "x_m"}, false},
+		{"element", types.TupleTy{Elems: []types.Ty{types.TyStringNode, types.OptTy{Elem: types.RuleTy{Name: "_m"}}}}, true},
+		{"list", types.ListTy{Elem: types.RuleTy{Name: "_m"}}, true},
+		{"join", types.JoinTy{Alts: []types.Ty{types.TyStringNode, types.RuleTy{Name: "_m"}}}, true},
+		{"capture", types.NodeTy{Value: types.TyStringNode, Caps: []types.CapIndex{{Name: "x", Paths: [][]int{{0}}, T: types.RuleTy{Name: "_m"}}}}, true},
+		{"capture set", types.NodeTy{Value: types.TyStringNode, Caps: []types.CapIndex{{Name: "x", Paths: [][]int{{0}}, T: types.TyStringNode, Maybe: true, Set: types.RuleTy{Name: "_m"}}}}, true},
+		{"no reference", types.TupleTy{Elems: []types.Ty{types.TyStringNode}}, false},
+		{"a name that holds the rule's", types.RuleTy{Name: "x_m"}, false},
 	} {
-		out := check.PruneSpliceTypes(p.Checker(), rules, map[string]Ty{"main": c.main, "_m": TyStringNode})
+		out := check.PruneSpliceTypes(p.Checker(), rules, map[string]types.Ty{"main": c.main, "_m": types.TyStringNode})
 		if _, got := out["_m"]; got != c.kept {
 			t.Errorf("%s: kept %v, want %v", c.name, got, c.kept)
 		}

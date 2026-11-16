@@ -9,6 +9,7 @@ import (
 	"zeroparse.dev/zp/grammar"
 	"zeroparse.dev/zp/internal/compile"
 	"zeroparse.dev/zp/internal/frontend/elaborate"
+	"zeroparse.dev/zp/internal/frontend/types"
 	"zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/testing/compiletest"
 )
@@ -69,7 +70,7 @@ func typeString(x core.Type) string {
 	if x == nil {
 		return "<nil>"
 	}
-	return x.(compile.Ty).String()
+	return x.(types.Ty).String()
 }
 
 // TestCoreBuildTypes checks that the module carries the checked types: named types, rule values,

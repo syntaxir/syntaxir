@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"zeroparse.dev/zp/internal/compile"
 	"zeroparse.dev/zp/internal/frontend/check"
+	"zeroparse.dev/zp/internal/frontend/types"
 	irc "zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/ir/exec"
 	"zeroparse.dev/zp/internal/ir/exec/lower"
@@ -234,7 +234,7 @@ func loweredTermNames() []string {
 
 // castTypeVar returns the variable of the checked type of the cast x.
 func (g *Generator) castTypeVar(x *irc.Cast) string {
-	return g.FieldTypeVar(x.Key, x.Check.(compile.Ty), func(v string, t *compile.FieldType) string {
+	return g.FieldTypeVar(x.Key, x.Check.(types.Ty), func(v string, t *types.FieldType) string {
 		return fmt.Sprintf("var %s = %s\n", v, goFieldType(t))
 	})
 }

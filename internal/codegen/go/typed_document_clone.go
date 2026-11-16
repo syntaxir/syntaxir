@@ -5,51 +5,51 @@ import (
 	"strings"
 
 	"zeroparse.dev/zp/internal/codegen"
-	"zeroparse.dev/zp/internal/compile"
+	"zeroparse.dev/zp/internal/frontend/types"
 )
 
 // documentClone emits the CloneValue path, which copies the private values retained
 // by a typed Document into independent values. Cloning uses an explicit task stack for recursive structs.
-func (t *TypedGen) documentClone(b *strings.Builder, result compile.Ty) string {
+func (t *TypedGen) documentClone(b *strings.Builder, result types.Ty) string {
 	var methods, tasks strings.Builder
 	listNames := map[string]string{}
 	var lists []listConv
-	var clone func(compile.Ty, string) string
-	clone = func(x compile.Ty, value string) string {
+	var clone func(types.Ty, string) string
+	clone = func(x types.Ty, value string) string {
 		switch x := x.(type) {
-		case compile.BasicTy:
-			if x == compile.TyInt || x == compile.TyString || x == compile.TyBool {
+		case types.BasicTy:
+			if x == types.TyInt || x == types.TyString || x == types.TyBool {
 				return value
 			}
-			if x == compile.TyErr {
+			if x == types.TyErr {
 				return "c.toError(" + value + ")"
 			}
 			return "c.toOpen(" + value + ")"
 		case codegen.Vrule:
 			return "c." + t.chelpers.get("cv", "rule "+x.Name, x) + "(" + value + ")"
-		case compile.TupleTy:
+		case types.TupleTy:
 			if len(x.Elems) == 0 {
 				return value
 			}
 			return "c." + t.chelpers.get("cv", t.goType(x), x) + "(" + value + ")"
-		case compile.NodeTy:
-			if x.Name == "" && (x.Value == compile.TyTop || x.Value == compile.TyAny) {
+		case types.NodeTy:
+			if x.Name == "" && (x.Value == types.TyTop || x.Value == types.TyAny) {
 				return "c.toNode(" + value + ")"
 			}
 			return "c." + t.chelpers.get("cv", t.goType(x), x) + "(" + value + ")"
-		case compile.RecordTy:
+		case types.RecordTy:
 			return "c.toNode(" + value + ")"
-		case compile.NamedTy:
+		case types.NamedTy:
 			name := convName(x.Name)
-			if x == compile.TyMatch {
+			if x == types.TyMatch {
 				name = "toMatch"
-			} else if x == compile.TyError {
+			} else if x == types.TyError {
 				name = "toError"
 			} else if x.Kind == 'c' {
 				name = "toNode"
 			}
 			return "c." + name + "(" + value + ")"
-		case compile.JoinTy:
+		case types.JoinTy:
 			if name, ok := t.Joins[x.String()]; ok {
 				return "c." + convName(name) + "(" + value + ")"
 			}
@@ -57,15 +57,15 @@ func (t *TypedGen) documentClone(b *strings.Builder, result compile.Ty) string {
 				return clone(x.Alts[0], value)
 			}
 			return "c.toOpen(" + value + ")"
-		case compile.OptTy:
-			if scalar, ok := x.Elem.(compile.BasicTy); ok && (scalar == compile.TyInt || scalar == compile.TyString || scalar == compile.TyBool) {
+		case types.OptTy:
+			if scalar, ok := x.Elem.(types.BasicTy); ok && (scalar == types.TyInt || scalar == types.TyString || scalar == types.TyBool) {
 				return "typedDocumentClonePointer(c, " + value + ")"
 			}
-			if _, ok := x.Elem.(compile.TupleTy); ok {
+			if _, ok := x.Elem.(types.TupleTy); ok {
 				return "c." + t.chelpers.get("cv", t.goType(x), x) + "(" + value + ")"
 			}
 			return clone(x.Elem, value)
-		case compile.ListTy:
+		case types.ListTy:
 			key := t.goType(x)
 			name := listNames[key]
 			if name == "" {
@@ -93,27 +93,27 @@ func (t *TypedGen) documentClone(b *strings.Builder, result compile.Ty) string {
 }
 `, terminal.name, terminal.chunk, terminal.goType)
 	}
-	var containsStruct func(compile.Ty) bool
-	containsStruct = func(x compile.Ty) bool {
+	var containsStruct func(types.Ty) bool
+	containsStruct = func(x types.Ty) bool {
 		switch x := x.(type) {
-		case compile.BasicTy:
-			return x != compile.TyInt && x != compile.TyString && x != compile.TyBool // an open value may hold one
-		case compile.RecordTy:
+		case types.BasicTy:
+			return x != types.TyInt && x != types.TyString && x != types.TyBool // an open value may hold one
+		case types.RecordTy:
 			return true
-		case compile.NamedTy:
+		case types.NamedTy:
 			_, ok := t.Info.Fields[x.Name]
 			return ok || x.Kind == 'c'
-		case compile.OptTy:
+		case types.OptTy:
 			return containsStruct(x.Elem)
-		case compile.ListTy:
+		case types.ListTy:
 			return containsStruct(x.Elem)
-		case compile.JoinTy:
+		case types.JoinTy:
 			for _, a := range x.Alts {
 				if containsStruct(a) {
 					return true
 				}
 			}
-		case codegen.Vrule, compile.TupleTy, compile.NodeTy:
+		case codegen.Vrule, types.TupleTy, types.NodeTy:
 			return true
 		}
 		return false
@@ -217,15 +217,15 @@ func (c *typedDocumentClone) toElems(v []any) []any {
 			switch x := h.x.(type) {
 			case codegen.Vrule:
 				fmt.Fprintf(&methods, " return %s\n", clone(t.Vres[x.Name], "v"))
-			case compile.OptTy:
+			case types.OptTy:
 				fmt.Fprintf(&methods, " if v == nil { return nil }\n x := %s\n return &x\n", clone(x.Elem, "*v"))
-			case compile.TupleTy:
+			case types.TupleTy:
 				methods.WriteString(" out := v\n")
 				for j, e := range x.Elems {
 					fmt.Fprintf(&methods, " out.E%d = %s\n", j, clone(e, fmt.Sprintf("v.E%d", j)))
 				}
 				methods.WriteString(" return out\n")
-			case compile.NodeTy:
+			case types.NodeTy:
 				if x.Name != "" {
 					// A node of a named node type clones the node it embeds.
 					fmt.Fprintf(&methods, " if v == nil { return nil }\n if old, ok := c.Values[v]; ok { return old.(%s) }\n out := &%s{}\n c.Remember(v, out)\n if u := %s; u != nil { out.TNode = *u }\n return out\n", g, g[1:], clone(x.Underlying(), "&v.TNode"))

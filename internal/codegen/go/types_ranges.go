@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"zeroparse.dev/zp/internal/compile"
+	"zeroparse.dev/zp/internal/frontend/types"
 )
 
 // The range of a list or a tuple that an action reads from a field of a struct is the range it had where it
@@ -27,9 +27,9 @@ const (
 
 // carrierTy reports whether a value of type x is a list or a tuple, which has a range of its own that a Go
 // value does not keep.
-func carrierTy(x compile.Ty) bool {
+func carrierTy(x types.Ty) bool {
 	switch x.(type) {
-	case compile.ListTy, compile.TupleTy:
+	case types.ListTy, types.TupleTy:
 		return true
 	}
 	return false
@@ -37,11 +37,11 @@ func carrierTy(x compile.Ty) bool {
 
 // nestsCarrier reports whether a list or a tuple of type x holds another list or tuple, or a value that
 // holds one, as an element.
-func nestsCarrier(x compile.Ty) bool {
+func nestsCarrier(x types.Ty) bool {
 	switch x := x.(type) {
-	case compile.ListTy:
+	case types.ListTy:
 		return carrierTy(x.Elem) || nestsCarrier(x.Elem)
-	case compile.TupleTy:
+	case types.TupleTy:
 		for _, e := range x.Elems {
 			if carrierTy(e) || nestsCarrier(e) {
 				return true
@@ -52,7 +52,7 @@ func nestsCarrier(x compile.Ty) bool {
 }
 
 // rangeKind returns what the field name of type x keeps of the ranges of its lists and tuples.
-func (t *TypedGen) rangeKind(name string, x compile.Ty) int {
+func (t *TypedGen) rangeKind(name string, x types.Ty) int {
 	switch {
 	case !t.direct || !t.reads[name] || !carrierTy(x):
 		return rangeNone
@@ -113,7 +113,7 @@ func (t *TypedGen) hasRanges(name string) bool {
 // readField returns the Go expression that reads the field name of type x of the struct v (a Go expression
 // of the struct), as a value of the typed library: back, or backSpend if spend, and with the ranges that the
 // struct keeps for it if it keeps any.
-func (t *TypedGen) readField(name string, x compile.Ty, v string, spend bool) string {
+func (t *TypedGen) readField(name string, x types.Ty, v string, spend bool) string {
 	expr := "v." + t.fieldGo(name)
 	var cursor string
 	switch t.rangeKind(name, x) {
@@ -133,9 +133,9 @@ func (t *TypedGen) readField(name string, x compile.Ty, v string, spend bool) st
 // backRanged is back (backSpend if spend) for a list or a tuple whose range, and the range of each list and
 // tuple in it, the cursor cur (a Go expression of type *zpRangeCursor) hands out, a list or tuple before its
 // elements.
-func (t *TypedGen) backRanged(x compile.Ty, v, cur string, spend bool) string {
+func (t *TypedGen) backRanged(x types.Ty, v, cur string, spend bool) string {
 	switch x := x.(type) {
-	case compile.ListTy:
+	case types.ListTy:
 		step, elem := "", ""
 		if spend {
 			step = strings.ReplaceAll(t.G.step("p"), "\n", "; ")
@@ -146,7 +146,7 @@ func (t *TypedGen) backRanged(x compile.Ty, v, cur string, spend bool) string {
 			done = "zpListFieldAt(p, kids, sp)"
 		}
 		return fmt.Sprintf("func() any { if %[1]s == nil { return nil }; sp := %[2]s.Next(); kids := make([]any, len(%[1]s)); for i, x := range %[1]s { %[3]skids[i] = %[4]s }; return %[5]s }()", v, cur, step, elem, done)
-	case compile.TupleTy:
+	case types.TupleTy:
 		return t.backRangedHelper(x) + "(" + v + ", " + cur + ")"
 	}
 	if spend {
@@ -157,7 +157,7 @@ func (t *TypedGen) backRanged(x compile.Ty, v, cur string, spend bool) string {
 
 // rangedHelper writes the helper h of backRanged: the tuple value of a Go tuple.
 func (t *TypedGen) rangedHelper(b *strings.Builder, h vhelper) {
-	x := h.x.(compile.TupleTy)
+	x := h.x.(types.TupleTy)
 	fmt.Fprintf(b, "func %s(v %s, zc *zpRangeCursor) any {\n", h.name, t.goType(x))
 	if len(x.Elems) == 0 {
 		fmt.Fprintf(b, "\treturn &%s.TSeq{Span: zc.Next(), Typ: %[1]s.TypeTupleValue}\n}\n\n", libAlias)
@@ -176,7 +176,7 @@ func (t *TypedGen) rangedHelper(b *strings.Builder, h vhelper) {
 
 // rangeFunc returns the name of the function that appends to rs the ranges of the list or tuple value v of
 // type x and of those in it, in the order that backRanged takes them.
-func (t *TypedGen) rangeFunc(x compile.Ty) string {
+func (t *TypedGen) rangeFunc(x types.Ty) string {
 	key := t.goType(x)
 	if name, ok := t.rfuncs[key]; ok {
 		return name
@@ -196,12 +196,12 @@ func (t *TypedGen) rangeFuncs(b *strings.Builder) {
 		f := t.rfuncList[i]
 		fmt.Fprintf(b, "// %s appends the ranges of the lists and tuples in the value v, a value of type %s.\nfunc %[1]s(v any, rs []Span) []Span {\n", f.name, f.elem)
 		switch x := f.elem.(type) {
-		case compile.ListTy:
+		case types.ListTy:
 			b.WriteString("\tif v == nil {\n\t\treturn rs\n\t}\n\tn, _ := v.(*TSeq)\n\tif n == nil {\n\t\treturn append(rs, Span{})\n\t}\n\trs = append(rs, n.Span)\n")
 			if carrierTy(x.Elem) {
 				fmt.Fprintf(b, "\tfor _, c := range n.Kids {\n\t\trs = %s(c, rs)\n\t}\n", t.rangeFunc(x.Elem))
 			}
-		case compile.TupleTy:
+		case types.TupleTy:
 			nested := false
 			for _, e := range x.Elems {
 				nested = nested || carrierTy(e)

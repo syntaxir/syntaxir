@@ -16,6 +16,7 @@ import (
 	"zeroparse.dev/zp/internal/codegen"
 	"zeroparse.dev/zp/internal/compile"
 	"zeroparse.dev/zp/internal/frontend/check"
+	"zeroparse.dev/zp/internal/frontend/types"
 	"zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/ir/exec"
 	"zeroparse.dev/zp/internal/ir/flow"
@@ -450,7 +451,7 @@ func ParseRule(name, input string, opts ...ParseOption) (*Node, error) {
 }
 
 // goFieldType writes a field type as a generated fieldType value.
-func goFieldType(t *compile.FieldType) string {
+func goFieldType(t *types.FieldType) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "&FieldType{Kind: %q, Text: %q", rune(t.Kind), t.Text)
 	if t.Name != "" {

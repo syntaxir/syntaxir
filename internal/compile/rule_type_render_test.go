@@ -9,13 +9,13 @@ import (
 )
 
 func TestRuleTypeWithPollParity(t *testing.T) {
-	record := RecordTy{Fields: map[string]Ty{"z": ListTy{Elem: JoinTy{Alts: []Ty{TyMatch, TyNil}}}, "a": OptTy{Elem: TyString}}}
-	cases := []Ty{TyAny, types.TyNever, TyNil, TyInt, TyBool, TyString, TyNode, TyMatch, ListTy{Elem: TyMatch}, OptTy{Elem: TyMatch}, JoinTy{}, JoinTy{Alts: []Ty{TyMatch, types.TySeq, TyMissing}}, record, RecordTy{Fields: map[string]Ty{}}, ListTy{Elem: record},
+	record := types.RecordTy{Fields: map[string]types.Ty{"z": types.ListTy{Elem: types.JoinTy{Alts: []types.Ty{types.TyMatch, types.TyNil}}}, "a": types.OptTy{Elem: types.TyString}}}
+	cases := []types.Ty{types.TyAny, types.TyNever, types.TyNil, types.TyInt, types.TyBool, types.TyString, types.TyNode, types.TyMatch, types.ListTy{Elem: types.TyMatch}, types.OptTy{Elem: types.TyMatch}, types.JoinTy{}, types.JoinTy{Alts: []types.Ty{types.TyMatch, types.TySeq, types.TyMissing}}, record, types.RecordTy{Fields: map[string]types.Ty{}}, types.ListTy{Elem: record},
 		// Value-model types
-		TyTop, TyBottom, RuleTy{Name: "expr"}, NodeTy{Value: TyTop}, NodeTy{Value: ListTy{Elem: TyStringNode}}, TupleTy{Elems: []Ty{TyStringNode}},
-		NodeTy{Value: TupleTy{Elems: []Ty{OptTy{Elem: TyStringNode}, RuleTy{Name: "x"}}}, Caps: []CapIndex{{Name: "a", Paths: [][]int{{0}, {1, 0}}}, {Name: "b", Side: true}}}}
+		types.TyTop, types.TyBottom, types.RuleTy{Name: "expr"}, types.NodeTy{Value: types.TyTop}, types.NodeTy{Value: types.ListTy{Elem: types.TyStringNode}}, types.TupleTy{Elems: []types.Ty{types.TyStringNode}},
+		types.NodeTy{Value: types.TupleTy{Elems: []types.Ty{types.OptTy{Elem: types.TyStringNode}, types.RuleTy{Name: "x"}}}, Caps: []types.CapIndex{{Name: "a", Paths: [][]int{{0}, {1, 0}}}, {Name: "b", Side: true}}}}
 	for _, typ := range cases {
-		p := shownProgram(map[string]Ty{"main": typ})
+		p := shownProgram(map[string]types.Ty{"main": typ})
 		want, known := p.RuleType("main")
 		if !known {
 			t.Fatal("missing test rule")
@@ -34,7 +34,7 @@ func TestRuleTypeWithPollParity(t *testing.T) {
 			t.Fatal("type traversal changed its input")
 		}
 	}
-	for _, p := range []*Program{{}, shownProgram(map[string]Ty{})} {
+	for _, p := range []*Program{{}, shownProgram(map[string]types.Ty{})} {
 		for _, poll := range []func(){nil, func() {}} {
 			if got, ok := p.RuleTypeWithPoll("missing", poll); got != "" || ok {
 				t.Fatalf("missing=%q/%v", got, ok)
@@ -44,13 +44,13 @@ func TestRuleTypeWithPollParity(t *testing.T) {
 }
 
 func TestRuleTypeWithPollCancelsWithinCollections(t *testing.T) {
-	var union JoinTy
-	record := RecordTy{Fields: map[string]Ty{}}
+	var union types.JoinTy
+	record := types.RecordTy{Fields: map[string]types.Ty{}}
 	for i := range 1024 {
-		union.Alts = append(union.Alts, TyMatch)
-		record.Fields[fmt.Sprintf("f%d", i)] = TyMatch
+		union.Alts = append(union.Alts, types.TyMatch)
+		record.Fields[fmt.Sprintf("f%d", i)] = types.TyMatch
 	}
-	for _, typ := range []Ty{union, record, JoinTy{Alts: []Ty{NamedTy{Name: strings.Repeat("x", 1<<20)}, TyMatch}}} {
+	for _, typ := range []types.Ty{union, record, types.JoinTy{Alts: []types.Ty{types.NamedTy{Name: strings.Repeat("x", 1<<20)}, types.TyMatch}}} {
 		func() {
 			marker := &struct{}{}
 			calls := 0
@@ -59,7 +59,7 @@ func TestRuleTypeWithPollCancelsWithinCollections(t *testing.T) {
 					t.Fatalf("%T did not preserve cancellation callback: %v", typ, got)
 				}
 			}()
-			p := shownProgram(map[string]Ty{"main": typ})
+			p := shownProgram(map[string]types.Ty{"main": typ})
 			p.RuleTypeWithPoll("main", func() {
 				calls++
 				if calls == 32 {
@@ -85,9 +85,9 @@ func (t renderProbeTy) String() string {
 }
 func TestRuleTypeWithPollRecursiveReturn(t *testing.T) {
 	done := false
-	var typ Ty = renderProbeTy{done: &done}
+	var typ types.Ty = renderProbeTy{done: &done}
 	for range 1024 {
-		typ = ListTy{Elem: typ}
+		typ = types.ListTy{Elem: typ}
 	}
 	marker := &struct{}{}
 	returns := 0
@@ -115,7 +115,7 @@ func TestRuleTypeWithPollPreservesForeignPanic(t *testing.T) {
 			t.Fatalf("foreign panic changed: %v", got)
 		}
 	}()
-	renderRuleType(ListTy{Elem: renderProbeTy{done: &done, failure: marker}}, func() {
+	renderRuleType(types.ListTy{Elem: renderProbeTy{done: &done, failure: marker}}, func() {
 		if done {
 			panic(replacement)
 		}
@@ -123,7 +123,7 @@ func TestRuleTypeWithPollPreservesForeignPanic(t *testing.T) {
 }
 
 // shownProgram returns a program whose checker and its program hold types that show the types shown.
-func shownProgram(shown map[string]Ty) *Program {
+func shownProgram(shown map[string]types.Ty) *Program {
 	info := check.NewShownInfo(shown)
 	p := &Program{Typed: info}
 	p.Checker().Typed = info

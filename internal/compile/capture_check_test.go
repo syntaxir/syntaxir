@@ -6,22 +6,23 @@ import (
 	"testing"
 	"unicode/utf8"
 	"zeroparse.dev/zp/internal/frontend/check"
+	"zeroparse.dev/zp/internal/frontend/types"
 )
 
 // Compare the capture merger with the join, including values whose top-level optional/union
 // normalization must not be skipped.
 func TestCaptureJoinEquivalence(t *testing.T) {
 	t.Parallel()
-	str := TyStringNode
-	tuple := NodeTy{Value: TupleTy{Elems: []Ty{str, str}}}
-	ts := []Ty{TyAny, TyBottom, TyNil, str, TyInt, TyString, NamedTy{Name: "A", Kind: 's'}, ListTy{Elem: str},
-		OptTy{Elem: str}, OptTy{Elem: OptTy{Elem: str}}, JoinTy{Alts: []Ty{str, tuple}}, JoinTy{Alts: []Ty{tuple, str}},
-		JoinTy{Alts: []Ty{str, str, TyBottom}}, JoinTy{Alts: []Ty{TyAny, str}}, ListTy{Elem: OptTy{Elem: str}},
-		NodeTy{Value: ListTy{Elem: JoinTy{Alts: []Ty{str, tuple}}}}}
+	str := types.TyStringNode
+	tuple := types.NodeTy{Value: types.TupleTy{Elems: []types.Ty{str, str}}}
+	ts := []types.Ty{types.TyAny, types.TyBottom, types.TyNil, str, types.TyInt, types.TyString, types.NamedTy{Name: "A", Kind: 's'}, types.ListTy{Elem: str},
+		types.OptTy{Elem: str}, types.OptTy{Elem: types.OptTy{Elem: str}}, types.JoinTy{Alts: []types.Ty{str, tuple}}, types.JoinTy{Alts: []types.Ty{tuple, str}},
+		types.JoinTy{Alts: []types.Ty{str, str, types.TyBottom}}, types.JoinTy{Alts: []types.Ty{types.TyAny, str}}, types.ListTy{Elem: types.OptTy{Elem: str}},
+		types.NodeTy{Value: types.ListTy{Elem: types.JoinTy{Alts: []types.Ty{str, tuple}}}}}
 	for i, a := range ts {
 		for j, b := range ts {
-			got := check.MergeCap([]CapIndex{{Name: "x", Paths: [][]int{{0}}, T: a}}, CapIndex{Name: "x", Paths: [][]int{{1}}, T: b})
-			if want := Vjoin(a, b); len(got) != 1 || got[0].T.String() != want.String() || len(got[0].Paths) != 2 {
+			got := check.MergeCap([]types.CapIndex{{Name: "x", Paths: [][]int{{0}}, T: a}}, types.CapIndex{Name: "x", Paths: [][]int{{1}}, T: b})
+			if want := types.Vjoin(a, b); len(got) != 1 || got[0].T.String() != want.String() || len(got[0].Paths) != 2 {
 				t.Fatalf("pair %d/%d: got %v, want %s", i, j, got, want)
 			}
 		}

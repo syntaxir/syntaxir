@@ -31,10 +31,10 @@ type Program struct {
 	// an alias resolved from several places, by several checkers, is reported once.
 	unsupportedSeen map[grammar.TypeExpr]bool
 	RuleList        []*Rule
-	DescTable       []string  // expectation table (starting with fixedDescs)
-	Twins           []*Rule   // value-free twins (Rule.Twin); ids start at len(RuleList)
-	NSeen           int       // number of rules with Rule.Seen set
-	Typed           *TypeInfo // types found by the type checker (nil if it did not run)
+	DescTable       []string        // expectation table (starting with fixedDescs)
+	Twins           []*Rule         // value-free twins (Rule.Twin); ids start at len(RuleList)
+	NSeen           int             // number of rules with Rule.Seen set
+	Typed           *check.TypeInfo // types found by the type checker (nil if it did not run)
 	NoProjections   bool
 	// RecordsSourceInfo reports that nodes record source information (Options.SourceInfo).
 	RecordsSourceInfo bool
@@ -488,7 +488,7 @@ func Check(g *grammar.Grammar, opts Options, flags []RuleFlags, names desugar.In
 	}
 	transient := TransientRules(rules, control)
 	vars := ruleVariablesControlled(rules, control)
-	recursive := ruleCycles(rules, prog.defsByName(), control)
+	recursive := check.RuleCycles(rules, prog.defsByName(), control)
 	for i, r := range prog.RuleList {
 		control.Poll()
 		twin := false
@@ -1006,7 +1006,7 @@ func (c *Compiler) flatRefs(e grammar.Expr, out []string) []string {
 			out = c.flatRefs(it, out)
 		}
 	case *grammar.Attributed:
-		if !recovers(e) {
+		if !check.Recovers(e) {
 			out = c.flatRefs(e.Expr, out)
 		}
 	case *grammar.Ref:

@@ -3,6 +3,7 @@ package compile
 import (
 	"slices"
 	"strings"
+	"zeroparse.dev/zp/internal/frontend/types"
 )
 
 // RuleTypeWithPoll is RuleTypeWithPoll.
@@ -21,29 +22,29 @@ func (p *Program) RuleTypeWithPoll(name string, poll func()) (string, bool) {
 	return renderRuleType(t, poll), true
 }
 
-func renderRuleType(t Ty, poll func()) string {
+func renderRuleType(t types.Ty, poll func()) string {
 	poll()
 	finish := func(s string) string { poll(); return s }
-	term := func(t Ty) string {
+	term := func(t types.Ty) string {
 		s := renderRuleType(t, poll)
-		if _, ok := t.(JoinTy); ok {
+		if _, ok := t.(types.JoinTy); ok {
 			return "(" + s + ")"
 		}
 		return s
 	}
 	switch t := t.(type) {
-	case ListTy:
+	case types.ListTy:
 		return finish("[]" + term(t.Elem))
-	case OptTy:
+	case types.OptTy:
 		return finish("*" + term(t.Elem))
-	case JoinTy:
+	case types.JoinTy:
 		parts := make([]string, len(t.Alts))
 		for i, alt := range t.Alts {
 			poll()
 			parts[i] = renderRuleType(alt, poll)
 		}
 		return finish(joinRuleType(parts, " | ", poll))
-	case TupleTy:
+	case types.TupleTy:
 		parts := make([]string, len(t.Elems))
 		for i, e := range t.Elems {
 			poll()
@@ -53,11 +54,11 @@ func renderRuleType(t Ty, poll func()) string {
 			return finish("(" + parts[0] + ",)")
 		}
 		return finish("(" + joinRuleType(parts, ", ", poll) + ")")
-	case NodeTy:
+	case types.NodeTy:
 		if t.Name != "" {
 			return finish(t.Name)
 		}
-		if len(t.Caps) == 0 && t.Value == TyTop {
+		if len(t.Caps) == 0 && t.Value == types.TyTop {
 			return finish("node[_]")
 		}
 		value := renderRuleType(t.Value, poll)
@@ -65,7 +66,7 @@ func renderRuleType(t Ty, poll func()) string {
 			return finish("node[" + value + "]")
 		}
 		return finish("node[" + value + ", " + t.CapsText() + "]")
-	case RecordTy:
+	case types.RecordTy:
 		names := make([]string, 0, len(t.Fields))
 		for name := range t.Fields {
 			poll()

@@ -11,7 +11,7 @@ type checkProgram struct{ p *Program }
 
 func (c checkProgram) Grammar() *grammar.Grammar              { return c.p.Grammar }
 func (c checkProgram) TypeDecls() map[string]grammar.TypeDecl { return c.p.Types }
-func (c checkProgram) Vars() *VarTable                        { return c.p.Vars }
+func (c checkProgram) Vars() *check.VarTable                  { return c.p.Vars }
 
 func (c checkProgram) Rule(name string) check.RuleInfo { return ruleInfo(c.p.ByName[name]) }
 

@@ -16,6 +16,7 @@ import (
 	"zeroparse.dev/zp/internal/codegen/go"
 	"zeroparse.dev/zp/internal/compile"
 	"zeroparse.dev/zp/internal/engine"
+	"zeroparse.dev/zp/internal/frontend/types"
 	"zeroparse.dev/zp/internal/testing/codegentest"
 )
 
@@ -133,8 +134,8 @@ rule num Num = t:([0-9]) #atomic => Num{$t}`, Inputs: []string{"", "a1", "a1b2"}
 		if err != nil {
 			t.Fatal(err)
 		}
-		meta := &gogen.TypedGen{G: &gogen.Generator{Prog: prog.Static()}, Info: prog.Typed, Joins: map[string]string{}, Anon: map[string]compile.JoinTy{}}
-		meta.ValueResolver = codegen.NewValueResolver(prog.Static(), func(x compile.Ty) bool { _, ok := meta.Joins[x.String()]; return ok })
+		meta := &gogen.TypedGen{G: &gogen.Generator{Prog: prog.Static()}, Info: prog.Typed, Joins: map[string]string{}, Anon: map[string]types.JoinTy{}}
+		meta.ValueResolver = codegen.NewValueResolver(prog.Static(), func(x types.Ty) bool { _, ok := meta.Joins[x.String()]; return ok })
 		if err := meta.Name(); err != nil {
 			t.Fatal(err)
 		}

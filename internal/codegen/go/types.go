@@ -10,6 +10,8 @@ import (
 	"zeroparse.dev/zp/grammar"
 	"zeroparse.dev/zp/internal/codegen"
 	"zeroparse.dev/zp/internal/compile"
+	"zeroparse.dev/zp/internal/frontend/check"
+	"zeroparse.dev/zp/internal/frontend/types"
 )
 
 // Typed values in generated parsers (GenOptions.Types).
@@ -52,8 +54,8 @@ func (g *Generator) typedGo(start *compile.Rule, conv bool) (typedOutput, error)
 	if info == nil {
 		return typedOutput{}, fmt.Errorf("typed values need the grammar's types (type checking did not run)")
 	}
-	t := &TypedGen{G: g, Info: info, Joins: map[string]string{}, Anon: map[string]compile.JoinTy{}, lists: map[string]string{}, tlists: map[string]string{}, tupleSizes: map[int]bool{}}
-	t.ValueResolver = codegen.NewValueResolver(g.Prog, func(x compile.Ty) bool { _, ok := t.Joins[x.String()]; return ok })
+	t := &TypedGen{G: g, Info: info, Joins: map[string]string{}, Anon: map[string]types.JoinTy{}, lists: map[string]string{}, tlists: map[string]string{}, tupleSizes: map[int]bool{}}
+	t.ValueResolver = codegen.NewValueResolver(g.Prog, func(x types.Ty) bool { _, ok := t.Joins[x.String()]; return ok })
 	if err := t.Name(); err != nil {
 		return typedOutput{}, err
 	}
@@ -344,14 +346,14 @@ func CloneValue(value %s) %s {
 // that build typed values.
 type TypedGen struct {
 	G    *Generator
-	Info *compile.TypeInfo
+	Info *check.TypeInfo
 	// inTypes is set while the source of the types package is written, where the types of the
 	// grammar are named without a qualifier.
 	inTypes bool
 	// Joins maps the written form of a join type to the name of the alias that declares it, or to
 	// the name that anonJoinName gives an undeclared join; anon holds the latter joins by name.
 	Joins map[string]string
-	Anon  map[string]compile.JoinTy
+	Anon  map[string]types.JoinTy
 	// lists maps the Go type of a list to the name of its converter (from nodes); tlists, to the
 	// name of its converter from values of the typed library.
 	lists      map[string]string
@@ -385,7 +387,7 @@ type TypedGen struct {
 
 type listConv struct {
 	name string
-	elem compile.Ty
+	elem types.Ty
 }
 
 // LibMethodNames are the names the generated structs have for the typed library: the methods
@@ -472,7 +474,7 @@ func (t *TypedGen) Name() error {
 			}
 			t.structs = append(t.structs, name)
 		case *grammar.TypeAlias:
-			if u, ok := t.Info.Aliases[name].(compile.JoinTy); ok && t.nodeJoin(u) {
+			if u, ok := t.Info.Aliases[name].(types.JoinTy); ok && t.nodeJoin(u) {
 				if _, dup := t.Joins[u.String()]; !dup {
 					t.Joins[u.String()] = name
 					t.aliases = append(t.aliases, name)
@@ -526,17 +528,17 @@ func (t *TypedGen) Name() error {
 
 // joinOf returns the join that the interface name stands for: the alias that declares it, or the
 // undeclared join that it is named after.
-func (t *TypedGen) joinOf(name string) compile.JoinTy {
+func (t *TypedGen) joinOf(name string) types.JoinTy {
 	if u, ok := t.Anon[name]; ok {
 		return u
 	}
-	return t.Info.Aliases[name].(compile.JoinTy)
+	return t.Info.Aliases[name].(types.JoinTy)
 }
 
 // nodeJoin reports whether every member of the join is a node type (so it can be an interface).
-func (t *TypedGen) nodeJoin(u compile.JoinTy) bool {
+func (t *TypedGen) nodeJoin(u types.JoinTy) bool {
 	for _, a := range u.Alts {
-		if !compile.IsNode(a) {
+		if !types.IsNode(a) {
 			return false
 		}
 	}
@@ -544,49 +546,49 @@ func (t *TypedGen) nodeJoin(u compile.JoinTy) bool {
 }
 
 // goType returns the Go type of values of type x.
-func (t *TypedGen) goType(x compile.Ty) string {
+func (t *TypedGen) goType(x types.Ty) string {
 	switch x := x.(type) {
-	case compile.BasicTy:
+	case types.BasicTy:
 		switch x {
-		case compile.TyInt, compile.TyString, compile.TyBool:
+		case types.TyInt, types.TyString, types.TyBool:
 			return string(x)
-		case compile.TyErr:
+		case types.TyErr:
 			return "*Error"
 		}
 		return "any"
 	case codegen.Vrule:
 		return t.goType(t.Vres[x.Name])
-	case compile.TupleTy:
+	case types.TupleTy:
 		return t.tupleType(x)
-	case compile.NodeTy:
+	case types.NodeTy:
 		if x.Name != "" {
 			return "*" + t.ref(x.Name)
 		}
-		if x.Value == compile.TyTop || x.Value == compile.TyAny {
+		if x.Value == types.TyTop || x.Value == types.TyAny {
 			return "*TNode[any]"
 		}
 		return "*TNode[" + t.goType(x.Value) + "]"
-	case compile.NamedTy:
+	case types.NamedTy:
 		switch {
-		case x == compile.TyMatch:
+		case x == types.TyMatch:
 			return "*TNode[string]"
-		case x == compile.TyError:
+		case x == types.TyError:
 			return "*Error"
 		case x.Kind == 'c':
 			return "*TNode[any]"
 		}
 		return "*" + t.ref(x.Name)
-	case compile.ListTy:
+	case types.ListTy:
 		return "[]" + t.goType(x.Elem)
-	case compile.OptTy:
-		if b, ok := x.Elem.(compile.BasicTy); ok && (b == compile.TyInt || b == compile.TyString || b == compile.TyBool) {
+	case types.OptTy:
+		if b, ok := x.Elem.(types.BasicTy); ok && (b == types.TyInt || b == types.TyString || b == types.TyBool) {
 			return "*" + string(b)
 		}
-		if _, ok := x.Elem.(compile.TupleTy); ok {
+		if _, ok := x.Elem.(types.TupleTy); ok {
 			return "*" + t.goType(x.Elem)
 		}
 		return t.goType(x.Elem)
-	case compile.JoinTy:
+	case types.JoinTy:
 		if name, ok := t.Joins[x.String()]; ok {
 			return t.ref(name)
 		}
@@ -594,7 +596,7 @@ func (t *TypedGen) goType(x compile.Ty) string {
 			return g
 		}
 		return "any"
-	case compile.RecordTy:
+	case types.RecordTy:
 		return "*TNode[any]"
 	}
 	return "any"
@@ -602,49 +604,49 @@ func (t *TypedGen) goType(x compile.Ty) string {
 
 // conv returns a Go expression of type goType(x) converting the value v (an expression of
 // type any or *Node). Typed values are allocated by the converter a (astConv).
-func (t *TypedGen) conv(x compile.Ty, v string) string {
+func (t *TypedGen) conv(x types.Ty, v string) string {
 	switch x := x.(type) {
-	case compile.BasicTy:
+	case types.BasicTy:
 		switch x {
-		case compile.TyInt:
+		case types.TyInt:
 			return "astInt(" + v + ")"
-		case compile.TyString:
+		case types.TyString:
 			return "astString(" + v + ")"
-		case compile.TyBool:
+		case types.TyBool:
 			return "astBool(" + v + ")"
-		case compile.TyErr:
+		case types.TyErr:
 			return "a.toError(astNode(" + v + "))"
 		}
 		return "a.anyValue(" + v + ")"
 	case codegen.Vrule:
 		return "a." + t.vconvHelper(x) + "(" + v + ")"
-	case compile.TupleTy:
+	case types.TupleTy:
 		if len(x.Elems) == 0 {
 			t.goType(x)
 			return "Unit{}"
 		}
 		return "a." + t.vconvHelper(x) + "(" + v + ")"
-	case compile.NodeTy:
+	case types.NodeTy:
 		switch {
 		case x.Name != "":
 			return "a." + convName(x.Name) + "(astNode(" + v + "))"
-		case x.Value == compile.TyTop || x.Value == compile.TyAny:
+		case x.Value == types.TyTop || x.Value == types.TyAny:
 			return "a.toNode(astNode(" + v + "))"
-		case x.Value == compile.TyString && len(x.Caps) == 0:
+		case x.Value == types.TyString && len(x.Caps) == 0:
 			return "a.toMatch(astNode(" + v + "))"
 		}
 		return "a." + t.vconvHelper(x) + "(" + v + ")"
-	case compile.NamedTy:
+	case types.NamedTy:
 		switch {
-		case x == compile.TyMatch:
+		case x == types.TyMatch:
 			return "a.toMatch(astNode(" + v + "))"
-		case x == compile.TyError:
+		case x == types.TyError:
 			return "a.toError(astNode(" + v + "))"
 		case x.Kind == 'c':
 			return "a.toNode(astNode(" + v + "))"
 		}
 		return "a." + convName(x.Name) + "(astNode(" + v + "))"
-	case compile.ListTy:
+	case types.ListTy:
 		goType := t.goType(x)
 		name, ok := t.lists[goType]
 		if !ok {
@@ -653,15 +655,15 @@ func (t *TypedGen) conv(x compile.Ty, v string) string {
 			t.listOrder = append(t.listOrder, listConv{name, x.Elem})
 		}
 		return "a." + name + "(astNode(" + v + "))"
-	case compile.OptTy:
-		if b, ok := x.Elem.(compile.BasicTy); ok && (b == compile.TyInt || b == compile.TyString || b == compile.TyBool) {
+	case types.OptTy:
+		if b, ok := x.Elem.(types.BasicTy); ok && (b == types.TyInt || b == types.TyString || b == types.TyBool) {
 			return "astPtr" + strings.ToUpper(string(b)[:1]) + string(b)[1:] + "(" + v + ")"
 		}
-		if _, ok := x.Elem.(compile.TupleTy); ok {
+		if _, ok := x.Elem.(types.TupleTy); ok {
 			return "a." + t.vconvHelper(x) + "(" + v + ")"
 		}
 		return t.conv(x.Elem, v)
-	case compile.JoinTy:
+	case types.JoinTy:
 		if name, ok := t.Joins[x.String()]; ok {
 			return "a." + convName(name) + "(astNode(" + v + "))"
 		}
@@ -669,7 +671,7 @@ func (t *TypedGen) conv(x compile.Ty, v string) string {
 			return t.conv(x.Alts[0], v)
 		}
 		return "a.anyValue(" + v + ")"
-	case compile.RecordTy:
+	case types.RecordTy:
 		return "a.toNode(astNode(" + v + "))"
 	}
 	return "a.anyValue(" + v + ")"
@@ -708,12 +710,12 @@ func (t *TypedGen) decls(b *strings.Builder) {
 		fmt.Fprintf(b, "type %s interface{ is%s() }\n\n", goName, goName)
 		members := map[string]bool{"Error": true}
 		for _, a := range u.Alts {
-			if n, ok := a.(compile.NodeTy); ok && n.Name != "" {
+			if n, ok := a.(types.NodeTy); ok && n.Name != "" {
 				members[n.Name] = true
 			}
-			if n, ok := a.(compile.NamedTy); ok {
+			if n, ok := a.(types.NamedTy); ok {
 				switch {
-				case n == compile.TyMatch:
+				case n == types.TyMatch:
 					members["TNode"] = true
 				case n.Kind == 's':
 					members[n.Name] = true
@@ -841,12 +843,12 @@ func (a *astConv) toError(n *Node) *Error {
 		u := t.joinOf(name)
 		fmt.Fprintf(b, "func (a *astConv) %s(n *Node) %s {\n\ta.spend()\n\tif n == nil {\n\t\treturn nil\n\t}\n\tswitch n.Type() {\n\tcase \"error\":\n\t\treturn a.toError(n)\n", convName(name), t.ref(name))
 		for _, m := range u.Alts {
-			if m, ok := m.(compile.NodeTy); ok && m.Name != "" {
+			if m, ok := m.(types.NodeTy); ok && m.Name != "" {
 				fmt.Fprintf(b, "\tcase %q:\n\t\treturn a.%s(n)\n", m.Name, convName(m.Name))
 			}
-			if m, ok := m.(compile.NamedTy); ok {
+			if m, ok := m.(types.NamedTy); ok {
 				switch {
-				case m == compile.TyMatch:
+				case m == types.TyMatch:
 					b.WriteString("\tcase \"string\":\n\t\treturn a.toMatch(n)\n")
 				case m.Kind == 's':
 					fmt.Fprintf(b, "\tcase %q:\n\t\treturn a.%s(n)\n", m.Name, convName(m.Name))
@@ -907,7 +909,7 @@ func (a *astConv) field(n *Node, name string) any {
 // libOK reports whether the typed library can build every value an entry point may return: the
 // result type and the field types of every struct type have Go types of their own (no CST
 // node types, node or any).
-func (t *TypedGen) libOK(st compile.Ty) bool {
+func (t *TypedGen) libOK(st types.Ty) bool {
 	if !t.representable(st) || t.readsFields() {
 		return false
 	}
@@ -924,23 +926,23 @@ func (t *TypedGen) libOK(st compile.Ty) bool {
 // plainField reports whether a field of type x reads from a typed value as it reads from a node: an int,
 // string or bool, an optional one, a struct, and a tuple or list of these. A node, a named node type, a
 // join, an any or a record has a Go form that differs from its value in a node.
-func (t *TypedGen) plainField(x compile.Ty) bool {
+func (t *TypedGen) plainField(x types.Ty) bool {
 	switch x := x.(type) {
-	case compile.BasicTy:
-		return x == compile.TyInt || x == compile.TyString || x == compile.TyBool
-	case compile.NamedTy:
+	case types.BasicTy:
+		return x == types.TyInt || x == types.TyString || x == types.TyBool
+	case types.NamedTy:
 		return x.Kind == 's'
-	case compile.OptTy:
-		b, ok := x.Elem.(compile.BasicTy)
+	case types.OptTy:
+		b, ok := x.Elem.(types.BasicTy)
 		return ok && t.plainField(b)
-	case compile.TupleTy:
+	case types.TupleTy:
 		for _, e := range x.Elems {
 			if !t.plainField(e) {
 				return false
 			}
 		}
 		return true
-	case compile.ListTy:
+	case types.ListTy:
 		return t.plainField(x.Elem)
 	}
 	return false
@@ -991,7 +993,7 @@ func (t *TypedGen) readsFields() bool {
 
 // fieldType returns the declared type of the field name of the struct type st, and whether st declares
 // it.
-func (t *TypedGen) fieldType(st, name string) (compile.Ty, bool) {
+func (t *TypedGen) fieldType(st, name string) (types.Ty, bool) {
 	for _, f := range t.Info.Fields[st] {
 		if f.Name == name {
 			return f.T, true
@@ -1015,8 +1017,8 @@ func (t *TypedGen) transfers() map[*grammar.Member]bool {
 	if rec == nil {
 		return out
 	}
-	var into func(x grammar.Term, want compile.Ty)
-	into = func(x grammar.Term, want compile.Ty) {
+	var into func(x grammar.Term, want types.Ty)
+	into = func(x grammar.Term, want types.Ty) {
 		for {
 			g, ok := x.(*grammar.TermGroup)
 			if !ok {
@@ -1034,7 +1036,7 @@ func (t *TypedGen) transfers() map[*grammar.Member]bool {
 				out[x] = true
 			}
 		case *grammar.Call:
-			l, ok := want.(compile.ListTy)
+			l, ok := want.(types.ListTy)
 			if !ok {
 				return
 			}
@@ -1078,27 +1080,27 @@ func (t *TypedGen) transfers() map[*grammar.Member]bool {
 
 // oneStruct returns the struct type of every value of type x, a rule's value standing for the value type
 // of the rule, and whether there is one.
-func oneStruct(rec *compile.ValueRecord, x compile.Ty) (string, bool) {
+func oneStruct(rec *check.ValueRecord, x types.Ty) (string, bool) {
 	name := ""
 	seen := map[string]bool{}
-	var walk func(x compile.Ty) bool
-	walk = func(x compile.Ty) bool {
+	var walk func(x types.Ty) bool
+	walk = func(x types.Ty) bool {
 		switch x := x.(type) {
-		case compile.RuleTy:
+		case types.RuleTy:
 			if seen[x.Name] {
 				return true
 			}
 			seen[x.Name] = true
 			v, ok := rec.Rules[x.Name]
 			return ok && walk(v)
-		case compile.JoinTy:
+		case types.JoinTy:
 			for _, a := range x.Alts {
 				if !walk(a) {
 					return false
 				}
 			}
 			return len(x.Alts) > 0
-		case compile.NamedTy:
+		case types.NamedTy:
 			if x.Kind != 's' || name != "" && name != x.Name {
 				return false
 			}
@@ -1183,40 +1185,40 @@ func (t *TypedGen) actionTerms() []grammar.Term {
 
 // representable reports whether the typed library can build values of type x and read them back
 // from a field (back): every type of a value, but not a function.
-func (t *TypedGen) representable(x compile.Ty) bool {
+func (t *TypedGen) representable(x types.Ty) bool {
 	switch x := x.(type) {
-	case compile.BasicTy:
+	case types.BasicTy:
 		switch x {
-		case compile.TyInt, compile.TyString, compile.TyBool, compile.TyNode, compile.TyAny, compile.TyErr, compile.TyTop:
+		case types.TyInt, types.TyString, types.TyBool, types.TyNode, types.TyAny, types.TyErr, types.TyTop:
 			return true
 		}
 		return false
-	case compile.NamedTy, compile.RecordTy, codegen.Vrule:
+	case types.NamedTy, types.RecordTy, codegen.Vrule:
 		return true
-	case compile.TupleTy:
+	case types.TupleTy:
 		for _, e := range x.Elems {
 			if !t.representable(e) {
 				return false
 			}
 		}
 		return true
-	case compile.NodeTy:
+	case types.NodeTy:
 		if x.Name != "" {
 			return t.representable(x.Underlying())
 		}
 		// The value of a node is its text, a tuple or a list.
 		switch v := x.Value.(type) {
-		case compile.BasicTy:
-			return v == compile.TyString || v == compile.TyTop || v == compile.TyAny
-		case compile.TupleTy, compile.ListTy:
+		case types.BasicTy:
+			return v == types.TyString || v == types.TyTop || v == types.TyAny
+		case types.TupleTy, types.ListTy:
 			return t.representable(v)
 		}
 		return false
-	case compile.ListTy:
+	case types.ListTy:
 		return t.representable(x.Elem)
-	case compile.OptTy:
+	case types.OptTy:
 		return t.representable(x.Elem)
-	case compile.JoinTy:
+	case types.JoinTy:
 		for _, a := range x.Alts {
 			if !t.representable(a) {
 				return false
@@ -1246,7 +1248,7 @@ func (t *TypedGen) valueMethods(b *strings.Builder) {
 		b.WriteString("\t}\n\treturn nil, false\n}\n\n")
 		var strs []string
 		for _, f := range t.Info.Fields[name] {
-			if f.T == compile.TyString {
+			if f.T == types.TyString {
 				strs = append(strs, f.Name)
 			}
 		}
@@ -1275,7 +1277,7 @@ func (t *TypedGen) valueMethods(b *strings.Builder) {
 			case "list":
 				fmt.Fprintf(b, "\tcase %q:\n\t\treturn c.NewList(nil), true\n", f.Name)
 			case "struct":
-				fmt.Fprintf(b, "\tcase %q:\n\t\treturn c.MadeOf(new(%s)), true\n", f.Name, t.ref(f.T.(compile.NamedTy).Name))
+				fmt.Fprintf(b, "\tcase %q:\n\t\treturn c.MadeOf(new(%s)), true\n", f.Name, t.ref(f.T.(types.NamedTy).Name))
 			}
 		}
 		b.WriteString("\t}\n\treturn nil, false\n}\n\n")
@@ -1285,7 +1287,7 @@ func (t *TypedGen) valueMethods(b *strings.Builder) {
 
 // unsetField returns the statement that makes a read of a list or struct field report the field as not
 // set while it is nil, which the library reads as the zero value of the field's type (TZeroField).
-func (t *TypedGen) unsetField(name string, ty compile.Ty) string {
+func (t *TypedGen) unsetField(name string, ty types.Ty) string {
 	if t.zeroKind(ty) == "" {
 		return ""
 	}
@@ -1294,11 +1296,11 @@ func (t *TypedGen) unsetField(name string, ty compile.Ty) string {
 
 // zeroKind returns "list" or "struct" for a field type whose Go type is nil when the field is unset and
 // whose zero value is made on a read, and "" for any other.
-func (t *TypedGen) zeroKind(ty compile.Ty) string {
+func (t *TypedGen) zeroKind(ty types.Ty) string {
 	switch x := ty.(type) {
-	case compile.ListTy:
+	case types.ListTy:
 		return "list"
-	case compile.NamedTy:
+	case types.NamedTy:
 		if x.Kind == 's' {
 			return "struct"
 		}
@@ -1325,55 +1327,55 @@ func (t *TypedGen) backNodeTypes(b *strings.Builder) {
 
 // back returns a Go expression converting x, an expression of the Go type of type ty, into a
 // value of the typed library. It is written in the types package.
-func (t *TypedGen) back(x compile.Ty, v string) string {
+func (t *TypedGen) back(x types.Ty, v string) string {
 	back := func(v string) string { return libAlias + ".TBack(" + hooksName + ", " + v + ")" }
 	switch x := x.(type) {
-	case compile.BasicTy:
-		if x == compile.TyInt || x == compile.TyString || x == compile.TyBool {
+	case types.BasicTy:
+		if x == types.TyInt || x == types.TyString || x == types.TyBool {
 			return "any(" + v + ")"
 		}
 		return back(v)
-	case compile.NamedTy:
+	case types.NamedTy:
 		if x.Kind == 's' {
 			return libAlias + ".TPtr(" + v + ")"
 		}
 		return back(v)
-	case compile.RecordTy, compile.JoinTy:
+	case types.RecordTy, types.JoinTy:
 		return back(v)
-	case compile.NodeTy:
+	case types.NodeTy:
 		if x.Name != "" {
 			return t.backHelper(x) + "(" + v + ")"
 		}
-		if x.Value == compile.TyString || x.Value == compile.TyTop || x.Value == compile.TyAny {
+		if x.Value == types.TyString || x.Value == types.TyTop || x.Value == types.TyAny {
 			return back(v)
 		}
 		return t.backHelper(x) + "(" + v + ")"
-	case compile.TupleTy, codegen.Vrule:
+	case types.TupleTy, codegen.Vrule:
 		return t.backHelper(x) + "(" + v + ")"
-	case compile.OptTy:
-		if b, ok := x.Elem.(compile.BasicTy); ok && (b == compile.TyInt || b == compile.TyString || b == compile.TyBool) {
+	case types.OptTy:
+		if b, ok := x.Elem.(types.BasicTy); ok && (b == types.TyInt || b == types.TyString || b == types.TyBool) {
 			return libAlias + ".TDeref(" + v + ")"
 		}
-		if _, ok := x.Elem.(compile.TupleTy); ok {
+		if _, ok := x.Elem.(types.TupleTy); ok {
 			return t.backHelper(x) + "(" + v + ")"
 		}
 		return t.back(x.Elem, v)
-	case compile.ListTy:
+	case types.ListTy:
 		return fmt.Sprintf("func() any { if %[1]s == nil { return nil }; kids := make([]any, len(%[1]s)); for i, x := range %[1]s { kids[i] = %[2]s }; return %[3]s.TListOf(kids) }()", v, t.back(x.Elem, "x"), libAlias)
 	}
 	return "nil"
 }
 
 // backSpend preserves back's values while accounting for list materialization.
-func (t *TypedGen) backSpend(x compile.Ty, v string) string {
+func (t *TypedGen) backSpend(x types.Ty, v string) string {
 	switch x := x.(type) {
-	case compile.ListTy:
+	case types.ListTy:
 		return fmt.Sprintf("func() any { if %[1]s == nil { return nil }; kids := make([]any, len(%[1]s)); for i, x := range %[1]s { %[3]skids[i] = %[2]s }; return p.ListField(kids) }()", v, t.backSpend(x.Elem, "x"), strings.ReplaceAll(t.G.step("p"), "\n", "; "))
-	case compile.OptTy:
-		if b, ok := x.Elem.(compile.BasicTy); ok && (b == compile.TyInt || b == compile.TyString || b == compile.TyBool) {
+	case types.OptTy:
+		if b, ok := x.Elem.(types.BasicTy); ok && (b == types.TyInt || b == types.TyString || b == types.TyBool) {
 			return t.back(x, v)
 		}
-		if _, ok := x.Elem.(compile.TupleTy); ok {
+		if _, ok := x.Elem.(types.TupleTy); ok {
 			return t.back(x, v) // a pointer to a tuple, which back's helper dereferences
 		}
 		return t.backSpend(x.Elem, v)
@@ -1383,51 +1385,51 @@ func (t *TypedGen) backSpend(x compile.Ty, v string) string {
 
 // dconv returns a Go expression of type goType(x) converting v, a value of the typed library,
 // with the chunks a (a *tslabs).
-func (t *TypedGen) dconv(x compile.Ty, v, a string) string {
+func (t *TypedGen) dconv(x types.Ty, v, a string) string {
 	switch x := x.(type) {
-	case compile.BasicTy:
+	case types.BasicTy:
 		switch x {
-		case compile.TyInt:
+		case types.TyInt:
 			return "astInt(" + v + ")"
-		case compile.TyString:
+		case types.TyString:
 			return "astString(" + v + ")"
-		case compile.TyBool:
+		case types.TyBool:
 			return "astBool(" + v + ")"
-		case compile.TyErr:
+		case types.TyErr:
 			return "(*Error)(TPubError(" + v + "))"
 		}
 		return t.tpub(v, a)
 	case codegen.Vrule:
 		return t.vdconvHelper(x) + "(" + a + ", " + v + ")"
-	case compile.TupleTy:
+	case types.TupleTy:
 		if len(x.Elems) == 0 {
 			t.goType(x)
 			return "Unit{}"
 		}
 		return t.vdconvHelper(x) + "(" + a + ", " + v + ")"
-	case compile.NodeTy:
+	case types.NodeTy:
 		switch {
 		case x.Name != "":
 			// A node of a named node type, made from the chunks and remembered (typedHelpers).
-		case x.Value == compile.TyTop || x.Value == compile.TyAny:
+		case x.Value == types.TyTop || x.Value == types.TyAny:
 			return t.tpubNode(v, a)
-		case x.Value == compile.TyString && len(x.Caps) == 0:
+		case x.Value == types.TyString && len(x.Caps) == 0:
 			return "(*TNode[string])(TPubMatch(" + v + "))"
 		}
 		return t.vdconvHelper(x) + "(" + a + ", " + v + ")"
-	case compile.RecordTy:
+	case types.RecordTy:
 		return t.tpubNode(v, a)
-	case compile.NamedTy:
+	case types.NamedTy:
 		switch {
-		case x == compile.TyMatch:
+		case x == types.TyMatch:
 			return "(*TNode[string])(TPubMatch(" + v + "))"
-		case x == compile.TyError:
+		case x == types.TyError:
 			return "(*Error)(TPubError(" + v + "))"
 		case x.Kind == 'c':
 			return t.tpubNode(v, a)
 		}
 		return "TAs[" + t.goType(x) + "](" + v + ")"
-	case compile.JoinTy:
+	case types.JoinTy:
 		if _, ok := t.Joins[x.String()]; !ok {
 			if _, ok := t.joinGoType(x); ok {
 				return t.dconv(x.Alts[0], v, a)
@@ -1435,15 +1437,15 @@ func (t *TypedGen) dconv(x compile.Ty, v, a string) string {
 			return t.tpub(v, a)
 		}
 		return "TAs[" + t.goType(x) + "](" + t.tpub(v, a) + ")"
-	case compile.OptTy:
-		if b, ok := x.Elem.(compile.BasicTy); ok && (b == compile.TyInt || b == compile.TyString || b == compile.TyBool) {
+	case types.OptTy:
+		if b, ok := x.Elem.(types.BasicTy); ok && (b == types.TyInt || b == types.TyString || b == types.TyBool) {
 			return "astPtr" + strings.ToUpper(string(b)[:1]) + string(b)[1:] + "(" + v + ")"
 		}
-		if _, ok := x.Elem.(compile.TupleTy); ok {
+		if _, ok := x.Elem.(types.TupleTy); ok {
 			return t.vdconvHelper(x) + "(" + a + ", " + v + ")"
 		}
 		return t.dconv(x.Elem, v, a)
-	case compile.ListTy:
+	case types.ListTy:
 		goType := t.goType(x)
 		name, ok := t.tlists[goType]
 		if !ok {
@@ -1542,7 +1544,7 @@ func (t *TypedGen) typedLib(b *strings.Builder) {
 	// remembered by their values; string nodes are their own public forms (tmatchAs).
 	var remembered []string
 	for _, name := range t.NodeTypes {
-		if n, _ := t.G.Prog.NodeTypeOf(name); n.Value != compile.TyString {
+		if n, _ := t.G.Prog.NodeTypeOf(name); n.Value != types.TyString {
 			remembered = append(remembered, name)
 		}
 	}

@@ -138,7 +138,7 @@ func (b *Builder) operatorsRule(sr *compile.Rule, cr *ir.Rule, o *ir.OperatorsRu
 func (b *Builder) line(l *ir.OpLine) (*state.OperatorsRuleLine, error) {
 	b.scope = scopeOf(l.Scope)
 	pl := &state.OperatorsRuleLine{Scope: b.scope, M: b.node(l.Body), Key: l}
-	pl.Value, pl.Single, pl.Shape = scopeValueOf(l.Shape), compile.SingleMode(l.Shape.Mode), shaper(l.Shape)
+	pl.Value, pl.Single, pl.Shape = scopeValueOf(l.Shape), check.SingleMode(l.Shape.Mode), shaper(l.Shape)
 	if l.Action != nil {
 		t, err := b.term(l.Action, nil)
 		if err != nil {
@@ -896,13 +896,13 @@ func recoverAttr(m, skip state.Matcher, build bool) state.Matcher {
 // singleMatcher returns a matcher of the value of e where it takes one element (an alternative or
 // the operand of ?), from the building matcher m of e. Without a value the result is nil.
 // shaper returns the runtime's shaper of a value of the shape s.
-func shaper(s ir.Shape) compile.Shaper {
-	return compile.Shaper{Elems: s.Elems, Shared: s.Shared, K: s.K}
+func shaper(s ir.Shape) check.Shaper {
+	return check.Shaper{Elems: s.Elems, Shared: s.Shared, K: s.K}
 }
 
 func singleMatcher(s ir.Shape, m state.Matcher) state.Matcher {
-	mode, sh := compile.SingleMode(s.Mode), shaper(s)
-	if mode == compile.SinglePass && !sh.Elems {
+	mode, sh := check.SingleMode(s.Mode), shaper(s)
+	if mode == check.SinglePass && !sh.Elems {
 		return m
 	}
 	return func(p *state.Parser) (*core.Node, bool) {
@@ -917,8 +917,8 @@ func singleMatcher(s ir.Shape, m state.Matcher) state.Matcher {
 }
 
 func captureMatcher(s ir.Shape, m state.Matcher) state.Matcher {
-	mode, sh := compile.SingleMode(s.Mode), shaper(s)
-	if mode == compile.SinglePass && !sh.Elems {
+	mode, sh := check.SingleMode(s.Mode), shaper(s)
+	if mode == check.SinglePass && !sh.Elems {
 		return m
 	}
 	return func(p *state.Parser) (*core.Node, bool) {

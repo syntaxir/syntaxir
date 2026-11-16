@@ -1,8 +1,8 @@
 package tsgen_test
 
 import (
-	"zeroparse.dev/zp/internal/compile"
 	"zeroparse.dev/zp/internal/engine"
+	"zeroparse.dev/zp/internal/frontend/check"
 	"zeroparse.dev/zp/internal/testing/enginetest"
 )
 
@@ -28,6 +28,6 @@ func inferredType(p *engine.Program, name string) (string, bool) {
 	if !ok {
 		return "", false
 	}
-	v := &compile.ValueInference{Prog: p.Static().Checker(), Out: p.Typed.Values}
+	v := &check.ValueInference{Prog: p.Static().Checker(), Out: p.Typed.Values}
 	return v.Expand(t).String(), true
 }
