@@ -2172,6 +2172,15 @@ func formatAttributeValue(value any, control *formatControl) string {
 	return fmt.Sprintf("<%T>", value)
 }
 
+// LiteralText returns the text of a string literal as the grammar writes it, with the suffix i of
+// a case-insensitive literal. It is the text of a literal in syntax errors.
+func LiteralText(value string, ignoreCase bool) string {
+	if ignoreCase {
+		return quote(value, nil) + "i"
+	}
+	return quote(value, nil)
+}
+
 // quote returns s as a SyntaxIR string literal.
 func quote(s string, control *formatControl) string {
 	pollFormat(control)

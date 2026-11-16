@@ -1509,7 +1509,7 @@ func (g *Generator) first(e ast.Expr, depth int, seen map[string]bool) (string, 
 			}
 			return cond, g.Desc(core.LiteralDesc(e)), depth, true
 		}
-		return fmt.Sprintf("ch == %d", r), g.Desc(strconv.Quote(e.Value)), depth, true
+		return fmt.Sprintf("ch == %d", r), g.Desc(core.LiteralDesc(e)), depth, true
 	case *ast.CharClass:
 		return NegateCondition(g.ControlledClassReject(e)), g.Desc(core.CharClassString(e)), depth, true
 	case *ast.Seq:

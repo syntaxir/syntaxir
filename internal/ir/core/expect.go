@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 
+	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -13,12 +14,7 @@ var FixedDescs = []string{"any character", "beginning of input", "end of input",
 
 // LiteralDesc is the expectation text of a literal, as written: a case-insensitive literal keeps its
 // suffix i.
-func LiteralDesc(e *ast.Literal) string {
-	if e.IgnoreCase {
-		return strconv.Quote(e.Value) + "i"
-	}
-	return strconv.Quote(e.Value)
-}
+func LiteralDesc(e *ast.Literal) string { return syntaxfmt.LiteralText(e.Value, e.IgnoreCase) }
 
 // CharClassString returns the character class as grammar syntax writes it, which names the class
 // in expectations.

@@ -276,7 +276,7 @@ func (p *tsFlowPrinter) expr(c *code.Call, args func() []string) string {
 		}
 		var desc rprogram.ExpID
 		if lit.Text == "" {
-			desc = g.Desc(strconv.Quote(""))
+			desc = g.Desc(`""`)
 		} else {
 			desc = p.desc(lit.Exp)
 		}
