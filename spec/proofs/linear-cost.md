@@ -1588,6 +1588,62 @@ as the innermost one, and the two forms above apply to the evaluation of that
 call in place of $Z_{l'}$; when no such call exists, no pair is given. Neither
 form is shown for such a call.
 
+**Shared caller frames.** In the first form above, outside the exception of
+*Restarts*, let $Z_l$ lie inside $w_{\bar{m}}$, and let the calls that make
+$Z_l$ and $Z_{l'}$ be calls with which $w_{\bar{m}}$ and $\hat{\kappa}$
+start where they evaluate $c$, so that the bodies of those calls evaluate $c$
+before anything else that examines the input. Let the rule $Z$ of the two
+frames, whose body holds the call place $\pi_l = \pi_{l'}$, read no
+variable, be memoized at both calls and lie on no left-recursion cycle, and
+let the two calls have the same level restriction, or none. Then the
+evaluations $F_1$ and $F_2$ of those calls meet the hypotheses of *Evaluated
+pairs of a shared call*, and, outside cases (a) and (b) of the covered keys
+on the path from $\mathcal{R}(F_1)$ down to the call that corresponds to the
+evaluation that holds $\alpha_{l'}$, no head holds $\alpha_{l'}$.
+
+*Proof.* The two calls are of one rule with one level restriction, of a rule
+that reads no variable and that the parse memoizes at each of them, and
+$w_{\bar{m}}$ and $\hat{\kappa}$ evaluate each before anything else that
+examines the input, where they evaluate $c$; so they share the call of $Z$
+([Conditions for Linear
+Cost](../runtime/parsing.md#conditions-for-linear-cost)), and the condition
+there on the growths of a cycle does not apply, since $Z$ lies on none.
+$w_{\bar{m}}$ is a committing unit and $\hat{\kappa}$ its continuation, as
+in the application above. The body of each call evaluates $c$ before it
+examines the input, so $F_1$ starts where $E_1$ starts and $F_2$ where $E_2$
+starts, which is the same position (case 2). $F_1$ lies inside
+$w_{\bar{m}}$, since $Z_l$ does, and $\hat{\kappa}$ makes $F_2$ (the first
+form). The memo answers neither call, since $F_1$ holds the body evaluation
+$Z_l$ and $F_2$ the body evaluation $Z_{l'}$, and a call that the memo
+answers holds no evaluation. Neither is in a context of growths, which only a
+body evaluation of a rule of a left-recursion cycle can be in. A call reads
+only growths of the cycle of its rule at its position ([Lemma 2 of the
+memoization proof](memoization.md#lemma-2-reading-an-open-growth)), so
+neither call reads a growth, and every growth at their position that is open
+at the start of one is read by neither. These are the hypotheses of
+*Evaluated pairs of a shared call*, and the reduction above, with $F_2$ in the
+place of $E_2$, gives the rest. $\square$
+
+Not shown in the first form are the frames $Z_l$ that enclose $w_{\bar{m}}$,
+the calls of $Z_l$ or $Z_{l'}$ that are not calls with which $w_{\bar{m}}$ or
+$\hat{\kappa}$ start where they evaluate $c$, and a rule $Z$ that reads a
+variable, is not memoized at one of the calls, lies on a left-recursion cycle
+or is called with two level restrictions; for these the pair, if any, lies at
+an enclosing call, which $w_{\bar{m}}$ need not evaluate. When the rule of
+$Z_{l'}$ reads a variable, $Z_l$ and $Z_{l'}$ can be evaluations of keys of
+different classes, since the variables can have different values in the unit
+and in its continuation, and an enclosing call of a rule that reads no
+variable can be one that only $\hat{\kappa}$ makes: in
+`main = "[" (A "!" / B ws "y") / P`, with `A = {v := 1} Z "x"`,
+`B = {v := 2} Z`, `Z = Y {v >= 0} ws`, `Y = "a"+ (ws ";")?`, `ws = [ ]*` and
+`P` as in *Outer links across runs*, which the conditions accept, the unit
+`A "!"` makes no call of `B`, and the evaluation of `Z` in `B` is the head of
+its class and holds the call of `ws` after the call of `Y`. There the index
+between the two outer links through that call of `Y` is free, so the grammar
+shows the shape, not a case of placement 1; on `[` followed by $n$ `a`s, $n$
+spaces and `y`, the compute of a recognition is $14n + 163$ on the closure
+backend and $14n + 168$ on the bytecode backend for $n$ from $250$ to $2000$.
+
 In the first case the parse evaluates three calls of $Y$ at the start of
 $Y_{l'}$ that the memo answers none of: $E_1$, $e_j$ and $E_2$, in this order,
 since $e_j$ holds $\alpha_{j-1}$, which starts after $\alpha_l$ and so after
@@ -6153,7 +6209,13 @@ condition of the cost view that the [Cost View](cost-view.md) proof leaves open.
    frame encloses the unit. When the rule of that frame reads a variable or
    is not memoized at the call, its call is shared with no unit, and the pair
    may be sought for any enclosing call whose rule reads no variable and is
-   memoized there, to which the same forms apply; this is not shown either. Nor are the cases
+   memoized there, to which the same forms apply; this is not shown either.
+   In the first form, *Shared caller frames* gives the pair at the calls of
+   the caller frames themselves when those frames lie inside the unit, are
+   made by calls with which the unit and its continuation start where they
+   evaluate the shared call, and their rule reads no variable, is memoized at
+   both calls, lies on no left-recursion cycle and is called with one level
+   restriction; the other cases of the first form are not shown. Nor are the cases
    shown in which the frame of the later outer link encloses the later
    evaluation of the call, or in which the continuation
    reaches the activation of the index in a later evaluation of the call. A later
