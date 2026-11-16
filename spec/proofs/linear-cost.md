@@ -1538,6 +1538,28 @@ while $E_2$ is in progress (*Outer links inside a memoized link*), but
 $\alpha_{l'}$ starts after $Y_{l'}$ ends, and so after $E_2$ ends, and the
 first case stays open.
 
+An evaluation around $E_2$ is still in progress when $\alpha_{l'}$ starts:
+the frame $Z_{l'}$ of the caller of $\pi_{l'}$, in which the link $l'$ reaches
+$e'_{l'}$ after leaving $Y_{l'}$ (*Calls that call no rule*). $Y_{l'}$ is the
+last frame that the link leaves, so the link does not leave $Z_{l'}$, and
+$e'_{l'}$, with $\alpha_{l'}$ in it, starts while $Z_{l'}$ is in progress. So
+when a call makes $Z_{l'}$ and its evaluation $F_2$ is the later evaluation of
+a pair that meets the hypotheses of *Evaluated pairs of a shared call*,
+outside cases (a) and (b) of the covered keys on the path of that pair, no
+head holds $\alpha_{l'}$ (*Outer links inside a memoized link*, with $F_2$ in
+the place of $E_2$). This uses nothing of what $Z_{l'}$ evaluates after
+$\pi_{l'}$, which need not repeat what $Z_l$ evaluates after $\pi_l$. $Z_{l'}$
+is in progress at $E_2$, after $w_{\bar{m}}$ ends, and was not started inside
+$w_{\bar{m}}$, so it either started after $w_{\bar{m}}$ ended or encloses
+$w_{\bar{m}}$. In the first form $\hat{\kappa}$ makes the call of $Z_{l'}$,
+and what is not shown is that $w_{\bar{m}}$ shares that call with
+$\hat{\kappa}$ and evaluates it, unanswered, at the same position, and that
+neither evaluation is in a context of growths, and that the pair meets the
+hypothesis on the growths open at their position; the argument above for $E_2$ does not apply
+to $F_2$, since the parser does not leave $Z_{l'}$ at $p$ before $e'_{l'}$. In
+the second form $Z_{l'}$ holds $w_{\bar{m}}$, and with it $E_1$, as well as
+$E_2$, and no such pair is given.
+
 In the first case the parse evaluates three calls of $Y$ at the start of
 $Y_{l'}$ that the memo answers none of: $E_1$, $e_j$ and $E_2$, in this order,
 since $e_j$ holds $\alpha_{j-1}$, which starts after $\alpha_l$ and so after
@@ -6088,12 +6110,18 @@ condition of the cost view that the [Cost View](cost-view.md) proof leaves open.
    one other than as its body evaluation, *Nesting at one end* rules the case
    out, apart from a scan-only rule of the scan in a parse without records of
    scan sites, which no claim treats (*The frame of an outer link as the later
-   evaluation of a shared call*); not shown are the cases in
+   evaluation of a shared call*). Not shown is the case in
    which the frame of the earlier outer link is the body evaluation of the
    earlier evaluation, where the two evaluations meet the hypotheses of
    *Evaluated pairs of a shared call* but the later outer activation starts
-   after the later one ends, in which the frame of the later outer link
-   encloses the later evaluation of the call, or in which the continuation
+   after the later one ends; that activation lies in the frame of the caller
+   of the later call, and no head holds it when the evaluation of the call
+   that makes that frame is the later evaluation of such a pair, but it is not
+   shown that the unit shares that call with the continuation when the
+   continuation makes it, nor that the pair meets the two hypotheses on
+   growths, and no pair is given when that frame encloses the unit. Nor are the cases
+   shown in which the frame of the later outer link encloses the later
+   evaluation of the call, or in which the continuation
    reaches the activation of the index in a later evaluation of the call. A later
    evaluation that lies inside that frame, an index that is free and one
    linked by a leaf link at a position before the scan are not treated. So the outer links do not bound the
