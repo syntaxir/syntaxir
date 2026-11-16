@@ -66,8 +66,8 @@ vocabulary they own, not by the stage that implements them.
 
 - `pkg/grammar`: the grammar AST and its JSON form, loading, formatting and conversion. The AST follows the language,
   which changes slowly, rather than an IR, which changes often, and the front end receives it as the grammar syntax tree
-  (GST). A grammar source is a value with a name and a format, made by one of the constructors (from bytes, a string, a
-  reader or a file-system path) and given an explicit format by a method. Loading reads grammar source and JSON and
+  (GST). A grammar source is a value with a name and an encoding, made by one of the constructors (from bytes, a string, a
+  reader or a file-system path) and given an explicit encoding by a method. Loading reads grammar source and JSON and
   rejects a compiled file with an explicit error; the command line reads grammars through the same constructors. A
   grammar source is separate from the parse input, which has positions, streaming, edits and budgets; the two share only
   the naming convention of their constructors.
@@ -271,17 +271,14 @@ describes the packages and points here for the decided shapes.
 
 | Name | Role |
 |:--|:--|
-| `Source` | One grammar input, a named value with a format. Its fields are not exported, so a source has exactly one supplier. |
+| `Source` | One grammar input, a named value with an encoding. Its fields are not exported, so a source has exactly one supplier. |
 | `FromBytes`, `FromString`, `FromReader` | Constructors from bytes, from a string and from a reader. A reader is read in full when the source is loaded, because a diagnostic may need the text of any line. |
 | `FromFS` | Constructor from a path in a file system. The name of the source is the path, and a future import resolves against the same file system. The command line reads grammars through this constructor. |
-| `As` | Gives a source an explicit format. |
-| `Format` with `FormatAuto`, `FormatZP` and `FormatJSON` | The format of a source. `FormatAuto` decides in this order: the explicit format, the extension, then the content, where a leading brace means JSON. |
+| `As` | Gives a source an explicit encoding. |
+| `Encoding` with `EncodingAuto`, `EncodingZP` and `EncodingJSON` | The encoding of a source: grammar syntax or JSON. `EncodingAuto` decides in this order: the explicit encoding, the extension, then the content, where a leading brace means JSON. |
 | `Load` | Gives the grammar AST of a source in grammar syntax or in JSON. A compiled file is rejected with an explicit error. |
 | `Validate` | Checks the structure of an AST that a program has built. |
-| `Format` (function) and `Convert` | Format a grammar AST, and convert a source to the other format. |
-
-The approved design gives both a type and a function the name `Format` in the grammar package. One package cannot declare
-two identifiers with one name, so one of the two names is open (see Limitations and Open Questions).
+| `Format` (function) and `Convert` | `Format` writes a grammar AST as grammar syntax. `Convert` converts a source to the other encoding, given as an `Encoding`. |
 
 The action expression names of the grammar AST (`ActionExpr`, `ActionGroup`) and the JSON field `action` are the names
 of [Naming](#naming).
@@ -357,6 +354,3 @@ of loading, of the compile entry points and of the query and instrument packages
 [Decided Interfaces](#decided-interfaces) of this record; [The Public API](../public-api.md) links to that
 section. The other shapes of the public layer are rough, and are settled in the package documentation as they are
 implemented.
-
-Open: the approved design names both a type and a function `Format` in the grammar package. One package cannot declare
-both, so one of the two names must change; the owner decides which.

@@ -14,8 +14,8 @@ package documentation as its part is implemented.
 `pkg/grammar` owns the grammar AST and the grammar source.
 
 - A **grammar source** is one grammar input: a named value made from bytes, a string, a reader or a path in a file
-  system (the constructors `FromBytes`, `FromString`, `FromReader` and `FromFS`), with an explicit or detected format
-  (grammar source or JSON). Its fields are unexported, which guarantees that it has exactly one supplier. A reader is
+  system (the constructors `FromBytes`, `FromString`, `FromReader` and `FromFS`), with an explicit or detected encoding
+  (grammar syntax or JSON). Its fields are unexported, which guarantees that it has exactly one supplier. A reader is
   read in full when the source is loaded, because a diagnostic needs the text of any line.
 - **Loading** a source gives the grammar AST. A program that builds an AST by hand can validate it. Formatting and
   conversion between the two formats are in the same package.
