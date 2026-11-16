@@ -46,7 +46,7 @@ func TestGeneratorRecognizerCarriesEveryOption(t *testing.T) {
 				f := typ.Field(j).Name
 				expected := want.Field(j).Interface()
 				if f == "Recognition" {
-					expected = compile.RecognizeOnly
+					expected = compile.Recognize
 				}
 				if got.Field(j).Interface() != expected {
 					t.Errorf("recognizer: option %s is %v, want %v", f, got.Field(j).Interface(), expected)

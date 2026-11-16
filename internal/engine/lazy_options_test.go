@@ -17,14 +17,14 @@ type lazyOverride struct{ controlled, recognizer, insertion any }
 // lazyOverrides are the options that a lazily built program sets itself, by the field of
 // compile.Options. Every other option must be the program's own.
 var lazyOverrides = map[string]lazyOverride{
-	"Recognition": {recognizer: compile.RecognizeOnly},
+	"Recognition": {recognizer: compile.Recognize},
 }
 
-// recognitionMode returns the compile mode of a program that recognizes (RecognizeStreams) or builds
+// recognitionMode returns the compile mode of a program that recognizes (RecognizeKeepStreamValues) or builds
 // values.
 func recognitionMode(recognize bool) compile.Recognition {
 	if recognize {
-		return compile.RecognizeStreams
+		return compile.RecognizeKeepStreamValues
 	}
 	return compile.Evaluate
 }
@@ -56,7 +56,7 @@ func TestLazyProgramsCarryEveryOption(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var o compile.Options
 			turnOn(t, &o, name)
-			o.LeftRecursionBindings = true                  // the grammar below needs it
+			o.LeftRecursionBindings = true // the grammar below needs it
 			prog := mustCompile(t, codegentest.LRBindingSource, o)
 			if _, err := prog.ParseWith("main", "x", ParseOptions{Backend: Closure, Limits: core.Limits{Compute: 1 << 30}}); err != nil {
 				t.Fatal(err)

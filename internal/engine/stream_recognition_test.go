@@ -130,7 +130,7 @@ func TestStreamRecognitionCompiled(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	prog, err := Compile(g, compile.Options{Recognition: compile.RecognizeStreams})
+	prog, err := Compile(g, compile.Options{Recognition: compile.RecognizeKeepStreamValues})
 	if err != nil {
 		t.Fatal(err)
 	}

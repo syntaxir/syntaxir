@@ -102,7 +102,7 @@ func (prog *Program) Recognizer() (*Program, error) {
 		}
 		flags := prog.Static().Flags()
 		prog.rec, prog.recErr = build(prog.SourceGrammar(), prog.lazyOptions(func(o *compile.Options) {
-			o.Recognition = compile.RecognizeOnly
+			o.Recognition = compile.Recognize
 		}), flags)
 	})
 	return prog.rec, prog.recErr

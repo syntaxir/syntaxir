@@ -46,7 +46,7 @@ func structuralInputFacts(t *testing.T, path string) int {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, opts := range []compile.Options{{}, {Recognition: compile.RecognizeStreams}, {NoProjections: true}, {DefaultValue: true}} {
+	for _, opts := range []compile.Options{{}, {Recognition: compile.RecognizeKeepStreamValues}, {NoProjections: true}, {DefaultValue: true}} {
 		name := fmt.Sprintf("%+v", opts)
 		prog, err := compiletest.Compile(g, opts)
 		if err != nil {

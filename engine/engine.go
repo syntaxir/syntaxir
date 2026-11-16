@@ -151,8 +151,9 @@ func WithBackend(b Backend) ParseOption {
 }
 
 // RecognizeOnly checks whether the input matches the grammar without building a tree. Parse then returns a
-// nil node and the same syntax errors as a full parse. Actions are not evaluated, so runtime errors in
-// actions are not reported; captures that predicates read are still built. Recognition is faster and
+// nil node and the same syntax errors as a full parse. Actions whose values are not needed by predicates are
+// skipped, so their run-time errors are not reported; actions that predicates need still run and can
+// report run-time errors, and the captures that predicates read are still built. Recognition is faster and
 // allocates less than a full parse. It cannot be used with ParseStream or Document.
 func RecognizeOnly() ParseOption {
 	return func(o *engine.ParseOptions) { o.Recognize = true }
