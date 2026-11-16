@@ -266,16 +266,20 @@ overrides of individual flags.
 - `-print-pipeline` prints the pipeline that the driver assembled for the build, as the names of its passes in order,
   with the required passes marked.
 
-A Go program reaches the same observation through the same settings, so a test and the command line see the same
-pipeline and the same dumps.
+These settings do not change the parser that is built, so they are not part of `Optimize`. In Go they are a value of
+`Debug`, given with `WithDebug`, whose fields mirror the flags one to one: the passes to print before and after,
+verification after each pass, printing the pipeline, the bisection limit, and the writer the output goes to. A test and
+the command line therefore see the same pipeline and the same dumps.
 
 ### Bisecting Passes
 
 `-opt-bisect-limit N` numbers the runs of optional passes in the order the pipeline makes them, runs those numbered up
-to N and skips the later ones. Required passes always run, so the output stays a valid parser whatever N is. Each
-decision is reported with its number and the name of the pass, and whether the pass ran. A differential test against the
-closure reference parser can then search for the smallest N at which the generated parser differs from the reference,
-and that run is the pass that introduced the difference.
+to N and skips the later ones. A run is one pass on one unit, so a pass that runs per function counts once for each
+function, as in LLVM. Required passes always run, so the output stays a valid parser whatever N is. Each decision is
+reported with its number, the name of the pass, the unit and whether the pass ran. In Go, the limit is the bisection
+field of `Debug`. A differential test against the closure reference parser can then search for the smallest N at which
+the generated parser differs from the reference, and that run names the pass, and the unit, that introduced the
+difference.
 
 ### Textual Pipelines
 

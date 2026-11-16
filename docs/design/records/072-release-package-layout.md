@@ -342,7 +342,9 @@ the behavior.
 | `-print-before` | Dumps the module that each named pass receives. |
 | `-verify-each` | Runs the verifier after every pass. |
 | `-print-pipeline` | Prints the assembled pipeline as pass names in order, with the required passes marked. |
-| `-opt-bisect-limit` | Runs the optional pass runs numbered up to N in pipeline order and skips the later ones; required passes always run, and each decision is reported. |
+| `-opt-bisect-limit` | Runs the optional pass runs numbered up to N in pipeline order and skips the later ones. A run is one pass on one unit, so a pass that runs per function counts once per function. Required passes always run, and each decision is reported with the pass and the unit. |
+| `Debug` | Proposed name, pending review. The public setting of `pkg/compiler` for observation and bisection. Its fields mirror the flags one to one: print before, print after, verify each, print pipeline, bisect limit, and the writer the output goes to. It does not change the parser that is built, so it is apart from `Optimize`. |
+| `WithDebug` | Proposed name, pending review. The option that gives a `Debug` value to a compile call. |
 
 A textual description of a pipeline, which can reorder or repeat optional passes and is checked against the declared
 ordering and the required passes, is internal test support, outside the public API and the public command line.
