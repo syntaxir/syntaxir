@@ -1,7 +1,7 @@
 # Core IR and Code IR
+
 > [!WARNING]
 > This page describes the target architecture. The code may still differ from it.
-
 
 Core IR and Code IR are the two internal representations between a checked grammar and what a backend runs or emits.
 This page explains why there are two, what each one is for, how Code IR is divided into the Flow, Action and Exec

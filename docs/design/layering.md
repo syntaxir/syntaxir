@@ -1,7 +1,7 @@
 # Package Layering
+
 > [!WARNING]
 > This page describes the target architecture. The code may still differ from it.
-
 
 The module has two sides. The runtime side runs parsers, and the compiler side makes them. The runtime side never
 links the compiler side, and a test of the import graph enforces the rules on this page. Read it before you add an

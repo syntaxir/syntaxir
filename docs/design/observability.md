@@ -1,7 +1,7 @@
 # Observability
+
 > [!WARNING]
 > This page describes the target architecture. The code may still differ from it.
-
 
 Tracing, profiling, explanations and compute limits are part of every backend: each one that runs a parse can report
 what it did, through one model of events and profiles. This page explains that model, how it is shared across the

@@ -1,7 +1,7 @@
 # The Pass Pipeline
+
 > [!WARNING]
 > This page describes the target architecture. The code may still differ from it.
-
 
 The compiler rewrites a grammar on its way to every backend, and it checks the code that the rewrites produce. This page
 explains how that work is organized: passes that are declared and run by one manager, an analysis manager that computes

@@ -1,7 +1,7 @@
 # Cost Analysis
+
 > [!WARNING]
 > This page describes the target architecture. The code may still differ from it.
-
 
 `zp lint -classify` tells you how the cost of a parse can grow with the length of the input. This page explains how that
 answer is built: a normalized view of the grammar that analyses read instead of the source, a classifier that finds the
