@@ -17,8 +17,8 @@
 
 ## Asking the owner
 
-- Ask the owner about unspecified language semantics with alternatives, trade-offs and a
-  recommendation. Wait for the answer before dependent work. Members ask the leader.
+- Unspecified language semantics go to the owner as `AGENTS.md` says. Members ask the
+  leader, who asks the owner.
 - Before you ask anything, search the issue comments and design records for an earlier
   decision. Re-asking a settled question wastes the owner's attention.
 - Record every decision durably at once: a "Decided: ..." comment on the issue, and the
@@ -31,9 +31,8 @@
 
 ## Priorities
 
-- Core first-release work (language features, structure, bugs, docs, then optimization)
-  comes before ecosystem work (language server, editors, playground), ready-made parsers and
-  compatibility extensions (32-bit, other target languages).
+- Order work by layer as the [backlog skill](../../backlog/SKILL.md) says: core
+  first-release work comes first.
 - Within the core, package structure and features land first, so that only proofs and
   optimization remain. Infrastructure that optimizations run on is foundation, not
   optimization: pass pipelines, registries, verifiers, dumps, profiles, flags and analysis

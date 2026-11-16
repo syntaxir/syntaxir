@@ -5,12 +5,9 @@ Issue #1 page. This page says who does what in a team.
 
 - **Members** keep the issues they work on current, in the same step as each event: start,
   decision, progress, ready and pause.
-- **The integrator** runs the close step for each landed issue right after the LANDED line,
-  or hands it to the backlog writer in the same step. The close step is: close the issue
-  (`gh issue close N --reason completed`), set Status=Done with the Target date set to the
-  close date, add a commit link and one outcome sentence to Recently completed on Issue #1,
-  and comment the SHAs on any issue that is only partly done. Done on an open issue is
-  invalid.
+- **The integrator** runs the Landed/close step of the backlog skill for each landed issue
+  right after the LANDED line, or hands it to the backlog writer in the same step, and
+  comments the SHAs on any issue that is only partly done.
 - **The backlog writer** (a light sidekick) owns the Issue #1 body. The leader sends it
   facts only: issue numbers, SHAs, outcome sentences, lane changes. It does the whole loop
   itself: fetch, edit, the issue-number set check, upload and a short report. Issue #1
@@ -22,6 +19,5 @@ Issue #1 page. This page says who does what in a team.
   and every owner decision that changes the order.
 - Category decides priority and ordering. Pick it by the definitions in the backlog skill
   before filing, never by impression; a moved item costs an audit.
-- Fields always move together. Every Status change sets the dates, Tier, Milestone and the
-  parent and blocked-by links in the same step. Every brief that starts, closes, files or
-  rebases an issue says so explicitly. Sidekicks do not infer it.
+- Every brief that starts, closes, files or rebases an issue names the field updates the
+  backlog skill requires in that step. Sidekicks do not infer them.

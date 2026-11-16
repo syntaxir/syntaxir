@@ -29,7 +29,7 @@
   configured. Use `GIT_EDITOR=true` for a rebase.
 - Push your work branch at every coherent step. WIP commits are fine on a work branch. Never
   force-push: publish a rewritten branch under a new name with an `-r<n>` suffix. Only the
-  integrator pushes main.
+  integrator pushes main, through a train or, for a fast-lane item, between trains.
 - If SSH push fails with "Permission denied (publickey)", check that `SSH_AUTH_SOCK` points
   at the agent that holds your GitHub key before you try another route.
 - Land on main with a linear history: cherry-pick or fast-forward, never merge commits.

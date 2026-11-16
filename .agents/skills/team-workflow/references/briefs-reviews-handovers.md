@@ -23,8 +23,8 @@
 - Run a stall sweep at least daily, and after every train or scope cut. Look for READY
   lines not on main, unmerged remote branches, issues In progress, Pending or In review
   with no activity for over 12 hours, milestone rows past their start date, open questions
-  that wait on the leader, and a stuck queue. When you pause a lane, write the resume
-  trigger into the leader's notes.
+  that wait on the leader, and a stuck queue. When you pause a lane, write its resume
+  trigger in a Pending comment on its issue and in the waiting list of Issue #1.
 
 ## Briefs
 

@@ -8,7 +8,9 @@ description: Run ZeroParse development as a team of parallel lanes on one machin
 Several lanes develop in parallel. Each lane is one stream of work with its own worktree,
 branch and issue. One leader plans, decides and talks to the owner. The members implement.
 One integrator lands ready branches on main in trains. Independent reviewers judge
-high-impact work. A light backlog writer keeps the issues and Issue #1 current.
+high-impact work. A light backlog writer handles only the backlog issues and Issue #1;
+documentation is a member lane like any other. A developer working alone does every role:
+the landing train is then that developer's own gate run before pushing main.
 
 Durable state lives in remote branches and GitHub issues. A fresh clone on a clean machine
 can work the same way. It does not resume someone else's intermediate files. The per-machine
@@ -21,7 +23,7 @@ state directory below is disposable coordination scratch.
 2. Copy the queue scripts (`benchlock.sh`, `benchstop.sh`, `testslot.sh`) from the "Team
    workflow scripts" comment on [Issue #1](https://github.com/zeroparse/zp/issues/1) into
    `$ZP_TEAM_STATE/bin/` and make them executable. They are coordination tools, not product
-   tooling, so they are kept out of the repository.
+   tooling, so they are kept out of the repository. They need zsh and perl.
 3. Create `$ZP_TEAM_STATE/landing-train.md` with the format line from
    [landing train](references/landing-train.md).
 

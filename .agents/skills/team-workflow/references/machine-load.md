@@ -10,7 +10,8 @@ quiet machine. So runs fall into three classes.
 | Targeted package tests while developing | Throttled through the test slots: `testslot.sh nice -n 15 env GOMAXPROCS=4 go test -p 2 -run '<tests>' -short <pkgs>` |
 | Whole packages of the large test suites (engine, codegen and complexity tests), the root suite, `-tags zp_long`, `go generate ./internal/codegen/... ./bench`, `hack/test-alpha-parsers.sh`, `hack/test-reference-tags.sh`, benchmarks and any timed run | Only through the queue: `benchlock.sh <tag> zsh -f -c 'cd <worktree> && ...'` |
 
-Never run `go test ./...` directly.
+Heavy test runs, including the root `go test ./...`, go only through the queue. Docs and site
+checks and count probes run directly, throttled.
 
 ## The queue
 
@@ -39,9 +40,8 @@ Never run `go test ./...` directly.
 
 ## Measurements
 
-- Record `uptime` with every timed run. Discard a run whose A/A spread exceeds 1.5%.
-- Follow the [performance skill](../../performance/SKILL.md) for the landing rule and the
-  measurement method.
+- Follow the [performance skill](../../performance/SKILL.md) for the A/A landing rule, the
+  run records and the measurement method.
 
 ## Caches and disk
 

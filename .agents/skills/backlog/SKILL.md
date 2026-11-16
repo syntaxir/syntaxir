@@ -38,9 +38,13 @@ Pick the Category by these definitions before filing or moving an item:
 - Improvement: internal mechanisms and refactoring other than for performance, including
   classifier precision.
 - Quality: verification and developer tooling. Other tools take the category of the change.
+- Release: tagging, announcements, posts and launch measurement: the first release itself
+  and its launch follow-up.
 
-Order work by layer first: core first-release work comes before ecosystem work (language
-server, editors, playground), ready-made parsers and compatibility extensions.
+Order work by layer first: core first-release work (language features, structure, bugs,
+docs, then optimization) comes before ecosystem work (language server, editors,
+playground), ready-made parsers and compatibility extensions (32-bit, other target
+languages).
 
 ## Issue lifecycle
 
@@ -67,8 +71,8 @@ in the same step as its event, never later.
   --template` or the same headings), add it to project 2, and set every field (Tier,
   Category, Milestone, Status, dates, parent and blocked-by) before reporting it filed.
 
-Every Status change updates Status, the Start/Target dates and the blocked-by or parent
-links in the same step.
+Every Status change updates Status, the Start/Target dates, Tier, Milestone and the
+blocked-by or parent links in the same step.
 
 Members keep their own issues current but do not edit the Issue #1 body; the backlog
 writer owns it, plus the Landed/close step if the integrator has not done it.

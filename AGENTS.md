@@ -55,10 +55,10 @@ with implementation changes; regenerate generated files.
   Required local validation still applies.
 - Ask the owner about unspecified language semantics, with alternatives,
   tradeoffs and a recommendation; wait for answers before dependent work.
-- Reuse the established backlog writer (a light sidekick) and independent
-  reviewer where appropriate. The primary owns implementation, tests, site
-  code, Git operations and main integration; the backlog writer owns
-  documentation context and backlog issue management after handoff.
+- Roles: a developer working alone does every role. A multi-lane session uses
+  the roles of the `team-workflow` skill (leader, members, integrator,
+  independent reviewers, backlog writer); only its integrator pushes main,
+  through the landing train or the fast lane.
 
 - For high-impact changes, request critical review from a reviewer whose context
   is independent of the worker; reuse existing reviewers. Share requirements,
