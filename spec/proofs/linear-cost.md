@@ -1589,7 +1589,9 @@ $w_{\bar{m}}$, or an evaluation in such a step that follows no read of its
 seed, as a later step of the leader that calls $Y$ at $\pi_{l'}$ after its
 read of the seed. Then $G$, which encloses
 $w_{\bar{m}}$, makes $Z_{l'}$ or the step that holds it, $\hat{\kappa}$ need
-not make the call of $Z_{l'}$, and no pair is given; this is not shown either. In
+not make the call of $Z_{l'}$, and no pair is given. *Caller frames in a
+later step* below shows instead that every evaluation of a key that holds
+$\alpha_{l'}$ then starts at $p$. In
 the second form $Z_{l'}$ holds $w_{\bar{m}}$, and with it $E_1$, as well as
 $E_2$, and no such pair is given.
 
@@ -1696,6 +1698,75 @@ Rules](../runtime/parsing.md#evaluations-of-rules)). An entry of $E_1$ would
 then answer $e_j$, inside a lookahead, so $E_1$ is the first call of its variant
 at the position and stores no result. Otherwise their variants or binding levels differ,
 or $e_j$ is in a context of growths.
+
+**Caller frames in a later step.** In the first form above, let $Z_{l'}$ lie
+in the exception of *Restarts* for the growths that enclose $w_{\bar{m}}$: let
+it be a later step $S$ of such a growth $G$, or an evaluation in such a step
+$S$ that follows no read of the seed of $S$. Then every evaluation of a key
+that holds $\alpha_{l'}$ lies inside $Z_{l'}$, starts after $Y_{l'}$ ends and
+starts at $p$. So no head that starts before $p$ holds $\alpha_{l'}$, and
+when no call of a rule that the parse memoizes is evaluated on the way from
+the end of $Y_{l'}$ to $e'_{l'}$, no evaluation of a key holds it.
+
+*Proof.* $Z_{l'}$ encloses $Y_{l'}$, which is $e'_j$ here and holds
+$\alpha_j$, so $\alpha_j$ lies in $S$, and $\alpha_{l-1}$, inside
+$w_{\bar{m}}$, in the earlier step of $G$ that holds $w_{\bar{m}}$. As in the paragraph
+on the case $e'_j = Y_{l'}$ after *Frames around the frame of an outer
+link*, $G$ is then
+the innermost evaluation that contains $\alpha_{l-1}$ and $\alpha_j$, the
+second case of *Repeats inside a growth* of Lemma 5 does not arise for
+$\alpha_j$, since the sequence of the activations of $\sigma$ at $q$ holds
+it, and in the first case $\alpha_j$ follows a read $\rho$ of the seed of
+$S$. $Z_{l'}$ contains $\rho$. This is plain when $Z_{l'}$ is $S$. Otherwise
+$Z_{l'}$ follows no read of the seed of $S$. Let $M$ be the innermost
+evaluation that contains $\rho$ and $\alpha_j$, which holds $\rho$ in a
+child $c$ before the child that holds $\alpha_j$, as in the definition of
+the restarts. $M$ and $Z_{l'}$ both contain $\alpha_j$, so one contains the
+other. If $Z_{l'}$ did not contain $\rho$, it would not contain $M$, so it
+would lie inside the child of $M$ that holds $\alpha_j$, which starts after
+$c$ ends and so after $\rho$ ends, and $Z_{l'}$ would follow $\rho$.
+
+Let $B$ be an evaluation of a key that holds $\alpha_{l'}$. $B$ and $Z_{l'}$
+both contain $\alpha_{l'}$, so one contains the other. If $B$ contains $S$
+and is not $S$, then $S$, a body evaluation of the leader of $G$, lies inside
+the call that grows $G$, a call of a rule that the parse memoizes, between
+$B$ and $\alpha_{l'}$ (*Own regions*), so $\alpha_{l'}$ lies outside the own
+region of $B$. If $B$ is $S$, it is the body evaluation of a leader, which is
+no evaluation of a key. If $B$ lies in $S$ and contains $Z_{l'}$, it contains
+$\rho$, and the call that makes it reads, through $\rho$, the growth $G$,
+which is open at its start, as in the paragraph after *Evaluated pairs of a
+shared call*; so it is no evaluation of a key. So $B$ lies inside $Z_{l'}$
+and is not $Z_{l'}$. $Y_{l'}$ is the body evaluation of the call at
+$\pi_{l'}$, which lies in the body of the rule of $Z_{l'}$, so no body
+evaluation lies between $Z_{l'}$ and $Y_{l'}$, and $B$, which lies inside
+$Z_{l'}$ and is not $Z_{l'}$, contains $Y_{l'}$ only as $Y_{l'}$ itself. $Y_{l'}$
+does not contain $\alpha_{l'}$, which starts after the link $l'$ leaves
+$Y_{l'}$ (*Calls that call no rule*). So $B$ does not contain $Y_{l'}$, and
+$Y_{l'}$ does not contain $B$, which is in progress at $\alpha_{l'}$; since
+$B$ is in progress after $Y_{l'}$ ends, it starts after $Y_{l'}$ ends, and
+so after $w_{l'}$ ends, since $Y_{l'}$ encloses $w_{l'}$. From the end of
+$w_{l'}$ to the start of $\alpha_{l'}$ the parser starts no evaluation
+before $p$ (*Growths around a leaf link*, under the hypothesis of *Outer
+links across runs*), so $B$ starts at $p$ or later. $B$ and $e'_{l'}$ both
+contain $\alpha_{l'}$, and $B$ does not lie inside $e'_{l'}$, since the only
+body evaluation inside $e'_{l'}$ is that of $r$ or its twin, which calls no
+rule and which the parse does not memoize at its calls. So $B$ contains
+$e'_{l'}$, which starts at $p$ (*Calls that call no rule*), and $B$ starts at
+$p$. Then $B$ is reached on the way from the end of $Y_{l'}$ to $e'_{l'}$
+through a call of a rule that the parse memoizes, and when no such call is
+evaluated there, there is no $B$. $\square$
+
+So in this case $\alpha_{l'}$ is held by no head, or by one of the heads that
+start at $p$, which are of the classes at $p$, one head each, as for the
+leaf links in the paragraph after *Evaluated pairs of a shared call*. An
+activation that no evaluation of a key holds is held by no memoized
+evaluation, so a growth step or an evaluation in a context of growths owns
+it (*Owners*), and Lemma 5 counts it. The claim uses of $Z_{l'}$ only that it
+lies in the exception and encloses $Y_{l'}$; it gives no pair of a shared
+call, and what a head that starts at $p$ holds is the bound on the
+activations that one head holds that step 1 of [Open Steps](#open-steps)
+leaves open. No grammar that the conditions accept is given here in which
+$Z_{l'}$ lies in that exception.
 
 **Calls of scan-only rules.** Let the rule $r$ of the links $i$ to $k$ be a
 scan-only rule ([Conditions for Linear
@@ -6250,7 +6321,12 @@ condition of the cost view that the [Cost View](cost-view.md) proof leaves open.
    that the pair meets the two hypotheses on growths, and no pair is given
    when that frame is a later step of a growth that encloses the unit or an
    evaluation in such a step that follows no read of its seed, or when that
-   frame encloses the unit. When the rule of that frame reads a variable or
+   frame encloses the unit. In the first of these two, every evaluation of a
+   key that holds the later outer activation starts at the position of the
+   scan, inside that frame, after the frame of the later outer link ends
+   (*Caller frames in a later step*), so a head that holds it is one of the
+   heads that start at that position, whose activations are counted with
+   the activations that one head holds, open above. When the rule of that frame reads a variable or
    is not memoized at the call, its call is shared with no unit, and the pair
    may be sought for any enclosing call whose rule reads no variable and is
    memoized there, to which the same forms apply; this is not shown either.
@@ -6259,8 +6335,9 @@ condition of the cost view that the [Cost View](cost-view.md) proof leaves open.
    made by calls with which the unit and its continuation start where they
    evaluate the shared call, and their rule reads no variable, is memoized at
    both calls, lies on no left-recursion cycle and is called with one level
-   restriction; in the other cases of the first form a head can hold the later
-   outer activation, which then belongs to the count of the activations that
+   restriction; in the other cases of the first form outside the exception
+   of the restarts a head, which can start before the position of the scan,
+   can hold the later outer activation, which then belongs to the count of the activations that
    heads hold, open above. Nor is the case shown in which the unit of the
    memoized link between two outer links starts before the unit of the
    earlier outer link ends and an evaluation inside it, outside its shared
