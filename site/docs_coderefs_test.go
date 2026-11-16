@@ -397,10 +397,16 @@ func (c *repoCode) codeRefsIn(rel string, data []byte, internal bool) []codeRef 
 					add(i, refUnexport, id)
 				}
 			}
-			for _, q := range qualifiedRe.FindAllStringSubmatch(span, -1) {
-				if c.internalPkg[q[1]] && c.internalExports[q[1]][q[2]] && !c.publicExports[q[1]][q[2]] && !seen[q[0]] {
-					seen[q[0]] = true
-					add(i, refQualified, q[0])
+			for _, loc := range qualifiedRe.FindAllStringSubmatchIndex(span, -1) {
+				// A qualifier written after a slash is an import path, such as go/parser.ParseFile: the
+				// standard library or a dependency names its package, not a package of this repository.
+				if loc[0] > 0 && span[loc[0]-1] == '/' {
+					continue
+				}
+				pkg, sym, name := span[loc[2]:loc[3]], span[loc[4]:loc[5]], span[loc[0]:loc[1]]
+				if c.internalPkg[pkg] && c.internalExports[pkg][sym] && !c.publicExports[pkg][sym] && !seen[name] {
+					seen[name] = true
+					add(i, refQualified, name)
 				}
 			}
 		}
@@ -615,10 +621,12 @@ func TestCodeReferencesTargetPaths(t *testing.T) {
 // here, but the standard library's F is not declared by it, so testing.F is not reported.
 func TestCodeReferencesQualifiedNames(t *testing.T) {
 	c := &repoCode{
-		internalPkg:     map[string]bool{"state": true, "testing": true},
-		internalExports: map[string]map[string]bool{"state": {"Declared": true}, "testing": {"Helper": true}},
+		internalPkg:     map[string]bool{"state": true, "testing": true, "parser": true},
+		internalExports: map[string]map[string]bool{"state": {"Declared": true}, "testing": {"Helper": true}, "parser": {"ParseFile": true}},
 	}
-	doc := "The `state.Declared` and `state.Missing` names, and `testing.F` and `testing.Helper`.\n"
+	// go/parser.ParseFile names the standard library's package by its import path, even though an
+	// internal package named parser declares ParseFile.
+	doc := "The `state.Declared` and `state.Missing` names, and `testing.F` and `testing.Helper`, and `go/parser.ParseFile`.\n"
 	var got []string
 	for _, r := range c.codeRefsIn("README.md", []byte(doc), false) {
 		if r.kind == refQualified {
