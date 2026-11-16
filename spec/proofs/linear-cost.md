@@ -2615,7 +2615,22 @@ no rule and is not memoized at its calls, the $\alpha_i$ held by heads are at
 most the free ones, $\alpha_1$ among them, the links with case (a) or (b) on
 their path and the leaf links that lead to one, and a leaf link can leave a
 memoized evaluation that is not a head through the end of its body and reach
-the call again in the evaluation around it, which can be a head. And in a Document parse a link can
+the call again in the evaluation around it, which can be a head. This
+happens more than once for one head at one position. In
+`main = "[" (Y1 ws "x" / Y2 ws "z" / Y3 ws "y") / Q / P`, with
+`Q = "!" Y1 ws "x" Y2 ws "z" Y3 ws "y"`, `Y1 = S (ws ";")?` and `Y2` and `Y3`
+alike, `S = "a"+`, `ws = [ ]*` and `P` as in *Outer links across runs*,
+which the conditions accept, each of `Y1`, `Y2` and `Y3` is memoized, and on
+`[` followed by `a`s, spaces and `y`, at each space the option of each
+evaluation of them scans the spaces and fails, the evaluation ends at the
+first space, and the leaf link of the call of `ws` there leaves it and
+reaches the call of `ws` in the body of `main`: three activations at each
+space are held by the evaluation where the parse begins, a head. Their
+number is the number of those alternatives, and the compute of a
+recognition on $n$ `a`s and $n$ spaces is $16n + 228$ on the closure backend
+and $16n + 236$ on the bytecode backend for $n$ from $250$ to $2000$. No
+grammar that the conditions accept is given here in which that number grows
+with the input. And in a Document parse a link can
 meet an entry of an earlier parse that answers a call in a context of growths,
 or a call whose corresponding call in the later evaluation is in a smaller
 lookahead state, in a context of growths or of the other variant, and a link
