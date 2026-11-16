@@ -190,7 +190,7 @@ are as follows.
 | Blocker | Shape | Condition |
 |:--|:--|:--|
 | Nesting through recursion | The unit and its continuation both reach a recursive rule | Bounded nesting; or one of the conditions below, which make the unit commit |
-| First items overlap through calls | Alternatives start with different calls whose first sets overlap, or with a call that reads variables | Left factoring; first sets of length $k > 1$; free variables (D3); exclusive alternatives |
+| First items overlap through calls | Alternatives start with different calls whose first sets overlap, or with a call that reads variables and whose body leads to no shareable call that both alternatives evaluate first | Left factoring; first sets of length $k > 1$; free variables (D3); exclusive alternatives |
 | Follow of a rule | An option, repetition or lookahead at the end of a rule | Specialization per call site |
 | Trivia first | A unit and its continuation start with a whitespace call | Normal forms with (P2), so that the shared whitespace call is removed as shared |
 | Operator parts | An operator part against another part or an operand | Exclusive alternatives over the operator table; first sets of length $k > 1$ |

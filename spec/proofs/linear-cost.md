@@ -1582,11 +1582,11 @@ not memoize at the call, is shared with no unit, so for such a $Z_{l'}$ the
 route through the call that makes it is closed, not merely unproved. Every
 evaluation that encloses $Z_{l'}$ is in progress when $\alpha_{l'}$ starts
 too, so the reduction holds with $Z_{l'}$ replaced by any of them. The route
-then takes $F_2$ as the evaluation of the innermost call that encloses
-$Z_{l'}$, or makes it, and whose rule reads no variable and is memoized at the
-call, and the two forms above apply to the evaluation of that call in place
-of $Z_{l'}$; when no such call exists, no pair is given. Neither form is shown
-for that call.
+may then take $F_2$ as the evaluation of any call that encloses $Z_{l'}$, or
+makes it, and whose rule reads no variable and is memoized at the call, such
+as the innermost one, and the two forms above apply to the evaluation of that
+call in place of $Z_{l'}$; when no such call exists, no pair is given. Neither
+form is shown for such a call.
 
 In the first case the parse evaluates three calls of $Y$ at the start of
 $Y_{l'}$ that the memo answers none of: $E_1$, $e_j$ and $E_2$, in this order,
@@ -6152,9 +6152,8 @@ condition of the cost view that the [Cost View](cost-view.md) proof leaves open.
    evaluation in such a step that follows no read of its seed, or when that
    frame encloses the unit. When the rule of that frame reads a variable or
    is not memoized at the call, its call is shared with no unit, and the pair
-   must be sought for the innermost enclosing call whose rule reads no
-   variable and is memoized there, to which the same forms apply; this is not
-   shown either. Nor are the cases
+   may be sought for any enclosing call whose rule reads no variable and is
+   memoized there, to which the same forms apply; this is not shown either. Nor are the cases
    shown in which the frame of the later outer link encloses the later
    evaluation of the call, or in which the continuation
    reaches the activation of the index in a later evaluation of the call. A later
