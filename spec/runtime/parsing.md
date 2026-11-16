@@ -496,10 +496,11 @@ exceptions are these.
   such lookahead has the same outcome. Where the parse records the input that
   evaluations examine, equal growing results and equal outcomes also need
   equal examined ranges: in every parse of the engine, whose traces report the
-  range, and in a [Document](documents.md) parse of a generated Go parser; a
-  generated parser outside a Document parse and a TypeScript parser compare no
-  range. A result that read a growing result is kept only until the first
-  growth of its context ends, and never enters the memo of a later parse.
+  range, and in a [Document](documents.md) parse or an
+  [observed](observability.md) parse of a generated Go parser; a generated Go
+  parser in any other parse and a TypeScript parser compare no range. A
+  result that read a growing result is kept only until the first growth of
+  its context ends, and never enters the memo of a later parse.
   A lookahead counts as observed by its outcome only if nothing else of it
   remains after it: a positive lookahead whose expression makes a capture or
   binds a variable outside the rules that it calls is not observed, and the
