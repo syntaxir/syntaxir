@@ -1,5 +1,8 @@
 # Code Generation for Host Languages
 
+> [!WARNING]
+> This page describes the target architecture. The code may still differ from it.
+
 The host language is the language of a generated parser. ZeroParse generates parsers in Go and TypeScript today. Another
 host language is added in the same pattern, so the representations and the pass infrastructure do not change. This page
 explains the pattern, the path from the Exec stage to printed source, the passes that the host languages share, the
@@ -8,17 +11,19 @@ in [Architecture](architecture.md#backends).
 
 ## The Pattern
 
-Each host language has one package with three parts.
+Each host language has subpackages for its passes, its printer and its runtime library.
 
 - **Passes** legalize and optimize the Exec stage for the language. They run from the Exec stage to the Exec stage and
-  are registered in the same registry as the other passes, so each has a flag.
+  are registered in the same registry as the other passes, so each has a flag. Go's passes are in the `golang/pass`
+  package and TypeScript's in `typescript/pass`.
 - **Print** prints the legalized Exec stage as it is. The printer does not carry transformations as string processing
-  or as regeneration of the code.
-- **Library** is the runtime library of generated parsers, and the printer that prints the compositions of the Exec
-  dialect into it.
+  or as regeneration of the code. Go's printer is `golang/print`, and TypeScript's is `typescript/print`.
+- **Library** is the runtime library of generated parsers. Go's library parts are `golang/libprint`, which prints the
+  compositions of the Exec dialect into the library, and `golang/libsrc`, the copy of the library that a generated
+  module embeds. TypeScript's runtime library is `typescript/lib`.
 
-The parts that all host languages share, such as options and the helpers of the host-language packages, are in a common
-package beside them.
+The parts that all host languages share, such as options and the helpers of the host-language packages, are in the
+`common` package beside them.
 
 ## From the Exec Stage to Printed Source
 
@@ -73,9 +78,9 @@ Each host language has a runtime library that the generated parsers call. For Go
 parsers.
 
 - **The library printer** prints the compositions of the Exec dialect into the generated-parser library and into the
-  shared engine state. For Go, the library part holds this printer and the copy of the library that is embedded when the
-  library is not imported. That printing is an edge of code generation, run by the generator command. It is not an import
-  edge, so the runtime side does not depend on the printer.
+  shared engine state. For Go, `golang/libprint` is this printer, and `golang/libsrc` is the copy of the library that
+  `go:generate` produces for the embedded mode. That printing is an edge of code generation, run through `go:generate`.
+  It is not an import edge, so the runtime side does not depend on the printer.
 - **Library mode.** The generator either imports the runtime library as a library, or embeds a copy of it in the
   generated output (`-lib import` and `-lib embed` for Go), as far as the packaging of the host language allows. The
   embedded copy compiles by itself, as the rules of the [Package Layering](layering.md) require for generated parsers.
