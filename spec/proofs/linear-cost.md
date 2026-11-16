@@ -857,7 +857,7 @@ and neither $e_i$ nor $e'_i$ is in a context of growths, then either the rule is
 no leader and $e_i$ and $e'_i$ are two of the at most six body evaluations of
 the rule at its position and level that the memo allows (Lemma 3; the rule reads
 no variable), or the rule is a leader and $e_i$ and $e'_i$ are two growths of it
-at its position and level, $e_i$ inside a lookahead and $e'_i$ outside them. At
+at its position and level, $e_i$ in lookahead state $1$ and $e'_i$ in state $0$. At
 most five such links of $\sigma$ at $q$ use one rule, position and level.
 
 *Proof.* Outside contexts of growths, a leader grows at a call whose result at
@@ -866,8 +866,8 @@ the position is not in the memo
 and the growth stores its result
 ([Evaluations of Rules](../runtime/parsing.md#evaluations-of-rules)), which answers every later call there outside contexts in the same lookahead
 state or a greater one (*Answered calls* below). So of two growths of a leader
-at one position and level outside contexts, the earlier is inside a lookahead and
-the later outside them, and there are at most two. The memo answers a call
+at one position and level outside contexts, the earlier is in lookahead state
+$1$ and the later in state $0$, and there are at most two. The memo answers a call
 without evaluating it, and $e'_i$,
 which contains $\alpha_i$, is evaluated, and so is $e_i$, made earlier. If links
 $i < k$ had $e'_k = e'_i$, then $\alpha_{k-1}$, which starts no earlier than
@@ -1551,12 +1551,22 @@ the place of $E_2$). This uses nothing of what $Z_{l'}$ evaluates after
 $\pi_{l'}$, which need not repeat what $Z_l$ evaluates after $\pi_l$. $Z_{l'}$
 is in progress at $E_2$, after $w_{\bar{m}}$ ends, and was not started inside
 $w_{\bar{m}}$, so it either started after $w_{\bar{m}}$ ended or encloses
-$w_{\bar{m}}$. In the first form $\hat{\kappa}$ makes the call of $Z_{l'}$,
-and what is not shown is that $w_{\bar{m}}$ shares that call with
+$w_{\bar{m}}$. In the first form $Z_{l'}$ is in progress when $\alpha_j$
+starts, since it encloses $Y_{l'}$, which is $e'_j$ here. So, outside the
+exception of *Restarts* for the growths that enclose $w_{\bar{m}}$, it lies in
+the evaluation of $\hat{\kappa}$ from $\bar{s}$, and $\hat{\kappa}$ makes
+the call of $Z_{l'}$ (the claim after *The last unit around the earlier
+frame*). There what is not shown is that $w_{\bar{m}}$ shares that call with
 $\hat{\kappa}$ and evaluates it, unanswered, at the same position, and that
 neither evaluation is in a context of growths, and that the pair meets the
 hypothesis on the growths open at their position; the argument above for $E_2$ does not apply
-to $F_2$, since the parser does not leave $Z_{l'}$ at $p$ before $e'_{l'}$. In
+to $F_2$, since the parser does not leave $Z_{l'}$ at $p$ before $e'_{l'}$.
+Inside that exception $Z_{l'}$ is a later step of a growth $G$ that encloses
+$w_{\bar{m}}$, or an evaluation in such a step that follows no read of its
+seed, as a later step of the leader that calls $Y$ at $\pi_{l'}$ after its
+read of the seed. Then $G$, which encloses
+$w_{\bar{m}}$, makes $Z_{l'}$ or the step that holds it, $\hat{\kappa}$ need
+not make the call of $Z_{l'}$, and no pair is given; this is not shown either. In
 the second form $Z_{l'}$ holds $w_{\bar{m}}$, and with it $E_1$, as well as
 $E_2$, and no such pair is given.
 
@@ -2401,8 +2411,8 @@ these bound the successful activations of $\sigma$ at $q$ that memoized
 evaluations own, apart from those that case 5 or a dropped step at the position of its growth
 repeats, which Lemma 5 counts. The comparison with $\mathcal{R}$ needs no order between the
 lookahead states of $e_i$ and $e'_i$ and no common variant, and passes through
-the growths that $e'_i$ makes again outside lookaheads after $e_i$ made them
-inside one, through those that the leader of the link makes again there, and
+the growths that $e'_i$ makes again in lookahead state $0$ after $e_i$ made
+them in state $1$, through those that the leader of the link makes again there, and
 through the growths open at the start of both evaluations of the link.
 
 This gives the case that the comparison misses without the classes: in
@@ -2447,7 +2457,7 @@ it: they rest on the claims of Lemma 4 that count nothing, from *Failure after
 a source* to *Nothing in a memoized link is a head* other than *Activations that do not succeed*, on
 Lemmas 1 to 3 and on the memo. Outside contexts of growths, the memo bounds the
 growths of a leader at one position, level and combination of the values of the variables that it
-reads by two, one inside a lookahead and one outside them, since a growth
+reads by two, one in lookahead state $1$ and one in state $0$, since a growth
 stores its result ([Evaluations of
 Rules](../runtime/parsing.md#evaluations-of-rules)), which answers the later
 calls there in the same lookahead state or a greater one.
@@ -3023,8 +3033,8 @@ before it examines input. Two cases bound the call.
   ([Lemma 3 of the memoization proof](memoization.md#lemma-3-answering-from-a-sound-entry)),
   at a constant cost. Otherwise the call starts that growth. R is memoized,
   so the growth happens at most twice for each position, level and combination
-  of the values of the variables that R reads, once inside a lookahead and once
-  outside them
+  of the values of the variables that R reads, once in lookahead state $1$ and
+  once in state $0$
   ([Evaluations of Rules](../runtime/parsing.md#evaluations-of-rules)), and it
   takes at most two
   more steps than the length it consumes
@@ -3364,8 +3374,8 @@ its key is the leader, position, level and combination of the values of the
 variables that the leader reads. An outer growth is one, since its call can
 read only a growth of its cycle at $p$ ([Lemma 2 of the memoization
 proof](memoization.md#lemma-2-reading-an-open-growth)). The first growth of a
-key is the **head** of the key. A key has at most two outer growths, one inside
-a lookahead and one outside them (the outline above).
+key is the **head** of the key. A key has at most two outer growths, one in
+lookahead state $1$ and one in state $0$ (the outline above).
 
 **Covered growths.** Let $x$ be an evaluation of the parse, a call or a step
 of a growth, and let $z$ be a call of a leader inside $\mathcal{R}(x)$ that
@@ -3824,8 +3834,8 @@ at a call of the body of $Z$. Of the successful growth activations of
 $\sigma$ at $q$ whose growth starts at or before $q - c_W$, at most two are
 direct in $E$, unless a path that enters the growth again leads from the
 abandoned unit to a later one (case 5); when there are two, their growths
-are the two outer growths of one key, one inside a lookahead and one outside
-them. Let $\alpha$ and $\alpha'$ be such activations direct in different
+are the two outer growths of one key, one in lookahead state $1$ and one in
+state $0$. Let $\alpha$ and $\alpha'$ be such activations direct in different
 body evaluations of $Z$, their innermost common evaluation no growth, $w$
 as in *Restarts of growth activations*, the unit that *Dropped steps* gives
 when the abandoned evaluation is a dropped step, and let no dropped step at
@@ -3928,7 +3938,7 @@ held by heads*, whose count rests on Lemma 3, *Replayed activations* and
 order of Lemma 4; the others are those of the families of growths.
 
 **Second outer growths.** The outer growths of a key are at most two, the
-first inside a lookahead and the second outside them. They read no growth
+first in lookahead state $1$ and the second in state $0$. They read no growth
 open at their start, so their steps have the same results, which the
 lookahead state does not change (*Counterparts*), and each successful growth
 activation of the second at $q$ is matched to the one of the first at $q$.
@@ -6117,9 +6127,12 @@ condition of the cost view that the [Cost View](cost-view.md) proof leaves open.
    after the later one ends; that activation lies in the frame of the caller
    of the later call, and no head holds it when the evaluation of the call
    that makes that frame is the later evaluation of such a pair, but it is not
-   shown that the unit shares that call with the continuation when the
-   continuation makes it, nor that the pair meets the two hypotheses on
-   growths, and no pair is given when that frame encloses the unit. Nor are the cases
+   shown that the unit shares that call with the continuation and evaluates
+   it, unanswered, at the same position when the continuation makes it, nor
+   that the pair meets the two hypotheses on growths, and no pair is given
+   when that frame is a later step of a growth that encloses the unit or an
+   evaluation in such a step that follows no read of its seed, or when that
+   frame encloses the unit. Nor are the cases
    shown in which the frame of the later outer link encloses the later
    evaluation of the call, or in which the continuation
    reaches the activation of the index in a later evaluation of the call. A later
