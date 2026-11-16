@@ -1340,7 +1340,14 @@ The conditions below use these terms.
   the bodies of the calls they start with evaluate: a call of the same rule with the
   same level restriction, or with none in both, of a rule that reads no
   variable and that is memoized at each of the two calls or calls no rule,
-  itself included. A continuation that goes on through the end of a rule
+  itself included. Only the shared call must read no variable: the calls
+  whose bodies the unit and the continuation evaluate on the way to it may be
+  calls of rules that read variables, since what those bodies evaluate before
+  it examines no input and the result of the shared call does not depend on
+  the values of the variables. In `main = A "!" / B ws "y"`, with
+  `A = Y { v == 1 } ws "x"`, `B = Y { v == 2 } ws "x"` and `Y = "a"+`, the two
+  alternatives share the call of `Y`, and after it the calls of `ws` and the
+  literal `"x"`, although `A` and `B` read `v`. A continuation that goes on through the end of a rule
   body goes on through every call of the rule, so it shares a call only
   when, through each of them, it evaluates the call before anything else
   that examines the input or examines nothing more there, as at the end of
