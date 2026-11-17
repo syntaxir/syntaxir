@@ -246,6 +246,17 @@ rm -f "$1/live.$$"
 	}
 }
 
+// blockWait is how long a claim may take before it counts as blocked: 4 seconds when the claim
+// should block, so that the test does not wait long for a claim that never comes, and 60 seconds
+// when it should go through, so that a claim slowed by a heavily loaded machine is not taken for
+// a blocked one.
+func blockWait(blocked bool) time.Duration {
+	if blocked {
+		return 4 * time.Second
+	}
+	return 60 * time.Second
+}
+
 // A live pid with another start time is a reused pid, not the holder; the same start time is.
 func TestTestslotReusedPid(t *testing.T) {
 	needTools(t)
@@ -268,7 +279,7 @@ func TestTestslotReusedPid(t *testing.T) {
 			} else {
 				write(t, filepath.Join(slots, ".mutex", "owner"), c.start+"\n", 0o644)
 			}
-			ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), blockWait(c.blocked))
 			cmd := exec.CommandContext(ctx, "bash", scriptPath(t, "testslot.sh"), "true")
 			cmd.Env = env
 			err := cmd.Run()
@@ -463,7 +474,7 @@ func TestTestslotReclaimsEmptySlot(t *testing.T) {
 		if err := os.Chtimes(slot, past, past); err != nil {
 			t.Fatal(err)
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), blockWait(c.blocked))
 		cmd := exec.CommandContext(ctx, "bash", scriptPath(t, "testslot.sh"), "true")
 		cmd.Env = env
 		err := cmd.Run()
