@@ -183,6 +183,19 @@ library of another protocol and that an embedded copy fails to build against a `
 
 ## Testing
 
+### Running the Checks
+
+`hack/gate.sh [--base REV] [--keep-going] [--summary FILE] [--dry-run] LEVEL...` runs the checks of a level in a fixed order, so that every contributor validates the same way. It stops at the first failed step, so that the long steps do not run after a failure; `--keep-going` runs every step. It writes one line per step (name, exit code, seconds) to the summary file and prints it at the end. It exits 0 when every step passed, 1 when a step failed and 2 on a usage error, never prompts, and `--dry-run` lists the steps without running them. Choose the level by what the change touches:
+
+| Level | Steps |
+|---|---|
+| `docs` | `go vet ./...`, `cd site && go test ./...`, and a site build into a temporary directory with its link check (without the WebAssembly binary; see [website maintenance](site.md)) |
+| `code` | `go build ./...`, `go vet ./...`, and `go test` of the packages that changed since `REV` (default `origin/main`) and of every package that depends on them, which `hack/affected-tests.sh` finds with `go list` |
+| `engine` | `code`, with the tests of the affected packages run in the long tier (`-tags zp_long`, which includes the default tier), then `go generate ./internal/codegen/... ./bench ./internal/frontend/parser ./spec/language` with a check that it left the tree unchanged, `hack/test-alpha-parsers.sh` and `hack/test-reference-tags.sh` |
+| `full` | `go test -tags zp_long -timeout 90m ./...` |
+
+The changed packages are those of `REV..HEAD`, so commit before running; the gate warns when the tree has uncommitted changes. `GATE_NICE` (default 0) is the `nice` increment of every step, and `GOMAXPROCS` and the other Go variables pass through. `GATE_SELFTEST_FAIL=1` adds a first step that fails, to see the gate stop.
+
 ```bash
 go test ./...
 ```
