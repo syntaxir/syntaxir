@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Usage: [BENCHLOCK_CLASS=shared] benchlock.sh <owner-tag> <command...>
 # Runs the command while holding the heavy-run lock in one of two classes:
-#   exclusive (the default)  alone on the machine: for benchmarks, A/B and any timed run.
-#   shared                   in one of K slots, beside other shared jobs: for gates and other heavy
-#                            runs that measure no time. K is BENCHLOCK_SHARED, default one per six
-#                            cores, between 1 and 3 (see lib.sh).
+#   exclusive (the default)  alone on the machine.
+#   shared                   in one of K slots, beside other shared jobs. K is BENCHLOCK_SHARED,
+#                            default one per six cores, between 1 and 3 (see lib.sh).
+# The rule: every heavy run that measures no time is shared (gates, test suites, generation, the
+# alpha-parsers check); only timed runs (benchmarks, A/B runs, profiles) are exclusive.
 # An exclusive job starts only when no holder of either class runs. The queue is first come, first
 # served across both classes: a queued exclusive job blocks the shared jobs queued after it, so a
 # stream of shared jobs cannot starve it. A holder whose PID is dead is taken over.

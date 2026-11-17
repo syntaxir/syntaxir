@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Usage: alpha-check.sh [-c] [-w worktree] [-t tag]
 # Syncs the alpha-parsers checkout from the worktree (hack/sync-alpha-parsers.sh) and tests it
-# (hack/test-alpha-parsers.sh), through the run queue under <tag> (default: the worktree name).
+# (hack/test-alpha-parsers.sh), through the run queue under <tag> (default: the worktree name), in
+# its shared class: the check measures no time.
 # ZP_ALPHA_PARSERS names the checkout. With -c, it first clones that checkout into
 # <worktree>/.scratch/alpha and uses the clone: lanes never touch the integrator's checkout.
 # The sync rewrites the checkout, so it is never run on a checkout another job uses.
@@ -24,4 +25,4 @@ fi
 [ -d "$src" ] || die "no alpha-parsers checkout at $src (set ZP_ALPHA_PARSERS)"
 export ZP_ALPHA_PARSERS=$src
 # shellcheck disable=SC2016  # the inner script expands its own arguments
-exec "$here/benchlock.sh" "$tag" bash -c 'cd "$1" && hack/sync-alpha-parsers.sh && hack/test-alpha-parsers.sh' _ "$wt"
+exec env BENCHLOCK_CLASS=shared "$here/benchlock.sh" "$tag" bash -c 'cd "$1" && hack/sync-alpha-parsers.sh && hack/test-alpha-parsers.sh' _ "$wt"

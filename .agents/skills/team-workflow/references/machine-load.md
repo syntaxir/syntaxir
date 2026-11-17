@@ -8,8 +8,8 @@ quiet machine. So runs fall into four classes.
 |:--|:--|
 | Docs, spec, site and skill checks (`cd site && go test -count=1 ./...`, the site build and check), `go vet`, deterministic count or charge probes that measure no time | Directly, throttled: `nice -n 15 env GOMAXPROCS=4 ...`. Never queue them. |
 | Targeted package tests while developing | Throttled through the test slots: `.agents/scripts/testslot.sh nice -n 15 env GOMAXPROCS=4 go test -p 2 -run '<tests>' -short <pkgs>` |
-| Whole packages of the large test suites (engine, codegen and complexity tests), the root suite, `-tags zp_long`, `go generate ./internal/codegen/... ./bench`, `hack/test-alpha-parsers.sh`, `hack/test-reference-tags.sh`, and the engine and full gates | Only through the queue, in its shared class: `BENCHLOCK_CLASS=shared .agents/scripts/benchlock.sh <tag> zsh -f -c 'cd <worktree> && ...'` (`run-gate.sh` does this for gates) |
-| Benchmarks, A/B runs and any timed run | Only through the queue, exclusive (the default): `.agents/scripts/benchlock.sh <tag> zsh -f -c 'cd <worktree> && ...'` |
+| Whole packages of the large test suites (engine, codegen and complexity tests), the root suite, `-tags zp_long`, `go generate ./internal/codegen/... ./bench`, `hack/test-alpha-parsers.sh`, `hack/test-reference-tags.sh`, the engine and full gates, and any other heavy run that measures no time | Only through the queue, in its shared class: `BENCHLOCK_CLASS=shared .agents/scripts/benchlock.sh <tag> zsh -f -c 'cd <worktree> && ...'` (`run-gate.sh` and `alpha-check.sh` do this) |
+| Benchmarks, A/B runs, profiles and any other timed run | Only through the queue, exclusive (the default): `.agents/scripts/benchlock.sh <tag> zsh -f -c 'cd <worktree> && ...'` |
 
 Heavy test runs, including the root `go test ./...`, go only through the queue. Docs and site
 checks and count probes run directly, throttled.
@@ -21,8 +21,9 @@ checks and count probes run directly, throttled.
   classes are served in (`start=`, `seq=`) order. An exclusive job (the default) runs alone. A
   shared job (`BENCHLOCK_CLASS=shared`) runs beside up to K-1 other shared jobs and never beside
   an exclusive one; K is `BENCHLOCK_SHARED`, default one per six cores between 1 and 3. A queued
-  exclusive job holds back the shared jobs queued after it, so it is not starved. Timing-free
-  heavy runs belong in the shared class; anything whose time you compare must be exclusive. A
+  exclusive job holds back the shared jobs queued after it, so it is not starved. The rule:
+  every heavy run that measures no time is shared; only timed runs (benchmarks, A/B runs,
+  profiles) are exclusive. A
   line in `benchlock-stalls.log` is a queue bug: report it.
 - `.agents/scripts/queue-status.sh` shows the queue and exits 1 when it is stuck (jobs queued,
   none running) or a stall was logged. Inspect at once when it does.
