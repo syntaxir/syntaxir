@@ -5,19 +5,19 @@ running the result gives the same results, calls the same operations with the sa
 ends the same way as running the original. Passes rely only on the meaning of statements and expressions and on the
 declarations of operations (their state, features and laws), never on how a target implements an operation.
 
-## The Pass Pipeline
+## Passes in the Pipeline
 
-The functions that a backend prints from Exec IR are lowered from Flow IR one at a time, each into a module of its
-own (see [Lowering From Flow IR](lowering.md)). Each such module then goes through the pass pipeline of Exec IR: the
-passes in their declared order. A pass has a name that no pass of Core IR or Flow IR has, and that is also the name
-of the optimization that turns it off; a pass that is off, or that does not apply to the build, does not run. A pass
-changes the module in place: it keeps the function that lowering made in the module, and in it the locals that
-lowering declared for the variables of the Flow IR function, because the backend prints the body of that function
-with those locals; it may change the body, add locals and add the declarations that its changes need. The
-module MUST satisfy the [invariants](invariants.md) after the last pass: verification runs after the last pass, or
-after every pass when asked, and a violation names the pass after which it was found. Lowering has verified the
-module, so a run in which no pass runs does not verify it again. The pipeline defines no pass yet; the
-transformations below are used by the compositions and the printers.
+The functions that a backend prints from Exec IR are lowered from Flow IR one at a time, each into a module of its own
+(see [Lowering From Flow IR](lowering.md)). Each such module then goes through the passes of the one compiler pipeline
+that run at the Exec stage, in their declared order. A pass has a name that no pass of Core IR or Flow IR has, and that
+is also the name of the optimization that turns it off; a pass that is off, or that does not apply to the build, does
+not run. A pass changes the module in place: it keeps the function that lowering made in the module, and in it the
+locals that lowering declared for the variables of the Flow IR function, because the backend prints the body of that
+function with those locals; it may change the body, add locals and add the declarations that its changes need. The
+module MUST satisfy the [invariants](invariants.md) where the pipeline leaves the stage: verification runs right after
+the lowering and again where the pipeline leaves the stage, or after every pass when asked, and a violation names the
+pass after which it was found. Lowering has verified the module, so a run in which no pass runs does not verify it
+again. No pass runs at the Exec stage yet; the transformations below are used by the compositions and the printers.
 
 ## Specialization
 
