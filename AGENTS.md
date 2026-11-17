@@ -25,20 +25,22 @@ A test (`internal/testing/archtest`) fails when a path in backticks here does no
   Docs and comments are English; reader-facing docs carry no chat history, backlog labels or
   issue numbers.
 - Unspecified language semantics: check `docs/design/records/` and the issues, then ask the
-  owner with alternatives and a recommendation.
+  owner with alternatives and a recommendation, and wait before dependent work.
 - High-impact changes need review by a reviewer independent of the worker.
 
 ## Checks
 
 `hack/gate.sh [--base REV] LEVEL` stops at the first failing step and checks `REV..HEAD`, so
-commit first. `docs`: docs, spec, site, skills. `code`: Go changes. `engine`: engine,
-generator, runtime (long tier, generation, alpha-parsers, reference build). `full`: everything.
-A lane runs `docs` or `code`; the landing batch runs `engine` or `full` once. New slow tests go
-to the long tier (`zp_long`).
+commit first. `docs`: docs, spec, site, skills. `code`: Go changes. `engine`: `code` plus the
+long tier, generation, the reference build and alpha-parsers (needs a checkout:
+`ZP_ALPHA_PARSERS`). `full`: only the root `zp_long` suite; a landing batch runs it on top of
+`engine`, and `docs` when it also changes documentation. A lane runs `docs` or `code`. New slow
+tests go to the long tier (`zp_long`).
 
 ## Agent scripts
 
-State is in `$ZP_AGENT_STATE`; `-h` prints usage. Heavy runs go through the queue only.
+Export one `ZP_AGENT_STATE` for every lane on the machine, so that all share one queue and
+one set of worktrees. `-h` prints usage. Heavy runs go through the queue only.
 
 - Start a lane: `.agents/scripts/lane-new.sh <name> <branch>`
 - Gate in the right run class: `.agents/scripts/run-gate.sh [-t tag] LEVEL...`
@@ -54,7 +56,7 @@ State is in `$ZP_AGENT_STATE`; `-h` prints usage. Heavy runs go through the queu
 ## Git and backlog
 
 - Stage files by name, never `git add -A` or `git add .`. Never force-push. Only the
-  integrator pushes main. Delete a remote branch only after verifying it is integrated.
+  integrator pushes main, within the task's scope and authorization. Delete a remote branch only after verifying it is integrated.
 - Commits, issues, PRs: the owner's voice, English, with a body (`docs/commit-messages.md`),
   `Refs #N` never `Closes`, no agent or work-history mentions, no AI attribution.
 - [#1](https://github.com/zeroparse/zp/issues/1) is the live backlog status page (use the

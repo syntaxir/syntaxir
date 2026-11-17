@@ -20,8 +20,10 @@ func TestAgentsPathsExist(t *testing.T) {
 	checked := 0
 	for _, m := range span.FindAllStringSubmatch(string(data), -1) {
 		p := m[1]
-		// A path has no space, placeholder, variable, glob or flag, and names a directory or a file.
-		if strings.ContainsAny(p, " <>$*[]|=:") || strings.HasPrefix(p, "-") || strings.Contains(p, "...") {
+		// An entry may be a command line: its first word names the path. A word with a
+		// placeholder, variable, glob or flag, or without a path, is skipped.
+		p = strings.Fields(p)[0]
+		if strings.ContainsAny(p, "<>$*[]|=:") || strings.HasPrefix(p, "-") || strings.Contains(p, "...") {
 			continue
 		}
 		if !strings.Contains(p, "/") && filepath.Ext(p) == "" {
