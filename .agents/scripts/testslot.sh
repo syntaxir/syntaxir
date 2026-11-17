@@ -23,6 +23,7 @@ set -euo pipefail
 D=$zp_state/slots
 n=${TESTSLOT_N:-4}
 [ $# -gt 0 ] || { echo "usage: testslot.sh <cmd...>" >&2; exit 2; }
+command -v perl >/dev/null 2>&1 || { echo "testslot.sh: perl is required for the claim lock and is not installed" >&2; exit 127; }
 zp_queue_note
 mkdir -p "$D"
 mine=
@@ -48,11 +49,16 @@ holder_alive() {
   kill -0 "$1" 2>/dev/null || return 1
   [ -z "${2:-}" ] || [ "$(zp_lstart "$1")" = "$2" ]
 }
-# slot_dead DIR: the holder of the slot is gone.
+# slot_dead DIR: the holder of the slot is gone. A claimer writes its pid right after it makes
+# the slot, inside the claim, so a slot without a pid that is older than a minute was left by a
+# claimer that was killed between the two.
 slot_dead() {
   local p st rec
   p=$(cat "$1/pid" 2>/dev/null || true)
-  [ -n "$p" ] || return 1
+  if [ -z "$p" ]; then
+    [ -n "$(find "$1" -maxdepth 0 -mmin +1 2>/dev/null)" ]
+    return
+  fi
   st=
   rec=$(cat "$1.start" 2>/dev/null || true)
   # The start file counts only when it was written by that pid.
@@ -68,7 +74,14 @@ mutex_stale() {
   fi
   [ -n "$(find "$D/.mutex" -maxdepth 0 -mmin +1 2>/dev/null)" ]
 }
-try_flock() { perl -e 'use Fcntl ":flock"; open(my $f, ">&=", 9) or exit 2; flock($f, LOCK_EX | LOCK_NB) or exit 1'; }
+# try_flock returns 1 when the lock is held by another claimer, and stops the script when it cannot
+# be asked for at all (the perl status 2), which a retry would not mend.
+try_flock() {
+  local rc=0
+  perl -e 'use Fcntl ":flock"; open(my $f, ">&=", 9) or exit 2; flock($f, LOCK_EX | LOCK_NB) or exit 1' || rc=$?
+  [ "$rc" -le 1 ] || { echo "testslot.sh: cannot take the claim lock (perl status $rc)" >&2; exit 127; }
+  return "$rc"
+}
 
 # claim_once takes a slot when one is free; it returns 1 when it must be retried.
 claim_once() {
@@ -97,7 +110,7 @@ done
 # Job control gives the command a process group of its own as it is forked, so a signal sent to
 # the group from here on cannot miss it. A signal that came earlier is replayed below.
 set -m
-"$@" &
+"$@" < /dev/null &
 child=$!
 set +m
 if [ -n "$term" ]; then kill -TERM -- "-$child" 2>/dev/null || true; fi

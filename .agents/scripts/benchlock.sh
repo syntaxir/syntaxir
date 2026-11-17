@@ -6,7 +6,7 @@
 #
 # The command runs in a process group of its own (job control), created as the command is forked,
 # so TERM, INT or HUP to this script, even one that arrives while the command starts, signals
-# the group. The command runs as a background job: its standard input is /dev/null.
+# the group. The command's standard input is /dev/null, set explicitly: job control does not redirect it.
 # State: $ZP_AGENT_STATE (see lib.sh). The layout is the one of the earlier
 # zsh version of this script, so jobs queued by either version are ranked together.
 #
@@ -25,6 +25,7 @@ R=$D/runs
 stall=${BENCHLOCK_STALL:-300}
 tag=$1; shift
 zp_queue_note
+command -v perl >/dev/null 2>&1 || { echo "benchlock.sh: perl is required for the ticket and is not installed" >&2; exit 127; }
 mkdir -p "$R"
 seq=$(perl -e 'use Fcntl qw(:flock); open(my $f, "+>>", $ARGV[0]) or die "seq: $!\n"; flock($f, LOCK_EX) or die; seek($f, 0, 0); my $n = <$f> // 0; $n = int($n) + 1; truncate($f, 0); print $f "$n\n"; close $f; print $n' "$D/benchlock.seq") || { echo "benchlock: cannot allocate a ticket" >&2; exit 125; }
 rec=$R/$tag.$$
@@ -85,7 +86,7 @@ on_term() {
 }
 trap on_term TERM INT HUP
 set -m
-"$@" &
+"$@" < /dev/null &
 child=$!
 set +m
 printf '%s\n' "state=running seq=$seq tag=$tag wrapper=$$ pgid=$child cwd=$PWD start=$(date +%FT%T) cmd=$*" > "$rec"
