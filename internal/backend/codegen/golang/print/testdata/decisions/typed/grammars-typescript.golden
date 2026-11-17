@@ -1,6 +1,6 @@
 # Typed lowering decisions of the Core IR and Flow passes (see core_typed_decisions_test.go).
 grammar	lean,lean boxed	"grammars/typescript"
-rule	0	guard=2:c387ca85c0
+rule	0	guard=2:326a16ed75
 rule	1	scope=1:3de35417b9
 rule	2	guard=2:0cc6e63b3e
 rule	5	guard=11:0329ea31cc
@@ -353,7 +353,7 @@ rule	573	guard=4:331095b182
 rule	574	guard=4:79faef46c0
 rule	575	guard=3:cced38b29f
 grammar	lean observable	"grammars/typescript"
-rule	0	guard=2:c387ca85c0
+rule	0	guard=2:326a16ed75
 rule	1	scope=1:3de35417b9
 rule	2	guard=2:0cc6e63b3e
 rule	5	guard=11:0329ea31cc
@@ -703,7 +703,7 @@ rule	573	guard=4:331095b182
 rule	574	guard=4:79faef46c0
 rule	575	guard=3:cced38b29f
 grammar	controlled	"grammars/typescript"
-rule	0	guard=2:c387ca85c0
+rule	0	guard=2:326a16ed75
 rule	1	scope=1:3de35417b9
 rule	2	guard=2:0cc6e63b3e
 rule	5	guard=11:0329ea31cc

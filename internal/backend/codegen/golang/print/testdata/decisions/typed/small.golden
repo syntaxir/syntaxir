@@ -13,72 +13,76 @@ cond	10	"(ch >= 48 && ch <= 57)"
 cond	11	"(ch >= 49 && ch <= 57)"
 cond	12	"(ch >= 65 && ch <= 90)"
 cond	13	"(ch >= 97 && ch <= 122)"
-cond	14	"ch == 10"
-cond	15	"ch == 100"
-cond	16	"ch == 101"
-cond	17	"ch == 102 || ch == 70"
-cond	18	"ch == 102"
-cond	19	"ch == 103"
-cond	20	"ch == 104"
-cond	21	"ch == 105"
-cond	22	"ch == 106"
-cond	23	"ch == 107"
-cond	24	"ch == 108"
-cond	25	"ch == 109"
-cond	26	"ch == 110"
-cond	27	"ch == 111"
-cond	28	"ch == 1114111"
-cond	29	"ch == 112"
-cond	30	"ch == 113"
-cond	31	"ch == 114"
-cond	32	"ch == 115 || ch == 83"
-cond	33	"ch == 115"
-cond	34	"ch == 116"
-cond	35	"ch == 117"
-cond	36	"ch == 118"
-cond	37	"ch == 119"
-cond	38	"ch == 120"
-cond	39	"ch == 121"
-cond	40	"ch == 122"
-cond	41	"ch == 123"
-cond	42	"ch == 126"
-cond	43	"ch == 128512"
-cond	44	"ch == 13"
-cond	45	"ch == 172"
-cond	46	"ch == 233"
-cond	47	"ch == 32"
-cond	48	"ch == 33"
-cond	49	"ch == 34"
-cond	50	"ch == 35"
-cond	51	"ch == 37"
-cond	52	"ch == 40"
-cond	53	"ch == 42"
-cond	54	"ch == 43"
-cond	55	"ch == 45"
-cond	56	"ch == 47"
-cond	57	"ch == 48"
-cond	58	"ch == 60"
-cond	59	"ch == 62"
-cond	60	"ch == 64"
-cond	61	"ch == 65533"
-cond	62	"ch == 65535"
-cond	63	"ch == 8594"
-cond	64	"ch == 90"
-cond	65	"ch == 91"
-cond	66	"ch == 92"
-cond	67	"ch == 97 || ch == 65"
-cond	68	"ch == 97"
-cond	69	"ch == 98"
-cond	70	"ch == 99 || ch == 67"
-cond	71	"ch == 99"
+cond	14	"ch == 0"
+cond	15	"ch == 10"
+cond	16	"ch == 100"
+cond	17	"ch == 101"
+cond	18	"ch == 102 || ch == 70"
+cond	19	"ch == 102"
+cond	20	"ch == 103"
+cond	21	"ch == 104"
+cond	22	"ch == 105"
+cond	23	"ch == 106"
+cond	24	"ch == 107"
+cond	25	"ch == 108"
+cond	26	"ch == 109"
+cond	27	"ch == 110"
+cond	28	"ch == 111"
+cond	29	"ch == 1114111"
+cond	30	"ch == 112"
+cond	31	"ch == 113"
+cond	32	"ch == 114"
+cond	33	"ch == 115 || ch == 83"
+cond	34	"ch == 115"
+cond	35	"ch == 116"
+cond	36	"ch == 117"
+cond	37	"ch == 118"
+cond	38	"ch == 119"
+cond	39	"ch == 12"
+cond	40	"ch == 120"
+cond	41	"ch == 121"
+cond	42	"ch == 122"
+cond	43	"ch == 123"
+cond	44	"ch == 126"
+cond	45	"ch == 128"
+cond	46	"ch == 128512"
+cond	47	"ch == 13"
+cond	48	"ch == 172"
+cond	49	"ch == 233"
+cond	50	"ch == 32"
+cond	51	"ch == 33"
+cond	52	"ch == 34"
+cond	53	"ch == 35"
+cond	54	"ch == 37"
+cond	55	"ch == 40"
+cond	56	"ch == 42"
+cond	57	"ch == 43"
+cond	58	"ch == 45"
+cond	59	"ch == 47"
+cond	60	"ch == 48"
+cond	61	"ch == 60"
+cond	62	"ch == 62"
+cond	63	"ch == 64"
+cond	64	"ch == 65533"
+cond	65	"ch == 65535"
+cond	66	"ch == 8594"
+cond	67	"ch == 9"
+cond	68	"ch == 90"
+cond	69	"ch == 91"
+cond	70	"ch == 92"
+cond	71	"ch == 97 || ch == 65"
+cond	72	"ch == 97"
+cond	73	"ch == 98"
+cond	74	"ch == 99 || ch == 67"
+cond	75	"ch == 99"
 grammar	lean,lean observable,controlled,lean boxed	"../../examples/calculator/calc.sxir"
-guard	1	10	1	0	0	"\"+\""	54
-guard	1	11	1	0	0	"\"-\""	55
-guard	1	13	1	0	0	"\"*\""	53
-guard	1	14	1	0	0	"\"/\""	56
-guard	1	15	1	0	0	"\"%\""	51
-guard	1	17	1	0	0	"\"-\""	55
-guard	1	18	1	0	0	"\"+\""	54
+guard	1	10	1	0	0	"\"+\""	57
+guard	1	11	1	0	0	"\"-\""	58
+guard	1	13	1	0	0	"\"*\""	56
+guard	1	14	1	0	0	"\"/\""	59
+guard	1	15	1	0	0	"\"%\""	54
+guard	1	17	1	0	0	"\"-\""	58
+guard	1	18	1	0	0	"\"+\""	57
 scan	2	2
 scan	2	7
 scan	4	0
@@ -92,28 +96,28 @@ scope	1	9
 grammar	lean,lean observable,controlled,lean boxed	"../../examples/calculator/calc_lr.sxir"
 guard	1	1	0	0	0	""	1
 guard	1	2	0	0	0	""	1
-guard	2	7	1	0	0	"\"+\""	54
-guard	2	8	1	0	0	"\"-\""	55
+guard	2	7	1	0	0	"\"+\""	57
+guard	2	8	1	0	0	"\"-\""	58
 guard	3	1	0	0	0	""	1
 guard	3	2	0	0	0	""	1
-guard	4	7	1	0	0	"\"*\""	53
-guard	4	8	1	0	0	"\"/\""	56
-guard	4	9	1	0	0	"\"%\""	51
+guard	4	7	1	0	0	"\"*\""	56
+guard	4	8	1	0	0	"\"/\""	59
+guard	4	9	1	0	0	"\"%\""	54
 guard	5	1	0	0	0	""	1
 guard	5	2	0	0	0	""	1
-guard	6	5	1	0	0	"\"-\""	55
-guard	6	6	1	0	0	"\"+\""	54
+guard	6	5	1	0	0	"\"-\""	58
+guard	6	6	1	0	0	"\"+\""	57
 guard	7	1	0	0	0	""	1
 guard	7	2	0	0	0	""	1
 guard	9	4	0	0	0	""	1
-guard	9	5	1	1	0	"\"(\""	52
+guard	9	5	1	1	0	"\"(\""	55
 scan	11	2
 scan	11	7
 scan	13	0
 grammar	lean,lean observable,controlled,lean boxed	"../../examples/outline/outline.sxir"
-guard	6	1	1	0	0	"\"\\n\""	14
+guard	6	1	1	0	0	"\"\\n\""	15
 guard	6	2	0	0	0	""	1
-guard	9	1	1	0	0	"\"\\n\""	14
+guard	9	1	1	0	0	"\"\\n\""	15
 guard	9	2	0	0	0	""	1
 scan	5	1
 scan	8	1
@@ -123,9 +127,9 @@ guard	1	11	0	0	0	""	1
 guard	1	12	0	0	0	""	1
 guard	1	13	0	0	0	""	1
 guard	1	2	0	0	0	""	1
-guard	1	3	1	0	0	"\"a\""	68
+guard	1	3	1	0	0	"\"a\""	72
 guard	1	4	0	0	0	""	1
-guard	1	5	1	0	0	"\"\\n\""	14
+guard	1	5	1	0	0	"\"\\n\""	15
 guard	1	6	0	0	0	""	1
 grammar	lean,lean observable,controlled,lean boxed	"Operators Rule explicit default action"
 scope	1	1	
@@ -141,37 +145,37 @@ scope	1	1	n
 scope	1	6	
 scope	1	7	
 grammar	lean,lean observable,controlled,lean boxed	"OperatorsRule prefix-part cuts"
-guard	1	1	1	0	0	"\"c\""	71
-guard	1	10	1	0	0	"\"q\""	30
-guard	1	11	1	0	0	"\"j\""	22
-guard	1	12	1	0	0	"\"u\""	35
-guard	1	13	1	0	0	"\"v\""	36
-guard	1	14	1	0	0	"\"z\""	40
-guard	1	15	1	0	0	"\"o\""	27
-guard	1	16	1	0	0	"\"p\""	29
-guard	1	17	1	0	0	"\"d\""	15
-guard	1	18	1	0	0	"\"m\""	25
-guard	1	19	1	0	0	"\"l\""	24
-guard	1	2	1	0	0	"\"n\""	26
-guard	1	20	1	0	0	"\"r\""	31
-guard	1	21	1	0	0	"\"i\""	21
-guard	1	3	1	0	0	"\"b\""	69
-guard	1	4	1	0	0	"\"w\""	37
-guard	1	5	1	0	0	"\"f\""	18
-guard	1	6	1	0	0	"\"h\""	20
-guard	1	7	1	0	0	"\"s\""	33
-guard	1	8	1	0	0	"\"t\""	34
-guard	1	9	1	0	0	"\"k\""	23
-guard	23	10	1	0	0	"\"é\""	46
-guard	23	3	1	0	0	"\"~-x\""	42
-guard	23	4	1	0	0	"\"-xy\""	55
-guard	23	5	1	0	0	"\"¬é\""	45
-guard	23	6	1	0	0	"\"-x\""	55
-guard	23	7	1	0	0	"\"-z\""	55
-guard	23	8	1	0	0	"\"-\""	55
-guard	23	9	1	0	0	"\"a\""	68
-guard	33	4	1	0	0	"\"-\""	55
-guard	33	8	1	0	0	"\"-\""	55
+guard	1	1	1	0	0	"\"c\""	75
+guard	1	10	1	0	0	"\"q\""	31
+guard	1	11	1	0	0	"\"j\""	23
+guard	1	12	1	0	0	"\"u\""	36
+guard	1	13	1	0	0	"\"v\""	37
+guard	1	14	1	0	0	"\"z\""	42
+guard	1	15	1	0	0	"\"o\""	28
+guard	1	16	1	0	0	"\"p\""	30
+guard	1	17	1	0	0	"\"d\""	16
+guard	1	18	1	0	0	"\"m\""	26
+guard	1	19	1	0	0	"\"l\""	25
+guard	1	2	1	0	0	"\"n\""	27
+guard	1	20	1	0	0	"\"r\""	32
+guard	1	21	1	0	0	"\"i\""	22
+guard	1	3	1	0	0	"\"b\""	73
+guard	1	4	1	0	0	"\"w\""	38
+guard	1	5	1	0	0	"\"f\""	19
+guard	1	6	1	0	0	"\"h\""	21
+guard	1	7	1	0	0	"\"s\""	34
+guard	1	8	1	0	0	"\"t\""	35
+guard	1	9	1	0	0	"\"k\""	24
+guard	23	10	1	0	0	"\"é\""	49
+guard	23	3	1	0	0	"\"~-x\""	44
+guard	23	4	1	0	0	"\"-xy\""	58
+guard	23	5	1	0	0	"\"¬é\""	48
+guard	23	6	1	0	0	"\"-x\""	58
+guard	23	7	1	0	0	"\"-z\""	58
+guard	23	8	1	0	0	"\"-\""	58
+guard	23	9	1	0	0	"\"a\""	72
+guard	33	4	1	0	0	"\"-\""	58
+guard	33	8	1	0	0	"\"-\""	58
 scope	24	1	
 scope	24	2	
 scope	25	1	
@@ -219,8 +223,8 @@ scope	41	3
 scope	43	1	
 scope	43	2	
 grammar	lean,lean observable,controlled,lean boxed	"a cast binding in an Operators Rule operand"
-guard	2	1	1	0	0	"\"i\""	21
-guard	2	2	1	0	0	"\"s\""	33
+guard	2	1	1	0	0	"\"i\""	22
+guard	2	2	1	0	0	"\"s\""	34
 scope	1	1	d
 scope	1	5	
 grammar	lean,lean observable,controlled,lean boxed	"a failed action leaves nothing it gathered"
@@ -228,29 +232,29 @@ guard	1	4	0	0	0	""	1
 guard	1	7	0	0	0	""	1
 grammar	lean,lean observable,controlled,lean boxed	"a failed cast in a binding backtracks"
 guard	0	1	0	0	0	""	1
-guard	0	10	1	0	0	"\"s\""	33
+guard	0	10	1	0	0	"\"s\""	34
 guard	0	2	0	0	0	""	1
-guard	0	7	1	0	0	"\"s\""	33
-guard	1	1	1	0	0	"\"i\""	21
-guard	1	2	1	0	0	"\"s\""	33
+guard	0	7	1	0	0	"\"s\""	34
+guard	1	1	1	0	0	"\"i\""	22
+guard	1	2	1	0	0	"\"s\""	34
 grammar	lean,lean observable,controlled,lean boxed	"action environments"
 guard	1	3	0	0	0	""	1
 guard	1	6	0	0	0	""	1
 guard	12	3	0	0	0	""	1
 guard	12	6	0	0	0	""	1
-guard	13	1	1	1	0	"\"(\""	52
-guard	13	2	1	1	0	"\"#\""	50
+guard	13	1	1	1	0	"\"(\""	55
+guard	13	2	1	1	0	"\"#\""	53
 guard	13	3	0	0	0	""	1
 guard	13	4	0	0	0	""	1
-guard	13	5	1	0	0	"\"[\""	65
-guard	13	6	1	0	0	"\"~\""	42
+guard	13	5	1	0	0	"\"[\""	69
+guard	13	6	1	0	0	"\"~\""	44
 guard	13	7	0	0	0	""	1
-guard	2	1	1	1	0	"\"(\""	52
-guard	2	2	1	1	0	"\"#\""	50
+guard	2	1	1	1	0	"\"(\""	55
+guard	2	2	1	1	0	"\"#\""	53
 guard	2	3	0	0	0	""	1
 guard	2	4	0	0	0	""	1
-guard	2	5	1	0	0	"\"[\""	65
-guard	2	6	1	0	0	"\"~\""	42
+guard	2	5	1	0	0	"\"[\""	69
+guard	2	6	1	0	0	"\"~\""	44
 guard	2	7	0	0	0	""	1
 scan	10	1
 scan	11	1
@@ -263,12 +267,12 @@ grammar	lean,lean observable,controlled,lean boxed	"alias terminals in structs"
 grammar	lean,lean observable,controlled,lean boxed	"anchors and classes"
 scan	0	5
 grammar	lean,lean observable,controlled,lean boxed	"arith"
-guard	1	14	1	0	0	"\"+\""	54
-guard	1	15	1	0	0	"\"-\""	55
-guard	1	17	1	0	0	"\"*\""	53
-guard	1	18	1	0	0	"\"/\""	56
+guard	1	14	1	0	0	"\"+\""	57
+guard	1	15	1	0	0	"\"-\""	58
+guard	1	17	1	0	0	"\"*\""	56
+guard	1	18	1	0	0	"\"/\""	59
 guard	1	4	0	0	0	""	1
-guard	1	7	1	0	0	"\"(\""	52
+guard	1	7	1	0	0	"\"(\""	55
 scan	1	5
 scope	1	1	
 scope	1	12	
@@ -279,8 +283,8 @@ scope	1	20
 scope	1	21	
 scope	1	3	x
 grammar	lean,lean observable,controlled,lean boxed	"ast"
-guard	4	21	1	0	0	"\"+\""	54
-guard	4	22	1	0	0	"\"-\""	55
+guard	4	21	1	0	0	"\"+\""	57
+guard	4	22	1	0	0	"\"-\""	58
 scan	1	2
 scan	2	1
 scope	3	5	r
@@ -300,7 +304,7 @@ grammar	lean,lean observable,controlled,lean boxed	"attribute shape/diagnostic i
 grammar	lean,lean observable,controlled,lean boxed	"attribute shape/diagnostic in a repetition"
 grammar	lean,lean observable,controlled,lean boxed	"attribute shape/diagnostic in an alternative"
 guard	0	1	0	0	0	""	1
-guard	0	5	1	0	0	"\"c\""	71
+guard	0	5	1	0	0	"\"c\""	75
 grammar	lean,lean observable,controlled,lean boxed	"attribute shape/diagnostic in an optional"
 grammar	lean,lean observable,controlled,lean boxed	"attribute shape/diagnostic over lookahead seq"
 grammar	lean,lean observable,controlled,lean boxed	"attribute shape/diagnostic over seq with predicates"
@@ -315,44 +319,44 @@ grammar	lean,lean observable,controlled,lean boxed	"binding absent after rollbac
 guard	0	3	0	0	0	""	1
 guard	0	6	0	0	0	""	1
 grammar	lean,lean observable,controlled,lean boxed	"binding choice rollback"
-guard	0	4	1	0	0	"\"a\""	68
-guard	0	9	1	0	0	"\"a\""	68
+guard	0	4	1	0	0	"\"a\""	72
+guard	0	9	1	0	0	"\"a\""	72
 grammar	lean,lean observable,controlled,lean boxed	"binding negative lookahead rollback"
 grammar	lean,lean observable,controlled,lean boxed	"binding positive lookahead effects"
 grammar	lean,lean observable,controlled,lean boxed	"binding rule scope"
 grammar	lean,lean observable,controlled,lean boxed	"bindings of a cast value"
-guard	1	1	1	0	0	"\"i\""	21
-guard	1	2	1	0	0	"\"s\""	33
+guard	1	1	1	0	0	"\"i\""	22
+guard	1	2	1	0	0	"\"s\""	34
 grammar	lean,lean observable,controlled,lean boxed	"case-insensitive literal alternatives"
 guard	0	3	0	0	0	""	1
 guard	0	4	0	0	0	""	1
-guard	1	1	1	0	0	"\"select\"i"	32
-guard	1	2	1	0	0	"\"from\"i"	17
-guard	1	3	1	0	0	"\"x\""	38
+guard	1	1	1	0	0	"\"select\"i"	33
+guard	1	2	1	0	0	"\"from\"i"	18
+guard	1	3	1	0	0	"\"x\""	40
 grammar	lean,lean observable,controlled,lean boxed	"cut and lookahead"
-guard	0	2	1	0	0	"\"a\""	68
-guard	0	6	1	0	0	"\"a\""	68
+guard	0	2	1	0	0	"\"a\""	72
+guard	0	6	1	0	0	"\"a\""	72
 grammar	lean,lean observable,controlled,lean boxed	"cut before a call of an Operators Rule"
-guard	0	1	1	0	0	"\"e\""	16
-guard	0	6	1	0	0	"\"e\""	16
+guard	0	1	1	0	0	"\"e\""	17
+guard	0	6	1	0	0	"\"e\""	17
 scope	1	1	
 scope	1	2	
 grammar	lean,lean boxed	"cut in a recovered body before later alternatives"
 guard	1	1	0	0	0	""	1
-guard	1	10	1	0	0	"\"(\""	52
+guard	1	10	1	0	0	"\"(\""	55
 guard	1	14	1	0	1	"[a-z]"	13
 grammar	lean observable,controlled	"cut in a recovered body before later alternatives"
 guard	1	1	0	0	0	""	1
-guard	1	10	1	0	0	"\"(\""	52
+guard	1	10	1	0	0	"\"(\""	55
 guard	1	14	1	0	0	"[a-z]"	13
 grammar	lean,lean observable,controlled,lean boxed	"cut in a rule called from a negative lookahead"
 guard	0	2	0	0	0	""	1
-guard	0	7	1	0	0	"\"a\""	68
+guard	0	7	1	0	0	"\"a\""	72
 grammar	lean,lean observable,controlled,lean boxed	"cut in an inner alternative of a nested choice"
-guard	0	12	1	0	0	"\"a\""	68
-guard	0	2	1	0	0	"\"a\""	68
-guard	0	5	1	0	0	"\"b\""	69
-guard	0	9	1	0	0	"\"b\""	69
+guard	0	12	1	0	0	"\"a\""	72
+guard	0	2	1	0	0	"\"a\""	72
+guard	0	5	1	0	0	"\"b\""	73
+guard	0	9	1	0	0	"\"b\""	73
 grammar	lean,lean observable,controlled,lean boxed	"cut in recovery skip"
 guard	0	1	0	0	0	""	1
 guard	0	7	0	0	0	""	1
@@ -364,20 +368,20 @@ guard	1	1	0	0	0	""	1
 guard	1	12	1	0	0	"[0-9]"	10
 grammar	lean,lean observable,controlled,lean boxed	"cut inside a positive lookahead"
 guard	0	2	0	0	0	""	1
-guard	0	9	1	0	0	"\"a\""	68
+guard	0	9	1	0	0	"\"a\""	72
 grammar	lean,lean observable,controlled,lean boxed	"cut with captures and a projected repetition"
 scan	2	1
 scope	0	3	c
 scope	1	7	a
 grammar	lean,lean observable,controlled,lean boxed	"cuts in every scope"
-guard	1	1	1	0	0	"\"let\""	24
-guard	1	16	1	1	0	"\"{\""	41
+guard	1	1	1	0	0	"\"let\""	25
+guard	1	16	1	1	0	"\"{\""	43
 guard	1	17	0	0	0	""	1
-guard	1	18	1	0	0	"\"w\""	37
-guard	1	28	1	0	0	"\"r\""	31
+guard	1	18	1	0	0	"\"w\""	38
+guard	1	28	1	0	0	"\"r\""	32
 guard	1	37	0	0	0	""	1
-guard	1	40	1	0	0	"\"!\""	48
-guard	1	9	1	0	0	"\"if\""	21
+guard	1	40	1	0	0	"\"!\""	51
+guard	1	9	1	0	0	"\"if\""	22
 scan	3	1
 grammar	lean,lean observable,controlled,lean boxed	"declared variable initial values"
 grammar	lean,lean observable,controlled,lean boxed	"declared variables are part of the memo key"
@@ -385,53 +389,53 @@ guard	1	1	0	0	0	""	1
 guard	1	4	0	0	0	""	1
 guard	1	7	0	0	0	""	1
 grammar	lean,lean observable,controlled,lean boxed	"diagnostic attr"
-guard	0	1	1	0	0	"\"n\""	26
-guard	0	10	1	0	0	"\"s\""	33
-guard	0	18	1	0	0	"\"c\""	71
+guard	0	1	1	0	0	"\"n\""	27
+guard	0	10	1	0	0	"\"s\""	34
+guard	0	18	1	0	0	"\"c\""	75
 guard	0	21	0	0	0	""	1
-guard	0	23	1	0	0	"\"b\""	69
-guard	0	25	1	0	0	"\"r\""	31
-guard	0	31	1	0	0	"\"q\""	30
-guard	0	5	1	0	0	"\"e\""	16
+guard	0	23	1	0	0	"\"b\""	73
+guard	0	25	1	0	0	"\"r\""	32
+guard	0	31	1	0	0	"\"q\""	31
+guard	0	5	1	0	0	"\"e\""	17
 grammar	lean,lean observable,controlled,lean boxed	"direct value-free decoding and anchors"
-guard	0	1	1	0	0	"\"u\""	35
+guard	0	1	1	0	0	"\"u\""	36
 guard	0	11	0	0	0	""	1
-guard	0	19	1	0	0	"\"s\""	33
-guard	0	24	1	0	0	"\"t\""	34
-guard	0	28	1	0	0	"\"x\""	38
+guard	0	19	1	0	0	"\"s\""	34
+guard	0	24	1	0	0	"\"t\""	35
+guard	0	28	1	0	0	"\"x\""	40
 guard	0	29	0	0	0	""	1
-guard	0	6	1	0	0	"\"é\""	46
-guard	0	7	1	0	0	"\"�\""	61
-guard	0	8	1	0	0	"\"�é\""	61
-guard	0	9	1	0	0	"\"😀\""	43
+guard	0	6	1	0	0	"\"é\""	49
+guard	0	7	1	0	0	"\"�\""	64
+guard	0	8	1	0	0	"\"�é\""	64
+guard	0	9	1	0	0	"\"😀\""	46
 grammar	lean,lean observable,controlled,lean boxed	"direct value-free fallback calls"
-guard	0	1	1	0	0	"\"m\""	25
-guard	0	10	1	0	0	"\"c\""	71
-guard	0	16	1	0	0	"\"v\""	36
-guard	0	22	1	0	0	"\"g\""	19
-guard	0	27	1	0	0	"\"h\""	20
-guard	0	31	1	0	0	"\"j\""	22
-guard	0	35	1	0	0	"\"k\""	23
-guard	1	1	1	0	0	"\"é\""	46
-guard	1	2	1	0	0	"\"ab\""	68
-guard	2	1	1	0	0	"\"é\""	46
+guard	0	1	1	0	0	"\"m\""	26
+guard	0	10	1	0	0	"\"c\""	75
+guard	0	16	1	0	0	"\"v\""	37
+guard	0	22	1	0	0	"\"g\""	20
+guard	0	27	1	0	0	"\"h\""	21
+guard	0	31	1	0	0	"\"j\""	23
+guard	0	35	1	0	0	"\"k\""	24
+guard	1	1	1	0	0	"\"é\""	49
+guard	1	2	1	0	0	"\"ab\""	72
+guard	2	1	1	0	0	"\"é\""	49
 guard	2	2	0	0	0	""	1
 guard	6	1	0	0	0	""	1
-guard	6	5	1	0	0	"\"é\""	46
-guard	7	1	1	0	0	"\"é\""	46
-guard	7	2	1	0	0	"\"ab\""	68
+guard	6	5	1	0	0	"\"é\""	49
+guard	7	1	1	0	0	"\"é\""	49
+guard	7	2	1	0	0	"\"ab\""	72
 scope	5	1	
 scope	5	2	
 grammar	lean,lean observable,controlled,lean boxed	"direct value-free rollback"
-guard	0	1	1	0	0	"\"a\""	68
-guard	0	11	1	0	0	"\"o\""	27
-guard	0	20	1	0	0	"\"r\""	31
-guard	0	29	1	0	0	"\"z\""	40
-guard	0	35	1	0	0	"\"p\""	29
-guard	0	4	1	0	0	"\"é\""	46
-guard	0	46	1	0	0	"\"l\""	24
-guard	0	53	1	0	0	"\"e\""	16
-guard	0	7	1	0	0	"\"é\""	46
+guard	0	1	1	0	0	"\"a\""	72
+guard	0	11	1	0	0	"\"o\""	28
+guard	0	20	1	0	0	"\"r\""	32
+guard	0	29	1	0	0	"\"z\""	42
+guard	0	35	1	0	0	"\"p\""	30
+guard	0	4	1	0	0	"\"é\""	49
+guard	0	46	1	0	0	"\"l\""	25
+guard	0	53	1	0	0	"\"e\""	17
+guard	0	7	1	0	0	"\"é\""	49
 scope	0	32	x
 grammar	lean,lean observable,controlled,lean boxed	"empty operand and infix"
 scope	1	1	
@@ -451,19 +455,19 @@ grammar	lean,lean observable,controlled,lean boxed	"error node in a capture grou
 grammar	lean,lean observable,controlled,lean boxed	"error node in a projected repetition"
 grammar	lean,lean observable,controlled,lean boxed	"field comparison"
 grammar	lean,lean observable,controlled,lean boxed	"fold and lists"
-guard	1	10	1	0	0	"\"-\""	55
-guard	1	9	1	0	0	"\"+\""	54
+guard	1	10	1	0	0	"\"-\""	58
+guard	1	9	1	0	0	"\"+\""	57
 scan	3	1
 scope	1	5	op,r
 scope	2	5	x
 grammar	lean,lean observable,controlled,lean boxed	"grammars/csv"
 guard	2	12	0	0	0	""	1
-guard	2	2	1	0	0	"\"\\\"\""	49
-guard	3	1	1	0	0	"\"\\r\\n\""	44
-guard	3	2	1	0	0	"\"\\n\""	14
+guard	2	2	1	0	0	"\"\\\"\""	52
+guard	3	1	1	0	0	"\"\\r\\n\""	47
+guard	3	2	1	0	0	"\"\\n\""	15
 guard	3	3	0	0	0	""	1
-guard	4	1	1	0	0	"\"\\r\\n\""	44
-guard	4	2	1	0	0	"\"\\n\""	14
+guard	4	1	1	0	0	"\"\\r\\n\""	47
+guard	4	2	1	0	0	"\"\\n\""	15
 guard	4	3	0	0	0	""	1
 scan	2	13
 scan	2	20
@@ -471,24 +475,24 @@ scan	2	4
 scan	2	9
 scope	1	7	f
 grammar	lean,lean boxed	"grammars/json"
-guard	1	1	1	1	0	"\"{\""	41
-guard	1	2	1	1	0	"\"[\""	65
-guard	1	3	1	0	0	"\"\\\"\""	49
+guard	1	1	1	1	0	"\"{\""	43
+guard	1	2	1	1	0	"\"[\""	69
+guard	1	3	1	0	0	"\"\\\"\""	52
 guard	1	4	0	0	0	""	1
 guard	1	5	0	0	0	""	1
-guard	1	6	1	0	0	"\"null\""	26
-guard	12	1	1	0	0	"\"0\""	57
+guard	1	6	1	0	0	"\"null\""	27
+guard	12	1	1	0	0	"\"0\""	60
 guard	12	2	1	0	0	"[1-9]"	11
-guard	15	2	1	0	0	"\"true\""	34
-guard	15	3	1	0	0	"\"false\""	18
+guard	15	2	1	0	0	"\"true\""	35
+guard	15	3	1	0	0	"\"false\""	19
 guard	19	3	1	0	1	"[\"\\\\/bfnrt]"	8
-guard	19	4	1	0	0	"\"u\""	35
-guard	20	1	1	0	0	"\"0\""	57
+guard	19	4	1	0	0	"\"u\""	36
+guard	20	1	1	0	0	"\"0\""	60
 guard	20	2	1	0	1	"[1-9]"	11
 guard	8	3	0	0	0	""	1
-guard	8	5	1	0	0	"\"\\\\\""	66
+guard	8	5	1	0	0	"\"\\\\\""	70
 guard	9	3	1	0	0	"[\"\\\\/bfnrt]"	8
-guard	9	4	1	0	0	"\"u\""	35
+guard	9	4	1	0	0	"\"u\""	36
 scan	18	0
 scan	20	4
 scan	21	2
@@ -497,24 +501,24 @@ scan	8	3
 scope	3	5	m
 scope	6	5	v
 grammar	lean observable	"grammars/json"
-guard	1	1	1	1	0	"\"{\""	41
-guard	1	2	1	1	0	"\"[\""	65
-guard	1	3	1	0	0	"\"\\\"\""	49
+guard	1	1	1	1	0	"\"{\""	43
+guard	1	2	1	1	0	"\"[\""	69
+guard	1	3	1	0	0	"\"\\\"\""	52
 guard	1	4	0	0	0	""	1
 guard	1	5	0	0	0	""	1
-guard	1	6	1	0	0	"\"null\""	26
-guard	12	1	1	0	0	"\"0\""	57
+guard	1	6	1	0	0	"\"null\""	27
+guard	12	1	1	0	0	"\"0\""	60
 guard	12	2	1	0	0	"[1-9]"	11
-guard	15	2	1	0	0	"\"true\""	34
-guard	15	3	1	0	0	"\"false\""	18
+guard	15	2	1	0	0	"\"true\""	35
+guard	15	3	1	0	0	"\"false\""	19
 guard	19	3	1	0	0	"[\"\\\\/bfnrt]"	8
-guard	19	4	1	0	0	"\"u\""	35
-guard	20	1	1	0	0	"\"0\""	57
+guard	19	4	1	0	0	"\"u\""	36
+guard	20	1	1	0	0	"\"0\""	60
 guard	20	2	1	0	0	"[1-9]"	11
 guard	8	3	0	0	0	""	1
-guard	8	5	1	0	0	"\"\\\\\""	66
+guard	8	5	1	0	0	"\"\\\\\""	70
 guard	9	3	1	0	0	"[\"\\\\/bfnrt]"	8
-guard	9	4	1	0	0	"\"u\""	35
+guard	9	4	1	0	0	"\"u\""	36
 scan	18	0
 scan	20	4
 scan	21	2
@@ -523,24 +527,24 @@ scan	8	3
 scope	3	5	m
 scope	6	5	v
 grammar	controlled	"grammars/json"
-guard	1	1	1	1	0	"\"{\""	41
-guard	1	2	1	1	0	"\"[\""	65
-guard	1	3	1	0	0	"\"\\\"\""	49
+guard	1	1	1	1	0	"\"{\""	43
+guard	1	2	1	1	0	"\"[\""	69
+guard	1	3	1	0	0	"\"\\\"\""	52
 guard	1	4	0	0	0	""	1
 guard	1	5	0	0	0	""	1
-guard	1	6	1	0	0	"\"null\""	26
-guard	12	1	1	0	0	"\"0\""	57
+guard	1	6	1	0	0	"\"null\""	27
+guard	12	1	1	0	0	"\"0\""	60
 guard	12	2	1	0	0	"[1-9]"	11
-guard	15	2	1	0	0	"\"true\""	34
-guard	15	3	1	0	0	"\"false\""	18
+guard	15	2	1	0	0	"\"true\""	35
+guard	15	3	1	0	0	"\"false\""	19
 guard	19	3	1	0	0	"[\"\\\\/bfnrt]"	0
-guard	19	4	1	0	0	"\"u\""	35
-guard	20	1	1	0	0	"\"0\""	57
+guard	19	4	1	0	0	"\"u\""	36
+guard	20	1	1	0	0	"\"0\""	60
 guard	20	2	1	0	0	"[1-9]"	11
 guard	8	3	0	0	0	""	1
-guard	8	5	1	0	0	"\"\\\\\""	66
+guard	8	5	1	0	0	"\"\\\\\""	70
 guard	9	3	1	0	0	"[\"\\\\/bfnrt]"	0
-guard	9	4	1	0	0	"\"u\""	35
+guard	9	4	1	0	0	"\"u\""	36
 scan	18	0
 scan	20	4
 scan	21	2
@@ -550,22 +554,22 @@ scope	3	5	m
 scope	6	5	v
 grammar	lean,lean observable,controlled,lean boxed	"hidden leader behind an optional prefix"
 guard	1	1	0	0	0	""	1
-guard	1	4	1	0	0	"\"n\""	26
+guard	1	4	1	0	0	"\"n\""	27
 grammar	lean,lean observable,controlled,lean boxed	"hidden rule: captured call"
 grammar	lean,lean observable,controlled,lean boxed	"hidden rule: choice"
-guard	1	1	1	0	0	"\"b\""	69
-guard	1	2	1	0	0	"\"c\""	71
+guard	1	1	1	0	0	"\"b\""	73
+guard	1	2	1	0	0	"\"c\""	75
 grammar	lean,lean observable,controlled,lean boxed	"hidden rule: cut"
-guard	0	1	1	0	0	"\"a\""	68
-guard	0	2	1	0	0	"\"a\""	68
+guard	0	1	1	0	0	"\"a\""	72
+guard	0	2	1	0	0	"\"a\""	72
 grammar	lean,lean observable,controlled,lean boxed	"hidden rule: hidden captures"
 grammar	lean,lean observable,controlled,lean boxed	"hidden rule: in a choice"
-guard	0	1	1	0	0	"\"a\""	68
-guard	0	2	1	0	0	"\"x\""	38
+guard	0	1	1	0	0	"\"a\""	72
+guard	0	2	1	0	0	"\"x\""	40
 grammar	lean,lean observable,controlled,lean boxed	"hidden rule: in a repetition body"
 grammar	lean,lean observable,controlled,lean boxed	"hidden rule: left recursion"
 guard	1	1	0	0	0	""	1
-guard	1	5	1	0	0	"\"a\""	68
+guard	1	5	1	0	0	"\"a\""	72
 grammar	lean,lean observable,controlled,lean boxed	"hidden rule: lookahead in body"
 grammar	lean,lean observable,controlled,lean boxed	"hidden rule: nested"
 grammar	lean,lean observable,controlled,lean boxed	"hidden rule: no value"
@@ -576,26 +580,26 @@ grammar	lean,lean observable,controlled,lean boxed	"hidden rule: recovery"
 scan	1	1
 grammar	lean,lean observable,controlled,lean boxed	"hidden rule: repetition"
 grammar	lean,lean observable,controlled,lean boxed	"hidden rule: right recursion"
-guard	1	1	1	0	0	"\"x\""	38
-guard	1	4	1	0	0	"\"x\""	38
+guard	1	1	1	0	0	"\"x\""	40
+guard	1	4	1	0	0	"\"x\""	40
 grammar	lean,lean observable,controlled,lean boxed	"hidden rule: sequence"
 grammar	lean,lean observable,controlled,lean boxed	"hidden rule: used twice"
 grammar	lean,lean observable,controlled,lean boxed	"hidden rule: whole body"
 grammar	lean,lean observable,controlled,lean boxed	"ignorecase group"
 guard	0	2	0	0	0	""	1
-guard	0	4	1	0	0	"\"ab\"i"	67
-guard	0	5	1	0	0	"\"cd\"i"	70
-guard	0	7	1	0	0	"\"x\""	38
+guard	0	4	1	0	0	"\"ab\"i"	71
+guard	0	5	1	0	0	"\"cd\"i"	74
+guard	0	7	1	0	0	"\"x\""	40
 grammar	lean,lean observable,controlled,lean boxed	"incremental"
 guard	0	3	0	0	0	""	1
-guard	0	4	1	0	0	"\"\\n\""	14
+guard	0	4	1	0	0	"\"\\n\""	15
 guard	2	3	0	0	0	""	1
 guard	2	4	0	0	0	""	1
-guard	2	5	1	0	0	"\"@\""	60
+guard	2	5	1	0	0	"\"@\""	63
 guard	4	1	0	0	0	""	1
 guard	4	5	0	0	0	""	1
-guard	8	10	1	0	0	"\"+\""	54
-guard	8	11	1	0	0	"\"-\""	55
+guard	8	10	1	0	0	"\"+\""	57
+guard	8	11	1	0	0	"\"-\""	58
 scan	5	1
 scan	7	1
 scan	8	2
@@ -608,9 +612,9 @@ grammar	lean,lean observable,controlled,lean boxed	"indent"
 scan	2	6
 grammar	lean,lean observable,controlled,lean boxed	"indirect leader cycle"
 guard	1	1	0	0	0	""	1
-guard	1	4	1	0	0	"\"n\""	26
+guard	1	4	1	0	0	"\"n\""	27
 guard	2	1	0	0	0	""	1
-guard	2	4	1	0	0	"\"m\""	25
+guard	2	4	1	0	0	"\"m\""	26
 grammar	lean,lean observable,controlled,lean boxed	"initial values key the memo like bound ones"
 guard	0	1	0	0	0	""	1
 guard	0	2	0	0	0	""	1
@@ -620,18 +624,18 @@ guard	4	2	0	0	0	""	1
 grammar	lean,lean observable,controlled,lean boxed	"inline action: action error"
 grammar	lean,lean observable,controlled,lean boxed	"inline action: captures of the enclosing rule after"
 grammar	lean,lean observable,controlled,lean boxed	"inline action: choice"
-guard	1	2	1	0	0	"\"a\""	68
-guard	1	3	1	0	0	"\"b\""	69
+guard	1	2	1	0	0	"\"a\""	72
+guard	1	3	1	0	0	"\"b\""	73
 grammar	lean,lean observable,controlled,lean boxed	"inline action: choice of inline actions"
-guard	0	1	1	0	0	"\"a\""	68
-guard	0	2	1	0	0	"\"b\""	69
+guard	0	1	1	0	0	"\"a\""	72
+guard	0	2	1	0	0	"\"b\""	73
 grammar	lean,lean observable,controlled,lean boxed	"inline action: cut"
-guard	0	1	1	0	0	"\"a\""	68
-guard	0	2	1	0	0	"\"a\""	68
+guard	0	1	1	0	0	"\"a\""	72
+guard	0	2	1	0	0	"\"a\""	72
 grammar	lean,lean observable,controlled,lean boxed	"inline action: default action"
 grammar	lean,lean observable,controlled,lean boxed	"inline action: left recursion"
 guard	1	1	0	0	0	""	1
-guard	1	2	1	0	0	"\"a\""	68
+guard	1	2	1	0	0	"\"a\""	72
 grammar	lean,lean observable,controlled,lean boxed	"inline action: nested"
 grammar	lean,lean observable,controlled,lean boxed	"inline action: nested in a whole rule"
 grammar	lean,lean observable,controlled,lean boxed	"inline action: operators rule operand"
@@ -655,9 +659,9 @@ grammar	lean,lean observable,controlled,lean boxed	"inline action: whole rule"
 grammar	lean,lean observable,controlled,lean boxed	"integer boundaries"
 grammar	lean,lean observable,controlled,lean boxed	"leader behind lookahead prefixes"
 guard	0	1	0	0	0	""	1
-guard	0	8	1	0	0	"\"z\""	40
+guard	0	8	1	0	0	"\"z\""	42
 guard	1	1	0	0	0	""	1
-guard	1	4	1	0	0	"\"n\""	26
+guard	1	4	1	0	0	"\"n\""	27
 grammar	lean,lean observable,controlled,lean boxed	"leader choice with several operators"
 guard	1	1	0	0	0	""	1
 guard	1	13	0	0	0	""	1
@@ -666,7 +670,7 @@ guard	1	9	0	0	0	""	1
 scan	2	1
 grammar	lean,lean observable,controlled,lean boxed	"leader in a repetition"
 guard	1	1	0	0	0	""	1
-guard	1	4	1	0	0	"\"n\""	26
+guard	1	4	1	0	0	"\"n\""	27
 grammar	lean,lean observable,controlled,lean boxed	"leader in lookaheads"
 guard	0	2	0	0	0	""	1
 guard	0	9	0	0	0	""	1
@@ -694,17 +698,58 @@ guard	1	6	0	0	0	""	1
 scan	2	1
 grammar	lean,lean observable,controlled,lean boxed	"left recursion"
 guard	1	1	0	0	0	""	1
-guard	1	4	1	0	0	"\"y\""	39
+guard	1	4	1	0	0	"\"y\""	41
 guard	2	1	0	0	0	""	1
 guard	2	4	0	0	0	""	1
 guard	3	1	0	0	0	""	1
-guard	3	4	1	0	0	"\"v\""	36
+guard	3	4	1	0	0	"\"v\""	37
 grammar	lean,lean observable,controlled,lean boxed	"left recursion in recovery skip"
 guard	1	1	0	0	0	""	1
-guard	1	4	1	0	0	"\"y\""	39
+guard	1	4	1	0	0	"\"y\""	41
 grammar	lean,lean observable,controlled,lean boxed	"len of nodes and strings"
 scan	1	1
 scan	2	1
+grammar	lean,lean boxed	"literal expected text"
+guard	0	1	0	0	0	""	1
+guard	0	10	1	0	0	"\"é\""	49
+guard	0	11	1	0	0	"\"😀\""	46
+guard	0	12	1	0	0	"\"�\""	64
+guard	0	13	1	0	0	"\"p\""	30
+guard	0	14	1	0	0	"\"q\""	31
+guard	0	15	1	0	0	"\"r\""	32
+guard	0	16	1	0	0	"\"s\""	34
+guard	0	17	1	0	0	"\"t\""	35
+guard	0	18	1	0	0	"\"u\""	36
+guard	0	19	1	0	0	"\"Ab\"i"	71
+guard	0	20	1	0	0	"\"a\\\"b\"i"	71
+guard	0	3	1	0	0	"\"\\\"\""	52
+guard	0	4	1	0	0	"\"\\\\\""	70
+guard	0	5	1	0	0	"\"\\n\""	15
+guard	0	6	1	0	0	"\"\\t\""	67
+guard	0	7	1	0	0	"\"\\u{0}\""	14
+guard	0	8	1	0	0	"\"\\u{c}\\u{b}\""	39
+guard	0	9	1	0	0	"\"\\u{80}\""	45
+terminal	0	2
+grammar	lean observable,controlled	"literal expected text"
+guard	0	1	0	0	0	""	1
+guard	0	10	1	0	0	"\"é\""	49
+guard	0	11	1	0	0	"\"😀\""	46
+guard	0	12	1	0	0	"\"�\""	64
+guard	0	13	1	0	0	"\"p\""	30
+guard	0	14	1	0	0	"\"q\""	31
+guard	0	15	1	0	0	"\"r\""	32
+guard	0	16	1	0	0	"\"s\""	34
+guard	0	17	1	0	0	"\"t\""	35
+guard	0	18	1	0	0	"\"u\""	36
+guard	0	19	1	0	0	"\"Ab\"i"	71
+guard	0	20	1	0	0	"\"a\\\"b\"i"	71
+guard	0	3	1	0	0	"\"\\\"\""	52
+guard	0	4	1	0	0	"\"\\\\\""	70
+guard	0	5	1	0	0	"\"\\n\""	15
+guard	0	6	1	0	0	"\"\\t\""	67
+guard	0	7	1	0	0	"\"\\u{0}\""	14
+guard	0	8	1	0	0	"\"\\u{c}\\u{b}\""	39
+guard	0	9	1	0	0	"\"\\u{80}\""	45
 grammar	lean,lean observable,controlled,lean boxed	"literal text different captures control"
 grammar	lean,lean observable,controlled,lean boxed	"literal text missing capture"
 grammar	lean,lean observable,controlled,lean boxed	"literal text mixed control"
@@ -718,68 +763,68 @@ scan	0	3
 grammar	lean,lean observable,controlled,lean boxed	"literal text variable alias control"
 scan	0	3
 grammar	lean,lean boxed	"long expected lists"
-guard	0	1	1	0	0	"\"t\""	34
-guard	0	13	1	0	0	"\"r\""	31
-guard	0	5	1	0	0	"\"e\""	16
-guard	0	9	1	0	0	"\"w\""	37
-guard	1	1	1	0	0	"\"a\""	68
+guard	0	1	1	0	0	"\"t\""	35
+guard	0	13	1	0	0	"\"r\""	32
+guard	0	5	1	0	0	"\"e\""	17
+guard	0	9	1	0	0	"\"w\""	38
+guard	1	1	1	0	0	"\"a\""	72
 guard	1	10	0	0	0	""	1
-guard	1	2	1	0	0	"\"b\""	69
-guard	1	3	1	0	0	"\"c\""	71
-guard	1	4	1	0	0	"\"d\""	15
-guard	1	5	1	0	0	"\"e\""	16
-guard	1	6	1	0	0	"\"f\""	18
-guard	1	7	1	0	0	"\"g\""	19
+guard	1	2	1	0	0	"\"b\""	73
+guard	1	3	1	0	0	"\"c\""	75
+guard	1	4	1	0	0	"\"d\""	16
+guard	1	5	1	0	0	"\"e\""	17
+guard	1	6	1	0	0	"\"f\""	19
+guard	1	7	1	0	0	"\"g\""	20
 guard	1	8	1	0	1	"[0-9]"	10
 guard	1	9	1	0	1	"[x-z]"	9
 guard	2	1	0	0	0	""	1
-guard	2	2	1	0	0	"\"h\""	20
+guard	2	2	1	0	0	"\"h\""	21
 guard	3	1	0	0	0	""	1
 guard	3	2	0	0	0	""	1
-guard	3	5	1	0	0	"\"é\""	46
-guard	3	6	1	0	0	"\"😀\""	43
+guard	3	5	1	0	0	"\"é\""	49
+guard	3	6	1	0	0	"\"😀\""	46
 guard	3	7	1	0	1	"[A-Z]"	12
 grammar	lean observable,controlled	"long expected lists"
-guard	0	1	1	0	0	"\"t\""	34
-guard	0	13	1	0	0	"\"r\""	31
-guard	0	5	1	0	0	"\"e\""	16
-guard	0	9	1	0	0	"\"w\""	37
-guard	1	1	1	0	0	"\"a\""	68
+guard	0	1	1	0	0	"\"t\""	35
+guard	0	13	1	0	0	"\"r\""	32
+guard	0	5	1	0	0	"\"e\""	17
+guard	0	9	1	0	0	"\"w\""	38
+guard	1	1	1	0	0	"\"a\""	72
 guard	1	10	0	0	0	""	1
-guard	1	2	1	0	0	"\"b\""	69
-guard	1	3	1	0	0	"\"c\""	71
-guard	1	4	1	0	0	"\"d\""	15
-guard	1	5	1	0	0	"\"e\""	16
-guard	1	6	1	0	0	"\"f\""	18
-guard	1	7	1	0	0	"\"g\""	19
+guard	1	2	1	0	0	"\"b\""	73
+guard	1	3	1	0	0	"\"c\""	75
+guard	1	4	1	0	0	"\"d\""	16
+guard	1	5	1	0	0	"\"e\""	17
+guard	1	6	1	0	0	"\"f\""	19
+guard	1	7	1	0	0	"\"g\""	20
 guard	1	8	1	0	0	"[0-9]"	10
 guard	1	9	1	0	0	"[x-z]"	9
 guard	2	1	0	0	0	""	1
-guard	2	2	1	0	0	"\"h\""	20
+guard	2	2	1	0	0	"\"h\""	21
 guard	3	1	0	0	0	""	1
 guard	3	2	0	0	0	""	1
-guard	3	5	1	0	0	"\"é\""	46
-guard	3	6	1	0	0	"\"😀\""	43
+guard	3	5	1	0	0	"\"é\""	49
+guard	3	6	1	0	0	"\"😀\""	46
 guard	3	7	1	0	0	"[A-Z]"	12
 grammar	lean,lean observable,controlled,lean boxed	"long inferred chain"
 grammar	lean,lean observable,controlled,lean boxed	"member reached from two call sites"
 guard	1	1	0	0	0	""	1
-guard	1	4	1	0	0	"\"n\""	26
-guard	2	1	1	0	0	"\"(\""	52
+guard	1	4	1	0	0	"\"n\""	27
+guard	2	1	1	0	0	"\"(\""	55
 guard	2	11	0	0	0	""	1
-guard	2	6	1	0	0	"\"(\""	52
+guard	2	6	1	0	0	"\"(\""	55
 grammar	lean,lean observable,controlled,lean boxed	"members in a deeper cycle"
 guard	1	1	0	0	0	""	1
-guard	1	4	1	0	0	"\"n\""	26
-guard	2	1	1	0	0	"\"(\""	52
+guard	1	4	1	0	0	"\"n\""	27
+guard	2	1	1	0	0	"\"(\""	55
 guard	2	11	0	0	0	""	1
-guard	2	6	1	0	0	"\"(\""	52
-guard	3	1	1	0	0	"\"[\""	65
+guard	2	6	1	0	0	"\"(\""	55
+guard	3	1	1	0	0	"\"[\""	69
 guard	3	11	0	0	0	""	1
-guard	3	6	1	0	0	"\"[\""	65
-guard	4	1	1	0	0	"\"{\""	41
+guard	3	6	1	0	0	"\"[\""	69
+guard	4	1	1	0	0	"\"{\""	43
 guard	4	11	0	0	0	""	1
-guard	4	6	1	0	0	"\"{\""	41
+guard	4	6	1	0	0	"\"{\""	43
 grammar	lean,lean boxed	"members that read two leaders"
 guard	1	1	0	0	0	""	1
 guard	1	5	0	0	0	""	1
@@ -789,7 +834,7 @@ guard	2	7	0	0	0	""	1
 guard	3	1	0	0	0	""	1
 guard	3	5	0	0	0	""	1
 guard	4	1	1	0	1	"[0-9]"	10
-guard	4	2	1	0	0	"\"(\""	52
+guard	4	2	1	0	0	"\"(\""	55
 grammar	lean observable,controlled	"members that read two leaders"
 guard	1	1	0	0	0	""	1
 guard	1	5	0	0	0	""	1
@@ -799,7 +844,7 @@ guard	2	7	0	0	0	""	1
 guard	3	1	0	0	0	""	1
 guard	3	5	0	0	0	""	1
 guard	4	1	1	0	0	"[0-9]"	10
-guard	4	2	1	0	0	"\"(\""	52
+guard	4	2	1	0	0	"\"(\""	55
 grammar	lean,lean observable,controlled,lean boxed	"memo entries are keyed by the variables the rule reads"
 guard	0	1	0	0	0	""	1
 guard	0	2	0	0	0	""	1
@@ -815,25 +860,25 @@ guard	1	4	0	0	0	""	1
 grammar	lean,lean observable,controlled,lean boxed	"memoized rule with a cut called at one position"
 guard	0	2	0	0	0	""	1
 guard	0	7	0	0	0	""	1
-guard	1	1	1	0	0	"\"a\""	68
-guard	1	5	1	0	0	"\"a\""	68
-guard	2	1	1	0	0	"\"a\""	68
-guard	2	5	1	0	0	"\"a\""	68
+guard	1	1	1	0	0	"\"a\""	72
+guard	1	5	1	0	0	"\"a\""	72
+guard	2	1	1	0	0	"\"a\""	72
+guard	2	5	1	0	0	"\"a\""	72
 grammar	lean,lean observable,controlled,lean boxed	"mutual leaders"
 guard	1	1	0	0	0	""	1
 guard	1	4	0	0	0	""	1
-guard	1	7	1	0	0	"\"n\""	26
+guard	1	7	1	0	0	"\"n\""	27
 guard	2	1	0	0	0	""	1
 guard	2	4	0	0	0	""	1
-guard	2	7	1	0	0	"\"m\""	25
+guard	2	7	1	0	0	"\"m\""	26
 grammar	lean,lean observable,controlled,lean boxed	"named node type run-time conversions"
-guard	1	1	1	0	0	"\"a\""	68
-guard	1	2	1	0	0	"\"b\""	69
+guard	1	1	1	0	0	"\"a\""	72
+guard	1	2	1	0	0	"\"b\""	73
 grammar	lean,lean observable,controlled,lean boxed	"named node types"
 guard	2	1	0	0	0	""	1
 guard	2	2	0	0	0	""	1
-guard	7	4	1	0	0	"\"a\""	68
-guard	7	5	1	0	0	"\"bc\""	69
+guard	7	4	1	0	0	"\"a\""	72
+guard	7	5	1	0	0	"\"bc\""	73
 scan	3	1
 scan	4	2
 grammar	lean,lean observable,controlled,lean boxed	"nested captured repetitions"
@@ -846,22 +891,22 @@ guard	1	5	0	0	0	""	1
 guard	2	1	0	0	0	""	1
 guard	2	5	0	0	0	""	1
 guard	3	1	1	0	1	"[0-9]"	10
-guard	3	2	1	0	0	"\"(\""	52
+guard	3	2	1	0	0	"\"(\""	55
 grammar	lean observable,controlled	"nested left recursion"
 guard	1	1	0	0	0	""	1
 guard	1	5	0	0	0	""	1
 guard	2	1	0	0	0	""	1
 guard	2	5	0	0	0	""	1
 guard	3	1	1	0	0	"[0-9]"	10
-guard	3	2	1	0	0	"\"(\""	52
+guard	3	2	1	0	0	"\"(\""	55
 grammar	lean,lean observable,controlled,lean boxed	"nested recoveries"
 grammar	lean,lean observable,controlled,lean boxed	"nil OperatorsRule action"
 scope	1	1	
 scope	1	2	
 grammar	lean,lean observable,controlled,lean boxed	"nil allocating action"
 grammar	lean,lean observable,controlled,lean boxed	"node/direct_expectations"
-guard	1	1	1	0	0	"\"let\""	24
-guard	1	6	1	0	0	"\"let\""	24
+guard	1	1	1	0	0	"\"let\""	25
+guard	1	6	1	0	0	"\"let\""	25
 scan	2	1
 grammar	lean,lean observable,controlled,lean boxed	"node/direct_memo_action"
 guard	0	1	1	0	0	"[a-z]"	13
@@ -894,32 +939,32 @@ scope	1	2
 scope	1	3	
 scope	1	4	
 grammar	lean,lean observable,controlled,lean boxed	"nullable minimum repetitions"
-guard	0	11	1	0	0	"\"u\""	35
-guard	0	14	1	0	0	"\"a\""	68
-guard	0	17	1	0	0	"\"d\""	15
-guard	0	2	1	0	0	"\"z\""	40
-guard	0	20	1	0	0	"\"p\""	29
-guard	0	23	1	0	0	"\"f\""	18
-guard	0	5	1	0	0	"\"o\""	27
-guard	0	8	1	0	0	"\"t\""	34
-guard	1	3	1	0	0	"\"é\""	46
+guard	0	11	1	0	0	"\"u\""	36
+guard	0	14	1	0	0	"\"a\""	72
+guard	0	17	1	0	0	"\"d\""	16
+guard	0	2	1	0	0	"\"z\""	42
+guard	0	20	1	0	0	"\"p\""	30
+guard	0	23	1	0	0	"\"f\""	19
+guard	0	5	1	0	0	"\"o\""	28
+guard	0	8	1	0	0	"\"t\""	35
+guard	1	3	1	0	0	"\"é\""	49
 guard	1	4	0	0	0	""	1
-guard	2	3	1	0	0	"\"é\""	46
+guard	2	3	1	0	0	"\"é\""	49
 guard	2	4	0	0	0	""	1
-guard	3	3	1	0	0	"\"é\""	46
+guard	3	3	1	0	0	"\"é\""	49
 guard	3	4	0	0	0	""	1
-guard	4	3	1	0	0	"\"é\""	46
+guard	4	3	1	0	0	"\"é\""	49
 guard	4	4	0	0	0	""	1
-guard	5	3	1	0	0	"\"é\""	46
+guard	5	3	1	0	0	"\"é\""	49
 guard	5	4	0	0	0	""	1
-guard	6	3	1	0	0	"\"é\""	46
+guard	6	3	1	0	0	"\"é\""	49
 guard	6	4	0	0	0	""	1
-guard	7	4	1	0	0	"\"é\""	46
+guard	7	4	1	0	0	"\"é\""	49
 guard	7	5	0	0	0	""	1
 guard	8	1	0	0	0	""	1
-guard	8	3	1	0	0	"\"é\""	46
+guard	8	3	1	0	0	"\"é\""	49
 guard	8	4	0	0	0	""	1
-guard	8	5	1	0	0	"\"é\""	46
+guard	8	5	1	0	0	"\"é\""	49
 scope	7	2	f
 grammar	lean,lean observable,controlled,lean boxed	"operatorsRule infix action variables"
 guard	0	1	0	0	0	""	1
@@ -1031,8 +1076,8 @@ grammar	lean,lean observable,controlled,lean boxed	"projected and indexed repeti
 scan	1	1
 scope	0	5	r
 grammar	lean,lean observable,controlled,lean boxed	"projected repetition clears its frame"
-guard	0	11	1	0	0	"\"-\""	55
-guard	0	7	1	0	0	"\"+\""	54
+guard	0	11	1	0	0	"\"-\""	58
+guard	0	7	1	0	0	"\"+\""	57
 scan	1	1
 scope	0	3	a,b
 grammar	lean,lean observable,controlled,lean boxed	"recognizer action over a projected repetition"
@@ -1070,14 +1115,14 @@ guard	1	1	0	0	0	""	1
 guard	1	11	1	0	0	"[0-9]"	10
 grammar	lean,lean observable,controlled,lean boxed	"recovery with a far failing choice"
 guard	1	1	0	0	0	""	1
-guard	1	10	1	0	0	"\"f\""	18
-guard	1	7	1	0	0	"\"d\""	15
+guard	1	10	1	0	0	"\"f\""	19
+guard	1	7	1	0	0	"\"d\""	16
 grammar	lean,lean observable,controlled,lean boxed	"recovery with a zero-consumption skip"
 grammar	lean,lean observable,controlled,lean boxed	"restricted OperatorsRule prefix memo"
-guard	1	3	1	0	0	"\"é\""	46
-guard	1	4	1	0	0	"\"x\""	38
-guard	1	5	1	0	0	"\"y\""	39
-guard	1	6	1	0	0	"\"z\""	40
+guard	1	3	1	0	0	"\"é\""	49
+guard	1	4	1	0	0	"\"x\""	40
+guard	1	5	1	0	0	"\"y\""	41
+guard	1	6	1	0	0	"\"z\""	42
 scope	2	1	
 scope	2	2	
 scope	2	3	
@@ -1087,10 +1132,10 @@ scope	2	6
 scope	2	7	
 scope	2	8	
 grammar	lean,lean observable,controlled,lean boxed	"restricted OperatorsRule prefixes"
-guard	1	3	1	0	0	"\"é\""	46
-guard	1	4	1	0	0	"\"x\""	38
-guard	1	5	1	0	0	"\"y\""	39
-guard	1	6	1	0	0	"\"z\""	40
+guard	1	3	1	0	0	"\"é\""	49
+guard	1	4	1	0	0	"\"x\""	40
+guard	1	5	1	0	0	"\"y\""	41
+guard	1	6	1	0	0	"\"z\""	42
 scope	2	1	
 scope	2	2	
 scope	2	3	
@@ -1115,7 +1160,7 @@ guard	0	2	0	0	0	""	1
 guard	0	5	0	0	0	""	1
 guard	0	8	0	0	0	""	1
 guard	1	1	0	0	0	""	1
-guard	1	4	1	0	0	"\"n\""	26
+guard	1	4	1	0	0	"\"n\""	27
 grammar	lean,lean observable,controlled,lean boxed	"stream capture recognition"
 scope	0	4	x
 grammar	lean,lean observable,controlled,lean boxed	"stream element recovery"
@@ -1123,52 +1168,52 @@ grammar	lean,lean observable,controlled,lean boxed	"stream empty capture recogni
 scope	0	3	x
 grammar	lean,lean observable,controlled,lean boxed	"terminal constructor predicate error"
 guard	0	1	0	0	0	""	1
-guard	0	5	1	0	0	"\"x\""	38
+guard	0	5	1	0	0	"\"x\""	40
 grammar	lean,lean observable,controlled,lean boxed	"terminal constructor root"
 grammar	lean,lean observable,controlled,lean boxed	"terminal constructor value error"
 grammar	lean,lean observable,controlled,lean boxed	"terminal singleton union"
 grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/calclr.sxir"
 guard	1	1	0	0	0	""	1
 guard	1	2	0	0	0	""	1
-guard	2	7	1	0	0	"\"+\""	54
-guard	2	8	1	0	0	"\"-\""	55
+guard	2	7	1	0	0	"\"+\""	57
+guard	2	8	1	0	0	"\"-\""	58
 guard	3	1	0	0	0	""	1
 guard	3	2	0	0	0	""	1
-guard	4	7	1	0	0	"\"*\""	53
-guard	4	8	1	0	0	"\"/\""	56
-guard	4	9	1	0	0	"\"%\""	51
+guard	4	7	1	0	0	"\"*\""	56
+guard	4	8	1	0	0	"\"/\""	59
+guard	4	9	1	0	0	"\"%\""	54
 guard	5	1	0	0	0	""	1
 guard	5	2	0	0	0	""	1
-guard	6	5	1	0	0	"\"-\""	55
-guard	6	6	1	0	0	"\"+\""	54
+guard	6	5	1	0	0	"\"-\""	58
+guard	6	6	1	0	0	"\"+\""	57
 guard	7	1	0	0	0	""	1
 guard	7	2	0	0	0	""	1
 guard	9	4	0	0	0	""	1
-guard	9	5	1	1	0	"\"(\""	52
+guard	9	5	1	1	0	"\"(\""	55
 scan	11	2
 scan	11	7
 scan	13	0
 grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/direct_backtrack.sxir"
 guard	1	2	0	0	0	""	1
 guard	1	43	0	0	0	""	1
-guard	1	46	1	0	0	"\">\""	59
-guard	1	53	1	0	0	"\"-\""	55
-guard	1	57	1	0	0	"\"-\""	55
-guard	1	61	1	0	0	"\"+\""	54
+guard	1	46	1	0	0	"\">\""	62
+guard	1	53	1	0	0	"\"-\""	58
+guard	1	57	1	0	0	"\"-\""	58
+guard	1	61	1	0	0	"\"+\""	57
 guard	1	9	0	0	0	""	1
 scan	2	1
 scope	0	4	a
 scope	1	32	p
 grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/direct_errors.sxir"
-guard	0	5	1	0	0	"\"<\""	58
-guard	0	9	1	0	0	"\"<\""	58
-guard	1	10	1	0	0	"\"w\""	37
+guard	0	5	1	0	0	"\"<\""	61
+guard	0	9	1	0	0	"\"<\""	61
+guard	1	10	1	0	0	"\"w\""	38
 guard	1	20	0	0	0	""	1
-guard	1	22	1	0	0	"\"Z\""	64
+guard	1	22	1	0	0	"\"Z\""	68
 guard	1	36	0	0	0	""	1
 guard	1	40	0	0	0	""	1
 guard	1	42	0	0	0	""	1
-guard	1	7	1	0	0	"\"w\""	37
+guard	1	7	1	0	0	"\"w\""	38
 scan	1	30
 scan	3	2
 scan	4	2
@@ -1182,14 +1227,14 @@ scope	0	18	p
 scope	0	3	cells,m
 scope	0	6	c
 grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/direct_literals.sxir"
-guard	0	11	1	0	0	"\"abcd\""	68
-guard	0	12	1	0	0	"\"abc\""	68
-guard	0	16	1	0	0	"\"abcde\""	68
-guard	0	17	1	0	0	"\"ab\""	68
-guard	0	3	1	0	0	"\"é\""	46
-guard	0	4	1	0	0	"\"ab\""	68
-guard	0	7	1	0	0	"\"→→\""	63
-guard	0	8	1	0	0	"\"→\""	63
+guard	0	11	1	0	0	"\"abcd\""	72
+guard	0	12	1	0	0	"\"abc\""	72
+guard	0	16	1	0	0	"\"abcde\""	72
+guard	0	17	1	0	0	"\"ab\""	72
+guard	0	3	1	0	0	"\"é\""	49
+guard	0	4	1	0	0	"\"ab\""	72
+guard	0	7	1	0	0	"\"→→\""	66
+guard	0	8	1	0	0	"\"→\""	66
 grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/direct_names.sxir"
 grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/element_scope_optional.sxir"
 scope	0	3	y
@@ -1206,7 +1251,7 @@ grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/mix.sxir"
 guard	1	1	0	0	0	""	1
 guard	1	2	0	0	0	""	1
 guard	3	1	0	0	0	""	1
-guard	3	2	1	1	0	"\"<\""	58
+guard	3	2	1	1	0	"\"<\""	61
 guard	3	3	0	0	0	""	1
 scan	7	1
 scan	8	2
@@ -1218,7 +1263,7 @@ grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/mixf.sxir"
 guard	1	1	0	0	0	""	1
 guard	1	2	0	0	0	""	1
 guard	3	1	0	0	0	""	1
-guard	3	2	1	1	0	"\"<\""	58
+guard	3	2	1	1	0	"\"<\""	61
 guard	3	3	0	0	0	""	1
 scan	7	1
 scan	8	2
@@ -1227,10 +1272,10 @@ scope	0	4	t
 scope	4	13	k
 scope	5	4	x
 grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/operators_rule1.sxir"
-guard	1	21	1	0	0	"\"+\""	54
-guard	1	22	1	0	0	"\"-\""	55
-guard	1	25	1	0	0	"\"*\""	53
-guard	1	26	1	0	0	"\"/\""	56
+guard	1	21	1	0	0	"\"+\""	57
+guard	1	22	1	0	0	"\"-\""	58
+guard	1	25	1	0	0	"\"*\""	56
+guard	1	26	1	0	0	"\"/\""	59
 scan	2	2
 scan	4	0
 scope	1	1	
@@ -1245,10 +1290,10 @@ scope	1	3	e
 scope	1	34	x
 scope	1	41	
 grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/operators_rule1f.sxir"
-guard	1	21	1	0	0	"\"+\""	54
-guard	1	22	1	0	0	"\"-\""	55
-guard	1	25	1	0	0	"\"*\""	53
-guard	1	26	1	0	0	"\"/\""	56
+guard	1	21	1	0	0	"\"+\""	57
+guard	1	22	1	0	0	"\"-\""	58
+guard	1	25	1	0	0	"\"*\""	56
+guard	1	26	1	0	0	"\"/\""	59
 scan	2	2
 scan	4	0
 scope	1	1	
@@ -1272,8 +1317,8 @@ scope	0	4	n
 grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/proj3.sxir"
 scope	0	4	n
 grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/proj4.sxir"
-guard	0	5	1	0	0	"\"a\""	68
-guard	0	7	1	0	0	"\"b\""	69
+guard	0	5	1	0	0	"\"a\""	72
+guard	0	7	1	0	0	"\"b\""	73
 scope	0	4	n
 grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/proj5.sxir"
 scope	0	6	n
@@ -1287,11 +1332,11 @@ grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/spanname.sxir
 grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/splice_recursive_capture.sxir"
 grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/splice_recursive_capture_action.sxir"
 grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/splice_recursive_choice.sxir"
-guard	1	1	1	0	0	"\"x\""	38
-guard	1	2	1	0	0	"\"(\""	52
+guard	1	1	1	0	0	"\"x\""	40
+guard	1	2	1	0	0	"\"(\""	55
 grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/splice_recursive_choice_in_seq.sxir"
-guard	1	3	1	1	0	"\"(\""	52
-guard	1	4	1	0	0	"\"x\""	38
+guard	1	3	1	1	0	"\"(\""	55
+guard	1	4	1	0	0	"\"x\""	40
 grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/splice_recursive_optional.sxir"
 grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/splice_recursive_repeat.sxir"
 grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/unif.sxir"
@@ -1299,8 +1344,8 @@ scan	1	1
 scope	0	3	w
 grammar	lean,lean observable,controlled,lean boxed	"text equality"
 grammar	lean,lean observable,controlled,lean boxed	"top-level cut in a called rule"
-guard	0	2	1	0	0	"\"w\""	37
-guard	0	5	1	0	0	"\"w\""	37
+guard	0	2	1	0	0	"\"w\""	38
+guard	0	5	1	0	0	"\"w\""	38
 grammar	lean,lean observable,controlled,lean boxed	"transitive action variables"
 guard	0	1	0	0	0	""	1
 guard	0	13	0	0	0	""	1
@@ -1309,22 +1354,22 @@ guard	0	9	0	0	0	""	1
 grammar	lean,lean observable,controlled,lean boxed	"tuple literal in struct fields"
 grammar	lean,lean observable,controlled,lean boxed	"tuple literal of declared tuple type"
 grammar	lean,lean observable,controlled,lean boxed	"tuple literal values"
-guard	0	1	1	0	0	"\"i\""	21
-guard	0	13	1	0	0	"\"m\""	25
-guard	0	17	1	0	0	"\"l\""	24
-guard	0	21	1	0	0	"\"n\""	26
-guard	0	25	1	0	0	"\"e\""	16
-guard	0	5	1	0	0	"\"o\""	27
-guard	0	9	1	0	0	"\"u\""	35
+guard	0	1	1	0	0	"\"i\""	22
+guard	0	13	1	0	0	"\"m\""	26
+guard	0	17	1	0	0	"\"l\""	25
+guard	0	21	1	0	0	"\"n\""	27
+guard	0	25	1	0	0	"\"e\""	17
+guard	0	5	1	0	0	"\"o\""	28
+guard	0	9	1	0	0	"\"u\""	36
 grammar	lean,lean observable,controlled,lean boxed	"two cuts in a repetition inside a choice"
-guard	0	12	1	0	0	"\"(\""	52
-guard	0	2	1	0	0	"\"(\""	52
+guard	0	12	1	0	0	"\"(\""	55
+guard	0	2	1	0	0	"\"(\""	55
 grammar	lean,lean observable,controlled,lean boxed	"typed list root"
 grammar	lean,lean observable,controlled,lean boxed	"typed node constructors"
 grammar	lean,lean observable,controlled,lean boxed	"typed nullable union list"
 grammar	lean,lean observable,controlled,lean boxed	"typed/LR_dead_capture_order"
 guard	1	1	0	0	0	""	1
-guard	1	13	1	0	0	"\"a\""	68
+guard	1	13	1	0	0	"\"a\""	72
 guard	1	16	0	0	0	""	1
 guard	1	6	0	0	0	""	1
 grammar	lean,lean observable,controlled,lean boxed	"typed/LR_direct"
@@ -1338,29 +1383,29 @@ scope	1	16	x
 scope	1	7	x
 grammar	lean,lean observable,controlled,lean boxed	"typed/LR_framed_cuts"
 guard	1	1	0	0	0	""	1
-guard	1	6	1	0	0	"\"a\""	68
+guard	1	6	1	0	0	"\"a\""	72
 grammar	lean,lean observable,controlled,lean boxed	"typed/LR_hidden"
 guard	1	1	0	0	0	""	1
-guard	1	5	1	0	0	"\"é\""	46
+guard	1	5	1	0	0	"\"é\""	49
 grammar	lean,lean observable,controlled,lean boxed	"typed/LR_indirect"
 guard	1	1	0	0	0	""	1
-guard	1	4	1	0	0	"\"y\""	39
+guard	1	4	1	0	0	"\"y\""	41
 guard	2	1	0	0	0	""	1
 guard	2	4	0	0	0	""	1
 guard	3	1	0	0	0	""	1
-guard	3	4	1	0	0	"\"v\""	36
+guard	3	4	1	0	0	"\"v\""	37
 grammar	lean,lean observable,controlled,lean boxed	"typed/LR_lookahead_memo"
 guard	1	1	0	0	0	""	1
 guard	1	12	1	0	0	"[a-z]"	13
 grammar	lean,lean observable,controlled,lean boxed	"typed/LR_no_improvement"
 guard	1	1	0	0	0	""	1
-guard	1	2	1	0	0	"\"a\""	68
+guard	1	2	1	0	0	"\"a\""	72
 grammar	lean,lean observable,controlled,lean boxed	"typed/LR_nullable_seed"
 guard	1	1	0	0	0	""	1
 guard	1	2	0	0	0	""	1
 grammar	lean,lean observable,controlled,lean boxed	"typed/LR_positional_action"
 guard	1	2	0	0	0	""	1
-guard	1	7	1	0	0	"\"é\""	46
+guard	1	7	1	0	0	"\"é\""	49
 grammar	lean,lean observable,controlled,lean boxed	"typed/LR_projected_repeat"
 guard	1	1	0	0	0	""	1
 guard	1	13	0	0	0	""	1
@@ -1368,17 +1413,17 @@ scope	1	15	x
 scope	1	7	x
 grammar	lean,lean observable,controlled,lean boxed	"typed/LR_recovery"
 guard	1	2	0	0	0	""	1
-guard	1	6	1	0	0	"\"a\""	68
+guard	1	6	1	0	0	"\"a\""	72
 grammar	lean,lean observable,controlled,lean boxed	"typed/LR_rollback_environment"
 guard	1	1	0	0	0	""	1
-guard	1	10	1	0	0	"\"é\""	46
+guard	1	10	1	0	0	"\"é\""	49
 grammar	lean,lean observable,controlled,lean boxed	"typed/LR_unreachable_capture"
 guard	1	1	0	0	0	""	1
 guard	1	11	0	0	0	""	1
-guard	1	8	1	0	0	"\"a\""	68
+guard	1	8	1	0	0	"\"a\""	72
 grammar	lean,lean observable,controlled,lean boxed	"typed/OperatorsRule_associativity"
-guard	1	11	1	0	0	"\"+\""	54
-guard	1	12	1	0	0	"\"-\""	55
+guard	1	11	1	0	0	"\"+\""	57
+guard	1	12	1	0	0	"\"-\""	58
 scan	2	2
 scope	1	1	
 scope	1	10	
@@ -1391,7 +1436,7 @@ scope	1	9
 grammar	lean,lean observable,controlled,lean boxed	"typed/OperatorsRule_dead_capture_order"
 guard	1	10	0	0	0	""	1
 guard	1	2	0	0	0	""	1
-guard	1	7	1	0	0	"\"é\""	46
+guard	1	7	1	0	0	"\"é\""	49
 scope	1	1	before,x,after
 grammar	lean,lean observable,controlled,lean boxed	"typed/OperatorsRule_dead_element_predicate"
 guard	1	13	1	0	0	"[a-z]"	13
@@ -1400,7 +1445,7 @@ scope	1	1
 scope	1	2	items
 scope	1	6	ignored,x
 grammar	lean,lean observable,controlled,lean boxed	"typed/OperatorsRule_dead_lookahead_capture"
-guard	1	10	1	0	0	"\"é\""	46
+guard	1	10	1	0	0	"\"é\""	49
 guard	1	16	0	0	0	""	1
 guard	1	2	0	0	0	""	1
 guard	1	5	0	0	0	""	1
@@ -1417,7 +1462,7 @@ scope	1	1
 scope	1	2	items
 scope	1	6	x
 grammar	lean,lean observable,controlled,lean boxed	"typed/OperatorsRule_environment_rollback"
-guard	1	2	1	0	0	"\" \""	47
+guard	1	2	1	0	0	"\" \""	50
 guard	1	6	0	0	0	""	1
 scope	1	1	
 scope	1	16	o
@@ -1431,12 +1476,12 @@ scope	1	1	x
 scope	1	6	
 grammar	lean,lean observable,controlled,lean boxed	"typed/OperatorsRule_infallible_alternative"
 guard	1	2	0	0	0	""	1
-guard	1	3	1	0	0	"\"b\""	69
+guard	1	3	1	0	0	"\"b\""	73
 scope	1	1	ignored
 grammar	lean,lean observable,controlled,lean boxed	"typed/OperatorsRule_longest_ties"
-guard	2	3	1	0	0	"\"-x\""	55
-guard	2	4	1	0	0	"\"a\""	68
-guard	2	5	1	0	0	"\"é\""	46
+guard	2	3	1	0	0	"\"-x\""	58
+guard	2	4	1	0	0	"\"a\""	72
+guard	2	5	1	0	0	"\"é\""	49
 scope	1	1	
 scope	1	2	
 scope	1	3	
@@ -1446,7 +1491,7 @@ grammar	lean,lean observable,controlled,lean boxed	"typed/OperatorsRule_lookahea
 scope	1	1	
 scope	1	2	x
 grammar	lean,lean observable,controlled,lean boxed	"typed/OperatorsRule_mixed_routes"
-guard	1	5	1	0	0	"\"b\""	69
+guard	1	5	1	0	0	"\"b\""	73
 guard	1	8	0	0	0	""	1
 scope	1	1	x
 scope	1	13	x
@@ -1462,21 +1507,21 @@ grammar	lean,lean observable,controlled,lean boxed	"typed/OperatorsRule_recovery
 scope	1	1	x
 scope	1	6	
 grammar	lean,lean observable,controlled,lean boxed	"typed/OperatorsRule_unreachable_capture"
-guard	1	2	1	0	0	"\"a\""	68
+guard	1	2	1	0	0	"\"a\""	72
 guard	1	5	0	0	0	""	1
 scope	1	1	x,ignored
 grammar	lean,lean observable,controlled,lean boxed	"typed/direct_cut_callee"
-guard	0	4	1	0	0	"\"a\""	68
-guard	0	7	1	0	0	"\"ac\""	68
+guard	0	4	1	0	0	"\"a\""	72
+guard	0	7	1	0	0	"\"ac\""	72
 grammar	lean,lean observable,controlled,lean boxed	"typed/direct_cut_captured_lookahead"
-guard	0	13	1	0	0	"\"aby\""	68
+guard	0	13	1	0	0	"\"aby\""	72
 guard	0	2	0	0	0	""	1
 grammar	lean,lean observable,controlled,lean boxed	"typed/direct_cut_choice"
-guard	0	4	1	0	0	"\"a\""	68
-guard	0	8	1	0	0	"\"a\""	68
+guard	0	4	1	0	0	"\"a\""	72
+guard	0	8	1	0	0	"\"a\""	72
 grammar	lean,lean observable,controlled,lean boxed	"typed/direct_cut_error"
 guard	0	4	0	0	0	""	1
-guard	0	9	1	0	0	"\"éy\""	46
+guard	0	9	1	0	0	"\"éy\""	49
 grammar	lean,lean observable,controlled,lean boxed	"typed/direct_cut_lookahead"
 guard	0	11	0	0	0	""	1
 guard	0	4	0	0	0	""	1
@@ -1486,20 +1531,20 @@ guard	0	6	0	0	0	""	1
 scan	1	3
 scan	1	8
 grammar	lean,lean observable,controlled,lean boxed	"typed/direct_cut_nested_choice"
-guard	0	11	1	0	0	"\"b\""	69
-guard	0	15	1	0	0	"\"abcy\""	68
-guard	0	4	1	0	0	"\"a\""	68
-guard	0	7	1	0	0	"\"b\""	69
+guard	0	11	1	0	0	"\"b\""	73
+guard	0	15	1	0	0	"\"abcy\""	72
+guard	0	4	1	0	0	"\"a\""	72
+guard	0	7	1	0	0	"\"b\""	73
 grammar	lean,lean observable,controlled,lean boxed	"typed/direct_cut_optional"
 grammar	lean,lean observable,controlled,lean boxed	"typed/direct_cut_outer_rollback"
-guard	0	14	1	0	0	"\"ab\""	68
-guard	0	3	1	0	0	"\"a\""	68
+guard	0	14	1	0	0	"\"ab\""	72
+guard	0	3	1	0	0	"\"a\""	72
 grammar	lean,lean observable,controlled,lean boxed	"typed/direct_cut_projection"
 scope	0	3	x
 grammar	lean,lean observable,controlled,lean boxed	"typed/direct_cut_repeat"
 grammar	lean,lean observable,controlled,lean boxed	"typed/direct_cut_repeat_rollback"
-guard	0	15	1	0	0	"\"ab\""	68
-guard	0	3	1	0	0	"\"a\""	68
+guard	0	15	1	0	0	"\"ab\""	72
+guard	0	3	1	0	0	"\"a\""	72
 grammar	lean,lean observable,controlled,lean boxed	"typed/framed_cut_LR_elements"
 guard	1	1	0	0	0	""	1
 guard	1	15	0	0	0	""	1
@@ -1513,15 +1558,15 @@ scope	1	23	o
 scope	1	29	o
 scope	1	6	x
 grammar	lean,lean observable,controlled,lean boxed	"typed/framed_cut_captured_lookahead"
-guard	0	14	1	0	0	"\"aby\""	68
+guard	0	14	1	0	0	"\"aby\""	72
 guard	0	3	0	0	0	""	1
 scope	0	1	probe,v
 grammar	lean,lean observable,controlled,lean boxed	"typed/framed_cut_choice"
-guard	0	5	1	0	0	"\"a\""	68
-guard	0	9	1	0	0	"\"a\""	68
+guard	0	5	1	0	0	"\"a\""	72
+guard	0	9	1	0	0	"\"a\""	72
 scope	0	1	v
 grammar	lean,lean observable,controlled,lean boxed	"typed/framed_cut_error"
-guard	0	10	1	0	0	"\"éy\""	46
+guard	0	10	1	0	0	"\"éy\""	49
 guard	0	5	0	0	0	""	1
 scope	0	1	v
 grammar	lean,lean observable,controlled,lean boxed	"typed/framed_cut_lookahead"
@@ -1529,16 +1574,16 @@ guard	0	12	0	0	0	""	1
 guard	0	5	0	0	0	""	1
 scope	0	1	v
 grammar	lean,lean observable,controlled,lean boxed	"typed/framed_cut_nested_choice"
-guard	0	12	1	0	0	"\"b\""	69
-guard	0	16	1	0	0	"\"abcy\""	68
-guard	0	5	1	0	0	"\"a\""	68
-guard	0	8	1	0	0	"\"b\""	69
+guard	0	12	1	0	0	"\"b\""	73
+guard	0	16	1	0	0	"\"abcy\""	72
+guard	0	5	1	0	0	"\"a\""	72
+guard	0	8	1	0	0	"\"b\""	73
 scope	0	1	v
 grammar	lean,lean observable,controlled,lean boxed	"typed/framed_cut_optional"
 scope	0	1	v
 grammar	lean,lean observable,controlled,lean boxed	"typed/framed_cut_outer_rollback"
-guard	0	15	1	0	0	"\"ab\""	68
-guard	0	4	1	0	0	"\"a\""	68
+guard	0	15	1	0	0	"\"ab\""	72
+guard	0	4	1	0	0	"\"a\""	72
 scope	0	1	v
 grammar	lean,lean observable,controlled,lean boxed	"typed/framed_cut_projection"
 scope	0	1	items
@@ -1546,19 +1591,19 @@ scope	0	4	x
 grammar	lean,lean observable,controlled,lean boxed	"typed/framed_cut_repeat"
 scope	0	1	v
 grammar	lean,lean observable,controlled,lean boxed	"typed/framed_cut_repeat_rollback"
-guard	0	16	1	0	0	"\"ab\""	68
-guard	0	4	1	0	0	"\"a\""	68
+guard	0	16	1	0	0	"\"ab\""	72
+guard	0	4	1	0	0	"\"a\""	72
 scope	0	1	v
 grammar	lean,lean observable,controlled,lean boxed	"typed/local_choice_cut"
 guard	1	1	0	0	0	""	1
-guard	1	13	1	0	0	"\"é\""	46
-guard	1	6	1	0	0	"\"é\""	46
+guard	1	13	1	0	0	"\"é\""	49
+guard	1	6	1	0	0	"\"é\""	49
 grammar	lean,lean observable,controlled,lean boxed	"typed/local_dead_after_live"
-guard	1	1	1	0	0	"\"é\""	46
+guard	1	1	1	0	0	"\"é\""	49
 guard	1	4	0	0	0	""	1
 grammar	lean,lean observable,controlled,lean boxed	"typed/local_dead_before_live"
 guard	1	1	0	0	0	""	1
-guard	1	6	1	0	0	"\"é\""	46
+guard	1	6	1	0	0	"\"é\""	49
 grammar	lean,lean observable,controlled,lean boxed	"typed/local_dead_predicate"
 guard	1	2	0	0	0	""	1
 guard	1	7	0	0	0	""	1
@@ -1569,13 +1614,13 @@ scope	1	2	unused,x
 grammar	lean,lean observable,controlled,lean boxed	"typed/local_element_predicates"
 guard	1	1	0	0	0	""	1
 guard	1	10	0	0	0	""	1
-guard	1	15	1	0	0	"\"é\""	46
+guard	1	15	1	0	0	"\"é\""	49
 guard	1	6	0	0	0	""	1
 scope	1	8	unused,x
 grammar	lean,lean observable,controlled,lean boxed	"typed/local_element_unused_projection"
 guard	1	1	0	0	0	""	1
 guard	1	10	0	0	0	""	1
-guard	1	15	1	0	0	"\"é\""	46
+guard	1	15	1	0	0	"\"é\""	49
 guard	1	6	0	0	0	""	1
 scope	1	8	unused,x
 grammar	lean,lean observable,controlled,lean boxed	"typed/local_error"
@@ -1583,23 +1628,23 @@ guard	1	1	0	0	0	""	1
 guard	1	6	0	0	0	""	1
 grammar	lean,lean observable,controlled,lean boxed	"typed/local_infallible"
 guard	1	1	0	0	0	""	1
-guard	1	2	1	0	0	"\"z\""	40
+guard	1	2	1	0	0	"\"z\""	42
 grammar	lean,lean observable,controlled,lean boxed	"typed/local_lookahead"
 guard	1	3	0	0	0	""	1
-guard	1	8	1	0	0	"\"é\""	46
+guard	1	8	1	0	0	"\"é\""	49
 grammar	lean,lean observable,controlled,lean boxed	"typed/local_optional_cut"
 guard	1	1	0	0	0	""	1
 guard	1	6	0	0	0	""	1
 grammar	lean,lean observable,controlled,lean boxed	"typed/local_owned_element_reset"
 guard	1	1	0	0	0	""	1
 guard	1	10	0	0	0	""	1
-guard	1	15	1	0	0	"\"é\""	46
-guard	1	18	1	0	0	"\"a\""	68
+guard	1	15	1	0	0	"\"é\""	49
+guard	1	18	1	0	0	"\"a\""	72
 guard	1	6	0	0	0	""	1
 scope	1	8	unused,x
 grammar	lean,lean observable,controlled,lean boxed	"typed/recovery_capture_environment"
 grammar	lean,lean observable,controlled,lean boxed	"typed/recovery_cut_scope"
-guard	0	15	1	0	0	"\"é?x\""	46
+guard	0	15	1	0	0	"\"é?x\""	49
 guard	0	4	0	0	0	""	1
 grammar	lean,lean observable,controlled,lean boxed	"typed/recovery_dead_skip"
 grammar	lean,lean observable,controlled,lean boxed	"typed/recovery_error_inside"
@@ -1609,12 +1654,12 @@ guard	0	11	0	0	0	""	1
 guard	0	5	0	0	0	""	1
 grammar	lean,lean observable,controlled,lean boxed	"typed/recovery_list_errors"
 guard	1	2	0	0	0	""	1
-guard	1	3	1	0	0	"\"(\""	52
+guard	1	3	1	0	0	"\"(\""	55
 scan	3	3
 grammar	lean,lean observable,controlled,lean boxed	"typed/recovery_lookahead"
 grammar	lean,lean observable,controlled,lean boxed	"typed/recovery_lr"
 guard	1	1	0	0	0	""	1
-guard	1	8	1	0	0	"\"a\""	68
+guard	1	8	1	0	0	"\"a\""	72
 grammar	lean,lean observable,controlled,lean boxed	"typed/recovery_negative_lookahead"
 grammar	lean,lean observable,controlled,lean boxed	"typed/recovery_nested"
 grammar	lean,lean observable,controlled,lean boxed	"typed/recovery_operatorsRule"
@@ -1627,24 +1672,24 @@ grammar	lean,lean observable,controlled,lean boxed	"typed/recovery_typed_corpus"
 guard	1	2	0	0	0	""	1
 guard	1	3	0	0	0	""	1
 guard	1	4	0	0	0	""	1
-guard	1	5	1	0	0	"\"[\""	65
+guard	1	5	1	0	0	"\"[\""	69
 scan	5	2
 scan	6	2
 scope	3	5	x
 grammar	lean,lean observable,controlled,lean boxed	"typed/recovery_zero_progress"
 grammar	lean,lean observable,controlled,lean boxed	"unicode scalar boundaries"
-guard	0	10	1	0	0	"\"n\""	26
-guard	0	13	1	0	0	"\"l\""	24
-guard	0	16	1	0	0	"\"\\U0010ffff\""	28
-guard	0	17	1	0	0	"\"�\""	61
-guard	0	18	1	0	0	"\"\\uffff\""	62
-guard	0	4	1	0	0	"\"f\""	18
-guard	0	7	1	0	0	"\"e\""	16
+guard	0	10	1	0	0	"\"n\""	27
+guard	0	13	1	0	0	"\"l\""	25
+guard	0	16	1	0	0	"\"\\u{10ffff}\""	29
+guard	0	17	1	0	0	"\"�\""	64
+guard	0	18	1	0	0	"\"\\u{ffff}\""	65
+guard	0	4	1	0	0	"\"f\""	19
+guard	0	7	1	0	0	"\"e\""	17
 grammar	lean,lean observable,controlled,lean boxed	"unreachable LR alias tail"
 guard	1	2	0	0	0	""	1
-guard	1	3	1	0	0	"\"a\""	68
+guard	1	3	1	0	0	"\"a\""	72
 guard	1	4	0	0	0	""	1
-guard	1	5	1	0	0	"\"\\n\""	14
+guard	1	5	1	0	0	"\"\\n\""	15
 guard	1	6	0	0	0	""	1
 guard	1	7	0	0	0	""	1
 guard	1	8	0	0	0	""	1
@@ -1653,12 +1698,12 @@ grammar	lean,lean observable,controlled,lean boxed	"unreachable LR tail"
 guard	1	10	0	0	0	""	1
 guard	1	11	0	0	0	""	1
 guard	1	2	0	0	0	""	1
-guard	1	3	1	0	0	"\"a\""	68
+guard	1	3	1	0	0	"\"a\""	72
 guard	1	4	0	0	0	""	1
-guard	1	5	1	0	0	"\"\\n\""	14
+guard	1	5	1	0	0	"\"\\n\""	15
 guard	1	6	0	0	0	""	1
 guard	1	7	0	0	0	""	1
-guard	1	8	1	0	0	"\"\\n\""	14
+guard	1	8	1	0	0	"\"\\n\""	15
 guard	1	9	0	0	0	""	1
 grammar	lean,lean observable,controlled,lean boxed	"unreachable recovery chain"
 guard	1	2	0	0	0	""	1
