@@ -6,6 +6,7 @@
 #   docs   directly, throttled (nice 15, GOMAXPROCS 4)
 #   code   through testslot.sh
 #   engine, full   through benchlock.sh under <tag>
+# The gate runs with GOMAXPROCS=4 (unless set) and nice 15, so a heavy level is slow on a small machine.
 # Defaults: worktree = the current one, tag = the worktree directory name, base = origin/main.
 # Commit before running: the gate looks at base..HEAD. Exit status: the gate's.
 set -euo pipefail

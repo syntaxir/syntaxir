@@ -8,6 +8,9 @@
 #   runs/ slots/ benchlock/ benchlock.seq benchlock-stalls.log   run queue (written by the scripts only)
 #   gates/<tag>.log    gate logs
 
+# zp_state_defaulted is set when the caller did not choose a directory.
+zp_state_defaulted=
+[ -n "${ZP_AGENT_STATE:-}" ] || zp_state_defaulted=1
 zp_state=${ZP_AGENT_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/zp-team}
 export ZP_AGENT_STATE=$zp_state
 
@@ -18,3 +21,11 @@ zp_repo_root() { (cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P); }
 
 # zp_branch_ok BRANCH: the branch prefixes of AGENTS.md.
 zp_branch_ok() { case $1 in feat/* | fix/* | perf/* | docs/*) return 0 ;; *) return 1 ;; esac; }
+
+# zp_queue_note warns on stderr when the queue directory is the default and does not exist yet:
+# lanes that mean to share the machine's queue must all export the same ZP_AGENT_STATE.
+zp_queue_note() {
+  if [ -n "$zp_state_defaulted" ] && [ ! -d "$zp_state" ]; then
+    echo "${0##*/}: creating the queue directory $zp_state (set ZP_AGENT_STATE so that every lane shares one queue)" >&2
+  fi
+}

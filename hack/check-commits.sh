@@ -30,7 +30,7 @@ for c in $(git rev-list --reverse "$base..$head"); do
 	if git log -1 --format=%B "$c" | grep -qiE 'co-authored-by:.*(claude|anthropic|openai|codex|copilot|gemini|noreply@)|generated (with|by)|🤖'; then
 		fail "$short carries AI attribution: $subject"
 	fi
-	if git log -1 --format=%B "$c" | grep -qiE '^(close[sd]?|fix(e[sd])?|resolve[sd]?):? +#?[0-9]+'; then
+	if git log -1 --format=%B "$c" | grep -qiE '(^|[^[:alnum:]_])(close[sd]?|fix(e[sd])?|resolve[sd]?):? +([[:alnum:]_.-]+/[[:alnum:]_.-]+)?#[0-9]+'; then
 		fail "$short has a closing trailer (use Refs): $subject"
 	fi
 done

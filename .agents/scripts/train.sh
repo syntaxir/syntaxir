@@ -7,9 +7,13 @@
 #   <rev> is a commit, or a range A..B (cherry-picked in order). Merge commits are refused: main stays
 #   linear. A conflict stops the stack with the worktree left as it is; resolve it there, run
 #   `git cherry-pick --continue`, and pick the remaining revs by hand.
-#   gate: see run-gate.sh; the log is $ZP_AGENT_STATE/gates/train-<name>.log.
-#   land: refuses unless the last gate summary passed for this exact tip, origin/main has not moved
-#   since the stack, and the history is linear; pushes without force, then appends
+#   gate: see run-gate.sh; the log is $ZP_AGENT_STATE/gates/train-<name>.log. Without levels it
+#   runs the ones the stack needs: `docs` for a stack of documentation, spec, site and skill paths;
+#   `engine` for any other path, and `full` besides when engine, generator, compiler, IR,
+#   bytecode or runtime paths changed. It uses the base recorded at stack time, and writes the
+#   completion marker (tip and levels) only after the gate exited 0.
+#   land: refuses unless a completed gate marker names this exact tip and covers every level the
+#   stack needs, origin/main has not moved since the stack, and the history is linear; pushes without force, then appends
 #   `LANDED train-<name> <date>: main <old>..<new>` to landing-train.md. Pushing main is the
 #   integrator's act: run it only with the owner's standing permission for main.
 set -euo pipefail
@@ -17,6 +21,29 @@ here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 # shellcheck source=lib.sh
 . "$here/lib.sh"
 usage() { sed -n '2,/^set /p' "$0" | sed '$d;s/^# \{0,1\}//' >&2; exit 2; }
+# needed_levels BASE TIP prints the gate levels the changed paths of BASE..TIP need:
+# docs for documentation, spec, site and skill paths (alone when nothing else changed);
+# engine for any other path; and full for engine, generator, compiler, IR, bytecode or
+# runtime paths.
+needed_levels() {
+  local paths docs=0 code=0 full=0 f
+  paths=$(git -C "$wt" diff --name-only "$1..$2")
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    case $f in
+      docs/* | spec/* | site/* | .agents/* | AGENTS.md | README.md | SECURITY.md) docs=1 ;;
+      internal/engine/* | internal/codegen/* | internal/compile/* | internal/ir/* | internal/bytecode/* | \
+        engine/* | codegen/* | core/* | pkg/*) code=1; full=1 ;;
+      *) code=1 ;;
+    esac
+  done <<< "$paths"
+  local out=
+  [ "$docs" = 1 ] && out="docs"
+  [ "$code" = 1 ] && out="$out engine"
+  [ "$full" = 1 ] && out="$out full"
+  [ -n "$out" ] || out=docs
+  echo "$out"
+}
 [ $# -ge 2 ] || usage
 cmd=$1; name=$2; shift 2
 wt=$zp_state/wt/train-$name
@@ -44,21 +71,31 @@ case $cmd in
     ;;
   gate)
     [ -d "$wt" ] || die "no train worktree $wt"
-    [ $# -ge 1 ] || set -- engine full
-    mkdir -p "$zp_state/gates"
-    git -C "$wt" rev-parse HEAD > "$zp_state/gates/train-$name.tip"
-    exec "$here/run-gate.sh" -w "$wt" -t "train-$name" "$@"
+    g=$zp_state/gates
+    base=$(cat "$g/train-$name.base")
+    tip=$(git -C "$wt" rev-parse HEAD)
+    if [ $# -eq 0 ]; then read -r -a lv <<< "$(needed_levels "$base" "$tip")"; set -- "${lv[@]}"; fi
+    rm -f "$g/train-$name.ok"
+    "$here/run-gate.sh" -w "$wt" -t "train-$name" -b "$base" "$@"
+    [ "$(git -C "$wt" rev-parse HEAD)" = "$tip" ] || die "the tip moved during the gate"
+    # The marker is written only after the gate exited 0, with the tip and the levels it covered.
+    echo "tip=$tip levels=$(printf '%s\n' "$@" | sort -u | tr '\n' ' ')" > "$g/train-$name.ok"
+    echo "train-$name: gated $tip with $*"
     ;;
   land)
     [ -d "$wt" ] || die "no train worktree $wt"
     g=$zp_state/gates
     tip=$(git -C "$wt" rev-parse HEAD)
-    [ "$(cat "$g/train-$name.tip" 2>/dev/null || true)" = "$tip" ] || die "the gate did not run on this tip $tip"
-    [ -s "$g/train-$name.sum" ] || die "no gate summary"
-    ! grep -vqE $'\texit 0\t' "$g/train-$name.sum" || die "the gate summary has a failed step"
+    base=$(cat "$g/train-$name.base")
+    ok=$(cat "$g/train-$name.ok" 2>/dev/null || true)
+    [ -n "$ok" ] || die "no completed gate for train-$name (run: train.sh gate $name)"
+    case $ok in "tip=$tip levels="*) ;; *) die "the completed gate did not run on this tip $tip" ;; esac
+    have=" ${ok#*levels=}"
+    for l in $(needed_levels "$base" "$tip"); do
+      case $have in *" $l "*) ;; *) die "this stack needs the gate level $l; the gate ran:${have}" ;; esac
+    done
     [ -z "$(git -C "$wt" status --porcelain)" ] || die "the train worktree is dirty"
     git fetch -q origin
-    base=$(cat "$g/train-$name.base")
     [ "$(git rev-parse origin/main)" = "$base" ] || die "origin/main moved since the stack; restack"
     [ -z "$(git -C "$wt" rev-list --merges "$base..$tip")" ] || die "merge commit in the train"
     "$here/../../hack/check-commits.sh" "$base" "$tip"
