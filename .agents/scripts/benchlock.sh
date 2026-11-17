@@ -4,6 +4,8 @@
 # The command runs in a process group of its own, recorded in runs/<tag>.<pid> while it runs, so
 # benchstop.sh can stop exactly the groups this script started and nothing else.
 #
+# Known limit: a TERM that arrives before the command has called setpgrp does not reach it, and
+# the command, a background process group, cannot read the terminal.
 # State: $ZP_AGENT_STATE (see lib.sh). The layout is the one of the earlier
 # zsh version of this script, so jobs queued by either version are ranked together.
 #

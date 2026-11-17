@@ -182,4 +182,14 @@ func TestTrainLandRequiresACompletedGate(t *testing.T) {
 		t.Errorf("default levels of a docs stack: %s", out)
 	}
 	step(true, nil, "land", "d1")
+
+	// A file moved out of an engine path still counts as a change of that path.
+	mustRun(t, w, env, "git", "fetch", "-q", "origin")
+	mustRun(t, w, env, "git", "checkout", "-q", "-b", "feat/mv", "origin/main")
+	mustRun(t, w, env, "git", "mv", "internal/engine/x.go", "docs/moved.md")
+	mustRun(t, w, env, "git", "commit", "-q", "-m", "Move x out of the engine", "-m", "The test needs it.")
+	step(true, nil, "stack", "m1", "feat/mv")
+	if out := step(true, nil, "gate", "m1"); !strings.Contains(out, "engine full") {
+		t.Errorf("default levels of a stack that moves a file out of the engine: %s", out)
+	}
 }

@@ -9,8 +9,12 @@
 #   `git cherry-pick --continue`, and pick the remaining revs by hand.
 #   gate: see run-gate.sh; the log is $ZP_AGENT_STATE/gates/train-<name>.log. Without levels it
 #   runs the ones the stack needs: `docs` for a stack of documentation, spec, site and skill paths;
-#   `engine` for any other path, and `full` besides when engine, generator, compiler, IR,
-#   bytecode or runtime paths changed. It uses the base recorded at stack time, and writes the
+#   `engine` for any other path, and `full` besides when a path of the engine, the generators
+#   or the runtime changed: internal/engine, internal/codegen, internal/compile, internal/ir,
+#   internal/bytecode, engine, codegen and core (the list in needed_levels; a package that
+#   moves to a new layout must be added there). Other code, such as internal/frontend or the
+#   schema, query and lint packages, gets engine only: its dependents are covered by the
+#   engine level's affected-package tests. It uses the base recorded at stack time, and writes the
 #   completion marker (tip and levels) only after the gate exited 0.
 #   land: refuses unless a completed gate marker names this exact tip and covers every level the
 #   stack needs, origin/main has not moved since the stack, and the history is linear; pushes without force, then appends
@@ -24,16 +28,17 @@ usage() { sed -n '2,/^set /p' "$0" | sed '$d;s/^# \{0,1\}//' >&2; exit 2; }
 # needed_levels BASE TIP prints the gate levels the changed paths of BASE..TIP need:
 # docs for documentation, spec, site and skill paths (alone when nothing else changed);
 # engine for any other path; and full for engine, generator, compiler, IR, bytecode or
-# runtime paths.
+# runtime paths. Renames count as a delete and an add, so a file moved out of those paths
+# still needs full.
 needed_levels() {
   local paths docs=0 code=0 full=0 f
-  paths=$(git -C "$wt" diff --name-only "$1..$2")
+  paths=$(git -C "$wt" diff --no-renames --name-only "$1..$2")
   while IFS= read -r f; do
     [ -n "$f" ] || continue
     case $f in
       docs/* | spec/* | site/* | .agents/* | AGENTS.md | README.md | SECURITY.md) docs=1 ;;
       internal/engine/* | internal/codegen/* | internal/compile/* | internal/ir/* | internal/bytecode/* | \
-        engine/* | codegen/* | core/* | pkg/*) code=1; full=1 ;;
+        engine/* | codegen/* | core/*) code=1; full=1 ;;
       *) code=1 ;;
     esac
   done <<< "$paths"

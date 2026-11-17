@@ -8,6 +8,10 @@
 # is reclaimed. Holders release without the mutex (pid file first).
 # The command runs in a process group of its own; TERM, INT or HUP to this script signals the
 # group, waits for it, and frees the slot.
+# Known limits: two waiters that reclaim the same dead mutex at once can delete a third claimer's
+# fresh mutex, and a dead mutex whose pid was reused by an unrelated live process stays until
+# that process ends. A TERM that arrives before the command has called setpgrp does not reach it.
+# The command is a background process group, so it cannot read the terminal.
 # State: $ZP_AGENT_STATE/slots.
 set -euo pipefail
 # shellcheck source=lib.sh
