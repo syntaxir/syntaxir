@@ -7,6 +7,7 @@
 # Retries a transient failure up to 5 times. Exit status 1 when any branch failed.
 set -euo pipefail
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
+zp_no_state=1
 # shellcheck source=lib.sh
 . "$here/lib.sh"
 if [ -z "${SSH_AUTH_SOCK:-}" ] && command -v gpgconf >/dev/null 2>&1; then

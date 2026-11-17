@@ -24,7 +24,6 @@ D=$zp_state/slots
 n=${TESTSLOT_N:-4}
 [ $# -gt 0 ] || { echo "usage: testslot.sh <cmd...>" >&2; exit 2; }
 command -v perl >/dev/null 2>&1 || { echo "testslot.sh: perl is required for the claim lock and is not installed" >&2; exit 127; }
-zp_queue_note
 mkdir -p "$D"
 mine=
 child=

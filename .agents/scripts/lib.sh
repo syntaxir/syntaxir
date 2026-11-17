@@ -1,34 +1,30 @@
 #!/usr/bin/env bash
 # Shared by the scripts in this directory; source it, do not run it.
 #
-# ZP_AGENT_STATE is the per-machine coordination directory. Default:
-# ${XDG_STATE_HOME:-$HOME/.local/state}/zp-team. Layout:
+# ZP_AGENT_STATE is the per-machine coordination directory: one absolute path that every lane on
+# the machine exports. It has no default: a default lets a lane that has not exported it run its
+# gates through a second, private queue beside the shared one, and a warning would go unseen, as
+# run-gate.sh sends the queue's output to the gate log. So a script that uses the state
+# stops when the variable is unset or relative. A script that does not use it sets zp_no_state=1
+# before sourcing this file. Layout:
 #   landing-train.md   the live queue of candidates
 #   wt/<name>/         worktrees
 #   runs/ slots/ benchlock/ benchlock.lock benchlock.seq benchlock-stalls.log   run queue (written by the scripts only)
 #   gates/<tag>.log    gate logs
 
-# zp_state_defaulted is set when the caller did not choose a directory.
-zp_state_defaulted=
-[ -n "${ZP_AGENT_STATE:-}" ] || zp_state_defaulted=1
-zp_state=${ZP_AGENT_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/zp-team}
-export ZP_AGENT_STATE=$zp_state
-
 die() { echo "${0##*/}: $*" >&2; exit 1; }
+
+zp_state=${ZP_AGENT_STATE:-}
+if [ -z "${zp_no_state:-}" ]; then
+  [ -n "$zp_state" ] || die "ZP_AGENT_STATE is not set: export the machine's one state directory, the same for every lane (for example \${XDG_STATE_HOME:-\$HOME/.local/state}/zp-team)"
+  case $zp_state in /*) ;; *) die "ZP_AGENT_STATE must be an absolute path, not $zp_state" ;; esac
+fi
 
 # zp_repo_root prints the top level of the checkout that holds this script's directory.
 zp_repo_root() { (cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P); }
 
 # zp_branch_ok BRANCH: the branch prefixes of AGENTS.md.
 zp_branch_ok() { case $1 in feat/* | fix/* | perf/* | docs/*) return 0 ;; *) return 1 ;; esac; }
-
-# zp_queue_note warns on stderr when the queue directory is the default and does not exist yet:
-# lanes that mean to share the machine's queue must all export the same ZP_AGENT_STATE.
-zp_queue_note() {
-  if [ -n "$zp_state_defaulted" ] && [ ! -d "$zp_state" ]; then
-    echo "${0##*/}: creating the queue directory $zp_state (set ZP_AGENT_STATE so that every lane shares one queue)" >&2
-  fi
-}
 
 # zp_lstart PID prints the start time of the process, which tells a process from a later one
 # that reuses its pid. Empty when the process is gone.

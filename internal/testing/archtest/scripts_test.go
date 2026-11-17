@@ -193,3 +193,64 @@ func TestTrainLandRequiresACompletedGate(t *testing.T) {
 		t.Errorf("default levels of a stack that moves a file out of the engine: %s", out)
 	}
 }
+
+// The scripts that use the state directory stop when ZP_AGENT_STATE is unset or relative, before
+// they create anything: a default would let a lane that forgot it run a private queue beside the
+// shared one. push-branch.sh does not use the state and does not ask for it.
+func TestScriptsRequireAgentState(t *testing.T) {
+	needTools(t)
+	home := t.TempDir()
+	var base []string
+	for _, kv := range os.Environ() {
+		if !strings.HasPrefix(kv, "ZP_AGENT_STATE=") && !strings.HasPrefix(kv, "HOME=") && !strings.HasPrefix(kv, "XDG_STATE_HOME=") {
+			base = append(base, kv)
+		}
+	}
+	base = append(base, "HOME="+home, "BENCHLOCK_POLL=1")
+	src, err := filepath.Abs(filepath.Join("..", "..", "..", ".agents", "scripts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The scripts run from a copy in a scratch repository, so that a script that does not stop
+	// acts on the scratch repository and not on this one.
+	root := filepath.Join(t.TempDir(), "w")
+	names, _ := filepath.Glob(filepath.Join(src, "*.sh"))
+	for _, n := range names {
+		b, err := os.ReadFile(n)
+		if err != nil {
+			t.Fatal(err)
+		}
+		write(t, filepath.Join(root, ".agents", "scripts", filepath.Base(n)), string(b), 0o755)
+	}
+	gitEnv := scriptEnv(t, t.TempDir())
+	mustRun(t, root, gitEnv, "git", "init", "-q", "-b", "main")
+	mustRun(t, root, gitEnv, "git", "add", ".")
+	mustRun(t, root, gitEnv, "git", "commit", "-q", "-m", "Seed")
+	scripts := map[string][]string{
+		"benchlock.sh": {"t", "true"}, "testslot.sh": {"true"}, "run-gate.sh": {"code"},
+		"queue-status.sh": nil, "benchstop.sh": {"t"}, "lane-new.sh": {"x", "fix/x"},
+		"ready.sh": {"scope", "checks"}, "train.sh": {"stack", "x"}, "alpha-check.sh": nil,
+	}
+	for _, state := range []string{"", "relative/state"} {
+		env := base
+		if state != "" {
+			env = append(append([]string{}, base...), "ZP_AGENT_STATE="+state)
+		}
+		for name, args := range scripts {
+			out, err := runIn(t, root, env, "bash", append([]string{filepath.Join(root, ".agents", "scripts", name)}, args...)...)
+			if err == nil || !strings.Contains(out, "ZP_AGENT_STATE") {
+				t.Errorf("%s with ZP_AGENT_STATE=%q: err %v, output %q; want a stop that names ZP_AGENT_STATE", name, state, err, out)
+			}
+		}
+	}
+	if entries, _ := os.ReadDir(home); len(entries) != 0 {
+		t.Errorf("the scripts created %v in HOME", entries)
+	}
+	if _, err := os.Stat(filepath.Join(root, "relative")); err == nil {
+		t.Errorf("the scripts created relative/ in the repository")
+	}
+	out, _ := runIn(t, root, base, "bash", filepath.Join(root, ".agents", "scripts", "push-branch.sh"))
+	if strings.Contains(out, "ZP_AGENT_STATE") {
+		t.Errorf("push-branch.sh asks for ZP_AGENT_STATE: %q", out)
+	}
+}

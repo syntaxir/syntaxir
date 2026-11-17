@@ -39,8 +39,8 @@ tests go to the long tier (`zp_long`).
 
 ## Agent scripts
 
-Export one `ZP_AGENT_STATE` for every lane on the machine, so that all share one queue and
-one set of worktrees. `-h` prints usage. Heavy runs go through the queue only.
+Export one absolute `ZP_AGENT_STATE` for every lane on the machine (required), so that all
+share one queue and one set of worktrees. `-h` prints usage. Heavy runs go through the queue only.
 
 - Start a lane: `.agents/scripts/lane-new.sh <name> <branch>`
 - Gate in the right run class: `.agents/scripts/run-gate.sh [-t tag] LEVEL...`
