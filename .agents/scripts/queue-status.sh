@@ -1,21 +1,40 @@
 #!/usr/bin/env bash
 # Usage: queue-status.sh
 # Prints the run queue: the lock (free, its exclusive owner, or its shared holders out of K), every
-# record of runs/ in rank order (start, seq) with its class, the stall log, and a STUCK line when
-# jobs are queued but none runs. A record without class= (an earlier benchlock.sh) is exclusive.
-# Exit status 1 when stuck or when the stall log is not empty, so that a poll can act on it.
+# record of runs/ in rank order (start, seq) with its class, the stall log, a STALE line for each
+# holder or record whose benchlock.sh is gone, and a STUCK line when jobs are queued but none runs.
+# Only records of live wrappers count as queued or running. A record without class= (an earlier
+# benchlock.sh) is exclusive. Earlier versions cannot take back the slot of a dead shared holder,
+# so with only their waiters queued the queue stays stuck until a current benchlock.sh runs.
+# Exit status 1 when stuck, when anything is stale or when the stall log is not empty, so that a
+# poll can act on it.
 set -euo pipefail
 # shellcheck source=lib.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 D=$zp_state
 echo "state: $D"
 L=$D/benchlock
+stale=()
 if [ -f "$L/owner" ]; then
-  echo "lock: exclusive, owner $(cat "$L/owner" 2>/dev/null || true)"
+  read -r otag opid _ < "$L/owner" || true
+  echo "lock: exclusive, owner ${otag:-} ${opid:-}"
+  if [ -n "${opid:-}" ] && ! zp_bench_live "$opid" "$otag"; then
+    stale+=("exclusive holder $otag $opid is gone; it holds benchlock/")
+  fi
 elif [ -d "$L/shared" ]; then
-  echo "lock: shared, $(find "$L/shared" -mindepth 1 -maxdepth 1 -type f | wc -l | tr -d ' ') of $(zp_shared_slots) slots: $(cat "$L/shared"/* 2>/dev/null | awk '{print $1, $2}' | paste -sd, - | sed 's/,/, /g')"
+  holders=()
+  for e in "$L/shared"/*; do
+    [ -f "$e" ] || continue
+    read -r htag hpid _ < "$e" || true
+    holders+=("${htag:-} ${hpid:-}")
+    if [ -n "${hpid:-}" ] && ! zp_bench_live "$hpid" "$htag"; then
+      stale+=("shared holder $htag $hpid is gone; its slot ${e##*/} holds benchlock/")
+    fi
+  done
+  list=$(printf '%s, ' ${holders[@]+"${holders[@]}"}); list=${list%, }
+  echo "lock: shared, ${#holders[@]} of $(zp_shared_slots) slots: $list"
 elif [ -d "$L" ]; then
-  echo "lock: held, no owner yet"
+  echo "lock: held, no owner yet: $(find "$L" -mindepth 1 -maxdepth 1 2>/dev/null | sed 's|.*/||' | tr '\n' ' ')"
 else
   echo "lock: free"
 fi
@@ -27,11 +46,18 @@ done | sort
 q=0; r=0
 for f in "$D"/runs/*; do
   [ -f "$f" ] || continue
-  if grep -q '^state=queued' "$f"; then q=$((q + 1)); fi
-  if grep -q '^state=running' "$f"; then r=$((r + 1)); fi
+  read -r st _ <<< "$(zp_run_fields "$f")" || continue
+  ft=${f##*/}
+  if ! zp_bench_live "${ft##*.}" "${ft%.*}"; then
+    stale+=("$st record $ft: its benchlock.sh is gone")
+    continue
+  fi
+  case $st in queued) q=$((q + 1)) ;; running) r=$((r + 1)) ;; esac
 done
 rc=0
 if [ -s "$D/benchlock-stalls.log" ]; then echo "STALLS (a queue bug, report it):"; cat "$D/benchlock-stalls.log"; rc=1; fi
+for m in ${stale[@]+"${stale[@]}"}; do echo "STALE: $m"; rc=1; done
+if [ "${#stale[@]}" -gt 0 ]; then echo "(any current benchlock.sh run takes back what is stale)"; fi
 echo "queued: $q running: $r"
 if [ "$q" -gt 0 ] && [ "$r" -eq 0 ]; then echo "STUCK: jobs are queued and none runs"; rc=1; fi
 exit "$rc"

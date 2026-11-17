@@ -756,30 +756,7 @@ func TestBenchlockReclaimsDeadSharedHolder(t *testing.T) {
 	state := t.TempDir()
 	env := append(scriptEnv(t, state), "BENCHLOCK_SHARED=1")
 	work, run := overlapWork(t)
-	h := benchlockClass(t, env, "shared", "dead", "sleep", "60")
-	// Kill the wrapper alone, as a crash would, and then the group of its command, which this
-	// test started, as its running record names it.
-	pgid := 0
-	for begin := time.Now(); pgid == 0; time.Sleep(20 * time.Millisecond) {
-		recs, _ := filepath.Glob(filepath.Join(state, "runs", "dead.*"))
-		for _, r := range recs {
-			b, _ := os.ReadFile(r)
-			for _, f := range strings.Fields(string(b)) {
-				if v, ok := strings.CutPrefix(f, "pgid="); ok {
-					pgid, _ = strconv.Atoi(v)
-				}
-			}
-		}
-		if time.Since(begin) > 20*time.Second {
-			t.Fatal("shared holder did not start")
-		}
-	}
-	if pgid <= 1 {
-		t.Fatalf("bad group %d", pgid)
-	}
-	_ = h.Process.Kill()
-	_ = h.Wait()
-	_ = syscall.Kill(-pgid, syscall.SIGKILL)
+	crashHolder(t, env, state, "shared", "dead")
 	for _, class := range []string{"exclusive", "shared"} {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		cmd := exec.CommandContext(ctx, "bash", scriptPath(t, "benchlock.sh"), "next", work, run, class, "0")
@@ -835,6 +812,113 @@ func TestBenchlockReleaseKeepsStatusBesideStrayFile(t *testing.T) {
 		log, _ := os.ReadFile(filepath.Join(state, "benchlock-stalls.log"))
 		if !strings.Contains(string(log), "stray: stray.") || !strings.Contains(string(log), "holds: stray") {
 			t.Errorf("%s: stall log %q does not report the stray file", class, log)
+		}
+	}
+}
+
+// crashHolder starts a holder of the class under tag and kills it as a crash would: the wrapper
+// alone, with SIGKILL, so that it leaves its hold and its running record; then the group of its
+// command, which this test started, as the running record names it.
+func crashHolder(t *testing.T, env []string, state, class, tag string) {
+	t.Helper()
+	h := benchlockClass(t, env, class, tag, "sleep", "60")
+	pgid := 0
+	for begin := time.Now(); pgid == 0; time.Sleep(20 * time.Millisecond) {
+		recs, _ := filepath.Glob(filepath.Join(state, "runs", tag+".*"))
+		for _, r := range recs {
+			b, _ := os.ReadFile(r)
+			for _, f := range strings.Fields(string(b)) {
+				if v, ok := strings.CutPrefix(f, "pgid="); ok {
+					pgid, _ = strconv.Atoi(v)
+				}
+			}
+		}
+		if time.Since(begin) > 20*time.Second {
+			_ = h.Process.Kill()
+			t.Fatalf("%s holder did not start", class)
+		}
+	}
+	if pgid <= 1 {
+		t.Fatalf("bad group %d", pgid)
+	}
+	_ = h.Process.Kill()
+	_ = h.Wait()
+	_ = syscall.Kill(-pgid, syscall.SIGKILL)
+}
+
+// A shared holder killed with SIGKILL while only waiters of the earlier version are queued: they
+// cannot take its slot back, so queue-status.sh must report the dead holder and its record as
+// stale and exit 1. The next current benchlock.sh takes the slot back and the queue moves.
+func TestQueueStatusReportsDeadSharedHolder(t *testing.T) {
+	needTools(t)
+	state := t.TempDir()
+	env := append(scriptEnv(t, state), "BENCHLOCK_SHARED=2")
+	crashHolder(t, env, state, "shared", "dead")
+	work, run := overlapWork(t)
+	old := exec.Command("bash", filepath.Join(mainScripts(t), "benchlock.sh"), "old", work, run, "old", "0")
+	old.Env = env
+	if err := old.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = old.Process.Kill() }()
+	waitQueued(t, state, "old")
+	time.Sleep(2 * time.Second) // several polls of the earlier waiter
+	out, err := runIn(t, ".", env, "bash", scriptPath(t, "queue-status.sh"))
+	if err == nil {
+		t.Errorf("queue-status.sh exited 0 with a dead shared holder:\n%s", out)
+	}
+	for _, want := range []string{"STALE: shared holder dead ", "STALE: running record dead.", "STUCK", "queued: 1 running: 0"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("queue-status.sh output lacks %q:\n%s", want, out)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(run, "events")); err == nil {
+		t.Fatal("the earlier waiter ran while the dead holder's slot was held")
+	}
+	// A current job takes the slot back; then the earlier waiter runs.
+	cur := exec.Command("bash", scriptPath(t, "benchlock.sh"), "cur", work, run, "cur", "0")
+	cur.Env = env
+	if out, err := cur.CombinedOutput(); err != nil {
+		t.Fatalf("current job: %v\n%s", err, out)
+	}
+	if err := old.Wait(); err != nil {
+		t.Fatalf("earlier waiter: %v", err)
+	}
+	out, err = runIn(t, ".", env, "bash", scriptPath(t, "queue-status.sh"))
+	if err != nil || strings.Contains(out, "STALE") {
+		t.Errorf("queue-status.sh after the queue moved: %v\n%s", err, out)
+	}
+}
+
+// The backstop: a waiter of either class that sees the lock free for BENCHLOCK_STALL seconds while
+// the ranking holds it back takes the lock and logs the stall. Here a live record that never takes
+// the lock is ranked first: a process of a script named benchlock.sh that only sleeps.
+func TestBenchlockStallBackstop(t *testing.T) {
+	needTools(t)
+	for _, class := range []string{"shared", "exclusive"} {
+		state := t.TempDir()
+		env := append(scriptEnv(t, state), "BENCHLOCK_STALL=3")
+		fake := filepath.Join(t.TempDir(), "benchlock.sh")
+		write(t, fake, "sleep \"$2\"\n", 0o755)
+		blocker := exec.Command("bash", fake, "blocker", "60")
+		if err := blocker.Start(); err != nil {
+			t.Fatal(err)
+		}
+		write(t, filepath.Join(state, "runs", fmt.Sprintf("blocker.%d", blocker.Process.Pid)),
+			fmt.Sprintf("state=queued seq=0 tag=blocker wrapper=%d cwd=/ start=2000-01-01T00:00:00 cmd=sleep 60\n", blocker.Process.Pid), 0o644)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		cmd := exec.CommandContext(ctx, "bash", scriptPath(t, "benchlock.sh"), "late", "true")
+		cmd.Env = append(append([]string{}, env...), "BENCHLOCK_CLASS="+class)
+		out, err := cmd.CombinedOutput()
+		cancel()
+		_ = blocker.Process.Kill()
+		_ = blocker.Wait()
+		if err != nil {
+			t.Fatalf("%s waiter behind a record that never runs: %v\n%s", class, err, out)
+		}
+		log, _ := os.ReadFile(filepath.Join(state, "benchlock-stalls.log"))
+		if !strings.Contains(string(log), "stall: lock free") || !strings.Contains(string(log), class+") took it") {
+			t.Errorf("%s: stall log %q does not record the stall", class, log)
 		}
 	}
 }

@@ -58,8 +58,8 @@ recline="state=queued seq=$seq class=$class tag=$tag wrapper=$$ cwd=$PWD start=$
 printf '%s\n' "$recline" > "$rec"
 # A wrapper is live only if its PID still runs this script with its own tag: PIDs are reused, and a
 # record whose PID now belongs to another process would otherwise block the queue forever.
-# Records of wrappers that are no longer live are moved to runs-stale/.
-live() { ps -o command= -p "$1" 2>/dev/null | grep -qF "benchlock.sh $2 "; }
+# Records of wrappers that are no longer live, queued or running, are moved to runs-stale/.
+live() { zp_bench_live "$@"; }
 # scan sets ahead to the number of live queued records ranked before this one by the key
 # (start, seq), and ahead_x to those of them that are not shared. The start= may be edited by
 # the integrator for train priority.
@@ -70,10 +70,10 @@ scan() {
   ahead=0; ahead_x=0
   for f in "$R"/*; do
     [ -f "$f" ] && [ "$f" != "$rec" ] || continue
-    read -r st t s c <<< "$(zp_run_fields "$f")"
-    [ "$st" = queued ] || continue
     w=${f##*.}; ft=${f##*/}; ft=${ft%.*}
     live "$w" "$ft" || { mkdir -p "$D/runs-stale"; mv -f "$f" "$D/runs-stale/" 2>/dev/null || true; continue; }
+    read -r st t s c <<< "$(zp_run_fields "$f")"
+    [ "$st" = queued ] || continue
     if [[ "$t $s" < "$mine" ]]; then
       ahead=$((ahead + 1))
       [ "$c" = shared ] || ahead_x=$((ahead_x + 1))

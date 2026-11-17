@@ -47,6 +47,10 @@ zp_shared_slots() {
   echo "$k"
 }
 
+# zp_bench_live PID TAG: PID still runs benchlock.sh (of any version) with TAG. PIDs are reused, so
+# a live PID alone does not make a holder or a waiter live.
+zp_bench_live() { ps -o command= -p "$1" 2>/dev/null | grep -qF "benchlock.sh $2 "; }
+
 # zp_run_fields RECORD prints "state start seq class" of a benchlock.sh record runs/<tag>.<pid>,
 # read before its cmd=, which may hold any text. seq is the wrapper pid for records written before
 # seq existed, and class is exclusive for records written before classes existed. Prints nothing
