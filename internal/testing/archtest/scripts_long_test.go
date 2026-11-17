@@ -16,7 +16,7 @@ import (
 )
 
 // The queue scripts' races and signal handling, run against temporary state directories. They
-// take about a minute, so they belong to the long tier.
+// take minutes, so they belong to the long tier.
 
 func scriptPath(t *testing.T, name string) string {
 	t.Helper()
@@ -489,16 +489,19 @@ func mainScripts(t *testing.T) string {
 	return dir
 }
 
-// overlapWork is a command that records how many copies of it run at once.
+// overlapWork is a command "work.sh RUN [NAME [SECONDS]]" that records how many copies of it run
+// at once in RUN/counts, and its start and end under NAME in RUN/events. It runs 2 seconds.
 func overlapWork(t *testing.T) (work, run string) {
 	t.Helper()
 	run = t.TempDir()
 	work = filepath.Join(run, "work.sh")
 	write(t, work, `#!/usr/bin/env bash
+echo "start ${2:-}" >> "$1/events"
 echo $$ > "$1/live.$$"
-sleep 2
+sleep "${3:-2}"
 ls "$1" | grep -c '^live\.' >> "$1/counts"
 rm -f "$1/live.$$"
+echo "end ${2:-}" >> "$1/events"
 `, 0o755)
 	return work, run
 }
@@ -524,6 +527,13 @@ func startQueued(t *testing.T, env []string, run string, args ...string) *exec.C
 // waitOverlap waits for the commands and fails when they did not all run or ran together.
 func waitOverlap(t *testing.T, what, run string, want int, cmds ...*exec.Cmd) {
 	t.Helper()
+	waitConcurrency(t, what, run, want, 1, cmds...)
+}
+
+// waitConcurrency waits for the commands and fails when they did not all run, or when the most
+// copies that ran at once is not most.
+func waitConcurrency(t *testing.T, what, run string, want, most int, cmds ...*exec.Cmd) {
+	t.Helper()
 	for _, cmd := range cmds {
 		if err := cmd.Wait(); err != nil {
 			t.Fatalf("%s: %v", what, err)
@@ -534,10 +544,13 @@ func waitOverlap(t *testing.T, what, run string, want int, cmds ...*exec.Cmd) {
 	if len(lines) != want {
 		t.Fatalf("%s: %d of %d commands ran: %q", what, len(lines), want, lines)
 	}
+	seen := 0
 	for _, l := range lines {
-		if c, _ := strconv.Atoi(l); c > 1 {
-			t.Errorf("%s: %s commands ran at once: %q", what, l, lines)
-		}
+		c, _ := strconv.Atoi(l)
+		seen = max(seen, c)
+	}
+	if seen != most {
+		t.Errorf("%s: at most %d commands ran at once, want %d: %q", what, seen, most, lines)
 	}
 }
 
@@ -573,4 +586,234 @@ func TestQueueScriptsBesideEarlierVersion(t *testing.T) {
 			waitOverlap(t, fmt.Sprintf("%s, earlier holder %v", name, holderOld), run, 2, h, c)
 		}
 	}
+}
+
+// benchlockClass runs the current benchlock.sh in a class on the work command.
+func benchlockClass(t *testing.T, env []string, class, tag string, args ...string) *exec.Cmd {
+	t.Helper()
+	cmd := exec.Command("bash", append([]string{scriptPath(t, "benchlock.sh"), tag}, args...)...)
+	cmd.Env = append(append([]string{}, env...), "BENCHLOCK_CLASS="+class)
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	return cmd
+}
+
+// waitQueued returns once a queued record of the tag exists.
+func waitQueued(t *testing.T, state, tag string) {
+	t.Helper()
+	for begin := time.Now(); time.Since(begin) < 20*time.Second; time.Sleep(20 * time.Millisecond) {
+		m, _ := filepath.Glob(filepath.Join(state, "runs", tag+".*"))
+		for _, f := range m {
+			if b, _ := os.ReadFile(f); strings.HasPrefix(string(b), "state=queued") {
+				return
+			}
+		}
+	}
+	t.Fatalf("no queued record of %s", tag)
+}
+
+// events reads the start and end events of the work commands, in order.
+func events(t *testing.T, run string) []string {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join(run, "events"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return strings.Split(strings.TrimSpace(string(b)), "\n")
+}
+
+// before reports whether event a comes before event b.
+func before(ev []string, a, b string) bool {
+	ia, ib := -1, -1
+	for i, e := range ev {
+		if e == a && ia < 0 {
+			ia = i
+		}
+		if e == b && ib < 0 {
+			ib = i
+		}
+	}
+	return ia >= 0 && ib >= 0 && ia < ib
+}
+
+// Shared jobs run K at a time, and no more: four of them with K = 2 run two by two.
+func TestBenchlockSharedSlots(t *testing.T) {
+	needTools(t)
+	state := t.TempDir()
+	env := append(scriptEnv(t, state), "BENCHLOCK_SHARED=2")
+	work, run := overlapWork(t)
+	var cmds []*exec.Cmd
+	for i := 0; i < 4; i++ {
+		cmds = append(cmds, benchlockClass(t, env, "shared", fmt.Sprintf("s%d", i), work, run))
+	}
+	waitConcurrency(t, "four shared jobs, K = 2", run, 4, 2, cmds...)
+}
+
+// An exclusive job waits for the shared holders, and a shared job waits for an exclusive holder.
+func TestBenchlockExclusiveAndSharedExclude(t *testing.T) {
+	needTools(t)
+	for _, first := range []string{"shared", "exclusive"} {
+		state := t.TempDir()
+		env := append(scriptEnv(t, state), "BENCHLOCK_SHARED=2")
+		work, run := overlapWork(t)
+		second := map[string]string{"shared": "exclusive", "exclusive": "shared"}[first]
+		h := benchlockClass(t, env, first, "h", work, run, "h")
+		for begin := time.Now(); ; time.Sleep(20 * time.Millisecond) {
+			if m, _ := filepath.Glob(filepath.Join(run, "live.*")); len(m) > 0 {
+				break
+			}
+			if time.Since(begin) > 20*time.Second {
+				t.Fatalf("%s holder did not start", first)
+			}
+		}
+		c := benchlockClass(t, env, second, "c", work, run, "c")
+		waitOverlap(t, first+" holder, then "+second, run, 2, h, c)
+	}
+}
+
+// A queued exclusive job blocks the shared jobs queued after it, though slots are free (K = 3 leaves
+// one even when the exclusive job is counted as taking one), so a stream
+// of shared jobs cannot starve it. A record without class=, written by an earlier version, ranks
+// as an exclusive one.
+func TestBenchlockExclusiveIsNotStarved(t *testing.T) {
+	needTools(t)
+	for _, waiter := range []string{"current", "earlier"} {
+		state := t.TempDir()
+		env := append(scriptEnv(t, state), "BENCHLOCK_SHARED=3")
+		work, run := overlapWork(t)
+		h := benchlockClass(t, env, "shared", "s1", work, run, "s1", "3")
+		for begin := time.Now(); ; time.Sleep(20 * time.Millisecond) {
+			if m, _ := filepath.Glob(filepath.Join(run, "live.*")); len(m) > 0 {
+				break
+			}
+			if time.Since(begin) > 20*time.Second {
+				t.Fatal("shared holder did not start")
+			}
+		}
+		var x *exec.Cmd
+		if waiter == "current" {
+			x = benchlockClass(t, env, "exclusive", "x", work, run, "x", "1")
+		} else {
+			x = exec.Command("bash", filepath.Join(mainScripts(t), "benchlock.sh"), "x", work, run, "x", "1")
+			x.Env = env
+			if err := x.Start(); err != nil {
+				t.Fatal(err)
+			}
+		}
+		waitQueued(t, state, "x")
+		s2 := benchlockClass(t, env, "shared", "s2", work, run, "s2", "1")
+		for _, cmd := range []*exec.Cmd{h, x, s2} {
+			if err := cmd.Wait(); err != nil {
+				t.Fatal(err)
+			}
+		}
+		ev := events(t, run)
+		if !before(ev, "end s1", "start x") || !before(ev, "end x", "start s2") {
+			t.Errorf("%s exclusive waiter: events %q, want s1, then x, then s2", waiter, ev)
+		}
+	}
+}
+
+// Records and holders of the earlier version and of the current shared class share one queue: an
+// earlier holder excludes a shared job, and an earlier waiter waits for the shared holders, which
+// leave benchlock/ without an owner that it could take over.
+func TestBenchlockSharedBesideEarlierVersion(t *testing.T) {
+	needTools(t)
+	old := filepath.Join(mainScripts(t), "benchlock.sh")
+	for _, holderOld := range []bool{true, false} {
+		state := t.TempDir()
+		env := append(scriptEnv(t, state), "BENCHLOCK_SHARED=2")
+		work, run := overlapWork(t)
+		var h, c *exec.Cmd
+		if holderOld {
+			h = startQueued(t, env, run, old, "old", work, run)
+			c = benchlockClass(t, env, "shared", "cur", work, run)
+		} else {
+			h = benchlockClass(t, env, "shared", "cur", work, run)
+			for begin := time.Now(); ; time.Sleep(20 * time.Millisecond) {
+				if m, _ := filepath.Glob(filepath.Join(run, "live.*")); len(m) > 0 {
+					break
+				}
+				if time.Since(begin) > 20*time.Second {
+					t.Fatal("shared holder did not start")
+				}
+			}
+			c = exec.Command("bash", old, "old", work, run)
+			c.Env = env
+			if err := c.Start(); err != nil {
+				t.Fatal(err)
+			}
+		}
+		waitOverlap(t, fmt.Sprintf("shared beside earlier version, earlier holder %v", holderOld), run, 2, h, c)
+	}
+}
+
+// A shared holder killed without releasing its slot is taken back, and the next job runs.
+func TestBenchlockReclaimsDeadSharedHolder(t *testing.T) {
+	needTools(t)
+	state := t.TempDir()
+	env := append(scriptEnv(t, state), "BENCHLOCK_SHARED=1")
+	work, run := overlapWork(t)
+	h := benchlockClass(t, env, "shared", "dead", "sleep", "60")
+	// Kill the wrapper alone, as a crash would, and then the group of its command, which this
+	// test started, as its running record names it.
+	pgid := 0
+	for begin := time.Now(); pgid == 0; time.Sleep(20 * time.Millisecond) {
+		recs, _ := filepath.Glob(filepath.Join(state, "runs", "dead.*"))
+		for _, r := range recs {
+			b, _ := os.ReadFile(r)
+			for _, f := range strings.Fields(string(b)) {
+				if v, ok := strings.CutPrefix(f, "pgid="); ok {
+					pgid, _ = strconv.Atoi(v)
+				}
+			}
+		}
+		if time.Since(begin) > 20*time.Second {
+			t.Fatal("shared holder did not start")
+		}
+	}
+	if pgid <= 1 {
+		t.Fatalf("bad group %d", pgid)
+	}
+	_ = h.Process.Kill()
+	_ = h.Wait()
+	_ = syscall.Kill(-pgid, syscall.SIGKILL)
+	for _, class := range []string{"exclusive", "shared"} {
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		cmd := exec.CommandContext(ctx, "bash", scriptPath(t, "benchlock.sh"), "next", work, run, class, "0")
+		cmd.Env = append(append([]string{}, env...), "BENCHLOCK_CLASS="+class)
+		err := cmd.Run()
+		cancel()
+		if err != nil {
+			t.Fatalf("%s job after a dead shared holder: %v", class, err)
+		}
+	}
+}
+
+// queue-status.sh names the lock's class and each record's.
+func TestQueueStatusShowsClass(t *testing.T) {
+	needTools(t)
+	state := t.TempDir()
+	env := append(scriptEnv(t, state), "BENCHLOCK_SHARED=2")
+	work, run := overlapWork(t)
+	h := benchlockClass(t, env, "shared", "s", work, run, "s", "3")
+	for begin := time.Now(); ; time.Sleep(20 * time.Millisecond) {
+		if m, _ := filepath.Glob(filepath.Join(run, "live.*")); len(m) > 0 {
+			break
+		}
+		if time.Since(begin) > 20*time.Second {
+			t.Fatal("shared holder did not start")
+		}
+	}
+	x := benchlockClass(t, env, "exclusive", "x", work, run, "x", "0")
+	waitQueued(t, state, "x")
+	out, _ := runIn(t, ".", env, "bash", scriptPath(t, "queue-status.sh"))
+	for _, want := range []string{"lock: shared, 1 of 2 slots: s ", " shared\tstate=running", " exclusive\tstate=queued"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("queue-status.sh output lacks %q:\n%s", want, out)
+		}
+	}
+	_ = h.Wait()
+	_ = x.Wait()
 }

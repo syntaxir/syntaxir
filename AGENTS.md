@@ -45,7 +45,8 @@ one set of worktrees. `-h` prints usage. Heavy runs go through the queue only.
 - Start a lane: `.agents/scripts/lane-new.sh <name> <branch>`
 - Gate in the right run class: `.agents/scripts/run-gate.sh [-t tag] LEVEL...`
 - Targeted `go test`: `.agents/scripts/testslot.sh <cmd...>`
-- Any other heavy or timed run: `.agents/scripts/benchlock.sh <tag> <cmd...>`
+- Timed run (alone on the machine): `.agents/scripts/benchlock.sh <tag> <cmd...>`;
+  other heavy run: `BENCHLOCK_CLASS=shared .agents/scripts/benchlock.sh <tag> <cmd...>`
 - Stop your own job: `.agents/scripts/benchstop.sh <tag>`
 - Queue stuck?: `.agents/scripts/queue-status.sh`
 - Alpha-parsers check: `.agents/scripts/alpha-check.sh [-c]`

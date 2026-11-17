@@ -5,7 +5,8 @@
 # summary with the exit status. The gate stops at the first failing step.
 #   docs   directly, throttled (nice 15, GOMAXPROCS 4)
 #   code   through testslot.sh
-#   engine, full   through benchlock.sh under <tag>
+#   engine, full   through benchlock.sh under <tag>, in its shared class: beside other gates, never
+#                  beside an exclusive (timed) run
 # The gate runs with GOMAXPROCS=4 (unless set) and nice 15, so a heavy level is slow on a small machine.
 # Defaults: worktree = the current one, tag = the worktree directory name, base = origin/main.
 # Commit before running: the gate looks at base..HEAD. Exit status: the gate's.
@@ -39,7 +40,7 @@ run=(bash -c 'cd "$1" && shift && exec "$@"' _ "$wt" env GATE_NICE=15 GOMAXPROCS
 case $class in
   docs) wrap=() ;;
   code) wrap=("$here/testslot.sh") ;;
-  heavy) wrap=("$here/benchlock.sh" "$tag") ;;
+  heavy) wrap=(env BENCHLOCK_CLASS=shared "$here/benchlock.sh" "$tag") ;;
   *) die "internal: class $class" ;;
 esac
 echo "run-gate: $* in $wt (class $class), log $log"

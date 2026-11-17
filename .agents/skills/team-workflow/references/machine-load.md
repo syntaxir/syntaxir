@@ -2,22 +2,28 @@
 
 Many lanes share one machine, and the CPU is the bottleneck. Unthrottled parallel test runs
 once drove the load to 180 on 16 cores and slowed every gate. Timed measurements also need a
-quiet machine. So runs fall into three classes.
+quiet machine. So runs fall into four classes.
 
 | Run | How |
 |:--|:--|
 | Docs, spec, site and skill checks (`cd site && go test -count=1 ./...`, the site build and check), `go vet`, deterministic count or charge probes that measure no time | Directly, throttled: `nice -n 15 env GOMAXPROCS=4 ...`. Never queue them. |
 | Targeted package tests while developing | Throttled through the test slots: `.agents/scripts/testslot.sh nice -n 15 env GOMAXPROCS=4 go test -p 2 -run '<tests>' -short <pkgs>` |
-| Whole packages of the large test suites (engine, codegen and complexity tests), the root suite, `-tags zp_long`, `go generate ./internal/codegen/... ./bench`, `hack/test-alpha-parsers.sh`, `hack/test-reference-tags.sh`, benchmarks and any timed run | Only through the queue: `.agents/scripts/benchlock.sh <tag> zsh -f -c 'cd <worktree> && ...'` |
+| Whole packages of the large test suites (engine, codegen and complexity tests), the root suite, `-tags zp_long`, `go generate ./internal/codegen/... ./bench`, `hack/test-alpha-parsers.sh`, `hack/test-reference-tags.sh`, and the engine and full gates | Only through the queue, in its shared class: `BENCHLOCK_CLASS=shared .agents/scripts/benchlock.sh <tag> zsh -f -c 'cd <worktree> && ...'` (`run-gate.sh` does this for gates) |
+| Benchmarks, A/B runs and any timed run | Only through the queue, exclusive (the default): `.agents/scripts/benchlock.sh <tag> zsh -f -c 'cd <worktree> && ...'` |
 
 Heavy test runs, including the root `go test ./...`, go only through the queue. Docs and site
 checks and count probes run directly, throttled.
 
 ## The queue
 
-- `.agents/scripts/benchlock.sh <tag> <command...>` waits for the shared heavy-run lock and
-  then runs the command in its own process group. Its record is `runs/<tag>.<pid>`; waiters are
-  served in (`start=`, `seq=`) order. A line in `benchlock-stalls.log` is a queue bug: report it.
+- `.agents/scripts/benchlock.sh <tag> <command...>` waits for the heavy-run lock and then runs
+  the command in its own process group. Its record is `runs/<tag>.<pid>`; waiters of both
+  classes are served in (`start=`, `seq=`) order. An exclusive job (the default) runs alone. A
+  shared job (`BENCHLOCK_CLASS=shared`) runs beside up to K-1 other shared jobs and never beside
+  an exclusive one; K is `BENCHLOCK_SHARED`, default one per six cores between 1 and 3. A queued
+  exclusive job holds back the shared jobs queued after it, so it is not starved. Timing-free
+  heavy runs belong in the shared class; anything whose time you compare must be exclusive. A
+  line in `benchlock-stalls.log` is a queue bug: report it.
 - `.agents/scripts/queue-status.sh` shows the queue and exits 1 when it is stuck (jobs queued,
   none running) or a stall was logged. Inspect at once when it does.
 - `.agents/scripts/run-gate.sh LEVEL...` picks the run class of a `hack/gate.sh` level for you.
