@@ -473,3 +473,104 @@ func TestTestslotReclaimsEmptySlot(t *testing.T) {
 		}
 	}
 }
+
+// mainScripts copies the queue scripts of the revision before the race fixes, kept in testdata,
+// to a directory of their own, so that they run as an earlier checkout's copy runs beside these.
+func mainScripts(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	for _, name := range []string{"lib.sh", "testslot.sh", "benchlock.sh"} {
+		b, err := os.ReadFile(filepath.Join("testdata", "queue-scripts-f454c9f3e", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		write(t, filepath.Join(dir, name), string(b), 0o755)
+	}
+	return dir
+}
+
+// overlapWork is a command that records how many copies of it run at once.
+func overlapWork(t *testing.T) (work, run string) {
+	t.Helper()
+	run = t.TempDir()
+	work = filepath.Join(run, "work.sh")
+	write(t, work, `#!/usr/bin/env bash
+echo $$ > "$1/live.$$"
+sleep 2
+ls "$1" | grep -c '^live\.' >> "$1/counts"
+rm -f "$1/live.$$"
+`, 0o755)
+	return work, run
+}
+
+// startQueued starts a queue script on the work command and returns once the command runs.
+func startQueued(t *testing.T, env []string, run string, args ...string) *exec.Cmd {
+	t.Helper()
+	cmd := exec.Command("bash", args...)
+	cmd.Env = env
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	for begin := time.Now(); time.Since(begin) < 20*time.Second; time.Sleep(20 * time.Millisecond) {
+		if m, _ := filepath.Glob(filepath.Join(run, "live.*")); len(m) > 0 {
+			return cmd
+		}
+	}
+	_ = cmd.Process.Kill()
+	t.Fatalf("%v: the command did not start", args)
+	return nil
+}
+
+// waitOverlap waits for the commands and fails when they did not all run or ran together.
+func waitOverlap(t *testing.T, what, run string, want int, cmds ...*exec.Cmd) {
+	t.Helper()
+	for _, cmd := range cmds {
+		if err := cmd.Wait(); err != nil {
+			t.Fatalf("%s: %v", what, err)
+		}
+	}
+	counts, _ := os.ReadFile(filepath.Join(run, "counts"))
+	lines := strings.Fields(string(counts))
+	if len(lines) != want {
+		t.Fatalf("%s: %d of %d commands ran: %q", what, len(lines), want, lines)
+	}
+	for _, l := range lines {
+		if c, _ := strconv.Atoi(l); c > 1 {
+			t.Errorf("%s: %s commands ran at once: %q", what, l, lines)
+		}
+	}
+}
+
+// A live holder started by an earlier checkout's script excludes a claimer of the current one, and
+// the other way round, for the test slots and the heavy-run lock: lanes on older branches share the
+// queue with the current scripts.
+func TestQueueScriptsBesideEarlierVersion(t *testing.T) {
+	needTools(t)
+	old := mainScripts(t)
+	for _, name := range []string{"testslot.sh", "benchlock.sh"} {
+		for _, holderOld := range []bool{true, false} {
+			state := t.TempDir()
+			env := append(scriptEnv(t, state), "TESTSLOT_N=1")
+			work, run := overlapWork(t)
+			args := func(dir, tag string) []string {
+				a := []string{filepath.Join(dir, name)}
+				if name == "benchlock.sh" {
+					a = append(a, tag)
+				}
+				return append(a, work, run)
+			}
+			cur := filepath.Dir(scriptPath(t, name))
+			holder, claimer := args(cur, "cur"), args(old, "old")
+			if holderOld {
+				holder, claimer = args(old, "old"), args(cur, "cur")
+			}
+			h := startQueued(t, env, run, holder...)
+			c := exec.Command("bash", claimer...)
+			c.Env = env
+			if err := c.Start(); err != nil {
+				t.Fatal(err)
+			}
+			waitOverlap(t, fmt.Sprintf("%s, earlier holder %v", name, holderOld), run, 2, h, c)
+		}
+	}
+}
