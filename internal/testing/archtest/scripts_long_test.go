@@ -4,6 +4,7 @@ package archtest
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -816,4 +817,24 @@ func TestQueueStatusShowsClass(t *testing.T) {
 	}
 	_ = h.Wait()
 	_ = x.Wait()
+}
+
+// A stray file in benchlock/ keeps the lock from being removed: the script keeps its command's
+// exit status and reports the stray file in the stall log, which queue-status.sh shows.
+func TestBenchlockReleaseKeepsStatusBesideStrayFile(t *testing.T) {
+	needTools(t)
+	for _, class := range []string{"exclusive", "shared"} {
+		state := t.TempDir()
+		cmd := exec.Command("bash", scriptPath(t, "benchlock.sh"), "stray", "bash", "-c", `: > "$1/benchlock/stray"; exit 3`, "_", state)
+		cmd.Env = append(scriptEnv(t, state), "BENCHLOCK_CLASS="+class)
+		out, err := cmd.CombinedOutput()
+		var ee *exec.ExitError
+		if !errors.As(err, &ee) || ee.ExitCode() != 3 {
+			t.Errorf("%s: exit %v, want the command's 3; output %s", class, err, out)
+		}
+		log, _ := os.ReadFile(filepath.Join(state, "benchlock-stalls.log"))
+		if !strings.Contains(string(log), "stray: stray.") || !strings.Contains(string(log), "holds: stray") {
+			t.Errorf("%s: stall log %q does not report the stray file", class, log)
+		}
+	}
 }

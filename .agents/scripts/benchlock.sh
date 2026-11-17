@@ -138,14 +138,23 @@ admit() {
   fi
   echo "$tag $$ $(zp_lstart $$)" > "$S/$tag.$$"
 }
-# release frees this job's hold; the last shared holder removes benchlock/.
+# release frees this job's hold; the last shared holder removes benchlock/. A stray file in
+# benchlock/ keeps it from going: release reports that on stderr and in benchlock-stalls.log, which
+# queue-status.sh shows, and returns 1. It never changes the command's exit status.
 release() {
   if [ "$class" = exclusive ]; then
-    if [ "$(cat "$L/owner" 2>/dev/null || true)" = "$tag $$" ]; then rm -f "$L/owner"; rmdir "$L"; fi
+    [ "$(cat "$L/owner" 2>/dev/null || true)" = "$tag $$" ] || return 0
+    rm -f "$L/owner"
   else
     rm -f "$S/$tag.$$"
-    if rmdir "$S" 2>/dev/null; then rmdir "$L" 2>/dev/null || true; fi
+    rmdir "$S" 2>/dev/null || return 0
   fi
+  rmdir "$L" 2>/dev/null && return 0
+  local msg
+  msg="$(date +%FT%T) stray: $tag.$$ ($class) could not remove benchlock/, which holds: $(find "$L" -mindepth 1 -maxdepth 1 2>/dev/null | sed 's|.*/||' | tr '\n' ' ')"
+  echo "benchlock.sh: $msg" >&2
+  printf '%s\n' "$msg" >> "$D/benchlock-stalls.log"
+  return 1
 }
 free=0
 until with_flock admit; do
@@ -194,5 +203,5 @@ until child_gone "$child"; do
 done
 if [ "$reaped" = 0 ]; then wait "$child" && rc=0 || rc=$?; fi
 rm -f "$rec"
-with_flock release
+with_flock release || true
 exit "$rc"
