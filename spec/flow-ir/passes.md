@@ -17,9 +17,9 @@ function is lowered to Exec IR or printed.
 - A pass that is off does not run, and neither does one that does not apply to the build, whatever its optimization
   says. A build that reports rule events applies only the passes that keep them.
 - Where the pipeline leaves the stage the function MUST satisfy the [invariants](invariants.md). Verification runs right
-  after the lowering and again where the pipeline leaves the stage, or after every pass when asked, and a violation
-  names the pass after which it was found. Lowering has verified the function, so a run in which no pass runs does not
-  verify it again.
+  after the lowering and again where the pipeline leaves the stage, and also after every pass when asked, and a
+  violation names the pass after which it was found. Lowering has verified the function, so a run in which no pass runs
+  does not verify it again.
 - A dump of the function in the [text form](text-form.md) can be asked for as the lowering made it and after each
   pass that ran.
 

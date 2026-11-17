@@ -15,8 +15,8 @@ not run. A pass changes the module in place: it keeps the function that lowering
 locals that lowering declared for the variables of the Flow IR function, because the backend prints the body of that
 function with those locals; it may change the body, add locals and add the declarations that its changes need. The
 module MUST satisfy the [invariants](invariants.md) where the pipeline leaves the stage: verification runs right after
-the lowering and again where the pipeline leaves the stage, or after every pass when asked, and a violation names the
-pass after which it was found. Lowering has verified the module, so a run in which no pass runs does not verify it
+the lowering and again where the pipeline leaves the stage, and also after every pass when asked, and a violation names
+the pass after which it was found. Lowering has verified the module, so a run in which no pass runs does not verify it
 again. No pass runs at the Exec stage yet; the transformations below are used by the compositions and the printers.
 
 ## Specialization
