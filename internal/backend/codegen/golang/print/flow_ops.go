@@ -161,7 +161,7 @@ func (p *flowPrinter) op(c *code.Call, args []string) string {
 		name := g.literal(lit.Text)
 		var desc rprogram.ExpID
 		if lit.Text == "" {
-			desc = g.Desc(`""`)
+			desc = g.Desc(core.LiteralDesc(&ast.Literal{}))
 		} else {
 			desc = p.desc(lit.Exp)
 		}

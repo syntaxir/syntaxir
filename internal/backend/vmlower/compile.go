@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"maps"
 	"slices"
-	"strconv"
 
 	"syntaxir.dev/sxir/internal/backend/actionlower"
 	"syntaxir.dev/sxir/internal/frontend/check"
@@ -536,7 +535,7 @@ func (c *compiler) leaf(n ir.Node, build bool) {
 // cannot fail, records none in Core IR; its operand is the quoted empty text.
 func (c *compiler) litDesc(n *ir.Lit) int32 {
 	if n.Text == "" {
-		return c.str(strconv.Quote(""))
+		return c.str(ir.LiteralDesc(&ast.Literal{}))
 	}
 	return c.exp(n.Exp)
 }
