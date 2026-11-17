@@ -180,25 +180,26 @@ Each figure is the median of 3 runs of `bench/ts-parse.mjs`, one fresh process p
 ### Generated Parser Size
 
 Sizes of the parsers generated from `testdata/grammars/` with the options of `testdata/grammars/generate.txt`
-(commit 14dda7a2c, go1.27.1). "Go source" is the generated `parser.go`; "Go binary" is a program that
+(commit 9d33b69ff, go1.27.1). "Go source" is the generated `parser.go`; "Go binary" is a program that
 calls the parser's `ParseValue`, built with `-trimpath -ldflags="-s -w"`, so it includes the ZeroParse runtime and the
 parser's types. With `-lib embed` instead, a parser carries its own copy of the library, which keeps only the code
-the parser can run: "Go library copy" is the source of that copy (the whole library weighs 468 KB),
-and "Go binary, embed" is the same program built with it. "TypeScript" is the generated `parser.ts`, raw and compressed
-with `gzip -9`; it imports the embedded runtime, which is the same for every parser and weighs 275 KB (71.7 KB gzipped).
+the parser can run: "Go library copy" is the source of that copy (the whole library weighs 473 KB),
+and "Go binary, embed" is the same program built with it. "TypeScript" is the generated `parser.ts` and "TypeScript
+library copy" the `lib.ts` written with it, which likewise keeps only the code the parser can run (the whole `lib.ts`
+weighs 277 KB, 72.2 KB gzipped); both are given raw and compressed with `gzip -9`.
 
-| Parser | Go source | Go binary | Go library copy | Go binary, embed | TypeScript | TypeScript, gzip -9 |
-|:--|--:|--:|--:|--:|--:|--:|
-| json | 61.4 KB | 2.37 MB | 436 KB | 2.37 MB | 56.8 KB | 8.53 KB |
-| csv | 28.1 KB | 2.34 MB | 435 KB | 2.32 MB | 31.1 KB | 6.54 KB |
-| xml | 325 KB | 2.99 MB | 441 KB | 2.99 MB | 281 KB | 31.1 KB |
-| yaml | 578 KB | 3.37 MB | 442 KB | 3.37 MB | 533 KB | 51.7 KB |
-| cel | 119 KB | 2.53 MB | 394 KB | 2.48 MB | 176 KB | 20.4 KB |
-| cue | 439 KB | 3.11 MB | 396 KB | 3.05 MB | 561 KB | 60.7 KB |
-| golang | 629 KB | 3.48 MB | 395 KB | 3.38 MB | 832 KB | 81.1 KB |
-| python | 744 KB | 3.87 MB | 396 KB | 3.77 MB | 916 KB | 102 KB |
-| typescript | 1.09 MB | 5.00 MB | 396 KB | 4.86 MB | 1.48 MB | 141 KB |
-| duckdb | 1.85 MB | 6.32 MB | 396 KB | 6.11 MB | 2.54 MB | 191 KB |
+| Parser | Go source | Go binary | Go library copy | Go binary, embed | TypeScript | TypeScript, gzip -9 | TypeScript library copy | TypeScript library copy, gzip -9 |
+|:--|--:|--:|--:|--:|--:|--:|--:|--:|
+| json | 61.4 KB | 2.39 MB | 440 KB | 2.37 MB | 56.8 KB | 8.53 KB | 204 KB | 55.1 KB |
+| csv | 28.1 KB | 2.34 MB | 439 KB | 2.34 MB | 31.1 KB | 6.54 KB | 209 KB | 56.2 KB |
+| xml | 325 KB | 2.99 MB | 445 KB | 2.99 MB | 281 KB | 31.1 KB | 222 KB | 58.9 KB |
+| yaml | 578 KB | 3.39 MB | 446 KB | 3.37 MB | 533 KB | 51.7 KB | 225 KB | 59.4 KB |
+| cel | 119 KB | 2.54 MB | 398 KB | 2.48 MB | 176 KB | 20.4 KB | 234 KB | 61.3 KB |
+| cue | 439 KB | 3.11 MB | 400 KB | 3.05 MB | 561 KB | 60.7 KB | 237 KB | 62.2 KB |
+| golang | 629 KB | 3.48 MB | 399 KB | 3.40 MB | 832 KB | 81.1 KB | 236 KB | 61.8 KB |
+| python | 744 KB | 3.89 MB | 400 KB | 3.79 MB | 916 KB | 102 KB | 238 KB | 62.2 KB |
+| typescript | 1.09 MB | 5.02 MB | 400 KB | 4.87 MB | 1.48 MB | 141 KB | 236 KB | 61.7 KB |
+| duckdb | 1.85 MB | 6.36 MB | 400 KB | 6.14 MB | 2.54 MB | 191 KB | 237 KB | 62.0 KB |
 
 ## All Results
 
