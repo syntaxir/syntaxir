@@ -31,7 +31,7 @@ flowchart TD
   flow -->|vmlower| bc["Bytecode"]
   flow -->|execlower| exec["Code IR at the Exec stage"]
   comp["Compositions of the abstract machine"] --> exec
-  exec --> xp["Passes: specialize, simplify, legalize per language"]
+  exec --> xp["Passes: specialize, canonicalize, legalize per language"]
   xp --> exec
   exec --> out["Printers: host-language source"]
 ```
@@ -157,9 +157,9 @@ construct it does not support rather than guess. The shape is then chosen by the
 control-level decision: call specialization, inlining, dispatch, the form of a match, removal of saves that no failure
 path reads, merging and threading of failure paths, canonicalization, where to charge, sharing slots between locals, and
 outlining. Each pass declares an obligation, the property it preserves, and the features under which it applies, and the
-Flow verifier checks the result, right after `flowlower`, where the pipeline leaves the Flow stage, and after every pass
-with `-verify-each`: structure, variables, one runtime per function, the budget invariants, recorded reads under a
-Document and no in-place reads in a traced parse. The passes, their order and their obligations are listed in
+Flow verifier checks the result, right after `flowlower`, again where the pipeline leaves the Flow stage, and after
+every pass with `-verify-each`: structure, variables, one runtime per function, the budget invariants, recorded reads
+under a Document and no in-place reads in a traced parse. The passes, their order and their obligations are listed in
 [the pass pipeline](pass-pipeline.md#the-flow-passes).
 
 A charge of one step is one reservation of one unit, so a printer that charges several steps, or the code points of a
@@ -196,14 +196,17 @@ expansion, and the verifier checks the postcondition that no Flow operation rema
 Exec stage only this way; the compositions are written in the Exec dialect directly.
 
 The properties that passes ask of an operation are derived from its declaration, not declared beside it, so they cannot
-disagree with it. An operation is **pure** when it writes nothing, cannot end the parse and, while the budget is on, has
-no cost: a call that charges the budget is not pure in a budget-controlled build, because removing it changes where a
-limit interrupts. It is **zero-width** when it does not write the position, and **infallible** when it neither fails nor
-ends the parse. Dead-store removal, save-elide and the charge pass read these properties.
+disagree with it. An operation is **pure**, that is, a call of it can be removed, when it writes nothing, cannot end the
+parse and, while the budget is on, has no cost: a call that charges the budget is not pure in a budget-controlled build,
+because removing it changes where a limit interrupts. It is **zero-width** when it does not write the position, and
+**infallible** when it neither fails nor ends the parse. Dead-store removal, save-elide and the charge pass read these
+properties.
 
-Every law of an operation is typed: it has a kind that passes read, such as purity (equal arguments give equal results),
-a stable read (two reads with no write of the component between them give the same result) or the merge of two charges,
-and a conformance property that tests it. A pass relies only on laws of a kind it names.
+Every law of an operation is typed: it has a kind that passes read, such as equal results (equal arguments give equal
+results), a stable read (two reads with no write of the component between them give the same result) or the merge of two
+charges, and a conformance property that tests it. A pass relies only on laws of a kind it names. A law is a declared
+fact about results, which the conformance properties test; it never permits removing a call, which only the derived
+purity above does.
 
 Two kinds of checking keep the freedom of the targets safe. A conformance suite runs sequences of operations on a
 reference model, written for clarity and never printed, and on an implementation, and fails on the first difference in

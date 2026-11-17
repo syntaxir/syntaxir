@@ -33,8 +33,8 @@ flowchart LR
 ```
 
 1. The Exec stage is complete: `execlower` has converted every Flow operation.
-2. The dialect-independent passes run. They specialize functions for the features of the build, simplify, remove dead
-   stores and share identical helpers and literal tables.
+2. The dialect-independent passes run. They specialize functions for the features of the build, canonicalize, remove
+   dead stores and share identical helpers and literal tables.
 3. The enabled passes of the host language run in order, as the last part of the same pipeline and under the same
    manager as every other pass. Their flags are in the registry, and their dumps and verification work as for the other
    stages.
@@ -43,7 +43,7 @@ flowchart LR
 
 ## Passes Shared by the Host Languages
 
-The dialect-independent passes serve every host language: specialization and simplification of functions, dead store
+The dialect-independent passes serve every host language: specialization and canonicalization of functions, dead store
 elimination, reachability after printing, and the sharing of identical helpers and literal tables. They are described in
 [The Pass Pipeline](pass-pipeline.md#dialect-independent-passes-of-code-ir).
 

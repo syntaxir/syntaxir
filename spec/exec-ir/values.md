@@ -113,26 +113,26 @@ whose element type is top charges none, and a tuple of another length is refused
 
 | Declaration | State | Cost | Contract |
 |:--|:--|:--|:--|
-| `op val.kind(x Datum) int` | none | `0` | Returns the kind of x: the [kind](#value-kinds) nil for nil, int for an int, string for a string, bool for a bool and other for every other value, a box that holds one of these included. Law: pure: equal arguments give equal results. |
-| `op val.unbox(x Datum) Datum` | none | `0` | Returns the value that x stands for: the value a box holds, and x for any other value. Law: pure: equal arguments give equal results. |
+| `op val.kind(x Datum) int` | none | `0` | Returns the kind of x: the [kind](#value-kinds) nil for nil, int for an int, string for a string, bool for a bool and other for every other value, a box that holds one of these included. Law (equal results): equal arguments give equal results. |
+| `op val.unbox(x Datum) Datum` | none | `0` | Returns the value that x stands for: the value a box holds, and x for any other value. Law (equal results): equal arguments give equal results. |
 | `op val.fromBool(b bool) Datum` | none | `0` | Returns the bool value b. |
 | `op val.fromInt(i int) Datum` | none | `0` | Returns the int value i. |
 | `op val.toBool(x Datum) bool` | none | `0` | Returns the bool that x is. Requires: x is a bool: val.kind(x) is the kind bool. |
 | `host op val.fail(code int, a Datum, b Datum, op int, n int) Fail noreturn` | none | `0 + 2*error_parts` | Returns the [failure](#failures-of-a-term) with the code code: {a} and {b} read as the names of the types of a and b, {op} as the name of the operator that op indexes (a binary operator for invalid operands and invalid comparison, a unary operator for invalid unary operand and a logical operator for invalid logical operand), {i} as a, an int, and {n} as n. A failure is a Fail, not a value of a term: the caller returns it and the term evaluation reports it, each target in its own form of failure. A target that bounds the work assembles the text piece by piece, charging for each piece. Requires: code indexes TermErrors, and the arguments are those its message names. |
-| `op int.add(l Datum, r Datum) Datum` | none | `0` | Returns l + r with 64-bit wraparound. Requires: l and r are ints. Law: pure: equal arguments give equal results. |
-| `op int.sub(l Datum, r Datum) Datum` | none | `0` | Returns l - r with 64-bit wraparound. Requires: l and r are ints. Law: pure: equal arguments give equal results. |
-| `op int.mul(l Datum, r Datum) Datum` | none | `0` | Returns l * r with 64-bit wraparound. Requires: l and r are ints. Law: pure: equal arguments give equal results. |
-| `op int.quo(l Datum, r Datum) Datum` | none | `0` | Returns l / r truncated toward zero; the least int divided by -1 is the least int. Requires: l and r are ints, and r is not zero. Law: pure: equal arguments give equal results. |
-| `op int.rem(l Datum, r Datum) Datum` | none | `0` | Returns the remainder of l / r, with the sign of l; the remainder of the least int by -1 is zero. Requires: l and r are ints, and r is not zero. Law: pure: equal arguments give equal results. |
-| `op int.neg(x Datum) Datum` | none | `0` | Returns -x with 64-bit wraparound: the negation of the least int is itself. Requires: x is an int. Law: pure: equal arguments give equal results. |
+| `op int.add(l Datum, r Datum) Datum` | none | `0` | Returns l + r with 64-bit wraparound. Requires: l and r are ints. Law (equal results): equal arguments give equal results. |
+| `op int.sub(l Datum, r Datum) Datum` | none | `0` | Returns l - r with 64-bit wraparound. Requires: l and r are ints. Law (equal results): equal arguments give equal results. |
+| `op int.mul(l Datum, r Datum) Datum` | none | `0` | Returns l * r with 64-bit wraparound. Requires: l and r are ints. Law (equal results): equal arguments give equal results. |
+| `op int.quo(l Datum, r Datum) Datum` | none | `0` | Returns l / r truncated toward zero; the least int divided by -1 is the least int. Requires: l and r are ints, and r is not zero. Law (equal results): equal arguments give equal results. |
+| `op int.rem(l Datum, r Datum) Datum` | none | `0` | Returns the remainder of l / r, with the sign of l; the remainder of the least int by -1 is zero. Requires: l and r are ints, and r is not zero. Law (equal results): equal arguments give equal results. |
+| `op int.neg(x Datum) Datum` | none | `0` | Returns -x with 64-bit wraparound: the negation of the least int is itself. Requires: x is an int. Law (equal results): equal arguments give equal results. |
 | `op int.zero(x Datum) bool` | none | `0` | Reports whether x is zero. Requires: x is an int. |
-| `op int.cmp(l Datum, r Datum) int` | none | `0` | Returns -1 if l is less than r, 0 if they are equal and 1 if l is greater. Requires: l and r are ints. Law: pure: equal arguments give equal results. |
-| `op int.index(x Datum, n int) (int, bool)` | none | `0` | Returns x as an int and true if 0 <= x < n, and 0 and false otherwise. Requires: x is an int. Law: pure: equal arguments give equal results. |
+| `op int.cmp(l Datum, r Datum) int` | none | `0` | Returns -1 if l is less than r, 0 if they are equal and 1 if l is greater. Requires: l and r are ints. Law (equal results): equal arguments give equal results. |
+| `op int.index(x Datum, n int) (int, bool)` | none | `0` | Returns x as an int and true if 0 <= x < n, and 0 and false otherwise. Requires: x is an int. Law (equal results): equal arguments give equal results. |
 | `host op str.add(l Datum, r Datum) Datum noreturn` | none | `1 + 4*value_bytes` | Returns the concatenation of l and r. A target that bounds the work charges for the bytes it reads and copies. Requires: l and r are strings. |
 | `host op str.cmp(l Datum, r Datum) int noreturn` | none | `1 + 4*value_bytes` | Returns -1 if l is less than r, 0 if they are equal and 1 if l is greater, comparing by code point: the order of the bytes of UTF-8 and not of the code units of UTF-16. A target that bounds the work charges for the bytes it compares. Requires: l and r are strings. |
 | `host op str.eq(l Datum, r Datum) bool noreturn` | none | `1 + 4*value_bytes` | Reports whether l and r are the same string. A target that bounds the work charges for the bytes it compares. Requires: l and r are strings. |
-| `op seq.items(x Datum) (Seq, bool)` | none | `0` | Returns the elements of x and true if x is nil (no elements), a list or a tuple, and false otherwise. Law: pure: equal arguments give equal results. |
-| `op node.of(x Datum) (Obj, bool)` | none | `0` | Returns x and true if x is a value that has members (a node, a list, a tuple or a struct), and false for every other value: nil, an int, a string and a bool. Law: pure: equal arguments give equal results. |
+| `op seq.items(x Datum) (Seq, bool)` | none | `0` | Returns the elements of x and true if x is nil (no elements), a list or a tuple, and false otherwise. Law (equal results): equal arguments give equal results. |
+| `op node.of(x Datum) (Obj, bool)` | none | `0` | Returns x and true if x is a value that has members (a node, a list, a tuple or a struct), and false for every other value: nil, an int, a string and a bool. Law (equal results): equal arguments give equal results. |
 | `op node.isNode(n Obj) bool` | none | `0` | Reports whether n is a node, which has a range and a value: a value of a node type, a string node or an error, and not a struct, a list value or a tuple value. |
 | `op node.start(n Obj) Datum` | none | `0` | Returns the start of the range of n as an int. Requires: node.isNode(n). |
 | `op node.end(n Obj) Datum` | none | `0` | Returns the end of the range of n as an int. Requires: node.isNode(n). |
@@ -148,7 +148,7 @@ whose element type is top charges none, and a tuple of another length is refused
 | `op node.hasBase(n Obj) bool` | none | `0` | Reports whether n is a string node, a tuple node or a list node, of a named node type or not, which a conversion converts: not an error, a box, a list value, a tuple value or a struct. |
 | `op node.convert(n Obj, t NodeType) Datum` | none | `0` | Returns n as a node of the named node type t: n itself if it has the type, and otherwise a new node with the range, the value and the captures of n, the type t and no rule name, which keeps what n holds now. Requires: node.hasBase(n). |
 | `op val.name(name Name) Datum` | none | `0` | Returns name as a string value, as the {name} of a failure reads it. |
-| `op node.elem(n Obj) Elem` | none | `0` | Returns n as an element of a list or a tuple: n itself. Law: pure: equal arguments give equal results. |
+| `op node.elem(n Obj) Elem` | none | `0` | Returns n as an element of a list or a tuple: n itself. Law (equal results): equal arguments give equal results. |
 | `host op val.box(c Act, x Datum) Elem noreturn` | none | `1` | Returns x as an element of a list or a tuple: in a target whose elements are nodes, a box that holds x with the range of the input of c, made in c, and x itself in a target whose elements are any values. A target that bounds the work charges for the box it makes. Requires: x is an int, a string or a bool. |
 | `op node.hasText(n Obj) bool` | none | `0` | Reports whether n is a string node or an error, whose text is the input of its range. |
 | `op node.width(n Obj) Datum` | none | `0` | Returns the length of the range of n, in the position unit, as an int. |
@@ -158,14 +158,14 @@ whose element type is top charges none, and a tuple of another length is refused
 | `host op str.len(x Datum) Datum noreturn` | none | `0 + 1*value_bytes` | Returns the length of the string x in the position unit as an int. A target that bounds the work and counts characters charges for the bytes it reads. Requires: x is a string. |
 | `op str.of(x Datum) Str` | none | `0` | Returns the string x. Requires: x is a string. |
 | `op str.empty() Str` | none | `0` | Returns the empty string. |
-| `op ftype.kind(t FType) int` | none | `0` | Returns the kind of the type t: the code of the letter of the [type kinds](#cast-types). Law: pure: equal arguments give equal results. |
-| `op ftype.elem(t FType) FType` | none | `0` | Returns the element type of the list type, the optional type or the node type t whose value has a type. Requires: t is of kind list, optional or node of a type. Law: pure: equal arguments give equal results. |
-| `op ftype.count(t FType) int` | none | `0` | Returns the number of the alternatives of the join type or the element types of the tuple type t. Requires: t is of kind join or tuple. Law: pure: equal arguments give equal results. |
-| `op ftype.alt(t FType, i int) FType` | none | `0` | Returns alternative i of the join type or element type i of the tuple type t. Requires: t is of kind join or tuple, and 0 <= i < ftype.count(t). Law: pure: equal arguments give equal results. |
-| `op node.shape(n Obj) int` | none | `0` | Returns the [shape](#cast-types) of n: string, tuple, list, error, box, tuple value, list value or struct, which a value of a node type has by its base. Law: pure: equal arguments give equal results. |
+| `op ftype.kind(t FType) int` | none | `0` | Returns the kind of the type t: the code of the letter of the [type kinds](#cast-types). Law (equal results): equal arguments give equal results. |
+| `op ftype.elem(t FType) FType` | none | `0` | Returns the element type of the list type, the optional type or the node type t whose value has a type. Requires: t is of kind list, optional or node of a type. Law (equal results): equal arguments give equal results. |
+| `op ftype.count(t FType) int` | none | `0` | Returns the number of the alternatives of the join type or the element types of the tuple type t. Requires: t is of kind join or tuple. Law (equal results): equal arguments give equal results. |
+| `op ftype.alt(t FType, i int) FType` | none | `0` | Returns alternative i of the join type or element type i of the tuple type t. Requires: t is of kind join or tuple, and 0 <= i < ftype.count(t). Law (equal results): equal arguments give equal results. |
+| `op node.shape(n Obj) int` | none | `0` | Returns the [shape](#cast-types) of n: string, tuple, list, error, box, tuple value, list value or struct, which a value of a node type has by its base. Law (equal results): equal arguments give equal results. |
 | `op node.isType(n Obj, t FType) bool` | none | `0` | Reports whether the type name of n is the name of the type t: a struct type or a named node type. Requires: t is of kind named. |
 | `op node.isMissing(n Obj) bool` | none | `0` | Reports whether n is the error value of a missing token. A target that has no missing tokens reports false. |
-| `op node.children(n Obj) Seq` | none | `0` | Returns the elements of the list value or the tuple value n, and the children of any other node. Law: pure: equal arguments give equal results. |
+| `op node.children(n Obj) Seq` | none | `0` | Returns the elements of the list value or the tuple value n, and the children of any other node. Law (equal results): equal arguments give equal results. |
 | `host op seq.step() noreturn` | none | `1` | Charges the step of one element of a list or a tuple: an element that is examined against its type, walked by a built-in function or made by a constructor. A target that bounds the work charges one unit; a target that does not charges nothing. |
 | `op seq.len(items Seq) int` | none | `0` | Returns the number of elements. Requires: items came from seq.items. |
 | `op seq.at(items Seq, i int) Datum` | none | `0` | Returns element i as a value: the value a box holds, and nil for a missing element. Requires: items came from seq.items, and 0 <= i < seq.len(items). |

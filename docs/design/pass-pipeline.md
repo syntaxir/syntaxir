@@ -172,10 +172,10 @@ recovered errors to a mark, resetting the record of missing input or ending the 
 checked by the verifier, not only stated in their contracts.
 
 The Flow stage stays structured. A pass that needs a control-flow graph asks the analysis manager for a graph view, so
-the form that is printed and verified is the structured one. The Flow verifier runs right after `flowlower`, where the
-pipeline leaves the Flow stage, and with `-verify-each` after every Flow pass: it checks the structure, the variables,
-one runtime per function, the budget invariants, recorded reads under a Document, and that a traced parse does not read
-in place.
+the form that is printed and verified is the structured one. The Flow verifier runs right after `flowlower`, again where
+the pipeline leaves the Flow stage, and with `-verify-each` after every Flow pass: it checks the structure, the
+variables, one runtime per function, the budget invariants, recorded reads under a Document, and that a traced parse
+does not read in place.
 
 ## Dialect-Independent Passes of Code IR
 
@@ -193,11 +193,11 @@ charge, so that charges are placed in code that is already simplified, and at th
 the features of a build and before dead-store removal, so that what specialization made unreachable is gone before
 liveness is computed. A pattern rewrites one operation, or a few adjacent ones, into a simpler form: it folds a
 constant, removes code after an exit or splices a block into its parent. Each pattern has a name in the registry, so
-`-opt` and `-no-opt` turn it on or off, `-opt-bisect-limit` counts each of its applications as a run, `-print-pipeline`
-lists it under the pass, and the statistics count its applications. The pass tries the patterns in a fixed order, so it
-reaches the same fixed point and the same output on every run. Running the patterns together to a fixed point lets one
-rewrite expose the next without another pass in the pipeline, and the names of the patterns keep each rewrite measurable
-and bisectable by itself.
+`-opt` and `-no-opt` turn it on or off, `-opt-bisect-limit` gives each of its applications a number of its own,
+`-print-pipeline` lists it under the pass, and the statistics count its applications. The pass tries the patterns in a
+fixed order, so it reaches the same fixed point and the same output on every run. Running the patterns together to a
+fixed point lets one rewrite expose the next without another pass in the pipeline, and the names of the patterns keep
+each rewrite measurable and bisectable by itself.
 
 Rewrites that are not local patterns, such as specialization for the features of a build, dead-store removal and the
 sharing of helpers, stay passes with names of their own. Instruction selection in `vmlower` is a table of local patterns
@@ -323,9 +323,10 @@ the command writes to standard error. A test and the command line therefore see 
 
 `-opt-bisect-limit N` numbers the runs of optional passes in the order the pipeline makes them, runs those numbered up
 to N and skips the later ones. A run is one pass on one unit, so a pass that runs per function counts once for each
-function, and each application of a pattern of `canonicalize` is a run of its own. Required passes always run, so the
-output stays a valid parser whatever N is. Each decision is reported with its number, the name of the pass, the unit and
-whether the pass ran. In Go, the limit is the bisection field of `Debug`. A differential test against the closure
+function. A run of `canonicalize` on a unit takes one number like every pass, and each application of one of its
+patterns takes a number of its own, so that skipping a number skips that one application. Required passes always run, so
+the output stays a valid parser whatever N is. Each decision is reported with its number, the name of the pass, the unit
+and whether the pass ran. In Go, the limit is the bisection field of `Debug`. A differential test against the closure
 reference parser can then search for the smallest N at which the generated parser differs from the reference, and that
 run names the pass, and the unit, that introduced the difference.
 

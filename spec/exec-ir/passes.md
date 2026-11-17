@@ -23,16 +23,19 @@ transformations below are used by the compositions and the printers.
 
 Specializing a function for a set of features, which are features of the module, makes a copy of it in which each
 `Feature` expression is the constant true when its feature is in the set and false otherwise; the copy is then
-simplified (below). The copy's features are the set, so that it may call the operations of those features and no
+canonicalized (below). The copy's features are the set, so that it may call the operations of those features and no
 others. A specialization does what the function does in a build that has each feature of the set and no other.
 
 Every printed composition is a specialization (see [Compositions](compositions.md#specializations)). A function
 written for several builds tests a feature where its builds differ; after specialization, the code of the features
 that are off is gone, and with it the calls of their operations.
 
-## Simplification
+## Canonicalization
 
-Simplifying a function folds its constant expressions and removes code that cannot run, in place:
+The target is one pass, `canonicalize`, that applies named local patterns to a function until none applies, trying them
+in a fixed order, so that the result is the same on every run. Each pattern is an optimization with its own name, which
+turns it off, and each application of a pattern is counted on its own when passes are bisected. The patterns of the Exec
+dialect fold constant expressions and remove code that cannot run, in place:
 
 - an operator or a conversion whose operands are constants becomes its value, computed as running it computes it,
   except a division or a remainder by zero, which stays;
@@ -58,11 +61,12 @@ locals nothing reads, so that it does not declare them, and which assignments it
   leaves it; the point after an `If` is reachable when the point before it is; and the point after a loop always is.
   Only reachable statements read locals, except the Init, condition and Post of a loop, which read whatever their
   reachability.
-- An assignment, a `Set` that is a statement of a block with one value for each place, is left out when every value
-  is pure and every place is a dead local. A value is pure when evaluating it on the target that prints the function
-  has no effect and cannot fail; the backend decides which calls of operations are pure. Leaving an assignment out
-  may leave the locals that its values read unread, so the removal repeats until no more locals become dead. The
-  reads of a pure assignment of its own places, such as an increment, do not keep them.
+- An assignment, a `Set` that is a statement of a block with one value for each place, is left out when every value is
+  pure and every place is a dead local. A value is pure when evaluating it has no effect and cannot fail. Whether a call
+  of an operation is pure is derived from its declaration: it writes no component or register, cannot end the parse,
+  and, in a build with the feature `budget`, has a cost of zero. A law of the operation never makes a call pure. Leaving
+  an assignment out may leave the locals that its values read unread, so the removal repeats until no more locals become
+  dead. The reads of a pure assignment of its own places, such as an increment, do not keep them.
 - A local assigned in the Init of an `If` or of a loop, which is never left out, stays; so does a local assigned
   opposite a null handle in an assignment of several values.
 - An assignment that is not left out keeps its values, and the backend prints its dead places as discarded.

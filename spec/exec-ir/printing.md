@@ -18,7 +18,7 @@ ZeroParse has two backends, Go and TypeScript. They print the compositions into 
 - An `Exit` or a `Break` of a loop prints as a break and a `Continue` as a continue, labeled only when the loop is not
   the innermost one. Labels are unique in a printed function.
 - Statements at an unreachable point (see [Dead Stores](passes.md#dead-stores)) are not printed.
-- An operator or a conversion on constants prints as its value (see [Simplification](passes.md#simplification)).
+- An operator or a conversion on constants prints as its value (see [Canonicalization](passes.md#canonicalization)).
 - The locals that nothing reads are not declared, and the assignments that the dead-store analysis leaves out are not
   printed; a dead place of an assignment that stays prints as a discarded value.
 - The doc of a function prints as its comment.

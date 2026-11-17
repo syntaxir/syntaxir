@@ -273,15 +273,16 @@ The pass model is described in [the pass pipeline](../pass-pipeline.md). Its dec
 
 ### Operations, Laws, Marks and Rewrites
 
-- **Properties of operations are derived.** Pure, zero-width and infallible are computed from what an operation
-  declares: the state it reads and writes, whether it can fail or end the parse, and its cost. A call that has a cost is
-  not pure while the budget is on, because removing it changes where a limit interrupts. A second, declared set of
-  properties would be a second source of truth that could disagree with the declarations. The conformance suite checks
-  that an operation leaves the state it does not declare unchanged, so the declarations, and what is derived from them,
-  can be trusted.
-- **Every law is typed and tested.** A law has a kind that passes read (purity, a stable read, the merge of two charges)
-  and a conformance property that tests it. A pass relies only on laws of a kind it names, so no optimization depends on
-  a sentence that nothing checks.
+- **Properties of operations are derived.** Pure (a call can be removed), zero-width and infallible are computed from
+  what an operation declares: the state it reads and writes, whether it can fail or end the parse, and its cost. A call
+  that has a cost is not pure while the budget is on, because removing it changes where a limit interrupts. A second,
+  declared set of properties would be a second source of truth that could disagree with the declarations. The
+  conformance suite checks that an operation leaves the state it does not declare unchanged, so the declarations, and
+  what is derived from them, can be trusted.
+- **Every law is typed and tested.** A law has a kind that passes read (equal results, a stable read, the merge of two
+  charges) and a conformance property that tests it. A pass relies only on laws of a kind it names, so no optimization
+  depends on a sentence that nothing checks. A law is a declared fact about results only and never permits removing a
+  call; whether a call can be removed is the derived purity above, so the two cannot disagree.
 - **Charges keep their place among what is observed.** A budget charge never moves or merges across a write to the
   observation or to the stream window, a callback of the caller, or a commit. Trace events, stream deliveries and
   callbacks are visible after an interruption, so a parse that a limit interrupts reports exactly what precedes the
@@ -298,7 +299,7 @@ The pass model is described in [the pass pipeline](../pass-pipeline.md). Its dec
 - **One canonicalize pass for local patterns.** The local rewrite patterns of Code IR, declared by each dialect for its
   operations, run in one pass to a fixed point, at the Flow stage after fail-merge/thread and before charge, and at the
   Exec stage after specialization and before dead-store removal, so a rewrite can expose the next without another pass.
-  Each pattern has a name in the registry: `-opt` and `-no-opt` turn it on or off, `-opt-bisect-limit` counts each
+  Each pattern has a name in the registry: `-opt` and `-no-opt` turn it on or off, `-opt-bisect-limit` numbers each
   application, `-print-pipeline` lists it and the statistics count it, so a pattern stays as measurable and bisectable
   as a pass. The pass tries the patterns in a fixed order, so the output is the same on every run. Rewrites that are not
   local patterns stay named passes. Instruction selection in `vmlower` is a deterministic table of local patterns that
@@ -395,7 +396,7 @@ setting that does so is an error. [Controlling Passes](../pass-pipeline.md#contr
 | `-print-pipeline` | Prints the assembled pipeline as pass names in order, with the required passes marked and the patterns of `canonicalize` listed under it. |
 | `-stats` | Prints the counters of each pass after the build, including the applications of each pattern, summed over the units in a fixed order. |
 | `-time-passes` | Prints the time each pass took, summed over the units it ran on. |
-| `-opt-bisect-limit` | Runs the optional pass runs numbered up to N in pipeline order and skips the later ones. A run is one pass on one unit, so a pass that runs per function counts once per function, and each application of a pattern of `canonicalize` is a run. Required passes always run, and each decision is reported with the pass and the unit. |
+| `-opt-bisect-limit` | Runs the optional pass runs numbered up to N in pipeline order and skips the later ones. A run is one pass on one unit, so a pass that runs per function counts once per function, a run of `canonicalize` takes one number like every pass, and each application of one of its patterns takes its own. Required passes always run, and each decision is reported with the pass and the unit. |
 | `Debug` | The public setting of `pkg/compiler` for observation and bisection. Eight fields mirror the flags one to one: print before, print after, print changed, verify each, print pipeline, stats, time passes and bisect limit. The ninth, the writer the output goes to, has no flag; the command writes to standard error. It does not change the parser that is built, so it is apart from `Optimize`. |
 | `WithDebug` | The option that gives a `Debug` value to a compile call. |
 
