@@ -27,8 +27,9 @@
 #
 # Environment: GATE_NICE (default 0) is the nice(1) increment of every step, and GOMAXPROCS, GOFLAGS and the other Go
 # variables pass through. GATE_SELFTEST_FAIL=1 adds a step that fails first, to show that the gate stops.
+# GATE_AFFECTED_CMD replaces hack/affected-tests.sh (GATE_AFFECTED_CMD=false shows that a failed computation fails the step).
 # The step commands are single-quoted on purpose: they expand when the step runs.
-# shellcheck disable=SC2016
+# shellcheck disable=SC2016,SC2028
 set -euo pipefail
 
 base=origin/main
@@ -49,6 +50,7 @@ while [ $# -gt 0 ]; do
 done
 [ ${#levels[@]} -gt 0 ] || { echo "usage: hack/gate.sh [--base REV] [--keep-going] [--summary FILE] [--dry-run] docs|code|engine|full..." >&2; exit 2; }
 
+[ -z "$summary" ] || case $summary in /*) ;; *) summary=$PWD/$summary ;; esac
 root=$(git rev-parse --show-toplevel)
 cd "$root"
 nice_n=${GATE_NICE:-0}
@@ -69,7 +71,8 @@ step() {
 
 # affected_cmd GO-TEST-ARGS: go test over the packages of the changes since $GATE_BASE and their reverse dependencies.
 affected_cmd() {
-	echo 'pkgs=$(hack/affected-tests.sh "$GATE_BASE" HEAD | grep -v "^#" || true)
+	echo 'raw=$("${GATE_AFFECTED_CMD:-hack/affected-tests.sh}" "$GATE_BASE" HEAD) || { echo "gate: the affected packages could not be computed" >&2; exit 1; }
+pkgs=$(printf "%s\n" "$raw" | grep -v "^#" || true)
 [ -n "$pkgs" ] || { echo "gate: no package affected since $GATE_BASE"; exit 0; }
 echo "$pkgs" | sed "s/^/gate: affected /"
 go test -count=1 '"$1"' $pkgs'
@@ -110,7 +113,7 @@ if [ "$dry" = 1 ]; then
 	echo "gate: base $base; steps:"
 	i=0
 	for n in "${names[@]}"; do printf '  %-15s %s\n' "$n" "${descs[$i]}"; i=$((i + 1)); done
-	case " ${names[*]} " in *" test"*) echo "gate: affected packages since $base:"; hack/affected-tests.sh "$base" HEAD | sed 's/^/  /' ;; esac
+	case " ${names[*]} " in *" test"*) echo "gate: affected packages since $base:"; "${GATE_AFFECTED_CMD:-hack/affected-tests.sh}" "$base" HEAD | sed 's/^/  /' ;; esac
 	exit 0
 fi
 
