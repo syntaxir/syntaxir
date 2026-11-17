@@ -160,6 +160,91 @@ rm -f "$1/live.$$"
 	}
 }
 
+// stagedTools puts a find and a cat first on the PATH that stage two claimers, a and b, through the
+// race that only the flock closes. Both judge the dead .mutex stale; a acts on it and takes the
+// mutex; b, delayed after its check, removes a's live mutex and takes it too, so both are inside.
+// a reads slot 1 (dead holder) and waits until b has read it as well; b then waits until a has
+// claimed slot 1 and acts on its stale read: it removes a's slot and claims it. Each wait gives up
+// after three seconds, so claimers that are serialized pass the stage one at a time.
+func stagedTools(t *testing.T, env []string, dir, role string) []string {
+	t.Helper()
+	bin := t.TempDir()
+	wait := `i=0; until COND || [ "$i" -ge 60 ]; do sleep 0.05; i=$((i + 1)); done`
+	for _, tool := range []string{"find", "cat"} {
+		real, err := exec.LookPath(tool)
+		if err != nil {
+			t.Skipf("%s is not installed", tool)
+		}
+		var body string
+		switch role + tool {
+		case "afind": // a judges the mutex only after b has judged it.
+			body = `*.mutex\ -maxdepth*) : > ` + dir + `/a.mutex; ` + strings.Replace(wait, "COND", `[ -e `+dir+`/b.mutex ]`, 1) + ` ;;`
+		case "bfind": // b judges the mutex, then acts only once a holds it.
+			body = `*.mutex\ -maxdepth*) out=$(` + real + ` "$@"); : > ` + dir + `/b.mutex; ` +
+				strings.Replace(wait, "COND", `[ -s "$1/owner" ]`, 1) + `; [ -z "$out" ] || echo "$out"; exit 0 ;;`
+		case "acat": // a reads slot 1, then acts only once b has read it too.
+			body = `*/1/pid) out=$(` + real + ` "$@"); : > ` + dir + `/a.slot; ` +
+				strings.Replace(wait, "COND", `[ -e `+dir+`/b.slot ]`, 1) + `; echo "$out"; exit 0 ;;`
+		case "bcat": // b reads slot 1, then acts only once a has claimed it.
+			body = `*/1/pid) out=$(` + real + ` "$@"); : > ` + dir + `/b.slot; ` +
+				strings.Replace(wait, "COND", `[ -s "$1" ] && [ "$(`+real+` "$1")" != 99998 ]`, 1) + `; echo "$out"; exit 0 ;;`
+		}
+		write(t, filepath.Join(bin, tool), "#!/bin/sh\ncase \"$*\" in\n"+body+"\nesac\nexec "+real+" \"$@\"\n", 0o755)
+	}
+	return append(env, "PATH="+bin+":"+os.Getenv("PATH"))
+}
+
+// Two claimers that judge the same dead mutex stale must not both get inside it and both take one
+// slot. The order is forced (see stagedTools), so a script without the flock that serializes the
+// claim runs two commands in its one slot every time.
+func TestTestslotStaleMutexRaceNeedsTheFlock(t *testing.T) {
+	needTools(t)
+	state := t.TempDir()
+	stage := t.TempDir()
+	slots := filepath.Join(state, "slots")
+	mutex := filepath.Join(slots, ".mutex")
+	if err := os.MkdirAll(mutex, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	past := time.Now().Add(-3 * time.Minute)
+	if err := os.Chtimes(mutex, past, past); err != nil {
+		t.Fatal(err)
+	}
+	write(t, filepath.Join(slots, "1", "pid"), "99998\n", 0o644)
+	run := t.TempDir()
+	work := filepath.Join(run, "work.sh")
+	write(t, work, `#!/usr/bin/env bash
+echo $$ > "$1/live.$$"
+sleep 1
+ls "$1" | grep -c '^live\.' >> "$1/counts"
+rm -f "$1/live.$$"
+`, 0o755)
+	var cmds []*exec.Cmd
+	for _, role := range []string{"a", "b"} {
+		cmd := exec.Command("bash", scriptPath(t, "testslot.sh"), work, run)
+		cmd.Env = stagedTools(t, append(scriptEnv(t, state), "TESTSLOT_N=1"), stage, role)
+		if err := cmd.Start(); err != nil {
+			t.Fatal(err)
+		}
+		cmds = append(cmds, cmd)
+	}
+	for _, cmd := range cmds {
+		if err := cmd.Wait(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	counts, _ := os.ReadFile(filepath.Join(run, "counts"))
+	lines := strings.Fields(string(counts))
+	if len(lines) != 2 {
+		t.Fatalf("%d of 2 commands ran: %q", len(lines), lines)
+	}
+	for _, l := range lines {
+		if c, _ := strconv.Atoi(l); c > 1 {
+			t.Errorf("%s commands ran at once with 1 slot: %q", l, lines)
+		}
+	}
+}
+
 // A live pid with another start time is a reused pid, not the holder; the same start time is.
 func TestTestslotReusedPid(t *testing.T) {
 	needTools(t)
