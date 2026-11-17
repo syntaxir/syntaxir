@@ -29,3 +29,7 @@ zp_queue_note() {
     echo "${0##*/}: creating the queue directory $zp_state (set ZP_AGENT_STATE so that every lane shares one queue)" >&2
   fi
 }
+
+# zp_lstart PID prints the start time of the process, which tells a process from a later one
+# that reuses its pid. Empty when the process is gone.
+zp_lstart() { ps -o lstart= -p "$1" 2>/dev/null | sed 's/^ *//; s/ *$//' || true; }

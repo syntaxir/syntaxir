@@ -4,8 +4,9 @@
 # The command runs in a process group of its own, recorded in runs/<tag>.<pid> while it runs, so
 # benchstop.sh can stop exactly the groups this script started and nothing else.
 #
-# Known limit: a TERM that arrives before the command has called setpgrp does not reach it, and
-# the command, a background process group, cannot read the terminal.
+# The command runs in a process group of its own (job control), created as the command is forked,
+# so TERM, INT or HUP to this script, even one that arrives while the command starts, signals
+# the group. The command runs as a background job: its standard input is /dev/null.
 # State: $ZP_AGENT_STATE (see lib.sh). The layout is the one of the earlier
 # zsh version of this script, so jobs queued by either version are ranked together.
 #
@@ -75,14 +76,43 @@ if [ "$free" -ge "$stall" ]; then
     "$(cat "$R"/* | cut -c1-80 | tr '\n' '|')" >> "$D/benchlock-stalls.log"
 fi
 echo "$tag $$" > "$L/owner"
-perl -e 'setpgrp(0,0); exec @ARGV or die "exec: $!\n"' -- "$@" &
+term=
+child=
+# shellcheck disable=SC2329  # runs from the trap
+on_term() {
+  term=1
+  if [ -n "$child" ]; then kill -TERM -- "-$child" 2>/dev/null || true; fi
+}
+trap on_term TERM INT HUP
+set -m
+"$@" &
 child=$!
+set +m
 printf '%s\n' "state=running seq=$seq tag=$tag wrapper=$$ pgid=$child cwd=$PWD start=$(date +%FT%T) cmd=$*" > "$rec"
-trap 'kill -TERM -- -$child 2>/dev/null || true' TERM INT HUP
-rc=0
-wait "$child" || rc=$?
-# A trapped signal interrupts the first wait; wait for the group leader to be reaped.
-while kill -0 "$child" 2>/dev/null; do wait "$child" || rc=$?; done
+if [ -n "$term" ]; then kill -TERM -- "-$child" 2>/dev/null || true; fi
+# child_gone: the command's leader has exited (a zombie counts: it only waits to be reaped).
+child_gone() {
+  local st
+  kill -0 "$1" 2>/dev/null || return 0
+  st=$(ps -o stat= -p "$1" 2>/dev/null | tr -d ' ') || true
+  [ "${st#Z}" != "$st" ]
+}
+# A TERM can reach the command's group while the forked shell still runs this script's handler,
+# before it has reset its traps: the signal is then lost. So once TERM was received, repeat it
+# until the group leader is gone, and kill the group if it ignores TERM for five seconds.
+rc=0; reaped=0; tries=0
+until child_gone "$child"; do
+  if [ -n "$term" ]; then
+    kill -TERM -- "-$child" 2>/dev/null || true
+    tries=$((tries + 1))
+    if [ "$tries" -gt 50 ]; then kill -KILL -- "-$child" 2>/dev/null || true; fi
+    sleep 0.1 || true
+  else
+    wait "$child" && rc=0 || rc=$?
+    if [ -z "$term" ]; then reaped=1; fi
+  fi
+done
+if [ "$reaped" = 0 ]; then wait "$child" && rc=0 || rc=$?; fi
 rm -f "$rec"
 if [ "$(cat "$L/owner" 2>/dev/null || true)" = "$tag $$" ]; then rm -f "$L/owner"; rmdir "$L"; fi
 exit "$rc"
