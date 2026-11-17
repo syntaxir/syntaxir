@@ -280,11 +280,24 @@ func TestTestslotReusedPid(t *testing.T) {
 	}
 }
 
-// survivors lists the processes whose command line holds the marker: the command, and a copy of
-// the script that is on its way to run it.
-func survivors(marker string) string {
+// lingering lists the processes whose command line holds the marker: the command, and copies of
+// the script, which may still be on their way to start it or only leaving.
+func lingering(marker string) string {
 	out, _ := exec.Command("pgrep", "-f", "sleep "+marker).Output()
 	return strings.TrimSpace(string(out))
+}
+
+// commandPid is the pid that the command wrote to pidFile, if it started, and whether that
+// process is still alive and still the command: its command line holds the marker, which a reused
+// pid's does not.
+func commandPid(pidFile, marker string) (pid string, alive bool) {
+	b, _ := os.ReadFile(pidFile)
+	pid = strings.TrimSpace(string(b))
+	if pid == "" {
+		return "", false
+	}
+	out, err := exec.Command("ps", "-o", "args=", "-p", pid).Output()
+	return pid, err == nil && strings.Contains(string(out), marker)
 }
 
 // commandRunning reports whether a process runs exactly "sleep marker": the command itself, not a
@@ -324,8 +337,9 @@ func startLatency(t *testing.T, name string, args []string) time.Duration {
 }
 
 // A TERM that arrives while the command starts must not leave the command running. The command
-// is a sleep of 40 seconds or more, so a command that was missed outlives the wait below; a copy
-// of the script that is only leaving, or a subshell of it that a loaded machine delays, does not.
+// writes its own pid and then becomes a sleep of 40 seconds or more, so a command that was missed
+// outlives the wait below. Only that pid counts: a copy of the script that is only leaving, or a
+// subshell of it that a loaded machine delays, also holds the marker in its command line.
 func TestQueueScriptsTermDuringStart(t *testing.T) {
 	needTools(t)
 	for _, name := range []string{"testslot.sh", "benchlock.sh"} {
@@ -338,7 +352,8 @@ func TestQueueScriptsTermDuringStart(t *testing.T) {
 			state := t.TempDir()
 			env := scriptEnv(t, state)
 			marker := fmt.Sprintf("%d.%03d", 40+len(name), i)
-			args := append(append([]string{}, base...), "sleep", marker)
+			pidFile := filepath.Join(state, "command.pid")
+			args := append(append([]string{}, base...), "bash", "-c", `echo $$ > "$0"; exec sleep `+marker, pidFile)
 			cmd := exec.Command("bash", args...)
 			cmd.Env = env
 			if err := cmd.Start(); err != nil {
@@ -360,12 +375,17 @@ func TestQueueScriptsTermDuringStart(t *testing.T) {
 				<-exited
 				t.Fatalf("%s: still running 10 s after a TERM sent after %v", name, delay)
 			}
+			// Wait until the command that started is gone, or until nothing that could still start
+			// it is left; give up after 5 s.
 			deadline := time.Now().Add(5 * time.Second)
-			for survivors(marker) != "" && time.Now().Before(deadline) {
+			for time.Now().Before(deadline) {
+				if pid, alive := commandPid(pidFile, marker); pid != "" && !alive || pid == "" && lingering(marker) == "" {
+					break
+				}
 				time.Sleep(20 * time.Millisecond)
 			}
-			if pids := survivors(marker); pids != "" {
-				ps, _ := exec.Command("ps", "-o", "pid,ppid,pgid,stat,args", "-p", strings.ReplaceAll(pids, "\n", ",")).Output()
+			if pid, alive := commandPid(pidFile, marker); alive {
+				ps, _ := exec.Command("ps", "-o", "pid,ppid,pgid,stat,args", "-p", pid).Output()
 				_ = exec.Command("pkill", "-f", "sleep "+marker).Run()
 				t.Fatalf("%s: the command survived a TERM sent after %v and 5 s of waiting:\n%s", name, delay, ps)
 			}
