@@ -3462,7 +3462,7 @@ can begin with $c$. Two cases remain.
   $Q$ fails, examines nothing more or meets a known negative lookahead
   before the end of $w$, and $w$ does not exclude $Q$. Case (3) includes
   $e' = q + |w|$, where the step ends at the end of the word and the check
-  of the word counts that end as excluding.
+  of the word can count that end as excluding, when the continuation ends the parse.
 - $P_1$ consumes no input in $\sigma_1$. Then the path of the check that it
   follows can match without consuming input, so it begins with every
   character, $c$ included, whatever its lookaheads examine, and it has no
@@ -13097,7 +13097,7 @@ theorem covers such a parse.
    *Decided units at the position of the growth*, and with them the second
    case of *Repeats inside a growth*, of such a parse, and *Reuse in a
    context* the bounds from *Calls in a context of growths* to *Growths
-   inside a step*. *Growth activations in a parse that keeps records or
+   inside a step*, apart from *Open parts of the kept steps*. *Growth activations in a parse that keeps records or
    resumes runs* shows the claims from *Growths at many positions* to the
    end of Lemma 5 of such a parse, and the family claims
    for the growth activations, so every claim of Lemma 5 is read for such
