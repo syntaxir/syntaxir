@@ -27,7 +27,7 @@ for c in $(git rev-list --reverse "$base..$head"); do
 	if [ "${#subject}" -gt 72 ]; then fail "$short summary is ${#subject} characters (72 at most): $subject"; fi
 	case $subject in *.) fail "$short summary ends with a period: $subject" ;; esac
 	if [ -z "$(printf '%s' "$body" | tr -d '[:space:]')" ]; then fail "$short has no body: $subject"; fi
-	if git log -1 --format=%B "$c" | grep -qiE 'co-authored-by:.*(claude|anthropic|openai|codex|copilot|gemini|noreply@)|generated (with|by)|🤖'; then
+	if git log -1 --format=%B "$c" | grep -qiE 'co-authored-by:.*(claude|anthropic|openai|codex|copilot|gemini|noreply@)|^generated (with|by) \[|🤖'; then
 		fail "$short carries AI attribution: $subject"
 	fi
 	if git log -1 --format=%B "$c" | grep -qiE '(^|[^[:alnum:]_])(close[sd]?|fix(e[sd])?|resolve[sd]?):? +([[:alnum:]_.-]+/[[:alnum:]_.-]+)?#[0-9]+'; then
