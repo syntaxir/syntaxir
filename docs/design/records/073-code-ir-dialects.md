@@ -44,8 +44,9 @@ that were transitional only because the conversion needed a placeholder hid the 
 5. **The only transitional operations are the five that stay for later work**: the call-tracking and left-recursion growth
    operations. The Flow and Action dialects have none. A transitional operation that exists only as a placeholder of the
    conversion is not kept.
-6. **The Flow dump is the Code IR listing.** `-print-after flow` prints each function with the printer of the base and
-   the notation of the text form, with the header lines of each dump unchanged. The earlier Flow-specific format is gone.
+6. **The Flow dump is the Code IR listing.** `-print-after flowlower` (then named `flow`, before dumps took the names
+   of steps) prints each function with the printer of the base and the notation of the text form, with the header lines
+   of each dump unchanged. The earlier Flow-specific format is gone.
 7. **The specification follows the structure.** The module, the statements and expressions of functions, their invariants
    and the text form are the Code IR specification; the Flow dialect and the Exec dialect (with the Action operations
    under the values chapter) are specified apart. Tests that read the tables of the specification read them from the

@@ -145,7 +145,7 @@ func comments(m *code.Module) int {
 }
 
 // The driver lowers a function, runs a Flow pass when its flag is on, and a profile or a flag turns
-// it off; the dumps show the function as lowered under "flow" and after each selected pass, labeled
+// it off; the dumps show the function as lowered under "flowlower" and after each selected pass, labeled
 // with its table.
 func TestDriverFlowFunc(t *testing.T) {
 	run := withTestFlowPass(t)
@@ -280,7 +280,7 @@ func execModule(t *testing.T) *code.Module {
 var noTarget = &TargetPipeline{}
 
 // An Exec pass runs when its flag is on and a flag turns it off; the dumps show each function of the
-// module as lowered under "exec" and after each selected pass, and a pass that breaks the module is
+// module as lowered under "execlower" and after each selected pass, and a pass that breaks the module is
 // named with VerifyEach.
 func TestDriverExecFunc(t *testing.T) {
 	p := *codepass.Pipeline

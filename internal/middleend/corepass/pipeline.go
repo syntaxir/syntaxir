@@ -13,9 +13,14 @@ import (
 // A pass that adds or replaces nodes makes it stale; a pass preserves it only by saying so.
 const AttributesAnalysis pass.Analysis = "attributes"
 
-// Stage is the name of the Core IR module as the front end built it, before the first Core pass:
-// the dumps and -print-after name it so.
+// Stage is the name of the Core IR stage of the pipeline, which the steps on Core IR take and
+// return (pass.Step).
 const Stage = "core"
+
+// entry is the name of the step that builds the Core IR, elaborate, under which a run dumps the
+// module as it reaches the first pass. The driver declares the step, and this package cannot import
+// it.
+const entry = "elaborate"
 
 // Names of the passes. A name is also the name of the flag that turns the pass off.
 const (
@@ -70,7 +75,7 @@ var Pipeline = &pass.Pipeline[*core.Module, *Env]{
 type RunOptions struct {
 	// VerifyEach verifies the module after every pass.
 	VerifyEach bool
-	// Dump, if not nil, is called with "core" before the first pass and with the name of each pass
+	// Dump, if not nil, is called with "elaborate" before the first pass and with the name of each pass
 	// that ran, after it.
 	Dump func(pass string, m *core.Module)
 }
@@ -84,5 +89,5 @@ func Run(m *core.Module, e *Env, o RunOptions) (*core.Module, []string, error) {
 // Options returns the options of the generic pipeline for a run under e, for a caller that runs a
 // pipeline of its own (tests).
 func (o RunOptions) Options(e *Env) pass.Options[*core.Module] {
-	return pass.Options[*core.Module]{Enabled: e.On, VerifyEach: o.VerifyEach, Dump: o.Dump, Stage: Stage}
+	return pass.Options[*core.Module]{Enabled: e.On, VerifyEach: o.VerifyEach, Dump: o.Dump, Entry: entry}
 }

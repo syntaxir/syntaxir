@@ -85,13 +85,14 @@ type Options[M any] struct {
 	// VerifyEach verifies the unit after every pass that ran, so that the error names the first pass
 	// that broke an invariant, and gives every pass a copy of its own.
 	VerifyEach bool
-	// Dump, if not nil, is called with Stage before the first pass and with the name of each pass
+	// Dump, if not nil, is called with Entry before the first pass and with the name of each pass
 	// and the unit it returned after it ran, before it is verified. The later passes of the run may
 	// change that unit in place, except under VerifyEach.
 	Dump func(pass string, m M)
-	// Stage names the unit as it reaches the first pass: the stage of the pipeline that made it,
-	// such as "core", "flow" or "exec". A run with a Dump requires it, so that every dump is named.
-	Stage string
+	// Entry names the unit as it reaches the first pass: the step that made it, such as
+	// "elaborate", "flowlower" or "execlower". A run with a Dump requires it, so that every dump is
+	// named.
+	Entry string
 	// BuiltVerified reports that the builder of the unit has verified it, so that a run in which no
 	// pass ran does not verify it again.
 	BuiltVerified bool
@@ -160,8 +161,8 @@ func (p *Pipeline[M, X]) Run(m M, x X, o Options[M]) (M, []string, error) {
 	if err := p.Validate(); err != nil {
 		return m, nil, err
 	}
-	if o.Dump != nil && o.Stage == "" {
-		return m, nil, fmt.Errorf("a run with a dump names no stage for the unit as it reaches the first pass")
+	if o.Dump != nil && o.Entry == "" {
+		return m, nil, fmt.Errorf("a run with a dump names no step for the unit as it reaches the first pass")
 	}
 	in := m
 	am := o.Analyses
@@ -193,7 +194,7 @@ func (p *Pipeline[M, X]) Run(m M, x X, o Options[M]) (M, []string, error) {
 		return nil
 	}
 	if o.Dump != nil {
-		o.Dump(o.Stage, m)
+		o.Dump(o.Entry, m)
 	}
 	var ran []string
 	for _, ps := range p.Passes {

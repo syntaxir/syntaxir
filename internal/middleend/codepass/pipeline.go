@@ -2,6 +2,7 @@ package codepass
 
 import (
 	"zeroparse.dev/zp/internal/ir/code"
+	"zeroparse.dev/zp/internal/middleend/execlower"
 	"zeroparse.dev/zp/internal/pass"
 )
 
@@ -10,8 +11,8 @@ import (
 // flag that turns it off, distinct from the names of the Core and Flow passes. The unit is the module
 // that the lowering of one function made, with its declarations.
 
-// Stage is the name of an Exec module as the lowering from Flow IR made it, before the first Exec
-// pass: the dumps and -print-after name it so.
+// Stage is the name of the Exec IR stage of the pipeline, which the steps on Exec modules take and
+// return (pass.Step).
 const Stage = "exec"
 
 // Env is the context of a run of the Exec pipeline.
@@ -37,7 +38,7 @@ var Pipeline = &pass.Pipeline[*code.Module, *Env]{
 type RunOptions struct {
 	// VerifyEach verifies the module after every pass.
 	VerifyEach bool
-	// Dump, if not nil, is called with "exec" before the first pass and with the name of each pass
+	// Dump, if not nil, is called with "execlower" before the first pass and with the name of each pass
 	// that ran, after it.
 	Dump func(pass string, m *code.Module)
 }
@@ -52,5 +53,5 @@ func RunPasses(m *code.Module, e *Env, o RunOptions) (*code.Module, []string, er
 // Options returns the options of the generic pipeline for a run under e, for a caller that runs a
 // pipeline of its own (tests).
 func (o RunOptions) Options(e *Env) pass.Options[*code.Module] {
-	return pass.Options[*code.Module]{Enabled: e.On, VerifyEach: o.VerifyEach, Dump: o.Dump, Stage: Stage, BuiltVerified: true}
+	return pass.Options[*code.Module]{Enabled: e.On, VerifyEach: o.VerifyEach, Dump: o.Dump, Entry: execlower.Name, BuiltVerified: true}
 }

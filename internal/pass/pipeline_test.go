@@ -92,7 +92,7 @@ func TestDumpCallsEachPassInOrder(t *testing.T) {
 	_, _, err := p.Run(&unit{}, mode{}, Options[*unit]{
 		Enabled: func(name string) bool { return name != "b" },
 		Dump:    func(pass string, u *unit) { seen = append(seen, pass+":"+strings.Join(u.log, ",")) },
-		Stage:   "built",
+		Entry:   "built",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -101,10 +101,11 @@ func TestDumpCallsEachPassInOrder(t *testing.T) {
 	if !slices.Equal(seen, want) {
 		t.Fatalf("dump %v, want %v", seen, want)
 	}
-	// A dump without a stage would print the unit as built unnamed: the run refuses it before any pass.
+	// A dump without an entry would print the unit as built unnamed: the run refuses it before any
+	// pass.
 	u, ran, err := p.Run(&unit{}, mode{}, Options[*unit]{Dump: func(string, *unit) {}})
-	if err == nil || !strings.Contains(err.Error(), "names no stage") || len(ran) != 0 || len(u.log) != 0 {
-		t.Errorf("a dump without a stage: ran %v, log %v, err %v", ran, u.log, err)
+	if err == nil || !strings.Contains(err.Error(), "names no step") || len(ran) != 0 || len(u.log) != 0 {
+		t.Errorf("a dump without an entry: ran %v, log %v, err %v", ran, u.log, err)
 	}
 }
 
@@ -348,7 +349,7 @@ func TestVerifyEachCopiesEachPass(t *testing.T) {
 	p := copying(fakePipeline(inPlace("a"), breaker, inPlace("c")), &n)
 	dumped := map[string]*unit{}
 	in := &unit{log: []string{"in"}}
-	u, ran, err := p.Run(in, mode{}, Options[*unit]{VerifyEach: true, Stage: "u", Dump: func(name string, u *unit) { dumped[name] = u }})
+	u, ran, err := p.Run(in, mode{}, Options[*unit]{VerifyEach: true, Entry: "u", Dump: func(name string, u *unit) { dumped[name] = u }})
 	if err == nil || err.Error() != "after pass breaker: broken by breaker" || !slices.Equal(ran, []string{"a", "breaker"}) {
 		t.Fatalf("ran %v, err %v", ran, err)
 	}

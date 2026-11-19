@@ -76,11 +76,16 @@ var Pipeline = &pass.Pipeline[*code.Module, *Env]{
 	Copy:     (*code.Module).Clone,
 }
 
+// entry is the name of the lowering that makes a Flow module, flowlower, under which a run dumps the
+// module as it reaches the first pass. The lowering's package tests these passes, so this package
+// cannot import it.
+const entry = "flowlower"
+
 // RunOptions selects what a run of Pipeline does besides running the passes.
 type RunOptions struct {
 	// VerifyEach verifies the module after every pass.
 	VerifyEach bool
-	// Dump, if not nil, is called with "flow" before the first pass and with the name of each pass
+	// Dump, if not nil, is called with "flowlower" before the first pass and with the name of each pass
 	// that ran, after it.
 	Dump func(pass string, m *code.Module)
 }
@@ -101,5 +106,5 @@ func (e *Env) For(p func(*flow.Attrs) bool) bool { return e.Func != nil && p(e.F
 // Options returns the options of the generic pipeline for a run under e, for a caller that runs a
 // pipeline of its own (tests).
 func (o RunOptions) Options(e *Env) pass.Options[*code.Module] {
-	return pass.Options[*code.Module]{Enabled: e.On, VerifyEach: o.VerifyEach, Dump: o.Dump, Stage: flow.Stage, BuiltVerified: true}
+	return pass.Options[*code.Module]{Enabled: e.On, VerifyEach: o.VerifyEach, Dump: o.Dump, Entry: entry, BuiltVerified: true}
 }
