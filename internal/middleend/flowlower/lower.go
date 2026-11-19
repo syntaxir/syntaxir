@@ -29,11 +29,11 @@ package flowlower
 import (
 	"fmt"
 	"strings"
-	"zeroparse.dev/zp/internal/middleend/corepass"
 
 	"zeroparse.dev/zp/internal/ir/code"
 	"zeroparse.dev/zp/internal/ir/code/flow"
 	"zeroparse.dev/zp/internal/ir/core"
+	"zeroparse.dev/zp/internal/middleend/corepass"
 )
 
 // Options selects the forms the lowering writes.

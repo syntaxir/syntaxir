@@ -2,8 +2,8 @@ package print
 
 import (
 	"fmt"
-	"zeroparse.dev/zp/internal/backend/codegen/common"
 
+	"zeroparse.dev/zp/internal/backend/codegen/common"
 	"zeroparse.dev/zp/internal/ir/code/flow"
 	"zeroparse.dev/zp/internal/middleend/flowlower"
 )

@@ -11,12 +11,11 @@ import (
 	"sync"
 	"testing"
 
-	"zeroparse.dev/zp/internal/driver"
-	"zeroparse.dev/zp/internal/driver/checked"
-
 	"zeroparse.dev/zp/internal/backend/codegen/common"
 	"zeroparse.dev/zp/internal/backend/codegen/golang/print"
 	"zeroparse.dev/zp/internal/compile"
+	"zeroparse.dev/zp/internal/driver"
+	"zeroparse.dev/zp/internal/driver/checked"
 	irbuild "zeroparse.dev/zp/internal/frontend/elaborate"
 	"zeroparse.dev/zp/internal/ir/core"
 	syntaxfmt "zeroparse.dev/zp/internal/syntax/fmt"

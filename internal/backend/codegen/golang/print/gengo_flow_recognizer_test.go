@@ -12,11 +12,11 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"zeroparse.dev/zp/internal/testing/mutanttest"
 
 	"zeroparse.dev/zp/internal/backend/codegen/common"
 	"zeroparse.dev/zp/internal/backend/codegen/golang/print"
 	"zeroparse.dev/zp/internal/testing/codegentest"
+	"zeroparse.dev/zp/internal/testing/mutanttest"
 )
 
 // TestGeneratedFlowRecognizerParity runs the generated recognizers printed from Flow IR against the

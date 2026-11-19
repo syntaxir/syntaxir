@@ -2,13 +2,13 @@ package engine
 
 import (
 	"context"
-	"zeroparse.dev/zp/pkg/bytecode"
 
 	"zeroparse.dev/zp/internal/cancel"
 	"zeroparse.dev/zp/internal/compile"
 	"zeroparse.dev/zp/internal/driver/checked"
 	"zeroparse.dev/zp/internal/frontend/schemaexport"
 	"zeroparse.dev/zp/internal/runtime/program"
+	"zeroparse.dev/zp/pkg/bytecode"
 	"zeroparse.dev/zp/pkg/grammar/ast"
 )
 

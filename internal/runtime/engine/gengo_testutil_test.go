@@ -2,9 +2,9 @@ package engine
 
 import (
 	"testing"
-	"zeroparse.dev/zp/internal/driver/checked"
 
 	"zeroparse.dev/zp/internal/compile"
+	"zeroparse.dev/zp/internal/driver/checked"
 	"zeroparse.dev/zp/internal/testing/codegentest"
 	zpinput "zeroparse.dev/zp/pkg/runtime/input"
 	"zeroparse.dev/zp/pkg/runtime/value"

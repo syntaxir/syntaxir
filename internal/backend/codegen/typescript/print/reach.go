@@ -3,8 +3,8 @@ package print
 import (
 	"fmt"
 	"slices"
-	"zeroparse.dev/zp/internal/backend/codegen/common"
 
+	"zeroparse.dev/zp/internal/backend/codegen/common"
 	irbuild "zeroparse.dev/zp/internal/frontend/elaborate"
 	"zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/pkg/grammar/ast"

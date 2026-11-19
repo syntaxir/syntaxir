@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	"zeroparse.dev/zp/internal/backend/codegen/common"
 
+	"zeroparse.dev/zp/internal/backend/codegen/common"
 	"zeroparse.dev/zp/internal/frontend/astfacts"
 	"zeroparse.dev/zp/pkg/grammar/ast"
 )

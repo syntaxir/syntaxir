@@ -5,13 +5,13 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"zeroparse.dev/zp/internal/middleend/flowpass"
 
 	"zeroparse.dev/zp/internal/ir/code"
 	"zeroparse.dev/zp/internal/ir/code/flow"
 	"zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/middleend/codepass"
 	"zeroparse.dev/zp/internal/middleend/corepass"
+	"zeroparse.dev/zp/internal/middleend/flowpass"
 	"zeroparse.dev/zp/internal/pass"
 )
 
