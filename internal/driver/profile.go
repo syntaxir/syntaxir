@@ -204,8 +204,12 @@ func PrintNames() []string {
 	return append(out, PrintAll)
 }
 
-// ParsePrintAfter validates a comma-separated list of pass names for printing, and returns the names
-// in order. The empty string selects nothing.
+// stageSteps maps the names of the stages, which select no dump, to the step that makes the unit
+// of the stage, for the hint of an error.
+var stageSteps = map[string]string{"core": Elaborate, "flow": flowlower.Name, "exec": execlower.Name}
+
+// ParsePrintAfter validates a comma-separated list of step and pass names for printing, and returns
+// the names in order. The empty string selects nothing.
 func ParsePrintAfter(list string) ([]string, error) {
 	if list == "" {
 		return nil, nil
@@ -215,7 +219,10 @@ func ParsePrintAfter(list string) ([]string, error) {
 	for _, n := range strings.Split(list, ",") {
 		n = strings.TrimSpace(n)
 		if !slices.Contains(valid, n) {
-			return nil, fmt.Errorf("unknown pass %q to print after (valid: %s)", n, strings.Join(valid, ", "))
+			if step, ok := stageSteps[n]; ok {
+				return nil, fmt.Errorf("unknown pass or step %q to print after: %s is a stage; the step that makes its IR is %s (valid: %s)", n, n, step, strings.Join(valid, ", "))
+			}
+			return nil, fmt.Errorf("unknown pass or step %q to print after (valid: %s)", n, strings.Join(valid, ", "))
 		}
 		out = append(out, n)
 	}

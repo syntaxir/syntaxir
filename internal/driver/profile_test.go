@@ -134,11 +134,14 @@ func TestParsePrintAfter(t *testing.T) {
 	if got, err := ParsePrintAfter("flowlower"); err != nil || !slices.Equal(got, []string{"flowlower"}) {
 		t.Errorf("flowlower: %v, %v", got, err)
 	}
-	// The stages are no names of steps.
-	for _, stage := range []string{"core", "flow", "exec"} {
-		if _, err := ParsePrintAfter(stage); err == nil {
-			t.Errorf("the stage %s is accepted", stage)
+	// The stages are no names of steps; the error names the step that makes the stage's IR.
+	for stage, step := range map[string]string{"core": "elaborate", "flow": "flowlower", "exec": "execlower"} {
+		if _, err := ParsePrintAfter(stage); err == nil || !strings.Contains(err.Error(), "the step that makes its IR is "+step) {
+			t.Errorf("the stage %s: %v", stage, err)
 		}
+	}
+	if _, err := ParsePrintAfter("nope"); err == nil || !strings.HasPrefix(err.Error(), `unknown pass or step "nope"`) {
+		t.Errorf("an unknown name: %v", err)
 	}
 }
 
