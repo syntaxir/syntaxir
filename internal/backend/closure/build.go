@@ -16,8 +16,9 @@ import (
 // Core optimizes the Core IR m of a program, as the elaboration built it, with the closure pipeline
 // (guards and scans), for Build. It runs when a parse first needs a family, outside the
 // compilation: the passes poll the control of m (ir.Module.Control), the parse's (nil for none),
-// and a cancellation unwinds as cancel.Cancellation. The module returned does not keep the control.
-// A failure is an internal error: the program compiled, so its passes run.
+// and a cancellation unwinds as cancel.Cancellation. Core consumes m, as the passes do: it returns m
+// as they changed it, without the control, and copies nothing. A failure is an internal error: the
+// program compiled, so its passes run.
 func Core(m *ir.Module) (*ir.Module, error) {
 	m, _, err := corepass.Run(m, &corepass.Env{}, corepass.RunOptions{})
 	if err != nil {

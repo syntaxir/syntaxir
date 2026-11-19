@@ -21,8 +21,9 @@ import (
 // Compile compiles the program prog to a bytecode module: it builds the program's Core IR, runs
 // the bytecode pipeline on it (the choice guards and scans; the VMs have no instruction for class
 // runs or terminal regions) and emits the match code of the module's rules and the term code of
-// its terms from the result. A failure is an internal error: the program compiled, so its Core IR
-// and its terms build. A program that uses #missing has no bytecode form.
+// its terms from the result. The Core IR that it builds is handed to the passes, which change it in
+// place (corepass.Run), so no copy of it is made. A failure is an internal error: the program
+// compiled, so its Core IR and its terms build. A program that uses #missing has no bytecode form.
 func Compile(prog *compile.Program) (*bytecode.Module, error) {
 	if prog.HasMissing {
 		return nil, compile.MissingUnsupported("bytecode module construction")
