@@ -46,8 +46,8 @@ func (o *recorder) After(e Event, print func(io.Writer), _ any) {
 	print(&o.dumps)
 }
 
-func transforms(p *Pipeline[*unit, mode], entry string) Stage[*unit, *unit] {
-	return Transforms(Transform[*unit, mode]{IR: unitIR, Pipeline: p, Entry: entry,
+func transforms(p *Pipeline[*unit, mode]) Stage[*unit, *unit] {
+	return Transforms(Transform[*unit, mode]{IR: unitIR, Pipeline: p,
 		Env: func(*Run, Label, *unit) mode { return mode{} }})
 }
 
@@ -59,7 +59,7 @@ func lowerText(name string) Stage[*unit, *text] {
 func exclaim(x *text) *text { return &text{s: x.s + "!"} }
 
 func TestStageComposition(t *testing.T) {
-	s := Then(Then(transforms(fakePipeline(logging("a", nil, none), logging("b", nil, none)), "u"), lowerText("lower")),
+	s := Then(Then(transforms(fakePipeline(logging("a", nil, none), logging("b", nil, none))), lowerText("lower")),
 		Do("finish", textIR, exclaim))
 	if err := s.Check(); err != nil {
 		t.Fatal(err)
@@ -79,16 +79,16 @@ func TestStageComposition(t *testing.T) {
 	}
 	// The final verification computes the analysis that it requires, after the last dump. A lowering
 	// and a required step are dumped under their names.
-	if want := []string{"0::u:f", "1:a:a:f", "2:b:b:f", "0:lower:lower:f", "0:finish:finish:f"}; !slices.Equal(rec.events, want) {
+	if want := []string{"1:a:a:f", "2:b:b:f", "0:lower:lower:f", "0:finish:finish:f"}; !slices.Equal(rec.events, want) {
 		t.Errorf("events %v, want %v", rec.events, want)
 	}
-	if want := "rules/f after u: \nrules/f after a: a\nrules/f after b: a,b\nf after lower: a+b+analyze\nf after finish: a+b+analyze!\n"; rec.dumps.String() != want {
+	if want := "rules/f after a: a\nrules/f after b: a,b\nf after lower: a+b+analyze\nf after finish: a+b+analyze!\n"; rec.dumps.String() != want {
 		t.Errorf("dumps %q, want %q", rec.dumps.String(), want)
 	}
 }
 
 func TestStageCheck(t *testing.T) {
-	twice := Then(transforms(fakePipeline(logging("a", nil, none)), ""), transforms(fakePipeline(logging("a", nil, none)), ""))
+	twice := Then(transforms(fakePipeline(logging("a", nil, none))), transforms(fakePipeline(logging("a", nil, none))))
 	if err := twice.Check(); err == nil || !strings.Contains(err.Error(), "step a is in the pipeline twice") {
 		t.Errorf("duplicate name: %v", err)
 	}
@@ -102,7 +102,7 @@ func TestStageCheck(t *testing.T) {
 // TestStageNumbering checks that the runs of optional passes are numbered in the order they
 // happen across units, once per unit, and that an observer skips a run by its number.
 func TestStageNumbering(t *testing.T) {
-	s := transforms(fakePipeline(logging("a", nil, none), logging("b", nil, none)), "")
+	s := transforms(fakePipeline(logging("a", nil, none), logging("b", nil, none)))
 	rec := &recorder{skip: map[int]bool{3: true}}
 	r := &Run{Observers: []Observer{rec}, Enabled: func(n string) bool { return true }}
 	if _, err := s.Run(r, Label{Func: "f"}, &unit{}); err != nil {
@@ -131,8 +131,8 @@ func TestStageFailure(t *testing.T) {
 	failing := Pass[*unit, mode]{Name: "bad", Run: func(u *unit, _ mode) (*unit, PreservedSet, error) {
 		return u.with("half"), none, errors.New("no")
 	}}
-	later := transforms(fakePipeline(logging("c", nil, none)), "")
-	s := Then(Then(Then(transforms(fakePipeline(logging("a", nil, none), failing), ""), lowerText("lower")),
+	later := transforms(fakePipeline(logging("c", nil, none)))
+	s := Then(Then(Then(transforms(fakePipeline(logging("a", nil, none), failing)), lowerText("lower")),
 		Do("finish", textIR, exclaim)), Lower("back", "t", unitIR, func(x *text) (*unit, error) { return &unit{log: []string{x.s}}, nil }))
 	s2 := Then(s, later)
 	rec := &recorder{}
@@ -174,7 +174,7 @@ func TestStageVerifyEach(t *testing.T) {
 		v.broken = "breaks"
 		return v, none, nil
 	}}
-	s := transforms(fakePipeline(logging("a", nil, none), breaks, logging("c", nil, none)), "")
+	s := transforms(fakePipeline(logging("a", nil, none), breaks, logging("c", nil, none)))
 	u, err := s.Run(&Run{VerifyEach: true}, Label{}, &unit{})
 	if err == nil || err.Error() != "after pass breaks: broken by breaks" || slices.Contains(u.log, "c") {
 		t.Errorf("error %v, log %v", err, u.log)
@@ -194,7 +194,7 @@ type pair struct {
 // the part the stage returned, and that the input keeps its part.
 func TestStageProject(t *testing.T) {
 	s := Project(func(p *pair) *unit { return p.part }, func(p *pair, u *unit) (*pair, error) { return &pair{part: u, tag: p.tag}, nil },
-		transforms(fakePipeline(logging("a", nil, none)), ""))
+		transforms(fakePipeline(logging("a", nil, none))))
 	in := &pair{part: &unit{}, tag: "x"}
 	out, err := s.Run(&Run{}, Label{}, in)
 	if err != nil {
@@ -205,14 +205,14 @@ func TestStageProject(t *testing.T) {
 	}
 	// A stage that returns its part unchanged returns the unit itself.
 	same := Project(func(p *pair) *unit { return p.part }, func(*pair, *unit) (*pair, error) { panic("put of an unchanged part") },
-		transforms(fakePipeline(), ""))
+		transforms(fakePipeline()))
 	if out, err := same.Run(&Run{}, Label{}, in); err != nil || out != in {
 		t.Errorf("unchanged part: out %v, err %v", out, err)
 	}
 	// A part that put refuses fails the stage, which returns the unit as it was.
 	cause := errors.New("refused")
 	refuses := Project(func(p *pair) *unit { return p.part }, func(*pair, *unit) (*pair, error) { return nil, cause },
-		transforms(fakePipeline(logging("a", nil, none)), ""))
+		transforms(fakePipeline(logging("a", nil, none))))
 	if out, err := refuses.Run(&Run{}, Label{}, in); err != cause || out != in {
 		t.Errorf("refused part: out %v, err %v", out, err)
 	}
@@ -240,7 +240,7 @@ func TestStageCopies(t *testing.T) {
 		return u
 	})
 	segment := func(passes ...Pass[*unit, mode]) Stage[*unit, *unit] {
-		return transforms(copying(fakePipeline(passes...), &passCopies), "")
+		return transforms(copying(fakePipeline(passes...), &passCopies))
 	}
 	check := func(what string, s Stage[*unit, *unit], log []string, wantErr bool, passes, steps int) {
 		t.Helper()
@@ -295,7 +295,7 @@ func TestStageVerifyEachKeepsObservedUnits(t *testing.T) {
 		what string
 		s    Stage[*unit, *unit]
 	}{
-		{"passes, then a step", Then(Then(made, transforms(copying(plain, &passCopies), "")), finish)},
+		{"passes, then a step", Then(Then(made, transforms(copying(plain, &passCopies))), finish)},
 		{"a step after a lowering", Then(made, finish)},
 	} {
 		k := &keeper{}

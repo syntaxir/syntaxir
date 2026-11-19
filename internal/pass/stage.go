@@ -72,11 +72,10 @@ type Event struct {
 type Observer interface {
 	// Before is asked before an optional pass that is enabled and applies runs; false skips the run.
 	Before(e Event) bool
-	// After is told of each step that ran, and of the unit as it reaches a stage that dumps it then
-	// (Transform.Entry, an Event whose Step has the stage as its Dump and no Name). print writes the
-	// dump of the unit, and unit is the unit itself, for an observer that knows its type. Both are
-	// valid during the call: the later steps of the run may change the unit in place, unless the
-	// run verifies after each pass (Run.VerifyEach).
+	// After is told of each step that ran. print writes the dump of the unit after the step, and
+	// unit is the unit itself, for an observer that knows its type. Both are valid during the call:
+	// the later steps of the run may change the unit in place, unless the run verifies after each
+	// pass (Run.VerifyEach).
 	After(e Event, print func(w io.Writer), unit any)
 }
 
@@ -177,9 +176,6 @@ type Transform[M, X any] struct {
 	Pipeline *Pipeline[M, X]
 	// Env builds the context of the passes for the unit m.
 	Env func(r *Run, l Label, m M) X
-	// Entry, if not "", dumps the unit as it reaches the first pass under that name: the stage of a
-	// unit that no lowering made, such as "core".
-	Entry string
 	// BuiltVerified reports that what made the unit verified it, so that a run in which no pass ran
 	// does not verify it again.
 	BuiltVerified bool
@@ -208,9 +204,6 @@ func Transforms[M, X any](t Transform[M, X]) Stage[M, M] {
 					t.IR.Print(w, l, after, m)
 				}
 			}
-		}
-		if t.Entry != "" {
-			r.after(Event{Step: Step{In: t.IR.Stage, Out: t.IR.Stage, Dump: t.Entry}, Label: l}, print(t.Entry, m), m)
 		}
 		seqs := map[string]int{}
 		step := func(name string) Step {
