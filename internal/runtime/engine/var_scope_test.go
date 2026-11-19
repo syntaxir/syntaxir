@@ -12,7 +12,8 @@ import (
 // thresholds where its walks take records: the records of a run site leave out the bindings of
 // the rules its element calls, which rests on this.
 func TestCalleeBindingsUndoneAtReturn(t *testing.T) {
-	t.Parallel()
+	// Not parallel: atHotSpans lowers the process-wide hot spans, which would make the run sites of
+	// the parses of the parallel tests turn hot and change what they charge (hooks_parallel_test.go).
 	cases := []struct {
 		name, src string
 		run       bool // the element of a run site calls the rule that binds
