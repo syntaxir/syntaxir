@@ -72,18 +72,25 @@ generic over the input and output IR of a pass and has four parts.
   control flags.
 
 A transform returns the unit after it, and a transform that changed nothing returns its input with every analysis
-preserved. When to copy is the manager's policy, not the transform's: the passes of one pipeline run (one stage of
-transforms) form a segment, and before the first of them runs the manager takes one private copy of the unit, which the
-passes of the segment change in place. Passes of one IR that run in a row may be two segments: the Exec passes that
-every target runs and the backend's own Exec passes are two runs, so a failure among the backend's passes rolls back
-only to the start of those. The caller's unit stays as it was until the segment succeeds. A pass that fails, or under
-`-verify-each` a result that does not verify, rolls the segment back to its start: the copy is dropped, and only the
-required steps go on, with the unit as the segment got it, never with a half-rewritten one. An observer that needs the
-unit before each pass (`-verify-each`, `-print-changed`, the check of what a pass preserves, `-opt-bisect-limit`) makes
-the manager copy before every pass instead; the result and the rollback are the same. So a normal build pays one copy
-per segment and a run that is being diagnosed one per pass. A required step that is not a pass (`flow-finish`) changes
-the unit in place, since a lowering or the copy of the segment before it made the unit the run's own; it copies a unit
-that is still the caller's, and under `-verify-each` every unit, so that it never changes one that an observer has seen.
+preserved. A transform consumes the unit it is given and may change it in place, and so do a pipeline run (the passes
+of one stage of transforms, a segment) and a stage of the compilation by default: the run returns the unit after its
+passes, and the caller no longer uses what it gave. A pass that fails, or under `-verify-each` a result that does not
+verify, ends the optional passes of its unit, and only the required steps go on. A caller that keeps its input says so,
+and the run then never changes it: before the first pass that runs, the manager takes one private copy, which the
+passes of the segment change in place, and a failure rolls the segment back to its start, so that the caller goes on
+with the unit as it gave it, never with a half-rewritten one. Who keeps what is fixed by who reads the unit after the
+run. The run-time backends build a Core module for the passes alone and drop it on a failure, and so does the Core part
+of a generation, so the Core passes change it without a copy. The Flow and Exec passes of a generated function keep
+their unit, since after a failed pass `flow-finish`, `execlower` and the printer finish the function, for a generation
+that fails with the first error, from the unit as it was before the passes. A step that only reads its input leaves it
+to its caller: the lowering to Flow IR reads the table's Core module, which the driver keeps across the functions of
+the table and lowers each of them from. When to copy is the manager's policy, not the transform's: an observer that
+needs the unit before each pass (`-verify-each`, `-print-changed`, the check of what a pass preserves,
+`-opt-bisect-limit`) makes the manager copy before every pass, and a required step that is not a pass (`flow-finish`)
+copies its unit, so that no step changes a unit that an observer has seen; the result and the rollback are the same. So
+a normal build pays a copy only for a segment whose caller keeps its unit, and a run that is being diagnosed one per
+pass. Without such an observer, the unit that a dump is given is valid while it is printed, and a later step may
+change it in place.
 The returned preserved set is the declaration of what the pass kept: the result inherits those analyses, and a lowering,
 which returns another IR, invalidates the whole cache. A copy keeps every analysis, so an analysis whose result refers
 to parts of the unit by identity (pointers) cannot be kept as it is: it keys them by an ID that copies keep (Core IR

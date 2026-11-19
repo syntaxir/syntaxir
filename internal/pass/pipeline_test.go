@@ -110,7 +110,8 @@ func TestDumpCallsEachPassInOrder(t *testing.T) {
 }
 
 // With VerifyEach the error names the first pass that broke an invariant; without it the break is
-// reported at the end. Either way the run returns its input, unchanged.
+// reported at the end. Either way the run returns the unit as the passes left it: the one that
+// failed the verification.
 func TestVerificationNamesThePass(t *testing.T) {
 	breaker := Pass[*unit, mode]{Name: "breaker", Obligation: "breaks", Run: func(u *unit, _ mode) (*unit, PreservedSet, error) {
 		v := u.with("breaker")
@@ -123,20 +124,20 @@ func TestVerificationNamesThePass(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "after pass breaker") || !slices.Equal(ran, []string{"a", "breaker"}) {
 		t.Fatalf("ran %v, err %v", ran, err)
 	}
-	if u != in || u.broken != "" || len(u.log) != 0 {
-		t.Errorf("after the broken pass the run returned %v with log %v, broken %q; want its input, unchanged", u, u.log, u.broken)
+	if want := []string{"a", "analyze", "breaker", "analyze"}; u.broken != "breaker" || !slices.Equal(u.log, want) {
+		t.Errorf("after the broken pass the run returned the log %v, broken %q; want %v, broken by breaker", u.log, u.broken, want)
 	}
-	u, ran, err = p.Run(in, mode{}, Options[*unit]{})
+	u, ran, err = p.Run(&unit{}, mode{}, Options[*unit]{})
 	if err == nil || !strings.HasPrefix(err.Error(), "verification:") || len(ran) != 3 {
 		t.Fatalf("ran %v, err %v", ran, err)
 	}
-	if u != in || len(in.log) != 0 {
-		t.Errorf("after the final verification failed the run returned %v with log %v; want its input, unchanged", u, in.log)
+	if want := []string{"a", "breaker", "c", "analyze"}; u.broken != "breaker" || !slices.Equal(u.log, want) {
+		t.Errorf("after the final verification failed the run returned the log %v, broken %q; want %v, broken by breaker", u.log, u.broken, want)
 	}
 }
 
-// A pass that fails is named, a run does not go on, and it rolls back to its start: it returns its
-// input, unchanged, without what the passes before the failed one made.
+// A pass that fails is named, a run does not go on, and it returns the unit that the failed pass was
+// given, with what the passes before it made; the unit that the failed pass returned is dropped.
 func TestPassErrorIsNamed(t *testing.T) {
 	bad := Pass[*unit, mode]{Name: "bad", Run: func(u *unit, _ mode) (*unit, PreservedSet, error) {
 		return u.with("bad"), none, errors.New("boom")
@@ -147,8 +148,8 @@ func TestPassErrorIsNamed(t *testing.T) {
 	if err == nil || err.Error() != "pass bad: boom" || slices.Contains(u.log, "c") {
 		t.Fatalf("err %v, log %v", err, u.log)
 	}
-	if u != in || len(in.log) != 0 {
-		t.Errorf("returned %v with the log %v, input log %v; want the input, with the log []", u, u.log, in.log)
+	if !slices.Equal(u.log, []string{"a"}) || len(in.log) != 0 {
+		t.Errorf("returned the log %v, input log %v; want [a], and the input as it was, since the passes returned new units", u.log, in.log)
 	}
 }
 
@@ -217,8 +218,8 @@ func TestUndeclaredPreservationRecomputes(t *testing.T) {
 // A run with the caller's manager keeps its analyses there, for the unit the run returns: a later
 // run on that unit that preserves them does not compute them again, and the manager counts the
 // computations. A run on another unit computes them for it. The same holds when the pipeline
-// copies its units: the copy of the unit the cache is of keeps the cache, a copy of another unit
-// does not get it.
+// copies its units (under VerifyEach): the copy of the unit the cache is of keeps the cache, a copy
+// of another unit does not get it.
 func TestRunSharesTheCallersManager(t *testing.T) {
 	for _, copies := range []bool{false, true} {
 		am := NewAnalysisManager[*unit](nil)
@@ -231,7 +232,7 @@ func TestRunSharesTheCallersManager(t *testing.T) {
 		u := in
 		for range 2 {
 			var err error
-			if u, _, err = p.Run(u, mode{}, Options[*unit]{Analyses: am}); err != nil {
+			if u, _, err = p.Run(u, mode{}, Options[*unit]{Analyses: am, VerifyEach: copies}); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -241,7 +242,7 @@ func TestRunSharesTheCallersManager(t *testing.T) {
 		if am.Computations("attrs") != 1 {
 			t.Fatalf("copies %v: computations %d, want 1", copies, am.Computations("attrs"))
 		}
-		if _, _, err := p.Run(in, mode{}, Options[*unit]{Analyses: am}); err != nil {
+		if _, _, err := p.Run(in, mode{}, Options[*unit]{Analyses: am, VerifyEach: copies}); err != nil {
 			t.Fatal(err)
 		}
 		if am.Computations("attrs") != 2 {
@@ -251,7 +252,8 @@ func TestRunSharesTheCallersManager(t *testing.T) {
 }
 
 // A manager that holds the analyses of one unit never serves them for a unit that a run made of
-// another one: neither for the run's copy of it nor for the result of a pass that requires nothing.
+// another one: neither for the run's copy of it (under VerifyEach) nor for the result of a pass that
+// requires nothing.
 func TestAnotherUnitsCacheIsNotMoved(t *testing.T) {
 	keepsAll := Pass[*unit, mode]{Name: "keep", Obligation: "keep",
 		Run: func(u *unit, _ mode) (*unit, PreservedSet, error) { return u.with("keep"), all, nil }}
@@ -269,7 +271,7 @@ func TestAnotherUnitsCacheIsNotMoved(t *testing.T) {
 			var n int
 			p = copying(p, &n)
 		}
-		u, _, err := p.Run(&unit{}, mode{}, Options[*unit]{Analyses: am})
+		u, _, err := p.Run(&unit{}, mode{}, Options[*unit]{Analyses: am, VerifyEach: copies})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -298,9 +300,9 @@ func inPlace(name string) Pass[*unit, mode] {
 	}}
 }
 
-// A run copies its input once, before the first pass that runs, and its passes change that copy;
-// a run in which no pass runs copies nothing and returns its input.
-func TestRunCopiesOnce(t *testing.T) {
+// A run consumes its input: without VerifyEach it copies nothing, its passes change the unit it was
+// given in place, and it returns that unit, also when no pass runs.
+func TestRunConsumesItsInput(t *testing.T) {
 	var n int
 	p := copying(fakePipeline(inPlace("a"), inPlace("b"), inPlace("c")), &n)
 	in := &unit{log: []string{"in"}}
@@ -308,19 +310,18 @@ func TestRunCopiesOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if n != 1 || u == in || !slices.Equal(u.log, []string{"in", "a", "b", "c", "analyze"}) || !slices.Equal(in.log, []string{"in"}) {
-		t.Errorf("%d copies, log %v, input log %v; want 1 copy, the passes' log and the input unchanged", n, u.log, in.log)
+	if n != 0 || u != in || !slices.Equal(u.log, []string{"in", "a", "b", "c", "analyze"}) {
+		t.Errorf("%d copies, the input returned %v, log %v; want no copy, the input changed by the passes", n, u == in, u.log)
 	}
-	n = 0
 	u, _, err = p.Run(in, mode{}, Options[*unit]{Enabled: func(string) bool { return false }})
 	if err != nil || n != 0 || u != in {
 		t.Errorf("no pass ran: %d copies, the input returned %v, err %v", n, u == in, err)
 	}
 }
 
-// A failing pass rolls the run back to its start: the run returns its input, which neither the
-// failed pass nor the passes before it changed, though they changed their copy in place.
-func TestFailedPassRollsBack(t *testing.T) {
+// A failing pass leaves the unit as the passes changed it: the run copies nothing and returns its
+// input, with what the passes before the failed one and the failed one changed in place.
+func TestFailedPassLeavesTheUnit(t *testing.T) {
 	var n int
 	half := Pass[*unit, mode]{Name: "half", Run: func(u *unit, _ mode) (*unit, PreservedSet, error) {
 		u.log = append(u.log, "half")
@@ -332,14 +333,50 @@ func TestFailedPassRollsBack(t *testing.T) {
 	if err == nil || err.Error() != "pass half: no" || !slices.Equal(ran, []string{"a", "b"}) {
 		t.Fatalf("ran %v, err %v", ran, err)
 	}
-	if u != in || !slices.Equal(in.log, []string{"in"}) || n != 1 {
-		t.Errorf("returned the input %v with the log %v after %d copies; want the input, unchanged, after 1", u == in, in.log, n)
+	if u != in || !slices.Equal(in.log, []string{"in", "a", "b", "half"}) || n != 0 {
+		t.Errorf("returned the input %v with the log %v after %d copies; want the input as the passes left it, after none", u == in, in.log, n)
+	}
+}
+
+// A caller that keeps its input says so, and its input is never changed: the run copies it once,
+// before the first pass that runs, and its passes change that copy; a run that succeeds returns the
+// copy, a failed one the input, unchanged; a run in which no pass runs copies nothing.
+func TestKeptInputIsUnchanged(t *testing.T) {
+	var n int
+	half := Pass[*unit, mode]{Name: "half", Run: func(u *unit, _ mode) (*unit, PreservedSet, error) {
+		u.log = append(u.log, "half")
+		return u, none, errors.New("no")
+	}}
+	for _, c := range []struct {
+		what   string
+		passes []Pass[*unit, mode]
+		err    string
+		log    []string
+	}{
+		{"a run that succeeds", []Pass[*unit, mode]{inPlace("a"), inPlace("b")}, "", []string{"in", "a", "b", "analyze"}},
+		{"a failed run", []Pass[*unit, mode]{inPlace("a"), inPlace("b"), half, inPlace("c")}, "pass half: no", []string{"in"}},
+	} {
+		n = 0
+		p := copying(fakePipeline(c.passes...), &n)
+		in := &unit{log: []string{"in"}}
+		u, _, err := p.Run(in, mode{}, Options[*unit]{Keep: true})
+		if (err == nil) != (c.err == "") || err != nil && err.Error() != c.err {
+			t.Fatalf("%s: err %v, want %q", c.what, err, c.err)
+		}
+		if !slices.Equal(in.log, []string{"in"}) || n != 1 || !slices.Equal(u.log, c.log) || (u == in) != (c.err != "") {
+			t.Errorf("%s: input log %v after %d copies; returned the log %v, the input %v; want the input unchanged after 1 copy, the log %v", c.what, in.log, n, u.log, u == in, c.log)
+		}
+	}
+	n = 0
+	p := copying(fakePipeline(inPlace("a")), &n)
+	in := &unit{log: []string{"in"}}
+	if u, _, err := p.Run(in, mode{}, Options[*unit]{Keep: true, Enabled: func(string) bool { return false }}); err != nil || n != 0 || u != in {
+		t.Errorf("no pass ran: %d copies, the input returned %v, err %v", n, u == in, err)
 	}
 }
 
 // With VerifyEach every pass gets a copy of its own: the error names the pass that broke the unit,
-// the run returns its input, intact, and each unit that the dump was given stays as its pass
-// returned it.
+// the input is intact, and each unit that the dump was given stays as its pass returned it.
 func TestVerifyEachCopiesEachPass(t *testing.T) {
 	var n int
 	breaker := Pass[*unit, mode]{Name: "breaker", Run: func(u *unit, _ mode) (*unit, PreservedSet, error) {
@@ -353,8 +390,8 @@ func TestVerifyEachCopiesEachPass(t *testing.T) {
 	if err == nil || err.Error() != "after pass breaker: broken by breaker" || !slices.Equal(ran, []string{"a", "breaker"}) {
 		t.Fatalf("ran %v, err %v", ran, err)
 	}
-	if u != in || u.broken != "" || !slices.Equal(in.log, []string{"in"}) {
-		t.Errorf("returned the input %v with the log %v, broken %q; want the input, intact", u == in, in.log, in.broken)
+	if u == in || u.broken != "breaker" || in.broken != "" || !slices.Equal(in.log, []string{"in"}) {
+		t.Errorf("returned the input %v, broken %q; the input has the log %v, broken %q; want the broken copy and the input intact", u == in, u.broken, in.log, in.broken)
 	}
 	if n != 2 {
 		t.Errorf("%d copies, want one for each of the 2 passes that ran", n)

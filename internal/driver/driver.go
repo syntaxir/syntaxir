@@ -28,6 +28,14 @@ import (
 // first stage runs, which numbers the runs of optional passes across the tables and functions of the
 // compilation and tells the observers (the dumps, CoreHook) about every step. A copy of a Driver
 // that has not run yet is a compilation of its own.
+//
+// Each stage consumes the unit it is given (pass.Stage.Run): Core takes the module that build makes,
+// FlowFunc the module that flowlower makes and ExecFunc the module of FlowFunc. The Core passes
+// change their module in place, since a failure drops it. The Flow and Exec passes of a function
+// keep their unit (pass.Transform.Keep), since after one of them fails the required steps and the
+// printer finish the function from the unit as it was before them: they change one copy of it. What
+// the caller keeps is the table's Core module, which FlowFunc lowers each function of the table from
+// (FlowFunc).
 type Driver struct {
 	// Opt holds the optimizations that are on.
 	Opt pass.Settings
@@ -139,16 +147,21 @@ func (d *Driver) Core(table string, build func() (*core.Module, error)) (*core.M
 // The function is dumped as "flowlower" as the lowering made it and as "flow-finish" as it leaves
 // the Flow stage, labeled with its table.
 //
+// The Core module of u stays the caller's, for the other functions of the table: flowlower only
+// reads it, and the module it makes shares the Core nodes and rules with it, which the Flow passes
+// and flow-finish read and never change (flow.Forms). So FlowFunc consumes only the module that the
+// lowering made, and copies nothing for the Core module.
+//
 // A failure of flowlower is returned as the *pass.StepError that names it, with no module. A failure
-// of a pass is an internal error that names the pass, returned with the module, which flow-finish
-// has ended.
+// of a pass is an internal error that names the pass, returned with the module as the lowering made
+// it, which flow-finish has ended, for a generation that fails with it.
 func (d *Driver) FlowFunc(table string, u flowlower.Unit, observe bool, target flowpass.Target) (*code.Module, error) {
 	p := flowpass.Pipeline
 	if d.FlowPipeline != nil {
 		p = d.FlowPipeline(table)
 	}
 	s := pass.Then(flowlower.Lowering, pass.Then(pass.Transforms(pass.Transform[*code.Module, *flowpass.Env]{
-		IR: flowlower.IR, Pipeline: p, BuiltVerified: true,
+		IR: flowlower.IR, Pipeline: p, BuiltVerified: true, Keep: true,
 		Env: func(_ *pass.Run, _ pass.Label, m *code.Module) *flowpass.Env {
 			return &flowpass.Env{Func: flow.AttrsOf(flow.FuncOf(m)), Observe: observe, Flag: d.Opt.On, Value: d.Opt.Value, Target: target}
 		},
@@ -169,9 +182,10 @@ func (d *Driver) FlowFunc(table string, u flowlower.Unit, observe bool, target f
 // (Lowered.WithModule), and the verifier of the lowered function (execlower.IR) checks it with the
 // module after the passes of target, as Pipeline.Run verifies.
 //
-// A failure of execlower is returned as the *pass.StepError that names it, with no result. A failure
-// of a pass or of a verification is an internal error that names it, returned with the result as the
-// failed segment of passes got it (pass.Pipeline.Run).
+// m is consumed: execlower moves its function into the result. A failure of execlower is returned
+// as the *pass.StepError that names it, with no result. A failure of a pass or of a verification is
+// an internal error that names it, returned with the result as the failed run of passes got it
+// (pass.Options.Keep), for a generation that fails with it.
 func (d *Driver) ExecFunc(table string, m *code.Module, target *TargetPipeline, observe bool) (*execlower.Lowered, error) {
 	p := codepass.Pipeline
 	if d.ExecPipeline != nil {
@@ -180,11 +194,11 @@ func (d *Driver) ExecFunc(table string, m *code.Module, target *TargetPipeline, 
 	env := func(*pass.Run, pass.Label, any) *codepass.Env { return &codepass.Env{Observe: observe, Flag: d.Opt.On} }
 	s := pass.Then(execlower.Lowering, pass.Then(
 		pass.Project(func(l *execlower.Lowered) *code.Module { return l.Module }, (*execlower.Lowered).WithModule, pass.Transforms(pass.Transform[*code.Module, *codepass.Env]{
-			IR: execModuleIR, Pipeline: p, BuiltVerified: true,
+			IR: execModuleIR, Pipeline: p, BuiltVerified: true, Keep: true,
 			Env: func(r *pass.Run, l pass.Label, m *code.Module) *codepass.Env { return env(r, l, m) },
 		})),
 		pass.Transforms(pass.Transform[*execlower.Lowered, *codepass.Env]{
-			IR: loweredIR, Pipeline: target, BuiltVerified: true,
+			IR: loweredIR, Pipeline: target, BuiltVerified: true, Keep: true,
 			Env: func(r *pass.Run, lb pass.Label, l *execlower.Lowered) *codepass.Env { return env(r, lb, l) },
 		})))
 	var name string

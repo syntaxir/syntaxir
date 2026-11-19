@@ -44,7 +44,8 @@ type Func struct {
 }
 
 // Unit is what one run of the lowering takes: the Core module Module of a table, on which Analyze
-// must have run, the options Opts of its functions, and the function Func.
+// must have run, the options Opts of its functions, and the function Func. The lowering only reads
+// Module, so the units of the functions of a table share it.
 type Unit struct {
 	Module *core.Module
 	Opts   Options

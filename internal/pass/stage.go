@@ -20,11 +20,12 @@ import (
 // its stages run, so that the unit still reaches the type of the last stage; the first error is the
 // one returned.
 //
-// The unit that Stage.Run is given belongs to its caller and is not changed. The passes of each
-// Transforms stage change one copy of their unit, which the stage drops if one of them fails
-// (Pipeline.Run); a required step (Do) changes the unit in place once it belongs to the run, made by
-// a lowering or copied by the passes before, and copies it first otherwise. Under VerifyEach no step
-// changes a unit that an observer has received: each pass and each required step gets a copy.
+// A run of a stage consumes the unit it is given, as Pipeline.Run does: its steps change the unit in
+// place, and a caller that keeps its input gives the stage a copy (IR.Copy). After a failed pass the
+// required steps go on with the unit as the passes left it, unless the stage of the passes keeps its
+// unit (Transform.Keep): its passes then change one copy, and the steps after it go on with the unit
+// as the stage got it. Under VerifyEach no step changes a unit that an observer has received: each
+// pass and each required step gets a copy.
 
 // Step describes one step of a pipeline whatever its types.
 type Step struct {
@@ -54,8 +55,9 @@ type IR[M any] struct {
 	Verify func(m M) error
 	// Print writes the dump of the unit m with the label l after the step whose dump name is after.
 	Print func(w io.Writer, l Label, after string, m M)
-	// Copy returns a deep copy of the unit m that a step may change without changing m; nil means
-	// that a unit is a value, which no step can change in place.
+	// Copy returns a deep copy of the unit m that a step may change without changing m, which a
+	// required step takes under VerifyEach; nil means that a unit is a value, which no step can
+	// change in place.
 	Copy func(m M) M
 }
 
@@ -106,7 +108,6 @@ func (r *Run) after(e Event, print func(io.Writer), unit any) {
 type state struct {
 	err    error // the first failure
 	broken bool  // a required step failed, so the unit has no value of the next type
-	owned  bool  // the unit is the run's own, made or copied by a step, not the caller's
 }
 
 func (st *state) fail(err error) {
@@ -144,9 +145,9 @@ func (s Stage[I, O]) Check() error {
 	return nil
 }
 
-// Run runs the stage on the unit in, labeled l, under r. After a failure only the required steps
-// run; the first error is returned, with the unit as the steps left it, which is the zero O if a
-// required step failed.
+// Run runs the stage on the unit in, labeled l, under r, and consumes in. After a failure only the
+// required steps run; the first error is returned, with the unit as the steps left it, which is the
+// zero O if a required step failed.
 func (s Stage[I, O]) Run(r *Run, l Label, in I) (O, error) {
 	var st state
 	out := s.run(r, l, in, &st)
@@ -182,13 +183,18 @@ type Transform[M, X any] struct {
 	// Analyses, if not nil, returns the manager of the analyses of the unit, which outlives the run;
 	// nil runs with a manager of its own.
 	Analyses func(m M) *AnalysisManager[M]
+	// Keep reports that what comes after the stage reads the unit as the stage got it if a pass
+	// fails, such as the required steps and the printer that finish a function whose passes failed:
+	// the passes change one copy, which a failure drops (Options.Keep). Without it the passes
+	// consume the unit.
+	Keep bool
 }
 
 // Transforms makes the passes of t.Pipeline a stage. It skips them after a failure; otherwise it
 // runs them as Pipeline.Run does, under the settings and the verification of the Run, numbering each
 // run of an optional pass and telling the observers. It returns the unit that Pipeline.Run returns:
-// after a failed pass, the unit as the stage got it, on which the required steps after the stage go
-// on.
+// after a failed pass, the unit as the passes left it, or with t.Keep the unit as the stage got it,
+// on which the required steps after the stage go on.
 func Transforms[M, X any](t Transform[M, X]) Stage[M, M] {
 	var steps []Step
 	for _, ps := range t.Pipeline.Passes {
@@ -212,6 +218,7 @@ func Transforms[M, X any](t Transform[M, X]) Stage[M, M] {
 		o := Options[M]{
 			Enabled:       r.Enabled,
 			VerifyEach:    r.VerifyEach,
+			Keep:          t.Keep,
 			BuiltVerified: t.BuiltVerified,
 			gate: func(name string) bool {
 				r.seq++
@@ -231,11 +238,9 @@ func Transforms[M, X any](t Transform[M, X]) Stage[M, M] {
 		if t.Analyses != nil {
 			o.Analyses = t.Analyses(m)
 		}
-		m, ran, err := t.Pipeline.Run(m, t.Env(r, l, m), o)
+		m, _, err := t.Pipeline.Run(m, t.Env(r, l, m), o)
 		if err != nil {
 			st.fail(err)
-		} else if len(ran) > 0 && t.Pipeline.Copy != nil {
-			st.owned = true
 		}
 		return m
 	}}
@@ -257,7 +262,6 @@ func Lower[I, O any](name, in string, out IR[O], f func(I) (O, error)) Stage[I, 
 			st.broken = true
 			return zero
 		}
-		st.owned = true
 		r.after(Event{Step: s, Label: l}, func(w io.Writer) {
 			if out.Print != nil {
 				out.Print(w, l, s.Dump, o)
@@ -268,18 +272,16 @@ func Lower[I, O any](name, in string, out IR[O], f func(I) (O, error)) Stage[I, 
 }
 
 // Do makes f a required step on a unit at the stage of ir, dumped under name if ir prints: f
-// returns the unit after the step, and may change m in place. f gets the run's own unit: a unit that
-// is still the caller's is copied first (ir.Copy), and so is every unit under Run.VerifyEach, which
-// an observer may keep. It runs after a failure too.
+// returns the unit after the step, and may change m in place. Under Run.VerifyEach f gets a copy
+// (ir.Copy), since an observer may keep the unit. It runs after a failure too.
 func Do[M any](name string, ir IR[M], f func(m M) M) Stage[M, M] {
 	s := Step{Name: name, Required: true, In: ir.Stage, Out: ir.Stage}
 	if ir.Print != nil {
 		s.Dump = name
 	}
 	return Stage[M, M]{steps: []Step{s}, run: func(r *Run, l Label, m M, st *state) M {
-		if ir.Copy != nil && (!st.owned || r.VerifyEach) {
+		if ir.Copy != nil && r.VerifyEach {
 			m = ir.Copy(m)
-			st.owned = true
 		}
 		m = f(m)
 		r.after(Event{Step: s, Label: l}, func(w io.Writer) {
@@ -291,19 +293,13 @@ func Do[M any](name string, ir IR[M], f func(m M) M) Stage[M, M] {
 	}}
 }
 
-// Project runs the stage s on the part of a unit M that get returns. If s returns another part, put
-// returns the unit with that part in place of the old one, without changing m; otherwise the unit
-// is m. A part that put cannot take, such as one that lost what the unit refers to, is a failure of
-// the stage, after which the unit is m.
-func Project[M any, P comparable](get func(m M) P, put func(m M, p P) (M, error), s Stage[P, P]) Stage[M, M] {
+// Project runs the stage s on the part of a unit M that get returns, and put returns the unit with
+// the part that s returned in place of the old one. s consumes the part, so put gets it even if it is
+// the same value, which s may have changed in place. A part that put cannot take, such as one that
+// lost what the unit refers to, is a failure of the stage, after which the unit is m.
+func Project[M any, P any](get func(m M) P, put func(m M, p P) (M, error), s Stage[P, P]) Stage[M, M] {
 	return Stage[M, M]{steps: s.steps, run: func(r *Run, l Label, m M, st *state) M {
-		// The unit that put returns may share parts with m, so it is the run's own only if m is.
-		defer func(owned bool) { st.owned = owned }(st.owned)
-		p := get(m)
-		q := s.run(r, l, p, st)
-		if q == p {
-			return m
-		}
+		q := s.run(r, l, get(m), st)
 		out, err := put(m, q)
 		if err != nil {
 			st.fail(err)

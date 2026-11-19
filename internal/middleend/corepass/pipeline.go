@@ -81,7 +81,7 @@ type RunOptions struct {
 }
 
 // Run runs the enabled passes of Pipeline on m, and verifies the module. It returns the module after
-// them, and the names of the passes that ran; m is not changed.
+// them, and the names of the passes that ran. It consumes m (pass.Pipeline.Run).
 func Run(m *core.Module, e *Env, o RunOptions) (*core.Module, []string, error) {
 	return Pipeline.Run(m, e, o.Options(e))
 }

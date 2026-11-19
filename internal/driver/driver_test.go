@@ -200,8 +200,9 @@ func TestDriverFlowFunc(t *testing.T) {
 	}
 }
 
-// The Flow passes of a function change one copy of the module that flowlower made, and flow-finish
-// finishes it in place; under VerifyEach every pass that runs takes a copy of its own.
+// The Flow passes of a function change one copy of the module that flowlower made, which flow-finish
+// and the printer go on without if a pass fails, and flow-finish finishes it in place; under
+// VerifyEach every pass that runs takes a copy of its own.
 func TestDriverFlowFuncCopies(t *testing.T) {
 	all := flowpass.Target{Terminals: true, ClassRuns: true, ClassTables: true, GuardedClasses: true, InlineLiterals: true}
 	for _, verifyEach := range []bool{false, true} {
@@ -229,6 +230,39 @@ func TestDriverFlowFuncCopies(t *testing.T) {
 		}
 		if ran < 2 || copies != want {
 			t.Errorf("VerifyEach %v: %d passes ran with %d copies, want %d", verifyEach, ran, copies, want)
+		}
+	}
+}
+
+// The table's Core module, which the driver lowers each function of the table from, is the caller's:
+// neither the lowering nor the Flow passes nor flow-finish change it, whether the passes succeed or
+// one fails, so the next function of the table lowers from the same module.
+func TestDriverFlowFuncKeepsTheCoreModule(t *testing.T) {
+	all := flowpass.Target{Terminals: true, ClassRuns: true, ClassTables: true, GuardedClasses: true, InlineLiterals: true}
+	cause := errors.New("broken")
+	failing := *flowpass.Pipeline
+	failing.Passes = append(slices.Clone(failing.Passes), pass.Pass[*code.Module, *flowpass.Env]{
+		Name: "test-flow-fail", Obligation: "none: it fails", Run: func(m *code.Module, _ *flowpass.Env) (*code.Module, pass.PreservedSet, error) {
+			flow.FuncOf(m).Body.Stmts = nil
+			return m, pass.PreserveAll(), cause
+		}})
+	for _, c := range []struct {
+		what string
+		d    *Driver
+		err  error
+	}{
+		{"passes that succeed", &Driver{}, nil},
+		{"a failing pass", &Driver{FlowPipeline: func(string) *pass.Pipeline[*code.Module, *flowpass.Env] { return &failing }, TestPasses: []string{"test-flow-fail"}}, cause},
+	} {
+		u := framed()
+		before := core.Print(u.Module, true)
+		for range 2 {
+			if _, err := c.d.FlowFunc("typed", u, false, all); !errors.Is(err, c.err) {
+				t.Fatalf("%s: %v", c.what, err)
+			}
+			if after := core.Print(u.Module, true); after != before {
+				t.Errorf("%s: the Core module changed:\n%s\nwas\n%s", c.what, after, before)
+			}
 		}
 	}
 }
