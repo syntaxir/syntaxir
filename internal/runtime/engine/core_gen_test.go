@@ -50,7 +50,7 @@ type coreGenCase struct {
 	golden *decisionsGolden
 	gen    *print.Generator
 	m      *core.Module
-	origin map[core.Node]ast.Expr
+	origin irbuild.Origin
 	// rules holds the rules of the program by ID, value-free twins included.
 	rules []*common.Rule
 	// passErrs holds the violations Verify found after a pass.
@@ -70,7 +70,7 @@ func (c *coreGenCase) g() *print.Generator { return c.gen }
 // body is the innermost expression it is built from: inside a capture that builds nothing, for
 // one.)
 func (c *coreGenCase) altOrigin(x *core.Choice, i int) (ast.Expr, bool) {
-	if ce, ok := c.origin[x].(*ast.Choice); ok && len(ce.Alts) == len(x.Alts) {
+	if ce, ok := c.origin.Of(x).(*ast.Choice); ok && len(ce.Alts) == len(x.Alts) {
 		return ce.Alts[i], true
 	}
 	return altOriginIn(c.origin, x, i)
@@ -116,16 +116,20 @@ func recognizerOf(g *print.Generator) (*common.Program, error) {
 }
 
 // coreTypedCase builds the Core IR of the typed rules of the generated parser with the passes of
-// print.Generator.TypedCore, verifying the module after each pass and following the repetitions
-// the scan pass replaces, so that every scan has the origin of its repetition. If breaks is not nil, it is called
+// print.Generator.TypedCore, verifying the module after each pass. A scan has the ID, and so the
+// origin, of the repetition it replaces. If breaks is not nil, it is called
 // after each pass, before the module is verified: a negative control breaks a pass there.
 func coreTypedCase(name, mode string, gen *print.Generator, breaks func(c *coreGenCase, pass string, m *core.Module)) (*coreGenCase, error) {
-	c := &coreGenCase{name: name, mode: mode, table: "trules", golden: typedGolden, gen: gen, origin: map[core.Node]ast.Expr{}}
+	c := &coreGenCase{name: name, mode: mode, table: "trules", golden: typedGolden, gen: gen}
 	c.flow = flowRecordOf(gen).decisions(c.table, gen)
 	c.rules = typedRules(gen)
-	var repeats []func()
 	d := driverOf(gen)
+	origin := map[core.Node]ast.Expr{}
 	d.CoreHook = func(pass string, m *core.Module) {
+		// The module is built, and so the origin known, before the first pass.
+		if c.origin == nil {
+			c.origin = irbuild.OriginByID(origin)
+		}
 		if breaks != nil {
 			breaks(c, pass, m)
 		}
@@ -133,21 +137,13 @@ func coreTypedCase(name, mode string, gen *print.Generator, breaks func(c *coreG
 		if err := core.Verify(m); err != nil {
 			c.passErrs = append(c.passErrs, fmt.Sprintf("after %s: %v", pass, err))
 		}
-		switch pass {
-		case "guards":
-			repeats = irbuild.FollowRepeats(m, c.origin)
-		case "scans":
-			for _, f := range repeats {
-				f()
-			}
-		}
 	}
 	defer func() { d.CoreHook = nil }()
-	m, err := gen.TypedCore(c.origin)
+	m, err := gen.TypedCore(origin)
 	if err != nil {
 		return nil, err
 	}
-	c.m = m
+	c.m, c.origin = m, irbuild.OriginByID(origin)
 	return c, nil
 }
 
@@ -338,7 +334,7 @@ func coreDecisionLines(c *coreGenCase, n *coreDecisionCounts) (lines, problems [
 					}
 				}
 			case *core.Scan:
-				e, ok := c.origin[x]
+				e, ok := c.origin[x.Attrs().ID]
 				if !ok {
 					problem("scan", "scan without origin")
 					return
@@ -348,7 +344,7 @@ func coreDecisionLines(c *coreGenCase, n *coreDecisionCounts) (lines, problems [
 					n.scans++
 				}
 			case *core.Repeat:
-				e, ok := c.origin[x].(*ast.Repeat)
+				e, ok := c.origin.Of(x).(*ast.Repeat)
 				if !ok || x.Scope == nil {
 					return
 				}
