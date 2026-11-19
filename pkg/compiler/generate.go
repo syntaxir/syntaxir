@@ -125,9 +125,9 @@ type GoConfig struct {
 	OmitPackageDoc bool
 	// PrintAfter lists, separated by commas, the steps and passes after which the intermediate
 	// representation of the generator is written to PrintTo as text, for debugging the generator:
-	// core and the names of the Core passes for the Core IR, flow and the names of the Flow passes
-	// for the Flow IR, exec and the names of the Exec passes for the Exec IR, or all. It needs
-	// PrintTo.
+	// elaborate and the names of the Core passes for the Core IR; flowlower, the names of the Flow
+	// passes and flow-finish for the Flow IR; execlower and the names of the Exec passes for the
+	// Exec IR; or all. "zp gen -h" lists the names. It needs PrintTo.
 	PrintAfter string
 	PrintTo    io.Writer
 }
@@ -223,9 +223,9 @@ type TSConfig struct {
 	MaxDepth int
 	// PrintAfter lists, separated by commas, the steps and passes after which the intermediate
 	// representation of the generator is written to PrintTo as text, for debugging the generator:
-	// core and the names of the Core passes for the Core IR, flow and the names of the Flow passes
-	// for the Flow IR, exec and the names of the Exec passes for the Exec IR, or all. It needs
-	// PrintTo.
+	// elaborate and the names of the Core passes for the Core IR; flowlower, the names of the Flow
+	// passes and flow-finish for the Flow IR; execlower and the names of the Exec passes for the
+	// Exec IR; or all. "zp gen -h" lists the names. It needs PrintTo.
 	PrintAfter string
 	PrintTo    io.Writer
 }
