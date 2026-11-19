@@ -417,8 +417,46 @@ func Walk(n Node, f func(Node)) {
 		}
 		return
 	}
-	for _, c := range Children(n) {
-		Walk(c, f)
+	eachChild(n, func(c Node) { Walk(c, f) })
+}
+
+// eachChild calls f for each node that Children returns for n, in the same order, without making
+// the list.
+func eachChild(n Node, f func(Node)) {
+	switch n := n.(type) {
+	case *Seq:
+		for _, x := range n.Items {
+			f(x)
+		}
+	case *Choice:
+		for _, a := range n.Alts {
+			f(a.Body)
+		}
+	case *Opt:
+		f(n.Body)
+	case *Repeat:
+		f(n.Body)
+	case *Look:
+		f(n.Body)
+	case *Nest:
+		f(n.Body)
+	case *Text:
+		f(n.Body)
+	case *Drop:
+		f(n.Body)
+	case *Capture:
+		f(n.Body)
+	case *Label:
+		f(n.Body)
+	case *Recover:
+		f(n.Body)
+		f(n.Skip)
+	case *Missing:
+		f(n.Body)
+	case *Stream:
+		f(n.Repeat)
+	case *Terminal:
+		f(n.Body)
 	}
 }
 

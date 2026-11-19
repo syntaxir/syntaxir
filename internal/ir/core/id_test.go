@@ -1,6 +1,9 @@
 package core
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 // everyNode returns a module whose rules hold a node of every type, with a node reached from two
 // places (the literal of a Missing) and a value-free twin.
@@ -75,5 +78,29 @@ func TestNumber(t *testing.T) {
 	}
 	if id := m.NewID(); id != last+1 {
 		t.Errorf("NewID = %d, want %d", id, last+1)
+	}
+}
+
+// Walk visits the children of a node as Children lists them, for every kind of node with children,
+// and numbering a module visits each node once without making a list of its children.
+func TestWalkFollowsChildren(t *testing.T) {
+	a, b := &Lit{Text: "a"}, &Lit{Text: "b"}
+	for _, n := range []Node{
+		&Seq{Items: []Node{a, b}}, &Choice{Alts: []*Alt{{Body: a}, {Body: b}}}, &Opt{Body: a}, &Repeat{Body: a},
+		&Look{Body: a}, &Nest{Body: a}, &Text{Body: a}, &Drop{Body: a}, &Capture{Body: a}, &Label{Body: a},
+		&Recover{Body: a, Skip: b}, &Missing{Body: a}, &Stream{Repeat: &Repeat{Body: a}}, &Terminal{Body: a}, a,
+	} {
+		var walked []Node
+		eachChild(n, func(c Node) { walked = append(walked, c) })
+		if want := Children(n); !slices.Equal(walked, want) {
+			t.Errorf("%T: walked %v, children %v", n, walked, want)
+		}
+	}
+	m := &Module{Rules: []*Rule{{Name: "r", Body: &Seq{Items: []Node{&Choice{Alts: []*Alt{{Body: a}, {Body: &Opt{Body: b}}}}, &Lit{Text: "c"}}}}}}
+	if allocs := testing.AllocsPerRun(10, func() {
+		Walk(m.Rules[0].Body, func(n Node) { n.Attrs().ID = 0 })
+		Number(m)
+	}); allocs != 0 {
+		t.Errorf("numbering a module made %v allocations, want none", allocs)
 	}
 }
