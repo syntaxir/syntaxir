@@ -42,7 +42,7 @@ flowchart LR
    generators run the passes that a profile or a flag selects without importing the driver. `Passes` only validates the
    settings (`Validate`) and has no way to read them; the runner is the only source of the optimizations, and a
    generator reads them from it (`Generator.Opt`), so the printers and the passes cannot disagree, and a generator without a runner fails with a message that says so. Tests that replace a
-   pipeline pass `generate.Hooks`, which has no field for the settings, the dumps or the verification.
+   pipeline pass `Hooks` (of the `generate` package), which has no field for the settings, the dumps or the verification.
 4. The printer prints the legalized Exec stage. The generated parser and the library it uses come from the same
    representation, so the rules of a generated parser and the mechanisms they call agree.
 
