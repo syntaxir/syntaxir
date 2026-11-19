@@ -13,13 +13,19 @@ import (
 // temporary repository and a temporary bare remote. They never touch this repository or the
 // real queue.
 
+// gitIsolated keeps git in the scratch repositories from reading the global and system
+// configuration. Resetting HOME is not enough: git also reads $XDG_CONFIG_HOME/git/config, and a
+// setting there such as core.fsmonitor starts a daemon that a git fetch in a scratch repository
+// can wait on forever.
+var gitIsolated = []string{"GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1"}
+
 func scriptEnv(t *testing.T, state string) []string {
 	t.Helper()
-	return append(os.Environ(),
+	env := append(os.Environ(),
 		"ZP_AGENT_STATE="+state, "BENCHLOCK_POLL=1",
 		"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.com",
-		"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@example.com",
-		"GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null")
+		"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@example.com")
+	return append(env, gitIsolated...)
 }
 
 func runIn(t *testing.T, dir string, env []string, name string, args ...string) (string, error) {
@@ -242,7 +248,7 @@ func TestScriptsRequireAgentState(t *testing.T) {
 			base = append(base, kv)
 		}
 	}
-	base = append(base, "HOME="+home, "BENCHLOCK_POLL=1")
+	base = append(append(base, "HOME="+home, "BENCHLOCK_POLL=1"), gitIsolated...)
 	src, err := filepath.Abs(filepath.Join("..", "..", "..", ".agents", "scripts"))
 	if err != nil {
 		t.Fatal(err)
