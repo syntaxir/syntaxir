@@ -41,7 +41,7 @@ func coreRecognizeCase(name, mode string, g *print.Generator) (*coreGenCase, err
 			}
 		}
 	}
-	env := &corepass.Env{Flag: g.Opt.On, PrepareScans: prepare}
+	env := &corepass.Env{Flag: g.Opt().On, PrepareScans: prepare}
 	if _, err := corepass.Run(m, env, corepass.RunOptions{Dump: check}); err != nil {
 		return nil, err
 	}

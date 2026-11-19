@@ -7,7 +7,6 @@ import (
 
 	"zeroparse.dev/zp/internal/backend/codegen/common"
 	"zeroparse.dev/zp/internal/backend/codegen/golang/print"
-	"zeroparse.dev/zp/internal/driver"
 	"zeroparse.dev/zp/internal/driver/generate"
 	"zeroparse.dev/zp/internal/ir/code"
 	"zeroparse.dev/zp/internal/ir/core"
@@ -84,7 +83,7 @@ rule num = [0-9]+
 		t.Fatal(err)
 	}
 	opts := common.GenOptions{Types: true, TypedOnly: true, Module: "example.com/p", Lib: common.LibImport}
-	hooks := driver.Driver{CoreRun: withBrokenGuards()}
+	hooks := generate.Hooks{CoreRun: withBrokenGuards()}
 
 	_, err = print.GenerateParser(pg, codegentest.Compile, generate.Passes(opts, hooks), codegentest.WithLib(opts), nil)
 	if err == nil || !strings.Contains(err.Error(), "verification:") || strings.Contains(err.Error(), "break-guard") {
@@ -126,7 +125,7 @@ rule num = [0-9]+
 	for _, c := range pipelineTables {
 		t.Run(c.table, func(t *testing.T) {
 			seen := 0
-			hooks := driver.Driver{FlowRun: codegentest.BrokenFlowRun(c.table, &seen)}
+			hooks := generate.Hooks{FlowRun: codegentest.BrokenFlowRun(c.table, &seen)}
 			opts := c.opts
 			_, err := print.GenerateParser(pg, codegentest.Compile, generate.Passes(opts, hooks), codegentest.WithLib(opts), nil)
 			if err == nil || !strings.Contains(err.Error(), "of table "+c.table+": ") || !strings.Contains(err.Error(), "verification:") || strings.Contains(err.Error(), "break-flow") {
@@ -158,7 +157,7 @@ rule num = [0-9]+
 	for _, c := range pipelineTables {
 		t.Run(c.table, func(t *testing.T) {
 			seen := 0
-			hooks := driver.Driver{ExecRun: codegentest.BrokenExecRun(c.table, &seen)}
+			hooks := generate.Hooks{ExecRun: codegentest.BrokenExecRun(c.table, &seen)}
 			opts := c.opts
 			_, err := print.GenerateParser(pg, codegentest.Compile, generate.Passes(opts, hooks), codegentest.WithLib(opts), nil)
 			if err == nil || !strings.Contains(err.Error(), "of table "+c.table+": ") || !strings.Contains(err.Error(), "verification:") || strings.Contains(err.Error(), "break-exec") {
@@ -214,7 +213,7 @@ rule num = [0-9]+
 		}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			hooks := driver.Driver{ExecRun: func(_ string, m *code.Module, env *codepass.Env, o codepass.RunOptions) ([]string, error) {
+			hooks := generate.Hooks{ExecRun: func(_ string, m *code.Module, env *codepass.Env, o codepass.RunOptions) ([]string, error) {
 				ran, err := codepass.RunPasses(m, env, o)
 				c.run(m)
 				return ran, err

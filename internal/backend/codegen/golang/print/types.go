@@ -242,10 +242,10 @@ func (it *StreamValueIterator) Close() { it.pull.Close() }
 	}
 	named.WriteString("\tdefault:\n\t\treturn nil, zpGrammar.StartError(name)\n\t}\n}\n")
 	units := append([]shakeUnit(nil), astHelperUnits...)
-	bootstrap := g.Opt.On("typed-output-bootstrap")
+	bootstrap := g.Opt().On("typed-output-bootstrap")
 	// The default form of the chunk helpers is the library's (Chunk, Alloc, AllocSlice); only the
 	// measurement references (separate allocation, no bootstrap, plain slabs) print local helpers.
-	if bootstrap && g.Opt.On("typed-object-slabs") && g.Opt.On("typed-list-slabs") {
+	if bootstrap && g.Opt().On("typed-object-slabs") && g.Opt().On("typed-list-slabs") {
 		g.chunksInLib = true
 		units = units[:0:0]
 		for _, u := range astHelperUnits {
@@ -255,7 +255,7 @@ func (it *StreamValueIterator) Close() { it.pull.Close() }
 		}
 	} else {
 		switch {
-		case !g.Opt.On("typed-object-slabs"):
+		case !g.Opt().On("typed-object-slabs"):
 			units = append(units, shakeUnit{"astNew", astIndividualObjectHelper})
 		case bootstrap:
 			units = append(units, shakeUnit{"astNew", astBootstrapObjectHelper})
@@ -263,7 +263,7 @@ func (it *StreamValueIterator) Close() { it.pull.Close() }
 			units = append(units, shakeUnit{"astNew", astObjectSlabHelper})
 		}
 		switch {
-		case !g.Opt.On("typed-list-slabs"):
+		case !g.Opt().On("typed-list-slabs"):
 			units = append(units, shakeUnit{"astSlice", astIndividualListHelper})
 		case bootstrap:
 			units = append(units, shakeUnit{"astSlice", astBootstrapListHelper})

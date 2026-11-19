@@ -9,7 +9,6 @@ import (
 	"zeroparse.dev/zp/internal/backend/codegen/common"
 	goprint "zeroparse.dev/zp/internal/backend/codegen/golang/print"
 	tsprint "zeroparse.dev/zp/internal/backend/codegen/typescript/print"
-	"zeroparse.dev/zp/internal/driver"
 	"zeroparse.dev/zp/internal/driver/generate"
 	"zeroparse.dev/zp/pkg/grammar/ast"
 )
@@ -120,7 +119,7 @@ func GenerateTSRaw(g *ast.Grammar, opts common.GenOptions) ([]common.GeneratedFi
 // Passes returns the passes that the driver resolves from opts (generate.Passes), as the generators of
 // package generate run them.
 func Passes(opts common.GenOptions) common.Passes {
-	return generate.Passes(opts, driver.Driver{})
+	return generate.Passes(opts, generate.Hooks{})
 }
 
 // NoOptIf returns the optimizations to turn off (common.GenOptions.NoOpt) if cond holds, and none

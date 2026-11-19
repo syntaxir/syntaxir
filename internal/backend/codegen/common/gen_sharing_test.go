@@ -15,13 +15,13 @@ import (
 
 func TestGeneratedSharingIdentity(t *testing.T) {
 	t.Parallel()
-	ts := &tsprint.Generator{Generator: common.Generator{Table: "rules"}}
+	ts := &tsprint.Generator{Generator: common.Generator{Table: "rules", Runner: codegentest.Passes(common.GenOptions{}).Runner(nil)}}
 	name := ts.Method("first", "return [null, true];\n")
 	ts.Table = "recRules"
 	if ts.Method("recognition", "return [null, true];\n") != name {
 		t.Fatal("identical TypeScript bodies should share across rule tables")
 	}
-	g := &goprint.Generator{Table: "rules"}
+	g := &goprint.Generator{Table: "rules", Runner: codegentest.Passes(common.GenOptions{}).Runner(nil)}
 	a := g.Method("first", "return nil, true\n")
 	g.Table = "recRules"
 	if g.Method("recognition", "return nil, true\n") != a {

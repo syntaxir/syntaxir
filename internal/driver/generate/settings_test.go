@@ -65,7 +65,7 @@ func TestSettingsOrder(t *testing.T) {
 func TestPassesRunners(t *testing.T) {
 	t.Parallel()
 	var dumps bytes.Buffer
-	hooks := driver.Driver{CoreHook: func(string, *core.Module) {}}
+	hooks := generate.Hooks{CoreHook: func(string, *core.Module) {}}
 	p := generate.Passes(common.GenOptions{NoOpt: []string{"guards"}, PrintAfter: "guards", PrintTo: &dumps, VerifyEachPass: true}, hooks)
 	s, err := p.Settings()
 	if err != nil || s.On("guards") {
@@ -85,7 +85,7 @@ func TestPassesRunners(t *testing.T) {
 	if runners[0] == runners[1] {
 		t.Error("two runners share a driver")
 	}
-	if _, err := generate.Passes(common.GenOptions{PrintAfter: "guards"}, driver.Driver{}).Settings(); err == nil || !strings.Contains(err.Error(), "needs a PrintTo writer") {
+	if _, err := generate.Passes(common.GenOptions{PrintAfter: "guards"}, generate.Hooks{}).Settings(); err == nil || !strings.Contains(err.Error(), "needs a PrintTo writer") {
 		t.Errorf("PrintAfter without PrintTo: %v", err)
 	}
 }

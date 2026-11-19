@@ -31,6 +31,10 @@ type Passes interface {
 // A Runner runs the pass pipelines of the IR for a generator, under the settings of its Passes. A
 // failure is an internal error that names the pass. The driver implements it (driver.Driver).
 type Runner interface {
+	// Settings returns the optimizations that the runner runs the pipelines with: the settings of
+	// its Passes, which the generator reads through Generator.Opt, so that the printers and the
+	// passes use the same ones.
+	Settings() pass.Settings
 	// RunCore runs the pipeline of Core passes on m, the Core IR of the table named table;
 	// prepareScans is called around the scans (corepass.Env).
 	RunCore(table string, m *core.Module, prepareScans func(*core.Module) func()) error

@@ -50,11 +50,11 @@ type Generator struct {
 	literalNames map[string]string
 	methodKeys   []generatedMethod
 	literalKeys  []string
-	// Opt holds the optimizations that are on (Passes.Settings).
-	Opt pass.Settings
-	// Runner runs the pipelines of the IR with those optimizations, the dumps of
-	// GenOptions.PrintAfter and the verification of GenOptions.VerifyEachPass (Passes.Runner).
-	Runner
+	// Runner runs the pipelines of the IR with the optimizations that are on, the dumps of
+	// GenOptions.PrintAfter and the verification of GenOptions.VerifyEachPass (Passes.Runner). It is
+	// required: it is also the only holder of the optimizations (Opt), so that the printers and the
+	// passes cannot disagree on them.
+	Runner Runner
 	// Flow holds the Core IR of the typed rules while they are printed from Flow IR, or nil;
 	// flowRules counts the rules printed from Flow IR as flat rules and flowFrames the bodies
 	// and lines printed as matchers of runtime-owned frames.
@@ -78,6 +78,38 @@ type Generator struct {
 	FieldTypes map[any]string
 	// fieldTypeKeys are the keys of fieldTypes in the order of their variables, for rollback.
 	fieldTypeKeys []any
+}
+
+// runner returns the Runner of the generator, and panics if there is none: a Generator is built
+// with the Runner of its Passes, so a missing one is a programming error.
+func (g *Generator) runner() Runner {
+	if g.Runner == nil {
+		panic("common.Generator has no Runner: set Generator.Runner to the Runner of its Passes before generating")
+	}
+	return g.Runner
+}
+
+// Opt returns the optimizations that are on: the settings of the Runner, the one holder of them.
+func (g *Generator) Opt() pass.Settings { return g.runner().Settings() }
+
+// RunCore runs the Core passes through the Runner.
+func (g *Generator) RunCore(table string, m *core.Module, prepareScans func(*core.Module) func()) error {
+	return g.runner().RunCore(table, m, prepareScans)
+}
+
+// RunFlow runs the Flow passes through the Runner.
+func (g *Generator) RunFlow(table string, m *code.Module, observe bool, target flowpass.Target) error {
+	return g.runner().RunFlow(table, m, observe, target)
+}
+
+// RunExec runs the Exec passes that every target runs through the Runner.
+func (g *Generator) RunExec(table string, m *code.Module, observe bool) error {
+	return g.runner().RunExec(table, m, observe)
+}
+
+// RunTarget runs the Exec passes of a target through the Runner.
+func (g *Generator) RunTarget(table string, p *TargetPipeline, l *execlower.Lowered, observe bool) error {
+	return g.runner().RunTarget(table, p, l, observe)
 }
 
 // FieldTypeVar returns the variable holding check type ft of key, declaring it with decl the
@@ -119,7 +151,7 @@ type generatedMethod struct {
 // MethodName returns an existing exact helper or reserves the next name.
 // The signature keeps Node, typed Go and TypeScript functions distinct.
 func (g *Generator) MethodName(signature, body string) (string, bool) {
-	if !g.Opt.On("method-sharing") {
+	if !g.Opt().On("method-sharing") {
 		return g.Name("e"), false
 	}
 	key := generatedMethod{signature, body}
@@ -138,7 +170,7 @@ func (g *Generator) MethodName(signature, body string) (string, bool) {
 // LiteralName shares immutable literal tables by decoded text. Descriptions
 // belong to each matcher, so spellings with different expectations stay distinct.
 func (g *Generator) LiteralName(value string) (string, bool) {
-	if !g.Opt.On("literal-sharing") || g.TypeScript && !g.Opt.On("ts-literal-sharing") {
+	if !g.Opt().On("literal-sharing") || g.TypeScript && !g.Opt().On("ts-literal-sharing") {
 		return g.Name("lit"), false
 	}
 	if name, ok := g.literalNames[value]; ok {

@@ -16,7 +16,7 @@ import (
 
 // typedEnv returns the environment in which Generator.TypedCore runs the pipeline for g.
 func typedEnv(g *print.Generator) *corepass.Env {
-	return &corepass.Env{Flag: g.Opt.On}
+	return &corepass.Env{Flag: g.Opt().On}
 }
 
 // pipelinedTypedCore runs the pipeline on the typed rules of g.

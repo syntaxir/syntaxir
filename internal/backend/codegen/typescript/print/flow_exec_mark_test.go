@@ -14,7 +14,7 @@ import (
 // testGenerator returns a generator whose settings are opt and whose runner runs the pipelines with
 // them, as the driver makes it for a generation (common.Passes).
 func testGenerator(opt pass.Settings) *Generator {
-	return &Generator{Generator: common.Generator{Opt: opt, Runner: &driver.Driver{Opt: opt}}}
+	return &Generator{Generator: common.Generator{Runner: &driver.Driver{Opt: opt}}}
 }
 
 // markInIfFunc returns a framed function whose mark of the parser state is set in the body of an If

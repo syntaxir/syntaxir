@@ -9,6 +9,11 @@ import (
 
 	"zeroparse.dev/zp/internal/backend/codegen/common"
 	"zeroparse.dev/zp/internal/driver"
+	"zeroparse.dev/zp/internal/ir/code"
+	"zeroparse.dev/zp/internal/ir/core"
+	"zeroparse.dev/zp/internal/middleend/codepass"
+	"zeroparse.dev/zp/internal/middleend/corepass"
+	"zeroparse.dev/zp/internal/middleend/flowpass"
 	"zeroparse.dev/zp/internal/pass"
 )
 
@@ -52,14 +57,26 @@ func resolve(o common.GenOptions) ([]string, pass.Settings, error) {
 	return printAfter, s, nil
 }
 
+// Hooks are the test hooks of the pipelines of a generation (the hook fields of driver.Driver, with the
+// same meaning). The settings, the dumps and the verification come from the GenOptions, so Hooks
+// has no field for them.
+type Hooks struct {
+	CoreHook func(pass string, m *core.Module)
+	CoreRun  func(m *core.Module, env *corepass.Env, o corepass.RunOptions) ([]string, error)
+	FlowRun  func(table string, m *code.Module, env *flowpass.Env, o flowpass.RunOptions) ([]string, error)
+	ExecRun  func(table string, m *code.Module, env *codepass.Env, o codepass.RunOptions) ([]string, error)
+}
+
 // Passes returns the passes of a generation with o (common.Passes): the settings of Settings, and
 // runners that are copies of hooks with those settings, the names of o.PrintAfter and
-// o.VerifyEachPass. hooks supplies only the test hooks of the driver (CoreHook, CoreRun, FlowRun,
-// ExecRun); the zero value runs the pipelines of the passes.
-func Passes(o common.GenOptions, hooks driver.Driver) common.Passes {
+// o.VerifyEachPass. hooks supplies only the test hooks of the driver; the zero value runs the
+// pipelines of the passes.
+func Passes(o common.GenOptions, hooks Hooks) common.Passes {
 	printAfter, s, err := resolve(o)
-	d := hooks
-	d.Opt, d.PrintAfter, d.VerifyEach = s, printAfter, o.VerifyEachPass
+	d := driver.Driver{
+		Opt: s, PrintAfter: printAfter, VerifyEach: o.VerifyEachPass,
+		CoreHook: hooks.CoreHook, CoreRun: hooks.CoreRun, FlowRun: hooks.FlowRun, ExecRun: hooks.ExecRun,
+	}
 	return passes{driver: d, err: err}
 }
 

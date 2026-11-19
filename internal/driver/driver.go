@@ -48,6 +48,9 @@ type Driver struct {
 	ExecRun func(table string, m *code.Module, env *codepass.Env, o codepass.RunOptions) ([]string, error)
 }
 
+// Settings returns the optimizations that are on (Opt), as common.Runner requires.
+func (d *Driver) Settings() pass.Settings { return d.Opt }
+
 // prints reports whether the unit is dumped after the named pass.
 func (d *Driver) prints(pass string) bool {
 	return d.PrintTo != nil && (slices.Contains(d.PrintAfter, pass) || slices.Contains(d.PrintAfter, PrintAll))

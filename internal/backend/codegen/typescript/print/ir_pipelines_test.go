@@ -9,7 +9,6 @@ import (
 
 	"zeroparse.dev/zp/internal/backend/codegen/common"
 	"zeroparse.dev/zp/internal/backend/codegen/typescript/print"
-	"zeroparse.dev/zp/internal/driver"
 	"zeroparse.dev/zp/internal/driver/generate"
 	"zeroparse.dev/zp/internal/testing/codegentest"
 )
@@ -64,7 +63,7 @@ rule num = [0-9]+
 		for _, ir := range []string{"flow", "exec"} {
 			t.Run(table+"/"+ir, func(t *testing.T) {
 				seen := 0
-				h := driver.Driver{}
+				h := generate.Hooks{}
 				if ir == "flow" {
 					h.FlowRun = codegentest.BrokenFlowRun(table, &seen)
 				} else {

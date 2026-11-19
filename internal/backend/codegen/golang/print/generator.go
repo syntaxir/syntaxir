@@ -195,7 +195,7 @@ func generateOnce(g *ast.Grammar, c common.Compiler, p common.Passes, opts commo
 			return nil, fmt.Errorf("stream generation needs a #stream repetition at the top level of the start rule %s", start.Name)
 		}
 	}
-	genGo := &Generator{typedOnly: (opts.TypedOnly || opts.RecognizeOnly) && !opts.KeepNodes, Document: opts.Document, NoBudget: !opts.LimitControls, Ordinary: !opts.LimitControls && !opts.Document, Prog: prog, Table: "rules", Opt: settings, Runner: p.Runner(dumps), hooks: *h, live: live, collect: collect, keepTableRules: (opts.TypedOnly || opts.RecognizeOnly) && !opts.KeepNodes}
+	genGo := &Generator{typedOnly: (opts.TypedOnly || opts.RecognizeOnly) && !opts.KeepNodes, Document: opts.Document, NoBudget: !opts.LimitControls, Ordinary: !opts.LimitControls && !opts.Document, Prog: prog, Table: "rules", Runner: p.Runner(dumps), hooks: *h, live: live, collect: collect, keepTableRules: (opts.TypedOnly || opts.RecognizeOnly) && !opts.KeepNodes}
 	// Go prints every form of the Flow passes.
 	genGo.FlowTarget = flowpass.Target{Terminals: true, ClassRuns: true, ClassTables: true, GuardedClasses: true, InlineLiterals: true}
 	if live != nil {
