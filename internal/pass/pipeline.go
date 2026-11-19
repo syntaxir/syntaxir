@@ -206,8 +206,9 @@ func (p *Pipeline[M, X]) Run(m M, x X, o Options[M]) (M, []string, error) {
 		// The first pass gets the run's own copy, which the later ones go on changing; under
 		// VerifyEach each pass gets a copy of its own. A copy keeps the analyses of its unit.
 		if p.Copy != nil && (len(ran) == 0 || o.VerifyEach) {
-			m = p.Copy(m)
-			am.move(m)
+			c := p.Copy(m)
+			am.move(m, c)
+			m = c
 		}
 		if err := ensure(ps.Requires, m); err != nil {
 			return in, ran, fmt.Errorf("pass %s: %w", ps.Name, err)
@@ -226,7 +227,7 @@ func (p *Pipeline[M, X]) Run(m M, x X, o Options[M]) (M, []string, error) {
 		// The analyses the pass preserved hold for its result. A manager bound to the result
 		// discards them when it is asked about another unit, such as m after a failure.
 		am.Invalidate(keep)
-		am.move(out)
+		am.move(m, out)
 		if o.VerifyEach {
 			if err := verify("after pass "+ps.Name, out); err != nil {
 				return in, ran, err

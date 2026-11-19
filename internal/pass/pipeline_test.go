@@ -215,29 +215,66 @@ func TestUndeclaredPreservationRecomputes(t *testing.T) {
 
 // A run with the caller's manager keeps its analyses there, for the unit the run returns: a later
 // run on that unit that preserves them does not compute them again, and the manager counts the
-// computations. A run on another unit computes them for it.
+// computations. A run on another unit computes them for it. The same holds when the pipeline
+// copies its units: the copy of the unit the cache is of keeps the cache, a copy of another unit
+// does not get it.
 func TestRunSharesTheCallersManager(t *testing.T) {
-	am := NewAnalysisManager[*unit](nil)
-	p := fakePipeline(logging("a", []Analysis{"attrs"}, all))
-	in := &unit{}
-	u := in
-	for range 2 {
-		var err error
-		if u, _, err = p.Run(u, mode{}, Options[*unit]{Analyses: am}); err != nil {
+	for _, copies := range []bool{false, true} {
+		am := NewAnalysisManager[*unit](nil)
+		p := fakePipeline(logging("a", []Analysis{"attrs"}, all))
+		if copies {
+			var n int
+			p = copying(p, &n)
+		}
+		in := &unit{}
+		u := in
+		for range 2 {
+			var err error
+			if u, _, err = p.Run(u, mode{}, Options[*unit]{Analyses: am}); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if want := []string{"analyze", "a", "a"}; !slices.Equal(u.log, want) {
+			t.Fatalf("copies %v: log %v, want %v", copies, u.log, want)
+		}
+		if am.Computations("attrs") != 1 {
+			t.Fatalf("copies %v: computations %d, want 1", copies, am.Computations("attrs"))
+		}
+		if _, _, err := p.Run(in, mode{}, Options[*unit]{Analyses: am}); err != nil {
 			t.Fatal(err)
 		}
+		if am.Computations("attrs") != 2 {
+			t.Fatalf("copies %v: computations after a run on another unit %d, want 2", copies, am.Computations("attrs"))
+		}
 	}
-	if want := []string{"analyze", "a", "a"}; !slices.Equal(u.log, want) {
-		t.Fatalf("log %v, want %v", u.log, want)
-	}
-	if am.Computations("attrs") != 1 {
-		t.Fatalf("computations %d, want 1", am.Computations("attrs"))
-	}
-	if _, _, err := p.Run(in, mode{}, Options[*unit]{Analyses: am}); err != nil {
-		t.Fatal(err)
-	}
-	if am.Computations("attrs") != 2 {
-		t.Fatalf("computations after a run on another unit %d, want 2", am.Computations("attrs"))
+}
+
+// A manager that holds the analyses of one unit never serves them for a unit that a run made of
+// another one: neither for the run's copy of it nor for the result of a pass that requires nothing.
+func TestAnotherUnitsCacheIsNotMoved(t *testing.T) {
+	keepsAll := Pass[*unit, mode]{Name: "keep", Obligation: "keep",
+		Run: func(u *unit, _ mode) (*unit, PreservedSet, error) { return u.with("keep"), all, nil }}
+	for _, copies := range []bool{false, true} {
+		am := NewAnalysisManager[*unit](nil)
+		other := &unit{}
+		if _, err := getNamed(am, other, "attrs", func(u *unit, _ *AnalysisManager[*unit]) (any, error) {
+			u.analyze()
+			return nil, nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+		p := fakePipeline(keepsAll)
+		if copies {
+			var n int
+			p = copying(p, &n)
+		}
+		u, _, err := p.Run(&unit{}, mode{}, Options[*unit]{Analyses: am})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := []string{"keep", "analyze"}; !slices.Equal(u.log, want) {
+			t.Errorf("copies %v: log %v, want %v: the verification must compute attrs for the run's unit", copies, u.log, want)
+		}
 	}
 }
 
