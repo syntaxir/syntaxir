@@ -78,8 +78,9 @@ func GenerateParser(g *ast.Grammar, c common.Compiler, p common.Passes, opts com
 	if err := opts.ValidateDefaultValue(); err != nil {
 		return nil, err
 	}
-	settings, err := p.Settings()
-	if err != nil {
+	// The settings that decide the output are read from the generator (Generator.Opt); this only
+	// reports the error of resolving them where the options are validated.
+	if err := p.Validate(); err != nil {
 		return nil, err
 	}
 	view, recognizer, err := c(g, common.CompileOptions{SourceInfo: opts.SourceInfo, DefaultValue: opts.DefaultValue, LeftRecursionBindings: opts.LeftRecursionBindings})
@@ -165,7 +166,7 @@ func GenerateParser(g *ast.Grammar, c common.Compiler, p common.Passes, opts com
 	}
 
 	var out strings.Builder
-	fmt.Fprintf(&out, "const G = mkGrammar(%d, %v, %v, %v);\n\n", common.GeneratedMaxDepth(opts), common.UseSparseMemo(settings, prog, rec), opts.Observability, opts.LimitControls)
+	fmt.Fprintf(&out, "const G = mkGrammar(%d, %v, %v, %v);\n\n", common.GeneratedMaxDepth(opts), common.UseSparseMemo(tsg.Opt(), prog, rec), opts.Observability, opts.LimitControls)
 	fmt.Fprintf(&out, "/**\n * Parses the whole input with the rule %s. unit selects the position unit (CodePoints by default).\n", start.Name)
 	out.WriteString(" * A string is parsed as its UTF-8 encoding would be (lone surrogates as U+FFFD), and bytes are\n")
 	out.WriteString(" * decoded as UTF-8 (invalid sequences as U+FFFD, one per byte). If the parse recovered from errors\n")
@@ -266,11 +267,11 @@ export function recognizeWithOptions(input: string | Uint8Array, options?: %[1]s
 	out.WriteString(tsg.Init.String())
 	out.WriteString("\n")
 	out.WriteString(tsg.Methods.String())
-	features, err := common.ParserFeatures(prog, rec, opts, settings)
+	features, err := common.ParserFeatures(prog, rec, opts, tsg.Opt())
 	if err != nil {
 		return nil, err
 	}
-	return tsFiles(opts, features, settings.On(common.UsedFeatures), out.String(), types)
+	return tsFiles(opts, features, tsg.Opt().On(common.UsedFeatures), out.String(), types)
 }
 
 // TsPrintRuns returns the code points that strconv.IsPrint accepts, for the library's quoteGo: the

@@ -39,9 +39,9 @@ flowchart LR
    manager as every other pass. Their flags are in the registry, and their dumps and verification work as for the other
    stages. The driver resolves the settings of a generation (`internal/driver/generate`) and hands the generator the
    optimizations and a runner of the pipelines (`Passes` and `Runner` of `internal/backend/codegen/common`), so the
-   generators run the passes that a profile or a flag selects without importing the driver. The runner is the one
-   holder of the optimizations: a generator reads them from it (`Generator.Opt`), so the printers and the passes
-   cannot disagree, and a generator without a runner fails with a message that says so. Tests that replace a
+   generators run the passes that a profile or a flag selects without importing the driver. `Passes` only validates the
+   settings (`Validate`) and has no way to read them; the runner is the only source of the optimizations, and a
+   generator reads them from it (`Generator.Opt`), so the printers and the passes cannot disagree, and a generator without a runner fails with a message that says so. Tests that replace a
    pipeline pass `generate.Hooks`, which has no field for the settings, the dumps or the verification.
 4. The printer prints the legalized Exec stage. The generated parser and the library it uses come from the same
    representation, so the rules of a generated parser and the mechanisms they call agree.

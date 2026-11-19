@@ -67,9 +67,8 @@ func TestPassesRunners(t *testing.T) {
 	var dumps bytes.Buffer
 	hooks := generate.Hooks{CoreHook: func(string, *core.Module) {}}
 	p := generate.Passes(common.GenOptions{NoOpt: []string{"guards"}, PrintAfter: "guards", PrintTo: &dumps, VerifyEachPass: true}, hooks)
-	s, err := p.Settings()
-	if err != nil || s.On("guards") {
-		t.Fatalf("settings: guards %v, err %v", s.On("guards"), err)
+	if err := p.Validate(); err != nil {
+		t.Fatalf("validate: %v", err)
 	}
 	var runners []*driver.Driver
 	for _, w := range []io.Writer{nil, &dumps} {
@@ -77,7 +76,7 @@ func TestPassesRunners(t *testing.T) {
 		if !ok {
 			t.Fatalf("the runner is %T, not a *driver.Driver", p.Runner(w))
 		}
-		if d.Opt.On("guards") || !slices.Equal(d.PrintAfter, []string{"guards"}) || !d.VerifyEach || d.CoreHook == nil || d.PrintTo != w {
+		if d.Settings().On("guards") || !slices.Equal(d.PrintAfter, []string{"guards"}) || !d.VerifyEach || d.CoreHook == nil || d.PrintTo != w {
 			t.Errorf("runner of %v: guards %v, PrintAfter %q, VerifyEach %v, CoreHook set %v, PrintTo %v", w, d.Opt.On("guards"), d.PrintAfter, d.VerifyEach, d.CoreHook != nil, d.PrintTo)
 		}
 		runners = append(runners, d)
@@ -85,7 +84,7 @@ func TestPassesRunners(t *testing.T) {
 	if runners[0] == runners[1] {
 		t.Error("two runners share a driver")
 	}
-	if _, err := generate.Passes(common.GenOptions{PrintAfter: "guards"}, generate.Hooks{}).Settings(); err == nil || !strings.Contains(err.Error(), "needs a PrintTo writer") {
+	if err := generate.Passes(common.GenOptions{PrintAfter: "guards"}, generate.Hooks{}).Validate(); err == nil || !strings.Contains(err.Error(), "needs a PrintTo writer") {
 		t.Errorf("PrintAfter without PrintTo: %v", err)
 	}
 }

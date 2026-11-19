@@ -14,17 +14,18 @@ import (
 // Passes are the pass settings of one generation, which the driver resolves from the GenOptions of
 // the generation (internal/driver/generate): the optimizations of GenOptions.Optimize, Opt and NoOpt,
 // the dumps of GenOptions.PrintAfter and the verification of GenOptions.VerifyEachPass. The
-// generators read the settings and run the pipelines through a Runner, so that a profile or a flag
-// means the same passes whatever the backend, and the back end does not import the driver.
+// generators run the pipelines through a Runner, which is the only way to read the resolved
+// optimizations (Runner.Settings, Generator.Opt), so that a profile or a flag means the same passes
+// for the passes and the printers whatever the backend, and the back end does not import the driver.
 type Passes interface {
-	// Settings returns the optimizations that are on, or the error of resolving the settings: a
-	// profile or an optimization that does not exist, a value that it does not take, a name that Opt
-	// gives twice, or a PrintAfter list that names an unknown step or has no PrintTo writer. A
-	// generator asks for them where it validates its options, so that the error of an option that it
-	// checks first comes first.
-	Settings() (pass.Settings, error)
+	// Validate returns the error of resolving the settings: a profile or an optimization that does
+	// not exist, a value that it does not take, a name that Opt gives twice, or a PrintAfter list
+	// that names an unknown step or has no PrintTo writer. A generator asks for it where it
+	// validates its options, so that the error of an option that it checks first comes first. It
+	// returns no settings: they come from the Runner.
+	Validate() error
 	// Runner returns the runner of the pipelines with the settings, which writes the dumps that
-	// PrintAfter selects to w, or none if w is nil. Settings must have returned no error.
+	// PrintAfter selects to w, or none if w is nil. Validate must have returned no error.
 	Runner(w io.Writer) Runner
 }
 
@@ -32,8 +33,8 @@ type Passes interface {
 // failure is an internal error that names the pass. The driver implements it (driver.Driver).
 type Runner interface {
 	// Settings returns the optimizations that the runner runs the pipelines with: the settings of
-	// its Passes, which the generator reads through Generator.Opt, so that the printers and the
-	// passes use the same ones.
+	// its Passes, which are the only optimizations that a generator reads (Generator.Opt), so that
+	// the printers and the passes use the same ones.
 	Settings() pass.Settings
 	// RunCore runs the pipeline of Core passes on m, the Core IR of the table named table;
 	// prepareScans is called around the scans (corepass.Env).

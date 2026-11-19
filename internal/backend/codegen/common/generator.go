@@ -52,8 +52,8 @@ type Generator struct {
 	literalKeys  []string
 	// Runner runs the pipelines of the IR with the optimizations that are on, the dumps of
 	// GenOptions.PrintAfter and the verification of GenOptions.VerifyEachPass (Passes.Runner). It is
-	// required: it is also the only holder of the optimizations (Opt), so that the printers and the
-	// passes cannot disagree on them.
+	// required: the optimizations are read only from it (Opt), and Passes has no other way to read
+	// them, so that the printers and the passes cannot disagree on them.
 	Runner Runner
 	// Flow holds the Core IR of the typed rules while they are printed from Flow IR, or nil;
 	// flowRules counts the rules printed from Flow IR as flat rules and flowFrames the bodies
@@ -89,7 +89,7 @@ func (g *Generator) runner() Runner {
 	return g.Runner
 }
 
-// Opt returns the optimizations that are on: the settings of the Runner, the one holder of them.
+// Opt returns the optimizations that are on: the settings of the Runner, the only source of them for a generator.
 func (g *Generator) Opt() pass.Settings { return g.runner().Settings() }
 
 // RunCore runs the Core passes through the Runner.

@@ -5,10 +5,11 @@ import (
 	"testing"
 
 	"zeroparse.dev/zp/internal/backend/codegen/common"
+	"zeroparse.dev/zp/internal/middleend/flowpass"
 	"zeroparse.dev/zp/internal/testing/codegentest"
 )
 
-// The optimizations of a generator are the settings of its Runner, the one holder of them, so that
+// The optimizations of a generator are the settings of its Runner, the only source of them (Passes only validates), so that
 // the printers (Generator.Opt) and the passes that the Runner runs cannot disagree.
 func TestGeneratorOptIsTheRunnerSettings(t *testing.T) {
 	t.Parallel()
@@ -29,7 +30,7 @@ func TestGeneratorWithoutRunnerPanicsClearly(t *testing.T) {
 	for name, use := range map[string]func(g *common.Generator){
 		"Opt":       func(g *common.Generator) { g.Opt() },
 		"RunCore":   func(g *common.Generator) { _ = g.RunCore("rules", nil, nil) },
-		"RunFlow":   func(g *common.Generator) { _ = g.RunFlow("rules", nil, false, common.Generator{}.FlowTarget) },
+		"RunFlow":   func(g *common.Generator) { _ = g.RunFlow("rules", nil, false, flowpass.Target{}) },
 		"RunExec":   func(g *common.Generator) { _ = g.RunExec("rules", nil, false) },
 		"RunTarget": func(g *common.Generator) { _ = g.RunTarget("rules", nil, nil, false) },
 	} {

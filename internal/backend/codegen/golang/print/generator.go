@@ -165,8 +165,9 @@ func generateOnce(g *ast.Grammar, c common.Compiler, p common.Passes, opts commo
 	if err := opts.ValidateDefaultValue(); err != nil {
 		return nil, err
 	}
-	settings, err := p.Settings()
-	if err != nil {
+	// The settings that decide the output are read from the generator (Generator.Opt); this only
+	// reports the error of resolving them where the options are validated.
+	if err := p.Validate(); err != nil {
 		return nil, err
 	}
 	// Only the pass that writes the output prints the Core IR.
@@ -268,7 +269,7 @@ func generateOnce(g *ast.Grammar, c common.Compiler, p common.Passes, opts commo
 	}
 	fmt.Fprintf(&genGo.Init, "\tzpGrammar.Starts = %s\n", goStrings(prog.StartRules))
 	fmt.Fprintf(&genGo.Init, "\tzpGrammar.DefaultStart = %q\n", prog.DefaultStartRule)
-	features, err := common.ParserFeatures(prog, rec, opts, settings)
+	features, err := common.ParserFeatures(prog, rec, opts, genGo.Opt())
 	if err != nil {
 		return nil, err
 	}
@@ -474,7 +475,7 @@ func ParseRule(name, input string, opts ...ParseOption) (*Node, error) {
 			}
 			users = append(users, surface)
 		}
-		rt, err := embeddedLib(opts, features, settings.On(common.UsedFeatures), roots, users)
+		rt, err := embeddedLib(opts, features, genGo.Opt().On(common.UsedFeatures), roots, users)
 		if err != nil {
 			return nil, err
 		}

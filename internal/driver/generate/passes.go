@@ -9,11 +9,6 @@ import (
 
 	"zeroparse.dev/zp/internal/backend/codegen/common"
 	"zeroparse.dev/zp/internal/driver"
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/internal/middleend/codepass"
-	"zeroparse.dev/zp/internal/middleend/corepass"
-	"zeroparse.dev/zp/internal/middleend/flowpass"
 	"zeroparse.dev/zp/internal/pass"
 )
 
@@ -57,25 +52,18 @@ func resolve(o common.GenOptions) ([]string, pass.Settings, error) {
 	return printAfter, s, nil
 }
 
-// Hooks are the test hooks of the pipelines of a generation (the hook fields of driver.Driver, with the
-// same meaning). The settings, the dumps and the verification come from the GenOptions, so Hooks
-// has no field for them.
-type Hooks struct {
-	CoreHook func(pass string, m *core.Module)
-	CoreRun  func(m *core.Module, env *corepass.Env, o corepass.RunOptions) ([]string, error)
-	FlowRun  func(table string, m *code.Module, env *flowpass.Env, o flowpass.RunOptions) ([]string, error)
-	ExecRun  func(table string, m *code.Module, env *codepass.Env, o codepass.RunOptions) ([]string, error)
-}
+// Hooks are the test hooks of the pipelines of a generation (driver.Hooks). The settings, the dumps and
+// the verification come from the GenOptions, so Hooks has no field for them.
+type Hooks = driver.Hooks
 
-// Passes returns the passes of a generation with o (common.Passes): the settings of Settings, and
+// Passes returns the passes of a generation with o (common.Passes): the settings of Settings (read through the Runner), and
 // runners that are copies of hooks with those settings, the names of o.PrintAfter and
 // o.VerifyEachPass. hooks supplies only the test hooks of the driver; the zero value runs the
 // pipelines of the passes.
 func Passes(o common.GenOptions, hooks Hooks) common.Passes {
 	printAfter, s, err := resolve(o)
 	d := driver.Driver{
-		Opt: s, PrintAfter: printAfter, VerifyEach: o.VerifyEachPass,
-		CoreHook: hooks.CoreHook, CoreRun: hooks.CoreRun, FlowRun: hooks.FlowRun, ExecRun: hooks.ExecRun,
+		Opt: s, PrintAfter: printAfter, VerifyEach: o.VerifyEachPass, Hooks: hooks,
 	}
 	return passes{driver: d, err: err}
 }
@@ -88,7 +76,7 @@ type passes struct {
 
 var _ common.Runner = (*driver.Driver)(nil)
 
-func (p passes) Settings() (pass.Settings, error) { return p.driver.Opt, p.err }
+func (p passes) Validate() error { return p.err }
 
 func (p passes) Runner(w io.Writer) common.Runner {
 	d := p.driver

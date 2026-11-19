@@ -34,6 +34,11 @@ type Driver struct {
 	// VerifyEach verifies the unit after every pass instead of once at the end, so that the error
 	// names the first pass that broke an invariant.
 	VerifyEach bool
+	Hooks
+}
+
+// Hooks are the test hooks of the pipelines, which replace or observe a stage (generate.Hooks).
+type Hooks struct {
 	// CoreHook, if set, is called with the Core module after it is built and after each pass that
 	// runs on it (corepass.RunOptions.Dump).
 	CoreHook func(pass string, m *core.Module)

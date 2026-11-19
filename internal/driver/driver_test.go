@@ -27,7 +27,7 @@ func TestDriverRunCore(t *testing.T) {
 	var hooked []string
 	var verifyEach bool
 	d := &Driver{Opt: off, PrintAfter: []string{"core", corepass.PassGuards}, PrintTo: &dump, VerifyEach: true,
-		CoreHook: func(pass string, _ *core.Module) { hooked = append(hooked, pass) }}
+		Hooks: Hooks{CoreHook: func(pass string, _ *core.Module) { hooked = append(hooked, pass) }}}
 	var ran []string
 	d.CoreRun = func(m *core.Module, env *corepass.Env, o corepass.RunOptions) ([]string, error) {
 		verifyEach = o.VerifyEach
