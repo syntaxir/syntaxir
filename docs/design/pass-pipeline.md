@@ -80,8 +80,8 @@ required steps go on, with the unit as the segment got it, never with a half-rew
 unit before each pass (`-verify-each`, `-print-changed`, the check of what a pass preserves, `-opt-bisect-limit`) makes
 the manager copy before every pass instead; the result and the rollback are the same. So a normal build pays one copy per segment
 and a run that is being diagnosed one per pass. A required step that is not a pass (`flow-finish`) changes the unit in
-place, since a lowering or the copy of the segment before it made the unit the run's own; it copies only a unit that is
-still the caller's. The returned preserved set is the declaration of what the pass kept: the result inherits those
+place, since a lowering or the copy of the segment before it made the unit the run's own; it copies a unit that is
+still the caller's, and under `-verify-each` every unit, so that it never changes one that an observer has seen. The returned preserved set is the declaration of what the pass kept: the result inherits those
 analyses, and a lowering, which returns another IR, invalidates the whole cache. A copy keeps every analysis, so an
 analysis whose result refers to parts of the unit by identity (pointers) cannot be kept as it is: it keys them by an ID
 that copies keep (Core IR nodes carry one), or it is computed again.

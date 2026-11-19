@@ -23,7 +23,8 @@ import (
 // The unit that Stage.Run is given belongs to its caller and is not changed. The passes of each
 // Transforms stage change one copy of their unit, which the stage drops if one of them fails
 // (Pipeline.Run); a required step (Do) changes the unit in place once it belongs to the run, made by
-// a lowering or copied by the passes before, and copies it first otherwise.
+// a lowering or copied by the passes before, and copies it first otherwise. Under VerifyEach no step
+// changes a unit that an observer has received: each pass and each required step gets a copy.
 
 // Step describes one step of a pipeline whatever its types.
 type Step struct {
@@ -275,14 +276,15 @@ func Lower[I, O any](name, in string, out IR[O], f func(I) (O, error)) Stage[I, 
 
 // Do makes f a required step on a unit at the stage of ir, dumped under name if ir prints: f
 // returns the unit after the step, and may change m in place. f gets the run's own unit: a unit that
-// is still the caller's is copied first (ir.Copy). It runs after a failure too.
+// is still the caller's is copied first (ir.Copy), and so is every unit under Run.VerifyEach, which
+// an observer may keep. It runs after a failure too.
 func Do[M any](name string, ir IR[M], f func(m M) M) Stage[M, M] {
 	s := Step{Name: name, Required: true, In: ir.Stage, Out: ir.Stage}
 	if ir.Print != nil {
 		s.Dump = name
 	}
 	return Stage[M, M]{steps: []Step{s}, run: func(r *Run, l Label, m M, st *state) M {
-		if !st.owned && ir.Copy != nil {
+		if ir.Copy != nil && (!st.owned || r.VerifyEach) {
 			m = ir.Copy(m)
 			st.owned = true
 		}

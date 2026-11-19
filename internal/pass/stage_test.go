@@ -264,3 +264,52 @@ func TestStageCopies(t *testing.T) {
 	}}
 	check("a step after a failed pass", Then(segment(inPlace("a"), fails), finish), []string{"in", "!"}, true, 1, 1)
 }
+
+// keeper is an observer that keeps every unit it is given, with the log the unit had then.
+type keeper struct {
+	units []*unit
+	logs  [][]string
+}
+
+func (*keeper) Before(Event) bool { return true }
+
+func (k *keeper) After(_ Event, _ func(io.Writer), u any) {
+	if u, ok := u.(*unit); ok {
+		k.units = append(k.units, u)
+		k.logs = append(k.logs, slices.Clone(u.log))
+	}
+}
+
+// TestStageVerifyEachKeepsObservedUnits checks that under VerifyEach a required step changes no unit
+// that an observer received, whether the passes before it ran or a lowering made the unit.
+func TestStageVerifyEachKeepsObservedUnits(t *testing.T) {
+	var passCopies, stepCopies int
+	finish := Do("finish", copyUnit(&stepCopies), func(u *unit) *unit {
+		u.log = append(u.log, "fin")
+		return u
+	})
+	made := Lower("make", "u", unitIR, func(u *unit) (*unit, error) { return &unit{log: []string{"made"}}, nil })
+	// The pipeline computes no analysis, which would add to the log of the unit it verifies.
+	plain := &Pipeline[*unit, mode]{Passes: []Pass[*unit, mode]{inPlace("p")}, Verify: unitIR.Verify}
+	for _, c := range []struct {
+		what string
+		s    Stage[*unit, *unit]
+	}{
+		{"passes, then a step", Then(Then(made, transforms(copying(plain, &passCopies), "")), finish)},
+		{"a step after a lowering", Then(made, finish)},
+	} {
+		k := &keeper{}
+		out, err := c.s.Run(&Run{VerifyEach: true, Observers: []Observer{k}}, Label{}, &unit{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if out.log[len(out.log)-1] != "fin" {
+			t.Errorf("%s: the step did not run: %v", c.what, out.log)
+		}
+		for i, u := range k.units[:len(k.units)-1] {
+			if !slices.Equal(u.log, k.logs[i]) {
+				t.Errorf("%s: unit %d that the observer got was changed later: %v, was %v", c.what, i, u.log, k.logs[i])
+			}
+		}
+	}
+}
