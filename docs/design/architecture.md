@@ -255,7 +255,7 @@ in [Package Layering](layering.md), and the public packages are described in [Th
 | `internal/frontend/desugar` | Rewriting into a smaller language |
 | `internal/frontend/check` | Name resolution and the checks of the value model: the semantic model |
 | `internal/frontend/types` | The type model |
-| `internal/frontend/astfacts` | Conservative facts on the AST |
+| `internal/frontend/astfacts` | Conservative facts on the AST and the walks of a rule's calls, terms and attributes shared by the compiler and the analyses |
 | `internal/frontend/elaborate` | Semantic model to Core IR |
 | `internal/frontend/schemaexport` | Export of the output schema |
 | `internal/middleend/corepass` | Core rewrites and the analyses of facts |

@@ -1,5 +1,6 @@
 // Package astfacts provides conservative matching facts shared by the
-// compiler and linter. Unknown facts never justify excluding a rule call.
+// compiler and the analyses, and the walks of a rule's calls, terms and attributes. Unknown
+// facts never justify excluding a rule call.
 package astfacts
 
 import "zeroparse.dev/zp/pkg/grammar/ast"
