@@ -967,8 +967,7 @@ func (l *lowerer) repeat(n *core.Repeat, s *scope, build bool, fail string) code
 	run := l.runBegin(n, build, start)
 	count := l.decl("x", flow.TypeInt)
 	l.set(count, num(0))
-	lp := l.newLoop(n.Max)
-	run.visit(l, count, lp)
+	lp := l.newLoop(n.Max, func(lp *code.Loop) { run.visit(l, count, lp) })
 	m := l.mark(s, n.Body, !own)
 	if own {
 		l.clearScope(es, n.Body)
@@ -1138,7 +1137,7 @@ func (l *lowerer) scanSiteRepeat(n *core.Repeat, s *scope, build bool, fail stri
 	} else {
 		l.emit(&code.Set{Dst: []code.Place{{Name: start}, {Name: count}}, Values: []code.Expr{pos(), num(0)}})
 	}
-	lp := l.newLoop(-1)
+	lp := l.newLoop(-1, nil)
 	m := l.mark(s, n.Body, true)
 	f := l.label()
 	bf := l.open(f)
@@ -1209,15 +1208,16 @@ func (l *lowerer) skipRepeat(n *core.Repeat, s *scope, fail string) code.Expr {
 	l.emit(do(flow.OpSkipBegin, flow.Site(n.Site)))
 	count := l.decl("x", flow.TypeInt)
 	l.set(count, num(0))
-	lp := l.newLoop(-1)
-	hit := []code.Stmt{&code.If{Cond: call(flow.OpSkipHit, nil), Then: &code.Block{Stmts: []code.Stmt{l.jump(lp.Label)}}}}
-	if n.Min > 0 {
-		hit = []code.Stmt{&code.If{Cond: code.Bin(">=", use(count), num(n.Min)), Then: &code.Block{Stmts: hit}}}
-	}
-	for _, st := range hit {
-		l.emit(st)
-	}
-	l.emit(do(flow.OpSkipVisit, nil))
+	lp := l.newLoop(-1, func(lp *code.Loop) {
+		hit := []code.Stmt{&code.If{Cond: call(flow.OpSkipHit, nil), Then: &code.Block{Stmts: []code.Stmt{l.jump(lp.Label)}}}}
+		if n.Min > 0 {
+			hit = []code.Stmt{&code.If{Cond: code.Bin(">=", use(count), num(n.Min)), Then: &code.Block{Stmts: hit}}}
+		}
+		for _, st := range hit {
+			l.emit(st)
+		}
+		l.emit(do(flow.OpSkipVisit, nil))
+	})
 	m := l.mark(s, n.Body, false)
 	f := l.label()
 	bf := l.open(f)
@@ -1241,9 +1241,11 @@ func (l *lowerer) skipRepeat(n *core.Repeat, s *scope, fail string) code.Expr {
 	return null()
 }
 
-// newLoop begins a loop of at most max iterations (unbounded if max < 0). Each iteration charges one
-// step first, whatever its body is.
-func (l *lowerer) newLoop(max int) *code.Loop {
+// newLoop begins a loop of at most max iterations (unbounded if max < 0). Each iteration runs visit,
+// if not nil, and then charges one step before its element, whatever the element is: the iteration
+// of the cost. The visit of a walk may take the rest of it from a record and leave the loop, which
+// evaluates no element and charges no step.
+func (l *lowerer) newLoop(max int, visit func(*code.Loop)) *code.Loop {
 	lp := &code.Loop{Label: l.loopLabel()}
 	if max >= 0 {
 		c := l.decl("x", flow.TypeInt)
@@ -1252,6 +1254,9 @@ func (l *lowerer) newLoop(max int) *code.Loop {
 		lp.Post = inc(c)
 	}
 	l.loop(lp)
+	if visit != nil {
+		visit(lp)
+	}
 	l.step()
 	return lp
 }
@@ -1299,6 +1304,7 @@ func (l *lowerer) scan(n *core.Scan, fail string) code.Expr {
 		lp.Cond = code.Bin("<", use(count), num(n.Max))
 	}
 	l.loop(lp)
+	l.step()
 	l.emit(peek(ch, size, ok))
 	var stop code.Expr = code.Not(use(ok))
 	exp := core.ExpID(0)
@@ -1330,7 +1336,7 @@ func (l *lowerer) projectRepeat(n *core.Repeat, fail string) code.Expr {
 	es := newScope(n.Scope)
 	start, base, count := l.decl("x", flow.TypeInt), l.decl("x", flow.TypeInt), l.decl("x", flow.TypeInt)
 	l.emit(&code.Set{Dst: []code.Place{{Name: start}, {Name: base}, {Name: count}}, Values: []code.Expr{pos(), call(flow.OpKidsLen, nil), num(0)}})
-	lp := l.newLoop(n.Max)
+	lp := l.newLoop(n.Max, nil)
 	m := l.mark(es, n.Body, false)
 	l.clearScope(es, n.Body)
 	f := l.label()
@@ -1537,8 +1543,7 @@ func (l *lowerer) frameRepeat(n *core.Repeat, s *scope, build bool, fail string)
 	if stream {
 		l.emit(&code.If{Cond: call(flow.OpStreamOn, nil), Then: &code.Block{Stmts: []code.Stmt{do(flow.OpStreamStart, nil)}}})
 	}
-	lp := l.newLoop(n.Max)
-	run.visit(l, count, lp)
+	lp := l.newLoop(n.Max, func(lp *code.Loop) { run.visit(l, count, lp) })
 	if field != "" {
 		l.emit(do(flow.OpClearVals, nil, use(frame)))
 	}

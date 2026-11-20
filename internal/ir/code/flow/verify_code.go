@@ -55,8 +55,10 @@ var (
 	// opsInPlace read the input in place: a traced function has none.
 	opsInPlace = map[string]string{OpHasLit: "an in-place literal read", OpMatchClass: "a class table read",
 		OpSkipTerminal: "a terminal program", OpSkipClasses: "a class run"}
-	// opsConsume consume input: a function with budget controls charges before them.
-	opsConsume = []string{OpMatchLit, OpMatchClass, OpSkipTerminal, OpSkipClasses, OpSkipHit, OpScanReach}
+	// opsConsume consume input: a function with budget controls charges before them. flow.skipHit is
+	// not one: it moves the position only after it has charged its lookup and the record it takes,
+	// and the iteration it ends charges its step after it, before the element.
+	opsConsume = []string{OpMatchLit, OpMatchClass, OpSkipTerminal, OpSkipClasses, OpScanReach}
 )
 
 func verifyFunc(fn *code.Func) error {

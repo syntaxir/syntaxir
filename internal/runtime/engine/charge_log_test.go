@@ -19,6 +19,10 @@ func TestChargeLog(t *testing.T) {
 	if src == "" {
 		t.Skip()
 	}
+	if os.Getenv("ZP_CL_HOT") != "" {
+		defer func(n, m int) { state.RunHotSpan, state.ScanHotSpan = n, m }(state.RunHotSpan, state.ScanHotSpan)
+		state.RunHotSpan, state.ScanHotSpan = 1, 1
+	}
 	unit := input.CodePoints
 	if os.Getenv("ZP_CL_BYTES") != "" {
 		unit = input.Bytes
@@ -28,7 +32,7 @@ func TestChargeLog(t *testing.T) {
 		name string
 		p    *Program
 		b    Backend
-	}{{"closure", old, Closure}, {"bytecode", old, Bytecode}, {"flow", flows, Bytecode}} {
+	}{{"closure", old, Closure}, {"bytecode", old, Bytecode}, {"bytecode-iterative", old, BytecodeIterative}, {"flow", flows, Bytecode}, {"flow-iterative", flows, BytecodeIterative}} {
 		var lines []string
 		var total uint64
 		state.ChargeLog = func(n uint64, where string) {

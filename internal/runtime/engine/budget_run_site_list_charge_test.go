@@ -38,7 +38,8 @@ func computeSweep(t *testing.T, prog *Program, input string, b Backend) (sizes [
 // their copy into its record is an item of the cost (spec/runtime/parsing.md#cost). At a hot span of one
 // the restarted lists of the grammar turn hot, and the input has walks of 7 and 6 values, whose take-offs
 // were reservations of 14 and 12 units; none may appear, and the total of units that each backend charges
-// is fixed.
+// is fixed. Five walks take the rest of them from a record, which ends them without an iteration, so
+// they charge no unit for one.
 func TestRunSiteListChargesNothing(t *testing.T) {
 	defer func(n, m int) { state.RunHotSpan, state.ScanHotSpan = n, m }(state.RunHotSpan, state.ScanHotSpan)
 	state.RunHotSpan, state.ScanHotSpan = 1, 1
@@ -49,7 +50,7 @@ rule x = "x"`)
 	for _, c := range []struct {
 		backend Backend
 		total   uint64
-	}{{Closure, 263}, {Bytecode, 273}, {BytecodeIterative, 263}} {
+	}{{Closure, 258}, {Bytecode, 268}, {BytecodeIterative, 258}} {
 		t.Run(c.backend.String(), func(t *testing.T) {
 			sizes, total := computeSweep(t, prog, input, c.backend)
 			for _, size := range []uint64{14, 12} {

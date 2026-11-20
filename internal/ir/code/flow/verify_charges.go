@@ -15,9 +15,7 @@ import (
 //   - the function charges before it consumes input: before an advance or a call of an operation in
 //     opsConsume;
 //   - every iteration of a loop without a counter charges: on each path from the start of the body to
-//     a continue or to the end of the body. A repetition of a character class is lowered to a loop of
-//     peek and advance without a step, so its iteration charges the spend of the character it reads,
-//     which the budget bounds.
+//     a continue or to the end of the body.
 //
 // A loop has a counter when it initializes one (Loop.Init). A function whose caller charged its entry
 // (Attrs.Entered) starts charged. A path is followed through branches, blocks, exits and breaks; a path

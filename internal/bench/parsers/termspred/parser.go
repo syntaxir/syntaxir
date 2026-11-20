@@ -291,7 +291,6 @@ func e5(p *rt.Parser, _ int) (*zpvalue.Node, bool) {
 	}
 	x5 = 0
 	for {
-		p.Spend()
 		if x4 {
 			if x5 >= 1 {
 				if p.SkipHit() {
@@ -300,6 +299,7 @@ func e5(p *rt.Parser, _ int) (*zpvalue.Node, bool) {
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x6 = p.Mark()
 		if v8, ok = r2(p); !ok {
 			goto L7
@@ -528,7 +528,6 @@ func e12(p *rt.Parser, _ int) (*zpvalue.Node, bool) {
 	}
 	x5 = 0
 	for {
-		p.Spend()
 		if x4 {
 			if x5 >= 1 {
 				if p.SkipHit() {
@@ -537,6 +536,7 @@ func e12(p *rt.Parser, _ int) (*zpvalue.Node, bool) {
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x6 = p.Mark()
 		if v8, ok = q2(p); !ok {
 			goto L7
@@ -750,7 +750,6 @@ func i1(p *rt.TParser) (any, bool) {
 	}
 	x6 = 0
 	for {
-		p.Spend()
 		if x5 {
 			if x6 >= 1 {
 				if p.SkipHit() {
@@ -759,6 +758,7 @@ func i1(p *rt.TParser) (any, bool) {
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x7 = p.Pos
 		if v9, ok = s2(p); !ok {
 			goto L8

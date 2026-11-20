@@ -368,10 +368,17 @@ well as Go parsers generated with limit controls, charges at least one unit for
 each call, each character that a terminal matches or rejects, each iteration
 that it evaluates, each operator applied and each value that an action builds,
 and at most a constant of the grammar and the backend for each of them, besides
-the units that it charges for the input as a whole before the parse. A walk that
+the units that it charges for the input as a whole before the parse. An
+iteration of a repetition (`*`, `+` and `#repeat`) charges exactly one unit, on
+every backend, before its element is evaluated: each evaluation of the element
+counts, the last one included, which fails or consumes no input, and nothing
+else does. A repetition that stops at its maximum evaluates no further element
+and charges no further unit, and an option is no repetition and charges
+nothing. A walk that
 takes the rest of a walk from a record of a [skip run](#skip-runs), a
 [run site](#run-sites) or a [scan site](#scan-sites) neither evaluates nor
-charges the iterations and characters that it skips. Growing the storage of a
+charges the iterations and characters that it skips, and the lookup that
+finds the record ends the walk without an iteration. Growing the storage of a
 parse charges no unit: the memo table and the record of the rules called at
 each position grow to the positions and rules of calls that are counted, and
 growing them by doubling, or by pages of positions, copies and clears at most a

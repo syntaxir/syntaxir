@@ -37,10 +37,11 @@ A function lowered with budget controls keeps the work of a parse bounded by its
 which charges the read of the character, or a CallRule, which the runtime charges as a rule call.
 
 - The function charges before it consumes input: before an Advance, a MatchLit, a MatchClass, a SkipTerminal, a
-  SkipClasses or a SkipHit.
+  SkipClasses or a ScanReach. A SkipHit charges its lookup and the record it takes before it moves the position.
 - Every iteration of a loop without a Counter charges, on each path from the start of its body to a Continue or to the
-  end of the body. A repetition of a character class is a loop of Peek and Advance, whose iteration is charged by its
-  Peek.
+  end of the body. The loop of a repetition charges one Step in each iteration before its element, a repetition of a
+  character class (a loop of Peek and Advance) included, after the SkipHit of a walk: the iteration that the
+  [cost](../runtime/parsing.md#cost) counts.
 - A function whose entry the code that holds it charges starts charged. A path is followed through ifs, blocks and
   exits; a path that ends in an exit leaves the block or loop it names with the charge state it has.
 

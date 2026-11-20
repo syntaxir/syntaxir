@@ -861,13 +861,13 @@ L6:
 	p.SkipBegin(1)
 	x37 = 0
 	for {
-		p.Spend()
 		if x37 >= 1 {
 			if p.SkipHit() {
 				break
 			}
 		}
 		p.SkipVisit()
+		p.Spend()
 		x38 = p.Mark()
 		if p.Document == nil && p.Pos < len(p.In) {
 			p.SpendRead(1)
@@ -1400,13 +1400,13 @@ L3:
 		p.RunBegin(2, false, false)
 	}
 	for {
-		p.Spend()
 		if x4 {
 			if p.SkipHit() {
 				break
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x7 = p.Mark()
 		if _, ok = p.Call(rules[39], 0); !ok {
 			goto L8
@@ -1468,6 +1468,7 @@ func e29(p *rt.Parser, _ int) (*zpvalue.Node, bool) {
 	x2 = p.Pos
 	x3 = 0
 	for {
+		p.Spend()
 		if p.Document == nil && p.Pos < len(p.In) {
 			p.SpendRead(1)
 			ch, size, ok = p.In[p.Pos], 1, true
@@ -1499,6 +1500,7 @@ func e29(p *rt.Parser, _ int) (*zpvalue.Node, bool) {
 	x7 = p.Pos
 	x8 = 0
 	for {
+		p.Spend()
 		if p.Document == nil && p.Pos < len(p.In) {
 			p.SpendRead(1)
 			ch, size, ok = p.In[p.Pos], 1, true
@@ -1568,13 +1570,13 @@ func e33(p *rt.Parser, _ int) (*zpvalue.Node, bool) {
 		p.RunBegin(3, false, false)
 	}
 	for {
-		p.Spend()
 		if x2 {
 			if p.SkipHit() {
 				break
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x5 = p.Mark()
 		x7 = p.Mark()
 		if p.Document == nil && p.Pos < len(p.In) {
@@ -1734,13 +1736,13 @@ func e40(p *rt.Parser, _ int) (*zpvalue.Node, bool) {
 		p.RunBegin(4, true, false)
 	}
 	for {
-		p.Spend()
 		if x3 {
 			if p.SkipHit() {
 				break
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x5 = p.Mark()
 		x7 = p.Mark()
 		if p.Document == nil && p.Pos < len(p.In) {
@@ -1867,13 +1869,13 @@ func e41(p *rt.Parser, _ int) (*zpvalue.Node, bool) {
 		p.RunBegin(4, false, false)
 	}
 	for {
-		p.Spend()
 		if x1 {
 			if p.SkipHit() {
 				break
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x4, x5 = p.Pos, len(p.Recovered)
 		x7, x8 = p.Pos, len(p.Recovered)
 		if p.Document == nil && p.Pos < len(p.In) {
@@ -1919,6 +1921,7 @@ func e41(p *rt.Parser, _ int) (*zpvalue.Node, bool) {
 		x16 = p.Pos
 		x17 = 0
 		for {
+			p.Spend()
 			if p.Document == nil && p.Pos < len(p.In) {
 				p.SpendRead(1)
 				ch, size, ok = p.In[p.Pos], 1, true

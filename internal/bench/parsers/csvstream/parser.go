@@ -289,6 +289,7 @@ func e10(p *rt.Parser, _ int) (*zpvalue.Node, bool) {
 	x8 = p.Pos
 	x9 = 0
 	for {
+		p.Spend()
 		if p.Pos < len(p.In) {
 			p.Control.Take(1)
 			ch, size, ok = p.In[p.Pos], 1, true
@@ -314,13 +315,13 @@ func e10(p *rt.Parser, _ int) (*zpvalue.Node, bool) {
 		p.RunBegin(2, false, false)
 	}
 	for {
-		p.Spend()
 		if x10 {
 			if p.SkipHit() {
 				break
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x13 = p.Mark()
 		if (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 34 && p.In[p.Pos+1] == 34) && p.Control.Take(2) {
 			p.Pos += 2
@@ -330,6 +331,7 @@ func e10(p *rt.Parser, _ int) (*zpvalue.Node, bool) {
 		x15 = p.Pos
 		x16 = 0
 		for {
+			p.Spend()
 			if p.Pos < len(p.In) {
 				p.Control.Take(1)
 				ch, size, ok = p.In[p.Pos], 1, true
@@ -376,6 +378,7 @@ L6:
 	x18 = p.Pos
 	x19 = 0
 	for {
+		p.Spend()
 		if p.Pos < len(p.In) {
 			p.Control.Take(1)
 			ch, size, ok = p.In[p.Pos], 1, true
@@ -401,13 +404,13 @@ L6:
 		p.RunBegin(3, false, false)
 	}
 	for {
-		p.Spend()
 		if x20 {
 			if p.SkipHit() {
 				break
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x23 = p.Mark()
 		if (p.Pos < len(p.In) && p.In[p.Pos] == 13) && p.Control.Take(1) {
 			p.Pos++
@@ -441,6 +444,7 @@ L6:
 		x28 = p.Pos
 		x29 = 0
 		for {
+			p.Spend()
 			if p.Pos < len(p.In) {
 				p.Control.Take(1)
 				ch, size, ok = p.In[p.Pos], 1, true

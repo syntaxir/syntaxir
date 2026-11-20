@@ -508,7 +508,6 @@ func e5(p *rt.Parser, _ int) (*zpvalue.Node, bool) {
 	}
 	x5 = 0
 	for {
-		p.Spend()
 		if x4 {
 			if x5 >= 1 {
 				if p.SkipHit() {
@@ -517,6 +516,7 @@ func e5(p *rt.Parser, _ int) (*zpvalue.Node, bool) {
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x6 = p.Mark()
 		if v8, ok = p.Call(rules[2], 0); !ok {
 			goto L7
@@ -669,7 +669,6 @@ func q1(p *rt.Parser) (*zpvalue.Node, bool) {
 	}
 	x3 = 0
 	for {
-		p.Spend()
 		if x1 {
 			if x3 >= 1 {
 				if p.SkipHit() {
@@ -678,6 +677,7 @@ func q1(p *rt.Parser) (*zpvalue.Node, bool) {
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x4 = p.Pos
 		if _, ok = q2(p); !ok {
 			goto L5
@@ -731,6 +731,7 @@ func q2(p *rt.Parser) (*zpvalue.Node, bool) {
 	x1 = p.Pos
 	x2 = 0
 	for {
+		p.Spend()
 		if p.Pos < len(p.In) {
 			p.Control.Take(1)
 			ch, size, ok = p.In[p.Pos], 1, true
@@ -850,7 +851,6 @@ func i1(p *rt.TParser) (any, bool) {
 	}
 	x6 = 0
 	for {
-		p.Spend()
 		if x5 {
 			if x6 >= 1 {
 				if p.SkipHit() {
@@ -859,6 +859,7 @@ func i1(p *rt.TParser) (any, bool) {
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x7 = p.Pos
 		if v9, ok = u2(p); !ok {
 			goto L8

@@ -821,7 +821,6 @@ func (mc *Machine) step(vm *Program, b *vmBody, resume, rok bool, rv *value.Node
 				}
 				mc.scans = append(mc.scans, w)
 			}
-			p.Spend()
 			if rep.max >= 0 && rep.count >= rep.max {
 				ip = int(in.A)
 				continue
@@ -840,11 +839,15 @@ func (mc *Machine) step(vm *Program, b *vmBody, resume, rok bool, rv *value.Node
 					p.SkipBegin(runSite, in.B&2 == 0)
 				}
 			}
+			if rep.skip && rep.count >= rep.min && p.SkipHit() {
+				ip = int(in.A)
+				continue
+			}
+			// One unit for the iteration, before its element (spec/runtime/parsing.md#cost): an
+			// iteration that ends at the maximum or takes the rest of the walk from a record evaluates
+			// no element.
+			p.Spend()
 			if rep.skip {
-				if rep.count >= rep.min && p.SkipHit() {
-					ip = int(in.A)
-					continue
-				}
 				p.SkipVisit()
 			}
 			kind := uint8(eIter)

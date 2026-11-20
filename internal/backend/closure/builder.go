@@ -608,11 +608,11 @@ func (b *Builder) skipRepeat(min int, m state.Matcher, skip int) state.Matcher {
 		p.SkipBegin(skip, keyEnv)
 		count := 0
 		for {
-			if charge {
-				p.Spend()
-			}
 			if count >= min && p.SkipHit() {
 				break
+			}
+			if charge {
+				p.Spend()
 			}
 			p.SkipVisit()
 			m0 := p.Mark()
@@ -651,11 +651,11 @@ func (b *Builder) runRepeat(min int, m state.Matcher, elemValue func(*state.Pars
 		}
 		count := 0
 		for {
-			if charge {
-				p.Spend()
-			}
 			if count >= min && p.SkipHit() {
 				break
+			}
+			if charge {
+				p.Spend()
 			}
 			p.SkipVisit()
 			m0 := p.Mark()

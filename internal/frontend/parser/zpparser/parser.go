@@ -3856,6 +3856,7 @@ L9:
 	p.Silent++
 	x18 = p.Pos
 	for {
+		p.Spend()
 		if p.Pos < len(p.In) {
 			p.Control.Take(1)
 			_, size, ok = p.In[p.Pos], 1, true
@@ -9487,7 +9488,6 @@ func v111(p *rt.TParser) (any, bool) {
 	}
 	x8 = 0
 	for {
-		p.Spend()
 		if x6 {
 			if x8 >= 1 {
 				if p.SkipHit() {
@@ -9496,6 +9496,7 @@ func v111(p *rt.TParser) (any, bool) {
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x9, x10 = p.Pos, len(p.Recovered)
 		if _, ok = s286(p); !ok {
 			goto L11
@@ -9550,7 +9551,6 @@ L5:
 	}
 	x18 = 0
 	for {
-		p.Spend()
 		if x16 {
 			if x18 >= 1 {
 				if p.SkipHit() {
@@ -9559,6 +9559,7 @@ L5:
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x19, x20 = p.Pos, len(p.Recovered)
 		if (p.Pos < len(p.In) && p.In[p.Pos] == 48) && p.Control.Take(1) {
 			p.Pos++
@@ -10683,7 +10684,6 @@ L5:
 	}
 	x8 = 0
 	for {
-		p.Spend()
 		if x6 {
 			if x8 >= 1 {
 				if p.SkipHit() {
@@ -10692,6 +10692,7 @@ L5:
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x9, x10 = p.Pos, len(p.Recovered)
 		if _, ok = s286(p); !ok {
 			goto L11
@@ -14974,7 +14975,6 @@ func s171(p *rt.TParser) (any, bool) {
 	}
 	x4 = 0
 	for {
-		p.Spend()
 		if x2 {
 			if x4 >= 1 {
 				if p.SkipHit() {
@@ -14983,6 +14983,7 @@ func s171(p *rt.TParser) (any, bool) {
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x5, x6 = p.Pos, len(p.Recovered)
 		if _, ok = s286(p); !ok {
 			goto L7
@@ -16010,6 +16011,7 @@ L6:
 	x7 = p.Pos
 	x8 = 0
 	for {
+		p.Spend()
 		if p.Pos < len(p.In) {
 			p.Control.Take(1)
 			ch, size, ok = p.In[p.Pos], 1, true
@@ -16597,13 +16599,13 @@ func v199(p *rt.TParser) (any, bool) {
 		p.RunBegin(13, false, false)
 	}
 	for {
-		p.Spend()
 		if x2 {
 			if p.SkipHit() {
 				break
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x5, x6 = p.Pos, len(p.Recovered)
 		if _, ok = s277(p); !ok {
 			goto L7
@@ -16663,13 +16665,13 @@ func v203(p *rt.TParser) (any, bool) {
 		p.RunBegin(14, false, false)
 	}
 	for {
-		p.Spend()
 		if x2 {
 			if p.SkipHit() {
 				break
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x5, x6 = p.Pos, len(p.Recovered)
 		x8, x9 = p.Pos, len(p.Recovered)
 		if p.Pos < len(p.In) {
@@ -16824,13 +16826,13 @@ func s206(p *rt.TParser) (any, bool) {
 		p.RunBegin(16, false, false)
 	}
 	for {
-		p.Spend()
 		if x2 {
 			if p.SkipHit() {
 				break
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x5, x6 = p.Pos, len(p.Recovered)
 		x8, x9 = p.Pos, len(p.Recovered)
 		if p.Pos < len(p.In) {
@@ -16988,7 +16990,6 @@ L7:
 	}
 	x15 = 0
 	for {
-		p.Spend()
 		if x14 {
 			if x15 >= 1 {
 				if p.SkipHit() {
@@ -16997,6 +16998,7 @@ L7:
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x16, x17 = p.Pos, len(p.Recovered)
 		x19, x20 = p.Pos, len(p.Recovered)
 		if v24, ok = u208(p); !ok {
@@ -17997,7 +17999,6 @@ func i225(p *rt.TParser) (any, bool) {
 	}
 	x6 = 0
 	for {
-		p.Spend()
 		if x5 {
 			if x6 >= 1 {
 				if p.SkipHit() {
@@ -18006,6 +18007,7 @@ func i225(p *rt.TParser) (any, bool) {
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x7, x8 = p.Pos, len(p.Recovered)
 		k9 = nil
 		x11 = p.Pos
@@ -19054,13 +19056,13 @@ func i241(p *rt.TParser) (any, bool) {
 		p.RunBegin(24, false, false)
 	}
 	for {
-		p.Spend()
 		if x1 {
 			if p.SkipHit() {
 				break
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x4, x5 = p.Pos, len(p.Recovered)
 		if _, ok = u318(p); !ok {
 			goto L6
@@ -19095,13 +19097,13 @@ func i241(p *rt.TParser) (any, bool) {
 			p.RunBegin(26, false, false)
 		}
 		for {
-			p.Spend()
 			if x17 {
 				if p.SkipHit() {
 					break
 				}
 				p.SkipVisit()
 			}
+			p.Spend()
 			x20, x21 = p.Pos, len(p.Recovered)
 			if _, ok = u318(p); !ok {
 				goto L22
@@ -19195,13 +19197,13 @@ func i242(p *rt.TParser) (any, bool) {
 		p.RunBegin(27, false, false)
 	}
 	for {
-		p.Spend()
 		if x1 {
 			if p.SkipHit() {
 				break
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x4, x5 = p.Pos, len(p.Recovered)
 		if _, ok = u318(p); !ok {
 			goto L6
@@ -19227,13 +19229,13 @@ func i242(p *rt.TParser) (any, bool) {
 		p.RunBegin(28, true, false)
 	}
 	for {
-		p.Spend()
 		if x11 {
 			if p.SkipHit() {
 				break
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x13, x14 = p.Pos, len(p.Recovered)
 		k15 = nil
 		x17 = p.Pos
@@ -19249,13 +19251,13 @@ func i242(p *rt.TParser) (any, bool) {
 			p.RunBegin(29, false, false)
 		}
 		for {
-			p.Spend()
 			if x21 {
 				if p.SkipHit() {
 					break
 				}
 				p.SkipVisit()
 			}
+			p.Spend()
 			x24, x25 = p.Pos, len(p.Recovered)
 			if _, ok = u318(p); !ok {
 				goto L26
@@ -19324,13 +19326,13 @@ L36:
 		p.RunBegin(30, false, false)
 	}
 	for {
-		p.Spend()
 		if x41 {
 			if p.SkipHit() {
 				break
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x44, x45 = p.Pos, len(p.Recovered)
 		if _, ok = u318(p); !ok {
 			goto L46
@@ -19562,13 +19564,13 @@ func i245(p *rt.TParser) (any, bool) {
 		p.RunBegin(31, false, false)
 	}
 	for {
-		p.Spend()
 		if x4 {
 			if p.SkipHit() {
 				break
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x7, x8 = p.Pos, len(p.Recovered)
 		if _, ok = u318(p); !ok {
 			goto L9
@@ -19714,13 +19716,13 @@ func i252(p *rt.TParser) (any, bool) {
 		p.RunBegin(32, true, false)
 	}
 	for {
-		p.Spend()
 		if x8 {
 			if p.SkipHit() {
 				break
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x10, x11 = p.Pos, len(p.Recovered)
 		k12 = nil
 		x14 = p.Pos
@@ -19932,13 +19934,13 @@ func i254(p *rt.TParser) (any, bool) {
 		p.RunBegin(33, true, false)
 	}
 	for {
-		p.Spend()
 		if x8 {
 			if p.SkipHit() {
 				break
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x10, x11 = p.Pos, len(p.Recovered)
 		k12 = nil
 		k13 = nil
@@ -20080,13 +20082,13 @@ func i256(p *rt.TParser) (any, bool) {
 		p.RunBegin(34, true, false)
 	}
 	for {
-		p.Spend()
 		if x5 {
 			if p.SkipHit() {
 				break
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x7, x8 = p.Pos, len(p.Recovered)
 		k9 = nil
 		if v12, ok = s257(p); !ok {
@@ -21834,7 +21836,6 @@ L19:
 	}
 	x22 = 0
 	for {
-		p.Spend()
 		if x20 {
 			if x22 >= 1 {
 				if p.SkipHit() {
@@ -21843,6 +21844,7 @@ L19:
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x23, x24 = p.Pos, len(p.Recovered)
 		if _, ok = s277(p); !ok {
 			goto L25
@@ -23416,13 +23418,13 @@ func v299(p *rt.TParser) (any, bool) {
 		p.RunBegin(13, false, false)
 	}
 	for {
-		p.Spend()
 		if x1 {
 			if p.SkipHit() {
 				break
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x4, x5 = p.Pos, len(p.Recovered)
 		if _, ok = s277(p); !ok {
 			goto L6
@@ -24120,13 +24122,13 @@ func s308(p *rt.TParser) (any, bool) {
 		p.RunBegin(15, false, false)
 	}
 	for {
-		p.Spend()
 		if x1 {
 			if p.SkipHit() {
 				break
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x4, x5 = p.Pos, len(p.Recovered)
 		x7, x8 = p.Pos, len(p.Recovered)
 		if p.Pos < len(p.In) {
@@ -24233,13 +24235,13 @@ func v309(p *rt.TParser) (any, bool) {
 		p.RunBegin(18, false, false)
 	}
 	for {
-		p.Spend()
 		if x1 {
 			if p.SkipHit() {
 				break
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x4, x5 = p.Pos, len(p.Recovered)
 		x8 = p.Pos
 		x7 = p.RunHot(19)
@@ -24247,13 +24249,13 @@ func v309(p *rt.TParser) (any, bool) {
 			p.RunBegin(19, false, false)
 		}
 		for {
-			p.Spend()
 			if x7 {
 				if p.SkipHit() {
 					break
 				}
 				p.SkipVisit()
 			}
+			p.Spend()
 			x10, x11 = p.Pos, len(p.Recovered)
 			if _, ok = s310(p); !ok {
 				goto L12
@@ -24436,13 +24438,13 @@ func v312(p *rt.TParser) (any, bool) {
 		p.RunBegin(35, false, false)
 	}
 	for {
-		p.Spend()
 		if x1 {
 			if p.SkipHit() {
 				break
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x4, x5 = p.Pos, len(p.Recovered)
 		if _, ok = s340(p); !ok {
 			goto L6
@@ -24758,13 +24760,13 @@ func s317(p *rt.TParser) (any, bool) {
 		p.RunBegin(21, false, false)
 	}
 	for {
-		p.Spend()
 		if x1 {
 			if p.SkipHit() {
 				break
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x4, x5 = p.Pos, len(p.Recovered)
 		if _, ok = u318(p); !ok {
 			goto L6
@@ -24790,13 +24792,13 @@ func s317(p *rt.TParser) (any, bool) {
 		p.RunBegin(22, false, false)
 	}
 	for {
-		p.Spend()
 		if x7 {
 			if p.SkipHit() {
 				break
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x10, x11 = p.Pos, len(p.Recovered)
 		if _, ok = u341(p); !ok {
 			goto L12
@@ -24807,13 +24809,13 @@ func s317(p *rt.TParser) (any, bool) {
 			p.RunBegin(23, false, false)
 		}
 		for {
-			p.Spend()
 			if x13 {
 				if p.SkipHit() {
 					break
 				}
 				p.SkipVisit()
 			}
+			p.Spend()
 			x16, x17 = p.Pos, len(p.Recovered)
 			if _, ok = u318(p); !ok {
 				goto L18
@@ -25151,7 +25153,6 @@ L14:
 	}
 	x18 = 0
 	for {
-		p.Spend()
 		if x16 {
 			if x18 >= 1 {
 				if p.SkipHit() {
@@ -25160,6 +25161,7 @@ L14:
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x19, x20 = p.Pos, len(p.Recovered)
 		if _, ok = u318(p); !ok {
 			goto L21
@@ -25387,13 +25389,13 @@ func v325(p *rt.TParser) (any, bool) {
 		p.RunBegin(37, false, false)
 	}
 	for {
-		p.Spend()
 		if x1 {
 			if p.SkipHit() {
 				break
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x4, x5 = p.Pos, len(p.Recovered)
 		if _, ok = u318(p); !ok {
 			goto L6
@@ -25456,13 +25458,13 @@ L9:
 		p.RunBegin(38, false, false)
 	}
 	for {
-		p.Spend()
 		if x16 {
 			if p.SkipHit() {
 				break
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x19, x20 = p.Pos, len(p.Recovered)
 		x22, x23 = p.Pos, len(p.Recovered)
 		if _, ok = u318(p); !ok {
@@ -25860,7 +25862,6 @@ L12:
 	}
 	x16 = 0
 	for {
-		p.Spend()
 		if x14 {
 			if x16 >= 1 {
 				if p.SkipHit() {
@@ -25869,6 +25870,7 @@ L12:
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x17, x18 = p.Pos, len(p.Recovered)
 		if _, ok = s277(p); !ok {
 			goto L19
@@ -26574,13 +26576,13 @@ func s336(p *rt.TParser) (any, bool) {
 		p.RunBegin(11, false, false)
 	}
 	for {
-		p.Spend()
 		if x1 {
 			if p.SkipHit() {
 				break
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x4, x5 = p.Pos, len(p.Recovered)
 		x7, x8 = p.Pos, len(p.Recovered)
 		if p.Pos < len(p.In) {
@@ -26690,13 +26692,13 @@ func s337(p *rt.TParser) (any, bool) {
 		p.RunBegin(12, false, false)
 	}
 	for {
-		p.Spend()
 		if x1 {
 			if p.SkipHit() {
 				break
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x4, x5 = p.Pos, len(p.Recovered)
 		x7, x8 = p.Pos, len(p.Recovered)
 		if p.Pos < len(p.In) {
@@ -26820,6 +26822,7 @@ L3:
 		goto fail
 	}
 	for {
+		p.Spend()
 		if p.Pos < len(p.In) {
 			p.Control.Take(1)
 			_, size, ok = p.In[p.Pos], 1, true
@@ -27141,6 +27144,7 @@ L5:
 	x6 = p.Pos
 	x7 = 0
 	for {
+		p.Spend()
 		if p.Pos < len(p.In) {
 			p.Control.Take(1)
 			ch, size, ok = p.In[p.Pos], 1, true
@@ -27354,7 +27358,6 @@ func v346(p *rt.TParser) (any, bool) {
 	}
 	x3 = 0
 	for {
-		p.Spend()
 		if x1 {
 			if x3 >= 1 {
 				if p.SkipHit() {
@@ -27363,6 +27366,7 @@ func v346(p *rt.TParser) (any, bool) {
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x4, x5 = p.Pos, len(p.Recovered)
 		if _, ok = s277(p); !ok {
 			goto L6
@@ -27447,13 +27451,13 @@ L3:
 		p.RunBegin(2, false, false)
 	}
 	for {
-		p.Spend()
 		if x4 {
 			if p.SkipHit() {
 				break
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x7, x8 = p.Pos, len(p.Recovered)
 		x10, x11 = p.Pos, len(p.Recovered)
 		if p.Pos < len(p.In) {
@@ -27669,7 +27673,6 @@ L3:
 	}
 	x6 = 0
 	for {
-		p.Spend()
 		if x4 {
 			if x6 >= 1 {
 				if p.SkipHit() {
@@ -27678,6 +27681,7 @@ L3:
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x7, x8 = p.Pos, len(p.Recovered)
 		if _, ok = s277(p); !ok {
 			goto L9
@@ -28281,7 +28285,6 @@ func s352(p *rt.TParser) (any, bool) {
 	}
 	x11 = 0
 	for {
-		p.Spend()
 		if x9 {
 			if x11 >= 1 {
 				if p.SkipHit() {
@@ -28290,6 +28293,7 @@ func s352(p *rt.TParser) (any, bool) {
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x12, x13 = p.Pos, len(p.Recovered)
 		if _, ok = s277(p); !ok {
 			goto L14
@@ -28384,13 +28388,13 @@ func v353(p *rt.TParser) (any, bool) {
 		p.RunBegin(14, false, false)
 	}
 	for {
-		p.Spend()
 		if x1 {
 			if p.SkipHit() {
 				break
 			}
 			p.SkipVisit()
 		}
+		p.Spend()
 		x4, x5 = p.Pos, len(p.Recovered)
 		x7, x8 = p.Pos, len(p.Recovered)
 		if p.Pos < len(p.In) {

@@ -261,6 +261,67 @@ func allOptimizationsOff() []string {
 	return out
 }
 
+// chargeSettings are the optimization settings under which generated parsers are compared.
+var chargeSettings = []struct {
+	name  string
+	noOpt []string
+}{{"default", nil}, {"optimizations off", allOptimizationsOff()}}
+
+// generatedGoCharges generates a Go parser for each case, with the optimizations noOpt off, and
+// returns the output of its consumer: the CHARGE lines for the inputs of the case and the limits of
+// its reference.
+func generatedGoCharges(t *testing.T, cases []chargeCase, refs []chargeRef, noOpt []string) []string {
+	t.Helper()
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(codegentest.GoModAt("fixture", codegentest.LibCopy())), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for k, c := range cases {
+		g, err := parseTest(c.grammar)
+		if err != nil {
+			t.Fatal(err)
+		}
+		pkg := fmt.Sprintf("p%d", k)
+		code, err := codegentest.GenerateCode(t, g, common.GenOptions{Package: pkg, Start: "main", NoOpt: noOpt})
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		inputs, limits := refs[k].literals(c, false)
+		consumer := strings.NewReplacer("PKG", pkg, "INPUTS", inputs, "LIMITS", limits).Replace(chargeGoConsumer)
+		if err := os.MkdirAll(filepath.Join(dir, pkg), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		for name, src := range map[string]string{"parser.go": string(code), "charges_test.go": consumer} {
+			if err := os.WriteFile(filepath.Join(dir, pkg, name), []byte(src), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	outs := make([]string, len(cases))
+	for k, c := range cases {
+		cmd := exec.Command("go", "test", "-count=1", "-run", "TestCharges", "-v", "./"+fmt.Sprintf("p%d", k))
+		cmd.Dir = dir
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("%s: %v\n%s", c.name, err, codegentest.Clip(string(out), 0))
+		}
+		outs[k] = string(out)
+	}
+	return outs
+}
+
+// generatedTSCharges is generatedGoCharges for a generated TypeScript parser of one case.
+func generatedTSCharges(t *testing.T, c chargeCase, ref chargeRef, noOpt []string) string {
+	t.Helper()
+	g, err := parseTest(c.grammar)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inputs, limits := ref.literals(c, true)
+	script := strings.NewReplacer("INPUTS", inputs, "LIMITS", limits).Replace(chargeTSScript)
+	return codegentest.RunTSGrammarScriptBundle(t, g, script, common.GenOptions{Start: "main", LimitControls: true, Expectations: true, NoOpt: noOpt}, codegentest.GenerateTSBundle)
+}
+
 // TestChargeAgreementGenerated compares the units of generated Go and TypeScript parsers, with the
 // default optimizations and with every optimization off, with the closure backend on the charge
 // cases and the testdata corpora.
@@ -274,45 +335,10 @@ func TestChargeAgreementGenerated(t *testing.T) {
 	for k, c := range cases {
 		refs[k] = chargeReference(t, c)
 	}
-	settings := []struct {
-		name  string
-		noOpt []string
-	}{{"default", nil}, {"optimizations off", allOptimizationsOff()}}
-	for _, s := range settings {
+	for _, s := range chargeSettings {
 		t.Run(s.name+"/go", func(t *testing.T) {
-			dir := t.TempDir()
-			if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(codegentest.GoModAt("fixture", codegentest.LibCopy())), 0o644); err != nil {
-				t.Fatal(err)
-			}
-			for k, c := range cases {
-				g, err := parseTest(c.grammar)
-				if err != nil {
-					t.Fatal(err)
-				}
-				pkg := fmt.Sprintf("p%d", k)
-				code, err := codegentest.GenerateCode(t, g, common.GenOptions{Package: pkg, Start: "main", NoOpt: s.noOpt})
-				if err != nil {
-					t.Fatalf("%s: %v", c.name, err)
-				}
-				inputs, limits := refs[k].literals(c, false)
-				consumer := strings.NewReplacer("PKG", pkg, "INPUTS", inputs, "LIMITS", limits).Replace(chargeGoConsumer)
-				if err := os.MkdirAll(filepath.Join(dir, pkg), 0o755); err != nil {
-					t.Fatal(err)
-				}
-				for name, src := range map[string]string{"parser.go": string(code), "charges_test.go": consumer} {
-					if err := os.WriteFile(filepath.Join(dir, pkg, name), []byte(src), 0o644); err != nil {
-						t.Fatal(err)
-					}
-				}
-			}
-			for k, c := range cases {
-				cmd := exec.Command("go", "test", "-count=1", "-run", "TestCharges", "-v", "./"+fmt.Sprintf("p%d", k))
-				cmd.Dir = dir
-				out, err := cmd.CombinedOutput()
-				if err != nil {
-					t.Fatalf("%s: %v\n%s", c.name, err, codegentest.Clip(string(out), 0))
-				}
-				refs[k].compare(t, c, "generated Go "+s.name, string(out))
+			for k, out := range generatedGoCharges(t, cases, refs, s.noOpt) {
+				refs[k].compare(t, cases[k], "generated Go "+s.name, out)
 			}
 		})
 		t.Run(s.name+"/typescript", func(t *testing.T) {
@@ -320,15 +346,79 @@ func TestChargeAgreementGenerated(t *testing.T) {
 				t.Skip("node not found")
 			}
 			for k, c := range cases {
-				g, err := parseTest(c.grammar)
-				if err != nil {
-					t.Fatal(err)
-				}
-				inputs, limits := refs[k].literals(c, true)
-				script := strings.NewReplacer("INPUTS", inputs, "LIMITS", limits).Replace(chargeTSScript)
-				out := codegentest.RunTSGrammarScriptBundle(t, g, script, common.GenOptions{Start: "main", LimitControls: true, Expectations: true, NoOpt: s.noOpt}, codegentest.GenerateTSBundle)
-				refs[k].compare(t, c, "generated TypeScript "+s.name, out)
+				refs[k].compare(t, c, "generated TypeScript "+s.name, generatedTSCharges(t, c, refs[k], s.noOpt))
 			}
+		})
+	}
+}
+
+// chargeTotalsOf returns the units of the CHARGE lines of out, by position unit and input.
+func chargeTotalsOf(t *testing.T, out string, inputs int) [2][]uint64 {
+	t.Helper()
+	totals := [2][]uint64{make([]uint64, inputs), make([]uint64, inputs)}
+	seen := 0
+	for _, line := range strings.Split(out, "\n") {
+		var u, i int
+		var total uint64
+		if n, _ := fmt.Sscanf(line, "CHARGE %d %d %d", &u, &i, &total); n == 3 {
+			totals[u][i] = total
+			seen++
+		}
+	}
+	if seen != 2*inputs {
+		t.Fatalf("%d reports for %d inputs\n%s", seen, inputs, codegentest.Clip(out, 0))
+	}
+	return totals
+}
+
+// TestIterationsChargeOneUnitEachGenerated is TestIterationsChargeOneUnitEach for generated Go and
+// TypeScript parsers, with the default optimizations and with every optimization off.
+func TestIterationsChargeOneUnitEachGenerated(t *testing.T) {
+	codegentest.NeedsBudgetControls(t)
+	var cases []chargeCase
+	for _, v := range iterationVariants {
+		cases = append(cases, chargeCase{v.name, v.grammar, []string{v.input}}, chargeCase{v.name + " written out", v.unrolled, []string{v.input}})
+	}
+	// No limits below the units: only the units are compared.
+	refs := make([]chargeRef, len(cases))
+	for k := range refs {
+		refs[k].limits = [2][][]uint64{{nil}, {nil}}
+	}
+	// known lists the variants whose written-out grammar a target does not yet charge like the
+	// repetition for a reason other than the iterations; each must still differ, so that the change
+	// that removes the cause also removes its entry.
+	check := func(t *testing.T, name string, outs []string, known map[string]bool) {
+		t.Helper()
+		for k, v := range iterationVariants {
+			got, base := chargeTotalsOf(t, outs[2*k], 1), chargeTotalsOf(t, outs[2*k+1], 1)
+			for u, unit := range []string{"codepoints", "bytes"} {
+				if known[v.name] {
+					if got[u][0] == base[u][0]+v.iterations {
+						t.Errorf("%s: %s: %s: charges like its written-out grammar: remove it from the known differences", name, v.name, unit)
+					}
+					continue
+				}
+				if got[u][0] != base[u][0]+v.iterations {
+					t.Errorf("%s: %s: %s: %q: %d units for\n%s\nand %d for\n%s\nwant %d more for its iterations", name, v.name, unit, v.input, got[u][0], v.grammar, base[u][0], v.unrolled, v.iterations)
+				}
+			}
+		}
+	}
+	for _, s := range chargeSettings {
+		t.Run(s.name+"/go", func(t *testing.T) {
+			// The recognizer that generated Go calls for !item charges one unit for the call and the
+			// body together, where a call of item charges one for each.
+			check(t, "generated Go "+s.name, generatedGoCharges(t, cases, refs, s.noOpt), map[string]bool{"rule element": true})
+		})
+		t.Run(s.name+"/typescript", func(t *testing.T) {
+			if _, err := exec.LookPath("node"); err != nil {
+				t.Skip("node not found")
+			}
+			outs := make([]string, len(cases))
+			for k, c := range cases {
+				outs[k] = generatedTSCharges(t, c, refs[k], s.noOpt)
+			}
+			check(t, "generated TypeScript "+s.name, outs, nil)
 		})
 	}
 }
