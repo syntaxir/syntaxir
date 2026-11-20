@@ -184,7 +184,8 @@ linear time even in a grammar declared `@linear`. The exact rules are in [Declar
 
 Package `zeroparse.dev/zp/pkg/lint` lints from Go. A `lint.Config` holds the settings of a run, and its `Run`
 method takes a context, a grammar AST and the start rule. It returns an error, and no findings, if the grammar
-does not compile or the context ends:
+does not compile or the context ends. The types, functions and errors of the package are defined in
+[Go API](../../spec/runtime/lint.md#go-api):
 
 ```go
 g, err := grammar.Load(grammar.FromString("grammar.zp", src))
@@ -228,7 +229,7 @@ func TestGrammarLint(t *testing.T) {
 `lint.Classify` takes the same arguments as `Run` and returns the classification itself: its `Class` (`lint.Linear`,
 `lint.LinearEnv`, `lint.Polynomial`, `lint.Unknown` or `lint.Exponential`), the degree of a polynomial class, the
 witnessed degree of an unknown one, and the witnesses and reasons as `lint.Cause` values with a kind, a rule, a
-position and a message. It is the classification that `-classify` prints, and like `Run` it returns an error if the
+position and a message. It is the classification that `-classify` prints (see [Classification in Go](../../spec/runtime/lint.md#classification-in-go)), and like `Run` it returns an error if the
 grammar does not compile, the start rule is not one, or the context ends:
 
 ```go
@@ -248,7 +249,8 @@ A grammar decoded from JSON has no source positions; its findings have the zero
 
 `lint.Severity` is encoded as text (`"hint"`, `"warning"` or `"error"`), in the `-f json` output and by
 `MarshalText` and `UnmarshalText`. `lint.Rewrites` takes the grammar, the start rule and the findings of `Config.Run`, returns an error if the grammar does not compile, and otherwise returns the automatic fix of each finding; `Rewrite.IsValid`
-reports whether a finding has one, since the rewrite of a finding without a fix is the zero value.
+reports whether a finding has one, since the rewrite of a finding without a fix is the zero value. The three findings
+that have a rewrite, and when, are listed under [Rewrites](../../spec/runtime/lint.md#rewrites).
 
 ## Severities
 

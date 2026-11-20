@@ -68,6 +68,63 @@ linter, identified by a name.
   positions: its findings have the zero `Pos` and name the rule they are in. Such
   a grammar has no comments, so it cannot carry [directives](#suppressing-findings).
 
+### Go API
+
+The package `lint` (`zeroparse.dev/zp/pkg/lint`) is the Go form of the linter. It works on a grammar AST
+(`ast.Grammar`, see [Grammar Representations](../language/grammar-files.md#grammar-representations)), not on text, and
+it reports positions as `ast.Pos`.
+
+| Element | Meaning |
+|:--|:--|
+| `lint.Severity` | `lint.Hint`, `lint.Warning` and `lint.Error`, in increasing order of certainty and with the values 1, 2 and 3; the zero value is no severity. `String`, `MarshalText` and `UnmarshalText` use the names `hint`, `warning` and `error`, and `UnmarshalText` fails on any other name |
+| `lint.Finding` | `Pos`, `Severity`, `Check` (the name of the check), `Rule`, `Message` and `Fix`. `Fix` is empty when there is no single obvious fix. `String` is `line:col: severity: message [check]`, without the position when `Pos` is not valid |
+| `lint.Check` | `Name`, `Severity` (the highest severity that the check reports) and `Summary` |
+| `lint.Checks()` | Every check in the order of the [table of checks](#checks) |
+| `lint.CheckUnreachableRule`, ... | One constant for each check, with the name of the check as its value |
+| `lint.Config` | `Disable`, the names of the checks not to run, and `Classify`. The zero value runs every check except `super-linear` |
+| `Config.Run(ctx, g, start)` | The findings sorted by position, as [described above](#entry-points) |
+
+`Config.Run` compiles the grammar first and lints what the front end checked. It returns an error and no findings if
+`g` does not compile, if `start` is not empty and not a start rule of `g`, if `Disable` names an unknown check or if
+the context ends. `unreachable-rule` reports the rules that no start rule reaches, whichever start rule `start` names.
+
+#### Classification in Go
+
+`lint.Classify(ctx, g, start)` returns a `*lint.Classification`, the [classification](parsing.md#classification) of the cost of `g` from the start
+rule, the one that `Config.Classify` asks a run for. It returns an error if `g` does not compile, if `start` is not
+empty and not a start rule of `g`, or if the context ends.
+
+| Element | Meaning |
+|:--|:--|
+| `lint.Class` | `lint.Linear`, `lint.LinearEnv`, `lint.Polynomial`, `lint.Unknown` and `lint.Exponential`, from the strongest claim to the weakest. `String` gives `linear`, `linear given an environment bound`, `polynomial`, `unknown` and `exponential` |
+| `lint.Classification` | The `Class` of the grammar, with what decides it |
+| `Degree` | The largest degree of the polynomial causes of the class `Polynomial`, and 0 for any other class |
+| `WitnessedDegree` | The largest degree of the polynomial causes of the class `Unknown`, and 0 for any other class. It is an estimate from the witnesses, not a bound |
+| `Causes` | The polynomial and exponential causes, sorted by position. A grammar of the class `Unknown` or `Exponential` can have them |
+| `Reasons` | The reasons for the class `Unknown`, sorted by position. A grammar of the class `Exponential` can have them too |
+| `Env` | The causes that bound the cost only given an environment bound, of the kind `CauseDivergingBinding`. The class is `LinearEnv` when `Env` is not empty and there are no causes and no reasons; a grammar of a worse class can have entries too |
+| `Combinations` | The product of the numbers of values of the variables with finitely many values, and 1 when there are none. For the class `Linear` it bounds the number of combinations of values that memoized rules read at one position |
+| `lint.Cause` | `Kind`, `Class` (`Polynomial` or `Exponential` for a cause, `Unknown` for a reason, `LinearEnv` for an entry of `Env`), `Degree` (k of a polynomial cause), `Rule`, `Pos`, and `Message`, which names the class and the witness, or for a reason the reason |
+| `lint.CauseKind` | The pattern of grammar that a cause comes from: `CauseRestartedRepetition`, `CauseLookaheadScan`, `CauseRecoverySkip`, `CauseRegrowth`, `CauseDivergingBinding` and `CauseSelfGrowingValue`, and `CauseOther` for a reason and for a cause that no pattern covers. `String` gives `restarted repetition`, `lookahead scan`, `recovery skip`, `regrowth`, `diverging binding`, `self-growing value` and `other` |
+
+#### Rewrites
+
+A `lint.Rewrite` is a change to the source of a grammar that fixes a finding without changing what the grammar
+matches or the values that it builds. `Start` and `End` delimit the source to replace, with `End` exclusive, and
+`NewText` replaces it. `IsValid` reports whether the rewrite holds a change; the zero `Rewrite` holds none.
+
+`lint.Rewrites(ctx, g, start, findings)` returns one `Rewrite` for each finding, in the order of `findings`, which MUST
+come from `Config.Run` on the same `g` and `start`. A finding without a rewrite, and a finding without a valid position,
+has the zero `Rewrite`. It returns an error and no rewrites if `g` does not compile, if `start` is not empty and not a start rule of `g`, or if the
+context ends. Only three kinds of findings have a rewrite, each when the condition holds that makes the change safe; a
+tool that applies a rewrite still checks the result.
+
+| Finding | Rewrite | Condition |
+|:--|:--|:--|
+| `char-class` for ranges that overlap or repeat | The class with merged ranges | Both classes contain the same code points, and negation is unchanged. A class that also matches the punctuation between letters, such as `[A-z]`, has no rewrite, because the writer must say which characters were meant |
+| `useless-lookahead` for a lookahead that always succeeds | The lookahead removed | The lookahead is an item of a sequence of at least three items, so that the sequence keeps at least two and stays a tuple; it is not under a discard (`-`), a label or an operator; and it holds only literals, character classes, any-character, groups, sequences, choices, options and repetitions, so it holds no capture, cut, call, predicate, recovery or attribute |
+| `unreachable-rule` | The whole definition, with its attributes, removed | No start rule reaches the rule, directly or through an inline action |
+
 ### Severities
 
 | Severity | Meaning |
