@@ -843,7 +843,7 @@ func (p *parser) varDef() (sourceResult *ast.VarDef) {
 			p.errorf("expected the initial value on the same statement, found %s", p.tok())
 			panic(bail{})
 		}
-		vd.Value = p.term()
+		vd.Value = p.actionExpr()
 	}
 	return vd
 }
@@ -898,7 +898,7 @@ func (p *parser) ruleDef() (sourceResult *ast.RuleDef) {
 				rd.ActionBreak = p.lineBreak()
 			}
 			p.next()
-			rd.Action, rd.DefaultAction = p.actionTerm()
+			rd.Action, rd.DefaultAction = p.action()
 		}
 		return rd
 	}
@@ -913,7 +913,7 @@ func (p *parser) ruleDef() (sourceResult *ast.RuleDef) {
 			p.afterGap(rd.Expr)
 		}
 		p.next()
-		rd.Action, rd.DefaultAction = p.actionTerm()
+		rd.Action, rd.DefaultAction = p.action()
 	}
 	return rd
 }
@@ -963,21 +963,21 @@ func (p *parser) declarationAttributes(keyword string) (attrs []*ast.Attribute, 
 	return attrs, breaks, p.lineBreak()
 }
 
-func (p *parser) actionTerm() (ast.ActionExpr, bool) {
-	var term ast.ActionExpr
+func (p *parser) action() (ast.ActionExpr, bool) {
+	var expr ast.ActionExpr
 	defaultAction := p.accept("...")
 	if !defaultAction {
 		if p.is("{") {
-			term = p.actionBlock()
+			expr = p.actionBlock()
 		} else {
-			term = p.term()
+			expr = p.actionExpr()
 		}
 	}
 	if !p.boundary() && p.is("=>") {
 		p.errorf("actions do not chain; parenthesize an inline action")
 		panic(bail{})
 	}
-	return term, defaultAction
+	return expr, defaultAction
 }
 
 func (p *parser) inlineChoice() (sourceResult ast.Expr) {
@@ -992,8 +992,8 @@ func (p *parser) inlineChoice() (sourceResult ast.Expr) {
 	if !p.boundary() && p.is("=>") {
 		gap := p.takeCommentGap()
 		pos := p.next().pos
-		term, defaultAction := p.actionTerm()
-		a := &ast.InlineAction{SourceInfo: ast.SourceInfo{Pos: pos}, Expr: e, Action: term, DefaultAction: defaultAction}
+		expr, defaultAction := p.action()
+		a := &ast.InlineAction{SourceInfo: ast.SourceInfo{Pos: pos}, Expr: e, Action: expr, DefaultAction: defaultAction}
 		if gap != nil {
 			layoutOf(a).OpGap = gap
 		}
@@ -1138,7 +1138,7 @@ func (p *parser) operatorsRule() (sourceResult *ast.OperatorsRule) {
 			operandPos := p.toks[p.i-1].pos
 			o := &ast.OperatorsRuleOperand{SourceInfo: ast.SourceInfo{Pos: operandPos}, Expr: p.choice(), Break: b}
 			if p.accept("=>") {
-				o.Action, o.DefaultAction = p.actionTerm()
+				o.Action, o.DefaultAction = p.action()
 			}
 			pr.Operands = append(pr.Operands, o)
 			p.source(o, itemStart)
@@ -1242,7 +1242,7 @@ func (p *parser) operatorsRuleOperator() (sourceResult *ast.OperatorsRuleOperato
 	}
 	op.Expr = p.choice()
 	if p.accept("=>") {
-		op.Action, op.DefaultAction = p.actionTerm()
+		op.Action, op.DefaultAction = p.action()
 	}
 	return op
 }
@@ -1602,7 +1602,7 @@ func (p *parser) isOldOperatorsStart() bool { return oldOperatorsStart(p.peek) }
 
 // oldOperatorsStart reports whether the tokens from at(0) are the start of an Operators Rule
 // written without the pragma: operators, a { on the same line, and an item that starts with one
-// of the item words followed by something that cannot continue a term. A body such as
+// of the item words followed by something that cannot continue an action expression. A body such as
 // operators {x == 1} or operators {level {x} > 0} is a reference to a rule named operators
 // followed by a predicate. The parser's hint uses it.
 func oldOperatorsStart(at func(int) token) bool {
@@ -1825,7 +1825,7 @@ func (p *parser) primary() (sourceResult ast.Expr) {
 			if !p.boundary() && p.is("=>") {
 				gap := p.takeCommentGap()
 				pos := p.next().pos
-				action, defaultAction := p.actionTerm()
+				action, defaultAction := p.action()
 				group.Expr = &ast.InlineAction{SourceInfo: ast.SourceInfo{Pos: pos}, Expr: group.Expr, Action: action, DefaultAction: defaultAction}
 				if gap != nil {
 					layoutOf(group.Expr).OpGap = gap
@@ -1846,11 +1846,11 @@ func (p *parser) primary() (sourceResult ast.Expr) {
 			return group
 		case "{":
 			block := p.actionBlock()
-			var term ast.ActionExpr = block
+			var expr ast.ActionExpr = block
 			if len(block.Statements) == 1 {
-				term = block.Statements[0]
+				expr = block.Statements[0]
 			}
-			return &ast.Predicate{SourceInfo: ast.SourceInfo{Pos: t.pos}, Action: term, OpenBreak: block.OpenBreak, Breaks: block.Breaks, CloseBreak: block.CloseBreak, OneLine: block.OneLine}
+			return &ast.Predicate{SourceInfo: ast.SourceInfo{Pos: t.pos}, Action: expr, OpenBreak: block.OpenBreak, Breaks: block.Breaks, CloseBreak: block.CloseBreak, OneLine: block.OneLine}
 		case "#":
 			if p.isOperatorsStart() {
 				p.operatorsPlacementError()
@@ -1944,25 +1944,25 @@ func (p *parser) actionBlock() (sourceResult *ast.Block) {
 		}
 		restore := p.statement()
 		statementStart := p.i
-		var term ast.ActionExpr
+		var expr ast.ActionExpr
 		if p.tok().kind == tIdent && p.peek(1).text == ":=" {
 			name := p.ident()
 			p.expect(":=")
-			term = &ast.Bind{SourceInfo: ast.SourceInfo{Pos: name.pos}, Name: name.text, Value: p.term()}
+			expr = &ast.Bind{SourceInfo: ast.SourceInfo{Pos: name.pos}, Name: name.text, Value: p.actionExpr()}
 		} else {
-			term = p.term()
+			expr = p.actionExpr()
 		}
-		p.sourceNode(term, statementStart)
+		p.sourceNode(expr, statementStart)
 		restore()
 		if gap != nil {
-			l := layoutOf(term)
+			l := layoutOf(expr)
 			l.Before, l.PreviousLine, l.NextLine = gap, gapLine, gapLine
 		}
-		block.Statements = append(block.Statements, term)
+		block.Statements = append(block.Statements, expr)
 		block.Breaks = append(block.Breaks, br)
 		if p.is(";") {
 			if gap := p.takeInlineGap(); gap != nil {
-				layoutOf(term).After = gap
+				layoutOf(expr).After = gap
 			}
 		}
 		joined = p.separator()
@@ -1970,13 +1970,13 @@ func (p *parser) actionBlock() (sourceResult *ast.Block) {
 			p.errorf("expected a semicolon or newline between action statements")
 			panic(bail{})
 		}
-		p.sourceTrailing(term.(ast.SourceNode).Source())
+		p.sourceTrailing(expr.(ast.SourceNode).Source())
 	}
 }
 
 // --- Value expressions ---
 
-func (p *parser) term() (sourceResult ast.ActionExpr) {
+func (p *parser) actionExpr() (sourceResult ast.ActionExpr) {
 	sourceStart := p.i
 	defer func() {
 		if sourceResult != nil {
@@ -2071,7 +2071,7 @@ func (p *parser) tryLambda() (sourceResult ast.ActionExpr) {
 	outer := len(p.params)
 	p.params = append(p.params, params...)
 	defer func() { p.params = p.params[:outer] }()
-	return &ast.Lambda{Params: params, Body: p.term(), TrailingComma: trailing, ParamsLayout: list}
+	return &ast.Lambda{Params: params, Body: p.actionExpr(), TrailingComma: trailing, ParamsLayout: list}
 }
 
 var binaryLevels = [][]string{
@@ -2146,7 +2146,7 @@ func (p *parser) unary() (sourceResult ast.ActionExpr) {
 	if p.accept("-") || p.accept("!") {
 		return &ast.Unary{SourceInfo: ast.SourceInfo{Pos: t.pos}, Op: t.text, X: p.unary()}
 	}
-	x := p.termPrimary()
+	x := p.actionExprPrimary()
 	for !p.boundary() && (p.is(".") || p.is("[")) {
 		if t := p.next(); t.text == "[" {
 			// The lexer reads "[" as a bracket only directly after the indexed value.
@@ -2154,7 +2154,7 @@ func (p *parser) unary() (sourceResult ast.ActionExpr) {
 			index := &ast.Binary{SourceInfo: ast.SourceInfo{Pos: t.pos}, Op: "[]", L: x, OpenBreak: &ast.LineBreak{}}
 			p.cur = index.OpenBreak
 			index.BodyBreak = p.lineBreak()
-			index.R = p.term()
+			index.R = p.actionExpr()
 			index.CloseBreak = p.lineBreak()
 			p.expect("]")
 			p.cur = outer
@@ -2204,7 +2204,7 @@ func captureMember(name string) bool {
 	return r != '$' && !unicode.IsUpper(r) // x.$y is parsed as the member $y
 }
 
-func (p *parser) termPrimary() (sourceResult ast.ActionExpr) {
+func (p *parser) actionExprPrimary() (sourceResult ast.ActionExpr) {
 	sourceStart := p.i
 	defer func() {
 		if sourceResult != nil {
@@ -2228,7 +2228,7 @@ func (p *parser) termPrimary() (sourceResult ast.ActionExpr) {
 		return &ast.CaptureRef{SourceInfo: ast.SourceInfo{Pos: t.pos}, Name: t.text}
 	case tIndex:
 		p.next()
-		// The error fails the parse; the literal only keeps the term well formed.
+		// The error fails the parse; the literal only keeps the action expression well formed.
 		p.errs.addRange(t.pos, t.end, fmt.Sprintf("a capture is read by name: label the element (x:...) and write $x instead of $%d", t.num))
 		return &ast.IntLit{Value: t.num}
 	case tIdent:
@@ -2241,7 +2241,7 @@ func (p *parser) termPrimary() (sourceResult ast.ActionExpr) {
 			return &ast.NilLit{}
 		}
 		if (!p.layout || p.layoutDepth > 0 || !p.peek(1).lineBefore) && p.peek(1).kind == tPunct && p.peek(1).text == "{" {
-			return p.newTerm()
+			return p.newActionExpr()
 		}
 		p.next()
 		if !p.boundary() && p.is("(") && !p.tok().spaceBefore {
@@ -2282,7 +2282,7 @@ func (p *parser) termPrimary() (sourceResult ast.ActionExpr) {
 			if p.is(")") {
 				return p.tupleLit(&ast.TupleLit{OpenBreak: g.OpenBreak, BodyBreak: g.BodyBreak}) // the unit ()
 			}
-			g.Action = p.term()
+			g.Action = p.actionExpr()
 			if p.is(",") {
 				return p.tupleLit(&ast.TupleLit{OpenBreak: g.OpenBreak, BodyBreak: g.BodyBreak, Elems: []ast.ActionExpr{g.Action}})
 			}
@@ -2307,7 +2307,7 @@ func (p *parser) tupleLit(t *ast.TupleLit) ast.ActionExpr {
 				t.TrailingComma = true
 				break
 			}
-			x := p.term()
+			x := p.actionExpr()
 			t.Elems = append(t.Elems, x)
 			p.takeAfterLayout(x)
 		}
@@ -2319,7 +2319,7 @@ func (p *parser) tupleLit(t *ast.TupleLit) ast.ActionExpr {
 	return t
 }
 
-func (p *parser) newTerm() (sourceResult ast.ActionExpr) {
+func (p *parser) newActionExpr() (sourceResult ast.ActionExpr) {
 	sourceStart := p.i
 	defer func() {
 		if sourceResult != nil {
@@ -2351,7 +2351,7 @@ func (p *parser) newTerm() (sourceResult ast.ActionExpr) {
 		layout := p.takeTermLayout()
 		name := p.ident()
 		p.expect(":")
-		field := &ast.FieldInit{SourceInfo: ast.SourceInfo{Pos: name.pos}, Name: name.text, Value: p.term()}
+		field := &ast.FieldInit{SourceInfo: ast.SourceInfo{Pos: name.pos}, Name: name.text, Value: p.actionExpr()}
 		p.source(field, fieldStart)
 		field.Layout = layout
 		n.Fields = append(n.Fields, field)
@@ -2410,7 +2410,7 @@ func (p *parser) openList() (open, body *ast.LineBreak) {
 func (p *parser) listItems(closer string) (items []ast.ActionExpr, trailing bool) {
 	items = []ast.ActionExpr{}
 	for !p.is(closer) {
-		item := p.term()
+		item := p.actionExpr()
 		items = append(items, item)
 		p.takeAfterLayout(item)
 		trailing = false

@@ -10,7 +10,7 @@ import (
 // Value expressions.
 
 // actionOrDefault builds the action of a rule or of an inline action: a value
-// expression, a block, or the default action, which has no term.
+// expression, a block, or the default action, which has no action expression.
 func (c *canonical) actionOrDefault(n types.Action) (ast.ActionExpr, bool) {
 	if _, ok := n.(*types.DefaultAction); ok {
 		return nil, true
@@ -48,9 +48,9 @@ func (c *canonical) predicate(n *types.Predicate) *ast.Predicate {
 	return p
 }
 
-// terms builds the elements of a list of values, which the hand-written parser
+// actionExprs builds the elements of a list of values, which the hand-written parser
 // holds in an empty list when there are none.
-func (c *canonical) terms(list []types.ActionExpr) []ast.ActionExpr {
+func (c *canonical) actionExprs(list []types.ActionExpr) []ast.ActionExpr {
 	out := []ast.ActionExpr{}
 	each(c, list, func(a types.ActionExpr) { out = append(out, c.action(a)) })
 	return out
@@ -141,7 +141,7 @@ func (c *canonical) action(n any) ast.ActionExpr {
 		return t
 	case *types.Call:
 		t := &ast.Call{Func: c.text(c.present(n.X))}
-		t.Args = c.terms(n.Args)
+		t.Args = c.actionExprs(n.Args)
 		c.span(&t.SourceInfo, n)
 		return t
 	case *types.Constructor:
@@ -155,7 +155,7 @@ func (c *canonical) action(n any) ast.ActionExpr {
 			c.statement(&init.SourceInfo, f.SourceSpan, c.separators(f.SourceSpan.End, ',', 1), true)
 			t.Fields = append(t.Fields, init)
 		}
-		if args := c.terms(n.Args); len(args) > 0 {
+		if args := c.actionExprs(n.Args); len(args) > 0 {
 			t.Args = args
 		}
 		c.span(&t.SourceInfo, n)
@@ -163,12 +163,12 @@ func (c *canonical) action(n any) ast.ActionExpr {
 	case *types.ListConstructor:
 		t := &ast.ListConstructor{}
 		t.Elem = c.typ(n.Elem)
-		t.Items = c.terms(n.Items)
+		t.Items = c.actionExprs(n.Items)
 		c.span(&t.SourceInfo, n)
 		return t
 	case *types.ActionTuple:
 		t := &ast.TupleLit{Elems: []ast.ActionExpr{}}
-		t.Elems = append(t.Elems, c.terms(n.Elems)...)
+		t.Elems = append(t.Elems, c.actionExprs(n.Elems)...)
 		c.span(&t.SourceInfo, n)
 		return t
 	case *types.ActionGroup:

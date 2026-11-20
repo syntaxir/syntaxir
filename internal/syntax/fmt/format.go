@@ -256,8 +256,8 @@ func exprPos(e ast.Expr) ast.Pos {
 	return ast.Pos{}
 }
 
-// termPos returns where t begins in the source, if known.
-func termPos(t ast.ActionExpr) ast.Pos {
+// actionExprPos returns where t begins in the source, if known.
+func actionExprPos(t ast.ActionExpr) ast.Pos {
 	if n, ok := t.(ast.SourceNode); ok {
 		return n.Source().Pos
 	}
@@ -402,7 +402,7 @@ func (p *printer) varDef(v *ast.VarDef) {
 		p.write(" " + formatType(v.Type, p.control))
 	}
 	if v.Value != nil {
-		p.write(joinLayout(" = ", formatTerm(v.Value, 0, p.control)))
+		p.write(joinLayout(" = ", formatActionExpr(v.Value, 0, p.control)))
 	}
 }
 
@@ -434,7 +434,7 @@ func (p *printer) declarationAttributes(attrs []*ast.Attribute, attrBreaks []*as
 				}
 			}
 		}
-		p.write(attributeGap(a, p.control) + indentTermLines(formatAttribute(a, p.control), "", p.control))
+		p.write(attributeGap(a, p.control) + indentActionExprLines(formatAttribute(a, p.control), "", p.control))
 		if owned {
 			t := ownedTrailing(&a.SourceInfo, nil)
 			p.inline(t)
@@ -485,7 +485,7 @@ func (p *printer) ruleDef(r *ast.RuleDef) {
 		if r.DefaultAction {
 			p.write(" => ...")
 		} else {
-			p.write(joinLayout(" => ", formatTerm(r.Action, 0, p.control)))
+			p.write(joinLayout(" => ", formatActionExpr(r.Action, 0, p.control)))
 		}
 	}
 	p.comments(r.CloseBreak, indentUnit, true)
@@ -603,7 +603,7 @@ func (p *printer) body(e ast.Expr, indent string) {
 		}
 		if g := leadGap(a); g != nil {
 			// Comments between "/" and the alternative keep their lines.
-			s := indentTermLines(gapString(g, " ", p.control), indent+"  ", p.control)
+			s := indentActionExprLines(gapString(g, " ", p.control), indent+"  ", p.control)
 			if strings.HasSuffix(s, "\n") {
 				s += indent + "  "
 			}
@@ -714,7 +714,7 @@ func (p *printer) itemNode(e ast.Expr, indent string) {
 			p.write(" ")
 		}
 		// Lines of the parentheses are indented, and the closing one is not.
-		inner := indentTermLines(recoveryHead(e, p.control)+formatExpr(e.Skip, precChoice, p.control)+recoveryClose(e, p.control), indent+indentUnit, p.control)
+		inner := indentActionExprLines(recoveryHead(e, p.control)+formatExpr(e.Skip, precChoice, p.control)+recoveryClose(e, p.control), indent+indentUnit, p.control)
 		if strings.HasSuffix(inner, "\n") {
 			inner += indent
 		}
@@ -722,23 +722,23 @@ func (p *printer) itemNode(e ast.Expr, indent string) {
 	case *ast.Repeat:
 		if e.PragmaBreak == nil && hasBreak(e.Expr) {
 			p.item(e.Expr, indent)
-			p.write(indentTermLines(repeatSuffix(e, p.control), indent, p.control))
+			p.write(indentActionExprLines(repeatSuffix(e, p.control), indent, p.control))
 			break
 		}
 		if e.PragmaBreak == nil {
-			p.write(indentTermLines(formatExprNode(e, precPrefix, p.control), indent, p.control))
+			p.write(indentActionExprLines(formatExprNode(e, precPrefix, p.control), indent, p.control))
 			break
 		}
 		p.suffixOperand(e.Expr, indent)
 		p.lineBreak(e.PragmaBreak, indent, false)
-		p.write(indentTermLines(formatRepeatPragma(e, p.control), indent, p.control))
+		p.write(indentActionExprLines(formatRepeatPragma(e, p.control), indent, p.control))
 	case *ast.Optional:
 		if hasBreak(e.Expr) {
 			p.item(e.Expr, indent)
-			p.write(indentTermLines(suffixGap(e, p.control)+"?", indent, p.control))
+			p.write(indentActionExprLines(suffixGap(e, p.control)+"?", indent, p.control))
 			break
 		}
-		p.write(indentTermLines(formatExprNode(e, precPrefix, p.control), indent, p.control))
+		p.write(indentActionExprLines(formatExprNode(e, precPrefix, p.control), indent, p.control))
 	case *ast.Discard:
 		p.write("-")
 		p.operand(e.Expr, indent)
@@ -752,7 +752,7 @@ func (p *printer) itemNode(e ast.Expr, indent string) {
 				p.write(" ")
 			}
 			// The lines of an attribute with a trailing comma continue at the indentation of its line.
-			p.write(attributeGap(a, p.control) + indentTermLines(formatAttribute(a, p.control), indent, p.control))
+			p.write(attributeGap(a, p.control) + indentActionExprLines(formatAttribute(a, p.control), indent, p.control))
 		}
 	default:
 		p.write(formatExprNode(e, precPrefix, p.control))
@@ -774,7 +774,7 @@ func (p *printer) suffixOperand(e ast.Expr, indent string) {
 // comments between the two.
 func (p *printer) operand(e ast.Expr, indent string) {
 	if g := leadGap(e); g != nil {
-		s := indentTermLines(gapString(g, " ", p.control), indent, p.control)
+		s := indentActionExprLines(gapString(g, " ", p.control), indent, p.control)
 		if strings.HasSuffix(s, "\n") {
 			s += indent
 		}
@@ -838,14 +838,14 @@ func (p *printer) groupBody(e ast.Expr, indent string) {
 	pollFormat(p.control)
 	if action, ok := e.(*ast.InlineAction); ok {
 		p.body(action.Expr, indent)
-		arrow := indentTermLines(actionArrow(action, p.control), indent, p.control)
+		arrow := indentActionExprLines(actionArrow(action, p.control), indent, p.control)
 		if strings.HasSuffix(arrow, "\n=>") {
 			arrow = arrow[:len(arrow)-2] + indent + "=>"
 		}
 		if action.DefaultAction {
 			p.write(arrow + " ...")
 		} else {
-			p.write(joinLayout(arrow+" ", indentTermLines(formatTerm(action.Action, 0, p.control), indent, p.control)))
+			p.write(joinLayout(arrow+" ", indentActionExprLines(formatActionExpr(action.Action, 0, p.control), indent, p.control)))
 		}
 		return
 	}
@@ -882,7 +882,7 @@ func (p *printer) operatorsRule(pr *ast.OperatorsRule, indent string) {
 		p.lineBreak(ownedLead(&o.SourceInfo, o.Break, false), inner, false)
 		p.write("operand " + formatExpr(o.Expr, precChoice, p.control))
 		if o.Action != nil {
-			p.write(joinLayout(" => ", indentTermLines(formatTerm(o.Action, 0, p.control), inner, p.control)))
+			p.write(joinLayout(" => ", indentActionExprLines(formatActionExpr(o.Action, 0, p.control), inner, p.control)))
 		} else if o.DefaultAction {
 			p.write(" => ...")
 		}
@@ -946,7 +946,7 @@ func formatOperator(op *ast.OperatorsRuleOperator, control *formatControl) strin
 	}
 	s += formatExpr(op.Expr, precChoice, control)
 	if op.Action != nil {
-		s += joinLayout(" => ", formatTerm(op.Action, 0, control))
+		s += joinLayout(" => ", formatActionExpr(op.Action, 0, control))
 	} else if op.DefaultAction {
 		s += " => ..."
 	}
@@ -1087,14 +1087,14 @@ func formatSourceGroup(body string, open, first, close *ast.LineBreak, oneLine b
 // formatSourceDelimited is formatSourceGroup for any pair of delimiters.
 func formatSourceDelimited(body, openDelim, closeDelim string, open, first, close *ast.LineBreak, oneLine bool, control *formatControl) string {
 	return formatSourceGroupIndented(body, openDelim, closeDelim, open, first, close, oneLine, func(s, indent string) string {
-		return indentTermLines(s, indent, control)
+		return indentActionExprLines(s, indent, control)
 	}, control)
 }
 
-// parenTerm parenthesizes a formatted term that needs it. A term over several
-// lines gets the layout of a parenthesized term read from source, so that the
+// parenActionExpr parenthesizes a formatted action expression that needs it. An action expression over several
+// lines gets the layout of a parenthesized action expression read from source, so that the
 // next pass keeps it.
-func parenTerm(s string, control *formatControl) string {
+func parenActionExpr(s string, control *formatControl) string {
 	return formatSourceGroup(s, nil, nil, nil, !hasFormatNewline(s, control), control)
 }
 
@@ -1395,10 +1395,10 @@ func indentTypeLines(s, indent string, control *formatControl) string {
 	return out.String()
 }
 
-// indentTermLines indents the lines of a formatted term that follow its first
+// indentActionExprLines indents the lines of a formatted action expression that follow its first
 // one, except the lines inside block comments, which keep their text. Strings
 // are skipped so that a comment delimiter inside one is not read as a comment.
-func indentTermLines(s, indent string, control *formatControl) string {
+func indentActionExprLines(s, indent string, control *formatControl) string {
 	if !hasFormatNewline(s, control) {
 		return s
 	}
@@ -1549,7 +1549,7 @@ func formatExprNode(e ast.Expr, outer int, control *formatControl) string {
 	case *ast.InlineAction:
 		action := actionArrow(e, control) + " ..."
 		if !e.DefaultAction {
-			action = joinLayout(actionArrow(e, control)+" ", formatTerm(e.Action, 0, control))
+			action = joinLayout(actionArrow(e, control)+" ", formatActionExpr(e.Action, 0, control))
 		}
 		return finishFormat("("+formatExpr(e.Expr, precChoice, control)+action+")", control)
 	case *ast.Choice:
@@ -1644,9 +1644,9 @@ func formatExprNode(e ast.Expr, outer int, control *formatControl) string {
 		return finishFormat("$", control)
 	case *ast.Predicate:
 		if block, ok := e.Action.(*ast.Block); ok {
-			return finishFormat(formatTerm(block, 0, control), control)
+			return finishFormat(formatActionExpr(block, 0, control), control)
 		}
-		return finishFormat(formatTerm(&ast.Block{Statements: []ast.ActionExpr{e.Action}, OpenBreak: e.OpenBreak, Breaks: e.Breaks, CloseBreak: e.CloseBreak, OneLine: e.OneLine || len(e.Breaks) == 0 && e.CloseBreak == nil}, 0, control), control)
+		return finishFormat(formatActionExpr(&ast.Block{Statements: []ast.ActionExpr{e.Action}, OpenBreak: e.OpenBreak, Breaks: e.Breaks, CloseBreak: e.CloseBreak, OneLine: e.OneLine || len(e.Breaks) == 0 && e.CloseBreak == nil}, 0, control), control)
 	case *ast.OperatorsRule:
 		p := &printer{control: control}
 		p.operatorsRule(e, "")
@@ -1712,14 +1712,14 @@ func operatorSpace(e ast.Expr) string {
 // of the semicolon before it: it has comments there, and nothing else precedes
 // it on the line.
 func joinsStatement(s ast.ActionExpr, b *ast.LineBreak) bool {
-	l := termLayout(s)
+	l := actionExprLayout(s)
 	return l != nil && len(l.Before) > 0 && l.PreviousLine == l.NextLine && noComments(b)
 }
 
 // endsStatementGap reports whether the semicolon of the block statement s
 // follows comments on its line, so that the semicolon stays after them.
 func endsStatementGap(s ast.ActionExpr) bool {
-	l := termLayout(s)
+	l := actionExprLayout(s)
 	return l != nil && len(l.After) > 0
 }
 
@@ -2121,7 +2121,7 @@ func formatItemList(items []string, trailing bool, list *ast.ListLayout, control
 	if list != nil {
 		open, first, close = list.OpenBreak, list.BodyBreak, list.CloseBreak
 	}
-	return formatTermList(elems, false, trailing, "(", ")", open, first, close, control)
+	return formatActionExprList(elems, false, trailing, "(", ")", open, first, close, control)
 }
 
 func formatAttributeValue(value any, control *formatControl) string {
@@ -2205,7 +2205,7 @@ func formatCharClass(e *ast.CharClass, control *formatControl) string {
 	return b.String()
 }
 
-var termPrec = map[string]int{
+var actionExprPrec = map[string]int{
 	"||": 1, "&&": 2,
 	"==": 3, "!=": 3, "<": 3, "<=": 3, ">": 3, ">=": 3,
 	"+": 4, "-": 4,
@@ -2213,19 +2213,19 @@ var termPrec = map[string]int{
 }
 
 // FormatActionExpr returns the action expression t in ZeroParse syntax.
-func FormatActionExpr(t ast.ActionExpr) string { return formatTerm(t, 0, nil) }
+func FormatActionExpr(t ast.ActionExpr) string { return formatActionExpr(t, 0, nil) }
 
-func formatTerm(t ast.ActionExpr, outer int, control *formatControl) string {
+func formatActionExpr(t ast.ActionExpr, outer int, control *formatControl) string {
 	pollFormat(control)
-	return formatSourceLayout(termLayout(t), formatTermNode(t, outer, control), control)
+	return formatSourceLayout(actionExprLayout(t), formatActionExprNode(t, outer, control), control)
 }
 
-// leadingComments returns the layout of the first term along the left spine of
+// leadingComments returns the layout of the first action expression along the left spine of
 // t that holds comments before it. An index, a call or a binary expression
 // starts where its left operand does, but the comments may sit on any of them.
 func leadingComments(t ast.ActionExpr) *ast.SourceLayout {
 	for {
-		if layout := termLayout(t); layout != nil && len(layout.Before) > 0 {
+		if layout := actionExprLayout(t); layout != nil && len(layout.Before) > 0 {
 			return layout
 		}
 		switch x := t.(type) {
@@ -2241,8 +2241,8 @@ func leadingComments(t ast.ActionExpr) *ast.SourceLayout {
 	}
 }
 
-// termLayout returns the comments around t.
-func termLayout(t ast.ActionExpr) *ast.SourceLayout { return nodeLayout(t) }
+// actionExprLayout returns the comments around t.
+func actionExprLayout(t ast.ActionExpr) *ast.SourceLayout { return nodeLayout(t) }
 
 // nodeLayout returns the comments around n, an element of a list.
 func nodeLayout(n any) *ast.SourceLayout {
@@ -2255,7 +2255,7 @@ func nodeLayout(n any) *ast.SourceLayout {
 // formatListElem formats a list element without the comments after it, which
 // the list places itself.
 func formatListElem(t ast.ActionExpr, control *formatControl) listElem {
-	return layoutElem(termLayout(t), formatTermNode(t, 0, control), control)
+	return layoutElem(actionExprLayout(t), formatActionExprNode(t, 0, control), control)
 }
 
 func layoutElem(layout *ast.SourceLayout, body string, control *formatControl) listElem {
@@ -2268,18 +2268,18 @@ func layoutElem(layout *ast.SourceLayout, body string, control *formatControl) l
 	return e
 }
 
-// formatTermNode formats t without the comments around it.
-func formatTermNode(t ast.ActionExpr, outer int, control *formatControl) string {
+// formatActionExprNode formats t without the comments around it.
+func formatActionExprNode(t ast.ActionExpr, outer int, control *formatControl) string {
 	pollFormat(control)
 	switch t := t.(type) {
 	case *ast.ActionGroup:
-		return formatSourceGroup(formatTerm(t.Action, 0, control), t.OpenBreak, t.BodyBreak, t.CloseBreak, t.OneLine, control)
+		return formatSourceGroup(formatActionExpr(t.Action, 0, control), t.OpenBreak, t.BodyBreak, t.CloseBreak, t.OneLine, control)
 	case *ast.Block:
 		p := &printer{control: control}
 		parts := make([]string, len(t.Statements))
 		for i, stmt := range t.Statements {
 			pollFormat(control)
-			parts[i] = formatTerm(stmt, 0, control)
+			parts[i] = formatActionExpr(stmt, 0, control)
 		}
 		if t.OneLine && (len(t.Statements) > 0 && noComments(t.CloseBreak) || len(t.Statements) == 0) {
 			plain := true
@@ -2293,7 +2293,7 @@ func formatTermNode(t ast.ActionExpr, outer int, control *formatControl) string 
 				plain = plain && (b == nil || b.Trailing == nil)
 				if i == 0 {
 					var ok bool
-					lead, ok = inlineLead(b, termPos(t.Statements[0]))
+					lead, ok = inlineLead(b, actionExprPos(t.Statements[0]))
 					plain = plain && ok
 				} else {
 					plain = plain && noComments(b)
@@ -2324,7 +2324,7 @@ func formatTermNode(t ast.ActionExpr, outer int, control *formatControl) string 
 			if i > 0 && joinsStatement(t.Statements[i], breakAt(t.Breaks, i)) {
 				// Comments between the semicolon and the statement keep the
 				// statement on their line.
-				p.write("; " + indentTermLines(strings.TrimLeft(parts[i], " "), indentUnit, control))
+				p.write("; " + indentActionExprLines(strings.TrimLeft(parts[i], " "), indentUnit, control))
 				p.inline(breakAt(t.Breaks, i))
 				continue
 			}
@@ -2332,7 +2332,7 @@ func formatTermNode(t ast.ActionExpr, outer int, control *formatControl) string 
 				p.write(";")
 			}
 			p.lineBreak(breakAt(t.Breaks, i), indentUnit, false)
-			p.write(indentTermLines(parts[i], indentUnit, control))
+			p.write(indentActionExprLines(parts[i], indentUnit, control))
 		}
 		if n := len(t.Statements); n > 0 && endsStatementGap(t.Statements[n-1]) {
 			p.write(";")
@@ -2344,7 +2344,7 @@ func formatTermNode(t ast.ActionExpr, outer int, control *formatControl) string 
 		if t.Value == -int(^uint(0)>>1)-1 {
 			// The absolute minimum cannot be a positive source token. Use
 			// representable operands and honor the surrounding precedence.
-			return formatTerm(&ast.Binary{Op: "-", L: &ast.IntLit{Value: t.Value + 1}, R: &ast.IntLit{Value: 1}}, outer, control)
+			return formatActionExpr(&ast.Binary{Op: "-", L: &ast.IntLit{Value: t.Value + 1}, R: &ast.IntLit{Value: 1}}, outer, control)
 		}
 		return strconv.Itoa(t.Value)
 	case *ast.StringLit:
@@ -2361,18 +2361,18 @@ func formatTermNode(t ast.ActionExpr, outer int, control *formatControl) string 
 	case *ast.VarRef:
 		return t.Name
 	case *ast.Member:
-		return formatTerm(t.X, 7, control) + "." + t.Name
+		return formatActionExpr(t.X, 7, control) + "." + t.Name
 	case *ast.New:
 		elems := make([]listElem, 0, len(t.Fields)+len(t.Args))
 		for _, f := range t.Fields {
 			pollFormat(control)
-			elems = append(elems, layoutElem(f.Layout, f.Name+": "+formatTerm(f.Value, 0, control), control))
+			elems = append(elems, layoutElem(f.Layout, f.Name+": "+formatActionExpr(f.Value, 0, control), control))
 		}
 		for _, x := range t.Args {
 			pollFormat(control)
 			elems = append(elems, formatListElem(x, control))
 		}
-		return t.Type + formatTermList(elems, false, t.TrailingComma, "{", "}", t.OpenBreak, t.BodyBreak, t.CloseBreak, control)
+		return t.Type + formatActionExprList(elems, false, t.TrailingComma, "{", "}", t.OpenBreak, t.BodyBreak, t.CloseBreak, control)
 	case *ast.TupleLit:
 		elems := make([]listElem, len(t.Elems))
 		for i, x := range t.Elems {
@@ -2380,71 +2380,71 @@ func formatTermNode(t ast.ActionExpr, outer int, control *formatControl) string 
 			elems[i] = formatListElem(x, control)
 		}
 		// The comma of a one-element tuple is required: (x) would be a group.
-		return formatTermList(elems, len(elems) == 1, t.TrailingComma && len(elems) > 1, "(", ")", t.OpenBreak, t.BodyBreak, t.CloseBreak, control)
+		return formatActionExprList(elems, len(elems) == 1, t.TrailingComma && len(elems) > 1, "(", ")", t.OpenBreak, t.BodyBreak, t.CloseBreak, control)
 	case *ast.ListConstructor:
 		items := make([]listElem, len(t.Items))
 		for i, item := range t.Items {
 			pollFormat(control)
 			items[i] = formatListElem(item, control)
 		}
-		return "[]" + formatTypeTerm(t.Elem, control) + formatTermList(items, false, t.TrailingComma, "{", "}", t.OpenBreak, t.BodyBreak, t.CloseBreak, control)
+		return "[]" + formatTypeTerm(t.Elem, control) + formatActionExprList(items, false, t.TrailingComma, "{", "}", t.OpenBreak, t.BodyBreak, t.CloseBreak, control)
 	case *ast.Call:
 		args := make([]listElem, len(t.Args))
 		for i, a := range t.Args {
 			pollFormat(control)
 			args[i] = formatListElem(a, control)
 		}
-		return t.Func + formatTermList(args, false, t.TrailingComma, "(", ")", t.OpenBreak, t.BodyBreak, t.CloseBreak, control)
+		return t.Func + formatActionExprList(args, false, t.TrailingComma, "(", ")", t.OpenBreak, t.BodyBreak, t.CloseBreak, control)
 	case *ast.Lambda:
 		list := t.ParamsLayout
 		if list != nil && len(list.Elems) != len(t.Params) {
 			list = nil // the parameters changed since the source was read
 		}
-		body := formatTerm(t.Body, 0, control)
+		body := formatActionExpr(t.Body, 0, control)
 		if layout := leadingComments(t.Body); layout != nil && endsLine(layout.Before[len(layout.Before)-1], layout.NextLine) {
 			// Comments between "=>" and the body that end a line put the body on
 			// a line of its own, one level in from the parameters.
-			body = indentTermLines(body, indentUnit, control)
+			body = indentActionExprLines(body, indentUnit, control)
 		}
 		s := formatItemList(t.Params, t.TrailingComma, list, control) + joinLayout(arrow(t, control), body)
 		if outer > 0 {
-			return parenTerm(s, control)
+			return parenActionExpr(s, control)
 		}
 		return s
 	case *ast.Binary:
 		if t.Op == "[]" {
-			l := formatTerm(t.L, 7, control)
+			l := formatActionExpr(t.L, 7, control)
 			switch t.L.(type) {
 			case *ast.IntLit, *ast.StringLit, *ast.New, *ast.ListConstructor, *ast.Lambda:
 				// "[" is an index only directly after a name, a capture, ")" or "]".
-				l = parenTerm(l, control)
+				l = parenActionExpr(l, control)
 			}
 			// The index collapses to one line unless its comments need lines.
-			return l + formatSourceDelimited(formatTerm(t.R, 0, control), "[", "]", t.OpenBreak, t.BodyBreak, t.CloseBreak, true, control)
+			return l + formatSourceDelimited(formatActionExpr(t.R, 0, control), "[", "]", t.OpenBreak, t.BodyBreak, t.CloseBreak, true, control)
 		}
-		p := termPrec[t.Op]
+		p := actionExprPrec[t.Op]
 		// Operators are left-associative, so the right operand is
 		// parenthesized even at the same precedence.
 		lp := p
-		if p == termPrec["=="] {
+		if p == actionExprPrec["=="] {
 			lp++ // comparison operators do not chain
 		}
-		s := joinLayout(formatTerm(t.L, lp, control)+binaryGap(t, control)+t.Op+" ", formatTerm(t.R, p+1, control))
+		s := joinLayout(formatActionExpr(t.L, lp, control)+binaryGap(t, control)+t.Op+" ", formatActionExpr(t.R, p+1, control))
 		if p < outer {
-			return parenTerm(s, control)
+			return parenActionExpr(s, control)
 		}
 		return s
 	case *ast.Unary:
-		return joinPrefixTokens(t.Op, formatTerm(t.X, 6, control))
+		return joinPrefixTokens(t.Op, formatActionExpr(t.X, 6, control))
 	case *ast.Cast:
-		x := formatTerm(t.X, 7, control)
+		x := formatActionExpr(t.X, 7, control)
 		if _, ok := t.X.(*ast.IntLit); ok {
 			// 1.(int) would read as a number.
-			x = parenTerm(x, control)
+			x = parenActionExpr(x, control)
 		}
 		return x + ".(" + formatType(t.Type, control) + ")"
 	case *ast.Bind:
-		return t.Name + " := " + formatTerm(t.Value, 0, control)
+		return t.Name + " := " + formatActionExpr(t.Value, 0, control)
 	}
 	return fmt.Sprintf("<%T>", t)
 }
@@ -2478,7 +2478,7 @@ func (p *printer) operator(op *ast.OperatorsRuleOperator, indent string) {
 	}
 	p.write(formatExpr(op.Expr, precChoice, p.control))
 	if op.Action != nil {
-		p.write(joinLayout(" => ", indentTermLines(formatTerm(op.Action, 0, p.control), indent, p.control)))
+		p.write(joinLayout(" => ", indentActionExprLines(formatActionExpr(op.Action, 0, p.control), indent, p.control)))
 	} else if op.DefaultAction {
 		p.write(" => ...")
 	}
@@ -2491,10 +2491,10 @@ func formatTypeList(elems []listElem, comma, lines bool, openDelim, closeDelim s
 	}, control)
 }
 
-// formatTermList is formatSourceList for the elements of an action expression.
-func formatTermList(elems []listElem, comma, lines bool, openDelim, closeDelim string, open, first, close *ast.LineBreak, control *formatControl) string {
+// formatActionExprList is formatSourceList for the elements of an action expression.
+func formatActionExprList(elems []listElem, comma, lines bool, openDelim, closeDelim string, open, first, close *ast.LineBreak, control *formatControl) string {
 	return formatSourceList(elems, comma, lines, openDelim, closeDelim, open, first, close, func(s, indent string) string {
-		return indentTermLines(s, indent, control)
+		return indentActionExprLines(s, indent, control)
 	}, control)
 }
 

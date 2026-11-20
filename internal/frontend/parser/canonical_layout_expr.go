@@ -354,7 +354,7 @@ func (r *layoutReplay) group(g *ast.Group) {
 		r.bodyChoice(a.Expr)
 		gap := p.takeCommentGap()
 		p.next() // =>
-		r.actionTerm(a.Action, a.DefaultAction)
+		r.action(a.Action, a.DefaultAction)
 		if gap != nil {
 			layoutOf(a).OpGap = gap
 		}
@@ -395,9 +395,9 @@ func (r *layoutReplay) attributeValue(v any) {
 	}
 }
 
-// actionTerm replays the action of a rule, an inline action or an item of an
+// action replays the action of a rule, an inline action or an item of an
 // Operators Rule, from its first token.
-func (r *layoutReplay) actionTerm(t ast.ActionExpr, defaultAction bool) {
+func (r *layoutReplay) action(t ast.ActionExpr, defaultAction bool) {
 	p := r.p
 	b, block := t.(*ast.Block)
 	switch {
@@ -406,7 +406,7 @@ func (r *layoutReplay) actionTerm(t ast.ActionExpr, defaultAction bool) {
 	case block:
 		b.OpenBreak, b.Breaks, b.CloseBreak, b.OneLine = r.actionBlock(b)
 	default:
-		r.term(t)
+		r.actionExpr(t)
 	}
 }
 
@@ -443,29 +443,29 @@ func (r *layoutReplay) actionBlock(t ast.ActionExpr) (openBreak *ast.LineBreak, 
 			p.next() // }
 			return openBreak, breaks, br, oneLine
 		}
-		term := statements[i]
-		if b, ok := term.(*ast.Bind); ok {
+		expr := statements[i]
+		if b, ok := expr.(*ast.Bind); ok {
 			p.next() // the name
 			p.next() // :=
-			r.term(b.Value)
+			r.actionExpr(b.Value)
 		} else {
-			r.term(term)
+			r.actionExpr(expr)
 		}
 		if gap != nil {
-			l := layoutOf(term)
+			l := layoutOf(expr)
 			l.Before, l.PreviousLine, l.NextLine = gap, gapLine, gapLine
 		}
 		breaks = append(breaks, br)
 		if p.is(";") {
 			if gap := p.takeInlineGap(); gap != nil {
-				layoutOf(term).After = gap
+				layoutOf(expr).After = gap
 			}
 		}
 		joined = p.separator()
 	}
 }
 
-func (r *layoutReplay) term(t ast.ActionExpr) {
+func (r *layoutReplay) actionExpr(t ast.ActionExpr) {
 	if l, ok := t.(*ast.Lambda); ok {
 		r.lambda(l)
 		return
@@ -506,7 +506,7 @@ func (r *layoutReplay) lambda(l *ast.Lambda) {
 		layout.OpGap = gap
 	}
 	p.next() // =>
-	r.term(l.Body)
+	r.actionExpr(l.Body)
 	l.ParamsLayout = list
 	if layout != nil {
 		l.Layout = layout
@@ -569,7 +569,7 @@ func (r *layoutReplay) unary(t ast.ActionExpr) {
 			chain = append(chain, inner)
 			inner = x
 		}
-		r.termPrimary(inner)
+		r.actionExprPrimary(inner)
 		for i := len(chain) - 1; i >= 0; i-- {
 			p.next() // . or [
 			switch n := chain[i].(type) {
@@ -578,7 +578,7 @@ func (r *layoutReplay) unary(t ast.ActionExpr) {
 				n.OpenBreak = &ast.LineBreak{}
 				p.cur = n.OpenBreak
 				n.BodyBreak = p.lineBreak()
-				r.term(n.R)
+				r.actionExpr(n.R)
 				n.CloseBreak = p.lineBreak()
 				p.next() // ]
 				p.cur = outer
@@ -601,11 +601,11 @@ func (r *layoutReplay) unary(t ast.ActionExpr) {
 	}
 }
 
-func (r *layoutReplay) termPrimary(t ast.ActionExpr) {
+func (r *layoutReplay) actionExprPrimary(t ast.ActionExpr) {
 	p := r.p
 	switch x := t.(type) {
 	case *ast.New:
-		r.newTerm(x)
+		r.newActionExpr(x)
 	case *ast.Call:
 		p.next() // the name
 		p.next() // (
@@ -631,7 +631,7 @@ func (r *layoutReplay) termPrimary(t ast.ActionExpr) {
 		x.OpenBreak = &ast.LineBreak{}
 		p.cur = x.OpenBreak
 		x.BodyBreak = p.lineBreak()
-		r.term(x.Action)
+		r.actionExpr(x.Action)
 		x.CloseBreak = p.lineBreak()
 		x.OneLine = !p.multiline(open, p.i)
 		p.next() // )
@@ -653,7 +653,7 @@ func (r *layoutReplay) tupleLit(t *ast.TupleLit) {
 	p := r.p
 	t.TrailingComma = false
 	if len(t.Elems) > 0 {
-		r.term(t.Elems[0])
+		r.actionExpr(t.Elems[0])
 		p.takeAfterLayout(t.Elems[0])
 		for i := 1; p.is(","); i++ {
 			p.next()
@@ -662,7 +662,7 @@ func (r *layoutReplay) tupleLit(t *ast.TupleLit) {
 				t.TrailingComma = true
 				break
 			}
-			r.term(t.Elems[i])
+			r.actionExpr(t.Elems[i])
 			p.takeAfterLayout(t.Elems[i])
 		}
 	}
@@ -670,7 +670,7 @@ func (r *layoutReplay) tupleLit(t *ast.TupleLit) {
 	p.next() // )
 }
 
-func (r *layoutReplay) newTerm(n *ast.New) {
+func (r *layoutReplay) newActionExpr(n *ast.New) {
 	p := r.p
 	p.next() // the type
 	p.next() // {
@@ -684,7 +684,7 @@ func (r *layoutReplay) newTerm(n *ast.New) {
 			layout := p.takeTermLayout()
 			p.next() // the name
 			p.next() // :
-			r.term(field.Value)
+			r.actionExpr(field.Value)
 			field.Layout = layout
 			p.takeAfterLayout(field)
 			trailing = false
@@ -704,7 +704,7 @@ func (r *layoutReplay) newTerm(n *ast.New) {
 func (r *layoutReplay) listItems(items []ast.ActionExpr, closer string) (trailing bool) {
 	p := r.p
 	for _, item := range items {
-		r.term(item)
+		r.actionExpr(item)
 		p.takeAfterLayout(item)
 		trailing = false
 		if !p.is(closer) {

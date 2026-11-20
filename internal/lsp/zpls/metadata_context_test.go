@@ -134,7 +134,7 @@ func TestMetadataInteriorCancellation(t *testing.T) {
 			call.Args = append(call.Args, &ast.IntLit{Value: 1})
 		}
 		a := newAnalysis("")
-		assertMetadataPhaseCancels(t, func(c *renderControl) { a.walkTerm(call, c) })
+		assertMetadataPhaseCancels(t, func(c *renderControl) { a.walkActionExpr(call, c) })
 	})
 	for _, keyword := range []bool{false, true} {
 		name := "attribute-args"

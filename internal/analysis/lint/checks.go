@@ -1126,20 +1126,20 @@ func reachesControlled(from, to string, edges map[string][]string, control *lint
 // positionRead returns the position of the first .Start or .End that the rule's actions or
 // predicates read (the zero Pos if it is unknown), and whether there is one.
 func positionRead(r *ast.RuleDef, control *lintControl) (ast.Pos, bool) {
-	var terms []ast.ActionExpr
+	var exprs []ast.ActionExpr
 	if r.Action != nil {
-		terms = append(terms, r.Action)
+		exprs = append(exprs, r.Action)
 	}
 	walkExprControlled(r.Expr, func(e ast.Expr) {
 		control.poll()
 		switch e := analysisExpr(e, control).(type) {
 		case *ast.Predicate:
-			terms = append(terms, e.Action)
+			exprs = append(exprs, e.Action)
 		case *ast.OperatorsRule:
 			for _, o := range e.Operands {
 				control.poll()
 				if o.Action != nil {
-					terms = append(terms, o.Action)
+					exprs = append(exprs, o.Action)
 				}
 			}
 			for _, lv := range e.Levels {
@@ -1147,16 +1147,16 @@ func positionRead(r *ast.RuleDef, control *lintControl) (ast.Pos, bool) {
 				for _, op := range lv.Operators {
 					control.poll()
 					if op.Action != nil {
-						terms = append(terms, op.Action)
+						exprs = append(exprs, op.Action)
 					}
 				}
 			}
 		}
 	}, control)
-	for _, t := range terms {
+	for _, t := range exprs {
 		control.poll()
 		var found *ast.Member
-		walkTerm(t, func(x ast.ActionExpr) {
+		walkActionExpr(t, func(x ast.ActionExpr) {
 			control.poll()
 			if m, ok := x.(*ast.Member); ok && (m.Name == "Start" || m.Name == "End") && found == nil {
 				found = m

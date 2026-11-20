@@ -352,7 +352,7 @@ func (a *analysis) ruleBodyStartControlled(st, prev int, control *renderControl)
 
 // scanBody scans the tokens of a rule body from its "=" (token eq) to token prev, and reports
 // whether the cursor after prev is in a value expression (an action after "=>", or a predicate
-// in {term}) and whether the declaration is an Operators Rule.
+// in { expr }) and whether the declaration is an Operators Rule.
 func (a *analysis) scanBodyControlled(eq, prev int, control *renderControl) (value, operatorsRule bool) {
 	control.poll()
 	first := a.significantTokenControlled(eq+1, control)

@@ -162,7 +162,7 @@ func (r *layoutReplay) varDef(d *ast.VarDef) {
 	}
 	if d.Value != nil {
 		p.next() // =
-		r.term(d.Value)
+		r.actionExpr(d.Value)
 	}
 }
 
@@ -202,7 +202,7 @@ func (r *layoutReplay) ruleDef(d *ast.RuleDef) {
 			p.afterGap(d.Expr)
 		}
 		p.next() // =>
-		r.actionTerm(d.Action, d.DefaultAction)
+		r.action(d.Action, d.DefaultAction)
 	}
 }
 
@@ -456,7 +456,7 @@ func (r *layoutReplay) operatorsRule(pr *ast.OperatorsRule) {
 			r.choice(o.Expr)
 			if p.is("=>") {
 				p.next()
-				r.actionTerm(o.Action, o.DefaultAction)
+				r.action(o.Action, o.DefaultAction)
 			}
 		}})
 	}
@@ -509,7 +509,7 @@ func (r *layoutReplay) level(l *ast.OperatorsRuleLevel) {
 		r.choice(op.Expr)
 		if p.is("=>") {
 			p.next()
-			r.actionTerm(op.Action, op.DefaultAction)
+			r.action(op.Action, op.DefaultAction)
 		}
 		r.separator()
 	}

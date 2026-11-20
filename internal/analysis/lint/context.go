@@ -114,7 +114,7 @@ func (c *lintControl) formatExpr(e ast.Expr) string {
 	return result
 }
 
-func (c *lintControl) formatTerm(t ast.ActionExpr) string {
+func (c *lintControl) formatActionExpr(t ast.ActionExpr) string {
 	if c == nil {
 		return fmt.FormatActionExpr(astfacts.UngroupTerm(t))
 	}

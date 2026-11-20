@@ -338,7 +338,7 @@ func (a *analysis) collectControlled(control *renderControl) {
 			}
 			a.walkExpr(s.Expr, control)
 			if s.Action != nil {
-				a.walkTerm(s.Action, control)
+				a.walkActionExpr(s.Action, control)
 			}
 		case *ast.VarDef:
 			a.mark(s.Diagnostic(), semKeyword, 0)
@@ -350,7 +350,7 @@ func (a *analysis) collectControlled(control *renderControl) {
 				a.walkType(s.Type, control)
 			}
 			if s.Value != nil {
-				a.walkTerm(s.Value, control)
+				a.walkActionExpr(s.Value, control)
 			}
 		case ast.TypeDecl:
 			a.mark(s.Diagnostic(), semKeyword, 0)
@@ -551,7 +551,7 @@ func (a *analysis) walkExpr(e ast.Expr, control *renderControl) {
 		a.walkExpr(e.Expr, control)
 	case *ast.InlineAction:
 		a.walkExpr(e.Expr, control)
-		a.walkTerm(e.Action, control)
+		a.walkActionExpr(e.Action, control)
 	case *ast.Ref:
 		if e.Level != "" {
 			if i, ok := a.tokenIndex(e.Diagnostic()); ok {
@@ -594,7 +594,7 @@ func (a *analysis) walkExpr(e ast.Expr, control *renderControl) {
 		a.mark(e.Diagnostic(), semVariable, modDeclaration)
 		a.walkExpr(e.Expr, control)
 	case *ast.Predicate:
-		a.walkTerm(e.Action, control)
+		a.walkActionExpr(e.Action, control)
 	case *ast.Attributed:
 		a.walkExpr(e.Expr, control)
 		for _, at := range e.Attrs {
@@ -618,7 +618,7 @@ func (a *analysis) walkExpr(e ast.Expr, control *renderControl) {
 			a.mark(o.Diagnostic(), semKeyword, 0)
 			a.walkExpr(o.Expr, control)
 			if o.Action != nil {
-				a.walkTerm(o.Action, control)
+				a.walkActionExpr(o.Action, control)
 			}
 		}
 		for _, l := range e.Levels {
@@ -634,25 +634,25 @@ func (a *analysis) walkExpr(e ast.Expr, control *renderControl) {
 				}
 				a.walkExpr(op.Expr, control)
 				if op.Action != nil {
-					a.walkTerm(op.Action, control)
+					a.walkActionExpr(op.Action, control)
 				}
 			}
 		}
 	}
 }
 
-func (a *analysis) walkTerm(t ast.ActionExpr, control *renderControl) {
+func (a *analysis) walkActionExpr(t ast.ActionExpr, control *renderControl) {
 	control.poll()
 	switch t := t.(type) {
 	case *ast.ActionGroup:
-		a.walkTerm(t.Action, control)
+		a.walkActionExpr(t.Action, control)
 	case *ast.Block:
 		for _, stmt := range t.Statements {
 			control.poll()
-			a.walkTerm(stmt, control)
+			a.walkActionExpr(stmt, control)
 		}
 	case *ast.Member:
-		a.walkTerm(t.X, control)
+		a.walkActionExpr(t.X, control)
 		mods := 0
 		if findBuiltin(builtinMembers, t.Name) != nil {
 			mods = modDefaultLibrary
@@ -666,38 +666,38 @@ func (a *analysis) walkTerm(t ast.ActionExpr, control *renderControl) {
 		for _, f := range t.Fields {
 			control.poll()
 			a.mark(f.Diagnostic(), semProperty, 0)
-			a.walkTerm(f.Value, control)
+			a.walkActionExpr(f.Value, control)
 		}
 		for _, x := range t.Args {
 			control.poll()
-			a.walkTerm(x, control)
+			a.walkActionExpr(x, control)
 		}
 	case *ast.Call:
 		a.mark(t.Diagnostic(), semFunction, modDefaultLibrary)
 		for _, x := range t.Args {
 			control.poll()
-			a.walkTerm(x, control)
+			a.walkActionExpr(x, control)
 		}
 	case *ast.ListConstructor:
 		a.walkType(t.Elem, control)
 		for _, item := range t.Items {
 			control.poll()
-			a.walkTerm(item, control)
+			a.walkActionExpr(item, control)
 		}
 	case *ast.TupleLit:
 		for _, x := range t.Elems {
 			control.poll()
-			a.walkTerm(x, control)
+			a.walkActionExpr(x, control)
 		}
 	case *ast.Lambda:
-		a.walkTerm(t.Body, control)
+		a.walkActionExpr(t.Body, control)
 	case *ast.Binary:
-		a.walkTerm(t.L, control)
-		a.walkTerm(t.R, control)
+		a.walkActionExpr(t.L, control)
+		a.walkActionExpr(t.R, control)
 	case *ast.Unary:
-		a.walkTerm(t.X, control)
+		a.walkActionExpr(t.X, control)
 	case *ast.Cast:
-		a.walkTerm(t.X, control)
+		a.walkActionExpr(t.X, control)
 		a.walkType(t.Type, control)
 	case *ast.VarRef:
 		a.mark(t.Diagnostic(), semVariable, 0)
@@ -708,7 +708,7 @@ func (a *analysis) walkTerm(t ast.ActionExpr, control *renderControl) {
 	case *ast.Bind:
 		a.vars[t.Name] = true
 		a.mark(t.Diagnostic(), semVariable, modDeclaration)
-		a.walkTerm(t.Value, control)
+		a.walkActionExpr(t.Value, control)
 	}
 }
 

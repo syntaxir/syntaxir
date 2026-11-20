@@ -68,7 +68,7 @@ func FormatActionExprContext(ctx context.Context, t ast.ActionExpr) (result stri
 	}
 	defer recoverFormat(&result, &err)
 	c := formatControl{ctx: ctx}
-	result = formatTerm(t, 0, &c)
+	result = formatActionExpr(t, 0, &c)
 	c.check()
 	return result, nil
 }
