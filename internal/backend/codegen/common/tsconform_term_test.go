@@ -12,10 +12,12 @@ import (
 )
 
 // What terms make, of the conformance suite on the TypeScript library: the elements gathered on the
-// parser's stack for lists and tuples, and the values made. The generated parser prints act.push,
-// act.pushAll, act.made, term.kids, term.created and the two drops; it prints neither term.elemsAbove nor
-// term.keep, which the TypeScript library does without (it takes a list's elements off with the parser's
-// kids method and has no filter list). The bindings run those two on the parser's own stack methods.
+// parser's stack for lists and tuples, and the values made. The printer prints act.push, act.pushAll,
+// act.made, term.kids, term.created and the two drops, and the suite runs that printed code. It prints neither
+// term.elemsAbove nor term.keep: the TypeScript target of Exec IR (tsTarget.Op in
+// internal/backend/codegen/typescript/print/exec_lib.go) has no implementation of them and panics on them,
+// which print.OperationMethods reports as unprinted (TestTypeScriptConformancePrintedOps). The bindings run
+// those two on the library's own stack methods (kids, and the stack itself).
 
 type tsTermFamily struct {
 	name   string
@@ -68,8 +70,8 @@ func TestTypeScriptConformanceTerm(t *testing.T) {
 }
 
 // TestTypeScriptConformanceTermDetectsMutants is the negative control of TestTypeScriptConformanceTerm.
-// Of the operations, the library's own functions are pushAll and kids, which source mutants change; the
-// others are bindings that mirror printed code, whose mutants change the bindings of the harness.
+// The printed operations have mutants of their printed text; the library's own functions pushAll, kids and
+// dropSpend have source mutants (kids is also what term.elemsAbove runs on).
 func TestTypeScriptConformanceTermDetectsMutants(t *testing.T) {
 	node := codegentest.RequireNode(t)
 	libMutants := []tsMutant{
@@ -100,25 +102,21 @@ func TestTypeScriptConformanceTermDetectsMutants(t *testing.T) {
 			}
 		})
 	}
-	harnessMutants := []struct{ name, old, new string }{
-		{"act.push pushes nothing", "P.kidStack.push(a[1]);\n        return [];", "return [];"},
-		{"act.push pushes the null element", "P.kidStack.push(a[1]);", "P.kidStack.push(null);"},
-		{"term.kids is one more", "return [P.kidStack.length];", "return [P.kidStack.length + 1];"},
-		{"term.keep keeps the first element", "P.kidStack.push(a[0][a[1]]);", "P.kidStack.push(a[0][0]);"},
-		{"term.keep is ignored", "P.kidStack.push(a[0][a[1]]);", "void 0;"},
-		{"act.made records nothing", "P.created.push(a[1]);", "void 0;"},
-		{"term.created is one more", "return [P.created.length];", "return [P.created.length + 1];"},
-		{"term.dropCreated is ignored", "P.dropSpend(P.created, a[0]);", "void 0;"},
-		{"term.dropKids is ignored", "P.dropSpend(P.kidStack, a[0]);", "void 0;"},
+	printedMutants := []tsPrintedMutant{
+		{name: "act.push pushes nothing", method: "op_act_push", old: "this.kidStack.push(p1);", new: "void p1;"},
+		{name: "act.push pushes the null element", method: "op_act_push", old: "push(p1)", new: "push(null)"},
+		{name: "term.kids is one more", method: "op_term_kids", old: "this.kidStack.length", new: "this.kidStack.length + 1"},
+		{name: "act.made records nothing", method: "op_act_made", old: "this.created.push(p1);", new: "void p1;"},
+		{name: "term.created is one more", method: "op_term_created", old: "this.created.length", new: "this.created.length + 1"},
+		{name: "term.dropCreated is ignored", method: "op_term_dropCreated", old: "this.dropSpend(this.created, p0);", new: "void p0;"},
+		{name: "term.dropKids is ignored", method: "op_term_dropKids", old: "this.dropSpend(this.kidStack, p0);", new: "void p0;"},
+		{name: "term.dropKids drops one fewer", method: "op_term_dropKids", old: "this.kidStack, p0", new: "this.kidStack, p0 + 1"},
+		{name: "act.pushAll pushes through a wrong context", method: "op_act_pushAll", old: "p0.pushAll(p1);", new: "p0.pushAll(p1.slice(1));"},
 	}
-	for _, m := range harnessMutants {
+	for _, m := range printedMutants {
 		t.Run(m.name, func(t *testing.T) {
 			t.Parallel()
-			h := tsconformtest.Harness()
-			if !strings.Contains(h, m.old) {
-				t.Fatalf("the harness has no %q", m.old)
-			}
-			runner := tsconformtest.Runner{Session: tsconformtest.StartWith(t, node, tsConformLib(t), strings.Replace(h, m.old, m.new, 1))}
+			runner := tsconformtest.Runner{Session: tsconformtest.StartSources(t, node, tsPrintedSources(t, m))}
 			for _, fam := range tsTermFamilies {
 				res := tsTermRun(runner, fam, false, 150, 120)
 				if len(res.fails) > 0 {

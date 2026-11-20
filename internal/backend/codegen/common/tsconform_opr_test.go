@@ -19,7 +19,7 @@ func tsOprRun(r tsconformtest.Runner, seeds, n int) tsConformResult {
 	s := conform.Suite{Name: "typescript operators", Ops: tsconformtest.OprSuiteOps}
 	return tsConformRunCases(r, tsconformtest.Opr(), s, conform.OprCases(), seeds, func(seed int) conform.Case {
 		rng := rand.New(rand.NewPCG(uint64(seed), 7))
-		return conform.RandomOpr(fmt.Sprint("random_", seed), rng, conform.OprOps, n, conform.OprConfig())
+		return conform.RandomOpr(fmt.Sprint("random_", seed), rng, tsconformtest.OprSuiteOps, n, conform.OprConfig())
 	})
 }
 
@@ -37,40 +37,34 @@ func TestTypeScriptConformanceOpr(t *testing.T) {
 	tsReport(t, res, tsconformtest.OprSuiteOps, map[string]string{})
 }
 
-// TestTypeScriptConformanceOprDetectsMutants is the negative control of TestTypeScriptConformanceOpr.
-// The operations are bindings that mirror printed code, not functions of the library, so the mutants
-// change the bindings of the harness.
+// TestTypeScriptConformanceOprDetectsMutants is the negative control of TestTypeScriptConformanceOpr. The
+// operations are the code that the printer prints for them (print.OperationMethods), so each mutant changes
+// the printed text of one operation.
 func TestTypeScriptConformanceOprDetectsMutants(t *testing.T) {
 	node := codegentest.RequireNode(t)
-	mutants := []struct{ name, old, new string }{
-		{"led reads the prefix operators", "return [(a[0] as p.Rule).operatorsRule!.led];", "return [(a[0] as p.Rule).operatorsRule!.prefix];"},
-		{"prefix reads the led operators", "return [(a[0] as p.Rule).operatorsRule!.prefix];", "return [(a[0] as p.Rule).operatorsRule!.led];"},
-		{"count is one more", "return [a[0].length];", "return [a[0].length + 1];"},
-		{"at stops at the first operator", "return [a[0][a[1]]!];", "return [a[0][0]!];"},
-		{"operand stops at the first line", "operands[a[1]]!];", "operands[0]!];"},
-		{"level is one more", "return [a[0].level];", "return [a[0].level + 1];"},
-		{"infix is postfix", `return [a[0].kind === "infix"];`, `return [a[0].kind === "postfix"];`},
-		{"right is not associative", `return [a[0].assoc === "right"];`, `return [a[0].assoc === "none"];`},
-		{"scope is one more", "return [a[0].scope.length];", "return [a[0].scope.length + 1];"},
-		{"hasSkip is negated", "operatorsRule!.skip !== null];", "operatorsRule!.skip === null];"},
-		{"an attempt ends at its start", "end: P.pos, env: P.env,", "end: a[3], env: P.env,"},
-		{"an attempt forgets the cut", "cut: a[4], errs: a[5] }", "cut: false, errs: a[5] }"},
-		{"an attempt keeps no environment", "end: P.pos, env: P.env,", "end: P.pos, env: null,"},
-		{"found is negated", "case \"opr.found\":\n        return [a[0] !== null];", "case \"opr.found\":\n        return [a[0] === null];"},
-		{"the cut flag is not kept", "x.cutFailed = a[0];", "x.cutFailed = false;"},
-		{"the binding bound is not kept", "x.nudBound = a[0];", "x.nudBound = 0;"},
-		{"the empty operator flag is not read", "return [x.afterEmpty];", "return [false];"},
-		{"a record keeps no field", "r[f[3]!.toLowerCase() + f.slice(4)] = a[1];", "void a[1];"},
-		{"a record's unset list is null", `return [f === "l" ? this.noOprs :`, `return [f === "l" ? null :`},
+	mutants := []tsPrintedMutant{
+		{name: "led reads the prefix operators", method: "op_opr_led", old: "operatorsRule!.led", new: "operatorsRule!.prefix"},
+		{name: "prefix reads the led operators", method: "op_opr_prefix", old: "operatorsRule!.prefix", new: "operatorsRule!.led"},
+		{name: "count is one more", method: "op_opr_count", old: "p0.length", new: "p0.length + 1"},
+		{name: "at stops at the first operator", method: "op_opr_at", old: "p0[p1]!", new: "p0[0]!"},
+		{name: "operand stops at the first line", method: "op_opr_operand", old: "operands[p1]!", new: "operands[0]!"},
+		{name: "level is one more", method: "op_opr_level", old: "p0.level", new: "p0.level + 1"},
+		{name: "infix is postfix", method: "op_opr_infix", old: `"infix"`, new: `"postfix"`},
+		{name: "right is not associative", method: "op_opr_right", old: `"right"`, new: `"none"`},
+		{name: "scope is one more", method: "op_opr_scope", old: "p0.scope.length", new: "p0.scope.length + 1"},
+		{name: "hasSkip is negated", method: "op_opr_hasSkip", old: "!== null", new: "=== null"},
+		{name: "an attempt ends at its start", method: "op_opr_attempt", old: "end: this.pos", new: "end: p3"},
+		{name: "an attempt forgets the cut", method: "op_opr_attempt", old: "cut: p4", new: "cut: false"},
+		{name: "an attempt keeps no environment", method: "op_opr_attempt", old: "env: this.env", new: "env: null"},
+		{name: "found is negated", method: "op_opr_found", old: "p0 !== null", new: "p0 === null"},
+		{name: "the cut flag is not kept", method: "op_opr_setCutFailed", old: "this.cutFailed = p0", new: "this.cutFailed = false"},
+		{name: "the binding bound is not kept", method: "op_opr_setNudBound", old: "this.nudBound = p0", new: "this.nudBound = 0"},
+		{name: "the empty operator flag is not read", method: "op_opr_afterEmpty", old: "this.afterEmpty", new: "false"},
 	}
 	for _, m := range mutants {
 		t.Run(m.name, func(t *testing.T) {
 			t.Parallel()
-			h := tsconformtest.Harness()
-			if strings.Count(h, m.old) < 1 {
-				t.Fatalf("the harness has no %q", m.old)
-			}
-			runner := tsconformtest.Runner{Session: tsconformtest.StartWith(t, node, tsConformLib(t), strings.Replace(h, m.old, m.new, 1))}
+			runner := tsconformtest.Runner{Session: tsconformtest.StartSources(t, node, tsPrintedSources(t, m))}
 			res := tsOprRun(runner, 150, 250)
 			if len(res.fails) == 0 {
 				t.Fatalf("the suite did not notice: %d cases ran", res.ran)

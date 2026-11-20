@@ -127,23 +127,43 @@ type Session struct {
 	stderr *bytes.Buffer
 }
 
-// Start starts Node on the library source lib (the bundle of a generated parser that holds the whole
-// runtime) and the bindings of this package. The process ends with the test.
-func Start(t testing.TB, node, lib string) *Session {
-	t.Helper()
-	return StartWith(t, node, lib, harness)
+// Sources are the files that a session runs: the library, the printed code of the operations that the
+// bindings call, and the bindings.
+type Sources struct {
+	// Lib is the bundle of a generated parser that holds the whole runtime.
+	Lib string
+	// Printed is the code that the TypeScript printer prints for the operations (print.OperationMethods),
+	// which extends the library's source.
+	Printed string
+	// Harness is the bindings of this package (harness.ts).
+	Harness string
 }
 
-// Harness returns the source of the bindings, so that a test can start a session on a changed copy of
-// them (the negative control of the operations that the generated parser prints inline, whose bindings
-// mirror the printed code).
-func Harness() string { return harness }
+// DefaultSources returns the sources of a session on the library lib.
+func DefaultSources(lib string) (Sources, error) {
+	p, err := Printed()
+	if err != nil {
+		return Sources{}, err
+	}
+	return Sources{Lib: lib, Printed: p.Source, Harness: harness}, nil
+}
 
-// StartWith is Start with the bindings source harnessSrc.
-func StartWith(t testing.TB, node, lib, harnessSrc string) *Session {
+// Start starts Node on the library source lib, the printed code of the operations and the bindings of
+// this package. The process ends with the test.
+func Start(t testing.TB, node, lib string) *Session {
+	t.Helper()
+	s, err := DefaultSources(lib)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return StartSources(t, node, s)
+}
+
+// StartSources is Start with the sources src, which a test may change.
+func StartSources(t testing.TB, node string, src Sources) *Session {
 	t.Helper()
 	dir := t.TempDir()
-	for name, content := range map[string]string{"package.json": `{"type": "module"}` + "\n", "parser.ts": lib, "harness.ts": harnessSrc} {
+	for name, content := range map[string]string{"package.json": `{"type": "module"}` + "\n", "parser.ts": src.Lib + "\n" + src.Printed, "harness.ts": src.Harness} {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}

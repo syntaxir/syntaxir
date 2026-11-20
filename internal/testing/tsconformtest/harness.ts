@@ -131,6 +131,9 @@ interface Values {
   vals: p.Value[] | null;
 }
 
+// SharedCtx is the handle that stands for the library's shared empty context (noCtx).
+class SharedCtx {}
+
 // Errors is the handle of a list of recovered errors.
 class Errors {
   errs: p.Errs;
@@ -172,7 +175,7 @@ function errorIds(entries: readonly p.RecEntry[], out: number[]): number[] {
 
 // The memo, the deferred memoization, the budget, the environment and the recovered errors.
 class Exec implements Machine {
-  P: p.Parser;
+  P: p.PrintedParser;
   ctl: p.BudgetControl | null = null;
   rules: p.Rule[] = [];
   keys = new Map<number, Values>();
@@ -186,7 +189,7 @@ class Exec implements Machine {
     }
     const input = "x".repeat(Number(options?.input ?? 0));
     // The parser is made without a control: making it charges for the input, which a case does not.
-    this.P = new p.Parser(g, input, p.CodePoints, Math.max(cfg.rules, 1), cfg.maxDepth);
+    this.P = new p.PrintedParser(g, input, p.CodePoints, Math.max(cfg.rules, 1), cfg.maxDepth);
     if (options?.sparse) this.P.sparse = true;
     if (controlled) {
       this.ctl = new p.BudgetControl({ signal: null, budget: cfg.limit === 0 ? Number.MAX_SAFE_INTEGER : cfg.limit, memory: 0 } as unknown as p.ResolvedParseOptions);
@@ -210,7 +213,46 @@ class Exec implements Machine {
     return l;
   }
 
+  // conv converts the handles of the suite to the values that the printed code takes and returns: the
+  // errors of a list are the library's, and a conformance identifier's values are the values themselves.
+  conv = {
+    in: (type: string, x: any): any => {
+      if (type === "Values") return (x as Values).vals;
+      if (type === "Ctx" && x instanceof SharedCtx) return p.noCtx;
+      if (type === "Errs") return x === null ? null : x === errsMarker ? err(0) : (x as Errors).errs;
+      return x;
+    },
+    out: (type: string, x: any, op: string, a: any[]): any => {
+      // An attempt keeps the handle of the errors it was made with: a list of no errors is the null of the library,
+      // which has no identity, and the model holds the handle that it was given.
+      if (op === "opr.attempt") (x as any).given = a[5];
+      if (op === "opr.errs") return (a[0] as any).given;
+      if (type === "Values") return { vals: x };
+      // The library's context of a call outside every growth is one shared value; the case holds a handle of
+      // its own for each call, which stands for it.
+      if (type === "Ctx" && x === p.noCtx) return new SharedCtx();
+      if (type === "Errs") {
+        // The errors of a result of the dependency memo with none are the model's null handle.
+        if (op === "ctx.errs" && (x === null || errorCount(x) === 0)) return null;
+        return this.errorsOf(x);
+      }
+      return x;
+    },
+  };
+
+  // call runs the printed code of the operation, with the handles of the suite converted. The operations
+  // of the cases that make a handle, and those that the printer never prints (print.OperationMethods
+  // lists them: they are no operation of a composition), run on the library's own state.
   call(op: string, a: any[]): any[] {
+    // The printed charge of a run of units (spendUnits) takes a step for each unit when the run does not fit
+    // between two polls of the control, so a charge of 2^40 units of a case of an unlimited budget would not
+    // end: such a charge is made as the one reservation that the library's charge makes.
+    if (op === "budget.charge" && Number(a[0]) > 1 << 20) {
+      this.P.spend(Number(a[0]));
+      return [];
+    }
+    const printed = p.printedOps[op];
+    if (printed !== undefined) return printed(this.P, a, this.conv);
     const P = this.P;
     switch (op) {
       case "test.values": {
@@ -229,59 +271,15 @@ class Exec implements Machine {
         return [this.rules[a[0]]];
       case "test.err":
         return [err(a[0])];
-      case "memo.lookup": {
-        const e = P.memoGet(a[0], a[1], a[2], (a[3] as Values).vals);
-        return [e, e !== null];
-      }
-      case "memo.store": {
-        const errs = a[8] === null ? null : a[8] === errsMarker ? err(0) : (a[8] as Errors).errs;
-        const e = p.newEntry(undefined, a[4], a[5], a[6], errs);
-        return [P.memoPut(a[0], a[1], a[2], (a[3] as Values).vals, e)];
-      }
-      case "memo.ok":
-        return [(a[0] as p.MemoEntry).ok];
-      case "memo.end":
-        return [(a[0] as p.MemoEntry).end];
-      case "memo.silent":
-        return [(a[0] as p.MemoEntry).silent];
-      case "seen.first":
-        return [P.seenFirst(a[0], a[1])];
-      case "budget.charge":
-        this.ctl!.charge(a[0]);
-        return [];
       case "budget.used":
         return [this.used()];
       case "env.lookup":
         return [P.variable(a[0])];
-      case "env.bind":
-        P.bindValue(a[0], a[1]);
-        return [];
       case "env.scope":
         return [P.env];
-      case "env.restore":
-        P.env = a[0];
-        return [];
-      case "env.key": {
-        const vals = P.envValues((a[0] as p.Rule).vars);
-        return [{ vals }];
-      }
-      case "rec.mark":
-        return [P.recovered.length];
       case "rec.push":
         P.recovered.push(a[0]);
         return [];
-      case "rec.truncate":
-        P.recovered.length = a[0];
-        return [];
-      case "rec.since": {
-        const e = P.recSince(a[0]);
-        return [this.errorsOf(e)];
-      }
-      case "rec.add":
-        P.recAdd((a[0] as Errors).errs);
-        return [];
-      case "rec.none":
-        return [(a[0] as Errors | null) === null || (a[0] as Errors).errs === null];
     }
     throw new Error("no binding of the operation " + op);
   }
@@ -296,15 +294,6 @@ class Exec implements Machine {
       ans.lists = res.map((r) => (r instanceof Errors ? (r.errs === null ? [0, 0] : [unrolled(r.errs), errorCount(r.errs)]) : null)) as [number, number][];
     }
   }
-}
-
-// A Mark is a backtracking point: the position, the environment and the lengths of the recovered errors
-// and of the trail when frame.mark took it, as the printed composition keeps them in local variables.
-interface Mark {
-  pos: number;
-  env: unknown;
-  trail: number;
-  rec: number;
 }
 
 // The capture frames. The registers are the position of the parser.
@@ -324,76 +313,12 @@ class FrameM extends Exec {
   }
 
   call(op: string, a: any[]): any[] {
-    const P = this.P;
-    switch (op) {
-      case "frame.mark":
-        return [{ pos: P.pos, env: P.env, trail: P.trail.length, rec: P.recovered.length } as Mark];
-      case "frame.markPos":
-        return [(a[0] as Mark).pos];
-      case "frame.markEnv":
-        return [(a[0] as Mark).env];
-      case "frame.markTrail":
-        return [(a[0] as Mark).trail];
-      case "frame.markRec":
-        return [(a[0] as Mark).rec];
-      case "frame.undo": {
-        for (let t = P.trail.length - 1; t >= a[0]; t--) {
-          P.spend();
-          const u = P.trail[t]!;
-          u.f[u.slot] = u.old;
-        }
-        P.trail.length = a[0];
-        return [];
-      }
-      case "frame.current":
-        return [P.frame];
-      case "frame.use":
-        P.frame = a[0];
-        return [];
-      case "frame.set":
-        P.setCapture(a[0], a[1]);
-        return [];
-      case "frame.close":
-        return [];
-      case "frame.open":
-        return [P.newFrame(a[0])];
-      case "frame.slots":
-        return [(a[0] as p.Frame).length];
-      case "frame.save": {
-        P.saved.length = 0;
-        for (const x of a[0] as p.Frame) {
-          P.spend();
-          P.saved.push(x);
-        }
-        return [];
-      }
-      case "frame.restore": {
-        const f = a[0] as p.Frame;
-        for (let t = 0; t < f.length; t++) {
-          P.spend();
-          f[t] = P.saved[t]!;
-        }
-        return [];
-      }
-      case "test.slot":
-        return [(a[0] as p.Frame)[a[1]] ?? null];
-    }
+    if (op === "test.slot") return [(a[0] as p.Frame)[a[1]] ?? null];
     return super.call(op, a);
   }
 }
 
-// The expectation record, with the memo operations that keep the expectations of an entry. An
-// isolation is a handle of the library's own: the position and the base that it set aside; a set is the
-// range of the record that unisolate returns; a kept set is the library's array.
-interface Isolation {
-  far: number;
-  base: number;
-}
-interface ExpSet {
-  from: number;
-  to: number;
-}
-
+// The expectation record, with the memo operations that keep the expectations of an entry.
 class ExpM extends Exec {
   constructor(cfg: Config, controlled: boolean, options: Record<string, unknown> | null) {
     super(cfg, controlled, options);
@@ -401,76 +326,11 @@ class ExpM extends Exec {
   }
 
   call(op: string, a: any[]): any[] {
-    const P = this.P;
     switch (op) {
       case "test.exp":
         return [a[0]];
       case "test.placeholder":
         return [p.expFar];
-      case "exp.isolate": {
-        const m: Isolation = { far: P.farthest, base: P.expBase };
-        P.expBase = P.expTop;
-        P.farthest = a[0];
-        return [m];
-      }
-      case "exp.unisolate": {
-        const m = a[0] as Isolation;
-        const far = P.farthest;
-        const set: ExpSet = { from: P.expBase, to: P.expTop };
-        P.expTop = P.expBase;
-        P.expBase = m.base;
-        P.farthest = m.far;
-        return [far, set];
-      }
-      case "exp.farthest":
-        return [P.farthest];
-      case "exp.recording":
-        return [P.expectations];
-      case "exp.reset":
-        P.farthest = a[0];
-        P.expTop = P.expBase;
-        return [];
-      case "exp.fresh":
-        return [P.expTop === P.expBase];
-      case "exp.placeholder":
-        P.exp[P.expTop++] = p.expFar;
-        return [];
-      case "exp.maybe":
-        return [true]; // the record has no filter of its entries
-      case "exp.count":
-        return [P.expTop - P.expBase];
-      case "exp.at":
-        return [P.exp[P.expBase + a[0]]!];
-      case "exp.add":
-        P.exp[P.expTop++] = a[0];
-        return [];
-      case "exp.keptCount":
-        return [(a[0] as number[]).length];
-      case "exp.keptAt":
-        return [(a[0] as number[])[a[1]]!];
-      case "exp.setCount":
-        return [(a[0] as ExpSet).to - (a[0] as ExpSet).from];
-      case "exp.setAt":
-        return [P.exp[(a[0] as ExpSet).from + a[1]]!];
-      case "exp.empty":
-        return [p.noExp];
-      case "exp.last":
-        return [P.lastKept];
-      case "exp.copy": {
-        const s = a[0] as ExpSet;
-        P.lastKept = P.control === null ? P.exp.slice(s.from, s.to) : p.copyIDsSpend(P.exp, s.from, s.to, P.control);
-        return [P.lastKept];
-      }
-      case "memo.far":
-        return [(a[0] as p.MemoEntry).far];
-      case "memo.expected":
-        return [(a[0] as p.MemoEntry).expected];
-      case "memo.setExpected": {
-        const e = a[0] as p.MemoEntry;
-        e.far = a[1];
-        e.expected = a[2];
-        return [];
-      }
     }
     return super.call(op, a);
   }
@@ -511,75 +371,9 @@ class CtxM extends ExpM {
     return p.newCtxResult(ok ? (null as unknown as p.R) : undefined, end, false, p.noErrs, 0, p.noExp, end);
   }
 
-  // handleErrs returns the handle of the errors of the result s: a list of no errors has no identity of
-  // its own, as the model's null handle.
-  handleErrs(s: p.CtxResult): Errors | null {
-    return s.errs === null || errorCount(s.errs) === 0 ? null : this.errorsOf(s.errs);
-  }
-
   call(op: string, a: any[]): any[] {
     const P = this.P;
     switch (op) {
-      case "ctx.enter": {
-        const r = a[0] as p.Rule;
-        if (r.cycle !== 0 && P.gamma.length !== 0) {
-          const c = p.newCtxCall();
-          return [c, P.ctxEnter(c, r, a[1])];
-        }
-        // A call outside every growth has the empty context of the library, which nothing changes; the
-        // case holds a handle of its own for each call.
-        return [p.newCtxCall(), null];
-      }
-      case "ctx.found":
-        return [a[0] !== null];
-      case "ctx.ok":
-        return [(a[0] as p.CtxResult).ok];
-      case "ctx.value":
-        return [(a[0] as p.CtxResult).node ?? null];
-      case "ctx.end":
-        return [(a[0] as p.CtxResult).end];
-      case "ctx.errs":
-        return [this.handleErrs(a[0] as p.CtxResult)];
-      case "ctx.far":
-        return [(a[0] as p.CtxResult).far];
-      case "ctx.expected":
-        return [(a[0] as p.CtxResult).expected];
-      case "ctx.allows":
-        return [p.memoAllows(a[0], (a[1] as p.MemoEntry).present)];
-      case "ctx.active":
-        return [(a[0] as p.CtxCall).ctx];
-      case "ctx.lookup":
-        return [P.ctxLookup(a[0], (a[1] as p.Rule).id, a[2], (a[3] as Values).vals)];
-      case "ctx.push":
-        P.ctxPush(a[0]);
-        return [];
-      case "ctx.pop":
-        return [P.ctxPop(a[0])];
-      case "ctx.storeMemo":
-        return [p.storeMemo];
-      case "ctx.storeCtx":
-        return [p.storeCtx];
-      case "ctx.done":
-        P.ctxDone(a[0]);
-        return [];
-      case "ctx.keep": {
-        // The printed call takes the value as the node of the result, whose success is that it is not undefined.
-        const res = p.newCtxResult(a[5] ? (a[8] ?? {}) : undefined, a[6], a[7], a[9] === null ? p.noErrs : (a[9] as Errors).errs, a[10], a[11], P.examinedNow());
-        P.ctxKeep(a[0], (a[1] as p.Rule).id, a[2], a[3], (a[4] as Values).vals, res);
-        return [];
-      }
-      case "memo.setPresent":
-        (a[0] as p.MemoEntry).present |= (a[1] as p.MemoEntry).present;
-        return [];
-      case "grow.begin":
-        return [P.growBegin(a[0], a[1])];
-      case "grow.ctx":
-        return [(a[0] as p.GrowState).ctx];
-      case "grow.longer":
-        return [P.growLonger(a[0], a[1])];
-      case "grow.adopt":
-        P.growAdopt(a[0], a[1], a[2] === null ? p.noErrs : (a[2] as Errors).errs);
-        return [];
       case "test.grow":
       case "test.reseed":
       case "test.ungrow":
@@ -678,38 +472,10 @@ class RuleM extends Exec {
   call(op: string, a: any[]): any[] {
     const P = this.P;
     switch (op) {
-      case "rule.memo":
-        return [(a[0] as p.Rule).memo];
-      case "rule.leader":
-        return [(a[0] as p.Rule).leader];
-      case "rule.id":
-        return [(a[0] as p.Rule).id];
-      case "rule.seen":
-        return [(a[0] as p.Rule).seen];
       case "rule.docMemo":
         return [(a[0] as p.Rule).docMemo];
       case "rule.positional":
         return [(a[0] as p.Rule).positional];
-      case "rule.docOnlyMemo":
-        return [false]; // the library memoizes the same rules in every parse
-      case "rule.plain":
-        return [(a[0] as p.Rule).scope.length === 0];
-      case "seen.defers":
-        return [true]; // the Parser parses neither streams nor Documents
-      case "rule.invoke": {
-        const v = P.invoke(a[0], a[1]);
-        return [v ?? null, v !== undefined];
-      }
-      case "rule.invokePlain": {
-        const v = P.invokePlainBody(a[0], a[1]);
-        return [v ?? null, v !== undefined];
-      }
-      case "depth.enter":
-        if (++P.depth > P.maxDepth) P.tooDeep();
-        return [];
-      case "depth.exit":
-        P.depth--;
-        return [];
     }
     return super.call(op, a);
   }
@@ -743,29 +509,12 @@ class TermM extends Exec {
         return [{ id: a[0] }];
       case "test.items":
         return [Array.from({ length: a[1] }, (_, i) => ({ id: a[0] + i }))];
-      case "act.push":
-        P.kidStack.push(a[1]);
-        return [];
-      case "act.pushAll":
-        (a[0] as p.Actx).pushAll(a[1]);
-        return [];
-      case "term.kids":
-        return [P.kidStack.length];
-      case "term.dropKids":
-        P.dropSpend(P.kidStack, a[0]);
-        return [];
+      // The printer prints neither of these two (it takes the elements of a list off with the parser's kids
+      // method, and has no filter list): they run on the library's own stack.
       case "term.elemsAbove":
         return [P.kids(a[0])];
       case "term.keep":
         P.kidStack.push(a[0][a[1]]);
-        return [];
-      case "act.made":
-        P.created.push(a[1]);
-        return [];
-      case "term.created":
-        return [P.created.length];
-      case "term.dropCreated":
-        P.dropSpend(P.created, a[0]);
         return [];
     }
     return super.call(op, a);
@@ -779,14 +528,9 @@ class TermM extends Exec {
   }
 }
 
-// The Operators Rules and the records of the split forms of their loop. Every operation but the records
-// is printed in the generated parser as an access to the library's descriptors (OperatorsRule), which the
-// bindings mirror; the records are the printed code's own variables.
-const oprFieldZero: Record<string, unknown> = { i: 0, min: 0, lastNone: 0, bound: 0, guard: 0, cutFailed: false, prevCut: false };
-
+// The Operators Rules: the descriptors that the printed code reads (OperatorsRule).
 class OprM extends Exec {
   noOprs: p.OperatorsRuleOp[] = [];
-  zeroMark = {};
 
   constructor(cfg: Config, controlled: boolean, options: Record<string, unknown> | null) {
     super(cfg, controlled, options);
@@ -810,79 +554,7 @@ class OprM extends Exec {
   }
 
   call(op: string, a: any[]): any[] {
-    const P = this.P;
-    const x = P as any;
-    if (op.startsWith("test.oprRecord.")) return [{}];
-    const dot = op.indexOf(".");
-    const rec = op.slice(0, dot);
-    if (rec === "oprLongest" || rec === "oprNud" || rec === "oprExpr") {
-      const f = op.slice(dot + 1);
-      const r = a[0] as Record<string, unknown>;
-      if (/^set[A-Z]/.test(f)) {
-        r[f[3]!.toLowerCase() + f.slice(4)] = a[1];
-        return [];
-      }
-      if (f in r) return [r[f]];
-      return [f === "l" ? this.noOprs : f === "m0" ? this.zeroMark : f in oprFieldZero ? oprFieldZero[f] : null];
-    }
-    switch (op) {
-      case "test.frame":
-      case "test.mark":
-        return [{}];
-      case "opr.led":
-        return [(a[0] as p.Rule).operatorsRule!.led];
-      case "opr.prefix":
-        return [(a[0] as p.Rule).operatorsRule!.prefix];
-      case "opr.count":
-        return [a[0].length];
-      case "opr.at":
-        return [a[0][a[1]]!];
-      case "opr.operands":
-        return [(a[0] as p.Rule).operatorsRule!.operands.length];
-      case "opr.operand":
-        return [(a[0] as p.Rule).operatorsRule!.operands[a[1]]!];
-      case "opr.line":
-        return [a[0].line];
-      case "opr.level":
-        return [a[0].level];
-      case "opr.infix":
-        return [a[0].kind === "infix"];
-      case "opr.postfix":
-        return [a[0].kind === "postfix"];
-      case "opr.right":
-        return [a[0].assoc === "right"];
-      case "opr.nonAssoc":
-        return [a[0].assoc === "none"];
-      case "opr.scope":
-        return [a[0].scope.length];
-      case "opr.hasSkip":
-        return [(a[0] as p.Rule).operatorsRule!.skip !== null];
-      case "opr.attempt":
-        return [{ op: a[0], frame: a[1], v: a[2], start: a[3], end: P.pos, env: P.env, cut: a[4], errs: a[5] }];
-      case "opr.found":
-        return [a[0] !== null];
-      case "opr.op":
-      case "opr.end":
-      case "opr.cut":
-      case "opr.env":
-      case "opr.errs":
-        return [a[0][op.slice(4)]];
-      case "opr.setCutFailed":
-        x.cutFailed = a[0];
-        return [];
-      case "opr.cutFailed":
-        return [x.cutFailed];
-      case "opr.setNudBound":
-        x.nudBound = a[0];
-        return [];
-      case "opr.nudBound":
-        return [x.nudBound];
-      case "opr.setAfterEmpty":
-        x.afterEmpty = a[0];
-        return [];
-      case "opr.afterEmpty":
-        return [x.afterEmpty];
-    }
+    if (op === "test.frame" || op === "test.mark") return [{}];
     return super.call(op, a);
   }
 }
@@ -911,9 +583,6 @@ class ObsM extends Exec {
     switch (op) {
       case "obs.active":
         return [P.observation !== null];
-      case "obs.memoHit":
-        P.observation?.memoHit();
-        return [];
       case "obs.enter":
         P.observation!.enter((a[0] as p.Rule).name, a[1], a[2]);
         return [];

@@ -61,3 +61,15 @@ func TestTypeScriptConformanceObsDetectsMutants(t *testing.T) {
 		})
 	}
 }
+
+// TestTypeScriptConformanceObsPrintedDetectsMutants is the negative control of the code that the printer prints for the operations of the family:
+// the suite runs that code, so a change of it must fail.
+func TestTypeScriptConformanceObsPrintedDetectsMutants(t *testing.T) {
+	mutanttest.SkipUnlessChanged(t, mutanttest.Pipeline...)
+	mutants := []tsPrintedMutant{
+		{name: "a reuse is not reported", method: "op_obs_memoHit", old: "this.observation?.memoHit();", new: ""},
+	}
+	tsDetectPrinted(t, mutants, func(r tsconformtest.Runner, _ bool) tsConformResult {
+		return tsObsRun(r, 150, 150)
+	})
+}

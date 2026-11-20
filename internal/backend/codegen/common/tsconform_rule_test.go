@@ -84,3 +84,15 @@ func TestTypeScriptConformanceRuleDetectsMutants(t *testing.T) {
 		})
 	}
 }
+
+// TestTypeScriptConformanceRulePrintedDetectsMutants is the negative control of the code that the printer prints for the operations of the family:
+// the suite runs that code, so a change of it must fail.
+func TestTypeScriptConformanceRulePrintedDetectsMutants(t *testing.T) {
+	mutanttest.SkipUnlessChanged(t, mutanttest.Pipeline...)
+	mutants := []tsPrintedMutant{
+		{name: "an invocation runs another level", method: "op_rule_invoke", old: "this.invoke(p0, p1)", new: "this.invoke(p0, p1 + 1)"},
+	}
+	tsDetectPrinted(t, mutants, func(r tsconformtest.Runner, charges bool) tsConformResult {
+		return tsRuleRun(r, tsconformtest.Rule(charges), tsRuleSuite(charges), 150, 150)
+	})
+}

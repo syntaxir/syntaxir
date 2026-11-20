@@ -64,8 +64,7 @@ func budgetOps(controlled bool) []string {
 
 // TestTypeScriptConformanceFrameDetectsMutants is the negative control of TestTypeScriptConformanceFrame
 // for the library's own functions of the frame; frame.mark, frame.undo, frame.save and frame.restore are
-// printed code in the generated parser, which the binding of the harness mirrors, so they are not
-// mutants of the library source.
+// printed code, whose mutants are in TestTypeScriptConformanceFramePrintedDetectsMutants.
 func TestTypeScriptConformanceFrameDetectsMutants(t *testing.T) {
 	mutanttest.SkipUnlessChanged(t, mutanttest.Pipeline...)
 	node := codegentest.RequireNode(t)
@@ -98,4 +97,25 @@ func TestTypeScriptConformanceFrameDetectsMutants(t *testing.T) {
 			t.Fatalf("the suite did not notice: %d cases ran, %d failed", res.ran, len(res.fails))
 		})
 	}
+}
+
+// TestTypeScriptConformanceFramePrintedDetectsMutants is the negative control of the code that the printer prints for the operations of the family:
+// the suite runs that code, so a change of it must fail.
+func TestTypeScriptConformanceFramePrintedDetectsMutants(t *testing.T) {
+	mutanttest.SkipUnlessChanged(t, mutanttest.Pipeline...)
+	mutants := []tsPrintedMutant{
+		{name: "a mark leaves out the position", method: "op_frame_mark", old: "const r0Pos = this.pos;", new: "const r0Pos = 0;"},
+		{name: "a mark leaves out the trail", method: "op_frame_mark", old: "const r0Trail = this.trail.length;", new: "const r0Trail = 0;"},
+		{name: "an undo does not unwind the trail", method: "op_frame_undo", old: "u.f[u.slot] = u.old;", new: ""},
+		{name: "an undo keeps the entries", method: "op_frame_undo", old: "this.trail.length = p0;", new: ""},
+		{name: "an undo charges nothing", method: "op_frame_undo", old: "this.spend();", new: "", charges: true},
+		{name: "a save keeps what was saved before", method: "op_frame_save", old: "this.saved.length = 0;", new: ""},
+		{name: "a save charges nothing", method: "op_frame_save", old: "this.spend();", new: "", charges: true},
+		{name: "a restore reads the first slot only", method: "op_frame_restore", old: "p0[t] = this.saved[t]!;", new: "p0[t] = this.saved[0]!;"},
+		{name: "a restore charges nothing", method: "op_frame_restore", old: "this.spend();", new: "", charges: true},
+	}
+	tsDetectPrinted(t, mutants, func(r tsconformtest.Runner, charges bool) tsConformResult {
+		s := conform.Suite{Name: "typescript frame printed mutant", Ops: append(conform.FrameSuiteOps(false), budgetOps(charges)...), Exact: tsFrameExact(charges)}
+		return tsFrameRun(r, tsconformtest.Frame(charges), s, 150, 150)
+	})
 }

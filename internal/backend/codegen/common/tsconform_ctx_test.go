@@ -80,3 +80,24 @@ func TestTypeScriptConformanceCtxDetectsMutants(t *testing.T) {
 		})
 	}
 }
+
+// TestTypeScriptConformanceCtxPrintedDetectsMutants is the negative control of the code that the printer prints for the operations of the family:
+// the suite runs that code, so a change of it must fail.
+func TestTypeScriptConformanceCtxPrintedDetectsMutants(t *testing.T) {
+	mutanttest.SkipUnlessChanged(t, mutanttest.Pipeline...)
+	// Not here: a lookup of another rule, which only a kept result shows (ctx.keep is pending, #202),
+	// and an entry for a rule of no cycle, which no case tells from the entry that the library makes of
+	// it (checked: the suite does not notice it).
+	mutants := []tsPrintedMutant{
+		{name: "a call answers in any context", method: "op_ctx_allows", old: "memoAllows(p0, p1.present)", new: "true"},
+		{name: "a done does nothing", method: "op_ctx_done", old: "this.ctxDone(p0);", new: ""},
+		{name: "a push does nothing", method: "op_ctx_push", old: "this.ctxPush(p0);", new: ""},
+		{name: "an end is the success", method: "op_ctx_ok", old: "p0!.ok", new: "true"},
+		{name: "a growth begins in another state", method: "op_grow_begin", old: "this.growBegin(p0, p1)", new: "this.growBegin(p0, !p1)"},
+		{name: "a step of the same end is longer", method: "op_grow_longer", old: "this.growLonger(p0, p1)", new: "!this.growLonger(p0, p1)"},
+		{name: "an adopted seed is not adopted", method: "op_grow_adopt", old: "this.growAdopt(p0, p1, p2);", new: ""},
+	}
+	tsDetectPrinted(t, mutants, func(r tsconformtest.Runner, charges bool) tsConformResult {
+		return tsCtxRun(r, tsconformtest.Ctx(charges), tsCtxSuite(charges), 150, 150)
+	})
+}

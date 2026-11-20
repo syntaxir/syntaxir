@@ -52,7 +52,8 @@ func TestTypeScriptConformanceExp(t *testing.T) {
 }
 
 // TestTypeScriptConformanceExpDetectsMutants is the negative control for the library's own functions
-// that the record uses; the record's operations themselves are printed code that the harness mirrors.
+// that the record uses; the record's operations are printed code, whose mutants are in
+// TestTypeScriptConformanceExpPrintedDetectsMutants.
 func TestTypeScriptConformanceExpDetectsMutants(t *testing.T) {
 	mutanttest.SkipUnlessChanged(t, mutanttest.Pipeline...)
 	node := codegentest.RequireNode(t)
@@ -78,4 +79,26 @@ func TestTypeScriptConformanceExpDetectsMutants(t *testing.T) {
 			t.Fatalf("the suite did not notice: %d cases ran, %d failed", res.ran, len(res.fails))
 		})
 	}
+}
+
+// TestTypeScriptConformanceExpPrintedDetectsMutants is the negative control of the code that the printer prints for the operations of the family:
+// the suite runs that code, so a change of it must fail.
+func TestTypeScriptConformanceExpPrintedDetectsMutants(t *testing.T) {
+	mutanttest.SkipUnlessChanged(t, mutanttest.Pipeline...)
+	mutants := []tsPrintedMutant{
+		{name: "an isolation does not move the base", method: "op_exp_isolate", old: "this.expBase = this.expTop;", new: ""},
+		{name: "an isolation keeps the farthest position", method: "op_exp_isolate", old: "this.farthest = p0;", new: ""},
+		{name: "an end of isolation does not restore the base", method: "op_exp_unisolate", old: "this.expBase = p0Base;", new: ""},
+		{name: "an end of isolation keeps the entries", method: "op_exp_unisolate", old: "this.expTop = this.expBase;", new: ""},
+		{name: "an end of isolation does not restore the farthest position", method: "op_exp_unisolate", old: "this.farthest = p0Far;", new: ""},
+		{name: "a copy keeps the entries of another range", method: "op_exp_copy", old: "this.exp.slice(p0From, p0To)", new: "this.exp.slice(p0From, p0To - 1)", charges: false},
+		{name: "an add does not advance the top", method: "op_exp_add", old: "this.exp[this.expTop++] = p0;", new: "this.exp[this.expTop] = p0;"},
+		{name: "a reset keeps the entries", method: "op_exp_reset", old: "this.expTop = this.expBase;", new: ""},
+		{name: "a reset keeps the farthest position", method: "op_exp_reset", old: "this.farthest = p0;", new: ""},
+		{name: "a read of a set shifts the index", method: "op_exp_setAt", old: "p0From + p1", new: "p0From + p1 + 1"},
+		{name: "the count of a set is one too large", method: "op_exp_setCount", old: "p0To - p0From", new: "p0To - p0From + 1"},
+	}
+	tsDetectPrinted(t, mutants, func(r tsconformtest.Runner, charges bool) tsConformResult {
+		return tsExpRun(r, tsconformtest.Exp(charges), tsExpSuite(charges), 150, 150)
+	})
 }
