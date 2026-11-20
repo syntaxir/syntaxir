@@ -7774,6 +7774,11 @@ most $|w|$ such steps, and in every other step $u$ fails within its word, after
 examining at most the word and the character after it. If $u$ decides $g$, each
 path of $u$ parts from each path of $g$ within three symbols at a decisive
 symbol that at most one of them can pass, after symbols that both pass alike.
+The paths of $u$ cover its evaluations that fail as well as those that
+succeed, those that fail at a dead symbol included ([Conditions for Linear
+Cost](../runtime/parsing.md#conditions-for-linear-cost)), so the evaluation of
+$u$ at $p$ passes the symbols of one of them in order until it fails, also
+when $u$ never succeeds.
 The left call of $g$ stands for the paths of the body of the leader, and the
 seed is the match of one of them at $p$; the seed of each later step is a match
 that begins with that of the step before and consumes at least one more

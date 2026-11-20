@@ -1651,9 +1651,14 @@ The conditions below use these terms.
   A unit that is not a lookahead is also committing when it **decides**
   every one of its continuations; one that decides some of them and commits
   against the others in the ways above is not. A **path** of an expression is a sequence of symbols, each a
-  call, a literal, a character class, `.` or a lookahead, such that every
-  evaluation of the expression that succeeds succeeds on the symbols of one
-  path in order, each starting where the one before it ended; an expression
+  call, a literal, a character class, `.` or a lookahead, and the paths of
+  the expression are such that every evaluation of it, whether it succeeds
+  or fails, passes the symbols of one path in order, each starting where
+  the one before it ended, until it fails or has passed them all. So the
+  paths cover the evaluations that fail as well as those that succeed:
+  `"a" W &"b" [a-z]* "c"` never succeeds, since `[a-z]*` consumes the `c`,
+  but its path is still those symbols, and an evaluation that fails at
+  `"c"` has examined the input that `W` and `[a-z]*` consumed. An expression
   that is not looked into, such as `#recover` or an Operators Rule, ends the
   path without deciding anything. A `_|_` of the normal view, such as the one
   to which it reduces `!"b" "b"`, is a **dead** symbol and ends the path too.
@@ -1661,9 +1666,9 @@ The conditions below use these terms.
   no evaluation passes, such as `{ false }`; it is not a dead symbol. Under
   the strict conditions (below), one with a copying operation that is a
   scanning source ends the path instead. The
-  paths also cover the evaluations that fail at a dead symbol, so a unit
-  that never succeeds has the paths of what it evaluates before it fails,
-  and these must part like any other. The unit decides the continuation when
+  evaluations that fail at a dead symbol follow the paths that end there, so
+  a unit that never succeeds has the paths of what it evaluates before it
+  fails, and these must part like any other. The unit decides the continuation when
   every path of the unit, compared with every path of the continuation from
   their common start, passes symbols that both evaluate alike and then
   **parts** at a decisive symbol that at most one of them can pass, within

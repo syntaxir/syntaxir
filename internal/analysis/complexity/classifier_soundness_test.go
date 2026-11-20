@@ -293,6 +293,15 @@ rule main = ( "x" [a-z] #repeat(,3) "1" (!";" .)* "!" / "x" [a-z] #repeat(,3) "2
 	{"decided", "alike bounded repetitions with a predicate", `@start
 rule main = ( "x" ([a-z] {1 == 1}) #repeat(,3) "1" (!";" .)* "!" / "x" ([a-z] {1 == 1}) #repeat(,3) "2" (!";" .)* ";" )* $$
 `, ClassPoly, 2, -1}, // r2
+	// The first alternative of E never succeeds, since [a-z]* consumes the c, yet the normal view
+	// keeps it: its path is still its symbols. Each step of the growth of E scans W again before
+	// the alternative fails at &"b": on a (ab)^k y x^k the minimum compute is 321795,
+	// 1268545 and 5037045 for k = 250, 500 and 1000.
+	{"decided", "unit that never succeeds without a dead symbol", `@start
+rule s = E $$
+rule E = "a" W &"b" [a-z]* "c" / E "x" / "a" W "y"
+rule W = ("a" #cut "b")*
+`, ClassPoly, 2, -1}, // g1
 }
 
 // TestClassifierSoundness checks the class of each grammar in classifierSoundnessCases.
