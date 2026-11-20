@@ -104,17 +104,18 @@ func tsExecSuites(controlled, sparse bool) []conform.Suite {
 // with the difference. The charge checks of the suite stop a case at the first call that differs, so the
 // suite holds these operations to everything but their charges and tolerates the failure that charges
 // cause: a difference of charges or the interruption that follows from one. A failure of any other
-// kind, or at any other operation, fails the test. When the library holds the model's charges at an
-// operation, its entry goes.
+// kind, or at any other operation, fails the test. Each reason starts with the name of the divergence it covers
+// (listed with a reproduction in the #305 hand-off); when the library holds the model's charges there,
+// the entry goes.
 var tsChargeDivergences = map[string]string{
-	"env.bind":   "comparing a string with the value of the slot charges one unit for each byte (the model: two for each byte of strings that are not the same memory, and one for strings that are)",
-	"seen.first": "the dense index copies its words when it grows, which the model's cost does not count",
+	"env.bind":   "[env.bind string compare] comparing a string with the value of the slot charges one unit for each byte (the model: two for each byte of strings that are not the same memory, and one for strings that are)",
+	"seen.first": "[seen.first dense growth] the dense index copies its words when it grows, which the model's cost does not count",
 }
 
 // tsInputChargeDivergences are those of a parse of an input of some length, where the memo has one
 // slot for each position.
 var tsInputChargeDivergences = map[string]string{
-	"memo.store": "the first store allocates and charges a slot for each position of the input at once, where the model charges only the copy of a table that doubles",
+	"memo.store": "[memo.store first allocation] the first store allocates and charges a slot for each position of the input at once, where the model charges only the copy of a table that doubles",
 }
 
 // tsReport fails the test for each failure of res that is not a known difference of charges.
