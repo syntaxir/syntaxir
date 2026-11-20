@@ -8244,8 +8244,8 @@ around $x$, then on the number of evaluations that the step makes after $x$
 and before the successful left call below: the claim holds for an evaluation
 that lies in a step of a growth of another leader that the step nests at $p$,
 and for those that come later in the step. The first number is finite, since
-the growths at $p$ that enclose one another have distinct leaders (*Calls in a
-context of growths*), and the second is finite, since a step is. The step goes on after $x$ fails and ends with a result that includes
+the growths at $p$ that enclose one another have distinct pairs of a leader
+and a binding level (*Calls in a context of growths*), and the second is finite, since a step is. The step goes on after $x$ fails and ends with a result that includes
 the seed, so it makes a successful left call at $p$ after $x$. After a unit
 fails, the parser evaluates only its continuations at the unit's start, so let
 $U$ be the outermost unit that holds $x$ and fails before the step makes that
@@ -8592,8 +8592,9 @@ starts at $p$, through left calls of rules of the cycle from the body of the
 leader of that step. Outside an Operators Rule, a body evaluation at $p$ makes
 each call of its body at $p$ at most once, so a step makes at most a constant
 $c_5$ of evaluations in the context of the growth outside the steps of the
-growths of other leaders that it starts, and those growths are nested at most
-as deep as the cycle has leaders.
+other growths that it starts at $p$, and those growths are nested at most as
+deep as the cycle has pairs of a leader and a binding level, twice as deep in
+a parse with missing-token insertion.
 
 *Proof.* The growth starts at $p$ and ends before its caller goes on, so a
 call made while it is in progress is made inside one of its steps, each of
@@ -8611,7 +8612,9 @@ first iteration that consumes nothing
 iterations starts at $p$, and a `#recover` evaluates its base and its skip
 expression once each. So a body evaluation at $p$ makes at most $b$ calls at
 $p$, where $b$ is the largest number of calls in a body. A left call of $S$
-reads the growing result and evaluates no body. A left call of a rule other
+at the binding level of the growth reads the growing result and evaluates no
+body; at another level it starts a growth of its own, which is taken below as
+that of another leader. A left call of a rule other
 than a leader evaluates its body, unless the parse answers it: from the memo,
 as the engine's parse does where the entry of its key records every leader
 whose growth is in its context, or from a result kept in the context
@@ -8619,15 +8622,25 @@ whose growth is in its context, or from a result kept in the context
 that answers nothing in contexts (*Reuse in a context*) evaluates every such
 call. A chain of such calls has fewer than $|\text{rules}|$ calls, since every
 cycle of left calls passes through a leader. A left call of another leader $R$
-reads the growing result of $R$ when $R$ grows at $p$ already, and otherwise
+reads the growing result of $R$ when $R$ grows at $p$ already at the level of
+the call, and otherwise
 grows $R$ there, in the context, or takes the steps of an earlier growth of
 $R$ in it, or, in a parse that answers in contexts, is answered as above. An
 answered call evaluates nothing, so in every parse, outside those growths,
 the evaluations of a step in the context form a tree
 of fewer than $|\text{rules}|$ levels with at most $b$ children at each, and
-$c_5 = b^{|\text{rules}|}$ bounds them. A growth of $R$ inside a growth of
-another leader at $p$ starts no growth of a leader that grows at $p$ already,
-so the growths at $p$ that enclose one another have distinct leaders. $\square$
+$c_5 = b^{|\text{rules}|}$ bounds them. Outside a parse with missing-token
+insertion, a growth inside another growth at $p$ starts no growth of a leader
+at a level at which it grows at $p$ already, since the left call reads that
+growth, whatever the values of the variables
+([Growths of Left Recursion](../runtime/parsing.md#growths-of-left-recursion)).
+So the growths at $p$ that enclose one another have distinct pairs of a leader
+and a binding level. In a parse with insertion, the engine also tells apart
+the growth of a leader that contains `#missing` called inside a lookahead,
+where insertion is disabled, which has a seed of its own; so a pair occurs
+there at most twice among the growths that enclose one another, and the
+nesting stays finite. The runtimes of generated Go and TypeScript tell growths
+apart by the leader and the level alone. $\square$
 
 A **read** of the growing result of a leader $R$ at $p$ is a call of $R$ at
 $p$ while $R$ grows there, made in a step of $R$ or in a step of a growth that
@@ -8871,6 +8884,74 @@ holds no read of a seed (*The position of a growth in a parse that keeps
 records or resumes runs*), so these bounds, which count the evaluations of a
 step by the calls of the bodies and the steps of a growth by lengths and by
 those claims, hold with records and resumed runs as without them. $\square$
+
+**Dependencies of a kept result.** A result or a step that a parse keeps in a
+context of growths at $p$ records at most $g$ current results and at most $s$
+observations, where $g$ is the number of pairs of a leader and a binding level
+of its cycle and $s$ the number of lookaheads in the bodies of the rules of the
+cycle. So the parse finds, compares and stores such a result in at most a
+constant times $L + 1$ steps, as it looks up a memo entry.
+
+*Proof.* By (D) of the [memoization proof](memoization.md#setting), a kept
+result records the current results that it read and the observations of the
+lookaheads at $p$ within it that read one, and a step is kept in the same way.
+It reads current results only of the growths of its context, the growths of
+its cycle open at $p$ when it starts (Lemma 2 there). The evaluation lies
+inside one step of each of them, and a current result changes only between
+steps, so it reads one current result of each. By *Calls in a context of
+growths* these growths have distinct pairs of a leader and a binding level,
+so there are at most $g$ of them, or $2g$ in a parse of the engine with
+missing-token insertion, which is outside the classes.
+
+The lookaheads whose observations it records lie in no growth that the
+evaluation of the result starts. A lookahead inside such a growth can read the
+current results of that growth too, which change from step to step; for it, the
+parse records the current results of the context that the lookahead read, as
+for a lookahead that is not observed. This only adds to what a reuse requires,
+which (D) leaves free. A lookahead that reads a growing result makes a left
+call at $p$ inside it, so
+the rule whose body holds it reaches the cycle at $p$ and, being called at $p$
+in the context, is reached from the leader: it is a rule of the cycle (*Calls
+in a context of growths*), and the variables that the lookahead reads,
+directly or through the rules it calls, are variables that the cycle reads.
+The bodies on the way from the leader of the outermost growth of the context
+to the lookahead are bodies of rules of the cycle at $p$, and no binding of a
+variable that the cycle reads runs in them before a call into the cycle that
+runs before consuming input ([Left
+Recursion](../language/parser-expressions.md#left-recursion)), which the left
+call inside the lookahead is; a binding in a called rule ends with the call. So
+every lookahead at $p$ that the result observes sees the values that those
+variables had where the outermost growth of the context started, and reads
+only current results of the context, which do not change while the result is
+evaluated. Its observation is then a function of its expression alone:
+the evaluation of an expression at a position is fixed by the input, the
+values of the variables that it reads and the current results that it reads.
+Two lookaheads of one expression that the result observes have the same
+observation, so the result records at most one for each expression, at most
+$s$.
+
+A result is found by its call, the values of its variables and the values of
+what it recorded: each current result, which the parse reads from its growth,
+and each observation, which it reads from the observation kept for the
+lookahead in the context, whose own recorded observations it reads in turn,
+each lookahead at most once on the way. The recorded items of a result are one
+of the sequences of distinct members of at most $g + s$ items, a constant
+number of sequences, and comparing the values of the variables takes at most a
+constant times $L + 1$ steps, as for a memo entry. Results of one call with
+the same recorded items and values differ only in the values of their
+variables, which a lookup compares in turn. Every evaluation in a context
+sees the values that the variables that the cycle reads had where the
+outermost growth of the context started, as shown above for the lookaheads,
+and the results kept in a context last only as long as that growth, so for
+each call and lookahead state the parse compares at most one such result,
+whatever $K$ is: the number of combinations of the values of the variables
+at the position does not enter the cost. Passing the recorded items
+of an answered or finished call to the evaluation around it adds at most
+$g + s$ items, each checked against at most a constant of items already
+there, and a current result that an observed lookahead read is passed as well,
+at most $g$ more. The engine's parse and the runtimes of generated Go and
+TypeScript record a current result once for each growth and an observation
+once for each lookahead, and limit neither number. $\square$
 
 The counts of the activations need more than that: where a parse answers a
 call in one growth and evaluates it in another, the activations inside it are
@@ -9212,7 +9293,7 @@ of growths*); the growths that they nest have other leaders. Otherwise the
 later activation of the pair lies in a later step, in the second case of
 *Repeats inside a growth*: in a step that the claims at $p$ do not leave out,
 at most a constant after $p$. So, by induction on the depth of the growths at
-$p$, which have distinct leaders, one step holds at most a constant of them:
+$p$, which have distinct pairs of a leader and a binding level, one step holds at most a constant of them:
 the earlier activation of each pair in the step lies in one of the at most
 $c_5$ growths that the step starts at $p$, each of which holds at most a
 constant by the induction. This holds in the steps that the claims at $p$
@@ -9773,7 +9854,8 @@ position and calls its leader there through left calls, so its rule is
 of the cycle of that leader and $x$ is in its context. In (ii) and
 (iii) the steps with image $H'$ are steps of growths at $q$ of one leader,
 whose calls fall under (i), (ii) or (iii) in turn, and the growths open at
-$q$ in one context are of distinct leaders of one cycle, so (i) ends the
+$q$ in one context have distinct pairs of a leader of one cycle and a binding
+level, so (i) ends the
 descent after a constant number of levels, and the owners with one image
 are at most a constant.
 
@@ -11884,7 +11966,10 @@ cost of at most $c_0 (L + 1)$. A call costs a constant and its memo lookup,
 which by [Evaluations of Rules](../runtime/parsing.md#evaluations-of-rules)
 costs in proportion to the size of its key: the number of variables that the
 rule reads, a constant, and the lengths of their string values, each at most
-$L$ by its definition; so each call costs at most a constant times $L + 1$.
+$L$ by its definition. A call in a context of growths also looks for a result
+kept in its context and keeps its own, which costs at most a constant times
+$L + 1$ as well (*Dependencies of a kept result* in Lemma 5); so each call
+costs at most a constant times $L + 1$.
 The scanned cost, the suffix copies included, is at most a constant times the
 activations and the recorded walks by Lemmas 4 and 17, plus
 what Lemma 5 adds, the walk cost is bounded by Lemma 9, and the values by
