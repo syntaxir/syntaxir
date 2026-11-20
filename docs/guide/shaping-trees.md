@@ -329,11 +329,11 @@ Go's `runtime.MemStats`. The figure moves by about 2 MB between runs, so read it
 
 | Grammar | Allocated per parse |
 |:--|--:|
-| Whitespace kept in the captured repetition (`rest:(ws "," ws x:ident)*`), `ident` an atomic token (`[a-z]+ #atomic`) | 17.2 MB |
-| Whitespace discarded (`rest:(-ws "," -ws x:ident)*`) | 12.6 MB |
-| Whitespace and the separator discarded (`rest:(-ws -"," -ws x:ident)*`) | 10.3 MB |
-| Whitespace discarded, but `ident` without a type: `rule ident =  [a-z]+ ` (a list of string nodes) | 19.5 MB |
-| Same, with `rule ident =  [a-z]+ #atomic ` | 12.6 MB |
+| Whitespace kept in the captured repetition (`rest:(ws "," ws x:ident)*`), `ident` an atomic token (`[a-z]+ #atomic`) | 25.6 MB |
+| Whitespace discarded (`rest:(-ws "," -ws x:ident)*`) | 13.7 MB |
+| Whitespace and the separator discarded (`rest:(-ws -"," -ws x:ident)*`) | 11.4 MB |
+| Whitespace discarded, but `ident` without a type: `rule ident =  [a-z]+ ` (a list of string nodes) | 20.6 MB |
+| Same, with `rule ident =  [a-z]+ #atomic ` | 13.7 MB |
 
 These choices matter most when a grammar captures many repeated values. Measure your own input and inspect the resulting tree to ensure that discarding text does not remove information your application needs.
 
