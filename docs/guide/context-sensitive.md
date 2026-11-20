@@ -143,7 +143,7 @@ A nonempty block `{ a; b; c }` is shorthand for adjacent Predicate Actions at th
 `{ count := 1; count == 1 } "a"` behaves like `{ count := 1 } { count == 1 } "a"`. The statements run from left to
 right and stop at the first false result or error. Bindings are visible to later statements and follow the usual
 backtracking rules. A block creates no variable or capture scope, consumes no input and adds no rule boundary. Empty
-blocks are compile-time errors, and Value Actions have no block form: they use the single term after `=>`. The
+blocks are compile-time errors, and Value Actions have no block form: they use the single action expression after `=>`. The
 [Predicates and Variables](../../spec/language/predicates.md#predicate-actions) chapter defines blocks.
 
 ### Variables

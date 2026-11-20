@@ -130,6 +130,27 @@ func TestDecodeJSONStrictAndPermissiveCompatibility(t *testing.T) {
 	}
 }
 
+// TestDecodeJSONRejectsTheFormerTermField pins the rename of the JSON field of an action
+// expression from "term" to "action": the old name is an unknown field, not an alias.
+func TestDecodeJSONRejectsTheFormerTermField(t *testing.T) {
+	for _, tc := range []struct{ name, node, path string }{
+		{"predicate", `{"@type":"Predicate","term":{"@type":"BoolLit","value":true}}`, "$.file.decls[0].expr.term"},
+		{"group", `{"@type":"ActionGroup","term":{"@type":"BoolLit","value":true}}`, "$.file.decls[0].action.term"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			in := `{"file":{"decls":[{"@type":"RuleDef","name":"r","expr":` + tc.node + `}]}}`
+			if tc.name == "group" {
+				in = `{"file":{"decls":[{"@type":"RuleDef","name":"r","expr":{"@type":"Literal","value":"x"},"action":` + tc.node + `}]}}`
+			}
+			_, err := DecodeJSON([]byte(in))
+			if err == nil {
+				t.Fatal("DecodeJSON accepted the former field name")
+			}
+			assertJSONDecodeError(t, err, tc.path, strings.Index(in, `"term"`), "unknown field")
+		})
+	}
+}
+
 func TestDecodeJSONUnknownFieldsAtASTDepth(t *testing.T) {
 	cases := []struct {
 		name, input, path, key string
