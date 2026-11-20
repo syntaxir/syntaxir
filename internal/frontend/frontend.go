@@ -36,6 +36,12 @@ type Result struct {
 	Analyses *pass.AnalysisManager[*core.Module]
 }
 
+// RunDefault is Run with the default options, for the tools that check a grammar without
+// compiling it for a backend.
+func RunDefault(g *ast.Grammar, control *cancel.Control) (*Result, error) {
+	return Run(g, compile.Options{}, control)
+}
+
 // Run checks g with the compiler's options opts. A non-nil control polls for cancellation. The
 // error is the compiler's error list, with the names of the hidden rules that inline actions
 // generate shown as written.

@@ -17,7 +17,6 @@ import (
 	"strings"
 
 	"zeroparse.dev/zp/internal/cancel"
-	"zeroparse.dev/zp/internal/compile"
 	"zeroparse.dev/zp/internal/frontend"
 	"zeroparse.dev/zp/internal/frontend/desugar"
 	"zeroparse.dev/zp/pkg/grammar/ast"
@@ -203,7 +202,7 @@ func checkGrammar(ctx context.Context, g *ast.Grammar) (res *frontend.Result, er
 		return nil, err
 	}
 	if ctx.Done() == nil {
-		return frontend.Run(g, compile.Options{}, nil)
+		return frontend.RunDefault(g, nil)
 	}
 	defer func() {
 		if failure := recover(); failure != nil {
@@ -214,7 +213,7 @@ func checkGrammar(ctx context.Context, g *ast.Grammar) (res *frontend.Result, er
 			}
 		}
 	}()
-	return frontend.Run(g, compile.Options{}, &cancel.Control{Ctx: ctx})
+	return frontend.RunDefault(g, &cancel.Control{Ctx: ctx})
 }
 
 // options validates c.Disable and returns the options of the run.

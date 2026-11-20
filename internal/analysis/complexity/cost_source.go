@@ -4,7 +4,6 @@ import (
 	"slices"
 
 	"zeroparse.dev/zp/internal/cancel"
-	"zeroparse.dev/zp/internal/compile"
 	"zeroparse.dev/zp/internal/frontend/desugar"
 	"zeroparse.dev/zp/internal/frontend/elaborate"
 	"zeroparse.dev/zp/internal/ir/core"
@@ -102,7 +101,7 @@ func costSource(g *ast.Grammar, rules []*ast.RuleDef, control *cancel.Control) (
 		}
 	}
 	origin := map[core.Node]ast.Expr{}
-	m, err := elaborate.Structural(compile.StructuralInput(g, rules, starts), origin)
+	m, err := elaborate.Structural(elaborate.StructuralInput(g, rules, starts), origin)
 	if err != nil {
 		return nil, err
 	}

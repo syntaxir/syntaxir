@@ -6,6 +6,7 @@ import (
 	"zeroparse.dev/zp/internal/cancel"
 	"zeroparse.dev/zp/internal/compile"
 	"zeroparse.dev/zp/internal/diagnostic"
+	"zeroparse.dev/zp/internal/frontend/check"
 	"zeroparse.dev/zp/internal/frontend/desugar"
 	"zeroparse.dev/zp/internal/frontend/elaborate"
 	"zeroparse.dev/zp/internal/ir/core"
@@ -77,6 +78,31 @@ func CheckStructural(g *ast.Grammar, opts compile.Options, flags []compile.RuleF
 	return prog, s, nil
 }
 
+// Typed is what the complexity classifier reads of a checked grammar: the grammar as the compiler
+// canonicalized it, its default start rule, its unique rules with the untyped Core IR module they
+// were elaborated into and the facts of that module, and the value types of its terms.
+type Typed struct {
+	Grammar      *ast.Grammar
+	DefaultStart string
+	Rules        []*ast.RuleDef
+	Module       *core.Module
+	Origin       map[core.Node]ast.Expr
+	Facts        *corepass.Facts
+	Types        *check.ValueRecord
+}
+
+// CheckTyped checks g with the default options, without building matchers, and returns what the
+// classifier reads of it. names receives the hidden rules that the lowering of inline actions
+// generates. It returns an error if g does not compile.
+func CheckTyped(g *ast.Grammar, names desugar.InlineNames, control *cancel.Control) (*Typed, error) {
+	prog, st, err := CheckStructural(g, compile.Options{}, nil, names, control)
+	if err != nil {
+		return nil, err
+	}
+	return &Typed{Grammar: prog.Grammar, DefaultStart: prog.DefaultStartRule, Rules: st.Rules,
+		Module: st.Module, Origin: st.Origin, Facts: st.Facts(), Types: prog.ValueRecord()}, nil
+}
+
 // buildStructural canonicalizes g and builds the untyped Core IR module of its unique rules. A
 // grammar the compiler rejects may fail to build: the failure, an error or the value of a panic,
 // is kept for CheckStructural to report only if the compiler accepts the grammar. A cancellation
@@ -97,7 +123,7 @@ func buildStructural(g *ast.Grammar, opts compile.Options, names desugar.InlineN
 				s.Module, s.failure = nil, r
 			}
 		}()
-		m, err := elaborate.Structural(compile.StructuralInput(canon.Grammar, defs, canon.Starts), s.Origin)
+		m, err := elaborate.Structural(elaborate.StructuralInput(canon.Grammar, defs, canon.Starts), s.Origin)
 		if err != nil {
 			s.failure = err
 			return

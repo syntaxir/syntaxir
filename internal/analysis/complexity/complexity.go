@@ -8,7 +8,6 @@ import (
 	"unicode/utf8"
 
 	"zeroparse.dev/zp/internal/cancel"
-	"zeroparse.dev/zp/internal/compile"
 	"zeroparse.dev/zp/internal/frontend"
 	"zeroparse.dev/zp/internal/frontend/astfacts"
 	"zeroparse.dev/zp/internal/frontend/check"
@@ -181,19 +180,19 @@ func GrowingBindingsControlled(g *ast.Grammar, start string, control *cancel.Con
 func prepareTypedClassifier(g *ast.Grammar, start string, control *cancel.Control) (*classifier, desugar.InlineNames) {
 	control.Check()
 	names := desugar.InlineNames{}
-	prog, st, err := frontend.CheckStructural(g, compile.Options{}, nil, names, control)
+	typed, err := frontend.CheckTyped(g, names, control)
 	if err != nil {
 		return nil, nil
 	}
 	if start == "" {
-		start = prog.DefaultStartRule
+		start = typed.DefaultStart
 	}
 	// The facts are those the check took, of the module of the same rules: they are not computed
 	// again.
-	rules := st.Rules
-	rf := sourceFacts(&Source{Module: st.Module, Origin: st.Origin, Facts: st.Facts()}, rules, control)
-	k := newViewClassifier(prog.Grammar, rules, rf, start, control)
-	k.types = prog.ValueRecord()
+	rules := typed.Rules
+	rf := sourceFacts(&Source{Module: typed.Module, Origin: typed.Origin, Facts: typed.Facts}, rules, control)
+	k := newViewClassifier(typed.Grammar, rules, rf, start, control)
+	k.types = typed.Types
 	return k, names
 }
 
