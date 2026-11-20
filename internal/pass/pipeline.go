@@ -103,7 +103,8 @@ type Options[M any] struct {
 	BuiltVerified bool
 	// Analyses, if not nil, is the manager of the analyses of the unit that the run shares with
 	// its caller: the run reads and keeps its analyses there, and discards those that a pass does
-	// not preserve. Nil runs with a manager of its own.
+	// not preserve, and all of them if it fails without Keep, since the unit it returns is then as
+	// the failed pass left it. Nil runs with a manager of its own.
 	Analyses *AnalysisManager[M]
 
 	// gate, if not nil, is asked before an enabled pass that applies runs; false skips it. A stage
@@ -204,11 +205,13 @@ func (p *Pipeline[M, X]) Run(m M, x X, o Options[M]) (M, []string, error) {
 	}
 	var ran []string
 	// failed returns the unit after a failure: the one the run was given if the caller keeps it,
-	// otherwise u, as the passes left it.
+	// otherwise u, as the passes left it. A failed pass may have changed u in place, so the
+	// analyses cached for u are discarded: a manager of the caller's is never served them stale.
 	failed := func(u M) M {
 		if o.Keep {
 			return in
 		}
+		am.Invalidate(PreservedSet{})
 		return u
 	}
 	for _, ps := range p.Passes {

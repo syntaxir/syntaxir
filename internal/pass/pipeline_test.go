@@ -281,6 +281,34 @@ func TestAnotherUnitsCacheIsNotMoved(t *testing.T) {
 	}
 }
 
+// A run that fails without Keep returns the unit as the failed pass left it, which the pass may have
+// changed in place, so the analyses that the caller's manager holds for it are discarded: a later run
+// on the returned unit computes them again, never reads them stale. A run that keeps its input does not
+// change it, so the analyses stay.
+func TestFailedRunDiscardsTheCallersAnalyses(t *testing.T) {
+	cause := errors.New("broken")
+	failing := Pass[*unit, mode]{Name: "fail", Requires: []Analysis{"attrs"}, Obligation: "none: it fails",
+		Run: func(u *unit, _ mode) (*unit, PreservedSet, error) {
+			u.log = append(u.log, "fail")
+			return u, all, cause
+		}}
+	for _, keep := range []bool{false, true} {
+		am := NewAnalysisManager[*unit](nil)
+		p := fakePipeline(failing)
+		if keep {
+			var n int
+			p = copying(p, &n)
+		}
+		in := &unit{}
+		if _, _, err := p.Run(in, mode{}, Options[*unit]{Analyses: am, Keep: keep}); !errors.Is(err, cause) {
+			t.Fatalf("keep %v: %v", keep, err)
+		}
+		if got := am.Cached("attrs"); got == !keep {
+			t.Errorf("keep %v: attrs cached %v after the failed run", keep, got)
+		}
+	}
+}
+
 // copying makes p copy its units as Pipeline.Copy does, counting the copies in n.
 func copying(p *Pipeline[*unit, mode], n *int) *Pipeline[*unit, mode] {
 	p.Copy = func(u *unit) *unit {
