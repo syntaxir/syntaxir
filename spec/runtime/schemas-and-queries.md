@@ -69,12 +69,32 @@ A tuple of no elements is the unit value.
 
 ### Schema JSON, Version 2
 
-Decoding requires exact field-name case and rejects unknown fields, duplicate keys at
-every object level, unsupported formats and versions and incomplete envelopes.
+The package `schema` (`zeroparse.dev/zp/pkg/runtime/schema`) holds the schema as a `schema.Output`, whose JSON form is
+the format. A schema is an object with these members, and every nested object has exactly the members of its table.
 
-`schema.Validate()` performs the full version 2 validation of a schema, whether it
+| Object | Members |
+|:--|:--|
+| Envelope, `schema.Output` | `format`, the string `zp-output-schema` (`schema.Format`); `version`, the integer 2 (`schema.Version`); `start`, the name of the root rule; `positionUnitIndependent`, the boolean true; `sourceInfo`; `types`; and `rules` |
+| Type entry, `schema.Type` | `id`, `name`, `origin` (`declared` or `inferred`) and `shape` |
+| Rule, `schema.Rule` | `name`, `origin` (`declared` when the rule declares its type, `inferred` otherwise) and `result`, a shape |
+| Shape, `schema.Shape` | `kind` and the members of [Shapes](#shapes): `scalar`, `ref`, `element`, `elements`, `alternatives`, `fields`, `value` and `captures` |
+| Field, `schema.Field` | `name` and `shape` |
+| Capture, `schema.Capture` | `name`, `paths`, `side` and `shape` |
+
+`positionUnitIndependent` records that the schema does not depend on the position unit of a parse, and a schema that
+has another value is not valid. The members of a shape other than its kind, and the `paths` and `side` of a capture, are omitted when they are
+empty or false.
+
+Decoding requires exact field-name case and rejects unknown fields, duplicate keys at
+every object level, unsupported formats and versions and incomplete envelopes. `schema.Output` decodes with
+`encoding/json` and performs the validation below as it does.
+
+`schema.Output.Validate()` performs the full version 2 validation of a schema, whether it
 was decoded from JSON or built in Go. It checks that:
 
+- the format and the version are those above, `Start` is not empty, `positionUnitIndependent` is true, and `types` and
+  `rules` are present, which in Go means not nil. An empty `rules` is rejected all the same, because `Start` must name a rule
+  of `Rules` and the result type of each rule must exist;
 - type IDs, rule names, field names and the capture names of a node are nonempty
   and unique;
 - each type ID is `declared/<name>` or `inferred/<name>` and agrees with its origin,
@@ -88,7 +108,7 @@ was decoded from JSON or built in Go. It checks that:
 - `Start` names a rule of `Rules`, and the `Result` of each rule is a reference
   exactly to `inferred/<rule-name>`, which exists as a type entry.
 
-Omitted, nil and empty member slices are equivalent.
+Omitted, nil and empty slices of the members of a shape, a field or a capture are equivalent.
 
 Validation checks structure and canonical relationships. Type names alone do not
 establish compatibility between grammars.
@@ -96,9 +116,12 @@ establish compatibility between grammars.
 ### Comparing Schemas
 
 `schema.Compare(before, after)` validates both complete operands and
-compares their contents by type ID and rule name. It returns the added, removed and
-changed entries in sorted order; for equal schemas its `Types` and `Rules` slices are
-empty. The comparison ignores the order of entries, of struct fields, of join
+compares their contents by type ID and rule name. It returns a `*schema.Diff` with the added, removed and
+changed entries in `Types` and `Rules`, each sorted by ID; for equal schemas its `Types` and `Rules` slices are
+empty. A `schema.TypeChange` or `schema.RuleChange` has the `ID` (the type ID, or the rule name), a `Kind`
+(`schema.Added`, `schema.Removed` or `schema.Changed`), the `Before` and `After` entries (nil for an addition and a removal
+respectively), the `Class` and the `Impacts`. A `schema.Impact` has the `Path`, the `Class` and the `Rule`, the name of
+the rule below. A `schema.ChangeKind` is `schema.Added`, `schema.Removed` or `schema.Changed`, with the values `added`, `removed` and `changed`. A `schema.Class` is `schema.Breaking` or `schema.Compatible`, with the values `breaking` and `compatible`. The comparison ignores the order of entries, of struct fields, of join
 alternatives, of captures and of capture paths, and envelope fields such as `Start`
 and `sourceInfo`; tuple element order and named references are significant.
 
@@ -121,7 +144,7 @@ produced it:
 | `tuple-arity-changed` | Breaking | a tuple with another number of elements |
 | `kind-changed`, `scalar-changed`, `reference-changed` | Breaking | a shape of another kind, scalar or referenced type ID |
 
-Changes inside list and optional elements, node values, tuple elements, fields and captures are classified
+Constants of the package `schema` hold these names: `schema.RuleTypeAdded`, `RuleTypeRemoved`, `RuleRuleAdded`, `RuleRuleRemoved`, `RuleOriginChanged`, `RuleFieldAdded`, `RuleFieldRemoved`, `RuleCaptureAdded`, `RuleCaptureRemoved`, `RuleCaptureMoved` (`capture-location-changed`), `RuleAlternativeAdded`, `RuleAlternativeRemoved`, `RuleTupleArityChanged`, `RuleKindChanged`, `RuleScalarChanged` and `RuleReferenceChanged`. Changes inside list and optional elements, node values, tuple elements, fields and captures are classified
 recursively. Every other change to an existing shape is `Breaking`, including narrowing (`join[int, string]` to `int`,
 optional to required) and widening (a value to optional, to a join or to `top`), because generated type names and
 shapes follow the ID and the shape.
@@ -139,6 +162,10 @@ shapes follow the ID and the shape.
 | `Value` | The value of a node |
 | `Elements` | An ordered prefix of the elements of a tuple or a list, or of a node's value; extra elements are allowed |
 | `Capture` | Binds the value at this pattern under the given name |
+
+An empty `Type`, `Rule` and `Category` constrain nothing. `Fields` is a list of `query.FieldPattern`, each with the
+`Name` of a required field and the `Pattern` of its value; `Value` is a pointer to a pattern, and `Elements` a list of
+patterns.
 
 - `Elements` sees through nodes as `x[i]` does: on a node it applies to the elements
   of the node's value.
@@ -173,29 +200,31 @@ the field, element or node value to which they apply.
   runtime values, because a caller MAY mutate a result after parsing.
 
 `query.Prepare(schema)` validates a schema once and returns a prepared
-schema whose `Compile(pattern)` performs the same pattern checks
+`*query.Schema` whose `Compile(pattern)` performs the same pattern checks
 without validating again. A prepared schema owns a copy of the schema and is safe for
 concurrent use.
 
 ### Evaluation
 
-`Query.Matches(root, opts...)` accepts a parse result and returns all
+A compiled `*query.Query` is immutable and safe for concurrent use. `Query.Matches(root, opts...)` accepts a parse result and returns all
 matches or an error.
 
 - Matches visit each value before its outgoing edges: the elements of a tuple, of a
   list or of a node's value by index, then the captures of a node that are held
   beside its value, by name, and the fields of a struct by name. A shared value can
   produce several matches.
-- Each `query.Capture` holds the captured value, its immediate containing `Parent`
-  and an owned `Path` relative to the root, made of `element`, `capture`, `field`
-  and `value` edges. Captured values and parents belong to the input graph. The
+- `Matches` returns a list of `query.Match`, each with the list `Captures`. Each `query.Capture` has the `Name` of the
+  capture, the `Category` of the captured value, the value in `Value`, its immediate containing node in `Parent` and an
+  owned `Path` relative to the root, a list of `query.Edge` made of `element`, `capture`, `field`
+  and `value` edges. The `Kind` of an edge is that name, `Index` is the index of an `element` edge, and `Name` is the
+  name of a `capture` or `field` edge. Captured values and parents belong to the input graph. The
   graph MUST be stable while results are used and MUST NOT be mutated concurrently.
 - A cycle on the active path matches `query.ErrCycle`. Sharing without a cycle
   is allowed.
 - A pattern with a `Rule` constraint on a result that has nodes but records no rule,
   because the parser was compiled without source information, matches
   `query.ErrNoSourceInfo`.
-- `query.WithContext(ctx)` supplies a context; cancellation returns the error of
+- A `query.Option` configures one evaluation. `query.WithContext(ctx)` supplies a context; cancellation returns the error of
   the context. `query.WithLimits(runtime.Limits{Compute: n})` bounds
   traversal, matching, path copies and result construction; exhaustion matches
   `runtime.ErrLimit`. Zero limits are unlimited. A query inspects no source text, so
