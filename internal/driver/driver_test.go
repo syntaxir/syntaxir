@@ -257,8 +257,12 @@ func TestDriverFlowFuncKeepsTheCoreModule(t *testing.T) {
 		u := framed()
 		before := core.Print(u.Module, true)
 		for range 2 {
-			if _, err := c.d.FlowFunc("typed", u, false, all); !errors.Is(err, c.err) {
+			f, err := c.d.FlowFunc("typed", u, false, all)
+			if !errors.Is(err, c.err) {
 				t.Fatalf("%s: %v", c.what, err)
+			}
+			if len(flow.FuncOf(f).Body.Stmts) == 0 {
+				t.Errorf("%s: the module that FlowFunc returned lost its statements", c.what)
 			}
 			if after := core.Print(u.Module, true); after != before {
 				t.Errorf("%s: the Core module changed:\n%s\nwas\n%s", c.what, after, before)
@@ -367,5 +371,64 @@ func TestDriverExecFunc(t *testing.T) {
 	}
 	if n := strings.Count(dump.String(), "-- Exec IR of r in the typed table after "); n != 1+len(codepass.Pipeline.Passes) {
 		t.Errorf("all printed %d sections:\n%s", n, dump.String())
+	}
+}
+
+// A failed Exec pass, of the passes that every target runs or of the target's own, is an internal error
+// that names the pass, and the run returns the lowered function as execlower made it (pass.Options.Keep):
+// the pass changed a copy, so the function that the generation goes on with is whole, not as the failed
+// pass left it, and it keeps what the printers print (Lowered.Keeps). This holds without VerifyEach,
+// which copies before every pass anyway.
+func TestDriverExecFuncFailureKeepsTheLoweredFunction(t *testing.T) {
+	cause := errors.New("broken")
+	const failing = "test-exec-fail"
+	// wreck changes a lowered function in place as a failing pass could: it empties the body and
+	// removes the locals.
+	wreck := func(f *code.Func) { f.Body.Stmts, f.Locals = nil, nil }
+	pipeline := func(passes ...pass.Pass[*code.Module, *codepass.Env]) func(string) *pass.Pipeline[*code.Module, *codepass.Env] {
+		p := *codepass.Pipeline
+		p.Passes = passes
+		return func(string) *pass.Pipeline[*code.Module, *codepass.Env] { return &p }
+	}
+	failExec := pass.Pass[*code.Module, *codepass.Env]{Name: failing, Obligation: "none: it fails",
+		Run: func(m *code.Module, _ *codepass.Env) (*code.Module, pass.PreservedSet, error) {
+			wreck(m.Funcs[0])
+			return m, pass.PreserveAll(), cause
+		}}
+	failTarget := &TargetPipeline{Copy: (*execlower.Lowered).Clone, Passes: []pass.Pass[*execlower.Lowered, *codepass.Env]{{Name: failing, Obligation: "none: it fails",
+		Run: func(l *execlower.Lowered, _ *codepass.Env) (*execlower.Lowered, pass.PreservedSet, error) {
+			wreck(l.Func)
+			return l, pass.PreserveAll(), cause
+		}}}}
+	printed := func(l *execlower.Lowered) string { return code.FuncStringIn(l.Module, l.Func) }
+	whole, err := (&Driver{ExecPipeline: pipeline()}).ExecFunc("typed", execModule(t), noTarget, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := printed(whole)
+	if len(whole.Func.Body.Stmts) == 0 {
+		t.Fatal("the lowered function has no statements to lose")
+	}
+	for _, c := range []struct {
+		what   string
+		d      *Driver
+		target *TargetPipeline
+	}{
+		{"a pass that every target runs", &Driver{ExecPipeline: pipeline(failExec), TestPasses: []string{failing}}, noTarget},
+		{"a pass of the target", &Driver{ExecPipeline: pipeline(), TestPasses: []string{failing}}, failTarget},
+	} {
+		l, err := c.d.ExecFunc("typed", execModule(t), c.target, false)
+		if !errors.Is(err, cause) || !strings.HasPrefix(err.Error(), "internal error: pass "+failing+": ") {
+			t.Errorf("%s: the error %v does not name the pass", c.what, err)
+		}
+		if l == nil {
+			t.Fatalf("%s: no lowered function", c.what)
+		}
+		if got := printed(l); got != want {
+			t.Errorf("%s: the returned function is not the original:\n%s\nwas\n%s", c.what, got, want)
+		}
+		if err := l.Keeps(); err != nil {
+			t.Errorf("%s: %v", c.what, err)
+		}
 	}
 }
