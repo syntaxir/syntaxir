@@ -42,6 +42,9 @@ func Preserve(names ...string) PreservedSet {
 // Has reports whether the analysis of the given name is preserved.
 func (p PreservedSet) Has(name string) bool { return p.all || p.keys[name] }
 
+// All reports whether every analysis is preserved: the change did not alter the unit.
+func (p PreservedSet) All() bool { return p.all }
+
 // AnalysisKey names an analysis of units of type T with results of type R, and says how to compute
 // it. Run may ask the manager for other analyses of the same unit; the manager records them as its
 // dependencies.
