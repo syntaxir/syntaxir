@@ -46,8 +46,8 @@ func tsConformLib(t testing.TB) string {
 
 // tsConformResult is what a run of the cases of a suite found.
 type tsConformResult struct {
-	ran, skipped int
-	fails        []error
+	ran, skipped, pending int
+	fails                 []error
 }
 
 // tsConformRun runs the handwritten cases and seeds randomized cases of n calls of the suite s on the
@@ -68,10 +68,13 @@ func tsConformRun(r tsconformtest.Runner, f tsconformtest.Family, s conform.Suit
 func tsConformRunCases(r tsconformtest.Runner, f tsconformtest.Family, s conform.Suite, cases []conform.Case, seeds int, random func(seed int) conform.Case) tsConformResult {
 	var res tsConformResult
 	run := func(c conform.Case) {
-		skipped, err := r.Run(f, s, c)
-		if skipped {
+		status, err := r.Run(f, s, c)
+		switch status {
+		case tsconformtest.Skipped:
 			res.skipped++
-		} else {
+		case tsconformtest.Pending:
+			res.pending++
+		default:
 			res.ran++
 		}
 		if err != nil {
@@ -128,7 +131,7 @@ var tsInputChargeDivergences = map[string]string{
 // tsReport fails the test for each failure of res that is not a known difference of charges.
 func tsReport(t *testing.T, res tsConformResult, ops []string, known map[string]string) {
 	t.Helper()
-	t.Logf("%d cases ran, %d skipped, %d failed", res.ran, res.skipped, len(res.fails))
+	t.Logf("%d cases ran, %d skipped, %d pending, %d failed", res.ran, res.skipped, res.pending, len(res.fails))
 	seen := map[string]int{}
 	for _, err := range res.fails {
 		op, kind := tsFailureKind(err)

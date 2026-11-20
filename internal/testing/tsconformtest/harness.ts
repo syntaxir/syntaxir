@@ -21,6 +21,7 @@ interface Config {
   vars: number[];
   ruleVars: number[][];
   noExpectations?: boolean;
+  ctxRules?: { cycle: number; leader: boolean }[];
 }
 interface Request {
   family: string;
@@ -102,8 +103,11 @@ interface Values {
 }
 
 // Errors is the handle of a list of recovered errors.
-interface Errors {
+class Errors {
   errs: p.Errs;
+  constructor(errs: p.Errs) {
+    this.errs = errs;
+  }
 }
 
 // A SyntaxError of a conformance identifier is at the position id.
@@ -168,10 +172,10 @@ class Exec implements Machine {
 
   // errorsOf returns the handle of the errors that a list of the record holds, one for each entry.
   errorsOf(e: p.Errs): Errors {
-    if (e === null) return { errs: null };
+    if (e === null) return new Errors(null);
     let l = this.lists.get(e);
     if (l === undefined) {
-      l = { errs: e };
+      l = new Errors(e);
       this.lists.set(e, l);
     }
     return l;
@@ -190,6 +194,8 @@ class Exec implements Machine {
       }
       case "test.datum":
         return [datum(a[0])];
+      case "test.node":
+        return [{}];
       case "test.rule":
         return [this.rules[a[0]]];
       case "test.err":
@@ -257,9 +263,8 @@ class Exec implements Machine {
     let n = 0;
     for (const x of this.P.recovered) n += unrolled(x);
     ans.unrolled = n;
-    if (e.op === "rec.since" && res.length > 0) {
-      const l = res[0] as Errors;
-      ans.lists = [l.errs === null ? [0, 0] : [unrolled(l.errs), errorCount(l.errs)]];
+    if (res.some((r) => r instanceof Errors)) {
+      ans.lists = res.map((r) => (r instanceof Errors ? (r.errs === null ? [0, 0] : [unrolled(r.errs), errorCount(r.errs)]) : null)) as [number, number][];
     }
   }
 }
@@ -292,8 +297,6 @@ class FrameM extends Exec {
   call(op: string, a: any[]): any[] {
     const P = this.P;
     switch (op) {
-      case "test.node":
-        return [{}];
       case "frame.mark":
         return [{ pos: P.pos, env: P.env, trail: P.trail.length, rec: P.recovered.length } as Mark];
       case "frame.markPos":
@@ -444,12 +447,169 @@ class ExpM extends Exec {
   }
 }
 
+// The dependency memo of left recursion and the growths. A Ctx is the library's CtxCall; a Grow its
+// GrowState; a result is its CtxResult; the conformance operations install growths and lookaheads
+// without charging, as the case states them.
+class CtxM extends ExpM {
+  constructor(cfg: Config, controlled: boolean, options: Record<string, unknown> | null) {
+    super(cfg, controlled, options);
+    const leaders = new Map<number, number>();
+    this.rules = (cfg.ctxRules ?? []).map((cr, i) => {
+      const r = p.mkRule(i, "r" + i, [], 0, false, cr.leader, -1, false, []);
+      if (cr.cycle !== 0) {
+        r.cycle = cr.cycle;
+        if (cr.leader) {
+          const k = leaders.get(cr.cycle) ?? 0;
+          r.leaderIndex = k;
+          if (k < 31) r.leaderBit = 1 << k;
+          leaders.set(cr.cycle, k + 1);
+        }
+      }
+      return r;
+    });
+  }
+
+  setRegs(regs: Record<string, number>): void {
+    if (regs.pos !== undefined) this.P.pos = regs.pos;
+    if (regs.silent !== undefined) this.P.silent = regs.silent;
+  }
+  getRegs(): Record<string, number> {
+    return { pos: this.P.pos, silent: this.P.silent };
+  }
+
+  // seed is the seed that a conformance operation installs.
+  seed(ok: boolean, end: number): p.CtxResult {
+    return p.newCtxResult(ok ? (null as unknown as p.R) : undefined, end, false, p.noErrs, 0, p.noExp, end);
+  }
+
+  // handleErrs returns the handle of the errors of the result s: a list of no errors has no identity of
+  // its own, as the model's null handle.
+  handleErrs(s: p.CtxResult): Errors | null {
+    return s.errs === null || errorCount(s.errs) === 0 ? null : this.errorsOf(s.errs);
+  }
+
+  call(op: string, a: any[]): any[] {
+    const P = this.P;
+    switch (op) {
+      case "ctx.enter": {
+        const r = a[0] as p.Rule;
+        if (r.cycle !== 0 && P.gamma.length !== 0) {
+          const c = p.newCtxCall();
+          return [c, P.ctxEnter(c, r, a[1])];
+        }
+        // A call outside every growth has the empty context of the library, which nothing changes; the
+        // case holds a handle of its own for each call.
+        return [p.newCtxCall(), null];
+      }
+      case "ctx.found":
+        return [a[0] !== null];
+      case "ctx.ok":
+        return [(a[0] as p.CtxResult).ok];
+      case "ctx.value":
+        return [(a[0] as p.CtxResult).node ?? null];
+      case "ctx.end":
+        return [(a[0] as p.CtxResult).end];
+      case "ctx.errs":
+        return [this.handleErrs(a[0] as p.CtxResult)];
+      case "ctx.far":
+        return [(a[0] as p.CtxResult).far];
+      case "ctx.expected":
+        return [(a[0] as p.CtxResult).expected];
+      case "ctx.allows":
+        return [p.memoAllows(a[0], (a[1] as p.MemoEntry).present)];
+      case "ctx.active":
+        return [(a[0] as p.CtxCall).ctx];
+      case "ctx.lookup":
+        return [P.ctxLookup(a[0], (a[1] as p.Rule).id, a[2], (a[3] as Values).vals)];
+      case "ctx.push":
+        P.ctxPush(a[0]);
+        return [];
+      case "ctx.pop":
+        return [P.ctxPop(a[0])];
+      case "ctx.storeMemo":
+        return [p.storeMemo];
+      case "ctx.storeCtx":
+        return [p.storeCtx];
+      case "ctx.done":
+        P.ctxDone(a[0]);
+        return [];
+      case "ctx.keep": {
+        // The printed call takes the value as the node of the result, whose success is that it is not undefined.
+        const res = p.newCtxResult(a[5] ? (a[8] ?? {}) : undefined, a[6], a[7], a[9] === null ? p.noErrs : (a[9] as Errors).errs, a[10], a[11], P.examinedNow());
+        P.ctxKeep(a[0], (a[1] as p.Rule).id, a[2], a[3], (a[4] as Values).vals, res);
+        return [];
+      }
+      case "memo.setPresent":
+        (a[0] as p.MemoEntry).present |= (a[1] as p.MemoEntry).present;
+        return [];
+      case "grow.begin":
+        return [P.growBegin(a[0], a[1])];
+      case "grow.ctx":
+        return [(a[0] as p.GrowState).ctx];
+      case "grow.longer":
+        return [P.growLonger(a[0], a[1])];
+      case "grow.adopt":
+        P.growAdopt(a[0], a[1], a[2] === null ? p.noErrs : (a[2] as Errors).errs);
+        return [];
+      case "test.grow":
+      case "test.reseed":
+      case "test.ungrow":
+      case "test.lookBegin":
+      case "test.lookEnd": {
+        // The conformance operations charge nothing.
+        const ctl = P.control;
+        (P as { control: p.BudgetControl | null }).control = null;
+        try {
+          this.testOp(op, a);
+        } finally {
+          (P as { control: p.BudgetControl | null }).control = ctl;
+        }
+        return [];
+      }
+    }
+    return super.call(op, a);
+  }
+
+  testOp(op: string, a: any[]): void {
+    const P = this.P;
+    switch (op) {
+      case "test.grow": {
+        const r = a[0] as p.Rule;
+        P.gamma.push({ rule: r.id, min: a[1], pos: P.pos, cycle: r.cycle, bit: r.leaderBit, idx: r.leaderIndex, seed: this.seed(a[2], a[3]), id: a[4] });
+        break;
+      }
+      case "test.reseed": {
+        const g = P.gamma[P.gamma.length - 1]!;
+        g.seed = this.seed(a[0], a[1]);
+        g.id = a[2];
+        break;
+      }
+      case "test.ungrow":
+        P.dropTable(P.gamma.length - 1);
+        P.gamma.length--;
+        if (P.gamma.length === 0) {
+          P.interned.clear();
+          P.internSeq = 0;
+        }
+        break;
+      case "test.lookBegin":
+        P.lookBegin(a[0]);
+        break;
+      case "test.lookEnd":
+        P.lookEnd(a[0]);
+        break;
+    }
+  }
+}
+
 const errsMarker = { errs: true };
 
 function make(family: string, cfg: Config, controlled: boolean, options: Record<string, unknown> | null): Machine {
   switch (family) {
     case "exec":
       return new Exec(cfg, controlled, options);
+    case "ctx":
+      return new CtxM(cfg, controlled, options);
     case "exp":
       return new ExpM(cfg, controlled, options);
     case "frame":

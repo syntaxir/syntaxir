@@ -1,0 +1,82 @@
+package common_test
+
+import (
+	"fmt"
+	"math/rand/v2"
+	"strings"
+	"testing"
+
+	"zeroparse.dev/zp/internal/ir/code/exec/conform"
+	"zeroparse.dev/zp/internal/testing/codegentest"
+	"zeroparse.dev/zp/internal/testing/mutanttest"
+	"zeroparse.dev/zp/internal/testing/tsconformtest"
+)
+
+// The dependency memo of left recursion and the growths of the conformance suite on the TypeScript
+// library. A case that calls ctx.keep is pending: the complete model of ctx.keep is not settled (#202),
+// so the runner counts it and does not run it on the library.
+
+func tsCtxSuite(controlled bool) conform.Suite {
+	s := conform.Suite{Name: fmt.Sprint("typescript ctx (controlled=", controlled, ")"), Ops: append(append([]string{}, tsconformtest.CtxOps...), budgetOps(controlled)...)}
+	s.Exact = []string{"grow.begin", "grow.adopt"}
+	return s
+}
+
+func tsCtxRun(r tsconformtest.Runner, f tsconformtest.Family, s conform.Suite, seeds, n int) tsConformResult {
+	return tsConformRunCases(r, f, s, conform.CtxCases(), seeds, func(seed int) conform.Case {
+		return conform.RandomCtx(fmt.Sprint("random_", seed), rand.New(rand.NewPCG(uint64(seed), 68)), n)
+	})
+}
+
+func TestTypeScriptConformanceCtx(t *testing.T) {
+	node := codegentest.RequireNode(t)
+	lib := tsConformLib(t)
+	seeds := 300
+	if testing.Short() {
+		seeds = 30
+	}
+	for _, controlled := range []bool{false, true} {
+		t.Run(fmt.Sprint("controlled=", controlled), func(t *testing.T) {
+			s := tsCtxSuite(controlled)
+			runner := tsconformtest.Runner{Session: tsconformtest.Start(t, node, lib)}
+			res := tsCtxRun(runner, tsconformtest.Ctx(controlled), s, seeds, 150)
+			tsReport(t, res, s.Ops, map[string]string{})
+		})
+	}
+}
+
+// TestTypeScriptConformanceCtxDetectsMutants is the negative control of TestTypeScriptConformanceCtx.
+func TestTypeScriptConformanceCtxDetectsMutants(t *testing.T) {
+	mutanttest.SkipUnlessChanged(t, mutanttest.Pipeline...)
+	node := codegentest.RequireNode(t)
+	// Not here: the mutants that nothing but a kept result shows, such as a seed that keeps its identity
+	// when it is adopted and a lookup of the context that charges nothing for the dependencies it
+	// replays. A case that keeps a result calls ctx.keep, which is pending (#202).
+	mutants := []tsMutant{
+		{name: "a result answers a call in any context", sig: "memoAllows(c: CtxCall", old: "(c.present & ~present) === 0", new: "true"},
+		{name: "a result that read a seed goes to the memo", sig: "ctxPop(c: CtxCall", old: "if (d.kind !== depShadow) {", new: "if (false) {"},
+		{name: "a leader reading its seed notes nothing", sig: "ctxEnter(c: CtxCall", old: "this.noteSeedRead(i);", new: ""},
+		{name: "a step of the same end is longer", sig: "growLonger(g: GrowState", old: "this.pos > best.end", new: "this.pos >= best.end"},
+		{name: "an adopted seed does not return to the start", sig: "growAdopt(g: GrowState", old: "this.pos = g.start;", new: ""},
+		{name: "a growth begins without its unit", sig: "growBegin(r: Rule", old: "this.spend();", new: "", charges: true},
+		{name: "an adopted seed costs nothing", sig: "growAdopt(g: GrowState", old: "this.spend();", new: "", charges: true},
+	}
+	for _, m := range mutants {
+		t.Run(m.name, func(t *testing.T) {
+			t.Parallel()
+			lib := tsMutate(t, m)
+			s := tsCtxSuite(m.charges)
+			runner := tsconformtest.Runner{Session: tsconformtest.Start(t, node, lib)}
+			res := tsCtxRun(runner, tsconformtest.Ctx(m.charges), s, 150, 150)
+			for _, err := range res.fails {
+				op, kind := tsFailureKind(err)
+				if m.charges && kind != "bound" && kind != "exact" {
+					continue
+				}
+				t.Logf("detected at %s (%s):\n%v", op, kind, strings.SplitN(err.Error(), "\ncase:", 2)[0])
+				return
+			}
+			t.Fatalf("the suite did not notice: %d cases ran, %d pending, %d failed", res.ran, res.pending, len(res.fails))
+		})
+	}
+}

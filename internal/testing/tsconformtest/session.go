@@ -28,11 +28,19 @@ type Config struct {
 	RuleVars [][]int64 `json:"ruleVars"`
 	// NoExpectations makes a parse that does not record expectations.
 	NoExpectations bool `json:"noExpectations"`
+	// CtxRules are the left-recursion shapes of the rules.
+	CtxRules []CtxRule `json:"ctxRules"`
+}
+
+// CtxRule is the cycle of a rule and whether it is a leader.
+type CtxRule struct {
+	Cycle  int64 `json:"cycle"`
+	Leader bool  `json:"leader"`
 }
 
 // ConfigOf returns the part of cfg that the bindings read.
 func ConfigOf(cfg ref.Config) Config {
-	return Config{Rules: cfg.Rules, Limit: cfg.Limit, MaxDepth: cfg.MaxDepth, Vars: cfg.Vars, RuleVars: cfg.RuleVars, NoExpectations: cfg.NoExpectations}
+	return Config{Rules: cfg.Rules, Limit: cfg.Limit, MaxDepth: cfg.MaxDepth, Vars: cfg.Vars, RuleVars: cfg.RuleVars, NoExpectations: cfg.NoExpectations, CtxRules: ctxRules(cfg.CtxRules)}
 }
 
 // Request is a case for the library: the trace to replay, on a parser made for Family with Config.
@@ -123,4 +131,12 @@ func clip(s string) string {
 		return s[:2000] + "..."
 	}
 	return s
+}
+
+func ctxRules(rs []ref.CtxRule) []CtxRule {
+	var out []CtxRule
+	for _, r := range rs {
+		out = append(out, CtxRule{Cycle: r.Cycle, Leader: r.Leader})
+	}
+	return out
 }

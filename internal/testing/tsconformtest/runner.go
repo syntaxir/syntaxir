@@ -2,6 +2,7 @@ package tsconformtest
 
 import (
 	"fmt"
+	"slices"
 
 	"zeroparse.dev/zp/internal/ir/code/exec/conform"
 	"zeroparse.dev/zp/internal/ir/code/exec/ref"
@@ -20,6 +21,9 @@ type Family struct {
 	// Record returns the implementation that records the calls of a case, a second copy of the model
 	// with the optional interfaces that the family's checks use.
 	Record func(*Recorder) conform.Impl
+	// Pending are operations whose cases the runner does not run on the library yet: it records the
+	// case and reports it as Pending, so that they are counted and not silently dropped.
+	Pending []string
 	// Replay returns the implementation that answers the harness with what the library did, with the
 	// same interfaces as Record and, for a controlled family, conform.Metered.
 	Replay func(*Replay) conform.Impl
@@ -30,26 +34,44 @@ type Runner struct {
 	Session *Session
 }
 
+// Status is what became of a case.
+type Status int
+
+const (
+	// Ran is a case that ran on the library.
+	Ran Status = iota
+	// Skipped is a case that calls an operation the suite does not provide.
+	Skipped
+	// Pending is a case that calls an operation of Family.Pending: it did not run on the library.
+	Pending
+)
+
 // Run runs the case c on the library as the suite s checks it (s.New is not used) and returns a
-// *conform.Failure for a difference between the model and the library. skipped reports a case that
-// calls an operation the suite does not provide.
-func (r Runner) Run(f Family, s conform.Suite, c conform.Case) (skipped bool, err error) {
+// *conform.Failure for a difference between the model and the library.
+func (r Runner) Run(f Family, s conform.Suite, c conform.Case) (Status, error) {
 	rec := recorderFor(s, f)
-	skipped, err = conform.Run(rec.suite, c)
+	skipped, err := conform.Run(rec.suite, c)
 	if skipped || err != nil {
 		if err != nil {
 			err = fmt.Errorf("the case %s fails against its own model, which is a fault of the harness: %w", c.Func.Name, err)
+			return Ran, err
 		}
-		return skipped, err
+		return Skipped, nil
 	}
 	trace := rec.r.Trace()
+	for _, e := range trace {
+		if slices.Contains(f.Pending, e.Op) {
+			return Pending, nil
+		}
+	}
 	resp, err := r.Session.Run(Request{Family: f.Name, Config: ConfigOf(rec.cfg), Controlled: f.Controlled, Options: f.Options, Entries: trace})
 	if err != nil {
-		return false, fmt.Errorf("case %s: %w", c.Func.Name, err)
+		return Ran, fmt.Errorf("case %s: %w", c.Func.Name, err)
 	}
 	replay := s
 	replay.New = func(ref.Config) conform.Impl { return f.Replay(NewReplay(trace, resp.Answers)) }
-	return conform.Run(replay, c)
+	_, err = conform.Run(replay, c)
+	return Ran, err
 }
 
 // recording is the first pass of a case.
