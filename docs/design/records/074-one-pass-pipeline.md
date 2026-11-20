@@ -1137,8 +1137,9 @@ per-function step.
 1. **The new core of `internal/pass`** beside the old one: kinds, the pass constructor, the context, the step tree, the
    combinators, the manager with its copy policy and its events, labels that each combinator sets one field of, and
    `Changed` beside `TextChanged`. No user.
-2. **Stage-typed Code IR units.** Flow, Exec and target passes are declared with the new constructor unchanged; the
-   per-segment keep declarations become the manager's policy. The driver's stages run `Execute` internally and keep
+2. **Stage-typed Code IR units.** Core, Flow, Exec and target passes are declared with the new constructor unchanged;
+   the context replaces the environments of the Core, Flow and Code IR passes, every analysis they query is an analysis
+   key, and the per-segment keep declarations become the manager's policy. The driver's stages run `Execute` internally and keep
    their signatures. Copies do not increase, measured against the generation gate.
 3. **The table unit** with its lenses; the lowering of a table becomes one `Execute` of a table pipeline; the origin map
    moves into the Core module; the planning and lowering data types move into their data packages.
