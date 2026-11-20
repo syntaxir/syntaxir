@@ -379,11 +379,15 @@ after a slot the count continues from the largest alternative. Settings (`-opt`,
 name; `-print-after`, `-print-before` and the reports accept a name, which selects every instance, or an instance; dumps,
 errors and reports print the instance.
 
-**Verification** follows record 072 and the pass-pipeline design. The output kind's verifier runs right after every
-pass that changes the kind, as its postcondition, and an error names the pass. Where a run of transforms of one kind
-ends, which is the end of a stage, the unit is verified once if a pass of that run ran; for a `PerFunc` segment this is
-each function at the end of the segment. Under `-verify-each` every pass is verified after it runs, and a pass that
-returned that it preserves everything must leave the text form unchanged.
+**Verification** follows record 072 and the pass-pipeline design. The output kind's verifier runs right after every pass
+that changes the kind, as its postcondition, and an error names the pass. Where a run of transforms of one kind ends,
+which is the end of a stage, the unit is verified once if an optional pass of that run ran; for a `PerFunc` segment this
+is each function at the end of the segment, so the Flow passes' segment verifies its own functions before `flow-finish`.
+Outside `-verify-each` the manager therefore verifies only where the stages before it did, at the stage boundary:
+required transforms are trusted, and a run of them only, such as the required steps after that segment, is not verified
+after it, since verification exists to catch the optional passes, whose rollback depends on it. Under `-verify-each`
+every pass, required or optional, is verified after it runs, and a pass that returned that it preserves everything must
+leave the text form unchanged.
 
 **Changed.** `Changed` is the pass's own report in every run, so `-stats` and every other reader of it give the same
 values whatever other observers watch the run. When an observer needs the text comparison, the manager also compares

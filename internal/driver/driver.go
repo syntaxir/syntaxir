@@ -24,7 +24,8 @@ import (
 // off by their flags, verifies the unit after each pass when asked, and writes the dumps that
 // PrintAfter selects. Every backend that lowers from the IR runs its pipeline through a Driver, so a
 // profile or a flag means the same passes whatever the backend. The zero value runs the speed
-// profile, verifies once at the end of each stage and dumps nothing.
+// profile and dumps nothing; it verifies a unit where a run of its passes ends only if an optional
+// pass of that run ran, and the output of each lowering, never after a required step alone.
 //
 // Each stage runs through the manager of internal/pass/pipe (pipe.Execute) and consumes the unit it is
 // given: Core takes the module that build makes, Flow the module that flowlower makes of the functions
@@ -40,7 +41,8 @@ type Driver struct {
 	// to PrintTo; "all" selects every step and pass.
 	PrintAfter []string
 	PrintTo    io.Writer
-	// VerifyEach verifies the unit after every pass instead of once at the end, so that the error
+	// VerifyEach verifies the unit after every pass and step, required ones included, instead of
+	// only where a run of passes ends and only if an optional pass of it ran, so that the error
 	// names the first pass that broke an invariant.
 	VerifyEach bool
 	Hooks

@@ -375,6 +375,30 @@ func TestStageEndVerificationRollsBack(t *testing.T) {
 	}
 }
 
+// Required transforms are trusted: outside -verify-each a run of them only is not verified after it,
+// as the stages before the manager did not; verification is there to catch the optional passes.
+// -verify-each verifies after every step, the required ones included.
+func TestRequiredTransformsAreVerifiedOnlyUnderVerifyEach(t *testing.T) {
+	in := func() *mod { return &mod{fns: []*fn{{"f", "x"}}} }
+	verifies = 0
+	out, err := run(t, &Run{}, Seq(modIR, mark, requiredBreaker), in())
+	if err != nil || out == nil || out.String() != "f: bad\n" {
+		t.Errorf("a run of required transforms: %v %v", out, err)
+	}
+	if verifies != 0 {
+		t.Errorf("%d verifications after a run of required transforms, want 0", verifies)
+	}
+	verifies = 0
+	if _, err := run(t, &Run{}, Seq(modIR, upper, mark), in()); err != nil || verifies != 1 {
+		t.Errorf("a run with an optional pass: %v, %d verifications, want 1", err, verifies)
+	}
+	_, err = run(t, &Run{VerifyEach: true}, Seq(modIR, mark, requiredBreaker), in())
+	var se *StepError
+	if !errors.As(err, &se) || se.Step != "t-break-required" {
+		t.Errorf("under -verify-each a broken required transform: %v", err)
+	}
+}
+
 var fnNever = New(Def[*fn, *fn]{Decl: Decl{Name: "t-fn-never", Test: true}, In: fnIR, Out: fnIR,
 	Applies: func(*Ctx[*fn]) bool { return false },
 	Run:     func(_ *Ctx[*fn], f *fn) (*fn, pass.PreservedSet, error) { return f, pass.PreserveNone(), nil }})

@@ -56,6 +56,7 @@ var (
 		Copy:  func(f *fn) *fn { c := *f; return &c }})
 	modIR = RegisterIR(&IR[*mod]{Name: "t-mod",
 		Verify: func(m *mod) error {
+			verifies++
 			for _, f := range m.fns {
 				if err := verifyFn(f); err != nil {
 					return err
@@ -115,7 +116,10 @@ var build = New(Def[table, *mod]{Decl: Decl{Name: "t-build", Required: true, Obl
 		return &mod{fns: []*fn{{t.name + "1", "x"}, {t.name + "2", "y"}}}, pass.PreserveNone(), nil
 	}})
 
-var builds, prints int
+var builds, prints, verifies int
+
+// break-required! is a required transform that leaves an invalid unit.
+var requiredBreaker = modPass("t-break-required", func(_ *Ctx[*mod], m *mod) error { m.fns[0].body = "bad"; return nil }, func(d *Decl) { d.Required = true })
 
 // pick! takes the first result of a Fork.
 var pick = New(Def[[]*mod, *mod]{Decl: Decl{Name: "t-pick", Required: true}, In: modListIR, Out: modIR,

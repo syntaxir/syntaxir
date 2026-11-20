@@ -132,7 +132,7 @@ type runner struct {
 	instances map[*passNode]string
 	shared    map[string]*sharedEntry
 	recs      []*[]recorded
-	ran       int               // transforms that ran, for verification where a stage ends
+	ran       int               // optional transforms that ran, for verification where a stage ends
 	changed   int               // steps that ran, for discarding the analyses of a unit whose part a step changed
 	copies    int               // the copies the manager took, for the tests of the copy policy
 	analyses  map[any]*analyses // by unit
@@ -533,8 +533,10 @@ func (rs *runner) exec(n node, in any, e *env, sc *scope) any {
 }
 
 // chain runs steps in order. Where a run of transforms of one kind ends (the next step changes the
-// kind, or the chain ends), the unit is verified if a pass of the chain ran on it: the end of a
-// stage. A kind-changing pass verifies its result itself (its postcondition).
+// kind, or the chain ends), the unit is verified if an optional pass of the chain ran on it: the end
+// of a stage. A run of required transforms only is not verified (outside Run.VerifyEach): required
+// steps are trusted, and verification exists to catch the optional passes, whose rollback depends on
+// it. A kind-changing pass verifies its result itself (its postcondition).
 func (rs *runner) chain(steps []node, in any, e *env, sc *scope) any {
 	u, dirty := in, false
 	for i, s := range steps {
@@ -718,11 +720,12 @@ func (rs *runner) step(x *passNode, in any, e *env, sc *scope) (out any) {
 		rs.dropParts(arg)
 	}
 	if transform {
-		rs.ran++
 		if d.Required {
 			// A required transform ends its segment: a later failure rolls back to the unit after
 			// it, so the work of a required step is never undone.
 			sc.seg = nil
+		} else {
+			rs.ran++
 		}
 	} else {
 		sc.keep = false // a lowering returns a new unit

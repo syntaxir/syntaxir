@@ -124,8 +124,9 @@ type GenOptions struct {
 	// Exec IR once for each function it prints from them.
 	PrintAfter string
 	PrintTo    io.Writer
-	// VerifyEachPass verifies the Core, Flow and Exec IR after every pass instead of once at the end, so that an
-	// internal error names the first pass that broke an invariant. Tests and diagnosis set it; it
+	// VerifyEachPass verifies the Core, Flow and Exec IR after every pass and step instead of only
+	// where a run of passes ends and only if an optional pass of it ran, so that an internal error
+	// names the first pass that broke an invariant. Tests and diagnosis set it; it
 	// costs generation time and changes no output.
 	VerifyEachPass bool
 }

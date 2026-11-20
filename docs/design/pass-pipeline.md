@@ -256,10 +256,11 @@ recovered errors to a mark, resetting the record of missing input or ending the 
 checked by the verifier, not only stated in their contracts.
 
 The Flow stage stays structured. A pass that needs a control-flow graph asks the analysis manager for a graph view, so
-the form that is printed and verified is the structured one. The Flow verifier runs right after `flowlower`, again where
-the pipeline leaves the Flow stage, and with `-verify-each` after every Flow pass: it checks the structure, the
-variables, one runtime per function, the budget invariants, recorded reads under a Document, and that a traced parse
-does not read in place.
+the form that is printed and verified is the structured one. The Flow verifier runs right after `flowlower`; then the
+`PerFunc` segment of the Flow passes verifies each of its functions where it ends, before `flow-finish`, if an optional
+pass ran on it; and with `-verify-each` after every Flow pass. Outside `-verify-each`, the required steps after that
+segment, `flow-finish` among them, are not verified again. The verifier checks the structure, the variables, one runtime
+per function, the budget invariants, recorded reads under a Document, and that a traced parse does not read in place.
 
 ## Dialect-Independent Passes of Code IR
 
