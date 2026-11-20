@@ -19,10 +19,6 @@ import (
 // them computed, the passes read them from the nodes, and a pass that changes nodes keeps them
 // current. The verifier of the kind (Verify) rejects a module whose attributes are stale.
 
-// Stage is the name of the Core IR stage of the pipeline, which the steps of the generic pipeline
-// on Core IR take and return (pass.Step).
-const Stage = "core"
-
 // entry is the name of the step that builds the Core IR, elaborate, under which Run dumps the module
 // as it reaches the first pass. The driver declares the step, and this package cannot import it.
 const entry = "elaborate"

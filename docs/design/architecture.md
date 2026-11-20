@@ -244,7 +244,7 @@ in [Package Layering](layering.md), and the public packages are described in [Th
 | `internal/cancel` | Cancellation of static work |
 | `internal/cliflag` | Flag names of backends and position units |
 | `internal/fixture` | JSON fixture suites of `zp test` (a tool: it uses `pkg/compiler`) |
-| `internal/pass` | The generic pass infrastructure: manager, analysis manager, preserved sets, registry |
+| `internal/pass` | The generic pass infrastructure: analysis manager, preserved sets, registry; the manager of one pass pipeline per compilation in `pipe/` |
 | `internal/ir/core` | Core IR: the meaning tree, attributes, verifier, printer |
 | `internal/ir/code` | The Code IR base: structure, operation declarations, verifier, printer, reference interpreter, builder |
 | `internal/ir/code/flow` | The Flow dialect: grammar-control operations with typed immediate operands, its invariants |

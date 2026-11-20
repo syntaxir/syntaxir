@@ -68,8 +68,7 @@ var layout = []place{
 
 	// Intermediate representations and the pass framework.
 	{pkg: "internal/pass", target: "internal/pass"},
-	// pipe is the manager of one pipeline per compilation; it folds into internal/pass when the
-	// stage API goes.
+	// pipe is the manager of one pipeline per compilation; it is to fold into internal/pass.
 	{pkg: "internal/pass/pipe", target: "internal/pass"},
 	{pkg: "internal/ir/core", target: "internal/ir/core"},
 	{pkg: "internal/ir/code", target: "internal/ir/code"},

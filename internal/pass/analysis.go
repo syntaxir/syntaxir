@@ -183,23 +183,6 @@ func (am *AnalysisManager[T]) Cached(name string) bool {
 // Computations returns how many times the manager has computed the analysis of the given name.
 func (am *AnalysisManager[T]) Computations(name string) int { return am.computed[name] }
 
-// move binds the cache of from to to, the unit that a pass or a copy made of from: the analyses
-// that it preserved stay cached for to. A cache of another unit is discarded, so that it is never
-// served for to; an unbound manager stays unbound.
-func (am *AnalysisManager[T]) move(from, to T) {
-	if !am.bound {
-		return
-	}
-	if !sameUnit(am.ir, from) {
-		var zero T
-		am.ir, am.bound = zero, false
-		clear(am.cache)
-		clear(am.deps)
-		return
-	}
-	am.ir = to
-}
-
 // Invalidate discards every cached analysis that p does not preserve, and every analysis that
 // used a discarded one, directly or not.
 func (am *AnalysisManager[T]) Invalidate(p PreservedSet) {

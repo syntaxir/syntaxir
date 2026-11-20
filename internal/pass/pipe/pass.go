@@ -6,8 +6,8 @@
 // to the manager: how to verify, print and copy it. A pipeline is an immutable step tree that the
 // combinators build; Execute checks it and then runs it.
 //
-// The package lives beside the stage API of the parent package until the driver assembles every
-// pipeline with it; it then becomes the parent package.
+// The package is to fold into the parent package, which keeps the registry of the optimizations, the
+// analyses and the error of a required step that the driver returns.
 package pipe
 
 import (

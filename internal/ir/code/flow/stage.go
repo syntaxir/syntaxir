@@ -1,5 +1,5 @@
 package flow
 
-// Stage is the name of the Flow stage of the pipeline, which the steps and passes on Flow functions
-// take and return (pass.Step).
+// Stage is the name of the Flow stage of the pipeline, which a module at that stage records
+// (code.Module.Stage).
 const Stage = "flow"
