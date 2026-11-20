@@ -34,6 +34,8 @@ type Config struct {
 	Observed bool `json:"observed"`
 	// RuleSpecs are the properties and the scripted bodies of the rules, with their seen indexes.
 	RuleSpecs []RuleSpec `json:"ruleSpecs"`
+	// Oprs are the Operators Rules, the rules of the indexes of RuleRef.
+	Oprs []OprRule `json:"oprs"`
 }
 
 // RuleSpec is ref.RuleSpec as the bindings read it.
@@ -63,9 +65,40 @@ type CtxRule struct {
 	Leader bool  `json:"leader"`
 }
 
+// OprOp is an operator of an Operators Rule.
+type OprOp struct {
+	Kind  string `json:"kind"`
+	Assoc string `json:"assoc"`
+	Level int64  `json:"level"`
+	Scope int64  `json:"scope"`
+}
+
+// OprRule is an Operators Rule: its operators, the capture slots of its operand lines, and whether it skips trivia.
+type OprRule struct {
+	Prefix   []OprOp `json:"prefix"`
+	Led      []OprOp `json:"led"`
+	Operands []int64 `json:"operands"`
+	Skip     bool    `json:"skip"`
+}
+
+func oprRules(rs []ref.OprRule) []OprRule {
+	var out []OprRule
+	for _, r := range rs {
+		ops := func(os []ref.OprOp) []OprOp {
+			var l []OprOp
+			for _, o := range os {
+				l = append(l, OprOp{Kind: o.Kind, Assoc: o.Assoc, Level: o.Level, Scope: o.Scope})
+			}
+			return l
+		}
+		out = append(out, OprRule{Prefix: ops(r.Prefix), Led: ops(r.Led), Operands: r.Operands, Skip: r.Skip})
+	}
+	return out
+}
+
 // ConfigOf returns the part of cfg that the bindings read.
 func ConfigOf(cfg ref.Config) Config {
-	return Config{Rules: cfg.Rules, Limit: cfg.Limit, MaxDepth: cfg.MaxDepth, Vars: cfg.Vars, RuleVars: cfg.RuleVars, NoExpectations: cfg.NoExpectations, CtxRules: ctxRules(cfg.CtxRules), RuleSpecs: ruleSpecs(cfg), Observed: cfg.Observed}
+	return Config{Rules: cfg.Rules, Limit: cfg.Limit, MaxDepth: cfg.MaxDepth, Vars: cfg.Vars, RuleVars: cfg.RuleVars, NoExpectations: cfg.NoExpectations, CtxRules: ctxRules(cfg.CtxRules), RuleSpecs: ruleSpecs(cfg), Observed: cfg.Observed, Oprs: oprRules(cfg.Oprs)}
 }
 
 // Request is a case for the library: the trace to replay, on a parser made for Family with Config.
@@ -98,8 +131,19 @@ type Session struct {
 // runtime) and the bindings of this package. The process ends with the test.
 func Start(t testing.TB, node, lib string) *Session {
 	t.Helper()
+	return StartWith(t, node, lib, harness)
+}
+
+// Harness returns the source of the bindings, so that a test can start a session on a changed copy of
+// them (the negative control of the operations that the generated parser prints inline, whose bindings
+// mirror the printed code).
+func Harness() string { return harness }
+
+// StartWith is Start with the bindings source harnessSrc.
+func StartWith(t testing.TB, node, lib, harnessSrc string) *Session {
+	t.Helper()
 	dir := t.TempDir()
-	for name, content := range map[string]string{"package.json": `{"type": "module"}` + "\n", "parser.ts": lib, "harness.ts": harness} {
+	for name, content := range map[string]string{"package.json": `{"type": "module"}` + "\n", "parser.ts": lib, "harness.ts": harnessSrc} {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}

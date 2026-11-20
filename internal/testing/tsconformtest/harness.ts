@@ -24,6 +24,13 @@ interface Config {
   ctxRules?: { cycle: number; leader: boolean }[];
   ruleSpecs?: RuleSpec[];
   observed?: boolean;
+  oprs?: { prefix: OprOpSpec[]; led: OprOpSpec[]; operands: number[]; skip: boolean }[];
+}
+interface OprOpSpec {
+  kind: string;
+  assoc: string;
+  level: number;
+  scope: number;
 }
 interface EvalSpec {
   ok: boolean;
@@ -712,6 +719,114 @@ class RuleM extends Exec {
   }
 }
 
+// The Operators Rules and the records of the split forms of their loop. Every operation but the records
+// is printed in the generated parser as an access to the library's descriptors (OperatorsRule), which the
+// bindings mirror; the records are the printed code's own variables.
+const oprFieldZero: Record<string, unknown> = { i: 0, min: 0, lastNone: 0, bound: 0, guard: 0, cutFailed: false, prevCut: false };
+
+class OprM extends Exec {
+  noOprs: p.OperatorsRuleOp[] = [];
+  zeroMark = {};
+
+  constructor(cfg: Config, controlled: boolean, options: Record<string, unknown> | null) {
+    super(cfg, controlled, options);
+    (this.P as { frame: p.Frame | null }).frame = null;
+    this.rules = (cfg.oprs ?? []).map((s, i) => {
+      const r = p.mkRule(i, "r" + i, [], 0, false, false, -1, false, []);
+      const op = (o: OprOpSpec): p.OperatorsRuleOp => ({ id: 0, kind: o.kind, assoc: o.assoc, level: o.level,
+        line: { scope: Array.from({ length: o.scope }, (_, k) => "c" + k), m: null as any, action: null, value: null as any } });
+      const list = (os: OprOpSpec[]): p.OperatorsRuleOp[] => ((os ?? []).length === 0 ? this.noOprs : os.map(op));
+      r.operatorsRule = { skip: s.skip ? ((() => undefined) as any) : null, prefix: list(s.prefix), led: list(s.led),
+        operands: (s.operands ?? []).map((n) => ({ scope: Array.from({ length: n }, (_, k) => "c" + k), m: null as any, action: null, value: null as any })) };
+      return r;
+    });
+  }
+
+  setRegs(regs: Record<string, number>): void {
+    if (regs.pos !== undefined) this.P.pos = regs.pos;
+  }
+  getRegs(): Record<string, number> {
+    return { pos: this.P.pos };
+  }
+
+  call(op: string, a: any[]): any[] {
+    const P = this.P;
+    const x = P as any;
+    if (op.startsWith("test.oprRecord.")) return [{}];
+    const dot = op.indexOf(".");
+    const rec = op.slice(0, dot);
+    if (rec === "oprLongest" || rec === "oprNud" || rec === "oprExpr") {
+      const f = op.slice(dot + 1);
+      const r = a[0] as Record<string, unknown>;
+      if (/^set[A-Z]/.test(f)) {
+        r[f[3]!.toLowerCase() + f.slice(4)] = a[1];
+        return [];
+      }
+      if (f in r) return [r[f]];
+      return [f === "l" ? this.noOprs : f === "m0" ? this.zeroMark : f in oprFieldZero ? oprFieldZero[f] : null];
+    }
+    switch (op) {
+      case "test.frame":
+      case "test.mark":
+        return [{}];
+      case "opr.led":
+        return [(a[0] as p.Rule).operatorsRule!.led];
+      case "opr.prefix":
+        return [(a[0] as p.Rule).operatorsRule!.prefix];
+      case "opr.count":
+        return [a[0].length];
+      case "opr.at":
+        return [a[0][a[1]]!];
+      case "opr.operands":
+        return [(a[0] as p.Rule).operatorsRule!.operands.length];
+      case "opr.operand":
+        return [(a[0] as p.Rule).operatorsRule!.operands[a[1]]!];
+      case "opr.line":
+        return [a[0].line];
+      case "opr.level":
+        return [a[0].level];
+      case "opr.infix":
+        return [a[0].kind === "infix"];
+      case "opr.postfix":
+        return [a[0].kind === "postfix"];
+      case "opr.right":
+        return [a[0].assoc === "right"];
+      case "opr.nonAssoc":
+        return [a[0].assoc === "none"];
+      case "opr.scope":
+        return [a[0].scope.length];
+      case "opr.hasSkip":
+        return [(a[0] as p.Rule).operatorsRule!.skip !== null];
+      case "opr.attempt":
+        return [{ op: a[0], frame: a[1], v: a[2], start: a[3], end: P.pos, env: P.env, cut: a[4], errs: a[5] }];
+      case "opr.found":
+        return [a[0] !== null];
+      case "opr.op":
+      case "opr.end":
+      case "opr.cut":
+      case "opr.env":
+      case "opr.errs":
+        return [a[0][op.slice(4)]];
+      case "opr.setCutFailed":
+        x.cutFailed = a[0];
+        return [];
+      case "opr.cutFailed":
+        return [x.cutFailed];
+      case "opr.setNudBound":
+        x.nudBound = a[0];
+        return [];
+      case "opr.nudBound":
+        return [x.nudBound];
+      case "opr.setAfterEmpty":
+        x.afterEmpty = a[0];
+        return [];
+      case "opr.afterEmpty":
+        return [x.afterEmpty];
+    }
+    return super.call(op, a);
+  }
+}
+
 // The observation of a parse: the library's Observation, with a trace function that lists the events as
 // the model does.
 class ObsM extends Exec {
@@ -761,6 +876,8 @@ function make(family: string, cfg: Config, controlled: boolean, options: Record<
   switch (family) {
     case "exec":
       return new Exec(cfg, controlled, options);
+    case "opr":
+      return new OprM(cfg, controlled, options);
     case "obs":
       return new ObsM(cfg, controlled, options);
     case "rule":
