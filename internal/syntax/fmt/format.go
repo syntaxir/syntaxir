@@ -583,7 +583,7 @@ func undecorate(e ast.Expr, attrs []*ast.Attribute, control *formatControl) (ast
 func (p *printer) body(e ast.Expr, indent string) {
 	pollFormat(p.control)
 	c, ok := e.(*ast.Choice)
-	if !ok {
+	if !ok || keepsTupleAlone(c) {
 		p.sequence(e, indent, precChoice)
 		return
 	}
@@ -639,6 +639,10 @@ func endsWithGap(e ast.Expr) bool {
 
 func (p *printer) sequence(e ast.Expr, indent string, outer int) {
 	pollFormat(p.control)
+	if keepsTupleAlone(e) {
+		p.write(formatExpr(e, outer, p.control))
+		return
+	}
 	switch e := e.(type) {
 	case *ast.Choice:
 		p.write(formatExpr(e, outer, p.control))
@@ -1484,6 +1488,27 @@ func groupInlineComments(b *ast.LineBreak, trailing bool, control *formatControl
 	return s.String(), !b.Blank
 }
 
+// keepsTupleAlone reports whether e is a sequence of one item or a choice of one sequence, which
+// the grammar syntax cannot write directly: a sequence of one item is written as the item, and
+// a choice of one alternative as the alternative, which a sequence around it splices. The
+// printer spells the tuple with `_`, which always succeeds, consumes nothing and has no value
+// (a sequence of one item is a tuple of one element), and `_|_`, an alternative that never
+// matches (a choice of a sequence is one element that holds the tuple). Neither adds to the
+// cost, which counts rule bodies, input, iterations and values built.
+func keepsTupleAlone(e ast.Expr) bool {
+	switch e := e.(type) {
+	case *ast.Seq:
+		return len(e.Items) == 1
+	case *ast.Choice:
+		if len(e.Alts) != 1 {
+			return false
+		}
+		_, ok := e.Alts[0].(*ast.Seq)
+		return ok
+	}
+	return false
+}
+
 // Binding strengths of expressions.
 const (
 	precChoice = iota
@@ -1553,7 +1578,7 @@ func formatExprNode(e ast.Expr, outer int, control *formatControl) string {
 		}
 		return finishFormat("("+formatExpr(e.Expr, precChoice, control)+action+")", control)
 	case *ast.Choice:
-		parts := make([]string, len(e.Alts))
+		parts := make([]string, len(e.Alts), len(e.Alts)+1)
 		for i, a := range e.Alts {
 			pollFormat(control)
 			parts[i] = formatExpr(a, precSeq, control)
@@ -1571,12 +1596,18 @@ func formatExprNode(e ast.Expr, outer int, control *formatControl) string {
 				}
 			}
 		}
+		if keepsTupleAlone(e) {
+			parts = append(parts, " / _|_")
+		}
 		return finishFormat(paren(joinFormatParts(parts, "", control), precChoice, outer), control)
 	case *ast.Seq:
-		parts := make([]string, len(e.Items))
+		parts := make([]string, len(e.Items), len(e.Items)+1)
 		for i, it := range e.Items {
 			pollFormat(control)
 			parts[i] = formatExpr(it, precPrefix, control)
+		}
+		if len(e.Items) == 1 {
+			parts = append(parts, "_")
 		}
 		return finishFormat(paren(joinFormatParts(parts, " ", control), precSeq, outer), control)
 	case *ast.Capture:

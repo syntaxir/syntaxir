@@ -577,7 +577,7 @@ var valueShapeCases = []struct {
 }{
 	{name: "a choice of one sequence in a read capture stays",
 		src:  "rule main = x:(\"a\" (\"b\" \"c\" / _|_)) {len($x) == 2}",
-		want: map[string]string{"main": `x:("a" ("b" "c")) {len($x) == 2}`}},
+		want: map[string]string{"main": `x:("a" ("b" "c" / _|_)) {len($x) == 2}`}},
 	// C1, C3 and C5 can drop every alternative with a value and keep one without, which takes
 	// the element nil from the choice; K4 gives an alternative the type _|_, which the choice
 	// leaves out of its join. Where a predicate can read the value they stay off.
@@ -607,7 +607,7 @@ var valueShapeCases = []struct {
 		want: map[string]string{"main": `x:("a" (-"b")) {len($x) == 2}`}},
 	{name: "a choice of one sequence in a rule that a read capture reaches stays",
 		src:  "rule main = y:r {len($y) == 2}\nrule r = \"a\" (\"b\" \"c\" / _|_)",
-		want: map[string]string{"r": `"a" ("b" "c")`}},
+		want: map[string]string{"r": `"a" ("b" "c" / _|_)`}},
 	// A call of a splice rule is one element as an alternative and adds the elements of its
 	// body alone, so the choice stays when the body is a sequence, directly or through another
 	// splice rule, and is replaced otherwise.
@@ -703,7 +703,7 @@ var conditionEdgeCases = []struct {
 }{
 	{name: "an alternative equal to an earlier one without its cut is dropped",
 		src: "@start\nrule main = (x:\"a\" #cut / x:\"a\") {text($x) == \"a\"}", opts: Options{},
-		want:    map[string]string{"main": `(x:"a") {text($x) == "a"}`},
+		want:    map[string]string{"main": `(x:"a" _ / _|_) {text($x) == "a"}`},
 		applied: map[Law]int{N3: 1, N6: 1}},
 	{name: "repetitions merge before a later repetition of a sequence",
 		src: "@start\nrule main = \"x\" \"x\"* \"x\"* (\"y\" \"x\"*)*", opts: Options{},

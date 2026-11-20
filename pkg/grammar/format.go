@@ -13,6 +13,11 @@ import (
 // source preserves its comments. Struct field types and trailing comments on consecutive lines
 // are aligned. A grammar without such layout information (for example, one decoded from JSON) is
 // printed with a blank line between definitions and one item per line in blocks.
+//
+// The syntax cannot write a sequence of one item or a choice of one sequence directly: written as the
+// item or the sequence, it reads back with the value of the item or with the elements spliced into a
+// sequence around it. Format spells the first as `x _` and the second as `s / _|_`, which read back
+// with the same value shape and the same cost.
 func Format(g *ast.Grammar) string { return fmt.Format(g) }
 
 // FormatContext is Format with cooperative cancellation. Cancellation returns an empty string
