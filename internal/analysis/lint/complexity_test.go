@@ -71,7 +71,7 @@ func TestExampleClassifications(t *testing.T) {
 		class  complexity.ComplexityClass
 		degree int
 	}{
-		{"calculator/calc.zp", complexity.ClassUnknown, 0},
+		{"calculator/calc.zp", complexity.ClassLinear, 0},
 		{"calculator/calc_lr.zp", complexity.ClassLinear, 0},
 		{"minilang/minilang.zp", complexity.ClassUnknown, 2},
 		{"outline/outline.zp", complexity.ClassUnknown, 3},

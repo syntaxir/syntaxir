@@ -1,7 +1,7 @@
 bench/grammars/terms/heavy.zp polynomial degree=2
 bench/grammars/terms/pred.zp linear degree=0
 examples/calculator/calc_lr.zp linear degree=0
-examples/calculator/calc.zp unknown degree=0
+examples/calculator/calc.zp linear degree=0
 examples/minilang/minilang.zp unknown witnessed=2
 examples/outline/outline.zp unknown witnessed=3
 internal/backend/codegen/golang/print/testdata/routes/lr_calls_ops.zp unknown witnessed=2
@@ -9,7 +9,7 @@ internal/backend/codegen/golang/print/testdata/routes/lr_inline.zp linear degree
 internal/backend/codegen/golang/print/testdata/routes/lr_looks.zp polynomial degree=2
 internal/backend/codegen/golang/print/testdata/routes/lr_recover_rep.zp polynomial degree=2
 internal/backend/codegen/golang/print/testdata/routes/lr_recover.zp polynomial degree=2
-internal/backend/codegen/golang/print/testdata/routes/ops_lines.zp unknown witnessed=2
+internal/backend/codegen/golang/print/testdata/routes/ops_lines.zp polynomial degree=2
 internal/backend/codegen/golang/print/testdata/routes/ops_recover.zp unknown witnessed=3
 internal/backend/codegen/golang/print/testdata/routes/recover_nested.zp linear degree=0
 internal/backend/codegen/golang/print/testdata/routes/scopes.zp polynomial degree=2

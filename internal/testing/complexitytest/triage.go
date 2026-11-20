@@ -30,13 +30,13 @@ var TriageGrammars = []TriageGrammar{
 	{"yaml", "../../../testdata/grammars/yaml/yaml.zp"},
 	{"minilang", "../../../examples/minilang/minilang.zp"},
 	{"outline", "../../../examples/outline/outline.zp"},
-	{"calc", "../../../examples/calculator/calc.zp"},
 }
 
 // LinearGrammars are the bundled grammars that the classifier proves Linear; the triage tests
 // check that they stay so.
 var LinearGrammars = []TriageGrammar{
 	{"json", "../../../testdata/grammars/json/json.zp"},
+	{"calc", "../../../examples/calculator/calc.zp"},
 	{"calc_lr", "../../../examples/calculator/calc_lr.zp"},
 }
 

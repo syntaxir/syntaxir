@@ -53,6 +53,48 @@ func double(n int) []int { return []int{n, 2 * n, 4 * n} }
 // same probe.
 const OperatorsRefusedPartGrammar = "rule main = e \"^\" \"-\"* \";\" $$\nrule e = #operators {\n    operand \"n\"\n    level a { infix right \"^\" }\n    level p { prefix \"-\" }\n}\n"
 
+// operatorsSpecExample is the example of spec/language/operators-rule.md, whose start rule
+// expr the controls call from a rule main of their own, which comes first to be the default start rule.
+const operatorsSpecExample = `type Num = node[string]
+type Ident = node[string]
+type Comma = { L Expr; R Expr }
+type Assign = { L Expr; R Expr }
+type Cond = { Cond Expr; Then Expr; Else Expr }
+type Bin = { L Expr; Op node[string]; R Expr }
+type Unary = { Op node[string]; X Expr }
+type Call = { Fn Expr; Args []Expr }
+type Index = { X Expr; Index Expr }
+type Member = { X Expr; Name Ident }
+type Expr ~ Num | Ident | Comma | Assign | Cond | Bin | Unary | Call | Index | Member
+
+rule expr Expr = #operators {
+    skip ws
+    operand number
+    operand ident
+    operand "(" e:expr ws ")" => $e
+
+    level comma { infix left "," => Comma{L: $lhs, R: $rhs} }
+    level assignment { infix right "=" => Assign{L: $lhs, R: $rhs} }
+    level conditional { infix right "?" then:expr ws ":" => Cond{Cond: $lhs, Then: $then, Else: $rhs} }
+    level equality { infix none "==" / "!=" => Bin{L: $lhs, Op: $op, R: $rhs} }
+    level additive { infix left "+" / "-" => Bin{L: $lhs, Op: $op, R: $rhs} }
+    level multiplicative { infix left "*" / "/" => Bin{L: $lhs, Op: $op, R: $rhs} }
+    level prefix { prefix "-" / "!" => Unary{Op: $op, X: $rhs} }
+    level power { infix right "**" => Bin{L: $lhs, Op: $op, R: $rhs} }
+    level postfix {
+        postfix "(" xs:args? ws ")" => Call{Fn: $lhs, Args: concat($xs)}
+        postfix "[" i:expr ws "]" => Index{X: $lhs, Index: $i}
+        postfix "." name:ident => Member{X: $lhs, Name: $name}
+    }
+}
+
+rule args = first:level(expr, assignment) rest:(-ws "," x:level(expr, assignment))* => concat(list($first), map($rest, (r) => r.$x))
+
+rule number Num = ([0-9]+) #atomic
+rule ident Ident = ([a-z]+) #atomic
+rule ws = [ \t\r\n]*
+`
+
 // OperatorsRefusedPartInput is the input of size n of OperatorsRefusedPartGrammar.
 func OperatorsRefusedPartInput(n int) string {
 	return rep("n^", n) + "n^" + rep("-", n) + ";"
@@ -356,10 +398,10 @@ func Controls() []Control {
 			Sizes:  double(250), ShortSizes: double(100), Order: Linear, Class: ClassLinear, Positive: true,
 		},
 		{
-			Name: "Operators Rule part shared by nested right operands", Family: "rescanned calls",
+			Name: "Operators Rule part shared by nested right operands", Family: "rescanned calls", Positive: true,
 			Source: "rule main = x ws $$\nrule x = #operators {\n    operand \"a\"\n    level { infix right ws \"^\" }\n}\nrule ws = [ ]*\n",
 			Input:  func(n int) string { return rep("a^", n) + "a" + rep(" ", n) },
-			Sizes:  double(250), ShortSizes: double(100), Order: Linear, Class: ClassUnknown,
+			Sizes:  double(250), ShortSizes: double(100), Order: Linear, Class: ClassLinear,
 		},
 		{
 			Name: "Operators Rule part shared by nested operands", Family: "rescanned calls",
@@ -405,6 +447,39 @@ func Controls() []Control {
 			Source: "rule main = x ws $$\nrule x = #operators {\n    skip ws\n    operand \"c\"\n    level { prefix \"a\" }\n}\nrule ws = [ ]*\n",
 			Input:  func(n int) string { return rep("a", n) + "c" + rep(" ", n) },
 			Sizes:  double(250), ShortSizes: double(100), Order: Linear, Class: ClassLinear,
+		},
+		{
+			// The levels of the right operands and of the prefix operators that end at the end
+			// try the infix part again there.
+			Name: "Operators Rule infix part retried by nested right operands and prefix operators", Family: "rescanned calls", Positive: true,
+			Source: "rule main = e $$\nrule e = #operators {\n    operand \"n\"\n    level a { infix right \"^\" }\n    level p { prefix \"-\" }\n}\n",
+			Input:  func(n int) string { return rep("n^-", n) + "n" },
+			Sizes:  double(250), ShortSizes: double(100), Order: Linear, Class: ClassLinear,
+		},
+		{
+			// The levels that end before the "!" try the postfix part again, which reads two
+			// characters.
+			Name: "Operators Rule postfix part retried by nested right operands", Family: "rescanned calls", Positive: true,
+			Source: "rule main = e \"!\" $$\nrule e = #operators {\n    operand \"n\"\n    level a { infix right \"^\" }\n    level p { postfix \"!\" \"?\" }\n}\n",
+			Input:  func(n int) string { return rep("n^", n) + "n!" },
+			Sizes:  double(250), ShortSizes: double(100), Order: Linear, Class: ClassLinear,
+		},
+		{
+			// The levels that end before the "!" try the postfix part again, and each scans the
+			// "ab" that follow.
+			Name: "Operators Rule postfix part that scans, retried by nested right operands", Family: "rescanned calls",
+			Source: "rule main = e \"!\" [ab]* $$\nrule e = #operators {\n    operand \"n\"\n    level a { infix right \"^\" }\n    level p { postfix \"!\" (\"ab\")* \"?\" }\n}\n",
+			Input:  func(n int) string { return rep("n^", n) + "n!" + rep("ab", n) },
+			Sizes:  double(250), ShortSizes: double(100), Order: Poly(2), Class: ClassUnknown,
+		},
+		{
+			// The prefix levels that end before the "(" each try the call part again, and its
+			// argument list, which is called from one place and so not memoized, walks the commas
+			// again at each level.
+			Name: "Operators Rule call part retried by nested prefix operators", Family: "rescanned calls",
+			Source: "rule main = expr ws \"(\" [b,]* $$\n" + operatorsSpecExample,
+			Input:  func(n int) string { return rep("-", n) + "a(" + rep("b,", n) },
+			Sizes:  double(100), ShortSizes: double(50), Order: Poly(2), Class: ClassUnknown,
 		},
 		{
 			Name: "Operators Rule part shared by left operands", Family: "rescanned calls", Positive: true,

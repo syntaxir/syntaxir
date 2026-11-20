@@ -121,6 +121,21 @@ func corpusEntries() []corpusEntry {
 		{name: "cel conditional ladder", grammar: "../../../testdata/grammars/cel/cel.zp", variants: 1, source: "a ladder of n conditionals and n spaces",
 			build: one(func(n int) string { return rep("a?b:", n) + "x" + rep(" ", n) }),
 			sizes: double(250), shortSizes: double(100), order: Linear},
+		// Prefix operators or right operands of ^ nested n deep: the levels that end at one
+		// position each try the operator parts after an operand again, and with them the skip,
+		// whose records answer every try after the first.
+		{name: "calc nested operator levels", grammar: "../../../examples/calculator/calc.zp", variants: 3,
+			source: "n nested negations or powers, then n spaces or nothing",
+			build: func(n, v int) string {
+				switch v {
+				case 0:
+					return rep("-", n) + "1" + rep(" ", n)
+				case 1:
+					return rep("2^", n) + "1" + rep(" ", n)
+				}
+				return rep("-", n) + "1"
+			},
+			sizes: double(250), shortSizes: double(100), order: Linear},
 		{name: "cue", grammar: "../../../testdata/grammars/cue/cue.zp", variants: 3, source: units,
 			build: repeated("package p\n\n", []string{
 				"a%d: 1 + 2\n",

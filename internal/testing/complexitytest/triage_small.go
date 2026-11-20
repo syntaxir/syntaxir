@@ -11,7 +11,7 @@ func nestsLate(callee, caller string) string {
 	return `|^the evaluations of the call of (?:` + callee + `) at [0-9]+:[0-9]+ in rule (?:` + caller + `) can nest without a bound and end at one position, `
 }
 
-// triageSmall is the triage table of csv, xml, cel, minilang, outline and calc.
+// triageSmall is the triage table of csv, xml, cel, minilang and outline.
 func triageSmall() []TriageGroup {
 	return []TriageGroup{
 		// csv
@@ -125,8 +125,8 @@ func triageSmall() []TriageGroup {
 				{Name: "else followed by junk", Build: list("", "if a { x = 1; } else junk junk;", "\n", ""), Sizes: doubling(500, 3), Lenient: true, Order: Linear},
 				{Name: "nested blocks with junk", Build: nest("{ x x ", "y;", "}"), Sizes: doubling(200, 3), Lenient: true, Order: Linear},
 			}},
-		{Grammar: "minilang", ID: "nested-operators", Witness: true, Rules: []string{"ident"}, Pattern: `the operator parts that the enclosing operator parts of operation try again`,
-			Shape:  "an operator part after an operand nested in prefix operators or the right operand of ?: fails after the skip, and each enclosing operator part tries the operator parts again at the same position",
+		{Grammar: "minilang", ID: "nested-operators", Witness: true, Rules: []string{"ws"}, Pattern: `the operator parts that the enclosing operator parts of operation try again`,
+			Shape:  "an operator part after an operand nested in prefix operators or the right operand of ?: fails after the skip, and each enclosing level tries the operator parts again at the same position, so it evaluates the skip ws again; ws repeats a choice, so it is not a scan-only rule, and a generated Go parser scans the whitespace once per level",
 			Assign: "F100", Order: Poly(2), Families: []TriageFamily{
 				{Name: "nested negations before long whitespace", Build: func(n int) string { return rep("-", n) + "a" + rep(" ", n) + ";" }, Sizes: doubling(500, 3), Order: Linear, Generated: Poly(2)},
 				{Name: "nested conditionals before long whitespace", Build: func(n int) string { return rep("a?b:", n) + "a" + rep(" ", n) + ";" }, Sizes: doubling(500, 3), Order: Linear, Generated: Poly(2)},
@@ -137,15 +137,6 @@ func triageSmall() []TriageGroup {
 				{Name: "nested negations before long whitespace", Build: func(n int) string { return rep("-", n) + "a" + rep(" ", n) + ";" }, Sizes: doubling(500, 3), Order: Linear, Generated: Poly(2)},
 				// The text of the comment is a scan site, which a generated parser records too.
 				{Name: "nested negations before a comment", Build: func(n int) string { return rep("!", n) + "a //" + rep("c", n) + "\n;" }, Sizes: doubling(500, 3), Order: Linear},
-			}},
-
-		// calc
-		{Grammar: "calc", ID: "nested-operators", Rules: []string{"expr"}, Pattern: `the operator parts that the enclosing operator parts of expr try again`,
-			Shape:  "the operator parts after an operand, tried again by each enclosing prefix operator or ^ at the position where the nested operands end; each try evaluates the skip ws again at that position, whose repetition of one character class is a scan site: its records answer the tries after the first walks, so the steps grow linearly, but the classifier does not exempt the skip of an Operators Rule",
-			Assign: "O75", Order: Linear, Families: []TriageFamily{
-				{Name: "nested negations before long whitespace", Build: func(n int) string { return rep("-", n) + "1" + rep(" ", n) }, Sizes: doubling(250, 3), Order: Linear},
-				{Name: "nested powers before long whitespace", Build: func(n int) string { return rep("2^", n) + "1" + rep(" ", n) }, Sizes: doubling(250, 3), Order: Linear},
-				{Name: "nested negations", Build: nest("-", "1", ""), Sizes: doubling(500, 3), Order: Linear},
 			}},
 	}
 }

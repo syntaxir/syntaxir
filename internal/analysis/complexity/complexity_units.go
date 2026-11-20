@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 
 	"zeroparse.dev/zp/internal/frontend/astfacts"
 	"zeroparse.dev/zp/pkg/grammar/ast"
@@ -1160,16 +1161,142 @@ type retriedPart struct {
 
 // addRetried gives each operator part after an operand of a nesting Operators Rule the operator
 // parts that the enclosing levels try again as a continuation. It runs after every rule is
-// walked, since nestsOps reads every call site.
+// walked, since nestsOps reads every call site. A rule whose levels repeat a constant cost there
+// (retriedCost) gets none; for any other, what they evaluate again is kept for the witness
+// (retriedSrc).
 func (k *classifier) addRetried() {
 	for _, r := range k.retried {
-		if k.nestsOps(r.rule) {
-			// Before what follows the Operators Rule, the last continuation.
-			n := len(r.u.conts) - 1
-			r.u.conts = slices.Insert(r.u.conts, n, contSpec{paths: []*cont{r.end},
-				what: "the operator parts that the enclosing operator parts of " + r.rule + " try again"})
+		if !k.nestsOps(r.rule) {
+			continue
+		}
+		rc, ok := k.retriedSrc[r.rule]
+		if !ok {
+			rc = k.retriedCost(r.rule)
+			if k.retriedSrc == nil {
+				k.retriedSrc = map[string]retriedRepeat{}
+			}
+			k.retriedSrc[r.rule] = rc
+		}
+		if rc.cheap {
+			continue
+		}
+		// Before what follows the Operators Rule, the last continuation.
+		n := len(r.u.conts) - 1
+		r.u.conts = slices.Insert(r.u.conts, n, contSpec{paths: []*cont{r.end}, what: retriedWhat(r.rule)})
+	}
+}
+
+// retriedRepeat is what the levels of an Operators Rule that end at one position after an inner
+// one repeat at each level (retriedCost).
+type retriedRepeat struct {
+	// cheap is set when they repeat a constant cost at each level.
+	cheap bool
+	// src is a scanning source of the skip or of an operator part after an operand that they
+	// evaluate again, or nil when that is not cheap because they can parse the right operand of
+	// a part again, which examines what the unit examined.
+	src *source
+}
+
+// retriedWhat names the continuation of addRetried.
+func retriedWhat(rule string) string {
+	return "the operator parts that the enclosing operator parts of " + rule + " try again"
+}
+
+// retriedCost returns what the levels of the Operators Rule of rule that end at one position after
+// an inner one repeat at each level. Each evaluates the skip and tries the operator parts after an
+// operand again. None parses the right operand of a part again once a level ending there tried it
+// and refused the part, when every infix part that the right operand of a prefix part admits is
+// admitted by the right operand of every infix and prefix part (prefixAdmitsMore;
+// spec/runtime/parsing.md, "Expressions That Repeat Cost"). Then what they repeat is the skip and
+// the expressions of those parts (repeatCost).
+func (k *classifier) retriedCost(rule string) retriedRepeat {
+	pr := k.operators(rule)
+	if pr == nil {
+		return retriedRepeat{cheap: true}
+	}
+	if prefixAdmitsMore(pr) {
+		return retriedRepeat{}
+	}
+	if pr.Skip != nil {
+		if s := k.repeatCost(pr.Skip); s != nil {
+			return retriedRepeat{src: s}
 		}
 	}
+	for _, l := range pr.Levels {
+		for _, op := range l.Operators {
+			if op.Kind != ast.Prefix {
+				if s := k.repeatCost(op.Expr); s != nil {
+					return retriedRepeat{src: s}
+				}
+			}
+		}
+	}
+	return retriedRepeat{cheap: true}
+}
+
+// prefixAdmitsMore reports whether the right operand of a prefix operator part of pr admits an
+// infix operator part that the right operand of an infix or prefix part does not. A prefix part
+// applies at the start of a right operand whatever its binding level, so its own right operand,
+// which admits the parts that bind more tightly than the prefix part, can try such a part and
+// refuse it where the levels around it end; the level of the right operand that does not admit
+// it then tries the part, and its right operand, again at the same position. Levels are numbered
+// from the loosest; a right operand admits the parts above its minimum: the level of its prefix
+// or non-right-associative infix part, or one less for a right-associative infix part.
+func prefixAdmitsMore(pr *ast.OperatorsRule) bool {
+	prefixMin, rhsMax, hasPrefix := len(pr.Levels), -1, false
+	for i, l := range pr.Levels {
+		for _, op := range l.Operators {
+			rhs := i
+			switch {
+			case op.Kind == ast.Prefix:
+				prefixMin, hasPrefix = min(prefixMin, i), true
+			case op.Kind == ast.Infix && op.Assoc == ast.AssocRight:
+				rhs = i - 1
+			case op.Kind != ast.Infix:
+				continue
+			}
+			rhsMax = max(rhsMax, rhs)
+		}
+	}
+	if !hasPrefix {
+		return false
+	}
+	for i, l := range pr.Levels {
+		for _, op := range l.Operators {
+			if op.Kind == ast.Infix && i > prefixMin && i <= rhsMax {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// repeatCost returns a scanning source that an evaluation of e that repeats one at the same
+// position evaluates again, or nil when it costs a constant: e evaluates a scanning source only
+// inside calls that read no variable and that the memo answers, or whose rules are scanOnly, so
+// that the records of their scan sites answer the repeated walks. The source of a call is the
+// first one in the body of its rule, where it has one.
+func (k *classifier) repeatCost(e ast.Expr) *source {
+	var found *source
+	astfacts.WalkExprWithPoll(e, func(x ast.Expr) {
+		if found != nil {
+			return
+		}
+		if r, call := x.(*ast.Ref); call {
+			if (k.srcExprs[r] || k.ruleSrc[r.Name] != nil) && !(k.memoAt(r) && len(k.vars[r.Name]) == 0) && !k.scanOnly(r.Name) {
+				if found = k.local[r.Name]; found == nil {
+					found = k.sourceIn(r)
+				}
+			}
+			return
+		}
+		if k.srcExprs[x] {
+			if found = k.walkedAt(x); found == nil {
+				found = k.sourceIn(x)
+			}
+		}
+	}, k.control.Poll)
+	return found
 }
 
 // nestsOps reports whether the evaluations of the Operators Rule of rule nest without a bound that
@@ -2121,17 +2248,25 @@ func (k *classifier) checkNesting() {
 			if why == "" {
 				why = k.repeatedRule(root.rule)
 			}
+			src := u.src
 			msg := fmt.Sprintf("%s: after %s at %s fails, %s can start again inside the input that %s examined",
 				degreeText(ClassPoly, degree), u.kind, at(u.rule, u.pos), u.witness, u.src)
+			if s := k.retriedSrc[u.rule].src; s != nil && strings.HasPrefix(u.witness, retriedWhat(u.rule)) {
+				// The enclosing levels repeat their own scanning source at each level, which costs
+				// what the unit examined only when it is the same.
+				src = s
+				msg = fmt.Sprintf("%s: after %s at %s fails, %s evaluate %s again at each level",
+					degreeText(ClassPoly, degree), u.kind, at(u.rule, u.pos), u.witness, s)
+			}
 			for _, c := range chain {
 				msg += "; it is evaluated again inside " + c
 			}
 			msg += "; this repeats in " + why
-			kind := u.src.kind
+			kind := src.kind
 			if kind == CauseRestartedRepetition && u.kind == unitLookahead {
 				kind = CauseLookaheadScan
 			}
-			k.cause(kind, ClassPoly, degree, u.src.rule, u.src.pos, "%s", msg)
+			k.cause(kind, ClassPoly, degree, src.rule, src.pos, "%s", msg)
 		}
 	}
 }

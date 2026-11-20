@@ -333,6 +333,10 @@ type classifier struct {
 	boundedRule map[string]bool
 	reachFrom   map[string]map[string]bool
 
+	// retriedSrc is, for each rule of retried, what its levels repeat at each level where they
+	// end at one position (addRetried).
+	retriedSrc map[string]retriedRepeat
+
 	sites           []*site
 	nestSites       map[*site]bool // the call sites whose evaluations can nest and end at one position (nestsAt)
 	nestCycles      map[int]bool   // the left-recursion cycles with a call of a rule that nests at one end (nestsEnd)
