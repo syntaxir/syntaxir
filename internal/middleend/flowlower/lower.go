@@ -295,7 +295,7 @@ func (l *lowerer) module(value code.Expr) (*code.Module, error) {
 	}
 	unshare(fn.Body)
 	at.Forms.Named, at.Forms.Order = flow.NamedVars(fn.Body), append([]string(nil), at.Vars...)
-	m := flow.NewModule("flow " + fn.Name)
+	m := code.EnterFlow(flow.NewModule("flow " + fn.Name)).Module()
 	m.Funcs = append(m.Funcs, fn)
 	return m, nil
 }

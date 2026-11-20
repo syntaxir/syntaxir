@@ -300,10 +300,11 @@ const (
 // HandleTypes are the handle types of the Flow stage, in the order Declare declares them.
 var HandleTypes = []string{TValue, TEnv, TExpMark, TExpIDs, TVals, TCtx, TMark, TFrame, TError, TRune}
 
-// NewModule returns an empty module at the Flow stage with the declarations of the Flow dialect.
+// NewModule returns an empty module of the Flow and Action dialects with the declarations of the
+// Flow dialect, at no stage: flowlower makes it a module at the Flow stage (code.EnterFlow).
 func NewModule(name string) *code.Module {
 	m := code.NewModule(name)
-	m.Stage, m.Dialects = Stage, []string{Dialect, "action"}
+	m.Dialects = []string{Dialect, "action"}
 	Declare(m)
 	return m
 }

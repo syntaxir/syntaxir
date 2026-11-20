@@ -52,7 +52,7 @@ func framed(t *testing.T, name string, vars []code.Param, body ...code.Stmt) *co
 		at.Vars = append(at.Vars, v.Name)
 	}
 	fail := &code.Block{Label: at.Fail, Stmts: append(body, &code.Return{Values: []code.Expr{code.Null(value), code.BoolC(true)}})}
-	m := flow.NewModule("flow " + name)
+	m := code.EnterFlow(flow.NewModule("flow " + name)).Module()
 	m.Funcs = []*code.Func{{Name: name, Locals: vars, Results: []code.Type{value, code.TBool}, Attrs: at,
 		Body: &code.Block{Stmts: []code.Stmt{fail, &code.Return{Values: []code.Expr{code.Null(value), code.BoolC(false)}}}}}}
 	if err := flow.VerifyModule(m); err != nil {

@@ -90,7 +90,7 @@ func LowerUnit(u Unit) (*code.Module, error) {
 		out.Funcs = append(out.Funcs, m.Funcs...)
 	}
 	if out == nil {
-		out = flow.NewModule("flow")
+		out = code.EnterFlow(flow.NewModule("flow")).Module()
 	}
 	return out, nil
 }

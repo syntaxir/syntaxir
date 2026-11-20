@@ -131,7 +131,8 @@ func lower(m *code.Module) (*code.Module, error) {
 		return nil, fmt.Errorf("lower %s: a module at the %q stage, not the Flow stage", m.Name, m.Stage)
 	}
 	out := code.NewModule(m.Name, m.Features...)
-	out.Stage, out.Dialects = Stage, []string{Dialect, "action"}
+	out.Dialects = []string{Dialect, "action"}
+	code.EnterExec(out)
 	out.AddComponent(Component, "The state of the runtime that the target implements.")
 	out.Registers = m.Registers
 	for _, h := range m.Handles {

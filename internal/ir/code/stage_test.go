@@ -20,6 +20,7 @@ func TestWithChecksTheStage(t *testing.T) {
 		"a module at no stage":      func() { u.With(&Module{Name: "y"}) },
 		"no module":                 func() { u.With(nil) },
 		"entering another stage":    func() { EnterExec(m) },
+		"entering its stage again":  func() { EnterFlow(m) },
 	} {
 		func() {
 			defer func() {

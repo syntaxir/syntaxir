@@ -11,7 +11,7 @@ import (
 
 // flowModule returns a module at the Flow stage whose function matches a literal and advances.
 func flowModule() *code.Module {
-	m := flow.NewModule("t")
+	m := code.EnterFlow(flow.NewModule("t")).Module()
 	ok := "ok"
 	m.Funcs = append(m.Funcs, &code.Func{Name: "f", Locals: []code.Param{code.P(ok, code.TBool)}, Body: &code.Block{Label: "fail", Stmts: []code.Stmt{
 		&code.Do{Call: &code.Call{Callee: flow.OpStep}},

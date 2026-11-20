@@ -57,10 +57,11 @@ func stageOf(m *Module) string {
 	return m.Stage
 }
 
-// enter sets the stage of m to S and returns the unit. m must be at no stage or at S already.
+// enter sets the stage of m to S and returns the unit. m must be at no stage: only the lowering into
+// a stage sets it.
 func enter[S Stage](m *Module) At[S] {
 	want := stageName[S]()
-	if m.Stage != "" && m.Stage != want {
+	if m.Stage != "" {
 		panic(fmt.Sprintf("code: a module at the %q stage cannot enter the %q stage", m.Stage, want))
 	}
 	m.Stage = want
