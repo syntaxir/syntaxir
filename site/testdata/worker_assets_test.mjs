@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { gzipSync } from "node:zlib";
 import vm from "node:vm";
 import { test } from "node:test";
 
@@ -12,7 +13,7 @@ const tiny = { wasm: "wasm/zp-3333333333333333.wasm", runtime: "runtime/wasm_exe
 function worker(manifest, { ok = true } = {}) {
   const imported = [], fetched = [], messages = [];
   const self = { zp: { version: () => '{"go":"test"}' }, postMessage: (m) => messages.push(m) };
-  const ctx = vm.createContext({ self, URL, JSON, Error,
+  const ctx = vm.createContext({ self, URL, JSON, Error, Uint8Array, Blob, Response, DecompressionStream,
     importScripts: (url) => imported.push(url),
     fetch: async (url, opts) => { fetched.push({ url, opts }); return { ok, status: ok ? 200 : 503, json: async () => manifest }; },
     Go: class { importObject = {}; run() { return new Promise(() => {}); } },
@@ -60,3 +61,29 @@ for (const [name, manifest, opts, error] of [
     assert.equal(w.imported.length,0);
   });
 }
+
+const gz = { wasm: "wasm/zp-5555555555555555.wasm.gz", runtime: "runtime/wasm_exec-6666666666666666.js" };
+test("worker selects the runtime of a compressed binary", async () => {
+  const w = worker({ version: 1, current: gz, previous: a });
+  await w.init(base + gz.wasm);
+  assert.deepEqual(w.imported, [base + gz.runtime]);
+  assert.equal(w.messages[0].type, "ready");
+});
+
+test("worker decompresses a compressed binary it has to fetch itself", async () => {
+  const module = Uint8Array.from([0, 0x61, 0x73, 0x6d, 1, 0, 0, 0, 9]);
+  const instantiated = [], messages = [];
+  const ctx = vm.createContext({ URL, JSON, Error, Uint8Array, Blob, Response, DecompressionStream,
+    self: { zp: { version: () => '{"go":"test"}' }, postMessage: (m) => messages.push(m) },
+    importScripts: () => {},
+    fetch: async (url) => url.endsWith("assets.json")
+      ? new Response(JSON.stringify({ version: 1, current: gz }))
+      : new Response(gzipSync(module)),
+    Go: class { importObject = {}; run() { return new Promise(() => {}); } },
+    WebAssembly: { instantiate: async (bytes) => { instantiated.push(new Uint8Array(bytes)); return { instance: {} }; } },
+  });
+  vm.runInContext(source, ctx);
+  await vm.runInContext(`init(${JSON.stringify({ base, wasm: base + gz.wasm })})`, ctx);
+  assert.deepEqual(instantiated, [module]);
+  assert.equal(messages[0].type, "ready");
+});

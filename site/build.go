@@ -2,9 +2,8 @@ package main
 
 import (
 	"bytes"
-	"crypto/sha256"
+	"compress/gzip"
 	"embed"
-	"encoding/hex"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -27,13 +26,16 @@ type Config struct {
 	Exclude      []string
 	Repo         string // root of the repository
 	Out          string // output directory
-	Wasm         bool   // build the playground's WebAssembly binary
-	WasmMode     string // go (default) or dual (Go and TinyGo)
+	Wasm         bool   // include the playground's WebAssembly binary
+	WasmSource   string // release (default: the pinned release of site/playground-wasm.json) or build (from source)
+	WasmMode     string // go (default) or dual (Go and TinyGo); dual needs WasmSource build
 	Check        bool   // fail on broken internal links
 	GitHub       string // repository URL, for links to files that are not pages of the site
 	Ref          string // branch or tag for those links
 	PreviousSite string // published site whose current WASM/runtime pair should be retained
 	DeployURL    string // immutable URL of this deploy, recorded in the asset manifest
+
+	releaseURL string // replaces the download URL of the pinned release, for tests
 }
 
 // Stats summarizes a build.
@@ -434,59 +436,85 @@ func selectWasmBuild(toolchain, output string) (wasmBuildSpec, error) {
 	}
 }
 
-// buildWasm builds the playground's WebAssembly binary into dir/wasm, named after a hash of its
-// content so that it can be cached forever (see site/static/_headers), and copies the matching runtime
-// support (wasm_exec.js) into dir. It returns the path of the binary relative to dir.
-func buildWasm(repo, dir, toolchain string) (string, error) {
-	abs, err := filepath.Abs(dir)
+// compileWasm builds the playground's WebAssembly binary with toolchain (go or tinygo) and returns
+// it with the matching runtime support (wasm_exec.js) of the same toolchain.
+func compileWasm(repo, toolchain string) (wasm, runtime []byte, err error) {
+	dir, err := os.MkdirTemp("", "zp-wasm-")
 	if err != nil {
-		return "", err
+		return nil, nil, err
 	}
-	tmp := filepath.Join(abs, "zp.wasm.tmp")
+	defer os.RemoveAll(dir)
+	tmp := filepath.Join(dir, "zp.wasm")
 	spec, err := selectWasmBuild(toolchain, tmp)
 	if err != nil {
-		return "", err
+		return nil, nil, err
 	}
 	compiler, err := exec.LookPath(spec.command)
 	if err != nil {
-		return "", fmt.Errorf("building the playground needs the %s command: %w", spec.command, err)
+		return nil, nil, fmt.Errorf("building the playground needs the %s command: %w", spec.command, err)
 	}
 	cmd := exec.Command(compiler, spec.args...)
 	cmd.Dir = repo
 	cmd.Env = append(repoEnv(repo), "GOOS=js", "GOARCH=wasm")
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return "", fmt.Errorf("building zp.wasm with %s: %v\n%s", spec.command, err, out)
+		return nil, nil, fmt.Errorf("building zp.wasm with %s: %v\n%s", spec.command, err, out)
 	}
-	data, err := os.ReadFile(tmp)
-	if err != nil {
-		return "", err
-	}
-	sum := sha256.Sum256(data)
-	name := "wasm/zp-" + hex.EncodeToString(sum[:])[:16] + ".wasm"
-	if err := writeFile(filepath.Join(abs, filepath.FromSlash(name)), data); err != nil {
-		return "", err
-	}
-	if err := os.Remove(tmp); err != nil {
-		return "", err
+	if wasm, err = os.ReadFile(tmp); err != nil {
+		return nil, nil, err
 	}
 	out, err := exec.Command(compiler, "env", spec.rootVar).Output()
 	if err != nil {
-		return "", fmt.Errorf("%s env %s: %w", spec.command, spec.rootVar, err)
+		return nil, nil, fmt.Errorf("%s env %s: %w", spec.command, spec.rootVar, err)
 	}
 	root := strings.TrimSpace(string(out))
 	if root == "" {
-		return "", fmt.Errorf("%s env %s returned an empty path", spec.command, spec.rootVar)
+		return nil, nil, fmt.Errorf("%s env %s returned an empty path", spec.command, spec.rootVar)
 	}
-	runtimePath := filepath.Join(root, filepath.FromSlash(spec.runtimeRel))
-	support, err := os.ReadFile(runtimePath)
-	if err != nil {
-		return "", err
+	if runtime, err = os.ReadFile(filepath.Join(root, filepath.FromSlash(spec.runtimeRel))); err != nil {
+		return nil, nil, err
 	}
-	return name, writeFile(filepath.Join(abs, "wasm_exec.js"), support)
+	return wasm, runtime, nil
 }
 
+// gzipWasm compresses a WebAssembly binary for publication. The output depends only on the input
+// and the Go version: the gzip header carries no name or modification time.
+func gzipWasm(wasm []byte) ([]byte, error) {
+	var b bytes.Buffer
+	w, err := gzip.NewWriterLevel(&b, gzip.BestCompression)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := w.Write(wasm); err != nil {
+		return nil, err
+	}
+	if err := w.Close(); err != nil {
+		return nil, err
+	}
+	return b.Bytes(), nil
+}
+
+// buildWasmPair builds the playground from source with toolchain and returns its published pair:
+// the gzip-compressed binary and its runtime.
+func buildWasmPair(repo, toolchain string) (*assetBytes, error) {
+	wasm, runtime, err := compileWasm(repo, toolchain)
+	if err != nil {
+		return nil, err
+	}
+	gz, err := gzipWasm(wasm)
+	if err != nil {
+		return nil, err
+	}
+	return &assetBytes{asset: describeAssets(gz, runtime), wasm: gz, runtime: runtime}, nil
+}
+
+// maxOutputFile is the largest file that Cloudflare Workers static assets serve (25 MiB); a build
+// whose output has a file of this size or larger cannot be deployed.
+const maxOutputFile = 25 << 20
+
+// stats summarizes the output of a build. It fails if a file is too large to deploy.
 func stats(out string, pages int) (Stats, error) {
 	st := Stats{Pages: pages}
+	var tooLarge []string
 	err := filepath.WalkDir(out, func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return err
@@ -497,7 +525,14 @@ func stats(out string, pages int) (Stats, error) {
 		}
 		st.Files++
 		st.Bytes += info.Size()
+		if info.Size() >= maxOutputFile {
+			rel, _ := filepath.Rel(out, p)
+			tooLarge = append(tooLarge, fmt.Sprintf("%s (%d bytes)", filepath.ToSlash(rel), info.Size()))
+		}
 		return nil
 	})
+	if err == nil && len(tooLarge) > 0 {
+		err = fmt.Errorf("files of %d bytes (25 MiB) or more cannot be deployed to Cloudflare Workers: %s", maxOutputFile, strings.Join(tooLarge, ", "))
+	}
 	return st, err
 }

@@ -11,18 +11,29 @@
 
 const modulePromises = new Map();
 
+// wasmBytes returns the WebAssembly binary of a response. The site publishes its binaries
+// gzip-compressed (zp-<hash>.wasm.gz) and served as they are stored, so a body that starts with the
+// gzip magic number is decompressed here; worker.js has the same function.
+export async function wasmBytes(resp) {
+  const data = new Uint8Array(await resp.arrayBuffer());
+  if (data[0] !== 0x1f || data[1] !== 0x8b) return data;
+  return new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
+}
+
 function compileModule(url) {
   const cached = modulePromises.get(url);
   if (cached) return cached;
   const promise = (async () => {
-    try {
-      return await WebAssembly.compileStreaming(fetch(url));
-    } catch {
-      // compileStreaming needs the application/wasm content type, which some servers do not send.
-      const resp = await fetch(url);
-      if (!resp.ok) throw new Error(`cannot load ${url}: ${resp.status} ${resp.statusText}`);
-      return WebAssembly.compile(await resp.arrayBuffer());
+    if (!new URL(url).pathname.endsWith(".gz")) {
+      try {
+        return await WebAssembly.compileStreaming(fetch(url));
+      } catch {
+        // compileStreaming needs the application/wasm content type, which some servers do not send.
+      }
     }
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`cannot load ${url}: ${resp.status} ${resp.statusText}`);
+    return WebAssembly.compile(await wasmBytes(resp));
   })();
   modulePromises.set(url, promise);
   promise.catch(() => {

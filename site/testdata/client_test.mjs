@@ -3,7 +3,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { ZPClient } from "../static/assets/zp-client.js";
+import { gzipSync } from "node:zlib";
+
+import { ZPClient, wasmBytes } from "../static/assets/zp-client.js";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -171,4 +173,27 @@ test("a failed compilation can retry without evicting a different URL", async (t
   assert.equal(fetched.filter((url) => url === bad.wasm).length, 3); // stream, fallback, retry
   assert.equal(workers.at(-2).received[0].module, retriedModule);
   assert.equal(workers.at(-1).received[0].module, stableModule);
+});
+
+const fakeModule = Uint8Array.from([0, 0x61, 0x73, 0x6d, 1, 0, 0, 0, 7, 7]);
+
+test("wasmBytes decompresses a gzip body and passes a WebAssembly body through", async () => {
+  const gz = gzipSync(fakeModule);
+  assert.deepEqual(new Uint8Array(await wasmBytes(new Response(gz))), fakeModule);
+  // A server that decoded the stored gzip itself (Content-Encoding) delivers the module.
+  assert.deepEqual(new Uint8Array(await wasmBytes(new Response(fakeModule))), fakeModule);
+  await assert.rejects(wasmBytes(new Response(Uint8Array.from([0x1f, 0x8b, 1, 2, 3]))));
+});
+
+test("a compressed binary is fetched once, decompressed and compiled", async (t) => {
+  const { FakeWorker, workers } = fakeWorkers();
+  const fetched = [], compiled = [];
+  t.mock.method(globalThis, "fetch", async (url) => { fetched.push(url); return new Response(gzipSync(fakeModule)); });
+  t.mock.method(WebAssembly, "compileStreaming", async () => { throw new Error("compileStreaming used"); });
+  t.mock.method(WebAssembly, "compile", async (bytes) => { compiled.push(new Uint8Array(bytes)); return { binary: "gz" }; });
+  const c = new ZPClient("https://gz.test/playground/", { wasm: "wasm/zp-0123456789abcdef.wasm.gz", Worker: FakeWorker });
+  await c.start();
+  assert.deepEqual(fetched, ["https://gz.test/playground/wasm/zp-0123456789abcdef.wasm.gz"]);
+  assert.deepEqual(compiled, [fakeModule]);
+  assert.deepEqual(workers[0].received[0].module, { binary: "gz" });
 });

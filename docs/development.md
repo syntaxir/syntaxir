@@ -267,6 +267,8 @@ TypeScript is printed from the same Flow stage as Go (`internal/backend/codegen/
 `go generate ./spec/language` renders the simple grammar view from `zp.zp` and `spec/language/syntax.md.tmpl`; edit the template rather than the generated page. `spec/language/source_grammar_test.go` verifies the simplified display against the canonical source grammar, checks concrete trees and recovery across backends, and builds a generated typed Go consumer. `spec/language/syntax_test.go` runs the grammar of [Grammar Syntax](../spec/language/syntax.md) on every `.zp` file and every `zp` code block of the repository and requires it to agree with the parser of `internal/syntax`.
 
 `cd site && go test ./...` builds the site and checks its pages and links; `go test ./cmd/playground` runs the WebAssembly smoke test when Node is installed.
+The site publishes the playground's binary from a pinned GitHub pre-release instead of compiling it;
+[the site maintenance page](site.md#the-playground-release) explains how to publish a new release and pin it.
 Production site builds retain the published current WASM/runtime pair alongside the new pair, using a bounded
 asset manifest and immutable deploy source. Workers select the matching hashed Go runtime; previews/local builds
 do not automatically read production assets. Hash/HTTP failures stop retention before local output is cleared.

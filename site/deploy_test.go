@@ -209,8 +209,10 @@ func checkWorkerControlFiles(t *testing.T, out string) {
 	if got := byPattern["/playground/wasm/*"]["Cache-Control"]; got != immutable {
 		t.Errorf("wasm Cache-Control = %q", got)
 	}
-	if got := byPattern["/playground/wasm/*"]["Content-Type"]; got != "application/wasm" {
-		t.Errorf("wasm Content-Type = %q", got)
+	// The directory holds gzip-compressed binaries, which must keep the content type of their
+	// extension.
+	if got, ok := byPattern["/playground/wasm/*"]["Content-Type"]; ok {
+		t.Errorf("wasm Content-Type is overridden with %q", got)
 	}
 	if got := byPattern["/playground/runtime/*"]["Cache-Control"]; got != immutable {
 		t.Errorf("runtime Cache-Control = %q", got)

@@ -170,7 +170,8 @@ this): the theme is applied by a small blocking script file, and Markdown tables
 `style`.
 
 The WebAssembly binary is the one large file of the site, and it changes only when the library or the Go version
-does. The build names it after a hash of its content (`playground/wasm/zp-<hash>.wasm`) and records the name in
+does. It is built apart from the site and published, gzip-compressed, as a [pinned release](075-playground-wasm-release.md).
+The build names it after a hash of its content (`playground/wasm/zp-<hash>.wasm.gz`) and records the name in
 every page (`<html data-wasm>`), so `_headers` can let browsers cache it for a year without revalidating
 (`Cache-Control: immutable`). [Asset retention](023-playground-asset-retention.md) imports the published current
 WASM/runtime pair on production builds, retaining one preceding generation without storing binaries in Git.

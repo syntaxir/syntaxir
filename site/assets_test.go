@@ -275,3 +275,48 @@ func BenchmarkPublishAssets(b *testing.B) {
 		})
 	}
 }
+
+// TestCompressedAssetRetention retains a published uncompressed binary for one deploy after the
+// site switches to compressed binaries, and then compressed ones.
+func TestCompressedAssetRetention(t *testing.T) {
+	legacy, b, c := testAssets("uncompressed"), compressedAssets(t, "B"), compressedAssets(t, "C")
+	root := t.TempDir()
+	publish := func(name string, a, previous *assetBytes) string {
+		dir := filepath.Join(root, name)
+		seedAssets(t, filepath.Join(dir, "playground"), a, previous, "")
+		return dir
+	}
+	read := func(dir string) *assetBytes {
+		s := httptest.NewServer(http.FileServer(http.Dir(dir)))
+		defer s.Close()
+		prior, err := readPreviousAssets(s.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return prior
+	}
+	first := publish("first", legacy, nil)
+	second := publish("second", b, read(first))
+	var m assetManifest
+	data, _ := os.ReadFile(filepath.Join(second, "playground/assets.json"))
+	if err := json.Unmarshal(data, &m); err != nil {
+		t.Fatal(err)
+	}
+	if m.Current != b.asset || m.Previous == nil || *m.Previous != legacy.asset {
+		t.Fatalf("manifest %+v", m)
+	}
+	for _, a := range []*assetBytes{legacy, b} {
+		got, err := os.ReadFile(filepath.Join(second, "playground", filepath.FromSlash(a.asset.Wasm)))
+		if err != nil || !bytes.Equal(got, a.wasm) {
+			t.Fatalf("%s: %v", a.asset.Wasm, err)
+		}
+	}
+	prior := read(second)
+	if prior.asset != b.asset {
+		t.Fatalf("inherited %+v", prior.asset)
+	}
+	third := publish("third", c, prior)
+	if _, err := os.Stat(filepath.Join(third, "playground", filepath.FromSlash(legacy.asset.Wasm))); !os.IsNotExist(err) {
+		t.Fatal("the uncompressed generation was kept for two deploys")
+	}
+}

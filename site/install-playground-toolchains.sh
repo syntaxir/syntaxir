@@ -88,4 +88,4 @@ wasm_opt_version=$(wasm-opt --version)
 case "$wasm_opt_version" in 'wasm-opt version 131'*) ;; *) fail "Unexpected Binaryen version: $wasm_opt_version" ;; esac
 
 cd "$(dirname "$0")"
-sh build.sh -wasm-mode=dual
+sh build.sh -wasm-source=build -wasm-mode=dual

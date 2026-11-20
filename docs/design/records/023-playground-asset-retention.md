@@ -28,6 +28,9 @@ must serialize their publication or use an explicit `-previous-site` pointing to
 
 ### Deployment Contract
 
+The new current pair is the binary and runtime of the [pinned playground release](075-playground-wasm-release.md),
+or, in a local `-wasm-source=build` build, the binary compiled from the working tree.
+
 `-previous-site` names a published site root, including a path prefix if present. The builder reads its
 `playground/assets.json` before clearing output. Only that manifest's **current** pair is imported; its previous pair
 is never inherited. The new manifest contains the newly built current pair and, when different, one previous pair.
@@ -48,9 +51,12 @@ flags override the defaults, including an empty `-previous-site` for a deliberat
 
 `playground/assets.json` has `version: 1`, optional `source`, `current`, and optional `previous`. Each pair records:
 
-- `wasm`: `wasm/zp-<16 hex characters>.wasm`, with the full `wasmSHA256`;
+- `wasm`: `wasm/zp-<16 hex characters>.wasm.gz` for a gzip-compressed binary, or `wasm/zp-<16 hex characters>.wasm`
+  for an uncompressed one, with the full `wasmSHA256` of the stored bytes;
 - `runtime`: `runtime/wasm_exec-<16 hex characters>.js`, with the full `runtimeSHA256`.
 
+The site publishes compressed binaries; the uncompressed form remains valid so that a generation published before
+compression is retained for one more deploy. The page and the worker decompress a gzip body before compiling it.
 The worker requests the revalidated manifest when starting a content-hashed parser, finds the exact requested WASM
 URL in either pair, and imports its matching runtime. An expired parser or unavailable manifest fails initialization;
 an expired-generation message asks the user to reload. The explicit unhashed `zp.wasm` convention continues to use
@@ -64,7 +70,8 @@ the current runtime. Applications must use the manifest to select a runtime for 
 
 Manifest fields and paths are checked before use; names must match the full SHA-256 digests. Imported files are read
 with limits of 64 MiB for WASM and 1 MiB for the runtime, and each HTTP request has a 30-second timeout. The manifest
-is limited to 64 KiB. WASM also requires its version-one header; truncated-name collisions or a single WASM mapped
+is limited to 64 KiB. WASM also requires its version-one header, and a compressed binary must be a complete gzip stream
+of such a module, decompressing to less than 256 MiB; truncated-name collisions or a single WASM mapped
 to conflicting runtimes fail rather than overwrite current content.
 
 A missing manifest triggers a one-time bootstrap: read the published playground HTML's hashed WASM reference and
@@ -88,7 +95,7 @@ the immutable source and both digests. A build failure does not promote any cach
 
 ## Testing
 
-`site/assets_test.go` checks A→B→C retention, byte identity, matching runtimes, current selection, same-pair deduplication,
+`site/assets_test.go` checks A→B→C retention, the step from an uncompressed generation to compressed ones, byte identity, matching runtimes, current selection, same-pair deduplication,
 immutable-source fetches, first deployment, legacy bootstrap, production/preview defaults, path/hash/HTTP/size failures
 and preservation of local output on retrieval failure. `worker_assets_test.mjs` executes the actual worker with controlled
 fetch/Go dependencies to check current/previous runtime selection and failures. Full site/link tests include the built
@@ -165,3 +172,8 @@ The imported generation is the one published when the production manifest is rea
 that read can make it differ from the deployment immediately preceding publication. Retention does not implement a
 distributed deployment lock. Private sites must arrange accessible artifacts or provide a public immutable input;
 credentials and query strings are not accepted in site URLs.
+
+### Compressed binaries and rollback
+
+A builder from before compressed binaries rejects the `.wasm.gz` names of a manifest written since, so a rollback to
+it needs the same explicit retention reset, `-previous-site ''`.

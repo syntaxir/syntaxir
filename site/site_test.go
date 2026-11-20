@@ -31,7 +31,8 @@ func siteTestOutput(t *testing.T) string {
 	return filepath.Join(root, "dist")
 }
 
-// TestBuild builds the whole site, including the playground's WebAssembly binary, and checks that
+// TestBuild builds the whole site, including the playground's WebAssembly binary (built from source,
+// so that the test needs no network), and checks that
 // every document of the repository became a page, that the generated pages are complete, and that
 // no internal link is broken (Build fails on broken links).
 func TestBuild(t *testing.T) {
@@ -39,7 +40,7 @@ func TestBuild(t *testing.T) {
 		t.Skip("the go command is not available")
 	}
 	out := siteTestOutput(t)
-	cfg := Config{Repo: "..", Out: out, Wasm: !testing.Short(), Check: true, GitHub: "https://github.com/zeroparse/zp", Ref: "main"}
+	cfg := Config{Repo: "..", Out: out, Wasm: !testing.Short(), WasmSource: "build", Check: true, GitHub: "https://github.com/zeroparse/zp", Ref: "main"}
 	st, err := Build(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -376,7 +377,7 @@ func TestBuild(t *testing.T) {
 				continue
 			}
 			ref := filepath.Join(out, filepath.FromSlash(filepath.Dir(page)), filepath.FromSlash(string(m[1])))
-			if !regexp.MustCompile(`/playground/wasm/zp-[0-9a-f]{16}\.wasm$`).MatchString(filepath.ToSlash(ref)) {
+			if !regexp.MustCompile(`/playground/wasm/zp-[0-9a-f]{16}\.wasm\.gz$`).MatchString(filepath.ToSlash(ref)) {
 				t.Errorf("%s: %s is not content-hashed", page, m[1])
 			}
 			wasm, err := os.ReadFile(ref)
@@ -387,6 +388,9 @@ func TestBuild(t *testing.T) {
 			sum := sha256.Sum256(wasm)
 			if !strings.Contains(string(m[1]), hex.EncodeToString(sum[:])[:16]) {
 				t.Errorf("%s: the name %s does not match the content", page, m[1])
+			}
+			if err := checkWasm(string(m[1]), wasm); err != nil {
+				t.Errorf("%s: %v", page, err)
 			}
 		}
 	}

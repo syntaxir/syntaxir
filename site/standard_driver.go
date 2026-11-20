@@ -14,6 +14,18 @@ import (
 	"github.com/ornew/zerosite/sitegen"
 )
 
+// selectWasmSource validates where the playground's binary comes from: the pinned release
+// (default) or a build from source.
+func selectWasmSource(source string) (string, error) {
+	if source == "" {
+		source = "release"
+	}
+	if source != "release" && source != "build" {
+		return "", fmt.Errorf("unsupported WASM source %q (want release or build)", source)
+	}
+	return source, nil
+}
+
 func selectWasmMode(mode string) (string, error) {
 	if mode == "" {
 		mode = "go"
@@ -31,6 +43,17 @@ func Build(cfg Config) (Stats, error) {
 		if _, err := siteURL(cfg.DeployURL); err != nil {
 			return Stats{}, err
 		}
+	}
+	mode, err := selectWasmMode(cfg.WasmMode)
+	if err != nil {
+		return Stats{}, err
+	}
+	source, err := selectWasmSource(cfg.WasmSource)
+	if err != nil {
+		return Stats{}, err
+	}
+	if mode == "dual" && (!cfg.Wasm || source != "build") {
+		return Stats{}, fmt.Errorf("-wasm-mode=dual requires -wasm and -wasm-source=build")
 	}
 	c, err := sitegen.ReadConfig(filepath.Join(cfg.Repo, "site/config.json"))
 	if err != nil {
@@ -141,52 +164,44 @@ func Build(cfg Config) (Stats, error) {
 		if cfg.PreviousSite != "" && !cfg.Wasm {
 			return fmt.Errorf("-previous-site requires -wasm")
 		}
-		mode, err := selectWasmMode(cfg.WasmMode)
-		if err != nil {
-			return err
-		}
-		if mode == "dual" && !cfg.Wasm {
-			return fmt.Errorf("-wasm-mode=dual requires -wasm")
-		}
 		var previousTinyGo *assetBytes
 		previous, err := readPreviousAssetsWithTinyGo(cfg.PreviousSite, &previousTinyGo)
 		if err != nil {
 			return err
 		}
 		if cfg.Wasm {
+			var current, tinygo *assetBytes
+			if source == "release" {
+				pin, err := readWasmPin(cfg.Repo)
+				if err != nil {
+					return err
+				}
+				if current, err = fetchReleasePair(pin, cfg.releaseURL); err != nil {
+					return err
+				}
+			} else {
+				if current, err = buildWasmPair(cfg.Repo, "go"); err != nil {
+					return err
+				}
+				if mode == "dual" {
+					if tinygo, err = buildWasmPair(cfg.Repo, "tinygo"); err != nil {
+						return err
+					}
+					s.tinygoWasm = "playground/" + tinygo.asset.Wasm
+				}
+			}
+			s.wasm = "playground/" + current.asset.Wasm
 			temp, err := os.MkdirTemp("", "zp-standard-assets-")
 			if err != nil {
 				return err
 			}
 			defer os.RemoveAll(temp)
-			name, err := buildWasm(cfg.Repo, temp, "go")
-			if err != nil {
+			name := current.asset.Wasm
+			if err := writeFile(filepath.Join(temp, filepath.FromSlash(name)), current.wasm); err != nil {
 				return err
 			}
-			s.wasm = "playground/" + name
-			var tinygo *assetBytes
-			if mode == "dual" {
-				tinyDir := filepath.Join(temp, "tinygo")
-				if err := os.Mkdir(tinyDir, 0755); err != nil {
-					return err
-				}
-				tinyName, err := buildWasm(cfg.Repo, tinyDir, "tinygo")
-				if err != nil {
-					return err
-				}
-				wasm, err := os.ReadFile(filepath.Join(tinyDir, filepath.FromSlash(tinyName)))
-				if err != nil {
-					return err
-				}
-				runtime, err := os.ReadFile(filepath.Join(tinyDir, "wasm_exec.js"))
-				if err != nil {
-					return err
-				}
-				tinygo = &assetBytes{asset: describeAssets(wasm, runtime), wasm: wasm, runtime: runtime}
-				s.tinygoWasm = "playground/" + tinygo.asset.Wasm
-				if err := os.RemoveAll(tinyDir); err != nil {
-					return err
-				}
+			if err := writeFile(filepath.Join(temp, "wasm_exec.js"), current.runtime); err != nil {
+				return err
 			}
 			if err := publishAssets(temp, name, cfg.DeployURL, previous); err != nil {
 				return err

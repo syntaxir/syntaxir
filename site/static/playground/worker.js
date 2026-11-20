@@ -4,10 +4,19 @@
 
 let ready = null;
 
+// wasmBytes returns the WebAssembly binary of a response, decompressing a gzip body (the site's
+// zp-<hash>.wasm.gz); it is the function of the same name in assets/zp-client.js, which a classic
+// worker script cannot import.
+async function wasmBytes(resp) {
+  const data = new Uint8Array(await resp.arrayBuffer());
+  if (data[0] !== 0x1f || data[1] !== 0x8b) return data;
+  return new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
+}
+
 async function init(msg) {
   let runtime = msg.base + "wasm_exec.js";
   const wasmURL = new URL(msg.wasm);
-  if (/\/wasm\/zp-[0-9a-f]{16}\.wasm$/.test(wasmURL.pathname)) {
+  if (/\/wasm\/zp-[0-9a-f]{16}\.wasm(\.gz)?$/.test(wasmURL.pathname)) {
     const resp = await fetch(msg.base + "assets.json", { cache: "no-cache" });
     if (!resp.ok) throw new Error(`cannot load playground assets: ${resp.status}`);
     const manifest = await resp.json();
@@ -25,7 +34,8 @@ async function init(msg) {
     instance = await WebAssembly.instantiate(msg.module, go.importObject);
   } else {
     const resp = await fetch(msg.wasm);
-    instance = (await WebAssembly.instantiate(await resp.arrayBuffer(), go.importObject)).instance;
+    if (!resp.ok) throw new Error(`cannot load ${msg.wasm}: ${resp.status}`);
+    instance = (await WebAssembly.instantiate(await wasmBytes(resp), go.importObject)).instance;
   }
   go.run(instance).then(() => {
     self.postMessage({ type: "exit" });

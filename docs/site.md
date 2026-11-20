@@ -25,15 +25,17 @@ and validation are handled by ZeroSite. The project-specific flags are:
 |:--|:--|:--|
 | `-repo` | `..` | The root of the repository |
 | `-out` | `dist` | The output directory. It is replaced by each build, but only if a previous build wrote it |
-| `-wasm` | `true` | Build the playground's WebAssembly binary. Without it, the pages are built but the playground cannot run |
-| `-wasm-mode` | `go` | `go` builds the standard Playground binary; `dual` builds both Go and TinyGo binaries. Dual mode requires TinyGo and Binaryen's `wasm-opt` on `PATH`; the TinyGo distribution does not include `wasm-opt`, so install Binaryen separately. The build fails if either tool is missing or compilation fails; there is no automatic fallback |
+| `-wasm` | `true` | Include the playground's WebAssembly binary. Without it, the pages are built but the playground cannot run |
+| `-wasm-source` | `release` | Where the binary comes from. `release` downloads the release that `site/playground-wasm.json` pins and verifies it (see [the playground release](#the-playground-release)); `build` compiles it from the working tree, to try playground changes before a release |
+| `-wasm-mode` | `go` | `go` builds the standard Playground binary; `dual` builds both Go and TinyGo binaries and requires `-wasm-source=build`. Dual mode requires TinyGo and Binaryen's `wasm-opt` on `PATH`; the TinyGo distribution does not include `wasm-opt`, so install Binaryen separately. The build fails if either tool is missing or compilation fails; there is no automatic fallback |
 | `-check` | `true` | Fail if a page links to a missing page, file or anchor |
 | `-previous-site` | Empty locally; `https://zeroparse.dev` in Workers Builds of `main` | Import the published current WASM/runtime pair to retain it for one deploy; requires `-wasm` |
 | `-deploy-url` | Empty | Record this immutable deploy root for the next build's asset downloads |
 | `-serve` | | After building, serve the output at this address |
 | `-github`, `-ref` | `https://github.com/zeroparse/zp`, `main` | Where links to source files point |
 
-The output is plain static files. Any static server works, as long as it serves the files over HTTP (the playground
+A build fails if its output has a file of 25 MiB or more, the largest file that Cloudflare Workers static assets
+serve. The output is plain static files. Any static server works, as long as it serves the files over HTTP (the playground
 cannot run from `file://` URLs, because browsers do not load WebAssembly or workers from them):
 
 ```bash
@@ -49,7 +51,7 @@ The build output (`site/dist`) is not committed.
 | `/` | The landing page, assembled from [`README.md`](../README.md): the tagline and introduction, a live example with the README's grammar, the feature list under "Why ZeroParse" as cards, and the following sections |
 | `/docs/tutorial/`, `/docs/guide/`, `/spec/`, `/docs/design/`, `/docs/design/records/`, `/docs/…`, `/examples/` | The Markdown files of the repository, rendered at build time. Links between Markdown files (relative, relative to the repository root like `/spec/language/types.md`, or percent-encoded) become links between pages; links to other files of the repository go to GitHub. The design records get a generated index |
 | `/reference/` | The API reference of every public package of the module (`zp`, `grammar`, `runtime`, `gen`, `lint`, `schema`, `query`, `sample` and `editfuzz`), generated from the Go source with `go/doc`, and the reference of the `zp` command, generated from what the command prints: its usage message and `zp <command> -h` for every command it lists. Types that are aliases of internal types (such as `Profile`) show the definition and methods of the internal type. A site test fails when an importable package outside `internal/` that exports a name is missing from the API reference |
-| `/playground/` | The playground: `app.js`, `worker.js`, content-hashed `wasm/zp-<hash>.wasm` and `runtime/wasm_exec-<hash>.js`, plus `assets.json` pairing current/previous Go and optional TinyGo generations; every page records the current Go WASM in `<html data-wasm>` and dual builds also record `data-tinygo-wasm`. The stable `wasm_exec.js` supports pre-manifest workers |
+| `/playground/` | The playground: `app.js`, `worker.js`, the gzip-compressed binary `wasm/zp-<hash>.wasm.gz` and its runtime `runtime/wasm_exec-<hash>.js`, both content-hashed, plus `assets.json` pairing current/previous Go and optional TinyGo generations; every page records the current Go WASM in `<html data-wasm>` and dual builds also record `data-tinygo-wasm`. The stable `wasm_exec.js` supports pre-manifest workers |
 | `/zp/…`, `/alpha-parsers/` | Go vanity import pages for the organization's repositories, generated from the package directories of the repository (see [Go vanity imports](#go-vanity-imports)). They are not linked from the pages |
 | `/search-index.json` | The text of every page, for the search box in the header (press `/`) |
 
@@ -57,6 +59,38 @@ Nothing is copied by hand, so the site cannot drift from the repository: rebuild
 
 The pages need no external resources (no CDN, fonts or analytics), have light and dark themes (following the system
 until the switch in the header is used), and work on phone screens.
+
+## The Playground Release
+
+The playground's WebAssembly binary is not compiled by the site build. It is published as a GitHub pre-release of the
+repository with a tag of the form `playground-wasm-v<version>` (such as `playground-wasm-v0.0.1`), which is not a
+release of the module, and the site build downloads the release that [`site/playground-wasm.json`](../site/playground-wasm.json)
+pins: the repository, the tag and the SHA-256 digests of its two files. A release has three files:
+
+| File | Content |
+|:--|:--|
+| `zp.wasm.gz` | The binary of `cmd/playground`, compressed with gzip; the playground decompresses it in the browser |
+| `wasm_exec.js` | The runtime support of the toolchain that built the binary |
+| `manifest.json` | The toolchain and its version, the build arguments, the source commit, and the size and SHA-256 digest of each file and of the decompressed binary |
+
+The build fails if a file is missing or does not match the pinned digest, or if the binary does not decompress to a
+WebAssembly module. The binary of a release is the library of the commit it was built from: a change that the
+playground should show needs a new release, and the site shows it from the commit that changes the pin. Release a new
+version with a new tag; never replace the files of a published one, which the pinned digests would reject.
+
+`hack/playground-release.sh` builds a release from a clean, detached worktree of a commit, so that the source commit in
+the manifest is exactly what was built; the same commit and Go version give the same bytes. The commit must already be
+on GitHub for publication. With `-publish` the script creates the pre-release with `gh` (authenticated for the
+repository), uploads the files, and writes the new pin to `site/playground-wasm.json`, to be committed:
+
+```bash
+sh hack/playground-release.sh -commit main playground-wasm-v0.0.2 /tmp/playground-release           # build and inspect
+sh hack/playground-release.sh -commit main -publish playground-wasm-v0.0.2 /tmp/playground-release  # build and publish
+```
+
+The script refuses a tag or release that already exists. The release is built with Go, with the flags the site uses for
+`-wasm-source=build`. See [the design record](design/records/075-playground-wasm-release.md) for the reasons and the
+alternatives.
 
 ## Deploying on Cloudflare Workers
 
@@ -200,8 +234,9 @@ The build writes two control files into `site/dist`; Workers reads them and does
   renders a diagram. Two outside origins are allowed: Cloudflare Web Analytics, which Cloudflare injects into the
   pages (its script from `https://static.cloudflareinsights.com` and its reports to `https://cloudflareinsights.com`),
   and `https://cdn.jsdelivr.net` for the Mermaid build that pages with a diagram load. It also sets `X-Content-Type-Options` and `Referrer-Policy`. The WebAssembly binaries
-  (`application/wasm`) and their hashed runtime scripts are cached for a year (`immutable`); the other files are
-  revalidated on each visit, which is Workers' default.
+  and their hashed runtime scripts are cached for a year (`immutable`); the other files are
+  revalidated on each visit, which is Workers' default. The binaries keep the content type of their extension, so a
+  `.wasm.gz` file is served as gzip data, not as `application/wasm`, and reaches the playground as stored.
 
 Workers limits `_headers` to 100 rules and 2,000 characters per line, and `_redirects` to 2,000 static and 100 dynamic
 rules. The local preview server (`-serve`) applies neither file; `npx wrangler dev` does.
@@ -227,7 +262,8 @@ ZeroSite's Markdown math chapter, `spec/markdown-math.md`. To upgrade KaTeX, upd
 | Test | What it checks |
 |:--|:--|
 | `go test ./cmd/playground` | The API natively (it has no build tags), and `TestWasmSmoke`: it builds `zp.wasm` and the `zp` command, and runs [`cmd/playground/testdata/smoke.mjs`](../cmd/playground/testdata/smoke.mjs) in Node, which compares every example of [`cmd/playground/examples.txt`](../cmd/playground/examples.txt) with the command: JSON, S-expression, errors, `-recognize`, every backend, byte positions, `zp fmt` and `zp gen -types`. It is skipped when `node` is not installed and in `-short` mode |
-| `cd site && go test ./...` | Builds the whole site and checks that every Markdown file of `docs/` and `spec/` became a page, that the generated pages and the search index are complete, that no page needs inline scripts or styles, and that every internal link and anchor resolves. It also enforces the documentation rules of the
+| `cd site && go test ./...` | Builds the whole site and checks that every Markdown file of `docs/` and `spec/` became a page, that the generated pages and the search index are complete, that no page needs inline scripts or styles, and that every internal link and anchor resolves. It compiles the playground's binary from source (`-wasm-source=build`), so it
+needs no network; the download and verification of a release, and the 25 MiB limit, are tested separately. It also enforces the documentation rules of the
 [style sheet](documentation-style.md): the directions in which pages may link (`TestDocumentLinkDirections`) and the
 capitalization of headings (`TestHeadingTitleCase`), and the tags and prompts of code blocks (`TestCodeFenceLanguages`,
 `TestNoCommandPrompts`), and runs the examples of the tutorial, the guides, the cookbook and the README

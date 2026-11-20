@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -28,6 +29,9 @@ type assetManifest struct {
 	TinyGoPrevious *playgroundAsset `json:"tinygoPrevious,omitempty"`
 }
 
+// A playgroundAsset names a WASM binary and its runtime. The binary is stored either as is
+// (wasm/zp-<hash>.wasm) or gzip-compressed (wasm/zp-<hash>.wasm.gz), which the browser decompresses
+// before compiling; the hash is that of the stored bytes in both cases.
 type playgroundAsset struct {
 	Wasm          string `json:"wasm"`
 	WasmSHA256    string `json:"wasmSHA256"`
@@ -75,17 +79,62 @@ func hashBytes(data []byte) string {
 	return hex.EncodeToString(sum[:])
 }
 
+// maxDecompressedWasm bounds the size of a decompressed binary that the builder checks.
+const maxDecompressedWasm = 256 << 20
+
+var (
+	wasmMagic = []byte{'\x00', 'a', 's', 'm', 1, 0, 0, 0}
+	gzipMagic = []byte{0x1f, 0x8b}
+)
+
+// describeAssets names a stored binary and its runtime after their contents. A gzip stream is named
+// .wasm.gz, anything else .wasm.
 func describeAssets(wasm, runtime []byte) playgroundAsset {
 	w, r := hashBytes(wasm), hashBytes(runtime)
-	return playgroundAsset{Wasm: "wasm/zp-" + w[:16] + ".wasm", WasmSHA256: w,
+	ext := ".wasm"
+	if bytes.HasPrefix(wasm, gzipMagic) {
+		ext = ".wasm.gz"
+	}
+	return playgroundAsset{Wasm: "wasm/zp-" + w[:16] + ext, WasmSHA256: w,
 		Runtime: "runtime/wasm_exec-" + r[:16] + ".js", RuntimeSHA256: r}
 }
 
 func (a playgroundAsset) validate() error {
 	if !digestPattern.MatchString(a.WasmSHA256) || !digestPattern.MatchString(a.RuntimeSHA256) ||
-		a.Wasm != "wasm/zp-"+a.WasmSHA256[:16]+".wasm" ||
+		(a.Wasm != "wasm/zp-"+a.WasmSHA256[:16]+".wasm" && a.Wasm != "wasm/zp-"+a.WasmSHA256[:16]+".wasm.gz") ||
 		a.Runtime != "runtime/wasm_exec-"+a.RuntimeSHA256[:16]+".js" {
 		return errors.New("invalid playground asset paths or hashes")
+	}
+	return nil
+}
+
+// checkWasm reports whether data is what a binary stored under name must be: a version-one WASM
+// module for .wasm, and a gzip stream of one for .wasm.gz.
+func checkWasm(name string, data []byte) error {
+	if !strings.HasSuffix(name, ".gz") {
+		if !bytes.HasPrefix(data, wasmMagic) {
+			return fmt.Errorf("%s is not a WebAssembly module", name)
+		}
+		return nil
+	}
+	if !bytes.HasPrefix(data, gzipMagic) {
+		return fmt.Errorf("%s is not gzip-compressed", name)
+	}
+	r, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		return fmt.Errorf("%s: %w", name, err)
+	}
+	head := make([]byte, len(wasmMagic))
+	if _, err := io.ReadFull(r, head); err != nil || !bytes.Equal(head, wasmMagic) {
+		return fmt.Errorf("%s does not hold a WebAssembly module", name)
+	}
+	// Read to the end so that the gzip checksum is verified, but no further than a binary may be.
+	n, err := io.Copy(io.Discard, io.LimitReader(r, maxDecompressedWasm))
+	if err != nil {
+		return fmt.Errorf("%s: %w", name, err)
+	}
+	if n == maxDecompressedWasm {
+		return fmt.Errorf("%s decompresses to %d bytes or more", name, maxDecompressedWasm)
 	}
 	return nil
 }
@@ -200,7 +249,7 @@ func readPreviousAssetsWithTinyGo(raw string, tinygoOut **assetBytes) (*assetByt
 	if err != nil {
 		return nil, err
 	}
-	if code != http.StatusOK || !bytes.HasPrefix(wasm, []byte{'\x00', 'a', 's', 'm', 1, 0, 0, 0}) {
+	if code != http.StatusOK || checkWasm(a.Wasm, wasm) != nil {
 		return nil, errors.New("published WASM is missing or invalid")
 	}
 	runtime, code, err := fetchAsset(client, playground, a.Runtime, 1<<20)
@@ -230,7 +279,7 @@ func readPreviousAssetsWithTinyGo(raw string, tinygoOut **assetBytes) (*assetByt
 	if err != nil {
 		return nil, err
 	}
-	if code != http.StatusOK || !bytes.HasPrefix(wasm, []byte{'\x00', 'a', 's', 'm', 1, 0, 0, 0}) {
+	if code != http.StatusOK || checkWasm(tiny.Wasm, wasm) != nil {
 		return nil, errors.New("published TinyGo WASM is missing or invalid")
 	}
 	runtime, code, err = fetchAsset(client, playground, tiny.Runtime, 1<<20)
