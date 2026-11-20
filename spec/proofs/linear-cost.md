@@ -554,6 +554,45 @@ another growth there grows at most once for each context; Lemma 5 bounds these u
 condition 5, apart from the parts that step 4 of [Open Steps](#open-steps)
 leaves open.
 
+**Evaluations in a context.** Until the first growth of a context of growths
+at a position $p$ ends, the evaluations at $p$ in the context, of calls of
+memoized rules and of steps of growths, are at most one in each lookahead
+state for each variant, binding level, combination of the values of the
+variables that the rule reads, present set and combination of the growing
+results and observations that the evaluation reads, two growing results
+counting as one only where the parse finds them equal, apart from the
+evaluation of the first call of the variant at the position, which may keep
+no result.
+
+*Proof.* By the item on contexts in [Evaluations of
+Rules](../runtime/parsing.md#evaluations-of-rules), the parse keeps the result
+of each such evaluation other than that of the first call of the variant at
+the position, which may leave no result whether it is in a context or not,
+until the first growth of the context ends: in the
+memo, recording the leaders of the context, if it read no growing result and
+observed no lookahead that read one, and otherwise in the context, with the
+growing results and observations that it read, at most a constant of them
+(*Dependencies of a kept result* in Lemma 5), so that none is left out for
+their number. An evaluation in the context is fixed by its call or its step,
+the values of its variables, the input and the growing results and
+observations that it reads. So a later call or step with the same key and
+present set that would read the same growing results and observations finds
+those that the kept result recorded equal to the ones there now, and the parse
+answers it from the kept result, or from the memo entry, which records every
+leader of its context. The one exception is a result computed inside a
+lookahead, which answers no call outside one: the evaluation of such a call
+keeps its result in place of the first, which then answers the calls in both
+states. So each combination has at most one evaluation in each state that
+keeps its result, and the first call of the variant at the position adds at
+most one evaluation at the position in all. $\square$
+
+The claim does not bound the number of combinations: the growing results
+change from step to step, and Lemma 5 bounds the evaluations in a context
+under condition 5. In a parse with missing-token insertion, which is outside
+the classes, the rules and leaders that contain `#missing`, directly or
+through the rules they call, keep no result in a context and are evaluated
+again at every call there.
+
 The memo that this lemma counts is that of
 [Evaluations of Rules](../runtime/parsing.md#evaluations-of-rules). It memoizes
 a leader in every parse. A [Document](../runtime/documents.md#reuse-model)

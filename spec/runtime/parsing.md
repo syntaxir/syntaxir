@@ -595,6 +595,23 @@ exceptions are these.
   lookahead that those steps observed has the same outcome now and that
   outcome read no growing result of the leader itself.
 
+  Until the first growth of a context at a position ends, a call there of a
+  memoized rule in that context, and a step of a growth in it, is evaluated
+  at most once in each of the two lookahead states for each variant, binding
+  level, combination of the values of the variables that the rule reads,
+  present set and combination of the growing results and lookahead outcomes
+  that it reads, apart from the first call of the variant at the position,
+  which may leave no result, as outside every context. Two growing results
+  count as one there only where the parse
+  finds them equal: it may compare results by their structure only up to a
+  bound, and takes results that it has not found equal as different. A kept
+  result records at most one growing result for each leader and binding level
+  of the cycle and one outcome for each lookahead in the bodies of the rules
+  of the cycle, so finding and keeping it costs a constant of the grammar
+  besides comparing the values of its variables. In a parse with
+  missing-token insertion this holds only of rules and leaders that do not
+  contain `#missing`, directly or through the rules they call.
+
 Every other result of a rule of a left-recursion cycle is memoized like that of
 any rule. Calls at a later position finish their own growth, outside the
 growth at the earlier position, and are memoized. A growth that begins from a
@@ -2473,7 +2490,8 @@ reason:
   progress at a position, the results there that read their growing results
   are kept apart, one for each combination of the growing results and
   lookahead outcomes that they read, and dropped when the first of those
-  growths ends; each is built by counted cost.
+  growths ends; each records at most a constant of the grammar of them and
+  is built by counted cost.
 - **Values.** A parse keeps the value of its start rule. Values built by
   abandoned alternatives are not kept, but their construction is cost.
 - **Call stack.** It holds at most as many calls as the [nesting limit](#limits)
