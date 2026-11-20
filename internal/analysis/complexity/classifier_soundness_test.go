@@ -68,6 +68,14 @@ rule r string = (-({x := x + x} "y") v:r => $v) / ("z" => x)
 rule s = a:A {x := $a} A $$
 rule A string = {x := x + x} => x
 `, ClassLinearEnv, -1, -1}, // p11
+	// The call r is under a negative lookahead, but it sees the binding before the lookahead and
+	// evaluates the binding again: on "(" n times and "a" the value of x doubles n times, and the
+	// parse of 24 "(" exceeds a compute limit of 2^20 that 16 stay within.
+	{"variables", "doubling before a call in a negative lookahead", `var x string = "q"
+@start
+rule s = r $$
+rule r = {x := x + x} "(" !(r "]") ")" / "a"
+`, ClassExp, -1, -1}, // neg1
 	{"growing", "predicate before the left call (off-cycle empty call)", `@start
 rule s = E $$
 rule E = Z E R "!" / E "+" "x" / "x"

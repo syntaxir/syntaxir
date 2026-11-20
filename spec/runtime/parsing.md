@@ -1838,12 +1838,17 @@ bound by these conditions, and has to say so.
    bindings, captures and rule values, the variable's own earlier value, when
    the value it binds can reach a later evaluation of the same binding: when a
    sequence of the rule body has the binding in one element and a call that
-   can reach its rule again in a later element, each at any depth of the
-   expressions that keep the bindings made in them after they succeed, which
-   are all expressions but a negative lookahead and a call, such as groups,
-   options, choices, captures, discards, atomic expressions, attributed
-   expressions and positive lookaheads, so that `&({v := v + v}) "y" r` passes the value of the
-   binding to the call `r`; or when the binding is part of the element of a
+   can reach its rule again in a later element. The binding can be at any
+   depth of the expressions that keep the bindings made in them after they
+   succeed, which are all expressions but a negative lookahead and a call,
+   such as groups, options, choices, captures, discards, atomic expressions,
+   attributed expressions and positive lookaheads, so that
+   `&({v := v + v}) "y" r` passes the value of the binding to the call `r`.
+   The call can be at any depth of its element, a negative lookahead
+   included: a call sees the bindings made before it wherever it is
+   evaluated, so in `r = {v := v + v} "(" !(r "]") ")" / "a"` each call of
+   `r` in the lookahead doubles the value again. Or the value can reach a
+   later evaluation when the binding is part of the element of a
    repetition or of an Operators Rule, which applies its parts again at each
    operator, outside a negative lookahead. A binding and a call in
    different alternatives of one choice are not on one path of evaluation,

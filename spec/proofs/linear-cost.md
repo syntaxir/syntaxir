@@ -12927,7 +12927,8 @@ theorem covers such a parse.
    step must show that conditions 1 and 4 ensure this: that a value reaches
    a later evaluation of the same binding only through a sequence that holds
    the binding, at any depth of expressions that keep its bindings, and a
-   call that can reach its rule again, or a repetition around the binding,
+   call that can reach its rule again, at any depth of a later element, a
+   negative lookahead included, or a repetition around the binding,
    which condition 1 checks, or through the value of a rule passed to a
    caller and read there through a variable, which condition 4 checks; and
    that a chain that takes neither repeats each binding a bounded number of
