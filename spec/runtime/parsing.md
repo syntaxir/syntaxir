@@ -1094,8 +1094,10 @@ The variable grammar with the bindings `{v := "0"}` and `{v := "1"}` grows
 linearly. The classification reports it as linear given an environment bound,
 since it counts `len(v)` as copying all of `v`, whose size only the values of
 the variables bound. The [classification](#classification) reports the
-left-recursive grammar as unknown, not linear: its cause is a growth restarted
-inside a recursion of rule calls, which the classifier does not bound.
+grammar with `A` and `C` as linear, as the table does, and the two grammars with
+`S` and `R` as unknown, not linear or of degree 2: their cause is a growth
+restarted inside a recursion of rule calls, which the classifier does not
+bound.
 
 ### Conditions for Linear Cost
 
