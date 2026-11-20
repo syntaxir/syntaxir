@@ -159,7 +159,7 @@ func (c *BudgetControl) Charge(n uint64) {
 		return
 	}
 
-	logCharge(n)
+	logCharge(c, n)
 	exceeded := limits.ExceedsLimit(c.Used, n, c.Limits.Compute)
 	poll := limits.ReachesInterval(c.SinceCheck, n, BudgetCheckInterval)
 	if poll || exceeded {
@@ -179,7 +179,7 @@ func (c *BudgetControl) ChargeUnits(n uint64) {
 		return
 	}
 	if !limits.ExceedsLimit(c.Used, n, c.Limits.Compute) && !limits.ReachesInterval(c.SinceCheck, n, BudgetCheckInterval) {
-		logCharge(n)
+		logCharge(c, n)
 		c.Used = limits.SaturatingAdd(c.Used, n)
 		c.SinceCheck = limits.SaturatingAdd(c.SinceCheck, n)
 		return

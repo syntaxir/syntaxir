@@ -2,4 +2,4 @@
 
 package state
 
-func logCharge(uint64) {}
+func logCharge(*BudgetControl, uint64) {}

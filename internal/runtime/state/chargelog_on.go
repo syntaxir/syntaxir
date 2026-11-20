@@ -8,10 +8,11 @@ import (
 	"strings"
 )
 
-// ChargeLog, when not nil, receives each reservation with the function chain that made it.
+// ChargeLog, when not nil, receives each reservation with the function chain that made it. The chain
+// starts with "doc " for work that only a Document does (BudgetControl.ChargeDoc, FreeBegin).
 var ChargeLog func(n uint64, where string)
 
-func logCharge(n uint64) {
+func logCharge(c *BudgetControl, n uint64) {
 	if ChargeLog == nil {
 		return
 	}
@@ -19,10 +20,12 @@ func logCharge(n uint64) {
 	k := runtime.Callers(3, pcs)
 	fr := runtime.CallersFrames(pcs[:k])
 	var b []string
+	doc := c.freeing
 	for {
 		f, more := fr.Next()
 		name := f.Function[strings.LastIndex(f.Function, "/")+1:]
 		if strings.HasPrefix(name, "state.(*BudgetControl)") {
+			doc = doc || name == "state.(*BudgetControl).ChargeDoc"
 			if !more {
 				break
 			}
@@ -33,5 +36,9 @@ func logCharge(n uint64) {
 			break
 		}
 	}
-	ChargeLog(n, strings.Join(b, " < "))
+	where := strings.Join(b, " < ")
+	if doc && c.DefaultCompute {
+		where = "doc " + where
+	}
+	ChargeLog(n, where)
 }
