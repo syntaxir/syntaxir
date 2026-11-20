@@ -3,11 +3,19 @@
 package engine
 
 // knownChargeDivergences lists the pairs of charge case and backend that diverge from the closure
-// backend today, as "case|backend" ("case|*" for every backend). The backends do not yet charge the
+// backend today, as "case|backend" ("case|*" for every backend), and as "case|table" the cases
+// whose closure units differ from chargeTableUnits. The backends do not yet charge the
 // abstract units that spec/runtime/parsing.md requires; each change that makes a backend charge
 // them removes its pairs, and a new divergence fails the tests. The testdata grammars are not
 // listed by backend yet.
 var knownChargeDivergences = map[string]bool{
+	"literal|table":                 true,
+	"class repetition|table":        true,
+	"class sequence|table":          true,
+	"choice of sequences|table":     true,
+	"repeat or class|table":         true,
+	"rules|table":                   true,
+	"lookahead|table":               true,
 	"cel|*":                         true,
 	"csv|*":                         true,
 	"cue|*":                         true,
