@@ -225,6 +225,14 @@ var skipRunMutations = map[string][][2]string{
 // results of the parses of the nested inputs with the nested recovery grammar of the skip-run tests.
 func skipRunSpends(t *testing.T, goBin string, controls []complexitytest.Control, sizes []int, nested []string, mutation string) (spends [][]uint64, results []string) {
 	t.Helper()
+	return libSpends(t, goBin, controls, sizes, nested, "skip_runs.go", skipRunMutations[mutation])
+}
+
+// libSpends is skipRunSpends with the embedded library file libgo/file changed by the
+// replacements of mutation, each of which must find its text. Without nested inputs it builds the
+// controls alone.
+func libSpends(t *testing.T, goBin string, controls []complexitytest.Control, sizes []int, nested []string, file string, mutation [][2]string) (spends [][]uint64, results []string) {
+	t.Helper()
 	dir := t.TempDir()
 	write := func(name string, content []byte) {
 		path := filepath.Join(dir, filepath.FromSlash(name))
@@ -237,7 +245,7 @@ func skipRunSpends(t *testing.T, goBin string, controls []complexitytest.Control
 	var imports, entries strings.Builder
 	sources := controls
 	for _, g := range codegentest.SkipRunGrammars {
-		if g.Name == "nested recovery" {
+		if g.Name == "nested recovery" && len(nested) > 0 {
 			sources = append(sources[:len(controls):len(controls)], complexitytest.Control{Name: g.Name, Source: g.Src, Input: func(int) string { return "" }})
 		}
 	}
@@ -251,17 +259,22 @@ func skipRunSpends(t *testing.T, goBin string, controls []complexitytest.Control
 		if err != nil {
 			t.Fatalf("%s: %v", c.Name, err)
 		}
+		mutated := false
 		for _, f := range files {
 			content := string(f.Content)
-			if strings.HasSuffix(f.Path, "libgo/skip_runs.go") && mutation != "" {
-				for _, r := range skipRunMutations[mutation] {
+			if strings.HasSuffix(f.Path, "libgo/"+file) {
+				mutated = true
+				for _, r := range mutation {
 					if !strings.Contains(content, r[0]) {
-						t.Fatalf("mutation %s: %q not in the library", mutation, r[0])
+						t.Fatalf("mutation: %q not in libgo/%s", r[0], file)
 					}
 					content = strings.Replace(content, r[0], r[1], 1)
 				}
 			}
 			write(pkg+"/"+f.Path, []byte(content))
+		}
+		if !mutated && len(mutation) > 0 {
+			t.Fatalf("%s: no libgo/%s to mutate", c.Name, file)
 		}
 		var inputs []string // none for the nested recovery grammar, which only gives results
 		if i < len(controls) {

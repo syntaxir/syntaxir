@@ -282,6 +282,12 @@ func TestOperatorsLoopMutantsFail(t *testing.T) {
 			// An application that consumed no input ends the loop, which these tests reach.
 			{{"ExprRhs", "\tif p.Pos == st.M0.Pos {\n\t\treturn true, true\n\t}\n", ""}},
 		}},
+		// The cost contract of the bound: the levels that end at one position do not parse the right
+		// operand of a part that one of them refused again. Without the bound, the probe is quadratic.
+		{"^TestOperatorsRefusedPartLinear$", "zeroparse.dev/zp/internal/testing/complexitytest", [][]funcEdit{
+			{{"operatorsRuleExpr", "level > bound ||", "level > bound && false ||"}},
+			{{"ExprLed", "level <= st.Min || level > st.Bound ||", "level <= st.Min ||"}},
+		}},
 		{"^TestBackendsMatchOnCorpus$", ".", [][]funcEdit{
 			{{"Longest", "p.Pos > best.End", "p.Pos >= best.End"}},
 			{{"LongestStep", "p.Pos > st.Best.End", "p.Pos >= st.Best.End"}},

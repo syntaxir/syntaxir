@@ -44,6 +44,20 @@ func parens(n int) string { return rep("(", n) + "n" + rep(")z", n) }
 
 func double(n int) []int { return []int{n, 2 * n, 4 * n} }
 
+// OperatorsRefusedPartGrammar and OperatorsRefusedPartInput are the probe of the cost contract of
+// an Operators Rule that nests (spec/runtime/parsing.md, "Expressions That Repeat Cost"): the
+// right operand of the last "^" scans the n prefix operators and then fails, so the innermost
+// level refuses that part, and the n levels that enclose it end at the same position. None of
+// them may parse that right operand again, so the cost is linear; a loop that tried the part at
+// every enclosing level would scan the prefixes n times. The generated-parser tests measure the
+// same probe.
+const OperatorsRefusedPartGrammar = "rule main = e \"^\" \"-\"* \";\" $$\nrule e = #operators {\n    operand \"n\"\n    level a { infix right \"^\" }\n    level p { prefix \"-\" }\n}\n"
+
+// OperatorsRefusedPartInput is the input of size n of OperatorsRefusedPartGrammar.
+func OperatorsRefusedPartInput(n int) string {
+	return rep("n^", n) + "n^" + rep("-", n) + ";"
+}
+
 // regionGrammar is a grammar of nested terms whose blanks hold comments. The lookahead
 // !(ws ".") fails after ws has scanned a comment, and what follows evaluates ws again where it
 // started.

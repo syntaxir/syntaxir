@@ -701,6 +701,33 @@ they are evaluated again over the same input.
 | A rule that reads variables | As for any rule, once for each combination of values | Calls at one position bind its variables to many different values |
 | An action or predicate | Proportional to the sizes of the values it reads and builds | A value grows from its own earlier value, as `s + s` does |
 
+An Operators Rule that [nests](#conditions-for-linear-cost) through the right
+operands of its operator parts can end an inner level and the levels that
+enclose it at one position, and each of those levels evaluates the `skip` and
+tries the operator parts there again. After a level applies an infix or prefix
+operator, it applies next only an operator that the right operand of that
+operator does not admit by its binding level. An infix operator applies only
+where the level admits it, so its right operand admits no part that the level
+around it does not; only a prefix operator, which applies at the start of a
+right operand whatever its binding level, can give its own right operand parts
+that the right operand around it does not admit. So when every infix operator
+part that the right operand of a prefix operator part admits is also admitted
+by the right operand of every infix and prefix operator part, none of the
+levels that end at one position parses the right operand of an operator part
+again once one of them has tried it and refused the part: every right operand
+around the level that tried the part admits it, so each level around ends
+without trying it. This changes no result: the longest match is deterministic,
+so it is the same part at every level, and its right operand would be the same
+parse with the same minimum binding level, so the part would be refused again.
+So the right operand of a refused part is parsed once at a position, and what
+the enclosing levels repeat there is the `skip` and the operator parts alone.
+Otherwise the right operand can be parsed again at each level: with
+`level low { prefix "-" }`, `level mid { infix left "*" }` and
+`level high { infix right "^" }`, the right operand of each `-` in
+`a^-a^-b*--;` admits `*` and tries it; the right operand of `*` scans the `-`
+and fails at `;`, and each `^` level around tries `*` and that right operand
+again, since its own right operand does not admit `*`.
+
 ### Skip Runs
 
 The skip expression of a `#recover` runs at every position where the base
