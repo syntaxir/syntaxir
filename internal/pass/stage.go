@@ -15,6 +15,10 @@ import (
 // previous one returns. Every step of a stage has a Step, a description that does not depend on its
 // types, which the observers, the dumps and the listing of the pipeline read.
 //
+// A unit may hold several functions, such as the module of a rule table, whose passes run on one
+// function at a time: EachFunc makes the passes of a Pipeline over a unit of one function a stage over
+// the unit of several, which runs them pass by pass over the functions in order.
+//
 // One Run manages a compilation: it says which optional passes are on, verifies after each pass on
 // request, numbers the runs of optional passes in the order they happen and tells its observers
 // about each step. After the first failure of a unit's run, only the required steps of the rest of
@@ -208,53 +212,123 @@ type Transform[M, X any] struct {
 // after a failed pass, the unit as the passes left it, or with t.Keep the unit as the stage got it,
 // on which the required steps after the stage go on.
 func Transforms[M, X any](t Transform[M, X]) Stage[M, M] {
-	var steps []Step
-	for _, ps := range t.Pipeline.Passes {
-		steps = append(steps, Step{Name: ps.Name, In: t.IR.Stage, Out: t.IR.Stage, Dump: ps.Name})
-	}
-	return Stage[M, M]{steps: steps, err: checkKeep(t.Keep, t.Pipeline.Copy), run: func(r *Run, l Label, m M, st *state) M {
+	return Stage[M, M]{steps: t.steps(), err: checkKeep(t.Keep, t.Pipeline.Copy), run: func(r *Run, l Label, m M, st *state) M {
 		if st.err != nil {
 			return m
 		}
-		print := func(after string, m M) func(io.Writer) {
-			return func(w io.Writer) {
-				if t.IR.Print != nil {
-					t.IR.Print(w, l, after, m)
-				}
-			}
-		}
-		seqs := map[string]int{}
-		step := func(name string) Step {
-			return Step{Name: name, In: t.IR.Stage, Out: t.IR.Stage, Dump: name}
-		}
-		o := Options[M]{
-			Enabled:       r.Enabled,
-			VerifyEach:    r.VerifyEach,
-			Keep:          t.Keep,
-			BuiltVerified: t.BuiltVerified,
-			gate: func(name string) bool {
-				r.seq++
-				seqs[name] = r.seq
-				e := Event{Seq: r.seq, Step: step(name), Label: l}
-				for _, ob := range r.Observers {
-					if !ob.Before(e) {
-						return false
-					}
-				}
-				return true
-			},
-			ran: func(name string, m M) {
-				r.after(Event{Seq: seqs[name], Step: step(name), Label: l}, print(name, m), m)
-			},
-		}
-		if t.Analyses != nil {
-			o.Analyses = t.Analyses(m)
-		}
-		m, _, err := t.Pipeline.Run(m, t.Env(r, l, m), o)
+		m, _, err := t.Pipeline.Run(m, t.Env(r, l, m), t.options(r, l, m))
 		if err != nil {
 			st.fail(err)
 		}
 		return m
+	}}
+}
+
+// steps returns the steps of the passes of t.
+func (t Transform[M, X]) steps() []Step {
+	var steps []Step
+	for _, ps := range t.Pipeline.Passes {
+		steps = append(steps, t.step(ps.Name))
+	}
+	return steps
+}
+
+func (t Transform[M, X]) step(name string) Step {
+	return Step{Name: name, In: t.IR.Stage, Out: t.IR.Stage, Dump: name}
+}
+
+// options returns the options of the run of the passes of t on the unit m, labeled l, under r: the
+// settings and the verification of r, and the numbering and the observers of each run of an
+// optional pass.
+func (t Transform[M, X]) options(r *Run, l Label, m M) Options[M] {
+	seqs := map[string]int{}
+	o := Options[M]{
+		Enabled:       r.Enabled,
+		VerifyEach:    r.VerifyEach,
+		Keep:          t.Keep,
+		BuiltVerified: t.BuiltVerified,
+		gate: func(name string) bool {
+			r.seq++
+			seqs[name] = r.seq
+			e := Event{Seq: r.seq, Step: t.step(name), Label: l}
+			for _, ob := range r.Observers {
+				if !ob.Before(e) {
+					return false
+				}
+			}
+			return true
+		},
+		ran: func(name string, m M) {
+			r.after(Event{Seq: seqs[name], Step: t.step(name), Label: l}, func(w io.Writer) {
+				if t.IR.Print != nil {
+					t.IR.Print(w, l, name, m)
+				}
+			}, m)
+		},
+	}
+	if t.Analyses != nil {
+		o.Analyses = t.Analyses(m)
+	}
+	return o
+}
+
+// Funcs describes a unit W that holds several functions to the passes of a pipeline that run on a
+// unit M of one function (EachFunc).
+type Funcs[W, M any] struct {
+	// Len returns the number of functions of w.
+	Len func(w W) int
+	// Name returns the name of the function i of w, which labels its runs.
+	Name func(w W, i int) string
+	// Get returns the unit of the function i of w, which the passes consume.
+	Get func(w W, i int) M
+	// Put puts m, the unit that the passes made from Get(w, i), in place of the function i of w. A
+	// unit that w cannot take is a failure of the stage.
+	Put func(w W, i int, m M) error
+}
+
+// EachFunc makes the passes of t.Pipeline a stage over a unit of several functions that f describes:
+// it runs them on the unit of each function as Transforms does, pass by pass: the first pass on every
+// function in order, then the second, and so on. Each function has its own context (t.Env), analyses
+// and verification, and each run of an optional pass on a function is numbered and observed with the
+// function in its label, so that the numbering and the dumps follow the passes and, within a pass, the
+// order of the functions. A pass that fails on a function ends the passes of that function, which
+// the stage leaves as Pipeline.Run leaves it (t.Keep), while the other functions go on; it is the
+// failure of the stage, and the first one is returned. The stage skips its passes after a failure of
+// an earlier one, as Transforms does.
+func EachFunc[W, M, X any](f Funcs[W, M], t Transform[M, X]) Stage[W, W] {
+	return Stage[W, W]{steps: t.steps(), err: checkKeep(t.Keep, t.Pipeline.Copy), run: func(r *Run, l Label, w W, st *state) W {
+		if st.err != nil {
+			return w
+		}
+		n := f.Len(w)
+		runs := make([]*unitRun[M, X], n)
+		for i := range n {
+			fl := Label{Table: l.Table, Func: f.Name(w, i)}
+			m := f.Get(w, i)
+			u, err := t.Pipeline.start(m, t.Env(r, fl, m), t.options(r, fl, m))
+			if err != nil {
+				st.fail(err)
+				return w
+			}
+			runs[i] = u
+		}
+		for _, ps := range t.Pipeline.Passes {
+			for _, u := range runs {
+				if err := u.step(ps); err != nil {
+					st.fail(err)
+				}
+			}
+		}
+		for i, u := range runs {
+			m, _, err := u.finish()
+			if err != nil {
+				st.fail(err)
+			}
+			if err := f.Put(w, i, m); err != nil {
+				st.fail(err)
+			}
+		}
+		return w
 	}}
 }
 

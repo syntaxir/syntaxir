@@ -180,103 +180,154 @@ func (p *Pipeline[M, X]) Names() []string {
 // it Run returns the unit as the passes left it: the unit that the failed pass was given, which it
 // may have changed, or the one that failed the verification. With o.Keep it returns m instead.
 func (p *Pipeline[M, X]) Run(m M, x X, o Options[M]) (M, []string, error) {
-	if err := p.Validate(); err != nil {
+	u, err := p.start(m, x, o)
+	if err != nil {
 		return m, nil, err
+	}
+	for _, ps := range p.Passes {
+		u.step(ps)
+	}
+	return u.finish()
+}
+
+// unitRun is the run of the passes of a pipeline on one unit, one pass at a time (Pipeline.Run): start
+// begins it, step runs one pass, and finish verifies the unit and returns it. A stage that runs the
+// passes of a pipeline on the functions of a unit pass by pass (EachFunc) runs one per function.
+type unitRun[M, X any] struct {
+	p   *Pipeline[M, X]
+	x   X
+	o   Options[M]
+	am  *AnalysisManager[M]
+	in  M        // the unit as the run got it, which a kept run returns after a failure
+	m   M        // the unit after the passes that ran
+	ran []string // the names of the passes that ran
+	err error    // the failure that ended the passes of the run
+}
+
+// start validates the pipeline and the options, dumps m as it reaches the first pass and returns the
+// run of the passes on m under the mode x.
+func (p *Pipeline[M, X]) start(m M, x X, o Options[M]) (*unitRun[M, X], error) {
+	if err := p.Validate(); err != nil {
+		return nil, err
 	}
 	if err := checkKeep(o.Keep, p.Copy); err != nil {
-		return m, nil, err
+		return nil, err
 	}
 	if o.Dump != nil && o.Entry == "" {
-		return m, nil, fmt.Errorf("a run with a dump names no step for the unit as it reaches the first pass")
+		return nil, fmt.Errorf("a run with a dump names no step for the unit as it reaches the first pass")
 	}
-	in := m
 	am := o.Analyses
 	if am == nil {
 		am = NewAnalysisManager[M](nil)
 	}
-	ensure := func(as []Analysis, m M) error {
-		for _, a := range as {
-			run := p.Analyses[a]
-			if _, err := getNamed(am, m, string(a), func(m M, _ *AnalysisManager[M]) (any, error) {
-				run(m)
-				return nil, nil
-			}); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-	verify := func(who string, m M) error {
-		if p.Verify == nil {
-			return nil
-		}
-		if err := ensure(p.VerifyRequires, m); err != nil {
-			return fmt.Errorf("%s: %w", who, err)
-		}
-		if err := p.Verify(m); err != nil {
-			return fmt.Errorf("%s: %w", who, err)
-		}
-		return nil
-	}
 	if o.Dump != nil {
 		o.Dump(o.Entry, m)
 	}
-	var ran []string
-	// failed returns the unit after a failure: the one the run was given if the caller keeps it,
-	// otherwise u, as the passes left it. A failed pass may have changed u in place, so the
-	// analyses cached for u are discarded: a manager of the caller's is never served them stale.
-	failed := func(u M) M {
-		if o.Keep {
-			return in
+	return &unitRun[M, X]{p: p, x: x, o: o, am: am, in: m, m: m}, nil
+}
+
+// ensure makes the analyses as valid for the unit m.
+func (u *unitRun[M, X]) ensure(as []Analysis, m M) error {
+	for _, a := range as {
+		run := u.p.Analyses[a]
+		if _, err := getNamed(u.am, m, string(a), func(m M, _ *AnalysisManager[M]) (any, error) {
+			run(m)
+			return nil, nil
+		}); err != nil {
+			return err
 		}
-		am.Invalidate(PreservedSet{})
-		return u
 	}
-	for _, ps := range p.Passes {
-		if o.Enabled != nil && !o.Enabled(ps.Name) || ps.Applies != nil && !ps.Applies(x) {
-			continue
-		}
-		if o.gate != nil && !o.gate(ps.Name) {
-			continue
-		}
-		// A kept unit is copied before the first pass that runs, which the later ones go on
-		// changing; under VerifyEach each pass gets a copy of its own, so that no pass changes a unit
-		// that a dump or an observer was given. A copy keeps the analyses of its unit.
-		if p.Copy != nil && (o.VerifyEach || o.Keep && len(ran) == 0) {
-			c := p.Copy(m)
-			am.move(m, c)
-			m = c
-		}
-		if err := ensure(ps.Requires, m); err != nil {
-			return failed(m), ran, fmt.Errorf("pass %s: %w", ps.Name, err)
-		}
-		out, keep, err := ps.Run(m, x)
-		if err != nil {
-			return failed(m), ran, fmt.Errorf("pass %s: %w", ps.Name, err)
-		}
-		ran = append(ran, ps.Name)
-		if o.Dump != nil {
-			o.Dump(ps.Name, out)
-		}
-		if o.ran != nil {
-			o.ran(ps.Name, out)
-		}
-		// The analyses the pass preserved hold for its result. A manager bound to the result
-		// discards them when it is asked about another unit, such as m after a failure.
-		am.Invalidate(keep)
-		am.move(m, out)
-		if o.VerifyEach {
-			if err := verify("after pass "+ps.Name, out); err != nil {
-				return failed(out), ran, err
-			}
-		}
-		m = out
+	return nil
+}
+
+// verify verifies the unit m, after the analyses that the verification reads; who names the check.
+func (u *unitRun[M, X]) verify(who string, m M) error {
+	if u.p.Verify == nil {
+		return nil
 	}
-	if o.BuiltVerified && len(ran) == 0 {
-		return m, ran, nil
+	if err := u.ensure(u.p.VerifyRequires, m); err != nil {
+		return fmt.Errorf("%s: %w", who, err)
 	}
-	if err := verify("verification", m); err != nil {
-		return failed(m), ran, err
+	if err := u.p.Verify(m); err != nil {
+		return fmt.Errorf("%s: %w", who, err)
 	}
-	return m, ran, nil
+	return nil
+}
+
+// fail ends the passes of the run with err, which names the pass or the check that failed, and
+// leaves the unit after the failure: the one the run was given if the caller keeps it, otherwise m,
+// as the passes left it. A failed pass may have changed m in place, so the analyses cached for m are
+// discarded: a manager of the caller's is never served them stale.
+func (u *unitRun[M, X]) fail(m M, err error) {
+	if u.o.Keep {
+		m = u.in
+	} else {
+		u.am.Invalidate(PreservedSet{})
+	}
+	u.m, u.err = m, err
+}
+
+// step runs the pass ps on the unit if it is enabled and applies, unless an earlier pass failed. It
+// reports the failure of ps.
+func (u *unitRun[M, X]) step(ps Pass[M, X]) error {
+	o := u.o
+	if u.err != nil || o.Enabled != nil && !o.Enabled(ps.Name) || ps.Applies != nil && !ps.Applies(u.x) {
+		return nil
+	}
+	if o.gate != nil && !o.gate(ps.Name) {
+		return nil
+	}
+	m := u.m
+	// A kept unit is copied before the first pass that runs, which the later ones go on changing;
+	// under VerifyEach each pass gets a copy of its own, so that no pass changes a unit that a dump
+	// or an observer was given. A copy keeps the analyses of its unit.
+	if u.p.Copy != nil && (o.VerifyEach || o.Keep && len(u.ran) == 0) {
+		c := u.p.Copy(m)
+		u.am.move(m, c)
+		m = c
+	}
+	if err := u.ensure(ps.Requires, m); err != nil {
+		u.fail(m, fmt.Errorf("pass %s: %w", ps.Name, err))
+		return u.err
+	}
+	out, keep, err := ps.Run(m, u.x)
+	if err != nil {
+		u.fail(m, fmt.Errorf("pass %s: %w", ps.Name, err))
+		return u.err
+	}
+	u.ran = append(u.ran, ps.Name)
+	if o.Dump != nil {
+		o.Dump(ps.Name, out)
+	}
+	if o.ran != nil {
+		o.ran(ps.Name, out)
+	}
+	// The analyses the pass preserved hold for its result. A manager bound to the result discards
+	// them when it is asked about another unit, such as m after a failure.
+	u.am.Invalidate(keep)
+	u.am.move(m, out)
+	if o.VerifyEach {
+		if err := u.verify("after pass "+ps.Name, out); err != nil {
+			u.fail(out, err)
+			return u.err
+		}
+	}
+	u.m = out
+	return nil
+}
+
+// finish ends the run: unless a pass failed, it verifies the unit, and it returns the unit, the names
+// of the passes that ran and the failure, as Pipeline.Run does.
+func (u *unitRun[M, X]) finish() (M, []string, error) {
+	if u.err != nil {
+		return u.m, u.ran, u.err
+	}
+	if u.o.BuiltVerified && len(u.ran) == 0 {
+		return u.m, u.ran, nil
+	}
+	if err := u.verify("verification", u.m); err != nil {
+		u.fail(u.m, err)
+		return u.m, u.ran, u.err
+	}
+	return u.m, u.ran, nil
 }
