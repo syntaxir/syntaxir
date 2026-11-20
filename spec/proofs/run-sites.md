@@ -1,6 +1,6 @@
 # Run Sites
 
-Arata Furukawa · Last revised 2026-11-17
+Arata Furukawa · Last revised 2026-11-21
 
 This proof covers the records of [run sites](../runtime/parsing.md#run-sites).
 A reused record gives what the rest of the walk would have given, in the
@@ -79,6 +79,25 @@ and when it matches, $\eta' = \eta$:
 For such a site, write $E(r)$ for $E(r, \eta)$. Every skip-run site is free of
 the environment by its conditions.
 
+For any other site, its **key** $V_\sigma$ is the set of the variables that
+the predicates of $e$ read or bind and those that the rules that $e$ calls
+read, directly or indirectly, in a predicate or an action, and
+$B_\sigma \subseteq V_\sigma$ is the set of the variables that the predicates
+of $e$ bind. Write $\eta|_V$ for the values that $\eta$ gives the variables
+of $V_\sigma$. Then $E(r, \eta)$ gives the same for every two environments
+with the same $\eta|_V$, and when it matches, $\eta'$ agrees with $\eta$
+outside $B_\sigma$:
+
+- a predicate of $e$ reads only variables of $V_\sigma$, and a predicate or
+  action of a rule that $e$ calls only variables that the rule reads, which
+  are in $V_\sigma$;
+- a call of a rule is memoized with the values of the variables that the rule
+  reads in its key ([Interaction With
+  Memoization](../language/predicates.md#interaction-with-memoization)), so a
+  result that it reuses was stored under the same values and is the same;
+- a binding that a called rule makes is undone when that rule returns, so
+  an iteration changes only the variables that the predicates of $e$ bind.
+
 **The rest of a walk.** Define $\mathrm{Rest}(r, \eta)$, the end, end
 environment, outcome, range, values and errors of the walk from $r$ on in
 $\eta$, as in the Skip Runs proof:
@@ -97,15 +116,27 @@ An iteration that fails recovers no error that survives, since its errors are
 dropped with the failure. The recursion terminates because $r' > r$. For a
 site free of the environment, $\mathrm{Rest}(r, \eta)$ does not depend on
 $\eta$, by induction on $n - r$, and its end environment is $\eta$. Write
-$\mathrm{Rest}(r)$ for it, without the end environment.
+$\mathrm{Rest}(r)$ for it, without the end environment. For any other site,
+by induction on $n - r$ in the same way, $\mathrm{Rest}(r, \eta)$ is the same
+for every two environments with the same $\eta|_V$, apart from its end
+environment, which agrees with $\eta$ outside $B_\sigma$ and gives the
+variables of $B_\sigma$ values that depend only on $\eta|_V$: by the above,
+$E(r, \eta)$ depends only on $\eta|_V$, and so does $\eta'|_V$, which agrees
+with $\eta|_V$ outside $B_\sigma$ and takes the values that $E(r, \eta)$
+binds on it. Call those values of the variables of $B_\sigma$ the **end
+values** of $\mathrm{Rest}(r, \eta)$.
 
 **Keys.** A record of a site that is not free of the environment is stored
-under its position and the environment object in which the walk visited that
-position. A walk looks one up under its position and its current environment
-object. A record of a site free of the environment is stored and looked up
-under its position alone. Two environment objects that are equal but distinct
-give distinct keys. Since that changes only which records a walk finds, never
-what one holds, the lemmas below hold for keys by object as stated.
+under its position and the values $\eta|_V$ of its key in the environment
+$\eta$ in which the walk visited that position, and holds, besides what a
+record of a skip-run site holds, the end values of the rest of the walk. A
+walk looks one up under its position and the values of the key in its
+current environment, compared as the values of a memo key are: a record
+under the same position and other values is neither found nor replaced, and
+environments with equal values of the key find the same records, whatever
+their other variables and whether or not they were built apart
+([Run Sites](../runtime/parsing.md#run-sites)). A record of a site free of
+the environment is stored and looked up under its position alone.
 
 ### Record Kinds
 
@@ -128,11 +159,13 @@ after.
 ## Lemma 1 (Exactness)
 
 For a site that is not free of the environment, every record stored under
-$(r, \eta)$ equals $\mathrm{Rest}(r, \eta)$. For a site free of the
-environment, every record stored under $r$ equals $\mathrm{Rest}(r)$. A walk
-that reuses a record ends where the walk that evaluated the iterations from
-there would end. Its environment is then the record's end environment, or its
-own for a site free of the environment. It leaves the enclosing result with
+$(r, \eta|_V)$ equals $\mathrm{Rest}(r, \eta)$, end values included, which
+is the same for every environment with the values $\eta|_V$ of the key
+([Setting](#setting)). For a site free of the environment, every record
+stored under $r$ equals $\mathrm{Rest}(r)$. A walk that reuses a record ends
+where the walk that evaluated the iterations from there would end. Its
+environment is then its own with the variables of $B_\sigma$ bound to the
+record's end values, or its own for a site free of the environment. It leaves the enclosing result with
 the same outcome and range, lists the same values after its own, recovers the
 same errors after its own, and succeeds or fails as that walk would.
 
@@ -153,23 +186,27 @@ environment that $E(r_m, \eta_m)$ left. The walk ends in one of two ways.
   $\mathrm{Rest}(r_k, \eta_k)$.
 - At a position $r_{k+1}$ with a record found under its key, which notes
   values if the walk builds them ([Record Kinds](#record-kinds)). The record was
-  stored earlier, so it is $\mathrm{Rest}(r_{k+1}, \eta_{k+1})$ by the
-  induction hypothesis, with its values when the walk builds them. For a site free of the environment it is
-  $\mathrm{Rest}(r_{k+1})$, which is the same.
+  stored earlier, under the values $\eta_{k+1}|_V$, so it is
+  $\mathrm{Rest}(r_{k+1}, \eta_{k+1})$ by the induction hypothesis, end values
+  included, with its values when the walk builds them. For a site free of the
+  environment it is $\mathrm{Rest}(r_{k+1})$, which is the same.
 
 The other records are stored from $r_k$ back to $r_j$. Each combines the
 iteration at $r_m$ with the record just stored for $r_{m+1}$:
 
 - the outcome and range by $\cdot$ and $\sqcup$;
-- the end environment of the record after it;
+- the end values of the record after it;
 - the values as the suffix of the walk's list from the value of the iteration
   at $r_m$ on, whose tail is the list that the next record holds;
 - the errors as those of the iteration followed by those of the next record.
 
 That is the second case of the definition, so the record is
-$\mathrm{Rest}(r_m, \eta_m)$. For a site free of the environment, the walk
-keeps no environment in the record, and the record is $\mathrm{Rest}(r_m)$.
-This proves the first claim.
+$\mathrm{Rest}(r_m, \eta_m)$: its end environment is that of the record
+after it, which agrees with $\eta_{m+1}$, and so with $\eta_m$, outside
+$B_\sigma$, and gives $B_\sigma$ the end values of that record. The walk
+stores it under $(r_m, \eta_m|_V)$. For a site free of the environment, the
+walk keeps no end values in the record, and the record is
+$\mathrm{Rest}(r_m)$. This proves the first claim.
 
 A walk looks up a slot only after it has matched $c_{\min}$ iterations, so the
 walk that evaluates on from there succeeds, and so does the walk that reuses
@@ -177,8 +214,11 @@ the record. The evaluating walk records the outcome and range of each
 iteration into the enclosing result in order, appends each value, and
 recovers each error. By associativity, a reuse that does these at once leaves
 the same result. A reuse in a site free of the environment keeps the walk's
-environment. By the setting, that is the environment that evaluating the
-iterations would leave. $\square$
+environment, and a reuse in any other site binds the variables of
+$B_\sigma$ to the end values of the record and keeps the others. By the
+setting, that is the environment that evaluating the iterations would leave:
+the end environment of $\mathrm{Rest}(r, \eta)$ agrees with $\eta$ outside
+$B_\sigma$ and gives $B_\sigma$ its end values. $\square$
 
 The walks of run sites nest. An iteration of $\sigma$ can call rules that walk
 other sites, or $\sigma$ itself at a later position. Lemma 1 holds for each
@@ -190,17 +230,20 @@ changes the result of a parse.
 
 ## Lemma 2 (Cost Once Hot)
 
-Fix a key class $\kappa$. For a site free of the environment, all walks of
-$(\sigma, \lambda)$ share one class. Otherwise, each environment object in
-which a walk visits a position is a class of its own. In a parse with $W$
-walks of $(\sigma, \lambda)$ while the site is hot, the element is evaluated
-in those walks at most $n + 1$ times at positions whose slot is fresh, at
-most $2(n + 1)$ times for each class at positions whose slot is not yet
-recorded under its key for the kind of the walk
-([Record Kinds](#record-kinds)), or $n + 1$ when the walks of
-$(\sigma, \lambda)$ are of one kind, plus $W (c_{\min} + 1)$ times. The walks look up at most
-$2(n + 1) + W (c_{\min} + 1)$ slots for each class and store at most as many
-records as they evaluate iterations while recording.
+A **class** of a visit of a walk to a position is the key under which the
+walk looks up and stores the record of that position: for a site free of the
+environment, all visits share one class; otherwise, the class is the values
+of the key $V_\sigma$ in the environment of the visit, and two visits with
+equal values share it. Let $P$ be the number of pairs of a position and a
+class in which the walks of $(\sigma, \lambda)$ visit that position while
+the site is hot. In a parse with $W$ walks of $(\sigma, \lambda)$ while the
+site is hot, the element is evaluated in those walks at most $n + 1$ times at
+positions whose slot is fresh, at most $2P$ times at positions whose slot is
+not yet recorded under the class of the visit for the kind of the walk
+([Record Kinds](#record-kinds)), or $P$ when the walks of
+$(\sigma, \lambda)$ are of one kind, plus $W (c_{\min} + 1)$ times. The
+walks look up at most $2P + W (c_{\min} + 1)$ slots and store at most as
+many records as they evaluate iterations while recording.
 
 *Proof.* The marks of visited positions are one bit for each position, for
 every class. A mark moves a slot from fresh to visited for all classes at
@@ -210,19 +253,21 @@ in [Lemma 2](skip-runs.md#lemma-2-cost) of the Skip Runs proof.
 1. *A plain walk at a fresh slot.* Each position is marked at most once, so
    there are at most $n + 1$ such evaluations at positions that the walk
    marks, plus at most one per walk at the position that it does not mark.
-2. *A recording walk at a slot not recorded under its key.* The walk stores a
-   record under that key for every position it visited while recording, once
-   it ends. While it runs, an inner walk of $\sigma$ can begin, but only inside
-   an iteration at $r_m$ and at a position after $r_m$. A walk at $r_m$ itself
+2. *A recording walk at a slot not recorded under the class of its visit.* The
+   walk stores a record under the class of each visit for every position it
+   visited while recording, once it ends. While it runs, an inner walk of
+   $\sigma$ can begin, but only inside an iteration at $r_m$ and at a position
+   after $r_m$. A walk at $r_m$ itself
    would be a call that reaches $\sigma$ again at $r_m$ before it consumes
    input, which the conditions exclude. The inner walk ends, and stores its
    records, before the iteration at $r_m$ ends. The outer walk visits its later
-   positions only after that, so it finds the inner walk's records under the
-   same key. So each slot and class is evaluated this way at most once before
-   it is recorded for each kind of walk, since a record that notes values
-   serves both kinds and no later store takes it back to one without
-   ([Record Kinds](#record-kinds)): at most $2(n + 1)$ evaluations per class, and at most
-   $n + 1$ when the walks of $(\sigma, \lambda)$ are of one kind.
+   positions only after that, so where it visits a position of the inner walk
+   in the class of the inner walk's visit there, it finds the inner walk's
+   record. So each pair of a position and a class is evaluated this way at most
+   once before it is recorded for each kind of walk, since a record that
+   notes values serves both kinds and no later store takes it back to one
+   without ([Record Kinds](#record-kinds)): at most $2P$ evaluations, and at
+   most $P$ when the walks of $(\sigma, \lambda)$ are of one kind.
 3. *A recording walk at a recorded slot.* This happens only within the first
    $c_{\min}$ iterations of the walk: at most $W c_{\min}$ evaluations.
 
@@ -230,15 +275,19 @@ A walk that a limit or a cancellation stops stores nothing, and no evaluation
 follows it. Lookups precede evaluations of cases 2 and 3 or end a walk.
 $\square$
 
-For a site free of the environment there is one class, so the walks of
-$(\sigma, \lambda)$ evaluate the element at most $3(n + 1) + W(c_{\min} + 1)$
-times while hot, and at most $2(n + 1) + W(c_{\min} + 1)$ when they are of
-one kind. For a site that is not free of the environment, the bound
-grows with the number of environment objects in which its walks visit one
-position. Nothing bounds that number by the input: a binding before each walk
-makes a new object, and
-[Run Sites](../runtime/parsing.md#run-sites) gives a grammar where this costs
-more than linear.
+For a site free of the environment there is one class, so $P \le n + 1$ and
+the walks of $(\sigma, \lambda)$ evaluate the element at most
+$3(n + 1) + W(c_{\min} + 1)$ times while hot, and at most
+$2(n + 1) + W(c_{\min} + 1)$ when they are of one kind. For a site that is
+not free of the environment, let $K_\sigma$ be the largest number of distinct
+combinations of the values of the variables of its key among the visits
+that its walks make to one position. Then $P \le K_\sigma (n + 1)$, and the
+walks evaluate the element at most
+$(2 K_\sigma + 1)(n + 1) + W(c_{\min} + 1)$ times while hot. $K_\sigma$ is
+at most the product of the sizes of the value sets of the variables of the
+key when each has finitely many values. Otherwise nothing bounds it by the
+input: a binding of a new value before each walk makes a new combination at
+every position that the walks visit.
 
 ## Lemma 3 (Cost Before Hot)
 
@@ -269,7 +318,8 @@ and it is the last walk before the site is hot. Later walks fall under
 Lemma 2. $\square$
 
 So the walks of a site cost, before and after it turns hot, at most a constant
-times $n + W$ evaluations of the element when it is free of the environment.
+times $K_\sigma (n + 1) + W$ evaluations of the element, with $K_\sigma = 1$
+when it is free of the environment.
 
 ## Values
 
@@ -291,11 +341,13 @@ sites, in every kind of parse they run, and the generated parsers:
 
 - **Loaded programs.** A [compiled grammar](../runtime/compiled-grammars.md)
   marks in the [instruction](../bytecode/README.md) of each site whether it
-  is free of the environment. A program loaded from one keys the records of a
-  site by the environment unless its instruction marks it free, so it keeps
-  the keys of the program it was compiled from, and a site of which nothing
-  is marked is keyed, for which Lemma 1 holds as for any site that is not
-  free.
+  is free of the environment, and lists the variables of the key of every
+  other site, and those that it binds, in its
+  [run key table](../bytecode/README.md#run-key-table). A program loaded from
+  one keys the records of a site by the values of the variables that its
+  entry lists unless its instruction marks it free, and binds those that the
+  entry lists as bound when it reuses a record, so it keeps the keys of the
+  program it was compiled from.
 - **Streams.** A [stream](../runtime/streaming.md) drops the records of the
   positions before the input it commits. A dropped record is never looked up
   again, since no walk returns before a commit, so Lemma 1 holds of the
