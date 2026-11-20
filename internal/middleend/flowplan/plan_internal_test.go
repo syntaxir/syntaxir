@@ -25,7 +25,7 @@ func TestPlanTakesTheFallbackOfARefusedFunction(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if m, _, err = corepass.Run(m, &corepass.Env{}, corepass.RunOptions{}); err != nil {
+	if m, _, err = corepass.Run(m, corepass.RunOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	var rules []*Rule
@@ -89,7 +89,7 @@ func TestPlanRefusesByItsPredicate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if m, _, err = corepass.Run(m, &corepass.Env{}, corepass.RunOptions{}); err != nil {
+	if m, _, err = corepass.Run(m, corepass.RunOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	var rules []*Rule

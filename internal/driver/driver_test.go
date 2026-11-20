@@ -17,6 +17,7 @@ import (
 	"zeroparse.dev/zp/internal/middleend/flowlower"
 	"zeroparse.dev/zp/internal/middleend/flowpass"
 	"zeroparse.dev/zp/internal/pass"
+	"zeroparse.dev/zp/internal/pass/pipe"
 )
 
 // The driver runs the Core passes that the settings leave on, dumps the module after the selected
@@ -31,29 +32,15 @@ func TestDriverCore(t *testing.T) {
 	var hooked []string
 	d := &Driver{Opt: off, PrintAfter: []string{Elaborate, corepass.PassGuards}, PrintTo: &dump, VerifyEach: true,
 		Hooks: Hooks{CoreHook: func(pass string, _ *core.Module) { hooked = append(hooked, pass) }}}
-	var ran []string
-	p := *corepass.Pipeline
-	p.Passes = slices.Clone(p.Passes)
-	for i := range p.Passes {
-		run := p.Passes[i].Run
-		name := p.Passes[i].Name
-		p.Passes[i].Run = func(m *core.Module, e *corepass.Env) (*core.Module, pass.PreservedSet, error) {
-			ran = append(ran, name)
-			return run(m, e)
-		}
-	}
-	d.CorePipeline = func(string) *pass.Pipeline[*core.Module, *corepass.Env] { return &p }
 	if _, err := d.Core("typed", empty); err != nil {
 		t.Fatal(err)
 	}
+	// The hook sees the steps that ran: elaborate, and the passes whose flags are on.
 	want := []string{corepass.PassGuards}
-	if !slices.Equal(ran, want) {
-		t.Errorf("ran %v, want %v", ran, want)
-	}
 	if !slices.Equal(hooked, append([]string{Elaborate}, want...)) {
-		t.Errorf("hook saw %v", hooked)
+		t.Errorf("hook saw %v, want elaborate and the passes %v", hooked, want)
 	}
-	if !d.manager().VerifyEach {
+	if !d.pipeRun("typed", true).VerifyEach {
 		t.Error("VerifyEach did not reach the manager")
 	}
 	got := dump.String()
@@ -81,6 +68,35 @@ func TestDriverCore(t *testing.T) {
 	}
 }
 
+// elaborate computes the attributes of the module that build makes: the module after it carries the
+// attributes that core.Analyze computes, which the Core verifier checks and never writes.
+func TestDriverElaborateComputesTheAttributes(t *testing.T) {
+	build := func() (*core.Module, error) {
+		m := &core.Module{Exps: []string{`"a"`}}
+		m.Rules = []*core.Rule{{Name: "r", Body: &core.Lit{Text: "a"}, Policy: core.Policy{Seen: -1}}}
+		core.CallGraph(m)
+		return m, nil
+	}
+	var elaborated error
+	off, err := pass.Settings{}.Without(corepass.PassGuards, corepass.PassScans)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := &Driver{Opt: off, Hooks: Hooks{CoreHook: func(step string, m *core.Module) {
+		if step == Elaborate {
+			if elaborated = core.CheckAttributes(m); elaborated == nil && m.Rules[0].Body.Attrs().Eff.Set&core.EffConsume == 0 {
+				elaborated = errors.New("the literal has no consume effect")
+			}
+		}
+	}}}
+	if _, err := d.Core("rules", build); err != nil {
+		t.Fatal(err)
+	}
+	if elaborated != nil {
+		t.Errorf("the module after elaborate: %v", elaborated)
+	}
+}
+
 // empty builds an empty Core module, as the step elaborate of a program without rules does.
 func empty() (*core.Module, error) { return &core.Module{}, nil }
 
@@ -88,12 +104,13 @@ func empty() (*core.Module, error) { return &core.Module{}, nil }
 // failure of the step elaborate, with the message of the build.
 func TestDriverCoreError(t *testing.T) {
 	cause := errors.New("broken")
-	p := &pass.Pipeline[*core.Module, *corepass.Env]{Passes: []pass.Pass[*core.Module, *corepass.Env]{{
-		Name: "test-core-fail", Obligation: "none: it fails",
-		Run: func(m *core.Module, _ *corepass.Env) (*core.Module, pass.PreservedSet, error) {
+	failing := pipe.New(pipe.Def[*core.Module, *core.Module]{
+		Decl: pipe.Decl{Name: "test-core-fail", Test: true, Obligation: "none: it fails"},
+		In:   corepass.IR, Out: corepass.IR,
+		Run: func(_ *pipe.Ctx[*core.Module], m *core.Module) (*core.Module, pass.PreservedSet, error) {
 			return m, pass.PreserveAll(), cause
-		}}}}
-	d := &Driver{CorePipeline: func(string) *pass.Pipeline[*core.Module, *corepass.Env] { return p }, TestPasses: []string{"test-core-fail"}}
+		}})
+	d := &Driver{CorePipeline: func(string) pipe.Pipeline[*core.Module, *core.Module] { return pipe.Seq(corepass.IR, failing) }}
 	_, err := d.Core("typed", empty)
 	if !errors.Is(err, cause) || !strings.HasPrefix(err.Error(), "internal error: ") {
 		t.Fatalf("error %v", err)

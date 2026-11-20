@@ -13,16 +13,21 @@ import (
 	"zeroparse.dev/zp/internal/middleend/codepass"
 	"zeroparse.dev/zp/internal/middleend/corepass"
 	"zeroparse.dev/zp/internal/pass"
+	"zeroparse.dev/zp/internal/pass/pipe"
 	"zeroparse.dev/zp/internal/testing/codegentest"
 )
 
 // brokenGuards is a pass that runs after guards and leaves the first literal guard it finds out of
 // step with its alternative, which core.Verify rejects.
-var brokenGuards = pass.Pass[*core.Module, *corepass.Env]{
-	Name:       "break-guard",
-	After:      []string{corepass.PassGuards},
-	Obligation: "none: it breaks the module on purpose",
-	Run: func(m *core.Module, _ *corepass.Env) (*core.Module, pass.PreservedSet, error) {
+var brokenGuards = pipe.New(pipe.Def[*core.Module, *core.Module]{
+	Decl: pipe.Decl{
+		Name:       "break-guard",
+		Test:       true,
+		After:      []string{corepass.PassGuards},
+		Obligation: "none: it breaks the module on purpose",
+	},
+	In: corepass.IR, Out: corepass.IR,
+	Run: func(_ *pipe.Ctx[*core.Module], m *core.Module) (*core.Module, pass.PreservedSet, error) {
 		for _, r := range m.Rules {
 			if r == nil {
 				continue
@@ -49,22 +54,20 @@ var brokenGuards = pass.Pass[*core.Module, *corepass.Env]{
 		}
 		return m, pass.PreserveNone(), nil
 	},
-}
+})
 
 // withBrokenGuards returns hooks whose pipeline of Core passes has brokenGuards added after the
-// pass guards. The mutant is no registered optimization, so the hooks name it in TestPasses.
+// pass guards. The mutant is no registered optimization: it declares that it is a test pass.
 func withBrokenGuards() generate.Hooks {
-	p := *corepass.Pipeline
-	p.Passes = nil
-	for _, ps := range corepass.Pipeline.Passes {
-		p.Passes = append(p.Passes, ps)
-		if ps.Name == corepass.PassGuards {
-			p.Passes = append(p.Passes, brokenGuards)
+	var ps []*pipe.Pass[*core.Module, *core.Module]
+	for _, p := range corepass.Passes {
+		ps = append(ps, p)
+		if p.Name() == corepass.PassGuards {
+			ps = append(ps, brokenGuards)
 		}
 	}
 	return generate.Hooks{
-		CorePipeline: func(string) *pass.Pipeline[*core.Module, *corepass.Env] { return &p },
-		TestPasses:   []string{brokenGuards.Name},
+		CorePipeline: func(string) pipe.Pipeline[*core.Module, *core.Module] { return pipe.Seq(corepass.IR, ps...) },
 	}
 }
 
@@ -83,15 +86,15 @@ rule num = [0-9]+
 	hooks := withBrokenGuards()
 
 	_, err = print.GenerateParser(pg, codegentest.Compile, generate.Passes(opts, hooks), codegentest.WithLib(opts), nil)
-	if err == nil || !strings.Contains(err.Error(), "verification:") || strings.Contains(err.Error(), "break-guard") {
+	if err == nil || !strings.Contains(err.Error(), "verify core:") || strings.Contains(err.Error(), "break-guard") {
 		t.Fatalf("without VerifyEachPass: %v", err)
 	}
 	opts.VerifyEachPass = true
 	_, err = print.GenerateParser(pg, codegentest.Compile, generate.Passes(opts, hooks), codegentest.WithLib(opts), nil)
-	if err == nil || !strings.Contains(err.Error(), "after pass break-guard:") {
+	if err == nil || !strings.Contains(err.Error(), "internal error: break-guard: ") {
 		t.Fatalf("with VerifyEachPass: %v", err)
 	}
-	if !slices.Contains(corepass.Pipeline.Names(), corepass.PassGuards) {
+	if !slices.Contains(corepass.Names(), corepass.PassGuards) {
 		t.Fatal("no guards pass")
 	}
 }

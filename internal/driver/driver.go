@@ -1,6 +1,8 @@
 package driver
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"slices"
@@ -16,6 +18,7 @@ import (
 	"zeroparse.dev/zp/internal/middleend/flowlower"
 	"zeroparse.dev/zp/internal/middleend/flowpass"
 	"zeroparse.dev/zp/internal/pass"
+	"zeroparse.dev/zp/internal/pass/pipe"
 )
 
 // A Driver runs the pipeline of a compilation under one Settings value: it turns the passes on and
@@ -26,10 +29,11 @@ import (
 //
 // One Driver value is one compilation: its stages run under one manager (pass.Run), created when the
 // first stage runs, which numbers the runs of optional passes across the tables and functions of the
-// compilation and tells the observers (the dumps, CoreHook) about every step. A copy of a Driver
+// compilation and tells the observers (the dumps) about every step. A copy of a Driver
 // that has not run yet is a compilation of its own.
 //
-// Each stage consumes the unit it is given (pass.Stage.Run): Core takes the module that build makes,
+// The Core stage runs through the manager of internal/pass/pipe (pipe.Execute), the others through
+// pass.Run until they move to it. Each stage consumes the unit it is given: Core takes the module that build makes,
 // Flow the module that flowlower makes of the functions of a table and Exec the module of Flow. The
 // Core passes change their module in place, since a failure drops it. The Flow and Exec passes of a
 // function keep their unit (pass.Transform.Keep), since after one of them fails the required steps and
@@ -59,11 +63,12 @@ type Hooks struct {
 	// CorePipeline, FlowPipeline and ExecPipeline, if set, return the pipeline of the Core, Flow
 	// or Exec passes that runs on the units of the named table in place of corepass.Pipeline,
 	// flowpass.Pipeline or codepass.Pipeline, for tests that run passes of their own.
-	CorePipeline func(table string) *pass.Pipeline[*core.Module, *corepass.Env]
+	CorePipeline func(table string) pipe.Pipeline[*core.Module, *core.Module]
 	FlowPipeline func(table string) *pass.Pipeline[*code.Module, *flowpass.Env]
 	ExecPipeline func(table string) *pass.Pipeline[*code.Module, *codepass.Env]
-	// TestPasses names passes of those pipelines that are no registered optimization: no flag turns
-	// them off, so they run wherever they apply.
+	// TestPasses names passes of the Flow and Exec pipelines that are no registered optimization: no
+	// flag turns them off, so they run wherever they apply. A pass of the Core pipeline declares that it
+	// is a test pass (pipe.Decl.Test).
 	TestPasses []string
 }
 
@@ -89,8 +94,8 @@ func (d *Driver) manager() *pass.Run {
 	return d.run
 }
 
-// observer is the observer of the steps of a compilation that writes the dumps of PrintAfter and
-// calls CoreHook. It reads the fields of the driver when it is told of a step, so that a hook set
+// observer is the observer of the steps of the Flow and Exec stages that writes the dumps of
+// PrintAfter (pipeObserver observes the Core stage). It reads the fields of the driver when it is told of a step, so that a hook set
 // between two stages sees the later one. A dump is one header line, which names the step and the
 // label of the unit (its table, and its function for a unit of one function), and the listing of
 // the unit as its IR prints it (pass.IR.Print).
@@ -99,9 +104,6 @@ type observer struct{ d *Driver }
 func (observer) Before(pass.Event) bool { return true }
 
 func (o observer) After(e pass.Event, print func(io.Writer), unit any) {
-	if o.d.CoreHook != nil && e.Step.Out == corepass.Stage {
-		o.d.CoreHook(e.Step.Dump, unit.(*core.Module))
-	}
 	if o.d.prints(e.Step.Dump) {
 		fmt.Fprintf(o.d.PrintTo, "-- after %s [%s] --\n", e.Step.Dump, e.Label)
 		print(o.d.PrintTo)
@@ -112,16 +114,23 @@ func (o observer) After(e pass.Event, print func(io.Writer), unit any) {
 // the first step of the pipeline.
 const Elaborate = "elaborate"
 
+// programIR is the kind of the build of the Core IR of a table, which elaborate runs.
+var programIR = pipe.RegisterIR(&pipe.IR[func() (*core.Module, error)]{Name: "program"})
+
 // elaborating is the step Elaborate: it runs the build of the Core IR module that it is given and
 // computes the attributes of its nodes (core.Analyze), so that the module it returns is a Core module
 // with its attributes, as the Core passes and the Core verifier read it.
-var elaborating = pass.Lower(Elaborate, "program", corepass.IR, func(build func() (*core.Module, error)) (*core.Module, error) {
-	m, err := build()
-	if err != nil {
-		return nil, err
-	}
-	core.Analyze(m)
-	return m, nil
+var elaborating = pipe.New(pipe.Def[func() (*core.Module, error), *core.Module]{
+	Decl: pipe.Decl{Name: Elaborate, Required: true, Obligation: "The module is the elaborated program in Core IR, with its attributes."},
+	In:   programIR, Out: corepass.IR,
+	Run: func(_ *pipe.Ctx[func() (*core.Module, error)], build func() (*core.Module, error)) (*core.Module, pass.PreservedSet, error) {
+		m, err := build()
+		if err != nil {
+			return nil, pass.PreserveNone(), err
+		}
+		core.Analyze(m)
+		return m, pass.PreserveNone(), nil
+	},
 })
 
 // Core runs the Core part of the pipeline for the table named table: the step elaborate, which
@@ -129,24 +138,69 @@ var elaborating = pass.Lower(Elaborate, "program", corepass.IR, func(build func(
 // the optimizations of the driver. It returns the module after them. The module is dumped as
 // "elaborate" as build made it, with the attributes of its nodes.
 //
-// A failure of build is returned as the *pass.StepError that names elaborate, with its message and
-// no module. A failure of a pass is an internal error that names the pass.
+// The passes change the module in place: a failure drops it (pipe.Run.Stop). A failure of build is
+// returned as the *pass.StepError that names elaborate, with its message and no module. A failure
+// of a pass is an internal error that names the pass.
 func (d *Driver) Core(table string, build func() (*core.Module, error)) (*core.Module, error) {
-	p := corepass.Pipeline
+	p := corepass.Pipeline()
 	if d.CorePipeline != nil {
 		p = d.CorePipeline(table)
 	}
-	s := pass.Then(elaborating, pass.Transforms(pass.Transform[*core.Module, *corepass.Env]{
-		IR: corepass.IR, Pipeline: p,
-		Env: func(*pass.Run, pass.Label, *core.Module) *corepass.Env {
-			return &corepass.Env{Flag: d.Opt.On}
-		},
-	}))
-	m, err := s.Run(d.manager(), pass.Label{Table: table}, build)
+	m, err := pipe.Execute(context.Background(), d.pipeRun(table, true), pipe.Then(pipe.Of(elaborating), p), build)
 	if err != nil {
-		return nil, stepError(err)
+		return nil, pipeError(err, Elaborate)
 	}
 	return m, nil
+}
+
+// pipeRun returns the manager of a stage of the pipeline that runs on the units of the table named
+// table under the settings of the driver; stop says that the stage consumes its unit
+// (pipe.Run.Stop).
+func (d *Driver) pipeRun(table string, stop bool) *pipe.Run {
+	r := &pipe.Run{Settings: d.Opt, VerifyEach: d.VerifyEach, Stop: stop}
+	if o := (pipeObserver{d: d, table: table}); o.Needs() != (pipe.Needs{}) {
+		r.Observers = []pipe.Observer{o}
+	}
+	return r
+}
+
+// pipeObserver writes the dumps of PrintAfter and calls CoreHook for the steps of a stage that runs
+// through the manager of internal/pass/pipe. A stage runs on the units of one table, which the
+// observer adds to the label of each dump.
+type pipeObserver struct {
+	d     *Driver
+	table string
+}
+
+func (o pipeObserver) Needs() pipe.Needs {
+	return pipe.Needs{Units: o.d.CoreHook != nil, Print: o.d.PrintTo != nil && len(o.d.PrintAfter) > 0}
+}
+
+func (pipeObserver) Before(pipe.Event, func(io.Writer)) bool { return true }
+
+func (o pipeObserver) After(e pipe.Event, r *pipe.Result) {
+	if !r.Ran || r.Err != nil {
+		return
+	}
+	if m, ok := r.Unit.(*core.Module); ok && o.d.CoreHook != nil {
+		o.d.CoreHook(e.Step.Instance, m)
+	}
+	if r.Print != nil && o.d.prints(e.Step.Instance) {
+		l := pass.Label{Table: o.table, Func: e.Label.Func}
+		fmt.Fprintf(o.d.PrintTo, "-- after %s [%s] --\n", e.Step.Instance, l)
+		r.Print(o.d.PrintTo)
+	}
+}
+
+// pipeError returns the failure of one of the required steps named required as the *pass.StepError
+// that names it, with the message of the step, and any other failure (a pass, a verification) as an
+// internal error.
+func pipeError(err error, required ...string) error {
+	var se *pipe.StepError
+	if errors.As(err, &se) && slices.Contains(required, se.Step) {
+		return &pass.StepError{Step: pass.Step{Name: se.Step, Required: true}, Err: se.Err}
+	}
+	return fmt.Errorf("internal error: %w", err)
 }
 
 // Flow runs the Flow part of the pipeline on the functions of the table named table: the lowering

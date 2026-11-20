@@ -1,25 +1,29 @@
 package corepass
 
 import (
+	"context"
 	"slices"
+	"strings"
 	"testing"
 
 	"zeroparse.dev/zp/internal/ir/core"
+	"zeroparse.dev/zp/internal/pass"
+	"zeroparse.dev/zp/internal/pass/pipe"
 )
 
-// The declarations of Pipeline can be run: names are distinct, every pass states what it preserves,
-// the analyses exist, and the order satisfies every After.
+// The declarations of the pipeline can be run: the manager accepts it (names, After), and every
+// pass states what it preserves.
 func TestPipelineIsValid(t *testing.T) {
-	if err := Pipeline.Validate(); err != nil {
+	if _, _, err := Run(&core.Module{}, RunOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	want := []string{PassGuards, PassScans}
-	if got := Pipeline.Names(); !slices.Equal(got, want) {
+	if got := Names(); !slices.Equal(got, want) {
 		t.Fatalf("passes %v, want %v", got, want)
 	}
-	for _, p := range Pipeline.Passes {
-		if p.Obligation == "" {
-			t.Errorf("pass %s states no obligation", p.Name)
+	for _, p := range Passes {
+		if p.Decl().Obligation == "" {
+			t.Errorf("pass %s states no obligation", p.Name())
 		}
 	}
 }
@@ -27,23 +31,26 @@ func TestPipelineIsValid(t *testing.T) {
 // The passes know no mode: a flag that is off removes its pass, and nothing else does.
 func TestPipelineAppliesByFlag(t *testing.T) {
 	all := []string{PassGuards, PassScans}
-	off := func(names ...string) func(string) bool {
-		return func(name string) bool { return !slices.Contains(names, name) }
+	off := func(names ...string) pass.Settings {
+		s, err := pass.Settings{}.Without(names...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return s
 	}
 	cases := []struct {
 		name string
-		env  Env
+		opt  pass.Settings
 		want []string
 	}{
-		{"default", Env{}, all},
-		{"without guards", Env{Flag: off(PassGuards)}, []string{PassScans}},
-		{"without scans", Env{Flag: off(PassScans)}, []string{PassGuards}},
-		{"nothing", Env{Flag: func(string) bool { return false }}, nil},
+		{"default", pass.Settings{}, all},
+		{"without guards", off(PassGuards), []string{PassScans}},
+		{"without scans", off(PassScans), []string{PassGuards}},
+		{"nothing", off(PassGuards, PassScans), nil},
 	}
 	for _, c := range cases {
-		env := c.env
 		m := &core.Module{}
-		_, got, err := Run(m, &env, RunOptions{})
+		_, got, err := Run(m, RunOptions{Settings: c.opt})
 		if err != nil {
 			t.Errorf("%s: %v", c.name, err)
 			continue
@@ -62,7 +69,7 @@ func TestRunTakesItsModule(t *testing.T) {
 		return analyzed(t, module(rule(0, "a", choice(lit("ab"), lit("cd")))))
 	}
 	m := build()
-	out, ran, err := Run(m, &Env{}, RunOptions{})
+	out, ran, err := Run(m, RunOptions{})
 	if err != nil || len(ran) == 0 {
 		t.Fatalf("ran %v, err %v", ran, err)
 	}
@@ -71,8 +78,41 @@ func TestRunTakesItsModule(t *testing.T) {
 	}
 	m = build()
 	before := core.Print(m, true)
-	out, _, err = Run(m, &Env{}, RunOptions{VerifyEach: true})
+	out, _, err = Run(m, RunOptions{VerifyEach: true})
 	if err != nil || out == m || core.Print(m, true) != before {
 		t.Errorf("VerifyEach: the module returned %v, the module changed %v, err %v", out == m, core.Print(m, true) != before, err)
+	}
+}
+
+// The verifier of the Core kind checks the attributes of the nodes and never writes them: it rejects
+// a module whose attributes are not those that core.Analyze computes, and leaves it as it was, so a
+// pass that leaves stale attributes fails under VerifyEach, named.
+func TestVerifyChecksTheAttributes(t *testing.T) {
+	m := analyzed(t, module(rule(0, "a", choice(lit("ab"), &core.Opt{Body: lit("cd")}))))
+	if err := Verify(m); err != nil {
+		t.Fatalf("Verify of an analyzed module: %v", err)
+	}
+	stale := func(m *core.Module) { m.Rules[0].Body.Attrs().Nullable = false }
+	stale(m)
+	before := core.Print(m, true)
+	if err := Verify(m); err == nil || !strings.Contains(err.Error(), "rule a: ") {
+		t.Errorf("Verify of a module with a stale attribute: %v, want an error that names rule a", err)
+	}
+	if core.Print(m, true) != before {
+		t.Error("Verify wrote the attributes of the module")
+	}
+
+	stalePass := pipe.New(pipe.Def[*core.Module, *core.Module]{
+		Decl: pipe.Decl{Name: "stale-attributes", Test: true, Obligation: "Leaves a stale attribute (test)."},
+		In:   IR, Out: IR,
+		Run: func(_ *pipe.Ctx[*core.Module], m *core.Module) (*core.Module, pass.PreservedSet, error) {
+			stale(m)
+			return m, pass.PreserveNone(), nil
+		},
+	})
+	m = analyzed(t, module(rule(0, "a", choice(lit("ab"), &core.Opt{Body: lit("cd")}))))
+	_, err := pipe.Execute(context.Background(), &pipe.Run{VerifyEach: true, Stop: true}, pipe.Seq(IR, stalePass), m)
+	if err == nil || !strings.Contains(err.Error(), "stale-attributes") {
+		t.Errorf("a pass that leaves a stale attribute: %v, want an error that names it", err)
 	}
 }

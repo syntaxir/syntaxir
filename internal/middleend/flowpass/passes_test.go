@@ -66,7 +66,7 @@ func forms(t *testing.T) (*core.Module, *core.Rule) {
 	m.Rules = []*core.Rule{r}
 	core.CallGraph(m)
 	core.Analyze(m)
-	m, _, err := corepass.Run(m, &corepass.Env{}, corepass.RunOptions{VerifyEach: true})
+	m, _, err := corepass.Run(m, corepass.RunOptions{VerifyEach: true})
 	if err != nil {
 		t.Fatal(err)
 	}

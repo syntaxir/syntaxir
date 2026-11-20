@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 
@@ -188,6 +189,13 @@ func New[I, O any](d Def[I, O]) *Pass[I, O] {
 
 // Name returns the name of the pass.
 func (p *Pass[I, O]) Name() string { return p.d.Name }
+
+// Decl returns what the pass declares.
+func (p *Pass[I, O]) Decl() Decl {
+	d := p.d.Decl
+	d.After, d.Features, d.Params, d.Patterns = slices.Clone(d.After), slices.Clone(d.Features), slices.Clone(d.Params), slices.Clone(d.Patterns)
+	return d
+}
 
 // Ctx is what a running pass sees, typed by its input kind. It is valid only during the call.
 type Ctx[M any] struct{ s *ctxState }

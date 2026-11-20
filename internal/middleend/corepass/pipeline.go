@@ -1,25 +1,33 @@
 package corepass
 
 import (
+	"context"
+	"io"
+
 	"zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/pass"
+	"zeroparse.dev/zp/internal/pass/pipe"
 )
 
-// The optimization passes of Core IR as a pipeline (design 063). Generators run it with Run; a
-// pass has the name of the flag that turns it off. The passes know no target and no generation
-// mode: what depends on them is decided by the Flow passes (internal/middleend/flowpass).
+// The optimization passes of Core IR as a pipeline (design 063). The driver runs them in the
+// pipeline of a compilation, and a run-time backend with Run; a pass has the name of the flag that
+// turns it off. The passes know no target and no generation mode: what depends on them is decided by
+// the Flow passes (internal/middleend/flowpass).
 
-// AttributesAnalysis is the analysis that core.Analyze computes: Nullable, First and Eff of every node.
-// A pass that adds or replaces nodes makes it stale; a pass preserves it only by saying so.
-const AttributesAnalysis pass.Analysis = "attributes"
+// AttributesKey is the analysis that core.Analyze computes: Nullable, First and Eff of every node,
+// which it writes into the nodes. A pass that adds or replaces nodes makes it stale; a pass preserves
+// it only by saying so.
+var AttributesKey = pass.NewAnalysisKey("attributes", func(m *core.Module, _ *pass.AnalysisManager[*core.Module]) (struct{}, error) {
+	core.Analyze(m)
+	return struct{}{}, nil
+})
 
-// Stage is the name of the Core IR stage of the pipeline, which the steps on Core IR take and
-// return (pass.Step).
+// Stage is the name of the Core IR stage of the pipeline, which the steps of the generic pipeline
+// on Core IR take and return (pass.Step).
 const Stage = "core"
 
-// entry is the name of the step that builds the Core IR, elaborate, under which a run dumps the
-// module as it reaches the first pass. The driver declares the step, and this package cannot import
-// it.
+// entry is the name of the step that builds the Core IR, elaborate, under which Run dumps the module
+// as it reaches the first pass. The driver declares the step, and this package cannot import it.
 const entry = "elaborate"
 
 // Names of the passes. A name is also the name of the flag that turns the pass off.
@@ -28,50 +36,62 @@ const (
 	PassScans  = "scans"
 )
 
-// Env is the context of a run of the pipeline.
-type Env struct {
-	// Flag reports whether the optimization of the given name is on. Nil means every one is.
-	Flag func(name string) bool
-}
-
-// On reports whether the optimization of the given name is on.
-func (e *Env) On(name string) bool { return e.Flag == nil || e.Flag(name) }
-
-// Pipeline is the pipeline of the Core passes: choice guards and scans.
-var Pipeline = &pass.Pipeline[*core.Module, *Env]{
-	Passes: []pass.Pass[*core.Module, *Env]{
-		{
-			Name: PassGuards,
-			// Guards read the First sets that Analyze computes. Without them the alternatives of a choice
-			// get no first-character guard and the Flow form calls the rules of the later alternatives at
-			// every position (duckdb: block_comment, 84,000 calls against none), and nothing reports it.
-			Requires:   []pass.Analysis{AttributesAnalysis},
-			Obligation: "A guard is the first terminal of its alternative, which the alternative cannot match without.",
-			// Guards mark the alternatives of choices and add no node: the attributes hold.
-			Run: func(m *core.Module, _ *Env) (*core.Module, pass.PreservedSet, error) {
-				Guards(m)
-				return m, pass.Preserve(string(AttributesAnalysis)), nil
-			},
-		},
-		{
-			Name: PassScans,
-			// A Stream is replaced as its repetition only where it delivers no elements (Eff).
-			Requires:   []pass.Analysis{AttributesAnalysis},
-			Obligation: "Consumes the same input and records the same expectations as the repetition it replaces.",
-			Run: func(m *core.Module, _ *Env) (*core.Module, pass.PreservedSet, error) {
-				Scans(m)
-				return m, pass.PreserveNone(), nil
-			},
-		},
+// GuardsPass marks each alternative of a choice with the first terminal it cannot match without.
+var GuardsPass = pipe.New(pipe.Def[*core.Module, *core.Module]{
+	Decl: pipe.Decl{
+		Name:       PassGuards,
+		Obligation: "A guard is the first terminal of its alternative, which the alternative cannot match without.",
 	},
-	Analyses: map[pass.Analysis]func(*core.Module){AttributesAnalysis: core.Analyze},
-	Verify:   Verify,
-	// The attributes, which the analysis writes into the nodes, travel with the copy.
-	Copy: (*core.Module).Clone,
+	In: IR, Out: IR,
+	Run: func(c *pipe.Ctx[*core.Module], m *core.Module) (*core.Module, pass.PreservedSet, error) {
+		// Guards read the First sets that Analyze computes. Without them the alternatives of a choice
+		// get no first-character guard and the Flow form calls the rules of the later alternatives at
+		// every position (duckdb: block_comment, 84,000 calls against none), and nothing reports it.
+		if _, err := pipe.Query(c, AttributesKey); err != nil {
+			return m, pass.PreserveNone(), err
+		}
+		Guards(m)
+		// Guards mark the alternatives of choices and add no node: the attributes hold.
+		return m, pass.Preserve(AttributesKey.Name()), nil
+	},
+})
+
+// ScansPass runs a value-free repetition of a class or of any character as a scan.
+var ScansPass = pipe.New(pipe.Def[*core.Module, *core.Module]{
+	Decl: pipe.Decl{
+		Name:       PassScans,
+		Obligation: "Consumes the same input and records the same expectations as the repetition it replaces.",
+	},
+	In: IR, Out: IR,
+	Run: func(c *pipe.Ctx[*core.Module], m *core.Module) (*core.Module, pass.PreservedSet, error) {
+		// A Stream is replaced as its repetition only where it delivers no elements (Eff).
+		if _, err := pipe.Query(c, AttributesKey); err != nil {
+			return m, pass.PreserveNone(), err
+		}
+		Scans(m)
+		return m, pass.PreserveNone(), nil
+	},
+})
+
+// Passes are the Core passes in the order they run: choice guards and scans.
+var Passes = []*pipe.Pass[*core.Module, *core.Module]{GuardsPass, ScansPass}
+
+// Pipeline is the pipeline of the Core passes.
+func Pipeline() pipe.Pipeline[*core.Module, *core.Module] { return pipe.Seq(IR, Passes...) }
+
+// Names returns the names of the Core passes in the order they run.
+func Names() []string {
+	names := make([]string, len(Passes))
+	for i, p := range Passes {
+		names[i] = p.Name()
+	}
+	return names
 }
 
-// RunOptions selects what a run of Pipeline does besides running the passes.
+// RunOptions selects what a run of the Core passes does besides running them.
 type RunOptions struct {
+	// Settings turns the passes on and off by their flags; the zero value runs every pass.
+	Settings pass.Settings
 	// VerifyEach verifies the module after every pass.
 	VerifyEach bool
 	// Dump, if not nil, is called with "elaborate" before the first pass and with the name of each pass
@@ -89,16 +109,38 @@ func Verify(m *core.Module) error {
 	return core.Verify(m)
 }
 
-// Run runs the enabled passes of Pipeline on m, and verifies the module. It returns the module after
-// them, and the names of the passes that ran. It consumes m (pass.Pipeline.Run). The verifier checks
-// the attributes of m and does not compute them: m must have them, as elaborate makes it, unless a
-// pass that requires them runs, before which the run computes them.
-func Run(m *core.Module, e *Env, o RunOptions) (*core.Module, []string, error) {
-	return Pipeline.Run(m, e, o.Options(e))
+// Run runs the enabled Core passes on m, and verifies the module if a pass ran. It returns the
+// module after them, and the names of the passes that ran. It consumes m: the passes change it in
+// place, and a failure drops it (pipe.Run.Stop). The verifier checks the attributes of m and does
+// not compute them: m must have them, as elaborate makes it, unless a pass that queries them runs
+// (AttributesKey), which computes them.
+func Run(m *core.Module, o RunOptions) (*core.Module, []string, error) {
+	if o.Dump != nil {
+		o.Dump(entry, m)
+	}
+	ob := &ranObserver{dump: o.Dump}
+	out, err := pipe.Execute(context.Background(), &pipe.Run{Settings: o.Settings, VerifyEach: o.VerifyEach, Stop: true, Observers: []pipe.Observer{ob}}, Pipeline(), m)
+	if err != nil {
+		return nil, ob.ran, err
+	}
+	return out, ob.ran, nil
 }
 
-// Options returns the options of the generic pipeline for a run under e, for a caller that runs a
-// pipeline of its own (tests).
-func (o RunOptions) Options(e *Env) pass.Options[*core.Module] {
-	return pass.Options[*core.Module]{Enabled: e.On, VerifyEach: o.VerifyEach, Dump: o.Dump, Entry: entry}
+// ranObserver records the passes that ran, and dumps the module after each of them.
+type ranObserver struct {
+	dump func(pass string, m *core.Module)
+	ran  []string
+}
+
+func (o *ranObserver) Needs() pipe.Needs                       { return pipe.Needs{Units: o.dump != nil} }
+func (o *ranObserver) Before(pipe.Event, func(io.Writer)) bool { return true }
+
+func (o *ranObserver) After(e pipe.Event, r *pipe.Result) {
+	if !r.Ran || r.Err != nil {
+		return
+	}
+	o.ran = append(o.ran, e.Step.Instance)
+	if o.dump != nil {
+		o.dump(e.Step.Instance, r.Unit.(*core.Module))
+	}
 }

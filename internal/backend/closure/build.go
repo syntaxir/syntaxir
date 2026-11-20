@@ -20,7 +20,7 @@ import (
 // as they changed it, without the control, and copies nothing. A failure is an internal error: the
 // program compiled, so its passes run.
 func Core(m *ir.Module) (*ir.Module, error) {
-	m, _, err := corepass.Run(m, &corepass.Env{}, corepass.RunOptions{})
+	m, _, err := corepass.Run(m, corepass.RunOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("internal error: %w", err)
 	}

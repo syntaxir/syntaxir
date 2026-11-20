@@ -35,8 +35,7 @@ func coreRecognizeCase(name, mode string, g *print.Generator) (*coreGenCase, err
 		}
 	}
 	c.origin = irbuild.OriginByID(origin)
-	env := &corepass.Env{Flag: g.Opt().On}
-	if m, _, err = corepass.Run(m, env, corepass.RunOptions{Dump: check}); err != nil {
+	if m, _, err = corepass.Run(m, corepass.RunOptions{Settings: g.Opt(), Dump: check}); err != nil {
 		return nil, err
 	}
 	c.m = m

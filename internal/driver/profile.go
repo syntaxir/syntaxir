@@ -193,7 +193,7 @@ func requiredSteps() []string {
 // Exec passes and those of the registered targets (golang/pass, typescript/pass), and "all".
 func PrintNames() []string {
 	out := []string{Elaborate}
-	out = append(out, corepass.Pipeline.Names()...)
+	out = append(out, corepass.Names()...)
 	out = append(out, flowlower.Name)
 	out = append(out, flowpass.Pipeline.Names()...)
 	out = append(out, flowpass.FinishName, execlower.Name)

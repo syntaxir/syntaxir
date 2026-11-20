@@ -44,7 +44,7 @@ func plan(t *testing.T, src string, rec compile.Recognition, live func(int) bool
 	if err != nil {
 		t.Fatal(err)
 	}
-	if m, _, err = corepass.Run(m, &corepass.Env{}, corepass.RunOptions{}); err != nil {
+	if m, _, err = corepass.Run(m, corepass.RunOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	rules := append(append([]*compile.Rule(nil), prog.RuleList...), prog.Twins...)
@@ -268,7 +268,7 @@ func TestPlanDecidesBeforeThePasses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if m, _, err = corepass.Run(m, &corepass.Env{}, corepass.RunOptions{}); err != nil {
+	if m, _, err = corepass.Run(m, corepass.RunOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	ir := &flowplan.TableIR{M: m, Opts: flowlower.Options{Budget: true, Recovers: flowlower.Recovers(m), Node: true}}
@@ -328,7 +328,7 @@ func TestPlanTyped(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if m, _, err = corepass.Run(m, &corepass.Env{}, corepass.RunOptions{}); err != nil {
+	if m, _, err = corepass.Run(m, corepass.RunOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	rules := append(append([]*compile.Rule(nil), prog.RuleList...), prog.Twins...)
@@ -386,7 +386,7 @@ func TestPlanStream(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if m, _, err = corepass.Run(m, &corepass.Env{}, corepass.RunOptions{}); err != nil {
+	if m, _, err = corepass.Run(m, corepass.RunOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	rules := planRules(append(append([]*compile.Rule(nil), prog.RuleList...), prog.Twins...))

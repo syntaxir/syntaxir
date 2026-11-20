@@ -332,7 +332,7 @@ func closureExprCore(t *testing.T, prog *compile.Program, e ast.Expr) (*ir.Modul
 		t.Fatal(err)
 	}
 	origin := irbuild.OriginByID(built)
-	if m, _, err = corepass.Run(m, &corepass.Env{}, corepass.RunOptions{}); err != nil {
+	if m, _, err = corepass.Run(m, corepass.RunOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	var found ir.Node

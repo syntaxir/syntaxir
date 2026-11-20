@@ -14,18 +14,13 @@ import (
 	"zeroparse.dev/zp/pkg/grammar/ast"
 )
 
-// typedEnv returns the environment in which Generator.TypedCore runs the pipeline for g.
-func typedEnv(g *print.Generator) *corepass.Env {
-	return &corepass.Env{Flag: g.Opt().On}
-}
-
 // pipelinedTypedCore runs the pipeline on the typed rules of g.
 func pipelinedTypedCore(g *print.Generator, verifyEach bool) (*core.Module, error) {
 	m, err := irbuild.CoreFrom(g.Prog.Elab, map[core.Node]ast.Expr{})
 	if err != nil {
 		return nil, err
 	}
-	m, _, err = corepass.Run(m, typedEnv(g), corepass.RunOptions{VerifyEach: verifyEach})
+	m, _, err = corepass.Run(m, corepass.RunOptions{Settings: g.Opt(), VerifyEach: verifyEach})
 	return m, err
 }
 
