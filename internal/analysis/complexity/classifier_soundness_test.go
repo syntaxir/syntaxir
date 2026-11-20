@@ -382,6 +382,15 @@ func setSoundnessHooks(hook string, on bool) {
 	}
 }
 
+// classifyWithout classifies src with the rule of hook turned off, and turns it on again even if
+// the classification stops the test, so that the parallel tests that follow see every rule on.
+func classifyWithout(t *testing.T, hook, src string) *Complexity {
+	t.Helper()
+	setSoundnessHooks(hook, false)
+	defer setSoundnessHooks(hook, true)
+	return classifySource(t, src)
+}
+
 // TestClassifierSoundnessMutants checks that each case of classifierSoundnessMutants depends on
 // the rule that its hook turns off: with the rule off, the case receives the class of the
 // mutant instead of its pinned class.
@@ -401,9 +410,7 @@ func TestClassifierSoundnessMutants(t *testing.T) {
 			if pinned[name] == m.class {
 				t.Fatalf("%s: case %q is pinned to the class of the mutant %v", m.hook, name, m.class)
 			}
-			setSoundnessHooks(m.hook, false)
-			c := classifySource(t, s)
-			setSoundnessHooks(m.hook, true)
+			c := classifyWithout(t, m.hook, s)
 			if c.Class != m.class {
 				t.Errorf("%s without %s: class %v, want %v\ncauses %v", name, m.hook, c.Class, m.class, c.Causes)
 			}
