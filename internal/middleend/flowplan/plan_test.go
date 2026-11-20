@@ -314,3 +314,103 @@ func TestPlanDecidesBeforeThePasses(t *testing.T) {
 		last = i
 	}
 }
+
+// TestPlanTyped checks the plan of the typed table: a rule that flowlower.LocalRule accepts is a flat
+// function with no fallback, a left-recursion leader is a framed body that builds its value when its
+// frame has the slots of the frame the runtime shares with the Node rule and is left out otherwise, an
+// Operators Rule has its skip and lines, and the lowering refuses no flat function.
+func TestPlanTyped(t *testing.T) {
+	const src = grammar + "rule sum = (l:sum \"+\" r:num => $l) / num\n"
+	prog := compiletest.Program(t, src, compile.Options{Recognition: compile.BuildValues})
+	m, err := elaborate.CoreFrom(prog, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m, _, err = corepass.Run(m, &corepass.Env{}, corepass.RunOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	rules := append(append([]*compile.Rule(nil), prog.RuleList...), prog.Twins...)
+	ir := &flowplan.TableIR{M: m, Opts: flowlower.Options{Budget: true, Recovers: flowlower.Recovers(m)}}
+	byName := map[string]*compile.Rule{}
+	for _, r := range rules {
+		if byName[r.Name] == nil {
+			byName[r.Name] = r
+		}
+	}
+	sum := byName["sum"]
+	if !sum.Leader {
+		t.Fatal("sum is not a left-recursion leader")
+	}
+	slots := func(id int) []string { return core.SlotNames(m.Rules[id].Scope) }
+	p := flowplan.PlanTyped(ir, planRules(rules), nil, slots)
+	for _, r := range rules {
+		s, ok := p.Func(flowplan.Key{Use: flowplan.RuleBody, Rule: r.ID})
+		switch {
+		case flowlower.LocalRule(m.Rules[r.ID]):
+			if !ok || s.Form != flowlower.Flat || s.Fallback != nil {
+				t.Errorf("%s: %+v, want a flat function without a fallback", r.Name, s)
+			}
+		case r == sum:
+			if !ok || s.Form != flowlower.Frame || s.Build != m.Rules[r.ID].Want {
+				t.Errorf("sum: %+v, want a framed body", s)
+			}
+		}
+	}
+	lines := 0
+	for _, s := range p.Funcs {
+		if s.Key.Use == flowplan.OperatorsSkip || s.Key.Use == flowplan.OperatorsLine {
+			lines++
+		}
+	}
+	if lines != 4 {
+		t.Errorf("%d skips and lines of the Operators Rule, want 4", lines)
+	}
+	if u := p.Unit(ir, func(flowplan.Key) bool { return true }); u.Refuse != nil {
+		t.Error("the typed table refuses its flat functions")
+	}
+	other := flowplan.PlanTyped(ir, planRules(rules), nil, func(id int) []string { return append(slots(id), "other") })
+	if s, ok := other.Func(flowplan.Key{Use: flowplan.RuleBody, Rule: sum.ID}); ok {
+		t.Errorf("sum: %+v, want none: its frame has other slots than the runtime's", s)
+	}
+}
+
+// TestPlanStream checks the body of the start rule that ParseStream runs: it comes after the other
+// functions of the Node table, lowers its #stream repetition as the one that delivers the elements, and
+// has the capture layout of the rule's body; the recognizer has none.
+func TestPlanStream(t *testing.T) {
+	const src = "rule main = ws is:item* #stream $$ => $is\nrule ws = [ ]*\nrule item = n:[0-9]+ ws => $n\n"
+	prog := compiletest.Program(t, src, compile.Options{Recognition: compile.BuildValues})
+	m, err := elaborate.CoreProjecting(prog, nil, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m, _, err = corepass.Run(m, &corepass.Env{}, corepass.RunOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	rules := planRules(append(append([]*compile.Rule(nil), prog.RuleList...), prog.Twins...))
+	ir := &flowplan.TableIR{M: m, Opts: flowlower.Options{Budget: true, Recovers: flowlower.Recovers(m), Node: true}}
+	p := flowplan.Plan(ir, rules, nil)
+	if !p.Stream(ir, rules[0]) {
+		t.Fatal("no stream body planned")
+	}
+	s := p.Funcs[len(p.Funcs)-1]
+	body, ok := p.Func(flowplan.Key{Use: flowplan.RuleBody, Rule: 0})
+	if s.Key != (flowplan.Key{Use: flowplan.StreamBody, Rule: 0}) || !s.Stream || s.Name != "main/stream" || !ok || !slices.Equal(core.SlotNames(s.Slots), core.SlotNames(body.Slots)) {
+		t.Fatalf("stream body %+v", s)
+	}
+	fm, err := (&driver.Driver{}).Flow("rules", p.Unit(ir, nil), false, flowpass.Bytecode)
+	if err == nil {
+		err = p.Bind(fm)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, _ := p.FlowFunc(s.Key)
+	if text := code.FuncStringIn(f, flow.FuncOf(f)); !strings.Contains(text, flow.OpEmitStream+"(") {
+		t.Errorf("the stream body delivers no element:\n%s", text)
+	}
+	rec := &flowplan.TableIR{M: m, Opts: flowlower.Options{Budget: true}}
+	if flowplan.Plan(rec, rules, nil).Stream(rec, rules[0]) {
+		t.Error("a stream body is planned for a table of other than Node values")
+	}
+}

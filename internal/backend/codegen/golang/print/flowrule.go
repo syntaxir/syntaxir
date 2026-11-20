@@ -6,8 +6,6 @@ import (
 	"strings"
 
 	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/frontend/astfacts"
-	"zeroparse.dev/zp/pkg/grammar/ast"
 )
 
 // Flat and framed rules of the Node and recognizer tables, as the Flow IR printer shapes them.
@@ -178,18 +176,4 @@ func (g *Generator) leanRuleText(d *flatRule) string {
 		b.WriteString("fail" + ":\nreturn nil, false\n")
 	}
 	return b.String()
-}
-
-func exprRecovers(e ast.Expr) bool {
-	found := false
-	astfacts.WalkExpr(e, func(e ast.Expr) {
-		if e, ok := e.(*ast.Attributed); ok {
-			for _, a := range e.Attrs {
-				if a.Name == "recover" {
-					found = true
-				}
-			}
-		}
-	})
-	return found
 }

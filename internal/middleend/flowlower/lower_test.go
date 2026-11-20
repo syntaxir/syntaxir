@@ -338,7 +338,7 @@ func TestLowerVerifies(t *testing.T) {
 	}
 }
 
-// TestLowerStream checks the lowering of a #stream repetition in a framed Node function: with Options.Stream
+// TestLowerStream checks the lowering of a #stream repetition in a framed Node function: with Func.Stream
 // it starts the stream and delivers each element instead of gathering it, guarded by StreamOn; without the
 // option it is the batch repetition, which has none of these operations.
 func TestLowerStream(t *testing.T) {
@@ -348,7 +348,7 @@ func TestLowerStream(t *testing.T) {
 	r := &core.Rule{Name: "main", Body: body}
 	m.Rules[0] = r
 	lower := func(stream bool) string {
-		f, err := LowerFrame(m, r, body, nil, true, "main", Options{Node: true, Stream: stream})
+		f, err := verified(lowerFunc(m, Func{Form: Frame, Rule: r, Name: "main", Body: body, Build: true, Stream: stream}, Options{Node: true}))
 		if err != nil {
 			t.Fatal(err)
 		}

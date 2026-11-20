@@ -42,6 +42,11 @@ type Func struct {
 	Body  core.Node
 	Slots []core.Slot
 	Build bool
+	// Stream lowers the #stream repetition (core.Stream) of a framed Node function as the repetition that
+	// delivers its elements in a stream parse: it hands each committed element to the callback instead of
+	// gathering it, when the invocation streams (StreamOn), and gathers it otherwise. The function is the
+	// body of the start rule that ParseStream runs.
+	Stream bool
 	// Fallback is, for a flat function, the function that the table runs in its place if the
 	// function is refused (Unit.Refuse), or nil if the rule has none.
 	Fallback *Func
@@ -98,7 +103,7 @@ func lowerFunc(m *core.Module, f Func, opts Options) (*code.Module, error) {
 	case Flat:
 		return lowerFlat(m, f.Rule, f.Name, opts)
 	case Frame, Outline:
-		return lowerFrameBody(m, f.Rule, f.Body, f.Slots, f.Build, f.Name, opts)
+		return lowerFrameBody(m, f.Rule, f.Body, f.Slots, f.Build, f.Stream, f.Name, opts)
 	}
 	return nil, fmt.Errorf("rule %s: no lowering of the form %d", f.Rule.Name, f.Form)
 }

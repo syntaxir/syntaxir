@@ -50,11 +50,6 @@ type Options struct {
 	// ones, in the functions it lowers (flow.Attrs.Node). It holds for every function of a module's lowering,
 	// so the options of the Node and recognizer tables are never shared with the typed table's.
 	Node bool
-	// Stream lowers the #stream repetition (core.Stream) of a framed Node function as the repetition that
-	// delivers its elements in a stream parse: it hands each committed element to the callback instead of
-	// gathering it, when the invocation streams (StreamOn), and gathers it otherwise. The function is the
-	// body of the start rule that ParseStream runs.
-	Stream bool
 	// Document lowers for a build with Documents. A parse of a Document records how far it examined the input
 	// in the primitives that read it; the form that reads input in place (HasLit) is then valid only with
 	// the recording primitive (MatchLit) as its alternative, which the target takes when the parse is a
@@ -148,13 +143,14 @@ func LowerOutline(m *core.Module, r *core.Rule, n core.Node, slots []core.Slot, 
 	return verified(lowerFunc(m, Func{Form: Outline, Rule: r, Name: name, Body: n, Slots: slots, Build: build}, opts))
 }
 
-func lowerFrameBody(m *core.Module, r *core.Rule, n core.Node, slots []core.Slot, build bool, name string, opts Options) (*code.Module, error) {
+func lowerFrameBody(m *core.Module, r *core.Rule, n core.Node, slots []core.Slot, build, stream bool, name string, opts Options) (*code.Module, error) {
 	if !FramedBody(n) {
 		return nil, fmt.Errorf("a body of rule %s is not lowered to a framed function", r.Name)
 	}
 	l := newLowerer(m, opts, name, &flow.Attrs{Rule: r, Frame: true, Node: opts.Node, Budget: opts.Budget, Document: opts.Document,
 		Traced: opts.Traced, Entered: opts.Budget, Binds: n.Attrs().Eff.Set&core.EffBind != 0})
 	l.frame = true
+	l.stream = stream
 	l.top = n
 	core.Walk(n, func(n core.Node) {
 		if _, ok := n.(*core.Cut); ok {
@@ -243,7 +239,9 @@ type lowerer struct {
 	regions   map[core.Node]bool
 	// frame reports a framed function.
 	frame bool
-	// streaming is the repetition of the Stream node being lowered in a stream parse (Options.Stream).
+	// stream lowers the #stream repetition as the one that delivers the elements (Func.Stream).
+	stream bool
+	// streaming is the repetition of the Stream node being lowered in a stream parse (Func.Stream).
 	streaming *core.Repeat
 }
 
@@ -597,7 +595,7 @@ func (l *lowerer) node(n core.Node, s *scope, build bool, fail string) code.Expr
 	case *core.Choice:
 		return l.choice(n, s, build, fail)
 	case *core.Stream:
-		if l.opts.Stream {
+		if l.stream {
 			if !l.frame || !l.opts.Node || n.Repeat.Project != "" {
 				panic("flow: a stream repetition is lowered in a framed Node function and is not projected")
 			}

@@ -186,28 +186,33 @@ The forms of typed rules do not apply to the Node table, guarded classes apply o
 controls, and the VM has no instruction that compares a literal in place, so it matches each literal as the lowering
 wrote it. Each form charges what it replaces, so the VM's functions charge what the Go parser's do.
 
-The functions of a planned table are lowered into one module, in the order of the plan, by one run of `flowlower`;
-the Flow passes, `execlower` and the Exec passes then run on that module, each pass on every function in turn before
-the next pass (see [Bisecting Passes](#bisecting-passes)), and a backend finds the function of a use in the module by
-its key. The VM runs the Flow part on the module of its Node table, and the Go generator both parts on the modules
-of its Node table and its recognizer. Within the module, functions are named apart: a value-free twin by its rule's
-name and `/value-free`, the skip and the lines of an Operators Rule by its rule's name and `/skip` or `/line` and the
-index of the line.
+The functions of a planned table are lowered into one module, in the order of the plan, by one run of `flowlower`; the
+Flow passes, `execlower` and the Exec passes then run on that module, each pass on every function in turn before the
+next pass (see [Bisecting Passes](#bisecting-passes)), and a backend finds the function of a use in the module by its
+key. The VM runs the Flow part on the module of its Node table, and the Go generator both parts on the modules of its
+typed table, its Node table and its recognizer. Within the module, functions are named apart: a value-free twin by its
+rule's name and `/value-free`, the skip and the lines of an Operators Rule by its rule's name and `/skip` or `/line` and
+the index of the line, and the stream body by its rule's name and `/stream`.
 
 The plan of a table is computed from the Core IR of the table after its Core passes, the rules of the table (value-free
 twins included) as the plan reads them: their definitions, actions and run-time facts, and the rules that the backend
 emits. The tests of which rules may run flat or framed are the plan's; a generator that decides a route of its own asks
 them too, so every backend lowers the same rules. It holds:
 
-- The functions of the table, in the order a backend lowers them: the body of each rule, then the skip and the lines of
-  each Operators Rule. Each function is described by exactly what its lowering takes besides the table's Core IR and
-  options: its form, its Core rule and name, and for a framed body the body, its capture slots and whether it builds a
-  value. With the Core IR and options of the table, which every function of the table shares, it is the unit that
-  `flowlower` lowers. A backend finds the function of a use (a rule body, an Operators Rule skip or line) by its key.
+- The functions of the table, in the order a backend lowers them: the body of each rule, then the skip and the lines
+  of each Operators Rule, and last, in the Node table of a parser with streams, the body of the start rule that
+  ParseStream runs, which lowers its `#stream` repetition as the one that delivers the elements. Each function is
+  described by exactly what its lowering takes besides the table's Core IR and options: its form, its Core rule and
+  name, and for a framed body the body, its capture slots and whether it builds a value. With the Core IR and options
+  of the table, which every function of the table shares, it is the unit that `flowlower` lowers. A backend finds the
+  function of a use (a rule body, an Operators Rule skip or line) by its key.
 - The route of each rule body. A value-free, lean, plain rule whose body has no cut, recovery, predicate or nesting is
   a **flat** function, with no frame. Any other rule whose Core body can run inside the frame its runtime owns is a
   **framed** body, which builds its value unless the rule is lean. A flat function carries the framed body as its
-  fallback.
+  fallback. In the typed table, every rule that `flowlower` can lower as a local function is a flat function that
+  returns the rule's typed value, with no fallback and no refusal; a left-recursion leader or a rule that recovers is a
+  framed body that builds its value when its frame has the slots of the frame the typed runtime shares with the Node
+  rule.
 - The refusal of a flat function, an analysis of its Flow IR as `flowlower` writes it, before any pass: the function
   is refused when a reachable statement reads its entry position or its context, which a flat function has no
   parameters for, or when a variable holds a value, which a value-free function does not keep. Reachability is the
@@ -222,7 +227,7 @@ them too, so every backend lowers the same rules. It holds:
   as an Operators Rule. A backend verifies the rows it emits against it: the Go generator the scopes of its rule
   table, and the VM the scope of each rule whose body it runs from Flow IR, whose framed body runs in that frame.
 
-The typed table, the stream body and the TypeScript tables are still decided by their printers.
+The TypeScript tables are still decided by their printer.
 
 ## The Flow Passes
 

@@ -660,17 +660,29 @@ func (g *Generator) rules() {
 	flats := map[*common.Rule]*flatRule{}
 	all := append(append([]*common.Rule(nil), g.Prog.RuleList...), g.Prog.Twins...)
 	g.plan = nil
-	if g.Table != "trules" && g.Flow != nil {
-		// The functions of the Node and recognizer tables, and the frame layout of each rule, are
-		// planned in the middle end; the bodies follow the plan.
+	if g.Flow != nil {
+		// The functions of every table, and the frame layout of each rule, are planned in the middle
+		// end and lowered as one module; the bodies follow the plan.
 		rules := make([]*flowplan.Rule, len(all))
 		for i, r := range all {
 			rules[i] = r.PlanRule()
 		}
-		p := flowplan.Plan(g.Flow.TableIR, rules, func(id int) bool { return !g.pruned(all[id]) })
+		live := func(id int) bool { return !g.pruned(all[id]) }
+		var p *flowplan.Table
 		var refuse func(flowplan.Key) bool
-		if g.hooks.RefuseFlowRecRule != nil {
-			refuse = func(k flowplan.Key) bool { return k.Use == flowplan.RuleBody && g.hooks.RefuseFlowRecRule(all[k.Rule]) }
+		if g.Table == "trules" {
+			// A typed framed body runs under the frame the typed runtime shares with the Node rule, so
+			// it has the slots of the Node rule's scope.
+			p = flowplan.PlanTyped(g.Flow.TableIR, rules, live, func(id int) []string { return g.NodeScopes[all[id]] })
+		} else {
+			p = flowplan.Plan(g.Flow.TableIR, rules, live)
+			if r := g.streamStart; r != nil && g.Table == "rules" {
+				// ParseStream runs a copy of the start rule whose body emits the #stream elements.
+				p.Stream(g.Flow.TableIR, r.PlanRule())
+			}
+			if g.hooks.RefuseFlowRecRule != nil {
+				refuse = func(k flowplan.Key) bool { return k.Use == flowplan.RuleBody && g.hooks.RefuseFlowRecRule(all[k.Rule]) }
+			}
 		}
 		if err := g.LowerTable(p, refuse, gopass.Pipeline); err != nil {
 			panic(fmt.Errorf("table %s: %w", g.Table, err))
@@ -736,7 +748,7 @@ func (g *Generator) rules() {
 			g.collect.scopes[ruleKey{g.Table, r.ID, false}] = append([]string(nil), scopes[r].Names...)
 		}
 	}
-	if g.plan != nil {
+	if g.plan != nil && g.Table != "trules" {
 		// Every row keeps the frame layout of the plan, which the VM's rule scopes derive from too.
 		for _, r := range all {
 			if err := g.plan.CheckLayout(r.ID, r.Name, scopes[r].Names); err != nil && g.FlowErr == nil {
@@ -1457,11 +1469,7 @@ func (g *Generator) operatorsRule(r *common.Rule, e *ast.OperatorsRule) {
 	co := g.flowOperatorsRule(r)
 	if e.Skip != nil {
 		s := check.NewScope()
-		var skip *core.OpLine
-		if co != nil {
-			skip = co.Skip
-		}
-		m := g.flowOperatorsRuleBody(flowplan.Key{Use: flowplan.OperatorsSkip, Rule: r.ID}, skip, e.Skip, s, false)
+		m := g.flowOperatorsRuleBody(flowplan.Key{Use: flowplan.OperatorsSkip, Rule: r.ID}, s, false)
 		if m == "" {
 			g.FailFlow("the skip of an Operators Rule of rule " + g.Cur.Name)
 		}
@@ -1513,7 +1521,7 @@ func (g *Generator) operatorsRuleLine(k flowplan.Key, e ast.Expr, action ast.Act
 	// Lines whose value is unused are matched without values, as in the engine; so are all lines
 	// of a rule without a value (in the recognizer).
 	build := !g.Cur.Novalue && !check.LeanLine(action, locals)
-	m := g.flowOperatorsRuleBody(k, l, e, s, build)
+	m := g.flowOperatorsRuleBody(k, s, build)
 	if m == "" {
 		g.FailFlow("a line of an Operators Rule of rule " + g.Cur.Name)
 	}

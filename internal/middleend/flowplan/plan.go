@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"slices"
 
+	"zeroparse.dev/zp/internal/frontend/astfacts"
 	"zeroparse.dev/zp/internal/frontend/check"
 	"zeroparse.dev/zp/internal/ir/code"
 	"zeroparse.dev/zp/internal/ir/code/flow"
@@ -37,6 +38,9 @@ const (
 	// OperatorsLine is a line of an Operators Rule: its operands in order, then its operators in the
 	// order of their levels.
 	OperatorsLine
+	// StreamBody is the body of the start rule that ParseStream runs, whose #stream repetition delivers
+	// the elements (flowlower.Func.Stream).
+	StreamBody
 )
 
 // Key names a planned function by its use, its rule's ID and, for an Operators Rule line, the line's
@@ -62,9 +66,13 @@ type Table struct {
 	// Funcs holds the functions in the order a backend lowers them: the bodies of the rules by ID,
 	// then the skip and the lines of each Operators Rule.
 	Funcs []*FuncSpec
-	// Layouts holds the capture-slot layout of each rule's frame by rule ID.
+	// Layouts holds the capture-slot layout of each rule's frame by rule ID, which the rows of the Node
+	// and recognizer tables keep; nil in the typed table, whose rows have their own scopes.
 	Layouts [][]string
 	byKey   map[Key]*FuncSpec
+	// typed reports the plan of the typed table (PlanTyped), whose flat functions have no fallback and
+	// are never refused.
+	typed bool
 	// module is the module of the functions of the table, bound to the plan after the lowering
 	// (Bind), and index the index of the function of each key in it.
 	module *code.Module
@@ -102,6 +110,78 @@ func Plan(t *TableIR, rules []*Rule, live func(rule int) bool) *Table {
 	return route(t.M, rules, live)
 }
 
+// PlanTyped plans the typed table t, whose rules, value-free twins included, are rules by ID. live
+// reports whether a rule is emitted; nil emits every rule. A rule that flowlower.LocalRule accepts is a
+// flat function, which returns the rule's typed value and is never refused. A rule that TypedFrameOK
+// accepts, whose Core body is a framed body and whose frame has the slots frameSlots returns for it, the
+// layout of the frame that the typed runtime shares with the Node table, is a framed body. The lines of
+// an Operators Rule are planned as in the Node table. A rule left out of the plan is one that Flow IR
+// does not print, which the backend reports.
+func PlanTyped(t *TableIR, rules []*Rule, live func(rule int) bool, frameSlots func(rule int) []string) *Table {
+	m := t.M
+	p := &Table{byKey: map[Key]*FuncSpec{}, typed: true}
+	names := funcNames(rules)
+	for i, r := range rules {
+		cr := m.Rules[r.ID]
+		if live != nil && !live(r.ID) {
+			continue
+		}
+		if flowlower.LocalRule(cr) {
+			p.add(&FuncSpec{Key: Key{RuleBody, r.ID, 0}, Func: flowlower.Func{Form: flowlower.Flat, Rule: cr, Name: names[i]}})
+			continue
+		}
+		if _, ok := r.Body.(*ast.OperatorsRule); ok {
+			continue
+		}
+		if TypedFrameOK(r) && flowlower.FramedBody(cr.Body) && slices.Equal(core.SlotNames(cr.Scope), frameSlots(r.ID)) {
+			p.add(&FuncSpec{Key: Key{RuleBody, r.ID, 0}, Func: flowlower.Func{Form: flowlower.Frame, Rule: cr, Name: names[i], Body: cr.Body, Slots: cr.Scope, Build: cr.Want}})
+		}
+	}
+	p.operatorsRules(m, rules, live, names)
+	return p
+}
+
+// TypedFrameOK reports whether the body of the typed rule r runs in place under the frame the typed
+// runtime owns: the rule is a left-recursion leader or recovers, and its body is one that a framed body
+// may have.
+func TypedFrameOK(r *Rule) bool {
+	return (r.Leader || Recovers(r.Body)) && flowlower.BodyOK(r.Body, true, true)
+}
+
+// Recovers reports whether the expression e has a #recover attribute.
+func Recovers(e ast.Expr) bool {
+	found := false
+	astfacts.WalkExpr(e, func(e ast.Expr) {
+		if e, ok := e.(*ast.Attributed); ok {
+			for _, a := range e.Attrs {
+				if a.Name == "recover" {
+					found = true
+				}
+			}
+		}
+	})
+	return found
+}
+
+// Stream adds to the plan p of the Node table t the body of its start rule r that ParseStream runs
+// (StreamBody), and reports whether it did: the rule is lowered as a framed body (NodeFrameOK), with the
+// capture layout of the rule's body in the table, which the action addresses by slot. The function comes
+// after the others of the plan.
+func (p *Table) Stream(t *TableIR, r *Rule) bool {
+	cr := t.M.Rules[r.ID]
+	if p.typed || !t.Opts.Node || !NodeFrameOK(r, cr) {
+		return false
+	}
+	p.add(&FuncSpec{Key: Key{StreamBody, r.ID, 0}, Func: flowlower.Func{Form: flowlower.Frame, Rule: cr, Name: r.Name + "/stream", Body: cr.Body, Slots: cr.Scope, Build: !r.Lean, Stream: true}})
+	return true
+}
+
+// add adds the function s to the plan.
+func (p *Table) add(s *FuncSpec) {
+	p.Funcs = append(p.Funcs, s)
+	p.byKey[s.Key] = s
+}
+
 // Unit returns what the lowering of the functions of the plan p takes (flowlower.Unit): the functions
 // in the order of p, with the Core IR and the options of the table t, and the decision on each flat
 // function, right after the lowering writes it and before any pass: a function that Refused rejects
@@ -121,6 +201,9 @@ func (p *Table) Unit(t *TableIR, refuse func(Key) bool) flowlower.Unit {
 		}
 	}
 	p.refused = nil
+	if p.typed {
+		return flowlower.Unit{Module: t.M, Opts: t.Opts, Funcs: funcs}
+	}
 	return flowlower.Unit{Module: t.M, Opts: t.Opts, Funcs: funcs, Refuse: func(i int, f *code.Func) bool {
 		s := specs[i]
 		if !Refused(f) && (refuse == nil || !refuse(s.Key)) {
@@ -192,21 +275,8 @@ func (p *Table) FlowFunc(k Key) (*code.Module, bool) {
 // fallback, and the framed body otherwise.
 func route(m *core.Module, rules []*Rule, live func(rule int) bool) *Table {
 	t := &Table{Layouts: make([][]string, len(rules)), byKey: map[Key]*FuncSpec{}}
-	add := func(s *FuncSpec) {
-		t.Funcs = append(t.Funcs, s)
-		t.byKey[s.Key] = s
-	}
-	// The functions of a table are named apart in its module: a value-free twin, which has the name of
-	// its rule and comes after the rules, by the name of the rule and "/value-free".
-	names := make([]string, len(rules))
-	seen := map[string]bool{}
-	for i, r := range rules {
-		names[i] = r.Name
-		if seen[r.Name] {
-			names[i] += "/value-free"
-		}
-		seen[r.Name] = true
-	}
+	add := t.add
+	names := funcNames(rules)
 	for i, r := range rules {
 		cr := m.Rules[r.ID]
 		t.Layouts[r.ID] = core.SlotNames(cr.Scope)
@@ -227,14 +297,36 @@ func route(m *core.Module, rules []*Rule, live func(rule int) bool) *Table {
 			add(frame)
 		}
 	}
+	t.operatorsRules(m, rules, live, names)
+	return t
+}
+
+// funcNames returns the names of the functions of the rules in the module of a table, which names its
+// functions apart: a value-free twin, which has the name of its rule and comes after the rules, is
+// named by the name of the rule and "/value-free".
+func funcNames(rules []*Rule) []string {
+	names := make([]string, len(rules))
+	seen := map[string]bool{}
+	for i, r := range rules {
+		names[i] = r.Name
+		if seen[r.Name] {
+			names[i] += "/value-free"
+		}
+		seen[r.Name] = true
+	}
+	return names
+}
+
+// operatorsRules plans the skips and the lines of the live Operators Rules of the rules, in the order of
+// the rules, whose Core module is m and whose functions are named by names.
+func (t *Table) operatorsRules(m *core.Module, rules []*Rule, live func(rule int) bool, names []string) {
 	for i, r := range rules {
 		e, ok := r.Body.(*ast.OperatorsRule)
 		if !ok || live != nil && !live(r.ID) {
 			continue
 		}
-		t.operators(m.Rules[r.ID], r, names[i], e, add)
+		t.operators(m.Rules[r.ID], r, names[i], e, t.add)
 	}
-	return t
 }
 
 // operators plans the skip and the lines of the Operators Rule e of the rule r, whose Core rule is
