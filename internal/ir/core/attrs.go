@@ -23,7 +23,7 @@ func Analyze(m *Module) {
 // compares, so it never writes m: a verifier of a Core module checks the attributes that the
 // builder and the passes left, as the rest of the module.
 func CheckAttributes(m *Module) error {
-	s := &side{at: map[Node]int{}}
+	s := newSide(m)
 	newAnalyzer(m, s).run()
 	for _, e := range s.nodes {
 		at := e.n.Attrs()
@@ -39,11 +39,17 @@ func CheckAttributes(m *Module) error {
 }
 
 // side holds the attributes that CheckAttributes computes, by node, in the order the nodes are first
-// reached.
+// reached. The nodes of a module are numbered (Number) and a pass gives a node it adds the ID of the
+// node it replaces, so the ID of a node finds its entry (byID, the index of the entry plus one) and
+// no node is hashed; a node without an ID of its own, such as one of a module that was never
+// numbered, has its entry in other.
 type side struct {
-	at    map[Node]int
+	byID  []int32
+	other map[Node]int
 	nodes []sideAttrs
 }
+
+func newSide(m *Module) *side { return &side{byID: make([]int32, m.LastID+1)} }
 
 // sideAttrs holds the computed attributes of one node: eff reports that null, ins and e are
 // computed, first that f is.
@@ -57,10 +63,23 @@ type sideAttrs struct {
 }
 
 func (s *side) of(n Node, rule int) *sideAttrs {
-	i, ok := s.at[n]
+	id := n.Attrs().ID
+	if id > 0 && int(id) < len(s.byID) {
+		if i := s.byID[id]; i == 0 {
+			s.byID[id] = int32(len(s.nodes) + 1)
+			s.nodes = append(s.nodes, sideAttrs{n: n, rule: rule})
+			return &s.nodes[len(s.nodes)-1]
+		} else if s.nodes[i-1].n == n {
+			return &s.nodes[i-1]
+		}
+	}
+	i, ok := s.other[n]
 	if !ok {
+		if s.other == nil {
+			s.other = map[Node]int{}
+		}
 		i = len(s.nodes)
-		s.at[n] = i
+		s.other[n] = i
 		s.nodes = append(s.nodes, sideAttrs{n: n, rule: rule})
 	}
 	return &s.nodes[i]

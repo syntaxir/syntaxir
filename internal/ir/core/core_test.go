@@ -730,8 +730,26 @@ func TestPrint(t *testing.T) {
 }
 
 // TestCheckAttributes checks that CheckAttributes accepts the attributes that Analyze computes,
-// rejects each attribute that differs from them, naming the rule, and never writes the module.
+// rejects each attribute that differs from them, naming the rule, and never writes the module: for a
+// module that was never numbered, one that was (the nodes are found by ID), and one in which two
+// nodes have one ID.
 func TestCheckAttributes(t *testing.T) {
+	for _, number := range []struct {
+		name string
+		f    func(m *Module)
+	}{
+		{"unnumbered", func(*Module) {}},
+		{"numbered", Number},
+		{"shared ID", func(m *Module) {
+			Number(m)
+			m.Rules[2].Body.(*Seq).Items[1].Attrs().ID = m.Rules[0].Body.Attrs().ID
+		}},
+	} {
+		t.Run(number.name, func(t *testing.T) { checkAttributes(t, number.f) })
+	}
+}
+
+func checkAttributes(t *testing.T, number func(m *Module)) {
 	digit := class('0', '9')
 	capture := &Capture{Slot: 0, Name: "x", Body: &Text{Body: seq(lit("ab"), &Call{Rule: 2})}}
 	m := module(
@@ -741,6 +759,7 @@ func TestCheckAttributes(t *testing.T) {
 		rule(3, "l", choice(seq(&Call{Rule: 3}, lit("x")), lit("y"))),
 	)
 	m.Rules[3].Policy.Leader = true
+	number(m)
 	attrs := func() []Attrs {
 		var as []Attrs
 		for _, r := range m.Rules {
