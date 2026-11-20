@@ -88,7 +88,7 @@ that repeat a body with or without budget charges.
 
 Of the 1,263 commits, 79 touched the non-test sources of two or more of the four copies (the engine runtime files
 under their former and current paths, `pkg/runtime/libgo/` or its former `internal/engine/genrt/`, and the TypeScript runtime
-under its former and current paths; the copy in `gen/_runtime` is mechanical and not counted). Classified by hand:
+under its former and current paths; the copy of the library that the Go generator embeds is mechanical and not counted). Classified by hand:
 
 | Kind | Commits | Examples |
 |:--|--:|:--|
