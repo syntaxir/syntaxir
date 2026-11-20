@@ -46,6 +46,12 @@ type Answer struct {
 	Obs map[string][]string `json:"obs,omitempty"`
 	// Regs are the registers after the call, for the registers of Entry.Regs.
 	Regs map[string]float64 `json:"regs,omitempty"`
+	// Gathered and Made are the identifiers of the elements gathered and of the values made after the
+	// call, 0 for a null element (the family has terms).
+	Gathered []int64 `json:"gathered,omitempty"`
+	Made     []int64 `json:"made,omitempty"`
+	// Items are, for each result that is a list of elements, their identifiers.
+	Items [][]int64 `json:"items,omitempty"`
 }
 
 // Tok is a handle of the implementation under conformance: a value that the harness compares by
@@ -54,6 +60,7 @@ type Tok struct {
 	id           int64
 	m            any
 	visits, errs int
+	items        []int64
 }
 
 // Recorder is an implementation that is a second copy of the model: it makes the calls of a trace
@@ -272,6 +279,9 @@ func (p *Replay) Call(o *code.Op, args []any) []any {
 			if i < len(a.Lists) {
 				t.visits, t.errs = a.Lists[i][0], a.Lists[i][1]
 			}
+			if i < len(a.Items) && a.Items[i] != nil {
+				t.items = a.Items[i]
+			}
 			res[i] = t
 		case code.KInt:
 			res[i] = int64(v.(float64))
@@ -307,3 +317,12 @@ func (p *Replay) ListOf(l any) (visits, errs int) {
 
 // Observation returns the observation of a component after the last call.
 func (p *Replay) Observation(c string) []string { return p.last.Obs[c] }
+
+// GatheredIDs returns the identifiers of the elements gathered after the last call.
+func (p *Replay) GatheredIDs() []int64 { return p.last.Gathered }
+
+// MadeIDs returns the identifiers of the values made after the last call.
+func (p *Replay) MadeIDs() []int64 { return p.last.Made }
+
+// ItemsOf returns the identifiers of the elements of a list that a call returned.
+func (p *Replay) ItemsOf(l any) []int64 { return l.(*Tok).items }

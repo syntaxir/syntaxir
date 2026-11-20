@@ -66,6 +66,9 @@ interface Answer {
   lists?: ([number, number] | null)[];
   obs?: Record<string, string[]>;
   regs?: Record<string, number>;
+  gathered?: number[];
+  made?: number[];
+  items?: (number[] | null)[];
 }
 
 // A Machine is the library in the state at the start of a parse, with the bindings of one family.
@@ -719,6 +722,63 @@ class RuleM extends Exec {
   }
 }
 
+// What terms make: the elements gathered on the parser's stack for a list or a tuple, and the values made.
+// An element or a struct is an object with a conformance identifier.
+interface Ided {
+  id: number;
+}
+const idOf = (x: Ided | null): number => (x === null ? 0 : x.id);
+
+class TermM extends Exec {
+  act: p.Actx | null = null;
+
+  call(op: string, a: any[]): any[] {
+    const P = this.P;
+    switch (op) {
+      case "test.act":
+        this.act ??= new p.Actx(P);
+        return [this.act];
+      case "test.elem":
+      case "test.struct":
+        return [{ id: a[0] }];
+      case "test.items":
+        return [Array.from({ length: a[1] }, (_, i) => ({ id: a[0] + i }))];
+      case "act.push":
+        P.kidStack.push(a[1]);
+        return [];
+      case "act.pushAll":
+        (a[0] as p.Actx).pushAll(a[1]);
+        return [];
+      case "term.kids":
+        return [P.kidStack.length];
+      case "term.dropKids":
+        P.dropSpend(P.kidStack, a[0]);
+        return [];
+      case "term.elemsAbove":
+        return [P.kids(a[0])];
+      case "term.keep":
+        P.kidStack.push(a[0][a[1]]);
+        return [];
+      case "act.made":
+        P.created.push(a[1]);
+        return [];
+      case "term.created":
+        return [P.created.length];
+      case "term.dropCreated":
+        P.dropSpend(P.created, a[0]);
+        return [];
+    }
+    return super.call(op, a);
+  }
+
+  snapshot(ans: Answer, e: Entry, res: any[]): void {
+    super.snapshot(ans, e, res);
+    ans.gathered = (this.P.kidStack as unknown as (Ided | null)[]).map(idOf);
+    ans.made = (this.P.created as unknown as Ided[]).map(idOf);
+    if (res.some((r) => Array.isArray(r))) ans.items = res.map((r) => (Array.isArray(r) ? r.map(idOf) : null));
+  }
+}
+
 // The Operators Rules and the records of the split forms of their loop. Every operation but the records
 // is printed in the generated parser as an access to the library's descriptors (OperatorsRule), which the
 // bindings mirror; the records are the printed code's own variables.
@@ -876,6 +936,8 @@ function make(family: string, cfg: Config, controlled: boolean, options: Record<
   switch (family) {
     case "exec":
       return new Exec(cfg, controlled, options);
+    case "term":
+      return new TermM(cfg, controlled, options);
     case "opr":
       return new OprM(cfg, controlled, options);
     case "obs":
