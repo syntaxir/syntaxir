@@ -95,9 +95,9 @@ func familyCharges(t *testing.T, prog *Program, b Backend, input string, stream 
 // stream frames drops instead, so the stream numbers are those of the build.
 func TestClosureFamilyCharges(t *testing.T) {
 	t.Parallel()
-	stream := map[string]uint64{"stream": 141, "stream+trace": 151}
+	stream := map[string]uint64{"stream": 125, "stream+trace": 135}
 	if !state.StreamFrameScratch {
-		stream = map[string]uint64{"stream": 137, "stream+trace": 147}
+		stream = map[string]uint64{"stream": 121, "stream+trace": 131}
 	}
 	cases := []struct {
 		name, src string
@@ -106,10 +106,10 @@ func TestClosureFamilyCharges(t *testing.T) {
 		stream    bool
 		want      map[string]uint64
 	}{
-		{"plain calls", "rule main = item* $$\nrule item = \"a\"", compile.Options{}, "aaaa", false, map[string]uint64{"document": 61, "document+trace": 69, "parse": 35, "parse+trace": 48, "prefix": 34, "prefix+trace": 47, "recognize": 27, "recognize+trace": 40}},
-		{"plain calls, no memo", "rule main = item* $$\nrule item = \"a\"", compile.Options{DisableMemo: true}, "aaaa", false, map[string]uint64{"document": 38, "document+trace": 46, "parse": 35, "parse+trace": 48, "prefix": 34, "prefix+trace": 47, "recognize": 27, "recognize+trace": 40}},
+		{"plain calls", "rule main = item* $$\nrule item = \"a\"", compile.Options{}, "aaaa", false, map[string]uint64{"document": 53, "document+trace": 61, "parse": 27, "parse+trace": 40, "prefix": 26, "prefix+trace": 39, "recognize": 27, "recognize+trace": 40}},
+		{"plain calls, no memo", "rule main = item* $$\nrule item = \"a\"", compile.Options{DisableMemo: true}, "aaaa", false, map[string]uint64{"document": 30, "document+trace": 38, "parse": 27, "parse+trace": 40, "prefix": 26, "prefix+trace": 39, "recognize": 27, "recognize+trace": 40}},
 		{"recursion", "rule main = e $$\nrule e = \"(\" e \")\" / x\nrule x = \"x\"", compile.Options{DisableMemo: true}, "((x))", false, map[string]uint64{"document": 20, "document+trace": 29, "parse": 26, "parse+trace": 39, "prefix": 25, "prefix+trace": 38, "recognize": 26, "recognize+trace": 39}},
-		{"captures", "rule main = item* $$\nrule item = x:\"a\" {len(text($x)) == 1}", compile.Options{}, "aaa", false, map[string]uint64{"document": 58, "document+trace": 65, "parse": 41, "parse+trace": 48, "prefix": 40, "prefix+trace": 47, "recognize": 29, "recognize+trace": 36}},
+		{"captures", "rule main = item* $$\nrule item = x:\"a\" {len(text($x)) == 1}", compile.Options{}, "aaa", false, map[string]uint64{"document": 46, "document+trace": 53, "parse": 29, "parse+trace": 36, "prefix": 28, "prefix+trace": 35, "recognize": 29, "recognize+trace": 36}},
 		{"stream", codegentest.Records, compile.Options{}, "#records\na=1\nbc=22\n", true, stream},
 	}
 	for _, c := range cases {

@@ -1405,7 +1405,7 @@ func (p *Parser) setValueFieldControlled(fs *valueimpl.Fields, name string, v an
 	// Adding the field is constant work, which the step that sets it has paid.
 	*fs = append(*fs, valueimpl.NodeField{Name: name, Value: v})
 }
-func (p *Parser) pushKid(v *zpvalue.Node) { p.Spend(); p.KidStack = append(p.KidStack, v) }
+func (p *Parser) pushKid(v *zpvalue.Node) { p.KidStack = append(p.KidStack, v) }
 func (p *Parser) undoCaptures(from int) {
 	for i := len(p.Trail) - 1; i >= from; i-- {
 		p.Spend()

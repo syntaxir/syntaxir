@@ -3325,22 +3325,24 @@ export class Parser {
     return f;
   }
 
-  // kids returns kidStack[base:] as a child list and pops it. Under budget controls it reserves two units
-  // for each element, one for copying it and one for taking it off, in one reservation before it moves
-  // any.
+  // kids returns kidStack[base:] as a child list and pops it. It charges nothing: the values that the
+  // parse gathers are not an item of the cost, and taking each off is constant work for the evaluation
+  // that gathered it (spec/runtime/parsing.md#cost).
   kids(base: number): (Node | null)[] {
     const c = this.control;
-    if (c === null) {
-      const ks = this.kidStack.slice(base);
-      this.kidStack.length = base;
-      return ks;
-    }
-    const n = this.kidStack.length - base;
-    c.mem += arrayBytes(n);
-    if (n > 0) c.charge(2 * n);
+    if (c !== null) c.mem += arrayBytes(this.kidStack.length - base);
     const ks = this.kidStack.slice(base);
     this.kidStack.length = base;
     return ks;
+  }
+
+  // elemsAbove is term.elemsAbove (spec/exec-ir/values.md): it returns the elements that a term gathered
+  // above base as kids does and, under budget controls, reserves two units for each element, one for
+  // copying it and one for taking it off, in one reservation before it moves any.
+  elemsAbove(base: number): (Node | null)[] {
+    const n = this.kidStack.length - base;
+    if (n > 0) this.control?.charge(2 * n);
+    return this.kids(base);
   }
 
   // dropKids pops kidStack[base:].
@@ -3803,11 +3805,10 @@ export class Parser {
   }
 
   // skipEnd ends the walk and records the rest of it from each position it visited recording. A walk
-  // that builds values drops them.
+  // that builds values drops them, uncharged.
   skipEnd(): void {
-    this.walkEnd(false);
+    this.walkEnd();
     const w = this.walk();
-    this.spend(w.vals.length);
     w.vals.length = 0;
     w.buf = null;
     w.hit = null;
@@ -3816,14 +3817,12 @@ export class Parser {
 
   // skipKids ends a walk begun with build as skipEnd does, and returns the values of its iterations,
   // then those of the record it took, as a child list. The list may share its elements with the
-  // records of other walks. Taking the n values that the walk gathered off into the list is one
-  // reservation of 2n units, made before any of them moves, as kids makes for a repetition that
-  // keeps no records; the elements that a reused record adds after them are charged as copies where
-  // they are copied.
+  // records of other walks. Like kids it charges nothing: the values that the parse gathers, takes
+  // off, places in records and drops are not an item of the cost (spec/runtime/parsing.md#cost); each
+  // is moved a constant number of times for the iteration that gathered it or the record that holds it.
   skipKids(): (Node | null)[] {
     const n = this.walk().vals.length;
-    if (n > 0) this.spend(2 * n);
-    this.walkEnd(true);
+    this.walkEnd();
     const w = this.walk();
     let kids: (Node | null)[];
     if (w.placed) {
@@ -3844,9 +3843,8 @@ export class Parser {
     return kids;
   }
 
-  // walkEnd ends the walk and records the rest of it from each position it visited recording. paid
-  // says that the move of the gathered values into the list has been charged (skipKids).
-  walkEnd(paid: boolean): void {
+  // walkEnd ends the walk and records the rest of it from each position it visited recording.
+  walkEnd(): void {
     const w = this.walk();
     this.skipClose();
     const vs = w.visits;
@@ -3857,7 +3855,7 @@ export class Parser {
       endBind = hit.bind;
     }
     if (w.build && (n > 0 || hit !== null)) {
-      this.placeVals(w, hit, paid);
+      this.placeVals(w, hit);
     }
     let next = hit;
     if (next === null && n > 0) {
@@ -3907,9 +3905,10 @@ export class Parser {
   // placeVals places the list of the walk: its values, then the elements of the record it took (if
   // any, hit), from w.lo on in w.buf. It writes the values in place before the tail where the buffer
   // has room there that no record refers to, and otherwise copies the tail with room to spare, so
-  // that a walk that goes on to reach a record again finds it. The copy of the values is charged
-  // unless paid says that it has been.
-  placeVals(w: SkipWalk, hit: SkipRecord | null, paid: boolean): void {
+  // that a walk that goes on to reach a record again finds it. Placing the values charges nothing
+  // (skipKids); copying the tail charges a unit for each element: the cost of the grammar does not
+  // bound these suffix copies (spec/runtime/parsing.md#run-sites).
+  placeVals(w: SkipWalk, hit: SkipRecord | null): void {
     const vals = w.vals;
     const n = vals.length;
     const tb = hit === null ? null : hit.kids;
@@ -3924,7 +3923,6 @@ export class Parser {
     if (tb !== null) {
       tl = tb.a.length - ti;
       if (ti === tb.lo && ti >= n) {
-        if (!paid) this.spend(n);
         for (let k = 0; k < n; k++) tb.a[ti - n + k] = vals[k]!;
         tb.lo = ti - n;
         w.buf = tb;
@@ -3935,7 +3933,6 @@ export class Parser {
     const slack = tl > 0 ? n + tl : 0;
     const a: (Node | null)[] = new Array<Node | null>(slack + n + tl).fill(null);
     this.alloc(arrayBytes(a.length));
-    if (!paid) this.spend(n);
     for (let k = 0; k < n; k++) a[slack + k] = vals[k]!;
     if (tl > 0) {
       this.spend(tl);
@@ -5185,12 +5182,13 @@ export class Parser {
   }
 
   // attachCaptures attaches the non-null captures as fields of the node. A node of another rule, or
-  // one that is itself captured, is first wrapped in a tuple node.
+  // one that is itself captured, is first wrapped in a tuple node. It charges nothing: captures and the
+  // nodes that the parse builds are not an item of the cost (spec/runtime/parsing.md#cost), and the
+  // slots and names of a scope, and so the fields that it looks at, are a constant of the grammar.
   attachCaptures(v: Node | null, names: string[], f: Frame, start: number, end: number): Node | null {
     let found = false;
     let wrap = v === null || !v.fresh;
     for (const c of f) {
-      this.spend();
       if (c !== null) {
         found = true;
         if (c === v) {
@@ -5208,10 +5206,9 @@ export class Parser {
     }
     n.labeled = this.sourceInfo;
     for (let i = 0; i < names.length; i++) {
-      this.spend();
       const c = f[i]!;
       if (c !== null) {
-        setField(n, names[i]!, c, this.control);
+        setField(n, names[i]!, c);
       }
     }
     return n;
@@ -6130,7 +6127,7 @@ export class Actx {
         return [false, i + 1];
       case "l":
         this.spend();
-        return [this.listNode(this.p.kids(this.p.kidStack.length)), i + 1];
+        return [this.listNode(this.p.elemsAbove(this.p.kidStack.length)), i + 1];
       case "(": {
         const base = this.p.kidStack.length;
         this.spend();
@@ -6143,7 +6140,7 @@ export class Actx {
             throw new Error("runtime: a zero value is not a tuple element"); // zero values are never functions
           }
         }
-        return [this.p.termHull(this, true, this.p.kids(base)), i + 1];
+        return [this.p.termHull(this, true, this.p.elemsAbove(base)), i + 1];
       }
       case "{": {
         // The zero value of a struct type is a struct with no field set, whose fields read as their own

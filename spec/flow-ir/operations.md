@@ -30,7 +30,7 @@ the Exec stage and the backends rely on.
 | `flow.runBegin` |  |  | `runwalk` | Begins a walk of the hot run site at the position, as flow.skipBegin does for a skip-run site, until flow.skipEnd or flow.skipKids. With Build its iterations have values, which flow.skipValue adds and flow.skipKids gathers in a list; with KeyEnv its records are kept for the position and the values of the variables of the site's key, otherwise for the position alone. |
 | `flow.skipVisit` |  |  |  | Ends the iteration of the walk before, if any, and begins one at the position; in a recording walk it keeps the expectations of the iteration before and reads the key of the walk. |
 | `flow.skipValue` | x value |  |  | Adds the value x of the iteration that matched to the walk begun with Build; the records of the walk share it. |
-| `flow.skipEnd` |  |  |  | Ends the iteration of the walk before, if any, ends the walk and records the rest of it from each position it visited while recording. A walk begun with Build drops the values it holds, at most three units for each value: the specification leaves what dropping them charges to the backend ([Run Sites](../runtime/parsing.md#run-sites)). |
+| `flow.skipEnd` |  |  |  | Ends the iteration of the walk before, if any, ends the walk and records the rest of it from each position it visited while recording. A walk begun with Build drops the values it holds, which charges nothing, and copies the elements of the record it took where it cannot share them, a unit for each ([Run Sites](../runtime/parsing.md#run-sites)). |
 | `flow.runWalked` | start int |  | `site` | Ends the walk of the run site that was not hot, which began at start: a walk that began below the furthest position that the walks of the site passed, and walked RunHotSpan or more of the input below it, turns the site hot. A walk shorter than RunHotSpan changes nothing. Noting the end of a walk at a site that is not hot is free ([Run Sites](../runtime/parsing.md#run-sites)). |
 | `flow.scanEnd` | start int, count int |  | `site` | Ends a walk of the value-free scan site that began at start and matched count characters, at least ScanHotSpan: unless the walk took the rest from a record, it records itself at a hot site, or notes that it walked at a site that is not hot. |
 | `flow.emitStream` | x value |  |  | Delivers the committed element x (nil for a value-free repetition) to the callback of a stream parse, which has consumed the input up to the position. |
@@ -80,7 +80,7 @@ the Exec stage and the backends rely on.
 | `flow.kids` | base int | vals |  | Returns the list of the values gathered above base, which it removes from the stack. |
 | `flow.shapeSingle` | x value, start int | value, bool | `shape` | Returns the value of x, matched from start by an expression of the shape, where it takes one element, and whether it is a single element (not used). |
 | `flow.shapeCapture` | x value, start int | value | `shape` | Returns the value of x, matched from start by an expression of the shape, where it is captured. |
-| `flow.scopeValue` | x value, start int | value | `shape` | Returns the value of a scope whose body, of the shape, matched x from start. Building a tuple for it charges a unit for the value ([Cost](../runtime/parsing.md#cost)). |
+| `flow.scopeValue` | x value, start int | value | `shape` | Returns the value of a scope whose body, of the shape, matched x from start, building a tuple for it if the shape needs one. |
 | `flow.attachCaptures` | x value, start int, caps value (variadic) | value | `attach` | Returns x, matched from start, with the captures of the scope attached: the values caps of the scope's slots. |
 | `flow.attachFrame` | x value, start int, f frame | value | `attach` | Returns x, matched from start, with the captures of the scope attached: the values of the frame f. |
 | `flow.markState` |  | mark | `statemark` | Returns a mark of the parser state, which flow.reset returns to: the position, and the variable environment, the capture trail and the recovered errors as the immediate names them. |
@@ -135,8 +135,9 @@ name without the package. The immediates are the following; a listing prints eac
 ## Quantities
 
 The cost bound of a Flow operation (see [Costs](../code-ir/module.md#costs)) is in terms of the quantities below. An
-operation of constant work charges nothing, because the call or the step around it has paid. An operation that builds a
-value charges a unit for it, as [Cost](../runtime/parsing.md#cost) requires. An operation whose Go form is a
+operation of constant work charges nothing, because the call or the step around it has paid. The values that the parse
+builds, gathers, takes off, drops and attaches captures to charge nothing ([Cost](../runtime/parsing.md#cost)); the value
+of a recovered error charges a unit and its message. An operation whose Go form is a
 [composition](../exec-ir/compositions.md) is bounded by what that composition charges.
 
 | Quantity | Measures |
@@ -149,9 +150,7 @@ value charges a unit for it, as [Cost](../runtime/parsing.md#cost) requires. An 
 | `text` | The code points of the input that a value copies: in a [stream](../runtime/streaming.md) parse, the length of a text. |
 | `merge` | The units of the compositions over the expectation record (`expect`, `keep` and `mergeExpected`) for the expectations that the call records, keeps or merges, as the quantity `merge` of the [Exec dialect](../exec-ir/machine.md#quantities) measures them. |
 | `call` | The units of the call protocol around a rule body (the composition `call`): the first-call record, the memo's lookups and stores and the growth of their tables. |
-| `vals` | The values of the list that the call returns. |
-| `captures` | The capture names of the scope whose captures the call attaches. |
-| `capture_fields` | What setting the captures that matched as fields of the value charges: a unit for each field that the value already has. |
+| `vals` | The values of the list that the call returns, which bound the elements of a record that it copies. |
 | `stream` | The work of a stream parse at the call: loading, compacting and scanning its buffer, and the commit of a delivered element (the composition streamCommit); 0 outside a stream parse. |
 | `error` | Building a syntax error: a unit for each expectation, the steps of sorting their descriptions and of finding the line, and at the first error of a parse of a whole input, a unit for each code point that the table of line starts reads. |
 | `error_text` | The size of the message of a recovered error that a value holds: its bytes and a unit for each of its parts. |

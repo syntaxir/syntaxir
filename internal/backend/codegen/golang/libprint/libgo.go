@@ -294,7 +294,7 @@ func goTarget(s goSpec) *print.Target {
 		case "term.dropKids":
 			return fmt.Sprintf("clearSpend(%s, p.KidStack[%s:])\np.KidStack = p.KidStack[:%[2]s]", spender, a[0])
 		case "term.elemsAbove":
-			return "p.Kids(" + a[0] + ")"
+			return "p.ElemsAbove(" + a[0] + ")"
 		case "term.keep":
 			return fmt.Sprintf("p.KidStack = append(p.KidStack, %s[%s])", a[0], a[1])
 		case "opr.led":

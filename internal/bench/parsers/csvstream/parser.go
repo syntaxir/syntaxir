@@ -125,7 +125,7 @@ func init() {
 		if tf3 != nil {
 			return nil, tf3
 		}
-		tk4 := c.P.Kids(tm1)
+		tk4 := c.P.ElemsAbove(tm1)
 		tn5 := c.P.TermHull(c, false, tk4)
 		tf6 := any(tn5)
 		tn7 := c.TermStruct("Record", 1)
@@ -631,4 +631,4 @@ fail:
 
 var streamRule *rt.Rule
 
-const _ = rt.Protocol21
+const _ = rt.Protocol22

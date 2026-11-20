@@ -34,7 +34,7 @@ func (p *Parser) confTermDropKids(mark int) {
 // Printed from Exec IR function confTermElemsAbove of internal/ir/code/exec/compose.
 func (p *Parser) confTermElemsAbove(mark int) []*zpvalue.Node {
 	var r []*zpvalue.Node
-	r = p.Kids(mark)
+	r = p.ElemsAbove(mark)
 	return r
 }
 

@@ -139,7 +139,7 @@ func (g *Generator) termTarget(s *check.Scope, locals map[string]string) *Target
 			case action.OpTermCopyList:
 				return "c.newList(" + a[0] + ")"
 			case action.OpTermElemsAbove:
-				return "c.p.kids(" + a[0] + ")"
+				return "c.p.elemsAbove(" + a[0] + ")"
 			case action.OpTermStruct:
 				return "c.termStruct(" + TsString(c.Imm.(action.New).Type) + ")"
 			case action.OpTermSetField:

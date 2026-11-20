@@ -149,7 +149,7 @@ func (g *Generator) termTarget(s *check.Scope, locals map[string]string) *Target
 			case "term.kids":
 				return "len(c.P.KidStack)"
 			case action.OpTermElemsAbove:
-				return "c.P.Kids(" + a[0] + ")"
+				return "c.P.ElemsAbove(" + a[0] + ")"
 			case "seq.step":
 				return "c.P.Spend()"
 			case "seq.len":

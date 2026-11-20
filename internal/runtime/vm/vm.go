@@ -734,7 +734,6 @@ func (mc *Machine) step(vm *Program, b *vmBody, resume, rok bool, rv *value.Node
 			kids := p.Nodes(n)
 			top := len(mc.vals)
 			for k := 0; k < n; k++ {
-				p.Spend()
 				kids[k] = asNodeValue(mc.vals[top-n+k])
 			}
 			start := *mc.vals[top-n-1].(*int)
@@ -746,7 +745,6 @@ func (mc *Machine) step(vm *Program, b *vmBody, resume, rok bool, rv *value.Node
 			case in.B == 1:
 				if n := asNodeValue(v); n != nil {
 					for _, k := range nodes.D(n).Children {
-						p.Spend()
 						mc.push(k)
 					}
 				}
@@ -922,7 +920,7 @@ func (mc *Machine) step(vm *Program, b *vmBody, resume, rok bool, rv *value.Node
 				// The list of a run site that builds values, from the walk's gathered values.
 				ok := rep.count >= rep.min
 				start := *mc.vals[rep.base-1].(*int)
-				list := p.SkipEndList(start, ok, false)
+				list := p.SkipEndList(start, ok)
 				if !ok {
 					goto fail
 				}
@@ -952,12 +950,9 @@ func (mc *Machine) step(vm *Program, b *vmBody, resume, rok bool, rv *value.Node
 				if rep.scan && rep.hit {
 					kids = mc.scans[len(mc.scans)-1].kids // (shared with the record; no element came after it)
 				} else {
-					// Taking the n gathered elements off is one reservation of 2n units, as Parser.Kids makes.
+					// Taking the gathered elements off charges nothing, as Parser.Kids.
 					n := len(mc.vals) - rep.base
 					kids = p.Nodes(n)
-					if n > 0 {
-						p.SpendValue(2 * n)
-					}
 					for k := range kids {
 						kids[k] = asNodeValue(mc.vals[rep.base+k])
 					}

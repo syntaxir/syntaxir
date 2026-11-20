@@ -149,7 +149,7 @@ func (t *TermProgram) run(c *EvalCtx, a []any, n []int, s [][]*value.Node, ts []
 				return nil, err
 			}
 		case TAbove:
-			s[in.Dst] = p.Kids(n[in.A])
+			s[in.Dst] = p.ElemsAbove(n[in.A])
 		case THull:
 			a[in.Dst] = p.termHull(c, in.B != 0, s[in.A])
 		case TItems:

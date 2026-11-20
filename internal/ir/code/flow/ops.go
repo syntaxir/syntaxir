@@ -58,8 +58,8 @@ const (
 	// the growth of their tables, as the operations of the Exec stage that the protocol calls declare
 	// them.
 	QCall = "call"
-	// QVals is the number of values that the call returns in its list; spec/runtime/parsing.md#cost bounds
-	// each gathered value by two units.
+	// QVals is the number of values that the call returns in its list, which bounds the elements of a
+	// record that it copies behind the values of its walk (spec/runtime/parsing.md#run-sites).
 	QVals = "vals"
 	// QError is the work of building a syntax error: one unit for each expectation that the call is
 	// passed, the steps of sorting their descriptions and of finding the line of the error's position
@@ -69,12 +69,6 @@ const (
 	// QRanges is the number of ranges of the operation's class: of the immediate *core.Class, or of
 	// the class of the immediate *core.First, 0 for a literal.
 	QRanges = "ranges"
-	// QCaptures is the number of the capture names of the scope whose captures the call attaches.
-	QCaptures = "captures"
-	// QCaptureFields is what setting the captures that matched as fields of the value charges: one
-	// unit for each field that the value already has, as the quantity capture_fields of the Exec stage
-	// counts it.
-	QCaptureFields = "capture_fields"
 	// QStream is the units of the work of a stream parse at the call: loading the input into its buffer,
 	// compacting the buffer and scanning it for line starts (stream_scan of the Exec stage), and for a
 	// delivered element the commit of the composition streamCommit
@@ -99,7 +93,8 @@ const (
 	QRecords = "records"
 	// QWalkVals is the number of values that a walk of a run site whose iterations have values holds
 	// at its end: those its iterations gathered and those of the record it took, which the end of the
-	// walk lays out for its records (spec/runtime/parsing.md#run-sites).
+	// walk lays out for its records, copying those of the record where it cannot share them
+	// (spec/runtime/parsing.md#run-sites).
 	QWalkVals = "walk_vals"
 )
 
@@ -348,12 +343,9 @@ func Ops() []*code.Op {
 		c.Terms = append(slices.Clone(c.Terms), code.CostTerm{Coef: 1, Quantity: q})
 		return c
 	}
-	// value1 is the cost of an operation that builds one value: a unit for the value
-	// (spec/runtime/parsing.md#cost).
+	// value1 is the cost of an operation that builds the value of a recovered error: a unit for the
+	// value (spec/runtime/parsing.md#cost). The values that the parse builds otherwise charge nothing.
 	value1 := unit
-	// attach is the cost of attaching the captures of a scope to a value: the value that it may make,
-	// a scan of the captures and of the names, and the setting of the fields.
-	attach := code.Cost{Const: 1, Terms: []code.CostTerm{{Coef: 2, Quantity: QCaptures}, {Coef: 1, Quantity: QCaptureFields}}}
 	pure := "pure: the operation reads the state and changes nothing, so a call whose result is unused may be removed."
 	var ops []*code.Op
 	op := func(o *code.Op) *code.Op {
@@ -395,8 +387,8 @@ parse what loading the input charges; in a Document parse it records how far the
 	withImm(op(&code.Op{Name: OpMergeRenamed, Params: []code.Param{P("far", i), P("exps", expids)}, Writes: []string{State}, Cost: per(QMerge),
 		Contract: "Merges the expectations exps, recorded at far, into the enclosing scope, renamed to the expectation of the immediate (@diagnostic), as the composition expect does for it (spec/exec-ir/compositions.md#expectations)."}),
 		"the expectation (core.ExpID)", immOf[core.ExpID]())
-	op(&code.Op{Name: OpPushKid, Params: []code.Param{P("x", value)}, Writes: []string{State}, Cost: unit,
-		Contract: "Pushes x on the stack of gathered values. It charges at most a unit for the value, within the bound of gathered values (spec/runtime/parsing.md#cost)."})
+	op(&code.Op{Name: OpPushKid, Params: []code.Param{P("x", value)}, Writes: []string{State},
+		Contract: "Pushes x on the stack of gathered values. It charges nothing: the values that the parse gathers are not an item of the cost (spec/runtime/parsing.md#cost)."})
 	op(&code.Op{Name: OpDropKids, Params: []code.Param{P("base", i)}, Writes: []string{State},
 		Contract: "Truncates the stack of gathered values to base.", Requires: "base is at most the height of the stack."})
 	op(&code.Op{Name: OpStreamStart, Writes: []string{State}, NoReturn: true,
@@ -424,11 +416,11 @@ node, as no longer owned by its maker: the records of the walk share it. Adding 
 flow.skipKids charges for it (spec/runtime/parsing.md#run-sites).`,
 		Requires: "the walk in progress was begun with Build."})
 	op(&code.Op{Name: OpSkipEnd, Reads: pos, Writes: []string{State},
-		Cost: code.Cost{Terms: []code.CostTerm{{Coef: 2, Quantity: QMerge}, {Coef: 1, Quantity: QKey}, {Coef: 1, Quantity: QRecords}, {Coef: 3, Quantity: QWalkVals}}},
+		Cost: code.Cost{Terms: []code.CostTerm{{Coef: 2, Quantity: QMerge}, {Coef: 1, Quantity: QKey}, {Coef: 1, Quantity: QRecords}, {Coef: 1, Quantity: QWalkVals}}},
 		Contract: `Ends the iteration of the walk before, if any, ends the walk and records the rest of it from each
 position it visited while recording, a unit for each record stored (spec/runtime/parsing.md#skip-runs). A
-walk begun with Build lays out the values it holds for its records and drops them, at most three units for
-each value: the specification leaves what dropping them charges to the backend
+walk begun with Build lays out the values it holds for its records and drops them, which charges nothing,
+and copies the elements of the record it took where it cannot share them, a unit for each
 (spec/runtime/parsing.md#run-sites).`})
 	withImm(op(&code.Op{Name: OpRunWalked, Params: []code.Param{P("start", i)}, Reads: pos, Writes: []string{State},
 		Contract: `Ends the walk of the run site that was not hot (flow.runHot), which began at start and ends at the
@@ -492,24 +484,23 @@ In a recording walk it charges a unit for the lookup and one more when the slot 
 walk of a site that is not hot is an ordinary repetition, which flow.runWalked ends. Testing whether the
 site is hot is free (spec/runtime/parsing.md#run-sites).`}), "the site (Site)", immOf[Site]())
 	op(&code.Op{Name: OpSkipKids, Results: []code.Type{vals}, Reads: pos, Writes: []string{State},
-		Cost: code.Cost{Terms: []code.CostTerm{{Coef: 2, Quantity: QVals}, {Coef: 2, Quantity: QMerge}, {Coef: 1, Quantity: QKey}, {Coef: 1, Quantity: QRecords}}},
+		Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QVals}, {Coef: 2, Quantity: QMerge}, {Coef: 1, Quantity: QKey}, {Coef: 1, Quantity: QRecords}}},
 		Contract: `Ends the walk begun with Build as flow.skipEnd does, and returns the child list of the values of its
 iterations, then those of the record it took, as flow.kids does for a repetition without records; the list
-may share its elements with the lists and records of other walks. It charges at most two units for each
-value of the list, the bound of gathered values (spec/runtime/parsing.md#cost), besides the expectations,
-the key and a unit for each record stored (spec/runtime/parsing.md#run-sites).`,
+may share its elements with the lists and records of other walks. Taking the values off charges nothing
+(spec/runtime/parsing.md#cost); it charges the expectations, the key, a unit for each record stored and a
+unit for each element of the record that it copies (spec/runtime/parsing.md#run-sites).`,
 		Requires: "the walk in progress was begun with Build."})
 	withImm(op(&code.Op{Name: OpScanReach, Params: []code.Param{P("start", i), P("count", i)}, Results: []code.Type{i}, Reads: pos, Writes: []string{State, Pos},
 		Contract: `For a walk of the scan site that began at start and has matched ScanHotSpan characters, count of
 them: at a hot site with a record of start it moves the position to the recorded end and returns the
 recorded count; otherwise it returns count.`}), "the site (Site)", immOf[Site]())
 	withImm(op(&code.Op{Name: OpScanKids, Params: []code.Param{P("start", i), P("base", i), P("count", i)}, Results: []code.Type{vals}, Reads: pos, Writes: []string{State},
-		Cost: code.Cost{Terms: []code.CostTerm{{Coef: 2, Quantity: QVals}}},
 		Contract: `Returns the elements of a walk of the scan site that began at start, gathered on the stack from
 base, which matched count characters: for a walk that reached ScanHotSpan characters it ends the walk as
 flow.scanEnd does, and the result is the elements of the record that the walk took, if it took one (the
-stack is dropped to base), or the gathered elements, which the record that it makes shares. It charges at most two
-units for each value of its result, the bound of gathered values (spec/runtime/parsing.md#cost).`}), "the site (Site)", immOf[Site]())
+stack is dropped to base), or the gathered elements, which the record that it makes shares. It charges
+nothing: the values that the parse gathers are not an item of the cost (spec/runtime/parsing.md#cost).`}), "the site (Site)", immOf[Site]())
 	withImm(op(&code.Op{Name: OpHasLit, Results: []code.Type{b}, Reads: pos, Writes: []string{State}, NoReturn: true, Cost: per(QLit),
 		Contract: `Reports that the input at the position begins with the literal, read in place without recording
 anything; false where the input cannot be read in place. With budget controls a match charges a unit per
@@ -560,36 +551,35 @@ position is the end of the rule's match, on failure it is unchanged. The body ch
 		"the literal's text (Chars)", immOf[Chars]())
 	withImm(op(&code.Op{Name: OpStr, Results: []code.Type{value}, Contract: "Returns the string constant.", Laws: []string{pure}}),
 		"the string (Chars)", immOf[Chars]())
-	op(&code.Op{Name: OpNewMatch, Params: []code.Param{P("start", i), P("text", value)}, Results: []code.Type{value}, Reads: pos, Writes: []string{State}, Cost: value1,
+	op(&code.Op{Name: OpNewMatch, Params: []code.Param{P("start", i), P("text", value)}, Results: []code.Type{value}, Reads: pos, Writes: []string{State},
 		Contract: "Returns a match value from start to the position with the text."})
-	withImm(op(&code.Op{Name: OpNewNode, Params: []code.Param{P("start", i), P("kids", vals)}, Results: []code.Type{value}, Reads: pos, Writes: []string{State}, Cost: value1,
+	withImm(op(&code.Op{Name: OpNewNode, Params: []code.Param{P("start", i), P("kids", vals)}, Results: []code.Type{value}, Reads: pos, Writes: []string{State},
 		Contract: "Returns a tuple node, or with List a list node, from start to the position with the children kids."}),
 		"whether the node is a list (List)", immOf[List]())
-	op(&code.Op{Name: OpNewTerminalNode, Params: []code.Param{P("start", i), P("text", value)}, Results: []code.Type{value}, Reads: pos, Writes: []string{State}, Cost: value1,
+	op(&code.Op{Name: OpNewTerminalNode, Params: []code.Param{P("start", i), P("text", value)}, Results: []code.Type{value}, Reads: pos, Writes: []string{State},
 		Contract: "Returns a terminal of the Node runtime from start to the position, with the text."})
-	withImm(op(&code.Op{Name: OpNewBranchNode, Params: []code.Param{P("start", i), P("kids", vals)}, Results: []code.Type{value}, Reads: pos, Writes: []string{State}, Cost: value1,
+	withImm(op(&code.Op{Name: OpNewBranchNode, Params: []code.Param{P("start", i), P("kids", vals)}, Results: []code.Type{value}, Reads: pos, Writes: []string{State},
 		Contract: "Returns a branch of the Node runtime from start to the position: a sequence, or with List a list, of the children kids."}),
 		"whether the node is a list (List)", immOf[List]())
 	withImm(op(&code.Op{Name: OpNewVals, Results: []code.Type{vals}, Writes: []string{State},
 		Contract: "Returns an empty list of values with room for the immediate."}), "the room (Room)", immOf[Room]())
 	op(&code.Op{Name: OpKids, Params: []code.Param{P("base", i)}, Results: []code.Type{vals}, Writes: []string{State},
-		Cost:     code.Cost{Terms: []code.CostTerm{{Coef: 2, Quantity: QVals}}},
-		Contract: "Returns the list of the values gathered above base, which it removes from the stack. It charges at most two units for each value of the list, the bound of gathered values (spec/runtime/parsing.md#cost)."})
+		Contract: "Returns the list of the values gathered above base, which it removes from the stack. It charges nothing: the values that the parse gathers are not an item of the cost (spec/runtime/parsing.md#cost)."})
 	withImm(op(&code.Op{Name: OpShapeSingle, Params: []code.Param{P("x", value), P("start", i)}, Results: []code.Type{value, b}, Reads: pos, Writes: []string{State},
 		Contract: "Returns the value of x, matched from start by an expression of the shape, where it takes one element, and whether it is a single element (not used)."}),
 		"the shape (core.Shape)", immOf[core.Shape]())
 	withImm(op(&code.Op{Name: OpShapeCapture, Params: []code.Param{P("x", value), P("start", i)}, Results: []code.Type{value}, Reads: pos, Writes: []string{State},
 		Contract: "Returns the value of x, matched from start by an expression of the shape, where it is captured."}),
 		"the shape (core.Shape)", immOf[core.Shape]())
-	withImm(op(&code.Op{Name: OpScopeValue, Params: []code.Param{P("x", value), P("start", i)}, Results: []code.Type{value}, Reads: pos, Writes: []string{State}, Cost: unit,
-		Contract: "Returns the value of a scope whose body, of the shape, matched x from start. Building a tuple for it charges a unit for the value (spec/runtime/parsing.md#cost)."}),
+	withImm(op(&code.Op{Name: OpScopeValue, Params: []code.Param{P("x", value), P("start", i)}, Results: []code.Type{value}, Reads: pos, Writes: []string{State},
+		Contract: "Returns the value of a scope whose body, of the shape, matched x from start, building a tuple for it if the shape needs one."}),
 		"the shape (core.Shape)", immOf[core.Shape]())
 	withImm(op(&code.Op{Name: OpAttachCaptures, Params: []code.Param{P("x", value), P("start", i), P("caps", value)}, Variadic: true,
-		Results: []code.Type{value}, Reads: pos, Writes: []string{State}, Cost: attach,
+		Results: []code.Type{value}, Reads: pos, Writes: []string{State},
 		Contract: "Returns x, matched from start, with the captures of the scope attached: the values caps of the scope's slots."}),
 		"the names and the source of the captures (Attach)", immOf[Attach]())
 	withImm(op(&code.Op{Name: OpAttachFrame, Params: []code.Param{P("x", value), P("start", i), P("f", frame)},
-		Results: []code.Type{value}, Reads: pos, Writes: []string{State}, Cost: attach,
+		Results: []code.Type{value}, Reads: pos, Writes: []string{State},
 		Contract: "Returns x, matched from start, with the captures of the scope attached: the values of the frame f."}),
 		"the names, with Frame set (Attach)", immOf[Attach]())
 	withImm(op(&code.Op{Name: OpMarkState, Results: []code.Type{mark}, Reads: all, Writes: []string{State},

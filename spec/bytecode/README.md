@@ -415,7 +415,7 @@ registers (A); `JUMP` and `JUMPFALSE` also have a target.
 | 39 | `KIDSLEN` | 1 | 0 | `flow.kidsLen`. |
 | 40 | `KIDS` | 1 | 1 | `flow.kids` above the integer argument. |
 | 41 | `DROPKIDS` | 0 | 1 | `flow.dropKids` to the integer argument. |
-| 42 | `PUSHKID` | 0 | 1 | `flow.pushKid` of the argument, as the body of a rule frame pushes it: the charge of a gathered value is made where `KIDS` takes it off. |
+| 42 | `PUSHKID` | 0 | 1 | `flow.pushKid` of the argument, as the body of a rule frame pushes it, without a charge. |
 | 43 | `SHAPESINGLE` | 2 | 2 | `flow.shapeSingle` of the shape of the immediate for the value of the first argument matched from the integer second: the value and whether there is one. |
 | 44 | `SCOPEVALUE` | 1 | 2 | `flow.scopeValue` of the shape of the immediate for the value of the first argument matched from the integer second. |
 | 45 | `SETCAPTURE` | 0 | 1 | `flow.setCapture` of the slot of the immediate in the current frame to the argument, recorded on the capture trail. |
@@ -459,9 +459,8 @@ A Flow body charges what the match code of its rule charges, and the code genera
 the same: compute is counted in the units of
 [Cancellation and Compute Limits](../runtime/parsing.md#cancellation-and-compute-limits), which are the same on every
 backend, so a parse spends the same units whichever of them runs a rule. The match code charges by its own instructions:
-it builds nodes without a charge, except the tuple node that wraps a value to attach the captures of a scope to, which
-charges a unit as `flow.attachFrame` does, charges each child that a sequence gathers, and peeks and unwinds as its
-instructions do. The current Flow bodies do not yet meet this rule: on most grammars a parse spends fewer units when its
+it builds, gathers, takes off and drops the values of the parse and attaches captures without a charge, as the Flow
+operations do ([Cost](../runtime/parsing.md#cost)), and peeks and unwinds as its instructions do. The current Flow bodies do not yet meet this rule: on most grammars a parse spends fewer units when its
 rules run their Flow bodies than when they run their match code. That difference is a defect to be fixed, not a
 permitted variation.
 

@@ -1082,7 +1082,7 @@ func init() {
 		if tf4 != nil {
 			return nil, tf4
 		}
-		tk5 := c.P.Kids(tm2)
+		tk5 := c.P.ElemsAbove(tm2)
 		tn6 := c.P.TermHull(c, false, tk5)
 		tf7 := any(tn6)
 		tf8 := c.Cap(2)
@@ -1177,7 +1177,7 @@ func init() {
 		if tf4 != nil {
 			return nil, tf4
 		}
-		tk5 := c.P.Kids(tm3)
+		tk5 := c.P.ElemsAbove(tm3)
 		tn6 := c.P.TermHull(c, false, tk5)
 		tf7 := any(tn6)
 		tn8 := c.TermStruct("Doctype", 3)
@@ -1274,7 +1274,7 @@ func init() {
 				return nil, tf8
 			}
 		}
-		tk9 := c.P.Kids(tm1)
+		tk9 := c.P.ElemsAbove(tm1)
 		tn10 := c.P.TermHull(c, false, tk9)
 		tf11 := any(tn10)
 		tn12 := c.TermStruct("Mixed", 1)
@@ -1297,7 +1297,7 @@ func init() {
 		if tf3 != nil {
 			return nil, tf3
 		}
-		tk4 := c.P.Kids(tm1)
+		tk4 := c.P.ElemsAbove(tm1)
 		tn5 := c.P.TermHull(c, false, tk4)
 		tf6 := any(tn5)
 		tf7 := c.Cap(2)
@@ -1324,7 +1324,7 @@ func init() {
 		if tf3 != nil {
 			return nil, tf3
 		}
-		tk4 := c.P.Kids(tm1)
+		tk4 := c.P.ElemsAbove(tm1)
 		tn5 := c.P.TermHull(c, false, tk4)
 		tf6 := any(tn5)
 		tf7 := c.Cap(2)
@@ -1409,7 +1409,7 @@ func init() {
 		if tf3 != nil {
 			return nil, tf3
 		}
-		tk4 := c.P.Kids(tm1)
+		tk4 := c.P.ElemsAbove(tm1)
 		tn5 := c.P.TermHull(c, false, tk4)
 		tf6 := any(tn5)
 		tn7 := c.TermStruct("NotationType", 1)
@@ -1432,7 +1432,7 @@ func init() {
 		if tf3 != nil {
 			return nil, tf3
 		}
-		tk4 := c.P.Kids(tm1)
+		tk4 := c.P.ElemsAbove(tm1)
 		tn5 := c.P.TermHull(c, false, tk4)
 		tf6 := any(tn5)
 		tn7 := c.TermStruct("Enumeration", 1)
@@ -1539,7 +1539,7 @@ func init() {
 		if tf5 != nil {
 			return nil, tf5
 		}
-		tk6 := c.P.Kids(tm4)
+		tk6 := c.P.ElemsAbove(tm4)
 		tn7 := c.P.TermHull(c, false, tk6)
 		tf8 := any(tn7)
 		tn9 := c.TermStruct("Element", 3)
@@ -11442,7 +11442,7 @@ L19:
 			if tf3 != nil {
 				c.TermRaise(tf3)
 			}
-			tk4 := c.P.Kids(tm1)
+			tk4 := c.P.ElemsAbove(tm1)
 			tn5 := c.P.TermHull(c, false, tk4)
 			tv6 := tmk_Document(c, true, k4, any(tn5), k14, k24, k27)
 			tr39 = tv6
@@ -12705,7 +12705,7 @@ L15:
 			if tf2 != nil {
 				c.TermRaise(tf2)
 			}
-			tk3 := c.P.Kids(tm1)
+			tk3 := c.P.ElemsAbove(tm1)
 			tn4 := c.P.TermHull(c, false, tk3)
 			tv5 := tmk_Doctype(c, true, k1, k5, any(tn4))
 			tr48 = tv5
@@ -13846,7 +13846,7 @@ L19:
 					c.TermRaise(tf8)
 				}
 			}
-			tk9 := c.P.Kids(tm1)
+			tk9 := c.P.ElemsAbove(tm1)
 			tn10 := c.P.TermHull(c, false, tk9)
 			tv11 := tmk_Mixed(c, true, any(tn10))
 			tr56 = tv11
@@ -13961,7 +13961,7 @@ L19:
 			if tf3 != nil {
 				c.TermRaise(tf3)
 			}
-			tk4 := c.P.Kids(tm1)
+			tk4 := c.P.ElemsAbove(tm1)
 			tn5 := c.P.TermHull(c, false, tk4)
 			tv6 := tmk_Choice(c, true, any(tn5), k14)
 			tr57 = tv6
@@ -14073,7 +14073,7 @@ L19:
 			if tf3 != nil {
 				c.TermRaise(tf3)
 			}
-			tk4 := c.P.Kids(tm1)
+			tk4 := c.P.ElemsAbove(tm1)
 			tn5 := c.P.TermHull(c, false, tk4)
 			tv6 := tmk_Sequence(c, true, any(tn5), k14)
 			tr58 = tv6
@@ -14807,7 +14807,7 @@ func i44(p *rt.TParser) (any, bool) {
 			if tf3 != nil {
 				c.TermRaise(tf3)
 			}
-			tk4 := c.P.Kids(tm1)
+			tk4 := c.P.ElemsAbove(tm1)
 			tn5 := c.P.TermHull(c, false, tk4)
 			tv6 := tmk_NotationType(c, true, any(tn5))
 			tr62 = tv6
@@ -14902,7 +14902,7 @@ func i45(p *rt.TParser) (any, bool) {
 			if tf3 != nil {
 				c.TermRaise(tf3)
 			}
-			tk4 := c.P.Kids(tm1)
+			tk4 := c.P.ElemsAbove(tm1)
 			tn5 := c.P.TermHull(c, false, tk4)
 			tv6 := tmk_Enumeration(c, true, any(tn5))
 			tr63 = tv6
@@ -15739,7 +15739,7 @@ L19:
 			if tf4 != nil {
 				c.TermRaise(tf4)
 			}
-			tk5 := c.P.Kids(tm3)
+			tk5 := c.P.ElemsAbove(tm3)
 			tn6 := c.P.TermHull(c, false, tk5)
 			tv7 := tmk_Element(c, true, k1, tv2, any(tn6))
 			tr70 = tv7
@@ -17233,4 +17233,4 @@ fail:
 
 const _ = types.ZPSchema_b044f4d2cb8d65a3
 
-const _ = rt.Protocol21
+const _ = rt.Protocol22

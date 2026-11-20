@@ -33,8 +33,8 @@ type limitAgreementCase struct {
 	// units is a limit of the window at which the failing reservation is a unit of a run that a backend
 	// may make at once: every backend must report the limit as used and one unit requested.
 	units uint64
-	// lists are the sizes of reservations that take the elements of a list off, two units for each,
-	// which every backend makes at once. The backends charge the work before them differently, so they
+	// lists are the sizes of reservations that take the elements of a list that a term makes off, two
+	// units for each, which every backend makes at once. The backends charge the work before them differently, so they
 	// make them after different numbers of units: each backend must report each size as the failing
 	// reservation over as many consecutive limits as it has units, which a backend that splits it
 	// into a copy and a take-off, or into chunks, does not.
@@ -92,14 +92,13 @@ rule main = #operators {
 		lists: []uint64{300},
 	},
 	{
-		// The list of a repetition of five elements, which grammar code gathers and takes off with
-		// 10 units.
+		// The list of a repetition of five elements, which the parse gathers and takes off without a
+		// charge.
 		name:    "repetition",
 		grammar: "@start\nrule main = [a-z]*",
 		input:   "abcde",
 		max:     60,
 		window:  [2]uint64{1, 23}, tsWindow: [2]uint64{10, 23},
-		lists: []uint64{10},
 	},
 }
 

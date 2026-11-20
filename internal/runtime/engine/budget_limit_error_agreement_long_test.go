@@ -11,9 +11,10 @@ import (
 
 // TestLimitErrorAgreementMutants checks that TestLimitErrorAgreement notices a backend that reports a
 // run of units as one reservation: generated Go whose Take reserves its units at once, and generated
-// TypeScript whose run of units is charged as one reservation; and one that splits the reservation of
-// a list take-off, of a term's list and of a repetition's: generated Go and TypeScript that reserve
-// the copy and the take-off apart, and generated Go that reserves it chunk by chunk.
+// TypeScript whose run of units is charged as one reservation; one that splits the reservation of the
+// take-off of a term's list: generated Go and TypeScript that reserve the copy and the take-off apart,
+// and generated Go that reserves it chunk by chunk; and generated Go that charges for taking off the
+// list of a repetition, which charges nothing.
 func TestLimitErrorAgreementMutants(t *testing.T) {
 	t.Parallel()
 	codegentest.NeedsBudgetControls(t)
@@ -43,10 +44,10 @@ func TestLimitErrorAgreementMutants(t *testing.T) {
 	})
 	// A list take-off reserved as a copy and a take-off, or chunk by chunk, is not one reservation of two
 	// units for each element.
-	kids := "\tif n > 0 {\n\t\tp.Control.Charge(2 * uint64(n))\n\t}\n"
+	kids := "\t\tif n := len(p.KidStack) - base; n > 0 {\n\t\t\tp.Control.Charge(2 * uint64(n))\n\t\t}\n"
 	for name, split := range map[string]string{
-		"list take-off as two reservations": "\tif n > 0 {\n\t\tp.Control.Charge(uint64(n))\n\t\tp.Control.Charge(uint64(n))\n\t}\n",
-		"list take-off by chunks":           "\tfor k := n; k > 0; k -= min(k, 128) {\n\t\tp.Control.Charge(2 * uint64(min(k, 128)))\n\t}\n",
+		"list take-off as two reservations": "\t\tif n := len(p.KidStack) - base; n > 0 {\n\t\t\tp.Control.Charge(uint64(n))\n\t\t\tp.Control.Charge(uint64(n))\n\t\t}\n",
+		"list take-off by chunks":           "\t\tfor n := len(p.KidStack) - base; n > 0; n -= min(n, 128) {\n\t\t\tp.Control.Charge(2 * uint64(min(n, 128)))\n\t\t}\n",
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -60,8 +61,8 @@ func TestLimitErrorAgreementMutants(t *testing.T) {
 				}
 				return strings.Replace(src, kids, split, 1)
 			}, nil)
-			// A term's list and a repetition's list; only the long list is longer than a chunk.
-			cs := []limitAgreementCase{cases["list"], cases["repetition"]}
+			// A term's list; only the long list is longer than a chunk.
+			cs := []limitAgreementCase{cases["list"]}
 			if name == "list take-off by chunks" {
 				cs = []limitAgreementCase{cases["long list"]}
 			}
@@ -77,16 +78,40 @@ func TestLimitErrorAgreementMutants(t *testing.T) {
 			}
 		})
 	}
+	// The list of a repetition is taken off without a charge: generated Go that charges a unit for each
+	// element it takes off fails limits at which generated Go without the charge, which agrees with the
+	// engine in the window (TestLimitErrorAgreement), succeeds. The take-off ends the parse, after the
+	// last limit of the window, so the reports are compared at every limit.
+	t.Run("charged repetition list take-off", func(t *testing.T) {
+		t.Parallel()
+		codegentest.NeedsBudgetControls(t)
+		const takeOff = "\tks := p.Nodes(len(p.KidStack) - base)\n"
+		runtime := codegentest.LibCopyWith(t, func(file, src string) string {
+			if file != "lib.go" {
+				return src
+			}
+			if strings.Count(src, takeOff) != 1 {
+				t.Fatal("the take-off of a list is not in lib.go")
+			}
+			return strings.Replace(src, takeOff, "\tp.Control.Charge(uint64(len(p.KidStack) - base))\n"+takeOff, 1)
+		}, nil)
+		c := cases["repetition"]
+		free, _ := generatedGoLimitReports(t, c, codegentest.LibCopy())
+		node, _ := generatedGoLimitReports(t, c, runtime)
+		if len(limitDisagreements(free, node, [2]uint64{1, uint64(len(free) - 1)})) == 0 {
+			t.Error("generated Go that charges for taking off the list of a repetition reports what generated Go without the charge does")
+		}
+	})
 	t.Run("TypeScript list take-off as two reservations", func(t *testing.T) {
 		t.Parallel()
 		codegentest.NeedsBudgetControls(t)
-		const kids = "if (n > 0) c.charge(2 * n);"
-		for _, c := range []limitAgreementCase{cases["list"], cases["repetition"]} {
+		const kids = "if (n > 0) this.control?.charge(2 * n);"
+		for _, c := range []limitAgreementCase{cases["list"]} {
 			ts := generatedTSLimitReports(t, c, func(b string) string {
 				if !strings.Contains(b, kids) {
 					t.Fatal("the reservation of a list take-off is not in the TypeScript runtime")
 				}
-				return strings.Replace(b, kids, "if (n > 0) { c.charge(n); c.charge(n); }", 1)
+				return strings.Replace(b, kids, "if (n > 0) { this.control?.charge(n); this.control?.charge(n); }", 1)
 			})
 			if !listReservationMissing(ts, c.lists[0]) {
 				t.Errorf("%s: generated TypeScript with a list take-off as two reservations still makes it one", c.name)

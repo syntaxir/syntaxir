@@ -545,11 +545,6 @@ func flowBound(in *ref.Input, o *code.Op, c *code.Call, e *flowEvent) int {
 					q = len(x.Class.Ranges)
 				}
 			}
-		case flow.QCaptures:
-			q = len(c.Imm.(flow.Attach).Names.List)
-		case flow.QCaptureFields:
-			q = len(c.Imm.(flow.Attach).Names.List)
-			q *= q
 		case flow.QStream:
 			q = 4*(in.Len()+1) + 64
 		case flow.QText:

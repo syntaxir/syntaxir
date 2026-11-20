@@ -532,27 +532,23 @@ func (p *Parser) skipClose() {
 }
 
 // SkipEnd ends the walk and records the rest of it from each position it visited recording. A walk
-// that builds values drops them.
+// that builds values drops them, uncharged.
 func (p *Parser) SkipEnd() {
-	p.skipEnd(false)
+	p.skipEnd()
 	w := p.walk()
-	clearSpend(p, w.nodes.vals)
-	clearSpend(p, w.tvals.vals)
+	clear(w.nodes.vals)
+	clear(w.tvals.vals)
 	w.nodes.vals, w.nodes.buf, w.tvals.vals, w.tvals.buf = w.nodes.vals[:0], nil, w.tvals.vals[:0], nil
 	p.skipN--
 }
 
 // SkipKids ends a walk begun with build as SkipEnd does, and returns the values of its iterations,
 // then those of the record it took, as a child list. The list may share its elements with the
-// lists of other walks. Taking the n values that the walk gathered off into the list is one
-// reservation of 2n units, made before any of them moves, as Kids makes for a repetition that keeps
-// no records; the elements that a reused record adds after them are charged as copies where they
-// are copied.
+// lists of other walks. Like Kids it charges nothing: the values that the parse gathers, takes off,
+// places in records and drops are not an item of the cost (spec/runtime/parsing.md#cost); each is
+// moved a constant number of times for the iteration that gathered it or the record that holds it.
 func (p *Parser) SkipKids() []*zpvalue.Node {
-	if n := len(p.walk().nodes.vals); n > 0 {
-		p.spendValue(2 * n)
-	}
-	p.skipEnd(true)
+	p.skipEnd()
 	w := p.walk()
 	kids := endVals(p, &w.nodes, p.Nodes)
 	p.skipN--
@@ -561,10 +557,7 @@ func (p *Parser) SkipKids() []*zpvalue.Node {
 
 // SkipKids is the Parser's SkipKids in a typed parse.
 func (p *TParser) SkipKids() []any {
-	if n := len(p.walk().tvals.vals); n > 0 {
-		p.spendValue(2 * n)
-	}
-	p.skipEnd(true)
+	p.skipEnd()
 	w := p.walk()
 	kids := endVals(p.Parser, &w.tvals, p.NewVals)
 	p.skipN--
@@ -572,7 +565,7 @@ func (p *TParser) SkipKids() []any {
 }
 
 // endVals returns the list of the values of a walk that ended: the placed list, or a copy of vals
-// in storage that alloc makes; it then drops vals. The caller has charged the move.
+// in storage that alloc makes; it then drops vals.
 func endVals[T any](p *Parser, wv *walkVals[T], alloc func(int) []T) []T {
 	var kids []T
 	if wv.placed {
@@ -586,9 +579,8 @@ func endVals[T any](p *Parser, wv *walkVals[T], alloc func(int) []T) []T {
 	return kids
 }
 
-// skipEnd ends the walk and records the rest of it from each position it visited recording. paid
-// says that the move of the gathered values into the list has been charged (SkipKids).
-func (p *Parser) skipEnd(paid bool) {
+// skipEnd ends the walk and records the rest of it from each position it visited recording.
+func (p *Parser) skipEnd() {
 	w := p.walk()
 	p.skipClose()
 	vs := w.visits
@@ -599,10 +591,10 @@ func (p *Parser) skipEnd(paid bool) {
 	}
 	if w.build && (len(vs) > 0 || w.hitOK) {
 		if w.typed {
-			w.tvals.buf, w.tvals.lo = placeVals(p, w.tvals.vals, w.hit.tvals, w.hitOK, paid)
+			w.tvals.buf, w.tvals.lo = placeVals(p, w.tvals.vals, w.hit.tvals, w.hitOK)
 			w.tvals.placed = true
 		} else {
-			w.nodes.buf, w.nodes.lo = placeVals(p, w.nodes.vals, w.hit.nodes, w.hitOK, paid)
+			w.nodes.buf, w.nodes.lo = placeVals(p, w.nodes.vals, w.hit.nodes, w.hitOK)
 			w.nodes.placed = true
 		}
 	}
@@ -662,16 +654,11 @@ func (p *Parser) skipLink(w *skipWalk, r *skipRecord, v skipVisit, rest *recEntr
 // placeVals returns a buffer and an index in it from which vals, then the elements of tail (if the
 // walk took a record, hit), are laid out. It writes vals in place before the tail where the buffer
 // has room there that no record refers to, and otherwise copies the tail with room to spare, so
-// that a walk that goes on to reach a record again finds it. The copy of vals is charged unless paid
-// says that it has been.
-func placeVals[T any](p *Parser, vals []T, tail valSuffix[T], hit, paid bool) (*valBuf[T], int) {
-	place := func(dst []T) {
-		if paid {
-			copy(dst, vals)
-		} else {
-			copySpend(p, dst, vals)
-		}
-	}
+// that a walk that goes on to reach a record again finds it. Placing vals charges nothing (SkipKids);
+// copying the tail charges a unit for each element: the cost of the grammar does not bound these
+// suffix copies (spec/runtime/parsing.md#run-sites).
+func placeVals[T any](p *Parser, vals []T, tail valSuffix[T], hit bool) (*valBuf[T], int) {
+	place := func(dst []T) { copy(dst, vals) }
 	if !hit {
 		tail = valSuffix[T]{}
 	}

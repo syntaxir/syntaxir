@@ -58,27 +58,26 @@ func countedSweep(t *testing.T, prog *Program, text string, edit func(*document.
 // TestBudgetDocumentFailedRunDropsItsElements pins that a run of a Document parse that fails drops
 // the elements it gathered and those it resumed from the record of the previous parse for free, as a
 // repetition of a parse from scratch drops them on every backend (spec/runtime/parsing.md, Cancellation
-// and Compute Limits): each was charged when it was gathered or resumed. The first alternative of each
-// grammar fails, below its minimum or at a cut, after gathering elements, and the second makes the
-// list, so the only reservation of more than one unit is the take-off of that list, two units for each
-// of its elements. For the runs that fail below their minimum, the closure backend's resumed runs and
-// the bytecode machine's runs charge the same units in the same order, so every limit fails with the
-// same Used and Requested on every backend.
+// and Compute Limits), and that taking the elements of the list of the second alternative off is free
+// as well: values the parse builds are not an item of the cost (spec/runtime/parsing.md#cost). The first
+// alternative of each grammar fails, below its minimum or at a cut, after gathering elements, and the
+// second makes the list, so every reservation is a single unit. For the runs that fail below their
+// minimum, the closure backend's resumed runs and the bytecode machine's runs charge the same units in
+// the same order, so every limit fails with the same Used and Requested on every backend.
 func TestBudgetDocumentFailedRunDropsItsElements(t *testing.T) {
 	trim := func(d *document.Document) error { return d.Edit(4, 5, "") } // "abcde" to "abcd"
 	for _, c := range []struct {
 		name, src, text string
 		edit            func(*document.Document) error
-		takeOff         string // the reservation of the list of the second alternative, or its end
-		allBackends     bool   // whether every backend fails each limit alike
+		allBackends     bool // whether every backend fails each limit alike
 	}{
-		{"below minimum", "@start\nrule main = [a-z]#repeat(5,) / [a-z]*", "abc", nil, "19+6", true},
-		{"below minimum, rule elements", "@start\nrule main = x#repeat(5,) / x*\nrule x = [a-z]", "abc", nil, "21+6", true},
-		{"below minimum, resumed", "@start\nrule main = [a-z]#repeat(5,) / [a-z]*", "abcde", trim, "23+8", true},
-		{"below minimum, rule elements resumed", "@start\nrule main = x#repeat(5,) / x*\nrule x = [a-z]", "abcde", trim, "15+8", true},
+		{"below minimum", "@start\nrule main = [a-z]#repeat(5,) / [a-z]*", "abc", nil, true},
+		{"below minimum, rule elements", "@start\nrule main = x#repeat(5,) / x*\nrule x = [a-z]", "abc", nil, true},
+		{"below minimum, resumed", "@start\nrule main = [a-z]#repeat(5,) / [a-z]*", "abcde", trim, true},
+		{"below minimum, rule elements resumed", "@start\nrule main = x#repeat(5,) / x*\nrule x = [a-z]", "abcde", trim, true},
 		// A cut in the element of a repetition is charged differently by the closure and bytecode
 		// backends in every parse, from scratch too, so only the reservations are compared here.
-		{"at a cut", "@start\nrule main = ([a-z] #cut [,])+ / [a-z,]*", "a,b,c", nil, "+10", false},
+		{"at a cut", "@start\nrule main = ([a-z] #cut [,])+ / [a-z,]*", "a,b,c", nil, false},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			prog := mustCompile(t, c.src)
@@ -91,8 +90,8 @@ func TestBudgetDocumentFailedRunDropsItsElements(t *testing.T) {
 						multi = append(multi, e)
 					}
 				}
-				if len(multi) != 1 || !strings.HasSuffix(multi[0], c.takeOff) {
-					t.Errorf("%s: the reservations of more than one unit are %v, want only the take-off of the list (%s)", b, multi, c.takeOff)
+				if len(multi) != 0 {
+					t.Errorf("%s: reservations of more than one unit %v, want none", b, multi)
 				}
 				if first == nil {
 					first = errs

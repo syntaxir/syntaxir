@@ -120,8 +120,6 @@ are the following.
 | Quantity | Measures |
 |:--|:--|
 | `body` | The units that the evaluation of a rule's body that the call runs, and of the rule's action, charge, as the operations they call declare them. |
-| `capture_fields` | When a capture of the rule of the call matched and the rule makes its value from its captures (as for `captures`), the number of the capture names of the rule, plus what setting each capture that matched as a field of the rule's value charges: one unit for each field that the value already has, and what comparing that field's name with the capture's charges, which for names of the same length is two units for each byte of the pieces of 128 bytes that the comparison reads up to the first that differs (the capture names of a rule all differ). Zero otherwise. |
-| `captures` | When the body of the call matched and the rule makes its value from its captures (not with an action, not spliced and not value-free), the number of the capture names of the rule, which it searches for those that matched; zero otherwise. |
 | `covered` | The number of positions the memo covers from its floor: the slots that a target keeps per position pays for when it prunes them, moves the rest and drops the indexes of crowded positions. |
 | `deps` | The number of dependencies that the call passes to the enclosing evaluation or stores: those that the frame of the evaluation it ends recorded, and those stored with the results, steps and jumps it reuses, with the observations they lead to. |
 | `dropped` | The number of the entries above the mark of the call, which it drops: elements gathered (`term.dropKids`) or values made (`term.dropCreated`). |

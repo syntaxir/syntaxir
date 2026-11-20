@@ -574,48 +574,39 @@ func (p *Parser) skipClose() {
 
 // SkipEnd ends the walk and records the rest of it from each position it visited recording.
 func (p *Parser) SkipEnd() {
-	p.skipEnd(false)
+	p.skipEnd()
 	p.walk().vals = p.walk().vals[:0]
 	p.skipN--
 }
 
 // SkipEndList ends a walk begun with SkipBeginList as SkipEnd does, and returns the list node of
 // the values of its iterations for the range from start to the current position (SkipKids), or nil
-// if build is false. Without a list, dropping the gathered values is charged if chargeClear is set,
-// as the closure backend charges dropping its element stack; the bytecode machine pops its elements
-// uncharged.
-func (p *Parser) SkipEndList(start int, build, chargeClear bool) *value.Node {
+// if build is false, dropping the gathered values uncharged.
+func (p *Parser) SkipEndList(start int, build bool) *value.Node {
 	if build {
 		kids := p.SkipKids()
 		return p.NewNode(nodes.Data{Kind: valueimpl.ListKind, Start: int32(start), End: int32(p.Pos), Children: kids, Fresh: true})
 	}
-	p.skipEnd(false)
+	p.skipEnd()
 	w := p.walk()
-	if chargeClear {
-		ClearSpend(p, w.vals)
-	} else {
-		clear(w.vals)
-	}
+	clear(w.vals)
 	w.vals, w.buf = w.vals[:0], nil
 	p.skipN--
 	return nil
 }
 
 // SkipEndDrop is flow.skipEnd: it ends the walk as SkipEnd does and drops the values that a walk
-// begun with SkipBeginList gathered, charging their drop as the Go library's SkipEnd does.
-func (p *Parser) SkipEndDrop() { p.SkipEndList(0, false, true) }
+// begun with SkipBeginList gathered, uncharged.
+func (p *Parser) SkipEndDrop() { p.SkipEndList(0, false) }
 
 // SkipKids is flow.skipKids: it ends a walk begun with SkipBeginList as SkipEnd does, and returns
 // the values of its iterations, then those of the record it took, as a child list. The list may
-// share its elements with the lists of other walks. Taking the n values that the walk gathered off
-// into the list is one reservation of 2n units, made before any of them moves, as Parser.Kids makes
-// for a repetition that keeps no records; the elements that a reused record adds after them are
-// charged as copies where they are copied.
+// share its elements with the lists of other walks. Like Parser.Kids it charges nothing: the values
+// that the parse gathers, takes off, copies into records and drops are not an item of the cost
+// (spec/runtime/parsing.md#cost); each is moved a constant number of times for the iteration that
+// gathered it or the record that holds it.
 func (p *Parser) SkipKids() []*value.Node {
-	if n := len(p.walk().vals); n > 0 {
-		p.SpendValue(2 * n)
-	}
-	p.skipEnd(true)
+	p.skipEnd()
 	w := p.walk()
 	var kids []*value.Node
 	if w.placed {
@@ -630,9 +621,8 @@ func (p *Parser) SkipKids() []*value.Node {
 	return kids
 }
 
-// skipEnd ends the walk and records the rest of it from each position it visited recording. paid
-// says that the move of the gathered values into the list has been charged (SkipKids).
-func (p *Parser) skipEnd(paid bool) {
+// skipEnd ends the walk and records the rest of it from each position it visited recording.
+func (p *Parser) skipEnd() {
 	w := p.walk()
 	if !w.on {
 		return
@@ -654,7 +644,7 @@ func (p *Parser) skipEnd(paid bool) {
 		}
 	}
 	if w.build && (len(vs) > 0 || w.hitOK) {
-		w.buf, w.lo = p.placeVals(w.vals, tail, paid)
+		w.buf, w.lo = p.placeVals(w.vals, tail)
 		w.placed = true
 	}
 	switch {
@@ -710,16 +700,12 @@ func (p *Parser) skipLink(w *skipWalk, r *skipRecord, v skipVisit, rest *RecEntr
 // placeVals returns a buffer and an index in it from which vals, then the elements of tail, are
 // laid out. It writes vals in place before the tail where the buffer has room there that no record
 // refers to, and otherwise copies the tail with room to spare, so that a walk that goes on to
-// reach a record again finds it. The copy of vals is charged unless paid says that it has been.
-func (p *Parser) placeVals(vals []*value.Node, tail valSuffix, paid bool) (*valBuf, int) {
+// reach a record again finds it. Placing vals charges nothing (SkipKids); copying the tail charges a
+// unit for each element: the cost of the grammar does not bound these suffix copies
+// (spec/runtime/parsing.md#run-sites).
+func (p *Parser) placeVals(vals []*value.Node, tail valSuffix) (*valBuf, int) {
 	n := len(vals)
-	place := func(dst []*value.Node) {
-		if paid {
-			copy(dst, vals)
-		} else {
-			CopySpend(p, dst, vals)
-		}
-	}
+	place := func(dst []*value.Node) { copy(dst, vals) }
 	if n == 0 && tail.buf != nil {
 		return tail.buf, tail.i
 	}

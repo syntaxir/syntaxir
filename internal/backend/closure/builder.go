@@ -686,10 +686,10 @@ func (b *Builder) runRepeat(min int, m state.Matcher, elemValue func(*state.Pars
 			}
 		}
 		if count < min {
-			p.SkipEndList(start, false, true)
+			p.SkipEndList(start, false)
 			return nil, false
 		}
-		v := p.SkipEndList(start, build, true)
+		v := p.SkipEndList(start, build)
 		return v, true
 	}
 }

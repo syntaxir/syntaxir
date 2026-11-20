@@ -263,7 +263,7 @@ func init() {
 		if tf3 != nil {
 			return nil, tf3
 		}
-		tk4 := c.P.Kids(tm1)
+		tk4 := c.P.ElemsAbove(tm1)
 		tn5 := c.P.TermHull(c, false, tk4)
 		tf6 := any(tn5)
 		tn7 := c.TermStruct("Record", 1)
@@ -1265,7 +1265,7 @@ L2:
 			if tf3 != nil {
 				c.TermRaise(tf3)
 			}
-			tk4 := c.P.Kids(tm1)
+			tk4 := c.P.ElemsAbove(tm1)
 			tn5 := c.P.TermHull(c, false, tk4)
 			tv6 := tmk_Record(c, true, any(tn5))
 			tr3 = tv6
@@ -1576,4 +1576,4 @@ fail:
 
 const _ = types.ZPSchema_fc736caa271f00e2
 
-const _ = rt.Protocol21
+const _ = rt.Protocol22

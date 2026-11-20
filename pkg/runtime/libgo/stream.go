@@ -734,7 +734,7 @@ func (p *Parser) MatchLiteralTraced(rs []rune, text string, desc ExpID, build bo
 	if !build {
 		return nil, true
 	}
-	return p.NewNode(Data{Kind: valueimpl.MatchKind, Start: int32(start), End: int32(p.Pos), Text: p.LiteralText(start, text), Terminal: true, Fresh: true}), true
+	return p.buildNode(Data{Kind: valueimpl.MatchKind, Start: int32(start), End: int32(p.Pos), Text: p.LiteralText(start, text), Terminal: true, Fresh: true}), true
 }
 
 // matchReplacementLiteralTraced is matchReplacementLiteral on a stream in a traced rule body.
@@ -755,7 +755,7 @@ func (p *Parser) matchReplacementLiteralTraced(rs []rune, text string, desc ExpI
 	if !build {
 		return nil, true
 	}
-	return p.NewNode(Data{Kind: valueimpl.MatchKind, Start: int32(start), End: int32(p.Pos), Text: p.LiteralText(start, text), Terminal: true, Fresh: true}), true
+	return p.buildNode(Data{Kind: valueimpl.MatchKind, Start: int32(start), End: int32(p.Pos), Text: p.LiteralText(start, text), Terminal: true, Fresh: true}), true
 }
 
 // MatchLiteralFoldTraced is MatchLiteralFold in a traced rule body.
@@ -777,7 +777,7 @@ func (p *Parser) MatchLiteralFoldTraced(rs []rune, desc ExpID, build bool) (*zpv
 	if !build {
 		return nil, true
 	}
-	return p.NewNode(Data{Kind: valueimpl.MatchKind, Start: int32(start), End: int32(p.Pos), Text: p.Text(start, p.Pos), Terminal: true, Fresh: true}), true
+	return p.buildNode(Data{Kind: valueimpl.MatchKind, Start: int32(start), End: int32(p.Pos), Text: p.Text(start, p.Pos), Terminal: true, Fresh: true}), true
 }
 
 // AtLineEndTraced is AtLineEnd in a traced rule body.
@@ -840,7 +840,7 @@ func (p *Parser) streamMatchLiteral(rs []rune, text string, desc ExpID, build bo
 	if !build {
 		return nil, true
 	}
-	return p.NewNode(Data{Kind: valueimpl.MatchKind, Start: int32(start), End: int32(p.Pos), Text: p.LiteralText(start, text), Terminal: true, Fresh: true}), true
+	return p.buildNode(Data{Kind: valueimpl.MatchKind, Start: int32(start), End: int32(p.Pos), Text: p.LiteralText(start, text), Terminal: true, Fresh: true}), true
 }
 
 func (p *Parser) streamAtLineStart() bool {

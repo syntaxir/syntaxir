@@ -115,31 +115,6 @@ func TestEmptyExaminedRecord(t *testing.T) {
 	}
 }
 
-// TestCaptureFields pins exec.QCaptureFields: the search of the captures counts once more when one
-// matched, and each capture walks the fields of those before it, comparing names of the same length
-// two units a byte.
-func TestCaptureFields(t *testing.T) {
-	m := New(Config{RuleSpecs: []RuleSpec{{Captures: 3, Body: []Eval{
-		{OK: true, Captures: []int64{0, 2}}, {OK: true, Captures: []int64{2, 1, 0}}, {OK: true}, {Captures: []int64{1}},
-	}}}, RuleVars: make([][]int64, 1)})
-	m.UseRegisters(map[string]any{exec.Pos: int64(0), exec.Silent: false})
-	invoke := machine().Op("rule.invoke")
-	args := []any{RuleRef{Index: 0}, int64(0)}
-	// c2 after c0: 3 + (1 + 4); then c0, c1, c2: 3 + (1 + 4) + 2*(1 + 4); then none, and a failure.
-	for k, want := range []int64{8, 18, 0, 0} {
-		if got := m.Quantity(exec.QCaptureFields, invoke, args); got != want {
-			t.Errorf("evaluation %d: capture_fields = %d, want %d", k, got, want)
-		}
-		m.Call(invoke, args)
-	}
-	if got := textCompare("c10", "c11"); got != 6 {
-		t.Errorf("comparing two names of 3 bytes charges %d, want 6", got)
-	}
-	if got := textCompare("c1", "c10"); got != 0 {
-		t.Errorf("comparing names of different lengths charges %d, want 0", got)
-	}
-}
-
 // machine returns the declarations of the abstract machine: the Exec dialect and the Action dialect.
 func machine() *code.Module {
 	m := exec.Parser()

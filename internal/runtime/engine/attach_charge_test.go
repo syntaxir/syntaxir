@@ -25,22 +25,21 @@ type attachCase struct {
 	want  uint64
 }
 
-// attachCases charge a unit for each slot looked at and, when a capture is attached, a unit for the
-// tuple node that wraps a value that is not the body's own and a unit for each name (the cost bound
-// of flow.attachFrame, spec/flow-ir/operations.md).
+// attachCases charge nothing: captures, the fields they set and the tuple node that wraps a value
+// that is not the body's own are not an item of the cost (spec/runtime/parsing.md#cost).
 var attachCases = []attachCase{
 	{"empty frame", "other", nil, false, 0},
-	{"no capture", "other", []bool{false, false, false}, false, 3},
-	{"fresh body", "fresh", []bool{true, false}, false, 4},
-	{"other rule's node", "other", []bool{true}, false, 3},
-	{"no value", "nil", []bool{false, true}, false, 5},
-	{"self capture", "fresh", []bool{true}, true, 3},
+	{"no capture", "other", []bool{false, false, false}, false, 0},
+	{"fresh body", "fresh", []bool{true, false}, false, 0},
+	{"other rule's node", "other", []bool{true}, false, 0},
+	{"no value", "nil", []bool{false, true}, false, 0},
+	{"self capture", "fresh", []bool{true}, true, 0},
 }
 
 // TestAttachCapturesChargesAsGoLibrary checks that the match code of the engine (state.AttachCaptures,
-// which the bytecode VM's ATTACHFRAME also runs) charges for each attachment what the Go library's
-// AttachCaptures charges, which is what the cost bound of flow.attachFrame names: a parse spends
-// the same units for its captures whichever backend runs the rule.
+// which the bytecode VM's ATTACHFRAME also runs) and the Go library's AttachCaptures charge what
+// attachCases say for each attachment: a parse spends the same units for its captures whichever
+// backend runs the rule.
 func TestAttachCapturesChargesAsGoLibrary(t *testing.T) {
 	for _, c := range attachCases {
 		if got := engineAttachCharge(c); got != c.want {

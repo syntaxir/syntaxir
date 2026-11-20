@@ -299,7 +299,7 @@ func init() {
 		if tf3 != nil {
 			return nil, tf3
 		}
-		tk4 := c.P.Kids(tm2)
+		tk4 := c.P.ElemsAbove(tm2)
 		tn5 := c.P.TermHull(c, false, tk4)
 		tf6 := any(tn5)
 		tf7 := c.Cap(2)
@@ -329,7 +329,7 @@ func init() {
 		if tf3 != nil {
 			return nil, tf3
 		}
-		tk4 := c.P.Kids(tm1)
+		tk4 := c.P.ElemsAbove(tm1)
 		tn5 := c.P.TermHull(c, false, tk4)
 		return any(tn5), nil
 	}
@@ -365,7 +365,7 @@ func init() {
 				if tf2 != nil {
 					return nil, tf2
 				}
-				tk3 := c.P.Kids(tm1)
+				tk3 := c.P.ElemsAbove(tm1)
 				tn4 := c.P.TermHull(c, false, tk3)
 				tf5 := any(tn4)
 				tn6 := c.TermStruct("ArrayLit", 1)
@@ -507,7 +507,7 @@ func init() {
 				if tf3 != nil {
 					return nil, tf3
 				}
-				tk4 := c.P.Kids(tm2)
+				tk4 := c.P.ElemsAbove(tm2)
 				tn5 := c.P.TermHull(c, false, tk4)
 				tf6 := any(tn5)
 				tn7 := c.TermStruct("Call", 2)
@@ -563,7 +563,7 @@ func init() {
 		if tf3 != nil {
 			return nil, tf3
 		}
-		tk4 := c.P.Kids(tm1)
+		tk4 := c.P.ElemsAbove(tm1)
 		tn5 := c.P.TermHull(c, false, tk4)
 		return any(tn5), nil
 	}
@@ -2992,4 +2992,4 @@ fail:
 	return nil, false
 }
 
-const _ = rt.Protocol21
+const _ = rt.Protocol22

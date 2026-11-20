@@ -382,6 +382,7 @@ func (p *TParser) nodeValue(n TVal) any {
 	if t, ok := n.(*TSeq); ok && t.Typ == "list" {
 		typ = TypeListValue
 	}
+	p.Spend()
 	v := p.NewNode(typ, s, e, n.TKids())
 	v.fresh = false
 	return v
@@ -913,15 +914,16 @@ func (p *TParser) SetCapture(slot int, v any) {
 
 // --- Allocation ---
 
+// NewNode returns a node that the parse builds. It charges nothing: the values that the parse builds
+// are not an item of the cost (spec/runtime/parsing.md#cost).
 func (p *TParser) NewNode(typ string, start, end int, kids []any) *TSeq {
-	p.Spend()
 	n := p.nodes.one()
 	*n = TSeq{Span: Span{start, end}, Typ: typ, Kids: kids, fresh: true}
 	return n
 }
 
+// NewMatch returns a match that the parse builds. It charges nothing, as NewNode.
 func (p *TParser) NewMatch(start, end int, text string, fresh bool) *TMatch {
-	p.Spend()
 	if len(p.matches) == 0 {
 		p.matches = make([]TMatch, nodeChunk)
 		p.memUsed += nodeChunk * matchBytes
@@ -960,12 +962,8 @@ func (p *TParser) tfields(n int) []tfield {
 	return p.fields.slice(n)[:0]
 }
 
-// Kids returns p.KidStack[base:] as a value list and pops it. Under budget controls it reserves one unit
-// for each element it copies and one for each it takes off, in one reservation before it moves any.
+// Kids returns p.KidStack[base:] as a value list and pops it. It charges nothing, as Parser.Kids.
 func (p *TParser) Kids(base int) []any {
-	if usedFeatures&featureBudget != 0 && p.Control != nil {
-		return p.kidsControlled(base)
-	}
 	ks := p.NewVals(len(p.KidStack) - base)
 	copy(ks, p.KidStack[base:])
 	clear(p.KidStack[base:])
@@ -973,18 +971,15 @@ func (p *TParser) Kids(base int) []any {
 	return ks
 }
 
-// kidsControlled is Kids under budget controls: it reserves the two units of each element in one
-// reservation before it moves any.
-func (p *TParser) kidsControlled(base int) []any {
-	n := len(p.KidStack) - base
-	ks := p.NewVals(n)
-	if n > 0 {
-		p.Control.Charge(2 * uint64(n))
+// ElemsAbove is Parser.ElemsAbove in a typed parse: term.elemsAbove, which charges two units for each
+// element in one reservation before it moves any.
+func (p *TParser) ElemsAbove(base int) []any {
+	if usedFeatures&featureBudget != 0 && p.Control != nil {
+		if n := len(p.KidStack) - base; n > 0 {
+			p.Control.Charge(2 * uint64(n))
+		}
 	}
-	copy(ks, p.KidStack[base:])
-	clear(p.KidStack[base:])
-	p.KidStack = p.KidStack[:base]
-	return ks
+	return p.Kids(base)
 }
 
 func (p *TParser) DropKids(base int) {
@@ -1628,7 +1623,6 @@ func (p *TParser) AttachCaptures(v any, names []string, vals []any, start, end i
 	found := false
 	wrap := n == nil || !n.TFresh()
 	for _, c := range vals {
-		p.Spend()
 		if c != nil {
 			found = true
 		}
@@ -1649,9 +1643,8 @@ func (p *TParser) AttachCaptures(v any, names []string, vals []any, start, end i
 		t.fields = p.tfields(len(names))
 	}
 	for i, name := range names {
-		p.Spend()
 		if vals[i] != nil {
-			p.setValueField(t, name, vals[i])
+			t.set(name, vals[i])
 		}
 	}
 	return t
@@ -1970,8 +1963,9 @@ func (c *TActCtx) NewList(items []any) any {
 // the value model does not show, covers the elements that are nodes.
 func (c *TActCtx) listNode(kids []any) TVal { return c.P.TermHull(c, false, kids) }
 
-// newSeq is the operation val.seq.
+// newSeq is the operation val.seq, which charges one unit for the value that the term makes.
 func (c *TActCtx) newSeq(tuple bool, kids []any) TVal {
+	c.P.Spend()
 	typ := TypeListValue
 	if tuple {
 		typ = TypeTupleValue
@@ -2177,7 +2171,8 @@ func (p *TParser) convertOperator(r *TRule, v any) any {
 	return n
 }
 
-func (p *TParser) PushKid(v any) { p.Spend(); p.KidStack = append(p.KidStack, v) }
+// PushKid gathers v. It charges nothing: the values that the parse gathers are not an item of the cost.
+func (p *TParser) PushKid(v any) { p.KidStack = append(p.KidStack, v) }
 func (p *TParser) setValueField(n *TSeq, name string, v any) {
 	if usedFeatures&featureBudget != 0 && p.Control != nil {
 		p.setValueFieldControlled(n, name, v)

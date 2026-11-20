@@ -119,10 +119,11 @@ func TestGraphListsAndOwnership(t *testing.T){
    p.Control=zprt.X_newBudgetControl(nil,Limits{Compute:100000})
    if typed{n:=(&zprt.TActCtx{P:tp}).NewList(values).(*zprt.TSeq);if n.Start!=3 || n.End!=303 || len(n.Kids)!=300{t.Fatal("typed list spans")};n.Kids[0]=nil;if values[0]==nil{t.Fatal("typed list aliases source")}}else{n:=(&zprt.ActCtx{P:p}).NewList(nodes);if zprt.D(n).Start!=3 || zprt.D(n).End!=303 || len(zprt.D(n).Children)!=300{t.Fatal("Node list spans")};zprt.D(n).Children[0]=nil;if nodes[0]==nil{t.Fatal("Node list aliases source")}}
   }
+  // Taking the gathered values off charges nothing (values the parse builds are not an item of the
+  // cost), so it runs to the end under a limit below the number of values.
   p:=graphParser(129);tp:=&zprt.TParser{Parser:p}
-  requireGraphLimit(t,p,func(){if typed{tp.KidStack=append([]any(nil),values...);tp.Kids(0)}else{p.KidStack=append([]*Node(nil),nodes...);p.Kids(0)}})
-  p.Control=zprt.X_newBudgetControl(nil,Limits{Compute:100000})
   if typed{tp.KidStack=append([]any(nil),values...);got:=tp.Kids(0);if len(got)!=300{t.Fatal("typed kids")};got[0]=nil;if values[0]==nil{t.Fatal("typed children alias")}}else{p.KidStack=append([]*Node(nil),nodes...);got:=p.Kids(0);if len(got)!=300{t.Fatal("Node kids")};got[0]=nil;if nodes[0]==nil{t.Fatal("Node children alias")}}
+  if used:=p.Control.X_budgetUsed();used!=0{t.Fatal("taking values off charged",used)}
  }
 }
 func TestGraphCaptureUndoAndCleanup(t *testing.T){
@@ -189,11 +190,11 @@ func TestGraphCaptureAttachment(t *testing.T){
  for i:=range names{names[i]=fmt.Sprintf("capture%d",i)}
  names[299]=names[0]
  for _,typed:=range []bool{false,true}{
-  p:=graphParser(32);tp:=&zprt.TParser{Parser:p};var result any
-  requireGraphLimit(t,p,func(){if typed{result=tp.AttachCaptures(nil,names,values,3,303)}else{result=p.AttachCaptures(nil,names,&zprt.CaptureFrame{Vals:nodes},3,303)}})
-  if result!=nil{t.Fatal("partial capture node published")}
-  p.Control=zprt.X_newBudgetControl(nil,Limits{Compute:10000000})
+  // Attaching captures charges nothing (captures are not an item of the cost), so it runs to the end
+  // under a limit below the number of captures.
+  p:=graphParser(32);tp:=&zprt.TParser{Parser:p}
   if typed{n:=tp.AttachCaptures(nil,names,values,3,303).(*zprt.TSeq);if len(n.X_fields)!=299 || n.X_fields[0].X_val!=values[299] || n.X_fields[1].X_name!=names[1]{t.Fatal("typed capture order/replacement")}}else{n:=p.AttachCaptures(nil,names,&zprt.CaptureFrame{Vals:nodes},3,303);if len(zprt.D(n).Fields)!=299 || zprt.D(n).Fields[0].Value!=nodes[299] || zprt.D(n).Fields[1].Name!=names[1]{t.Fatal("Node capture order/replacement")}}
+  if used:=p.Control.X_budgetUsed();used!=0{t.Fatal("attaching captures charged",used)}
  }
 }
 func TestGraphOperatorsRuleSnapshots(t *testing.T){

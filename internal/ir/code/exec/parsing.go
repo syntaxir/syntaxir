@@ -69,14 +69,6 @@ const (
 	// QBody is the units that the evaluation of a rule's body that the call runs, and of the rule's
 	// action, charge, as the operations they call declare them.
 	QBody = "body"
-	// QCaptures is, when the body of the call matched and the rule makes its value from its captures
-	// (not with an action, not spliced and not value-free), the number of the capture names of the rule;
-	// zero otherwise.
-	QCaptures = "captures"
-	// QCaptureFields is, when a capture of the rule of the call matched and the rule makes its value
-	// from its captures, the number of its capture names and what setting the captures that matched as
-	// fields of the rule's value charges; zero otherwise.
-	QCaptureFields = "capture_fields"
 	// QSteps is the number of memoized steps and jumps that the call takes.
 	QSteps = "steps"
 	// QStreamScan is the number of input elements that the call copies when it compacts the buffer,
@@ -167,7 +159,8 @@ call at a position (seen.first), or -1 for a rule without one: a rule that a par
 does not memoize, and a leader of a left-recursive cycle. The rules with an index are numbered from 0
 in the order of their indexes (rule.id).`})
 	body := code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QBody}}}
-	invoke := code.Cost{Const: 1, Terms: []code.CostTerm{{Coef: 1, Quantity: QCaptures}, {Coef: 1, Quantity: QCaptureFields}, {Coef: 1, Quantity: QBody}}}
+	// Making the rule's value from its captures charges nothing (spec/runtime/parsing.md#cost).
+	invoke := code.Cost{Const: 1, Terms: []code.CostTerm{{Coef: 1, Quantity: QBody}}}
 	m.AddOp(&code.Op{Name: "rule.invoke", Component: Rules, Params: call, Results: result, Writes: append([]string{Rules}, regs...),
 		NoReturn: true, Cost: invoke,
 		Contract: `Runs the rule's body at the binding level min in a frame of its own and makes the rule's

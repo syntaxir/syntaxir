@@ -150,16 +150,23 @@ func TestBudgetAttachCapturesWrapsNonfreshAndSelfCapture(t *testing.T) {
 	}
 }
 
-func TestBudgetAttachCapturesInterruptsDiscoveryAndFieldWalk(t *testing.T) {
+// TestBudgetAttachCapturesWideScopesChargeNothing checks that attaching captures charges nothing however
+// wide the scope (spec/runtime/parsing.md#cost: captures are not an item of the cost): neither the scan
+// of a scope whose slots are all empty nor the field walk of many long names, each under a limit smaller
+// than the scope; and that attaching to a node that is not fresh leaves that node unchanged.
+func TestBudgetAttachCapturesWideScopesChargeNothing(t *testing.T) {
 	t.Parallel()
 	base := value.Ptr(value.Data{Text: "retained", Fields: valueimpl.Fields{{Name: "prior", Value: "kept"}}})
 	wide := &state.Frame{Vals: make([]*zpvalue.Node, 320)}
 	p := stateBudgetParser(runtime.Limits{Compute: 128})
-	if err := catchFatal(t, func() { _ = p.AttachCaptures(base, &program.Scope{Names: make([]string, 320)}, wide, 0, 1) }); !errors.Is(err, runtime.ErrLimit) {
-		t.Fatalf("all-nil discovery interruption = %v, want ErrLimit", err)
+	if err := catchFatal(t, func() { _ = p.AttachCaptures(base, &program.Scope{Names: make([]string, 320)}, wide, 0, 1) }); err != nil {
+		t.Fatalf("all-nil scan = %v, want no error", err)
+	}
+	if p.Control.Used != 0 {
+		t.Fatalf("all-nil scan charged %d units, want 0", p.Control.Used)
 	}
 	if len(value.D(base).Fields) != 1 || value.D(base).Fields[0].Value != "kept" {
-		t.Fatal("interrupted all-nil scan changed the retained node")
+		t.Fatal("the all-nil scan changed the retained node")
 	}
 
 	const n = 48
@@ -170,12 +177,19 @@ func TestBudgetAttachCapturesInterruptsDiscoveryAndFieldWalk(t *testing.T) {
 		vals[i] = value.Ptr(value.Data{Text: fmt.Sprintf("value-%d", i)})
 	}
 	retained := value.Ptr(value.Data{Text: "shared-retained", Fields: valueimpl.Fields{{Name: "existing", Value: "stable"}}})
-	p = stateBudgetParser(runtime.Limits{Compute: 256})
-	if err := catchFatal(t, func() { _ = p.AttachCaptures(retained, &program.Scope{Names: names}, &state.Frame{Vals: vals}, 3, 9) }); !errors.Is(err, runtime.ErrLimit) {
-		t.Fatalf("capture field walk interruption = %v, want ErrLimit", err)
+	p = stateBudgetParser(runtime.Limits{Compute: 32})
+	var got *zpvalue.Node
+	if err := catchFatal(t, func() { got = p.AttachCaptures(retained, &program.Scope{Names: names}, &state.Frame{Vals: vals}, 3, 9) }); err != nil {
+		t.Fatalf("capture field walk = %v, want no error", err)
+	}
+	if p.Control.Used != 0 {
+		t.Fatalf("capture field walk charged %d units, want 0", p.Control.Used)
+	}
+	if got == retained || len(value.D(got).Fields) != n {
+		t.Fatalf("attachment returned the retained node or %d fields, want a new node with %d", len(value.D(got).Fields), n)
 	}
 	if len(value.D(retained).Fields) != 1 || value.D(retained).Fields[0].Name != "existing" || value.D(retained).Fields[0].Value != "stable" || value.D(retained).Text != "shared-retained" {
-		t.Fatal("interrupted capture assembly modified the retained nonfresh node")
+		t.Fatal("capture assembly modified the retained nonfresh node")
 	}
 }
 

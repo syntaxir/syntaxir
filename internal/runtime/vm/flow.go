@@ -211,8 +211,6 @@ func (vm *Program) runFlow(p *state.Parser, fr *flowRun) (call bool) {
 			exps, _ := regs[in.Args[1]].([]state.ExpID)
 			p.MergeExpected(regs[in.Args[0]].(int), exps)
 		case bytecode.FlowNewTerminal:
-			// As the Go library's NewTerminal: a unit for the value (spec/runtime/parsing.md#cost).
-			p.Spend()
 			text, _ := regs[in.Args[1]].(string)
 			fr.set(in.Dst[0], p.NewNode(nodes.Data{Kind: valueimpl.MatchKind, Start: int32(regs[in.Args[0]].(int)), End: int32(p.Pos), Text: text, Terminal: true, Fresh: true}))
 		case bytecode.FlowNewSeq, bytecode.FlowNewList:
@@ -220,7 +218,6 @@ func (vm *Program) runFlow(p *state.Parser, fr *flowRun) (call bool) {
 			if in.Op == bytecode.FlowNewList {
 				kind = valueimpl.ListKind
 			}
-			p.Spend()
 			fr.set(in.Dst[0], p.NewNode(nodes.Data{Kind: kind, Start: int32(regs[in.Args[0]].(int)), End: int32(p.Pos), Children: flowVals(regs[in.Args[1]]), Fresh: true}))
 		case bytecode.FlowNewVals:
 			fr.set(in.Dst[0], p.Nodes(in.Imm.(int))[:0])
@@ -242,8 +239,7 @@ func (vm *Program) runFlow(p *state.Parser, fr *flowRun) (call bool) {
 		case bytecode.FlowDropKids:
 			p.TruncateKids(regs[in.Args[0]].(int))
 		case bytecode.FlowPushKid:
-			// As a framed body of the Go library pushes a value: the charge of the gathered value is
-			// made where it is taken off (flow.kids).
+			// As a framed body of the Go library pushes a value, uncharged.
 			p.KidStack = append(p.KidStack, asNode(regs[in.Args[0]]))
 		case bytecode.FlowShapeSingle:
 			x := in.Imm.(bytecode.FlowShapeOf)
@@ -299,7 +295,6 @@ func (vm *Program) runFlow(p *state.Parser, fr *flowRun) (call bool) {
 			case int(program.SingleTuple):
 				v = flowShapeTuple(p, x, v, start)
 			default:
-				p.Spend()
 				v = p.NewNode(nodes.Data{Kind: valueimpl.SeqKind, Start: int32(start), End: int32(p.Pos), Fresh: true})
 			}
 			fr.set(in.Dst[0], v)
@@ -411,11 +406,10 @@ func flowShaper(x bytecode.FlowShapeOf) program.Shaper {
 }
 
 // flowShapeTuple returns the tuple node of the result v of a match from start, as the Go library's
-// shapeTuple does: a node that it builds charges a unit for the value (spec/runtime/parsing.md#cost).
+// shapeTuple does.
 func flowShapeTuple(p *state.Parser, x bytecode.FlowShapeOf, v *value.Node, start int) *value.Node {
 	if x.Elems && !(x.Shared && v != nil) {
 		return v
 	}
-	p.Spend()
 	return state.ShapeTuple(p, flowShaper(x), v, start)
 }

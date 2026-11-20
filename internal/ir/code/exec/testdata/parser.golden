@@ -668,7 +668,7 @@ op rule.invoke(r Rule, min int) (Value, bool)
   component rules
   writes rules, pos, silent
   noreturn
-  cost <= 1 + 1*captures + 1*capture_fields + 1*body
+  cost <= 1 + 1*body
   contract:
     // Runs the rule's body at the binding level min in a frame of its own and makes the rule's
     // value; on failure the position is unspecified. The evaluation counts in the statistics of a Document

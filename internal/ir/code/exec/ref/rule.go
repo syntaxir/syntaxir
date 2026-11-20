@@ -2,7 +2,6 @@ package ref
 
 import (
 	"fmt"
-	"slices"
 
 	"zeroparse.dev/zp/internal/ir/code"
 	"zeroparse.dev/zp/internal/ir/code/exec"
@@ -243,55 +242,6 @@ func (m *Model) Unspecified(o *code.Op, res []any) []string {
 		}
 	}
 	return nil
-}
-
-// captureFields returns exec.QCaptureFields for a call of rule.invoke of the rule with the index: what
-// attaching the captures that its next evaluation sets as fields of its value charges. The value of a
-// scripted body has no fields of its own, so that each capture walks the fields of the captures before
-// it, whose names all differ from its own.
-func (m *Model) captureFields(index int64) int64 {
-	s, e := m.spec(index), m.next(index)
-	set := make([]bool, s.Captures)
-	for _, k := range e.Captures {
-		set[k] = true
-	}
-	if !e.OK || !slices.Contains(set, true) {
-		return 0
-	}
-	n := s.Captures
-	var fields []string
-	for k, matched := range set {
-		if !matched {
-			continue
-		}
-		name := CaptureName(int64(k))
-		for _, f := range fields {
-			n += 1 + textCompare(f, name)
-		}
-		fields = append(fields, name)
-	}
-	return n
-}
-
-// textChunk is the number of bytes of two strings that a comparison charges for at once.
-const textChunk = 128
-
-// textCompare returns what comparing two different strings that are not the same bytes of the same
-// memory for equality charges: nothing for strings of different lengths, and otherwise two units for
-// each byte of the pieces of textChunk bytes that it reads, up to the first that differs.
-func textCompare(a, b string) int64 {
-	if len(a) != len(b) {
-		return 0
-	}
-	var n int64
-	for off := 0; off < len(a); off += textChunk {
-		end := min(off+textChunk, len(a))
-		n += 2 * int64(end-off)
-		if a[off:end] != b[off:end] {
-			break
-		}
-	}
-	return n
 }
 
 // RuleName returns the name that an implementation gives the rule of Config.RuleVars with the index.

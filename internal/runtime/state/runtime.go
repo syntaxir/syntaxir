@@ -1040,14 +1040,13 @@ func (p *Parser) convertResult(r *Rule, v *value.Node) *value.Node {
 
 // AttachCaptures attaches captures to the node as fields. Captures that did not match (nil) are
 // not attached. If the node belongs to another rule, or is itself captured, it is wrapped in a tuple
-// node first. It charges as the Go library's AttachCaptures and the Flow operation flow.attachFrame
-// do: a unit for each slot it looks at, for each name it attaches, and for the tuple node that wraps
-// the value, as every node the Go library makes does (spec/runtime/parsing.md#cost).
+// node first. It charges nothing: captures and the nodes that the parse builds are not an item of
+// the cost (spec/runtime/parsing.md#cost), and the slots and names of a scope, and so the fields
+// that it looks at, are a constant of the grammar.
 func (p *Parser) AttachCaptures(v *value.Node, s *program.Scope, f *Frame, start, end int) *value.Node {
 	found := false
 	wrap := v == nil || !nodes.D(v).Fresh
 	for _, c := range f.Vals {
-		p.Spend()
 		if c != nil {
 			found = true
 		}
@@ -1060,7 +1059,6 @@ func (p *Parser) AttachCaptures(v *value.Node, s *program.Scope, f *Frame, start
 		return v
 	}
 	if wrap {
-		p.Spend()
 		v = p.NewNode(nodes.Data{Kind: valueimpl.SeqKind, Start: int32(start), End: int32(end), Children: append(p.Nodes(1)[:0], v), Fresh: true})
 	}
 	if nodes.D(v).Fields == nil {
@@ -1068,9 +1066,8 @@ func (p *Parser) AttachCaptures(v *value.Node, s *program.Scope, f *Frame, start
 	}
 	nodes.D(v).Labeled = p.Prog.RecordsSourceInfo
 	for i, name := range s.Names {
-		p.Spend()
 		if f.Vals[i] != nil {
-			p.SetValueField(&nodes.D(v).Fields, name, f.Vals[i])
+			valueimpl.SetField(&nodes.D(v).Fields, name, f.Vals[i])
 		}
 	}
 	return v

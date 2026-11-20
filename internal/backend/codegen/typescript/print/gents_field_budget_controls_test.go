@@ -65,8 +65,10 @@ for(const unit of [p.CodePoints,p.Bytes]) {
  const input="z".repeat(48),ordinary=p.parse(input,unit),active=p.parseWithOptions(input,{unit,signal:{aborted:false}});
  check(ordinary.error===null&&active.error===null&&stable(active.node)===stable(ordinary.node)&&active.node?.fields.length===48,"capture attachment parity");
  check(p.parseRuleWithOptions("fast",input,{unit,limits:{compute:4096}}).error===null,"matching-only capture baseline fits");
- const stopped=p.parseWithOptions(input,{unit,limits:{compute:4096}});
- check(stopped.node===null&&stopped.error instanceof p.ParseInterruptionError&&stopped.error.kind==="compute-limit","capture attachment scans charge after matching");
+ // Attaching the captures as fields charges nothing (captures are not an item of the cost), so the
+ // parse fits the budget of matching alone.
+ const attached=p.parseWithOptions(input,{unit,limits:{compute:4096}});
+ check(attached.error===null&&stable(attached.node)===stable(ordinary.node),"capture attachment charges nothing");
  check(p.parseWithOptions(input,{unit,limits:{compute:0}}).error===null,"capture attachment fresh retry");
 }
 `

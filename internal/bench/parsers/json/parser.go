@@ -350,7 +350,7 @@ func init() {
 		if tf2 != nil {
 			return nil, tf2
 		}
-		tk3 := c.P.Kids(tm1)
+		tk3 := c.P.ElemsAbove(tm1)
 		tn4 := c.P.TermHull(c, false, tk3)
 		tf5 := any(tn4)
 		tn6 := c.TermStruct("Object", 1)
@@ -373,7 +373,7 @@ func init() {
 		if tf3 != nil {
 			return nil, tf3
 		}
-		tk4 := c.P.Kids(tm1)
+		tk4 := c.P.ElemsAbove(tm1)
 		tn5 := c.P.TermHull(c, false, tk4)
 		return any(tn5), nil
 	}
@@ -400,7 +400,7 @@ func init() {
 		if tf2 != nil {
 			return nil, tf2
 		}
-		tk3 := c.P.Kids(tm1)
+		tk3 := c.P.ElemsAbove(tm1)
 		tn4 := c.P.TermHull(c, false, tk3)
 		tf5 := any(tn4)
 		tn6 := c.TermStruct("Array", 1)
@@ -423,7 +423,7 @@ func init() {
 		if tf3 != nil {
 			return nil, tf3
 		}
-		tk4 := c.P.Kids(tm1)
+		tk4 := c.P.ElemsAbove(tm1)
 		tn5 := c.P.TermHull(c, false, tk4)
 		return any(tn5), nil
 	}
@@ -2505,7 +2505,7 @@ L6:
 			if tf2 != nil {
 				c.TermRaise(tf2)
 			}
-			tk3 := c.P.Kids(tm1)
+			tk3 := c.P.ElemsAbove(tm1)
 			tn4 := c.P.TermHull(c, false, tk3)
 			tv5 := tmk_Object(c, true, any(tn4))
 			tr8 = tv5
@@ -2587,7 +2587,7 @@ func i3(p *rt.TParser) (any, bool) {
 			if tf3 != nil {
 				c.TermRaise(tf3)
 			}
-			tk4 := c.P.Kids(tm1)
+			tk4 := c.P.ElemsAbove(tm1)
 			tn5 := c.P.TermHull(c, false, tk4)
 			tr9 = any(tn5)
 		}
@@ -2714,7 +2714,7 @@ L6:
 			if tf2 != nil {
 				c.TermRaise(tf2)
 			}
-			tk3 := c.P.Kids(tm1)
+			tk3 := c.P.ElemsAbove(tm1)
 			tn4 := c.P.TermHull(c, false, tk3)
 			tv5 := tmk_Array(c, true, any(tn4))
 			tr11 = tv5
@@ -2796,7 +2796,7 @@ func i6(p *rt.TParser) (any, bool) {
 			if tf3 != nil {
 				c.TermRaise(tf3)
 			}
-			tk4 := c.P.Kids(tm1)
+			tk4 := c.P.ElemsAbove(tm1)
 			tn5 := c.P.TermHull(c, false, tk4)
 			tr12 = any(tn5)
 		}
@@ -3411,4 +3411,4 @@ fail:
 
 const _ = types.ZPSchema_a9bcd9d1b71f161a
 
-const _ = rt.Protocol21
+const _ = rt.Protocol22

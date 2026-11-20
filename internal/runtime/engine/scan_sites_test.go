@@ -471,9 +471,9 @@ func TestScanSitesChargeIsPinned(t *testing.T) {
 	prog, plain := mustCompile(t, scanSpanProbe), compileWithoutScanSites(t, scanSpanProbe)
 	type steps struct{ scan, plain uint64 }
 	want := map[Backend]map[int]steps{
-		Closure:           {16: {374, 432}, 20: {430, 520}},
-		Bytecode:          {16: {377, 435}, 20: {433, 523}},
-		BytecodeIterative: {16: {357, 415}, 20: {413, 503}},
+		Closure:           {16: {276, 270}, 20: {308, 318}},
+		Bytecode:          {16: {276, 270}, 20: {308, 318}},
+		BytecodeIterative: {16: {256, 250}, 20: {288, 298}},
 	}
 	for b, byLen := range want {
 		for n, w := range byLen {

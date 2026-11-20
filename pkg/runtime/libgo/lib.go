@@ -1486,10 +1486,16 @@ const (
 	ptrChunk  = 1024
 )
 
-// NewNode returns a copy of v allocated from the node slab. A slab stays alive while any of its
-// nodes is referenced.
+// NewNode returns a copy of v allocated from the node slab, charging a unit for a value that a term
+// or a Document makes. A slab stays alive while any of its nodes is referenced.
 func (p *Parser) NewNode(v Data) *zpvalue.Node {
 	p.Spend()
+	return p.buildNode(v)
+}
+
+// buildNode is NewNode for a node that the parse builds, which charges nothing: the values that the
+// parse builds are not an item of the cost (spec/runtime/parsing.md#cost).
+func (p *Parser) buildNode(v Data) *zpvalue.Node {
 	if len(p.nodeSlab) == 0 {
 		p.nodeSlab = make([]zpvalue.Node, nodeChunk)
 		p.memUsed += nodeChunk * nodeBytes
@@ -1518,9 +1524,8 @@ func (p *Parser) NewNodeOrdinary(v Data) *zpvalue.Node {
 }
 
 // NewTerminal returns the node of text matched from start to the current position, allocated like
-// NewNode(Data{Kind: valueimpl.MatchKind, ...}).
+// buildNode(Data{Kind: valueimpl.MatchKind, ...}). It charges nothing, as buildNode.
 func (p *Parser) NewTerminal(start int, text string) *zpvalue.Node {
-	p.Spend()
 	return p.NewTerminalOrdinary(start, text)
 }
 
@@ -1540,9 +1545,8 @@ func (p *Parser) NewTerminalOrdinary(start int, text string) *zpvalue.Node {
 }
 
 // NewBranch returns the node of kind (valueimpl.SeqKind or valueimpl.ListKind) with children from start to the
-// current position, allocated like NewNode(Data{Kind: kind, ...}).
+// current position, allocated like buildNode(Data{Kind: kind, ...}). It charges nothing, as buildNode.
 func (p *Parser) NewBranch(kind *valueimpl.Kind, start int, children []*zpvalue.Node) *zpvalue.Node {
-	p.Spend()
 	return p.NewBranchOrdinary(kind, start, children)
 }
 
@@ -1595,12 +1599,10 @@ func (p *Parser) fields(n int) valueimpl.Fields {
 	return fs
 }
 
-// Kids returns p.KidStack[base:] as a child list and pops it. Under budget controls it reserves one unit
-// for each element it copies and one for each it takes off, in one reservation before it moves any.
+// Kids returns p.KidStack[base:] as a child list and pops it. It charges nothing: the values that the
+// parse gathers are not an item of the cost, and taking each off is constant work for the evaluation
+// that gathered it (spec/runtime/parsing.md#cost).
 func (p *Parser) Kids(base int) []*zpvalue.Node {
-	if usedFeatures&featureBudget != 0 && p.Control != nil {
-		return p.kidsControlled(base)
-	}
 	ks := p.Nodes(len(p.KidStack) - base)
 	copy(ks, p.KidStack[base:])
 	clear(p.KidStack[base:])
@@ -1608,18 +1610,16 @@ func (p *Parser) Kids(base int) []*zpvalue.Node {
 	return ks
 }
 
-// kidsControlled is Kids under budget controls: it reserves the two units of each element in one
-// reservation before it moves any.
-func (p *Parser) kidsControlled(base int) []*zpvalue.Node {
-	n := len(p.KidStack) - base
-	ks := p.Nodes(n)
-	if n > 0 {
-		p.Control.Charge(2 * uint64(n))
+// ElemsAbove is term.elemsAbove (spec/exec-ir/values.md): it returns the elements that a term gathered
+// above base as Kids does and, under budget controls, reserves two units for each element, one for
+// copying it and one for taking it off, in one reservation before it moves any.
+func (p *Parser) ElemsAbove(base int) []*zpvalue.Node {
+	if usedFeatures&featureBudget != 0 && p.Control != nil {
+		if n := len(p.KidStack) - base; n > 0 {
+			p.Control.Charge(2 * uint64(n))
+		}
 	}
-	copy(ks, p.KidStack[base:])
-	clear(p.KidStack[base:])
-	p.KidStack = p.KidStack[:base]
-	return ks
+	return p.Kids(base)
 }
 
 // DropKids pops p.KidStack[base:].
@@ -2328,12 +2328,13 @@ func (p *Parser) finishValue(r *Rule, f *CaptureFrame, v *zpvalue.Node, start in
 }
 
 // AttachCaptures attaches the non-nil captures as fields of the node. A node of another rule, or
-// one that is itself captured, is first wrapped in a tuple node.
+// one that is itself captured, is first wrapped in a tuple node. It charges nothing: captures and the
+// nodes that the parse builds are not an item of the cost (spec/runtime/parsing.md#cost), and the
+// slots and names of a scope, and so the fields that it looks at, are a constant of the grammar.
 func (p *Parser) AttachCaptures(v *zpvalue.Node, names []string, f *CaptureFrame, start, end int) *zpvalue.Node {
 	found := false
 	wrap := v == nil || !D(v).Fresh
 	for _, c := range f.Vals {
-		p.Spend()
 		if c != nil {
 			found = true
 		}
@@ -2345,16 +2346,15 @@ func (p *Parser) AttachCaptures(v *zpvalue.Node, names []string, f *CaptureFrame
 		return v
 	}
 	if wrap {
-		v = p.NewNode(Data{Kind: valueimpl.SeqKind, Start: int32(start), End: int32(end), Children: append(p.Nodes(1)[:0], v), Fresh: true})
+		v = p.buildNode(Data{Kind: valueimpl.SeqKind, Start: int32(start), End: int32(end), Children: append(p.Nodes(1)[:0], v), Fresh: true})
 	}
 	if D(v).Fields == nil {
 		D(v).Fields = p.fields(len(names))
 	}
 	D(v).Labeled = p.sourceInfo
 	for i, name := range names {
-		p.Spend()
 		if f.Vals[i] != nil {
-			p.setValueField(&D(v).Fields, name, f.Vals[i])
+			valueimpl.SetField(&D(v).Fields, name, f.Vals[i])
 		}
 	}
 	return v
@@ -2406,7 +2406,7 @@ type Shaper struct {
 func (p *Parser) shapeTuple(s Shaper, v *zpvalue.Node, start int) *zpvalue.Node {
 	if s.Elems {
 		if s.Shared && v != nil {
-			return p.NewNode(Data{Kind: valueimpl.SeqKind, Start: D(v).Start, End: D(v).End, Children: D(v).Children, Fresh: true})
+			return p.buildNode(Data{Kind: valueimpl.SeqKind, Start: D(v).Start, End: D(v).End, Children: D(v).Children, Fresh: true})
 		}
 		return v
 	}
@@ -2415,7 +2415,7 @@ func (p *Parser) shapeTuple(s Shaper, v *zpvalue.Node, start int) *zpvalue.Node 
 		kids = p.Nodes(1)
 		kids[0] = v
 	}
-	return p.NewNode(Data{Kind: valueimpl.SeqKind, Start: int32(start), End: int32(p.Pos), Children: kids, Fresh: true})
+	return p.buildNode(Data{Kind: valueimpl.SeqKind, Start: int32(start), End: int32(p.Pos), Children: kids, Fresh: true})
 }
 
 // one returns the one element of the result v.
@@ -2446,7 +2446,7 @@ func (p *Parser) ShapeSingle(s Shaper, v *zpvalue.Node, start int) (*zpvalue.Nod
 func (p *Parser) ShapeCapture(s Shaper, v *zpvalue.Node, start int) *zpvalue.Node {
 	v, ok := p.ShapeSingle(s, v, start)
 	if !ok {
-		v = p.NewNode(Data{Kind: valueimpl.SeqKind, Start: int32(start), End: int32(p.Pos), Fresh: true})
+		v = p.buildNode(Data{Kind: valueimpl.SeqKind, Start: int32(start), End: int32(p.Pos), Fresh: true})
 	}
 	return v
 }
@@ -2498,7 +2498,7 @@ func (p *Parser) MatchLiteral(rs []rune, text string, desc ExpID, build bool) (*
 	if !build {
 		return nil, true
 	}
-	return p.NewNode(Data{Kind: valueimpl.MatchKind, Start: int32(start), End: int32(p.Pos), Text: p.LiteralText(start, text), Terminal: true, Fresh: true}), true
+	return p.buildNode(Data{Kind: valueimpl.MatchKind, Start: int32(start), End: int32(p.Pos), Text: p.LiteralText(start, text), Terminal: true, Fresh: true}), true
 }
 
 // MatchLiteralFold is MatchLiteral for a case-insensitive literal. rs is the literal with each ASCII
@@ -2518,7 +2518,7 @@ func (p *Parser) MatchLiteralFold(rs []rune, desc ExpID, build bool) (*zpvalue.N
 	if !build {
 		return nil, true
 	}
-	return p.NewNode(Data{Kind: valueimpl.MatchKind, Start: int32(start), End: int32(p.Pos), Text: p.Text(start, p.Pos), Terminal: true, Fresh: true}), true
+	return p.buildNode(Data{Kind: valueimpl.MatchKind, Start: int32(start), End: int32(p.Pos), Text: p.Text(start, p.Pos), Terminal: true, Fresh: true}), true
 }
 
 // MatchLiteralFoldOrdinary is MatchLiteralFold in an ordinary parse (ExpectOrdinary).
@@ -2565,7 +2565,7 @@ func (p *Parser) matchReplacementLiteral(rs []rune, text string, desc ExpID, bui
 	if !build {
 		return nil, true
 	}
-	return p.NewNode(Data{Kind: valueimpl.MatchKind, Start: int32(start), End: int32(p.Pos), Text: p.LiteralText(start, text), Terminal: true, Fresh: true}), true
+	return p.buildNode(Data{Kind: valueimpl.MatchKind, Start: int32(start), End: int32(p.Pos), Text: p.LiteralText(start, text), Terminal: true, Fresh: true}), true
 }
 
 // MatchLiteralOrdinary is MatchLiteral in an ordinary parse (ExpectOrdinary).
@@ -2620,7 +2620,7 @@ func (p *Parser) Single(size int, build bool) (*zpvalue.Node, bool) {
 	if !build {
 		return nil, true
 	}
-	return p.NewNode(Data{Kind: valueimpl.MatchKind, Start: int32(start), End: int32(p.Pos), Text: p.Text(start, p.Pos), Terminal: true, Fresh: true}), true
+	return p.buildNode(Data{Kind: valueimpl.MatchKind, Start: int32(start), End: int32(p.Pos), Text: p.Text(start, p.Pos), Terminal: true, Fresh: true}), true
 }
 
 func (p *Parser) Anchor(ok bool, desc ExpID) (*zpvalue.Node, bool) {
@@ -2967,7 +2967,7 @@ func (c *ActCtx) zeroValue(d string) (any, string) {
 	case 'b':
 		return false, d[1:]
 	case 'l':
-		return c.listNode(c.P.Kids(len(c.P.KidStack))), d[1:]
+		return c.listNode(c.P.ElemsAbove(len(c.P.KidStack))), d[1:]
 	case '(':
 		base := len(c.P.KidStack)
 		d = d[1:]
@@ -2979,7 +2979,7 @@ func (c *ActCtx) zeroValue(d string) (any, string) {
 				panic("runtime: a zero value is not a tuple element") // zero values are never functions
 			}
 		}
-		return c.P.TermHull(c, true, c.P.Kids(base)), strings.TrimPrefix(d, ")")
+		return c.P.TermHull(c, true, c.P.ElemsAbove(base)), strings.TrimPrefix(d, ")")
 	case '{':
 		// The zero value of a struct type is a struct with no field set, whose fields read as their own
 		// zero values, so that making it costs the same whatever the type holds.
@@ -3082,7 +3082,7 @@ func (p *Parser) operatorsRuleBuild(r *Rule, a *operatorsRuleAttempt, lhs, rhs *
 	// captures.
 	opv, ok := p.ShapeSingle(l.Value, a.v, a.start)
 	if !ok {
-		opv = p.NewNode(Data{Kind: valueimpl.SeqKind, Start: int32(a.start), End: int32(a.end)})
+		opv = p.buildNode(Data{Kind: valueimpl.SeqKind, Start: int32(a.start), End: int32(a.end)})
 	}
 	if l.Value.Mode == singleTuple && len(l.Scope) > 0 {
 		opv = p.AttachCaptures(opv, l.Scope, a.frame, a.start, a.end)
@@ -3123,7 +3123,7 @@ func (p *Parser) operatorsRuleBuild(r *Rule, a *operatorsRuleAttempt, lhs, rhs *
 	} else if p.sourceInfo {
 		kind = r.kinds.Named(valueimpl.SeqKind, r.Name)
 	}
-	n := p.NewNode(Data{Kind: kind, Start: int32(start), End: int32(end), Children: kids, Fields: fields, Labeled: p.sourceInfo})
+	n := p.buildNode(Data{Kind: kind, Start: int32(start), End: int32(end), Children: kids, Fields: fields, Labeled: p.sourceInfo})
 	return n
 }
 

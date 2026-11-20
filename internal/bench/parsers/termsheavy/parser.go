@@ -246,7 +246,7 @@ func init() {
 				return nil, tf11
 			}
 		}
-		tk12 := c.P.Kids(tm2)
+		tk12 := c.P.ElemsAbove(tm2)
 		tn13 := c.P.TermHull(c, false, tk12)
 		ti14, tf14 := c.P.TermItems("foldl", any(tn13))
 		if tf14 != nil {
@@ -292,7 +292,7 @@ func init() {
 				return nil, tf31
 			}
 		}
-		tk32 := c.P.Kids(tm22)
+		tk32 := c.P.ElemsAbove(tm22)
 		tn33 := c.P.TermHull(c, false, tk32)
 		tm34 := len(c.P.KidStack)
 		ti35, tf35 := c.P.TermItems("filter", any(tn33))
@@ -316,7 +316,7 @@ func init() {
 				c.P.KidStack = append(c.P.KidStack, ti35[tj36])
 			}
 		}
-		tk42 := c.P.Kids(tm34)
+		tk42 := c.P.ElemsAbove(tm34)
 		tn43 := c.P.TermHull(c, false, tk42)
 		tv44, tf44 := c.P.TermLength(any(tn43))
 		if tf44 != nil {
@@ -345,7 +345,7 @@ func init() {
 				return nil, tf53
 			}
 		}
-		tk54 := c.P.Kids(tm45)
+		tk54 := c.P.ElemsAbove(tm45)
 		tn55 := c.P.TermHull(c, false, tk54)
 		ti56, tf56 := c.P.TermItems("foldl", any(tn55))
 		if tf56 != nil {
@@ -391,7 +391,7 @@ func init() {
 				return nil, tf73
 			}
 		}
-		tk74 := c.P.Kids(tm64)
+		tk74 := c.P.ElemsAbove(tm64)
 		tn75 := c.P.TermHull(c, false, tk74)
 		ti76, tf76 := c.P.TermItems("foldl", any(tn75))
 		if tf76 != nil {
@@ -930,7 +930,7 @@ func i1(p *rt.TParser) (any, bool) {
 					c.TermRaise(tf11)
 				}
 			}
-			tk12 := c.P.Kids(tm2)
+			tk12 := c.P.ElemsAbove(tm2)
 			tn13 := c.P.TermHull(c, false, tk12)
 			ti14, tf14 := c.P.TermItems("foldl", any(tn13))
 			if tf14 != nil {
@@ -976,7 +976,7 @@ func i1(p *rt.TParser) (any, bool) {
 					c.TermRaise(tf31)
 				}
 			}
-			tk32 := c.P.Kids(tm22)
+			tk32 := c.P.ElemsAbove(tm22)
 			tn33 := c.P.TermHull(c, false, tk32)
 			tm34 := len(c.P.KidStack)
 			ti35, tf35 := c.P.TermItems("filter", any(tn33))
@@ -1000,7 +1000,7 @@ func i1(p *rt.TParser) (any, bool) {
 					c.P.KidStack = append(c.P.KidStack, ti35[tj36])
 				}
 			}
-			tk42 := c.P.Kids(tm34)
+			tk42 := c.P.ElemsAbove(tm34)
 			tn43 := c.P.TermHull(c, false, tk42)
 			tv44, tf44 := c.P.TermLength(any(tn43))
 			if tf44 != nil {
@@ -1029,7 +1029,7 @@ func i1(p *rt.TParser) (any, bool) {
 					c.TermRaise(tf53)
 				}
 			}
-			tk54 := c.P.Kids(tm45)
+			tk54 := c.P.ElemsAbove(tm45)
 			tn55 := c.P.TermHull(c, false, tk54)
 			ti56, tf56 := c.P.TermItems("foldl", any(tn55))
 			if tf56 != nil {
@@ -1075,7 +1075,7 @@ func i1(p *rt.TParser) (any, bool) {
 					c.TermRaise(tf73)
 				}
 			}
-			tk74 := c.P.Kids(tm64)
+			tk74 := c.P.ElemsAbove(tm64)
 			tn75 := c.P.TermHull(c, false, tk74)
 			ti76, tf76 := c.P.TermItems("foldl", any(tn75))
 			if tf76 != nil {
@@ -1184,4 +1184,4 @@ fail:
 
 const _ = types.ZPSchema_e363e9a5033ad260
 
-const _ = rt.Protocol21
+const _ = rt.Protocol22

@@ -274,4 +274,4 @@ func r1(p *rt.Parser) (*zpvalue.Node, bool) {
 	return v, ok
 }
 
-const _ = rt.Protocol21
+const _ = rt.Protocol22

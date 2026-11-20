@@ -128,7 +128,11 @@ func TestGeneratedTSMemoryLimitValues(t *testing.T) {
 		{"convert", "S{$w}", 112 + 8 + 32 + 32},   // the copy of the node with its child and field lists
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			got := (count(t, c.action) - base) / 200
+			// The count also takes the peak of the working stacks, sampled at the polls, which come
+			// every 256 compute units: where they fall moves the count by some tens of bytes (less
+			// than 100, half a byte for each of the 200 items), so the bytes per item are rounded to
+			// the nearest.
+			got := (count(t, c.action) - base + 100) / 200
 			if got != c.perItem {
 				t.Fatalf("%s adds %d bytes per item over returning the node, want %d", c.action, got, c.perItem)
 			}

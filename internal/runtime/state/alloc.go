@@ -98,19 +98,26 @@ func (p *Parser) Nodes(n int) []*value.Node {
 	return s
 }
 
-// Kids returns p.KidStack[base:] as a child slice and resets the stack to base. Under budget controls
-// it reserves two units for each element, one for copying it and one for taking it off, in one
-// reservation before it moves any.
+// Kids returns p.KidStack[base:] as a child slice and resets the stack to base. It charges nothing:
+// the values that the parse gathers are not an item of the cost, and taking each off is constant work
+// for the evaluation that gathered it (spec/runtime/parsing.md#cost).
 func (p *Parser) Kids(base int) []*value.Node {
 	n := len(p.KidStack) - base
 	ks := p.Nodes(n)
-	if n > 0 {
-		p.SpendValue(2 * n)
-	}
 	copy(ks, p.KidStack[base:])
 	clear(p.KidStack[base:])
 	p.KidStack = p.KidStack[:base]
 	return ks
+}
+
+// ElemsAbove is term.elemsAbove (spec/exec-ir/values.md): it returns the elements that a term
+// gathered above base as Kids does and, under budget controls, reserves two units for each element,
+// one for copying it and one for taking it off, in one reservation before it moves any.
+func (p *Parser) ElemsAbove(base int) []*value.Node {
+	if n := len(p.KidStack) - base; n > 0 {
+		p.SpendValue(2 * n)
+	}
+	return p.Kids(base)
 }
 
 // DropKids discards p.KidStack[base:] and charges a unit for each element, as term.dropKids does
@@ -121,8 +128,8 @@ func (p *Parser) DropKids(base int) {
 }
 
 // TruncateKids discards p.KidStack[base:] without a charge, as flow.dropKids does
-// (spec/flow-ir/operations.md): a repetition that fails drops the elements it gathered, each of which
-// was charged when it was gathered.
+// (spec/flow-ir/operations.md): a repetition that fails drops the elements it gathered, which charge
+// nothing.
 func (p *Parser) TruncateKids(base int) {
 	clear(p.KidStack[base:])
 	p.KidStack = p.KidStack[:base]

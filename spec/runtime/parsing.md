@@ -330,7 +330,9 @@ The **cost** of a parse is the sum of the following:
   examine, counted again each time it is examined;
 - the iterations of repetitions and the operators that an Operators Rule
   applies;
-- the size of the values that actions and predicates build.
+- the size of the values that actions and predicates build;
+- the elements that a walk of a [run site](#run-sites) copies from the record
+  it takes behind its own values (its suffix copies).
 
 A **text value**, the result of `text` of a node, denotes a range of the
 input. In a parse of a whole input, in bytes or in code points and whether or
@@ -376,12 +378,22 @@ growing them by doubling, or by pages of positions, copies and clears at most a
 constant times their final size. A parser generated without
 limit controls counts no units.
 
+The values that the parse builds rather than an action, the terminals,
+sequences, tuples and lists of the grammar's expressions and the nodes that
+wrap captured values, are not an item of the cost and charge nothing; neither
+do gathering the values of a repetition or a sequence, taking them off into
+their list, dropping them, or attaching captures as fields. Each is a constant
+of the grammar for the evaluation, iteration or examined input that is
+counted where it is built. The suffix copies of a run site are the exception:
+a list keeps its elements contiguous, so a walk that takes a record copies the
+record's elements behind its own, and these copies are not bounded by the other
+items. They are an item of the cost, and a walk charges a unit for each
+element it copies; the copies are at most the iterations that taking the record
+spares.
+
 Some values are built by the runtime rather than by an action, and each backend
 charges them as follows:
 
-- **Gathered values.** Every value that a repetition or a sequence gathers into
-  a list is charged at most two units. A backend may charge them when it pushes
-  the value, when it collects the list, or both.
 - **Syntax errors.** A syntax error that a recovery builds is charged:
   - one unit for each expectation that it is given;
   - the steps of sorting their descriptions;
@@ -869,7 +881,7 @@ keep them are free, as marking a slot is.
 A walk of a run site whose iterations have values and that ends without making
 a list, as one that fails below its minimum, drops the elements it holds and
 those of the record it took; as for a repetition that fails below its minimum,
-dropping them charges nothing, since each was charged when it was gathered.
+dropping them charges nothing.
 
 A walk that reuses a record does not enter the calls that the recorded walk
 made, so their nesting does not count toward the [nesting limit](#limits), as
@@ -2669,15 +2681,10 @@ time, also where it charges several of them together; a failure there reports
 reservation, such as a chunk of the preparation of the input, the copy of a text
 or an operation on a list, is reserved at once, and a failure there reports the
 whole reservation in `Requested` and the units before it in `Used`. Taking the
-n elements of a list or a tuple off the values gathered for it is one
-reservation of 2n units, one for copying each element and one for taking it
-off, made before any element moves, however long the list, whether a term makes
-the list or the parse builds it, as for the list of a repetition. A list that
-reuses the elements kept in the record of an earlier walk ([Run Sites](#run-sites))
-takes off only the elements gathered before them. A repetition that fails
-below its minimum makes no list, so the values it gathered are dropped, not
-taken off, and dropping them charges nothing, since each was charged when it
-was gathered.
+n elements of a list or a tuple that a term makes off the values gathered for it
+is one reservation of 2n units, one for copying each element and one for taking
+it off, made before any element moves, however long the list. The lists that
+the parse builds charge nothing ([Cost](#cost)).
 
 Every backend must make the same charges, so that every backend reports the
 same `Used` and `Requested` for the same grammar, input and options; a backend

@@ -1529,7 +1529,7 @@ func init() {
 		if tf3 != nil {
 			return nil, tf3
 		}
-		tk4 := c.P.Kids(tm2)
+		tk4 := c.P.ElemsAbove(tm2)
 		tn5 := c.P.TermHull(c, false, tk4)
 		tf6 := any(tn5)
 		tf7 := c.Cap(2)
@@ -1559,7 +1559,7 @@ func init() {
 		if tf3 != nil {
 			return nil, tf3
 		}
-		tk4 := c.P.Kids(tm1)
+		tk4 := c.P.ElemsAbove(tm1)
 		tn5 := c.P.TermHull(c, false, tk4)
 		return any(tn5), nil
 	}
@@ -1595,7 +1595,7 @@ func init() {
 				if tf2 != nil {
 					return nil, tf2
 				}
-				tk3 := c.P.Kids(tm1)
+				tk3 := c.P.ElemsAbove(tm1)
 				tn4 := c.P.TermHull(c, false, tk3)
 				tf5 := any(tn4)
 				tn6 := c.TermStruct("ArrayLit", 1)
@@ -1737,7 +1737,7 @@ func init() {
 				if tf3 != nil {
 					return nil, tf3
 				}
-				tk4 := c.P.Kids(tm2)
+				tk4 := c.P.ElemsAbove(tm2)
 				tn5 := c.P.TermHull(c, false, tk4)
 				tf6 := any(tn5)
 				tn7 := c.TermStruct("Call", 2)
@@ -1793,7 +1793,7 @@ func init() {
 		if tf3 != nil {
 			return nil, tf3
 		}
-		tk4 := c.P.Kids(tm1)
+		tk4 := c.P.ElemsAbove(tm1)
 		tn5 := c.P.TermHull(c, false, tk4)
 		return any(tn5), nil
 	}
@@ -1879,7 +1879,7 @@ func init() {
 				if tf2 != nil {
 					return nil, tf2
 				}
-				tk3 := c.P.Kids(tm1)
+				tk3 := c.P.ElemsAbove(tm1)
 				tn4 := c.P.TermHull(c, false, tk3)
 				tv5 := tmk_ArrayLit(c, true, any(tn4))
 				return tv5, nil
@@ -1920,7 +1920,7 @@ func init() {
 				if tf2 != nil {
 					return nil, tf2
 				}
-				tk3 := c.P.Kids(tm1)
+				tk3 := c.P.ElemsAbove(tm1)
 				tn4 := c.P.TermHull(c, false, tk3)
 				tv5 := tmk_Call(c, true, (c.Lhs), any(tn4))
 				return tv5, nil
@@ -5196,7 +5196,7 @@ L10:
 			if tf2 != nil {
 				c.TermRaise(tf2)
 			}
-			tk3 := c.P.Kids(tm1)
+			tk3 := c.P.ElemsAbove(tm1)
 			tn4 := c.P.TermHull(c, false, tk3)
 			tv5 := tmk_Func(c, true, k1, any(tn4), k12)
 			tr38 = tv5
@@ -5280,7 +5280,7 @@ func i11(p *rt.TParser) (any, bool) {
 			if tf3 != nil {
 				c.TermRaise(tf3)
 			}
-			tk4 := c.P.Kids(tm1)
+			tk4 := c.P.ElemsAbove(tm1)
 			tn5 := c.P.TermHull(c, false, tk4)
 			tr39 = any(tn5)
 		}
@@ -6121,7 +6121,7 @@ func i15(p *rt.TParser) (any, bool) {
 			if tf3 != nil {
 				c.TermRaise(tf3)
 			}
-			tk4 := c.P.Kids(tm1)
+			tk4 := c.P.ElemsAbove(tm1)
 			tn5 := c.P.TermHull(c, false, tk4)
 			tr42 = any(tn5)
 		}
@@ -7317,4 +7317,4 @@ fail:
 
 const _ = types.ZPSchema_7a469fc635b6a20e
 
-const _ = rt.Protocol21
+const _ = rt.Protocol22

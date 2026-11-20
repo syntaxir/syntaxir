@@ -145,7 +145,7 @@ func (c *EvalCtx) zeroFrom(d string) (any, string, error) {
 	case 'b':
 		return false, d[1:], nil
 	case 'l':
-		return c.ListNode(c.P.Kids(len(c.P.KidStack))), d[1:], nil
+		return c.ListNode(c.P.ElemsAbove(len(c.P.KidStack))), d[1:], nil
 	case '(':
 		p := c.P
 		kb := len(p.KidStack)
@@ -163,7 +163,7 @@ func (c *EvalCtx) zeroFrom(d string) (any, string, error) {
 				return nil, d, err
 			}
 		}
-		return c.TupleNode(p.Kids(kb)), strings.TrimPrefix(d, ")"), nil
+		return c.TupleNode(p.ElemsAbove(kb)), strings.TrimPrefix(d, ")"), nil
 	case '{':
 		// The zero value of a struct type is a struct with no field set, whose fields read as their own
 		// zero values, so that making it costs the same whatever the type holds.

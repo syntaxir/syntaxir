@@ -1529,4 +1529,4 @@ func s4(p *rt.TParser) (any, bool) {
 
 const _ = types.ZPSchema_1758b48940b2027f
 
-const _ = rt.Protocol21
+const _ = rt.Protocol22

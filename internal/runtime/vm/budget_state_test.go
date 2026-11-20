@@ -19,9 +19,12 @@ import (
 	"zeroparse.dev/zp/pkg/runtime/value/impl"
 )
 
+// TestBudgetStateVMChildAssembly pins that the match code assembles the children of a sequence and of a
+// repetition's list without a charge (spec/runtime/parsing.md#cost): under the least limit the assembly of
+// 320 children completes, charges nothing and leaves the nodes it takes unchanged.
 func TestBudgetStateVMChildAssembly(t *testing.T) {
 	for _, op := range []bytecode.Op{bytecode.OpSeq, bytecode.OpEndRepeat} {
-		for _, lim := range []runtime.Limits{{Compute: 64}, {Compute: 10000}} {
+		for _, lim := range []runtime.Limits{{Compute: 1}, {Compute: 10000}} {
 			p := stateBudgetParser(lim)
 			start := 3
 			retained := value.Ptr(value.Data{Text: "retained", Fields: valueimpl.Fields{{Name: "keep", Value: "unchanged"}}})
@@ -42,12 +45,11 @@ func TestBudgetStateVMChildAssembly(t *testing.T) {
 			body := vmBody{}
 			var result *zpvalue.Node
 			err := catchFatal(t, func() { _, result, _ = machineOf(p).step(vm, &body, false, false, nil) })
-			if lim.Compute == 64 {
-				if !errors.Is(err, runtime.ErrLimit) || result != nil || len(machineOf(p).vals) != 321 {
-					t.Fatalf("%v assembly interruption err=%v result=%v stack=%d", op, err, result, len(machineOf(p).vals))
-				}
-			} else if err != nil || result == nil || !reflect.DeepEqual(value.D(result).Children, want) || value.D(result).Start != 3 {
+			if err != nil || result == nil || !reflect.DeepEqual(value.D(result).Children, want) || value.D(result).Start != 3 {
 				t.Fatalf("%v assembled children/position differs: %v", op, err)
+			}
+			if p.Control.Used != 0 {
+				t.Fatalf("%v assembly charged %d units, want none", op, p.Control.Used)
 			}
 			if value.D(retained).Text != "retained" || value.D(retained).Fields[0].Value != "unchanged" {
 				t.Fatal("assembly changed retained node")

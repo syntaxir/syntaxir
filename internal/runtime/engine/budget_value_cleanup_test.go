@@ -15,7 +15,10 @@ import (
 	"zeroparse.dev/zp/pkg/runtime/value/impl"
 )
 
-func TestBudgetValueCopyInterruptionPreservesChildren(t *testing.T) {
+// TestBudgetValueTakeOffChargesNothing checks that taking gathered values off the stack charges nothing
+// (spec/runtime/parsing.md#cost: values the parse builds are not an item of the cost), even past a limit
+// smaller than the number of values, and that it keeps each value's identity and leaves the values unchanged.
+func TestBudgetValueTakeOffChargesNothing(t *testing.T) {
 	t.Parallel()
 	retained := nodes.Ptr(nodes.Data{Text: "retained", Start: 7, End: 9, Fields: valueimpl.Fields{{Name: "value", Value: "unchanged"}}})
 	p := &state.Parser{KidStack: make([]*value.Node, 257)}
@@ -23,26 +26,19 @@ func TestBudgetValueCopyInterruptionPreservesChildren(t *testing.T) {
 		p.KidStack[i] = retained
 	}
 	p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 128})
-	if err := catchFatal(t, func() { p.Kids(0) }); !errors.Is(err, runtime.ErrLimit) {
-		t.Fatalf("copy interruption = %v", err)
+	var kids []*value.Node
+	if err := catchFatal(t, func() { kids = p.Kids(0) }); err != nil {
+		t.Fatalf("take-off of 257 values under a limit of 128 = %v, want no error", err)
 	}
-	// A failed copy does not publish a partial child list or clear its source.
-	if len(p.KidStack) != 257 {
-		t.Fatalf("interrupted child stack length = %d", len(p.KidStack))
+	if p.Control.Used != 0 {
+		t.Fatalf("take-off charged %d units, want 0", p.Control.Used)
 	}
-	for i, n := range p.KidStack {
-		if n != retained {
-			t.Fatalf("interrupted source child %d changed", i)
-		}
-	}
-	p.Control = nil
-	kids := p.Kids(0)
 	if len(kids) != 257 || len(p.KidStack) != 0 {
-		t.Fatalf("retry lengths = %d, %d", len(kids), len(p.KidStack))
+		t.Fatalf("lengths = %d, %d", len(kids), len(p.KidStack))
 	}
 	for i, n := range kids {
 		if n != retained {
-			t.Fatalf("retry child %d lost its identity", i)
+			t.Fatalf("child %d lost its identity", i)
 		}
 	}
 	if nodes.D(retained).Text != "retained" || nodes.D(retained).Start != 7 || nodes.D(retained).End != 9 || nodes.D(retained).Fields[0].Value != "unchanged" {

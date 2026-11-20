@@ -1,4 +1,4 @@
-protocol 21
+protocol 22
 const BaseString untyped int = 0
 const ExpFar ExpID = 536870912
 const IdAny ExpID = 0
@@ -147,6 +147,7 @@ method (*Parser) Bind(int, func(*ActCtx) (any, any)) bool
 method (*Parser) Call(*Rule, int) (*zeroparse.dev/zp/pkg/runtime/value.Node, bool)
 method (*Parser) DiagnosticAttr(matcher, ExpID) (*zeroparse.dev/zp/pkg/runtime/value.Node, bool)
 method (*Parser) DropKids(int)
+method (*Parser) ElemsAbove(int) []*zeroparse.dev/zp/pkg/runtime/value.Node
 method (*Parser) EmitStream(*zeroparse.dev/zp/pkg/runtime/value.Node, int)
 method (*Parser) Enter()
 method (*Parser) ErrorAttr(matcher, ExpID) (*zeroparse.dev/zp/pkg/runtime/value.Node, bool)
@@ -278,6 +279,7 @@ method (*TParser) DocumentCall(*TRule, int, func(*TParser) (any, bool)) (any, bo
 method (*TParser) DropCreated(int)
 method (*TParser) DropKids(int)
 method (*TParser) DropTrail(int)
+method (*TParser) ElemsAbove(int) []any
 method (*TParser) ErrorAttr(tmatcher, ExpID) (any, bool)
 method (*TParser) Finish(*TRule, *TCaptureFrame, any, int) any
 method (*TParser) FreeFrame(*TCaptureFrame)
