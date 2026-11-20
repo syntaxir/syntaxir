@@ -161,6 +161,24 @@ func TestWithinRoutesThePart(t *testing.T) {
 	}
 }
 
+var (
+	errRefused   = errors.New("refused")
+	refusingLens = RegisterLens(pairIR, pairIR, modIR, modIR, &Lens[*pair, *pair, *mod, *mod]{Name: "t-pair-refuse",
+		Get: func(p *pair) *mod { return p.m },
+		Put: func(*pair, *mod) (*pair, error) { return nil, errRefused }})
+)
+
+// TestWithinRefusedPartFails checks that a part that the lens refuses to put back fails the run,
+// named after the lens, and that no unit goes on.
+func TestWithinRefusedPartFails(t *testing.T) {
+	in := &pair{m: &mod{fns: []*fn{{"f", "x"}}}, tag: "t"}
+	out, err := run(t, &Run{}, Then(Within(refusingLens, Seq(modIR, upper)), Within(pairLens, Seq(modIR, mark))), in)
+	var se *StepError
+	if out != nil || !errors.As(err, &se) || se.Step != "within t-pair-refuse" || !errors.Is(err, errRefused) {
+		t.Errorf("a refused part: %v %v", out, err)
+	}
+}
+
 func TestWithDerivedProvidesTheFeature(t *testing.T) {
 	out, err := run(t, &Run{}, WithDerived(firstName, Seq(modIR, feat)), &mod{fns: []*fn{{"f", "x"}, {"g", "y"}}})
 	if err != nil || out.String() != "f: x@f\ng: y@f\n" {

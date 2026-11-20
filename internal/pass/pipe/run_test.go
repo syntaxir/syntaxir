@@ -3,6 +3,7 @@ package pipe
 import (
 	"context"
 	"errors"
+	"io"
 	"reflect"
 	"strings"
 	"testing"
@@ -51,12 +52,85 @@ func TestTypedPipelineRunsAndNamesInstances(t *testing.T) {
 }
 
 func TestDisabledPassDoesNotRun(t *testing.T) {
-	out, err := run(t, &Run{Settings: settings(t, "t-upper")}, tablePipe(Seq(modIR, upper, appnd)), &prog{tables: []string{"a"}})
+	rec := &recorder{}
+	out, err := run(t, &Run{Settings: settings(t, "t-upper"), Observers: []Observer{rec}}, tablePipe(Seq(modIR, upper, appnd)), &prog{tables: []string{"a"}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got := out.String(); got != "[a]\na1: x+\na2: y+\n" {
 		t.Errorf("output %q", got)
+	}
+	// A pass that the settings turn off is no event and takes no number.
+	if want := []string{"0 t-build [a] ran=true changed=true", "1 t-append [a] ran=true changed=true"}; !reflect.DeepEqual(rec.lines, want) {
+		t.Errorf("events\n%s\nwant\n%s", strings.Join(rec.lines, "\n"), strings.Join(want, "\n"))
+	}
+}
+
+// TestInapplicablePassDoesNotRun checks that a pass whose Applies says no is skipped like a disabled
+// one: it is no event, takes no number and leaves the unit as it was.
+func TestInapplicablePassDoesNotRun(t *testing.T) {
+	rec := &recorder{}
+	m := &mod{fns: []*fn{{"f", "x"}}}
+	out, err := run(t, &Run{Observers: []Observer{rec}}, PerFunc(funcsView, Seq(fnIR, fnNever, fnUpper)), m)
+	if err != nil || out.String() != "f: X\n" {
+		t.Fatalf("%v %v", out, err)
+	}
+	if want := []string{"1 t-fn-upper [f] ran=true changed=true"}; !reflect.DeepEqual(rec.lines, want) {
+		t.Errorf("events\n%s\nwant\n%s", strings.Join(rec.lines, "\n"), strings.Join(want, "\n"))
+	}
+}
+
+// TestPerFuncRunsPassByPass checks that the passes of a PerFunc block run pass by pass over the
+// functions in their order, each run numbered in that order with its function in the label.
+func TestPerFuncRunsPassByPass(t *testing.T) {
+	rec := &recorder{}
+	m := &mod{fns: []*fn{{"f", "x"}, {"g", "y"}}}
+	if _, err := run(t, &Run{Observers: []Observer{rec}}, PerFunc(funcsView, Seq(fnIR, fnUpper, fnUpper)), m); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		"1 t-fn-upper [f] ran=true changed=true",
+		"2 t-fn-upper [g] ran=true changed=true",
+		"3 t-fn-upper#2 [f] ran=true changed=true",
+		"4 t-fn-upper#2 [g] ran=true changed=true",
+	}
+	if !reflect.DeepEqual(rec.lines, want) {
+		t.Errorf("events\n%s\nwant\n%s", strings.Join(rec.lines, "\n"), strings.Join(want, "\n"))
+	}
+}
+
+// unitKeeper keeps every unit an observer is given, with its text at the time.
+type unitKeeper struct {
+	units []*mod
+	texts []string
+}
+
+func (*unitKeeper) Needs() Needs                       { return Needs{Units: true} }
+func (*unitKeeper) Before(Event, func(io.Writer)) bool { return true }
+func (k *unitKeeper) After(_ Event, r *Result) {
+	if m, ok := r.Unit.(*mod); ok {
+		k.units, k.texts = append(k.units, m), append(k.texts, m.String())
+	}
+}
+
+// TestObservedUnitsStayAsTheyWere checks that no later step changes a unit that an observer was
+// given, with and without -verify-each, required steps included.
+func TestObservedUnitsStayAsTheyWere(t *testing.T) {
+	for _, verifyEach := range []bool{false, true} {
+		k := &unitKeeper{}
+		in := &mod{fns: []*fn{{"f", "x"}}}
+		out, err := run(t, &Run{VerifyEach: verifyEach, Observers: []Observer{k}}, Seq(modIR, upper, appnd, mark), in)
+		if err != nil || out.String() != "f: X+#\n" {
+			t.Fatalf("verify each %v: %v %v", verifyEach, out, err)
+		}
+		if len(k.units) != 3 {
+			t.Fatalf("verify each %v: %d units observed, want 3", verifyEach, len(k.units))
+		}
+		for i, m := range k.units {
+			if m.String() != k.texts[i] {
+				t.Errorf("verify each %v: unit %d was changed after the observer got it: %q, was %q", verifyEach, i, m, k.texts[i])
+			}
+		}
 	}
 }
 
