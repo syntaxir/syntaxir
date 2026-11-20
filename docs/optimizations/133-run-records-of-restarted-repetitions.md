@@ -15,7 +15,7 @@ whose element can be replayed is a run site, and a walk of a hot site keeps reco
 A site keeps nothing until its walks go back. It records the furthest position its walks of 64 units or more reached
 and turns hot at the first walk that begins below that position and walks 64 units below it. A cold walk costs its
 length, of which the part below the furthest position is under 64 units, so the cold cost is at most the input plus
-64 per walk, however the walks alternate. Records are keyed by position and by the environment object.
+64 per walk, however the walks alternate. A site that is free of the environment keeps its records by position alone. Any other site keeps them by position and by the values of the key variables of the site, the variables that the predicates of its element read or bind and those that the rules it calls read, so that environments holding equal values of those variables share records.
 
 ## Applicability
 
@@ -73,11 +73,9 @@ earlier revision.
 
 ## Correctness and Tradeoffs
 
-A record is reused only in the environment object it was made in. A grammar that rebinds a variable to the same new
-value at every position builds a new environment each time and stays quadratic even when its site is hot
-(`TestAlternatingWalksTurnHot`). Class scans, left recursion and the engine's Document path keep no run records.
+A record of a site that is not free of the environment is reused only where the key variables hold equal values, compared as the values of a memo key are, so environments that are built apart but hold equal values share it. The walks of such a site at one position evaluate its element once for each combination of the values of its key there, so a grammar whose key variable takes a new value at every position gains nothing from the records and is not made linear by them (`TestAlternatingWalksTurnHot` pins the alternating walks that are, and checks that keying by the environment object instead would leave them quadratic). Class scans, left recursion and the engine's Document path keep no run records.
 
 ## Decision and Limits
 
 Adopted on the closure and bytecode backends and in the generated Go and TypeScript parsers. Not covered: class scans,
-left-recursive restarts and walks under environments that equal each other but are built separately.
+left-recursive restarts.
