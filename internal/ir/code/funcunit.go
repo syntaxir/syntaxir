@@ -2,6 +2,7 @@ package code
 
 import (
 	"fmt"
+	"reflect"
 	"slices"
 )
 
@@ -28,21 +29,34 @@ func (m *Module) FuncUnit(i int) *Module {
 
 // PutFuncUnit puts the function of u, a module that FuncUnit(i) made from m and that passes may have
 // changed or replaced, in place of the function i of m, and declares in m the operations that u
-// declares and m does not. A module that does not hold one function is an error.
+// declares and m does not. Passes on a function add operations only: a unit that does not hold one
+// function, that changed a declaration other than its operations, or that declares an operation that m
+// declares otherwise (another function's unit added it) is an error, and m is left as it was.
 func (m *Module) PutFuncUnit(i int, u *Module) error {
 	if len(u.Funcs) != 1 {
 		return fmt.Errorf("a pass replaced or removed the function %s of %s: its unit holds %d functions", m.Funcs[i].Name, m.Name, len(u.Funcs))
 	}
-	m.Funcs[i] = u.Funcs[0]
+	name := u.Funcs[0].Name
+	if !slices.Equal(u.Dialects, m.Dialects) || !slices.Equal(u.Features, m.Features) || !slices.Equal(u.Components, m.Components) ||
+		!slices.Equal(u.Registers, m.Registers) || !slices.Equal(u.Handles, m.Handles) {
+		return fmt.Errorf("a pass on the function %s of %s changed a declaration other than its operations", name, m.Name)
+	}
 	// The operations that u shares with m come first, as FuncUnit made them.
 	k := 0
 	for k < len(u.Ops) && k < len(m.Ops) && u.Ops[k] == m.Ops[k] {
 		k++
 	}
+	var add []*Op
 	for _, o := range u.Ops[k:] {
-		if m.Op(o.Name) == nil {
-			m.AddOp(o)
+		if d := m.Op(o.Name); d != nil && !reflect.DeepEqual(d, o) {
+			return fmt.Errorf("a pass on the function %s of %s declared the operation %s, which the module declares otherwise", name, m.Name, o.Name)
+		} else if d == nil {
+			add = append(add, o)
 		}
+	}
+	m.Funcs[i] = u.Funcs[0]
+	for _, o := range add {
+		m.AddOp(o)
 	}
 	return nil
 }

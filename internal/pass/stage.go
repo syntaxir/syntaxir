@@ -293,7 +293,7 @@ type Funcs[W, M any] struct {
 // function in its label, so that the numbering and the dumps follow the passes and, within a pass, the
 // order of the functions. A pass that fails on a function ends the passes of that function, which
 // the stage leaves as Pipeline.Run leaves it (t.Keep), while the other functions go on; it is the
-// failure of the stage, and the first one is returned. The stage skips its passes after a failure of
+// failure of the stage, and the first one is returned, naming its function. The stage skips its passes after a failure of
 // an earlier one, as Transforms does.
 func EachFunc[W, M, X any](f Funcs[W, M], t Transform[M, X]) Stage[W, W] {
 	return Stage[W, W]{steps: t.steps(), err: checkKeep(t.Keep, t.Pipeline.Copy), run: func(r *Run, l Label, w W, st *state) W {
@@ -302,30 +302,34 @@ func EachFunc[W, M, X any](f Funcs[W, M], t Transform[M, X]) Stage[W, W] {
 		}
 		n := f.Len(w)
 		runs := make([]*unitRun[M, X], n)
+		names := make([]string, n)
+		// A failure names the function it is of: the stage's unit holds many.
+		fail := func(i int, err error) { st.fail(fmt.Errorf("function %s: %w", names[i], err)) }
 		for i := range n {
-			fl := Label{Table: l.Table, Func: f.Name(w, i)}
+			names[i] = f.Name(w, i)
+			fl := Label{Table: l.Table, Func: names[i]}
 			m := f.Get(w, i)
 			u, err := t.Pipeline.start(m, t.Env(r, fl, m), t.options(r, fl, m))
 			if err != nil {
-				st.fail(err)
+				fail(i, err)
 				return w
 			}
 			runs[i] = u
 		}
 		for _, ps := range t.Pipeline.Passes {
-			for _, u := range runs {
+			for i, u := range runs {
 				if err := u.step(ps); err != nil {
-					st.fail(err)
+					fail(i, err)
 				}
 			}
 		}
 		for i, u := range runs {
 			m, _, err := u.finish()
 			if err != nil {
-				st.fail(err)
+				fail(i, err)
 			}
 			if err := f.Put(w, i, m); err != nil {
-				st.fail(err)
+				fail(i, err)
 			}
 		}
 		return w

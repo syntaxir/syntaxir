@@ -368,7 +368,7 @@ func TestDriverFlowErrors(t *testing.T) {
 		}})
 	d := &Driver{FlowPipeline: func(string) *pass.Pipeline[*code.Module, *flowpass.Env] { return &p }, TestPasses: []string{"test-flow-fail"}}
 	f, err := d.Flow("rules", framed(), false, flowpass.Target{})
-	if f == nil || !errors.Is(err, cause) || !strings.HasPrefix(err.Error(), "internal error: pass test-flow-fail: ") {
+	if f == nil || !errors.Is(err, cause) || !strings.HasPrefix(err.Error(), "internal error: function r: pass test-flow-fail: ") {
 		t.Errorf("a failing pass: %v, %v", f, err)
 	}
 }
@@ -499,8 +499,8 @@ func TestDriverExecFailureKeepsTheLoweredFunction(t *testing.T) {
 		{"a pass of the target", &Driver{ExecPipeline: pipeline(), TestPasses: []string{failing}}, failTarget},
 	} {
 		l, err := c.d.execFunc("typed", execModule(t), c.target, false)
-		if !errors.Is(err, cause) || !strings.HasPrefix(err.Error(), "internal error: pass "+failing+": ") {
-			t.Errorf("%s: the error %v does not name the pass", c.what, err)
+		if !errors.Is(err, cause) || !strings.HasPrefix(err.Error(), "internal error: function r: pass "+failing+": ") {
+			t.Errorf("%s: the error %v does not name the function and the pass", c.what, err)
 		}
 		if l == nil {
 			t.Fatalf("%s: no lowered function", c.what)
