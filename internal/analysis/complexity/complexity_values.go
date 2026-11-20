@@ -680,6 +680,14 @@ func (k *classifier) varBinds(v string) []varBind {
 	return k.varBinding[v]
 }
 
+// varReadsOn makes a read of a variable hold what the bindings that can reach it bind (varSize),
+// as the definitions of holds and includes in the parsing specification require. It is on by
+// default; the variable is a test hook, whose off setting is the classifier that counted a read
+// as the value of the variable only, which classified grammars whose values double on each level
+// of a recursion, such as r = ("(" c:r ")" {x := $c} => x + x) / ("a" => "a"), linear given an
+// environment bound.
+var varReadsOn = true
+
 // varSize describes the size of the value that a read of the variable v in the rule of tc holds:
 // the value of the variable, and what the values bound by the bindings that can reach the read
 // hold, which are its bindings earlier in the rule that reads it and its bindings in every rule
@@ -687,7 +695,7 @@ func (k *classifier) varBinds(v string) []varBind {
 // the binding, so that a call on a recursion with it is a call on a recursion with that rule.
 func (k *classifier) varSize(v string, tc termCtx, mode sizeMode) content {
 	c := content{vars: true}
-	if k.readingVars[v] {
+	if !varReadsOn || k.readingVars[v] {
 		return c
 	}
 	if k.readingVars == nil {

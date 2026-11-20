@@ -314,3 +314,76 @@ func TestClassifierSoundness(t *testing.T) {
 		})
 	}
 }
+
+// classifierSoundnessMutants are the mutation controls of classifierSoundnessCases: each turns off
+// one rule of the classifier through its test hook and gives the class that a case then receives,
+// which differs from its class with the rule. The cases are named as in classifierSoundnessCases.
+var classifierSoundnessMutants = []struct {
+	hook  string
+	names []string
+	class ComplexityClass
+}{
+	// A read of a variable that holds only the variable's own value hides the call value that the
+	// binding binds.
+	{"varReads", []string{
+		"variables/copy of a read of a call value, doubling",
+		"variables/x + \"b\" over a call value",
+		"variables/copy in a rule called after the binding",
+		"variables/x + \"b\" in a rule called after the binding",
+	}, ClassLinearEnv},
+	// A positive lookahead that hides its bindings from the calls after it.
+	{"lookaheadBinds", []string{
+		"variables/doubling in a positive lookahead",
+		"variables/extension in a positive lookahead",
+	}, ClassLinearEnv},
+	// A growing unit that stops at a predicate or at a call that examines no input is checked as
+	// an alternative that is not growing, which rejects these linear grammars.
+	{"leadingPass", []string{
+		"growing/predicate before the left call (off-cycle empty call)",
+		"growing/predicate before the left call",
+	}, ClassUnknown},
+}
+
+// setSoundnessHooks sets the test hooks that classifierSoundnessMutants name; the hooks are
+// package variables, so the test that sets them does not run in parallel.
+func setSoundnessHooks(hook string, on bool) {
+	switch hook {
+	case "varReads":
+		varReadsOn = on
+	case "lookaheadBinds":
+		lookaheadBindsOn = on
+	case "leadingPass":
+		leadingPassOn = on
+	default:
+		panic("unknown hook " + hook)
+	}
+}
+
+// TestClassifierSoundnessMutants checks that each case of classifierSoundnessMutants depends on
+// the rule that its hook turns off: with the rule off, the case receives the class of the
+// mutant instead of its pinned class.
+func TestClassifierSoundnessMutants(t *testing.T) {
+	src := map[string]string{}
+	pinned := map[string]ComplexityClass{}
+	for _, tc := range classifierSoundnessCases {
+		src[tc.group+"/"+tc.name] = tc.src
+		pinned[tc.group+"/"+tc.name] = tc.class
+	}
+	for _, m := range classifierSoundnessMutants {
+		for _, name := range m.names {
+			s, ok := src[name]
+			if !ok {
+				t.Fatalf("%s: no case %q", m.hook, name)
+			}
+			if pinned[name] == m.class {
+				t.Fatalf("%s: case %q is pinned to the class of the mutant %v", m.hook, name, m.class)
+			}
+			setSoundnessHooks(m.hook, false)
+			c := classifySource(t, s)
+			setSoundnessHooks(m.hook, true)
+			if c.Class != m.class {
+				t.Errorf("%s without %s: class %v, want %v\ncauses %v", name, m.hook, c.Class, m.class, c.Causes)
+			}
+		}
+	}
+}

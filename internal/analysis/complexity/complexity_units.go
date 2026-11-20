@@ -379,13 +379,19 @@ func (k *classifier) leftUnit(u *unit, c wctx, e ast.Expr) {
 	}
 }
 
+// lookaheadBindsOn makes the bindings in a positive lookahead reach the calls after it, as
+// condition 1 requires: a positive lookahead keeps the bindings made in it. It is on by default;
+// the variable is a test hook, whose off setting is the classifier that hid them, which classified
+// r = (&({x := x + x}) "y" v:r => $v) / ("z" => x) linear given an environment bound.
+var lookaheadBindsOn = true
+
 func (k *classifier) walkLookahead(e, body ast.Expr, c wctx, not bool) {
 	u := k.newUnit(unitLookahead, c, e, []*cont{{items: []ast.Expr{body}}},
 		[]contSpec{{paths: []*cont{c.cont}, what: "what follows the lookahead " + k.show(e)}})
 	k.leftUnit(u, c, body)
 	cc := c.push(u).with(&cont{})
 	cc.inNot = c.inNot || not
-	if not {
+	if not || !lookaheadBindsOn {
 		cc.seqs, cc.strictFrom = nil, 0
 	}
 	k.walk(body, cc)

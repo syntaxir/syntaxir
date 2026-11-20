@@ -11,6 +11,13 @@ const (
 	leftConsume
 )
 
+// leadingPassOn makes startsWithLeftCall look through predicates, cuts, anchors and calls of rules
+// off the cycle that can match without examining or consuming input. It is on by default; the
+// variable is a test hook, whose off setting is the classifier that stopped at them: it checked
+// E = {true} E R "!" / E "+" "x" / "x" as an alternative that is not growing, and missed that the
+// alternative {true} S "q" in S = R "z" / {true} S "q" / "y" drops the result of R (condition 5).
+var leadingPassOn = true
+
 // startsWithLeftCall reports whether e can evaluate a call of a rule of the cycle of rule before
 // it examines the input (leftExamine) or consumes input (leftConsume). Before such a call may come
 // predicates, cuts, anchors and calls of rules off the cycle that can match without examining or
@@ -36,7 +43,7 @@ func (k *classifier) leftScan(rule string, e ast.Expr, mode leftMode, depth int)
 		if k.an.Cyclic[e.Name] && k.sameCycle(rule, e.Name) && e.Level == "" {
 			return true, false
 		}
-		return false, k.passesBefore(e, mode)
+		return false, leadingPassOn && k.passesBefore(e, mode)
 	case *ast.Group:
 		return k.leftScan(rule, e.Expr, mode, depth+1)
 	case *ast.Capture:
@@ -73,7 +80,7 @@ func (k *classifier) leftScan(rule string, e ast.Expr, mode leftMode, depth int)
 		return false, mode == leftConsume
 	case *ast.Predicate, *ast.Cut, *ast.Top, *ast.BeginInput, *ast.EndInput,
 		*ast.BeginLine, *ast.EndLine:
-		return false, true
+		return false, leadingPassOn
 	case *ast.Literal:
 		return false, e.Value == ""
 	}
