@@ -30,6 +30,8 @@ type Config struct {
 	NoExpectations bool `json:"noExpectations"`
 	// CtxRules are the left-recursion shapes of the rules.
 	CtxRules []CtxRule `json:"ctxRules"`
+	// Observed makes a parse that is observed.
+	Observed bool `json:"observed"`
 	// RuleSpecs are the properties and the scripted bodies of the rules, with their seen indexes.
 	RuleSpecs []RuleSpec `json:"ruleSpecs"`
 }
@@ -63,7 +65,7 @@ type CtxRule struct {
 
 // ConfigOf returns the part of cfg that the bindings read.
 func ConfigOf(cfg ref.Config) Config {
-	return Config{Rules: cfg.Rules, Limit: cfg.Limit, MaxDepth: cfg.MaxDepth, Vars: cfg.Vars, RuleVars: cfg.RuleVars, NoExpectations: cfg.NoExpectations, CtxRules: ctxRules(cfg.CtxRules), RuleSpecs: ruleSpecs(cfg)}
+	return Config{Rules: cfg.Rules, Limit: cfg.Limit, MaxDepth: cfg.MaxDepth, Vars: cfg.Vars, RuleVars: cfg.RuleVars, NoExpectations: cfg.NoExpectations, CtxRules: ctxRules(cfg.CtxRules), RuleSpecs: ruleSpecs(cfg), Observed: cfg.Observed}
 }
 
 // Request is a case for the library: the trace to replay, on a parser made for Family with Config.

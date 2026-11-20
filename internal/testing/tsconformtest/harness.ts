@@ -23,6 +23,7 @@ interface Config {
   noExpectations?: boolean;
   ctxRules?: { cycle: number; leader: boolean }[];
   ruleSpecs?: RuleSpec[];
+  observed?: boolean;
 }
 interface EvalSpec {
   ok: boolean;
@@ -711,12 +712,57 @@ class RuleM extends Exec {
   }
 }
 
+// The observation of a parse: the library's Observation, with a trace function that lists the events as
+// the model does.
+class ObsM extends Exec {
+  events: string[] = [];
+
+  constructor(cfg: Config, controlled: boolean, options: Record<string, unknown> | null) {
+    super(cfg, controlled, options);
+    if (cfg.observed) {
+      const trace = (e: p.TraceEvent): void => {
+        if (e.kind === "enter") this.events.push("enter " + e.rule + " pos=" + e.pos + " level=" + e.level + " depth=" + e.depth);
+        else if (e.kind === "exit") {
+          this.events.push("exit " + e.rule + " matched=" + e.matched + " end=" + e.end + " examined=" + e.examined + " memo=" + e.memo + " depth=" + e.depth);
+        }
+      };
+      const o = { profiles: [], profileClock: null, traces: [trace], traceRules: [], traceMaxDepth: 0, unit: p.CodePoints, maxDepth: cfg.maxDepth, expectations: false, signal: null, budget: 0, memory: 0 };
+      this.P.observation = new p.Observation(o as unknown as p.ResolvedParseOptions, this.P);
+    }
+  }
+
+  call(op: string, a: any[]): any[] {
+    const P = this.P;
+    switch (op) {
+      case "obs.active":
+        return [P.observation !== null];
+      case "obs.memoHit":
+        P.observation?.memoHit();
+        return [];
+      case "obs.enter":
+        P.observation!.enter((a[0] as p.Rule).name, a[1], a[2]);
+        return [];
+      case "obs.exit":
+        P.observation!.exit(a[0], a[1], a[2]);
+        return [];
+    }
+    return super.call(op, a);
+  }
+
+  snapshot(ans: Answer, e: Entry, res: any[]): void {
+    super.snapshot(ans, e, res);
+    for (const c of e.obs ?? []) ans.obs = { ...(ans.obs ?? {}), [c]: [...this.events] };
+  }
+}
+
 const errsMarker = { errs: true };
 
 function make(family: string, cfg: Config, controlled: boolean, options: Record<string, unknown> | null): Machine {
   switch (family) {
     case "exec":
       return new Exec(cfg, controlled, options);
+    case "obs":
+      return new ObsM(cfg, controlled, options);
     case "rule":
       return new RuleM(cfg, controlled, options);
     case "ctx":
