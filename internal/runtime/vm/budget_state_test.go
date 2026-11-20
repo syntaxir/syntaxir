@@ -3,7 +3,6 @@
 package vm
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"reflect"
@@ -58,8 +57,9 @@ func TestBudgetStateVMChildAssembly(t *testing.T) {
 	}
 }
 
-// TestBudgetStateVMCutAndFailureUnwind pins that a cut charges a step for each entry it passes, so that a
-// long cut stops at the budget and at a cancellation, while the unwinding of a failure charges nothing: it
+// TestBudgetStateVMCutAndFailureUnwind pins that a cut charges nothing for the entries it passes, which
+// the rule body's own expressions pushed (a constant of the grammar), so that it reaches its target under
+// any limit and whatever the context, and that the unwinding of a failure charges nothing either: it
 // pops every entry without a step, as flow.reset returns to a mark (spec/flow-ir/operations.md), since the
 // work that each entry undoes was charged when it was done.
 func TestBudgetStateVMCutAndFailureUnwind(t *testing.T) {
@@ -74,19 +74,25 @@ func TestBudgetStateVMCutAndFailureUnwind(t *testing.T) {
 		machineOf(p).step(vm, &body, false, false, nil)
 	}
 
-	p := stateBudgetParser(runtime.Limits{Compute: 64})
-	newEntries(p, eLabel)
-	machineOf(p).ents[0].kind = eChoice
-	machineOf(p).ents[0].cut = false
-	if err := catchFatal(t, func() { cut(p) }); !errors.Is(err, runtime.ErrLimit) {
-		t.Fatalf("cut err=%v", err)
-	}
-	if machineOf(p).ents[0].cut {
-		t.Fatal("cut reached its target after budget exhaustion")
-	}
-	p.Control = state.NewBudgetControl(newPollingContext(1), runtime.Limits{})
-	if err := catchFatal(t, func() { cut(p) }); !errors.Is(err, context.Canceled) {
-		t.Fatalf("cut cancellation=%v", err)
+	for _, control := range []*state.BudgetControl{
+		state.NewBudgetControl(nil, runtime.Limits{Compute: 1}),
+		state.NewBudgetControl(newPollingContext(1), runtime.Limits{}),
+	} {
+		p := stateBudgetParser(runtime.Limits{Compute: 64})
+		p.Control = control
+		newEntries(p, eLabel)
+		machineOf(p).ents[0].kind = eChoice
+		machineOf(p).ents[0].cut = false
+		before := p.Control.Used
+		if err := catchFatal(t, func() { cut(p) }); err != nil {
+			t.Fatalf("cut err=%v", err)
+		}
+		if !machineOf(p).ents[0].cut {
+			t.Fatal("cut did not reach its target")
+		}
+		if p.Control.Used != before {
+			t.Fatalf("cut charged %d units", p.Control.Used-before)
+		}
 	}
 
 	for _, kind := range []uint8{eChoice, eIter} {

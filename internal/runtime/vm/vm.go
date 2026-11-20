@@ -708,9 +708,10 @@ func (mc *Machine) step(vm *Program, b *vmBody, resume, rok bool, rv *value.Node
 			ip = int(in.A)
 			continue
 		case bytecode.OpCut:
+			// A cut charges nothing: the entries it walks were pushed by the rule body's own
+			// expressions, a constant of the grammar.
 			marked := false
 			for k := len(mc.ents) - 1; k >= ebase; k-- {
-				p.Spend()
 				e := &mc.ents[k]
 				if e.kind == eChoice || e.kind == eIter || e.kind == eRunIter {
 					e.cut = true

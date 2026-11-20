@@ -375,7 +375,10 @@ charges the iterations and characters that it skips. Growing the storage of a
 parse charges no unit: the memo table and the record of the rules called at
 each position grow to the positions and rules of calls that are counted, and
 growing them by doubling, or by pages of positions, copies and clears at most a
-constant times their final size. A parser generated without
+constant times their final size. A [cut](../language/parser-expressions.md#cut)
+charges no unit either: the choices, repetitions and lookaheads it passes on
+its way to the one it marks are open in the body of the rule that holds it,
+at most a constant of the grammar. A parser generated without
 limit controls counts no units.
 
 The values that the parse builds rather than an action, the terminals,

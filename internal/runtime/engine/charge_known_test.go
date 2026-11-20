@@ -54,8 +54,6 @@ var knownChargeDivergences = map[string]bool{
 	"class sequence|generated Go optimizations off":              true,
 	"class sequence|generated TypeScript default":                true,
 	"class sequence|generated TypeScript optimizations off":      true,
-	"cut in repetition|bytecode-iterative":                       true,
-	"cut in repetition|bytecode":                                 true,
 	"cut in repetition|document edit":                            true,
 	"cut in repetition|document":                                 true,
 	"cut in repetition|generated Go default":                     true,
