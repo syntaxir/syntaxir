@@ -22,6 +22,8 @@ type Entry struct {
 	Res []any `json:"res"`
 	// Obs are the state components whose observation the harness compares after the call.
 	Obs []string `json:"obs,omitempty"`
+	// Regs are the registers of the run that the call reads (the family uses registers).
+	Regs map[string]any `json:"regs,omitempty"`
 }
 
 // Answer is what the library did for one entry.
@@ -42,6 +44,8 @@ type Answer struct {
 	Lists [][2]int `json:"lists,omitempty"`
 	// Obs are the observations of the components of Entry.Obs.
 	Obs map[string][]string `json:"obs,omitempty"`
+	// Regs are the registers after the call, for the registers of Entry.Regs.
+	Regs map[string]float64 `json:"regs,omitempty"`
 }
 
 // Tok is a handle of the implementation under conformance: a value that the harness compares by
@@ -59,11 +63,20 @@ type Recorder struct {
 	trace []Entry
 	toks  map[any]*Tok
 	next  int64
+	regs  map[string]any
+	null  *Tok
 }
 
 // NewRecorder returns a recorder of the case configured by cfg.
 func NewRecorder(cfg ref.Config) *Recorder {
 	return &Recorder{Model: ref.New(cfg), toks: map[any]*Tok{}}
+}
+
+// Registers gives the recorder and its model the registers of the run (conform.UseRegisters): the
+// harness sets them before each call, and the trace holds the values that the call read.
+func (r *Recorder) Registers(regs map[string]any) {
+	r.regs = regs
+	r.Model.UseRegisters(regs)
 }
 
 // Trace returns the calls recorded so far.
@@ -72,8 +85,12 @@ func (r *Recorder) Trace() []Entry { return r.trace }
 // tok returns the handle of the implementation for the model's handle m: one for each distinct handle.
 func (r *Recorder) tok(m any) *Tok {
 	if m == nil {
-		r.next++
-		return &Tok{id: r.next}
+		// The null handle of the model is one identity, so it is one in the implementation.
+		if r.null == nil {
+			r.next++
+			r.null = &Tok{id: r.next}
+		}
+		return r.null
 	}
 	t, ok := r.toks[m]
 	if !ok {
@@ -124,6 +141,12 @@ func (r *Recorder) Call(o *code.Op, args []any) (res []any) {
 		e.Args = append(e.Args, encodeArg(a))
 		margs[i] = modelArg(a)
 	}
+	if r.regs != nil {
+		e.Regs = map[string]any{}
+		for k, v := range r.regs {
+			e.Regs[k] = v
+		}
+	}
 	r.trace = append(r.trace, e)
 	at := len(r.trace) - 1
 	defer func() {
@@ -161,12 +184,17 @@ type Replay struct {
 	at      int
 	toks    map[int64]*Tok
 	last    Answer
+	regs    map[string]any
 }
 
 // NewReplay returns the implementation of the library's answers to a trace.
 func NewReplay(trace []Entry, answers []Answer) *Replay {
 	return &Replay{trace: trace, answers: answers, toks: map[int64]*Tok{}}
 }
+
+// Registers keeps the registers of the run (conform.UseRegisters), which a call that writes one
+// sets to what the library left in it.
+func (p *Replay) Registers(regs map[string]any) { p.regs = regs }
 
 // tokOf returns the handle of the library's value with identity id.
 func (p *Replay) tokOf(id int64) *Tok {
@@ -219,6 +247,13 @@ func (p *Replay) Call(o *code.Op, args []any) []any {
 	if a.Int != "" {
 		panic(code.Interrupt{Reason: a.Int})
 	}
+	if p.regs != nil {
+		for _, r := range o.Writes {
+			if v, ok := a.Regs[r]; ok {
+				p.regs[r] = int64(v)
+			}
+		}
+	}
 	res := make([]any, len(o.Results))
 	for i, r := range o.Results {
 		if i >= len(a.Res) {
@@ -229,8 +264,8 @@ func (p *Replay) Call(o *code.Op, args []any) []any {
 		case code.KHandle:
 			id := handleID(v)
 			if id == 0 {
-				// A result that is no value of the library, as the entry of a failed lookup.
-				res[i] = &Tok{}
+				// A result that is no value of the library (null): one identity, as the model's null handle.
+				res[i] = p.tokOf(0)
 				continue
 			}
 			t := p.tokOf(id)

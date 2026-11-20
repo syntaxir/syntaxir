@@ -12,6 +12,7 @@ interface Entry {
   args: Arg[];
   res: (number | null)[];
   obs?: string[];
+  regs?: Record<string, number>;
 }
 interface Config {
   rules: number;
@@ -36,6 +37,7 @@ interface Answer {
   unrolled?: number;
   lists?: ([number, number] | null)[];
   obs?: Record<string, string[]>;
+  regs?: Record<string, number>;
 }
 
 // A Machine is the library in the state at the start of a parse, with the bindings of one family.
@@ -44,6 +46,9 @@ interface Machine {
   call(op: string, a: any[]): any[];
   // snapshot adds to the answer the state that the harness inspects after each call.
   snapshot(ans: Answer, e: Entry, res: any[]): void;
+  // setRegs sets the registers that the call reads, and getRegs returns them after it (a family with registers).
+  setRegs?(regs: Record<string, number>): void;
+  getRegs?(): Record<string, number>;
 }
 
 // The handles: the value that the library returned for each result of a trace, and the identity of
@@ -258,12 +263,100 @@ class Exec implements Machine {
   }
 }
 
+// A Mark is a backtracking point: the position, the environment and the lengths of the recovered errors
+// and of the trail when frame.mark took it, as the printed composition keeps them in local variables.
+interface Mark {
+  pos: number;
+  env: unknown;
+  trail: number;
+  rec: number;
+}
+
+// The capture frames. The registers are the position of the parser.
+class FrameM extends Exec {
+  constructor(cfg: Config, controlled: boolean, options: Record<string, unknown> | null) {
+    super(cfg, controlled, options);
+    // The parser starts with the shared empty frame, which the model calls no frame: a case reads the
+    // current frame before it uses one, and the shared empty frame is also what frame.open(0) returns.
+    (this.P as { frame: p.Frame | null }).frame = null;
+  }
+
+  setRegs(regs: Record<string, number>): void {
+    if (regs.pos !== undefined) this.P.pos = regs.pos;
+  }
+  getRegs(): Record<string, number> {
+    return { pos: this.P.pos };
+  }
+
+  call(op: string, a: any[]): any[] {
+    const P = this.P;
+    switch (op) {
+      case "test.node":
+        return [{}];
+      case "frame.mark":
+        return [{ pos: P.pos, env: P.env, trail: P.trail.length, rec: P.recovered.length } as Mark];
+      case "frame.markPos":
+        return [(a[0] as Mark).pos];
+      case "frame.markEnv":
+        return [(a[0] as Mark).env];
+      case "frame.markTrail":
+        return [(a[0] as Mark).trail];
+      case "frame.markRec":
+        return [(a[0] as Mark).rec];
+      case "frame.undo": {
+        for (let t = P.trail.length - 1; t >= a[0]; t--) {
+          P.spend();
+          const u = P.trail[t]!;
+          u.f[u.slot] = u.old;
+        }
+        P.trail.length = a[0];
+        return [];
+      }
+      case "frame.current":
+        return [P.frame];
+      case "frame.use":
+        P.frame = a[0];
+        return [];
+      case "frame.set":
+        P.setCapture(a[0], a[1]);
+        return [];
+      case "frame.close":
+        return [];
+      case "frame.open":
+        return [P.newFrame(a[0])];
+      case "frame.slots":
+        return [(a[0] as p.Frame).length];
+      case "frame.save": {
+        P.saved.length = 0;
+        for (const x of a[0] as p.Frame) {
+          P.spend();
+          P.saved.push(x);
+        }
+        return [];
+      }
+      case "frame.restore": {
+        const f = a[0] as p.Frame;
+        for (let t = 0; t < f.length; t++) {
+          P.spend();
+          f[t] = P.saved[t]!;
+        }
+        return [];
+      }
+      case "test.slot":
+        return [(a[0] as p.Frame)[a[1]] ?? null];
+    }
+    return super.call(op, a);
+  }
+}
+
 const errsMarker = { errs: true };
 
 function make(family: string, cfg: Config, controlled: boolean, options: Record<string, unknown> | null): Machine {
   switch (family) {
     case "exec":
       return new Exec(cfg, controlled, options);
+    case "frame":
+      return new FrameM(cfg, controlled, options);
   }
   throw new Error("no family " + family);
 }
@@ -284,6 +377,7 @@ function run(req: Request): { answers: Answer[] } {
     const ans: Answer = { res: [], used: 0 };
     let res: any[] = [];
     try {
+      if (e.regs && m.setRegs) m.setRegs(e.regs);
       res = m.call(e.op, e.args.map((a) => decode(h, a)));
       ans.res = res.map((v, i) => {
         const id = e.res[i];
@@ -296,6 +390,7 @@ function run(req: Request): { answers: Answer[] } {
       if (kind !== null) ans.int = kind;
       else ans.err = x instanceof Error ? (x.stack ?? x.message) : String(x);
     }
+    if (e.regs && m.getRegs) ans.regs = m.getRegs();
     m.snapshot(ans, e, ans.err === undefined && ans.int === undefined ? res : []);
     answers.push(ans);
     if (ans.err !== undefined || ans.int !== undefined) break;

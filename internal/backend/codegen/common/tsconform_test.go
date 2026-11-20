@@ -53,6 +53,19 @@ type tsConformResult struct {
 // tsConformRun runs the handwritten cases and seeds randomized cases of n calls of the suite s on the
 // library, as the suites of generated Go run them.
 func tsConformRun(r tsconformtest.Runner, f tsconformtest.Family, s conform.Suite, seeds, n int) tsConformResult {
+	return tsConformRunCases(r, f, s, conform.Cases(), seeds, func(seed int) conform.Case {
+		// One case in four has a limit that the case may reach; the others run to their end.
+		var limit uint64
+		if seed%4 == 0 {
+			limit = uint64(200 + seed)
+		}
+		rng := rand.New(rand.NewPCG(uint64(seed), 65))
+		return conform.Random(fmt.Sprint("random_", seed), rng, s.Ops, n, ref.Config{Rules: 3 + seed%2*130, Limit: limit, MaxDepth: 4, Vars: conform.RandomVars(seed), RuleVars: conform.RandomRuleVars})
+	})
+}
+
+// tsConformRunCases runs the handwritten cases and the cases that random draws for the seeds.
+func tsConformRunCases(r tsconformtest.Runner, f tsconformtest.Family, s conform.Suite, cases []conform.Case, seeds int, random func(seed int) conform.Case) tsConformResult {
 	var res tsConformResult
 	run := func(c conform.Case) {
 		skipped, err := r.Run(f, s, c)
@@ -65,17 +78,11 @@ func tsConformRun(r tsconformtest.Runner, f tsconformtest.Family, s conform.Suit
 			res.fails = append(res.fails, err)
 		}
 	}
-	for _, c := range conform.Cases() {
+	for _, c := range cases {
 		run(c)
 	}
 	for seed := range seeds {
-		// One case in four has a limit that the case may reach; the others run to their end.
-		var limit uint64
-		if seed%4 == 0 {
-			limit = uint64(200 + seed)
-		}
-		rng := rand.New(rand.NewPCG(uint64(seed), 65))
-		run(conform.Random(fmt.Sprint("random_", seed), rng, s.Ops, n, ref.Config{Rules: 3 + seed%2*130, Limit: limit, MaxDepth: 4, Vars: conform.RandomVars(seed), RuleVars: conform.RandomRuleVars}))
+		run(random(seed))
 	}
 	return res
 }
