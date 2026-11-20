@@ -636,6 +636,13 @@ func (v *ValueInference) binary(t *ast.Binary, env *valueEnv) Ty {
 		if v.Expand(l) == TyAny || v.Expand(r) == TyAny {
 			return TyAny
 		}
+		// A value of type _|_ is assignable to both int and string. When both operands have no value
+		// yet, as the values of a rule that its own action reads before its other alternatives
+		// give it a type, the sum is as open as they are; settling it as int here would make the
+		// rule produce int | string. The type of the operands settles it on a later round.
+		if v.Expand(l) == TyBottom && v.Expand(r) == TyBottom {
+			return TyBottom
+		}
 		if both(TyInt) {
 			return TyInt
 		}

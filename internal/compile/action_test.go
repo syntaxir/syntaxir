@@ -76,3 +76,26 @@ rule x = "a"`, `rule x has no Operators Rule levels`},
 		})
 	}
 }
+
+// TestConcatenationOfRecursiveValues checks that `+` of two values of the rule that holds the
+// action is typed as string when the other operand is a string or the rule is declared a
+// string, as `$x + "," + $x` already is.
+func TestConcatenationOfRecursiveValues(t *testing.T) {
+	t.Parallel()
+	for _, src := range []string{
+		`rule l string = ("(" x:l ")" => $x + $x) / ("a" => "a")`,
+		`rule l string = ("(" x:l ")" => $x + "," + $x) / ("a" => "a")`,
+		`rule l string = ("(" x:l ")" => $x + $x + $x) / ("a" => "a")`,
+		`rule l = ("(" x:l ")" => $x + $x) / ("a" => "a")`,
+		`rule n int = ("(" x:n ")" => $x + $x) / ("1" => 1)`,
+	} {
+		if got := compileMessage(t, src); got != "" {
+			t.Errorf("%s\ncompile error = %q", src, got)
+		}
+	}
+	// The other alternatives still settle the type: a string rule cannot produce an int.
+	const wrong = `rule n string = ("(" x:n ")" => $x + $x) / ("1" => 1)`
+	if got := compileMessage(t, wrong); !strings.Contains(got, "rule n produces") {
+		t.Errorf("%s\ncompile error = %q, want a type error", wrong, got)
+	}
+}
