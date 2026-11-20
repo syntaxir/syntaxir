@@ -1188,7 +1188,8 @@ in non-test sources, and include comments.
 | Stream commitment | Core (commit, prune), host (readers) | `Commit`, `Discard` (`input.go`), `stream_*.go` (~350) | `streamCommit`, `streamDiscard`, `pruneStreamMemo`, `EmitStream` (~180 of 758) | — | none |
 | Document reuse | Core (reuse), host (edits, snapshots) | `resume.go`, `Splice`, `moveResult`, `MoveTree` (~540); Document API (1,784, host) | `callDocument`, `documentTouch`, `editReuse` (~200 of 423) | `DocumentCall`, `invalidate` (~250) | none |
 | Input access | Host | `input.go`, `input_pieces.go` | `Peek…`, `MatchLiteral…`, `stream…` readers | `MatchLiteral…` | `peek`, `decode…`, `matchLiteral…` |
-| Values, nodes, terms | Host (later candidate) | `eval.go`, `value_runtime.go` | `ActCtx`, `rt…` built-ins | `TActCtx`, `trt…` built-ins | `Actx`, `rt…` built-ins |
+| Values and nodes | Host | `value_runtime.go` | `ActCtx`, `rt…` built-ins | `TActCtx`, `trt…` built-ins | `Actx`, `rt…` built-ins |
+| Terms | Core (Exec IR compositions over the value operations) | the term program and its printed compositions in the engine state package | the printed compositions in the library | shares the node code | the printed compositions |
 | Public API, I/O, tracing | Host | `internal/runtime/engine/program*.go`, `trace.go` | `RunParse…`, `WithLimits…`, JSON, `trace.go`, `profile.go` | `TParse…`, `TPub…` | `run`, `resolveOptions`, `trace.ts`, `profile.ts` |
 
 ### Duplication Cost

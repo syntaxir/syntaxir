@@ -224,7 +224,6 @@ docs/design/records/065-exec-ir-parser-vm.md	gofile	state/operators_exec.go	1
 docs/design/records/065-exec-ir-parser-vm.md	gofile	state/stream_exec.go	1
 docs/design/records/065-exec-ir-parser-vm.md	gofile	state/stream_ops.go	2
 docs/design/records/065-exec-ir-parser-vm.md	gofile	document.go	1
-docs/design/records/065-exec-ir-parser-vm.md	gofile	eval.go	1
 docs/design/records/065-exec-ir-parser-vm.md	gofile	input.go	2
 docs/design/records/065-exec-ir-parser-vm.md	gofile	input_pieces.go	1
 docs/design/records/065-exec-ir-parser-vm.md	gofile	internal/runtime/state/call_exec.go	1
