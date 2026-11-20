@@ -356,7 +356,7 @@ does not apply to the parser (the lean passes in a parser with limit controls, f
 generation that writes the output prints. Each dump starts with one header line that names the step and the unit,
 `-- after <step> [<table>] --`, where `<table>` is `typed` for the typed rules, and `rules` or `recRules` for the
 untyped and recognizer tables; a pass that runs on one function at a time names the function too,
-`-- after <pass> [<table>/<function>] --`. `-print-after elaborate` shows the Core IR of each rule table as built, and
+`-- after <pass> [<table>/<function>] --`. `-print-after elaborate` shows the Core IR of each rule table as built, with the attributes of its nodes, and
 each Core pass prints it under its own name. `-print-after flowlower` shows the next form: the module of each table that
 the parser is printed from, each function as a listing of Code IR at the Flow stage, as lowered from the Core IR.
 `flow-finish` prints the same form after the Flow stage ends, and `execlower` prints the form after that, a listing of

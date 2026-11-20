@@ -112,15 +112,22 @@ func (o observer) After(e pass.Event, print func(io.Writer), unit any) {
 // the first step of the pipeline.
 const Elaborate = "elaborate"
 
-// elaborating is the step Elaborate: it runs the build of the Core IR module that it is given.
+// elaborating is the step Elaborate: it runs the build of the Core IR module that it is given and
+// computes the attributes of its nodes (core.Analyze), so that the module it returns is a Core module
+// with its attributes, as the Core passes and the Core verifier read it.
 var elaborating = pass.Lower(Elaborate, "program", corepass.IR, func(build func() (*core.Module, error)) (*core.Module, error) {
-	return build()
+	m, err := build()
+	if err != nil {
+		return nil, err
+	}
+	core.Analyze(m)
+	return m, nil
 })
 
 // Core runs the Core part of the pipeline for the table named table: the step elaborate, which
 // runs build, the elaboration of the table's program to Core IR, and then the Core passes with
 // the optimizations of the driver. It returns the module after them. The module is dumped as
-// "elaborate" as build made it.
+// "elaborate" as build made it, with the attributes of its nodes.
 //
 // A failure of build is returned as the *pass.StepError that names elaborate, with its message and
 // no module. A failure of a pass is an internal error that names the pass.

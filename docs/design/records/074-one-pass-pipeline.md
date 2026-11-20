@@ -1127,12 +1127,14 @@ once and shares the Core IR of the tables whose keys are equal; the saving is re
 
 ## Migration
 
-Each step keeps the generated output and the `-print-after all` dumps identical. The dumps change twice, each as its own
-change: the removal of the stage names `core`, `flow` and `exec` from `-print-after` and the dump headers, and the
-header form that a kind's `Print` requires. A kind prints the unit alone, its functions included, so the dump observer
-writes one header per dump from the event, `-- after <instance> [<label>] --`, in place of the header that each
-function's listing carried; the label names the backend once branches exist, the table, and the function of a
-per-function step.
+Each step keeps the generated output and the `-print-after all` dumps identical. The dumps change three times, each as
+its own change: the removal of the stage names `core`, `flow` and `exec` from `-print-after` and the dump headers; the
+header form that a kind's `Print` requires; and the attributes in the dump after `elaborate`. A kind prints the unit
+alone, its functions included, so the dump observer writes one header per dump from the event,
+`-- after <instance> [<label>] --`, in place of the header that each function's listing carried; the label names the
+backend once branches exist, the table, and the function of a per-function step. `elaborate` makes a Core module with
+the attributes of its nodes computed, since a kind's verifier checks the unit and never writes it, so the dump after
+`elaborate` shows the attributes that the dumps after the Core passes show already.
 
 1. **The new core of `internal/pass`** beside the old one: kinds, the pass constructor, the context, the step tree, the
    combinators, the manager with its copy policy and its events, labels that each combinator sets one field of, and
