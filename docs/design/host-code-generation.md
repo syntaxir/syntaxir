@@ -37,13 +37,11 @@ flowchart LR
    dead stores and share identical helpers and literal tables.
 3. The enabled passes of the host language run in order, as the last part of the same pipeline and under the same
    manager as every other pass. Their flags are in the registry, and their dumps and verification work as for the other
-   stages. The driver resolves the settings of a generation (`internal/driver/generate`) and hands the generator the
-   optimizations and a runner of the pipelines (`Passes` and `Runner` of `internal/backend/codegen/common`), so the
-   generators run the passes that a profile or a flag selects without importing the driver. `Passes` only validates the
-   settings (`Validate`) and has no way to read them; the runner is the only source of the optimizations, and a
-   generator reads them from it (`Generator.Opt`), so the printers and the passes cannot disagree, and a generator without a runner fails with a message that says so. Tests that replace a
-   pipeline pass `Hooks` (of the `generate` package), which has no field for the settings, the dumps or the verification.
-4. The printer prints the legalized Exec stage. The generated parser and the library it uses come from the same
+   stages. The driver assembles the whole pipeline of a generation, the printing included, and runs it; the code
+   generators declare their passes and their printing steps and run none of them. Tests that change a pipeline give
+   the driver typed edits of its slots or a pipeline text.
+4. The printer prints the legalized Exec stage. It takes units of the Exec stage only, reads the primitives, types and
+   function attributes of the Exec stage, and runs no lowering and no pass. The generated parser and the library it uses come from the same
    representation, so the rules of a generated parser and the mechanisms they call agree.
 
 ## Passes Shared by the Host Languages
@@ -89,7 +87,9 @@ parsers.
 
 - **The library printer** prints the compositions of the Exec dialect into the generated-parser library and into the
   shared engine state. For Go, `golang/libprint` is this printer, and `golang/libsrc` is the copy of the library that
-  `go:generate` produces for the embedded mode. That printing is an edge of code generation, run through `go:generate`.
+  `go:generate` produces for the embedded mode. That printing is an edge of code generation, run through `go:generate`,
+  and a pipeline of the driver like any generation: the compositions are specialized by the pass that also specializes
+  the TypeScript library for each parser, and the library printer only prints the result.
   It is not an import edge, so the runtime side does not depend on the printer.
 - **Library mode.** The generator either imports the runtime library as a library, or embeds a copy of it in the
   generated output (`-lib import` and `-lib embed` for Go), as far as the packaging of the host language allows. The

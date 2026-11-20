@@ -9,8 +9,9 @@ analysis manager that computes and caches what the passes need, a registry that 
 that choose values for the names, and verifiers and dumps. It is the one place where the pass model is explained. The
 rewrites themselves, and why each one is safe, are in [Core IR and Code IR](intermediate-representations.md). The code
 generation passes of host languages are in [Code Generation for Host Languages](host-code-generation.md). The decisions
-are [record 063](records/063-configurable-optimization-pass-pipeline.md) and
-[record 072](records/072-release-package-layout.md).
+are [record 063](records/063-configurable-optimization-pass-pipeline.md),
+[record 072](records/072-release-package-layout.md) and [record 074](records/074-one-pass-pipeline.md), which decides
+the interfaces of the pipeline, the manager and the text form.
 
 ## Why a Pipeline
 
@@ -72,28 +73,20 @@ generic over the input and output IR of a pass and has four parts.
   control flags.
 
 A transform returns the unit after it, and a transform that changed nothing returns its input with every analysis
-preserved. A transform consumes the unit it is given and may change it in place, and so do a pipeline run (the passes
-of one stage of transforms, a segment) and a stage of the compilation by default: the run returns the unit after its
-passes, and the caller no longer uses what it gave. A pass that fails, or under `-verify-each` a result that does not
-verify, ends the optional passes of its unit, and only the required steps go on; in a module of many functions it
-ends the passes of its function, the other functions finish the passes of the segment, and the later segments run
-only their required steps. A caller that keeps its input says so,
-and the run then never changes it: before the first pass that runs, the manager takes one private copy, which the
-passes of the segment change in place, and a failure rolls the segment back to its start, so that the caller goes on
-with the unit as it gave it, never with a half-rewritten one. A kept pointer unit needs a Copy: a pipeline without one is refused before its first pass. Who keeps what is fixed by who reads the unit after the
-run. The run-time backends build a Core module for the passes alone and drop it on a failure, and so does the Core part
-of a generation, so the Core passes change it without a copy. The Flow and Exec passes of a generated function keep
-their unit, since after a failed pass `flow-finish`, `execlower` and the printer finish the function, for a generation
-that fails with the first error, from the unit as it was before the passes. A step that only reads its input leaves it
-to its caller: the lowering to Flow IR reads the table's Core module, which the driver keeps across the functions of
-the table and lowers each of them from. When to copy is the manager's policy, not the transform's: an observer that
-needs the unit before each pass (`-verify-each`, `-print-changed`, the check of what a pass preserves,
-`-opt-bisect-limit`) makes the manager copy before every pass, and a required step that is not a pass (`flow-finish`)
-copies its unit only for an observer under `-verify-each`, so that it changes no unit that the observer has seen. The
-result is the same; a kept unit is rolled back either way. So
-a normal build pays a copy only for a segment whose caller keeps its unit, and a run that is being diagnosed one per
-pass. Without such an observer, the unit that a dump is given is valid while it is printed, and a later step may
-change it in place.
+preserved. A transform may change the unit it is given in place; when a copy is needed is the manager's policy, and no
+pass declares anything about copies. A **segment** is a maximal run of consecutive optional transforms of one unit; a
+required step, a lowering or the boundary of a part of the pipeline ends it. The manager copies a unit once per segment,
+before its first pass runs, when the segment's start must survive: when someone else keeps the unit (the caller's
+input, a result shared between tables or backends, the input of several backends), or when a failure must roll back to
+it. A pass that fails, or under `-verify-each` a result that does not verify, rolls its unit back to the start of its
+segment and ends the optional passes of its unit; only the required steps go on, so a printer still gets a lowered unit
+and the first error is reported. In a module of many functions a failure ends the passes of its function, the other
+functions finish the segment, and the later segments run only their required steps. The run-time backends fail on the
+first error and consume their units, so they take no copy. An observer that needs the unit before each pass
+(`-verify-each`, `-print-changed`, unit hooks, `-opt-bisect-limit`) makes the manager also copy before every pass, so
+that every unit it was given stays as its pass returned it; the rollback point stays the segment's, so the output does
+not depend on what is observed. So a normal build pays one copy per segment, a consuming build none, and a run that is
+being diagnosed one per pass. A dump is valid while it is printed, since a later step may change the unit in place.
 The returned preserved set is the declaration of what the pass kept: the result inherits those analyses, and a lowering,
 which returns another IR, invalidates the whole cache. A copy keeps every analysis, so an analysis whose result refers
 to parts of the unit by identity (pointers) cannot be kept as it is: it keys them by an ID that copies keep (Core IR
@@ -170,15 +163,19 @@ placement says where the code lives; in the pipeline, each lowering runs as a pa
 
 ### Planning the Functions of a Table
 
-Before `flowlower` runs, a planning step in the middle end (the `flowplan` package) decides which functions a rule
-table is made of and in which form. The Go generator takes the functions of its Node table and its recognizer from this
-plan, and the bytecode VM plans the Node table it runs from Flow IR the same way, so that both run the same functions
-and their budget spends can be compared per input.
+Before `flowlower` runs, a planning step in the middle end (the `flowplan` package) decides which functions each rule
+table is made of and in which form. It is a required pass over the whole program, not over one table: reachability
+starts from every entry point of the program, and the expectation table is numbered across the tables, so these facts
+are the program's. It decides everything that a printer would otherwise decide before or while printing: the functions
+of each table and their forms, the reachable rules and the route of each call, the expectation table and the frame
+layouts. The printers of Go and TypeScript take their tables from this plan, and the bytecode VM plans the Node table it
+runs from Flow IR the same way, so that every backend runs the same functions and their budget spends can be compared
+per input.
 
-The Core IR of a Node or recognizer table and the options its functions are lowered with are built by one function of
-the same package, which both call: it elaborates the program with or without the projected values of the Node table,
-runs the Core passes through the caller's driver, and sets the lowering options from what the parser charges and
-records (budget controls, observation, Documents, traced bodies). The VM builds the Node table of a parse with budget
+The Core IR of a Node or recognizer table and the options its functions are lowered with are built by the steps of the
+pipeline that every backend shares: `elaborate` elaborates the program with or without the projected values of the
+Node table, the Core passes run on it, and the configuration of the table sets the lowering options from what the
+parser charges and records (budget controls, observation, Documents, traced bodies). The VM builds the Node table of a parse with budget
 controls at the default optimizations and runs the driver's Flow passes for a target of its own, the bytecode target of
 the Flow passes, so its functions are those of the generated Go parser with budget controls in the forms the VM runs.
 The bytecode target declares what the VM prints beyond the forms of every backend: none of the forms of the Flow passes.
@@ -227,7 +224,8 @@ them too, so every backend lowers the same rules. It holds:
   as an Operators Rule. A backend verifies the rows it emits against it: the Go generator the scopes of its rule
   table, and the VM the scope of each rule whose body it runs from Flow IR, whose framed body runs in that frame.
 
-The TypeScript tables are still decided by their printer.
+For TypeScript the plan also holds a printability analysis, which rejects a grammar that the printer cannot print
+before anything is printed.
 
 ## The Flow Passes
 
@@ -419,11 +417,13 @@ differs from the reference, and that run names the pass, and the unit, that intr
 
 ### Textual Pipelines
 
-For development, a pipeline can also be given as a text that names its passes in order. The text can reorder optional
-passes or repeat them. The driver checks it as it checks a pipeline it assembles: each pass takes the IR that the
-previous one returns, the ordering that the passes declare holds, and every required pass is in its place. An invalid
-pipeline is an error before any pass runs. Internal test support uses the textual form to test a pass in a chosen
-context; it belongs to neither the public API nor the public command line.
+A pipeline prints as text with `-print-pipeline`, and for development a pipeline can also be given as a text. The text
+carries every option of the build in its headers, so the driver can assemble the same pipeline again, and it may
+reorder, repeat, insert or remove optional passes only. The driver checks it against the pipeline it assembles for the
+same options before any pass runs: each pass takes the kind that the previous one returns, the ordering that the passes
+declare holds, and the required passes, the blocks that hold them and the constant features are those of the assembled
+pipeline. Internal test support uses the textual form to test a pass in a chosen context; it belongs to neither the
+public API nor the public command line.
 
 ## Related Topics
 
@@ -432,5 +432,6 @@ context; it belongs to neither the public API nor the public command line.
 - [Code Generation for Host Languages](host-code-generation.md): the host-language passes, the runtime library and the
   registry's library controls.
 - [Record 063](records/063-configurable-optimization-pass-pipeline.md): the decision, the alternatives and the status.
+- [Record 074](records/074-one-pass-pipeline.md): one pipeline per compilation, its interfaces and its text form.
 - [Code Generation](../guide/code-generation.md#optimizations): the flags of the generator, with their defaults.
 - [Optimization catalog](../optimizations/README.md): the measured mechanisms and their controls.
