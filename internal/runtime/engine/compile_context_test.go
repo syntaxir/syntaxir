@@ -134,9 +134,9 @@ func TestCompileContextPhaseCancellation(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				// A pipeline run cancels in its first analysis, so each pass and Verify run on an
-				// analyzed module to reach the checkpoint through their own polls.
-				if phase != "core-analysis" && phase != "core-passes" {
+				// The passes and Verify take a module with its attributes computed, as elaborate
+				// makes it, and reach the checkpoint through their own polls.
+				if phase != "core-analysis" {
 					ir.Analyze(m)
 				}
 				m.Control = control

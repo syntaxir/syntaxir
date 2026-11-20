@@ -8,6 +8,7 @@ import (
 	"zeroparse.dev/zp/internal/frontend/elaborate"
 	"zeroparse.dev/zp/internal/ir/code"
 	"zeroparse.dev/zp/internal/ir/code/flow"
+	"zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/middleend/corepass"
 	"zeroparse.dev/zp/internal/middleend/flowlower"
 	"zeroparse.dev/zp/internal/middleend/flowpass"
@@ -25,6 +26,7 @@ func TestPlanTakesTheFallbackOfARefusedFunction(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	core.Analyze(m)
 	if m, _, err = corepass.Run(m, corepass.RunOptions{}); err != nil {
 		t.Fatal(err)
 	}
@@ -89,6 +91,7 @@ func TestPlanRefusesByItsPredicate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	core.Analyze(m)
 	if m, _, err = corepass.Run(m, corepass.RunOptions{}); err != nil {
 		t.Fatal(err)
 	}

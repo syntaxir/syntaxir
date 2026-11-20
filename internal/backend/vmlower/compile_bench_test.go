@@ -6,6 +6,7 @@ import (
 
 	"zeroparse.dev/zp/internal/compile"
 	"zeroparse.dev/zp/internal/frontend/elaborate"
+	"zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/middleend/corepass"
 	"zeroparse.dev/zp/internal/testing/compiletest"
 )
@@ -28,6 +29,7 @@ func BenchmarkBytecodeLowering(b *testing.B) {
 			if err != nil {
 				b.Fatal(err)
 			}
+			core.Analyze(m)
 			if m, _, err = corepass.Run(m, corepass.RunOptions{}); err != nil {
 				b.Fatal(err)
 			}

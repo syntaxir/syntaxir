@@ -14,13 +14,10 @@ import (
 // turns it off. The passes know no target and no generation mode: what depends on them is decided by
 // the Flow passes (internal/middleend/flowpass).
 
-// AttributesKey is the analysis that core.Analyze computes: Nullable, First and Eff of every node,
-// which it writes into the nodes. A pass that adds or replaces nodes makes it stale; a pass preserves
-// it only by saying so.
-var AttributesKey = pass.NewAnalysisKey("attributes", func(m *core.Module, _ *pass.AnalysisManager[*core.Module]) (struct{}, error) {
-	core.Analyze(m)
-	return struct{}{}, nil
-})
+// The attributes of the nodes of a Core module (Nullable, NullableIns, First and Eff, which
+// core.Analyze computes) are content of the unit, not an analysis: elaborate makes a module with
+// them computed, the passes read them from the nodes, and a pass that changes nodes keeps them
+// current. The verifier of the kind (Verify) rejects a module whose attributes are stale.
 
 // Stage is the name of the Core IR stage of the pipeline, which the steps of the generic pipeline
 // on Core IR take and return (pass.Step).
@@ -43,16 +40,13 @@ var GuardsPass = pipe.New(pipe.Def[*core.Module, *core.Module]{
 		Obligation: "A guard is the first terminal of its alternative, which the alternative cannot match without.",
 	},
 	In: IR, Out: IR,
-	Run: func(c *pipe.Ctx[*core.Module], m *core.Module) (*core.Module, pass.PreservedSet, error) {
-		// Guards read the First sets that Analyze computes. Without them the alternatives of a choice
-		// get no first-character guard and the Flow form calls the rules of the later alternatives at
-		// every position (duckdb: block_comment, 84,000 calls against none), and nothing reports it.
-		if _, err := pipe.Query(c, AttributesKey); err != nil {
-			return m, pass.PreserveNone(), err
-		}
+	Run: func(_ *pipe.Ctx[*core.Module], m *core.Module) (*core.Module, pass.PreservedSet, error) {
+		// Guards read the First sets of the nodes. Without them the alternatives of a choice get no
+		// first-character guard and the Flow form calls the rules of the later alternatives at every
+		// position (duckdb: block_comment, 84,000 calls against none); the verifier rejects a module
+		// whose First sets are missing or stale.
 		Guards(m)
-		// Guards mark the alternatives of choices and add no node: the attributes hold.
-		return m, pass.Preserve(AttributesKey.Name()), nil
+		return m, pass.PreserveNone(), nil
 	},
 })
 
@@ -63,11 +57,10 @@ var ScansPass = pipe.New(pipe.Def[*core.Module, *core.Module]{
 		Obligation: "Consumes the same input and records the same expectations as the repetition it replaces.",
 	},
 	In: IR, Out: IR,
-	Run: func(c *pipe.Ctx[*core.Module], m *core.Module) (*core.Module, pass.PreservedSet, error) {
-		// A Stream is replaced as its repetition only where it delivers no elements (Eff).
-		if _, err := pipe.Query(c, AttributesKey); err != nil {
-			return m, pass.PreserveNone(), err
-		}
+	Run: func(_ *pipe.Ctx[*core.Module], m *core.Module) (*core.Module, pass.PreservedSet, error) {
+		// A Stream is replaced as its repetition only where it delivers no elements (Eff). A Scan
+		// takes the attributes of the repetition it replaces, which are those that core.Analyze
+		// computes for it, so the attributes stay current.
 		Scans(m)
 		return m, pass.PreserveNone(), nil
 	},
@@ -112,8 +105,7 @@ func Verify(m *core.Module) error {
 // Run runs the enabled Core passes on m, and verifies the module if a pass ran. It returns the
 // module after them, and the names of the passes that ran. It consumes m: the passes change it in
 // place, and a failure drops it (pipe.Run.Stop). The verifier checks the attributes of m and does
-// not compute them: m must have them, as elaborate makes it, unless a pass that queries them runs
-// (AttributesKey), which computes them.
+// not compute them: m must have them, as elaborate makes it.
 func Run(m *core.Module, o RunOptions) (*core.Module, []string, error) {
 	if o.Dump != nil {
 		o.Dump(entry, m)

@@ -23,6 +23,8 @@ func CoreOf(prog *compile.Program) (*ir.Module, error) {
 	if err != nil {
 		return nil, fmt.Errorf("internal error: Core IR: %w", err)
 	}
+	// The Core passes take a Core module with the attributes of its nodes computed.
+	ir.Analyze(m)
 	if m, _, err = corepass.Run(m, corepass.RunOptions{}); err != nil {
 		return nil, fmt.Errorf("internal error: %w", err)
 	}

@@ -107,8 +107,8 @@ func (s *Source) Core(ctx context.Context) (m any, err error) {
 	return closureCore(s.prog, &cancel.Control{Ctx: attributedContext{ctx}})
 }
 
-// closureCore builds the Core IR of the program prog and optimizes it for the closures
-// (closure.Core). The build and the passes poll control (nil for none), and a cancellation unwinds
+// closureCore builds the Core IR of the program prog, computes the attributes of its nodes
+// (core.Analyze) and optimizes it for the closures (closure.Core). The build and the passes poll control (nil for none), and a cancellation unwinds
 // as cancel.Cancellation. A failure is an internal error: the program compiled, so its Core IR
 // builds.
 func closureCore(prog *compile.Program, control *cancel.Control) (*ir.Module, error) {
@@ -116,6 +116,8 @@ func closureCore(prog *compile.Program, control *cancel.Control) (*ir.Module, er
 	if err != nil {
 		return nil, fmt.Errorf("internal error: Core IR: %w", err)
 	}
+	// The Core passes take a Core module with the attributes of its nodes computed.
+	ir.Analyze(m)
 	return closure.Core(m)
 }
 

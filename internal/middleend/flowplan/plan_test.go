@@ -44,6 +44,7 @@ func plan(t *testing.T, src string, rec compile.Recognition, live func(int) bool
 	if err != nil {
 		t.Fatal(err)
 	}
+	core.Analyze(m)
 	if m, _, err = corepass.Run(m, corepass.RunOptions{}); err != nil {
 		t.Fatal(err)
 	}
@@ -268,6 +269,7 @@ func TestPlanDecidesBeforeThePasses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	core.Analyze(m)
 	if m, _, err = corepass.Run(m, corepass.RunOptions{}); err != nil {
 		t.Fatal(err)
 	}
@@ -328,6 +330,7 @@ func TestPlanTyped(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	core.Analyze(m)
 	if m, _, err = corepass.Run(m, corepass.RunOptions{}); err != nil {
 		t.Fatal(err)
 	}
@@ -386,6 +389,7 @@ func TestPlanStream(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	core.Analyze(m)
 	if m, _, err = corepass.Run(m, corepass.RunOptions{}); err != nil {
 		t.Fatal(err)
 	}

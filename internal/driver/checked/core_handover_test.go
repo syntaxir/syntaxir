@@ -6,6 +6,7 @@ import (
 	"zeroparse.dev/zp/internal/backend/closure"
 	"zeroparse.dev/zp/internal/compile"
 	"zeroparse.dev/zp/internal/frontend/elaborate"
+	"zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/testing/compiletest"
 )
 
@@ -18,6 +19,7 @@ func TestClosureCoreTakesItsModule(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	core.Analyze(m)
 	out, err := closure.Core(m)
 	if err != nil {
 		t.Fatal(err)

@@ -116,3 +116,45 @@ func TestVerifyChecksTheAttributes(t *testing.T) {
 		t.Errorf("a pass that leaves a stale attribute: %v, want an error that names it", err)
 	}
 }
+
+// The attributes of the nodes are content of a Core module, not an analysis that a pass computes on
+// demand: no pass of the pipeline computes them, and a pass that changes nodes and leaves their
+// attributes stale fails the run at the verification of its end, without VerifyEach.
+func TestStaleAttributesFailTheRun(t *testing.T) {
+	src := func() *core.Module {
+		m := module(rule(0, "a", seq(&core.Repeat{Min: 1, Max: -1, Body: class('a', 'z')}, choice(lit("ab"), lit("cd")))))
+		core.Number(m)
+		return m
+	}
+
+	// A module whose attributes were never computed: guards and scans read them and none of them
+	// computes them, so the run fails.
+	if _, _, err := Run(src(), RunOptions{}); err == nil || !strings.Contains(err.Error(), "verify core") {
+		t.Errorf("Run of a module without its attributes: %v, want a failure of the verification", err)
+	}
+
+	// A pass that replaces a node by one without the attributes of the node it replaces, as scans
+	// would if it did not copy them.
+	dropping := pipe.New(pipe.Def[*core.Module, *core.Module]{
+		Decl: pipe.Decl{Name: "drop-attributes", Test: true, Obligation: "Replaces a repetition without its attributes (test)."},
+		In:   IR, Out: IR,
+		Run: func(_ *pipe.Ctx[*core.Module], m *core.Module) (*core.Module, pass.PreservedSet, error) {
+			s := m.Rules[0].Body.(*core.Seq)
+			rep := s.Items[0].(*core.Repeat)
+			sc := &core.Scan{Class: rep.Body.(*core.ClassNode).Class, Min: rep.Min, Max: rep.Max}
+			sc.Attrs().ID = rep.Attrs().ID
+			s.Items[0] = sc
+			return m, pass.PreserveNone(), nil
+		},
+	})
+	m := analyzed(t, src())
+	_, err := pipe.Execute(context.Background(), &pipe.Run{Stop: true}, pipe.Seq(IR, GuardsPass, dropping), m)
+	if err == nil || !strings.Contains(err.Error(), "verify core") || !strings.Contains(err.Error(), "rule a: ") {
+		t.Errorf("a pass that leaves stale attributes, without VerifyEach: %v, want a failure of the verification that names rule a", err)
+	}
+
+	// Scans makes the same replacement and keeps the attributes, so the run verifies.
+	if _, _, err := Run(analyzed(t, src()), RunOptions{}); err != nil {
+		t.Errorf("Run of an analyzed module: %v", err)
+	}
+}

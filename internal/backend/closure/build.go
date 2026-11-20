@@ -13,7 +13,8 @@ import (
 	"zeroparse.dev/zp/pkg/runtime/value"
 )
 
-// Core optimizes the Core IR m of a program, as the elaboration built it, with the closure pipeline
+// Core optimizes the Core IR m of a program, as the elaboration built it with the attributes of its
+// nodes computed (core.Analyze), with the closure pipeline
 // (guards and scans), for Build. It runs when a parse first needs a family, outside the
 // compilation: the passes poll the control of m (ir.Module.Control), the parse's (nil for none),
 // and a cancellation unwinds as cancel.Cancellation. Core consumes m, as the passes do: it returns m

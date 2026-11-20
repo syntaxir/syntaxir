@@ -237,8 +237,10 @@ func Query[M, R any](c *Ctx[M], k AnalysisKey[M, R]) (R, error) // an analysis o
 
 The context replaces the environments of the Core, Flow and Code IR passes: the Flow target, observation and the
 configuration of a table become features, and the flag lookups become declared parameters. Every analysis is a typed
-analysis key; the string-named analyses of the pipeline go, and the standalone query that tools use outside any
-pipeline stays.
+analysis key; the string-named analyses of the pipeline go, and the standalone query that tools use outside any pipeline
+stays. The attributes of Core nodes (nullability, first characters and effects) are not an analysis but content of the
+unit: `elaborate` outputs a Core module with its attributes computed, the Core passes read them from the nodes, a pass
+that changes nodes keeps them current, and the verifier of the `core` kind rejects a module whose attributes are stale.
 
 **Patterns.** A pass with sub-pass decisions, such as `canonicalize`, declares its patterns. Each pattern is a registry
 flag (`-opt`, `-no-opt`), and each application asks `Allow`, which the manager numbers as a run of its own and the

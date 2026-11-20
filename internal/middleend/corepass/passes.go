@@ -2,8 +2,9 @@ package corepass
 
 import "zeroparse.dev/zp/internal/ir/core"
 
-// Passes rewrite Core IR. Each states its precondition; each leaves core.Analyze to be run again,
-// after which core.Verify holds if it held before.
+// Passes rewrite Core IR. Each states its precondition, reads the attributes of the nodes, which
+// core.Analyze computes, and keeps them current, so that core.CheckAttributes and core.Verify hold
+// after it if they held before.
 
 // MinTerminalLeaves is the smallest number of literals and classes for which TerminalRegions finds a
 // terminal region in an expression with a choice. Smaller ones stay as they are, which costs less
@@ -127,7 +128,8 @@ func terminalRegions(n core.Node, build bool, out map[core.Node]bool) {
 // to it: the alternative is skipped when the next character cannot start it. An alternative with a
 // guard that is a class, or a sequence whose first item is one, is marked GuardedClass: the guard's
 // test of the class is the class's own, so a target may let the class only consume the character the
-// guard read (the Flow pass guarded-classes). Precondition: Analyze has run.
+// guard read (the Flow pass guarded-classes). Precondition: the attributes are current. Guards adds
+// and replaces no node, so they stay current.
 func Guards(m *core.Module) {
 	for _, r := range m.Rules {
 		m.Control.Poll()
@@ -168,7 +170,9 @@ func leadingClassNode(n core.Node) *core.ClassNode {
 // skip-run site, which records its walks as any repetition does. A Stream that delivers no elements
 // (no EffCommit: its rule is not a start rule) is only its repetition, so it is replaced as that
 // repetition is; a Stream that may deliver elements keeps its repetition. A Scan of a scan site keeps
-// its number.
+// its number. Precondition: the attributes are current. A Scan takes the attributes of the
+// repetition it replaces, which are those that core.Analyze computes for the Scan, so they stay
+// current.
 func Scans(m *core.Module) {
 	for _, r := range m.Rules {
 		m.Control.Poll()

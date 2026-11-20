@@ -406,6 +406,7 @@ func buildClosureCore(prog *compile.Program) (*ir.Module, error) {
 	if err != nil {
 		return nil, err
 	}
+	ir.Analyze(m)
 	return closure.Core(m)
 }
 
