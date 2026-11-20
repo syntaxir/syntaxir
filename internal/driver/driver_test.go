@@ -57,12 +57,12 @@ func TestDriverCore(t *testing.T) {
 		t.Error("VerifyEach did not reach the manager")
 	}
 	got := dump.String()
-	for _, label := range []string{"-- Core IR of the typed table after elaborate --", "-- Core IR of the typed table after guards --"} {
+	for _, label := range []string{"-- after elaborate [typed] --", "-- after guards [typed] --"} {
 		if !strings.Contains(got, label) {
 			t.Errorf("dump lacks %q:\n%s", label, got)
 		}
 	}
-	if strings.Count(got, "-- Core IR") != 2 {
+	if strings.Count(got, "-- after ") != 2 {
 		t.Errorf("dump has other sections than the two selected:\n%s", got)
 	}
 
@@ -76,7 +76,7 @@ func TestDriverCore(t *testing.T) {
 	if _, err := d.Core("rules", empty); err != nil {
 		t.Fatal(err)
 	}
-	if n := strings.Count(dump.String(), "-- Core IR of the rules table after "); n != 3 {
+	if n := strings.Count(dump.String(), " [rules] --\n"); n != 3 {
 		t.Errorf("all printed %d sections, want elaborate, guards and scans:\n%s", n, dump.String())
 	}
 }
@@ -199,10 +199,17 @@ func TestDriverTable(t *testing.T) {
 		}
 	}
 	var want []string
-	for _, step := range []struct{ ir, after string }{{"Flow", flowlower.Name}, {"Flow", testFlowPass}, {"Flow", flowpass.FinishName},
-		{"Exec", execlower.Name}, {"Exec", record}} {
+	// A step on the module of the table dumps it once; a pass on each function dumps each.
+	for _, step := range []struct {
+		after   string
+		perFunc bool
+	}{{flowlower.Name, false}, {testFlowPass, true}, {flowpass.FinishName, false}, {execlower.Name, false}, {record, true}} {
+		if !step.perFunc {
+			want = append(want, "-- after "+step.after+" [rules] --")
+			continue
+		}
 		for _, fn := range []string{"r", "s"} {
-			want = append(want, "-- "+step.ir+" IR of "+fn+" in the rules table after "+step.after+" --")
+			want = append(want, "-- after "+step.after+" [rules/"+fn+"] --")
 		}
 	}
 	if !slices.Equal(heads, want) {
@@ -240,7 +247,7 @@ func TestDriverFlow(t *testing.T) {
 		t.Errorf("the pass did not run:\n%s", code.FuncStringIn(f, flow.FuncOf(f)))
 	}
 	got := dump.String()
-	for _, label := range []string{"-- Flow IR of r in the rules table after flowlower --", "-- Flow IR of r in the rules table after " + testFlowPass + " --"} {
+	for _, label := range []string{"-- after flowlower [rules] --\nfunc r(", "-- after " + testFlowPass + " [rules/r] --\nfunc r("} {
 		if !strings.Contains(got, label) {
 			t.Errorf("dump lacks %q:\n%s", label, got)
 		}
@@ -272,8 +279,8 @@ func TestDriverFlow(t *testing.T) {
 	}
 	var printed []string
 	for _, line := range strings.Split(dump.String(), "\n") {
-		if name, ok := strings.CutPrefix(line, "-- Flow IR of r in the typed table after "); ok {
-			printed = append(printed, strings.TrimSuffix(name, " --"))
+		if name, ok := strings.CutPrefix(line, "-- after "); ok {
+			printed = append(printed, strings.TrimSuffix(strings.TrimSuffix(strings.TrimSuffix(name, " --"), " [typed]"), " [typed/r]"))
 		}
 	}
 	if want := []string{flowlower.Name, flowpass.PassGuardedClasses, flowpass.PassClassRuns, flowpass.PassInlineLiterals, flowpass.FinishName}; !slices.Equal(printed, want) {
@@ -425,7 +432,7 @@ func TestDriverExec(t *testing.T) {
 	if l.Func.Doc != "tested" {
 		t.Error("the pass did not run")
 	}
-	for _, label := range []string{"-- Exec IR of r in the rules table after execlower --", "-- Exec IR of r in the rules table after " + testExecPass + " --"} {
+	for _, label := range []string{"-- after execlower [rules] --\nfunc r(", "-- after " + testExecPass + " [rules/r] --\n// tested\nfunc r("} {
 		if !strings.Contains(dump.String(), label) {
 			t.Errorf("dump lacks %q:\n%s", label, dump.String())
 		}
@@ -450,7 +457,7 @@ func TestDriverExec(t *testing.T) {
 	if _, err := (&Driver{PrintAfter: []string{PrintAll}, PrintTo: &dump}).execFunc("typed", execModule(t), noTarget, true); err != nil {
 		t.Fatal(err)
 	}
-	if n := strings.Count(dump.String(), "-- Exec IR of r in the typed table after "); n != 1+len(codepass.Pipeline.Passes) {
+	if n := strings.Count(dump.String(), "-- after "); n != 1+len(codepass.Pipeline.Passes) {
 		t.Errorf("all printed %d sections:\n%s", n, dump.String())
 	}
 }

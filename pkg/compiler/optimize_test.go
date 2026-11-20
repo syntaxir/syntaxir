@@ -77,7 +77,7 @@ rule num = [0-9]+
 			if !bytes.Equal(joinFiles(base), joinFiles(printed)) {
 				t.Error("printing changes the output")
 			}
-			if !strings.Contains(w.String(), " after guards --\n") || !strings.Contains(w.String(), "alt guard=") {
+			if !strings.Contains(w.String(), "-- after guards [") || !strings.Contains(w.String(), "alt guard=") {
 				t.Errorf("printed:\n%s", w.String())
 			}
 		})

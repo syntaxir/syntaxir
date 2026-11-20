@@ -1,7 +1,6 @@
 package execlower
 
 import (
-	"fmt"
 	"io"
 
 	"zeroparse.dev/zp/internal/ir/code"
@@ -24,7 +23,7 @@ func View(m *code.Module, i int) *Lowered {
 
 // ModuleIR describes the Exec module of a table to the manager of the pipeline: it is verified by
 // Verify and dumped as the listing of each of its functions, labeled with its table.
-var ModuleIR = pass.IR[*code.Module]{Stage: Stage, Verify: Verify, Print: PrintModule, Copy: (*code.Module).Clone}
+var ModuleIR = pass.IR[*code.Module]{Stage: Stage, Verify: Verify, Print: code.PrintFuncs, Copy: (*code.Module).Clone}
 
 // IR describes a lowered function to the manager of the pipeline: its module is verified by Verify
 // and must hold the function with its variables (Lowered.Keeps), and it is dumped as the listing of
@@ -38,17 +37,7 @@ var IR = pass.IR[*Lowered]{
 		}
 		return l.Keeps()
 	},
-	Print: func(w io.Writer, lb pass.Label, after string, l *Lowered) {
-		PrintModule(w, lb, after, l.Module)
-	},
-}
-
-// PrintModule writes the dump of the Exec module m, labeled l, after the step after: each function
-// under a header line of its own.
-func PrintModule(w io.Writer, l pass.Label, after string, m *code.Module) {
-	for _, f := range m.Funcs {
-		fmt.Fprintf(w, "-- Exec IR of %s in the %s table after %s --\n%s\n", f.Name, l.Table, after, code.FuncStringIn(m, f))
-	}
+	Print: func(w io.Writer, l *Lowered) { code.PrintFuncs(w, l.Module) },
 }
 
 // Name is the name of the conversion as a step of the pipeline.

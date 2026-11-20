@@ -2,6 +2,7 @@ package code
 
 import (
 	"fmt"
+	"io"
 	"strings"
 )
 
@@ -49,6 +50,14 @@ func FuncString(f *Func) string {
 	p := &printer{}
 	p.fn(f)
 	return p.b.String()
+}
+
+// PrintFuncs writes the listing of each function of m in order, each followed by an empty line: the
+// dump of a module of functions, such as the module of a table at a stage.
+func PrintFuncs(w io.Writer, m *Module) {
+	for _, f := range m.Funcs {
+		fmt.Fprintf(w, "%s\n", FuncStringIn(m, f))
+	}
 }
 
 // FuncStringIn returns the listing of the function f of the module m, whose operations print the

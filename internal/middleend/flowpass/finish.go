@@ -2,7 +2,6 @@ package flowpass
 
 import (
 	"cmp"
-	"io"
 	"slices"
 
 	"zeroparse.dev/zp/internal/ir/code"
@@ -156,12 +155,7 @@ const FinishName = "flow-finish"
 // Finishing is Finish as the required step FinishName that ends the Flow stage of a function: it
 // runs after the Flow passes, also after one of them failed, and before the function leaves the Flow
 // stage. It finishes the module in place, which the run owns (pass.Do), and dumps it as flow.Print does.
-var Finishing = pass.Do(FinishName, pass.IR[*code.Module]{Stage: flow.Stage, Print: printFlow, Copy: (*code.Module).Clone}, func(m *code.Module) *code.Module {
+var Finishing = pass.Do(FinishName, pass.IR[*code.Module]{Stage: flow.Stage, Print: code.PrintFuncs, Copy: (*code.Module).Clone}, func(m *code.Module) *code.Module {
 	Finish(m)
 	return m
 })
-
-// printFlow dumps a Flow module of the table that l names (flow.Print).
-func printFlow(w io.Writer, l pass.Label, after string, m *code.Module) {
-	flow.Print(w, l.Table, after, m)
-}

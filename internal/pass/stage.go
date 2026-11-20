@@ -52,14 +52,24 @@ type Label struct {
 	Table, Func string
 }
 
+// String returns the label as the dumps and the errors print it: the table, and the function after a
+// slash if there is one.
+func (l Label) String() string {
+	if l.Func == "" {
+		return l.Table
+	}
+	return l.Table + "/" + l.Func
+}
+
 // IR describes a unit type M at a stage to the manager: how to verify it and how to dump it.
 type IR[M any] struct {
 	// Stage names the stage, as Step.In and Step.Out do.
 	Stage string
 	// Verify checks the invariants of a unit at the stage; nil checks none.
 	Verify func(m M) error
-	// Print writes the dump of the unit m with the label l after the step whose dump name is after.
-	Print func(w io.Writer, l Label, after string, m M)
+	// Print writes the dump of the unit m: the unit alone, since the observer that writes the dump
+	// heads it with what the event names (the step and the label).
+	Print func(w io.Writer, m M)
 	// Copy returns a deep copy of the unit m that a step may change without changing m, which a
 	// required step takes under VerifyEach; nil means that a unit is a value, which no step can
 	// change in place.
@@ -261,7 +271,7 @@ func (t Transform[M, X]) options(r *Run, l Label, m M) Options[M] {
 		ran: func(name string, m M) {
 			r.after(Event{Seq: seqs[name], Step: t.step(name), Label: l}, func(w io.Writer) {
 				if t.IR.Print != nil {
-					t.IR.Print(w, l, name, m)
+					t.IR.Print(w, m)
 				}
 			}, m)
 		},
@@ -354,7 +364,7 @@ func Lower[I, O any](name, in string, out IR[O], f func(I) (O, error)) Stage[I, 
 		}
 		r.after(Event{Step: s, Label: l}, func(w io.Writer) {
 			if out.Print != nil {
-				out.Print(w, l, s.Dump, o)
+				out.Print(w, o)
 			}
 		}, o)
 		return o
@@ -376,7 +386,7 @@ func Do[M any](name string, ir IR[M], f func(m M) M) Stage[M, M] {
 		m = f(m)
 		r.after(Event{Step: s, Label: l}, func(w io.Writer) {
 			if ir.Print != nil {
-				ir.Print(w, l, s.Dump, m)
+				ir.Print(w, m)
 			}
 		}, m)
 		return m

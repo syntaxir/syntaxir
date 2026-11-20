@@ -18,16 +18,16 @@ var (
 			return errors.New("broken by " + u.broken)
 		}
 		return nil
-	}, Print: func(w io.Writer, l Label, after string, u *unit) {
-		fmt.Fprintf(w, "%s/%s after %s: %s\n", l.Table, l.Func, after, strings.Join(u.log, ","))
+	}, Print: func(w io.Writer, u *unit) {
+		fmt.Fprintf(w, "%s\n", strings.Join(u.log, ","))
 	}}
 	textIR = IR[*text]{Stage: "t", Verify: func(t *text) error {
 		if strings.Contains(t.s, "bad") {
 			return errors.New("bad text")
 		}
 		return nil
-	}, Print: func(w io.Writer, l Label, after string, t *text) {
-		fmt.Fprintf(w, "%s after %s: %s\n", l.Func, after, t.s)
+	}, Print: func(w io.Writer, t *text) {
+		fmt.Fprintf(w, "%s\n", t.s)
 	}}
 )
 
@@ -43,7 +43,10 @@ func (o *recorder) Before(e Event) bool { return !o.skip[e.Seq] }
 
 func (o *recorder) After(e Event, print func(io.Writer), _ any) {
 	o.events = append(o.events, fmt.Sprintf("%d:%s:%s:%s", e.Seq, e.Step.Name, e.Step.Dump, e.Label.Func))
-	print(&o.dumps)
+	if e.Step.Dump != "" {
+		fmt.Fprintf(&o.dumps, "%s/%s after %s: ", e.Label.Table, e.Label.Func, e.Step.Dump)
+		print(&o.dumps)
+	}
 }
 
 func transforms(p *Pipeline[*unit, mode]) Stage[*unit, *unit] {
@@ -82,7 +85,7 @@ func TestStageComposition(t *testing.T) {
 	if want := []string{"1:a:a:f", "2:b:b:f", "0:lower:lower:f", "0:finish:finish:f"}; !slices.Equal(rec.events, want) {
 		t.Errorf("events %v, want %v", rec.events, want)
 	}
-	if want := "rules/f after a: a\nrules/f after b: a,b\nf after lower: a+b+analyze\nf after finish: a+b+analyze!\n"; rec.dumps.String() != want {
+	if want := "rules/f after a: a\nrules/f after b: a,b\nrules/f after lower: a+b+analyze\nrules/f after finish: a+b+analyze!\n"; rec.dumps.String() != want {
 		t.Errorf("dumps %q, want %q", rec.dumps.String(), want)
 	}
 }

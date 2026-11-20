@@ -353,15 +353,14 @@ never turns on a pass for a parser that it is unsound for. `-no-opt guards` also
 
 `-print-after` shows the intermediate representation that the passes work on, for debugging the generator. A pass that
 does not apply to the parser (the lean passes in a parser with limit controls, for example) prints nothing. Only the
-generation that writes the output prints. `-print-after elaborate` shows the Core IR of each rule table as built, under
-`-- Core IR of the <table> table after elaborate --`, where `<table>` is `typed` for the typed rules, and `rules` or
-`recRules` for the untyped and recognizer tables; each Core pass prints under its own name in the same header form.
-`-print-after flowlower` shows the next form: each function that the parser is printed from, as a listing of Code IR at
-the Flow stage, as lowered from the Core IR, under `-- Flow IR of <function> in the <table> table after flowlower --`.
-`flow-finish` prints the same form after the Flow stage of a function ends, under `after flow-finish`, and `execlower`
-prints the form after that, a listing of Code IR at the Exec stage, under
-`-- Exec IR of <function> in the <table> table after execlower --`; the Flow and Exec passes print under their own
-names. A listing writes the statements and the calls of the operations of the stage in the notation of the Code IR text form, with the immediate operand of a call in brackets before its arguments.
+generation that writes the output prints. Each dump starts with one header line that names the step and the unit,
+`-- after <step> [<table>] --`, where `<table>` is `typed` for the typed rules, and `rules` or `recRules` for the
+untyped and recognizer tables; a pass that runs on one function at a time names the function too,
+`-- after <pass> [<table>/<function>] --`. `-print-after elaborate` shows the Core IR of each rule table as built, and
+each Core pass prints it under its own name. `-print-after flowlower` shows the next form: the module of each table that
+the parser is printed from, each function as a listing of Code IR at the Flow stage, as lowered from the Core IR.
+`flow-finish` prints the same form after the Flow stage ends, and `execlower` prints the form after that, a listing of
+Code IR at the Exec stage; the Flow and Exec passes print each function they run on under their own names. A listing writes the statements and the calls of the operations of the stage in the notation of the Code IR text form, with the immediate operand of a call in brackets before its arguments.
 
 ### From Go
 

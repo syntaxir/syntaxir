@@ -84,7 +84,7 @@ The pass infrastructure has two models of a step and leaves the order of a compi
 - Text parsers for Core IR and Code IR, a failure reproducer, optimization remarks, parallel per-function execution and a
   compile cache: follow-ups that this design must not block.
 - Changing generated output. Every migration step keeps `zp gen` output identical, and the dumps identical except for
-  the change of dump names listed under Migration.
+  the changes of dump names and headers listed under Migration.
 - The switch of the VM to bytecode selected from the Flow stage. This record describes the VM pipeline before and after
   that switch; the switch itself is separate work.
 
@@ -1127,8 +1127,12 @@ once and shares the Core IR of the tables whose keys are equal; the saving is re
 
 ## Migration
 
-Each step keeps the generated output and the `-print-after all` dumps identical. The one change of dumps is the removal
-of the stage names `core`, `flow` and `exec` from `-print-after` and the dump headers, as its own change.
+Each step keeps the generated output and the `-print-after all` dumps identical. The dumps change twice, each as its own
+change: the removal of the stage names `core`, `flow` and `exec` from `-print-after` and the dump headers, and the
+header form that a kind's `Print` requires. A kind prints the unit alone, its functions included, so the dump observer
+writes one header per dump from the event, `-- after <instance> [<label>] --`, in place of the header that each
+function's listing carried; the label names the backend once branches exist, the table, and the function of a
+per-function step.
 
 1. **The new core of `internal/pass`** beside the old one: kinds, the pass constructor, the context, the step tree, the
    combinators, the manager with its copy policy and its events, labels that each combinator sets one field of, and

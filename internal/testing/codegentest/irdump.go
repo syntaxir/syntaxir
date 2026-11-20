@@ -3,19 +3,22 @@ package codegentest
 import (
 	"regexp"
 	"slices"
+	"strings"
 	"testing"
 
 	"zeroparse.dev/zp/internal/ir/code"
 	"zeroparse.dev/zp/internal/ir/code/flow"
 	"zeroparse.dev/zp/internal/middleend/codepass"
+	"zeroparse.dev/zp/internal/middleend/execlower"
+	"zeroparse.dev/zp/internal/middleend/flowlower"
 	"zeroparse.dev/zp/internal/middleend/flowpass"
 	"zeroparse.dev/zp/internal/pass"
 )
 
-// irDumpHeader matches the header of a dump of one Flow IR or Exec IR function before the first
-// pass of its pipeline, after the lowering that made it (GenOptions.PrintAfter "flowlower" and
-// "execlower").
-var irDumpHeader = regexp.MustCompile(`(?m)^-- (Flow|Exec) IR of (\S+) in the (\S+) table after (?:flowlower|execlower) --$`)
+// irDumpHeader matches the header of a dump of the module of a table after the lowering that made it
+// (GenOptions.PrintAfter "flowlower" and "execlower"); the listing of each function of the module
+// follows it.
+var irDumpHeader = regexp.MustCompile(`^-- after (\S+) \[(\S+)\] --$`)
 
 // CheckIRPipelines checks the dumps that a generation with PrintAfter "flowlower,execlower" wrote: every function
 // printed from Exec IR was lowered from a Flow IR function, so each function of each table must have
@@ -27,13 +30,27 @@ func CheckIRPipelines(t *testing.T, dump string, tables ...string) map[string]in
 	type key struct{ table, fn string }
 	flows, execs := map[key]int{}, map[key]int{}
 	perTable := map[string]int{}
-	for _, m := range irDumpHeader.FindAllStringSubmatch(dump, -1) {
-		k := key{m[3], m[2]}
-		if m[1] == "Flow" {
-			flows[k]++
-			perTable[k.table]++
-		} else {
-			execs[k]++
+	var count map[key]int // the counts of the dump that the lines belong to; nil outside one
+	table, flowDump := "", false
+	for _, line := range strings.Split(dump, "\n") {
+		if m := irDumpHeader.FindStringSubmatch(line); m != nil {
+			count, table, flowDump = nil, m[2], m[1] == flowlower.Name
+			switch m[1] {
+			case flowlower.Name:
+				count = flows
+			case execlower.Name:
+				count = execs
+			}
+			continue
+		}
+		name, ok := strings.CutPrefix(line, "func ")
+		if !ok || count == nil {
+			continue
+		}
+		k := key{table, name[:strings.IndexByte(name, '(')]}
+		count[k]++
+		if flowDump {
+			perTable[table]++
 		}
 	}
 	for k, n := range flows {

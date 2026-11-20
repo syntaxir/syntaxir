@@ -78,14 +78,14 @@ func TestGenPrintAfter(t *testing.T) {
 		return out.String()
 	}
 	all := run("all")
-	for _, want := range []string{"table after elaborate --", "table after guards --", "table after scans --", "table after class-runs --"} {
+	for _, want := range []string{"-- after elaborate [typed] --", "-- after guards [typed] --", "-- after scans [typed] --", "-- after class-runs [typed/"} {
 		if !strings.Contains(all, want) {
 			t.Errorf("-print-after all lacks %q", want)
 		}
 	}
 	// A parser with limit controls reads the input in ways the lean passes do not preserve, so they do not run.
 	controlled := run("all", "-limits")
-	if !strings.Contains(controlled, "after scans --") || strings.Contains(controlled, "after terminals --") || strings.Contains(controlled, "after class-runs --") {
+	if !strings.Contains(controlled, "-- after scans [") || strings.Contains(controlled, "-- after terminals [") || strings.Contains(controlled, "-- after class-runs [") {
 		t.Errorf("-print-after all with -limits prints the passes that apply to a lean parser")
 	}
 	// A pass that does not apply prints nothing, however it is asked for.
@@ -93,28 +93,29 @@ func TestGenPrintAfter(t *testing.T) {
 		t.Errorf("-print-after terminals with -limits printed:\n%.300s", got)
 	}
 	guards := run("guards")
-	if strings.Count(guards, "-- Core IR of the") != strings.Count(all, "after guards --") || !strings.Contains(guards, "after guards --") || strings.Contains(guards, "after scans --") {
-		t.Errorf("-print-after guards prints %d sections:\n%.300s", strings.Count(guards, "-- Core IR"), guards)
+	if strings.Count(guards, "-- after ") != strings.Count(all, "-- after guards [") || !strings.Contains(guards, "-- after guards [") {
+		t.Errorf("-print-after guards prints %d sections:\n%.300s", strings.Count(guards, "-- after "), guards)
 	}
-	if got := run("elaborate,scans"); !strings.Contains(got, "after elaborate --") || !strings.Contains(got, "after scans --") || strings.Contains(got, "after guards --") || strings.Contains(got, "-- Flow IR") {
+	if got := run("elaborate,scans"); !strings.Contains(got, "-- after elaborate [") || !strings.Contains(got, "-- after scans [") || strings.Contains(got, "-- after guards [") || strings.Contains(got, "\nfunc ") {
 		t.Errorf("-print-after elaborate,scans prints the wrong sections")
 	}
-	// flowlower prints each function that the parser is printed from, as the lowering made it, and no
-	// Core IR.
+	// flowlower prints the module of each table that the parser is printed from, as the lowering
+	// made it, one function after another, and no Core IR.
 	flowIR := run("flowlower")
-	if !strings.Contains(flowIR, "-- Flow IR of ") || !strings.Contains(flowIR, " in the typed table after flowlower --\nfunc ") || strings.Contains(flowIR, "-- Core IR") {
+	if !strings.Contains(flowIR, "-- after flowlower [typed] --\nfunc ") || strings.Count(flowIR, "-- after ") != strings.Count(flowIR, "-- after flowlower [") {
 		t.Errorf("-print-after flowlower prints the wrong sections:\n%.300s", flowIR)
 	}
-	if n := strings.Count(all, " table after flowlower --"); n == 0 || n != strings.Count(flowIR, "-- Flow IR of ") {
-		t.Errorf("-print-after all prints %d lowered Flow functions, flowlower %d", n, strings.Count(flowIR, "-- Flow IR of "))
+	if n := strings.Count(all, "-- after flowlower ["); n == 0 || n != strings.Count(flowIR, "-- after ") {
+		t.Errorf("-print-after all prints %d lowered Flow modules, flowlower %d", n, strings.Count(flowIR, "-- after "))
 	}
-	// execlower prints each function printed from Exec IR, as lowered from Flow IR, and nothing else.
+	// execlower prints the module of each table printed from Exec IR, as lowered from Flow IR, and
+	// nothing else; it holds the functions of the Flow module.
 	execIR := run("execlower")
-	if !strings.Contains(execIR, "-- Exec IR of ") || !strings.Contains(execIR, " in the typed table after execlower --\n") || strings.Contains(execIR, "-- Core IR") || strings.Contains(execIR, "-- Flow IR") {
+	if !strings.Contains(execIR, "-- after execlower [typed] --\n") || strings.Count(execIR, "-- after ") != strings.Count(execIR, "-- after execlower [") {
 		t.Errorf("-print-after execlower prints the wrong sections:\n%.300s", execIR)
 	}
-	if n := strings.Count(all, " table after execlower --"); n == 0 || n != strings.Count(execIR, "-- Exec IR of ") {
-		t.Errorf("-print-after all prints %d lowered Exec functions, execlower %d", n, strings.Count(execIR, "-- Exec IR of "))
+	if n := strings.Count(all, "-- after execlower ["); n == 0 || n != strings.Count(execIR, "-- after ") || strings.Count(execIR, "\nfunc ") != strings.Count(flowIR, "\nfunc ") {
+		t.Errorf("-print-after all prints %d lowered Exec modules, execlower %d", n, strings.Count(execIR, "-- after "))
 	}
 }
 

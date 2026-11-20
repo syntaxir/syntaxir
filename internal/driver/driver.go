@@ -91,7 +91,9 @@ func (d *Driver) manager() *pass.Run {
 
 // observer is the observer of the steps of a compilation that writes the dumps of PrintAfter and
 // calls CoreHook. It reads the fields of the driver when it is told of a step, so that a hook set
-// between two stages sees the later one.
+// between two stages sees the later one. A dump is one header line, which names the step and the
+// label of the unit (its table, and its function for a unit of one function), and the listing of
+// the unit as its IR prints it (pass.IR.Print).
 type observer struct{ d *Driver }
 
 func (observer) Before(pass.Event) bool { return true }
@@ -101,6 +103,7 @@ func (o observer) After(e pass.Event, print func(io.Writer), unit any) {
 		o.d.CoreHook(e.Step.Dump, unit.(*core.Module))
 	}
 	if o.d.prints(e.Step.Dump) {
+		fmt.Fprintf(o.d.PrintTo, "-- after %s [%s] --\n", e.Step.Dump, e.Label)
 		print(o.d.PrintTo)
 	}
 }
@@ -241,15 +244,15 @@ func stepError(err error) error {
 
 // execModuleIR describes the Exec module of a lowered function to the Exec passes: each function of
 // it is dumped.
-var execModuleIR = pass.IR[*code.Module]{Stage: codepass.Stage, Verify: code.Verify, Print: execlower.PrintModule, Copy: (*code.Module).Clone}
+var execModuleIR = pass.IR[*code.Module]{Stage: codepass.Stage, Verify: code.Verify, Print: code.PrintFuncs, Copy: (*code.Module).Clone}
 
 // loweredIR describes a lowered function to the passes of a target: only the function is dumped.
 var loweredIR = pass.IR[*execlower.Lowered]{
 	Stage:  codepass.Stage,
 	Verify: execlower.IR.Verify,
 	Copy:   (*execlower.Lowered).Clone,
-	Print: func(w io.Writer, lb pass.Label, after string, l *execlower.Lowered) {
-		fmt.Fprintf(w, "-- Exec IR of %s in the %s table after %s --\n%s\n", l.Func.Name, lb.Table, after, code.FuncStringIn(l.Module, l.Func))
+	Print: func(w io.Writer, l *execlower.Lowered) {
+		fmt.Fprintf(w, "%s\n", code.FuncStringIn(l.Module, l.Func))
 	},
 }
 

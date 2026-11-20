@@ -298,20 +298,22 @@ func TestPlanDecidesBeforeThePasses(t *testing.T) {
 	if err := p.Bind(fm); err != nil {
 		t.Fatal(err)
 	}
-	var heads []string
+	// The module is dumped once after flowlower, its functions in the order of the plan.
+	body, ok := strings.CutPrefix(dump.String(), "-- after flowlower [rules] --\n")
+	if !ok || strings.Contains(body, "\n-- ") {
+		t.Fatalf("the dump is not the one module after flowlower:\n%s", dump.String())
+	}
+	var want, got []string
 	for _, s := range p.Funcs {
-		heads = append(heads, "-- Flow IR of "+s.Name+" in the rules table after flowlower --")
+		want = append(want, s.Name)
 	}
-	if got := strings.Count(dump.String(), "-- Flow IR of "); got != len(heads) {
-		t.Errorf("%d functions dumped after flowlower, want the %d of the plan", got, len(heads))
-	}
-	last := -1
-	for _, h := range heads {
-		i := strings.Index(dump.String(), h)
-		if i <= last || strings.Count(dump.String(), h) != 1 {
-			t.Errorf("%q is not dumped once, in the order of the plan", h)
+	for _, line := range strings.Split(body, "\n") {
+		if name, ok := strings.CutPrefix(line, "func "); ok {
+			got = append(got, name[:strings.IndexByte(name, '(')])
 		}
-		last = i
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("dumped the functions %v after flowlower, want the functions of the plan %v", got, want)
 	}
 }
 
