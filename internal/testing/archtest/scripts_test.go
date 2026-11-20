@@ -35,6 +35,13 @@ func inheritedEnv() []string {
 	return env
 }
 
+// repoEnv returns the environment of the git and go commands that the tests run on this repository:
+// the inherited one without gitRepoVars, with git reading no global or system configuration
+// (gitIsolated), as in the scratch repositories.
+func repoEnv() []string {
+	return append(inheritedEnv(), gitIsolated...)
+}
+
 func scriptEnv(t *testing.T, state string) []string {
 	t.Helper()
 	env := append(inheritedEnv(),
@@ -445,6 +452,24 @@ func TestScriptEnvDropsGitRepositoryVariables(t *testing.T) {
 			if strings.HasPrefix(kv, k+"=") {
 				t.Errorf("the script environment inherits %s", kv)
 			}
+		}
+	}
+}
+
+// TestRepoEnvDropsInheritedGitVariables checks that the git commands the tests run on this repository
+// (repoEnv) ask this repository, whatever the inherited environment points git at.
+func TestRepoEnvDropsInheritedGitVariables(t *testing.T) {
+	for _, k := range gitRepoVars {
+		t.Setenv(k, filepath.Join(t.TempDir(), "outside"))
+	}
+	cmd := exec.Command("git", "-C", moduleRoot, "rev-parse", "--show-toplevel")
+	cmd.Env = repoEnv()
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git rev-parse with the inherited variables dropped: %v\n%s", err, out)
+	}
+	for _, kv := range repoEnv() {
+		if slices.ContainsFunc(gitRepoVars, func(k string) bool { return strings.HasPrefix(kv, k+"=") }) {
+			t.Errorf("%s is inherited", kv)
 		}
 	}
 }

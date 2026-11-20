@@ -15,13 +15,13 @@ import (
 // outlives the test, and lets a git diff that follows a write at once report the file unchanged while the daemon
 // has not yet seen the write. The scratch repositories of archtest's script tests use the same two variables.
 // It also unsets the variables that steer git at a repository, index or configuration from outside it
-// (GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE, GIT_CONFIG_PARAMETERS), which an inherited environment may set;
-// each is restored when the test ends.
+// (gitRepoVars), which an inherited environment may set; each is restored when the test ends. The commands
+// that this package runs itself take the same environment from gitEnv.
 func isolateGit(t *testing.T) {
 	t.Helper()
 	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
 	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
-	for _, k := range []string{"GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_CONFIG_PARAMETERS"} {
+	for _, k := range gitRepoVars {
 		unsetEnv(t, k)
 	}
 }
@@ -161,6 +161,7 @@ var runnerPackages = []string{"./internal/backend/...", "./pkg/runtime/libgo/...
 // deleted package must not leave the check with nothing to check.
 func testImports(pkgs ...string) ([]string, error) {
 	cmd := exec.Command("go", append([]string{"list", "-deps", "-test", "-f", "{{.ImportPath}}"}, pkgs...)...)
+	cmd.Env = gitEnv()
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
@@ -233,13 +234,59 @@ func TestSourceNamesMissingFiles(t *testing.T) {
 // TestRepoDropsInheritedGitVariables checks that a variable that steers git at another repository, index or
 // configuration does not reach the scratch repository.
 func TestRepoDropsInheritedGitVariables(t *testing.T) {
-	for _, k := range []string{"GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_CONFIG_PARAMETERS"} {
+	for _, k := range gitRepoVars {
 		t.Setenv(k, "/outside")
 	}
 	repo(t)
-	for _, k := range []string{"GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_CONFIG_PARAMETERS"} {
+	for _, k := range gitRepoVars {
 		if v, ok := os.LookupEnv(k); ok {
 			t.Errorf("%s is still set to %q in the scratch repository", k, v)
+		}
+	}
+}
+
+// TestChangedDropsInheritedGitVariables checks that Changed asks the repository it runs in, whatever the
+// inherited environment points git at: with GIT_DIR and the other variables of gitRepoVars set to another
+// place, it still reports the file changed in the scratch repository.
+func TestChangedDropsInheritedGitVariables(t *testing.T) {
+	repo(t)
+	if err := os.WriteFile("src/a.go", []byte("package x // changed\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, k := range gitRepoVars {
+		t.Setenv(k, filepath.Join(t.TempDir(), "outside"))
+	}
+	files, err := Changed("HEAD", "src")
+	if err != nil || !slices.Equal(files, []string{"src/a.go"}) {
+		t.Fatalf("Changed: %q, %v; want src/a.go", files, err)
+	}
+}
+
+// TestGitEnvIsolates checks the environment of the commands this package runs: no variable of gitRepoVars,
+// and git reads no global or system configuration, whatever the inherited environment sets.
+func TestGitEnvIsolates(t *testing.T) {
+	for _, k := range gitRepoVars {
+		t.Setenv(k, "/outside")
+	}
+	t.Setenv("GIT_CONFIG_GLOBAL", "/outside/config")
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "0")
+	env := gitEnv()
+	for _, kv := range env {
+		k, _, _ := strings.Cut(kv, "=")
+		if slices.Contains(gitRepoVars, k) {
+			t.Errorf("%s is inherited", kv)
+		}
+	}
+	for _, want := range []string{"GIT_CONFIG_GLOBAL=" + os.DevNull, "GIT_CONFIG_NOSYSTEM=1"} {
+		k, _, _ := strings.Cut(want, "=")
+		var got []string
+		for _, kv := range env {
+			if strings.HasPrefix(kv, k+"=") {
+				got = append(got, kv)
+			}
+		}
+		if !slices.Equal(got, []string{want}) {
+			t.Errorf("%s: %q, want only %s", k, got, want)
 		}
 	}
 }

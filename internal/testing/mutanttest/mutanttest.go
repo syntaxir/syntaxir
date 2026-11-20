@@ -18,6 +18,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -28,6 +29,25 @@ const BaseEnv = "ZP_MUTANTS_BASE"
 // always are the paths that every runner depends on: the module files that select the toolchain and the
 // dependencies, and this package.
 var always = []string{"go.mod", "go.sum", "go.work", "internal/testing/mutanttest"}
+
+// gitRepoVars point git at a repository, index or configuration from outside the directory it runs in. An
+// inherited one would make a git command of this package, or of its tests, act on another repository.
+var gitRepoVars = []string{"GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_CONFIG_PARAMETERS"}
+
+// gitEnv returns the environment of the git and go commands that this package and its tests run: the
+// inherited one without gitRepoVars, with git reading none of the user's global or system configuration. A
+// setting there such as core.fsmonitor starts a daemon per repository that outlives the test, and lets a git
+// diff that follows a write at once report the file unchanged while the daemon has not yet seen the write.
+func gitEnv() []string {
+	var env []string
+	for _, kv := range os.Environ() {
+		k, _, _ := strings.Cut(kv, "=")
+		if !slices.Contains(gitRepoVars, k) && k != "GIT_CONFIG_GLOBAL" && k != "GIT_CONFIG_NOSYSTEM" {
+			env = append(env, kv)
+		}
+	}
+	return append(env, "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
+}
 
 // SkipUnlessChanged skips t when ZP_MUTANTS_BASE is set and no file under any of paths, which are slash-separated
 // paths from the repository root (a directory stands for everything under it), differs between that revision
@@ -110,7 +130,9 @@ func Changed(base string, paths ...string) ([]string, error) {
 	if len(paths) == 0 {
 		return nil, os.ErrInvalid
 	}
-	topOut, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
+	rev := exec.Command("git", "rev-parse", "--show-toplevel")
+	rev.Env = gitEnv()
+	topOut, err := rev.Output()
 	if err != nil {
 		return nil, err
 	}
@@ -122,6 +144,7 @@ func Changed(base string, paths ...string) ([]string, error) {
 		{"ls-files", "--others", "--exclude-standard", "--"},
 	} {
 		cmd := exec.Command("git", append([]string{"-C", top}, append(args, spec...)...)...)
+		cmd.Env = gitEnv()
 		out, err := cmd.Output()
 		if err != nil {
 			return nil, err

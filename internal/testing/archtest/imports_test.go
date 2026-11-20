@@ -21,7 +21,9 @@ var importGroupExceptions = map[string]string{}
 // line, between the standard library and the rest, each group sorted by path.
 // hack/fix-imports.sh rewrites a file to the rule.
 func TestImportGroups(t *testing.T) {
-	out, err := exec.Command("git", "-C", moduleRoot, "ls-files", "-z", "*.go").Output()
+	ls := exec.Command("git", "-C", moduleRoot, "ls-files", "-z", "*.go")
+	ls.Env = repoEnv()
+	out, err := ls.Output()
 	if err != nil {
 		t.Fatalf("git ls-files: %v", err)
 	}

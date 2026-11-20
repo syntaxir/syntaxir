@@ -111,7 +111,7 @@ func loadGraph(root, tags string) (*graph, error) {
 	cmd := exec.Command("go", args...)
 	cmd.Dir = root
 	// The workspace adds the site module, whose packages are not part of this module's layout.
-	cmd.Env = append(os.Environ(), "GOWORK=off")
+	cmd.Env = append(repoEnv(), "GOWORK=off")
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
