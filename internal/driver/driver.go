@@ -244,11 +244,11 @@ func stepError(err error) error {
 
 // execModuleIR describes the Exec module of a lowered function to the Exec passes: each function of
 // it is dumped.
-var execModuleIR = pass.IR[*code.Module]{Stage: codepass.Stage, Verify: code.Verify, Print: code.PrintFuncs, Copy: (*code.Module).Clone}
+var execModuleIR = pass.IR[*code.Module]{Stage: codepass.StageName, Verify: code.Verify, Print: code.PrintFuncs, Copy: (*code.Module).Clone}
 
 // loweredIR describes a lowered function to the passes of a target: only the function is dumped.
 var loweredIR = pass.IR[*execlower.Lowered]{
-	Stage:  codepass.Stage,
+	Stage:  codepass.StageName,
 	Verify: execlower.IR.Verify,
 	Copy:   (*execlower.Lowered).Clone,
 	Print: func(w io.Writer, l *execlower.Lowered) {

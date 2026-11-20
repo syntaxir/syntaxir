@@ -33,6 +33,12 @@ func VerifyModule(m *code.Module) error {
 	if err := code.Verify(m); err != nil {
 		return err
 	}
+	return verifyFuncs(m)
+}
+
+// verifyFuncs checks the invariants of the Flow dialect on each function of m, which code.Verify
+// has verified: the check of the Flow stage (code.RegisterStageCheck).
+func verifyFuncs(m *code.Module) error {
 	for _, fn := range m.Funcs {
 		if err := verifyFunc(fn); err != nil {
 			return fmt.Errorf("%s: %w", fn.Name, err)
@@ -40,6 +46,8 @@ func VerifyModule(m *code.Module) error {
 	}
 	return nil
 }
+
+func init() { code.RegisterStageCheck[code.Flow](verifyFuncs) }
 
 // Names of the operations that the invariants of VerifyModule name.
 var (

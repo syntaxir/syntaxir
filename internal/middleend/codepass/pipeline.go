@@ -11,9 +11,9 @@ import (
 // flag that turns it off, distinct from the names of the Core and Flow passes. The unit is the module
 // that the lowering of one function made, with its declarations.
 
-// Stage is the name of the Exec IR stage of the pipeline, which the steps on Exec modules take and
-// return (pass.Step).
-const Stage = "exec"
+// StageName is the name of the Exec IR stage of the pipeline, which the steps on Exec modules take
+// and return (pass.Step).
+const StageName = "exec"
 
 // Env is the context of a run of the Exec pipeline.
 type Env struct {
