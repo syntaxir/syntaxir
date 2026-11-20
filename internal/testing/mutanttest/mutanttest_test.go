@@ -10,9 +10,21 @@ import (
 	"testing"
 )
 
+// isolateGit keeps git from reading the user's global and system configuration for the rest of the test. A
+// setting there such as core.fsmonitor applies to the scratch repository, starts a daemon per repository that
+// outlives the test, and lets a git diff that follows a write at once report the file unchanged while the daemon
+// has not yet seen the write. The scratch repositories of archtest's script tests use the same two variables.
+func isolateGit(t *testing.T) {
+	t.Helper()
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+}
+
 // repo makes a git repository with one commit holding src/a.go and other/b.go and makes it the working directory.
+// Git reads none of the user's configuration in it or in the rest of the test.
 func repo(t *testing.T) {
 	t.Helper()
+	isolateGit(t)
 	dir := t.TempDir()
 	for _, f := range []string{"src/a.go", "other/b.go"} {
 		p := filepath.Join(dir, f)
@@ -34,6 +46,29 @@ func repo(t *testing.T) {
 		}
 	}
 	t.Chdir(dir)
+}
+
+// TestRepoIgnoresUserConfig plants a global configuration that enables core.fsmonitor where git looks for the
+// user's ($XDG_CONFIG_HOME and $HOME) and checks that the scratch repository does not see it.
+func TestRepoIgnoresUserConfig(t *testing.T) {
+	home := t.TempDir()
+	xdg := filepath.Join(home, "xdg")
+	if err := os.MkdirAll(filepath.Join(xdg, "git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	user := []byte("[core]\n\tfsmonitor = true\n")
+	for _, p := range []string{filepath.Join(xdg, "git", "config"), filepath.Join(home, ".gitconfig")} {
+		if err := os.WriteFile(p, user, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", xdg)
+	repo(t)
+	out, err := exec.Command("git", "config", "--show-origin", "--get", "core.fsmonitor").CombinedOutput()
+	if err == nil {
+		t.Fatalf("the scratch repository sees the user's core.fsmonitor: %s", out)
+	}
 }
 
 func TestChanged(t *testing.T) {
