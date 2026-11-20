@@ -72,11 +72,12 @@ func TestTypedDocumentResultAndOwnership(t *testing.T) {
 func TestTypedDocumentConversionBudget(t *testing.T) {
  d, err := NewDocument("é")
  if err != nil { t.Fatal(err) }
- // The Node parse can reuse its result, while typed conversion must still be
- // charged to the same invocation controller and abandon interrupted work.
+ // The Node parse can reuse its result; the parse of ParseValue still counts its units against the
+ // invocation's limit (converting the result charges nothing), and an interrupted ParseValue
+ // returns no value.
  if _, err := d.Parse(); err != nil { t.Fatal(err) }
- if v, err := d.ParseValue(WithLimits(Limits{Compute: 1})); v != nil || !errors.Is(err, ErrLimit) { t.Fatalf("conversion budget: %v %v", v, err) }
- if v, err := d.ParseValue(); v == nil || v.First == nil || err != nil { t.Fatalf("retry after conversion interruption: %v", err) }
+ if v, err := d.ParseValue(WithLimits(Limits{Compute: 1})); v != nil || !errors.Is(err, ErrLimit) { t.Fatalf("parse budget: %v %v", v, err) }
+ if v, err := d.ParseValue(); v == nil || v.First == nil || err != nil { t.Fatalf("retry after interruption: %v", err) }
 }
 `,
 	} {

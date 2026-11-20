@@ -96,7 +96,7 @@ func (g *Generator) typedGo(start *common.Rule, conv bool) (typedOutput, error) 
 		fmt.Fprintf(&entries, `%s// It builds the values directly, without the nodes Parse returns.
 func ParseValue(input string, opts ...ParseOption) (%s, error) {
 	a := &tslabs{}
-		return TParse(trules[%d], input, opts, a, func(v any) %s { return %s })
+		return TParse(trules[%d], input, opts, a, func(v any) %s { a.result = true; return %s })
 }
 
 `, doc, t.goType(st), start.ID, t.goType(st), result)
@@ -228,7 +228,7 @@ func (it *StreamValueIterator) Close() { it.pull.Close() }
 			needTyped = true
 			enter(r)
 			result := t.dconv(x, "v", "a")
-			fmt.Fprintf(&named, "\t\ta := &tslabs{}\n\t\treturn TParseResolved(trules[%d], input, o, a, func(v any) %s { return %s })\n", r.ID, t.goType(x), result)
+			fmt.Fprintf(&named, "\t\ta := &tslabs{}\n\t\treturn TParseResolved(trules[%d], input, o, a, func(v any) %s { a.result = true; return %s })\n", r.ID, t.goType(x), result)
 		} else {
 			needNodes = true
 			result := t.conv(x, "n")
@@ -303,6 +303,7 @@ func (d *Document) ParseValue(opts ...ParseOption) (%s, error) {
  if err != nil { var zero %s; return zero, err }
  a := &tslabs{}
  return TypedDocumentParse(d.Document, trules[%d], o, a, func(v any) %s {
+  a.result = true
   return %s
  })
 }
@@ -756,7 +757,7 @@ func (t *TypedGen) converters(b *strings.Builder) {
 // was converted from. The typed value of a named node type's node is remembered by its own
 // converter, so the typed value as a plain node is not remembered.
 func (a *astConv) toMatch(n *Node) *TNode[string] {
-	a.spend()
+	a.step()
 	if n == nil || D(n).Kind == nil || D(n).Kind.Base != BaseString {
 		return nil
 	}
@@ -775,7 +776,7 @@ func (a *astConv) toMatch(n *Node) *TNode[string] {
 // toNode converts a node of a statically unknown Value: its Value is the text of a string node,
 // and a []any of the converted elements of a tuple or list node.
 func (a *astConv) toNode(n *Node) *TNode[any] {
-	a.spend()
+	a.step()
 	if n == nil || n.Type() == "error" {
 		return nil
 	}
@@ -798,14 +799,14 @@ func (a *astConv) toNode(n *Node) *TNode[any] {
 func (a *astConv) elems(n *Node) []any {
 	out := make([]any, len(D(n).Children))
 	for i, c := range D(n).Children {
-		a.spend()
+		a.step()
 		out[i] = a.anyValue(c)
 	}
 	return out
 }
 
 func (a *astConv) toError(n *Node) *Error {
-	a.spend()
+	a.step()
 	if n == nil || n.Type() != "error" {
 		return nil
 	}
@@ -818,7 +819,7 @@ func (a *astConv) toError(n *Node) *Error {
 }
 
 `, span)
-	b.WriteString("// anyValue converts a value of a statically unknown type into the typed value of its type (tuple\n// and list nodes become TNode[any], and tuple and list values []any).\nfunc (a *astConv) anyValue(v any) any {\n\ta.spend()\n\tn, ok := v.(*Node)\n\tif !ok {\n\t\treturn v\n\t}\n\tif n == nil {\n\t\treturn nil\n\t}\n\tswitch n.Type() {\n")
+	b.WriteString("// anyValue converts a value of a statically unknown type into the typed value of its type (tuple\n// and list nodes become TNode[any], and tuple and list values []any).\nfunc (a *astConv) anyValue(v any) any {\n\ta.step()\n\tn, ok := v.(*Node)\n\tif !ok {\n\t\treturn v\n\t}\n\tif n == nil {\n\t\treturn nil\n\t}\n\tswitch n.Type() {\n")
 	b.WriteString("\tcase \"string\":\n\t\treturn a.toMatch(n)\n\tcase \"error\":\n\t\treturn a.toError(n)\n\tcase \"tuple\", \"list\":\n\t\treturn a.toNode(n)\n\tcase \"(box)\":\n\t\treturn a.anyValue(UnboxNode(n))\n\tcase \"(tuple)\", \"(list)\":\n\t\treturn a.elems(n)\n")
 	for _, name := range append(append([]string(nil), t.structs...), t.NodeTypes...) {
 		fmt.Fprintf(b, "\tcase %q:\n\t\treturn a.%s(n)\n", name, convName(name))
@@ -827,10 +828,10 @@ func (a *astConv) toError(n *Node) *Error {
 	for _, name := range t.NodeTypes {
 		// A node of a named node type converts as the node it was converted from (baseNode).
 		n, _ := t.G.Prog.Check.NodeTypeOf(name)
-		fmt.Fprintf(b, "func (a *astConv) %[4]s(n *Node) *%[1]s {\n\ta.spend()\n\tif n == nil || n.Type() != %[2]q {\n\t\treturn nil\n\t}\n\tif v, ok := a.values[n]; ok { return v.(*%[1]s) }\n\tu := %[3]s\n\tif u == nil {\n\t\treturn nil\n\t}\n\tv := &%[1]s{%[5]s: *u}\n\ta.remember(n, v)\n\treturn v\n}\n\n", t.ref(name), name, t.conv(n.Underlying(), "BaseNode(n)"), convName(name), embeddedName(t.goType(n.Underlying())))
+		fmt.Fprintf(b, "func (a *astConv) %[4]s(n *Node) *%[1]s {\n\ta.step()\n\tif n == nil || n.Type() != %[2]q {\n\t\treturn nil\n\t}\n\tif v, ok := a.values[n]; ok { return v.(*%[1]s) }\n\tu := %[3]s\n\tif u == nil {\n\t\treturn nil\n\t}\n\tv := &%[1]s{%[5]s: *u}\n\ta.remember(n, v)\n\treturn v\n}\n\n", t.ref(name), name, t.conv(n.Underlying(), "BaseNode(n)"), convName(name), embeddedName(t.goType(n.Underlying())))
 	}
 	for _, name := range t.structs {
-		fmt.Fprintf(b, "func (a *astConv) %[4]s(n *Node) *%[1]s {\n\ta.spend()\n\tif n == nil || n.Type() != %[2]q {\n\t\treturn nil\n\t}\n\tif v, ok := a.values[n]; ok { return v.(*%[1]s) }\n\tv := astNew(&a.t%[5]s)\n\ta.remember(n, v)\n\tv.%[3]s = %[3]s{Start: int(D(n).Start), End: int(D(n).End)}\n", t.ref(name), name, span, convName(name), name)
+		fmt.Fprintf(b, "func (a *astConv) %[4]s(n *Node) *%[1]s {\n\ta.step()\n\tif n == nil || n.Type() != %[2]q {\n\t\treturn nil\n\t}\n\tif v, ok := a.values[n]; ok { return v.(*%[1]s) }\n\tv := astNew(&a.t%[5]s)\n\ta.remember(n, v)\n\tv.%[3]s = %[3]s{Start: int(D(n).Start), End: int(D(n).End)}\n", t.ref(name), name, span, convName(name), name)
 		if len(t.Info.Fields[name]) > 0 {
 			// Fields are set in the order the action set them; look each one up.
 			for _, f := range t.Info.Fields[name] {
@@ -841,7 +842,7 @@ func (a *astConv) toError(n *Node) *Error {
 	}
 	for _, name := range t.aliases {
 		u := t.joinOf(name)
-		fmt.Fprintf(b, "func (a *astConv) %s(n *Node) %s {\n\ta.spend()\n\tif n == nil {\n\t\treturn nil\n\t}\n\tswitch n.Type() {\n\tcase \"error\":\n\t\treturn a.toError(n)\n", convName(name), t.ref(name))
+		fmt.Fprintf(b, "func (a *astConv) %s(n *Node) %s {\n\ta.step()\n\tif n == nil {\n\t\treturn nil\n\t}\n\tswitch n.Type() {\n\tcase \"error\":\n\t\treturn a.toError(n)\n", convName(name), t.ref(name))
 		for _, m := range u.Alts {
 			if m, ok := m.(types.NodeTy); ok && m.Name != "" {
 				fmt.Fprintf(b, "\tcase %q:\n\t\treturn a.%s(n)\n", m.Name, convName(m.Name))
@@ -870,7 +871,7 @@ func (a *astConv) toError(n *Node) *Error {
 			l := t.listOrder[i]
 			elem := t.goType(l.elem)
 			conv := t.conv(l.elem, "UnboxNode(c)")
-			fmt.Fprintf(b, "func (a *astConv) %[1]s(n *Node) []%[2]s {\n\ta.spend()\n\tif n == nil {\n\t\treturn nil\n\t}\n\tout := astSlice(&a.%[1]sChunk, len(D(n).Children))\n\tfor i, c := range D(n).Children {\n\t\ta.spend()\n\t\tout[i] = %[3]s\n\t}\n\treturn out\n}\n\n", l.name, elem, conv)
+			fmt.Fprintf(b, "func (a *astConv) %[1]s(n *Node) []%[2]s {\n\ta.step()\n\tif n == nil {\n\t\treturn nil\n\t}\n\tout := astSlice(&a.%[1]sChunk, len(D(n).Children))\n\tfor i, c := range D(n).Children {\n\t\ta.step()\n\t\tout[i] = %[3]s\n\t}\n\treturn out\n}\n\n", l.name, elem, conv)
 		}
 		if !t.nodeHelpers(b, &helpers) && i == len(t.listOrder) {
 			break
@@ -878,7 +879,7 @@ func (a *astConv) toError(n *Node) *Error {
 	}
 	// The converter, written last because the list converters are known only now: a chunk of
 	// values per type and of elements per list type.
-	b.WriteString("// astConv converts nodes into typed values.\ntype astConv struct {\n\tcontrol *BudgetControl\n\tvalues map[*Node]any // preserve aliases when one node appears in multiple fields or lists\n\tmatch astChunk[TNode[string]]\n\terror astChunk[Error]\n")
+	b.WriteString("// astConv converts nodes into typed values.\ntype astConv struct {\n\tcontrol *BudgetControl\n\tsteps uint64 // the steps of the conversion so far (step)\n\tvalues map[*Node]any // preserve aliases when one node appears in multiple fields or lists\n\tmatch astChunk[TNode[string]]\n\terror astChunk[Error]\n")
 	for _, name := range t.structs {
 		fmt.Fprintf(b, "\tt%s astChunk[%s]\n", name, t.ref(name))
 	}
@@ -890,17 +891,17 @@ func (a *astConv) toError(n *Node) *Error {
  if a.values == nil { a.values = make(map[*Node]any) }
  a.values[n] = v
 }
-func (a *astConv) spend() {
- if a.control != nil { a.control.Charge(1) }
+// step counts one step of the conversion, which charges no compute units (the values a parse
+// builds charge nothing in any representation), and observes cancellation and the memory limit
+// every 256 steps.
+func (a *astConv) step() {
+ if a.control != nil {
+  a.steps++
+  if a.steps%256 == 0 { a.control.Check() }
+ }
 }
 func (a *astConv) field(n *Node, name string) any {
- if a.control == nil { return RawField(n, name) }
- if n == nil { return nil }
- for _, f := range D(n).Fields {
-  a.spend()
-  if f.Name == name { return f.Value }
- }
- return nil
+ return RawField(n, name)
 }
 
 `)
@@ -1536,7 +1537,7 @@ func (t *TypedGen) typedLib(b *strings.Builder) {
 	b.WriteString("// tinit sets up the typed rules (called at the end of init, after the rule tables).\nfunc tinit() {\n" + reg.String() + "}\n\n")
 	b.WriteString(cons.String())
 	b.WriteString(convs.String())
-	b.WriteString("// tslabs holds the chunks the typed values of a parse are allocated from.\ntype tslabs struct {\n\tcontrol *BudgetControl\n")
+	b.WriteString("// tslabs holds the chunks the typed values of a parse are allocated from.\ntype tslabs struct {\n\tcontrol *BudgetControl\n\t// result is set when the parse is over and its result is converted, which charges no compute\n\t// units (the values a parse builds charge nothing); steps counts the steps of that conversion.\n\tresult bool\n\tsteps  uint64\n")
 	for _, name := range t.structs {
 		fmt.Fprintf(b, "\tt%s astChunk[%s]\n", name, t.ref(name))
 	}
@@ -1557,7 +1558,7 @@ func (t *TypedGen) typedLib(b *strings.Builder) {
 	for _, l := range t.tlistOrder {
 		fmt.Fprintf(b, "\t%sChunk astChunk[%s]\n", l.name, t.goType(l.elem))
 	}
-	b.WriteString("}\n\nfunc (a *tslabs) SetBudgetControl(c *BudgetControl) { a.control = c }\nfunc (a *tslabs) spend() { if a.control != nil { a.control.Charge(1) } }\n\n")
+	b.WriteString("}\n\nfunc (a *tslabs) SetBudgetControl(c *BudgetControl) { a.control = c }\n// spend charges a unit for a step of a conversion during the parse. In the conversion of the result it\n// charges nothing and observes cancellation and the memory limit every 256 steps.\nfunc (a *tslabs) spend() {\n\tif a.control == nil {\n\t\treturn\n\t}\n\tif a.result {\n\t\ta.steps++\n\t\tif a.steps%256 == 0 {\n\t\t\ta.control.Check()\n\t\t}\n\t\treturn\n\t}\n\ta.control.Charge(1)\n}\n\n")
 	// MemoryBytes sums the chunks for the memory limit, which reads it at its checks. The local
 	// chunk helpers of the measurement references do not count, and their values are not charged.
 	if !t.G.chunksInLib {

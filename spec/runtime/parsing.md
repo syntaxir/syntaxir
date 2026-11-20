@@ -391,6 +391,12 @@ items. They are an item of the cost, and a walk charges a unit for each
 element it copies; the copies are at most the iterations that taking the record
 spares.
 
+Converting the result of a parse into the typed values that the `ParseValue` or
+`parseValue` of a generated parser returns charges nothing either: the
+conversion visits each value of the result at most once for each type it
+converts it to, a constant of the grammar for each value the parse built. It
+still observes cancellation and the memory limit.
+
 Some values are built by the runtime rather than by an action, and each backend
 charges them as follows:
 

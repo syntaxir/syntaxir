@@ -349,7 +349,8 @@ With `-types` as well, the package gains `StreamValue`, `ParseStreamValue` and
 `IterateValue` with `StreamValueIterator`. `StreamValue` is the Go type of one element
 of the `#stream` repetition, not of the start rule. Each element is converted on
 its own when it is committed, so the value stays valid after the callback returns.
-The conversion counts toward the compute limits and observes the context.
+The conversion charges no compute units, as [converting a result](parsing.md#cost)
+does not, and observes the context.
 
 ### Generated TypeScript API
 

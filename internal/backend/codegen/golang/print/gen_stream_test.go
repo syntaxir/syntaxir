@@ -1253,7 +1253,7 @@ func TestParseStreamValue(t *testing.T) {
 	}
 }
 
-// Converting elements is charged to the compute limits like parsing them.
+// Converting elements charges no compute units: the typed stream charges what the node stream does.
 func TestParseStreamValueBudgetControls(t *testing.T) {
 	input := strings.Repeat("a"+strings.Repeat("1", 50)+";", 200)
 	steps := func(f func(limits Limits) error) int {
@@ -1277,7 +1277,7 @@ func TestParseStreamValueBudgetControls(t *testing.T) {
 	values := steps(func(l Limits) error {
 		return ParseStreamValue(strings.NewReader(input), func(StreamValue) error { return nil }, WithLimits(l))
 	})
-	if values <= nodes {
+	if values != nodes {
 		t.Fatalf("typed stream needs %d steps, node stream %d", values, nodes)
 	}
 	ctx, cancel := context.WithCancel(context.Background())

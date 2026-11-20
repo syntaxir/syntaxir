@@ -10,7 +10,7 @@ termcharges/term 0: map(concat(map(list("", ""), (e2) => e2), map(filter(list(4,
 termcharges/term 0: map(concat(map(list("", ""), (e2) => e2), map(filter(list(4, 0), (e3) => ($x == nil)), (e4) => "é")), (e1) => e1) | a engine-vm	42 ok
 termcharges/term 0: map(concat(map(list("", ""), (e2) => e2), map(filter(list(4, 0), (e3) => ($x == nil)), (e4) => "é")), (e1) => e1) | a go-node	53 ok
 termcharges/term 0: map(concat(map(list("", ""), (e2) => e2), map(filter(list(4, 0), (e3) => ($x == nil)), (e4) => "é")), (e1) => e1) | a go-node-recognize	6 ok
-termcharges/term 0: map(concat(map(list("", ""), (e2) => e2), map(filter(list(4, 0), (e3) => ($x == nil)), (e4) => "é")), (e1) => e1) | a go-typed	47 ok
+termcharges/term 0: map(concat(map(list("", ""), (e2) => e2), map(filter(list(4, 0), (e3) => ($x == nil)), (e4) => "é")), (e1) => e1) | a go-typed	44 ok
 termcharges/term 0: map(concat(map(list("", ""), (e2) => e2), map(filter(list(4, 0), (e3) => ($x == nil)), (e4) => "é")), (e1) => e1) | a go-typed-recognize	6 ok
 termcharges/term 0: map(concat(map(list("", ""), (e2) => e2), map(filter(list(4, 0), (e3) => ($x == nil)), (e4) => "é")), (e1) => e1) | a ts-node	66 ok
 termcharges/term 10: (-(list("a", "a", len(text($x)))[0].(int)) == -(9223372036854775807)) | a engine-closure	3 action in main: cannot cast string to int at input position 0 (line 1, column 1)
@@ -42,7 +42,7 @@ termcharges/term 12: (foldl(($x.Start - $x.Start), filter(list($x.Start), (e20) 
 termcharges/term 12: (foldl(($x.Start - $x.Start), filter(list($x.Start), (e20) => ($x == nil)), (a16, e17) => foldl(2, list("é", "😀x", "😀x"), (a18, e19) => $x.Start)), (R{A: $x.Start, B: "😀x", C: ($x != nil)}).B) | a engine-vm	40 ok
 termcharges/term 12: (foldl(($x.Start - $x.Start), filter(list($x.Start), (e20) => ($x == nil)), (a16, e17) => foldl(2, list("é", "😀x", "😀x"), (a18, e19) => $x.Start)), (R{A: $x.Start, B: "😀x", C: ($x != nil)}).B) | a go-node	44 ok
 termcharges/term 12: (foldl(($x.Start - $x.Start), filter(list($x.Start), (e20) => ($x == nil)), (a16, e17) => foldl(2, list("é", "😀x", "😀x"), (a18, e19) => $x.Start)), (R{A: $x.Start, B: "😀x", C: ($x != nil)}).B) | a go-node-recognize	6 ok
-termcharges/term 12: (foldl(($x.Start - $x.Start), filter(list($x.Start), (e20) => ($x == nil)), (a16, e17) => foldl(2, list("é", "😀x", "😀x"), (a18, e19) => $x.Start)), (R{A: $x.Start, B: "😀x", C: ($x != nil)}).B) | a go-typed	23 ok
+termcharges/term 12: (foldl(($x.Start - $x.Start), filter(list($x.Start), (e20) => ($x == nil)), (a16, e17) => foldl(2, list("é", "😀x", "😀x"), (a18, e19) => $x.Start)), (R{A: $x.Start, B: "😀x", C: ($x != nil)}).B) | a go-typed	22 ok
 termcharges/term 12: (foldl(($x.Start - $x.Start), filter(list($x.Start), (e20) => ($x == nil)), (a16, e17) => foldl(2, list("é", "😀x", "😀x"), (a18, e19) => $x.Start)), (R{A: $x.Start, B: "😀x", C: ($x != nil)}).B) | a go-typed-recognize	6 ok
 termcharges/term 12: (foldl(($x.Start - $x.Start), filter(list($x.Start), (e20) => ($x == nil)), (a16, e17) => foldl(2, list("é", "😀x", "😀x"), (a18, e19) => $x.Start)), (R{A: $x.Start, B: "😀x", C: ($x != nil)}).B) | a ts-node	59 ok
 termcharges/term 13: list("bc", "😀x") | a engine-closure	16 ok
@@ -50,7 +50,7 @@ termcharges/term 13: list("bc", "😀x") | a engine-iterative	16 ok
 termcharges/term 13: list("bc", "😀x") | a engine-vm	16 ok
 termcharges/term 13: list("bc", "😀x") | a go-node	17 ok
 termcharges/term 13: list("bc", "😀x") | a go-node-recognize	6 ok
-termcharges/term 13: list("bc", "😀x") | a go-typed	17 ok
+termcharges/term 13: list("bc", "😀x") | a go-typed	14 ok
 termcharges/term 13: list("bc", "😀x") | a go-typed-recognize	6 ok
 termcharges/term 13: list("bc", "😀x") | a ts-node	20 ok
 termcharges/term 14: ((R{A: 1, B: "a", C: ($x != nil)}).C && ((($x != nil) || ($x != nil)) != ($x.Start < 2))) | a engine-closure	30 ok
@@ -90,7 +90,7 @@ termcharges/term 17: list("a") | a engine-iterative	12 ok
 termcharges/term 17: list("a") | a engine-vm	12 ok
 termcharges/term 17: list("a") | a go-node	12 ok
 termcharges/term 17: list("a") | a go-node-recognize	6 ok
-termcharges/term 17: list("a") | a go-typed	12 ok
+termcharges/term 17: list("a") | a go-typed	10 ok
 termcharges/term 17: list("a") | a go-typed-recognize	6 ok
 termcharges/term 17: list("a") | a ts-node	15 ok
 termcharges/term 18: R{A: 2, B: ("" + (list("a"))[len(text($x))]), C: false} | a engine-closure	3 action in main: index 1 out of range for 1 elements
@@ -178,7 +178,7 @@ termcharges/term 25: (len(("bc" + "a")), foldl((R{A: 4611686018427387904, B: "",
 termcharges/term 25: (len(("bc" + "a")), foldl((R{A: 4611686018427387904, B: "", C: ($x == nil)}).B, list("bc", "é", "😀x"), (a44, e45) => (a44 + a44))) | a engine-vm	59 ok
 termcharges/term 25: (len(("bc" + "a")), foldl((R{A: 4611686018427387904, B: "", C: ($x == nil)}).B, list("bc", "é", "😀x"), (a44, e45) => (a44 + a44))) | a go-node	64 ok
 termcharges/term 25: (len(("bc" + "a")), foldl((R{A: 4611686018427387904, B: "", C: ($x == nil)}).B, list("bc", "é", "😀x"), (a44, e45) => (a44 + a44))) | a go-node-recognize	6 ok
-termcharges/term 25: (len(("bc" + "a")), foldl((R{A: 4611686018427387904, B: "", C: ($x == nil)}).B, list("bc", "é", "😀x"), (a44, e45) => (a44 + a44))) | a go-typed	41 ok
+termcharges/term 25: (len(("bc" + "a")), foldl((R{A: 4611686018427387904, B: "", C: ($x == nil)}).B, list("bc", "é", "😀x"), (a44, e45) => (a44 + a44))) | a go-typed	40 ok
 termcharges/term 25: (len(("bc" + "a")), foldl((R{A: 4611686018427387904, B: "", C: ($x == nil)}).B, list("bc", "é", "😀x"), (a44, e45) => (a44 + a44))) | a go-typed-recognize	6 ok
 termcharges/term 25: (len(("bc" + "a")), foldl((R{A: 4611686018427387904, B: "", C: ($x == nil)}).B, list("bc", "é", "😀x"), (a44, e45) => (a44 + a44))) | a ts-node	86 ok
 termcharges/term 26: ((R{A: $x.End, B: "bc", C: true}).A, (("é" + "bc") + foldl("", list("bc", "😀x"), (a46, e47) => ""))) | a engine-closure	51 ok
@@ -186,7 +186,7 @@ termcharges/term 26: ((R{A: $x.End, B: "bc", C: true}).A, (("é" + "bc") + foldl
 termcharges/term 26: ((R{A: $x.End, B: "bc", C: true}).A, (("é" + "bc") + foldl("", list("bc", "😀x"), (a46, e47) => ""))) | a engine-vm	50 ok
 termcharges/term 26: ((R{A: $x.End, B: "bc", C: true}).A, (("é" + "bc") + foldl("", list("bc", "😀x"), (a46, e47) => ""))) | a go-node	54 ok
 termcharges/term 26: ((R{A: $x.End, B: "bc", C: true}).A, (("é" + "bc") + foldl("", list("bc", "😀x"), (a46, e47) => ""))) | a go-node-recognize	6 ok
-termcharges/term 26: ((R{A: $x.End, B: "bc", C: true}).A, (("é" + "bc") + foldl("", list("bc", "😀x"), (a46, e47) => ""))) | a go-typed	35 ok
+termcharges/term 26: ((R{A: $x.End, B: "bc", C: true}).A, (("é" + "bc") + foldl("", list("bc", "😀x"), (a46, e47) => ""))) | a go-typed	34 ok
 termcharges/term 26: ((R{A: $x.End, B: "bc", C: true}).A, (("é" + "bc") + foldl("", list("bc", "😀x"), (a46, e47) => ""))) | a go-typed-recognize	6 ok
 termcharges/term 26: ((R{A: $x.End, B: "bc", C: true}).A, (("é" + "bc") + foldl("", list("bc", "😀x"), (a46, e47) => ""))) | a ts-node	68 ok
 termcharges/term 27: (((text($x) + "a") == (R{A: $x.End, B: "😀x", C: ($x == nil)}).B) || (foldr(len(text($x)), list(4611686018427387904, -2, 0), (a48, e49) => -1) <= foldr(3, list(4, 9223372036854775807, len(text($x))), (a50, e51) => $x.Start))) | a engine-closure	61 ok
@@ -218,7 +218,7 @@ termcharges/term 29: list(foldl(len(list(3, $x.End, len(text($x)))), map(list("�
 termcharges/term 29: list(foldl(len(list(3, $x.End, len(text($x)))), map(list("😀x", text($x), text($x)), (e54) => "é"), (a52, e53) => a52), len((R{A: $x.Start, B: "", C: true}).B), foldr((3 - 3), list(), (a55, e56) => foldl(len(text($x)), list(a55, a55), (a57, e58) => a57))) | a engine-vm	79 ok
 termcharges/term 29: list(foldl(len(list(3, $x.End, len(text($x)))), map(list("😀x", text($x), text($x)), (e54) => "é"), (a52, e53) => a52), len((R{A: $x.Start, B: "", C: true}).B), foldr((3 - 3), list(), (a55, e56) => foldl(len(text($x)), list(a55, a55), (a57, e58) => a57))) | a go-node	94 ok
 termcharges/term 29: list(foldl(len(list(3, $x.End, len(text($x)))), map(list("😀x", text($x), text($x)), (e54) => "é"), (a52, e53) => a52), len((R{A: $x.Start, B: "", C: true}).B), foldr((3 - 3), list(), (a55, e56) => foldl(len(text($x)), list(a55, a55), (a57, e58) => a57))) | a go-node-recognize	6 ok
-termcharges/term 29: list(foldl(len(list(3, $x.End, len(text($x)))), map(list("😀x", text($x), text($x)), (e54) => "é"), (a52, e53) => a52), len((R{A: $x.Start, B: "", C: true}).B), foldr((3 - 3), list(), (a55, e56) => foldl(len(text($x)), list(a55, a55), (a57, e58) => a57))) | a go-typed	67 ok
+termcharges/term 29: list(foldl(len(list(3, $x.End, len(text($x)))), map(list("😀x", text($x), text($x)), (e54) => "é"), (a52, e53) => a52), len((R{A: $x.Start, B: "", C: true}).B), foldr((3 - 3), list(), (a55, e56) => foldl(len(text($x)), list(a55, a55), (a57, e58) => a57))) | a go-typed	63 ok
 termcharges/term 29: list(foldl(len(list(3, $x.End, len(text($x)))), map(list("😀x", text($x), text($x)), (e54) => "é"), (a52, e53) => a52), len((R{A: $x.Start, B: "", C: true}).B), foldr((3 - 3), list(), (a55, e56) => foldl(len(text($x)), list(a55, a55), (a57, e58) => a57))) | a go-typed-recognize	6 ok
 termcharges/term 29: list(foldl(len(list(3, $x.End, len(text($x)))), map(list("😀x", text($x), text($x)), (e54) => "é"), (a52, e53) => a52), len((R{A: $x.Start, B: "", C: true}).B), foldr((3 - 3), list(), (a55, e56) => foldl(len(text($x)), list(a55, a55), (a57, e58) => a57))) | a ts-node	113 ok
 termcharges/term 2: (foldr((text($x) + text($x)), list("😀x", ""), (a6, e7) => list(1, a6)[1].(string)) != (R{A: 4611686018427387904, B: "é", C: ($x == nil)}).B) | a engine-closure	59 ok
@@ -234,7 +234,7 @@ termcharges/term 30: (len(map(list(4), (e59) => "😀x")), foldl((R{A: 3, B: "é
 termcharges/term 30: (len(map(list(4), (e59) => "😀x")), foldl((R{A: 3, B: "é", C: ($x == nil)}).B, map(list($x.End, -2), (e62) => text($x)), (a60, e61) => "bc")) | a engine-vm	61 ok
 termcharges/term 30: (len(map(list(4), (e59) => "😀x")), foldl((R{A: 3, B: "é", C: ($x == nil)}).B, map(list($x.End, -2), (e62) => text($x)), (a60, e61) => "bc")) | a go-node	72 ok
 termcharges/term 30: (len(map(list(4), (e59) => "😀x")), foldl((R{A: 3, B: "é", C: ($x == nil)}).B, map(list($x.End, -2), (e62) => text($x)), (a60, e61) => "bc")) | a go-node-recognize	6 ok
-termcharges/term 30: (len(map(list(4), (e59) => "😀x")), foldl((R{A: 3, B: "é", C: ($x == nil)}).B, map(list($x.End, -2), (e62) => text($x)), (a60, e61) => "bc")) | a go-typed	46 ok
+termcharges/term 30: (len(map(list(4), (e59) => "😀x")), foldl((R{A: 3, B: "é", C: ($x == nil)}).B, map(list($x.End, -2), (e62) => text($x)), (a60, e61) => "bc")) | a go-typed	45 ok
 termcharges/term 30: (len(map(list(4), (e59) => "😀x")), foldl((R{A: 3, B: "é", C: ($x == nil)}).B, map(list($x.End, -2), (e62) => text($x)), (a60, e61) => "bc")) | a go-typed-recognize	6 ok
 termcharges/term 30: (len(map(list(4), (e59) => "😀x")), foldl((R{A: 3, B: "é", C: ($x == nil)}).B, map(list($x.End, -2), (e62) => text($x)), (a60, e61) => "bc")) | a ts-node	87 ok
 termcharges/term 31: ((R{A: 3, B: "😀x", C: false}).B > (map(list("a", text($x), "😀x"), (e63) => e63))[(len(text($x)) % len(text($x)))]) | a engine-closure	55 ok
@@ -306,7 +306,7 @@ termcharges/term 37: map(list(2, len(text($x))), (e70) => (foldr(e70, list(e70, 
 termcharges/term 37: map(list(2, len(text($x))), (e70) => (foldr(e70, list(e70, len(text($x))), (a71, e72) => 3037000500) / (4 - $x.End))) | a engine-vm	47 ok
 termcharges/term 37: map(list(2, len(text($x))), (e70) => (foldr(e70, list(e70, len(text($x))), (a71, e72) => 3037000500) / (4 - $x.End))) | a go-node	57 ok
 termcharges/term 37: map(list(2, len(text($x))), (e70) => (foldr(e70, list(e70, len(text($x))), (a71, e72) => 3037000500) / (4 - $x.End))) | a go-node-recognize	6 ok
-termcharges/term 37: map(list(2, len(text($x))), (e70) => (foldr(e70, list(e70, len(text($x))), (a71, e72) => 3037000500) / (4 - $x.End))) | a go-typed	51 ok
+termcharges/term 37: map(list(2, len(text($x))), (e70) => (foldr(e70, list(e70, len(text($x))), (a71, e72) => 3037000500) / (4 - $x.End))) | a go-typed	48 ok
 termcharges/term 37: map(list(2, len(text($x))), (e70) => (foldr(e70, list(e70, len(text($x))), (a71, e72) => 3037000500) / (4 - $x.End))) | a go-typed-recognize	6 ok
 termcharges/term 37: map(list(2, len(text($x))), (e70) => (foldr(e70, list(e70, len(text($x))), (a71, e72) => 3037000500) / (4 - $x.End))) | a ts-node	82 ok
 termcharges/term 38: R{A: -((len(text($x)) - $x.End)), B: list(foldr("bc", list("a", "a"), (a73, e74) => "é"), 1, list("😀x", 1, "bc")[1].(string))[2].(string), C: ("😀x" >= ("a" + "é"))} | a engine-closure	3 action in main: cannot cast int to string at input position 0 (line 1, column 1)
@@ -354,7 +354,7 @@ termcharges/term 4: list(9223372036854775807) | a engine-iterative	12 ok
 termcharges/term 4: list(9223372036854775807) | a engine-vm	12 ok
 termcharges/term 4: list(9223372036854775807) | a go-node	12 ok
 termcharges/term 4: list(9223372036854775807) | a go-node-recognize	6 ok
-termcharges/term 4: list(9223372036854775807) | a go-typed	12 ok
+termcharges/term 4: list(9223372036854775807) | a go-typed	10 ok
 termcharges/term 4: list(9223372036854775807) | a go-typed-recognize	6 ok
 termcharges/term 4: list(9223372036854775807) | a ts-node	15 ok
 termcharges/term 5: map(list(len("a"), len(list(text($x), "a"))), (e8) => (foldr(text($x), list("a", text($x)), (a9, e10) => "bc") + foldr("a", list("é", "", text($x)), (a11, e12) => ""))) | a engine-closure	87 ok
@@ -362,7 +362,7 @@ termcharges/term 5: map(list(len("a"), len(list(text($x), "a"))), (e8) => (foldr
 termcharges/term 5: map(list(len("a"), len(list(text($x), "a"))), (e8) => (foldr(text($x), list("a", text($x)), (a9, e10) => "bc") + foldr("a", list("é", "", text($x)), (a11, e12) => ""))) | a engine-vm	87 ok
 termcharges/term 5: map(list(len("a"), len(list(text($x), "a"))), (e8) => (foldr(text($x), list("a", text($x)), (a9, e10) => "bc") + foldr("a", list("é", "", text($x)), (a11, e12) => ""))) | a go-node	108 ok
 termcharges/term 5: map(list(len("a"), len(list(text($x), "a"))), (e8) => (foldr(text($x), list("a", text($x)), (a9, e10) => "bc") + foldr("a", list("é", "", text($x)), (a11, e12) => ""))) | a go-node-recognize	6 ok
-termcharges/term 5: map(list(len("a"), len(list(text($x), "a"))), (e8) => (foldr(text($x), list("a", text($x)), (a9, e10) => "bc") + foldr("a", list("é", "", text($x)), (a11, e12) => ""))) | a go-typed	94 ok
+termcharges/term 5: map(list(len("a"), len(list(text($x), "a"))), (e8) => (foldr(text($x), list("a", text($x)), (a9, e10) => "bc") + foldr("a", list("é", "", text($x)), (a11, e12) => ""))) | a go-typed	91 ok
 termcharges/term 5: map(list(len("a"), len(list(text($x), "a"))), (e8) => (foldr(text($x), list("a", text($x)), (a9, e10) => "bc") + foldr("a", list("é", "", text($x)), (a11, e12) => ""))) | a go-typed-recognize	6 ok
 termcharges/term 5: map(list(len("a"), len(list(text($x), "a"))), (e8) => (foldr(text($x), list("a", text($x)), (a9, e10) => "bc") + foldr("a", list("é", "", text($x)), (a11, e12) => ""))) | a ts-node	146 ok
 termcharges/term 6: (-2, list(1, ("" + text($x)), 1)[0].(string)) | a engine-closure	3 action in main: cannot cast int to string at input position 0 (line 1, column 1)
@@ -402,6 +402,6 @@ termcharges/term 9: map(list($x.End), (e15) => e15) | a engine-iterative	16 ok
 termcharges/term 9: map(list($x.End), (e15) => e15) | a engine-vm	16 ok
 termcharges/term 9: map(list($x.End), (e15) => e15) | a go-node	18 ok
 termcharges/term 9: map(list($x.End), (e15) => e15) | a go-node-recognize	6 ok
-termcharges/term 9: map(list($x.End), (e15) => e15) | a go-typed	17 ok
+termcharges/term 9: map(list($x.End), (e15) => e15) | a go-typed	15 ok
 termcharges/term 9: map(list($x.End), (e15) => e15) | a go-typed-recognize	6 ok
 termcharges/term 9: map(list($x.End), (e15) => e15) | a ts-node	23 ok

@@ -512,6 +512,10 @@ differ on them until they are settled:
   engine; within the engine only the closure backend charges it (n units on a failed repetition), and the
   bytecode backends charge nothing.
 
+> **Note (2026-11)**: The `frame.open` divergence has since been settled: opening, saving, restoring and undoing a
+> capture frame charge nothing on every target, as the values a parse builds charge nothing
+> ([Cost](../../../spec/runtime/parsing.md#cost)).
+
 The specification already lets budget counts depend on the backend and
 the generated artifact as long as they are deterministic ([Cancellation and Budget
 Limits](../../../spec/runtime/parsing.md#cancellation-and-compute-limits)), and the targets already differ here:

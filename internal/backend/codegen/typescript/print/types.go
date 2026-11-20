@@ -104,11 +104,7 @@ func (g *Generator) typedTS(start *common.Rule) (typesSrc, parser string, err er
 		astBody = "parseValueWithOptions(input, { unit: unit ?? CodePoints })"
 	}
 	fmt.Fprintf(&b, tsTypedAPI, stType, start.ID, repr, g.optionsType, astBody)
-	runtime := tsTypedLib
-	if g.NoBudget {
-		runtime = tsTypedCharge.ReplaceAllString(runtime, "")
-	}
-	b.WriteString(runtime)
+	b.WriteString(tsTypedLib)
 	// recipe() reserves an ID before visiting child types, so recursive fields
 	// reference the same representation. Write the table after all registration.
 	t.recipe(types.TyMatch)
@@ -465,9 +461,6 @@ const tsTypedValueDeclaration = "export type TypedValue = "
 const tsTypedRecipeTable = "\nconst valueRecipes: readonly ValueRecipe[] = [\n"
 const tsTypedNodeRecipeTable = "];\nconst astNodeRecipes: ReadonlyMap<string, number> = new Map([\n"
 
-// tsTypedCharge matches the statements of tsTypedLib that charge the budget control.
-var tsTypedCharge = regexp.MustCompile(`(?m)^[ \t]*control\?\.charge\([^\n]*\);\n`)
-
 const tsTypedLib = `interface ValueRecipe {
   readonly kind: string;
   readonly name?: string;
@@ -494,12 +487,16 @@ function astResult<T>(r: ParseResult, repr: number, control: BudgetControl | nul
 // Cache canonical Node/representation pairs, including null, in this call only.
 // Register shells before filling edges: shared fold/LR DAGs stay shared and deep
 // output graphs do not consume the JavaScript call stack. Source Nodes stay intact.
+// The conversion charges no compute units: the values a parse builds charge nothing in any
+// representation. It polls the signal and the memory limit every 256 steps.
 function astConvert(value: Value, repr: number, control: BudgetControl | null = null): unknown {
   const cache = new Map<Node, Map<number, unknown>>();
   const pending: ValuePending[] = [];
+  let steps = 0;
+  const step = (): void => { if (control !== null && ++steps % 256 === 0) control.check(); };
   const get = (v: Value, id: number): unknown => {
     for (;;) {
-      control?.charge(1);
+      step();
       const recipe = valueRecipes[id]!;
       switch (recipe.kind) {
         case "int": return isInt(v) ? v : 0;
@@ -537,7 +534,7 @@ function astConvert(value: Value, repr: number, control: BudgetControl | null = 
       }
       if (!(v instanceof Node)) {
         if (recipe.kind !== "tuple") return null;
-        control?.charge(recipe.elems!.length);
+        step();
         return recipe.elems!.map(e => get(null, e));
       }
       if (recipe.kind === "tnode" && (v.type === "error" || v.type === typeTupleValue || v.type === typeListValue)) return null;
@@ -549,10 +546,10 @@ function astConvert(value: Value, repr: number, control: BudgetControl | null = 
       if (reps.has(id)) return reps.get(id);
       let out: ValueObject | unknown[] | null = null;
       if (recipe.kind === "list") {
-        control?.charge(v.children.length);
+        step();
         out = new Array<unknown>(v.children.length);
       } else if (recipe.kind === "tuple") {
-        control?.charge(recipe.elems!.length);
+        step();
         out = new Array<unknown>(recipe.elems!.length);
       } else if (recipe.kind === "tnode") {
         // A named node type takes only its own nodes.
@@ -562,7 +559,7 @@ function astConvert(value: Value, repr: number, control: BudgetControl | null = 
         if (recipe.name === "string") obj["value"] = v.text;
         else if (recipe.kind !== "struct" && recipe.kind !== "error") obj["text"] = v.text;
         if (recipe.kind === "error") {
-          const msg = getFieldSpend(v, "message", control);
+          const msg = v.field("message");
           obj["message"] = typeof msg === "string" ? msg : "";
         }
         out = obj;
@@ -576,19 +573,19 @@ function astConvert(value: Value, repr: number, control: BudgetControl | null = 
   };
   const out = get(value, repr);
   while (pending.length !== 0) {
-    control?.charge(1);
+    step();
     const work = pending.pop()!;
     const recipe = valueRecipes[work.repr]!;
     if (recipe.kind === "list") {
       const array = work.out as unknown[];
       for (let i = 0; i < work.node.children.length; i++) {
-        control?.charge(1);
+        step();
         array[i] = get(astKid(work.node, i), recipe.elem!);
       }
     } else if (recipe.kind === "tuple") {
       const array = work.out as unknown[];
       for (let i = 0; i < recipe.elems!.length; i++) {
-        control?.charge(1);
+        step();
         array[i] = get(astKid(work.node, i), recipe.elems![i]!);
       }
     } else if (recipe.kind === "tnode") {
@@ -599,14 +596,14 @@ function astConvert(value: Value, repr: number, control: BudgetControl | null = 
       else if (valueRecipes[recipe.elem!]!.kind !== "any") obj["value"] = get(null, recipe.elem!);
       else {
         // The elements of an open value, converted like any other open value.
-        control?.charge(n.children.length);
+        step();
         obj["value"] = n.children.map((_, i) => get(astKid(n, i), recipe.elem!));
       }
     } else {
       const obj = work.out as ValueObject;
       for (const f of recipe.fields!) {
-        control?.charge(1);
-        obj[f.name] = get(getFieldSpend(work.node, f.name, control), f.repr);
+        step();
+        obj[f.name] = get(work.node.field(f.name), f.repr);
       }
     }
   }

@@ -79,7 +79,7 @@ err := parser.ParseStreamValue(r, func(p *parser.Pair) error {
 ```
 
 Each element is converted on its own once it is committed, so values stay valid after the callback returns and share
-nothing with later elements. The conversion counts toward `WithLimits` and observes `WithContext`.
+nothing with later elements. The conversion charges no compute units and observes `WithContext`.
 
 ## Related Topics
 

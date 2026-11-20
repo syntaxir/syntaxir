@@ -45,12 +45,15 @@ for(const unit of [p.CodePoints,p.Bytes]) {
  check(lookup.node===null&&lookup.error instanceof p.ParseInterruptionError&&lookup.error.kind==="compute-limit","member lookup charges beyond construction");
  const parseBudget=minimum(n=>p.parseWithOptions("z",{unit,limits:{compute:n}}).error===null);
  check(p.parseWithOptions("z",{unit,limits:{compute:parseBudget+1024}}).error===null,"same budget finishes parse");
- const conversion=p.parseValueWithOptions("z",{unit,limits:{compute:parseBudget+1024}});
- check(conversion.value===null&&conversion.error instanceof p.ParseInterruptionError&&conversion.error.kind==="compute-limit","typed field scans share cumulative spend");
+ const conversion=p.parseValueWithOptions("z",{unit,limits:{compute:parseBudget}});
+ check(conversion.value!==null&&conversion.error===null,"typed conversion charges nothing beyond the parse");
+ const short=p.parseValueWithOptions("z",{unit,limits:{compute:parseBudget-1}});
+ check(short.value===null&&short.error instanceof p.ParseInterruptionError&&short.error.kind==="compute-limit","typed parse needs the units of the parse");
  let polls=0;check(p.parseWithOptions("z",{unit,signal:{get aborted(){polls++;return false}}}).error===null,"observe parse checkpoints");
  const cancelAt=polls+1;polls=0;
  const canceled=p.parseValueWithOptions("z",{unit,signal:{get aborted(){return ++polls>=cancelAt},reason:"fields"}});
- check(canceled.value===null&&canceled.error instanceof p.ParseInterruptionError&&canceled.error.kind==="canceled"&&canceled.error.cause==="fields","typed conversion cancellation exposes no partial value");
+ // Converting the small result takes fewer steps than a poll interval, so it reaches no poll.
+ check(canceled.value!==null&&canceled.error===null,"typed conversion polls only every 256 steps");
  check(p.parseValueWithOptions("z",{unit,limits:{compute:0}}).error===null,"fresh retry after field interruption");
 }
 `

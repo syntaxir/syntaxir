@@ -260,30 +260,35 @@ import zprt "zeroparse.dev/zp/pkg/runtime/libgo"
 import("context";"errors";"reflect";"strings";"testing";"codegentest/PACKAGE/types")
 func TestConversionVisits(t *testing.T){
  n,err:=Parse(strings.Repeat("é",100));if err!=nil{t.Fatal(err)}
- c:=zprt.X_newBudgetControl(context.Background(),Limits{Compute:100000})
- a:=astConv{control:c};v:=a.toTypeBranch(n)
- if v==nil || len(v.Leaves)!=100{t.Fatal("conversion failed")}
- // Branch dispatch, field scan, list dispatch, each list edge, and for each leaf its dispatch
- // and the scan of its Text field.
- if c.X_budgetUsed()!=303{t.Fatalf("conversion spend: %d",c.X_budgetUsed())}
- for _,ceiling:=range []uint64{1,2,3,4,302}{
+ // Converting a result charges nothing, under any limit.
+ for _,ceiling:=range []uint64{1,2,100000}{
   c:=zprt.X_newBudgetControl(context.Background(),Limits{Compute:ceiling})
-  func(){defer func(){f,ok:=recover().(zprt.X_fatal);var e *LimitError;if !ok || !errors.As(f.X_err,&e) || e.Kind!=LimitCompute || e.Used!=ceiling || e.Requested!=1{t.Fatalf("conversion ceiling %d interruption: %+v",ceiling,f)}}();(&astConv{control:c}).toTypeBranch(n)}()
+  a:=astConv{control:c};v:=a.toTypeBranch(n)
+  if v==nil || len(v.Leaves)!=100{t.Fatal("conversion failed")}
+  if c.X_budgetUsed()!=0{t.Fatalf("conversion spend under %d: %d",ceiling,c.X_budgetUsed())}
  }
+ // It still polls every 256 steps: converting 100 leaves takes 202 (the branch, its list, and each
+ // list edge and leaf), which reach no poll, and 200 leaves take 402, which reach one.
+ ctx,cancel:=context.WithCancel(context.Background());cancel()
+ (&astConv{control:zprt.X_newBudgetControl(ctx,Limits{})}).toTypeBranch(n)
+ n,err=Parse(strings.Repeat("é",200));if err!=nil{t.Fatal(err)}
+ c:=zprt.X_newBudgetControl(ctx,Limits{})
+ func(){defer func(){f,ok:=recover().(zprt.X_fatal);if !ok || !errors.Is(f.X_err,context.Canceled){t.Fatalf("conversion poll: %+v",f)}}();(&astConv{control:c}).toTypeBranch(n)}()
 }
 func TestParseConversionSharesCounter(t *testing.T){
  input:=strings.Repeat("é",100)
  before:=uint64(0)
- conv:=func(n *Node,c *zprt.BudgetControl,parseErr error)*types.Branch{before=c.X_budgetUsed();v:=(&astConv{control:c}).toTypeBranch(n);if c.X_budgetUsed()!=before+303{t.Fatal("conversion counter changed independently")};return v}
+ conv:=func(n *Node,c *zprt.BudgetControl,parseErr error)*types.Branch{before=c.X_budgetUsed();v:=(&astConv{control:c}).toTypeBranch(n);if c.X_budgetUsed()!=before{t.Fatal("conversion charged")};return v}
  o:=zprt.X_parseOptions{X_expectations: true, X_maxDepth:zpGrammar.X_maxDepth,X_limits:Limits{Compute:100000}}
  retained,err:=zprt.RunParseConverted(rules[0],input,o,conv)
  if err!=nil || retained==nil{t.Fatal(err)}
  snapshot:=*retained.Leaves[0]
- total:=before+303
- for _,limit:=range []uint64{before+1,total-1,total}{
+ // The parse's own units are all ParseValue needs.
+ total:=before
+ for _,limit:=range []uint64{total-1,total}{
   o.X_limits.Compute=limit
   got,err:=zprt.RunParseConverted(rules[0],input,o,func(n *Node,c *zprt.BudgetControl,parseErr error)*types.Branch{return (&astConv{control:c}).toTypeBranch(n)})
-  if limit==total {if err!=nil || len(got.Leaves)!=100{t.Fatal("exact conversion ceiling",err)}}else if got!=nil || !errors.Is(err,ErrLimit){t.Fatalf("partial conversion leaked at %d: %v %v",limit,got,err)}
+  if limit==total {if err!=nil || len(got.Leaves)!=100{t.Fatal("exact parse ceiling",err)}}else if got!=nil || !errors.Is(err,ErrLimit){t.Fatalf("result leaked at %d: %v %v",limit,got,err)}
  }
  if !reflect.DeepEqual(*retained.Leaves[0],snapshot){t.Fatal("earlier result was overwritten")}
  // Cancellation raised inside conversion is surfaced at the same outer boundary.

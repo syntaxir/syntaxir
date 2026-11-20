@@ -18,7 +18,7 @@ termchargesconvert/term 10: N{$x} | a engine-iterative	7 ok
 termchargesconvert/term 10: N{$x} | a engine-vm	7 ok
 termchargesconvert/term 10: N{$x} | a go-node	5 ok
 termchargesconvert/term 10: N{$x} | a go-node-recognize	5 ok
-termchargesconvert/term 10: N{$x} | a go-typed	5 ok
+termchargesconvert/term 10: N{$x} | a go-typed	4 ok
 termchargesconvert/term 10: N{$x} | a go-typed-recognize	5 ok
 termchargesconvert/term 10: N{$x} | a ts-node	8 ok
 termchargesconvert/term 11: N{$x} | 😀 engine-closure	13 ok
@@ -26,7 +26,7 @@ termchargesconvert/term 11: N{$x} | 😀 engine-iterative	13 ok
 termchargesconvert/term 11: N{$x} | 😀 engine-vm	13 ok
 termchargesconvert/term 11: N{$x} | 😀 go-node	11 ok
 termchargesconvert/term 11: N{$x} | 😀 go-node-recognize	11 ok
-termchargesconvert/term 11: N{$x} | 😀 go-typed	11 ok
+termchargesconvert/term 11: N{$x} | 😀 go-typed	10 ok
 termchargesconvert/term 11: N{$x} | 😀 go-typed-recognize	11 ok
 termchargesconvert/term 11: N{$x} | 😀 ts-node	11 ok
 termchargesconvert/term 12: len(P{$x}) | aa engine-closure	10 ok

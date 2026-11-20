@@ -10,7 +10,7 @@ termchargesiter/term 0: map(list(1, 2, 3), (n) => n * 2) | aaaa engine-iterative
 termchargesiter/term 0: map(list(1, 2, 3), (n) => n * 2) | aaaa engine-vm	45 ok
 termchargesiter/term 0: map(list(1, 2, 3), (n) => n * 2) | aaaa go-node	51 ok
 termchargesiter/term 0: map(list(1, 2, 3), (n) => n * 2) | aaaa go-node-recognize	19 ok
-termchargesiter/term 0: map(list(1, 2, 3), (n) => n * 2) | aaaa go-typed	48 ok
+termchargesiter/term 0: map(list(1, 2, 3), (n) => n * 2) | aaaa go-typed	44 ok
 termchargesiter/term 0: map(list(1, 2, 3), (n) => n * 2) | aaaa go-typed-recognize	19 ok
 termchargesiter/term 0: map(list(1, 2, 3), (n) => n * 2) | aaaa ts-node	68 ok
 termchargesiter/term 10: foldr("", list("a", "b", "c"), (a, s) => a + s) | aaaa engine-closure	42 ok
@@ -82,7 +82,7 @@ termchargesiter/term 18: filter(list(1, 2, 3, 4), (n) => n % 2 == 0) | aaaa engi
 termchargesiter/term 18: filter(list(1, 2, 3, 4), (n) => n % 2 == 0) | aaaa engine-vm	47 ok
 termchargesiter/term 18: filter(list(1, 2, 3, 4), (n) => n % 2 == 0) | aaaa go-node	51 ok
 termchargesiter/term 18: filter(list(1, 2, 3, 4), (n) => n % 2 == 0) | aaaa go-node-recognize	19 ok
-termchargesiter/term 18: filter(list(1, 2, 3, 4), (n) => n % 2 == 0) | aaaa go-typed	49 ok
+termchargesiter/term 18: filter(list(1, 2, 3, 4), (n) => n % 2 == 0) | aaaa go-typed	46 ok
 termchargesiter/term 18: filter(list(1, 2, 3, 4), (n) => n % 2 == 0) | aaaa go-typed-recognize	19 ok
 termchargesiter/term 18: filter(list(1, 2, 3, 4), (n) => n % 2 == 0) | aaaa ts-node	81 ok
 termchargesiter/term 19: filter(list(1, 2), (n) => false) | aaaa engine-closure	31 ok
@@ -90,7 +90,7 @@ termchargesiter/term 19: filter(list(1, 2), (n) => false) | aaaa engine-iterativ
 termchargesiter/term 19: filter(list(1, 2), (n) => false) | aaaa engine-vm	31 ok
 termchargesiter/term 19: filter(list(1, 2), (n) => false) | aaaa go-node	33 ok
 termchargesiter/term 19: filter(list(1, 2), (n) => false) | aaaa go-node-recognize	19 ok
-termchargesiter/term 19: filter(list(1, 2), (n) => false) | aaaa go-typed	31 ok
+termchargesiter/term 19: filter(list(1, 2), (n) => false) | aaaa go-typed	30 ok
 termchargesiter/term 19: filter(list(1, 2), (n) => false) | aaaa go-typed-recognize	19 ok
 termchargesiter/term 19: filter(list(1, 2), (n) => false) | aaaa ts-node	45 ok
 termchargesiter/term 1: len(map(list(), (n) => n)) | aaaa engine-closure	21 ok
@@ -122,7 +122,7 @@ termchargesiter/term 22: filter(list("a", "", "b"), (s) => s != "") | aaaa engin
 termchargesiter/term 22: filter(list("a", "", "b"), (s) => s != "") | aaaa engine-vm	42 ok
 termchargesiter/term 22: filter(list("a", "", "b"), (s) => s != "") | aaaa go-node	45 ok
 termchargesiter/term 22: filter(list("a", "", "b"), (s) => s != "") | aaaa go-node-recognize	19 ok
-termchargesiter/term 22: filter(list("a", "", "b"), (s) => s != "") | aaaa go-typed	44 ok
+termchargesiter/term 22: filter(list("a", "", "b"), (s) => s != "") | aaaa go-typed	41 ok
 termchargesiter/term 22: filter(list("a", "", "b"), (s) => s != "") | aaaa go-typed-recognize	19 ok
 termchargesiter/term 22: filter(list("a", "", "b"), (s) => s != "") | aaaa ts-node	64 ok
 termchargesiter/term 23: filter(list(1, 0), (n) => 1 / n == 1) | aaaa engine-closure	9 action in main: division by zero
@@ -154,7 +154,7 @@ termchargesiter/term 26: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) =>
 termchargesiter/term 26: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) => a + m + n)) | aaaa engine-vm	57 ok
 termchargesiter/term 26: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) => a + m + n)) | aaaa go-node	67 ok
 termchargesiter/term 26: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) => a + m + n)) | aaaa go-node-recognize	19 ok
-termchargesiter/term 26: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) => a + m + n)) | aaaa go-typed	61 ok
+termchargesiter/term 26: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) => a + m + n)) | aaaa go-typed	58 ok
 termchargesiter/term 26: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) => a + m + n)) | aaaa go-typed-recognize	19 ok
 termchargesiter/term 26: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) => a + m + n)) | aaaa ts-node	102 ok
 termchargesiter/term 27: foldl(0, map(list(1, 2), (n) => I{N: n}), (a, s) => a + s.N) | aaaa engine-closure	49 ok
@@ -170,7 +170,7 @@ termchargesiter/term 28: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => 
 termchargesiter/term 28: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => s.N) | aaaa engine-vm	49 ok
 termchargesiter/term 28: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => s.N) | aaaa go-node	49 ok
 termchargesiter/term 28: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => s.N) | aaaa go-node-recognize	19 ok
-termchargesiter/term 28: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => s.N) | aaaa go-typed	44 ok
+termchargesiter/term 28: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => s.N) | aaaa go-typed	42 ok
 termchargesiter/term 28: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => s.N) | aaaa go-typed-recognize	19 ok
 termchargesiter/term 28: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => s.N) | aaaa ts-node	70 ok
 termchargesiter/term 29: len(concat(list(1), map(list(2, 3), (n) => n), concat(list(4), filter(list(5, 6), (n) => n > 5)))) | aaaa engine-closure	91 ok
@@ -194,7 +194,7 @@ termchargesiter/term 30: concat(map(list(1, 2), (n) => n + 1), list(9)) | aaaa e
 termchargesiter/term 30: concat(map(list(1, 2), (n) => n + 1), list(9)) | aaaa engine-vm	41 ok
 termchargesiter/term 30: concat(map(list(1, 2), (n) => n + 1), list(9)) | aaaa go-node	46 ok
 termchargesiter/term 30: concat(map(list(1, 2), (n) => n + 1), list(9)) | aaaa go-node-recognize	19 ok
-termchargesiter/term 30: concat(map(list(1, 2), (n) => n + 1), list(9)) | aaaa go-typed	44 ok
+termchargesiter/term 30: concat(map(list(1, 2), (n) => n + 1), list(9)) | aaaa go-typed	40 ok
 termchargesiter/term 30: concat(map(list(1, 2), (n) => n + 1), list(9)) | aaaa go-typed-recognize	19 ok
 termchargesiter/term 30: concat(map(list(1, 2), (n) => n + 1), list(9)) | aaaa ts-node	62 ok
 termchargesiter/term 31: concat(list(1), map(list(1, 0), (n) => 1 / n)) | aaaa engine-closure	9 action in main: division by zero
@@ -274,7 +274,7 @@ termchargesiter/term 37: map(list(1, 2, 3), (n) => n * 2) | 😀😀😀😀 eng
 termchargesiter/term 37: map(list(1, 2, 3), (n) => n * 2) | 😀😀😀😀 engine-vm	69 ok
 termchargesiter/term 37: map(list(1, 2, 3), (n) => n * 2) | 😀😀😀😀 go-node	75 ok
 termchargesiter/term 37: map(list(1, 2, 3), (n) => n * 2) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 37: map(list(1, 2, 3), (n) => n * 2) | 😀😀😀😀 go-typed	72 ok
+termchargesiter/term 37: map(list(1, 2, 3), (n) => n * 2) | 😀😀😀😀 go-typed	68 ok
 termchargesiter/term 37: map(list(1, 2, 3), (n) => n * 2) | 😀😀😀😀 go-typed-recognize	43 ok
 termchargesiter/term 37: map(list(1, 2, 3), (n) => n * 2) | 😀😀😀😀 ts-node	77 ok
 termchargesiter/term 38: len(map(list(), (n) => n)) | 😀😀😀😀 engine-closure	45 ok
@@ -298,7 +298,7 @@ termchargesiter/term 3: map(list($x, $y), (n) => text(n)) | aaaa engine-iterativ
 termchargesiter/term 3: map(list($x, $y), (n) => text(n)) | aaaa engine-vm	37 ok
 termchargesiter/term 3: map(list($x, $y), (n) => text(n)) | aaaa go-node	39 ok
 termchargesiter/term 3: map(list($x, $y), (n) => text(n)) | aaaa go-node-recognize	19 ok
-termchargesiter/term 3: map(list($x, $y), (n) => text(n)) | aaaa go-typed	39 ok
+termchargesiter/term 3: map(list($x, $y), (n) => text(n)) | aaaa go-typed	36 ok
 termchargesiter/term 3: map(list($x, $y), (n) => text(n)) | aaaa go-typed-recognize	19 ok
 termchargesiter/term 3: map(list($x, $y), (n) => text(n)) | aaaa ts-node	54 ok
 termchargesiter/term 40: map(list($x, $y), (n) => text(n)) | 😀😀😀😀 engine-closure	61 ok
@@ -306,7 +306,7 @@ termchargesiter/term 40: map(list($x, $y), (n) => text(n)) | 😀😀😀😀 en
 termchargesiter/term 40: map(list($x, $y), (n) => text(n)) | 😀😀😀😀 engine-vm	61 ok
 termchargesiter/term 40: map(list($x, $y), (n) => text(n)) | 😀😀😀😀 go-node	63 ok
 termchargesiter/term 40: map(list($x, $y), (n) => text(n)) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 40: map(list($x, $y), (n) => text(n)) | 😀😀😀😀 go-typed	63 ok
+termchargesiter/term 40: map(list($x, $y), (n) => text(n)) | 😀😀😀😀 go-typed	60 ok
 termchargesiter/term 40: map(list($x, $y), (n) => text(n)) | 😀😀😀😀 go-typed-recognize	43 ok
 termchargesiter/term 40: map(list($x, $y), (n) => text(n)) | 😀😀😀😀 ts-node	63 ok
 termchargesiter/term 41: len(map(I{}.L, (n) => n)) | 😀😀😀😀 engine-closure	52 ok
@@ -322,7 +322,7 @@ termchargesiter/term 42: map(list(list(1), list(2, 3), list()), (l) => len(l)) |
 termchargesiter/term 42: map(list(list(1), list(2, 3), list()), (l) => len(l)) | 😀😀😀😀 engine-vm	81 ok
 termchargesiter/term 42: map(list(list(1), list(2, 3), list()), (l) => len(l)) | 😀😀😀😀 go-node	90 ok
 termchargesiter/term 42: map(list(list(1), list(2, 3), list()), (l) => len(l)) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 42: map(list(list(1), list(2, 3), list()), (l) => len(l)) | 😀😀😀😀 go-typed	87 ok
+termchargesiter/term 42: map(list(list(1), list(2, 3), list()), (l) => len(l)) | 😀😀😀😀 go-typed	83 ok
 termchargesiter/term 42: map(list(list(1), list(2, 3), list()), (l) => len(l)) | 😀😀😀😀 go-typed-recognize	43 ok
 termchargesiter/term 42: map(list(list(1), list(2, 3), list()), (l) => len(l)) | 😀😀😀😀 ts-node	92 ok
 termchargesiter/term 43: map(list(2, 1, 0), (n) => 6 / n) | 😀😀😀😀 engine-closure	33 action in main: division by zero
@@ -434,7 +434,7 @@ termchargesiter/term 55: filter(list(1, 2, 3, 4), (n) => n % 2 == 0) | 😀😀�
 termchargesiter/term 55: filter(list(1, 2, 3, 4), (n) => n % 2 == 0) | 😀😀😀😀 engine-vm	71 ok
 termchargesiter/term 55: filter(list(1, 2, 3, 4), (n) => n % 2 == 0) | 😀😀😀😀 go-node	75 ok
 termchargesiter/term 55: filter(list(1, 2, 3, 4), (n) => n % 2 == 0) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 55: filter(list(1, 2, 3, 4), (n) => n % 2 == 0) | 😀😀😀😀 go-typed	73 ok
+termchargesiter/term 55: filter(list(1, 2, 3, 4), (n) => n % 2 == 0) | 😀😀😀😀 go-typed	70 ok
 termchargesiter/term 55: filter(list(1, 2, 3, 4), (n) => n % 2 == 0) | 😀😀😀😀 go-typed-recognize	43 ok
 termchargesiter/term 55: filter(list(1, 2, 3, 4), (n) => n % 2 == 0) | 😀😀😀😀 ts-node	90 ok
 termchargesiter/term 56: filter(list(1, 2), (n) => false) | 😀😀😀😀 engine-closure	55 ok
@@ -442,7 +442,7 @@ termchargesiter/term 56: filter(list(1, 2), (n) => false) | 😀😀😀😀 eng
 termchargesiter/term 56: filter(list(1, 2), (n) => false) | 😀😀😀😀 engine-vm	55 ok
 termchargesiter/term 56: filter(list(1, 2), (n) => false) | 😀😀😀😀 go-node	57 ok
 termchargesiter/term 56: filter(list(1, 2), (n) => false) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 56: filter(list(1, 2), (n) => false) | 😀😀😀😀 go-typed	55 ok
+termchargesiter/term 56: filter(list(1, 2), (n) => false) | 😀😀😀😀 go-typed	54 ok
 termchargesiter/term 56: filter(list(1, 2), (n) => false) | 😀😀😀😀 go-typed-recognize	43 ok
 termchargesiter/term 56: filter(list(1, 2), (n) => false) | 😀😀😀😀 ts-node	54 ok
 termchargesiter/term 57: len(filter(list(), (n) => true)) | 😀😀😀😀 engine-closure	45 ok
@@ -466,7 +466,7 @@ termchargesiter/term 59: filter(list("a", "", "b"), (s) => s != "") | 😀😀�
 termchargesiter/term 59: filter(list("a", "", "b"), (s) => s != "") | 😀😀😀😀 engine-vm	66 ok
 termchargesiter/term 59: filter(list("a", "", "b"), (s) => s != "") | 😀😀😀😀 go-node	69 ok
 termchargesiter/term 59: filter(list("a", "", "b"), (s) => s != "") | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 59: filter(list("a", "", "b"), (s) => s != "") | 😀😀😀😀 go-typed	68 ok
+termchargesiter/term 59: filter(list("a", "", "b"), (s) => s != "") | 😀😀😀😀 go-typed	65 ok
 termchargesiter/term 59: filter(list("a", "", "b"), (s) => s != "") | 😀😀😀😀 go-typed-recognize	43 ok
 termchargesiter/term 59: filter(list("a", "", "b"), (s) => s != "") | 😀😀😀😀 ts-node	73 ok
 termchargesiter/term 5: map(list(list(1), list(2, 3), list()), (l) => len(l)) | aaaa engine-closure	57 ok
@@ -474,7 +474,7 @@ termchargesiter/term 5: map(list(list(1), list(2, 3), list()), (l) => len(l)) | 
 termchargesiter/term 5: map(list(list(1), list(2, 3), list()), (l) => len(l)) | aaaa engine-vm	57 ok
 termchargesiter/term 5: map(list(list(1), list(2, 3), list()), (l) => len(l)) | aaaa go-node	66 ok
 termchargesiter/term 5: map(list(list(1), list(2, 3), list()), (l) => len(l)) | aaaa go-node-recognize	19 ok
-termchargesiter/term 5: map(list(list(1), list(2, 3), list()), (l) => len(l)) | aaaa go-typed	63 ok
+termchargesiter/term 5: map(list(list(1), list(2, 3), list()), (l) => len(l)) | aaaa go-typed	59 ok
 termchargesiter/term 5: map(list(list(1), list(2, 3), list()), (l) => len(l)) | aaaa go-typed-recognize	19 ok
 termchargesiter/term 5: map(list(list(1), list(2, 3), list()), (l) => len(l)) | aaaa ts-node	83 ok
 termchargesiter/term 60: filter(list(1, 0), (n) => 1 / n == 1) | 😀😀😀😀 engine-closure	33 action in main: division by zero
@@ -506,7 +506,7 @@ termchargesiter/term 63: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) =>
 termchargesiter/term 63: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) => a + m + n)) | 😀😀😀😀 engine-vm	81 ok
 termchargesiter/term 63: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) => a + m + n)) | 😀😀😀😀 go-node	91 ok
 termchargesiter/term 63: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) => a + m + n)) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 63: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) => a + m + n)) | 😀😀😀😀 go-typed	85 ok
+termchargesiter/term 63: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) => a + m + n)) | 😀😀😀😀 go-typed	82 ok
 termchargesiter/term 63: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) => a + m + n)) | 😀😀😀😀 go-typed-recognize	43 ok
 termchargesiter/term 63: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) => a + m + n)) | 😀😀😀😀 ts-node	111 ok
 termchargesiter/term 64: foldl(0, map(list(1, 2), (n) => I{N: n}), (a, s) => a + s.N) | 😀😀😀😀 engine-closure	73 ok
@@ -522,7 +522,7 @@ termchargesiter/term 65: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => 
 termchargesiter/term 65: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => s.N) | 😀😀😀😀 engine-vm	73 ok
 termchargesiter/term 65: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => s.N) | 😀😀😀😀 go-node	73 ok
 termchargesiter/term 65: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => s.N) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 65: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => s.N) | 😀😀😀😀 go-typed	68 ok
+termchargesiter/term 65: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => s.N) | 😀😀😀😀 go-typed	66 ok
 termchargesiter/term 65: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => s.N) | 😀😀😀😀 go-typed-recognize	43 ok
 termchargesiter/term 65: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => s.N) | 😀😀😀😀 ts-node	79 ok
 termchargesiter/term 66: len(concat(list(1), map(list(2, 3), (n) => n), concat(list(4), filter(list(5, 6), (n) => n > 5)))) | 😀😀😀😀 engine-closure	115 ok
@@ -538,7 +538,7 @@ termchargesiter/term 67: concat(map(list(1, 2), (n) => n + 1), list(9)) | 😀�
 termchargesiter/term 67: concat(map(list(1, 2), (n) => n + 1), list(9)) | 😀😀😀😀 engine-vm	65 ok
 termchargesiter/term 67: concat(map(list(1, 2), (n) => n + 1), list(9)) | 😀😀😀😀 go-node	70 ok
 termchargesiter/term 67: concat(map(list(1, 2), (n) => n + 1), list(9)) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 67: concat(map(list(1, 2), (n) => n + 1), list(9)) | 😀😀😀😀 go-typed	68 ok
+termchargesiter/term 67: concat(map(list(1, 2), (n) => n + 1), list(9)) | 😀😀😀😀 go-typed	64 ok
 termchargesiter/term 67: concat(map(list(1, 2), (n) => n + 1), list(9)) | 😀😀😀😀 go-typed-recognize	43 ok
 termchargesiter/term 67: concat(map(list(1, 2), (n) => n + 1), list(9)) | 😀😀😀😀 ts-node	71 ok
 termchargesiter/term 68: concat(list(1), map(list(1, 0), (n) => 1 / n)) | 😀😀😀😀 engine-closure	33 action in main: division by zero

@@ -105,7 +105,9 @@ for (const unit of [p.CodePoints,p.Bytes]) {
  let parseSteps=0;for(let n=1;n<2048;n++){if(p.parseWithOptions("aaé",{unit,limits:{compute:n}}).error===null){parseSteps=n;break}}
  check(parseSteps>0,"Node budget boundary found");
  const converted=p.parseValueWithOptions("aaé",{unit,limits:{compute:parseSteps}});
- check(converted.value===null,"conversion does not reset the parse budget");limits(converted,"compute-limit",parseSteps);
+ check(converted.value!==null&&converted.error===null,"conversion charges nothing beyond the parse");
+ const short=p.parseValueWithOptions("aaé",{unit,limits:{compute:parseSteps-1}});
+ check(short.value===null,"typed parse shares the parse budget");limits(short,"compute-limit",parseSteps-1);
 }
 `
 

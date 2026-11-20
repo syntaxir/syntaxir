@@ -30,6 +30,9 @@ type limitAgreementCase struct {
 	// window is the limits at which the engine's backends and generated Go agree; tsWindow those at
 	// which generated TypeScript agrees with them too (it charges the encoding of its input otherwise).
 	window, tsWindow [2]uint64
+	// typedWindow, if set, is the window of generated Go's typed parser, which enters the start rule
+	// without the unit that the call protocol of Parse charges, so that it finishes one unit earlier.
+	typedWindow [2]uint64
 	// units is a limit of the window at which the failing reservation is a unit of a run that a backend
 	// may make at once: every backend must report the limit as used and one unit requested.
 	units uint64
@@ -48,7 +51,7 @@ var limitAgreementCases = []limitAgreementCase{
 		grammar: "@start\nrule main = \"abcd\"+",
 		input:   "abcdabcdabcd",
 		max:     80,
-		window:  [2]uint64{1, 42}, tsWindow: [2]uint64{26, 42},
+		window:  [2]uint64{1, 42}, tsWindow: [2]uint64{26, 42}, typedWindow: [2]uint64{1, 41},
 		units: 27,
 	},
 	{
@@ -98,7 +101,7 @@ rule main = #operators {
 		grammar: "@start\nrule main = [a-z]*",
 		input:   "abcde",
 		max:     60,
-		window:  [2]uint64{1, 23}, tsWindow: [2]uint64{10, 23},
+		window:  [2]uint64{1, 23}, tsWindow: [2]uint64{10, 23}, typedWindow: [2]uint64{1, 22},
 	},
 }
 
@@ -305,7 +308,11 @@ func TestLimitErrorAgreement(t *testing.T) {
 				}
 			}
 			for name, got := range reports {
-				for _, d := range limitDisagreements(want, got, c.window) {
+				w := c.window
+				if name == "generated Go typed" && c.typedWindow != [2]uint64{} {
+					w = c.typedWindow
+				}
+				for _, d := range limitDisagreements(want, got, w) {
 					t.Errorf("%s: %s", name, d)
 				}
 			}

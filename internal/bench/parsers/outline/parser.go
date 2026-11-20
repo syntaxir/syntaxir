@@ -87,15 +87,26 @@ func tv1(a *tslabs, v any) []*types.Item {
 
 type tslabs struct {
 	control  *rt.BudgetControl
+	result   bool
+	steps    uint64
 	tItem    rt.Chunk[types.Item]
 	tl0Chunk rt.Chunk[*types.Item]
 }
 
 func (a *tslabs) SetBudgetControl(c *rt.BudgetControl) { a.control = c }
+
 func (a *tslabs) spend() {
-	if a.control != nil {
-		a.control.Charge(1)
+	if a.control == nil {
+		return
 	}
+	if a.result {
+		a.steps++
+		if a.steps%256 == 0 {
+			a.control.Check()
+		}
+		return
+	}
+	a.control.Charge(1)
 }
 
 func (a *tslabs) MemoryBytes() uint64 { return a.tItem.MemoryBytes() + a.tl0Chunk.MemoryBytes() }
@@ -106,7 +117,7 @@ func (a *tslabs) MemoryBytes() uint64 { return a.tItem.MemoryBytes() + a.tl0Chun
 // It builds the values directly, without the nodes Parse returns.
 func ParseValue(input string, opts ...rt.ParseOption) ([]*types.Item, error) {
 	a := &tslabs{}
-	return rt.TParse(trules[0], input, opts, a, func(v any) []*types.Item { return tv0(a, v) })
+	return rt.TParse(trules[0], input, opts, a, func(v any) []*types.Item { a.result = true; return tv0(a, v) })
 }
 
 // ParseRuleValue parses the whole input with the named start rule and returns its typed value; an empty
@@ -123,7 +134,7 @@ func ParseRuleValue(name, input string, opts ...rt.ParseOption) (any, error) {
 	switch name {
 	case "main", "":
 		a := &tslabs{}
-		return rt.TParseResolved(trules[0], input, o, a, func(v any) []*types.Item { return tv0(a, v) })
+		return rt.TParseResolved(trules[0], input, o, a, func(v any) []*types.Item { a.result = true; return tv0(a, v) })
 	default:
 		return nil, zpGrammar.StartError(name)
 	}

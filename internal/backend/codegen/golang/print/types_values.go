@@ -139,7 +139,7 @@ func (t *TypedGen) nodeHelpers(b *strings.Builder, done *int) bool {
 		wrote = true
 		h := t.nhelpers.order[*done]
 		g := t.goType(h.x)
-		fmt.Fprintf(b, "func (a *astConv) %s(v any) %s {\n\ta.spend()\n", h.name, g)
+		fmt.Fprintf(b, "func (a *astConv) %s(v any) %s {\n\ta.step()\n", h.name, g)
 		switch x := h.x.(type) {
 		case common.Vrule:
 			fmt.Fprintf(b, "\treturn %s\n", t.conv(t.Vres[x.Name], "v"))
