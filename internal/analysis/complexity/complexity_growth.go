@@ -626,7 +626,7 @@ func (k *classifier) foldGrowth(initTerm, list ast.ActionExpr, lam *ast.Lambda, 
 // returns the other values and whether the join is concat.
 func (k *classifier) joinsOnce(body ast.ActionExpr, s string) (rest []ast.ActionExpr, isConcat, ok bool) {
 	var parts []ast.ActionExpr
-	switch b := check.UngroupTerm(body).(type) {
+	switch b := check.UngroupActionExpr(body).(type) {
 	case *ast.Call:
 		if b.Func != "concat" {
 			return nil, false, false
@@ -642,7 +642,7 @@ func (k *classifier) joinsOnce(body ast.ActionExpr, s string) (rest []ast.Action
 	}
 	found := false
 	for _, p := range parts {
-		if r, isRef := check.UngroupTerm(p).(*ast.CaptureRef); isRef && r.Name == s && !found {
+		if r, isRef := check.UngroupActionExpr(p).(*ast.CaptureRef); isRef && r.Name == s && !found {
 			found = true
 			continue
 		}

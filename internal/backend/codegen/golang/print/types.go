@@ -1029,7 +1029,7 @@ func (t *TypedGen) transfers() map[*ast.Member]bool {
 		}
 		switch x := x.(type) {
 		case *ast.Member:
-			st, ok := oneStruct(rec, rec.Terms[x.X])
+			st, ok := oneStruct(rec, rec.ActionExprs[x.X])
 			if !ok {
 				return
 			}

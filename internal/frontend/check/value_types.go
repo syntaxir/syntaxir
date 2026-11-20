@@ -49,7 +49,7 @@ type ValueInference struct {
 	bottoms map[string]bool
 	// nodeMembers, if not nil, receives the member accesses that read only node members.
 	nodeMembers map[*ast.Member]bool
-	// rec, if not nil, receives the types of terms, scopes and rules.
+	// rec, if not nil, receives the types of action expressions, scopes and rules.
 	rec *ValueRecord
 	// memo, if not nil, holds the elements of the expressions met outside the bodies of splice
 	// rules being expanded, which depend on nothing else (ShapeCache). Its slices are shared:
@@ -58,24 +58,24 @@ type ValueInference struct {
 }
 
 // ValueRecord holds the types the value inference gives the parts of a program, for the backends
-// (Core IR terms and capture slots). Each part has the type of its last typing: terms typed again
+// (Core IR action expressions and capture slots). Each part has the type of its last typing: action expressions typed again
 // quietly, with a wider lambda parameter, and the rules of a cycle, typed again in each round,
 // keep the final one.
 type ValueRecord struct {
-	// Terms holds the type of each action, predicate and binding term and of their subterms.
-	Terms map[ast.ActionExpr]Ty
+	// ActionExprs holds the type of each action, predicate and binding expression and of their subexpressions.
+	ActionExprs map[ast.ActionExpr]Ty
 	// Proven reports, for each node type constructor that converts a value, that the conversion
 	// is proven: every value of the operand converts, without a check at run time.
 	Proven map[*ast.New]bool
 	// Scopes holds, for the body of each capture scope (a rule body, a repetition element with
-	// captures of its own, an Operators Rule line), the type of each capture a term reads.
+	// captures of its own, an Operators Rule line), the type of each capture an action expression reads.
 	Scopes map[ast.Expr]map[string]Ty
 	// Rules holds the value type of every rule, splice rules included.
 	Rules map[string]Ty
 }
 
 func newValueRecord() *ValueRecord {
-	return &ValueRecord{Terms: map[ast.ActionExpr]Ty{}, Proven: map[*ast.New]bool{}, Scopes: map[ast.Expr]map[string]Ty{}}
+	return &ValueRecord{ActionExprs: map[ast.ActionExpr]Ty{}, Proven: map[*ast.New]bool{}, Scopes: map[ast.Expr]map[string]Ty{}}
 }
 
 // scope records the capture types of the scope with the body e and the captures caps.
@@ -360,10 +360,10 @@ func (v *ValueInference) ruleDef(rd *ast.RuleDef) Ty {
 		}
 		return v.declared(rd, v.ScopeValue(rd.Expr))
 	}
-	return v.declared(rd, v.term(rd.Action, env))
+	return v.declared(rd, v.actionExpr(rd.Action, env))
 }
 
-// predicates types the terms of the predicates in e, which see the captures of env. A repetition
+// predicates types the action expressions of the predicates in e, which see the captures of env. A repetition
 // element with a scope of its own, and the body of an inline action, see their own captures before
 // those of the enclosing scope.
 func (v *ValueInference) predicates(e ast.Expr, env *valueEnv) {
@@ -376,7 +376,7 @@ func (v *ValueInference) predicates(e ast.Expr, env *valueEnv) {
 	switch e := e.(type) {
 	case *ast.Predicate:
 		if a, ok := e.Action.(*ast.Bind); ok {
-			t := v.term(a.Value, env)
+			t := v.actionExpr(a.Value, env)
 			if d := v.Prog.Vars().Lookup(a.Name); d != nil {
 				switch {
 				case !v.assignable(t, d.Typ):
@@ -386,7 +386,7 @@ func (v *ValueInference) predicates(e ast.Expr, env *valueEnv) {
 				}
 			}
 		} else {
-			v.term(e.Action, env)
+			v.actionExpr(e.Action, env)
 		}
 	case *ast.Repeat:
 		if v.Prog.ElementScoped(e.Expr, v.control) {
@@ -838,7 +838,7 @@ func (v *ValueInference) operatorsRule(rd *ast.RuleDef, pr *ast.OperatorsRule) T
 	if rd.Action != nil {
 		fold := v.operatorsFold(rd, pr)
 		env := &valueEnv{locals: map[string]Ty{OperatorsRuleValue: fold}}
-		return v.declared(rd, v.term(rd.Action, env))
+		return v.declared(rd, v.actionExpr(rd.Action, env))
 	}
 	var self Ty = RuleTy{Name: rd.Name}
 	if rd.Type != nil {
@@ -937,7 +937,7 @@ func (v *ValueInference) operatorsLines(rd *ast.RuleDef, pr *ast.OperatorsRule, 
 		v.scope(o.Expr, env.caps)
 		v.predicates(o.Expr, env)
 		if o.Action != nil {
-			ts = append(ts, v.term(o.Action, env))
+			ts = append(ts, v.actionExpr(o.Action, env))
 		} else {
 			ts = append(ts, v.ScopeValue(o.Expr))
 		}
@@ -963,7 +963,7 @@ func (v *ValueInference) operatorsLines(rd *ast.RuleDef, pr *ast.OperatorsRule, 
 					locals["rhs"] = self
 				}
 				operators[len(ts)] = true
-				ts = append(ts, v.term(o.Action, &valueEnv{caps: op.caps, locals: locals}))
+				ts = append(ts, v.actionExpr(o.Action, &valueEnv{caps: op.caps, locals: locals}))
 				if checked {
 					v.checkResult(o, rd, ts[len(ts)-1])
 				}

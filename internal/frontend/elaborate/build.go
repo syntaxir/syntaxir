@@ -14,7 +14,7 @@
 // (coreLayout).
 //
 // A type-checked program gives the module its checked types (check.ValueRecord): those of the rules'
-// values, of the capture slots, of every term and of the named types and variables. The
+// values, of the capture slots, of every action expression and of the named types and variables. The
 // expectations of the module begin with the fixed ones of the runtime (core.FixedDescs), so that Any
 // and the anchors, which name none, record those of the same index. A #stream repetition at the
 // top of a rule body is a Stream if it is the first #stream of the body, in every rule, whether
@@ -293,7 +293,7 @@ func (b *coreBuilder) rule(r *Rule) (*core.Rule, error) {
 			// The whole-rule action runs once per call on the folded value, $value.
 			env := map[string]*core.Local{check.OperatorsRuleValue: {Kind: core.LocalValue, Name: check.OperatorsRuleValue}}
 			b.final = r.Action
-			cr.Finish.Action, err = b.term(r.Action, b.scope(nil, o), env)
+			cr.Finish.Action, err = b.actionExpr(r.Action, b.scope(nil, o), env)
 			b.final = nil
 			if err != nil {
 				return nil, err
@@ -323,7 +323,7 @@ func (b *coreBuilder) rule(r *Rule) (*core.Rule, error) {
 	case r.Action != nil:
 		cr.Finish.Kind = core.FinishAction
 		b.final = r.Action
-		cr.Finish.Action, err = b.term(r.Action, s, nil)
+		cr.Finish.Action, err = b.actionExpr(r.Action, s, nil)
 		b.final = nil
 		if err != nil {
 			return nil, err
@@ -388,7 +388,7 @@ func (b *coreBuilder) opLine(e ast.Expr, action ast.ActionExpr, operator, skip b
 			env["op"] = &core.Local{Kind: core.LocalOp, Name: "op"}
 		}
 		b.final = action
-		l.Action, err = b.term(action, s, env)
+		l.Action, err = b.actionExpr(action, s, env)
 		b.final = nil
 		if err != nil {
 			return nil, err
@@ -616,13 +616,13 @@ func (b *coreBuilder) node(e ast.Expr, s *coreScope, build bool) (core.Node, err
 		return b.set(&core.Anchor{Kind: core.EndLine}, e, build), nil
 	case *ast.Predicate:
 		if a, ok := e.Action.(*ast.Bind); ok {
-			t, err := b.term(a.Value, s, nil)
+			t, err := b.actionExpr(a.Value, s, nil)
 			if err != nil {
 				return nil, err
 			}
 			return b.set(&core.BindNode{Var: a.Name, Term: t}, e, build), nil
 		}
-		t, err := b.term(e.Action, s, nil)
+		t, err := b.actionExpr(e.Action, s, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -783,26 +783,26 @@ func singleChar(e ast.Expr) bool {
 	return false
 }
 
-// term builds the term t in the scope s, with its checked type; env maps the names of lambda
+// actionExpr builds the actionExpr t in the scope s, with its checked type; env maps the names of lambda
 // parameters and Operators Rule locals in scope to their locals.
-func (b *coreBuilder) term(t ast.ActionExpr, s *coreScope, env map[string]*core.Local) (core.ActionExpr, error) {
+func (b *coreBuilder) actionExpr(t ast.ActionExpr, s *coreScope, env map[string]*core.Local) (core.ActionExpr, error) {
 	if g, ok := t.(*ast.ActionGroup); ok {
-		return b.term(g.Action, s, env)
+		return b.actionExpr(g.Action, s, env)
 	}
-	x, err := b.termNode(t, s, env)
+	x, err := b.actionExprNode(t, s, env)
 	if err != nil {
 		return nil, err
 	}
 	if b.rec != nil {
-		if typ, ok := b.rec.Terms[t]; ok {
+		if typ, ok := b.rec.ActionExprs[t]; ok {
 			core.SetType(x, typ)
 		}
 	}
 	return x, nil
 }
 
-func (b *coreBuilder) termNode(t ast.ActionExpr, s *coreScope, env map[string]*core.Local) (core.ActionExpr, error) {
-	sub := func(x ast.ActionExpr) (core.ActionExpr, error) { return b.term(x, s, env) }
+func (b *coreBuilder) actionExprNode(t ast.ActionExpr, s *coreScope, env map[string]*core.Local) (core.ActionExpr, error) {
+	sub := func(x ast.ActionExpr) (core.ActionExpr, error) { return b.actionExpr(x, s, env) }
 	switch t := t.(type) {
 	case *ast.IntLit:
 		return &core.Const{Value: t.Value}, nil
@@ -905,7 +905,7 @@ func (b *coreBuilder) termNode(t ast.ActionExpr, s *coreScope, env map[string]*c
 		for _, p := range t.Params {
 			inner[p] = &core.Local{Kind: core.LocalParam, Name: p, Lambda: l}
 		}
-		body, err := b.term(t.Body, s, inner)
+		body, err := b.actionExpr(t.Body, s, inner)
 		if err != nil {
 			return nil, err
 		}
@@ -941,7 +941,7 @@ func (b *coreBuilder) termNode(t ast.ActionExpr, s *coreScope, env map[string]*c
 		}
 		return &core.Cast{X: x, Check: check, Key: t, Line: line, Col: col}, nil
 	}
-	return nil, fmt.Errorf("unsupported term %T", t)
+	return nil, fmt.Errorf("unsupported action expression %T", t)
 }
 
 // EachSlot calls f with an accessor of every place of the rule's body where a node is: the body,

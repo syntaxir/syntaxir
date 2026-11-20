@@ -91,13 +91,13 @@ func constantValues(v *ast.VarDef, binds []*binding) (int, bool) {
 	if v.Value == nil {
 		terms[""] = true
 	} else {
-		terms[fmt.FormatActionExpr(check.UngroupTerm(v.Value))] = true
+		terms[fmt.FormatActionExpr(check.UngroupActionExpr(v.Value))] = true
 	}
 	for _, b := range binds {
 		if !constant(b.b.Value) {
 			return 0, false
 		}
-		terms[fmt.FormatActionExpr(check.UngroupTerm(b.b.Value))] = true
+		terms[fmt.FormatActionExpr(check.UngroupActionExpr(b.b.Value))] = true
 	}
 	return len(terms), true
 }
@@ -288,7 +288,7 @@ func (k *classifier) lenOperands(b *binding) ([]lenOperand, bool) {
 	var ops []lenOperand
 	combos := 1
 	ok := readsOnly(b.b.Value, b.b.Name, func(c *ast.Call) bool {
-		r, isRef := check.UngroupTerm(c.Args[0]).(*ast.CaptureRef)
+		r, isRef := check.UngroupActionExpr(c.Args[0]).(*ast.CaptureRef)
 		if !isRef || r.Param {
 			return false
 		}

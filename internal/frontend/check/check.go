@@ -89,7 +89,7 @@ type TypeInfo struct {
 	// nodes and recovered values (.Start, .End and .Value, and the fields expected and message of
 	// missing) and never a struct field.
 	NodeMembers map[*ast.Member]bool
-	// rec holds the types of the terms, scopes and rules of the checked program, recorded by the
+	// rec holds the types of the action expressions, scopes and rules of the checked program, recorded by the
 	// inference of the type check (or, for type information made without it, on first use by
 	// ValueRecord).
 	rec     *ValueRecord
@@ -205,11 +205,11 @@ func concreteListElement(t Ty) bool {
 	return t != TyAny
 }
 
-// TermPos returns the position of term t for a diagnostic, or def if it has none.
-func TermPos(t ast.ActionExpr, def ast.Pos) ast.Pos {
+// ActionExprPos returns the position of action expression t for a diagnostic, or def if it has none.
+func ActionExprPos(t ast.ActionExpr, def ast.Pos) ast.Pos {
 	switch t := t.(type) {
 	case *ast.ActionGroup:
-		return TermPos(t.Action, def)
+		return ActionExprPos(t.Action, def)
 	case *ast.CaptureRef:
 		return t.Diagnostic()
 	case *ast.VarRef:

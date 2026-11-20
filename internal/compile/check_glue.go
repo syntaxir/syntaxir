@@ -49,9 +49,9 @@ func (p *Program) Checker() *check.Checker {
 	return p.chk
 }
 
-// CheckTerm is check.TermChecker.CheckTerm over the compiler's errors.
-func (c *Compiler) CheckTerm(t ast.ActionExpr, s *check.Scope, locals []string) {
-	(&check.TermChecker{Control: c.Control, Prog: c.Prog.Checker(), Errs: &c.errs}).CheckTerm(t, s, locals)
+// CheckActionExpr is check.ActionExprChecker.CheckActionExpr over the compiler's errors.
+func (c *Compiler) CheckActionExpr(t ast.ActionExpr, s *check.Scope, locals []string) {
+	(&check.ActionExprChecker{Control: c.Control, Prog: c.Prog.Checker(), Errs: &c.errs}).CheckActionExpr(t, s, locals)
 }
 
 // checkerOf returns the checker of p, nil for a nil program.

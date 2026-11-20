@@ -314,7 +314,7 @@ func (k *classifier) mayBeString(t ast.ActionExpr) bool {
 	if k.types == nil {
 		return true
 	}
-	ty, ok := k.types.Terms[t]
+	ty, ok := k.types.ActionExprs[t]
 	return !ok || k.stringIn(ty, map[string]bool{})
 }
 
@@ -1311,7 +1311,7 @@ func (k *classifier) bindingDoubles(b *binding) bool {
 	}
 	n := 0
 	for _, x := range k.joined(b.b.Value, nil) {
-		if r, ok := check.UngroupTerm(x).(*ast.VarRef); ok && r.Name == v {
+		if r, ok := check.UngroupActionExpr(x).(*ast.VarRef); ok && r.Name == v {
 			n++
 		}
 	}
@@ -1369,7 +1369,7 @@ func (k *classifier) bindsNonEmpty(e ast.Expr, v string) bool {
 // canBeNonEmpty reports whether t can be a non-empty string when v is empty.
 func (k *classifier) canBeNonEmpty(t ast.ActionExpr, v string) bool {
 	for _, x := range k.joined(t, nil) {
-		switch x := check.UngroupTerm(x).(type) {
+		switch x := check.UngroupActionExpr(x).(type) {
 		case *ast.StringLit:
 			if x.Value != "" {
 				return true

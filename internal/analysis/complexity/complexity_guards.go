@@ -50,13 +50,13 @@ func (g guard) passes(v string, y int) bool {
 // single comparison bounds one side, which the range of e (see termRange) can bound on the other.
 func guardOf(b *binding) guard {
 	g := guard{bounds: fullRange}
-	v, e := b.b.Name, check.UngroupTerm(b.b.Value)
+	v, e := b.b.Name, check.UngroupActionExpr(b.b.Value)
 	isVar := func(t ast.ActionExpr) bool {
-		r, ok := check.UngroupTerm(t).(*ast.VarRef)
+		r, ok := check.UngroupActionExpr(t).(*ast.VarRef)
 		return ok && r.Name == v
 	}
 	text := fmt.FormatActionExpr(e)
-	isValue := func(t ast.ActionExpr) bool { return fmt.FormatActionExpr(check.UngroupTerm(t)) == text }
+	isValue := func(t ast.ActionExpr) bool { return fmt.FormatActionExpr(check.UngroupActionExpr(t)) == text }
 	after, before := adjacentStatements(b)
 	for _, s := range after {
 		if bd, ok := s.(*ast.Bind); ok && bd.Name == v {
@@ -195,7 +195,7 @@ func rangeOf(lo, hi int) valueRange {
 // with <, <=, >, >= or == of the subject with a constant int (see constInt), on either side, or a
 // conjunction with && of such tests and others, which do not bound it.
 func termBounds(t ast.ActionExpr, subject func(ast.ActionExpr) bool) valueRange {
-	bin, ok := check.UngroupTerm(t).(*ast.Binary)
+	bin, ok := check.UngroupActionExpr(t).(*ast.Binary)
 	if !ok {
 		return fullRange
 	}

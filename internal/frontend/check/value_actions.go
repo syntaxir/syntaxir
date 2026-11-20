@@ -359,18 +359,18 @@ func anyNode(t Ty) bool {
 	return ok && n.Value == TyTop && len(n.Caps) == 0 && n.Name == ""
 }
 
-// convertTerm returns the type of the node type constructor t, N{x}, which converts x to the
+// convertNew returns the type of the node type constructor t, N{x}, which converts x to the
 // named node type n.
-func (v *ValueInference) convertTerm(t *ast.New, n NodeTy, env *valueEnv) Ty {
+func (v *ValueInference) convertNew(t *ast.New, n NodeTy, env *valueEnv) Ty {
 	for _, fi := range t.Fields {
-		v.term(fi.Value, env)
+		v.actionExpr(fi.Value, env)
 	}
 	args := make([]Ty, len(t.Args))
 	for i, x := range t.Args {
-		args[i] = v.term(x, env)
+		args[i] = v.actionExpr(x, env)
 	}
 	if len(t.Fields) != 0 || len(t.Args) != 1 {
-		return n // reported where the constructor is checked (compiler.checkTerm)
+		return n // reported where the constructor is checked (Compiler.CheckActionExpr)
 	}
 	x := args[0]
 	if v.rec != nil && !v.Quiet {
@@ -498,20 +498,20 @@ func (prog *Checker) convertsResult(key any, rd *ast.RuleDef) (NodeTy, bool) {
 	return NodeTy{}, false
 }
 
-// term returns the type of the value expression t.
-func (v *ValueInference) term(t ast.ActionExpr, env *valueEnv) Ty {
-	r := v.termType(t, env)
+// actionExpr returns the type of the value expression t.
+func (v *ValueInference) actionExpr(t ast.ActionExpr, env *valueEnv) Ty {
+	r := v.actionExprType(t, env)
 	if v.rec != nil && !v.Quiet {
-		v.rec.Terms[t] = r
+		v.rec.ActionExprs[t] = r
 	}
 	return r
 }
 
-func (v *ValueInference) termType(t ast.ActionExpr, env *valueEnv) Ty {
+func (v *ValueInference) actionExprType(t ast.ActionExpr, env *valueEnv) Ty {
 	v.control.Poll()
 	switch t := t.(type) {
 	case *ast.ActionGroup:
-		return v.term(t.Action, env)
+		return v.actionExpr(t.Action, env)
 	case *ast.IntLit:
 		return TyInt
 	case *ast.StringLit:
@@ -536,17 +536,17 @@ func (v *ValueInference) termType(t ast.ActionExpr, env *valueEnv) Ty {
 		}
 		return TyAny // an undeclared variable was reported when names were resolved
 	case *ast.Member:
-		return v.member(v.term(t.X, env), t)
+		return v.member(v.actionExpr(t.X, env), t)
 	case *ast.New:
 		if nt, ok := v.Prog.NodeTypeOf(t.Type); ok {
-			return v.convertTerm(t, nt, env)
+			return v.convertNew(t, nt, env)
 		}
 		for _, x := range t.Args {
-			v.term(x, env)
+			v.actionExpr(x, env)
 		}
 		name, st := v.Prog.StructType(t.Type)
 		for _, fi := range t.Fields {
-			vt := v.term(fi.Value, env)
+			vt := v.actionExpr(fi.Value, env)
 			if st == nil {
 				continue
 			}
@@ -568,22 +568,22 @@ func (v *ValueInference) termType(t ast.ActionExpr, env *valueEnv) Ty {
 	case *ast.TupleLit:
 		elems := make([]Ty, len(t.Elems))
 		for i, x := range t.Elems {
-			elems[i] = v.term(x, env)
+			elems[i] = v.actionExpr(x, env)
 		}
 		return TupleTy{Elems: elems}
 	case *ast.ListConstructor:
 		elem := v.resolve(t.Elem)
 		for _, item := range t.Items {
-			it := v.term(item, env)
+			it := v.actionExpr(item, env)
 			if elem != TyAny && v.unknown(it) || !v.assignable(it, elem) {
-				v.errorf(TermPos(item, t.Diagnostic()), "cannot use %s as %s in list constructor%s", v.display(it), elem, v.castHint(it, elem))
+				v.errorf(ActionExprPos(item, t.Diagnostic()), "cannot use %s as %s in list constructor%s", v.display(it), elem, v.castHint(it, elem))
 			}
 		}
 		return ListTy{Elem: elem}
 	case *ast.Call:
 		return v.call(t, env)
 	case *ast.Cast:
-		x, to := v.term(t.X, env), v.resolve(t.Type)
+		x, to := v.actionExpr(t.X, env), v.resolve(t.Type)
 		if to != TyBottom && !v.overlaps(x, to, 0) { // a cast to _|_ is reported where names are resolved
 			v.errorf(t.Diagnostic(), "cannot cast %s to %s", v.display(x), to)
 		}
@@ -592,7 +592,7 @@ func (v *ValueInference) termType(t ast.ActionExpr, env *valueEnv) Ty {
 		v.errorf(ast.Pos{}, "functions can only be passed to filter, foldl, foldr, or map")
 		return TyAny
 	case *ast.Unary:
-		x := v.term(t.X, env)
+		x := v.actionExpr(t.X, env)
 		want := TyInt
 		if t.Op == "!" {
 			want = TyBool
@@ -610,7 +610,7 @@ func (v *ValueInference) termType(t ast.ActionExpr, env *valueEnv) Ty {
 }
 
 func (v *ValueInference) binary(t *ast.Binary, env *valueEnv) Ty {
-	l, r := v.term(t.L, env), v.term(t.R, env)
+	l, r := v.actionExpr(t.L, env), v.actionExpr(t.R, env)
 	both := func(want Ty) bool { return v.assignable(l, want) && v.assignable(r, want) }
 	bad := func() Ty {
 		v.errorf(t.Diagnostic(), "invalid operands %s and %s for %s", v.display(l), v.display(r), t.Op)
@@ -733,7 +733,7 @@ func (v *ValueInference) index(x, i Ty, t *ast.Binary) Ty {
 			out = append(out, a.Elem)
 			return true
 		case TupleTy:
-			if lit, ok := UngroupTerm(t.R).(*ast.IntLit); ok {
+			if lit, ok := UngroupActionExpr(t.R).(*ast.IntLit); ok {
 				if lit.Value < 0 || lit.Value >= len(a.Elems) {
 					v.errorf(t.Diagnostic(), "index %d is out of range for %s", lit.Value, a)
 					return false
@@ -779,7 +779,7 @@ func (v *ValueInference) index(x, i Ty, t *ast.Binary) Ty {
 	return Vjoin(out...)
 }
 
-func UngroupTerm(t ast.ActionExpr) ast.ActionExpr {
+func UngroupActionExpr(t ast.ActionExpr) ast.ActionExpr {
 	for {
 		g, ok := t.(*ast.ActionGroup)
 		if !ok {
@@ -1079,7 +1079,7 @@ func (v *ValueInference) call(t *ast.Call, env *valueEnv) Ty {
 	if n, ok := builtins[t.Func]; !ok || n >= 0 && n != len(t.Args) {
 		return TyAny // reported when the action is compiled
 	}
-	arg := func(i int) Ty { return v.term(t.Args[i], env) }
+	arg := func(i int) Ty { return v.actionExpr(t.Args[i], env) }
 	switch t.Func {
 	case "len":
 		a := arg(0)
@@ -1116,7 +1116,7 @@ func (v *ValueInference) call(t *ast.Call, env *valueEnv) Ty {
 		for range 3 {
 			saved := v.Quiet
 			v.Quiet = true
-			body := v.term(l.Body, env.with(l.Params, []Ty{acc, elem}))
+			body := v.actionExpr(l.Body, env.with(l.Params, []Ty{acc, elem}))
 			v.Quiet = saved
 			widened := Vjoin(acc, body)
 			// The accumulator is stable when the body fits it, or when widening it adds nothing
@@ -1127,7 +1127,7 @@ func (v *ValueInference) call(t *ast.Call, env *valueEnv) Ty {
 			}
 			acc = widened
 		}
-		body := v.term(l.Body, env.with(l.Params, []Ty{acc, elem}))
+		body := v.actionExpr(l.Body, env.with(l.Params, []Ty{acc, elem}))
 		if !converged && !v.assignable(body, acc) && Vjoin(acc, body).String() != acc.String() {
 			v.errorf(t.Diagnostic(), "%s: the accumulator type does not converge (the callback produces %s, which is not assignable to %s); cast the result of the callback", t.Func, body, acc)
 		}
@@ -1138,7 +1138,7 @@ func (v *ValueInference) call(t *ast.Call, env *valueEnv) Ty {
 		if !ok {
 			return TyAny
 		}
-		if body := v.term(l.Body, env.with(l.Params, []Ty{elem})); !v.assignable(body, TyBool) {
+		if body := v.actionExpr(l.Body, env.with(l.Params, []Ty{elem})); !v.assignable(body, TyBool) {
 			v.errorf(t.Diagnostic(), "filter: predicate must produce a bool, got %s", body)
 		}
 		return ListTy{Elem: elem}
@@ -1148,7 +1148,7 @@ func (v *ValueInference) call(t *ast.Call, env *valueEnv) Ty {
 		if !ok {
 			return TyAny
 		}
-		return ListTy{Elem: v.term(l.Body, env.with(l.Params, []Ty{elem}))}
+		return ListTy{Elem: v.actionExpr(l.Body, env.with(l.Params, []Ty{elem}))}
 	case "list":
 		ts := make([]Ty, len(t.Args))
 		for i := range t.Args {

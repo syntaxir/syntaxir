@@ -126,7 +126,7 @@ func TestCompileContextPhaseCancellation(t *testing.T) {
 					elem = &ast.ListType{Elem: elem}
 				}
 				c := &compile.Compiler{Prog: p.Static(), Control: control}
-				c.CheckTerm(&ast.ListConstructor{Elem: elem}, fcheck.NewScope(), nil)
+				c.CheckActionExpr(&ast.ListConstructor{Elem: elem}, fcheck.NewScope(), nil)
 			case "core-build":
 				_, _ = corebuild.CoreControlled(p.Static(), control)
 			case "core-analysis", "core-passes", "core-pass-guards", "core-pass-scans", "core-verify":

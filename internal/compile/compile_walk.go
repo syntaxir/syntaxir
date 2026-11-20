@@ -28,7 +28,7 @@ func (c *walker) compileRule(r *Rule) {
 	c.Expr(body, r.Scope, !r.Lean)
 	c.proj = nil
 	if r.Action != nil {
-		c.CheckTerm(r.Action, r.Scope, nil)
+		c.CheckActionExpr(r.Action, r.Scope, nil)
 	}
 }
 
@@ -143,9 +143,9 @@ func (c *walker) predicate(e *ast.Predicate, s *check.Scope) {
 		if c.Prog.Vars.Lookup(a.Name) == nil {
 			c.errorf(a.Diagnostic(), "undefined variable %s; declare it with var %s at the top level", a.Name, a.Name)
 		}
-		c.CheckTerm(a.Value, s, nil)
+		c.CheckActionExpr(a.Value, s, nil)
 	} else {
-		c.CheckTerm(e.Action, s, nil)
+		c.CheckActionExpr(e.Action, s, nil)
 	}
 }
 
@@ -251,7 +251,7 @@ func (c *walker) compileOperatorsRule(r *Rule, e *ast.OperatorsRule) {
 	}
 	if r.Action != nil {
 		// The whole-rule action sees only the final folded value, as $value.
-		c.CheckTerm(r.Action, r.Scope, OperatorsRuleActionLocals)
+		c.CheckActionExpr(r.Action, r.Scope, OperatorsRuleActionLocals)
 	}
 }
 
@@ -277,7 +277,7 @@ func (c *walker) operatorsRuleLine(e ast.Expr, action ast.ActionExpr, locals []s
 	s := check.NewScope()
 	c.Expr(e, s, !c.rule.Novalue && !LeanLine(action, locals))
 	if action != nil && !c.rule.Novalue {
-		c.CheckTerm(action, s, locals)
+		c.CheckActionExpr(action, s, locals)
 	}
 	return s
 }

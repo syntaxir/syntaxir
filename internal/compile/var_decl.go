@@ -87,16 +87,16 @@ func (c *Compiler) varDecl(vd *ast.VarDef) *check.VarDecl {
 		return &check.VarDecl{Name: vd.Name, Typ: typ, Init: check.ZeroValue(typ)}
 	}
 	if _, isNil := vd.Value.(*ast.NilLit); isNil {
-		c.errorf(check.TermPos(vd.Value, vd.Diagnostic()), "variable %s cannot be nil; its type is int, string, or bool", vd.Name)
+		c.errorf(check.ActionExprPos(vd.Value, vd.Diagnostic()), "variable %s cannot be nil; its type is int, string, or bool", vd.Name)
 		return nil
 	}
 	v, ok := constantValue(vd.Value)
 	if !ok {
-		c.errorf(check.TermPos(vd.Value, vd.Diagnostic()), "the initial value of variable %s must be an int, string, or bool literal", vd.Name)
+		c.errorf(check.ActionExprPos(vd.Value, vd.Diagnostic()), "the initial value of variable %s must be an int, string, or bool literal", vd.Name)
 		return nil
 	}
 	if vd.Type != nil && check.ValueType(v) != typ {
-		c.errorf(check.TermPos(vd.Value, vd.Diagnostic()), "cannot use %s as %s in the initial value of variable %s", check.ValueType(v), typ, vd.Name)
+		c.errorf(check.ActionExprPos(vd.Value, vd.Diagnostic()), "cannot use %s as %s in the initial value of variable %s", check.ValueType(v), typ, vd.Name)
 		return nil
 	}
 	return &check.VarDecl{Name: vd.Name, Typ: check.ValueType(v), Init: v}

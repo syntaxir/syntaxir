@@ -31,8 +31,8 @@ var builtins = map[string]int{
 	"len": 1, "text": 1, "foldl": 3, "foldr": 3, "map": 2, "list": -1, "concat": -1, "filter": 2,
 }
 
-// TermChecker checks the value expressions of one program, reporting to Errs.
-type TermChecker struct {
+// ActionExprChecker checks the value expressions of one program, reporting to Errs.
+type ActionExprChecker struct {
 	Control *cancel.Control
 	Prog    *Checker
 	Errs    *diagnostic.ErrorList
@@ -42,12 +42,12 @@ type TermChecker struct {
 // whole-rule action.
 const OperatorsRuleValue = program.OperatorsRuleValue
 
-func (c *TermChecker) errorf(pos ast.Pos, format string, args ...any) {
+func (c *ActionExprChecker) errorf(pos ast.Pos, format string, args ...any) {
 	*c.Errs = append(*c.Errs, &diagnostic.Error{Pos: pos, Msg: fmt.Sprintf(format, args...)})
 }
 
-// CheckTerm resolves the names in a value expression and reports statically detectable errors.
-func (c *TermChecker) CheckTerm(t ast.ActionExpr, s *Scope, locals []string) {
+// CheckActionExpr resolves the names in a value expression and reports statically detectable errors.
+func (c *ActionExprChecker) CheckActionExpr(t ast.ActionExpr, s *Scope, locals []string) {
 	c.Control.Poll()
 	switch t := t.(type) {
 	case *ast.CaptureRef:
@@ -71,17 +71,17 @@ func (c *TermChecker) CheckTerm(t ast.ActionExpr, s *Scope, locals []string) {
 			c.errorf(t.Diagnostic(), "undefined variable %s; declare it with var %s at the top level", t.Name, t.Name)
 		}
 	case *ast.Member:
-		c.CheckTerm(t.X, s, locals)
+		c.CheckActionExpr(t.X, s, locals)
 	case *ast.New:
 		for _, x := range t.Args {
-			c.CheckTerm(x, s, locals)
+			c.CheckActionExpr(x, s, locals)
 		}
 		if _, ok := c.Prog.NodeTypeOf(t.Type); ok {
 			if len(t.Fields) != 0 || len(t.Args) != 1 {
 				c.errorf(t.Diagnostic(), "a node type constructor takes one value: write %s{x}", t.Type)
 			}
 			for _, fi := range t.Fields {
-				c.CheckTerm(fi.Value, s, locals)
+				c.CheckActionExpr(fi.Value, s, locals)
 			}
 			return
 		}
@@ -104,7 +104,7 @@ func (c *TermChecker) CheckTerm(t ast.ActionExpr, s *Scope, locals []string) {
 			if st != nil && FieldOf(st, fi.Name) == nil {
 				c.errorf(fi.Diagnostic(), "%s has no field %s", t.Type, fi.Name)
 			}
-			c.CheckTerm(fi.Value, s, locals)
+			c.CheckActionExpr(fi.Value, s, locals)
 		}
 	case *ast.ListConstructor:
 		k := &TypeResolver{control: c.Control, Prog: c.Prog, errs: c.Errs, report: true}
@@ -118,11 +118,11 @@ func (c *TermChecker) CheckTerm(t ast.ActionExpr, s *Scope, locals []string) {
 			c.errorf(t.Diagnostic(), "list constructors require a concrete element type, got %s", elem)
 		}
 		for _, item := range t.Items {
-			c.CheckTerm(item, s, locals)
+			c.CheckActionExpr(item, s, locals)
 		}
 	case *ast.TupleLit:
 		for _, x := range t.Elems {
-			c.CheckTerm(x, s, locals)
+			c.CheckActionExpr(x, s, locals)
 		}
 	case *ast.Call:
 		n, ok := builtins[t.Func]
@@ -132,19 +132,19 @@ func (c *TermChecker) CheckTerm(t ast.ActionExpr, s *Scope, locals []string) {
 			c.errorf(t.Diagnostic(), "%s takes %d arguments, got %d", t.Func, n, len(t.Args))
 		}
 		for _, a := range t.Args {
-			c.CheckTerm(a, s, locals)
+			c.CheckActionExpr(a, s, locals)
 		}
 	case *ast.Lambda:
-		c.CheckTerm(t.Body, s, append(append([]string(nil), locals...), t.Params...))
+		c.CheckActionExpr(t.Body, s, append(append([]string(nil), locals...), t.Params...))
 	case *ast.Binary:
-		c.CheckTerm(t.L, s, locals)
-		c.CheckTerm(t.R, s, locals)
+		c.CheckActionExpr(t.L, s, locals)
+		c.CheckActionExpr(t.R, s, locals)
 	case *ast.Unary:
-		c.CheckTerm(t.X, s, locals)
+		c.CheckActionExpr(t.X, s, locals)
 	case *ast.Cast:
 		k := &TypeResolver{control: c.Control, Prog: c.Prog, errs: c.Errs, report: true}
 		k.resolveLocation(t.Type, t.Diagnostic(), "the cast")
-		c.CheckTerm(t.X, s, locals)
+		c.CheckActionExpr(t.X, s, locals)
 	case *ast.Bind:
 		c.errorf(t.Diagnostic(), "binding %s := ... is only allowed as a whole predicate", t.Name)
 	}
