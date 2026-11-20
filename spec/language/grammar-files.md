@@ -583,8 +583,51 @@ repetition bounds. Pointer cycles and typed nil interface nodes are rejected.
 The public `grammar.Validate` function checks this structure before semantic
 compilation. `ast.ValidateContext(ctx, g)` checks the same structure and
 error order, but may return `ctx.Err()` without a partial diagnostic when its
-context is canceled. Neither function changes the AST. Unknown JSON fields
-remain ignored.
+context is canceled. Neither function changes the AST. `ast.UnmarshalJSON` ignores
+unknown JSON fields, while `ast.DecodeJSON` and `grammar.Load` reject them.
+
+### Grammar Sources
+
+The Go package `grammar` (`zeroparse.dev/zp/pkg/grammar`) reads a grammar from a **source**: one named input in
+grammar syntax or in JSON. The package does not run a grammar; compiling and running one belong to the compiler
+and the runtime.
+
+| Element | Meaning |
+|:--|:--|
+| `grammar.Source` | A named input with an encoding. Its supplier is fixed by the constructor that made it. The zero `Source` is empty, unnamed and of encoding `EncodingAuto` |
+| `grammar.FromBytes(name, data)` | The source with the content `data`, which the caller MUST NOT modify until the source is loaded |
+| `grammar.FromString(name, text)` | The source with the content `text` |
+| `grammar.FromReader(name, r)` | The source that `r` supplies. The first load reads `r` in full and the source keeps what it read, so a later load of the source or of a copy gives the same content, or the same read error |
+| `grammar.FromFS(fsys, name)` | The source that is the file `name` of the file system `fsys`, read at each load; its name is `name` |
+| `s.As(e)` | A copy of `s` with the encoding `e`. `As(EncodingAuto)` restores the decision from the name and the content |
+| `s.Name()`, `s.Encoding()` | The name given to the constructor, and the encoding that `As` set, or `EncodingAuto` |
+| `s.Decide()` | The encoding in which `Load` reads `s`, with the errors of reading `s` that `Load` has, including `ErrCompiled` |
+
+An `Encoding` is `EncodingAuto`, `EncodingZP` (grammar syntax) or `EncodingJSON` (the [JSON form](#grammar-json) of the
+AST); its `String` is `auto`, `zp` or `json`. `EncodingAuto` decides from the name and then the content: the extension
+`.zp` is grammar syntax and `.json` is JSON; any other name is JSON if the first byte of the content other than a
+space, tab, carriage return and line feed is `{`, and grammar syntax otherwise. An encoding that `As` set is used as
+it is.
+
+`grammar.Load(s)` returns the AST of `s`, which is the [source-preserving AST](#grammar-ast-source-metadata) for
+grammar syntax. For JSON it is `ast.DecodeJSON`, so an unknown field, a duplicate key and trailing data are errors,
+and the tree MUST pass structural validation. A source that holds a compiled grammar, which begins with the magic of
+the [file format](../bytecode/README.md#file-format) whatever the encoding, is an error that wraps
+`grammar.ErrCompiled`; test for it with `errors.Is`. Any other error is the error of reading the source or the
+errors of the grammar with their positions. They do not name the source: a program that reports them adds `s.Name()`.
+
+`grammar.Convert(s, to)` loads `s` and returns the grammar in the encoding `to`, which MUST be `EncodingZP` or
+`EncodingJSON`: for `EncodingZP` the text that `grammar.Format` writes, for `EncodingJSON` the result of
+`ast.MarshalJSON`. `EncodingAuto` is an error, and so are the errors of `Load`. `zp convert` is the command for it.
+
+### Formatting
+
+`grammar.Format(g)` writes the AST `g` as grammar syntax. The text parses back to the same grammar, and keeps the
+comments and line breaks that the AST records, so that formatting parsed source preserves its comments; a grammar
+without layout, such as one decoded from JSON, is written with a blank line between definitions and one item per
+line in blocks. `FormatExpr`, `FormatActionExpr` and `FormatType` write a single parser expression, action
+expression or type in the same way. Their `Context` variants, [below](#context-aware-formatting-and-collection),
+add cancellation, and `FormatSyntax` writes the [projection](#syntax-projection). The functions do not modify the AST.
 
 ### Validation of a Grammar AST
 

@@ -3,7 +3,9 @@
 Package `ast` (`zeroparse.dev/zp/pkg/grammar/ast`) is the grammar AST: use it when a tool builds
 a grammar in Go or reads its JSON representation. Package `grammar` (`zeroparse.dev/zp/pkg/grammar`)
 loads a grammar source in grammar syntax or JSON into the AST, and validates, formats and converts
-it. `compiler.CompileGrammar` checks a grammar and returns a parser; Go and TypeScript generation use the
+it; the specification defines [grammar sources](../../spec/language/grammar-files.md#grammar-sources),
+[validation](../../spec/language/grammar-files.md#validation-of-a-grammar-ast) and
+[formatting](../../spec/language/grammar-files.md#formatting). `compiler.CompileGrammar` checks a grammar and returns a parser; Go and TypeScript generation use the
 same compiler.
 
 ## Load a Grammar Source
