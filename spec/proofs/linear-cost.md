@@ -1735,7 +1735,9 @@ again, so the parser reaches $q$ only by consuming the character at $t$ after
 them: it is a first character of $\kappa$ after them too. In case 1 this
 contradicts disjointness. Case 3 does not hold, since $\sigma$ is a scanning
 source of $w$ outside the shared calls. In case 4 the path of $w$ that
-contains $\alpha$ matched its word $W$ from $t$, and $\sigma$ follows the word,
+contains $\alpha$, which is a path of $w$ whether $w$ then succeeds or fails
+([Conditions for Linear Cost](../runtime/parsing.md#conditions-for-linear-cost)),
+matched its word $W$ from $t$, and $\sigma$ follows the word,
 so $q \ge t + |W|$; on that input every path of $\kappa$ fails, examines
 nothing more or meets a known negative lookahead before $t + |W|$, so the
 parser does not reach $q$. Only case 5 remains. $\square$
@@ -3127,7 +3129,10 @@ $\kappa$, which reaches $p_0 > u$ after the alike calls, would consume that
 character too, which disjoint first characters exclude; and a unit has no
 scanning source after the alike calls only if $T$ there holds none. When the
 words of $w$ exclude $\kappa$, the path of $w$ that leads to $T$, and through
-$T$ to its end, begins at $u$ with its word $W$ before any scanning source on
+$T$ to its end, which is a path of $w$ although $w$ is abandoned, since the
+paths of a unit cover its evaluations that fail as well as those that succeed
+([Conditions for Linear Cost](../runtime/parsing.md#conditions-for-linear-cost)),
+begins at $u$ with its word $W$ before any scanning source on
 it, so it matches $W$ there, and $p_0 \ge u + |W|$, since $T$ either starts
 after the word or begins with it and consumes the input from its start to
 $p_0$; on that input every path of $\kappa$ fails, examines nothing more or
