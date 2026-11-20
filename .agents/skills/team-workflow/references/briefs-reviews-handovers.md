@@ -69,9 +69,10 @@ Audit its result with a cheap diff or grep.
 
 ## Handovers
 
-- Hand over at the first commit boundary after about 150k tokens of context. Do not wait
-  for automatic compaction: a written handover keeps what matters, and long contexts drift
-  from the rules.
+- Keep the same member on the same stream until it is done. Automatic compaction handles a long
+  context, and a fresh member spends more re-reading the state than it saves. Start a fresh
+  member only for an independent review, a different task, or a member that ended confused.
+  Keep the handover current at each commit anyway, so that a crash loses nothing.
 - The handover lives at `review/<lane>/handover.md`: the worktree, branch and SHA (pushed or
   not), what is done, the next steps, the jobs queued with their log paths, and the open
   questions. A fresh member resumes from it plus the issue.
