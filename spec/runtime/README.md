@@ -3,7 +3,7 @@
 This specification defines what happens when a compiled grammar meets input: the
 start rule, positions, results, syntax errors, the node and value model,
 incremental documents and streaming, and the tools around a running parser:
-tracing, compiled grammars, generated parsers, output schemas and the linter. The
+tracing, compiled grammars, generated parsers, output schemas, the linter and input generation. The
 grammars themselves are defined by the
 [Grammar Language Specification](../language/README.md); the portable
 instruction set that a grammar compiles to is defined by the
@@ -29,7 +29,7 @@ Running a grammar on input and the results it produces, for whole texts, edited 
 
 ### Tools and Formats
 
-Observing a parse, saving and generating parsers, describing their output and checking grammars.
+Observing a parse, saving and generating parsers, describing their output, checking grammars and testing them with generated inputs.
 
 | | Chapter | Defines |
 |--:|:--|:--|
@@ -39,6 +39,7 @@ Observing a parse, saving and generating parsers, describing their output and ch
 | 8 | [Output Schemas and Structural Queries](schemas-and-queries.md) | Describing the output of a grammar and searching result nodes (experimental) |
 | 9 | [Grammar Lint](lint.md) | The checks of the linter, severities and suppression directives |
 | 10 | [Fixture Suites and Edit Sequences](test-formats.md) | The JSON formats of `zp test` suites and `zp edit-fuzz` saved sequences |
+| 11 | [Input Generation](sampling.md) | Generating inputs that a grammar accepts, near-miss inputs that it rejects and coverage: the options and the `sample` package |
 
 The [Glossary](../glossary.md) lists the terms of the specifications, with the place
 where each is defined.
