@@ -14,14 +14,30 @@ import (
 // setting there such as core.fsmonitor applies to the scratch repository, starts a daemon per repository that
 // outlives the test, and lets a git diff that follows a write at once report the file unchanged while the daemon
 // has not yet seen the write. The scratch repositories of archtest's script tests use the same two variables.
+// It also unsets the variables that steer git at a repository, index or configuration from outside it
+// (GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE, GIT_CONFIG_PARAMETERS), which an inherited environment may set;
+// each is restored when the test ends.
 func isolateGit(t *testing.T) {
 	t.Helper()
 	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
 	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	for _, k := range []string{"GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_CONFIG_PARAMETERS"} {
+		unsetEnv(t, k)
+	}
+}
+
+// unsetEnv unsets k for the test and restores its value, if it had one, when the test ends.
+func unsetEnv(t *testing.T, k string) {
+	t.Helper()
+	t.Setenv(k, "")
+	if err := os.Unsetenv(k); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // repo makes a git repository with one commit holding src/a.go and other/b.go and makes it the working directory.
-// Git reads none of the user's configuration in it or in the rest of the test.
+// Git reads none of the user's configuration in it or in the rest of the test. It fails the test, rather than
+// skipping it, when git cannot make the repository: a skipped guard would not guard anything.
 func repo(t *testing.T) {
 	t.Helper()
 	isolateGit(t)
@@ -42,14 +58,17 @@ func repo(t *testing.T) {
 		cmd := exec.Command("git", args...)
 		cmd.Dir = dir
 		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Skipf("git %v: %v\n%s", args, err, out)
+			t.Fatalf("git %v: %v\n%s", args, err, out)
 		}
 	}
 	t.Chdir(dir)
 }
 
 // TestRepoIgnoresUserConfig plants a global configuration that enables core.fsmonitor where git looks for the
-// user's ($XDG_CONFIG_HOME and $HOME) and checks that the scratch repository does not see it.
+// user's ($XDG_CONFIG_HOME and $HOME) and checks that the scratch repository does not see it. The check
+// means something only if git would read the planted file without the isolation, so the test first unsets
+// GIT_CONFIG_GLOBAL and GIT_CONFIG_NOSYSTEM (a developer's environment may set them, and then git reads no
+// HOME file at all) and checks that the planted setting is visible.
 func TestRepoIgnoresUserConfig(t *testing.T) {
 	home := t.TempDir()
 	xdg := filepath.Join(home, "xdg")
@@ -64,6 +83,11 @@ func TestRepoIgnoresUserConfig(t *testing.T) {
 	}
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_CONFIG_HOME", xdg)
+	unsetEnv(t, "GIT_CONFIG_GLOBAL")
+	unsetEnv(t, "GIT_CONFIG_NOSYSTEM")
+	if out, err := exec.Command("git", "config", "--global", "--get", "core.fsmonitor").CombinedOutput(); err != nil || strings.TrimSpace(string(out)) != "true" {
+		t.Fatalf("without the isolation git does not read the planted setting (%v, %q): the guard would pass vacuously", err, out)
+	}
 	repo(t)
 	out, err := exec.Command("git", "config", "--show-origin", "--get", "core.fsmonitor").CombinedOutput()
 	if err == nil {
@@ -202,6 +226,20 @@ func TestSourceNamesMissingFiles(t *testing.T) {
 		_, src, err := readSource(c.file)
 		if err == nil || !strings.Contains(err.Error(), c.want) || !strings.Contains(err.Error(), c.file) || src != nil {
 			t.Errorf("readSource(%q): %d bytes, error %v; want one that names %q and the file", c.file, len(src), err, c.want)
+		}
+	}
+}
+
+// TestRepoDropsInheritedGitVariables checks that a variable that steers git at another repository, index or
+// configuration does not reach the scratch repository.
+func TestRepoDropsInheritedGitVariables(t *testing.T) {
+	for _, k := range []string{"GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_CONFIG_PARAMETERS"} {
+		t.Setenv(k, "/outside")
+	}
+	repo(t)
+	for _, k := range []string{"GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_CONFIG_PARAMETERS"} {
+		if v, ok := os.LookupEnv(k); ok {
+			t.Errorf("%s is still set to %q in the scratch repository", k, v)
 		}
 	}
 }

@@ -78,7 +78,7 @@ passes, and the caller no longer uses what it gave. A pass that fails, or under 
 verify, ends the optional passes of its unit, and only the required steps go on. A caller that keeps its input says so,
 and the run then never changes it: before the first pass that runs, the manager takes one private copy, which the
 passes of the segment change in place, and a failure rolls the segment back to its start, so that the caller goes on
-with the unit as it gave it, never with a half-rewritten one. Who keeps what is fixed by who reads the unit after the
+with the unit as it gave it, never with a half-rewritten one. A kept pointer unit needs a Copy: a pipeline without one is refused before its first pass. Who keeps what is fixed by who reads the unit after the
 run. The run-time backends build a Core module for the passes alone and drop it on a failure, and so does the Core part
 of a generation, so the Core passes change it without a copy. The Flow and Exec passes of a generated function keep
 their unit, since after a failed pass `flow-finish`, `execlower` and the printer finish the function, for a generation

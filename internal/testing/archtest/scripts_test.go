@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -19,9 +20,24 @@ import (
 // can wait on forever.
 var gitIsolated = []string{"GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1"}
 
+// gitRepoVars point git at a repository, index or configuration from outside the scratch repository. An
+// inherited one would make the scratch repositories act on the caller's repository, so they are dropped.
+var gitRepoVars = []string{"GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_CONFIG_PARAMETERS"}
+
+// inheritedEnv returns the environment of the test without the variables of gitRepoVars.
+func inheritedEnv() []string {
+	var env []string
+	for _, kv := range os.Environ() {
+		if !slices.ContainsFunc(gitRepoVars, func(k string) bool { return strings.HasPrefix(kv, k+"=") }) {
+			env = append(env, kv)
+		}
+	}
+	return env
+}
+
 func scriptEnv(t *testing.T, state string) []string {
 	t.Helper()
-	env := append(os.Environ(),
+	env := append(inheritedEnv(),
 		"ZP_AGENT_STATE="+state, "BENCHLOCK_POLL=1",
 		"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.com",
 		"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@example.com")
@@ -243,7 +259,7 @@ func TestScriptsRequireAgentState(t *testing.T) {
 	needTools(t)
 	home := t.TempDir()
 	var base []string
-	for _, kv := range os.Environ() {
+	for _, kv := range inheritedEnv() {
 		if !strings.HasPrefix(kv, "ZP_AGENT_STATE=") && !strings.HasPrefix(kv, "HOME=") && !strings.HasPrefix(kv, "XDG_STATE_HOME=") {
 			base = append(base, kv)
 		}
@@ -414,5 +430,21 @@ func TestAffectedTestsDeletedPackages(t *testing.T) {
 	write(t, filepath.Join(w, "go.mod"), "module "+mod+"\n\ngo 1.21\nbogus\n", 0o644)
 	if out, err := runIn(t, w, env, "sh", filepath.Join(w, "hack", "affected-tests.sh"), base, "HEAD"); err == nil {
 		t.Errorf("a failing go list succeeded with %q", out)
+	}
+}
+
+// The scratch repositories are steered only by their own configuration: a git variable inherited from the
+// caller's environment is dropped from the environment of every script run.
+func TestScriptEnvDropsGitRepositoryVariables(t *testing.T) {
+	for _, k := range gitRepoVars {
+		t.Setenv(k, "/outside")
+	}
+	env := scriptEnv(t, t.TempDir())
+	for _, kv := range env {
+		for _, k := range gitRepoVars {
+			if strings.HasPrefix(kv, k+"=") {
+				t.Errorf("the script environment inherits %s", kv)
+			}
+		}
 	}
 }

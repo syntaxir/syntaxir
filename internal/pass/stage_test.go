@@ -326,3 +326,28 @@ func TestStageVerifyEachKeepsObservedUnits(t *testing.T) {
 		}
 	}
 }
+
+// A stage that keeps a pointer unit it was given needs a Copy to keep it with: without one its passes
+// would change the caller's unit in place. Such a stage reports the error from Check, its run returns
+// the error without running a step, and so does a stage composed of it; the same stage with a Copy, or
+// without Keep, is fine.
+func TestKeepNeedsACopyOfAPointerUnit(t *testing.T) {
+	keptWithout := Transforms(Transform[*unit, mode]{IR: unitIR, Pipeline: fakePipeline(inPlace("a")), Keep: true,
+		Env: func(*Run, Label, *unit) mode { return mode{} }})
+	if err := keptWithout.Check(); err == nil || !strings.Contains(err.Error(), "no Copy") {
+		t.Fatalf("Check of a kept pointer unit without a Copy: %v", err)
+	}
+	in := &unit{log: []string{"in"}}
+	if out, err := keptWithout.Run(&Run{}, Label{}, in); err == nil || out != nil || !slices.Equal(in.log, []string{"in"}) {
+		t.Errorf("Run: returned %v, err %v, the input log %v; want the error, no unit, and the input untouched", out, err, in.log)
+	}
+	composed := Then(keptWithout, Do("finish", unitIR, func(u *unit) *unit { return u }))
+	if err := composed.Check(); err == nil {
+		t.Errorf("Check of a stage composed with a kept pointer unit without a Copy passed")
+	}
+	withoutKeep := Transforms(Transform[*unit, mode]{IR: unitIR, Pipeline: fakePipeline(inPlace("a")),
+		Env: func(*Run, Label, *unit) mode { return mode{} }})
+	if err := withoutKeep.Check(); err != nil {
+		t.Errorf("a stage without Keep: %v", err)
+	}
+}

@@ -30,7 +30,20 @@
 // It imports no other package of the module.
 package pass
 
-import "fmt"
+import (
+	"fmt"
+	"reflect"
+)
+
+// checkKeep rejects keeping a pointer unit that has no Copy. A run that keeps its unit takes its copy from Copy;
+// without one the passes would change the caller's unit in place and the keep would protect nothing. A unit that
+// is a value (no Copy needed) is not a pointer, so it is not checked.
+func checkKeep[M any](keep bool, copy func(M) M) error {
+	if !keep || copy != nil || reflect.TypeFor[M]().Kind() != reflect.Pointer {
+		return nil
+	}
+	return fmt.Errorf("a run keeps its %v unit, but the pipeline has no Copy: the passes would change the caller's unit", reflect.TypeFor[M]())
+}
 
 // Analysis names data about a unit that the passes of a pipeline read and that other passes make
 // stale. The pipeline's Analyses say how to compute each; the run computes them through its
@@ -89,7 +102,8 @@ type Options[M any] struct {
 	VerifyEach bool
 	// Keep reports that the caller keeps the unit it gives the run, which the run then does not
 	// change: the passes change a copy, taken before the first of them runs, and a failed run
-	// returns the unit it was given. Without it the run consumes the unit.
+	// returns the unit it was given. Without it the run consumes the unit. A kept pointer unit needs
+	// a Copy: a run without one is refused before any pass runs.
 	Keep bool
 	// Dump, if not nil, is called with Entry before the first pass and with the name of each pass
 	// and the unit it returned after it ran, before it is verified. The later passes of the run may
@@ -167,6 +181,9 @@ func (p *Pipeline[M, X]) Names() []string {
 // may have changed, or the one that failed the verification. With o.Keep it returns m instead.
 func (p *Pipeline[M, X]) Run(m M, x X, o Options[M]) (M, []string, error) {
 	if err := p.Validate(); err != nil {
+		return m, nil, err
+	}
+	if err := checkKeep(o.Keep, p.Copy); err != nil {
 		return m, nil, err
 	}
 	if o.Dump != nil && o.Entry == "" {

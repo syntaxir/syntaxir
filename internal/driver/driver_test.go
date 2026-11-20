@@ -352,7 +352,7 @@ func execModule(t *testing.T) *code.Module {
 }
 
 // noTarget is the pipeline of a target without Exec passes of its own.
-var noTarget = &TargetPipeline{}
+var noTarget = &TargetPipeline{Copy: (*execlower.Lowered).Clone}
 
 // An Exec pass runs when its flag is on and a flag turns it off; the dumps show each function of the
 // module as lowered under "execlower" and after each selected pass, and a pass that breaks the module is

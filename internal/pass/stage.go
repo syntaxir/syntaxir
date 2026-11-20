@@ -1,6 +1,7 @@
 package pass
 
 import (
+	"errors"
 	"fmt"
 	"io"
 )
@@ -121,6 +122,9 @@ func (st *state) fail(err error) {
 type Stage[I, O any] struct {
 	steps []Step
 	run   func(r *Run, l Label, in I, st *state) O
+	// err is a declaration error of the stage, such as a kept pointer unit without a Copy. Check reports it and
+	// Run returns it before any step runs.
+	err error
 }
 
 // Steps returns the steps of the stage in order.
@@ -129,6 +133,9 @@ func (s Stage[I, O]) Steps() []Step { return append([]Step(nil), s.steps...) }
 // Check checks the composition: each step takes the stage that the previous one returns, and names
 // are distinct and non-empty.
 func (s Stage[I, O]) Check() error {
+	if s.err != nil {
+		return s.err
+	}
 	seen := map[string]bool{}
 	for i, st := range s.steps {
 		if st.Name == "" {
@@ -149,6 +156,10 @@ func (s Stage[I, O]) Check() error {
 // required steps run; the first error is returned, with the unit as the steps left it, which is the
 // zero O if a required step failed.
 func (s Stage[I, O]) Run(r *Run, l Label, in I) (O, error) {
+	if s.err != nil {
+		var zero O
+		return zero, s.err
+	}
 	var st state
 	out := s.run(r, l, in, &st)
 	return out, st.err
@@ -158,6 +169,7 @@ func (s Stage[I, O]) Run(r *Run, l Label, in I) (O, error) {
 func Then[A, B, C any](a Stage[A, B], b Stage[B, C]) Stage[A, C] {
 	return Stage[A, C]{
 		steps: append(append([]Step(nil), a.steps...), b.steps...),
+		err:   errors.Join(a.err, b.err),
 		run: func(r *Run, l Label, in A, st *state) C {
 			mid := a.run(r, l, in, st)
 			if st.broken {
@@ -200,7 +212,7 @@ func Transforms[M, X any](t Transform[M, X]) Stage[M, M] {
 	for _, ps := range t.Pipeline.Passes {
 		steps = append(steps, Step{Name: ps.Name, In: t.IR.Stage, Out: t.IR.Stage, Dump: ps.Name})
 	}
-	return Stage[M, M]{steps: steps, run: func(r *Run, l Label, m M, st *state) M {
+	return Stage[M, M]{steps: steps, err: checkKeep(t.Keep, t.Pipeline.Copy), run: func(r *Run, l Label, m M, st *state) M {
 		if st.err != nil {
 			return m
 		}
@@ -298,7 +310,7 @@ func Do[M any](name string, ir IR[M], f func(m M) M) Stage[M, M] {
 // the same value, which s may have changed in place. A part that put cannot take, such as one that
 // lost what the unit refers to, is a failure of the stage, after which the unit is m.
 func Project[M any, P any](get func(m M) P, put func(m M, p P) (M, error), s Stage[P, P]) Stage[M, M] {
-	return Stage[M, M]{steps: s.steps, run: func(r *Run, l Label, m M, st *state) M {
+	return Stage[M, M]{steps: s.steps, err: s.err, run: func(r *Run, l Label, m M, st *state) M {
 		q := s.run(r, l, get(m), st)
 		out, err := put(m, q)
 		if err != nil {

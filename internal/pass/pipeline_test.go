@@ -281,10 +281,11 @@ func TestAnotherUnitsCacheIsNotMoved(t *testing.T) {
 	}
 }
 
-// A run that fails without Keep returns the unit as the failed pass left it, which the pass may have
-// changed in place, so the analyses that the caller's manager holds for it are discarded: a later run
-// on the returned unit computes them again, never reads them stale. A run that keeps its input does not
-// change it, so the analyses stay.
+// A run that fails returns a unit whose analyses the caller's manager must not serve stale. Without Keep
+// the failed pass may have changed the returned unit in place, so the run discards the analyses it
+// cached for it. With Keep the run changed only a copy, and the manager has moved to that copy, so the
+// entries it holds belong to a unit that is dropped. Either way a later run on the returned unit
+// computes the analyses it reads again, and does not read what the failed run left behind.
 func TestFailedRunDiscardsTheCallersAnalyses(t *testing.T) {
 	cause := errors.New("broken")
 	failing := Pass[*unit, mode]{Name: "fail", Requires: []Analysis{"attrs"}, Obligation: "none: it fails",
@@ -292,6 +293,8 @@ func TestFailedRunDiscardsTheCallersAnalyses(t *testing.T) {
 			u.log = append(u.log, "fail")
 			return u, all, cause
 		}}
+	reading := Pass[*unit, mode]{Name: "read", Requires: []Analysis{"attrs"}, Obligation: "none: it reads",
+		Run: func(u *unit, _ mode) (*unit, PreservedSet, error) { return u, all, nil }}
 	for _, keep := range []bool{false, true} {
 		am := NewAnalysisManager[*unit](nil)
 		p := fakePipeline(failing)
@@ -303,8 +306,16 @@ func TestFailedRunDiscardsTheCallersAnalyses(t *testing.T) {
 		if _, _, err := p.Run(in, mode{}, Options[*unit]{Analyses: am, Keep: keep}); !errors.Is(err, cause) {
 			t.Fatalf("keep %v: %v", keep, err)
 		}
-		if got := am.Cached("attrs"); got == !keep {
-			t.Errorf("keep %v: attrs cached %v after the failed run", keep, got)
+		before := am.Computations("attrs")
+		if before != 1 {
+			t.Fatalf("keep %v: the failed run computed attrs %d times, want once", keep, before)
+		}
+		u, _, err := fakePipeline(reading).Run(in, mode{}, Options[*unit]{Analyses: am})
+		if err != nil || u != in {
+			t.Fatalf("keep %v: a later run on the returned unit: %v, returned the unit %v", keep, err, u == in)
+		}
+		if got := am.Computations("attrs") - before; got != 1 {
+			t.Errorf("keep %v: a later run computed attrs %d times, want once: it was served the failed run's analyses", keep, got)
 		}
 	}
 }
@@ -426,5 +437,19 @@ func TestVerifyEachCopiesEachPass(t *testing.T) {
 	}
 	if a := dumped["a"]; !slices.Equal(a.log, []string{"in", "a", "analyze"}) || a.broken != "" {
 		t.Errorf("the unit dumped after a changed later: log %v, broken %q", a.log, a.broken)
+	}
+}
+
+// A run that keeps a pointer unit with no Copy is refused before any pass runs, and the unit is not
+// changed; a pipeline with a Copy keeps it.
+func TestRunKeepNeedsACopyOfAPointerUnit(t *testing.T) {
+	p := fakePipeline(inPlace("a"))
+	in := &unit{log: []string{"in"}}
+	if u, ran, err := p.Run(in, mode{}, Options[*unit]{Keep: true}); err == nil || u != in || len(ran) != 0 || !slices.Equal(in.log, []string{"in"}) {
+		t.Errorf("a kept run without a Copy: returned %v, ran %v, err %v, the input log %v", u == in, ran, err, in.log)
+	}
+	n := 0
+	if _, _, err := copying(fakePipeline(inPlace("a")), &n).Run(in, mode{}, Options[*unit]{Keep: true}); err != nil || n != 1 {
+		t.Errorf("a kept run with a Copy: err %v, %d copies", err, n)
 	}
 }
