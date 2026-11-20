@@ -21,8 +21,9 @@
 //
 // The package knows nothing about the unit M or the context X that its callers choose: Core IR
 // (internal/middleend/corepass, Pipeline), Flow IR (internal/ir/code/flow, Pipeline) and Exec IR
-// (internal/middleend/codepass, Pipeline) use it. It holds no state between runs; the registry is filled once,
-// by the init functions of the parts that register flags, and the analysis keys are declared once.
+// (internal/middleend/codepass, Pipeline) use it. It holds no state between runs; the registry is
+// filled once, by the init functions of the parts that register flags, and the analysis keys are
+// declared once.
 // A compilation chains the pipelines of its IRs and the lowerings between them into one typed
 // composition of stages under one manager (Stage, Then, Lower, Run).
 //

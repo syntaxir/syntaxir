@@ -87,7 +87,8 @@ to its caller: the lowering to Flow IR reads the table's Core module, which the 
 the table and lowers each of them from. When to copy is the manager's policy, not the transform's: an observer that
 needs the unit before each pass (`-verify-each`, `-print-changed`, the check of what a pass preserves,
 `-opt-bisect-limit`) makes the manager copy before every pass, and a required step that is not a pass (`flow-finish`)
-copies its unit, so that no step changes a unit that an observer has seen; the result and the rollback are the same. So
+copies its unit only for an observer under `-verify-each`, so that it changes no unit that the observer has seen. The
+result is the same; a kept unit is rolled back either way. So
 a normal build pays a copy only for a segment whose caller keeps its unit, and a run that is being diagnosed one per
 pass. Without such an observer, the unit that a dump is given is valid while it is printed, and a later step may
 change it in place.
