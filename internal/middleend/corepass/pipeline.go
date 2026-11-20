@@ -64,9 +64,8 @@ var Pipeline = &pass.Pipeline[*core.Module, *Env]{
 			},
 		},
 	},
-	Analyses:       map[pass.Analysis]func(*core.Module){AttributesAnalysis: core.Analyze},
-	Verify:         core.Verify,
-	VerifyRequires: []pass.Analysis{AttributesAnalysis},
+	Analyses: map[pass.Analysis]func(*core.Module){AttributesAnalysis: core.Analyze},
+	Verify:   Verify,
 	// The attributes, which the analysis writes into the nodes, travel with the copy.
 	Copy: (*core.Module).Clone,
 }
@@ -80,8 +79,20 @@ type RunOptions struct {
 	Dump func(pass string, m *core.Module)
 }
 
+// Verify verifies the Core module m: the attributes of its nodes are those that core.Analyze computes
+// (core.CheckAttributes), and the module holds the invariants of core.Verify, which reads them. It
+// never writes m: elaborate computes the attributes, and a pass that changes them keeps them so.
+func Verify(m *core.Module) error {
+	if err := core.CheckAttributes(m); err != nil {
+		return err
+	}
+	return core.Verify(m)
+}
+
 // Run runs the enabled passes of Pipeline on m, and verifies the module. It returns the module after
-// them, and the names of the passes that ran. It consumes m (pass.Pipeline.Run).
+// them, and the names of the passes that ran. It consumes m (pass.Pipeline.Run). The verifier checks
+// the attributes of m and does not compute them: m must have them, as elaborate makes it, unless a
+// pass that requires them runs, before which the run computes them.
 func Run(m *core.Module, e *Env, o RunOptions) (*core.Module, []string, error) {
 	return Pipeline.Run(m, e, o.Options(e))
 }

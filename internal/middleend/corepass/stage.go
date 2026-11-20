@@ -9,8 +9,8 @@ import (
 )
 
 // IR describes the Core IR module of a table to the manager of the pipeline of a compilation: it is
-// dumped as the listing of the module. It has no Verify: the Core verifier
-// reads the attributes analysis, which the Pipeline computes before it verifies (VerifyRequires).
+// dumped as the listing of the module. It has no Verify: the Pipeline verifies the module after its
+// passes (Verify).
 var IR = pass.IR[*core.Module]{Stage: Stage, Print: Print, Copy: (*core.Module).Clone}
 
 // Print writes the dump of the Core IR module m: its listing.

@@ -728,3 +728,78 @@ func TestPrint(t *testing.T) {
 		t.Errorf("Print:\n%s\nwant:\n%s", got, want)
 	}
 }
+
+// TestCheckAttributes checks that CheckAttributes accepts the attributes that Analyze computes,
+// rejects each attribute that differs from them, naming the rule, and never writes the module.
+func TestCheckAttributes(t *testing.T) {
+	digit := class('0', '9')
+	capture := &Capture{Slot: 0, Name: "x", Body: &Text{Body: seq(lit("ab"), &Call{Rule: 2})}}
+	m := module(
+		rule(0, "a", capture, "x"),
+		rule(1, "b", &Opt{Body: &Call{Rule: 2}}),
+		rule(2, "c", seq(&Drop{Body: digit}, lit("q"))),
+		rule(3, "l", choice(seq(&Call{Rule: 3}, lit("x")), lit("y"))),
+	)
+	m.Rules[3].Policy.Leader = true
+	attrs := func() []Attrs {
+		var as []Attrs
+		for _, r := range m.Rules {
+			Walk(r.Body, func(n Node) {
+				a := *n.Attrs()
+				if a.First != nil {
+					f := *a.First
+					a.First = &f
+				}
+				as = append(as, a)
+			})
+		}
+		return as
+	}
+	same := func(x, y []Attrs) bool {
+		return slices.EqualFunc(x, y, func(a, b Attrs) bool {
+			return a.Nullable == b.Nullable && a.NullableIns == b.NullableIns && sameEffects(a.Eff, b.Eff) && sameFirst(a.First, b.First)
+		})
+	}
+
+	before := attrs()
+	if err := CheckAttributes(m); err == nil {
+		t.Error("CheckAttributes accepted a module whose attributes were never computed")
+	}
+	if !same(before, attrs()) {
+		t.Error("CheckAttributes wrote the attributes of the module")
+	}
+	analyzed(t, m)
+	if err := CheckAttributes(m); err != nil {
+		t.Fatalf("CheckAttributes after Analyze: %v", err)
+	}
+	analyzedAttrs := attrs()
+	if err := CheckAttributes(m); err != nil || !same(analyzedAttrs, attrs()) {
+		t.Errorf("CheckAttributes changed an analyzed module or rejected it: %v", err)
+	}
+
+	for _, c := range []struct {
+		name   string
+		node   Node
+		change func(a *Attrs)
+		want   string
+	}{
+		{"nullable", m.Rules[1].Body, func(a *Attrs) { a.Nullable = !a.Nullable }, "rule b: "},
+		{"nullable-ins", m.Rules[1].Body, func(a *Attrs) { a.NullableIns = !a.NullableIns }, "rule b: "},
+		{"effects", m.Rules[2].Body, func(a *Attrs) { a.Eff.Set ^= EffRaise }, "rule c: "},
+		{"slots", capture, func(a *Attrs) { a.Eff.Slots = append([]int{1}, a.Eff.Slots...) }, "rule a: "},
+		{"first", m.Rules[2].Body, func(a *Attrs) { a.First = nil }, "rule c: node"},
+		{"first depth", m.Rules[0].Body, func(a *Attrs) { f := *a.First; f.Depth++; a.First = &f }, "rule a: node"},
+	} {
+		at := c.node.Attrs()
+		saved := *at
+		c.change(at)
+		err := CheckAttributes(m)
+		*at = saved
+		if err == nil || !strings.HasPrefix(err.Error(), c.want) {
+			t.Errorf("%s changed: CheckAttributes = %v, want an error starting %q", c.name, err, c.want)
+		}
+	}
+	if err := CheckAttributes(m); err != nil {
+		t.Errorf("CheckAttributes after the changes were undone: %v", err)
+	}
+}

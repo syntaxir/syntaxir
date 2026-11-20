@@ -1,6 +1,10 @@
 package core
 
-import "unicode/utf8"
+import (
+	"fmt"
+	"slices"
+	"unicode/utf8"
+)
 
 // Analyze computes Nullable, NullableIns, First and Eff of every node of the module from the
 // rules' bodies. Want and Shape are left as built. The rule references of the module must be valid.
@@ -11,8 +15,83 @@ import "unicode/utf8"
 // counting one level for each call of a recursive rule on the way (a Nest is of a rule that is not
 // recursive).
 func Analyze(m *Module) {
-	a := &analyzer{m: m, null: make([]bool, len(m.Rules)), ins: make([]bool, len(m.Rules)), eff: make([]Effect, len(m.Rules)),
+	newAnalyzer(m, nil).run()
+}
+
+// CheckAttributes reports whether the attributes that Analyze computes, Nullable, NullableIns,
+// First and Eff, are those of every node of m. It computes them into a structure of its own and
+// compares, so it never writes m: a verifier of a Core module checks the attributes that the
+// builder and the passes left, as the rest of the module.
+func CheckAttributes(m *Module) error {
+	s := &side{at: map[Node]int{}}
+	newAnalyzer(m, s).run()
+	for _, e := range s.nodes {
+		at := e.n.Attrs()
+		if e.eff && (at.Nullable != e.null || at.NullableIns != e.ins || !sameEffects(at.Eff, e.e)) {
+			return fmt.Errorf("rule %s: node %d: nullable=%v nullable-ins=%v effects [%s], computed nullable=%v nullable-ins=%v effects [%s]",
+				ruleName(m, e.rule), at.ID, at.Nullable, at.NullableIns, effectString(at.Eff), e.null, e.ins, effectString(e.e))
+		}
+		if e.first && !sameFirst(at.First, e.f) {
+			return fmt.Errorf("rule %s: node %d: first %s, computed %s", ruleName(m, e.rule), at.ID, firstOrNone(m, at.First), firstOrNone(m, e.f))
+		}
+	}
+	return nil
+}
+
+// side holds the attributes that CheckAttributes computes, by node, in the order the nodes are first
+// reached.
+type side struct {
+	at    map[Node]int
+	nodes []sideAttrs
+}
+
+// sideAttrs holds the computed attributes of one node: eff reports that null, ins and e are
+// computed, first that f is.
+type sideAttrs struct {
+	n          Node
+	rule       int
+	eff, first bool
+	null, ins  bool
+	e          Effects
+	f          *First
+}
+
+func (s *side) of(n Node, rule int) *sideAttrs {
+	i, ok := s.at[n]
+	if !ok {
+		i = len(s.nodes)
+		s.at[n] = i
+		s.nodes = append(s.nodes, sideAttrs{n: n, rule: rule})
+	}
+	return &s.nodes[i]
+}
+
+func ruleName(m *Module, id int) string {
+	if id >= 0 && id < len(m.Rules) && m.Rules[id] != nil {
+		return m.Rules[id].Name
+	}
+	return fmt.Sprint(id)
+}
+
+func firstOrNone(m *Module, f *First) string {
+	if f == nil {
+		return "none"
+	}
+	return FirstString(m, f)
+}
+
+func sameEffects(x, y Effects) bool { return x.Set == y.Set && slices.Equal(x.Slots, y.Slots) }
+
+func sameFirst(x, y *First) bool { return x == nil && y == nil || x != nil && y != nil && *x == *y }
+
+func newAnalyzer(m *Module, s *side) *analyzer {
+	return &analyzer{m: m, side: s, null: make([]bool, len(m.Rules)), ins: make([]bool, len(m.Rules)), eff: make([]Effect, len(m.Rules)),
 		start: make([]bool, len(m.Rules))}
+}
+
+// run computes the attributes of every node of the module.
+func (a *analyzer) run() {
+	m := a.m
 	for _, s := range m.Starts {
 		a.start[s] = true
 	}
@@ -40,13 +119,16 @@ func Analyze(m *Module) {
 	for _, r := range m.Rules {
 		m.Control.Poll()
 		if r != nil {
+			a.cur = r.ID
 			a.firsts(r.Body)
 		}
 	}
 }
 
 type analyzer struct {
-	m     *Module
+	m *Module
+	// side, if not nil, receives the attributes in place of the nodes (CheckAttributes).
+	side  *side
 	null  []bool
 	ins   []bool
 	eff   []Effect
@@ -152,8 +234,8 @@ func (a *analyzer) node(n Node) (bool, bool, Effects) {
 			}
 		}
 		for _, l := range n.Operands {
-			at := l.Body.Attrs()
-			null, ins = null || at.Nullable, ins || at.NullableIns
+			nn, ni := a.nullable(l.Body)
+			null, ins = null || nn, ins || ni
 		}
 		e.Set |= EffConsume | EffFail | EffExpect | EffCall | EffRaise
 	case *Text:
@@ -215,9 +297,24 @@ func (a *analyzer) node(n Node) (bool, bool, Effects) {
 	case *Terminal:
 		null, ins, e = a.node(n.Body)
 	}
-	at := n.Attrs()
-	at.Nullable, at.NullableIns, at.Eff = null, ins, e
+	if a.side != nil {
+		at := a.side.of(n, a.cur)
+		at.eff, at.null, at.ins, at.e = true, null, ins, e
+	} else {
+		at := n.Attrs()
+		at.Nullable, at.NullableIns, at.Eff = null, ins, e
+	}
 	return null, ins, e
+}
+
+// nullable returns the nullabilities of n, which the analysis has computed.
+func (a *analyzer) nullable(n Node) (bool, bool) {
+	if a.side != nil {
+		at := a.side.of(n, a.cur)
+		return at.null, at.ins
+	}
+	at := n.Attrs()
+	return at.Nullable, at.NullableIns
 }
 
 // union returns the union of two effect summaries, with the slots of x first.
@@ -253,7 +350,12 @@ func (a *analyzer) firsts(n Node) {
 	for _, c := range Children(n) {
 		a.firsts(c)
 	}
-	n.Attrs().First = a.head(n)
+	if a.side != nil {
+		at := a.side.of(n, a.cur)
+		at.first, at.f = true, a.head(n)
+	} else {
+		n.Attrs().First = a.head(n)
+	}
 }
 
 // head returns the First of n, following only the expressions n must begin with, so that a rule
