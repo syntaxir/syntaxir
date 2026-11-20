@@ -111,7 +111,7 @@ value from recovery fits only a Type that admits `error`. A cast in a predicate 
 makes the predicate fail.
 
 The argument of `len` and `text` MUST be a string, a node or a recovered value (possibly `nil`);
-the list arguments of `foldl`, `foldr`, `map` and `concat` MUST be lists, and
+the list arguments of `foldl`, `foldr`, `map`, `filter` and `concat` MUST be lists, and
 an error value (from [error recovery](pragmas.md#recover)) counts as an empty list.
 A function (`(acc, item) => ...`) can appear only as an argument of `foldl`,
 `foldr` or `map`, and it has the number of parameters those functions require.

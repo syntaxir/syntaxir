@@ -209,10 +209,8 @@ rule junk_decl Decl = {junk := true} d:(type_decl / var_decl / rule_decl) {junk 
 rule stmt_end []Comment = (
     cs:horizontal tail:(stmt_sep / stmt_skip / stmt_junk)
 ) => concat($cs, $tail)
-// The recovered value is discarded and replaced by an empty list because concat does not yet accept a
-// "[]T | error" value in the type checker; use concat directly once the checker accepts it.
-rule stmt_skip []Comment = &[)\]}] -((stmt_sep @error(message="expected semicolon, newline, or end of file")) #recover(skip=stmt_sync)) => list()
-rule stmt_junk []Comment = {junk} &(decl_keyword !ident_char / "=" ![=>] / "/*") -((stmt_sep @error(message="expected semicolon, newline, or end of file")) #recover(skip=stmt_sync)) => list()
+rule stmt_skip []Comment | error = &[)\]}] x:((stmt_sep @error(message="expected semicolon, newline, or end of file")) #recover(skip=stmt_sync)) => $x
+rule stmt_junk []Comment | error = {junk} &(decl_keyword !ident_char / "=" ![=>] / "/*") x:((stmt_sep @error(message="expected semicolon, newline, or end of file")) #recover(skip=stmt_sync)) => $x
 rule item_end []Comment = (
     cs:horizontal tail:(item_sep @error(message="expected semicolon, newline, or closing brace"))
 ) => concat($cs, $tail)

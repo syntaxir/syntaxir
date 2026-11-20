@@ -959,6 +959,8 @@ func CapType(caps []CapIndex, name string) (Ty, bool) {
 // elemOf returns the type of the elements that list functions read from x: the elements of a
 // list, or of the list a node holds, as for the node of a repetition. nil has no elements.
 func (v *ValueInference) elemOf(fn string, x Ty, pos ast.Pos) Ty {
+	// An error value from recovery counts as an empty list for the list arguments of foldl,
+	// foldr, map, filter and concat (spec/language/type-checking.md).
 	t, ok := v.elemsOf(x)
 	if !ok {
 		v.errorf(pos, "%s: expected a list, got %s", fn, v.display(x))
@@ -967,6 +969,8 @@ func (v *ValueInference) elemOf(fn string, x Ty, pos ast.Pos) Ty {
 	return t
 }
 
+// elemsOf returns the type of the elements of the list x, or false if x is not a list. An error
+// value is the empty list.
 func (v *ValueInference) elemsOf(x Ty) (Ty, bool) {
 	switch x := v.Expand(x).(type) {
 	case ListTy:
@@ -987,11 +991,17 @@ func (v *ValueInference) elemsOf(x Ty) (Ty, bool) {
 			ts[i] = t
 		}
 		return Vjoin(ts...), true
+	case NamedTy:
+		if x == TyError {
+			return TyBottom, true
+		}
 	case BasicTy:
 		switch x {
 		case TyAny:
 			return TyAny, true
 		case TyNil, TyBottom:
+			return TyBottom, true
+		case TyErr:
 			return TyBottom, true
 		}
 	}

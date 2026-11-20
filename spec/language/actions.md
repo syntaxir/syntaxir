@@ -472,7 +472,7 @@ right. The lambda must take one argument and produce an actual Boolean:
 `true` keeps the original element and `false` drops it. A nil element is
 passed to the lambda as nil and is kept when the result is true. The result
 preserves element order and node identity; elements are not cloned. A nil
-input produces an empty list and does not call the lambda.
+or error-value input (from `#recover`) produces an empty list and does not call the lambda.
 
 The result keeps the input list's static element Type. A predicate such as
 `$item != nil` does not narrow an optional element Type. A statically known

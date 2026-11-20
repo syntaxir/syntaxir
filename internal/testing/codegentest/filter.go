@@ -19,5 +19,9 @@ rule main = x:"é" $$ => Out{Items: filter(list(nil, $x, nil, $x), (item) => ite
 rule one _ = _ => 1`, Inputs: []string{"a", "", "ab"}},
 		{Name: "dynamic nonbool predicate", Src: `rule main = a:"a" d:one ({len(filter(list($a), (item) => $d.(bool))) == 1} "!" / "?") $$
 rule one _ = _ => 1`, Inputs: []string{"a?", "a!", "a", ""}},
+		// An error value from recovery is an empty list: the lambda is not called, and the
+		// result is the empty list, where a recovered list is filtered.
+		{Name: "recovered error value", Src: `rule main = x:(items #recover(skip=[^;]*)) ";" $$ => filter($x, (item) => item != nil && text(item) != "b")
+rule items []node[string] = a:"a" b:"b" => list($a, $b)`, Inputs: []string{"ab;", "ax;", "x;", ";"}},
 	}
 }

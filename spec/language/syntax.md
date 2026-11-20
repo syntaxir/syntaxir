@@ -83,10 +83,8 @@ rule junk_decl = {junk := true} (type_decl / var_decl / rule_decl) {junk := fals
 // error is reported and the rest of its statement is skipped. Any other text there could continue the
 // declaration, so the declaration fails as a whole, and the error is where the farthest attempt stopped.
 rule stmt_end = horizontal (stmt_sep / stmt_skip / stmt_junk)
-// The recovered value is discarded and replaced by an empty list because concat does not yet accept a
-// "[]T | error" value in the type checker; use concat directly once the checker accepts it.
-rule stmt_skip = &[)\]}] -stmt_sep
-rule stmt_junk = {junk} &(decl_keyword !ident_char / "=" ![=>] / "/*") -stmt_sep
+rule stmt_skip = &[)\]}] stmt_sep
+rule stmt_junk = {junk} &(decl_keyword !ident_char / "=" ![=>] / "/*") stmt_sep
 rule item_end = horizontal item_sep
 rule field_end = horizontal field_sep
 rule stmt_sep = block_sep / empty_stmt_sep

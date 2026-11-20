@@ -287,6 +287,14 @@ rule a = x:"x" {n := 1} => list($x, n)`, "a", `[](node[string] | int)`},
 		{"rule a = x:\"x\" y:b? => list($x, $y)\nrule b = z:a => $z", "a", `[]*(node[string] | b)`},
 		// Rule references stay symbolic, so a recursive rule needs no expansion.
 		{`rule a = x:("(" a ")")? => $x`, "a", `*node[(node[string], a, node[string])]`},
+		// An error value from recovery counts as an empty list for the list arguments of foldl,
+		// foldr, map and concat: the error contributes no element to the result.
+		{"rule a = x:(b #recover(skip=\"y\")) => concat($x, list(\"s\"))\nrule b []string = \"b\" => list(\"b\")", "a", `[]string`},
+		{"rule a = x:(b #recover(skip=\"y\")) => concat(list(\"s\"), $x, $x)\nrule b []string = \"b\" => list(\"b\")", "a", `[]string`},
+		{"rule a = x:(b #recover(skip=\"y\")) => map($x, (i) => len(i))\nrule b []string = \"b\" => list(\"b\")", "a", `[]int`},
+		{"rule a = x:(b #recover(skip=\"y\")) => foldl(0, $x, (n, i) => n + len(i))\nrule b []string = \"b\" => list(\"b\")", "a", `int`},
+		{"rule a = x:(b #recover(skip=\"y\")) => filter($x, (i) => len(i) > 0)\nrule b []string = \"b\" => list(\"b\")", "a", `[]string`},
+		{"rule a = x:(b #recover(skip=\"y\")) => foldr(0, $x, (n, i) => n + len(i))\nrule b []string = \"b\" => list(\"b\")", "a", `int`},
 	} {
 		types, errs := valueTypesOf(t, tc.src)
 		if len(errs) > 0 {
@@ -326,6 +334,9 @@ func TestValueActionErrors(t *testing.T) {
 		{"type Word = { Text string }\nrule a = _ => Word{Text: 1}", `cannot use int as string in field Text of Word`},
 		{"type Foo = {}\nrule a Foo = x:\"x\" => $x", "rule a produces node[string], which is not assignable to Foo"},
 		{`rule a = x:"x" => filter($x.Value, (i) => i)`, "filter: expected a list, got string"},
+		// A node that may be an error is not a list.
+		{`rule a = x:("x" #recover(skip="y")) => filter($x, (i) => true)`, "filter: expected a list, got node[string] | error"},
+		{`rule a = x:("x" #recover(skip="y")) => concat($x, list(1))`, "concat: expected a list, got node[string] | error"},
 		{"rule a = x:\"x\" y:b => list($x, $y.Value)\nrule b = z:a => $z", "[]node[string] | []unknown has no field Value"},
 	} {
 		_, errs := valueTypesOf(t, tc.src)
