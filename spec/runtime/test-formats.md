@@ -74,7 +74,7 @@ A saved sequence is a JSON object with exactly these members.
 | `initial_base64` | The initial text as base64 bytes, so invalid UTF-8 survives |
 | `operations` | The list of operations |
 
-An operation is an object with `kind`. An `edit` has `start` and `end`, the range `[start, end)` of the text just
+The operations and the checks that a replay makes are defined in [Edit Fuzzing](edit-fuzzing.md). An operation is an object with `kind`. An `edit` has `start` and `end`, the range `[start, end)` of the text just
 before the operation in the sequence's unit, and `text_base64`, the replacement as base64 bytes. `undo` restores the
 text before the latest edit that is not undone. `redo` reapplies the latest undone edit; a new edit discards the edits
 that could be redone. `checkpoint` parses the Document and compares the result with a parse of its current text from

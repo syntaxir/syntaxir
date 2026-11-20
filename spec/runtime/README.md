@@ -3,7 +3,7 @@
 This specification defines what happens when a compiled grammar meets input: the
 start rule, positions, results, syntax errors, the node and value model,
 incremental documents and streaming, and the tools around a running parser:
-tracing, compiled grammars, generated parsers, output schemas, the linter and input generation. The
+tracing, compiled grammars, generated parsers, output schemas, the linter, input generation and edit fuzzing. The
 grammars themselves are defined by the
 [Grammar Language Specification](../language/README.md); the portable
 instruction set that a grammar compiles to is defined by the
@@ -29,7 +29,7 @@ Running a grammar on input and the results it produces, for whole texts, edited 
 
 ### Tools and Formats
 
-Observing a parse, saving and generating parsers, describing their output, checking grammars and testing them with generated inputs.
+Observing a parse, saving and generating parsers, describing their output, checking grammars and testing them with generated inputs and edits.
 
 | | Chapter | Defines |
 |--:|:--|:--|
@@ -40,6 +40,7 @@ Observing a parse, saving and generating parsers, describing their output, check
 | 9 | [Grammar Lint](lint.md) | The checks of the linter, severities and suppression directives |
 | 10 | [Fixture Suites and Edit Sequences](test-formats.md) | The JSON formats of `zp test` suites and `zp edit-fuzz` saved sequences |
 | 11 | [Input Generation](sampling.md) | Generating inputs that a grammar accepts, near-miss inputs that it rejects and coverage: the options and the `sample` package |
+| 12 | [Edit Fuzzing](edit-fuzzing.md) | Checking incremental parsing against fresh parses with generated edit sequences: the checks, failures and the `editfuzz` package |
 
 The [Glossary](../glossary.md) lists the terms of the specifications, with the place
 where each is defined.

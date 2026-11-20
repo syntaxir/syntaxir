@@ -386,7 +386,8 @@
             "spec/runtime/schemas-and-queries.md",
             "spec/runtime/lint.md",
             "spec/runtime/test-formats.md",
-            "spec/runtime/sampling.md"
+            "spec/runtime/sampling.md",
+            "spec/runtime/edit-fuzzing.md"
           ],
           "first": [
             "spec/runtime/observability.md",
@@ -395,7 +396,8 @@
             "spec/runtime/schemas-and-queries.md",
             "spec/runtime/lint.md",
             "spec/runtime/test-formats.md",
-            "spec/runtime/sampling.md"
+            "spec/runtime/sampling.md",
+            "spec/runtime/edit-fuzzing.md"
           ]
         }
       ]
