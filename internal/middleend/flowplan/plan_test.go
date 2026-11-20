@@ -1,6 +1,8 @@
 package flowplan_test
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -170,6 +172,75 @@ func TestRefused(t *testing.T) {
 	if n == 0 || starts == 0 {
 		t.Fatalf("%d flat functions planned, %d with an entry position: the refusal is not exercised", n, starts)
 	}
+	// A read in the block of a form, which a target's pass may replace and Finish splices, counts as a
+	// read, and so does a variable that holds a value.
+	forms, values := 0, 0
+	for _, s := range p.Funcs {
+		if s.Form != flowlower.Flat {
+			continue
+		}
+		fn := lowerFlow(t, m, s, opts)
+		if a := flow.AttrsOf(fn); a.Start != "" && a.Forms != nil && len(a.Forms.Classes) > 0 {
+			b := a.Forms.Classes[0].Block
+			b.Stmts = append([]code.Stmt{&code.Assert{Cond: code.L(a.Start)}}, b.Stmts...)
+			if !flowplan.Refused(fn) {
+				t.Errorf("%s reads its start in a form and is not refused", s.Name)
+			}
+			forms++
+		}
+		fn = lowerFlow(t, m, s, opts)
+		fn.Locals = append(fn.Locals, code.P("v", flow.CodeType(flow.TypeValue)))
+		flow.AttrsOf(fn).Vars = append(flow.AttrsOf(fn).Vars, "v")
+		if !flowplan.Refused(fn) {
+			t.Errorf("%s holds a value and is not refused", s.Name)
+		}
+		values++
+	}
+	if forms == 0 || values == 0 {
+		t.Fatalf("%d reads in forms, %d values: not exercised", forms, values)
+	}
+}
+
+// TestRefusedBeforeTheForms checks that the refusal of every planned flat function of the test grammars,
+// in the Node table and in the recognizer, is the same on the function as the lowering writes it, with
+// the blocks of its forms, and after Finish splices them: deciding before the passes decides as on the
+// finished function.
+func TestRefusedBeforeTheForms(t *testing.T) {
+	files, err := filepath.Glob("../../../testdata/grammars/*/*.zp")
+	if err != nil || len(files) == 0 {
+		t.Fatalf("no test grammars: %v", err)
+	}
+	n := 0
+	for _, file := range files {
+		src, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, rec := range []compile.Recognition{compile.Recognize, compile.BuildValues} {
+			m, _, p := plan(t, string(src), rec, nil)
+			opts := flowlower.Options{Budget: true, Recovers: flowlower.Recovers(m), Node: true}
+			for _, s := range p.Funcs {
+				if s.Form != flowlower.Flat {
+					continue
+				}
+				fn := lowerFlow(t, m, s, opts)
+				before, vars := flowplan.Refused(fn), len(flow.AttrsOf(fn).Vars)
+				fm := &code.Module{Funcs: []*code.Func{fn}}
+				flowpass.Finish(fm)
+				if after := flowplan.Refused(fn); after != before {
+					t.Errorf("%s %s: refused %v as lowered, %v when finished", file, s.Name, before, after)
+				}
+				if len(flow.AttrsOf(fn).Vars) != vars {
+					t.Errorf("%s %s: Finish changed the variables, %d to %d", file, s.Name, vars, len(flow.AttrsOf(fn).Vars))
+				}
+				n++
+			}
+		}
+	}
+	if n == 0 {
+		t.Fatal("no flat function planned")
+	}
+	t.Logf("%d flat functions of %d grammars", n, len(files))
 }
 
 // lowerFlow lowers the function s of the Core module m with the options opts, as the lowering of a

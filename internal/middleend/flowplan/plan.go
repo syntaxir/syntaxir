@@ -69,6 +69,9 @@ type Table struct {
 	// (Bind), and index the index of the function of each key in it.
 	module *code.Module
 	index  map[Key]int
+	// refused holds the flat functions that the lowering of the last Unit refused, which Bind replaces
+	// by their fallbacks.
+	refused []*FuncSpec
 }
 
 // Func returns the function planned for the use k, or false if the table has none: the rule is left
@@ -103,9 +106,10 @@ func Plan(t *TableIR, rules []*Rule, live func(rule int) bool) *Table {
 // in the order of p, with the Core IR and the options of the table t, and the decision on each flat
 // function, right after the lowering writes it and before any pass: a function that Refused rejects
 // in its Flow IR, or that refuse rejects by its key (a test's hook; nil rejects none), is replaced in
-// p and in the module by its framed fallback, or left out of both if the rule has none. The decision
-// reads the function as the lowering writes it, before any pass makes a form of one target, so it is
-// one for every backend. After the lowering, the functions of p are those of the module, in order.
+// the module by its framed fallback, or left out if the rule has none. The decision reads the function
+// as the lowering writes it, before any pass makes a form of one target, so it is one for every
+// backend. The plan takes the decisions when the module is bound to it (Bind): a lowering that fails
+// leaves the plan as it was.
 func (p *Table) Unit(t *TableIR, refuse func(Key) bool) flowlower.Unit {
 	specs := slices.Clone(p.Funcs)
 	funcs := make([]flowlower.Func, len(specs))
@@ -116,12 +120,13 @@ func (p *Table) Unit(t *TableIR, refuse func(Key) bool) flowlower.Unit {
 			funcs[i].Fallback = &fb
 		}
 	}
+	p.refused = nil
 	return flowlower.Unit{Module: t.M, Opts: t.Opts, Funcs: funcs, Refuse: func(i int, f *code.Func) bool {
 		s := specs[i]
 		if !Refused(f) && (refuse == nil || !refuse(s.Key)) {
 			return false
 		}
-		p.refuse(s)
+		p.refused = append(p.refused, s)
 		return true
 	}}
 }
@@ -139,9 +144,15 @@ func (p *Table) refuse(s *FuncSpec) {
 }
 
 // Bind binds to the plan the module m of its functions, which the lowering of Unit made and the passes
-// after it ran on: the function of each key is then the function at its place in m (Lowered,
-// FlowFunc). A module that does not hold the functions of the plan in order is an internal error.
+// after it ran on: it first takes the decisions of the lowering, replacing each refused flat function by
+// its fallback or leaving it out, and the function of each key is then the function at its place in m
+// (Lowered, FlowFunc). A module that does not hold the functions of the plan in order is an internal
+// error.
 func (p *Table) Bind(m *code.Module) error {
+	for _, s := range p.refused {
+		p.refuse(s)
+	}
+	p.refused = nil
 	if len(m.Funcs) != len(p.Funcs) {
 		return fmt.Errorf("internal error: the module of the table holds %d functions, not the %d of its plan", len(m.Funcs), len(p.Funcs))
 	}

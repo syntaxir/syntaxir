@@ -17,12 +17,13 @@ func Finish(m *code.Module) {
 	}
 }
 
-// finish ends the Flow passes on the lowered function fn, whichever of them ran: it splices the blocks of the forms (flow.Forms) into the statement lists around them, drops the
-// variables that only replaced forms named, and orders the variables as the lowering would have made
-// them had it written the forms the passes chose: a variable shared by the whole function (ch, size,
-// ok) where its first use that is still in the function was written, and a variable a pass made at the
-// event it belongs to. The function then has no forms (Attrs.Forms is nil). Finish does nothing to a
-// function without forms.
+// finish ends the Flow passes on the lowered function fn, whichever of them ran: it splices the
+// blocks of the forms (flow.Forms) into the statement lists around them, drops the variables that only
+// replaced forms named, and orders the variables as the lowering would have made them had it written
+// the forms the passes chose: a variable shared by the whole function (ch, size, ok) where its first
+// use that is still in the function was written, and a variable a pass made at the event it belongs
+// to. The function then has no forms (Attrs.Forms is nil). Finish does nothing to a function without
+// forms.
 func finish(fn *code.Func) {
 	a := flow.AttrsOf(fn)
 	if a == nil || a.Forms == nil {

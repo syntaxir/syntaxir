@@ -212,11 +212,12 @@ them too, so every backend lowers the same rules. It holds:
   is refused when a reachable statement reads its entry position or its context, which a flat function has no
   parameters for, or when a variable holds a value, which a value-free function does not keep. Reachability is the
   printers' (the dead-store analysis of Code IR). The plan makes this decision once, for every backend, while the
-  table is lowered: the lowering asks the plan about each flat function right after writing it, and a refused
-  function is replaced, in the plan and in the module, by its lowered fallback, or left out of both if the rule has
-  none. No pass has run yet, so the decision reads no form of a target, and the table is lowered once. A pass that
-  makes a form of a target keeps what the decision reads; the Go generator checks that the flat functions it prints
-  in its own forms are not refused, and fails with an internal error otherwise.
+  table is lowered: the lowering asks the plan about each flat function right after writing it, and a refused function
+  is replaced in the module by its lowered fallback, or left out if the rule has none. The plan takes the decisions
+  when the module is bound to it, so a lowering that fails leaves the plan as it was. No pass has run yet, so the
+  decision reads no form of a target, and the table is lowered once. A pass that makes a form of a target keeps what
+  the decision reads; the Go generator checks that the flat functions it prints in its own forms are not refused, and
+  fails with an internal error otherwise.
 - The capture-slot layout of each rule's frame: the names of the Core rule's scope, empty for a rule that runs flat or
   as an Operators Rule. A backend verifies the rows it emits against it: the Go generator the scopes of its rule
   table, and the VM the scope of each rule whose body it runs from Flow IR, whose framed body runs in that frame.
@@ -402,14 +403,14 @@ the command writes to standard error. A test and the command line therefore see 
 
 `-opt-bisect-limit N` numbers the runs of optional passes in the order the pipeline makes them, runs those numbered up
 to N and skips the later ones. A run is one pass on one unit, so a pass that runs per function counts once for each
-function. The passes of a module of many functions, such as the module of a planned table, run pass by pass: the
-first pass on each function in the order of the module, then the second, so the numbers, and the dumps after each
-pass, follow the passes and, within a pass, the functions. A run of `canonicalize` on a unit takes one number like every pass, and each application of one of its
-patterns takes a number of its own, so that skipping a number skips that one application. Required passes always run, so
-the output stays a valid parser whatever N is. Each decision is reported with its number, the name of the pass, the unit
-and whether the pass ran. In Go, the limit is the bisection field of `Debug`. A differential test against the closure
-reference parser can then search for the smallest N at which the generated parser differs from the reference, and that
-run names the pass, and the unit, that introduced the difference.
+function. The passes of a module of many functions, such as the module of a planned table, run pass by pass: the first
+pass on each function in the order of the module, then the second, so the numbers, and the dumps after each pass, follow
+the passes and, within a pass, the functions. A run of `canonicalize` on a unit takes one number like every pass, and
+each application of one of its patterns takes a number of its own, so that skipping a number skips that one application.
+Required passes always run, so the output stays a valid parser whatever N is. Each decision is reported with its number,
+the name of the pass, the unit and whether the pass ran. In Go, the limit is the bisection field of `Debug`. A
+differential test against the closure reference parser can then search for the smallest N at which the generated parser
+differs from the reference, and that run names the pass, and the unit, that introduced the difference.
 
 ### Textual Pipelines
 
