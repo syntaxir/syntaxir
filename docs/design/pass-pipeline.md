@@ -75,7 +75,9 @@ A transform returns the unit after it, and a transform that changed nothing retu
 preserved. A transform consumes the unit it is given and may change it in place, and so do a pipeline run (the passes
 of one stage of transforms, a segment) and a stage of the compilation by default: the run returns the unit after its
 passes, and the caller no longer uses what it gave. A pass that fails, or under `-verify-each` a result that does not
-verify, ends the optional passes of its unit, and only the required steps go on. A caller that keeps its input says so,
+verify, ends the optional passes of its unit, and only the required steps go on; in a module of many functions it
+ends the passes of its function, the other functions finish the passes of the segment, and the later segments run
+only their required steps. A caller that keeps its input says so,
 and the run then never changes it: before the first pass that runs, the manager takes one private copy, which the
 passes of the segment change in place, and a failure rolls the segment back to its start, so that the caller goes on
 with the unit as it gave it, never with a half-rewritten one. A kept pointer unit needs a Copy: a pipeline without one is refused before its first pass. Who keeps what is fixed by who reads the unit after the
@@ -184,6 +186,14 @@ The forms of typed rules do not apply to the Node table, guarded classes apply o
 controls, and the VM has no instruction that compares a literal in place, so it matches each literal as the lowering
 wrote it. Each form charges what it replaces, so the VM's functions charge what the Go parser's do.
 
+The functions of a planned table are lowered into one module, in the order of the plan, by one run of `flowlower`;
+the Flow passes, `execlower` and the Exec passes then run on that module, each pass on every function in turn before
+the next pass (see [Bisecting Passes](#bisecting-passes)), and a backend finds the function of a use in the module by
+its key. The VM runs the Flow part on the module of its Node table, and the Go generator both parts on the modules
+of its Node table and its recognizer. Within the module, functions are named apart: a value-free twin by its rule's
+name and `/value-free`, the skip and the lines of an Operators Rule by its rule's name and `/skip` or `/line` and the
+index of the line.
+
 The plan of a table is computed from the Core IR of the table after its Core passes, the rules of the table (value-free
 twins included) as the plan reads them: their definitions, actions and run-time facts, and the rules that the backend
 emits. The tests of which rules may run flat or framed are the plan's; a generator that decides a route of its own asks
@@ -198,17 +208,15 @@ them too, so every backend lowers the same rules. It holds:
   a **flat** function, with no frame. Any other rule whose Core body can run inside the frame its runtime owns is a
   **framed** body, which builds its value unless the rule is lean. A flat function carries the framed body as its
   fallback.
-- The refusal of a flat function, an analysis of its Exec IR: the function is refused when a reachable statement
-  reads its entry position or its context, which a flat function has no parameters for, or when a variable holds a
-  value, which a value-free function does not keep. Reachability is the printers' (the dead-store analysis of Code
-  IR). The plan makes this decision once, for every backend: it lowers the flat function with the table's options,
-  ends it with each form in the form every backend prints, with no Flow pass, and runs `execlower` and the Exec passes
-  that every backend runs, at the optimizations of the table. The backend's driver runs these steps, as it runs the
-  Core step that builds the table, so the plan's runs are dumped, verified and numbered with the other runs of the
-  compilation. A refused function is replaced in the plan by its
-  fallback, so a backend only follows the plan. A pass that makes a form of a target keeps what the decision reads; the
-  Go generator checks that the flat functions it prints in its own forms are not refused, and fails with an internal
-  error otherwise.
+- The refusal of a flat function, an analysis of its Flow IR as `flowlower` writes it, before any pass: the function
+  is refused when a reachable statement reads its entry position or its context, which a flat function has no
+  parameters for, or when a variable holds a value, which a value-free function does not keep. Reachability is the
+  printers' (the dead-store analysis of Code IR). The plan makes this decision once, for every backend, while the
+  table is lowered: the lowering asks the plan about each flat function right after writing it, and a refused
+  function is replaced, in the plan and in the module, by its lowered fallback, or left out of both if the rule has
+  none. No pass has run yet, so the decision reads no form of a target, and the table is lowered once. A pass that
+  makes a form of a target keeps what the decision reads; the Go generator checks that the flat functions it prints
+  in its own forms are not refused, and fails with an internal error otherwise.
 - The capture-slot layout of each rule's frame: the names of the Core rule's scope, empty for a rule that runs flat or
   as an Operators Rule. A backend verifies the rows it emits against it: the Go generator the scopes of its rule
   table, and the VM the scope of each rule whose body it runs from Flow IR, whose framed body runs in that frame.
@@ -394,7 +402,9 @@ the command writes to standard error. A test and the command line therefore see 
 
 `-opt-bisect-limit N` numbers the runs of optional passes in the order the pipeline makes them, runs those numbered up
 to N and skips the later ones. A run is one pass on one unit, so a pass that runs per function counts once for each
-function. A run of `canonicalize` on a unit takes one number like every pass, and each application of one of its
+function. The passes of a module of many functions, such as the module of a planned table, run pass by pass: the
+first pass on each function in the order of the module, then the second, so the numbers, and the dumps after each
+pass, follow the passes and, within a pass, the functions. A run of `canonicalize` on a unit takes one number like every pass, and each application of one of its
 patterns takes a number of its own, so that skipping a number skips that one application. Required passes always run, so
 the output stays a valid parser whatever N is. Each decision is reported with its number, the name of the pass, the unit
 and whether the pass ran. In Go, the limit is the bisection field of `Debug`. A differential test against the closure

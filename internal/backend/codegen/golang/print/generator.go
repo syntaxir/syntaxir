@@ -16,6 +16,7 @@ import (
 	"unicode/utf8"
 
 	"zeroparse.dev/zp/internal/backend/codegen/common"
+	gopass "zeroparse.dev/zp/internal/backend/codegen/golang/pass"
 	"zeroparse.dev/zp/internal/frontend/astfacts"
 	"zeroparse.dev/zp/internal/frontend/check"
 	"zeroparse.dev/zp/internal/frontend/types"
@@ -83,8 +84,9 @@ type Hooks struct {
 	// StreamRoute is called like LeanRoute for each ParseStream start rule whose stream body is
 	// printed from Flow IR (flowStreamBody).
 	StreamRoute func(table string, r *common.Rule)
-	// RefuseFlowRecRule makes flowRecRule refuse the rules it selects, so that the framed body that
-	// takes their place is exercised. No manifest grammar reaches that fallback.
+	// RefuseFlowRecRule makes the plan of the Node and recognizer tables refuse the flat functions of
+	// the rules it selects (flowplan.Table.Unit), so that the framed body that takes their place is
+	// exercised. No manifest grammar reaches that fallback.
 	RefuseFlowRecRule func(*common.Rule) bool
 	// FlowVarsMutant makes every variable of a printed function unread: the generated code must
 	// then fail to compile, which shows that the tests of generated code catch a wrong decision.
@@ -665,9 +667,12 @@ func (g *Generator) rules() {
 		for i, r := range all {
 			rules[i] = r.PlanRule()
 		}
-		t := &flowplan.TableIR{M: g.Flow.M, Origin: g.Flow.Origin, Opts: g.Flow.Opts}
-		p, err := flowplan.Plan(t, rules, func(id int) bool { return !g.pruned(all[id]) }, g.PlanExec)
-		if err != nil {
+		p := flowplan.Plan(g.Flow.TableIR, rules, func(id int) bool { return !g.pruned(all[id]) })
+		var refuse func(flowplan.Key) bool
+		if g.hooks.RefuseFlowRecRule != nil {
+			refuse = func(k flowplan.Key) bool { return k.Use == flowplan.RuleBody && g.hooks.RefuseFlowRecRule(all[k.Rule]) }
+		}
+		if err := g.LowerTable(p, refuse, gopass.Pipeline); err != nil {
 			panic(fmt.Errorf("table %s: %w", g.Table, err))
 		}
 		g.plan = p
@@ -699,8 +704,8 @@ func (g *Generator) rules() {
 		// The lines of an Operators Rule are printed with its table row (operatorsRule).
 		spec, ok := g.plan.Func(flowplan.Key{Use: flowplan.RuleBody, Rule: r.ID})
 		if ok && spec.Form == flowlower.Flat {
-			// flowRecRule returns nil for a rule that the hook RefuseFlowRecRule refuses; such a rule
-			// takes its framed fallback and is called through the rule table (plainCall).
+			// flowRecRule returns nil only if the printed form breaks the plan's decision, which fails
+			// the generation (Generator.FlowErr).
 			if d := g.flowRecRule(r, spec); d != nil {
 				if g.hooks.LeanRoute != nil && g.collect == nil && !g.Traced {
 					g.hooks.LeanRoute(g.Table, r)
@@ -709,11 +714,10 @@ func (g *Generator) rules() {
 				if g.slotReached(r) {
 					bodies[r] = g.leanRuleBody(r, d)
 				}
-				continue
 			}
-			spec = spec.Fallback
+			continue
 		}
-		if ok && spec != nil {
+		if ok {
 			if g.hooks.FramedRoute != nil && g.collect == nil && !g.Traced {
 				g.hooks.FramedRoute(g.Table, r)
 			}

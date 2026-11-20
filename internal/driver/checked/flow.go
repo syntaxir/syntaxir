@@ -7,8 +7,6 @@ import (
 	"zeroparse.dev/zp/internal/driver"
 	"zeroparse.dev/zp/internal/ir/code"
 	"zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/internal/middleend/execlower"
-	"zeroparse.dev/zp/internal/middleend/flowlower"
 	"zeroparse.dev/zp/internal/middleend/flowpass"
 	"zeroparse.dev/zp/internal/middleend/flowplan"
 )
@@ -18,16 +16,17 @@ import (
 type FlowTable struct {
 	IR   *flowplan.TableIR
 	Plan *flowplan.Table
-	// Bodies maps the ID of each rule whose body the plan holds to the function the table runs for
-	// it, after the Flow passes: the rule's flat function or its framed body, as the plan decides.
+	// Bodies maps the ID of each rule whose body the plan holds to a module of the function the table
+	// runs for it alone (flowplan.Table.FlowFunc), after the Flow passes: the rule's flat function or
+	// its framed body, as the plan decides.
 	Bodies map[int]*code.Module
 }
 
 // FlowTable builds the Node table of the program the way the generated Go parser with budget
 // controls builds its Node table, so that the VM runs the same functions: the same Core IR and
-// lowering options (flowplan.BuildTable), the same plan, with its decisions (flowplan.Plan), and
-// the Core step, the plan's Exec step and the Flow steps of the driver at the default
-// optimizations, for the VM's target (flowpass.Bytecode).
+// lowering options (flowplan.BuildTable), the same plan, with its decisions (flowplan.Plan,
+// flowplan.Table.Unit), and the Core step and the Flow steps of the driver on the module of the
+// table at the default optimizations, for the VM's target (flowpass.Bytecode).
 func (s *Source) FlowTable() (*FlowTable, error) {
 	p := s.prog
 	d := &driver.Driver{}
@@ -38,23 +37,19 @@ func (s *Source) FlowTable() (*FlowTable, error) {
 		return nil, fmt.Errorf("internal error: Core IR: %w", err)
 	}
 	rules := append(append([]*compile.Rule(nil), p.RuleList...), p.Twins...)
-	plan, err := flowplan.Plan(t, planRules(rules), nil, func(u flowlower.Unit) (*execlower.Lowered, error) {
-		return d.PlanExec("rules", u, false)
-	})
+	plan := flowplan.Plan(t, planRules(rules), nil)
+	m, err := d.Flow("rules", plan.Unit(t, nil), false, flowpass.Bytecode)
 	if err != nil {
+		return nil, fmt.Errorf("table rules: %w", err)
+	}
+	if err := plan.Bind(m); err != nil {
 		return nil, err
 	}
 	ft := &FlowTable{IR: t, Plan: plan, Bodies: map[int]*code.Module{}}
 	for _, r := range rules {
-		spec, ok := plan.Func(flowplan.Key{Use: flowplan.RuleBody, Rule: r.ID})
-		if !ok {
-			continue // the table cannot run the rule from Flow IR
+		if f, ok := plan.FlowFunc(flowplan.Key{Use: flowplan.RuleBody, Rule: r.ID}); ok {
+			ft.Bodies[r.ID] = f
 		}
-		f, err := d.FlowFunc("rules", t.Unit(spec.Func), false, flowpass.Bytecode)
-		if err != nil {
-			return nil, fmt.Errorf("function %s of table rules: %w", spec.Name, err)
-		}
-		ft.Bodies[r.ID] = f
 	}
 	return ft, nil
 }

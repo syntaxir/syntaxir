@@ -7,7 +7,6 @@ import (
 	"go/token"
 	"strings"
 
-	gopass "zeroparse.dev/zp/internal/backend/codegen/golang/pass"
 	"zeroparse.dev/zp/internal/frontend/check"
 	"zeroparse.dev/zp/internal/ir/code"
 	"zeroparse.dev/zp/internal/ir/code/flow"
@@ -20,28 +19,22 @@ import (
 //
 // The rules of every table (the typed table, the Node table and the recognizer, and the stream
 // body), in the ordinary form, with budget controls and with a Document, are written at the Flow
-// stage and converted to the Exec stage (Generator.ExecPasses), and printed by the Go backend of the Exec
+// stage and converted to the Exec stage (Generator.ExecPasses, Generator.LowerTable), and printed by the Go backend of the Exec
 // stage (print.Body), which prints the compositions of the library too. The primitives of grammar
 // code are printed in place by the flow printer (flowPrinter.op).
 
-// execBody prints the body of the Flow IR function f from Exec IR with the flow printer p, for a
-// function that is printed whatever its body: it checks the variables (execVars) and counts the
-// function (execCount).
-func (p *flowPrinter) execBody(f *code.Module) BodyResult {
-	l, res := p.execPrint(f)
+// execBody prints the body of the lowered function l with the flow printer p, for a function that is
+// printed whatever its body: it checks the variables (execVars) and counts the function (execCount).
+func (p *flowPrinter) execBody(l *execlower.Lowered) BodyResult {
+	res := p.execPrint(l)
 	p.execVars(l, &res)
 	p.execCount()
 	return res
 }
 
-// execPrint lowers the Flow IR function f to Exec IR and prints its body with the flow printer p.
-func (p *flowPrinter) execPrint(f *code.Module) (*execlower.Lowered, BodyResult) {
-	fn := flow.FuncOf(f) // the conversion to the Exec stage moves it out of f
-	l, err := p.g.ExecPasses(f, gopass.Pipeline)
-	if err != nil {
-		panic(fmt.Errorf("rule %s of table %s: %w", fn.Name, p.g.Table, err))
-	}
-	return l, Body(l.Module, l.Func, p.execTarget(), l.Vars)
+// execPrint prints the body of the lowered function l with the flow printer p.
+func (p *flowPrinter) execPrint(l *execlower.Lowered) BodyResult {
+	return Body(l.Module, l.Func, p.execTarget(), l.Vars)
 }
 
 // execVars checks the variables of the printed body res of the lowered function l: a variable that
@@ -202,10 +195,10 @@ func goPrec(text string) int {
 	return token.UnaryPrec
 }
 
-// execFlatRule prints the local function f from Exec IR as a flat rule (flowTypedRule).
-func (g *Generator) execFlatRule(p *flowPrinter, f *code.Module) *flatRule {
-	fn := flow.FuncOf(f) // the conversion to the Exec stage moves it out of f
-	res := p.execBody(f)
+// execFlatRule prints the lowered local function l as a flat rule (flowTypedRule).
+func (g *Generator) execFlatRule(p *flowPrinter, l *execlower.Lowered) *flatRule {
+	fn := l.Func
+	res := p.execBody(l)
 	st := res.Stores
 	a := flow.AttrsOf(fn)
 	read := func(v string) bool { return v != "" && st.Read[v] }
@@ -230,14 +223,14 @@ func (g *Generator) execFlatRule(p *flowPrinter, f *code.Module) *flatRule {
 	return out
 }
 
-// execRecRule prints the local function f of a rule of the Node library from Exec IR as a flat rule.
-// The plan has accepted the function (flowplan.Plan); if the forms that the Go passes chose make
-// flowplan.Refused reject it, the generation fails with an internal error (Generator.FlowErr) and
-// execRecRule returns nil. It counts only a rule it prints.
-func (g *Generator) execRecRule(p *flowPrinter, f *code.Module) *flatRule {
-	fn := flow.FuncOf(f) // the conversion to the Exec stage moves it out of f
-	l, res := p.execPrint(f)
-	if flowplan.Refused(l) {
+// execRecRule prints the lowered local function l of a rule of the Node library as a flat rule. The
+// plan has accepted the function as the lowering wrote it (flowplan.Table.Unit); if the forms that the
+// Go passes chose make flowplan.Refused reject it, the generation fails with an internal error
+// (Generator.FlowErr) and execRecRule returns nil. It counts only a rule it prints.
+func (g *Generator) execRecRule(p *flowPrinter, l *execlower.Lowered) *flatRule {
+	fn := l.Func
+	res := p.execPrint(l)
+	if flowplan.Refused(fn) {
 		if g.FlowErr == nil {
 			g.FlowErr = fmt.Errorf("internal error: the plan runs %s flat, but in the forms of the Go passes it reads its start or its context, or keeps a value", fn.Name)
 		}
@@ -272,10 +265,10 @@ func (g *Generator) execRecRule(p *flowPrinter, f *code.Module) *flatRule {
 	return out
 }
 
-// execFramed prints the framed function f from Exec IR as flowFramed does.
-func (g *Generator) execFramed(p *flowPrinter, f *code.Module, slots []irc.Slot, scope *check.Scope, comment string, ruleBody bool) string {
-	fn := flow.FuncOf(f) // the conversion to the Exec stage moves it out of f
-	res := p.execBody(f)
+// execFramed prints the lowered framed function l as flowFramed does.
+func (g *Generator) execFramed(p *flowPrinter, l *execlower.Lowered, slots []irc.Slot, scope *check.Scope, comment string, ruleBody bool) string {
+	fn := l.Func
+	res := p.execBody(l)
 	st := res.Stores
 	var vars []dvar
 	dead, quiet := map[string]bool{}, map[string]bool{}

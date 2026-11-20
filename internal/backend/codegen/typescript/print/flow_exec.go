@@ -25,10 +25,11 @@ import (
 func (g *Generator) printTSFlowExec(f *code.Module) (string, []string, []tsDecl) {
 	fn := flow.FuncOf(f)
 	a := flow.AttrsOf(fn)
-	l, err := g.ExecPasses(f, tspass.Pipeline)
+	x, err := g.ExecPasses(f, tspass.Pipeline)
 	if err != nil {
 		panic(fmt.Errorf("rule %s of table %s: %w", fn.Name, g.Table, err))
 	}
+	l := execlower.View(x, 0)
 	g.ExecFuncs++
 	vars := map[string]bool{}
 	for _, v := range append(append([]string(nil), a.Vars...), a.Start, a.Result, a.Ctx) {

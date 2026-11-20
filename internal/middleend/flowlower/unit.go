@@ -13,10 +13,11 @@ import (
 
 // The lowering as a step of the pipeline of a compilation.
 //
-// A Unit is what one lowering takes: the arguments of Lower, LowerFrame and LowerOutline, with the
-// form that selects among them. Lowering is the lowering as the required pass
-// "flowlower" from the Core stage to the Flow stage: it lowers a Unit, and the Flow verifier
-// (Verify), its postcondition, checks the result before any Flow pass sees it.
+// A Unit is what one lowering takes: the functions of a table, each with the arguments of Lower,
+// LowerFrame or LowerOutline and the form that selects among them. Lowering is the lowering as the
+// required pass "flowlower" from the Core stage to the Flow stage: it lowers a Unit to one module of
+// its functions, and the Flow verifier (Verify), its postcondition, checks the result before any Flow
+// pass sees it.
 
 // Form selects the function a Unit is lowered to.
 type Form int
@@ -41,26 +42,63 @@ type Func struct {
 	Body  core.Node
 	Slots []core.Slot
 	Build bool
+	// Fallback is, for a flat function, the function that the table runs in its place if the
+	// function is refused (Unit.Refuse), or nil if the rule has none.
+	Fallback *Func
 }
 
 // Unit is what one run of the lowering takes: the Core module Module of a table, on which Analyze
-// must have run, the options Opts of its functions, and the function Func. The lowering only reads
-// Module, so the units of the functions of a table share it.
+// must have run, the options Opts of its functions, and the functions Funcs in order. The lowering
+// only reads Module, so the units of the tables of a program may share it.
 type Unit struct {
 	Module *core.Module
 	Opts   Options
-	Func   Func
+	Funcs  []Func
+	// Refuse, if not nil, decides on each flat function right after it is lowered, before any pass:
+	// it is called with the index of the function in Funcs and the function as the lowering wrote
+	// it, and a function that it refuses is replaced in the module by its lowered Fallback, or left
+	// out if it has none. The planner of the table decides (flowplan.Refused).
+	Refuse func(i int, f *code.Func) bool
 }
 
-// LowerUnit lowers u to a module of one function at the Flow stage, which it does not verify:
-// Verify, the postcondition of the lowering, does.
+// LowerUnit lowers the functions of u to one module at the Flow stage, in the order of u.Funcs, less
+// the functions that u.Refuse refuses, each in the place of the function it replaces. It does not
+// verify the module: Verify, the postcondition of the lowering, does.
 func LowerUnit(u Unit) (*code.Module, error) {
-	f := u.Func
+	var out *code.Module
+	for i, f := range u.Funcs {
+		m, err := lowerFunc(u.Module, f, u.Opts)
+		if err != nil {
+			return nil, err
+		}
+		if f.Form == Flat && u.Refuse != nil && u.Refuse(i, flow.FuncOf(m)) {
+			if f.Fallback == nil {
+				continue
+			}
+			if m, err = lowerFunc(u.Module, *f.Fallback, u.Opts); err != nil {
+				return nil, err
+			}
+		}
+		if out == nil {
+			out = m
+			continue
+		}
+		out.Funcs = append(out.Funcs, m.Funcs...)
+	}
+	if out == nil {
+		out = flow.NewModule("flow")
+	}
+	return out, nil
+}
+
+// lowerFunc lowers the function f of the Core module m with the options opts to a module of one
+// function.
+func lowerFunc(m *core.Module, f Func, opts Options) (*code.Module, error) {
 	switch f.Form {
 	case Flat:
-		return lowerFlat(u.Module, f.Rule, f.Name, u.Opts)
+		return lowerFlat(m, f.Rule, f.Name, opts)
 	case Frame, Outline:
-		return lowerFrameBody(u.Module, f.Rule, f.Body, f.Slots, f.Build, f.Name, u.Opts)
+		return lowerFrameBody(m, f.Rule, f.Body, f.Slots, f.Build, f.Name, opts)
 	}
 	return nil, fmt.Errorf("rule %s: no lowering of the form %d", f.Rule.Name, f.Form)
 }

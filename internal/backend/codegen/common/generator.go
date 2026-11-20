@@ -5,12 +5,9 @@ import (
 	"strings"
 
 	"zeroparse.dev/zp/internal/frontend/check"
-	irbuild "zeroparse.dev/zp/internal/frontend/elaborate"
 	"zeroparse.dev/zp/internal/frontend/types"
 	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/flow"
 	"zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/internal/middleend/execlower"
 	"zeroparse.dev/zp/internal/middleend/flowlower"
 	"zeroparse.dev/zp/internal/middleend/flowpass"
 	"zeroparse.dev/zp/internal/middleend/flowplan"
@@ -208,12 +205,10 @@ func (g *Generator) Projections(r *Rule) map[string]string {
 	return r.Projections
 }
 
-// FlowState holds the Core IR of the typed rules while they are printed from Flow IR.
+// FlowState holds the Core IR of the table being printed from Flow IR, with the options its functions
+// are lowered with (flowplan.TableIR), and the rules of its program.
 type FlowState struct {
-	M *core.Module
-	// Origin holds the expression of the grammar each node of M was built from.
-	Origin irbuild.Origin
-	Opts   flowlower.Options
+	*flowplan.TableIR
 	// Rules holds the rules of the program by ID, value-free twins included.
 	Rules []*Rule
 }
@@ -252,53 +247,53 @@ func (g *Generator) FlowNodeFrameOK(r *Rule) (*core.Rule, bool) {
 	return cr, true
 }
 
-// FlowPasses runs the Flow part of the pipeline (Runner.FlowFunc) on the function u of the table
-// being generated, labeled "typed" for the typed rules as in the dumps of Core IR, and returns its
-// module at the Flow stage. Every function that a generator prints goes through it. An error of the
-// lowering is returned; a failure of the passes is kept as the first internal error of the
+// FlowPasses runs the Flow part of the pipeline (Runner.Flow) on the functions of u, a unit of the
+// table being generated, labeled "typed" for the typed rules as in the dumps of Core IR, and returns
+// its module at the Flow stage. Every function that a generator prints goes through it. An error of
+// the lowering is returned; a failure of the passes is kept as the first internal error of the
 // generation (FlowErr), which fails it, and the module is returned for the printing to go on.
 func (g *Generator) FlowPasses(u flowlower.Unit) (*code.Module, error) {
-	m, err := g.runner().FlowFunc(g.IRTable(), u, g.Observability, g.FlowTarget)
+	m, err := g.runner().Flow(g.IRTable(), u, g.Observability, g.FlowTarget)
 	if m == nil {
 		return nil, err
 	}
 	if err != nil && g.FlowErr == nil {
-		g.FlowErr = fmt.Errorf("function %s of table %s: %w", flow.FuncOf(m).Name, g.IRTable(), err)
+		g.FlowErr = fmt.Errorf("module %s of table %s: %w", m.Name, g.IRTable(), err)
 	}
 	return m, nil
 }
 
-// ExecPasses runs the Exec part of the pipeline (Runner.ExecFunc) on the module m of one function
-// that FlowPasses returned, with target, the pipeline of the backend's own Exec passes, labeled with
-// the table being generated as FlowPasses labels it, and returns the lowered function. An error of
-// the conversion to Exec IR is returned; a failure of the passes is kept as the first internal error
-// of the generation (FlowErr), which fails it. The printers print l.Func with the locals l.Vars, so
-// a pass keeps that function in the module and those locals in it: the verifier of the lowered
-// function checks it at the end of the target's passes (execlower.Lowered.Keeps).
-func (g *Generator) ExecPasses(m *code.Module, target *TargetPipeline) (*execlower.Lowered, error) {
-	l, err := g.runner().ExecFunc(g.IRTable(), m, target, g.Observability)
-	if l == nil {
+// ExecPasses runs the Exec part of the pipeline (Runner.Exec) on the module m that FlowPasses
+// returned, with target, the pipeline of the backend's own Exec passes, labeled with the table being
+// generated as FlowPasses labels it, and returns its module at the Exec stage. An error of the
+// conversion to Exec IR is returned; a failure of the passes is kept as the first internal error of
+// the generation (FlowErr), which fails it. The printers print each function with its variables
+// (execlower.View), so a pass keeps that function in the module and those locals in it: the verifier
+// of the lowered function checks it at the end of the target's passes (execlower.Lowered.Keeps).
+func (g *Generator) ExecPasses(m *code.Module, target *TargetPipeline) (*code.Module, error) {
+	x, err := g.runner().Exec(g.IRTable(), m, target, g.Observability)
+	if x == nil {
 		return nil, err
 	}
 	if err != nil && g.FlowErr == nil {
-		g.FlowErr = fmt.Errorf("module %s of table %s: %w", l.Module.Name, g.IRTable(), err)
+		g.FlowErr = fmt.Errorf("module %s of table %s: %w", x.Name, g.IRTable(), err)
 	}
-	return l, nil
+	return x, nil
 }
 
-// PlanExec runs the Exec step of the plan of the table being generated (Runner.PlanExec) on its
-// function u, labeled as FlowPasses labels it, for flowplan.Plan. A failure of a required step is
-// returned; a failure of the passes is kept as the first internal error of the generation (FlowErr),
-// as ExecPasses keeps it, and the lowered function is returned for the plan to go on.
-func (g *Generator) PlanExec(u flowlower.Unit) (*execlower.Lowered, error) {
-	l, err := g.runner().PlanExec(g.IRTable(), u, g.Observability)
-	if l == nil {
-		return nil, err
+// LowerTable lowers the functions of the plan p of the table being generated, with its decisions
+// (flowplan.Table.Unit; refuse is a test's hook, nil refuses none), through the Flow and the Exec part
+// of the pipeline with target, as FlowPasses and ExecPasses run them, and binds the module at the Exec
+// stage to p, whose functions the printers then print (flowplan.Table.Lowered).
+func (g *Generator) LowerTable(p *flowplan.Table, refuse func(flowplan.Key) bool, target *TargetPipeline) error {
+	m, err := g.FlowPasses(p.Unit(g.Flow.TableIR, refuse))
+	if err != nil {
+		return err
 	}
-	if err != nil && g.FlowErr == nil {
-		g.FlowErr = fmt.Errorf("module %s of table %s: %w", l.Module.Name, g.IRTable(), err)
+	if m, err = g.ExecPasses(m, target); err != nil {
+		return err
 	}
-	return l, nil
+	return p.Bind(m)
 }
 
 // IRTable is the name of the table being generated in the dumps of the IR: "typed" for the typed
@@ -344,7 +339,7 @@ func (g *Generator) StartRecFlow(rec *Program) error {
 	if err != nil {
 		return err
 	}
-	g.Flow = &FlowState{M: t.M, Origin: t.Origin, Opts: t.Opts, Rules: append(append([]*Rule(nil), rec.RuleList...), rec.Twins...)}
+	g.Flow = &FlowState{TableIR: t, Rules: append(append([]*Rule(nil), rec.RuleList...), rec.Twins...)}
 	return nil
 }
 

@@ -12,8 +12,9 @@ import (
 )
 
 // TestLoweringStep checks the conversion as a step of the pipeline: one required step from the Flow
-// stage to the Exec stage that returns the function with its module, and whose postcondition, the
-// verifier, names the step and the module when it rejects the result.
+// stage to the Exec stage that returns the module with its functions, each a lowered function with its
+// variables (View), and whose postcondition, the verifier, names the step and the module when it
+// rejects the result.
 func TestLoweringStep(t *testing.T) {
 	want := []pass.Step{{Name: Name, Required: true, In: "flow", Out: "exec", Dump: "execlower"}}
 	if got := Lowering.Steps(); !slices.Equal(got, want) {
@@ -22,11 +23,11 @@ func TestLoweringStep(t *testing.T) {
 	m := flowModule()
 	fn := m.Funcs[0]
 	fn.Attrs = &flow.Attrs{Vars: []string{"ok"}}
-	l, err := Lowering.Run(&pass.Run{}, pass.Label{Table: "rules"}, m)
+	x, err := Lowering.Run(&pass.Run{}, pass.Label{Table: "rules"}, m)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if l.Func != fn || !slices.Equal(l.Vars, []string{"ok"}) || !slices.Contains(l.Module.Funcs, fn) || l.Module.Stage != Stage {
+	if l := View(x, 0); l.Func != fn || !slices.Equal(l.Vars, []string{"ok"}) || !slices.Contains(l.Module.Funcs, fn) || l.Module.Stage != Stage {
 		t.Errorf("lowered = %+v", l)
 	}
 	// A call of an operation that the Flow module does not declare is not legal after the conversion.
@@ -45,11 +46,11 @@ func lowered(t *testing.T) *Lowered {
 	t.Helper()
 	m := flowModule()
 	m.Funcs[0].Attrs = &flow.Attrs{Vars: []string{"ok"}}
-	l, err := LowerFunc(m)
+	x, err := lower(m)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return l
+	return View(x, 0)
 }
 
 // TestLoweredCopies checks that a copy of a lowered function holds the copy of its function, that

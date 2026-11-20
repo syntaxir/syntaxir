@@ -10,15 +10,20 @@ import (
 	"zeroparse.dev/zp/internal/pass"
 )
 
-// Finish ends the Flow passes on the module m of one lowered function, whichever of them ran: it
-// splices the blocks of the forms (flow.Forms) into the statement lists around them, drops the
+// Finish ends the Flow passes on each function of the module m, whichever of them ran (finish).
+func Finish(m *code.Module) {
+	for _, fn := range m.Funcs {
+		finish(fn)
+	}
+}
+
+// finish ends the Flow passes on the lowered function fn, whichever of them ran: it splices the blocks of the forms (flow.Forms) into the statement lists around them, drops the
 // variables that only replaced forms named, and orders the variables as the lowering would have made
 // them had it written the forms the passes chose: a variable shared by the whole function (ch, size,
 // ok) where its first use that is still in the function was written, and a variable a pass made at the
 // event it belongs to. The function then has no forms (Attrs.Forms is nil). Finish does nothing to a
 // function without forms.
-func Finish(m *code.Module) {
-	fn := flow.FuncOf(m)
+func finish(fn *code.Func) {
 	a := flow.AttrsOf(fn)
 	if a == nil || a.Forms == nil {
 		return

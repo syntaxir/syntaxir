@@ -11,20 +11,20 @@ import (
 
 // The conversion as a step of the pipeline of a compilation.
 //
-// Lowering is the conversion as the required pass "execlower" from the Flow stage to the Exec stage: it
-// converts the module of one lowered function (LowerFunc) to a Lowered, and Verify, its
-// postcondition, checks the result before any Exec pass sees it.
+// Lowering is the conversion as the required pass "execlower" from the Flow stage to the Exec stage:
+// it converts a module of the functions of a table, and Verify, its postcondition, checks the result
+// before any Exec pass sees it. The printers print each function of the result as a Lowered (View).
 
-// LowerFunc converts the module m of one lowered function from the Flow stage to the Exec stage, as
-// Lower does but without verifying the result, and returns the function with its variables.
-func LowerFunc(m *code.Module) (*Lowered, error) {
-	fn := flow.FuncOf(m) // the conversion moves it out of m
-	x, err := lower(m)
-	if err != nil {
-		return nil, err
-	}
-	return &Lowered{Module: x, Func: fn, Vars: flow.AttrsOf(fn).Vars}, nil
+// View returns the function i of the Exec module m, which the conversion made, as a lowered function:
+// with m and the variables of the function (flow.Attrs.Vars), which the conversion keeps.
+func View(m *code.Module, i int) *Lowered {
+	f := m.Funcs[i]
+	return &Lowered{Module: m, Func: f, Vars: flow.AttrsOf(f).Vars}
 }
+
+// ModuleIR describes the Exec module of a table to the manager of the pipeline: it is verified by
+// Verify and dumped as the listing of each of its functions, labeled with its table.
+var ModuleIR = pass.IR[*code.Module]{Stage: Stage, Verify: Verify, Print: PrintModule, Copy: (*code.Module).Clone}
 
 // IR describes a lowered function to the manager of the pipeline: its module is verified by Verify
 // and must hold the function with its variables (Lowered.Keeps), and it is dumped as the listing of
@@ -54,5 +54,6 @@ func PrintModule(w io.Writer, l pass.Label, after string, m *code.Module) {
 // Name is the name of the conversion as a step of the pipeline.
 const Name = "execlower"
 
-// Lowering is the conversion as the required step Name from the Flow stage to the Exec stage.
-var Lowering = pass.Lower(Name, flow.Stage, IR, LowerFunc)
+// Lowering is the conversion as the required step Name from the Flow stage to the Exec stage. It
+// converts the module as lower does, moving its functions to the result.
+var Lowering = pass.Lower(Name, flow.Stage, ModuleIR, lower)

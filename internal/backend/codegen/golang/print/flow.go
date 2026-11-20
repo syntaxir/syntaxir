@@ -7,11 +7,12 @@ import (
 	"strings"
 
 	"zeroparse.dev/zp/internal/backend/codegen/common"
+	gopass "zeroparse.dev/zp/internal/backend/codegen/golang/pass"
 	"zeroparse.dev/zp/internal/frontend/check"
 	irbuild "zeroparse.dev/zp/internal/frontend/elaborate"
-	"zeroparse.dev/zp/internal/ir/code"
 	"zeroparse.dev/zp/internal/ir/code/flow"
 	"zeroparse.dev/zp/internal/ir/core"
+	"zeroparse.dev/zp/internal/middleend/execlower"
 	"zeroparse.dev/zp/internal/middleend/flowlower"
 	"zeroparse.dev/zp/internal/middleend/flowplan"
 	rprogram "zeroparse.dev/zp/internal/runtime/program"
@@ -41,8 +42,8 @@ func (g *Generator) startFlow() error {
 	if err != nil {
 		return err
 	}
-	g.Flow = &common.FlowState{M: m, Origin: irbuild.OriginByID(origin), Rules: append(append([]*common.Rule(nil), g.Prog.RuleList...), g.Prog.Twins...),
-		Opts: g.FlowOptions(m)}
+	g.Flow = &common.FlowState{TableIR: &flowplan.TableIR{M: m, Origin: irbuild.OriginByID(origin), Opts: g.FlowOptions(m)},
+		Rules: append(append([]*common.Rule(nil), g.Prog.RuleList...), g.Prog.Twins...)}
 	return nil
 }
 
@@ -65,15 +66,12 @@ func (g *Generator) flowTypedRule(r *common.Rule) *flatRule {
 	if !flowlower.LocalRule(cr) {
 		return nil
 	}
-	f, err := g.FlowPasses(flowlower.Unit{Module: g.Flow.M, Opts: g.Flow.Opts, Func: flowlower.Func{Form: flowlower.Flat, Rule: cr, Name: r.Name}})
-	if err != nil {
-		panic(fmt.Errorf("rule %s of table %s: %w", r.Name, g.Table, err)) // LocalRule holds
-	}
+	l := g.flowFunc(flowlower.Unit{Module: g.Flow.M, Opts: g.Flow.Opts, Funcs: []flowlower.Func{{Form: flowlower.Flat, Rule: cr, Name: r.Name}}}) // LocalRule holds
 	g.Cur, g.Proj = r, g.Projections(r)
 	defer func() { g.Proj = nil }()
 	p := newFlowPrinter(g, false)
-	p.document = flow.AttrsOf(flow.FuncOf(f)).Document
-	return g.execFlatRule(p, f)
+	p.document = flow.AttrsOf(l.Func).Document
+	return g.execFlatRule(p, l)
 }
 
 // flowFrameBody prints the body of the typed rule r from Flow IR as the matcher of its frame
@@ -91,13 +89,10 @@ func (g *Generator) flowFrameBody(r *common.Rule, scope *check.Scope) string {
 	if g.Flow.Opts.Node {
 		panic("internal error: a typed rule is lowered with the options of the Node tables")
 	}
-	f, err := g.FlowPasses(flowlower.Unit{Module: g.Flow.M, Opts: g.Flow.Opts, Func: flowlower.Func{Form: flowlower.Frame, Rule: cr, Name: r.Name, Body: cr.Body, Slots: cr.Scope, Build: cr.Want}})
-	if err != nil {
-		panic(fmt.Errorf("rule %s of table %s: %w", r.Name, g.Table, err)) // FramedBody holds
-	}
+	l := g.flowFunc(flowlower.Unit{Module: g.Flow.M, Opts: g.Flow.Opts, Funcs: []flowlower.Func{{Form: flowlower.Frame, Rule: cr, Name: r.Name, Body: cr.Body, Slots: cr.Scope, Build: cr.Want}}}) // FramedBody holds
 	g.Cur, g.Proj = r, g.Projections(r)
 	defer func() { g.Proj = nil }()
-	return g.flowFramed(f, cr.Scope, scope, r.Name+" ("+comment+")", true)
+	return g.flowFramed(l, cr.Scope, scope, r.Name+" ("+comment+")", true)
 }
 
 // flowNodeFrameBody prints the body of the rule r of the Node or recognizer table from Flow IR as
@@ -111,13 +106,10 @@ func (g *Generator) flowNodeFrameBody(r *common.Rule, spec *flowplan.FuncSpec, s
 	if !g.Flow.Opts.Node {
 		panic("internal error: a Node rule is lowered with the options of the typed table")
 	}
-	f, err := g.FlowPasses(flowlower.Unit{Module: g.Flow.M, Opts: g.Flow.Opts, Func: spec.Func})
-	if err != nil {
-		panic(fmt.Errorf("rule %s of table %s: %w", r.Name, g.Table, err)) // FramedBody holds
-	}
+	l := g.planned(spec.Key)
 	g.Cur, g.Proj = r, g.Projections(r)
 	defer func() { g.Proj = nil }()
-	return g.flowFramed(f, spec.Slots, scope, r.Name+" (Node body inlined)", true)
+	return g.flowFramed(l, spec.Slots, scope, r.Name+" (Node body inlined)", true)
 }
 
 // flowStreamBody prints the body of the start rule r of ParseStream from Flow IR as the matcher of its
@@ -131,13 +123,10 @@ func (g *Generator) flowStreamBody(r *common.Rule, scope *check.Scope) string {
 	}
 	opts := g.Flow.Opts
 	opts.Stream = true
-	f, err := g.FlowPasses(flowlower.Unit{Module: g.Flow.M, Opts: opts, Func: flowlower.Func{Form: flowlower.Frame, Rule: cr, Name: r.Name, Body: cr.Body, Slots: cr.Scope, Build: !r.Lean}})
-	if err != nil {
-		panic(fmt.Errorf("stream body of rule %s: %w", r.Name, err)) // FramedBody holds
-	}
+	l := g.flowFunc(flowlower.Unit{Module: g.Flow.M, Opts: opts, Funcs: []flowlower.Func{{Form: flowlower.Frame, Rule: cr, Name: r.Name, Body: cr.Body, Slots: cr.Scope, Build: !r.Lean}}}) // FramedBody holds
 	g.Cur, g.Proj = r, g.Projections(r)
 	defer func() { g.Proj = nil }()
-	return g.flowFramed(f, cr.Scope, scope, r.Name+" (stream body)", true)
+	return g.flowFramed(l, cr.Scope, scope, r.Name+" (stream body)", true)
 }
 
 // flowOperatorsRuleBody prints the line l of the Operators Rule g.cur, whose expression is e and whose
@@ -159,25 +148,19 @@ func (g *Generator) flowOperatorsRuleBody(k flowplan.Key, l *core.OpLine, e ast.
 		if spec.Build != build && g.FlowErr == nil {
 			g.FlowErr = fmt.Errorf("internal error: a line of Operators Rule %s is planned with build %v, not %v", g.Cur.Name, spec.Build, build)
 		}
-		f, err := g.FlowPasses(flowlower.Unit{Module: g.Flow.M, Opts: g.Flow.Opts, Func: spec.Func})
-		if err != nil {
-			panic(fmt.Errorf("line of Operators Rule %s in table %s: %w", g.Cur.Name, g.Table, err)) // FramedBody holds
-		}
+		l := g.planned(k)
 		prev := g.Proj
 		g.Proj = nil // the actions of the lines use no projections of the rule
 		defer func() { g.Proj = prev }()
 		if g.hooks.OperatorsRoute != nil && g.collect == nil && !g.Traced {
 			g.hooks.OperatorsRoute(g.Table, g.Cur)
 		}
-		return g.flowFramed(f, spec.Slots, scope, g.Cur.Name+" (OperatorsRule body inlined)", false)
+		return g.flowFramed(l, spec.Slots, scope, g.Cur.Name+" (OperatorsRule body inlined)", false)
 	}
 	if g.Flow == nil || l == nil || !flowlower.LineOK(e) || !flowlower.FramedBody(l.Body) {
 		return ""
 	}
-	f, err := g.FlowPasses(flowlower.Unit{Module: g.Flow.M, Opts: g.Flow.Opts, Func: flowlower.Func{Form: flowlower.Frame, Rule: g.Flow.M.Rules[g.Cur.ID], Name: g.Cur.Name, Body: l.Body, Slots: l.Scope, Build: build}})
-	if err != nil {
-		panic(fmt.Errorf("line of Operators Rule %s in table %s: %w", g.Cur.Name, g.Table, err)) // FramedBody holds
-	}
+	f := g.flowFunc(flowlower.Unit{Module: g.Flow.M, Opts: g.Flow.Opts, Funcs: []flowlower.Func{{Form: flowlower.Frame, Rule: g.Flow.M.Rules[g.Cur.ID], Name: g.Cur.Name, Body: l.Body, Slots: l.Scope, Build: build}}}) // FramedBody holds
 	prev := g.Proj
 	g.Proj = nil // the actions of the lines use no projections of the rule
 	defer func() { g.Proj = prev }()
@@ -198,10 +181,34 @@ func (g *Generator) flowOperatorsRule(r *common.Rule) *core.OperatorsRule {
 // flowFramed prints the framed function f, whose capture scope has the slots, as a matcher method
 // with the comment, as finishFrameBody does, and sets scope to its capture scope. A rule body (ruleBody)
 // has the signature of the Body field of the rule table (see bodyMethod).
-func (g *Generator) flowFramed(f *code.Module, slots []core.Slot, scope *check.Scope, comment string, ruleBody bool) string {
+func (g *Generator) flowFramed(l *execlower.Lowered, slots []core.Slot, scope *check.Scope, comment string, ruleBody bool) string {
 	p := newFlowPrinter(g, true)
-	p.document = flow.AttrsOf(flow.FuncOf(f)).Document
-	return g.execFramed(p, f, slots, scope, comment, ruleBody)
+	p.document = flow.AttrsOf(l.Func).Document
+	return g.execFramed(p, l, slots, scope, comment, ruleBody)
+}
+
+// flowFunc runs the Flow and the Exec part of the pipeline with the Go passes on the unit u of one
+// function of the table being generated (FlowPasses, ExecPasses), and returns the function. A failure
+// of a lowering is an internal error: the caller lowers only what the lowering accepts.
+func (g *Generator) flowFunc(u flowlower.Unit) *execlower.Lowered {
+	m, err := g.FlowPasses(u)
+	if err == nil {
+		m, err = g.ExecPasses(m, gopass.Pipeline)
+	}
+	if err != nil {
+		panic(fmt.Errorf("function %s of table %s: %w", u.Funcs[0].Name, g.Table, err))
+	}
+	return execlower.View(m, 0)
+}
+
+// planned returns the function of the use k in the module of the table's plan, which LowerTable
+// lowered: the plan holds it, since the printer asks only for the functions of the plan.
+func (g *Generator) planned(k flowplan.Key) *execlower.Lowered {
+	l, ok := g.plan.Lowered(k)
+	if !ok {
+		panic(fmt.Errorf("internal error: the plan of table %s has no function %+v", g.Table, k))
+	}
+	return l
 }
 
 func goType(t flow.Type) string {

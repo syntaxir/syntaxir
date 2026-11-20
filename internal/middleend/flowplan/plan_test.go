@@ -11,10 +11,9 @@ import (
 	"zeroparse.dev/zp/internal/ir/code"
 	"zeroparse.dev/zp/internal/ir/code/flow"
 	"zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/internal/middleend/codepass"
 	"zeroparse.dev/zp/internal/middleend/corepass"
-	"zeroparse.dev/zp/internal/middleend/execlower"
 	"zeroparse.dev/zp/internal/middleend/flowlower"
+	"zeroparse.dev/zp/internal/middleend/flowpass"
 	"zeroparse.dev/zp/internal/middleend/flowplan"
 	"zeroparse.dev/zp/internal/pass"
 	"zeroparse.dev/zp/internal/testing/compiletest"
@@ -48,16 +47,12 @@ func plan(t *testing.T, src string, rec compile.Recognition, live func(int) bool
 	}
 	rules := append(append([]*compile.Rule(nil), prog.RuleList...), prog.Twins...)
 	opts := flowlower.Options{Budget: true, Recovers: flowlower.Recovers(m), Node: true}
-	p, err := flowplan.Plan(&flowplan.TableIR{M: m, Opts: opts}, planRules(rules), live, execStep(&driver.Driver{}))
-	if err != nil {
+	ir := &flowplan.TableIR{M: m, Opts: opts}
+	p := flowplan.Plan(ir, planRules(rules), live)
+	if _, err := (&driver.Driver{}).Flow("rules", p.Unit(ir, nil), false, flowpass.Bytecode); err != nil {
 		t.Fatal(err)
 	}
 	return m, rules, p
-}
-
-// execStep returns the Exec step of the plan of the rules table under d (driver.Driver.PlanExec).
-func execStep(d *driver.Driver) func(flowlower.Unit) (*execlower.Lowered, error) {
-	return func(u flowlower.Unit) (*execlower.Lowered, error) { return d.PlanExec("rules", u, false) }
 }
 
 // planRules returns what the plan reads of the compiled rules.
@@ -146,8 +141,9 @@ func TestPlanLive(t *testing.T) {
 	}
 }
 
-// TestRefused checks the refusal of flat functions: the planned flat functions of the grammar are
-// accepted, and one that reads its entry position at a reachable point is refused.
+// TestRefused checks the refusal of flat functions on their Flow IR as the lowering writes it: the
+// planned flat functions of the grammar are accepted, and one that reads its entry position at a
+// reachable point is refused.
 func TestRefused(t *testing.T) {
 	m, _, p := plan(t, grammar, compile.Recognize, nil)
 	opts := flowlower.Options{Budget: true, Recovers: flowlower.Recovers(m), Node: true}
@@ -157,17 +153,17 @@ func TestRefused(t *testing.T) {
 			continue
 		}
 		n++
-		l := lowerExec(t, m, s, opts)
-		if flowplan.Refused(l) {
+		fn := lowerFlow(t, m, s, opts)
+		if flowplan.Refused(fn) {
 			t.Errorf("%s is refused", s.Name)
 		}
-		a := flow.AttrsOf(l.Func)
+		a := flow.AttrsOf(fn)
 		if a.Start == "" {
 			continue
 		}
 		starts++
-		l.Func.Body.Stmts = append([]code.Stmt{&code.Assert{Cond: code.L(a.Start)}}, l.Func.Body.Stmts...)
-		if !flowplan.Refused(l) {
+		fn.Body.Stmts = append([]code.Stmt{&code.Assert{Cond: code.L(a.Start)}}, fn.Body.Stmts...)
+		if !flowplan.Refused(fn) {
 			t.Errorf("%s reads its start and is not refused", s.Name)
 		}
 	}
@@ -176,39 +172,26 @@ func TestRefused(t *testing.T) {
 	}
 }
 
-func lowerExec(t *testing.T, m *core.Module, s *flowplan.FuncSpec, opts flowlower.Options) *execlower.Lowered {
+// lowerFlow lowers the function s of the Core module m with the options opts, as the lowering of a
+// table does, and returns it.
+func lowerFlow(t *testing.T, m *core.Module, s *flowplan.FuncSpec, opts flowlower.Options) *code.Func {
 	t.Helper()
-	f, err := flowlower.LowerUnit(flowlower.Unit{Module: m, Opts: opts, Func: s.Func})
+	f, err := flowlower.LowerUnit(flowlower.Unit{Module: m, Opts: opts, Funcs: []flowlower.Func{s.Func}})
 	if err == nil {
 		err = flowlower.Verify(f)
 	}
 	if err != nil {
 		t.Fatal(err)
 	}
-	fn := flow.FuncOf(f)
-	x, err := execlower.Lower(f)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return &execlower.Lowered{Module: x, Func: fn, Vars: flow.AttrsOf(fn).Vars}
+	return flow.FuncOf(f)
 }
 
-// TestPlanRunsUnderTheDriver checks that the plan decides on the runs of its driver's manager: every
-// flat function of the plan reaches the Exec passes that the driver runs (here a test pass of its
-// own, which the manager numbers), is dumped under execlower with its table, and with VerifyEach a
-// pass that breaks the function fails the plan with the name of the pass.
-func TestPlanRunsUnderTheDriver(t *testing.T) {
-	const record, breaks = "test-plan-record", "test-plan-break"
-	seen := map[string]int{}
-	pl := *codepass.Pipeline
-	pl.Passes = append(slices.Clone(pl.Passes), pass.Pass[*code.Module, *codepass.Env]{Name: record, Obligation: "it changes nothing",
-		Run: func(m *code.Module, _ *codepass.Env) (*code.Module, pass.PreservedSet, error) {
-			seen[flow.FuncOf(m).Name]++
-			return m, pass.PreserveAll(), nil
-		}})
-	var dump strings.Builder
-	d := &driver.Driver{PrintAfter: []string{execlower.Name, record}, PrintTo: &dump, TestPasses: []string{record},
-		ExecPipeline: func(string) *pass.Pipeline[*code.Module, *codepass.Env] { return &pl }}
+// TestPlanDecidesBeforeThePasses checks that the plan decides on its flat functions while the table is
+// lowered, once, before any pass: the table is lowered once, each function of the plan is dumped once
+// after flowlower, in the order of the plan, and the first Flow pass already runs on the functions of
+// the plan, pass by pass, as the driver's manager numbers them.
+func TestPlanDecidesBeforeThePasses(t *testing.T) {
+	const record = "test-plan-record"
 	prog := compiletest.Program(t, grammar, compile.Options{Recognition: compile.Recognize})
 	m, err := elaborate.CoreProjecting(prog, nil, false)
 	if err != nil {
@@ -218,42 +201,45 @@ func TestPlanRunsUnderTheDriver(t *testing.T) {
 		t.Fatal(err)
 	}
 	ir := &flowplan.TableIR{M: m, Opts: flowlower.Options{Budget: true, Recovers: flowlower.Recovers(m), Node: true}}
-	rules := planRules(append(append([]*compile.Rule(nil), prog.RuleList...), prog.Twins...))
-	p, err := flowplan.Plan(ir, rules, nil, execStep(d))
+	p := flowplan.Plan(ir, planRules(append(append([]*compile.Rule(nil), prog.RuleList...), prog.Twins...)), nil)
+	var seen, planned []string
+	pl := *flowpass.Pipeline
+	pl.Passes = append([]pass.Pass[*code.Module, *flowpass.Env]{{Name: record, Obligation: "it changes nothing",
+		Run: func(m *code.Module, _ *flowpass.Env) (*code.Module, pass.PreservedSet, error) {
+			if seen == nil {
+				for _, s := range p.Funcs {
+					planned = append(planned, s.Name)
+				}
+			}
+			seen = append(seen, flow.FuncOf(m).Name)
+			return m, pass.PreserveAll(), nil
+		}}}, pl.Passes...)
+	var dump strings.Builder
+	d := &driver.Driver{PrintAfter: []string{flowlower.Name}, PrintTo: &dump, TestPasses: []string{record},
+		FlowPipeline: func(string) *pass.Pipeline[*code.Module, *flowpass.Env] { return &pl }}
+	fm, err := d.Flow("rules", p.Unit(ir, nil), false, flowpass.Bytecode)
 	if err != nil {
 		t.Fatal(err)
 	}
-	n := 0
+	if len(planned) == 0 || !slices.Equal(seen, planned) {
+		t.Errorf("the first pass ran on %v, want the functions of the plan %v", seen, planned)
+	}
+	if err := p.Bind(fm); err != nil {
+		t.Fatal(err)
+	}
+	var heads []string
 	for _, s := range p.Funcs {
-		if s.Form != flowlower.Flat {
-			continue
-		}
-		n++
-		if seen[s.Name] != 1 {
-			t.Errorf("%s: the driver's Exec passes ran %d times, want once", s.Name, seen[s.Name])
-		}
-		for _, after := range []string{execlower.Name, record} {
-			if h := "-- Exec IR of " + s.Name + " in the rules table after " + after + " --"; !strings.Contains(dump.String(), h) {
-				t.Errorf("the dump lacks %q", h)
-			}
-		}
+		heads = append(heads, "-- Flow IR of "+s.Name+" in the rules table after flowlower --")
 	}
-	if n == 0 {
-		t.Fatal("no flat function planned: the step is not exercised")
+	if got := strings.Count(dump.String(), "-- Flow IR of "); got != len(heads) {
+		t.Errorf("%d functions dumped after flowlower, want the %d of the plan", got, len(heads))
 	}
-	if len(seen) != n {
-		t.Errorf("the Exec passes ran on %v, want only the %d flat functions", seen, n)
-	}
-
-	// A pass that breaks the module fails the plan, named by the driver's verification.
-	pl.Passes = append(pl.Passes, pass.Pass[*code.Module, *codepass.Env]{Name: breaks, Obligation: "none: it breaks the module",
-		Run: func(m *code.Module, _ *codepass.Env) (*code.Module, pass.PreservedSet, error) {
-			m.Funcs = append(m.Funcs, m.Funcs[0])
-			return m, pass.PreserveNone(), nil
-		}})
-	d = &driver.Driver{TestPasses: []string{record, breaks}, VerifyEach: true,
-		ExecPipeline: func(string) *pass.Pipeline[*code.Module, *codepass.Env] { return &pl }}
-	if _, err := flowplan.Plan(ir, rules, nil, execStep(d)); err == nil || !strings.Contains(err.Error(), "after pass "+breaks+":") {
-		t.Errorf("a pass that breaks the function: %v, want the plan to fail naming %s", err, breaks)
+	last := -1
+	for _, h := range heads {
+		i := strings.Index(dump.String(), h)
+		if i <= last || strings.Count(dump.String(), h) != 1 {
+			t.Errorf("%q is not dumped once, in the order of the plan", h)
+		}
+		last = i
 	}
 }

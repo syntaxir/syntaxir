@@ -41,25 +41,20 @@ type Runner interface {
 	// runs build, the elaboration of the table's program to Core IR, and the Core passes. It returns
 	// the module after them. A failure of build is a *pass.StepError with the message of build.
 	Core(table string, build func() (*core.Module, error)) (*core.Module, error)
-	// FlowFunc runs the Flow part of the pipeline on one function of the table named table: the
-	// lowering of u (flowlower), the Flow passes and flow-finish; observe says that the parser
-	// reports its rules and skipped alternatives, and target which forms the backend prints
-	// (flowpass.Env). A failure of the lowering is a *pass.StepError, returned with no module; a
-	// failure of a pass is returned with the module, ended by flow-finish.
-	FlowFunc(table string, u flowlower.Unit, observe bool, target flowpass.Target) (*code.Module, error)
-	// ExecFunc runs the Exec part of the pipeline on the module m of one function of the table named
-	// table, which FlowFunc returned: the conversion to Exec IR (execlower), the Exec passes that
-	// every target runs and then p, the pipeline of the target's own Exec passes; observe is as for
-	// FlowFunc. A failure of the conversion is a *pass.StepError, returned with no result; a failure
-	// of a pass is returned with the result.
-	ExecFunc(table string, m *code.Module, p *TargetPipeline, observe bool) (*execlower.Lowered, error)
-	// PlanExec runs the Exec step of the plan of the table named table (flowplan.Plan) on its
-	// function u: the lowering of u, flow-finish with no Flow pass, the conversion to Exec IR and the
-	// Exec passes that every target runs; observe is as for FlowFunc. A failure of a required step is
-	// a *pass.StepError, returned with no result; a failure of a pass is returned with the result.
-	PlanExec(table string, u flowlower.Unit, observe bool) (*execlower.Lowered, error)
+	// Flow runs the Flow part of the pipeline on the functions of the table named table: the
+	// lowering of u (flowlower), the Flow passes on each function and flow-finish; observe says that
+	// the parser reports its rules and skipped alternatives, and target which forms the backend
+	// prints (flowpass.Env). A failure of the lowering is a *pass.StepError, returned with no module;
+	// a failure of a pass is returned with the module, ended by flow-finish.
+	Flow(table string, u flowlower.Unit, observe bool, target flowpass.Target) (*code.Module, error)
+	// Exec runs the Exec part of the pipeline on the module m of the functions of the table named
+	// table, which Flow returned: the conversion to Exec IR (execlower), the Exec passes that every
+	// target runs and then p, the pipeline of the target's own Exec passes, on each function;
+	// observe is as for Flow. A failure of the conversion is a *pass.StepError, returned with no
+	// module; a failure of a pass is returned with the module.
+	Exec(table string, m *code.Module, p *TargetPipeline, observe bool) (*code.Module, error)
 }
 
 // TargetPipeline is the pipeline of the Exec passes of one target (golang/pass, typescript/pass), which
-// run on a lowered function after the Exec passes that every target runs (Runner.ExecFunc).
+// run on a lowered function after the Exec passes that every target runs (Runner.Exec).
 type TargetPipeline = pass.Pipeline[*execlower.Lowered, *codepass.Env]

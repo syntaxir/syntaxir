@@ -34,12 +34,6 @@ type TableIR struct {
 	Opts   flowlower.Options
 }
 
-// Unit returns what the lowering of the function f of the table takes: f with the table's Core IR
-// and options. Every function of the table is lowered from the same module with the same options.
-func (t *TableIR) Unit(f flowlower.Func) flowlower.Unit {
-	return flowlower.Unit{Module: t.M, Opts: t.Opts, Func: f}
-}
-
 // BuildTable builds the Core IR of the Node or recognizer table of the program prog, as c selects,
 // through coreStep, the Core step of the caller's driver (driver.Driver.Core for the caller's table):
 // coreStep runs build, the elaboration of the table, and then the Core passes, and returns the module

@@ -2,6 +2,8 @@ package driver
 
 import (
 	"errors"
+	"fmt"
+	"io"
 	"slices"
 	"strings"
 	"testing"
@@ -130,7 +132,26 @@ func framed() flowlower.Unit {
 	r := &core.Rule{Name: "r", Body: lit, Policy: core.Policy{Seen: -1}}
 	m.Rules = []*core.Rule{r}
 	core.Analyze(m)
-	return flowlower.Unit{Module: m, Func: flowlower.Func{Form: flowlower.Frame, Rule: r, Name: "r", Body: lit}}
+	return flowlower.Unit{Module: m, Funcs: []flowlower.Func{{Form: flowlower.Frame, Rule: r, Name: "r", Body: lit}}}
+}
+
+// table returns the unit of the framed functions r and s of a table, each of which matches the literal
+// "a" and builds no value.
+func table() flowlower.Unit {
+	u := framed()
+	f := u.Funcs[0]
+	f.Name = "s"
+	u.Funcs = append(u.Funcs, f)
+	return u
+}
+
+// execFunc runs Exec on the module m of one function and returns the function (execlower.View).
+func (d *Driver) execFunc(table string, m *code.Module, target *TargetPipeline, observe bool) (*execlower.Lowered, error) {
+	x, err := d.Exec(table, m, target, observe)
+	if x == nil {
+		return nil, err
+	}
+	return execlower.View(x, 0), err
 }
 
 // comments counts the comments that testFlowPass added to the function of m.
@@ -144,51 +165,74 @@ func comments(m *code.Module) int {
 	return n
 }
 
-// The plan's Exec step lowers a function and ends it with flow-finish without running a Flow pass,
-// even one whose flag is on, then converts it and runs the Exec passes, all under the manager: the
-// dumps show every step labeled with the table, and the manager numbers the run of the Exec pass.
-func TestDriverPlanExec(t *testing.T) {
-	const record = "test-plan-exec"
+// The driver lowers the functions of a table into one module and runs each pass on every function in
+// turn, the Flow passes and then the Exec passes: the dumps show the module under the required steps
+// and each function after each pass, pass by pass in the order of the functions, labeled with the
+// table, and the manager numbers each run of a pass on a function in that order.
+func TestDriverTable(t *testing.T) {
+	const record = "test-table-exec"
 	p := *codepass.Pipeline
 	p.Passes = append(slices.Clone(p.Passes), pass.Pass[*code.Module, *codepass.Env]{Name: record, Obligation: "it changes nothing",
 		Run: func(m *code.Module, _ *codepass.Env) (*code.Module, pass.PreservedSet, error) {
 			return m, pass.PreserveAll(), nil
 		}})
+	rec := &seqs{}
 	var dump strings.Builder
 	d := &Driver{FlowPipeline: withTestFlowPass(t), ExecPipeline: func(string) *pass.Pipeline[*code.Module, *codepass.Env] { return &p },
-		TestPasses: []string{record}, PrintAfter: []string{PrintAll}, PrintTo: &dump}
-	l, err := d.PlanExec("rules", framed(), false)
+		TestPasses: []string{record}, PrintAfter: []string{flowlower.Name, testFlowPass, flowpass.FinishName, execlower.Name, record}, PrintTo: &dump}
+	f, err := d.Flow("rules", table(), false, flowpass.Target{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if l.Func.Name != "r" {
-		t.Fatalf("lowered %s, want r", l.Func.Name)
+	d.run.Observers = append(d.run.Observers, rec)
+	x, err := d.Exec("rules", f, noTarget, false)
+	if err != nil {
+		t.Fatal(err)
 	}
-	want := []string{"-- Flow IR of r in the rules table after " + flowlower.Name + " --",
-		"-- Flow IR of r in the rules table after " + flowpass.FinishName + " --",
-		"-- Exec IR of r in the rules table after " + execlower.Name + " --",
-		"-- Exec IR of r in the rules table after " + record + " --"}
-	for _, h := range want {
-		if !strings.Contains(dump.String(), h) {
-			t.Errorf("the dump lacks %q", h)
+	if len(x.Funcs) != 2 || x.Funcs[0].Name != "r" || x.Funcs[1].Name != "s" {
+		t.Fatalf("the Exec module holds %d functions", len(x.Funcs))
+	}
+	var heads []string
+	for _, line := range strings.Split(dump.String(), "\n") {
+		if strings.HasPrefix(line, "-- ") {
+			heads = append(heads, line)
 		}
 	}
-	if strings.Contains(dump.String(), testFlowPass) {
-		t.Errorf("a Flow pass ran in the plan's Exec step:\n%s", dump.String())
+	var want []string
+	for _, step := range []struct{ ir, after string }{{"Flow", flowlower.Name}, {"Flow", testFlowPass}, {"Flow", flowpass.FinishName},
+		{"Exec", execlower.Name}, {"Exec", record}} {
+		for _, fn := range []string{"r", "s"} {
+			want = append(want, "-- "+step.ir+" IR of "+fn+" in the rules table after "+step.after+" --")
+		}
 	}
-	if n := d.run.Runs(); n != 1 {
-		t.Errorf("the manager numbered %d runs of optional passes, want the one of %s", n, record)
+	if !slices.Equal(heads, want) {
+		t.Errorf("dumped\n%s\nwant\n%s", strings.Join(heads, "\n"), strings.Join(want, "\n"))
+	}
+	// The Flow pass took runs 1 and 2, on r and s; the Exec pass runs 3 and 4.
+	if w := []string{"3:" + record + ":r", "4:" + record + ":s"}; !slices.Equal(rec.events, w) || d.run.Runs() != 4 {
+		t.Errorf("numbered %v, %d runs, want %v", rec.events, d.run.Runs(), w)
+	}
+}
+
+// seqs records the number, the pass and the function of each run of an optional pass.
+type seqs struct{ events []string }
+
+func (*seqs) Before(pass.Event) bool { return true }
+
+func (s *seqs) After(e pass.Event, _ func(io.Writer), _ any) {
+	if e.Seq != 0 {
+		s.events = append(s.events, fmt.Sprintf("%d:%s:%s", e.Seq, e.Step.Name, e.Label.Func))
 	}
 }
 
 // The driver lowers a function, runs a Flow pass when its flag is on, and a profile or a flag turns
 // it off; the dumps show the function as lowered under "flowlower" and after each selected pass, labeled
 // with its table.
-func TestDriverFlowFunc(t *testing.T) {
+func TestDriverFlow(t *testing.T) {
 	run := withTestFlowPass(t)
 	var dump strings.Builder
 	d := &Driver{FlowPipeline: run, PrintAfter: []string{flowlower.Name, testFlowPass}, PrintTo: &dump, VerifyEach: true}
-	f, err := d.FlowFunc("rules", framed(), false, flowpass.Target{})
+	f, err := d.Flow("rules", framed(), false, flowpass.Target{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -210,7 +254,7 @@ func TestDriverFlowFunc(t *testing.T) {
 		t.Fatal(err)
 	}
 	for name, s := range map[string]pass.Settings{"profile": byProfile, "flag": byFlag} {
-		f, err := (&Driver{Opt: s, FlowPipeline: run}).FlowFunc("rules", framed(), false, flowpass.Target{})
+		f, err := (&Driver{Opt: s, FlowPipeline: run}).Flow("rules", framed(), false, flowpass.Target{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -223,7 +267,7 @@ func TestDriverFlowFunc(t *testing.T) {
 	// functions only) and class-tables (a number, off at its default 0), and flow-finish.
 	all := flowpass.Target{Terminals: true, ClassRuns: true, ClassTables: true, GuardedClasses: true, InlineLiterals: true}
 	dump.Reset()
-	if _, err := (&Driver{PrintAfter: []string{PrintAll}, PrintTo: &dump}).FlowFunc("typed", framed(), false, all); err != nil {
+	if _, err := (&Driver{PrintAfter: []string{PrintAll}, PrintTo: &dump}).Flow("typed", framed(), false, all); err != nil {
 		t.Fatal(err)
 	}
 	var printed []string
@@ -240,7 +284,7 @@ func TestDriverFlowFunc(t *testing.T) {
 // The Flow passes of a function change one copy of the module that flowlower made, which flow-finish
 // and the printer go on without if a pass fails, and flow-finish finishes it in place; under
 // VerifyEach every pass that runs takes a copy of its own.
-func TestDriverFlowFuncCopies(t *testing.T) {
+func TestDriverFlowCopies(t *testing.T) {
 	all := flowpass.Target{Terminals: true, ClassRuns: true, ClassTables: true, GuardedClasses: true, InlineLiterals: true}
 	for _, verifyEach := range []bool{false, true} {
 		var copies, ran int
@@ -258,7 +302,7 @@ func TestDriverFlowFuncCopies(t *testing.T) {
 			}
 		}
 		d := &Driver{FlowPipeline: func(string) *pass.Pipeline[*code.Module, *flowpass.Env] { return &p }, VerifyEach: verifyEach}
-		if _, err := d.FlowFunc("typed", framed(), false, all); err != nil {
+		if _, err := d.Flow("typed", framed(), false, all); err != nil {
 			t.Fatal(err)
 		}
 		want := 1
@@ -274,7 +318,7 @@ func TestDriverFlowFuncCopies(t *testing.T) {
 // The table's Core module, which the driver lowers each function of the table from, is the caller's:
 // neither the lowering nor the Flow passes nor flow-finish change it, whether the passes succeed or
 // one fails, so the next function of the table lowers from the same module.
-func TestDriverFlowFuncKeepsTheCoreModule(t *testing.T) {
+func TestDriverFlowKeepsTheCoreModule(t *testing.T) {
 	all := flowpass.Target{Terminals: true, ClassRuns: true, ClassTables: true, GuardedClasses: true, InlineLiterals: true}
 	cause := errors.New("broken")
 	failing := *flowpass.Pipeline
@@ -294,12 +338,12 @@ func TestDriverFlowFuncKeepsTheCoreModule(t *testing.T) {
 		u := framed()
 		before := core.Print(u.Module, true)
 		for range 2 {
-			f, err := c.d.FlowFunc("typed", u, false, all)
+			f, err := c.d.Flow("typed", u, false, all)
 			if !errors.Is(err, c.err) {
 				t.Fatalf("%s: %v", c.what, err)
 			}
 			if len(flow.FuncOf(f).Body.Stmts) == 0 {
-				t.Errorf("%s: the module that FlowFunc returned lost its statements", c.what)
+				t.Errorf("%s: the module that Flow returned lost its statements", c.what)
 			}
 			if after := core.Print(u.Module, true); after != before {
 				t.Errorf("%s: the Core module changed:\n%s\nwas\n%s", c.what, after, before)
@@ -310,10 +354,10 @@ func TestDriverFlowFuncKeepsTheCoreModule(t *testing.T) {
 
 // A failure of flowlower is returned as the failure of the step, with no module; a failure of a Flow
 // pass is an internal error that names the pass, returned with the module that flow-finish ended.
-func TestDriverFlowFuncErrors(t *testing.T) {
+func TestDriverFlowErrors(t *testing.T) {
 	u := framed()
-	u.Func.Form = flowlower.Form(9)
-	if f, err := (&Driver{}).FlowFunc("rules", u, false, flowpass.Target{}); f != nil || !isStep(err, flowlower.Name) {
+	u.Funcs[0].Form = flowlower.Form(9)
+	if f, err := (&Driver{}).Flow("rules", u, false, flowpass.Target{}); f != nil || !isStep(err, flowlower.Name) {
 		t.Errorf("a refused unit: %v, %v", f, err)
 	}
 	cause := errors.New("broken")
@@ -323,7 +367,7 @@ func TestDriverFlowFuncErrors(t *testing.T) {
 			return m, pass.PreserveAll(), cause
 		}})
 	d := &Driver{FlowPipeline: func(string) *pass.Pipeline[*code.Module, *flowpass.Env] { return &p }, TestPasses: []string{"test-flow-fail"}}
-	f, err := d.FlowFunc("rules", framed(), false, flowpass.Target{})
+	f, err := d.Flow("rules", framed(), false, flowpass.Target{})
 	if f == nil || !errors.Is(err, cause) || !strings.HasPrefix(err.Error(), "internal error: pass test-flow-fail: ") {
 		t.Errorf("a failing pass: %v, %v", f, err)
 	}
@@ -344,7 +388,7 @@ const testExecBreak = "test-exec-break"
 
 // execModule returns the module of a function at the Flow stage, ready for execlower.
 func execModule(t *testing.T) *code.Module {
-	m, err := (&Driver{}).FlowFunc("rules", framed(), false, flowpass.Target{})
+	m, err := (&Driver{}).Flow("rules", framed(), false, flowpass.Target{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -357,7 +401,7 @@ var noTarget = &TargetPipeline{Copy: (*execlower.Lowered).Clone}
 // An Exec pass runs when its flag is on and a flag turns it off; the dumps show each function of the
 // module as lowered under "execlower" and after each selected pass, and a pass that breaks the module is
 // named with VerifyEach.
-func TestDriverExecFunc(t *testing.T) {
+func TestDriverExec(t *testing.T) {
 	p := *codepass.Pipeline
 	p.Passes = append(slices.Clone(p.Passes),
 		pass.Pass[*code.Module, *codepass.Env]{Name: testExecPass, Obligation: "a comment changes nothing",
@@ -374,7 +418,7 @@ func TestDriverExecFunc(t *testing.T) {
 			}})
 	run := func(string) *pass.Pipeline[*code.Module, *codepass.Env] { return &p }
 	var dump strings.Builder
-	l, err := (&Driver{ExecPipeline: run, PrintAfter: []string{execlower.Name, testExecPass}, PrintTo: &dump}).ExecFunc("rules", execModule(t), noTarget, false)
+	l, err := (&Driver{ExecPipeline: run, PrintAfter: []string{execlower.Name, testExecPass}, PrintTo: &dump}).execFunc("rules", execModule(t), noTarget, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -390,20 +434,20 @@ func TestDriverExecFunc(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if l, err := (&Driver{Opt: off, ExecPipeline: run}).ExecFunc("rules", execModule(t), noTarget, false); err != nil || l.Func.Doc != "" {
+	if l, err := (&Driver{Opt: off, ExecPipeline: run}).execFunc("rules", execModule(t), noTarget, false); err != nil || l.Func.Doc != "" {
 		t.Errorf("the pass ran although the flag turned it off (%v)", err)
 	}
 	on, err := pass.Settings{}.With(testExecBreak, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = (&Driver{Opt: on, ExecPipeline: run, VerifyEach: true}).ExecFunc("rules", execModule(t), noTarget, false)
+	_, err = (&Driver{Opt: on, ExecPipeline: run, VerifyEach: true}).execFunc("rules", execModule(t), noTarget, false)
 	if err == nil || !strings.Contains(err.Error(), "after pass test-exec-break:") {
 		t.Errorf("a broken module: %v", err)
 	}
 	// The real pipeline leaves the module alone and prints only the lowered functions.
 	dump.Reset()
-	if _, err := (&Driver{PrintAfter: []string{PrintAll}, PrintTo: &dump}).ExecFunc("typed", execModule(t), noTarget, true); err != nil {
+	if _, err := (&Driver{PrintAfter: []string{PrintAll}, PrintTo: &dump}).execFunc("typed", execModule(t), noTarget, true); err != nil {
 		t.Fatal(err)
 	}
 	if n := strings.Count(dump.String(), "-- Exec IR of r in the typed table after "); n != 1+len(codepass.Pipeline.Passes) {
@@ -416,7 +460,7 @@ func TestDriverExecFunc(t *testing.T) {
 // the pass changed a copy, so the function that the generation goes on with is whole, not as the failed
 // pass left it, and it keeps what the printers print (Lowered.Keeps). This holds without VerifyEach,
 // which copies before every pass anyway.
-func TestDriverExecFuncFailureKeepsTheLoweredFunction(t *testing.T) {
+func TestDriverExecFailureKeepsTheLoweredFunction(t *testing.T) {
 	cause := errors.New("broken")
 	const failing = "test-exec-fail"
 	// wreck changes a lowered function in place as a failing pass could: it empties the body and
@@ -438,7 +482,7 @@ func TestDriverExecFuncFailureKeepsTheLoweredFunction(t *testing.T) {
 			return l, pass.PreserveAll(), cause
 		}}}}
 	printed := func(l *execlower.Lowered) string { return code.FuncStringIn(l.Module, l.Func) }
-	whole, err := (&Driver{ExecPipeline: pipeline()}).ExecFunc("typed", execModule(t), noTarget, false)
+	whole, err := (&Driver{ExecPipeline: pipeline()}).execFunc("typed", execModule(t), noTarget, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -454,7 +498,7 @@ func TestDriverExecFuncFailureKeepsTheLoweredFunction(t *testing.T) {
 		{"a pass that every target runs", &Driver{ExecPipeline: pipeline(failExec), TestPasses: []string{failing}}, noTarget},
 		{"a pass of the target", &Driver{ExecPipeline: pipeline(), TestPasses: []string{failing}}, failTarget},
 	} {
-		l, err := c.d.ExecFunc("typed", execModule(t), c.target, false)
+		l, err := c.d.execFunc("typed", execModule(t), c.target, false)
 		if !errors.Is(err, cause) || !strings.HasPrefix(err.Error(), "internal error: pass "+failing+": ") {
 			t.Errorf("%s: the error %v does not name the pass", c.what, err)
 		}

@@ -122,7 +122,7 @@ func FramedBody(n core.Node) bool {
 // recovers, or a line of an Operators Rule of r. Analyze must have run on m. With Options.Budget the
 // function does not charge its entry: the method that calls it does (flow.Attrs.Entered).
 func LowerFrame(m *core.Module, r *core.Rule, n core.Node, slots []core.Slot, build bool, name string, opts Options) (*code.Module, error) {
-	return verified(LowerUnit(Unit{Module: m, Opts: opts, Func: Func{Form: Frame, Rule: r, Name: name, Body: n, Slots: slots, Build: build}}))
+	return verified(lowerFunc(m, Func{Form: Frame, Rule: r, Name: name, Body: n, Slots: slots, Build: build}, opts))
 }
 
 // Outlinable reports whether a node can run as a function of its own (LowerOutline): it is a framed
@@ -145,7 +145,7 @@ func Outlinable(n core.Node) bool {
 // name. The function belongs to the rule of its caller, which charged the entry of the rule: it
 // charges only the repetitions below n. Analyze must have run on m.
 func LowerOutline(m *core.Module, r *core.Rule, n core.Node, slots []core.Slot, build bool, name string, opts Options) (*code.Module, error) {
-	return verified(LowerUnit(Unit{Module: m, Opts: opts, Func: Func{Form: Outline, Rule: r, Name: name, Body: n, Slots: slots, Build: build}}))
+	return verified(lowerFunc(m, Func{Form: Outline, Rule: r, Name: name, Body: n, Slots: slots, Build: build}, opts))
 }
 
 func lowerFrameBody(m *core.Module, r *core.Rule, n core.Node, slots []core.Slot, build bool, name string, opts Options) (*code.Module, error) {
@@ -177,7 +177,7 @@ func lowerFrameBody(m *core.Module, r *core.Rule, n core.Node, slots []core.Slot
 // run on m. The terminal regions of the rule (corepass.TerminalRegions) are forms of the function
 // (flow.Forms), which the terminals pass may match as one program.
 func Lower(m *core.Module, r *core.Rule, name string, opts Options) (*code.Module, error) {
-	return verified(LowerUnit(Unit{Module: m, Opts: opts, Func: Func{Form: Flat, Rule: r, Name: name}}))
+	return verified(lowerFunc(m, Func{Form: Flat, Rule: r, Name: name}, opts))
 }
 
 func lowerFlat(m *core.Module, r *core.Rule, name string, opts Options) (*code.Module, error) {

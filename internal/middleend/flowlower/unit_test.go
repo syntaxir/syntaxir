@@ -23,7 +23,7 @@ func TestLoweringStep(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := Lowering.Run(&pass.Run{}, pass.Label{Table: "rules"}, Unit{Module: m, Func: Func{Form: Flat, Rule: r, Name: "r"}})
+	got, err := Lowering.Run(&pass.Run{}, pass.Label{Table: "rules"}, Unit{Module: m, Funcs: []Func{{Form: Flat, Rule: r, Name: "r"}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,7 +32,7 @@ func TestLoweringStep(t *testing.T) {
 	}
 	// A unit that the lowering refuses: a local function of a left-recursion leader.
 	r.Policy.Leader = true
-	_, err = Lowering.Run(&pass.Run{}, pass.Label{Table: "rules"}, Unit{Module: m, Func: Func{Form: Flat, Rule: r, Name: "r"}})
+	_, err = Lowering.Run(&pass.Run{}, pass.Label{Table: "rules"}, Unit{Module: m, Funcs: []Func{{Form: Flat, Rule: r, Name: "r"}}})
 	var se *pass.StepError
 	if !errors.As(err, &se) || se.Step.Name != Name || !strings.Contains(err.Error(), "is not lowered to a local function") {
 		t.Errorf("a refused unit: %v", err)

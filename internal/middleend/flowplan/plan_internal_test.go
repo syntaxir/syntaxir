@@ -6,15 +6,18 @@ import (
 	"zeroparse.dev/zp/internal/compile"
 	"zeroparse.dev/zp/internal/driver"
 	"zeroparse.dev/zp/internal/frontend/elaborate"
+	"zeroparse.dev/zp/internal/ir/code/flow"
 	"zeroparse.dev/zp/internal/middleend/corepass"
-	"zeroparse.dev/zp/internal/middleend/execlower"
 	"zeroparse.dev/zp/internal/middleend/flowlower"
+	"zeroparse.dev/zp/internal/middleend/flowpass"
 	"zeroparse.dev/zp/internal/testing/compiletest"
 )
 
-// TestPlanTakesTheFallbackOfARefusedFunction checks the decision of the plan: a flat function that
-// the refusal rejects is replaced by its framed fallback under the same key, and an accepted one
-// stays flat. (No grammar of the repository has a flat function that Refused rejects.)
+// TestPlanTakesTheFallbackOfARefusedFunction checks the decision of the plan while the table is
+// lowered: a flat function that the refusal rejects is replaced, in the plan and in the module, by its
+// framed fallback under the same key, one without a fallback is left out of both, and an accepted one
+// stays flat; the module then holds the functions of the plan in order. (No grammar of the repository
+// has a flat function that Refused rejects, so the test refuses by the hook.)
 func TestPlanTakesTheFallbackOfARefusedFunction(t *testing.T) {
 	prog := compiletest.Program(t, "rule main = a b !.\nrule a = \"a\"+\nrule b = [b]*\n", compile.Options{Recognition: compile.Recognize})
 	m, err := elaborate.CoreProjecting(prog, nil, false)
@@ -31,27 +34,42 @@ func TestPlanTakesTheFallbackOfARefusedFunction(t *testing.T) {
 		byName[r.Name] = r.ID
 	}
 	ir := &TableIR{M: m, Opts: flowlower.Options{Budget: true, Recovers: flowlower.Recovers(m), Node: true}}
-	all := route(m, rules, nil)
-	for _, name := range []string{"main", "a"} {
+	all := Plan(ir, rules, nil)
+	for _, name := range []string{"main", "a", "b"} {
 		if s, ok := all.Func(Key{Rule: byName[name]}); !ok || s.Form != flowlower.Flat || s.Fallback == nil {
 			t.Fatalf("rule %s is not routed flat with a fallback: %+v", name, s)
 		}
 	}
-	refuse := func(l *execlower.Lowered) bool { return l.Func.Name == "a" }
+	p := Plan(ir, rules, nil)
+	fallbackOfA := p.byKey[Key{Rule: byName["a"]}].Fallback
+	p.byKey[Key{Rule: byName["b"]}].Fallback = nil
+	refused := map[string]bool{"a": true, "b": true}
 	d := &driver.Driver{}
-	p, err := plan(ir, rules, nil, func(u flowlower.Unit) (*execlower.Lowered, error) { return d.PlanExec("rules", u, false) }, refuse)
+	fm, err := d.Flow("rules", p.Unit(ir, func(k Key) bool { return refused[rules[k.Rule].Name] }), false, flowpass.Bytecode)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if s, ok := p.Func(Key{Rule: byName["main"]}); !ok || s.Form != flowlower.Flat {
 		t.Errorf("main: %+v, want the accepted flat function", s)
 	}
-	if s, ok := p.Func(Key{Rule: byName["a"]}); !ok || s.Form != flowlower.Frame || s != all.byKey[Key{Rule: byName["a"]}].Fallback && s.Body != all.byKey[Key{Rule: byName["a"]}].Fallback.Body {
+	if s, ok := p.Func(Key{Rule: byName["a"]}); !ok || s != fallbackOfA {
 		t.Errorf("a: %+v, want its framed fallback", s)
 	}
+	if s, ok := p.Func(Key{Rule: byName["b"]}); ok {
+		t.Errorf("b: %+v, want no function: it has no fallback", s)
+	}
 	for _, s := range p.Funcs {
-		if s.Key.Rule == byName["a"] && s.Form == flowlower.Flat {
-			t.Error("a: the refused flat function stays in the functions of the plan")
+		if refused[rules[s.Key.Rule].Name] && s.Form == flowlower.Flat {
+			t.Errorf("%s: the refused flat function stays in the functions of the plan", s.Name)
 		}
+	}
+	if err := p.Bind(fm); err != nil {
+		t.Fatal(err)
+	}
+	if f, ok := p.FlowFunc(Key{Rule: byName["a"]}); !ok || !flow.AttrsOf(flow.FuncOf(f)).Frame {
+		t.Error("a: the module does not hold its framed fallback")
+	}
+	if f, ok := p.FlowFunc(Key{Rule: byName["main"]}); !ok || flow.AttrsOf(flow.FuncOf(f)).Frame {
+		t.Error("main: the module does not hold its flat function")
 	}
 }

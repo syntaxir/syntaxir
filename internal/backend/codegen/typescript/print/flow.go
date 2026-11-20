@@ -62,7 +62,7 @@ func (g *Generator) flowRule(r *common.Rule, scope *check.Scope) (call string, o
 	cr := g.Flow.M.Rules[r.ID]
 	if flowplan.RecEligible(r.PlanRule()) && flowlower.LocalRule(cr) {
 		var err error
-		if f, err = g.FlowPasses(flowlower.Unit{Module: g.Flow.M, Opts: g.Flow.Opts, Func: flowlower.Func{Form: flowlower.Flat, Rule: cr, Name: r.Name}}); err != nil {
+		if f, err = g.FlowPasses(flowlower.Unit{Module: g.Flow.M, Opts: g.Flow.Opts, Funcs: []flowlower.Func{{Form: flowlower.Flat, Rule: cr, Name: r.Name}}}); err != nil {
 			panic(fmt.Errorf("rule %s of table %s: %w", r.Name, g.Table, err)) // LocalRule holds
 		}
 		if flow.AttrsOf(flow.FuncOf(f)).Binds {
@@ -74,7 +74,7 @@ func (g *Generator) flowRule(r *common.Rule, scope *check.Scope) (call string, o
 			return "", false
 		}
 		var err error
-		if f, err = g.FlowPasses(flowlower.Unit{Module: g.Flow.M, Opts: g.Flow.Opts, Func: flowlower.Func{Form: flowlower.Frame, Rule: cr, Name: r.Name, Body: cr.Body, Slots: cr.Scope, Build: !r.Lean}}); err != nil {
+		if f, err = g.FlowPasses(flowlower.Unit{Module: g.Flow.M, Opts: g.Flow.Opts, Funcs: []flowlower.Func{{Form: flowlower.Frame, Rule: cr, Name: r.Name, Body: cr.Body, Slots: cr.Scope, Build: !r.Lean}}}); err != nil {
 			panic(fmt.Errorf("rule %s of table %s: %w", r.Name, g.Table, err)) // FramedBody holds
 		}
 		slots = cr.Scope
@@ -359,7 +359,7 @@ func (g *Generator) flowLine(l *core.OpLine, e ast.Expr, scope *check.Scope, bui
 	if g.Flow == nil || l == nil || !flowlower.LineOK(e) || !flowlower.FramedBody(l.Body) {
 		return "", false
 	}
-	f, err := g.FlowPasses(flowlower.Unit{Module: g.Flow.M, Opts: g.Flow.Opts, Func: flowlower.Func{Form: flowlower.Frame, Rule: g.Flow.M.Rules[g.Cur.ID], Name: g.Cur.Name, Body: l.Body, Slots: l.Scope, Build: build}})
+	f, err := g.FlowPasses(flowlower.Unit{Module: g.Flow.M, Opts: g.Flow.Opts, Funcs: []flowlower.Func{{Form: flowlower.Frame, Rule: g.Flow.M.Rules[g.Cur.ID], Name: g.Cur.Name, Body: l.Body, Slots: l.Scope, Build: build}}})
 	if err != nil {
 		panic(fmt.Errorf("line of Operators Rule %s in table %s: %w", g.Cur.Name, g.Table, err)) // FramedBody holds
 	}
