@@ -22,6 +22,24 @@ interface Config {
   ruleVars: number[][];
   noExpectations?: boolean;
   ctxRules?: { cycle: number; leader: boolean }[];
+  ruleSpecs?: RuleSpec[];
+}
+interface EvalSpec {
+  ok: boolean;
+  len: number;
+  charge: number;
+  errs?: number[];
+  captures?: number[];
+}
+interface RuleSpec {
+  memo: boolean;
+  docMemo: boolean;
+  leader: boolean;
+  positional: boolean;
+  rec: boolean;
+  captures: number;
+  seen: number;
+  body?: EvalSpec[];
 }
 interface Request {
   family: string;
@@ -602,12 +620,105 @@ class CtxM extends ExpM {
   }
 }
 
+// The rules: their descriptors and the invocation of their scripted bodies. A body does what its
+// script says (see ref.Eval) and logs the evaluation, which the harness compares with the model's.
+class RuleM extends Exec {
+  log: string[] = [];
+  evals = new Map<number, number>();
+
+  constructor(cfg: Config, controlled: boolean, options: Record<string, unknown> | null) {
+    super(cfg, controlled, options);
+    this.rules = (cfg.ruleSpecs ?? []).map((s, i) => {
+      // Every other rule's value is the tuple of its body's one element, so that the suite also holds the
+      // shaping of a value to the cost of the call: shaperTuple with one valued element.
+      const scope: string[] = [];
+      for (let k = 0; k < s.captures; k++) scope.push("c" + k);
+      const r = p.mkRule(i, "r" + i, scope, i % 2 === 1 ? p.shaperTuple | (1 << 5) : 0, s.memo, s.leader, s.seen, false, []);
+      r.docMemo = s.docMemo;
+      r.positional = s.positional;
+      r.rec = s.rec;
+      r.body = (P: p.Parser, min: number) => this.evaluate(i, s, P, min);
+      return r;
+    });
+  }
+
+  setRegs(regs: Record<string, number>): void {
+    if (regs.pos !== undefined) this.P.pos = regs.pos;
+  }
+  getRegs(): Record<string, number> {
+    return { pos: this.P.pos };
+  }
+
+  evaluate(i: number, s: RuleSpec, P: p.Parser, min: number): p.R {
+    const body = s.body ?? [];
+    const k = this.evals.get(i) ?? 0;
+    const e: EvalSpec = body.length > 0 ? body[Math.min(k, body.length - 1)]! : { ok: false, len: 0, charge: 0 };
+    this.evals.set(i, k + 1);
+    const start = P.pos;
+    this.log.push("body r" + i + " level=" + min + " pos=" + start);
+    if (e.charge > 0 && this.ctl !== null) this.ctl.charge(e.charge);
+    for (const id of e.errs ?? []) P.recovered.push(err(id));
+    for (const c of e.captures ?? []) P.frame[c] = new p.Node(p.typeTupleValue, "", 0, 0, "", [], p.noFields, false, false);
+    P.pos = start + e.len;
+    if (!e.ok) return undefined;
+    return new p.Node(p.typeTupleValue, "", start, P.pos, "", [], p.noFields, true, false);
+  }
+
+  call(op: string, a: any[]): any[] {
+    const P = this.P;
+    switch (op) {
+      case "rule.memo":
+        return [(a[0] as p.Rule).memo];
+      case "rule.leader":
+        return [(a[0] as p.Rule).leader];
+      case "rule.id":
+        return [(a[0] as p.Rule).id];
+      case "rule.seen":
+        return [(a[0] as p.Rule).seen];
+      case "rule.docMemo":
+        return [(a[0] as p.Rule).docMemo];
+      case "rule.positional":
+        return [(a[0] as p.Rule).positional];
+      case "rule.docOnlyMemo":
+        return [false]; // the library memoizes the same rules in every parse
+      case "rule.plain":
+        return [(a[0] as p.Rule).scope.length === 0];
+      case "seen.defers":
+        return [true]; // the Parser parses neither streams nor Documents
+      case "rule.invoke": {
+        const v = P.invoke(a[0], a[1]);
+        return [v ?? null, v !== undefined];
+      }
+      case "rule.invokePlain": {
+        const v = P.invokePlainBody(a[0], a[1]);
+        return [v ?? null, v !== undefined];
+      }
+      case "depth.enter":
+        if (++P.depth > P.maxDepth) P.tooDeep();
+        return [];
+      case "depth.exit":
+        P.depth--;
+        return [];
+    }
+    return super.call(op, a);
+  }
+
+  snapshot(ans: Answer, e: Entry, res: any[]): void {
+    super.snapshot(ans, e, res);
+    for (const c of e.obs ?? []) {
+      if (c === "rules") ans.obs = { ...(ans.obs ?? {}), rules: [...this.log] };
+    }
+  }
+}
+
 const errsMarker = { errs: true };
 
 function make(family: string, cfg: Config, controlled: boolean, options: Record<string, unknown> | null): Machine {
   switch (family) {
     case "exec":
       return new Exec(cfg, controlled, options);
+    case "rule":
+      return new RuleM(cfg, controlled, options);
     case "ctx":
       return new CtxM(cfg, controlled, options);
     case "exp":

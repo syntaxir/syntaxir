@@ -30,6 +30,29 @@ type Config struct {
 	NoExpectations bool `json:"noExpectations"`
 	// CtxRules are the left-recursion shapes of the rules.
 	CtxRules []CtxRule `json:"ctxRules"`
+	// RuleSpecs are the properties and the scripted bodies of the rules, with their seen indexes.
+	RuleSpecs []RuleSpec `json:"ruleSpecs"`
+}
+
+// RuleSpec is ref.RuleSpec as the bindings read it.
+type RuleSpec struct {
+	Memo       bool   `json:"memo"`
+	DocMemo    bool   `json:"docMemo"`
+	Leader     bool   `json:"leader"`
+	Positional bool   `json:"positional"`
+	Rec        bool   `json:"rec"`
+	Captures   int64  `json:"captures"`
+	Seen       int64  `json:"seen"`
+	Body       []Eval `json:"body"`
+}
+
+// Eval is one evaluation of a scripted body (ref.Eval).
+type Eval struct {
+	OK       bool    `json:"ok"`
+	Len      int64   `json:"len"`
+	Charge   uint64  `json:"charge"`
+	Errs     []int64 `json:"errs"`
+	Captures []int64 `json:"captures"`
 }
 
 // CtxRule is the cycle of a rule and whether it is a leader.
@@ -40,7 +63,7 @@ type CtxRule struct {
 
 // ConfigOf returns the part of cfg that the bindings read.
 func ConfigOf(cfg ref.Config) Config {
-	return Config{Rules: cfg.Rules, Limit: cfg.Limit, MaxDepth: cfg.MaxDepth, Vars: cfg.Vars, RuleVars: cfg.RuleVars, NoExpectations: cfg.NoExpectations, CtxRules: ctxRules(cfg.CtxRules)}
+	return Config{Rules: cfg.Rules, Limit: cfg.Limit, MaxDepth: cfg.MaxDepth, Vars: cfg.Vars, RuleVars: cfg.RuleVars, NoExpectations: cfg.NoExpectations, CtxRules: ctxRules(cfg.CtxRules), RuleSpecs: ruleSpecs(cfg)}
 }
 
 // Request is a case for the library: the trace to replay, on a parser made for Family with Config.
@@ -137,6 +160,19 @@ func ctxRules(rs []ref.CtxRule) []CtxRule {
 	var out []CtxRule
 	for _, r := range rs {
 		out = append(out, CtxRule{Cycle: r.Cycle, Leader: r.Leader})
+	}
+	return out
+}
+
+func ruleSpecs(cfg ref.Config) []RuleSpec {
+	var out []RuleSpec
+	for i, r := range cfg.RuleSpecs {
+		s := RuleSpec{Memo: r.Memo, DocMemo: r.DocMemo, Leader: r.Leader, Positional: r.Positional, Rec: r.Rec,
+			Captures: r.Captures, Seen: ref.SeenIndex(cfg.RuleSpecs, int64(i))}
+		for _, e := range r.Body {
+			s.Body = append(s.Body, Eval{OK: e.OK, Len: e.Len, Charge: e.Charge, Errs: e.Errs, Captures: e.Captures})
+		}
+		out = append(out, s)
 	}
 	return out
 }

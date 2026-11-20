@@ -128,6 +128,12 @@ var tsInputChargeDivergences = map[string]string{
 	"memo.store": "[memo.store first allocation] the first store allocates and charges a slot for each position of the input at once, where the model charges only the copy of a table that doubles",
 }
 
+// tsRuleChargeDivergences are those of the rules: rule.invoke with captures charges more than its cost
+// states.
+var tsRuleChargeDivergences = map[string]string{
+	"rule.invoke": "[rule.invoke capture charges] the frame, the search for the captures that were set and the walk of the names each charge one unit for every capture the rule declares, where the cost states one unit for each capture and each field set",
+}
+
 // tsReport fails the test for each failure of res that is not a known difference of charges.
 func tsReport(t *testing.T, res tsConformResult, ops []string, known map[string]string) {
 	t.Helper()

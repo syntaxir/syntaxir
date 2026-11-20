@@ -24,6 +24,8 @@ type Family struct {
 	// Pending are operations whose cases the runner does not run on the library yet: it records the
 	// case and reports it as Pending, so that they are counted and not silently dropped.
 	Pending []string
+	// Unsupported reports a configuration that the library's parser does not run: the case is skipped.
+	Unsupported func(ref.Config) bool
 	// Replay returns the implementation that answers the harness with what the library did, with the
 	// same interfaces as Record and, for a controlled family, conform.Metered.
 	Replay func(*Replay) conform.Impl
@@ -56,6 +58,9 @@ func (r Runner) Run(f Family, s conform.Suite, c conform.Case) (Status, error) {
 			err = fmt.Errorf("the case %s fails against its own model, which is a fault of the harness: %w", c.Func.Name, err)
 			return Ran, err
 		}
+		return Skipped, nil
+	}
+	if f.Unsupported != nil && f.Unsupported(rec.cfg) {
 		return Skipped, nil
 	}
 	trace := rec.r.Trace()
