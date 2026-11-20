@@ -1,0 +1,51 @@
+//go:build zp_charge_log
+
+package engine
+
+import (
+	"fmt"
+	"os"
+	"strings"
+	"testing"
+
+	"zeroparse.dev/zp/internal/runtime/state"
+	zpruntime "zeroparse.dev/zp/pkg/runtime"
+	"zeroparse.dev/zp/pkg/runtime/input"
+)
+
+// TestChargeLog prints the reservations of each engine backend for ZP_CL_GRAMMAR on ZP_CL_INPUT.
+func TestChargeLog(t *testing.T) {
+	src, in := os.Getenv("ZP_CL_GRAMMAR"), os.Getenv("ZP_CL_INPUT")
+	if src == "" {
+		t.Skip()
+	}
+	unit := input.CodePoints
+	if os.Getenv("ZP_CL_BYTES") != "" {
+		unit = input.Bytes
+	}
+	old, flows, _ := flowProgramsOf(t, src, func(string) bool { return true }, nil)
+	for _, c := range []struct {
+		name string
+		p    *Program
+		b    Backend
+	}{{"closure", old, Closure}, {"bytecode", old, Bytecode}, {"flow", flows, Bytecode}} {
+		var lines []string
+		var total uint64
+		state.ChargeLog = func(n uint64, where string) {
+			total += n
+			lines = append(lines, fmt.Sprintf("%3d +%d %s", total, n, where))
+		}
+		if os.Getenv("ZP_CL_DOC") != "" {
+			d, err := c.p.NewDocumentWith("", in, ParseOptions{Backend: c.b, Unit: unit, Limits: zpruntime.Limits{Compute: 1 << 40}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = d.Parse()
+			_ = err
+		} else {
+			_, _ = c.p.ParseWith("", in, ParseOptions{Backend: c.b, Unit: unit, Limits: zpruntime.Limits{Compute: 1 << 40}})
+		}
+		state.ChargeLog = nil
+		fmt.Printf("== %s total %d\n%s\n", c.name, total, strings.Join(lines, "\n"))
+	}
+}
