@@ -99,7 +99,7 @@ The classifier decides, per repetition `e` with no maximum, whether `e` is a **r
 
 - the repetition has no maximum and no escaping cut in its element, and does not repeat a single character (a scan);
 - every inner unbounded repetition is itself a run site or repeats a single character;
-- the element contains no Operators Rule, `#stream`, `#missing`, `#error` or `#diagnostic`; captures, actions,
+- the element contains no Operators Rule, `#stream`, `#missing`, [`@error`](../../../spec/language/attributes.md#error) or [`@diagnostic`](../../../spec/language/attributes.md#diagnostic); captures, actions,
   predicates, variables, `#recover` and calls are allowed;
 - every called rule is called without a level, is not left-recursive and contains none of the above;
 - the repetition is restartable: it is in the element of another repetition that iterates, or in a rule such an element

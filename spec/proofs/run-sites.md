@@ -19,13 +19,14 @@ site nest.
 Fix a parse, a run site $\sigma$ and a lookahead state $\lambda$. Let $n$ be
 the length of the input. The element of $\sigma$ is $e$, and its minimum is
 $c_{\min}$. By the conditions on run sites, $e$ contains no Operators Rule,
-`#stream`, `#missing`, `#error` or `#diagnostic`. Every repetition without an
+`#stream` or `#missing`, and no [`@error`](../language/attributes.md#error) or [`@diagnostic`](../language/attributes.md#diagnostic)
+attribute. Every repetition without an
 upper bound in $e$ or in a rule that $e$ calls, directly or indirectly,
 `skip` expressions included, is a run site, a skip-run site or repeats a
 single character. Every rule
 that $e$ calls, directly or indirectly, is called without a level, is in no
-left-recursion cycle, and contains no `#stream`, `#missing`, `#error` or
-`#diagnostic`; such a rule may be an Operators Rule. No `#cut` in $e$
+left-recursion cycle, and contains no `#stream` or `#missing` and no
+[`@error`](../language/attributes.md#error) or [`@diagnostic`](../language/attributes.md#diagnostic) attribute; such a rule may be an Operators Rule. No `#cut` in $e$
 applies to $\sigma$. A parse with missing-token insertion keeps no records, so
 assume that this parse inserts none.
 

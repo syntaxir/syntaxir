@@ -852,8 +852,9 @@ repetition for which all of the following hold:
 - it has no upper bound and no `#cut` applies to it from its expression, as for
   a skip-run site, and it does not repeat a single character, which an
   implementation scans without records;
-- its expression contains no Operators Rule and no `#stream`, `#missing`,
-  `#error` or `#diagnostic`; it may contain captures (which live in one
+- its expression contains no Operators Rule, no `#stream` or `#missing`, and
+  no [`@error`](../language/attributes.md#error) or [`@diagnostic`](../language/attributes.md#diagnostic)
+  attribute; it may contain captures (which live in one
   iteration), actions, predicates, variables, `#recover` and calls;
 - every repetition without an upper bound in its expression, or in a rule its
   expression calls, directly or indirectly, is a run site, a skip-run site or
@@ -861,8 +862,9 @@ repetition for which all of the following hold:
   `#recover`, so a recovery whose skip repeats without records keeps the
   repetition from being a run site;
 - every rule its expression calls, directly or indirectly, is called without a
-  level, is not in a left-recursion cycle and contains no `#stream`,
-  `#missing`, `#error` or `#diagnostic`; it may be an Operators Rule;
+  level, is not in a left-recursion cycle and contains no `#stream` or
+  `#missing` and no [`@error`](../language/attributes.md#error) or [`@diagnostic`](../language/attributes.md#diagnostic) attribute; it may be an
+  Operators Rule;
 - it is restartable: it is in the expression of another repetition whose
   maximum is neither 0 nor 1, or in a rule that calls itself, directly or
   indirectly, or in a rule that such an expression or such a rule calls,

@@ -943,7 +943,7 @@ alone:
   character that fails a condition of
   [Run Sites](../runtime/parsing.md#run-sites). Such a repetition has a
   `#cut` that applies to it from its element; or its element holds an
-  Operators Rule, `#stream`, `#missing`, `#error` or `#diagnostic`, or a
+  Operators Rule, `#stream`, `#missing`, [`@error`](../language/attributes.md#error) or [`@diagnostic`](../language/attributes.md#diagnostic), or a
   repetition without an upper bound that is neither a run site nor a
   repetition of a single character; or its element calls, directly or
   indirectly, a rule that is called with a level, that is in a
@@ -974,7 +974,7 @@ The conditions of
 without an upper bound in the element be a run site or repeat a single
 character; of a rule that the element calls they ask only that it be called
 without a level, be in no left-recursion cycle and hold no `#stream`,
-`#missing`, `#error` or `#diagnostic`, and those of
+`#missing`, [`@error`](../language/attributes.md#error) or [`@diagnostic`](../language/attributes.md#diagnostic), and those of
 [Skip Runs](../runtime/parsing.md#skip-runs) ask of such a rule only that
 it read no variable, hold no `#recover` and be in no cycle. An Operators
 Rule is written only as the whole body of a rule
