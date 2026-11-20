@@ -240,8 +240,8 @@ func (p *Parser) chargeMemoHash(e *MemoEntry) {
 
 // MemoPut stores e for k, unless the join with the entry stored there keeps that entry (joinStored),
 // and returns the entry it keeps. The store counts one unit; the walk of the chain at the position
-// and the growth of the table count as MemoGet's walk does, and are Document work in a Document
-// parse.
+// counts as MemoGet's walk does, and is Document work in a Document parse. Growing the table
+// charges nothing.
 func (p *Parser) MemoPut(k MemoKey, e *MemoEntry) *MemoEntry {
 	if !BudgetControlsEnabled || p.Control == nil {
 		return p.Memo.put(k, e, p)
@@ -261,9 +261,9 @@ func (p *Parser) MemoPut(k MemoKey, e *MemoEntry) *MemoEntry {
 	}
 	slots := t.Slots
 	if i >= len(slots) {
-		p.growthSpend(len(slots), i+1)
-		// The slot array is charged by its length, not its capacity, so the count does not
-		// depend on the capacity an earlier parse left.
+		// Growing the slot array charges no unit (it grows to positions of counted calls, by
+		// doubling). Its memory is charged by its length, not its capacity, so the count does
+		// not depend on the capacity an earlier parse left.
 		t.MemBytes += uint64(i+1-len(slots)) * memoSlotBytes
 		if i < cap(slots) {
 			slots = slots[:i+1]
@@ -348,32 +348,12 @@ func (p *Parser) MemoPut(k MemoKey, e *MemoEntry) *MemoEntry {
 }
 
 func (p *Parser) memoFirstCall(pos, r int) bool {
-	if !BudgetControlsEnabled || p.Control == nil {
-		return p.Memo.firstCall(pos, r)
+	if BudgetControlsEnabled && p.Control != nil {
+		// The check counts one unit. Growing the record of the calls made charges nothing: it grows
+		// to the positions and rules of counted calls, by doubling.
+		p.Spend()
 	}
-	p.Spend()
-	t := p.Memo
-	if t.Calls == nil || !t.Calls[r].Eager {
-		i := pos*t.Stride + r
-		w := i >> 6
-		if w >= len(t.Seen) {
-			n := len(t.Seen) + max(w+1-len(t.Seen), len(t.Seen), 64)
-			// The new words are the spend, whether they come from spare capacity or an allocation.
-			p.chargeValueBytes(n - len(t.Seen))
-			seen := t.Seen
-			if n <= cap(seen) {
-				seen = seen[:n]
-				clear(seen[len(t.Seen):])
-			} else {
-				seen = make([]uint64, n)
-				copy(seen, t.Seen)
-			}
-			// The original estimator now needs only scalar operations. Keep
-			// its discount and eager thresholds, and publish after all copies.
-			t.Seen = seen
-		}
-	}
-	return t.firstCall(pos, r)
+	return p.Memo.firstCall(pos, r)
 }
 
 // PendingEditLimit is the number of edits that a memo entry may lag behind when a lookup finds it

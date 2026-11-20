@@ -39,8 +39,8 @@ func TestVMFamilyCharges(t *testing.T) {
 		want      map[Backend]charges
 	}{
 		{"plain calls", "rule main = item* $$\nrule item = \"a\"", compile.Options{}, "aaaa", false, map[Backend]charges{
-			Bytecode:          {"document": 70, "document+trace": 78, "parse": 36, "parse+trace": 49, "prefix": 35, "prefix+trace": 48, "recognize": 27, "recognize+trace": 40},
-			BytecodeIterative: {"document": 70, "document+trace": 73, "parse": 36, "parse+trace": 39, "prefix": 35, "prefix+trace": 38, "recognize": 27, "recognize+trace": 30},
+			Bytecode:          {"document": 66, "document+trace": 74, "parse": 36, "parse+trace": 49, "prefix": 35, "prefix+trace": 48, "recognize": 27, "recognize+trace": 40},
+			BytecodeIterative: {"document": 66, "document+trace": 69, "parse": 36, "parse+trace": 39, "prefix": 35, "prefix+trace": 38, "recognize": 27, "recognize+trace": 30},
 		}},
 		{"plain calls, no memo", "rule main = item* $$\nrule item = \"a\"", compile.Options{DisableMemo: true}, "aaaa", false, map[Backend]charges{
 			Bytecode:          {"document": 43, "document+trace": 51, "parse": 36, "parse+trace": 49, "prefix": 35, "prefix+trace": 48, "recognize": 27, "recognize+trace": 40},
@@ -51,8 +51,8 @@ func TestVMFamilyCharges(t *testing.T) {
 			BytecodeIterative: {"document": 24, "document+trace": 29, "parse": 34, "parse+trace": 39, "prefix": 33, "prefix+trace": 38, "recognize": 27, "recognize+trace": 32},
 		}},
 		{"captures", "rule main = item* $$\nrule item = x:\"a\" {len(text($x)) == 1}", compile.Options{}, "aaa", false, map[Backend]charges{
-			Bytecode:          {"document": 69, "document+trace": 76, "parse": 45, "parse+trace": 52, "prefix": 44, "prefix+trace": 51, "recognize": 29, "recognize+trace": 36},
-			BytecodeIterative: {"document": 69, "document+trace": 72, "parse": 45, "parse+trace": 48, "prefix": 44, "prefix+trace": 47, "recognize": 29, "recognize+trace": 32},
+			Bytecode:          {"document": 65, "document+trace": 72, "parse": 45, "parse+trace": 52, "prefix": 44, "prefix+trace": 51, "recognize": 29, "recognize+trace": 36},
+			BytecodeIterative: {"document": 65, "document+trace": 68, "parse": 45, "parse+trace": 48, "prefix": 44, "prefix+trace": 47, "recognize": 29, "recognize+trace": 32},
 		}},
 		{"stream", codegentest.Records, compile.Options{}, "#records\na=1\nbc=22\n", true, stream},
 	}

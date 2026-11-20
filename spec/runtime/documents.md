@@ -404,9 +404,8 @@ links nothing, with the same charges. In the reference implementation it first
 applies to that entry the edits that it does not account for, as a lookup does;
 an entry that cannot take them is replaced, and so is an entry whose value an
 edit shifted and the generated typed Go code cannot move. A store at a position
-beyond the slots of the memo table grows them: when the number of binary digits
-of the new length exceeds that of the old one, it charges the old length, and
-otherwise nothing.
+beyond the slots of the memo table grows them, which charges nothing, as in any
+parse ([Cost](parsing.md#cost)).
 
 **Moves.** A lookup that finds an entry whose value an edit shifted
 ([Reuse Model](#reuse-model)) moves the value, once: the entry then accounts for
@@ -462,8 +461,7 @@ items of the grammar for each item it merges. The operations charge:
 A parse resumes a record of the previous parse at most once: resuming it removes
 it from the records that the parse can resume.
 
-These charges for growing storage, like those of the slots of the memo table,
-are functions of lengths and of the operations of the parse: the capacity that
+These charges for growing storage are functions of lengths and of the operations of the parse: the capacity that
 earlier parses left in storage that the Document keeps for its next parse
 changes no charge.
 

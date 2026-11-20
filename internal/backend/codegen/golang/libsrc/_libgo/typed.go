@@ -1201,13 +1201,13 @@ func (p *TParser) joinStored(x, e *tmemoEntry) *tmemoEntry {
 func (p *TParser) memoPutControlled(rule, pos, min int, key []any, ident bool, e *tmemoEntry) *tmemoEntry {
 	p.Spend()
 	if p.Control.defaultCompute {
-		// The steps of the walk of the chain and the growth of the table are work of the Document.
+		// The steps of the walk of the chain are work of the Document.
 		defer p.Control.FreeEnd(p.Control.FreeBegin(true))
 	}
 	slots := p.memoSlots
 	if pos >= len(slots) {
-		p.growthSpend(len(slots), pos+1)
-		// The slot array is charged by its length, not its capacity, which a pooled parser keeps.
+		// Growing the slot array charges no unit (it grows to positions of counted calls, by
+		// doubling). Its memory is charged by its length, not its capacity, which a pooled parser keeps.
 		p.memUsed += uint64(pos+1-len(slots)) * ptrBytes
 		if pos < cap(slots) {
 			slots = slots[:pos+1]

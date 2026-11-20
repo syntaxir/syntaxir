@@ -271,9 +271,9 @@ func TestMemoChainChargesAtItsBounds(t *testing.T) {
 	}
 }
 
-// TestMemoStoreChargesTheSlotsOfTheGap compares the slots that the model of a lazy memo counts with
-// what stores charge, after edits that move and widen the gap.
-func TestMemoStoreChargesTheSlotsOfTheGap(t *testing.T) {
+// TestMemoStoreChargesNoSlotGrowth checks that a store charges its two units and nothing for the
+// slots it adds, after edits that move and widen the gap: growing the table is storage, not cost.
+func TestMemoStoreChargesNoSlotGrowth(t *testing.T) {
 	t.Parallel()
 	parseState := exec.Parser()
 	store, splice := parseState.Op("memo.store"), parseState.Op("memo.splice")
@@ -297,16 +297,16 @@ func TestMemoStoreChargesTheSlotsOfTheGap(t *testing.T) {
 			if model.Quantity(exec.QKeyScan, store, args) != 0 {
 				continue // the charges of a scan are the subject of the tests of lookups
 			}
-			want := model.Quantity(exec.QSlotGrowth, store, args)
+			slots := len(p.Memo.Slots)
 			got := spent(p, func() {
 				e := p.Memo.Alloc()
 				*e = MemoEntry{Ok: true, End: pos, Gen: p.Gen, Vgen: p.Gen}
 				p.MemoPut(MemoKey{Pos: pos}, e)
 			})
-			if got != 2+uint64(want) {
-				t.Fatalf("seed %d: a store at %d charged %d, the model counts %d slots", seed, pos, got, want)
+			if got != 2 {
+				t.Fatalf("seed %d: a store at %d charged %d, want 2", seed, pos, got)
 			}
-			if want != 0 {
+			if len(p.Memo.Slots) > slots {
 				grown++
 			}
 			model.Call(store, args)
@@ -385,7 +385,7 @@ func TestMemoChargesMatchTheModel(t *testing.T) {
 				}
 				examined := pos + 1 + rng.IntN(6)
 				present := slices.ContainsFunc(chain(pos), func(e *MemoEntry) bool { return e.Env[0] == any(int64(v)) })
-				want := uint64(2 + model.Quantity(exec.QKeyScan, storeOp, args) + model.Quantity(exec.QSlotGrowth, storeOp, args))
+				want := uint64(2 + model.Quantity(exec.QKeyScan, storeOp, args))
 				got := spent(p, func() {
 					e := p.Memo.Alloc()
 					*e = MemoEntry{Ok: true, End: pos + 1, From: from, Examined: examined, Gen: p.Gen, Vgen: p.Gen}

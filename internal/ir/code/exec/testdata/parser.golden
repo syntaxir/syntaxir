@@ -232,7 +232,7 @@ op memo.store(rule int, pos int, level int, key Values, ok bool, end int, silent
   component memo
   reads memo
   writes memo
-  cost <= 2 + 1*key_scan + 1*slot_growth
+  cost <= 2 + 1*key_scan
   contract:
     // Stores a complete entry with the outcome ok, the end, whether it was computed in a silent
     // context, its value and its recovered errors under the key, replacing the entry stored under the same
@@ -375,7 +375,7 @@ op seen.first(rule int, pos int) bool
   component seen
   reads seen
   writes seen
-  cost <= 66 + 1*page_index + 1*pages + 1*seen_index
+  cost <= 1
   contract:
     // Records a call of the rule at pos and reports whether its memoization is deferred: true
     // when the rule is not eager and has not been called at pos before. Each rule counts its calls and its

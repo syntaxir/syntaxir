@@ -9,7 +9,6 @@ package ref
 import (
 	"fmt"
 	"math"
-	"math/bits"
 	"slices"
 	"strings"
 	"sync"
@@ -120,7 +119,6 @@ type Model struct {
 
 	// seen
 	seen  map[[2]int64]bool
-	pages map[[2]int64]bool
 	rules []seenCounts
 
 	// budget
@@ -304,7 +302,7 @@ type seenCounts struct {
 // New returns a model in the state at the start of a parse.
 func New(cfg Config) *Model {
 	return &Model{cfg: cfg, entries: map[memoKey]*Entry{}, at: map[int64]int{},
-		seen: map[[2]int64]bool{}, pages: map[[2]int64]bool{}, rules: make([]seenCounts, cfg.Rules),
+		seen: map[[2]int64]bool{}, rules: make([]seenCounts, cfg.Rules),
 		env: &Scope{vals: cfg.Vars}, keys: map[int64][]int64{}, canon: map[string]int64{}}
 }
 
@@ -436,22 +434,6 @@ func (m *Model) Quantity(name string, o *code.Op, args []any) int64 {
 			return m.edits - applied
 		}
 		return 0
-	case exec.QSlotGrowth:
-		// Positions count from the floor; a store before it keeps nothing.
-		pos, covered := args[1].(int64)-m.floor, m.covered-m.floor
-		if m.cfg.LazyEdits {
-			pos, covered = m.slot(args[1].(int64)), m.slots
-		}
-		if covered > 0 && pos >= covered && bits.Len64(uint64(pos+1)) > bits.Len64(uint64(covered)) {
-			return covered
-		}
-		return 0
-	case exec.QPageIndex:
-		return args[1].(int64) >> 10
-	case exec.QPages:
-		return int64(len(m.pages))
-	case exec.QSeenIndex:
-		return (args[1].(int64)*int64(m.cfg.Rules) + args[0].(int64)) / 64
 	case exec.QN:
 		return int64(min(args[0].(uint64), math.MaxInt64))
 	case exec.QPruned:
@@ -831,7 +813,6 @@ func (m *Model) first(rule, pos int64) bool {
 	}
 	c.calls = int32(calls)
 	k := [2]int64{rule, pos}
-	m.pages[[2]int64{rule, pos >> 10}] = true
 	if !m.seen[k] {
 		m.seen[k] = true
 		return true

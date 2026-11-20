@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"math/bits"
 	"slices"
 	"strconv"
 	"strings"
@@ -767,17 +766,6 @@ func copyBudgetControlled[T any](p *Parser, dst, src []T) {
 	}
 }
 
-// growthSpend charges the copy that growing a table from oldLen to newLen entries stands for. The
-// charge is a function of the two lengths alone: it falls where the length crosses a power of two,
-// as doubling would copy, and never depends on the spare capacity that an earlier parse left in a
-// pooled parser, so a parse is charged the same wherever its storage came from. The physical copy
-// follows the charge and is not charged again.
-func (p *Parser) growthSpend(oldLen, newLen int) {
-	if oldLen > 0 && bits.Len(uint(newLen)) > bits.Len(uint(oldLen)) {
-		p.chargeValues(oldLen)
-	}
-}
-
 // chargeValues charges n values in chunks, so that a limit or cancellation is seen between them.
 func (p *Parser) chargeValues(n int) {
 	for n > 0 {
@@ -1249,13 +1237,13 @@ func (p *Parser) joinStored(x, e *memoEntry) *memoEntry {
 func (p *Parser) memoPutControlled(rule, pos, min int, key []any, ident bool, e *memoEntry) *memoEntry {
 	p.Spend()
 	if p.Control.defaultCompute {
-		// The steps of the walk of the chain and the growth of the table are work of the Document.
+		// The steps of the walk of the chain are work of the Document.
 		defer p.Control.FreeEnd(p.Control.FreeBegin(true))
 	}
 	slots := p.memo.slots
 	if pos >= len(slots) {
-		p.growthSpend(len(slots), pos+1)
-		// The slot array is charged by its length, not its capacity, which a pooled parser keeps.
+		// Growing the slot array charges no unit (it grows to positions of counted calls, by
+		// doubling). Its memory is charged by its length, not its capacity, which a pooled parser keeps.
 		p.memo.memBytes += uint64(pos+1-len(slots)) * ptrBytes
 		if pos < cap(slots) {
 			slots = slots[:pos+1]
@@ -1329,6 +1317,8 @@ func (p *Parser) memoPutControlled(rule, pos, min int, key []any, ident bool, e 
 
 // controlledFirstCallPrepare charges and grows the first-call bookkeeping of a controlled parse for
 // the rule with the seen index s at pos; the ordinary seenFirst body then runs on the grown state.
+// The check counts one unit. Growing the record charges nothing: it grows to the positions and
+// rules of counted calls, by doubling or by pages of 1,024 positions.
 func (p *Parser) controlledFirstCallPrepare(s, pos int) {
 	p.Spend()
 	t := &p.memo
@@ -1346,16 +1336,12 @@ func (p *Parser) controlledFirstCallPrepare(s, pos int) {
 		at := pos >> 10
 		if at >= len(dir.pages) {
 			// The directory is empty at the start of a parse, so its length is the parse's own.
-			p.growthSpend(len(dir.pages), at+1)
 			t.memBytes += uint64(at+1-len(dir.pages)) * ptrBytes
 			dir.pages = slices.Grow(dir.pages, at+1-len(dir.pages))[:at+1]
 		}
 		if dir.pages[at] == nil {
-			p.Spend()
-			// A page that starts a chunk is a demand of the parse; whether the chunk exists already
-			// is the pooled parser's state. Reserve the capacity alloc appends into here.
+			// Reserve the capacity alloc appends into here.
 			if n := t.bitPages.n; n%64 == 0 {
-				p.growthSpend(n/64, n/64+1)
 				if n/64 == len(t.bitPages.chunks) {
 					t.bitPages.chunks = slices.Grow(t.bitPages.chunks, 1)
 				}
@@ -1368,8 +1354,6 @@ func (p *Parser) controlledFirstCallPrepare(s, pos int) {
 		w := (pos*t.stride + s) >> 6
 		if w >= len(t.seen) {
 			n := len(t.seen) + max(w+1-len(t.seen), len(t.seen), 64)
-			// The new words are the spend, whether they come from spare capacity or an allocation.
-			p.chargeValues(n - len(t.seen))
 			t.memBytes += uint64(n-len(t.seen)) * 8
 			seen := t.seen
 			if n <= cap(seen) {

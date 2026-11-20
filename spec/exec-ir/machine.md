@@ -136,8 +136,6 @@ are the following.
 | `move_edits` | The edits that the call replays to learn how far a node moves that another result moved since the entry's value was made: for each generation of the value's nodes other than the entry's, the edits since that generation. It is zero for a target that keeps no generations. |
 | `moved` | The size of the value of the entry that the call moves: for each distinct node in it, one and the number of its children and fields. |
 | `n` | The argument n of budget.charge. |
-| `page_index` | The call's position divided by 1,024. |
-| `pages` | The number of 1,024-position regions of all rules that deferred memoization has recorded calls in. |
 | `pending_edits` | The number of edits since the entry under the call's key was stored or last found, counting an entry that `memo.splice` removed and a target may still hold: the edits that a target which applies them to an entry when it finds it has yet to apply. |
 | `present` | The work of naming the present set of the call's context when a leader in it has no bit in a word of bits: one for each growth of the context, and one more when no operation named that set since the first growth in progress began; 0 when every leader of the context has a bit. Which leaders of a cycle have a bit depends on the target, because the width of the word of bits does: 63 in the engine and 31 in the generated Go and TypeScript parsers and the model, so the quantity is the one of the target that runs. |
 | `pruned` | The number of memo entries stored before the call's position argument. |
@@ -146,11 +144,9 @@ are the following.
 | `run_scan` | The number of old elements from the one the search finds to the end of the run. |
 | `run_search` | The number of bits of the count of old elements that the run has not passed: what a binary search for the next element inspects. |
 | `run` | For each step of the run of the growth that the call records as jumps (the steps since the last step that read another seed): one, one for each jump recorded before from its seed, and the expectations of its set when its farthest position is that of the steps after it. |
-| `seen_index` | The call's position times the number of rules plus its rule, divided by 64: the size of a record that keeps one bit per call in position order. |
 | `segs` | The number of entries of the recovered-error list after the mark of the call, or for grow.step after the mark that the growth took when it began: errors that rec.push recorded and lists that rec.add recorded or rec.since put in their place. |
 | `seq_len` | The number of elements of the Seq argument of a primitive, which it copies. |
 | `set` | The number of expectations of the set that the call takes. |
-| `slot_growth` | The number of positions the memo covers from its floor before the call when storing at the call's position makes that number cross a power of two, and 0 otherwise: the copy that doubling a position-indexed table stands for. A target whose table keeps a gap for edits counts its slots, the gap among them. |
 | `slots` | The number of slots of the frame that the call takes or opens. |
 | `steps` | The number of memoized steps and jumps that the call takes. |
 | `stream_frames` | The number of capture frames that the scratch of the stream holds. A target may visit each twice: a scan for the frame in use, which may lie outside the scratch, and a clear of those after it. |

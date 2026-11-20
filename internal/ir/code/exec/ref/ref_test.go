@@ -54,21 +54,6 @@ func TestMemoModel(t *testing.T) {
 	}
 }
 
-func TestSlotGrowth(t *testing.T) {
-	m := New(Config{})
-	store := func(pos int64) int64 {
-		args := []any{int64(0), pos, int64(0), int64(0), true, pos, false, nil, nil}
-		q := m.Quantity(exec.QSlotGrowth, nil, args)
-		call(m, "memo.store", args...)
-		return q
-	}
-	for _, c := range []struct{ pos, want int64 }{{0, 0}, {1, 1}, {2, 0}, {3, 3}, {7, 4}, {7, 0}, {8, 0}, {15, 9}} {
-		if got := store(c.pos); got != c.want {
-			t.Errorf("growth storing at %d = %d, want %d", c.pos, got, c.want)
-		}
-	}
-}
-
 func TestSeenModel(t *testing.T) {
 	m := New(Config{Rules: 2})
 	if !call(m, "seen.first", int64(0), int64(3))[0].(bool) || call(m, "seen.first", int64(0), int64(3))[0].(bool) {

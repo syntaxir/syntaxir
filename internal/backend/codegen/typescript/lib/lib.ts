@@ -3263,19 +3263,13 @@ export class Parser {
     }
     if (this.slots.length === 0) {
       // One slot per position, allocated at once: writes far beyond the end of an array would
-      // make it a slow dictionary.
-      if (this.control === null) {
-        this.slots = new Array(this.n + 1).fill(null);
-      } else {
-        const slots: (MemoEntry | null)[] = new Array(this.n + 1);
+      // make it a slow dictionary. Filling them charges no unit: there is one for each position of
+      // the input, which the parse counts as a whole.
+      const slots: (MemoEntry | null)[] = new Array(this.n + 1).fill(null);
+      if (this.control !== null) {
         this.alloc(arrayBytes(slots.length));
-        for (let from = 0; from < slots.length; from += 128) {
-          const end = Math.min(from + 128, slots.length);
-          this.spend(end - from);
-          slots.fill(null, from, end);
-        }
-        this.slots = slots;
       }
+      this.slots = slots;
     }
     e.next = this.slots[pos] || null;
     this.slots[pos] = e;
@@ -4048,17 +4042,11 @@ export class Parser {
     const w = Math.floor(i / 32);
     const bit = 1 << i % 32;
     if (w >= this.seen.length) {
+      // Growing the record charges no unit: it grows to the positions and rules of counted calls,
+      // by doubling.
       const grown = new Int32Array(Math.max(w + 1, 2 * this.seen.length, 64));
       this.alloc(typedBytes(grown.byteLength));
-      if (this.control === null) {
-        grown.set(this.seen);
-      } else {
-        for (let from = 0; from < this.seen.length; from += 128) {
-          const end = Math.min(from + 128, this.seen.length);
-          this.spend(end - from);
-          grown.set(this.seen.subarray(from, end), from);
-        }
-      }
+      grown.set(this.seen);
       this.seen = grown;
     }
     if ((this.seen[w]! & bit) === 0) {
@@ -4077,9 +4065,10 @@ export class Parser {
       this.seenPageChunks = [];
       this.alloc(2 * arrayBytes(0));
     }
+    // Growing the record charges no unit beyond the check: it grows to the positions and rules of
+    // counted calls, by pages of 1,024 positions.
     let pages = this.seenPages[s];
     if (pages === undefined) {
-      this.spend();
       pages = [];
       this.seenPages[s] = pages;
       this.alloc(arrayBytes(0) + 8);
@@ -4087,7 +4076,6 @@ export class Parser {
     const at = Math.floor(pos / 1024);
     let page = pages[at];
     if (page === undefined) {
-      this.spend();
       page = this.seenPageCount++;
       if (page % 64 === 0) {
         this.seenPageChunks!.push(new Int32Array(64 * 32));

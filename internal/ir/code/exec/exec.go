@@ -48,19 +48,6 @@ const (
 	// counting an entry that memo.splice removed and a target may still hold: the edits that a target
 	// which applies them to an entry when it finds it has yet to apply.
 	QPending = "pending_edits"
-	// QSlotGrowth is the number of positions the memo covers from its floor before the call when
-	// storing at the call's position makes that number cross a power of two, and 0 otherwise: the copy
-	// that doubling a position-indexed table stands for. A target whose table keeps a gap for edits
-	// counts its slots, the gap among them.
-	QSlotGrowth = "slot_growth"
-	// QPageIndex is the call's position divided by 1,024.
-	QPageIndex = "page_index"
-	// QPages is the number of 1,024-position regions of all rules that deferred memoization has
-	// recorded calls in.
-	QPages = "pages"
-	// QSeenIndex is the call's position times the number of rules plus its rule, divided by 64: the
-	// size of a record that keeps one bit per call in position order.
-	QSeenIndex = "seen_index"
 	// QN is the argument n of budget.charge.
 	QN = "n"
 	// QPruned is the number of memo entries stored before the call's position argument.
@@ -158,7 +145,7 @@ host's value equality.`)
 	result := []code.Param{code.P("silent", code.TBool), code.P("value", value), code.P("errs", errs)}
 	key := []code.Param{code.P("rule", code.TInt), code.P("pos", code.TInt), code.P("level", code.TInt), code.P("key", values)}
 	scan := code.Cost{Const: 1, Terms: []code.CostTerm{{Coef: 1, Quantity: QKeyScan}, {Coef: 1, Quantity: QPending}}}
-	write := code.Cost{Const: 2, Terms: []code.CostTerm{{Coef: 1, Quantity: QKeyScan}, {Coef: 1, Quantity: QSlotGrowth}}}
+	write := code.Cost{Const: 2, Terms: []code.CostTerm{{Coef: 1, Quantity: QKeyScan}}}
 	with := func(ps []code.Param, more ...code.Param) []code.Param {
 		return append(append([]code.Param(nil), ps...), more...)
 	}
@@ -254,7 +241,7 @@ seen had the edit applied at once.`,
 	m.AddOp(&code.Op{Name: "seen.first", Component: Seen,
 		Params:  []code.Param{code.P("rule", code.TInt), code.P("pos", code.TInt)},
 		Results: []code.Type{code.TBool}, Reads: []string{Seen}, Writes: []string{Seen},
-		Cost: code.Cost{Const: 66, Terms: []code.CostTerm{{Coef: 1, Quantity: QPageIndex}, {Coef: 1, Quantity: QPages}, {Coef: 1, Quantity: QSeenIndex}}},
+		Cost: code.Cost{Const: 1},
 		Contract: `Records a call of the rule at pos and reports whether its memoization is deferred: true
 when the rule is not eager and has not been called at pos before. Each rule counts its calls and its
 repeated calls, the calls at a position where it was called before. A call that finds the rule eager

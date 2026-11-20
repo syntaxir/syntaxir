@@ -369,7 +369,11 @@ and at most a constant of the grammar and the backend for each of them, besides
 the units that it charges for the input as a whole before the parse. A walk that
 takes the rest of a walk from a record of a [skip run](#skip-runs), a
 [run site](#run-sites) or a [scan site](#scan-sites) neither evaluates nor
-charges the iterations and characters that it skips. A parser generated without
+charges the iterations and characters that it skips. Growing the storage of a
+parse charges no unit: the memo table and the record of the rules called at
+each position grow to the positions and rules of calls that are counted, and
+growing them by doubling, or by pages of positions, copies and clears at most a
+constant times their final size. A parser generated without
 limit controls counts no units.
 
 Some values are built by the runtime rather than by an action, and each backend

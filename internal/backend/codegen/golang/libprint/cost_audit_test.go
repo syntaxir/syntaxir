@@ -173,7 +173,7 @@ func opCallees(t *testing.T, pkg *types.Package, op *code.Op, typed bool) (form 
 }
 
 // chargeWrappers are the functions of the library that only pass charges on to the budget control.
-var chargeWrappers = []string{"Spend", "SpendRead", "spendValue", "growthSpend", "appendSpend", "copySpend", "clearSpend"}
+var chargeWrappers = []string{"Spend", "SpendRead", "spendValue", "appendSpend", "copySpend", "clearSpend"}
 
 // formSite stands for a charge that the Go form of an operation makes itself, through a wrapper.
 const formSite = "the form"
@@ -231,8 +231,7 @@ func siteName(f *types.Func) string {
 var siteCost = map[string][]string{
 	formSite: nil, // any declared cost
 	// Deferred memoization (seen.first).
-	"Parser.controlledFirstCallPrepare": {"", exec.QPageIndex, exec.QPages, exec.QSeenIndex},
-	"Parser.chargeValues":               {exec.QPageIndex, exec.QPages, exec.QSeenIndex},
+	"Parser.controlledFirstCallPrepare": {""},
 	// The variable environment.
 	"Parser.controlledEnvValues": {exec.QVars},
 	"Parser.variable":            {exec.QEnvReads},

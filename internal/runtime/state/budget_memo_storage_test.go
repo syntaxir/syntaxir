@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"reflect"
-	"strings"
 	"testing"
 
 	"zeroparse.dev/zp/internal/runtime/nodes"
@@ -33,36 +32,33 @@ func assertSlotPointers(t *testing.T, got, want []*MemoEntry) {
 	}
 }
 
-func TestBudgetMemoPutSlotGrowthIsAtomic(t *testing.T) {
+// Growing the slot array of the memo is storage, not cost: a store that grows it counts what a
+// store into an existing empty slot counts, keeps the entries stored before and publishes the new one.
+func TestBudgetMemoPutSlotGrowthChargesNothing(t *testing.T) {
 	table := &MemoTable{Slots: make([]*MemoEntry, 511)}
 	for i := range table.Slots {
 		table.Slots[i] = &MemoEntry{Pos: i, Rule: int32(i)}
 	}
-	oldHeader := table.Slots
-	oldPointers := slotPointers(oldHeader)
-	newEntry := &MemoEntry{Node: nodes.Ptr(nodes.Data{Text: "published after retry"})}
-	p := memoStorageParser(table, runtime.Limits{Compute: 130})
-	key := MemoKey{Rule: 7, Pos: 511}
+	table.Slots[100] = nil // an empty slot, so the store below walks no chain, as one at 511 does
+	oldPointers := slotPointers(table.Slots)
+	p := memoStorageParser(table, runtime.Limits{Compute: 1 << 40})
+	p.MemoPut(MemoKey{Rule: 7, Pos: 100}, &MemoEntry{})
+	store := p.Control.Used
+	oldPointers[100] = table.Slots[100]
 
-	err := catchFatal(t, func() { p.MemoPut(key, newEntry) })
-	if !errors.Is(err, runtime.ErrLimit) {
-		t.Fatalf("slot growth error = %v, want ErrLimit", err)
+	newEntry := &MemoEntry{Node: nodes.Ptr(nodes.Data{Text: "stored"})}
+	p.Control = NewBudgetControl(nil, runtime.Limits{Compute: store})
+	if err := catchFatal(t, func() { p.MemoPut(MemoKey{Rule: 7, Pos: 511}, newEntry) }); err != nil {
+		t.Fatalf("a store that grows the slots under a limit of %d units: %v", store, err)
 	}
-	if len(table.Slots) != 511 || cap(table.Slots) != cap(oldHeader) {
-		t.Fatalf("failed growth published slot header len/cap %d/%d, want 511/%d", len(table.Slots), cap(table.Slots), cap(oldHeader))
+	if used := p.Control.Used; used != store {
+		t.Fatalf("a store that grows the slots charged %d units, a store into an empty slot %d", used, store)
 	}
-	assertSlotPointers(t, table.Slots, oldPointers)
-	if newEntry.Pos != 0 || newEntry.Rule != 0 || newEntry.Env != nil {
-		t.Fatalf("failed growth mutated candidate entry: %#v", newEntry)
-	}
-
-	p.Control = NewBudgetControl(nil, runtime.Limits{Compute: 10_000})
-	p.MemoPut(key, newEntry)
 	if len(table.Slots) != 512 {
-		t.Fatalf("retry slot length = %d, want 512", len(table.Slots))
+		t.Fatalf("slot length = %d, want 512", len(table.Slots))
 	}
 	if table.Slots[511] != newEntry {
-		t.Fatalf("retry slot = %p, want candidate at index 511", table.Slots[511])
+		t.Fatalf("slot 511 = %p, want the stored entry", table.Slots[511])
 	}
 	assertSlotPointers(t, table.Slots[:511], oldPointers)
 }
@@ -75,91 +71,81 @@ func seedSeenTable(words, capacity int) *MemoTable {
 	return &MemoTable{Stride: 1, Seen: seen}
 }
 
-func TestBudgetMemoSeenGrowthCopyAndRetry(t *testing.T) {
+// Growing the record of first calls by an allocation charges nothing beyond the unit of the check,
+// and keeps the words recorded before.
+func TestBudgetMemoSeenGrowthChargesNothing(t *testing.T) {
 	table := seedSeenTable(512, 512)
 	old := append([]uint64(nil), table.Seen...)
-	oldSlice := table.Seen
-	p := memoStorageParser(table, runtime.Limits{Compute: 130})
-	err := catchFatal(t, func() { p.memoFirstCall(512*64, 0) })
-	if !errors.Is(err, runtime.ErrLimit) {
-		t.Fatalf("seen allocation growth error = %v, want ErrLimit", err)
+	p := memoStorageParser(table, runtime.Limits{Compute: 1})
+	var deferred bool
+	if err := catchFatal(t, func() { deferred = p.memoFirstCall(512*64, 0) }); err != nil {
+		t.Fatalf("a first call that grows the record under a limit of one unit: %v", err)
 	}
-	if len(table.Seen) != 512 || cap(table.Seen) != 512 {
-		t.Fatalf("failed seen growth published len/cap %d/%d, want 512/512", len(table.Seen), cap(table.Seen))
-	}
-	if !reflect.DeepEqual(table.Seen, old) || &table.Seen[0] != &oldSlice[0] {
-		t.Fatal("failed seen growth changed published words or backing array")
-	}
-	if table.Calls != nil {
-		t.Fatalf("failed seen growth initialized adaptive counters: %#v", table.Calls)
-	}
-
-	p.Control = NewBudgetControl(nil, runtime.Limits{Compute: 10_000})
-	if deferred := p.memoFirstCall(512*64, 0); !deferred {
+	if !deferred {
 		t.Fatal("first call after seen growth was not deferred")
 	}
+	if used := p.Control.Used; used != 1 {
+		t.Fatalf("a first call that grows the record charged %d units, want 1", used)
+	}
 	if len(table.Seen) <= 512 || table.Seen[512]&(1<<0) == 0 {
-		t.Fatalf("retry did not publish requested seen bit: len=%d word=%#x", len(table.Seen), table.Seen[512])
+		t.Fatalf("growth did not publish the requested bit: len=%d word=%#x", len(table.Seen), table.Seen[512])
+	}
+	if !reflect.DeepEqual(table.Seen[:512], old) {
+		t.Fatal("growth changed the words recorded before")
 	}
 }
 
-func TestBudgetMemoSeenSpareCapacityClearInterruption(t *testing.T) {
+// Growing the record into spare capacity that an earlier parse left clears it, and charges
+// nothing beyond the unit of the check, whatever the capacity.
+func TestBudgetMemoSeenSpareCapacityIsCleared(t *testing.T) {
 	table := seedSeenTable(512, 1024)
 	backing := table.Seen[:cap(table.Seen)]
 	for i := 512; i < len(backing); i++ {
 		backing[i] = ^uint64(0)
 	}
 	old := append([]uint64(nil), table.Seen...)
-	oldHeader := table.Seen
-	p := memoStorageParser(table, runtime.Limits{Compute: 130})
-	err := catchFatal(t, func() { p.memoFirstCall(512*64, 0) })
-	if !errors.Is(err, runtime.ErrLimit) {
-		t.Fatalf("seen spare-capacity clear error = %v, want ErrLimit", err)
+	p := memoStorageParser(table, runtime.Limits{Compute: 1})
+	var deferred bool
+	if err := catchFatal(t, func() { deferred = p.memoFirstCall(512*64, 0) }); err != nil {
+		t.Fatalf("a first call that grows into spare capacity under a limit of one unit: %v", err)
 	}
-	if len(table.Seen) != 512 || cap(table.Seen) != 1024 || &table.Seen[0] != &oldHeader[0] {
-		t.Fatalf("failed clear changed published header: len/cap=%d/%d", len(table.Seen), cap(table.Seen))
+	if !deferred {
+		t.Fatal("first call after the growth into spare capacity was not deferred")
 	}
-	if !reflect.DeepEqual(table.Seen, old) {
-		t.Fatal("failed clear changed words in the published seen slice")
-	}
-	// The growth is charged in chunks: the limit stops it at the first chunk that does not fit.
-	if !strings.Contains(err.Error(), "requested 128") {
-		t.Fatalf("seen growth charge was not chunked: %v", err)
-	}
-	// The charge precedes any write: an interrupted growth touches no storage.
-	for i := 512; i < len(backing); i++ {
-		if backing[i] != ^uint64(0) {
-			t.Fatalf("interrupted growth wrote word %d", i)
-		}
-	}
-	if table.Calls != nil {
-		t.Fatalf("failed clear initialized adaptive counters: %#v", table.Calls)
-	}
-
-	p.Control = NewBudgetControl(nil, runtime.Limits{Compute: 10_000})
-	if deferred := p.memoFirstCall(512*64, 0); !deferred {
-		t.Fatal("first call after spare-capacity retry was not deferred")
+	if used := p.Control.Used; used != 1 {
+		t.Fatalf("a first call that grows into spare capacity charged %d units, want 1", used)
 	}
 	if table.Seen[512] != 1 {
-		t.Fatalf("retried seen bit word = %#x, want 1", table.Seen[512])
+		t.Fatalf("grown seen bit word = %#x, want 1", table.Seen[512])
+	}
+	for i := 513; i < len(table.Seen); i++ {
+		if table.Seen[i] != 0 {
+			t.Fatalf("growth left word %d of the spare capacity uncleared: %#x", i, table.Seen[i])
+		}
+	}
+	if !reflect.DeepEqual(table.Seen[:512], old) {
+		t.Fatal("growth changed the words recorded before")
 	}
 }
 
-func TestBudgetMemoSeenGrowthCancellationIsAtomic(t *testing.T) {
+// The unit of the check comes before the record changes: a cancellation observed there leaves the
+// record as it was.
+func TestBudgetMemoSeenCancellationPrecedesGrowth(t *testing.T) {
 	table := seedSeenTable(512, 512)
 	old := append([]uint64(nil), table.Seen...)
 	ctx := newPollingContext(1)
 	p := memoStorageParser(table, runtime.Limits{})
 	p.Control = NewBudgetControl(ctx, runtime.Limits{})
 	err := catchFatal(t, func() {
-		p.Control.SinceCheck = 0
+		// The unit of the check reaches the next poll.
+		p.Control.SinceCheck = BudgetCheckInterval - 1
 		p.memoFirstCall(512*64, 0)
 	})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("seen growth cancellation error = %v, want context.Canceled", err)
 	}
 	if len(table.Seen) != 512 || !reflect.DeepEqual(table.Seen, old) || table.Calls != nil {
-		t.Fatal("canceled seen growth published partial state")
+		t.Fatal("canceled first call changed the record")
 	}
 }
 

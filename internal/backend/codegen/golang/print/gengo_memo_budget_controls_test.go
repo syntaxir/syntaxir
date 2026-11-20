@@ -136,32 +136,41 @@ func TestMemoKeysAndStorage(t *testing.T){
   p.Control=zprt.X_newBudgetControl(nil,Limits{Compute:32})
   if err:=catchMemoFatal(func(){get([]any{long+"y"})});!errors.Is(err,ErrLimit){t.Fatal("string key comparison unbounded",err)}
  }
+ // Growing the slot array to a far position charges no unit: a store there charges what it charges
+ // in a table that already reaches the position, and a limit of a few units does not stop it.
  for _,typed:=range []bool{false,true}{
-  p:=&zprt.Parser{Control:zprt.X_newBudgetControl(nil,Limits{Compute:129})}
-  nodeOriginal:=&zprt.X_memoEntry{X_rule:3};nodeReplacement:=&zprt.X_memoEntry{X_rule:-1}
-  p.X_memo.X_slots=make([]*zprt.X_memoEntry,300);p.X_memo.X_slots[0]=nodeOriginal
-  typedOriginal:=&zprt.X_tmemoEntry{X_rule:3};typedReplacement:=&zprt.X_tmemoEntry{X_rule:-1}
-  tp:=&zprt.TParser{Parser:p,X_memoSlots:make([]*zprt.X_tmemoEntry,300)};tp.X_memoSlots[0]=typedOriginal
-  put:=func(){if typed{tp.X_memoPut(7,600,0,nil,false,typedReplacement)}else{p.X_memoPut(7,600,0,nil,false,nodeReplacement)}}
-  err:=catchMemoFatal(put)
-  if !errors.Is(err,ErrLimit){t.Fatal("slot copy unbounded",err)}
-  if len(p.X_memo.X_slots)!=300 || p.X_memo.X_slots[0]!=nodeOriginal || nodeReplacement.X_rule!=-1 || len(tp.X_memoSlots)!=300 || tp.X_memoSlots[0]!=typedOriginal || typedReplacement.X_rule!=-1{t.Fatal("partial slot growth published")}
-  p.Control=zprt.X_newBudgetControl(nil,Limits{Compute:100000});put()
-  if typed{tp.X_memoPut(7,600,0,nil,false,typedReplacement);if tp.X_memoGet(7,600,0,nil,false)!=typedReplacement || typedReplacement.X_next!=nil{t.Fatal("typed self replacement changed")}}else{p.X_memoPut(7,600,0,nil,false,nodeReplacement);if p.X_memoGet(7,600,0,nil,false)!=nodeReplacement || nodeReplacement.X_next!=nil{t.Fatal("Node self replacement changed")}}
+  store:=func(slots int,limit uint64)(uint64,error){
+   p:=&zprt.Parser{Control:zprt.X_newBudgetControl(nil,Limits{Compute:limit})}
+   nodeOriginal:=&zprt.X_memoEntry{X_rule:3};nodeReplacement:=&zprt.X_memoEntry{X_rule:-1}
+   p.X_memo.X_slots=make([]*zprt.X_memoEntry,slots);p.X_memo.X_slots[0]=nodeOriginal
+   typedOriginal:=&zprt.X_tmemoEntry{X_rule:3};typedReplacement:=&zprt.X_tmemoEntry{X_rule:-1}
+   tp:=&zprt.TParser{Parser:p,X_memoSlots:make([]*zprt.X_tmemoEntry,slots)};tp.X_memoSlots[0]=typedOriginal
+   put:=func(){if typed{tp.X_memoPut(7,600,0,nil,false,typedReplacement)}else{p.X_memoPut(7,600,0,nil,false,nodeReplacement)}}
+   if err:=catchMemoFatal(put);err!=nil{return 0,err}
+   used:=p.Control.X_budgetUsed();p.Control=zprt.X_newBudgetControl(nil,Limits{Compute:100000})
+   if p.X_memo.X_slots[0]!=nodeOriginal || tp.X_memoSlots[0]!=typedOriginal{t.Fatal("slot growth lost an entry")}
+   if typed{if len(tp.X_memoSlots)<601{t.Fatal("typed slots did not grow")};tp.X_memoPut(7,600,0,nil,false,typedReplacement);if tp.X_memoGet(7,600,0,nil,false)!=typedReplacement || typedReplacement.X_next!=nil{t.Fatal("typed self replacement changed")}}else{if len(p.X_memo.X_slots)<601{t.Fatal("Node slots did not grow")};p.X_memoPut(7,600,0,nil,false,nodeReplacement);if p.X_memoGet(7,600,0,nil,false)!=nodeReplacement || nodeReplacement.X_next!=nil{t.Fatal("Node self replacement changed")}}
+   return used,nil
+  }
+  grown,err:=store(300,100000);if err!=nil{t.Fatal(err)}
+  within,err:=store(601,100000);if err!=nil{t.Fatal(err)}
+  if grown!=within{t.Fatalf("typed=%v: a store that grows the slots charges %d units, one that does not %d",typed,grown,within)}
+  if _,err:=store(300,within);err!=nil{t.Fatalf("typed=%v: slot growth stopped at a limit of the store's %d units: %v",typed,within,err)}
  }
 }
 func TestFirstCallStoragePublication(t *testing.T){
  for _,reuse:=range []bool{false,true}{
-  p:=&zprt.Parser{Pos:64000,Control:zprt.X_newBudgetControl(nil,Limits{Compute:129}),X_deferMemo:true}
+  // Growing the record of the calls made charges nothing: the check of a first call is one unit,
+  // also where the dense words grow, whether or not they come from spare capacity.
+  p:=&zprt.Parser{Pos:64000,Control:zprt.X_newBudgetControl(nil,Limits{Compute:1}),X_deferMemo:true}
   p.X_memo.X_stride=1;p.X_memo.X_calls=[]zprt.X_seenCalls{{X_calls:17,X_repeats:1}}
   if reuse{p.X_memo.X_seen=make([]uint64,0,2048);for i:=range p.X_memo.X_seen[:cap(p.X_memo.X_seen)]{p.X_memo.X_seen[:cap(p.X_memo.X_seen)][i]=^uint64(0)}}else{p.X_memo.X_seen=make([]uint64,512)}
-  oldLen:=len(p.X_memo.X_seen);before:=p.X_memo.X_calls[0]
   r:=&zprt.Rule{Seen:0}
-  err:=catchMemoFatal(func(){p.FirstCall(r)})
-  if !errors.Is(err,ErrLimit){t.Fatal("seen growth not bounded",err)}
-  if len(p.X_memo.X_seen)!=oldLen || p.X_memo.X_calls[0]!=before{t.Fatal("partial estimator published")}
+  var first bool
+  if err:=catchMemoFatal(func(){first=p.FirstCall(r)});err!=nil{t.Fatal("seen growth charged",err)}
+  if used:=p.Control.X_budgetUsed();used!=1{t.Fatalf("a first call that grows the seen words charges %d units, want 1",used)}
+  if !first || p.X_memo.X_calls[0].X_calls!=18{t.Fatal("first call changed")}
   p.Control=zprt.X_newBudgetControl(nil,Limits{Compute:100000})
-  if !p.FirstCall(r) || p.X_memo.X_calls[0].X_calls!=18{t.Fatal("first call retry changed")}
   if p.X_memo.X_seen[0]!=0 || p.X_memo.X_seen[1000]!=1{t.Fatal("reused unseen words were not zeroed before stamping")}
   if p.FirstCall(r){t.Fatal("repeated call deferred again")}
  }
@@ -181,19 +190,21 @@ func TestMemoCancellation(t *testing.T){
 func TestSparseFirstCallInterruptionAndRetry(t *testing.T){
  if zpGrammar.X_nseen<=64{t.Fatal("sparse interruption fixture has too few seen rules for sparse tracking")}
  for _,at:=range []int{600,1200}{
-  p:=&zprt.Parser{Pos:at*1024,Control:zprt.X_newBudgetControl(nil,Limits{Compute:129}),X_deferMemo:true}
+  // Growing the sparse directory and its pages charges nothing: the check of a first call is one unit.
+  p:=&zprt.Parser{Pos:at*1024,Control:zprt.X_newBudgetControl(nil,Limits{Compute:1}),X_deferMemo:true}
   p.X_memo.X_stride=65;p.X_memo.X_sparse=true;p.X_memo.X_calls=make([]zprt.X_seenCalls,65)
   p.X_memo.X_calls[0]=zprt.X_seenCalls{X_calls:17,X_repeats:1}
   p.X_memo.X_pages=make([]zprt.X_seenRulePages,65)
   pages:=make([]*[16]uint64,300)
   retained:=&[16]uint64{7};pages[0]=retained
   p.X_memo.X_pages[0]=zprt.X_seenRulePages{X_pages:pages,X_last:retained,X_at:0}
-  before:=p.X_memo.X_calls[0];r:=&zprt.Rule{Seen:0}
-  if err:=catchMemoFatal(func(){p.FirstCall(r)});!errors.Is(err,ErrLimit){t.Fatal("sparse directory copy was not interrupted",err)}
-  if p.X_memo.X_calls[0]!=before || len(p.X_memo.X_pages[0].X_pages)!=300 || p.X_memo.X_pages[0].X_pages[0]!=retained || retained[0]!=7{t.Fatal("partial sparse directory or estimator published")}
+  r:=&zprt.Rule{Seen:0}
+  var first bool
+  if err:=catchMemoFatal(func(){first=p.FirstCall(r)});err!=nil{t.Fatal("sparse directory growth charged",err)}
+  if used:=p.Control.X_budgetUsed();used!=1{t.Fatalf("a first call that grows the sparse directory charges %d units, want 1",used)}
   if len(p.X_memo.X_seen)!=0{t.Fatal("sparse invocation allocated a dense table")}
   p.Control=zprt.X_newBudgetControl(nil,Limits{Compute:100000})
-  if !p.FirstCall(r) || p.X_memo.X_calls[0].X_calls!=18 || p.FirstCall(r){t.Fatal("sparse retry or repeat detection changed")}
+  if !first || p.X_memo.X_calls[0].X_calls!=18 || p.FirstCall(r){t.Fatal("sparse first call or repeat detection changed")}
   if p.X_memo.X_pages[0].X_pages[0]!=retained || retained[0]!=7 || len(p.X_memo.X_seen)!=0{t.Fatal("sparse retry corrupted earlier pages or allocated dense storage")}
  }
 }
