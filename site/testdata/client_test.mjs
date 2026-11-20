@@ -57,13 +57,47 @@ test("a timeout keeps the calls queued behind the stuck one", async () => {
   assert.ok(workers[0].terminated);
 });
 
-test("the timeout counts only the time the worker spends on a call", async () => {
-  const { FakeWorker } = fakeWorkers();
-  const c = client({ Worker: FakeWorker, timeout: 100 });
-  const a = c.call("echo", { ms: 70, n: 1 });
-  const b = c.call("echo", { ms: 70, n: 2 }); // waits about 70 ms, then runs about 70 ms
-  assert.equal((await a).n, 1);
-  assert.equal((await b).n, 2);
+// withVirtualTime runs fn with setTimeout on a clock that only advance moves, so that a test of a
+// timeout does not depend on how fast the machine runs timers. advance(ms) moves the clock one
+// millisecond at a time and lets the promise callbacks that each step starts run before the next.
+async function withVirtualTime(t, fn) {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const drain = () => new Promise((resolve) => setImmediate(resolve));
+  const advance = async (ms) => {
+    for (let i = 0; i < ms; i++) {
+      await drain();
+      t.mock.timers.tick(1);
+    }
+    await drain();
+  };
+  await fn(advance);
+}
+
+test("the timeout counts only the time the worker spends on a call", async (t) => {
+  await withVirtualTime(t, async (advance) => {
+    const { FakeWorker } = fakeWorkers();
+    const c = client({ Worker: FakeWorker, timeout: 100 });
+    const a = c.call("echo", { ms: 70, n: 1 });
+    const b = c.call("echo", { ms: 70, n: 2 }); // waits 70 ms, then runs 70 ms: 140 ms in all, 70 on the call
+    const results = Promise.all([a, b]);
+    await advance(200);
+    const [ra, rb] = await results;
+    assert.equal(ra.n, 1);
+    assert.equal(rb.n, 2);
+  });
+});
+
+test("the timeout stops a call that itself takes longer than the timeout", async (t) => {
+  await withVirtualTime(t, async (advance) => {
+    const { FakeWorker } = fakeWorkers();
+    const c = client({ Worker: FakeWorker, timeout: 100 });
+    const a = c.call("echo", { ms: 70, n: 1 });
+    const b = c.call("echo", { ms: 130, n: 2 });
+    const rejected = assert.rejects(b, /stopped after/);
+    await advance(300);
+    assert.equal((await a).n, 1);
+    await rejected;
+  });
 });
 
 test("a keyed call replaces a queued one with the same key", async () => {
