@@ -901,6 +901,10 @@ func TestStrictConditions(t *testing.T) {
 		{"a later positive lookahead on a rule that scans", `"a" "y"`, `&s "b"`, true, false, "qand-notcheap"},
 		{"a later lookahead whose earlier alternative scans", `"a" "y"`, `!(s / "a") "b"`, true, false, "qnot-notcheap"},
 		{"a positive lookahead against a later one that scans", `&"c" "c"`, `!s "b"`, true, false, "qnot-notcheap"},
+		// Two positive lookaheads whose expressions are disjoint decide, but only the continuation
+		// evaluates its own, so in strict mode it must cost a constant there as well.
+		{"a positive lookahead against a later positive one that scans", `&"c" "c"`, `&s "b"`, true, false, "qand-notcheap"},
+		{"a positive lookahead against a later positive one that costs a constant", `&"c" "c"`, `&"a" "b"`, true, true, ""},
 		{"a later lookahead whose earlier alternatives cost a constant", `"a" "y"`, `!("b" / "a") "b"`, true, true, ""},
 		// The match of the lookahead evaluates id again where the unit evaluated it.
 		{"a later lookahead that matches a shared call that is not cheap", `id "("`, `!(id "(") id "."`, true, false, "qnot-notcheap"},
