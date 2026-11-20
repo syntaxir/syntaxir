@@ -17,7 +17,10 @@ Every input you get has been parsed with the parser and accepted without errors,
 `#recover`. The same grammar, options and seed give the same inputs (see [below](#on-the-command-line) for how far
 that holds).
 
-The design is in [design record 015](../design/records/015-input-generation.md).
+The contract of the generator, its options and the `sample` package is defined in
+[Input Generation](../../spec/runtime/sampling.md), and that of the edit fuzzer and the `editfuzz` package in
+[Edit Fuzzing](../../spec/runtime/edit-fuzzing.md). The design is in
+[design record 015](../design/records/015-input-generation.md).
 How generated inputs fit into a test suite for a grammar is in [testing grammars](testing-grammars.md).
 
 - [On the command line](#on-the-command-line)
@@ -123,7 +126,7 @@ input, but it goes further when the input requires it (a predicate that counts t
 | `-max-repeat` | `WithMaxRepeat` | 3 | Iterations a repetition aims for beyond its minimum, and operators in a chain of an Operators Rule |
 | `-max-len` | `WithMaxLen` | 512 | Length of the input in bytes |
 
-The defaults are the constants `sample.DefaultMaxDepth`, `sample.DefaultMaxRepeat` and `sample.DefaultMaxLen`.
+The options and their limits are defined in [Options](../../spec/runtime/sampling.md#options). The defaults are the constants `sample.DefaultMaxDepth`, `sample.DefaultMaxRepeat` and `sample.DefaultMaxLen`.
 `sample.DefaultAttempts` (100) is the number of candidates tried for one input, set by `WithAttempts`, and
 `sample.DefaultBudget` (20000) is the number of steps one attempt may take, set by `WithBudget`.
 
@@ -569,7 +572,8 @@ that restores the earlier text. After every edit, undo and redo, the Document's 
 failures too, reported in `text` and in `panic.edit`, `panic.document`, `panic.fresh` or `panic.both`. Some sequences start from generated texts joined into a few
 kilobytes, which `Document` stores differently from short texts; a `-corpus` of large files tests more of them.
 
-The same is available from Go in package `editfuzz`, for example in a test that keeps saved failures as regression
+The same is available from Go in package `editfuzz`, whose API the specification defines in
+[Edit Fuzzing](../../spec/runtime/edit-fuzzing.md#generating-sequences), for example in a test that keeps saved failures as regression
 cases:
 
 ```go

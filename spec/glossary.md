@@ -31,15 +31,18 @@ definition and the place where the term is defined.
 | discard | `-a`: matches `a` and has no value. See [Discard](language/parser-expressions.md#discard). |
 | Document | A mutable text together with its parse result, updated by edits and reparsed incrementally. See [Incremental Documents](runtime/documents.md). |
 | edit | The replacement of a range of a Document's text; the next parse reuses the results that the edit did not affect. See [Edits](runtime/documents.md#edits). |
+| edit sequence | A replayable edit history for one grammar: an initial text and edit, undo, redo and checkpoint operations, saved as a versioned JSON file. See [Edit Fuzzing](runtime/edit-fuzzing.md). |
 | effect | One thing a Core IR node can do besides succeed or fail, such as consuming input, recording expectations or writing a capture. See [Attributes and Effects](core-ir/attributes.md#effects). |
 | Exec dialect | The operations of the abstract machine, with the compositions written over them; with the Action dialect it is what Code IR at the Exec stage calls. See [ZeroParse Exec Dialect Specification](exec-ir/README.md). |
 | expectation | An item that a syntax error lists as expected at a position: a literal, a character class, `any character` or an anchor. A parse records expectations only on request. See [Recording expectations](runtime/parsing.md#recording-expectations). |
 | farthest failure | The farthest position at which parsing failed, with the items expected there when the parse records expectations; the syntax error reports it. See [Syntax errors](runtime/parsing.md#syntax-errors). |
+| finding | One report of the linter: a position, a severity, the name of a check, a message and, if there is one, a fix. See [Grammar Lint](runtime/lint.md#scope-and-terminology). |
 | fixture suite | A versioned JSON file of named inputs with expected outcomes and goldens, run by `zp test`. See [Fixture Suites and Edit Sequences](runtime/test-formats.md). |
 | Flow dialect | The operations that say how a parser runs a rule: matching, backtracking, expectations, rule calls, values and charges; Code IR at the Flow stage calls them. See [ZeroParse Flow Dialect Specification](flow-ir/README.md). |
 | fragment | A part of a text that is parsed alone: a prefix parse matches the start rule at the beginning of a supplied string, which the caller confines by slicing both ends. See [Prefix Parsing](runtime/parsing.md#prefix-parsing). |
 | generated parser | A standalone Go or TypeScript parser written for one grammar by `zp gen`. See [Generated Parsers](runtime/generated-parsers.md). |
 | grammar | An optional package clause followed by Type and Rule Declaration Statements, normally written in a `.zp` file. See [Grammar Files](language/grammar-files.md). |
+| grammar source | One named input in grammar syntax or JSON that `grammar.Load` reads into a grammar AST. See [Grammar Sources](language/grammar-files.md#grammar-sources). |
 | join type | The join `T \| U` of types: a type whose values are the values of any one of its member types. See [Join Types](language/types.md#join-types). |
 | left recursion | A rule that calls itself at the position where it started. It is evaluated by growing a seed. See [Left recursion](language/parser-expressions.md#left-recursion). |
 | limit, budget | A bound on one invocation: `Compute` (the cost of the parse, in compute units), `Memory` (bytes of storage), `Input` (length of the input) and `Depth` (nesting of recursive rule calls). The compute budget is the amount of compute units that the limit allows. See [Limits](runtime/parsing.md#limits). |
@@ -47,6 +50,7 @@ definition and the place where the term is defined.
 | meet type | The meet `T & U` of types: a type whose values are the values of both. See [Top, Bottom, Join and Meet](language/types.md#top-bottom-join-and-meet). |
 | memoization | Caching the result of a rule at an input position so that the rule is not evaluated twice at that position (packrat parsing). See [Memoization](runtime/parsing.md#memoization). |
 | named node type | A Type Definition `type N = node[U]`: a type distinct from `node[U]` and from every other named node type. Its values are nodes that carry the name `N`. See [Named Node Types](language/types.md#named-node-types). |
+| near-miss invalid input | An input that the parser accepts, changed by one mutation so that it rejects it. See [Input Generation](runtime/sampling.md#near-miss-invalid-inputs). |
 | node | A value together with the range of input that it covers: a string, a tuple or a list. See [Nodes and Values](runtime/nodes.md#node-model). |
 | operand, operator | The parts of an Operators Rule: an operand is the leading element of an expression, an operator is a prefix, infix or postfix form. See [Operators Rule](language/operators-rule.md). |
 | operation | A transition of the abstract state of a parse that a dialect of Code IR declares, with a contract and a cost bound. See [The Module](code-ir/module.md#operations). |
