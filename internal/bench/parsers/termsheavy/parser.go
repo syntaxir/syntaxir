@@ -658,6 +658,7 @@ fail:
 
 func q1(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x2, x3, x4 int
 	var v *zpvalue.Node
 	var x1, ok bool
@@ -723,6 +724,7 @@ fail:
 
 func q2(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var start, size, x1, x2 int
 	var v *zpvalue.Node
 	var ch rune
@@ -770,6 +772,7 @@ var trules []*rt.TRule
 
 // rule main
 func u0(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start := p.Pos
 	v, ok := i0(p)
 	if !ok {
@@ -829,6 +832,7 @@ fail:
 
 // rule line
 func u1(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start := p.Pos
 	v, ok := i1(p)
 	if !ok {
@@ -1122,6 +1126,7 @@ fail:
 
 // rule word
 func u2(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start := p.Pos
 	v, ok := i2(p)
 	if !ok {
@@ -1196,4 +1201,4 @@ fail:
 
 const _ = types.ZPSchema_e363e9a5033ad260
 
-const _ = rt.Protocol22
+const _ = rt.Protocol23

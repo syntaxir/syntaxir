@@ -324,8 +324,9 @@ that a grammar can have.
 
 The **cost** of a parse is the sum of the following:
 
-- the rule bodies that are evaluated, counting each step of a growing
-  left-recursive rule;
+- the calls of rules and the rule bodies that are evaluated, counting each
+  step of a growing left-recursive rule, and for each call of a memoized rule
+  the size of its memo key;
 - the input that terminals, repetitions of character classes and lookaheads
   examine, counted again each time it is examined;
 - the iterations of repetitions and the operators that an Operators Rule
@@ -374,7 +375,17 @@ every backend, before its element is evaluated: each evaluation of the element
 counts, the last one included, which fails or consumes no input, and nothing
 else does. A repetition that stops at its maximum evaluates no further element
 and charges no further unit, and an option is no repetition and charges
-nothing. A walk that
+nothing. A call of a rule charges exactly one unit, on every backend, the
+entry of a parse into its start rule included, and each evaluation of a rule
+body one more, each step of a growing left-recursive rule included; a call that
+the memo or a growing seed answers evaluates no body. A call of a rule that an
+ordinary parse memoizes ([Evaluations of Rules](#evaluations-of-rules)) also
+pays for the lookup of its memo key: one unit for each variable that the rule
+reads and one for each byte of the UTF-8 encoding of each string value that
+such a variable holds, whatever the memo holds and whether or not the call
+looks the key up, which a first call whose memoization is deferred does not.
+Deferring memoization, looking a key up, comparing keys and storing a result
+charge nothing else. A walk that
 takes the rest of a walk from a record of a [skip run](#skip-runs), a
 [run site](#run-sites) or a [scan site](#scan-sites) neither evaluates nor
 charges the iterations and characters that it skips, and the lookup that
@@ -521,7 +532,18 @@ every context of growths, only the first may leave no result in the memo,
 whatever its binding level, the values of its variables and its lookahead
 state, and the same holds of the evaluations of its twin: every later one
 stores its result, in the state, inside a lookahead or a `skip` or outside
-them, in which it is made. The
+them, in which it is made. Which first evaluations leave no result is exact
+and the same on every backend, because the [cost](#cost) counts the
+evaluations of rule bodies. In an ordinary parse, neither a stream nor a parse
+of a [Document](documents.md), each memoized rule, and its twin separately,
+counts its calls, and among them its repeated calls: those at a position where
+it was called before in the parse. A call at a position where the rule was
+not called before evaluates the body and leaves no result, until the repeated
+calls exceed a sixteenth of the calls, rounded down, the current call
+included; from then on every evaluation of the rule stores its result, the
+first at a position included. A call that makes the count of calls
+2<sup>31</sup> halves both counts, rounding down. A stream stores the
+result of every evaluation. The
 result stays in the memo for the rest of the parse, except that a
 [stream](streaming.md) drops the results at positions before an element that
 it has delivered, where the parse makes no later call.
@@ -2697,40 +2719,34 @@ into reads. A parser generated without limit controls spends no budget and
 accepts only a zero `Compute` and `Unlimited`.
 
 For a `Document`, `n` is the length of the text at each `Parse`, and the default
-counts the work that a parse of that text from scratch counts. The work that only a
-`Document` does is not counted: the memo protocol of a rule that a parse from scratch does not
-memoize (a transient rule), except a constant for each variable of the key of a lookup; the steps
-that a lookup or a store takes along a chain of memo entries beyond the entry that answers it,
-and the growth of the memo table; applying pending edits to the entries, moving the values it
-reuses, and copying the diagnostics it returns. The unit of each call, the evaluation of rule
-bodies, the examination of the input, and the memo protocol of the rules that a parse from
-scratch memoizes too, are counted, as in a parse from scratch: the unit of each lookup and store,
-the hashing of the key of a lookup and its comparison with each entry of this parse that the walk of the
-chain compares it with, and the
-operations on recovered errors. The comparison with an entry that this parse has neither stored nor
-found to answer a lookup, which an earlier text left in the chain, is work of the `Document`, since
-a parse from scratch has no such entry, and is not counted. A lookup of a rule that only a `Document` memoizes
-compares the strings of the key by identity, which costs a constant: a string that equals the one
-of an entry but is not the same bytes is a miss, and the rule is evaluated, which counts. The
-comparison of two strings that are the same bytes costs a constant everywhere, in a parse from
-scratch too. A `Document` parse under the default limit
+counts the work that a parse of that text from scratch counts: the unit of each call, the key
+of each call of a rule that a parse from scratch memoizes, the evaluation of rule bodies, the
+examination of the input and the operations on recovered errors. The work that only a
+`Document` does is not counted: applying pending edits to the memo entries that it finds, moving
+the values it reuses, and copying the diagnostics it returns. The memo charges nothing else, in a
+`Document` as in any parse ([Cost](#cost)): looking a key up, walking a chain of memo entries,
+hashing and comparing keys, storing a result and growing the memo table charge no unit, whatever
+the memo holds. A rule that only a `Document` memoizes (a transient rule) pays no key, as in a
+parse from scratch, which does not memoize it. The counted units of a `Document` parse therefore
+do not depend on the entries that earlier texts left in the memo or on the edits pending: each
+call that it makes is a call of the parse from scratch, and a result that it reuses answers a
+call whose body the parse from scratch evaluates. A `Document` parse under the default limit
 therefore succeeds whenever a parse of the same text from scratch under the default limit does,
-whatever edits are pending and whatever the earlier parses left in the `Document`, and it returns
-the result of that parse; the [linear cost proof](../proofs/linear-cost.md#lemma-12-document-units)
-argues this and does not prove it. An explicit `Compute` limit counts all the work of the parse.
-Under the default, `Limit` and `Used` of a `LimitError` leave the work of the `Document` out as
-well.
+and it returns the result of that parse; the
+[linear cost proof](../proofs/linear-cost.md#lemma-12-document-units) argues this and does not
+prove it. An explicit `Compute` limit counts all the work of the parse. Under the default, `Limit`
+and `Used` of a `LimitError` leave the work of the `Document` out as well.
 
 The work that the default leaves out is bounded by that proof. Pending edits add at most 128
 units to a call, since a memo entry that lags behind by more edits is evaluated again instead of
-brought up to date; the steps along the chains, the growth of the table, the moves of reused
-values and the copy of diagnostics depend on what the `Document` retains, and the default does
-not bound them. The work on the keys of the memo of this parse is not among them: it depends on
-the grammar and the text, and the default counts it. The comparisons with the entries of earlier
-texts are: they are work of the `Document` that the default does not count, and a `Document` drops
+brought up to date; the moves of reused values and the copy of diagnostics depend on what the
+`Document` retains, and the default does not bound them. The work of the memo, which no unit
+counts, is bounded as [Work of a Document Parse](documents.md#work-of-a-document-parse) states:
+each entry that a lookup or a store passes was stored by a counted call, and a `Document` drops
 an entry that more than 128 edits have passed since a parse stored it or found it to answer a
-lookup, so the comparisons stay within the work of that window of edits. A grammar whose counted work is far above the default limit stops on a `Document`
-as it does on a parse from scratch, also with the most pending edits.
+lookup. A grammar whose counted
+work is far above the default limit stops on a `Document` as it does on a parse from scratch,
+also with the most pending edits.
 
 Cancellation and exhausted limits are fatal interruptions, not ordinary
 syntactic mismatches. Ordered choice, predicates, recovery, and other grammar

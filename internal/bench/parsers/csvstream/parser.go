@@ -504,6 +504,7 @@ func r2(p *rt.Parser) (*zpvalue.Node, bool) {
 
 func r4(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x1, x10 int
 	var v *zpvalue.Node
 	var x3 rune
@@ -635,4 +636,4 @@ fail:
 
 var streamRule *rt.Rule
 
-const _ = rt.Protocol22
+const _ = rt.Protocol23

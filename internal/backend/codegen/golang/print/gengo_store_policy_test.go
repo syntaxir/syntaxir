@@ -30,12 +30,12 @@ func TestGeneratedStorePolicy(t *testing.T) {
 	})
 }
 
-// TestGeneratedStorePolicyReferenceCounts pins what the generated Go library does within the policy,
-// which the policy does not require and TestGeneratedStorePolicy does not: an ordinary parse defers
-// the first call of a rule at a position until repeated calls exceed a sixteenth of its calls, so it
-// evaluates the rule exactly as often as the model of codegentest.StorePolicyCase says; a stream and
-// a Document parse memoize every first call. A change of that choice that the policy allows updates
-// this test.
+// TestGeneratedStorePolicyReferenceCounts checks the exact store policy of "Evaluations of Rules" in
+// spec/runtime/parsing.md, which TestGeneratedStorePolicy does not: an ordinary parse defers the first
+// call of a rule at a position until repeated calls exceed a sixteenth of its calls, so it evaluates
+// the rule exactly as often as the model of codegentest.StorePolicyCase says, as the engine does; a
+// stream memoizes every first call. That a Document parse memoizes every first call too is the
+// library's choice, which the policy allows.
 func TestGeneratedStorePolicyReferenceCounts(t *testing.T) {
 	t.Parallel()
 	codegentest.EachMode(t, func(t *testing.T) {

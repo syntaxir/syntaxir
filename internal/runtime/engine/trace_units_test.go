@@ -13,14 +13,10 @@ import (
 )
 
 // TestTracedUnitsEqualUntraced checks that a traced parse charges exactly the units of an untraced one
-// on every backend, as spec/runtime/parsing.md requires of the charges of the same grammar and input.
-// It is skipped because the engine does not meet it yet: the traced call charges the unit of the call
-// protocol twice (Call and tracedCall both spend it) and the iterative VM takes a path of its own, so
-// that the smallest sufficient compute limit of the grammar below is 10 untraced and 15 traced on the
-// closure backend and the bytecode VM, and 11 traced on the iterative VM. The charge work of #305 is to
-// fix this and remove the skip.
+// on every backend, as spec/runtime/parsing.md requires of the charges of the same grammar and input:
+// the smallest sufficient compute limit of the grammar below is the same with and without a tracer on
+// the closure backend and both bytecode VMs. TestTracedChargeMutantsFail is its negative control.
 func TestTracedUnitsEqualUntraced(t *testing.T) {
-	t.Skip("a traced call charges more units than an untraced one; to be fixed with the charges of #305")
 	g, err := parser.Parse("rule main = a a $$\nrule a = \"x\"\n")
 	if err != nil {
 		t.Fatal(err)

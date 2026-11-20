@@ -218,7 +218,7 @@ handle Term of host callable (Act) (Datum, Fail)
 op memo.lookup(rule int, pos int, level int, key Values, docOnly bool) (Entry, bool)
   component memo
   reads memo
-  cost <= 1 + 1*key_scan + 1*pending_edits
+  cost <= 0 + 1*pending_edits
   contract:
     // Returns the entry stored under the key, if one is there and not replaced, and true;
     // otherwise false and an entry that must not be used. Two keys are equal when their rules, positions
@@ -232,7 +232,7 @@ op memo.store(rule int, pos int, level int, key Values, ok bool, end int, silent
   component memo
   reads memo
   writes memo
-  cost <= 2 + 1*key_scan
+  cost <= 0
   contract:
     // Stores a complete entry with the outcome ok, the end, whether it was computed in a silent
     // context, its value and its recovered errors under the key, replacing the entry stored under the same
@@ -375,7 +375,7 @@ op seen.first(rule int, pos int) bool
   component seen
   reads seen
   writes seen
-  cost <= 1
+  cost <= 0
   contract:
     // Records a call of the rule at pos and reports whether its memoization is deferred: true
     // when the rule is not eager and has not been called at pos before. Each rule counts its calls and its
@@ -384,7 +384,8 @@ op seen.first(rule int, pos int) bool
     // both counts are halved (rounding down); a repeated call then grows the repeat count, and when the
     // repeats exceed the calls divided by 16 (rounding down), the rule becomes eager for the rest of the
     // parse. The policy decides how
-    // many rule bodies run, which the statistics report, so every target follows it exactly.
+    // many rule bodies run, which the statistics report, so every target follows it exactly. The record
+    // charges nothing: deferring memoization changes no unit that a call charges.
   requires:
     // 0 <= rule < the number of rules the component was created with; pos >= 0.
 
@@ -412,6 +413,20 @@ op budget.charge(n u64)
     // choice, and end the parse with a cancellation interruption.
   law: charge(a); charge(b) may merge into charge(a+b) when nothing observable lies between them and no commit separates them
 
+op budget.chargeKey(r Rule)
+  component budget
+  reads budget, env, rules
+  writes budget
+  features budget
+  noreturn
+  cost <= 0 + 1*vars + 1*key_bytes
+  contract:
+    // Charges the lookup of the memo key of a call of the rule, as budget.charge does: one unit for
+    // each variable that the rule reads and one for each byte of the UTF-8 encoding of each string value
+    // that such a variable holds. A call of a rule that a parse from scratch memoizes pays it whether or not
+    // it looks the key up, so that deferring memoization changes no unit; a rule that reads no variable
+    // charges nothing.
+
 op budget.used() u64
   component budget
   reads budget
@@ -431,9 +446,7 @@ op budget.freeBegin(on bool) u64
     // The units that the region charges are work that only a Document parse does: a parse under the default
     // Compute limit leaves them out of the count against it, and a parse under an explicit limit counts them
     // as any other. The region must end before any work that a parse from scratch counts starts, and a region
-    // does not nest. An operation that does work a parse from scratch counts inside a region, such as the
-    // hash of a memo key and its comparison with each entry of the walk, counts it: it lifts the region for that
-    // charge and restores it. When on is false, or the parse has no default limit, it opens no region and charges nothing.
+    // does not nest. When on is false, or the parse has no default limit, it opens no region and charges nothing.
 
 op budget.freeEnd(mark u64)
   component budget
@@ -514,13 +527,11 @@ op env.restore(s Scope)
 op env.key(r Rule) Values
   component env
   reads env
-  noreturn
-  cost <= 0 + 1*vars + 1*env_reads
+  cost <= 0
   contract:
     // Returns the values of the variables the rule reads, as its memo key. Two keys are equal when
-    // they have the same length and the host's value equality holds for each pair of their values. A rule that
-    // reads no variable has an empty key, which costs nothing: the charge pays for reading values, and the call
-    // paid for itself.
+    // they have the same length and the host's value equality holds for each pair of their values. Taking
+    // the key charges nothing: the call paid for it (budget.chargeKey).
 
 op rec.mark() int
   component recovered

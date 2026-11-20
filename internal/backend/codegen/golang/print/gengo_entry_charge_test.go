@@ -13,11 +13,15 @@ import (
 
 // TestGeneratedRuleEntryCharge checks, on the checked-in parsers generated with limit controls, that every
 // matcher function of the Node and typed tables (rule bodies, framed bodies, flat-rule methods and the
-// lines and skips of Operators Rules) begins with one Spend and has no other Spend before its first
-// loop (the steps that the code of a term charges, isTermStep, are not the rule's); a typed wrapper u<N> or i<N> that only saves and restores state around a call of another matcher
-// function charges nothing itself, and neither does the Document-dispatch wrapper s<N> of a plain rule,
-// which hands the call to DocumentCall or calls the body ds<N> that charges the entry. The lowered function of Flow IR charges no entry of its own (flow.Attrs.Entered); the method that holds it does, so a rule
-// whose method lost the charge would consume input uncharged without Verify noticing.
+// lines and skips of Operators Rules) begins with its entry and has no other Spend before its first
+// loop (the steps that the code of a term charges, isTermStep, are not the rule's). The entry is one
+// Spend for the evaluation of the body, or two in a row for the flat method of a plain rule that a
+// call site calls directly: the unit of the call, then that of the body (spec/runtime/parsing.md#cost).
+// A typed wrapper u<N> or i<N> that only saves and restores state around a call of another matcher
+// function charges nothing but the call, and the Document-dispatch wrapper s<N> of a plain rule hands
+// the call to DocumentCall or charges it and calls the body ds<N> that charges the evaluation. The
+// lowered function of Flow IR charges no entry of its own (flow.Attrs.Entered); the method that holds it
+// does, so a rule whose method lost the charge would consume input uncharged without Verify noticing.
 func TestGeneratedRuleEntryCharge(t *testing.T) {
 	t.Parallel()
 	name := regexp.MustCompile(`^(ds|[eiqrsuv])[0-9]+$`)
@@ -53,7 +57,7 @@ func TestGeneratedRuleEntryCharge(t *testing.T) {
 				continue
 			}
 			n++
-			if !startsWithStep(fn.Body) && !(wrapper.MatchString(fn.Name.Name) && delegates(fn.Body, name) && !hasStep(fn.Body)) {
+			if !startsWithStep(fn.Body) && !(wrapper.MatchString(fn.Name.Name) && delegates(fn.Body, name)) {
 				t.Errorf("%s: %s does not begin with p.Spend() or delegate to a matcher function that does", path, fn.Name.Name)
 			}
 			steps := 0
@@ -66,8 +70,8 @@ func TestGeneratedRuleEntryCharge(t *testing.T) {
 				}
 				return true
 			})
-			if steps > 1 {
-				t.Errorf("%s: %s charges %d steps outside its loops, want the entry only", path, fn.Name.Name, steps)
+			if lead := leadingSteps(fn.Body); steps > 1 && (steps != lead || lead > 2) {
+				t.Errorf("%s: %s charges %d steps outside its loops, %d of them at its start, want the entry only", path, fn.Name.Name, steps, lead)
 			}
 		}
 		if n == 0 {
@@ -111,14 +115,17 @@ func startsWithStep(b *goast.BlockStmt) bool {
 	return false
 }
 
-// hasStep reports whether b contains a Spend call.
-func hasStep(b *goast.BlockStmt) bool {
-	found := false
-	goast.Inspect(b, func(x goast.Node) bool {
-		found = found || isStepCall(x)
-		return !found
-	})
-	return found
+// leadingSteps returns the number of rule steps (not those of a term) that b begins with, in a row.
+func leadingSteps(b *goast.BlockStmt) int {
+	n := 0
+	for _, s := range b.List {
+		e, ok := s.(*goast.ExprStmt)
+		if !ok || !isStepCall(e.X) || isTermStep(e.X) {
+			break
+		}
+		n++
+	}
+	return n
 }
 
 // delegates reports whether b calls a function named like a matcher function: the typed wrappers of a rule

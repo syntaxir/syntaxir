@@ -629,7 +629,7 @@ func (p *tsFlowPrinter) outline(c *code.Call) string {
 	if err != nil {
 		panic(fmt.Errorf("outlined node of rule %s in table %s: %w", g.Cur.Name, g.Table, err)) // Outlinable holds
 	}
-	call, ok := g.flowFunc(f, x.Slots, check.NewScope(), g.Cur.Name+" (outlined)")
+	call, ok := g.flowFunc(f, x.Slots, check.NewScope(), g.Cur.Name+" (outlined)", false)
 	if !ok {
 		panic(tsFlowUnsupported("an outlined node"))
 	}

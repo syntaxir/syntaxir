@@ -26,7 +26,7 @@ func flowBody(vm *Program, r *state.Rule, f *bytecode.Flow) func(p *state.Parser
 			var v *value.Node
 			var ok bool
 			if r := vm.rules[x.Rule]; vm.direct[x.Rule] {
-				v, ok = p.InvokePlain(r, x.Level) // what the call of the match code does for such a rule
+				v, ok = p.CallPlain(r, x.Level) // what the call of the match code does for such a rule
 			} else {
 				v, ok = p.Call(r, x.Level)
 			}

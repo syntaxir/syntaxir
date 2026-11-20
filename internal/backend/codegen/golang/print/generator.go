@@ -916,7 +916,7 @@ func (g *Generator) rules() {
 		} else if r.Plain {
 			start := g.Methods.Len()
 			if d := flats[r]; d != nil {
-				g.flatMethod(r, d, g.ruleFunc(g.plainPrefix(), r.ID), "called as by invokePlain", true)
+				g.flatMethod(r, d, g.ruleFunc(g.plainPrefix(), r.ID), "called as by invokePlain", true, true)
 			} else {
 				g.plainCall(r, bodies[r])
 			}
@@ -1076,15 +1076,20 @@ func (g *Generator) typedCall(r *common.Rule, body string, s *check.Scope, d *fl
 			fmt.Fprintf(m, "\t\t%s\n", conv)
 		}
 	}
-	plain := func(name string) {
+	// plain writes the method name that runs the body as invokePlain does; with call it also
+	// charges the unit of the call, which a call site that calls it directly pays through it.
+	plain := func(name string, call bool) {
 		if d != nil {
-			g.flatMethod(r, d, name, "called as by invokePlain", true)
+			g.flatMethod(r, d, name, "called as by invokePlain", true, call)
 			return
 		}
 		if g.Observability && r.Plain && !g.directTypedDocument {
 			name = g.tracePlainWrapper(r, name)
 		}
 		fmt.Fprintf(m, "// %s, called as by invokePlain\nfunc %s(p *TParser) (any, bool) {\n", r.Name, name)
+		if call {
+			m.WriteString(g.step("\tp"))
+		}
 		m.WriteString("\t" + g.saveRec(", trail") + " := " + g.saveRecValues(", len(p.Trail)") + "\n\tprevEnv, prevCut := p.Env, p.Cut\n\tp.Cut = false\n" + enterRec(r))
 		if g.Observability && (!r.Plain || g.directTypedDocument) {
 			m.WriteString("p.Observation.Evaluated()\n")
@@ -1100,11 +1105,11 @@ func (g *Generator) typedCall(r *common.Rule, body string, s *check.Scope, d *fl
 				name = g.traceCallWrapper(r, name, false)
 			}
 			ds := g.ruleFunc("ds", r.ID)
-			fmt.Fprintf(m, "func %s(p *TParser) (any, bool) {\n if p.TypedDocument != nil { return p.DocumentCall(trules[%d], 0, %s) }; return %[3]s(p)\n}\n", name, r.ID, ds)
-			plain(ds)
+			fmt.Fprintf(m, "func %s(p *TParser) (any, bool) {\n if p.TypedDocument != nil { return p.DocumentCall(trules[%d], 0, %s) }\n%s return %[3]s(p)\n}\n", name, r.ID, ds, g.step("p"))
+			plain(ds, false)
 			return
 		}
-		plain(g.ruleFunc("s", r.ID))
+		plain(g.ruleFunc("s", r.ID), true)
 		return
 	}
 	// u<id>: the call. An unmemoized call of a rule without captures is plain.
@@ -1128,13 +1133,19 @@ func (g *Generator) typedCall(r *common.Rule, body string, s *check.Scope, d *fl
 	if g.directTypedDocument {
 		fmt.Fprintf(m, " if p.TypedDocument != nil { return p.DocumentCall(trules[%d], 0, %s) }\n", r.ID, iname)
 	}
+	// The call charges its unit and, for a rule that a parse from scratch memoizes, the values of
+	// its key, whether or not its memoization is deferred (budget.chargeKey).
 	memo := r.Memo && !r.Transient
+	m.WriteString(g.step("\tp"))
+	if memo && !g.NoBudget {
+		fmt.Fprintf(m, "\tp.ChargeKey(rules[%d])\n", r.ID)
+	}
 	if memo {
 		fmt.Fprintf(m, "\tif !p.FirstCall(rules[%d]) {\n\t\treturn p.CallMemo(trules[%d], %s)\n\t}\n", r.ID, r.ID, iname)
 	}
 	if ncaps == 0 {
 		fmt.Fprintf(m, "\treturn %s(p)\n}\n\n", g.ruleFunc("v", r.ID))
-		plain(g.ruleFunc("v", r.ID))
+		plain(g.ruleFunc("v", r.ID), false)
 	} else {
 		fmt.Fprintf(m, "\t%s := %s\n\tv, ok := %s(p)\n\tif !ok {\n\t\t%s\n\t}\n\treturn v, ok\n}\n\n", g.saveRec(""), g.saveRecValues(""), g.ruleFunc("i", r.ID), g.restoreRec("start", "rec"))
 	}
@@ -1143,7 +1154,7 @@ func (g *Generator) typedCall(r *common.Rule, body string, s *check.Scope, d *fl
 		return // v<id>
 	}
 	if d != nil {
-		g.flatMethod(r, d, g.ruleFunc("i", r.ID), "invoked as by invoke", false)
+		g.flatMethod(r, d, g.ruleFunc("i", r.ID), "invoked as by invoke", false, false)
 		return
 	}
 	fmt.Fprintf(m, "// %s, invoked as by invoke\nfunc %s(p *TParser) (any, bool) {\n", r.Name, g.ruleFunc("i", r.ID))

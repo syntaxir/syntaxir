@@ -9,6 +9,7 @@ import (
 	"slices"
 	"testing"
 
+	"zeroparse.dev/zp/internal/ir/code"
 	"zeroparse.dev/zp/internal/ir/code/exec"
 	"zeroparse.dev/zp/internal/ir/code/exec/ref"
 	"zeroparse.dev/zp/internal/runtime/nodes"
@@ -126,15 +127,15 @@ func TestMemoLookupChargesItsPendingEdits(t *testing.T) {
 		for range 3 {
 			edit(p, 20, 21, 0)
 		}
-		// One unit, one for the entry scanned, and one for each pending edit.
+		// One unit for each pending edit; the call paid for the key (ChargeKey).
 		if got := spent(p, func() {
 			if !lookup(p, k) {
 				t.Fatal("the entry examined only input before the edits")
 			}
-		}); got != 1+1+3 {
+		}); got != 3 {
 			t.Fatalf("first lookup charged %d", got)
 		}
-		if got := spent(p, func() { lookup(p, k) }); got != 1+1 {
+		if got := spent(p, func() { lookup(p, k) }); got != 0 {
 			t.Fatalf("second lookup charged %d", got)
 		}
 	})
@@ -151,35 +152,35 @@ func TestMemoLookupChargesItsPendingEdits(t *testing.T) {
 				if lookup(p, k) {
 					t.Fatal("the last edit lies in the examined input")
 				}
-			}); got != 1+1+3 {
+			}); got != 3 {
 				t.Fatalf("lookup charged %d", got)
 			}
 		}
 	})
-	t.Run("a scan counts held entries", func(t *testing.T) {
+	t.Run("a scan charges nothing for the entries it passes", func(t *testing.T) {
 		p := docParser()
 		held, live := MemoKey{Rule: 1, Pos: 10}, MemoKey{Rule: 2, Pos: 10}
 		store(p, held, 10, 12)
 		store(p, live, 10, 11)
 		edit(p, 11, 11, 0)
 		// The newer entry heads the chain: the scan for the held entry passes it, and a lookup of a live
-		// entry behind a held one passes the held one in the same way.
+		// entry behind a held one passes the held one in the same way. Only the edits count.
 		if got := spent(p, func() {
 			if lookup(p, held) {
 				t.Fatal("the edit lies in the examined input")
 			}
-		}); got != 1+2+1 {
+		}); got != 1 {
 			t.Fatalf("lookup of the held entry charged %d", got)
 		}
 		behind := MemoKey{Rule: 3, Pos: 10}
 		store(p, behind, 10, 11)
 		edit(p, 11, 11, 0)
-		// The live entry is second now, and the held one third: only the entries the scan reaches count.
+		// The live entry is second now, and the held one third: only the two pending edits count.
 		if got := spent(p, func() {
 			if !lookup(p, live) {
 				t.Fatal("the entry examined only input before the edits")
 			}
-		}); got != 1+2+2 {
+		}); got != 2 {
 			t.Fatalf("lookup of the live entry charged %d", got)
 		}
 	})
@@ -193,7 +194,7 @@ func TestMemoLookupChargesItsPendingEdits(t *testing.T) {
 	})
 	t.Run("a lookup applies at most the limit of pending edits", func(t *testing.T) {
 		// At the limit, the lookup applies every pending edit; one more and the entry lags: the lookup
-		// removes it at one unit, compares nothing, and misses.
+		// removes it, compares nothing, and misses, all without a unit.
 		// The specification fixes the limit at 128 edits.
 		const limit = 128
 		for _, lag := range []int{limit, limit + 1} {
@@ -205,10 +206,10 @@ func TestMemoLookupChargesItsPendingEdits(t *testing.T) {
 			}
 			var found bool
 			got := spent(p, func() { found = lookup(p, k) })
-			// One unit; for the entry, a step and the comparison of its variable; and each pending edit.
-			want, wantFound := uint64(1+1+1+lag), true
+			// One unit for each pending edit applied.
+			want, wantFound := uint64(lag), true
 			if lag > limit {
-				want, wantFound = 1+1, false
+				want, wantFound = 0, false
 			}
 			if got != want || found != wantFound {
 				t.Fatalf("%d pending edits: charged %d and found %v, want %d and %v", lag, got, found, want, wantFound)
@@ -217,9 +218,10 @@ func TestMemoLookupChargesItsPendingEdits(t *testing.T) {
 	})
 }
 
-// TestMemoChainChargesAtItsBounds measures a lookup and a store on a chain longer than a lookup compares
+// TestMemoChainChargesAtItsBounds checks a lookup and a store on a chain longer than a lookup compares
 // before it consults the index of the position: the walk compares 32 entries, the index is built
-// once, hashing each key of the chain, and a store of a key held beyond the walk passes the chain up to it.
+// once, and a store of a key held beyond the walk passes the chain up to it, all without a unit: the
+// call pays for the lookup of its key (budget.chargeKey), however long the chain.
 func TestMemoChainChargesAtItsBounds(t *testing.T) {
 	t.Parallel()
 	// The specification fixes the walk at 32 entries.
@@ -227,26 +229,19 @@ func TestMemoChainChargesAtItsBounds(t *testing.T) {
 	const chain = scan + 8
 	p := docParser()
 	key := func(v int) MemoKey { return MemoKey{Rule: 1, Pos: 5, Env: []any{v}} }
-	// Each entry passed is a step and the comparison of one variable; a key of one variable hashes at
-	// two units.
-	const walk, hash = 2 * scan, 2
 	for v := range chain {
 		// A store of a new key walks the chain, and links the entry; the first store that finds more
 		// entries than the walk compares builds the index, and later ones probe it.
-		want := uint64(1 + 2*min(v, scan) + 1)
-		switch {
-		case v == scan+1:
-			want += uint64(v*hash + hash)
-		case v > scan+1:
-			want += hash
-		}
 		got := spent(p, func() {
 			e := p.Memo.Alloc()
 			*e = MemoEntry{Ok: true, End: 6, From: 5, Examined: 6, Gen: p.Gen, Vgen: p.Gen}
 			p.MemoPut(key(v), e)
 		})
-		if got != want {
-			t.Fatalf("the store of key %d charged %d, want %d", v, got, want)
+		if got != 0 {
+			t.Fatalf("the store of key %d charged %d, want 0", v, got)
+		}
+		if built := p.Memo.Index[5] != nil; built != (v > scan) {
+			t.Fatalf("after the store of key %d: index built %v, want %v", v, built, v > scan)
 		}
 	}
 	absent := key(-1)
@@ -256,8 +251,8 @@ func TestMemoChainChargesAtItsBounds(t *testing.T) {
 				t.Fatal("found an absent key")
 			}
 		})
-		if want := uint64(1 + walk + hash); got != want {
-			t.Fatalf("a lookup with the index built charged %d, want %d", got, want)
+		if got != 0 {
+			t.Fatalf("a lookup with the index built charged %d, want 0", got)
 		}
 	}
 	// The chain holds the newest entry first, so the key stored first is the last of the chain.
@@ -266,13 +261,16 @@ func TestMemoChainChargesAtItsBounds(t *testing.T) {
 		*e = MemoEntry{Ok: true, End: 6, From: 5, Examined: 6, Gen: p.Gen, Vgen: p.Gen}
 		p.MemoPut(key(0), e)
 	})
-	if want := uint64(1 + walk + hash + 1 + (chain - 1) + 1); got != want {
-		t.Fatalf("a store of the last key of the chain charged %d, want %d", got, want)
+	if got != 0 {
+		t.Fatalf("a store of the last key of the chain charged %d, want 0", got)
+	}
+	if e, ok := p.MemoGet(key(0)); !ok || e.End != 6 {
+		t.Fatal("the store of the last key of the chain left no entry under it")
 	}
 }
 
-// TestMemoStoreChargesNoSlotGrowth checks that a store charges its two units and nothing for the
-// slots it adds, after edits that move and widen the gap: growing the table is storage, not cost.
+// TestMemoStoreChargesNoSlotGrowth checks that a store charges nothing, also for the slots it adds,
+// after edits that move and widen the gap: growing the table is storage, not cost.
 func TestMemoStoreChargesNoSlotGrowth(t *testing.T) {
 	t.Parallel()
 	parseState := exec.Parser()
@@ -294,17 +292,14 @@ func TestMemoStoreChargesNoSlotGrowth(t *testing.T) {
 			}
 			pos := rng.IntN(20000)
 			args := []any{int64(0), int64(pos), int64(0), int64(0), true, int64(pos), false, nil, nil}
-			if model.Quantity(exec.QKeyScan, store, args) != 0 {
-				continue // the charges of a scan are the subject of the tests of lookups
-			}
 			slots := len(p.Memo.Slots)
 			got := spent(p, func() {
 				e := p.Memo.Alloc()
 				*e = MemoEntry{Ok: true, End: pos, Gen: p.Gen, Vgen: p.Gen}
 				p.MemoPut(MemoKey{Pos: pos}, e)
 			})
-			if got != 2 {
-				t.Fatalf("seed %d: a store at %d charged %d, want 2", seed, pos, got)
+			if got != 0 {
+				t.Fatalf("seed %d: a store at %d charged %d, want 0", seed, pos, got)
 			}
 			if len(p.Memo.Slots) > slots {
 				grown++
@@ -318,8 +313,9 @@ func TestMemoStoreChargesNoSlotGrowth(t *testing.T) {
 }
 
 // TestMemoChargesMatchTheModel runs random stores, edits and lookups on the engine's lazy memo and on
-// the model of a lazy memo, and compares what each lookup and store charges with the quantities the model
-// counts: the entries a scan passes (exec.QKeyScan) and the edits a lookup applies (exec.QPending). The
+// the model of a lazy memo, and compares what each lookup and store charges with the bound of its
+// declared cost, which the model computes: nothing for a store, and the edits a lookup applies
+// (exec.QPending) for a lookup. The
 // declared cost is a bound, since a lookup stops at the entry it finds and an entry that fails an edit
 // stops there; the charge is equal to it where the model is exact:
 //
@@ -385,7 +381,7 @@ func TestMemoChargesMatchTheModel(t *testing.T) {
 				}
 				examined := pos + 1 + rng.IntN(6)
 				present := slices.ContainsFunc(chain(pos), func(e *MemoEntry) bool { return e.Env[0] == any(int64(v)) })
-				want := uint64(2 + model.Quantity(exec.QKeyScan, storeOp, args))
+				want := costBound(model, storeOp, args)
 				got := spent(p, func() {
 					e := p.Memo.Alloc()
 					*e = MemoEntry{Ok: true, End: pos + 1, From: from, Examined: examined, Gen: p.Gen, Vgen: p.Gen}
@@ -405,7 +401,7 @@ func TestMemoChargesMatchTheModel(t *testing.T) {
 				if at >= 0 {
 					vgen = es[at].Vgen
 				}
-				want := uint64(1 + model.Quantity(exec.QKeyScan, lookupOp, args) + model.Quantity(exec.QPending, lookupOp, args))
+				want := costBound(model, lookupOp, args)
 				var found bool
 				got := spent(p, func() {
 					e, ok := p.MemoGet(keyOf(pos, v))
@@ -815,4 +811,13 @@ func TestGrowKidsChargesByTheRoomOfTheParse(t *testing.T) {
 	if got := spent(p, func() { p.growKids(1000) }); got != 0 {
 		t.Fatalf("an empty stack charged %d", got)
 	}
+}
+
+// costBound returns the bound of the declared cost of a call of op with args in the state of model.
+func costBound(model *ref.Model, op *code.Op, args []any) uint64 {
+	n := int64(op.Cost.Const)
+	for _, term := range op.Cost.Terms {
+		n += int64(term.Coef) * model.Quantity(term.Quantity, op, args)
+	}
+	return uint64(n)
 }

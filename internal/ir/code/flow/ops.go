@@ -54,9 +54,9 @@ const (
 	// call records, keeps or merges, as the quantity merge of the Exec stage measures them.
 	QMerge = "merge"
 	// QCall is the units of the call protocol around the body of the called rule (the composition call
-	// of spec/exec-ir/compositions.md#calls): the first-call record, the memo's lookups and stores and
-	// the growth of their tables, as the operations of the Exec stage that the protocol calls declare
-	// them.
+	// of spec/exec-ir/compositions.md#calls), as the operations of the Exec stage that the protocol calls
+	// declare them: the unit of the call and the key of a memoized rule. The first-call record, the
+	// memo's lookups and stores and the growth of their tables charge nothing.
 	QCall = "call"
 	// QVals is the number of values that the call returns in its list, which bounds the elements of a
 	// record that it copies behind the values of its walk (spec/runtime/parsing.md#run-sites).

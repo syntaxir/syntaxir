@@ -5,403 +5,403 @@
 # term's charges on one target is a stated change. Some terms read list and tuple fields left unset.
 # A run checks every entry of its scope: an entry that is missing, stale or different fails. -update replaces the
 # entries of the scope, drops stale ones and logs a summary per case. Review the diff: it is a regression freeze.
-termchargespush/term 0: list(1, 2, 3) | aaaa engine-closure	33 ok
-termchargespush/term 0: list(1, 2, 3) | aaaa engine-iterative	33 ok
-termchargespush/term 0: list(1, 2, 3) | aaaa engine-vm	33 ok
+termchargespush/term 0: list(1, 2, 3) | aaaa engine-closure	32 ok
+termchargespush/term 0: list(1, 2, 3) | aaaa engine-iterative	32 ok
+termchargespush/term 0: list(1, 2, 3) | aaaa engine-vm	32 ok
 termchargespush/term 0: list(1, 2, 3) | aaaa go-node	35 ok
 termchargespush/term 0: list(1, 2, 3) | aaaa go-node-recognize	19 ok
-termchargespush/term 0: list(1, 2, 3) | aaaa go-typed	31 ok
+termchargespush/term 0: list(1, 2, 3) | aaaa go-typed	32 ok
 termchargespush/term 0: list(1, 2, 3) | aaaa go-typed-recognize	19 ok
-termchargespush/term 0: list(1, 2, 3) | aaaa ts-node	45 ok
-termchargespush/term 10: len(concat($rs, $rs)) | aaaa engine-closure	39 ok
-termchargespush/term 10: len(concat($rs, $rs)) | aaaa engine-iterative	39 ok
-termchargespush/term 10: len(concat($rs, $rs)) | aaaa engine-vm	39 ok
+termchargespush/term 0: list(1, 2, 3) | aaaa ts-node	46 ok
+termchargespush/term 10: len(concat($rs, $rs)) | aaaa engine-closure	38 ok
+termchargespush/term 10: len(concat($rs, $rs)) | aaaa engine-iterative	38 ok
+termchargespush/term 10: len(concat($rs, $rs)) | aaaa engine-vm	38 ok
 termchargespush/term 10: len(concat($rs, $rs)) | aaaa go-node	39 ok
 termchargespush/term 10: len(concat($rs, $rs)) | aaaa go-node-recognize	19 ok
-termchargespush/term 10: len(concat($rs, $rs)) | aaaa go-typed	37 ok
+termchargespush/term 10: len(concat($rs, $rs)) | aaaa go-typed	38 ok
 termchargespush/term 10: len(concat($rs, $rs)) | aaaa go-typed-recognize	19 ok
-termchargespush/term 10: len(concat($rs, $rs)) | aaaa ts-node	52 ok
-termchargespush/term 11: len(concat(P{N: list($x, $y)}.N, list($z))) | aaaa engine-closure	52 ok
-termchargespush/term 11: len(concat(P{N: list($x, $y)}.N, list($z))) | aaaa engine-iterative	51 ok
-termchargespush/term 11: len(concat(P{N: list($x, $y)}.N, list($z))) | aaaa engine-vm	51 ok
+termchargespush/term 10: len(concat($rs, $rs)) | aaaa ts-node	53 ok
+termchargespush/term 11: len(concat(P{N: list($x, $y)}.N, list($z))) | aaaa engine-closure	51 ok
+termchargespush/term 11: len(concat(P{N: list($x, $y)}.N, list($z))) | aaaa engine-iterative	50 ok
+termchargespush/term 11: len(concat(P{N: list($x, $y)}.N, list($z))) | aaaa engine-vm	50 ok
 termchargespush/term 11: len(concat(P{N: list($x, $y)}.N, list($z))) | aaaa go-node	53 ok
 termchargespush/term 11: len(concat(P{N: list($x, $y)}.N, list($z))) | aaaa go-node-recognize	19 ok
 termchargespush/term 11: len(concat(P{N: list($x, $y)}.N, list($z))) | aaaa go-typed	53 ok
 termchargespush/term 11: len(concat(P{N: list($x, $y)}.N, list($z))) | aaaa go-typed-recognize	19 ok
-termchargespush/term 11: len(concat(P{N: list($x, $y)}.N, list($z))) | aaaa ts-node	70 ok
-termchargespush/term 12: concat(list(1), P{L: list(2, 3)}.L, list()) | aaaa engine-closure	54 ok
-termchargespush/term 12: concat(list(1), P{L: list(2, 3)}.L, list()) | aaaa engine-iterative	53 ok
-termchargespush/term 12: concat(list(1), P{L: list(2, 3)}.L, list()) | aaaa engine-vm	53 ok
+termchargespush/term 11: len(concat(P{N: list($x, $y)}.N, list($z))) | aaaa ts-node	71 ok
+termchargespush/term 12: concat(list(1), P{L: list(2, 3)}.L, list()) | aaaa engine-closure	53 ok
+termchargespush/term 12: concat(list(1), P{L: list(2, 3)}.L, list()) | aaaa engine-iterative	52 ok
+termchargespush/term 12: concat(list(1), P{L: list(2, 3)}.L, list()) | aaaa engine-vm	52 ok
 termchargespush/term 12: concat(list(1), P{L: list(2, 3)}.L, list()) | aaaa go-node	58 ok
 termchargespush/term 12: concat(list(1), P{L: list(2, 3)}.L, list()) | aaaa go-node-recognize	19 ok
-termchargespush/term 12: concat(list(1), P{L: list(2, 3)}.L, list()) | aaaa go-typed	59 ok
+termchargespush/term 12: concat(list(1), P{L: list(2, 3)}.L, list()) | aaaa go-typed	60 ok
 termchargespush/term 12: concat(list(1), P{L: list(2, 3)}.L, list()) | aaaa go-typed-recognize	19 ok
-termchargespush/term 12: concat(list(1), P{L: list(2, 3)}.L, list()) | aaaa ts-node	74 ok
-termchargespush/term 13: concat(concat(list(1), list(2)), concat(list(3), map(list(4), (n) => n))) | aaaa engine-closure	41 ok
-termchargespush/term 13: concat(concat(list(1), list(2)), concat(list(3), map(list(4), (n) => n))) | aaaa engine-iterative	41 ok
-termchargespush/term 13: concat(concat(list(1), list(2)), concat(list(3), map(list(4), (n) => n))) | aaaa engine-vm	41 ok
+termchargespush/term 12: concat(list(1), P{L: list(2, 3)}.L, list()) | aaaa ts-node	75 ok
+termchargespush/term 13: concat(concat(list(1), list(2)), concat(list(3), map(list(4), (n) => n))) | aaaa engine-closure	40 ok
+termchargespush/term 13: concat(concat(list(1), list(2)), concat(list(3), map(list(4), (n) => n))) | aaaa engine-iterative	40 ok
+termchargespush/term 13: concat(concat(list(1), list(2)), concat(list(3), map(list(4), (n) => n))) | aaaa engine-vm	40 ok
 termchargespush/term 13: concat(concat(list(1), list(2)), concat(list(3), map(list(4), (n) => n))) | aaaa go-node	46 ok
 termchargespush/term 13: concat(concat(list(1), list(2)), concat(list(3), map(list(4), (n) => n))) | aaaa go-node-recognize	19 ok
-termchargespush/term 13: concat(concat(list(1), list(2)), concat(list(3), map(list(4), (n) => n))) | aaaa go-typed	40 ok
+termchargespush/term 13: concat(concat(list(1), list(2)), concat(list(3), map(list(4), (n) => n))) | aaaa go-typed	41 ok
 termchargespush/term 13: concat(concat(list(1), list(2)), concat(list(3), map(list(4), (n) => n))) | aaaa go-typed-recognize	19 ok
-termchargespush/term 13: concat(concat(list(1), list(2)), concat(list(3), map(list(4), (n) => n))) | aaaa ts-node	60 ok
-termchargespush/term 14: len(concat(P{L: list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)}.L, list(1))) | aaaa engine-closure	1076 ok
-termchargespush/term 14: len(concat(P{L: list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)}.L, list(1))) | aaaa engine-iterative	1075 ok
-termchargespush/term 14: len(concat(P{L: list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)}.L, list(1))) | aaaa engine-vm	1075 ok
+termchargespush/term 13: concat(concat(list(1), list(2)), concat(list(3), map(list(4), (n) => n))) | aaaa ts-node	61 ok
+termchargespush/term 14: len(concat(P{L: list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)}.L, list(1))) | aaaa engine-closure	1075 ok
+termchargespush/term 14: len(concat(P{L: list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)}.L, list(1))) | aaaa engine-iterative	1074 ok
+termchargespush/term 14: len(concat(P{L: list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)}.L, list(1))) | aaaa engine-vm	1074 ok
 termchargespush/term 14: len(concat(P{L: list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)}.L, list(1))) | aaaa go-node	1208 ok
 termchargespush/term 14: len(concat(P{L: list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)}.L, list(1))) | aaaa go-node-recognize	19 ok
-termchargespush/term 14: len(concat(P{L: list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)}.L, list(1))) | aaaa go-typed	1464 ok
+termchargespush/term 14: len(concat(P{L: list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)}.L, list(1))) | aaaa go-typed	1465 ok
 termchargespush/term 14: len(concat(P{L: list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)}.L, list(1))) | aaaa go-typed-recognize	19 ok
-termchargespush/term 14: len(concat(P{L: list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)}.L, list(1))) | aaaa ts-node	1222 ok
-termchargespush/term 15: len(concat(list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), list(1))) | aaaa engine-closure	545 ok
-termchargespush/term 15: len(concat(list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), list(1))) | aaaa engine-iterative	545 ok
-termchargespush/term 15: len(concat(list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), list(1))) | aaaa engine-vm	545 ok
+termchargespush/term 14: len(concat(P{L: list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)}.L, list(1))) | aaaa ts-node	1223 ok
+termchargespush/term 15: len(concat(list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), list(1))) | aaaa engine-closure	544 ok
+termchargespush/term 15: len(concat(list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), list(1))) | aaaa engine-iterative	544 ok
+termchargespush/term 15: len(concat(list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), list(1))) | aaaa engine-vm	544 ok
 termchargespush/term 15: len(concat(list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), list(1))) | aaaa go-node	676 ok
 termchargespush/term 15: len(concat(list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), list(1))) | aaaa go-node-recognize	19 ok
-termchargespush/term 15: len(concat(list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), list(1))) | aaaa go-typed	543 ok
+termchargespush/term 15: len(concat(list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), list(1))) | aaaa go-typed	544 ok
 termchargespush/term 15: len(concat(list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), list(1))) | aaaa go-typed-recognize	19 ok
-termchargespush/term 15: len(concat(list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), list(1))) | aaaa ts-node	687 ok
-termchargespush/term 16: list(1, 2, 3 / len(list())) | aaaa engine-closure	9 action in main: division by zero
-termchargespush/term 16: list(1, 2, 3 / len(list())) | aaaa engine-iterative	9 action in main: division by zero
-termchargespush/term 16: list(1, 2, 3 / len(list())) | aaaa engine-vm	9 action in main: division by zero
+termchargespush/term 15: len(concat(list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), list(1))) | aaaa ts-node	688 ok
+termchargespush/term 16: list(1, 2, 3 / len(list())) | aaaa engine-closure	8 action in main: division by zero
+termchargespush/term 16: list(1, 2, 3 / len(list())) | aaaa engine-iterative	8 action in main: division by zero
+termchargespush/term 16: list(1, 2, 3 / len(list())) | aaaa engine-vm	8 action in main: division by zero
 termchargespush/term 16: list(1, 2, 3 / len(list())) | aaaa go-node	78 action in main: division by zero
 termchargespush/term 16: list(1, 2, 3 / len(list())) | aaaa go-node-recognize	19 ok
-termchargespush/term 16: list(1, 2, 3 / len(list())) | aaaa go-typed	77 action in main: division by zero
+termchargespush/term 16: list(1, 2, 3 / len(list())) | aaaa go-typed	78 action in main: division by zero
 termchargespush/term 16: list(1, 2, 3 / len(list())) | aaaa go-typed-recognize	19 ok
-termchargespush/term 16: list(1, 2, 3 / len(list())) | aaaa ts-node	36 action in main: division by zero
-termchargespush/term 17: concat(P{L: list(1)}.L, list(2, 1 / len(P{}.L))) | aaaa engine-closure	9 action in main: division by zero
-termchargespush/term 17: concat(P{L: list(1)}.L, list(2, 1 / len(P{}.L))) | aaaa engine-iterative	9 action in main: division by zero
-termchargespush/term 17: concat(P{L: list(1)}.L, list(2, 1 / len(P{}.L))) | aaaa engine-vm	9 action in main: division by zero
+termchargespush/term 16: list(1, 2, 3 / len(list())) | aaaa ts-node	37 action in main: division by zero
+termchargespush/term 17: concat(P{L: list(1)}.L, list(2, 1 / len(P{}.L))) | aaaa engine-closure	8 action in main: division by zero
+termchargespush/term 17: concat(P{L: list(1)}.L, list(2, 1 / len(P{}.L))) | aaaa engine-iterative	8 action in main: division by zero
+termchargespush/term 17: concat(P{L: list(1)}.L, list(2, 1 / len(P{}.L))) | aaaa engine-vm	8 action in main: division by zero
 termchargespush/term 17: concat(P{L: list(1)}.L, list(2, 1 / len(P{}.L))) | aaaa go-node	89 action in main: division by zero
 termchargespush/term 17: concat(P{L: list(1)}.L, list(2, 1 / len(P{}.L))) | aaaa go-node-recognize	19 ok
-termchargespush/term 17: concat(P{L: list(1)}.L, list(2, 1 / len(P{}.L))) | aaaa go-typed	91 action in main: division by zero
+termchargespush/term 17: concat(P{L: list(1)}.L, list(2, 1 / len(P{}.L))) | aaaa go-typed	92 action in main: division by zero
 termchargespush/term 17: concat(P{L: list(1)}.L, list(2, 1 / len(P{}.L))) | aaaa go-typed-recognize	19 ok
-termchargespush/term 17: concat(P{L: list(1)}.L, list(2, 1 / len(P{}.L))) | aaaa ts-node	49 action in main: division by zero
-termchargespush/term 18: len(map(list(1, 2), (n) => (n, list(n), P{L: list(n)}))) | aaaa engine-closure	81 ok
-termchargespush/term 18: len(map(list(1, 2), (n) => (n, list(n), P{L: list(n)}))) | aaaa engine-iterative	81 ok
-termchargespush/term 18: len(map(list(1, 2), (n) => (n, list(n), P{L: list(n)}))) | aaaa engine-vm	81 ok
+termchargespush/term 17: concat(P{L: list(1)}.L, list(2, 1 / len(P{}.L))) | aaaa ts-node	50 action in main: division by zero
+termchargespush/term 18: len(map(list(1, 2), (n) => (n, list(n), P{L: list(n)}))) | aaaa engine-closure	80 ok
+termchargespush/term 18: len(map(list(1, 2), (n) => (n, list(n), P{L: list(n)}))) | aaaa engine-iterative	80 ok
+termchargespush/term 18: len(map(list(1, 2), (n) => (n, list(n), P{L: list(n)}))) | aaaa engine-vm	80 ok
 termchargespush/term 18: len(map(list(1, 2), (n) => (n, list(n), P{L: list(n)}))) | aaaa go-node	96 ok
 termchargespush/term 18: len(map(list(1, 2), (n) => (n, list(n), P{L: list(n)}))) | aaaa go-node-recognize	19 ok
-termchargespush/term 18: len(map(list(1, 2), (n) => (n, list(n), P{L: list(n)}))) | aaaa go-typed	90 ok
+termchargespush/term 18: len(map(list(1, 2), (n) => (n, list(n), P{L: list(n)}))) | aaaa go-typed	91 ok
 termchargespush/term 18: len(map(list(1, 2), (n) => (n, list(n), P{L: list(n)}))) | aaaa go-typed-recognize	19 ok
-termchargespush/term 18: len(map(list(1, 2), (n) => (n, list(n), P{L: list(n)}))) | aaaa ts-node	113 ok
-termchargespush/term 19: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | aaaa engine-closure	54 ok
-termchargespush/term 19: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | aaaa engine-iterative	53 ok
-termchargespush/term 19: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | aaaa engine-vm	53 ok
+termchargespush/term 18: len(map(list(1, 2), (n) => (n, list(n), P{L: list(n)}))) | aaaa ts-node	114 ok
+termchargespush/term 19: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | aaaa engine-closure	53 ok
+termchargespush/term 19: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | aaaa engine-iterative	52 ok
+termchargespush/term 19: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | aaaa engine-vm	52 ok
 termchargespush/term 19: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | aaaa go-node	56 ok
 termchargespush/term 19: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | aaaa go-node-recognize	55 ok
 termchargespush/term 19: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | aaaa go-typed	56 ok
 termchargespush/term 19: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | aaaa go-typed-recognize	55 ok
-termchargespush/term 19: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | aaaa ts-node	80 ok
-termchargespush/term 19: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | aaaab engine-closure	56 ok
-termchargespush/term 19: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | aaaab engine-iterative	55 ok
-termchargespush/term 19: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | aaaab engine-vm	55 ok
+termchargespush/term 19: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | aaaa ts-node	81 ok
+termchargespush/term 19: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | aaaab engine-closure	55 ok
+termchargespush/term 19: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | aaaab engine-iterative	54 ok
+termchargespush/term 19: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | aaaab engine-vm	54 ok
 termchargespush/term 19: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | aaaab go-node	58 ok
 termchargespush/term 19: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | aaaab go-node-recognize	57 ok
 termchargespush/term 19: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | aaaab go-typed	58 ok
 termchargespush/term 19: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | aaaab go-typed-recognize	57 ok
-termchargespush/term 19: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | aaaab ts-node	81 ok
-termchargespush/term 1: list("a", "", "b") | aaaa engine-closure	33 ok
-termchargespush/term 1: list("a", "", "b") | aaaa engine-iterative	33 ok
-termchargespush/term 1: list("a", "", "b") | aaaa engine-vm	33 ok
+termchargespush/term 19: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | aaaab ts-node	82 ok
+termchargespush/term 1: list("a", "", "b") | aaaa engine-closure	32 ok
+termchargespush/term 1: list("a", "", "b") | aaaa engine-iterative	32 ok
+termchargespush/term 1: list("a", "", "b") | aaaa engine-vm	32 ok
 termchargespush/term 1: list("a", "", "b") | aaaa go-node	35 ok
 termchargespush/term 1: list("a", "", "b") | aaaa go-node-recognize	19 ok
-termchargespush/term 1: list("a", "", "b") | aaaa go-typed	31 ok
+termchargespush/term 1: list("a", "", "b") | aaaa go-typed	32 ok
 termchargespush/term 1: list("a", "", "b") | aaaa go-typed-recognize	19 ok
-termchargespush/term 1: list("a", "", "b") | aaaa ts-node	45 ok
-termchargespush/term 20: len(list(1, 2 / len(list()))) == 2 | aaaa engine-closure	39 ok
-termchargespush/term 20: len(list(1, 2 / len(list()))) == 2 | aaaa engine-iterative	39 ok
-termchargespush/term 20: len(list(1, 2 / len(list()))) == 2 | aaaa engine-vm	39 ok
+termchargespush/term 1: list("a", "", "b") | aaaa ts-node	46 ok
+termchargespush/term 20: len(list(1, 2 / len(list()))) == 2 | aaaa engine-closure	38 ok
+termchargespush/term 20: len(list(1, 2 / len(list()))) == 2 | aaaa engine-iterative	38 ok
+termchargespush/term 20: len(list(1, 2 / len(list()))) == 2 | aaaa engine-vm	38 ok
 termchargespush/term 20: len(list(1, 2 / len(list()))) == 2 | aaaa go-node	39 ok
 termchargespush/term 20: len(list(1, 2 / len(list()))) == 2 | aaaa go-node-recognize	38 ok
-termchargespush/term 20: len(list(1, 2 / len(list()))) == 2 | aaaa go-typed	37 ok
+termchargespush/term 20: len(list(1, 2 / len(list()))) == 2 | aaaa go-typed	38 ok
 termchargespush/term 20: len(list(1, 2 / len(list()))) == 2 | aaaa go-typed-recognize	38 ok
-termchargespush/term 20: len(list(1, 2 / len(list()))) == 2 | aaaa ts-node	39 ok
-termchargespush/term 20: len(list(1, 2 / len(list()))) == 2 | aaaab engine-closure	41 1:5: syntax error
-termchargespush/term 20: len(list(1, 2 / len(list()))) == 2 | aaaab engine-iterative	41 1:5: syntax error
-termchargespush/term 20: len(list(1, 2 / len(list()))) == 2 | aaaab engine-vm	41 1:5: syntax error
+termchargespush/term 20: len(list(1, 2 / len(list()))) == 2 | aaaa ts-node	40 ok
+termchargespush/term 20: len(list(1, 2 / len(list()))) == 2 | aaaab engine-closure	40 1:5: syntax error
+termchargespush/term 20: len(list(1, 2 / len(list()))) == 2 | aaaab engine-iterative	40 1:5: syntax error
+termchargespush/term 20: len(list(1, 2 / len(list()))) == 2 | aaaab engine-vm	40 1:5: syntax error
 termchargespush/term 20: len(list(1, 2 / len(list()))) == 2 | aaaab go-node	52 1:5: syntax error: expected end of input, \"a\
 termchargespush/term 20: len(list(1, 2 / len(list()))) == 2 | aaaab go-node-recognize	52 1:5: syntax error: expected end of input, \"a\
-termchargespush/term 20: len(list(1, 2 / len(list()))) == 2 | aaaab go-typed	51 1:5: syntax error: expected end of input, \"a\
+termchargespush/term 20: len(list(1, 2 / len(list()))) == 2 | aaaab go-typed	52 1:5: syntax error: expected end of input, \"a\
 termchargespush/term 20: len(list(1, 2 / len(list()))) == 2 | aaaab go-typed-recognize	52 1:5: syntax error: expected end of input, \"a\
-termchargespush/term 20: len(list(1, 2 / len(list()))) == 2 | aaaab ts-node	105 1:5: syntax error: expected end of input, \"a\
-termchargespush/term 21: len(($x, 1, "s")) == 3 | aaaa engine-closure	34 ok
-termchargespush/term 21: len(($x, 1, "s")) == 3 | aaaa engine-iterative	34 ok
-termchargespush/term 21: len(($x, 1, "s")) == 3 | aaaa engine-vm	34 ok
+termchargespush/term 20: len(list(1, 2 / len(list()))) == 2 | aaaab ts-node	106 1:5: syntax error: expected end of input, \"a\
+termchargespush/term 21: len(($x, 1, "s")) == 3 | aaaa engine-closure	33 ok
+termchargespush/term 21: len(($x, 1, "s")) == 3 | aaaa engine-iterative	33 ok
+termchargespush/term 21: len(($x, 1, "s")) == 3 | aaaa engine-vm	33 ok
 termchargespush/term 21: len(($x, 1, "s")) == 3 | aaaa go-node	36 ok
 termchargespush/term 21: len(($x, 1, "s")) == 3 | aaaa go-node-recognize	35 ok
-termchargespush/term 21: len(($x, 1, "s")) == 3 | aaaa go-typed	32 ok
+termchargespush/term 21: len(($x, 1, "s")) == 3 | aaaa go-typed	33 ok
 termchargespush/term 21: len(($x, 1, "s")) == 3 | aaaa go-typed-recognize	35 ok
-termchargespush/term 21: len(($x, 1, "s")) == 3 | aaaa ts-node	53 ok
-termchargespush/term 21: len(($x, 1, "s")) == 3 | aaaab engine-closure	36 ok
-termchargespush/term 21: len(($x, 1, "s")) == 3 | aaaab engine-iterative	36 ok
-termchargespush/term 21: len(($x, 1, "s")) == 3 | aaaab engine-vm	36 ok
+termchargespush/term 21: len(($x, 1, "s")) == 3 | aaaa ts-node	54 ok
+termchargespush/term 21: len(($x, 1, "s")) == 3 | aaaab engine-closure	35 ok
+termchargespush/term 21: len(($x, 1, "s")) == 3 | aaaab engine-iterative	35 ok
+termchargespush/term 21: len(($x, 1, "s")) == 3 | aaaab engine-vm	35 ok
 termchargespush/term 21: len(($x, 1, "s")) == 3 | aaaab go-node	38 ok
 termchargespush/term 21: len(($x, 1, "s")) == 3 | aaaab go-node-recognize	37 ok
-termchargespush/term 21: len(($x, 1, "s")) == 3 | aaaab go-typed	34 ok
+termchargespush/term 21: len(($x, 1, "s")) == 3 | aaaab go-typed	35 ok
 termchargespush/term 21: len(($x, 1, "s")) == 3 | aaaab go-typed-recognize	37 ok
-termchargespush/term 21: len(($x, 1, "s")) == 3 | aaaab ts-node	54 ok
-termchargespush/term 22: list(1, 2, 3) | 😀😀😀😀 engine-closure	57 ok
-termchargespush/term 22: list(1, 2, 3) | 😀😀😀😀 engine-iterative	57 ok
-termchargespush/term 22: list(1, 2, 3) | 😀😀😀😀 engine-vm	57 ok
+termchargespush/term 21: len(($x, 1, "s")) == 3 | aaaab ts-node	55 ok
+termchargespush/term 22: list(1, 2, 3) | 😀😀😀😀 engine-closure	56 ok
+termchargespush/term 22: list(1, 2, 3) | 😀😀😀😀 engine-iterative	56 ok
+termchargespush/term 22: list(1, 2, 3) | 😀😀😀😀 engine-vm	56 ok
 termchargespush/term 22: list(1, 2, 3) | 😀😀😀😀 go-node	59 ok
 termchargespush/term 22: list(1, 2, 3) | 😀😀😀😀 go-node-recognize	43 ok
-termchargespush/term 22: list(1, 2, 3) | 😀😀😀😀 go-typed	55 ok
+termchargespush/term 22: list(1, 2, 3) | 😀😀😀😀 go-typed	56 ok
 termchargespush/term 22: list(1, 2, 3) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargespush/term 22: list(1, 2, 3) | 😀😀😀😀 ts-node	54 ok
-termchargespush/term 23: list("a", "", "b") | 😀😀😀😀 engine-closure	57 ok
-termchargespush/term 23: list("a", "", "b") | 😀😀😀😀 engine-iterative	57 ok
-termchargespush/term 23: list("a", "", "b") | 😀😀😀😀 engine-vm	57 ok
+termchargespush/term 22: list(1, 2, 3) | 😀😀😀😀 ts-node	55 ok
+termchargespush/term 23: list("a", "", "b") | 😀😀😀😀 engine-closure	56 ok
+termchargespush/term 23: list("a", "", "b") | 😀😀😀😀 engine-iterative	56 ok
+termchargespush/term 23: list("a", "", "b") | 😀😀😀😀 engine-vm	56 ok
 termchargespush/term 23: list("a", "", "b") | 😀😀😀😀 go-node	59 ok
 termchargespush/term 23: list("a", "", "b") | 😀😀😀😀 go-node-recognize	43 ok
-termchargespush/term 23: list("a", "", "b") | 😀😀😀😀 go-typed	55 ok
+termchargespush/term 23: list("a", "", "b") | 😀😀😀😀 go-typed	56 ok
 termchargespush/term 23: list("a", "", "b") | 😀😀😀😀 go-typed-recognize	43 ok
-termchargespush/term 23: list("a", "", "b") | 😀😀😀😀 ts-node	54 ok
-termchargespush/term 24: list(true, false) | 😀😀😀😀 engine-closure	53 ok
-termchargespush/term 24: list(true, false) | 😀😀😀😀 engine-iterative	53 ok
-termchargespush/term 24: list(true, false) | 😀😀😀😀 engine-vm	53 ok
+termchargespush/term 23: list("a", "", "b") | 😀😀😀😀 ts-node	55 ok
+termchargespush/term 24: list(true, false) | 😀😀😀😀 engine-closure	52 ok
+termchargespush/term 24: list(true, false) | 😀😀😀😀 engine-iterative	52 ok
+termchargespush/term 24: list(true, false) | 😀😀😀😀 engine-vm	52 ok
 termchargespush/term 24: list(true, false) | 😀😀😀😀 go-node	54 ok
 termchargespush/term 24: list(true, false) | 😀😀😀😀 go-node-recognize	43 ok
-termchargespush/term 24: list(true, false) | 😀😀😀😀 go-typed	51 ok
+termchargespush/term 24: list(true, false) | 😀😀😀😀 go-typed	52 ok
 termchargespush/term 24: list(true, false) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargespush/term 24: list(true, false) | 😀😀😀😀 ts-node	49 ok
-termchargespush/term 25: len(list($x, $z, $y)) | 😀😀😀😀 engine-closure	57 ok
-termchargespush/term 25: len(list($x, $z, $y)) | 😀😀😀😀 engine-iterative	57 ok
-termchargespush/term 25: len(list($x, $z, $y)) | 😀😀😀😀 engine-vm	57 ok
+termchargespush/term 24: list(true, false) | 😀😀😀😀 ts-node	50 ok
+termchargespush/term 25: len(list($x, $z, $y)) | 😀😀😀😀 engine-closure	56 ok
+termchargespush/term 25: len(list($x, $z, $y)) | 😀😀😀😀 engine-iterative	56 ok
+termchargespush/term 25: len(list($x, $z, $y)) | 😀😀😀😀 engine-vm	56 ok
 termchargespush/term 25: len(list($x, $z, $y)) | 😀😀😀😀 go-node	57 ok
 termchargespush/term 25: len(list($x, $z, $y)) | 😀😀😀😀 go-node-recognize	43 ok
-termchargespush/term 25: len(list($x, $z, $y)) | 😀😀😀😀 go-typed	55 ok
+termchargespush/term 25: len(list($x, $z, $y)) | 😀😀😀😀 go-typed	56 ok
 termchargespush/term 25: len(list($x, $z, $y)) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargespush/term 25: len(list($x, $z, $y)) | 😀😀😀😀 ts-node	55 ok
-termchargespush/term 26: len(list((1, "a"), (2, "b"))) | 😀😀😀😀 engine-closure	69 ok
-termchargespush/term 26: len(list((1, "a"), (2, "b"))) | 😀😀😀😀 engine-iterative	69 ok
-termchargespush/term 26: len(list((1, "a"), (2, "b"))) | 😀😀😀😀 engine-vm	69 ok
+termchargespush/term 25: len(list($x, $z, $y)) | 😀😀😀😀 ts-node	56 ok
+termchargespush/term 26: len(list((1, "a"), (2, "b"))) | 😀😀😀😀 engine-closure	68 ok
+termchargespush/term 26: len(list((1, "a"), (2, "b"))) | 😀😀😀😀 engine-iterative	68 ok
+termchargespush/term 26: len(list((1, "a"), (2, "b"))) | 😀😀😀😀 engine-vm	68 ok
 termchargespush/term 26: len(list((1, "a"), (2, "b"))) | 😀😀😀😀 go-node	75 ok
 termchargespush/term 26: len(list((1, "a"), (2, "b"))) | 😀😀😀😀 go-node-recognize	43 ok
-termchargespush/term 26: len(list((1, "a"), (2, "b"))) | 😀😀😀😀 go-typed	69 ok
+termchargespush/term 26: len(list((1, "a"), (2, "b"))) | 😀😀😀😀 go-typed	70 ok
 termchargespush/term 26: len(list((1, "a"), (2, "b"))) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargespush/term 26: len(list((1, "a"), (2, "b"))) | 😀😀😀😀 ts-node	72 ok
-termchargespush/term 27: len(list(P{}, P{L: list(1)})) | 😀😀😀😀 engine-closure	60 ok
-termchargespush/term 27: len(list(P{}, P{L: list(1)})) | 😀😀😀😀 engine-iterative	60 ok
-termchargespush/term 27: len(list(P{}, P{L: list(1)})) | 😀😀😀😀 engine-vm	60 ok
+termchargespush/term 26: len(list((1, "a"), (2, "b"))) | 😀😀😀😀 ts-node	73 ok
+termchargespush/term 27: len(list(P{}, P{L: list(1)})) | 😀😀😀😀 engine-closure	59 ok
+termchargespush/term 27: len(list(P{}, P{L: list(1)})) | 😀😀😀😀 engine-iterative	59 ok
+termchargespush/term 27: len(list(P{}, P{L: list(1)})) | 😀😀😀😀 engine-vm	59 ok
 termchargespush/term 27: len(list(P{}, P{L: list(1)})) | 😀😀😀😀 go-node	62 ok
 termchargespush/term 27: len(list(P{}, P{L: list(1)})) | 😀😀😀😀 go-node-recognize	43 ok
-termchargespush/term 27: len(list(P{}, P{L: list(1)})) | 😀😀😀😀 go-typed	63 ok
+termchargespush/term 27: len(list(P{}, P{L: list(1)})) | 😀😀😀😀 go-typed	64 ok
 termchargespush/term 27: len(list(P{}, P{L: list(1)})) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargespush/term 27: len(list(P{}, P{L: list(1)})) | 😀😀😀😀 ts-node	58 ok
-termchargespush/term 28: len(($x, $z, 1, "s", true, list(2), P{})) | 😀😀😀😀 engine-closure	78 ok
-termchargespush/term 28: len(($x, $z, 1, "s", true, list(2), P{})) | 😀😀😀😀 engine-iterative	78 ok
-termchargespush/term 28: len(($x, $z, 1, "s", true, list(2), P{})) | 😀😀😀😀 engine-vm	78 ok
+termchargespush/term 27: len(list(P{}, P{L: list(1)})) | 😀😀😀😀 ts-node	59 ok
+termchargespush/term 28: len(($x, $z, 1, "s", true, list(2), P{})) | 😀😀😀😀 engine-closure	77 ok
+termchargespush/term 28: len(($x, $z, 1, "s", true, list(2), P{})) | 😀😀😀😀 engine-iterative	77 ok
+termchargespush/term 28: len(($x, $z, 1, "s", true, list(2), P{})) | 😀😀😀😀 engine-vm	77 ok
 termchargespush/term 28: len(($x, $z, 1, "s", true, list(2), P{})) | 😀😀😀😀 go-node	83 ok
 termchargespush/term 28: len(($x, $z, 1, "s", true, list(2), P{})) | 😀😀😀😀 go-node-recognize	43 ok
-termchargespush/term 28: len(($x, $z, 1, "s", true, list(2), P{})) | 😀😀😀😀 go-typed	79 ok
+termchargespush/term 28: len(($x, $z, 1, "s", true, list(2), P{})) | 😀😀😀😀 go-typed	80 ok
 termchargespush/term 28: len(($x, $z, 1, "s", true, list(2), P{})) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargespush/term 28: len(($x, $z, 1, "s", true, list(2), P{})) | 😀😀😀😀 ts-node	81 ok
-termchargespush/term 29: len(P{}.T) | 😀😀😀😀 engine-closure	63 ok
-termchargespush/term 29: len(P{}.T) | 😀😀😀😀 engine-iterative	62 ok
-termchargespush/term 29: len(P{}.T) | 😀😀😀😀 engine-vm	62 ok
+termchargespush/term 28: len(($x, $z, 1, "s", true, list(2), P{})) | 😀😀😀😀 ts-node	82 ok
+termchargespush/term 29: len(P{}.T) | 😀😀😀😀 engine-closure	62 ok
+termchargespush/term 29: len(P{}.T) | 😀😀😀😀 engine-iterative	61 ok
+termchargespush/term 29: len(P{}.T) | 😀😀😀😀 engine-vm	61 ok
 termchargespush/term 29: len(P{}.T) | 😀😀😀😀 go-node	56 ok
 termchargespush/term 29: len(P{}.T) | 😀😀😀😀 go-node-recognize	43 ok
-termchargespush/term 29: len(P{}.T) | 😀😀😀😀 go-typed	45 ok
+termchargespush/term 29: len(P{}.T) | 😀😀😀😀 go-typed	46 ok
 termchargespush/term 29: len(P{}.T) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargespush/term 29: len(P{}.T) | 😀😀😀😀 ts-node	49 ok
-termchargespush/term 2: list(true, false) | aaaa engine-closure	29 ok
-termchargespush/term 2: list(true, false) | aaaa engine-iterative	29 ok
-termchargespush/term 2: list(true, false) | aaaa engine-vm	29 ok
+termchargespush/term 29: len(P{}.T) | 😀😀😀😀 ts-node	50 ok
+termchargespush/term 2: list(true, false) | aaaa engine-closure	28 ok
+termchargespush/term 2: list(true, false) | aaaa engine-iterative	28 ok
+termchargespush/term 2: list(true, false) | aaaa engine-vm	28 ok
 termchargespush/term 2: list(true, false) | aaaa go-node	30 ok
 termchargespush/term 2: list(true, false) | aaaa go-node-recognize	19 ok
-termchargespush/term 2: list(true, false) | aaaa go-typed	27 ok
+termchargespush/term 2: list(true, false) | aaaa go-typed	28 ok
 termchargespush/term 2: list(true, false) | aaaa go-typed-recognize	19 ok
-termchargespush/term 2: list(true, false) | aaaa ts-node	40 ok
-termchargespush/term 30: len(P{}.L) + len(P{}.N) | 😀😀😀😀 engine-closure	56 ok
-termchargespush/term 30: len(P{}.L) + len(P{}.N) | 😀😀😀😀 engine-iterative	54 ok
-termchargespush/term 30: len(P{}.L) + len(P{}.N) | 😀😀😀😀 engine-vm	54 ok
+termchargespush/term 2: list(true, false) | aaaa ts-node	41 ok
+termchargespush/term 30: len(P{}.L) + len(P{}.N) | 😀😀😀😀 engine-closure	55 ok
+termchargespush/term 30: len(P{}.L) + len(P{}.N) | 😀😀😀😀 engine-iterative	53 ok
+termchargespush/term 30: len(P{}.L) + len(P{}.N) | 😀😀😀😀 engine-vm	53 ok
 termchargespush/term 30: len(P{}.L) + len(P{}.N) | 😀😀😀😀 go-node	48 ok
 termchargespush/term 30: len(P{}.L) + len(P{}.N) | 😀😀😀😀 go-node-recognize	43 ok
 termchargespush/term 30: len(P{}.L) + len(P{}.N) | 😀😀😀😀 go-typed	48 ok
 termchargespush/term 30: len(P{}.L) + len(P{}.N) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargespush/term 30: len(P{}.L) + len(P{}.N) | 😀😀😀😀 ts-node	46 ok
-termchargespush/term 31: len(concat(P{}.L, P{L: list(1, 2)}.L)) | 😀😀😀😀 engine-closure	72 ok
-termchargespush/term 31: len(concat(P{}.L, P{L: list(1, 2)}.L)) | 😀😀😀😀 engine-iterative	70 ok
-termchargespush/term 31: len(concat(P{}.L, P{L: list(1, 2)}.L)) | 😀😀😀😀 engine-vm	70 ok
+termchargespush/term 30: len(P{}.L) + len(P{}.N) | 😀😀😀😀 ts-node	47 ok
+termchargespush/term 31: len(concat(P{}.L, P{L: list(1, 2)}.L)) | 😀😀😀😀 engine-closure	71 ok
+termchargespush/term 31: len(concat(P{}.L, P{L: list(1, 2)}.L)) | 😀😀😀😀 engine-iterative	69 ok
+termchargespush/term 31: len(concat(P{}.L, P{L: list(1, 2)}.L)) | 😀😀😀😀 engine-vm	69 ok
 termchargespush/term 31: len(concat(P{}.L, P{L: list(1, 2)}.L)) | 😀😀😀😀 go-node	72 ok
 termchargespush/term 31: len(concat(P{}.L, P{L: list(1, 2)}.L)) | 😀😀😀😀 go-node-recognize	43 ok
-termchargespush/term 31: len(concat(P{}.L, P{L: list(1, 2)}.L)) | 😀😀😀😀 go-typed	75 ok
+termchargespush/term 31: len(concat(P{}.L, P{L: list(1, 2)}.L)) | 😀😀😀😀 go-typed	76 ok
 termchargespush/term 31: len(concat(P{}.L, P{L: list(1, 2)}.L)) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargespush/term 31: len(concat(P{}.L, P{L: list(1, 2)}.L)) | 😀😀😀😀 ts-node	71 ok
-termchargespush/term 32: len(concat($rs, $rs)) | 😀😀😀😀 engine-closure	63 ok
-termchargespush/term 32: len(concat($rs, $rs)) | 😀😀😀😀 engine-iterative	63 ok
-termchargespush/term 32: len(concat($rs, $rs)) | 😀😀😀😀 engine-vm	63 ok
+termchargespush/term 31: len(concat(P{}.L, P{L: list(1, 2)}.L)) | 😀😀😀😀 ts-node	72 ok
+termchargespush/term 32: len(concat($rs, $rs)) | 😀😀😀😀 engine-closure	62 ok
+termchargespush/term 32: len(concat($rs, $rs)) | 😀😀😀😀 engine-iterative	62 ok
+termchargespush/term 32: len(concat($rs, $rs)) | 😀😀😀😀 engine-vm	62 ok
 termchargespush/term 32: len(concat($rs, $rs)) | 😀😀😀😀 go-node	63 ok
 termchargespush/term 32: len(concat($rs, $rs)) | 😀😀😀😀 go-node-recognize	43 ok
-termchargespush/term 32: len(concat($rs, $rs)) | 😀😀😀😀 go-typed	61 ok
+termchargespush/term 32: len(concat($rs, $rs)) | 😀😀😀😀 go-typed	62 ok
 termchargespush/term 32: len(concat($rs, $rs)) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargespush/term 32: len(concat($rs, $rs)) | 😀😀😀😀 ts-node	61 ok
-termchargespush/term 33: len(concat(P{N: list($x, $y)}.N, list($z))) | 😀😀😀😀 engine-closure	76 ok
-termchargespush/term 33: len(concat(P{N: list($x, $y)}.N, list($z))) | 😀😀😀😀 engine-iterative	75 ok
-termchargespush/term 33: len(concat(P{N: list($x, $y)}.N, list($z))) | 😀😀😀😀 engine-vm	75 ok
+termchargespush/term 32: len(concat($rs, $rs)) | 😀😀😀😀 ts-node	62 ok
+termchargespush/term 33: len(concat(P{N: list($x, $y)}.N, list($z))) | 😀😀😀😀 engine-closure	75 ok
+termchargespush/term 33: len(concat(P{N: list($x, $y)}.N, list($z))) | 😀😀😀😀 engine-iterative	74 ok
+termchargespush/term 33: len(concat(P{N: list($x, $y)}.N, list($z))) | 😀😀😀😀 engine-vm	74 ok
 termchargespush/term 33: len(concat(P{N: list($x, $y)}.N, list($z))) | 😀😀😀😀 go-node	77 ok
 termchargespush/term 33: len(concat(P{N: list($x, $y)}.N, list($z))) | 😀😀😀😀 go-node-recognize	43 ok
 termchargespush/term 33: len(concat(P{N: list($x, $y)}.N, list($z))) | 😀😀😀😀 go-typed	77 ok
 termchargespush/term 33: len(concat(P{N: list($x, $y)}.N, list($z))) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargespush/term 33: len(concat(P{N: list($x, $y)}.N, list($z))) | 😀😀😀😀 ts-node	79 ok
-termchargespush/term 34: concat(list(1), P{L: list(2, 3)}.L, list()) | 😀😀😀😀 engine-closure	78 ok
-termchargespush/term 34: concat(list(1), P{L: list(2, 3)}.L, list()) | 😀😀😀😀 engine-iterative	77 ok
-termchargespush/term 34: concat(list(1), P{L: list(2, 3)}.L, list()) | 😀😀😀😀 engine-vm	77 ok
+termchargespush/term 33: len(concat(P{N: list($x, $y)}.N, list($z))) | 😀😀😀😀 ts-node	80 ok
+termchargespush/term 34: concat(list(1), P{L: list(2, 3)}.L, list()) | 😀😀😀😀 engine-closure	77 ok
+termchargespush/term 34: concat(list(1), P{L: list(2, 3)}.L, list()) | 😀😀😀😀 engine-iterative	76 ok
+termchargespush/term 34: concat(list(1), P{L: list(2, 3)}.L, list()) | 😀😀😀😀 engine-vm	76 ok
 termchargespush/term 34: concat(list(1), P{L: list(2, 3)}.L, list()) | 😀😀😀😀 go-node	82 ok
 termchargespush/term 34: concat(list(1), P{L: list(2, 3)}.L, list()) | 😀😀😀😀 go-node-recognize	43 ok
-termchargespush/term 34: concat(list(1), P{L: list(2, 3)}.L, list()) | 😀😀😀😀 go-typed	83 ok
+termchargespush/term 34: concat(list(1), P{L: list(2, 3)}.L, list()) | 😀😀😀😀 go-typed	84 ok
 termchargespush/term 34: concat(list(1), P{L: list(2, 3)}.L, list()) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargespush/term 34: concat(list(1), P{L: list(2, 3)}.L, list()) | 😀😀😀😀 ts-node	83 ok
-termchargespush/term 35: concat(concat(list(1), list(2)), concat(list(3), map(list(4), (n) => n))) | 😀😀😀😀 engine-closure	65 ok
-termchargespush/term 35: concat(concat(list(1), list(2)), concat(list(3), map(list(4), (n) => n))) | 😀😀😀😀 engine-iterative	65 ok
-termchargespush/term 35: concat(concat(list(1), list(2)), concat(list(3), map(list(4), (n) => n))) | 😀😀😀😀 engine-vm	65 ok
+termchargespush/term 34: concat(list(1), P{L: list(2, 3)}.L, list()) | 😀😀😀😀 ts-node	84 ok
+termchargespush/term 35: concat(concat(list(1), list(2)), concat(list(3), map(list(4), (n) => n))) | 😀😀😀😀 engine-closure	64 ok
+termchargespush/term 35: concat(concat(list(1), list(2)), concat(list(3), map(list(4), (n) => n))) | 😀😀😀😀 engine-iterative	64 ok
+termchargespush/term 35: concat(concat(list(1), list(2)), concat(list(3), map(list(4), (n) => n))) | 😀😀😀😀 engine-vm	64 ok
 termchargespush/term 35: concat(concat(list(1), list(2)), concat(list(3), map(list(4), (n) => n))) | 😀😀😀😀 go-node	70 ok
 termchargespush/term 35: concat(concat(list(1), list(2)), concat(list(3), map(list(4), (n) => n))) | 😀😀😀😀 go-node-recognize	43 ok
-termchargespush/term 35: concat(concat(list(1), list(2)), concat(list(3), map(list(4), (n) => n))) | 😀😀😀😀 go-typed	64 ok
+termchargespush/term 35: concat(concat(list(1), list(2)), concat(list(3), map(list(4), (n) => n))) | 😀😀😀😀 go-typed	65 ok
 termchargespush/term 35: concat(concat(list(1), list(2)), concat(list(3), map(list(4), (n) => n))) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargespush/term 35: concat(concat(list(1), list(2)), concat(list(3), map(list(4), (n) => n))) | 😀😀😀😀 ts-node	69 ok
-termchargespush/term 36: len(concat(P{L: list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)}.L, list(1))) | 😀😀😀😀 engine-closure	1100 ok
-termchargespush/term 36: len(concat(P{L: list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)}.L, list(1))) | 😀😀😀😀 engine-iterative	1099 ok
-termchargespush/term 36: len(concat(P{L: list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)}.L, list(1))) | 😀😀😀😀 engine-vm	1099 ok
+termchargespush/term 35: concat(concat(list(1), list(2)), concat(list(3), map(list(4), (n) => n))) | 😀😀😀😀 ts-node	70 ok
+termchargespush/term 36: len(concat(P{L: list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)}.L, list(1))) | 😀😀😀😀 engine-closure	1099 ok
+termchargespush/term 36: len(concat(P{L: list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)}.L, list(1))) | 😀😀😀😀 engine-iterative	1098 ok
+termchargespush/term 36: len(concat(P{L: list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)}.L, list(1))) | 😀😀😀😀 engine-vm	1098 ok
 termchargespush/term 36: len(concat(P{L: list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)}.L, list(1))) | 😀😀😀😀 go-node	1232 ok
 termchargespush/term 36: len(concat(P{L: list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)}.L, list(1))) | 😀😀😀😀 go-node-recognize	43 ok
-termchargespush/term 36: len(concat(P{L: list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)}.L, list(1))) | 😀😀😀😀 go-typed	1488 ok
+termchargespush/term 36: len(concat(P{L: list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)}.L, list(1))) | 😀😀😀😀 go-typed	1489 ok
 termchargespush/term 36: len(concat(P{L: list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)}.L, list(1))) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargespush/term 36: len(concat(P{L: list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)}.L, list(1))) | 😀😀😀😀 ts-node	1231 ok
-termchargespush/term 37: len(concat(list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), list(1))) | 😀😀😀😀 engine-closure	569 ok
-termchargespush/term 37: len(concat(list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), list(1))) | 😀😀😀😀 engine-iterative	569 ok
-termchargespush/term 37: len(concat(list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), list(1))) | 😀😀😀😀 engine-vm	569 ok
+termchargespush/term 36: len(concat(P{L: list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)}.L, list(1))) | 😀😀😀😀 ts-node	1232 ok
+termchargespush/term 37: len(concat(list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), list(1))) | 😀😀😀😀 engine-closure	568 ok
+termchargespush/term 37: len(concat(list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), list(1))) | 😀😀😀😀 engine-iterative	568 ok
+termchargespush/term 37: len(concat(list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), list(1))) | 😀😀😀😀 engine-vm	568 ok
 termchargespush/term 37: len(concat(list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), list(1))) | 😀😀😀😀 go-node	700 ok
 termchargespush/term 37: len(concat(list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), list(1))) | 😀😀😀😀 go-node-recognize	43 ok
-termchargespush/term 37: len(concat(list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), list(1))) | 😀😀😀😀 go-typed	567 ok
+termchargespush/term 37: len(concat(list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), list(1))) | 😀😀😀😀 go-typed	568 ok
 termchargespush/term 37: len(concat(list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), list(1))) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargespush/term 37: len(concat(list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), list(1))) | 😀😀😀😀 ts-node	696 ok
-termchargespush/term 38: list(1, 2, 3 / len(list())) | 😀😀😀😀 engine-closure	33 action in main: division by zero
-termchargespush/term 38: list(1, 2, 3 / len(list())) | 😀😀😀😀 engine-iterative	33 action in main: division by zero
-termchargespush/term 38: list(1, 2, 3 / len(list())) | 😀😀😀😀 engine-vm	33 action in main: division by zero
+termchargespush/term 37: len(concat(list(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), list(1))) | 😀😀😀😀 ts-node	697 ok
+termchargespush/term 38: list(1, 2, 3 / len(list())) | 😀😀😀😀 engine-closure	32 action in main: division by zero
+termchargespush/term 38: list(1, 2, 3 / len(list())) | 😀😀😀😀 engine-iterative	32 action in main: division by zero
+termchargespush/term 38: list(1, 2, 3 / len(list())) | 😀😀😀😀 engine-vm	32 action in main: division by zero
 termchargespush/term 38: list(1, 2, 3 / len(list())) | 😀😀😀😀 go-node	102 action in main: division by zero
 termchargespush/term 38: list(1, 2, 3 / len(list())) | 😀😀😀😀 go-node-recognize	43 ok
-termchargespush/term 38: list(1, 2, 3 / len(list())) | 😀😀😀😀 go-typed	101 action in main: division by zero
+termchargespush/term 38: list(1, 2, 3 / len(list())) | 😀😀😀😀 go-typed	102 action in main: division by zero
 termchargespush/term 38: list(1, 2, 3 / len(list())) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargespush/term 38: list(1, 2, 3 / len(list())) | 😀😀😀😀 ts-node	45 action in main: division by zero
-termchargespush/term 39: concat(P{L: list(1)}.L, list(2, 1 / len(P{}.L))) | 😀😀😀😀 engine-closure	33 action in main: division by zero
-termchargespush/term 39: concat(P{L: list(1)}.L, list(2, 1 / len(P{}.L))) | 😀😀😀😀 engine-iterative	33 action in main: division by zero
-termchargespush/term 39: concat(P{L: list(1)}.L, list(2, 1 / len(P{}.L))) | 😀😀😀😀 engine-vm	33 action in main: division by zero
+termchargespush/term 38: list(1, 2, 3 / len(list())) | 😀😀😀😀 ts-node	46 action in main: division by zero
+termchargespush/term 39: concat(P{L: list(1)}.L, list(2, 1 / len(P{}.L))) | 😀😀😀😀 engine-closure	32 action in main: division by zero
+termchargespush/term 39: concat(P{L: list(1)}.L, list(2, 1 / len(P{}.L))) | 😀😀😀😀 engine-iterative	32 action in main: division by zero
+termchargespush/term 39: concat(P{L: list(1)}.L, list(2, 1 / len(P{}.L))) | 😀😀😀😀 engine-vm	32 action in main: division by zero
 termchargespush/term 39: concat(P{L: list(1)}.L, list(2, 1 / len(P{}.L))) | 😀😀😀😀 go-node	113 action in main: division by zero
 termchargespush/term 39: concat(P{L: list(1)}.L, list(2, 1 / len(P{}.L))) | 😀😀😀😀 go-node-recognize	43 ok
-termchargespush/term 39: concat(P{L: list(1)}.L, list(2, 1 / len(P{}.L))) | 😀😀😀😀 go-typed	115 action in main: division by zero
+termchargespush/term 39: concat(P{L: list(1)}.L, list(2, 1 / len(P{}.L))) | 😀😀😀😀 go-typed	116 action in main: division by zero
 termchargespush/term 39: concat(P{L: list(1)}.L, list(2, 1 / len(P{}.L))) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargespush/term 39: concat(P{L: list(1)}.L, list(2, 1 / len(P{}.L))) | 😀😀😀😀 ts-node	58 action in main: division by zero
-termchargespush/term 3: len(list($x, $z, $y)) | aaaa engine-closure	33 ok
-termchargespush/term 3: len(list($x, $z, $y)) | aaaa engine-iterative	33 ok
-termchargespush/term 3: len(list($x, $z, $y)) | aaaa engine-vm	33 ok
+termchargespush/term 39: concat(P{L: list(1)}.L, list(2, 1 / len(P{}.L))) | 😀😀😀😀 ts-node	59 action in main: division by zero
+termchargespush/term 3: len(list($x, $z, $y)) | aaaa engine-closure	32 ok
+termchargespush/term 3: len(list($x, $z, $y)) | aaaa engine-iterative	32 ok
+termchargespush/term 3: len(list($x, $z, $y)) | aaaa engine-vm	32 ok
 termchargespush/term 3: len(list($x, $z, $y)) | aaaa go-node	33 ok
 termchargespush/term 3: len(list($x, $z, $y)) | aaaa go-node-recognize	19 ok
-termchargespush/term 3: len(list($x, $z, $y)) | aaaa go-typed	31 ok
+termchargespush/term 3: len(list($x, $z, $y)) | aaaa go-typed	32 ok
 termchargespush/term 3: len(list($x, $z, $y)) | aaaa go-typed-recognize	19 ok
-termchargespush/term 3: len(list($x, $z, $y)) | aaaa ts-node	46 ok
-termchargespush/term 40: len(map(list(1, 2), (n) => (n, list(n), P{L: list(n)}))) | 😀😀😀😀 engine-closure	105 ok
-termchargespush/term 40: len(map(list(1, 2), (n) => (n, list(n), P{L: list(n)}))) | 😀😀😀😀 engine-iterative	105 ok
-termchargespush/term 40: len(map(list(1, 2), (n) => (n, list(n), P{L: list(n)}))) | 😀😀😀😀 engine-vm	105 ok
+termchargespush/term 3: len(list($x, $z, $y)) | aaaa ts-node	47 ok
+termchargespush/term 40: len(map(list(1, 2), (n) => (n, list(n), P{L: list(n)}))) | 😀😀😀😀 engine-closure	104 ok
+termchargespush/term 40: len(map(list(1, 2), (n) => (n, list(n), P{L: list(n)}))) | 😀😀😀😀 engine-iterative	104 ok
+termchargespush/term 40: len(map(list(1, 2), (n) => (n, list(n), P{L: list(n)}))) | 😀😀😀😀 engine-vm	104 ok
 termchargespush/term 40: len(map(list(1, 2), (n) => (n, list(n), P{L: list(n)}))) | 😀😀😀😀 go-node	120 ok
 termchargespush/term 40: len(map(list(1, 2), (n) => (n, list(n), P{L: list(n)}))) | 😀😀😀😀 go-node-recognize	43 ok
-termchargespush/term 40: len(map(list(1, 2), (n) => (n, list(n), P{L: list(n)}))) | 😀😀😀😀 go-typed	114 ok
+termchargespush/term 40: len(map(list(1, 2), (n) => (n, list(n), P{L: list(n)}))) | 😀😀😀😀 go-typed	115 ok
 termchargespush/term 40: len(map(list(1, 2), (n) => (n, list(n), P{L: list(n)}))) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargespush/term 40: len(map(list(1, 2), (n) => (n, list(n), P{L: list(n)}))) | 😀😀😀😀 ts-node	122 ok
-termchargespush/term 41: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | 😀😀😀😀 engine-closure	78 ok
-termchargespush/term 41: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | 😀😀😀😀 engine-iterative	77 ok
-termchargespush/term 41: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | 😀😀😀😀 engine-vm	77 ok
+termchargespush/term 40: len(map(list(1, 2), (n) => (n, list(n), P{L: list(n)}))) | 😀😀😀😀 ts-node	123 ok
+termchargespush/term 41: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | 😀😀😀😀 engine-closure	77 ok
+termchargespush/term 41: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | 😀😀😀😀 engine-iterative	76 ok
+termchargespush/term 41: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | 😀😀😀😀 engine-vm	76 ok
 termchargespush/term 41: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | 😀😀😀😀 go-node	80 ok
 termchargespush/term 41: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | 😀😀😀😀 go-node-recognize	79 ok
 termchargespush/term 41: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | 😀😀😀😀 go-typed	80 ok
 termchargespush/term 41: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | 😀😀😀😀 go-typed-recognize	79 ok
-termchargespush/term 41: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | 😀😀😀😀 ts-node	89 ok
-termchargespush/term 41: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | 😀😀😀😀b engine-closure	80 ok
-termchargespush/term 41: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | 😀😀😀😀b engine-iterative	79 ok
-termchargespush/term 41: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | 😀😀😀😀b engine-vm	79 ok
+termchargespush/term 41: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | 😀😀😀😀 ts-node	90 ok
+termchargespush/term 41: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | 😀😀😀😀b engine-closure	79 ok
+termchargespush/term 41: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | 😀😀😀😀b engine-iterative	78 ok
+termchargespush/term 41: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | 😀😀😀😀b engine-vm	78 ok
 termchargespush/term 41: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | 😀😀😀😀b go-node	82 ok
 termchargespush/term 41: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | 😀😀😀😀b go-node-recognize	81 ok
 termchargespush/term 41: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | 😀😀😀😀b go-typed	82 ok
 termchargespush/term 41: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | 😀😀😀😀b go-typed-recognize	81 ok
-termchargespush/term 41: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | 😀😀😀😀b ts-node	89 ok
-termchargespush/term 42: len(list(1, 2 / len(list()))) == 2 | 😀😀😀😀 engine-closure	63 ok
-termchargespush/term 42: len(list(1, 2 / len(list()))) == 2 | 😀😀😀😀 engine-iterative	63 ok
-termchargespush/term 42: len(list(1, 2 / len(list()))) == 2 | 😀😀😀😀 engine-vm	63 ok
+termchargespush/term 41: len(concat(list($x), P{N: list($y)}.N, $rs)) == 4 | 😀😀😀😀b ts-node	90 ok
+termchargespush/term 42: len(list(1, 2 / len(list()))) == 2 | 😀😀😀😀 engine-closure	62 ok
+termchargespush/term 42: len(list(1, 2 / len(list()))) == 2 | 😀😀😀😀 engine-iterative	62 ok
+termchargespush/term 42: len(list(1, 2 / len(list()))) == 2 | 😀😀😀😀 engine-vm	62 ok
 termchargespush/term 42: len(list(1, 2 / len(list()))) == 2 | 😀😀😀😀 go-node	63 ok
 termchargespush/term 42: len(list(1, 2 / len(list()))) == 2 | 😀😀😀😀 go-node-recognize	62 ok
-termchargespush/term 42: len(list(1, 2 / len(list()))) == 2 | 😀😀😀😀 go-typed	61 ok
+termchargespush/term 42: len(list(1, 2 / len(list()))) == 2 | 😀😀😀😀 go-typed	62 ok
 termchargespush/term 42: len(list(1, 2 / len(list()))) == 2 | 😀😀😀😀 go-typed-recognize	62 ok
-termchargespush/term 42: len(list(1, 2 / len(list()))) == 2 | 😀😀😀😀 ts-node	48 ok
-termchargespush/term 42: len(list(1, 2 / len(list()))) == 2 | 😀😀😀😀b engine-closure	65 1:5: syntax error
-termchargespush/term 42: len(list(1, 2 / len(list()))) == 2 | 😀😀😀😀b engine-iterative	65 1:5: syntax error
-termchargespush/term 42: len(list(1, 2 / len(list()))) == 2 | 😀😀😀😀b engine-vm	65 1:5: syntax error
+termchargespush/term 42: len(list(1, 2 / len(list()))) == 2 | 😀😀😀😀 ts-node	49 ok
+termchargespush/term 42: len(list(1, 2 / len(list()))) == 2 | 😀😀😀😀b engine-closure	64 1:5: syntax error
+termchargespush/term 42: len(list(1, 2 / len(list()))) == 2 | 😀😀😀😀b engine-iterative	64 1:5: syntax error
+termchargespush/term 42: len(list(1, 2 / len(list()))) == 2 | 😀😀😀😀b engine-vm	64 1:5: syntax error
 termchargespush/term 42: len(list(1, 2 / len(list()))) == 2 | 😀😀😀😀b go-node	76 1:5: syntax error: expected end of input, \"😀\
 termchargespush/term 42: len(list(1, 2 / len(list()))) == 2 | 😀😀😀😀b go-node-recognize	76 1:5: syntax error: expected end of input, \"😀\
-termchargespush/term 42: len(list(1, 2 / len(list()))) == 2 | 😀😀😀😀b go-typed	75 1:5: syntax error: expected end of input, \"😀\
+termchargespush/term 42: len(list(1, 2 / len(list()))) == 2 | 😀😀😀😀b go-typed	76 1:5: syntax error: expected end of input, \"😀\
 termchargespush/term 42: len(list(1, 2 / len(list()))) == 2 | 😀😀😀😀b go-typed-recognize	76 1:5: syntax error: expected end of input, \"😀\
-termchargespush/term 42: len(list(1, 2 / len(list()))) == 2 | 😀😀😀😀b ts-node	114 1:5: syntax error: expected end of input, \"😀\
-termchargespush/term 43: len(($x, 1, "s")) == 3 | 😀😀😀😀 engine-closure	58 ok
-termchargespush/term 43: len(($x, 1, "s")) == 3 | 😀😀😀😀 engine-iterative	58 ok
-termchargespush/term 43: len(($x, 1, "s")) == 3 | 😀😀😀😀 engine-vm	58 ok
+termchargespush/term 42: len(list(1, 2 / len(list()))) == 2 | 😀😀😀😀b ts-node	115 1:5: syntax error: expected end of input, \"😀\
+termchargespush/term 43: len(($x, 1, "s")) == 3 | 😀😀😀😀 engine-closure	57 ok
+termchargespush/term 43: len(($x, 1, "s")) == 3 | 😀😀😀😀 engine-iterative	57 ok
+termchargespush/term 43: len(($x, 1, "s")) == 3 | 😀😀😀😀 engine-vm	57 ok
 termchargespush/term 43: len(($x, 1, "s")) == 3 | 😀😀😀😀 go-node	60 ok
 termchargespush/term 43: len(($x, 1, "s")) == 3 | 😀😀😀😀 go-node-recognize	59 ok
-termchargespush/term 43: len(($x, 1, "s")) == 3 | 😀😀😀😀 go-typed	56 ok
+termchargespush/term 43: len(($x, 1, "s")) == 3 | 😀😀😀😀 go-typed	57 ok
 termchargespush/term 43: len(($x, 1, "s")) == 3 | 😀😀😀😀 go-typed-recognize	59 ok
-termchargespush/term 43: len(($x, 1, "s")) == 3 | 😀😀😀😀 ts-node	62 ok
-termchargespush/term 43: len(($x, 1, "s")) == 3 | 😀😀😀😀b engine-closure	60 ok
-termchargespush/term 43: len(($x, 1, "s")) == 3 | 😀😀😀😀b engine-iterative	60 ok
-termchargespush/term 43: len(($x, 1, "s")) == 3 | 😀😀😀😀b engine-vm	60 ok
+termchargespush/term 43: len(($x, 1, "s")) == 3 | 😀😀😀😀 ts-node	63 ok
+termchargespush/term 43: len(($x, 1, "s")) == 3 | 😀😀😀😀b engine-closure	59 ok
+termchargespush/term 43: len(($x, 1, "s")) == 3 | 😀😀😀😀b engine-iterative	59 ok
+termchargespush/term 43: len(($x, 1, "s")) == 3 | 😀😀😀😀b engine-vm	59 ok
 termchargespush/term 43: len(($x, 1, "s")) == 3 | 😀😀😀😀b go-node	62 ok
 termchargespush/term 43: len(($x, 1, "s")) == 3 | 😀😀😀😀b go-node-recognize	61 ok
-termchargespush/term 43: len(($x, 1, "s")) == 3 | 😀😀😀😀b go-typed	58 ok
+termchargespush/term 43: len(($x, 1, "s")) == 3 | 😀😀😀😀b go-typed	59 ok
 termchargespush/term 43: len(($x, 1, "s")) == 3 | 😀😀😀😀b go-typed-recognize	61 ok
-termchargespush/term 43: len(($x, 1, "s")) == 3 | 😀😀😀😀b ts-node	62 ok
-termchargespush/term 4: len(list((1, "a"), (2, "b"))) | aaaa engine-closure	45 ok
-termchargespush/term 4: len(list((1, "a"), (2, "b"))) | aaaa engine-iterative	45 ok
-termchargespush/term 4: len(list((1, "a"), (2, "b"))) | aaaa engine-vm	45 ok
+termchargespush/term 43: len(($x, 1, "s")) == 3 | 😀😀😀😀b ts-node	63 ok
+termchargespush/term 4: len(list((1, "a"), (2, "b"))) | aaaa engine-closure	44 ok
+termchargespush/term 4: len(list((1, "a"), (2, "b"))) | aaaa engine-iterative	44 ok
+termchargespush/term 4: len(list((1, "a"), (2, "b"))) | aaaa engine-vm	44 ok
 termchargespush/term 4: len(list((1, "a"), (2, "b"))) | aaaa go-node	51 ok
 termchargespush/term 4: len(list((1, "a"), (2, "b"))) | aaaa go-node-recognize	19 ok
-termchargespush/term 4: len(list((1, "a"), (2, "b"))) | aaaa go-typed	45 ok
+termchargespush/term 4: len(list((1, "a"), (2, "b"))) | aaaa go-typed	46 ok
 termchargespush/term 4: len(list((1, "a"), (2, "b"))) | aaaa go-typed-recognize	19 ok
-termchargespush/term 4: len(list((1, "a"), (2, "b"))) | aaaa ts-node	63 ok
-termchargespush/term 5: len(list(P{}, P{L: list(1)})) | aaaa engine-closure	36 ok
-termchargespush/term 5: len(list(P{}, P{L: list(1)})) | aaaa engine-iterative	36 ok
-termchargespush/term 5: len(list(P{}, P{L: list(1)})) | aaaa engine-vm	36 ok
+termchargespush/term 4: len(list((1, "a"), (2, "b"))) | aaaa ts-node	64 ok
+termchargespush/term 5: len(list(P{}, P{L: list(1)})) | aaaa engine-closure	35 ok
+termchargespush/term 5: len(list(P{}, P{L: list(1)})) | aaaa engine-iterative	35 ok
+termchargespush/term 5: len(list(P{}, P{L: list(1)})) | aaaa engine-vm	35 ok
 termchargespush/term 5: len(list(P{}, P{L: list(1)})) | aaaa go-node	38 ok
 termchargespush/term 5: len(list(P{}, P{L: list(1)})) | aaaa go-node-recognize	19 ok
-termchargespush/term 5: len(list(P{}, P{L: list(1)})) | aaaa go-typed	39 ok
+termchargespush/term 5: len(list(P{}, P{L: list(1)})) | aaaa go-typed	40 ok
 termchargespush/term 5: len(list(P{}, P{L: list(1)})) | aaaa go-typed-recognize	19 ok
-termchargespush/term 5: len(list(P{}, P{L: list(1)})) | aaaa ts-node	49 ok
-termchargespush/term 6: len(($x, $z, 1, "s", true, list(2), P{})) | aaaa engine-closure	54 ok
-termchargespush/term 6: len(($x, $z, 1, "s", true, list(2), P{})) | aaaa engine-iterative	54 ok
-termchargespush/term 6: len(($x, $z, 1, "s", true, list(2), P{})) | aaaa engine-vm	54 ok
+termchargespush/term 5: len(list(P{}, P{L: list(1)})) | aaaa ts-node	50 ok
+termchargespush/term 6: len(($x, $z, 1, "s", true, list(2), P{})) | aaaa engine-closure	53 ok
+termchargespush/term 6: len(($x, $z, 1, "s", true, list(2), P{})) | aaaa engine-iterative	53 ok
+termchargespush/term 6: len(($x, $z, 1, "s", true, list(2), P{})) | aaaa engine-vm	53 ok
 termchargespush/term 6: len(($x, $z, 1, "s", true, list(2), P{})) | aaaa go-node	59 ok
 termchargespush/term 6: len(($x, $z, 1, "s", true, list(2), P{})) | aaaa go-node-recognize	19 ok
-termchargespush/term 6: len(($x, $z, 1, "s", true, list(2), P{})) | aaaa go-typed	55 ok
+termchargespush/term 6: len(($x, $z, 1, "s", true, list(2), P{})) | aaaa go-typed	56 ok
 termchargespush/term 6: len(($x, $z, 1, "s", true, list(2), P{})) | aaaa go-typed-recognize	19 ok
-termchargespush/term 6: len(($x, $z, 1, "s", true, list(2), P{})) | aaaa ts-node	72 ok
-termchargespush/term 7: len(P{}.T) | aaaa engine-closure	39 ok
-termchargespush/term 7: len(P{}.T) | aaaa engine-iterative	38 ok
-termchargespush/term 7: len(P{}.T) | aaaa engine-vm	38 ok
+termchargespush/term 6: len(($x, $z, 1, "s", true, list(2), P{})) | aaaa ts-node	73 ok
+termchargespush/term 7: len(P{}.T) | aaaa engine-closure	38 ok
+termchargespush/term 7: len(P{}.T) | aaaa engine-iterative	37 ok
+termchargespush/term 7: len(P{}.T) | aaaa engine-vm	37 ok
 termchargespush/term 7: len(P{}.T) | aaaa go-node	32 ok
 termchargespush/term 7: len(P{}.T) | aaaa go-node-recognize	19 ok
-termchargespush/term 7: len(P{}.T) | aaaa go-typed	21 ok
+termchargespush/term 7: len(P{}.T) | aaaa go-typed	22 ok
 termchargespush/term 7: len(P{}.T) | aaaa go-typed-recognize	19 ok
-termchargespush/term 7: len(P{}.T) | aaaa ts-node	40 ok
-termchargespush/term 8: len(P{}.L) + len(P{}.N) | aaaa engine-closure	32 ok
-termchargespush/term 8: len(P{}.L) + len(P{}.N) | aaaa engine-iterative	30 ok
-termchargespush/term 8: len(P{}.L) + len(P{}.N) | aaaa engine-vm	30 ok
+termchargespush/term 7: len(P{}.T) | aaaa ts-node	41 ok
+termchargespush/term 8: len(P{}.L) + len(P{}.N) | aaaa engine-closure	31 ok
+termchargespush/term 8: len(P{}.L) + len(P{}.N) | aaaa engine-iterative	29 ok
+termchargespush/term 8: len(P{}.L) + len(P{}.N) | aaaa engine-vm	29 ok
 termchargespush/term 8: len(P{}.L) + len(P{}.N) | aaaa go-node	24 ok
 termchargespush/term 8: len(P{}.L) + len(P{}.N) | aaaa go-node-recognize	19 ok
 termchargespush/term 8: len(P{}.L) + len(P{}.N) | aaaa go-typed	24 ok
 termchargespush/term 8: len(P{}.L) + len(P{}.N) | aaaa go-typed-recognize	19 ok
-termchargespush/term 8: len(P{}.L) + len(P{}.N) | aaaa ts-node	37 ok
-termchargespush/term 9: len(concat(P{}.L, P{L: list(1, 2)}.L)) | aaaa engine-closure	48 ok
-termchargespush/term 9: len(concat(P{}.L, P{L: list(1, 2)}.L)) | aaaa engine-iterative	46 ok
-termchargespush/term 9: len(concat(P{}.L, P{L: list(1, 2)}.L)) | aaaa engine-vm	46 ok
+termchargespush/term 8: len(P{}.L) + len(P{}.N) | aaaa ts-node	38 ok
+termchargespush/term 9: len(concat(P{}.L, P{L: list(1, 2)}.L)) | aaaa engine-closure	47 ok
+termchargespush/term 9: len(concat(P{}.L, P{L: list(1, 2)}.L)) | aaaa engine-iterative	45 ok
+termchargespush/term 9: len(concat(P{}.L, P{L: list(1, 2)}.L)) | aaaa engine-vm	45 ok
 termchargespush/term 9: len(concat(P{}.L, P{L: list(1, 2)}.L)) | aaaa go-node	48 ok
 termchargespush/term 9: len(concat(P{}.L, P{L: list(1, 2)}.L)) | aaaa go-node-recognize	19 ok
-termchargespush/term 9: len(concat(P{}.L, P{L: list(1, 2)}.L)) | aaaa go-typed	51 ok
+termchargespush/term 9: len(concat(P{}.L, P{L: list(1, 2)}.L)) | aaaa go-typed	52 ok
 termchargespush/term 9: len(concat(P{}.L, P{L: list(1, 2)}.L)) | aaaa go-typed-recognize	19 ok
-termchargespush/term 9: len(concat(P{}.L, P{L: list(1, 2)}.L)) | aaaa ts-node	62 ok
+termchargespush/term 9: len(concat(P{}.L, P{L: list(1, 2)}.L)) | aaaa ts-node	63 ok

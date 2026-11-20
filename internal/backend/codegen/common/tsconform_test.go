@@ -105,7 +105,7 @@ func tsExecSuites(controlled, sparse bool) []conform.Suite {
 	name := fmt.Sprintf("typescript (controlled=%v, sparse seen=%v)", controlled, sparse)
 	return []conform.Suite{
 		{Name: name + " memo", Ops: with(memoOps)},
-		{Name: name + " environment", Ops: with(envOps), Exact: []string{"env.lookup", "env.bind", "env.key"}},
+		{Name: name + " environment", Ops: with(envOps), Exact: []string{"env.lookup", "env.bind", "env.key", "budget.chargeKey"}},
 		{Name: name + " recovered errors", Ops: with(recOps), Exact: recOps},
 	}
 }
@@ -118,15 +118,12 @@ func tsExecSuites(controlled, sparse bool) []conform.Suite {
 // (listed with a reproduction in the #305 hand-off); when the library holds the model's charges there,
 // the entry goes.
 var tsChargeDivergences = map[string]string{
-	"env.bind":   "[env.bind string compare] comparing a string with the value of the slot charges one unit for each byte (the model: two for each byte of strings that are not the same memory, and one for strings that are)",
-	"seen.first": "[seen.first dense growth] the dense index copies its words when it grows, which the model's cost does not count",
+	"env.bind": "[env.bind string compare] comparing a string with the value of the slot charges one unit for each byte (the model: two for each byte of strings that are not the same memory, and one for strings that are)",
 }
 
 // tsInputChargeDivergences are those of a parse of an input of some length, where the memo has one
 // slot for each position.
-var tsInputChargeDivergences = map[string]string{
-	"memo.store": "[memo.store first allocation] the first store allocates and charges a slot for each position of the input at once, where the model charges only the copy of a table that doubles",
-}
+var tsInputChargeDivergences = map[string]string{}
 
 // tsRuleChargeDivergences are those of the rules: rule.invoke with captures charges more than its cost
 // states.

@@ -1050,7 +1050,7 @@ func (p *TParser) memoGet(rule, pos, min int, env []any, docOnly bool) *tmemoEnt
 		return nil
 	}
 	h, _ := memoKeyHash(int32(rule), int32(min), env)
-	_, x := p.memoIndexAt(pos, nil).probe(h, func(x *tmemoEntry) bool {
+	_, x := p.memoIndexAt(pos).probe(h, func(x *tmemoEntry) bool {
 		return x.rule == int32(rule) && x.min == int32(min) && sameValues(x.env, env)
 	})
 	if x != nil {
@@ -1059,24 +1059,19 @@ func (p *TParser) memoGet(rule, pos, min int, env []any, docOnly bool) *tmemoEnt
 	return x
 }
 
-// memoIndexAt returns the hash index of the chain at pos, building it on first use; hash, if not
-// nil, computes the hash of an entry (and may charge for it).
-func (p *TParser) memoIndexAt(pos int, hash func(*tmemoEntry) uint64) memoIndex[tmemoEntry] {
-	if hash == nil {
-		hash = func(e *tmemoEntry) uint64 { h, _ := memoKeyHash(e.rule, e.min, e.env); return h }
-	}
-	return indexAt(&p.memoIndexes, &p.memoIndexBytes, pos, p.memoSlots[pos], func(e *tmemoEntry) *tmemoEntry { return e.next }, hash)
+// memoIndexAt returns the hash index of the chain at pos, building it on first use.
+func (p *TParser) memoIndexAt(pos int) memoIndex[tmemoEntry] {
+	return indexAt(&p.memoIndexes, &p.memoIndexBytes, pos, p.memoSlots[pos], func(e *tmemoEntry) *tmemoEntry { return e.next }, tentryHash)
 }
 
+// tentryHash is keyHash for the key of e.
+func tentryHash(e *tmemoEntry) uint64 { return keyHash(e.rule, e.min, e.env) }
+
+// memoGetControlled is memoGet under budget controls. As in Parser.memoGetControlled, the lookup
+// charges nothing: the call paid for the lookup of its key (ChargeKey).
 func (p *TParser) memoGetControlled(rule, pos, min int, key []any, ident bool) *tmemoEntry {
-	p.Spend()
 	// ident is set for a rule that only a Document parse memoizes: the lookup compares keys by identity and
 	// walks docOnlyScan entries (see there).
-	if p.Control.defaultCompute {
-		// As in Parser.memoGetControlled: the steps of the walk are work of the Document, and so is
-		// the comparison with an entry of an earlier text, which is charged once if that entry answers.
-		defer p.Control.FreeEnd(p.Control.FreeBegin(true))
-	}
 	if pos >= len(p.memoSlots) {
 		return nil
 	}
@@ -1086,13 +1081,7 @@ func (p *TParser) memoGetControlled(rule, pos, min int, key []any, ident bool) *
 	}
 	e, n := p.memoSlots[pos], 0
 	for ; e != nil && n < scan; e, n = e.next, n+1 {
-		p.Spend()
-		if e.rule == int32(rule) && e.min == int32(min) && p.keyMatches(e.env, key, ident, p.current(e.seen)) {
-			if ident {
-				p.countKeyMatch(e.env, key)
-			} else if !p.current(e.seen) {
-				p.countKeyEqual(e.env, key)
-			}
+		if e.rule == int32(rule) && e.min == int32(min) && p.keyMatches(e.env, key, ident) {
 			e.seen = p.stamp()
 			return e
 		}
@@ -1100,14 +1089,11 @@ func (p *TParser) memoGetControlled(rule, pos, min int, key []any, ident bool) *
 	if e == nil || ident {
 		return nil
 	}
-	ix := p.memoIndexAt(pos, func(e *tmemoEntry) uint64 { return p.hashMemoKey(e.rule, e.min, e.env) })
-	_, x := ix.probe(p.countedHash(int32(rule), int32(min), key), func(x *tmemoEntry) bool {
-		return x.rule == int32(rule) && x.min == int32(min) && p.keyMatches(x.env, key, false, p.current(x.seen))
+	ix := p.memoIndexAt(pos)
+	_, x := ix.probe(keyHash(int32(rule), int32(min), key), func(x *tmemoEntry) bool {
+		return x.rule == int32(rule) && x.min == int32(min) && keysEqual(x.env, key)
 	})
 	if x != nil {
-		if !p.current(x.seen) {
-			p.countKeyEqual(x.env, key)
-		}
 		x.seen = p.stamp()
 	}
 	return x
@@ -1151,7 +1137,7 @@ func (p *TParser) memoPut(rule, pos, min int, env []any, docOnly bool, e *tmemoE
 	}
 	if *link != nil {
 		// A long chain: the index finds the entry to replace, and a walk finds its link.
-		ix := p.memoIndexAt(pos, nil)
+		ix := p.memoIndexAt(pos)
 		h, _ := memoKeyHash(int32(rule), int32(min), env)
 		slot, x := ix.probe(h, same)
 		if x != nil && p.joinStored(x, e) == x {
@@ -1193,12 +1179,9 @@ func (p *TParser) joinStored(x, e *tmemoEntry) *tmemoEntry {
 	return e
 }
 
+// memoPutControlled is memoPut under budget controls. As in Parser.memoPutControlled, the store
+// charges nothing.
 func (p *TParser) memoPutControlled(rule, pos, min int, key []any, ident bool, e *tmemoEntry) *tmemoEntry {
-	p.Spend()
-	if p.Control.defaultCompute {
-		// The steps of the walk of the chain are work of the Document.
-		defer p.Control.FreeEnd(p.Control.FreeBegin(true))
-	}
 	slots := p.memoSlots
 	if pos >= len(slots) {
 		// Growing the slot array charges no unit (it grows to positions of counted calls, by
@@ -1215,14 +1198,13 @@ func (p *TParser) memoPutControlled(rule, pos, min int, key []any, ident bool, e
 	link := &slots[pos]
 	var replaced *tmemoEntry
 	same := func(x *tmemoEntry) bool {
-		return x == e || x.rule == int32(rule) && x.min == int32(min) && p.keyMatches(x.env, key, ident, p.current(x.seen))
+		return x == e || x.rule == int32(rule) && x.min == int32(min) && p.keyMatches(x.env, key, ident)
 	}
 	scan := memoScan
 	if ident {
 		scan = docOnlyScan
 	}
 	for n := 0; *link != nil && n < scan; link, n = &(*link).next, n+1 {
-		p.Spend()
 		if x := *link; same(x) {
 			replaced = x
 			break
@@ -1232,26 +1214,20 @@ func (p *TParser) memoPutControlled(rule, pos, min int, key []any, ident bool, e
 	var ixSlot uint64
 	if replaced == nil && *link != nil && !ident {
 		// A long chain: the index finds the entry to replace.
-		ix = indexAt(&p.memoIndexes, &p.memoIndexBytes, pos, slots[pos], func(e *tmemoEntry) *tmemoEntry { return e.next },
-			func(e *tmemoEntry) uint64 { return p.hashMemoKey(e.rule, e.min, e.env) })
-		ixSlot, replaced = ix.probe(p.countedHash(int32(rule), int32(min), key), same)
+		ix = indexAt(&p.memoIndexes, &p.memoIndexBytes, pos, slots[pos], func(e *tmemoEntry) *tmemoEntry { return e.next }, tentryHash)
+		ixSlot, replaced = ix.probe(keyHash(int32(rule), int32(min), key), same)
 		if replaced != nil {
 			link = &slots[pos]
 			for *link != replaced {
-				p.Spend()
 				link = &(*link).next
 			}
 		}
 	} else if replaced != nil {
 		// The entry replaced among the first of a long chain is indexed too.
 		if ix = p.memoIndexes[pos]; ix != nil {
-			ixSlot, _ = ix.probe(p.hashMemoKey(replaced.rule, replaced.min, replaced.env), func(y *tmemoEntry) bool { return y == replaced })
+			ixSlot, _ = ix.probe(keyHash(replaced.rule, replaced.min, replaced.env), func(y *tmemoEntry) bool { return y == replaced })
 		}
 	}
-	if ident && replaced != nil && replaced != e {
-		p.countKeyMatch(replaced.env, key)
-	}
-	p.Spend()
 	if replaced != nil && p.joinStored(replaced, e) == replaced {
 		return replaced
 	}

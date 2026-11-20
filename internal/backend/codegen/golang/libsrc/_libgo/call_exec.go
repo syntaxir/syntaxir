@@ -25,6 +25,9 @@ func (p *Parser) Call(r *Rule, min int) (*zpvalue.Node, bool) {
 		return v, ok
 	}
 	p.Spend()
+	if r.Leader || r.Memo && !(r.DocMemo && !r.Memo && !r.Leader) {
+		p.ChargeKey(r)
+	}
 	start := p.Pos
 	if !r.Memo && !r.Leader || p.FirstCall(r) {
 		if len(r.Scope) == 0 {
@@ -348,6 +351,9 @@ func (p *TParser) callBody(r *TRule, min int) (any, bool) {
 		return v, ok
 	}
 	p.Spend()
+	if r.Leader || r.Memo && !(r.DocMemo && !r.Memo && !r.Leader) {
+		p.ChargeKey(r.Rule)
+	}
 	start := p.Pos
 	if !r.Memo && !r.Leader || p.firstCall(r) {
 		if len(r.Scope) == 0 {
@@ -855,6 +861,9 @@ func (p *Parser) callMemo(r *Rule, min int) (*zpvalue.Node, bool) {
 // Printed from Exec IR function body of internal/ir/code/exec/compose, specialized for document, budget.
 func (p *Parser) callBody(r *Rule, min int) (*zpvalue.Node, bool) {
 	p.Spend()
+	if r.Leader || r.Memo && !(r.DocMemo && !r.Memo && !r.Leader) {
+		p.ChargeKey(r)
+	}
 	if p.Document != nil {
 		v, ok := p.callDocument(r, min)
 		return v, ok
@@ -891,6 +900,9 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 	var ok bool
 	var fm uint64
 	p.Spend()
+	if r.Leader || r.Memo && !(r.DocMemo && !r.Memo && !r.Leader) {
+		p.ChargeKey(r.Rule)
+	}
 	start := p.Pos
 	oldExamined, oldLow := p.docExamined, p.docLow
 	p.docExamined, p.docLow = start, start

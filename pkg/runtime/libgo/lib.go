@@ -1453,7 +1453,27 @@ func (p *Parser) memoEnv(r *Rule) []any {
 		return r.initVals
 	}
 	p.chargeValueBytes(len(r.varSlots) * int(anyBytes))
-	return p.envValues(r.varSlots)
+	return p.keyValues(r.varSlots)
+}
+
+// keyValues is envValues for a memo key, without charges: the call paid for its key (ChargeKey).
+func (p *Parser) keyValues(slots []int) []any {
+	if len(slots) > 0 {
+		p.use(featureVars)
+	}
+	if len(slots) == 0 {
+		return nil
+	}
+	if p.Env == nil && len(slots) <= len(noVals) {
+		return noVals[:len(slots):len(slots)]
+	}
+	vals := make([]any, len(slots))
+	for i, slot := range slots {
+		if slot >= 0 {
+			vals[i] = p.Env.get(slot, p.envDepth)
+		}
+	}
+	return vals
 }
 
 func (t *memoTable) alloc() *memoEntry {

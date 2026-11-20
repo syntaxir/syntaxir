@@ -47,16 +47,17 @@ func TestTypeScriptConformanceExecDetectsMutants(t *testing.T) {
 		{name: "a store replaces the entry of another level", sig: "memoPut(rule: number", old: "x.min === min", new: "true", suite: 0},
 		{name: "a store in a silent context narrows the entry", sig: "joinStored(x: MemoEntry", old: "if (!x.silent && e.silent) return x;", new: "", suite: 0},
 		{name: "a store keeps the entry of the silent context", sig: "joinStored(x: MemoEntry", old: "if (!x.silent && e.silent) return x;", new: "if (x.silent && !e.silent) return x;", suite: 0},
-		{name: "a lookup charges each entry twice", sig: "memoGet(rule: number", old: "this.spend();", new: "this.spend(2);", suite: 0, charges: true},
+		{name: "a lookup charges for the entries it walks", sig: "memoGet(rule: number", old: "if (e.rule === rule && e.min === min && sameValues(e.env, env)) {", new: "this.spend();\n      if (e.rule === rule && e.min === min && sameValues(e.env, env)) {", suite: 0, charges: true},
 		// Deferred memoization.
 		{name: "a rule is never eager", sig: "seenFirst(s: number", old: "this.eager[s] = 1;", new: "", suite: 0},
 		{name: "a rule becomes eager later", sig: "seenFirst(s: number", old: "(calls >> 4)", new: "(calls >> 3)", suite: 0},
 		// The variable environment.
 		{name: "an equal binding makes a new environment", sig: "bindValue(slot: number", old: "if (control === null ? old === val : equalValuesSpend(old, val, control)) return;", new: "", suite: 1},
 		{name: "a lookup reads another slot", sig: "variable(slot: number", old: "envGet(this.env!, slot, this.envDepth)", new: "envGet(this.env!, 0, this.envDepth)", suite: 1},
-		{name: "a key leaves out all but its first variable", sig: "envValues(slots: number[]", old: "this.variable(slots[i]!)", new: "this.variable(slots[0]!)", suite: 1},
+		{name: "a key leaves out all but its first variable", sig: "keyValues(slots: number[]", old: "envGet(this.env!, slots[i]!, this.envDepth)", new: "envGet(this.env!, slots[0]!, this.envDepth)", suite: 1},
 		{name: "a lookup charges nothing", sig: "variable(slot: number", old: "this.spend(this.envDepth + 1);", new: "", suite: 1, charges: true},
-		{name: "a key charges nothing for its reads", sig: "envValues(slots: number[]", old: "this.spend();", new: "", suite: 1, charges: true},
+		{name: "a key charge leaves out its strings", sig: "chargeKey(r: Rule)", old: "n += utf8Len(v);", new: "n += 0;", suite: 1, charges: true},
+		{name: "a key charges for its reads", sig: "keyValues(slots: number[]", old: "vals[i] = envGet(this.env!, slots[i]!, this.envDepth);", new: "this.spend();\n      vals[i] = envGet(this.env!, slots[i]!, this.envDepth);", suite: 1, charges: true},
 		// The recovered errors.
 		{name: "since leaves the entries in place", sig: "recSince(rec: number", old: "this.recovered.length = rec;", new: "", suite: 2},
 		{name: "since charges nothing for the copy", sig: "recSince(rec: number", old: "copyEntriesSpend(this.recovered, rec, end, this.control)", new: "this.recovered.slice(rec)", suite: 2, charges: true},

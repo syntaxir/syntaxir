@@ -360,47 +360,46 @@ operations charges the same units for its next parse.
 A **chain** is the sequence of memo entries at one position, live or dropped
 ([Reuse Model](#reuse-model)), in the order a lookup passes them. An entry
 **lags** when it lags behind by more than 128 edits, the entry that a lookup
-treats as absent ([Reuse](#reuse)). The **size** of a key is one, plus one for each variable it
-holds, plus the length of each string among their values.
+treats as absent ([Reuse](#reuse)).
 
 **Edits.** An edit charges no Compute. A Document keeps a log of the edits since
 its memo was last dropped. The edit that finds 65,536 edits in the log drops the
 memo entries and the run records and empties the log instead of adding to it, so
 a parse finds at most 65,536 pending edits.
 
-**Lookups.** A lookup charges one unit, and then:
+**Lookups.** A lookup charges nothing for finding an entry: the call of the rule
+paid for the lookup of its key ([Cost](parsing.md#cost)), whatever the lookup
+compares. The work of a lookup stays bounded by that payment:
 
-- for each entry of the chain that it passes, one unit, and for an entry of the
-  same rule, the comparison of the keys: at most one unit for each variable,
-  and for a string compared with a string of the same length, at most twice its
-  length; a lookup of a rule that only a Document memoizes compares strings by
-  identity, at one unit for each variable;
-- for each lagging entry that it meets, one unit, and it removes the entry from
-  the chain without comparing it;
+- it passes the entries of the chain, compares the keys of the entries of the
+  same rule (a lookup of a rule that only a Document memoizes compares strings by
+  identity), and removes each lagging entry that it meets from the chain without
+  comparing it; each entry is removed once, after the counted call that stored
+  it;
 - it compares at most 32 entries that do not lag; on a chain that holds more, a
   lookup of a rule that a parse from scratch memoizes too then removes every
-  lagging entry of the chain, at one unit each, builds the index of the position
-  if it has none, hashes its own key and probes the index, comparing its key with
-  at most as many entries as the chain holds. A lookup of a rule that only a
-  Document memoizes stops after the 32 entries and misses;
-- building an index hashes the key of each entry of the chain, and hashing a key
-  charges its size. Only an edit and the removal of a lagging entry drop the
-  index of a position, so a parse builds the index of a position at most once;
+  lagging entry of the chain, builds the index of the position if it has none,
+  hashes its own key and probes the index, comparing its key with at most as
+  many entries as the chain holds. A lookup of a rule that only a Document
+  memoizes stops after the 32 entries and misses;
+- building an index hashes the key of each entry of the chain. Only an edit and
+  the removal of a lagging entry drop the index of a position, so a parse builds
+  the index of a position at most once;
 - when the entry it finds does not account for every edit of the log, it
   applies the pending edits to the entry, one unit for each, at most 128
-  ([Reuse](#reuse)), since an entry that lags is never found.
+  ([Reuse](#reuse)), since an entry that lags is never found. This is the only
+  charge of a lookup.
 
-**Stores.** A store charges one unit, walks and indexes the chain as a lookup
-does to find the entry it replaces, and charges one more unit to link the new
-entry. When the entry it replaces lies beyond the first 32, it walks the chain
-up to it, one unit for each entry it passes; when it lies among them and the
-position has an index, it hashes the key it replaces. A store of a rule that only a Document memoizes walks at most
+**Stores.** A store charges nothing: it walks and indexes the chain as a lookup
+does to find the entry it replaces, and links the new entry. When the entry it
+replaces lies beyond the first 32, it walks the chain up to it; when it lies
+among them and the position has an index, it hashes the key it replaces. A store of a rule that only a Document memoizes walks at most
 32 entries, as its lookup does, and when none of them is the entry it replaces,
 it links the new entry in front of the chain and replaces none. A store never
 narrows the calls that the entry it finds answers
 ([Evaluations of Rules](parsing.md#evaluations-of-rules)): when that entry was
 computed outside a lookahead and the new one inside one, it keeps that entry and
-links nothing, with the same charges. In the reference implementation it first
+links nothing. In the reference implementation it first
 applies to that entry the edits that it does not account for, as a lookup does;
 an entry that cannot take them is replaced, and so is an entry whose value an
 edit shifted and the generated typed Go code cannot move. A store at a position

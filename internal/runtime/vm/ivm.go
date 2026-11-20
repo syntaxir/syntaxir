@@ -181,6 +181,7 @@ func (mc *ivmMachine) ruleCallFrame(vm *Program, rule, min int) iframe {
 	p := mc.p
 	r := vm.rules[rule]
 	if vm.direct[rule] {
+		p.Spend() // the unit of the call (CallPlain)
 		return mc.plainCallFrame(r, min)
 	}
 	if p.Tr != nil {
@@ -189,6 +190,7 @@ func (mc *ivmMachine) ruleCallFrame(vm *Program, rule, min int) iframe {
 	// What callChild does, written out on this hot path
 	if !p.MemoAll && (!p.Memoizes(r) || p.FirstCall(r)) || p.MemoAll && p.DirectCallDoc(r) {
 		if len(r.Scope.Names) == 0 {
+			p.CallCharge(r)
 			return mc.plainCallFrame(r, min)
 		}
 		return mc.callFrame(r, min, false)
@@ -201,6 +203,7 @@ func (mc *ivmMachine) callChild(r *state.Rule, min int) iframe {
 	p := mc.p
 	if !p.MemoAll && (!p.Memoizes(r) || p.FirstCall(r)) || p.MemoAll && p.DirectCallDoc(r) {
 		if len(r.Scope.Names) == 0 {
+			p.CallCharge(r)
 			return mc.plainCallFrame(r, min)
 		}
 		return mc.callFrame(r, min, false)
@@ -401,11 +404,7 @@ func (f *callFrame) next(mc *ivmMachine, vm *Program, res iresult) (iframe, ires
 	r := f.r
 	switch f.state {
 	case cBegin:
-		if p.MemoAll {
-			p.DocCallSpend(r) // the charge of Parser.Call
-		} else {
-			p.Spend()
-		}
+		p.CallCharge(r) // the charge of Parser.Call
 		if !f.memoized {
 			f.start, f.rec = p.Pos, len(p.Recovered)
 			return f.invoke(mc), iresult{}, false

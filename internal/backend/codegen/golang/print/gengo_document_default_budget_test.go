@@ -46,9 +46,10 @@ func TestGeneratedDocumentMemoLagBoundary(t *testing.T) {
 	runDocumentBudgetFixture(t, "rule main = "+item+" $$\nrule item = [a-z]+ \" \" #atomic", fixtureLag)
 }
 
-// The comparison of memo keys costs what it does: a key whose string is the same bytes compares in a
-// constant. A generated Document parse completes on a text whose key is long, and does a constant factor
-// of the work of a parse from scratch, however long the text, whether the rule that the key belongs to
+// A call of a rule that a parse from scratch memoizes pays for the bytes of the strings in its key, and
+// comparing keys charges nothing. On a text whose key is long, a generated Document parse counts a
+// constant factor of the units of a parse from scratch, however long the text, and under the default
+// limits it completes exactly when the parse from scratch does, whether the rule that the key belongs to
 // is memoized by a parse from scratch too or only by a Document.
 func TestGeneratedDocumentCountsMemoKeyWork(t *testing.T) {
 	t.Parallel()
@@ -468,24 +469,27 @@ func TestMemoKeyWorkWithinFresh(t *testing.T) {
       if err != nil && !errors.Is(err, ErrLimit) { t.Fatal(err) }
       return err == nil
     }
-    lo, hi := uint64(1), uint64(1)<<30
+    lo, hi := uint64(1), uint64(1)<<40
     if ok(lo) || !ok(hi) { t.Fatal("range") }
     for hi-lo > 1 {
       if mid := (lo + hi) / 2; ok(mid) { hi = mid } else { lo = mid }
     }
     return hi
   }
-  for _, n := range []int{2000, 64000} {
+  for _, n := range []int{500, 2000, 64000} {
     text := strings.Repeat("a", n) + ";" + strings.Repeat("b", n)
     fresh, doc := least(text, false), least(text, true)
     t.Logf("n=%d: fresh %d units, Document %d units", n, fresh, doc)
     if doc > 3*fresh {
       t.Errorf("n=%d: a Document parse needs %d units, more than 3 times the %d of a parse from scratch", n, doc, fresh)
     }
-    // Under the default limit the Document parse completes.
+    // Under the default limits the Document parse completes exactly when the parse from scratch does.
     d, err := NewDocument(text)
     if err != nil { t.Fatal(err) }
-    if _, err := d.Parse(); err != nil { t.Errorf("n=%d: Document parse under the default limits: %.80v", n, err) }
+    _, derr := d.Parse()
+    _, ferr := Parse(text)
+    if (derr == nil) != (ferr == nil) { t.Errorf("n=%d: under the default limits the Document parse ends with %.80v, the parse from scratch with %.80v", n, derr, ferr) }
+    t.Logf("n=%d: under the default limits the Document parse ends with %v", n, derr)
   }
 }
 `

@@ -100,7 +100,7 @@ func TestCharges(t *testing.T) {
 	for u, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
 		for i, in := range inputs {
 			run := func(l uint64) string {
-				_, err := Parse(in, WithUnit(unit), WithLimits(Limits{Compute: l}))
+				_, err := PARSE(in, WithUnit(unit), WithLimits(Limits{Compute: l}))
 				return report(err)
 			}
 			var at []string
@@ -269,8 +269,9 @@ var chargeSettings = []struct {
 
 // generatedGoCharges generates a Go parser for each case, with the optimizations noOpt off, and
 // returns the output of its consumer: the CHARGE lines for the inputs of the case and the limits of
-// its reference.
-func generatedGoCharges(t *testing.T, cases []chargeCase, refs []chargeRef, noOpt []string) []string {
+// its reference. With typed, the parser is the typed parser and the consumer runs ParseValue, whose
+// conversion of the result charges nothing, so that its units are those of the typed parse.
+func generatedGoCharges(t *testing.T, cases []chargeCase, refs []chargeRef, noOpt []string, typed bool) []string {
 	t.Helper()
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(codegentest.GoModAt("fixture", codegentest.LibCopy())), 0o644); err != nil {
@@ -282,12 +283,19 @@ func generatedGoCharges(t *testing.T, cases []chargeCase, refs []chargeRef, noOp
 			t.Fatal(err)
 		}
 		pkg := fmt.Sprintf("p%d", k)
-		code, err := codegentest.GenerateCode(t, g, common.GenOptions{Package: pkg, Start: "main", NoOpt: noOpt})
+		code, err := codegentest.GenerateCode(t, g, common.GenOptions{Package: pkg, Start: "main", NoOpt: noOpt, Types: typed})
 		if err != nil {
 			t.Fatalf("%s: %v", c.name, err)
 		}
+		if typed && !strings.Contains(string(code), "TParse(") {
+			t.Fatalf("%s: no typed parser", c.name)
+		}
+		parse := "Parse("
+		if typed {
+			parse = "ParseValue("
+		}
 		inputs, limits := refs[k].literals(c, false)
-		consumer := strings.NewReplacer("PKG", pkg, "INPUTS", inputs, "LIMITS", limits).Replace(chargeGoConsumer)
+		consumer := strings.NewReplacer("PKG", pkg, "INPUTS", inputs, "LIMITS", limits, "PARSE(", parse).Replace(chargeGoConsumer)
 		if err := os.MkdirAll(filepath.Join(dir, pkg), 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -322,9 +330,9 @@ func generatedTSCharges(t *testing.T, c chargeCase, ref chargeRef, noOpt []strin
 	return codegentest.RunTSGrammarScriptBundle(t, g, script, common.GenOptions{Start: "main", LimitControls: true, Expectations: true, NoOpt: noOpt}, codegentest.GenerateTSBundle)
 }
 
-// TestChargeAgreementGenerated compares the units of generated Go and TypeScript parsers, with the
-// default optimizations and with every optimization off, with the closure backend on the charge
-// cases and the testdata corpora.
+// TestChargeAgreementGenerated compares the units of generated Go parsers (Parse, and ParseValue of
+// the typed parser) and TypeScript parsers, with the default optimizations and with every
+// optimization off, with the closure backend on the charge cases and the testdata corpora.
 func TestChargeAgreementGenerated(t *testing.T) {
 	codegentest.NeedsBudgetControls(t)
 	cases := append([]chargeCase{}, chargeCases...)
@@ -337,8 +345,13 @@ func TestChargeAgreementGenerated(t *testing.T) {
 	}
 	for _, s := range chargeSettings {
 		t.Run(s.name+"/go", func(t *testing.T) {
-			for k, out := range generatedGoCharges(t, cases, refs, s.noOpt) {
+			for k, out := range generatedGoCharges(t, cases, refs, s.noOpt, false) {
 				refs[k].compare(t, cases[k], "generated Go "+s.name, out)
+			}
+		})
+		t.Run(s.name+"/go typed", func(t *testing.T) {
+			for k, out := range generatedGoCharges(t, cases, refs, s.noOpt, true) {
+				refs[k].compare(t, cases[k], "generated Go typed "+s.name, out)
 			}
 		})
 		t.Run(s.name+"/typescript", func(t *testing.T) {
@@ -371,44 +384,64 @@ func chargeTotalsOf(t *testing.T, out string, inputs int) [2][]uint64 {
 	return totals
 }
 
-// TestIterationsChargeOneUnitEachGenerated is TestIterationsChargeOneUnitEach for generated Go and
-// TypeScript parsers, with the default optimizations and with every optimization off.
+// TestIterationsChargeOneUnitEachGenerated is TestIterationsChargeOneUnitEach for generated Go
+// parsers (Parse and typed ParseValue) and TypeScript parsers, with the default optimizations and
+// with every optimization off.
 func TestIterationsChargeOneUnitEachGenerated(t *testing.T) {
+	var vs []unitVariant
+	for _, v := range iterationVariants {
+		vs = append(vs, unitVariant{v.name, v.grammar, v.unrolled, v.input, v.iterations})
+	}
+	checkVariantsGenerated(t, "its iterations", vs)
+}
+
+// TestCallsChargeTheirUnitsGenerated is TestCallsChargeTheirUnits for generated Go parsers (Parse
+// and typed ParseValue) and TypeScript parsers, with the default optimizations and with every
+// optimization off.
+func TestCallsChargeTheirUnitsGenerated(t *testing.T) {
+	var vs []unitVariant
+	for _, v := range callVariants {
+		vs = append(vs, unitVariant{v.name, v.grammar, v.reference, v.input, v.calls})
+	}
+	checkVariantsGenerated(t, "its calls", vs)
+}
+
+// unitVariant is a grammar whose units on an input exceed those of a reference grammar by more.
+type unitVariant struct {
+	name, grammar, reference, input string
+	more                            uint64
+}
+
+// checkVariantsGenerated checks the variants on generated Go and TypeScript parsers, with the default
+// optimizations and with every optimization off; what names the units that the variants differ by.
+func checkVariantsGenerated(t *testing.T, what string, vs []unitVariant) {
 	codegentest.NeedsBudgetControls(t)
 	var cases []chargeCase
-	for _, v := range iterationVariants {
-		cases = append(cases, chargeCase{v.name, v.grammar, []string{v.input}}, chargeCase{v.name + " written out", v.unrolled, []string{v.input}})
+	for _, v := range vs {
+		cases = append(cases, chargeCase{v.name, v.grammar, []string{v.input}}, chargeCase{v.name + " reference", v.reference, []string{v.input}})
 	}
 	// No limits below the units: only the units are compared.
 	refs := make([]chargeRef, len(cases))
 	for k := range refs {
 		refs[k].limits = [2][][]uint64{{nil}, {nil}}
 	}
-	// known lists the variants whose written-out grammar a target does not yet charge like the
-	// repetition for a reason other than the iterations; each must still differ, so that the change
-	// that removes the cause also removes its entry.
-	check := func(t *testing.T, name string, outs []string, known map[string]bool) {
+	check := func(t *testing.T, name string, outs []string) {
 		t.Helper()
-		for k, v := range iterationVariants {
+		for k, v := range vs {
 			got, base := chargeTotalsOf(t, outs[2*k], 1), chargeTotalsOf(t, outs[2*k+1], 1)
 			for u, unit := range []string{"codepoints", "bytes"} {
-				if known[v.name] {
-					if got[u][0] == base[u][0]+v.iterations {
-						t.Errorf("%s: %s: %s: charges like its written-out grammar: remove it from the known differences", name, v.name, unit)
-					}
-					continue
-				}
-				if got[u][0] != base[u][0]+v.iterations {
-					t.Errorf("%s: %s: %s: %q: %d units for\n%s\nand %d for\n%s\nwant %d more for its iterations", name, v.name, unit, v.input, got[u][0], v.grammar, base[u][0], v.unrolled, v.iterations)
+				if got[u][0] != base[u][0]+v.more {
+					t.Errorf("%s: %s: %s: %q: %d units, %d more than the reference, want %d more for %s\n%s\nreference:\n%s", name, v.name, unit, v.input, got[u][0], int64(got[u][0])-int64(base[u][0]), v.more, what, v.grammar, v.reference)
 				}
 			}
 		}
 	}
 	for _, s := range chargeSettings {
 		t.Run(s.name+"/go", func(t *testing.T) {
-			// The recognizer that generated Go calls for !item charges one unit for the call and the
-			// body together, where a call of item charges one for each.
-			check(t, "generated Go "+s.name, generatedGoCharges(t, cases, refs, s.noOpt), map[string]bool{"rule element": true})
+			check(t, "generated Go "+s.name, generatedGoCharges(t, cases, refs, s.noOpt, false))
+		})
+		t.Run(s.name+"/go typed", func(t *testing.T) {
+			check(t, "generated Go typed "+s.name, generatedGoCharges(t, cases, refs, s.noOpt, true))
 		})
 		t.Run(s.name+"/typescript", func(t *testing.T) {
 			if _, err := exec.LookPath("node"); err != nil {
@@ -418,7 +451,7 @@ func TestIterationsChargeOneUnitEachGenerated(t *testing.T) {
 			for k, c := range cases {
 				outs[k] = generatedTSCharges(t, c, refs[k], s.noOpt)
 			}
-			check(t, "generated TypeScript "+s.name, outs, nil)
+			check(t, "generated TypeScript "+s.name, outs)
 		})
 	}
 }

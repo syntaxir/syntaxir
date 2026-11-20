@@ -3153,12 +3153,12 @@ export class Parser {
 
   // memoGet returns the entry for the rule, position, level and variable values. A lookup walks the
   // first memoScan entries of the position's chain and then asks the position's hash index, so
-  // it costs the size of its key and not the length of the chain.
+  // it costs the size of its key and not the length of the chain. It charges nothing: the call paid
+  // for the lookup of its key (chargeKey).
   memoGet(rule: number, pos: number, min: number, env: Value[] | null): MemoEntry | null {
     let e = this.slots[pos] || null;
     for (let n = 0; e && n < memoScan; e = e.next, n++) {
-      this.spend();
-      if (e.rule === rule && e.min === min && sameValues(e.env, env, this.control)) {
+      if (e.rule === rule && e.min === min && sameValues(e.env, env)) {
         return e;
       }
     }
@@ -3166,7 +3166,7 @@ export class Parser {
       return null;
     }
     const ix = this.memoIndexAt(pos);
-    return this.memoProbe(ix, memoKeyHash(rule, min, env, this.control), (x) => x.rule === rule && x.min === min && sameValues(x.env, env, this.control));
+    return this.memoProbe(ix, memoKeyHash(rule, min, env, null), (x) => x.rule === rule && x.min === min && sameValues(x.env, env));
   }
 
   /** memoIndex holds the hash index of each position whose chain has more than memoScan entries. */
@@ -3197,7 +3197,7 @@ export class Parser {
       ix = new Map();
       this.alloc(2 * mapEntryBytes + mapBytes);
       for (let e = this.slots[pos] || null; e; e = e.next) {
-        this.memoProbe(ix, memoKeyHash(e.rule, e.min, e.env, this.control), () => false);
+        this.memoProbe(ix, memoKeyHash(e.rule, e.min, e.env, null), () => false);
         ix.set(this.memoSlot, e);
         this.alloc(mapEntryBytes);
       }
@@ -3207,15 +3207,15 @@ export class Parser {
   }
 
   // memoPut stores e under the key, replacing an entry with the same key unless the join of the two
-  // keeps that entry (joinStored), and returns the entry it keeps.
+  // keeps that entry (joinStored), and returns the entry it keeps. The store charges nothing: it
+  // follows the evaluation of a body that counted, and its walk costs what memoGet's does.
   memoPut(rule: number, pos: number, min: number, env: Value[] | null, e: MemoEntry): MemoEntry {
     this.alloc(entryBytes);
-    const same = (x: MemoEntry): boolean => x === e || (x.rule === rule && x.min === min && sameValues(x.env, env, this.control));
+    const same = (x: MemoEntry): boolean => x === e || (x.rule === rule && x.min === min && sameValues(x.env, env));
     let prev: MemoEntry | null = null;
     let x = this.slots[pos] || null;
     let replaced: MemoEntry | null = null;
     for (let n = 0; x && n < memoScan; prev = x, x = x.next, n++) {
-      this.spend();
       if (same(x)) {
         replaced = x;
         break;
@@ -3226,12 +3226,12 @@ export class Parser {
     if (replaced === null && x) {
       // A long chain: the index finds the entry to replace.
       ix = this.memoIndexAt(pos);
-      replaced = this.memoProbe(ix, memoKeyHash(rule, min, env, this.control), same);
+      replaced = this.memoProbe(ix, memoKeyHash(rule, min, env, null), same);
       ixSlot = this.memoSlot;
       if (replaced !== null) {
         prev = null;
         for (let y = this.slots[pos] || null; y !== replaced; prev = y, y = y!.next) {
-          this.spend();
+          // (the walk finds the link of the entry)
         }
       }
     } else if (replaced !== null) {
@@ -3239,7 +3239,7 @@ export class Parser {
       ix = this.memoIndex?.get(pos);
       if (ix !== undefined) {
         const r = replaced;
-        this.memoProbe(ix, memoKeyHash(r.rule, r.min, r.env, this.control), (y) => y === r);
+        this.memoProbe(ix, memoKeyHash(r.rule, r.min, r.env, null), (y) => y === r);
         ixSlot = this.memoSlot;
       }
     }
@@ -3288,6 +3288,36 @@ export class Parser {
     if (!x.silent && e.silent) return x;
     e.present = x.present;
     return e;
+  }
+
+  // keyValues is envValues for a memo key, without charges: the call paid for its key (chargeKey).
+  keyValues(slots: number[]): Value[] | null {
+    if (slots.length === 0) {
+      return null;
+    }
+    const vals: Value[] = new Array(slots.length);
+    this.alloc(arrayBytes(slots.length));
+    for (let i = 0; i < slots.length; i++) {
+      vals[i] = envGet(this.env!, slots[i]!, this.envDepth);
+    }
+    return vals;
+  }
+
+  // chargeKey charges the lookup of the memo key of a call of r, a rule that a parse from scratch
+  // memoizes (budget.chargeKey): one unit for each variable r reads and one for each byte of the
+  // UTF-8 encoding of each string value among them, whether or not the call looks the key up.
+  chargeKey(r: Rule): void {
+    if (this.control === null || r.vars.length === 0) {
+      return;
+    }
+    let n = r.vars.length;
+    for (const slot of r.vars) {
+      const v = envGet(this.env!, slot, this.envDepth);
+      if (typeof v === "string") {
+        n += utf8Len(v);
+      }
+    }
+    this.spendUnits(n);
   }
 
   // envValues returns the current values of the variables in slots (null for none).
@@ -4053,14 +4083,13 @@ export class Parser {
   // Page directories hold integer arena offsets, avoiding one typed-array
   // object per page. Chunks contain 64 pages of 1,024 position bits each.
   markSparseSeen(pos: number, s: number): boolean {
-    this.spend();
     if (this.seenPages === null) {
       this.seenPages = [];
       this.seenPageChunks = [];
       this.alloc(2 * arrayBytes(0));
     }
-    // Growing the record charges no unit beyond the check: it grows to the positions and rules of
-    // counted calls, by pages of 1,024 positions.
+    // Recording the call charges nothing, and neither does growing the record: it grows to the
+    // positions and rules of counted calls, by pages of 1,024 positions.
     let pages = this.seenPages[s];
     if (pages === undefined) {
       pages = [];

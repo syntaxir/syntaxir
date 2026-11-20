@@ -63,12 +63,12 @@ func TestMemoStorePolicy(t *testing.T) {
 	}
 }
 
-// TestMemoStorePolicyReferenceCounts pins what the reference implementation does within the policy,
-// which the policy does not require and TestMemoStorePolicy does not: an ordinary parse defers
-// the first call of a rule at a position until repeated calls exceed a sixteenth of its calls (the
-// adaptive switch of FirstCall), so it evaluates the rule exactly as often as the model of
-// codegentest.StorePolicyCase says; a stream memoizes every first call. A change of that choice,
-// for example one that stores every first call, is allowed by the policy and updates this test.
+// TestMemoStorePolicyReferenceCounts checks the exact store policy of "Evaluations of Rules" in
+// spec/runtime/parsing.md, which TestMemoStorePolicy does not: an ordinary parse defers the first
+// call of a rule at a position until repeated calls exceed a sixteenth of its calls (the adaptive
+// switch of FirstCall), so it evaluates the rule exactly as often as the model of
+// codegentest.StorePolicyCase says; a stream memoizes every first call. The generated Go and
+// TypeScript libraries are held to the same model.
 func TestMemoStorePolicyReferenceCounts(t *testing.T) {
 	t.Parallel()
 	for _, c := range codegentest.StorePolicyCases() {

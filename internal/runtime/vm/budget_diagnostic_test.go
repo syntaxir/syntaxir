@@ -73,7 +73,8 @@ func TestBudgetDiagnosticRecoveredLists(t *testing.T) {
 				switch name {
 				case "memo replay":
 					p.Memo.Slots[0] = &state.MemoEntry{Rule: 7, Ok: true, End: 1, Node: retained, Errs: list}
-					steps += 2 // lookup and entry visit; the replay is free
+					// The lookup charges nothing: the call paid for its key (budget.chargeKey); the
+					// replay is free.
 					var ok, hit bool
 					var val *value.Node
 					run = func() { val, ok, hit = p.CallBegin(r, 0, &state.CallState{}) }
@@ -89,7 +90,7 @@ func TestBudgetDiagnosticRecoveredLists(t *testing.T) {
 					p.CallBegin(r, 0, &st)
 					p.Pos = 1
 					pushRecords()
-					steps += 2 // atomic memo put after the snapshot
+					// The memo put after the snapshot charges nothing (memo.store).
 					run = func() { p.CallEnd(r, &st, retained, true) }
 					completed = func() {
 						assertSnapshot(p.Memo.Slots[0].Errs)

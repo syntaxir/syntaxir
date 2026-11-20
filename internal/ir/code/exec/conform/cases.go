@@ -515,6 +515,18 @@ func addEnvironmentCases(add func(string, ref.Config, func(*code.Builder))) {
 		r = b.LetN([]string{"e6", "f6"}, code.C("memo.lookup", append(memo(0, code.C("env.key", rule(0))), noDocOnly)...))
 		b.Assert(r[1], "a rule that reads no variable has one key")
 	})
+	// A call of a memoized rule pays for its key: one unit for each variable the rule reads and one for
+	// each byte of each string among their values, whatever the memo holds.
+	add("budget_charge_key", keyed, func(b *code.Builder) {
+		b.Do("budget.chargeKey", rule(0))
+		b.Do("budget.chargeKey", rule(1))
+		b.Do("budget.chargeKey", rule(2))
+		b.Do("env.bind", code.Int(2), datum(1000+40))
+		b.Do("budget.chargeKey", rule(2))
+		b.Do("env.bind", code.Int(0), datum(1000+7))
+		b.Do("budget.chargeKey", rule(1))
+		b.Do("budget.chargeKey", rule(2))
+	})
 	wide := ref.Config{Vars: vars(300), RuleVars: [][]int64{{0, 17, 299}, {}}}
 	add("env_keys_wide", wide, func(b *code.Builder) {
 		b.Do("env.key", rule(0))
@@ -668,7 +680,7 @@ func Random(name string, rng *rand.Rand, opNames []string, n int, cfg ref.Config
 				}
 				i := rng.IntN(len(lists))
 				args, exprs = append(args, listRefs[i]), append(exprs, code.L(lists[i]))
-			case "env.key":
+			case "env.key", "budget.chargeKey":
 				if len(cfg.RuleVars) == 0 {
 					continue
 				}

@@ -457,7 +457,7 @@ func TestScanSitesInConcurrentParses(t *testing.T) {
 }
 
 // TestScanSitesChargeIsPinned pins the steps that parses of scanSpanProbe charge with and without
-// scan sites, on each backend, for a run of spaces as long as the hot span and one four characters
+// scan sites, the same on each backend, for a run of spaces as long as the hot span and one four characters
 // longer. The charge of a hit walk is one step for the lookup, one more for the slot of a record it
 // finds, one for a record it stores, and none for the characters the record skips (see "Scan Sites"
 // in spec/runtime/parsing.md); each of the units, and the characters that are charged, change these
@@ -471,9 +471,9 @@ func TestScanSitesChargeIsPinned(t *testing.T) {
 	prog, plain := mustCompile(t, scanSpanProbe), compileWithoutScanSites(t, scanSpanProbe)
 	type steps struct{ scan, plain uint64 }
 	want := map[Backend]map[int]steps{
-		Closure:           {16: {276, 270}, 20: {308, 318}},
-		Bytecode:          {16: {276, 270}, 20: {308, 318}},
-		BytecodeIterative: {16: {256, 250}, 20: {288, 298}},
+		Closure:           {16: {265, 259}, 20: {297, 307}},
+		Bytecode:          {16: {265, 259}, 20: {297, 307}},
+		BytecodeIterative: {16: {265, 259}, 20: {297, 307}},
 	}
 	for b, byLen := range want {
 		for n, w := range byLen {

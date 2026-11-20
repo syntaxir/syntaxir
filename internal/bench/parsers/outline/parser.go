@@ -635,6 +635,7 @@ func r5(p *rt.Parser) (*zpvalue.Node, bool) {
 
 func r8(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var start, size, x1, x2 int
 	var v *zpvalue.Node
 	var ch rune
@@ -676,6 +677,7 @@ fail:
 }
 
 func r9(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1 int
 	var v *zpvalue.Node
@@ -987,6 +989,7 @@ func q4(p *rt.Parser) (*zpvalue.Node, bool) {
 
 func q5(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var start, size, x1, x2 int
 	var v *zpvalue.Node
 	var ch rune
@@ -1026,6 +1029,7 @@ fail:
 }
 
 func q6(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1 int
 	var v *zpvalue.Node
@@ -1069,6 +1073,7 @@ fail:
 }
 
 func q7(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var start, size, x1, x2 int
 	var v *zpvalue.Node
@@ -1114,6 +1119,7 @@ var trules []*rt.TRule
 
 // rule main
 func u0(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start := p.Pos
 	v, ok := i0(p)
 	if !ok {
@@ -1177,6 +1183,8 @@ fail:
 
 // rule block
 func u1(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[1])
 	if !p.FirstCall(rules[1]) {
 		return p.CallMemo(trules[1], i1)
 	}
@@ -1277,6 +1285,7 @@ fail:
 
 // rule item
 func u2(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start := p.Pos
 	v, ok := i2(p)
 	if !ok {
@@ -1356,6 +1365,7 @@ fail:
 
 // rule children
 func u3(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start := p.Pos
 	v, ok := i3(p)
 	if !ok {
@@ -1468,6 +1478,7 @@ fail:
 
 func s4(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x1, x3, x5 int
 	var v, v7 any
 	var x2, ok bool
@@ -1517,6 +1528,7 @@ func s4(p *rt.TParser) (any, bool) {
 
 func s5(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x1, size, x2, x3 int
 	var v, v4 any
 	var ch rune
@@ -1562,6 +1574,7 @@ fail:
 
 func s8(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, size, x1, x2 int
 	var v any
 	var ch rune
@@ -1603,6 +1616,7 @@ fail:
 }
 
 func s9(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1 int
 	var v any
@@ -1647,4 +1661,4 @@ fail:
 
 const _ = types.ZPSchema_3851c59bf7b450ca
 
-const _ = rt.Protocol22
+const _ = rt.Protocol23

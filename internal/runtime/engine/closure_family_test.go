@@ -87,17 +87,17 @@ func familyCharges(t *testing.T, prog *Program, b Backend, input string, stream 
 }
 
 // TestClosureFamilyCharges pins the budget charge (the least compute limit) of every kind of
-// closure parse, traced and untraced. The numbers are those of the closure backend when each call
-// site tested Parser.NoPlain at run time: each parse runs the family that keeps them. A call of a
-// plain rule through Parser.Call charges more than the plain path, so a parse that ran the wrong
-// family changes a number. A stream parse of the default build also charges for walking and
-// clearing the capture frames it keeps for reuse at each commit, which the reference build of
-// stream frames drops instead, so the stream numbers are those of the build.
+// closure parse, traced and untraced. A call charges the same units on the plain path and through
+// Parser.Call (spec/runtime/parsing.md#cost), so each family charges the cost of the parse, and the
+// numbers are those of the bytecode machines (TestVMFamilyCharges) except for the work that only a
+// Document does. A traced parse charges more, for merging the expectations of the traced calls. A stream parse of the default build also charges for walking and clearing the capture
+// frames it keeps for reuse at each commit, which the reference build of stream frames drops
+// instead, so the stream numbers are those of the build.
 func TestClosureFamilyCharges(t *testing.T) {
 	t.Parallel()
-	stream := map[string]uint64{"stream": 125, "stream+trace": 135}
+	stream := map[string]uint64{"stream": 126, "stream+trace": 130}
 	if !state.StreamFrameScratch {
-		stream = map[string]uint64{"stream": 121, "stream+trace": 131}
+		stream = map[string]uint64{"stream": 122, "stream+trace": 126}
 	}
 	cases := []struct {
 		name, src string
@@ -106,10 +106,10 @@ func TestClosureFamilyCharges(t *testing.T) {
 		stream    bool
 		want      map[string]uint64
 	}{
-		{"plain calls", "rule main = item* $$\nrule item = \"a\"", compile.Options{}, "aaaa", false, map[string]uint64{"document": 53, "document+trace": 61, "parse": 27, "parse+trace": 40, "prefix": 26, "prefix+trace": 39, "recognize": 27, "recognize+trace": 40}},
-		{"plain calls, no memo", "rule main = item* $$\nrule item = \"a\"", compile.Options{DisableMemo: true}, "aaaa", false, map[string]uint64{"document": 30, "document+trace": 38, "parse": 27, "parse+trace": 40, "prefix": 26, "prefix+trace": 39, "recognize": 27, "recognize+trace": 40}},
-		{"recursion", "rule main = e $$\nrule e = \"(\" e \")\" / x\nrule x = \"x\"", compile.Options{DisableMemo: true}, "((x))", false, map[string]uint64{"document": 20, "document+trace": 29, "parse": 26, "parse+trace": 39, "prefix": 25, "prefix+trace": 38, "recognize": 26, "recognize+trace": 39}},
-		{"captures", "rule main = item* $$\nrule item = x:\"a\" {len(text($x)) == 1}", compile.Options{}, "aaa", false, map[string]uint64{"document": 46, "document+trace": 53, "parse": 29, "parse+trace": 36, "prefix": 28, "prefix+trace": 35, "recognize": 29, "recognize+trace": 36}},
+		{"plain calls", "rule main = item* $$\nrule item = \"a\"", compile.Options{}, "aaaa", false, map[string]uint64{"document": 34, "document+trace": 36, "parse": 32, "parse+trace": 34, "prefix": 31, "prefix+trace": 33, "recognize": 32, "recognize+trace": 34}},
+		{"plain calls, no memo", "rule main = item* $$\nrule item = \"a\"", compile.Options{DisableMemo: true}, "aaaa", false, map[string]uint64{"document": 30, "document+trace": 32, "parse": 32, "parse+trace": 34, "prefix": 31, "prefix+trace": 33, "recognize": 32, "recognize+trace": 34}},
+		{"recursion", "rule main = e $$\nrule e = \"(\" e \")\" / x\nrule x = \"x\"", compile.Options{DisableMemo: true}, "((x))", false, map[string]uint64{"document": 20, "document+trace": 24, "parse": 30, "parse+trace": 34, "prefix": 29, "prefix+trace": 33, "recognize": 30, "recognize+trace": 34}},
+		{"captures", "rule main = item* $$\nrule item = x:\"a\" {len(text($x)) == 1}", compile.Options{}, "aaa", false, map[string]uint64{"document": 30, "document+trace": 32, "parse": 29, "parse+trace": 31, "prefix": 28, "prefix+trace": 30, "recognize": 29, "recognize+trace": 31}},
 		{"stream", codegentest.Records, compile.Options{}, "#records\na=1\nbc=22\n", true, stream},
 	}
 	for _, c := range cases {

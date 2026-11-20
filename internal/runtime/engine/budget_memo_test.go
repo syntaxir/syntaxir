@@ -245,32 +245,36 @@ func TestBudgetMemoBindCopyAndCancellation(t *testing.T) {
 	}
 }
 
-func TestBudgetMemoChainAndStringLimits(t *testing.T) {
+// TestBudgetMemoChainAndStringKeysChargeNothing pins that walking a memo chain and comparing string
+// keys charge nothing (spec/runtime/parsing.md#cost: the call paid for its key): a lookup and a
+// store over a chain of 320 entries, and a lookup that compares a key of 1024 bytes, succeed under a
+// limit of one unit, charge none of it and reach no poll of the context, and a store still retires
+// the entry it replaces without changing its public graph.
+func TestBudgetMemoChainAndStringKeysChargeNothing(t *testing.T) {
 	t.Parallel()
 	table := &state.MemoTable{Slots: make([]*state.MemoEntry, 1)}
 	for i := 0; i < 320; i++ {
 		table.Slots[0] = &state.MemoEntry{Rule: int32(i), Next: table.Slots[0]}
 	}
-	oldHead := table.Slots[0]
 	replacement := &state.MemoEntry{Node: nodes.Ptr(nodes.Data{Text: "replacement"})}
 	p := &state.Parser{Memo: table}
-	p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 80})
-	if err := catchFatal(t, func() { p.MemoGet(state.MemoKey{Rule: 0}) }); !errors.Is(err, runtime.ErrLimit) {
-		t.Fatalf("chain get=%v", err)
+	free := func(what string, run func()) {
+		t.Helper()
+		p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 1})
+		if err := catchFatal(t, run); err != nil {
+			t.Fatalf("%s: %v", what, err)
+		}
+		if p.Control.Used != 0 {
+			t.Fatalf("%s charged %d units, want none", what, p.Control.Used)
+		}
+		p.Control = state.NewBudgetControl(newPollingContext(1), runtime.Limits{})
+		p.Control.Charge(state.BudgetCheckInterval - 1) // a unit more reaches the poll
+		if err := catchFatal(t, run); err != nil {
+			t.Fatalf("%s polled the context: %v", what, err)
+		}
 	}
-	p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 80})
-	if err := catchFatal(t, func() { p.MemoPut(state.MemoKey{Rule: 0}, replacement) }); !errors.Is(err, runtime.ErrLimit) {
-		t.Fatalf("chain put=%v", err)
-	}
-	if table.Slots[0] != oldHead || replacement.Rule != 0 || replacement.Env != nil || replacement.Next != nil {
-		t.Fatal("interrupted put published an entry")
-	}
-	p.Control = state.NewBudgetControl(newPollingContext(1), runtime.Limits{})
-	if err := catchFatal(t, func() { p.MemoGet(state.MemoKey{Rule: 0}) }); !errors.Is(err, context.Canceled) {
-		t.Fatalf("chain cancellation=%v", err)
-	}
-	p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 1 << 30})
-	p.MemoPut(state.MemoKey{Rule: 0}, replacement)
+	free("chain get", func() { p.MemoGet(state.MemoKey{Rule: 0}) })
+	free("chain put", func() { p.MemoPut(state.MemoKey{Rule: 0}, replacement) })
 	if got, ok := p.MemoGet(state.MemoKey{Rule: 0}); !ok || got != replacement {
 		t.Fatal("replacement failed")
 	}
@@ -279,25 +283,28 @@ func TestBudgetMemoChainAndStringLimits(t *testing.T) {
 	table.Slots[0] = &state.MemoEntry{Rule: 1, Node: retained, Env: []any{strings.Repeat("x", 1024)}}
 	before, _ := json.Marshal(retained)
 	key := state.MemoKey{Rule: 1, Env: []any{strings.Repeat("x", 1024)}}
-	p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 80})
-	if err := catchFatal(t, func() { p.MemoGet(key) }); !errors.Is(err, runtime.ErrLimit) {
-		t.Fatalf("string key comparison=%v", err)
-	}
+	free("string key comparison", func() {
+		if _, ok := p.MemoGet(key); !ok {
+			t.Fatal("equal string key missed")
+		}
+	})
 	p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 1 << 30})
 	p.MemoPut(key, &state.MemoEntry{})
 	after, _ := json.Marshal(retained)
 	if string(before) != string(after) {
 		t.Fatal("entry retirement changed public graph")
 	}
-	// Unequal string lengths and key lengths remain constant-time rejections.
-	p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 2})
-	if got, ok := p.MemoGet(state.MemoKey{Rule: 1, Env: nil}); ok || got != nil {
-		t.Fatal("key length mismatch matched")
-	}
-	p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 3})
-	if got, ok := p.MemoGet(state.MemoKey{Rule: 1, Env: []any{"short"}}); ok || got != nil {
-		t.Fatal("string length mismatch matched")
-	}
+	// Unequal string lengths and key lengths remain rejections.
+	free("key length mismatch", func() {
+		if got, ok := p.MemoGet(state.MemoKey{Rule: 1, Env: nil}); ok || got != nil {
+			t.Fatal("key length mismatch matched")
+		}
+	})
+	free("string length mismatch", func() {
+		if got, ok := p.MemoGet(state.MemoKey{Rule: 1, Env: []any{"short"}}); ok || got != nil {
+			t.Fatal("string length mismatch matched")
+		}
+	})
 }
 
 func budgetMemoPrefix(table *state.MemoTable, retained *value.Node) {

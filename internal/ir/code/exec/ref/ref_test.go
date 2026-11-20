@@ -38,8 +38,10 @@ func TestMemoModel(t *testing.T) {
 	if r := call(m, "memo.lookup", k...); r[0] != e {
 		t.Fatal("a store under other values replaced the entry")
 	}
-	if got := m.Quantity(exec.QKeyScan, nil, k); got != 4 {
-		t.Fatalf("key scan at 5 = %d, want 4 (two entries of one value)", got)
+	// The lookup and the store charge nothing for the entries at the position: the call pays for its
+	// key (budget.chargeKey).
+	if got := lookupBound(m, k); got != 0 {
+		t.Fatalf("bound of a lookup at 5 beside two entries = %d, want 0", got)
 	}
 	// A store under the key of e replaces it: e is dead, and an implementation may reuse it.
 	if m.Dead(e) {
@@ -49,9 +51,19 @@ func TestMemoModel(t *testing.T) {
 	if !m.Dead(e) || m.Dead(e3) || m.Allows(parseState.Op("memo.ok"), []any{e}) {
 		t.Fatal("the replaced entry is not dead")
 	}
-	if got := m.Quantity(exec.QKeyScan, nil, k); got != 4 {
-		t.Fatalf("key scan at 5 after a replacement = %d, want 4", got)
+	if got := lookupBound(m, k); got != 0 {
+		t.Fatalf("bound of a lookup at 5 after a replacement = %d, want 0", got)
 	}
+}
+
+// lookupBound returns the bound of the cost of memo.lookup with args in the state of m.
+func lookupBound(m *Model, args []any) int64 {
+	op := parseState.Op("memo.lookup")
+	n := int64(op.Cost.Const)
+	for _, term := range op.Cost.Terms {
+		n += int64(term.Coef) * m.Quantity(term.Quantity, op, args)
+	}
+	return n
 }
 
 func TestSeenModel(t *testing.T) {

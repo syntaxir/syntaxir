@@ -669,6 +669,7 @@ var trules []*rt.TRule
 
 // rule main
 func u0(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start := p.Pos
 	v, ok := i0(p)
 	if !ok {
@@ -728,6 +729,7 @@ fail:
 
 // rule line
 func u1(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start := p.Pos
 	v, ok := i1(p)
 	if !ok {
@@ -886,6 +888,7 @@ fail:
 
 func s2(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x1, x3, x4, x5, x6, size, x8, x12 int
 	var v, v9, v10, v11, v13, v14 any
 	var x2 []any
@@ -949,4 +952,4 @@ fail:
 
 const _ = types.ZPSchema_2e326dad401977ae
 
-const _ = rt.Protocol22
+const _ = rt.Protocol23

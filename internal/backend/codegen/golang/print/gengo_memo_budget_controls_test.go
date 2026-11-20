@@ -92,29 +92,29 @@ func TestEnvironmentWalksAndAtomicBind(t *testing.T){
   if run.name=="bind" {if (&zprt.ActCtx{P:p}).Var(0)!=777 || saved.X_variable(0)!=0{t.Fatal("binding changed saved environment")}} else {if (&zprt.ActCtx{P:p}).Var(0)!=0{t.Fatal("lookup retry")}}
  }
 }
+// A call that finds its entry behind 300 others charges its one unit and nothing for the walk.
 func TestNodeMemoLookupWalk(t *testing.T){
  tail:=&zprt.X_memoEntry{X_rule:7,X_node:func()*Node{n:=new(Node);zprt.D(n).Text="kept";return n}(),X_ok:true}
  head:=tail;for i:=0;i<300;i++{head=&zprt.X_memoEntry{X_rule:8,X_next:head}}
- p:=&zprt.Parser{Control:zprt.X_newBudgetControl(nil,Limits{Compute:32})};p.X_memo.X_slots=[]*zprt.X_memoEntry{head}
+ p:=&zprt.Parser{Control:zprt.X_newBudgetControl(nil,Limits{Compute:1})};p.X_memo.X_slots=[]*zprt.X_memoEntry{head}
  r:=&zprt.Rule{Id:7,Seen:-1,Memo:true}
  var got *Node
- err:=catchMemoFatal(func(){got,_=p.Call(r,0)})
- if !errors.Is(err,ErrLimit)||got!=nil{t.Errorf("Node memo chain unbounded: value=%T error=%T",got,err)}
+ var ok bool
+ if err:=catchMemoFatal(func(){got,ok=p.Call(r,0)});err!=nil||!ok||got!=tail.X_node{t.Fatalf("Node memo walk charged: value=%T error=%v",got,err)}
+ if used:=p.Control.X_budgetUsed();used!=1{t.Fatalf("the call charges %d units, want 1",used)}
  if p.X_memo.X_slots[0]!=head || tail.X_next!=nil{t.Fatal("lookup changed table")}
- p.Control=zprt.X_newBudgetControl(nil,Limits{Compute:100000})
- got,ok:=p.Call(r,0);if !ok||got!=tail.X_node{t.Fatal("memo retry")}
 }
 func TestTypedMemoWalksAndAtomicReplacement(t *testing.T){
  tail:=&zprt.X_tmemoEntry{X_rule:7,X_val:"kept",X_ok:true}
  head:=tail;for i:=0;i<300;i++{head=&zprt.X_tmemoEntry{X_rule:8,X_next:head}}
  for _,put:=range []bool{false,true}{
-  p:=&zprt.TParser{Parser:&zprt.Parser{Control:zprt.X_newBudgetControl(nil,Limits{Compute:32})},X_memoSlots:[]*zprt.X_tmemoEntry{head}}
+  // A walk over 300 entries charges nothing, for a lookup and for a store.
+  p:=&zprt.TParser{Parser:&zprt.Parser{Control:zprt.X_newBudgetControl(nil,Limits{Compute:1})},X_memoSlots:[]*zprt.X_tmemoEntry{head}}
   replacement:=&zprt.X_tmemoEntry{X_rule:-1,X_val:"replacement",X_ok:true}
-  err:=catchMemoFatal(func(){if put{p.X_memoPut(7,0,0,nil,false,replacement)}else{p.X_memoGet(7,0,0,nil,false)}})
-  if !errors.Is(err,ErrLimit){t.Errorf("typed memo put=%v unbounded: %T",put,err)}
-  if p.X_memoSlots[0]!=head || tail.X_next!=nil || replacement.X_rule!=-1{t.Fatal("partial replacement published")}
-  p.Control=zprt.X_newBudgetControl(nil,Limits{Compute:100000})
-  if put{p.X_memoPut(7,0,0,nil,false,replacement);if p.X_memoGet(7,0,0,nil,false)!=replacement{t.Fatal("typed put retry")}}else{if p.X_memoGet(7,0,0,nil,false)!=tail{t.Fatal("typed read retry")}}
+  var got *zprt.X_tmemoEntry
+  err:=catchMemoFatal(func(){if put{p.X_memoPut(7,0,0,nil,false,replacement)}else{got=p.X_memoGet(7,0,0,nil,false)}})
+  if err!=nil||p.Control.X_budgetUsed()!=0{t.Fatalf("typed memo put=%v charged %d units: %v",put,p.Control.X_budgetUsed(),err)}
+  if put{if p.X_memoGet(7,0,0,nil,false)!=replacement{t.Fatal("typed put lost its entry")}}else{if got!=tail || p.X_memoSlots[0]!=head || tail.X_next!=nil{t.Fatal("typed read changed the table")}}
  }
 }
 func TestMemoKeysAndStorage(t *testing.T){
@@ -128,16 +128,15 @@ func TestMemoKeysAndStorage(t *testing.T){
   empty:=put([]any{})
   if get(nil)!=empty{t.Fatal("nil/empty key equality changed")}
   key:=make([]any,400);for i:=range key{key[i]=i}
-  entry=put(key);p.Control=zprt.X_newBudgetControl(nil,Limits{Compute:32})
-  err:=catchMemoFatal(func(){get(key)})
-  if !errors.Is(err,ErrLimit){t.Fatal("long key not bounded",err)}
-  p.Control=zprt.X_newBudgetControl(nil,Limits{Compute:100000});if get(key)!=entry{t.Fatal("long key retry")}
-  long:=strings.Repeat("prefix",600);entry=put([]any{long+"x"})
-  p.Control=zprt.X_newBudgetControl(nil,Limits{Compute:32})
-  if err:=catchMemoFatal(func(){get([]any{long+"y"})});!errors.Is(err,ErrLimit){t.Fatal("string key comparison unbounded",err)}
+  // Comparing a long key, and a long string in a key, charges nothing: the call paid for its key.
+  entry=put(key);p.Control=zprt.X_newBudgetControl(nil,Limits{Compute:1})
+  var got any
+  if err:=catchMemoFatal(func(){got=get(key)});err!=nil||got!=entry||p.Control.X_budgetUsed()!=0{t.Fatal("long key comparison charged",err)}
+  long:=strings.Repeat("prefix",600);put([]any{long+"x"})
+  if err:=catchMemoFatal(func(){got=get([]any{long+"y"})});err!=nil||!reflect.ValueOf(got).IsNil()||p.Control.X_budgetUsed()!=0{t.Fatal("string key comparison charged",err)}
  }
- // Growing the slot array to a far position charges no unit: a store there charges what it charges
- // in a table that already reaches the position, and a limit of a few units does not stop it.
+ // A store charges nothing, also where it grows the slot array to a far position, so a limit of one
+ // unit does not stop it.
  for _,typed:=range []bool{false,true}{
   store:=func(slots int,limit uint64)(uint64,error){
    p:=&zprt.Parser{Control:zprt.X_newBudgetControl(nil,Limits{Compute:limit})}
@@ -154,21 +153,21 @@ func TestMemoKeysAndStorage(t *testing.T){
   }
   grown,err:=store(300,100000);if err!=nil{t.Fatal(err)}
   within,err:=store(601,100000);if err!=nil{t.Fatal(err)}
-  if grown!=within{t.Fatalf("typed=%v: a store that grows the slots charges %d units, one that does not %d",typed,grown,within)}
-  if _,err:=store(300,within);err!=nil{t.Fatalf("typed=%v: slot growth stopped at a limit of the store's %d units: %v",typed,within,err)}
+  if grown!=0||within!=0{t.Fatalf("typed=%v: a store that grows the slots charges %d units, one that does not %d, want none",typed,grown,within)}
+  if _,err:=store(300,1);err!=nil{t.Fatalf("typed=%v: slot growth stopped at a limit of one unit: %v",typed,err)}
  }
 }
 func TestFirstCallStoragePublication(t *testing.T){
  for _,reuse:=range []bool{false,true}{
-  // Growing the record of the calls made charges nothing: the check of a first call is one unit,
-  // also where the dense words grow, whether or not they come from spare capacity.
+  // Recording a first call charges nothing (the call charges its unit), also where the dense words
+  // grow, whether or not they come from spare capacity.
   p:=&zprt.Parser{Pos:64000,Control:zprt.X_newBudgetControl(nil,Limits{Compute:1}),X_deferMemo:true}
   p.X_memo.X_stride=1;p.X_memo.X_calls=[]zprt.X_seenCalls{{X_calls:17,X_repeats:1}}
   if reuse{p.X_memo.X_seen=make([]uint64,0,2048);for i:=range p.X_memo.X_seen[:cap(p.X_memo.X_seen)]{p.X_memo.X_seen[:cap(p.X_memo.X_seen)][i]=^uint64(0)}}else{p.X_memo.X_seen=make([]uint64,512)}
   r:=&zprt.Rule{Seen:0}
   var first bool
   if err:=catchMemoFatal(func(){first=p.FirstCall(r)});err!=nil{t.Fatal("seen growth charged",err)}
-  if used:=p.Control.X_budgetUsed();used!=1{t.Fatalf("a first call that grows the seen words charges %d units, want 1",used)}
+  if used:=p.Control.X_budgetUsed();used!=0{t.Fatalf("a first call that grows the seen words charges %d units, want none",used)}
   if !first || p.X_memo.X_calls[0].X_calls!=18{t.Fatal("first call changed")}
   p.Control=zprt.X_newBudgetControl(nil,Limits{Compute:100000})
   if p.X_memo.X_seen[0]!=0 || p.X_memo.X_seen[1000]!=1{t.Fatal("reused unseen words were not zeroed before stamping")}
@@ -181,16 +180,19 @@ func TestMemoCancellation(t *testing.T){
  p.Control.Charge(254) // the next units reach the poll
  if err:=catchMemoFatal(func(){p.X_bind(0,999)});!errors.Is(err,context.Canceled){t.Fatal("environment cancellation",err)}
  if p.Env!=before{t.Fatal("cancelled bind published")}
+ // A lookup charges nothing, so however long its walk it reaches no poll.
  tail:=&zprt.X_memoEntry{X_rule:7};head:=tail;for i:=0;i<600;i++{head=&zprt.X_memoEntry{X_rule:8,X_next:head}}
  p=&zprt.Parser{Control:zprt.X_newBudgetControl(ctx,Limits{})};p.X_memo.X_slots=[]*zprt.X_memoEntry{head}
- if err:=catchMemoFatal(func(){p.X_memoGet(7,0,0,nil,false)});!errors.Is(err,context.Canceled){t.Fatal("memo cancellation",err)}
- if p.X_memo.X_slots[0]!=head{t.Fatal("cancelled lookup mutated table")}
+ p.Control.Charge(254)
+ var got *zprt.X_memoEntry
+ if err:=catchMemoFatal(func(){got=p.X_memoGet(7,0,0,nil,false)});err!=nil||got!=tail{t.Fatal("memo lookup polled",err)}
+ if p.X_memo.X_slots[0]!=head{t.Fatal("lookup mutated table")}
 }
 
 func TestSparseFirstCallInterruptionAndRetry(t *testing.T){
  if zpGrammar.X_nseen<=64{t.Fatal("sparse interruption fixture has too few seen rules for sparse tracking")}
  for _,at:=range []int{600,1200}{
-  // Growing the sparse directory and its pages charges nothing: the check of a first call is one unit.
+  // Growing the sparse directory and its pages charges nothing, nor does recording the first call.
   p:=&zprt.Parser{Pos:at*1024,Control:zprt.X_newBudgetControl(nil,Limits{Compute:1}),X_deferMemo:true}
   p.X_memo.X_stride=65;p.X_memo.X_sparse=true;p.X_memo.X_calls=make([]zprt.X_seenCalls,65)
   p.X_memo.X_calls[0]=zprt.X_seenCalls{X_calls:17,X_repeats:1}
@@ -201,7 +203,7 @@ func TestSparseFirstCallInterruptionAndRetry(t *testing.T){
   r:=&zprt.Rule{Seen:0}
   var first bool
   if err:=catchMemoFatal(func(){first=p.FirstCall(r)});err!=nil{t.Fatal("sparse directory growth charged",err)}
-  if used:=p.Control.X_budgetUsed();used!=1{t.Fatalf("a first call that grows the sparse directory charges %d units, want 1",used)}
+  if used:=p.Control.X_budgetUsed();used!=0{t.Fatalf("a first call that grows the sparse directory charges %d units, want none",used)}
   if len(p.X_memo.X_seen)!=0{t.Fatal("sparse invocation allocated a dense table")}
   p.Control=zprt.X_newBudgetControl(nil,Limits{Compute:100000})
   if !first || p.X_memo.X_calls[0].X_calls!=18 || p.FirstCall(r){t.Fatal("sparse first call or repeat detection changed")}

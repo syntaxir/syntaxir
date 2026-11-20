@@ -150,9 +150,9 @@ func TestMemoIndexStreamPrune(t *testing.T) {
 }
 
 // TestDocOnlyLookupComparesByIdentity checks the lookup of a rule that only a Document parse memoizes: a
-// key whose string has the same bytes in other memory is a miss that compares nothing by content, and a
-// key with the same memory is a hit that costs a constant, whatever the length. The lookup of any other
-// rule finds the equal string, at a cost of the length.
+// key whose string has the same bytes in other memory is a miss, and a key with the same memory is a
+// hit. The lookup of any other rule finds the equal string. No lookup charges a unit, whatever the
+// length of the string: the call pays for its key (ChargeKey).
 func TestDocOnlyLookupComparesByIdentity(t *testing.T) {
 	big := strings.Repeat("x", 1<<16)
 	clone := strings.Clone(big)
@@ -170,24 +170,24 @@ func TestDocOnlyLookupComparesByIdentity(t *testing.T) {
 	e := p.memo.alloc()
 	p.memoPutControlled(1, 0, 0, []any{big}, true, e)
 	var got *memoEntry
-	if c := cost(p, func() { got = p.memoGetControlled(1, 0, 0, []any{big}, true) }); got != e || c > 64 {
-		t.Errorf("the same memory: entry %v at %d units, want the entry at a constant cost", got == e, c)
+	if c := cost(p, func() { got = p.memoGetControlled(1, 0, 0, []any{big}, true) }); got != e || c != 0 {
+		t.Errorf("the same memory: entry %v at %d units, want the entry at no unit", got == e, c)
 	}
-	// The comparison of the same memory in the lookup of any other rule costs more than that of a value that
-	// is not a string, and the same whatever the length.
+	// The lookup of any other rule charges nothing either, for a string of any length as for a value
+	// that is not a string.
 	hit := func(key any) uint64 {
 		q := newParser()
 		q.memoPutControlled(1, 0, 0, []any{key}, false, q.memo.alloc())
 		return cost(q, func() { q.memoGetControlled(1, 0, 0, []any{key}, false) })
 	}
 	intCost, smallCost, bigCost := hit(int64(7)), hit("x"), hit(big)
-	if bigCost <= intCost || bigCost != smallCost {
-		t.Errorf("the same memory costs %d units for %d bytes, %d for one byte, %d for an integer; want a constant above the integer's", bigCost, len(big), smallCost, intCost)
+	if bigCost != 0 || smallCost != 0 || intCost != 0 {
+		t.Errorf("the same memory costs %d units for %d bytes, %d for one byte, %d for an integer; want none", bigCost, len(big), smallCost, intCost)
 	}
-	if c := cost(p, func() { got = p.memoGetControlled(1, 0, 0, []any{clone}, true) }); got != nil || c > 64 {
-		t.Errorf("equal bytes in other memory: found %v at %d units, want a miss at a constant cost", got != nil, c)
+	if c := cost(p, func() { got = p.memoGetControlled(1, 0, 0, []any{clone}, true) }); got != nil || c != 0 {
+		t.Errorf("equal bytes in other memory: found %v at %d units, want a miss at no unit", got != nil, c)
 	}
-	if c := cost(p, func() { got = p.memoGetControlled(1, 0, 0, []any{clone}, false) }); got != e || c < uint64(len(big)) {
-		t.Errorf("a rule a fresh parse memoizes: found %v at %d units, want the entry at a cost of the length", got == e, c)
+	if c := cost(p, func() { got = p.memoGetControlled(1, 0, 0, []any{clone}, false) }); got != e || c != 0 {
+		t.Errorf("a rule a fresh parse memoizes: found %v at %d units, want the entry at no unit", got == e, c)
 	}
 }

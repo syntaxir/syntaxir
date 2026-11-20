@@ -14,8 +14,9 @@ var ExecOps = []string{
 	"rec.mark", "rec.push", "rec.truncate", "rec.since", "rec.add", "rec.none",
 }
 
-// ExecBudgetOps are the operations of the budget, which a controlled parse provides.
-var ExecBudgetOps = []string{"budget.charge", "budget.used"}
+// ExecBudgetOps are the operations of the budget, which a controlled parse provides: the charge of a
+// memo key (budget.chargeKey) among them.
+var ExecBudgetOps = []string{"budget.charge", "budget.used", "budget.chargeKey"}
 
 // Exec is the family of the memo, the environment and the recovered errors.
 func Exec(controlled bool) Family {

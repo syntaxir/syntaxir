@@ -20,10 +20,13 @@ func (p *Parser) Call(r *Rule, min int) (*zpvalue.Node, bool) {
 		v, ok = p.callDoc(r, min)
 		return v, ok
 	}
-	p.Spend()
 	if p.Tr != nil && p.tracing() {
 		v, ok = p.tracedCall(r, min)
 		return v, ok
+	}
+	p.Spend()
+	if r.Leader || p.memoized(r) && !p.docOnlyMemo(r) {
+		p.ChargeKey(r)
 	}
 	start := p.Pos
 	direct = !p.memoized(r) && !r.Leader || p.FirstCall(r)
@@ -77,9 +80,9 @@ func (p *Parser) FirstCall(r *Rule) bool {
 }
 
 // callDoc is engineCall for a parse that reads a Document. Under the default limit, what a
-// parse from scratch does not do is Document work and leaves the count against the limit: the unit of
-// the call protocol for a plain rule, and the memo protocol (its deferral, the begin and the end of
-// the call) of a rule that a parse from scratch does not memoize.
+// parse from scratch does not do is Document work and leaves the count against the limit: the memo
+// protocol (its deferral, the begin and the end of the call) of a rule that a parse from scratch does
+// not memoize.
 //
 // Printed from Exec IR function engineCallDoc of internal/ir/code/exec/compose, specialized for document, missing, budget.
 func (p *Parser) callDoc(r *Rule, min int) (*zpvalue.Node, bool) {
@@ -89,12 +92,13 @@ func (p *Parser) callDoc(r *Rule, min int) (*zpvalue.Node, bool) {
 	var mm int
 	var direct bool
 	var fm uint64
-	fm = p.FreeBegin(r.Plain)
-	p.Spend()
-	p.FreeEnd(fm)
 	if p.Tr != nil && p.tracing() {
 		v, ok = p.tracedCall(r, min)
 		return v, ok
+	}
+	p.Spend()
+	if r.Leader || p.memoized(r) && !p.docOnlyMemo(r) {
+		p.ChargeKey(r)
 	}
 	start := p.Pos
 	fm = p.FreeBegin(p.docOnlyMemo(r))

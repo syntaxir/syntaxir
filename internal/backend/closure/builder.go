@@ -188,7 +188,7 @@ func (b *Builder) literal(val string, fold bool, desc state.ExpID, build bool) s
 func (b *Builder) call(id, min int) state.Matcher {
 	r := b.rule(id)
 	if b.family == state.Inlined && id < len(b.static) && b.static[id].Plain {
-		return func(p *state.Parser) (*value.Node, bool) { return p.InvokePlain(r, min) }
+		return func(p *state.Parser) (*value.Node, bool) { return p.CallPlain(r, min) }
 	}
 	return func(p *state.Parser) (*value.Node, bool) { return p.Call(r, min) }
 }

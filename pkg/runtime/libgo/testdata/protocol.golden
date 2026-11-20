@@ -1,4 +1,4 @@
-protocol 22
+protocol 23
 const BaseString untyped int = 0
 const ExpFar ExpID = 536870912
 const IdAny ExpID = 0
@@ -145,6 +145,7 @@ method (*Parser) AtLineStartOrdinary() bool
 method (*Parser) AttachCaptures(*zeroparse.dev/zp/pkg/runtime/value.Node, []string, *CaptureFrame, int, int) *zeroparse.dev/zp/pkg/runtime/value.Node
 method (*Parser) Bind(int, func(*ActCtx) (any, any)) bool
 method (*Parser) Call(*Rule, int) (*zeroparse.dev/zp/pkg/runtime/value.Node, bool)
+method (*Parser) ChargeKey(*Rule)
 method (*Parser) DiagnosticAttr(matcher, ExpID) (*zeroparse.dev/zp/pkg/runtime/value.Node, bool)
 method (*Parser) DropKids(int)
 method (*Parser) ElemsAbove(int) []*zeroparse.dev/zp/pkg/runtime/value.Node

@@ -522,7 +522,7 @@ func (mc *Machine) exec(vm *Program, ip int, r *state.Rule, min int) (result *va
 		case evCall:
 			in := &vm.m.Code[b.ip]
 			if r := vm.rules[in.A]; vm.direct[in.A] {
-				v, ok = p.InvokePlain(r, int(in.B)) // what call does for such a rule
+				v, ok = p.CallPlain(r, int(in.B)) // what call does for such a rule
 			} else {
 				v, ok = p.Call(r, int(in.B))
 			}

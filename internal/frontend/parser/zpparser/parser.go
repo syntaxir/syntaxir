@@ -3780,6 +3780,7 @@ var trules []*rt.TRule
 
 // rule main
 func u0(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i0(p)
 	if !ok {
@@ -3816,6 +3817,7 @@ fail:
 
 // rule file
 func u1(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i1(p)
 	if !ok {
@@ -3921,6 +3923,7 @@ fail:
 
 // rule file_contents
 func u2(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i2(p)
 	if !ok {
@@ -4042,6 +4045,7 @@ func ta3(c *rt.TActCtx) (any, any) {
 
 // rule package_entry
 func u3(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i3(p)
 	if !ok {
@@ -4070,6 +4074,7 @@ func i3(p *rt.TParser) (any, bool) {
 
 // rule package_stmt
 func u5(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i5(p)
 	if !ok {
@@ -4195,6 +4200,7 @@ fail:
 
 // rule package_body
 func u6(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i6(p)
 	if !ok {
@@ -4344,6 +4350,7 @@ func ta7(c *rt.TActCtx) (any, any) {
 
 // rule decl
 func u7(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i7(p)
 	if !ok {
@@ -4372,6 +4379,7 @@ func i7(p *rt.TParser) (any, bool) {
 
 // rule junk_decl
 func u8(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i8(p)
 	if !ok {
@@ -4443,6 +4451,8 @@ fail:
 
 // rule stmt_end
 func u9(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[9])
 	if !p.FirstCall(rules[9]) {
 		return p.CallMemo(trules[9], i9)
 	}
@@ -4524,6 +4534,7 @@ func ta10(c *rt.TActCtx) (any, any) {
 
 // rule stmt_skip
 func u10(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i10(p)
 	if !ok {
@@ -4556,6 +4567,7 @@ func ta11(c *rt.TActCtx) (any, any) {
 
 // rule stmt_junk
 func u11(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i11(p)
 	if !ok {
@@ -4584,6 +4596,8 @@ func i11(p *rt.TParser) (any, bool) {
 
 // rule item_end
 func u12(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[12])
 	if !p.FirstCall(rules[12]) {
 		return p.CallMemo(trules[12], i12)
 	}
@@ -4651,6 +4665,7 @@ fail:
 
 // rule field_end
 func u13(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i13(p)
 	if !ok {
@@ -4715,6 +4730,8 @@ fail:
 
 // rule stmt_sep
 func u14(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[14])
 	if !p.FirstCall(rules[14]) {
 		return p.CallMemo(trules[14], v14)
 	}
@@ -4756,6 +4773,7 @@ fail:
 
 func s15(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x1, x2 int
 	var v, v3, v6, v8 any
 	var ok bool
@@ -4788,6 +4806,7 @@ fail:
 }
 
 func s16(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, rec, x1, x2 int
 	var v, v3, v6, v8 any
@@ -4822,6 +4841,8 @@ fail:
 
 // rule block_sep
 func u17(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[17])
 	if !p.FirstCall(rules[17]) {
 		return p.CallMemo(trules[17], i17)
 	}
@@ -4868,6 +4889,7 @@ fail:
 }
 
 func s18(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, rec, x1, x2, x10 int
 	var v any
@@ -4943,6 +4965,7 @@ fail:
 }
 
 func s19(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, rec, x1, x2, x10, x14 int
 	var v any
@@ -5040,6 +5063,7 @@ fail:
 
 func s20(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x1, x2, x10, x14 int
 	var v any
 	var c *rt.TActCtx
@@ -5136,6 +5160,8 @@ fail:
 
 // rule type_decl
 func u56(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[56])
 	if !p.FirstCall(rules[56]) {
 		return p.CallMemo(trules[56], v56)
 	}
@@ -5177,6 +5203,7 @@ fail:
 
 // rule type_alias
 func u58(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i58(p)
 	if !ok {
@@ -5272,6 +5299,7 @@ fail:
 
 // rule type_def
 func u59(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i59(p)
 	if !ok {
@@ -5351,6 +5379,7 @@ fail:
 
 // rule type_alias_body
 func u60(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i60(p)
 	if !ok {
@@ -5421,6 +5450,7 @@ fail:
 
 // rule type_def_body
 func u61(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i61(p)
 	if !ok {
@@ -5621,6 +5651,7 @@ fail:
 
 // rule node_type
 func u63(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i63(p)
 	if !ok {
@@ -5738,6 +5769,7 @@ func ta64(c *rt.TActCtx) (any, any) {
 
 // rule field_spec
 func u64(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i64(p)
 	if !ok {
@@ -5768,6 +5800,7 @@ func i64(p *rt.TParser) (any, bool) {
 
 // rule field
 func u65(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i65(p)
 	if !ok {
@@ -5850,6 +5883,7 @@ fail:
 
 // rule field_body
 func u66(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i66(p)
 	if !ok {
@@ -6063,6 +6097,8 @@ fail:
 
 // rule struct_type
 func u68(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[68])
 	if !p.FirstCall(rules[68]) {
 		return p.CallMemo(trules[68], i68)
 	}
@@ -6174,6 +6210,7 @@ fail:
 
 // rule type_args
 func u69(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i69(p)
 	if !ok {
@@ -6294,6 +6331,7 @@ fail:
 
 func s70(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x1, x2 int
 	var v, v3, v9, v12 any
 	var x5 rune
@@ -6353,6 +6391,7 @@ fail:
 
 // rule type_paren
 func u71(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i71(p)
 	if !ok {
@@ -6417,6 +6456,7 @@ fail:
 
 // rule type_tuple
 func u72(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i72(p)
 	if !ok {
@@ -6573,6 +6613,8 @@ fail:
 
 // rule var_decl
 func u73(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[73])
 	if !p.FirstCall(rules[73]) {
 		return p.CallMemo(trules[73], i73)
 	}
@@ -6659,6 +6701,7 @@ fail:
 
 // rule var_def_body
 func u74(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i74(p)
 	if !ok {
@@ -6747,6 +6790,7 @@ fail:
 
 // rule var_type
 func u76(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i76(p)
 	if !ok {
@@ -6786,6 +6830,7 @@ fail:
 
 // rule var_value
 func u77(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i77(p)
 	if !ok {
@@ -6844,6 +6889,8 @@ fail:
 
 // rule rule_decl
 func u78(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[78])
 	if !p.FirstCall(rules[78]) {
 		return p.CallMemo(trules[78], i78)
 	}
@@ -6947,6 +6994,7 @@ fail:
 
 // rule rule_def_body
 func u79(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i79(p)
 	if !ok {
@@ -7176,6 +7224,8 @@ fail:
 
 // rule decl_attr_gap
 func u80(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[80])
 	if !p.FirstCall(rules[80]) {
 		return p.CallMemo(trules[80], v80)
 	}
@@ -7217,6 +7267,7 @@ fail:
 
 // rule decl_attr_same_line
 func u81(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i81(p)
 	if !ok {
@@ -7271,6 +7322,7 @@ fail:
 
 // rule decl_attr_line_end
 func u82(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i82(p)
 	if !ok {
@@ -7327,6 +7379,8 @@ fail:
 
 // rule decl_attr_trivia
 func u83(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[83])
 	if !p.FirstCall(rules[83]) {
 		return p.CallMemo(trules[83], i83)
 	}
@@ -7427,6 +7481,7 @@ func i83(p *rt.TParser) (any, bool) {
 
 // rule whole_action
 func u84(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i84(p)
 	if !ok {
@@ -7471,6 +7526,8 @@ fail:
 
 // rule trailing_action
 func u85(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[85])
 	if !p.FirstCall(rules[85]) {
 		return p.CallMemo(trules[85], i85)
 	}
@@ -8390,6 +8447,7 @@ fail:
 
 func s87(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x3, x5, x6, x8, x9, x13 int
 	var x2 []any
 	var ok bool
@@ -8450,6 +8508,7 @@ fail:
 
 // rule rule_body_expr
 func u88(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i88(p)
 	if !ok {
@@ -8500,6 +8559,7 @@ fail:
 
 // rule rule_group
 func u92(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i92(p)
 	if !ok {
@@ -8589,6 +8649,7 @@ fail:
 
 // rule inline_action
 func u93(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i93(p)
 	if !ok {
@@ -8643,6 +8704,7 @@ fail:
 
 // rule rule_ref
 func u94(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i94(p)
 	if !ok {
@@ -8711,6 +8773,7 @@ fail:
 
 // rule level_call
 func u95(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i95(p)
 	if !ok {
@@ -8823,6 +8886,7 @@ fail:
 
 func s96(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x1, x2, x3 int
 	var v, v5, bv any
 	var ok bool
@@ -8862,6 +8926,7 @@ fail:
 
 func s97(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x1 int
 	var v, v2, bv any
 	var ok bool
@@ -8886,6 +8951,7 @@ fail:
 }
 
 func s98(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, rec, x1 int
 	var v, v2, bv any
@@ -8912,6 +8978,7 @@ fail:
 
 func s99(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x1 int
 	var v, v2, bv any
 	var ok bool
@@ -8937,6 +9004,7 @@ fail:
 
 func s100(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x1 int
 	var v, v2, bv any
 	var ok bool
@@ -8961,6 +9029,7 @@ fail:
 }
 
 func s101(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, rec, x1, x2, x3, x5, x6 int
 	var v, v14, bv any
@@ -9036,6 +9105,7 @@ fail:
 
 func s102(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x1, x2, x3 int
 	var v, v5, bv any
 	var ok bool
@@ -9076,6 +9146,7 @@ fail:
 }
 
 func s103(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, rec, x1, x2, x3, x5, x6 int
 	var v, v8, bv any
@@ -9132,6 +9203,7 @@ fail:
 
 func s104(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x3, x7 int
 	var ok bool
 	var x6 rt.ExpMark
@@ -9168,6 +9240,7 @@ fail:
 
 // rule predicate
 func u105(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i105(p)
 	if !ok {
@@ -9212,6 +9285,7 @@ fail:
 
 // rule repeat_args
 func u106(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i106(p)
 	if !ok {
@@ -9306,6 +9380,7 @@ fail:
 
 func s107(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x1, x2 int
 	var v, v3, v6, v11 any
 	var ok, x8 bool
@@ -9351,6 +9426,7 @@ fail:
 
 // rule repeat_from
 func u108(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i108(p)
 	if !ok {
@@ -9409,6 +9485,7 @@ fail:
 
 // rule repeat_to
 func u109(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i109(p)
 	if !ok {
@@ -9453,6 +9530,7 @@ fail:
 
 // rule repeat_count
 func u110(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i110(p)
 	if !ok {
@@ -9489,6 +9567,8 @@ fail:
 
 // rule repeat_int
 func u111(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[111])
 	if !p.FirstCall(rules[111]) {
 		return p.CallMemo(trules[111], v111)
 	}
@@ -9646,6 +9726,7 @@ fail:
 
 // rule recover_args
 func u112(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i112(p)
 	if !ok {
@@ -9755,6 +9836,8 @@ fail:
 
 // rule empty_args
 func u113(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[113])
 	if !p.FirstCall(rules[113]) {
 		return p.CallMemo(trules[113], v113)
 	}
@@ -9811,6 +9894,8 @@ fail:
 
 // rule attr
 func u114(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[114])
 	if !p.FirstCall(rules[114]) {
 		return p.CallMemo(trules[114], i114)
 	}
@@ -9907,6 +9992,7 @@ fail:
 
 // rule attr_args
 func u115(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i115(p)
 	if !ok {
@@ -10003,6 +10089,8 @@ fail:
 
 // rule attr_named_args
 func u116(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[116])
 	if !p.FirstCall(rules[116]) {
 		return p.CallMemo(trules[116], i116)
 	}
@@ -10107,6 +10195,7 @@ fail:
 
 // rule attr_mixed_args
 func u117(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i117(p)
 	if !ok {
@@ -10243,6 +10332,7 @@ fail:
 
 func s118(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x1, x2 int
 	var v any
 	var c *rt.TActCtx
@@ -10287,6 +10377,7 @@ fail:
 }
 
 func s119(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, rec, x1 int
 	var v any
@@ -10335,6 +10426,7 @@ fail:
 
 func s120(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x1, x2 int
 	var v any
 	var c *rt.TActCtx
@@ -10377,6 +10469,7 @@ L4:
 
 // rule attr_named_tail
 func u121(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i121(p)
 	if !ok {
@@ -10427,6 +10520,8 @@ fail:
 
 // rule attr_slot
 func u122(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[122])
 	if !p.FirstCall(rules[122]) {
 		return p.CallMemo(trules[122], i122)
 	}
@@ -10491,6 +10586,8 @@ fail:
 
 // rule attr_named
 func u123(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[123])
 	if !p.FirstCall(rules[123]) {
 		return p.CallMemo(trules[123], i123)
 	}
@@ -10583,6 +10680,8 @@ fail:
 
 // rule attr_value
 func u124(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[124])
 	if !p.FirstCall(rules[124]) {
 		return p.CallMemo(trules[124], v124)
 	}
@@ -10682,6 +10781,7 @@ fail:
 
 func s125(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x1, x2, x3, x7, x8, x9, x10 int
 	var v, v12, bv any
 	var ok, x6 bool
@@ -10757,6 +10857,7 @@ fail:
 
 func s126(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x1, x2 int
 	var v, v3, v6, v8 any
 	var ok bool
@@ -10795,6 +10896,7 @@ func ta127(c *rt.TActCtx) (any, any) {
 
 // rule ops_rule_plain
 func u128(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i128(p)
 	if !ok {
@@ -10890,6 +10992,8 @@ fail:
 
 // rule ops_rule_expr
 func u129(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[129])
 	if !p.FirstCall(rules[129]) {
 		return p.CallMemo(trules[129], i129)
 	}
@@ -11069,6 +11173,7 @@ func ta130(c *rt.TActCtx) (any, any) {
 
 // rule ops_stmt
 func u130(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i130(p)
 	if !ok {
@@ -11097,6 +11202,7 @@ func i130(p *rt.TParser) (any, bool) {
 
 // rule ops_skip_stmt
 func u131(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i131(p)
 	if !ok {
@@ -11172,6 +11278,7 @@ fail:
 
 // rule ops_skip_body
 func u132(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i132(p)
 	if !ok {
@@ -11227,6 +11334,7 @@ fail:
 
 // rule ops_operand_stmt
 func u133(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i133(p)
 	if !ok {
@@ -11306,6 +11414,7 @@ fail:
 
 // rule ops_operand_body
 func u134(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i134(p)
 	if !ok {
@@ -11374,6 +11483,7 @@ fail:
 
 // rule ops_level_stmt
 func u135(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i135(p)
 	if !ok {
@@ -11466,6 +11576,7 @@ fail:
 
 // rule ops_level_body
 func u136(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i136(p)
 	if !ok {
@@ -11622,6 +11733,7 @@ func ta137(c *rt.TActCtx) (any, any) {
 
 // rule ops_operator
 func u137(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i137(p)
 	if !ok {
@@ -11650,6 +11762,7 @@ func i137(p *rt.TParser) (any, bool) {
 
 // rule ops_prefix
 func u138(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i138(p)
 	if !ok {
@@ -11729,6 +11842,7 @@ fail:
 
 // rule ops_prefix_body
 func u139(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i139(p)
 	if !ok {
@@ -11797,6 +11911,7 @@ fail:
 
 // rule ops_postfix
 func u140(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i140(p)
 	if !ok {
@@ -11876,6 +11991,7 @@ fail:
 
 // rule ops_postfix_body
 func u141(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i141(p)
 	if !ok {
@@ -11944,6 +12060,7 @@ fail:
 
 // rule ops_infix
 func u142(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i142(p)
 	if !ok {
@@ -12027,6 +12144,7 @@ fail:
 
 // rule ops_infix_body
 func u143(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i143(p)
 	if !ok {
@@ -12192,6 +12310,8 @@ fail:
 
 // rule action
 func u144(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[144])
 	if !p.FirstCall(rules[144]) {
 		return p.CallMemo(trules[144], v144)
 	}
@@ -12263,6 +12383,7 @@ fail:
 
 func s145(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x1 int
 	var v, v2, bv any
 	var ok bool
@@ -12288,6 +12409,8 @@ fail:
 
 // rule action_block
 func u146(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[146])
 	if !p.FirstCall(rules[146]) {
 		return p.CallMemo(trules[146], i146)
 	}
@@ -12386,6 +12509,7 @@ func ta147(c *rt.TActCtx) (any, any) {
 
 // rule action_block_stmt
 func u147(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i147(p)
 	if !ok {
@@ -12414,6 +12538,7 @@ func i147(p *rt.TParser) (any, bool) {
 
 // rule action_block_value
 func u148(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i148(p)
 	if !ok {
@@ -12455,6 +12580,7 @@ fail:
 }
 
 func s149(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, rec, x1, x2 int
 	var v, v3, v9, v11 any
@@ -12501,6 +12627,7 @@ fail:
 
 // rule action_bind_stmt
 func u150(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i150(p)
 	if !ok {
@@ -12563,6 +12690,8 @@ fail:
 
 // rule action_expr
 func u151(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[151])
 	if !p.FirstCall(rules[151]) {
 		return p.CallMemo(trules[151], v151)
 	}
@@ -13411,6 +13540,7 @@ fail:
 
 // rule index_suffix
 func u154(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i154(p)
 	if !ok {
@@ -13475,6 +13605,7 @@ fail:
 
 // rule cast_type
 func u155(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i155(p)
 	if !ok {
@@ -13536,6 +13667,7 @@ fail:
 
 // rule lambda
 func u156(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i156(p)
 	if !ok {
@@ -13590,6 +13722,7 @@ fail:
 
 // rule lambda_head
 func u157(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i157(p)
 	if !ok {
@@ -13666,6 +13799,7 @@ fail:
 
 // rule lambda_params
 func u158(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i158(p)
 	if !ok {
@@ -13758,6 +13892,8 @@ fail:
 
 // rule lambda_param
 func u159(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[159])
 	if !p.FirstCall(rules[159]) {
 		return p.CallMemo(trules[159], i159)
 	}
@@ -13921,6 +14057,7 @@ fail:
 
 func s160(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x1, x2 int
 	var v, v3, v9, v12 any
 	var x5 rune
@@ -13980,6 +14117,7 @@ fail:
 
 func s161(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec int
 	var v any
 	var c *rt.TActCtx
@@ -14028,6 +14166,7 @@ fail:
 
 // rule action_elems
 func u162(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i162(p)
 	if !ok {
@@ -14200,6 +14339,7 @@ fail:
 
 // rule action_group
 func u163(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i163(p)
 	if !ok {
@@ -14275,6 +14415,7 @@ fail:
 
 // rule call
 func u164(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i164(p)
 	if !ok {
@@ -14373,6 +14514,8 @@ fail:
 
 // rule action_args
 func u165(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[165])
 	if !p.FirstCall(rules[165]) {
 		return p.CallMemo(trules[165], i165)
 	}
@@ -14474,6 +14617,7 @@ fail:
 
 // rule list_constructor
 func u166(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i166(p)
 	if !ok {
@@ -14593,6 +14737,7 @@ fail:
 
 // rule constructor
 func u167(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i167(p)
 	if !ok {
@@ -14746,6 +14891,7 @@ fail:
 
 // rule constructor_fields
 func u168(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i168(p)
 	if !ok {
@@ -14844,6 +14990,8 @@ fail:
 
 // rule init_field
 func u169(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[169])
 	if !p.FirstCall(rules[169]) {
 		return p.CallMemo(trules[169], i169)
 	}
@@ -14912,6 +15060,7 @@ fail:
 
 // rule init_field_body
 func u170(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i170(p)
 	if !ok {
@@ -14985,6 +15134,7 @@ fail:
 }
 
 func s171(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, rec, x1, x3, x4, x5, x6, x8, x9 int
 	var v, v11, bv any
@@ -15064,6 +15214,8 @@ fail:
 
 // rule true_lit
 func u172(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[172])
 	if !p.FirstCall(rules[172]) {
 		return p.CallMemo(trules[172], v172)
 	}
@@ -15111,6 +15263,8 @@ fail:
 
 // rule false_lit
 func u173(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[173])
 	if !p.FirstCall(rules[173]) {
 		return p.CallMemo(trules[173], v173)
 	}
@@ -15156,6 +15310,8 @@ fail:
 
 // rule nil_lit
 func u174(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[174])
 	if !p.FirstCall(rules[174]) {
 		return p.CallMemo(trules[174], v174)
 	}
@@ -15203,6 +15359,8 @@ fail:
 
 // rule capture_ref
 func u175(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[175])
 	if !p.FirstCall(rules[175]) {
 		return p.CallMemo(trules[175], v175)
 	}
@@ -15260,6 +15418,7 @@ fail:
 
 func s176(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x3, x7 int
 	var ok bool
 	var x6 rt.ExpMark
@@ -15299,6 +15458,8 @@ fail:
 
 // rule var_name
 func u177(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[177])
 	if !p.FirstCall(rules[177]) {
 		return p.CallMemo(trules[177], v177)
 	}
@@ -15413,6 +15574,7 @@ fail:
 
 func s178(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x1, x2, x3, x5, x6 int
 	var v, v8, bv any
 	var ok bool
@@ -15466,6 +15628,8 @@ fail:
 
 // rule ws
 func u179(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[179])
 	if !p.FirstCall(rules[179]) {
 		return p.CallMemo(trules[179], i179)
 	}
@@ -15527,6 +15691,8 @@ fail:
 
 // rule comments
 func u180(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[180])
 	if !p.FirstCall(rules[180]) {
 		return p.CallMemo(trules[180], i180)
 	}
@@ -15613,6 +15779,8 @@ func i180(p *rt.TParser) (any, bool) {
 
 // rule horizontal
 func u181(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[181])
 	if !p.FirstCall(rules[181]) {
 		return p.CallMemo(trules[181], i181)
 	}
@@ -15713,6 +15881,7 @@ func i181(p *rt.TParser) (any, bool) {
 
 // rule source_comments
 func u186(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i186(p)
 	if !ok {
@@ -15802,6 +15971,8 @@ fail:
 
 // rule comment
 func u191(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[191])
 	if !p.FirstCall(rules[191]) {
 		return p.CallMemo(trules[191], v191)
 	}
@@ -15843,6 +16014,7 @@ fail:
 
 func s192(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x2, x6 int
 	var v, v7 any
 	var x1 rt.ExpMark
@@ -15877,6 +16049,7 @@ fail:
 
 // rule comment_group
 func u193(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i193(p)
 	if !ok {
@@ -15962,6 +16135,8 @@ fail:
 
 // rule line_comment
 func u194(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[194])
 	if !p.FirstCall(rules[194]) {
 		return p.CallMemo(trules[194], i194)
 	}
@@ -16008,6 +16183,7 @@ fail:
 }
 
 func s195(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, rec, x1, x3, size, x7, x8 int
 	var v, v9 any
@@ -16067,6 +16243,8 @@ fail:
 
 // rule inline_comment
 func u196(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[196])
 	if !p.FirstCall(rules[196]) {
 		return p.CallMemo(trules[196], i196)
 	}
@@ -16207,6 +16385,8 @@ fail:
 
 // rule block_no_line
 func u197(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[197])
 	if !p.FirstCall(rules[197]) {
 		return p.CallMemo(trules[197], i197)
 	}
@@ -16353,6 +16533,8 @@ fail:
 
 // rule block_with_line
 func u198(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[198])
 	if !p.FirstCall(rules[198]) {
 		return p.CallMemo(trules[198], i198)
 	}
@@ -16600,6 +16782,8 @@ fail:
 
 // rule ident
 func u199(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[199])
 	if !p.FirstCall(rules[199]) {
 		return p.CallMemo(trules[199], v199)
 	}
@@ -16663,6 +16847,8 @@ fail:
 
 // rule string
 func u203(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[203])
 	if !p.FirstCall(rules[203]) {
 		return p.CallMemo(trules[203], v203)
 	}
@@ -16812,6 +16998,7 @@ fail:
 }
 
 func s204(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec, trail := p.Pos, len(p.Recovered), len(p.Trail)
 	prevEnv, prevCut := p.Env, p.Cut
 	p.Cut = false
@@ -16831,6 +17018,7 @@ func s204(p *rt.TParser) (any, bool) {
 }
 
 func s206(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, rec, x1, x3, x5, x6, x8, x9, size, x17, x18 int
 	var v, v20, bv any
@@ -16966,6 +17154,8 @@ fail:
 
 // rule char_class
 func u207(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[207])
 	if !p.FirstCall(rules[207]) {
 		return p.CallMemo(trules[207], i207)
 	}
@@ -17111,6 +17301,7 @@ fail:
 
 // rule char_class_rng
 func u208(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i208(p)
 	if !ok {
@@ -17171,6 +17362,7 @@ fail:
 }
 
 func s209(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, rec, x1, x2, x3, size int
 	var v, v11, bv any
@@ -17251,6 +17443,7 @@ fail:
 
 // rule source_head
 func u210(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i210(p)
 	if !ok {
@@ -17313,6 +17506,8 @@ fail:
 
 // rule source_head_open
 func u211(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[211])
 	if !p.FirstCall(rules[211]) {
 		return p.CallMemo(trules[211], i211)
 	}
@@ -17378,6 +17573,7 @@ fail:
 
 func s212(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start int
 	var v any
 	var c *rt.TActCtx
@@ -17403,6 +17599,8 @@ func s212(p *rt.TParser) (any, bool) {
 
 // rule source_item_tail
 func u213(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[213])
 	if !p.FirstCall(rules[213]) {
 		return p.CallMemo(trules[213], v213)
 	}
@@ -17458,6 +17656,7 @@ fail:
 
 // rule source_tail_after_separator_trailing
 func u214(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i214(p)
 	if !ok {
@@ -17540,6 +17739,7 @@ fail:
 
 // rule source_tail_after_separator
 func u215(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i215(p)
 	if !ok {
@@ -17601,6 +17801,8 @@ fail:
 
 // rule source_tail_plain
 func u216(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[216])
 	if !p.FirstCall(rules[216]) {
 		return p.CallMemo(trules[216], i216)
 	}
@@ -17658,6 +17860,7 @@ fail:
 
 func s217(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start int
 	var v any
 	var c *rt.TActCtx
@@ -17684,6 +17887,7 @@ func s217(p *rt.TParser) (any, bool) {
 }
 
 func s220(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, rec, x1, x2 int
 	var v, v3, v6, v8, v10, v12 any
@@ -17732,6 +17936,7 @@ fail:
 
 // rule source_comma_after_separator_trailing
 func u221(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i221(p)
 	if !ok {
@@ -17794,6 +17999,7 @@ fail:
 
 // rule source_comma_after_separator
 func u222(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i222(p)
 	if !ok {
@@ -17857,6 +18063,8 @@ fail:
 
 // rule source_after_boundary
 func u223(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[223])
 	if !p.FirstCall(rules[223]) {
 		return p.CallMemo(trules[223], v223)
 	}
@@ -17926,6 +18134,8 @@ fail:
 
 // rule source_inline_line_boundary
 func u224(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[224])
 	if !p.FirstCall(rules[224]) {
 		return p.CallMemo(trules[224], i224)
 	}
@@ -17996,6 +18206,8 @@ fail:
 
 // rule source_inline_run_boundary
 func u225(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[225])
 	if !p.FirstCall(rules[225]) {
 		return p.CallMemo(trules[225], i225)
 	}
@@ -18156,6 +18368,7 @@ fail:
 
 func s226(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x1, x2 int
 	var v, v3, v6, v8 any
 	var ok bool
@@ -18189,6 +18402,7 @@ fail:
 
 // rule source_run_line
 func u227(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i227(p)
 	if !ok {
@@ -18239,6 +18453,7 @@ fail:
 }
 
 func s228(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, rec, x1, x4, x5 int
 	var v any
@@ -18297,6 +18512,8 @@ fail:
 
 // rule source_inline_block_boundary
 func u229(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[229])
 	if !p.FirstCall(rules[229]) {
 		return p.CallMemo(trules[229], i229)
 	}
@@ -18404,6 +18621,8 @@ fail:
 
 // rule source_after_opener_boundary
 func u230(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[230])
 	if !p.FirstCall(rules[230]) {
 		return p.CallMemo(trules[230], v230)
 	}
@@ -18473,6 +18692,7 @@ fail:
 
 // rule source_opener_block_boundary
 func u231(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i231(p)
 	if !ok {
@@ -18541,6 +18761,8 @@ fail:
 
 // rule source_after_delimiter_boundary
 func u232(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[232])
 	if !p.FirstCall(rules[232]) {
 		return p.CallMemo(trules[232], v232)
 	}
@@ -18582,6 +18804,7 @@ fail:
 
 // rule source_delimiter_scope_boundary
 func u233(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i233(p)
 	if !ok {
@@ -18634,6 +18857,7 @@ fail:
 
 // rule source_ambiguous_block_boundary
 func u235(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i235(p)
 	if !ok {
@@ -18703,6 +18927,8 @@ fail:
 
 // rule source_newline_boundary
 func u236(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[236])
 	if !p.FirstCall(rules[236]) {
 		return p.CallMemo(trules[236], i236)
 	}
@@ -18779,6 +19005,8 @@ fail:
 
 // rule source_after_boundary_trailing
 func u237(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[237])
 	if !p.FirstCall(rules[237]) {
 		return p.CallMemo(trules[237], v237)
 	}
@@ -18834,6 +19062,7 @@ fail:
 
 // rule source_newline_trailing_boundary
 func u238(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i238(p)
 	if !ok {
@@ -18907,6 +19136,8 @@ fail:
 
 // rule source_first_trailing
 func u239(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[239])
 	if !p.FirstCall(rules[239]) {
 		return p.CallMemo(trules[239], i239)
 	}
@@ -19017,6 +19248,8 @@ fail:
 
 // rule source_remaining
 func u240(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[240])
 	if !p.FirstCall(rules[240]) {
 		return p.CallMemo(trules[240], v240)
 	}
@@ -19058,6 +19291,7 @@ fail:
 
 // rule source_scope_tail
 func u241(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i241(p)
 	if !ok {
@@ -19198,6 +19432,7 @@ fail:
 
 // rule source_next_boundary
 func u242(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i242(p)
 	if !ok {
@@ -19436,6 +19671,7 @@ fail:
 
 func s243(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start int
 	var v any
 	var c *rt.TActCtx
@@ -19455,6 +19691,7 @@ func s243(p *rt.TParser) (any, bool) {
 
 // rule source_detached_group
 func u244(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i244(p)
 	if !ok {
@@ -19562,6 +19799,7 @@ fail:
 
 // rule source_leading_group
 func u245(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i245(p)
 	if !ok {
@@ -19646,6 +19884,8 @@ fail:
 
 // rule source_comment
 func u251(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[251])
 	if !p.FirstCall(rules[251]) {
 		return p.CallMemo(trules[251], v251)
 	}
@@ -19710,6 +19950,8 @@ fail:
 
 // rule source_line_group
 func u252(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[252])
 	if !p.FirstCall(rules[252]) {
 		return p.CallMemo(trules[252], i252)
 	}
@@ -19829,6 +20071,8 @@ fail:
 
 // rule source_line_comment
 func u253(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[253])
 	if !p.FirstCall(rules[253]) {
 		return p.CallMemo(trules[253], i253)
 	}
@@ -19922,6 +20166,8 @@ fail:
 
 // rule source_block_comment
 func u254(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[254])
 	if !p.FirstCall(rules[254]) {
 		return p.CallMemo(trules[254], i254)
 	}
@@ -20080,6 +20326,8 @@ fail:
 
 // rule source_block_line
 func u256(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[256])
 	if !p.FirstCall(rules[256]) {
 		return p.CallMemo(trules[256], i256)
 	}
@@ -20183,6 +20431,7 @@ func i256(p *rt.TParser) (any, bool) {
 
 func s257(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x1, x2 int
 	var v, v3, v9, v11 any
 	var x5 rune
@@ -20231,6 +20480,7 @@ fail:
 
 // rule source_nested_piece
 func u258(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i258(p)
 	if !ok {
@@ -20282,6 +20532,7 @@ fail:
 
 // rule source_character_piece
 func u259(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i259(p)
 	if !ok {
@@ -20391,6 +20642,7 @@ fail:
 
 func s260(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x1, x2, x9, size, x13 int
 	var v, v3, v10, v14 any
 	var x5, ch rune
@@ -20461,6 +20713,7 @@ fail:
 
 // rule source_gaps
 func u264(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i264(p)
 	if !ok {
@@ -20690,6 +20943,7 @@ fail:
 
 // rule source_gap_head
 func u271(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i271(p)
 	if !ok {
@@ -20788,6 +21042,7 @@ fail:
 
 // rule source_gap
 func u272(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i272(p)
 	if !ok {
@@ -20898,6 +21153,7 @@ fail:
 
 // rule source_open_gap
 func u273(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i273(p)
 	if !ok {
@@ -21008,6 +21264,7 @@ fail:
 
 // rule source_delimiter_gap
 func u274(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i274(p)
 	if !ok {
@@ -21118,6 +21375,8 @@ fail:
 
 // rule source_gap_flag
 func u275(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[275])
 	if !p.FirstCall(rules[275]) {
 		return p.CallMemo(trules[275], v275)
 	}
@@ -21164,6 +21423,7 @@ fail:
 }
 
 func s276(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, rec, x2, x3, x5, x6, x9, x10, x12, x13, x16, x19, x20 int
 	var v any
@@ -21281,6 +21541,7 @@ fail:
 
 func s277(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, size int
 	var v any
 	var ch rune
@@ -21306,6 +21567,8 @@ fail:
 
 // rule stmt_sync
 func u278(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[278])
 	if !p.FirstCall(rules[278]) {
 		return p.CallMemo(trules[278], v278)
 	}
@@ -21467,6 +21730,8 @@ fail:
 
 // rule word_end
 func u279(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[279])
 	if !p.FirstCall(rules[279]) {
 		return p.CallMemo(trules[279], v279)
 	}
@@ -21504,6 +21769,7 @@ fail:
 }
 
 func s280(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, rec, x1, x2 int
 	var v any
@@ -21579,6 +21845,7 @@ fail:
 
 func s281(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x2, x6, x7, size int
 	var v any
 	var x1 rt.ExpMark
@@ -21651,6 +21918,8 @@ fail:
 
 // rule decl_start
 func u282(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[282])
 	if !p.FirstCall(rules[282]) {
 		return p.CallMemo(trules[282], v282)
 	}
@@ -21730,6 +21999,8 @@ fail:
 
 // rule sync_open
 func u283(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[283])
 	if !p.FirstCall(rules[283]) {
 		return p.CallMemo(trules[283], v283)
 	}
@@ -21920,6 +22191,7 @@ fail:
 
 func s284(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x1, x2, x9, x10, x13, x14, x22, x23 int
 	var v any
 	var ok, x6, x17 bool
@@ -22041,6 +22313,7 @@ fail:
 
 func s285(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, size int
 	var v any
 	var ch rune
@@ -22066,6 +22339,8 @@ fail:
 
 // rule decl_shape
 func u286(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[286])
 	if !p.FirstCall(rules[286]) {
 		return p.CallMemo(trules[286], v286)
 	}
@@ -22107,6 +22382,7 @@ fail:
 
 func s287(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x1, x2 int
 	var v any
 	var ok bool
@@ -22142,6 +22418,7 @@ fail:
 
 func s288(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec int
 	var v any
 	var ok bool
@@ -22176,6 +22453,7 @@ fail:
 }
 
 func s289(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, rec, x1, x2, x5, x6, x8, x9, x12, x13, x21, x22, x28, x29, x31, x32, x40, x41, x44, x47, x48, x51, x56, x59, x60, x63, x68, x72 int
 	var v any
@@ -22456,6 +22734,8 @@ fail:
 
 // rule declaration_ahead
 func u290(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[290])
 	if !p.FirstCall(rules[290]) {
 		return p.CallMemo(trules[290], v290)
 	}
@@ -22495,6 +22775,7 @@ fail:
 }
 
 func s291(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, rec, x2, x3, x5, x6, x10, x11, x13, x14, size, x23, x24, x32, x36 int
 	var v any
@@ -22674,6 +22955,7 @@ fail:
 
 func s292(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x1, x2, x4, x5, size int
 	var v any
 	var ok bool
@@ -22735,6 +23017,7 @@ fail:
 
 func s293(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x1, x2, x5, x6, x10 int
 	var v any
 	var ok bool
@@ -22777,6 +23060,8 @@ fail:
 
 // rule space_no_line
 func u294(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[294])
 	if !p.FirstCall(rules[294]) {
 		return p.CallMemo(trules[294], v294)
 	}
@@ -22814,6 +23099,7 @@ fail:
 }
 
 func s295(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, rec, x1, x2, x22 int
 	var v any
@@ -22991,6 +23277,8 @@ fail:
 
 // rule legacy_operators_start
 func u296(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[296])
 	if !p.FirstCall(rules[296]) {
 		return p.CallMemo(trules[296], v296)
 	}
@@ -23359,6 +23647,7 @@ fail:
 
 func s297(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, size int
 	var v any
 	var ch rune
@@ -23384,6 +23673,8 @@ fail:
 
 // rule ident
 func u298(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[298])
 	if !p.FirstCall(rules[298]) {
 		return p.CallMemo(trules[298], v298)
 	}
@@ -23440,6 +23731,8 @@ fail:
 
 // rule item_sync
 func u299(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[299])
 	if !p.FirstCall(rules[299]) {
 		return p.CallMemo(trules[299], v299)
 	}
@@ -23626,6 +23919,7 @@ fail:
 
 func s300(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x1, x2, x5, x6, x8, x9, x11, x12, x26, x27, size, x31 int
 	var v any
 	var x14, ch rune
@@ -23790,6 +24084,8 @@ fail:
 
 // rule true_lit
 func u301(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[301])
 	if !p.FirstCall(rules[301]) {
 		return p.CallMemo(trules[301], v301)
 	}
@@ -23830,6 +24126,8 @@ fail:
 
 // rule false_lit
 func u302(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[302])
 	if !p.FirstCall(rules[302]) {
 		return p.CallMemo(trules[302], v302)
 	}
@@ -23868,6 +24166,8 @@ fail:
 
 // rule nil_lit
 func u303(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[303])
 	if !p.FirstCall(rules[303]) {
 		return p.CallMemo(trules[303], v303)
 	}
@@ -23908,6 +24208,7 @@ fail:
 
 func s304(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec int
 	var v any
 	var ok bool
@@ -23925,6 +24226,7 @@ fail:
 }
 
 func s305(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, rec, x2, size int
 	var v any
@@ -23962,6 +24264,8 @@ fail:
 
 // rule source_non_comment
 func u306(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[306])
 	if !p.FirstCall(rules[306]) {
 		return p.CallMemo(trules[306], v306)
 	}
@@ -24093,6 +24397,7 @@ fail:
 
 func s307(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x2, x4, x5, x7, x8, size int
 	var v any
 	var ok, x1, x11 bool
@@ -24199,6 +24504,8 @@ fail:
 
 // rule source_semis
 func u308(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[308])
 	if !p.FirstCall(rules[308]) {
 		return p.CallMemo(trules[308], v308)
 	}
@@ -24291,6 +24598,7 @@ fail:
 
 func s309(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x1, x2 int
 	var v any
 	var ok, x6 bool
@@ -24348,6 +24656,8 @@ fail:
 
 // rule source_after_boundary
 func u310(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[310])
 	if !p.FirstCall(rules[310]) {
 		return p.CallMemo(trules[310], v310)
 	}
@@ -24408,6 +24718,8 @@ fail:
 
 // rule source_horizontal
 func u311(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[311])
 	if !p.FirstCall(rules[311]) {
 		return p.CallMemo(trules[311], v311)
 	}
@@ -24456,6 +24768,7 @@ func v311(p *rt.TParser) (any, bool) {
 }
 
 func s312(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, rec, x1, x2, size int
 	var v any
@@ -24517,6 +24830,7 @@ fail:
 }
 
 func s313(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, rec, x1, x2 int
 	var v any
@@ -24618,6 +24932,7 @@ fail:
 
 func s314(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x1, x2 int
 	var v any
 	var x4 rune
@@ -24673,6 +24988,8 @@ fail:
 
 // rule source_next_token
 func u315(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[315])
 	if !p.FirstCall(rules[315]) {
 		return p.CallMemo(trules[315], v315)
 	}
@@ -24736,6 +25053,7 @@ fail:
 }
 
 func s316(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, rec, x2, x4, x5, x8, x10, x11, x14, x16, x17 int
 	var v any
@@ -24849,6 +25167,8 @@ fail:
 
 // rule source_space
 func u317(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[317])
 	if !p.FirstCall(rules[317]) {
 		return p.CallMemo(trules[317], v317)
 	}
@@ -24897,6 +25217,8 @@ fail:
 
 // rule source_line_flush
 func u318(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[318])
 	if !p.FirstCall(rules[318]) {
 		return p.CallMemo(trules[318], v318)
 	}
@@ -24956,6 +25278,8 @@ fail:
 
 // rule source_block_flush
 func u319(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[319])
 	if !p.FirstCall(rules[319]) {
 		return p.CallMemo(trules[319], v319)
 	}
@@ -25025,6 +25349,7 @@ fail:
 
 func s320(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x1, x2 int
 	var v any
 	var ok bool
@@ -25059,6 +25384,8 @@ fail:
 
 // rule source_gap_skip
 func u321(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[321])
 	if !p.FirstCall(rules[321]) {
 		return p.CallMemo(trules[321], v321)
 	}
@@ -25277,6 +25604,7 @@ fail:
 
 func s322(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x1, x2, size int
 	var v any
 	var ok, x6 bool
@@ -25325,6 +25653,7 @@ fail:
 
 func s323(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x1 int
 	var v any
 	var ok bool
@@ -25357,6 +25686,8 @@ fail:
 
 // rule source_gap_run
 func u324(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[324])
 	if !p.FirstCall(rules[324]) {
 		return p.CallMemo(trules[324], v324)
 	}
@@ -25520,6 +25851,8 @@ fail:
 
 // rule source_after_boundary_trailing
 func u325(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[325])
 	if !p.FirstCall(rules[325]) {
 		return p.CallMemo(trules[325], v325)
 	}
@@ -25568,6 +25901,8 @@ fail:
 
 // rule attr_unit
 func u326(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[326])
 	if !p.FirstCall(rules[326]) {
 		return p.CallMemo(trules[326], v326)
 	}
@@ -25681,6 +26016,7 @@ fail:
 
 func s327(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x2, x3, x5, x6, x9, x10, x12, x13, x16 int
 	var v any
 	var ok bool
@@ -25776,6 +26112,8 @@ fail:
 
 // rule sync_unit
 func u328(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[328])
 	if !p.FirstCall(rules[328]) {
 		return p.CallMemo(trules[328], v328)
 	}
@@ -25912,6 +26250,7 @@ fail:
 
 func s329(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x1, x2, x13, x14, x16, x17, x19, x20 int
 	var v any
 	var x4 rune
@@ -26021,6 +26360,8 @@ fail:
 
 // rule sync_attrs
 func u330(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[330])
 	if !p.FirstCall(rules[330]) {
 		return p.CallMemo(trules[330], v330)
 	}
@@ -26156,6 +26497,7 @@ fail:
 
 func s331(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x2, x3, x5, x6, x9, x10, x12, x13, x16, x19, x20, x23 int
 	var v any
 	var ok bool
@@ -26277,6 +26619,7 @@ fail:
 }
 
 func s332(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, rec, x2, x3, x5, x6, x9, x10, x12, x13, x16, x19, x20, x23, x24 int
 	var v any
@@ -26403,6 +26746,8 @@ fail:
 
 // rule decl_tail
 func u333(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[333])
 	if !p.FirstCall(rules[333]) {
 		return p.CallMemo(trules[333], v333)
 	}
@@ -26439,6 +26784,8 @@ fail:
 
 // rule sync_ml
 func u334(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[334])
 	if !p.FirstCall(rules[334]) {
 		return p.CallMemo(trules[334], v334)
 	}
@@ -26546,6 +26893,7 @@ fail:
 }
 
 func s335(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, rec, x2, x4, x5, x7, x8, size, x16, x17 int
 	var v any
@@ -26663,6 +27011,7 @@ fail:
 
 func s336(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x2, x4, x5, x7, x8, size, x16, x17 int
 	var v any
 	var ok, x1, x11 bool
@@ -26779,6 +27128,8 @@ fail:
 
 // rule incomplete_comment
 func u337(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[337])
 	if !p.FirstCall(rules[337]) {
 		return p.CallMemo(trules[337], v337)
 	}
@@ -26835,6 +27186,8 @@ fail:
 
 // rule source_remaining
 func u338(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[338])
 	if !p.FirstCall(rules[338]) {
 		return p.CallMemo(trules[338], v338)
 	}
@@ -26871,6 +27224,7 @@ fail:
 
 func s339(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, size int
 	var v any
 	var ch rune
@@ -26896,6 +27250,8 @@ fail:
 
 // rule source_comment
 func u340(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[340])
 	if !p.FirstCall(rules[340]) {
 		return p.CallMemo(trules[340], v340)
 	}
@@ -26955,6 +27311,8 @@ fail:
 
 // rule source_bracket
 func u341(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[341])
 	if !p.FirstCall(rules[341]) {
 		return p.CallMemo(trules[341], v341)
 	}
@@ -27059,6 +27417,7 @@ fail:
 
 func s342(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x1, x2, size int
 	var v any
 	var ok, x6 bool
@@ -27106,6 +27465,7 @@ fail:
 }
 
 func s343(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, rec, x2, size, x6, x7 int
 	var v any
@@ -27160,6 +27520,8 @@ fail:
 
 // rule attr_paren
 func u344(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[344])
 	if !p.FirstCall(rules[344]) {
 		return p.CallMemo(trules[344], v344)
 	}
@@ -27321,6 +27683,8 @@ fail:
 
 // rule attr_call
 func u345(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[345])
 	if !p.FirstCall(rules[345]) {
 		return p.CallMemo(trules[345], v345)
 	}
@@ -27405,6 +27769,7 @@ fail:
 }
 
 func s346(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, rec, x1, x2, x5, x7, x8, x10, x11, size, x19, x20 int
 	var v any
@@ -27538,6 +27903,8 @@ fail:
 
 // rule sync_closed
 func u347(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[347])
 	if !p.FirstCall(rules[347]) {
 		return p.CallMemo(trules[347], v347)
 	}
@@ -27626,6 +27993,8 @@ fail:
 
 // rule sync_word
 func u348(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[348])
 	if !p.FirstCall(rules[348]) {
 		return p.CallMemo(trules[348], v348)
 	}
@@ -27708,6 +28077,7 @@ fail:
 }
 
 func s349(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, rec, x1, x2, x10, x11, x13, x14, x17, x18, x20, x21, x24, x27, x28, x30, x31 int
 	var v any
@@ -27863,6 +28233,7 @@ fail:
 }
 
 func s350(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, rec, x1, x2, x3, x5, x6, x8, x9, x18, x19, x21, x22, x33, x34, x36, x37, x39, x40, x42, x43, size, x61, x62 int
 	var v any
@@ -28241,6 +28612,7 @@ fail:
 
 func s351(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x1, x2, x5, x6, x7, x10, x11, x12, x13, x16, x17, x19 int
 	var v any
 	var ok, x9 bool
@@ -28351,6 +28723,8 @@ fail:
 
 // rule string
 func u352(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[352])
 	if !p.FirstCall(rules[352]) {
 		return p.CallMemo(trules[352], v352)
 	}
@@ -28494,6 +28868,7 @@ fail:
 
 func s353(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x2, x3, x5, x6, x10, x11, x13, x14, size int
 	var v any
 	var ok, x17 bool
@@ -28606,6 +28981,7 @@ fail:
 }
 
 func s354(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, rec, x2, x3, x5, x6, x10, x11, x13, x14, size int
 	var v any
@@ -28720,6 +29096,7 @@ fail:
 
 func s355(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x2 int
 	var v any
 	var x1 rt.ExpMark
@@ -28748,6 +29125,7 @@ fail:
 }
 
 func s356(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, rec, x2, x3, x5, x6, x10, x11, x13, x14, x16, x17, x19, x20 int
 	var v any
@@ -28857,6 +29235,8 @@ fail:
 
 // rule sync_closed_bracket
 func u357(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[357])
 	if !p.FirstCall(rules[357]) {
 		return p.CallMemo(trules[357], v357)
 	}
@@ -28973,6 +29353,8 @@ fail:
 
 // rule sync_index
 func u358(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[358])
 	if !p.FirstCall(rules[358]) {
 		return p.CallMemo(trules[358], v358)
 	}
@@ -29026,6 +29408,7 @@ fail:
 }
 
 func s359(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, rec, x2, x3, x5, x6, x10, x11, x13, x14, x16, x17, x19, x20 int
 	var v any
@@ -29135,6 +29518,7 @@ fail:
 
 func s360(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, rec, x1, x2, size int
 	var v any
 	var x4, ch rune
@@ -29201,6 +29585,8 @@ fail:
 
 // rule sync_inner
 func u361(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[361])
 	if !p.FirstCall(rules[361]) {
 		return p.CallMemo(trules[361], v361)
 	}
@@ -29275,4 +29661,4 @@ fail:
 
 const _ = types.ZPSchema_2f3baa996eddc35c
 
-const _ = rt.Protocol22
+const _ = rt.Protocol23

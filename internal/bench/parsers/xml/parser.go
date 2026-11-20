@@ -6649,6 +6649,7 @@ func r69(p *rt.Parser) (*zpvalue.Node, bool) {
 
 func r74(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var v *zpvalue.Node
 	var ch rune
 	var size, x1, x2 int
@@ -6681,6 +6682,7 @@ func r74(p *rt.Parser) (*zpvalue.Node, bool) {
 }
 
 func r75(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var start, size, x1, x2 int
 	var v *zpvalue.Node
@@ -6721,6 +6723,7 @@ fail:
 }
 
 func r77(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var start, size, x1, x2 int
 	var v *zpvalue.Node
@@ -6770,6 +6773,7 @@ fail:
 
 func r79(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var start, size int
 	var v *zpvalue.Node
 	var ch rune
@@ -6794,6 +6798,7 @@ fail:
 }
 
 func r80(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1, size, x7, x8, x11, x12 int
 	var v *zpvalue.Node
@@ -6911,6 +6916,7 @@ fail:
 }
 
 func r81(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var start int
 	var v *zpvalue.Node
@@ -8226,6 +8232,7 @@ fail:
 
 func q2(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x1 int
 	var v *zpvalue.Node
 	var x3 rune
@@ -8277,6 +8284,7 @@ fail:
 
 func q3(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x1, x4 int
 	var v *zpvalue.Node
 	var ok bool
@@ -8319,6 +8327,7 @@ fail:
 }
 
 func q4(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1 int
 	var v *zpvalue.Node
@@ -8400,6 +8409,7 @@ fail:
 
 func q5(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var start, size, x1, x2 int
 	var v *zpvalue.Node
 	var ok bool
@@ -8444,6 +8454,7 @@ fail:
 }
 
 func q6(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1 int
 	var v *zpvalue.Node
@@ -8525,6 +8536,7 @@ fail:
 
 func q7(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var start, size, x1, x2 int
 	var v *zpvalue.Node
 	var ch rune
@@ -8572,6 +8584,7 @@ fail:
 }
 
 func q8(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1 int
 	var v *zpvalue.Node
@@ -8653,6 +8666,7 @@ fail:
 
 func q9(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x1 int
 	var v *zpvalue.Node
 	var x3 rune
@@ -8707,6 +8721,7 @@ fail:
 }
 
 func q12(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var v *zpvalue.Node
 	var x1, ok, x12 bool
@@ -8808,6 +8823,7 @@ func q12(p *rt.Parser) (*zpvalue.Node, bool) {
 }
 
 func q14(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var v *zpvalue.Node
 	var x1, ok, x12 bool
@@ -8915,6 +8931,7 @@ func q14(p *rt.Parser) (*zpvalue.Node, bool) {
 
 func q15(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x1, x4 int
 	var v *zpvalue.Node
 	var ok bool
@@ -8977,6 +8994,7 @@ fail:
 
 func q16(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x2 int
 	var v *zpvalue.Node
 	var ok bool
@@ -9009,6 +9027,7 @@ fail:
 }
 
 func q17(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1 int
 	var v *zpvalue.Node
@@ -9135,6 +9154,7 @@ fail:
 
 func q18(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var start int
 	var v *zpvalue.Node
 	var ok bool
@@ -9160,6 +9180,7 @@ fail:
 }
 
 func q21(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var start int
 	var v *zpvalue.Node
@@ -9188,6 +9209,7 @@ fail:
 }
 
 func q23(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var v *zpvalue.Node
 	var ch rune
@@ -9222,6 +9244,7 @@ func q23(p *rt.Parser) (*zpvalue.Node, bool) {
 
 func q24(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var v *zpvalue.Node
 	var ch rune
 	var size, x1, x2 int
@@ -9254,6 +9277,7 @@ func q24(p *rt.Parser) (*zpvalue.Node, bool) {
 }
 
 func q26(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var v *zpvalue.Node
 	var ch rune
@@ -9288,6 +9312,7 @@ func q26(p *rt.Parser) (*zpvalue.Node, bool) {
 
 func q27(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var v *zpvalue.Node
 	var ch rune
 	var size, x1, x2 int
@@ -9320,6 +9345,7 @@ func q27(p *rt.Parser) (*zpvalue.Node, bool) {
 }
 
 func q28(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var start int
 	var v *zpvalue.Node
@@ -9356,6 +9382,7 @@ fail:
 }
 
 func q29(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1 int
 	var v *zpvalue.Node
@@ -9459,6 +9486,7 @@ fail:
 
 func q30(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var start int
 	var v *zpvalue.Node
 	var ok bool
@@ -9474,6 +9502,7 @@ fail:
 }
 
 func q31(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var start int
 	var v *zpvalue.Node
@@ -9492,6 +9521,7 @@ fail:
 }
 
 func q36(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1 int
 	var v *zpvalue.Node
@@ -9517,6 +9547,7 @@ fail:
 
 func q37(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var start, size int
 	var v *zpvalue.Node
 	var ch rune
@@ -9541,6 +9572,7 @@ fail:
 }
 
 func q38(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x2, x4 int
 	var v *zpvalue.Node
@@ -9607,6 +9639,7 @@ fail:
 
 func q39(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x1, x5 int
 	var v *zpvalue.Node
 	var ok bool
@@ -9657,6 +9690,7 @@ fail:
 }
 
 func q40(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1 int
 	var v *zpvalue.Node
@@ -9709,6 +9743,7 @@ fail:
 
 func q41(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var start int
 	var v *zpvalue.Node
 	var ok bool
@@ -9724,6 +9759,7 @@ fail:
 }
 
 func q42(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1 int
 	var v *zpvalue.Node
@@ -9781,6 +9817,7 @@ fail:
 }
 
 func q43(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1 int
 	var v *zpvalue.Node
@@ -9937,6 +9974,7 @@ fail:
 
 func q44(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x2, x4 int
 	var v *zpvalue.Node
 	var ok, x1 bool
@@ -10018,6 +10056,7 @@ fail:
 
 func q45(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x2, x4 int
 	var v *zpvalue.Node
 	var ok, x1 bool
@@ -10093,6 +10132,7 @@ fail:
 
 func q46(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x1 int
 	var v *zpvalue.Node
 	var x3 rune
@@ -10143,6 +10183,7 @@ fail:
 }
 
 func q47(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1, x5 int
 	var v *zpvalue.Node
@@ -10209,6 +10250,7 @@ fail:
 
 func q48(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x1 int
 	var v *zpvalue.Node
 	var ok bool
@@ -10264,6 +10306,7 @@ fail:
 }
 
 func q50(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var v *zpvalue.Node
 	var x1, ok bool
@@ -10335,6 +10378,7 @@ func q50(p *rt.Parser) (*zpvalue.Node, bool) {
 
 func q51(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var v *zpvalue.Node
 	var x1, ok bool
 	var x2, x4, x6, size, x9 int
@@ -10405,6 +10449,7 @@ func q51(p *rt.Parser) (*zpvalue.Node, bool) {
 
 func q52(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var start int
 	var v *zpvalue.Node
 	var ok bool
@@ -10440,6 +10485,7 @@ fail:
 }
 
 func q53(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1 int
 	var v *zpvalue.Node
@@ -10492,6 +10538,7 @@ fail:
 
 func q54(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x1 int
 	var v *zpvalue.Node
 	var ok bool
@@ -10525,6 +10572,7 @@ fail:
 
 func q56(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var start int
 	var v *zpvalue.Node
 	var ok bool
@@ -10546,6 +10594,7 @@ fail:
 }
 
 func q58(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var v *zpvalue.Node
 	var x1, ok bool
@@ -10617,6 +10666,7 @@ func q58(p *rt.Parser) (*zpvalue.Node, bool) {
 
 func q59(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var v *zpvalue.Node
 	var x1, ok bool
 	var x2, x4, x6, size, x9 int
@@ -10687,6 +10737,7 @@ func q59(p *rt.Parser) (*zpvalue.Node, bool) {
 
 func q60(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var v *zpvalue.Node
 	var x2 int
 	var ok bool
@@ -10711,6 +10762,7 @@ func q60(p *rt.Parser) (*zpvalue.Node, bool) {
 }
 
 func q61(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1 int
 	var v *zpvalue.Node
@@ -10742,6 +10794,7 @@ fail:
 }
 
 func q62(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1, x3 int
 	var v *zpvalue.Node
@@ -10852,6 +10905,7 @@ fail:
 }
 
 func q63(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x2, x3, x4, x6, size, x9, x10, x15 int
 	var v *zpvalue.Node
@@ -10973,6 +11027,7 @@ fail:
 
 func q64(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var start int
 	var v *zpvalue.Node
 	var ok bool
@@ -10996,6 +11051,7 @@ fail:
 }
 
 func q65(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var v *zpvalue.Node
 	var x1, ok, x12 bool
@@ -11102,6 +11158,7 @@ func q65(p *rt.Parser) (*zpvalue.Node, bool) {
 }
 
 func q67(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1, size, x7, x8, x11, x12 int
 	var v *zpvalue.Node
@@ -11220,6 +11277,7 @@ fail:
 
 func q68(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var start int
 	var v *zpvalue.Node
 	var ok bool
@@ -11263,6 +11321,7 @@ func q69(p *rt.Parser) (*zpvalue.Node, bool) {
 
 func q70(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var start, size int
 	var v *zpvalue.Node
 	var ch rune
@@ -11287,6 +11346,7 @@ fail:
 }
 
 func q72(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var start, size, x1, x2 int
 	var v *zpvalue.Node
@@ -11328,6 +11388,7 @@ fail:
 
 func q74(p *rt.Parser) (*zpvalue.Node, bool) {
 	p.Spend()
+	p.Spend()
 	var v *zpvalue.Node
 	var ch rune
 	var size, x1, x2 int
@@ -11360,6 +11421,7 @@ func q74(p *rt.Parser) (*zpvalue.Node, bool) {
 }
 
 func q75(p *rt.Parser) (*zpvalue.Node, bool) {
+	p.Spend()
 	p.Spend()
 	var start, size, x1, x2 int
 	var v *zpvalue.Node
@@ -11411,6 +11473,7 @@ var trules []*rt.TRule
 
 // rule main
 func u0(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start := p.Pos
 	v, ok := i0(p)
 	if !ok {
@@ -11508,6 +11571,8 @@ fail:
 
 // rule misc_list
 func u1(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[1])
 	if !p.FirstCall(rules[1]) {
 		return p.CallMemo(trules[1], i1)
 	}
@@ -11574,6 +11639,7 @@ fail:
 
 func s2(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x1 int
 	var v, v2, v8, v11 any
 	var x4 rune
@@ -11630,6 +11696,7 @@ fail:
 
 // rule xml_decl
 func u3(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start := p.Pos
 	v, ok := i3(p)
 	if !ok {
@@ -11699,6 +11766,7 @@ fail:
 
 // rule version_info
 func u4(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start := p.Pos
 	v, ok := i4(p)
 	if !ok {
@@ -11803,6 +11871,7 @@ fail:
 
 func s5(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x1, size, x2, x3 int
 	var v, v4, bv any
 	var ok bool
@@ -11855,6 +11924,7 @@ fail:
 
 // rule encoding_decl
 func u6(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start := p.Pos
 	v, ok := i6(p)
 	if !ok {
@@ -11959,6 +12029,7 @@ fail:
 
 func s7(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x1, size, x2, x3 int
 	var v, v4, bv any
 	var ch rune
@@ -12014,6 +12085,7 @@ fail:
 
 // rule sd_decl
 func u8(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start := p.Pos
 	v, ok := i8(p)
 	if !ok {
@@ -12118,6 +12190,7 @@ fail:
 
 func s9(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x1, x2 int
 	var v, v10, bv any
 	var x4 rune
@@ -12180,6 +12253,8 @@ fail:
 
 // rule comment
 func u11(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[11])
 	if !p.FirstCall(rules[11]) {
 		return p.CallMemo(trules[11], i11)
 	}
@@ -12228,6 +12303,7 @@ fail:
 }
 
 func s12(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1, x3, x5, x7, size, x10, x11 int
 	var v, v16, bv any
@@ -12338,6 +12414,8 @@ func s12(p *rt.TParser) (any, bool) {
 
 // rule pi
 func u13(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[13])
 	if !p.FirstCall(rules[13]) {
 		return p.CallMemo(trules[13], i13)
 	}
@@ -12565,6 +12643,7 @@ fail:
 
 func s14(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x1, x3, x5, x7, size, x10, x11, x16 int
 	var v, v18, bv any
 	var x2, ok, x13 bool
@@ -12679,6 +12758,7 @@ func s14(p *rt.TParser) (any, bool) {
 
 // rule doctype
 func u15(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start := p.Pos
 	v, ok := i15(p)
 	if !ok {
@@ -12775,6 +12855,7 @@ fail:
 
 // rule int_subset
 func u16(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start := p.Pos
 	v, ok := i16(p)
 	if !ok {
@@ -12837,6 +12918,7 @@ fail:
 }
 
 func s17(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1 int
 	var v, v2, v8, v11, v13, v16, v19, v22, v25 any
@@ -12973,6 +13055,7 @@ fail:
 
 func s18(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x1 int
 	var v, v2, bv any
 	var ok bool
@@ -13006,6 +13089,8 @@ fail:
 
 // rule external_id
 func u19(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[19])
 	if !p.FirstCall(rules[19]) {
 		return p.CallMemo(trules[19], v19)
 	}
@@ -13070,6 +13155,8 @@ fail:
 
 // rule system_id
 func u20(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[20])
 	if !p.FirstCall(rules[20]) {
 		return p.CallMemo(trules[20], i20)
 	}
@@ -13115,6 +13202,7 @@ fail:
 
 // rule public_id
 func u21(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start := p.Pos
 	v, ok := i21(p)
 	if !ok {
@@ -13164,6 +13252,8 @@ fail:
 
 // rule system_literal
 func u22(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[22])
 	if !p.FirstCall(rules[22]) {
 		return p.CallMemo(trules[22], i22)
 	}
@@ -13262,6 +13352,7 @@ fail:
 
 func s23(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x1, size, x2, x3 int
 	var v, v4, bv any
 	var ch rune
@@ -13302,6 +13393,7 @@ func s23(p *rt.TParser) (any, bool) {
 }
 
 func s24(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1, size, x2, x3 int
 	var v, v4, bv any
@@ -13344,6 +13436,8 @@ func s24(p *rt.TParser) (any, bool) {
 
 // rule pubid_literal
 func u25(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[25])
 	if !p.FirstCall(rules[25]) {
 		return p.CallMemo(trules[25], i25)
 	}
@@ -13442,6 +13536,7 @@ fail:
 
 func s26(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x1, size, x2, x3 int
 	var v, v4, bv any
 	var ch rune
@@ -13482,6 +13577,7 @@ func s26(p *rt.TParser) (any, bool) {
 }
 
 func s27(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1, size, x2, x3 int
 	var v, v4, bv any
@@ -13524,6 +13620,7 @@ func s27(p *rt.TParser) (any, bool) {
 
 // rule element_decl
 func u28(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start := p.Pos
 	v, ok := i28(p)
 	if !ok {
@@ -13580,6 +13677,7 @@ fail:
 }
 
 func s29(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1 int
 	var v, v2, v8, v11, v14, v17, v20 any
@@ -13691,6 +13789,7 @@ fail:
 
 func s30(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x1 int
 	var v, v2, bv any
 	var ok bool
@@ -13713,6 +13812,7 @@ fail:
 }
 
 func s31(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1 int
 	var v, v2, bv any
@@ -13739,6 +13839,7 @@ fail:
 
 // rule mixed
 func u32(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start := p.Pos
 	v, ok := i32(p)
 	if !ok {
@@ -13920,6 +14021,8 @@ fail:
 
 // rule choice
 func u33(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[33])
 	if !p.FirstCall(rules[33]) {
 		return p.CallMemo(trules[33], i33)
 	}
@@ -14037,6 +14140,8 @@ fail:
 
 // rule sequence
 func u34(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[34])
 	if !p.FirstCall(rules[34]) {
 		return p.CallMemo(trules[34], i34)
 	}
@@ -14149,6 +14254,8 @@ fail:
 
 // rule cp
 func u35(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[35])
 	if !p.FirstCall(rules[35]) {
 		return p.CallMemo(trules[35], v35)
 	}
@@ -14234,6 +14341,7 @@ fail:
 
 // rule name_particle
 func u36(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start := p.Pos
 	v, ok := i36(p)
 	if !ok {
@@ -14281,6 +14389,7 @@ fail:
 
 func s37(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x1, size int
 	var v, v2, bv any
 	var ch rune
@@ -14313,6 +14422,7 @@ fail:
 
 // rule attlist_decl
 func u38(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start := p.Pos
 	v, ok := i38(p)
 	if !ok {
@@ -14391,6 +14501,7 @@ fail:
 
 // rule att_def
 func u39(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start := p.Pos
 	v, ok := i39(p)
 	if !ok {
@@ -14474,6 +14585,7 @@ fail:
 
 func s40(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x1, x2 int
 	var v, v10, bv any
 	var x4 rune
@@ -14532,6 +14644,7 @@ fail:
 
 func s41(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x1 int
 	var v, v2, bv any
 	var ok bool
@@ -14554,6 +14667,7 @@ fail:
 }
 
 func s42(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1 int
 	var v, v2, v5, v10, v13 any
@@ -14617,6 +14731,7 @@ fail:
 }
 
 func s43(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1, x2 int
 	var v, v22, bv any
@@ -14780,6 +14895,7 @@ fail:
 
 // rule notation_type
 func u44(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start := p.Pos
 	v, ok := i44(p)
 	if !ok {
@@ -14881,6 +14997,7 @@ fail:
 
 // rule enumeration
 func u45(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start := p.Pos
 	v, ok := i45(p)
 	if !ok {
@@ -14976,6 +15093,7 @@ fail:
 
 func s46(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x1 int
 	var v, v2, v8, v11 any
 	var x4 rune
@@ -15032,6 +15150,7 @@ fail:
 
 // rule ge_decl
 func u47(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start := p.Pos
 	v, ok := i47(p)
 	if !ok {
@@ -15131,6 +15250,7 @@ fail:
 
 // rule pe_decl
 func u48(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start := p.Pos
 	v, ok := i48(p)
 	if !ok {
@@ -15215,6 +15335,8 @@ fail:
 
 // rule entity_value
 func u49(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[49])
 	if !p.FirstCall(rules[49]) {
 		return p.CallMemo(trules[49], i49)
 	}
@@ -15313,6 +15435,7 @@ fail:
 
 func s50(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x1, x3, x5, x7, size, x10 int
 	var v, v12, bv any
 	var x2, ok bool
@@ -15390,6 +15513,7 @@ func s50(p *rt.TParser) (any, bool) {
 }
 
 func s51(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1, x3, x5, x7, size, x10 int
 	var v, v12, bv any
@@ -15469,6 +15593,7 @@ func s51(p *rt.TParser) (any, bool) {
 
 // rule notation_decl
 func u52(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start := p.Pos
 	v, ok := i52(p)
 	if !ok {
@@ -15526,6 +15651,7 @@ fail:
 
 func s53(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x1 int
 	var v, v2, v8, v11 any
 	var x4 rune
@@ -15582,6 +15708,7 @@ fail:
 
 // rule public_notation
 func u54(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start := p.Pos
 	v, ok := i54(p)
 	if !ok {
@@ -15638,6 +15765,8 @@ fail:
 
 // rule element
 func u55(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[55])
 	if !p.FirstCall(rules[55]) {
 		return p.CallMemo(trules[55], i55)
 	}
@@ -15817,6 +15946,7 @@ fail:
 
 // rule attribute
 func u56(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start := p.Pos
 	v, ok := i56(p)
 	if !ok {
@@ -15860,6 +15990,8 @@ fail:
 
 // rule att_value
 func u57(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[57])
 	if !p.FirstCall(rules[57]) {
 		return p.CallMemo(trules[57], i57)
 	}
@@ -15958,6 +16090,7 @@ fail:
 
 func s58(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x1, x3, x5, x7, size, x10 int
 	var v, v12, bv any
 	var x2, ok bool
@@ -16035,6 +16168,7 @@ func s58(p *rt.TParser) (any, bool) {
 }
 
 func s59(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1, x3, x5, x7, size, x10 int
 	var v, v12, bv any
@@ -16114,6 +16248,7 @@ func s59(p *rt.TParser) (any, bool) {
 
 func s60(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x1, x2, x4 int
 	var v, v6, v7, v8 any
 	var ok bool
@@ -16146,6 +16281,7 @@ func s60(p *rt.TParser) (any, bool) {
 }
 
 func s61(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1 int
 	var v, v2, v5, v7 any
@@ -16183,6 +16319,7 @@ fail:
 
 // rule markup
 func u62(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start := p.Pos
 	v, ok := i62(p)
 	if !ok {
@@ -16318,6 +16455,7 @@ fail:
 
 func s63(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x1, x3, x4, x5, x7, size, x10, x11, x16 int
 	var v, v18, bv any
 	var x2, ok, x13 bool
@@ -16445,6 +16583,7 @@ fail:
 
 // rule cdsect
 func u64(p *rt.TParser) (any, bool) {
+	p.Spend()
 	start := p.Pos
 	v, ok := i64(p)
 	if !ok {
@@ -16488,6 +16627,7 @@ fail:
 }
 
 func s65(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1, x3, x5, x7, size, x10, x11, x16 int
 	var v, v18, bv any
@@ -16603,6 +16743,8 @@ func s65(p *rt.TParser) (any, bool) {
 
 // rule reference
 func u66(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[66])
 	if !p.FirstCall(rules[66]) {
 		return p.CallMemo(trules[66], v66)
 	}
@@ -16655,6 +16797,7 @@ fail:
 }
 
 func s67(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1, x2, size, x8, x9, x12, x13 int
 	var v, v14, bv any
@@ -16780,6 +16923,7 @@ fail:
 
 func s68(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, x1 int
 	var v, v2, bv any
 	var ok bool
@@ -16812,6 +16956,7 @@ fail:
 }
 
 func s69(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1, size, x2, x3 int
 	var v, v4, bv any
@@ -16868,6 +17013,8 @@ fail:
 
 // rule nmtoken
 func u71(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[71])
 	if !p.FirstCall(rules[71]) {
 		return p.CallMemo(trules[71], v71)
 	}
@@ -16938,6 +17085,7 @@ fail:
 
 func s74(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var v any
 	var ch rune
 	var size, x1, x2 int
@@ -16970,6 +17118,7 @@ func s74(p *rt.TParser) (any, bool) {
 }
 
 func s75(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, size, x1, x2 int
 	var v any
@@ -17011,6 +17160,8 @@ fail:
 
 // rule eq
 func u76(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[76])
 	if !p.FirstCall(rules[76]) {
 		return p.CallMemo(trules[76], v76)
 	}
@@ -17042,6 +17193,7 @@ fail:
 }
 
 func s77(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, size, x1, x2 int
 	var v any
@@ -17091,6 +17243,8 @@ fail:
 
 // rule reference
 func u78(p *rt.TParser) (any, bool) {
+	p.Spend()
+	p.ChargeKey(rules[78])
 	if !p.FirstCall(rules[78]) {
 		return p.CallMemo(trules[78], v78)
 	}
@@ -17139,6 +17293,7 @@ fail:
 
 func s79(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start, size int
 	var v any
 	var ch rune
@@ -17163,6 +17318,7 @@ fail:
 }
 
 func s80(p *rt.TParser) (any, bool) {
+	p.Spend()
 	p.Spend()
 	var start, x1, size, x7, x8, x11, x12 int
 	var v any
@@ -17281,6 +17437,7 @@ fail:
 
 func s81(p *rt.TParser) (any, bool) {
 	p.Spend()
+	p.Spend()
 	var start int
 	var v any
 	var ok bool
@@ -17307,4 +17464,4 @@ fail:
 
 const _ = types.ZPSchema_b044f4d2cb8d65a3
 
-const _ = rt.Protocol22
+const _ = rt.Protocol23

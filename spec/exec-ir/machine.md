@@ -124,12 +124,11 @@ are the following.
 | `deps` | The number of dependencies that the call passes to the enclosing evaluation or stores: those that the frame of the evaluation it ends recorded, and those stored with the results, steps and jumps it reuses, with the observations they lead to. |
 | `dropped` | The number of the entries above the mark of the call, which it drops: elements gathered (`term.dropKids`) or values made (`term.dropCreated`). |
 | `env_path` | The number of nodes on the path to a slot of a persistent vector of the variables with 16 children for each node: the levels above the leaves, and the leaf. It is the same for every slot. |
-| `env_reads` | `vars` times `env_path`. |
 | `env_rebind` | `env_path` when the value of the call differs from the one the slot holds, and 0 when they are equal: the nodes that a rebind copies. |
 | `error_parts` | The number of fragments of the text of a failure: the fixed pieces and the values between them, which a target that bounds the work assembles piece by piece, charging each. |
 | `errs` | The number of recovered errors that the call copies: those of its argument, or those recovered after its mark. |
 | `fields_read` | The number of fields of a value that a read of one of them scans. |
-| `key_scan` | The sum, over the entries stored at the call's position for any rule, of one more than the number of their key values, a string counting two more for each of its bytes: what scanning the position and comparing keys inspects. It counts the entries that `memo.splice` removed and that a target may still hold there, because it applies edits to an entry when it finds the entry. |
+| `key_bytes` | The sum of the lengths, in bytes of UTF-8, of the string values that the variables a rule reads hold: the bytes of the memo key of a call of the rule that budget.chargeKey pays for. |
 | `merge` | The units that the compositions over the expectation record (keep, mergeKept, mergeExpected, and the calls of expect they make) charge for the sets that the call keeps or merges. |
 | `move_edits` | The edits that the call replays to learn how far a node moves that another result moved since the entry's value was made: for each generation of the value's nodes other than the entry's, the edits since that generation. It is zero for a target that keeps no generations. |
 | `moved` | The size of the value of the entry that the call moves: for each distinct node in it, one and the number of its children and fields. |

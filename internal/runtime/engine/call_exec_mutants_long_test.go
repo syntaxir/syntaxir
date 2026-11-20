@@ -568,7 +568,7 @@ func TestStreamCommitMutantsFail(t *testing.T) {
 
 // TestDocumentReuseMutantsFail is the negative control of Document reuse: the two printed forms of
 // AdvanceEntry, the engine's memo.splice and doc.move in internal/runtime/state/document_ops.go, the charges of the runs,
-// and the calls of the printed lookup. Each row breaks one step and fails the test it names. Three
+// and the calls of the printed lookup. Each row breaks one step and fails the test it names. Four
 // edits are left out because they change nothing a parse can reach.
 //   - ShiftOf testing an edit's start for its end: the node of a reused result lies in the input the
 //     result examined, and no edit since overlaps that input, so a node is before the start or at or
@@ -578,6 +578,9 @@ func TestStreamCommitMutantsFail(t *testing.T) {
 //     since the one store of a call takes its entry after GrowEnd cleared Growing.
 //   - A lookup that reads all of p.Edits: a Document sets p.Gen to the length of the log it passes,
 //     and no edit reaches the log during a parse.
+//   - A model whose memo.store leaves the stored key among the held entries: the pending edits of a
+//     lookup read the stored entry before the held ones, and memo.splice holds the entry again with
+//     its own edits, so the held value under a stored key is never read.
 func TestDocumentReuseMutantsFail(t *testing.T) {
 	_, src := mutanttest.Source(t, "internal/runtime/state/document_exec.go")
 	const budgeted, plain = "func (p *Parser) AdvanceEntry(", "\nfunc AdvanceEntry("
@@ -731,7 +734,6 @@ func TestDocumentReuseMutantsFail(t *testing.T) {
 		{"ref held pending inflated", []printedEdit{{"return m.edits - applied\n", "return m.edits - applied + 3\n"}}, "^TestMemoChargesMatchTheModel$", []string{"zeroparse.dev/zp/internal/runtime/state"}},
 		{"ref hold start inclusive", []printedEdit{{"case k.pos < start:", "case k.pos <= start:"}}, "^TestMemoChargesMatchTheModel$", []string{"zeroparse.dev/zp/internal/runtime/state"}},
 		{"ref hold end inclusive", []printedEdit{{"case k.pos > end:", "case k.pos >= end:"}}, "^TestMemoChargesMatchTheModel$", []string{"zeroparse.dev/zp/internal/runtime/state"}},
-		{"ref held survive store", []printedEdit{{"\tdelete(m.held, e.key)\n", ""}}, "^TestMemoChargesMatchTheModel$", []string{"zeroparse.dev/zp/internal/runtime/state"}},
 		{"ref lookup keeps applied", []printedEdit{{"\t\tif e != nil {\n\t\t\te.applied = m.edits\n\t\t}\n", ""}}, "^TestMemoChargesMatchTheModel$", []string{"zeroparse.dev/zp/internal/runtime/state"}},
 	})
 	runPrintedMutants(t, "internal/runtime/state/resume.go", []printedMutant{

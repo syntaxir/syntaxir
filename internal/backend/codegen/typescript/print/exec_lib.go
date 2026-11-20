@@ -451,7 +451,9 @@ var tsTarget = &Target{
 		case "rule.invokePlain":
 			return fmt.Sprintf("this.invokePlainBody(%s, %s)", a[0], a[1])
 		case "env.key":
-			return "this.envValues(" + a[0] + ".vars)"
+			return "this.keyValues(" + a[0] + ".vars)"
+		case "budget.chargeKey":
+			return "this.chargeKey(" + a[0] + ")"
 		case "rec.mark":
 			return "this.recovered.length"
 		case "rec.truncate":

@@ -31,7 +31,7 @@ func TestEnvironmentMutantsFail(t *testing.T) {
 			{"a key keeps the initial values after a binding",
 				[]printedEdit{{"if p.Env == p.initEnv && r.InitVals != nil &&", "if r.InitVals != nil &&"}}, conformance, core},
 			{"a key leaves out its first variable",
-				[]printedEdit{{"return p.EnvValues(r.VarSlots)", "return p.EnvValues(r.VarSlots[min(1, len(r.VarSlots)):])"}}, conformance, core},
+				[]printedEdit{{"return p.keyValues(r.VarSlots)", "return p.keyValues(r.VarSlots[min(1, len(r.VarSlots)):])"}}, conformance, core},
 		})
 	})
 }

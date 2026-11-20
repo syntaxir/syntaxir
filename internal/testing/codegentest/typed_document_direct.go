@@ -180,6 +180,8 @@ func TestControlsAndInvalidOptions(t *testing.T){
    func(){defer func(){if recover()!=token{t.Fatal("context panic identity changed")}}();d.ParseValue(WithContext(ctx));t.Fatal("context did not panic")}()
    unchanged();reused()
   }
+  // Reusing the warm root may fit in one unit, so an edit makes the parse evaluate the root again.
+  if err:=d.Edit(0,0,"a");err!=nil{t.Fatal(err)}
   if _,err:=d.ParseValue(WithLimits(Limits{Compute:1}));!errors.Is(err,ErrLimit)||d.X_typedMemo!=nil{t.Fatalf("compute limit cleanup: %v",err)}
   assertDirect(t,d,unit)
  }

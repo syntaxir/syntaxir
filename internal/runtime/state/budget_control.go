@@ -170,10 +170,10 @@ func (c *BudgetControl) Charge(n uint64) {
 	c.SinceCheck = limits.SaturatingAdd(c.SinceCheck, n)
 }
 
-// ChargeUnits reserves n compute units one at a time, as n calls of Charge(1) do. A run that fits
-// without reaching a poll boundary is reserved at once; otherwise each unit is, so that polls fall
-// where they do for the units and a failed run reports the unit that does not fit: Used is the
-// limit and Requested one. It is safe on a nil receiver.
+// ChargeUnits reserves n compute units one at a time, as n calls of Charge(1) do: the same units,
+// the same polls and the same failure, in a time that grows with the polls the units reach, not with
+// n. The units between two polls are reserved at once; a run that does not fit fails at the unit that
+// does not: Used is the limit and Requested one. It is safe on a nil receiver.
 func (c *BudgetControl) ChargeUnits(n uint64) {
 	if c == nil {
 		return
@@ -184,7 +184,27 @@ func (c *BudgetControl) ChargeUnits(n uint64) {
 		c.SinceCheck = limits.SaturatingAdd(c.SinceCheck, n)
 		return
 	}
-	for ; n > 0; n-- {
+	fit := n
+	if c.Limits.Compute != 0 {
+		fit = min(n, c.Limits.Compute-min(c.Used, c.Limits.Compute))
+	}
+	if fit > 0 {
+		logCharge(c, fit)
+	}
+	for left := fit; left > 0; {
+		// k units reach the next poll: k-1 before it, then the unit that polls.
+		k := BudgetCheckInterval - c.SinceCheck
+		if left < k {
+			c.Used = limits.SaturatingAdd(c.Used, left)
+			c.SinceCheck += left
+			break
+		}
+		c.Used = limits.SaturatingAdd(c.Used, k-1)
+		c.SinceCheck += k - 1
+		c.chargeSlow(1, true, false)
+		left -= k
+	}
+	if fit < n {
 		c.Charge(1)
 	}
 }

@@ -25,7 +25,7 @@ func TestLimitErrorAgreementMutants(t *testing.T) {
 	t.Run("atomic Take", func(t *testing.T) {
 		t.Parallel()
 		codegentest.NeedsBudgetControls(t)
-		const unit = "func (c *BudgetControl) takeSlow(n uint64) {\n\tfor ; n > 0; n-- {\n\t\tc.chargeStep()\n\t}\n}"
+		const unit = "func (c *BudgetControl) takeSlow(n uint64) {\n\tc.settle()\n"
 		runtime := codegentest.LibCopyWith(t, func(name, src string) string {
 			if name != "budget.go" {
 				return src
@@ -33,7 +33,7 @@ func TestLimitErrorAgreementMutants(t *testing.T) {
 			if !strings.Contains(src, unit) {
 				t.Fatal("the unit reservations of Take are not in budget.go")
 			}
-			return strings.Replace(src, unit, "func (c *BudgetControl) takeSlow(n uint64) {\n\tc.chargeSlow(n)\n}", 1)
+			return strings.Replace(src, unit, "func (c *BudgetControl) takeSlow(n uint64) {\n\tc.chargeSlow(n)\n\treturn\n\tc.settle()\n", 1)
 		}, nil)
 		c := cases["literal"]
 		want := engineLimitReports(t, c, Closure)

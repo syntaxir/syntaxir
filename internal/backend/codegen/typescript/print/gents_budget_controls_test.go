@@ -223,7 +223,8 @@ func TestGeneratedTSBudgetControlWideClassSteps(t *testing.T) {
 	// A wide class is tested by comparisons that cost no spend of their own: each peek that reads a
 	// character charges it, and each repetition charges its step. The guard of an alternative is a
 	// terminal that reads the character again, so the peek of the guard charges once per alternative
-	// (spec/runtime/parsing.md#cost). The budgets that parse and recognition need for one character and
+	// (spec/runtime/parsing.md#cost). The start rule charges its call and the evaluation of its body.
+	// The budgets that parse and recognition need for one character and
 	// for a run of them are pinned, so that a long input of wide-class matches still reaches the limits.
 	var class strings.Builder
 	for i := 0; i < 800; i++ {
@@ -239,8 +240,8 @@ function threshold(run:(n:number)=>Error|null):number {
 }
 const wide=String.fromCodePoint(0x1000);
 // The budgets of recognition and of parsing: for "z", fifty "z" and fifty wide characters.
-const budgets=new Map<p.Unit,number[][]>([[p.CodePoints,[[12],[404],[304]]],[p.Bytes,[[19],[656],[1007]]]]);
-const parseBudgets=new Map<p.Unit,number[][]>([[p.CodePoints,[[12],[404],[354]]],[p.Bytes,[[19],[656],[1057]]]]);
+const budgets=new Map<p.Unit,number[][]>([[p.CodePoints,[[13],[405],[305]]],[p.Bytes,[[20],[657],[1008]]]]);
+const parseBudgets=new Map<p.Unit,number[][]>([[p.CodePoints,[[13],[405],[355]]],[p.Bytes,[[20],[657],[1058]]]]);
 for(const unit of [p.CodePoints,p.Bytes]) {
  check(p.parse("z",unit).error===null&&p.recognize("z",unit)===null,"wide class fallback succeeds without controls");
  check(stable(p.parseWithOptions("z",{unit,signal:{aborted:false}}).node)===stable(p.parse("z",unit).node),"controlled class fallback preserves result");
@@ -302,12 +303,19 @@ for(const unit of [p.CodePoints,p.Bytes])for(const input of ["a","b","aa","bb",n
 		consumer := `import * as p from "./parser.ts";
 ` + tsTypedAssert + `
 for(const unit of [p.CodePoints,p.Bytes])for(const input of ["z",new Uint8Array([122])]) {
- const fast=p.parseRuleWithOptions("fast",input,{unit,limits:{compute:128}});
- check(fast.error===null&&fast.node!==null,"one call fits before memo string comparison");
+ // Each call of word pays for its key, 1600 bytes, whatever the memo holds: one call of fast needs
+ // more than the key, and the four calls of main more than four keys.
+ const least=(run:(k:number)=>Error|null):number=>{let lo=0,hi=1;while(run(hi)!==null)hi*=2;while(lo+1<hi){const mid=Math.floor((lo+hi)/2);if(run(mid)===null)hi=mid;else lo=mid}return hi};
+ const fast=least(k=>p.parseRuleWithOptions("fast",input,{unit,limits:{compute:k}}).error);
+ check(fast>1601&&fast<1601+64,"one call pays for its key once: "+fast);
  const normal=p.parse(input,unit);
  check(normal.error===null&&normal.node!==null,"ordinary repeated memo call succeeds");
- const errors=[p.parseWithOptions(input,{unit,limits:{compute:128}}).error,p.parseRuleWithOptions("main",input,{unit,limits:{compute:128}}).error,p.parseValueWithOptions(input,{unit,limits:{compute:128}}).error,p.recognizeWithOptions(input,{unit,limits:{compute:128}})];
- for(const [index,error] of errors.entries())check(error instanceof p.ParseInterruptionError&&error.kind==="compute-limit"&&error.requested===128,"bounded memo-key string comparison consumes steps "+index+" "+stable(error));
+ for(const [index,run] of [(k:number)=>p.parseWithOptions(input,{unit,limits:{compute:k}}).error,(k:number)=>p.parseRuleWithOptions("main",input,{unit,limits:{compute:k}}).error,(k:number)=>p.parseValueWithOptions(input,{unit,limits:{compute:k}}).error,(k:number)=>p.recognizeWithOptions(input,{unit,limits:{compute:k}})].entries()){
+  const n=least(run);
+  check(n>4*1601&&n<4*1601+128,"each memo call pays for its key "+index+" "+n);
+  const error=run(n-1);
+  check(error instanceof p.ParseInterruptionError&&error.kind==="compute-limit","the key charge stops at the limit "+index+" "+stable(error));
+ }
  const unlimited=p.parseWithOptions(input,{unit,limits:{compute:0},signal:{aborted:false}});
  check(unlimited.error===null&&stable(unlimited.node)===stable(normal.node),"unlimited memo results preserved");
  let polls=0;const reason={marker:"memo"};

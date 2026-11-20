@@ -483,7 +483,21 @@ func (p *Parser) memoEnv(r *Rule) []any {
 		return r.InitVals
 	}
 	p.ChargeValueBytes(len(r.VarSlots) * int(anyBytes))
-	return p.EnvValues(r.VarSlots)
+	return p.keyValues(r.VarSlots)
+}
+
+// keyValues is EnvValues for a memo key, without charges: the call paid for its key (ChargeKey).
+func (p *Parser) keyValues(slots []int) []any {
+	if p.Env == nil && len(slots) <= len(noVals) {
+		return noVals[:len(slots):len(slots)]
+	}
+	vals := make([]any, len(slots))
+	for i, slot := range slots {
+		if slot >= 0 {
+			vals[i] = p.Env.Get(slot, p.envLevels)
+		}
+	}
+	return vals
 }
 
 // Memoizes reports whether the results of rule r are memoized.

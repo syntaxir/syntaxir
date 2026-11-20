@@ -142,8 +142,10 @@ iterations of repetitions and the operators applied, and the size of the
 values that actions and predicates build. A step of a rule body includes the
 calls it makes, so $C_{\mathrm{body}}$ counts each call: a constant, and the
 lookup of its key, which costs in proportion to the size of the key
-([Evaluations of Rules](../runtime/parsing.md#evaluations-of-rules)). In every
-parse $C$ counts these and nothing else of a lookup. What a
+([Evaluations of Rules](../runtime/parsing.md#evaluations-of-rules)). The call
+pays for its key whatever the lookup compares, and walking, comparing, hashing
+and storing in the memo charge no further unit ([Cost](../runtime/parsing.md#cost)).
+In every parse $C$ counts these and nothing else of a lookup. What a
 [Document](../runtime/documents.md) parse does beyond them, at a lookup or
 elsewhere, is no part of $C$: Lemma 12 counts it as **Document units**, apart
 from the extra units of decoding the characters of its text, which the corollary
@@ -183,7 +185,7 @@ store puts in that entry's place the join of it and the new result that
 or the new result where the parse cannot use the entry, or puts the new entry in front of it, so
 the others are not seen until a later edit relinks them. A lookup compares at most 32 entries
 of a chain before it consults an index, and Lemma 12 counts the walks and
-indexes of longer chains. Calls outside a Document have none of these
+indexes of longer chains, which charge no unit, as Document units of work. Calls outside a Document have none of these
 units, and the memoization, the evaluations and the other costs are those of
 the setting.
 
@@ -12260,7 +12262,11 @@ the corollary counts with $C$: the edits that lookups apply; the steps along
 a chain beyond the entries that the lookup of $C$ compares, the removal of
 lagging entries, and the hashing and probing of the indexes of chains; the moves
 of reused values; the operations of the runs; and the growth of the slots of the
-memo.
+memo. The steps along chains, the removals, the hashing and probing and the
+growth of the slots charge no unit of Compute, since the call paid for its key
+([Cost](../runtime/parsing.md#cost)); the lemma counts each step of them as one
+Document unit of work, so its bound covers the units that the parse charges and
+the time of that work alike.
 
 At the start of the parse, let the **retained size** $W$ be the sum of one plus
 the size of the key of each memo entry, the number of iterations of the run
@@ -12291,10 +12297,11 @@ at most $T$ edits, one unit each, so the edits come to at most $A T$: a constant
 times the calls, whatever the length of the log.
 
 *Long chains.* A lookup compares at most 32 entries that do not lag before it
-consults the index, and comparing a stored key with the key of the call charges
+consults the index, and comparing a stored key with the key of the call takes
 at most a constant times the size of the latter, since strings are compared only
-when their lengths are equal; this is the lookup of $C$. A lagging entry is
-removed where a walk meets it, at one unit, and is not compared. The parse
+when their lengths are equal; this is the lookup of $C$, which the call paid for
+by its key. A lagging entry is removed where a walk meets it, at one unit of work
+and no unit of Compute, and is not compared. The parse
 stores no lagging entry and no entry starts to lag during it, since the log does
 not change, so each entry removed is one that the parse retained, at most $W$
 units in all. Past the 32 entries, a lookup or a store hashes its key, at most a
@@ -12302,7 +12309,7 @@ constant times $L + 1$, and its probe compares at most the $Q$ entries of the
 chain. A store of a key that the chain holds beyond them also passes at most $Q$
 entries to reach it, and a store that replaces one of the first 32 entries of a
 chain with an index hashes the key it replaces, which equals its own. Together
-these charge at most a constant times $A (L + 1) (Q + 1)$. A parse builds the
+these come to at most a constant times $A (L + 1) (Q + 1)$. A parse builds the
 index of a position at most once, hashing each key of the chain: at most $W$ for
 the entries that the parse retained, and a constant times $L + 1$ for each of the
 at most $A$ entries that it stored.
@@ -12355,9 +12362,9 @@ holds a value for each iteration of the repetitions in progress, and the room
 asked for is the iterations of one record, so that length is at most a constant
 times $W + A$, and so are the charges.
 
-*Slots.* A store charges for the growth of the slots only where the number of
-binary digits of their length grows, by the old length. So the charges of one
-parse add up to at most twice the last length, and a store at position $p$ needs
+*Slots.* A store grows the slots, which charges no unit, only where the number
+of binary digits of their length grows, by the old length. So the growth in one
+parse adds up to at most twice the last length, and a store at position $p$ needs
 at most $p + 1 + G$ slots, so at most $2 (\hat{n} + G)$.
 
 Summing, with $A$ at most a constant times $K \hat{n}$ and $K \ge 1$, gives the
@@ -12371,51 +12378,45 @@ its creation, and so are their charges
 
 *The units that the default budget counts.* The default budget of a Document
 parse leaves out the Document units of Lemma 12 that the parse reserves in regions
-of Document work: the memo protocol of a call of a transient rule, whose results only a Document stores
-(a parse from scratch memoizes none of them), except a constant for each
-variable of the key of its lookups, the steps of the walk of the chain of memo entries at a
-position beyond the entry that answers, and the growth of the table in a lookup and a store, the
-edits that a lookup applies, the moves of reused values with the cleanup that ends them, the
-operations of recorded runs, the extra units that decoding a piece of the text
-costs, and the copy of the diagnostics that the parse publishes. Every other unit
-is counted: the unit that opens a call, the evaluation of the body of a rule, the
-examination of the input, the values that the parse builds, and the memo protocol of a
-rule that a parse from scratch memoizes too, with the unit of each lookup and store, the hashing
-of the key of a lookup and its comparison with each entry of this parse that the walk compares it with, and the operations on the
-recovered errors of an entry, which Lemma 14 bounds by a constant times $C$. A comparison with an entry that is not current in this parse, one that an earlier text left in the chain and this parse has neither stored nor found to answer a lookup, is Document work, since a parse from scratch has no such entry. The comparison of two strings costs the length of
-the string, unless they are the same bytes of the same memory, which costs a constant. A lookup
-of a transient rule compares the strings of the key by identity only, at a
-constant for each variable of the key: a string that is equal but not identical is a miss, and a
-miss is sound, since the rule is then evaluated and that work counts as a parse from scratch counts it.
-So the work on the keys of this parse is not left out of the count: it
-depends on the grammar and the text, and a Document does at most the work of a parse from scratch
-on it, up to the constant of the lookup. The comparisons with entries of earlier texts are Document
-work, which depends on what the Document retains and is bounded by the window of 128 edits
-(step 6 of [Open Steps](#open-steps)). The claim that the counted units of a
+of Document work: the edits that a lookup applies, the moves of reused values with the cleanup
+that ends them, the operations of recorded runs, the extra units that decoding a piece of the
+text costs, and the copy of the diagnostics that the parse publishes. The other Document units of
+Lemma 12, the walks, removals, hashing and probing of chains and the growth of the slots, charge
+no unit in any parse. Every other unit is counted: the unit that opens a call, the key of each
+call of a rule that a parse from scratch memoizes, the evaluation of the body of a rule, the
+examination of the input, the values that the parse builds, and the operations on the recovered
+errors of an entry, which Lemma 14 bounds by a constant times $C$. A call of a transient rule,
+whose results only a Document stores (a parse from scratch memoizes none of them), pays no key,
+as in a parse from scratch; its lookup compares the strings of the key by identity only, and a
+string that is equal but not identical is a miss, which is sound, since the rule is then
+evaluated and that work counts as a parse from scratch counts it. So the counted units of a
+Document parse depend on the grammar and the text, not on what the Document retains: the
+comparisons with the entries of earlier texts charge nothing, and their work is bounded by the
+window of 128 edits (step 6 of [Open Steps](#open-steps)). The claim that the counted units of a
 Document parse are at most the units that a parse of the same text from scratch reserves is
-argued here, not proved by a lemma, and the tests of the repository check it on
-random edits. The argument: each counted unit belongs to a call, to a
-body evaluation, to an examination of the input, to a value that the parse builds, or to the
-memo protocol of a rule that a parse from scratch memoizes. The Document parse makes each of these
-for the text at most as often as the parse from scratch does: it evaluates the same bodies on
-the same input in the same order, except that a memo entry answers a call and the body is not
-evaluated, and the entry costs the units of the lookup and the replay of its recovered errors,
-which the evaluation it replaces would have built at a unit each. The deferral of the memoization
-of a rule is the same in both parses, so the rules that both memoize have the same lookups and
-stores. A first parse of a Document is the parse from scratch plus the Document work, and a parse
-after edits evaluates a call again where an entry lagged behind by more than 128 edits. This
-holds for the three backends of the engine and for generated Go, whose Documents memoize the
-same rules as a parse from scratch and also store the results of the transient rules. So a Document parse
-under the default budget is argued not to fail where the parse from scratch of its text does not.
-Its default budget, raised by the Document units, is at most that budget plus the bound on the
-Document units above (the terms $W$, $B$, $G$ and $Q$ are bounded by the retained state, not
-by $n$, $K$ and $L$, as step 6 leaves open). A grammar whose counted units alone pass the
-default is stopped by it, whatever the Document retains: the operations on the recovered errors
-count (Lemma 14), and the tests run a grammar of recovered errors at lengths that a parse from scratch
-completes and expect a Document parse to complete with a constant factor of its units. A grammar whose
-cost is high only in work that is left out of the count (the extra steps along the chains, the growth of
-the table, the edits, the moves, and the retained state of step 6) is not stopped by the default in
-proportion to that work. $\square$
+argued here, not proved by a lemma, and the tests of the repository check it on random edits.
+The argument: each counted unit belongs to a call, to the key of a call, to a body evaluation, to
+an examination of the input, to a value that the parse builds, or to the recovered errors of an
+entry. The Document parse makes each of these for the text at most as often as the parse from
+scratch does: it evaluates the same bodies on the same input in the same order, except that a
+memo entry answers a call and the body is not evaluated; the call costs its unit and its key, as
+in the parse from scratch, and the entry costs the replay of its recovered errors, which the
+evaluation it replaces would have built at a unit each. A call pays its key whether or not it
+looks the key up, so the deferral of the memoization of a rule does not change the count. A first
+parse of a Document is the parse from scratch plus the Document work, and a parse after edits
+evaluates a call again where an entry lagged behind by more than 128 edits. This holds for the
+three backends of the engine and for generated Go, whose Documents memoize the same rules as a
+parse from scratch and also store the results of the transient rules. So a Document parse under
+the default budget is argued not to fail where the parse from scratch of its text does not. Its
+default budget, raised by the Document units, is at most that budget plus the bound on the
+Document units above (the terms $W$, $B$, $G$ and $Q$ are bounded by the retained state, not by
+$n$, $K$ and $L$, as step 6 leaves open). A grammar whose counted units alone pass the default is
+stopped by it, whatever the Document retains: the operations on the recovered errors count
+(Lemma 14), and the tests run a grammar of recovered errors at lengths that a parse from scratch
+completes and expect a Document parse to complete with a constant factor of its units. A grammar
+whose cost is high only in work that is left out of the count (the walks of the chains, the
+growth of the table, the edits, the moves, and the retained state of step 6) is not stopped by
+the default in proportion to that work. $\square$
 
 A node counts in $W$ whichever text it was built for, and whether or not a call
 of the parse reaches it. No lemma bounds $W$, $B$, $G$ or $Q$ by $n$, $K$ and $L$: see step 6 of

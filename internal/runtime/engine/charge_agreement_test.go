@@ -103,10 +103,20 @@ func limitReportOf(err error) string {
 // has one (when some rule does).
 func engineChargeBackends(t testing.TB, src string, unit input.PositionUnit) []chargeBackend {
 	t.Helper()
+	return engineChargeBackendsTraced(t, src, unit, false)
+}
+
+// engineChargeBackendsTraced is engineChargeBackends, with every parse traced if traced holds.
+func engineChargeBackendsTraced(t testing.TB, src string, unit input.PositionUnit, traced bool) []chargeBackend {
+	t.Helper()
 	old, flows, n := flowProgramsOf(t, src, func(string) bool { return true }, nil)
 	on := func(prog *Program, b Backend) chargeRun {
 		return func(in string, limit uint64) string {
-			_, err := prog.ParseWith("", in, ParseOptions{Backend: b, Unit: unit, Expectations: true, Limits: zpruntime.Limits{Compute: limit}})
+			o := ParseOptions{Backend: b, Unit: unit, Expectations: true, Limits: zpruntime.Limits{Compute: limit}}
+			if traced {
+				o.Trace = func(TraceEvent) {}
+			}
+			_, err := prog.ParseWith("", in, o)
 			return limitReportOf(err)
 		}
 	}

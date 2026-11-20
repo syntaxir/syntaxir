@@ -398,6 +398,8 @@ func engineTarget() *print.Target {
 				return "p.Spend()"
 			}
 			return "p.SpendN(" + a[0] + ")"
+		case "budget.chargeKey":
+			return "p.ChargeKey(" + a[0] + ")"
 		case "doc.active":
 			return "p.MemoAll"
 		case "budget.freeBegin":

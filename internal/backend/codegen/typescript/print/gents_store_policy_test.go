@@ -39,12 +39,11 @@ func TestGeneratedTSStorePolicy(t *testing.T) {
 	}
 }
 
-// TestGeneratedTSStorePolicyReferenceCounts pins what the generated TypeScript library does within
-// the policy, which the policy does not require and TestGeneratedTSStorePolicy does not: a parse
-// defers the first call of a rule at a position until repeated calls exceed a sixteenth of its calls,
-// so it evaluates the rule exactly as often as the model of codegentest.StorePolicyCase says; a
-// Document parse memoizes every first call. A change of that choice that the policy allows updates
-// this test.
+// TestGeneratedTSStorePolicyReferenceCounts checks the exact store policy of "Evaluations of Rules"
+// in spec/runtime/parsing.md, which TestGeneratedTSStorePolicy does not: a parse defers the first
+// call of a rule at a position until repeated calls exceed a sixteenth of its calls, so it evaluates
+// the rule exactly as often as the model of codegentest.StorePolicyCase says, as the engine does.
+// That a Document parse memoizes every first call is the library's choice, which the policy allows.
 func TestGeneratedTSStorePolicyReferenceCounts(t *testing.T) {
 	t.Parallel()
 	if testing.Short() {

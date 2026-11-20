@@ -38,12 +38,6 @@ const (
 
 // Cost quantities: abstract measures of the state before a call, computed by the reference model.
 const (
-	// QKeyScan is the sum, over the entries stored at the call's position for any rule, of one more
-	// than the number of their key values, a string counting two more for each of its bytes: what
-	// scanning the position and comparing keys inspects.
-	// It counts the entries that memo.splice removed and that a target may still hold there, because it
-	// applies edits to an entry when it finds the entry.
-	QKeyScan = "key_scan"
 	// QPending is the number of edits since the entry under the call's key was stored or last found,
 	// counting an entry that memo.splice removed and a target may still hold: the edits that a target
 	// which applies them to an entry when it finds it has yet to apply.
@@ -58,8 +52,9 @@ const (
 	QCovered = "covered"
 	// QVars is the number of variables of the rule's memo key.
 	QVars = "vars"
-	// QEnvReads is QVars times QEnvPath.
-	QEnvReads = "env_reads"
+	// QKeyBytes is the sum of the lengths, in bytes of UTF-8, of the string values of the variables of
+	// the rule's memo key.
+	QKeyBytes = "key_bytes"
 	// QEnvPath is the number of nodes on the path to a slot of a persistent vector of the variables
 	// with 16 children for each node: the levels above the leaves, and the leaf. It is the same for
 	// every slot.
@@ -144,8 +139,9 @@ host's value equality.`)
 	rule := m.AddHandle(Rule, Rules, "A rule's descriptor.")
 	result := []code.Param{code.P("silent", code.TBool), code.P("value", value), code.P("errs", errs)}
 	key := []code.Param{code.P("rule", code.TInt), code.P("pos", code.TInt), code.P("level", code.TInt), code.P("key", values)}
-	scan := code.Cost{Const: 1, Terms: []code.CostTerm{{Coef: 1, Quantity: QKeyScan}, {Coef: 1, Quantity: QPending}}}
-	write := code.Cost{Const: 2, Terms: []code.CostTerm{{Coef: 1, Quantity: QKeyScan}}}
+	// Looking a key up and storing an entry charge nothing: the call pays for the lookup of its key
+	// (budget.chargeKey). A lookup in a Document pays for the edits it applies to the entry it finds.
+	scan := code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QPending}}}
 	with := func(ps []code.Param, more ...code.Param) []code.Param {
 		return append(append([]code.Param(nil), ps...), more...)
 	}
@@ -161,7 +157,7 @@ values as those of the entry (the same bytes for a string), not merely equal, an
 the first entries of a long chain: a miss is always sound, since the rule is then evaluated.`,
 		Laws: []string{"two lookups with no write of memo between them return the same result"}})
 	m.AddOp(&code.Op{Name: "memo.store", Component: Memo, Params: with(with(with(key, code.P("ok", code.TBool), code.P("end", code.TInt)), result...), docOnly),
-		Results: []code.Type{entry}, Reads: []string{Memo}, Writes: []string{Memo}, Cost: write,
+		Results: []code.Type{entry}, Reads: []string{Memo}, Writes: []string{Memo},
 		Contract: `Stores a complete entry with the outcome ok, the end, whether it was computed in a silent
 context, its value and its recovered errors under the key, replacing the entry stored under the same
 key, and returns it. The store never narrows the calls that the entry under the key answers: when
@@ -241,7 +237,6 @@ seen had the edit applied at once.`,
 	m.AddOp(&code.Op{Name: "seen.first", Component: Seen,
 		Params:  []code.Param{code.P("rule", code.TInt), code.P("pos", code.TInt)},
 		Results: []code.Type{code.TBool}, Reads: []string{Seen}, Writes: []string{Seen},
-		Cost: code.Cost{Const: 1},
 		Contract: `Records a call of the rule at pos and reports whether its memoization is deferred: true
 when the rule is not eager and has not been called at pos before. Each rule counts its calls and its
 repeated calls, the calls at a position where it was called before. A call that finds the rule eager
@@ -249,7 +244,8 @@ returns false and records nothing. Otherwise the call count grows by one, and wh
 both counts are halved (rounding down); a repeated call then grows the repeat count, and when the
 repeats exceed the calls divided by 16 (rounding down), the rule becomes eager for the rest of the
 parse. The policy decides how
-many rule bodies run, which the statistics report, so every target follows it exactly.`,
+many rule bodies run, which the statistics report, so every target follows it exactly. The record
+charges nothing: deferring memoization changes no unit that a call charges.`,
 		Requires: `0 <= rule < the number of rules the component was created with; pos >= 0.`})
 
 	m.AddOp(&code.Op{Name: "seen.defers", Component: Seen, Results: []code.Type{code.TBool}, Reads: []string{Seen},
@@ -266,6 +262,14 @@ reports the limit as the units used and one unit requested; otherwise n is added
 Charges are never rolled back. A target may also observe cancellation here, at intervals of its
 choice, and end the parse with a cancellation interruption.`,
 		Laws: []string{"charge(a); charge(b) may merge into charge(a+b) when nothing observable lies between them and no commit separates them"}})
+	m.AddOp(&code.Op{Name: "budget.chargeKey", Component: Bud, Params: []code.Param{code.P("r", rule)},
+		Reads: []string{Bud, Env, Rules}, Writes: []string{Bud}, Features: []string{Budget}, NoReturn: true,
+		Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QVars}, {Coef: 1, Quantity: QKeyBytes}}},
+		Contract: `Charges the lookup of the memo key of a call of the rule, as budget.charge does: one unit for
+each variable that the rule reads and one for each byte of the UTF-8 encoding of each string value
+that such a variable holds. A call of a rule that a parse from scratch memoizes pays it whether or not
+it looks the key up, so that deferring memoization changes no unit; a rule that reads no variable
+charges nothing.`})
 	m.AddOp(&code.Op{Name: "budget.used", Component: Bud, Results: []code.Type{code.TU64},
 		Reads: []string{Bud}, Features: []string{Budget},
 		Contract: `Returns the units charged so far: by budget.charge and inside other operations.`})
@@ -276,9 +280,7 @@ choice, and end the parse with a cancellation interruption.`,
 The units that the region charges are work that only a Document parse does: a parse under the default
 Compute limit leaves them out of the count against it, and a parse under an explicit limit counts them
 as any other. The region must end before any work that a parse from scratch counts starts, and a region
-does not nest. An operation that does work a parse from scratch counts inside a region, such as the
-hash of a memo key and its comparison with each entry of the walk, counts it: it lifts the region for that
-charge and restores it. When on is false, or the parse has no default limit, it opens no region and charges nothing.`})
+does not nest. When on is false, or the parse has no default limit, it opens no region and charges nothing.`})
 	m.AddOp(&code.Op{Name: "budget.freeEnd", Component: Bud, Params: []code.Param{code.P("mark", code.TU64)},
 		Reads: []string{Bud}, Writes: []string{Bud}, Features: []string{Budget, Document}, NoReturn: true,
 		Contract: `Ends the region that budget.freeBegin opened with mark, if it opened one. It charges nothing.`})
@@ -359,10 +361,8 @@ that env.scope returned earlier do not change.`,
 	m.AddOp(&code.Op{Name: "env.restore", Component: Env, Params: []code.Param{code.P("s", scope)}, Writes: []string{Env},
 		Contract: `Makes s the current environment: the bindings made since it was current are gone.`})
 	m.AddOp(&code.Op{Name: "env.key", Component: Env, Params: []code.Param{code.P("r", rule)}, Results: []code.Type{values},
-		Reads: []string{Env}, NoReturn: true,
-		Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QVars}, {Coef: 1, Quantity: QEnvReads}}},
+		Reads: []string{Env},
 		Contract: `Returns the values of the variables the rule reads, as its memo key. Two keys are equal when
-they have the same length and the host's value equality holds for each pair of their values. A rule that
-reads no variable has an empty key, which costs nothing: the charge pays for reading values, and the call
-paid for itself.`})
+they have the same length and the host's value equality holds for each pair of their values. Taking
+the key charges nothing: the call paid for it (budget.chargeKey).`})
 }

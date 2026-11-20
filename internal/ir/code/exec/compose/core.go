@@ -61,6 +61,17 @@ func Build() *Module {
 	charge := func(b *Builder) {
 		b.If(F(exec.Budget), func(b *Builder) { b.Do("budget.charge", U64(1)) })
 	}
+	// enter charges a call of r: one unit, and the lookup of its memo key when a parse from scratch
+	// memoizes the rule (budget.chargeKey), whether or not this call looks it up. Deferring the
+	// memoization of a first call, and memoizing a rule that only a Document memoizes, change no unit.
+	enter := func(b *Builder) {
+		b.If(F(exec.Budget), func(b *Builder) {
+			b.Do("budget.charge", U64(1))
+			b.If(Bin("||", C("rule.leader", r), And(C("rule.memo", r), Not(C("rule.docOnlyMemo", r)))), func(b *Builder) {
+				b.Do("budget.chargeKey", r)
+			})
+		})
+	}
 
 	// leave returns the result of the call c from the call protocol.
 	leave := func(c *Call) func(b *Builder) {
@@ -355,7 +366,7 @@ rule without a seen index and an eager rule are memoized at once.`
 		[]string{exec.Document, exec.Observe, exec.Typed, exec.Budget}, func(b *Builder) {
 			locals(b)
 			tracked(b, L("min"), Null(THandle(exec.Body)))
-			charge(b)
+			enter(b)
 			b.Let("start", R(exec.Pos))
 			b.If(Bin("||", And(Not(C("rule.memo", r)), Not(C("rule.leader", r))), C("firstCall", r)), func(b *Builder) { unmemoized(b, false) })
 			reuse(b, L("min"), typedTrack, exit)
@@ -517,7 +528,7 @@ start from otherwise.`
 		[]string{exec.Document, exec.Observe, exec.Typed, exec.Budget}, func(b *Builder) {
 			locals(b)
 			b.Var("fm", TU64)
-			charge(b)
+			enter(b)
 			b.Let("start", R(exec.Pos))
 			b.LetN([]string{"oldExamined", "oldLow"}, C("doc.enter", L("start")))
 			b.Protect(func(b *Builder) {
@@ -613,10 +624,9 @@ dependencies send it, and restores the state from before the call.`
 					ret(b)
 				})
 			}
-			// A parse from scratch calls the plain body of a plain rule directly, so the unit of the call
-			// protocol is Document work there; for any other rule it counts.
-			work(b, C("rule.docPlain", r), charge)
+			// The traced path makes this call again, which charges it, so it charges nothing here.
 			engineTracked(b)
+			enter(b)
 			b.Let("start", R(exec.Pos))
 			// The memo protocol (the deferral, the begin and the end of the call) of a rule that only a
 			// Document parse memoizes is Document work: a parse from scratch does not memoize the rule, so it has
@@ -648,12 +658,12 @@ memoization is deferred, and otherwise between the begin and the end of the spli
 growing the seed of a left-recursion leader. A parse that reads a Document makes the call of
 engineCallDoc instead, which is decided by one test of a field that the parse sets once.`
 	engineCallDoc.Doc = `engineCallDoc is engineCall for a parse that reads a Document. Under the default limit, what a
-parse from scratch does not do is Document work and leaves the count against the limit: the unit of
-the call protocol for a plain rule, and the memo protocol (its deferral, the begin and the end of
-the call) of a rule that a parse from scratch does not memoize.`
+parse from scratch does not do is Document work and leaves the count against the limit: the memo
+protocol (its deferral, the begin and the end of the call) of a rule that a parse from scratch does
+not memoize.`
 
 	body := m.AddFunc("body", []Param{P("r", rule), P("min", TInt)}, result, []string{exec.Document, exec.Budget}, func(b *Builder) {
-		charge(b)
+		enter(b)
 		b.If(And(F(exec.Document), C("doc.active")), func(b *Builder) { ret2(b, C("document", r, L("min"))) })
 		b.If(Bin("||", And(Not(C("rule.memo", r)), Not(C("rule.leader", r))), C("firstCall", r)), func(b *Builder) {
 			ret2(b, C("unmemoized", r, L("min")))

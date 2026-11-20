@@ -111,8 +111,8 @@ type Model struct {
 	covered int64         // one more than the largest position stored at, at least floor
 	floor   int64         // the memo keeps no entries before floor (memo.prune)
 	// held are the entries that memo.splice removed and that a memo with Config.LazyEdits still holds,
-	// with the edits before each was stored or last found. They count in the charges of memo.lookup
-	// and memo.store (exec.QKeyScan, exec.QPending); no lookup finds them.
+	// with the edits before each was stored or last found. They count in the charge of memo.lookup
+	// (exec.QPending); no lookup finds them.
 	held  map[memoKey]int64
 	edits int64 // the number of memo.splice calls
 	// slots, gap and gapLen are the layout of a memo with Config.LazyEdits: the length of its slots,
@@ -414,19 +414,6 @@ func (m *Model) Quantity(name string, o *code.Op, args []any) int64 {
 		return q
 	}
 	switch name {
-	case exec.QKeyScan:
-		n := int64(0)
-		for k := range m.entries {
-			if k.pos == args[1].(int64) {
-				n += 1 + m.keyCost(k.vals)
-			}
-		}
-		for k := range m.held {
-			if k.pos == args[1].(int64) {
-				n += 1 + m.keyCost(k.vals)
-			}
-		}
-		return n
 	case exec.QPending:
 		if !m.cfg.LazyEdits {
 			return 0
@@ -455,8 +442,14 @@ func (m *Model) Quantity(name string, o *code.Op, args []any) int64 {
 		return int64(len(m.cfg.RuleVars[args[0].(RuleRef).Index]))
 	case exec.QSegs:
 		return int64(len(m.rec)) - args[0].(int64)
-	case exec.QEnvReads:
-		return int64(len(m.cfg.RuleVars[args[0].(RuleRef).Index])) * m.envPath()
+	case exec.QKeyBytes:
+		n := int64(0)
+		for _, slot := range m.cfg.RuleVars[args[0].(RuleRef).Index] {
+			if s, ok := Value(m.env.vals[slot]).(string); ok {
+				n += int64(len(s))
+			}
+		}
+		return n
 	case exec.QEnvPath:
 		return m.envPath()
 	case exec.QEnvRebind:
@@ -545,6 +538,9 @@ func (m *Model) Call(o *code.Op, args []any) []any {
 			panic(code.Interrupt{Reason: "limit"})
 		}
 		m.charge(n)
+		return nil
+	case "budget.chargeKey":
+		// What the implementation charges joins the budget as the charges inside any operation do.
 		return nil
 	case "budget.used":
 		return []any{m.used}

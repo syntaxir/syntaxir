@@ -22,13 +22,12 @@ func (p *Parser) identEqual(l, r any) bool {
 	return l == r
 }
 
-// memoKeyIdentical is memoKeyEqual under identEqual.
+// memoKeyIdentical is keysEqual under identEqual.
 func (p *Parser) memoKeyIdentical(l, r []any) bool {
 	if len(l) != len(r) {
 		return false
 	}
 	for i, v := range l {
-		p.Spend()
 		if !p.identEqual(v, r[i]) {
 			return false
 		}
@@ -36,24 +35,32 @@ func (p *Parser) memoKeyIdentical(l, r []any) bool {
 	return true
 }
 
-// keyMatches compares a memo key under the lookup that ident selects. A lookup of a rule that a parse
-// from scratch memoizes too pays for the comparison with every entry of this parse that the walk compares,
-// as a parse from scratch does, so it counts in a region of Document work as well: it is bounded by the
-// size of the key and by the entries of the walk. The comparison with an entry that is not current in this
-// parse (current reports it; see MemoEntry.Seen) is Document work, since a parse from scratch has no such
-// entry, and stays inside the region; countKeyEqual charges it when such an entry answers. A lookup of a
-// rule that only a Document memoizes compares by identity, which costs a constant per variable, and counts
-// there too only for the entry that answers.
-func (p *Parser) keyMatches(l, r []any, ident, current bool) bool {
+// keyMatches compares a memo key under the lookup that ident selects. The comparison charges nothing:
+// the call paid for the lookup of its key (ChargeKey), which the size of the key bounds. A lookup of a
+// rule that only a Document memoizes compares by identity, which costs a constant per variable.
+func (p *Parser) keyMatches(l, r []any, ident bool) bool {
 	if ident {
 		return p.memoKeyIdentical(l, r)
 	}
-	if !current {
-		return p.memoKeyEqual(l, r)
+	return keysEqual(l, r)
+}
+
+// keysEqual reports whether two memo keys are equal under the interface equality of rawValueEqual,
+// without charges.
+func keysEqual(l, r []any) bool {
+	if len(l) != len(r) {
+		return false
 	}
-	held := p.Control.FreeHold()
-	defer p.Control.FreeResume(held)
-	return p.memoKeyEqual(l, r)
+	for i, v := range l {
+		if s, ok := v.(string); ok {
+			if t, ok := r[i].(string); !ok || s != t {
+				return false
+			}
+		} else if v != r[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // current reports whether e was stored or answered a lookup in this parse: in a Document, an entry that
@@ -72,8 +79,9 @@ func (p *Parser) lagged(e *MemoEntry) bool {
 
 // unlinkLagged removes from the chain at pos, starting at the link, the entries that lag behind (lagged)
 // among the next limit entries that do not, or among all of them if limit is negative, and reports where the
-// walk ends: the link before the first entry it did not visit. Each entry removed costs the step of a walk.
-// The index of the position, if there is one, no longer matches the chain and is dropped.
+// walk ends: the link before the first entry it did not visit. Removing an entry charges nothing, as the
+// walk does not (memo.lookup): each entry is removed once, after the counted call that stored it. The
+// index of the position, if there is one, no longer matches the chain and is dropped.
 func (p *Parser) unlinkLagged(pos int, link **MemoEntry, limit int) **MemoEntry {
 	t := p.Memo
 	for kept := 0; *link != nil && kept != limit; {
@@ -82,7 +90,6 @@ func (p *Parser) unlinkLagged(pos int, link **MemoEntry, limit int) **MemoEntry 
 			link, kept = &e.Next, kept+1
 			continue
 		}
-		p.Spend()
 		*link = e.Next
 		if t.Index[pos] != nil {
 			t.dropIndex(pos)
@@ -90,24 +97,6 @@ func (p *Parser) unlinkLagged(pos int, link **MemoEntry, limit int) **MemoEntry 
 		t.Retire(e)
 	}
 	return link
-}
-
-// countKeyEqual charges, in a region of Document work, what comparing the key of an entry that was not
-// current in this parse costs once the entry answers a lookup: a parse from scratch compares it too.
-func (p *Parser) countKeyEqual(l, r []any) {
-	if p.Control.FreeHold() {
-		p.memoKeyEqual(l, r)
-		p.Control.FreeResume(true)
-	}
-}
-
-// countKeyMatch charges what comparing the key of the entry that answers a lookup of a rule that only a
-// Document memoizes costs, in a region of Document work: a constant per variable.
-func (p *Parser) countKeyMatch(l, r []any) {
-	if p.Control.FreeHold() {
-		p.memoKeyIdentical(l, r)
-		p.Control.FreeResume(true)
-	}
 }
 
 func (p *Parser) memoKeyEqual(l, r []any) bool {
@@ -139,17 +128,15 @@ func (p *Parser) bindControlled(slot int, val any) {
 	p.ChargeValueBytes(int(uint64(p.envLevels+1) * envNodeBytes))
 }
 
-// MemoGet looks up the entry for k. The lookup counts one unit, the steps of the walk of the chain at the
-// position and the comparison of the keys. In a Document parse the chain holds the entries of rules that a
-// parse from scratch does not memoize and those of earlier texts, so the steps are Document work there; the
-// comparison of the key with each entry of this parse that the walk compares it with counts, as it does in a
-// parse from scratch, and it is bounded by the size of the key and the entries of the walk. The walk drops
-// the entries that lag behind too many edits (lagged) before it compares anything with them.
+// MemoGet looks up the entry for k. The lookup charges nothing: the call paid for the lookup of its key
+// (ChargeKey). The walk of the chain at the position compares at most memoScan entries and then probes the
+// index of the position, so it costs at most a constant plus the size of the key, and building the index
+// hashes entries that counted calls stored. The walk drops the entries that lag behind too many edits
+// (lagged) before it compares anything with them.
 func (p *Parser) MemoGet(k MemoKey) (*MemoEntry, bool) {
 	if !BudgetControlsEnabled || p.Control == nil {
 		return p.Memo.Get(k)
 	}
-	p.Spend()
 	ident := k.DocOnly // see MemoKey.DocOnly
 	if p.MemoAll {
 		defer p.FreeEnd(p.FreeBegin(true))
@@ -168,15 +155,7 @@ func (p *Parser) MemoGet(k MemoKey) (*MemoEntry, bool) {
 	}
 	link := p.unlinkLagged(k.Pos, &t.Slots[i], scan)
 	for e := t.Slots[i]; e != nil && e != *link; e = e.Next {
-		p.Spend()
-		if e.Rule == int32(k.Rule) && e.Min == int32(k.Min) && e.missingSilent == k.MissingSilent && p.keyMatches(e.Env, k.Env, ident, p.current(e)) {
-			if p.MemoAll {
-				if ident {
-					p.countKeyMatch(e.Env, k.Env)
-				} else if !p.current(e) {
-					p.countKeyEqual(e.Env, k.Env)
-				}
-			}
+		if e.Rule == int32(k.Rule) && e.Min == int32(k.Min) && e.missingSilent == k.MissingSilent && p.keyMatches(e.Env, k.Env, ident) {
 			if p.Control.DefaultCompute {
 				e.Seen = p.Gen // an explicit limit counts every comparison, and needs no stamp
 			}
@@ -190,24 +169,21 @@ func (p *Parser) MemoGet(k MemoKey) (*MemoEntry, bool) {
 	if *link == nil {
 		return nil, false
 	}
-	ix := t.indexAt(k.Pos, t.Slots[i], p.chargeMemoHash)
-	h := p.countedHash(int32(k.Rule), int32(k.Min), k.MissingSilent, k.Env)
+	ix := t.indexAt(k.Pos, t.Slots[i], nil)
+	h, _ := memoKeyHash(int32(k.Rule), int32(k.Min), k.MissingSilent, k.Env)
 	_, x := ix.probe(h, func(x *MemoEntry) bool {
-		return x.Rule == int32(k.Rule) && x.Min == int32(k.Min) && x.missingSilent == k.MissingSilent && p.keyMatches(x.Env, k.Env, false, p.current(x))
+		return x.Rule == int32(k.Rule) && x.Min == int32(k.Min) && x.missingSilent == k.MissingSilent && keysEqual(x.Env, k.Env)
 	})
-	if x != nil && p.MemoAll && !p.current(x) {
-		p.countKeyEqual(x.Env, k.Env)
-	}
 	if x != nil && p.Control.DefaultCompute {
 		x.Seen = p.Gen
 	}
 	return x, x != nil
 }
 
-// hashMemoKey hashes a memo key for the index of a long chain. The hash costs
-// one step plus one per variable of the key, and the bytes of string values
-// as a value comparison would, so a lookup through the index costs the size of
-// the key, not the length of the chain.
+// hashMemoKey hashes the key of a record of a skip run for the index of its records. The
+// hash costs one step plus one per variable of the key, and the bytes of string values as a
+// value comparison would, so a lookup through the index costs the size of the key, not the
+// number of records.
 func (p *Parser) hashMemoKey(rule, min int32, silent bool, env []any) uint64 {
 	h, bytes := memoKeyHash(rule, min, silent, env)
 	for range 1 + len(env) {
@@ -219,34 +195,14 @@ func (p *Parser) hashMemoKey(rule, min int32, silent bool, env []any) uint64 {
 	return h
 }
 
-// countedHash is hashMemoKey for the key of a lookup, which counts in a region of Document work: a
-// parse from scratch hashes the key too, once per lookup.
-func (p *Parser) countedHash(rule, min int32, silent bool, env []any) uint64 {
-	h := p.Control.FreeHold()
-	defer p.Control.FreeResume(h)
-	return p.hashMemoKey(rule, min, silent, env)
-}
-
-// chargeMemoHash is the cost of hashing e while its position's index is built.
-func (p *Parser) chargeMemoHash(e *MemoEntry) {
-	_, bytes := memoKeyHash(e.Rule, e.Min, e.missingSilent, e.Env)
-	for range 1 + len(e.Env) {
-		p.Spend()
-	}
-	if bytes > 0 {
-		p.SpendValue(bytes)
-	}
-}
-
 // MemoPut stores e for k, unless the join with the entry stored there keeps that entry (joinStored),
-// and returns the entry it keeps. The store counts one unit; the walk of the chain at the position
-// counts as MemoGet's walk does, and is Document work in a Document parse. Growing the table
-// charges nothing.
+// and returns the entry it keeps. The store charges nothing: it follows the evaluation of a body that
+// counted, and its walk of the chain at the position costs what MemoGet's walk does. Growing the table
+// charges nothing either.
 func (p *Parser) MemoPut(k MemoKey, e *MemoEntry) *MemoEntry {
 	if !BudgetControlsEnabled || p.Control == nil {
 		return p.Memo.put(k, e, p)
 	}
-	p.Spend()
 	ident := k.DocOnly
 	if p.MemoAll {
 		defer p.FreeEnd(p.FreeBegin(true))
@@ -276,7 +232,7 @@ func (p *Parser) MemoPut(k MemoKey, e *MemoEntry) *MemoEntry {
 	link := &slots[i]
 	var replaced *MemoEntry
 	same := func(x *MemoEntry) bool {
-		return x.Rule == int32(k.Rule) && x.Min == int32(k.Min) && x.missingSilent == k.MissingSilent && p.keyMatches(x.Env, k.Env, ident, p.current(x))
+		return x.Rule == int32(k.Rule) && x.Min == int32(k.Min) && x.missingSilent == k.MissingSilent && p.keyMatches(x.Env, k.Env, ident)
 	}
 	scan := memoScan
 	if ident {
@@ -284,7 +240,6 @@ func (p *Parser) MemoPut(k MemoKey, e *MemoEntry) *MemoEntry {
 	}
 	end := p.unlinkLagged(k.Pos, link, scan)
 	for x := *link; x != nil && link != end; link, x = &x.Next, x.Next {
-		p.Spend()
 		if same(x) {
 			replaced = x
 			break
@@ -297,14 +252,13 @@ func (p *Parser) MemoPut(k MemoKey, e *MemoEntry) *MemoEntry {
 		p.unlinkLagged(k.Pos, link, -1)
 	}
 	if replaced == nil && *link != nil && !ident {
-		ix = t.indexAt(k.Pos, slots[i], p.chargeMemoHash)
-		h := p.countedHash(int32(k.Rule), int32(k.Min), k.MissingSilent, k.Env)
+		ix = t.indexAt(k.Pos, slots[i], nil)
+		h, _ := memoKeyHash(int32(k.Rule), int32(k.Min), k.MissingSilent, k.Env)
 		ixSlot, replaced = ix.probe(h, same)
 		if replaced != nil {
-			// Walk to the link of the entry; the walk is charged like any chain walk.
+			// Walk to the link of the entry.
 			link = &slots[i]
 			for *link != replaced {
-				p.Spend()
 				link = &(*link).Next
 			}
 		}
@@ -312,14 +266,10 @@ func (p *Parser) MemoPut(k MemoKey, e *MemoEntry) *MemoEntry {
 	if replaced != nil && ix == nil {
 		// The entry replaced among the first of a long chain is indexed too.
 		if ix = t.Index[k.Pos]; ix != nil {
-			h := p.hashMemoKey(replaced.Rule, replaced.Min, replaced.missingSilent, replaced.Env)
+			h, _ := memoKeyHash(replaced.Rule, replaced.Min, replaced.missingSilent, replaced.Env)
 			ixSlot, _ = ix.probe(h, func(y *MemoEntry) bool { return y == replaced })
 		}
 	}
-	if replaced != nil && replaced != e && ident && p.MemoAll {
-		p.countKeyMatch(replaced.Env, k.Env)
-	}
-	p.Spend()
 	if replaced != nil && p.joinStored(replaced, e) == replaced {
 		return replaced
 	}
@@ -347,13 +297,30 @@ func (p *Parser) MemoPut(k MemoKey, e *MemoEntry) *MemoEntry {
 	return e
 }
 
+// memoFirstCall records a call of rule r at pos (seen.first). It charges nothing: deferring the
+// memoization of a call changes none of the units that the call charges (ChargeKey), and the record
+// grows to the positions and rules of counted calls, by doubling.
 func (p *Parser) memoFirstCall(pos, r int) bool {
-	if BudgetControlsEnabled && p.Control != nil {
-		// The check counts one unit. Growing the record of the calls made charges nothing: it grows
-		// to the positions and rules of counted calls, by doubling.
-		p.Spend()
-	}
 	return p.Memo.firstCall(pos, r)
+}
+
+// ChargeKey charges the lookup of the memo key of a call of r, a rule that a parse from scratch
+// memoizes (budget.chargeKey): one unit for each variable r reads and one for each byte of each string
+// value among them, whether or not the call looks the key up.
+func (p *Parser) ChargeKey(r *Rule) {
+	if len(r.VarSlots) == 0 || !BudgetControlsEnabled || p.Control == nil {
+		return
+	}
+	n := uint64(len(r.VarSlots))
+	for _, slot := range r.VarSlots {
+		if slot < 0 {
+			continue
+		}
+		if s, ok := p.Env.Get(slot, p.envLevels).(string); ok {
+			n += uint64(len(s))
+		}
+	}
+	p.SpendN(n)
 }
 
 // PendingEditLimit is the number of edits that a memo entry may lag behind when a lookup finds it

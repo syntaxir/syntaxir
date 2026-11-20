@@ -51,11 +51,13 @@ func freshAndDocumentUnits(t *testing.T, prog *Program, text string, o ParseOpti
 	return
 }
 
-// The comparison of memo keys costs what it does: a key whose string is the same bytes compares in a
-// constant, in a parse from scratch and in a Document, and a key that only equals does not match in a
-// Document at all. A Document parse of the texts completes and does a constant factor of the work of a
-// parse from scratch, counted or not, however long the text: it does not grow with the product of the
-// text and the key.
+// The comparison of memo keys charges nothing: each call of a rule that a parse from scratch memoizes
+// pays for the size of its key (spec/runtime/parsing.md#cost), in a parse from scratch and in a
+// Document alike, and a rule that only a Document memoizes pays nothing for it. A key whose string is
+// the same bytes compares in a constant, and a key that only equals does not match in a Document at
+// all. A Document parse of the texts completes and reserves a constant factor of the units of a parse
+// from scratch, counted or not, however long the text. The units of "nonleaf" grow with the product of
+// the text and the key, so the parses run under a limit that they do not reach.
 func TestBudgetDocumentCountsMemoKeyWork(t *testing.T) {
 	t.Parallel()
 	for name, src := range envKeyGrammars {
@@ -63,7 +65,7 @@ func TestBudgetDocumentCountsMemoKeyWork(t *testing.T) {
 		for _, back := range []Backend{Closure, Bytecode, BytecodeIterative} {
 			t.Run(fmt.Sprintf("%s/%v", name, back), func(t *testing.T) {
 				t.Parallel()
-				o := ParseOptions{Backend: back, Unit: input.Bytes}
+				o := ParseOptions{Backend: back, Unit: input.Bytes, Limits: runtime.Limits{Compute: 1 << 40}}
 				for _, n := range []int{2000, 64000} {
 					fresh, doc, ferr, derr := freshAndDocumentUnits(t, prog, envKeyText(n), o)
 					if ferr != nil || derr != nil {

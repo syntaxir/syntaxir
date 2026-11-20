@@ -91,14 +91,19 @@ type flatRule struct {
 }
 
 // flatMethod writes the method name that calls the flat rule r: as invokePlain does if plain
-// (restoring the position and the recovered errors when it fails), otherwise as invoke does.
-func (g *Generator) flatMethod(r *common.Rule, d *flatRule, name, comment string, plain bool) {
+// (restoring the position and the recovered errors when it fails), otherwise as invoke does. The
+// method charges the unit of the body's evaluation, which the inlined body no longer charges, and
+// with call also the unit of the call: a call site calls it directly, without the call protocol.
+func (g *Generator) flatMethod(r *common.Rule, d *flatRule, name, comment string, plain, call bool) {
 	observeBody := g.Observability && g.Table == "trules" && (!r.Plain || g.directTypedDocument)
 	if g.Observability && !observeBody {
 		name = g.tracePlainWrapper(r, name)
 	}
 	m := &g.Methods
 	fmt.Fprintf(m, "// %s, %s (body inlined)\nfunc %s(p *%s) (%s, bool) {\n%s", r.Name, comment, name, g.recv(), g.valType(), g.step("\tp"))
+	if call {
+		m.WriteString(g.step("\tp"))
+	}
 	if observeBody {
 		m.WriteString("p.Observation.Evaluated()\n")
 	}

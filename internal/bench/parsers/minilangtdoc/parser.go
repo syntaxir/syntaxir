@@ -4530,6 +4530,7 @@ func u0(p *rt.TParser) (any, bool) {
 	if p.TypedDocument != nil {
 		return p.DocumentCall(trules[0], 0, i0)
 	}
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i0(p)
 	if !ok {
@@ -4576,6 +4577,8 @@ func u1(p *rt.TParser) (any, bool) {
 	if p.TypedDocument != nil {
 		return p.DocumentCall(trules[1], 0, i1)
 	}
+	p.Spend()
+	p.ChargeKey(rules[1])
 	if !p.FirstCall(rules[1]) {
 		return p.CallMemo(trules[1], i1)
 	}
@@ -4642,6 +4645,8 @@ func u2(p *rt.TParser) (any, bool) {
 	if p.TypedDocument != nil {
 		return p.DocumentCall(trules[2], 0, i2)
 	}
+	p.Spend()
+	p.ChargeKey(rules[2])
 	if !p.FirstCall(rules[2]) {
 		return p.CallMemo(trules[2], i2)
 	}
@@ -4704,6 +4709,7 @@ func u3(p *rt.TParser) (any, bool) {
 	if p.TypedDocument != nil {
 		return p.DocumentCall(trules[3], 0, i3)
 	}
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i3(p)
 	if !ok {
@@ -4737,6 +4743,7 @@ func u4(p *rt.TParser) (any, bool) {
 	if p.TypedDocument != nil {
 		return p.DocumentCall(trules[4], 0, i4)
 	}
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i4(p)
 	if !ok {
@@ -4802,6 +4809,7 @@ func u5(p *rt.TParser) (any, bool) {
 	if p.TypedDocument != nil {
 		return p.DocumentCall(trules[5], 0, i5)
 	}
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i5(p)
 	if !ok {
@@ -4877,6 +4885,8 @@ func u6(p *rt.TParser) (any, bool) {
 	if p.TypedDocument != nil {
 		return p.DocumentCall(trules[6], 0, i6)
 	}
+	p.Spend()
+	p.ChargeKey(rules[6])
 	if !p.FirstCall(rules[6]) {
 		return p.CallMemo(trules[6], i6)
 	}
@@ -4943,6 +4953,7 @@ func u7(p *rt.TParser) (any, bool) {
 	if p.TypedDocument != nil {
 		return p.DocumentCall(trules[7], 0, i7)
 	}
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i7(p)
 	if !ok {
@@ -5031,6 +5042,7 @@ func u8(p *rt.TParser) (any, bool) {
 	if p.TypedDocument != nil {
 		return p.DocumentCall(trules[8], 0, i8)
 	}
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i8(p)
 	if !ok {
@@ -5083,6 +5095,7 @@ func u9(p *rt.TParser) (any, bool) {
 	if p.TypedDocument != nil {
 		return p.DocumentCall(trules[9], 0, i9)
 	}
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i9(p)
 	if !ok {
@@ -5140,6 +5153,7 @@ func u10(p *rt.TParser) (any, bool) {
 	if p.TypedDocument != nil {
 		return p.DocumentCall(trules[10], 0, i10)
 	}
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i10(p)
 	if !ok {
@@ -5230,6 +5244,7 @@ func u11(p *rt.TParser) (any, bool) {
 	if p.TypedDocument != nil {
 		return p.DocumentCall(trules[11], 0, i11)
 	}
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i11(p)
 	if !ok {
@@ -5312,6 +5327,7 @@ func u12(p *rt.TParser) (any, bool) {
 	if p.TypedDocument != nil {
 		return p.DocumentCall(trules[12], 0, i12)
 	}
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i12(p)
 	if !ok {
@@ -5359,6 +5375,8 @@ func u13(p *rt.TParser) (any, bool) {
 	if p.TypedDocument != nil {
 		return p.DocumentCall(trules[13], 0, i13)
 	}
+	p.Spend()
+	p.ChargeKey(rules[13])
 	if !p.FirstCall(rules[13]) {
 		return p.CallMemo(trules[13], i13)
 	}
@@ -6070,6 +6088,8 @@ func u15(p *rt.TParser) (any, bool) {
 	if p.TypedDocument != nil {
 		return p.DocumentCall(trules[15], 0, i15)
 	}
+	p.Spend()
+	p.ChargeKey(rules[15])
 	if !p.FirstCall(rules[15]) {
 		return p.CallMemo(trules[15], i15)
 	}
@@ -6155,6 +6175,8 @@ func u16(p *rt.TParser) (any, bool) {
 	if p.TypedDocument != nil {
 		return p.DocumentCall(trules[16], 0, v16)
 	}
+	p.Spend()
+	p.ChargeKey(rules[16])
 	if !p.FirstCall(rules[16]) {
 		return p.CallMemo(trules[16], v16)
 	}
@@ -6244,6 +6266,8 @@ func u17(p *rt.TParser) (any, bool) {
 	if p.TypedDocument != nil {
 		return p.DocumentCall(trules[17], 0, i17)
 	}
+	p.Spend()
+	p.ChargeKey(rules[17])
 	if !p.FirstCall(rules[17]) {
 		return p.CallMemo(trules[17], i17)
 	}
@@ -6297,6 +6321,7 @@ func s20(p *rt.TParser) (any, bool) {
 	if p.TypedDocument != nil {
 		return p.DocumentCall(trules[20], 0, ds20)
 	}
+	p.Spend()
 	return ds20(p)
 }
 
@@ -6388,6 +6413,7 @@ func u21(p *rt.TParser) (any, bool) {
 	if p.TypedDocument != nil {
 		return p.DocumentCall(trules[21], 0, i21)
 	}
+	p.Spend()
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i21(p)
 	if !ok {
@@ -6436,6 +6462,7 @@ func s22(p *rt.TParser) (any, bool) {
 	if p.TypedDocument != nil {
 		return p.DocumentCall(trules[22], 0, ds22)
 	}
+	p.Spend()
 	return ds22(p)
 }
 
@@ -6548,6 +6575,7 @@ func s23(p *rt.TParser) (any, bool) {
 	if p.TypedDocument != nil {
 		return p.DocumentCall(trules[23], 0, ds23)
 	}
+	p.Spend()
 	return ds23(p)
 }
 
@@ -6629,6 +6657,7 @@ func s30(p *rt.TParser) (any, bool) {
 	if p.TypedDocument != nil {
 		return p.DocumentCall(trules[30], 0, ds30)
 	}
+	p.Spend()
 	return ds30(p)
 }
 
@@ -6775,6 +6804,7 @@ func s31(p *rt.TParser) (any, bool) {
 	if p.TypedDocument != nil {
 		return p.DocumentCall(trules[31], 0, ds31)
 	}
+	p.Spend()
 	return ds31(p)
 }
 
@@ -6891,6 +6921,7 @@ func s32(p *rt.TParser) (any, bool) {
 	if p.TypedDocument != nil {
 		return p.DocumentCall(trules[32], 0, ds32)
 	}
+	p.Spend()
 	return ds32(p)
 }
 
@@ -6930,6 +6961,7 @@ func s33(p *rt.TParser) (any, bool) {
 	if p.TypedDocument != nil {
 		return p.DocumentCall(trules[33], 0, ds33)
 	}
+	p.Spend()
 	return ds33(p)
 }
 
@@ -6969,6 +7001,7 @@ func s34(p *rt.TParser) (any, bool) {
 	if p.TypedDocument != nil {
 		return p.DocumentCall(trules[34], 0, ds34)
 	}
+	p.Spend()
 	return ds34(p)
 }
 
@@ -7008,6 +7041,7 @@ func s35(p *rt.TParser) (any, bool) {
 	if p.TypedDocument != nil {
 		return p.DocumentCall(trules[35], 0, ds35)
 	}
+	p.Spend()
 	return ds35(p)
 }
 
@@ -7045,6 +7079,7 @@ func s36(p *rt.TParser) (any, bool) {
 	if p.TypedDocument != nil {
 		return p.DocumentCall(trules[36], 0, ds36)
 	}
+	p.Spend()
 	return ds36(p)
 }
 
@@ -7082,6 +7117,7 @@ func s37(p *rt.TParser) (any, bool) {
 	if p.TypedDocument != nil {
 		return p.DocumentCall(trules[37], 0, ds37)
 	}
+	p.Spend()
 	return ds37(p)
 }
 
@@ -7121,6 +7157,7 @@ func s38(p *rt.TParser) (any, bool) {
 	if p.TypedDocument != nil {
 		return p.DocumentCall(trules[38], 0, ds38)
 	}
+	p.Spend()
 	return ds38(p)
 }
 
@@ -7305,6 +7342,7 @@ func s39(p *rt.TParser) (any, bool) {
 	if p.TypedDocument != nil {
 		return p.DocumentCall(trules[39], 0, ds39)
 	}
+	p.Spend()
 	return ds39(p)
 }
 
@@ -7335,4 +7373,4 @@ fail:
 
 const _ = types.ZPSchema_7a469fc635b6a20e
 
-const _ = rt.Protocol22
+const _ = rt.Protocol23

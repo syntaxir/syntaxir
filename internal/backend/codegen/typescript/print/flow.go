@@ -79,13 +79,14 @@ func (g *Generator) flowRule(r *common.Rule, scope *check.Scope) (call string, o
 		}
 		slots = cr.Scope
 	}
-	return g.flowFunc(f, slots, scope, common.Describe(r.BodyExpr()))
+	return g.flowFunc(f, slots, scope, common.Describe(r.BodyExpr()), true)
 }
 
 // flowFunc prints the function f, whose capture scope has the slots, as a function of its own and
 // returns the call expression that runs it, or false if the printer does not print f. On success it
-// sets scope to the capture scope of a framed f. The comment describes the function.
-func (g *Generator) flowFunc(f *code.Module, slots []core.Slot, scope *check.Scope, comment string) (call string, ok bool) {
+// sets scope to the capture scope of a framed f. The comment describes the function. The function of
+// a rule body (ruleBody) charges the unit of the body's evaluation first, as Method does.
+func (g *Generator) flowFunc(f *code.Module, slots []core.Slot, scope *check.Scope, comment string, ruleBody bool) (call string, ok bool) {
 	defer func() {
 		if e := recover(); e != nil {
 			if _, unsupported := e.(tsFlowUnsupported); !unsupported {
@@ -102,6 +103,9 @@ func (g *Generator) flowFunc(f *code.Module, slots []core.Slot, scope *check.Sco
 	var b strings.Builder
 	for _, v := range vars {
 		b.WriteString(v)
+	}
+	if ruleBody && !g.NoBudget {
+		b.WriteString(indent(tsSpend(1)))
 	}
 	b.WriteString(indent(body))
 	if frame {
@@ -366,5 +370,5 @@ func (g *Generator) flowLine(l *core.OpLine, e ast.Expr, scope *check.Scope, bui
 	prev := g.Proj
 	g.Proj = nil // the actions of the lines use no projections of the rule
 	defer func() { g.Proj = prev }()
-	return g.flowFunc(f, l.Scope, scope, g.Cur.Name+" (OperatorsRule line)")
+	return g.flowFunc(f, l.Scope, scope, g.Cur.Name+" (OperatorsRule line)", false)
 }

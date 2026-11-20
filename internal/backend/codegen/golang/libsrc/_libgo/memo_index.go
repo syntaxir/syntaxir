@@ -32,7 +32,8 @@ type memoIndex[E any] map[uint64]*E
 // memoKeyHash hashes a memo key deterministically, so that budgeted costs do not
 // vary between runs. Values of types other than the common scalars all hash
 // alike and are told apart by the key comparison. It also returns the number of
-// string bytes hashed, which a budgeted lookup charges. Keys that are equal as
+// string bytes hashed, which hashing the key of a record of a skip run charges; a
+// memo lookup charges nothing for its hash. Keys that are equal as
 // interface values have equal hashes.
 func memoKeyHash(rule, min int32, env []any) (h uint64, bytes int) {
 	h = 14695981039346656037

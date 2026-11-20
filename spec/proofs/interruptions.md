@@ -93,8 +93,7 @@ A stream does not know `n`, and its default budget is $B_t = \max(2^{20},
 that the parser has demanded from the stream at the time of the reservation.
 It never shrinks, and it depends on the input and the grammar, not on how the
 reader splits the input. A Document parse under the default budget leaves out
-the work that only a Document does (its **Document units**: the memo protocol of a
-call, which includes the walks of chains of memo entries, the application of
+the work that only a Document does (its **Document units**: the application of
 pending edits, the moves of reused values, the recorded runs, the extra units
 of decoding the characters of its text, and the copy of the diagnostics): the
 reservation of $d$ Document units raises $B$ by $d$ before it is made, and a

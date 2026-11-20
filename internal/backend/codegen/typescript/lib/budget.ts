@@ -114,16 +114,26 @@ export class BudgetControl {
     this.sinceCheck = n >= 256 ? 0 : this.sinceCheck + n;
   }
 
-  // chargeUnits reserves n units as n charges of one unit do. A run that fits without reaching a poll
-  // is reserved at once; otherwise each unit is, so that a failed run reports the unit that does not
-  // fit: used is the limit and requested one.
+  // chargeUnits reserves n units as n charges of one unit do: the same units, the same polls and the
+  // same failure, in a time that grows with the polls the units reach, not with n. The units between
+  // two polls are reserved at once; a run that does not fit fails at the unit that does not: used is
+  // the limit and requested one.
   chargeUnits(n: number): void {
-    if (n < 256 - this.sinceCheck && (this.budget === 0 || n <= this.budget - this.budgetUsed)) {
-      if (this.budget !== 0) this.budgetUsed += n;
-      this.sinceCheck += n;
-      return;
+    const fit = this.budget === 0 ? n : Math.min(n, Math.max(this.budget - this.budgetUsed, 0));
+    for (let left = fit; left > 0;) {
+      // first units reach the next poll: first-1 before it, then the charge that polls.
+      const first = 256 - this.sinceCheck;
+      if (left < first) {
+        if (this.budget !== 0) this.budgetUsed += left;
+        this.sinceCheck += left;
+        break;
+      }
+      if (this.budget !== 0) this.budgetUsed += first - 1;
+      this.sinceCheck = 255;
+      this.charge(1);
+      left -= first;
     }
-    for (; n > 0; n--) this.charge(1);
+    if (fit < n) this.charge(1);
   }
 }
 

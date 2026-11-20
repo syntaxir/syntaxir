@@ -49,17 +49,26 @@ func (p *Parser) docOnlyMemo(r *Rule) bool {
 	return p.MemoAll && r.Memo && r.Transient && !r.Leader && !(p.Missing != nil && r.Missing)
 }
 
+// CallCharge charges a call of r as Call does: one unit, and the lookup of its memo key (ChargeKey)
+// for a rule that a parse from scratch memoizes, whether or not this call looks it up.
+func (p *Parser) CallCharge(r *Rule) {
+	p.Spend()
+	if r.Leader || p.memoized(r) && !p.docOnlyMemo(r) {
+		p.ChargeKey(r)
+	}
+}
+
+// CallPlain is a call of a plain rule (Rule.Plain) that a call site makes without the call protocol:
+// the unit of the call, as Call charges it, and the unmemoized call (InvokePlain). A parse from scratch
+// does not memoize a plain rule, so the call has no key to pay for.
+func (p *Parser) CallPlain(r *Rule, min int) (*value.Node, bool) {
+	p.Spend()
+	return p.InvokePlain(r, min)
+}
+
 // The iterative machine writes the call protocol out on its hot path. In a Document parse (MemoAll)
 // it calls the forms below, which run the memo protocol as Document work; a parse from scratch runs
 // the plain steps without a call.
-
-// DocCallSpend charges the unit of a call (the charge of Call): Document work for a rule whose
-// plain body a parse from scratch calls directly.
-func (p *Parser) DocCallSpend(r *Rule) {
-	m := p.FreeBegin(r.Plain)
-	p.Spend()
-	p.FreeEnd(m)
-}
 
 // DirectCallDoc reports whether the call of r runs its body unmemoized, as the test of Call does:
 // the rule is not memoized, or its memoization is deferred. The test is Document work for a rule that

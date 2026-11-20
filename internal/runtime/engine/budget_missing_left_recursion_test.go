@@ -58,11 +58,11 @@ rule g = ";" / "x" #recover(skip=[b]+)`
 	}
 	type usage struct{ compute, memory uint64 }
 	want := map[run]usage{
-		{Closure, false, 10, false}:         {157, 80540},
-		{Closure, true, 10, false}:          {123, 45684},
-		{Closure, false, 0, true}:           {181, 82092},
-		{Bytecode, false, 0, true}:          {193, 90588},
-		{BytecodeIterative, false, 0, true}: {192, 91884},
+		{Closure, false, 10, false}:         {156, 80540},
+		{Closure, true, 10, false}:          {122, 45684},
+		{Closure, false, 0, true}:           {165, 82092},
+		{Bytecode, false, 0, true}:          {177, 90588},
+		{BytecodeIterative, false, 0, true}: {177, 91884},
 	}
 	for r, w := range want {
 		p := prog

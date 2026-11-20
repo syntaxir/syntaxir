@@ -644,13 +644,13 @@ growing result, so a growth run with a key is started at most once in each
 lookahead state, as above. The count above gives
 $C'_P - D \le 3A \cdot C_V$, with $C_V$ of the parse of $V$ from scratch.
 
-$D$ is Document work: the units that the default budget counts for a Document
-parse leave out the memo protocol of a call of a rule that only a Document
-memoizes, except a constant for each variable of the key of its lookups
-([Lemma 12](linear-cost.md#lemma-12-document-units), *The units that the
-default budget counts*). Each such lookup belongs to a call that $C'_P - D$
-counts, and a key has at most the variables of $G$, so the default budget
-counts for $D$ at most a constant of $G$ for each unit of $C'_P - D$. The other
+$D$ is Document work, and it charges no unit: a call of a rule that only a
+Document memoizes pays its unit and no key, and its lookups and stores charge
+nothing ([Lemma 12](linear-cost.md#lemma-12-document-units), *The units that
+the default budget counts*). Each such lookup belongs to a call that $C'_P - D$
+counts and compares the strings of its key by identity, at a constant for each
+variable, and a key has at most the variables of $G$, so the work of $D$ is at
+most a constant of $G$ for each unit of $C'_P - D$. The other
 Document units are those of Lemma 12, which bounds them in terms of the parse
 itself; this proof adds nothing to them. $\square$
 

@@ -359,6 +359,8 @@ func goTarget(s goSpec) *print.Target {
 			}
 			// A charge of n is n one-unit reservations (Take).
 			return "p.Control.Take(" + a[0] + ")"
+		case "budget.chargeKey":
+			return "p.ChargeKey(" + rule(a[0]) + ")"
 		case "budget.freeBegin":
 			return "p.Control.FreeBegin(" + a[0] + ")"
 		case "budget.freeEnd":

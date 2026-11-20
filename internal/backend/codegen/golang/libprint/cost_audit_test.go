@@ -230,11 +230,8 @@ func siteName(f *types.Func) string {
 // new charge in the library is attributed when it is added.
 var siteCost = map[string][]string{
 	formSite: nil, // any declared cost
-	// Deferred memoization (seen.first).
-	"Parser.controlledFirstCallPrepare": {""},
 	// The variable environment.
 	"Parser.controlledEnvValues": {exec.QVars},
-	"Parser.variable":            {exec.QEnvReads},
 	// Recovered errors and expectations.
 	"Parser.recSince":      {exec.QSegs},
 	"Parser.recSinceSlow":  {exec.QSegs},
