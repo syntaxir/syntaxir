@@ -60,10 +60,10 @@ func (p *Parser) refLongest(ops []*OperatorsRuleOp) (best operatorsRuleAttempt, 
 			continue
 		}
 		// reset undoes this candidate's captures; restore them. Nothing parses between saving
-		// and restoring, so one buffer per parser suffices.
-		p.saved = appendSpend(p, p.saved[:0], f.Vals)
+		// and restoring, so one buffer per parser suffices. The copies charge nothing.
+		p.saved = append(p.saved[:0], f.Vals...)
 		p.refReset(m0)
-		copySpend(p, f.Vals, p.saved)
+		copy(f.Vals, p.saved)
 	}
 	return best, cutFailed
 }

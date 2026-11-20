@@ -85,9 +85,6 @@ const (
 	// binds to the values of a record that the walk takes, each charged as for a memo key; 0 for a
 	// skip-run site and a run site free of the environment.
 	QKey = "key"
-	// QTrail is the number of writes of the capture trail after the mark that a reset undoes, a unit
-	// each, as the quantity trail of the Exec stage measures them.
-	QTrail = "trail"
 	// QRecords is the number of records that the end of a walk of a skip-run or run site stores: one
 	// for each position that the walk visited while recording (spec/runtime/parsing.md#skip-runs).
 	QRecords = "records"
@@ -444,8 +441,8 @@ walked at a site that is not hot.`}), "the site (Site)", immOf[Site]())
 		Contract: "Drops the structs made since the context c began."})
 	op(&code.Op{Name: OpUnfresh, Params: []code.Param{P("x", value)}, Writes: []string{State},
 		Contract: "Marks the node x, if x is one, as no longer owned by its maker."})
-	op(&code.Op{Name: OpReset, Params: []code.Param{P("m", mark)}, Writes: []string{State, Pos}, Cost: per(QTrail),
-		Contract: "Returns to the parser state of the mark m: the position and the parts that flow.markState named. Undoing the captures written after m charges a unit for each write, as the composition reset does (spec/exec-ir/compositions.md)."})
+	op(&code.Op{Name: OpReset, Params: []code.Param{P("m", mark)}, Writes: []string{State, Pos},
+		Contract: "Returns to the parser state of the mark m: the position and the parts that flow.markState named. Undoing the captures written after m charges nothing, as the composition reset does (spec/exec-ir/compositions.md)."})
 	withImm(op(&code.Op{Name: OpSetCapture, Params: []code.Param{P("x", value)}, Writes: []string{State},
 		Contract: "Sets the capture slot of the current frame to x."}), "the slot (Slot)", immOf[Slot]())
 	op(&code.Op{Name: OpClearVals, Params: []code.Param{P("f", frame)}, Writes: []string{State},

@@ -197,9 +197,9 @@ func (p *Parser) Longest(l []*OperatorsRuleOp) OperatorsRuleAttempt {
 		if len(f.Vals) == 0 {
 			p.Reset(m0)
 		} else {
-			p.Saved = AppendSpend(p, p.Saved[:0], f.Vals)
+			p.Saved = append(p.Saved[:0], f.Vals...)
 			p.Reset(m0)
-			CopySpend(p, f.Vals, p.Saved)
+			copy(f.Vals, p.Saved)
 		}
 	}
 	p.cutFailed = cutFailed
@@ -323,9 +323,9 @@ func (p *Parser) LongestStep(st *LongestState, v *zpvalue.Node, ok bool) (*Opera
 	if len(st.F.Vals) == 0 {
 		p.Reset(st.M0)
 	} else {
-		p.Saved = AppendSpend(p, p.Saved[:0], st.F.Vals)
+		p.Saved = append(p.Saved[:0], st.F.Vals...)
 		p.Reset(st.M0)
-		CopySpend(p, st.F.Vals, p.Saved)
+		copy(st.F.Vals, p.Saved)
 	}
 	st.I = st.I + 1
 	if st.I == len(st.L) {

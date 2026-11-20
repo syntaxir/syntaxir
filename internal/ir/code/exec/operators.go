@@ -33,14 +33,6 @@ const (
 	Attempt = "Attempt"
 )
 
-// Cost quantities of the capture frames.
-const (
-	// QSlots is the number of slots of the frame that the call takes or opens.
-	QSlots = "slots"
-	// QTrail is the number of trail writes after the mark that the call undoes.
-	QTrail = "trail"
-)
-
 // The names of the handle types of the records of the split forms of the Operators Rule loop.
 const (
 	LongestState = "LongestState"
@@ -75,7 +67,6 @@ null attempt is no match.`)
 	m1 := []code.Param{code.P("m", mark)}
 	a := []code.Param{code.P("a", attempt)}
 	o := []code.Param{code.P("op", op)}
-	slots := code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QSlots}}}
 
 	// The capture frames and backtracking.
 	m.AddOp(&code.Op{Name: "frame.mark", Component: Frames, Results: []code.Type{mark}, Reads: []string{Frames, Env, Rec},
@@ -91,23 +82,24 @@ null attempt is no match.`)
 	m.AddOp(&code.Op{Name: "frame.markTrail", Component: Frames, Params: m1, Results: []code.Type{code.TInt},
 		Contract: `Returns the length of the trail at the backtracking point m.`})
 	m.AddOp(&code.Op{Name: "frame.undo", Component: Frames, Params: []code.Param{code.P("trail", code.TInt)}, Reads: []string{Frames},
-		Writes: []string{Frames}, NoReturn: true, Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QTrail}}},
-		Contract: `Undoes the writes of the trail after its first trail writes, in reverse order, charging one unit
-for each, and drops them: every slot they wrote has the value it had before.`,
+		Writes: []string{Frames},
+		Contract: `Undoes the writes of the trail after its first trail writes, in reverse order, and drops them:
+every slot they wrote has the value it had before. Captures are not an item of the cost, so undoing
+them charges nothing: each write was made by a step that was counted.`,
 		Requires: `trail is at most the length of the trail.`})
 	m.AddOp(&code.Op{Name: "frame.current", Component: Frames, Results: []code.Type{frame}, Reads: []string{Frames},
 		Contract: `Returns the frame that captures write to.`})
 	m.AddOp(&code.Op{Name: "frame.use", Component: Frames, Params: f, Writes: []string{Frames},
 		Contract: `Makes f the frame that captures write to.`})
 	m.AddOp(&code.Op{Name: "frame.open", Component: Frames, Params: []code.Param{code.P("n", code.TInt)}, Results: []code.Type{frame},
-		Writes: []string{Frames}, NoReturn: true, Cost: slots,
+		Writes: []string{Frames},
 		Contract: `Returns a new frame of n empty slots, which lives until the parse ends. A frame of no slots is
-never written, so it may be shared.`})
+never written, so it may be shared. Opening it charges nothing: n is a constant of the grammar for the
+call that opens it.`})
 	m.AddOp(&code.Op{Name: "frame.set", Component: Frames, Params: []code.Param{code.P("slot", code.TInt), code.P("v", value)},
 		Reads: []string{Frames}, Writes: []string{Frames},
 		Contract: `Writes v to the slot of the current frame and adds the slot's old value to the trail. The write
-is free: its size depends on nothing, the match that made v paid for itself, and frame.undo charges for
-each write it undoes.`,
+is free: its size depends on nothing and the match that made v paid for itself.`,
 		Requires: `slot is a slot of the current frame.`})
 	m.AddOp(&code.Op{Name: "frame.close", Component: Frames, Params: f, Writes: []string{Frames},
 		Contract: `Ends f, which nothing refers to any more: a rule's frame when the rule returns. A target may
@@ -116,12 +108,11 @@ reuse it, and one without a pool of frames does nothing.`,
 	m.AddOp(&code.Op{Name: "frame.slots", Component: Frames, Params: f, Results: []code.Type{code.TInt},
 		Contract: `Returns the number of slots of f.`})
 	m.AddOp(&code.Op{Name: "frame.save", Component: Frames, Params: f, Reads: []string{Frames}, Writes: []string{Frames},
-		NoReturn: true, Cost: slots,
-		Contract: `Copies the slots of f aside, charging the copy as the target charges copies of values.`})
+		Contract: `Copies the slots of f aside. The copy charges nothing: the slots are a constant of the grammar
+for the operator whose try saves them.`})
 	m.AddOp(&code.Op{Name: "frame.restore", Component: Frames, Params: f, Reads: []string{Frames}, Writes: []string{Frames},
-		NoReturn: true, Cost: slots,
-		Contract: `Copies the slots that the last frame.save set aside back into f, charging the copy as
-frame.save does.`,
+		Contract: `Copies the slots that the last frame.save set aside back into f, which charges nothing, as
+frame.save does not.`,
 		Requires: `The last frame.save copied the slots of f, and nothing parsed since.`})
 
 	// The descriptors of an Operators Rule.

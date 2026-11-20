@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/exec"
 )
 
 // The capture frames (exec.Frames): the frame that captures write to, the slots of each frame, the
@@ -94,23 +93,6 @@ func (m *Model) allowsFrame(o *code.Op, args []any) bool {
 		return args[0].(int64) >= 0
 	}
 	return true
-}
-
-// frameQuantity returns exec.QSlots and exec.QTrail for a call of a frame operation.
-func (m *Model) frameQuantity(name string, o *code.Op, args []any) (int64, bool) {
-	if o == nil || !isFrameOp(o.Name) {
-		return 0, false
-	}
-	switch name {
-	case exec.QSlots:
-		if o.Name == "frame.open" {
-			return args[0].(int64), true
-		}
-		return int64(len(args[0].(*Frame).vals)), true
-	case exec.QTrail:
-		return int64(len(m.frm.trail)) - args[0].(int64), true
-	}
-	return 0, false
 }
 
 // callFrame runs a frame operation, and reports false for any other.

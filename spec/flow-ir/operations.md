@@ -38,7 +38,7 @@ the Exec stage and the backends rely on.
 | `flow.setWhere` |  |  | `chars` | Names the rule whose action runs, for the messages of its errors. |
 | `flow.dropCreated` | c ctx |  |  | Drops the structs made since the context c began. |
 | `flow.unfresh` | x value |  |  | Marks the node x, if x is one, as no longer owned by its maker. |
-| `flow.reset` | m mark |  |  | Returns to the parser state of the mark m: the position and the parts that flow.markState named. Undoing the captures written after m charges a unit for each write, as the composition reset does ([Compositions](../exec-ir/compositions.md)). |
+| `flow.reset` | m mark |  |  | Returns to the parser state of the mark m: the position and the parts that flow.markState named. Undoing the captures written after m charges nothing, as the composition reset does ([Compositions](../exec-ir/compositions.md)). |
 | `flow.setCapture` | x value |  | `slot` | Sets the capture slot of the current frame to x. |
 | `flow.clearVals` | f frame |  |  | Sets the values of the frame f to nil. |
 | `flow.dropTrail` | m mark |  |  | Drops the trail entries recorded since the mark m. |
@@ -154,7 +154,6 @@ of a recovered error charges a unit and its message. An operation whose Go form 
 | `stream` | The work of a stream parse at the call: loading, compacting and scanning its buffer, and the commit of a delivered element (the composition streamCommit); 0 outside a stream parse. |
 | `error` | Building a syntax error: a unit for each expectation, the steps of sorting their descriptions and of finding the line, and at the first error of a parse of a whole input, a unit for each code point that the table of line starts reads. |
 | `error_text` | The size of the message of a recovered error that a value holds: its bytes and a unit for each of its parts. |
-| `trail` | The writes of the capture trail after the mark that a reset undoes, as the quantity `trail` of the [Exec dialect](../exec-ir/machine.md#quantities) measures them. |
 | `key` | The run key of a walk of a run site that is not free of the environment: reading and hashing the values of its variables, comparing them with the key of a record and binding the variables of a record taken, each charged as for a memo key; 0 for other sites. |
 | `records` | The records that the end of a walk of a skip-run or run site stores: one for each position that the walk visited while recording. |
 | `walk_vals` | The values that a walk of a run site whose iterations have values holds at its end: those it gathered and those of the record it took. |

@@ -145,14 +145,12 @@ are the following.
 | `segs` | The number of entries of the recovered-error list after the mark of the call, or for grow.step after the mark that the growth took when it began: errors that rec.push recorded and lists that rec.add recorded or rec.since put in their place. |
 | `seq_len` | The number of elements of the Seq argument of a primitive, which it copies. |
 | `set` | The number of expectations of the set that the call takes. |
-| `slots` | The number of slots of the frame that the call takes or opens. |
 | `steps` | The number of memoized steps and jumps that the call takes. |
 | `stream_frames` | The number of capture frames that the scratch of the stream holds. A target may visit each twice: a scan for the frame in use, which may lie outside the scratch, and a clear of those after it. |
 | `stream_inactive` | The capacity of the trail and the inactive capacity of a target's value stack. |
 | `stream_scan` | The number of input elements that the call copies when it compacts the buffer, and of those it scans for line starts: every loaded element when the whole input is loaded from its first element and no table of its lines exists yet, otherwise those before its argument that no call scanned. |
 | `table` | The work of the call's lookups and stores in the context tables at its position: one for each lookup or store; one for each dependency set of the head it scans, each result under the values the set selects and each key value those results compare, a string counting two for each byte compared; and one for each jump it scans for a seed. A lookup that the outcome of an observation leads to counts again on each path through the observations that outcomes depend on. |
 | `tokens` | The number of missing tokens that the call removes (those inserted after its mark, or for rule.invokePlain those that its failed body inserted) or records again (those that the call of its entry inserted). |
-| `trail` | The number of trail writes after the mark that the call undoes. |
 | `value_bytes` | The number of bytes of the string operands of a primitive, which it reads and, for a concatenation, copies. |
 | `value_compare` | What comparing the value of the call with the one the slot holds inspects: two for each byte of two strings of the same length that are not the same bytes of the same memory, one for two such strings that are (the comparison reads none of them), and 0 for anything else. |
 | `vars` | The number of variables of the rule's memo key. |

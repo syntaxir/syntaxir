@@ -1808,11 +1808,11 @@ op frame.undo(trail int)
   component frames
   reads frames
   writes frames
-  noreturn
-  cost <= 0 + 1*trail
+  cost <= 0
   contract:
-    // Undoes the writes of the trail after its first trail writes, in reverse order, charging one unit
-    // for each, and drops them: every slot they wrote has the value it had before.
+    // Undoes the writes of the trail after its first trail writes, in reverse order, and drops them:
+    // every slot they wrote has the value it had before. Captures are not an item of the cost, so undoing
+    // them charges nothing: each write was made by a step that was counted.
   requires:
     // trail is at most the length of the trail.
 
@@ -1833,11 +1833,11 @@ op frame.use(f Frame)
 op frame.open(n int) Frame
   component frames
   writes frames
-  noreturn
-  cost <= 0 + 1*slots
+  cost <= 0
   contract:
     // Returns a new frame of n empty slots, which lives until the parse ends. A frame of no slots is
-    // never written, so it may be shared.
+    // never written, so it may be shared. Opening it charges nothing: n is a constant of the grammar for the
+    // call that opens it.
 
 op frame.set(slot int, v Value)
   component frames
@@ -1846,8 +1846,7 @@ op frame.set(slot int, v Value)
   cost <= 0
   contract:
     // Writes v to the slot of the current frame and adds the slot's old value to the trail. The write
-    // is free: its size depends on nothing, the match that made v paid for itself, and frame.undo charges for
-    // each write it undoes.
+    // is free: its size depends on nothing and the match that made v paid for itself.
   requires:
     // slot is a slot of the current frame.
 
@@ -1871,20 +1870,19 @@ op frame.save(f Frame)
   component frames
   reads frames
   writes frames
-  noreturn
-  cost <= 0 + 1*slots
+  cost <= 0
   contract:
-    // Copies the slots of f aside, charging the copy as the target charges copies of values.
+    // Copies the slots of f aside. The copy charges nothing: the slots are a constant of the grammar
+    // for the operator whose try saves them.
 
 op frame.restore(f Frame)
   component frames
   reads frames
   writes frames
-  noreturn
-  cost <= 0 + 1*slots
+  cost <= 0
   contract:
-    // Copies the slots that the last frame.save set aside back into f, charging the copy as
-    // frame.save does.
+    // Copies the slots that the last frame.save set aside back into f, which charges nothing, as
+    // frame.save does not.
   requires:
     // The last frame.save copied the slots of f, and nothing parsed since.
 

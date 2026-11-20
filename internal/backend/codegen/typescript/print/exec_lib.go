@@ -606,11 +606,11 @@ var tsTarget = &Target{
 			m := dst[0]
 			return fmt.Sprintf("%s %sPos = this.pos;\n%[1]s %[2]sEnv = this.env;\n%[1]s %[2]sTrail = this.trail.length;\n%[1]s %[2]sRec = this.recovered.length;", decl, m), true
 		case "frame.undo":
-			return fmt.Sprintf("for (let t = this.trail.length - 1; t >= %s; t--) {\n  this.spend();\n  const u = this.trail[t]!;\n  u.f[u.slot] = u.old;\n}\nthis.trail.length = %[1]s;", a[0]), true
+			return fmt.Sprintf("for (let t = this.trail.length - 1; t >= %s; t--) {\n  const u = this.trail[t]!;\n  u.f[u.slot] = u.old;\n}\nthis.trail.length = %[1]s;", a[0]), true
 		case "frame.save":
-			return fmt.Sprintf("this.saved.length = 0;\nfor (const x of %s) {\n  this.spend();\n  this.saved.push(x);\n}", a[0]), true
+			return fmt.Sprintf("this.saved.length = 0;\nfor (const x of %s) {\n  this.saved.push(x);\n}", a[0]), true
 		case "frame.restore":
-			return fmt.Sprintf("for (let t = 0; t < %s.length; t++) {\n  this.spend();\n  %[1]s[t] = this.saved[t]!;\n}", a[0]), true
+			return fmt.Sprintf("for (let t = 0; t < %s.length; t++) {\n  %[1]s[t] = this.saved[t]!;\n}", a[0]), true
 		case "memo.lookup":
 			s := fmt.Sprintf("%s = this.memoGet(%s);", lhs(dst[0]), key())
 			if dst[1] != "_" {

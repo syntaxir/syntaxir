@@ -273,9 +273,9 @@ func goTarget(s goSpec) *print.Target {
 			}
 			return ""
 		case "frame.save":
-			return fmt.Sprintf("p.saved = appendSpend(%s, p.saved[:0], %s.Vals)", spender, a[0])
+			return fmt.Sprintf("p.saved = append(p.saved[:0], %s.Vals...)", a[0])
 		case "frame.restore":
-			return fmt.Sprintf("copySpend(%s, %s.Vals, p.saved)", spender, a[0])
+			return fmt.Sprintf("copy(%s.Vals, p.saved)", a[0])
 		case "env.restore":
 			return "p.Env = " + a[0]
 		case "env.bind":

@@ -301,10 +301,14 @@ func TestOperatorsLoopMutantsFail(t *testing.T) {
 			{{"Reset", "\tp.Trail = p.Trail[:m.Trail]\n", ""}},
 		}},
 		{"^TestBudgetStateOperatorsRuleFrameSnapshotAndRestoration$", "zeroparse.dev/zp/internal/runtime/vm", [][]funcEdit{
-			{{"Longest", "\t\t\tp.Saved = AppendSpend(p, p.Saved[:0], f.Vals)\n\t\t\tp.Reset(m0)\n\t\t\tCopySpend(p, f.Vals, p.Saved)\n", "\t\t\tp.Reset(m0)\n"}},
-			{{"Longest", "\t\t\tp.Reset(m0)\n\t\t\tCopySpend", "\t\t\tCopySpend"}},
-			{{"LongestStep", "\t\tp.Saved = AppendSpend(p, p.Saved[:0], st.F.Vals)\n\t\tp.Reset(st.M0)\n\t\tCopySpend(p, st.F.Vals, p.Saved)\n", "\t\tp.Reset(st.M0)\n"}},
-			{{"LongestStep", "\t\tp.Reset(st.M0)\n\t\tCopySpend", "\t\tCopySpend"}},
+			{{"Longest", "\t\t\tp.Saved = append(p.Saved[:0], f.Vals...)\n\t\t\tp.Reset(m0)\n\t\t\tcopy(f.Vals, p.Saved)\n", "\t\t\tp.Reset(m0)\n"}},
+			{{"Longest", "\t\t\tp.Reset(m0)\n\t\t\tcopy(f.Vals", "\t\t\tcopy(f.Vals"}},
+			{{"LongestStep", "\t\tp.Saved = append(p.Saved[:0], st.F.Vals...)\n\t\tp.Reset(st.M0)\n\t\tcopy(st.F.Vals, p.Saved)\n", "\t\tp.Reset(st.M0)\n"}},
+			{{"LongestStep", "\t\tp.Reset(st.M0)\n\t\tcopy(st.F.Vals", "\t\tcopy(st.F.Vals"}},
+			// The snapshot and the restoration charge nothing: one that charges a unit for each slot it
+			// copies, as they did before, fails the test.
+			{{"Longest", "\t\t\tcopy(f.Vals, p.Saved)\n", "\t\t\tcopy(f.Vals, p.Saved)\n\t\t\tp.SpendN(uint64(len(f.Vals)))\n"}},
+			{{"LongestStep", "\t\tcopy(st.F.Vals, p.Saved)\n", "\t\tcopy(st.F.Vals, p.Saved)\n\t\tp.SpendN(uint64(len(st.F.Vals)))\n"}},
 			{{"Reset", "\tp.UndoCaptures(m.Trail)\n", ""}},
 		}},
 		{"^TestCompiledRecognitionRoundTrip$", ".", [][]funcEdit{

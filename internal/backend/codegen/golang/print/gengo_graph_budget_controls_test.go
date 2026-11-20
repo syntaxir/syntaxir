@@ -131,10 +131,9 @@ func TestGraphCaptureUndoAndCleanup(t *testing.T){
   p:=graphParser(32);tp:=&zprt.TParser{Parser:p}
   n:=dataNode(zprt.Data{Text:"old"});changed:=dataNode(zprt.Data{Text:"new"});f:=&zprt.CaptureFrame{Vals:make([]*Node,300)};tf:=&zprt.TCaptureFrame{Vals:make([]any,300)}
   for i:=0;i<300;i++{f.Vals[i]=changed;tf.Vals[i]=changed;p.Trail=append(p.Trail,zprt.X_undo{X_f:f,X_slot:i,X_old:n});tp.Trail=append(tp.Trail,zprt.X_tundo{X_f:tf,X_slot:i,X_old:n})}
-  requireGraphLimit(t,p,func(){if typed{tp.Reset(zprt.Mark{})}else{p.Reset(zprt.Mark{})}})
-  if typed && len(tp.Trail)!=300 || !typed && len(p.Trail)!=300{t.Fatal("fatal lost undo records")}
-  p.Control=zprt.X_newBudgetControl(nil,Limits{Compute:100000})
-  if typed{tp.Reset(zprt.Mark{});for _,v:=range tf.Vals{if v!=n{t.Fatal("typed undo retry")}};if len(tp.Trail)!=0{t.Fatal("typed trail retained")};tp.Trail=append(tp.Trail,zprt.X_tundo{X_f:tf,X_old:n});tp.Control=zprt.X_newBudgetControl(nil,Limits{Compute:1});tp.X_recycle();for _,v:=range tp.Trail[:cap(tp.Trail)]{if v.X_f!=nil || v.X_old!=nil{t.Fatal("typed cleanup blocked")}}}else{p.Reset(zprt.Mark{});for _,v:=range f.Vals{if v!=n{t.Fatal("Node undo retry")}};if len(p.Trail)!=0{t.Fatal("Node trail retained")};p.Trail=append(p.Trail,zprt.X_undo{X_f:f,X_old:n});p.Control=zprt.X_newBudgetControl(nil,Limits{Compute:1});p.X_release();for _,v:=range p.Trail[:cap(p.Trail)]{if v.X_f!=nil || v.X_old!=nil{t.Fatal("Node cleanup blocked")}}}
+  // Undoing the capture writes charges nothing (captures are not an item of the cost), so a reset
+  // undoes all 300 under a limit below their number.
+  if typed{tp.Reset(zprt.Mark{});for _,v:=range tf.Vals{if v!=n{t.Fatal("typed undo retry")}};if len(tp.Trail)!=0{t.Fatal("typed trail retained")};if used:=p.Control.X_budgetUsed();used!=0{t.Fatal("typed undo charged",used)};tp.Trail=append(tp.Trail,zprt.X_tundo{X_f:tf,X_old:n});tp.Control=zprt.X_newBudgetControl(nil,Limits{Compute:1});tp.X_recycle();for _,v:=range tp.Trail[:cap(tp.Trail)]{if v.X_f!=nil || v.X_old!=nil{t.Fatal("typed cleanup blocked")}}}else{p.Reset(zprt.Mark{});for _,v:=range f.Vals{if v!=n{t.Fatal("Node undo retry")}};if len(p.Trail)!=0{t.Fatal("Node trail retained")};if used:=p.Control.X_budgetUsed();used!=0{t.Fatal("Node undo charged",used)};p.Trail=append(p.Trail,zprt.X_undo{X_f:f,X_old:n});p.Control=zprt.X_newBudgetControl(nil,Limits{Compute:1});p.X_release();for _,v:=range p.Trail[:cap(p.Trail)]{if v.X_f!=nil || v.X_old!=nil{t.Fatal("Node cleanup blocked")}}}
  }
 }
 func TestTypedFieldMaterialization(t *testing.T){
@@ -201,6 +200,9 @@ func TestGraphOperatorsRuleSnapshots(t *testing.T){
  names:=make([]string,300);nodes,values:=graphKids()
  for i:=range names{names[i]=fmt.Sprintf("p%d",i)}
  for _,typed:=range []bool{false,true}{
+  // Saving and restoring the 300 slots of the frame around the try charges nothing (frame.save and
+  // frame.restore), so the selection uses the same units under a limit below their number.
+  used:=map[uint64]uint64{}
   for _,limit:=range []uint64{129,430,100000}{
    p:=graphParser(limit);tp:=&zprt.TParser{Parser:p};var bestNode zprt.X_operatorsRuleAttempt;var bestTyped zprt.X_toperatorsRuleAttempt
    err:=graphFatal(func(){if typed{
@@ -210,10 +212,10 @@ func TestGraphOperatorsRuleSnapshots(t *testing.T){
     op:=&zprt.OperatorsRuleOp{Kind:"prefix",Line:&zprt.OperatorsRuleLine{Scope:names,M:func(p *zprt.Parser)(*Node,bool){for i,v:=range nodes{p.Frame.Vals[i]=v};p.Pos=1;return nodes[0],true}}}
     bestNode=p.X_longest([]*zprt.OperatorsRuleOp{op})
    }})
-   if limit<100000{if !errors.Is(err,ErrLimit) || bestNode.X_op!=nil || bestTyped.X_op!=nil{t.Fatal("partial OperatorsRule attempt",limit,err)};if typed{tp.X_recycle()}else{p.X_release()};continue}
+   used[limit]=p.Control.X_budgetUsed();if used[limit]!=used[129]{t.Fatal("OperatorsRule snapshot charges depend on the limit",used)}
    if err!=nil || p.Pos!=0 || p.Frame!=nil || tp.Frame!=nil{t.Fatal("OperatorsRule selection changed state",err)}
    if typed{if bestTyped.X_op==nil || bestTyped.X_end!=1 || !reflect.DeepEqual(bestTyped.X_frame.Vals,values){t.Fatal("typed OperatorsRule snapshot changed")}}else{if bestNode.X_op==nil || bestNode.X_end!=1 || !reflect.DeepEqual(bestNode.X_frame.Vals,nodes){t.Fatal("Node OperatorsRule snapshot changed")}}
-   if p.Control.X_budgetUsed()!=uint64(1+2*len(names)){t.Fatal("OperatorsRule snapshot copy spend omitted",p.Control.X_budgetUsed())}
+   if p.Control.X_budgetUsed()!=1{t.Fatal("OperatorsRule selection charges the operator it tries, and nothing for the snapshot",p.Control.X_budgetUsed())}
   }
  }
 }

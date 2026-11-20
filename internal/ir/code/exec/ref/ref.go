@@ -402,9 +402,6 @@ func (m *Model) Quantity(name string, o *code.Op, args []any) int64 {
 	if q, ok := m.ctxQuantity(name, o, args); ok {
 		return q
 	}
-	if q, ok := m.frameQuantity(name, o, args); ok {
-		return q
-	}
 	if q, ok := m.termStateQuantity(name, o, args); ok {
 		return q
 	}

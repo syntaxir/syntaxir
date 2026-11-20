@@ -197,9 +197,9 @@ func (p *Parser) longest(l []*OperatorsRuleOp) operatorsRuleAttempt {
 		if len(f.Vals) == 0 {
 			p.Reset(m0)
 		} else {
-			p.saved = appendSpend(p, p.saved[:0], f.Vals)
+			p.saved = append(p.saved[:0], f.Vals...)
 			p.Reset(m0)
-			copySpend(p, f.Vals, p.saved)
+			copy(f.Vals, p.saved)
 		}
 	}
 	p.cutFailed = cutFailed
@@ -433,9 +433,9 @@ func (p *TParser) longest(l []*TOperatorsRuleOp) toperatorsRuleAttempt {
 		if len(f.Vals) == 0 {
 			p.Reset(m0)
 		} else {
-			p.saved = appendSpend(p.Parser, p.saved[:0], f.Vals)
+			p.saved = append(p.saved[:0], f.Vals...)
 			p.Reset(m0)
-			copySpend(p.Parser, f.Vals, p.saved)
+			copy(f.Vals, p.saved)
 		}
 	}
 	p.cutFailed = cutFailed

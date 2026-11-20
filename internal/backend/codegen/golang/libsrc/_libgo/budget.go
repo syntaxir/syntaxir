@@ -1406,9 +1406,10 @@ func (p *Parser) setValueFieldControlled(fs *valueimpl.Fields, name string, v an
 	*fs = append(*fs, valueimpl.NodeField{Name: name, Value: v})
 }
 func (p *Parser) pushKid(v *zpvalue.Node) { p.KidStack = append(p.KidStack, v) }
+
+// undoCaptures is frame.undo, which charges nothing: captures are not an item of the cost.
 func (p *Parser) undoCaptures(from int) {
 	for i := len(p.Trail) - 1; i >= from; i-- {
-		p.Spend()
 		u := p.Trail[i]
 		u.f.Vals[u.slot] = u.old
 	}

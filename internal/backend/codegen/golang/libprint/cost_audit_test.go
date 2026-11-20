@@ -285,16 +285,11 @@ var siteCost = map[string][]string{
 	// The reads of fields.
 	"Parser.valueFieldControlled":  {action.QFieldsRead},
 	"TParser.valueFieldControlled": {action.QFieldsRead},
-
-	// The capture frames.
-	"Parser.undoCaptures":  {exec.QTrail},
-	"TParser.undoCaptures": {exec.QTrail},
 }
 
 // chargedElsewhere are the operations whose declared cost comes from the charges of a target other
 // than the generated Go library, which charges nothing for them.
 var chargedElsewhere = map[string]string{
-	"frame.open":         "the TypeScript library charges one unit for each slot of a new frame",
 	"stream.release":     "the engine charges one unit for each capture frame it scans or clears",
 	"stream.dropRecords": "the engine charges one unit for each slot of inactive capacity it clears",
 }

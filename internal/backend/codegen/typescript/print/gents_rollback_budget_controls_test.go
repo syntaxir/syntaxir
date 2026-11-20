@@ -18,8 +18,9 @@ func TestGeneratedTSBudgetControlCaptureRollback(t *testing.T) {
 		captures[i] = fmt.Sprintf(`c%d:"z"`, i)
 	}
 	sequence := strings.Join(captures, " ")
-	// Two child frames in fast account for the root allocation and empty-frame
-	// inspection in main. Only main also restores both failed capture trails.
+	// Only main undoes the two failed capture trails of 512 writes each; fast leaves them in the
+	// frames of its child rules. Undoing captures charges nothing (captures are not an item of the
+	// cost), so main fits within a few units of fast, far below the 1024 writes it undoes.
 	src := `rule main = ({true} ` + sequence + ` "!") / ({1 == 1} ` + sequence + ` "?") / "z" #repeat(512)
  rule fast = first / second / "z" #repeat(512)
  rule first = {true} ` + sequence + ` "!"
@@ -37,10 +38,8 @@ for(const unit of [p.CodePoints,p.Bytes]) {
  const typed=p.parseValue(input,unit),converted=p.parseValueWithOptions(input,{unit,signal:{aborted:false}});
  check(typed.error===null&&converted.error===null&&stable(converted.value)===stable(typed.value),"typed rollback output parity");
  const baseline=minimum(n=>p.parseRuleWithOptions("fast",input,{unit,limits:{compute:n}}).error===null),limit=baseline+128;
- const stopped=p.parseWithOptions(input,{unit,limits:{compute:limit}});
- check(stopped.node===null&&stopped.error instanceof p.ParseInterruptionError&&stopped.error.kind==="compute-limit","capture restoration consumes spend beyond equivalent fresh frames");
- check(p.parseValueWithOptions(input,{unit,limits:{compute:limit}}).value===null,"typed rollback interruption exposes no partial value");
- check(p.parseWithOptions(input,{unit,limits:{compute:0}}).error===null,"fresh retry after interrupted capture restoration");
+ const fits=p.parseWithOptions(input,{unit,limits:{compute:limit}});
+ check(fits.error===null&&stable(fits.node)===stable(ordinary.node),"capture restoration charges nothing");
 }
 `
 	runTypedTSFixture(t, src, consumer, common.GenOptions{Start: "main", LimitControls: true, Types: true, Recognize: true}, "")
@@ -54,6 +53,9 @@ func TestGeneratedTSBudgetControlOperatorsRuleCapturePreservation(t *testing.T) 
 		captures[i] = fmt.Sprintf(`c%d:"-"`, i)
 	}
 	sequence := strings.Join(captures, " ")
+	// The Operators Rule saves and restores the 512 slots of the operator's frame around the reset
+	// of its candidate, and the reset undoes the 512 writes: none of it charges (captures are not an
+	// item of the cost), so main fits within a few units of fast.
 	src := `type Word = { Text string }
  type Op = { Token node[string] }
  type Box = { Token node[string]; Rhs Expr }
@@ -78,14 +80,10 @@ for(const unit of [p.CodePoints,p.Bytes]) {
  check(ordinary.error===null&&typed.error===null&&active.error===null&&converted.error===null&&stable(active.node)===stable(ordinary.node)&&stable(converted.value)===stable(typed.value),"Operators Rule capture preservation parity");
  check(converted.value?.type==="Box"&&converted.value.Token?.value==="-"&&converted.value.Rhs?.type==="Word","successful operator retains its captured token across candidate reset");
  const baseline=minimum(n=>p.parseRuleWithOptions("fast",input,{unit,limits:{compute:n}}).error===null);
- // Allow the successful trail reset, operator span materialization and
- // either one preservation pass over both candidate frames. Completing
- // both passes must exceed this limit.
- const limit=baseline+4*512+128;
- const stopped=p.parseWithOptions(input,{unit,limits:{compute:limit}});
- check(stopped.node===null&&stopped.error instanceof p.ParseInterruptionError&&stopped.error.kind==="compute-limit","Operators Rule preservation visits consume cumulative spend");
- check(p.parseValueWithOptions(input,{unit,limits:{compute:limit}}).value===null,"typed Operators Rule interruption exposes no partial value");
- check(p.parseValueWithOptions(input,{unit,limits:{compute:0}}).error===null,"fresh Operators Rule retry");
+ const limit=baseline+128;
+ const fits=p.parseWithOptions(input,{unit,limits:{compute:limit}});
+ check(fits.error===null&&stable(fits.node)===stable(ordinary.node),"Operators Rule capture preservation charges nothing");
+ check(stable(p.parseValueWithOptions(input,{unit,limits:{compute:limit}}).value)===stable(typed.value),"typed Operators Rule capture preservation charges nothing");
 }
 `
 	runTypedTSFixture(t, src, consumer, common.GenOptions{Start: "main", LimitControls: true, Types: true, Recognize: true}, "")

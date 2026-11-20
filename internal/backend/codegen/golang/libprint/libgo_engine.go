@@ -327,9 +327,9 @@ func engineTarget() *print.Target {
 		case "frame.slots":
 			return "len(" + a[0] + ".Vals)"
 		case "frame.save":
-			return fmt.Sprintf("p.Saved = AppendSpend(p, p.Saved[:0], %s.Vals)", a[0])
+			return fmt.Sprintf("p.Saved = append(p.Saved[:0], %s.Vals...)", a[0])
 		case "frame.restore":
-			return fmt.Sprintf("CopySpend(p, %s.Vals, p.Saved)", a[0])
+			return fmt.Sprintf("copy(%s.Vals, p.Saved)", a[0])
 		case "env.restore":
 			return "p.Env = " + a[0]
 		case "opr.led":

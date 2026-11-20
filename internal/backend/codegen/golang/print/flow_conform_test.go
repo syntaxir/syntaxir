@@ -476,9 +476,6 @@ func TestProbe(t *testing.T) {
 // entries that recording one expectation compares at the farthest failure.
 const flowConformExps = 16
 
-// flowConformSlots is the most capture slots of a frame of flowConformCases.
-const flowConformSlots = 4
-
 // flowConformKeyVars is the most variables that key the records of a run site of flowConformCases.
 const flowConformKeyVars = 1
 
@@ -500,13 +497,12 @@ const flowUnbounded = 1 << 30
 //   - vals: the length of the list that the call returns;
 //   - error: each expectation, the steps of sorting them and finding the line, and the input once;
 //   - error_text: the bytes of the message and one for each of its parts;
-//   - ranges: of the immediate; captures: its names, and capture_fields their square;
+//   - ranges: of the immediate;
 //   - stream: four for each code point of the input and a constant;
 //   - text: the length of the result;
 //   - key: hashing, comparing and binding the values of the variables of a run key
 //     (flowConformKeyVars), each at most the input and a constant;
-//   - records, walk_vals: one for each position of the input;
-//   - trail: flowConformSlots for each position of the input.
+//   - records, walk_vals: one for each position of the input.
 func flowBound(in *ref.Input, o *code.Op, c *code.Call, e *flowEvent) int {
 	exps := 1
 	for _, i := range []int{0, 1} {
@@ -559,10 +555,6 @@ func flowBound(in *ref.Input, o *code.Op, c *code.Call, e *flowEvent) int {
 			// The variables of the key of a run site of flowConformCases hold values no longer than the
 			// input; hashing, comparing and binding each charges at most its bytes and a constant.
 			q = 3 * flowConformKeyVars * (in.Len() + 8)
-		case flow.QTrail:
-			// An iteration that writes a capture slot again consumes input, so at most
-			// flowConformSlots writes for each position follow a mark.
-			q = flowConformSlots * (in.Len() + 1)
 		case flow.QRecords:
 			q = in.Len() + 1
 		case flow.QWalkVals:

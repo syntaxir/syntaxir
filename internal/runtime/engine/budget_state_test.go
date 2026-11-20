@@ -3,7 +3,6 @@
 package engine
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"reflect"
@@ -66,7 +65,10 @@ func TestBudgetResetRestoresRepeatedCaptureWritesInReverse(t *testing.T) {
 	}
 }
 
-func TestBudgetResetPollingCancellationDuringUndo(t *testing.T) {
+// TestBudgetResetUndoChargesNothing checks that undoing the capture writes of a reset charges nothing
+// (captures are not an item of the cost, spec/runtime/parsing.md#cost): a reset that undoes 257 writes
+// under a context that cancels at its first poll neither polls nor fails, and restores every slot.
+func TestBudgetResetUndoChargesNothing(t *testing.T) {
 	t.Parallel()
 	p := stateBudgetParser(runtime.Limits{})
 	f := &state.Frame{Vals: make([]*zpvalue.Node, 257)}
@@ -75,17 +77,20 @@ func TestBudgetResetPollingCancellationDuringUndo(t *testing.T) {
 		f.Vals[i] = value.Ptr(value.Data{Text: "new"})
 		p.Trail = append(p.Trail, state.Undo{F: f, Slot: i, Old: old})
 	}
-	p.Control = state.NewBudgetControl(newPollingContext(1), runtime.Limits{})
-	err := catchFatal(t, func() { p.Reset(state.Mark{Trail: 0}) })
-	if !errors.Is(err, context.Canceled) {
-		t.Fatalf("undo cancellation = %v, want context.Canceled", err)
+	ctx := newPollingContext(1)
+	p.Control = state.NewBudgetControl(ctx, runtime.Limits{})
+	if err := catchFatal(t, func() { p.Reset(state.Mark{Trail: 0}) }); err != nil {
+		t.Fatalf("undoing 257 writes failed: %v", err)
 	}
-	if len(p.Trail) != 257 {
-		t.Fatalf("canceled reset truncated trail to %d", len(p.Trail))
+	if ctx.checks != 0 || p.Control.Used != 0 {
+		t.Fatalf("undoing 257 writes polled %d times and charged %d units, want none", ctx.checks, p.Control.Used)
+	}
+	if len(p.Trail) != 0 {
+		t.Fatalf("reset left %d trail entries", len(p.Trail))
 	}
 	for i := range f.Vals {
-		if f.Vals[i] == nil || value.D(f.Vals[i]).Text != "old" && value.D(f.Vals[i]).Text != "new" {
-			t.Fatalf("undo cancellation damaged slot %d: %#v", i, f.Vals[i])
+		if value.D(f.Vals[i]).Text != "old" {
+			t.Fatalf("slot %d not restored: %#v", i, f.Vals[i])
 		}
 	}
 }
@@ -193,6 +198,9 @@ func TestBudgetAttachCapturesWideScopesChargeNothing(t *testing.T) {
 	}
 }
 
+// TestBudgetStateBatchRollbackAndPoolRetry rolls back 320 capture writes, which charges nothing, and
+// interrupts the parse right after (one unit past the match of arm), whether before or at the call of
+// fallback; the interrupted parser leaves no scratch or control behind, and a retry from the pool parses.
 func TestBudgetStateBatchRollbackAndPoolRetry(t *testing.T) {
 	t.Parallel()
 	var body strings.Builder
@@ -225,10 +233,10 @@ rule arm = _`
 							t.Fatalf("%v/%v recognize=%t: outer capture trail=%d", b, u, recognize, len(state.TraceParser(e).Trail))
 						}
 						armed = true
-						state.TraceParser(e).Control.Limits.Compute = state.TraceParser(e).Control.Used + 20
+						state.TraceParser(e).Control.Limits.Compute = state.TraceParser(e).Control.Used + 1
 					}
 				}})
-				if !armed || n != nil || !errors.Is(err, runtime.ErrLimit) || fallback != 0 || observed == nil || observed.Scratch != nil || observed.Control != nil {
+				if !armed || n != nil || !errors.Is(err, runtime.ErrLimit) || fallback > 1 || observed == nil || observed.Scratch != nil || observed.Control != nil {
 					t.Fatalf("%v/%v recognize=%t: armed=%t returned=%t err=%v fallback=%d", b, u, recognize, armed, n != nil, err, fallback)
 				}
 				n, err = prog.ParseWith("main", "a", ParseOptions{Backend: b, Unit: u, Recognize: recognize})

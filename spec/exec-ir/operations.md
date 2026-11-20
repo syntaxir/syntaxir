@@ -255,15 +255,15 @@ The operations of the component `frames`.
 | `op frame.markEnv(m Mark) Scope` | none | `0` | Returns the variable environment of the backtracking point m. |
 | `op frame.markMissing(m Mark) int [missing]` | none | `0` | Returns the mark of the missing-token record at the backtracking point m, as missing.mark does. |
 | `op frame.markTrail(m Mark) int` | none | `0` | Returns the length of the trail at the backtracking point m. |
-| `op frame.undo(trail int) noreturn` | reads frames; writes frames | `0 + 1*trail` | Undoes the writes of the trail after its first trail writes, in reverse order, charging one unit for each, and drops them: every slot they wrote has the value it had before. Requires: trail is at most the length of the trail. |
+| `op frame.undo(trail int)` | reads frames; writes frames | `0` | Undoes the writes of the trail after its first trail writes, in reverse order, and drops them: every slot they wrote has the value it had before. Captures are not an item of the cost, so undoing them charges nothing: each write was made by a step that was counted. Requires: trail is at most the length of the trail. |
 | `op frame.current() Frame` | reads frames | `0` | Returns the frame that captures write to. |
 | `op frame.use(f Frame)` | writes frames | `0` | Makes f the frame that captures write to. |
-| `op frame.open(n int) Frame noreturn` | writes frames | `0 + 1*slots` | Returns a new frame of n empty slots, which lives until the parse ends. A frame of no slots is never written, so it may be shared. |
-| `op frame.set(slot int, v Value)` | reads frames; writes frames | `0` | Writes v to the slot of the current frame and adds the slot's old value to the trail. The write is free: its size depends on nothing, the match that made v paid for itself, and frame.undo charges for each write it undoes. Requires: slot is a slot of the current frame. |
+| `op frame.open(n int) Frame` | writes frames | `0` | Returns a new frame of n empty slots, which lives until the parse ends. A frame of no slots is never written, so it may be shared. Opening it charges nothing: n is a constant of the grammar for the call that opens it. |
+| `op frame.set(slot int, v Value)` | reads frames; writes frames | `0` | Writes v to the slot of the current frame and adds the slot's old value to the trail. The write is free: its size depends on nothing and the match that made v paid for itself. Requires: slot is a slot of the current frame. |
 | `op frame.close(f Frame)` | writes frames | `0` | Ends f, which nothing refers to any more: a rule's frame when the rule returns. A target may reuse it, and one without a pool of frames does nothing. Requires: No trail entry and no current frame refer to f. |
 | `op frame.slots(f Frame) int` | none | `0` | Returns the number of slots of f. |
-| `op frame.save(f Frame) noreturn` | reads frames; writes frames | `0 + 1*slots` | Copies the slots of f aside, charging the copy as the target charges copies of values. |
-| `op frame.restore(f Frame) noreturn` | reads frames; writes frames | `0 + 1*slots` | Copies the slots that the last frame.save set aside back into f, charging the copy as frame.save does. Requires: The last frame.save copied the slots of f, and nothing parsed since. |
+| `op frame.save(f Frame)` | reads frames; writes frames | `0` | Copies the slots of f aside. The copy charges nothing: the slots are a constant of the grammar for the operator whose try saves them. |
+| `op frame.restore(f Frame)` | reads frames; writes frames | `0` | Copies the slots that the last frame.save set aside back into f, which charges nothing, as frame.save does not. Requires: The last frame.save copied the slots of f, and nothing parsed since. |
 
 ## Operators Rule Loop
 

@@ -103,13 +103,13 @@ func (p *Parser) confFrameSlots(f *Frame) int {
 // confFrameSave runs frame.save for the conformance suite.
 // Printed from Exec IR function confFrameSave of internal/ir/code/exec/compose.
 func (p *Parser) confFrameSave(f *Frame) {
-	p.Saved = AppendSpend(p, p.Saved[:0], f.Vals)
+	p.Saved = append(p.Saved[:0], f.Vals...)
 }
 
 // confFrameRestore runs frame.restore for the conformance suite.
 // Printed from Exec IR function confFrameRestore of internal/ir/code/exec/compose.
 func (p *Parser) confFrameRestore(f *Frame) {
-	CopySpend(p, f.Vals, p.Saved)
+	copy(f.Vals, p.Saved)
 }
 
 // confFrameBindings returns the bindings of p by the name of the operation.

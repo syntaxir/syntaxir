@@ -129,12 +129,12 @@ func TestGeneratedTSMemoryLimitValues(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			// The count also takes the peak of the working stacks, sampled at the polls, which come
-			// every 256 compute units: where they fall moves the count by some tens of bytes (less
-			// than 100, half a byte for each of the 200 items), so the bytes per item are rounded to
-			// the nearest.
+			// every 256 compute units: where they fall relative to the peak moves the count by up to
+			// a few hundred bytes of stack slots, which is at most a byte for each of the 200 items,
+			// so the bytes per item, rounded to the nearest, may be one off.
 			got := (count(t, c.action) - base + 100) / 200
-			if got != c.perItem {
-				t.Fatalf("%s adds %d bytes per item over returning the node, want %d", c.action, got, c.perItem)
+			if got < c.perItem-1 || got > c.perItem+1 {
+				t.Fatalf("%s adds %d bytes per item over returning the node, want %d (within one)", c.action, got, c.perItem)
 			}
 		})
 	}

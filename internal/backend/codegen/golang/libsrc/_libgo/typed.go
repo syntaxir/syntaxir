@@ -2192,9 +2192,10 @@ func (p *TParser) setValueFieldControlled(n *TSeq, name string, v any) {
 	// Adding the field is constant work, which the step that sets it has paid.
 	n.fields = append(n.fields, tfield{name, v})
 }
+
+// undoCaptures is frame.undo, which charges nothing: captures are not an item of the cost.
 func (p *TParser) undoCaptures(from int) {
 	for i := len(p.Trail) - 1; i >= from; i-- {
-		p.Spend()
 		u := p.Trail[i]
 		u.f.Vals[u.slot] = u.old
 	}

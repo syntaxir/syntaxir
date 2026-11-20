@@ -125,7 +125,6 @@ function refReset(p: Parser, pos: number, env: Env | null, trail: number, recove
   p.env = env;
   p.recovered.length = recovered;
   for (let i = p.trail.length - 1; i >= trail; i--) {
-    p.spend();
     const u = p.trail[i]!;
     u.f[u.slot] = u.old;
   }
@@ -190,15 +189,13 @@ function refLongest(p: Parser, ops: OperatorsRuleOp[]): OperatorsRuleAttempt | n
       continue;
     }
     // reset undoes this candidate's captures; restore them. Nothing parses between saving
-    // and restoring, so one buffer per parser suffices.
+    // and restoring, so one buffer per parser suffices. The copies charge nothing.
     p.saved.length = 0;
     for (const x of f) {
-      p.spend();
       p.saved.push(x);
     }
     refReset(p, m0pos, m0env, m0trail, m0rec);
     for (let i = 0; i < f.length; i++) {
-      p.spend();
       f[i] = p.saved[i]!;
     }
   }

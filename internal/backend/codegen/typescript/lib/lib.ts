@@ -3318,10 +3318,8 @@ export class Parser {
     }
     const f: Frame = new Array(n);
     this.alloc(arrayBytes(n));
-    for (let i = 0; i < n; i++) {
-      this.spend();
-      f[i] = null;
-    }
+    // Opening a frame charges nothing: its slots are a constant of the grammar for the call.
+    f.fill(null);
     return f;
   }
 
