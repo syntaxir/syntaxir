@@ -3,7 +3,6 @@ package complexity
 import (
 	"fmt"
 
-	"zeroparse.dev/zp/internal/compile"
 	"zeroparse.dev/zp/internal/frontend/astfacts"
 	"zeroparse.dev/zp/pkg/grammar/ast"
 )
@@ -71,7 +70,7 @@ func (k *classifier) addStepUnits() {
 			for c := t; c != nil; c = c.next {
 				for _, it := range c.items {
 					if it != nil {
-						for _, n := range compile.AllCallsControlled(it, nil, k.control) {
+						for _, n := range astfacts.AllCallsControlled(it, nil, k.control) {
 							u.calls[n] = true
 						}
 					}

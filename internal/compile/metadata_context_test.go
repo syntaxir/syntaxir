@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"zeroparse.dev/zp/internal/cancel"
+	"zeroparse.dev/zp/internal/frontend/astfacts"
 	"zeroparse.dev/zp/internal/frontend/check"
 	"zeroparse.dev/zp/pkg/grammar/ast"
 )
@@ -24,7 +25,7 @@ func TestCompileMetadataCollectionCancellation(t *testing.T) {
 	}{
 		{"rules", func(c *cancel.Control) { c.Rules(g) }},
 		{"types", func(c *cancel.Control) { c.Types(g) }},
-		{"call-walk", func(c *cancel.Control) { AllCallsControlled(expr, nil, c) }},
+		{"call-walk", func(c *cancel.Control) { astfacts.AllCallsControlled(expr, nil, c) }},
 		{"type-check-arguments", func(c *cancel.Control) {
 			check.PollPredicates(c, expr)
 		}},

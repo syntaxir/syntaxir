@@ -10,6 +10,7 @@ import (
 	"zeroparse.dev/zp/internal/cancel"
 	"zeroparse.dev/zp/internal/compile"
 	"zeroparse.dev/zp/internal/frontend"
+	"zeroparse.dev/zp/internal/frontend/astfacts"
 	"zeroparse.dev/zp/internal/frontend/check"
 	"zeroparse.dev/zp/internal/frontend/desugar"
 	syntaxfmt "zeroparse.dev/zp/internal/syntax/fmt"
@@ -423,7 +424,7 @@ func newClassifierOf(g *ast.Grammar, rules, base []*ast.RuleDef, rf *ruleFacts, 
 	}
 	k.outside = map[*ast.Ref]bool{}
 	for _, r := range rules {
-		k.calls[r.Name] = compile.AllCallsControlled(r.Expr, nil, control)
+		k.calls[r.Name] = astfacts.AllCallsControlled(r.Expr, nil, control)
 	}
 	for i, comp := range tarjan(rules, k.calls, control) {
 		for _, n := range comp {

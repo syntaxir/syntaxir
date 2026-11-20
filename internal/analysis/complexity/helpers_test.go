@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"zeroparse.dev/zp/internal/compile"
+	"zeroparse.dev/zp/internal/frontend/astfacts"
 	"zeroparse.dev/zp/internal/testing/compiletest"
 	"zeroparse.dev/zp/pkg/grammar/ast"
 )
@@ -20,7 +21,7 @@ func skipOf(e ast.Expr) ast.Expr {
 	case *ast.Recovery:
 		return e.Skip
 	case *ast.Attributed:
-		return compile.RecoverSkip(e)
+		return astfacts.RecoverSkip(e)
 	}
 	return nil
 }

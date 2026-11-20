@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"unicode/utf8"
 
-	"zeroparse.dev/zp/internal/compile"
 	"zeroparse.dev/zp/internal/frontend/astfacts"
 	"zeroparse.dev/zp/pkg/grammar/ast"
 )
@@ -223,10 +222,10 @@ func (r *runAnalysis) compute(e ast.Expr) runFlow {
 		return r.flow(e.Expr)
 	case *ast.Attributed:
 		f := r.flow(e.Expr)
-		if skip := compile.RecoverSkip(e); skip != nil {
+		if skip := astfacts.RecoverSkip(e); skip != nil {
 			f = f.join(r.flow(skip))
 		}
-		if compile.HasPragma(e, "missing") {
+		if astfacts.HasPragma(e, "missing") {
 			f = f.join(runID)
 		}
 		return f
@@ -339,7 +338,7 @@ func (r *runAnalysis) visit(e ast.Expr, in int, changed *bool) {
 		r.visit(e.Expr, in, changed)
 	case *ast.Attributed:
 		r.visit(e.Expr, in, changed)
-		if skip := compile.RecoverSkip(e); skip != nil {
+		if skip := astfacts.RecoverSkip(e); skip != nil {
 			r.visit(skip, in, changed)
 		}
 	case *ast.OperatorsRule:
@@ -516,7 +515,7 @@ func (k *classifier) consumed(e ast.Expr, rules map[string]charset) charset {
 			walk(e.Expr)
 		case *ast.Attributed:
 			walk(e.Expr)
-			if skip := compile.RecoverSkip(e); skip != nil {
+			if skip := astfacts.RecoverSkip(e); skip != nil {
 				walk(skip)
 			}
 		case *ast.OperatorsRule:
@@ -719,7 +718,7 @@ func (k *classifier) countedWalk(e ast.Expr, ok bool, counted map[string]bool, c
 		k.countedWalk(e.Expr, ok, counted, changed)
 	case *ast.Attributed:
 		k.countedWalk(e.Expr, ok, counted, changed)
-		if skip := compile.RecoverSkip(e); skip != nil {
+		if skip := astfacts.RecoverSkip(e); skip != nil {
 			k.countedWalk(skip, ok, counted, changed)
 		}
 	case *ast.OperatorsRule:

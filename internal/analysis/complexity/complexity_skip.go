@@ -1,7 +1,6 @@
 package complexity
 
 import (
-	"zeroparse.dev/zp/internal/compile"
 	"zeroparse.dev/zp/internal/frontend/astfacts"
 	"zeroparse.dev/zp/pkg/grammar/ast"
 )
@@ -65,7 +64,7 @@ func costly(x ast.Expr) bool {
 	case *ast.Ref, *ast.Predicate, *ast.Recovery, *ast.OperatorsRule:
 		return true
 	case *ast.Attributed:
-		return compile.RecoverSkip(x) != nil
+		return astfacts.RecoverSkip(x) != nil
 	}
 	return false
 }

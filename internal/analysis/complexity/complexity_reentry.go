@@ -1,7 +1,7 @@
 package complexity
 
 import (
-	"zeroparse.dev/zp/internal/compile"
+	"zeroparse.dev/zp/internal/frontend/astfacts"
 	"zeroparse.dev/zp/pkg/grammar/ast"
 )
 
@@ -163,7 +163,7 @@ func (k *classifier) visitFixed(e ast.Expr, cycle int, leaders bool, ok *bool) b
 		return read
 	case *ast.Attributed:
 		read := k.visitFixed(e.Expr, cycle, leaders, ok)
-		if skip := compile.RecoverSkip(e); skip != nil {
+		if skip := astfacts.RecoverSkip(e); skip != nil {
 			k.visitFixed(skip, cycle, false, ok)
 			return false
 		}

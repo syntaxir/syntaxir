@@ -11,6 +11,7 @@ import (
 
 	"zeroparse.dev/zp/internal/compile"
 	"zeroparse.dev/zp/internal/frontend"
+	"zeroparse.dev/zp/internal/frontend/astfacts"
 	"zeroparse.dev/zp/internal/frontend/desugar"
 	"zeroparse.dev/zp/internal/frontend/elaborate"
 	"zeroparse.dev/zp/internal/middleend/corepass"
@@ -68,12 +69,12 @@ func ruleVariablesDFS(rules []*ast.RuleDef) map[string][]string {
 	calls := map[string][]string{}
 	for _, r := range rules {
 		set := map[string]bool{}
-		compile.WalkRuleTerms(r, func(t ast.ActionExpr) {
+		astfacts.WalkRuleTerms(r, func(t ast.ActionExpr) {
 			if v, ok := t.(*ast.VarRef); ok {
 				set[v.Name] = true
 			}
 		})
-		direct[r.Name], calls[r.Name] = set, compile.AllCalls(r.Expr, nil)
+		direct[r.Name], calls[r.Name] = set, astfacts.AllCalls(r.Expr, nil)
 	}
 	out := map[string][]string{}
 	for _, r := range rules {

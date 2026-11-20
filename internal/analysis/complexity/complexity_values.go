@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strings"
 
-	"zeroparse.dev/zp/internal/compile"
 	"zeroparse.dev/zp/internal/frontend/astfacts"
 	"zeroparse.dev/zp/internal/frontend/check"
 	"zeroparse.dev/zp/internal/frontend/types"
@@ -671,7 +670,7 @@ func (k *classifier) varBinds(v string) []varBind {
 	if k.varBinding == nil {
 		k.varBinding = map[string][]varBind{}
 		for _, r := range k.rules {
-			compile.WalkRuleTerms(r, func(t ast.ActionExpr) {
+			astfacts.WalkRuleTerms(r, func(t ast.ActionExpr) {
 				if b, ok := t.(*ast.Bind); ok {
 					k.varBinding[b.Name] = append(k.varBinding[b.Name], varBind{r.Name, b})
 				}

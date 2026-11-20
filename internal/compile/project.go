@@ -2,6 +2,7 @@ package compile
 
 import (
 	"zeroparse.dev/zp/internal/cancel"
+	"zeroparse.dev/zp/internal/frontend/astfacts"
 	"zeroparse.dev/zp/internal/frontend/check"
 	"zeroparse.dev/zp/pkg/grammar/ast"
 )
@@ -68,12 +69,12 @@ func ruleProjectionsControlled(prog *Program, r *Rule, control *cancel.Control) 
 		return nil
 	}
 	count := map[string]int{}
-	walkExprControlled(r.Def.Expr, func(x ast.Expr) {
+	astfacts.WalkExprControlled(r.Def.Expr, func(x ast.Expr) {
 		switch x := x.(type) {
 		case *ast.Capture:
 			count[x.Name]++
 		case *ast.Predicate:
-			WalkTerm(x.Action, func(t ast.ActionExpr) {
+			astfacts.WalkTerm(x.Action, func(t ast.ActionExpr) {
 				control.Poll()
 				if c, ok := t.(*ast.CaptureRef); ok {
 					delete(cands, c.Name)

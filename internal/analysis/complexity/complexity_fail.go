@@ -1,7 +1,6 @@
 package complexity
 
 import (
-	"zeroparse.dev/zp/internal/compile"
 	"zeroparse.dev/zp/internal/frontend/astfacts"
 	"zeroparse.dev/zp/pkg/grammar/ast"
 )
@@ -113,7 +112,7 @@ func (k *classifier) failsAfterSource(e ast.Expr) bool {
 	case *ast.Predicate:
 		return k.srcExprs[x]
 	case *ast.Attributed:
-		if compile.RecoverSkip(x) != nil || compile.HasPragma(x, "missing") {
+		if astfacts.RecoverSkip(x) != nil || astfacts.HasPragma(x, "missing") {
 			return k.containsSource(x)
 		}
 		return k.failsAfterSource(x.Expr)

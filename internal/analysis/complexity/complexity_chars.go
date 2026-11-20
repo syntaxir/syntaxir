@@ -5,7 +5,7 @@ import (
 	"slices"
 	"unicode/utf8"
 
-	"zeroparse.dev/zp/internal/compile"
+	"zeroparse.dev/zp/internal/frontend/astfacts"
 	"zeroparse.dev/zp/pkg/grammar/ast"
 )
 
@@ -172,7 +172,7 @@ func (k *classifier) nullable(e ast.Expr) bool {
 	case *ast.Recovery:
 		return k.nullable(e.Expr)
 	case *ast.Attributed:
-		if compile.HasPragma(e, "missing") {
+		if astfacts.HasPragma(e, "missing") {
 			return true
 		}
 		return k.nullable(e.Expr)
@@ -252,7 +252,7 @@ func (k *classifier) first(e ast.Expr) charset {
 		return k.first(e.Expr).union(k.first(e.Skip))
 	case *ast.Attributed:
 		s := k.first(e.Expr)
-		if skip := compile.RecoverSkip(e); skip != nil {
+		if skip := astfacts.RecoverSkip(e); skip != nil {
 			s = s.union(k.first(skip))
 		}
 		return s
@@ -368,7 +368,7 @@ func (k *classifier) bounded(e ast.Expr) bool {
 	case *ast.Recovery:
 		return k.bounded(e.Expr) && k.bounded(e.Skip)
 	case *ast.Attributed:
-		if skip := compile.RecoverSkip(e); skip != nil && !k.bounded(skip) {
+		if skip := astfacts.RecoverSkip(e); skip != nil && !k.bounded(skip) {
 			return false
 		}
 		return k.bounded(e.Expr)

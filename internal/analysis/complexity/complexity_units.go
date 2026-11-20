@@ -5,7 +5,6 @@ import (
 	"maps"
 	"slices"
 
-	"zeroparse.dev/zp/internal/compile"
 	"zeroparse.dev/zp/internal/frontend/astfacts"
 	"zeroparse.dev/zp/pkg/grammar/ast"
 )
@@ -343,7 +342,7 @@ func (k *classifier) walk(e ast.Expr, c wctx) {
 	case *ast.Recovery:
 		k.walkRecovery(e, e.Expr, e.Skip, c)
 	case *ast.Attributed:
-		if skip := compile.RecoverSkip(e); skip != nil {
+		if skip := astfacts.RecoverSkip(e); skip != nil {
 			k.walkRecovery(e, e.Expr, skip, c)
 			return
 		}
@@ -556,7 +555,7 @@ func (k *classifier) walkOperators(pr *ast.OperatorsRule, c wctx) {
 	rhs := &ast.Ref{Name: c.rule, Level: rhsLevel}
 	skipCalls := map[string]bool{}
 	if pr.Skip != nil {
-		for _, n := range compile.AllCalls(pr.Skip, nil) {
+		for _, n := range astfacts.AllCalls(pr.Skip, nil) {
 			skipCalls[n] = true
 		}
 		k.walk(pr.Skip, inside)
@@ -571,7 +570,7 @@ func (k *classifier) walkOperators(pr *ast.OperatorsRule, c wctx) {
 	var operandUnits []*unit
 	operandCalls := map[string]bool{}
 	for i, o := range pr.Operands {
-		for _, n := range compile.AllCalls(o.Expr, nil) {
+		for _, n := range astfacts.AllCalls(o.Expr, nil) {
 			operandCalls[n] = true
 		}
 		cc := inside
@@ -1039,7 +1038,7 @@ func (k *classifier) leads(paths []*cont, from []lead, only *string, seen map[st
 			case *ast.Seq:
 				p = rest.then(e.Items...)
 			case *ast.Attributed:
-				if compile.RecoverSkip(e) != nil || compile.HasPragma(e, "missing") {
+				if astfacts.RecoverSkip(e) != nil || astfacts.HasPragma(e, "missing") {
 					out = append(out, lead{})
 					return
 				}
@@ -1215,7 +1214,7 @@ func (k *classifier) opsLeads(rule string, inner bool, visit func(*cont)) {
 func (k *classifier) operatorsBody(rule string) *ast.OperatorsRule {
 	body := ungroup(k.byName[rule].Expr)
 	if a, ok := body.(*ast.Attributed); ok {
-		if compile.RecoverSkip(a) != nil || compile.HasPragma(a, "missing") {
+		if astfacts.RecoverSkip(a) != nil || astfacts.HasPragma(a, "missing") {
 			return nil
 		}
 		body = ungroup(a.Expr)
@@ -1907,7 +1906,7 @@ func (k *classifier) checkGrowth() {
 				}
 				if e.Max < 0 && !k.runSite(e) {
 					report(k.sourceAt(r.Name, e, CauseRestartedRepetition, "the repetition "+k.show(e)))
-					for _, c := range compile.AllCallsControlled(e.Expr, nil, k.control) {
+					for _, c := range astfacts.AllCallsControlled(e.Expr, nil, k.control) {
 						maps.Copy(k.stepRules, k.reachable(c))
 					}
 				}
@@ -1941,7 +1940,7 @@ func (k *classifier) checkGrowth() {
 				visit(e.Expr)
 				return k.nullable(e)
 			case *ast.Attributed:
-				if skip := compile.RecoverSkip(e); skip != nil && !reused(skip) {
+				if skip := astfacts.RecoverSkip(e); skip != nil && !reused(skip) {
 					report(k.sourceAt(r.Name, e, CauseRecoverySkip, "the skip expression "+k.show(skip)+" of #recover"))
 				}
 				visit(e.Expr)

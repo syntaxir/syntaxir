@@ -1,7 +1,7 @@
 package complexity
 
 import (
-	"zeroparse.dev/zp/internal/compile"
+	"zeroparse.dev/zp/internal/frontend/astfacts"
 	"zeroparse.dev/zp/pkg/grammar/ast"
 )
 
@@ -86,7 +86,7 @@ func (k *classifier) cutLeftScan(rule string, e ast.Expr, s cutLeftState) (start
 	case *ast.Recovery:
 		return k.cutLeftRecovery(rule, e.Expr, e.Skip, s)
 	case *ast.Attributed:
-		if skip := compile.RecoverSkip(e); skip != nil {
+		if skip := astfacts.RecoverSkip(e); skip != nil {
 			return k.cutLeftRecovery(rule, e.Expr, skip, s)
 		}
 		st, f := k.cutLeftScan(rule, e.Expr, s)

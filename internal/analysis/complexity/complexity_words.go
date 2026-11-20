@@ -3,7 +3,7 @@ package complexity
 import (
 	"slices"
 
-	"zeroparse.dev/zp/internal/compile"
+	"zeroparse.dev/zp/internal/frontend/astfacts"
 	"zeroparse.dev/zp/pkg/grammar/ast"
 )
 
@@ -248,7 +248,7 @@ func (k *classifier) wordExcludes(paths []*cont, w word) bool {
 			case *ast.Seq:
 				p = rest.then(e.Items...)
 			case *ast.Attributed:
-				if compile.RecoverSkip(e) != nil || compile.HasPragma(e, "missing") {
+				if astfacts.RecoverSkip(e) != nil || astfacts.HasPragma(e, "missing") {
 					live = true
 					return
 				}

@@ -5,7 +5,6 @@ import (
 	"slices"
 	"unicode/utf8"
 
-	"zeroparse.dev/zp/internal/compile"
 	"zeroparse.dev/zp/internal/frontend/astfacts"
 	"zeroparse.dev/zp/internal/frontend/check"
 	"zeroparse.dev/zp/internal/syntax/fmt"
@@ -576,7 +575,7 @@ func (k *classifier) itemLen(it ast.Expr, seen map[string]bool) (int, bool) {
 // spliceBody returns the body of the rule name if it is a splice rule (Program.SpliceBody), as the
 // grammar writes it.
 func (k *classifier) spliceBody(name string) (ast.Expr, bool) {
-	if rd := k.byName[name]; rd != nil && compile.SpliceRule(rd) {
+	if rd := k.byName[name]; rd != nil && astfacts.SpliceRule(rd) {
 		return rd.Expr, true
 	}
 	return nil, false

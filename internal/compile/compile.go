@@ -6,6 +6,7 @@ import (
 
 	"zeroparse.dev/zp/internal/cancel"
 	"zeroparse.dev/zp/internal/diagnostic"
+	"zeroparse.dev/zp/internal/frontend/astfacts"
 	"zeroparse.dev/zp/internal/frontend/check"
 	"zeroparse.dev/zp/internal/frontend/desugar"
 	"zeroparse.dev/zp/internal/ir/core"
@@ -340,7 +341,7 @@ func Canonicalize(g *ast.Grammar, opts Options, names desugar.InlineNames, contr
 		unsupported = append(unsupported, &diagnostic.Error{Pos: comment.Pos, Msg: "comments are not allowed inside statement headers"})
 	}
 	checkBlocks := func(term ast.ActionExpr) {
-		WalkTerm(term, func(t ast.ActionExpr) {
+		astfacts.WalkTerm(term, func(t ast.ActionExpr) {
 			control.Poll()
 			if block, ok := t.(*ast.Block); ok {
 				unsupported = append(unsupported, &diagnostic.Error{Pos: block.Diagnostic(), Msg: "action statement blocks are not implemented"})
@@ -350,7 +351,7 @@ func Canonicalize(g *ast.Grammar, opts Options, names desugar.InlineNames, contr
 	for _, rd := range control.Rules(g) {
 		control.Poll()
 		checkBlocks(rd.Action)
-		walkExprControlled(rd.Expr, func(e ast.Expr) {
+		astfacts.WalkExprControlled(rd.Expr, func(e ast.Expr) {
 			control.Poll()
 			switch e := e.(type) {
 			case *ast.Predicate:
@@ -484,7 +485,7 @@ func CheckCanonical(canon *Canonical, opts Options, flags []RuleFlags, names des
 	c.errs = append(c.errs, redeclared...)
 	for _, rd := range rules {
 		control.Poll()
-		r := &Rule{ID: len(prog.RuleList), Name: rd.Name, Def: rd, Scope: check.NewScope(), Action: rd.Action, Splice: SpliceRule(rd)}
+		r := &Rule{ID: len(prog.RuleList), Name: rd.Name, Def: rd, Scope: check.NewScope(), Action: rd.Action, Splice: astfacts.SpliceRule(rd)}
 		if r.Splice && rd.Type != nil {
 			c.errorf(rd.Diagnostic(), "rule %s makes no node of its own, so it cannot have a result type", rd.Name)
 		}
@@ -706,7 +707,7 @@ func valueNeededRules(rules []*ast.RuleDef, control *cancel.Control, streams boo
 			return
 		}
 		needed[name] = true
-		for _, callee := range AllCallsControlled(byName[name].Expr, nil, control) {
+		for _, callee := range astfacts.AllCallsControlled(byName[name].Expr, nil, control) {
 			control.Poll()
 			mark(callee)
 		}
@@ -717,7 +718,7 @@ func valueNeededRules(rules []*ast.RuleDef, control *cancel.Control, streams boo
 			mark(rd.Name)
 		}
 		for cp := range predicateCaptures(rd.Expr, control).Read {
-			for _, callee := range AllCallsControlled(cp.Expr, nil, control) {
+			for _, callee := range astfacts.AllCallsControlled(cp.Expr, nil, control) {
 				control.Poll()
 				mark(callee)
 			}
@@ -730,7 +731,7 @@ func valueNeededRules(rules []*ast.RuleDef, control *cancel.Control, streams boo
 func hasStream(e ast.Expr, control *cancel.Control) bool {
 	control.Poll()
 	found := false
-	walkExprControlled(e, func(x ast.Expr) {
+	astfacts.WalkExprControlled(e, func(x ast.Expr) {
 		if IsStream(x) {
 			found = true
 		}
@@ -742,7 +743,7 @@ func hasStream(e ast.Expr, control *cancel.Control) bool {
 func (c *Compiler) noCaptures(e ast.Expr) {
 	control := c.Control
 	c.Control.Poll()
-	walkExprControlled(e, func(x ast.Expr) {
+	astfacts.WalkExprControlled(e, func(x ast.Expr) {
 		if cp, ok := x.(*ast.Capture); ok {
 			c.errorf(cp.Diagnostic(), "capture %s inside #atomic, -, or ! has no effect", cp.Name)
 		}
@@ -762,12 +763,12 @@ func (c *Compiler) noRecoveringCaptures(e ast.Expr) {
 	c.Control.Poll()
 	// A nested positive lookahead checks its own captures.
 	nested := map[ast.Expr]bool{}
-	walkExprControlled(e, func(x ast.Expr) {
+	astfacts.WalkExprControlled(e, func(x ast.Expr) {
 		if a, ok := x.(*ast.And); ok {
-			walkExprControlled(a.Expr, func(y ast.Expr) { nested[y] = true }, control)
+			astfacts.WalkExprControlled(a.Expr, func(y ast.Expr) { nested[y] = true }, control)
 		}
 	}, control)
-	walkExprControlled(e, func(x ast.Expr) {
+	astfacts.WalkExprControlled(e, func(x ast.Expr) {
 		cp, ok := x.(*ast.Capture)
 		if !ok || nested[x] {
 			return
@@ -856,7 +857,7 @@ func (c *Compiler) checkStream(body ast.Expr) bool {
 	control := c.Control
 	top := StreamTops(body)
 	n := 0
-	walkExprControlled(body, func(e ast.Expr) {
+	astfacts.WalkExprControlled(body, func(e ast.Expr) {
 		if !IsStream(e) {
 			return
 		}
@@ -892,17 +893,6 @@ func (r *Rule) WhereName() string {
 		return r.Where
 	}
 	return r.Name
-}
-
-// SpliceRule reports whether the rule rd makes no node of its own: it is hidden and has no action
-// (not even => ...), and its body is not an Operators Rule. A call of it contributes the elements
-// of its body, as a group does.
-func SpliceRule(rd *ast.RuleDef) bool {
-	if !desugar.HiddenRule(rd.Name) || rd.Action != nil || rd.DefaultAction {
-		return false
-	}
-	_, operators := rd.Expr.(*ast.OperatorsRule)
-	return !operators
 }
 
 // checkSpliceCycles reports a splice rule whose elements include its own: it calls itself in the

@@ -4,6 +4,7 @@ import (
 	"slices"
 	"testing"
 
+	"zeroparse.dev/zp/internal/frontend/astfacts"
 	"zeroparse.dev/zp/pkg/grammar/ast"
 )
 
@@ -48,7 +49,7 @@ func TestPredicateCaptures(t *testing.T) {
 		}
 		body := g.Rules()[0].Expr
 		var all []*ast.Capture
-		walkExprControlled(body, func(x ast.Expr) {
+		astfacts.WalkExprControlled(body, func(x ast.Expr) {
 			if cp, ok := x.(*ast.Capture); ok {
 				all = append(all, cp)
 			}

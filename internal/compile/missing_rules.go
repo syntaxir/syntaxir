@@ -2,6 +2,7 @@ package compile
 
 import (
 	"zeroparse.dev/zp/internal/cancel"
+	"zeroparse.dev/zp/internal/frontend/astfacts"
 	"zeroparse.dev/zp/internal/frontend/check"
 	"zeroparse.dev/zp/internal/runtime/program"
 	"zeroparse.dev/zp/pkg/grammar/ast"
@@ -75,7 +76,7 @@ func (prog *Program) markMissingRules(control *cancel.Control) {
 		if usesMissingType(r.Def.Type) {
 			prog.HasMissing = true
 		}
-		walkExprControlled(r.Def.Expr, func(e ast.Expr) {
+		astfacts.WalkExprControlled(r.Def.Expr, func(e ast.Expr) {
 			control.Poll()
 			switch e := e.(type) {
 			case *ast.Attributed:

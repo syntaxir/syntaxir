@@ -4,6 +4,7 @@ import (
 	"slices"
 	"testing"
 
+	"zeroparse.dev/zp/internal/frontend/astfacts"
 	"zeroparse.dev/zp/internal/syntax/fmt"
 	"zeroparse.dev/zp/pkg/grammar/ast"
 )
@@ -40,7 +41,7 @@ func TestSkipSites(t *testing.T) {
 			var got []string
 			n := 0
 			for _, r := range prog.RuleList {
-				WalkExpr(r.Def.Expr, func(x ast.Expr) {
+				astfacts.WalkExpr(r.Def.Expr, func(x ast.Expr) {
 					if rep, ok := x.(*ast.Repeat); ok {
 						if site := prog.SkipSite(rep); site != 0 {
 							n++

@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"zeroparse.dev/zp/internal/frontend/astfacts"
 	"zeroparse.dev/zp/pkg/grammar/ast"
 )
 
@@ -13,7 +14,7 @@ func TestIgnoreCasePragmaReachesArguments(t *testing.T) {
 	t.Parallel()
 	prog := mustCompile(t, `rule main = ("ab" #recover(skip="x")) #ignorecase`)
 	found := map[string]bool{}
-	WalkExpr(prog.ByName["main"].Def.Expr, func(e ast.Expr) {
+	astfacts.WalkExpr(prog.ByName["main"].Def.Expr, func(e ast.Expr) {
 		if l, ok := e.(*ast.Literal); ok {
 			found[l.Value] = l.IgnoreCase
 		}

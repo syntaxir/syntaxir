@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"zeroparse.dev/zp/internal/frontend/astfacts"
 	"zeroparse.dev/zp/internal/frontend/check"
 	"zeroparse.dev/zp/internal/frontend/types"
 	"zeroparse.dev/zp/pkg/grammar/ast"
@@ -28,7 +29,7 @@ func TestDefaultValueAcceptsWhatItDropsWithInlineActions(t *testing.T) {
 			if rd.Action != nil {
 				rd.Action = bad
 			}
-			WalkExpr(rd.Expr, func(e ast.Expr) {
+			astfacts.WalkExpr(rd.Expr, func(e ast.Expr) {
 				if a, ok := e.(*ast.InlineAction); ok {
 					a.Action = bad
 				}
@@ -67,7 +68,7 @@ func TestDefaultValueValidationReportsTheGrammarAsWritten(t *testing.T) {
 			rules := g.Rules()
 			repeats := 0
 			for _, rd := range rules {
-				WalkExpr(rd.Expr, func(e ast.Expr) {
+				astfacts.WalkExpr(rd.Expr, func(e ast.Expr) {
 					if r, ok := e.(*ast.Repeat); ok {
 						r.Min = -1
 						repeats++

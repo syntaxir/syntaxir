@@ -1,7 +1,6 @@
 package complexity
 
 import (
-	"zeroparse.dev/zp/internal/compile"
 	"zeroparse.dev/zp/internal/frontend/astfacts"
 	"zeroparse.dev/zp/internal/frontend/check"
 	"zeroparse.dev/zp/internal/middleend/corepass"
@@ -50,7 +49,7 @@ func (k *classifier) scanOnlyRule(name string) bool {
 			def = rd
 		}
 	}
-	if def == nil || len(k.vars[name]) > 0 || len(compile.AllCallsControlled(def.Expr, nil, k.control)) != 0 {
+	if def == nil || len(k.vars[name]) > 0 || len(astfacts.AllCallsControlled(def.Expr, nil, k.control)) != 0 {
 		return false
 	}
 	ok := true
