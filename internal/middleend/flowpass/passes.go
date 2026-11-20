@@ -8,6 +8,7 @@ import (
 	"zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/middleend/corepass"
 	"zeroparse.dev/zp/internal/pass"
+	"zeroparse.dev/zp/internal/pass/pipe"
 )
 
 // Names of the passes. A name is also the name of the flag that turns the pass off; the passes that
@@ -27,59 +28,100 @@ func ordinary(a *flow.Attrs) bool { return !a.Budget && !a.Document && !a.Traced
 // leanTyped reports a function of typed rules printed in the ordinary form.
 func leanTyped(a *flow.Attrs) bool { return !a.Node && ordinary(a) }
 
-// passes are the passes of Pipeline, in order. Each replaces the statements of forms the lowering
-// wrote (flow.Forms) and marks them replaced, so that a later pass leaves them alone.
-var passes = []pass.Pass[*code.Module, *Env]{
-	{
-		Name:       PassTerminals,
-		Obligation: "skipTerminal consumes the same input and records the same expectations as the region it replaces, and charges nothing, as the region's literals and classes charge nothing in the ordinary form.",
+// Passes are the Flow passes, in the order they run (Pipeline). Each replaces the statements of
+// forms the lowering wrote (flow.Forms) and marks them replaced, so that a later pass leaves them
+// alone. A pass applies to a function by the attributes of the function (FuncAttrs), the forms the
+// target prints (TargetFeature) and the observation of the parser (ObserveFeature).
+var Passes = []*pipe.Pass[Unit, Unit]{
+	pipe.New(pipe.Def[Unit, Unit]{
+		Decl: pipe.Decl{
+			Name:       PassTerminals,
+			Obligation: "skipTerminal consumes the same input and records the same expectations as the region it replaces, and charges nothing, as the region's literals and classes charge nothing in the ordinary form.",
+			Features:   []pipe.FeatureID{TargetFeature.ID(), ObserveFeature.ID()},
+		},
+		In: code.FlowStage, Out: code.FlowStage,
 		// A terminal program reports no rule and no skipped alternative, and charges nothing.
-		Applies: func(e *Env) bool {
-			return e.Target.Terminals && !e.Observe && e.For(func(a *flow.Attrs) bool { return !a.Frame && leanTyped(a) })
+		Applies: func(c *pipe.Ctx[Unit]) bool {
+			return pipe.Feature(c, TargetFeature).Terminals && !pipe.Feature(c, ObserveFeature) &&
+				funcIs(c, func(a *flow.Attrs) bool { return !a.Frame && leanTyped(a) })
 		},
-		Run: run(terminals),
-	},
-	{
-		Name:       PassGuardedClasses,
-		After:      []string{PassTerminals},
-		Obligation: "The class that begins a guarded alternative consumes the character that the guard's peek read and tested with the class's own test.",
-		Applies:    func(e *Env) bool { return e.Target.GuardedClasses && e.On(corepass.PassGuards) && e.For(ordinary) },
-		Run:        run(guardedClasses),
-	},
-	{
-		Name:       PassClassRuns,
-		After:      []string{PassGuardedClasses},
-		Obligation: "skipClasses consumes the same input and records the same expectations as the consecutive classes it replaces; a class that consumes a guard's character is not one of them.",
-		Applies:    func(e *Env) bool { return e.Target.ClassRuns && e.For(leanTyped) },
-		Run:        run(classRuns),
-	},
-	{
-		Name:       PassClassTables,
-		After:      []string{PassClassRuns},
-		Obligation: "matchClass consumes the same character and records the same expectation as the class's peek and test.",
-		Applies:    func(e *Env) bool { return e.Target.ClassTables && e.ValueOf(PassClassTables) > 0 && e.For(leanTyped) },
-		Run:        run(classTables),
-	},
-	{
-		Name:       PassInlineLiterals,
-		Obligation: "A literal compared in place (hasLit) consumes what matchLit consumes; matchLit stays the alternative that records the expectation when they differ.",
-		Applies: func(e *Env) bool {
-			return e.Target.InlineLiterals && e.ValueOf(PassInlineLiterals) > 0 && e.For(func(a *flow.Attrs) bool { return !a.Traced })
+		Run: run(func(fn *code.Func, a *flow.Attrs, _ *pipe.Ctx[Unit]) { terminals(fn, a) }),
+	}),
+	pipe.New(pipe.Def[Unit, Unit]{
+		Decl: pipe.Decl{
+			Name:       PassGuardedClasses,
+			After:      []string{PassTerminals},
+			Obligation: "The class that begins a guarded alternative consumes the character that the guard's peek read and tested with the class's own test.",
+			Features:   []pipe.FeatureID{TargetFeature.ID()},
+			// The guards of the alternatives are those of the Core pass guards, when it runs.
+			Params: []string{corepass.PassGuards},
 		},
-		Run: run(inlineLiterals),
-	},
+		In: code.FlowStage, Out: code.FlowStage,
+		Applies: func(c *pipe.Ctx[Unit]) bool {
+			return pipe.Feature(c, TargetFeature).GuardedClasses && c.Value(corepass.PassGuards) != 0 && funcIs(c, ordinary)
+		},
+		Run: run(func(fn *code.Func, a *flow.Attrs, _ *pipe.Ctx[Unit]) { guardedClasses(fn, a) }),
+	}),
+	pipe.New(pipe.Def[Unit, Unit]{
+		Decl: pipe.Decl{
+			Name:       PassClassRuns,
+			After:      []string{PassGuardedClasses},
+			Obligation: "skipClasses consumes the same input and records the same expectations as the consecutive classes it replaces; a class that consumes a guard's character is not one of them.",
+			Features:   []pipe.FeatureID{TargetFeature.ID()},
+		},
+		In: code.FlowStage, Out: code.FlowStage,
+		Applies: func(c *pipe.Ctx[Unit]) bool {
+			return pipe.Feature(c, TargetFeature).ClassRuns && funcIs(c, leanTyped)
+		},
+		Run: run(func(fn *code.Func, a *flow.Attrs, _ *pipe.Ctx[Unit]) { classRuns(fn, a) }),
+	}),
+	pipe.New(pipe.Def[Unit, Unit]{
+		Decl: pipe.Decl{
+			Name:       PassClassTables,
+			After:      []string{PassClassRuns},
+			Obligation: "matchClass consumes the same character and records the same expectation as the class's peek and test.",
+			Features:   []pipe.FeatureID{TargetFeature.ID()},
+			Params:     []string{PassClassTables},
+		},
+		In: code.FlowStage, Out: code.FlowStage,
+		Applies: func(c *pipe.Ctx[Unit]) bool {
+			return pipe.Feature(c, TargetFeature).ClassTables && c.Value(PassClassTables) > 0 && funcIs(c, leanTyped)
+		},
+		Run: run(func(fn *code.Func, a *flow.Attrs, c *pipe.Ctx[Unit]) { classTables(fn, a, c.Value(PassClassTables)) }),
+	}),
+	pipe.New(pipe.Def[Unit, Unit]{
+		Decl: pipe.Decl{
+			Name:       PassInlineLiterals,
+			Obligation: "A literal compared in place (hasLit) consumes what matchLit consumes; matchLit stays the alternative that records the expectation when they differ.",
+			Features:   []pipe.FeatureID{TargetFeature.ID()},
+			Params:     []string{PassInlineLiterals},
+		},
+		In: code.FlowStage, Out: code.FlowStage,
+		Applies: func(c *pipe.Ctx[Unit]) bool {
+			return pipe.Feature(c, TargetFeature).InlineLiterals && c.Value(PassInlineLiterals) > 0 &&
+				funcIs(c, func(a *flow.Attrs) bool { return !a.Traced })
+		},
+		Run: run(func(fn *code.Func, _ *flow.Attrs, c *pipe.Ctx[Unit]) { inlineLiterals(fn, c.Value(PassInlineLiterals)) }),
+	}),
 }
 
-// run adapts a pass over the function of a module, which it changes in place.
-func run(f func(fn *code.Func, a *flow.Attrs, e *Env)) func(*code.Module, *Env) (*code.Module, pass.PreservedSet, error) {
-	return func(m *code.Module, e *Env) (*code.Module, pass.PreservedSet, error) {
-		fn := flow.FuncOf(m)
+// funcIs reports whether the function of the unit of c has attributes that make p hold: false for a
+// function without attributes, which no pass applies to.
+func funcIs(c *pipe.Ctx[Unit], p func(*flow.Attrs) bool) bool {
+	a, err := pipe.Query(c, FuncAttrs)
+	return err == nil && a != nil && p(a)
+}
+
+// run adapts a pass over the function of a unit, which it changes in place.
+func run(f func(fn *code.Func, a *flow.Attrs, c *pipe.Ctx[Unit])) func(*pipe.Ctx[Unit], Unit) (Unit, pass.PreservedSet, error) {
+	return func(c *pipe.Ctx[Unit], u Unit) (Unit, pass.PreservedSet, error) {
+		fn := flow.FuncOf(u.Module())
 		a := flow.AttrsOf(fn)
 		if a == nil || a.Forms == nil {
-			return m, pass.PreserveAll(), nil
+			return u, pass.PreserveAll(), nil
 		}
-		f(fn, a, e)
-		return m, pass.PreserveNone(), nil
+		f(fn, a, c)
+		return u, pass.PreserveNone(), nil
 	}
 }
 
@@ -90,7 +132,7 @@ func failIf(form *flow.Form, cond code.Expr) code.Stmt {
 
 // terminals matches each terminal region of a local function of typed rules in the ordinary form as
 // one program.
-func terminals(fn *code.Func, a *flow.Attrs, _ *Env) {
+func terminals(fn *code.Func, a *flow.Attrs) {
 	for _, r := range a.Forms.Regions {
 		if !r.Live() || r.Build {
 			continue
@@ -103,7 +145,7 @@ func terminals(fn *code.Func, a *flow.Attrs, _ *Env) {
 
 // guardedClasses keeps the size of the character that the guards of a choice peek, and lets the
 // class that begins a guarded alternative consume it.
-func guardedClasses(fn *code.Func, a *flow.Attrs, _ *Env) {
+func guardedClasses(fn *code.Func, a *flow.Attrs) {
 	sizes := map[*flow.ChoiceForm]string{}
 	for _, c := range a.Forms.Choices {
 		if !c.Live() {
@@ -133,7 +175,7 @@ func guardedClasses(fn *code.Func, a *flow.Attrs, _ *Env) {
 }
 
 // classRuns matches the consecutive classes of a value-free sequence as one.
-func classRuns(fn *code.Func, a *flow.Attrs, _ *Env) {
+func classRuns(fn *code.Func, a *flow.Attrs) {
 	for _, s := range a.Forms.Seqs {
 		if !s.Live() {
 			continue
@@ -161,8 +203,7 @@ func classRuns(fn *code.Func, a *flow.Attrs, _ *Env) {
 
 // classTables matches each class of at least the pass's number of ranges through its membership
 // table, in a function of typed rules in the ordinary form.
-func classTables(fn *code.Func, a *flow.Attrs, e *Env) {
-	min := e.ValueOf(PassClassTables)
+func classTables(fn *code.Func, a *flow.Attrs, min int) {
 	for _, cl := range a.Forms.Classes {
 		class := cl.Node.(*core.ClassNode).Class
 		if !cl.Live() || len(class.Ranges) < min {
@@ -182,8 +223,7 @@ func classTables(fn *code.Func, a *flow.Attrs, e *Env) {
 
 // inlineLiterals compares each exact literal of at most the pass's number of code points in place
 // first, outside the traced copies, which read every literal through the operation that records it.
-func inlineLiterals(fn *code.Func, a *flow.Attrs, e *Env) {
-	max := e.ValueOf(PassInlineLiterals)
+func inlineLiterals(fn *code.Func, max int) {
 	var stmts func(list []code.Stmt)
 	block := func(b *code.Block) {
 		if b != nil {

@@ -1,40 +1,42 @@
 package flowlower
 
 import (
+	"context"
 	"errors"
-	"slices"
 	"strings"
 	"testing"
 
 	"zeroparse.dev/zp/internal/ir/code"
+	"zeroparse.dev/zp/internal/ir/code/flow"
 	"zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/internal/pass"
+	"zeroparse.dev/zp/internal/pass/pipe"
 )
 
-// TestLoweringStep checks the lowering as a step of the pipeline: one required step from the Core
-// stage to the Flow stage, whose result is the function that Lower makes, and whose failure names it.
+// TestLoweringStep checks the lowering as a step of the pipeline: one required step from a planned
+// unit to a module at the Flow stage, whose result is the function that Lower makes, and whose failure
+// names it.
 func TestLoweringStep(t *testing.T) {
-	want := []pass.Step{{Name: Name, Required: true, In: "core", Out: "flow", Dump: "flowlower"}}
-	if got := Lowering.Steps(); !slices.Equal(got, want) {
-		t.Errorf("steps = %+v, want %+v", got, want)
+	if d := Lowering.Decl(); d.Name != Name || !d.Required {
+		t.Errorf("declaration = %+v, want the required step %s", d, Name)
 	}
 	m, r := valueFree(alts(&core.Lit{Text: "ab"}, &core.Lit{Text: "c"}))
 	old, err := Lower(m, r, "r", Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := Lowering.Run(&pass.Run{}, pass.Label{Table: "rules"}, Unit{Module: m, Funcs: []Func{{Form: Flat, Rule: r, Name: "r"}}})
+	u, err := pipe.Execute(context.Background(), &pipe.Run{}, pipe.Of(Lowering), Unit{Module: m, Funcs: []Func{{Form: Flat, Rule: r, Name: "r"}}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if a, b := code.FuncStringIn(got, got.Funcs[0]), code.FuncStringIn(old, old.Funcs[0]); a != b {
-		t.Errorf("the step lowers\n%s\nwhere Lower lowers\n%s", a, b)
+	got := u.Module()
+	if got.Stage != flow.Stage || code.FuncStringIn(got, got.Funcs[0]) != code.FuncStringIn(old, old.Funcs[0]) {
+		t.Errorf("the step lowers, at the stage %q,\n%s\nwhere Lower lowers\n%s", got.Stage, code.FuncStringIn(got, got.Funcs[0]), code.FuncStringIn(old, old.Funcs[0]))
 	}
 	// A unit that the lowering refuses: a local function of a left-recursion leader.
 	r.Policy.Leader = true
-	_, err = Lowering.Run(&pass.Run{}, pass.Label{Table: "rules"}, Unit{Module: m, Funcs: []Func{{Form: Flat, Rule: r, Name: "r"}}})
-	var se *pass.StepError
-	if !errors.As(err, &se) || se.Step.Name != Name || !strings.Contains(err.Error(), "is not lowered to a local function") {
+	_, err = pipe.Execute(context.Background(), &pipe.Run{}, pipe.Of(Lowering), Unit{Module: m, Funcs: []Func{{Form: Flat, Rule: r, Name: "r"}}})
+	var se *pipe.StepError
+	if !errors.As(err, &se) || se.Step != Name || !strings.Contains(err.Error(), "is not lowered to a local function") {
 		t.Errorf("a refused unit: %v", err)
 	}
 }

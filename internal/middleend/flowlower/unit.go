@@ -6,8 +6,8 @@ import (
 	"zeroparse.dev/zp/internal/ir/code"
 	"zeroparse.dev/zp/internal/ir/code/flow"
 	"zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/internal/middleend/corepass"
 	"zeroparse.dev/zp/internal/pass"
+	"zeroparse.dev/zp/internal/pass/pipe"
 )
 
 // The lowering as a step of the pipeline of a compilation.
@@ -127,12 +127,24 @@ func verified(m *code.Module, err error) (*code.Module, error) {
 	return m, nil
 }
 
-// IR describes a module of Flow functions to the manager of the pipeline: it is verified by Verify
-// and dumped as the listing of each of its functions, labeled with its table.
-var IR = pass.IR[*code.Module]{Stage: flow.Stage, Verify: Verify, Print: code.PrintFuncs, Copy: (*code.Module).Clone}
-
 // Name is the name of the lowering as a step of the pipeline.
 const Name = "flowlower"
 
-// Lowering is the lowering as the required step Name from the Core stage to the Flow stage.
-var Lowering = pass.Lower(Name, corepass.Stage, IR, LowerUnit)
+// Planned is the kind of a Unit: the planned functions of a table and its Core module, which the
+// lowering takes.
+var Planned = pipe.RegisterIR(&pipe.IR[Unit]{Name: "planned"})
+
+// Lowering is the lowering as the required step Name from a Unit to a module at the Flow stage
+// (code.FlowStage), whose verifier, the postcondition of the lowering, checks the result before any
+// Flow pass sees it. A failure of the lowering ends the run.
+var Lowering = pipe.New(pipe.Def[Unit, code.At[code.Flow]]{
+	Decl: pipe.Decl{Name: Name, Required: true, Obligation: "The module holds the functions of the unit, lowered to the Flow dialect."},
+	In:   Planned, Out: code.FlowStage,
+	Run: func(_ *pipe.Ctx[Unit], u Unit) (code.At[code.Flow], pass.PreservedSet, error) {
+		m, err := LowerUnit(u)
+		if err != nil {
+			return code.At[code.Flow]{}, pass.PreserveNone(), err
+		}
+		return code.At[code.Flow]{}.With(m), pass.PreserveNone(), nil
+	},
+})

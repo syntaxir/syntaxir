@@ -66,14 +66,12 @@ rule num = [0-9]+
 				h := generate.Hooks{}
 				if ir == "flow" {
 					h.FlowPipeline = codegentest.BrokenFlowPipeline(table, &seen)
-					h.TestPasses = []string{codegentest.BrokenFlowPass.Name}
 				} else {
 					h.ExecPipeline = codegentest.BrokenExecPipeline(table, &seen)
-					h.TestPasses = []string{codegentest.BrokenExecPass.Name}
 				}
 				opts := common.GenOptions{Recognize: true}
 				_, err := print.GenerateParser(pg, compileForGenerator, generate.Passes(opts, h), codegentest.WithLib(opts), nil)
-				if err == nil || !strings.Contains(err.Error(), "of table "+table+": ") || !strings.Contains(err.Error(), "verification:") || strings.Contains(err.Error(), "break-"+ir) {
+				if err == nil || !strings.Contains(err.Error(), "of table "+table+": ") || !strings.Contains(err.Error(), "internal error: verify code@"+ir+" [") || strings.Contains(err.Error(), "break-"+ir) {
 					t.Fatalf("without VerifyEachPass: %v", err)
 				}
 				if seen == 0 {
@@ -81,7 +79,7 @@ rule num = [0-9]+
 				}
 				opts.VerifyEachPass = true
 				_, err = print.GenerateParser(pg, compileForGenerator, generate.Passes(opts, h), codegentest.WithLib(opts), nil)
-				if err == nil || !strings.Contains(err.Error(), "of table "+table+": ") || !strings.Contains(err.Error(), "after pass break-"+ir+":") {
+				if err == nil || !strings.Contains(err.Error(), "of table "+table+": ") || !strings.Contains(err.Error(), "internal error: break-"+ir+" [") {
 					t.Fatalf("with VerifyEachPass: %v", err)
 				}
 			})

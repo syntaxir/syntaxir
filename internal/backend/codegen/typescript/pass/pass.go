@@ -7,9 +7,9 @@ package pass
 import (
 	"zeroparse.dev/zp/internal/ir/code"
 	"zeroparse.dev/zp/internal/ir/code/flow"
-	"zeroparse.dev/zp/internal/middleend/codepass"
 	"zeroparse.dev/zp/internal/middleend/execlower"
 	"zeroparse.dev/zp/internal/pass"
+	"zeroparse.dev/zp/internal/pass/pipe"
 )
 
 // Names of the passes, which are also the names of their flags.
@@ -33,39 +33,46 @@ type SpendRun struct{ N int }
 // the If sets.
 type Failed struct{ Flag string }
 
-// Pipeline is the pipeline of the TypeScript Exec passes. The unit is a lowered function with its
-// module; the passes change the function only.
-var Pipeline = &pass.Pipeline[*execlower.Lowered, *codepass.Env]{
-	Passes: []pass.Pass[*execlower.Lowered, *codepass.Env]{
-		{
+// Passes are the TypeScript Exec passes, in the order they run on a lowered function with its module;
+// they change the function only.
+var Passes = []*pipe.Pass[*execlower.Lowered, *execlower.Lowered]{
+	pipe.New(pipe.Def[*execlower.Lowered, *execlower.Lowered]{
+		Decl: pipe.Decl{
 			Name:       PassSpendRuns,
 			Obligation: "One spend of n units charges what the n charges in a row it replaces charge, in the same place.",
-			Run: func(l *execlower.Lowered, _ *codepass.Env) (*execlower.Lowered, pass.PreservedSet, error) {
-				spendRuns(l)
-				return l, pass.PreserveNone(), nil
-			},
 		},
-		{
+		In: execlower.LoweredIR, Out: execlower.LoweredIR,
+		Run: func(_ *pipe.Ctx[*execlower.Lowered], l *execlower.Lowered) (*execlower.Lowered, pass.PreservedSet, error) {
+			spendRuns(l)
+			return l, pass.PreserveNone(), nil
+		},
+	}),
+	pipe.New(pipe.Def[*execlower.Lowered, *execlower.Lowered]{
+		Decl: pipe.Decl{
 			Name:       PassMergedRecords,
 			Obligation: "unisolateMerge ends the expectation record and merges its expectations into the enclosing record, as the end and the merge it replaces do.",
-			Run: func(l *execlower.Lowered, _ *codepass.Env) (*execlower.Lowered, pass.PreservedSet, error) {
-				mergedRecords(l)
-				return l, pass.PreserveNone(), nil
-			},
 		},
-		{
+		In: execlower.LoweredIR, Out: execlower.LoweredIR,
+		Run: func(_ *pipe.Ctx[*execlower.Lowered], l *execlower.Lowered) (*execlower.Lowered, pass.PreservedSet, error) {
+			mergedRecords(l)
+			return l, pass.PreserveNone(), nil
+		},
+	}),
+	pipe.New(pipe.Def[*execlower.Lowered, *execlower.Lowered]{
+		Decl: pipe.Decl{
 			Name:       PassTestedInits,
 			Obligation: "The condition reports that the call of the If's Init failed, as the negation of the bool the Init sets does.",
-			Run: func(l *execlower.Lowered, _ *codepass.Env) (*execlower.Lowered, pass.PreservedSet, error) {
-				testedInits(l)
-				return l, pass.PreserveNone(), nil
-			},
 		},
-	},
-	Analyses: map[pass.Analysis]func(*execlower.Lowered){},
-	Verify:   func(l *execlower.Lowered) error { return code.Verify(l.Module) },
-	Copy:     (*execlower.Lowered).Clone,
+		In: execlower.LoweredIR, Out: execlower.LoweredIR,
+		Run: func(_ *pipe.Ctx[*execlower.Lowered], l *execlower.Lowered) (*execlower.Lowered, pass.PreservedSet, error) {
+			testedInits(l)
+			return l, pass.PreserveNone(), nil
+		},
+	}),
 }
+
+// Pipeline is the pipeline of the TypeScript Exec passes.
+var Pipeline = pipe.Seq(execlower.LoweredIR, Passes...)
 
 func init() {
 	pass.Register(

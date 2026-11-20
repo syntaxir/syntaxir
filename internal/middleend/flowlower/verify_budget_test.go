@@ -9,6 +9,7 @@ import (
 	"zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/middleend/corepass"
 	"zeroparse.dev/zp/internal/middleend/flowpass"
+	"zeroparse.dev/zp/internal/pass"
 )
 
 // stripSteps removes the calls of step from b, at any depth.
@@ -162,13 +163,8 @@ var lean = flowpass.Target{Terminals: true, ClassRuns: true, ClassTables: true, 
 // candidate, ends them, and returns the listing.
 func leanFinish(t *testing.T, f *code.Module) string {
 	t.Helper()
-	env := &flowpass.Env{Target: lean, Value: func(name string) int {
-		if name == flowpass.PassClassTables {
-			return 1
-		}
-		return 0
-	}}
-	f, _, err := flowpass.Run(f, env, flowpass.RunOptions{VerifyEach: true})
+	settings := with(t, with(t, pass.Settings{}, flowpass.PassClassTables, 1), flowpass.PassInlineLiterals, 0)
+	f, _, err := flowpass.Run(f, flowpass.RunOptions{Settings: settings, Target: lean, VerifyEach: true})
 	if err != nil {
 		t.Fatal(err)
 	}

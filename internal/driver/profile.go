@@ -195,11 +195,13 @@ func PrintNames() []string {
 	out := []string{Elaborate}
 	out = append(out, corepass.Names()...)
 	out = append(out, flowlower.Name)
-	out = append(out, flowpass.Pipeline.Names()...)
+	out = append(out, flowpass.Names()...)
 	out = append(out, flowpass.FinishName, execlower.Name)
-	out = append(out, codepass.Pipeline.Names()...)
-	for _, p := range targets {
-		out = append(out, p.Names()...)
+	out = append(out, codepass.Names()...)
+	for _, ps := range targets {
+		for _, p := range ps {
+			out = append(out, p.Name())
+		}
 	}
 	return append(out, PrintAll)
 }

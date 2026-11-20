@@ -2,56 +2,36 @@ package codepass
 
 import (
 	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/middleend/execlower"
-	"zeroparse.dev/zp/internal/pass"
+	"zeroparse.dev/zp/internal/pass/pipe"
 )
 
 // The passes of Exec IR as a pipeline (design 063): transformations of a lowered module that keep the
 // behavior of its functions and that the backend printing it then prints. A pass has the name of the
-// flag that turns it off, distinct from the names of the Core and Flow passes. The unit is the module
-// that the lowering of one function made, with its declarations.
+// flag that turns it off, distinct from the names of the Core and Flow passes. The unit of a pass is
+// a module at the Exec stage that holds one function (code.ExecFuncs), with the declarations of the
+// module of its table.
 
-// StageName is the name of the Exec IR stage of the pipeline, which the steps on Exec modules take
-// and return (pass.Step).
-const StageName = "exec"
+// Unit is the unit of the Exec passes: a module at the Exec stage.
+type Unit = code.At[code.Exec]
 
-// Env is the context of a run of the Exec pipeline.
-type Env struct {
-	// Observe reports that the parser reports the rules it enters and the alternatives that guards
-	// skip, which a pass must keep.
-	Observe bool
-	// Flag reports whether the optimization of the given name is on. Nil means every one is.
-	Flag func(name string) bool
+// Passes are the Exec passes that every target runs, in the order they run. There is none yet.
+var Passes []*pipe.Pass[Unit, Unit]
+
+// Pipeline is the pipeline of the Exec passes on a module, each on every function of the module in
+// turn (OnFuncs).
+func Pipeline() pipe.Pipeline[Unit, Unit] { return OnFuncs(Passes...) }
+
+// OnFuncs returns the pipeline that runs the passes ps on each function of a module, pass by pass
+// (pipe.PerFunc on code.ExecFuncs).
+func OnFuncs(ps ...*pipe.Pass[Unit, Unit]) pipe.Pipeline[Unit, Unit] {
+	return pipe.PerFunc(code.ExecFuncs, pipe.Seq(code.ExecStage, ps...))
 }
 
-// On reports whether the optimization of the given name is on.
-func (e *Env) On(name string) bool { return e.Flag == nil || e.Flag(name) }
-
-// Pipeline is the pipeline of the Exec passes. It has no pass yet.
-var Pipeline = &pass.Pipeline[*code.Module, *Env]{
-	Analyses: map[pass.Analysis]func(*code.Module){},
-	Verify:   code.Verify,
-	Copy:     (*code.Module).Clone,
-}
-
-// RunOptions selects what a run of Pipeline does besides running the passes.
-type RunOptions struct {
-	// VerifyEach verifies the module after every pass.
-	VerifyEach bool
-	// Dump, if not nil, is called with "execlower" before the first pass and with the name of each pass
-	// that ran, after it.
-	Dump func(pass string, m *code.Module)
-}
-
-// RunPasses runs the enabled passes of Pipeline that apply to e on the module m, which the lowering has
-// verified, and verifies it again if a pass ran. It returns the module after them and the names of
-// the passes that ran. It consumes m (pass.Pipeline.Run).
-func RunPasses(m *code.Module, e *Env, o RunOptions) (*code.Module, []string, error) {
-	return Pipeline.Run(m, e, o.Options(e))
-}
-
-// Options returns the options of the generic pipeline for a run under e, for a caller that runs a
-// pipeline of its own (tests).
-func (o RunOptions) Options(e *Env) pass.Options[*code.Module] {
-	return pass.Options[*code.Module]{Enabled: e.On, VerifyEach: o.VerifyEach, Dump: o.Dump, Entry: execlower.Name, BuiltVerified: true}
+// Names returns the names of the Exec passes in the order they run.
+func Names() []string {
+	names := make([]string, len(Passes))
+	for i, p := range Passes {
+		names[i] = p.Name()
+	}
+	return names
 }

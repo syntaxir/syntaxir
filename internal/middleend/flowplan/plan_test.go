@@ -17,7 +17,8 @@ import (
 	"zeroparse.dev/zp/internal/middleend/flowlower"
 	"zeroparse.dev/zp/internal/middleend/flowpass"
 	"zeroparse.dev/zp/internal/middleend/flowplan"
-	"zeroparse.dev/zp/internal/pass"
+	"zeroparse.dev/zp/internal/pass/pipe"
+	"zeroparse.dev/zp/internal/testing/codegentest"
 	"zeroparse.dev/zp/internal/testing/compiletest"
 )
 
@@ -263,7 +264,6 @@ func lowerFlow(t *testing.T, m *core.Module, s *flowplan.FuncSpec, opts flowlowe
 // after flowlower, in the order of the plan, and the first Flow pass already runs on the functions of
 // the plan, pass by pass, as the driver's manager numbers them.
 func TestPlanDecidesBeforeThePasses(t *testing.T) {
-	const record = "test-plan-record"
 	prog := compiletest.Program(t, grammar, compile.Options{Recognition: compile.Recognize})
 	m, err := elaborate.CoreProjecting(prog, nil, false)
 	if err != nil {
@@ -276,20 +276,17 @@ func TestPlanDecidesBeforeThePasses(t *testing.T) {
 	ir := &flowplan.TableIR{M: m, Opts: flowlower.Options{Budget: true, Recovers: flowlower.Recovers(m), Node: true}}
 	p := flowplan.Plan(ir, planRules(append(append([]*compile.Rule(nil), prog.RuleList...), prog.Twins...)), nil)
 	var seen, planned []string
-	pl := *flowpass.Pipeline
-	pl.Passes = append([]pass.Pass[*code.Module, *flowpass.Env]{{Name: record, Obligation: "it changes nothing",
-		Run: func(m *code.Module, _ *flowpass.Env) (*code.Module, pass.PreservedSet, error) {
-			if seen == nil {
-				for _, s := range p.Funcs {
-					planned = append(planned, s.Name)
-				}
+	pl := codegentest.RecordingFlow(true, func(m *code.Module) {
+		if seen == nil {
+			for _, s := range p.Funcs {
+				planned = append(planned, s.Name)
 			}
-			seen = append(seen, flow.FuncOf(m).Name)
-			return m, pass.PreserveAll(), nil
-		}}}, pl.Passes...)
+		}
+		seen = append(seen, flow.FuncOf(m).Name)
+	})
 	var dump strings.Builder
-	d := &driver.Driver{PrintAfter: []string{flowlower.Name}, PrintTo: &dump, TestPasses: []string{record},
-		FlowPipeline: func(string) *pass.Pipeline[*code.Module, *flowpass.Env] { return &pl }}
+	d := &driver.Driver{PrintAfter: []string{flowlower.Name}, PrintTo: &dump,
+		Hooks: driver.Hooks{FlowPipeline: func(string) pipe.Pipeline[flowpass.Unit, flowpass.Unit] { return pl }}}
 	fm, err := d.Flow("rules", p.Unit(ir, nil), false, flowpass.Bytecode)
 	if err != nil {
 		t.Fatal(err)

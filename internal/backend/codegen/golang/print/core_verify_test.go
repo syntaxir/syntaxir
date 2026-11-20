@@ -125,10 +125,10 @@ rule num = [0-9]+
 	for _, c := range pipelineTables {
 		t.Run(c.table, func(t *testing.T) {
 			seen := 0
-			hooks := generate.Hooks{FlowPipeline: codegentest.BrokenFlowPipeline(c.table, &seen), TestPasses: []string{codegentest.BrokenFlowPass.Name}}
+			hooks := generate.Hooks{FlowPipeline: codegentest.BrokenFlowPipeline(c.table, &seen)}
 			opts := c.opts
 			_, err := print.GenerateParser(pg, codegentest.Compile, generate.Passes(opts, hooks), codegentest.WithLib(opts), nil)
-			if err == nil || !strings.Contains(err.Error(), "of table "+c.table+": ") || !strings.Contains(err.Error(), ": function ") || !strings.Contains(err.Error(), "verification:") || strings.Contains(err.Error(), "break-flow") {
+			if err == nil || !strings.Contains(err.Error(), "of table "+c.table+": ") || !strings.Contains(err.Error(), "internal error: verify code@flow [") || strings.Contains(err.Error(), "break-flow") {
 				t.Fatalf("without VerifyEachPass: %v", err)
 			}
 			if seen == 0 {
@@ -136,7 +136,7 @@ rule num = [0-9]+
 			}
 			opts.VerifyEachPass = true
 			_, err = print.GenerateParser(pg, codegentest.Compile, generate.Passes(opts, hooks), codegentest.WithLib(opts), nil)
-			if err == nil || !strings.Contains(err.Error(), "of table "+c.table+": ") || !strings.Contains(err.Error(), ": function ") || !strings.Contains(err.Error(), "after pass break-flow:") {
+			if err == nil || !strings.Contains(err.Error(), "of table "+c.table+": ") || !strings.Contains(err.Error(), "internal error: break-flow [") {
 				t.Fatalf("with VerifyEachPass: %v", err)
 			}
 		})
@@ -157,10 +157,10 @@ rule num = [0-9]+
 	for _, c := range pipelineTables {
 		t.Run(c.table, func(t *testing.T) {
 			seen := 0
-			hooks := generate.Hooks{ExecPipeline: codegentest.BrokenExecPipeline(c.table, &seen), TestPasses: []string{codegentest.BrokenExecPass.Name}}
+			hooks := generate.Hooks{ExecPipeline: codegentest.BrokenExecPipeline(c.table, &seen)}
 			opts := c.opts
 			_, err := print.GenerateParser(pg, codegentest.Compile, generate.Passes(opts, hooks), codegentest.WithLib(opts), nil)
-			if err == nil || !strings.Contains(err.Error(), "of table "+c.table+": ") || !strings.Contains(err.Error(), ": function ") || !strings.Contains(err.Error(), "verification:") || strings.Contains(err.Error(), "break-exec") {
+			if err == nil || !strings.Contains(err.Error(), "of table "+c.table+": ") || !strings.Contains(err.Error(), "internal error: verify code@exec [") || strings.Contains(err.Error(), "break-exec") {
 				t.Fatalf("without VerifyEachPass: %v", err)
 			}
 			if seen == 0 {
@@ -168,7 +168,7 @@ rule num = [0-9]+
 			}
 			opts.VerifyEachPass = true
 			_, err = print.GenerateParser(pg, codegentest.Compile, generate.Passes(opts, hooks), codegentest.WithLib(opts), nil)
-			if err == nil || !strings.Contains(err.Error(), "of table "+c.table+": ") || !strings.Contains(err.Error(), ": function ") || !strings.Contains(err.Error(), "after pass break-exec:") {
+			if err == nil || !strings.Contains(err.Error(), "of table "+c.table+": ") || !strings.Contains(err.Error(), "internal error: break-exec [") {
 				t.Fatalf("with VerifyEachPass: %v", err)
 			}
 		})
@@ -189,8 +189,8 @@ func TestPrintAfterNeedsAWriter(t *testing.T) {
 
 // An Exec pass keeps the function that the lowering made and the locals of the Flow IR function in
 // it, which the printers print: a pass that removes the function or drops such a local fails the
-// generation, though the module it leaves is well formed. (A pass returns a copy of the function it
-// changes, so a function in the place of the lowered one with its name is that function.)
+// generation. The pass that drops the locals renames them with their uses, so that the module it
+// leaves is well formed and the check of the lowered function, not the Exec verifier, catches it.
 func TestExecPassKeepsTheLoweredFunction(t *testing.T) {
 	pg, err := parseTest(`rule main = (word / num / -" ")* $$
 rule word = "if" / "else" / [a-z]+
@@ -201,36 +201,68 @@ rule num = [0-9]+
 	}
 	for _, c := range []struct {
 		name, want string
-		run        func(m *code.Module)
+		pass       *pipe.Pass[codepass.Unit, codepass.Unit]
 	}{
-		{"remove", "replaced or removed the function", func(m *code.Module) {
-			m.Funcs = m.Funcs[1:]
-		}},
-		{"drop local", "removed the local", func(m *code.Module) {
-			for _, f := range m.Funcs {
-				f.Locals = nil
-			}
-		}},
+		{"remove", "replaced or removed the function", testExecRemove},
+		{"rename locals", "removed the local", testExecRenameLocals},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			// The pipeline does not verify the module, so that the check of the lowered function, not
-			// the Exec verifier, is what catches the mutant.
-			p := *codepass.Pipeline
-			p.Verify = nil
-			p.Passes = append(slices.Clone(p.Passes), pass.Pass[*code.Module, *codepass.Env]{
-				Name: "test-exec-mutant", Obligation: "none: it breaks the lowered function on purpose",
-				Run: func(m *code.Module, _ *codepass.Env) (*code.Module, pass.PreservedSet, error) {
-					c.run(m)
-					return m, pass.PreserveNone(), nil
-				}})
-			hooks := generate.Hooks{
-				ExecPipeline: func(string) *pass.Pipeline[*code.Module, *codepass.Env] { return &p },
-				TestPasses:   []string{"test-exec-mutant"},
-			}
+			hooks := generate.Hooks{ExecPipeline: func(string) pipe.Pipeline[codepass.Unit, codepass.Unit] {
+				return codepass.OnFuncs(append(slices.Clone(codepass.Passes), c.pass)...)
+			}}
 			opts := common.GenOptions{Module: "example.com/p", Lib: common.LibImport}
 			if _, err := print.GenerateParser(pg, codegentest.Compile, generate.Passes(opts, hooks), codegentest.WithLib(opts), nil); err == nil || !strings.Contains(err.Error(), c.want) {
 				t.Fatalf("err %v, want %q", err, c.want)
 			}
 		})
 	}
+}
+
+// testExecRemove and testExecRenameLocals are Exec passes of the tests that break the lowered
+// function on purpose: the first removes it from its unit, the second renames its locals.
+var (
+	testExecRemove = pipe.New(pipe.Def[codepass.Unit, codepass.Unit]{
+		Decl: pipe.Decl{Name: "test-exec-remove", Test: true, Obligation: "none: it removes the function on purpose"},
+		In:   code.ExecStage, Out: code.ExecStage,
+		Run: func(_ *pipe.Ctx[codepass.Unit], u codepass.Unit) (codepass.Unit, pass.PreservedSet, error) {
+			m := u.Module()
+			m.Funcs = m.Funcs[1:]
+			return u, pass.PreserveNone(), nil
+		},
+	})
+	testExecRenameLocals = pipe.New(pipe.Def[codepass.Unit, codepass.Unit]{
+		Decl: pipe.Decl{Name: "test-exec-rename-locals", Test: true, Obligation: "none: it renames the locals on purpose"},
+		In:   code.ExecStage, Out: code.ExecStage,
+		Run: func(_ *pipe.Ctx[codepass.Unit], u codepass.Unit) (codepass.Unit, pass.PreservedSet, error) {
+			for _, f := range u.Module().Funcs {
+				renameLocals(f)
+			}
+			return u, pass.PreserveNone(), nil
+		},
+	})
+)
+
+// renameLocals renames the locals of f and their uses, which keeps the function well formed.
+func renameLocals(f *code.Func) {
+	const suffix = "_renamed"
+	names := map[string]bool{}
+	for i := range f.Locals {
+		names[f.Locals[i].Name] = true
+		f.Locals[i].Name += suffix
+	}
+	seen := map[*code.Local]bool{}
+	code.Walk(f.Body, func(s code.Stmt) {
+		if st, ok := s.(*code.Set); ok {
+			for i, d := range st.Dst {
+				if !d.Reg && names[d.Name] {
+					st.Dst[i].Name += suffix
+				}
+			}
+		}
+	}, func(e code.Expr) {
+		if x, ok := e.(*code.Local); ok && names[x.Name] && !seen[x] {
+			seen[x] = true
+			x.Name += suffix
+		}
+	})
 }

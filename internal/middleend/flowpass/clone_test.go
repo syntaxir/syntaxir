@@ -50,8 +50,8 @@ func TestCloneKeepsTheForms(t *testing.T) {
 			}
 		}
 	}
-	env := &Env{Target: all, Value: values}
-	c, _, err = Run(c, env, RunOptions{VerifyEach: true})
+	env := &testEnv{Target: all}
+	c, _, err = Run(c, env.options(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +59,7 @@ func TestCloneKeepsTheForms(t *testing.T) {
 	if got := code.FuncStringIn(f, flow.FuncOf(f)); got != before {
 		t.Errorf("the passes on the copy changed the function:\n%s\nwant:\n%s", got, before)
 	}
-	want := lower(t, flowlower.Options{}, &Env{Target: all})
+	want := lower(t, flowlower.Options{}, &testEnv{Target: all})
 	if got := code.FuncStringIn(c, flow.FuncOf(c)); got != want.text {
 		t.Errorf("the passes on the copy made:\n%s\nwant:\n%s", got, want.text)
 	}

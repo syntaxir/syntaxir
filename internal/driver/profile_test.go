@@ -36,7 +36,7 @@ func TestEveryCorePassIsAFlag(t *testing.T) {
 // Every pass of the Flow pipeline is an optimization that can be turned off, under its own name, and
 // no Flow pass has the name of a Core pass.
 func TestEveryFlowPassIsAFlag(t *testing.T) {
-	for _, name := range flowpass.Pipeline.Names() {
+	for _, name := range flowpass.Names() {
 		if f, ok := pass.Lookup(name); !ok || f.Kind != pass.KindFlowPass {
 			t.Errorf("pass %s is not a registered optimization of kind flow pass", name)
 		}
@@ -44,24 +44,35 @@ func TestEveryFlowPassIsAFlag(t *testing.T) {
 			t.Errorf("pass %s is both a Core and a Flow pass", name)
 		}
 	}
-	if err := flowpass.Pipeline.Validate(); err != nil {
+	// The manager accepts the pipeline (names, After, features) and every pass states its obligation.
+	if _, err := (&Driver{}).Flow("rules", framed(), false, flowpass.Target{}); err != nil {
 		t.Error(err)
+	}
+	for _, p := range flowpass.Passes {
+		if p.Decl().Obligation == "" {
+			t.Errorf("pass %s states no obligation", p.Name())
+		}
 	}
 }
 
 // Every pass of the Exec pipeline is an optimization that can be turned off, under its own name, and
 // no Exec pass has the name of a Core or Flow pass.
 func TestEveryExecPassIsAFlag(t *testing.T) {
-	for _, name := range codepass.Pipeline.Names() {
+	for _, name := range codepass.Names() {
 		if f, ok := pass.Lookup(name); !ok || f.Kind != pass.KindExecPass {
 			t.Errorf("pass %s is not a registered optimization of kind exec pass", name)
 		}
-		if slices.Contains(corepass.Names(), name) || slices.Contains(flowpass.Pipeline.Names(), name) {
+		if slices.Contains(corepass.Names(), name) || slices.Contains(flowpass.Names(), name) {
 			t.Errorf("pass %s is also a Core or Flow pass", name)
 		}
 	}
-	if err := codepass.Pipeline.Validate(); err != nil {
+	if _, err := (&Driver{}).Exec("rules", execModule(t), noTarget, false); err != nil {
 		t.Error(err)
+	}
+	for _, p := range codepass.Passes {
+		if p.Decl().Obligation == "" {
+			t.Errorf("pass %s states no obligation", p.Name())
+		}
 	}
 }
 
@@ -124,9 +135,11 @@ func TestParsePrintAfter(t *testing.T) {
 	// The names follow the order the steps run in: the elaboration and the Core passes, then the Flow
 	// lowering, passes and finish, then the Exec lowering and passes and the Exec passes of the targets.
 	want := append([]string{"elaborate"}, corepass.Names()...)
-	want = append(append(want, "flowlower"), flowpass.Pipeline.Names()...)
-	want = append(append(want, "flow-finish", "execlower"), codepass.Pipeline.Names()...)
-	want = append(append(want, gopass.Pipeline.Names()...), tspass.Pipeline.Names()...)
+	want = append(append(want, "flowlower"), flowpass.Names()...)
+	want = append(append(want, "flow-finish", "execlower"), codepass.Names()...)
+	for _, p := range append(slices.Clone(gopass.Passes), tspass.Passes...) {
+		want = append(want, p.Name())
+	}
 	want = append(want, "all")
 	if got := PrintNames(); !slices.Equal(got, want) {
 		t.Errorf("names %v, want %v", got, want)

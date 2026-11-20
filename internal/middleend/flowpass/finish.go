@@ -7,6 +7,7 @@ import (
 	"zeroparse.dev/zp/internal/ir/code"
 	"zeroparse.dev/zp/internal/ir/code/flow"
 	"zeroparse.dev/zp/internal/pass"
+	"zeroparse.dev/zp/internal/pass/pipe"
 )
 
 // Finish ends the Flow passes on each function of the module m, whichever of them ran (finish).
@@ -152,10 +153,14 @@ func splice(b *code.Block, blocks map[*code.Block]bool) {
 // FinishName is the name of Finish as a step of the pipeline.
 const FinishName = "flow-finish"
 
-// Finishing is Finish as the required step FinishName that ends the Flow stage of a function: it
-// runs after the Flow passes, also after one of them failed, and before the function leaves the Flow
-// stage. It finishes the module in place, which the run owns (pass.Do), and dumps it as flow.Print does.
-var Finishing = pass.Do(FinishName, pass.IR[*code.Module]{Stage: flow.Stage, Print: code.PrintFuncs, Copy: (*code.Module).Clone}, func(m *code.Module) *code.Module {
-	Finish(m)
-	return m
+// Finishing is Finish as the required step FinishName that ends the Flow stage of the functions of a
+// module: it runs after the Flow passes, also after one of them failed, and before the module leaves
+// the Flow stage. It finishes the module in place.
+var Finishing = pipe.New(pipe.Def[Unit, Unit]{
+	Decl: pipe.Decl{Name: FinishName, Required: true, Obligation: "Every function has no forms: each form is spliced into its statements and its variables are placed."},
+	In:   code.FlowStage, Out: code.FlowStage,
+	Run: func(_ *pipe.Ctx[Unit], u Unit) (Unit, pass.PreservedSet, error) {
+		Finish(u.Module())
+		return u, pass.PreserveNone(), nil
+	},
 })

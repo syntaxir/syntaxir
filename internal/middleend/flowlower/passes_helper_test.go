@@ -6,19 +6,15 @@ import (
 	"zeroparse.dev/zp/internal/ir/code"
 	"zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/middleend/flowpass"
+	"zeroparse.dev/zp/internal/pass"
 )
 
 // finish runs on the lowered module f the Flow passes of the target, with inline as the number of
 // code points of the inline-literals pass, and ends them, as the driver does after the lowering.
 func finish(t *testing.T, f *code.Module, target flowpass.Target, inline int) *code.Module {
 	t.Helper()
-	env := &flowpass.Env{Target: target, Value: func(name string) int {
-		if name == flowpass.PassInlineLiterals {
-			return inline
-		}
-		return 0
-	}}
-	f, _, err := flowpass.Run(f, env, flowpass.RunOptions{})
+	settings := with(t, with(t, pass.Settings{}, flowpass.PassClassTables, 0), flowpass.PassInlineLiterals, inline)
+	f, _, err := flowpass.Run(f, flowpass.RunOptions{Settings: settings, Target: target})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,4 +31,14 @@ func lowerFinished(t *testing.T, m *core.Module, r *core.Rule, opts Options, inl
 		return nil, err
 	}
 	return finish(t, f, flowpass.Target{InlineLiterals: inline > 0}, inline), nil
+}
+
+// with returns s with the optimization name set to v.
+func with(t *testing.T, s pass.Settings, name string, v int) pass.Settings {
+	t.Helper()
+	s, err := s.With(name, v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return s
 }

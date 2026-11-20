@@ -4,15 +4,13 @@
 package pass
 
 import (
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/middleend/codepass"
 	"zeroparse.dev/zp/internal/middleend/execlower"
-	"zeroparse.dev/zp/internal/pass"
+	"zeroparse.dev/zp/internal/pass/pipe"
 )
 
-// Pipeline is the pipeline of the Go Exec passes. The unit is a lowered function with its module.
-var Pipeline = &pass.Pipeline[*execlower.Lowered, *codepass.Env]{
-	Analyses: map[pass.Analysis]func(*execlower.Lowered){},
-	Verify:   func(l *execlower.Lowered) error { return code.Verify(l.Module) },
-	Copy:     (*execlower.Lowered).Clone,
-}
+// Passes are the Go Exec passes, in the order they run on a lowered function with its module. There
+// is none yet.
+var Passes []*pipe.Pass[*execlower.Lowered, *execlower.Lowered]
+
+// Pipeline is the pipeline of the Go Exec passes.
+var Pipeline = pipe.Seq(execlower.LoweredIR, Passes...)

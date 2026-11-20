@@ -13,6 +13,7 @@ import (
 	"zeroparse.dev/zp/internal/middleend/flowlower"
 	"zeroparse.dev/zp/internal/middleend/flowpass"
 	"zeroparse.dev/zp/internal/pass"
+	"zeroparse.dev/zp/internal/pass/pipe"
 )
 
 // irDumpHeader matches the header of a dump of the module of a table after the lowering that made it
@@ -71,53 +72,79 @@ func CheckIRPipelines(t *testing.T, dump string, tables ...string) map[string]in
 	return perTable
 }
 
-// BrokenFlowPass is a Flow pass that lists a variable twice, which flow.VerifyModule rejects.
-var BrokenFlowPass = pass.Pass[*code.Module, *flowpass.Env]{
-	Name:       "break-flow",
-	Obligation: "none: it breaks the function on purpose",
-	Run: func(m *code.Module, _ *flowpass.Env) (*code.Module, pass.PreservedSet, error) {
-		a := flow.AttrsOf(flow.FuncOf(m))
+// BrokenFlowPass is a Flow pass that lists a variable twice, which flow.VerifyModule rejects. It is no
+// registered optimization: it declares that it is a test pass.
+var BrokenFlowPass = pipe.New(pipe.Def[flowpass.Unit, flowpass.Unit]{
+	Decl: pipe.Decl{Name: "break-flow", Test: true, Obligation: "none: it breaks the function on purpose"},
+	In:   code.FlowStage, Out: code.FlowStage,
+	Run: func(_ *pipe.Ctx[flowpass.Unit], u flowpass.Unit) (flowpass.Unit, pass.PreservedSet, error) {
+		a := flow.AttrsOf(flow.FuncOf(u.Module()))
 		a.Vars = append(a.Vars, "broken", "broken")
-		return m, pass.PreserveNone(), nil
+		return u, pass.PreserveNone(), nil
 	},
-}
+})
 
-// BrokenExecPass is an Exec pass that declares the first function of the module twice, which
-// code.Verify rejects.
-var BrokenExecPass = pass.Pass[*code.Module, *codepass.Env]{
-	Name:       "break-exec",
-	Obligation: "none: it breaks the module on purpose",
-	Run: func(m *code.Module, _ *codepass.Env) (*code.Module, pass.PreservedSet, error) {
+// BrokenExecPass is an Exec pass that declares the function of its unit twice, which code.Verify
+// rejects. It is no registered optimization: it declares that it is a test pass.
+var BrokenExecPass = pipe.New(pipe.Def[codepass.Unit, codepass.Unit]{
+	Decl: pipe.Decl{Name: "break-exec", Test: true, Obligation: "none: it breaks the module on purpose"},
+	In:   code.ExecStage, Out: code.ExecStage,
+	Run: func(_ *pipe.Ctx[codepass.Unit], u codepass.Unit) (codepass.Unit, pass.PreservedSet, error) {
+		m := u.Module()
 		m.Funcs = append(m.Funcs, m.Funcs[0])
-		return m, pass.PreserveNone(), nil
+		return u, pass.PreserveNone(), nil
 	},
-}
+})
 
 // BrokenFlowPipeline returns a FlowPipeline hook of a generator (driver.Driver) that runs the Flow
 // pipeline with BrokenFlowPass added at its end on the functions of the table named table, and the
-// Flow pipeline as it is on the others. It counts the functions of the table in seen. The pass is no
-// registered optimization, so the hooks name it in TestPasses.
-func BrokenFlowPipeline(table string, seen *int) func(string) *pass.Pipeline[*code.Module, *flowpass.Env] {
-	p := *flowpass.Pipeline
-	p.Passes = append(slices.Clone(flowpass.Pipeline.Passes), BrokenFlowPass)
-	return func(tb string) *pass.Pipeline[*code.Module, *flowpass.Env] {
+// Flow pipeline as it is on the others. It counts the functions of the table in seen.
+func BrokenFlowPipeline(table string, seen *int) func(string) pipe.Pipeline[flowpass.Unit, flowpass.Unit] {
+	return func(tb string) pipe.Pipeline[flowpass.Unit, flowpass.Unit] {
 		if tb != table {
-			return flowpass.Pipeline
+			return flowpass.Pipeline()
 		}
 		*seen++
-		return &p
+		return flowpass.OnFuncs(append(slices.Clone(flowpass.Passes), BrokenFlowPass)...)
 	}
 }
 
 // BrokenExecPipeline is BrokenFlowPipeline for the Exec pipeline, with BrokenExecPass.
-func BrokenExecPipeline(table string, seen *int) func(string) *pass.Pipeline[*code.Module, *codepass.Env] {
-	p := *codepass.Pipeline
-	p.Passes = append(slices.Clone(codepass.Pipeline.Passes), BrokenExecPass)
-	return func(tb string) *pass.Pipeline[*code.Module, *codepass.Env] {
+func BrokenExecPipeline(table string, seen *int) func(string) pipe.Pipeline[codepass.Unit, codepass.Unit] {
+	return func(tb string) pipe.Pipeline[codepass.Unit, codepass.Unit] {
 		if tb != table {
-			return codepass.Pipeline
+			return codepass.Pipeline()
 		}
 		*seen++
-		return &p
+		return codepass.OnFuncs(append(slices.Clone(codepass.Passes), BrokenExecPass)...)
 	}
+}
+
+// recordFeature is the function that RecordFlowPass calls, which RecordingFlow provides.
+var recordFeature = pipe.NewFeature("test-flow-record", func(func(*code.Module)) string { return "record" })
+
+// RecordFlowPass is a Flow pass of the tests that calls the function of RecordingFlow with the module
+// of each function it runs on and changes nothing. It is no registered optimization: it declares that
+// it is a test pass.
+var RecordFlowPass = pipe.New(pipe.Def[flowpass.Unit, flowpass.Unit]{
+	Decl: pipe.Decl{Name: "test-flow-record", Test: true, Obligation: "none: it records the function and changes nothing",
+		Features: []pipe.FeatureID{recordFeature.ID()}},
+	In: code.FlowStage, Out: code.FlowStage,
+	Run: func(c *pipe.Ctx[flowpass.Unit], u flowpass.Unit) (flowpass.Unit, pass.PreservedSet, error) {
+		pipe.Feature(c, recordFeature)(u.Module())
+		return u, pass.PreserveAll(), nil
+	},
+})
+
+// RecordingFlow returns the Flow pipeline with RecordFlowPass before the passes (first) or after them,
+// which calls record with the module of each function it runs on. After the passes, it runs on a
+// function only when the passes before it succeeded, before flow-finish ends the function.
+func RecordingFlow(first bool, record func(m *code.Module)) pipe.Pipeline[flowpass.Unit, flowpass.Unit] {
+	passes := slices.Clone(flowpass.Passes)
+	if first {
+		passes = append([]*pipe.Pass[flowpass.Unit, flowpass.Unit]{RecordFlowPass}, passes...)
+	} else {
+		passes = append(passes, RecordFlowPass)
+	}
+	return pipe.WithConst(recordFeature, record, flowpass.OnFuncs(passes...))
 }

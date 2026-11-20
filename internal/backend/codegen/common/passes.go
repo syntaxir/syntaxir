@@ -5,11 +5,11 @@ import (
 
 	"zeroparse.dev/zp/internal/ir/code"
 	"zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/internal/middleend/codepass"
 	"zeroparse.dev/zp/internal/middleend/execlower"
 	"zeroparse.dev/zp/internal/middleend/flowlower"
 	"zeroparse.dev/zp/internal/middleend/flowpass"
 	"zeroparse.dev/zp/internal/pass"
+	"zeroparse.dev/zp/internal/pass/pipe"
 )
 
 // Passes are the pass settings of one generation, which the driver resolves from the GenOptions of
@@ -44,7 +44,7 @@ type Runner interface {
 	// Flow runs the Flow part of the pipeline on the functions of the table named table: the
 	// lowering of u (flowlower), the Flow passes on each function and flow-finish; observe says that
 	// the parser reports its rules and skipped alternatives, and target which forms the backend
-	// prints (flowpass.Env). A failure of the lowering is a *pass.StepError, returned with no module;
+	// prints (flowpass.ObserveFeature, flowpass.TargetFeature). A failure of the lowering is a *pass.StepError, returned with no module;
 	// a failure of a pass is returned with the module, ended by flow-finish.
 	Flow(table string, u flowlower.Unit, observe bool, target flowpass.Target) (*code.Module, error)
 	// Exec runs the Exec part of the pipeline on the module m of the functions of the table named
@@ -52,9 +52,9 @@ type Runner interface {
 	// target runs and then p, the pipeline of the target's own Exec passes, on each function;
 	// observe is as for Flow. A failure of the conversion is a *pass.StepError, returned with no
 	// module; a failure of a pass is returned with the module.
-	Exec(table string, m *code.Module, p *TargetPipeline, observe bool) (*code.Module, error)
+	Exec(table string, m *code.Module, p TargetPipeline, observe bool) (*code.Module, error)
 }
 
 // TargetPipeline is the pipeline of the Exec passes of one target (golang/pass, typescript/pass), which
 // run on a lowered function after the Exec passes that every target runs (Runner.Exec).
-type TargetPipeline = pass.Pipeline[*execlower.Lowered, *codepass.Env]
+type TargetPipeline = pipe.Pipeline[*execlower.Lowered, *execlower.Lowered]

@@ -14,7 +14,7 @@ import (
 	"zeroparse.dev/zp/internal/ir/code"
 	"zeroparse.dev/zp/internal/ir/code/flow"
 	"zeroparse.dev/zp/internal/middleend/flowpass"
-	"zeroparse.dev/zp/internal/pass"
+	"zeroparse.dev/zp/internal/pass/pipe"
 	"zeroparse.dev/zp/internal/testing/codegentest"
 )
 
@@ -48,9 +48,9 @@ func TestFlowTableFollowsGoNodeTable(t *testing.T) {
 			hooks := &print.Hooks{
 				Generator: func(x *print.Generator) {
 					d := driverOf(x)
-					d.FlowPipeline = func(table string) *pass.Pipeline[*code.Module, *flowpass.Env] {
+					d.FlowPipeline = func(table string) pipe.Pipeline[flowpass.Unit, flowpass.Unit] {
 						if table != "rules" {
-							return flowpass.Pipeline
+							return flowpass.Pipeline()
 						}
 						return recordFlow(func(m *code.Module) {
 							if a := flow.AttrsOf(flow.FuncOf(m)); a != nil && a.Rule != nil {
@@ -60,7 +60,6 @@ func TestFlowTableFollowsGoNodeTable(t *testing.T) {
 							}
 						})
 					}
-					d.TestPasses = append(d.TestPasses, recordFlowPass)
 					if x.Table == "rules" {
 						gen = x
 					}
@@ -112,20 +111,12 @@ func TestFlowTableFollowsGoNodeTable(t *testing.T) {
 	}
 }
 
-// recordFlowPass is a test pass that records each function at the end of the Flow passes.
-const recordFlowPass = "test-record-flow"
-
-// recordFlow returns the Flow pipeline with recordFlowPass last, which calls record with each
-// function as the driver leaves the Flow stage: a copy of the module, which flow-finish ends.
-func recordFlow(record func(m *code.Module)) *pass.Pipeline[*code.Module, *flowpass.Env] {
-	p := *flowpass.Pipeline
-	p.Passes = append(slices.Clone(p.Passes), pass.Pass[*code.Module, *flowpass.Env]{
-		Name: recordFlowPass, Obligation: "records the function and changes nothing",
-		Run: func(m *code.Module, _ *flowpass.Env) (*code.Module, pass.PreservedSet, error) {
-			c := m.Clone()
-			flowpass.Finish(c)
-			record(c)
-			return m, pass.PreserveAll(), nil
-		}})
-	return &p
+// recordFlow returns the Flow pipeline with codegentest.RecordFlowPass last, which calls record with
+// each function as the driver leaves the Flow stage: a copy of the module, which flow-finish ends.
+func recordFlow(record func(m *code.Module)) pipe.Pipeline[flowpass.Unit, flowpass.Unit] {
+	return codegentest.RecordingFlow(false, func(m *code.Module) {
+		c := m.Clone()
+		flowpass.Finish(c)
+		record(c)
+	})
 }

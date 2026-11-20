@@ -31,7 +31,7 @@ func TestGeneratorWithoutRunnerPanicsClearly(t *testing.T) {
 		"Opt":        func(g *common.Generator) { g.Opt() },
 		"Core":       func(g *common.Generator) { _, _ = g.Core("rules", nil) },
 		"FlowPasses": func(g *common.Generator) { _, _ = g.FlowPasses(flowlower.Unit{}) },
-		"ExecPasses": func(g *common.Generator) { _, _ = g.ExecPasses(nil, nil) },
+		"ExecPasses": func(g *common.Generator) { _, _ = g.ExecPasses(nil, common.TargetPipeline{}) },
 	} {
 		t.Run(name, func(t *testing.T) {
 			defer func() {

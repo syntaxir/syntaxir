@@ -270,7 +270,7 @@ func (g *Generator) FlowPasses(u flowlower.Unit) (*code.Module, error) {
 // the generation (FlowErr), which fails it. The printers print each function with its variables
 // (execlower.View), so a pass keeps that function in the module and those locals in it: the verifier
 // of the lowered function checks it at the end of the target's passes (execlower.Lowered.Keeps).
-func (g *Generator) ExecPasses(m *code.Module, target *TargetPipeline) (*code.Module, error) {
+func (g *Generator) ExecPasses(m *code.Module, target TargetPipeline) (*code.Module, error) {
 	x, err := g.runner().Exec(g.IRTable(), m, target, g.Observability)
 	if x == nil {
 		return nil, err
@@ -285,7 +285,7 @@ func (g *Generator) ExecPasses(m *code.Module, target *TargetPipeline) (*code.Mo
 // (flowplan.Table.Unit; refuse is a test's hook, nil refuses none), through the Flow and the Exec part
 // of the pipeline with target, as FlowPasses and ExecPasses run them, and binds the module at the Exec
 // stage to p, whose functions the printers then print (flowplan.Table.Lowered).
-func (g *Generator) LowerTable(p *flowplan.Table, refuse func(flowplan.Key) bool, target *TargetPipeline) error {
+func (g *Generator) LowerTable(p *flowplan.Table, refuse func(flowplan.Key) bool, target TargetPipeline) error {
 	m, err := g.FlowPasses(p.Unit(g.Flow.TableIR, refuse))
 	if err != nil {
 		return err

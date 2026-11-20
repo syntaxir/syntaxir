@@ -1,6 +1,7 @@
 package execlower
 
 import (
+	"context"
 	"errors"
 	"slices"
 	"strings"
@@ -8,35 +9,34 @@ import (
 
 	"zeroparse.dev/zp/internal/ir/code"
 	"zeroparse.dev/zp/internal/ir/code/flow"
-	"zeroparse.dev/zp/internal/pass"
+	"zeroparse.dev/zp/internal/pass/pipe"
 )
 
 // TestLoweringStep checks the conversion as a step of the pipeline: one required step from the Flow
 // stage to the Exec stage that returns the module with its functions, each a lowered function with its
-// variables (View), and whose postcondition, the verifier, names the step and the module when it
+// variables (View), and whose postcondition, the verifier of the Exec stage, names the step when it
 // rejects the result.
 func TestLoweringStep(t *testing.T) {
-	want := []pass.Step{{Name: Name, Required: true, In: "flow", Out: "exec", Dump: "execlower"}}
-	if got := Lowering.Steps(); !slices.Equal(got, want) {
-		t.Errorf("steps = %+v, want %+v", got, want)
+	if d := Lowering.Decl(); d.Name != Name || !d.Required {
+		t.Errorf("declaration = %+v, want the required step %s", d, Name)
 	}
 	m := flowModule()
 	fn := m.Funcs[0]
 	fn.Attrs = &flow.Attrs{Vars: []string{"ok"}}
-	x, err := Lowering.Run(&pass.Run{}, pass.Label{Table: "rules"}, m)
+	u, err := pipe.Execute(context.Background(), &pipe.Run{}, pipe.Of(Lowering), code.At[code.Flow]{}.With(m))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if l := View(x, 0); l.Func != fn || !slices.Equal(l.Vars, []string{"ok"}) || !slices.Contains(l.Module.Funcs, fn) || l.Module.Stage != Stage {
+	if l := View(u.Module(), 0); l.Func != fn || !slices.Equal(l.Vars, []string{"ok"}) || !slices.Contains(l.Module.Funcs, fn) || l.Module.Stage != Stage {
 		t.Errorf("lowered = %+v", l)
 	}
 	// A call of an operation that the Flow module does not declare is not legal after the conversion.
 	m = flowModule()
 	m.Funcs[0].Attrs = &flow.Attrs{}
 	m.Funcs[0].Body.Stmts = append(m.Funcs[0].Body.Stmts, &code.Do{Call: &code.Call{Callee: "flow.undeclared"}})
-	_, err = Lowering.Run(&pass.Run{}, pass.Label{Table: "rules"}, m)
-	var se *pass.StepError
-	if !errors.As(err, &se) || se.Step.Name != Name || !strings.HasPrefix(err.Error(), "lower t: ") {
+	_, err = pipe.Execute(context.Background(), &pipe.Run{}, pipe.Of(Lowering), code.At[code.Flow]{}.With(m))
+	var se *pipe.StepError
+	if !errors.As(err, &se) || se.Step != Name || !strings.Contains(err.Error(), "call of undeclared runtime.undeclared") {
 		t.Errorf("an invalid result: %v", err)
 	}
 }
@@ -62,7 +62,7 @@ func TestLoweredCopies(t *testing.T) {
 	if c.Module == l.Module || c.Func == l.Func || !slices.Contains(c.Module.Funcs, c.Func) || c.Func.Name != "f" {
 		t.Fatalf("copy %+v", c)
 	}
-	if err := IR.Verify(c); err != nil {
+	if err := LoweredIR.Verify(c); err != nil {
 		t.Fatal(err)
 	}
 	m := l.Module.Clone()
@@ -81,10 +81,10 @@ func TestLoweredCopies(t *testing.T) {
 		t.Errorf("a function without the variable: %v", err)
 	}
 	c.Module.Funcs = append([]*code.Func{{Name: "g", Body: &code.Block{}}}, c.Module.Funcs[1:]...)
-	if err := IR.Verify(c); err == nil || !strings.Contains(err.Error(), "replaced or removed the function f") {
+	if err := LoweredIR.Verify(c); err == nil || !strings.Contains(err.Error(), "replaced or removed the function f") {
 		t.Errorf("the verifier of a module without the function: %v", err)
 	}
-	if err := IR.Verify(l); err != nil || len(l.Func.Locals) == 0 {
+	if err := LoweredIR.Verify(l); err != nil || len(l.Func.Locals) == 0 {
 		t.Errorf("changing the copies changed the function: %v", err)
 	}
 }
