@@ -20,6 +20,7 @@ interface Config {
   maxDepth: number;
   vars: number[];
   ruleVars: number[][];
+  noExpectations?: boolean;
 }
 interface Request {
   family: string;
@@ -349,12 +350,108 @@ class FrameM extends Exec {
   }
 }
 
+// The expectation record, with the memo operations that keep the expectations of an entry. An
+// isolation is a handle of the library's own: the position and the base that it set aside; a set is the
+// range of the record that unisolate returns; a kept set is the library's array.
+interface Isolation {
+  far: number;
+  base: number;
+}
+interface ExpSet {
+  from: number;
+  to: number;
+}
+
+class ExpM extends Exec {
+  constructor(cfg: Config, controlled: boolean, options: Record<string, unknown> | null) {
+    super(cfg, controlled, options);
+    this.P.expectations = !cfg.noExpectations;
+  }
+
+  call(op: string, a: any[]): any[] {
+    const P = this.P;
+    switch (op) {
+      case "test.exp":
+        return [a[0]];
+      case "test.placeholder":
+        return [p.expFar];
+      case "exp.isolate": {
+        const m: Isolation = { far: P.farthest, base: P.expBase };
+        P.expBase = P.expTop;
+        P.farthest = a[0];
+        return [m];
+      }
+      case "exp.unisolate": {
+        const m = a[0] as Isolation;
+        const far = P.farthest;
+        const set: ExpSet = { from: P.expBase, to: P.expTop };
+        P.expTop = P.expBase;
+        P.expBase = m.base;
+        P.farthest = m.far;
+        return [far, set];
+      }
+      case "exp.farthest":
+        return [P.farthest];
+      case "exp.recording":
+        return [P.expectations];
+      case "exp.reset":
+        P.farthest = a[0];
+        P.expTop = P.expBase;
+        return [];
+      case "exp.fresh":
+        return [P.expTop === P.expBase];
+      case "exp.placeholder":
+        P.exp[P.expTop++] = p.expFar;
+        return [];
+      case "exp.maybe":
+        return [true]; // the record has no filter of its entries
+      case "exp.count":
+        return [P.expTop - P.expBase];
+      case "exp.at":
+        return [P.exp[P.expBase + a[0]]!];
+      case "exp.add":
+        P.exp[P.expTop++] = a[0];
+        return [];
+      case "exp.keptCount":
+        return [(a[0] as number[]).length];
+      case "exp.keptAt":
+        return [(a[0] as number[])[a[1]]!];
+      case "exp.setCount":
+        return [(a[0] as ExpSet).to - (a[0] as ExpSet).from];
+      case "exp.setAt":
+        return [P.exp[(a[0] as ExpSet).from + a[1]]!];
+      case "exp.empty":
+        return [p.noExp];
+      case "exp.last":
+        return [P.lastKept];
+      case "exp.copy": {
+        const s = a[0] as ExpSet;
+        P.lastKept = P.control === null ? P.exp.slice(s.from, s.to) : p.copyIDsSpend(P.exp, s.from, s.to, P.control);
+        return [P.lastKept];
+      }
+      case "memo.far":
+        return [(a[0] as p.MemoEntry).far];
+      case "memo.expected":
+        return [(a[0] as p.MemoEntry).expected];
+      case "memo.setExpected": {
+        const e = a[0] as p.MemoEntry;
+        e.far = a[1];
+        e.expected = a[2];
+        return [];
+      }
+    }
+    return super.call(op, a);
+  }
+}
+
 const errsMarker = { errs: true };
 
 function make(family: string, cfg: Config, controlled: boolean, options: Record<string, unknown> | null): Machine {
   switch (family) {
     case "exec":
       return new Exec(cfg, controlled, options);
+    case "exp":
+      return new ExpM(cfg, controlled, options);
     case "frame":
       return new FrameM(cfg, controlled, options);
   }

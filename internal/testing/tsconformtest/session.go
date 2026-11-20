@@ -26,11 +26,13 @@ type Config struct {
 	MaxDepth int64     `json:"maxDepth"`
 	Vars     []int64   `json:"vars"`
 	RuleVars [][]int64 `json:"ruleVars"`
+	// NoExpectations makes a parse that does not record expectations.
+	NoExpectations bool `json:"noExpectations"`
 }
 
 // ConfigOf returns the part of cfg that the bindings read.
 func ConfigOf(cfg ref.Config) Config {
-	return Config{Rules: cfg.Rules, Limit: cfg.Limit, MaxDepth: cfg.MaxDepth, Vars: cfg.Vars, RuleVars: cfg.RuleVars}
+	return Config{Rules: cfg.Rules, Limit: cfg.Limit, MaxDepth: cfg.MaxDepth, Vars: cfg.Vars, RuleVars: cfg.RuleVars, NoExpectations: cfg.NoExpectations}
 }
 
 // Request is a case for the library: the trace to replay, on a parser made for Family with Config.

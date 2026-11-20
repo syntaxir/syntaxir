@@ -21,6 +21,9 @@ type tsMutant struct {
 	// charges makes the mutant a change of charges: the suite runs with budget controls and must fail
 	// at a bound or an exact cost.
 	charges bool
+	// controlled runs the suite with budget controls and counts any failure, for a change of code that a
+	// parse without them does not run.
+	controlled bool
 }
 
 // tsMutate returns the library source with the mutant applied.
