@@ -170,9 +170,11 @@ read concurrently while the single-owner Document is edited or parsed.
 | Method | Meaning |
 |:--|:--|
 | `Valid()` | False for the zero handle, the handle of a nil value |
-| `Type()` | The kind of the node: `"string"`, `"tuple"`, `"list"` and so on, or the name of a struct type |
+| `Kind()` | What the node stands for, as `Node.Kind` says (see [Reading Trees](reading-trees.md#reading-values-and-positions)); it panics on the zero handle |
+| `Type()`, `Rule()` | The type name of the node: `"string"`, `"tuple"`, `"list"` and so on, or the name of a struct type; and the rule that produced it, as `Node.Rule` says. Both are empty for the zero handle |
 | `Text()`, `IsTerminal()` | The text of a string node, and whether the node is a terminal |
 | `Start()`, `End()` | The range of the node in the text of the revision |
+| `Len()`, `Value()` | The number of elements of a tuple or list node, counting nil slots, and 0 for other nodes; the value of a node that holds a plain value such as an `int`, or the string of a string node, and `nil` otherwise |
 | `ChildCount()`, `Child(i)` | The elements of a tuple or list node. `ChildCount` includes nil slots, and the handle of a nil slot is the zero handle |
 | `Field(name)` | The value of a struct field and a presence flag, which distinguishes an absent field from a present nil value. A typed nil `*Node` field becomes a zero handle, while an untyped nil remains nil |
 | `Fields()` | An owned slice of the fields, in original order |
