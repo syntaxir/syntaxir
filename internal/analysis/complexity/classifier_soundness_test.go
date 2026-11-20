@@ -342,6 +342,16 @@ var classifierSoundnessMutants = []struct {
 		"growing/predicate before the left call (off-cycle empty call)",
 		"growing/predicate before the left call",
 	}, ClassUnknown},
+	// A growth that starts at a left call of a leader from another rule is no scanning source, so
+	// the unit that throws it away is not checked.
+	{"leaderSource", []string{
+		"thrown/growth thrown away in the step of another leader",
+		"thrown/growth thrown away by a rule that is not a leader",
+		"thrown/growth of a leader that the other leader reads",
+	}, ClassLinear},
+	// Either rule alone rejects the dropped result behind a predicate: without both, condition 5
+	// misses the alternative that drops the result and no source is around the call of R.
+	{"leadingPass+leaderSource", []string{"growing/dropped result behind a predicate"}, ClassLinear},
 }
 
 // setSoundnessHooks sets the test hooks that classifierSoundnessMutants name; the hooks are
@@ -354,6 +364,10 @@ func setSoundnessHooks(hook string, on bool) {
 		lookaheadBindsOn = on
 	case "leadingPass":
 		leadingPassOn = on
+	case "leaderSource":
+		leaderSourceOn = on
+	case "leadingPass+leaderSource":
+		leadingPassOn, leaderSourceOn = on, on
 	default:
 		panic("unknown hook " + hook)
 	}

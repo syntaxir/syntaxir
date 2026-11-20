@@ -413,6 +413,12 @@ func (k *classifier) walkRecovery(e, base, skip ast.Expr, c wctx) {
 	k.walk(skip, c)
 }
 
+// leaderSourceOn makes the growth of a leader a scanning source at a call of the leader in the
+// body of another rule, a left call included (walkRef). It is on by default; the variable is a
+// test hook, whose off setting is the classifier that counted a growth only at calls that are not
+// left calls, which classified main = (S "b")* $$; S = R "z" / "a"; R = R [ab] / S "b" linear.
+var leaderSourceOn = true
+
 func (k *classifier) walkRef(e *ast.Ref, c wctx) {
 	if k.byName[e.Name] == nil {
 		return
@@ -432,7 +438,7 @@ func (k *classifier) walkRef(e *ast.Ref, c wctx) {
 	// in a rule of the cycle that is not a leader, or in a step of another leader, goes on past
 	// what the unit around it keeps.
 	if k.an.Cyclic[e.Name] && (!k.sameCycle(c.rule, e.Name) || !c.mustStart ||
-		(k.an.Leaders[e.Name] && c.rule != e.Name)) {
+		(leaderSourceOn && k.an.Leaders[e.Name] && c.rule != e.Name)) {
 		k.addSource(c, exprPos(e), CauseRegrowth, "the growth of the left-recursive rule "+e.Name+" at a new position")
 		k.srcExprs[e] = true
 	}
