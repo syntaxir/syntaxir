@@ -84,9 +84,9 @@ calls no rule when the call is the first that the two share, and it shows,
 apart from two nestings that it leaves open, through a
 part that a dropped step evaluates before its read of the seed and through a
 later kept step that does not match its result through a read of its seed
-outside lookaheads, which the conditions exclude outside the cases that
-*Later steps that abandon their reads of the seed* leaves open or aside
-(step 1 of [Open Steps](#open-steps)), and apart from a unit that commits only by a negative
+outside lookaheads, which the conditions exclude outside the steps that
+*Later steps that abandon their reads of the seed* leaves and the units
+that it leaves aside (step 1 of [Open Steps](#open-steps)), and apart from a unit that commits only by a negative
 lookahead on its own side, after which it shows that what follows starts
 no scanning source other than a bounded scan, apart from memoized calls inside the lookaheads that the decision passes over, that evaluations of a call that nest without a
 bound and end at one position make the call nest at one end. It proves the sum
@@ -3056,8 +3056,8 @@ position of the growth again, so the end of $X$ is not reached through the
 step that holds $T$. Their leaders contain no scanning source. The leader of a growth on
 the path from $X$ to $T$ does, since a step of it holds $T$, and for it
 *Later steps that abandon their reads of the seed* shows that the
-conditions exclude such a step outside the cases that it leaves open or
-aside. Also left aside is a pair $X$, $T$ for which a unit that the proof
+conditions exclude such a step outside the steps that it leaves and the
+units that it leaves aside. Also left aside is a pair $X$, $T$ for which a unit that the proof
 below places on the path from $X$ to $T$, with the continuation that it
 gives that unit, decides that continuation only through a negative lookahead
 `!K` on its own side: the path of the unit that leads to $T$ parts from the
@@ -3471,22 +3471,18 @@ the check of those paths at their own start, apart from one case:
 
 When $U$ is an alternative of a choice in the body of another rule of the
 cycle of $R$, it succeeds in the first step along a path $P_1$ that goes on
-at its start after its left calls fail, as above, and condition 2 compares
-it with $Q$ as an alternative that is not growing on all its paths, the one
-through $\rho$ included
+at its start after its left calls fail, as above, or through a left call of
+another leader of the cycle, and condition 2 compares it with $Q$ as an
+alternative that is not growing on all its paths, the one through $\rho$
+included
 ([Conditions for Linear Cost](../runtime/parsing.md#conditions-for-linear-cost)),
-so the grammar fails condition 2 outside cases (1) and (2), apart from one
-more case:
-
-- (4) after its failed left calls, $P_1$ makes, before it examines the
-  input, a left call at $q$ of a leader of the cycle other than $R$,
-  through which it goes on.
+so the grammar fails condition 2 outside cases (1) and (2).
 
 Cases (1) to (3) leave few steps. In case (1), $\sigma'$ is the second step
 of $G$; case (2) does not arise; and in case (3), the result of $\sigma'$ has
 at most $c_w$ characters, where $c_w$ is the length of the longest
-literal of the grammar. So, outside case (4) and the units that the claim
-leaves aside, at most $c_w + 1$ kept steps of $G$ after the first have a
+literal of the grammar. So, outside the units that the claim leaves aside,
+at most $c_w + 1$ kept steps of $G$ after the first have a
 result that does not include the seed: the second step and steps whose
 results have at most $c_w$ characters, which the hypothesis of *Steps that
 begin anew* on kept steps leaves out.
@@ -3541,7 +3537,7 @@ what follows the choice when $U$ is an alternative, a cut in $U$ not having
 committed it, or what follows an option, a repetition or a lookahead, and
 $Q$ consumes the input from $q$ to $e' > e_s \ge q$. When condition 2 compares $U$ with $Q$ as an alternative
 that is not growing, as it does for a $U$ that examines the input before
-$\rho$ on its path to $\rho$ and, outside case (4), for a $U$ of another
+$\rho$ on its path to $\rho$ and for a $U$ of another
 rule of the cycle, on all its paths (shown below), then outside case (1) condition 2 holds for $U$ and $Q$ in
 none of its ways:
 
@@ -3656,23 +3652,22 @@ does not grow ([Conditions for Linear
 Cost](../runtime/parsing.md#conditions-for-linear-cost)). After the failed
 call, and any further call of $R$ at $q$, $P_1$ follows a path of the
 expression of $U$ as above; calls of other rules of the cycle that are not
-leaders on it stand for the paths of their bodies. Outside case (4), along
-that path $P_1$ evaluates something other than a left call of a leader
-first, or reaches the end of $U$ without consuming input, and so it is a
-path on which $U$ goes on at its start after a path through its left call
-fails, and condition 2 checks
-$U$ on all its paths: the comparison with $Q$ above applies, the path
-through $\rho$ included, and the grammar fails condition 2 outside cases
-(1) and (2). In case (4) the analysis reads the path through the left call
-of the other leader $T$ as a path through a left call, not as one that goes
-on at the start, so unless $F$ is evaluated where its cycle does not grow,
-the check is not shown to apply. Grammars of that shape, such as
-`E = F; T = F "t" / "x"; F = (E [x]* / T) "x" / "x" H; H = E ";"`, fail
-condition 5 instead: a call of $T$ in $F$, a rule of the cycle other than
-a leader, can drop the result of $T$, which grows where $E$ grows from its
-growing result, and a call of $E$ there can drop the result of $E$ in the
-same way; but that condition 5 excludes every grammar of case (4) is not
-shown.
+leaders on it stand for the paths of their bodies. Along that path $P_1$
+either evaluates something other than a left call of a leader first, or
+reaches the end of $U$ without consuming input, and so it is a path on which
+$U$ goes on at its start after a path through its left call fails; or it
+makes, before it examines the input, a left call at $q$ of a leader $T$ of
+the cycle other than $R$ and goes on through it. The cycle then has two
+leaders, $R$ and $T$, and in a cycle with more than one leader a path of a
+unit of another rule of the cycle through a left call of a leader also goes
+on at its start ([Conditions for Linear
+Cost](../runtime/parsing.md#conditions-for-linear-cost)). Either way
+condition 2 checks $U$ on all its paths: the comparison with $Q$ above
+applies, the path through $\rho$ included, and the grammar fails condition 2
+outside cases (1) and (2). In
+`E = F; T = F "t" / "x"; F = (E [x]* / T) "x" / "x" H; H = E ";"`, the path
+of `(E [x]* / T) "x"` through `T` goes on at its start in this way, and that
+alternative is not committing against `"x" H`.
 
 It remains to bound the steps of cases (1) to (3). In case (1), let the seed
 end at or before $u$. The calls that $U$ and $Q$ share at their starts begin
@@ -8773,8 +8768,8 @@ longer than its seed and than $c_w$ characters, have a result that includes
 the growing result, where $c_w$ is the length of the longest literal of the
 grammar: *Later steps that abandon their reads
 of the seed* derives this from condition 2 for a leader that contains a
-scanning source, outside the cases that it leaves open or aside (*Open parts
-of the kept steps*). The kept steps that this leaves out, the second and those
+scanning source, outside the units that it leaves aside (*Open parts of the
+kept steps*). The kept steps that this leaves out, the second and those
 whose results have at most $c_w$ characters, are among the first $c_w + 2$
 steps, since the results of the kept steps are each longer than the one
 before. For a leader without a scanning source the hypothesis can fail, and
@@ -9044,10 +9039,10 @@ than a bounded scan, which the conditions do not check. $\square$
 claims of this lemma that rest on them hold apart from them:
 
 1. the hypothesis of *Steps that begin anew* on kept steps for a leader that
-   contains a scanning source, in the cases that *Later steps that abandon
-   their reads of the seed* leaves open or aside: its case (4), and an
-   abandoned unit that is a dropped step of another growth or lies in a
-   growth of another leader at the position. The kept steps that its cases
+   contains a scanning source, in the units that *Later steps that abandon
+   their reads of the seed* leaves aside: an abandoned unit that is a
+   dropped step of another growth or lies in a growth of another leader at
+   the position. The kept steps that its cases
    (1) and (3) leave, the second step and steps whose results have at most
    $c_w$ characters, the hypothesis leaves out, and the claims that take it
    allow them, apart from the second remaining case of *Steps that begin
@@ -13563,9 +13558,9 @@ theorem covers such a parse.
    result is not empty; and it rests, through *Growths inside a step* and
    *Results that do not include the seed*, on the hypothesis of *Steps that
    begin anew* on kept steps, which is not shown, for a leader with a
-   scanning source, in the cases that *Later steps that abandon their reads
-   of the seed* leaves open or aside (step 1): its case (4) and the units
-   that it leaves aside; the second step and steps whose results have at
+   scanning source, in the units that *Later steps that abandon their reads
+   of the seed* leaves aside (step 1); the second step and steps whose
+   results have at
    most $c_w$ characters, which its cases (1) and (3) leave, the hypothesis
    leaves out. No claim takes the hypothesis for a leader without one,
    whose growths nest with no other (*Leaders without a scanning source*).
@@ -13628,8 +13623,8 @@ theorem covers such a parse.
    as a hypothesis that every kept step of a growth after the second, with
    a result of more than $c_w$ characters, has a result that includes the
    growing result, which *Later steps that abandon their reads of the seed*
-   gives only for a leader that contains a scanning source, outside its
-   case (4) and the units that it leaves aside (step 1); its cases (1) and
+   gives only for a leader that contains a scanning source, outside the
+   units that it leaves aside (step 1); its cases (1) and
    (3) leave only the second step and steps whose results have at most
    $c_w$ characters, which the hypothesis leaves out; for a
    leader without one the hypothesis can fail,
