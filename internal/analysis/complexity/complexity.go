@@ -12,6 +12,8 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
+	"syntaxir.dev/sxir/internal/middleend/checkfacts"
+	"syntaxir.dev/sxir/internal/middleend/corepass"
 	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -180,7 +182,7 @@ func GrowingBindingsControlled(g *ast.Grammar, start string, control *cancel.Con
 func prepareTypedClassifier(g *ast.Grammar, start string, control *cancel.Control) (*classifier, desugar.InlineNames) {
 	control.Check()
 	names := desugar.InlineNames{}
-	typed, err := frontend.CheckTyped(g, names, control)
+	typed, err := frontend.CheckTyped(g, names, checkfacts.Source{}, control)
 	if err != nil {
 		return nil, nil
 	}
@@ -190,7 +192,7 @@ func prepareTypedClassifier(g *ast.Grammar, start string, control *cancel.Contro
 	// The facts are those the check took, of the module of the same rules: they are not computed
 	// again.
 	rules := typed.Rules
-	rf := sourceFacts(&Source{Module: typed.Module, Facts: typed.Facts}, rules, control)
+	rf := sourceFacts(&Source{Module: typed.Module, Facts: corepass.FactsOf(typed.Analyses, typed.Module)}, rules, control)
 	k := newViewClassifier(typed.Grammar, rules, rf, start, control)
 	k.types = typed.Types
 	return k, names

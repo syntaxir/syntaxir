@@ -7,6 +7,8 @@ import (
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/middleend/checkfacts"
+	"syntaxir.dev/sxir/internal/middleend/corepass"
 )
 
 // TestLeaderDeclarationOrder pins that the frontend numbers the rules in declaration order and that
@@ -23,7 +25,7 @@ func TestLeaderDeclarationOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	typed, err := frontend.CheckTyped(g, desugar.InlineNames{}, nil)
+	typed, err := frontend.CheckTyped(g, desugar.InlineNames{}, checkfacts.Source{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +40,7 @@ func TestLeaderDeclarationOrder(t *testing.T) {
 		t.Fatalf("rules %v, want declaration order %v", names, want)
 	}
 	var leaders []string
-	for i, r := range typed.Facts.Rules {
+	for i, r := range corepass.FactsOf(typed.Analyses, typed.Module).Rules {
 		if r.Leader {
 			leaders = append(leaders, typed.Module.Rules[i].Name)
 		}

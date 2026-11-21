@@ -85,6 +85,8 @@ var layout = []place{
 
 	// Middle end.
 	{pkg: "internal/middleend/corepass", target: "internal/middleend/corepass"},
+	// The rule facts of corepass in the types of the checker, which the front end reads.
+	{pkg: "internal/middleend/checkfacts", target: "internal/middleend/checkfacts"},
 	{pkg: "internal/middleend/flowlower", target: "internal/middleend/flowlower"},
 	{pkg: "internal/middleend/flowlower/lowerdata", target: "internal/middleend/flowlower/lowerdata"},
 	{pkg: "internal/middleend/flowpass", target: "internal/middleend/flowpass"},

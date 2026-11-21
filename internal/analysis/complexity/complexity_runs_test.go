@@ -9,6 +9,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/middleend/checkfacts"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -76,7 +77,7 @@ func TestRunSitesMatchClassifier(t *testing.T) {
 			})
 		}
 		runSitesOn = false
-		prog, err := frontend.Check(g, compile.Options{}, nil, desugar.InlineNames{}, nil)
+		prog, err := frontend.Check(g, compile.Options{}, nil, desugar.InlineNames{}, checkfacts.Source{}, nil)
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}

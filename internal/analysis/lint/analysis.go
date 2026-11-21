@@ -65,7 +65,7 @@ func newAnalysisControlled(res *frontend.Result, control *lintControl) *analysis
 		facts = &cancel.Control{Ctx: control.ctx}
 	}
 	a := &analysis{control: control, g: res.Grammar(), rules: map[string]*ast.RuleDef{}, m: res.Module,
-		facts: res.Facts.WithControl(facts), nodes: map[ast.Expr]core.Node{}, ids: map[string]int{},
+		facts: corepass.FactsOf(res.Analyses, res.Module).WithControl(facts), nodes: map[ast.Expr]core.Node{}, ids: map[string]int{},
 		baseCase:  map[string]bool{},
 		matchMemo: map[matchKey]matchResult{}, prefixMemo: map[string]prefixResult{}, busy: map[string]bool{}}
 	for _, r := range control.rules(a.g) {

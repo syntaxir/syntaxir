@@ -6,6 +6,7 @@ import (
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/diagnostic"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
+	"syntaxir.dev/sxir/internal/middleend/checkfacts"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -36,7 +37,7 @@ func TestStructuralErrorsMatchCompile(t *testing.T) {
 			if !ok {
 				t.Fatalf("compile error %v is not a list", cerr)
 			}
-			got := structuralErrors(g, compile.Options{}, desugar.InlineNames{}, nil)
+			got := structuralErrors(g, compile.Options{}, desugar.InlineNames{}, checkfacts.Source{}, nil)
 			if len(got) == 0 || got.Error() != want.Error() {
 				t.Fatalf("structural errors\n%s\ncompile errors\n%s", got, want)
 			}
@@ -64,7 +65,7 @@ func TestRunErrorsMatchCompile(t *testing.T) {
 			if cerr == nil {
 				t.Fatal("compile accepted the grammar")
 			}
-			_, rerr := Run(g, compile.Options{}, nil)
+			_, rerr := Run(g, compile.Options{}, checkfacts.Source{}, nil)
 			if rerr == nil || rerr.Error() != cerr.Error() {
 				t.Fatalf("Run errors\n%v\ncompile errors\n%v", rerr, cerr)
 			}
@@ -110,7 +111,7 @@ func TestRunRejectsStreamOnCycleInAnyRule(t *testing.T) {
 		t.Fatal(err)
 	}
 	const want = "3:21: #stream cannot be used in rule r, which is on a left-recursion cycle; growing the recursion would re-evaluate elements already delivered"
-	if _, err := Run(g, compile.Options{}, nil); err == nil || err.Error() != want {
+	if _, err := Run(g, compile.Options{}, checkfacts.Source{}, nil); err == nil || err.Error() != want {
 		t.Fatalf("Run error %v, want %s", err, want)
 	}
 }
@@ -135,10 +136,10 @@ func TestRunRejectsFactErrors(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := Run(g, compile.Options{}, nil); err == nil || err.Error() != tc.want {
+		if _, err := Run(g, compile.Options{}, checkfacts.Source{}, nil); err == nil || err.Error() != tc.want {
 			t.Errorf("Run error %v, want %s", err, tc.want)
 		}
-		if got := structuralErrors(g, compile.Options{}, desugar.InlineNames{}, nil); got.Error() != tc.want {
+		if got := structuralErrors(g, compile.Options{}, desugar.InlineNames{}, checkfacts.Source{}, nil); got.Error() != tc.want {
 			t.Errorf("structural errors %v, want %s", got, tc.want)
 		}
 	}
@@ -158,11 +159,11 @@ func TestRunComputesFactsOnce(t *testing.T) {
 		return pass.Computations(corepass.FactsKey.Name()) - before
 	}
 	separate := count(func() {
-		Check(g, compile.Options{}, nil, desugar.InlineNames{}, nil)
-		structuralErrors(g, compile.Options{}, desugar.InlineNames{}, nil)
+		Check(g, compile.Options{}, nil, desugar.InlineNames{}, checkfacts.Source{}, nil)
+		structuralErrors(g, compile.Options{}, desugar.InlineNames{}, checkfacts.Source{}, nil)
 	})
 	shared := count(func() {
-		if _, err := Run(g, compile.Options{}, nil); err == nil {
+		if _, err := Run(g, compile.Options{}, checkfacts.Source{}, nil); err == nil {
 			t.Fatal("the grammar checks")
 		}
 	})

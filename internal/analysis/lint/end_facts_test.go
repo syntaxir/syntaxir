@@ -5,6 +5,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/testing/factstest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -69,18 +70,19 @@ func TestEndFactsHoldForRuleBodies(t *testing.T) {
 			continue
 		}
 		compared++
+		facts := corepass.FactsOf(res.Analyses, res.Module)
 		for _, r := range res.Module.Rules {
 			if r == nil || r.Twin != nil {
 				continue
 			}
-			f := res.Facts.Rules[r.ID]
-			if got := res.Facts.NullableAtEnd(r.Body); f.NullableAtEnd != got {
+			f := facts.Rules[r.ID]
+			if got := facts.NullableAtEnd(r.Body); f.NullableAtEnd != got {
 				t.Errorf("%q rule %s: NullableAtEnd=%v, body NullableAtEnd=%v", src, r.Name, f.NullableAtEnd, got)
 			}
-			if got := res.Facts.NullableBeforeEnd(r.Body); f.NullableBeforeEnd != got {
+			if got := facts.NullableBeforeEnd(r.Body); f.NullableBeforeEnd != got {
 				t.Errorf("%q rule %s: NullableBeforeEnd=%v, body NullableBeforeEnd=%v", src, r.Name, f.NullableBeforeEnd, got)
 			}
-			if got := res.Facts.MayMatch(r.Body); f.CanMatch != got {
+			if got := facts.MayMatch(r.Body); f.CanMatch != got {
 				t.Errorf("%q rule %s: CanMatch=%v, body MayMatch=%v", src, r.Name, f.CanMatch, got)
 			}
 		}

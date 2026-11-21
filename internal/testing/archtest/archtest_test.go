@@ -212,11 +212,10 @@ func TestNegativeControls(t *testing.T) {
 	// A package that no layout row places.
 	g.pkgs[mod("internal/unplaced")] = &pkg{ImportPath: mod("internal/unplaced"), Module: &struct{ Path string }{modulePath}}
 	addEdge(mod("cmd/sxir"), mod("internal/unplaced"))
-	// An allowlisted edge that disappears.
-	front := g.pkgs[mod("internal/frontend")]
-	front.Imports = slices.DeleteFunc(front.Imports, func(p string) bool { return p == mod("internal/middleend/corepass") })
+	// An allowlisted edge that no build has.
+	stale := append(slices.Clone(allowlist), "rule 2: internal/frontend -> internal/middleend/corepass")
 
-	msgs := check([]*graph{g}, generatedParsers(t)).compare(allowlist, 1)
+	msgs := check([]*graph{g}, generatedParsers(t)).compare(stale, 1)
 	for _, m := range msgs {
 		t.Log(m)
 	}

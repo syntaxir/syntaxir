@@ -4,6 +4,7 @@ import (
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/middleend/checkfacts"
 	"syntaxir.dev/sxir/internal/testing/starttest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -18,7 +19,7 @@ func parseMarked(src string) (*ast.Grammar, error) {
 
 func compileGrammar(g *ast.Grammar, opts compile.Options) (*compile.Program, error) {
 	names := desugar.InlineNames{}
-	p, err := Check(g, opts, nil, names, nil)
+	p, err := Check(g, opts, nil, names, checkfacts.Source{}, nil)
 	if err != nil {
 		return nil, names.Rewrite(err)
 	}

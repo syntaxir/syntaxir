@@ -14,6 +14,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
+	"syntaxir.dev/sxir/internal/middleend/checkfacts"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -319,7 +320,7 @@ func BenchmarkVariableDependencies(b *testing.B) {
 			}
 			b.ReportAllocs()
 			for b.Loop() {
-				if _, err := frontend.Check(g, compile.Options{}, nil, desugar.InlineNames{}, nil); err != nil {
+				if _, err := frontend.Check(g, compile.Options{}, nil, desugar.InlineNames{}, checkfacts.Source{}, nil); err != nil {
 					b.Fatal(err)
 				}
 			}

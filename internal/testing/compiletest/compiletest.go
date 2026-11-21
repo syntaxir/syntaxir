@@ -11,6 +11,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/middleend/checkfacts"
 	"syntaxir.dev/sxir/internal/testing/starttest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -26,7 +27,7 @@ func Parse(src string) (*ast.Grammar, error) {
 // rules of inline actions as the engine's do.
 func Compile(g *ast.Grammar, opts compile.Options) (*compile.Program, error) {
 	names := desugar.InlineNames{}
-	p, err := frontend.Check(g, opts, nil, names, nil)
+	p, err := frontend.Check(g, opts, nil, names, checkfacts.Source{}, nil)
 	if err != nil {
 		return nil, names.Rewrite(err)
 	}

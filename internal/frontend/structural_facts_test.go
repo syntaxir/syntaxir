@@ -10,6 +10,7 @@ import (
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
+	"syntaxir.dev/sxir/internal/middleend/checkfacts"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/testing/factstest"
 )
@@ -86,7 +87,7 @@ func structuralInputFacts(t *testing.T, path string) int {
 		if errs := uf.Errors(untyped, !opts.LeftRecursionBindings); len(errs) != 0 {
 			t.Errorf("%s: fact errors on an accepted grammar: %v", name, errs)
 		}
-		if errs := structuralErrors(g, opts, desugar.InlineNames{}, nil); errs != nil {
+		if errs := structuralErrors(g, opts, desugar.InlineNames{}, checkfacts.Source{}, nil); errs != nil {
 			t.Errorf("%s: structural errors on an accepted grammar: %v", name, errs)
 		}
 	}

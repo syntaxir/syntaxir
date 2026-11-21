@@ -15,6 +15,7 @@ import (
 	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
+	"syntaxir.dev/sxir/internal/middleend/checkfacts"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -60,7 +61,7 @@ func checkForGenerator(g *ast.Grammar, opts compile.Options) (*compile.Program, 
 // inline actions in errors as written.
 func check(g *ast.Grammar, opts compile.Options, flags []compile.RuleFlags) (*compile.Program, error) {
 	names := desugar.InlineNames{}
-	prog, err := frontend.Check(g, opts, flags, names, nil)
+	prog, err := frontend.Check(g, opts, flags, names, checkfacts.Source{}, nil)
 	if err != nil {
 		return nil, names.Rewrite(err)
 	}

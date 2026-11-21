@@ -1,8 +1,6 @@
 package frontend
 
 import (
-	"slices"
-
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/diagnostic"
@@ -10,24 +8,38 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
+// A FactSource computes the rule facts of the structural module of a grammar for the front end,
+// which reads them and computes none itself: the facts are the Core analyses of the middle end
+// (checkfacts.Source), held by the analysis manager of the module.
+type FactSource interface {
+	// RuleFacts returns the rule facts that the compiler reads of the module m of the rules defs,
+	// with the binding errors, from the facts that am holds of m.
+	RuleFacts(am *pass.AnalysisManager[*core.Module], m *core.Module, defs []*ast.RuleDef) *compile.RuleFacts
+	// Errors returns the structural errors of the module m of the rules defs, in the order of the
+	// facts; with bindings, a binding inside left recursion is an error too.
+	Errors(am *pass.AnalysisManager[*core.Module], m *core.Module, defs []*ast.RuleDef, bindings bool) diagnostic.ErrorList
+	// Sites numbers the sites of the module m of prog's rules with the rule flags of prog.
+	Sites(m *core.Module, prog *compile.Program, control *cancel.Control) compile.Sites
+}
+
 // Check checks g into its static program (compile.CheckCanonical) with the rule facts and the site
-// numbers of the untyped Core IR module of its rules: the compiler takes every rule fact from the
-// Core facts (internal/middleend/corepass). names receives the hidden rules that the lowering of
-// inline actions generates. If flags is not nil, the rules take the flags of a compiled grammar
+// numbers of the untyped Core IR module of its rules, which facts computes: the compiler takes
+// every rule fact from the Core facts. names receives the hidden rules that the lowering of inline
+// actions generates. If flags is not nil, the rules take the flags of a compiled grammar
 // (compile.Program.Flags), and the sites are numbered with them. A non-nil control polls for
 // cancellation.
-func Check(g *ast.Grammar, opts compile.Options, flags []compile.RuleFlags, names desugar.InlineNames, control *cancel.Control) (*compile.Program, error) {
-	prog, _, err := CheckStructural(g, opts, flags, names, control)
+func Check(g *ast.Grammar, opts compile.Options, flags []compile.RuleFlags, names desugar.InlineNames, facts FactSource, control *cancel.Control) (*compile.Program, error) {
+	prog, _, err := CheckStructural(g, opts, flags, names, facts, control)
 	return prog, err
 }
 
 // Structural is the untyped Core IR module of the canonical rules of a grammar, from which Check
-// takes the rule facts, with the manager of its analyses, which holds those facts.
+// takes the rule facts, with the manager of its analyses, which holds those facts. A tool reads
+// the facts through the manager (corepass.FactsOf).
 type Structural struct {
 	// Canonical is the grammar as the compiler canonicalized it; Rules are its unique rules, in
 	// the order of the rules of Module.
@@ -41,29 +53,26 @@ type Structural struct {
 	failure any
 }
 
-// Facts returns the rule facts of the module, through its analyses.
-func (s *Structural) Facts() *corepass.Facts { return corepass.FactsOf(s.Analyses, s.Module) }
-
 // CheckStructural is Check that also returns the structural module the facts were taken from, so
 // that a caller reads them without building the module and computing them again. The module is
 // returned with an error too, unless canonicalization failed.
-func CheckStructural(g *ast.Grammar, opts compile.Options, flags []compile.RuleFlags, names desugar.InlineNames, control *cancel.Control) (*compile.Program, *Structural, error) {
+func CheckStructural(g *ast.Grammar, opts compile.Options, flags []compile.RuleFlags, names desugar.InlineNames, facts FactSource, control *cancel.Control) (*compile.Program, *Structural, error) {
 	s, err := buildStructural(g, opts, names, control)
 	if err != nil {
 		return nil, nil, err
 	}
-	var facts *compile.RuleFacts
+	var ruleFacts *compile.RuleFacts
 	if s.Module != nil {
-		facts = ruleFacts(s.Module, s.Facts(), s.Rules)
+		ruleFacts = facts.RuleFacts(s.Analyses, s.Module, s.Rules)
 	} else {
 		// The module cannot be built from a grammar with an error that the compiler reports, such
 		// as a malformed attribute. The rules then take no facts, so that the compiler still
 		// reports every error it finds.
-		facts = &compile.RuleFacts{Rules: make([]compile.RuleFact, len(s.Rules))}
+		ruleFacts = &compile.RuleFacts{Rules: make([]compile.RuleFact, len(s.Rules))}
 	}
-	prog, err := compile.CheckCanonical(s.Canonical, opts, flags, names, facts, control)
+	prog, err := compile.CheckCanonical(s.Canonical, opts, flags, names, ruleFacts, control)
 	if err != nil {
-		return nil, s, mergeErrors(err, s.errors(opts, names))
+		return nil, s, mergeErrors(err, s.errors(opts, names, facts))
 	}
 	if s.failure != nil {
 		// A grammar that the compiler accepts has a module: the failure is a bug, which keeps
@@ -75,36 +84,37 @@ func CheckStructural(g *ast.Grammar, opts compile.Options, flags []compile.RuleF
 	}
 	// The fact errors are reported for a grammar the compiler accepts too: the compiler no longer
 	// checks what the facts check (for example a splice rule that contains itself).
-	if fe := s.errors(opts, names); len(fe) > 0 {
+	if fe := s.errors(opts, names, facts); len(fe) > 0 {
 		return nil, s, fe
 	}
-	prog.SetSites(sites(s.Module, prog, control))
+	prog.SetSites(facts.Sites(s.Module, prog, control))
 	return prog, s, nil
 }
 
 // Typed is what the complexity classifier reads of a checked grammar: the grammar as the compiler
 // canonicalized it, its default start rule, its unique rules with the untyped Core IR module they
-// were elaborated into, with its origin map (core.Module.Origin), and the facts of that module, and the
-// value types of its terms.
+// were elaborated into, with its origin map (core.Module.Origin), and the manager of the analyses of
+// that module, which holds its facts, and the value types of its terms.
 type Typed struct {
 	Grammar      *ast.Grammar
 	DefaultStart string
 	Rules        []*ast.RuleDef
 	Module       *core.Module
-	Facts        *corepass.Facts
+	Analyses     *pass.AnalysisManager[*core.Module]
 	Types        *check.ValueRecord
 }
 
 // CheckTyped checks g with the default options, without building matchers, and returns what the
 // classifier reads of it. names receives the hidden rules that the lowering of inline actions
-// generates. It returns an error if g does not compile.
-func CheckTyped(g *ast.Grammar, names desugar.InlineNames, control *cancel.Control) (*Typed, error) {
-	prog, st, err := CheckStructural(g, compile.Options{}, nil, names, control)
+// generates; facts computes the facts that the check reads. It returns an error if g does not
+// compile.
+func CheckTyped(g *ast.Grammar, names desugar.InlineNames, facts FactSource, control *cancel.Control) (*Typed, error) {
+	prog, st, err := CheckStructural(g, compile.Options{}, nil, names, facts, control)
 	if err != nil {
 		return nil, err
 	}
 	return &Typed{Grammar: prog.Grammar, DefaultStart: prog.DefaultStartRule, Rules: st.Rules,
-		Module: st.Module, Facts: st.Facts(), Types: prog.ValueRecord()}, nil
+		Module: st.Module, Analyses: st.Analyses, Types: prog.ValueRecord()}, nil
 }
 
 // buildStructural canonicalizes g and builds the untyped Core IR module of its unique rules. A
@@ -117,7 +127,7 @@ func buildStructural(g *ast.Grammar, opts compile.Options, names desugar.InlineN
 		return nil, err
 	}
 	defs, _ := desugar.UniqueRules(canon.Grammar, control)
-	s := &Structural{Canonical: canon, Rules: defs, Analyses: corepass.NewAnalyses(control)}
+	s := &Structural{Canonical: canon, Rules: defs, Analyses: newAnalyses(control)}
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -137,55 +147,11 @@ func buildStructural(g *ast.Grammar, opts compile.Options, names desugar.InlineN
 	return s, nil
 }
 
-// ruleFacts returns the facts that the compiler reads, of the module m of the rules defs, whose
-// facts are f.
-func ruleFacts(m *core.Module, f *corepass.Facts, defs []*ast.RuleDef) *compile.RuleFacts {
-	out := &compile.RuleFacts{Rules: make([]compile.RuleFact, len(defs))}
-	for i := range defs {
-		r := &f.Rules[i]
-		rf := compile.RuleFact{Cycle: r.Cycle, Leader: r.Leader, Member: r.Member,
-			CycleIns: r.CycleIns, LeaderIns: r.LeaderIns, MemberIns: r.MemberIns,
-			Positional: r.Positional, Transient: r.Transient, Rec: r.Rec, Vars: r.Vars}
-		if r.Recovering >= 0 {
-			rf.Recovering = m.Rules[r.Recovering].Name
-		}
-		if o, ok := m.Rules[i].Body.(*core.OperatorsRule); ok {
-			rf.LeftOperands = make([]bool, len(o.Operands))
-			for k, l := range o.Operands {
-				rf.LeftOperands[k] = slices.Contains(f.LeftCalls(l.Body, false), i) || slices.Contains(f.LeftCalls(l.Body, true), i)
-			}
-		}
-		out.Rules[i] = rf
+// newAnalyses returns a manager of the analyses of a module for work under control, which may be
+// nil.
+func newAnalyses(control *cancel.Control) *pass.AnalysisManager[*core.Module] {
+	if control == nil {
+		return pass.NewAnalysisManager[*core.Module](nil)
 	}
-	for _, e := range f.BindingErrors(m) {
-		pos := m.Origin.Of(e.Node).(*ast.Predicate).Action.(*ast.Bind).Diagnostic()
-		out.BindingErrors = append(out.BindingErrors, &diagnostic.Error{Pos: pos, Msg: e.Msg})
-	}
-	return out
-}
-
-// sites numbers the sites of the module m of prog's rules with the rule flags of prog, keyed by
-// the repetitions of the grammar that the module's repetitions were built from.
-func sites(m *core.Module, prog *compile.Program, control *cancel.Control) compile.Sites {
-	rules := make([]corepass.SiteRule, len(prog.RuleList))
-	for i, r := range prog.RuleList {
-		rules[i] = corepass.SiteRule{LeftRec: r.Leader || r.Member, Vars: r.Vars, Declared: compile.DeclaredBeyondScan(r.Def)}
-	}
-	s := corepass.ComputeSites(m, rules, control)
-	key := func(in map[*core.Repeat]int) map[*ast.Repeat]int {
-		out := make(map[*ast.Repeat]int, len(in))
-		for n, site := range in {
-			out[m.Origin.Of(n).(*ast.Repeat)] = site
-		}
-		return out
-	}
-	var runKeys map[int]compile.RunKey
-	for site, k := range s.RunKeys {
-		if runKeys == nil {
-			runKeys = make(map[int]compile.RunKey, len(s.RunKeys))
-		}
-		runKeys[site] = compile.RunKey{Vars: k.Vars, Bind: k.Bind}
-	}
-	return compile.Sites{Skip: key(s.Skip), Run: key(s.Run), Scan: key(s.Scan),
-		NumSkip: s.NumSkip, NumRun: s.NumRun, NumScan: s.NumScan, EnvFree: s.EnvFreeSites(), RunKeys: runKeys}
+	return pass.NewAnalysisManager[*core.Module](control.Ctx)
 }

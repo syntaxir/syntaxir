@@ -7,6 +7,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/middleend/checkfacts"
 	"syntaxir.dev/sxir/internal/testing/factstest"
 )
 
@@ -34,7 +35,7 @@ func TestErrorsGolden(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", tc.name, err)
 		}
-		_, err = Run(g, compile.Options{}, nil)
+		_, err = Run(g, compile.Options{}, checkfacts.Source{}, nil)
 		if err == nil {
 			t.Fatalf("%s: compiled", tc.name)
 		}

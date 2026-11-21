@@ -8,6 +8,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/checkfacts"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 	"syntaxir.dev/sxir/internal/testing/factstest"
@@ -24,9 +25,9 @@ var variants = []struct {
 	{"default value", compile.Options{DefaultValue: true}},
 }
 
-// TestRunMatchesCompile requires, for every corpus grammar and variant, that Run's module prints as
-// the module built directly from the compiled program, that its facts are the module's facts and
-// that it has no fact error.
+// TestRunMatchesCompile requires, for every corpus grammar and variant, that Run's module, once its
+// facts are asked for, prints as the module built directly from the compiled program with its facts,
+// that the facts cover the module's rules and that it has no fact error.
 func TestRunMatchesCompile(t *testing.T) {
 	t.Parallel()
 	for _, path := range factstest.Corpus {
@@ -46,17 +47,18 @@ func TestRunMatchesCompile(t *testing.T) {
 					t.Fatal(err)
 				}
 				corepass.Compute(want, nil) // Run's module has its facts set
-				res, err := frontend.Run(g, v.opts, nil)
+				res, err := frontend.Run(g, v.opts, checkfacts.Source{}, nil)
 				if err != nil {
 					t.Fatalf("%s: %v", v.name, err)
 				}
+				facts := corepass.FactsOf(res.Analyses, res.Module) // sets the module's facts, as Compute does
 				if got, want := core.Print(res.Module, true), core.Print(want, true); got != want {
 					t.Errorf("%s: module differs:\n%s\nwant\n%s", v.name, got, want)
 				}
-				if len(res.Facts.Rules) != len(res.Module.Rules) {
-					t.Errorf("%s: facts for %d rules, module has %d", v.name, len(res.Facts.Rules), len(res.Module.Rules))
+				if len(facts.Rules) != len(res.Module.Rules) {
+					t.Errorf("%s: facts for %d rules, module has %d", v.name, len(facts.Rules), len(res.Module.Rules))
 				}
-				if errs := res.Facts.Errors(res.Module, true); len(errs) != 0 {
+				if errs := facts.Errors(res.Module, true); len(errs) != 0 {
 					t.Errorf("%s: fact errors %v", v.name, errs)
 				}
 			}
@@ -75,7 +77,7 @@ func TestRunReportsCompileErrors(t *testing.T) {
 	if want == nil {
 		t.Fatal("the grammar compiles")
 	}
-	res, got := frontend.Run(g, compile.Options{}, nil)
+	res, got := frontend.Run(g, compile.Options{}, checkfacts.Source{}, nil)
 	if res != nil || got == nil || got.Error() != want.Error() {
 		t.Fatalf("Run = %v, %v; want the error %v", res, got, want)
 	}

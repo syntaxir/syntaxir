@@ -1,6 +1,7 @@
 package archtest
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -74,16 +75,45 @@ var generatorReaders = []string{
 // reaches the checked program of the compiler, directly or through another package.
 func TestGeneratorsReadNoCheckedProgram(t *testing.T) {
 	for _, g := range loadAll(t) {
-		for _, rel := range generatorReaders {
-			from := modulePath + "/" + rel
-			if _, ok := g.pkgs[from]; !ok {
-				t.Fatalf("build %q: no package %s", g.tags, rel)
-			}
-			if chain := g.shortestChain([]string{from}, checkedProgramPackage, func(a, b string) bool { return inModule(b) }); chain != nil {
-				t.Errorf("build %q: %s reaches the checked program: %s", g.tags, rel, strings.Join(chain, " -> "))
-			}
+		for _, msg := range generatorsReachingCheckedProgram(t, g) {
+			t.Error(msg)
 		}
 	}
+}
+
+// TestGeneratorsReadNoCheckedProgramControl checks that the check fires for a generator that
+// imports internal/middleend/checkfacts, which hands the front end the rule facts in the types of
+// the checked program: the facts reach the generators through corepass, never through checkfacts.
+func TestGeneratorsReadNoCheckedProgramControl(t *testing.T) {
+	g := loadAll(t)[0].clone()
+	from, via := modulePath+"/internal/backend/codegen/golang/print", modulePath+"/internal/middleend/checkfacts"
+	if _, ok := g.pkgs[via]; !ok {
+		t.Fatalf("no package %s", via)
+	}
+	g.pkgs[from].Imports = append(g.pkgs[from].Imports, via)
+	msgs := generatorsReachingCheckedProgram(t, g)
+	if !slices.ContainsFunc(msgs, func(m string) bool {
+		return strings.Contains(m, "internal/backend/codegen/golang/print reaches the checked program: "+from+" -> "+via+" -> ")
+	}) {
+		t.Errorf("a generator that imports checkfacts passes the check: %q", msgs)
+	}
+}
+
+// generatorsReachingCheckedProgram reports each package of generatorReaders that reaches the
+// checked program in g, with the shortest chain of imports.
+func generatorsReachingCheckedProgram(t *testing.T, g *graph) []string {
+	t.Helper()
+	var msgs []string
+	for _, rel := range generatorReaders {
+		from := modulePath + "/" + rel
+		if _, ok := g.pkgs[from]; !ok {
+			t.Fatalf("build %q: no package %s", g.tags, rel)
+		}
+		if chain := g.shortestChain([]string{from}, checkedProgramPackage, func(a, b string) bool { return inModule(b) }); chain != nil {
+			msgs = append(msgs, fmt.Sprintf("build %q: %s reaches the checked program: %s", g.tags, rel, strings.Join(chain, " -> ")))
+		}
+	}
+	return msgs
 }
 
 // analysisPackages are the analyses and tools that check a grammar through the front end

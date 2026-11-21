@@ -19,6 +19,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/frontend/schemaexport"
 	ir "syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/checkfacts"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/pkg/bytecode"
@@ -51,7 +52,7 @@ func Compile(g *ast.Grammar, opts compile.Options, control *cancel.Control) (*So
 // errors name the rules as written, not the hidden rules that inline actions are lowered to.
 func Check(g *ast.Grammar, opts compile.Options, flags []compile.RuleFlags, control *cancel.Control) (*Source, error) {
 	names := desugar.InlineNames{}
-	prog, err := frontend.Check(g, opts, flags, names, control)
+	prog, err := frontend.Check(g, opts, flags, names, checkfacts.Source{}, control)
 	if err != nil {
 		return nil, names.Rewrite(err)
 	}

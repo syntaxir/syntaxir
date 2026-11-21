@@ -19,6 +19,7 @@ import (
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
+	"syntaxir.dev/sxir/internal/middleend/checkfacts"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -202,7 +203,7 @@ func checkGrammar(ctx context.Context, g *ast.Grammar) (res *frontend.Result, er
 		return nil, err
 	}
 	if ctx.Done() == nil {
-		return frontend.RunDefault(g, nil)
+		return frontend.RunDefault(g, checkfacts.Source{}, nil)
 	}
 	defer func() {
 		if failure := recover(); failure != nil {
@@ -213,7 +214,7 @@ func checkGrammar(ctx context.Context, g *ast.Grammar) (res *frontend.Result, er
 			}
 		}
 	}()
-	return frontend.RunDefault(g, &cancel.Control{Ctx: ctx})
+	return frontend.RunDefault(g, checkfacts.Source{}, &cancel.Control{Ctx: ctx})
 }
 
 // options validates c.Disable and returns the options of the run.

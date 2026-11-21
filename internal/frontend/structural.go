@@ -15,35 +15,21 @@ import (
 // if g cannot be built into such a module (the compiler then reports why); the errors are in the
 // order of Facts.Errors, with the names of the hidden rules that inline actions generate shown as
 // written.
-func structuralErrors(g *ast.Grammar, opts compile.Options, names desugar.InlineNames, control *cancel.Control) diagnostic.ErrorList {
+func structuralErrors(g *ast.Grammar, opts compile.Options, names desugar.InlineNames, facts FactSource, control *cancel.Control) diagnostic.ErrorList {
 	s, err := buildStructural(g, opts, names, control)
 	if err != nil {
 		return nil
 	}
-	return s.errors(opts, names)
+	return s.errors(opts, names, facts)
 }
 
-// errors returns the structural errors of the module (structuralErrors), with the facts that its
-// analyses hold.
-func (s *Structural) errors(opts compile.Options, names desugar.InlineNames) diagnostic.ErrorList {
+// errors returns the structural errors of the module (structuralErrors), which facts computes from
+// the facts that its analyses hold.
+func (s *Structural) errors(opts compile.Options, names desugar.InlineNames, facts FactSource) diagnostic.ErrorList {
 	if s == nil || s.Module == nil {
 		return nil
 	}
-	m, defs := s.Module, s.Rules
-	f := s.Facts()
-	var out diagnostic.ErrorList
-	for _, e := range f.Errors(m, !opts.LeftRecursionBindings) {
-		var pos ast.Pos
-		switch x := m.Origin.Of(e.Node).(type) {
-		case *ast.Predicate:
-			pos = x.Action.(*ast.Bind).Diagnostic()
-		case *ast.Attributed:
-			pos = x.Attrs[0].Diagnostic()
-		default:
-			pos = defs[e.Rule.ID].Diagnostic()
-		}
-		out = append(out, &diagnostic.Error{Pos: pos, Msg: e.Msg})
-	}
+	out := facts.Errors(s.Analyses, s.Module, s.Rules, !opts.LeftRecursionBindings)
 	if len(out) == 0 {
 		return nil
 	}

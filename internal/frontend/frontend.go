@@ -1,7 +1,9 @@
 // Package frontend turns a grammar into its checked form: the compiled program with its types
-// and rule flags, the Core IR module built from it, and the facts computed on the module. It is
-// the one place that answers what a grammar means; the backends and the tools that analyze a
-// grammar (lint, the language server) read its Result.
+// and rule flags, the Core IR module built from it, and the manager of the analyses of the module,
+// through which the tools read the facts that the middle end computes on it. The check reads the
+// rule facts of the structural module from a FactSource that the caller hands it. It is the one
+// place that answers what a grammar means; the backends and the tools that analyze a grammar
+// (lint, the language server) read its Result.
 //
 // Run reports the errors the compiler finds. The compiler's Check makes the program; the program
 // and the type model still live in the compiler, so the front end imports it until they move to
@@ -14,7 +16,6 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -28,9 +29,8 @@ type Result struct {
 	Program *compile.Program
 	// Module is the Core IR of the program, with its origin map (core.Module.Origin).
 	Module *core.Module
-	// Facts are the grammar facts of Module, which Analyses holds.
-	Facts *corepass.Facts
-	// Analyses is the manager of the analyses of Module, which the tools read them through.
+	// Analyses is the manager of the analyses of Module, through which the tools read its facts
+	// (corepass.FactsOf); the front end computes none of them.
 	Analyses *pass.AnalysisManager[*core.Module]
 }
 
@@ -45,16 +45,16 @@ func (r *Result) InlineNames() desugar.InlineNames { return r.Program.InlineName
 
 // RunDefault is Run with the default options, for the tools that check a grammar without
 // compiling it for a backend.
-func RunDefault(g *ast.Grammar, control *cancel.Control) (*Result, error) {
-	return Run(g, compile.Options{}, control)
+func RunDefault(g *ast.Grammar, facts FactSource, control *cancel.Control) (*Result, error) {
+	return Run(g, compile.Options{}, facts, control)
 }
 
-// Run checks g with the compiler's options opts. A non-nil control polls for cancellation. The
-// error is the compiler's error list, with the names of the hidden rules that inline actions
-// generate shown as written.
-func Run(g *ast.Grammar, opts compile.Options, control *cancel.Control) (*Result, error) {
+// Run checks g with the compiler's options opts, reading the facts that facts computes. A non-nil
+// control polls for cancellation. The error is the compiler's error list, with the names of the
+// hidden rules that inline actions generate shown as written.
+func Run(g *ast.Grammar, opts compile.Options, facts FactSource, control *cancel.Control) (*Result, error) {
 	names := desugar.InlineNames{}
-	prog, _, err := CheckStructural(g, opts, nil, names, control)
+	prog, _, err := CheckStructural(g, opts, nil, names, facts, control)
 	if err != nil {
 		return nil, names.Rewrite(err)
 	}
@@ -68,6 +68,5 @@ func FromProgram(prog *compile.Program, control *cancel.Control) (*Result, error
 	if err != nil {
 		return nil, err
 	}
-	am := corepass.NewAnalyses(control)
-	return &Result{Program: prog, Module: m, Facts: corepass.FactsOf(am, m), Analyses: am}, nil
+	return &Result{Program: prog, Module: m, Analyses: newAnalyses(control)}, nil
 }

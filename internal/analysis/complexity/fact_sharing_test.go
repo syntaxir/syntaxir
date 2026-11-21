@@ -7,6 +7,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/middleend/checkfacts"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/pass"
 )
@@ -28,7 +29,7 @@ func TestTypedClassifierSharesFacts(t *testing.T) {
 		t.Fatal(err)
 	}
 	separate := factComputations(func() {
-		prog, err := frontend.Check(g, compile.Options{}, nil, desugar.InlineNames{}, nil)
+		prog, err := frontend.Check(g, compile.Options{}, nil, desugar.InlineNames{}, checkfacts.Source{}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
