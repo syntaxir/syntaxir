@@ -516,67 +516,82 @@ The groups are addressed by these mechanisms:
   the fold reaches starts with the closing indentation, so the joins copy no more than the input and the families
   measure linear, but the classifier sees a copy of a value from outside the lambda for each element. Testing the
   indentation in the check that already tests strings with interpolations removes the fold.
+- **Value-size refinement.** Folds that read values of a recursion whose size the classifier does not bound: Python's
+  keyword arguments and implicitly joined strings read the values of `star_expressions`, and TypeScript's union and
+  intersection folds read values of a type recursion. TypeScript's families measure linear; Python's measure n²
+  because of the accumulator copy of the in-place fold group.
+- **Lookahead-capture refinement.** A value that can hold a capture in a positive lookahead is not bounded by the input
+  that the match consumes. TypeScript's JSX element names compare the capture of the opening tag with the closing tag,
+  which is a false positive: each tag consumes its name right after the lookahead that captures it, and the families
+  measure linear.
+- **Unassigned groups.** TypeScript's literals (the digits of a decimal literal and the characters of a string, read
+  again by the alternative that follows) measure linear. DuckDB's block comments nest through a recursion in which the
+  alternative that opens a comment is not committing against the one that consumes a character, so a run of
+  `/*x` that is never closed measures n² (2.00 on the closure backend and the others); no mechanism is assigned to it
+  yet.
 
 | Grammar | Group | Causes | Addressed by | Families | Worst exponent | Order |
 |:--|:--|--:|:--|--:|--:|:--|
 | csv | quoted-field | 1 | token-scan refinement | 2 | 1.00 | n |
-| xml | nested | 4 | open | 3 | 1.02 | n |
+| xml | nested | 3 | open | 3 | 1.02 | n |
 | xml | prolog-misc | 1 | open | 4 | 1.00 | n |
-| xml | mixed | 1 | token-scan refinement | 1 | 1.00 | n |
 | xml | name-scan | 4 | token-scan refinement | 3 | 1.00 | n |
 | xml | ws-option | 4 | token-scan refinement | 2 | 1.00 | n |
 | cel | nested | 19 | open | 6 | 1.00 | n |
-| cel | names | 2 | token-scan refinement | 2 | 1.00 | n |
-| cel | space | 1 | repetition-run reuse | 2 | 1.81 | n² |
-| cel | number-tokens | 3 | token-scan refinement | 2 | 1.00 | n |
+| cel | names | 1 | token-scan refinement | 2 | 1.00 | n |
+| cel | space | 2 | repetition-run reuse | 2 | 1.81 | n² |
+| cel | number-tokens | 5 | token-scan refinement | 2 | 1.00 | n |
 | cel | string-tokens | 2 | token-scan refinement | 1 | 1.04 | n |
 | outline | nested | 2 | open | 1 | 0.97 | n |
 | outline | blank-lines | 2 | token-scan refinement | 2 | 1.00 | n |
 | minilang | recover | 2 | open | 3 | 1.01 | n |
 | minilang | nested-operators | 1 | open | 2 | 1.99 | n² |
 | minilang | nested-operator-parts | 8 | open | 2 | 1.99 | n² |
-| calc | nested-operators | 3 | repetition-run reuse | 3 | 1.98 | n² |
-| golang | nested | 166 | open | 12 | 1.01 | n |
+| golang | nested | 157 | open | 14 | 1.01 | n |
 | golang | comments | 16 | token-scan refinement | 7 | 1.01 | n |
 | golang | identifiers | 1 | token-scan refinement | 2 | 1.00 | n |
 | golang | line-directives | 4 | token-scan refinement | 2 | 1.01 | n |
 | golang | numbers | 3 | token-scan refinement | 2 | 1.00 | n |
-| duckdb | nested | 675 | open | 16 | 1.01 | n |
+| duckdb | nested | 624 | open | 16 | 1.01 | n |
 | duckdb | operator-tails | 15 | repetition-run reuse | 5 | 1.96 | n² |
 | duckdb | strings | 4 | token-scan refinement | 5 | 1.00 | n |
 | python | bounded-variables | 2 | bounded-binding refinement | 5 | 1.01 | n |
-| python | except-star-handlers | 3 | grammar rewrite | 2 | 1.91 | n² |
+| python | except-star-handlers | 4 | grammar rewrite | 2 | 1.91 | n² |
 | python | fold-copies | 16 | in-place fold accumulators | 4 | 2.00 | n² |
-| python | nested | 183 | open | 10 | 1.03 | n |
+| python | nested | 146 | open | 11 | 1.03 | n |
 | python | module-whitespace | 4 | token-scan refinement | 1 | 1.00 | n |
-| python | tokens | 20 | token-scan refinement | 6 | 1.00 | n |
-| python | whitespace | 70 | token-scan refinement | 5 | 1.00 | n |
-| typescript | nested | 266 | open | 23 | 1.01 | n |
-| typescript | identifiers | 239 | token-scan refinement | 5 | 1.00 | n |
-| typescript | whitespace-and-templates | 3 | token-scan refinement | 3 | 1.00 | n |
+| python | tokens | 17 | token-scan refinement | 8 | 1.00 | n |
+| python | whitespace | 53 | token-scan refinement | 5 | 1.00 | n |
+| typescript | nested | 257 | open | 28 | 1.01 | n |
+| typescript | identifiers | 5 | token-scan refinement | 5 | 1.00 | n |
+| typescript | whitespace-and-templates | 2 | token-scan refinement | 3 | 1.00 | n |
 | cue | hash-count | 1 | bounded-binding refinement | 2 | 1.00 | n |
 | cue | multi-line-indentation | 1 | grammar rewrite | 2 | 1.00 | n |
 | cue | string-bodies | 6 | token-scan refinement | 5 | 1.00 | n |
-| cue | interpolation-lists | 4 | grammar rewrite | 3 | 1.88 | n² |
 | cue | interpolation-copies | 10 | grammar rewrite | 0 | – | n² |
 | cue | file-clauses | 2 | open | 2 | 0.99 | n |
 | cue | nested | 52 | open | 8 | 1.01 | n |
 | cue | definitions | 5 | token-scan refinement | 3 | 1.00 | n |
-| cue | numbers | 7 | token-scan refinement | 6 | 1.00 | n |
+| cue | numbers | 5 | token-scan refinement | 6 | 1.00 | n |
 | cue | raw-strings | 10 | token-scan refinement | 5 | 1.00 | n |
-| cue | whitespace | 13 | token-scan refinement | 5 | 1.00 | n |
-| cue | nested-operators | 2 | repetition-run reuse | 1 | 1.93 | n² |
+| cue | whitespace | 12 | token-scan refinement | 5 | 1.00 | n |
 | yaml | indentation-bindings | 2 | bounded-binding refinement | 3 | 0.99 | n |
-| yaml | nested | 38 | open | 5 | 1.00 | n |
-| yaml | block-scalars | 3 | token-scan refinement | 3 | 1.00 | n |
-| yaml | directives-and-tags | 3 | token-scan refinement | 3 | 1.00 | n |
+| yaml | nested | 36 | open | 5 | 1.00 | n |
+| yaml | block-scalars | 4 | token-scan refinement | 3 | 1.00 | n |
+| yaml | directives-and-tags | 2 | token-scan refinement | 3 | 1.00 | n |
 | yaml | scalars | 4 | token-scan refinement | 4 | 1.00 | n |
-| yaml | separation | 22 | token-scan refinement | 6 | 1.00 | n |
+| yaml | separation | 15 | token-scan refinement | 6 | 1.00 | n |
 | yaml | stream-prefix | 1 | token-scan refinement | 1 | 1.00 | n |
+| duckdb | nested-comments | 1 | unassigned | 1 | 2.00 | n² |
+| python | value-sizes | 8 | value-size refinement | 1 | 1.97 | n² |
+| typescript | literals | 6 | unassigned | 2 | 0.99 | n |
+| typescript | value-sizes | 2 | value-size refinement | 2 | 0.98 | n |
+| typescript | jsx-names | 1 | lookahead-capture refinement | 2 | 1.00 | n |
 
 No cause is inherent. Every group either measures linear on every family derived from its witnesses, or its
 super-linear cost comes from a construct of the grammar or the runtime (a restarted scan, a copied accumulator, a
-recursion that copies its own list) that a linear formulation of the same language avoids. No family needs a budget
+recursion that copies its own list, the nesting of block comments) that a linear formulation of the same language
+avoids. No family needs a budget
 beyond the linear one, so no group carries budget guidance.
 
 ## Literature
