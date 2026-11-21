@@ -873,7 +873,7 @@ type VarRef struct {
 	Name       string `json:"name"`
 }
 
-// Member is a field reference x.Name, or, when Name is "$" and a capture name, the capture
+// Member is a field access x.Name, or, when Name is "$" and a capture name, the capture
 // access x.$y, which reads capture y of the node x.
 type Member struct {
 	SourceInfo `json:"source,omitempty"`
@@ -984,7 +984,7 @@ type Unary struct {
 	X          ActionExpr `json:"x"`
 }
 
-// Cast is a type assertion x.(Type): its value is x, which must be a Type.
+// Cast is a cast x.(Type): its value is x, which must be a Type.
 type Cast struct {
 	SourceInfo `json:"source,omitempty"`
 	X          ActionExpr `json:"x"`

@@ -1,3 +1,13 @@
+// Package bytecode defines the module that a SyntaxIR grammar compiles to, which the bytecode VM
+// runs, and its compiled-file format: the instruction set of match code (Op, Instr), the tables of a
+// module (Module and the Info types), term code (Term), Flow bodies (Flow), the encoding of the
+// compiled-file format (Encoder, Decoder, WriteModule, ReadModule, FileMagic) and the load-time
+// validation of a module (ValidateModule). spec/bytecode/README.md specifies all of them; the
+// instruction set changes with its version, ISAVersion.
+//
+// Package compiler makes modules (compiler.Marshal writes one as a compiled grammar file) and package
+// runtime/vm loads and runs them; most programs use those packages and not this one. Like all of
+// the module API at v0.x, this package may change in any release.
 package bytecode
 
 import (
@@ -18,15 +28,16 @@ type Module struct {
 	Starts         []int
 	DefaultStart   int
 	OperatorsRules []OperatorsRuleInfo
-	Code           []Instr // matching code
+	Code           []Instr // match code
 	// Ints holds the wide integers that REPEATW, SCANW and SKIPREPEAT refer to: repetition bounds
 	// beyond the range of an operand.
 	Ints []int64
 	// Terms holds the term code of the actions, predicates and bindings.
 	Terms []Term
-	// SourceInfo reports that the values record source information (Options.SourceInfo).
+	// SourceInfo reports that the values record source information (compiler.WithSourceInfo).
 	SourceInfo bool
-	// DefaultValue reports that value actions were dropped (Options.DefaultValue).
+	// DefaultValue reports that value actions were dropped for default values
+	// (compiler.WithDefaultValue).
 	DefaultValue bool
 	// RunKeys holds the keys of the run sites that are not free of the environment, by increasing
 	// site.
@@ -88,10 +99,10 @@ type TypeInfo struct {
 	Name   int   // string table index
 	Fields []int // struct field names (string table indices)
 	// Zeros holds the zero descriptor of each field (string table indices, parallel to Fields): how
-	// a field that a constructor left unset reads (compile.Program.ZeroDesc).
+	// a field that a constructor left unset reads.
 	Zeros []int
 	// Node is, for a named node type, the underlying node type (string table index of its text,
-	// as ECAST writes types), and -1 for a struct type (instruction set 16).
+	// written as the type texts of casts are), and -1 for a struct type.
 	Node int
 }
 
@@ -105,7 +116,7 @@ const (
 // VarInfo describes a variable. Every parse starts with the variable bound to its initial value.
 type VarInfo struct {
 	Name int // string table index
-	Type int // varInt, varString or varBool
+	Type int // VarInt, VarString or VarBool
 	// Int is the initial value of an int variable, and 0 or 1 for a bool variable.
 	Int int
 	// Str is the string table index of the initial value of a string variable, and -1 for
@@ -116,7 +127,7 @@ type VarInfo struct {
 // RuleInfo describes a rule.
 type RuleInfo struct {
 	Name   int // string table index
-	Entry  int // start of the body code (for a OperatorsRule expression rule, a OPERATORS_RULE instruction followed by RETURN)
+	Entry  int // start of the body code (for a rule with an Operators Rule, an OPERATORS_RULE instruction followed by RETURN)
 	Scope  []int
 	Action int // term of the action (index of Terms, -1 if none)
 	// NodeType is the named node type the rule's value is converted to (string table index, -1 if
@@ -153,7 +164,7 @@ type RuleInfo struct {
 	Vars []int
 }
 
-// OperatorsRuleInfo is an Operators Rule expression table.
+// OperatorsRuleInfo is an entry of the Operators Rule table.
 type OperatorsRuleInfo struct {
 	Skip     int // start of the skip code (-1 if none)
 	Operands []LineInfo
@@ -172,8 +183,8 @@ type LineInfo struct {
 // OpInfo is an Operators Rule operator.
 type OpInfo struct {
 	ID    int
-	Kind  int // opPrefix, opPostfix, opInfix
-	Assoc int // assocLeft, assocRight, assocNone
+	Kind  int // OperatorPrefix, OperatorPostfix or OperatorInfix
+	Assoc int // AssocLeft, AssocRight or AssocNone
 	Level int
 	Line  LineInfo
 }

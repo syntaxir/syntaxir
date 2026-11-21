@@ -672,7 +672,7 @@ func (r *Decoder) termInstr() TermInstr {
 
 // ValidateModule checks that every table and instruction reference in the module is in range,
 // that jumps go forward (only the NEXT of a repetition jumps backward) and that every rule on a
-// cycle of calls is marked Rec (validateRec).
+// cycle of calls is marked Rec.
 // Recovery regions must not enclose a stream commitment. Other value-stack
 // and entry-stack invariants are not checked. fieldType checks the text of a field type, which
 // the type system above the module defines.
