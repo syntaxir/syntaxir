@@ -359,19 +359,26 @@ input, in an order that keeps the sum before each check point and each demand of
 - **Hoisting or sinking a check** may move it only between the points listed in [Checks and
   Overshoot](#checks-and-overshoot), and must keep K within its stated bound. It may not move a demand of a stream
   before events that the plain evaluation performs before that demand.
-- **Dispatch on the next character, guards and left factoring** are disabled under limit controls by default. The
-  plain evaluation of the grammar is the reference, and a skipped alternative must reproduce both its events and its
-  memo effects (the seen marks, stores and policy counts of its calls), or not be skipped. There is one exception: a
-  skipped alternative whose left corner is a fixed chain of calls that fails at its first terminal, where every rule
-  of the chain is
-  - not memoized and not the leader of a cycle of left recursion, the rules whose calls go straight to their bodies, and
-  - not transient (a rule that only a `Document` memoizes), so that a `Document` reparse, which looks such a rule
-    up, keeps the total of the plain evaluation.
+- **Dispatch on the next character, guards and left factoring** keep a guard under limit controls exactly when
+  skipping the alternative leaves the same observable state as evaluating it: the same unit total, the same limit
+  decision and the same memo state (the seen marks, policy counts and stored entries that later calls read, as in
+  [Memo Policy](#memo-policy)). Any other guard is disabled, and the alternative is tried. The plain evaluation of the
+  grammar is the reference. A pass establishes the equivalence statically, for alternatives that fail at a terminal
+  without advancing after a fixed set of calls on every character the guard rejects:
+  - the left corner of the alternative, followed through first items, captures, every alternative of a choice and
+    the first calls of each rule it reaches, ends in a non-empty literal or class on every branch, with no predicate,
+    action, binding, repetition or recovery before it;
+  - no rule of the chain is the leader of a cycle of left recursion, and no call names a binding level;
+  - a rule of the chain that the parse memoizes makes no call before its own failing terminal and reads no
+    variables, so that a later call of it at the position costs one unit whether its entry answers it or not.
 
-  Such a chain has no memo effects, no key and no input advanced. The pass charges the number of calls in the chain,
-  a static count, on the path that skips the alternative and only there; it may charge before it examines the next
-  character on that path. Step 2 measures how many dispatches of the benchmark grammars fall into this class and how
-  many are disabled.
+  The skip charges the calls of the chain, a static count, on the path that skips the alternative and only there,
+  and checks the counter; it may charge before it examines the next character on that path. For each call of a
+  memoized rule it makes the memo effects of the call: the seen mark and the policy counts of the first call, and
+  the failure entry, with the expectations of its terminal, that the call stores when its memoization is not
+  deferred. Whether a rule is memoized depends on the parse. A transient rule (one that only a `Document` memoizes)
+  goes straight to its body outside a `Document`, so its call there has no memo effect and its guards are kept. In a
+  `Document` parse its guards stay disabled ([Documents](#documents)).
 - **A pass that removes a call** (a value-free twin replaced by a recognizer, for example) charges the calls it
   removed and keeps their memo effects, or is not a pass that may run under limit controls.
 
@@ -391,6 +398,9 @@ What a reparse reuses decides what it counts: a reused result counts one call an
 reused counts its evaluation. The reuse policy of a `Document` (which results of earlier parses it keeps, which it
 retires and which a lookup finds) is therefore normative on every backend, like the store policy of the memo. Step 3
 states it in [Documents](../../../spec/runtime/documents.md), and the total-agreement test covers reparses.
+
+A `Document` memoizes transient rules under that reuse policy, so a guard whose chain calls one stays disabled in a
+`Document` parse: skipping the call would leave out an entry that a reparse may reuse.
 
 ### Streams
 
@@ -509,6 +519,11 @@ The parts of the earlier plan that have not landed are re-judged under the event
   insertion) are rejected within the bound.
 - **Passes.** Mutants that drop or double one charge in fusion, inlining, dispatch and check hoisting fail the
   differential test.
+- **Kept guards.** A grammar whose skipped calls of a memoized rule decide when that rule switches to storing every
+  first call: its total with the guards kept equals the total of an evaluation that tries every guarded alternative,
+  and mutants that charge the skipped calls without their seen marks, policy counts or stored entries fail it. The
+  same holds for transient rules outside a `Document`, and a `Document` reparse of the same grammar keeps the total
+  of the parse from scratch.
 - **Documents.** The first parse equals the parse from scratch on every backend. A reparse never exceeds the parse from
   scratch on the edit fuzz corpus.
 - **Streams.** Deliveries before an interruption are identical on every backend. Under the default limit, a sweep of
@@ -520,7 +535,7 @@ The parts of the earlier plan that have not landed are re-judged under the event
 
 ## Performance and Results
 
-No result yet. The prototype of step 2 is measured as follows.
+The prototype of step 2 was measured as follows; the results follow the method.
 
 - **Workloads.** JSON and XML of the benchmark suite. The wedge workloads: a calculator, a filter language and JSON,
   each in its idiomatic grammar, on short (under 1 KiB) and long (over 100 KiB) inputs. Hostile inputs for the
@@ -541,6 +556,41 @@ No result yet. The prototype of step 2 is measured as follows.
 - **Method.** Go 1.27.1 on one named machine, exclusive. At least ten alternating samples per configuration, reported
   as medians with ranges, and allocations per operation. The revisions are pinned, and the raw rows are kept with the
   benchmark measurements.
+
+Results on an Apple M3 Max with Go 1.27.1, from ten alternating rounds, each started once the one-minute load
+average was 8 or less. The parser without limit controls was run twice per round; the median ratio of the two runs
+was 0.993 to 1.009 in every round. Each figure is the median, over the rounds, of the time relative to the parser
+generated without limit controls in the same round:
+
+| Workload | Configuration | `Parse`, `Bytes` | `Parse`, `CodePoints` | `ParseValue`, `Bytes` | `ParseValue`, `CodePoints` |
+|:--|:--|--:|--:|--:|--:|
+| JSON | today's charging, finite limit | 1.279 | 1.208 | 1.296 | 1.270 |
+| JSON | logical units, guards through transient rules disabled | 1.250 | 1.202 | 1.151 | 1.113 |
+| JSON | logical units, guards through transient rules kept | 1.105 | 1.096 | 1.045 | 1.058 |
+| JSON | every guard kept and uncounted (a bound, not exact) | 1.078 | 1.078 | 1.021 | 1.031 |
+| XML | today's charging, finite limit | 1.327 | 1.315 | 1.390 | 1.390 |
+| XML | logical units, guards through transient rules disabled | 1.070 | 1.064 | 1.056 | 1.048 |
+| XML | logical units, guards through transient rules kept | 1.060 | 1.061 | 1.046 | 1.045 |
+| XML | every guard kept and uncounted (a bound, not exact) | 1.062 | 1.058 | 1.033 | 1.030 |
+
+- **Overhead.** XML meets the target with guards through transient rules disabled, and keeping them changes it
+  little. JSON misses it by up to 0.15 with them disabled: its value dispatch tries objects, arrays and null literals,
+  all transient rules, before the alternative that matches. With them kept, JSON is within the target except
+  `Parse` in `Bytes`, at 1.105.
+- **Units.** About 2.4 units per byte of the JSON input and 2.1 of the XML input, the same for `Parse` and
+  `ParseValue`. With guards kept by the equivalence, with or without those through transient rules, the totals equal
+  those of an evaluation that tries every guarded alternative, on valid, truncated and damaged inputs.
+- **Overshoot.** A sweep of limits accepts every input at its total and rejects it one unit below; the largest
+  overshoot was 21 units, against K + B = 4096.
+- **Dispatch.** Of 22 guard sites in the JSON parser, 14 are kept and 8 disabled when guards through transient rules
+  are disabled; of 136 in the XML parser, 102 and 34. With guards through transient rules kept outside a `Document`,
+  every site is kept in both.
+- **Size.** The code of the generated JSON parser is 51 KB without limit controls and 51 KB with logical units, 53
+  KB with guards through transient rules kept; the XML parser's is 289, 298 and 304 KB. Today's limit-controlled form
+  is about a fifth larger than the form without limit controls on both.
+- **Not measured.** The wedge workloads, hostile inputs, streams, and the failure entries of skipped memoized calls:
+  the prototype's skip made the seen marks and policy counts of those calls but stored no entry. Limits `Unlimited`
+  and a cancelable context ran within about 0.03 of a finite limit in an earlier round set.
 
 ## Limitations and Open Questions
 
@@ -564,12 +614,19 @@ The questions that this record raised are decided as follows, each with its reas
    literals, which the cost view reports; splitting literals would cost code in the hottest terminal for a case that
    grammars do not have.
 6. **The overhead target of the prototype is 1.10×** the time without limit controls on JSON and XML. If the prototype
-   misses it, the measured figure is reported and the design is reconsidered with it.
+   misses it, the measured figure is reported and the design is reconsidered with it. The prototype met it on XML. On
+   JSON it measured 1.113 to 1.250 with guards through transient rules disabled, and 1.045 to 1.105 with them kept
+   outside a `Document` ([Performance and Results](#performance-and-results)).
+7. **A dispatch guard is kept exactly when skipping is equivalent to evaluating** (decided 2026-11-21): the same unit
+   total, limit decision and memo state. The equivalence decides, not a kind of rule: a transient rule disables a
+   guard only where its call has memo effects, in a `Document` parse.
 
-Two questions were settled before this record. `Requested` is absent from compute errors, as decided on 2026-11-20;
+One question was settled before this record. `Requested` is absent from compute errors, as decided on 2026-11-20;
 this record changes only the `Used = Limit` part of that decision ([LimitError Contract](#limiterror-contract)).
-Dispatch is disabled under limits except for the static class in [Obligations of Optimization
-Passes](#obligations-of-optimization-passes), and step 2 measures what that costs.
+
+One question stays open: whether a `Document` parse can keep the guards through the rules it memoizes, by writing on
+the skip the same failure entry that the call would store under the reuse policy. A study of it must show that a
+reparse then reuses the same results and keeps the total of the parse from scratch.
 
 The bound arguments in [Work That Is Not an Event](#work-that-is-not-an-event) are sketches, not proofs. The
 proofs update of step 3 must state them, and must restate the linear cost and cost view proofs in units that no longer
