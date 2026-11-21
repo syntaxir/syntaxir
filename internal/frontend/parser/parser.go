@@ -63,7 +63,7 @@ func (e *errorList) addRange(pos, end ast.Pos, msg string) {
 // frontend (Parse) compare with.
 func ParseReference(src string) (*ast.Grammar, error) {
 	errs := &errorList{}
-	p := &parser{toks: lex(src, errs), errs: errs}
+	p := &parser{layoutCursor: layoutCursor{toks: lex(src, errs)}, errs: errs}
 	g := p.file()
 	if len(errs.list) > 0 {
 		return nil, errs.list
@@ -76,64 +76,35 @@ func ParseReference(src string) (*ast.Grammar, error) {
 // parsed to the end.
 func ParsePartialReference(src string) (*ast.Grammar, ErrorList) {
 	errs := &errorList{}
-	p := &parser{toks: lex(src, errs), errs: errs}
+	p := &parser{layoutCursor: layoutCursor{toks: lex(src, errs)}, errs: errs}
 	return p.file(), errs.list
 }
 
+// parser is the hand-written recursive-descent parser. Its layoutCursor reads
+// the tokens and records where their comments and line breaks go.
 type parser struct {
-	// semi is the line break whose trailing comment was taken before a semicolon.
-	semi *ast.LineBreak
-	toks []token
-	i    int
-	// inlined is one more than the index of the token whose inline gap was
-	// taken, so that the lines inside its comments do not count as a line break
-	// before the token.
-	inlined int
-	errs    *errorList
+	layoutCursor
+	errs *errorList
 	// params holds the parameters of the lambdas whose bodies are being parsed, innermost last.
 	params []string
-	// cur is the line break most recently recorded. Comments that do not
-	// precede a recorded line break are added to it, because the formatter
-	// writes the tokens they follow on the line after it.
-	cur *ast.LineBreak
-	// nest counts the choices being parsed with choice. Line breaks are
-	// recorded only outside them, in the top level of a rule body.
-	nest int
 	// depth counts the nested calls of the functions that call deeper (see enter).
 	depth int
 	// layout restricts rule-body continuation outside open delimiters.
-	layout         bool
-	layoutDepth    int
-	layoutStart    int
-	header         bool
-	headerComments []*ast.Comment
-	headerPos      ast.Pos
-	recoveryStart  int
+	layout        bool
+	layoutDepth   int
+	layoutStart   int
+	recoveryStart int
 }
 
 // bail is the panic value used to abort parsing on an unrecoverable
 // error.
 type bail struct{}
 
-func (p *parser) tok() token { return p.toks[p.i] }
-func (p *parser) peek(k int) token {
-	if p.i+k < len(p.toks) {
-		return p.toks[p.i+k]
-	}
-	return p.toks[len(p.toks)-1]
-}
+// next consumes the current token as the layoutCursor does, and rejects a token
+// that continues a rule body on a new line outside the delimiters opened in it.
 func (p *parser) next() token {
 	t := p.toks[p.i]
-	if p.header {
-		if t.lineComment != nil {
-			t.lineComment.Header = p.headerPos
-			p.headerComments = append(p.headerComments, t.lineComment)
-		}
-		for _, comment := range t.comments {
-			comment.Header = p.headerPos
-		}
-		p.headerComments = p.appendComments(p.headerComments, t.comments)
-	}
+	p.collectHeader(t)
 	if p.layout {
 		if p.boundary() {
 			p.errorf("multiline expressions require their own open delimiter")
@@ -150,15 +121,8 @@ func (p *parser) next() token {
 			}
 		}
 	}
-	p.takeComments(p.i)
-	if p.i < len(p.toks)-1 {
-		p.i++
-	}
+	p.advance()
 	return t
-}
-
-func (p *parser) appendComments(dst, comments []*ast.Comment) []*ast.Comment {
-	return append(dst, comments...)
 }
 
 // headerContents returns the normalized contents of the header comments that the parser has
@@ -174,29 +138,6 @@ func (p *parser) headerContents(from int) []string {
 	return out
 }
 
-// gapContents returns the normalized contents of the comments before the current token, the
-// comments of the gap that a declaration or field owns when no node starts there.
-func (p *parser) gapContents() []string {
-	t := p.toks[p.i]
-	var out []string
-	if t.lineComment != nil {
-		out = append(out, t.lineComment.Content)
-	}
-	for _, c := range t.comments {
-		out = append(out, c.Content)
-	}
-	return out
-}
-
-// takeGapContents is gapContents for a gap the formatter writes from the owner,
-// so the comments leave the token.
-func (p *parser) takeGapContents() []string {
-	out := p.gapContents()
-	t := &p.toks[p.i]
-	t.lineComment, t.comments = nil, nil
-	return out
-}
-
 // boundary marks a new statement outside the current expression's delimiters.
 func (p *parser) boundary() bool {
 	return p.layout && p.layoutDepth == 0 && p.i > p.layoutStart && p.tok().lineBefore
@@ -208,127 +149,8 @@ func (p *parser) statement() func() {
 	return func() { p.layout, p.layoutDepth, p.layoutStart = layout, depth, start }
 }
 
-// takeRun returns the comment c at the end of the line of the token before t, together with the
-// comments after it on that line that all trail the same token (see collectComments), as one
-// comment. Those comments leave t.
-func (t *token) takeRun(c *ast.Comment) *ast.Comment {
-	if t.source == nil || t.source.run <= 1 || c != t.lineComment || len(t.comments) < t.source.run-1 {
-		return c
-	}
-	n := t.source.run - 1
-	for _, next := range t.comments[:n] {
-		c = joinComments(c, next)
-	}
-	t.comments = t.comments[n:]
-	t.source.run = 0
-	return c
-}
-
-// joinComments returns the comments a and b, which share a line, as one comment.
-func joinComments(a, b *ast.Comment) *ast.Comment {
-	run := func(c *ast.Comment) []*ast.Comment {
-		if len(c.Run) > 0 {
-			return c.Run
-		}
-		return []*ast.Comment{c}
-	}
-	return &ast.Comment{Pos: a.Pos, End: b.End, Text: a.Text + " " + b.Text, Content: a.Content + b.Content, Blank: a.Blank,
-		Run: append(append([]*ast.Comment(nil), run(a)...), run(b)...)}
-}
-
-// takeComments moves the comments before token i to the current line
-// break.
-func (p *parser) takeComments(i int) {
-	t := &p.toks[i]
-	if p.cur != nil {
-		if t.lineComment != nil && t.kind == tPunct && t.text == ";" && p.cur.Trailing == nil {
-			// A comment before a semicolon trails the statement it ends; a comment after the
-			// semicolon, on its line, follows it (see lineBreak).
-			p.cur.Trailing = t.takeRun(t.lineComment)
-			p.semi = p.cur
-			t.lineComment = nil
-		}
-		if t.lineComment != nil {
-			p.cur.Comments = append(p.cur.Comments, t.lineComment)
-		}
-		p.cur.Comments = p.appendComments(p.cur.Comments, t.comments)
-	}
-	t.lineComment, t.comments = nil, nil
-}
-
-// lineBreak records the start of a line at the current token, where the
-// formatter may start a new line, with the comments before the token. A
-// comment at the end of the previous line becomes the trailing comment of
-// the line break recorded before.
-func (p *parser) lineBreak() *ast.LineBreak {
-	t := &p.toks[p.i]
-	c := t.lineComment
-	trails := c != nil && p.cur != nil && p.cur.Trailing == nil
-	after := c != nil && !trails && p.cur != nil && p.cur == p.semi && (c.End.Line < t.pos.Line || t.endsScope())
-	if trails || after {
-		c = t.takeRun(c)
-	}
-	b := &ast.LineBreak{Comments: t.comments, Blank: t.blankBefore}
-	switch {
-	case trails:
-		p.cur.Trailing = c
-		p.cur.TrailingEnds = c.End.Line < t.pos.Line
-	case after:
-		// The comments after the semicolon follow those before it, as they own them together.
-		p.cur.Trailing = joinComments(p.cur.Trailing, c)
-		p.cur.TrailingEnds = c.End.Line < t.pos.Line
-	case c != nil:
-		b.Comments = p.appendComments([]*ast.Comment{c}, b.Comments)
-	}
-	t.lineComment, t.comments = nil, nil
-	p.cur = b
-	return b
-}
-
-// statementBreak is lineBreak for a token that starts a declaration, a field or
-// a line of an operators rule. A block comment over several lines that ends on
-// the line of that token is not a trailing comment of the line before: it is
-// detached from the token, so it takes lines of its own before the token, set
-// off by blank lines. It does so only when that comment is the only one before
-// the token; with several, the first still trails the line before. A block
-// comment of one line between two tokens of that line is detached the same way. A closing
-// brace starts no statement, so the comment before it trails the last one.
-func (p *parser) statementBreak() *ast.LineBreak {
-	t := &p.toks[p.i]
-	c := t.lineComment
-	if c == nil || len(t.comments) != 0 || t.text == "}" || !strings.HasPrefix(c.Text, "/*") || c.End.Line != t.pos.Line {
-		return p.lineBreak()
-	}
-	// A block comment on one line is detached only between two tokens of that
-	// line, as after a semicolon; after an opening brace it leads the statement, and
-	// at the end of a line it trails the statement.
-	if c.Pos.Line == c.End.Line && (p.i == 0 || p.toks[p.i-1].end.Line != c.Pos.Line || p.toks[p.i-1].text == "{") {
-		return p.lineBreak()
-	}
-	t.lineComment = nil
-	b := p.lineBreak()
-	c.Blank = true
-	b.Comments = append([]*ast.Comment{c}, b.Comments...)
-	b.Blank = true
-	return b
-}
-
-// multiline reports whether a line break precedes any of the tokens after
-// token i up to token j.
-func (p *parser) multiline(i, j int) bool {
-	for k := i + 1; k <= j && k < len(p.toks); k++ {
-		if p.toks[k].lineBefore {
-			return true
-		}
-	}
-	return false
-}
-
-func (p *parser) is(text string) bool {
-	t := p.tok()
-	return (t.kind == tPunct || t.kind == tIdent) && t.text == text
-}
-
+// accept is layoutCursor.accept with the parser's next, which checks the layout
+// of a rule body.
 func (p *parser) accept(text string) bool {
 	if p.is(text) {
 		p.next()
@@ -1183,15 +1005,6 @@ func (p *parser) operatorsRule() (sourceResult *ast.OperatorsRule) {
 		}
 	}
 	return pr
-}
-
-// leadAfterOpen makes a block comment between an opening brace and the first
-// token after it, on that line, lead that token; it does not trail the line
-// break recorded before.
-func (p *parser) leadAfterOpen() {
-	if c := p.tok().lineComment; c != nil && strings.HasPrefix(c.Text, "/*") && c.End.Line == p.tok().pos.Line {
-		p.cur = nil
-	}
 }
 
 func (p *parser) itemEnd() {
@@ -2074,14 +1887,6 @@ func (p *parser) tryLambda() (sourceResult ast.ActionExpr) {
 	return &ast.Lambda{Params: params, Body: p.actionExpr(), TrailingComma: trailing, ParamsLayout: list}
 }
 
-var binaryLevels = [][]string{
-	{"||"},
-	{"&&"},
-	{"==", "!=", "<", "<=", ">", ">="},
-	{"+", "-"},
-	{"*", "/", "%"},
-}
-
 func (p *parser) binary(level int) (sourceResult ast.ActionExpr) {
 	sourceStart := p.i
 	defer func() {
@@ -2096,7 +1901,7 @@ func (p *parser) binary(level int) (sourceResult ast.ActionExpr) {
 	l := p.binary(level + 1)
 	for {
 		t := p.tok()
-		if p.boundary() || t.kind != tPunct || !contains(binaryLevels[level], t.text) {
+		if p.boundary() || t.kind != tPunct || !slices.Contains(binaryLevels[level], t.text) {
 			return l
 		}
 		operator := p.takeCommentGap()
@@ -2112,15 +1917,6 @@ func (p *parser) binary(level int) (sourceResult ast.ActionExpr) {
 			return l
 		}
 	}
-}
-
-func contains(xs []string, x string) bool {
-	for _, y := range xs {
-		if x == y {
-			return true
-		}
-	}
-	return false
 }
 
 func (p *parser) unary() (sourceResult ast.ActionExpr) {
@@ -2367,43 +2163,6 @@ func (p *parser) newActionExpr() (sourceResult ast.ActionExpr) {
 	return n
 }
 
-// restoreBreak returns a function that restores the current line break, for
-// the delimited list that starts here.
-func (p *parser) restoreBreak() func() {
-	outer := p.cur
-	return func() { p.cur = outer }
-}
-
-// openLead takes the block comment after an opening delimiter that is followed
-// by a token on its line. It leads that token, so it goes with the comments
-// before it instead of trailing the line of the delimiter.
-func (p *parser) openLead() *ast.Comment {
-	t := &p.toks[p.i]
-	c := t.lineComment
-	if c == nil || !strings.HasPrefix(c.Text, "/*") || c.End.Line != t.pos.Line {
-		return nil
-	}
-	t.lineComment = nil
-	return c
-}
-
-// leadBreak puts the comment taken by openLead before the others in b.
-func (p *parser) leadBreak(b *ast.LineBreak, c *ast.Comment) {
-	if c != nil {
-		b.Comments = append([]*ast.Comment{c}, b.Comments...)
-	}
-}
-
-// openList starts the layout of a delimited list after its opening delimiter.
-// The comment at the end of the delimiter's line is the trailing comment of the
-// opening break, and the comments before the first element belong to the body
-// break. Both stay with the list instead of the statement around it.
-func (p *parser) openList() (open, body *ast.LineBreak) {
-	open = &ast.LineBreak{}
-	p.cur = open
-	return open, p.lineBreak()
-}
-
 // listItems reads comma-separated expressions up to, not including, the
 // closing delimiter. A trailing comma is optional; trailing reports whether
 // the list has one.
@@ -2435,39 +2194,6 @@ func (p *parser) afterComma(node any, closer string) {
 	}
 }
 
-// afterCommaLayout is afterComma for the layout of an element, which may not
-// be a node.
-func (p *parser) afterCommaLayout(layout **ast.SourceLayout, closer string) {
-	if p.header || p.is(closer) {
-		return
-	}
-	t := &p.toks[p.i]
-	cs := t.comments
-	if t.lineComment != nil {
-		cs = p.appendComments([]*ast.Comment{t.lineComment}, cs)
-	}
-	line := p.toks[p.i-1].end.Line
-	n := 0
-	for n < len(cs) && cs[n].Pos.Line <= line {
-		n++
-	}
-	if n == 0 {
-		return
-	}
-	next := t.pos.Line
-	if n < len(cs) {
-		next = cs[n].Pos.Line
-	}
-	if last := cs[n-1]; !strings.HasPrefix(last.Text, "//") && last.End.Line >= next {
-		return
-	}
-	if *layout == nil {
-		*layout = &ast.SourceLayout{}
-	}
-	(*layout).Trail = cs[:n:n]
-	t.lineComment, t.comments = nil, cs[n:]
-}
-
 // commaTrailing gives the trailing comment after the comma that follows a list
 // element, the comment on the comma's line, to that element. It replaces the
 // trailing comment before the comma, which the same element claimed, as the
@@ -2476,37 +2202,6 @@ func (p *parser) commaTrailing(node any) {
 	if x, ok := node.(ast.SourceNode); ok {
 		p.sourceTrailing(x.Source())
 	}
-}
-
-// takeAfterLayout keeps the comments between an element of a list and the
-// comma that follows it with the element, rather than promoting them to the
-// current line break, which would move them before the first element.
-func (p *parser) takeAfterLayout(node any) {
-	if x, ok := node.(ast.SourceNode); ok {
-		p.takeAfter(&x.Source().Layout)
-	}
-}
-
-// takeAfter is takeAfterLayout for the layout of an element, which may not be
-// a node.
-func (p *parser) takeAfter(layout **ast.SourceLayout) {
-	if p.header || !p.is(",") {
-		return
-	}
-	t := &p.toks[p.i]
-	if t.lineComment == nil && len(t.comments) == 0 {
-		return
-	}
-	cs := t.comments
-	if t.lineComment != nil {
-		cs = p.appendComments([]*ast.Comment{t.lineComment}, cs)
-	}
-	if *layout == nil {
-		*layout = &ast.SourceLayout{}
-	}
-	(*layout).After = cs
-	(*layout).ElemLine, (*layout).AfterLine = p.toks[p.i-1].end.Line, t.pos.Line
-	t.lineComment, t.comments = nil, nil
 }
 
 // valueTypeNames maps the reserved names of concrete syntax tree types to the value types that

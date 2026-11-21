@@ -1,6 +1,10 @@
 package parser
 
-import "syntaxir.dev/sxir/pkg/grammar/ast"
+import (
+	"slices"
+
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+)
 
 // This file replays the layout inside rule expressions and actions (see
 // layoutReplay). Each method mirrors the parser method of the same name and
@@ -8,7 +12,7 @@ import "syntaxir.dev/sxir/pkg/grammar/ast"
 
 // bodyChoice replays the top-level choice of a rule body or a group.
 func (r *layoutReplay) bodyChoice(e ast.Expr) {
-	p := r.p
+	lc := r.lc
 	c, ok := e.(*ast.Choice)
 	if !ok {
 		r.bodySequence(e)
@@ -19,20 +23,20 @@ func (r *layoutReplay) bodyChoice(e ast.Expr) {
 	broken := false
 	for i, alt := range c.Alts[1:] {
 		var b *ast.LineBreak
-		if p.atLineStart() {
-			b = p.lineBreak()
+		if lc.atLineStart() {
+			b = lc.lineBreak()
 			broken = true
 		} else {
-			p.afterGap(c.Alts[i])
-			if p.peek(1).lineBefore {
-				b = p.lineBreak()
+			lc.afterGap(c.Alts[i])
+			if lc.peek(1).lineBefore {
+				b = lc.lineBreak()
 				broken = true
 			}
 		}
-		p.next() // /
-		lead := p.takeCommentGap()
+		lc.next() // /
+		lead := lc.takeCommentGap()
 		r.bodySequence(alt)
-		p.leadOf(alt, lead)
+		lc.leadOf(alt, lead)
 		breaks = append(breaks, b)
 	}
 	c.Breaks = nil
@@ -44,7 +48,7 @@ func (r *layoutReplay) bodyChoice(e ast.Expr) {
 // bodySequence replays a sequence of a rule body or a group, with its line
 // breaks.
 func (r *layoutReplay) bodySequence(e ast.Expr) {
-	p := r.p
+	lc := r.lc
 	s, ok := e.(*ast.Seq)
 	if !ok {
 		r.prefixed(e)
@@ -54,8 +58,8 @@ func (r *layoutReplay) bodySequence(e ast.Expr) {
 	broken := false
 	for i, item := range s.Items {
 		var b *ast.LineBreak
-		if i > 0 && p.atLineStart() {
-			b = p.lineBreak()
+		if i > 0 && lc.atLineStart() {
+			b = lc.lineBreak()
 			broken = true
 		}
 		r.prefixed(item)
@@ -70,9 +74,9 @@ func (r *layoutReplay) bodySequence(e ast.Expr) {
 // choice replays a choice inside a pragma, an attribute argument or an item of
 // an Operators Rule.
 func (r *layoutReplay) choice(e ast.Expr) {
-	p := r.p
-	p.nest++
-	defer func() { p.nest-- }()
+	lc := r.lc
+	lc.nest++
+	defer func() { lc.nest-- }()
 	c, ok := e.(*ast.Choice)
 	if !ok {
 		r.sequence(e)
@@ -80,11 +84,11 @@ func (r *layoutReplay) choice(e ast.Expr) {
 	}
 	r.sequence(c.Alts[0])
 	for _, alt := range c.Alts[1:] {
-		sep := p.takeCommentGap()
-		p.next() // /
-		lead := p.takeCommentGap()
+		sep := lc.takeCommentGap()
+		lc.next() // /
+		lead := lc.takeCommentGap()
 		r.sequence(alt)
-		p.leadOf(alt, lead)
+		lc.leadOf(alt, lead)
 		if sep != nil {
 			layoutOf(alt).Sep = sep
 		}
@@ -102,21 +106,21 @@ func (r *layoutReplay) sequence(e ast.Expr) {
 }
 
 func (r *layoutReplay) prefixed(e ast.Expr) {
-	p := r.p
-	gap := p.takeInlineGap()
+	lc := r.lc
+	gap := lc.takeInlineGap()
 	switch x := e.(type) {
 	case *ast.Capture:
-		p.next() // the label
-		p.next() // :
+		lc.next() // the label
+		lc.next() // :
 		r.operand(x.Expr)
 	case *ast.And:
-		p.next()
+		lc.next()
 		r.operand(x.Expr)
 	case *ast.Not:
-		p.next()
+		lc.next()
 		r.operand(x.Expr)
 	case *ast.Discard:
-		p.next()
+		lc.next()
 		r.operand(x.Expr)
 	default:
 		r.suffixed(e)
@@ -127,16 +131,16 @@ func (r *layoutReplay) prefixed(e ast.Expr) {
 }
 
 func (r *layoutReplay) operand(e ast.Expr) {
-	p := r.p
-	lead := p.takeCommentGap()
+	lc := r.lc
+	lead := lc.takeCommentGap()
 	r.prefixed(e)
-	p.leadOf(e, lead)
+	lc.leadOf(e, lead)
 }
 
 // suffixed replays a primary expression and the suffixes, pragmas and
 // attributes after it, from the innermost out.
 func (r *layoutReplay) suffixed(e ast.Expr) {
-	p := r.p
+	lc := r.lc
 	var chain []ast.Expr
 	for inner := e; ; {
 		var next ast.Expr
@@ -166,16 +170,16 @@ func (r *layoutReplay) suffixed(e ast.Expr) {
 		case *ast.Attributed:
 			r.attributed(x)
 		case *ast.Optional:
-			if gap := p.takeCommentGap(); gap != nil {
+			if gap := lc.takeCommentGap(); gap != nil {
 				layoutOf(x).OpGap = gap
 			}
-			p.next() // ?
+			lc.next() // ?
 		case *ast.Repeat:
-			if !p.is("#") {
-				if gap := p.takeCommentGap(); gap != nil {
+			if !lc.is("#") {
+				if gap := lc.takeCommentGap(); gap != nil {
 					layoutOf(x).OpGap = gap
 				}
-				p.next() // * or +
+				lc.next() // * or +
 				break
 			}
 			r.pragma(x)
@@ -188,14 +192,14 @@ func (r *layoutReplay) suffixed(e ast.Expr) {
 // pragma replays a pragma that wraps the expression before it, from the
 // comments before its "#".
 func (r *layoutReplay) pragma(e ast.Expr) {
-	p := r.p
-	operator := p.takeInlineGap()
+	lc := r.lc
+	operator := lc.takeInlineGap()
 	var br *ast.LineBreak
-	if p.nest == 0 && p.atLineStart() {
-		br = p.lineBreak()
+	if lc.nest == 0 && lc.atLineStart() {
+		br = lc.lineBreak()
 	}
-	p.next() // #
-	p.next() // the name
+	lc.next() // #
+	lc.next() // the name
 	switch x := e.(type) {
 	case *ast.Atomic:
 		x.Break = br
@@ -205,16 +209,16 @@ func (r *layoutReplay) pragma(e ast.Expr) {
 		r.emptyArguments()
 	case *ast.Recovery:
 		x.Break = br
-		p.next() // (
-		open := p.takeCommentGap()
-		p.next() // skip
-		eq := p.takeCommentGap()
-		p.next() // =
-		lead := p.takeCommentGap()
+		lc.next() // (
+		open := lc.takeCommentGap()
+		lc.next() // skip
+		eq := lc.takeCommentGap()
+		lc.next() // =
+		lead := lc.takeCommentGap()
 		r.choice(x.Skip)
-		p.leadOf(x.Skip, lead)
-		closing := p.takeCommentGap()
-		p.next() // )
+		lc.leadOf(x.Skip, lead)
+		closing := lc.takeCommentGap()
+		lc.next() // )
 		if open != nil || eq != nil || closing != nil {
 			l := layoutOf(x)
 			l.Open, l.Eq, l.Close = open, eq, closing
@@ -230,46 +234,46 @@ func (r *layoutReplay) pragma(e ast.Expr) {
 
 // emptyArguments consumes the "()" that may follow #atomic or #stream.
 func (r *layoutReplay) emptyArguments() {
-	p := r.p
-	if p.is("(") && !p.tok().spaceBefore {
-		p.next()
-		p.next()
+	lc := r.lc
+	if lc.is("(") && !lc.tok().spaceBefore {
+		lc.next()
+		lc.next()
 	}
 }
 
 // repeatSpelling replays the arguments of #repeat, from its "(".
 func (r *layoutReplay) repeatSpelling() *ast.RepeatSpelling {
-	p := r.p
-	p.next() // (
-	outer, stray := p.cur, &ast.LineBreak{}
-	p.cur = stray
+	lc := r.lc
+	lc.next() // (
+	outer, stray := lc.cur, &ast.LineBreak{}
+	lc.cur = stray
 	sp := &ast.RepeatSpelling{}
-	gap := func() { sp.Gaps = append(sp.Gaps, p.takeGap()) }
+	gap := func() { sp.Gaps = append(sp.Gaps, lc.takeGap()) }
 	count := func() {
-		if p.is("-") {
-			p.next()
+		if lc.is("-") {
+			lc.next()
 		}
-		p.next()
+		lc.next()
 	}
 	gap()
-	first := p.tok().kind == tInt || p.is("-")
+	first := lc.tok().kind == tInt || lc.is("-")
 	if first {
 		count()
 		sp.HasMin = true
 		gap()
 	}
-	if p.is(",") {
-		p.next()
+	if lc.is(",") {
+		lc.next()
 		sp.Comma = true
 		gap()
-		if !p.is(")") {
+		if !lc.is(")") {
 			count()
 			sp.HasMax = true
 			gap()
 		}
 	}
-	p.next() // )
-	p.cur = outer
+	lc.next() // )
+	lc.cur = outer
 	if len(stray.Comments) > 0 {
 		g := &sp.Gaps[len(sp.Gaps)-1]
 		g.Comments = append(g.Comments, stray.Comments...)
@@ -280,16 +284,16 @@ func (r *layoutReplay) repeatSpelling() *ast.RepeatSpelling {
 // attributed replays the attributes and the #ignorecase and #missing pragmas
 // of a, which follow its expression.
 func (r *layoutReplay) attributed(a *ast.Attributed) {
-	p := r.p
+	lc := r.lc
 	a.Breaks = nil
 	for i, attr := range a.Attrs {
 		var gap []*ast.Comment
 		if attr.Pragma {
-			gap = p.takeInlineGap()
+			gap = lc.takeInlineGap()
 		}
 		var b *ast.LineBreak
-		if p.nest == 0 && p.atLineStart() {
-			b = p.lineBreak()
+		if lc.nest == 0 && lc.atLineStart() {
+			b = lc.lineBreak()
 		}
 		if b != nil || a.Breaks != nil {
 			for len(a.Breaks) < i {
@@ -298,11 +302,11 @@ func (r *layoutReplay) attributed(a *ast.Attributed) {
 			a.Breaks = append(a.Breaks, b)
 		}
 		if attr.Pragma {
-			p.next() // #
-			p.next() // the name
+			lc.next() // #
+			lc.next() // the name
 		} else {
 			if b == nil {
-				gap = p.takeInlineGap()
+				gap = lc.takeInlineGap()
 			}
 			r.attribute(attr)
 		}
@@ -313,24 +317,24 @@ func (r *layoutReplay) attributed(a *ast.Attributed) {
 }
 
 func (r *layoutReplay) primary(e ast.Expr) {
-	p := r.p
+	lc := r.lc
 	switch x := e.(type) {
 	case *ast.Literal:
-		p.next()
+		lc.next()
 		if x.IgnoreCase {
-			p.next() // i
+			lc.next() // i
 		}
 	case *ast.Ref:
 		if x.Level != "" {
 			for range 6 { // level ( rule , name )
-				p.next()
+				lc.next()
 			}
 			return
 		}
-		p.next()
+		lc.next()
 	case *ast.Cut:
-		p.next() // #
-		p.next() // cut
+		lc.next() // #
+		lc.next() // cut
 	case *ast.Group:
 		r.group(x)
 	case *ast.Predicate:
@@ -339,21 +343,21 @@ func (r *layoutReplay) primary(e ast.Expr) {
 			b.OpenBreak, b.Breaks, b.CloseBreak, b.OneLine = x.OpenBreak, x.Breaks, x.CloseBreak, x.OneLine
 		}
 	default:
-		p.next() // a class, _, ^^, ^, $$, $, _|_ or .
+		lc.next() // a class, _, ^^, ^, $$, $, _|_ or .
 	}
 }
 
 func (r *layoutReplay) group(g *ast.Group) {
-	p := r.p
-	open := p.i
-	p.next() // (
-	lead := p.openLead()
-	g.BodyBreak = p.lineBreak()
-	p.leadBreak(g.BodyBreak, lead)
+	lc := r.lc
+	open := lc.i
+	lc.next() // (
+	lead := lc.openLead()
+	g.BodyBreak = lc.lineBreak()
+	lc.leadBreak(g.BodyBreak, lead)
 	if a, ok := g.Expr.(*ast.InlineAction); ok {
 		r.bodyChoice(a.Expr)
-		gap := p.takeCommentGap()
-		p.next() // =>
+		gap := lc.takeCommentGap()
+		lc.next() // =>
 		r.action(a.Action, a.DefaultAction)
 		if gap != nil {
 			layoutOf(a).OpGap = gap
@@ -361,48 +365,48 @@ func (r *layoutReplay) group(g *ast.Group) {
 	} else {
 		r.bodyChoice(g.Expr)
 	}
-	last := p.toks[p.i].lineComment
+	last := lc.toks[lc.i].lineComment
 	if last != nil {
-		last = p.toks[p.i].takeRun(last)
+		last = lc.toks[lc.i].takeRun(last)
 	}
-	p.toks[p.i].lineComment = nil
-	g.CloseBreak = p.lineBreak()
+	lc.toks[lc.i].lineComment = nil
+	g.CloseBreak = lc.lineBreak()
 	g.CloseBreak.Last = last
-	g.OneLine = !p.multiline(open, p.i)
-	p.next() // )
+	g.OneLine = !lc.multiline(open, lc.i)
+	lc.next() // )
 }
 
 // attributeValue replays an attribute argument v, a value or an expression.
 func (r *layoutReplay) attributeValue(v any) {
-	p := r.p
+	lc := r.lc
 	switch v := v.(type) {
 	case ast.Expr:
 		r.choice(v)
 	case string:
 		// A literal, which choice reads as an expression.
-		p.nest++
-		p.takeInlineGap()
-		p.next()
-		if p.is("i") && !p.tok().spaceBefore && p.tok().kind == tIdent {
-			p.next()
+		lc.nest++
+		lc.takeInlineGap()
+		lc.next()
+		if lc.is("i") && !lc.tok().spaceBefore && lc.tok().kind == tIdent {
+			lc.next()
 		}
-		p.nest--
+		lc.nest--
 	default:
-		if p.is("-") {
-			p.next()
+		if lc.is("-") {
+			lc.next()
 		}
-		p.next() // nil, true, false or an integer
+		lc.next() // nil, true, false or an integer
 	}
 }
 
 // action replays the action of a rule, an inline action or an item of an
 // Operators Rule, from its first token.
 func (r *layoutReplay) action(t ast.ActionExpr, defaultAction bool) {
-	p := r.p
+	lc := r.lc
 	b, block := t.(*ast.Block)
 	switch {
 	case defaultAction:
-		p.next() // ...
+		lc.next() // ...
 	case block:
 		b.OpenBreak, b.Breaks, b.CloseBreak, b.OneLine = r.actionBlock(b)
 	default:
@@ -414,39 +418,39 @@ func (r *layoutReplay) action(t ast.ActionExpr, defaultAction bool) {
 // its one statement, which a predicate holds instead (a statement never starts
 // with "{", so a Block is always the block itself).
 func (r *layoutReplay) actionBlock(t ast.ActionExpr) (openBreak *ast.LineBreak, breaks []*ast.LineBreak, closeBreak *ast.LineBreak, oneLine bool) {
-	p := r.p
+	lc := r.lc
 	statements := []ast.ActionExpr{t}
 	if b, ok := t.(*ast.Block); ok {
 		statements = b.Statements
 	}
-	open := p.i
-	outer := p.cur
-	defer func() { p.cur = outer }()
-	p.next() // {
-	lead := p.openLead()
+	open := lc.i
+	outer := lc.cur
+	defer func() { lc.cur = outer }()
+	lc.next() // {
+	lead := lc.openLead()
 	openBreak = &ast.LineBreak{}
-	p.cur = openBreak
+	lc.cur = openBreak
 	joined := false
 	for i := 0; ; i++ {
 		var gap []*ast.Comment
 		var gapLine int
-		if joined && !p.is("}") {
-			if gap = p.takeInlineGap(); gap != nil {
-				gapLine = p.toks[p.i-1].end.Line
+		if joined && !lc.is("}") {
+			if gap = lc.takeInlineGap(); gap != nil {
+				gapLine = lc.toks[lc.i-1].end.Line
 			}
 		}
-		br := p.lineBreak()
-		p.leadBreak(br, lead)
+		br := lc.lineBreak()
+		lc.leadBreak(br, lead)
 		lead = nil
 		if i == len(statements) {
-			oneLine = !p.multiline(open, p.i)
-			p.next() // }
+			oneLine = !lc.multiline(open, lc.i)
+			lc.next() // }
 			return openBreak, breaks, br, oneLine
 		}
 		expr := statements[i]
 		if b, ok := expr.(*ast.Bind); ok {
-			p.next() // the name
-			p.next() // :=
+			lc.next() // the name
+			lc.next() // :=
 			r.actionExpr(b.Value)
 		} else {
 			r.actionExpr(expr)
@@ -456,12 +460,12 @@ func (r *layoutReplay) actionBlock(t ast.ActionExpr) (openBreak *ast.LineBreak, 
 			l.Before, l.PreviousLine, l.NextLine = gap, gapLine, gapLine
 		}
 		breaks = append(breaks, br)
-		if p.is(";") {
-			if gap := p.takeInlineGap(); gap != nil {
+		if lc.is(";") {
+			if gap := lc.takeInlineGap(); gap != nil {
 				layoutOf(expr).After = gap
 			}
 		}
-		joined = p.separator()
+		joined = lc.separator()
 	}
 }
 
@@ -474,38 +478,38 @@ func (r *layoutReplay) actionExpr(t ast.ActionExpr) {
 }
 
 func (r *layoutReplay) lambda(l *ast.Lambda) {
-	p := r.p
-	layout := p.takeTermLayout()
-	p.next() // (
-	cur := p.cur
+	lc := r.lc
+	layout := lc.takeTermLayout()
+	lc.next() // (
+	cur := lc.cur
 	list := &ast.ListLayout{}
-	list.OpenBreak, list.BodyBreak = p.openList()
+	list.OpenBreak, list.BodyBreak = lc.openList()
 	for i := range l.Params {
 		var elem *ast.SourceLayout
 		if i > 0 {
-			elem = p.takeTermLayout()
+			elem = lc.takeTermLayout()
 		}
-		p.next() // the parameter
-		p.takeAfter(&elem)
+		lc.next() // the parameter
+		lc.takeAfter(&elem)
 		if i+1 == len(l.Params) {
-			l.TrailingComma = p.is(",")
+			l.TrailingComma = lc.is(",")
 		}
 		if i+1 < len(l.Params) || l.TrailingComma {
-			p.next() // ,
-			p.afterCommaLayout(&elem, ")")
+			lc.next() // ,
+			lc.afterCommaLayout(&elem, ")")
 		}
 		list.Elems = append(list.Elems, elem)
 	}
-	list.CloseBreak = p.lineBreak()
-	p.next() // )
-	p.cur = cur
-	if gap := p.takeCommentGap(); gap != nil {
+	list.CloseBreak = lc.lineBreak()
+	lc.next() // )
+	lc.cur = cur
+	if gap := lc.takeCommentGap(); gap != nil {
 		if layout == nil {
 			layout = &ast.SourceLayout{}
 		}
 		layout.OpGap = gap
 	}
-	p.next() // =>
+	lc.next() // =>
 	r.actionExpr(l.Body)
 	l.ParamsLayout = list
 	if layout != nil {
@@ -513,9 +517,19 @@ func (r *layoutReplay) lambda(l *ast.Lambda) {
 	}
 }
 
+// binaryLevels are the binary operators of actions by level of precedence,
+// loosest first, as the parser reads them and the replay walks them.
+var binaryLevels = [][]string{
+	{"||"},
+	{"&&"},
+	{"==", "!=", "<", "<=", ">", ">="},
+	{"+", "-"},
+	{"*", "/", "%"},
+}
+
 // binary replays t as an operand of the operators of level and above.
 func (r *layoutReplay) binary(level int, t ast.ActionExpr) {
-	p := r.p
+	lc := r.lc
 	if level == len(binaryLevels) {
 		r.unary(t)
 		return
@@ -524,7 +538,7 @@ func (r *layoutReplay) binary(level int, t ast.ActionExpr) {
 	left := t
 	for {
 		b, ok := left.(*ast.Binary)
-		if !ok || !contains(binaryLevels[level], b.Op) {
+		if !ok || !slices.Contains(binaryLevels[level], b.Op) {
 			break
 		}
 		chain = append(chain, b)
@@ -533,8 +547,8 @@ func (r *layoutReplay) binary(level int, t ast.ActionExpr) {
 	r.binary(level+1, left)
 	for i := len(chain) - 1; i >= 0; i-- {
 		b := chain[i]
-		operator := p.takeCommentGap()
-		p.next() // the operator
+		operator := lc.takeCommentGap()
+		lc.next() // the operator
 		r.binary(level+1, b.R)
 		if operator != nil {
 			layoutOf(b).OpGap = operator
@@ -543,10 +557,10 @@ func (r *layoutReplay) binary(level int, t ast.ActionExpr) {
 }
 
 func (r *layoutReplay) unary(t ast.ActionExpr) {
-	p := r.p
-	layout := p.takeTermLayout()
+	lc := r.lc
+	layout := lc.takeTermLayout()
 	if u, ok := t.(*ast.Unary); ok {
-		p.next() // - or !
+		lc.next() // - or !
 		r.unary(u.X)
 	} else {
 		var chain []ast.ActionExpr
@@ -571,23 +585,23 @@ func (r *layoutReplay) unary(t ast.ActionExpr) {
 		}
 		r.actionExprPrimary(inner)
 		for i := len(chain) - 1; i >= 0; i-- {
-			p.next() // . or [
+			lc.next() // . or [
 			switch n := chain[i].(type) {
 			case *ast.Binary:
-				outer := p.cur
+				outer := lc.cur
 				n.OpenBreak = &ast.LineBreak{}
-				p.cur = n.OpenBreak
-				n.BodyBreak = p.lineBreak()
+				lc.cur = n.OpenBreak
+				n.BodyBreak = lc.lineBreak()
 				r.actionExpr(n.R)
-				n.CloseBreak = p.lineBreak()
-				p.next() // ]
-				p.cur = outer
+				n.CloseBreak = lc.lineBreak()
+				lc.next() // ]
+				lc.cur = outer
 			case *ast.Cast:
-				p.next() // (
+				lc.next() // (
 				r.typ(n.Type)
-				p.next() // )
+				lc.next() // )
 			case *ast.Member:
-				p.next() // the name
+				lc.next() // the name
 			}
 		}
 	}
@@ -602,115 +616,115 @@ func (r *layoutReplay) unary(t ast.ActionExpr) {
 }
 
 func (r *layoutReplay) actionExprPrimary(t ast.ActionExpr) {
-	p := r.p
+	lc := r.lc
 	switch x := t.(type) {
 	case *ast.New:
 		r.newActionExpr(x)
 	case *ast.Call:
-		p.next() // the name
-		p.next() // (
-		defer p.restoreBreak()()
-		x.OpenBreak, x.BodyBreak = p.openList()
+		lc.next() // the name
+		lc.next() // (
+		defer lc.restoreBreak()()
+		x.OpenBreak, x.BodyBreak = lc.openList()
 		x.TrailingComma = r.listItems(x.Args, ")")
-		x.CloseBreak = p.lineBreak()
-		p.next() // )
+		x.CloseBreak = lc.lineBreak()
+		lc.next() // )
 	case *ast.ListConstructor:
-		p.next() // []
+		lc.next() // []
 		r.typ(x.Elem)
-		p.next() // {
-		defer p.restoreBreak()()
-		x.OpenBreak, x.BodyBreak = p.openList()
+		lc.next() // {
+		defer lc.restoreBreak()()
+		x.OpenBreak, x.BodyBreak = lc.openList()
 		x.TrailingComma = r.listItems(x.Items, "}")
-		x.CloseBreak = p.lineBreak()
-		p.next() // }
+		x.CloseBreak = lc.lineBreak()
+		lc.next() // }
 	case *ast.ActionGroup:
-		open := p.i
-		p.next() // (
-		outer := p.cur
-		defer func() { p.cur = outer }()
+		open := lc.i
+		lc.next() // (
+		outer := lc.cur
+		defer func() { lc.cur = outer }()
 		x.OpenBreak = &ast.LineBreak{}
-		p.cur = x.OpenBreak
-		x.BodyBreak = p.lineBreak()
+		lc.cur = x.OpenBreak
+		x.BodyBreak = lc.lineBreak()
 		r.actionExpr(x.Action)
-		x.CloseBreak = p.lineBreak()
-		x.OneLine = !p.multiline(open, p.i)
-		p.next() // )
+		x.CloseBreak = lc.lineBreak()
+		x.OneLine = !lc.multiline(open, lc.i)
+		lc.next() // )
 	case *ast.TupleLit:
-		p.next() // (
-		outer := p.cur
-		defer func() { p.cur = outer }()
+		lc.next() // (
+		outer := lc.cur
+		defer func() { lc.cur = outer }()
 		x.OpenBreak = &ast.LineBreak{}
-		p.cur = x.OpenBreak
-		x.BodyBreak = p.lineBreak()
+		lc.cur = x.OpenBreak
+		x.BodyBreak = lc.lineBreak()
 		r.tupleLit(x)
 	default:
-		p.next() // a literal, a name or a capture
+		lc.next() // a literal, a name or a capture
 	}
 }
 
 // tupleLit replays the elements and closing parenthesis of t.
 func (r *layoutReplay) tupleLit(t *ast.TupleLit) {
-	p := r.p
+	lc := r.lc
 	t.TrailingComma = false
 	if len(t.Elems) > 0 {
 		r.actionExpr(t.Elems[0])
-		p.takeAfterLayout(t.Elems[0])
-		for i := 1; p.is(","); i++ {
-			p.next()
-			p.afterCommaLayout(&t.Elems[i-1].(ast.SourceNode).Source().Layout, ")")
-			if p.is(")") {
+		lc.takeAfterLayout(t.Elems[0])
+		for i := 1; lc.is(","); i++ {
+			lc.next()
+			lc.afterCommaLayout(&t.Elems[i-1].(ast.SourceNode).Source().Layout, ")")
+			if lc.is(")") {
 				t.TrailingComma = true
 				break
 			}
 			r.actionExpr(t.Elems[i])
-			p.takeAfterLayout(t.Elems[i])
+			lc.takeAfterLayout(t.Elems[i])
 		}
 	}
-	t.CloseBreak = p.lineBreak()
-	p.next() // )
+	t.CloseBreak = lc.lineBreak()
+	lc.next() // )
 }
 
 func (r *layoutReplay) newActionExpr(n *ast.New) {
-	p := r.p
-	p.next() // the type
-	p.next() // {
-	defer p.restoreBreak()()
-	n.OpenBreak, n.BodyBreak = p.openList()
+	lc := r.lc
+	lc.next() // the type
+	lc.next() // {
+	defer lc.restoreBreak()()
+	n.OpenBreak, n.BodyBreak = lc.openList()
 	trailing := false
-	if !p.is("}") && !(p.tok().kind == tIdent && p.peek(1).text == ":") {
+	if !lc.is("}") && !(lc.tok().kind == tIdent && lc.peek(1).text == ":") {
 		trailing = r.listItems(n.Args, "}")
 	} else {
 		for _, field := range n.Fields {
-			layout := p.takeTermLayout()
-			p.next() // the name
-			p.next() // :
+			layout := lc.takeTermLayout()
+			lc.next() // the name
+			lc.next() // :
 			r.actionExpr(field.Value)
 			field.Layout = layout
-			p.takeAfterLayout(field)
+			lc.takeAfterLayout(field)
 			trailing = false
-			if !p.is("}") {
-				p.next() // ,
-				p.afterCommaLayout(&field.Layout, "}")
-				trailing = p.is("}")
+			if !lc.is("}") {
+				lc.next() // ,
+				lc.afterCommaLayout(&field.Layout, "}")
+				trailing = lc.is("}")
 			}
 		}
 	}
-	n.CloseBreak, n.TrailingComma = p.lineBreak(), trailing
-	p.next() // }
+	n.CloseBreak, n.TrailingComma = lc.lineBreak(), trailing
+	lc.next() // }
 }
 
 // listItems replays the comma-separated items up to closer, and reports
 // whether a trailing comma follows them.
 func (r *layoutReplay) listItems(items []ast.ActionExpr, closer string) (trailing bool) {
-	p := r.p
+	lc := r.lc
 	for _, item := range items {
 		r.actionExpr(item)
-		p.takeAfterLayout(item)
+		lc.takeAfterLayout(item)
 		trailing = false
-		if !p.is(closer) {
-			p.next() // ,
-			p.afterCommaLayout(&item.(ast.SourceNode).Source().Layout, closer)
-			trailing = p.is(closer)
+		if !lc.is(closer) {
+			lc.next() // ,
+			lc.afterCommaLayout(&item.(ast.SourceNode).Source().Layout, closer)
+			trailing = lc.is(closer)
 		}
 	}
 	return trailing
