@@ -56,3 +56,6 @@ func (l *LiveRules) MissingBodies(table string, printed map[RuleKey]bool) []Rule
 
 // LoweredTermNames returns the names of the library functions and methods that only lowered terms call.
 func LoweredTermNames() []string { return loweredTermNames() }
+
+// Descs returns the expectation table that the first pass fixes for the Node and recognizer tables.
+func (l *LiveRules) Descs() []string { return l.descs }

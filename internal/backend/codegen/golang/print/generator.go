@@ -74,6 +74,9 @@ type Hooks struct {
 	// Reach receives the result of the first pass of GenerateParser, before the second pass; a test
 	// removes a root from it to show that the output then fails.
 	Reach func(*liveRules)
+	// Lowered receives each Node or recognizer table that the first pass of GenerateParser lowers,
+	// with its name, so that a test numbers the expectation table from the lowered tables.
+	Lowered func(table string, t *plandata.Table[code.Exec])
 	// LeanRoute is called with the rule table and the rule for each rule that takes the lean route
 	// in rules, in a Node or recognizer table, so that a test checks the route that is chosen, not
 	// the text of the generated code.
@@ -713,7 +716,15 @@ func (g *Generator) rules() {
 		for i, r := range all {
 			rules[i] = r.PlanRule()
 		}
-		live := func(id int) bool { return !g.pruned(all[id]) }
+		// A typed-only parser prints the Node rule bodies only for the frame layouts they fix, and not
+		// the lines of the Node table's Operators Rules, which are not planned.
+		bodiesOnly := g.Table == "rules" && g.typedOnly
+		live := func(id int) bool {
+			if _, operatorsRule := all[id].Def.Expr.(*ast.OperatorsRule); operatorsRule && bodiesOnly {
+				return false
+			}
+			return !g.pruned(all[id])
+		}
 		var p *plandata.Plan
 		var refuse func(plandata.Key) bool
 		if g.Table == "trules" {
@@ -735,6 +746,9 @@ func (g *Generator) rules() {
 			panic(fmt.Errorf("table %s: %w", g.Table, err))
 		}
 		g.plan, g.table = t.Plan, t
+		if g.hooks.Lowered != nil && g.collect != nil && !g.Traced && g.Table != "trules" {
+			g.hooks.Lowered(g.Table, t)
+		}
 	}
 	for _, r := range all {
 		s := check.NewScope()
