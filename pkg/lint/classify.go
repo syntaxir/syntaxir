@@ -104,7 +104,7 @@ type Classification struct {
 func Classify(ctx context.Context, g *ast.Grammar, start string) (*Classification, error) {
 	c, err := impl.Classify(ctx, g, start)
 	if err != nil {
-		return nil, err
+		return nil, grammarErrors(err)
 	}
 	return &Classification{
 		Class:           Class(c.Class),

@@ -92,7 +92,7 @@ does not compile, a Document that cannot be made of the initial text, an unknown
 without an edit to undo or redo. An `InvalidError` is not a `Mismatch`: it is a problem of the sequence, and not of the
 grammar. A grammar source that does not parse is reported as `grammar.Load` reports it, with
 [`grammar.SyntaxErrors`](../language/grammar-files.md#grammar-sources): `Replay` wraps them in its `InvalidError`, and `Fuzz`
-returns them.
+returns them. A grammar that parses but does not compile is reported with `compiler.GrammarErrors` in the same way.
 
 ### Generating Sequences
 

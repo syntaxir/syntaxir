@@ -11,8 +11,10 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"syntaxir.dev/sxir/internal/diagnostic"
 	"syntaxir.dev/sxir/internal/driver/entry"
 	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/pkg/compiler"
 	"syntaxir.dev/sxir/pkg/grammar"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
@@ -123,13 +125,22 @@ func Replay(src []byte, seq *Sequence) error {
 
 // compile compiles the grammar source src, in grammar syntax, to a parser that starts at the rule
 // start (empty for the default start rule). A source that does not parse gives the
-// grammar.SyntaxErrors of grammar.Load.
+// grammar.SyntaxErrors of grammar.Load, and a grammar that does not compile the
+// compiler.GrammarErrors that package compiler returns for it.
 func compile(src []byte, start string) (*engine.Parser, error) {
 	g, err := grammar.Load(grammar.FromBytes("", src).As(grammar.EncodingSXIR))
 	if err != nil {
 		return nil, err
 	}
-	return entry.CompileParser(g, start, entry.Options{})
+	p, err := entry.CompileParser(g, start, entry.Options{})
+	if list, ok := err.(diagnostic.ErrorList); ok {
+		errs := make(compiler.GrammarErrors, len(list))
+		for i, e := range list {
+			errs[i] = &compiler.GrammarError{Pos: e.Pos, Msg: e.Msg}
+		}
+		return nil, errs
+	}
+	return p, err
 }
 
 func compileFor(src []byte, seq *Sequence) (*engine.Parser, error) {

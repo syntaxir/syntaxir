@@ -86,8 +86,12 @@ parser in every artifact:
 | `compiler.WithOptimize(o)` | The [optimization setting](generated-parsers.md#optimization-settings): the profile `o.Profile` (`compiler.Speed`, `compiler.Memory` or `compiler.Size`), then the values `o.Values`, then the optimizations `o.Off` turned off. No setting changes what a parser returns. An unknown profile or optimization, or a value that an optimization does not take, is an error of every function |
 
 A grammar source that does not load gives the errors of `grammar.Load`, among them `grammar.SyntaxErrors` for grammar
-syntax. A grammar that loads but does not compile, such as one that refers to a rule that it does not define, gives an
-error whose text is its errors, one per line, each as `line:column: message` when its position is known.
+syntax. A grammar that loads but does not compile, such as one that refers to a rule that it does not define, gives
+`compiler.GrammarErrors`, a non-empty list of `*compiler.GrammarError`, each with the position `Pos` (an `ast.Pos`, the
+zero `Pos` when the error has no position in the source) and the message `Msg`. The functions return the list itself,
+which a program obtains with `errors.As`; the list does not unwrap to its elements. Its text is its errors, one per
+line, each as `line:column: message` when its position is known and as the message otherwise. `lint` and `editfuzz`
+report a grammar that does not compile with the same type.
 
 ## Compatibility and Support
 

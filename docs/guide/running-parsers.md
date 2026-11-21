@@ -102,6 +102,25 @@ _, err = compiler.Compile(grammar.FromString("grammar.sxir", "@start\nrule main 
 fmt.Println(err) // A source position and undefined-rule error.
 ```
 
+To show the errors yourself, for example in an editor, take them apart with `errors.As`. A source that does not
+parse gives `grammar.SyntaxErrors`; a grammar that parses but does not compile gives `compiler.GrammarErrors`. Both
+are lists, so declare a variable of the list type:
+
+```go
+var syntaxErrs grammar.SyntaxErrors
+var grammarErrs compiler.GrammarErrors
+switch {
+case errors.As(err, &syntaxErrs):
+	for _, e := range syntaxErrs {
+		fmt.Println(e.Pos.Line, e.Pos.Col, e.Msg) // e.End ends the text the error covers; zero at a point.
+	}
+case errors.As(err, &grammarErrs):
+	for _, e := range grammarErrs {
+		fmt.Println(e.Pos.Line, e.Pos.Col, e.Msg) // Line is 0 when the error has no position.
+	}
+}
+```
+
 ### From an AST
 
 `compiler.Compile` is `grammar.Load` followed by `compiler.CompileGrammar`. Use the two steps when you want to look at or change the AST

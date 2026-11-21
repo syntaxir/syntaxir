@@ -8,6 +8,9 @@
 // so a grammar means the same parser whatever the artifact. The parsers implement runtime.Parser;
 // the parser of Compile is a *vm.Parser, which also parses prefixes, iterates over streams, saves
 // itself (Marshal) and runs on the iterative VM.
+//
+// A grammar source that does not load gives the errors of grammar.Load, such as
+// grammar.SyntaxErrors; a grammar that loads but does not compile gives GrammarErrors.
 package compiler
 
 import (
@@ -102,7 +105,8 @@ func build(g *ast.Grammar, o options) (*engine.Parser, error) {
 	if err := o.check(); err != nil {
 		return nil, err
 	}
-	return entry.CompileParser(g, o.start, o.entry())
+	p, err := entry.CompileParser(g, o.start, o.entry())
+	return p, grammarErrors(err)
 }
 
 // load loads the grammar of src and compiles it.

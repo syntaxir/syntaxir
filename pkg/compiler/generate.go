@@ -19,7 +19,7 @@ type File struct {
 // files converts the files that a generator returns.
 func files(generated []common.GeneratedFile, err error) ([]File, error) {
 	if err != nil {
-		return nil, err
+		return nil, grammarErrors(err)
 	}
 	out := make([]File, len(generated))
 	for i, f := range generated {

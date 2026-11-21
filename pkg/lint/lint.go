@@ -13,6 +13,8 @@ import (
 	"context"
 
 	impl "syntaxir.dev/sxir/internal/analysis/lint"
+	"syntaxir.dev/sxir/internal/diagnostic"
+	"syntaxir.dev/sxir/pkg/compiler"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -118,12 +120,12 @@ type Config struct {
 // suppress findings (see the directive syntax in docs/guide/linting.md).
 //
 // An empty start selects the default start rule. Run returns an error, and no findings, if g does
-// not compile, if start is not a start rule of g, if c.Disable names an unknown check, or if ctx
+// not compile (compiler.GrammarErrors), if start is not a start rule of g, if c.Disable names an unknown check, or if ctx
 // ends; cancellation stops both the compilation and the checks and discards all findings.
 func (c Config) Run(ctx context.Context, g *ast.Grammar, start string) ([]Finding, error) {
 	in, err := impl.Config(c).Run(ctx, g, start)
 	if err != nil {
-		return nil, err
+		return nil, grammarErrors(err)
 	}
 	return findingsFromImpl(in), nil
 }
@@ -167,7 +169,7 @@ func Rewrites(ctx context.Context, g *ast.Grammar, start string, findings []Find
 	}
 	out, err := impl.Rewrites(ctx, g, start, in)
 	if err != nil {
-		return nil, err
+		return nil, grammarErrors(err)
 	}
 	res := make([]Rewrite, len(out))
 	for i, r := range out {
@@ -189,6 +191,21 @@ func findingsFromImpl(in []impl.Finding) []Finding {
 	out := make([]Finding, len(in))
 	for i, f := range in {
 		out[i] = Finding{Pos: f.Pos, Severity: Severity(f.Severity), Check: f.Check, Rule: f.Rule, Message: f.Message, Fix: f.Fix}
+	}
+	return out
+}
+
+// grammarErrors returns err with the errors of a grammar that does not compile, which the front
+// end returns as a diagnostic.ErrorList, as the compiler.GrammarErrors that package compiler
+// returns for them; it returns any other error as it is.
+func grammarErrors(err error) error {
+	list, ok := err.(diagnostic.ErrorList)
+	if !ok {
+		return err
+	}
+	out := make(compiler.GrammarErrors, len(list))
+	for i, e := range list {
+		out[i] = &compiler.GrammarError{Pos: e.Pos, Msg: e.Msg}
 	}
 	return out
 }
