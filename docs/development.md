@@ -272,7 +272,7 @@ The top-level tests of `internal/runtime/engine` call `t.Parallel()`. A test sta
 Engine tests write grammars in SyntaxIR source and compare results using the S-expression form of nodes (`Node.String`).
 The `check` helper also verifies that the result is the same with memoization disabled, with every backend (closure, recursive bytecode, iterative bytecode), with both position units, in recognition-only mode, and with tracing on.
 
-The behavior of package `engine` is tested from outside it, by the tests of package `engine_test` in `internal/runtime/engine/`: they call its exported API, with internal packages only to build values, to mark start rules and to count how often options apply. Tests of an engine mechanism that package `engine` exposes through traces and profiles (the memo, evaluation counts, twins) are there too. The module root holds no Go package; `TestModuleRootHoldsNoPackage` fails when a Go file appears there.
+The behavior of package `engine` is tested from outside it, by the tests of package `engine_test` in `internal/runtime/engine/`: they call its exported API, with internal packages only to build values, to mark start rules and to count how often options apply. Tests of an engine mechanism that package `engine` exposes through traces and profiles (the memo, evaluation counts, twins) are there too. The module root holds no Go package; `TestModuleRootHoldsNoPackage` in `internal/testing/archtest` fails when a Go file appears there.
 
 `internal/backend/codegen/golang/print/gengo_pool_lifecycle_test.go` checks generated Node and typed parser cleanup after oversized
 inputs, retained results, and error/retry reuse in both position units.
