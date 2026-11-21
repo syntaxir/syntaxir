@@ -264,6 +264,7 @@ Generates a standalone Go parser (see [code-generation.md](code-generation.md)) 
 parser (see [typescript.md](typescript.md)). `-g` is required (except with `-lib only`), and for Go `-o`, the output directory, and `-module`, the import path of the package (with `-lib import`, `-pkg` is enough). The Go output is `parser.go`, `api.go` and, with `-lib embed`, a copy of the library in `internal/libgo`; `sxir gen` refuses to replace a file in the directory that it did not generate. TypeScript needs `-o` as well and writes `parser.ts`, `lib.ts` and, with `-types`, `types.ts`; `-lib import` imports the library from `-lib-module` instead of writing `lib.ts`. `-source-info` makes the generated Go parser record the rule of each node and the names of captures.
 `-default-value` makes the generated parser return default values; it cannot be combined with `-types`, because the
 types come from the dropped actions.
+The optimization settings are not specific to generation (see [Optimization Settings](../../spec/runtime/generated-parsers.md#optimization-settings)).
 `-optimize <profile>` selects an optimization profile (`speed`, the default, `memory` or `size`), `-opt <name>[=<count>][,...]`
 turns on an optimization that the profile leaves off or sets a count, `-no-opt <name>[,<name>]`
 turns named optimizations off, and `-print-after <pass>[,<pass>]` writes the Core IR or Code IR at the Flow or Exec stage to standard

@@ -366,8 +366,8 @@ flowchart TD
 
 ## Controlling Passes
 
-The passes are controlled by the gen command, which takes flags that set which optional passes run and what is
-observed, and a Go program gives the same settings to the compiler package. The command builds the same settings that a
+The passes are controlled by the optimization settings, which are the same for every backend, and by what is observed.
+The gen command takes them as flags, and a Go program gives the same settings to the compiler package. The command builds the same settings that a
 Go program gives, and the driver reads only those, so the command line and the Go API cannot drift apart.
 
 ### Choosing Optimizations
@@ -438,5 +438,5 @@ public API nor the public command line.
   registry's library controls.
 - [Record 063](records/063-configurable-optimization-pass-pipeline.md): the decision, the alternatives and the status.
 - [Record 074](records/074-one-pass-pipeline.md): one pipeline per compilation, its interfaces and its text form.
-- [Code Generation](../guide/code-generation.md#optimizations): the flags of the generator, with their defaults.
+- [Code Generation](../guide/code-generation.md#optimizations): the optimizations and the profiles, with their defaults.
 - [Optimization catalog](../optimizations/README.md): the measured mechanisms and their controls.

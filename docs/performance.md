@@ -104,7 +104,7 @@ go tool pprof -top -nodecount 30 bench.test cpu.out
 go tool pprof -sample_index=alloc_space -top -nodecount 30 bench.test mem.out
 ```
 
-To compare generation options on the generated parsers of the ten language grammars and of two CSV use cases, `bench/profilematrix` generates each grammar once per
+To compare optimization settings on the generated parsers of the ten language grammars and of two CSV use cases, `bench/profilematrix` generates each grammar once per
 variant (`NAME=ARGS`, the options of `sxir gen` added to those of `testdata/grammars/generate.txt`), builds the parsers and measures them in fresh
 processes in rotated order:
 

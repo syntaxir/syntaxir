@@ -338,7 +338,7 @@ flowchart LR
 ```
 
 1. Every entry point of the compiler package calls the driver. The driver resolves the optimization setting through the
-   profile table, assembles the one pipeline for the backend and passes the settings to it.
+   profile table, which is the same for every backend, assembles the one pipeline for the backend and passes the settings to it.
 2. The front end builds the semantic model and Core IR.
 3. The pipeline runs the Core passes. The closure backend branches off here.
 4. The pipeline runs `flowlower`, then the Flow passes. For the VM, its last pass is `vmlower`, which selects

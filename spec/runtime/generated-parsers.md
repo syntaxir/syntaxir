@@ -94,8 +94,13 @@ sxir gen -g <grammar> [-lang go|ts] [-module <import path>] [-pkg <package>]
 
 ### Optimization Settings
 
-The optimization settings are a profile and the values of named optimizations. They are not part of
-the grammar's meaning: an optimization changes the code a parser is generated as, and the memory and
+The optimization settings are a profile and the values of named optimizations. They belong to the
+compilation of a grammar, not to one generator: the settings are the same for every backend (the Go and TypeScript
+generators, the closure engine and the bytecode VMs), and each backend applies the optimizations that concern it. Today
+only the generators have optimizations to apply: the closure engine, the bytecode VMs and the reference backends accept the
+setting, check it and apply nothing.
+
+The settings are not part of the grammar's meaning: an optimization changes the code a parser is generated as, and the memory and
 time it needs, but not what it returns. It is either on or off, or it has a count where `0` is off.
 Each optimization has a kind: `pass` (a transformation of the Core IR, the first intermediate
 representation built from the grammar), `flow pass` and `exec pass` (a transformation of Code IR at the Flow
@@ -118,8 +123,8 @@ count.
 - **Values.** `-opt name` is `name=1`. An optimization without a count takes `0` or `1`; one with a count
   takes `0` or a positive number. A name that is not an optimization, a value that the optimization does not
   take, a count that is not a decimal number, an empty item and a name given twice in `-opt` are errors, and generation fails before it writes a file.
-- **Languages.** The options apply to Go and TypeScript. An optimization that concerns only one language,
-  such as the slabs of typed Go values, has no effect on the other, and naming it is not an error.
+- **Backends and languages.** An optimization that concerns only one backend or language, such as the slabs of
+  typed Go values, has no effect on another, and naming it is not an error.
 - **`-print-after`** takes the steps `elaborate` (the Core IR of each rule table as built), `flowlower` (each function as
   the Code IR listing at the Flow stage, as lowered from Core IR), `flow-finish` (the same listing after the Flow stage of
   a function ends), and `execlower` (each function as the Code IR listing at the Exec stage, as converted from the Flow

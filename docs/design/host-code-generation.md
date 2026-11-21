@@ -111,4 +111,4 @@ parsers.
 - [The Pass Pipeline](pass-pipeline.md): the pass infrastructure that the host-language passes run on, and the registry.
 - [Core IR and Code IR](intermediate-representations.md): the Exec stage, which the host languages consume.
 - [Package Layering](layering.md): the rule that generated parsers must not link the VM or the engine.
-- [Code Generation](../guide/code-generation.md#optimizations): the generator flags, with their defaults.
+- [Code Generation](../guide/code-generation.md#optimizations): the optimizations and the profiles, with their defaults.
