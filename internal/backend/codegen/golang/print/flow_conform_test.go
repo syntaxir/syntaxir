@@ -212,7 +212,7 @@ var flowArgOps = []string{flow.OpRestore, flow.OpDropKids, flow.OpKids, flow.OpI
 	flow.OpLiteralText, flow.OpReset, flow.OpMarkPos, flow.OpMergeExpected, flow.OpMergeRenamed, flow.OpKeep, flow.OpMakeError,
 	flow.OpErrorValue, flow.OpNewErrorNode, flow.OpNewMatch, flow.OpNewTerminalNode, flow.OpNewBranchNode, flow.OpNewNode,
 	flow.OpExpect, flow.OpSetFrame, flow.OpSetEnv, flow.OpSetCapture, flow.OpFrameVal,
-	flow.OpScanReach, flow.OpScanKids}
+	flow.OpScanReach, flow.OpScanKids, flow.OpCtxFinish, flow.OpFreshNode}
 
 func (pr *flowProbe) add(c *code.Call) int {
 	pr.mu.Lock()
@@ -706,6 +706,48 @@ type failFunc func(format string, args ...any)
 // flowConformChecks are the checks of the Flow operations beyond their position and charges, by
 // operation.
 var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc){
+	flow.OpCtxFinish: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		checkOnlyAction(e, fail)
+		arg, res := e.Args[1], firstResult(e)
+		if (arg == nil) != (res == nil) {
+			fail("returned %v for the value %v: nil only for nil", res, arg)
+			return
+		}
+		a, ok1 := valOf(arg)
+		r, ok2 := valOf(res)
+		if !ok1 || !ok2 {
+			return
+		}
+		if a.Type != r.Type || a.Kids != r.Kids || a.Text != r.Text {
+			fail("returned %v for the value %v: it changes only the span", res, arg)
+		}
+		if r.Start > r.End || r.End > e.Pos {
+			fail("gave the value the span %d to %d, the position is %d", r.Start, r.End, e.Pos)
+		}
+	},
+	flow.OpFreshNode: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		checkOnlyAction(e, fail)
+		if res := firstResult(e); res != nil && fmt.Sprint(res) != fmt.Sprint(e.Args[0]) {
+			fail("returned %v, neither the node %v nor nil", res, e.Args[0])
+		}
+	},
+	flow.OpPred:           func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpBind:           func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpEval:           func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpUseCtx:         func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpShapeSingle:    func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpShapeCapture:   func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpScopeValue:     func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpAttachCaptures: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpAttachFrame:    func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpSetWhere:       func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpDeclareNames:   func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpStep:           func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpObserveSkip:    func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpUnfresh:        func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpDropCreated:    func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpAppend:         func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpConvertResult:  func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
 	flow.OpSkipHit: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
 		hit, known := resBool(e, 0)
 		switch {
@@ -1172,6 +1214,19 @@ func checkNodeBuilt(e *flowEvent, fail failFunc, types ...string) (flowVal, bool
 		fail("built a value of type %s, not of %s", v.Type, strings.Join(types, " or "))
 	}
 	return v, true
+}
+
+// checkOnlyAction checks an operation that evaluates an action, a predicate or a binding, or builds
+// a value: it leaves the position, the gathered values, the recovered errors, the silent depth and
+// the record of expectations as they were. (Bind sets a variable of the environment, which the
+// environment operations check.)
+func checkOnlyAction(e *flowEvent, fail failFunc) {
+	if e.PosAfter != e.Pos {
+		fail("moved the position from %d to %d", e.Pos, e.PosAfter)
+	}
+	if e.Kids != e.KidsAfter || e.Rec != e.RecAfter || e.Silent != e.SilentAfter || e.Far != e.FarAfter || e.Exps != e.ExpsAfter {
+		fail("changed the state (%v)", flowChanged(e))
+	}
 }
 
 // checkWalkOnly checks an operation of a walk of a run or scan site, which writes only the state of
