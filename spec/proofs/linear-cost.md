@@ -3823,8 +3823,18 @@ the callee of $t$ in $E_t$, so that $t$ nests at one end. Three of its
 hypotheses are not shown here, and its case of a unit decided by a negative
 lookahead on its own side is left aside as there. First, $X$
 and $T$ must end at $p_0$, but the evaluations above are chosen because the
-current result of their leader ends at $p_0$, and a leader whose step at
-$p_0$ grows ends beyond $p_0$. Second, $T$ must follow a read of the seed in
+current result of their leader ends at $p_0$: a step of each has a seed that
+ends at $p_0$, so its final result, which its call returns, ends at $p_0$ or
+beyond, and beyond when its step at $p_0$ grows. Let $E'$ be one of them
+inside another, $E$, and let the match of the step of $E$ whose result is the
+seed that ends at $p_0$ hold, outside every lookahead, a call that returns
+the result of $E'$. Then $E'$ ends at $p_0$: its result lies in that match,
+which ends at $p_0$. So when each of them but the outermost lies in that way
+in the one around it, all but the outermost end at $p_0$, and $X$ and $T$ can
+be chosen among those. Not shown is an evaluation whose result lies in no
+such match of the one around it: one that the step reaches only inside a
+lookahead or in a part that it abandons, or that lies in another step.
+Second, $T$ must follow a read of the seed in
 each dropped step of a growth on the path from $X$ to $T$, and that path lies
 inside growths: the claim allows the kept growth steps on it and those
 dropped steps, but a dropped step that holds $T$ in a part that it evaluates
@@ -13598,9 +13608,11 @@ theorem covers such a parse.
    out, and for which the condition has its case of seed reads (*Seed
    reads*); that case is argued from *Nesting at one end*, apart from its
    case of a unit decided by a negative lookahead on its own side, but not
-   proved: it is not shown that the
-   nested evaluations of a leader that it picks end at the position, since a
-   leader whose current result ends there can grow beyond it, nor that each
+   proved: the nested evaluations of a leader that it picks are shown to
+   end at the position only when each but the outermost lies, outside
+   lookaheads, in the match of the step of the one around it whose result
+   ends there, since a leader whose current result ends there can grow
+   beyond it; nor is it shown that each
    dropped step of a growth on the path between them holds the inner one after
    a read of its seed, nor that each later kept step of such a growth matches
    its result through a read of its seed that succeeds outside every
