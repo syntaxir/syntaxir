@@ -120,7 +120,7 @@ func flowProgramsOf(t testing.TB, src string, pick func(rule string) bool, mutat
 	if err != nil {
 		t.Fatal(err)
 	}
-	bc, err := vmlower.CompileCore(checked.VMInput(cp), coreBC)
+	bc, err := vmlower.CompileCore(vmlower.Input{Run: cp.Runtime(), Elab: cp}, coreBC)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +129,7 @@ func flowProgramsOf(t testing.TB, src string, pick func(rule string) bool, mutat
 		if !pick(name) {
 			continue
 		}
-		if err := vmlower.SelectFlows(bc, checked.VMInput(cp), ft.IR.M, ft.Plan, map[int]*code.Module{id: ft.Bodies[id]}); err != nil {
+		if err := vmlower.SelectFlows(bc, vmlower.Input{Run: cp.Runtime(), Elab: cp}, ft.IR.M, ft.Plan, map[int]*code.Module{id: ft.Bodies[id]}); err != nil {
 			continue // an operation without a bytecode Flow form yet
 		}
 		if mutate != nil {

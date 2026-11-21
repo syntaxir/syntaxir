@@ -726,7 +726,7 @@ func (s *flowSel) call(c *code.Call, dst []int) error {
 		if err != nil {
 			return err
 		}
-		return s.op(bytecode.FlowBind, c, dst, bytecode.FlowBindOf{Var: s.c.in.Vars.Index(x.Node.Var), Action: t})
+		return s.op(bytecode.FlowBind, c, dst, bytecode.FlowBindOf{Var: s.c.in.Run.Vars.Index(x.Node.Var), Action: t})
 	case flowpkg.OpSkipBegin:
 		// A walk of a skip-run site begins as the match code's SKIPREPEAT begins it: without values,
 		// keyed by the variables unless the site is free of them. A skip-run site and a run site

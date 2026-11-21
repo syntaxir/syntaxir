@@ -36,7 +36,7 @@ func Compile(in Input) (*bytecode.Module, error) {
 // CompileCore compiles the program prog, whose Core IR after the bytecode pipeline is m, to a
 // bytecode module (Compile).
 func CompileCore(in Input, m *ir.Module) (*bytecode.Module, error) {
-	c := &compiler{in: in, core: m, m: &bytecode.Module{SourceInfo: in.RecordsSourceInfo, DefaultValue: in.MakesDefaultValue}, strs: map[string]int{}}
+	c := &compiler{in: in, core: m, m: &bytecode.Module{SourceInfo: in.Run.RecordsSourceInfo, DefaultValue: in.Run.MakesDefaultValue}, strs: map[string]int{}}
 	c.compile()
 	if c.err != nil {
 		return nil, c.err
@@ -54,7 +54,7 @@ func CompileCore(in Input, m *ir.Module) (*bytecode.Module, error) {
 
 // actionCode returns the action code of the action expression of s, adding the strings it uses to the module.
 func (c *compiler) actionCode(s actionSite) (bytecode.Action, error) {
-	tp, err := actionlower.Compile(s.actionExpr, actionlower.Env{Checker: c.in.Elab.Checker(), Vars: c.in.Vars, Scope: scopeOf(s.scope), Proj: s.proj})
+	tp, err := actionlower.Compile(s.actionExpr, actionlower.Env{Checker: c.in.Elab.Checker(), Vars: c.in.Elab.Checker().Vars(), Scope: scopeOf(s.scope), Proj: s.proj})
 	if err != nil {
 		return bytecode.Action{}, fmt.Errorf("internal error: %w", err)
 	}
@@ -171,23 +171,27 @@ func b2i(b bool) int32 {
 
 // compile fills the module with the type, variable and rule tables and the code of the rules.
 func (c *compiler) compile() {
-	for _, spec := range c.in.Types {
-		td := spec
+	chk := c.in.Elab.Checker()
+	for _, decl := range chk.Grammar().Types() {
+		td, ok := decl.(*ast.TypeDef)
+		if !ok {
+			continue // an alias is not a type of the module
+		}
 		ti := bytecode.TypeInfo{Name: int(c.str(td.DeclName())), Node: -1}
-		if n, ok := c.in.Elab.Checker().NodeTypeOf(td.DeclName()); ok {
+		if n, ok := chk.NodeTypeOf(td.DeclName()); ok {
 			ti.Node = int(c.str(types.NewFieldType(n.Underlying()).Text))
 		}
-		for _, f := range check.DefFields(spec) {
+		for _, f := range check.DefFields(td) {
 			ti.Fields = append(ti.Fields, int(c.str(f.Name)))
 		}
-		if z, ok := c.in.Zeros[td.DeclName()]; ok {
+		if z := c.in.Run.StructZero(td.DeclName()); z != nil {
 			for _, f := range z.Names {
 				ti.Zeros = append(ti.Zeros, int(c.str(z.Zeros[f])))
 			}
 		}
 		c.m.Types = append(c.m.Types, ti)
 	}
-	if t := c.in.Vars; t != nil {
+	if t := c.in.Run.Vars; t != nil {
 		for _, d := range t.List {
 			vi := bytecode.VarInfo{Name: int(c.str(d.Name)), Str: -1}
 			switch v := d.Init.(type) {
@@ -202,14 +206,14 @@ func (c *compiler) compile() {
 		}
 	}
 	// The rule table; the entries of the bodies are filled in below.
-	all := append(append([]Rule(nil), c.in.Rules...), c.in.Twins...)
+	all := append(append([]*program.Rule(nil), c.in.Run.RuleList...), c.in.Run.Twins...)
 	if len(all) != len(c.core.Rules) {
 		c.failf("%d rules in Core IR, %d in the program", len(c.core.Rules), len(all))
 		return
 	}
 	for _, r := range all {
 		ri := bytecode.RuleInfo{Name: int(c.str(r.Name)), Entry: -1, Action: -1, NodeType: -1, OperatorsRule: -1,
-			Memo: r.Memo, Leader: r.Leader, Member: r.Member, Cycle: r.Cycle, PositionDependent: r.Positional, ValueFreeTwin: r.NoValue,
+			Memo: r.Memo, Leader: r.Leader, Member: r.Member, Cycle: r.Cycle, PositionDependent: r.Positional, ValueFreeTwin: r.Novalue,
 			Transient: r.Transient, Rec: r.Rec, Where: -1, Splice: r.Splice, Vars: c.strList(r.Vars)}
 		if r.Where != "" && r.Where != r.Name {
 			ri.Where = int(c.str(r.Where))
@@ -221,17 +225,17 @@ func (c *compiler) compile() {
 		}
 		c.m.Rules = append(c.m.Rules, ri)
 	}
-	keys := c.in.RunKeys
+	keys := c.in.Run.RunKeys
 	sites := slices.Sorted(maps.Keys(keys))
 	for _, site := range sites {
 		k := keys[site]
 		c.m.RunKeys = append(c.m.RunKeys, bytecode.RunKeyInfo{Site: site, Vars: c.strList(k.Vars), Bind: c.strList(k.Bind)})
 	}
-	for i, r := range c.in.Rules {
-		if slices.Contains(c.in.StartRules, r.Name) {
+	for i, r := range c.in.Run.RuleList {
+		if slices.Contains(c.in.Run.StartRules, r.Name) {
 			c.m.Starts = append(c.m.Starts, i)
 		}
-		if r.Name == c.in.DefaultStartRule {
+		if r.Name == c.in.Run.DefaultStartRule {
 			c.m.DefaultStart = i
 		}
 	}
@@ -588,7 +592,7 @@ func (c *compiler) void(n ir.Node) {
 	case *ir.Pred:
 		c.emit(bytecode.OpPred, int32(c.actionExpr(n.Action, nil)), 0, 0)
 	case *ir.BindNode:
-		c.emit(bytecode.OpBind, int32(c.in.Vars.Index(n.Var)), int32(c.actionExpr(n.Action, nil)), 0)
+		c.emit(bytecode.OpBind, int32(c.in.Run.Vars.Index(n.Var)), int32(c.actionExpr(n.Action, nil)), 0)
 	case *ir.Label:
 		c.label(n)
 		c.void(n.Body)

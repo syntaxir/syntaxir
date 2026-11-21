@@ -33,7 +33,7 @@ func flowTable(t *testing.T, prog *compile.Program) (*checked.FlowTable, *byteco
 	if err != nil {
 		t.Fatal(err)
 	}
-	bc, err := vmlower.Compile(checked.VMInput(prog))
+	bc, err := vmlower.Compile(vmlower.Input{Run: prog.Runtime(), Elab: prog})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +54,7 @@ func ruleID(t *testing.T, ft *checked.FlowTable, name string) int {
 
 // selectRule selects the body of the rule id of the table into bc.
 func selectRule(prog *compile.Program, ft *checked.FlowTable, bc *bytecode.Module, id int) error {
-	return vmlower.SelectFlows(bc, checked.VMInput(prog), ft.IR.M, ft.Plan, map[int]*code.Module{id: ft.Bodies[id]})
+	return vmlower.SelectFlows(bc, vmlower.Input{Run: prog.Runtime(), Elab: prog}, ft.IR.M, ft.Plan, map[int]*code.Module{id: ft.Bodies[id]})
 }
 
 // TestSelectJSONValueFlow selects the body of the JSON value rule, a framed body of the plan.

@@ -6,7 +6,6 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/vmlower"
 	"syntaxir.dev/sxir/internal/compile"
-	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 	"syntaxir.dev/sxir/pkg/bytecode"
 )
@@ -91,7 +90,7 @@ rule e = #operators {
 func TestMissingTokensModuleGuard(t *testing.T) {
 	t.Parallel()
 	prog := compiletest.Program(t, `rule main = ";" #missing`, compile.Options{SourceInfo: true})
-	if _, err := vmlower.Compile(checked.VMInput(prog)); err == nil || !strings.Contains(err.Error(), "bytecode module construction") {
+	if _, err := vmlower.Compile(vmlower.Input{Run: prog.Runtime(), Elab: prog}); err == nil || !strings.Contains(err.Error(), "bytecode module construction") {
 		t.Fatal("silent bytecode lowering", err)
 	}
 }
@@ -104,7 +103,8 @@ func compileModule(t *testing.T, src string, opts ...compile.Options) *bytecode.
 		o = opts[0]
 	}
 	o.SourceInfo = true
-	m, err := vmlower.Compile(checked.VMInput(compiletest.Program(t, src, o)))
+	prog := compiletest.Program(t, src, o)
+	m, err := vmlower.Compile(vmlower.Input{Run: prog.Runtime(), Elab: prog})
 	if err != nil {
 		t.Fatal(err)
 	}

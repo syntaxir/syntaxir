@@ -32,7 +32,7 @@ func BenchmarkRuntimeBackendCompile(b *testing.B) {
 			}
 			b.ReportAllocs()
 			for b.Loop() {
-				if _, err := vmlower.Compile(VMInput(p)); err != nil {
+				if _, err := vmlower.Compile(vmlower.Input{Run: p.Runtime(), Elab: p}); err != nil {
 					b.Fatal(err)
 				}
 			}
