@@ -221,6 +221,30 @@ func CtxCases() []Case {
 		b.Do("ctx.done", c4)
 		b.Assert(code.C("ctx.allows", c4, e2), "is reused there")
 	})
+	// A lookup that hits a kept result inside another call replays the dependencies of that result into the
+	// call: the call read the seed through it, so its own result goes to the context, not to the memo.
+	add("ctx_keep_replay", func(b *code.Builder) {
+		grow(b, ctxLeaderA, 0, true, 3, 7)
+		c, _ := enter(b, "c", ctxMember)
+		b.Do("ctx.push", c)
+		readSeed(b, "in", ctxLeaderA)
+		b.Assert(eq(code.C("ctx.pop", c), code.C("ctx.storeCtx")), "a result that read a seed goes to the context")
+		keep(b, c, ctxMember, 1, true, 4, noValue, noErrs, code.C("exp.empty"))
+		b.Do("ctx.done", c)
+		outer, _ := enter(b, "outer", ctxMember)
+		b.Do("ctx.push", outer)
+		c2, _ := enter(b, "c2", ctxMember)
+		h := b.Let("h", code.C("ctx.lookup", c2, rule(ctxMember), i(0), code.C(ValuesOp, i(1))))
+		b.Assert(code.C("ctx.found", h), "the call finds the kept result")
+		b.Assert(eq(code.C("ctx.pop", outer), code.C("ctx.storeCtx")),
+			"and its own result goes to the context: it depends on the seed that the kept result read")
+		keep(b, outer, ctxMember, 0, true, 4, noValue, noErrs, code.C("exp.empty"))
+		b.Do("ctx.done", outer)
+		b.Do(ref.CtxReseedOp, t, i(5), i(9))
+		o2, _ := enter(b, "o2", ctxMember)
+		b.Assert(code.Not(code.C("ctx.found", code.C("ctx.lookup", o2, rule(ctxMember), i(0), code.C(ValuesOp, i(0))))),
+			"nor does it hold under a seed of another identity")
+	})
 	add("ctx_lookahead", func(b *code.Builder) {
 		grow(b, ctxLeaderA, 0, true, 3, 7)
 		c, _ := enter(b, "c", ctxMember)

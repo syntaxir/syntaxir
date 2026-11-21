@@ -289,7 +289,8 @@ func TestEngineCtxConformanceDetectsBrokenEngine(t *testing.T) {
 		name string
 		kind int
 	}{{"ignore seeds", CtxIgnoreSeeds}, {"ignore observations", CtxIgnoreObs}, {"ignore present sets", CtxIgnorePresent},
-		{"one identity for wide present sets", CtxConstWide}, {"narrow present sets", CtxNarrowPresent}} {
+		{"one identity for wide present sets", CtxConstWide}, {"narrow present sets", CtxNarrowPresent},
+		{"a lookup replays no dependencies", CtxNoReplayLookup}} {
 		t.Run(mu.name, func(t *testing.T) {
 			ContextMemoMutation = mu.kind
 			defer func() { ContextMemoMutation = 0 }()

@@ -182,7 +182,9 @@ func (p *Parser) ctxLookup(c *CtxState, r *Rule, min int, kv KeyVals) ctxHit {
 		return ctxHit{}
 	}
 	p.seedRead(c.gp)
-	p.replayDeps(p.Pos, c.gp, c.present, s.deps)
+	if ContextMemoMutation != CtxNoReplayLookup {
+		p.replayDeps(p.Pos, c.gp, c.present, s.deps)
+	}
 	return ctxHit{e: s.e}
 }
 

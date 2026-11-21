@@ -49,14 +49,13 @@ func TestTypeScriptConformanceCtx(t *testing.T) {
 func TestTypeScriptConformanceCtxDetectsMutants(t *testing.T) {
 	mutanttest.SkipUnlessChanged(t, mutanttest.Pipeline...)
 	node := codegentest.RequireNode(t)
-	// Not here: a lookup that replays no dependencies into the enclosing call. The cases do not keep a result
-	// whose lookup is inside another pushed call, so nothing shows it (checked: the suite does not notice it).
 	mutants := []tsMutant{
 		{name: "a result answers a call in any context", sig: "memoAllows(c: CtxCall", old: "(c.present & ~present) === 0", new: "true"},
 		{name: "a result that read a seed goes to the memo", sig: "ctxPop(c: CtxCall", old: "if (d.kind !== depShadow) {", new: "if (false) {"},
 		{name: "a leader reading its seed notes nothing", sig: "ctxEnter(c: CtxCall", old: "this.noteSeedRead(i);", new: ""},
 		{name: "a step of the same end is longer", sig: "growLonger(g: GrowState", old: "this.pos > best.end", new: "this.pos >= best.end"},
 		{name: "a kept result is stored without its dependencies", sig: "ctxKeep(c: CtxCall", old: "this.stored(this.popped)", new: "this.stored(noDeps)"},
+		{name: "a lookup replays no dependencies", sig: "ctxLookup(c: CtxCall", old: "this.replayDeps(this.pos, c.gp, c.present, s.deps);", new: ""},
 		{name: "a lookup answers for another rule", sig: "ctxLookup(c: CtxCall", old: "headKey(ctxCallKind, rule, min, c.present)", new: "headKey(ctxCallKind, 0, min, c.present)"},
 		{name: "an adopted seed keeps its identity", sig: "growAdopt(g: GrowState", old: "rec.id = this.nextSeedID();", new: ""},
 		{name: "an adopted seed does not return to the start", sig: "growAdopt(g: GrowState", old: "this.pos = g.start;", new: ""},

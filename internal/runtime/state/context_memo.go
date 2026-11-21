@@ -67,6 +67,7 @@ const (
 	CtxStrictMissing              // a parse with missing-token insertion keeps no result in a context
 	CtxStoreInserts               // rules that insert tokens keep their results in contexts too
 	CtxConstWide                  // all present sets of leaders without bits have one identity
+	CtxNoReplayLookup             // a reused result of a lookup passes no dependencies to the enclosing call
 )
 
 // growRec is a growth in progress: the leader's key, its current seed and the seed's identity.
