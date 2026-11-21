@@ -59,6 +59,12 @@ type growScaleCase struct {
 // off (the mutant), it must be linear, or the grammar would not witness the check.
 func checkGrowScale(t *testing.T, set func(bool) func(), cases []growScaleCase) {
 	t.Helper()
+	checkGrowScaleAt(t, set, []int{125, 250, 500}, cases)
+}
+
+// checkGrowScaleAt is checkGrowScale at the given sizes.
+func checkGrowScaleAt(t *testing.T, set func(bool) func(), sizes []int, cases []growScaleCase) {
+	t.Helper()
 	defer set(true)()
 	for _, c := range cases {
 		g, err := enginetest.ParseGrammar(c.src)
@@ -75,7 +81,7 @@ func checkGrowScale(t *testing.T, set func(bool) func(), cases []growScaleCase) 
 			backends = nil
 		}
 		for _, b := range backends {
-			s := complexitytest.Series{Sizes: []int{125, 250, 500}}
+			s := complexitytest.Series{Sizes: sizes}
 			for _, n := range s.Sizes {
 				cost, err := complexitytest.StepsLenient(p, c.input(n), b, complexitytest.Cap)
 				if err != nil {
@@ -102,6 +108,82 @@ func checkGrowScale(t *testing.T, set func(bool) func(), cases []growScaleCase) 
 			case !on && !linear:
 				// The mutant must claim linear, or the grammar would not witness the check.
 				t.Errorf("%s without the check: classified %v, want linear", c.name, got.Class)
+			}
+		}
+	}
+}
+
+// droppedStepMain repeats l, and the pieces of input that l leaves, on ("ab+{")^n "}".
+const droppedStepMain = "@start\nrule main = (l / \"+{\" / \"}\")* $$\n"
+
+// droppedStepScan scans the rest of the input and fails at its end, through a repetition whose
+// element calls a left-recursive rule, so that it is no run site.
+const droppedStepScan = "rule z = \"b\" \"+\" \"{\" (c / x)* \"}\" \"!\"\nrule c = \"a\" / \"b\" / \"+\" / \"{\"\nrule x = x \"#\" / \"#\"\n"
+
+// droppedStepSizes are the sizes measured: each step of a growth scans the rest of the input, so
+// smaller sizes than the default show the slope at a fraction of the time.
+var droppedStepSizes = []int{40, 80, 160}
+
+func droppedStepInput(n int) string { return strings.Repeat("ab+{", n) + "}" }
+
+// TestGrowStartDroppedStepScale measures grammars in which a later step of a growth of l goes on
+// to a part of the body that the first step did not reach, and holds the check of a growing unit
+// at the start of its first-step paths to them. The first step matches the seed ab through the
+// inner alternative "a"; the second reads the seed, matches +, fails at { and goes on to the last
+// alternative at the position where l grows. That alternative begins with a, as the first-step
+// path does: z scans the rest of the input and fails, the part fails or ends short of the seed,
+// the step is dropped, and the next growth four characters on scans the rest again, so the cost
+// grows as n^2. Without the check (the mutant) each grammar is classified linear.
+func TestGrowStartDroppedStepScale(t *testing.T) {
+	checkGrowScaleAt(t, complexity.SetGrowStart, droppedStepSizes, []growScaleCase{
+		{"part that fails after the scan", droppedStepMain + "rule l = (l \"+\" / \"a\") \"b\" / \"a\" z\n" + droppedStepScan, droppedStepInput},
+		{"part that gives up the scan in an option", droppedStepMain + "rule l = (l \"+\" / \"a\") \"b\" / \"a\" z?\n" + droppedStepScan, droppedStepInput},
+		{"part that gives up the scan in a called option", droppedStepMain + "rule l = (l \"+\" / \"a\") \"b\" / \"a\" w\nrule w = z?\n" + droppedStepScan, droppedStepInput},
+		{"part that gives up the scan in a repetition", droppedStepMain + "rule l = (l \"+\" / \"a\") \"b\" / \"a\" z*\n" + droppedStepScan, droppedStepInput},
+		{"part that gives up the scan in an optional choice", droppedStepMain + "rule l = (l \"+\" / \"a\") \"b\" / \"a\" (z / \"q\")?\n" + droppedStepScan, droppedStepInput},
+	})
+}
+
+// TestGrowStartDroppedStepControls measures grammars near those of TestGrowStartDroppedStepScale
+// that stay linear and are classified linear: an earlier alternative that the later steps
+// evaluate again and that matches again, so the part with the scan is never reached, and a part
+// that cannot begin with what the first-step path matches. The reference build has no compute
+// limit, so it checks the classes alone.
+func TestGrowStartDroppedStepControls(t *testing.T) {
+	for _, c := range []struct{ name, src string }{
+		{"earlier alternative matches again", droppedStepMain + "rule l = l \"+\" \"b\" / \"a\" \"b\" / \"a\" z\n" + droppedStepScan},
+		{"part that begins otherwise", droppedStepMain + "rule l = (l \"+\" / \"a\") \"b\" / \"q\" z\n" + droppedStepScan},
+	} {
+		g, err := enginetest.ParseGrammar(c.src)
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		g = starttest.MarkAll(g)
+		got, err := complexity.ClassifyComplexityControlled(g, "main", nil)
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		if got.Class != complexity.ClassLinear {
+			t.Errorf("%s: classified %v, want linear\nreasons %v", c.name, got.Class, got.Reasons)
+		}
+		if !state.BudgetControlsEnabled {
+			continue
+		}
+		p, err := enginetest.Compile(g, "main")
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		for _, b := range complexitytest.Backends {
+			s := complexitytest.Series{Sizes: droppedStepSizes}
+			for _, n := range s.Sizes {
+				cost, err := complexitytest.StepsLenient(p, droppedStepInput(n), b, complexitytest.Cap)
+				if err != nil {
+					t.Fatalf("%s: %s: size %d: %v", c.name, complexitytest.BackendName(b), n, err)
+				}
+				s.Costs = append(s.Costs, cost)
+			}
+			if got := complexitytest.Classify(s); got != complexitytest.Linear {
+				t.Errorf("%s: %s: costs %v (slopes %.2f) measured %v, want linear", c.name, complexitytest.BackendName(b), s.Costs, s.Slopes(), got)
 			}
 		}
 	}
