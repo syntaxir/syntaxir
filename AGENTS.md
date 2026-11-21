@@ -36,8 +36,13 @@ A test (`internal/testing/archtest`) fails when a path in backticks here does no
 commit first. `docs`: docs, spec, site, skills. `code`: Go changes. `engine`: `code` plus the
 long tier, generation, alpha-parsers (needs a checkout:
 `SXIR_ALPHA_PARSERS`) and, when the affected packages include the engine, the reference build. `full`: the long tier of the affected packages; `all`: the whole tree in the long tier, for a release.
-The gate runs only what the change can affect and lists each step it leaves out. A landing batch runs `engine`, and `docs` when it also changes documentation. A lane runs `docs` or `code`. New slow
-tests go to the long tier (`sxir_long`).
+The gate runs only what the change can affect and lists each step it leaves out. Choose the level
+by what each change touches, for a lane and a landing batch alike: `docs` for documentation only,
+`code` for Go changes, and `engine` only when the engine, a generator or the runtime changes. A
+mechanical rewrite (a rename, a formatting pass) is checked by its invariants instead of a full
+run: build and vet under every build tag, generation without drift, unchanged test-file counts per
+tag, and the tests of the packages edited by hand. `all` is for a release. New slow tests go to
+the long tier (`sxir_long`).
 
 ## Agent scripts
 
