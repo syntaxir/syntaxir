@@ -12,6 +12,10 @@ compositions as they stand; this record keeps the decision, the measurements and
 > structure of Code IR and holds no operation; the operations and compositions described here live in
 > `internal/ir/code/exec` and its subpackages (`compose`, `conform`, `ref`). The passes are in
 > `internal/middleend/codepass`. Older names in this record (`ir/exec`, `ops`) mean those packages.
+>
+> The operations on the values of terms (the `term.*` and `act.*` leaves, `val.*`) belong to the Action dialect, which is
+> legal at the Flow and the Exec stage ([Values](../../../spec/exec-ir/values.md)); their declarations are in
+> `internal/ir/code/action`. The grammar's name for a term is action expression ([Actions](../../../spec/language/actions.md)).
 
 ## Summary
 
