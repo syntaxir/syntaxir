@@ -7842,6 +7842,40 @@ $it'$, since the parser starts nothing before the end of an iteration after
 it ends; the start of $it'$ is no earlier than the end of $it$, so it is
 $\tau_0$. $\square$
 
+**Repeats in calls of an own region.** Let $R$ and $\sigma$ be as in the
+claim above, and let no record of a scan site answer a walk of $\sigma$ in
+the evaluations $P^\circ$ of its case (ii). For a memoized evaluation $H$ and
+two successful activations $\beta$, $\beta'$ of $\sigma$ at $q$ that $H$
+holds as there, in case (ii) and not in case (i), let $M$ be the outermost
+evaluation, made inside $H$, of a call of a rule that the parse memoizes
+that contains $P^\circ$. Then the call of $M$ lies in the own region of
+$H$, $M$ contains a successful activation of $\sigma$ at $q$, starts after
+$\beta$ and ends before $\beta'$ starts, and distinct such pairs, of one
+memoized evaluation or of different ones, have distinct $M$. So such pairs,
+over all memoized evaluations, are at most the evaluations of calls of
+rules that the parse memoizes, made in the own region of a memoized
+evaluation, that contain a successful activation of $\sigma$ at $q$.
+
+*Proof.* Case (ii) gives a call $g$ of a rule that the parse memoizes,
+made inside $H$, whose evaluation contains $P^\circ$, so $M$ exists. No
+call of such a rule made inside $H$ contains the call of $M$, which is the
+outermost, so that call lies in the own region of $H$. $M$ contains
+$P^\circ$, which holds a successful activation of $\sigma$ at $q$. By the
+argument of the claim above for $g$, $M$ lies inside $N$ and starts after
+$w$ ends, and so after $\beta$, which lies in $w$. $M$ starts no later than
+$P^\circ$, before $\beta'$ starts, and does not contain $\beta'$, which lies
+in the own region of $H$, so it ends before $\beta'$ starts. For one $H$, the
+pairs of consecutive activations that it holds are ordered, and the $M$ of
+each lies after its $\beta$ and before its $\beta'$, so no two share it. The
+call of $M$ lies in the own region of one memoized evaluation only: of two
+that contain $M$, one lies inside the other, a call of a rule that the parse
+memoizes, so the call of $M$ is outside the own region of the outer one.
+$\square$
+
+The claim moves case (ii) to the count of those evaluations around $q$,
+which can nest without a bound, so it bounds nothing alone, and case (i)
+stays open as below.
+
 These claims prove no bound on the activations that one evaluation holds.
 With the second claim, such a bound follows from a bound $I$ on the
 iterations of one evaluation $T$ of a repetition in the own region that
@@ -13632,7 +13666,11 @@ theorem covers such a parse.
    unit shares a call of the rule of the source with its continuation, and
    that the continuation evaluates that call again in the own region, or
    inside a call of a memoized rule with which it starts, where another
-   evaluation holds the repeated activation; neither case is bounded. In a
+   evaluation holds the repeated activation; neither case is bounded. *Repeats
+   in calls of an own region* charges the pairs of the second case, over all
+   memoized evaluations, to distinct evaluations of memoized calls, made in
+   an own region, that contain an activation at the position of the scan,
+   which can nest without a bound. In a
    parse that keeps records or resumes runs the claim has a third case,
    in which the continuation passes the call inside an iteration that a
    record answers or a resumed walk reuses and evaluates it in no
