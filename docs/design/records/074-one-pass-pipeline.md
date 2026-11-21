@@ -152,12 +152,12 @@ The kinds of a compilation:
 | `table` | one table of a program and its configuration | a backend's split of the program |
 | `core` | a Core IR module, with the origin map of its elaboration | `elaborate` |
 | `cores` | the program and the Core module of each of its tables | the join of the table split |
-| `plan` | the plan of the program: reachable rules, call routes, the expectation table, layouts | `plan` |
+| `plan` | the plan of the program: reachable rules, call routes, layouts | `plan` |
 | `planned` | one table's plan, its Core module and origin map | the split of a plan |
 | `table@flow`, `table@exec` | the planned table and its module at the stage (`Table[S]`) | `flowlower`, `execlower` |
 | `code@flow`, `code@exec` | a module at the stage (`At[S]`) | the module of a table unit, and each function of it |
 | `lowered@exec` | one function in its module at the Exec stage | a view of `code@exec` |
-| `tables@exec` | the plan with every table of a generating backend at the Exec stage | the join of the planned tables |
+| `tables@exec` | the plan with every table of a generating backend at the Exec stage, and the expectation table numbered from the Node and recognizer tables | the join of the planned tables |
 | `library` | a compositions module of the libraries (at no stage), the specializations requested of it, and one specialized function per request | the driver, for the Go library; a lens of `tables@exec`, for the TypeScript library |
 | `vm-input`, `closure-input` | the program and the Core module of the one table that the backend builds | the join of the backend's table split |
 | `output` | the result of one backend: files, bytecode or the closures' Core module | the last required step of every backend |
@@ -624,9 +624,9 @@ pipeline program -> []output {
 `go-tables` lists the typed table, the Node table, the recognizer and the traced copies that the target's options
 select, labeled as the dumps label them; its join gives `cores`. `core-config` keys Core IR on whether the table builds
 values. `plan` is a program-level step: reachability starts from every entry point of the program, the typed ones
-included, and the expectation table is numbered across the Node and recognizer tables, so these facts cannot be decided
-per table. `planned-tables` splits the plan into its tables again and joins them, at the Exec stage, into `tables@exec`,
-which `print-go` and `print-ts` take. `table-config` derives the features of a table (budget controls, observation,
+included, so it cannot be decided per table. `planned-tables` splits the plan into its tables again and joins them, at
+the Exec stage, into `tables@exec`, which `print-go` and `print-ts` take; the join numbers the expectation table across
+the Node and recognizer tables, which is likewise not a fact of one table. `table-config` derives the features of a table (budget controls, observation,
 Document, traced) from its unit. A TypeScript target is a second branch of the same fork with `target=ts`, the split
 `ts-tables`, the target passes `ts-spend-runs ts-merged-records ts-tested-inits` and `print-ts!`.
 
@@ -757,11 +757,27 @@ one call. Optimization settings are common to the targets of one call, which is 
 that wants different settings per language makes two calls.
 
 **Planning.** `plan` decides everything that a printer decides before or while printing: the functions of each table
-and their forms, the reachable rules and the route of each call, the expectation table, the frame layouts of the typed
-table from the Core rules' scopes, and for TypeScript the same routes with a printability analysis that replaces the
-refusals its printer raises, failing with the same message. The refusal of flat functions is an analysis of the Flow
+and their forms, the reachable rules and the route of each call, the frame layouts of the typed table from the Core
+rules' scopes, and for TypeScript the same routes with a printability analysis that replaces the refusals its printer
+raises, failing with the same message. A planned table holds only functions that its target prints: a typed-only Go
+parser, which prints the Node rule bodies only for the frame layouts they fix, plans no lines of the Node table's
+Operators Rules, so its dumps show no such lines either. The refusal of flat functions is an analysis of the Flow
 stage that `flowlower` runs on each flat function right after writing it, before any Flow pass: a refused function is
 replaced by its lowered fallback in the same lowering, so a table is lowered once and no target's form is read.
+
+**The expectation table.** The Go parser numbers an expectation the first time one of its functions records it, and
+the Flow passes decide where that is: a guard or a dispatch records the first-character expectations of a choice
+ahead of the bodies of its alternatives. Numbering the Core IR of the tables in plan order gives the same expectations
+in another order for most grammars of the corpus, so the numbering is not part of `plan`. The join into `tables@exec`
+numbers the table from the lowered Node and recognizer tables, in that order, function by function in plan order and
+operation by operation in the order of their code, in the Exec lowering, after the fixed expectations. That is the
+order in which printing every function records them, which a test checks over the corpus. A rule of the Node or
+recognizer table that the plan does not reach keeps its table row, and the IDs are those of a parser that prints
+every rule, so the numbering lowers these two tables a second time without leaving out unreached rules: a lowering
+that no observer sees, with no dumps and no events, whose tables only the numbering reads. The planned tables that
+`print-go` prints are the pruned ones, and printing them fails with an internal error if it records an expectation that
+the numbering lacks. The typed table and the traced copies add their expectations after this table as they are
+printed, since the typed table has no row of a rule it leaves out.
 
 **The fallback for planning.** If planning without printing renumbers the expectation table or changes the scopes of
 pruned rows, the driver keeps two runs instead: it executes the Go pipeline once with the feature `reach` unset, so
@@ -1021,8 +1037,11 @@ must report. The kind rule's control plants a printing pass on `code@flow` and o
   declaration moves into one field of the run. Rejected.
 - **Each backend's own result kind and no common one.** `Fork` needs one result type; an adapter step per backend would
   add a step that does nothing to every dump and text. Rejected for the one kind `output`.
-- **Planning per table.** Reachability and the expectation numbering are facts of the program. Rejected for a
-  program-level `plan`.
+- **Planning per table.** Reachability is a fact of the program, and the expectation numbering one of its joined
+  tables. Rejected for a program-level `plan` and the numbering at the join.
+- **Numbering the expectation table in `plan`.** The plan holds Core IR, whose order of expectations is not the one the
+  Flow passes give the printed functions: it renumbers the generated tables of most grammars. Rejected for the
+  numbering of the lowered tables at the join into `tables@exec`, which keeps the generated parsers.
 - **A multi-target entry in the API only, or in the command line only.** Both are thin over the driver; offering one
   without the other would make the command line and the API generate differently. Rejected.
 - **Shared results that emit no events.** Simpler, but dumps and bisection numbers would depend on which backends are
@@ -1163,9 +1182,10 @@ the attributes of its nodes computed, since a kind's verifier checks the unit an
    internal to the manager at step 6. Until step 5 plans the functions that the TypeScript printer lowers one at a time,
    the driver runs each through the same steps as a table of its own: a plan of its functions in order before
    `flowlower`, and a table that no plan holds before `execlower`.
-4. **Planning as a program-level pass**, and the Go generator prints once. If that renumbers the expectation table or
-   changes the scopes of pruned rows, the driver keeps the two runs of the planning fallback, and the numbering is decided
-   separately before the fallback is removed.
+4. **Planning as a program-level pass**, the expectation table numbered from the lowered tables where they are
+   joined, and the Go generator prints once. Neither renumbers the expectation table nor changes the scopes of pruned
+   rows, so the planning fallback is not needed; it stays the route if a later change makes planning differ from
+   printing.
 5. **TypeScript:** routes and the printable analysis in the plan; the printer calls no pipeline.
 6. **The driver assembles the Go and TypeScript pipelines.** The printers become passes in the backend packages; the
    driver's stage API, the pass and lowering entry points of the code generators and the hooks go, and their users move
