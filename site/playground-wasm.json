@@ -1,6 +1,6 @@
 {
   "repository": "https://github.com/syntaxir/syntaxir",
-  "tag": "playground-wasm-v0.0.1",
-  "wasmSHA256": "46803a39b55cf35a617c130c24b97b16b282d7e8e2ba4c8741488528197662eb",
+  "tag": "playground-wasm-v0.0.2",
+  "wasmSHA256": "857052cb7811ff617454a4f30a8b479a4c22f48f27f4ce2349410c200585b3f3",
   "runtimeSHA256": "0c949f4996f9a89698e4b5c586de32249c3b69b7baadb64d220073cc04acba14"
 }
