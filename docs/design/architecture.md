@@ -282,7 +282,7 @@ in [Package Layering](layering.md), and the public packages are described in [Th
 | `internal/runtime/state/sharedsrc` | The list of the mechanism files that the engine shares with the Go library, the go:generate copy of them into the engine, and its freshness test |
 | `internal/runtime/document` | The incremental Document |
 | `internal/runtime/vm` | The bytecode VM, recursive and iterative |
-| `internal/runtime/engine` | The run-time entry points: parse, Document, stream |
+| `internal/runtime/engine` | The run-time entry points: Program (compiled or loaded), backend selection, parse, Document, stream |
 | `internal/runtime/nodes` | The engine's access to the node representation |
 | `internal/runtime/limits` | Defaults of the limits and overflow-safe budget arithmetic |
 | `internal/syntax/fmt` | The grammar formatter |
