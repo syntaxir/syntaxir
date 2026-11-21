@@ -9328,13 +9328,32 @@ contains the scanning source after the shared calls, through its left call;
 when the shared calls read no growing result of $T$, both steps evaluate them
 with the same result, so $Q$ goes on at the end of the same calls at which
 $P$ matched in the first step, and first characters that are disjoint there
-make $Q$ fail. In a cycle with a third leader, $A$ can also lie in the body of
+make $Q$ fail. When $P$ is committing against $Q$ through its words instead,
+the step of $R$ has a growing result of fewer than $c_w$ characters. $P$
+matched at $p$ in the first step, and a word is not empty, so $P$ passed its
+word $w$ there and the input at $p$ begins with $w$, followed, when the word
+has $!Y$, by a character outside $Y$ or the end of the input. On that input
+every path of $Q$ evaluated at $p$ fails, examines nothing more, or
+evaluates a negative lookahead whose expression is known to match before it
+reaches the end of $w$ ([Conditions for Linear
+Cost](../runtime/parsing.md#conditions-for-linear-cost)). In $\tau$, $Q$ is
+evaluated at $p$ on that input, and its path in the result of $\tau$ passes
+the read, which consumes the growing result of $R$ from $p$, so it consumes
+the whole of $w$ without failing when that result has $|w|$ characters or
+more. So it has fewer than $|w| \le c_w$, and since the seeds of the kept
+steps of a growth grow longer, this happens in at most $c_w$ steps of each
+growth of $R$. In a cycle with a third leader, $A$ can also lie in the body of
 that leader, whose growth a step of $T$ nests at $p$ and whose steps read the
 growing result of $T$, as in `R = R "z" / T "r" / "q"`,
 `T = T "w" / U "u" / "t"` and `U = U "v" / (T "x"? / "") "s" / R "k"`; the
-argument above is not carried into such a body. The case is not shown when
+argument above is not carried into such a body. A shared call that reads
+the growing result of $T$ can return another result in $\tau$ than in the
+first step, where that read fails, so $P$ and $Q$ go on after it at
+different positions, and the comparison after the shared calls does not
+apply. The case is not shown when
 $A$ lies in the body of such a third leader, or when $A$ is committing against
-$Q$ only through its words, or, in a rule that is not a leader, through a
+$Q$ only through its words, in the steps of $R$ whose growing result has
+fewer than $c_w$ characters, or, in a rule that is not a leader, through a
 shared call that reads the growing result of $T$ or at which the removal
 stops (*Open parts of the kept steps*). $\square$
 
@@ -9490,8 +9509,10 @@ claims of this lemma that rest on them hold apart from them:
    not empty and does not include the growing result before one that does,
    when the unit that fails after its left call of $T$ read the seed lies in
    the body of a third leader whose growth a step of $T$ nests, or is committing
-   against the continuation that holds the read only through its words or,
-   in a rule of the cycle that is not a leader, through a shared call that
+   against the continuation that holds the read only through its words, in
+   the steps of the outer growth whose growing result has fewer than $c_w$
+   characters (a constant number of each growth), or, in a rule of the
+   cycle that is not a leader, through a shared call that
    reads the growing result of $T$ or at which the removal of shared calls
    stops;
 3. in *Failures at the position of the growth*, an evaluation in a later
@@ -13736,7 +13757,8 @@ theorem covers such a parse.
    those of the parse, and Lemma 5 must count those that are counterparts of
    activations of the parse; this is not shown, apart from those of an
    entered alternative (the remark after *Earlier calls in the reference
-   parse*, under its hypothesis on the values that the alternative reads),
+   parse*, under its hypothesis on the binding level and the values that the
+   alternative reads),
    which *Links to heads* and *Activations held by heads* place, as those
    with a reference link, outside the heads, outside cases (a) and (b) of
    the covered keys on the path to the call $z^\circ$ of that claim; those
@@ -14057,7 +14079,8 @@ theorem covers such a parse.
    its left call read the seed lies in the body of a third leader whose
    growth the
    nested one nests, or is committing against the continuation that holds
-   the read only through its words or, outside the bodies of leaders,
+   the read only through its words, in the steps of the outer growth whose
+   growing result has fewer than $c_w$ characters, or, outside the bodies of leaders,
    through a shared call that reads the growing result or at which the
    removal stops.
 3. **Operators Rules.** Lemma 4 places the operators that an Operators Rule
@@ -14124,9 +14147,10 @@ theorem covers such a parse.
    unit that fails after its left
    call read the seed lies in the body of a third leader whose growth the
    nested one nests, or is committing against the continuation that holds
-   the read only through its words or, outside the bodies of leaders,
-   through a shared call that reads the growing result or at which the
-   removal stops;
+   the read only through its words, in the steps of the outer growth whose
+   growing result has fewer than $c_w$ characters, or, outside the bodies
+   of leaders, through a shared call that reads the growing result or at
+   which the removal stops;
    condition 2 excludes the other such growths, and a nested growth with no
    result that includes it is fixed by the outcomes at the position of its
    reads, a constant number of combinations. The claims that use these
