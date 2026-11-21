@@ -1,4 +1,4 @@
-package engine
+package schemaexport_test
 
 import (
 	"encoding/json"
@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/pkg/runtime/schema"
 )
 
@@ -15,15 +17,15 @@ rule semi = ";" #missing`
 
 func missingSchema(t *testing.T) *schema.Output {
 	t.Helper()
-	g, err := parseTest(missingSchemaGrammar)
+	g, err := enginetest.Parse(missingSchemaGrammar)
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := Compile(g, compile.Options{})
+	p, err := entry.Compile(g, compile.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, err := outputSchemaPrototype(p, "main", true)
+	s, err := enginetest.OutputSchema(p, "main", true)
 	if err != nil {
 		t.Fatal(err)
 	}

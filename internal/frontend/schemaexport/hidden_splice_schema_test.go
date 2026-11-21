@@ -1,8 +1,10 @@
-package engine
+package schemaexport_test
 
 import (
 	"strings"
 	"testing"
+
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 )
 
 // A hidden rule without an action adds no type to the schema, except where a recursive call of it
@@ -16,8 +18,8 @@ func TestHiddenRulesAddNoSchemaType(t *testing.T) {
 		{"rule main = \"a\" _m \"d\"\nrule _m = \"b\" \"c\"", []string{"main"}},
 		{"rule main = _l\nrule _l = \"x\" _l / \"x\"", []string{"_l", "main"}},
 	} {
-		p := mustCompile(t, c.src)
-		s, err := outputSchemaPrototype(p, "main", false)
+		p := enginetest.MustCompile(t, c.src)
+		s, err := enginetest.OutputSchema(p, "main", false)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -1,4 +1,4 @@
-package engine
+package schemaexport_test
 
 import (
 	"bytes"
@@ -8,13 +8,17 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/driver/checked"
+	"syntaxir.dev/sxir/internal/driver/entry"
 	"syntaxir.dev/sxir/internal/frontend/schemaexport"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/pkg/runtime/schema"
 )
 
 func TestOutputSchemaPrototype(t *testing.T) {
 	t.Parallel()
-	g, err := parseTest(`type Item = { Value string; Next *Item; Count int; Flag bool; Values []node[string] }
+	g, err := enginetest.Parse(`type Item = { Value string; Next *Item; Count int; Flag bool; Values []node[string] }
 type Unused = { Text string }
 type Either ~ Item | node[string]
 rule main = item
@@ -23,11 +27,11 @@ rule unused = "z"`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := Compile(g, compile.Options{})
+	p, err := entry.Compile(g, compile.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, err := outputSchemaPrototype(p, "main", false)
+	s, err := enginetest.OutputSchema(p, "main", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +75,7 @@ rule unused = "z"`)
 		t.Fatal(err)
 	}
 	for i := 0; i < 10; i++ {
-		next, err := outputSchemaPrototype(p, "main", false)
+		next, err := enginetest.OutputSchema(p, "main", false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -97,15 +101,15 @@ rule unused = "z"`)
 	if err := json.Unmarshal([]byte(`{"format":"sxir-output-schema","version":1}`), &decoded); err == nil {
 		t.Fatal("accepted version 1")
 	}
-	all, err := outputSchemaPrototype(p, "main", true)
+	all, err := enginetest.OutputSchema(p, "main", true)
 	if err != nil || len(all.Rules) != 3 {
 		t.Fatalf("all rules: %+v %v", all, err)
 	}
-	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		if _, err := p.ParseWith("main", "a", ParseOptions{Backend: backend}); err != nil {
+	for _, backend := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
+		if _, err := p.ParseWith("main", "a", engine.ParseOptions{Backend: backend}); err != nil {
 			t.Fatalf("%s parse: %v", backend, err)
 		}
-		byBackend, err := outputSchemaPrototype(p, "main", false)
+		byBackend, err := enginetest.OutputSchema(p, "main", false)
 		if err != nil {
 			t.Fatalf("%s schema: %v", backend, err)
 		}
@@ -114,24 +118,24 @@ rule unused = "z"`)
 		}
 	}
 	// A program without the grammar has no metadata to export from.
-	if _, err := outputSchemaPrototype(checkedProgram(compile.NewProgram(nil)), "main", false); !errors.Is(err, schemaexport.ErrUnavailable) {
+	if _, err := enginetest.OutputSchema(engine.New(checked.Of(compile.NewProgram(nil))), "main", false); !errors.Is(err, schemaexport.ErrUnavailable) {
 		t.Fatal(err)
 	}
 }
 
 func TestOutputSchemaAnyAndValueFreeRepeat(t *testing.T) {
 	t.Parallel()
-	g, err := parseTest(`type Open ~ _
+	g, err := enginetest.Parse(`type Open ~ _
 type Bag = { Values []_ }
 rule main = (-"a")*`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := Compile(g, compile.Options{})
+	p, err := entry.Compile(g, compile.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, err := outputSchemaPrototype(p, "main", true)
+	s, err := enginetest.OutputSchema(p, "main", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,8 +159,8 @@ rule main = (-"a")*`)
 // single capture with the paths of all of them, which keeps the schema valid.
 func TestOutputSchemaMergesRepeatedCaptures(t *testing.T) {
 	t.Parallel()
-	p := compileBare(t, "@start\nrule main = a:\"x\" b:\"y\" a:\"z\"\n", compile.Options{DefaultValue: true})
-	s, err := outputSchemaPrototype(p, "main", false)
+	p := enginetest.CompileBare(t, "@start\nrule main = a:\"x\" b:\"y\" a:\"z\"\n", compile.Options{DefaultValue: true})
+	s, err := enginetest.OutputSchema(p, "main", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -181,8 +185,8 @@ func TestOutputSchemaMergesRepeatedCaptures(t *testing.T) {
 // and it is the same whatever the order of the places.
 func TestOutputSchemaRepeatedCaptureJoin(t *testing.T) {
 	t.Parallel()
-	p := compileBare(t, "@start\nrule main = a:\"x\" a:[0-9]+ a:\"q\" a:[0-9]+\n", compile.Options{DefaultValue: true})
-	s, err := outputSchemaPrototype(p, "main", false)
+	p := enginetest.CompileBare(t, "@start\nrule main = a:\"x\" a:[0-9]+ a:\"q\" a:[0-9]+\n", compile.Options{DefaultValue: true})
+	s, err := enginetest.OutputSchema(p, "main", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -213,8 +217,8 @@ func TestOutputSchemaLookaheadCapture(t *testing.T) {
 		{"differing shapes", "@start\nrule main = &a:[0-9]+ b:\"y\" a:\"z\"\n", true, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			p := compileBare(t, tc.src, compile.Options{DefaultValue: true})
-			s, err := outputSchemaPrototype(p, "main", false)
+			p := enginetest.CompileBare(t, tc.src, compile.Options{DefaultValue: true})
+			s, err := enginetest.OutputSchema(p, "main", false)
 			if err != nil {
 				t.Fatal(err)
 			}
