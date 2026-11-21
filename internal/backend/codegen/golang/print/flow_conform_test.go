@@ -211,7 +211,8 @@ var firstParser = regexp.MustCompile(`(^|[^.\w])p\b`)
 var flowArgOps = []string{flow.OpRestore, flow.OpDropKids, flow.OpKids, flow.OpInClass, flow.OpGuardFails, flow.OpText,
 	flow.OpLiteralText, flow.OpReset, flow.OpMarkPos, flow.OpMergeExpected, flow.OpMergeRenamed, flow.OpKeep, flow.OpMakeError,
 	flow.OpErrorValue, flow.OpNewErrorNode, flow.OpNewMatch, flow.OpNewTerminalNode, flow.OpNewBranchNode, flow.OpNewNode,
-	flow.OpExpect, flow.OpSetFrame, flow.OpSetEnv, flow.OpSetCapture, flow.OpFrameVal}
+	flow.OpExpect, flow.OpSetFrame, flow.OpSetEnv, flow.OpSetCapture, flow.OpFrameVal,
+	flow.OpScanReach, flow.OpScanKids}
 
 func (pr *flowProbe) add(c *code.Call) int {
 	pr.mu.Lock()
@@ -489,6 +490,7 @@ func TestProbe(t *testing.T) {
 					continue
 				}
 				covered[name]++
+
 				covered["case:"+c.name+":"+name]++
 				for _, ch := range flowChanged(&e) {
 					covered["chg:"+name+":"+ch]++
@@ -704,6 +706,69 @@ type failFunc func(format string, args ...any)
 // flowConformChecks are the checks of the Flow operations beyond their position and charges, by
 // operation.
 var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc){
+	flow.OpSkipHit: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		hit, known := resBool(e, 0)
+		switch {
+		case !known:
+		case !hit && (e.PosAfter != e.Pos || e.Kids != e.KidsAfter || e.Rec != e.RecAfter || e.Frame != e.FrameAfter ||
+			fmt.Sprint(e.Vals) != fmt.Sprint(e.ValsAfter)):
+			// Ending the iteration before may merge its expectations, which is not a change of a record.
+			fail("found no record and changed the position or the state (%v)", flowChanged(e))
+		case hit && (e.PosAfter < e.Pos || e.FarAfter < e.Far):
+			fail("took a record that moved the position from %d to %d and the farthest failure from %d to %d", e.Pos, e.PosAfter, e.Far, e.FarAfter)
+		}
+	},
+	flow.OpRunHot: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		if _, known := resBool(e, 0); !known && len(e.Results) != 0 {
+			fail("returned %v, not a bool", e.Results[0])
+		}
+		if e.PosAfter != e.Pos || len(flowChanged(e)) != 0 {
+			fail("changed the state (%v), it is pure", flowChanged(e))
+		}
+	},
+	flow.OpSkipKids: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		if _, ok := listLen(firstResult(e)); !ok {
+			fail("returned %v, not a list", firstResult(e))
+		}
+		if e.PosAfter != e.Pos {
+			fail("moved the position from %d to %d", e.Pos, e.PosAfter)
+		}
+	},
+	flow.OpScanReach: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		start, ok1 := argInt(e, 0)
+		count, ok2 := argInt(e, 1)
+		reach, ok3 := firstResult(e).(float64)
+		if !ok1 || !ok2 || !ok3 {
+			return
+		}
+		switch {
+		case int(reach) < count:
+			fail("returned %d characters, fewer than the %d matched", int(reach), count)
+		case e.PosAfter-start != int(reach):
+			fail("returned %d characters from %d and left the position at %d", int(reach), start, e.PosAfter)
+		case int(reach) == count && e.PosAfter != e.Pos:
+			fail("returned the count and moved the position from %d to %d", e.Pos, e.PosAfter)
+		}
+	},
+	flow.OpScanKids: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		base, ok := argInt(e, 1)
+		if _, isList := listLen(firstResult(e)); !isList {
+			fail("returned %v, not a list", firstResult(e))
+		}
+		if ok && e.KidsAfter != base {
+			fail("left %d gathered values, not %d", e.KidsAfter, base)
+		}
+		if e.PosAfter != e.Pos {
+			fail("moved the position from %d to %d", e.Pos, e.PosAfter)
+		}
+	},
+	flow.OpSkipBegin: checkWalkOnly,
+	flow.OpRunBegin:  checkWalkOnly,
+	flow.OpSkipVisit: checkWalkOnly,
+	flow.OpSkipValue: checkWalkOnly,
+	flow.OpSkipEnd:   checkWalkOnly,
+	flow.OpRunWalked: checkWalkOnly,
+	flow.OpScanEnd:   checkWalkOnly,
 	flow.OpPeek: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
 		r, size, ok := in.At(e.Pos)
 		if got, known := resBool(e, 2); known && got != ok {
@@ -1107,6 +1172,17 @@ func checkNodeBuilt(e *flowEvent, fail failFunc, types ...string) (flowVal, bool
 		fail("built a value of type %s, not of %s", v.Type, strings.Join(types, " or "))
 	}
 	return v, true
+}
+
+// checkWalkOnly checks an operation of a walk of a run or scan site, which writes only the state of
+// the walk: it leaves the position, the gathered values and the recovered errors as they were.
+func checkWalkOnly(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	if e.PosAfter != e.Pos {
+		fail("moved the position from %d to %d", e.Pos, e.PosAfter)
+	}
+	if e.Kids != e.KidsAfter || e.Rec != e.RecAfter || e.Silent != e.SilentAfter {
+		fail("changed the state (%v)", flowChanged(e))
+	}
 }
 
 // flowChanged lists the recorded components of the parser state that the call changed: the gathered
