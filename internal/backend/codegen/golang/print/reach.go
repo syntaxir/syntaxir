@@ -20,10 +20,12 @@ import (
 // so on transitively.
 //
 // GenerateParser finds the reachable rules with a first pass, which takes the calls of the rules from the
-// Core IR (core.Module.Reach) and how a call of each rule is printed (callWrapper), and a second pass
-// leaves out the others. The rule tables still list every rule: only the Body, Action,
-// Entry and OperatorsRule assignments and the functions of an unreachable rule are left out. What a
-// left-out rule would have declared (its expectations, literals, class tables and typed helpers) is
+// Core IR (core.Module.Reach), how a call of each rule is printed (callWrapper), and the typed rules
+// that the typed entry points enter (typedEntries, decided before printing), and a second pass leaves
+// out the others. The first pass prints the Node and recognizer tables, for their expectation table,
+// and no typed code. The rule tables still list every rule, a left-out row with the frame layout of
+// the plan (plandata.Plan.Layouts): only the Body, Action, Entry and OperatorsRule assignments and the
+// functions of an unreachable rule are left out. What a left-out rule would have declared (its expectations, literals, class tables and typed helpers) is
 // not declared either, so the IDs of what remains are those of the second pass.
 //
 // The expectation table that the Node and recognizer tables fix (descs) is the one of the first
@@ -41,12 +43,11 @@ type ruleKey struct {
 
 // liveRules is what the first pass of GenerateParser records for the second.
 type liveRules struct {
-	scopes map[ruleKey][]string // the capture layout of each rule, which its table row lists
-	descs  []string             // the expectation table, whose IDs the printed bodies keep
-	Roots  []ruleKey            // the start rules of the tables and the entries of the typed table
-	Reach  map[ruleKey]bool
-	mods   map[string]*core.Module         // the Core IR of each table, whose calls reachFrom follows
-	enter  func(table string, id int) bool // whether a call of a rule is printed as a call of its wrapper
+	descs []string  // the expectation table, whose IDs the printed bodies keep
+	Roots []ruleKey // the start rules of the tables and the entries of the typed table
+	Reach map[ruleKey]bool
+	mods  map[string]*core.Module         // the Core IR of each table, whose calls reachFrom follows
+	enter func(table string, id int) bool // whether a call of a rule is printed as a call of its wrapper
 }
 
 // reachFrom sets l.Reach to the rules that the roots enter, with the reachability of the Core IR

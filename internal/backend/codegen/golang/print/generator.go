@@ -253,6 +253,21 @@ func generateOnce(g *ast.Grammar, c common.Compiler, p common.Passes, opts commo
 		genGo.streamStart = start
 	}
 	genGo.Desc(core.FixedDescs[0]) // the fixed expectations come first
+	var entries typedEntries
+	if opts.Types {
+		// The typed entry points are decided before any table is printed: they fix the typed rules
+		// that the reachable rules start from, and whether the Node rule bodies are needed.
+		if entries, err = genGo.typedEntries(start, opts.ConvertTypes); err != nil {
+			return nil, err
+		}
+		if opts.TypedOnly && entries.needNodes && !opts.KeepNodes && !opts.DisableKeepNodes {
+			// A typed entry point converts the Node result of its rule, so the Node rule functions
+			// are needed; generate with them.
+			opts.KeepNodes = true
+			restarted = true
+			return generateOnce(g, c, p, opts, h, live, collect)
+		}
+	}
 	if h.Generator != nil && collect == nil {
 		h.Generator(genGo)
 	}
@@ -296,19 +311,6 @@ func generateOnce(g *ast.Grammar, c common.Compiler, p common.Passes, opts commo
 		// The expectations of the Node and recognizer tables are those the second pass keeps; the typed
 		// code adds its own after them, and only for the rules it reaches.
 		collect.descs = append([]string(nil), genGo.Descs...)
-		if !opts.Types {
-			return nil, genGo.finishReach(prog, rec)
-		}
-		typed, err := genGo.typedGo(start, opts.ConvertTypes)
-		if err != nil {
-			return nil, err
-		}
-		genGo.convertsNodes = typed.needNodes
-		if opts.TypedOnly && typed.needNodes && !opts.KeepNodes && !opts.DisableKeepNodes {
-			opts.KeepNodes = true
-			restarted = true
-			return generateOnce(g, c, p, opts, h, live, collect)
-		}
 		return nil, genGo.finishReach(prog, rec)
 	}
 	fmt.Fprintf(&genGo.Init, "\tsxirGrammar.Starts = %s\n", goStrings(prog.StartRules))
@@ -414,17 +416,9 @@ func ParseRule(name, input string, opts ...ParseOption) (*Node, error) {
 	}
 	var typesBody string
 	if opts.Types {
-		typed, err := genGo.typedGo(start, opts.ConvertTypes)
+		typed, err := genGo.typedGo(start, entries)
 		if err != nil {
 			return nil, err
-		}
-		genGo.convertsNodes = typed.needNodes
-		if opts.TypedOnly && typed.needNodes && !opts.KeepNodes && !opts.DisableKeepNodes {
-			// A typed entry point converts the Node result of its rule, so the Node rule functions
-			// are needed; generate again with them.
-			opts.KeepNodes = true
-			restarted = true
-			return generateOnce(g, c, p, opts, h, live, collect)
 		}
 		if opts.TypedOnly {
 			// The expectations of the typed bodies are known only now.
@@ -746,8 +740,11 @@ func (g *Generator) rules() {
 		s := check.NewScope()
 		scopes[r] = s
 		if g.pruned(r) {
-			// Not printed; its table row keeps the capture layout of the first pass.
-			s.Names = append(s.Names, g.live.scopes[ruleKey{g.Table, r.ID, false}]...)
+			// Not printed; a row of the Node or recognizer table keeps the frame layout of the plan,
+			// and a typed row none.
+			if g.Table != "trules" {
+				s.Names = append(s.Names, g.plan.Layouts[r.ID]...)
+			}
 			continue
 		}
 		_, operatorsRule := r.Def.Expr.(*ast.OperatorsRule)
@@ -791,14 +788,6 @@ func (g *Generator) rules() {
 		}
 		if !operatorsRule {
 			g.FailFlow("the body of rule " + r.Name)
-		}
-	}
-	if g.collect != nil && g.Table != "trules" {
-		if g.collect.scopes == nil {
-			g.collect.scopes = map[ruleKey][]string{}
-		}
-		for _, r := range all {
-			g.collect.scopes[ruleKey{g.Table, r.ID, false}] = append([]string(nil), scopes[r].Names...)
 		}
 	}
 	if g.plan != nil && g.Table != "trules" {

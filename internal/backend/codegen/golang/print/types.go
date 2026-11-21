@@ -38,33 +38,109 @@ import (
 // them values of the typed library.
 type typedOutput struct {
 	parser, types string
-	// needNodes reports that an entry point converts the Node result of a rule.
-	needNodes bool
 }
 
-// typedGo returns the Go source of the typed values for a parser starting at rule start. Unless conv
-// is set, ParseValue runs the typed library (pkg/runtime/libgo/typed.go) when every value it can produce has a Go
-// type of its own; otherwise it converts the result of Parse.
+// typedEntries is what the typed entry points of a parser run, decided from the types of the start
+// rules before anything is printed: whether an entry point builds the values of a start rule
+// directly with the typed library, or converts the Node result of its Node rule.
+type typedEntries struct {
+	// direct reports that ParseValue builds the values of the parser's start rule directly.
+	direct bool
+	// starts are the start rules whose case of ParseRuleValue builds the values directly.
+	starts map[int]bool
+	// roots are the typed rules whose Entry an entry point runs, in the order of the entry points.
+	roots []*common.Rule
+	// needTyped reports that an entry point runs the typed table; needNodes that one converts the
+	// Node result of a rule, which needs the Node rule bodies.
+	needTyped, needNodes bool
+}
+
+// newTypedGen returns the writer of the typed values of the generator g, with the Go names of the
+// grammar's types.
+func (g *Generator) newTypedGen() (*TypedGen, error) {
+	info := g.Prog.Typed
+	if info == nil {
+		return nil, fmt.Errorf("typed values need the grammar's types (type checking did not run)")
+	}
+	t := &TypedGen{G: g, Info: info, Joins: map[string]string{}, Anon: map[string]types.JoinTy{}, lists: map[string]string{}, tlists: map[string]string{}, tupleSizes: map[int]bool{}}
+	t.ValueResolver = common.NewValueResolver(g.Prog, func(x types.Ty) bool { _, ok := t.Joins[x.String()]; return ok })
+	if err := t.Name(); err != nil {
+		return nil, err
+	}
+	return t, nil
+}
+
+// typedEntries decides the typed entry points of a parser starting at rule start (see typedGo) and
+// records them in g: the typed rules they enter (typedRoots, typedEntry), whether the Document parses
+// typed values directly (directTypedDocument) and whether an entry point converts Nodes
+// (convertsNodes). Unless conv is set, an entry point runs the typed library for a rule whose every
+// value has a Go type of its own (TypedGen.libOK).
+func (g *Generator) typedEntries(start *common.Rule, conv bool) (typedEntries, error) {
+	t, err := g.newTypedGen()
+	if err != nil {
+		return typedEntries{}, err
+	}
+	e := typedEntries{starts: map[int]bool{}}
+	enter := func(r *common.Rule) {
+		e.needTyped = true
+		e.roots = append(e.roots, r)
+	}
+	e.direct = !conv && t.libOK(t.ruleType(start))
+	if e.direct {
+		enter(start)
+	} else {
+		e.needNodes = true
+	}
+	if g.Document && !e.direct {
+		// A Document reuses Node results and converts the finalized one.
+		e.needNodes = true
+	}
+	if g.streamStart != nil {
+		// The elements of a stream are converted from the committed Nodes.
+		e.needNodes = true
+	}
+	for _, name := range g.Prog.StartRules {
+		r := g.Prog.ByName[name]
+		if !conv && t.libOK(t.ruleType(r)) {
+			e.starts[r.ID] = true
+			enter(r)
+		} else {
+			e.needNodes = true
+		}
+	}
+	if g.Document && e.direct {
+		enter(start)
+	}
+	g.directTypedDocument = g.Document && e.direct
+	g.convertsNodes = e.needNodes
+	for _, r := range e.roots {
+		g.typedRoots = append(g.typedRoots, ruleKey{"trules", r.ID, true})
+		if g.typedEntry == nil {
+			g.typedEntry = map[int]bool{}
+		}
+		g.typedEntry[r.ID] = true
+	}
+	return e, nil
+}
+
+// typedGo returns the Go source of the typed values for a parser starting at rule start, with the
+// entry points e that typedEntries decided: an entry point that e marks direct runs the typed library
+// (pkg/runtime/libgo/typed.go); every other one converts the result of Parse.
 //
 // The source of the types package refers to the library by its package name and to the types by
 // their names; that of the parser package refers to the types of the grammar as types.Name, and the
 // names that only the types package declares (Error, TNode, Unit, TupleN, SXIRHooks) unqualified,
 // which qualifyLib resolves.
-func (g *Generator) typedGo(start *common.Rule, conv bool) (typedOutput, error) {
-	info := g.Prog.Typed
-	if info == nil {
-		return typedOutput{}, fmt.Errorf("typed values need the grammar's types (type checking did not run)")
-	}
-	t := &TypedGen{G: g, Info: info, Joins: map[string]string{}, Anon: map[string]types.JoinTy{}, lists: map[string]string{}, tlists: map[string]string{}, tupleSizes: map[int]bool{}}
-	t.ValueResolver = common.NewValueResolver(g.Prog, func(x types.Ty) bool { _, ok := t.Joins[x.String()]; return ok })
-	if err := t.Name(); err != nil {
+func (g *Generator) typedGo(start *common.Rule, e typedEntries) (typedOutput, error) {
+	t, err := g.newTypedGen()
+	if err != nil {
 		return typedOutput{}, err
 	}
 	ruleType := t.ruleType
 	var b, tb, entries, named strings.Builder
 	// A parser that runs the typed library keeps the ranges of the lists and tuples that its structs hold in the
 	// fields that actions read, which the declarations of the structs need to know.
-	t.direct = !conv && t.libOK(ruleType(start))
+	t.direct = e.direct
 	t.reads = t.fieldReads()
 	t.rfuncs = map[string]string{}
 	t.inTypes = true
@@ -80,19 +156,7 @@ func (g *Generator) typedGo(start *common.Rule, conv bool) (typedOutput, error) 
 // type is expected becomes nil.
 `
 	st := ruleType(start)
-	directStart := t.direct
-	enter := func(r *common.Rule) {
-		g.typedRoots = append(g.typedRoots, ruleKey{"trules", r.ID, true})
-		if g.typedEntry == nil {
-			g.typedEntry = map[int]bool{}
-		}
-		g.typedEntry[r.ID] = true
-	}
-	g.directTypedDocument = g.Document && directStart
-	needTyped, needNodes := false, false
-	if directStart {
-		needTyped = true
-		enter(start)
+	if e.direct {
 		result := t.dconv(st, "v", "a")
 		fmt.Fprintf(&entries, `%s// It builds the values directly, without the nodes Parse returns.
 func ParseValue(input string, opts ...ParseOption) (%s, error) {
@@ -102,7 +166,6 @@ func ParseValue(input string, opts ...ParseOption) (%s, error) {
 
 `, doc, t.goType(st), start.ID, t.goType(st), result)
 	} else {
-		needNodes = true
 		result := t.conv(st, "n")
 		newConv := ""
 		if strings.Contains(result, "a.") {
@@ -122,7 +185,6 @@ func ParseValue(input string, opts ...ParseOption) (%s, error) {
 	if g.Document && !g.directTypedDocument {
 		// A Document reuses Node results. Convert only the finalized result, with
 		// the same invocation controller and cleanup boundary as its Node parse.
-		needNodes = true
 		result := t.conv(st, "n")
 		newConv := ""
 		if strings.Contains(result, "a.") {
@@ -144,7 +206,6 @@ func (d *Document) ParseValue(opts ...ParseOption) (%s, error) {
 		// Elements are converted from the committed nodes that ParseStream
 		// emits, each with a converter of its own, so that typed values
 		// share nothing with later elements.
-		needNodes = true
 		v, ok := streamValue(g.Prog, r.Def)
 		if !ok {
 			return typedOutput{}, fmt.Errorf("internal error: no element type for the #stream repetition of %s", r.Name)
@@ -225,13 +286,10 @@ func (it *StreamValueIterator) Close() { it.pull.Close() }
 		} else {
 			fmt.Fprintf(&named, "\tcase %q:\n", r.Name)
 		}
-		if !conv && t.libOK(x) {
-			needTyped = true
-			enter(r)
+		if e.starts[r.ID] {
 			result := t.dconv(x, "v", "a")
 			fmt.Fprintf(&named, "\t\ta := &tslabs{}\n\t\treturn TParseResolved(trules[%d], input, o, a, func(v any) %s { a.result = true; return %s })\n", r.ID, t.goType(x), result)
 		} else {
-			needNodes = true
 			result := t.conv(x, "n")
 			fmt.Fprintf(&named, "\t\treturn RunParseConverted(rules[%d], input, o, func(n *Node, c *BudgetControl, err error) %s {\n", r.ID, t.goType(x))
 			fmt.Fprintf(&named, "\t\t\tif n == nil { var zero %s; return zero }\n", t.goType(x))
@@ -273,10 +331,9 @@ func (it *StreamValueIterator) Close() { it.pull.Close() }
 		}
 	}
 	if g.directTypedDocument {
-		enter(start)
 		_ = t.dconv(st, "v", "a")
 	}
-	if needTyped {
+	if e.needTyped {
 		// Emit the typed table if any public entry point can use it.
 		g.Table = "trules"
 		if err := g.startFlow(); err != nil {
@@ -290,7 +347,7 @@ func (it *StreamValueIterator) Close() { it.pull.Close() }
 		g.Table, g.typedTable = "rules", true
 		t.typedLib(&b)
 	}
-	if needNodes {
+	if e.needNodes {
 		t.converters(&b)
 	}
 	if g.directTypedDocument {
@@ -340,7 +397,7 @@ func CloneValue(value %s) %s {
 		}
 	}
 	parser.WriteString(code)
-	return typedOutput{parser: parser.String(), types: tb.String(), needNodes: needNodes}, nil
+	return typedOutput{parser: parser.String(), types: tb.String()}, nil
 }
 
 // TypedGen writes the typed values of a generated Go parser for the generator G: the Go types of
