@@ -9373,7 +9373,10 @@ when the shared calls read no growing result of $T$, both steps evaluate them
 with the same result, so $Q$ goes on at the end of the same calls at which
 $P$ matched in the first step, and first characters that are disjoint there
 make $Q$ fail. When $P$ is committing against $Q$ through its words instead,
-the step of $R$ has a growing result of fewer than $c_w$ characters. $P$
+the step of $R$ has a growing result of fewer than $c_w$ characters. In a
+rule that is not a leader, the words follow the removed shared calls, which
+end at $p$, since $Q$ reaches the read at $p$ after them; so the words, too,
+start at $p$. $P$
 matched at $p$ in the first step, and a word is not empty, so $P$ passed its
 word $w$ there and the input at $p$ begins with $w$, followed, when the word
 has $!Y$, by a character outside $Y$ or the end of the input. On that input
@@ -9382,9 +9385,10 @@ evaluates a negative lookahead whose expression is known to match before it
 reaches the end of $w$ ([Conditions for Linear
 Cost](../runtime/parsing.md#conditions-for-linear-cost)). In $\tau$, $Q$ is
 evaluated at $p$ on that input, and its path in the result of $\tau$ passes
-the read, which consumes the growing result of $R$ from $p$, so it consumes
-the whole of $w$ without failing when that result has $|w|$ characters or
-more. So it has fewer than $|w| \le c_w$, and since the seeds of the kept
+the read, which consumes the growing result of $R$ from $p$, so the path
+consumes the whole of $w$ without failing when that result has $|w|$
+characters or more. So the growing result of $R$ has fewer than
+$|w| \le c_w$ characters, and since the seeds of the kept
 steps of a growth grow longer, this happens in at most $c_w$ steps of each
 growth of $R$. In a cycle with a third leader, $A$ can also lie in the body of
 that leader, whose growth a step of $T$ nests at $p$ and whose steps read the
@@ -9392,7 +9396,7 @@ growing result of $T$, as in `R = R "z" / T "r" / "q"`,
 `T = T "w" / U "u" / "t"` and `U = U "v" / (T "x"? / "") "s" / R "k"`; the
 argument above is not carried into such a body. A shared call that reads
 the growing result of $T$ can return another result in $\tau$ than in the
-first step, where that read fails, so $P$ and $Q$ go on after it at
+first step, where that read fails, so $P$ and $Q$ can go on after it at
 different positions, and the comparison after the shared calls does not
 apply. The case is not shown when
 $A$ lies in the body of such a third leader, or when $A$ is committing against
