@@ -35,6 +35,11 @@ var (
 // classifier that took the scan of such a lookahead as cheap.
 var pnotSourceOn = true
 
+// pandSourceOn makes the strict analysis refuse a unit whose positive lookahead reaches a scanning
+// source and is only passed before the unit parts. It is on by default; the variable is a test
+// hook, whose off setting is the classifier that took the scan of such a lookahead as cheap.
+var pandSourceOn = true
+
 // deadPathsOn makes the strict analysis keep the paths that reach a part that no evaluation passes
 // (symDead) and refuse to count as decisive a symbol at which neither side can go on. It is on by
 // default; the variable is a test hook, whose off setting is the analysis that let a unit that never
@@ -898,7 +903,7 @@ func (x excl) excludes(s exclState) (ok bool, item, n int) {
 			if s.j < len(s.q) && s.q[s.j].kind == symAnd && x.disjoint(a.e, s.q[s.j].e) && (!x.strict || x.freshAll(s.q[s.j].e)) {
 				return decisive(a, a.item, s.steps+1)
 			}
-			if x.strict && x.k.containsSource(a.e) {
+			if x.strict && pandSourceOn && x.k.containsSource(a.e) {
 				return x.no("pand-source", a, nil)
 			}
 			s.i++
