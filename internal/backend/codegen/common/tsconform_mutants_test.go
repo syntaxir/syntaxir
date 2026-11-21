@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/mutanttest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 	"syntaxir.dev/sxir/internal/testing/tsconformtest"
 )
 
@@ -40,7 +40,7 @@ func tsMutate(t *testing.T, m tsMutant) string {
 // with the library changed in one way each, the suite fails.
 func TestTypeScriptConformanceExecDetectsMutants(t *testing.T) {
 	mutanttest.SkipUnlessChanged(t, mutanttest.Pipeline...)
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	mutants := []tsMutant{
 		// The memo.
 		{name: "a lookup ignores the level", sig: "memoGet(rule: number", old: "e.min === min", new: "true", suite: 0},
@@ -102,7 +102,7 @@ type tsPrintedMutant struct {
 // controls if the mutant changes charges, and requires every mutant to fail it.
 func tsDetectPrinted(t *testing.T, mutants []tsPrintedMutant, run func(r tsconformtest.Runner, charges bool) tsConformResult) {
 	t.Helper()
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	for _, m := range mutants {
 		t.Run(m.name, func(t *testing.T) {
 			t.Parallel()

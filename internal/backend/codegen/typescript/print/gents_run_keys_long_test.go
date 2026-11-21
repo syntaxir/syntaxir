@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // TestRunSitesTSKeyedByValues checks (R2) and (R3) of the linear-cost proof in generated TypeScript
@@ -17,7 +17,7 @@ import (
 // record of the site, they grow at least quadratically.
 func TestRunSitesTSKeyedByValues(t *testing.T) {
 	t.Parallel()
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}

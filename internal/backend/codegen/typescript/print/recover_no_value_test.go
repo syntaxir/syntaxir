@@ -5,6 +5,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // TestGeneratedTSRecoverNoValue checks that a generated TypeScript parser gives an expression
@@ -15,5 +16,5 @@ func TestGeneratedTSRecoverNoValue(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated code")
 	}
-	codegentest.TSParsersCorpus(t, codegentest.RequireNode(t), codegentest.RecoverNoValueCases, common.GenOptions{})
+	codegentest.TSParsersCorpus(t, tooltest.RequireNode(t), codegentest.RecoverNoValueCases, common.GenOptions{})
 }

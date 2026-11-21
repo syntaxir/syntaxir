@@ -7,6 +7,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // TestGeneratedLenOfNodes checks that generated Go parsers, untyped and typed, and generated
@@ -32,6 +33,6 @@ func testGeneratedLenOfNodes(t *testing.T) {
 	goBin := filepath.Join(runtime.GOROOT(), "bin", "go")
 	codegentest.GeneratedParsersCorpus(t, goBin, cases, common.GenOptions{})
 	codegentest.GeneratedTypesCorpus(t, goBin, cases, common.GenOptions{ConvertTypes: true}, 1)
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	codegentest.TSParsersCorpus(t, node, cases, common.GenOptions{})
 }

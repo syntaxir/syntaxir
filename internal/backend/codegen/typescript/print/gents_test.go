@@ -10,6 +10,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // tsVariantLen is the length up to which TestGeneratedTSParsersMatchEngine also parses variants of
@@ -26,7 +27,7 @@ func TestGeneratedTSParsersMatchEngine(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated code")
 	}
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	cases := codegentest.Representative(codegentest.GenCorpus(t))
 	// Exactly at and just beyond the nesting limit, as in TestGeneratedParsersMatchEngine; the
 	// harness gives the parser a stack large enough to reach it.

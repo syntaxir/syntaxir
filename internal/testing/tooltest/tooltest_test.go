@@ -27,7 +27,7 @@ func TestRequireToolChild(t *testing.T) {
 }
 
 // TestRequireToolWithoutTools checks the rule of RequireNode and RequireTSC with an empty PATH: the
-// test fails naming the tool; SKIP_NODE=1 skips it; REQUIRE_NODE=1 changes nothing.
+// test fails naming the tool; SKIP_NODE=1 skips it; SKIP_NODE=0 or unset does not skip.
 func TestRequireToolWithoutTools(t *testing.T) {
 	for _, tc := range []struct {
 		tool, env string
@@ -35,8 +35,6 @@ func TestRequireToolWithoutTools(t *testing.T) {
 	}{
 		{"node", "", false},
 		{"tsc", "", false},
-		{"node", "REQUIRE_NODE=1", false},
-		{"tsc", "REQUIRE_NODE=1", false},
 		{"node", "SKIP_NODE=1", true},
 		{"tsc", "SKIP_NODE=1", true},
 		{"node", "SKIP_NODE=0", false},

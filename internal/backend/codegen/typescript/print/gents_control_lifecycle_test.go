@@ -8,6 +8,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 func runGeneratedTSControlGCTest(t *testing.T, consumer string, hooks string) {
@@ -15,8 +16,8 @@ func runGeneratedTSControlGCTest(t *testing.T, consumer string, hooks string) {
 	if testing.Short() {
 		t.Skip("runs generated TypeScript reachability consumers")
 	}
-	node := codegentest.RequireNode(t)
-	tsc := codegentest.RequireTSC(t)
+	node := tooltest.RequireNode(t)
+	tsc := tooltest.RequireTSC(t)
 	g, err := parseTest(`type Text = { Text string }
 
 rule main Text = t:([a]* #atomic) => Text{Text: text($t)}`)

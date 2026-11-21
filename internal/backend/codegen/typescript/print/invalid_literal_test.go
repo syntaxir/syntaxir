@@ -17,6 +17,7 @@ import (
 	"syntaxir.dev/sxir/internal/driver/entry"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
@@ -70,7 +71,7 @@ func TestGeneratedTSInvalidUTF8Literals(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			node := codegentest.RequireNode(t)
+			node := tooltest.RequireNode(t)
 			cmd := exec.Command(node, "main.ts")
 			cmd.Dir = dir
 			var stderr bytes.Buffer
@@ -79,7 +80,7 @@ func TestGeneratedTSInvalidUTF8Literals(t *testing.T) {
 			if err != nil || string(out) != want.String() {
 				t.Fatalf("generated TS: %v\n%s\ngot %s\nwant %s", err, stderr.String(), out, want.String())
 			}
-			tsc := codegentest.RequireTSC(t)
+			tsc := tooltest.RequireTSC(t)
 			cmd = exec.Command(tsc, "--strict", "--target", "ES2022", "--module", "esnext", "--noEmit", "--skipLibCheck", "parser.ts")
 			cmd.Dir = dir
 			if out, err := cmd.CombinedOutput(); err != nil {

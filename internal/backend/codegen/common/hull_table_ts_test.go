@@ -13,6 +13,7 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/mutanttest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // hullScript makes the tuples and lists of cases.json on the TypeScript library (fxTuple of tsCompose and
@@ -65,7 +66,7 @@ func hullKey(kind string, elems []string) string { return kind + ":" + strings.J
 // budget control if controlled, and returns the result of each case by its kind and elements.
 func runTSHulls(t *testing.T, controlled bool, mutate func(string) string) map[string]string {
 	t.Helper()
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	g, err := parseTest("@start\nrule main = \"a\"\n")
 	if err != nil {
 		t.Fatal(err)

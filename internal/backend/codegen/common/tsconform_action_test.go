@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
-	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 	"syntaxir.dev/sxir/internal/testing/tsconformtest"
 )
 
@@ -48,7 +48,7 @@ func tsActionExact(controlled bool) []string {
 }
 
 func TestTypeScriptConformanceAction(t *testing.T) {
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	lib := tsConformLib(t)
 	seeds := 300
 	if testing.Short() {
@@ -73,7 +73,7 @@ func TestTypeScriptConformanceAction(t *testing.T) {
 // The printed operations have mutants of their printed text; the library's own functions pushAll, kids and
 // dropSpend have source mutants (kids is also what action.elemsAbove runs on).
 func TestTypeScriptConformanceActionDetectsMutants(t *testing.T) {
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	libMutants := []tsMutant{
 		{name: "pushAll pushes nothing", sig: "pushAll(items: readonly (Node | null)[])", old: "this.p.kidStack.push(it);", new: "void it;"},
 		{name: "pushAll pushes the first element", sig: "pushAll(items: readonly (Node | null)[])", old: "this.p.kidStack.push(it);", new: "this.p.kidStack.push(items[0]!);"},

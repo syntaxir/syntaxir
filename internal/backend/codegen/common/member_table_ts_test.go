@@ -13,6 +13,7 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/mutanttest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // memberScript runs the reads of reads.json on the member reads of the TypeScript library (fxMember
@@ -62,7 +63,7 @@ console.log(JSON.stringify(reads.map(([v, m]) => {
 // budget control if controlled, and returns the result of each read by its value and member.
 func runTSMembers(t *testing.T, controlled bool, mutate func(string) string) map[[2]string]string {
 	t.Helper()
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	g, err := parseTest("@start\nrule main = \"a\"\n")
 	if err != nil {
 		t.Fatal(err)

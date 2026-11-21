@@ -13,6 +13,7 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/mutanttest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // castScript checks the cases of cases.json on the TypeScript library (Parser.fieldConforms, printed from the
@@ -68,7 +69,7 @@ console.log(JSON.stringify(cases.map(([t, v]) => {
 // control if controlled, and returns the result of each case that the TypeScript library runs, in order.
 func runTSCasts(t *testing.T, controlled bool, mutate func(string) string) [][2]any {
 	t.Helper()
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	g, err := parseTest("@start\nrule main = \"a\"\n")
 	if err != nil {
 		t.Fatal(err)

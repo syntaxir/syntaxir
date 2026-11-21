@@ -11,6 +11,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // The typed values of a TypeScript parser keep the tokens of its own node tree for a hidden rule that
@@ -21,7 +22,7 @@ func TestGeneratedTSRecursiveSpliceTypesKeepTheTree(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs node")
 	}
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	cases := codegentest.SpliceTypeCases(t)
 	dir := t.TempDir()
 	var imports, list strings.Builder

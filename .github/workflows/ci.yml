@@ -45,14 +45,10 @@ jobs:
           sparse-checkout-cone-mode: true
       - name: Verify required runtimes and references
         env:
-          REQUIRE_NODE: "1"
-          REQUIRE_PYTHON: "1"
-          REQUIRE_TSC: "1"
-          REQUIRE_TYPESCRIPT_CORPUS: "1"
           SXIR_PYTHON: python
           SXIR_TYPESCRIPT: ${{ runner.temp }}/sxir-typescript/node_modules/typescript
           SXIR_TYPESCRIPT_TESTS: ${{ github.workspace }}/typescript-reference/tests/cases
-        run: .github/scripts/require-toolchain.sh
+        run: .github/scripts/require-toolchain.sh node tsc python typescript-corpus
       - name: Record test provenance
         env:
           SXIR_PYTHON: python
@@ -86,9 +82,7 @@ jobs:
         with:
           node-version: 22.18.0
       - name: Require Node.js used by site tests
-        env:
-          REQUIRE_NODE: "1"
-        run: .github/scripts/require-toolchain.sh
+        run: .github/scripts/require-toolchain.sh node
       - name: Record test provenance
         run: .github/scripts/write-provenance.sh "$RUNNER_TEMP/sxir-ci-provenance.log"
       - name: Test site module
@@ -119,10 +113,7 @@ jobs:
       - name: Install pinned TypeScript checker
         run: npm install --global --ignore-scripts typescript@5.9.3
       - name: Require Node.js and TypeScript checker
-        env:
-          REQUIRE_NODE: "1"
-          REQUIRE_TSC: "1"
-        run: .github/scripts/require-toolchain.sh
+        run: .github/scripts/require-toolchain.sh node tsc
       - name: Record test provenance
         run: SXIR_TYPESCRIPT="$(npm root -g)/typescript" .github/scripts/write-provenance.sh "$RUNNER_TEMP/sxir-ci-provenance.log"
       - name: Run WebAssembly smoke test in Node.js

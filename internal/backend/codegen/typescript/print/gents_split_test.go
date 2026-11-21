@@ -10,6 +10,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -50,8 +51,8 @@ func TestGeneratedTSSplitFiles(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs tsc and node")
 	}
-	node := codegentest.RequireNode(t)
-	tsc := codegentest.RequireTSC(t)
+	node := tooltest.RequireNode(t)
+	tsc := tooltest.RequireTSC(t)
 	const src = `type Pair = { Key string; Values []int }
 rule main Pair = k:key "=" vs:num+ => Pair{Key: $k, Values: $vs.Value}
 rule key string = t:([a-z]+) #atomic => text($t)
@@ -202,8 +203,8 @@ func runTSSplit(t *testing.T, src string, opts common.GenOptions, consumer strin
 	if testing.Short() {
 		t.Skip("runs tsc and node")
 	}
-	node := codegentest.RequireNode(t)
-	tsc := codegentest.RequireTSC(t)
+	node := tooltest.RequireNode(t)
+	tsc := tooltest.RequireTSC(t)
 	g, err := parseTest(src)
 	if err != nil {
 		t.Fatal(err)

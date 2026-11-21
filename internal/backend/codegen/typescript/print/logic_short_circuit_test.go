@@ -6,6 +6,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // shortCircuitCases are actions whose right operand of && or || fails (a division by zero) when it
@@ -26,7 +27,7 @@ func shortCircuitCases() []codegentest.Case {
 // operand of && and || only when the left operand does not decide the result, as the engine does.
 func TestShortCircuitGeneratedTypeScript(t *testing.T) {
 	t.Parallel()
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	codegentest.TSParsersCorpus(t, node, shortCircuitCases(), common.GenOptions{})
 }
 
@@ -34,7 +35,7 @@ func TestShortCircuitGeneratedTypeScript(t *testing.T) {
 // a parser that evaluates the right operand whatever the left one is differs from the engine.
 func TestShortCircuitGeneratedTypeScriptDetectsEagerOperands(t *testing.T) {
 	t.Parallel()
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	for _, m := range []struct{ name, from, to string }{
 		{"and", "if (tb", "if (true || tb"},
 		{"or", "if (!tb", "if (true || !tb"},

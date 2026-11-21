@@ -10,7 +10,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	gensrc "syntaxir.dev/sxir/internal/driver/generate"
 	"syntaxir.dev/sxir/internal/frontend/parser"
-	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // TestGeneratedTSFullWorkloadParity compares generated TypeScript against its
@@ -20,8 +20,8 @@ func TestGeneratedTSFullWorkloadParity(t *testing.T) {
 	if testing.Short() {
 		t.Skip("generates and runs full-corpus TypeScript consumers")
 	}
-	node := codegentest.RequireNode(t)
-	tsc := codegentest.RequireTSC(t)
+	node := tooltest.RequireNode(t)
+	tsc := tooltest.RequireTSC(t)
 	for _, workload := range workloads {
 		workload := workload
 		t.Run(workload.name, func(t *testing.T) {

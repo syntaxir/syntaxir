@@ -14,6 +14,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/mutanttest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // TestGeneratedTSStorePolicy checks the store policy of "Evaluations of Rules" in
@@ -28,7 +29,7 @@ func TestGeneratedTSStorePolicy(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	for _, limits := range []bool{false, true} {
 		t.Run(fmt.Sprintf("limits=%v", limits), func(t *testing.T) {
 			t.Parallel()
@@ -49,7 +50,7 @@ func TestGeneratedTSStorePolicyReferenceCounts(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	var bad []string
 	for _, n := range tsStorePolicyCounts(t, node, false, nil) {
 		deferred, stored := n.c.StorePolicyEvals(true)
@@ -78,7 +79,7 @@ func TestGeneratedTSStorePolicyMutantsFail(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	const dense = "this.markSeen(pos, s);"
 	const sparse = "this.markSparseSeen(pos, s)\n"
 	const document = "      if (!r.docMemo) {\n        const v = this.callUnmemoized(r, min);"

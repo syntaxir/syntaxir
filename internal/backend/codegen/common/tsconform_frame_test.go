@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
-	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/mutanttest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 	"syntaxir.dev/sxir/internal/testing/tsconformtest"
 )
 
@@ -23,7 +23,7 @@ func tsFrameRun(r tsconformtest.Runner, f tsconformtest.Family, s conform.Suite,
 }
 
 func TestTypeScriptConformanceFrame(t *testing.T) {
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	lib := tsConformLib(t)
 	seeds := 300
 	if testing.Short() {
@@ -67,7 +67,7 @@ func budgetOps(controlled bool) []string {
 // printed code, whose mutants are in TestTypeScriptConformanceFramePrintedDetectsMutants.
 func TestTypeScriptConformanceFrameDetectsMutants(t *testing.T) {
 	mutanttest.SkipUnlessChanged(t, mutanttest.Pipeline...)
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	mutants := []tsMutant{
 		{name: "a write does not go on the trail", sig: "setCapture(slot: number", old: "this.trail.push({ f: this.frame, slot, old: this.frame[slot]! });", new: ""},
 		{name: "a write trails the new value", sig: "setCapture(slot: number", old: "old: this.frame[slot]!", new: "old: v"},

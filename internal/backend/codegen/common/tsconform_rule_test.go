@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
-	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/mutanttest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 	"syntaxir.dev/sxir/internal/testing/tsconformtest"
 )
 
@@ -30,7 +30,7 @@ func tsRuleRun(r tsconformtest.Runner, f tsconformtest.Family, s conform.Suite, 
 }
 
 func TestTypeScriptConformanceRule(t *testing.T) {
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	lib := tsConformLib(t)
 	seeds := 300
 	if testing.Short() {
@@ -56,7 +56,7 @@ func TestTypeScriptConformanceRule(t *testing.T) {
 // TestTypeScriptConformanceRuleDetectsMutants is the negative control of TestTypeScriptConformanceRule.
 func TestTypeScriptConformanceRuleDetectsMutants(t *testing.T) {
 	mutanttest.SkipUnlessChanged(t, mutanttest.Pipeline...)
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	// Not here: a body that leaves its frame, its environment or its trail behind, and a value that stays
 	// fresh: no operation of the rules reads them, so no case of this family can tell.
 	mutants := []tsMutant{

@@ -16,6 +16,7 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/mutanttest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // The operator compositions of generated TypeScript parsers are the printed methods actionBinary, actionUnary
@@ -165,7 +166,7 @@ func (v tsValues) Call(o *xexec.Op, args []any) []any {
 // control on the parser, which makes the string operations take the paths of a limited parse.
 func runTSValues(t *testing.T, controlled bool, mutate func(string) string) tsValues {
 	t.Helper()
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	g, err := parseTest("@start\nrule main = \"a\"\n")
 	if err != nil {
 		t.Fatal(err)

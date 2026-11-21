@@ -7,6 +7,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // Generated Go parsers, plain and typed, and generated TypeScript parsers read a scalar operator
@@ -30,7 +31,7 @@ func testOperatorsRuleLocalsGenerated(t *testing.T) {
 		codegentest.GeneratedTypesCorpus(t, goBin, cases, common.GenOptions{ConvertTypes: true}, len(cases))
 	})
 	t.Run("typescript", func(t *testing.T) {
-		node := codegentest.RequireNode(t)
+		node := tooltest.RequireNode(t)
 		codegentest.TSParsersCorpus(t, node, cases, common.GenOptions{})
 		codegentest.TSParsersCorpus(t, node, cases, common.GenOptions{SourceInfo: true})
 	})

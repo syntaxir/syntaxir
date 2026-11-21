@@ -10,6 +10,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 func TestGeneratedTSProfile(t *testing.T) {
@@ -17,8 +18,8 @@ func TestGeneratedTSProfile(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs standalone TypeScript profile consumers")
 	}
-	node := codegentest.RequireNode(t)
-	tsc := codegentest.RequireTSC(t)
+	node := tooltest.RequireNode(t)
+	tsc := tooltest.RequireTSC(t)
 	dir := t.TempDir()
 	write := func(name, data string) {
 		t.Helper()

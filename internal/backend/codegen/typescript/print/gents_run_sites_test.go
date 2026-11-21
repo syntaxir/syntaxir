@@ -9,6 +9,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // tsRunSpan is the threshold of the run sites in the library, which tsRunAt changes.
@@ -34,7 +35,7 @@ func tsRunAt(t *testing.T, span int, mutation [][2]string) func(string) string {
 // library.
 func TestRunSitesTSMatchEngine(t *testing.T) {
 	t.Parallel()
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}
@@ -83,7 +84,7 @@ var tsRunSiteMutations = map[string][][2]string{
 // spend a budget linear in the input in generated TypeScript parsers, and that sites that never turn hot make them quadratic.
 func TestRunSitesTSLinear(t *testing.T) {
 	t.Parallel()
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}
@@ -143,7 +144,7 @@ func TestRunSitesTSLinear(t *testing.T) {
 // value-free walk and a record stored before its walk ends, on the inputs that reach them.
 func TestRunSitesTSNegativeControls(t *testing.T) {
 	t.Parallel()
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}

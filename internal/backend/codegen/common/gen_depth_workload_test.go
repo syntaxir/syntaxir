@@ -10,6 +10,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // TestGeneratedDepthBenchmarkWorkloads validates benchmarks without timing them.
@@ -201,7 +202,7 @@ if(isMainThread){
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("depth workload controls: %v\n%s", err, out)
 	}
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	cmd = exec.Command(node, "bench.mjs", "--verify")
 	cmd.Dir = filepath.Join(dir, "ts")
 	if out, err := cmd.CombinedOutput(); err != nil {

@@ -8,6 +8,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // stringFieldCases read struct fields in actions and predicates. direct reports whether the
@@ -113,6 +114,6 @@ func testGeneratedStringFieldReads(t *testing.T) {
 	goBin := filepath.Join(runtime.GOROOT(), "bin", "go")
 	codegentest.GeneratedParsersCorpus(t, goBin, cases, common.GenOptions{})
 	codegentest.GeneratedTypesCorpus(t, goBin, cases, common.GenOptions{ConvertTypes: true}, direct)
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	codegentest.TSParsersCorpus(t, node, cases, common.GenOptions{})
 }

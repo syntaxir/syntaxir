@@ -13,6 +13,7 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/mutanttest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // builtinScript runs the calls of calls.json on the TypeScript library (the printed methods actionLength,
@@ -70,7 +71,7 @@ console.log(JSON.stringify(calls.map(([fn, v]) => {
 // budget control if controlled, and returns the result of each call by its call and value.
 func runTSBuiltins(t *testing.T, controlled bool, mutate func(string) string) map[[2]string]string {
 	t.Helper()
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	g, err := parseTest("@start\nrule main = \"a\"\n")
 	if err != nil {
 		t.Fatal(err)

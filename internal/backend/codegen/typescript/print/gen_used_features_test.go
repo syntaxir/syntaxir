@@ -15,6 +15,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // TestUsedFeaturesTSParity compares parsers that carry their own copy of the library, narrowed to
@@ -27,7 +28,7 @@ import (
 // tier the whole library too.
 func TestUsedFeaturesTSParity(t *testing.T) {
 	t.Parallel()
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	modes := []struct {
 		name string
 		opts common.GenOptions
@@ -195,7 +196,7 @@ if (isMainThread) {
 // reading late, far beyond the capacity of a pipe, and checks that every line arrives.
 func TestTSWorkerMainDrainsSlowReader(t *testing.T) {
 	t.Parallel()
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	const lines = 20000
 	dir := t.TempDir()
 	harness := tsWorkerMain + `

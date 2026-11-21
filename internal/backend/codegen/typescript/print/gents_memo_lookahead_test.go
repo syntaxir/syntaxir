@@ -13,6 +13,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // TestGeneratedTSMemoLookaheadState checks that generated TypeScript parsers bound the evaluations
@@ -24,7 +25,7 @@ func TestGeneratedTSMemoLookaheadState(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	dir := t.TempDir()
 	write := func(name string, content []byte) {
 		if err := os.WriteFile(filepath.Join(dir, name), content, 0o644); err != nil {

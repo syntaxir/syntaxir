@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
-	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/mutanttest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 	"syntaxir.dev/sxir/internal/testing/tsconformtest"
 )
 
@@ -24,7 +24,7 @@ func tsObsRun(r tsconformtest.Runner, seeds, n int) tsConformResult {
 }
 
 func TestTypeScriptConformanceObs(t *testing.T) {
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	seeds := 300
 	if testing.Short() {
 		seeds = 30
@@ -40,7 +40,7 @@ func TestTypeScriptConformanceObs(t *testing.T) {
 // TestTypeScriptConformanceObsDetectsMutants is the negative control of TestTypeScriptConformanceObs.
 func TestTypeScriptConformanceObsDetectsMutants(t *testing.T) {
 	mutanttest.SkipUnlessChanged(t, mutanttest.Pipeline...)
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	mutants := []tsMutant{
 		{name: "a reuse marks nothing", sig: "memoHit(): void", old: "call.memo = true;", new: "call.memo = false;"},
 		{name: "a reuse marks the outermost call", sig: "memoHit(): void", old: "this.stack[this.stack.length - 1]", new: "this.stack[0]"},

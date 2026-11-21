@@ -7,6 +7,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // TestScanSitesTSMatchEngine checks that generated TypeScript parsers, whose repetitions of one
@@ -17,7 +18,7 @@ func TestScanSitesTSMatchEngine(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	codegentest.TSParsersCorpus(t, node, codegentest.ScanSiteCases(40), common.GenOptions{})
 }
 
@@ -30,7 +31,7 @@ func TestScanSitesTSLinear(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	sources := []string{
 		"rule main = e $$\nrule e = \"(\" (e ws \"x\" / e) / \".\"\nrule ws = c:[ ]*",
 		"rule main = e \" \" ws $$\nrule e = \"(\" e? (ws \")\")?\nrule ws = [ ]* #atomic",

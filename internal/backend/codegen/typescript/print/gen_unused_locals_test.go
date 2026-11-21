@@ -11,6 +11,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // tsFunctionDecl matches the declaration of a top-level function of generated code.
@@ -66,7 +67,7 @@ func TestGeneratedTSNoUnusedLocals(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs tsc")
 	}
-	tsc := codegentest.RequireTSC(t)
+	tsc := tooltest.RequireTSC(t)
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"type": "module"}`+"\n"), 0o644); err != nil {
 		t.Fatal(err)

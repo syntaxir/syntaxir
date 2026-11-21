@@ -9,6 +9,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // SXIR_GENERATED_SHARING_DIR preserves standalone controls for prebuilt
@@ -32,7 +33,7 @@ func testGeneratedSharingWorkloads(t *testing.T) {
 	if dir == "" {
 		dir = t.TempDir()
 	}
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	for _, lang := range []string{"json", "typescript"} {
 		t.Run(lang, func(t *testing.T) {
 			if lang == "typescript" {

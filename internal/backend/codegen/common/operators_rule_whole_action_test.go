@@ -10,6 +10,7 @@ import (
 	"syntaxir.dev/sxir/internal/driver/entry"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
@@ -104,7 +105,7 @@ func testOperatorsRuleWholeActionGenerated(t *testing.T) {
 		codegentest.GeneratedTypesCorpus(t, goBin, cases, common.GenOptions{ConvertTypes: true})
 	})
 	t.Run("typescript", func(t *testing.T) {
-		node := codegentest.RequireNode(t)
+		node := tooltest.RequireNode(t)
 		codegentest.TSParsersCorpus(t, node, cases, common.GenOptions{})
 		codegentest.TSParsersCorpus(t, node, cases, common.GenOptions{SourceInfo: true})
 	})

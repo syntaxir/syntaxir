@@ -4,8 +4,8 @@ import (
 	"math"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/complexitytest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // TestOperatorsRefusedPartTSLinear checks the cost contract of an Operators Rule that nests in
@@ -17,7 +17,7 @@ func TestOperatorsRefusedPartTSLinear(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	sizes := []int{100, 200, 400}
 	var in []string
 	for _, n := range sizes {

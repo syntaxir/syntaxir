@@ -7,6 +7,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/mutanttest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // TestGeneratedTSRecoveredValues checks that generated TypeScript gives the engine's value for a
@@ -16,7 +17,7 @@ func TestGeneratedTSRecoveredValues(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated code")
 	}
-	codegentest.TSParsersCorpus(t, codegentest.RequireNode(t), codegentest.RecoveredValueCases, common.GenOptions{})
+	codegentest.TSParsersCorpus(t, tooltest.RequireNode(t), codegentest.RecoveredValueCases, common.GenOptions{})
 }
 
 // TestGeneratedTSRecoveredValuesDetectsMutation is the negative control of
@@ -30,7 +31,7 @@ func TestGeneratedTSRecoveredValuesDetectsMutation(t *testing.T) {
 	}
 	const from = `c.actionSetField(tn3, "A", tv1);`
 	var replaced bool
-	mismatches := codegentest.TSParsersMismatches(t, codegentest.RequireNode(t), codegentest.RecoveredValueCases[1:2], common.GenOptions{}, func(src string) string {
+	mismatches := codegentest.TSParsersMismatches(t, tooltest.RequireNode(t), codegentest.RecoveredValueCases[1:2], common.GenOptions{}, func(src string) string {
 		replaced = replaced || strings.Contains(src, from)
 		return strings.ReplaceAll(src, from, `c.actionSetField(tn3, "A", (tv1 as number) + 1);`)
 	})

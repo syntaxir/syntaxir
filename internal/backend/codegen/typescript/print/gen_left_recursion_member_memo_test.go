@@ -10,6 +10,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // TestGeneratedTSLeftRecursionMemberMemoLinear checks that generated TypeScript parsers memoize
@@ -22,7 +23,7 @@ func TestGeneratedTSLeftRecursionMemberMemoLinear(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated code")
 	}
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	g, err := parseTest(`@start
 rule main = a $$
 rule a = c "+" / "n"
@@ -71,6 +72,6 @@ func TestGeneratedTSLeftRecursionMemberMemoStale(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	codegentest.TSParsersCorpus(t, node, append(codegentest.LeftRecursionMemberCases(), codegentest.LeftRecursionMemberSeedCases()...), common.GenOptions{})
 }

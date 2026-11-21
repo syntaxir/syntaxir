@@ -13,12 +13,13 @@ import (
 	"syntaxir.dev/sxir/internal/driver/entry"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 func TestLiteralTextPredicateDispatchTSDisabledParity(t *testing.T) {
 	t.Parallel()
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	const source = `rule main = w:[^!]* #atomic {text($w) == "" || text($w) == "a" || text($w) == "b" || text($w) == "é" || text($w) == "😀" || text($w) == "a"} $$`
 	g, err := parseTest(source)
 	if err != nil {
@@ -45,7 +46,7 @@ func TestLiteralTextPredicateDispatchTSDisabledParity(t *testing.T) {
 	if regexp.MustCompile(`switch \(ts\d+\)`).Match(reference) {
 		t.Fatal("TypeScript without text-dispatch still dispatches")
 	}
-	tsc := codegentest.RequireTSC(t)
+	tsc := tooltest.RequireTSC(t)
 	cmd := exec.Command(tsc, "--noEmit", "--strict", "--target", "ES2022", "--module", "NodeNext", "--moduleResolution", "NodeNext", "optimized.ts", "reference.ts")
 	cmd.Dir = dir
 	if out, err := cmd.CombinedOutput(); err != nil {

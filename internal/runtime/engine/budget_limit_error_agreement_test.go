@@ -13,6 +13,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 )
@@ -293,8 +294,8 @@ func TestLimitErrorAgreement(t *testing.T) {
 			// With SKIP_NODE=1 only the TypeScript part is skipped: the engine and generated Go are compared
 			// on every run.
 			var ts []string
-			if !codegentest.NodeOptedOut() {
-				codegentest.RequireNode(t)
+			if !tooltest.OptedOut() {
+				tooltest.RequireNode(t)
 				ts = generatedTSLimitReports(t, c, nil)
 			}
 			if os.Getenv("SXIR_LIMIT_AGREEMENT_DUMP") != "" {

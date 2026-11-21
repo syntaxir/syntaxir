@@ -7,6 +7,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // TestGeneratedTSRecoverBottom checks that a generated TypeScript parser gives the recovery of an
@@ -17,7 +18,7 @@ func TestGeneratedTSRecoverBottom(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated code")
 	}
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	cases := codegentest.RecoverBottomGenCases()
 	lines := strings.Split(strings.TrimSuffix(codegentest.TSParsersOutputs(t, node, cases, common.GenOptions{}, nil), "\n"), "\n")
 	k := 0

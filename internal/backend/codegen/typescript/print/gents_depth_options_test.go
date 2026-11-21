@@ -12,6 +12,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
@@ -21,7 +22,7 @@ func TestGeneratedTSDepthOptions(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	fixtures := []codegentest.Case{
 		{Name: "ordinary", Src: `rule main = trigger n
 rule trigger = v1:_ => list($v1)
@@ -145,7 +146,7 @@ let depthErrors=0;
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("TypeScript depth options: %v\n%s", err, out)
 	}
-	tsc := codegentest.RequireTSC(t)
+	tsc := tooltest.RequireTSC(t)
 	cmd = exec.Command(tsc, "--noEmit", "--strict", "--target", "ES2020", "--module", "ESNext", "--skipLibCheck", "g0.ts", "g1.ts", "g2.ts", "g3.ts", "g4.ts")
 	cmd.Dir = dir
 	if out, err := cmd.CombinedOutput(); err != nil {

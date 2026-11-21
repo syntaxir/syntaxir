@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // TestWasmSmoke builds the playground for WebAssembly and the sxir command, and runs
@@ -17,7 +17,7 @@ func TestWasmSmoke(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds WebAssembly; skipped in -short mode")
 	}
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	goTool := filepath.Join(goEnv(t, "GOROOT"), "bin", "go")
 	dir := t.TempDir()
 	wasm := filepath.Join(dir, "sxir.wasm")

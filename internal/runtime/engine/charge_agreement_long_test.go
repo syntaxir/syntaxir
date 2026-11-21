@@ -14,6 +14,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
@@ -370,7 +371,7 @@ func TestChargeAgreementGenerated(t *testing.T) {
 			}
 		})
 		t.Run(s.name+"/typescript", func(t *testing.T) {
-			codegentest.RequireNode(t)
+			tooltest.RequireNode(t)
 			t.Parallel()
 			for k, c := range cases {
 				t.Run(c.name, func(t *testing.T) {
@@ -471,7 +472,7 @@ func checkVariantsGenerated(t *testing.T, what string, vs []unitVariant) {
 			check(t, "generated Go typed "+s.name, generatedGoCharges(t, cases, refs, s.noOpt, true))
 		})
 		t.Run(s.name+"/typescript", func(t *testing.T) {
-			codegentest.RequireNode(t)
+			tooltest.RequireNode(t)
 			t.Parallel()
 			for k, v := range vs {
 				t.Run(v.name, func(t *testing.T) {

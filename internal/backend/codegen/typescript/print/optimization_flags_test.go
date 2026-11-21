@@ -9,6 +9,7 @@ import (
 	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // tsModes are the ways a TypeScript parser is generated, which take different routes.
@@ -26,7 +27,7 @@ var tsModes = []struct {
 // or with the opt-in literal sharing on, with the engine, in every mode of tsModes.
 func TestOptimizationDisabledTSParity(t *testing.T) {
 	t.Parallel()
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	var all []string
 	for _, f := range pass.Flags() {
 		if f.Kind != pass.KindRuntime && !f.ChangesOutput {
@@ -64,7 +65,7 @@ func TestOptimizationDisabledTSParity(t *testing.T) {
 // engine whatever the values are.
 func TestProfilesTSParity(t *testing.T) {
 	t.Parallel()
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	for _, name := range driver.Profiles()[1:] {
 		for _, mode := range tsModes {
 			t.Run(name+"/"+mode.name, func(t *testing.T) {
@@ -83,7 +84,7 @@ func TestProfilesTSParity(t *testing.T) {
 // without the change they do not.
 func TestOptimizationDisabledTSNegativeControl(t *testing.T) {
 	t.Parallel()
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	for _, mode := range tsModes {
 		t.Run(mode.name, func(t *testing.T) {
 			t.Parallel()

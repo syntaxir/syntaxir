@@ -9,6 +9,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // depMemoTSMutations are the changes of the TypeScript library for the negative controls of
@@ -62,7 +63,7 @@ func TestGeneratedTSLeftRecursionDependencyMemoControls(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	cases := depMemoTSCases(t, 120)
 	opts := common.GenOptions{SourceInfo: true}
 	// The parsers are generated once; each mutation of their library runs as a parallel subtest.

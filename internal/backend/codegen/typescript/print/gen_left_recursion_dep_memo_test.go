@@ -13,6 +13,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // depMemoTSCases returns the grammars of codegentest.DependencyMemoCases for seeds below seeds that
@@ -46,7 +47,7 @@ func TestGeneratedTSLeftRecursionDependencyMemo(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	codegentest.TSParsersCorpus(t, node, depMemoTSCases(t, 60), common.GenOptions{})
 	codegentest.TSParsersCorpus(t, node, depMemoTSCases(t, 20), common.GenOptions{SourceInfo: true})
 }
@@ -63,7 +64,7 @@ func TestGeneratedTSLeftRecursionDependencyMemoLinear(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	dir := t.TempDir()
 	write := func(name string, content []byte) {
 		if err := os.WriteFile(filepath.Join(dir, name), content, 0o644); err != nil {

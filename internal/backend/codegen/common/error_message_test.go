@@ -18,6 +18,7 @@ import (
 	"syntaxir.dev/sxir/internal/driver/entry"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
@@ -97,7 +98,7 @@ func TestErrorMessagesAgree(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds and runs generated code")
 	}
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	codegentest.EachMode(t, func(t *testing.T) { testErrorMessagesAgree(t, node) })
 }
 

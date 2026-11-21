@@ -8,8 +8,8 @@ import (
 
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
 	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
-	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/mutanttest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 	"syntaxir.dev/sxir/internal/testing/tsconformtest"
 )
 
@@ -35,7 +35,7 @@ func tsDocRun(r tsconformtest.Runner, seeds, n int) tsConformResult {
 }
 
 func TestTypeScriptConformanceDoc(t *testing.T) {
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	seeds := 300
 	if testing.Short() {
 		seeds = 30
@@ -64,7 +64,7 @@ func tsDocDetect(t *testing.T, runner tsconformtest.Runner) {
 // the library's methods that the printed doc operations call: with one changed, the suite fails.
 func TestTypeScriptConformanceDocDetectsMutants(t *testing.T) {
 	mutanttest.SkipUnlessChanged(t, mutanttest.Pipeline...)
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	mutants := []tsMutant{
 		{name: "reading moves the examined end back", sig: "override documentTouch(end: number)", old: "if (end > this.docExamined) this.docExamined = end;", new: "this.docExamined = end;"},
 		{name: "examining before the start moves the start forward", sig: "override documentTouchFrom(from: number)", old: "if (from < this.docLow) this.docLow = from;", new: "this.docLow = from;"},

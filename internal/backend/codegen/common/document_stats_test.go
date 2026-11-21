@@ -14,6 +14,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -32,7 +33,7 @@ type documentStatsScript struct {
 func TestDocumentStatsAcrossTargets(t *testing.T) {
 	t.Parallel()
 	codegentest.PinOrdinary(t)
-	codegentest.RequireNode(t)
+	tooltest.RequireNode(t)
 	if testing.Short() {
 		t.Skip("builds a generated Go program")
 	}

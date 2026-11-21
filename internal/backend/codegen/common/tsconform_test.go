@@ -12,6 +12,7 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
 	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 	"syntaxir.dev/sxir/internal/testing/tsconformtest"
 )
 
@@ -158,7 +159,7 @@ func tsReport(t *testing.T, res tsConformResult, ops []string, known map[string]
 }
 
 func TestTypeScriptConformanceExec(t *testing.T) {
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	lib := tsConformLib(t)
 	seeds := 300
 	if testing.Short() {
@@ -219,7 +220,7 @@ func tsFailureKind(err error) (op, kind string) {
 // TestTypeScriptConformanceMemoInput runs the memo suite on a parse of an input of 100 units, whose memo
 // has a slot for each position from the first store on.
 func TestTypeScriptConformanceMemoInput(t *testing.T) {
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	lib := tsConformLib(t)
 	s := tsExecSuites(true, false)[0]
 	runner := tsconformtest.Runner{Session: tsconformtest.Start(t, node, lib)}

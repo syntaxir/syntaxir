@@ -8,8 +8,8 @@ import (
 
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
 	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
-	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/mutanttest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 	"syntaxir.dev/sxir/internal/testing/tsconformtest"
 )
 
@@ -32,7 +32,7 @@ func tsExpRun(r tsconformtest.Runner, f tsconformtest.Family, s conform.Suite, s
 }
 
 func TestTypeScriptConformanceExp(t *testing.T) {
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	lib := tsConformLib(t)
 	seeds := 300
 	if testing.Short() {
@@ -56,7 +56,7 @@ func TestTypeScriptConformanceExp(t *testing.T) {
 // TestTypeScriptConformanceExpPrintedDetectsMutants.
 func TestTypeScriptConformanceExpDetectsMutants(t *testing.T) {
 	mutanttest.SkipUnlessChanged(t, mutanttest.Pipeline...)
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	mutants := []tsMutant{
 		{name: "a copy reads the first entry only", sig: "copyIDsSpend(items", old: "out[i - start] = items[i]!;", new: "out[i - start] = items[start]!;", controlled: true},
 		{name: "a copy charges nothing", sig: "copyIDsSpend(items", old: "control.charge(stop - from);", new: "", charges: true},

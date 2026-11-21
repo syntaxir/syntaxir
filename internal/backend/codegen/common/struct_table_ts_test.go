@@ -13,6 +13,7 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/mutanttest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // structScript makes the structs of cases.json on the TypeScript library (fxStruct of tsCompose, over the printed
@@ -56,7 +57,7 @@ console.log(JSON.stringify(cases.map((fields) => {
 // budget control if controlled, and returns the result of each case by its fields.
 func runTSStructs(t *testing.T, controlled bool, mutate func(string) string) map[string]string {
 	t.Helper()
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	g, err := parseTest("@start\nrule main = \"a\"\n")
 	if err != nil {
 		t.Fatal(err)

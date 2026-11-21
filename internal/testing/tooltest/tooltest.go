@@ -1,9 +1,10 @@
 // Package tooltest finds the external tools that tests run (node, tsc) with one rule: a test that needs
 // a tool fails when it is missing, so that a comparison with generated TypeScript cannot pass by not
-// running. The environment variable SKIP_NODE=1 is the only way to skip such tests instead.
+// running. The environment variable SKIP_NODE=1 is the only way to skip such tests instead; it covers
+// tsc too, which runs on node.
 //
-// The package has no dependency on the code generators, so the tests of the generators' own packages
-// can use it; the others reach it through codegentest.RequireNode and codegentest.RequireTSC.
+// The package has no dependency on the code generators, so that every test can use it, including the
+// tests of the generators' own packages.
 package tooltest
 
 import (

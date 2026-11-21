@@ -11,6 +11,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -47,7 +48,7 @@ func TestGeneratedTSSparseMemoControls(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	src, err := os.ReadFile("../../../../../testdata/grammars/typescript/typescript.sxir")
 	if err != nil {
 		t.Fatal(err)
@@ -79,7 +80,7 @@ func TestGeneratedTSSparseMemoControls(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		tsc := codegentest.RequireTSC(t)
+		tsc := tooltest.RequireTSC(t)
 		cmd := exec.Command(tsc, "--noEmit", "--target", "es2020", "--lib", "es2020", "--strict",
 			"--noUnusedLocals", "--noUnusedParameters", "--noImplicitReturns", "--noFallthroughCasesInSwitch",
 			"--noImplicitOverride", "--exactOptionalPropertyTypes", "--noUncheckedIndexedAccess",

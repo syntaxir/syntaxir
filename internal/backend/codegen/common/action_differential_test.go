@@ -21,6 +21,7 @@ import (
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/mutanttest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
@@ -181,7 +182,7 @@ func testActionGeneratedTargets(t *testing.T) {
 	goBin := filepath.Join(runtime.GOROOT(), "bin", "go")
 	cases := list(true)
 	codegentest.GeneratedParsersCorpus(t, goBin, cases, common.GenOptions{})
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	codegentest.TSParsersCorpus(t, node, cases, common.GenOptions{})
 	// A typed parser reads a field that a constructor leaves out as the zero value of its Type, like the
 	// others, so the typed comparison reads unset fields too.
@@ -209,7 +210,7 @@ func testActionFixedGeneratedTargets(t *testing.T) {
 	}
 	goBin := filepath.Join(runtime.GOROOT(), "bin", "go")
 	codegentest.GeneratedParsersCorpus(t, goBin, cases, common.GenOptions{})
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	codegentest.TSParsersCorpus(t, node, cases, common.GenOptions{})
 	codegentest.GeneratedTypesCorpus(t, goBin, cases, common.GenOptions{ConvertTypes: true}, 0)
 }
@@ -269,7 +270,7 @@ func testActionDifferentialDetectsBrokenTargets(t *testing.T) {
 			t.Errorf("Go: %s: no generated action expression notices", m.name)
 		}
 	}
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	for _, m := range []struct{ name, from, to string }{
 		{"lowered: plus becomes minus", `c.p.actionBinary(0,`, `c.p.actionBinary(1,`},
 		{"lowered: times becomes plus", `c.p.actionBinary(2,`, `c.p.actionBinary(0,`},
@@ -391,7 +392,7 @@ func testActionConstructorsDetectBrokenTargets(t *testing.T) {
 		}, 0)
 		check("typed Go", m, hits, got)
 	}
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	for _, m := range []mutant{
 		{"control: unchanged", `c.p.actionHull(c, `, `c.p.actionHull(c, `},
 		{"a tuple becomes a list", `c.p.actionHull(c, true, `, `c.p.actionHull(c, false, `},
@@ -510,7 +511,7 @@ func testActionIterationsDetectBrokenTargets(t *testing.T) {
 		got := codegentest.GeneratedTypesMismatches(t, goBin, list, common.GenOptions{ConvertTypes: true}, mutateGo(m, &hits), 0)
 		check("typed Go", m, hits, got)
 	}
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	for _, m := range []mutant{
 		{"control: unchanged", `c.p.actionItemAt(`, `c.p.actionItemAt(`},
 		{"the folds take the elements from the first", `c.p.actionItemAt(`, `((it: readonly (Node | null)[], i: number, _r: boolean) => c.p.actionItemAt(it, i, false))(`},
@@ -616,7 +617,7 @@ func testActionLoweringOptionsDetectBrokenTargets(t *testing.T) {
 			return codegentest.GeneratedTypesMismatches(t, goBin, fieldCompared, common.GenOptions{ConvertTypes: true}, goBytes(mutate), len(fieldCompared))
 		})
 	}
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	const tsForce, tsForced = `if (c.p.control === null) {`, `if (false) {`
 	// TypeScript names an operator by its code: 5 is ==, 6 is !=; 0 is && and 1 is || for logic.
 	for _, m := range []mutant{

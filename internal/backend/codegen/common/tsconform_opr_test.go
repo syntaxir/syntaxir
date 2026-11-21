@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
-	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 	"syntaxir.dev/sxir/internal/testing/tsconformtest"
 )
 
@@ -24,7 +24,7 @@ func tsOprRun(r tsconformtest.Runner, seeds, n int) tsConformResult {
 }
 
 func TestTypeScriptConformanceOpr(t *testing.T) {
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	seeds := 300
 	if testing.Short() {
 		seeds = 30
@@ -41,7 +41,7 @@ func TestTypeScriptConformanceOpr(t *testing.T) {
 // operations are the code that the printer prints for them (print.OperationMethods), so each mutant changes
 // the printed text of one operation.
 func TestTypeScriptConformanceOprDetectsMutants(t *testing.T) {
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	mutants := []tsPrintedMutant{
 		{name: "led reads the prefix operators", method: "op_opr_led", old: "operatorsRule!.led", new: "operatorsRule!.prefix"},
 		{name: "prefix reads the led operators", method: "op_opr_prefix", old: "operatorsRule!.prefix", new: "operatorsRule!.led"},
@@ -89,7 +89,7 @@ func TestTypeScriptConformanceOprDetectsMutants(t *testing.T) {
 // operators' values to their named node type, which the library does: the parse whose operator's value
 // does not convert goes on with it, or ends at the compute limit, and the suite fails.
 func TestTypeScriptConformanceOprDetectsLibraryMutants(t *testing.T) {
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	throw := "throw new Fatal(new Error(`cannot convert ${typeName(u)} to ${r.opNodeType} in result of rule ${r.where || r.name}`));"
 	mutants := []tsMutant{
 		{name: "a value that does not convert is kept", sig: "convertOperator(r: Rule", old: throw, new: "return u as unknown as Node;"},

@@ -19,6 +19,7 @@ import (
 	"syntaxir.dev/sxir/internal/driver/entry"
 	"syntaxir.dev/sxir/internal/frontend/types"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // Compare public typed values with the existing generated Go Node-conversion
@@ -33,8 +34,8 @@ func testGeneratedTSTypedReplay(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated Go/TypeScript conversion references")
 	}
-	node := codegentest.RequireNode(t)
-	tsc := codegentest.RequireTSC(t)
+	node := tooltest.RequireNode(t)
+	tsc := tooltest.RequireTSC(t)
 	cases := append([]codegentest.Case(nil), codegentest.AliasCases...)
 	cases = append(cases, codegentest.Case{Name: "typed", Src: codegentest.TypedGrammar, Inputs: []string{"f(1,x)!?;[3];zz", "f(1,(;g();", "f(a);", ""}})
 	for _, c := range codegentest.GenCorpus(t) {

@@ -5,6 +5,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // TestGeneratedTSLookaheadRecoveryMatchesEngine compares the results and errors of TypeScript
@@ -14,6 +15,6 @@ func TestGeneratedTSLookaheadRecoveryMatchesEngine(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	codegentest.TSParsersCorpus(t, node, codegentest.LookaheadRecoveryCases(), common.GenOptions{})
 }

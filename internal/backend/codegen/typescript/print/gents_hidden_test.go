@@ -9,6 +9,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // A hidden rule, and the rule of an inline action, is not an entry point of a TypeScript parser
@@ -19,7 +20,7 @@ func TestGeneratedTSHiddenRulesAreNotEntryPoints(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs node")
 	}
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	g, err := parseTest(`rule main = _a (x:"b" => $x) _c
 rule _a = "a"
 rule _c = "c"`)

@@ -8,6 +8,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 func TestGeneratedTSActionTracking(t *testing.T) {
@@ -15,7 +16,7 @@ func TestGeneratedTSActionTracking(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated code")
 	}
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	g, err := parseTest(codegentest.NilActionStream)
 	if err != nil {
 		t.Fatal(err)
@@ -77,7 +78,7 @@ func TestGeneratedTSEnvironmentBindings(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated code")
 	}
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	g, err := parseTest(codegentest.BoundStream)
 	if err != nil {
 		t.Fatal(err)

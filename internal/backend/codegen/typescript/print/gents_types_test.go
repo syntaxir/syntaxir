@@ -12,6 +12,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 func runTypedTSFixture(t *testing.T, src, consumer string, opts common.GenOptions, keep string) {
@@ -23,8 +24,8 @@ func runTypedTSFixtureWithLib(t *testing.T, src, consumer string, opts common.Ge
 	if testing.Short() {
 		t.Skip("runs generated TypeScript consumers")
 	}
-	node := codegentest.RequireNode(t)
-	tsc := codegentest.RequireTSC(t)
+	node := tooltest.RequireNode(t)
+	tsc := tooltest.RequireTSC(t)
 	g, err := parseTest(src)
 	if err != nil {
 		t.Fatal(err)

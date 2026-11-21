@@ -10,6 +10,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 func TestGeneratedTSTrace(t *testing.T) {
@@ -17,8 +18,8 @@ func TestGeneratedTSTrace(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs standalone TypeScript trace consumers")
 	}
-	node := codegentest.RequireNode(t)
-	tsc := codegentest.RequireTSC(t)
+	node := tooltest.RequireNode(t)
+	tsc := tooltest.RequireTSC(t)
 	fixtures := []struct{ name, grammar, input, checks string }{
 		{"plain", `type W = { Text string }
 rule main W = t:(part) #atomic => W{Text: text($t)}

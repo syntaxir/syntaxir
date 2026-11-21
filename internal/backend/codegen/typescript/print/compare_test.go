@@ -5,11 +5,12 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 func TestCompareGeneratedTypeScriptParity(t *testing.T) {
 	t.Parallel()
-	node := codegentest.RequireNode(t)
+	node := tooltest.RequireNode(t)
 	codegentest.TSParsersCorpus(t, node, codegentest.CompareCases(), common.GenOptions{})
 	codegentest.TSParsersCorpus(t, node, codegentest.CompareCases(), common.GenOptions{SourceInfo: true})
 }
