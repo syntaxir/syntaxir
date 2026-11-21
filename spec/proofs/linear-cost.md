@@ -560,8 +560,10 @@ at a position $p$ ends, the evaluations at $p$ in the context, of calls of
 memoized rules and of steps of growths, are at most one in each lookahead
 state for each variant, binding level, combination of the values of the
 variables that the rule reads, present set and combination of the growing
-results and observations that the evaluation reads, two growing results
-counting as one only where the parse finds them equal, apart from the
+results that the evaluation reads, directly or through the lookaheads that it
+observes and those that they observe in turn, and of the observations of those
+lookaheads, two growing results counting as one only where the parse finds
+them equal, apart from the
 evaluation of the first call of the variant at the position, which may keep
 no result.
 
@@ -574,18 +576,30 @@ memo, recording the leaders of the context, if it read no growing result and
 observed no lookahead that read one, and otherwise in the context, with the
 growing results and observations that it read, at most a constant of them
 (*Dependencies of a kept result* in Lemma 5), so that none is left out for
-their number. An evaluation in the context is fixed by its call or its step,
-the values of its variables, the input and the growing results and
-observations that it reads. So a later call or step with the same key and
-present set that would read the same growing results and observations finds
-those that the kept result recorded equal to the ones there now, and the parse
-answers it from the kept result, or from the memo entry, which records every
-leader of its context. The one exception is a result computed inside a
-lookahead, which answers no call outside one: the evaluation of such a call
-keeps its result in place of the first, which then answers the calls in both
-states. So each combination has at most one evaluation in each state that
-keeps its result, and the first call of the variant at the position adds at
-most one evaluation at the position in all. $\square$
+their number. The parse keeps the observation of each lookahead at $p$ in the
+context that reads a growing result itself in the same way, with the growing
+results and observations that the lookahead read. An evaluation in the context
+is fixed by its call or its step, the values of its variables, the input and
+the growing results and observations that it reads, and an observation by its
+lookahead, the values of the variables, the input and the growing results and
+observations that the lookahead reads. Let a later call or step have the same
+key and present set as one whose result is kept, and the same combination. By
+induction on the nesting of the observations, the parse keeps, for each
+lookahead that the kept result observed, an observation of the same
+combination, which a lookup of that observation finds, as the one kept
+observation of the lookahead that matches, by the argument below for a kept
+result; so each observation that
+the kept result recorded equals the one kept there now, each growing result
+that it recorded equals the one there now, and it is the one kept result that
+matches (*Dependencies of a kept result* in Lemma 5). The parse answers the
+call or step from it, or from the memo entry, which records every leader of
+its context. The one exception is that a result kept inside a lookahead
+answers only lookups inside one: the evaluation outside a lookahead of a call
+whose result was kept inside one keeps its result in place of the first,
+which then answers the calls in both states. So each combination has at most
+one evaluation in each state that keeps its result, and the first call of the
+variant at the position adds at most one evaluation at the position in all.
+$\square$
 
 The claim does not bound the number of combinations: the growing results
 change from step to step, and Lemma 5 bounds the evaluations in a context
@@ -8988,7 +9002,47 @@ of the sequences of distinct members of at most $g + s$ items, a constant
 number of sequences, and comparing the values of the variables takes at most a
 constant times $L + 1$ steps, as for a memo entry. Results of one call with
 the same recorded items and values differ only in the values of their
-variables, which a lookup compares in turn. Every evaluation in a context
+variables, which a lookup compares in turn.
+
+A lookup finds the kept result whose recorded items all have the values there
+now, when one is kept ([Evaluations of
+Rules](../runtime/parsing.md#evaluations-of-rules)), and at most one does.
+Take the items of a kept result as if recorded in the order in which its
+evaluation first read them, a call or a lookahead that it answered from a kept
+result reading, where it was answered, the items that result recorded, in that
+order, and a call that the memo answered reading none, since only a result
+that read no growing result and observed no lookahead that read one enters the
+memo. This order is the model of the proof; a parse may store the items in
+another order and try every kept result of the call. Two evaluations of one
+call with the same variant, binding level, values of the variables and present
+set, in one context, in either lookahead state, read the same first item, and
+where their items have equal values up to one item, they read the same next
+item or both end there. Up to the first read of that next item, both evaluate
+the same expressions at the same positions: the evaluation of an expression at
+a position is fixed by the input, the values of the variables that it reads and
+the current results and observations that it reads, and the lookahead state
+changes only which failures are recorded, whether the errors recovered inside
+remain, and the position and message of an error value that `#recover` makes
+inside a lookahead, none of which an action or a predicate reads, since no
+action or predicate can read an error value
+([Lookahead](../language/parser-expressions.md#lookahead)). Where one of them
+answers a call or a lookahead that the other evaluates, both read the same
+items in the same order there, by induction on the height of the full
+evaluation tree of the call, in which every call is evaluated and none
+answered: the answering result read, in its own evaluation, the items that it
+recorded, in order, with the values there now, which the evaluation in place
+of the answer reads in the same order. So the item sequences of the kept
+results of one call and present set in a context form a tree, two parting only
+after an item whose values differ, and at most one of them has all its items
+with the values there now, whatever the lookahead state in which each was
+computed; a lookup that tries every kept result of the call therefore finds
+that one, as one that reads the items in order would. In particular, the
+evaluation outside a lookahead of a call whose result was kept inside one
+reads the same items, and its result takes the place of the first. The same
+argument applies to the observations kept for one lookahead in a context,
+which a lookup finds in the same way, so at most one of them matches.
+
+Every evaluation in a context
 sees the values that the variables that the cycle reads had where the
 outermost growth of the context started, as shown above for the lookaheads,
 and the results kept in a context last only as long as that growth, so for
@@ -9000,7 +9054,21 @@ $g + s$ items, each checked against at most a constant of items already
 there, and a current result that an observed lookahead read is passed as well,
 at most $g$ more. The engine's parse and the runtimes of generated Go and
 TypeScript record a current result once for each growth and an observation
-once for each lookahead, and limit neither number. $\square$
+once for each lookahead, and limit neither number.
+
+A lookup finds an observation by what the observation recorded, so the
+combination of *Evaluations in a context* in Lemma 3 holds the current results
+that a result reads through the lookaheads that it observes, and those that
+they observe in turn, as well as those that it reads itself. They are current
+results of the growths of the context too, at most one for each, so the
+combination is fixed by the current results of those growths, at most $g$,
+and the values of the variables, as it is without them, and the lookup reads
+each lookahead at most once on the way, as above. The bounds of this lemma do
+not rest on that combination: from *Calls in a context of growths* to *Growths
+inside a step*, apart from *Open parts of the kept steps*, they count the
+evaluations as if the parse answered nothing in contexts, and hold whatever a
+lookup finds (*Reuse in a context*), so they absorb the current results read
+through observations. $\square$
 
 The counts of the activations need more than that: where a parse answers a
 call in one growth and evaluates it in another, the activations inside it are

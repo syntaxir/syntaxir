@@ -621,16 +621,26 @@ exceptions are these.
   memoized rule in that context, and a step of a growth in it, is evaluated
   at most once in each of the two lookahead states for each variant, binding
   level, combination of the values of the variables that the rule reads,
-  present set and combination of the growing results and lookahead outcomes
-  that it reads, apart from the first call of the variant at the position,
-  which may leave no result, as outside every context. Two growing results
+  present set and combination of the growing results that it reads,
+  directly or through the lookaheads that it observes and those that they
+  observe in turn, and of the outcomes of those lookaheads, apart from the
+  first call of the variant at the position, which may leave no result, as
+  outside every context. Two growing results
   count as one there only where the parse
   finds them equal: it may compare results by their structure only up to a
   bound, and takes results that it has not found equal as different. A kept
   result records at most one growing result for each leader and binding level
   of the cycle and one outcome for each lookahead in the bodies of the rules
   of the cycle, so finding and keeping it costs a constant of the grammar
-  besides comparing the values of its variables. In a parse with
+  besides comparing the values of its variables. A lookup of a call or step
+  finds a kept result with the same key and present set when each growing
+  result that the result recorded is equal to the one there now and each
+  outcome that it recorded is equal to the outcome kept there now for that
+  lookahead, which the lookup finds in the same way, by the growing results
+  and outcomes that the outcome recorded, each lookahead at most once on the
+  way, a repeated one matching nothing; a lookahead with no outcome kept
+  there matches no result. A result kept inside a lookahead answers only
+  lookups inside one. In a parse with
   missing-token insertion this holds only of rules and leaders that do not
   contain `#missing`, directly or through the rules they call.
 
