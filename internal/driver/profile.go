@@ -188,6 +188,18 @@ func requiredSteps() []string {
 	return []string{Elaborate, flowlower.Name, flowpass.FinishName, execlower.Name}
 }
 
+// CheckOptimizable reports a name in names that is a required step, which runs whatever the settings
+// say: a setting that turns one on or off (-opt, -no-opt, the overrides of the Go setting) is an
+// error that names it, rather than an unknown optimization. Spaces around a name are ignored.
+func CheckOptimizable(names ...string) error {
+	for _, n := range names {
+		if n = strings.TrimSpace(n); slices.Contains(requiredSteps(), n) {
+			return fmt.Errorf("%s is a required step and always runs", n)
+		}
+	}
+	return nil
+}
+
 // PrintNames returns the names of the steps and passes that select what to print after, in the order
 // they run: elaborate, the Core passes, flowlower, the Flow passes, flow-finish, execlower, the
 // Exec passes and those of the registered targets (golang/pass, typescript/pass), and "all".

@@ -117,6 +117,13 @@ func TestGenDebug(t *testing.T) {
 			}
 		})
 	}
+	// A required step is not an optimization to turn on or off.
+	for _, c := range [][]string{{"-no-opt", "flowlower"}, {"-opt", "execlower=1"}} {
+		_, err := runCLI(t, "", append([]string{"gen", "-g", path, "-o", t.TempDir(), "-module", "example.com/gen"}, c...)...)
+		if want := c[0] + ": " + strings.SplitN(c[1], "=", 2)[0] + " is a required step and always runs"; err == nil || err.Error() != want {
+			t.Errorf("%v: %v, want %q", c, err, want)
+		}
+	}
 	// The debugging flags do not apply to the library alone.
 	for _, name := range []string{"-print-changed", "-verify-each", "-stats", "-time-passes"} {
 		_, err := runCLI(t, "", "gen", "-lib", "only", "-o", t.TempDir(), name)

@@ -52,6 +52,8 @@ func TestSettingsOrder(t *testing.T) {
 		{common.GenOptions{Opt: map[string]int{"guards": 1, " guards ": 0}}, "optimization guards is given twice"},
 		{common.GenOptions{NoOpt: []string{"nosuch"}}, `unknown optimization "nosuch"`},
 		{common.GenOptions{Optimize: "nosuch"}, "unknown optimization profile"},
+		{common.GenOptions{NoOpt: []string{" flowlower "}}, "flowlower is a required step and always runs"},
+		{common.GenOptions{Opt: map[string]int{"execlower": 1}}, "execlower is a required step and always runs"},
 	} {
 		if _, err := generate.Settings(c.opts); err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%+v: %v, want an error with %q", c.opts, err, c.want)

@@ -32,6 +32,12 @@ func resolve(o common.GenOptions) (pass.Settings, error) {
 	} else if o.Debug.Writes() && o.Debug.Output == nil {
 		return pass.Settings{}, fmt.Errorf("the debugging settings need an Output writer")
 	}
+	if err := driver.CheckOptimizable(slices.Sorted(maps.Keys(o.Opt))...); err != nil {
+		return pass.Settings{}, err
+	}
+	if err := driver.CheckOptimizable(o.NoOpt...); err != nil {
+		return pass.Settings{}, err
+	}
 	given := map[string]string{}
 	for _, n := range slices.Sorted(maps.Keys(o.Opt)) {
 		name := strings.TrimSpace(n)

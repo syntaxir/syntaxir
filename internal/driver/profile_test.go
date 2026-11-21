@@ -87,6 +87,19 @@ func TestCheckStepNames(t *testing.T) {
 	}
 }
 
+// A required step cannot be turned on or off: CheckOptimizable names it, and passes the
+// optimizations and the unknown names, which the settings report themselves.
+func TestCheckOptimizable(t *testing.T) {
+	for _, name := range requiredSteps() {
+		if err := CheckOptimizable("guards", " "+name+" "); err == nil || err.Error() != name+" is a required step and always runs" {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+	if err := CheckOptimizable("guards", "nosuch", "all"); err != nil {
+		t.Error(err)
+	}
+}
+
 // The speed profile is the defaults of the registered flags. A profile that sets a flag that no
 // linked part registered is an error that names the flag: the memory and size profiles set flags of
 // the generators, which this test binary does not link, and they must not quietly become speed.

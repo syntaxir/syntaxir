@@ -844,8 +844,14 @@ func genCmd(args []string, stdout io.Writer) error {
 		return fmt.Errorf("-optimize: %w", err)
 	}
 	optValues, err := driver.ParseValues(*opt)
+	if err == nil {
+		err = driver.CheckOptimizable(slices.Sorted(maps.Keys(optValues))...)
+	}
 	if err != nil {
 		return fmt.Errorf("-opt: %w", err)
+	}
+	if err := driver.CheckOptimizable(noOptNames...); err != nil {
+		return fmt.Errorf("-no-opt: %w", err)
 	}
 	for _, n := range slices.Sorted(maps.Keys(optValues)) {
 		if profile, err = profile.With(n, optValues[n]); err != nil {

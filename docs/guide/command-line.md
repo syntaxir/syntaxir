@@ -268,7 +268,8 @@ The optimization settings are not specific to generation (see [Optimization Sett
 `-optimize <profile>` selects an optimization profile (`speed`, the default, `memory` or `size`), `-opt <name>[=<count>][,...]`
 turns on an optimization that the profile leaves off or sets a count, `-no-opt <name>[,<name>]`
 turns named optimizations off. None of them changes what the generated parser returns; the names are in
-[Optimizations](code-generation.md#optimizations).
+[Optimizations](code-generation.md#optimizations). A required step (`elaborate`, `flowlower`, `flow-finish`,
+`execlower`) always runs, and naming one in `-opt` or `-no-opt` is an error.
 The debugging flags write to standard error and change no generated file: `-print-after <pass>[,<pass>]` writes the
 Core IR or Code IR at the Flow or Exec stage after the named steps and passes, `-print-changed` after each pass that
 changed it, `-verify-each` verifies it after every pass, and `-stats` and `-time-passes` write the statistics and the
