@@ -350,7 +350,7 @@ func (c *compiler) spliceScope(n ir.Node, sh ir.Shape) {
 
 // class adds the character class to the character class table and returns its index.
 func (c *compiler) class(cl *ir.Class) int32 {
-	bc := bytecode.Class{Negated: cl.Negated, Desc: int(c.exp(cl.Exp))}
+	bc := bytecode.Class{Negated: cl.Negated, Expectation: int(c.exp(cl.Exp))}
 	for _, r := range cl.Ranges {
 		bc.Ranges = append(bc.Ranges, r.Lo, r.Hi)
 	}
@@ -372,7 +372,7 @@ func (c *compiler) guard(f *ir.First) int {
 			upper := f.Rune - ('a' - 'A')
 			ranges = []rune{upper, upper, f.Rune, f.Rune}
 		}
-		c.m.Classes = append(c.m.Classes, bytecode.Class{Ranges: ranges, Desc: int(c.exp(f.Exp))})
+		c.m.Classes = append(c.m.Classes, bytecode.Class{Ranges: ranges, Expectation: int(c.exp(f.Exp))})
 		cl = int32(len(c.m.Classes) - 1)
 	} else {
 		cl = c.class(f.Class)

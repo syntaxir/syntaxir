@@ -161,7 +161,7 @@ func (m *Module) flowOperands(in *FlowInstr, str func(int) string) string {
 	case int:
 		switch s, _ := in.Op.Shape(); {
 		case s.Imm == FlowImmClass && x >= 0 && x < len(m.Classes):
-			parts = append(parts, str(m.Classes[x].Desc))
+			parts = append(parts, str(m.Classes[x].Expectation))
 		case s.Imm == FlowImmStr && x >= 0 && x < len(m.Strings):
 			parts = append(parts, strconv.Quote(m.Strings[x]))
 		case s.Imm == FlowImmSlot:
@@ -196,7 +196,7 @@ func (m *Module) flowOperands(in *FlowInstr, str func(int) string) string {
 		case x.Lit:
 			g = strconv.QuoteRune(x.Rune)
 		case x.Class >= 0 && x.Class < len(m.Classes):
-			g = str(m.Classes[x.Class].Desc)
+			g = str(m.Classes[x.Class].Expectation)
 		}
 		parts = append(parts, fmt.Sprintf("%s depth=%d", g, x.Depth))
 	case FlowExpectOf:
@@ -268,20 +268,20 @@ func (m *Module) operands(in Instr, str func(int) string, names func([]int) stri
 		}
 		return fmt.Sprintf("slot=%d", a)
 	case OpGuard:
-		return fmt.Sprintf("%s depth=%d -> %d", m.Strings[m.Classes[a].Desc], bb, c) // the expectation as written
+		return fmt.Sprintf("%s depth=%d -> %d", m.Strings[m.Classes[a].Expectation], bb, c) // the expectation as written
 	case OpScan, OpScanWide:
 		if in.Op == OpScanWide {
 			bb, c = int(m.Ints[bb]), int(m.Ints[c])
 		}
 		cl := "any"
 		if a >= 0 {
-			cl = str(m.Classes[a].Desc)
+			cl = str(m.Classes[a].Expectation)
 		}
 		return fmt.Sprintf("%s min=%d max=%d", cl, bb, c)
 	case OpScanSite:
 		cl := "any"
 		if a >= 0 {
-			cl = str(m.Classes[a].Desc)
+			cl = str(m.Classes[a].Expectation)
 		}
 		return fmt.Sprintf("%s min=%d site=%d", cl, bb, c)
 	case OpRepeat, OpRepeatWide:

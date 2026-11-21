@@ -79,9 +79,9 @@ func (m *Module) InstructionSetVersion() int { return ISAVersion }
 
 // Class is a character class. Ranges is a list of lower and upper bound pairs.
 type Class struct {
-	Ranges  []rune
-	Negated bool
-	Desc    int // expectation string (string table index)
+	Ranges      []rune
+	Negated     bool
+	Expectation int // the expectation that a failure to match records (string table index)
 }
 
 // Has reports whether the character ch is in the class.

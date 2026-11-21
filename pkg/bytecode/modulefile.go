@@ -42,7 +42,7 @@ func (w *Encoder) WriteModule(m *Module) {
 	w.Uint(len(m.Classes))
 	for _, c := range m.Classes {
 		w.Bool(c.Negated)
-		w.Int(c.Desc)
+		w.Int(c.Expectation)
 		w.Uint(len(c.Ranges) / 2)
 		for _, r := range c.Ranges {
 			w.Int(int(r))
@@ -393,7 +393,7 @@ func (r *Decoder) ReadModule() *Module {
 	n = r.Count()
 	m.Classes = sized[Class](r, n, 1)
 	for i := 0; i < n && r.Err == nil; i++ {
-		c := Class{Negated: r.Bool(), Desc: int(r.int32())}
+		c := Class{Negated: r.Bool(), Expectation: int(r.int32())}
 		k := r.Count()
 		for j := 0; j < 2*k && r.Err == nil; j++ {
 			c.Ranges = append(c.Ranges, rune(r.int32()))
@@ -708,7 +708,7 @@ func ValidateModule(m *Module, fieldType func(text string) error) error {
 		if len(c.Ranges)%2 != 0 {
 			fail("invalid class")
 		}
-		str(c.Desc)
+		str(c.Expectation)
 	}
 	for _, t := range m.Types {
 		str(t.Name)

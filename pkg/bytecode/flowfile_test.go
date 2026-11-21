@@ -101,7 +101,7 @@ func flowModule() *bytecode.Module {
 	}}
 	return &bytecode.Module{
 		Strings: []string{"a", "b", "[a-z]"},
-		Classes: []bytecode.Class{{Ranges: []rune{'a', 'z'}, Desc: 2}},
+		Classes: []bytecode.Class{{Ranges: []rune{'a', 'z'}, Expectation: 2}},
 		Rules: []bytecode.RuleInfo{
 			{Name: 0, Action: -1, NodeType: -1, OperatorsRule: -1, Where: -1},
 			{Name: 1, Action: -1, NodeType: -1, OperatorsRule: -1, Where: -1, Scope: []int{0}},

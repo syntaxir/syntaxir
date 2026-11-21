@@ -605,7 +605,7 @@ func (mc *Machine) step(vm *Program, b *vmBody, resume, rok bool, rv *value.Node
 		case bytecode.OpGuard:
 			ch, _, ok := p.Peek()
 			if !(ok && vm.has(p, in.A, ch)) && p.Depth+int(in.B) <= p.MaxDepth {
-				p.Expect(p.Pos, program.NumFixedDescs+state.ExpID(m.Classes[in.A].Desc))
+				p.Expect(p.Pos, program.NumFixedDescs+state.ExpID(m.Classes[in.A].Expectation))
 				ip = int(in.C)
 				continue
 			}
@@ -620,7 +620,7 @@ func (mc *Machine) step(vm *Program, b *vmBody, resume, rok bool, rv *value.Node
 				ch, size, ok := p.Peek()
 				if !ok || in.A >= 0 && !vm.has(p, in.A, ch) {
 					if in.A >= 0 {
-						p.Expect(p.Pos, program.NumFixedDescs+state.ExpID(m.Classes[in.A].Desc))
+						p.Expect(p.Pos, program.NumFixedDescs+state.ExpID(m.Classes[in.A].Expectation))
 					} else {
 						p.Expect(p.Pos, program.IDAny)
 					}
@@ -652,7 +652,7 @@ func (mc *Machine) step(vm *Program, b *vmBody, resume, rok bool, rv *value.Node
 				ch, size, ok := p.Peek()
 				if !ok || in.A >= 0 && !vm.has(p, in.A, ch) {
 					if in.A >= 0 {
-						p.Expect(p.Pos, program.NumFixedDescs+state.ExpID(m.Classes[in.A].Desc))
+						p.Expect(p.Pos, program.NumFixedDescs+state.ExpID(m.Classes[in.A].Expectation))
 					} else {
 						p.Expect(p.Pos, program.IDAny)
 					}
