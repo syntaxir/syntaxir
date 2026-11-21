@@ -3,7 +3,6 @@ package compile
 import (
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestTypeErrors(t *testing.T) {
@@ -144,8 +143,14 @@ rule word = k:"a" v:"b"`,
 	}
 }
 
+// growingTypesSteps bounds the steps of inferring the rule types of TestInferenceOfGrowingTypes. The
+// inference takes 1226 steps; the bound is about ten times that, and an inference that grows at every
+// round without a fixed point takes orders of magnitude more.
+const growingTypesSteps = 12000
+
 // TestInferenceOfGrowingTypes checks that inferring a rule type that grows at every round (lists
-// of lists of the rule's own values) finishes quickly instead of taking exponential time.
+// of lists of the rule's own values) finishes within a bounded number of compiler steps instead of
+// taking exponential time. The steps are counted, not timed, so the result does not depend on load.
 func TestInferenceOfGrowingTypes(t *testing.T) {
 	t.Parallel()
 	src := `var v int
@@ -158,18 +163,13 @@ rule r3 = ((c1:r3 {v := len($c1)}) c2:r1 ";" #recover(skip=[^;]* ";")) @error(me
 	if err != nil {
 		t.Fatal(err)
 	}
-	done := make(chan error, 1)
-	go func() {
-		_, err := compileStatic(g, Options{}, nil)
-		done <- err
-	}()
-	select {
-	case err := <-done:
-		if err != nil {
-			t.Fatal(err)
-		}
-	case <-time.After(10 * time.Second):
-		t.Fatal("type inference did not finish within 10 seconds")
+	if !checksWithinSteps(t, g, growingTypesSteps) {
+		t.Errorf("type inference did not finish within %d steps", growingTypesSteps)
+	}
+	// The negative control: the same check with far fewer steps than the inference takes is cancelled,
+	// so the bound above is a count of the inference's work and not a limit that nothing reaches.
+	if checksWithinSteps(t, g, 1000) {
+		t.Error("the check finished within 1000 steps, so the bound does not count its work")
 	}
 }
 

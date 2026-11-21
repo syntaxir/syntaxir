@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/testing/starttest"
@@ -52,4 +53,24 @@ func compileTestContext(t *testing.T, polls int) *compilePollContext {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	return &compilePollContext{Context: ctx, cancel: cancel, left: polls}
+}
+
+// checksWithinSteps compiles g like compileStatic and reports whether it finishes within limit steps of
+// the compiler (cancel.Control). The work is counted in steps, not time, so the answer is the same on
+// every run and under any load; a compilation that needs more steps is cancelled at the limit.
+func checksWithinSteps(t *testing.T, g *ast.Grammar, limit uint32) (finished bool) {
+	t.Helper()
+	control := &cancel.Control{Ctx: compileTestContext(t, int(limit/cancel.PollStride))}
+	defer func() {
+		if failure := recover(); failure != nil {
+			if _, ok := failure.(cancel.Cancellation); !ok {
+				panic(failure)
+			}
+			finished = false
+		}
+	}()
+	if _, err := Check(g, Options{}, nil, desugar.InlineNames{}, control); err != nil {
+		t.Fatal(err)
+	}
+	return true
 }

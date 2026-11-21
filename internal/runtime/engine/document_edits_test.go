@@ -6,7 +6,6 @@ import (
 	"runtime"
 	"strings"
 	"testing"
-	"time"
 
 	"syntaxir.dev/sxir/internal/runtime/document"
 	"syntaxir.dev/sxir/internal/runtime/state"
@@ -14,8 +13,12 @@ import (
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
+// documentVersionForCollection returns the version token of a document that nothing else refers to
+// when it returns, and sends on finalized when the document is finalized. A non-nil keep receives the
+// document, which makes it reachable for as long as the caller holds it.
+//
 //go:noinline
-func documentVersionForCollection(t *testing.T, finalized chan<- struct{}) DocumentVersion {
+func documentVersionForCollection(t *testing.T, finalized chan<- struct{}, keep func(*document.Document)) DocumentVersion {
 	t.Helper()
 	p := mustCompile(t, `rule main = .*`)
 	d, err := p.NewDocument("main", strings.Repeat("x", 1<<20))
@@ -23,27 +26,59 @@ func documentVersionForCollection(t *testing.T, finalized chan<- struct{}) Docum
 		t.Fatal(err)
 	}
 	runtime.SetFinalizer(d, func(*document.Document) { finalized <- struct{}{} })
+	if keep != nil {
+		keep(d)
+	}
 	return d.Version()
+}
+
+// collectionRounds is how many collections a finalizer gets to run in. The wait counts collections, not
+// seconds: a finalizer runs on a goroutine after the collection that finds its object unreachable, so
+// the count does not depend on the load of the machine, and an object that stays reachable is never
+// finalized however many rounds there are.
+const collectionRounds = 400
+
+// finalizedWithinRounds runs collections until a finalizer has sent on finalized or the rounds are
+// used, and reports whether it was sent.
+func finalizedWithinRounds(finalized <-chan struct{}) bool {
+	for range collectionRounds {
+		runtime.GC()
+		select {
+		case <-finalized:
+			return true
+		default:
+			runtime.Gosched()
+		}
+	}
+	return false
 }
 
 func TestDocumentVersionDoesNotRetainDocument(t *testing.T) {
 	t.Parallel()
 	finalized := make(chan struct{}, 1)
-	version := documentVersionForCollection(t, finalized)
+	version := documentVersionForCollection(t, finalized, nil)
 	defer runtime.KeepAlive(version)
-	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
-		runtime.GC()
-		select {
-		case <-finalized:
-			if version.Sequence() != 1 {
-				t.Fatal("retained token changed")
-			}
-			return
-		case <-time.After(10 * time.Millisecond):
-		}
+	if !finalizedWithinRounds(finalized) {
+		t.Fatal("version token retained its document")
 	}
-	t.Fatal("version token retained its document")
+	if version.Sequence() != 1 {
+		t.Fatal("retained token changed")
+	}
+}
+
+// TestDocumentCollectionWaitSeesRetention is the negative control of
+// TestDocumentVersionDoesNotRetainDocument: a document that is still reachable is not finalized, and
+// the wait must report that, so the wait cannot pass without the collection it is meant to see.
+func TestDocumentCollectionWaitSeesRetention(t *testing.T) {
+	t.Parallel()
+	finalized := make(chan struct{}, 1)
+	var held *document.Document
+	version := documentVersionForCollection(t, finalized, func(d *document.Document) { held = d })
+	if finalizedWithinRounds(finalized) {
+		t.Fatal("a reachable document was finalized")
+	}
+	runtime.KeepAlive(held)
+	runtime.KeepAlive(version)
 }
 
 func batchOracle(text string, unit sxirinput.PositionUnit, edits []sxirinput.TextEdit) string {

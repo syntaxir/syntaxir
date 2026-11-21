@@ -1,12 +1,14 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/bytecode"
 	"syntaxir.dev/sxir/pkg/runtime/value"
@@ -121,7 +123,7 @@ func TestNamedNodeTypeModuleValidation(t *testing.T) {
 
 // TestNamedNodeTypeResolution checks types that refer to each other through named node types: an
 // alias may refer to itself through one, a recursive named node type keeps its value inside other
-// node types, and many mutually recursive named node types resolve quickly.
+// node types, and many mutually recursive named node types resolve in a polynomial number of steps.
 func TestNamedNodeTypeResolution(t *testing.T) {
 	for _, src := range []string{
 		`type Num = node[string]
@@ -148,7 +150,28 @@ rule tree Tree = "(" ts:tree* ")" => Tree{$ts}`,
 		}
 	}
 
-	const n = 20
+	// Many mutually recursive named node types, each listing all of them, are counted in steps of the
+	// compiler (cancel.Control), not in time: the steps of the checks grow with a power of the number
+	// of types, and a resolution that follows every path through the types grows exponentially.
+	small, large := mutualNodeTypeSteps(t, 20), mutualNodeTypeSteps(t, 40)
+	t.Logf("%d steps for 20 types, %d for 40", small, large)
+	if !growsPolynomially(small, large) {
+		t.Errorf("mutually recursive node types: %d steps for 20 types, %d for 40: more than %d times as many", small, large, maxPolynomialRatio)
+	}
+}
+
+// maxPolynomialRatio is the largest growth in steps for twice as many types that counts as polynomial.
+// The steps grow with the third power (a factor of 6.5 to 7.4 between 20 and 80 types), so 16, the
+// fourth power, passes them, while a resolution that follows every path passes 2^20 times as many
+// steps at 40 types as at 20.
+const maxPolynomialRatio = 16
+
+func growsPolynomially(small, large uint64) bool { return large <= maxPolynomialRatio*small }
+
+// mutualNodeTypeSteps returns the steps that the compiler takes on n named node types that refer to
+// each other through their values.
+func mutualNodeTypeSteps(t *testing.T, n int) uint64 {
+	t.Helper()
 	var b strings.Builder
 	alts := make([]string, n)
 	for i := range alts {
@@ -158,16 +181,28 @@ rule tree Tree = "(" ts:tree* ")" => Tree{$ts}`,
 		fmt.Fprintf(&b, "type T%d = node[[](%s)]\n", i, strings.Join(alts, " | "))
 		fmt.Fprintf(&b, "rule r%d T%d = \"(\" xs:r%d* \")\" => T%d{$xs}\n", i, i, (i+1)%n, i)
 	}
-	start := time.Now()
 	g, err := parseTest(b.String())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Compile(g, compile.Options{}); err != nil {
+	c := &cancel.Control{Ctx: context.Background()}
+	if _, err := checked.Compile(g, compile.Options{}, c); err != nil {
 		t.Fatal(err)
 	}
-	if d := time.Since(start); d > 5*time.Second {
-		t.Errorf("%d mutually recursive node types compiled in %v", n, d)
+	return uint64(c.Steps)
+}
+
+// TestPolynomialGrowthDetectorSeesExponentialSteps is the negative control of
+// TestNamedNodeTypeResolution: the growth measure fails the steps of a resolution that follows every
+// path through the types (2^n), and passes cubic and linear ones.
+func TestPolynomialGrowthDetectorSeesExponentialSteps(t *testing.T) {
+	cube := func(n int) uint64 { return uint64(n) * uint64(n) * uint64(n) }
+	pow2 := func(n int) uint64 { return uint64(1) << n }
+	if !growsPolynomially(cube(20), cube(40)) || !growsPolynomially(20, 40) {
+		t.Error("polynomial steps were reported as growing faster")
+	}
+	if growsPolynomially(pow2(20), pow2(40)) {
+		t.Error("exponential steps passed as polynomial")
 	}
 }
 
