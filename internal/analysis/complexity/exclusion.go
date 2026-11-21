@@ -29,6 +29,12 @@ var (
 	decidedUnitsK  = 3
 )
 
+// pnotSourceOn makes the strict analysis refuse a unit whose negative lookahead reaches a scanning
+// source, whether the lookahead decides against the continuation or is only passed before the
+// unit parts. It is on by default; the variable is a test hook, whose off setting is the
+// classifier that took the scan of such a lookahead as cheap.
+var pnotSourceOn = true
+
 // deadPathsOn makes the strict analysis keep the paths that reach a part that no evaluation passes
 // (symDead) and refuse to count as decisive a symbol at which neither side can go on. It is on by
 // default; the variable is a test hook, whose off setting is the analysis that let a unit that never
@@ -877,7 +883,7 @@ func (x excl) excludes(s exclState) (ok bool, item, n int) {
 			// it decides, so in strict mode it must reach no scanning source: the continuation
 			// does not evaluate its calls at the positions where the unit did, and the memo does
 			// not bound what they examine.
-			if x.strict && x.k.containsSource(a.e) {
+			if x.strict && pnotSourceOn && x.k.containsSource(a.e) {
 				return x.no("pnot-source", a, nil)
 			}
 			if x.implies(s.q[s.j:], a.e) {

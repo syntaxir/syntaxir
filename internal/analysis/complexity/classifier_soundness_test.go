@@ -427,6 +427,13 @@ var classifierSoundnessMutants = []struct {
 		"thrown/growth thrown away by a rule that is not a leader",
 		"thrown/growth of a leader that the other leader reads",
 	}, ClassLinear},
+	// A negative lookahead of the unit that reaches a scanning source, directly or in a call, is
+	// taken as cheap, so the unit that it decides is accepted as committing.
+	{"pnotSource", []string{
+		"decided/deciding negative lookahead with a scan",
+		"decided/deciding negative lookahead of a rule with a scan",
+		"decided/deciding negative lookahead of a rule that calls a memoized scan",
+	}, ClassLinear},
 	// $lhs and $rhs of an operator part, and $value of the whole-rule action, counted as values of
 	// unknown size only.
 	{"operandValues", []string{
@@ -455,6 +462,8 @@ func setSoundnessHooks(hook string, on bool) {
 		leadingPassOn = on
 	case "leaderSource":
 		leaderSourceOn = on
+	case "pnotSource":
+		pnotSourceOn = on
 	case "operandValues":
 		operandValuesOn = on
 	case "leadingPass+leaderSource":
