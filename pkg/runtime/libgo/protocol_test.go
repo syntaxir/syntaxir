@@ -215,7 +215,8 @@ func (s *surface) typeName(obj *types.TypeName) {
 // fields lists the exported fields of st and walks their types. The exported fields and methods of
 // an unexported embedded struct are promoted, so generated code reaches them as members of st: they
 // are listed in its place. Such a struct has no exported methods; the listing stops if it gets one,
-// which would then need recording as a method of the embedding type.
+// which would then need recording as a method of the embedding type, and it stops as well on an
+// unexported embedding of a type that is not named, such as a pointer, which it does not expand.
 func (s *surface) fields(st *types.Struct) []string {
 	var fs []string
 	for i := range st.NumFields() {
@@ -226,7 +227,7 @@ func (s *surface) fields(st *types.Struct) []string {
 			}
 			named, _ := types.Unalias(f.Type()).(*types.Named)
 			if named == nil {
-				continue
+				panic(fmt.Sprintf("protocol surface: the unexported embedded field %s is not of a named type (%s), whose promoted members the listing would need to record", f.Name(), f.Type()))
 			}
 			for j := range named.NumMethods() {
 				if named.Method(j).Exported() {

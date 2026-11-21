@@ -11,6 +11,8 @@
 #   - the packages that build generated programs (HEAVY below), when a file of the Go or TypeScript library
 #     of generated parsers, of core or of the generator test helpers changed, because those programs reach
 #     it through a copy or a replace directive that the import graph does not show.
+#   - the packages that hold or check a copy of the Go library (COPIES below), when a file of it changed: the
+#     engine's shared copies (internal/runtime/state/sharedsrc) and the embedded copy (libsrc) read it by path.
 # A change of go.mod, go.work, go.sum or this script selects every package and both of the following lines. The output ends with the lines
 # "# generate" and "# alpha" when `go generate ./internal/backend/... ./internal/runtime/state/sharedsrc ./bench ./internal/frontend/parser ./spec/language` or hack/test-alpha-parsers.sh is affected.
 # Both run the generator, cmd/sxir: a change of a non-test Go file of cmd/sxir or of a package it depends on, or of a
@@ -43,6 +45,7 @@ bydir = {r: p for p, r in rel.items()}
 HEAVY = ["internal/backend/codegen/common", "internal/backend/codegen/golang/print", "internal/backend/codegen/typescript/print", "internal/runtime/engine", "pkg/runtime/libgo",
          "internal/testing/complexitytest", "spec/language", "codegen", "bench", "internal/compile"]
 HEAVY_TRIG = ("pkg/runtime/libgo/", "internal/backend/codegen/typescript/lib/", "pkg/runtime/", "internal/testing/codegentest/")
+COPIES = ["internal/runtime/state/sharedsrc", "internal/runtime/state", "internal/backend/codegen/golang/libsrc"]
 rev = {p: set() for p in pk}
 for p, o in pk.items():
     for q in (o.get("Imports") or []) + (o.get("TestImports") or []) + (o.get("XTestImports") or []):
@@ -87,6 +90,8 @@ for f in files:
                 if a in t: add(p, f)
     if (own in gdeps and f.endswith((".go", ".s")) and not f.endswith("_test.go")) or any(p in gdeps for p in embed.get(f, ())):
         gen = True; alpha = True
+    if f.startswith("pkg/runtime/libgo/"):
+        for c in COPIES: add(mod + "/" + c, f, True)
     if f.startswith(HEAVY_TRIG):
         for h in HEAVY: add(mod + ("/" + h if h else ""), f, True)
     if f.startswith(("pkg/compiler/", "pkg/runtime/", "bench/", "spec/language/", "internal/backend/", "internal/compile/", "internal/runtime/engine/", "internal/frontend/parser/", "internal/ir/", "testdata/grammars/", "internal/bench/")):

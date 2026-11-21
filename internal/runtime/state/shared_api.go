@@ -65,8 +65,9 @@ func ClearSpend[T any](p *Parser, values []T) { clearSpend(p, values) }
 func D(n *value.Node) *nodes.Data { return nodes.D(n) }
 
 // Diagnosed returns how many entries of Recovered the stream has delivered to its diagnostic
-// callback or tail.
+// callback or tail. It is exported only as a hook for tests in other packages.
 func (p *Parser) Diagnosed() int { return p.diagnosed }
 
-// SetDiagnosed sets how many entries of Recovered the stream has delivered.
+// SetDiagnosed sets how many entries of Recovered the stream has delivered. It is exported only as a
+// hook for tests in other packages.
 func (p *Parser) SetDiagnosed(n int) { p.diagnosed = n }
