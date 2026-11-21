@@ -176,7 +176,7 @@ func buildVMProgram(m *bytecode.Module, terms []*state.TermProgram, f state.Fami
 		ri := &m.Rules[i]
 		r := &state.Rule{
 			ID: i, Name: m.Strings[ri.Name], Scope: vm.scope(ri.Scope),
-			Memo: ri.Memo, Leader: ri.Leader, Member: ri.Member, Cycle: ri.Cycle, Positional: ri.Positional, Novalue: ri.NoValue, Transient: ri.Transient, Rec: ri.Rec, Splice: ri.Splice, Vars: vm.names(ri.Vars),
+			Memo: ri.Memo, Leader: ri.Leader, Member: ri.Member, Cycle: ri.Cycle, Positional: ri.PositionDependent, Novalue: ri.ValueFreeTwin, Transient: ri.Transient, Rec: ri.Rec, Splice: ri.Splice, Vars: vm.names(ri.Vars),
 		}
 		if ri.Where >= 0 {
 			r.Where = m.Strings[ri.Where]

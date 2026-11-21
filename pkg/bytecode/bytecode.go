@@ -139,13 +139,15 @@ type RuleInfo struct {
 	Member bool
 	// Cycle numbers the left-recursion cycle of a leader or member from 1, and is 0 for any other
 	// rule.
-	Cycle         int
-	Positional    bool
-	OperatorsRule int // OperatorsRule table index (-1 if none)
-	// NoValue reports that this is a value-free twin, called from places where the value is
+	Cycle int
+	// PositionDependent reports that the results of the rule may depend on positions: an action or
+	// predicate of the rule, or of a rule it calls, reads positions.
+	PositionDependent bool
+	OperatorsRule     int // OperatorsRule table index (-1 if none)
+	// ValueFreeTwin reports that this is a value-free twin, called from places where the value is
 	// discarded (its value is always nil). It has the same name as the original rule and is placed
 	// after all the original rules in the rule table.
-	NoValue bool
+	ValueFreeTwin bool
 	// Transient reports that the rule is not memoized in ordinary parses (even if Memo is set). In
 	// incremental parsing, Memo applies.
 	Transient bool

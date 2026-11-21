@@ -77,9 +77,9 @@ func (w *Encoder) WriteModule(m *Module) {
 		w.Bool(r.Leader)
 		w.Bool(r.Member)
 		w.Int(r.Cycle)
-		w.Bool(r.Positional)
+		w.Bool(r.PositionDependent)
 		w.Int(r.OperatorsRule)
-		w.Bool(r.NoValue)
+		w.Bool(r.ValueFreeTwin)
 		w.Bool(r.Transient)
 		w.Bool(r.Rec)
 		w.Int(r.Where)
@@ -421,7 +421,7 @@ func (r *Decoder) ReadModule() *Module {
 		ri := RuleInfo{
 			Name: int(r.int32()), Entry: int(r.int32()), Scope: r.ints(), Action: int(r.int32()),
 			NodeType: int(r.int32()),
-			Memo:     r.Bool(), Leader: r.Bool(), Member: r.Bool(), Cycle: int(r.int32()), Positional: r.Bool(), OperatorsRule: int(r.int32()), NoValue: r.Bool(), Transient: r.Bool(), Rec: r.Bool(), Where: int(r.int32()), Splice: r.Bool(), Vars: r.ints(),
+			Memo:     r.Bool(), Leader: r.Bool(), Member: r.Bool(), Cycle: int(r.int32()), PositionDependent: r.Bool(), OperatorsRule: int(r.int32()), ValueFreeTwin: r.Bool(), Transient: r.Bool(), Rec: r.Bool(), Where: int(r.int32()), Splice: r.Bool(), Vars: r.ints(),
 		}
 		m.Rules = append(m.Rules, ri)
 	}
