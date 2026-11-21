@@ -26,8 +26,7 @@
 # Not rewritten: lines that hold the marker keep-old-name:, the integrity digests of package locks
 # ("integrity": "sha...), whose base64 text holds the letters by chance, the saved raw benchmark results
 # (bench/results*.txt), which are never edited by hand, the recovery corpora
-# (testdata/recovery/*.txt), whose inputs are random text in which the letters occur by chance, and
-# wrangler.jsonc, whose Worker keeps its dashboard name. Paths are still renamed when they hold a
+# (testdata/recovery/*.txt), whose inputs are random text in which the letters occur by chance. Paths are still renamed when they hold a
 # name.
 set -u
 cd "$(git rev-parse --show-toplevel)" || exit 1
@@ -46,10 +45,9 @@ s{(?:(?<![A-Za-z0-9])|(?<=\\[ntr]))zp}{sxir}g;
 
 skipped() {
 	case "$1" in
-	# The saved raw results and the random corpora; this script and the guard spell the former names;
-	# the Worker keeps the name it has in the Cloudflare dashboard.
+	# The saved raw results and the random corpora; this script and the guard spell the former names.
 	bench/results*.txt | testdata/recovery/*.txt | hack/rename-syntaxir.sh | \
-		internal/testing/archtest/names_test.go | wrangler.jsonc) return 0 ;;
+		internal/testing/archtest/names_test.go) return 0 ;;
 	esac
 	return 1
 }

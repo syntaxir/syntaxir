@@ -140,8 +140,8 @@ To deliberately reset retention, pass `-previous-site ''`. See [the asset-retent
 for the format, bounds and bootstrap limitations.
 
 The official site, [syntaxir.dev](https://syntaxir.dev/), is a Cloudflare Worker with static assets and no Worker
-script. [`wrangler.jsonc`](../wrangler.jsonc) at the root of the repository names the Worker (`zeroparse`, <!-- keep-old-name: the dashboard name of the Worker -->
-the name it was created with before the project was renamed) and its assets directory, `site/dist`, the output of
+script. [`wrangler.jsonc`](../wrangler.jsonc) at the root of the repository names the Worker (`syntaxir`)
+and its assets directory, `site/dist`, the output of
 the site build; each build runs the link check, so a broken link fails
 the deploy instead of publishing it. Cloudflare serves directory index files with a trailing slash
 (`html_handling` is `auto-trailing-slash`); the site emits no `404.html`, so unknown paths get Cloudflare's plain 404
@@ -182,7 +182,7 @@ After a deployment, check the live site with
 
 ### Workers Builds Settings
 
-Connect the Worker to the Git repository in the Cloudflare dashboard (Workers & Pages, the `zeroparse` Worker, <!-- keep-old-name: the dashboard name of the Worker -->
+Connect the Worker to the Git repository in the Cloudflare dashboard (Workers & Pages, the `syntaxir` Worker,
 Settings, Builds) with these values:
 
 | Setting | Value |

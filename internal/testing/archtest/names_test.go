@@ -35,9 +35,6 @@ var formerNameExempt = []string{
 	"bench/results*.txt",
 	// Recovery corpora: random inputs in which the letters occur by chance.
 	"testdata/recovery/*.txt",
-	// The Worker keeps the name it has in the Cloudflare dashboard; the site tests' reader of the
-	// file drops only full-line comments, so the line of the name cannot carry the marker.
-	"wrangler.jsonc",
 	// The script that performs the rename, and this test, spell the former names.
 	"hack/rename-syntaxir.sh",
 	"internal/testing/archtest/names_test.go",
