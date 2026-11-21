@@ -453,7 +453,7 @@ func (a *analysis) anchorConflict(s *ast.Seq) ast.Expr {
 func (a *analysis) succeeds(e ast.Expr) bool {
 	control := a.control
 	control.poll()
-	return a.matchPrefix(e, "").ok
+	return a.matchPrefix(e, "", false).ok
 }
 
 // matchResult is the result of matchPrefix.
@@ -467,10 +467,12 @@ type matchResult struct {
 type matchKey struct {
 	rule string
 	t    string
+	fold bool
 }
 
-// matchPrefix reports whether e certainly succeeds on every input that begins with t.
-func (a *analysis) matchPrefix(e ast.Expr, t string) matchResult {
+// matchPrefix reports whether e certainly succeeds on every input that begins with t, or, with fold
+// set, with t or any of the strings that differ from t only in the case of ASCII letters.
+func (a *analysis) matchPrefix(e ast.Expr, t string, fold bool) matchResult {
 	control := a.control
 	control.poll()
 
@@ -480,11 +482,13 @@ func (a *analysis) matchPrefix(e ast.Expr, t string) matchResult {
 	case *ast.Literal:
 		// A case-insensitive literal matches the input that begins with any case of it, and the
 		// folding keeps byte lengths, so the rest of t begins after len(e.Value) bytes.
-		if e.IgnoreCase && hasPrefixFold(t, e.Value) || !e.IgnoreCase && strings.HasPrefix(t, e.Value) {
+		// A case-sensitive literal matches every case of t only where its text has no ASCII letter.
+		if e.IgnoreCase && hasPrefixFold(t, e.Value) || !e.IgnoreCase && strings.HasPrefix(t, e.Value) && (!fold || !hasASCIILetter(e.Value)) {
 			return ok(t[len(e.Value):])
 		}
 	case *ast.CharClass:
-		if r, size := utf8.DecodeRuneInString(t); t != "" && classAcceptsControlled(e, r, control) {
+		if r, size := utf8.DecodeRuneInString(t); t != "" && classAcceptsControlled(e, r, control) &&
+			(!fold || classAcceptsControlled(e, otherCase(r), control)) {
 			return ok(t[size:])
 		}
 	case *ast.Any:
@@ -498,7 +502,7 @@ func (a *analysis) matchPrefix(e ast.Expr, t string) matchResult {
 		for _, it := range e.Items {
 			control.poll()
 			if cur.exact {
-				if cur = a.matchPrefix(it, cur.rest); !cur.ok {
+				if cur = a.matchPrefix(it, cur.rest, fold); !cur.ok {
 					return cur
 				}
 			} else if !a.succeeds(it) {
@@ -509,7 +513,7 @@ func (a *analysis) matchPrefix(e ast.Expr, t string) matchResult {
 	case *ast.Choice:
 		for k, alt := range e.Alts {
 			control.poll()
-			if r := a.matchPrefix(alt, t); r.ok {
+			if r := a.matchPrefix(alt, t, fold); r.ok {
 				if k == 0 {
 					return r
 				}
@@ -527,7 +531,7 @@ func (a *analysis) matchPrefix(e ast.Expr, t string) matchResult {
 			control.poll()
 			if cur.exact {
 				before := cur.rest
-				if cur = a.matchPrefix(e.Expr, cur.rest); !cur.ok {
+				if cur = a.matchPrefix(e.Expr, cur.rest, fold); !cur.ok {
 					return cur
 				}
 				if cur.exact && cur.rest == before {
@@ -554,27 +558,27 @@ func (a *analysis) matchPrefix(e ast.Expr, t string) matchResult {
 		}
 		return inexact
 	case *ast.Optional:
-		if r := a.matchPrefix(e.Expr, t); r.ok {
+		if r := a.matchPrefix(e.Expr, t, fold); r.ok {
 			return r
 		}
 		if !a.hasLooseCut(e.Expr) {
 			return inexact
 		}
 	case *ast.Capture:
-		return a.matchPrefix(e.Expr, t)
+		return a.matchPrefix(e.Expr, t, fold)
 	case *ast.Atomic:
-		return a.matchPrefix(e.Expr, t)
+		return a.matchPrefix(e.Expr, t, fold)
 	case *ast.Discard:
-		return a.matchPrefix(e.Expr, t)
+		return a.matchPrefix(e.Expr, t, fold)
 	case *ast.Attributed:
 		// #recover only adds ways to succeed; @error and #stream do not change matching.
-		return a.matchPrefix(e.Expr, t)
+		return a.matchPrefix(e.Expr, t, fold)
 	case *ast.And:
-		if a.matchPrefix(e.Expr, t).ok {
+		if a.matchPrefix(e.Expr, t, fold).ok {
 			return ok(t)
 		}
 	case *ast.Not:
-		if a.fails(e.Expr, t) {
+		if a.fails(e.Expr, t, fold) {
 			return ok(t)
 		}
 	case *ast.Ref:
@@ -585,7 +589,7 @@ func (a *analysis) matchPrefix(e ast.Expr, t string) matchResult {
 		if pr, _ := ast.RuleOperators(r.Expr); pr != nil {
 			break
 		}
-		key := matchKey{e.Name, t}
+		key := matchKey{e.Name, t, fold}
 		if m, ok := a.matchMemo[key]; ok {
 			return m
 		}
@@ -595,7 +599,7 @@ func (a *analysis) matchPrefix(e ast.Expr, t string) matchResult {
 		}
 		a.busy[e.Name] = true
 		before := a.cycles
-		m := a.matchPrefix(r.Expr, t)
+		m := a.matchPrefix(r.Expr, t, fold)
 		delete(a.busy, e.Name)
 		if a.cycles == before {
 			a.matchMemo[key] = m
@@ -606,30 +610,31 @@ func (a *analysis) matchPrefix(e ast.Expr, t string) matchResult {
 	return matchResult{}
 }
 
-// fails reports whether e certainly fails on every input that begins with t.
-func (a *analysis) fails(e ast.Expr, t string) bool {
+// fails reports whether e certainly fails on every input that begins with t, or, with fold set,
+// with t or any of the strings that differ from t only in the case of ASCII letters.
+func (a *analysis) fails(e ast.Expr, t string, fold bool) bool {
 	control := a.control
 	control.poll()
 
 	switch e := analysisExpr(e, control).(type) {
 	case *ast.Literal:
-		if e.IgnoreCase {
+		if e.IgnoreCase || fold {
 			return !hasPrefixFold(t, e.Value) && !hasPrefixFold(e.Value, t)
 		}
 		return !strings.HasPrefix(t, e.Value) && !strings.HasPrefix(e.Value, t)
 	case *ast.CharClass:
 		r, _ := utf8.DecodeRuneInString(t)
-		return t != "" && !classAcceptsControlled(e, r, control)
+		return t != "" && !classAcceptsControlled(e, r, control) && (!fold || !classAcceptsControlled(e, otherCase(r), control))
 	case *ast.Bottom:
 		return true
 	case *ast.Seq:
 		cur := t
 		for _, it := range e.Items {
 			control.poll()
-			if a.fails(it, cur) {
+			if a.fails(it, cur, fold) {
 				return true
 			}
-			r := a.matchPrefix(it, cur)
+			r := a.matchPrefix(it, cur, fold)
 			if !r.ok || !r.exact {
 				return false
 			}
@@ -638,21 +643,21 @@ func (a *analysis) fails(e ast.Expr, t string) bool {
 	case *ast.Choice:
 		for _, alt := range e.Alts {
 			control.poll()
-			if !a.fails(alt, t) {
+			if !a.fails(alt, t, fold) {
 				return false
 			}
 		}
 		return true
 	case *ast.Repeat:
-		return e.Min > 0 && a.fails(e.Expr, t)
+		return e.Min > 0 && a.fails(e.Expr, t, fold)
 	case *ast.Capture:
-		return a.fails(e.Expr, t)
+		return a.fails(e.Expr, t, fold)
 	case *ast.Atomic:
-		return a.fails(e.Expr, t)
+		return a.fails(e.Expr, t, fold)
 	case *ast.Discard:
-		return a.fails(e.Expr, t)
+		return a.fails(e.Expr, t, fold)
 	case *ast.Attributed:
-		return !hasAttr(e, "recover", control) && !hasAttr(e, "missing", control) && a.fails(e.Expr, t)
+		return !hasAttr(e, "recover", control) && !hasAttr(e, "missing", control) && a.fails(e.Expr, t, fold)
 	case *ast.Ref:
 		r := a.rules[e.Name]
 		if r == nil || e.Level != "" || a.busy[e.Name] {
@@ -663,7 +668,7 @@ func (a *analysis) fails(e ast.Expr, t string) bool {
 		}
 		a.busy[e.Name] = true
 		defer delete(a.busy, e.Name)
-		return a.fails(r.Expr, t)
+		return a.fails(r.Expr, t, fold)
 	}
 	return false
 }
@@ -689,6 +694,28 @@ func hasPrefixFold(s, p string) bool {
 	return true
 }
 
+// hasASCIILetter reports whether s has an ASCII letter, the only characters whose case folding
+// changes.
+func hasASCIILetter(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if c := asciiLower(s[i]); 'a' <= c && c <= 'z' {
+			return true
+		}
+	}
+	return false
+}
+
+// otherCase returns the other case of an ASCII letter, and any other character as it is.
+func otherCase(r rune) rune {
+	switch {
+	case 'a' <= r && r <= 'z':
+		return r - ('a' - 'A')
+	case 'A' <= r && r <= 'Z':
+		return r + ('a' - 'A')
+	}
+	return r
+}
+
 // asciiLower maps A-Z to a-z and leaves every other byte as it is.
 func asciiLower(c byte) byte {
 	if 'A' <= c && c <= 'Z' {
@@ -702,6 +729,10 @@ type prefixResult struct {
 	s string
 	// exact reports that every match consumes exactly s.
 	exact bool
+	// fold reports that s is known only up to the case of its ASCII letters: every match begins with
+	// s or with a string that differs from s only in the case of ASCII letters (and, if exact,
+	// consumes exactly that string).
+	fold bool
 }
 
 // prefix returns a string that every match of e begins with.
@@ -711,29 +742,28 @@ func (a *analysis) prefix(e ast.Expr) prefixResult {
 
 	switch e := analysisExpr(e, control).(type) {
 	case *ast.Literal:
-		if e.IgnoreCase {
-			// Every match begins with some case of the literal, not with one string: no prefix is known.
-			return prefixResult{"", false}
-		}
-		return prefixResult{e.Value, true}
+		// Every match of a case-insensitive literal begins with some case of it.
+		return prefixResult{s: e.Value, exact: true, fold: e.IgnoreCase && hasASCIILetter(e.Value)}
 	case *ast.CharClass:
 		if len(e.Ranges) == 1 && e.Ranges[0].Lo == e.Ranges[0].Hi && !e.Negated {
-			return prefixResult{string(e.Ranges[0].Lo), true}
+			return prefixResult{s: string(e.Ranges[0].Lo), exact: true}
 		}
 	case *ast.And, *ast.Not, *ast.Predicate, *ast.Cut, *ast.Top,
 		*ast.BeginInput, *ast.EndInput, *ast.BeginLine, *ast.EndLine:
-		return prefixResult{"", true}
+		return prefixResult{s: "", exact: true}
 	case *ast.Seq:
 		var b strings.Builder
+		fold := false
 		for _, it := range e.Items {
 			control.poll()
 			p := a.prefix(it)
 			b.WriteString(p.s)
+			fold = fold || p.fold
 			if !p.exact {
-				return prefixResult{b.String(), false}
+				return prefixResult{s: b.String(), fold: fold}
 			}
 		}
-		return prefixResult{b.String(), true}
+		return prefixResult{s: b.String(), exact: true, fold: fold}
 	case *ast.Choice:
 		var out prefixResult
 		first := true
@@ -747,8 +777,11 @@ func (a *analysis) prefix(e ast.Expr) prefixResult {
 				out, first = p, false
 				continue
 			}
+			// Where either prefix is known only up to case, the common part is too.
+			fold := out.fold || p.fold
+			same := func(x, y byte) bool { return x == y || fold && asciiLower(x) == asciiLower(y) }
 			n := 0
-			for n < len(out.s) && n < len(p.s) && out.s[n] == p.s[n] {
+			for n < len(out.s) && n < len(p.s) && same(out.s[n], p.s[n]) {
 				control.poll()
 				n++
 			}
@@ -756,18 +789,19 @@ func (a *analysis) prefix(e ast.Expr) prefixResult {
 				control.poll()
 				n-- // keep whole characters
 			}
-			out = prefixResult{out.s[:n], out.exact && p.exact && out.s == p.s}
+			whole := len(out.s) == len(p.s) && n == len(out.s)
+			out = prefixResult{s: out.s[:n], exact: out.exact && p.exact && whole, fold: fold && hasASCIILetter(out.s[:n])}
 		}
 		return out
 	case *ast.Repeat:
 		if e.Min == 0 {
-			return prefixResult{"", e.Max == 0}
+			return prefixResult{s: "", exact: e.Max == 0}
 		}
 		p := a.prefix(e.Expr)
 		if !p.exact {
 			return p
 		}
-		return prefixResult{strings.Repeat(p.s, e.Min), e.Max == e.Min}
+		return prefixResult{s: strings.Repeat(p.s, e.Min), exact: e.Max == e.Min, fold: p.fold && e.Min > 0}
 	case *ast.Capture:
 		return a.prefix(e.Expr)
 	case *ast.Atomic:

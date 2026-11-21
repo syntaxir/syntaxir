@@ -28,8 +28,8 @@ func TestClassRangeContextCancellation(t *testing.T) {
 		{"normalization-merge", 1, func(c *lintControl) { mergeRanges(rs, c) }},
 		{"comparison", 1, func(c *lintControl) { sameRangesControlled(rs, rs, c) }},
 		{"structure-comparison", 1, func(c *lintControl) { same(cl, cl, false, c) }},
-		{"prefix", 1, func(c *lintControl) { (&analysis{control: c}).matchPrefix(cl, "a") }},
-		{"failure", 1, func(c *lintControl) { (&analysis{control: c}).fails(cl, "a") }},
+		{"prefix", 1, func(c *lintControl) { (&analysis{control: c}).matchPrefix(cl, "a", false) }},
+		{"failure", 1, func(c *lintControl) { (&analysis{control: c}).fails(cl, "a", false) }},
 		{"any-character", 1, func(c *lintControl) { consumesAny(&ast.CharClass{Negated: true, Ranges: rs}, c) }},
 		{"class-lint", 1, func(c *lintControl) { (&linter{control: c}).charClass(cl) }},
 	} {

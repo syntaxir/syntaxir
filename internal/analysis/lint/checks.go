@@ -240,7 +240,7 @@ func (a *analysis) covers(x, y ast.Expr) string {
 		return ""
 	}
 	rest := &ast.Seq{Items: xs[k:]}
-	if a.matchPrefix(rest, a.prefix(&ast.Seq{Items: ys[k:]}).s).ok {
+	if p := a.prefix(&ast.Seq{Items: ys[k:]}); a.matchPrefix(rest, p.s, p.fold).ok {
 		return "prefix"
 	}
 	return ""

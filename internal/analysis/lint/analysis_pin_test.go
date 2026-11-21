@@ -20,8 +20,9 @@ import (
 // rules of the corpus grammars, the inline grammars of the end-of-input differential test and the
 // grammars in testdata and examples: the rule sets and, for each expression, its nullability at and
 // away from the end of the input, the engine's nullability, whether it may match, whether it
-// certainly succeeds, its loose cuts, its prefix and its left calls. The checks are built on these
-// answers, so a change in how the analysis computes them must leave them as they are.
+// certainly succeeds, its loose cuts, its prefix with whether the prefix folds case and its left
+// calls. The checks are built on these answers, so a change in how the analysis computes them must
+// leave them as they are.
 //
 // The answers of a large grammar are pinned by their SHA-256 digest; -lint-analysis-dump writes
 // them in full to a directory, so that a change can be compared with the dump of the base.
@@ -119,10 +120,10 @@ func analysisAnswers(t *testing.T, name, src string) string {
 			key := fmt.Sprintf("%s %d:%d %T", r.Name, pos.Line, pos.Col, x)
 			rank[key]++
 			p := a.prefix(x)
-			fmt.Fprintf(&b, "%s #%d: null=%s eng=%s match=%s succ=%s always=%s cut=%s prefix=%q exact=%s left=%s\n",
+			fmt.Fprintf(&b, "%s #%d: null=%s eng=%s match=%s succ=%s always=%s cut=%s prefix=%q exact=%s fold=%s left=%s\n",
 				key, rank[key], bits(a.nullableAt(x, false), a.nullableAt(x, true)), bits(a.isEngineNullable(x)),
 				bits(a.mayMatch(x)), bits(a.succeeds(x)), bits(a.alwaysSucceeds(x)), bits(a.hasLooseCut(x)),
-				p.s, bits(p.exact), strings.Join(a.leftCalls(x, nil), ","))
+				p.s, bits(p.exact), bits(p.fold), strings.Join(a.leftCalls(x, nil), ","))
 		})
 	}
 	return b.String()
