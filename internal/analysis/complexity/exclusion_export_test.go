@@ -21,6 +21,7 @@ func (h ExclusionHooks) Set() func() {
 func restoreExclusionDefaults() {
 	cutPrefixesOn, decidedUnitsOn, decidedUnitsK, deadPathsOn, copyStopsOn = false, true, 3, true, true
 	triviaOn, triviaOnly, triviaMemo = true, nil, false
+	emptyUndecidedOn = true
 }
 
 // SetCopyStops sets whether the strict analysis ends a path at a copying operation that is a

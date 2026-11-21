@@ -15,8 +15,10 @@ const deadWitness = "rule s = E $$\n" +
 
 // TestDeadUnitRejected checks that a unit that never succeeds is compared with its continuations
 // on the paths that it evaluates before it fails, so that it decides none of them for want of
-// paths, and that the reason names the path. Without dead paths (the negative control) the unit
-// has no path, decides every continuation, and the grammar is accepted as linear.
+// paths, and that the reason names the path. Without dead paths the unit has no path, and the
+// check of empty path sets (emptyUndecidedOn) still keeps it from deciding its continuations;
+// without both (the negative control) it decides every continuation for want of paths, and the
+// grammar is accepted as linear.
 func TestDeadUnitRejected(t *testing.T) {
 	defer restoreExclusionDefaults()
 	restoreExclusionDefaults()
@@ -29,8 +31,12 @@ func TestDeadUnitRejected(t *testing.T) {
 		t.Errorf("causes %+v do not say %q", c.Causes, why)
 	}
 	deadPathsOn = false
+	if got := classifySource(t, deadWitness).Class; got != ClassPoly {
+		t.Errorf("without dead paths: class %v, want %v (the check of empty path sets)", got, ClassPoly)
+	}
+	emptyUndecidedOn = false
 	if got := classifySource(t, deadWitness).Class; got != ClassLinear {
-		t.Errorf("without dead paths: class %v, want %v (the negative control)", got, ClassLinear)
+		t.Errorf("without dead paths and the check of empty path sets: class %v, want %v (the negative control)", got, ClassLinear)
 	}
 }
 

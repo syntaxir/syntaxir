@@ -35,6 +35,14 @@ var (
 // succeeds decide every continuation for want of paths.
 var deadPathsOn = true
 
+// emptyUndecidedOn makes unitDecided decide nothing when the unit, or a path of a continuation,
+// has no path in the strict analysis: with no pair of paths to compare, the comparison would pass
+// without having parted anything. The analysis keeps a path for every part, a part that no
+// evaluation passes included (deadPathsOn), so the case arises only when a hook removes such paths;
+// the check keeps the decision from resting on that. It is on by default; the variable is a test
+// hook.
+var emptyUndecidedOn = true
+
 // copyStopsOn makes a path of the strict analysis end at a copying operation that is a scanning
 // source and that the path would otherwise pass over: a predicate or a binding that holds one, an
 // inline action that holds one after its expression, and the action at the end of a rule body
@@ -1430,10 +1438,13 @@ func (k *classifier) unitDecided(u *unit, conts []contSpec) (ok bool, why string
 		}
 		ps = append(ps, p...)
 	}
+	if emptyUndecidedOn && len(ps) == 0 {
+		return false, ""
+	}
 	for _, cs := range conts {
 		for _, c := range cs.paths {
 			qs, ok := x.followPaths(c)
-			if !ok {
+			if !ok || emptyUndecidedOn && len(qs) == 0 {
 				return false, ""
 			}
 			for _, p := range ps {
