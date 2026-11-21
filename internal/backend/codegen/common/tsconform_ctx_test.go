@@ -18,8 +18,11 @@ import (
 // operation's ok, not from its value.
 
 func tsCtxSuite(controlled bool) conform.Suite {
-	// The steps of a growth in a context are not run on the library yet.
-	ops := slices.DeleteFunc(slices.Clone(tsconformtest.CtxOps), func(n string) bool { return slices.Contains(conform.CtxGrowStepOps, n) })
+	ops := slices.Clone(tsconformtest.CtxOps)
+	if controlled {
+		// The model declares no cost for the steps of a growth in a context yet (#310).
+		ops = slices.DeleteFunc(ops, func(n string) bool { return slices.Contains(conform.CtxGrowStepOps, n) })
+	}
 	s := conform.Suite{Name: fmt.Sprint("typescript ctx (controlled=", controlled, ")"), Ops: append(ops, budgetOps(controlled)...)}
 	s.Exact = []string{"grow.begin", "grow.adopt"}
 	return s
