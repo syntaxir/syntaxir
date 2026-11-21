@@ -148,6 +148,113 @@ var figureCatalog = []figure{
 		value: func(c *figureCalc) string { return fmtSig(c.get("TS/Parse/JSON").ns/1e6, 2) + " ms" }},
 }
 
+// stdBaselines names the benchmark of the Go standard library that each comparable workload is
+// measured against, with the key of the workload in figure names.
+var stdBaselines = []struct{ key, workload, bench string }{
+	{"json", "JSON", "Parse/JSON/encoding_json"},
+	{"xml", "XML", "Parse/XML/encoding_xml"},
+	{"csv", "CSV", "Parse/CSV/encoding_csv"},
+	{"operators", "Arith_OperatorsRule", "Parse/Arith_OperatorsRule/go_parser"},
+	{"leftrec", "Arith_LeftRec", "Parse/Arith_LeftRec/go_parser"},
+}
+
+// engineModes are the active-control modes of BudgetControlModes, measured against the inactive mode.
+var engineModes = []string{"context", "budget", "combined"}
+
+// engineModeRatios is the time of every active mode over the inactive mode, for JSON and XML on the
+// three engine backends in both position units; only is "" for all modes or the name of one.
+func (c *figureCalc) engineModeRatios(only string) []float64 {
+	var xs []float64
+	for _, w := range []string{"JSON", "XML"} {
+		for _, b := range []string{"closure", "bytecode", "iterative"} {
+			for _, u := range []string{"codepoints", "bytes"} {
+				for _, m := range engineModes {
+					if only == "" || only == m {
+						base := fmt.Sprintf("BudgetControlModes/%s/%s/%s/", w, b, u)
+						xs = append(xs, c.get(base+m).ns/c.get(base+"inactive").ns)
+					}
+				}
+			}
+		}
+	}
+	return xs
+}
+
+func init() {
+	for _, s := range stdBaselines {
+		gen := "Parse/" + s.workload + "/generated/codepoints"
+		typed := "Parse/" + s.workload + "/generated_ast"
+		figureCatalog = append(figureCatalog,
+			figure{name: "ms-" + s.key + "-parse", meaning: s.workload + ", generated Go `Parse` time",
+				value: func(c *figureCalc) string { return fmtTime(c.get(gen).ns) }},
+			figure{name: "ms-" + s.key + "-typed", meaning: s.workload + ", generated Go `ParseValue` time",
+				value: func(c *figureCalc) string { return fmtTime(c.get(typed).ns) }},
+			figure{name: "ms-" + s.key + "-std", meaning: s.workload + ", standard library time (`" + s.bench + "`)",
+				value: func(c *figureCalc) string { return fmtTime(c.get(s.bench).ns) }},
+			figure{name: "typed-vs-std-" + s.key, meaning: s.workload + ", `ParseValue` time over standard library time, one decimal",
+				value: func(c *figureCalc) string { return fmtSig(c.get(typed).ns/c.get(s.bench).ns, 2) + "×" }},
+		)
+	}
+	over := func(num func(s struct{ key, workload, bench string }) string, metric func(*result) float64, keys ...string) func(c *figureCalc) []float64 {
+		return func(c *figureCalc) []float64 {
+			var xs []float64
+			for _, s := range stdBaselines {
+				if len(keys) == 0 || slices.Contains(keys, s.key) {
+					xs = append(xs, metric(c.get(num(s)))/metric(c.get(s.bench)))
+				}
+			}
+			return xs
+		}
+	}
+	genOf := func(s struct{ key, workload, bench string }) string {
+		return "Parse/" + s.workload + "/generated/codepoints"
+	}
+	typedOf := func(s struct{ key, workload, bench string }) string { return "Parse/" + s.workload + "/generated_ast" }
+	figureCatalog = append(figureCatalog,
+		figure{name: "tree-vs-std", meaning: "Generated Go `Parse` time over standard library time, the five comparable workloads",
+			value: func(c *figureCalc) string { return factorRange(over(genOf, nsOf)(c)) }},
+		figure{name: "typed-vs-std", meaning: "Generated Go `ParseValue` time over standard library time, the five comparable workloads",
+			value: func(c *figureCalc) string { return factorRange(over(typedOf, nsOf)(c)) }},
+		figure{name: "tree-vs-std-short", meaning: "The same, two significant digits",
+			value: func(c *figureCalc) string { return sigRange(over(genOf, nsOf)(c)) }},
+		figure{name: "typed-vs-std-short", meaning: "The same for `ParseValue`, two significant digits",
+			value: func(c *figureCalc) string { return sigRange(over(typedOf, nsOf)(c)) }},
+		figure{name: "recognize-generated-json-time", meaning: "JSON, generated Go `Recognize` time",
+			value: func(c *figureCalc) string { return fmtTime(c.get("Recognize/JSON/generated").ns) }},
+		figure{name: "json-valid-time", meaning: "JSON, `json.Valid` time",
+			value: func(c *figureCalc) string { return fmtTime(c.get("Recognize/JSON/json_Valid").ns) }},
+		figure{name: "stream-closure-time", meaning: "Closure `ParseStream` time, 50,000 CSV records",
+			value: func(c *figureCalc) string { return fmtTime(c.get("Stream/closure").ns) }},
+		figure{name: "stream-std-time", meaning: "`encoding/csv` read loop time, 50,000 CSV records",
+			value: func(c *figureCalc) string { return fmtTime(c.get("Stream/encoding_csv").ns) }},
+		figure{name: "typed-vs-std-memory-json-xml", meaning: "`ParseValue` bytes allocated over standard library bytes allocated, JSON then XML",
+			value: func(c *figureCalc) string {
+				xs := over(typedOf, bytesOf, "json", "xml")(c)
+				return fmtFactor(xs[0]) + "×, " + fmtFactor(xs[1]) + "×"
+			}},
+		figure{name: "recognize-vs-valid", meaning: "Generated Go `Recognize` time over `json.Valid` time, JSON",
+			value: func(c *figureCalc) string {
+				return fmtFactor(c.get("Recognize/JSON/generated").ns/c.get("Recognize/JSON/json_Valid").ns) + "×"
+			}},
+		figure{name: "stream-vs-std", meaning: "Closure `ParseStream` time over an `encoding/csv` read loop, 50,000 records",
+			value: func(c *figureCalc) string {
+				return fmtSig(c.get("Stream/closure").ns/c.get("Stream/encoding_csv").ns, 3) + "×"
+			}},
+		figure{name: "engine-controls", meaning: "Engine backends with a context, compute limits or both active over inactive, JSON and XML, all backends and both position units",
+			value: func(c *figureCalc) string { return factorRange(c.engineModeRatios("")) }},
+		figure{name: "typescript-vs-go", meaning: "Generated TypeScript `parse` time over generated Go `Parse` time (code points), every workload but Recovery, which has no TypeScript benchmark", ts: true,
+			value: func(c *figureCalc) string {
+				var xs []float64
+				for _, w := range allWorkloads {
+					if w != "Recovery" {
+						xs = append(xs, c.get("TS/Parse/"+w).ns/c.get("Parse/"+w+"/generated/codepoints").ns)
+					}
+				}
+				return factorRange(xs)
+			}},
+	)
+}
+
 // convertedWorkloads are the workloads whose ParseValue converts the tree of Parse.
 func convertedWorkloads() []string {
 	var ws []string

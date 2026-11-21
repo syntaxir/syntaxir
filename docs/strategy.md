@@ -25,7 +25,7 @@ of the aim is stated with its status today:
 | Any engine | Three engine backends in Go (closure, recursive VM, iterative VM); a bytecode with a published specification, implemented only by the Go VMs and unstable until it is declared stable and versioned, which the first tagged release does not do | A stable, versioned bytecode, then another implementation of it |
 | Selectable optimization profiles | Three profiles for generated Go, `speed`, `memory` and `size`, over named optimization flags ([design record 063](design/records/063-configurable-optimization-pass-pipeline.md), [Optimizations](guide/code-generation.md#optimizations)); none for TypeScript | A TypeScript profile, which needs a parse-time measurement |
 | Every use | Batch trees, typed values, recognition, recovery, `Document` and streaming, with per-target gaps ([What One Grammar Gives You](why-syntaxir.md#what-one-grammar-gives-you)); a language server for `.sxir` sources | Editor-grade tooling for the languages users define ([Editor-Grade Parsing](#editor-grade-parsing)) |
-| The best measured speed in each | Generated Go is slower than Go's hand-written standard-library parsers on every comparable workload (1.1–5.4× for typed values, 1.6–6.8× for trees); no cross-tool benchmark yet | The targets of [Performance Leadership](#performance-leadership), first for the targets and uses that exist, then for each new one |
+| The best measured speed in each | Generated Go is slower than Go's hand-written standard-library parsers on every comparable workload (<!-- fig:typed-vs-std-short -->1.1–5.4×<!-- /fig --> for typed values, <!-- fig:tree-vs-std-short -->1.6–6.8×<!-- /fig --> for trees); no cross-tool benchmark yet | The targets of [Performance Leadership](#performance-leadership), first for the targets and uses that exist, then for each new one |
 | Safe by default | A nesting cap only | Compute limits on by default, in generated parsers too; optional input-length and memory caps ([Predictable Cost and Safety](#predictable-cost-and-safety)) |
 
 **Positioning.** The reason to choose SyntaxIR is breadth under one contract. One PEG-based grammar yields typed values,
@@ -68,7 +68,7 @@ not narrow what SyntaxIR is for.
 | Go teams that own a DSL, configuration, query or policy language | Typed values, good errors, bounded cost, plain `go build` | Hand-written parsers, goyacc, pigeon, pointlander/peg, participle, ANTLR Go runtime; embedding CEL (cel-go) or Expr where an expression language fits | Low to medium: a grammar rewrite per language | Partial fit: typed generated Go, declared recovery, a default depth cap, stdlib only. Compute limits must be generated in and enabled (1.30–1.47× slower on generated Go); no memory or input-size cap; no grammar classifier |
 | Go developer tools for a custom language (linters, formatters, servers) | Incremental trees that tolerate errors, in pure Go | tree-sitter through cgo, gotreesitter, gpeg, hand-written | Medium: tree-sitter grammars and queries are reusable assets | Partial: engine `Document` and declared recovery ship. A `Document` has no `#missing`, so an unclosed construct with no `#recover` path yields no tree. There is no language server for user grammars and no UTF-16 position map |
 | The same parser in a Go backend and in TypeScript | Identical results on both sides | ANTLR (Go, JavaScript and TypeScript targets), tree-sitter (Go binding or gotreesitter, plus `web-tree-sitter`), two hand-written parsers | Medium | Partial: generated TypeScript has no `Document` or streaming, positions are not UTF-16, and nesting is limited by Node's stack |
-| Stream and log processing of grammar-defined record formats | Bounded memory, throughput | Hand-written scanners, format-specific decoders | Low | Partial: memory is bounded; CSV streaming is 11.5× slower than `encoding/csv` |
+| Stream and log processing of grammar-defined record formats | Bounded memory, throughput | Hand-written scanners, format-specific decoders | Low | Partial: memory is bounded; CSV streaming is <!-- fig:stream-vs-std -->11.5×<!-- /fig --> slower than `encoding/csv` |
 | Editors needing highlighting for many languages | Grammar corpus, queries, editor embedding | tree-sitter, gotreesitter, Lezer, TextMate grammars | High: corpora, queries and editor integrations | Weak: no highlighting output, no corpus |
 | TypeScript DSLs with full IDE support | Typed AST, scoping, LSP | Langium, Chevrotain | High: Langium also generates the semantic layer | Weak: TypeScript output has no `Document` and no language server |
 | Compilers of large programming languages | Best diagnostics and speed for one language | Hand-written front ends (Roslyn, rust-analyzer, `go/parser`) | Very high | Weak: ten ready-made parsers prove expressiveness, but generated Go is slower than `go/parser` |
@@ -199,8 +199,8 @@ Checked against cel-go 0.30.0 and Expr 1.17.8.
 ### Hand-Written Parsers and the Go Standard Library
 
 - **Moat.** Speed and control. The Go compiler left yacc in Go 1.6, and `go/parser`, `encoding/json` and
-  `encoding/csv` are hand-written. On SyntaxIR's own workloads they are faster than generated Go: 1.1–5.4× for typed
-  values, 1.6–6.8× for trees, 8.05× for recognition and 11.5× for streaming (engine, not generated Go). The JSON
+  `encoding/csv` are hand-written. On SyntaxIR's own workloads they are faster than generated Go: <!-- fig:typed-vs-std-short -->1.1–5.4×<!-- /fig --> for typed
+  values, <!-- fig:tree-vs-std-short -->1.6–6.8×<!-- /fig --> for trees, <!-- fig:recognize-vs-valid -->8.05×<!-- /fig --> for recognition and <!-- fig:stream-vs-std -->11.5×<!-- /fig --> for streaming (engine, not generated Go). The JSON
   baseline is `encoding/json` `Unmarshal` into `any`, as built by Go 1.27.1; a `jsontext` baseline is not measured. Language models now make a small hand-written
   recursive-descent parser cheap to produce.
 - **Difference.** From a grammar, SyntaxIR returns positions and rule names or typed values, recovers, reparses
@@ -404,14 +404,14 @@ have no maintained same-source control, so their contribution cannot be re-measu
 |:--|:--|
 | Typed `ParseValue` time ÷ standard library (JSON, XML) | 1.11×, 1.33× |
 | Typed `ParseValue` time ÷ standard library (CSV, two arithmetic workloads) | 3.10×, 3.36×, 5.41× |
-| Generated `Parse` time ÷ standard library (five comparable workloads) | 1.62–6.76× |
-| Generated `Recognize` time ÷ `json.Valid` (JSON) | 8.05× |
-| Streaming, closure backend ÷ `encoding/csv` read loop (50,000 records) | 11.5× |
-| Typed `ParseValue` allocated bytes ÷ standard library (JSON, XML) | 1.18×, 1.25× |
+| Generated `Parse` time ÷ standard library (five comparable workloads) | <!-- fig:tree-vs-std -->1.62–6.76×<!-- /fig --> |
+| Generated `Recognize` time ÷ `json.Valid` (JSON) | <!-- fig:recognize-vs-valid -->8.05×<!-- /fig --> |
+| Streaming, closure backend ÷ `encoding/csv` read loop (50,000 records) | <!-- fig:stream-vs-std -->11.5×<!-- /fig --> |
+| Typed `ParseValue` allocated bytes ÷ standard library (JSON, XML) | <!-- fig:typed-vs-std-memory-json-xml -->1.18×, 1.25×<!-- /fig --> |
 | Generated Go with finite compute limits ÷ without (`Parse`; JSON and XML, generated with `-limits`) | 1.30–1.47× |
-| Engine backends with a context or limits active ÷ inactive | 1.45–1.79× |
+| Engine backends with a context or limits active ÷ inactive | <!-- fig:engine-controls -->1.45–1.79×<!-- /fig --> |
 | Allocations per parse: generated `Recognize`; typed `ParseValue` ÷ standard library (JSON, CSV, XML) | 0 on JSON, CSV and Operators Rule arithmetic, 74–1,700 on the other workloads; 260, 184, 263 against 53 k, 10 k, 80 k |
-| Generated TypeScript `parse` ÷ generated Go `Parse` (seven workloads) | 2.43–4.00× |
+| Generated TypeScript `parse` ÷ generated Go `Parse` (seven workloads) | <!-- fig:typescript-vs-go -->2.53–4.19×<!-- /fig --> |
 | `Document` one-character edit and reparse (Minilang, 89 KB; engine backends) | 116–133 µs |
 | `Document` at 100,000 lines, one-digit replacement (incremental guide, Apple silicon) | `Edit` 0.33–0.36 ms, then reparse 0.61–1.85 ms; length-changing edits not measured |
 | `Document` memory ÷ tree memory at 100,000 lines (incremental guide) | 5.6× (151 MiB against 27 MiB) |
@@ -534,7 +534,7 @@ for untrusted input; the goals below make it so.
     linear cost ([Time and Memory](../spec/runtime/parsing.md#time-and-memory)).
   - The nesting depth is capped by default.
   - The compute limit (`Compute`) and context cancellation are opt-in. Generated parsers carry them only
-    when generated with `-limits`. They cost 1.30–1.47× on generated Go `Parse` and 1.45–1.79× on the engine
+    when generated with `-limits`. They cost 1.30–1.47× on generated Go `Parse` and <!-- fig:engine-controls -->1.45–1.79×<!-- /fig --> on the engine
     backends.
   - For a given artifact, input and options, the counts are deterministic. With `Compute` set, a parse stops once
     its spent budget exceeds it, whatever its class of growth.

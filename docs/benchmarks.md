@@ -227,6 +227,39 @@ that the guides carry.
 | `leftrec-closure-time` | Arith_LeftRec, closure `Parse` time in code points | 28.2 ms |
 | `leftrec-over-operators` | Arith_LeftRec closure time over Arith_OperatorsRule closure time | 2.3 |
 | `typescript-json-parse-time` | JSON, generated TypeScript `parse` time under Node, code points | 24 ms |
+| `ms-json-parse` | JSON, generated Go `Parse` time | 5.67 ms |
+| `ms-json-typed` | JSON, generated Go `ParseValue` time | 3.89 ms |
+| `ms-json-std` | JSON, standard library time (`Parse/JSON/encoding_json`) | 3.50 ms |
+| `typed-vs-std-json` | JSON, `ParseValue` time over standard library time, one decimal | 1.1× |
+| `ms-xml-parse` | XML, generated Go `Parse` time | 6.84 ms |
+| `ms-xml-typed` | XML, generated Go `ParseValue` time | 5.15 ms |
+| `ms-xml-std` | XML, standard library time (`Parse/XML/encoding_xml`) | 3.88 ms |
+| `typed-vs-std-xml` | XML, `ParseValue` time over standard library time, one decimal | 1.3× |
+| `ms-csv-parse` | CSV, generated Go `Parse` time | 2.77 ms |
+| `ms-csv-typed` | CSV, generated Go `ParseValue` time | 2.27 ms |
+| `ms-csv-std` | CSV, standard library time (`Parse/CSV/encoding_csv`) | 733 µs |
+| `typed-vs-std-csv` | CSV, `ParseValue` time over standard library time, one decimal | 3.1× |
+| `ms-operators-parse` | Arith_OperatorsRule, generated Go `Parse` time | 7.43 ms |
+| `ms-operators-typed` | Arith_OperatorsRule, generated Go `ParseValue` time | 7.29 ms |
+| `ms-operators-std` | Arith_OperatorsRule, standard library time (`Parse/Arith_OperatorsRule/go_parser`) | 2.17 ms |
+| `typed-vs-std-operators` | Arith_OperatorsRule, `ParseValue` time over standard library time, one decimal | 3.4× |
+| `ms-leftrec-parse` | Arith_LeftRec, generated Go `Parse` time | 14.7 ms |
+| `ms-leftrec-typed` | Arith_LeftRec, generated Go `ParseValue` time | 11.8 ms |
+| `ms-leftrec-std` | Arith_LeftRec, standard library time (`Parse/Arith_LeftRec/go_parser`) | 2.18 ms |
+| `typed-vs-std-leftrec` | Arith_LeftRec, `ParseValue` time over standard library time, one decimal | 5.4× |
+| `tree-vs-std` | Generated Go `Parse` time over standard library time, the five comparable workloads | 1.62–6.76× |
+| `typed-vs-std` | Generated Go `ParseValue` time over standard library time, the five comparable workloads | 1.11–5.42× |
+| `tree-vs-std-short` | The same, two significant digits | 1.6–6.8× |
+| `typed-vs-std-short` | The same for `ParseValue`, two significant digits | 1.1–5.4× |
+| `recognize-generated-json-time` | JSON, generated Go `Recognize` time | 2.53 ms |
+| `json-valid-time` | JSON, `json.Valid` time | 314 µs |
+| `stream-closure-time` | Closure `ParseStream` time, 50,000 CSV records | 78.5 ms |
+| `stream-std-time` | `encoding/csv` read loop time, 50,000 CSV records | 6.82 ms |
+| `typed-vs-std-memory-json-xml` | `ParseValue` bytes allocated over standard library bytes allocated, JSON then XML | 1.18×, 1.25× |
+| `recognize-vs-valid` | Generated Go `Recognize` time over `json.Valid` time, JSON | 8.05× |
+| `stream-vs-std` | Closure `ParseStream` time over an `encoding/csv` read loop, 50,000 records | 11.5× |
+| `engine-controls` | Engine backends with a context, compute limits or both active over inactive, JSON and XML, all backends and both position units | 1.45–1.79× |
+| `typescript-vs-go` | Generated TypeScript `parse` time over generated Go `Parse` time (code points), every workload but Recovery, which has no TypeScript benchmark | 2.53–4.19× |
 
 ## All Results
 

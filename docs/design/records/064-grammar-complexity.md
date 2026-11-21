@@ -497,8 +497,8 @@ The groups are addressed by these mechanisms:
   parser keeps none and spends 334k, 1.19M and 4.45M. The same repetition arises in the operator parts after an operand
   that prefix operators or a right-associative operator nest: each enclosing operator part tries them again where the
   nested operands end, and a skip that repeats one character class, which no record answers, scans the same whitespace
-  each time. In the calculator, `-`^n `1` followed by n spaces costs 135k, 520k and 2.04M steps for 501, 1001 and 2001
-  bytes; CEL's `?:` and CUE's prefix operators measure the same. minilang's skip repeats a choice, so it is a run site,
+  each time. In CEL, `-`^n `a` and `a?b:`^n `a` followed by n spaces measure
+  n² on a generated Go parser (the `space` group). minilang's skip repeats a choice, so it is a run site,
   and its families measure linear on the engine backends; a generated Go parser keeps no run records for it and measures
   them n², which the classifier, relying on no records, reports.
 - **In-place fold accumulators.** Python folds that copy their accumulator in each step (`acc + "." + name`,
