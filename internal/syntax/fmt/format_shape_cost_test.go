@@ -1,11 +1,13 @@
-package engine
+package fmt_test
 
 import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/analysis/complexity"
 	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/driver/entry"
 	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/runtime/engine"
 	sxirfmt "syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/starttest"
@@ -14,15 +16,15 @@ import (
 )
 
 // shapeRun is the outcome of a parse: its result with the value shape, and the units reserved.
-func shapeRun(t *testing.T, g *ast.Grammar, input string, back Backend) (string, uint64) {
+func shapeRun(t *testing.T, g *ast.Grammar, input string, back engine.Backend) (string, uint64) {
 	t.Helper()
-	prog, err := Compile(starttest.MarkAll(g), compile.Options{SourceInfo: true})
+	prog, err := entry.Compile(starttest.MarkAll(g), compile.Options{SourceInfo: true})
 	if err != nil {
 		t.Fatalf("compile: %v", err)
 	}
 	var used uint64
-	o := ParseOptions{Backend: back, Unit: sxirinput.Bytes, Expectations: true}
-	o.Trace = func(e TraceEvent) { used = shapeUnits(e) }
+	o := engine.ParseOptions{Backend: back, Unit: sxirinput.Bytes, Expectations: true}
+	o.Trace = func(e engine.TraceEvent) { used = shapeUnits(e) }
 	n, err := prog.ParseWith("main", input, o)
 	return codegentest.ResultJSON(n, err), used
 }
@@ -88,7 +90,7 @@ func TestFormatKeepsShapeOfViewRoundTrip(t *testing.T) {
 // every input, with every backend.
 func shapeRoundTrip(t *testing.T, want, got *ast.Grammar, inputs []string, text string) {
 	t.Helper()
-	for _, back := range []Backend{Closure, Bytecode, BytecodeIterative} {
+	for _, back := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 		for _, in := range inputs {
 			wr, wu := shapeRun(t, want, in, back)
 			gr, gu := shapeRun(t, got, in, back)

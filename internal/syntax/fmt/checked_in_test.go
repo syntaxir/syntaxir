@@ -1,4 +1,4 @@
-package engine_test
+package fmt_test
 
 import (
 	"os"
@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/syntax/fmt"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
 )
 
@@ -17,7 +18,7 @@ var unformattedFixtures = map[string]string{}
 // Every checked-in grammar is what `sxir fmt` writes. Run `sxir fmt -w` on a
 // file reported here.
 func TestCheckedInGrammarsAreFormatted(t *testing.T) {
-	chdirModuleRoot(t)
+	t.Chdir(codegentest.ModuleRoot())
 	// Only tracked files: untracked scratch grammars are not checked in.
 	out, err := exec.Command("git", "ls-files", "*.sxir").Output()
 	if err != nil {

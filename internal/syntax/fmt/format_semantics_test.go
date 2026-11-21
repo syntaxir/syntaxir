@@ -1,4 +1,4 @@
-package engine
+package fmt_test
 
 import (
 	"encoding/json"
@@ -10,9 +10,12 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/driver/entry"
 	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
@@ -28,14 +31,14 @@ func TestFormatPreservesMinusSemantics(t *testing.T) {
 	} {
 		t.Run(src, func(t *testing.T) {
 			for _, options := range []compile.Options{{}, {DisableMemo: true}} {
-				before := mustCompile(t, src, options)
-				after := mustCompile(t, fmt.Format(before.Static().Grammar), options)
+				before := enginetest.MustCompile(t, src, options)
+				after := enginetest.MustCompile(t, fmt.Format(entry.Checked(before).Grammar), options)
 				for _, input := range []string{"", "a", "b", "aa", "ab", "ac"} {
-					checkBackends(t, before, "main", input)
-					checkBackends(t, after, "main", input)
+					enginetest.CheckBackends(t, before, "main", input)
+					enginetest.CheckBackends(t, after, "main", input)
 					for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
-						for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-							opts := ParseOptions{Backend: backend, Unit: unit}
+						for _, backend := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
+							opts := engine.ParseOptions{Backend: backend, Unit: unit}
 							n1, err1 := before.ParseWith("main", input, opts)
 							n2, err2 := after.ParseWith("main", input, opts)
 							if codegentest.ResultJSON(n1, err1) != codegentest.ResultJSON(n2, err2) {
@@ -104,10 +107,10 @@ func TestFormatPreservesCorpus(t *testing.T) {
 			if len(s.inputs) == 0 {
 				return
 			}
-			p1, p2 := mustCompile(t, s.src, compile.Options{NoProjections: true}), mustCompile(t, formatted, compile.Options{NoProjections: true})
+			p1, p2 := enginetest.MustCompile(t, s.src, compile.Options{NoProjections: true}), enginetest.MustCompile(t, formatted, compile.Options{NoProjections: true})
 			for _, input := range s.inputs {
 				for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
-					opts := ParseOptions{Unit: unit}
+					opts := engine.ParseOptions{Unit: unit}
 					n1, err1 := p1.ParseWith("main", input, opts)
 					n2, err2 := p2.ParseWith("main", input, opts)
 					if r1, r2 := codegentest.ResultJSON(n1, err1), codegentest.ResultJSON(n2, err2); r1 != r2 {
