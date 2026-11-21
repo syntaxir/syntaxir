@@ -24,6 +24,10 @@ const (
 	// StreamBody is the body of the start rule that ParseStream runs, whose #stream repetition delivers
 	// the elements (lowerdata.Func.Stream).
 	StreamBody
+	// Outlined is a node that a function of the table runs as a function of its own
+	// (flow.CallOutline), which the lowering of the table adds after the planned functions; Line
+	// numbers the outlined nodes of a rule in the order the lowering reaches them.
+	Outlined
 )
 
 // Key names a planned function by its use, its rule's ID and, for an Operators Rule line, the line's
@@ -63,6 +67,10 @@ type TableConfig struct {
 	Document bool
 	// Traced selects the traced bodies.
 	Traced bool
+	// Outline runs the large and the repeated nodes of the framed functions as functions of their own
+	// (lowerdata.Options.Outline), for a runtime whose functions should stay small: the TypeScript
+	// parser's.
+	Outline bool
 }
 
 // TableIR is the Core IR of a Node or recognizer table after its Core passes, and the options that

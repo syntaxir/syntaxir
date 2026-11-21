@@ -340,11 +340,12 @@ func FrameScope(names []string) *check.Scope {
 
 // StartRecFlow builds the Core IR of the program rec (the recognizer, or the program of the Node
 // table) with the Core passes of the generator, and the options its functions are lowered with
-// (flowplan.BuildTable), for printing its rules from Flow IR. The bytecode VM builds the Node table it
-// runs from Flow IR through the same function.
+// (flowplan.BuildTable), for printing its rules from Flow IR, with the configuration of the generator's
+// target. The bytecode VM builds the Node table it runs from Flow IR through the same function.
 func (g *Generator) StartRecFlow(rec *Program) error {
+	// The TypeScript parser outlines the large and the repeated nodes of its functions.
 	c := plandata.TableConfig{Values: g.Table != "recRules", Budget: !g.NoBudget, Logical: g.Logical, Guards: g.LogicalGuards, Observe: g.Observability,
-		Document: g.RecordsExamined(), Traced: g.Traced}
+		Document: g.RecordsExamined(), Traced: g.Traced, Outline: g.TypeScript}
 	t, err := flowplan.BuildTable(rec.Elab, c, func(build func() (*core.Module, error)) (*core.Module, error) {
 		return g.Core(g.IRTable(), build)
 	})

@@ -3,9 +3,12 @@ package plandata
 import (
 	"fmt"
 	"io"
+	"maps"
 	"slices"
+	"strings"
 
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/pass/pipe"
 )
 
@@ -15,7 +18,8 @@ import (
 // a copy (Refusing).
 type Plan struct {
 	// Funcs holds the functions in the order a backend lowers them: the bodies of the rules by ID,
-	// then the skip and the lines of each Operators Rule.
+	// then the skip and the lines of each Operators Rule, then the outlined nodes that the lowering
+	// adds (Outlining).
 	Funcs []*FuncSpec
 	// Layouts holds the capture-slot layout of each rule's frame by rule ID, which the rows of the Node
 	// and recognizer tables keep; nil in the typed table, whose rows have their own scopes.
@@ -24,6 +28,53 @@ type Plan struct {
 	// refused.
 	Typed bool
 	byKey map[Key]*FuncSpec
+	// outlined finds the function of an outlined node by the node and its call (Outlined).
+	outlined map[outlineCall]Key
+}
+
+// outlineCall identifies the call of an outlined node: the node, the capture slots of the frame it
+// runs under and whether it builds values (prim.Outline).
+type outlineCall struct {
+	node  core.Node
+	slots string
+	build bool
+}
+
+func outlineCallOf(node core.Node, slots []core.Slot, build bool) outlineCall {
+	return outlineCall{node, strings.Join(core.SlotNames(slots), "\x00"), build}
+}
+
+// Outlining returns the plan p with the functions of the outlined nodes added after its functions,
+// as the lowering of the table makes them: each is a function of the form lowerdata.Outline, keyed
+// with the use Outlined. p is unchanged, and is returned if outlined is empty.
+func (p *Plan) Outlining(outlined []*FuncSpec) *Plan {
+	if len(outlined) == 0 {
+		return p
+	}
+	out := &Plan{Funcs: slices.Clone(p.Funcs), Layouts: p.Layouts, Typed: p.Typed, byKey: maps.Clone(p.byKey), outlined: maps.Clone(p.outlined)}
+	if out.byKey == nil {
+		out.byKey = map[Key]*FuncSpec{}
+	}
+	if out.outlined == nil {
+		out.outlined = map[outlineCall]Key{}
+	}
+	for _, s := range outlined {
+		out.Funcs = append(out.Funcs, s)
+		out.byKey[s.Key] = s
+		out.outlined[outlineCallOf(s.Body, s.Slots, s.Build)] = s.Key
+	}
+	return out
+}
+
+// Outlined returns the key of the function that runs the outlined node under a frame with the
+// slots, building values if build is set (prim.Outline), or false if the lowering of the table made
+// none.
+func (p *Plan) Outlined(node core.Node, slots []core.Slot, build bool) (Key, bool) {
+	if p == nil {
+		return Key{}, false
+	}
+	k, ok := p.outlined[outlineCallOf(node, slots, build)]
+	return k, ok
 }
 
 // Add adds the function s to the plan, as the planning makes it.
@@ -61,7 +112,7 @@ func (p *Plan) Refusing(refused []*FuncSpec) *Plan {
 	if len(refused) == 0 {
 		return p
 	}
-	out := &Plan{Layouts: p.Layouts, Typed: p.Typed, byKey: make(map[Key]*FuncSpec, len(p.byKey))}
+	out := &Plan{Layouts: p.Layouts, Typed: p.Typed, byKey: make(map[Key]*FuncSpec, len(p.byKey)), outlined: p.outlined}
 	for _, s := range p.Funcs {
 		if slices.Contains(refused, s) {
 			if s.Fallback == nil {

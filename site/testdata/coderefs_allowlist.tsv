@@ -672,10 +672,8 @@ docs/optimizations/mechanisms/G200-typed-local-capture-layouts.md	codelink	inter
 docs/optimizations/mechanisms/G200-typed-local-capture-layouts.md	gofile	internal/backend/codegen/golang/print/flowframe.go	1
 docs/optimizations/mechanisms/G200-typed-local-capture-layouts.md	gofile	internal/backend/codegen/golang/print/flowrule.go	1
 docs/optimizations/mechanisms/G210-typescript-from-flow-ir.md	codelink	internal/backend/codegen/typescript/print/flow.go	1
-docs/optimizations/mechanisms/G210-typescript-from-flow-ir.md	codelink	internal/backend/codegen/typescript/print/outline.go	1
 docs/optimizations/mechanisms/G210-typescript-from-flow-ir.md	codelink	internal/middleend/flowlower/lower.go	1
 docs/optimizations/mechanisms/G210-typescript-from-flow-ir.md	gofile	internal/backend/codegen/typescript/print/flow.go	2
-docs/optimizations/mechanisms/G210-typescript-from-flow-ir.md	gofile	internal/backend/codegen/typescript/print/outline.go	2
 docs/optimizations/mechanisms/G210-typescript-from-flow-ir.md	gofile	internal/middleend/flowlower/lower.go	1
 docs/optimizations/mechanisms/G210-typescript-from-flow-ir.md	unexport	tsSharedKey	1
 docs/optimizations/mechanisms/M010-first-character-dispatch.md	codelink	internal/backend/closure/builder.go	1

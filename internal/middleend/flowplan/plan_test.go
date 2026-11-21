@@ -43,6 +43,19 @@ rule expr = #operators {
 // compile.BuildValues, the recognizer for compile.Recognize.
 func plan(t *testing.T, src string, rec compile.Recognition, live func(int) bool) (*core.Module, []*compile.Rule, *plandata.Plan) {
 	t.Helper()
+	ir, rules := tableIR(t, src, rec)
+	p := flowplan.Plan(ir, planRules(rules), live)
+	if _, err := (&driver.Driver{}).LowerFlowTable("rules", flowplan.Unit(p, ir, nil), false, flowpass.Bytecode); err != nil {
+		t.Fatal(err)
+	}
+	return ir.M, rules, p
+}
+
+// tableIR compiles src with the recognition mode rec and returns the Core IR of its table after the
+// Core passes, with the options of a Node table that charges the budget, and the compiled rules,
+// value-free twins included.
+func tableIR(t *testing.T, src string, rec compile.Recognition) (*plandata.TableIR, []*compile.Rule) {
+	t.Helper()
 	prog := compiletest.Program(t, src, compile.Options{Recognition: rec})
 	m, err := elaborate.CoreProjecting(prog, false, rec == compile.BuildValues)
 	if err != nil {
@@ -54,12 +67,7 @@ func plan(t *testing.T, src string, rec compile.Recognition, live func(int) bool
 	}
 	rules := append(append([]*compile.Rule(nil), prog.RuleList...), prog.Twins...)
 	opts := lowerdata.Options{Budget: true, Recovers: flowlower.Recovers(m), Node: true}
-	ir := &plandata.TableIR{M: m, Opts: opts}
-	p := flowplan.Plan(ir, planRules(rules), live)
-	if _, err := (&driver.Driver{}).LowerFlowTable("rules", flowplan.Unit(p, ir, nil), false, flowpass.Bytecode); err != nil {
-		t.Fatal(err)
-	}
-	return m, rules, p
+	return &plandata.TableIR{M: m, Opts: opts}, rules
 }
 
 // planRules returns what the plan reads of the compiled rules.
@@ -415,5 +423,125 @@ func TestPlanStream(t *testing.T) {
 	rec := &plandata.TableIR{M: m, Opts: lowerdata.Options{Budget: true}}
 	if flowplan.Stream(flowplan.Plan(rec, rules, nil), rec, rules[0]) {
 		t.Error("a stream body is planned for a table of other than Node values")
+	}
+}
+
+// TestPlanBindsFramed checks that a rule whose Core body binds a variable never runs flat: the
+// binding is a predicate of the rule's own body, which makes the rule ineligible (RecEligible), so its
+// framed body runs, which writes the binding in the frame that the runtime owns. A rule that binds
+// nothing runs flat.
+func TestPlanBindsFramed(t *testing.T) {
+	const src = `var x int
+rule main = set "a"
+rule set = "b" {x := 1}
+`
+	ir, rules := tableIR(t, src, compile.Recognize)
+	planned := planRules(rules)
+	p := flowplan.Plan(ir, planned, nil)
+	var binds, free int
+	for _, r := range planned {
+		cr := ir.M.Rules[r.ID]
+		s, ok := p.Func(plandata.Key{Use: plandata.RuleBody, Rule: r.ID})
+		if !ok {
+			t.Fatalf("rule %s has no body", r.Name)
+		}
+		if cr.Body.Attrs().Eff.Set&core.EffBind != 0 {
+			binds++
+			if s.Form != lowerdata.Frame || flowplan.RecEligible(r) {
+				t.Errorf("rule %s binds and runs as %v (eligible %v), want a framed body", r.Name, s.Form, flowplan.RecEligible(r))
+			}
+		} else if r.Name == "main" {
+			free++
+			if s.Form != lowerdata.Flat {
+				t.Errorf("rule main binds nothing and runs as %v, want flat", s.Form)
+			}
+		}
+	}
+	if binds == 0 || free == 0 {
+		t.Fatalf("%d rules bind and %d checked rules do not, want some of each", binds, free)
+	}
+}
+
+// TestLowerTableOutlines checks that the lowering of a table whose options outline nodes adds a
+// function of each outlined call after the planned functions, nested calls included, keyed with the
+// use Outlined, numbered per rule, named after a function that calls it and found by the call
+// (plandata.Plan.Outlined); and that a table that outlines nothing adds none.
+func TestLowerTableOutlines(t *testing.T) {
+	for _, outline := range []bool{false, true} {
+		ir, rules := tableIR(t, grammar, compile.BuildValues)
+		var item *compile.Rule
+		for _, r := range rules {
+			if r.Name == "item" && item == nil {
+				item = r
+			}
+		}
+		if outline {
+			body := ir.M.Rules[item.ID].Body
+			under := map[core.Node]bool{}
+			core.Walk(body, func(n core.Node) { under[n] = n != body && flowlower.Outlinable(n) })
+			ir.Opts.Outline = func(n core.Node) bool { return under[n] }
+		}
+		p := flowplan.Plan(ir, planRules(rules), nil)
+		tbl, err := flowlower.LowerTable(flowplan.Unit(p, ir, nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+		m := tbl.Module.Module()
+		var added []*plandata.FuncSpec
+		for _, s := range tbl.Plan.Funcs {
+			if s.Key.Use != plandata.Outlined {
+				continue
+			}
+			added = append(added, s)
+			if k, ok := tbl.Plan.Outlined(s.Body, s.Slots, s.Build); !ok || k != s.Key {
+				t.Errorf("outlined function %s is found under %+v, %v, want %+v", s.Name, k, ok, s.Key)
+			}
+		}
+		if !outline {
+			if len(added) > 0 {
+				t.Errorf("a table that outlines nothing adds %d functions", len(added))
+			}
+			continue
+		}
+		if len(added) == 0 {
+			t.Fatal("no outlined function added")
+		}
+		if first := slices.IndexFunc(tbl.Plan.Funcs, func(s *plandata.FuncSpec) bool { return s.Key.Use == plandata.Outlined }); first != len(tbl.Plan.Funcs)-len(added) {
+			t.Errorf("outlined functions start at %d of %d, want after the planned functions", first, len(tbl.Plan.Funcs))
+		}
+		// callers holds, for the key of each outlined function, the names of the functions that call it.
+		callers := map[plandata.Key]map[string]bool{}
+		for _, f := range m.Funcs {
+			code.Walk(f.Body, nil, func(e code.Expr) {
+				if c, ok := e.(*code.Call); ok && c.Callee == flow.OpCallOutline {
+					o := c.Imm.(prim.Outline)
+					k, ok := tbl.Plan.Outlined(o.Node, o.Slots, o.Build)
+					if !ok {
+						t.Errorf("function %s calls an outlined node that the table has no function of", f.Name)
+						return
+					}
+					if callers[k] == nil {
+						callers[k] = map[string]bool{}
+					}
+					callers[k][f.Name] = true
+				}
+			})
+		}
+		nested := false
+		for i, s := range added {
+			want := plandata.Key{Use: plandata.Outlined, Rule: item.ID, Line: i}
+			if s.Key != want || s.Form != lowerdata.Outline {
+				t.Errorf("outlined function %d: %+v %v, want %+v %v", i, s.Key, s.Form, want, lowerdata.Outline)
+			}
+			// Each is named after a function that calls it.
+			cut := strings.LastIndex(s.Name, "/outline")
+			if cut < 0 || !callers[s.Key][s.Name[:cut]] {
+				t.Errorf("outlined function %s is not named after a function that calls it (%v)", s.Name, callers[s.Key])
+			}
+			nested = nested || cut >= 0 && strings.Contains(s.Name[:cut], "/outline")
+		}
+		if !nested {
+			t.Error("no outlined function is called from an outlined function")
+		}
 	}
 }

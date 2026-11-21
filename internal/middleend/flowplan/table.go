@@ -14,7 +14,9 @@ import (
 // after them. BuildTable returns that module with the lowering options of the table. Every backend
 // that runs the Node or recognizer table from Flow IR builds it here, so that, with the same
 // optimizations, they lower the same Core IR with the same options. Classes are inline tests in
-// these tables; the forms that only typed rules print are the Flow passes' (flowpass.Target).
+// these tables; the forms that only typed rules print are the Flow passes' (flowpass.Target). A table
+// that outlines (plandata.TableConfig.Outline) chooses its outlined nodes here, from its Core IR after
+// the Core passes; the Node table outlines its repeated structures too (outlineNodes).
 func BuildTable(prog elaborate.Program, c plandata.TableConfig, coreStep func(build func() (*core.Module, error)) (*core.Module, error)) (*plandata.TableIR, error) {
 	m, err := coreStep(func() (*core.Module, error) { return elaborate.CoreProjecting(prog, true, c.Values) })
 	if err != nil {
@@ -22,5 +24,10 @@ func BuildTable(prog elaborate.Program, c plandata.TableConfig, coreStep func(bu
 	}
 	opts := lowerdata.Options{Budget: c.Budget, Logical: c.Logical, Guards: c.Guards, Recovers: flowlower.Recovers(m), Observe: c.Observe, Node: true,
 		Document: c.Document, Traced: c.Traced}
+	if c.Outline {
+		if chosen := outlineNodes(m, c.Values); len(chosen) > 0 {
+			opts.Outline = func(n core.Node) bool { return chosen[n] }
+		}
+	}
 	return &plandata.TableIR{M: m, Opts: opts}, nil
 }

@@ -31,8 +31,9 @@ import (
 // generation then fails.
 type tsFlowUnsupported string
 
-// startTSFlow builds the Core IR of the table being generated for printing its rules from Flow IR. It
-// reports whether the Core IR was built; if not, the generation fails with the error it records.
+// startTSFlow builds the Core IR of the table being generated for printing its rules from Flow IR, with
+// the outlined nodes that the table's configuration chooses (common.Generator.StartRecFlow). It reports
+// whether the Core IR was built; if not, the generation fails with the error it records.
 func (g *Generator) startTSFlow() bool {
 	g.Flow = nil
 	if err := g.StartRecFlow(g.Prog); err != nil {
@@ -44,9 +45,6 @@ func (g *Generator) startTSFlow() bool {
 	// The generated TypeScript reads input through the library's peek and matches literals through
 	// matchLiteral: it has no in-place reads and no class tables, so it prints none of the forms of
 	// the Flow passes that need them (FlowTarget is empty).
-	if chosen := outlineNodes(g.Flow.M, g.Table == "rules"); len(chosen) > 0 {
-		g.Flow.Opts.Outline = func(n core.Node) bool { return chosen[n] }
-	}
 	return true
 }
 

@@ -1,19 +1,18 @@
-package print
+package flowplan
 
 import (
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/flowlower"
 )
 
-// Outlining of the generated TypeScript.
+// Outlining.
 //
 // A framed function that is printed in one piece grows with the grammar: a rule of many alternatives or a
 // body that nests the same few matchers many times prints as thousands of lines that no other rule can
-// share, and a function that large is neither compact nor fast for the JavaScript engine to compile. Some
-// of its nodes therefore run as functions of their own (flow.CallOutline), which share a body wherever the
-// text printed from a node is equal once the constants it names (literal tables, capture names) are
-// replaced by their declarations (tsSharedKey, Generator.MethodName); the generator does not share the constants
-// themselves, so equal nodes read tables of equal value under different names.
+// share, and a function that large is neither compact nor fast for the JavaScript engine to compile. A
+// table whose configuration outlines (plandata.TableConfig.Outline) therefore runs some of its nodes as
+// functions of their own (flow.CallOutline), which the TypeScript printer shares wherever their printed
+// text is equal once the constants it names are replaced by their declarations.
 //
 // The nodes are chosen by the structure of the Core IR: a node whose structure occurs in more than one
 // place of the module (outlineDuplicate), and a node that is large (outlineLarge) so that no function

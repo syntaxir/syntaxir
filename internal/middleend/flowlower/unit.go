@@ -2,8 +2,11 @@ package flowlower
 
 import (
 	"fmt"
+	"slices"
+	"strings"
 
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
@@ -126,5 +129,61 @@ func LowerTable(p plandata.Planned) (*plandata.Table[code.Flow], error) {
 	if err != nil {
 		return nil, err
 	}
-	return plandata.NewTable(p.Plan.Refusing(refused), p.IR, code.At[code.Flow]{}.With(m))
+	plan := p.Plan.Refusing(refused)
+	outlined, err := lowerOutlined(plan, p.IR, m)
+	if err != nil {
+		return nil, err
+	}
+	return plandata.NewTable(plan.Outlining(outlined), p.IR, code.At[code.Flow]{}.With(m))
+}
+
+// lowerOutlined lowers the nodes that the functions of the module m, which holds the functions of the
+// plan in order, run as functions of their own (flow.CallOutline), and appends them to m: the nodes
+// of each function in the order of its code, after the functions of the plan, and the nodes that
+// those call after them in turn. A node is lowered once for each frame and building of its calls. It
+// returns the functions it added, each with the Core rule of the function that calls it, keyed with
+// the use plandata.Outlined and named after that function.
+func lowerOutlined(plan *plandata.Plan, ir *plandata.TableIR, m *code.Module) ([]*plandata.FuncSpec, error) {
+	if ir.Opts.Outline == nil {
+		return nil, nil
+	}
+	type call struct {
+		node  core.Node
+		slots string
+		build bool
+	}
+	specs := slices.Clone(plan.Funcs)
+	var added []*plandata.FuncSpec
+	lowered := map[call]bool{}
+	lines := map[int]int{}
+	for i := 0; i < len(m.Funcs); i++ {
+		caller := specs[i]
+		var calls []prim.Outline
+		code.Walk(m.Funcs[i].Body, nil, func(e code.Expr) {
+			if c, ok := e.(*code.Call); ok && c.Callee == flow.OpCallOutline {
+				calls = append(calls, c.Imm.(prim.Outline))
+			}
+		})
+		n := 0
+		for _, o := range calls {
+			c := call{o.Node, strings.Join(core.SlotNames(o.Slots), "\x00"), o.Build}
+			if lowered[c] {
+				continue
+			}
+			lowered[c] = true
+			k := plandata.Key{Use: plandata.Outlined, Rule: caller.Key.Rule, Line: lines[caller.Key.Rule]}
+			lines[caller.Key.Rule]++
+			s := &plandata.FuncSpec{Key: k, Func: lowerdata.Func{Form: lowerdata.Outline, Rule: caller.Rule,
+				Name: fmt.Sprintf("%s/outline%d", caller.Name, n), Body: o.Node, Slots: o.Slots, Build: o.Build}}
+			n++
+			f, err := lowerFunc(ir.M, s.Func, ir.Opts)
+			if err != nil {
+				return nil, err
+			}
+			m.Funcs = append(m.Funcs, f.Funcs...)
+			specs = append(specs, s)
+			added = append(added, s)
+		}
+	}
+	return added, nil
 }
