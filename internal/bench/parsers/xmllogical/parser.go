@@ -1600,7 +1600,7 @@ func e5(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	var x5, ok bool
 	x1 = p.Mark()
 	x4, _, x5 = p.NextOrdinary()
-	if false && x5 && (x4 == 60) {
+	if !(x5 && (x4 == 60)) && p.Depth <= p.MaxDepth && p.SkipFirstCall(rules[11]) && p.SkipCalls(1) {
 		p.ExpectOrdinary(p.Pos, 6)
 		goto L6
 	}
@@ -1612,7 +1612,7 @@ func e5(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 L7:
 	p.Reset(x1)
 L6:
-	if false && x5 && (x4 == 60) {
+	if !(x5 && (x4 == 60)) && p.Depth <= p.MaxDepth && p.SkipFirstCall(rules[13]) && p.SkipCalls(1) {
 		p.ExpectOrdinary(p.Pos, 7)
 		goto L9
 	}
@@ -2600,7 +2600,7 @@ L12:
 L15:
 	p.Reset(x1)
 L14:
-	if false && x5 && (x4 == 60) {
+	if !(x5 && (x4 == 60)) && p.Depth <= p.MaxDepth && p.SkipFirstCall(rules[13]) && p.SkipCalls(1) {
 		p.ExpectOrdinary(p.Pos, 7)
 		goto L17
 	}
@@ -2612,7 +2612,7 @@ L14:
 L18:
 	p.Reset(x1)
 L17:
-	if false && x5 && (x4 == 60) {
+	if !(x5 && (x4 == 60)) && p.Depth <= p.MaxDepth && p.SkipFirstCall(rules[11]) && p.SkipCalls(1) {
 		p.ExpectOrdinary(p.Pos, 6)
 		goto L20
 	}
@@ -2676,7 +2676,7 @@ func e43(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	var x5, ok bool
 	x1 = p.Mark()
 	x4, _, x5 = p.NextOrdinary()
-	if false && x5 && (x4 == 83) {
+	if !(x5 && (x4 == 83)) && p.Depth <= p.MaxDepth && p.SkipFirstCall(rules[20]) && p.SkipCalls(1) {
 		p.ExpectOrdinary(p.Pos, 37)
 		goto L6
 	}
@@ -3075,7 +3075,7 @@ L9:
 L13:
 	p.Reset(x1)
 L12:
-	if false && x5 && (x4 == 40) {
+	if !(x5 && (x4 == 40)) && p.Depth+1 <= p.MaxDepth && p.SkipFirstCall(rules[33]) && p.SkipCalls(1) {
 		p.ExpectOrdinary(p.Pos, 45)
 		goto L15
 	}
@@ -3087,7 +3087,7 @@ L12:
 L16:
 	p.Reset(x1)
 L15:
-	if false && x5 && (x4 == 40) {
+	if !(x5 && (x4 == 40)) && p.Depth+1 <= p.MaxDepth && p.SkipFirstCall(rules[34]) && p.SkipCalls(1) {
 		p.ExpectOrdinary(p.Pos, 45)
 		goto L18
 	}
@@ -3466,7 +3466,7 @@ func e74(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 L7:
 	p.Reset(x1)
 L6:
-	if false && x5 && (x4 == 40) {
+	if !(x5 && (x4 == 40)) && p.Depth+1 <= p.MaxDepth && p.SkipFirstCall(rules[33]) && p.SkipCalls(1) {
 		p.ExpectOrdinary(p.Pos, 45)
 		goto L9
 	}
@@ -3478,7 +3478,7 @@ L6:
 L10:
 	p.Reset(x1)
 L9:
-	if false && x5 && (x4 == 40) {
+	if !(x5 && (x4 == 40)) && p.Depth+1 <= p.MaxDepth && p.SkipFirstCall(rules[34]) && p.SkipCalls(1) {
 		p.ExpectOrdinary(p.Pos, 45)
 		goto L12
 	}
@@ -4414,7 +4414,7 @@ func e111(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	var x5, ok bool
 	x1 = p.Mark()
 	x4, _, x5 = p.NextOrdinary()
-	if false && x5 && (x4 == 83) {
+	if !(x5 && (x4 == 83)) && p.Depth <= p.MaxDepth && p.SkipFirstCall(rules[20]) && p.SkipCalls(1) {
 		p.ExpectOrdinary(p.Pos, 37)
 		goto L6
 	}
@@ -4911,7 +4911,7 @@ L2:
 	p.Reset(x1)
 	x4 = p.Mark()
 	x7, _, x8 = p.NextOrdinary()
-	if false && x8 && (x7 == 60) {
+	if !(x8 && (x7 == 60)) && p.Depth+1 <= p.MaxDepth && p.SkipFirstCall(rules[55]) && p.SkipCalls(1) {
 		p.ExpectOrdinary(p.Pos, 69)
 		goto L9
 	}
@@ -4930,7 +4930,7 @@ L9:
 	goto L6
 L12:
 	p.Reset(x4)
-	if false && x8 && (x7 == 60) {
+	if !(x8 && (x7 == 60)) && p.Depth <= p.MaxDepth && p.SkipFirstCall(rules[11]) && p.SkipCalls(1) {
 		p.ExpectOrdinary(p.Pos, 6)
 		goto L14
 	}
@@ -4954,7 +4954,7 @@ L14:
 L18:
 	p.Reset(x4)
 L17:
-	if false && x8 && (x7 == 60) {
+	if !(x8 && (x7 == 60)) && p.Depth <= p.MaxDepth && p.SkipFirstCall(rules[13]) && p.SkipCalls(1) {
 		p.ExpectOrdinary(p.Pos, 7)
 		goto L20
 	}
@@ -6536,7 +6536,7 @@ func s2(p *rt.TParser) (any, bool) {
 	start = p.Pos
 	x1 = p.Pos
 	x4, _, x5 = p.NextOrdinary()
-	if false && x5 && (x4 == 60) {
+	if !(x5 && (x4 == 60)) && p.Depth <= p.MaxDepth && p.SkipFirstCall(rules[11]) && p.SkipCalls(1) {
 		p.ExpectOrdinary(p.Pos, 6)
 		goto L6
 	}
@@ -6548,7 +6548,7 @@ func s2(p *rt.TParser) (any, bool) {
 L7:
 	p.Pos = x1
 L6:
-	if false && x5 && (x4 == 60) {
+	if !(x5 && (x4 == 60)) && p.Depth <= p.MaxDepth && p.SkipFirstCall(rules[13]) && p.SkipCalls(1) {
 		p.ExpectOrdinary(p.Pos, 7)
 		goto L9
 	}
@@ -7793,7 +7793,7 @@ L12:
 L15:
 	p.Pos = x1
 L14:
-	if false && x5 && (x4 == 60) {
+	if !(x5 && (x4 == 60)) && p.Depth <= p.MaxDepth && p.SkipFirstCall(rules[13]) && p.SkipCalls(1) {
 		p.ExpectOrdinary(p.Pos, 7)
 		goto L17
 	}
@@ -7805,7 +7805,7 @@ L14:
 L18:
 	p.Pos = x1
 L17:
-	if false && x5 && (x4 == 60) {
+	if !(x5 && (x4 == 60)) && p.Depth <= p.MaxDepth && p.SkipFirstCall(rules[11]) && p.SkipCalls(1) {
 		p.ExpectOrdinary(p.Pos, 6)
 		goto L20
 	}
@@ -7893,7 +7893,7 @@ func v19(p *rt.TParser) (any, bool) {
 	start = p.Pos
 	x1 = p.Pos
 	x4, _, x5 = p.NextOrdinary()
-	if false && x5 && (x4 == 83) {
+	if !(x5 && (x4 == 83)) && p.Depth <= p.MaxDepth && p.SkipFirstCall(rules[20]) && p.SkipCalls(1) {
 		p.ExpectOrdinary(p.Pos, 37)
 		goto L6
 	}
@@ -8464,7 +8464,7 @@ L9:
 L13:
 	p.Pos = x1
 L12:
-	if false && x5 && (x4 == 40) {
+	if !(x5 && (x4 == 40)) && p.Depth+1 <= p.MaxDepth && p.SkipFirstCall(rules[33]) && p.SkipCalls(1) {
 		p.ExpectOrdinary(p.Pos, 45)
 		goto L15
 	}
@@ -8476,7 +8476,7 @@ L12:
 L16:
 	p.Pos = x1
 L15:
-	if false && x5 && (x4 == 40) {
+	if !(x5 && (x4 == 40)) && p.Depth+1 <= p.MaxDepth && p.SkipFirstCall(rules[34]) && p.SkipCalls(1) {
 		p.ExpectOrdinary(p.Pos, 45)
 		goto L18
 	}
@@ -9005,7 +9005,7 @@ func v35(p *rt.TParser) (any, bool) {
 L7:
 	p.Pos = x1
 L6:
-	if false && x5 && (x4 == 40) {
+	if !(x5 && (x4 == 40)) && p.Depth+1 <= p.MaxDepth && p.SkipFirstCall(rules[33]) && p.SkipCalls(1) {
 		p.ExpectOrdinary(p.Pos, 45)
 		goto L9
 	}
@@ -9017,7 +9017,7 @@ L6:
 L10:
 	p.Pos = x1
 L9:
-	if false && x5 && (x4 == 40) {
+	if !(x5 && (x4 == 40)) && p.Depth+1 <= p.MaxDepth && p.SkipFirstCall(rules[34]) && p.SkipCalls(1) {
 		p.ExpectOrdinary(p.Pos, 45)
 		goto L12
 	}
@@ -10273,7 +10273,7 @@ func s53(p *rt.TParser) (any, bool) {
 	start = p.Pos
 	x1 = p.Pos
 	x4, _, x5 = p.NextOrdinary()
-	if false && x5 && (x4 == 83) {
+	if !(x5 && (x4 == 83)) && p.Depth <= p.MaxDepth && p.SkipFirstCall(rules[20]) && p.SkipCalls(1) {
 		p.ExpectOrdinary(p.Pos, 37)
 		goto L6
 	}
@@ -10950,7 +10950,7 @@ L2:
 	p.Pos = x1
 	x5 = p.Pos
 	x8, _, x9 = p.NextOrdinary()
-	if false && x9 && (x8 == 60) {
+	if !(x9 && (x8 == 60)) && p.Depth+1 <= p.MaxDepth && p.SkipFirstCall(rules[55]) && p.SkipCalls(1) {
 		p.ExpectOrdinary(p.Pos, 69)
 		goto L10
 	}
@@ -10969,7 +10969,7 @@ L10:
 	goto L7
 L13:
 	p.Pos = x5
-	if false && x9 && (x8 == 60) {
+	if !(x9 && (x8 == 60)) && p.Depth <= p.MaxDepth && p.SkipFirstCall(rules[11]) && p.SkipCalls(1) {
 		p.ExpectOrdinary(p.Pos, 6)
 		goto L15
 	}
@@ -10993,7 +10993,7 @@ L15:
 L19:
 	p.Pos = x5
 L18:
-	if false && x9 && (x8 == 60) {
+	if !(x9 && (x8 == 60)) && p.Depth <= p.MaxDepth && p.SkipFirstCall(rules[13]) && p.SkipCalls(1) {
 		p.ExpectOrdinary(p.Pos, 7)
 		goto L21
 	}

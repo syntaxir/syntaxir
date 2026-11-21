@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
@@ -78,11 +79,21 @@ func (g *Generator) callUnit(recv string, r *common.Rule) string {
 // logicalPoll is the check of the counter at a loop's iteration.
 const logicalPoll = "if p.Units > p.UnitsCheck {\np.PollUnits()\n}"
 
-// guardInfo is what the skip of a guarded alternative counts under logical units: the calls of the
-// fixed chain of rules that the alternative begins with, if every one of them is neither memoized
-// nor a leader, so that the skip has no memo effects (static); otherwise the guard is disabled.
+// guardInfo is what the skip of a guarded alternative counts under logical units. The skip is
+// kept (static) when, on every character the guard rejects, the plain evaluation of the
+// alternative makes a fixed set of calls and fails at a terminal without advancing: the
+// alternative begins with a chain of calls, every alternative of every callee in the chain
+// begins the same way, and no predicate, action, binding or recovery runs before that terminal.
+// calls is the number of those calls. memo lists the rules of the calls that are ordinarily
+// memoized, in order, each as its index in the rule table: the skip reproduces the memo policy
+// effects of their calls (the seen mark and the policy counts of FirstCall). Such a rule must make
+// no call before its own failing terminal, so whether its call at the position is answered from
+// the memo or evaluated costs the same 1 unit, and the failure entry that the plain evaluation may
+// store changes no later total; it must read no variables, so its key counts nothing. Leaders and
+// transient rules (memoized only by a Document) end the chain, so the guard is disabled.
 type guardInfo struct {
 	calls  int
+	memo   string
 	static bool
 }
 
@@ -98,7 +109,7 @@ func (g *Generator) logicalGuard(m *core.Module, guard *core.First) guardInfo {
 					if a.Guard == nil {
 						continue
 					}
-					info := chainOf(m, a.Body)
+					info := g.chainOf(m, a.Body)
 					if !info.static && os.Getenv("SXIR_LOGICAL_STATS") != "" {
 						fmt.Fprintf(os.Stderr, "guard disabled: %s\n", core.PrintNode(m, a.Body, true))
 					}
@@ -134,44 +145,94 @@ func (g *Generator) logicalGuard(m *core.Module, guard *core.First) guardInfo {
 	return info
 }
 
-// chainOf returns the chain of calls that n begins with, up to its first terminal.
-func chainOf(m *core.Module, n core.Node) guardInfo {
-	calls := 0
-	for depth := 0; depth < 1000; depth++ {
-		switch x := n.(type) {
-		case *core.Lit, *core.ClassNode, *core.ClassRun:
-			return guardInfo{calls: calls, static: true}
-		case *core.Seq:
-			if len(x.Items) == 0 {
-				return guardInfo{}
-			}
-			n = x.Items[0]
-		case *core.Capture:
-			n = x.Body
-		case *core.Text:
-			n = x.Body
-		case *core.Drop:
-			n = x.Body
-		case *core.Terminal:
-			n = x.Body
-		case *core.Call:
-			r := m.Rules[x.Rule]
-			if r.Policy.Memo || r.Policy.Transient || r.Policy.Leader {
-				if os.Getenv("SXIR_LOGICAL_STATS") != "" {
-					fmt.Fprintf(os.Stderr, "chain stops at rule %s %+v\n", r.Name, r.Policy)
-				}
-				return guardInfo{}
-			}
-			calls++
-			n = r.Body
-		default:
-			if os.Getenv("SXIR_LOGICAL_STATS") != "" {
-				fmt.Fprintf(os.Stderr, "chain stops at %T\n", n)
-			}
-			return guardInfo{}
-		}
+// chainOf returns what skipping n counts, if n fails at its first terminal with a fixed set
+// of calls (see guardInfo).
+func (g *Generator) chainOf(m *core.Module, n core.Node) guardInfo {
+	calls, memo, ok := g.chain(m, n, 0)
+	if !ok {
+		return guardInfo{}
 	}
-	return guardInfo{}
+	info := guardInfo{calls: calls, static: true}
+	for i, r := range memo {
+		if i > 0 {
+			info.memo += ","
+		}
+		info.memo += strconv.Itoa(r)
+	}
+	return info
+}
+
+// chain returns the calls n makes before it fails at its first terminal, and the ordinarily
+// memoized rules among them; ok is false if n is not such an expression.
+func (g *Generator) chain(m *core.Module, n core.Node, depth int) (calls int, memo []int, ok bool) {
+	if depth > 64 {
+		return 0, nil, false
+	}
+	stop := func(why string) (int, []int, bool) {
+		if os.Getenv("SXIR_LOGICAL_STATS") != "" {
+			fmt.Fprintf(os.Stderr, "chain stops at %s\n", why)
+		}
+		return 0, nil, false
+	}
+	switch x := n.(type) {
+	case *core.Lit:
+		if x.Text == "" {
+			return stop("empty literal")
+		}
+		return 0, nil, true
+	case *core.ClassNode:
+		return 0, nil, true
+	case *core.ClassRun:
+		if len(x.Classes) == 0 {
+			return stop("empty class run")
+		}
+		return 0, nil, true
+	case *core.Seq:
+		if len(x.Items) == 0 {
+			return stop("empty sequence")
+		}
+		return g.chain(m, x.Items[0], depth+1)
+	case *core.Capture:
+		// The binding runs after its body matched, and the body fails.
+		return g.chain(m, x.Body, depth+1)
+	case *core.Text:
+		return g.chain(m, x.Body, depth+1)
+	case *core.Drop:
+		return g.chain(m, x.Body, depth+1)
+	case *core.Terminal:
+		return g.chain(m, x.Body, depth+1)
+	case *core.Choice:
+		// Every alternative is tried, and each fails at its first terminal.
+		for _, a := range x.Alts {
+			c, mm, ok := g.chain(m, a.Body, depth+1)
+			if !ok {
+				return 0, nil, false
+			}
+			calls += c
+			memo = append(memo, mm...)
+		}
+		return calls, memo, true
+	case *core.Call:
+		r := m.Rules[x.Rule]
+		if x.Level != 0 || r.Policy.Leader {
+			return stop("leader or level call of " + r.Name)
+		}
+		if r.Policy.Transient && !g.LogicalTransient {
+			return stop("transient rule " + r.Name)
+		}
+		c, mm, ok := g.chain(m, r.Body, depth+1)
+		if !ok {
+			return 0, nil, false
+		}
+		if r.Policy.Memo && !r.Policy.Transient {
+			if c != 0 || len(r.Policy.Vars) != 0 {
+				return stop("memoized rule " + r.Name + " with calls or a key")
+			}
+			return 1, []int{x.Rule}, true
+		}
+		return 1 + c, mm, true
+	}
+	return stop(fmt.Sprintf("%T", n))
 }
 
 // callName names the library method that calls a rule through the call protocol: under logical

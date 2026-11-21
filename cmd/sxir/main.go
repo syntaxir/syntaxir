@@ -885,6 +885,8 @@ func genCmd(args []string, stdout io.Writer) error {
 		logicalUnits, logicalVariant = true, "keep-guards"
 	case "logical-event":
 		logicalUnits, logicalVariant = true, "event"
+	case "logical-transient":
+		logicalUnits, logicalVariant = true, "transient"
 	default:
 		return fmt.Errorf("-charge-units: unknown value %q", *chargeUnits)
 	}

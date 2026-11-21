@@ -128,12 +128,26 @@ func (p *Parser) valueUnits(n int) bool {
 	return true
 }
 
-// AddUnits adds n units and returns true, so that it can end the condition of a guard that skips an
-// alternative: the skip counts the calls of the chain of rules that the alternative begins with.
+// SkipCalls counts the n calls that a skipped alternative would have made, each failing at its
+// first terminal, and checks the counter. It reports true, for the guard's condition.
 //
-// AddUnits is for generated parsers; not a stable API.
-func (p *Parser) AddUnits(n uint64) bool {
+// SkipCalls is for generated parsers; not a stable API.
+func (p *Parser) SkipCalls(n uint64) bool {
 	p.Units += n
+	if p.Units > p.UnitsCheck {
+		p.PollUnits()
+	}
+	return true
+}
+
+// SkipFirstCall makes the memo policy effects of a call of the memoized rule r at the position
+// that a skipped alternative would have made: the seen mark and the policy counts of FirstCall.
+// The call would fail at r's first terminal, and so would every later call of r at the position,
+// whether the memo answers it or not. It reports true, for the guard's condition.
+//
+// SkipFirstCall is for generated parsers; not a stable API.
+func (p *Parser) SkipFirstCall(r *Rule) bool {
+	p.FirstCall(r)
 	return true
 }
 

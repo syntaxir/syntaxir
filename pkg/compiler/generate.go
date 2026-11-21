@@ -101,7 +101,10 @@ type GoConfig struct {
 	LogicalUnits bool
 	// LogicalVariant selects a variant of LogicalUnits for measurement: "keep-guards" keeps every
 	// dispatch guard without its charge (inexact, to measure what disabling costs); "event" counts
-	// each event where it happens, with no static sum, as the reference of the exactness tests.
+	// each event where it happens, with no static sum, as the reference of the exactness tests;
+	// "transient" also keeps the guards of chains through transient rules, which a Document would
+	// look up (inexact under Documents, which the prototype refuses), to measure what excluding
+	// them costs.
 	LogicalVariant string
 	// Recognize also generates a function Recognize, which checks the input against the start
 	// rule without building a tree, like runtime.Parser.Recognize.

@@ -211,6 +211,7 @@ func generateOnce(g *ast.Grammar, c common.Compiler, p common.Passes, opts commo
 		genGo.Logical = true
 		genGo.LogicalKeepGuards = opts.LogicalVariant == "keep-guards"
 		genGo.LogicalEvent = opts.LogicalVariant == "event"
+		genGo.LogicalTransient = opts.LogicalVariant == "transient"
 	}
 	// Go prints every form of the Flow passes.
 	genGo.FlowTarget = flowpass.Target{Terminals: true, ClassRuns: true, ClassTables: true, GuardedClasses: true, InlineLiterals: true}
@@ -545,7 +546,10 @@ type Generator struct {
 	LogicalKeepGuards bool
 	// LogicalEvent prints the reference of the exactness tests under Logical: each event counted
 	// where it happens, with no static sum (every dispatch guard disabled).
-	LogicalEvent        bool
+	LogicalEvent bool
+	// LogicalTransient admits transient rules into the chains of skipped alternatives: a
+	// measurement variant (see compiler.GoConfig.LogicalVariant).
+	LogicalTransient    bool
 	directTypedDocument bool
 	budgetClassNames    map[string]string
 	budgetClassKeys     []string

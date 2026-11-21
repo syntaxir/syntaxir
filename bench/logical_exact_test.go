@@ -4,11 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"math/rand/v2"
+	"strings"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/bench/inputs"
 	gjsonevent "syntaxir.dev/sxir/internal/bench/parsers/jsonevent"
 	gjsonlogical "syntaxir.dev/sxir/internal/bench/parsers/jsonlogical"
+	gpolicyevent "syntaxir.dev/sxir/internal/bench/parsers/policyevent"
+	gpolicylogical "syntaxir.dev/sxir/internal/bench/parsers/policylogical"
 	gxmlevent "syntaxir.dev/sxir/internal/bench/parsers/xmlevent"
 	gxmllogical "syntaxir.dev/sxir/internal/bench/parsers/xmllogical"
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
@@ -44,6 +47,27 @@ func exactCases() []exactCase {
 				func(s string, o ...rt.ParseOption) error { _, err := gxmllogical.ParseValue(s, o...); return err }),
 			ps(func(s string, o ...rt.ParseOption) error { _, err := gxmlevent.Parse(s, o...); return err },
 				func(s string, o ...rt.ParseOption) error { _, err := gxmlevent.ParseValue(s, o...); return err })},
+		// The grammar has no types, so both entries are Parse.
+		{"policy", policyInputs(),
+			ps(func(s string, o ...rt.ParseOption) error { _, err := gpolicylogical.Parse(s, o...); return err },
+				func(s string, o ...rt.ParseOption) error { _, err := gpolicylogical.Parse(s, o...); return err }),
+			ps(func(s string, o ...rt.ParseOption) error { _, err := gpolicyevent.Parse(s, o...); return err },
+				func(s string, o ...rt.ParseOption) error { _, err := gpolicyevent.Parse(s, o...); return err })},
+	}
+}
+
+// policyInputs returns inputs of bench/grammars/logical_policy.sxir where the guards skip calls of
+// the memoized rule word at many positions before and between words, so that the policy counts of
+// those skipped calls decide when word becomes eager, and with it how many of its calls are memo
+// hits (TestLogicalPolicyCounts shows that they do).
+func policyInputs() []string {
+	word := "a" + strings.Repeat("q", 30) + "."
+	return []string{
+		strings.Repeat("c", 2000) + strings.Repeat(word, 200),
+		strings.Repeat("c"+word, 300),
+		strings.Repeat("cccccccccccccccccccc"+word, 100),
+		strings.Repeat(word, 50) + strings.Repeat("c", 3000) + strings.Repeat(word, 50),
+		strings.Repeat("c", 500) + "b" + word + "x",
 	}
 }
 
@@ -152,5 +176,34 @@ func TestLogicalLimitSweep(t *testing.T) {
 	t.Logf("largest overshoot %d units (%s); K + B = %d", worst, worstAt, exactK)
 	if worst > exactK {
 		t.Errorf("overshoot %d exceeds K + B = %d", worst, exactK)
+	}
+}
+
+// TestLogicalPolicyCounts shows that the policy counts of the calls that guards skip change the
+// totals of bench/grammars/logical_policy.sxir, so that TestLogicalExact checks that kept guards
+// reproduce them: a run of skips before the words delays the point where word becomes eager, and
+// the total of the input is more than that of the skips and that of the words.
+func TestLogicalPolicyCounts(t *testing.T) {
+	w := "a" + strings.Repeat("q", 30) + "."
+	skips, words := strings.Repeat("c", 2000), strings.Repeat(w, 200)
+	for _, p := range []struct {
+		name  string
+		parse unitsParse
+	}{
+		{"logical", func(s string, o ...rt.ParseOption) error { _, err := gpolicylogical.Parse(s, o...); return err }},
+		{"event", func(s string, o ...rt.ParseOption) error { _, err := gpolicyevent.Parse(s, o...); return err }},
+	} {
+		total := func(s string) uint64 {
+			n, err := countUnits(p.parse, s, sxirinput.Bytes, rt.WithLimits(sxirruntime.Limits{Compute: sxirruntime.Unlimited}))
+			if err != nil {
+				t.Fatal(p.name, err)
+			}
+			return n
+		}
+		both, apart := total(skips+words), total(skips)+total(words)-total("")
+		t.Logf("%s: skips then words %d units, apart %d", p.name, both, apart)
+		if both <= apart {
+			t.Errorf("%s: the skipped calls did not delay the memoization of word: %d units, apart %d", p.name, both, apart)
+		}
 	}
 }

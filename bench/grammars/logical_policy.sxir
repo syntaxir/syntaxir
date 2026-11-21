@@ -1,0 +1,14 @@
+// Rules whose totals under logical compute units depend on the memo policy counts of calls that
+// dispatch guards skip (bench/logical_exact_test.go). Each "c" is a position where u's guard skips
+// a call of the memoized rule word, which counts a call of word without a repeat. Each word is
+// called twice at its position (by u, then by item), a repeat; word becomes eager, and its second
+// call a memo hit that counts 1 unit instead of the length of the word, once repeats exceed a
+// sixteenth of its calls. The skipped calls therefore decide where that happens.
+package policy
+
+@start
+rule doc = (u / item)* $$
+rule u = word "!" / "c"
+rule item = word "." / "b"
+rule word = "a" tail
+rule tail = [a-z]*

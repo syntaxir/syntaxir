@@ -189,7 +189,15 @@ func (p *flowPrinter) op(c *code.Call, args []string) string {
 			}
 			g.guardsKept++
 			if info.calls > 0 {
-				return fmt.Sprintf("!(%s && (%s)) && %s && p.AddUnits(%d)", args[1], chIdent.ReplaceAllString(cond, args[0]), depthLimit(guard.Depth), info.calls)
+				// The skip reproduces the calls: the policy effects of each memoized one, then their
+				// units and a check of the counter.
+				var memo strings.Builder
+				if info.memo != "" {
+					for _, r := range strings.Split(info.memo, ",") {
+						fmt.Fprintf(&memo, " && p.SkipFirstCall(rules[%s])", r)
+					}
+				}
+				return fmt.Sprintf("!(%s && (%s)) && %s%s && p.SkipCalls(%d)", args[1], chIdent.ReplaceAllString(cond, args[0]), depthLimit(guard.Depth), memo.String(), info.calls)
 			}
 		}
 		return fmt.Sprintf("!(%s && (%s)) && %s", args[1], chIdent.ReplaceAllString(cond, args[0]), depthLimit(guard.Depth))

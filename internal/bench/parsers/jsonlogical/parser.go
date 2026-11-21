@@ -470,7 +470,7 @@ L6:
 L10:
 	p.Reset(x1)
 L9:
-	if false && x5 && (x4 == 34) {
+	if !(x5 && (x4 == 34)) && p.Depth <= p.MaxDepth && p.SkipFirstCall(rules[7]) && p.SkipCalls(1) {
 		p.ExpectOrdinary(p.Pos, 7)
 		goto L12
 	}
@@ -1362,7 +1362,7 @@ L6:
 L10:
 	p.Pos = x1
 L9:
-	if false && x5 && (x4 == 34) {
+	if !(x5 && (x4 == 34)) && p.Depth <= p.MaxDepth && p.SkipFirstCall(rules[7]) && p.SkipCalls(1) {
 		p.ExpectOrdinary(p.Pos, 7)
 		goto L12
 	}
