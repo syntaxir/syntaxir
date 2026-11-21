@@ -575,8 +575,12 @@ type Generator struct {
 	ExecFuncs     int            // the functions printed from Exec IR (execRoute)
 	ExecTables    map[string]int // ExecFuncs by table
 	LoweredTerms  int            // the terms printed from Exec IR (lowered)
-	// NodeScopes records the frame layouts shared by typed rule metadata.
+	// NodeScopes records the frame layouts of the printed Node table rows, which the typed rule
+	// metadata shares.
 	NodeScopes map[*common.Rule][]string
+	// nodeLayouts is the frame layout of each rule of the Node table by rule ID, which the plan takes
+	// from the rule's Core scope (plandata.Plan.Layouts). A typed framed body runs under that frame.
+	nodeLayouts [][]string
 	// typedOnly leaves out the untyped Node family: the rule table keeps only the metadata the
 	// typed table shares.
 	typedOnly bool
@@ -720,8 +724,8 @@ func (g *Generator) rules() {
 		var refuse func(plandata.Key) bool
 		if g.Table == "trules" {
 			// A typed framed body runs under the frame the typed runtime shares with the Node rule, so
-			// it has the slots of the Node rule's scope.
-			p = flowplan.PlanTyped(g.Flow.TableIR, rules, live, func(id int) []string { return g.NodeScopes[all[id]] })
+			// it has the slots of the Node rule's planned layout.
+			p = flowplan.PlanTyped(g.Flow.TableIR, rules, live, func(id int) []string { return g.nodeLayouts[id] })
 		} else {
 			p = flowplan.Plan(g.Flow.TableIR, rules, live)
 			if r := g.streamStart; r != nil && g.Table == "rules" {
@@ -806,6 +810,7 @@ func (g *Generator) rules() {
 		}
 	}
 	if g.Table == "rules" && !g.Traced {
+		g.nodeLayouts = g.plan.Layouts
 		g.NodeScopes = make(map[*common.Rule][]string, len(all))
 		for _, r := range all {
 			g.NodeScopes[r] = append([]string(nil), scopes[r].Names...)
