@@ -99,10 +99,11 @@ type OprExpr struct {
 	Cut      bool    `json:"cut"`
 }
 
-// OprRule is an Operators Rule: whether its value is unused, its operators, its operand lines, whether it skips
-// trivia and the script of its trivia.
+// OprRule is an Operators Rule: whether its value is unused, whether its operators have a named node type, its
+// operators, its operand lines, whether it skips trivia and the script of its trivia.
 type OprRule struct {
 	Novalue  bool      `json:"novalue"`
+	OpType   bool      `json:"opType"`
 	Prefix   []OprOp   `json:"prefix"`
 	Led      []OprOp   `json:"led"`
 	Operands []OprLine `json:"operands"`
@@ -120,7 +121,8 @@ func scriptEntry(e ref.Eval, cut bool) OprExpr {
 }
 
 // oprShapes are the names of the shapes of the values of lines.
-var oprShapes = map[ref.OprShape]string{ref.OprPass: "pass", ref.OprTuple: "tuple", ref.OprShared: "shared", ref.OprNone: "none"}
+var oprShapes = map[ref.OprShape]string{ref.OprPass: "pass", ref.OprTuple: "tuple", ref.OprShared: "shared", ref.OprNone: "none",
+	ref.OprWrap: "wrap", ref.OprUnit: "unit"}
 
 func oprLine(s ref.OprLineSpec) OprLine {
 	l := OprLine{Scope: s.Scope, Shape: oprShapes[s.Shape], Action: s.Action}
@@ -140,7 +142,7 @@ func oprRules(rs []ref.OprRule) []OprRule {
 			}
 			return l
 		}
-		rule := OprRule{Novalue: r.Novalue, Prefix: ops(r.Prefix), Led: ops(r.Led), Skip: r.Skip}
+		rule := OprRule{Novalue: r.Novalue, OpType: r.OpType, Prefix: ops(r.Prefix), Led: ops(r.Led), Skip: r.Skip}
 		for _, s := range r.Operands {
 			rule.Operands = append(rule.Operands, oprLine(s))
 		}

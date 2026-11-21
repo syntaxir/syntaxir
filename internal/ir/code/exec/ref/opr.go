@@ -55,6 +55,14 @@ const (
 	// OprNone is an operator's line whose expression has no value: the operator's value is a fresh
 	// node of no elements of the range of its match. An operand line has a value.
 	OprNone
+	// OprWrap is an expression of one element that is not a sequence but whose scope's value is a
+	// tuple node, as an element with captures: an operand line's value is a fresh node of the range of
+	// its match with the element, and an operator's value is the element, as for OprPass.
+	OprWrap
+	// OprUnit is an expression of no valued element that is not a sequence: an operand line's value is
+	// a fresh node of the range of its match with no elements, and an operator's value is one of the
+	// range of its match, as for OprNone.
+	OprUnit
 )
 
 // OprFieldNames are the names of the fields that a case reads (OprValueFieldOp), by index: those of
@@ -70,20 +78,25 @@ const (
 	OprValueKidOp   = "test.valueKid"
 	OprValueFieldOp = "test.valueField"
 	OprValueRuleOp  = "test.valueRule"
+	OprValueTypeOp  = "test.valueType"
 )
 
 // OprValueOps are the operations that take a value apart.
-var OprValueOps = []string{OprValueStartOp, OprValueEndOp, OprValueKidsOp, OprValueKidOp, OprValueFieldOp, OprValueRuleOp}
+var OprValueOps = []string{OprValueStartOp, OprValueEndOp, OprValueKidsOp, OprValueKidOp, OprValueFieldOp, OprValueRuleOp, OprValueTypeOp}
 
 // OprValue is the model's Value handle of the Operators Rule family, a node: its range, its elements,
 // its fields in the order they were first set, the index of the rule whose name it carries (-1 for
-// none) and whether it is fresh, a value that the grammar code has just made and no rule has taken.
+// none), the rule whose operators' named node type it has (OprRule.OpType) and whether it is fresh, a
+// value that the grammar code has just made and no rule has taken.
 type OprValue struct {
 	start, end int64
 	kids       []any
 	fields     []oprField
 	rule       int64
-	fresh      bool
+	// opType is one more than the index of the rule whose operators' named node type the node has,
+	// 0 for none.
+	opType int64
+	fresh  bool
 }
 
 type oprField struct {
@@ -130,7 +143,10 @@ type OprExpr struct {
 // OprRule is an Operators Rule of Config.Oprs, the rule of the index in RuleRef.
 type OprRule struct {
 	// Novalue is a rule whose value nothing uses: its lines and applications have the null value.
-	Novalue     bool
+	Novalue bool
+	// OpType is whether the rule's operators have a named node type: an application is a node of the
+	// type, and the value of an operator's action is converted to it.
+	OpType      bool
 	Prefix, Led []OprOp
 	// Operands are the operand lines.
 	Operands []OprLineSpec
@@ -304,7 +320,7 @@ func (m *Model) allowsOpr(o *code.Op, args []any) bool {
 		}
 		rhs := args[len(args)-1]
 		return (a.op.op.Kind != "prefix" || args[2] == nil) && (a.op.op.Kind != "postfix" || rhs == nil)
-	case OprValueStartOp, OprValueEndOp, OprValueKidsOp, OprValueRuleOp:
+	case OprValueStartOp, OprValueEndOp, OprValueKidsOp, OprValueRuleOp, OprValueTypeOp:
 		return isOprNode(args[0])
 	case OprValueKidOp:
 		return isOprNode(args[0]) && args[1].(int64) >= 0 && args[1].(int64) < int64(len(args[0].(*OprValue).kids))
@@ -454,6 +470,8 @@ func (m *Model) callOpr(o *code.Op, args []any) ([]any, bool) {
 		return []any{args[0].(*OprValue).field(OprFieldNames[args[1].(int64)])}, true
 	case OprValueRuleOp:
 		return []any{args[0].(*OprValue).rule}, true
+	case OprValueTypeOp:
+		return []any{args[0].(*OprValue).opType - 1}, true
 	case "opr.attempt":
 		return []any{&OprAttempt{op: args[0].(*OprOperator), frame: args[1], v: args[2], start: args[3].(int64),
 			end: m.regs["pos"].(int64), env: m.env, cut: args[4].(bool), errs: args[5]}}, true
@@ -506,8 +524,13 @@ func (m *Model) oprLineValue(r int64, l *OprLine, f *Frame, v any, start int64) 
 	if l.spec.Action {
 		return m.oprAction(f, start, pos, nil, nil, nil)
 	}
-	if l.spec.Shape == OprShared {
+	switch l.spec.Shape {
+	case OprShared:
 		v = sharedCopy(v)
+	case OprWrap:
+		v = &OprValue{start: start, end: pos, kids: []any{v}, rule: -1, fresh: true}
+	case OprUnit:
+		v = &OprValue{start: start, end: pos, rule: -1, fresh: true}
 	}
 	if l.spec.Scope > 0 {
 		v = withCaptures(v, f, start, pos)
@@ -544,7 +567,7 @@ func (m *Model) oprBuild(r int64, a *OprAttempt, lhs any, lstart int64, rhs any,
 	// The operator's value: the value of its line's expression, or a fresh node of its match.
 	var opv any
 	switch l.Shape {
-	case OprNone:
+	case OprNone, OprUnit:
 		opv = &OprValue{start: a.start, end: a.end, rule: -1}
 	case OprShared:
 		opv = sharedCopy(a.v)
@@ -565,10 +588,17 @@ func (m *Model) oprBuild(r int64, a *OprAttempt, lhs any, lstart int64, rhs any,
 		right = rhs
 	}
 	if l.Action {
-		return m.oprAction(f, start, end, opv, left, right), start
+		v := m.oprAction(f, start, end, opv, left, right)
+		if m.cfg.Oprs[r].OpType {
+			v = retype(v, r)
+		}
+		return v, start
 	}
 	n := &OprValue{start: start, end: end, rule: -1}
-	if m.cfg.SourceInfo && !typed {
+	if m.cfg.Oprs[r].OpType {
+		// The node of the operators' named node type, which carries no rule name.
+		n.opType = r + 1
+	} else if m.cfg.SourceInfo && !typed {
 		n.rule = r
 	}
 	if kind != "prefix" {
@@ -594,6 +624,21 @@ func (m *Model) oprAction(f *Frame, start, end int64, op, lhs, rhs any) any {
 		}
 	}
 	return n
+}
+
+// retype converts v, the value of an operator's action, to the named node type of the operators of the
+// rule r: v itself if it has the type, or else a copy of v of the type, with its range, elements and
+// fields, which carries no rule name and is not fresh. The actions of the model return nodes, which
+// convert.
+func retype(v any, r int64) any {
+	n, ok := v.(*OprValue)
+	if !ok || n == nil {
+		panic("ref: an operator's action returned no node")
+	}
+	if n.opType == r+1 {
+		return n
+	}
+	return &OprValue{start: n.start, end: n.end, kids: slices.Clone(n.kids), fields: slices.Clone(n.fields), rule: -1, opType: r + 1}
 }
 
 // sharedCopy is the fresh node of the range and the elements of the tuple node v that a memo entry

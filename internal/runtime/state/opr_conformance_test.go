@@ -94,8 +94,14 @@ func newOprMachineControlled(cfg ref.Config, controlled bool) conform.Impl {
 			l.Shape, l.Single = program.Shaper{Elems: true, Shared: true, K: 2}, program.SingleTuple
 		case ref.OprNone:
 			l.Single = program.SingleNone
+		case ref.OprWrap:
+			l.Shape, l.Single = program.Shaper{K: 1}, program.SinglePass
+		case ref.OprUnit:
+			l.Single = program.SingleNone
 		}
-		tuple := s.Shape == ref.OprTuple || s.Shape == ref.OprShared
+		// The value of an operand line is the node of its tuple when the closure backend's scopeValueOf
+		// makes it so (check.ScopeTuple).
+		tuple := s.Shape == ref.OprTuple || s.Shape == ref.OprShared || s.Shape == ref.OprWrap || s.Shape == ref.OprUnit
 		l.Value = func(p *Parser, v *value.Node, start int) *value.Node {
 			if s.Shape == ref.OprNone {
 				panic("engine binding: an operand line has a value")
@@ -135,6 +141,10 @@ func newOprMachineControlled(cfg ref.Config, controlled bool) conform.Impl {
 		}
 		rule := &Rule{OperatorsRule: or, Kinds: valueimpl.NewRuleKinds(fmt.Sprint("r", i))}
 		rule.Name, rule.Novalue = fmt.Sprint("r", i), r.Novalue
+		if r.OpType {
+			rule.OpNodeType = oprTypeName(i)
+			rule.OpKinds = nodes.NewNodeTypeKinds(rule.OpNodeType)
+		}
 		m.oprRules = append(m.oprRules, rule)
 	}
 	m.zeroMark = &markBox{}
@@ -302,9 +312,19 @@ func (m *oprMachine) valueOp(name string, args []any) any {
 			}
 		}
 		return int64(-1)
+	case ref.OprValueTypeOp:
+		for i := range m.oprRules {
+			if d.Kind != nil && d.Kind.Reserved < 0 && d.Kind.Type == oprTypeName(i) {
+				return int64(i)
+			}
+		}
+		return int64(-1)
 	}
 	panic("engine binding: no value operation " + name)
 }
+
+// oprTypeName is the named node type of the operators of the rule i, if they have one.
+func oprTypeName(i int) string { return fmt.Sprint("Op", i) }
 
 // nodeOrNil is the handle of a node: the null value, which has one identity, for none.
 func nodeOrNil(n *value.Node) any {
@@ -498,5 +518,35 @@ func TestEngineOprChargesArePinned(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// TestEngineOprOperatorTypeIsChecked is the negative control of the operators' named node type: the
+// engine whose opr.build leaves the applications, or only the values of the actions, without the type
+// fails the suite.
+func TestEngineOprOperatorTypeIsChecked(t *testing.T) {
+	for name, untyped := range map[string]func(a *attemptBox) bool{
+		"opr.build ignores the operators' type":    func(*attemptBox) bool { return true },
+		"opr.build converts no action's value":     func(a *attemptBox) bool { return a.a.Op.Line.Act != nil },
+		"opr.build types only the actions' values": func(a *attemptBox) bool { return a.a.Op.Line.Act == nil },
+	} {
+		t.Run(name, func(t *testing.T) {
+			s := oprSuite()
+			s.New = func(c ref.Config) conform.Impl {
+				m := newOprMachine(c).(*oprMachine)
+				edit := func(call func(string, ...any) []any, args []any) []any {
+					if r := args[0].(*Rule); untyped(args[1].(*attemptBox)) && r.OpKinds != nil {
+						kinds := r.OpKinds
+						r.OpKinds = nil
+						defer func() { r.OpKinds = kinds }()
+					}
+					return call("opr.build", args...)
+				}
+				return brokenOpr{m, "opr.build", edit}
+			}
+			if fails, _ := oprConformanceFailures(s, 60, 250); len(fails) == 0 {
+				t.Fatal("no case detected the broken engine")
+			}
+		})
 	}
 }

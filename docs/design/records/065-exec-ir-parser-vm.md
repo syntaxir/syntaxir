@@ -359,9 +359,11 @@ the targets' printed bindings by reflection serves both. The operations that run
 have a scripted model, the trivia and each operand or operator line a script of evaluations as a rule's body has, with
 conformance cases that run on the engine and on TypeScript; a line's captures are writes to the slots of the current
 frame, which the cases read back. The operations that build values (`opr.lineValue`, `opr.build`, `opr.buildTyped`)
-have a model of nodes, with their ranges, elements, fields and rule names, in which each line has the static shape of
-its value (one element, a sequence, a sequence whose tuple a memo entry shares, or none for an operator) and may have an
-action, a probe that returns a node of the range, the locals and the captures it was given; the cases take the values
+have a model of nodes, with their ranges, elements, fields, rule names and the named node type of a rule's operators,
+in which each line has the static shape of its value (one element, a sequence, a sequence whose tuple a memo entry
+shares, an element that is not a sequence but whose scope's value is a node of its range, with one element or none, or
+none for an operator) and may have an action, a probe that returns a node of the range, the locals and the captures it
+was given, whose value converts to the operators' named node type when the rule declares one; the cases take the values
 apart and compare them by identity, on the engine and on TypeScript, and `opr.buildTyped` on the model until a target
 of typed values runs it. These stay transitional until generated Go runs them too. Those that keep missing tokens
 (`opr.attemptMissing`, `opr.replay`) have a model on the reference model of the missing-token mode: a match copies the

@@ -27,7 +27,7 @@ interface Config {
   ruleSpecs?: RuleSpec[];
   observed?: boolean;
   document?: boolean;
-  oprs?: { novalue: boolean; prefix: OprOpSpec[]; led: OprOpSpec[]; operands: OprLineSpec[] | null; skip: boolean; trivia?: OprExprSpec[] }[];
+  oprs?: { novalue: boolean; opType: boolean; prefix: OprOpSpec[]; led: OprOpSpec[]; operands: OprLineSpec[] | null; skip: boolean; trivia?: OprExprSpec[] }[];
   sourceInfo?: boolean;
   fieldNames?: string[] | null;
 }
@@ -40,19 +40,25 @@ interface OprOpSpec {
 interface OprLineSpec {
   scope: number;
   expr?: OprExprSpec[] | null;
-  shape: "pass" | "tuple" | "shared" | "none";
+  shape: "pass" | "tuple" | "shared" | "none" | "wrap" | "unit";
   action: boolean;
 }
 
 // oprShapers are the shapers of the values of lines (ref.OprShape), as the printer encodes the static shape of the
-// line's expression: an expression of one element, a sequence, a sequence whose tuple node a memo entry shares, and
-// an operator's expression of no value.
+// line's expression: an expression of one element, a sequence, a sequence whose tuple node a memo entry shares, an
+// operator's expression of no value, and an expression that is not a sequence whose scope's value is the node of its
+// range: of one element, and of no valued element.
 const oprShapers: Record<OprLineSpec["shape"], number> = {
   pass: p.singlePass << 2,
   tuple: p.shaperElems | p.shaperTuple | (p.singleTuple << 2) | (2 << 5),
   shared: p.shaperElems | p.shaperTuple | p.shaperShared | (p.singleTuple << 2) | (2 << 5),
   none: p.singleNone << 2,
+  wrap: p.shaperTuple | (p.singlePass << 2) | (1 << 5),
+  unit: p.shaperTuple | (p.singleNone << 2),
 };
+
+// oprTypeName is the named node type of the operators of the rule i, if they have one.
+const oprTypeName = (i: number): string => "Op" + i;
 
 // oprProbe is the action of a line (ref.OprLineSpec): a node of the range of its input whose elements are the
 // locals op, lhs and rhs and whose fields are the captures of its frame.
@@ -596,6 +602,7 @@ class OprM extends Exec {
     this.fieldNames = cfg.fieldNames ?? [];
     this.rules = (cfg.oprs ?? []).map((s, i) => {
       const r = p.mkRule(i, "r" + i, [], 0, false, false, -1, s.novalue, []);
+      if (s.opType) r.opNodeType = oprTypeName(i);
       const line = (l: OprLineSpec) => ({ scope: Array.from({ length: l.scope }, (_, k) => "c" + k), m: this.scripted(l.expr ?? []),
         action: l.action ? oprProbe : null, value: oprShapers[l.shape] });
       const op = (o: OprOpSpec): p.OperatorsRuleOp => ({ id: 0, kind: o.kind, assoc: o.assoc, level: o.level, line: line(o.line) });
@@ -653,6 +660,8 @@ class OprM extends Exec {
         return [n.fields.find((f) => f.name === this.fieldNames[a[1]])?.value ?? null];
       case "test.valueRule":
         return [this.rules.findIndex((r) => r.name === n.rule && n.rule !== "")];
+      case "test.valueType":
+        return [this.rules.findIndex((_, i) => n instanceof p.TypedNode && n.type === oprTypeName(i))];
     }
     return super.call(op, a);
   }

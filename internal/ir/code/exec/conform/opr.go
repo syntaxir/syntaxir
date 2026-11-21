@@ -140,15 +140,18 @@ func OprModule() *code.Module {
 	value(ref.OprValueFieldOp, `Returns the field of the node v of the name ref.OprFieldNames[k], the null value
 if it has none.`, `v is a node and k is an index of ref.OprFieldNames.`, code.THandle(exec.Value), code.P("k", code.TInt))
 	value(ref.OprValueRuleOp, `Returns the index of the rule whose name the node v carries, -1 if none.`, node, code.TInt)
+	value(ref.OprValueTypeOp, `Returns the index of the rule whose operators' named node type the node v has, -1 if none.`, node, code.TInt)
 	return m
 }
 
 // OprConfig returns the Operators Rules of the cases, with variables for the environment, in a parse
 // that records source information: a rule of each kind of operator that skips trivia, a rule without
-// prefix operators whose value nothing uses, and one with no operator. The scripts of the trivia and of
-// the lines of the first rule match and fail, move the position by different lengths, record errors,
-// pass cuts and capture; the other lines have none and fail at once. The lines of the first rule have
-// each shape of value, with and without an action.
+// prefix operators whose value nothing uses, one with no operator, and one whose operators have a named
+// node type. The scripts of the trivia and of the lines of the first rule match and fail, move the
+// position by different lengths, record errors, pass cuts and capture; those of the last rule match;
+// the other lines have none and fail at once. The lines of the first rule have each shape of value of a
+// sequence or of one element, with and without an action; the last rule has an operator with an action
+// and some without, and the lines of an element that is not a sequence but makes a node of its range.
 func OprConfig() ref.Config {
 	op := func(kind, assoc string, level, scope int64, expr ...ref.OprExpr) ref.OprOp {
 		return ref.OprOp{Kind: kind, Assoc: assoc, Level: level, Line: ref.OprLineSpec{Scope: scope, Expr: expr}}
@@ -185,6 +188,15 @@ func OprConfig() ref.Config {
 			{Novalue: true, Led: []ref.OprOp{op("infix", "right", 1, 0), op("postfix", "none", 2, 1)},
 				Operands: []ref.OprLineSpec{{Scope: 1}}},
 			{},
+			{OpType: true, Prefix: []ref.OprOp{shaped(op("prefix", "left", 4, 0, x(true, 1, false)), ref.OprTuple, false),
+				shaped(op("prefix", "left", 5, 0, x(true, 2, false)), ref.OprUnit, false)},
+				Led: []ref.OprOp{shaped(op("infix", "left", 1, 1, captures(true, 1, 0)), ref.OprTuple, true),
+					op("infix", "left", 2, 0, x(true, 2, false)),
+					shaped(op("postfix", "left", 3, 0, x(true, 1, false)), ref.OprNone, false),
+					shaped(op("infix", "left", 4, 1, captures(true, 1, 0)), ref.OprWrap, false)},
+				Operands: []ref.OprLineSpec{{Scope: 0, Expr: []ref.OprExpr{x(true, 2, false)}},
+					{Scope: 1, Expr: []ref.OprExpr{captures(true, 1, 0)}, Shape: ref.OprWrap},
+					{Scope: 0, Expr: []ref.OprExpr{x(true, 3, false)}, Shape: ref.OprUnit}}},
 		},
 	}
 }
@@ -569,6 +581,81 @@ func OprCases() []Case {
 		b.Assert(eq(ruleOf(code.C("opr.build", r, a, v0, v0)), i(-1)), "and nor does an application")
 	})
 	cs[len(cs)-1].Config.SourceInfo = false
+	typeOf := func(v code.Expr) code.Expr { return code.C(ref.OprValueTypeOp, v) }
+	add("opr_values_of_elements", func(b *code.Builder) {
+		// The lines of one element that is not a sequence but whose value is a node of its range, and
+		// of no valued element.
+		r := b.Let("r", rule(3))
+		f1 := frame(b, "f1", 1)
+		ol1 := b.Let("ol1", code.C("opr.operand", r, i(1)))
+		v1 := match(b, "v1", ol1, 2)
+		w := b.Let("w", code.C("opr.lineValue", r, ol1, f1, v1, i(2)))
+		b.Assert(all(eq(start(w), i(2)), eq(end(w), i(3)), eq(kids(w), i(1)), eq(kid(w, 0), v1)),
+			"an element with captures is wrapped in a node of the line's range")
+		b.Assert(all(eq(code.C(ref.OprValueFieldOp, w, i(3)), code.C(ref.FrameSlotOp, f1, i(0))), eq(ruleOf(w), i(3))),
+			"which takes the captures and the rule's name")
+		f0 := frame(b, "f0", 0)
+		ol2 := b.Let("ol2", code.C("opr.operand", r, i(2)))
+		v2 := match(b, "v2", ol2, 4)
+		u := b.Let("u", code.C("opr.lineValue", r, ol2, f0, v2, i(4)))
+		b.Assert(all(eq(start(u), i(4)), eq(end(u), i(7)), eq(kids(u), i(0)), eq(ruleOf(u), i(3))),
+			"no valued element makes an empty node of the line's range")
+		led, prefix := b.Let("led", code.C("opr.led", r)), b.Let("prefix", code.C("opr.prefix", r))
+		errs := b.Let("errs", code.C("rec.since", i(0)))
+		b.Do("frame.use", f1)
+		o3 := b.Let("o3", code.C("opr.at", led, i(3)))
+		ov := match(b, "ov", code.C("opr.line", o3), 7)
+		a3 := b.Let("a3", code.C("opr.attempt", o3, f1, ov, i(7), code.BoolC(false), errs))
+		b.SetReg(exec.Pos, i(9))
+		n3 := b.Let("n3", code.C("opr.build", r, a3, w, u))
+		b.Assert(all(eq(kid(n3, 1), ov), eq(start(n3), i(2)), eq(end(n3), i(9))), "an operator of such an element is the element")
+		b.Do("frame.use", f0)
+		p1 := b.Let("p1", code.C("opr.at", prefix, i(1)))
+		pv := match(b, "pv", code.C("opr.line", p1), 0)
+		ap := b.Let("ap", code.C("opr.attempt", p1, f0, pv, i(0), code.BoolC(false), errs))
+		b.SetReg(exec.Pos, i(5))
+		np := b.Let("np", code.C("opr.build", r, ap, nullValue, u))
+		pop := b.Let("pop", kid(np, 0))
+		b.Assert(all(eq(start(pop), i(0)), eq(end(pop), i(2)), eq(kids(pop), i(0))),
+			"and one of no valued element is a node of the range of its match")
+	})
+	add("opr_build_op_type", func(b *code.Builder) {
+		r := b.Let("r", rule(3))
+		led := b.Let("led", code.C("opr.led", r))
+		errs := b.Let("errs", code.C("rec.since", i(0)))
+		f0 := frame(b, "f0", 0)
+		lhs := match(b, "lhs", code.C("opr.operand", r, i(0)), 1)
+		rhs := match(b, "rhs", code.C("opr.operand", r, i(0)), 4)
+		attempt := func(name string, o, f code.Expr, from, to int64) code.Expr {
+			b.SetReg(exec.Pos, i(from))
+			vs := b.LetN([]string{name + "v", name + "ok"}, code.C("opr.match", code.C("opr.line", o)))
+			b.Assert(vs[1], "the operator's line matches")
+			b.SetReg(exec.Pos, i(to))
+			return b.Let(name, code.C("opr.attempt", o, f, vs[0], i(from), code.BoolC(false), errs))
+		}
+		a1 := attempt("a1", b.Let("o1", code.C("opr.at", led, i(1))), f0, 2, 4)
+		n1 := b.Let("n1", code.C("opr.build", r, a1, lhs, rhs))
+		b.Assert(all(eq(typeOf(n1), i(3)), eq(ruleOf(n1), i(-1))), "an application has the operators' named node type, without the rule's name")
+		b.Assert(all(eq(start(n1), i(1)), eq(kids(n1), i(3)), eq(kid(n1, 0), lhs), eq(kid(n1, 2), rhs)), "with the range and the elements of the tuple")
+		b.Assert(eq(typeOf(kid(n1, 1)), i(-1)), "the operator keeps its own type")
+		f1 := frame(b, "f1", 1)
+		a0 := attempt("a0", b.Let("o0", code.C("opr.at", led, i(0))), f1, 2, 3)
+		n0 := b.Let("n0", code.C("opr.build", r, a0, lhs, rhs))
+		b.Assert(all(eq(typeOf(n0), i(3)), eq(ruleOf(n0), i(-1))), "an action's value is converted to the type")
+		b.Assert(all(eq(start(n0), i(1)), eq(end(n0), i(3)), eq(kids(n0), i(3)), eq(kid(n0, 1), lhs), eq(kid(n0, 2), rhs)),
+			"keeping its range and elements")
+		b.Let("n0op", kid(n0, 0))
+		b.Let("n0c0", code.C(ref.OprValueFieldOp, n0, i(3)))
+		b.Do("frame.use", f0)
+		p0 := b.Let("p0", code.C("opr.at", code.C("opr.prefix", r), i(0)))
+		ap := attempt("ap", p0, f0, 0, 1)
+		b.SetReg(exec.Pos, i(5))
+		np := b.Let("np", code.C("opr.build", r, ap, nullValue, rhs))
+		b.Assert(all(eq(typeOf(np), i(3)), eq(kids(np), i(2))), "and so has a prefix application")
+		other := b.Let("other", code.C("opr.build", rule(0), attempt("a00", code.C("opr.at", code.C("opr.led", rule(0)), i(0)), f0, 0, 1), lhs, rhs))
+		b.Assert(eq(typeOf(other), i(-1)), "the applications of a rule without the type have none")
+		b.Assert(eq(typeOf(lhs), i(-1)), "nor do its operands")
+	})
 	add("opr_flags", func(b *code.Builder) {
 		b.Do("opr.setCutFailed", code.BoolC(true))
 		b.Assert(code.C("opr.cutFailed"), "a candidate failed after a cut")
@@ -927,7 +1014,7 @@ func RandomOpr(name string, rng *rand.Rand, opNames []string, n int, cfg ref.Con
 			if n, ok := v.h.(*ref.OprValue); !ok || n == nil {
 				return
 			}
-			for _, op := range []string{ref.OprValueStartOp, ref.OprValueEndOp, ref.OprValueRuleOp, ref.OprValueKidsOp} {
+			for _, op := range []string{ref.OprValueStartOp, ref.OprValueEndOp, ref.OprValueRuleOp, ref.OprValueTypeOp, ref.OprValueKidsOp} {
 				call(op, []any{v.h}, []code.Expr{v.expr})
 			}
 			for k := range ask(ref.OprValueKidsOp, v.h).(int64) {
