@@ -153,7 +153,7 @@ code, kbd, pre { font-family: var(--mono); font-size: 0.9em; }
   color: var(--fg);
 }
 .brand svg { display: block; width: auto; }
-.brand .brand-accent { fill: var(--brand-accent); }
+.brand .brand-accent, .hero-mark .brand-accent { fill: var(--brand-accent); }
 .brand:hover { text-decoration: none; }
 
 .topnav { display: flex; gap: 4px; margin-left: 8px; }
