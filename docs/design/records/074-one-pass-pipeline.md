@@ -195,6 +195,7 @@ type Decl struct {
 	Features   []FeatureID // the features it reads (Feature panics on any other)
 	Params     []string    // the registry flags it reads (Ctx.Value panics on any other)
 	Patterns   []string    // the sub-pass decisions it asks Ctx.Allow about
+	Counters   []string    // the statistics it counts (Ctx.Count panics on any other), in report order
 }
 
 // Def is the typed definition of a pass, given once to New. Its Run stays in the declaring package.
@@ -229,7 +230,7 @@ type Ctx[M any] struct{ s *ctxState }
 
 func (c *Ctx[M]) Label() Label                         // backend, table and function of the unit
 func (c *Ctx[M]) Value(flag string) int                // a declared parameter
-func (c *Ctx[M]) Count(counter string, n int)          // a statistic of this pass on this unit
+func (c *Ctx[M]) Count(counter string, n int)          // a declared statistic of this pass on this unit
 func (c *Ctx[M]) Context() context.Context             // for cancellation polling
 func (c *Ctx[M]) Allow(pattern string) bool            // a sub-pass decision (canonicalize)
 func Feature[T, M any](c *Ctx[M], k *FeatureKey[T]) T  // a declared feature that an enclosing scope provides
@@ -328,6 +329,7 @@ type Event struct {
 type StepInfo struct {
 	Name, Instance string // instance: the name, with #k for the k-th occurrence (k > 1)
 	Required       bool
+	Pattern        bool // the decision of one application of a pattern (Ctx.Allow)
 	In, Out        string
 }
 
@@ -336,6 +338,7 @@ type Result struct {
 	Changed     bool // the pass's report: !PreserveAll; the same whatever observers watch
 	TextChanged bool // only if an observer needs it: the text form changed
 	Counters    map[string]int
+	Patterns    map[string]Decisions // the applied and skipped applications of each pattern
 	Elapsed     time.Duration
 	Unit        any             // only if an observer needs units
 	Print       func(io.Writer) // only if an observer needs dumps; valid during After only

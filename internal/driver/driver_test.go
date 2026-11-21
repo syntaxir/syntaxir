@@ -679,7 +679,7 @@ func (r *seqRecorder) After(e pipe.Event, _ *pipe.Result) {
 // theirs applies to the functions of table.
 func TestDriverNumbersTheCompilationOnce(t *testing.T) {
 	rec := &seqRecorder{}
-	d := &Driver{observers: []pipe.Observer{rec}, Hooks: Hooks{FlowPipeline: withTestFlowPass(t),
+	d := &Driver{Hooks: Hooks{Observers: []pipe.Observer{rec}, FlowPipeline: withTestFlowPass(t),
 		ExecPipeline: execPipeline(testTableExec)}}
 	build := func() (*core.Module, error) {
 		m := framed().Module

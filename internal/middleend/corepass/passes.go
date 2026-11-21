@@ -129,32 +129,39 @@ func terminalRegions(n core.Node, build bool, out map[core.Node]bool) {
 // guard that is a class, or a sequence whose first item is one, is marked GuardedClass: the guard's
 // test of the class is the class's own, so a target may let the class only consume the character the
 // guard read (the Flow pass guarded-classes). Precondition: the attributes are current. Guards adds
-// and replaces no node, so they stay current.
-func Guards(m *core.Module) {
+// and replaces no node, so they stay current. It returns the number of alternatives that got a guard.
+func Guards(m *core.Module) int {
+	n := 0
 	for _, r := range m.Rules {
 		m.Control.Poll()
 		if r != nil {
-			guards(r.Body)
+			n += guards(r.Body)
 		}
 	}
+	return n
 }
 
-func guards(n core.Node) {
+func guards(n core.Node) int {
+	guarded := 0
 	switch x := n.(type) {
 	case *core.OperatorsRule:
 		for _, l := range x.Lines() {
-			guards(l.Body)
+			guarded += guards(l.Body)
 		}
-		return
+		return guarded
 	case *core.Choice:
 		for _, a := range x.Alts {
 			a.Guard = a.Body.Attrs().First
 			a.GuardedClass = a.Guard != nil && leadingClassNode(a.Body) != nil
+			if a.Guard != nil {
+				guarded++
+			}
 		}
 	}
 	for _, c := range core.Children(n) {
-		guards(c)
+		guarded += guards(c)
 	}
+	return guarded
 }
 
 // leadingClassNode returns the class that n is, or that begins the sequence n.

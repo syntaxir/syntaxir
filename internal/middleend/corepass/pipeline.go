@@ -29,19 +29,23 @@ const (
 	PassScans  = "scans"
 )
 
+// CounterGuarded is the counter of guards: the alternatives that it gave a guard.
+const CounterGuarded = "guarded"
+
 // GuardsPass marks each alternative of a choice with the first terminal it cannot match without.
 var GuardsPass = pipe.New(pipe.Def[*core.Module, *core.Module]{
 	Decl: pipe.Decl{
 		Name:       PassGuards,
 		Obligation: "A guard is the first terminal of its alternative, which the alternative cannot match without.",
+		Counters:   []string{CounterGuarded},
 	},
 	In: IR, Out: IR,
-	Run: func(_ *pipe.Ctx[*core.Module], m *core.Module) (*core.Module, pass.PreservedSet, error) {
+	Run: func(c *pipe.Ctx[*core.Module], m *core.Module) (*core.Module, pass.PreservedSet, error) {
 		// Guards read the First sets of the nodes. Without them the alternatives of a choice get no
 		// first-character guard and the Flow form calls the rules of the later alternatives at every
 		// position (duckdb: block_comment, 84,000 calls against none); the verifier rejects a module
 		// whose First sets are missing or stale.
-		Guards(m)
+		c.Count(CounterGuarded, Guards(m))
 		return m, pass.PreserveNone(), nil
 	},
 })

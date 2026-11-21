@@ -56,7 +56,10 @@ type Event struct {
 type StepInfo struct {
 	Name, Instance string // instance: the name, with #k for the k-th occurrence (k > 1)
 	Required       bool
-	In, Out        string
+	// Pattern marks the decision of one application of a pattern (Ctx.Allow): Name is the pattern
+	// and Instance the instance of the pass followed by "/" and the pattern.
+	Pattern bool
+	In, Out string
 }
 
 // Result is what an observer learns after a step.
@@ -65,11 +68,18 @@ type Result struct {
 	Changed     bool // the pass's report (!PreserveAll), whatever observers watch
 	TextChanged bool // only under Needs.TextChanged: the text form changed (a lowering: Changed)
 	Counters    map[string]int
-	Elapsed     time.Duration
-	Unit        any             // only if an observer needs units
-	Print       func(io.Writer) // only if an observer needs dumps; valid during After only
-	Err         error
+	// Patterns holds the decisions of the pass's patterns in this run, by pattern; nil if it asked
+	// about none.
+	Patterns map[string]Decisions
+	Elapsed  time.Duration
+	Unit     any             // only if an observer needs units
+	Print    func(io.Writer) // only if an observer needs dumps; valid during After only
+	Err      error
 }
+
+// Decisions counts the answers to the applications of one pattern: Applied ran, and Skipped were
+// refused, by the pattern's flag or by an observer.
+type Decisions struct{ Applied, Skipped int }
 
 // An Observer watches every step, required ones included.
 type Observer interface {
@@ -698,7 +708,7 @@ func (rs *runner) step(x *passNode, in any, e *env, sc *scope) (out any) {
 	}
 	var r *Result
 	if observed {
-		r = &Result{Ran: true, Counters: cs.counts, Elapsed: el, Err: err}
+		r = &Result{Ran: true, Counters: cs.counts, Patterns: cs.decisions, Elapsed: el, Err: err}
 	}
 	if err != nil {
 		se := &StepError{Step: ev.Step.Instance, Label: e.label, Err: err}
@@ -1204,15 +1214,19 @@ func setList(l reflect.Value, i int, v any) {
 // an optional pass, which the pattern's flag turns off and an observer may veto. A decision changes
 // nothing by itself (Result.Changed is false); its pass reports the change.
 func (rs *runner) allow(cs *ctxState, pattern string) bool {
+	observed := len(rs.r.Observers) > 0
 	if rs.r.Settings.Value(pattern) == 0 {
+		if observed {
+			cs.decide(pattern, false)
+		}
 		return false
 	}
 	*rs.seq++
-	if len(rs.r.Observers) == 0 {
+	if !observed {
 		return true
 	}
 	k := cs.pass.in.name
-	ev := Event{Seq: *rs.seq, Step: StepInfo{Name: pattern, Instance: cs.instance + "/" + pattern, In: k, Out: k}, Label: cs.env.label}
+	ev := Event{Seq: *rs.seq, Step: StepInfo{Name: pattern, Instance: cs.instance + "/" + pattern, In: k, Out: k, Pattern: true}, Label: cs.env.label}
 	ran := true
 	for _, o := range rs.r.Observers {
 		if !o.Before(ev, func(io.Writer) {}) {
@@ -1220,7 +1234,22 @@ func (rs *runner) allow(cs *ctxState, pattern string) bool {
 		}
 	}
 	rs.after(ev, "", &Result{Ran: ran}, "")
+	cs.decide(pattern, ran)
 	return ran
+}
+
+// decide counts one answer of Allow for the result of the step.
+func (cs *ctxState) decide(pattern string, applied bool) {
+	if cs.decisions == nil {
+		cs.decisions = map[string]Decisions{}
+	}
+	d := cs.decisions[pattern]
+	if applied {
+		d.Applied++
+	} else {
+		d.Skipped++
+	}
+	cs.decisions[pattern] = d
 }
 
 // testHook, when set by a test, sees the state of each run after it ends.

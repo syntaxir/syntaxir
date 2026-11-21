@@ -392,8 +392,12 @@ overrides of individual flags.
 - `-print-changed` dumps the module after each pass that changed it, and nothing after a pass that left it as it was.
 - `-print-pipeline` prints the pipeline that the driver assembled for the build, as the names of its passes in order,
   with the required passes marked and the patterns of `canonicalize` listed under it.
-- `-stats` prints, after the build, the counters of each pass: what it rewrote, and for `canonicalize` and instruction
-  selection the applications of each pattern. The counters are summed over the units and printed in a fixed order.
+- `-stats` prints, after the build, the counters of each pass, summed over the units and printed in a fixed order. The
+  manager keeps three kinds for every pass: the units it ran on, the runs that reported a change, and the applied and
+  skipped applications of each pattern, such as those of `canonicalize` and instruction selection. A pass adds the
+  counters that it declares, such as what it rewrote, in the order of its declaration; counting an undeclared one is an
+  error of the pass, as asking about an undeclared pattern is. Tests pin the counters of a pass on a fixture, so that an
+  optimization that stops firing is noticed.
 - `-time-passes` prints the time each pass took, summed over the units it ran on.
 
 These settings do not change the parser that is built, so they are not part of `Optimize`. In Go they are a value of

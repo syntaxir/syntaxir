@@ -91,7 +91,7 @@ func TestObserverVetoesAPass(t *testing.T) {
 	}
 }
 
-var counter = New(Def[*mod, *mod]{Decl: Decl{Name: "t-counter", Test: true}, In: modIR, Out: modIR,
+var counter = New(Def[*mod, *mod]{Decl: Decl{Name: "t-counter", Test: true, Counters: []string{"functions"}}, In: modIR, Out: modIR,
 	Run: func(c *Ctx[*mod], m *mod) (*mod, pass.PreservedSet, error) {
 		c.Count("functions", len(m.fns))
 		c.Count("functions", 1)

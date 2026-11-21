@@ -9,6 +9,9 @@ import (
 )
 
 // passes runs the passes on m in turn, each followed by Analyze and Verify.
+// guarding runs Guards for passes, which takes no count.
+func guarding(m *core.Module) { Guards(m) }
+
 func passes(t *testing.T, m *core.Module, ps ...func(*core.Module)) {
 	t.Helper()
 	analyzed(t, m)
@@ -43,7 +46,7 @@ func TestPassesGuardedClasses(t *testing.T) {
 	alt0 := seq(class('a', 'z'), class('0', '9'), class('x', 'y'), lit("q"))
 	alt1 := seq(lit("r"), class('a', 'z'), class('0', '9'))
 	m := valueFree(module(rule(0, "a", choice(alt0, alt1))))
-	passes(t, m, Guards, Scans)
+	passes(t, m, guarding, Scans)
 	got := core.PrintNode(m, m.Rules[0].Body, false)
 	want := `choice
   alt guard=[a-z] class
@@ -72,7 +75,7 @@ func TestPassesTerminals(t *testing.T) {
 	body := seq(&core.Drop{Body: seq(lit("k"), choice(alts...))}, small, &core.Any{}) // any character is no terminal form
 	m := valueFree(module(rule(0, "a", body)))
 	rs := regions(t, m)
-	passes(t, m, Guards)
+	passes(t, m, guarding)
 	if !rs[body.Items[0]] || len(rs) != 1 {
 		t.Fatalf("regions %v, want the 17 leaves of item 0 only", rs)
 	}
@@ -177,7 +180,7 @@ func TestPassesOperatorLines(t *testing.T) {
 	operand := choice(class('0', '9'), lit("("))
 	op := &core.Operator{ID: 0, Kind: "infix", Level: 1, Line: &core.OpLine{Body: &core.Repeat{Max: -1, Body: class('a', 'z')}}}
 	m := valueFree(module(rule(0, "e", &core.OperatorsRule{Operands: []*core.OpLine{{Body: operand}}, Ops: []*core.Operator{op}})))
-	passes(t, m, Guards, Scans)
+	passes(t, m, guarding, Scans)
 	if operand.Alts[0].Guard == nil || !operand.Alts[0].GuardedClass || operand.Alts[1].Guard == nil {
 		t.Errorf("operand guards: %+v %+v", operand.Alts[0], operand.Alts[1])
 	}
@@ -214,7 +217,7 @@ func TestPassesGuardFoldedLiteral(t *testing.T) {
 	fold := func(s string) *core.Lit { l := lit(s); l.Fold = true; return l }
 	// a = "Select"i "x" / "from"i / "1"i / "é"i / "r"
 	m := valueFree(module(rule(0, "a", choice(seq(fold("Select"), lit("x")), fold("from"), fold("1"), fold("é"), lit("r")))))
-	passes(t, m, Guards)
+	passes(t, m, guarding)
 	got := core.PrintNode(m, m.Rules[0].Body, false)
 	want := `choice
   alt guard='s'i

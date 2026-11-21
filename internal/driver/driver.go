@@ -53,8 +53,6 @@ type Driver struct {
 	// Runner of generate.Passes). pipeRun makes it on first use. It becomes internal to the manager
 	// once one Execute runs the whole compilation (record 074, migration step 6).
 	numbering *pipe.Numbering
-	// observers watch every run of the driver as well, for the tests of this package.
-	observers []pipe.Observer
 }
 
 // Hooks are the test hooks of the pipelines, which replace or observe a stage (generate.Hooks). A
@@ -71,6 +69,9 @@ type Hooks struct {
 	CorePipeline func(table string) pipe.Pipeline[*core.Module, *core.Module]
 	FlowPipeline func(table string) pipe.Pipeline[flowpass.Unit, flowpass.Unit]
 	ExecPipeline func(table string) pipe.Pipeline[codepass.Unit, codepass.Unit]
+	// Observers watch every step of every stage the driver runs, after the dumps of the driver, such
+	// as pipe.Stats for tests that pin the statistics of a pass.
+	Observers []pipe.Observer
 }
 
 // Settings returns the optimizations that are on (Opt), as common.Runner requires.
@@ -135,7 +136,7 @@ func (d *Driver) pipeRun(table string, stop bool) *pipe.Run {
 	if o := (pipeObserver{d: d, table: table}); o.Needs() != (pipe.Needs{}) {
 		r.Observers = []pipe.Observer{o}
 	}
-	r.Observers = append(r.Observers, d.observers...)
+	r.Observers = append(r.Observers, d.Observers...)
 	return r
 }
 

@@ -142,7 +142,17 @@ type Decl struct {
 	Features   []FeatureID // the features it reads (Feature panics on any other)
 	Params     []string    // the registry flags it reads (Ctx.Value panics on any other)
 	Patterns   []string    // the registry flags of its sub-pass decisions (Ctx.Allow panics on any other)
+	// Counters names the statistics the pass counts (Ctx.Count panics on any other), in the order
+	// that reports list them. The manager keeps runs, changed and the decisions of the patterns of
+	// every pass itself (Stats), so a pass declares only what is specific to it.
+	Counters []string
 }
+
+// The counters that the manager keeps for every pass instance, which no pass may declare.
+const (
+	CounterRuns    = "runs"    // the units the pass ran on
+	CounterChanged = "changed" // the runs whose pass reported a change (Result.Changed)
+)
 
 // Def is the typed definition of a pass, given once to New. Its Run stays in the declaring package.
 type Def[I, O any] struct {
@@ -176,6 +186,11 @@ func New[I, O any](d Def[I, O]) *Pass[I, O] {
 	if d.Required && d.Test {
 		panic(fmt.Sprintf("pipe: pass %q is both required and a test pass", d.Name))
 	}
+	for i, c := range d.Counters {
+		if c == "" || c == CounterRuns || c == CounterChanged || slices.Contains(d.Counters[:i], c) {
+			panic(fmt.Sprintf("pipe: pass %q declares the counter %q, which is empty, kept by the manager or declared twice", d.Name, c))
+		}
+	}
 	pd := &passDesc{Decl: d.Decl, in: kindOf(d.In), out: kindOf(d.Out)}
 	run := d.Run
 	pd.run = func(c *ctxState, in any) (any, pass.PreservedSet, error) { return run(ctxOf[I](c), in.(I)) }
@@ -194,6 +209,7 @@ func (p *Pass[I, O]) Name() string { return p.d.Name }
 func (p *Pass[I, O]) Decl() Decl {
 	d := p.d.Decl
 	d.After, d.Features, d.Params, d.Patterns = slices.Clone(d.After), slices.Clone(d.Features), slices.Clone(d.Params), slices.Clone(d.Patterns)
+	d.Counters = slices.Clone(d.Counters)
 	return d
 }
 
@@ -206,8 +222,10 @@ type ctxState struct {
 	pass     *passDesc
 	instance string
 	counts   map[string]int
-	unit     any
-	typed    any // the *Ctx[I] of the step, shared by Applies and Run
+	// decisions counts the answers of Allow per pattern, only in an observed run.
+	decisions map[string]Decisions
+	unit      any
+	typed     any // the *Ctx[I] of the step, shared by Applies and Run
 }
 
 // ctxOf returns the typed context of a step, made once for Applies and Run.
@@ -250,8 +268,11 @@ func (c *Ctx[M]) Value(flag string) int {
 	return c.s.rs.r.Settings.Value(flag)
 }
 
-// Count adds n to a statistic of this pass on this unit.
+// Count adds n to a declared statistic of this pass on this unit.
 func (c *Ctx[M]) Count(counter string, n int) {
+	if !contains(c.s.pass.Counters, counter) {
+		panic(fmt.Sprintf("pipe: pass %s counts the undeclared counter %s", c.s.pass.Name, counter))
+	}
 	if c.s.counts == nil {
 		c.s.counts = map[string]int{}
 	}
