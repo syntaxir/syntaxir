@@ -334,8 +334,7 @@ that the suite runs the code the compositions run. The operations of the memo th
 entry with it (`memo.far`, `memo.expected`, `memo.setExpected`) belong to the same model: an edit moves the far
 position with the entry, and their cases also run on the typed generated Go runtime, whose entries differ from
 the node runtime's. Negative controls break each of them and make each charge a unit its bound does not allow.
-TypeScript implements the same operations and stays on
-its parity tests, as [Completion](#completion) records. A set that `unisolate` returns may stay where the record
+The same cases and mutants also run on the TypeScript library, as [Completion](#completion) records. A set that `unisolate` returns may stay where the record
 grows next, so the model allows reading an entry of it only until a write reaches that entry's place, which
 merging the set entry by entry respects. *Target*: membership filters, stack layout, where kept sets live
 and how their memory is accounted.
@@ -381,8 +380,7 @@ configuration of the model. *Target*: how rules and their bodies are represented
 replay costs a constant however many errors it brings back and listing k errors visits fewer than 2k lists ([Lemma
 14](../../../spec/proofs/linear-cost.md#lemma-14-shared-recovered-errors)). No list moves: a memo entry that holds
 recovered errors stops being valid where an edit would move it. The operations are under conformance, with the identity
-of each error and of each list compared after every write, on generated Go and the engine; TypeScript stays on its
-parity tests. The operations of the missing-token mode, which only the engine has, have a reference model of the tokens
+of each error and of each list compared after every write, on generated Go and the engine, and the cases also run on the TypeScript library. The operations of the missing-token mode, which only the engine has, have a reference model of the tokens
 a parse inserts and conformance cases that compare them after each write, on the engine; a rule that can insert a token
 is not memoized in that mode. The growth operations `grow.step` and `grow.end` do not write the recovered errors: the composition of the growth lists, drops and
 records them with `rec.since`, `rec.truncate`, `rec.add` and `missing.replayResult`. *Target*: the representation of entries and lists, the scratch a stream keeps, and
@@ -392,7 +390,7 @@ language.
 **Variable environment.** A persistent environment: a binding makes a new environment that shares what it can,
 and an equal binding keeps the environment it is, so that what depends on its identity stays valid. The
 operations are under conformance, with nested scopes, shadowing, vectors of one and of several levels and keys
-of equal and unequal values, on generated Go and the engine; TypeScript stays on its parity tests. *Shared*:
+of equal and unequal values, on generated Go and the engine, and on the TypeScript library. *Shared*:
 scoping, equal bindings, key equality by the host's value equality. *Target*: the representation of the
 environment, and a key shared for the initial environment.
 
@@ -423,8 +421,7 @@ the rule's range. Both have reference models, with the entries of each, by ident
 randomized conformance cases with a negative control of broken models; the cases run on the engine and on generated
 Go (node and typed) through bindings that each target's printer prints from the operations, the engine's from the
 forms its backends print, and the metered targets charge each drop, copy and take-off to the unit, which a control that
-charges nothing, or only for the copy, fails. TypeScript implements the same operations and stays on its parity tests and on the push table, which
-it runs with the other value tables, as [Completion](#completion) records. Forgetting what an action recorded once its
+charges nothing, or only for the copy, fails. TypeScript implements the same operations; it runs the cases of what terms make and the push table with the other value tables, as [Completion](#completion) records. Forgetting what an action recorded once its
 result has its range, and Flow IR's drop of gathered values, are each target's own code outside these operations, and
 their charges still differ ([Cost Contracts](#cost-contracts)). *Target*: the representation of the stacks, which
 the engine shares with grammar code.
@@ -1038,8 +1035,15 @@ These stay transitional, each declared with its contract and cost bound and impl
   tests bind what they do;
 - the primitives of grammar code, which reach each runtime's helpers through the lowering of Flow IR, among them the
   sites that make a recovered error;
-- TypeScript's conformance: a runner of the suite in TypeScript does not exist, so TypeScript stays on its parity
-  tests and on the printed forms it shares.
+- TypeScript's conformance of the Document and call operations: the suite runs on the TypeScript library for the
+  memo, the budget, the variable environment, the recovered errors, the capture frames, the expectation record, the
+  context and its growths, the rules, the Operators Rule, the observation and what terms make. The harness cannot
+  share a process with the library, so a runner replays a trace of each case on Node (4e7bd51f0), and it calls the
+  TypeScript that the printer prints for each operation (fd3b8fea7). A test pins the operations that the printer has
+  no form for, which run on the library's own state (a6998ba4a), and the charge differences that remain are named
+  and tolerated one by one (c2cefdece). The `doc` operations, which TypeScript implements, are not in the suite and
+  stay on the parity tests of the Document, as do the `call` operations and the missing-token mode, which only the
+  engine has.
 
 ### Pilot
 
