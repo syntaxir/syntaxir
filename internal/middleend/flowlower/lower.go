@@ -403,7 +403,7 @@ func (l *lowerer) setFrame(x code.Expr) { l.emit(do(flow.OpSetFrame, nil, x)) }
 // No other point of straight-line code charges: between two charges only the straight-line code of one
 // rule body runs, whose length is bounded by the size of the grammar, so the steps still bound the spend.
 func (l *lowerer) step() {
-	if l.opts.Budget {
+	if l.opts.Budget || l.opts.Logical {
 		l.emit(do(flow.OpStep, nil))
 	}
 }

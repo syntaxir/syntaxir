@@ -24,6 +24,11 @@ func (in *Input) spendReadDoc(n uint64) {
 // parse has a BudgetControl.
 func (p *Parser) controlled() bool { return BudgetControlsEnabled && p.Control != nil }
 
+// valueUnits is the member of the shared mechanisms that counts the units of a sized event of a value
+// under logical compute units (see the library's). The engine charges its budget instead and counts
+// no logical units, so it counts nothing and reports false.
+func (p *Parser) valueUnits(int) bool { return false }
+
 // abortParse ends the parse with the error err.
 func abortParse(err error) { panic(Fatal{Err: err}) }
 

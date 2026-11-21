@@ -27,6 +27,9 @@ type Generator struct {
 	// NoBudget leaves the step charges out of Go output generated without budget controls, where
 	// no control exists to charge: the statements, and the closures that only held one.
 	NoBudget bool
+	// Logical counts logical compute units in the ordinary form (GenOptions.LogicalUnits): loops
+	// keep their step, which the printer prints as a check of the counter.
+	Logical bool
 	// Ordinary prints the bodies in their ordinary form (no budget controls and no Documents): the
 	// helpers with an Ordinary form, no charges and inline class tests. The Flow passes choose the lean
 	// forms of such functions (terminal programs, class runs and tables, guarded classes) that the
@@ -338,7 +341,7 @@ func FrameScope(names []string) *check.Scope {
 // (flowplan.BuildTable), for printing its rules from Flow IR. The bytecode VM builds the Node table it
 // runs from Flow IR through the same function.
 func (g *Generator) StartRecFlow(rec *Program) error {
-	c := plandata.TableConfig{Values: g.Table != "recRules", Budget: !g.NoBudget, Observe: g.Observability,
+	c := plandata.TableConfig{Values: g.Table != "recRules", Budget: !g.NoBudget, Logical: g.Logical, Observe: g.Observability,
 		Document: g.RecordsExamined(), Traced: g.Traced}
 	t, err := flowplan.BuildTable(rec.Elab, c, func(build func() (*core.Module, error)) (*core.Module, error) {
 		return g.Core(g.IRTable(), build)

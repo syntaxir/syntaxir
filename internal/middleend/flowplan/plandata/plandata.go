@@ -52,6 +52,8 @@ type TableConfig struct {
 	Values bool
 	// Budget charges the budget controls of a parse (lowerdata.Options.Budget).
 	Budget bool
+	// Logical keeps the step of each loop iteration without budget controls (lowerdata.Options.Logical).
+	Logical bool
 	// Observe reports the rules a parse enters and the alternatives that guards skip.
 	Observe bool
 	// Document records how far each call examines the input, as a build with Documents and a traced

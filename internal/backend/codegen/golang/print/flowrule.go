@@ -102,7 +102,7 @@ func (g *Generator) flatMethod(r *common.Rule, d *flatRule, name, comment string
 	m := &g.Methods
 	fmt.Fprintf(m, "// %s, %s (body inlined)\nfunc %s(p *%s) (%s, bool) {\n%s", r.Name, comment, name, g.recv(), g.valType(), g.step("\tp"))
 	if call {
-		m.WriteString(g.step("\tp"))
+		m.WriteString(g.callUnit("\tp", r))
 	}
 	if observeBody {
 		m.WriteString("p.Observation.Evaluated()\n")

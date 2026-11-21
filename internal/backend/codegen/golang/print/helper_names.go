@@ -20,3 +20,13 @@ func tracedHelperName(name string) bool {
 	}
 	return false
 }
+
+// logicalHelperName reports whether the library has a Logical form of the read name, which counts
+// the input it advances over as logical compute units.
+func logicalHelperName(name string) bool {
+	switch name {
+	case "MatchLiteral", "MatchLiteralFold", "MatchAny":
+		return true
+	}
+	return false
+}

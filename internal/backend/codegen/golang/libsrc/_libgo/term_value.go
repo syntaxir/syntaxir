@@ -92,6 +92,7 @@ func setSpan(n *sxirvalue.Node, start, end int) { D(n).Start, D(n).End = int32(s
 // in chunks, charging each.
 func (p *Parser) strAdd(l, r any) any {
 	ls, rs := l.(string), r.(string)
+	p.valueUnits(len(ls) + len(rs))
 	if !p.controlled() {
 		return ls + rs
 	}

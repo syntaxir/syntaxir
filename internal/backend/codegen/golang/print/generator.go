@@ -8,6 +8,7 @@ import (
 	"io"
 	"maps"
 	"math"
+	"os"
 	"path"
 	"slices"
 	"sort"
@@ -202,7 +203,14 @@ func generateOnce(g *ast.Grammar, c common.Compiler, p common.Passes, opts commo
 			return nil, fmt.Errorf("stream generation needs a #stream repetition at the top level of the start rule %s", start.Name)
 		}
 	}
-	genGo := &Generator{typedOnly: (opts.TypedOnly || opts.RecognizeOnly) && !opts.KeepNodes, Document: opts.Document, NoBudget: !opts.LimitControls, Ordinary: !opts.LimitControls && !opts.Document, Prog: prog, Table: "rules", Runner: p.Runner(dumps), hooks: *h, live: live, collect: collect, keepTableRules: (opts.TypedOnly || opts.RecognizeOnly) && !opts.KeepNodes}
+	genGo := &Generator{typedOnly: (opts.TypedOnly || opts.RecognizeOnly) && !opts.KeepNodes, Document: opts.Document, NoBudget: !opts.LimitControls || opts.LogicalUnits, Ordinary: (!opts.LimitControls || opts.LogicalUnits) && !opts.Document, Prog: prog, Table: "rules", Runner: p.Runner(dumps), hooks: *h, live: live, collect: collect, keepTableRules: (opts.TypedOnly || opts.RecognizeOnly) && !opts.KeepNodes}
+	if opts.LogicalUnits {
+		if err := logicalRefusal(prog, opts); err != nil {
+			return nil, err
+		}
+		genGo.Logical = true
+		genGo.LogicalKeepGuards = opts.LogicalVariant == "keep-guards"
+	}
 	// Go prints every form of the Flow passes.
 	genGo.FlowTarget = flowpass.Target{Terminals: true, ClassRuns: true, ClassTables: true, GuardedClasses: true, InlineLiterals: true}
 	if live != nil {
@@ -294,6 +302,12 @@ func generateOnce(g *ast.Grammar, c common.Compiler, p common.Passes, opts commo
 	}
 	if !opts.LimitControls {
 		genGo.Init.WriteString("\tsxirGrammar.NoBudgetControls = true\n")
+	}
+	if opts.LogicalUnits {
+		genGo.Init.WriteString("\tsxirGrammar.Logical = true\n")
+		if opts.Recognize {
+			genGo.Init.WriteString("\tsxirRecGrammar.Logical = true\n")
+		}
 	}
 	if prog.Run.RecordsSourceInfo {
 		genGo.Init.WriteString("\tsxirGrammar.SourceInfo = true\n")
@@ -418,6 +432,12 @@ func ParseRule(name, input string, opts ...ParseOption) (*Node, error) {
 		out.WriteString("func init() {\n" + tracedInit + "}\n\n")
 	}
 	out.WriteString(genGo.Methods.String())
+	if genGo.Logical {
+		// Measured by the prototype: the guards kept with a static count, and those disabled.
+		if os.Getenv("SXIR_LOGICAL_STATS") != "" {
+			fmt.Fprintf(os.Stderr, "logical units: guards kept %d, disabled %d\n", genGo.guardsKept, genGo.guardsDisabled)
+		}
+	}
 	whole, err := format.Source([]byte("package " + opts.Package + "\n" + out.String()))
 	if err != nil {
 		return nil, fmt.Errorf("generated code does not compile: %w\n%s", err, out.String())
@@ -514,6 +534,14 @@ func goFieldType(t *types.FieldType) string {
 // TypeScript generator through common.Generator.
 type Generator struct {
 	common.Generator
+	// guards and guardsOf cache the logical counts of the guards of the Core IR guardsOf (logicalGuard);
+	// guardsKept and guardsDisabled count the guards printed under logical units.
+	guards                     map[*core.First]guardInfo
+	guardsOf                   *core.Module
+	guardsKept, guardsDisabled int
+	// LogicalKeepGuards keeps every dispatch guard under Logical without its charge: a variant
+	// that measures what disabling the guards costs, and does not count exactly.
+	LogicalKeepGuards   bool
 	directTypedDocument bool
 	budgetClassNames    map[string]string
 	budgetClassKeys     []string
@@ -1092,7 +1120,7 @@ func (g *Generator) typedCall(r *common.Rule, body string, s *check.Scope, d *fl
 		}
 		fmt.Fprintf(m, "// %s, called as by invokePlain\nfunc %s(p *TParser) (any, bool) {\n", r.Name, name)
 		if call {
-			m.WriteString(g.step("\tp"))
+			m.WriteString(g.callUnit("\tp", r))
 		}
 		m.WriteString("\t" + g.saveRec(", trail") + " := " + g.saveRecValues(", len(p.Trail)") + "\n\tprevEnv, prevCut := p.Env, p.Cut\n\tp.Cut = false\n" + enterRec(r))
 		if g.Observability && (!r.Plain || g.directTypedDocument) {
@@ -1140,9 +1168,12 @@ func (g *Generator) typedCall(r *common.Rule, body string, s *check.Scope, d *fl
 	// The call charges its unit and, for a rule that a parse from scratch memoizes, the values of
 	// its key, whether or not its memoization is deferred (budget.chargeKey).
 	memo := r.Memo && !r.Transient
-	m.WriteString(g.step("\tp"))
+	m.WriteString(g.callUnit("\tp", r))
 	if memo && !g.NoBudget {
 		fmt.Fprintf(m, "\tp.ChargeKey(rules[%d])\n", r.ID)
+	}
+	if memo && g.Logical && len(r.Vars) > 0 {
+		fmt.Fprintf(m, "\tp.KeyUnits(rules[%d])\n", r.ID)
 	}
 	if memo {
 		fmt.Fprintf(m, "\tif !p.FirstCall(rules[%d]) {\n\t\treturn p.CallMemo(trules[%d], %s)\n\t}\n", r.ID, r.ID, iname)
@@ -1353,7 +1384,7 @@ func (g *Generator) plainCall(r *common.Rule, body string) {
 	if g.Observability {
 		name = g.tracePlainWrapper(r, name)
 	}
-	fmt.Fprintf(&g.Methods, "// %s, called as by invokePlain\nfunc %s(p *%s) (%s, bool) {\n%s", r.Name, name, g.recv(), g.valType(), g.step("p"))
+	fmt.Fprintf(&g.Methods, "// %s, called as by invokePlain\nfunc %s(p *%s) (%s, bool) {\n%s", r.Name, name, g.recv(), g.valType(), g.callUnit("p", r))
 	g.Methods.WriteString("\t" + g.saveRec(", trail") + " := " + g.saveRecValues(", len(p.Trail)") + "\n")
 	g.Methods.WriteString(`	prevEnv, prevCut := p.Env, p.Cut
 	p.Cut = false
@@ -1564,9 +1595,9 @@ func (g *Generator) ruleCall(r *common.Rule, min int) string {
 	case g.Document && g.Table == "rules":
 		// Document parses route every call through call, which memoizes per rule.docMemo,
 		// including otherwise plain rules.
-		return fmt.Sprintf("p.Call(%s[%d], %d)", g.tableVar(), r.ID, min)
+		return fmt.Sprintf("p.%s(%s[%d], %d)", g.callName(), g.tableVar(), r.ID, min)
 	case g.directTypedDocument && g.Table == "trules" && operatorsRule:
-		return fmt.Sprintf("p.Call(%s[%d], %d)", g.tableVar(), r.ID, min)
+		return fmt.Sprintf("p.%s(%s[%d], %d)", g.callName(), g.tableVar(), r.ID, min)
 	case r.Plain && !operatorsRule:
 		// Never memoized and without captures: call does nothing but invokePlain, which a
 		// method of its own does with a direct call of the body (see plainCalls).
@@ -1579,9 +1610,9 @@ func (g *Generator) ruleCall(r *common.Rule, min int) string {
 		// The typed library calls a method of the rule's own (typedCall).
 		return g.ruleFunc("u", r.ID) + "(p)"
 	case r.Plain:
-		return fmt.Sprintf("p.InvokePlain(%s[%d], %d)", g.tableVar(), r.ID, min)
+		return fmt.Sprintf("p.%s(%s[%d], %d)", g.pickLogical("InvokePlain"), g.tableVar(), r.ID, min)
 	}
-	return fmt.Sprintf("p.Call(%s[%d], %d)", g.tableVar(), r.ID, min)
+	return fmt.Sprintf("p.%s(%s[%d], %d)", g.callName(), g.tableVar(), r.ID, min)
 }
 
 // ControlledClassReject preserves the compact inactive condition while bounded
@@ -1630,6 +1661,9 @@ func (g *Generator) atLineStart() string {
 // parser generated without budget controls and without Documents has no controlled form of its
 // bodies, so they call the Ordinary form of the method.
 func (g *Generator) helper(name string) string {
+	if g.Logical && logicalHelperName(name) {
+		return name + "Logical"
+	}
 	if g.Ordinary && ordinaryHelperName(name) {
 		return name + "Ordinary"
 	}

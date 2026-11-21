@@ -96,6 +96,12 @@ type GoConfig struct {
 	// parse that sets no limit runs it too, and is slower than with a parser generated without
 	// limit controls.
 	LimitControls bool
+	// LogicalUnits is internal and measures a prototype only: with LimitControls, the functions count
+	// logical compute units in place of the charges of the limit-controlled form.
+	LogicalUnits bool
+	// LogicalVariant selects a variant of LogicalUnits for measurement: "keep-guards" keeps every
+	// dispatch guard without its charge (inexact, to measure what disabling costs).
+	LogicalVariant string
 	// Recognize also generates a function Recognize, which checks the input against the start
 	// rule without building a tree, like runtime.Parser.Recognize.
 	Recognize bool
@@ -158,6 +164,8 @@ func GenerateGo(src grammar.Source, c GoConfig, opts ...Option) ([]File, error) 
 		SourceInfo:     o.sourceInfo,
 		Observability:  c.Observability,
 		LimitControls:  c.LimitControls,
+		LogicalUnits:   c.LogicalUnits,
+		LogicalVariant: c.LogicalVariant,
 		Expectations:   c.Expectations,
 		Recognize:      c.Recognize,
 		MaxDepth:       c.MaxDepth,

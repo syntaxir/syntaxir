@@ -27,6 +27,9 @@ func (p *flowPrinter) op(c *code.Call, args []string) string {
 	switch name := execlower.FlowOp(c.Callee); name {
 	// Statements.
 	case flow.OpStep:
+		if g.Logical {
+			return logicalPoll
+		}
 		return "p.Spend()"
 	case flow.OpSilent:
 		s := c.Imm.(flow.Silence)
@@ -42,7 +45,13 @@ func (p *flowPrinter) op(c *code.Call, args []string) string {
 		return "p.Silent--"
 	case flow.OpAdvance:
 		if n, ok := c.Args[0].(*code.Const); ok {
+			if g.Logical {
+				return advance(int(n.Value.(int64))) + "\np.Units += " + strconv.Itoa(int(n.Value.(int64)))
+			}
 			return advance(int(n.Value.(int64)))
+		}
+		if g.Logical {
+			return "p.Pos += " + args[0] + "\np.Units += uint64(" + args[0] + ")"
 		}
 		return "p.Pos += " + args[0]
 	case flow.OpExpect:
@@ -164,6 +173,19 @@ func (p *flowPrinter) op(c *code.Call, args []string) string {
 			}
 		} else {
 			cond = NegateCondition(g.ControlledClassReject(grammarClass(guard.Class)))
+		}
+		if g.Logical && !g.LogicalKeepGuards {
+			info := g.logicalGuard(g.Flow.M, guard)
+			if !info.static {
+				// Disabled: the alternative is always tried. The condition stays, dead, for the
+				// variables of the peeked character.
+				g.guardsDisabled++
+				return fmt.Sprintf("false && %s && (%s)", args[1], chIdent.ReplaceAllString(cond, args[0]))
+			}
+			g.guardsKept++
+			if info.calls > 0 {
+				return fmt.Sprintf("!(%s && (%s)) && %s && p.AddUnits(%d)", args[1], chIdent.ReplaceAllString(cond, args[0]), depthLimit(guard.Depth), info.calls)
+			}
 		}
 		return fmt.Sprintf("!(%s && (%s)) && %s", args[1], chIdent.ReplaceAllString(cond, args[0]), depthLimit(guard.Depth))
 	case flow.OpCallRule:
@@ -325,6 +347,9 @@ func (p *flowPrinter) negate(c *code.Call, args []string) string {
 	case flow.OpMatchClass:
 		class := c.Imm.(*core.Class)
 		table := g.classTable(grammarClass(class))
+		if g.Logical {
+			return fmt.Sprintf("!p.ClassFastLogical(&%s) && !p.ClassSkipLogical(&%s, %d)", table, table, p.desc(class.Exp))
+		}
 		return fmt.Sprintf("!p.ClassFast(&%s) && !p.ClassSkip(&%s, %d)", table, table, p.desc(class.Exp))
 	case flow.OpInClass:
 		return p.reject(c.Imm.(*core.Class), args[0])
@@ -333,14 +358,14 @@ func (p *flowPrinter) negate(c *code.Call, args []string) string {
 		if !ok {
 			panic("flow printer: terminal region without a terminal program")
 		}
-		return fmt.Sprintf("!p.SkipTerminal(%s)", table)
+		return fmt.Sprintf("!p.%s(%s)", g.pickLogical("SkipTerminal"), table)
 	case flow.OpSkipClasses:
 		run := c.Imm.(*core.ClassRun)
 		items := make([]ast.Expr, len(run.Classes))
 		for i, cl := range run.Classes {
 			items[i] = grammarClass(cl)
 		}
-		return fmt.Sprintf("!p.ClassesSkip(%s)", g.classSteps(items))
+		return fmt.Sprintf("!p.%s(%s)", g.pickLogical("ClassesSkip"), g.classSteps(items))
 	case flow.OpPred:
 		x := c.Imm.(flow.Predicate)
 		if x.Frame {

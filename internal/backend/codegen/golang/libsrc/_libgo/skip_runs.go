@@ -685,6 +685,9 @@ func placeVals[T any](p *Parser, vals []T, tail valSuffix[T], hit bool) (*valBuf
 	p.skipBytes += uint64(len(a)) * ptrBytes
 	place(a[slack:])
 	if tl > 0 {
+		if p.units.on {
+			p.unitsSized(tl) // a suffix copy (design record 076)
+		}
 		copySpend(p, a[slack+n:], tail.buf.a[tail.i:])
 	}
 	return &valBuf[T]{a: a, lo: slack}, slack

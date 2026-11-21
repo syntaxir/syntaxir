@@ -719,11 +719,16 @@ func (p *TParser) run(r *TRule, input string, o parseOptions, ext any) (v any, e
 		}
 	}()
 	var ok bool
+	p.startUnits(o)
 	if r.Entry != nil {
 		v, ok = r.Entry(p)
 	} else {
+		if p.units.on {
+			p.Units++ // the entry call
+		}
 		v, ok = p.Call(r, 0)
 	}
+	p.endUnits(!ok || p.Pos != p.n)
 	// Normal completion polls even for a nil typed value. Fatal unwinding
 	// returns through the recovery above without replacing its established error.
 	p.Control.Check()

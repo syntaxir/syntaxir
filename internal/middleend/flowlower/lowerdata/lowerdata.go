@@ -60,6 +60,9 @@ type Options struct {
 	// Budget charges one compute unit on each loop iteration and for each character a Peek reads;
 	// the method that holds a rule's body charges its entry.
 	Budget bool
+	// Logical emits the step of each loop iteration without Budget, as the check of a counter of
+	// logical compute units (design record 076); nothing else charges.
+	Logical bool
 	// Recovers reports that the module can append recovered errors (flowlower.Recovers), so backtracking
 	// points save their number.
 	Recovers bool

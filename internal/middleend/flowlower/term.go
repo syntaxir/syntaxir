@@ -70,6 +70,9 @@ type TermOptions struct {
 	// Unbounded leaves out the steps that elements charge (seq.step), for a target whose parser
 	// does not bound the work and prints no charge.
 	Unbounded bool
+	// Visits keeps the step of each element that a loop of map, filter or a fold visits, even when
+	// Unbounded: the visit is a logical compute unit (design record 076).
+	Visits bool
 	// FieldCompare makes a comparison (==, !=, <, <=, >, >=) of which an operand reads a field a call
 	// of term.compare on operands, reading such a field with term.fieldOperand, so that a string field
 	// is compared without making a value of it.
@@ -103,7 +106,7 @@ func Term(t ir.ActionExpr, o TermOptions) (*TermLowered, error) {
 	if o.Result == "" {
 		results = []code.Type{datum, failT}
 	}
-	l := &termLowerer{m: m, steps: o.Steps, structCall: o.StructCall, unbounded: o.Unbounded, proj: o.Proj,
+	l := &termLowerer{m: m, steps: o.Steps, structCall: o.StructCall, unbounded: o.Unbounded, visits: o.Visits, proj: o.Proj,
 		params: map[*ir.Lambda][]code.Expr{}, inPlace: o.Result != "", fieldCompare: o.FieldCompare}
 	fn := m.AddFunc("term", []code.Param{code.P(CtxParam, code.THandle(action.Act))}, results, nil, func(b *code.Builder) {
 		var res code.Expr
@@ -292,6 +295,7 @@ type termLowerer struct {
 	steps      bool
 	structCall bool
 	unbounded  bool
+	visits     bool
 	proj       map[string]string
 	// params holds the values of the parameters of each lambda whose body is being lowered.
 	params map[*ir.Lambda][]code.Expr
@@ -584,7 +588,11 @@ func (l *termLowerer) loop(b *code.Builder, items code.Expr, body func(b *code.B
 	i := l.local("tj")
 	b.Let(i, code.Int(0))
 	b.For(l.local("each"), nil, code.Lt(code.L(i), code.C("seq.len", items)), code.Assign(i, code.Add(code.L(i), code.Int(1))), func(b *code.Builder) {
-		l.step(b)
+		if l.visits {
+			b.Do("seq.step")
+		} else {
+			l.step(b)
+		}
 		body(b, code.L(i))
 	})
 }

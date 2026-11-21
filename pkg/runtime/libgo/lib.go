@@ -335,6 +335,8 @@ type grammar struct {
 	// NoBudgetControls reports that the parser was generated without limit controls, so that a parse
 	// asking for them fails.
 	NoBudgetControls bool
+	// Logical reports a parser generated with logical compute units (units.go), a prototype.
+	Logical bool
 	// MaxDepth is the default maximum nesting of recursive rule calls.
 	maxDepth int
 	// features are the features the generator found for the parser, with featureWitnessed, when the
@@ -528,6 +530,12 @@ type parseOptions struct {
 	// controls is set when the parser was generated with limit controls, which alone can apply the
 	// default budget.
 	controls bool
+	// logical selects logical compute units (units.go): the resolved compute limit and the context
+	// go to the parser's counter, not to the control.
+	logical    bool
+	unitsLimit uint64
+	unitsCtx   context.Context
+	unitsOut   *uint64
 	// observe selects the observation of the parse (trace.go).
 	observe observeOptions
 	// streaming is set by the stream entry points, which alone accept the
@@ -566,9 +574,9 @@ func WithLimits(limits sxirruntime.Limits) ParseOption {
 // ResolveOptions is for generated parsers; not a stable API.
 func ResolveOptions(g *grammar, opts []ParseOption) (parseOptions, error) {
 	if len(opts) == 0 {
-		return parseOptions{maxDepth: g.maxDepth, controls: !g.NoBudgetControls}, nil
+		return parseOptions{maxDepth: g.maxDepth, controls: !g.NoBudgetControls, logical: g.Logical}, nil
 	}
-	o := parseOptions{controls: !g.NoBudgetControls}
+	o := parseOptions{controls: !g.NoBudgetControls, logical: g.Logical}
 	for _, opt := range opts {
 		opt(&o)
 	}
@@ -660,8 +668,13 @@ func prepareOptions(o parseOptions, n uint64, stream bool) parseOptions {
 		case l.Compute == 0 && o.controls:
 			l.Compute = defaultBudget(n)
 		}
-		if o.context != nil || l != (sxirruntime.Limits{}) {
-			o.control = newBudgetControl(o.context, l)
+		ctx := o.context
+		if o.logical && !stream {
+			o.unitsLimit, o.unitsCtx = l.Compute, o.context
+			l.Compute, ctx = 0, nil
+		}
+		if ctx != nil || l != (sxirruntime.Limits{}) {
+			o.control = newBudgetControl(ctx, l)
 			if o.control != nil {
 				o.control.adaptive = adaptive
 			}
@@ -757,8 +770,13 @@ func parseResolvedSpend(r *Rule, input string, o parseOptions) (n *sxirvalue.Nod
 	}
 	p.memo.sparse = p.memo.stride > 64 && p.n > 1024
 	p.Control.Check()
+	p.startUnits(o)
+	if p.units.on {
+		p.Units++ // the entry call
+	}
 	v, ok := p.Call(r.forParse(p), 0)
 	p.Control.Check()
+	p.endUnits(!ok || p.Pos != p.n)
 	if ok && p.Pos == p.n {
 		if len(p.Recovered) > 0 {
 			return v, sxirvalue.SyntaxErrors(p.recoveredErrors())
@@ -834,7 +852,11 @@ const (
 // Parser is for generated parsers; not a stable API.
 type Parser struct {
 	Control *BudgetControl
-	g       *grammar // the grammar of the rules being parsed (setGrammar)
+	// Units counts the logical compute units of a parser generated with them, and UnitsCheck is the
+	// count above which a check of the counter must look at the limit and the context (units.go).
+	Units, UnitsCheck uint64
+	units             unitsState
+	g                 *grammar // the grammar of the rules being parsed (setGrammar)
 	// Observation observes the parse; it is nil unless the parse options select it.
 	Observation *observation
 	// SourceInfo is g.SourceInfo, read where values are made.

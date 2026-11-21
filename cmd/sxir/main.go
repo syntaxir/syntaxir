@@ -743,6 +743,7 @@ func genCmd(args []string, stdout io.Writer) error {
 	stream := fs.Bool("stream", false, "also generate Go ParseStream and Iterate for the start rule's #stream repetition (and their typed forms with -types; incompatible with -lang ts)")
 	observability := fs.Bool("observability", false, "emit opt-in rule tracing and profiling for Go batch/Documents and TypeScript batch parsing, including typed entry points")
 	expectations := fs.Bool("expectations", false, "generate a parser that records what a syntax error expects (the expected list and @error messages); without it the error reports only the farthest failure position")
+	chargeUnits := fs.String("charge-units", "", "")
 	limitControls := fs.Bool("limits", false, "generate the limit-controlled form of the parser, which supports WithContext and finite Compute and Memory limits (signal and the compute limit in TypeScript)")
 	typedOnly := fs.Bool("typed-only", false, "generate only the typed entry points (ParseValue and siblings), without Parse, ParseRule and Recognize (needs -types)")
 	recognizeOnly := fs.Bool("recognize-only", false, "generate only Recognize, without Parse, ParseRule or typed entry points (Go only; not with -types, -typed-only, -document or -stream)")
@@ -873,6 +874,18 @@ func genCmd(args []string, stdout io.Writer) error {
 	if *sourceInfo {
 		opts = append(opts, compiler.WithSourceInfo())
 	}
+	// -charge-units is internal: it generates the prototype of logical compute units for measurement.
+	var logicalUnits bool
+	var logicalVariant string
+	switch *chargeUnits {
+	case "":
+	case "logical":
+		logicalUnits = true
+	case "logical-keep-guards":
+		logicalUnits, logicalVariant = true, "keep-guards"
+	default:
+		return fmt.Errorf("-charge-units: unknown value %q", *chargeUnits)
+	}
 	src := fileSource(*grammarPath)
 	var files []compiler.File
 	if *lang == "ts" {
@@ -897,6 +910,8 @@ func genCmd(args []string, stdout io.Writer) error {
 			Types:          *types,
 			Observability:  *observability,
 			LimitControls:  *limitControls,
+			LogicalUnits:   logicalUnits,
+			LogicalVariant: logicalVariant,
 			Expectations:   *expectations,
 			Recognize:      *recognize,
 			MaxDepth:       *maxDepth,

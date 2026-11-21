@@ -34,6 +34,9 @@ func (p *Parser) chargeValues(n int) {
 
 // compareText compares two strings bytewise, as strings.Compare does, malformed UTF-8 included.
 func (p *Parser) compareText(l, r string) int {
+	if p.valueUnits(min(len(l), len(r))) {
+		return strings.Compare(l, r)
+	}
 	if p.controlled() {
 		return p.compareTextControlled(l, r)
 	}
@@ -71,6 +74,9 @@ func (p *Parser) compareTextControlled(l, r string) int {
 // TextEqual reports whether two strings are equal (the operation str.eq). Under a budget it charges
 // the comparison of their bytes, which strings of different lengths skip.
 func (p *Parser) TextEqual(l, r string) bool {
+	if p.valueUnits(min(len(l), len(r))) {
+		return l == r
+	}
 	if !p.controlled() {
 		return l == r
 	}

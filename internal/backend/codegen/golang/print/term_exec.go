@@ -50,7 +50,7 @@ func (g *Generator) lowered(t irc.ActionExpr, s *check.Scope, locals map[string]
 	if t == nil {
 		panic(fmt.Errorf("rule %s: a term without Core IR", g.Cur.Name))
 	}
-	l, err := flowlower.Term(t, flowlower.TermOptions{Result: result, StructCall: g.Table == "trules", Unbounded: g.NoBudget, Proj: g.Proj,
+	l, err := flowlower.Term(t, flowlower.TermOptions{Result: result, StructCall: g.Table == "trules", Unbounded: g.NoBudget, Visits: g.Logical, Proj: g.Proj,
 		FieldCompare: g.Table == "trules" && g.Opt().On("field-compare"), TextDispatch: dispatch})
 	if err != nil {
 		panic(fmt.Errorf("rule %s: %w", g.Cur.Name, err))
@@ -103,6 +103,10 @@ func (g *Generator) termTarget(s *check.Scope, locals map[string]string) *Target
 			if !ok {
 				panic("gogen: the library does not export the composition " + name)
 			}
+			if g.Logical && name == "hull" {
+				// The list or tuple built counts one unit for each element.
+				n += "Logical"
+			}
 			return "c.P." + n
 		},
 		Op: func(c *code.Call, a []string) string {
@@ -143,7 +147,7 @@ func (g *Generator) termTarget(s *check.Scope, locals map[string]string) *Target
 				x := c.Imm.(action.Cast)
 				return fmt.Sprintf("c.%s(%s, %s, %d, %d)", rtTermCastFailed, a[0], g.castTypeVar(x), x.Line, x.Col)
 			case action.OpTermTextEqual:
-				return "c.P.TextEqual(" + a[0] + ", " + a[1] + ")"
+				return "c.P." + g.pickLogical("TextEqual") + "(" + a[0] + ", " + a[1] + ")"
 			case action.OpTermFromStr, action.OpTermFromObj, "val.fromBool":
 				return "any(" + a[0] + ")"
 			case "term.kids":
@@ -151,6 +155,9 @@ func (g *Generator) termTarget(s *check.Scope, locals map[string]string) *Target
 			case action.OpTermElemsAbove:
 				return "c.P.ElemsAbove(" + a[0] + ")"
 			case "seq.step":
+				if g.Logical {
+					return "c.P.Units++"
+				}
 				return "c.P.Spend()"
 			case "seq.len":
 				return "len(" + a[0] + ")"
@@ -174,7 +181,7 @@ func (g *Generator) termTarget(s *check.Scope, locals map[string]string) *Target
 				}
 				return "(" + strings.Join(eqs, " || ") + ")"
 			case action.OpTermCopyList:
-				return g.pick("any(c.NewList(", "(c.NewList(") + a[0] + "))"
+				return g.pick("any(c."+g.pickLogical("NewList")+"(", "(c."+g.pickLogical("NewList")+"(") + a[0] + "))"
 			case action.OpTermStruct:
 				t := c.Imm.(action.New)
 				return fmt.Sprintf("c.%s(%q, %d)", rtTermStruct, t.Type, t.Fields)
