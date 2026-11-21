@@ -107,14 +107,14 @@ func GenerateParser(g *ast.Grammar, c common.Compiler, p common.Passes, opts com
 	if err != nil {
 		return nil, err
 	}
-	// The code is generated up to twice; only the last generation's Core IR is printed.
+	// The code is generated up to twice; only the last generation's dumps and reports are written.
 	var dumped *bytes.Buffer
 	newGen := func(live *tsLive) (*Generator, error) {
 		dumped = &bytes.Buffer{}
 		tsg := &Generator{Generator: common.Generator{Prog: prog, Table: "rules", Observability: opts.Observability, Document: opts.Document, TypeScript: true}, plainUsed: map[*common.Rule]bool{}, live: live, printed: map[string]map[int][]int{}}
 		tsg.NoBudget = !opts.LimitControls
 		var dumps io.Writer
-		if opts.PrintTo != nil {
+		if opts.Debug.Output != nil {
 			dumps = dumped
 		}
 		tsg.Runner = p.Runner(dumps)
@@ -159,8 +159,9 @@ func GenerateParser(g *ast.Grammar, c common.Compiler, p common.Passes, opts com
 	if h.Generator != nil {
 		defer h.Generator(tsg)
 	}
-	if opts.PrintTo != nil {
-		if _, err := opts.PrintTo.Write(dumped.Bytes()); err != nil {
+	if opts.Debug.Output != nil {
+		tsg.Runner.Report()
+		if _, err := opts.Debug.Output.Write(dumped.Bytes()); err != nil {
 			return nil, err
 		}
 	}

@@ -39,7 +39,7 @@ func TestEveryFlowFunctionRunsTheIRPipelines(t *testing.T) {
 			t.Parallel()
 			var dump bytes.Buffer
 			o := c.opts
-			o.PrintAfter, o.PrintTo, o.VerifyEachPass = "flowlower,execlower", &dump, true
+			o.Debug = common.Debug{PrintAfter: []string{"flowlower", "execlower"}, VerifyEach: true, Output: &dump}
 			if _, err := print.GenerateParser(g, compileForGenerator, codegentest.Passes(o), codegentest.WithLib(o), nil); err != nil {
 				t.Fatal(err)
 			}
@@ -77,7 +77,7 @@ rule num = [0-9]+
 				if seen == 0 {
 					t.Fatalf("no function of the %s table ran through the %s pipeline", table, ir)
 				}
-				opts.VerifyEachPass = true
+				opts.Debug.VerifyEach = true
 				_, err = print.GenerateParser(pg, compileForGenerator, generate.Passes(opts, h), codegentest.WithLib(opts), nil)
 				if err == nil || !strings.Contains(err.Error(), "of table "+table+": ") || !strings.Contains(err.Error(), "internal error: break-"+ir+" [") {
 					t.Fatalf("with VerifyEachPass: %v", err)

@@ -17,11 +17,11 @@ import (
 )
 
 // irDumpHeader matches the header of a dump of the module of a table after the lowering that made it
-// (GenOptions.PrintAfter "flowlower" and "execlower"); the listing of each function of the module
+// (GenOptions.Debug.PrintAfter "flowlower" and "execlower"); the listing of each function of the module
 // follows it.
 var irDumpHeader = regexp.MustCompile(`^-- after (\S+) \[(\S+)\] --$`)
 
-// CheckIRPipelines checks the dumps that a generation with PrintAfter "flowlower,execlower" wrote: every function
+// CheckIRPipelines checks the dumps that a generation with Debug.PrintAfter "flowlower" and "execlower" wrote: every function
 // printed from Exec IR was lowered from a Flow IR function, so each function of each table must have
 // as many Flow IR dumps as Exec IR dumps, and each table in tables must have some. A function whose
 // Flow passes or Exec passes the generator skipped has no dump of that IR. It returns the number of

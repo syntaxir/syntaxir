@@ -111,7 +111,7 @@ type GenOptions struct {
 	// DisableKeepNodes leaves the Node rule functions out of a typed-only parser that needs them
 	// (a negative control for tests).
 	DisableKeepNodes bool
-	// The driver resolves Optimize, Opt, NoOpt, PrintAfter and VerifyEachPass to the Passes of the
+	// The driver resolves Optimize, Opt, NoOpt and Debug to the Passes of the
 	// generation (internal/driver/generate), which the generators read instead of these fields.
 	//
 	// Optimize selects the optimization profile (internal/driver: Profiles); empty selects
@@ -124,16 +124,45 @@ type GenOptions struct {
 	Optimize string
 	Opt      map[string]int
 	NoOpt    []string
-	// PrintAfter lists the steps and passes (internal/driver: PrintNames) after which the IR is written to PrintTo,
-	// as text: the Core IR once for each Core module the generator builds, and the Flow IR and the
-	// Exec IR once for each function it prints from them.
-	PrintAfter string
-	PrintTo    io.Writer
-	// VerifyEachPass verifies the Core, Flow and Exec IR after every pass and step instead of only
+	// Debug observes and checks the pipeline of the generation without changing the code it
+	// generates.
+	Debug Debug
+}
+
+// Debug holds the settings that observe or check the pass pipeline of a generation, for debugging the
+// generator: the dumps of the IR, the verification after every pass, and the statistics and times of
+// the passes. None of them changes the generated code. Everything they print goes to Output, in the
+// order the pipeline runs, and the statistics and times come once after the build. The text is a
+// debugging aid whose form, pass names and counter names may change between versions.
+type Debug struct {
+	// PrintAfter lists the steps and passes (internal/driver: PrintNames) after which the IR is
+	// written to Output, as text: the Core IR once for each Core module the generator builds, and
+	// the Flow IR and the Exec IR once for each function it prints from them. "all" selects every
+	// step and pass.
+	PrintAfter []string
+	// PrintChanged writes the IR after each pass that changed its text, and, before the first such
+	// dump of a unit, the IR that the pass received, so that the first change has something to
+	// compare against. A pass that PrintAfter also selects is written once.
+	PrintChanged bool
+	// VerifyEach verifies the Core, Flow and Exec IR after every pass and step instead of only
 	// where a run of passes ends and only if an optional pass of it ran, so that an internal error
-	// names the first pass that broke an invariant. Tests and diagnosis set it; it
-	// costs generation time and changes no output.
-	VerifyEachPass bool
+	// names the first pass that broke an invariant, and reports a pass that claims to preserve every
+	// analysis but changed the text of its unit. It costs generation time.
+	VerifyEach bool
+	// Stats writes, after the build, the statistics of each pass instance that ran, in pipeline
+	// order: the units it ran on, the runs that changed them, the counters it declares and the
+	// applications of its patterns, summed over the units.
+	Stats bool
+	// TimePasses writes, after the build, the wall time of each pass instance that ran, required
+	// steps included, summed over the units, with its share of the time of the pipelines.
+	TimePasses bool
+	// Output receives everything above. It is required when any of it is set.
+	Output io.Writer
+}
+
+// Writes reports whether d writes anything to Output.
+func (d Debug) Writes() bool {
+	return len(d.PrintAfter) > 0 || d.PrintChanged || d.Stats || d.TimePasses
 }
 
 // ValidateDefaultValue rejects typed output with default values: the types come from the actions and

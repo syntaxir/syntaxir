@@ -176,10 +176,10 @@ func generateOnce(g *ast.Grammar, c common.Compiler, p common.Passes, opts commo
 	if err := p.Validate(); err != nil {
 		return nil, err
 	}
-	// Only the pass that writes the output prints the Core IR.
+	// Only the pass that writes the output writes the dumps and the reports of the pipeline.
 	var dumps io.Writer
 	if collect == nil {
-		dumps = opts.PrintTo
+		dumps = opts.Debug.Output
 	}
 	info, err := loadLib(opts)
 	if err != nil {
@@ -217,6 +217,14 @@ func generateOnce(g *ast.Grammar, c common.Compiler, p common.Passes, opts commo
 		default:
 			return nil, fmt.Errorf("unknown variant %q of logical units", opts.LogicalVariant)
 		}
+	}
+	// The reports of the pipelines come after the last of them.
+	if collect == nil {
+		defer func() {
+			if err == nil {
+				genGo.Runner.Report()
+			}
+		}()
 	}
 	// Go prints every form of the Flow passes.
 	genGo.FlowTarget = flowpass.Target{Terminals: true, ClassRuns: true, ClassTables: true, GuardedClasses: true, InlineLiterals: true}

@@ -385,29 +385,51 @@ overrides of individual flags.
 
 ### Observing the Pipeline
 
-- `-print-after` takes step names, pass names and `all`, and dumps the module after each, as described above.
+- `-print-after` takes step names, pass names and `all`, and dumps the module after each, as described above. The
+  names of the stages (`core`, `flow`, `exec`) select nothing: the error names the step that makes the IR of the stage
+  (`elaborate`, `flowlower`, `execlower`).
 - `-print-before` takes pass names and `all`, and dumps the module that each named pass receives.
 - `-verify-each` runs the verifier after every transform, so that an error names the first pass that left the module
   invalid, and reports a pass that claims to preserve everything but changed the text form of the unit.
-- `-print-changed` dumps the module after each pass that changed it, and nothing after a pass that left it as it was.
+- `-print-changed` dumps the unit after each transform whose text form it changed, and nothing after a transform that
+  left the text as it was, whatever the pass reported. Before the first such dump of a unit it dumps the unit as that
+  transform received it, as `-- before <pass> [<unit>] --`, so the first change has something to compare against. A
+  lowering makes a unit of another stage rather than changing one, so it is not dumped. A pass that `-print-after`
+  selects too is dumped once.
 - `-print-pipeline` prints the pipeline that the driver assembled for the build, as the names of its passes in order,
   with the required passes marked and the patterns of `canonicalize` listed under it.
-- `-stats` prints, after the build, the counters of each pass, summed over the units and printed in a fixed order. The
-  manager keeps three kinds for every pass: the units it ran on, the runs that reported a change, and the applied and
+- `-stats` prints, after the build, a `-- stats --` block: one line for each pass instance that ran, required steps
+  included, in the order in which each first ran, with its counters summed over the units. The manager keeps three
+  kinds for every pass: the units it ran on (`runs`), the runs that reported a change (`changed`), and the applied and
   skipped applications of each pattern, such as those of `canonicalize` and instruction selection. A pass adds the
   counters that it declares, such as what it rewrote, in the order of its declaration; counting an undeclared one is an
-  error of the pass, as asking about an undeclared pattern is. Tests pin the counters of a pass on a fixture, so that an
-  optimization that stops firing is noticed.
-- `-time-passes` prints the time each pass took, summed over the units it ran on.
+  error of the pass, as asking about an undeclared pattern is. The block is the same in every run of the same build.
+  Tests pin the counters of a pass on a fixture through an observer of the driver rather than through the text, so
+  that an optimization that stops firing is noticed. Every pass reports a change whenever it runs today, so `changed`
+  equals `runs`, and only a declared counter shows that a pass stopped rewriting.
+- `-time-passes` prints, after the build, a `-- time-passes --` block: the wall time of each pass instance and required
+  step, summed over the units it ran on, in the order in which each first ran, with its share of the total; a `manager`
+  line with the time the manager spent outside the steps (verification, copies, dumps and observers); and a `total`
+  line with the time of the runs of the manager. The time of an analysis is charged to the pass that queried it.
+
+A generator that runs the pipeline more than once, to find the rules that the printed code reaches before it prints
+them again without the others, observes only the run that writes the files: its dumps, statistics and times are the
+ones reported.
 
 These settings do not change the parser that is built, so they are not part of `Optimize`. In Go they are a value of
-`Debug`, given with `WithDebug`. Eight of its fields mirror the flags one to one: the passes to print before
-(`-print-before`) and after (`-print-after`), printing after a change (`-print-changed`), verification after each
-transform (`-verify-each`), printing the pipeline (`-print-pipeline`), the statistics (`-stats`), the timing
-(`-time-passes`) and the bisection limit (`-opt-bisect-limit`). The ninth, the writer the output goes to, has no flag:
-the command writes to standard error. A test and the command line therefore see the same pipeline and the same dumps.
+`Debug`, given with `WithDebug`, whose fields mirror the flags one to one: the passes to print after (`-print-after`),
+printing after a change (`-print-changed`), verification after each transform (`-verify-each`), the statistics
+(`-stats`) and the timing (`-time-passes`). The writer the output goes to has no flag: the command writes to standard
+error. The command builds its `Debug` value from its flags in one place, so a test and the command line see the same
+pipeline and the same dumps. `-print-before`, `-print-pipeline` and `-opt-bisect-limit` are not implemented yet; each
+adds its field when it lands, for eight fields that mirror flags.
+
+The text these settings write is a debugging aid. Its form, the pass names and the counter names are not stable and may
+change in any version; the flags and the fields are the interface.
 
 ### Bisecting Passes
+
+This section describes planned behavior; the flag is not implemented yet.
 
 `-opt-bisect-limit N` numbers the runs of optional passes in the order the pipeline makes them, runs those numbered up
 to N and skips the later ones. A run is one pass on one unit, so a pass that runs per function counts once for each

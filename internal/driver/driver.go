@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"slices"
+	"text/tabwriter"
+	"time"
 
 	gopass "syntaxir.dev/sxir/internal/backend/codegen/golang/pass"
 	tspass "syntaxir.dev/sxir/internal/backend/codegen/typescript/pass"
@@ -23,11 +25,12 @@ import (
 )
 
 // A Driver runs the pipeline of a compilation under one Settings value: it turns the passes on and
-// off by their flags, verifies the unit after each pass when asked, and writes the dumps that
-// PrintAfter selects. Every backend that lowers from the IR runs its pipeline through a Driver, so a
-// profile or a flag means the same passes whatever the backend. The zero value runs the speed
-// profile and dumps nothing; it verifies a unit where a run of its passes ends only if an optional
-// pass of that run ran, and the output of each lowering, never after a required step alone.
+// off by their flags, verifies the unit after each pass when asked, and writes the dumps and the
+// reports that its debugging settings select to Output. Every backend that lowers from the IR runs its
+// pipeline through a Driver, so a profile or a flag means the same passes whatever the backend. The
+// zero value runs the speed profile and writes nothing; it verifies a unit where a run of its passes
+// ends only if an optional pass of that run ran, and the output of each lowering, never after a
+// required step alone.
 //
 // Each stage runs through the manager of internal/pass/pipe (pipe.Execute) and consumes the unit it is
 // given: Core takes the module that build makes, Flow the module that flowlower makes of the functions
@@ -36,23 +39,40 @@ import (
 // copies once before the first pass that runs, since after one of them fails on a function the
 // required steps and the printer finish that function from the module as it was before them. What the
 // caller keeps is the table's Core module, which Flow lowers the functions of the table from.
+//
+// The debugging settings observe the run and never change what it makes. Everything they write goes to
+// Output in the order the steps run; the statistics and the times that the driver collects over all
+// the stages it runs are written once, by Report, after the build. Their text is a debugging aid,
+// whose form and names may change between versions.
 type Driver struct {
 	// Opt holds the optimizations that are on.
 	Opt pass.Settings
 	// PrintAfter lists the names of the steps and passes (PrintNames) after which a unit is written
-	// to PrintTo; "all" selects every step and pass.
+	// to Output; "all" selects every step and pass.
 	PrintAfter []string
-	PrintTo    io.Writer
+	// PrintChanged writes a unit to Output after each transform that changed its text form, and,
+	// before the first such dump of the unit, the unit as that transform received it. A step that
+	// PrintAfter also selects is written once.
+	PrintChanged bool
 	// VerifyEach verifies the unit after every pass and step, required ones included, instead of
 	// only where a run of passes ends and only if an optional pass of it ran, so that the error
 	// names the first pass that broke an invariant.
 	VerifyEach bool
+	// Stats collects the statistics of every pass instance (pipe.Stats) for Report.
+	Stats bool
+	// TimePasses collects the wall time of every step instance for Report.
+	TimePasses bool
+	// Output receives the dumps and the reports; nil writes nothing, whatever the settings above.
+	Output io.Writer
 	Hooks
 	// numbering numbers the decided runs of the optional passes of every stage the driver runs, on
 	// every table, once (pipe.Numbering): a compilation runs its stages through one driver (one
 	// Runner of generate.Passes). pipeRun makes it on first use. It becomes internal to the manager
 	// once one Execute runs the whole compilation (record 074, migration step 6).
 	numbering *pipe.Numbering
+	// watch holds what the observers of the driver collect over the stages it runs; pipeRun makes
+	// it on first use.
+	watch *watch
 }
 
 // Hooks are the test hooks of the pipelines, which replace or observe a stage (generate.Hooks). A
@@ -79,7 +99,7 @@ func (d *Driver) Settings() pass.Settings { return d.Opt }
 
 // prints reports whether the unit is dumped after the step whose dump name is name.
 func (d *Driver) prints(name string) bool {
-	return d.PrintTo != nil && name != "" && (slices.Contains(d.PrintAfter, name) || slices.Contains(d.PrintAfter, PrintAll))
+	return d.Output != nil && name != "" && (slices.Contains(d.PrintAfter, name) || slices.Contains(d.PrintAfter, PrintAll))
 }
 
 // Elaborate is the name of the step that builds the Core IR of a table from its elaborated program,
@@ -118,7 +138,7 @@ func (d *Driver) Core(table string, build func() (*core.Module, error)) (*core.M
 	if d.CorePipeline != nil {
 		p = d.CorePipeline(table)
 	}
-	m, err := pipe.Execute(context.Background(), d.pipeRun(table, true), pipe.Then(pipe.Of(elaborating), p), build)
+	m, err := execute(d, d.pipeRun(table, true), pipe.Then(pipe.Of(elaborating), p), build)
 	if err != nil {
 		return nil, pipeError(err, Elaborate)
 	}
@@ -132,40 +152,193 @@ func (d *Driver) pipeRun(table string, stop bool) *pipe.Run {
 	if d.numbering == nil {
 		d.numbering = &pipe.Numbering{}
 	}
+	if d.watch == nil {
+		d.watch = &watch{}
+	}
 	r := &pipe.Run{Settings: d.Opt, VerifyEach: d.VerifyEach, Stop: stop, Numbering: d.numbering}
 	if o := (pipeObserver{d: d, table: table}); o.Needs() != (pipe.Needs{}) {
 		r.Observers = []pipe.Observer{o}
+	}
+	if d.Output != nil && d.Stats {
+		if d.watch.stats == nil {
+			d.watch.stats = pipe.NewStats()
+		}
+		r.Observers = append(r.Observers, d.watch.stats)
+	}
+	if d.Output != nil && d.TimePasses {
+		r.Observers = append(r.Observers, (*timer)(d.watch))
 	}
 	r.Observers = append(r.Observers, d.Observers...)
 	return r
 }
 
-// pipeObserver writes the dumps of PrintAfter and calls CoreHook for the steps of a stage that runs
-// through the manager of internal/pass/pipe. A stage runs on the units of one table, which the
-// observer adds to the label of each dump.
+// execute runs the pipeline p on in with r (pipe.Execute) and adds the time it took to the total of
+// the times that Report writes.
+func execute[I, O any](d *Driver, r *pipe.Run, p pipe.Pipeline[I, O], in I) (O, error) {
+	if d.Output == nil || !d.TimePasses {
+		return pipe.Execute(context.Background(), r, p, in)
+	}
+	start := time.Now()
+	out, err := pipe.Execute(context.Background(), r, p, in)
+	d.watch.total += time.Since(start)
+	return out, err
+}
+
+// pipeObserver writes the dumps of PrintAfter and PrintChanged and calls CoreHook for the steps of a
+// stage that runs through the manager of internal/pass/pipe. A stage runs on the units of one table,
+// which the observer adds to the label of each dump.
 type pipeObserver struct {
 	d     *Driver
 	table string
 }
 
 func (o pipeObserver) Needs() pipe.Needs {
-	return pipe.Needs{Units: o.d.CoreHook != nil, Print: o.d.PrintTo != nil && len(o.d.PrintAfter) > 0}
+	changed := o.d.Output != nil && o.d.PrintChanged
+	return pipe.Needs{
+		Units:       o.d.CoreHook != nil,
+		Print:       o.d.Output != nil && (len(o.d.PrintAfter) > 0 || o.d.PrintChanged),
+		Before:      changed,
+		TextChanged: changed,
+	}
 }
 
-func (pipeObserver) Before(pipe.Event, func(io.Writer)) bool { return true }
+// Before keeps the dump of the input of a step, which PrintChanged writes before the first change of
+// the unit.
+func (o pipeObserver) Before(e pipe.Event, in func(io.Writer)) bool {
+	if !e.Step.Pattern {
+		o.d.watch.input = in
+	}
+	return true
+}
 
 func (o pipeObserver) After(e pipe.Event, r *pipe.Result) {
-	if !r.Ran || r.Err != nil {
+	if e.Step.Pattern || !r.Ran || r.Err != nil {
 		return
 	}
 	if m, ok := r.Unit.(*core.Module); ok && o.d.CoreHook != nil {
 		o.d.CoreHook(e.Step.Instance, m)
 	}
-	if r.Print != nil && o.d.prints(e.Step.Instance) {
-		l := pass.Label{Table: o.table, Func: e.Label.Func}
-		fmt.Fprintf(o.d.PrintTo, "-- after %s [%s] --\n", e.Step.Instance, l)
-		r.Print(o.d.PrintTo)
+	if r.Print == nil {
+		return
 	}
+	l := pass.Label{Table: o.table, Func: e.Label.Func}
+	changed := o.d.PrintChanged && e.Step.In == e.Step.Out && r.TextChanged
+	if changed {
+		w := o.d.watch
+		unit := l.String() + "@" + e.Step.In
+		if w.printed == nil {
+			w.printed = map[string]bool{}
+		}
+		if !w.printed[unit] && w.input != nil {
+			fmt.Fprintf(o.d.Output, "-- before %s [%s] --\n", e.Step.Instance, l)
+			w.input(o.d.Output)
+		}
+		w.printed[unit] = true
+	}
+	if changed || o.d.prints(e.Step.Instance) {
+		fmt.Fprintf(o.d.Output, "-- after %s [%s] --\n", e.Step.Instance, l)
+		r.Print(o.d.Output)
+	}
+}
+
+// watch holds what the observers of a driver collect over the stages it runs: the statistics and
+// the times for Report, and for PrintChanged the input of the running step and the units already
+// dumped.
+type watch struct {
+	stats   *pipe.Stats
+	times   []*timing
+	byKey   map[timingKey]*timing
+	total   time.Duration // the time of the runs of the manager
+	input   func(io.Writer)
+	printed map[string]bool // by label and kind
+}
+
+type timingKey struct{ backend, instance string }
+
+// timing is the time of one step instance, summed over the units it ran on.
+type timing struct {
+	timingKey
+	elapsed time.Duration
+}
+
+// timer is the observer of TimePasses: it sums the time of each step instance that ran, required
+// steps included, in the order in which each first ran. A replayed result took no time.
+type timer watch
+
+func (*timer) Needs() pipe.Needs                       { return pipe.Needs{} }
+func (*timer) Before(pipe.Event, func(io.Writer)) bool { return true }
+
+func (t *timer) After(e pipe.Event, r *pipe.Result) {
+	if e.Step.Pattern || !r.Ran {
+		return
+	}
+	k := timingKey{e.Label.Backend, e.Step.Instance}
+	tm := t.byKey[k]
+	if tm == nil {
+		if t.byKey == nil {
+			t.byKey = map[timingKey]*timing{}
+		}
+		tm = &timing{timingKey: k}
+		t.byKey[k] = tm
+		t.times = append(t.times, tm)
+	}
+	tm.elapsed += r.Elapsed
+}
+
+// Report writes to Output the reports that the driver collected over the stages it ran: with Stats a
+// "-- stats --" block, one line per pass instance that ran, in the order in which each first ran,
+// with its runs, its changes, the counters it declares and the decisions of its patterns in the order
+// of their declaration; with TimePasses a "-- time-passes --" block, one line per step instance that
+// ran with its time in milliseconds and its share of the total, a manager line with the time of the
+// runs of the manager outside the steps (verification, copies, dumps and the other observers), and a
+// total line with the time of the runs of the manager. A step outside a branch of a Fork has no
+// backend in its line.
+func (d *Driver) Report() {
+	if d.Output == nil || d.watch == nil {
+		return
+	}
+	if d.Stats && d.watch.stats != nil {
+		fmt.Fprintln(d.Output, "-- stats --")
+		tw := tabwriter.NewWriter(d.Output, 0, 0, 2, ' ', 0)
+		for _, st := range d.watch.stats.Instances() {
+			fmt.Fprintf(tw, "  %s\truns %d\tchanged %d", qualified(st.Backend, st.Instance), st.Runs, st.Changed)
+			for _, c := range st.Counters {
+				fmt.Fprintf(tw, "\t%s %d", c.Name, c.Value)
+			}
+			for _, p := range st.Patterns {
+				fmt.Fprintf(tw, "\t%s applied %d skipped %d", p.Pattern, p.Applied, p.Skipped)
+			}
+			fmt.Fprintln(tw)
+		}
+		tw.Flush()
+	}
+	if d.TimePasses {
+		fmt.Fprintln(d.Output, "-- time-passes --")
+		tw := tabwriter.NewWriter(d.Output, 0, 0, 2, ' ', 0)
+		total, steps := d.watch.total, time.Duration(0)
+		line := func(name string, el time.Duration) {
+			share := 0.0
+			if total > 0 {
+				share = 100 * float64(el) / float64(total)
+			}
+			fmt.Fprintf(tw, "  %s\t%10.3fms\t%5.1f%%\n", name, float64(el)/float64(time.Millisecond), share)
+		}
+		for _, tm := range d.watch.times {
+			line(qualified(tm.backend, tm.instance), tm.elapsed)
+			steps += tm.elapsed
+		}
+		line("manager", max(total-steps, 0))
+		line("total", total)
+		tw.Flush()
+	}
+}
+
+// qualified returns the name of an instance in a report: with its backend before a slash, if any.
+func qualified(backend, instance string) string {
+	if backend == "" {
+		return instance
+	}
+	return backend + "/" + instance
 }
 
 // pipeError returns the failure of one of the required steps named required as the *pass.StepError
@@ -221,7 +394,7 @@ func pipeError(err error, required ...string) error {
 // generation that fails with it; the optional passes after it do not run.
 func (d *Driver) LowerTable(table string, p plandata.Planned, observe bool, flowTarget flowpass.Target, target TargetPipeline) (*plandata.Table[code.Exec], error) {
 	s := pipe.Then3(pipe.Of(flowlower.Lowering), d.flowPasses(table, observe, flowTarget), d.execPasses(table, observe, target))
-	t, err := pipe.Execute(context.Background(), d.pipeRun(table, false), s, p)
+	t, err := execute(d, d.pipeRun(table, false), s, p)
 	if err != nil {
 		return t, pipeError(err, flowlower.Name, execlower.Name)
 	}
@@ -233,7 +406,7 @@ func (d *Driver) LowerTable(table string, p plandata.Planned, observe bool, flow
 // the steps of LowerTable before execlower, with the same dumps and failures.
 func (d *Driver) LowerFlowTable(table string, p plandata.Planned, observe bool, target flowpass.Target) (*plandata.Table[code.Flow], error) {
 	s := pipe.Then(pipe.Of(flowlower.Lowering), d.flowPasses(table, observe, target))
-	t, err := pipe.Execute(context.Background(), d.pipeRun(table, false), s, p)
+	t, err := execute(d, d.pipeRun(table, false), s, p)
 	if err != nil {
 		return t, pipeError(err, flowlower.Name)
 	}
@@ -296,7 +469,7 @@ func (d *Driver) Exec(table string, m *code.Module, target TargetPipeline, obser
 	if err != nil {
 		return nil, err
 	}
-	x, err := pipe.Execute(context.Background(), d.pipeRun(table, false), d.execPasses(table, observe, target), t)
+	x, err := execute(d, d.pipeRun(table, false), d.execPasses(table, observe, target), t)
 	if err != nil {
 		err = pipeError(err, execlower.Name)
 	}

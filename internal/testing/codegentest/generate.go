@@ -74,7 +74,7 @@ func GenerateRaw(t testing.TB, g *ast.Grammar, opts common.GenOptions) ([]common
 	if Compile == nil {
 		t.Fatal("codegentest.Compile is not set: the test package must set it before generating")
 	}
-	opts.VerifyEachPass = true
+	opts.Debug.VerifyEach = true
 	opts.FeatureWitness = true
 	opts = WithLib(opts)
 	if opts.Lib == common.LibOnly {
@@ -111,7 +111,7 @@ func GenerateTSRaw(g *ast.Grammar, opts common.GenOptions) ([]common.GeneratedFi
 	if Compile == nil {
 		panic("codegentest.Compile is not set: the test package must set it before generating")
 	}
-	opts.VerifyEachPass = true
+	opts.Debug.VerifyEach = true
 	opts = WithLib(opts)
 	return tsprint.Generate(g, Compile, Passes(opts), opts)
 }

@@ -31,7 +31,7 @@ func TestEveryFlowFunctionRunsTheIRPipelines(t *testing.T) {
 			break
 		}
 	}
-	base := common.GenOptions{Package: "x", Module: "example.com/x", Lib: common.LibImport, PrintAfter: "flowlower,execlower"}
+	base := common.GenOptions{Package: "x", Module: "example.com/x", Lib: common.LibImport, Debug: common.Debug{PrintAfter: []string{"flowlower", "execlower"}}}
 	for _, c := range []struct {
 		name, grammar string
 		set           func(*common.GenOptions)
@@ -56,7 +56,7 @@ func TestEveryFlowFunctionRunsTheIRPipelines(t *testing.T) {
 			}
 			var dump bytes.Buffer
 			o := base
-			o.PrintTo = &dump
+			o.Debug.Output = &dump
 			c.set(&o)
 			if _, err := codegentest.Generate(t, g, o); err != nil {
 				t.Fatal(err)

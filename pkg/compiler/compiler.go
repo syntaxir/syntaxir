@@ -4,8 +4,9 @@
 // (GenerateGo, GenerateTypeScript) and output schemas (OutputSchema).
 //
 // Every function takes the same Options: the start rule (WithStart), source information
-// (WithSourceInfo), default values (WithDefaultValue) and the optimization setting (WithOptimize),
-// so a grammar means the same parser whatever the artifact. The parsers implement runtime.Parser;
+// (WithSourceInfo), default values (WithDefaultValue), the optimization setting (WithOptimize) and
+// the debugging setting of the compiler (WithDebug), so a grammar means the same parser whatever the
+// artifact. The parsers implement runtime.Parser;
 // the parser of Compile is a *vm.Parser, which also parses prefixes, iterates over streams, saves
 // itself (Marshal) and runs on the iterative VM.
 //
@@ -14,6 +15,8 @@
 package compiler
 
 import (
+	"io"
+
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/driver/entry"
 	"syntaxir.dev/sxir/internal/driver/generate"
@@ -34,6 +37,7 @@ type options struct {
 	sourceInfo   bool
 	defaultValue bool
 	optimize     Optimize
+	debug        Debug
 }
 
 // newOptions returns the settings that opts give, in order.
@@ -93,9 +97,50 @@ var (
 // for them the setting is checked and has no further effect.
 func WithOptimize(o Optimize) Option { return func(opts *options) { opts.optimize = o } }
 
-// check reports an invalid optimization setting.
+// Debug is the debugging setting of the compiler: it observes and checks the pass pipeline that
+// makes an artifact, and never changes the artifact. Each field is a flag of sxir gen: PrintAfter is
+// -print-after, PrintChanged -print-changed, VerifyEach -verify-each, Stats -stats and TimePasses
+// -time-passes; Output has no flag, as the command writes to standard error. The pass and counter
+// names and the text written to Output are a debugging aid: their form is not stable and may change
+// in any version.
+type Debug struct {
+	// PrintAfter lists the steps and passes after which the intermediate representation is written
+	// to Output as text: elaborate and the names of the Core passes for the Core IR; flowlower, the
+	// names of the Flow passes and flow-finish for Code IR at the Flow stage; execlower and the names
+	// of the Exec passes for Code IR at the Exec stage; or all. "sxir gen -h" lists the names.
+	PrintAfter []string
+	// PrintChanged writes the intermediate representation after each pass that changed it, and the
+	// unit that the first such pass received before its first dump. A pass that PrintAfter also
+	// names is written once.
+	PrintChanged bool
+	// VerifyEach verifies the intermediate representation after every pass instead of only where a
+	// stage ends, so that an internal error names the first pass that broke it, and reports a pass
+	// that claims to preserve every analysis but changed its unit. It costs compile time.
+	VerifyEach bool
+	// Stats writes, after the build, the statistics of each pass that ran: the units it ran on,
+	// those it changed, its own counters and the applications of its patterns.
+	Stats bool
+	// TimePasses writes, after the build, the time each pass took, summed over the units it ran on,
+	// and its share of the total.
+	TimePasses bool
+	// Output receives everything above. It is required when any of it is set.
+	Output io.Writer
+}
+
+// WithDebug selects the debugging setting. A name that PrintAfter does not know, or a setting that
+// writes without an Output, is an error of every function. The setting takes effect in the
+// functions that run the pass pipeline, the generators today; for the others it is checked and has
+// no further effect.
+func WithDebug(d Debug) Option { return func(o *options) { o.debug = d } }
+
+// internal returns the debugging setting of the generators.
+func (d Debug) internal() common.Debug {
+	return common.Debug{PrintAfter: d.PrintAfter, PrintChanged: d.PrintChanged, VerifyEach: d.VerifyEach, Stats: d.Stats, TimePasses: d.TimePasses, Output: d.Output}
+}
+
+// check reports an invalid optimization or debugging setting.
 func (o options) check() error {
-	_, err := generate.Settings(common.GenOptions{Optimize: o.optimize.Profile, Opt: o.optimize.Values, NoOpt: o.optimize.Off})
+	_, err := generate.Settings(common.GenOptions{Optimize: o.optimize.Profile, Opt: o.optimize.Values, NoOpt: o.optimize.Off, Debug: o.debug.internal()})
 	return err
 }
 

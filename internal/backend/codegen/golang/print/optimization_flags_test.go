@@ -248,7 +248,7 @@ func off(names ...string) common.GenOptions {
 func generateShowingIR(t *testing.T, g *ast.Grammar, o common.GenOptions) ([]byte, string) {
 	t.Helper()
 	var ir strings.Builder
-	o.PrintAfter, o.PrintTo = "guards", &ir
+	o.Debug.PrintAfter, o.Debug.Output = []string{"guards"}, &ir
 	code, err := codegentest.GenerateCode(t, g, o)
 	if err != nil {
 		t.Fatal(err)

@@ -89,7 +89,7 @@ rule num = [0-9]+
 	if err == nil || !strings.Contains(err.Error(), "verify core:") || strings.Contains(err.Error(), "break-guard") {
 		t.Fatalf("without VerifyEachPass: %v", err)
 	}
-	opts.VerifyEachPass = true
+	opts.Debug.VerifyEach = true
 	_, err = print.GenerateParser(pg, codegentest.Compile, generate.Passes(opts, hooks), codegentest.WithLib(opts), nil)
 	if err == nil || !strings.Contains(err.Error(), "internal error: break-guard: ") {
 		t.Fatalf("with VerifyEachPass: %v", err)
@@ -134,7 +134,7 @@ rule num = [0-9]+
 			if seen == 0 {
 				t.Fatal("no function ran through the Flow pipeline")
 			}
-			opts.VerifyEachPass = true
+			opts.Debug.VerifyEach = true
 			_, err = print.GenerateParser(pg, codegentest.Compile, generate.Passes(opts, hooks), codegentest.WithLib(opts), nil)
 			if err == nil || !strings.Contains(err.Error(), "of table "+c.table+": ") || !strings.Contains(err.Error(), "internal error: break-flow [") {
 				t.Fatalf("with VerifyEachPass: %v", err)
@@ -166,7 +166,7 @@ rule num = [0-9]+
 			if seen == 0 {
 				t.Fatal("no module ran through the Exec pipeline")
 			}
-			opts.VerifyEachPass = true
+			opts.Debug.VerifyEach = true
 			_, err = print.GenerateParser(pg, codegentest.Compile, generate.Passes(opts, hooks), codegentest.WithLib(opts), nil)
 			if err == nil || !strings.Contains(err.Error(), "of table "+c.table+": ") || !strings.Contains(err.Error(), "internal error: break-exec [") {
 				t.Fatalf("with VerifyEachPass: %v", err)
@@ -181,8 +181,8 @@ func TestPrintAfterNeedsAWriter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	opts := common.GenOptions{Types: true, TypedOnly: true, Module: "example.com/p", Lib: common.LibImport, PrintAfter: "guards"}
-	if _, err := print.GenerateParser(pg, codegentest.Compile, codegentest.Passes(opts), codegentest.WithLib(opts), nil); err == nil || !strings.Contains(err.Error(), "PrintTo") {
+	opts := common.GenOptions{Types: true, TypedOnly: true, Module: "example.com/p", Lib: common.LibImport, Debug: common.Debug{PrintAfter: []string{"guards"}}}
+	if _, err := print.GenerateParser(pg, codegentest.Compile, codegentest.Passes(opts), codegentest.WithLib(opts), nil); err == nil || !strings.Contains(err.Error(), "Output") {
 		t.Fatalf("err %v", err)
 	}
 }

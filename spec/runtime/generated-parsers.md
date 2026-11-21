@@ -37,7 +37,7 @@ sxir gen -g <grammar> [-lang go|ts] [-module <import path>] [-pkg <package>]
          [-types] [-document] [-stream] [-recognize] [-expectations] [-observability]
          [-source-info] [-default-value] [-nodoc] [-max-depth <n>]
          [-optimize <profile>] [-opt <name[=count],...>] [-no-opt <name,...>]
-         [-print-after <pass,...>]
+         [-print-after <pass,...>] [-print-changed] [-verify-each] [-stats] [-time-passes]
 ```
 
 | Flag | Go API: a field of `compiler.GoConfig` / `compiler.TSConfig`, or as stated | Meaning |
@@ -62,7 +62,11 @@ sxir gen -g <grammar> [-lang go|ts] [-module <import path>] [-pkg <package>]
 | `-optimize` | `Profile` of the `compiler.Optimize` of the option `compiler.WithOptimize` | The [optimization profile](#optimization-settings): `speed` (default, also the empty name), `memory` or `size`. An unknown profile is an error that lists the valid names. Rejected with `-lib only` |
 | `-opt` | `Values` of `compiler.Optimize` (a map from name to value) | Gives single optimizations a value, as `name` or `name=count`. Rejected with `-lib only` |
 | `-no-opt` | `Off` of `compiler.Optimize` | Turns the named optimizations off. Rejected with `-lib only` |
-| `-print-after` | `PrintAfter` and `PrintTo` | Writes the intermediate representation to standard error (`PrintTo`, which `PrintAfter` requires) after the named steps and passes. Rejected with `-lib only` |
+| `-print-after` | `PrintAfter` of the `compiler.Debug` of the option `compiler.WithDebug` | Writes the intermediate representation to standard error after the named steps and passes. Rejected with `-lib only` |
+| `-print-changed` | `PrintChanged` of `compiler.Debug` | Writes the intermediate representation to standard error after each pass that changed it. Rejected with `-lib only` |
+| `-verify-each` | `VerifyEach` of `compiler.Debug` | Verifies the intermediate representation after every pass. Rejected with `-lib only` |
+| `-stats` | `Stats` of `compiler.Debug` | Writes the statistics of the passes to standard error after the build. Rejected with `-lib only` |
+| `-time-passes` | `TimePasses` of `compiler.Debug` | Writes the times of the passes to standard error after the build. Rejected with `-lib only` |
 | `-nodoc` | `OmitPackageDoc` | Omit the package comment (Go only; rejected with `-lang ts`) |
 | `-max-depth` | `MaxDepth` | The default nested recursive rule-call limit; zero selects 100,000, a positive value overrides it, a negative value fails generation. TypeScript also requires a safe integer |
 
@@ -113,7 +117,8 @@ count.
   `-no-opt`, the generated parser accepts and rejects the same inputs and returns the same trees, typed
   values, syntax errors and recovered errors, and the same trace and profile events, as one generated with
   the defaults. Options change only the generated source, its size and the time and memory of a parse.
-  `-print-after` writes a diagnostic to standard error and changes neither the files nor the parser.
+  The debugging flags (`-print-after`, `-print-changed`, `-verify-each`, `-stats`, `-time-passes`) write
+  diagnostics to standard error, or fail on an internal error, and change neither the files nor the parser.
 - **Profiles.** A profile is a fixed set of values and has no behavior of its own. `speed` is the default
   and sets every optimization to its default value. `memory` allocates typed values one by one instead of in
   slabs (fewer bytes and less live heap, more allocations). `size` produces smaller generated Go source
@@ -131,6 +136,10 @@ count.
   stage), the name of any pass, or `all`.
   A pass that does not apply to the parser prints nothing. An unknown name is an error that lists the
   valid ones.
+- **Debugging output.** What the debugging flags write is not part of this contract: its form, the pass names and
+  the counter names may change in any version. In Go, the fields of `compiler.Debug` map to the flags one to one, and
+  `Output`, the writer that receives the output, is required when any field but `VerifyEach` is set; the command writes
+  to standard error.
 
 ### Generated Go API
 

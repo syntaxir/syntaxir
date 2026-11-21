@@ -15,62 +15,57 @@ import (
 // Settings returns the optimizations that o.Optimize, o.Opt and o.NoOpt select, in that order, or an
 // error for a profile or an optimization that does not exist, a value that it does not take, or a name
 // that Opt gives twice (keys that are the same once their spaces are trimmed), and validates
-// o.PrintAfter: every name it lists is a step or a pass (driver.PrintNames), and a list that is not
-// empty needs o.PrintTo.
+// o.Debug: every name that PrintAfter lists is a step or a pass (driver.PrintNames), and a Debug that
+// writes anything needs an Output.
 func Settings(o common.GenOptions) (pass.Settings, error) {
-	_, s, err := resolve(o)
-	return s, err
+	return resolve(o)
 }
 
-// resolve returns the names of o.PrintAfter and the settings of Settings.
-func resolve(o common.GenOptions) ([]string, pass.Settings, error) {
+// resolve returns the settings of Settings, after it validated o.Debug.
+func resolve(o common.GenOptions) (pass.Settings, error) {
 	s, err := driver.Profile(o.Optimize)
 	if err != nil {
-		return nil, pass.Settings{}, err
+		return pass.Settings{}, err
 	}
-	printAfter, err := driver.ParsePrintAfter(o.PrintAfter)
-	if err != nil {
-		return nil, pass.Settings{}, err
-	} else if len(printAfter) > 0 && o.PrintTo == nil {
-		return nil, pass.Settings{}, fmt.Errorf("PrintAfter %q needs a PrintTo writer", o.PrintAfter)
+	if err := driver.CheckPrintAfter(o.Debug.PrintAfter); err != nil {
+		return pass.Settings{}, err
+	} else if o.Debug.Writes() && o.Debug.Output == nil {
+		return pass.Settings{}, fmt.Errorf("the debugging settings need an Output writer")
 	}
 	given := map[string]string{}
 	for _, n := range slices.Sorted(maps.Keys(o.Opt)) {
 		name := strings.TrimSpace(n)
 		if prev, dup := given[name]; dup {
-			return nil, pass.Settings{}, fmt.Errorf("optimization %s is given twice in Opt (%q and %q)", name, prev, n)
+			return pass.Settings{}, fmt.Errorf("optimization %s is given twice in Opt (%q and %q)", name, prev, n)
 		}
 		given[name] = n
 		if s, err = s.With(name, o.Opt[n]); err != nil {
-			return nil, pass.Settings{}, err
+			return pass.Settings{}, err
 		}
 	}
-	s, err = s.Without(o.NoOpt...)
-	if err != nil {
-		return nil, pass.Settings{}, err
-	}
-	return printAfter, s, nil
+	return s.Without(o.NoOpt...)
 }
 
-// Hooks are the test hooks of the pipelines of a generation (driver.Hooks). The settings, the dumps and
-// the verification come from the GenOptions, so Hooks has no field for them.
+// Hooks are the test hooks of the pipelines of a generation (driver.Hooks). The settings, the dumps, the
+// verification and the reports come from the GenOptions, so Hooks has no field for them.
 type Hooks = driver.Hooks
 
 // Passes returns the passes of a generation with o (common.Passes): the settings of Settings (read through the Runner), and
-// runners that are copies of hooks with those settings, the names of o.PrintAfter and
-// o.VerifyEachPass. hooks supplies only the test hooks of the driver; the zero value runs the
-// pipelines of the passes.
+// runners that are copies of hooks with those settings and the debugging settings of o.Debug. hooks
+// supplies only the test hooks of the driver; the zero value runs the pipelines of the passes.
 func Passes(o common.GenOptions, hooks Hooks) common.Passes {
-	printAfter, s, err := resolve(o)
+	s, err := resolve(o)
+	g := o.Debug
 	d := driver.Driver{
-		Opt: s, PrintAfter: printAfter, VerifyEach: o.VerifyEachPass, Hooks: hooks,
+		Opt: s, PrintAfter: g.PrintAfter, PrintChanged: g.PrintChanged, VerifyEach: g.VerifyEach,
+		Stats: g.Stats, TimePasses: g.TimePasses, Hooks: hooks,
 	}
 	return passes{driver: d, err: err}
 }
 
 // passes is the common.Passes of Passes.
 type passes struct {
-	driver driver.Driver // the driver of every runner, without PrintTo
+	driver driver.Driver // the driver of every runner, without Output
 	err    error         // the error of resolving the settings
 }
 
@@ -80,6 +75,6 @@ func (p passes) Validate() error { return p.err }
 
 func (p passes) Runner(w io.Writer) common.Runner {
 	d := p.driver
-	d.PrintTo = w
+	d.Output = w
 	return &d
 }

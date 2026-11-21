@@ -9,9 +9,9 @@ import (
 	"syntaxir.dev/sxir/pkg/grammar"
 )
 
-// WithOptimize and the PrintAfter fields of GoConfig and TSConfig are the flags -optimize, -no-opt
-// and -print-after of sxir gen: a name that is turned off changes the code, an unknown name or profile is
-// an error that lists the valid ones, and a request to print needs a writer.
+// WithOptimize and the PrintAfter field of WithDebug are the flags -optimize, -no-opt and -print-after
+// of sxir gen: a name that is turned off changes the code, an unknown name or profile is an error that
+// lists the valid ones, and a request to print needs a writer.
 func TestOptimizationFields(t *testing.T) {
 	src := grammar.FromString("opt.sxir", `@start
 rule main = (word / num / -" ")* $$
@@ -24,18 +24,11 @@ rule num = [0-9]+
 	}
 	for _, c := range []gens{
 		{"go", func(optimize string, noOpt []string, printAfter string, w *bytes.Buffer) ([]compiler.File, error) {
-			c := compiler.GoConfig{Module: "opt", Lib: compiler.LibImport, PrintAfter: printAfter}
-			if w != nil {
-				c.PrintTo = w
-			}
-			return compiler.GenerateGo(src, c, compiler.WithStart("main"), compiler.WithOptimize(compiler.Optimize{Profile: optimize, Off: noOpt}))
+			c := compiler.GoConfig{Module: "opt", Lib: compiler.LibImport}
+			return compiler.GenerateGo(src, c, compiler.WithStart("main"), compiler.WithOptimize(compiler.Optimize{Profile: optimize, Off: noOpt}), printing(printAfter, w))
 		}},
 		{"ts", func(optimize string, noOpt []string, printAfter string, w *bytes.Buffer) ([]compiler.File, error) {
-			c := compiler.TSConfig{PrintAfter: printAfter}
-			if w != nil {
-				c.PrintTo = w
-			}
-			return compiler.GenerateTypeScript(src, c, compiler.WithStart("main"), compiler.WithOptimize(compiler.Optimize{Profile: optimize, Off: noOpt}))
+			return compiler.GenerateTypeScript(src, compiler.TSConfig{}, compiler.WithStart("main"), compiler.WithOptimize(compiler.Optimize{Profile: optimize, Off: noOpt}), printing(printAfter, w))
 		}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -63,7 +56,7 @@ rule num = [0-9]+
 			if _, err := c.generate("nosuch", nil, "", nil); err == nil || !strings.Contains(err.Error(), "valid: speed") {
 				t.Errorf("unknown profile: %v", err)
 			}
-			if _, err := c.generate("", nil, "guards", nil); err == nil || !strings.Contains(err.Error(), "PrintTo") {
+			if _, err := c.generate("", nil, "guards", nil); err == nil || !strings.Contains(err.Error(), "Output") {
 				t.Errorf("print without a writer: %v", err)
 			}
 			if _, err := c.generate("", nil, "nonsense", new(bytes.Buffer)); err == nil || !strings.Contains(err.Error(), "unknown pass") {
@@ -82,4 +75,16 @@ rule num = [0-9]+
 			}
 		})
 	}
+}
+
+// printing returns the debugging setting that prints after the named pass, if any, to w, if not nil.
+func printing(printAfter string, w *bytes.Buffer) compiler.Option {
+	d := compiler.Debug{}
+	if printAfter != "" {
+		d.PrintAfter = []string{printAfter}
+	}
+	if w != nil {
+		d.Output = w
+	}
+	return compiler.WithDebug(d)
 }

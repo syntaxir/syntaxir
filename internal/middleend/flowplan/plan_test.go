@@ -287,7 +287,7 @@ func TestPlanDecidesBeforeThePasses(t *testing.T) {
 		seen = append(seen, flow.FuncOf(m).Name)
 	})
 	var dump strings.Builder
-	d := &driver.Driver{PrintAfter: []string{flowlower.Name}, PrintTo: &dump,
+	d := &driver.Driver{PrintAfter: []string{flowlower.Name}, Output: &dump,
 		Hooks: driver.Hooks{FlowPipeline: func(string) pipe.Pipeline[flowpass.Unit, flowpass.Unit] { return pl }}}
 	if _, err := d.LowerFlowTable("rules", flowplan.Unit(p, ir, nil), false, flowpass.Bytecode); err != nil {
 		t.Fatal(err)

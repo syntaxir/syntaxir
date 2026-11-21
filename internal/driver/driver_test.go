@@ -31,7 +31,7 @@ func TestDriverCore(t *testing.T) {
 	}
 	var dump strings.Builder
 	var hooked []string
-	d := &Driver{Opt: off, PrintAfter: []string{Elaborate, corepass.PassGuards}, PrintTo: &dump, VerifyEach: true,
+	d := &Driver{Opt: off, PrintAfter: []string{Elaborate, corepass.PassGuards}, Output: &dump, VerifyEach: true,
 		Hooks: Hooks{CoreHook: func(pass string, _ *core.Module) { hooked = append(hooked, pass) }}}
 	if _, err := d.Core("typed", empty); err != nil {
 		t.Fatal(err)
@@ -60,7 +60,7 @@ func TestDriverCore(t *testing.T) {
 	if _, err := d.Core("rules", empty); err != nil {
 		t.Fatal(err)
 	}
-	d.PrintTo = &dump
+	d.Output = &dump
 	if _, err := d.Core("rules", empty); err != nil {
 		t.Fatal(err)
 	}
@@ -236,7 +236,7 @@ func TestDriverTable(t *testing.T) {
 	record := testTableExec.Name()
 	tableRuns = nil
 	var dump strings.Builder
-	d := &Driver{PrintAfter: []string{flowlower.Name, testFlowPass, flowpass.FinishName, execlower.Name, record}, PrintTo: &dump,
+	d := &Driver{PrintAfter: []string{flowlower.Name, testFlowPass, flowpass.FinishName, execlower.Name, record}, Output: &dump,
 		Hooks: Hooks{FlowPipeline: withTestFlowPass(t), ExecPipeline: execPipeline(testTableExec)}}
 	f, err := d.Flow("rules", table(), false, flowpass.Target{})
 	if err != nil {
@@ -297,7 +297,7 @@ func TestDriverLowerTable(t *testing.T) {
 	run := func(lower func(d *Driver)) (string, []string) {
 		tableRuns = nil
 		var dump strings.Builder
-		d := &Driver{PrintAfter: steps, PrintTo: &dump,
+		d := &Driver{PrintAfter: steps, Output: &dump,
 			Hooks: Hooks{FlowPipeline: withTestFlowPass(t), ExecPipeline: execPipeline(testTableExec)}}
 		lower(d)
 		return dump.String(), tableRuns
@@ -341,7 +341,7 @@ func TestDriverLowerTable(t *testing.T) {
 func TestDriverFlow(t *testing.T) {
 	run := withTestFlowPass(t)
 	var dump strings.Builder
-	d := &Driver{PrintAfter: []string{flowlower.Name, testFlowPass}, PrintTo: &dump, VerifyEach: true, Hooks: Hooks{FlowPipeline: run}}
+	d := &Driver{PrintAfter: []string{flowlower.Name, testFlowPass}, Output: &dump, VerifyEach: true, Hooks: Hooks{FlowPipeline: run}}
 	f, err := d.Flow("rules", framed(), false, flowpass.Target{})
 	if err != nil {
 		t.Fatal(err)
@@ -377,7 +377,7 @@ func TestDriverFlow(t *testing.T) {
 	// functions only) and class-tables (a number, off at its default 0), and flow-finish.
 	all := flowpass.Target{Terminals: true, ClassRuns: true, ClassTables: true, GuardedClasses: true, InlineLiterals: true}
 	dump.Reset()
-	if _, err := (&Driver{PrintAfter: []string{PrintAll}, PrintTo: &dump}).Flow("typed", framed(), false, all); err != nil {
+	if _, err := (&Driver{PrintAfter: []string{PrintAll}, Output: &dump}).Flow("typed", framed(), false, all); err != nil {
 		t.Fatal(err)
 	}
 	var printed []string
@@ -560,7 +560,7 @@ var noTarget = pipe.Seq(execlower.LoweredIR)
 func TestDriverExec(t *testing.T) {
 	run := execPipeline(testExecDoc, testExecBreaking)
 	var dump strings.Builder
-	l, err := (&Driver{PrintAfter: []string{execlower.Name, testExecPass}, PrintTo: &dump, Hooks: Hooks{ExecPipeline: run}}).execFunc("rules", execModule(t), noTarget, false)
+	l, err := (&Driver{PrintAfter: []string{execlower.Name, testExecPass}, Output: &dump, Hooks: Hooks{ExecPipeline: run}}).execFunc("rules", execModule(t), noTarget, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -589,7 +589,7 @@ func TestDriverExec(t *testing.T) {
 	}
 	// The real pipeline leaves the module alone and prints only the lowered functions.
 	dump.Reset()
-	if _, err := (&Driver{PrintAfter: []string{PrintAll}, PrintTo: &dump}).execFunc("typed", execModule(t), noTarget, true); err != nil {
+	if _, err := (&Driver{PrintAfter: []string{PrintAll}, Output: &dump}).execFunc("typed", execModule(t), noTarget, true); err != nil {
 		t.Fatal(err)
 	}
 	if n := strings.Count(dump.String(), "-- after "); n != 1+len(codepass.Passes) {

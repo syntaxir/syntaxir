@@ -15,19 +15,21 @@ import (
 
 // Passes are the pass settings of one generation, which the driver resolves from the GenOptions of
 // the generation (internal/driver/generate): the optimizations of GenOptions.Optimize, Opt and NoOpt,
-// the dumps of GenOptions.PrintAfter and the verification of GenOptions.VerifyEachPass. The
+// and the dumps, the verification and the reports of GenOptions.Debug. The
 // generators run the pipelines through a Runner, which is the only way to read the resolved
 // optimizations (Runner.Settings, Generator.Opt), so that a profile or a flag means the same passes
 // for the passes and the printers whatever the backend, and the back end does not import the driver.
 type Passes interface {
 	// Validate returns the error of resolving the settings: a profile or an optimization that does
-	// not exist, a value that it does not take, a name that Opt gives twice, or a PrintAfter list
-	// that names an unknown step or has no PrintTo writer. A generator asks for it where it
+	// not exist, a value that it does not take, a name that Opt gives twice, a Debug.PrintAfter list
+	// that names an unknown step, or a Debug that writes and has no Output. A generator asks for it where it
 	// validates its options, so that the error of an option that it checks first comes first. It
 	// returns no settings: they come from the Runner.
 	Validate() error
-	// Runner returns the runner of the pipelines with the settings, which writes the dumps that
-	// PrintAfter selects to w, or none if w is nil. Validate must have returned no error.
+	// Runner returns the runner of the pipelines with the settings, which writes the dumps and the
+	// reports that Debug selects to w, or none if w is nil: a generator passes Debug.Output for the
+	// run that makes its output and nil for a run whose output it drops. The verification of
+	// Debug.VerifyEach applies to both. Validate must have returned no error.
 	Runner(w io.Writer) Runner
 }
 
@@ -60,6 +62,10 @@ type Runner interface {
 	// failure of the lowering or the conversion is a *pass.StepError, returned with no table; a
 	// failure of a pass is returned with the table, and the optional passes after it do not run.
 	LowerTable(table string, u plandata.Planned, observe bool, flowTarget flowpass.Target, p TargetPipeline) (*plandata.Table[code.Exec], error)
+	// Report writes the reports of Debug.Stats and Debug.TimePasses over everything the runner ran
+	// to its writer, if it has one. A generator calls it once, after the last pipeline of the run
+	// that makes its output.
+	Report()
 }
 
 // TargetPipeline is the pipeline of the Exec passes of one target (golang/pass, typescript/pass), which

@@ -172,8 +172,8 @@ The output is exactly what the engine prints for the same grammar and input.
 ## The `sxir gen` Command
 
 ```bash
-sxir gen -g <grammar> -module <import path> -o <directory> [-lang go] [-pkg <package>] [-lib embed|import|only] [-s <rule>] [-types] [-document] [-stream] [-recognize] [-typed-only] [-recognize-only] [-expectations] [-observability] [-limits] [-source-info] [-default-value] [-nodoc] [-max-depth <n>] [-optimize speed|memory|size] [-opt <name[=count],...>] [-no-opt <name,...>] [-print-after <pass,...>]
-sxir gen -lang ts -g <grammar> -o <directory> [-lib embed|import|only] [-lib-module <specifier>] [-s <rule>] [-types] [-recognize] [-expectations] [-observability] [-limits] [-source-info] [-default-value] [-max-depth <n>] [-optimize speed|memory|size] [-opt <name[=count],...>] [-no-opt <name,...>] [-print-after <pass,...>]
+sxir gen -g <grammar> -module <import path> -o <directory> [-lang go] [-pkg <package>] [-lib embed|import|only] [-s <rule>] [-types] [-document] [-stream] [-recognize] [-typed-only] [-recognize-only] [-expectations] [-observability] [-limits] [-source-info] [-default-value] [-nodoc] [-max-depth <n>] [-optimize speed|memory|size] [-opt <name[=count],...>] [-no-opt <name,...>] [-print-after <pass,...>] [-print-changed] [-verify-each] [-stats] [-time-passes]
+sxir gen -lang ts -g <grammar> -o <directory> [-lib embed|import|only] [-lib-module <specifier>] [-s <rule>] [-types] [-recognize] [-expectations] [-observability] [-limits] [-source-info] [-default-value] [-max-depth <n>] [-optimize speed|memory|size] [-opt <name[=count],...>] [-no-opt <name,...>] [-print-after <pass,...>] [-print-changed] [-verify-each] [-stats] [-time-passes]
 sxir gen -lib only -o <directory> [-lang go|ts]
 ```
 
@@ -203,7 +203,11 @@ sxir gen -lib only -o <directory> [-lang go|ts]
 | `-optimize` | `speed` | The optimization profile (see [Optimizations](#optimizations)). `speed`, `memory` or `size`; any other name is an error that lists the valid ones |
 | `-opt` | none | Optimizations to give a value after the profile is applied and before `-no-opt`, separated by commas, as `name` or `name=count`: a name alone turns on an optimization that the profile leaves off (`-opt ts-literal-sharing`), a count sets an integer one (`-opt class-tables=3`), and `0` turns one off. An unknown name, a count that is not a number, or a value that the optimization does not take is an error |
 | `-no-opt` | none | Optimizations to turn off after the profile is applied, separated by commas (names in [Optimizations](#optimizations)). A name that is unknown is an error; a known name that does not apply to the parser being generated does nothing |
-| `-print-after` | none | Write the intermediate representation that the generator builds to standard error, as text, after the named steps and passes, separated by commas: the steps `elaborate`, `flowlower`, `flow-finish` and `execlower`, a pass name, or `all` (see [Optimizations](#optimizations)); a pass that does not apply to the parser prints nothing |
+| `-print-after` | none | Write the intermediate representation that the generator builds to standard error, as text, after the named steps and passes, separated by commas: the steps `elaborate`, `flowlower`, `flow-finish` and `execlower`, a pass name, or `all` (see [Optimizations](#optimizations)); a pass that does not apply to the parser prints nothing (see [Debugging the generator](#debugging-the-generator)) |
+| `-print-changed` | off | Write the intermediate representation to standard error after each pass that changed it, and, before the first such dump of a unit, the unit that the pass received |
+| `-verify-each` | off | Verify the intermediate representation after every pass and step, so that an internal error names the first pass that broke it |
+| `-stats` | off | Write the statistics of each pass that ran to standard error after the build |
+| `-time-passes` | off | Write the time of each pass and step that ran to standard error after the build |
 
 Details:
 
@@ -351,6 +355,12 @@ No profile changes what a parser returns. The measurements are in [optimization 
 A flag never overrides soundness: whether an optimization applies to a parser is decided by the generator, and `-opt`
 never turns on a pass for a parser that it is unsound for. `-no-opt guards` also leaves out the guarded classes, which need guards.
 
+### Debugging the Generator
+
+The debugging flags observe the passes that build a parser and write to standard error; none of them changes a
+generated file. What they write is a debugging aid: its form, the pass names and the counter names are not stable and
+may change in any version.
+
 `-print-after` shows the intermediate representation that the passes work on, for debugging the generator. A pass that
 does not apply to the parser (the lean passes in a parser with limit controls, for example) prints nothing. Only the
 generation that writes the output prints. Each dump starts with one header line that names the step and the unit,
@@ -361,6 +371,28 @@ each Core pass prints it under its own name. `-print-after flowlower` shows the 
 the parser is printed from, each function as a listing of Code IR at the Flow stage, as lowered from the Core IR.
 `flow-finish` prints the same form after the Flow stage ends, and `execlower` prints the form after that, a listing of
 Code IR at the Exec stage; the Flow and Exec passes print each function they run on under their own names. A listing writes the statements and the calls of the operations of the stage in the notation of the Code IR text form, with the immediate operand of a call in brackets before its arguments.
+
+`-print-changed` dumps the unit after each pass that changed its text, under the same headers, and nothing after a pass
+that left it as it was. Before the first change of a unit it dumps the unit as the pass received it, under
+`-- before <pass> [<unit>] --`, so every change can be compared with what came before it.
+
+`-verify-each` runs the verifier of the intermediate representation after every pass and step instead of only where a
+stage ends, so that an internal error names the first pass that broke it. It costs generation time.
+
+`-stats` writes a `-- stats --` block after the build: for each pass that ran, in the order it first ran, the units it
+ran on (`runs`), those it reported changing (`changed`), the counters it declares, such as the alternatives that
+`guards` gave a guard (`guarded`), and the applications of its patterns. The block is the same in every run.
+`-time-passes` writes a `-- time-passes --` block after the build: the time of each pass and step, summed over its
+units, with its share of the total, the time of the pass manager outside them, and the total.
+
+```text
+-- stats --
+  elaborate        runs 1  changed 1
+  guards           runs 1  changed 1  guarded 3
+  scans            runs 1  changed 1
+  flowlower        runs 1  changed 1
+  ...
+```
 
 ### From Go
 
@@ -383,7 +415,7 @@ for _, f := range files { // parser.go, api.go, types/types.go with Types, and t
 }
 ```
 
-The fields of `compiler.GoConfig` are the flags of `sxir gen`: `Module` is `-module`; `Types: true` is `-types`; `Document` is `-document`; `Stream` is `-stream`; `Recognize` is `-recognize`; `TypedOnly` is `-typed-only`; `RecognizeOnly` is `-recognize-only`; `LimitControls` is `-limits`; `Observability` is `-observability`; `OmitPackageDoc` is `-nodoc`; `Lib: compiler.LibImport` is `-lib import`; `PackageName: "p"` is `-pkg p`; and `MaxDepth: 600_000` is `-max-depth 600000`; and `PrintAfter` with `PrintTo` is `-print-after` (it needs a writer, such as `os.Stderr`). `compiler.TSConfig` has the same fields except for `Stream`, `TypedOnly`, `RecognizeOnly` and `PackageName`, and takes `LibModule` for `-lib-module`. The options of `compiler.GenerateGo` and `compiler.GenerateTypeScript` set the rest: `compiler.WithSourceInfo()` is `-source-info`, `compiler.WithDefaultValue()` is `-default-value`, and `compiler.WithOptimize(compiler.Optimize{Profile: "size", Values: map[string]int{"class-tables": 3}, Off: []string{"guards"}})` is `-optimize size -opt class-tables=3 -no-opt guards`. Omitted, zero and explicit 100,000 defaults generate identical source. Observability supports standalone Go Node and typed batch parsers, including `ParseValue` and `ParseRuleValue`, Go Documents and streams, and TypeScript batch parsers with or without `-types`. Generated Go Node, typed and Document packages expose `WithProfile`; TypeScript batch packages expose `Profile` through per-call options. Typed direct execution and Node-conversion fallback report their actual rule calls; conversion itself has no separate event. Invalid defaults return an error before generated output is written.
+The fields of `compiler.GoConfig` are the flags of `sxir gen`: `Module` is `-module`; `Types: true` is `-types`; `Document` is `-document`; `Stream` is `-stream`; `Recognize` is `-recognize`; `TypedOnly` is `-typed-only`; `RecognizeOnly` is `-recognize-only`; `LimitControls` is `-limits`; `Observability` is `-observability`; `OmitPackageDoc` is `-nodoc`; `Lib: compiler.LibImport` is `-lib import`; `PackageName: "p"` is `-pkg p`; and `MaxDepth: 600_000` is `-max-depth 600000`. `compiler.TSConfig` has the same fields except for `Stream`, `TypedOnly`, `RecognizeOnly` and `PackageName`, and takes `LibModule` for `-lib-module`. The options of `compiler.GenerateGo` and `compiler.GenerateTypeScript` set the rest: `compiler.WithSourceInfo()` is `-source-info`, `compiler.WithDefaultValue()` is `-default-value`, and `compiler.WithOptimize(compiler.Optimize{Profile: "size", Values: map[string]int{"class-tables": 3}, Off: []string{"guards"}})` is `-optimize size -opt class-tables=3 -no-opt guards`. `compiler.WithDebug(compiler.Debug{...})` sets the debugging flags: `PrintAfter: []string{"guards"}` is `-print-after guards`, and `PrintChanged`, `VerifyEach`, `Stats` and `TimePasses` are `-print-changed`, `-verify-each`, `-stats` and `-time-passes`; `Output` is the writer they write to, such as `os.Stderr`, which every field but `VerifyEach` needs. Omitted, zero and explicit 100,000 defaults generate identical source. Observability supports standalone Go Node and typed batch parsers, including `ParseValue` and `ParseRuleValue`, Go Documents and streams, and TypeScript batch parsers with or without `-types`. Generated Go Node, typed and Document packages expose `WithProfile`; TypeScript batch packages expose `Profile` through per-call options. Typed direct execution and Node-conversion fallback report their actual rule calls; conversion itself has no separate event. Invalid defaults return an error before generated output is written.
 
 `sxir gen` is a thin wrapper around `compiler.GenerateGo` (and `compiler.GenerateTypeScript` with `-lang ts`, which returns the files too). Because a grammar built with the `ast` package (see the
 [Running Parsers](running-parsers.md#from-go-values-programmatic-grammars)) is just an AST, it can be generated from, too.

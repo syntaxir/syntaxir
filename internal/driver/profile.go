@@ -210,23 +210,34 @@ func PrintNames() []string {
 // of the stage, for the hint of an error.
 var stageSteps = map[string]string{"core": Elaborate, "flow": flowlower.Name, "exec": execlower.Name}
 
-// ParsePrintAfter validates a comma-separated list of step and pass names for printing, and returns
-// the names in order. The empty string selects nothing.
+// ParsePrintAfter validates a comma-separated list of step and pass names for printing, as
+// -print-after takes it, and returns the names in order, without the spaces around them. The empty
+// string selects nothing.
 func ParsePrintAfter(list string) ([]string, error) {
 	if list == "" {
 		return nil, nil
 	}
-	valid := PrintNames()
 	var out []string
 	for _, n := range strings.Split(list, ",") {
-		n = strings.TrimSpace(n)
-		if !slices.Contains(valid, n) {
-			if step, ok := stageSteps[n]; ok {
-				return nil, fmt.Errorf("unknown pass or step %q to print after: %s is a stage; the step that makes its IR is %s (valid: %s)", n, n, step, strings.Join(valid, ", "))
-			}
-			return nil, fmt.Errorf("unknown pass or step %q to print after (valid: %s)", n, strings.Join(valid, ", "))
-		}
-		out = append(out, n)
+		out = append(out, strings.TrimSpace(n))
+	}
+	if err := CheckPrintAfter(out); err != nil {
+		return nil, err
 	}
 	return out, nil
+}
+
+// CheckPrintAfter reports a name in names that is not a step or a pass to print after (PrintNames).
+// A stage name is an error that names the step that makes the IR of the stage.
+func CheckPrintAfter(names []string) error {
+	valid := PrintNames()
+	for _, n := range names {
+		if !slices.Contains(valid, n) {
+			if step, ok := stageSteps[n]; ok {
+				return fmt.Errorf("unknown pass or step %q to print after: %s is a stage; the step that makes its IR is %s (valid: %s)", n, n, step, strings.Join(valid, ", "))
+			}
+			return fmt.Errorf("unknown pass or step %q to print after (valid: %s)", n, strings.Join(valid, ", "))
+		}
+	}
+	return nil
 }

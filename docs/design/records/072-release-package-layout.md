@@ -269,8 +269,8 @@ The pass model is described in [the pass pipeline](../pass-pipeline.md). Its dec
 - **Verification.** The verifier of a lowering's output stage always runs right after the lowering. The other verifiers
   run where the pipeline leaves a stage, and after every transform on request, so that an error names the pass that
   broke an invariant. The Flow verifier checks structure, variables, one runtime per function, the budget invariants and
-  the rules about reading input under a Document or a trace. A dump after any stage (`core`, `flow`, `exec`) shows the
-  module as the next stage receives it.
+  the rules about reading input under a Document or a trace. A dump after the step that makes a stage (`elaborate`,
+  `flowlower`, `execlower`) shows the module as the stage receives it.
 - **Decisions.** Control-level decisions (call specialization, inlining, dispatch, the form of a match, removal of
   redundant saves, merging failure paths, where to charge, sharing slots and outlining) are Flow passes with stated
   obligations; target-specific legalization is in the passes of each host language; passes that depend only on an
@@ -414,7 +414,7 @@ setting that does so is an error. [Controlling Passes](../pass-pipeline.md#contr
 | `-optimize` | Chooses the profile: `speed`, `memory` or `size`. In Go, the profile of the `Optimize` value. |
 | `-opt` | Sets optional flags after the profile: a name alone turns one on, `=0` turns it off, `=N` sets a count. In Go, the overrides of the `Optimize` value. |
 | `-no-opt` | Turns the named optional flags off after `-opt`. |
-| `-print-after` | Dumps the module after the named stages (`core`, `flow`, `exec`) and passes, or after all of them with `all`. |
+| `-print-after` | Dumps the module after the named steps and passes, or after all of them with `all`. A stage has no dump of its own: the step that makes its IR (`elaborate`, `flowlower`, `execlower`) dumps it, and a stage name (`core`, `flow`, `exec`) is an error that names that step. |
 | `-print-before` | Dumps the module that each named pass receives, or that every pass receives with `all`. |
 | `-verify-each` | Runs the verifier after every transform, and reports a pass that claims to preserve every analysis but changed the text form of the unit. |
 | `-print-changed` | Dumps the module after each pass that changed it. |
@@ -422,7 +422,7 @@ setting that does so is an error. [Controlling Passes](../pass-pipeline.md#contr
 | `-stats` | Prints the counters of each pass after the build, including the applications of each pattern, summed over the units in a fixed order. |
 | `-time-passes` | Prints the time each pass took, summed over the units it ran on. |
 | `-opt-bisect-limit` | Runs the optional pass runs numbered up to N in pipeline order and skips the later ones. A run is one pass on one unit, so a pass that runs per function counts once per function, a run of `canonicalize` takes one number like every pass, and each application of one of its patterns takes its own. Required passes always run, and each decision is reported with the pass and the unit. |
-| `Debug` | The public setting of `pkg/compiler` for observation and bisection. Eight fields mirror the flags one to one: print before, print after, print changed, verify each, print pipeline, stats, time passes and bisect limit. The ninth, the writer the output goes to, has no flag; the command writes to standard error. It does not change the parser that is built, so it is apart from `Optimize`. |
+| `Debug` | The public setting of `pkg/compiler` for observation and bisection. Eight fields mirror the flags one to one: print before, print after, print changed, verify each, print pipeline, stats, time passes and bisect limit. The ninth, the writer the output goes to, has no flag; the command writes to standard error. It does not change the parser that is built, so it is apart from `Optimize`. The flags and fields are the interface; the text they write, the pass names and the counter names are a debugging aid that may change in any version. |
 | `WithDebug` | The option that gives a `Debug` value to a compile call. |
 
 A textual description of a pipeline, which can reorder or repeat optional passes and is checked against the declared

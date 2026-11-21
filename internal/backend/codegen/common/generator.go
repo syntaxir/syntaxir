@@ -54,8 +54,8 @@ type Generator struct {
 	literalNames map[string]string
 	methodKeys   []generatedMethod
 	literalKeys  []string
-	// Runner runs the pipelines of the IR with the optimizations that are on, the dumps of
-	// GenOptions.PrintAfter and the verification of GenOptions.VerifyEachPass (Passes.Runner). It is
+	// Runner runs the pipelines of the IR with the optimizations that are on and the dumps,
+	// verification and reports of GenOptions.Debug (Passes.Runner). It is
 	// required: the optimizations are read only from it (Opt), and Passes has no other way to read
 	// them, so that the printers and the passes cannot disagree on them.
 	Runner Runner

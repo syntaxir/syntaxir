@@ -2,7 +2,6 @@ package compiler
 
 import (
 	"fmt"
-	"io"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/driver/generate"
@@ -132,13 +131,6 @@ type GoConfig struct {
 	// OmitPackageDoc leaves the package comment out of the generated parser, for a package that
 	// has its own documentation in another file.
 	OmitPackageDoc bool
-	// PrintAfter lists, separated by commas, the steps and passes after which the intermediate
-	// representation of the generator is written to PrintTo as text, for debugging the generator:
-	// elaborate and the names of the Core passes for the Core IR; flowlower, the names of the Flow
-	// passes and flow-finish for the Flow IR; execlower and the names of the Exec passes for the
-	// Exec IR; or all. "sxir gen -h" lists the names. It needs PrintTo.
-	PrintAfter string
-	PrintTo    io.Writer
 }
 
 // GenerateGo generates the files of a Go parser for the grammar src in the package with import
@@ -180,8 +172,7 @@ func GenerateGo(src grammar.Source, c GoConfig, opts ...Option) ([]File, error) 
 		Optimize:       o.optimize.Profile,
 		Opt:            o.optimize.Values,
 		NoOpt:          o.optimize.Off,
-		PrintAfter:     c.PrintAfter,
-		PrintTo:        c.PrintTo,
+		Debug:          o.debug.internal(),
 	}))
 }
 
@@ -232,13 +223,6 @@ type TSConfig struct {
 	// negative values and values that are not exact JavaScript integers fail generation.
 	// Individual invocations may override it with limits.depth.
 	MaxDepth int
-	// PrintAfter lists, separated by commas, the steps and passes after which the intermediate
-	// representation of the generator is written to PrintTo as text, for debugging the generator:
-	// elaborate and the names of the Core passes for the Core IR; flowlower, the names of the Flow
-	// passes and flow-finish for the Flow IR; execlower and the names of the Exec passes for the
-	// Exec IR; or all. "sxir gen -h" lists the names. It needs PrintTo.
-	PrintAfter string
-	PrintTo    io.Writer
 }
 
 // GenerateTypeScript generates the files of a TypeScript parser for the grammar src: its
@@ -278,8 +262,7 @@ func GenerateTypeScript(src grammar.Source, c TSConfig, opts ...Option) ([]File,
 		Optimize:      o.optimize.Profile,
 		Opt:           o.optimize.Values,
 		NoOpt:         o.optimize.Off,
-		PrintAfter:    c.PrintAfter,
-		PrintTo:       c.PrintTo,
+		Debug:         o.debug.internal(),
 	}))
 }
 

@@ -59,14 +59,13 @@ func TestSettingsOrder(t *testing.T) {
 	}
 }
 
-// Passes gives every runner the settings, the names of PrintAfter, the verification of VerifyEachPass
-// and the hooks, writes the dumps of each runner to the writer that it is made with only, and
+// Passes gives every runner the settings, the debugging settings of Debug and the hooks, writes the dumps of each runner to the writer that it is made with only, and
 // reports the error of the settings.
 func TestPassesRunners(t *testing.T) {
 	t.Parallel()
 	var dumps bytes.Buffer
 	hooks := generate.Hooks{CoreHook: func(string, *core.Module) {}}
-	p := generate.Passes(common.GenOptions{NoOpt: []string{"guards"}, PrintAfter: "guards", PrintTo: &dumps, VerifyEachPass: true}, hooks)
+	p := generate.Passes(common.GenOptions{NoOpt: []string{"guards"}, Debug: common.Debug{PrintAfter: []string{"guards"}, PrintChanged: true, VerifyEach: true, Stats: true, TimePasses: true, Output: &dumps}}, hooks)
 	if err := p.Validate(); err != nil {
 		t.Fatalf("validate: %v", err)
 	}
@@ -76,15 +75,23 @@ func TestPassesRunners(t *testing.T) {
 		if !ok {
 			t.Fatalf("the runner is %T, not a *driver.Driver", p.Runner(w))
 		}
-		if d.Settings().On("guards") || !slices.Equal(d.PrintAfter, []string{"guards"}) || !d.VerifyEach || d.CoreHook == nil || d.PrintTo != w {
-			t.Errorf("runner of %v: guards %v, PrintAfter %q, VerifyEach %v, CoreHook set %v, PrintTo %v", w, d.Opt.On("guards"), d.PrintAfter, d.VerifyEach, d.CoreHook != nil, d.PrintTo)
+		if d.Settings().On("guards") || !slices.Equal(d.PrintAfter, []string{"guards"}) || !d.PrintChanged || !d.VerifyEach || !d.Stats || !d.TimePasses || d.CoreHook == nil || d.Output != w {
+			t.Errorf("runner of %v: guards %v, PrintAfter %q, PrintChanged %v, VerifyEach %v, Stats %v, TimePasses %v, CoreHook set %v, Output %v", w, d.Opt.On("guards"), d.PrintAfter, d.PrintChanged, d.VerifyEach, d.Stats, d.TimePasses, d.CoreHook != nil, d.Output)
 		}
 		runners = append(runners, d)
 	}
 	if runners[0] == runners[1] {
 		t.Error("two runners share a driver")
 	}
-	if err := generate.Passes(common.GenOptions{PrintAfter: "guards"}, generate.Hooks{}).Validate(); err == nil || !strings.Contains(err.Error(), "needs a PrintTo writer") {
-		t.Errorf("PrintAfter without PrintTo: %v", err)
+	for _, d := range []common.Debug{{PrintAfter: []string{"guards"}}, {PrintChanged: true}, {Stats: true}, {TimePasses: true}} {
+		if err := generate.Passes(common.GenOptions{Debug: d}, generate.Hooks{}).Validate(); err == nil || !strings.Contains(err.Error(), "need an Output writer") {
+			t.Errorf("%+v without Output: %v", d, err)
+		}
+	}
+	if err := generate.Passes(common.GenOptions{Debug: common.Debug{VerifyEach: true}}, generate.Hooks{}).Validate(); err != nil {
+		t.Errorf("VerifyEach writes nothing and needs no Output: %v", err)
+	}
+	if err := generate.Passes(common.GenOptions{Debug: common.Debug{PrintAfter: []string{"core"}, Output: &dumps}}, generate.Hooks{}).Validate(); err == nil || !strings.Contains(err.Error(), "the step that makes its IR is elaborate") {
+		t.Errorf("a stage name: %v", err)
 	}
 }

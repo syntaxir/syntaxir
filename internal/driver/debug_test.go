@@ -1,0 +1,145 @@
+package driver
+
+import (
+	"regexp"
+	"strings"
+	"testing"
+
+	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/corepass"
+	"syntaxir.dev/sxir/internal/pass"
+	"syntaxir.dev/sxir/internal/pass/pipe"
+)
+
+// The test passes of the debugging tests: one that reports a change and changes nothing, one that
+// renames the rule, and one that counts.
+var (
+	debugSame = pipe.New(pipe.Def[*core.Module, *core.Module]{
+		Decl: pipe.Decl{Name: "test-debug-same", Test: true, Obligation: "none: it changes nothing"},
+		In:   corepass.IR, Out: corepass.IR,
+		Run: func(_ *pipe.Ctx[*core.Module], m *core.Module) (*core.Module, pass.PreservedSet, error) {
+			return m, pass.PreserveNone(), nil
+		}})
+	debugRename = pipe.New(pipe.Def[*core.Module, *core.Module]{
+		Decl: pipe.Decl{Name: "test-debug-rename", Test: true, Obligation: "none: it renames the rules"},
+		In:   corepass.IR, Out: corepass.IR,
+		Run: func(_ *pipe.Ctx[*core.Module], m *core.Module) (*core.Module, pass.PreservedSet, error) {
+			for _, r := range m.Rules {
+				r.Name += "x"
+			}
+			return m, pass.PreserveNone(), nil
+		}})
+	debugCount = pipe.New(pipe.Def[*core.Module, *core.Module]{
+		Decl: pipe.Decl{Name: "test-debug-count", Test: true, Counters: []string{"rules"}, Obligation: "none: it counts the rules"},
+		In:   corepass.IR, Out: corepass.IR,
+		Run: func(c *pipe.Ctx[*core.Module], m *core.Module) (*core.Module, pass.PreservedSet, error) {
+			c.Count("rules", len(m.Rules))
+			return m, pass.PreserveAll(), nil
+		}})
+)
+
+// debugPipeline runs the test passes of the debugging tests in place of the Core passes.
+func debugPipeline(string) pipe.Pipeline[*core.Module, *core.Module] {
+	return pipe.Seq(corepass.IR, debugSame, debugRename, debugCount, debugRename)
+}
+
+// oneRule builds a Core module of one rule r, which matches "a".
+func oneRule() (*core.Module, error) {
+	m := &core.Module{Exps: []string{`"a"`}}
+	m.Rules = []*core.Rule{{Name: "r", Body: &core.Lit{Text: "a"}, Policy: core.Policy{Seen: -1}}}
+	core.CallGraph(m)
+	return m, nil
+}
+
+// PrintChanged dumps the unit after each transform that changed its text, never after one that only
+// reported a change or changed nothing, and before the first such dump the unit as that transform
+// received it. A step that PrintAfter selects too is dumped once.
+func TestDriverPrintChanged(t *testing.T) {
+	var dump strings.Builder
+	d := &Driver{PrintChanged: true, Output: &dump, Hooks: Hooks{CorePipeline: debugPipeline}}
+	if _, err := d.Core("rules", oneRule); err != nil {
+		t.Fatal(err)
+	}
+	got := dump.String()
+	if headers := regexp.MustCompile(`(?m)^-- .* --$`).FindAllString(got, -1); strings.Join(headers, "\n") != strings.Join([]string{
+		"-- before test-debug-rename [rules] --",
+		"-- after test-debug-rename [rules] --",
+		"-- after test-debug-rename#2 [rules] --",
+	}, "\n") {
+		t.Errorf("headers %q in:\n%s", headers, got)
+	}
+	for _, name := range []string{"rule 0 r\n", "rule 0 rx\n", "rule 0 rxx\n"} {
+		if strings.Count(got, name) != 1 {
+			t.Errorf("the dumps show %q %d times, want once:\n%s", name, strings.Count(got, name), got)
+		}
+	}
+
+	dump.Reset()
+	d = &Driver{PrintChanged: true, PrintAfter: []string{"test-debug-rename", "test-debug-same"}, Output: &dump, Hooks: Hooks{CorePipeline: debugPipeline}}
+	if _, err := d.Core("rules", oneRule); err != nil {
+		t.Fatal(err)
+	}
+	if n := strings.Count(dump.String(), "-- after test-debug-rename [rules] --"); n != 1 {
+		t.Errorf("a pass that both select is dumped %d times:\n%s", n, dump.String())
+	}
+	if n := strings.Count(dump.String(), "-- after test-debug-same [rules] --"); n != 1 {
+		t.Errorf("PrintAfter of a pass that changed nothing is dumped %d times:\n%s", n, dump.String())
+	}
+
+	// Without an Output nothing is collected or written.
+	d = &Driver{PrintChanged: true, Stats: true, TimePasses: true, Hooks: Hooks{CorePipeline: debugPipeline}}
+	if _, err := d.Core("rules", oneRule); err != nil {
+		t.Fatal(err)
+	}
+	d.Report()
+	if r := d.pipeRun("rules", true); len(r.Observers) != 0 {
+		t.Errorf("a driver without Output observes with %d observers", len(r.Observers))
+	}
+}
+
+// Report writes the statistics of every pass instance that ran, in the order it ran, over all the
+// stages the driver ran, and the times of every step instance with a total.
+func TestDriverReport(t *testing.T) {
+	var out strings.Builder
+	d := &Driver{Stats: true, TimePasses: true, Output: &out, Hooks: Hooks{CorePipeline: debugPipeline}}
+	for range 2 {
+		if _, err := d.Core("rules", oneRule); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if out.Len() != 0 {
+		t.Fatalf("the reports were written before Report:\n%s", out.String())
+	}
+	d.Report()
+	got := out.String()
+	stats, times, ok := strings.Cut(got, "-- time-passes --\n")
+	if !ok || !strings.HasPrefix(stats, "-- stats --\n") {
+		t.Fatalf("report:\n%s", got)
+	}
+	var lines []string
+	for _, l := range strings.Split(strings.TrimSuffix(stats, "\n"), "\n")[1:] {
+		lines = append(lines, strings.Join(strings.Fields(l), " "))
+	}
+	want := []string{
+		"elaborate runs 2 changed 2",
+		"test-debug-same runs 2 changed 2",
+		"test-debug-rename runs 2 changed 2",
+		"test-debug-count runs 2 changed 0 rules 2",
+		"test-debug-rename#2 runs 2 changed 2",
+	}
+	if strings.Join(lines, "\n") != strings.Join(want, "\n") {
+		t.Errorf("stats:\n%s\nwant:\n%s", strings.Join(lines, "\n"), strings.Join(want, "\n"))
+	}
+	var names []string
+	timeLine := regexp.MustCompile(`^  (\S+) +\d+\.\d{3}ms +\d+\.\d%$`)
+	for _, l := range strings.Split(strings.TrimSuffix(times, "\n"), "\n") {
+		m := timeLine.FindStringSubmatch(l)
+		if m == nil {
+			t.Fatalf("time line %q in:\n%s", l, times)
+		}
+		names = append(names, m[1])
+	}
+	if strings.Join(names, " ") != "elaborate test-debug-same test-debug-rename test-debug-count test-debug-rename#2 manager total" {
+		t.Errorf("time lines %v", names)
+	}
+}
