@@ -3,11 +3,8 @@
 package engine_test
 
 import (
-	"encoding/json"
 	"fmt"
-	"maps"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -793,6 +790,7 @@ type printedEdit struct{ old, new string }
 // runPrintedMutants builds the tests of each mutant with the mutated copy of the printed file path
 // in place of the file, and requires that they fail. path is slash-separated from the module root, and a
 // missing file stops the test with its name and the package it was expected in (mutanttest.Source).
+// The mutants build together, as one mutant schema per package (mutanttest.Batch).
 func runPrintedMutants(t *testing.T, path string, mutants []printedMutant) {
 	runPrintedMutantsOver(t, path, nil, mutants)
 }
@@ -802,37 +800,33 @@ func runPrintedMutants(t *testing.T, path string, mutants []printedMutant) {
 func runPrintedMutantsOver(t *testing.T, path string, over map[string]string, mutants []printedMutant) {
 	mutanttest.SkipUnlessChanged(t, mutanttest.Pipeline...)
 	file, src := mutanttest.Source(t, path)
-	dir := t.TempDir()
+	broken := make([]string, len(mutants))
+	index := make([]int, len(mutants))
+	var batch []mutanttest.Mutant
+	for i, m := range mutants {
+		text := string(src)
+		for _, e := range m.edits {
+			if n := strings.Count(text, e.old); n != 1 {
+				broken[i] = fmt.Sprintf("%s has %d copies of %q, not one", path, n, e.old)
+				break
+			}
+			text = strings.Replace(text, e.old, e.new, 1)
+		}
+		index[i] = len(batch)
+		if broken[i] == "" {
+			batch = append(batch, mutanttest.Mutant{Replace: map[string]string{file: text}, Pkgs: m.pkgs, Run: m.tests})
+		}
+	}
+	// -vet=off (in the Batch): the verdict reads what the tests report, and vet would only analyze the mutated code
+	// again. The tests run in this module, which resolves without -mod=mod (TestMain).
+	b := mutanttest.NewBatch(t, "", append(os.Environ(), "GOFLAGS=-trimpath"), over, batch)
 	for i, m := range mutants {
 		t.Run(m.name, func(t *testing.T) {
 			t.Parallel()
-			text := string(src)
-			for _, e := range m.edits {
-				if n := strings.Count(text, e.old); n != 1 {
-					t.Fatalf("%s has %d copies of %q, not one", path, n, e.old)
-				}
-				text = strings.Replace(text, e.old, e.new, 1)
+			if broken[i] != "" {
+				t.Fatal(broken[i])
 			}
-			mutant := filepath.Join(dir, fmt.Sprintf("mutant_%d.go", i))
-			if err := os.WriteFile(mutant, []byte(text), 0o644); err != nil {
-				t.Fatal(err)
-			}
-			replace := map[string]string{file: mutant}
-			maps.Copy(replace, over)
-			overlay, err := json.Marshal(map[string]map[string]string{"Replace": replace})
-			if err != nil {
-				t.Fatal(err)
-			}
-			ov := mutant + ".json"
-			if err := os.WriteFile(ov, overlay, 0o644); err != nil {
-				t.Fatal(err)
-			}
-			// -vet=off: the verdict reads what the tests report, and vet would only analyze the mutated code again.
-			args := append([]string{"test", "-count=1", "-vet=off", "-overlay", ov, "-run", m.tests}, m.pkgs...)
-			cmd := exec.Command("go", args...)
-			// The tests run in this module, which resolves without -mod=mod (TestMain).
-			cmd.Env = append(os.Environ(), "GOFLAGS=-trimpath")
-			out, err := cmd.CombinedOutput()
+			out, err := b.Test(index[i])
 			if err == nil {
 				t.Fatalf("the tests passed with the mutant:\n%s", out)
 			}

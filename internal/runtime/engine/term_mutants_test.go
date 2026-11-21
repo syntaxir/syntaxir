@@ -1,10 +1,8 @@
 package engine_test
 
 import (
-	"encoding/json"
+	"fmt"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -95,29 +93,30 @@ func TestPrintedOperatorMutants(t *testing.T) {
 		t.Skip("runs the tests on mutated sources")
 	}
 	root := codegentest.ModuleRoot()
-	for _, m := range engineMutants {
+	broken := make([]string, len(engineMutants))
+	index := make([]int, len(engineMutants))
+	var batch []mutanttest.Mutant
+	for i, m := range engineMutants {
+		path, src := mutanttest.Source(t, "internal/runtime/state/"+m.file)
+		mutated, ok := codegentest.MutateFunc(string(src), m.fn, m.old, m.new)
+		index[i] = len(batch)
+		if !ok {
+			broken[i] = fmt.Sprintf("%s has no %s with %q", m.file, m.fn, m.old)
+			continue
+		}
+		batch = append(batch, mutanttest.Mutant{Replace: map[string]string{path: mutated}, Pkgs: []string{"./internal/runtime/state"},
+			Run: "^TestEngineValue(Conformance|BoxedOperands|EqualCharges|MemberTable|BuiltinTable|StructTable|HullTable|IterTable|ItemAtOpensBoxes|PushTable|CastTable)$"})
+	}
+	// -vet=off (in the Batch): the verdict reads what the tests report, and vet would only analyze the mutated code
+	// again. The mutants build together, as one mutant schema (mutanttest.Batch).
+	b := mutanttest.NewBatch(t, root, append(os.Environ(), "GOFLAGS="), nil, batch)
+	for i, m := range engineMutants {
 		t.Run(m.name, func(t *testing.T) {
 			t.Parallel()
-			path, src := mutanttest.Source(t, "internal/runtime/state/"+m.file)
-			mutated, ok := codegentest.MutateFunc(string(src), m.fn, m.old, m.new)
-			if !ok {
-				t.Fatalf("%s has no %s with %q", m.file, m.fn, m.old)
+			if broken[i] != "" {
+				t.Fatal(broken[i])
 			}
-			dir := t.TempDir()
-			file := filepath.Join(dir, m.file)
-			if err := os.WriteFile(file, []byte(mutated), 0o644); err != nil {
-				t.Fatal(err)
-			}
-			overlay, _ := json.Marshal(map[string]map[string]string{"Replace": {path: file}})
-			overlayFile := filepath.Join(dir, "overlay.json")
-			if err := os.WriteFile(overlayFile, overlay, 0o644); err != nil {
-				t.Fatal(err)
-			}
-			// -vet=off: the verdict reads what the tests report, and vet would only analyze the mutated code again.
-			cmd := exec.Command("go", "test", "-count=1", "-vet=off", "-overlay", overlayFile, "-run", "^TestEngineValue(Conformance|BoxedOperands|EqualCharges|MemberTable|BuiltinTable|StructTable|HullTable|IterTable|ItemAtOpensBoxes|PushTable|CastTable)$", "./internal/runtime/state")
-			cmd.Dir = root
-			cmd.Env = append(os.Environ(), "GOFLAGS=")
-			out, err := cmd.CombinedOutput()
+			out, err := b.Test(index[i])
 			if err == nil {
 				t.Fatalf("the value tests of the engine pass with the mutant %q:\n%s", m.name, out)
 			}
