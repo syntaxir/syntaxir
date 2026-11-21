@@ -1337,6 +1337,106 @@ is a reused skip, and its first call is shared with that of a body that is the
 Operators Rule, as [Conditions for Linear
 Cost](../runtime/parsing.md#conditions-for-linear-cost) states.
 
+**Levels that end at one position.** Call an evaluation of an Operators Rule
+expression, and each evaluation of a right operand inside it, a **level**; a
+level that is no right operand is a **top level**, one for each evaluation of
+the expression. After its operand, a level makes a **round** at the position
+where it stands: it evaluates the `skip` once, tries each operator part after an
+operand at most once, selects the longest match, and evaluates the right operand
+of at most one part, the one selected
+([Parsing Rules](../language/operators-rule.md#parsing-rules)). A round either
+applies an operator, an activation, or is the last of its level. Let $A$ be the
+number of operators that the levels of the expression apply in the parse and
+$E$ the number of evaluations of the expression. Then:
+
+1. The levels that succeed number at most $A + E$, and their rounds at most
+   $2A + E$. Every evaluation of a part of the rule that a level that succeeds
+   makes outside its activations, other than inside a level that it contains,
+   lies in its operand, where it tries each prefix operator part and each
+   `operand` item at most once, or in its last round.
+2. Let every infix operator part that the right operand of a prefix operator
+   part admits be admitted by the right operand of every infix and prefix
+   operator part. Then among the levels that succeed and end at one position
+   $q$, each the right operand of the operator that the next applied last, at
+   most one evaluates the right operand of a part in its last round, and that
+   right operand fails.
+3. When, in addition, the `skip` and every operator part after an operand
+   evaluate a scanning source only inside calls that are memoized at the call
+   and read no variable or calls of scan-only rules, a last round costs at most
+   a constant, apart from the right operand that it evaluates, from the body
+   evaluations of those calls, of which Lemma 3 allows at most three at a
+   position for each variant, and from the walks that record the scan sites of
+   the scan-only rules, at most three from each position in each mode (Lemma 6
+   of the [Run Sites](run-sites.md) proof).
+
+*Proof.* 1. A level that succeeds and is no top level is the right operand of
+an infix or prefix operator part, which its level then applies, since a right
+operand that succeeds is not refused; each operator applied has one right
+operand, so these levels are at most $A$. Each round of a level that succeeds
+applies an operator or is its last, which gives $2A + E$. Its operand is parsed
+once: the prefix operator parts are tried at its start, and the `operand` items
+once each, after a prefix operator whose right operand fails or when no prefix
+part matches. What it evaluates outside its activations is that and its last
+round.
+
+2. Write the levels that end at $q$, from the innermost, as
+$L_1, \ldots, L_k$, with $L_i$ the right operand of the operator $O_i$ that
+$L_{i+1}$ applied last. Each $L_{i+1}$ applied $O_i$ and then stood at $q$, so
+its last round, if it makes one, is at $q$. The last rounds evaluate the `skip` and the operator
+parts at $q$ over the same input and select the same part $P$, since the longest
+match is deterministic ([Expressions That Repeat
+Cost](../runtime/parsing.md#expressions-that-repeat-cost)). A postfix part that
+a level admits is applied, so a level that ends at $q$ refused $P$ unless $P$ is
+an infix part whose right operand it evaluated, and when $P$ is postfix no
+last round evaluates a right operand. Let $L_i$ be the innermost level that
+evaluated the right operand of $P$ at $q$. Either that was its last round and
+the right operand failed, since $L_i$ ended at $q$, or $L_i$ applied $P$
+without consuming input and ended, with no last round. After $L_{j+1}$ applies $O_j$, it applies next only an
+operator that the right operand of $O_j$ does not admit, so it suffices that
+the right operand of $O_j$ admits $P$ for every $j \ge i$. The right operand of
+$O_i$ admits $P$, since $L_i$, whose minimum is the one of that right
+operand, evaluated the right operand of $P$. When $O_t$ is an infix operator, the
+minimum of $L_{t+1}$ admitted it, and that minimum is the one of the right
+operand of $O_{t+1}$, so the right operand of $O_{t+1}$ admits every part that
+the right operand of $O_t$ admits. So if none of $O_i, \ldots, O_{j-1}$ is a
+prefix operator, the right operand of $O_j$ admits $P$. Otherwise let $O_t$ be
+the first of them that is: the right operand of $O_t$ admits $P$, by the same
+steps from $O_i$, and $P$ is an infix part, so by the condition the right
+operand of $O_j$ admits $P$. Without the condition the claim fails: a prefix
+operator applies whatever the minimum of its level, so its right operand can
+admit what the right operand around it does not, and each `^` level of
+`a^-`$^n$ `b*` followed by `-`$^n$ and `;`, with a prefix `-` that binds more
+loosely than `*` and `*` more loosely than a right-associative `^`, parses the
+right operand of `*` again.
+
+3. Apart from its right operand, a last round evaluates the `skip` and a
+constant number of operator parts, each a fixed part of the grammar outside
+the calls that it makes, which costs a constant by the argument of Lemma 1. A
+call memoized at the call that reads no variable is answered by the memo at
+$q$ after its body evaluations there, which Lemma 3 bounds, and a call of a
+scan-only rule costs a constant at $q$ once the walks of its sites from $q$ are
+recorded. $\square$
+
+So in an Operators Rule that meets the conditions of 2 and 3, the levels that
+end where an inner one ended repeat at each level a constant cost, and the
+right operand of a refused part once at that position; the count of their
+rounds is the count of the operators applied and the evaluations of the
+expression. That is why [Conditions for Linear
+Cost](../runtime/parsing.md#conditions-for-linear-cost) does not list, for such
+a rule, the operator parts that the enclosing levels try again as a
+continuation of an operator part after an operand: what they examine again is
+answered by the memo or by records, as the shared calls of a committing unit
+are. The levels that nest through a call that nests at one end are not levels
+of one chain in the sense of 2; the continuation through that call, what
+follows the Operators Rule, keeps them in condition 2. The levels that fail,
+and the right operands that a last round evaluates, are not bounded by $A$ and
+$E$: with `operand "x"` and `prefix "-"`, the input `-`$^n$ `!` makes $n$
+levels that fail, each the right operand of a prefix operator part that
+matched, in one evaluation of the expression that applies no operator. Each
+level that fails lies in a unit of the Operators Rule that fails after its
+operator part, so condition 2 and the claims of step 1 count them, as the cost
+of the units up to their failure (step 3 of [Open Steps](#open-steps)).
+
 What remains is to count the activations. Each evaluation of a scanning source
 has at most one activation that does not succeed, its last: an iteration that
 consumes no input ends its repetition, an operator applied without consuming
@@ -12426,6 +12526,11 @@ names a term or condition of the specification and the lemmas that use it.
   scan-only rules (with Lemma 6 of the Run Sites proof), Operators Rules that nest, words that exclude a continuation and
   alternatives that can fail only after a `#cut`: Lemma 4, its failure after a source, the cases of
   committing and its claims on links.
+  The operator parts that the enclosing levels of an Operators Rule that nests
+  try again, and the rules for which the definition does not list them, whose
+  prefix operator parts admit nothing more than the right operands of the
+  others and whose `skip` and operator parts scan only in memoized calls and
+  scan-only rules: Lemma 4, *Levels that end at one position*.
 - Condition 2 for the steps of a growth after the first, checked as units at
   the end of the seed and compared one step tail at a time: *Dropped steps*
   in Lemma 4, with *Restarts of growth activations* and the count after
@@ -12805,15 +12910,19 @@ theorem covers such a parse.
    operator part after an operand when the rule nests, through its right
    operands or through a call that parses the rule again at the end of an
    operand or an operator part; its claims on direct activations and links cover
-   the operators applied at a position. The tries of operator parts that fail at
-   a position when inner levels return there are at most the number of parts for
-   each level, so their cost is the cost of the units up to their failure, which
-   the claims of step 1 bound with its open parts. The step must also bound the
-   number of those tries, and of the evaluations of the operands, by the
-   operators applied and the body evaluations of the rule: they lie inside the
-   source of the operators but in no activation of it, so Lemma 2, *One place*
-   of Lemma 10 and *Activations that do not succeed* of Lemma 4 do not bound
-   the calls and the evaluations of sources made in them.
+   the operators applied at a position. *Levels that end at one position* in
+   Lemma 4 bounds the tries of the levels that succeed by the operators applied
+   and the evaluations of the expression, and shows when the levels that end at
+   one position parse the right operand of a part once there and repeat a
+   constant cost at each level, which is why the definition does not list the
+   tries again of such a rule as a continuation. The levels that fail are not
+   bounded by the operators applied and the evaluations of the expression:
+   each lies in a unit that fails after its operator part, and the step must
+   count them, with the operands and operator parts that they try and the
+   right operands that last rounds evaluate, as the cost of the units up to
+   their failure, which the claims of step 1 bound with its open parts. Lemma
+   2, *One place* of Lemma 10 and *Activations that do not succeed* of Lemma 4
+   rest on that count for the places inside an Operators Rule.
    *Nesting at one end* takes the continuation $\kappa$ of an abandoned unit
    to be what the parser evaluates after it, and for a unit of an Operators
    Rule it applies the continuations that the definition lists: the later
