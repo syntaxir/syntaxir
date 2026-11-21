@@ -1194,7 +1194,11 @@ the attributes of its nodes computed, since a kind's verifier checks the unit an
    joined, and the Go generator prints once. Neither renumbers the expectation table nor changes the scopes of pruned
    rows, so the planning fallback is not needed; it stays the route if a later change makes planning differ from
    printing.
-5. **TypeScript:** routes and the printable analysis in the plan; the printer calls no pipeline.
+5. **TypeScript:** routes in the plan; the printer calls no pipeline. The TypeScript table is planned and lowered
+   once, like the Go tables, with its outlined nodes chosen by the table's configuration, so its
+   `-print-after` dumps show one run over the table instead of one run per function. The printability analysis lands
+   with step 7, where the printers read the primitives that the TypeScript backend declares: built on those
+   declarations, it needs no second list of the printed operations. Until then the printer's refusals stay.
 6. **The driver assembles the Go and TypeScript pipelines.** The printers become passes in the backend packages; the
    driver's stage API, the pass and lowering entry points of the code generators and the hooks go, and their users move
    to `Compile` with edits, or to `FlowTable` where they need only the table. The architecture tests land with the rules

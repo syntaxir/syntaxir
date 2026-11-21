@@ -7,14 +7,15 @@ declarations of operations (their state, features and laws), never on how a targ
 
 ## Passes in the Pipeline
 
-The functions that a backend prints from the Exec stage are converted from the Flow stage one at a time, each into a module of its own
-(see [Lowering From the Flow Stage](lowering.md)). Each such module then goes through the passes of the one compiler pipeline
-that run at the Exec stage, in their declared order. A pass has a name that no pass of Core IR or of the Flow stage has, and that
+The functions that a backend prints from the Exec stage are converted from the Flow stage a table at a time: the
+functions of a table into one module (see [Lowering From the Flow Stage](lowering.md)). Each such module then goes
+through the passes of the one compiler pipeline that run at the Exec stage, in their declared order; a pass on one
+function takes each function of the module in turn. A pass has a name that no pass of Core IR or of the Flow stage has, and that
 is also the name of the optimization that turns it off; a pass that is off, or that does not apply to the build, does
-not run. A pass returns the module after it, in which it keeps the function
+not run. A pass returns the module after it, in which it keeps each function
 that lowering made, at the same place and with the same name, and in it the locals that lowering declared for the
 variables of the function of the Flow stage, because the backend prints the body of that function with those locals;
-it may change the body, add locals and add the declarations that its changes need. A module that lost the function or
+it may change the bodies, add locals and add the declarations that its changes need. A module that lost a function or
 one of those locals is an error of the passes. The
 module MUST satisfy the [invariants](invariants.md) where the pipeline leaves the stage: verification runs right after
 the lowering and again where the pipeline leaves the stage, and also after every pass when asked, and a violation names
