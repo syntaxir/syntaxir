@@ -62,6 +62,7 @@ func TestTypeScriptConformanceCtxDetectsMutants(t *testing.T) {
 		{name: "a step of the same end is longer", sig: "growLonger(g: GrowState", old: "this.pos > best.end", new: "this.pos >= best.end"},
 		{name: "a kept result is stored without its dependencies", sig: "ctxKeep(c: CtxCall", old: "this.stored(this.popped)", new: "this.stored(noDeps)"},
 		{name: "a lookup replays no dependencies", sig: "ctxLookup(c: CtxCall", old: "this.replayDeps(this.pos, c.gp, c.present, s.deps);", new: ""},
+		{name: "a lookup ignores the outcomes that a result observed", sig: "ctxFind(pos: number", old: `k += v + ",";`, new: `k += ",";`},
 		{name: "a lookup answers for another rule", sig: "ctxLookup(c: CtxCall", old: "headKey(ctxCallKind, rule, min, c.present)", new: "headKey(ctxCallKind, 0, min, c.present)"},
 		{name: "an adopted seed keeps its identity", sig: "growAdopt(g: GrowState", old: "rec.id = this.nextSeedID();", new: ""},
 		{name: "an adopted seed does not return to the start", sig: "growAdopt(g: GrowState", old: "this.pos = g.start;", new: ""},

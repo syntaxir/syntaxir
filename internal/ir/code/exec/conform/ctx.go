@@ -302,6 +302,70 @@ func CtxCases() []Case {
 		b.Assert(eq(code.C("ctx.far", h), i(0)), "a kept result has the farthest position of its expectations")
 		b.Assert(eq(code.C("exp.keptCount", code.C("ctx.expected", h)), i(2)), "and its expectations")
 	})
+	// Results kept for one key under several combinations of growing results and outcomes: a lookup finds
+	// the one result whose recorded seed identities and outcomes are those of the context now, whichever
+	// was kept last, and none under a combination that no result recorded. An outcome is found by what
+	// the lookahead recorded in turn, so a result that observed a lookahead depends on the seed that the
+	// lookahead read.
+	add("ctx_keep_matching", func(b *code.Builder) {
+		// lookupEnd asserts that a lookup of the member's key 1 finds the result that ends at end, or none
+		// for end < 0.
+		lookupEnd := func(name string, end int64, msg string) {
+			c, _ := enter(b, name, ctxMember)
+			h := b.Let(name+"h", code.C("ctx.lookup", c, rule(ctxMember), i(0), code.C(ValuesOp, i(1))))
+			if end < 0 {
+				b.Assert(code.Not(code.C("ctx.found", h)), msg)
+				return
+			}
+			b.Assert(code.C("ctx.found", h), msg)
+			b.Assert(eq(code.C("ctx.end", h), i(end)), msg+": the result kept for that combination")
+		}
+		// keepSeed keeps a result of the key that read the seed of A and ends at end.
+		keepSeed := func(name string, end int64) {
+			c, _ := enter(b, name, ctxMember)
+			b.Do("ctx.push", c)
+			readSeed(b, name+"in", ctxLeaderA)
+			b.Assert(eq(code.C("ctx.pop", c), code.C("ctx.storeCtx")), "a result that read a seed goes to the context")
+			keep(b, c, ctxMember, 1, true, end, noValue, noErrs, code.C("exp.empty"))
+			b.Do("ctx.done", c)
+		}
+		grow(b, ctxLeaderA, 0, true, 3, 7)
+		keepSeed("a", 4)
+		b.Do(ref.CtxReseedOp, t, i(3), i(8))
+		lookupEnd("a1", -1, "no result recorded the identity 8")
+		keepSeed("b", 5)
+		lookupEnd("b1", 5, "the identity 8 finds its result")
+		b.Do(ref.CtxReseedOp, t, i(3), i(7))
+		lookupEnd("a2", 4, "the identity 7 finds the earlier result, not the one kept last")
+		b.Do(ref.CtxReseedOp, t, i(3), i(9))
+		lookupEnd("n1", -1, "an identity that no result recorded finds none")
+		b.Do(ref.CtxUngrowOp)
+
+		// keepObs keeps a result of the key that observed the lookahead of site 5, which read the seed of A
+		// and matched if ok, and ends at end.
+		keepObs := func(name string, ok bool, end int64) {
+			c, _ := enter(b, name, ctxMember)
+			b.Do("ctx.push", c)
+			b.Do(ref.CtxLookBeginOp, i(5))
+			b.SetReg(exec.Silent, i(1))
+			readSeed(b, name+"in", ctxLeaderA)
+			b.SetReg(exec.Silent, i(0))
+			b.Do(ref.CtxLookEndOp, code.BoolC(ok))
+			b.Assert(eq(code.C("ctx.pop", c), code.C("ctx.storeCtx")), "a result that observed a lookahead goes to the context")
+			keep(b, c, ctxMember, 1, true, end, noValue, noErrs, code.C("exp.empty"))
+			b.Do("ctx.done", c)
+		}
+		grow(b, ctxLeaderA, 0, true, 3, 7)
+		keepObs("o", true, 4)
+		b.Do(ref.CtxReseedOp, t, i(3), i(8))
+		lookupEnd("o1", -1, "the lookahead has no outcome under the identity 8")
+		keepObs("p", false, 5)
+		lookupEnd("p1", 5, "the outcome kept under the identity 8 finds its result")
+		b.Do(ref.CtxReseedOp, t, i(3), i(7))
+		lookupEnd("o2", 4, "the outcome kept under the identity 7 finds the earlier result")
+		b.Do(ref.CtxReseedOp, t, i(3), i(9))
+		lookupEnd("n2", -1, "a lookahead with no outcome under the identity 9 matches no result")
+	})
 	add("ctx_wide_edge", func(b *code.Builder) {
 		grow(b, ctxEdgeLead, 0, true, 1, 7)
 		c, _ := enter(b, "c", ctxWide)
