@@ -3580,8 +3580,15 @@ $P_1$ that goes on after the failed calls of $R$; when $P_1$ then evaluates
 something other than a left call of a leader first, or reaches the end of
 $U$ without consuming input, the grammar fails condition 2 outside case
 (3), whose steps are bounded as above. Not shown are a $U$ that is a step of
-$H$, dropped or kept, a path $P_1$ that goes on through a left call of a
-leader, and a growth $H$ of $R$ at another binding level.
+$H$, dropped or kept, a path $P_1$ that goes on through a left call of $T$
+at the binding level of $H$ in a step of $H$ after its first, through a left
+call of a third leader at any step, or through a left call of $R$ or $T$ at
+another binding level, which starts a growth of its own at $q$, and a growth
+$H$ of $R$ at another binding level. A left call of $R$ at the binding level
+of $G$ can stand on $P_1$, but it fails, as every call of $R$ at $q$ at that
+level does in the first step of $G$, so $P_1$ goes on from no such call; and
+a left call of $T$ at the binding level of $H$ reads a seed of $H$, which
+exists only after its first step.
 
 *Proof.* Every read of the seed in $\sigma'$ is a call of $R$ at $q$ that
 returns the seed, a success. Only those reads answer otherwise in
@@ -3838,8 +3845,9 @@ before $\rho$ is checked as an alternative that is not growing. A $U$ in
 the body of $T$ that reaches $\rho$ before it examines the input is a
 growing unit of $T$, which contains a scanning source; $U$ is made in
 $\sigma_1$ at $q$ and answers otherwise there, so it succeeds along a path
-$P_1$, on which the call that stands where $\rho$ stands fails, as every
-call of $R$ at $q$ in $\sigma_1$ does. When $P_1$ goes on from there with
+$P_1$, on which the call that stands where $\rho$ stands, a call of $R$ at
+the binding level of $G$ as $\rho$ is, fails, as every call of $R$ at $q$ at
+that level does in $\sigma_1$. When $P_1$ goes on from there with
 something other than a left call of a leader, calls of rules of the cycle
 that are not leaders standing for the paths of their bodies, or reaches the
 end of $U$ without consuming input, it is a path on which $U$ goes on at
@@ -3848,8 +3856,12 @@ input before a left call of $T$, so condition 2 requires it to be committing
 against the later alternatives at its own start, and the argument above
 for a growing unit of $R$, with $T$ in place of $R$ and $Q$ as here, makes
 the grammar fail condition 2 outside case (3). Where $P_1$ goes on through
-a left call of $T$, which can read a seed of $H$ that is not empty, or of a
-third leader, the check is not shown to follow it. $\square$
+a left call of $T$ at the binding level of $H$, which reads a seed of $H$ in
+a step of $H$ after its first, through a left call of a third leader at any
+step, or through a left call of $R$ or $T$ at another binding level, which
+starts a growth of its own at $q$ ([Growths of Left
+Recursion](../runtime/parsing.md#growths-of-left-recursion)), the check
+is not shown to follow it. $\square$
 
 The claim needs the finite reading for every decision, not only for the
 form of `!K`: without it the comparison would follow the path $P$ through
@@ -3935,9 +3947,11 @@ of the growth, the steps whose results have at most $c_w$ characters, where
 $c_w$ is the length of the longest literal of the grammar, and the units
 that it leaves aside and does not reduce (part 1 of *Open parts of the kept
 steps*): a step, dropped or kept, of another growth at the position, a unit
-in the body of another leader whose path in the first step goes on through
-a left call of a leader, and a unit in a growth of the same leader at
-another binding level. Those steps and units are not shown to be excluded.
+in the body of another leader $T$ whose path in the first step goes on
+through a left call of $T$ at the binding level of its growth in a step of
+that growth after the first, through a left call of a third leader at any
+step, or through a left call of either leader at another binding level, and
+a unit in a growth of the same leader at another binding level. Those steps and units are not shown to be excluded.
 The claims above leave out the links between which the parser leaves or
 starts a growth step at the position, and so do not use this case.
 
@@ -9496,8 +9510,11 @@ claims of this lemma that rest on them hold apart from them:
    reduce: an abandoned unit that is a step, dropped or kept, of another
    growth at the position, a unit in the body of another leader $T$ whose
    path in the first step goes on, after the failed reads, through a left
-   call of a leader, and a unit in a growth of the leader at another binding
-   level. The kept steps that its cases
+   call of $T$ at the binding level of its growth in a step of that growth
+   after the first, through a left call of a third leader at any step, or
+   through a left call of either leader at another binding level, and a unit
+   in a growth of the leader at another binding level. The kept steps that
+   its cases
    (1) and (3) leave, the second step and steps whose results have at most
    $c_w$ characters, the hypothesis leaves out, and the claims that take it
    allow them, apart from the second remaining case of *Steps that begin
@@ -13977,8 +13994,11 @@ theorem covers such a parse.
    reading it only inside a lookahead or only in an alternative that it
    abandons, which *Later steps that abandon their reads of the seed*
    excludes apart from a step of another growth at the position in its
-   place, a unit of another leader whose path in the first step goes on
-   through a left call of a leader, a unit in a growth of the leader at
+   place, a unit of another leader $T$ whose path in the first step goes on
+   through a left call of $T$ at the binding level of its growth in a step
+   of that growth after the first, through a left call of a third leader at
+   any step, or through a left call of either leader at another binding
+   level, a unit in a growth of the leader at
    another binding level, and the second step of a growth and its
    kept steps whose results have at most as many characters as the longest
    literal of the grammar; and apart from a pair of nested evaluations
@@ -14064,8 +14084,11 @@ theorem covers such a parse.
    begin anew* on kept steps, which is not shown, for a leader with a
    scanning source, in the units that *Later steps that abandon their reads
    of the seed* leaves aside and does not reduce (step 1): a step of another
-   growth at the position, a unit of another leader whose path in the first
-   step goes on through a left call of a leader, and a unit in a growth of
+   growth at the position, a unit of another leader $T$ whose path in the
+   first step goes on through a left call of $T$ at the binding level of its
+   growth in a step of that growth after the first, through a left call of a
+   third leader at any step, or through a left call of either leader at
+   another binding level, and a unit in a growth of
    the leader at another binding level; the second step and steps whose
    results have at
    most $c_w$ characters, which its cases (1) and (3) leave, the hypothesis
