@@ -1,10 +1,14 @@
 package flowlower_test
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -21,7 +25,9 @@ var update = flag.Bool("update", false, "update golden files")
 // TestTermDumpGolden lists the terms of every grammar of testdata/grammars lowered to Exec IR, against
 // the goldens in testdata/terms: a review aid that shows what a change of the lowering does to the
 // printed programs. A term that Term does not lower is listed by the kinds that it holds and Term
-// does not lower.
+// does not lower. A dump above termDigestAbove bytes is stored as one digest line for each term
+// (termDigests); a difference then names the terms that changed, with the digests of the golden and
+// of the run and the actual text, and the command that regenerates the goldens.
 func TestTermDumpGolden(t *testing.T) {
 	paths, err := filepath.Glob("../../../testdata/grammars/*/*.sxir")
 	if err != nil || len(paths) == 0 {
@@ -52,7 +58,11 @@ func TestTermDumpGolden(t *testing.T) {
 				if err := os.MkdirAll(filepath.Dir(golden), 0o755); err != nil {
 					t.Fatal(err)
 				}
-				if err := os.WriteFile(golden, []byte(got), 0o644); err != nil {
+				out := got
+				if len(got) > termDigestAbove {
+					out = termDigests(got)
+				}
+				if err := os.WriteFile(golden, []byte(out), 0o644); err != nil {
 					t.Fatal(err)
 				}
 				return
@@ -61,11 +71,100 @@ func TestTermDumpGolden(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got != string(want) {
-				t.Errorf("the lowered terms differ from %s; run go test -run TestTermDumpGolden -update", golden)
+			if string(want) == got || (strings.HasPrefix(string(want), termDigestHeader) && len(got) > termDigestAbove && termDigests(got) == string(want)) {
+				return
 			}
+			if strings.HasPrefix(string(want), termDigestHeader) {
+				for _, d := range termDigestDifferences(string(want), got) {
+					t.Error(d)
+				}
+			}
+			t.Errorf("the lowered terms differ from %s; regenerate after review: go test ./internal/middleend/flowlower -run TestTermDumpGolden -update", golden)
 		})
 	}
+}
+
+// termDigestAbove is the size in bytes above which a dump is stored as digests, and termDigestHeader
+// is the first line of such a golden.
+const (
+	termDigestAbove  = 24 << 10
+	termDigestHeader = "# digests: term, occurrence, lines, first 10 hex digits of the SHA-256 of the text\n"
+)
+
+// termSection is one term of a dump: its heading, which names the rule and the kind of term, and its text.
+type termSection struct{ key, text string }
+
+// termSections splits a dump into its terms. The key of a term is its heading and its occurrence among
+// the terms with that heading, so that a term added before it does not change its key.
+func termSections(dump string) []termSection {
+	var out []termSection
+	seen := map[string]int{}
+	for _, part := range strings.Split(strings.TrimPrefix(dump, "## "), "\n## ") {
+		if part == "" {
+			continue
+		}
+		head, _, _ := strings.Cut(part, "\n")
+		seen[head]++
+		out = append(out, termSection{head + " #" + strconv.Itoa(seen[head]), part})
+	}
+	return out
+}
+
+// termDigest returns the number of lines and the digest of the text of a term.
+func termDigest(text string) (lines int, sum string) {
+	h := sha256.Sum256([]byte(text))
+	return strings.Count(text, "\n") + 1, hex.EncodeToString(h[:])[:10]
+}
+
+// termDigests returns the digest golden of a dump: one line for each term, in order.
+func termDigests(dump string) string {
+	var b strings.Builder
+	b.WriteString(termDigestHeader)
+	for _, sec := range termSections(dump) {
+		n, sum := termDigest(sec.text)
+		fmt.Fprintf(&b, "%s\t%d\t%s\n", sec.key, n, sum)
+	}
+	return b.String()
+}
+
+// termDigestDifferences lists the terms whose digest in the golden differs from the dump's, with the
+// actual text of the terms of the dump (the first 40 lines of each).
+func termDigestDifferences(golden, dump string) []string {
+	want := map[string]string{}
+	for _, l := range strings.Split(golden, "\n") {
+		if f := strings.Split(l, "\t"); len(f) == 3 {
+			want[f[0]] = f[1] + " lines, digest " + f[2]
+		}
+	}
+	var out []string
+	got := map[string]bool{}
+	for _, sec := range termSections(dump) {
+		got[sec.key] = true
+		n, sum := termDigest(sec.text)
+		have := fmt.Sprintf("%d lines, digest %s", n, sum)
+		if w, ok := want[sec.key]; !ok || w != have {
+			if !ok {
+				w = "none"
+			}
+			text := strings.Split(sec.text, "\n")
+			more := ""
+			if len(text) > 40 {
+				text, more = text[:40], "\n..."
+			}
+			out = append(out, fmt.Sprintf("term %s: golden has %s, the lowering has %s:\n%s%s", sec.key, w, have, strings.Join(text, "\n"), more))
+		}
+	}
+	var gone []string
+	for k := range want {
+		if !got[k] {
+			gone = append(gone, k)
+		}
+	}
+	sort.Strings(gone)
+	for _, k := range gone {
+		out = append(out, fmt.Sprintf("term %s: golden has %s, the lowering has none", k, want[k]))
+	}
+	return out
 }
 
 // dumpTerms lists the terms of the rules of m in the order of the rules: their actions, the actions of
