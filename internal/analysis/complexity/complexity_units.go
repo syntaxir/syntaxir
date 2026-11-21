@@ -138,8 +138,8 @@ type wctx struct {
 	open                []*unit
 	inNot               bool
 	seqs                []seqFrame // the sequences around the expression, for bindings
-	inRepeat            bool       // inside the element of a repetition of the rule
-	ops                 bool       // inside an Operators Rule
+	inRepeat            bool       // inside the element of a repetition of the rule, with no negative lookahead between
+	ops                 bool       // inside an Operators Rule, with no negative lookahead between
 	// strictFrom is the first of seqs that the expression is in through groups, options,
 	// choices, captures, discards and atomic expressions only, for the growing-variable check.
 	strictFrom int
@@ -394,6 +394,11 @@ func (k *classifier) walkLookahead(e, body ast.Expr, c wctx, not bool) {
 	cc.inNot = c.inNot || not
 	if not || !lookaheadBindsOn {
 		cc.seqs, cc.strictFrom = nil, 0
+	}
+	if not {
+		// A negative lookahead undoes the bindings made in it, so a binding inside it reaches
+		// only the later elements, iterations and operator parts inside it too.
+		cc.inRepeat, cc.ops = false, false
 	}
 	k.walk(body, cc)
 }

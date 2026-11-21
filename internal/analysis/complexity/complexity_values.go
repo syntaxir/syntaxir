@@ -1176,9 +1176,9 @@ func (k *classifier) selfDependent(b *binding, deps map[string]map[string]bool) 
 }
 
 // reaches reports whether the value that the binding binds can reach a later evaluation of the
-// same binding: it is in the element of a repetition or an Operators Rule, outside a negative
-// lookahead, or a sequence has it in one element and a call that can reach its rule again in a
-// later element. strict limits the depths to groups, options, choices, captures, discards and
+// same binding: it is in the element of a repetition or an Operators Rule with no negative
+// lookahead between them, or a sequence has it in one element and a call that can reach its rule
+// again in a later element. strict limits the depths to groups, options, choices, captures, discards and
 // atomic expressions, which the growing-variable check requires.
 func (k *classifier) reaches(b *binding, strict bool) (string, bool) {
 	if strict {
@@ -1188,7 +1188,7 @@ func (k *classifier) reaches(b *binding, strict bool) (string, bool) {
 		if b.c.inRepeat {
 			return "the repetition around it", true
 		}
-	} else if (b.c.inRepeat || b.c.ops) && !b.c.inNot {
+	} else if b.c.inRepeat || b.c.ops {
 		return "the repetition around it", true
 	}
 	frames := b.c.seqs

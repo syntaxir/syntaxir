@@ -593,6 +593,14 @@ func Controls() []Control {
 			Sizes:  double(4), ShortSizes: double(3), Order: Exp, Capped: true, Class: ClassExp,
 		},
 		{
+			// The iterations inside the negative lookahead see one another's bindings, which the
+			// lookahead undoes only when it ends.
+			Name: "E4 self-growing variable in a repetition inside a negative lookahead", Family: "E4",
+			Source: "var s string = \"a\"\nrule main = !((\"x\" {s := s + s})* {len(s) < 0}) \"x\"* $$\n",
+			Input:  func(n int) string { return rep("x", n) },
+			Sizes:  double(4), ShortSizes: double(3), Order: Exp, Capped: true, Class: ClassExp,
+		},
+		{
 			Name: "E5 self-growing fold", Family: "E5",
 			Source: "rule main = xs:\"x\"* => len(foldl(\"a\", $xs, (acc, x) => acc + acc))\n",
 			Input:  func(n int) string { return rep("x", n) },

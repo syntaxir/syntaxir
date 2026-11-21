@@ -1912,7 +1912,10 @@ bound by these conditions, and has to say so.
    `r` in the lookahead doubles the value again. Or the value can reach a
    later evaluation when the binding is part of the element of a
    repetition or of an Operators Rule, which applies its parts again at each
-   operator, outside a negative lookahead. A binding and a call in
+   operator, with no negative lookahead between the binding and the
+   repetition or the operator part. A negative lookahead undoes its bindings
+   only when it ends, so the iterations of a repetition inside it see one
+   another's bindings, as in `!(("x" {s := s + s})* {len(s) < 0})`. A binding and a call in
    different alternatives of one choice are not on one path of evaluation,
    because a failed alternative undoes its bindings before the next is tried.
    A binding after the recursive call binds a value that no later evaluation
