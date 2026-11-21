@@ -4559,6 +4559,23 @@ from scratch does not have. These activations are to be counted
 through their counterparts in the parse from scratch, whose cost bounds the
 Document parse; that is not shown.
 
+Case (b) arises at a call $y$ that the parse answers from what it keeps
+apart from the table, with the result of $y'$, when the path goes on inside
+a lookahead $L$ at $p$ that $y'$ observed. $y'$ observed $L$ because $L$ reads
+an open growth ((D) of the [memoization proof](memoization.md#setting)), and
+the answer requires the same observation of $L$, not equal current results
+of the growths that $L$ reads. When each growth open at the start of $y$ that
+$L$ reads has the same current result at $y$ as at $y'$, $\mathcal{R}(y)$ and
+$\mathcal{R}(y')$ take the same steps inside $L$ as well, by the argument of
+Lemma 4 of that proof that the covered keys apply outside the lookaheads,
+and the path goes on in $\mathcal{R}(y')$ as there. So case (b) needs a
+lookahead that reads a growing result that changed between $y'$ and $y$: a
+lookahead at the position of a growth that reads its growing result makes a
+left call in a body of the cycle (*Plain reads* in Lemma 5), which condition 5
+excludes in a cycle with more than one leader, so the growth is one of a
+leader that is alone on its cycle, whose current result at $y$ is not the
+one that $L$ read at $y'$. That such a link leads to an activation that no head holds is not shown.
+
 **Links to heads.** Let $\alpha_1, \alpha_2, \ldots$
 be the successful activations of $\sigma$ at $q$ outside case 5 and dropped
 steps, as above. Every link is memoized at both calls or a call of a rule that
@@ -13737,7 +13754,10 @@ theorem covers such a parse.
    that the parse from scratch does not have, so that the count of these links
    belongs with the activations of the parse from scratch (*Links lead to
    repeated evaluations*); and a link whose comparison enters a
-   lookahead that a result kept in a context of growths observed. Such a link can lead to
+   lookahead that a result kept in a context of growths observed, which needs
+   that lookahead to read the growing result of a leader alone on its cycle
+   whose current result changed since the result was kept (*Links lead to
+   repeated evaluations*). Such a link can lead to
    an activation held by a head. The activations include
    those of the copying operations, the units of the own spans that they read
    (Lemma 6). One point of the claims proved in step 1 is left to make
