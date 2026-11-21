@@ -50,6 +50,7 @@ This document describes the repository layout and architecture, how to run tests
 | `internal/backend/codegen/typescript/lib/` | Source of `lib.ts`, the library that generated TypeScript parsers import (joined from `lib.ts`, `budget.ts`, `trace.ts` and `profile.ts`) |
 | `cmd/sxir/` | Command-line tool |
 | `examples/` | Small example grammars that show the features, with golden tests |
+| `internal/testing/` | The test support shared by the tests of several packages, one package per concern; see [Test-Support Packages](#test-support-packages) |
 | `testdata/grammars/` | The grammars of ten languages (`<language>/<language>.sxir`, with sample inputs) that the tests and benchmarks of this module read, and `generate.txt` with the `sxir gen` options of each; the ready-made parsers generated from them live in the separate [alpha-parsers](https://github.com/syntaxir/alpha-parsers) repository |
 | `cmd/playground/` | WebAssembly API used by the web playground (package `main`; `GOOS=js GOARCH=wasm`) |
 | `site/` | Web site generator (a separate Go module): landing page, docs, reference and playground; see [website maintenance](site.md) |
@@ -191,6 +192,25 @@ library of another protocol and that an embedded copy fails to build against a `
 An import block has at most one blank line: between the standard library group and the group of all other imports (the module's own packages included). Each group is sorted by import path, as `goimports` sorts it; named, blank and dot imports and their comments stay with their line. A package whose path has no dot in its first element counts as standard library. `TestImportGroups` in `internal/testing/archtest` checks every tracked Go file and every Go file the generator prints, so a generator must print its imports in this form. `hack/fix-imports.sh [-n] [path ...]` rewrites files to the rule (all tracked Go files without paths, paths relative to the directory it is run from, `-n` to only list them and exit 1 if any would change); run it to resolve an import-block merge conflict, by taking either side and rerunning it. It leaves a block with a comment between imports unchanged and reports it.
 
 ## Testing
+
+### Test-Support Packages
+
+The code that the tests of several packages share lives under `internal/testing/`, one package per concern, so that a package under test does not carry the fixtures and drivers of its own tests. `internal/testing/doc.go` holds the rule; this section states it and lists every package outside the product code that serves tests.
+
+- A package named `<subject>test` serves the tests of `<subject>`: it provides the fixtures, corpora or drivers that those tests share. These are `archtest` (the architecture and repository rules), `codegentest`, `compiletest`, `complexitytest`, `enginetest`, `exectest`, `factstest`, `mutanttest`, `starttest` and `tsconformtest`. `complexitytest` also holds the measurement of the cost of a grammar that its tests report.
+- A package of another form is a reference or a measurement that tests and benchmarks drive, and it is named for what it holds: `examinedref` (the independent reference of the examined end of a call), `linearity` (measures of linear growth that do not depend on the time or the load of the machine), `importgroups` (the import-block rule that `archtest` enforces and `hack/fix-imports.sh` applies; its command is `importgroups/fiximports`) and `recoveryquality` (how well `#recover` repairs invalid input).
+- A directory that holds only tests (`recoveryquality`) has only `_test.go` files and a package comment that states its purpose; every other package has a package comment in a non-test file.
+- Non-test code outside `internal/testing/` does not import these packages: the import-graph test in `internal/testing/archtest` (rule 2) fails when it does.
+
+These packages outside `internal/testing/` serve tests or look like they do, and stay where they are:
+
+| Package | Why |
+|:--|:--|
+| `internal/ir/code/exec/conform`, `internal/ir/code/exec/ref`, `internal/ir/code/exec/spectest` | The conformance harness, the reference models and the reader of the specification tables of the Exec IR. They state the contract that the machine, the compositions and every backend meet ([record 065](design/records/065-exec-ir-parser-vm.md)), so they change with `internal/ir/code/exec/` and are read by the tests of the code generators, `internal/runtime/state`, `pkg/runtime/libgo` and `pkg/sample` |
+| `examples` | A test-only package, the golden tests of the example grammars; its package comment is in `examples_test.go` |
+| `internal/fixture` | Not test support: the runner of `sxir test`, which runs JSON-described examples against a grammar for users |
+
+Every other package of `go list ./...` is product code, a command or a benchmark.
 
 ### Running the Checks
 
