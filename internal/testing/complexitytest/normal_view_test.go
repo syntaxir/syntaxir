@@ -108,7 +108,7 @@ func TestNormalViewMatchesShapes(t *testing.T) {
 func checkViewMatches(t *testing.T, g *ast.Grammar, prog *engine.Program, inputs []string) {
 	t.Helper()
 	for _, matching := range []bool{false, true} {
-		vg, err := complexity.NormalView(g, matching, nil)
+		vg, _, err := complexity.NormalView(g, complexity.Options{Labels: matching, Inline: matching}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -228,7 +228,7 @@ func TestNormalViewCompiles(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			vg, err := complexity.NormalView(g, false, nil)
+			vg, _, err := complexity.NormalView(g, complexity.Options{}, nil)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -59,21 +59,20 @@ func classifierRules(g *ast.Grammar, control *cancel.Control) (*ast.Grammar, []*
 }
 
 // NormalView returns the grammar that the compiler runs for g, with inline actions lowered and
-// attributes normalized, and with the bodies of its rules replaced by those of their cost view
-// (internal/analysis/complexity). With matching, the view also drops labels and inlines the calls that P1
-// allows: it then keeps only what a parse matches and where it ends (≡E), which is what an
-// analysis of matching, such as the exclusion of alternatives, needs. Without matching it is the
-// view that the complexity classifier reads. g must compile.
-func NormalView(g *ast.Grammar, matching bool, control *cancel.Control) (*ast.Grammar, error) {
+// attributes normalized, and with the bodies of its rules replaced by those of their view with
+// opts (Build), and the view. The zero Options give the view that the complexity classifier reads;
+// with Labels and Inline the view also drops labels and inlines the calls that P1 allows, and keeps
+// only what a parse matches and where it ends (≡E), which is what an analysis of matching, such as
+// the exclusion of alternatives, needs. g must compile.
+func NormalView(g *ast.Grammar, opts Options, control *cancel.Control) (*ast.Grammar, *View, error) {
 	cs, err := NewCostSource(g, control)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	v := Build(&Source{Module: cs.Module, Facts: cs.Facts},
-		Options{Labels: matching, Inline: matching}, control)
+	v := Build(&Source{Module: cs.Module, Facts: cs.Facts}, opts, control)
 	rules, err := v.Grammar(cs.Rules)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	byName := map[string]*ast.RuleDef{}
 	for _, r := range rules {
@@ -86,7 +85,7 @@ func NormalView(g *ast.Grammar, matching bool, control *cancel.Control) (*ast.Gr
 			out.File.Decls[i] = byName[r.Name]
 		}
 	}
-	return &out, nil
+	return &out, v, nil
 }
 
 // costSource returns the untyped Core IR module of rules, the unique rules of g, whose start rules

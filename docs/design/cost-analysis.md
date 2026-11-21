@@ -93,6 +93,14 @@ so a message of the classifier points into the grammar as written. What the runt
 cycles of left recursion and their leaders, the memoized rules, the variables that key the memo, the run sites) stays
 decided from the grammar, not from the view.
 
+The tests check the first property on the bundled grammars, apart from the proofs: every rule of a view is entered as a start
+rule and must match exactly where the rule of the grammar matches, and end where it ends. The inputs are the inputs written
+for the grammar, inputs generated for its rules, the input at each place where a parse of those calls a rule, whether the
+call matches or fails, and variants of them: changed by one character, repeated, or with a literal of the rule before or
+after. They check the view that the classifier reads, the view for analyses of matching, and the view of each law alone, so
+that a difference names its law; a broken variant of each law, which changes what its rewrites match, must make the check
+fail on every grammar where a parse can reach a rewrite of the law.
+
 ## The Exclusion Analysis
 
 Comparing the first characters of a unit with those of its continuations misses a common, harmless shape: two alternatives

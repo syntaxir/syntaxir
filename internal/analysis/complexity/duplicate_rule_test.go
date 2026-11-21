@@ -25,8 +25,8 @@ func TestAnalysisEntryPointsReportDuplicateRule(t *testing.T) {
 		control := &cancel.Control{Ctx: ctx}
 		_, errClassify := ClassifyComplexityControlled(g, "", control)
 		_, errGrowing := GrowingBindingsControlled(g, "", control)
-		_, errView := NormalView(g, false, control)
-		_, errMatching := NormalView(g, true, control)
+		_, _, errView := NormalView(g, Options{}, control)
+		_, _, errMatching := NormalView(g, Options{Labels: true, Inline: true}, control)
 		stop()
 		for name, err := range map[string]error{"ClassifyComplexity": errClassify, "GrowingBindings": errGrowing, "NormalView": errView, "NormalView matching": errMatching} {
 			if err == nil || !strings.Contains(err.Error(), tc.want) {
