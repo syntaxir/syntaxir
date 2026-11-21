@@ -550,6 +550,14 @@ ShapeListValue or ShapeStruct, which a value of a node type has by its base.`,
 		Contract: `Charges the step of one element of a list or a tuple: an element that is examined against its type,
 walked by a built-in function or made by a constructor. A target that bounds the work charges one unit; a target
 that does not charges nothing.`})
+	// Logical compute units (the prototype of design record 076): the lists that a fused concat does
+	// not build.
+	pure(&code.Op{Name: "units.add", Kind: code.OpHost, NoReturn: true, Params: []code.Param{code.P("n", code.TInt)},
+		Contract: `Counts n logical compute units of values that the plain evaluation builds and the lowering does not.`})
+	pure(&code.Op{Name: "units.items", Kind: code.OpHost, NoReturn: true, Params: []code.Param{code.P("v", datum), code.P("k", code.TInt)},
+		Contract: `Counts k logical compute units for each element of the list or the tuple v.`})
+	pure(&code.Op{Name: "units.since", Kind: code.OpHost, NoReturn: true, Params: []code.Param{code.P("mark", code.TInt)},
+		Contract: `Counts a logical compute unit for each element gathered since mark (term.kids).`})
 	pure(&code.Op{Name: "seq.len", Params: []code.Param{code.P("items", items)}, Results: []code.Type{code.TInt},
 		Contract: `Returns the number of elements.`, Requires: `items came from seq.items.`})
 	pure(&code.Op{Name: "seq.at", Params: []code.Param{code.P("items", items), code.P("i", code.TInt)}, Results: []code.Type{datum},

@@ -1,0 +1,10 @@
+// Small rules whose logical compute units are counted by hand in bench/logical_hand_test.go.
+package hand
+
+@start(default)
+rule tag = "<" a:name ">" b:name "</" c:name ">" {text($a) == text($c)} => text($a) + text($b)
+rule name = [a-z]+
+
+@start
+rule nums = "[" first:num rest:("," n:num)* "]" => filter(concat(list($first), map($rest, (r) => r.$n)), (x) => text(x) != "0")
+rule num = [0-9]+

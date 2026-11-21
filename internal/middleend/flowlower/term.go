@@ -533,7 +533,12 @@ func (l *termLowerer) concatParts(b *code.Builder, t *ir.Builtin) {
 		call := a.(*ir.Builtin)
 		switch call.Func {
 		case "list":
-			l.pushes(b, "list", l.values(b, call.Args))
+			vals := l.values(b, call.Args)
+			if l.visits {
+				// Logical units: the list that list would build, which the fusion does not build.
+				b.Do("units.add", code.Int(int64(len(vals))))
+			}
+			l.pushes(b, "list", vals)
 		case "map":
 			if x, ok := l.projected(call); ok {
 				// The elements of the projected capture are pushed as concat pushes those of an argument.
@@ -541,12 +546,24 @@ func (l *termLowerer) concatParts(b *code.Builder, t *ir.Builtin) {
 				if l.steps {
 					b.Do(action.OpTermSpend)
 				}
+				if l.visits {
+					// Logical units: the elements that map would visit and the list it would build.
+					b.Do("units.items", v, code.Int(2))
+				}
 				l.check(b, code.C("pushItems", code.L(CtxParam), imm(action.OpTermName, "concat"), v))
 				break
 			}
-			l.mapPush(b, l.value(b, call.Args[0]), call.Args[1].(*ir.Lambda))
+			l.mapPushFused(b, l.value(b, call.Args[0]), call.Args[1].(*ir.Lambda), true)
 		case "concat":
+			var base code.Expr
+			if l.visits {
+				base = b.Let(l.local("tm"), code.C(action.OpTermKids))
+			}
 			l.concatParts(b, call)
+			if l.visits {
+				// Logical units: the list that the inner concat would build.
+				b.Do("units.since", base)
+			}
 		default:
 			panic("lower: concat part " + call.Func)
 		}
@@ -572,12 +589,21 @@ func fusable(t *ir.Builtin) bool {
 // list that map makes. Under Steps, a step is charged before the elements are read, as the target's
 // map charges one.
 func (l *termLowerer) mapPush(b *code.Builder, list code.Expr, f *ir.Lambda) {
+	l.mapPushFused(b, list, f, false)
+}
+
+// mapPushFused is mapPush, for the part of a fused concat if fused: under logical units, each element
+// also counts the element of the list that map would build.
+func (l *termLowerer) mapPushFused(b *code.Builder, list code.Expr, f *ir.Lambda, fused bool) {
 	if l.steps {
 		b.Do(action.OpTermSpend)
 	}
 	items := l.fallible(b, "ti", code.C("items", imm(action.OpTermName, "map"), list))
 	l.loop(b, items, func(b *code.Builder, i code.Expr) {
 		v := l.call(b, f, code.C("itemAt", items, i, code.BoolC(false)))
+		if fused && l.visits {
+			b.Do("seq.step")
+		}
 		l.check(b, code.C("push", code.L(CtxParam), imm(action.OpTermName, "map"), v))
 	})
 }

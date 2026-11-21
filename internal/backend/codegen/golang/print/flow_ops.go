@@ -176,6 +176,11 @@ func (p *flowPrinter) op(c *code.Call, args []string) string {
 		}
 		if g.Logical && !g.LogicalKeepGuards {
 			info := g.logicalGuard(g.Flow.M, guard)
+			if g.LogicalEvent && info.calls > 0 {
+				// The reference counts each call where it happens. A guard whose skip counts nothing
+				// stays: the alternative after it may begin past the character it tested.
+				info = guardInfo{}
+			}
 			if !info.static {
 				// Disabled: the alternative is always tried. The condition stays, dead, for the
 				// variables of the peeked character.

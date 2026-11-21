@@ -375,3 +375,24 @@ func (c *TActCtx) NewListLogical(items []any) any {
 	c.P.unitsSized(2 * len(items))
 	return c.NewList(items)
 }
+
+// UnitsSized counts a sized event of n units and checks the counter.
+//
+// UnitsSized is for generated parsers; not a stable API.
+func (p *Parser) UnitsSized(n int) { p.unitsSized(n) }
+
+// UnitsOfItems counts k units for each element of the list or tuple v, and checks the counter.
+//
+// UnitsOfItems is for generated parsers; not a stable API.
+func (p *Parser) UnitsOfItems(v any, k int) {
+	if items, ok := valItems(v); ok {
+		p.unitsSized(k * len(items))
+	}
+}
+
+// UnitsOfItems is the typed Parser.UnitsOfItems.
+func (p *TParser) UnitsOfItems(v any, k int) {
+	if items, ok := tvalItems(v); ok {
+		p.unitsSized(k * len(items))
+	}
+}

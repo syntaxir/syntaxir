@@ -103,8 +103,10 @@ func (g *Generator) logicalGuard(m *core.Module, guard *core.First) guardInfo {
 						fmt.Fprintf(os.Stderr, "guard disabled: %s\n", core.PrintNode(m, a.Body, true))
 					}
 					if prev, ok := g.guards[a.Guard]; ok && prev != info {
-						// One guard object for alternatives that count differently: disable it.
-						info = guardInfo{}
+						// One guard object for alternatives that count differently. Disabling it would
+						// be wrong where an alternative begins past the character the guard tested,
+						// so the prototype stops.
+						panic(fmt.Sprintf("sxir: logical units: one dispatch guard for alternatives that count differently (%+v, %+v)", prev, info))
 					}
 					g.guards[a.Guard] = info
 				}

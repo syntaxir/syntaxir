@@ -154,6 +154,12 @@ func (g *Generator) termTarget(s *check.Scope, locals map[string]string) *Target
 				return "len(c.P.KidStack)"
 			case action.OpTermElemsAbove:
 				return "c.P.ElemsAbove(" + a[0] + ")"
+			case "units.add":
+				return "c.P.UnitsSized(" + a[0] + ")"
+			case "units.items":
+				return "c.P.UnitsOfItems(" + a[0] + ", " + a[1] + ")"
+			case "units.since":
+				return "c.P.UnitsSized(len(c.P.KidStack) - " + a[0] + ")"
 			case "seq.step":
 				if g.Logical {
 					return "c.P.Units++"

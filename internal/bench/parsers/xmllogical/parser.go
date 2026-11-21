@@ -1155,10 +1155,12 @@ func init() {
 	rules[33].Body = e70
 	rules[33].Action = func(c *rt.ActCtx) (any, any) {
 		tm1 := len(c.P.KidStack)
+		c.P.UnitsSized(1)
 		tf2 := c.P.TermPush(c, "list", c.Cap(0))
 		if tf2 != nil {
 			return nil, tf2
 		}
+		c.P.UnitsOfItems(c.Cap(1), 2)
 		tf3 := c.P.TermPushItems(c, "concat", c.Cap(1))
 		if tf3 != nil {
 			return nil, tf3
@@ -1179,10 +1181,12 @@ func init() {
 	rules[34].Body = e73
 	rules[34].Action = func(c *rt.ActCtx) (any, any) {
 		tm1 := len(c.P.KidStack)
+		c.P.UnitsSized(1)
 		tf2 := c.P.TermPush(c, "list", c.Cap(0))
 		if tf2 != nil {
 			return nil, tf2
 		}
+		c.P.UnitsOfItems(c.Cap(1), 2)
 		tf3 := c.P.TermPushItems(c, "concat", c.Cap(1))
 		if tf3 != nil {
 			return nil, tf3
@@ -1253,10 +1257,12 @@ func init() {
 	rules[44].Body = e98
 	rules[44].Action = func(c *rt.ActCtx) (any, any) {
 		tm1 := len(c.P.KidStack)
+		c.P.UnitsSized(1)
 		tf2 := c.P.TermPush(c, "list", c.Cap(0))
 		if tf2 != nil {
 			return nil, tf2
 		}
+		c.P.UnitsOfItems(c.Cap(1), 2)
 		tf3 := c.P.TermPushItems(c, "concat", c.Cap(1))
 		if tf3 != nil {
 			return nil, tf3
@@ -1274,10 +1280,12 @@ func init() {
 	rules[45].Body = e100
 	rules[45].Action = func(c *rt.ActCtx) (any, any) {
 		tm1 := len(c.P.KidStack)
+		c.P.UnitsSized(1)
 		tf2 := c.P.TermPush(c, "list", c.Cap(0))
 		if tf2 != nil {
 			return nil, tf2
 		}
+		c.P.UnitsOfItems(c.Cap(1), 2)
 		tf3 := c.P.TermPushItems(c, "concat", c.Cap(1))
 		if tf3 != nil {
 			return nil, tf3
@@ -8819,10 +8827,12 @@ L19:
 		var tr54 any
 		{
 			tm1 := len(c.P.KidStack)
+			c.P.UnitsSized(1)
 			tf2 := c.P.TermPush(c, "list", k1)
 			if tf2 != nil {
 				c.TermRaise(tf2)
 			}
+			c.P.UnitsOfItems(k4, 2)
 			tf3 := c.P.TermPushItems(c, "concat", k4)
 			if tf3 != nil {
 				c.TermRaise(tf3)
@@ -8938,10 +8948,12 @@ L19:
 		var tr55 any
 		{
 			tm1 := len(c.P.KidStack)
+			c.P.UnitsSized(1)
 			tf2 := c.P.TermPush(c, "list", k1)
 			if tf2 != nil {
 				c.TermRaise(tf2)
 			}
+			c.P.UnitsOfItems(k4, 2)
 			tf3 := c.P.TermPushItems(c, "concat", k4)
 			if tf3 != nil {
 				c.TermRaise(tf3)
@@ -9593,10 +9605,12 @@ func i44(p *rt.TParser) (any, bool) {
 		var tr59 any
 		{
 			tm1 := len(c.P.KidStack)
+			c.P.UnitsSized(1)
 			tf2 := c.P.TermPush(c, "list", k1)
 			if tf2 != nil {
 				c.TermRaise(tf2)
 			}
+			c.P.UnitsOfItems(k4, 2)
 			tf3 := c.P.TermPushItems(c, "concat", k4)
 			if tf3 != nil {
 				c.TermRaise(tf3)
@@ -9692,10 +9706,12 @@ func i45(p *rt.TParser) (any, bool) {
 		var tr60 any
 		{
 			tm1 := len(c.P.KidStack)
+			c.P.UnitsSized(1)
 			tf2 := c.P.TermPush(c, "list", k1)
 			if tf2 != nil {
 				c.TermRaise(tf2)
 			}
+			c.P.UnitsOfItems(k4, 2)
 			tf3 := c.P.TermPushItems(c, "concat", k4)
 			if tf3 != nil {
 				c.TermRaise(tf3)

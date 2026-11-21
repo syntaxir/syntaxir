@@ -100,7 +100,8 @@ type GoConfig struct {
 	// logical compute units in place of the charges of the limit-controlled form.
 	LogicalUnits bool
 	// LogicalVariant selects a variant of LogicalUnits for measurement: "keep-guards" keeps every
-	// dispatch guard without its charge (inexact, to measure what disabling costs).
+	// dispatch guard without its charge (inexact, to measure what disabling costs); "event" counts
+	// each event where it happens, with no static sum, as the reference of the exactness tests.
 	LogicalVariant string
 	// Recognize also generates a function Recognize, which checks the input against the start
 	// rule without building a tree, like runtime.Parser.Recognize.

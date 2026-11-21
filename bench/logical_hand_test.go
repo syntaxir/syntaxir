@@ -3,6 +3,7 @@ package bench
 import (
 	"testing"
 
+	ghand "syntaxir.dev/sxir/internal/bench/parsers/handlogical"
 	gjsonlogical "syntaxir.dev/sxir/internal/bench/parsers/jsonlogical"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	rt "syntaxir.dev/sxir/pkg/runtime/libgo"
@@ -37,6 +38,34 @@ func TestLogicalHandCounts(t *testing.T) {
 			}
 			if a != c.want || b != c.want {
 				t.Errorf("%s (%v): Parse %d, ParseValue %d units, want %d (%s)", c.in, u, a, b, c.want, c.why)
+			}
+		}
+	}
+}
+
+// TestLogicalHandCountsActions checks the counts of the actions, predicates and comparisons of
+// bench/grammars/logical_hand.sxir against totals counted by hand.
+func TestLogicalHandCountsActions(t *testing.T) {
+	for _, c := range []struct {
+		rule, in string
+		want     uint64
+		why      string
+	}{
+		// Calls: tag, name x3 = 4. Input: 12. Predicate text($a) == text($c): 2 (shorter operand).
+		// Action text($a) + text($b): a string of 5 bytes. Total 4 + 12 + 2 + 5.
+		{"tag", "<ab>xyz</ab>", 23, "4 calls + 12 input + 2 compared + 5 built"},
+		// Calls: nums, num x3 = 4. Input: 7. Action: list($first) builds 1; map($rest, (r) => r.$n)
+		// visits 2 and builds 2; concat builds 3; filter visits 3, compares 3 strings of 1 byte with
+		// "0" (1 each) and builds 2. Total 4 + 7 + 1 + 4 + 3 + 3 + 3 + 2.
+		{"nums", "[1,0,2]", 27, "4 calls + 7 input + 16 action"},
+	} {
+		for _, u := range []sxirinput.PositionUnit{sxirinput.Bytes, sxirinput.CodePoints} {
+			var n uint64
+			if _, err := ghand.ParseRule(c.rule, c.in, rt.WithUnit(u), rt.WithUnitsReport(&n)); err != nil {
+				t.Fatal(c.rule, err)
+			}
+			if n != c.want {
+				t.Errorf("%s %q (%v): %d units, want %d (%s)", c.rule, c.in, u, n, c.want, c.why)
 			}
 		}
 	}

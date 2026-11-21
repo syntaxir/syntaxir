@@ -210,6 +210,7 @@ func generateOnce(g *ast.Grammar, c common.Compiler, p common.Passes, opts commo
 		}
 		genGo.Logical = true
 		genGo.LogicalKeepGuards = opts.LogicalVariant == "keep-guards"
+		genGo.LogicalEvent = opts.LogicalVariant == "event"
 	}
 	// Go prints every form of the Flow passes.
 	genGo.FlowTarget = flowpass.Target{Terminals: true, ClassRuns: true, ClassTables: true, GuardedClasses: true, InlineLiterals: true}
@@ -541,7 +542,10 @@ type Generator struct {
 	guardsKept, guardsDisabled int
 	// LogicalKeepGuards keeps every dispatch guard under Logical without its charge: a variant
 	// that measures what disabling the guards costs, and does not count exactly.
-	LogicalKeepGuards   bool
+	LogicalKeepGuards bool
+	// LogicalEvent prints the reference of the exactness tests under Logical: each event counted
+	// where it happens, with no static sum (every dispatch guard disabled).
+	LogicalEvent        bool
 	directTypedDocument bool
 	budgetClassNames    map[string]string
 	budgetClassKeys     []string
