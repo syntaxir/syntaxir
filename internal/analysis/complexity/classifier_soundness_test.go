@@ -452,6 +452,8 @@ var classifierSoundnessMutants = []struct {
 		"operators/operand lists joined once",
 	}, ClassLinear},
 	{"operandValues", []string{"operators/operand value joined twice into a variable"}, ClassLinearEnv},
+	// The requirements that a lookahead only the continuation evaluates costs a constant are controlled
+	// in TestStrictLookaheadMutants: a class does not show them, as the scan is a lookahead-scan cause.
 	// Either rule alone rejects the dropped result behind a predicate: without both, condition 5
 	// misses the alternative that drops the result and no source is around the call of R.
 	{"leadingPass+leaderSource", []string{"growing/dropped result behind a predicate"}, ClassLinear},

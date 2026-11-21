@@ -40,6 +40,15 @@ var pnotSourceOn = true
 // hook, whose off setting is the classifier that took the scan of such a lookahead as cheap.
 var pandSourceOn = true
 
+// The strict analysis requires that a lookahead which only the continuation evaluates costs a
+// constant (freshAll), at five places: a lookahead skipped on the way to the next match
+// (skipFreshOn), a positive lookahead of the continuation that the unit's disjoint lookahead
+// decides against (andFreshOn), the alternatives before the match of a negative lookahead of the
+// continuation (beforeFreshOn), and a negative or positive lookahead of the continuation that the
+// walk passes (qnotFreshOn, qandFreshOn). They are on by default; the variables are test hooks,
+// whose off setting is the classifier that took such a lookahead as cheap.
+var skipFreshOn, andFreshOn, beforeFreshOn, qnotFreshOn, qandFreshOn = true, true, true, true, true
+
 // deadPathsOn makes the strict analysis keep the paths that reach a part that no evaluation passes
 // (symDead) and refuse to count as decisive a symbol at which neither side can go on. It is on by
 // default; the variable is a test hook, whose off setting is the analysis that let a unit that never
@@ -822,7 +831,7 @@ func (x excl) nextMatch(q []sym, j int) (int, bool) {
 		switch q[j].kind {
 		case symSkip, symBind, symEnv, symUp:
 		case symNot, symAnd:
-			if x.strict && !x.freshAll(q[j].e) {
+			if x.strict && skipFreshOn && !x.freshAll(q[j].e) {
 				return j, false
 			}
 		default:
@@ -900,7 +909,7 @@ func (x excl) excludes(s exclState) (ok bool, item, n int) {
 			if j, ok := x.nextMatch(s.q, s.j); ok && j < len(s.q) && s.q[j].kind == symMatch && x.disjoint(a.e, s.q[j].e) {
 				return decisive(a, a.item, s.steps+1)
 			}
-			if s.j < len(s.q) && s.q[s.j].kind == symAnd && x.disjoint(a.e, s.q[s.j].e) && (!x.strict || x.freshAll(s.q[s.j].e)) {
+			if s.j < len(s.q) && s.q[s.j].kind == symAnd && x.disjoint(a.e, s.q[s.j].e) && (!x.strict || !andFreshOn || x.freshAll(s.q[s.j].e)) {
 				return decisive(a, a.item, s.steps+1)
 			}
 			if x.strict && pandSourceOn && x.k.containsSource(a.e) {
@@ -952,10 +961,10 @@ func (x excl) excludes(s exclState) (ok bool, item, n int) {
 			// call, so its scan could repeat in every step.
 			y := x
 			y.sourceless = x.strict
-			if end, alt, ok := y.impliesAt(s.p[s.i:], b.e); ok && (!x.strict || x.freshBefore(b.e, alt)) {
+			if end, alt, ok := y.impliesAt(s.p[s.i:], b.e); ok && (!x.strict || !beforeFreshOn || x.freshBefore(b.e, alt)) {
 				return decisive(a, s.p[s.i+end].item, s.steps+1)
 			}
-			if x.strict && !x.freshAll(b.e) {
+			if x.strict && qnotFreshOn && !x.freshAll(b.e) {
 				return x.no("qnot-notcheap", a, &b)
 			}
 			s.j++
@@ -963,7 +972,7 @@ func (x excl) excludes(s exclState) (ok bool, item, n int) {
 		case symAnd:
 			// Only the continuation evaluates its lookahead, also where it decides, so in strict
 			// mode it must cost a constant.
-			if x.strict && !x.freshAll(b.e) {
+			if x.strict && qandFreshOn && !x.freshAll(b.e) {
 				return x.no("qand-notcheap", a, &b)
 			}
 			if x.disjoint(a.e, b.e) {

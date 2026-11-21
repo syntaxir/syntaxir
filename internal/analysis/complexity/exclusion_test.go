@@ -934,6 +934,59 @@ func TestStrictConditions(t *testing.T) {
 	}
 }
 
+// TestStrictLookaheadMutants checks that each requirement of the strict analysis, that a lookahead
+// which only the continuation evaluates costs a constant, is what refuses its rows of
+// TestStrictConditions: with the requirement on the pair does not part, at the tag of the row, and
+// with its hook off the pair parts. The class of a grammar does not show the difference, as the scan
+// of such a lookahead is a cause of its own (CauseLookaheadScan); the analysis also decides a
+// declared linear mode.
+func TestStrictLookaheadMutants(t *testing.T) {
+	const rules = "rule s = \"a\" [a-z]* \"!\"\n"
+	type row struct{ name, p, q, tag string }
+	for _, m := range []struct {
+		hook string
+		on   *bool
+		rows []row
+	}{
+		{"skipFresh", &skipFreshOn, []row{
+			{"a positive lookahead against a later negative one that scans", `&"c" "c"`, `!s "b"`, "qnot-notcheap"},
+			{"a positive lookahead against a later positive one that scans", `&"c" "c"`, `&s "b"`, "qand-notcheap"},
+		}},
+		{"andFresh", &andFreshOn, []row{
+			{"a positive lookahead against a later positive one that scans", `&"c" "c"`, `&s "b"`, "qand-notcheap"},
+		}},
+		{"beforeFresh", &beforeFreshOn, []row{
+			{"a later lookahead whose earlier alternative scans", `"a" "y"`, `!(s / "a") "b"`, "qnot-notcheap"},
+		}},
+		{"qnotFresh", &qnotFreshOn, []row{
+			{"a later negative lookahead that scans", `"c"`, `!([a-z]* "x") "d"`, "qnot-notcheap"},
+			{"a later negative lookahead on a rule that scans", `"c"`, `!s "b"`, "qnot-notcheap"},
+			{"a later lookahead whose earlier alternative scans", `"a" "y"`, `!(s / "a") "b"`, "qnot-notcheap"},
+			{"a positive lookahead against a later negative one that scans", `&"c" "c"`, `!s "b"`, "qnot-notcheap"},
+			{"a later lookahead that matches a shared call that scans", `s "c" "d"`, `!(s "c") s "e"`, "qnot-notcheap"},
+		}},
+		{"qandFresh", &qandFreshOn, []row{
+			{"a later positive lookahead that scans", `"c"`, `&([a-z]* "x") "d"`, "qand-notcheap"},
+			{"a later positive lookahead on a rule that scans", `"a" "y"`, `&s "b"`, "qand-notcheap"},
+			{"a positive lookahead against a later positive one that scans", `&"c" "c"`, `&s "b"`, "qand-notcheap"},
+		}},
+	} {
+		for _, r := range m.rows {
+			src := "rule p = " + r.p + "\nrule q = " + r.q + "\n" + rules
+			t.Run(m.hook+"/"+r.name, func(t *testing.T) {
+				if got, tag := comparePaths(t, src, true, 3); got || tag != r.tag {
+					t.Errorf("on: decided %v at %q, want false at %q", got, tag, r.tag)
+				}
+				*m.on = false
+				t.Cleanup(func() { *m.on = true })
+				if got, tag := comparePaths(t, src, true, 3); !got {
+					t.Errorf("%s off: not decided (%s), want decided", m.hook, tag)
+				}
+			})
+		}
+	}
+}
+
 // TestCutPrefixes checks cutPrefixesOn: an alternative with a #cut after items that fail only
 // before a scan is a unit of those items, a prefix that fails after its scan is not committing
 // as before, and a growing alternative keeps the analysis of its growth.
