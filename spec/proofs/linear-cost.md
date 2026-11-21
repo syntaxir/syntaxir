@@ -6504,7 +6504,14 @@ the evaluation of a shared call in $\kappa_{i_a}$ has calls or literals
 inside it that $w_{i_{a+1}}$ shares by looking through it: a literal in the
 body of a rule that calls no rule, or a memoized call evaluated again, in a
 lookahead state or variant other than that of its first evaluation, instead
-of answered; that the depth of refinement is a constant is not shown. A
+of answered; that the depth of refinement is a constant is not shown. The
+evaluations of a memoized call through which a run refines are evaluations
+of a key that reads no variable, at most three for each rule, variant,
+position and level (Lemma 3), so at most a constant number at each
+position; but they start at boundaries,
+positions from the start of the first iteration to $q$, which are not shown
+to be a constant number, and the evaluations of a rule that calls no rule,
+which the memo never answers, are not counted in this way at all. A
 **memoized break**, the second case of 3 in which $e_{i+1}$ strictly
 contains $e'_i$, is placed by *Memoized breaks* below: a run continues
 through it only at a member of the boundaries of its first link and to a
