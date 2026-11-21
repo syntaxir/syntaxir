@@ -1,10 +1,12 @@
-package vmlower
+package vmlower_test
 
 import (
 	"os"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/backend/vmlower"
 	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
@@ -36,7 +38,7 @@ func BenchmarkBytecodeLowering(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
 			for b.Loop() {
-				if _, err := CompileCore(p, m); err != nil {
+				if _, err := vmlower.CompileCore(checked.VMInput(p), m); err != nil {
 					b.Fatal(err)
 				}
 			}

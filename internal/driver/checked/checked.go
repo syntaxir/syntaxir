@@ -85,7 +85,7 @@ func (s *Source) Runtime() *program.Program { return s.prog.Runtime() }
 // Module compiles the program to a bytecode module (vmlower.Compile), once.
 func (s *Source) Module() (*bytecode.Module, error) {
 	p := s.prog
-	p.BytecodeOnce.Do(func() { p.Bytecode, p.BytecodeErr = vmlower.Compile(p) })
+	p.BytecodeOnce.Do(func() { p.Bytecode, p.BytecodeErr = vmlower.Compile(VMInput(p)) })
 	return p.Bytecode, p.BytecodeErr
 }
 

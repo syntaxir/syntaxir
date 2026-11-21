@@ -1,10 +1,12 @@
-package vmlower
+package vmlower_test
 
 import (
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/backend/vmlower"
 	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 	"syntaxir.dev/sxir/pkg/bytecode"
 )
@@ -15,7 +17,7 @@ func TestNodeTypeModuleValidation(t *testing.T) {
 	prog := compiletest.Program(t, `type Name = node[string]
 rule main = name ("," name)*
 rule name Name = ([a-z]+) #atomic`, compile.Options{})
-	mp, err := Compile(prog)
+	mp, err := vmlower.Compile(checked.VMInput(prog))
 	if err != nil {
 		t.Fatal(err)
 	}

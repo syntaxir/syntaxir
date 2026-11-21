@@ -5,7 +5,6 @@ import (
 	"maps"
 	"slices"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/code"
 	flowpkg "syntaxir.dev/sxir/internal/ir/code/flow"
@@ -18,8 +17,8 @@ import (
 
 // CoreOf returns the Core IR of prog after the bytecode pipeline, the module that Compile emits
 // the match code from.
-func CoreOf(prog *compile.Program) (*ir.Module, error) {
-	m, err := elaborate.CoreControlled(prog, nil)
+func CoreOf(p elaborate.Program) (*ir.Module, error) {
+	m, err := elaborate.CoreControlled(p, nil)
 	if err != nil {
 		return nil, fmt.Errorf("internal error: Core IR: %w", err)
 	}
@@ -38,8 +37,8 @@ func CoreOf(prog *compile.Program) (*ir.Module, error) {
 // A rule whose Flow function uses an operation that the bytecode Flow bodies do not yet have is an
 // error, and the module keeps no body of that rule and no term of its predicates. The term of a
 // predicate of a body is added to the module's term table, after the terms of the match code.
-func SelectFlows(bc *bytecode.Module, prog *compile.Program, m *ir.Module, plan *plandata.Plan, flows map[int]*code.Module) error {
-	c := &compiler{prog: prog, core: m, m: bc, strs: map[string]int{}}
+func SelectFlows(bc *bytecode.Module, in Input, m *ir.Module, plan *plandata.Plan, flows map[int]*code.Module) error {
+	c := &compiler{in: in, core: m, m: bc, strs: map[string]int{}}
 	for i, s := range bc.Strings {
 		if _, ok := c.strs[s]; !ok {
 			c.strs[s] = i
@@ -612,7 +611,7 @@ func (s *flowSel) call(c *code.Call, dst []int) error {
 		of := bytecode.FlowLitOf{Fold: lit.Fold}
 		// The operands are interned as the match code interns them: the text, then the expectation.
 		if lit.Fold {
-			of.Str = int(s.c.str(string(compile.FoldedRunes([]rune(lit.Text)))))
+			of.Str = int(s.c.str(foldedRunes(lit.Text)))
 		} else {
 			of.Str = int(s.c.str(lit.Text))
 		}
@@ -726,13 +725,13 @@ func (s *flowSel) call(c *code.Call, dst []int) error {
 		if err != nil {
 			return err
 		}
-		return s.op(bytecode.FlowBind, c, dst, bytecode.FlowBindOf{Var: s.c.prog.Vars.Index(x.Node.Var), Term: t})
+		return s.op(bytecode.FlowBind, c, dst, bytecode.FlowBindOf{Var: s.c.in.Vars.Index(x.Node.Var), Term: t})
 	case flowpkg.OpSkipBegin:
 		// A walk of a skip-run site begins as the match code's SKIPREPEAT begins it: without values,
 		// keyed by the variables unless the site is free of them. A skip-run site and a run site
 		// share the numbering of the parser's walk records, so RUNBEGIN begins either.
 		site := int(c.Imm.(flowpkg.Site))
-		return s.op(bytecode.FlowRunBegin, c, dst, bytecode.FlowRunWalkOf{Site: site, KeyEnv: !s.c.prog.EnvFree(site)})
+		return s.op(bytecode.FlowRunBegin, c, dst, bytecode.FlowRunWalkOf{Site: site, KeyEnv: !s.c.in.Elab.EnvFree(site)})
 	case flowpkg.OpRecLen:
 		return s.op(bytecode.FlowRecLen, c, dst, nil)
 	case flowpkg.OpRestore:

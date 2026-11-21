@@ -7,11 +7,11 @@ import (
 	"strconv"
 
 	"syntaxir.dev/sxir/internal/backend/actionlower"
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/types"
 	ir "syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/runtime/program"
+	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/pkg/bytecode"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -22,21 +22,21 @@ import (
 // its terms from the result. The Core IR that it builds is handed to the passes, which change it in
 // place (corepass.Run), so no copy of it is made. A failure is an internal error: the program
 // compiled, so its Core IR and its terms build. A program that uses #missing has no bytecode form.
-func Compile(prog *compile.Program) (*bytecode.Module, error) {
-	if prog.HasMissing {
-		return nil, compile.MissingUnsupported("bytecode module construction")
+func Compile(in Input) (*bytecode.Module, error) {
+	if in.Elab.MissingTokens() {
+		return nil, program.MissingUnsupported("bytecode module construction")
 	}
-	m, err := CoreOf(prog)
+	m, err := CoreOf(in.Elab)
 	if err != nil {
 		return nil, err
 	}
-	return CompileCore(prog, m)
+	return CompileCore(in, m)
 }
 
 // CompileCore compiles the program prog, whose Core IR after the bytecode pipeline is m, to a
 // bytecode module (Compile).
-func CompileCore(prog *compile.Program, m *ir.Module) (*bytecode.Module, error) {
-	c := &compiler{prog: prog, core: m, m: &bytecode.Module{SourceInfo: prog.RecordsSourceInfo, DefaultValue: prog.MakesDefaultValue}, strs: map[string]int{}}
+func CompileCore(in Input, m *ir.Module) (*bytecode.Module, error) {
+	c := &compiler{in: in, core: m, m: &bytecode.Module{SourceInfo: in.RecordsSourceInfo, DefaultValue: in.MakesDefaultValue}, strs: map[string]int{}}
 	c.compile()
 	if c.err != nil {
 		return nil, c.err
@@ -54,7 +54,7 @@ func CompileCore(prog *compile.Program, m *ir.Module) (*bytecode.Module, error) 
 
 // termCode returns the term code of the term of s, adding the strings it uses to the module.
 func (c *compiler) termCode(s termSite) (bytecode.Term, error) {
-	tp, err := actionlower.Compile(s.term, actionlower.Env{Checker: c.prog.Checker(), Vars: c.prog.Vars, Scope: scopeOf(s.scope), Proj: s.proj})
+	tp, err := actionlower.Compile(s.term, actionlower.Env{Checker: c.in.Elab.Checker(), Vars: c.in.Vars, Scope: scopeOf(s.scope), Proj: s.proj})
 	if err != nil {
 		return bytecode.Term{}, fmt.Errorf("internal error: %w", err)
 	}
@@ -68,7 +68,7 @@ func (c *compiler) termCode(s termSite) (bytecode.Term, error) {
 // compiler emits a bytecode module from Core IR (CompileCore): m is the module it fills and strs
 // indexes the module's string table.
 type compiler struct {
-	prog *compile.Program
+	in   Input
 	core *ir.Module
 	m    *bytecode.Module
 	strs map[string]int
@@ -171,26 +171,23 @@ func b2i(b bool) int32 {
 
 // compile fills the module with the type, variable and rule tables and the code of the rules.
 func (c *compiler) compile() {
-	for _, td := range c.prog.Grammar.Types() {
-		spec, ok := td.(*ast.TypeDef)
-		if !ok {
-			continue
-		}
+	for _, spec := range c.in.Types {
+		td := spec
 		ti := bytecode.TypeInfo{Name: int(c.str(td.DeclName())), Node: -1}
-		if n, ok := c.prog.NodeTypeOf(td.DeclName()); ok {
+		if n, ok := c.in.Elab.Checker().NodeTypeOf(td.DeclName()); ok {
 			ti.Node = int(c.str(types.NewFieldType(n.Underlying()).Text))
 		}
 		for _, f := range check.DefFields(spec) {
 			ti.Fields = append(ti.Fields, int(c.str(f.Name)))
 		}
-		if z := c.prog.StructZeroOf(td.DeclName()); z != nil {
+		if z, ok := c.in.Zeros[td.DeclName()]; ok {
 			for _, f := range z.Names {
 				ti.Zeros = append(ti.Zeros, int(c.str(z.Zeros[f])))
 			}
 		}
 		c.m.Types = append(c.m.Types, ti)
 	}
-	if t := c.prog.Vars; t != nil {
+	if t := c.in.Vars; t != nil {
 		for _, d := range t.List {
 			vi := bytecode.VarInfo{Name: int(c.str(d.Name)), Str: -1}
 			switch v := d.Init.(type) {
@@ -205,14 +202,14 @@ func (c *compiler) compile() {
 		}
 	}
 	// The rule table; the entries of the bodies are filled in below.
-	all := append(append([]*compile.Rule(nil), c.prog.RuleList...), c.prog.Twins...)
+	all := append(append([]Rule(nil), c.in.Rules...), c.in.Twins...)
 	if len(all) != len(c.core.Rules) {
 		c.failf("%d rules in Core IR, %d in the program", len(c.core.Rules), len(all))
 		return
 	}
 	for _, r := range all {
 		ri := bytecode.RuleInfo{Name: int(c.str(r.Name)), Entry: -1, Action: -1, NodeType: -1, OperatorsRule: -1,
-			Memo: r.Memo, Leader: r.Leader, Member: r.Member, Cycle: r.Cycle, Positional: r.Positional, NoValue: r.Novalue,
+			Memo: r.Memo, Leader: r.Leader, Member: r.Member, Cycle: r.Cycle, Positional: r.Positional, NoValue: r.NoValue,
 			Transient: r.Transient, Rec: r.Rec, Where: -1, Splice: r.Splice, Vars: c.strList(r.Vars)}
 		if r.Where != "" && r.Where != r.Name {
 			ri.Where = int(c.str(r.Where))
@@ -224,17 +221,17 @@ func (c *compiler) compile() {
 		}
 		c.m.Rules = append(c.m.Rules, ri)
 	}
-	keys := c.prog.RunKeys()
+	keys := c.in.RunKeys
 	sites := slices.Sorted(maps.Keys(keys))
 	for _, site := range sites {
 		k := keys[site]
 		c.m.RunKeys = append(c.m.RunKeys, bytecode.RunKeyInfo{Site: site, Vars: c.strList(k.Vars), Bind: c.strList(k.Bind)})
 	}
-	for i, r := range c.prog.RuleList {
-		if slices.Contains(c.prog.StartRules, r.Name) {
+	for i, r := range c.in.Rules {
+		if slices.Contains(c.in.StartRules, r.Name) {
 			c.m.Starts = append(c.m.Starts, i)
 		}
-		if r.Name == c.prog.DefaultStartRule {
+		if r.Name == c.in.DefaultStartRule {
 			c.m.DefaultStart = i
 		}
 	}
@@ -498,7 +495,7 @@ func (c *compiler) leaf(n ir.Node, build bool) {
 	case *ir.Lit:
 		// The operands are interned in order: the text, then the expectation.
 		if n.Fold {
-			c.emit(bytecode.OpStrFold, c.str(string(compile.FoldedRunes([]rune(n.Text)))), c.litDesc(n), b2i(build))
+			c.emit(bytecode.OpStrFold, c.str(foldedRunes(n.Text)), c.litDesc(n), b2i(build))
 		} else {
 			c.emit(bytecode.OpStr, c.str(n.Text), c.litDesc(n), b2i(build))
 		}
@@ -591,7 +588,7 @@ func (c *compiler) void(n ir.Node) {
 	case *ir.Pred:
 		c.emit(bytecode.OpPred, int32(c.term(n.Term, nil)), 0, 0)
 	case *ir.BindNode:
-		c.emit(bytecode.OpBind, int32(c.prog.Vars.Index(n.Var)), int32(c.term(n.Term, nil)), 0)
+		c.emit(bytecode.OpBind, int32(c.in.Vars.Index(n.Var)), int32(c.term(n.Term, nil)), 0)
 	case *ir.Label:
 		c.label(n)
 		c.void(n.Body)
@@ -645,7 +642,7 @@ func (c *compiler) scan(n *ir.Scan) {
 // repeat emits a repetition, pushing its value if build; stream marks the repetition of #stream.
 func (c *compiler) repeat(n *ir.Repeat, build, stream bool) {
 	if n.Site != 0 { // a skip-run site: neither a scan nor resumed
-		free := b2i(c.prog.EnvFree(n.Site)) << 1
+		free := b2i(c.in.Elab.EnvFree(n.Site)) << 1
 		if fits(n.Min) {
 			c.emit(bytecode.OpSkipRepeat, int32(n.Min), int32(n.Site), free)
 		} else {
@@ -674,7 +671,7 @@ func (c *compiler) repeat(n *ir.Repeat, build, stream bool) {
 	run, runBuild := int32(0), int32(0)
 	if !stream {
 		if run = int32(n.Run); run != 0 {
-			runBuild = b2i(build) | b2i(c.prog.EnvFree(n.Run))<<1
+			runBuild = b2i(build) | b2i(c.in.Elab.EnvFree(n.Run))<<1
 		}
 	}
 	if n.ScanSite != 0 && !stream && run == 0 && sc < 0 {
@@ -781,4 +778,14 @@ func (c *compiler) line(l *ir.OpLine, operator bool) bytecode.LineInfo {
 		li.Action = c.term(l.Action, nil)
 	}
 	return li
+}
+
+// foldedRunes returns s with the ASCII folding of #ignorecase (state.FoldASCIIRune) applied to each
+// rune: the text a folded literal is compared with.
+func foldedRunes(s string) string {
+	rs := []rune(s)
+	for i, r := range rs {
+		rs[i] = state.FoldASCIIRune(r)
+	}
+	return string(rs)
 }
