@@ -35,8 +35,7 @@ var formerNameExempt = []string{
 	"bench/results*.txt",
 	// Recovery corpora: random inputs in which the letters occur by chance.
 	"testdata/recovery/*.txt",
-	// The script that performs the rename, and this test, spell the former names.
-	"hack/rename-syntaxir.sh",
+	// This test spells the former names.
 	"internal/testing/archtest/names_test.go",
 }
 
