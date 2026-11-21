@@ -103,22 +103,26 @@ stream) and on the engine:
    definitions of the language specification, without memo entries, contexts, first-character dispatch, or
    generated code. It tracks the examined maximum of each call itself and reports the exits, which must equal the
    observed exits in matched flag, end and examined end. Left recursion is evaluated by the growth rules of the
-   runtime specification, with the cycle members re-evaluated in each growth step, so that no memo decides a result.
+   runtime specification: the leaders of the cycles of left calls are computed from the Rule Facts definitions of the
+   core IR specification (nullability, the rules proven to succeed, left calls, cycles, and leaders by declaration
+   order), only leaders grow, and the other rules of a cycle are evaluated again in each step, so that no memo decides a
+   result.
 
 Independence: the evaluator reads the grammar through the frontend only (the parsed grammar, not Core IR, Exec IR or any
 lowering), and its matching, growth and examined rules are written from `spec/language` and `spec/runtime`. It shares no
 code with the engine, the backends, the memo, or the generated runtimes, so an error in those cannot agree with the
-evaluator by construction. The evaluator is checked by the mutants of the examined tests (each record of an examined end
-left out must be caught by the reference) and by an independent review of its rules against the specification. Limits
-of the claim: the frontend and the value of user actions are outside it; predicates the evaluator cannot run exclude a
-grammar and are named in the test.
+evaluator by construction. The evaluator is not yet checked by mutants of its own rules, nor by an independent review of them
+against the specification; both are open work. Limits of the claim: the frontend and the value of user actions are
+outside it; predicates the evaluator cannot run exclude a grammar and are named in the test. Its facts are those of
+parses without token insertion.
 
 Status: the reference evaluator is in `internal/testing/examinedref`. It evaluates the matching core of the language,
 including left recursion by the growth rules above, and the examined ends it computes are checked by hand on
-representative grammars. Its comparison with the engine over the generated corpus is not yet a passing check: it finds
-examined ends that differ from the reference, which this record does not yet decide. Grammars outside the core
-(predicates, variables, actions with effects, recovery, cuts, binding levels, Operators Rules) are not covered, and
-perturbation and the stream high-water mark are not yet implemented.
+representative grammars. Its comparison with the engine is a passing check in the long tier (`TestExaminedOracle`): on
+the generated corpus and the shapes, none of the 612 inputs of grammars inside the core has an exit whose examined end
+differs. Grammars outside the core (predicates, variables, actions with effects, recovery, cuts, anchors of lines,
+binding levels, Operators Rules, attributes) are not covered: 222 corpus grammars, which the test counts and does not
+compare. Perturbation and the stream high-water mark are not yet implemented.
 
 ## Limitations and Open Work
 
