@@ -155,7 +155,8 @@ func ConfPop3[A, B, C any](a A, b B, c C) (A, B, C) {
 }
 
 // confVal returns the recorded form of a value: integers, runes and booleans as they are, a string
-// as "s:" and its text, a list as "len:" and its length, a mark as "mark:" and its position, an error
+// as "s:" and its text, a list as "len:" and its length, a mark as "mark:" and its position, the
+// context of an action as "made:" and the number of the values it made, an error
 // as "err:" and its message, a node value as "val:" and its type, start, end, number of children
 // and, for a string or an error, its text (separated by colons, the text last), and any other value
 // as its type, or nil.
@@ -181,6 +182,9 @@ func confVal(x any) any {
 		return confPtr(v)
 	case *Env:
 		return confPtr(v)
+	case *TActCtx:
+		// The context of an action, as the number of the values it made.
+		return fmt.Sprintf("made:%d", len(v.P.Created)-v.Cbase)
 	case *sxirvalue.Node:
 		if v == nil {
 			return nil

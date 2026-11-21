@@ -15,7 +15,7 @@ the Exec stage and the backends rely on.
 | Operation | Operands | Results | Immediate | Contract |
 |:--|:--|:--|:--|:--|
 | `flow.step` |  |  |  | Charges one step of budget; ends the parse when the budget is exhausted. |
-| `flow.silent` |  |  | `silence` | Adds Delta to the silent depth, inside which expectations are not recorded. For a lookahead (Site is not 0) it begins the lookahead of the site after it enters the depth, or ends it, whose body matched if Ok, before it leaves. |
+| `flow.silent` |  |  | `silence` | Adds Delta to the silent depth, inside which expectations are not recorded. For a lookahead (Site is not 0) it begins the lookahead of the site after it enters the depth, or ends it, whose body matched if Ok, before it leaves. The end of a lookahead in a context of left recursion whose body read a seed stores its outcome with its dependencies in the context's table, and charges for them as ctx.keep does (spec/exec-ir/operations.md). |
 | `flow.peek` |  | rune, int, bool |  | Returns the code point at the position, its size and whether there is one, without consuming it. The read charges one unit in a function with budget controls and, in a Document parse, records how far the parse examined the input. |
 | `flow.advance` | n int |  |  | Moves the position forward by n. |
 | `flow.expect` | at int |  | `expectation` | Records the expectation at the position at, unless the silent depth is positive. |
@@ -71,7 +71,7 @@ the Exec stage and the backends rely on.
 | `flow.isolate` |  | expmark |  | Begins an expectation scope at the position and returns its mark. |
 | `flow.unisolate` | m expmark | int, expids |  | Ends the expectation scope m. Its results are the farthest failure inside it and its expectations. It charges nothing, as `exp.unisolate` (the [Exec operations](../exec-ir/operations.md)): each expectation was charged when it was recorded, and a merge of them charges each again. |
 | `flow.text` | start int | value |  | Returns the input from start to the position. |
-| `flow.literalText` | start int | value | `chars` | Returns the text of the literal matched from start, which differs from the literal where it holds the replacement character. |
+| `flow.literalText` | start int | value | `chars` | Returns the text of the literal matched from start, which differs from the literal where it holds the replacement character. Where it differs it takes the input from start to the position, charged as flow.text charges it. |
 | `flow.str` |  | value | `chars` | Returns the string constant. |
 | `flow.newMatch` | start int, text value | value |  | Returns a match value from start to the position with the text. |
 | `flow.newNode` | start int, kids vals | value | `list` | Returns a tuple node, or with List a list node, from start to the position with the children kids. |
@@ -98,7 +98,7 @@ the Exec stage and the backends rely on.
 | `flow.pred` | caps value (variadic) | bool | `predicate` | Evaluates the predicate with the captures caps (or the current frame) and reports whether it holds. |
 | `flow.bind` | caps value (variadic) | bool | `binding` | Binds the variable of the binding to the value of its expression, evaluated with the captures caps (or the current frame), and reports whether the evaluation succeeded. |
 | `flow.eval` | c ctx, caps value (variadic) | value | `action` | Returns the value of the action of the function's rule, evaluated in the context c with the captures caps (or the current frame). |
-| `flow.ctxFinish` | c ctx, x value | value |  | Returns the value x of an action finished in the context c. |
+| `flow.ctxFinish` | c ctx, x value | value |  | Returns the value x of an action finished in the context c: a struct that c made takes the range of the rule, and the values that c made are forgotten. It searches the values that c made for x, and charges one unit for each it compares with x. |
 
 ## Immediate Operands
 
@@ -160,6 +160,9 @@ the parse when the budget runs out; the verifier rejects one that is not.
 | `key` | The run key of a walk of a run site that is not free of the environment: reading and hashing the values of its variables, comparing them with the key of a record and binding the variables of a record taken, each charged as for a memo key; 0 for other sites. |
 | `records` | The records that the end of a walk of a skip-run or run site stores: one for each position that the walk visited while recording. |
 | `walk_vals` | The values that a walk of a run site whose iterations have values holds at its end: those it gathered and those of the record it took. |
+| `made` | The values that the context of an action made ([Values Made](../exec-ir/values.md#values-made)) which finishing the action's value searches for it: those up to it, all of them when it is a struct that the context did not make, and none when it is no struct. |
+| `deps` | The dependencies that a lookahead which ends in a context of left recursion stores with its outcome, as `deps` of the Exec stage measures them; none outside such a context and for a lookahead that read no seed. |
+| `table` | The work of storing the outcome of a lookahead in the context table at its position, as `table` of the Exec stage measures it: one for the store, one for each dependency set of the head that it scans and one for each result under the values the set selects that it compares; none where `deps` is none. |
 
 A conformance test of the generated Go parsers checks every call of a Flow operation against its bound and its
 contract, with the input read through the reference model of the input.

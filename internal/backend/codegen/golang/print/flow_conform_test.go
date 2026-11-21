@@ -131,6 +131,15 @@ rule main = (item ";")* #stream $$
 rule item = [a-z]+
 `, opts: common.GenOptions{Stream: true}, inputs: []string{"ab;c;", "a;b", ""},
 		entries: []string{flowConformParse, "err = ParseStream(strings.NewReader(in), func(*Node) error { return nil }, opts...)"}},
+	// Actions that make structs inside the value they return, or return a struct they made inside
+	// another, so that flow.ctxFinish searches the values the context made.
+	{name: "made", src: `type In = { N int }
+type Out = { A In; B In; N int }
+@start
+rule main = xs:(x:item ";")* $$ => map($xs, (e) => e.$x)
+rule item = ("o" => Out{A: In{N: 1}, B: In{N: 2}, N: 3}) / ("i" => Out{A: In{N: 1}, B: In{N: 2}, N: 3}.B)
+`, opts: common.GenOptions{Types: true}, inputs: []string{"o;i;", "i;o", ""},
+		entries: []string{flowConformParse, "_, err = ParseValue(in, opts...)"}},
 	{name: "recover", src: `@start
 rule main = stmt* $$
 rule stmt = ("let" ws name "=" [0-9]+ ";") #recover(skip=(![;] .)* ";") ws
@@ -591,7 +600,9 @@ const flowUnbounded = 1 << 30
 //   - text: the length of the result;
 //   - key: hashing, comparing and binding the values of the variables of a run key
 //     (flowConformKeyVars), each at most the input and a constant;
-//   - records, walk_vals: one for each position of the input.
+//   - records, walk_vals: one for each position of the input;
+//   - made: the values that the context of the action made, which the probe records with it;
+//   - deps, table: any, as the stores in the context tables are not recorded.
 func flowBound(in *ref.Input, o *code.Op, c *code.Call, e *flowEvent) int {
 	exps := 1
 	for _, i := range []int{0, 1} {
@@ -648,6 +659,12 @@ func flowBound(in *ref.Input, o *code.Op, c *code.Call, e *flowEvent) int {
 			q = in.Len() + 1
 		case flow.QWalkVals:
 			q = in.Len() + 1
+		case flow.QMade:
+			if made, ok := e.Args[0].(string); ok {
+				fmt.Sscanf(made, "made:%d", &q)
+			}
+		case flow.QDeps, flow.QTable:
+			q = flowUnbounded
 		default:
 			panic("flow conformance: no value of the quantity " + t.Quantity)
 		}

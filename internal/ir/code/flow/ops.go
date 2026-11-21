@@ -93,6 +93,19 @@ const (
 	// walk lays out for its records, copying those of the record where it cannot share them
 	// (spec/runtime/parsing.md#run-sites).
 	QWalkVals = "walk_vals"
+	// QMade is the number of the values that the context of an action made (spec/exec-ir/values.md#values-made)
+	// which finishing the action's value searches for the value: those up to it, all of them when it
+	// is a struct that the context did not make, and none when it is no struct.
+	QMade = "made"
+	// QDeps is the number of the dependencies that a lookahead which ends in a context of left
+	// recursion stores with its outcome, as the quantity deps of the Exec stage measures them; 0
+	// outside such a context and for a lookahead that read no seed.
+	QDeps = "deps"
+	// QTable is the work of storing the outcome of a lookahead in the context table at its position,
+	// as the quantity table of the Exec stage measures it: one for the store, one for each dependency
+	// set of the head it scans and one for each result under the values the set selects that it
+	// compares; 0 where QDeps is.
+	QTable = "table"
 )
 
 // Op names of the Flow dialect.
@@ -372,9 +385,12 @@ func Ops() []*code.Op {
 	op(&code.Op{Name: OpStep, Writes: []string{State}, NoReturn: true, Cost: unit,
 		Contract: "Charges one step of budget; ends the parse when the budget is exhausted."})
 	withImm(op(&code.Op{Name: OpSilent, Writes: []string{State}, NoReturn: true,
+		Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QTable}, {Coef: 1, Quantity: QDeps}}},
 		Contract: `Adds Delta to the silent depth, inside which expectations are not recorded. For a lookahead
 (Site is not 0) it begins the lookahead of the site after it enters the depth, or ends it, whose body
-matched if Ok, before it leaves.`}), "the change of the depth and the lookahead (Silence)", immOf[Silence]())
+matched if Ok, before it leaves. The end of a lookahead in a context of left recursion whose body read
+a seed stores its outcome with its dependencies in the context's table, and charges for them as
+ctx.keep does (spec/exec-ir/operations.md).`}), "the change of the depth and the lookahead (Silence)", immOf[Silence]())
 	op(&code.Op{Name: OpPeek, Results: []code.Type{runeT, i, b}, Reads: pos, Writes: []string{State}, NoReturn: true, Cost: plus(unit, QStream),
 		Contract: `Returns the code point at the position, its size and whether there is one, without consuming it.
 The read charges one unit in a function with budget controls (spec/runtime/parsing.md#cost), and in a stream
@@ -563,8 +579,8 @@ position is the end of the rule's match, on failure it is unchanged. The body ch
 		Requires: "m is the innermost scope that has not ended."})
 	op(&code.Op{Name: OpText, NoReturn: true, Params: []code.Param{P("start", i)}, Results: []code.Type{value}, Reads: pos, Cost: plus(unit, QText),
 		Contract: "Returns the input from start to the position. In a stream parse it charges at most a unit and the length of its result, and elsewhere at most a unit (spec/runtime/parsing.md#cost).", Laws: []string{pure}})
-	withImm(op(&code.Op{Name: OpLiteralText, Params: []code.Param{P("start", i)}, Results: []code.Type{value},
-		Contract: "Returns the text of the literal matched from start, which differs from the literal where it holds the replacement character.", Laws: []string{pure}}),
+	withImm(op(&code.Op{Name: OpLiteralText, NoReturn: true, Params: []code.Param{P("start", i)}, Results: []code.Type{value}, Reads: pos, Cost: plus(unit, QText),
+		Contract: "Returns the text of the literal matched from start, which differs from the literal where it holds the replacement character. Where it differs it takes the input from start to the position, charged as flow.text charges it.", Laws: []string{pure}}),
 		"the literal's text (Chars)", immOf[Chars]())
 	withImm(op(&code.Op{Name: OpStr, Results: []code.Type{value}, Contract: "Returns the string constant.", Laws: []string{pure}}),
 		"the string (Chars)", immOf[Chars]())
@@ -632,8 +648,8 @@ position is the end of the rule's match, on failure it is unchanged. The body ch
 	withImm(op(&code.Op{Name: OpEval, Params: []code.Param{P("c", ctx), P("caps", value)}, Variadic: true, Results: []code.Type{value}, Reads: all, Writes: []string{State}, NoReturn: true, Cost: per(QBody),
 		Contract: "Returns the value of the action of the function's rule, evaluated in the context c with the captures caps (or the current frame)."}),
 		"the action and its captures (Action)", immOf[Action]())
-	op(&code.Op{Name: OpCtxFinish, Params: []code.Param{P("c", ctx), P("x", value)}, Results: []code.Type{value}, Writes: []string{State},
-		Contract: "Returns the value x of an action finished in the context c."})
+	op(&code.Op{Name: OpCtxFinish, NoReturn: true, Params: []code.Param{P("c", ctx), P("x", value)}, Results: []code.Type{value}, Writes: []string{State}, Cost: per(QMade),
+		Contract: "Returns the value x of an action finished in the context c: a struct that c made takes the range of the rule, and the values that c made are forgotten. It searches the values that c made for x, and charges one unit for each it compares with x."})
 	return ops
 }
 
