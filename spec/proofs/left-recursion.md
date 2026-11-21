@@ -39,8 +39,9 @@ The proof cites the following, and no other rule about growth.
   a left call is a call of a rule of a cycle, in the body of a rule of the same
   cycle, that can run before the body consumes input. The rules that grow are
   the leaders, fixed by the grammar: until every cycle of left calls passes
-  through a leader, the rule declared first on a cycle that passes through none
-  becomes one.
+  through a leader, the rule declared first among the rules on a cycle that
+  passes through none becomes one; the choice depends on the declaration order
+  only, so the leaders are fixed by the grammar.
 - **(G4) Termination.** [Termination](../runtime/parsing.md#termination): a
   call of a leader where it grows reads its current result; a repetition stops
   at the first iteration that consumes no input; a recovery applies only when

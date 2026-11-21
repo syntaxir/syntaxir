@@ -1208,8 +1208,9 @@ The conditions below use these terms.
 - A **left call** is a call of a rule of a left-recursion cycle, in the body
   of a rule of the same cycle, that can run before that body consumes input.
   The rules that grow are the **leaders**, fixed by the grammar: until every
-  cycle of left calls passes through a leader, the rule declared first on a
-  cycle that passes through none becomes one, so a cycle can have several. A
+  cycle of left calls passes through a leader, the rule declared first among
+  the rules on a cycle that passes through none becomes one, so a cycle can
+  have several; the choice depends on the declaration order only. A
   call of a leader grows it at the position of the call, and a left call of a
   leader at that position reads the seed that the growth has reached. A call
   of another rule of the cycle evaluates its body, unless it reuses a memoized

@@ -283,14 +283,14 @@ func (c *computer) leftRecursion(ins bool) {
 			in[id] = true
 			cycle[id] = i + 1
 		}
-		// Until every cycle passes through a leader, the rule declared first on a cycle that passes
+		// Until every cycle passes through a leader, the rule declared first on any cycle that passes
 		// through none becomes a leader.
 		for {
-			found := c.findCycle(scc, left, in, leaders)
-			if found == nil {
+			v := c.declaredFirstOnCycle(scc, left, in, leaders)
+			if v < 0 {
 				break
 			}
-			leaders[slices.Min(found)] = true
+			leaders[v] = true
 		}
 	}
 	for _, id := range c.order {
@@ -307,39 +307,38 @@ func (c *computer) leftRecursion(ins bool) {
 	}
 }
 
-// findCycle returns a cycle of left calls among the rules in of the component scc that passes
-// through no leader, or nil if there is none.
-func (c *computer) findCycle(scc []int, edges [][]int, in, leaders []bool) []int {
-	state := map[int]int{} // 0: unvisited, 1: on the path, 2: done
-	var path, found []int
-	var visit func(v int) bool
-	visit = func(v int) bool {
-		c.control.Poll()
-		state[v] = 1
-		path = append(path, v)
-		for _, w := range edges[v] {
-			if !in[w] || leaders[w] {
-				continue
-			}
-			if state[w] == 1 {
-				i := slices.Index(path, w)
-				found = slices.Clone(path[i:])
-				return true
-			}
-			if state[w] == 0 && visit(w) {
-				return true
-			}
-		}
-		path = path[:len(path)-1]
-		state[v] = 2
-		return false
-	}
+// declaredFirstOnCycle returns the rule declared first among the rules of the component scc that lie
+// on a cycle of left calls passing through no leader, or -1 if there is none. The cycles are those of
+// the graph restricted to the component's rules that are not leaders.
+func (c *computer) declaredFirstOnCycle(scc []int, edges [][]int, in, leaders []bool) int {
+	sub := make([][]int, len(c.m.Rules))
 	for _, v := range scc {
-		if !leaders[v] && state[v] == 0 && visit(v) {
-			return found
+		if leaders[v] {
+			continue
+		}
+		for _, w := range edges[v] {
+			if in[w] && !leaders[w] {
+				sub[v] = append(sub[v], w)
+			}
 		}
 	}
-	return nil
+	onCycle := make([]bool, len(c.m.Rules))
+	for _, comp := range c.components(sub) {
+		switch {
+		case len(comp) > 1:
+			for _, v := range comp {
+				onCycle[v] = true
+			}
+		case slices.Contains(sub[comp[0]], comp[0]):
+			onCycle[comp[0]] = true
+		}
+	}
+	for _, v := range c.order { // declaration order
+		if in[v] && onCycle[v] {
+			return v
+		}
+	}
+	return -1
 }
 
 // succeeding sets sure to the rules off the cyclic ones whose bodies always succeed, the least
