@@ -106,7 +106,7 @@ code generated from the grammar, `pairsparser/api.go`, which re-exports the name
 package pairsparser
 ```
 
-The first line of every generated file names the version of `sxir` that wrote it (`(devel)` for a `sxir` run from a
+The first line of every generated file names the version of `sxir` that wrote it (`(devel)` for an `sxir` run from a
 checkout with `go run`; `go build ./cmd/sxir` in a checkout stamps a pseudo-version of its commit instead), so that a parser can be checked against security advisories, which name affected versions the
 same way. One version always writes the same header, so regeneration stays reproducible.
 

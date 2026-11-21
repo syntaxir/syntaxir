@@ -21,7 +21,7 @@ import (
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 )
 
-// generation is a sxir gen command of generate.go.
+// generation is an sxir gen command of generate.go.
 type generation struct {
 	grammar, module, out string
 	hasTypes             bool

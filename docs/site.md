@@ -98,6 +98,10 @@ Production builds (Workers Builds of the `main` branch) download the currently p
 The output retains at most the new pair and one previous pair per compiler; builds of other branches do not import production assets
 automatically. A page from the preceding deploy can therefore start its old parser after publication. The worker reads
 `assets.json` and imports the matching hashed runtime. Generations outside that window must reload.
+Builds name their binaries `wasm/sxir-<hash>`; an imported previous pair may also carry the prefix that the site used
+before the project was renamed, and keeps its published name. <!-- keep-old-name: the former prefix is wasm/zp- -->
+That exception is removed after the first deployment of the renamed site, once the published manifest names only
+`wasm/sxir-` binaries.
 
 Dual mode is opt-in: `site/build.sh -wasm-mode=dual` requires a compatible
 TinyGo installation and Binaryen's `wasm-opt` executable on `PATH`. The
@@ -136,8 +140,9 @@ To deliberately reset retention, pass `-previous-site ''`. See [the asset-retent
 for the format, bounds and bootstrap limitations.
 
 The official site, [syntaxir.dev](https://syntaxir.dev/), is a Cloudflare Worker with static assets and no Worker
-script. [`wrangler.jsonc`](../wrangler.jsonc) at the root of the repository names the Worker (`syntaxir`) and its
-assets directory, `site/dist`, the output of the site build; each build runs the link check, so a broken link fails
+script. [`wrangler.jsonc`](../wrangler.jsonc) at the root of the repository names the Worker (`zeroparse`, <!-- keep-old-name: the dashboard name of the Worker -->
+the name it was created with before the project was renamed) and its assets directory, `site/dist`, the output of
+the site build; each build runs the link check, so a broken link fails
 the deploy instead of publishing it. Cloudflare serves directory index files with a trailing slash
 (`html_handling` is `auto-trailing-slash`); the site emits no `404.html`, so unknown paths get Cloudflare's plain 404
 response (`not_found_handling` is `none`).
@@ -149,8 +154,9 @@ each page's canonical URL equals its sitemap entry.
 
 ### Go Vanity Imports
 
-The module path is `syntaxir.dev/sxir`, and `syntaxir.dev/X` resolves to `github.com/syntaxir/X` for the repositories of
-the `syntaxir` GitHub organization that Go code imports. The `go` command and the module proxy find a module's
+The module path is `syntaxir.dev/sxir`, which resolves to the repository `github.com/syntaxir/syntaxir`, and
+`syntaxir.dev/X` resolves to `github.com/syntaxir/X` for the other repositories of the `syntaxir` GitHub organization
+that Go code imports (`site/vanity.go` names a repository wherever it differs from the path). The `go` command and the module proxy find a module's
 repository by requesting `https://syntaxir.dev/<import path>?go-get=1` and reading the `go-import` meta tag of the
 answer, so the site publishes a small HTML page for every such import path instead of running a Worker script:
 
@@ -176,7 +182,7 @@ After a deployment, check the live site with
 
 ### Workers Builds Settings
 
-Connect the Worker to the Git repository in the Cloudflare dashboard (Workers & Pages, the `syntaxir` Worker,
+Connect the Worker to the Git repository in the Cloudflare dashboard (Workers & Pages, the `zeroparse` Worker, <!-- keep-old-name: the dashboard name of the Worker -->
 Settings, Builds) with these values:
 
 | Setting | Value |

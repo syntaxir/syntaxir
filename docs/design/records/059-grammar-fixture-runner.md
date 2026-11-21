@@ -6,7 +6,7 @@
 
 ## Summary
 
-Define a versioned JSON suite for repeatable grammar examples and a `sxir test`
+Define a versioned JSON suite for repeatable grammar examples and an `sxir test`
 command/API to run them. A fixture can assert accepted, recovered, or rejected
 outcomes, canonical node JSON, source spans, and syntax-error locations.
 Optional backend equivalence is a separate result, never a substitute for

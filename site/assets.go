@@ -87,21 +87,54 @@ var (
 	gzipMagic = []byte{0x1f, 0x8b}
 )
 
+// wasmPrefix begins the name of every binary this build publishes.
+const wasmPrefix = "wasm/sxir-"
+
+// formerWasmPrefix begins the names of the binaries that the site published under the former project
+// name. Only a pair imported from the previous deployment may carry it; it is removed once the
+// renamed site has been deployed and its manifest names only wasmPrefix binaries.
+const formerWasmPrefix = "wasm/zp-" // keep-old-name: binaries of the deployment before the rename
+
 // describeAssets names a stored binary and its runtime after their contents. A gzip stream is named
 // .wasm.gz, anything else .wasm.
 func describeAssets(wasm, runtime []byte) playgroundAsset {
+	return describeAssetsAs(wasmPrefix, wasm, runtime)
+}
+
+// describeAssetsAs is describeAssets with the binary named under prefix.
+func describeAssetsAs(prefix string, wasm, runtime []byte) playgroundAsset {
 	w, r := hashBytes(wasm), hashBytes(runtime)
 	ext := ".wasm"
 	if bytes.HasPrefix(wasm, gzipMagic) {
 		ext = ".wasm.gz"
 	}
-	return playgroundAsset{Wasm: "wasm/sxir-" + w[:16] + ext, WasmSHA256: w,
+	return playgroundAsset{Wasm: prefix + w[:16] + ext, WasmSHA256: w,
 		Runtime: "runtime/wasm_exec-" + r[:16] + ".js", RuntimeSHA256: r}
 }
 
+// importedPrefix is the prefix of a pair imported from the previous deployment: formerWasmPrefix
+// when its binary carries it, wasmPrefix otherwise.
+func importedPrefix(a playgroundAsset) string {
+	if strings.HasPrefix(a.Wasm, formerWasmPrefix) {
+		return formerWasmPrefix
+	}
+	return wasmPrefix
+}
+
+// validate checks a pair this build publishes.
 func (a playgroundAsset) validate() error {
+	return a.validateAs(wasmPrefix)
+}
+
+// validateImported checks a pair imported from the previous deployment, which may still be named
+// under formerWasmPrefix.
+func (a playgroundAsset) validateImported() error {
+	return a.validateAs(importedPrefix(a))
+}
+
+func (a playgroundAsset) validateAs(prefix string) error {
 	if !digestPattern.MatchString(a.WasmSHA256) || !digestPattern.MatchString(a.RuntimeSHA256) ||
-		(a.Wasm != "wasm/sxir-"+a.WasmSHA256[:16]+".wasm" && a.Wasm != "wasm/sxir-"+a.WasmSHA256[:16]+".wasm.gz") ||
+		(a.Wasm != prefix+a.WasmSHA256[:16]+".wasm" && a.Wasm != prefix+a.WasmSHA256[:16]+".wasm.gz") ||
 		a.Runtime != "runtime/wasm_exec-"+a.RuntimeSHA256[:16]+".js" {
 		return errors.New("invalid playground asset paths or hashes")
 	}
@@ -233,7 +266,7 @@ func readPreviousAssetsWithTinyGo(raw string, tinygoOut **assetBytes) (*assetByt
 		if m.Version != 1 {
 			return nil, fmt.Errorf("unsupported asset manifest version %d", m.Version)
 		}
-		if err := m.Current.validate(); err != nil {
+		if err := m.Current.validateImported(); err != nil {
 			return nil, err
 		}
 		a = m.Current
@@ -259,7 +292,7 @@ func readPreviousAssetsWithTinyGo(raw string, tinygoOut **assetBytes) (*assetByt
 	if code != http.StatusOK || len(runtime) == 0 {
 		return nil, errors.New("published Go runtime is missing or empty")
 	}
-	actual := describeAssets(wasm, runtime)
+	actual := describeAssetsAs(importedPrefix(a), wasm, runtime)
 	if legacy {
 		if actual.Wasm != a.Wasm {
 			return nil, errors.New("published WASM hash does not match its filename")
@@ -272,7 +305,7 @@ func readPreviousAssetsWithTinyGo(raw string, tinygoOut **assetBytes) (*assetByt
 		return goPair, nil
 	}
 	tiny := *m.TinyGoCurrent
-	if err := tiny.validate(); err != nil {
+	if err := tiny.validateImported(); err != nil {
 		return nil, err
 	}
 	wasm, code, err = fetchAsset(client, playground, tiny.Wasm, 64<<20)
@@ -289,7 +322,7 @@ func readPreviousAssetsWithTinyGo(raw string, tinygoOut **assetBytes) (*assetByt
 	if code != http.StatusOK || len(runtime) == 0 {
 		return nil, errors.New("published TinyGo runtime is missing or empty")
 	}
-	if describeAssets(wasm, runtime) != tiny {
+	if describeAssetsAs(importedPrefix(tiny), wasm, runtime) != tiny {
 		return nil, errors.New("published TinyGo asset hashes do not match the manifest")
 	}
 	*tinygoOut = &assetBytes{asset: tiny, wasm: wasm, runtime: runtime}
@@ -319,10 +352,14 @@ func publishTinyGoAssets(dir string, current, previous *assetBytes) error {
 		if pair == nil || (pair == previous && current != nil && pair.asset == current.asset) {
 			continue
 		}
-		if err := pair.asset.validate(); err != nil {
+		prefix := wasmPrefix
+		if pair == previous {
+			prefix = importedPrefix(pair.asset)
+		}
+		if err := pair.asset.validateAs(prefix); err != nil {
 			return err
 		}
-		if describeAssets(pair.wasm, pair.runtime) != pair.asset {
+		if describeAssetsAs(prefix, pair.wasm, pair.runtime) != pair.asset {
 			return errors.New("TinyGo asset bytes do not match their hashes")
 		}
 		for _, a := range known {

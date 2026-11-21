@@ -5,7 +5,7 @@
 #
 # The binary is built from a clean, detached worktree of REV (default HEAD) by the site program's
 # playground-release command, which writes into OUT_DIR (created; must not exist):
-#   sxir.wasm.gz     the binary, gzip-compressed
+#   sxir.wasm.gz   the binary, gzip-compressed
 #   wasm_exec.js   the runtime support of the toolchain that built it
 #   manifest.json  toolchain, build arguments, source commit, sizes and SHA-256 digests
 #   pin.json       the site/playground-wasm.json that publishes this release

@@ -20,10 +20,10 @@ import (
 // code. The conventions of the pages that the test relies on are in
 // docs/documentation-style.md ("Examples"):
 //
-//   - A sxir block whose first line is `// name.sxir` is a file to save under that name, and one whose
+//   - An sxir block whose first line is `// name.sxir` is a file to save under that name, and one whose
 //     first line is `// name.sxir (changed rules)` replaces the rules of the same names in that
 //     file. The files of a page live in one directory, in the order of the page.
-//   - A sxir block that contains `@start` is a complete grammar and must compile.
+//   - An sxir block that contains `@start` is a complete grammar and must compile.
 //   - A bash block of lines that start with `sxir`, followed by a text block, is a command and
 //     its output (standard output and standard error together, or the standard output alone). The command is run in the
 //     directory of the page; a path that the page does not create but the repository has is
@@ -302,7 +302,7 @@ var deferredPages = map[string]string{}
 // exampleStats counts what TestDocumentationExamples did, for the log.
 type exampleStats struct{ Compiled, Rejected, Commands, Skipped int }
 
-// isCommandBlock reports whether every line of a bash block is a sxir command.
+// isCommandBlock reports whether every line of a bash block is an sxir command.
 func isCommandBlock(body []string) bool {
 	for _, l := range body {
 		if !exampleCommandRe.MatchString(l) {

@@ -92,7 +92,7 @@ func (s *Site) renderLanding() error {
 		}
 	}
 	if d.Tagline == "" || len(d.Features) == 0 || d.Example == "" || d.ExampleIn == "" {
-		return fmt.Errorf("README.md: could not find the tagline, the features under Why SyntaxIR, a sxir code block or a bash block with -i '...' for the landing page")
+		return fmt.Errorf("README.md: could not find the tagline, the features under Why SyntaxIR, an sxir code block or a bash block with -i '...' for the landing page")
 	}
 	d.Phrases = taglinePhrases(d.Tagline)
 	d.Snippets = template.HTML(snippets.String())

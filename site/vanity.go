@@ -12,7 +12,9 @@ import (
 )
 
 // Go vanity imports. The module path of the repository is syntaxir.dev/sxir, and syntaxir.dev/X
-// resolves to https://github.com/syntaxir/X for the repositories of the organization. The go
+// resolves to a repository of the organization at https://github.com/syntaxir/: X names the
+// repository (syntaxir.dev/alpha-parsers), or vanityRepo.Repo does when the two differ
+// (syntaxir.dev/sxir is the repository syntaxir/syntaxir). The go
 // command (and the module proxy) discover this by requesting https://syntaxir.dev/X/...?go-get=1
 // and reading go-import meta tags, so the site publishes one small HTML page per importable
 // package directory instead of running a script. See docs/site.md.
@@ -25,6 +27,8 @@ const (
 // vanityRepo is a repository of the organization served as syntaxir.dev/<Name>.
 type vanityRepo struct {
 	Name string
+	// Repo is the name of the repository on GitHub when it differs from Name.
+	Repo string
 	// Local reports that the repository is the one being built, so a page is published for every
 	// importable package directory of it. The go command asks for the full import path first, and
 	// a path without a page would answer 404 instead of the module's metadata.
@@ -34,7 +38,7 @@ type vanityRepo struct {
 // vanityRepos lists the repositories of the organization that Go code imports. Adding a repository
 // means adding it here and deploying the site.
 var vanityRepos = []vanityRepo{
-	{Name: "sxir", Local: true},
+	{Name: "sxir", Repo: "syntaxir", Local: true},
 	{Name: "alpha-parsers"},
 }
 
@@ -58,18 +62,21 @@ func vanityPages(repo string) (map[string][]byte, error) {
 			}
 		}
 		for _, d := range dirs {
-			files[path.Join(r.Name, d, "index.html")] = vanityPage(r.Name, d)
+			files[path.Join(r.Name, d, "index.html")] = vanityPage(r, d)
 		}
 	}
 	return files, nil
 }
 
-// vanityPage renders the page for the import path syntaxir.dev/<repo>/<dir>. Every page names the
-// repository root as the go-import prefix, so that the go command resolves a package to its module
-// from any of them.
-func vanityPage(repo, dir string) []byte {
-	prefix := vanityHost + "/" + repo
-	gh := vanityOrgURL + "/" + repo
+// vanityPage renders the page for the import path syntaxir.dev/<r.Name>/<dir>. Every page names
+// the repository root as the go-import prefix, so that the go command resolves a package to its
+// module from any of them.
+func vanityPage(r vanityRepo, dir string) []byte {
+	prefix := vanityHost + "/" + r.Name
+	gh := vanityOrgURL + "/" + r.Name
+	if r.Repo != "" {
+		gh = vanityOrgURL + "/" + r.Repo
+	}
 	importPath := prefix
 	if dir != "" {
 		importPath += "/" + dir

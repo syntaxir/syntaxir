@@ -44,7 +44,7 @@ var procsSuffix = regexp.MustCompile(`-\d+$`)
 // records the new name, and the second mapping is then removed.
 func savedLabel(name string) string {
 	name = strings.ReplaceAll(name, "/Arith_Pratt/", "/Arith_OperatorsRule/")
-	return strings.ReplaceAll(name, "/pegoc/", "/zpc/") // keep-old-name: saved raw results predate the rename
+	return strings.ReplaceAll(name, "/pegoc/", "/sxirc/") // keep-old-name: saved raw results predate the rename
 }
 
 // parseResults reads the output of runBenchmarks.

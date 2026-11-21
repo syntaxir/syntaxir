@@ -45,7 +45,7 @@ func wranglerConfig(t *testing.T) map[string]any {
 // has no script of its own.
 func TestWranglerAssetsDirectory(t *testing.T) {
 	cfg := wranglerConfig(t)
-	if cfg["name"] != "syntaxir" {
+	if cfg["name"] != "zeroparse" { // keep-old-name: the Worker keeps the name it has in the dashboard
 		t.Errorf("name = %v", cfg["name"])
 	}
 	if _, err := os.Stat("../wrangler.jsonc"); err != nil {

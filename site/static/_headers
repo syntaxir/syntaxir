@@ -13,7 +13,7 @@
 # The WebAssembly binaries are named after a hash of their content (site/assets.go), so a name never
 # refers to other content and browsers can keep it for a year without asking again. Matching runtime
 # scripts are content-hashed too; pages, application scripts and assets.json revalidate on each visit.
-# The binaries keep the content type of their extension: a sxir-<hash>.wasm.gz file is gzip data that
+# The binaries keep the content type of their extension: an sxir-<hash>.wasm.gz file is gzip data that
 # the playground decompresses itself, so it must not be labeled application/wasm.
 /playground/wasm/*
   Cache-Control: public, max-age=31536000, immutable

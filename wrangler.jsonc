@@ -1,5 +1,7 @@
-// Cloudflare Worker with static assets that serves https://zeroparse.dev. There is no Worker
-// script: Cloudflare serves the files that `sh site/build.sh` writes. See docs/site.md.
+// Cloudflare Worker with static assets that serves https://syntaxir.dev. There is no Worker
+// script: Cloudflare serves the files that `sh site/build.sh` writes. See docs/site.md. The name is
+// the one the Worker has in the Cloudflare dashboard, where it was created before the project was
+// renamed; a Git-connected build deploys to the Worker of this name.
 {
   "name": "zeroparse",
   // Pins the Workers runtime behavior to the date this configuration was written.

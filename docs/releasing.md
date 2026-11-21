@@ -101,8 +101,8 @@ In the commands below, `vX.Y.Z` is the version being released and the module pat
 
 1. Check that the release items of the [project strategy](strategy.md#wedge-and-sequencing) are done.
 2. The repository lives in the `syntaxir` GitHub organization, at `github.com/syntaxir/syntaxir`, and its module path is
-   `syntaxir.dev/sxir`. The site serves `go-import` and `go-source` meta tags so that `syntaxir.dev/X` resolves to
-   `github.com/syntaxir/X` for the repositories listed in `site/vanity.go` (see
+   `syntaxir.dev/sxir`. The site serves `go-import` and `go-source` meta tags so that each import path of the
+   repositories listed in `site/vanity.go` resolves to its repository in the organization (see
    [Go vanity imports](site.md#go-vanity-imports)). Before the first release, check that the deployed site serves
    them:
 

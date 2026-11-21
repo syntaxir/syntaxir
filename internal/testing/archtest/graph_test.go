@@ -50,7 +50,7 @@ func rel(p string) string {
 	return strings.TrimPrefix(p, modulePath+"/")
 }
 
-// buildTag matches a sxir_ build tag in a build constraint.
+// buildTag matches an sxir_ build tag in a build constraint.
 var buildTag = regexp.MustCompile(`sxir_[a-z0-9_]*`)
 
 // referenceTags returns the tags that hack/test-reference-tags.sh checks without arguments: every
