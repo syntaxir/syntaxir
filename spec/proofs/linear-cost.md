@@ -8720,9 +8720,11 @@ whose result includes one. Let every step of the growth after the first that
 is kept, with a result longer than its seed, have a result that includes the
 growing result: *Later steps that abandon their reads of the
 seed* derives this from condition 2 for a leader that contains a scanning
-source, outside the cases that it leaves open or aside, and it is not shown
-otherwise (*Open parts of the kept steps*). Let $\bar{r}$ be the first result
-of the growth that is not empty, the result of its first or second step. Then
+source, outside the cases that it leaves open or aside (*Open parts of the
+kept steps*). For a leader without one it can fail, and no claim of this
+lemma takes it there (*Leaders without a scanning source*). Let $\bar{r}$
+be the first result of the growth that is not empty, the result of its first
+or second step. Then
 every result of the growth after $\bar{r}$ begins with the result before it, so
 every result from $\bar{r}$ on includes $\bar{r}$. A growth of another leader $T$ that
 a step of $R$ nests at $p$ either has only results, from its first result that
@@ -8800,29 +8802,127 @@ They do need its hypothesis on kept steps. Without that clause of condition
 first step went on, and a lookahead can change its outcome between steps, so
 that a later step takes an alternative that the first step did not reach.
 
+**Leaders without a scanning source.** Let $R$ be a leader that contains no
+scanning source. Then $R$ is the only rule of its left-recursion cycle and no
+Operators Rule, and every call at $p$ of a rule of a left-recursion cycle that
+a step of a growth of $R$ at $p$ makes is a read of its growing result, so no
+growth at $p$ nests in such a step, and the step lies in no growth of another
+leader at $p$. Let the values of the variables not change in a growth $G$ of
+$R$ at $p$. Then:
+
+1. at most a constant number of the steps of $G$ have a result that does not
+   include the seed, the number of combinations of the choices that the
+   parser can make at $p$ in the body of $R$, plus two;
+2. each step of $G$ has a local cost of at most a constant times $L + 1$ and
+   makes at most a constant number of calls, outside the activations of its
+   bounded scans; each of its calls is a read of the growing result, a call
+   that the memo answers, or the call of a body that Lemma 3 counts, for a
+   memoized rule, or Lemma 10, for a rule that is not memoized.
+
+The hypothesis of *Steps that begin anew* on kept steps can fail for $G$: in
+`E = (E "x"? / "") "x" / "x" "x" "y"` on `xxy`, the second step reads the
+seed `x`, takes `"x"?`, fails on `"x"` against `y`, and is kept with the
+result `xxy` of the last alternative, which the first step did not reach.
+No claim of this lemma takes that hypothesis for $G$.
+
+*Proof.* Let $F$ be another rule of the cycle of $R$. $F$ reaches $R$, and on
+a chain of calls from $F$ to $R$ the first call of $R$ is made in the body of
+a rule other than $R$: a call of a leader in the body of another rule, which
+is a scanning source. $R$ reaches $F$ and so that body, and would contain
+the source. So $R$ is the only rule of its cycle. In the same way, the first
+call on a chain of calls from $R$ of a rule of another left-recursion cycle
+is made in a body off that cycle, so it is no left call and is a scanning
+source, and a call of $R$ is made only in its own body, and only as a left
+call. $R$ is no Operators Rule, whose operators are a scanning source, so its
+calls have no binding level. A call at $p$ in a step of $G$ is made through
+bodies that all started at $p$, since positions do not decrease, so a call
+at $p$ of a rule of a cycle is a call of $R$, which grows at $p$ and reads
+the growing result. Growths nest at $p$ only within one cycle, with distinct
+pairs of a leader and a binding level (*Calls in a context of growths*), and
+the cycle of $R$ has one. A call of $R$ at a position after $p$, as `E` in
+`E = "a"? E "b" / "c"` after an `a`, grows $R$ there or is answered there;
+its evaluation reads no growing result at $p$, since positions do not
+decrease, so the memo answers it alike in every step after the first that
+makes it.
+
+1. A step after the first is kept only when its result is longer than its
+seed ([Evaluations of Rules](../runtime/parsing.md#evaluations-of-rules)),
+so the results of the kept steps of $G$ after the first all differ. A
+step whose result does not include the seed matches through no read of the
+seed outside a lookahead, and every call at $p$ of $R$ is such a read, so the
+evaluations at $p$ on its match outside lookaheads call no rule of a cycle at
+$p$. They evaluate alike in every step, with the values of the variables,
+which do not change (*Evaluations that read no growing result*); what follows
+them starts after $p$ and reads no growing result at $p$, so it evaluates
+alike too, the calls of $R$ after $p$ included, up to the calls that one
+step answers where another evaluates them, which give the same results
+([Memoization Never Changes the
+Result](memoization.md#theorem-memoization-never-changes-the-result)). A
+lookahead on the match consumes nothing, so it leaves the end of the match
+unchanged whatever it reads. The result is therefore fixed by the choices
+that the match takes at $p$ in the body of $R$: the alternative of each
+choice that starts there, whether each option there matches, and whether an
+iteration of each repetition starts there, at most one doing so in one body
+evaluation (as in the proof of *Calls in a context of growths*). The body is
+a finite expression, so these combinations are a constant number, and each is
+the result of at most one kept step after the first. With the first step and the
+last one, which is not kept, the steps whose result does not include the
+seed number at most that constant plus two. This holds whatever the step
+reads: an alternative that calls another rule reads no growing result at
+$p$, since only $R$ reads one and only in its own body; an alternative that
+calls $R$ after $p$ reads the growth there, as above; and one that reads a
+variable bound by the call that starts $G$ reads the same value in every
+step. The values change in a growth only through a binding at $p$ from a
+growing result, which part 1 does not cover; no claim needs such a bound
+there: *Values bound from a growing result* applies in its first case, since
+$R$ is the only leader of its cycle and contains no scanning source, and the
+claims on scanning sources then have nothing to bound in the growth.
+
+2. A step is a body evaluation of $R$, so Lemma 1 bounds its local cost and
+the argument of Lemma 2 its calls outside the activations of its scanning
+sources, which are bounded scans only. The lookaheads of the body are
+expressions of it, inside that cost, and their calls are among those calls.
+A call at $p$ of $R$ reads the growing result and evaluates no body. Any
+other call is answered by the memo, evaluates the body of a memoized rule,
+which Lemma 3 counts as one of the body evaluations of memoized rules, or
+evaluates the body of a rule that is not memoized, which Lemma 10 counts
+with the others by the body evaluations of memoized rules, growth steps
+included, and the activations. The bounded scans are counted by Lemma 13.
+
+The claims that take the hypothesis on kept steps, *Growths inside a step*
+and through it *Results that do not include the seed*, *Failures at the
+position of the growth*, *Reuse in a context*, *Suffix copies in every
+parse* and *Growths at many positions*, take it for growths of two leaders,
+or of one leader at two binding levels, that nest at one position: for the
+leaders of a cycle with more than one leader, which reach another leader
+through a call in the body of another rule and so contain a scanning source,
+and for an Operators Rule. For $G$, *Results that do not include the seed*
+holds by part 1 without them, and *Failures at the position of the growth*
+has nothing to bound, since a step of $G$ evaluates no scanning source other
+than a bounded scan, which the conditions do not check. $\square$
+
 **Open parts of the kept steps.** The following are not shown, and the
 claims of this lemma that rest on them hold apart from them:
 
 1. the hypothesis of *Steps that begin anew* on kept steps for a leader that
-   contains no scanning source;
-2. that hypothesis for a leader that contains one, in the cases that *Later
-   steps that abandon their reads of the seed* leaves open or aside: its
-   cases (1) to (4), and an abandoned unit that is a dropped step of another
-   growth or lies in a growth of another leader at the position;
-3. the claim of *Steps that begin anew* for a growth of another leader $T$
+   contains a scanning source, in the cases that *Later steps that abandon
+   their reads of the seed* leaves open or aside: its cases (1) to (4), and
+   an abandoned unit that is a dropped step of another growth or lies in a
+   growth of another leader at the position;
+2. the claim of *Steps that begin anew* for a growth of another leader $T$
    that a step nests, in a step of $T$ that goes on in an alternative that
    it does not reach where the read of the growing result fails;
-4. in *Failures at the position of the growth*, an evaluation in a later
+3. in *Failures at the position of the growth*, an evaluation in a later
    step, with a seed that is not empty, of a growth of another leader that
    the step nests at $p$, when that step is not kept and its result is not
    empty.
 
-The first three bear on every claim that applies *Steps that begin anew*:
+The first two bear on every claim that applies *Steps that begin anew*:
 *Growths inside a step*, which takes the hypothesis on kept steps as a
 premise and uses the claim for a nested growth, and through it *Results
 that do not include the seed*, *Failures at the position of the growth*,
 *Reuse in a context*, *Suffix copies in every parse*, *Growths at many
-positions* and the claims that cite them. The fourth bears on *Failures at
+positions* and the claims that cite them. The third bears on *Failures at
 the position of the growth* and the claims that cite it.
 
 **Growths inside a step.** Let a step of the growth of a leader $S$ at $p$,
@@ -8850,7 +8950,7 @@ Rules](../runtime/parsing.md#evaluations-of-rules)), and the growth of $S$ is
 in progress, so the context keeps it; a run of steps that read only the result
 of $R$ is taken at once. By *Steps that begin anew* for the growth of $S$,
 applied to the growth of $R$ that its step nests, apart from its case that
-is not shown (part 3 of *Open parts of the kept steps*), that growth either includes
+is not shown (part 2 of *Open parts of the kept steps*), that growth either includes
 the growing result of $S$ in all its results from the first that is not
 empty, or reads it only on paths that fail and takes the steps it takes where
 that read fails. In the first
@@ -13316,10 +13416,12 @@ theorem covers such a parse.
    nests, with a seed that is not empty, when that step is not kept and its
    result is not empty; and it rests, through *Growths inside a step* and
    *Results that do not include the seed*, on the hypothesis of *Steps that
-   begin anew* on kept steps, which is not shown for a leader without a
-   scanning source, nor, for a leader with one, in the cases that *Later
-   steps that abandon their reads of the seed* leaves open or aside, cases
-   (1) to (4) among them (step 1), and on the claim of *Steps that begin
+   begin anew* on kept steps, which is not shown, for a leader with a
+   scanning source, in the cases that *Later steps that abandon their reads
+   of the seed* leaves open or aside, cases (1) to (4) among them (step 1),
+   and which no claim takes for a leader without one, whose growths nest
+   with no other (*Leaders without a scanning source*), and on the claim of
+   *Steps that begin
    anew* for a nested growth of another leader, which is not shown for a
    step of that growth that goes on in an alternative that it does not reach
    where the read of the growing result fails.
@@ -13372,7 +13474,11 @@ theorem covers such a parse.
    result that includes the growing result, which *Later steps that abandon
    their reads of the seed* gives only for a leader that contains a
    scanning source and outside its cases (1) to (4) and the units that it
-   leaves aside (step 1), and is not shown for a leader without one; and
+   leaves aside (step 1); for a leader without one the hypothesis can fail,
+   but its growths nest with no other, its steps that drop the seed number
+   a constant and each costs a constant beyond the evaluations that Lemmas
+   3, 10 and 13 count, and no claim takes the hypothesis for it (*Leaders
+   without a scanning source*); and
    *Steps that begin anew* is not shown for a step of a nested growth of
    another leader that goes on in an alternative that it does not reach
    where the read of the growing result fails. The claims that use these
