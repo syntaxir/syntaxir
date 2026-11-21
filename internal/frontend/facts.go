@@ -63,7 +63,7 @@ func CheckStructural(g *ast.Grammar, opts compile.Options, flags []compile.RuleF
 	}
 	prog, err := compile.CheckCanonical(s.Canonical, opts, flags, names, facts, control)
 	if err != nil {
-		return nil, s, err
+		return nil, s, mergeErrors(err, s.errors(opts, names))
 	}
 	if s.failure != nil {
 		// A grammar that the compiler accepts has a module: the failure is a bug, which keeps
@@ -72,6 +72,11 @@ func CheckStructural(g *ast.Grammar, opts compile.Options, flags []compile.RuleF
 			return nil, s, f
 		}
 		panic(s.failure)
+	}
+	// The fact errors are reported for a grammar the compiler accepts too: the compiler no longer
+	// checks what the facts check (for example a splice rule that contains itself).
+	if fe := s.errors(opts, names); len(fe) > 0 {
+		return nil, s, fe
 	}
 	prog.SetSites(sites(s.Module, prog, control))
 	return prog, s, nil

@@ -1,11 +1,11 @@
-package compile
+package frontend
 
 import (
 	"fmt"
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/frontend/desugar"
+	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/testing/factstest"
 )
@@ -34,12 +34,11 @@ func TestErrorsGolden(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", tc.name, err)
 		}
-		names := desugar.InlineNames{}
-		_, err = Check(g, Options{}, nil, names, nil)
+		_, err = Run(g, compile.Options{}, nil)
 		if err == nil {
 			t.Fatalf("%s: compiled", tc.name)
 		}
-		fmt.Fprintf(&b, "%v\n", names.Rewrite(err))
+		fmt.Fprintf(&b, "%v\n", err)
 	}
 	factstest.GoldenFile(t, "errors.txt", b.String())
 }

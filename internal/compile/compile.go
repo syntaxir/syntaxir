@@ -496,7 +496,6 @@ func CheckCanonical(canon *Canonical, opts Options, flags []RuleFlags, names des
 		prog.ByName[rd.Name] = r
 	}
 
-	c.checkSpliceCycles(rules)
 	c.declareVars(g)
 	prog.markMissingRules(control)
 	if facts == nil || len(facts.Rules) != len(prog.RuleList) {
@@ -893,62 +892,6 @@ func (r *Rule) WhereName() string {
 		return r.Where
 	}
 	return r.Name
-}
-
-// checkSpliceCycles reports a splice rule whose elements include its own: it calls itself in the
-// sequence of its elements, so that its elements would be infinite in number. A call in a choice,
-// an option, a repetition or a capture is one element of its own, and may recur.
-func (c *Compiler) checkSpliceCycles(rules []*ast.RuleDef) {
-	flat := map[string][]string{}
-	for _, rd := range rules {
-		if r := c.Prog.ByName[rd.Name]; r != nil && r.Splice && r.Def == rd {
-			flat[rd.Name] = c.flatRefs(rd.Expr, nil)
-		}
-	}
-	state := map[string]int{} // 1 visiting, 2 done
-	var visit func(name string) bool
-	visit = func(name string) bool {
-		switch state[name] {
-		case 1:
-			return true
-		case 2:
-			return false
-		}
-		state[name] = 1
-		for _, to := range flat[name] {
-			if _, ok := flat[to]; ok && visit(to) {
-				return true
-			}
-		}
-		state[name] = 2
-		return false
-	}
-	for _, rd := range rules {
-		c.Control.Poll()
-		if _, ok := flat[rd.Name]; ok && state[rd.Name] == 0 && visit(rd.Name) {
-			c.errorf(rd.Diagnostic(), "rule %s contains itself in its sequence of elements, so it has no fixed number of them", rd.Name)
-			return
-		}
-	}
-}
-
-// flatRefs appends to out the rules e calls where their elements are elements of e.
-func (c *Compiler) flatRefs(e ast.Expr, out []string) []string {
-	switch e := e.(type) {
-	case *ast.Group:
-		return c.flatRefs(e.Expr, out)
-	case *ast.Seq:
-		for _, it := range e.Items {
-			out = c.flatRefs(it, out)
-		}
-	case *ast.Attributed:
-		if !check.Recovers(e) {
-			out = c.flatRefs(e.Expr, out)
-		}
-	case *ast.Ref:
-		out = append(out, e.Name)
-	}
-	return out
 }
 
 // TypeKind returns the kind of nodes of the grammar's type typ without a rule.

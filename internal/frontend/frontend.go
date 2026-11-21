@@ -45,11 +45,9 @@ func RunDefault(g *ast.Grammar, control *cancel.Control) (*Result, error) {
 // generate shown as written.
 func Run(g *ast.Grammar, opts compile.Options, control *cancel.Control) (*Result, error) {
 	names := desugar.InlineNames{}
-	prog, st, err := CheckStructural(g, opts, nil, names, control)
+	prog, _, err := CheckStructural(g, opts, nil, names, control)
 	if err != nil {
-		// The facts of a grammar that checks have no error (the compiler reports the same ones),
-		// so they are looked for only when checking fails, in the module the check built.
-		return nil, mergeErrors(names.Rewrite(err), st.errors(opts, names))
+		return nil, names.Rewrite(err)
 	}
 	return FromProgram(prog, control)
 }
