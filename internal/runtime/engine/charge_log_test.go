@@ -19,9 +19,9 @@ func TestChargeLog(t *testing.T) {
 	if src == "" {
 		t.Skip()
 	}
+	var tune state.Tuning
 	if os.Getenv("SXIR_CL_HOT") != "" {
-		defer func(n, m int) { state.RunHotSpan, state.ScanHotSpan = n, m }(state.RunHotSpan, state.ScanHotSpan)
-		state.RunHotSpan, state.ScanHotSpan = 1, 1
+		tune = state.Tuning{RunHot: 1, ScanHot: 1}
 	}
 	unit := input.CodePoints
 	if os.Getenv("SXIR_CL_BYTES") != "" {
@@ -40,14 +40,14 @@ func TestChargeLog(t *testing.T) {
 			lines = append(lines, fmt.Sprintf("%3d +%d %s", total, n, where))
 		}
 		if os.Getenv("SXIR_CL_DOC") != "" {
-			d, err := c.p.NewDocumentWith("", in, ParseOptions{Backend: c.b, Unit: unit, Limits: sxirruntime.Limits{Compute: 1 << 40}})
+			d, err := c.p.NewDocumentWith("", in, ParseOptions{Backend: c.b, Unit: unit, Limits: sxirruntime.Limits{Compute: 1 << 40}, Tune: tune})
 			if err != nil {
 				t.Fatal(err)
 			}
 			_, err = d.Parse()
 			_ = err
 		} else {
-			_, _ = c.p.ParseWith("", in, ParseOptions{Backend: c.b, Unit: unit, Limits: sxirruntime.Limits{Compute: 1 << 40}})
+			_, _ = c.p.ParseWith("", in, ParseOptions{Backend: c.b, Unit: unit, Limits: sxirruntime.Limits{Compute: 1 << 40}, Tune: tune})
 		}
 		state.ChargeLog = nil
 		fmt.Printf("== %s total %d\n%s\n", c.name, total, strings.Join(lines, "\n"))

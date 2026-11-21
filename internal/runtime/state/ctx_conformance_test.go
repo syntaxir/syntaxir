@@ -227,6 +227,19 @@ func ctxSuites() []conform.Suite {
 	return suites
 }
 
+// withTuning returns s with the settings t on the parser of every machine that s creates.
+func withTuning(s conform.Suite, t Tuning) conform.Suite {
+	inner := s.New
+	s.New = func(c ref.Config) conform.Impl {
+		im := inner(c)
+		if m, ok := im.(*ctxMachine); ok {
+			m.p.SetTuning(t)
+		}
+		return im
+	}
+	return s
+}
+
 // ctxConformanceFailures runs the handwritten cases of the dependency memo and seeds randomized cases
 // of n calls on s, and returns the failures and the number of cases that ran.
 func ctxConformanceFailures(s conform.Suite, seeds, n int) (fails []error, ran int) {
@@ -285,7 +298,7 @@ func (b brokenCtx) Call(o *code.Op, args []any) []any {
 
 // TestEngineCtxConformanceDetectsBrokenEngine is the negative control: the engine with one operation
 // of the dependency memo broken, as a wrong line of its printed code would break it, or with one of
-// the checks of its reuse broken (ContextMemoMutation), fails the suite. The mutations of how a reuse
+// the checks of its reuse broken (Tuning.MemoMut), fails the suite. The mutations of how a reuse
 // replays the dependencies of observations need reseeded lookaheads under nested reuses, which the
 // cases do not reach; the differential tests on cycle grammars detect them.
 func TestEngineCtxConformanceDetectsBrokenEngine(t *testing.T) {
@@ -314,9 +327,8 @@ func TestEngineCtxConformanceDetectsBrokenEngine(t *testing.T) {
 		{"a memoized step passes on no dependencies", CtxNoStepReplayDeps},
 		{"a memoized step passes on no expectations", CtxNoStepMergeExp}} {
 		t.Run(mu.name, func(t *testing.T) {
-			ContextMemoMutation = mu.kind
-			defer func() { ContextMemoMutation = 0 }()
-			if fails, _ := ctxConformanceFailures(ctxSuites()[0], 60, 250); len(fails) == 0 {
+			s := withTuning(ctxSuites()[0], Tuning{MemoMut: mu.kind})
+			if fails, _ := ctxConformanceFailures(s, 60, 250); len(fails) == 0 {
 				t.Fatal("no case detected the broken engine")
 			}
 		})

@@ -80,15 +80,11 @@ func TestContextStoreBoundsControls(t *testing.T) {
 			}
 		}
 		prog := mustCompile(t, "@start\nrule main = "+s.Rules, compile.Options{SourceInfo: true})
-		func() {
-			state.ContextMemoMutation = c.mutation
-			defer func() { state.ContextMemoMutation = 0 }()
-			for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
-				if msg, ok := contextStoreBounded(t, prog, s, ParseOptions{Backend: b}); ok {
-					t.Errorf("mutation %d not detected: %s", c.mutation, msg)
-				}
+		for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
+			if msg, ok := contextStoreBounded(t, prog, s, ParseOptions{Backend: b, Tune: state.Tuning{MemoMut: c.mutation}}); ok {
+				t.Errorf("mutation %d not detected: %s", c.mutation, msg)
 			}
-		}()
+		}
 	}
 }
 
@@ -111,9 +107,7 @@ func TestContextStoreMissingInsertion(t *testing.T) {
 // parse with insertion that keeps no result in a context.
 func TestContextStoreMissingInsertionControl(t *testing.T) {
 	prog := mustCompile(t, "@start\nrule main = "+missingChain.Rules, compile.Options{SourceInfo: true})
-	state.ContextMemoMutation = state.CtxStrictMissing
-	defer func() { state.ContextMemoMutation = 0 }()
-	if msg, ok := contextStoreBounded(t, prog, missingChain, ParseOptions{Backend: Closure, MissingTokens: 1}); ok {
+	if msg, ok := contextStoreBounded(t, prog, missingChain, ParseOptions{Backend: Closure, MissingTokens: 1, Tune: state.Tuning{MemoMut: state.CtxStrictMissing}}); ok {
 		t.Errorf("CtxStrictMissing not detected: %s", msg)
 	}
 }
@@ -128,7 +122,7 @@ func TestContextStoreMissingRandom(t *testing.T) {
 	if codegentest.Long() {
 		seeds = 400
 	}
-	for _, msg := range missingRandomMismatches(t, seeds) {
+	for _, msg := range missingRandomMismatches(t, seeds, state.Tuning{}) {
 		t.Error(msg)
 	}
 }
@@ -136,16 +130,14 @@ func TestContextStoreMissingRandom(t *testing.T) {
 // TestContextStoreMissingRandomControl checks that TestContextStoreMissingRandom detects rules
 // that insert tokens keeping their results in contexts.
 func TestContextStoreMissingRandomControl(t *testing.T) {
-	state.ContextMemoMutation = state.CtxStoreInserts
-	defer func() { state.ContextMemoMutation = 0 }()
-	if len(missingRandomMismatches(t, 40)) == 0 {
+	if len(missingRandomMismatches(t, 40, state.Tuning{MemoMut: state.CtxStoreInserts})) == 0 {
 		t.Error("CtxStoreInserts not detected")
 	}
 }
 
 // missingRandomMismatches parses the inputs of seeds random cycle grammars with insertion, with and
-// without memos, and returns the differences.
-func missingRandomMismatches(t *testing.T, seeds int) []string {
+// without memos, with the test-only settings tune, and returns the differences.
+func missingRandomMismatches(t *testing.T, seeds int, tune state.Tuning) []string {
 	t.Helper()
 	var out []string
 	lit := regexp.MustCompile(`"[a-z]"`)
@@ -173,7 +165,7 @@ func missingRandomMismatches(t *testing.T, seeds int) []string {
 		memo, ref := mustCompile(t, src), mustCompile(t, src, compile.Options{DisableMemo: true})
 		for _, in := range c.Inputs {
 			for _, recognize := range []bool{false, true} {
-				o := ParseOptions{Backend: Closure, Recognize: recognize, MissingTokens: 3}
+				o := ParseOptions{Backend: Closure, Recognize: recognize, MissingTokens: 3, Tune: tune}
 				got, err := memo.ParseWith("", in, o)
 				o.ContextMemoOff = true
 				want, wantErr := ref.ParseWith("", in, o)

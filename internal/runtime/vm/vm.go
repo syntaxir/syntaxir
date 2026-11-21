@@ -637,7 +637,7 @@ func (mc *Machine) step(vm *Program, b *vmBody, resume, rok bool, rv *value.Node
 			// after ScanHotSpan characters from the record of its start, or records itself.
 			start, site, count, hot, hit, hw0 := p.Pos, int(in.C), 0, false, false, 0
 			for {
-				if count == state.ScanHotSpan {
+				if count == p.Tuning().ScanHotSpan() {
 					hot, hw0 = p.ScanHot(site), p.Hw
 					p.Hw = 0
 					if hot {
@@ -661,7 +661,7 @@ func (mc *Machine) step(vm *Program, b *vmBody, resume, rok bool, rv *value.Node
 				p.Pos += size
 				count++
 			}
-			if count >= state.ScanHotSpan {
+			if count >= p.Tuning().ScanHotSpan() {
 				p.FinishScan(site, start, count, hot, hit, hw0)
 			}
 			if count < int(in.B) {
@@ -805,7 +805,7 @@ func (mc *Machine) step(vm *Program, b *vmBody, resume, rok bool, rv *value.Node
 			}
 			// A repetition that a Document resumes neither looks up nor makes records. This only keeps
 			// its cost and reuse as they were: any record would be exact. No test tells the two apart.
-			if scanSite > 0 && rep.run == nil && rep.count == state.ScanHotSpan && !rep.scan {
+			if scanSite > 0 && rep.run == nil && rep.count == p.Tuning().ScanHotSpan() && !rep.scan {
 				// The walk of a scan site has reached its ScanHotSpan-th element: as closure's scanSiteList.
 				rep.scan, rep.site, rep.coldStart = true, scanSite, *mc.vals[rep.base-1].(*int)
 				w := scanWalk{hw0: p.Hw}
@@ -942,7 +942,7 @@ func (mc *Machine) step(vm *Program, b *vmBody, resume, rok bool, rv *value.Node
 			if rep.count < rep.min {
 				goto fail
 			}
-			if rep.cold && p.Pos-rep.coldStart >= state.RunHotSpan {
+			if rep.cold && p.Pos-rep.coldStart >= p.Tuning().RunHotSpan() {
 				p.RunWalked(rep.site, rep.coldStart)
 			}
 			if rep.run != nil {

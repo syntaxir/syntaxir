@@ -18,9 +18,6 @@ import (
 // records of run sites taken from the first walk on and with records off, on every backend: a walk
 // that takes a record gives what one that evaluates its iterations gives.
 func TestRunSitesCorpusMatchWithoutRecords(t *testing.T) {
-	defer func(n, m int) {
-		state.RunHotSpan, state.ScanHotSpan, state.SkipRecordsOff = n, m, false
-	}(state.RunHotSpan, state.ScanHotSpan)
 	grammars, _ := filepath.Glob("../../../testdata/grammars/*/*.sxir")
 	if len(grammars) == 0 {
 		t.Fatal("no corpus grammars")
@@ -44,14 +41,12 @@ func TestRunSitesCorpusMatchWithoutRecords(t *testing.T) {
 		}
 		for _, in := range inputs {
 			for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
-				o := ParseOptions{Backend: b, Expectations: true, Unit: input.Bytes}
-				state.RunHotSpan, state.ScanHotSpan, state.SkipRecordsOff = 1, 1, false
+				o := ParseOptions{Backend: b, Expectations: true, Unit: input.Bytes, Tune: state.Tuning{RunHot: 1, ScanHot: 1}}
 				n, err := prog.ParseWith(prog.DefaultStartRule, in, o)
 				with := codegentest.ResultJSON(n, err)
-				state.SkipRecordsOff = true
+				o.Tune.SkipOff = true
 				n, err = prog.ParseWith(prog.DefaultStartRule, in, o)
 				without := codegentest.ResultJSON(n, err)
-				state.SkipRecordsOff = false
 				if with != without {
 					t.Errorf("%s, %s, input of %d bytes %q...: records change the result\n with    %.300s\n without %.300s",
 						filepath.Base(g), b, len(in), strings.SplitN(in, "\n", 2)[0], with, without)

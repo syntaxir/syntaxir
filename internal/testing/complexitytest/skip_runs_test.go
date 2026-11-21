@@ -25,11 +25,8 @@ func skipRunControls(t *testing.T) []Control {
 }
 
 // TestSkipRunsNeverRecordControl checks that the E8 controls measure linear only through the
-// recording of walks: with walks that never record, every one is quadratic on every backend. It
-// sets package state, so it does not run in parallel.
+// recording of walks: with walks that never record, every one is quadratic on every backend.
 func TestSkipRunsNeverRecordControl(t *testing.T) {
-	state.SkipRecordMutation = state.SkipNeverRecord
-	defer func() { state.SkipRecordMutation = 0 }()
 	controls := skipRunControls(t)
 	progs := make([]*engine.Parser, len(controls))
 	for i, c := range controls {
@@ -37,7 +34,7 @@ func TestSkipRunsNeverRecordControl(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		progs[i] = p
+		progs[i] = p.WithTuning(state.Tuning{SkipMut: state.SkipNeverRecord})
 	}
 	skipWithoutBudget(t)
 	for i, c := range controls {
@@ -141,9 +138,7 @@ func TestAlternatingWalksTurnHot(t *testing.T) {
 			if got := Classify(s); got != Linear {
 				t.Errorf("%s, %s: %v (slopes %.2f) classified %v, want %v", c.Name, BackendName(b), s.Costs, s.Slopes(), got, Linear)
 			}
-			state.SkipRecordMutation = state.SkipKeyEnvObject
-			s, err = Measure(p, c.Input, double(100), b, Cap)
-			state.SkipRecordMutation = 0
+			s, err = Measure(p.WithTuning(state.Tuning{SkipMut: state.SkipKeyEnvObject}), c.Input, double(100), b, Cap)
 			if err != nil {
 				t.Fatalf("%s, %s: %v", c.Name, BackendName(b), err)
 			}

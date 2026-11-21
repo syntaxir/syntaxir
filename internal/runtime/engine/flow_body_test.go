@@ -31,7 +31,13 @@ func parseCharged(t *testing.T, prog *Program, input string) (string, string, ui
 // parseChargedWith is parseCharged on the backend b.
 func parseChargedWith(t *testing.T, prog *Program, input string, b Backend) (string, string, uint64) {
 	t.Helper()
-	n, msg, used := parseChargedOpts(t, prog, input, ParseOptions{Backend: b})
+	return parseChargedTuned(t, prog, input, b, state.Tuning{})
+}
+
+// parseChargedTuned is parseChargedWith with the test-only settings tune.
+func parseChargedTuned(t *testing.T, prog *Program, input string, b Backend, tune state.Tuning) (string, string, uint64) {
+	t.Helper()
+	n, msg, used := parseChargedOpts(t, prog, input, ParseOptions{Backend: b, Tune: tune})
 	tree := "<nil>"
 	if n != nil {
 		tree = n.String()
@@ -39,8 +45,8 @@ func parseChargedWith(t *testing.T, prog *Program, input string, b Backend) (str
 	return tree, msg, used
 }
 
-// parseChargedOpts is parseCharged with the options o (of which it reads the backend and the
-// recording of expectations), returning the tree as a node.
+// parseChargedOpts is parseCharged with the options o (of which it reads the backend, the
+// recording of expectations and the test-only settings), returning the tree as a node.
 func parseChargedOpts(t *testing.T, prog *Program, input string, o ParseOptions) (*value.Node, string, uint64) {
 	t.Helper()
 	start := prog.ResolveStart("")
@@ -56,6 +62,7 @@ func parseChargedOpts(t *testing.T, prog *Program, input string, o ParseOptions)
 	p.MaxDepth, _ = state.DepthLimit(o, o.Backend)
 	p.Expectations = o.Expectations
 	p.DeferMemo = true
+	p.SetTuning(o.Tune)
 	n, err := active.Run(p, o.Backend, start)
 	if !p.Aborted {
 		control.Check()

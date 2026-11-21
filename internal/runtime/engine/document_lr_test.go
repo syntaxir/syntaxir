@@ -119,14 +119,13 @@ func TestDocumentSeedDependentResultsNotInMemo(t *testing.T) {
 // from the table and a jump over them, and evaluates no body.
 func memoStepSeedReads(t *testing.T, mutation int) (bodySteps, seedReads int) {
 	t.Helper()
-	defer func(m int) { state.ContextMemoMutation = m }(state.ContextMemoMutation)
-	state.ContextMemoMutation = mutation
 	leader := func(id int, bit uint64) *state.Rule {
 		r := &state.Rule{}
 		r.ID, r.Leader, r.LeaderBit, r.Cycle = id, true, bit, 1
 		return r
 	}
 	p := &state.Parser{Memo: state.NewMemoTable(), MemoAll: true}
+	p.SetTuning(state.Tuning{MemoMut: mutation})
 	outer, inner := leader(1, 1), leader(2, 2)
 	var outerCall state.CallState
 	p.CallBegin(outer, 0, &outerCall)

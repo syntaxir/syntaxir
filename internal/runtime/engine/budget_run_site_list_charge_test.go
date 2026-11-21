@@ -13,11 +13,11 @@ import (
 
 // computeSweep returns, for a parse of input at each compute limit from 1 up, the distinct sizes of the
 // reservations of more than one unit that fail, in the order of the limits, and the least limit at which
-// the parse succeeds: the units it charges.
-func computeSweep(t *testing.T, prog *Program, input string, b Backend) (sizes []uint64, total uint64) {
+// the parse succeeds: the units it charges. The parses have the test-only settings tune.
+func computeSweep(t *testing.T, prog *Program, input string, b Backend, tune state.Tuning) (sizes []uint64, total uint64) {
 	t.Helper()
 	for l := uint64(1); l < 20000; l++ {
-		_, err := prog.ParseWith("main", input, ParseOptions{Backend: b, Limits: runtime.Limits{Compute: l}})
+		_, err := prog.ParseWith("main", input, ParseOptions{Backend: b, Limits: runtime.Limits{Compute: l}, Tune: tune})
 		var le *runtime.LimitError
 		if err == nil || !errors.As(err, &le) {
 			if err != nil {
@@ -42,8 +42,6 @@ func computeSweep(t *testing.T, prog *Program, input string, b Backend) (sizes [
 // they charge no unit for one. The bytecode machines charge ten reads of the input more than the
 // closure backend, the reads of the class [x].
 func TestRunSiteListChargesNothing(t *testing.T) {
-	defer func(n, m int) { state.RunHotSpan, state.ScanHotSpan = n, m }(state.RunHotSpan, state.ScanHotSpan)
-	state.RunHotSpan, state.ScanHotSpan = 1, 1
 	prog := mustCompile(t, `rule main = (a "y" / "q" a / [x])* $$
 rule a = x+
 rule x = "x"`)
@@ -53,7 +51,7 @@ rule x = "x"`)
 		total   uint64
 	}{{Closure, 288}, {Bytecode, 298}, {BytecodeIterative, 298}} {
 		t.Run(c.backend.String(), func(t *testing.T) {
-			sizes, total := computeSweep(t, prog, input, c.backend)
+			sizes, total := computeSweep(t, prog, input, c.backend, state.Tuning{RunHot: 1, ScanHot: 1})
 			for _, size := range []uint64{14, 12} {
 				if slices.Contains(sizes, size) {
 					t.Errorf("a reservation of %d units, a list take-off; the reservations are %v", size, sizes)
@@ -88,7 +86,7 @@ func TestFailedRepetitionDropsItsElements(t *testing.T) {
 			if got := reservations(b); len(got) != 0 {
 				t.Errorf("reservations of six units after %v units, want none", got)
 			}
-			if _, total := computeSweep(t, prog, "abc", b); total != 25 {
+			if _, total := computeSweep(t, prog, "abc", b, state.Tuning{}); total != 25 {
 				t.Errorf("the parse charges %d units, want 25", total)
 			}
 		})

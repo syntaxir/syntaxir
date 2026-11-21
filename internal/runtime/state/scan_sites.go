@@ -31,14 +31,6 @@ func (r skipRecord) Count() int { return r.far }
 // Kids returns the elements of a walk that builds a value. They are shared by the lists of the walks.
 func (r skipRecord) Kids() []*value.Node { return r.vals.slice() }
 
-// ScanHotSpan is the number of characters that a walk of a scan site matches before it looks for the
-// record of its start, and the length of a walk that can turn the site hot (RunHotSpan for run
-// sites). A smaller value lowers the cost of each call that a record answers and raises the cost of
-// the walks that find none: the steps of a parse with records exceed those of a parse without by
-// two for each walk of at least ScanHotSpan characters. It is a variable and exported only as a
-// hook for tests in other packages, as RunHotSpan is.
-var ScanHotSpan = 16
-
 // ScanHits counts the walks answered from a record. It is a hook for tests that check a parse
 // reaches the records; nothing reads it in a parse.
 var ScanHits atomic.Int64
@@ -58,7 +50,7 @@ func (p *Parser) scanSlots(site int) *skipSlots {
 
 // ScanHot reports whether the site keeps records in this parse.
 func (p *Parser) ScanHot(site int) bool {
-	return !SkipRecordsOff && p.Missing == nil && p.RunHot(site)
+	return !p.tune.SkipOff && p.Missing == nil && p.RunHot(site)
 }
 
 // ScanLookup returns the record of the walk of the hot site that began at start, if there is one.
@@ -69,8 +61,8 @@ func (p *Parser) ScanLookup(site, start int) (skipRecord, bool) {
 		return rec, false
 	}
 	p.Spend()
-	if SkipRecordMutation != 0 {
-		rec = mutateSkipRecord(rec, start)
+	if p.tune.SkipMut != 0 {
+		rec = p.mutateSkipRecord(rec, start)
 	}
 	return rec, true
 }
@@ -93,7 +85,7 @@ func (p *Parser) ScanJump(rec skipRecord) {
 // guard made to panic, the tests of the engine package, which include streams, pass; other packages
 // were not run that way.
 func (p *Parser) ScanStore(site, start, examined, count int, kids []*value.Node) {
-	if SkipRecordMutation == SkipNeverRecord || !(p.Eof || examined <= p.Loaded()) {
+	if p.tune.SkipMut == SkipNeverRecord || !(p.Eof || examined <= p.Loaded()) {
 		return
 	}
 	p.Spend()
@@ -128,7 +120,7 @@ func (p *Parser) EndScanWalk(site, start, count int, kids []*value.Node, hot, hi
 		if hot {
 			p.ScanStore(site, start, p.Hw, count, kids)
 		} else {
-			p.walked(site, start, ScanHotSpan)
+			p.walked(site, start, p.tune.ScanHotSpan())
 		}
 	}
 	p.Hw = max(hw0, p.Hw)
@@ -198,7 +190,7 @@ func (p *Parser) ScanEnd(site, start, count int) {
 // one, which drops the gathered ones; otherwise the gathered ones, which it records at a hot site.
 // Taking the gathered elements off charges as Kids does.
 func (p *Parser) ScanKids(site, start, base, count int) []*value.Node {
-	if count < ScanHotSpan {
+	if count < p.tune.ScanHotSpan() {
 		return p.Kids(base)
 	}
 	w := p.scan

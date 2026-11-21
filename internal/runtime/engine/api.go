@@ -6,6 +6,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/runtime/document"
 	"syntaxir.dev/sxir/internal/runtime/program"
+	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/instrument"
@@ -120,6 +121,9 @@ type Parser struct {
 	prog    *Program
 	start   string
 	backend Backend
+	// tune holds the test-only settings of its parses (state.Tuning, WithTuning); it is zero
+	// outside tests.
+	tune state.Tuning
 }
 
 // NewParser returns a parser for prog that starts at the rule start, which must be a start rule;
@@ -150,12 +154,19 @@ func (p *Parser) Backend() Backend { return p.backend }
 
 // OnBackend returns a parser that shares the program and the start rule and runs on b by default.
 func (p *Parser) OnBackend(b Backend) *Parser {
-	return &Parser{prog: p.prog, start: p.start, backend: b}
+	return &Parser{prog: p.prog, start: p.start, backend: b, tune: p.tune}
+}
+
+// WithTuning returns a parser that shares the program, the start rule and the default backend and
+// parses with the test-only settings t (state.Tuning): the route for tests in other packages that
+// measure parses through a Parser. Nothing outside tests calls it.
+func (p *Parser) WithTuning(t state.Tuning) *Parser {
+	return &Parser{prog: p.prog, start: p.start, backend: p.backend, tune: t}
 }
 
 // options returns the options of a parse: the default backend of p, then opts.
 func (p *Parser) options(opts []ParseOption) ParseOptions {
-	o := ParseOptions{Backend: p.backend}
+	o := ParseOptions{Backend: p.backend, Tune: p.tune}
 	for _, opt := range opts {
 		opt(&o)
 	}
@@ -211,7 +222,7 @@ func (p *Parser) WithStart(name string) (*Parser, error) {
 	if name == "" {
 		name = p.prog.DefaultStart()
 	}
-	return &Parser{prog: p.prog, start: name, backend: p.backend}, nil
+	return &Parser{prog: p.prog, start: name, backend: p.backend, tune: p.tune}, nil
 }
 
 // Start returns the name of the parser's start rule.

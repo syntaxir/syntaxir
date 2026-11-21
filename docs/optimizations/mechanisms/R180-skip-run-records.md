@@ -25,7 +25,7 @@ with missing-token insertion keeps no slots. Repetitions in rules that skips cal
 
 ## Reference Control
 
-None maintained. Tests compare against parses with records disabled (`state.SkipRecordsOff`) and mutate the
+None maintained. Tests compare against parses with records disabled (a test-only setting of each parse) and mutate the
 runtimes to never record or to store records early.
 
 ## Evidence and Implementation

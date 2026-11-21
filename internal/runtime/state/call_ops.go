@@ -175,7 +175,7 @@ func (p *Parser) ctxEnter(c *CtxState, r *Rule, min int) ctxHit {
 // when every leader that grows here grew when e was evaluated, and did not matter to it. No entry
 // answers a call in a context whose present set has no word of bits (presentWide).
 func (p *Parser) ctxAllows(c *CtxState, e *MemoEntry) bool {
-	return ContextMemoMutation == CtxIgnorePresent || !p.strictCtx() && c.present&^e.Present == 0
+	return p.tune.MemoMut == CtxIgnorePresent || !p.strictCtx() && c.present&^e.Present == 0
 }
 
 // ctxLookup returns the result kept in the context of the call of rule r at binding level min with
@@ -191,7 +191,7 @@ func (p *Parser) ctxLookup(c *CtxState, r *Rule, min int, kv KeyVals) ctxHit {
 		return ctxHit{}
 	}
 	p.seedRead(c.gp)
-	if ContextMemoMutation != CtxNoReplayLookup {
+	if p.tune.MemoMut != CtxNoReplayLookup {
 		p.replayDeps(p.Pos, c.gp, c.present, s.deps)
 	}
 	return ctxHit{e: s.e}
@@ -221,7 +221,7 @@ func (p *Parser) ctxPop(c *CtxState) int {
 func (p *Parser) ctxKeep(c *CtxState, r *Rule, pos, min int, kv KeyVals, e *MemoEntry) {
 	p.ctxStore(pos, c.gp, ctxHeadKey{kind: ctxCall, id: int32(r.ID), min: int32(min), ms: kv.Missing, present: c.present},
 		c.sd, &ctxSlot{e: e, env: kv.Env})
-	if ContextMemoMutation == CtxKeepSeedResults {
+	if p.tune.MemoMut == CtxKeepSeedResults {
 		p.keptSeedResults = append(p.keptSeedResults, keptSeedResult{MemoKey{Rule: r.ID, Pos: pos, Min: min, Env: kv.Env, MissingSilent: kv.Missing}, e})
 	}
 }
@@ -231,7 +231,7 @@ func (p *Parser) ctxKeep(c *CtxState, r *Rule, pos, min int, kv KeyVals, e *Memo
 func (p *Parser) leaderEntry() *MemoEntry {
 	e := p.grown
 	p.grown = nil
-	if ContextMemoMutation == CtxKeepInPlace {
+	if p.tune.MemoMut == CtxKeepInPlace {
 		return e
 	}
 	cp := *e

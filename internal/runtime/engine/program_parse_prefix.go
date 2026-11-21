@@ -51,6 +51,7 @@ func (prog *Program) ParsePrefixWith(start, input string, o ParseOptions) (resul
 	p.MaxDepth, _ = state.DepthLimit(o, o.Backend) // admitParse rejected an invalid limit
 	p.Expectations = o.Expectations
 	p.DeferMemo = true
+	p.SetTuning(o.Tune)
 	if o.Traced() {
 		p.SetTrace(o.Trace, o.Profiles)
 		p.SelectTrace(o.TraceSelection)

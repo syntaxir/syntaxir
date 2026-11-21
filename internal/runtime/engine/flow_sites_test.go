@@ -17,8 +17,7 @@ import (
 // of the inputs reach the records of scan sites (SCANREACH, SCANEND, SCANKIDS). The scan sites keep
 // the span of the Flow lowering (flow.ScanHotSpan), which the runtime's must equal.
 func TestFlowBodySites(t *testing.T) {
-	defer func(n int) { state.RunHotSpan = n }(state.RunHotSpan)
-	state.RunHotSpan = 2
+	tune := state.Tuning{RunHot: 2}
 	type grammar struct{ Name, Src, Alphabet string }
 	var gs []grammar
 	for _, g := range codegentest.RunSiteGrammars {
@@ -49,9 +48,9 @@ func TestFlowBodySites(t *testing.T) {
 		}
 		for _, in := range inputs {
 			for _, b := range []Backend{Bytecode, BytecodeIterative} {
-				ot, oe, _ := parseChargedWith(t, old, in, b)
+				ot, oe, _ := parseChargedTuned(t, old, in, b, tune)
 				t0, h0 := state.RunHotTurns.Load(), state.ScanHits.Load()
-				ft, fe, _ := parseChargedWith(t, flows, in, b)
+				ft, fe, _ := parseChargedTuned(t, flows, in, b, tune)
 				turns += state.RunHotTurns.Load() - t0
 				hits += state.ScanHits.Load() - h0
 				if ot != ft || oe != fe {

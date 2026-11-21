@@ -33,17 +33,15 @@ func dump(t *testing.T, n *value.Node, err error) string {
 // resumed whole or across one edit, give what a parse of the current text from scratch gives.
 func TestDocumentMatchesFreshParse(t *testing.T) {
 	for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		t.Run(b.String(), func(t *testing.T) { testDocumentMatchesFreshParse(t, b) })
+		t.Run(b.String(), func(t *testing.T) { testDocumentMatchesFreshParse(t, b, state.Tuning{}) })
 	}
 	// Record every repetition's run, so that the short repetitions of the test resume too.
-	defer func(n int) { state.MinRecorded = n }(state.MinRecorded)
-	state.MinRecorded = 1
-	t.Run("resume", func(t *testing.T) { testDocumentMatchesFreshParse(t, Closure) })
+	t.Run("resume", func(t *testing.T) { testDocumentMatchesFreshParse(t, Closure, state.Tuning{MinRec: 1}) })
 }
 
-func testDocumentMatchesFreshParse(t *testing.T, b Backend) {
+func testDocumentMatchesFreshParse(t *testing.T, b Backend, tune state.Tuning) {
 	prog := mustCompile(t, codegentest.IncrementalGrammar)
-	o := ParseOptions{Backend: b}
+	o := ParseOptions{Backend: b, Tune: tune}
 	rng := rand.New(rand.NewSource(1))
 	pieces := []string{"a", "b", "x = ", "1", "+", "2*3", "(", ")", "-", ",", "\n", "@", "q", " "}
 	text := "x = 1+2\nab,cd\n@pos\n\ny = (3)*-4\n"
@@ -231,13 +229,12 @@ rule peek2 = &k:[a-z]+ #atomic => S{K: $k}
 rule peek3 = &([a-z]* #atomic m:"" #atomic)
 rule junk = [^;]* #atomic ";"`, "ab;cd;", []string{"a", "b", ";", "x;", "", "1"}},
 	}
-	defer func(n int) { state.MinRecorded = n }(state.MinRecorded)
-	state.MinRecorded = 1 // resume short repetitions too
+	resume := state.Tuning{MinRec: 1} // resume short repetitions too
 	// Edits leave the last character alone: each text ends with a terminator that lets it parse.
 	for ci, c := range cases {
 		prog := mustCompile(t, c.grammar)
 		for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
-			doc, err := prog.NewDocumentWith("main", c.text, ParseOptions{Backend: b})
+			doc, err := prog.NewDocumentWith("main", c.text, ParseOptions{Backend: b, Tune: resume})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -289,8 +286,7 @@ func TestDocumentResumeEdges(t *testing.T) {
 }
 
 func testDocumentResumeEdges(t *testing.T, backend Backend) {
-	defer func(n int) { state.MinRecorded = n }(state.MinRecorded)
-	state.MinRecorded = 1
+	resume := state.Tuning{MinRec: 1}
 	cases := []struct {
 		name, grammar, text string
 		pieces              []string
@@ -324,7 +320,7 @@ rule item = [a-z]+ #atomic " "*`, strings.Repeat("ab cd ", 8) + "!", []string{"a
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			prog := mustCompile(t, c.grammar)
-			doc, err := prog.NewDocumentWith("main", c.text, ParseOptions{Backend: backend})
+			doc, err := prog.NewDocumentWith("main", c.text, ParseOptions{Backend: backend, Tune: resume})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -353,7 +349,7 @@ rule item = [a-z]+ #atomic " "*`, strings.Repeat("ab cd ", 8) + "!", []string{"a
 rule run = item*
 rule item = [a-z] #atomic &([a-z!] [a-z!] [a-z!] [a-z!])
 rule rest = [^\n]* #atomic`)
-		doc, err := prog.NewDocumentWith("main", "abcdefgh!!!!", ParseOptions{Backend: backend})
+		doc, err := prog.NewDocumentWith("main", "abcdefgh!!!!", ParseOptions{Backend: backend, Tune: resume})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -377,7 +373,7 @@ rule rest = [^\n]* #atomic`)
 		prog := mustCompile(t, `rule main = list "!" / "bb" list "?"
 rule list = item*
 rule item = ^ [ab] #atomic / [ab] #atomic`)
-		doc, err := prog.NewDocumentWith("main", "aaaa?", ParseOptions{Backend: backend})
+		doc, err := prog.NewDocumentWith("main", "aaaa?", ParseOptions{Backend: backend, Tune: resume})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -398,7 +394,7 @@ rule run = item*
 rule item = b:bol / mid
 rule bol = ^ [a-z] #atomic
 rule mid = [a-z] #atomic / "\n"`)
-		doc, err := prog.NewDocumentWith("main", "x\nab\ncd\nef\n", ParseOptions{Backend: backend})
+		doc, err := prog.NewDocumentWith("main", "x\nab\ncd\nef\n", ParseOptions{Backend: backend, Tune: resume})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -420,8 +416,6 @@ rule mid = [a-z] #atomic / "\n"`)
 // TestDocumentResumeSequences checks edit sequences that resumed repetitions must get right on
 // every backend.
 func TestDocumentResumeSequences(t *testing.T) {
-	defer func(n int) { state.MinRecorded = n }(state.MinRecorded)
-	state.MinRecorded = 1
 	cases := []struct {
 		name, grammar, text string
 		edits               []state.DocEdit // delta is ignored: the inserted text is ins
@@ -440,7 +434,7 @@ rule item = {k == 1} [a-z!] #atomic / [a-z] #atomic "!"`, "x" + strings.Repeat("
 		for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
 			t.Run(c.name+"/"+b.String(), func(t *testing.T) {
 				prog := mustCompile(t, c.grammar)
-				doc, err := prog.NewDocumentWith("main", c.text, ParseOptions{Backend: b})
+				doc, err := prog.NewDocumentWith("main", c.text, ParseOptions{Backend: b, Tune: state.Tuning{MinRec: 1}})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -536,13 +530,10 @@ rule item = "(" item* ")" / "x"`, "xxxx(x)", 0, ParseOptions{Limits: runtime.Lim
 	for _, c := range cases {
 		for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
 			t.Run(c.name+"/"+b.String(), func(t *testing.T) {
-				if c.minRecorded > 0 {
-					defer func(n int) { state.MinRecorded = n }(state.MinRecorded)
-					state.MinRecorded = c.minRecorded
-				}
 				prog := mustCompile(t, c.grammar)
 				o := c.o
 				o.Backend = b
+				o.Tune.MinRec = c.minRecorded // the default if 0
 				doc, err := prog.NewDocumentWith("main", c.text, o)
 				if err != nil {
 					t.Fatal(err)

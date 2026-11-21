@@ -59,6 +59,9 @@ type ParseOptions struct {
 	// grows, instead of reusing a result (Parser.ContextMemoOff): the reference that tests compare
 	// the dependency memo with.
 	ContextMemoOff bool
+	// Tune holds the test-only settings of the parse (Tuning). Only tests set it, and
+	// the zero value selects the defaults.
+	Tune Tuning
 	// ContextMemoUnexamined leaves the examined range out of the identities of growth steps and the
 	// outcomes of lookaheads in a context (Parser.ContextMemoUnexamined): the reference that tests
 	// compare the traces of generated parsers with, which record no examined range outside a

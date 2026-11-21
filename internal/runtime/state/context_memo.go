@@ -46,12 +46,7 @@ import (
 // failSeed is the identity of the failure that every growth starts from.
 const failSeed uint64 = 1
 
-// ContextMemoMutation breaks one check of the dependency memo, for the negative controls of the
-// tests that compare it with parses that evaluate every call in a context again
-// (Parser.ContextMemoOff).
-var ContextMemoMutation = 0
-
-// The checks that ContextMemoMutation breaks.
+// The checks of the dependency memo that Tuning.MemoMut breaks.
 const (
 	CtxIgnoreSeeds      = 1 + iota // a reuse does not compare the identities of the seeds read
 	CtxIgnoreObs                   // a reuse does not check observations
@@ -268,7 +263,7 @@ type keptSeedResult struct {
 // seed, as if they had not: the negative control of the Document checks, which must detect a later
 // parse that reuses them.
 func KeepSeedResults(t *MemoTable, p *Parser) {
-	if ContextMemoMutation != CtxKeepSeedResults {
+	if p.tune.MemoMut != CtxKeepSeedResults {
 		return
 	}
 	for _, k := range p.keptSeedResults {
@@ -279,7 +274,7 @@ func KeepSeedResults(t *MemoTable, p *Parser) {
 
 // strictCtx reports that results in a context are not memoized in this parse.
 func (p *Parser) strictCtx() bool {
-	return p.ContextMemoOff || ContextMemoMutation == CtxStrictMissing && p.Missing != nil
+	return p.ContextMemoOff || p.tune.MemoMut == CtxStrictMissing && p.Missing != nil
 }
 
 // inserts reports that the results of r depend on the insertions before them in this parse: r
@@ -290,7 +285,7 @@ func (p *Parser) strictCtx() bool {
 // nothing and reads only seeds of leaders that insert nothing, so its results do not depend on
 // the insertions, and are kept in contexts as in a parse without insertion.
 func (p *Parser) inserts(r *Rule) bool {
-	return p.Missing != nil && r.Missing && ContextMemoMutation != CtxStoreInserts
+	return p.Missing != nil && r.Missing && p.tune.MemoMut != CtxStoreInserts
 }
 
 // gammaAt returns the index of the first growth of the cycle at pos that the innermost growths
@@ -361,7 +356,7 @@ func (p *Parser) presentWide(gp int) uint64 {
 		}
 		w[k/64] |= 1 << (k % 64)
 	}
-	if ContextMemoMutation == CtxConstWide {
+	if p.tune.MemoMut == CtxConstWide {
 		return presentWide | 1
 	}
 	key := make([]byte, 1, 1+8*len(w))
@@ -397,7 +392,7 @@ func (p *Parser) intern(key []byte, tag uint64) uint64 {
 // recordsIn reports whether evaluations in a context with the present set present record their
 // dependencies, so that their results are kept.
 func (p *Parser) recordsIn(present uint64) bool {
-	return !p.ContextMemoOff && (ContextMemoMutation != CtxNarrowPresent || present&presentWide == 0)
+	return !p.ContextMemoOff && (p.tune.MemoMut != CtxNarrowPresent || present&presentWide == 0)
 }
 
 // pushFrame starts recording the dependencies of an evaluation at pos, in the context of the
@@ -460,7 +455,7 @@ func (p *Parser) mergeDeps(ds []dep) {
 // the growths from Gamma[i] on.
 func (p *Parser) seedRead(i int) {
 	p.SeedReads++
-	if RunMutation == RunOpenGrowthsOnly {
+	if p.tune.RunMut == RunOpenGrowthsOnly {
 		p.seedReadLog = append(p.seedReadLog, i)
 	}
 }
@@ -516,13 +511,13 @@ func (p *Parser) replayDeps(pos, gp int, present uint64, ds []sdep) {
 				continue
 			}
 			v := p.Gamma[i].id
-			if ContextMemoMutation == CtxStaleReplay {
+			if p.tune.MemoMut == CtxStaleReplay {
 				v = d.val
 			}
 			buf = append(buf, dep{kind: d.kind, idx: int32(i), d: depth, val: v})
 		case depObs:
 			buf = append(buf, dep{kind: depObs, idx: d.site, d: depth, val: d.val})
-			if ContextMemoMutation != CtxStaleReplay && ContextMemoMutation != CtxNoReplayObs {
+			if p.tune.MemoMut != CtxStaleReplay && p.tune.MemoMut != CtxNoReplayObs {
 				buf = p.replayObs(buf, pos, gp, present, d.site, depth)
 			}
 		}
@@ -605,7 +600,7 @@ const (
 func (p *Parser) obsOutcome(ok bool, pos, examined, from int) (v uint64, ok2 bool) {
 	hi, lo := examined-pos, pos-from
 	if hi < 0 || lo < 0 || hi >= 1<<30 || lo >= 1<<30 {
-		if ContextMemoMutation == CtxNarrowOutcome {
+		if p.tune.MemoMut == CtxNarrowOutcome {
 			return obsWide, false
 		}
 		key := make([]byte, 2, 18)
@@ -627,7 +622,7 @@ func (p *Parser) obsOutcome(ok bool, pos, examined, from int) (v uint64, ok2 boo
 // obsValue returns the outcome memoized for the lookahead site at pos in the current context
 // (obsOutcome), or obsNone.
 func (p *Parser) obsValue(pos, gp int, present uint64, site int32) uint64 {
-	if ContextMemoMutation == CtxIgnoreObs {
+	if p.tune.MemoMut == CtxIgnoreObs {
 		return obsIgnored
 	}
 	for _, s := range p.obsGuard {
@@ -702,7 +697,7 @@ next:
 				continue next
 			}
 			v := p.Gamma[i].id
-			if ContextMemoMutation == CtxIgnoreSeeds {
+			if p.tune.MemoMut == CtxIgnoreSeeds {
 				v = 0
 			}
 			rest = k.add(v, rest)
@@ -735,7 +730,7 @@ func (p *Parser) ctxStore(pos, gp int, h ctxHeadKey, ds []sdep, slot *ctxSlot) {
 		if d.kind == depShadow {
 			continue
 		}
-		if ContextMemoMutation == CtxCapDeps && len(seeds)+len(obs) == maxCtxDeps {
+		if p.tune.MemoMut == CtxCapDeps && len(seeds)+len(obs) == maxCtxDeps {
 			return
 		}
 		if d.kind == depSeed {
@@ -748,7 +743,7 @@ func (p *Parser) ctxStore(pos, gp int, h ctxHeadKey, ds []sdep, slot *ctxSlot) {
 	for _, d := range ds {
 		if d.kind == depSeed {
 			v := d.val
-			if ContextMemoMutation == CtxIgnoreSeeds {
+			if p.tune.MemoMut == CtxIgnoreSeeds {
 				v = 0
 			}
 			rest = k.add(v, rest)
@@ -757,7 +752,7 @@ func (p *Parser) ctxStore(pos, gp int, h ctxHeadKey, ds []sdep, slot *ctxSlot) {
 	for _, d := range ds {
 		if d.kind == depObs {
 			v := d.val
-			if ContextMemoMutation == CtxIgnoreObs {
+			if p.tune.MemoMut == CtxIgnoreObs {
 				v = obsIgnored
 			}
 			rest = k.add(v, rest)
@@ -921,7 +916,7 @@ func (p *Parser) canonicalSeed(pos, gp int, g growKey, e *MemoEntry) (*MemoEntry
 	ck := canonKey{g: g, end: e.End, ok: e.Ok}
 	p.Spend()
 	if c, ok := t.canon[ck]; ok {
-		if ContextMemoMutation == CtxNoCanonical {
+		if p.tune.MemoMut == CtxNoCanonical {
 			return c.e, c.id
 		}
 		budget := 64

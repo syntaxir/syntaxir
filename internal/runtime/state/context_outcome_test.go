@@ -43,9 +43,9 @@ func TestObsOutcomeWide(t *testing.T) {
 // TestObsOutcomeWideControl checks that TestObsOutcomeWide detects outcomes that are not stored when
 // their range does not fit in a word.
 func TestObsOutcomeWideControl(t *testing.T) {
-	ContextMemoMutation = CtxNarrowOutcome
-	defer func() { ContextMemoMutation = 0 }()
-	if lookaheadStoredAt(&Parser{}, 1<<41, 1<<41+1<<31, 1<<41-1<<40) {
+	p := &Parser{}
+	p.SetTuning(Tuning{MemoMut: CtxNarrowOutcome})
+	if lookaheadStoredAt(p, 1<<41, 1<<41+1<<31, 1<<41-1<<40) {
 		t.Error("CtxNarrowOutcome not detected")
 	}
 }

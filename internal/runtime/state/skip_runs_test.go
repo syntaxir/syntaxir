@@ -76,9 +76,8 @@ func TestSkipRunsAbortStoresNothing(t *testing.T) {
 // TestSkipRunsAbortControl checks that the test above detects records stored when their iteration
 // ends: a stopped walk then leaves records behind.
 func TestSkipRunsAbortControl(t *testing.T) {
-	SkipRecordMutation = SkipEarlyStore
-	defer func() { SkipRecordMutation = 0 }()
 	p := &Parser{}
+	p.SetTuning(Tuning{SkipMut: SkipEarlyStore})
 	walkSkip(p, 0, 10, false)
 	walkSkip(p, 2, 8, true)
 	s := p.skipTables[2]

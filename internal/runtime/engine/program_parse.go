@@ -59,6 +59,7 @@ func (prog *Program) ParseWith(start, input string, o ParseOptions) (n *value.No
 	p.Expectations = o.Expectations
 	p.DeferMemo = true
 	p.ContextMemoOff = o.ContextMemoOff
+	p.SetTuning(o.Tune)
 	p.ContextMemoUnexamined = o.ContextMemoUnexamined
 	if o.MissingTokens > 0 && active.HasMissing {
 		p.Missing, p.MissingLen = &state.MissingTokenState{Limit: o.MissingTokens}, 0
@@ -440,6 +441,7 @@ func (prog *Program) ParseStreamWith(start string, r io.Reader, emit func(*value
 	}
 	control.Check()
 	p := state.NewControlledStreamParser(&prog.sharedProgram, r, o.Unit, control)
+	p.SetTuning(o.Tune)
 	control.AttachMemory(p)
 	// A limit beyond math.MaxInt bounds no stream.
 	if lim := o.Limits.Input; lim != 0 && lim != sxirruntime.Unlimited && lim <= math.MaxInt {
@@ -515,3 +517,4 @@ func (prog *Program) admitMissing(o ParseOptions, stream bool) error {
 	}
 	return nil
 }
+

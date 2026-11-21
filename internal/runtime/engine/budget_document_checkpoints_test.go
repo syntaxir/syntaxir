@@ -110,8 +110,6 @@ func TestBudgetDocumentMovementChargesEdges(t *testing.T) {
 }
 
 func TestBudgetDocumentRunAssemblyMatchesOrdinarySplice(t *testing.T) {
-	defer func(n int) { state.MinRecorded = n }(state.MinRecorded)
-	state.MinRecorded = 1 // Keep the splice fixture small, independent of the recording heuristic.
 	for _, controlled := range []bool{false, true} {
 		old := make([]state.RunElem, 8)
 		for i := range old {
@@ -119,6 +117,7 @@ func TestBudgetDocumentRunAssemblyMatchesOrdinarySplice(t *testing.T) {
 		}
 		r := state.RunState{Key: state.RunKey{Site: 1}, Old: old, K: 2, J: 4, T: 3, Mid: []state.RunElem{{Start: 900}}, Post: []state.RunElem{{Start: 901}, {Start: 902}}, Count: 8}
 		p := &state.Parser{Runs: map[state.RunKey]*state.RunRecord{}}
+		p.SetTuning(state.Tuning{MinRec: 1}) // Keep the splice fixture small, independent of the recording heuristic.
 		if controlled {
 			p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 8})
 		}

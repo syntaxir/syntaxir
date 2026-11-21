@@ -15,9 +15,9 @@ rule _stmt = _lhs "=" _rhs
 rule _lhs = [a-z]+ #atomic " "?
 rule _rhs = [0-9]+ #atomic (_op [0-9]+ #atomic)*
 rule _op = "+" / "-"`
-	run := func(t *testing.T, b Backend) {
+	run := func(t *testing.T, b Backend, tune state.Tuning) {
 		prog := mustCompile(t, grammarSrc)
-		o := ParseOptions{Backend: b}
+		o := ParseOptions{Backend: b, Tune: tune}
 		rng := rand.New(rand.NewSource(7))
 		pieces := []string{"a", "b", "=", "1", "+", "23", "-", "\n", " ", "x=1\n"}
 		doc, err := prog.NewDocumentWith("main", "x=1+2\nab =3\ny= 4-5+6\n", o)
@@ -45,9 +45,7 @@ rule _op = "+" / "-"`
 		}
 	}
 	for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		t.Run(b.String(), func(t *testing.T) { run(t, b) })
+		t.Run(b.String(), func(t *testing.T) { run(t, b, state.Tuning{}) })
 	}
-	defer func(n int) { state.MinRecorded = n }(state.MinRecorded)
-	state.MinRecorded = 1
-	t.Run("resume", func(t *testing.T) { run(t, Closure) })
+	t.Run("resume", func(t *testing.T) { run(t, Closure, state.Tuning{MinRec: 1}) })
 }

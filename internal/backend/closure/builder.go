@@ -494,7 +494,7 @@ func (b *Builder) scanRepeat(n *ir.Scan) state.Matcher {
 // reports itself to the cold state of the site.
 func (b *Builder) scanSite(accept func(*state.Parser, rune) bool, desc state.ExpID, min int, charge bool, site int) state.Matcher {
 	return func(p *state.Parser) (*value.Node, bool) {
-		start, span := p.Pos, state.ScanHotSpan
+		start, span := p.Pos, p.Tuning().ScanHotSpan()
 		count := 0
 		for count < span {
 			if charge {
@@ -542,7 +542,7 @@ func (b *Builder) scanSiteList(m state.Matcher, elemValue func(*state.Parser, *v
 		if rs != nil && p.Runs != nil && p.Silent == 0 {
 			return p.ResumeRepeat(rs)
 		}
-		start, span := p.Pos, state.ScanHotSpan
+		start, span := p.Pos, p.Tuning().ScanHotSpan()
 		base := len(p.KidStack)
 		var (
 			hot, hit bool
@@ -783,7 +783,7 @@ func (b *Builder) repeat(n *ir.Repeat, m state.Matcher, elemScope *program.Scope
 			p.TruncateKids(base)
 			return nil, false
 		}
-		if run != 0 && p.Pos-start >= state.RunHotSpan {
+		if run != 0 && p.Pos-start >= p.Tuning().RunHotSpan() {
 			p.RunWalked(run, start)
 		}
 		if !build {

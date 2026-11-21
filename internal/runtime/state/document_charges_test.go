@@ -765,7 +765,7 @@ func TestRunOperationsChargeTheirDeclaredWork(t *testing.T) {
 		if got := spent(p, func() { p.FinishRun(&r) }); got != 40+5+30+7 {
 			t.Fatalf("charged %d", got)
 		}
-		r = RunState{Old: oldRun(100, nil), K: MinRecorded - 1, J: -1, Count: MinRecorded - 1}
+		r = RunState{Old: oldRun(100, nil), K: minRecordedLen - 1, J: -1, Count: minRecordedLen - 1}
 		if got := spent(p, func() { p.FinishRun(&r) }); got != 0 {
 			t.Fatalf("a short run charged %d", got)
 		}

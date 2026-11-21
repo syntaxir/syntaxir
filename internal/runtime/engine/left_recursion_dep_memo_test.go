@@ -69,7 +69,7 @@ func checkReferenceLimit(t *testing.T, c codegentest.Case, in, want string) {
 // concurrently, because the evaluation without a memo of one input can take minutes (without limit
 // controls, no limit ends it) and the comparisons are independent, and returns the differences in
 // the order of the sequential run.
-func depMemoDiffers(t *testing.T, c codegentest.Case, limit int, unexamined, parallel bool) ([]string, bool) {
+func depMemoDiffers(t *testing.T, c codegentest.Case, limit int, unexamined, parallel bool, tune state.Tuning) ([]string, bool) {
 	t.Helper()
 	g, err := parseTest(c.Src)
 	if err != nil {
@@ -93,7 +93,7 @@ func depMemoDiffers(t *testing.T, c codegentest.Case, limit int, unexamined, par
 		}
 	}
 	compare := func(j job) string {
-		o := ParseOptions{Backend: j.backend, Recognize: j.rec, ContextMemoUnexamined: unexamined}
+		o := ParseOptions{Backend: j.backend, Recognize: j.rec, ContextMemoUnexamined: unexamined, Tune: tune}
 		got, err := memo.ParseWith("", j.in, o)
 		o.ContextMemoUnexamined, o.ContextMemoOff = false, true
 		want, wantErr := ref.ParseWith("", j.in, o)
@@ -167,7 +167,7 @@ func TestLeftRecursionDependencyMemoRandom(t *testing.T) {
 	}
 	var compiled, n atomic.Int64
 	codegentest.EachParallel(t, depMemoGrammars(seeds), func(t *testing.T, c codegentest.Case) {
-		diffs, ok := depMemoDiffers(t, c, 3, false, true)
+		diffs, ok := depMemoDiffers(t, c, 3, false, true, state.Tuning{})
 		if !ok {
 			return
 		}
@@ -213,10 +213,8 @@ func TestLeftRecursionDependencyMemoControls(t *testing.T) {
 		{"observations replayed in the current context", state.CtxNoReplayObs, true},
 	} {
 		t.Run(m.name, func(t *testing.T) {
-			state.ContextMemoMutation = m.mutation
-			defer func() { state.ContextMemoMutation = 0 }()
 			for _, c := range cases {
-				if diffs, _ := depMemoDiffers(t, c, 1, m.unexamined, false); len(diffs) > 0 {
+				if diffs, _ := depMemoDiffers(t, c, 1, m.unexamined, false, state.Tuning{MemoMut: m.mutation}); len(diffs) > 0 {
 					return
 				}
 			}

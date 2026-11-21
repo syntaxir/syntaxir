@@ -31,17 +31,7 @@ import (
 // The records of a parse last for that parse; a stream drops those before a commit. A parse with
 // missing-token insertion records nothing.
 
-// SkipRecordsOff disables skip-run records, for tests that compare parses with and without them.
-var SkipRecordsOff = false
-
-// SkipRecordMutation, when not 0, breaks the records for the negative controls of the tests: a
-// reused record leaves out one part of what it records (SkipKeepPos, SkipNoExpected,
-// SkipNoExamined, SkipNoFrom), walks never record (SkipNeverRecord), or a recording visit stores
-// a record of its own iteration when the iteration ends, which the end of the walk leaves as it is
-// (SkipEarlyStore).
-var SkipRecordMutation = 0
-
-// The parts that SkipRecordMutation leaves out.
+// The parts of the records that Tuning.SkipMut breaks.
 const (
 	SkipKeepPos      = 1 + iota // the end: the position stays at the record
 	SkipNoExpected              // the farthest failure and its expectations
@@ -152,7 +142,7 @@ func (p *Parser) getSkip(s *skipSlots, pos int, k walkKey) skipRecord {
 		return skipRecord{}
 	}
 	sk := skipKey{pos, k.h}
-	if SkipRecordMutation == SkipScanKeys && p != nil {
+	if p != nil && p.tune.SkipMut == SkipScanKeys {
 		for range s.recs {
 			p.Spend()
 		}
@@ -333,13 +323,6 @@ type skipWalk struct {
 // walk returns the walk in use, the innermost one in progress.
 func (p *Parser) walk() *skipWalk { return &p.skips[p.skipN-1] }
 
-// RunHotSpan is the length of input that a walk of a run site may walk again, below the furthest
-// point that the walks before it reached, before the site turns hot. A walk shorter than that
-// neither turns a site hot nor can walk that far again, so a caller need not pass it to RunWalked.
-// It is a variable and exported only as a hook for tests in other packages, which lower it to run the
-// hot path on short inputs and restore it; nothing else writes it, and it is not an option.
-var RunHotSpan = 64
-
 // RunHotTurns counts the run sites that turned hot. It is a hook for tests in other packages that
 // check a parse reaches the hot path; nothing reads it in a parse. It is atomic because parses run
 // concurrently, and a per-parse counter would need the tests to reach the parser of each parse. A turn happens once for each site
@@ -380,11 +363,11 @@ func (p *Parser) RunHot(site int) bool {
 // RunWalked ends the walk of a run site that was not hot, which began at start and ended at the
 // current position. A walk that began below the furthest position that the walks of the site passed
 // walks input again, and the site turns hot when it walks RunHotSpan of it below that position.
-func (p *Parser) RunWalked(site, start int) { p.walked(site, start, RunHotSpan) }
+func (p *Parser) RunWalked(site, start int) { p.walked(site, start, p.tune.RunHotSpan()) }
 
 // walked is RunWalked for a site whose walks turn it hot at span characters below the furthest position.
 func (p *Parser) walked(site, start, span int) {
-	if SkipRecordsOff || p.Missing != nil {
+	if p.tune.SkipOff || p.Missing != nil {
 		return
 	}
 	i := p.runIndex(site)
@@ -417,7 +400,7 @@ func (p *Parser) skipBegin(site int, build, keyEnv bool) {
 	p.skipN++
 	w := p.walk()
 	w.build, w.placed, w.vals = build, false, w.vals[:0]
-	w.on = !SkipRecordsOff && p.Missing == nil
+	w.on = !p.tune.SkipOff && p.Missing == nil
 	if !w.on {
 		return
 	}
@@ -464,13 +447,13 @@ func (p *Parser) skipTable() *skipSlots {
 // charge as for a memo key (hashMemoKey).
 func (p *Parser) walkKey() walkKey {
 	k := p.walk().key
-	if k == nil || SkipRecordMutation == SkipIgnoreEnv {
+	if k == nil || p.tune.SkipMut == SkipIgnoreEnv {
 		return walkKey{}
 	}
 	p.chargeValueBytes(len(k.vars) * int(anyBytes))
 	vals := p.EnvValues(k.vars)
 	h := p.hashMemoKey(0, 0, false, vals)
-	if SkipRecordMutation == SkipKeyEnvObject {
+	if p.tune.SkipMut == SkipKeyEnvObject {
 		// The object is compared by identity (rawValueEqual) and hashed by its address.
 		vals = append(vals, p.Env)
 		h ^= uint64(uintptr(unsafe.Pointer(p.Env))) * 0x9e3779b97f4a7c15
@@ -491,7 +474,7 @@ func (p *Parser) skipMarkPrev() {
 // to at the first position that is not fresh.
 func (p *Parser) skipRecording() bool {
 	w := p.walk()
-	if !w.recording && w.slots.marked(p.Pos) && SkipRecordMutation != SkipNeverRecord {
+	if !w.recording && w.slots.marked(p.Pos) && p.tune.SkipMut != SkipNeverRecord {
 		p.skipMarkPrev()
 		w.recording = true
 	}
@@ -509,18 +492,18 @@ func (p *Parser) SkipHit() bool {
 	p.skipClose()
 	p.Spend()
 	r := p.getSkip(w.slots, p.Pos, p.walkKey())
-	if r.state != skipRecorded || w.build && !r.list && SkipRecordMutation != SkipAnyList {
+	if r.state != skipRecorded || w.build && !r.list && p.tune.SkipMut != SkipAnyList {
 		return false
 	}
 	p.Spend()
-	if SkipRecordMutation != 0 {
-		r = mutateSkipRecord(r, p.Pos)
+	if p.tune.SkipMut != 0 {
+		r = p.mutateSkipRecord(r, p.Pos)
 	}
 	p.touch(r.examined)
 	p.lw = Min2(p.lw, r.from)
 	p.MergeExpected(r.far, r.exp)
 	p.Pos = r.end
-	if w.key != nil && SkipRecordMutation != SkipKeepEnv {
+	if w.key != nil && p.tune.SkipMut != SkipKeepEnv {
 		for i, slot := range w.key.bind {
 			p.Bind(slot, r.bind[i])
 		}
@@ -567,7 +550,7 @@ func (p *Parser) skipClose() {
 	v.from, v.examined = p.lw, p.Hw
 	v.errs = p.recSince(v.e0)
 	p.Hw, p.lw = max(w.savedHW, p.Hw), Min2(w.savedLW, p.lw)
-	if SkipRecordMutation == SkipEarlyStore {
+	if p.tune.SkipMut == SkipEarlyStore {
 		p.putSkip(p.skipTable(), v.pos, v.key, skipRecord{end: p.Pos, far: v.far, exp: v.exp, from: v.from, examined: v.examined, state: skipRecorded, bind: p.walkBind()})
 	}
 }
@@ -629,7 +612,7 @@ func (p *Parser) skipEnd() {
 	}
 	p.skipClose()
 	w.on = false
-	if SkipRecordMutation == SkipEarlyStore {
+	if p.tune.SkipMut == SkipEarlyStore {
 		w.visits = w.visits[:0]
 		return
 	}
@@ -639,7 +622,7 @@ func (p *Parser) skipEnd() {
 	var tail valSuffix
 	if w.hitOK {
 		tail = w.hit.vals
-		if SkipRecordMutation != SkipKeepEnv {
+		if p.tune.SkipMut != SkipKeepEnv {
 			endBind = w.hit.bind
 		}
 	}
@@ -783,9 +766,9 @@ func (p *Parser) PruneSkipRecords(pos int) {
 	}
 }
 
-// mutateSkipRecord returns r reused at pos without the part SkipRecordMutation names.
-func mutateSkipRecord(r skipRecord, pos int) skipRecord {
-	switch SkipRecordMutation {
+// mutateSkipRecord returns r reused at pos without the part the tuning's SkipMut names.
+func (p *Parser) mutateSkipRecord(r skipRecord, pos int) skipRecord {
+	switch p.tune.SkipMut {
 	case SkipKeepPos:
 		r.end = pos
 	case SkipNoExpected:

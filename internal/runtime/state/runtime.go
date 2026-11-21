@@ -68,6 +68,8 @@ func StaticProgramOf(s *SharedProgram) *staticProgram { return s.staticProgram }
 // Parser is the execution state of a single parse.
 type Parser struct {
 	Prog *SharedProgram
+	// tune holds the settings of the parse (Tuning); the zero value selects the defaults.
+	tune Tuning
 	Input
 	Pos int
 	// Hw and lw are the input range [lw, hw) examined by the current rule call. They are used by
@@ -621,7 +623,7 @@ func (p *Parser) GrowNext(g *GrowState) bool {
 	gp := g.gp
 	for {
 		id := p.Gamma[g.gi].id
-		if ContextMemoMutation == CtxNoStepMemo {
+		if p.tune.MemoMut == CtxNoStepMemo {
 			p.pushFrame(g.start, g.gp)
 			g.savedHW, g.savedLW = p.Hw, p.lw
 			p.Hw, p.lw = g.start, g.start
@@ -629,13 +631,13 @@ func (p *Parser) GrowNext(g *GrowState) bool {
 			return true
 		}
 		if j := p.findJump(g, gp, id); j != nil {
-			if ContextMemoMutation != CtxNoJumpSeedRead {
+			if p.tune.MemoMut != CtxNoJumpSeedRead {
 				p.seedRead(gp)
 			}
-			if ContextMemoMutation != CtxNoJumpReplayDeps {
+			if p.tune.MemoMut != CtxNoJumpReplayDeps {
 				p.replayDeps(g.start, gp, g.present, j.deps)
 			}
-			if ContextMemoMutation != CtxNoJumpMergeExp {
+			if p.tune.MemoMut != CtxNoJumpMergeExp {
 				p.MergeExpected(j.far, j.exp)
 			}
 			p.touch(j.examined)
@@ -645,13 +647,13 @@ func (p *Parser) GrowNext(g *GrowState) bool {
 		}
 		h := ctxHeadKey{kind: ctxStep, id: int32(g.Key.Rule), min: int32(g.Key.Min), ms: g.Key.MissingSilent, present: g.present}
 		if s := p.ctxFind(g.start, gp, h, nil); s != nil && p.reusable(s.silent) {
-			if ContextMemoMutation != CtxNoStepSeedRead {
+			if p.tune.MemoMut != CtxNoStepSeedRead {
 				p.seedRead(gp)
 			}
-			if ContextMemoMutation != CtxNoStepReplayDeps {
+			if p.tune.MemoMut != CtxNoStepReplayDeps {
 				p.replayDeps(g.start, gp, g.present, s.deps)
 			}
-			if ContextMemoMutation != CtxNoStepMergeExp {
+			if p.tune.MemoMut != CtxNoStepMergeExp {
 				p.MergeExpected(s.far, s.exp)
 			}
 			p.touch(s.examined)
@@ -841,10 +843,10 @@ next:
 		// from the first: an observation holds for the jump only if its outcome is the same for
 		// every seed of the growth.
 		for _, d := range j.deps {
-			if d.kind != depObs || ContextMemoMutation == CtxIgnoreObs {
+			if d.kind != depObs || p.tune.MemoMut == CtxIgnoreObs {
 				continue
 			}
-			if v, free := p.obsFree(g.start, gp, g.present, d.site, g.growKey()); v != d.val || !free && ContextMemoMutation != CtxJumpAnySeed {
+			if v, free := p.obsFree(g.start, gp, g.present, d.site, g.growKey()); v != d.val || !free && p.tune.MemoMut != CtxJumpAnySeed {
 				continue next
 			}
 		}

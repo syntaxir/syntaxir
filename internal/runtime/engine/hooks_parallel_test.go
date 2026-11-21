@@ -9,16 +9,18 @@ import (
 	"testing"
 )
 
-// The hooks of the state package that tests lower or switch (state.RunHotSpan and the like) are
-// process-wide: a parse that runs while one is lowered changes what it charges, so a test that
-// writes one must not run in parallel with other tests. Such a write in a parallel test made
-// TestBudgetStreamDefaultIgnoresChunking fail now and then: atHotSpans, called by the parallel
-// TestCalleeBindingsUndoneAtReturn, lowered the hot spans, a run site of the stream's grammar turned
-// hot, and the parse stayed under the budget that it must exceed.
+// The hooks that tests switch through package variables (the mutations of the compiler passes,
+// the charge log) are process-wide: a program compiled or a parse run while one is set behaves
+// otherwise, so a test that writes one must not run in parallel with other tests. Such a write in a
+// parallel test made TestBudgetStreamDefaultIgnoresChunking fail now and then, when the hot spans
+// of run sites were such variables: atHotSpans, called by the parallel
+// TestCalleeBindingsUndoneAtReturn, lowered them, a run site of the stream's grammar turned hot, and
+// the parse stayed under the budget that it must exceed. The settings of a parse are now its own
+// (state.Tuning); the compiler's switches are still package state.
 //
 // This test finds the tests that call t.Parallel and write a hook, directly or through a function of
 // the package that writes one.
-func TestParallelTestsDoNotWriteStateHooks(t *testing.T) {
+func TestParallelTestsDoNotWriteProcessHooks(t *testing.T) {
 	t.Parallel()
 	fset := token.NewFileSet()
 	entries, err := os.ReadDir(".")
@@ -41,8 +43,7 @@ func TestParallelTestsDoNotWriteStateHooks(t *testing.T) {
 		}
 	}
 	hooks := map[string]bool{
-		"RunHotSpan": true, "ScanHotSpan": true, "SkipRecordsOff": true, "MinRecorded": true,
-		"SkipRecordMutation": true, "RunMutation": true, "ContextMemoMutation": true,
+		"corepass.EnvFreeMutation": true, "corepass.RunKeyMutation": true, "state.ChargeLog": true,
 	}
 	isHook := func(e ast.Expr) bool {
 		sel, ok := e.(*ast.SelectorExpr)
@@ -50,7 +51,7 @@ func TestParallelTestsDoNotWriteStateHooks(t *testing.T) {
 			return false
 		}
 		x, ok := sel.X.(*ast.Ident)
-		return ok && x.Name == "state" && hooks[sel.Sel.Name]
+		return ok && hooks[x.Name+"."+sel.Sel.Name]
 	}
 	// writers holds the functions that write a hook, directly or by calling one that does.
 	writers := map[string]string{}
@@ -66,7 +67,7 @@ func TestParallelTestsDoNotWriteStateHooks(t *testing.T) {
 				case *ast.AssignStmt:
 					for _, l := range n.Lhs {
 						if isHook(l) {
-							why = "assigns state." + l.(*ast.SelectorExpr).Sel.Name
+							why = "assigns " + l.(*ast.SelectorExpr).X.(*ast.Ident).Name + "." + l.(*ast.SelectorExpr).Sel.Name
 						}
 					}
 				case *ast.CallExpr:

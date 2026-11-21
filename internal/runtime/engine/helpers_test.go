@@ -170,19 +170,25 @@ func checkUnits(t *testing.T, prog *Program, start, input string, b Backend) {
 // checkBackends checks that every backend produces the same result (value, positions, errors).
 func checkBackends(t *testing.T, prog *Program, start, input string) {
 	t.Helper()
+	checkBackendsTuned(t, prog, start, input, state.Tuning{})
+}
+
+// checkBackendsTuned is checkBackends with the test-only settings tune on every parse.
+func checkBackendsTuned(t *testing.T, prog *Program, start, input string, tune state.Tuning) {
+	t.Helper()
 	for _, u := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
-		n1, err1 := prog.ParseWith(start, input, ParseOptions{Expectations: true, Unit: u})
+		n1, err1 := prog.ParseWith(start, input, ParseOptions{Expectations: true, Unit: u, Tune: tune})
 		want := codegentest.ResultJSON(n1, err1)
-		checkRecognize(t, prog, start, input, u, err1)
+		checkRecognizeTuned(t, prog, start, input, u, err1, tune)
 		// The default budget runs the controlled form; Unlimited runs the uncontrolled one, which must
 		// give the same result on inputs within the default.
-		if n0, err0 := prog.ParseWith(start, input, ParseOptions{Expectations: true, Unit: u, Limits: runtime.Limits{Compute: runtime.Unlimited}}); !errors.Is(err1, runtime.ErrLimit) {
+		if n0, err0 := prog.ParseWith(start, input, ParseOptions{Expectations: true, Unit: u, Limits: runtime.Limits{Compute: runtime.Unlimited}, Tune: tune}); !errors.Is(err1, runtime.ErrLimit) {
 			if got := codegentest.ResultJSON(n0, err0); got != want {
 				t.Errorf("input %q (unit %v): Unlimited differs from the default budget\n default   %s\n unlimited %s", input, u, want, got)
 			}
 		}
 		for _, b := range []Backend{Bytecode, BytecodeIterative} {
-			n2, err2 := prog.ParseWith(start, input, ParseOptions{Expectations: true, Unit: u, Backend: b})
+			n2, err2 := prog.ParseWith(start, input, ParseOptions{Expectations: true, Unit: u, Backend: b, Tune: tune})
 			if got := codegentest.ResultJSON(n2, err2); got != want {
 				t.Errorf("input %q (unit %v): %v differs from closure\n closure %s\n %v %s", input, u, b, want, b, got)
 			}
@@ -196,13 +202,19 @@ func checkBackends(t *testing.T, prog *Program, start, input string) {
 // actions).
 func checkRecognize(t *testing.T, prog *Program, start, input string, u sxirinput.PositionUnit, want error) {
 	t.Helper()
+	checkRecognizeTuned(t, prog, start, input, u, want, state.Tuning{})
+}
+
+// checkRecognizeTuned is checkRecognize with the test-only settings tune on every parse.
+func checkRecognizeTuned(t *testing.T, prog *Program, start, input string, u sxirinput.PositionUnit, want error, tune state.Tuning) {
+	t.Helper()
 	switch want.(type) {
 	case nil, *value.SyntaxError, value.SyntaxErrors:
 	default:
 		return
 	}
 	for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		n, err := prog.ParseWith(start, input, ParseOptions{Expectations: true, Unit: u, Backend: b, Recognize: true})
+		n, err := prog.ParseWith(start, input, ParseOptions{Expectations: true, Unit: u, Backend: b, Recognize: true, Tune: tune})
 		if n != nil || fmt.Sprint(err) != fmt.Sprint(want) {
 			t.Errorf("input %q (unit %v, %v): recognition gives %v, %v; want %v", input, u, b, n, err, want)
 		}

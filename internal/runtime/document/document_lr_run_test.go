@@ -26,18 +26,18 @@ rule r = x*
 rule x = l "c" / "c"`,
 }
 
-// runGrowthMismatches parses random texts and edits of runGrowthGrammars as Documents and returns
-// the first Document parses that differ from a fresh parse, at most limit of them.
-func runGrowthMismatches(t *testing.T, limit int) []string {
+// runGrowthMismatches parses random texts and edits of runGrowthGrammars as Documents that record
+// every run, with the test-only settings tune besides, and returns the first Document parses that
+// differ from a fresh parse, at most limit of them.
+func runGrowthMismatches(t *testing.T, limit int, tune state.Tuning) []string {
 	t.Helper()
-	defer func(n int) { state.MinRecorded = n }(state.MinRecorded)
-	state.MinRecorded = 1
 	const alphabet = "cmlk!?"
 	var bad []string
 	for gi, src := range runGrowthGrammars {
 		prog := mustCompile(t, src)
 		for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-			opts := ParseOptions{Backend: backend}
+			tune.MinRec = 1
+			opts := ParseOptions{Backend: backend, Tune: tune}
 			rng := rand.New(rand.NewSource(int64(gi)))
 			for range 400 {
 				text := make([]byte, 1+rng.Intn(8))
@@ -75,11 +75,11 @@ func runGrowthMismatches(t *testing.T, limit int) []string {
 // started and ended within the run is not recorded, so that Document parses equal fresh ones.
 func TestDocumentRunReadsGrowthWithin(t *testing.T) {
 	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		if got, want := firstRunGrowthParse(t, backend); got != want {
+		if got, want := firstRunGrowthParse(t, backend, state.Tuning{}); got != want {
 			t.Errorf("%s: Document %s; fresh %s", backend, got, want)
 		}
 	}
-	for _, m := range runGrowthMismatches(t, 5) {
+	for _, m := range runGrowthMismatches(t, 5, state.Tuning{}) {
 		t.Error(m)
 	}
 }
@@ -88,14 +88,13 @@ func TestDocumentRunReadsGrowthWithin(t *testing.T) {
 // seeds of growths that started within it makes Document parses differ from fresh ones, already in
 // the first parse of "clc?".
 func TestDocumentRunReadsGrowthWithinControl(t *testing.T) {
-	defer func(m int) { state.RunMutation = m }(state.RunMutation)
-	state.RunMutation = state.RunOpenGrowthsOnly
+	mutation := state.Tuning{RunMut: state.RunOpenGrowthsOnly}
 	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		if got, want := firstRunGrowthParse(t, backend); got == want {
+		if got, want := firstRunGrowthParse(t, backend, mutation); got == want {
 			t.Errorf("%s: the first Document parse of \"clc?\" equals the fresh one, %s", backend, got)
 		}
 	}
-	if len(runGrowthMismatches(t, 1)) == 0 {
+	if len(runGrowthMismatches(t, 1, mutation)) == 0 {
 		t.Error("recording runs that read seeds of growths within them changed no Document parse of the random texts")
 	}
 }
@@ -103,13 +102,13 @@ func TestDocumentRunReadsGrowthWithinControl(t *testing.T) {
 // firstRunGrowthParse returns the first Document parse of "clc?" with the first of
 // runGrowthGrammars, and a fresh parse. main tries r at 0 outside any growth, where the first x
 // grows the cycle at 0 and reads the seed of that growth, then m at 0, whose growth reaches r at 0
-// again: there x reads the seed of the growth that is open.
-func firstRunGrowthParse(t *testing.T, backend Backend) (got, want string) {
+// again: there x reads the seed of the growth that is open. The parses record every run and have the
+// test-only settings tune besides.
+func firstRunGrowthParse(t *testing.T, backend Backend, tune state.Tuning) (got, want string) {
 	t.Helper()
-	defer func(n int) { state.MinRecorded = n }(state.MinRecorded)
-	state.MinRecorded = 1
 	prog := mustCompile(t, runGrowthGrammars[0])
-	opts := ParseOptions{Backend: backend}
+	tune.MinRec = 1
+	opts := ParseOptions{Backend: backend, Tune: tune}
 	d, err := prog.NewDocumentWith("main", "clc?", opts)
 	if err != nil {
 		t.Fatal(err)

@@ -20,26 +20,27 @@ import (
 // hotSpans are the thresholds at which the differential tests of run sites run: the one of the
 // engine, at which the short inputs of the tests stay cold, and short ones, at which sites turn hot
 // in the middle of a parse and the records answer the walks after it.
-var hotSpans = []int{state.RunHotSpan, 2, 1}
+var hotSpans = []int{new(state.Tuning).RunHotSpan(), 2, 1}
 
-// atHotSpans runs f at each of hotSpans, and checks that the sites turn hot at the short ones.
-func atHotSpans(t *testing.T, f func(t *testing.T)) {
+// atHotSpans runs f with the run-site and scan-site hot spans lowered to each of hotSpans (the
+// test-only settings f passes to its parses), and checks that the sites turn hot at the short ones.
+func atHotSpans(t *testing.T, f func(t *testing.T, tune state.Tuning)) {
 	t.Helper()
-	defer func(n, m int) { state.RunHotSpan, state.ScanHotSpan = n, m }(state.RunHotSpan, state.ScanHotSpan)
 	for _, span := range hotSpans {
-		state.RunHotSpan, state.ScanHotSpan = span, span
+		tune := state.Tuning{RunHot: span, ScanHot: span}
 		turns := state.RunHotTurns.Load()
-		t.Run("span"+strconv.Itoa(span), f)
+		t.Run("span"+strconv.Itoa(span), func(t *testing.T) { f(t, tune) })
 		if span <= 2 && state.RunHotTurns.Load() == turns {
 			t.Errorf("no run site turned hot at span %d", span)
 		}
 	}
 }
 
-// assertTurnedHot checks that a run site turned hot since turns, when the threshold is short.
-func assertTurnedHot(t *testing.T, name string, turns int64) {
+// assertTurnedHot checks that a run site turned hot since turns, when the threshold of tune is
+// short.
+func assertTurnedHot(t *testing.T, name string, turns int64, tune state.Tuning) {
 	t.Helper()
-	if state.RunHotSpan <= 2 && state.RunHotTurns.Load() == turns {
+	if tune.RunHotSpan() <= 2 && state.RunHotTurns.Load() == turns {
 		t.Errorf("%s: no run site turned hot", name)
 	}
 }
@@ -49,7 +50,7 @@ func assertTurnedHot(t *testing.T, name string, turns int64) {
 // as walks without records, on every backend.
 func TestRunSitesMatchPlainRepetitions(t *testing.T) { atHotSpans(t, runSitesMatchPlainRepetitions) }
 
-func runSitesMatchPlainRepetitions(t *testing.T) {
+func runSitesMatchPlainRepetitions(t *testing.T, tune state.Tuning) {
 	rng := rand.New(rand.NewSource(113))
 	for _, g := range codegentest.RunValueGrammars {
 		prog := mustCompile(t, g.Src)
@@ -60,12 +61,12 @@ func runSitesMatchPlainRepetitions(t *testing.T) {
 		inputs := append(codegentest.SkipRunInputs(g.Alphabet, 300, rng), codegentest.RunValueInputs[g.Name]...)
 		turns := state.RunHotTurns.Load()
 		for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
-			if diffs := skipRunMismatches(t, prog, inputs, b); len(diffs) > 0 {
+			if diffs := skipRunMismatches(t, prog, inputs, b, tune); len(diffs) > 0 {
 				t.Errorf("%s, %s: %d parses differ without records, first:\n%s", g.Name, b, len(diffs), diffs[0])
 			}
 			for _, in := range inputs {
 				for _, exp := range []bool{true, false} {
-					o := ParseOptions{Backend: b, Expectations: exp}
+					o := ParseOptions{Backend: b, Expectations: exp, Tune: tune}
 					n, err := prog.ParseWith("main", in, o)
 					wn, werr := plain.ParseWith("main", in, o)
 					if got, want := skipDump(t, n, err), skipDump(t, wn, werr); got != want {
@@ -74,7 +75,7 @@ func runSitesMatchPlainRepetitions(t *testing.T) {
 				}
 			}
 		}
-		assertTurnedHot(t, g.Name, turns)
+		assertTurnedHot(t, g.Name, turns, tune)
 	}
 }
 
@@ -84,7 +85,7 @@ func runSitesMatchPlainRepetitions(t *testing.T) {
 // repetitions on the bytecode backends, which run loaded programs.
 func TestRunSitesOfLoadedPrograms(t *testing.T) { atHotSpans(t, runSitesOfLoadedPrograms) }
 
-func runSitesOfLoadedPrograms(t *testing.T) {
+func runSitesOfLoadedPrograms(t *testing.T, tune state.Tuning) {
 	rng := rand.New(rand.NewSource(115))
 	for _, g := range codegentest.RunValueGrammars {
 		plain := compileWithout(t, g.Src, &corepass.NoRunSites)
@@ -101,7 +102,7 @@ func runSitesOfLoadedPrograms(t *testing.T) {
 			}
 			for _, b := range []Backend{Bytecode, BytecodeIterative} {
 				for _, in := range inputs {
-					o := ParseOptions{Backend: b, Expectations: true}
+					o := ParseOptions{Backend: b, Expectations: true, Tune: tune}
 					wn, werr := plain.ParseWith("main", in, o)
 					want := skipDump(t, wn, werr)
 					if mode == CompiledDocument {
@@ -122,27 +123,26 @@ func runSitesOfLoadedPrograms(t *testing.T) {
 				}
 			}
 		}
-		assertTurnedHot(t, g.Name, turns)
+		assertTurnedHot(t, g.Name, turns, tune)
 	}
 }
 
 // TestRunSitesMatchParsesWithoutRecords checks that the records of run sites change no result:
-// values and syntax errors with their expectations, on every backend. It toggles package state, so
-// it does not run in parallel.
+// values and syntax errors with their expectations, on every backend.
 func TestRunSitesMatchParsesWithoutRecords(t *testing.T) { atHotSpans(t, runSitesMatchWithoutRecords) }
 
-func runSitesMatchWithoutRecords(t *testing.T) {
+func runSitesMatchWithoutRecords(t *testing.T, tune state.Tuning) {
 	rng := rand.New(rand.NewSource(112))
 	for _, g := range codegentest.RunSiteGrammars {
 		prog := mustCompile(t, g.Src)
 		inputs := codegentest.SkipRunInputs(g.Alphabet, 300, rng)
 		turns := state.RunHotTurns.Load()
 		for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
-			if diffs := skipRunMismatches(t, prog, inputs, b); len(diffs) > 0 {
+			if diffs := skipRunMismatches(t, prog, inputs, b, tune); len(diffs) > 0 {
 				t.Errorf("%s, %s: %d parses differ, first:\n%s", g.Name, b, len(diffs), diffs[0])
 			}
 		}
-		assertTurnedHot(t, g.Name, turns)
+		assertTurnedHot(t, g.Name, turns, tune)
 	}
 	for _, c := range codegentest.GenCorpus(t) {
 		g, err := parseTest(c.Src)
@@ -154,7 +154,7 @@ func runSitesMatchWithoutRecords(t *testing.T) {
 			t.Fatalf("corpus %s: %v", c.Name, err)
 		}
 		for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
-			if diffs := skipRunMismatches(t, prog, c.Inputs, b); len(diffs) > 0 {
+			if diffs := skipRunMismatches(t, prog, c.Inputs, b, tune); len(diffs) > 0 {
 				t.Errorf("corpus %s, %s: %d parses differ, first:\n%s", c.Name, b, len(diffs), diffs[0])
 			}
 		}
@@ -201,17 +201,15 @@ func TestRunSitesReuseRecords(t *testing.T) {
 	if !state.BudgetControlsEnabled {
 		t.Skip("budget controls are unavailable in the reference build")
 	}
-	defer func() { state.SkipRecordsOff = false }()
 	in := strings.Repeat("x", 400) + "z"
 	for _, g := range codegentest.RunSiteGrammars[:2] {
 		prog := mustCompile(t, g.Src)
 		for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
 			o := ParseOptions{Backend: b, Limits: runtime.Limits{Compute: 200_000}}
-			state.SkipRecordsOff = false
 			if _, err := prog.ParseWith("main", in, o); errors.Is(err, runtime.ErrLimit) {
 				t.Errorf("%s, %s: the parse with records exceeds the budget", g.Name, b)
 			}
-			state.SkipRecordsOff = true
+			o.Tune.SkipOff = true
 			if _, err := prog.ParseWith("main", in, o); !errors.Is(err, runtime.ErrLimit) {
 				t.Errorf("%s, %s: the parse without records fits the budget", g.Name, b)
 			}
@@ -266,8 +264,6 @@ func TestRunSitesBoundValueControls(t *testing.T) {
 // TestRunSitesNegativeControls checks that the comparisons of the hot path detect a key without the
 // environment and a hit that leaves the environment as it was, on the inputs that reach them.
 func TestRunSitesNegativeControls(t *testing.T) {
-	defer func(n int) { state.RunHotSpan = n; state.SkipRecordMutation = 0 }(state.RunHotSpan)
-	state.RunHotSpan = 1
 	for _, tc := range []struct {
 		mutation int
 		grammar  string
@@ -283,13 +279,12 @@ func TestRunSitesNegativeControls(t *testing.T) {
 				continue
 			}
 			prog := mustCompile(t, g.Src)
-			state.SkipRecordMutation = tc.mutation
+			tune := state.Tuning{RunHot: 1, SkipMut: tc.mutation}
 			for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
-				if diffs := skipRunMismatches(t, prog, codegentest.RunValueInputs[g.Name], b); len(diffs) == 0 {
+				if diffs := skipRunMismatches(t, prog, codegentest.RunValueInputs[g.Name], b, tune); len(diffs) == 0 {
 					t.Errorf("mutation %d, %s: no difference on the inputs of %s", tc.mutation, b, g.Name)
 				}
 			}
-			state.SkipRecordMutation = 0
 		}
 	}
 	// The sites that the compiler keys by the environment must be keyed by it: a program compiled
@@ -313,7 +308,7 @@ func TestRunSitesNegativeControls(t *testing.T) {
 			prog := mustCompile(t, g.Src)
 			inputs := append(codegentest.SkipRunInputs(g.Alphabet, 300, rand.New(rand.NewSource(114))), codegentest.RunValueInputs[g.Name]...)
 			for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
-				if diffs := skipRunMismatches(t, prog, inputs, b); len(diffs) == 0 {
+				if diffs := skipRunMismatches(t, prog, inputs, b, state.Tuning{RunHot: 1}); len(diffs) == 0 {
 					t.Errorf("compile mutation %d, %s: no difference on the inputs of %s", tc.mutation, b, g.Name)
 				}
 			}
@@ -331,7 +326,7 @@ func TestRunSitesNegativeControls(t *testing.T) {
 		prog := mustCompile(t, g.Src)
 		inputs := append(codegentest.SkipRunInputs(g.Alphabet, 300, rand.New(rand.NewSource(116))), codegentest.RunValueInputs[g.Name]...)
 		for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
-			if diffs := skipRunMismatches(t, prog, inputs, b); len(diffs) == 0 {
+			if diffs := skipRunMismatches(t, prog, inputs, b, state.Tuning{RunHot: 1}); len(diffs) == 0 {
 				t.Errorf("run key mutation, %s: no difference on the inputs of %s", b, g.Name)
 			}
 		}
@@ -380,8 +375,8 @@ func TestRunSitesKeyedByEnvironment(t *testing.T) {
 // starts cold and turns hot in the middle of a long parse gives the results of a parse without run
 // sites, with and without values, on every backend.
 func TestRunSitesTurnHotAtTheEngineThreshold(t *testing.T) {
-	if state.RunHotSpan != 64 {
-		t.Fatalf("threshold %d", state.RunHotSpan)
+	if span := new(state.Tuning).RunHotSpan(); span != 64 {
+		t.Fatalf("threshold %d", span)
 	}
 	in := strings.Repeat("x", 300) + "z" + strings.Repeat("x", 200) + "!"
 	for _, g := range append(codegentest.RunSiteGrammars[:2:2], codegentest.RunValueGrammars[0]) {
@@ -448,34 +443,30 @@ func TestRunSitesKeyedByValues(t *testing.T) {
 	if !state.BudgetControlsEnabled {
 		t.Skip("budget controls are unavailable in the reference build")
 	}
-	defer func(n int) {
-		state.RunHotSpan, state.SkipRecordMutation, state.SkipRecordsOff = n, 0, false
-	}(state.RunHotSpan)
 	type mutant struct {
 		mutation int
 		off      bool // records off
 	}
 	cases := []struct {
 		name, src, input string
-		span             int
+		span             int // the run-site hot span, the engine's if 0
 		mutants          []mutant
 	}{
 		{"equal environments built apart", `var m int
 rule main = (a / [xy!?])* $$
 rule a = { m := 1 } { m := 0 } w "!" / { m := 1 } { m := 0 } w "?"
-rule w = ("x" { m == 0 } / "yy")*`, strings.Repeat("x", 1000), state.RunHotSpan, []mutant{{state.SkipKeyEnvObject, false}, {0, true}}},
+rule w = ("x" { m == 0 } / "yy")*`, strings.Repeat("x", 1000), 0, []mutant{{state.SkipKeyEnvObject, false}, {0, true}}},
 		{"a call that binds again the value of the last", "var n int = 0\nrule main = (x / [ab])* $$\nrule x = { n := 1 } r \"!\" { n := 0 }\nrule r = e*\nrule e = \"a\" { n == 1 } / \"b\"",
-			strings.Repeat("ab", 500), state.RunHotSpan, []mutant{{state.SkipKeyEnvObject, false}, {0, true}}},
+			strings.Repeat("ab", 500), 0, []mutant{{state.SkipKeyEnvObject, false}, {0, true}}},
 		{"another value of a variable that the element only binds", `var k int
 rule main = ({ k := k + 1 } !a "x")* $$
-rule a = ("x" { k := 0 } / "yy")* "!"`, strings.Repeat("x", 1000), state.RunHotSpan, []mutant{{state.SkipKeyEnvObject, false}, {0, true}}},
+rule a = ("x" { k := 0 } / "yy")* "!"`, strings.Repeat("x", 1000), 0, []mutant{{state.SkipKeyEnvObject, false}, {0, true}}},
 		{"a new key at every position", `var k int
 rule main = ({ k := k + 1 } (a / [xy]))* $$
 rule a = w "!" / w "?"
 rule w = ("x" { k > 0 })*`, strings.Repeat("xy", 1000), 1, []mutant{{state.SkipScanKeys, false}}},
 	}
 	for _, c := range cases {
-		state.RunHotSpan = c.span
 		prog := mustCompile(t, c.src)
 		if site := prog.NumSkipSites + prog.NumRunSites; prog.EnvFree(site) {
 			t.Fatalf("%s: the run site is free of the environment", c.name)
@@ -488,12 +479,12 @@ rule w = ("x" { k > 0 })*`, strings.Repeat("xy", 1000), 1, []mutant{{state.SkipS
 		if err != nil {
 			t.Fatal(err)
 		}
-		o := func(b Backend) ParseOptions {
-			return ParseOptions{Backend: b, Limits: sxirruntime.Limits{Compute: 150 * uint64(len(c.input))}}
-		}
 		for _, m := range append([]mutant{{}}, c.mutants...) {
 			mutated := m != mutant{}
-			state.SkipRecordMutation, state.SkipRecordsOff = m.mutation, m.off
+			o := func(b Backend) ParseOptions {
+				return ParseOptions{Backend: b, Limits: sxirruntime.Limits{Compute: 150 * uint64(len(c.input))},
+					Tune: state.Tuning{RunHot: c.span, SkipMut: m.mutation, SkipOff: m.off}}
+			}
 			for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
 				for _, p := range []*Program{prog, loaded} {
 					if p == loaded && b == Closure {
@@ -505,7 +496,6 @@ rule w = ("x" { k > 0 })*`, strings.Repeat("xy", 1000), 1, []mutant{{state.SkipS
 					}
 				}
 			}
-			state.SkipRecordMutation, state.SkipRecordsOff = 0, false
 		}
 	}
 }

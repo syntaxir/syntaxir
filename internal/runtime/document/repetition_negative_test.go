@@ -15,8 +15,7 @@ import (
 
 func TestNegativeMaximumDocumentsAndStreams(t *testing.T) {
 	// Force recording of this short repetition so edits exercise resumption.
-	defer func(n int) { state.MinRecorded = n }(state.MinRecorded)
-	state.MinRecorded = 1
+	resume := state.Tuning{MinRec: 1}
 	for _, maximum := range negativeMaxima() {
 		g := grammarWithNegativeMaximum(t, `rule main = "é"* #stream $$`, maximum)
 		p, err := entry.Compile(g, compile.Options{})
@@ -37,7 +36,7 @@ func TestNegativeMaximumDocumentsAndStreams(t *testing.T) {
 						continue
 					}
 					for _, unit := range []input.PositionUnit{input.CodePoints, input.Bytes} {
-						opts := ParseOptions{Backend: b, Unit: unit}
+						opts := ParseOptions{Backend: b, Unit: unit, Tune: resume}
 						streamOpts := opts
 						if prog == loaded {
 							streamOpts = servedBy(mode, opts)

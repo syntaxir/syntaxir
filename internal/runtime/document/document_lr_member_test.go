@@ -9,19 +9,20 @@ import (
 	"syntaxir.dev/sxir/internal/driver/entry"
 	"syntaxir.dev/sxir/internal/runtime/document"
 	. "syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // memberDocumentDiffers parses each input of the case with a Document on every backend: twice
 // without an edit, and, for each position, after deleting the character there and inserting it
 // again, and compares each outcome with a parse of the text from scratch. It returns the
-// differences, ignoring an input that exhausts a limit.
-func memberDocumentDiffers(t *testing.T, c codegentest.Case) []string {
+// differences, ignoring an input that exhausts a limit. The parses have the test-only settings tune.
+func memberDocumentDiffers(t *testing.T, c codegentest.Case, tune state.Tuning) []string {
 	t.Helper()
 	prog := mustCompile(t, c.Src)
 	var diffs []string
 	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		o := ParseOptions{Backend: backend, Expectations: true}
+		o := ParseOptions{Backend: backend, Expectations: true, Tune: tune}
 		for _, in := range c.Inputs {
 			want := resultJSON(prog.ParseWith("", in, o))
 			if strings.Contains(want, "limit") || strings.Contains(want, "budget") {
@@ -64,7 +65,7 @@ func TestDocumentLeftRecursionMemberReparse(t *testing.T) {
 	cases := append(codegentest.LeftRecursionMemberCases(), codegentest.LeftRecursionMemberSeedCases()...)
 	cases = append(cases, codegentest.LeftRecursionMemberDocumentCases()...)
 	for _, c := range cases {
-		for _, d := range memberDocumentDiffers(t, c) {
+		for _, d := range memberDocumentDiffers(t, c, state.Tuning{}) {
 			t.Error(d)
 		}
 	}
@@ -95,7 +96,7 @@ func TestDocumentLeftRecursionMemberReparseRandom(t *testing.T) {
 			continue
 		}
 		compiled++
-		for _, d := range memberDocumentDiffers(t, c) {
+		for _, d := range memberDocumentDiffers(t, c, state.Tuning{}) {
 			if n++; n <= 5 {
 				t.Errorf("%s\n%s", c.Src, d)
 			}
@@ -111,9 +112,9 @@ func TestDocumentLeftRecursionMemberReparseRandom(t *testing.T) {
 // growing seed: with them kept, each of LeftRecursionMemberDocumentCases differs from a parse
 // from scratch.
 func TestDocumentLeftRecursionMemberReparseControl(t *testing.T) {
-	defer document.KeepSeedResults()()
+	keep := state.Tuning{MemoMut: state.CtxKeepSeedResults}
 	for _, c := range codegentest.LeftRecursionMemberDocumentCases() {
-		if len(memberDocumentDiffers(t, c)) == 0 {
+		if len(memberDocumentDiffers(t, c, keep)) == 0 {
 			t.Errorf("%s: no difference with the results that read a seed kept", c.Name)
 		}
 	}

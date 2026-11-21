@@ -57,10 +57,6 @@ type RunElem struct {
 	V              *value.Node
 }
 
-// MinRecorded is the number of elements below which a run is not recorded: a short repetition
-// costs little to run again. It is a variable for tests.
-var MinRecorded = 16
-
 // RunState is a run of a repetition in progress in a Document parse (ResumeRepeat, and the REPEAT
 // instruction of the VMs).
 type RunState struct {
@@ -221,10 +217,6 @@ func (p *Parser) EndElem(r *RunState, ok bool, v *value.Node) {
 	}
 }
 
-// RunMutation breaks the condition on seed reads under which a run is recorded, for the negative
-// controls of the tests that compare Document parses with fresh ones.
-var RunMutation = 0
-
 // RunOpenGrowthsOnly records a run that read only seeds of growths that started and ended within it.
 const RunOpenGrowthsOnly = 1
 
@@ -233,7 +225,7 @@ const RunOpenGrowthsOnly = 1
 // iteration that grew a leader where it started and read its seed would, resumed at the position of
 // an open growth of that leader, stand for an evaluation that reads that growth.
 func (p *Parser) readSeedIn(r *RunState) bool {
-	if RunMutation == RunOpenGrowthsOnly {
+	if p.tune.RunMut == RunOpenGrowthsOnly {
 		for _, i := range p.seedReadLog[r.log0:] {
 			if i < r.gamma0 {
 				return true
@@ -247,7 +239,7 @@ func (p *Parser) readSeedIn(r *RunState) bool {
 // FinishRun records the run of a repetition that matched, for the next parse.
 func (p *Parser) FinishRun(r *RunState) {
 	defer p.FreeEnd(p.FreeBegin(true))
-	if r.Count < MinRecorded || len(p.Recovered) != r.rec0 || p.readSeedIn(r) {
+	if r.Count < p.tune.minRecorded() || len(p.Recovered) != r.rec0 || p.readSeedIn(r) {
 		return
 	}
 	var elems []RunElem

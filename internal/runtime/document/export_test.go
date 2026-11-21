@@ -20,13 +20,6 @@ const (
 	SnapshotChildChunksEnabled = snapshotChildChunksEnabled
 )
 
-// KeepSeedResults makes later parses of Documents reuse the results that read a growing seed,
-// which they must not, and returns a function that restores dropping them.
-func KeepSeedResults() (restore func()) {
-	state.ContextMemoMutation = state.CtxKeepSeedResults
-	return func() { state.ContextMemoMutation = 0 }
-}
-
 // SetMaxEdits sets the bound of the edit log to n and returns a function that restores it.
 func SetMaxEdits(n int) (restore func()) {
 	old := maxEdits

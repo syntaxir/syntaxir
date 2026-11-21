@@ -182,6 +182,7 @@ func (d *Document) parseWithCapture(o state.ParseOptions, capture func(*state.Pa
 	p = &state.Parser{Prog: active.Shared(), Input: d.in, Memo: d.memo, MemoAll: true, NoPlain: true, MaxDepth: depth, Gen: gen, Edits: d.edits, Expectations: o.Expectations,
 		Runs: runs, LastRuns: lastRuns, KidStack: d.kids}
 	p.Control = c
+	p.SetTuning(o.Tune)
 	if c != nil && lim.Memory != 0 {
 		c.Mem = d.historyBytes()
 		c.AttachMemory(p)

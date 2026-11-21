@@ -12,7 +12,7 @@ cost quadratic steps.
 [Scan Sites](../../spec/runtime/parsing.md#scan-sites) define the mechanism: an unbounded repetition of a character
 class or of any character in a pure scan rule (called from two places, no attribute but `@start`, no type, no action,
 no called rule, no capture, predicate or lookahead) is a scan site. A walk matches its first 16 characters
-(`state.ScanHotSpan`, separate from the 64 of run sites) as an ordinary repetition. At a hot site the walk then looks
+(a constant of the charge model, separate from the 64 of run sites) as an ordinary repetition. At a hot site the walk then looks
 for the record of its start. On a hit it moves to the recorded end, takes the count and the elements, and examines
 the recorded range. Otherwise it goes on and records itself, only if the input it examined is available. A site is
 hot by the rule of run sites, at 16 characters. The charge is one step for the lookup, one for the slot of a record

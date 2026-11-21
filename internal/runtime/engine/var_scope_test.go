@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/runtime/state"
 )
 
 // TestCalleeBindingsUndoneAtReturn checks that a binding made in a called rule is not visible to
@@ -12,8 +13,8 @@ import (
 // thresholds where its walks take records: the records of a run site leave out the bindings of
 // the rules its element calls, which rests on this.
 func TestCalleeBindingsUndoneAtReturn(t *testing.T) {
-	// Not parallel: atHotSpans lowers the process-wide hot spans, which would make the run sites of
-	// the parses of the parallel tests turn hot and change what they charge (hooks_parallel_test.go).
+	// Not parallel: atHotSpans checks that run sites turned hot through the process-wide counter
+	// state.RunHotTurns, which the parses of parallel tests advance too.
 	cases := []struct {
 		name, src string
 		run       bool // the element of a run site calls the rule that binds
@@ -36,27 +37,27 @@ rule c = {x := 1} "a" / {x := 2} "b"`, true, []string{"ab!", "abab", "aab!ba!b"}
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			run := func(t *testing.T) {
+			run := func(t *testing.T, tune state.Tuning) {
 				for _, opts := range []compile.Options{{}, {DisableMemo: true}} {
 					prog := mustCompile(t, c.src, opts)
 					for _, in := range c.ok {
-						if _, err := prog.ParseWith("main", in, ParseOptions{}); err != nil {
+						if _, err := prog.ParseWith("main", in, ParseOptions{Tune: tune}); err != nil {
 							t.Errorf("memo=%v %q: %v", !opts.DisableMemo, in, err)
 						}
-						checkBackends(t, prog, "main", in)
+						checkBackendsTuned(t, prog, "main", in, tune)
 					}
 					for _, in := range c.bad {
-						if _, err := prog.ParseWith("main", in, ParseOptions{}); err == nil {
+						if _, err := prog.ParseWith("main", in, ParseOptions{Tune: tune}); err == nil {
 							t.Errorf("memo=%v %q: parsed", !opts.DisableMemo, in)
 						}
-						checkBackends(t, prog, "main", in)
+						checkBackendsTuned(t, prog, "main", in, tune)
 					}
 				}
 			}
 			if c.run {
 				atHotSpans(t, run)
 			} else {
-				run(t)
+				run(t, state.Tuning{})
 			}
 		})
 	}
