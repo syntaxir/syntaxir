@@ -321,6 +321,7 @@ type Machine struct {
 	scans    []scanWalk        // the walks of scan sites in progress that gather a list
 	posSlab  []int             // positions pushed as values (newPos); stream splits keep it
 	freeRuns []*state.RunState // runStates of finished repetitions (newRunState)
+	regs     regStack          // the register files of the running Flow bodies (recursive model)
 	driver   vmDriverState
 }
 
@@ -368,7 +369,8 @@ func (mc *Machine) Keep(n int, clearUsed bool) {
 	if mc.driver != nil {
 		mc.driver.reset()
 	}
-	*mc = Machine{vals: vals, driver: mc.driver}
+	mc.regs.drop()
+	*mc = Machine{vals: vals, regs: mc.regs, driver: mc.driver}
 }
 
 func (mc *Machine) Release() {
@@ -376,7 +378,8 @@ func (mc *Machine) Release() {
 	if mc.driver != nil {
 		mc.driver.reset()
 	}
-	*mc = Machine{driver: mc.driver}
+	mc.regs.drop()
+	*mc = Machine{regs: mc.regs, driver: mc.driver}
 }
 
 func (mc *Machine) RetainedBytes() uint64 {
@@ -386,7 +389,7 @@ func (mc *Machine) RetainedBytes() uint64 {
 func (mc *Machine) StackBytes() uint64 {
 	return mc.RetainedBytes() + uint64(cap(mc.ents))*uint64(unsafe.Sizeof(vmEntry{})) +
 		uint64(cap(mc.labs))*uint64(unsafe.Sizeof(labState{})) + uint64(cap(mc.reps))*uint64(unsafe.Sizeof(repState{})) + uint64(cap(mc.scans))*uint64(unsafe.Sizeof(scanWalk{})) +
-		uint64(cap(mc.freeRuns))*uint64(unsafe.Sizeof((*state.RunState)(nil)))
+		uint64(cap(mc.freeRuns))*uint64(unsafe.Sizeof((*state.RunState)(nil))) + mc.regs.bytes()
 }
 
 // NewMachine returns VM state that holds vals as its value stack, as a Document keeps it between

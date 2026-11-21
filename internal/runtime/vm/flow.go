@@ -3,6 +3,7 @@ package vm
 import (
 	"fmt"
 	"slices"
+	"unsafe"
 
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/program"
@@ -17,9 +18,12 @@ import (
 // the instructions, and each call of a rule a host call, as the match code's calls are.
 func flowBody(vm *Program, r *state.Rule, f *bytecode.Flow) func(p *state.Parser, min int) (*value.Node, bool) {
 	return func(p *state.Parser, min int) (*value.Node, bool) {
-		fr := flowRun{f: f, regs: make([]any, f.Regs)}
+		regs := &machineOf(p).regs
+		mark := regs.mark()
+		fr := flowRun{f: f, regs: regs.push(f.Regs)}
 		for {
 			if !vm.runFlow(p, &fr) {
+				regs.release(mark)
 				return fr.v, fr.ok
 			}
 			x := fr.call()
@@ -35,6 +39,67 @@ func flowBody(vm *Program, r *state.Rule, f *bytecode.Flow) func(p *state.Parser
 	}
 }
 
+// regStack holds the register files of the Flow bodies that the recursive model runs, one above the
+// other as the calls nest, so that a call takes its registers without allocating them. It is a list of
+// chunks that never move: a register file stays where it is while the calls it makes push theirs.
+type regStack struct {
+	chunks [][]any
+	cur    int // the chunk the next file is taken from
+	top    int // the first free register of the chunk cur
+}
+
+// regMark is the top of a regStack, which release returns to.
+type regMark struct{ cur, top int }
+
+// minRegChunk is the least number of registers of a chunk of a regStack.
+const minRegChunk = 1024
+
+func (s *regStack) mark() regMark { return regMark{s.cur, s.top} }
+
+// push returns a register file of n registers above the files in use. The registers hold what the
+// last files there held: a body reads no register before it writes it (bytecode.Flow.Unassigned).
+func (s *regStack) push(n int) []any {
+	if len(s.chunks) == 0 || s.top+n > len(s.chunks[s.cur]) {
+		if len(s.chunks) > 0 {
+			s.cur++
+		}
+		for s.cur < len(s.chunks) && len(s.chunks[s.cur]) < n {
+			s.chunks = slices.Delete(s.chunks, s.cur, s.cur+1) // too small for this file
+		}
+		if s.cur == len(s.chunks) {
+			s.chunks = append(s.chunks, make([]any, max(n, minRegChunk)))
+		}
+		s.top = 0
+	}
+	regs := s.chunks[s.cur][s.top : s.top+n : s.top+n]
+	s.top += n
+	return regs
+}
+
+// release returns the stack to the mark m, taken before the files above it were pushed.
+func (s *regStack) release(m regMark) { s.cur, s.top = m.cur, m.top }
+
+// drop empties the stack for the next parse. It keeps the first chunk, cleared so that it keeps no
+// value alive, and lets the others go, so that a parse whose calls nested deeply leaves no large
+// stack behind.
+func (s *regStack) drop() {
+	if len(s.chunks) > 0 {
+		clear(s.chunks[0])
+		clear(s.chunks[1:])
+		s.chunks = s.chunks[:1]
+	}
+	s.cur, s.top = 0, 0
+}
+
+// bytes returns the bytes the stack holds.
+func (s *regStack) bytes() uint64 {
+	var n int
+	for _, c := range s.chunks {
+		n += len(c)
+	}
+	return uint64(n) * uint64(unsafe.Sizeof(any(nil)))
+}
+
 // flowRun is a run of a Flow body: its registers and the instruction it is at. A run that reaches a
 // CALL suspends there, so that a driver can run the call (with host recursion in the recursive
 // model, as a frame of its own in the iterative model) and resume it with the result. When the body
@@ -47,10 +112,9 @@ type flowRun struct {
 	ok   bool
 }
 
-// start makes fr a run of f from its first instruction, reusing the registers of fr. The registers
-// past those of the last run are zero, so clearing those of the last run clears them all.
+// start makes fr a run of f from its first instruction, reusing the registers of fr, which need not
+// be cleared: a body reads no register before it writes it (bytecode.Flow.Unassigned).
 func (fr *flowRun) start(f *bytecode.Flow) {
-	clear(fr.regs)
 	*fr = flowRun{f: f, regs: slices.Grow(fr.regs[:0], f.Regs)[:f.Regs]}
 }
 

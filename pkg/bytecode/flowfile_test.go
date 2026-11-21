@@ -186,7 +186,8 @@ func TestFlowBodyEncoding(t *testing.T) {
 }
 
 // TestFlowBodyValidation checks that loading rejects a Flow body whose rule, registers, targets,
-// shape or immediates are out of range, that can run past its end, or whose call makes a cycle of
+// shape or immediates are out of range, that may read a register before writing it, that can run
+// past its end, or whose call makes a cycle of
 // calls through a rule not marked Rec.
 func TestFlowBodyValidation(t *testing.T) {
 	for _, c := range []struct {
@@ -195,6 +196,10 @@ func TestFlowBodyValidation(t *testing.T) {
 		want string
 	}{
 		{"rule", func(m *bytecode.Module, f *bytecode.Flow) { m.Flows[2] = f }, "flow body of rule 2 out of range"},
+		{"unwritten register", func(m *bytecode.Module, f *bytecode.Flow) {
+			f.Regs++
+			f.Code[18].Args[1] = f.Regs - 1
+		}, "register 8 may be read before it is written"},
 		{"destination", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[0].Dst[0] = 8 }, "register 8 out of range"},
 		{"discarded argument", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[15].Args[0] = -1 }, "register -1 out of range"},
 		{"destination below -1", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[6].Dst[1] = -2 }, "register -2 out of range"},

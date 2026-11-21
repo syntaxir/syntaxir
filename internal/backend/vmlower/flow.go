@@ -74,13 +74,22 @@ func (c *compiler) flow(fn *code.Func, rule int) (*bytecode.Flow, error) {
 		return nil, fmt.Errorf("the function is not the body of rule %d", rule)
 	}
 	s := &flowSel{c: c, f: &bytecode.Flow{}, regs: map[string]int{}, labels: map[string][]int{}, conts: map[string][]int{}, scopes: map[*prim.Names]int{}}
+	// The locals have registers of their own, below the temporaries of the statements, which each
+	// statement reuses (stmt).
+	code.Walk(fn.Body, func(st code.Stmt) {
+		if l, ok := st.(*code.Let); ok {
+			for _, n := range l.Names {
+				s.local(n)
+			}
+		}
+	}, nil)
+	zeros := map[int]any{} // the zero value of each local, by register
 	for _, p := range fn.Locals {
-		r := s.local(p.Name)
 		zero, err := zeroOf(p.Type)
 		if err != nil {
 			return nil, fmt.Errorf("local %s: %w", p.Name, err)
 		}
-		s.emit(bytecode.FlowInstr{Op: bytecode.FlowConst, Dst: []int{r}, Imm: zero})
+		zeros[s.local(p.Name)] = zero
 	}
 	if a.Start != "" {
 		r, ok := s.regs[a.Start]
@@ -103,7 +112,7 @@ func (c *compiler) flow(fn *code.Func, rule int) (*bytecode.Flow, error) {
 		if len(s.labels) > 0 || len(s.conts) > 0 {
 			return nil, fmt.Errorf("an exit to a block that does not enclose it")
 		}
-		return s.f, nil
+		return s.f, s.zeroLocals(zeros)
 	}
 	// The body of a local function is the block of the fail label: running to its end succeeds with
 	// the result, and an exit to the label fails. Both returns are emitted after the body.
@@ -126,7 +135,29 @@ func (c *compiler) flow(fn *code.Func, rule int) (*bytecode.Flow, error) {
 	if len(s.labels) > 0 || len(s.conts) > 0 {
 		return nil, fmt.Errorf("an exit to a block that does not enclose it")
 	}
-	return s.f, nil
+	return s.f, s.zeroLocals(zeros)
+}
+
+// zeroLocals writes, at the start of the body, the zero value of each local that some path reads
+// before the body writes it (bytecode.Flow.Unassigned), and of no other: a function declares its
+// locals with their zero values, and the VM does not clear a frame of registers.
+func (s *flowSel) zeroLocals(zeros map[int]any) error {
+	regs := s.f.Unassigned()
+	init := make([]bytecode.FlowInstr, len(regs))
+	for i, r := range regs {
+		zero, ok := zeros[r]
+		if !ok {
+			return fmt.Errorf("register %d is read before it is written", r)
+		}
+		init[i] = bytecode.FlowInstr{Op: bytecode.FlowConst, Dst: []int{r}, Imm: zero}
+	}
+	for i := range s.f.Code {
+		if sh, _ := s.f.Code[i].Op.Shape(); sh.Target {
+			s.f.Code[i].Target += len(init)
+		}
+	}
+	s.f.Code = append(init, s.f.Code...)
+	return nil
 }
 
 // zeroOf returns the zero value of a local of type t in the Flow body's registers.
@@ -153,6 +184,8 @@ type flowSel struct {
 	conts  map[string][]int
 	// scopes holds the entry of the module's scope table of each scope of the function's frames.
 	scopes map[*prim.Names]int
+	// next is the first register that no local and no live temporary holds.
+	next int
 }
 
 // scope returns the entry of the module's scope table that holds the names n, adding it on first use.
@@ -166,9 +199,13 @@ func (s *flowSel) scope(n *prim.Names) int {
 	return sc
 }
 
+// reg returns a free register for a temporary: one above the locals and the temporaries of the
+// statements that enclose the current one.
 func (s *flowSel) reg() int {
-	s.f.Regs++
-	return s.f.Regs - 1
+	r := s.next
+	s.next++
+	s.f.Regs = max(s.f.Regs, s.next)
+	return r
 }
 
 // emit appends in. An operation whose results are all unused (a call of a statement) gets
@@ -181,9 +218,13 @@ func (s *flowSel) emit(in bytecode.FlowInstr) int {
 	return len(s.f.Code) - 1
 }
 
+// local returns the register of the local name, which keeps it for the whole function.
 func (s *flowSel) local(name string) int {
 	if r, ok := s.regs[name]; ok {
 		return r
+	}
+	if s.next != len(s.regs) {
+		panic("internal error: a local declared after a temporary")
 	}
 	r := s.reg()
 	s.regs[name] = r
@@ -209,7 +250,10 @@ func (s *flowSel) block(b *code.Block) error {
 	return nil
 }
 
+// stmt emits the statement st. The temporaries it takes are free again after it: a temporary holds
+// a value from its definition to its use within one statement.
 func (s *flowSel) stmt(st code.Stmt) error {
+	defer func(next int) { s.next = next }(s.next)
 	switch x := st.(type) {
 	case *code.Block:
 		return s.block(x)

@@ -1140,6 +1140,9 @@ func validateFlow(m *Module, rule int, f *Flow) error {
 			return fmt.Errorf("%v at %d: %w", in.Op, pc, err)
 		}
 	}
+	if regs := f.Unassigned(); len(regs) > 0 {
+		return fmt.Errorf("register %d may be read before it is written", regs[0])
+	}
 	return nil
 }
 
