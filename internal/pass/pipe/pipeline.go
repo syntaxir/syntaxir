@@ -361,6 +361,60 @@ func Fork[I, O any](bs ...Branch[I, O]) Pipeline[I, []O] {
 	return Pipeline[I, []O]{f}
 }
 
+// normalize returns the normal form of a tree, in which the grouping of steps means nothing: a
+// sequence or chain inside a chain is spliced into it (an empty one is dropped), and every block
+// body (of within, with, shared, each, a slot and a fork branch) is a sequence or chain even if it
+// holds one step. The manager verifies where a run of transforms ends inside a block, so without
+// the normal form Then(Seq(a, b), Of(c)) and Seq(k, a, b, c) would verify at different points, and
+// so would a body Of(a) and a body Seq(k, a). Execute normalizes the tree it runs.
+func normalize(n node) node {
+	block := func(b node) node {
+		switch b.(type) {
+		case *seqNode, *chainNode:
+			return b
+		}
+		return &chainNode{steps: []node{b}}
+	}
+	return block(rewrite(n, func(x node) node {
+		switch y := x.(type) {
+		case *chainNode:
+			c := &chainNode{}
+			for _, s := range y.steps {
+				switch z := s.(type) {
+				case *seqNode:
+					c.steps = append(c.steps, z.steps...)
+				case *chainNode:
+					c.steps = append(c.steps, z.steps...)
+				default:
+					c.steps = append(c.steps, s)
+				}
+			}
+			if len(c.steps) == 0 {
+				return y.steps[0] // only empty sequences: the first keeps the kind
+			}
+			return c
+		case *withinNode:
+			y.body = block(y.body)
+		case *withNode:
+			y.body = block(y.body)
+		case *sharedNode:
+			y.body = block(y.body)
+		case *eachNode:
+			y.body = block(y.body)
+		case *slotNode:
+			y.def = block(y.def)
+			for k, v := range y.parts {
+				y.parts[k] = block(v)
+			}
+		case *forkNode:
+			for i, b := range y.branches {
+				y.branches[i] = block(b)
+			}
+		}
+		return x
+	}))
+}
+
 // rewrite rebuilds the tree bottom-up through f.
 func rewrite(n node, f func(node) node) node {
 	switch x := n.(type) {

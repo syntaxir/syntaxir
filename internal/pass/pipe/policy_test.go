@@ -452,3 +452,26 @@ func TestUnregisteredFlagFailsTheCheck(t *testing.T) {
 		t.Errorf("an optional pass without a flag: %v, %d steps ran", err, builds)
 	}
 }
+
+// TestGroupingMeansNothing checks the normal form: a sequence inside a chain and a body of one
+// pass run as the flat sequence, so the grouping of the combinators does not move a verification.
+// Without it, Then(Seq(upper), breaker!) verified after t-upper only and returned the broken unit,
+// and a body Of(breaker) was not verified at all.
+func TestGroupingMeansNothing(t *testing.T) {
+	grouped := Then(Seq(modIR, upper), Of(requiredBreaker))
+	flat := Seq(modIR, upper, requiredBreaker)
+	in := func() *mod { return &mod{fns: []*fn{{"f", "x"}}} }
+	_, e1 := run(t, &Run{}, grouped, in())
+	_, e2 := run(t, &Run{}, flat, in())
+	if e1 == nil || e2 == nil || e1.Error() != e2.Error() {
+		t.Errorf("grouped: %v; flat: %v; want the same verification failure", e1, e2)
+	}
+	one := Within(pairLens, Of(breaker))
+	seq := Within(pairLens, Seq(modIR, breaker))
+	pin := func() *pair { return &pair{m: in(), tag: "t"} }
+	o1, e1 := run(t, &Run{}, one, pin())
+	o2, e2 := run(t, &Run{}, seq, pin())
+	if e1 == nil || e2 == nil || o1 == nil || o2 == nil || o1.m.String() != "f: x\n" || o2.m.String() != "f: x\n" {
+		t.Errorf("a body of one pass: %v %v, %v %v; want both verified and rolled back", o1, e1, o2, e2)
+	}
+}

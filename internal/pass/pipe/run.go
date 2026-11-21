@@ -200,14 +200,15 @@ func Execute[I, O any](ctx context.Context, r *Run, p Pipeline[I, O], in I) (O, 
 // instantiate copies the tree so that every occurrence of a pass is a node of its own (a pipeline
 // value may be used in several places), and names the occurrences: the k-th occurrence of a name on
 // one path of execution is name#k (k > 1). The branches of a Fork and the alternative bodies of a
-// slot are numbered apart, since no unit runs through two of them.
+// slot are numbered apart, since no unit runs through two of them. The copy is in the normal form
+// (normalize), so the grouping of the combinators does not change the run.
 func instantiate(n node) (node, map[*passNode]string) {
-	n = rewrite(n, func(x node) node {
+	n = normalize(rewrite(n, func(x node) node {
 		if p, ok := x.(*passNode); ok {
 			return &passNode{p: p.p}
 		}
 		return x
-	})
+	}))
 	m := map[*passNode]string{}
 	name(n, map[string]int{}, m)
 	return n, m
