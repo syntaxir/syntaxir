@@ -13575,10 +13575,10 @@ theorem covers such a parse.
    step matches its result without a read of its seed outside lookaheads,
    reading it only inside a lookahead or only in an alternative that it
    abandons, which *Later steps that abandon their reads of the seed*
-   excludes apart from a dropped step of another growth or a growth of
-   another leader at the position in its place, a unit of a rule of the
-   cycle other than a leader whose path in the first step goes on through a
-   left call of another leader, and the second step of a growth and its
+   excludes apart from a step of another growth at the position in its
+   place, a unit of another leader whose path in the first step goes on
+   through a left call of a leader, a unit in a growth of the leader at
+   another binding level, and the second step of a growth and its
    kept steps whose results have at most as many characters as the longest
    literal of the grammar; and apart from a pair of nested evaluations
    with a unit on the path between
