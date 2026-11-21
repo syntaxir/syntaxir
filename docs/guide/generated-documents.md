@@ -85,7 +85,9 @@ included. `parse(options?)` returns the `ParseResult` of `parse`, and with `-typ
 from a trace callback of a parse returns an error. Like the Go `Document`, it keeps the memoized results that
 the edits leave valid and reuses them in the next `parse`; `stats()` returns `{ evaluated, reused }` for the
 last parse, the same counts as Go's `Stats` after `Parse`; Go's typed `ParseValue` keeps its own memo and can
-count differently. A returned tree can share nodes with later results, so do not
+count differently. With `-observability`, `parse` takes the `trace` and `profile` options of `parse`: a
+reused result is reported as a memo hit, so a profile's evaluations and memo hits are the `evaluated` and
+`reused` of `stats()`. A returned tree can share nodes with later results, so do not
 mutate a tree while the Document is in use.
 
 ## Related Topics

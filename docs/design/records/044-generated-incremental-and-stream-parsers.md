@@ -19,8 +19,9 @@ and TypeScript streams are not implemented.
 [Design 007](007-streaming-and-incremental-parsing.md), [Document](../../../internal/runtime/document/document.go),
 [resume.go](../../../internal/runtime/state/resume.go), and [stream pragma](../../../spec/language/pragmas.md#stream) define the
 engine reference. The current generated Go path supports a Node `Document` with an optional typed `ParseValue`, and a
-Node Reader stream. Generated TS still uses synchronous recursive expression functions
-([design 013](013-typescript-generation.md)) and has no Document or stream API. Retaining a runtime's input and
+Node Reader stream. Generated TS uses synchronous recursive expression functions
+([design 013](013-typescript-generation.md)); it has a Document but no stream API, as a push stream needs a
+parse that can suspend. Retaining a runtime's input and
 memo across calls alone does not implement edit invalidation or suspension.
 
 Documents must match fresh-parse semantic results after every legal edit, including diagnostics and action values,
@@ -286,7 +287,7 @@ values; no pooled parser or conversion arena is shared between concurrent invoca
 | Closure and both engine VMs | Existing Document/Reader stream oracle; both position units |
 | Generated Go Node | Current opt-in prefix-memo Document and Reader stream with pull iteration and diagnostic controls |
 | Generated typed Go | Direct typed `Document.ParseValue` for batch-eligible grammars; Node conversion fallback otherwise; streams convert committed elements |
-| Generated TS Node/typed conversion | Documents without memo reuse (each parse parses the whole text); memo reuse and streams remain proposed; streams require continuation lowering |
+| Generated TS Node/typed conversion | Documents with memo reuse as the Go Node Document, tracing and profiling; streams remain proposed and require continuation lowering |
 | Recognition | Continue rejecting Document/stream mode; batch recognition is unaffected |
 
 This source-generation feature needs no .sxirc or ISA change by itself. If continuation tables are instead stored
@@ -298,8 +299,9 @@ for colliding grammar declarations; generating helper methods must not alter exi
 
 The current implementation adds the generated Go Node Document with prefix-only memo reuse, plus direct typed
 matching for batch-eligible grammars and per-call Node conversion for other typed results, and the Go Node Reader
-stream with its typed elements, pull iteration and diagnostic controls. Remaining work includes memo reuse in TS Documents, and TS push
-continuations. Snapshot/versioned-tree work is a
+stream with its typed elements, pull iteration and diagnostic controls, and the generated TypeScript Document with the
+same memo reuse, tracing and profiling. Remaining work is the TS push stream, which needs continuations.
+Snapshot/versioned-tree work is a
 separate dependency only if immutable views are exposed; do not block the mutable Document compatibility path on it.
 Chunked input storage is a separate measured experiment: start with the current contiguous edit contract.
 Cancellation/budgets need matching cleanup points when introduced, not an ad hoc hidden API in this feature.

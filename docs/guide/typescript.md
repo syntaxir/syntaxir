@@ -38,7 +38,9 @@ the other side would have built.
 | Trees and errors | Reference | Identical | Identical (also as JSON, byte for byte) |
 | Recognition (no tree) | `Recognize` | `Recognize` | `recognize`, with `-recognize` |
 | Typed values (`-types`) | — | Yes | Yes: Node conversion |
-| Streaming, incremental, backends | Yes | No | No |
+| Incremental Documents | Yes | Yes, with `-document` | Yes, with `-document` |
+| Streaming | Yes | Yes, with `-stream` | No |
+| [Backend](backends.md) choice | Yes | No | No |
 
 ## Quick Start
 

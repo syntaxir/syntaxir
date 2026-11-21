@@ -360,6 +360,54 @@ for (const [s, e, r] of [[0, 1, "s"], [4, 5, "x"]]) {
 	}
 }
 
+// TestTSDocumentProfile checks the observation of a Document parse: a profile of each parse counts the
+// calls that its trace reports, and its evaluations and memo hits are the evaluations and the reuses of
+// the Document's stats, on the parse from scratch and on the parse after an edit, which reuses results.
+// As a negative control, a library whose Document parse does not report its evaluations must fail.
+func TestTSDocumentProfile(t *testing.T) {
+	g, err := parseTest("rule main = item+ !.\nrule item = word \",\"\nrule word = [a-z]+\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := `import { createDocument, Profile } from "./parser.ts";
+const { document: d, error } = createDocument("ab,cd,ef,gh,");
+if (error !== null) throw error;
+for (const edit of [null, [3, 5, "xy"]]) {
+  if (edit !== null && d.edit(edit[0], edit[1], edit[2]) !== null) throw new Error("edit failed");
+  const profile = new Profile();
+  const events = [];
+  const result = d.parse({ profile, trace: (e) => events.push(e) });
+  const s = profile.snapshot(), stats = d.stats();
+  const exits = events.filter((e) => e.kind === "exit");
+  console.log(result.error === null, s.parses, s.calls === exits.length, s.entered === events.filter((e) => e.kind === "enter").length,
+    s.memoHits === exits.filter((e) => e.memo).length, s.evals === stats.evaluated, s.memoHits === stats.reused, JSON.stringify(stats));
+}
+`
+	want := "true 1 true true true true true {\"evaluated\":11,\"reused\":0}\ntrue 1 true true true true true {\"evaluated\":3,\"reused\":4}\n"
+	run := func(mutate func(string) string) string {
+		return codegentest.RunTSGrammarScriptBundle(t, g, script, common.GenOptions{Start: "main", Document: true, Observability: true}, func(g *ast.Grammar, opts common.GenOptions) ([]byte, error) {
+			code, err := codegentest.GenerateTSBundle(g, opts)
+			if err != nil || mutate == nil {
+				return code, err
+			}
+			return []byte(mutate(string(code))), nil
+		})
+	}
+	if got := run(nil); got != want {
+		t.Fatalf("got\n%s\nwant\n%s", got, want)
+	}
+	const old = "this.evaluated++;\n    this.observation?.evaluated();"
+	got := run(func(src string) string {
+		if strings.Count(src, old) != 2 {
+			t.Fatalf("the library has %d copies of %q, want 2", strings.Count(src, old), old)
+		}
+		return strings.ReplaceAll(src, old, "this.evaluated++;")
+	})
+	if got == want {
+		t.Error("the library whose Document parse does not report its evaluations passes")
+	}
+}
+
 // TestTSDocumentOptions checks the options of a Document: invocation options apply after the
 // defaults, an invocation cannot change the unit or the expectations (which the test parsers record
 // by default), an invalid default fails
