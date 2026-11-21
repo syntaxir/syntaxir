@@ -1,0 +1,386 @@
+package examinedref
+
+import (
+	"fmt"
+
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+)
+
+// The facts of the rules that decide the growths of left recursion, computed from the definitions in
+// spec/core-ir/attributes.md (Nullability, Rule Facts) for a parse without token insertion. The
+// definitions are restated here from the spec, not taken from the lowering or the engine.
+//
+// Nullable is the least fixed point over the rules. Succeeds (a rule off every left-recursion cycle
+// whose body always succeeds) starts with no rule proven and grows: the left calls, the cycles and the
+// proofs are recomputed until no rule is added. Leaders then grow by declaration order until every
+// cycle of left calls passes through one.
+
+// analysis holds the facts of one grammar while they are computed.
+type analysis struct {
+	rules    map[string]*ast.RuleDef
+	names    []string // rule names in declaration order
+	nullable map[string]bool
+	proven   map[string]bool
+	left     map[string][]string
+	err      error
+}
+
+// ruleFacts is the result of the analysis that the evaluator reads.
+type ruleFacts struct {
+	leaders map[string]bool
+}
+
+// analyzeRules computes the leaders of the grammar.
+func analyzeRules(defs []*ast.RuleDef) (ruleFacts, error) {
+	a := &analysis{
+		rules:    map[string]*ast.RuleDef{},
+		nullable: map[string]bool{},
+		proven:   map[string]bool{},
+		left:     map[string][]string{},
+	}
+	for _, r := range defs {
+		a.names = append(a.names, r.Name)
+		a.rules[r.Name] = r
+	}
+	a.computeNullable()
+	a.computeSucceeds()
+	leaders := a.computeLeaders()
+	if a.err != nil {
+		return ruleFacts{}, a.err
+	}
+	return ruleFacts{leaders: leaders}, nil
+}
+
+func (a *analysis) unsupported(e ast.Expr) {
+	if a.err == nil {
+		a.err = &UnsupportedError{Construct: fmt.Sprintf("%T in a rule's facts", e)}
+	}
+}
+
+// computeNullable is the least fixed point of Nullable over the rules.
+func (a *analysis) computeNullable() {
+	for changed := true; changed; {
+		changed = false
+		for _, name := range a.names {
+			if !a.nullable[name] && a.nullableExpr(a.rules[name].Expr) {
+				a.nullable[name] = true
+				changed = true
+			}
+		}
+	}
+}
+
+// nullableExpr reports whether e can succeed without consuming input when no token is inserted.
+func (a *analysis) nullableExpr(e ast.Expr) bool {
+	switch e := e.(type) {
+	case *ast.Ref:
+		return a.nullable[e.Name]
+	case *ast.Literal:
+		return e.Value == ""
+	case *ast.CharClass, *ast.Any:
+		return false
+	case *ast.Seq:
+		for _, item := range e.Items {
+			if !a.nullableExpr(item) {
+				return false
+			}
+		}
+		return true
+	case *ast.Choice:
+		for _, alt := range e.Alts {
+			if a.nullableExpr(alt) {
+				return true
+			}
+		}
+		return false
+	case *ast.Repeat:
+		return e.Min == 0 || (e.Min == 1 && a.nullableExpr(e.Expr))
+	case *ast.Optional, *ast.And, *ast.Not, *ast.Cut, *ast.BeginInput, *ast.EndInput:
+		return true
+	case *ast.Group, *ast.InlineAction, *ast.Atomic, *ast.Discard, *ast.Capture, *ast.Stream:
+		return a.nullableExpr(transparentBody(e))
+	}
+	a.unsupported(e)
+	return false
+}
+
+// transparentBody returns the body of a node whose facts are those of its body.
+func transparentBody(e ast.Expr) ast.Expr {
+	switch e := e.(type) {
+	case *ast.Group:
+		return e.Expr
+	case *ast.InlineAction:
+		return e.Expr
+	case *ast.Atomic:
+		return e.Expr
+	case *ast.Discard:
+		return e.Expr
+	case *ast.Capture:
+		return e.Expr
+	case *ast.Stream:
+		return e.Expr
+	}
+	return nil
+}
+
+// computeSucceeds grows the proven rules and the left calls together. Each round recomputes the left
+// calls and the cycles from the rules proven so far, and proves the rules that are off every cycle and
+// whose body always succeeds. A proof only removes left calls and cycles, so the rounds end.
+func (a *analysis) computeSucceeds() {
+	for {
+		for _, name := range a.names {
+			a.left[name] = a.leftCalls(a.rules[name].Expr)
+		}
+		onCycle := cyclicRules(a.names, a.left, nil)
+		added := false
+		for _, name := range a.names {
+			if !a.proven[name] && !onCycle[name] && a.alwaysSucc(a.rules[name].Expr) {
+				a.proven[name] = true
+				added = true
+			}
+		}
+		if !added || a.err != nil {
+			return
+		}
+	}
+}
+
+// computeLeaders makes leaders until every cycle of left calls passes through one: among the rules
+// that lie on a cycle avoiding the leaders, the one declared first becomes a leader.
+func (a *analysis) computeLeaders() map[string]bool {
+	leaders := map[string]bool{}
+	for {
+		onCycle := cyclicRules(a.names, a.left, leaders)
+		candidate := ""
+		for _, name := range a.names {
+			if onCycle[name] {
+				candidate = name
+				break
+			}
+		}
+		if candidate == "" {
+			return leaders
+		}
+		leaders[candidate] = true
+	}
+}
+
+// leftCalls returns the rules that e may call before it consumes input (Left calls, Rule Facts).
+func (a *analysis) leftCalls(e ast.Expr) []string {
+	switch e := e.(type) {
+	case *ast.Ref:
+		return []string{e.Name}
+	case *ast.Seq:
+		var out []string
+		for _, item := range e.Items {
+			out = append(out, a.leftCalls(item)...)
+			if !a.nullableExpr(item) {
+				break
+			}
+		}
+		return out
+	case *ast.Choice:
+		var out []string
+		for _, alt := range e.Alts {
+			out = append(out, a.leftCalls(alt)...)
+			if a.alwaysSucc(alt) {
+				break
+			}
+		}
+		return out
+	case *ast.Repeat:
+		if e.Max == 0 {
+			return nil
+		}
+		return a.leftCalls(e.Expr)
+	case *ast.Optional:
+		return a.leftCalls(e.Expr)
+	case *ast.And:
+		return a.leftCalls(e.Expr)
+	case *ast.Not:
+		return a.leftCalls(e.Expr)
+	case *ast.Group, *ast.InlineAction, *ast.Atomic, *ast.Discard, *ast.Capture, *ast.Stream:
+		return a.leftCalls(transparentBody(e))
+	case *ast.Literal, *ast.CharClass, *ast.Any, *ast.Cut, *ast.BeginInput, *ast.EndInput:
+		return nil
+	}
+	a.unsupported(e)
+	return nil
+}
+
+// alwaysSucc reports whether e always succeeds, given the rules proven to succeed (Rule Facts).
+func (a *analysis) alwaysSucc(e ast.Expr) bool {
+	switch e := e.(type) {
+	case *ast.Ref:
+		return a.proven[e.Name]
+	case *ast.Literal:
+		return e.Value == ""
+	case *ast.Cut:
+		return true
+	case *ast.Seq:
+		for _, item := range e.Items {
+			if !a.alwaysSucc(item) {
+				return false
+			}
+		}
+		return true
+	case *ast.Choice:
+		earlierCut := false
+		for _, alt := range e.Alts {
+			if !earlierCut && a.alwaysSucc(alt) {
+				return true
+			}
+			earlierCut = earlierCut || a.looseCut(alt)
+		}
+		return false
+	case *ast.Optional:
+		return !a.looseCut(e.Expr) || a.alwaysSucc(e.Expr)
+	case *ast.Repeat:
+		switch {
+		case e.Max == 0:
+			return e.Min == 0
+		case e.Min == 0:
+			return !a.looseCut(e.Expr) || a.alwaysSucc(e.Expr)
+		case e.Min == 1:
+			return a.alwaysSucc(e.Expr)
+		}
+		return false
+	case *ast.And:
+		return a.alwaysSucc(e.Expr)
+	case *ast.Not:
+		return a.alwaysFail(e.Expr)
+	case *ast.Group, *ast.InlineAction, *ast.Atomic, *ast.Discard, *ast.Capture, *ast.Stream:
+		return a.alwaysSucc(transparentBody(e))
+	case *ast.CharClass, *ast.Any, *ast.BeginInput, *ast.EndInput:
+		return false
+	}
+	a.unsupported(e)
+	return false
+}
+
+// alwaysFail reports whether e always fails, given the rules proven to succeed (Rule Facts).
+func (a *analysis) alwaysFail(e ast.Expr) bool {
+	switch e := e.(type) {
+	case *ast.Seq:
+		for _, item := range e.Items {
+			if a.alwaysFail(item) {
+				return true
+			}
+		}
+		return false
+	case *ast.Choice:
+		for _, alt := range e.Alts {
+			if !a.alwaysFail(alt) {
+				return false
+			}
+		}
+		return len(e.Alts) > 0
+	case *ast.And:
+		return a.alwaysFail(e.Expr)
+	case *ast.Not:
+		return a.alwaysSucc(e.Expr)
+	case *ast.Group, *ast.InlineAction, *ast.Atomic, *ast.Discard, *ast.Capture, *ast.Stream:
+		return a.alwaysFail(transparentBody(e))
+	case *ast.Ref, *ast.Literal, *ast.CharClass, *ast.Any, *ast.Optional, *ast.Repeat, *ast.Cut, *ast.BeginInput, *ast.EndInput:
+		return false
+	}
+	a.unsupported(e)
+	return false
+}
+
+// looseCut reports whether e has a cut outside nested choices, options, repetitions, lookaheads and
+// calls.
+func (a *analysis) looseCut(e ast.Expr) bool {
+	switch e := e.(type) {
+	case *ast.Cut:
+		return true
+	case *ast.Seq:
+		for _, item := range e.Items {
+			if a.looseCut(item) {
+				return true
+			}
+		}
+		return false
+	case *ast.Group, *ast.InlineAction, *ast.Atomic, *ast.Discard, *ast.Capture, *ast.Stream:
+		return a.looseCut(transparentBody(e))
+	case *ast.Ref, *ast.Literal, *ast.CharClass, *ast.Any, *ast.Choice, *ast.Optional, *ast.Repeat, *ast.And, *ast.Not, *ast.BeginInput, *ast.EndInput:
+		return false
+	}
+	a.unsupported(e)
+	return false
+}
+
+// cyclicRules returns the rules that lie on a cycle of the graph of left calls among the rules that
+// are not excluded: a rule in a component of several rules, or with a left call of itself.
+func cyclicRules(names []string, edges map[string][]string, excluded map[string]bool) map[string]bool {
+	index := map[string]int{}
+	low := map[string]int{}
+	onStack := map[string]bool{}
+	var stack []string
+	var comps [][]string
+	next := 0
+	var visit func(v string)
+	visit = func(v string) {
+		index[v], low[v] = next, next
+		next++
+		stack = append(stack, v)
+		onStack[v] = true
+		for _, w := range edges[v] {
+			if excluded[w] || !isRule(names, w) {
+				continue
+			}
+			if _, seen := index[w]; !seen {
+				visit(w)
+				low[v] = min(low[v], low[w])
+			} else if onStack[w] {
+				low[v] = min(low[v], index[w])
+			}
+		}
+		if low[v] == index[v] {
+			var comp []string
+			for {
+				w := stack[len(stack)-1]
+				stack = stack[:len(stack)-1]
+				onStack[w] = false
+				comp = append(comp, w)
+				if w == v {
+					break
+				}
+			}
+			comps = append(comps, comp)
+		}
+	}
+	for _, v := range names {
+		if excluded[v] {
+			continue
+		}
+		if _, seen := index[v]; !seen {
+			visit(v)
+		}
+	}
+	out := map[string]bool{}
+	for _, comp := range comps {
+		if len(comp) > 1 {
+			for _, v := range comp {
+				out[v] = true
+			}
+			continue
+		}
+		v := comp[0]
+		for _, w := range edges[v] {
+			if w == v && !excluded[v] {
+				out[v] = true
+			}
+		}
+	}
+	return out
+}
+
+func isRule(names []string, name string) bool {
+	for _, n := range names {
+		if n == name {
+			return true
+		}
+	}
+	return false
+}

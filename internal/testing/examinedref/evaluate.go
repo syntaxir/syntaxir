@@ -5,9 +5,10 @@
 // contexts, first-character dispatch, binding levels or generated code. It shares with the parsers
 // only the parsed grammar (the AST of the frontend); no lowering, IR, memo or runtime code is used.
 // Its growth of left recursion follows spec/language/parser-expressions.md (Left Recursion) and
-// spec/runtime/parsing.md (Growths of Left Recursion): a call of a rule at a position that is already
-// being evaluated reads the current result of that growth, and the growth repeats while a step's
-// result ends farther.
+// spec/runtime/parsing.md (Growths of Left Recursion): only the leaders of the cycles of left calls
+// grow, and they are chosen by the definitions in spec/core-ir/attributes.md (facts.go); a call of a
+// leader at a position that is already being evaluated reads the current result of that growth, and
+// the growth repeats while a step's result ends farther.
 //
 // The fragment it evaluates is the matching core: rule references without a binding level, literals
 // without ignore-case, character classes, `.`, `$$` and `^^`, sequences, choices, groups, repetitions,
@@ -55,8 +56,13 @@ const maxSteps = 20_000_000
 // Evaluate matches input (as code points, the position unit of the fragment) against the rule start
 // and returns the outcome of that call and every exit of every call made, in the order they complete.
 func Evaluate(g *ast.Grammar, start, input string) (Result, []Exit, error) {
-	ev := &evaluator{rules: map[string]*ast.RuleDef{}, in: []rune(input), growths: map[growthKey]*growth{}}
-	for _, r := range g.Rules() {
+	defs := g.Rules()
+	facts, err := analyzeRules(defs)
+	if err != nil {
+		return Result{}, nil, err
+	}
+	ev := &evaluator{rules: map[string]*ast.RuleDef{}, leaders: facts.leaders, in: []rune(input), growths: map[growthKey]*growth{}}
+	for _, r := range defs {
 		ev.rules[r.Name] = r
 	}
 	if _, ok := ev.rules[start]; !ok {
@@ -96,6 +102,7 @@ type growth struct {
 
 type evaluator struct {
 	rules   map[string]*ast.RuleDef
+	leaders map[string]bool
 	in      []rune
 	exits   []Exit
 	growths map[growthKey]*growth
@@ -116,7 +123,8 @@ func (ev *evaluator) fail(err error) {
 	}
 }
 
-// call evaluates the rule at pos. A call that finds a growth of the same rule at the same position in
+// call evaluates the rule at pos. A rule that is not a leader (see analyzeRules) evaluates its body
+// once per call. A leader grows: a call that finds a growth of the same leader at the same position in
 // progress reads its current result: a failure that stands for "no result yet" with examined end pos
 // until the first step succeeds, and then the seed of the last step that ended farther, with the
 // examined end of that step.
@@ -125,6 +133,15 @@ func (ev *evaluator) call(name string, pos int) outcome {
 	if !ok {
 		ev.fail(fmt.Errorf("examinedref: rule %q is not defined", name))
 		return outcome{end: pos, h: pos}
+	}
+	if !ev.leaders[name] {
+		body := ev.eval(rule.Expr, pos)
+		o := outcome{matched: body.matched, end: pos, h: body.h}
+		if body.matched {
+			o.end = body.end
+		}
+		ev.exit(name, pos, o)
+		return o
 	}
 	key := growthKey{name, pos}
 	if g, ok := ev.growths[key]; ok {
