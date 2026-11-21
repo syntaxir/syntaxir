@@ -44,14 +44,37 @@ type listKey struct {
 	n     int
 }
 
-type attemptBox struct{ a OperatorsRuleAttempt }
+// attemptBox is an Attempt handle. It keeps the Errs handle that the match was made with: an entry
+// of no errors has no identity of its own (engineMachine.handle), so opr.errs returns that handle for it.
+type attemptBox struct {
+	a    OperatorsRuleAttempt
+	errs *errorList
+}
 
 type markBox struct{ m Mark }
 
-func newOprMachine(cfg ref.Config) conform.Impl {
-	m := &oprMachine{engineMachine: newEngineMachine(cfg, false, false).(*engineMachine), lists: map[listKey]*listBox{}}
+// meteredOpr is the machine of a suite that controls charges.
+type meteredOpr struct{ *oprMachine }
+
+func (m meteredOpr) Used() uint64 { return m.p.Control.Used }
+
+func newOprMachine(cfg ref.Config) conform.Impl { return newOprMachineControlled(cfg, false) }
+
+// newOprMachineControlled returns the machine of cfg, which reports its charges if controlled.
+func newOprMachineControlled(cfg ref.Config, controlled bool) conform.Impl {
+	var em *engineMachine
+	switch x := newEngineMachine(cfg, controlled, false).(type) {
+	case *engineMachine:
+		em = x
+	case meteredEngine:
+		em = x.engineMachine
+	}
+	m := &oprMachine{engineMachine: em, lists: map[listKey]*listBox{}}
 	if m.p.Prog != nil {
 		panic("engine binding: the machine has a program")
+	}
+	if cfg.Missing {
+		m.p.Missing = &MissingTokenState{Limit: 1 << 30}
 	}
 	m.p.Prog = &SharedProgram{staticProgram: &program.Program{RecordsSourceInfo: cfg.SourceInfo}}
 	id := 0
@@ -119,6 +142,9 @@ func newOprMachine(cfg ref.Config) conform.Impl {
 	methods := confOprBindings(m.p)
 	maps.Copy(methods, confFrameBindings(m.p))
 	m.binder = conform.Binder{Methods: methods, Conv: oprConv{m}}
+	if controlled {
+		return meteredOpr{m}
+	}
 	return m
 }
 
@@ -215,6 +241,10 @@ func (m *oprMachine) Call(o *code.Op, args []any) []any {
 		}
 		return []any{nil}
 	}
+	// The tokens that a case inserts and removes go through the engine's missing-token mode.
+	if o.Name == conform.MissingInsertOp || strings.HasPrefix(o.Name, "missing.") {
+		return (&missingMachine{m.engineMachine}).Call(o, args)
+	}
 	if strings.HasPrefix(o.Name, "opr") || strings.HasPrefix(o.Name, "frame.") {
 		if pos, ok := m.regs[exec.Pos].(int64); ok {
 			m.p.Pos = int(pos)
@@ -226,6 +256,16 @@ func (m *oprMachine) Call(o *code.Op, args []any) []any {
 			m.p.Silent = int(silent)
 		}
 		res := m.binder.Call(o, args)
+		switch o.Name {
+		case "opr.attempt", "opr.attemptMissing":
+			if b, ok := res[0].(*attemptBox); ok {
+				b.errs = args[5].(*errorList)
+			}
+		case "opr.errs":
+			if h := res[0].(*errorList); h.e.None() && args[0].(*attemptBox).errs.e.None() {
+				res[0] = args[0].(*attemptBox).errs
+			}
+		}
 		// The operations that run grammar code write the registers.
 		if slices.Contains(conform.OprMatchOps, o.Name) {
 			m.regs[exec.Pos], m.regs[exec.Cut], m.regs[exec.Silent] = int64(m.p.Pos), m.p.Cut, int64(m.p.Silent)
@@ -309,7 +349,7 @@ func (c oprConv) FromImpl(v reflect.Value) (any, bool) {
 			// The null attempt is no handle.
 			return nil, true
 		}
-		return &attemptBox{x}, true
+		return &attemptBox{a: x}, true
 	case Mark:
 		if x == (Mark{}) {
 			return c.m.zeroMark, true
@@ -323,9 +363,30 @@ func (c oprConv) FromImpl(v reflect.Value) (any, bool) {
 	return nil, false
 }
 
+// oprExact are the operations of the family whose charges the controlled suite holds to their exact
+// cost: one unit for each token that opr.attemptMissing copies or opr.replay records again, and for each
+// error that opr.replay copies.
+var oprExact = []string{"opr.attemptMissing", "opr.replay"}
+
+// oprSuiteOps are the operations of the family that the engine binds, with those of the missing-token mode,
+// and the budget's if controlled.
+func oprSuiteOps(controlled bool) []string {
+	ops := slices.Concat(conform.OprSuiteOps(), conform.OprMissingOps, conform.OprMissingSupportOps)
+	if controlled {
+		ops = append(ops, engineBudgetOps...)
+	}
+	return ops
+}
+
 // oprSuite is the suite of the engine's Operators Rule operations.
 func oprSuite() conform.Suite {
-	return conform.Suite{Name: "engine opr", Ops: conform.OprSuiteOps(), New: newOprMachine}
+	return conform.Suite{Name: "engine opr", Ops: oprSuiteOps(false), New: newOprMachine}
+}
+
+// oprControlledSuite is oprSuite in a parse that controls charges.
+func oprControlledSuite() conform.Suite {
+	return conform.Suite{Name: "engine opr (controlled)", Ops: oprSuiteOps(true), Exact: exactCharges(oprExact),
+		New: func(c ref.Config) conform.Impl { return newOprMachineControlled(c, true) }}
 }
 
 // oprConformanceFailures runs the handwritten cases of the Operators Rule family and seeds randomized
@@ -345,7 +406,12 @@ func oprConformanceFailures(s conform.Suite, seeds, n int) (fails []error, ran i
 	}
 	for seed := range seeds {
 		rng := rand.New(rand.NewPCG(uint64(seed), 66))
-		run(conform.RandomOpr(fmt.Sprint("random_", seed), rng, conform.OprOps, n, conform.OprConfig()))
+		// Three seeds of four run in the missing-token mode.
+		cfg := conform.OprMissingConfig()
+		if seed%4 == 3 {
+			cfg = conform.OprConfig()
+		}
+		run(conform.RandomOpr(fmt.Sprint("random_", seed), rng, slices.Concat(conform.OprOps, conform.OprMissingOps), n, cfg))
 	}
 	return fails, ran
 }
@@ -355,12 +421,16 @@ func TestEngineOprConformance(t *testing.T) {
 	if testing.Short() {
 		seeds = 30
 	}
-	fails, ran := oprConformanceFailures(oprSuite(), seeds, 150)
-	if ran < seeds {
-		t.Fatalf("only %d cases ran", ran)
-	}
-	for _, err := range fails {
-		t.Error(err)
+	for _, s := range []conform.Suite{oprSuite(), oprControlledSuite()} {
+		t.Run(s.Name, func(t *testing.T) {
+			fails, ran := oprConformanceFailures(s, seeds, 150)
+			if ran < seeds {
+				t.Fatalf("only %d cases ran", ran)
+			}
+			for _, err := range fails {
+				t.Error(err)
+			}
+		})
 	}
 }
 
@@ -382,7 +452,7 @@ func (b brokenOpr) Call(o *code.Op, args []any) []any {
 // TestEngineOprConformanceDetectsBrokenEngine is the negative control: the engine with one operation
 // of the family broken, as a wrong line of its printed code would break it, fails the suite.
 func TestEngineOprConformanceDetectsBrokenEngine(t *testing.T) {
-	for _, br := range slices.Concat(conform.OprBrokenOps(), conform.OprMatchBrokenOps(), conform.OprValueBrokenOps()) {
+	for _, br := range slices.Concat(conform.OprBrokenOps(), conform.OprMatchBrokenOps(), conform.OprValueBrokenOps(), conform.OprMissingBrokenOps()) {
 		t.Run(br.Name, func(t *testing.T) {
 			s := oprSuite()
 			s.New = func(c ref.Config) conform.Impl { return brokenOpr{newOprMachine(c).(*oprMachine), br.Op, br.Edit} }
@@ -390,5 +460,43 @@ func TestEngineOprConformanceDetectsBrokenEngine(t *testing.T) {
 				t.Fatal("no case detected the broken engine")
 			}
 		})
+	}
+}
+
+type meteredBrokenOpr struct{ brokenOpr }
+
+func (m meteredBrokenOpr) Used() uint64 { return m.p.Control.Used }
+
+// TestEngineOprChargesArePinned is the negative control of the charges: the engine whose
+// opr.attemptMissing or opr.replay charges one unit more or nothing at all fails the controlled suite,
+// so that a change of what they charge for the tokens and the errors fails a test.
+func TestEngineOprChargesArePinned(t *testing.T) {
+	if !BudgetControlsEnabled {
+		t.Skip("the build controls no charges")
+	}
+	for _, op := range oprExact {
+		for _, change := range []string{"charges nothing", "charges one more"} {
+			t.Run(op+" "+change, func(t *testing.T) {
+				s := oprControlledSuite()
+				s.New = func(c ref.Config) conform.Impl {
+					m := newOprMachineControlled(c, true).(meteredOpr).oprMachine
+					edit := func(call func(string, ...any) []any, args []any) []any {
+						if change == "charges nothing" {
+							ctl := m.p.Control
+							m.p.Control = nil
+							defer func() { m.p.Control = ctl }()
+							return call(op, args...)
+						}
+						res := call(op, args...)
+						m.p.Spend()
+						return res
+					}
+					return meteredBrokenOpr{brokenOpr{m, op, edit}}
+				}
+				if fails, _ := oprConformanceFailures(s, 60, 250); len(fails) == 0 {
+					t.Fatal("no case detected the changed charge")
+				}
+			})
+		}
 	}
 }

@@ -104,7 +104,7 @@ The operations of the component `recovered`.
 | `op missing.reset(mark int) [missing]` | writes recovered | `0 + 1*tokens` | Removes the tokens inserted after mark, in the missing-token mode, charging one unit for each; does nothing outside it. Requires: mark is a result of missing.mark at or before every later mark that is still in use. |
 | `op missing.replay(e Entry) [missing] noreturn` | writes recovered | `0 + 1*tokens + 1*errs` | Records again the tokens that the call of entry e inserted and the errors it recovered, as rec.add does for the errors outside the missing-token mode. It charges one unit for each token; when one of the tokens is already present, it records the errors one by one without that token's, for one unit each, and otherwise it shares them as rec.add does. Requires: The parse runs in the missing-token mode. |
 | `op missing.replayResult(s CtxResult) [missing] noreturn` | writes recovered | `0 + 1*tokens + 1*errs` | Records again the tokens that the call of the result s that a context kept inserted and the errors it recovered, as missing.replay does for a memo entry, at the same cost. Requires: The parse runs in the missing-token mode. |
-| `transitional op opr.replay(a Attempt) [missing] noreturn` | reads operators; writes recovered | `0 + 1*errs` | Records again the tokens that the match a inserted and the errors it recovered, as rec.add does for the errors outside the missing-token mode. |
+| `transitional op opr.replay(a Attempt) [missing] noreturn` | reads operators; writes recovered | `0 + 1*tokens + 1*errs` | Records again the tokens that the match a inserted and the errors it recovered, as missing.replay does for the call of a memo entry and at the same cost; outside the missing-token mode, where a holds no token, it records the errors as rec.add does. Requires: opr.found(a). |
 
 ## Expectations
 
@@ -273,7 +273,7 @@ The operations of the component `operators`.
 | Declaration | State | Cost | Contract |
 |:--|:--|:--|:--|
 | `op opr.attempt(op Operator, f Frame, v Value, start int, cut bool, errs Errs) Attempt` | reads env, pos | `0` | Returns the match of op from start to the position with the value v, the captures of f, the variable environment, the cut flag cut and the recovered errors errs. |
-| `transitional op opr.attemptMissing(op Operator, f Frame, v Value, start int, cut bool, errs Errs, mark int) Attempt [missing] noreturn` | reads env, pos, recovered | `0` | Is opr.attempt in a parse that can insert missing tokens: the match also holds a copy of the tokens inserted after mark. |
+| `transitional op opr.attemptMissing(op Operator, f Frame, v Value, start int, cut bool, errs Errs, mark int) Attempt [missing] noreturn` | reads env, pos, recovered | `0 + 1*tokens` | Is opr.attempt in a parse that can insert missing tokens: the match also holds a copy of the tokens inserted after mark, none outside the missing-token mode. It charges one unit for each token it copies. Requires: mark is a result of missing.mark at or before every later mark that is still in use. |
 | `op opr.found(a Attempt) bool` | none | `0` | Reports whether a is a match, not the null attempt. |
 | `op opr.op(a Attempt) Operator` | none | `0` | Returns the operator of the match a. Requires: opr.found(a). |
 | `op opr.end(a Attempt) int` | none | `0` | Returns where the match a ended. Requires: opr.found(a). |

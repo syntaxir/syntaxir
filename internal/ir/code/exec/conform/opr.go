@@ -68,6 +68,14 @@ var (
 	OprTypedOps      = []string{"opr.buildTyped"}
 )
 
+// OprMissingOps are the operations of the matches of operators in a parse that can insert missing
+// tokens. OprMissingSupportOps are those that their cases call besides, to insert and remove tokens and
+// to record and drop errors; the implementation provides them besides OprOps.
+var (
+	OprMissingOps        = []string{"opr.attemptMissing", "opr.replay"}
+	OprMissingSupportOps = []string{"missing.mark", "missing.reset", MissingInsertOp, "rec.mark", "rec.truncate", "rec.add"}
+)
+
 // OprRecordOps are the operations of the records of the split forms of the loop: for each field, the
 // getter and the setter.
 var OprRecordOps = func() []string {
@@ -102,7 +110,7 @@ func OprSuiteOps() []string {
 // OprModule returns the declarations of Module with the operations that make the handles of the
 // cases of the Operators Rule family.
 func OprModule() *code.Module {
-	m := Module()
+	m := MissingModule()
 	test := func(name string, handle string) {
 		m.AddOp(&code.Op{Name: name, Component: exec.Rules, Results: []code.Type{code.THandle(handle)},
 			Contract: "Returns a new handle for a conformance case."})
@@ -179,6 +187,13 @@ func OprConfig() ref.Config {
 			{},
 		},
 	}
+}
+
+// OprMissingConfig returns OprConfig in a parse in the missing-token mode.
+func OprMissingConfig() ref.Config {
+	cfg := OprConfig()
+	cfg.Missing = true
+	return cfg
 }
 
 // OprCases returns the handwritten conformance cases of the Operators Rule family, in one module.
@@ -631,6 +646,71 @@ func OprCases() []Case {
 		b.Do("oprExpr.setMin", expr2, i(9))
 		b.Assert(eq(code.C("oprExpr.min", expr), i(3)), "another record leaves the fields of a record as they are")
 	})
+	addMissing := func(name string, missing bool, body func(b *code.Builder)) {
+		cfg := OprConfig()
+		cfg.Missing = missing
+		cs = append(cs, Case{Module: m, Func: m.AddFunc(name, nil, nil, []string{"budget", "stream", "document", exec.Missing}, body), Config: cfg})
+	}
+	insert := func(site, pos, err int64) code.Expr {
+		return code.C(MissingInsertOp, i(site), i(pos), code.C(ErrOp, i(err)))
+	}
+	mark := code.C("missing.mark")
+	addMissing("opr_attempt_missing", true, func(b *code.Builder) {
+		o := b.Let("o", code.C("opr.at", code.C("opr.led", rule(0)), i(0)))
+		f, v := b.Let("f", code.C(OprFrameOp)), b.Let("v", code.C(OprNodeOp))
+		b.Assert(insert(1, 1, 31), "a token before the operator")
+		// The operator's line inserts two tokens and recovers one more error.
+		mm, rm := b.Let("mm", mark), b.Let("rm", code.C("rec.mark"))
+		b.Assert(insert(2, 3, 32), "the line inserts a token")
+		b.Do("rec.push", code.C(ErrOp, i(35)))
+		b.Assert(insert(3, 4, 33), "and another")
+		errs := b.Let("errs", code.C("rec.since", rm))
+		b.SetReg(exec.Pos, i(6))
+		a := b.Let("a", code.C("opr.attemptMissing", o, f, v, i(4), code.BoolC(false), errs, mm))
+		b.Assert(all(code.C("opr.found", a), eq(code.C("opr.end", a), i(6))), "a match is found where opr.attempt finds it")
+		b.Let("none", code.C("opr.attemptMissing", o, f, v, i(4), code.BoolC(false), errs, mark))
+		// Another candidate wins, and the match's tokens and errors go.
+		b.Do("missing.reset", mm)
+		b.Do("rec.truncate", rm)
+		b.Do("opr.replay", a)
+		b.Assert(eq(mark, i(3)), "applying the match inserts its tokens again, with its errors")
+		b.Assert(code.Not(insert(2, 3, 34)), "so that they are there")
+		b.Do("opr.replay", a)
+		b.Assert(eq(mark, i(3)), "a replay of a match whose tokens are present inserts none, nor their errors")
+		b.Do("missing.reset", i(2))
+		b.Do("opr.replay", a)
+		b.Assert(eq(mark, i(3)), "a replay inserts the tokens that are missing, with their errors alone")
+	})
+	addMissing("opr_replay_without_tokens", true, func(b *code.Builder) {
+		o := b.Let("o", code.C("opr.at", code.C("opr.led", rule(0)), i(1)))
+		f, v := b.Let("f", code.C(OprFrameOp)), b.Let("v", code.C(OprNodeOp))
+		b.Assert(insert(1, 1, 41), "a token before the operator")
+		mm, rm := b.Let("mm", mark), b.Let("rm", code.C("rec.mark"))
+		b.Do("rec.push", code.C(ErrOp, i(42)))
+		errs := b.Let("errs", code.C("rec.since", rm))
+		a := b.Let("a", code.C("opr.attemptMissing", o, f, v, i(1), code.BoolC(true), errs, mm))
+		plain := b.Let("plain", code.C("opr.attempt", o, f, v, i(1), code.BoolC(true), errs))
+		b.Do("rec.truncate", rm)
+		b.Do("opr.replay", a)
+		b.Do("opr.replay", plain)
+		b.Assert(eq(mark, i(1)), "a match that inserted no token records its errors alone")
+		b.Do("missing.reset", i(0))
+		b.Do("opr.replay", a)
+		b.Assert(eq(mark, i(0)), "and leaves out the tokens before it")
+	})
+	addMissing("opr_replay_outside_missing", false, func(b *code.Builder) {
+		o := b.Let("o", code.C("opr.at", code.C("opr.prefix", rule(0)), i(0)))
+		f, v := b.Let("f", code.C(OprFrameOp)), b.Let("v", code.C(OprNodeOp))
+		rm := b.Let("rm", code.C("rec.mark"))
+		b.Do("rec.push", code.C(ErrOp, i(51)))
+		b.Do("rec.push", code.C(ErrOp, i(52)))
+		errs := b.Let("errs", code.C("rec.since", rm))
+		a := b.Let("a", code.C("opr.attemptMissing", o, f, v, i(2), code.BoolC(false), errs, mark))
+		b.Do("rec.truncate", rm)
+		b.Do("opr.replay", a)
+		b.Do("opr.replay", a)
+		b.Assert(eq(mark, i(0)), "an ordinary parse records the errors of the match, as rec.add does, and no token")
+	})
 	return cs
 }
 
@@ -653,6 +733,12 @@ func RandomOpr(name string, rng *rand.Rand, opNames []string, n int, cfg ref.Con
 	features := []string{"budget", "stream", "document"}
 	if slices.ContainsFunc(opNames, func(n string) bool { return slices.Contains(OprTypedOps, n) }) {
 		features = append(features, exec.Typed)
+	}
+	// A case of the operations of the missing-token mode also inserts tokens and removes them.
+	missing := slices.ContainsFunc(opNames, func(n string) bool { return slices.Contains(OprMissingOps, n) })
+	if missing {
+		features = append(features, exec.Missing)
+		opNames = slices.Concat(opNames, []string{MissingInsertOp, MissingInsertOp, "missing.reset"})
 	}
 	f := m.AddFunc(name, nil, nil, features, func(b *code.Builder) {
 		count := 0
@@ -753,6 +839,9 @@ func RandomOpr(name string, rng *rand.Rand, opNames []string, n int, cfg ref.Con
 				if o.Name == "opr.attempt" && len(pool[exec.Errs]) == 0 {
 					return nil, nil, false
 				}
+			case exec.Err:
+				e := rng.Int64N(20)
+				return &ref.Err{ID: e}, code.C(ErrOp, code.Int(e)), true
 			}
 			es := pool[p.Type.Handle]
 			if len(es) == 0 {
@@ -782,9 +871,27 @@ func RandomOpr(name string, rng *rand.Rand, opNames []string, n int, cfg ref.Con
 					}
 				}
 			}
+			// A mark of the tokens is one that missing.mark returned and is still in use.
+			tokenMark := func(k int) {
+				mk := rng.Int64N(ask("missing.mark").(int64) + 1)
+				args[k], exprs[k] = mk, code.Int(mk)
+			}
 			switch o.Name {
 			case "opr.attempt":
 				frameOf(ask("opr.line", args[0]), 1)
+			case "opr.attemptMissing":
+				if args[0] != nil {
+					frameOf(ask("opr.line", args[0]), 1)
+				}
+				tokenMark(6)
+			case "missing.reset":
+				tokenMark(0)
+			case MissingInsertOp:
+				// Sites and positions from small domains, so that tokens repeat.
+				for k := range 2 {
+					x := rng.Int64N(3)
+					args[k], exprs[k] = x, code.Int(x)
+				}
 			case "opr.lineValue":
 				frameOf(args[1], 2)
 				owner()
@@ -830,6 +937,39 @@ func RandomOpr(name string, rng *rand.Rand, opNames []string, n int, cfg ref.Con
 				call(ref.OprValueFieldOp, []any{v.h, k}, []code.Expr{v.expr, code.Int(k)})
 			}
 		}
+		// missingFlow makes the match of the operator op whose line, run in the frame fr from start
+		// to the value v, inserted tokens and recovered errors, as the grammar code of a line in the
+		// missing-token mode does. The match may lose to another candidate, whose tokens and errors go,
+		// and win later, which records its tokens and errors again.
+		missingFlow := func(op, fr, v oprEntry, start int64) oprEntry {
+			mm, rm := ask("missing.mark").(int64), mirror.Entries()
+			// Outside the mode a line inserts no token.
+			tokens := 0
+			if cfg.Missing {
+				tokens = rng.IntN(3)
+			}
+			for range tokens {
+				site, pos, e := rng.Int64N(3), rng.Int64N(3), rng.Int64N(20)
+				call(MissingInsertOp, []any{site, pos, &ref.Err{ID: e}}, []code.Expr{code.Int(site), code.Int(pos), code.C(ErrOp, code.Int(e))})
+			}
+			if rng.IntN(2) == 0 {
+				e := rng.Int64N(20)
+				call("rec.push", []any{&ref.Err{ID: e}}, []code.Expr{code.C(ErrOp, code.Int(e))})
+			}
+			errs, _ := call("rec.since", []any{rm}, []code.Expr{code.Int(rm)})
+			cut := rng.IntN(2) == 0
+			a, _ := call("opr.attemptMissing", []any{op.h, fr.h, v.h, start, cut, errs.h, mm},
+				[]code.Expr{op.expr, fr.expr, v.expr, code.Int(start), code.BoolC(cut), errs.expr, code.Int(mm)})
+			if rng.IntN(3) > 0 {
+				mk := mm - rng.Int64N(mm+1)*int64(rng.IntN(2))
+				call("missing.reset", []any{mk}, []code.Expr{code.Int(mk)})
+				call("rec.truncate", []any{rm}, []code.Expr{code.Int(rm)})
+			}
+			for range 1 + rng.IntN(2) {
+				call("opr.replay", []any{a.h}, []code.Expr{a.expr})
+			}
+			return a
+		}
 		// flow runs a line of a rule as the grammar code runs it: in a frame of its slots, from a
 		// position, and then makes its value, of an operand or of an application of its operator, and
 		// takes the value apart.
@@ -869,8 +1009,13 @@ func RandomOpr(name string, rng *rand.Rand, opNames []string, n int, cfg ref.Con
 					[]code.Expr{rule.expr, line.expr, fr.expr, v.expr, code.Int(start)})
 			} else {
 				errs := pick(pool[exec.Errs])
-				a, _ := call("opr.attempt", []any{op.h, fr.h, v.h, start, false, errs.h},
-					[]code.Expr{op.expr, fr.expr, v.expr, code.Int(start), code.BoolC(false), errs.expr})
+				var a oprEntry
+				if missing && rng.IntN(2) == 0 {
+					a = missingFlow(op, fr, v, start)
+				} else {
+					a, _ = call("opr.attempt", []any{op.h, fr.h, v.h, start, false, errs.h},
+						[]code.Expr{op.expr, fr.expr, v.expr, code.Int(start), code.BoolC(false), errs.expr})
+				}
 				lhs, rhs := pick(pool[exec.Value]), pick(pool[exec.Value])
 				if !ask("opr.infix", op.h).(bool) && !ask("opr.postfix", op.h).(bool) {
 					lhs = oprEntry{null, nil}
@@ -912,7 +1057,7 @@ func RandomOpr(name string, rng *rand.Rand, opNames []string, n int, cfg ref.Con
 			if !ok || o.Name != "opr.match" && !mirror.Allows(o, args) {
 				continue
 			}
-			if o.Name == "opr.attempt" || slices.Contains(OprMatchOps, o.Name) {
+			if o.Name == "opr.attempt" || o.Name == "opr.attemptMissing" || slices.Contains(OprMatchOps, o.Name) {
 				pos := rng.Int64N(12)
 				regs["pos"] = pos
 				b.SetReg(exec.Pos, code.Int(pos))

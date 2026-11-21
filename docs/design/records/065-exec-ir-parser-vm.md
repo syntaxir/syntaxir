@@ -364,7 +364,10 @@ its value (one element, a sequence, a sequence whose tuple a memo entry shares, 
 action, a probe that returns a node of the range, the locals and the captures it was given; the cases take the values
 apart and compare them by identity, on the engine and on TypeScript, and `opr.buildTyped` on the model until a target
 of typed values runs it. These stay transitional until generated Go runs them too. Those that keep missing tokens
-(`opr.attemptMissing`, `opr.replay`) stay transitional until the scripted-rule model covers them. *Target*: the
+(`opr.attemptMissing`, `opr.replay`) have a model on the reference model of the missing-token mode: a match copies the
+tokens inserted after its mark, and applying it records them again with its errors, leaving out those of tokens that
+are present, as `missing.replay` does; the cases run on the engine, the only target with the mode, with their charges
+held to the exact cost. They stay transitional, as the mode stays on the engine. *Target*: the
 representation of lists, lines and attempts.
 
 **Rules.** What the grammar says of a rule (whether a parse from scratch or a Document parse memoizes it, whether it

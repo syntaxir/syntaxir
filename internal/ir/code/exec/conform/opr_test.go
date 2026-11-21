@@ -17,8 +17,14 @@ var oprModule = OprModule()
 
 func oprCall(m *ref.Model, name string, args ...any) []any { return m.Call(oprModule.Op(name), args) }
 
+// oprModelOps are the operations that the model provides to the cases of the family: those of every
+// suite, of a parser of typed values and of the missing-token mode.
+func oprModelOps() []string {
+	return slices.Concat(OprSuiteOps(), OprTypedOps, OprMissingOps, OprMissingSupportOps)
+}
+
 func oprSuite(name string, mu *mutant) Suite {
-	return Suite{Name: name, Ops: slices.Concat(OprSuiteOps(), OprTypedOps), New: func(c ref.Config) Impl {
+	return Suite{Name: name, Ops: oprModelOps(), New: func(c ref.Config) Impl {
 		if mu == nil {
 			return modelImpl{ref.New(c)}
 		}
@@ -42,6 +48,16 @@ func TestOprCasesVerify(t *testing.T) {
 
 const oprSeeds, oprCalls = 200, 250
 
+// oprRandom returns the randomized case of the seed with every operation of the family, in a parse in
+// the missing-token mode for three seeds of four.
+func oprRandom(seed uint64) Case {
+	cfg := OprMissingConfig()
+	if seed%4 == 3 {
+		cfg = OprConfig()
+	}
+	return RandomOpr("random", rand.New(rand.NewPCG(seed, 7)), slices.Concat(OprOps, OprTypedOps, OprMissingOps), oprCalls, cfg)
+}
+
 // oprFails reports whether some handwritten or randomized case of the Operators Rule family fails on s.
 func oprFails(s Suite) (handwritten, random bool) {
 	for _, c := range OprCases() {
@@ -50,7 +66,7 @@ func oprFails(s Suite) (handwritten, random bool) {
 		}
 	}
 	for seed := uint64(0); seed < oprSeeds && !random; seed++ {
-		c := RandomOpr("random", rand.New(rand.NewPCG(seed, 7)), slices.Concat(OprOps, OprTypedOps), oprCalls, OprConfig())
+		c := oprRandom(seed)
 		_, err := Run(s, c)
 		random = err != nil
 	}
@@ -65,7 +81,7 @@ func TestModelPassesOprCases(t *testing.T) {
 		}
 	}
 	for seed := uint64(0); seed < oprSeeds; seed++ {
-		c := RandomOpr("random", rand.New(rand.NewPCG(seed, 7)), slices.Concat(OprOps, OprTypedOps), oprCalls, OprConfig())
+		c := oprRandom(seed)
 		if _, err := Run(s, c); err != nil {
 			t.Fatal(err)
 		}
@@ -76,10 +92,10 @@ func TestModelPassesOprCases(t *testing.T) {
 func TestRandomOprCasesUseTheOperations(t *testing.T) {
 	counts := map[string]int{}
 	for seed := uint64(0); seed < oprSeeds; seed++ {
-		c := RandomOpr("random", rand.New(rand.NewPCG(seed, 7)), slices.Concat(OprOps, OprTypedOps), oprCalls, OprConfig())
+		c := oprRandom(seed)
 		walkCalls(c.Func.Body, func(x *code.Call) { counts[x.Callee]++ })
 	}
-	for _, name := range slices.Concat(OprOps, OprTypedOps, ref.OprValueOps) {
+	for _, name := range slices.Concat(OprOps, OprTypedOps, OprMissingOps, ref.OprValueOps) {
 		if counts[name] < 20 {
 			t.Errorf("randomized cases call %s %d times", name, counts[name])
 		}
@@ -89,7 +105,7 @@ func TestRandomOprCasesUseTheOperations(t *testing.T) {
 // TestOprMutantsFail is the negative control of the cases of the Operators Rule family: each broken
 // model fails a handwritten or a randomized case.
 func TestOprMutantsFail(t *testing.T) {
-	for _, br := range slices.Concat(OprBrokenOps(), OprMatchBrokenOps(), OprValueBrokenOps(), OprTypedBrokenOps()) {
+	for _, br := range slices.Concat(OprBrokenOps(), OprMatchBrokenOps(), OprValueBrokenOps(), OprTypedBrokenOps(), OprMissingBrokenOps()) {
 		t.Run(br.Name, func(t *testing.T) {
 			mu := mutant{op: br.Op, edit: func(m *ref.Model, a []any) []any {
 				return br.Edit(func(op string, args ...any) []any { return oprCall(m, op, args...) }, a)
@@ -153,7 +169,7 @@ func TestOprRegisterMutantsFail(t *testing.T) {
 		}},
 	} {
 		t.Run(mu.name, func(t *testing.T) {
-			s := Suite{Name: mu.name, Ops: OprSuiteOps(), New: func(c ref.Config) Impl {
+			s := Suite{Name: mu.name, Ops: oprModelOps(), New: func(c ref.Config) Impl {
 				return regMutant{modelImpl{ref.New(c)}, mu.op, new(map[string]any), mu.edit}
 			}}
 			handwritten, random := oprFails(s)

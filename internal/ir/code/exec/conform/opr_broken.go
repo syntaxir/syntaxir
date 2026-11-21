@@ -171,3 +171,35 @@ func OprTypedBrokenOps() []OprBroken {
 			}},
 	}
 }
+
+// OprMissingBrokenOps returns the broken versions of the operations of the matches of operators in a
+// parse that can insert missing tokens (OprMissingOps).
+func OprMissingBrokenOps() []OprBroken {
+	var bs []OprBroken
+	add := func(name, op string, edit func(call func(string, ...any) []any, a []any) []any) {
+		bs = append(bs, OprBroken{Name: name, Op: op, Edit: edit})
+	}
+	// attemptFrom is opr.attemptMissing with the mark that from makes of the mark and the current one.
+	attemptFrom := func(from func(mark, current int64) int64) func(call func(string, ...any) []any, a []any) []any {
+		return func(call func(string, ...any) []any, a []any) []any {
+			b := append([]any{}, a...)
+			b[6] = from(a[6].(int64), call("missing.mark")[0].(int64))
+			return call("opr.attemptMissing", b...)
+		}
+	}
+	add("opr.attemptMissing copies no token", "opr.attemptMissing", attemptFrom(func(_, current int64) int64 { return current }))
+	add("opr.attemptMissing copies every token", "opr.attemptMissing", attemptFrom(func(int64, int64) int64 { return 0 }))
+	add("opr.attemptMissing copies one token less", "opr.attemptMissing", attemptFrom(func(mark, current int64) int64 {
+		return min(mark+1, current)
+	}))
+	add("opr.replay records the errors alone", "opr.replay", func(call func(string, ...any) []any, a []any) []any {
+		call("rec.add", call("opr.errs", a[0])[0])
+		return nil
+	})
+	add("opr.replay is ignored", "opr.replay", func(call func(string, ...any) []any, a []any) []any { return nil })
+	add("opr.replay replays twice", "opr.replay", func(call func(string, ...any) []any, a []any) []any {
+		call("opr.replay", a...)
+		return call("opr.replay", a...)
+	})
+	return bs
+}

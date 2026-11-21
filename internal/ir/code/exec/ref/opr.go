@@ -165,6 +165,8 @@ type OprAttempt struct {
 	env        *Scope
 	cut        bool
 	errs       any
+	// missing holds the tokens inserted after the mark of opr.attemptMissing, nil for opr.attempt.
+	missing []missingToken
 }
 
 // Opaque is the model's handle that a conformance case makes of a frame, a backtracking point, a value
@@ -317,6 +319,11 @@ func (m *Model) allowsOpr(o *code.Op, args []any) bool {
 		return args[0] != nil
 	case "opr.attempt":
 		return args[0] != nil
+	case "opr.attemptMissing":
+		mark := args[6].(int64)
+		return args[0] != nil && mark >= 0 && mark <= int64(len(m.missing.path))
+	case "opr.replay":
+		return args[0] != nil
 	}
 	return true
 }
@@ -450,6 +457,14 @@ func (m *Model) callOpr(o *code.Op, args []any) ([]any, bool) {
 	case "opr.attempt":
 		return []any{&OprAttempt{op: args[0].(*OprOperator), frame: args[1], v: args[2], start: args[3].(int64),
 			end: m.regs["pos"].(int64), env: m.env, cut: args[4].(bool), errs: args[5]}}, true
+	case "opr.attemptMissing":
+		return []any{&OprAttempt{op: args[0].(*OprOperator), frame: args[1], v: args[2], start: args[3].(int64),
+			end: m.regs["pos"].(int64), env: m.env, cut: args[4].(bool), errs: args[5],
+			missing: slices.Clone(m.missing.path[args[6].(int64):])}}, true
+	case "opr.replay":
+		a := args[0].(*OprAttempt)
+		m.replayMissing(a.missing, a.errs)
+		return nil, true
 	case "opr.found":
 		return []any{args[0] != nil}, true
 	case "opr.op":

@@ -184,12 +184,16 @@ variable environment, the cut flag cut and the recovered errors errs.`})
 	add(&code.Op{Name: "opr.attemptMissing", Component: Opr, Params: append(o, code.P("f", frame), code.P("v", value),
 		code.P("start", code.TInt), code.P("cut", code.TBool), code.P("errs", errs), code.P("mark", code.TInt)), Results: []code.Type{attempt},
 		Reads: []string{Env, Pos, Rec}, Features: []string{Missing}, NoReturn: true,
+		Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QTokens}}},
 		Contract: `Is opr.attempt in a parse that can insert missing tokens: the match also holds a copy of the tokens
-inserted after mark.`})
+inserted after mark, none outside the missing-token mode. It charges one unit for each token it copies.`,
+		Requires: `mark is a result of missing.mark at or before every later mark that is still in use.`})
 	add(&code.Op{Name: "opr.replay", Component: Rec, Params: a, Reads: []string{Opr}, Writes: []string{Rec}, Features: []string{Missing}, NoReturn: true,
-		Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QErrs}}},
-		Contract: `Records again the tokens that the match a inserted and the errors it recovered, as rec.add does for
-the errors outside the missing-token mode.`})
+		Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QTokens}, {Coef: 1, Quantity: QErrs}}},
+		Contract: `Records again the tokens that the match a inserted and the errors it recovered, as missing.replay
+does for the call of a memo entry and at the same cost; outside the missing-token mode, where a holds no
+token, it records the errors as rec.add does.`,
+		Requires: `opr.found(a).`})
 	m.AddOp(&code.Op{Name: "opr.found", Component: Opr, Params: a, Results: []code.Type{code.TBool},
 		Contract: `Reports whether a is a match, not the null attempt.`})
 	m.AddOp(&code.Op{Name: "opr.op", Component: Opr, Params: a, Results: []code.Type{op},

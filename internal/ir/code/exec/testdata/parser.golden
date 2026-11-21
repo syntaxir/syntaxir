@@ -2065,10 +2065,12 @@ transitional op opr.attemptMissing(op Operator, f Frame, v Value, start int, cut
   reads env, pos, recovered
   features missing
   noreturn
-  cost <= 0
+  cost <= 0 + 1*tokens
   contract:
     // Is opr.attempt in a parse that can insert missing tokens: the match also holds a copy of the tokens
-    // inserted after mark.
+    // inserted after mark, none outside the missing-token mode. It charges one unit for each token it copies.
+  requires:
+    // mark is a result of missing.mark at or before every later mark that is still in use.
 
 transitional op opr.replay(a Attempt)
   component recovered
@@ -2076,10 +2078,13 @@ transitional op opr.replay(a Attempt)
   writes recovered
   features missing
   noreturn
-  cost <= 0 + 1*errs
+  cost <= 0 + 1*tokens + 1*errs
   contract:
-    // Records again the tokens that the match a inserted and the errors it recovered, as rec.add does for
-    // the errors outside the missing-token mode.
+    // Records again the tokens that the match a inserted and the errors it recovered, as missing.replay
+    // does for the call of a memo entry and at the same cost; outside the missing-token mode, where a holds no
+    // token, it records the errors as rec.add does.
+  requires:
+    // opr.found(a).
 
 op opr.found(a Attempt) bool
   component operators

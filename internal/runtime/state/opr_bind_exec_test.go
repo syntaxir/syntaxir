@@ -248,6 +248,22 @@ func (p *Parser) confOprBuild(r *Rule, a OperatorsRuleAttempt, lhs *sxirvalue.No
 	return res
 }
 
+// confOprAttemptMissing runs opr.attemptMissing for the conformance suite.
+// Printed from Exec IR function confOprAttemptMissing of internal/ir/code/exec/compose, specialized for missing.
+func (p *Parser) confOprAttemptMissing(op *OperatorsRuleOp, f *Frame, v *sxirvalue.Node, start int, cut bool, errs RecEntry, mark int) OperatorsRuleAttempt {
+	var r OperatorsRuleAttempt
+	r = OperatorsRuleAttempt{Op: op, Frame: f, V: v, Start: start, End: p.Pos, Env: p.Env, Cut: cut, Errs: errs, missing: p.MissingEvents(mark)}
+	return r
+}
+
+// confOprReplay runs opr.replay for the conformance suite.
+// Printed from Exec IR function confOprReplay of internal/ir/code/exec/compose, specialized for missing.
+func (p *Parser) confOprReplay(a OperatorsRuleAttempt) {
+	if p.Missing != nil || !a.Errs.None() {
+		p.ApplyRecovered(&a)
+	}
+}
+
 // confOprLongestL runs oprLongest.l for the conformance suite.
 // Printed from Exec IR function confOprLongestL of internal/ir/code/exec/compose.
 func (p *Parser) confOprLongestL(st *LongestState) []*OperatorsRuleOp {
@@ -576,6 +592,8 @@ func confOprBindings(p *Parser) map[string]any {
 		"opr.match":               p.confOprMatch,
 		"opr.lineValue":           p.confOprLineValue,
 		"opr.build":               p.confOprBuild,
+		"opr.attemptMissing":      p.confOprAttemptMissing,
+		"opr.replay":              p.confOprReplay,
 		"oprLongest.l":            p.confOprLongestL,
 		"oprLongest.setL":         p.confOprLongestSetL,
 		"oprLongest.i":            p.confOprLongestI,

@@ -66,8 +66,9 @@ const (
 	// recovered after its mark.
 	QErrs = "errs"
 	// QTokens is the number of missing tokens that the call removes (those inserted after its mark, or
-	// for rule.invokePlain those that its failed body inserted) or records again (those that the call of
-	// its entry inserted).
+	// for rule.invokePlain those that its failed body inserted), copies (for opr.attemptMissing those
+	// inserted after its mark) or records again (those that the call of its entry or the match
+	// inserted).
 	QTokens = "tokens"
 	// QSegs is the number of entries of the recovered-error list after the mark of the call, or for
 	// grow.adopt and grow.step after the mark that the growth took when it began: errors that rec.push recorded and

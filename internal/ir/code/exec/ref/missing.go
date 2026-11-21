@@ -183,6 +183,12 @@ func (m *Model) errsQuantity(o *code.Op, args []any) int64 {
 			return int64(l.n)
 		}
 		return 0
+	case "opr.replay":
+		a := args[0].(*OprAttempt)
+		if l, ok := a.errs.(*ErrList); ok && m.missing.repeats(a.missing) {
+			return int64(l.n)
+		}
+		return 0
 	}
 	panic("ref: no quantity errs for " + o.Name)
 }
@@ -213,6 +219,11 @@ func (m *Model) tokensQuantity(o *code.Op, args []any) int64 {
 		return int64(len(args[0].(*Entry).seed))
 	case "missing.replayResult":
 		return int64(len(ctxRes(args[0]).seed))
+	case "opr.attemptMissing":
+		// The tokens inserted after the mark, which the match copies.
+		return int64(len(m.missing.path)) - args[6].(int64)
+	case "opr.replay":
+		return int64(len(args[0].(*OprAttempt).missing))
 	case "rule.invokePlain":
 		// The tokens that a failed evaluation inserted, which the call removes.
 		e := m.next(args[0].(RuleRef).Index)
