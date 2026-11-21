@@ -7,6 +7,8 @@ package libgo
 import (
 	"fmt"
 	"reflect"
+
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // ConfEvent is a call of a primitive operation. K identifies the call in the generated code; Used
@@ -19,11 +21,19 @@ type ConfEvent struct {
 	Kids, KidsAfter     int
 	Rec, RecAfter       int
 	Silent, SilentAfter int
-	Args                map[int]any
-	Results             []any
-	Done                bool
-	Parent              int
-	p                   any
+	// Far and Exps are the farthest failure and the number of expectations of the current record;
+	// Frame and Env identify the current capture frame and variable environment ("nil" or "ptr:" and
+	// the address), and Vals are the recorded forms of the values of the frame.
+	Far, FarAfter     int
+	Exps, ExpsAfter   int
+	Frame, FrameAfter string
+	Env, EnvAfter     string
+	Vals, ValsAfter   []any
+	Args              map[int]any
+	Results           []any
+	Done              bool
+	Parent            int
+	p                 any
 }
 
 // ConfEvents are the calls in the order they began; ConfReset clears them.
@@ -35,26 +45,61 @@ var (
 // ConfReset clears the record for a new parse.
 func ConfReset() { ConfEvents, confStack = nil, nil }
 
-func confState(p any) (pos int, used uint64, kids, rec, silent int) {
+// confSnap is the state of the parser that a probe records around a call.
+type confSnap struct {
+	pos        int
+	used       uint64
+	kids, rec  int
+	silent     int
+	far, exps  int
+	frame, env string
+	vals       []any
+}
+
+func confPtr(x any) string {
+	if r := reflect.ValueOf(x); !r.IsValid() || r.IsNil() {
+		return "nil"
+	}
+	return fmt.Sprintf("ptr:%p", x)
+}
+
+func confState(p any) (s confSnap) {
 	var q *Parser
 	switch x := p.(type) {
 	case *Parser:
-		q, kids = x, len(x.KidStack)
+		q, s.kids = x, len(x.KidStack)
+		s.frame = confPtr(x.Frame)
+		if x.Frame != nil {
+			for _, v := range x.Frame.Vals {
+				s.vals = append(s.vals, confVal(v))
+			}
+		}
 	case *TParser:
-		q, kids = x.Parser, len(x.KidStack)
+		q, s.kids = x.Parser, len(x.KidStack)
+		s.frame = confPtr(x.Frame)
+		if x.Frame != nil {
+			for _, v := range x.Frame.Vals {
+				s.vals = append(s.vals, confVal(v))
+			}
+		}
 	default:
 		panic(fmt.Sprintf("probe: parser %T", p))
 	}
 	if q.Control != nil {
-		used = q.Control.budgetUsed()
+		s.used = q.Control.budgetUsed()
 	}
-	return q.Pos, used, kids, len(q.Recovered), q.Silent
+	s.pos, s.rec, s.silent = q.Pos, len(q.Recovered), q.Silent
+	s.far, s.exps = q.farthest, len(q.exp)-q.expBase
+	s.env = confPtr(q.Env)
+	return s
 }
 
 // ConfPre begins the call k on the parser p and returns p.
 func ConfPre[P any](p P, k int) P {
 	e := &ConfEvent{K: k, Args: map[int]any{}, p: p, Parent: -1}
-	e.Pos, e.Used, e.Kids, e.Rec, e.Silent = confState(p)
+	s := confState(p)
+	e.Pos, e.Used, e.Kids, e.Rec, e.Silent = s.pos, s.used, s.kids, s.rec, s.silent
+	e.Far, e.Exps, e.Frame, e.Env, e.Vals = s.far, s.exps, s.frame, s.env, s.vals
 	if n := len(confStack); n > 0 {
 		e.Parent = confStack[n-1].K
 	}
@@ -74,7 +119,9 @@ func ConfPost(xs ...any) {
 	n := len(confStack) - 1
 	e := confStack[n]
 	confStack = confStack[:n]
-	e.PosAfter, e.UsedAfter, e.KidsAfter, e.RecAfter, e.SilentAfter = confState(e.p)
+	s := confState(e.p)
+	e.PosAfter, e.UsedAfter, e.KidsAfter, e.RecAfter, e.SilentAfter = s.pos, s.used, s.kids, s.rec, s.silent
+	e.FarAfter, e.ExpsAfter, e.FrameAfter, e.EnvAfter, e.ValsAfter = s.far, s.exps, s.frame, s.env, s.vals
 	for _, x := range xs {
 		e.Results = append(e.Results, confVal(x))
 	}
@@ -109,7 +156,9 @@ func ConfPop3[A, B, C any](a A, b B, c C) (A, B, C) {
 
 // confVal returns the recorded form of a value: integers, runes and booleans as they are, a string
 // as "s:" and its text, a list as "len:" and its length, a mark as "mark:" and its position, an error
-// as "err:" and its message, and any other value as its type, or nil.
+// as "err:" and its message, a node value as "val:" and its type, start, end, number of children
+// and, for a string or an error, its text (separated by colons, the text last), and any other value
+// as its type, or nil.
 func confVal(x any) any {
 	switch v := x.(type) {
 	case nil:
@@ -126,6 +175,37 @@ func confVal(x any) any {
 		return "s:" + v
 	case Mark:
 		return fmt.Sprintf("mark:%d", v.Pos)
+	case *CaptureFrame:
+		return confPtr(v)
+	case *TCaptureFrame:
+		return confPtr(v)
+	case *Env:
+		return confPtr(v)
+	case *sxirvalue.Node:
+		if v == nil {
+			return nil
+		}
+		kids := 0
+		for range v.Elems() {
+			kids++
+		}
+		text := ""
+		if typ := v.Type(); typ == "string" || typ == "error" {
+			text = v.Text()
+		}
+		return fmt.Sprintf("val:%s:%d:%d:%d:%s", v.Type(), v.Start(), v.End(), kids, text)
+	case interface {
+		TSpan() (int, int)
+		TName() string
+		TText() (string, bool)
+		TKids() []any
+	}:
+		if r := reflect.ValueOf(x); r.Kind() == reflect.Pointer && r.IsNil() {
+			return nil
+		}
+		start, end := v.TSpan()
+		text, _ := v.TText()
+		return fmt.Sprintf("val:%s:%d:%d:%d:%s", v.TName(), start, end, len(v.TKids()), text)
 	case error:
 		if r := reflect.ValueOf(x); r.Kind() == reflect.Pointer && r.IsNil() {
 			return nil

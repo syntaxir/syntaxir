@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -178,6 +179,8 @@ type flowProbe struct {
 	calls []*code.Call
 	// printed are the operations whose Go form is nothing.
 	empty map[string]bool
+	// mutate changes the printed form of an operation (a negative control), if set.
+	mutate func(op, printed string) string
 }
 
 // flowBodyProbes matches the first line of each generated function that takes the parser: the body of
@@ -192,7 +195,8 @@ var firstParser = regexp.MustCompile(`(^|[^.\w])p\b`)
 // others are not wrapped: flow.append assigns to its first.
 var flowArgOps = []string{flow.OpRestore, flow.OpDropKids, flow.OpKids, flow.OpInClass, flow.OpGuardFails, flow.OpText,
 	flow.OpLiteralText, flow.OpReset, flow.OpMarkPos, flow.OpMergeExpected, flow.OpMergeRenamed, flow.OpKeep, flow.OpMakeError,
-	flow.OpErrorValue, flow.OpNewErrorNode}
+	flow.OpErrorValue, flow.OpNewErrorNode, flow.OpNewMatch, flow.OpNewTerminalNode, flow.OpNewBranchNode, flow.OpNewNode,
+	flow.OpExpect, flow.OpSetFrame, flow.OpSetEnv, flow.OpSetCapture, flow.OpFrameVal}
 
 func (pr *flowProbe) add(c *code.Call) int {
 	pr.mu.Lock()
@@ -223,6 +227,9 @@ func (pr *flowProbe) target(t *print.Target, pre *string) *print.Target {
 		k := pr.add(c)
 		mark := len(*pre)
 		s := t.Op(c, wrapArgs(c, args))
+		if pr.mutate != nil {
+			s = pr.mutate(name, s)
+		}
 		switch {
 		case s == "":
 			pr.mu.Lock()
@@ -302,6 +309,11 @@ type flowEvent struct {
 	Kids, KidsAfter     int
 	Rec, RecAfter       int
 	Silent, SilentAfter int
+	Far, FarAfter       int
+	Exps, ExpsAfter     int
+	Frame, FrameAfter   string
+	Env, EnvAfter       string
+	Vals, ValsAfter     []any
 	Args                map[int]any
 	Results             []any
 	Done                bool
@@ -314,27 +326,35 @@ type flowRun struct {
 	Events []flowEvent
 }
 
-func TestFlowOperationsConform(t *testing.T) {
-	codegentest.NeedsBudgetControls(t)
-	if testing.Short() {
-		t.Skip("builds generated parsers")
-	}
+// flowMutation breaks the code under test: lib changes the source of a file of the library copy by
+// name, and print changes the printed form of an operation by its name; either may be nil.
+type flowMutation struct {
+	lib   func(name, src string) string
+	print func(op, printed string) string
+}
+
+// flowConformRun builds the parsers of the cases against a copy of the library and the printer that
+// mut changes (the zero value leaves them as they are), runs them and returns the failures of the
+// checks of every recorded call and the number of recorded calls of each operation.
+func flowConformRun(t *testing.T, cases []flowConformCase, mut flowMutation) (msgs []string, covered map[string]int) {
+	t.Helper()
+	patch := mut.lib
 	probeSrc, err := os.ReadFile(filepath.Join("testdata", "flowconform", "probe.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	lib := codegentest.LibCopyWith(t, nil, map[string]string{"zz_probe.go": string(probeSrc)})
+	lib := codegentest.LibCopyWith(t, patch, map[string]string{"zz_probe.go": string(probeSrc)})
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(codegentest.GoModAt("flowconf", lib)), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	probes := map[string]*flowProbe{}
-	for _, c := range flowConformCases {
+	for _, c := range cases {
 		g, err := parseTest(c.src)
 		if err != nil {
 			t.Fatalf("%s: %v", c.name, err)
 		}
-		pr := &flowProbe{empty: map[string]bool{}}
+		pr := &flowProbe{empty: map[string]bool{}, mutate: mut.print}
 		probes[c.name] = pr
 		opts := c.opts
 		opts.Lib, opts.LimitControls, opts.KeepComments, opts.Expectations = common.LibImport, !c.noLimits, true, true
@@ -422,8 +442,8 @@ func TestProbe(t *testing.T) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("probed parsers: %v\n%s", err, out)
 	}
-	covered := map[string]int{}
-	for _, c := range flowConformCases {
+	covered = map[string]int{}
+	for _, c := range cases {
 		pr := probes[c.name]
 		for name := range pr.empty {
 			covered[name]++
@@ -443,6 +463,7 @@ func TestProbe(t *testing.T) {
 		}
 		for _, r := range runs {
 			in := ref.NewInput(r.Input)
+			var isolated []flowEvent
 			for _, e := range r.Events {
 				if e.K < 0 {
 					continue
@@ -453,11 +474,39 @@ func TestProbe(t *testing.T) {
 					continue
 				}
 				covered[name]++
+				covered["case:"+c.name+":"+name]++
+				for _, ch := range flowChanged(&e) {
+					covered["chg:"+name+":"+ch]++
+				}
+				// An isolation ends with the record that it began in.
+				switch name {
+				case flow.OpIsolate:
+					isolated = append(isolated, e)
+				case flow.OpUnisolate:
+					if n := len(isolated); n > 0 {
+						if b := isolated[n-1]; e.FarAfter != b.Far || e.ExpsAfter != b.Exps {
+							msgs = append(msgs, fmt.Sprintf("%s %q: %s at %d: restored the record at %d with %d expectations, not that at %d with %d before the isolation", c.name, r.Input, name, e.Pos, e.FarAfter, e.ExpsAfter, b.Far, b.Exps))
+						}
+						isolated = isolated[:n-1]
+					}
+				}
 				for _, msg := range checkFlowCall(in, flowOps()[name], call, &e) {
-					t.Errorf("%s %q: %s at %d: %s", c.name, r.Input, name, e.Pos, msg)
+					msgs = append(msgs, fmt.Sprintf("%s %q: %s at %d: %s", c.name, r.Input, name, e.Pos, msg))
 				}
 			}
 		}
+	}
+	return msgs, covered
+}
+
+func TestFlowOperationsConform(t *testing.T) {
+	codegentest.NeedsBudgetControls(t)
+	if testing.Short() {
+		t.Skip("builds generated parsers")
+	}
+	msgs, covered := flowConformRun(t, flowConformCases, flowMutation{})
+	for _, m := range msgs {
+		t.Error(m)
 	}
 	for _, o := range flow.Ops() {
 		if why, other := flowOtherTargets[o.Name]; other {
@@ -849,6 +898,142 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 			fail("changed the silent depth by %d, not %d", e.SilentAfter-e.Silent, d)
 		}
 	},
+	flow.OpNewMatch: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		if v, ok := checkNodeBuilt(e, fail); ok {
+			if s, isStr := e.Args[1].(string); isStr && strings.HasPrefix(s, "s:") && v.Text != s[2:] {
+				fail("built a match with the text %q, not %q", v.Text, s[2:])
+			}
+		}
+	},
+	flow.OpNewTerminalNode: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		if v, ok := checkNodeBuilt(e, fail); ok {
+			if s, isStr := e.Args[1].(string); isStr && strings.HasPrefix(s, "s:") && v.Text != s[2:] {
+				fail("built a terminal with the text %q, not %q", v.Text, s[2:])
+			}
+		}
+	},
+	flow.OpNewBranchNode: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		v, ok := checkNodeBuilt(e, fail)
+		if n, isLen := listLen(e.Args[1]); ok && isLen && v.Kids != n {
+			fail("built a branch of %d children from a list of %d", v.Kids, n)
+		}
+	},
+	flow.OpNewNode: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		v, ok := checkNodeBuilt(e, fail)
+		if n, isLen := listLen(e.Args[1]); ok && isLen && v.Kids != n {
+			fail("built a node of %d children from a list of %d", v.Kids, n)
+		}
+	},
+	flow.OpErrorValue: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		checkNodeBuilt(e, fail, "error")
+	},
+	flow.OpNewErrorNode: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		checkNodeBuilt(e, fail, "error")
+	},
+	flow.OpExpect: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		at, ok := argInt(e, 0)
+		if !ok {
+			return
+		}
+		switch {
+		case e.Silent > 0 || at < e.Far:
+			if e.FarAfter != e.Far || e.ExpsAfter != e.Exps {
+				fail("recorded an expectation at %d that the silent depth %d or the farthest failure %d drops", at, e.Silent, e.Far)
+			}
+		case at > e.Far:
+			if e.FarAfter != at || e.ExpsAfter != 1 {
+				fail("left the record at %d with %d expectations after one at %d, past the farthest failure %d", e.FarAfter, e.ExpsAfter, at, e.Far)
+			}
+		default:
+			if e.FarAfter != at || e.ExpsAfter < e.Exps || e.ExpsAfter > e.Exps+1 {
+				fail("left the record at %d with %d expectations of %d after one at the farthest failure %d", e.FarAfter, e.ExpsAfter, e.Exps, at)
+			}
+		}
+	},
+	flow.OpMergeExpected: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkMerge(e, fail) },
+	flow.OpMergeRenamed:  func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkMerge(e, fail) },
+	flow.OpIsolate: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		if e.ExpsAfter != 0 || e.FarAfter != e.Pos {
+			fail("began a record at %d with %d expectations, not an empty one at the position %d", e.FarAfter, e.ExpsAfter, e.Pos)
+		}
+	},
+	flow.OpUnisolate: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		if far, ok := resInt(e, 0); ok && far != e.Far {
+			fail("returned the farthest failure %d of a record at %d", far, e.Far)
+		}
+		if len(e.Results) < 2 {
+			return
+		}
+		if n, ok := listLen(e.Results[1]); ok && n != e.Exps {
+			fail("returned %d expectations of a record of %d", n, e.Exps)
+		}
+	},
+	flow.OpKeep: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		n, ok := listLen(e.Args[0])
+		if !ok || n == 0 {
+			return
+		}
+		if got, ok := listLen(firstResult(e)); !ok || got != n {
+			fail("kept %v of %d expectations", firstResult(e), n)
+		}
+	},
+	flow.OpMakeError: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		if firstResult(e) == nil {
+			fail("returned no error")
+		}
+	},
+	flow.OpSetFrame: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		if want := idOf(e.Args[0]); e.FrameAfter != want {
+			fail("made %s the current frame, not %s", e.FrameAfter, want)
+		}
+	},
+	flow.OpFrame: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		if got := idOf(firstResult(e)); got != e.Frame {
+			fail("returned the frame %s, the current one is %s", got, e.Frame)
+		}
+	},
+	flow.OpNewFrame: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		if got := idOf(firstResult(e)); got == "nil" || got == e.Frame {
+			fail("returned the frame %s, not a new one (the current one is %s)", got, e.Frame)
+		}
+		if e.FrameAfter != e.Frame {
+			fail("changed the current frame to %s", e.FrameAfter)
+		}
+	},
+	flow.OpSetEnv: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		if want := idOf(e.Args[0]); e.EnvAfter != want {
+			fail("made %s the environment, not %s", e.EnvAfter, want)
+		}
+	},
+	flow.OpEnv: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		if got := idOf(firstResult(e)); got != e.Env {
+			fail("returned the environment %s, the current one is %s", got, e.Env)
+		}
+	},
+	flow.OpSetCapture: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		slot := int(c.Imm.(flow.Slot))
+		if slot >= len(e.Vals) || len(e.ValsAfter) != len(e.Vals) {
+			fail("the frame has %d slots before and %d after, for slot %d", len(e.Vals), len(e.ValsAfter), slot)
+			return
+		}
+		if want, got := fmt.Sprint(e.Args[0]), fmt.Sprint(e.ValsAfter[slot]); got != want {
+			fail("set slot %d to %s, not %s", slot, got, want)
+		}
+		for i := range e.Vals {
+			if i != slot && fmt.Sprint(e.Vals[i]) != fmt.Sprint(e.ValsAfter[i]) {
+				fail("changed slot %d, not only slot %d", i, slot)
+			}
+		}
+	},
+	flow.OpFrameVal: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		slot := int(c.Imm.(flow.Slot))
+		if idOf(e.Args[0]) != e.Frame || slot >= len(e.Vals) {
+			return
+		}
+		if want, got := fmt.Sprint(e.Vals[slot]), fmt.Sprint(firstResult(e)); got != want {
+			fail("returned %s for slot %d, the frame holds %s", got, slot, want)
+		}
+	},
 	flow.OpCallRule: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
 		if ok, known := resBool(e, 1); known && !ok && e.PosAfter != e.Pos {
 			fail("failed and moved the position")
@@ -859,6 +1044,115 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 			fail("failed and moved the position")
 		}
 	},
+}
+
+// flowVal is a node value as the probes record it (confVal).
+type flowVal struct {
+	Type       string
+	Start, End int
+	Kids       int
+	Text       string
+}
+
+// valOf parses the recorded form of a node value.
+func valOf(x any) (v flowVal, ok bool) {
+	s, isStr := x.(string)
+	if !isStr || !strings.HasPrefix(s, "val:") {
+		return v, false
+	}
+	parts := strings.SplitN(s[len("val:"):], ":", 5)
+	if len(parts) != 5 {
+		return v, false
+	}
+	v.Type, v.Text = parts[0], parts[4]
+	for i, dst := range []*int{&v.Start, &v.End, &v.Kids} {
+		n, err := strconv.Atoi(parts[1+i])
+		if err != nil {
+			return v, false
+		}
+		*dst = n
+	}
+	return v, true
+}
+
+// checkNodeBuilt checks the node value that an operation returns: the span from the argument start to
+// the position, and the type kinds that the operation builds (any of types; none for any type).
+func checkNodeBuilt(e *flowEvent, fail failFunc, types ...string) (flowVal, bool) {
+	v, ok := valOf(firstResult(e))
+	if !ok {
+		return v, false
+	}
+	if start, ok := argInt(e, 0); ok && v.Start != start {
+		fail("built a value from %d, not from %d", v.Start, start)
+	}
+	if v.End != e.Pos {
+		fail("built a value to %d, not to the position %d", v.End, e.Pos)
+	}
+	if len(types) > 0 && !slices.Contains(types, v.Type) {
+		fail("built a value of type %s, not of %s", v.Type, strings.Join(types, " or "))
+	}
+	return v, true
+}
+
+// flowChanged lists the recorded components of the parser state that the call changed: the gathered
+// values (kids), the recovered errors (rec), the silent depth (silent), the record of expectations
+// (exp), the current frame (frame), the values of the current frame (vals) and the environment (env).
+func flowChanged(e *flowEvent) []string {
+	var ch []string
+	if e.Kids != e.KidsAfter {
+		ch = append(ch, "kids")
+	}
+	if e.Rec != e.RecAfter {
+		ch = append(ch, "rec")
+	}
+	if e.Silent != e.SilentAfter {
+		ch = append(ch, "silent")
+	}
+	if e.Far != e.FarAfter || e.Exps != e.ExpsAfter {
+		ch = append(ch, "exp")
+	}
+	if e.Frame != e.FrameAfter {
+		ch = append(ch, "frame")
+	} else if fmt.Sprint(e.Vals) != fmt.Sprint(e.ValsAfter) {
+		ch = append(ch, "vals")
+	}
+	if e.Env != e.EnvAfter {
+		ch = append(ch, "env")
+	}
+	return ch
+}
+
+// idOf is the identity of a recorded frame or environment: "nil" or "ptr:" and the address.
+func idOf(x any) string {
+	if x == nil {
+		return "nil"
+	}
+	return fmt.Sprint(x)
+}
+
+// checkMerge checks the merge of the expectations of a call, as the composition expect does for each
+// of them: nothing under silence or before the farthest failure, and otherwise the record at the
+// position of the merge.
+func checkMerge(e *flowEvent, fail failFunc) {
+	far, ok := argInt(e, 0)
+	n, isLen := listLen(e.Args[1])
+	if !ok || !isLen {
+		return
+	}
+	switch {
+	case e.Silent > 0 || far < e.Far || n == 0:
+		if e.FarAfter != e.Far || e.ExpsAfter != e.Exps {
+			fail("merged %d expectations at %d into the record at %d with silent depth %d and changed it", n, far, e.Far, e.Silent)
+		}
+	case far > e.Far:
+		if e.FarAfter != far || e.ExpsAfter < 1 {
+			fail("left the record at %d with %d expectations after a merge at %d, past the farthest failure %d", e.FarAfter, e.ExpsAfter, far, e.Far)
+		}
+	default:
+		if e.FarAfter != far || e.ExpsAfter < e.Exps {
+			fail("left the record at %d with %d expectations of %d after a merge at the farthest failure", e.FarAfter, e.ExpsAfter, e.Exps)
+		}
+	}
 }
 
 func firstResult(e *flowEvent) any {
