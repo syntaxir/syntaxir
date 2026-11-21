@@ -363,22 +363,23 @@ returns to the start of the growth.`,
 steps that the memoized steps and jumps of the context give, and starts recording what the step it
 reports depends on.`,
 		Requires: `grow.ctx(g) holds, g is the innermost growth, and the step that the last call reported has been received by grow.step.`})
-	add(&code.Op{Name: "grow.step", Component: Growth, Params: []code.Param{code.P("g", grow), code.P("value", value),
-		code.P("ok", code.TBool)}, Reads: []string{Growth}, Writes: append([]string{Growth, Rec}, regs...), NoReturn: true,
+	m.AddOp(&code.Op{Name: "grow.step", Component: Growth, Params: []code.Param{code.P("g", grow), code.P("value", value),
+		code.P("ok", code.TBool), code.P("errs", errs)}, Reads: []string{Growth}, Writes: append([]string{Growth}, regs...), NoReturn: true,
 		Cost: code.Cost{Const: 66, Terms: []code.CostTerm{{Coef: 1, Quantity: QMerge}, {Coef: 1, Quantity: QSegs}, {Coef: 2, Quantity: QDeps}, {Coef: 1, Quantity: QTable}, {Coef: 1, Quantity: QRun}}},
-		Contract: `Receives the result of a step of the growth g: keeps it in the context, adopts it as the seed,
-charging one unit, and returns to the start of the growth if the match grew, dropping the entries after
-the mark that the growth took when it began, and otherwise ends the growth. A step that succeeded
-holds the errors it recovered as the list that rec.since returns for that mark; a step that failed
-holds none.`,
-		Requires: `grow.ctx(g) holds, and the last call of grow.next(g) returned true and its step has not been received yet; the calls that the body made have ended.`})
-	add(&code.Op{Name: "grow.end", Component: Growth, Params: []code.Param{code.P("g", grow)}, Results: []code.Type{res},
-		Reads: []string{Growth}, Writes: append([]string{Growth, Rec}, regs...), NoReturn: true, Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QRun}, {Coef: 1, Quantity: QErrs}}},
-		Contract: `Ends the growth g and returns its last seed: the position moves to its end, and its recovered
-errors replace the entries recorded since the growth began. Outside the missing-token mode they are
-recorded as rec.add does, at no cost; in that mode as missing.replay does. The result is the last
-seed of the growth, in a context or not: the one that grow.adopt or grow.step adopted last, or the failed
-seed if none was; it may be that same result or a copy of it, which is not specified, as no operation changes a result.`,
+		Contract: `Receives the result of a step of the growth g with the errors errs that it recovered: keeps it in
+the context, adopts it as the seed, charging one unit, and returns to the start of the growth if the
+match grew, and otherwise ends the growth. It does not change the recovered errors: the caller lists
+the errors of the step with rec.since and drops the entries after the mark of the growth with
+rec.truncate.`,
+		Requires: `grow.ctx(g) holds, and the last call of grow.next(g) returned true and its step has not been received yet; the calls that the body made have ended. errs is the list that rec.since returns for the mark of the growth, after the entries of a step that failed were dropped.`})
+	m.AddOp(&code.Op{Name: "grow.end", Component: Growth, Params: []code.Param{code.P("g", grow)}, Results: []code.Type{res},
+		Reads: []string{Growth}, Writes: append([]string{Growth}, regs...), NoReturn: true, Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QRun}, {Coef: 1, Quantity: QErrs}}},
+		Contract: `Ends the growth g and returns its last seed: the position moves to its end. It does not change
+the recovered errors: the caller drops the entries recorded since the growth began with rec.truncate and
+records the errors of the seed, as rec.add does or, in the missing-token mode, as missing.replayResult
+does. The result is the last seed of the growth, in a context or not: the one that grow.adopt or grow.step
+adopted last, or the failed seed if none was; it may be that same result or a copy of it, which is not
+specified, as no operation changes a result.`,
 		Requires: `g is the innermost growth, and no step that grow.next reported is pending.`})
 
 	m.AddOp(&code.Op{Name: "obs.memoHit", Component: Obs, Writes: []string{Obs}, Features: []string{Observe},

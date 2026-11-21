@@ -384,7 +384,6 @@ the rule is called at the position again, or its memoization is no longer deferr
 	// not match more than the seed, and adopts each step that does with the errors it recovered after
 	// the mark rec, dropping them from the record before the next step, and calling reset after.
 	steps := func(b *Builder, g Expr, reset func(b *Builder)) {
-		b.Let("rec", C("rec.mark"))
 		b.Loop("m", func(b *Builder) {
 			b.LetN([]string{"v", "ok"}, C("rule.invoke", r, L("min")))
 			b.If(Not(C("grow.longer", g, L("ok"))), func(b *Builder) { b.Break("m") })
@@ -393,29 +392,53 @@ the rule is called at the position again, or its memoization is no longer deferr
 			reset(b)
 		})
 	}
+	// growBody is the growth with the mark rec of the recovered errors taken before it, and reset called
+	// after each step that outside a context is adopted and after the growth ends. A step in a context
+	// holds the errors it recovered if it succeeded, and drops them from the record after it; at the end the
+	// errors of the seed replace the entries recorded since the growth began, as the missing-token mode
+	// records them again if replay.
+	growBody := func(b *Builder, reset func(b *Builder), replay bool) {
+		g := b.Let("g", C("grow.begin", r, L("min")))
+		b.IfElse(C("grow.ctx", g), func(b *Builder) {
+			b.Loop("l", func(b *Builder) {
+				b.If(Not(C("grow.next", g)), func(b *Builder) { b.Break("l") })
+				b.LetN([]string{"v", "ok"}, C("rule.invoke", r, L("min")))
+				// A step that failed holds no errors: the ones it recovered are dropped first.
+				b.If(Not(L("ok")), func(b *Builder) { b.Do("rec.truncate", L("rec")) })
+				b.Do("grow.step", g, L("v"), L("ok"), C("rec.since", L("rec")))
+				b.Do("rec.truncate", L("rec"))
+			})
+		}, func(b *Builder) { steps(b, g, reset) })
+		best := b.Let("best", C("grow.end", g))
+		b.Do("rec.truncate", L("rec"))
+		reset(b)
+		if replay {
+			b.IfElse(C("missing.active"), func(b *Builder) { b.Do("missing.replayResult", best) },
+				func(b *Builder) { b.Do("rec.add", C("ctx.errs", best)) })
+		} else {
+			b.Do("rec.add", C("ctx.errs", best))
+		}
+		b.Set("bv", C("ctx.value", best))
+		b.Set("bok", C("ctx.ok", best))
+	}
 	grow := m.AddFunc("grow", []Param{P("r", rule), P("min", TInt)}, result,
 		[]string{exec.Typed, exec.Missing}, func(b *Builder) {
-			g := b.Let("g", C("grow.begin", r, L("min")))
-			b.IfElse(C("grow.ctx", g), func(b *Builder) {
-				b.Loop("l", func(b *Builder) {
-					b.If(Not(C("grow.next", g)), func(b *Builder) { b.Break("l") })
-					b.LetN([]string{"v", "ok"}, C("rule.invoke", r, L("min")))
-					b.Do("grow.step", g, L("v"), L("ok"))
-				})
-			}, func(b *Builder) {
-				// In the missing-token mode, a step also drops the tokens it inserted.
-				b.IfElse(F(exec.Missing), func(b *Builder) {
-					mm := b.Let("mm", C("missing.mark"))
-					steps(b, g, func(b *Builder) { b.Do("missing.reset", mm) })
-				}, func(b *Builder) { steps(b, g, func(*Builder) {}) })
-			})
-			best := b.Let("best", C("grow.end", g))
-			b.Return(C("ctx.value", best), C("ctx.ok", best))
+			b.Var("bv", value)
+			b.Var("bok", TBool)
+			b.Let("rec", C("rec.mark"))
+			// In the missing-token mode, a step also drops the tokens it inserted.
+			b.IfElse(F(exec.Missing), func(b *Builder) {
+				mm := b.Let("mm", C("missing.mark"))
+				growBody(b, func(b *Builder) { b.Do("missing.reset", mm) }, true)
+			}, func(b *Builder) { growBody(b, func(*Builder) {}, false) })
+			b.Return(L("bv"), L("bok"))
 		})
 	grow.Doc = `grow grows the seed of a left-recursive leader from a failure: it evaluates the body again while
 the match gets longer, and returns the last longer result. A growth in a context takes its steps
 through the context, which may give them without evaluating the body. Outside a context, the form
-specialized for missing also drops the tokens that each adopted step inserted.`
+specialized for missing also drops the tokens that each adopted step inserted. A step holds the errors it
+recovered, and the entries they made are dropped from the record after it; the growth ends with the errors
+of its last result in place of the entries recorded since it began.`
 
 	// observe reports the call that body makes to the observation, with how far it examined the input.
 	observe := func(body func(b *Builder)) func(b *Builder) {

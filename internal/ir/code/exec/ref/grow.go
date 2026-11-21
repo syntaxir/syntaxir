@@ -91,7 +91,7 @@ func (m *Model) callGrow(o *code.Op, args []any) ([]any, bool) {
 		res := &CtxResult{ok: ok, end: m.pos(), value: args[1], silent: m.silent(), far: far, kept: kept,
 			examined: m.doc.examined, from: m.doc.low}
 		if ok {
-			res.errs = m.recSince(g.rec)
+			res.errs = args[3]
 		} else {
 			res.end = g.start
 		}
@@ -111,10 +111,6 @@ func (m *Model) callGrow(o *code.Op, args []any) ([]any, bool) {
 		res := &CtxResult{ok: best.ok, end: best.end, value: best.value, errs: best.errs, silent: m.silent(),
 			examined: m.doc.examined, from: m.doc.low}
 		m.regs[exec.Pos] = best.end
-		m.rec = m.rec[:g.rec]
-		if l, _ := best.errs.(*ErrList); l != nil && l.n > 0 {
-			m.rec = append(slices.Clip(m.rec), l)
-		}
 		s.grown, s.grownRule = res, rec.key.rule
 		return []any{res}, true
 	}
@@ -122,8 +118,7 @@ func (m *Model) callGrow(o *code.Op, args []any) ([]any, bool) {
 }
 
 // advance continues the growth g after a step with result res and identity rid: it adopts res as the seed
-// if the match grew, returning to the start of the growth with the errors cut back, and otherwise ends
-// the growth. It reports whether the growth continues.
+// if the match grew, returning to the start of the growth, and otherwise ends the growth. It reports whether the growth continues.
 func (m *Model) advance(g *GrowState, res *CtxResult, rid uint64) bool {
 	rec := &m.ctx.growths[g.gi]
 	if !res.ok || rec.seed.ok && res.end <= rec.seed.end {
@@ -132,7 +127,6 @@ func (m *Model) advance(g *GrowState, res *CtxResult, rid uint64) bool {
 	}
 	rec.seed, rec.id = res, rid
 	m.regs[exec.Pos] = g.start
-	m.rec = m.rec[:g.rec]
 	return true
 }
 
@@ -199,22 +193,4 @@ func (m *Model) mergeKeptExpectations(far int64, k *ExpKept) {
 			s.cur.ids = append(slices.Clip(s.cur.ids), id)
 		}
 	}
-}
-
-// recSince returns the entries of the recovered-error list after the mark as one list and puts it in their
-// place, as rec.since does, and nil for none.
-func (m *Model) recSince(mark int64) any {
-	after := m.rec[mark:]
-	switch len(after) {
-	case 0:
-		return nil
-	case 1:
-		return after[0]
-	}
-	l := &ErrList{entries: slices.Clone(after)}
-	for _, e := range after {
-		l.n += e.n
-	}
-	m.rec = append(m.rec[:mark:mark], l)
-	return l
 }

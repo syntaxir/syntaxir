@@ -296,23 +296,31 @@ func (p *Parser) CallEnd(r *Rule, st *CallState, v *zpvalue.Node, ok bool) (*zpv
 // grow grows the seed of a left-recursive leader from a failure: it evaluates the body again while
 // the match gets longer, and returns the last longer result. A growth in a context takes its steps
 // through the context, which may give them without evaluating the body. Outside a context, the form
-// specialized for missing also drops the tokens that each adopted step inserted.
+// specialized for missing also drops the tokens that each adopted step inserted. A step holds the errors it
+// recovered, and the entries they made are dropped from the record after it; the growth ends with the errors
+// of its last result in place of the entries recorded since it began.
 //
 // Printed from Exec IR function grow of internal/ir/code/exec/compose, specialized for missing.
 func (p *Parser) grow(r *Rule, min int) (*zpvalue.Node, bool) {
-	g := p.GrowBegin(p.GrowKey(r, min), r)
-	if g.ctx {
-		for {
-			if !p.GrowNext(&g) {
-				break
+	var bv *zpvalue.Node
+	var bok bool
+	rec := len(p.Recovered)
+	{
+		mm := p.missingMark()
+		g := p.GrowBegin(p.GrowKey(r, min), r)
+		if g.ctx {
+			for {
+				if !p.GrowNext(&g) {
+					break
+				}
+				v, ok := p.invoke(r, min)
+				if !ok {
+					p.Recovered = p.Recovered[:rec]
+				}
+				p.GrowStep(&g, v, ok, p.recSince(rec))
+				p.Recovered = p.Recovered[:rec]
 			}
-			v, ok := p.invoke(r, min)
-			p.GrowStep(&g, v, ok)
-		}
-	} else {
-		{
-			mm := p.missingMark()
-			rec := len(p.Recovered)
+		} else {
 			for {
 				v, ok := p.invoke(r, min)
 				if !p.growLonger(&g, ok) {
@@ -325,9 +333,20 @@ func (p *Parser) grow(r *Rule, min int) (*zpvalue.Node, bool) {
 				}
 			}
 		}
+		best := p.growEnd(r, &g)
+		p.Recovered = p.Recovered[:rec]
+		if p.Missing != nil {
+			p.ResetMissing(mm)
+		}
+		if p.Missing != nil {
+			p.ReplayMissing(p.MissingSeedEvents(best.e), best.e.Errs)
+		} else {
+			p.recAdd(best.e.Errs)
+		}
+		bv = best.e.Node
+		bok = best.e.Ok
 	}
-	best := p.growEnd(r, &g)
-	return best.e.Node, best.e.Ok
+	return bv, bok
 }
 
 // Expect records that id was expected at pos: an expectation before the farthest failure or in a

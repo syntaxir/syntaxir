@@ -597,7 +597,7 @@ func engineTarget() *print.Target {
 		case "grow.next":
 			return "p.GrowNext(&" + a[0] + ")"
 		case "grow.step":
-			return fmt.Sprintf("p.GrowStep(&%s, %s, %s)", a[0], a[1], a[2])
+			return fmt.Sprintf("p.GrowStep(&%s, %s, %s, %s)", a[0], a[1], a[2], a[3])
 		case "grow.end":
 			return "p.growEnd(r, &" + a[0] + ")"
 		}

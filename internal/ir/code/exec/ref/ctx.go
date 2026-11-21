@@ -127,9 +127,7 @@ type GrowState struct {
 	gi, gp int
 	start  int64
 	serial uint64
-	// rec is the number of entries of the recovered-error list when the growth began: the mark that its
-	// steps and its end cut the list back to. present is the present set of the context of a growth in one.
-	rec     int64
+	// present is the present set of the context of a growth in one.
 	present uint64
 	// done is set when a step did not grow the seed, evaluating while a step is between grow.next and
 	// grow.step, with the number of frames after the step's frame began, and the isolation of its
@@ -617,7 +615,7 @@ func (m *Model) callCtx(o *code.Op, args []any) ([]any, bool) {
 		r := args[0].(RuleRef)
 		pos, cr := m.pos(), m.ctxRule(r)
 		s.serials++
-		g := &GrowState{gi: len(s.growths), gp: s.gammaAt(pos, cr.Cycle), start: pos, serial: s.serials, rec: int64(len(m.rec))}
+		g := &GrowState{gi: len(s.growths), gp: s.gammaAt(pos, cr.Cycle), start: pos, serial: s.serials}
 		s.growths = append(s.growths, growthRec{pos: pos, cycle: cr.Cycle, key: growKey{r.Index, args[1].(int64)},
 			bit: m.leaderBit(r), idx: m.leaderIndex(r), id: failSeed, serial: g.serial,
 			seed: &CtxResult{end: pos, examined: pos, from: pos}})

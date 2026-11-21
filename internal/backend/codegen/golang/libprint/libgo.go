@@ -575,7 +575,7 @@ func goTarget(s goSpec) *print.Target {
 		case "grow.next":
 			return "p.growNext(&" + a[0] + ")"
 		case "grow.step":
-			return fmt.Sprintf("p.growStep(&%s, %s, %s)", a[0], step(a[1]), a[2])
+			return fmt.Sprintf("p.growStep(&%s, %s, %s, %s)", a[0], step(a[1]), a[2], a[3])
 		case "grow.end":
 			return "p.growEnd(&" + a[0] + ")"
 		}

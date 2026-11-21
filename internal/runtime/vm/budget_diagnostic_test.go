@@ -109,7 +109,7 @@ func TestBudgetDiagnosticRecoveredLists(t *testing.T) {
 					pushRecords()
 					steps++ // the growth step
 					run = func() {
-						if p.GrowStep(&g, retained, true); !p.GrowNext(&g) {
+						if p.GrowStepVM(&g, retained, true); !p.GrowNext(&g) {
 							t.Fatal("LR seed did not grow")
 						}
 					}
@@ -126,7 +126,7 @@ func TestBudgetDiagnosticRecoveredLists(t *testing.T) {
 					}
 				case "LR replay":
 					g := state.GrowState{Rec: 1, Best: &state.MemoEntry{Ok: true, End: 1, Node: retained, Errs: list}}
-					run = func() { p.GrowEnd(r, &g) }
+					run = func() { p.GrowEndVM(r, &g) }
 					completed = assertReplay
 				case "OperatorsRule snapshot", "iterative OperatorsRule snapshot":
 					op := &state.OperatorsRuleOp{Kind: ast.Prefix, Line: &state.OperatorsRuleLine{Scope: &program.Scope{}}}

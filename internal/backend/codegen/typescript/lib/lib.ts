@@ -2674,7 +2674,6 @@ export interface GrowState {
   rule: number;
   min: number;
   start: number;
-  rec: number;
   gi: number;
   gp: number;
   ctx: boolean;
@@ -4107,18 +4106,24 @@ export class Parser {
   // the match gets longer, and returns the last longer result. A growth in a context takes its steps
   // through the context, which may give them without evaluating the body.
   grow(r: Rule, min: number): R {
-    const g = this.growBegin(r, min);
-    if (g.ctx) {
-      for (;;) {
-        if (!this.growNext(g)) {
-          break;
+    let bv: R = null;
+    let bok: boolean = false;
+    const rec = this.recovered.length;
+    {
+      const g = this.growBegin(r, min);
+      if (g.ctx) {
+        for (;;) {
+          if (!this.growNext(g)) {
+            break;
+          }
+          const v = this.invoke(r, min);
+          if (v === undefined) {
+            this.recovered.length = rec;
+          }
+          this.growStep(g, v, v !== undefined, this.recSince(rec));
+          this.recovered.length = rec;
         }
-        const v = this.invoke(r, min);
-        this.growStep(g, v, v !== undefined);
-      }
-    } else {
-      {
-        const rec = this.recovered.length;
+      } else {
         for (;;) {
           const v = this.invoke(r, min);
           if (!this.growLonger(g, v !== undefined)) {
@@ -4128,9 +4133,13 @@ export class Parser {
           this.recovered.length = rec;
         }
       }
+      const best = this.growEnd(g);
+      this.recovered.length = rec;
+      this.recAdd(best!.errs);
+      bv = best!.node;
+      bok = best!.ok;
     }
-    const best = this.growEnd(g);
-    return best!.ok ? best!.node : undefined;
+    return bok ? bv : undefined;
   }
 
   // --- The dependency memo of left recursion ---
@@ -4718,7 +4727,7 @@ export class Parser {
     const start = this.pos;
     const gi = this.gamma.length;
     const gp = this.gammaAt(start, r.cycle);
-    const g: GrowState = { rule: r.id, min, start, rec: this.recovered.length, gi, gp, ctx: false, present: 0, done: false, savedExamined: 0, exp: 0, run: [] };
+    const g: GrowState = { rule: r.id, min, start, gi, gp, ctx: false, present: 0, done: false, savedExamined: 0, exp: 0, run: [] };
     this.alloc(objectBytes(7) + objectBytes(8));
     this.gamma.push({ rule: r.id, min, pos: start, cycle: r.cycle, bit: r.leaderBit, idx: r.leaderIndex, seed: newCtxResult(undefined, false, start, false, noErrs, 0, noExp, this.examinedNow()), id: failSeed });
     if (gp < gi) {
@@ -4773,7 +4782,6 @@ export class Parser {
     }
   }
 
-  // growStep receives the result v of a step and adopts it as the seed if the match grew.
   // growLonger reports whether a step of a growth outside a context, with success ok and ending at the
   // position, matched more than the seed.
   growLonger(g: GrowState, ok: boolean): boolean {
@@ -4793,9 +4801,10 @@ export class Parser {
     this.pos = g.start;
   }
 
-  // growStep receives the result of a step of a growth in a context and adopts it as the seed if the
-  // match grew.
-  growStep(g: GrowState, v: R, ok: boolean): void {
+  // growStep receives the result of a step of a growth in a context, with the errors errs that it recovered
+  // if it succeeded, and adopts it as the seed if the match grew. It does not change the recovered errors:
+  // the printed growth lists the errors of the step with recSince and drops them after the step.
+  growStep(g: GrowState, v: R, ok: boolean, errs: Errs): void {
     const id = this.gamma[g.gi]!.id;
     const ds = this.popFrame().deps;
     const far = this.unisolate(g.exp);
@@ -4806,7 +4815,7 @@ export class Parser {
       this.docExamined = Math.max(g.savedExamined, this.docExamined);
     }
     this.alloc(objectBytes(8));
-    let res = newCtxResult(v, ok, ok ? this.pos : g.start, this.silent > 0, ok ? this.recSince(g.rec) : noErrs, 0, noExp, examined);
+    let res = newCtxResult(v, ok, ok ? this.pos : g.start, this.silent > 0, ok ? errs : noErrs, 0, noExp, examined);
     const c = this.canonicalSeed(g, res);
     res = c.e;
     const sd = this.stored(ds);
@@ -4859,7 +4868,6 @@ export class Parser {
     this.spend();
     this.setSeed(g, res, rid);
     this.pos = g.start;
-    this.recovered.length = g.rec;
     return true;
   }
 
@@ -4870,7 +4878,9 @@ export class Parser {
     rec.id = id;
   }
 
-  // growEnd ends the growth and returns its last result, which the call stores.
+  // growEnd ends the growth and returns its last result, which the call stores. It does not change the
+  // recovered errors: the printed growth drops the entries after the growth's mark and records the
+  // errors of the result.
   growEnd(g: GrowState): CtxResult {
     this.recordJumps(g);
     this.dropTable(g.gi);
@@ -4880,8 +4890,6 @@ export class Parser {
       this.interned.clear();
     }
     this.pos = best.end;
-    this.recovered.length = g.rec;
-    this.recAdd(best.errs);
     return best;
   }
 

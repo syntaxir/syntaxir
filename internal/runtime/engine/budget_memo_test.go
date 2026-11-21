@@ -338,7 +338,7 @@ rule expr = expr "a" / "a"`)
 	p.Pos, p.Hw = 1, 1
 	p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 64})
 	p.Control.Used = 64
-	if err := catchFatal(t, func() { p.GrowStep(&g, retained, true) }); !errors.Is(err, runtime.ErrLimit) {
+	if err := catchFatal(t, func() { p.GrowStepVM(&g, retained, true) }); !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("LR replacement interruption=%v", err)
 	}
 	if p.Memo.Slots[0] != oldHead {
@@ -448,12 +448,12 @@ rule expr = expr "a" / "a"`)
 	begin := 1<<10 - (p.Control.Limits.Compute - p.Control.Used)
 	p.Pos = 1
 	used := p.Control.Used
-	if p.GrowStep(&g, retained, true); !p.GrowNext(&g) {
+	if p.GrowStepVM(&g, retained, true); !p.GrowNext(&g) {
 		t.Fatal("the seed did not grow")
 	}
 	step := p.Control.Used - used
 	p.Pos, used = 1, p.Control.Used
-	if p.GrowStep(&g, retained, true); p.GrowNext(&g) || p.Control.Used != used {
+	if p.GrowStepVM(&g, retained, true); p.GrowNext(&g) || p.Control.Used != used {
 		t.Fatalf("a step that does not grow charged %d units, want 0: no evaluation follows it", p.Control.Used-used)
 	}
 	p.ReleaseScratch()
@@ -475,7 +475,7 @@ rule expr = expr "a" / "a"`)
 	g = p.GrowBegin(key, inlinedRules(t, prog)[expr.ID])
 	seed := g.Best
 	p.Pos = 1
-	if err := catchFatal(t, func() { p.GrowStep(&g, retained, true) }); !errors.Is(err, runtime.ErrLimit) {
+	if err := catchFatal(t, func() { p.GrowStepVM(&g, retained, true) }); !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("growth step short of a unit: %v", err)
 	}
 	if stored, ok := p.GrowingSeed(key); !ok || stored != seed || p.Pos != 1 {

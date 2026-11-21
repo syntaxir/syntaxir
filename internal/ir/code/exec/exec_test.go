@@ -39,7 +39,8 @@ func TestParserGolden(t *testing.T) {
 
 // TestCrossComponentWriters pins the transitional operations of the whole abstract machine (machine) that write
 // a component other than their own, which Verify allows only for transitional operations: the growth
-// operations that record recovered errors again. Another writer needs a reason recorded here. The
+// operations that recorded recovered errors again have since moved that write to the grow composition, so
+// none is left. A new writer needs a reason recorded here. The
 // leaves of terms, which the lowering declares, are pinned there (TestTermLeavesWriteOwnComponent).
 func TestCrossComponentWriters(t *testing.T) {
 	m := machine()
@@ -51,7 +52,7 @@ func TestCrossComponentWriters(t *testing.T) {
 			}
 		}
 	}
-	want := []string{"grow.step writes " + exec.Rec, "grow.end writes " + exec.Rec}
+	var want []string
 	if !slices.Equal(got, want) {
 		t.Errorf("cross-component writers:\n got %q\nwant %q", got, want)
 	}

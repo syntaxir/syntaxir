@@ -295,11 +295,11 @@ entry points, so that the `ctx` operations are checked apart from how growth ste
 context keeps is a composition, as the reuse of a memo entry is: accessors of the result (`ctx.end`, `ctx.errs`,
 `ctx.far`, `ctx.expected`, and in a Document parse `ctx.examined` and `ctx.before`) feed the operations of the
 call bookkeeping, the expectations, the position and the recovered errors, so each part is held to its own
-component's model and charges what that part charges. An operation that writes a component other than its own
-(`grow.step` and `grow.end`, which write the recovered errors) is modelled as the composition of those components'
-models that its contract names, and stays transitional, as the verifier allows no other kind to write
-another component, until the write is split out into the composition that calls the operations of the other
-component. The growth in a context (its steps,
+component's model and charges what that part charges. An operation writes only its own component
+(the verifier allows no other kind to write another), so the growth operations leave the recovered errors to the composition that calls
+them: it takes the errors of a step with `rec.since` before `grow.step`, drops the entries after the mark of the growth with
+`rec.truncate` after it, and at `grow.end` drops them again and records the errors of the seed, as `rec.add` does or, in the
+missing-token mode, as `missing.replayResult` does. The growth in a context (its steps,
 jumps and runs, and the canonical identities of equal seeds) has a model of its own on that state. The model
 takes the steps of a growth one at a time, as the table of the context gives them, and a target may take a run
 of error-free steps as one jump. The cases cover that the steps a second growth at the same position takes from
@@ -309,9 +309,9 @@ that omits it (and, on generated TypeScript, by a broken library). Argued by equ
 takes the same steps as the table would give one at a time, which the cases observe through the same results
 and not through the jump taken; the counts of reads of seeds, which only Document parses observe (a broken engine
 that does not count the read of a memoized step is noticed by neither these cases nor the Document tests); and the
-choice among several jumps recorded for one seed. The cost of the three operations is not modelled yet. And
-`grow.next`, which writes only its own component, is no longer transitional; keeping the result of a call in a context is modelled and passes the success of the
-result apart from its value, as a result without a value can succeed, except for the keep of a cycle leader, which the model refuses until it models the end of the growth (`grow.end`); the missing-token mode, in which no result in a context is memoized, and Document parses are outside the
+choice among several jumps recorded for one seed. The cost of the three operations is not modelled yet.
+`grow.next`, `grow.step` and `grow.end` are not transitional; keeping the result of a call in a context is modelled and passes the success of the
+result apart from its value, as a result without a value can succeed, except for the keep of a cycle leader, which the model allows only after the end of its growth (`grow.end`); the missing-token mode, in which no result in a context is memoized, and Document parses are outside the
 cases. One target charges for converting the dependencies that a frame ended into stored ones when the frame ends
 and the other when the result is kept, so both `ctx.pop` and `ctx.keep` declare that cost. *Shared*: what a result depends on and when it is reused, the seed identities, the present sets, the
 order of the dependency sets. *Target*: table layout, keys and hashing, allocation of results, the width of the
@@ -380,10 +380,8 @@ recovered errors stops being valid where an edit would move it. The operations a
 of each error and of each list compared after every write, on generated Go and the engine; TypeScript stays on its
 parity tests. The operations of the missing-token mode, which only the engine has, have a reference model of the tokens
 a parse inserts and conformance cases that compare them after each write, on the engine; a rule that can insert a token
-is not memoized in that mode. The growth operations `grow.step` and `grow.end` have a model that includes that write, but stay transitional: they record a seed's
-errors again, a write to the recovered errors from another component that the verifier allows only for transitional
-operations, and where that write belongs depends on the design of the left-recursion context, which also replays a
-call's errors and is not settled. *Target*: the representation of entries and lists, the scratch a stream keeps, and
+is not memoized in that mode. The growth operations `grow.step` and `grow.end` do not write the recovered errors: the composition of the growth lists, drops and
+records them with `rec.since`, `rec.truncate`, `rec.add` and `missing.replayResult`. *Target*: the representation of entries and lists, the scratch a stream keeps, and
 where the sites that make an error record it: grammar code and the recovery of each engine write the push in their own
 language.
 

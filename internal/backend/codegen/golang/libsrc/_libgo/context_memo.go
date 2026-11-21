@@ -946,7 +946,6 @@ func (p *Parser) lookEnd(ok bool) {
 type growState struct {
 	rule, min int32
 	start     int
-	rec       int
 	gi        int // the index of the growth in gamma
 	gp        int // the index in gamma of the first growth of the leader's cycle at the position
 	// ctx reports a growth in a context, whose steps are memoized with the present set present.
@@ -981,7 +980,7 @@ func (p *Parser) growBegin(r *Rule, min int) growState {
 	p.use(featureLeftRecursion)
 	// One compute unit before each evaluation of the body, the seed's included.
 	p.Spend()
-	g := growState{rule: int32(r.Id), min: int32(min), start: p.Pos, rec: len(p.Recovered), gi: len(p.gamma)}
+	g := growState{rule: int32(r.Id), min: int32(min), start: p.Pos, gi: len(p.gamma)}
 	g.gp = p.gammaAt(p.Pos, r.Cycle)
 	// The record is written in place: a growth is pushed for every call of a leader that misses.
 	if g.gi < cap(p.gamma) {
@@ -1067,9 +1066,11 @@ func (p *Parser) growAdopt(g *growState, node *zpvalue.Node, val any, errs recEn
 	p.Pos = g.start
 }
 
-// growStep receives the result of a step of a growth in a context, a node or a typed value, and
-// adopts it as the seed if the match grew.
-func (p *Parser) growStep(g *growState, node *zpvalue.Node, val any, ok bool) {
+// growStep receives the result of a step of a growth in a context, a node or a typed value, with the
+// errors errs that it recovered if it succeeded, and adopts it as the seed if the match grew. It does not
+// change the recovered errors: the printed growth lists the errors of the step with recSince and drops
+// them after the step.
+func (p *Parser) growStep(g *growState, node *zpvalue.Node, val any, ok bool, errs recEntry) {
 	id := p.gamma[g.gi].id
 	_, ds := p.popFrame()
 	far, inner := p.Unisolate(g.exp)
@@ -1081,7 +1082,7 @@ func (p *Parser) growStep(g *growState, node *zpvalue.Node, val any, ok bool) {
 	}
 	res := &ctxResult{node: node, val: val, ok: ok, end: p.Pos, examined: examined, silent: p.Silent > 0}
 	if ok {
-		res.errs = p.recSince(g.rec)
+		res.errs = errs
 	} else {
 		res.end = g.start
 	}
@@ -1135,7 +1136,6 @@ func (p *Parser) advance(g *growState, res *ctxResult, rid uint64, st runStep) b
 	p.Spend()
 	p.setSeed(g, res, rid)
 	p.Pos = g.start
-	p.Recovered = p.Recovered[:g.rec]
 	return true
 }
 
@@ -1144,7 +1144,9 @@ func (p *Parser) setSeed(g *growState, e *ctxResult, id uint64) {
 	p.gamma[g.gi].seed, p.gamma[g.gi].id = e, id
 }
 
-// growEnd ends the growth and returns its last result, which the call stores.
+// growEnd ends the growth and returns its last result, which the call stores. It does not change the
+// recovered errors: the printed growth drops the entries after the growth's mark and records the errors
+// of the result.
 func (p *Parser) growEnd(g *growState) ctxResult {
 	p.recordJumps(g)
 	p.dropTable(g.gi)
@@ -1156,8 +1158,6 @@ func (p *Parser) growEnd(g *growState) ctxResult {
 		p.internSeq = 0
 	}
 	p.Pos = best.end
-	p.Recovered = p.Recovered[:g.rec]
-	p.recAdd(best.errs)
 	return best
 }
 

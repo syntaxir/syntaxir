@@ -148,22 +148,30 @@ func (p *TParser) firstCall(r *TRule) bool {
 // grow grows the seed of a left-recursive leader from a failure: it evaluates the body again while
 // the match gets longer, and returns the last longer result. A growth in a context takes its steps
 // through the context, which may give them without evaluating the body. Outside a context, the form
-// specialized for missing also drops the tokens that each adopted step inserted.
+// specialized for missing also drops the tokens that each adopted step inserted. A step holds the errors it
+// recovered, and the entries they made are dropped from the record after it; the growth ends with the errors
+// of its last result in place of the entries recorded since it began.
 //
 // Printed from Exec IR function grow of internal/ir/code/exec/compose.
 func (p *Parser) grow(r *Rule, min int) (*zpvalue.Node, bool) {
-	g := p.growBegin(r, min)
-	if g.ctx {
-		for {
-			if !p.growNext(&g) {
-				break
+	var bv *zpvalue.Node
+	var bok bool
+	rec := len(p.Recovered)
+	{
+		g := p.growBegin(r, min)
+		if g.ctx {
+			for {
+				if !p.growNext(&g) {
+					break
+				}
+				v, ok := p.invoke(r, min)
+				if !ok {
+					p.Recovered = p.Recovered[:rec]
+				}
+				p.growStep(&g, v, nil, ok, p.recSince(rec))
+				p.Recovered = p.Recovered[:rec]
 			}
-			v, ok := p.invoke(r, min)
-			p.growStep(&g, v, nil, ok)
-		}
-	} else {
-		{
-			rec := len(p.Recovered)
+		} else {
 			for {
 				v, ok := p.invoke(r, min)
 				if !p.growLonger(&g, ok) {
@@ -173,9 +181,13 @@ func (p *Parser) grow(r *Rule, min int) (*zpvalue.Node, bool) {
 				p.Recovered = p.Recovered[:rec]
 			}
 		}
+		best := p.growEnd(&g)
+		p.Recovered = p.Recovered[:rec]
+		p.recAdd(best.errs)
+		bv = best.node
+		bok = best.ok
 	}
-	best := p.growEnd(&g)
-	return best.node, best.ok
+	return bv, bok
 }
 
 // Expect records that id was expected at pos: an expectation before the farthest failure or in a
@@ -535,22 +547,30 @@ func (p *TParser) CallMemo(r *TRule, inv func(*TParser) (any, bool)) (any, bool)
 // grow grows the seed of a left-recursive leader from a failure: it evaluates the body again while
 // the match gets longer, and returns the last longer result. A growth in a context takes its steps
 // through the context, which may give them without evaluating the body. Outside a context, the form
-// specialized for missing also drops the tokens that each adopted step inserted.
+// specialized for missing also drops the tokens that each adopted step inserted. A step holds the errors it
+// recovered, and the entries they made are dropped from the record after it; the growth ends with the errors
+// of its last result in place of the entries recorded since it began.
 //
 // Printed from Exec IR function grow of internal/ir/code/exec/compose, specialized for typed.
 func (p *TParser) grow(r *TRule, min int) (any, bool) {
-	g := p.growBegin(r.Rule, min)
-	if g.ctx {
-		for {
-			if !p.growNext(&g) {
-				break
+	var bv any
+	var bok bool
+	rec := len(p.Recovered)
+	{
+		g := p.growBegin(r.Rule, min)
+		if g.ctx {
+			for {
+				if !p.growNext(&g) {
+					break
+				}
+				v, ok := p.invoke(r, min)
+				if !ok {
+					p.Recovered = p.Recovered[:rec]
+				}
+				p.growStep(&g, nil, v, ok, p.recSince(rec))
+				p.Recovered = p.Recovered[:rec]
 			}
-			v, ok := p.invoke(r, min)
-			p.growStep(&g, nil, v, ok)
-		}
-	} else {
-		{
-			rec := len(p.Recovered)
+		} else {
 			for {
 				v, ok := p.invoke(r, min)
 				if !p.growLonger(&g, ok) {
@@ -560,9 +580,13 @@ func (p *TParser) grow(r *TRule, min int) (any, bool) {
 				p.Recovered = p.Recovered[:rec]
 			}
 		}
+		best := p.growEnd(&g)
+		p.Recovered = p.Recovered[:rec]
+		p.recAdd(best.errs)
+		bv = best.val
+		bok = best.ok
 	}
-	best := p.growEnd(&g)
-	return best.val, best.ok
+	return bv, bok
 }
 
 // callObserved is a rule call in an observed parse: it reports the call to the observation, with how

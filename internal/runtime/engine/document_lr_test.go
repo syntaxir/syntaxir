@@ -46,11 +46,11 @@ func TestDocumentSeedDependentResultsNotInMemo(t *testing.T) {
 		if e, found := p.Memo.Get(state.MemoKey{Rule: m.ID}); found {
 			t.Fatalf("a result that read the growing seed was stored in the memo table: %+v", e)
 		}
-		p.GrowStep(&growth, nil, false)
+		p.GrowStepVM(&growth, nil, false)
 		if p.GrowNext(&growth) {
 			t.Fatal("a failed step continued the growth")
 		}
-		v, ok := p.GrowEnd(head, &growth)
+		v, ok := p.GrowEndVM(head, &growth)
 		p.CallEnd(head, &headCall, v, ok)
 		if e, found := p.Memo.Get(state.MemoKey{Rule: head.ID}); !found || e.Present != 0 {
 			t.Fatal("the result of the growth was not stored without a present set")
@@ -72,9 +72,9 @@ func TestDocumentSeedDependentResultsNotInMemo(t *testing.T) {
 		if _, _, hit := p.CallBegin(m, 0, &state.CallState{}); !hit {
 			t.Fatal("the result was not reused while the leader grows")
 		}
-		p.GrowStep(&growth, nil, false)
+		p.GrowStepVM(&growth, nil, false)
 		p.GrowNext(&growth)
-		v, ok := p.GrowEnd(head, &growth)
+		v, ok := p.GrowEndVM(head, &growth)
 		p.CallEnd(head, &headCall, v, ok)
 	})
 	t.Run("a nested leader that reads the outer seed", func(t *testing.T) {
@@ -96,16 +96,16 @@ func TestDocumentSeedDependentResultsNotInMemo(t *testing.T) {
 		if _, _, hit := p.CallBegin(outer, 0, &state.CallState{}); !hit {
 			t.Fatal("outer seed was not read")
 		}
-		p.GrowStep(&innerGrow, nil, false)
+		p.GrowStepVM(&innerGrow, nil, false)
 		p.GrowNext(&innerGrow)
-		v, ok := p.GrowEnd(inner, &innerGrow)
+		v, ok := p.GrowEndVM(inner, &innerGrow)
 		p.CallEnd(inner, &innerCall, v, ok)
 		if _, found := p.Memo.Get(state.MemoKey{Rule: inner.ID}); found {
 			t.Fatal("the inner result, which read the outer seed, was stored in the memo table")
 		}
-		p.GrowStep(&outerGrow, nil, false)
+		p.GrowStepVM(&outerGrow, nil, false)
 		p.GrowNext(&outerGrow)
-		v, ok = p.GrowEnd(outer, &outerGrow)
+		v, ok = p.GrowEndVM(outer, &outerGrow)
 		p.CallEnd(outer, &outerCall, v, ok)
 		if e, found := p.Memo.Get(state.MemoKey{Rule: outer.ID}); !found || e.Present != 0 {
 			t.Fatal("the outer result was not stored")

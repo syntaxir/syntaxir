@@ -684,22 +684,11 @@ func (p *Parser) growAdopt(g *GrowState, v *value.Node, errs RecEntry) {
 	p.Pos = g.start
 }
 
-// GrowStep receives the body's result of a step and adopts it as the seed if the match grew. The
-// printed growth takes the steps of a growth outside a context with growLonger and growAdopt; the
-// iterative VM takes every step here.
-func (p *Parser) GrowStep(g *GrowState, v *value.Node, ok bool) {
-	if !g.ctx {
-		if !p.growLonger(g, ok) {
-			g.done = true
-			return
-		}
-		p.growAdopt(g, v, p.recSince(g.Rec))
-		p.Recovered = p.Recovered[:g.Rec]
-		if p.Missing != nil {
-			p.ResetMissing(g.missing)
-		}
-		return
-	}
+// GrowStep receives the body's result of a step of a growth in a context, with the errors errs that
+// it recovered if it succeeded, and adopts it as the seed if the match grew. It does not change the
+// recovered errors: the printed growth lists the errors of the step with recSince and drops them
+// after the step.
+func (p *Parser) GrowStep(g *GrowState, v *value.Node, ok bool, errs RecEntry) {
 	id := p.Gamma[g.gi].id
 	_, ds := p.popFrame()
 	far, inner := p.Unisolate(g.exp)
@@ -710,7 +699,7 @@ func (p *Parser) GrowStep(g *GrowState, v *value.Node, ok bool) {
 	res := new(MemoEntry)
 	*res = MemoEntry{Node: v, Ok: ok, End: p.Pos, Examined: examined, From: from, Growing: true, silent: p.Silent > 0, Gen: p.Gen, Vgen: p.Gen}
 	if ok {
-		res.Errs = p.recSince(g.Rec)
+		res.Errs = errs
 	} else {
 		res.End = g.start
 	}
@@ -757,7 +746,6 @@ func (p *Parser) advance(g *GrowState, res *MemoEntry, rid uint64, st runStep) b
 	p.Spend()
 	p.setSeed(g, res, rid)
 	p.Pos = g.start
-	p.Recovered = p.Recovered[:g.Rec]
 	return true
 }
 
@@ -891,7 +879,9 @@ func (p *Parser) unionExpected(a, b []ExpID) []ExpID {
 	return out
 }
 
-// GrowEnd finalizes and returns the last result. CallEnd stores it (Parser.grown).
+// GrowEnd finalizes and returns the last result. CallEnd stores it (Parser.grown). It does not change
+// the recovered errors: the printed growth drops the entries after the growth's mark and records the
+// errors of the result.
 func (p *Parser) GrowEnd(r *Rule, g *GrowState) (*value.Node, bool) {
 	p.recordJumps(g)
 	p.dropTable(g.gi)
@@ -914,6 +904,39 @@ func (p *Parser) GrowEnd(r *Rule, g *GrowState) (*value.Node, bool) {
 	best.Positional = r.Positional
 	p.grown = best
 	p.Pos = best.End
+	return best.Node, best.Ok
+}
+
+// GrowStepVM is a step of the iterative VM's growth: it takes the step as the printed growth does, with
+// GrowStep for a growth in a context, and drops the errors that the step recovered and, outside a
+// context, adopts a longer step with its errors and the tokens it inserted.
+func (p *Parser) GrowStepVM(g *GrowState, v *value.Node, ok bool) {
+	if !g.ctx {
+		if !p.growLonger(g, ok) {
+			g.done = true
+			return
+		}
+		p.growAdopt(g, v, p.recSince(g.Rec))
+		p.Recovered = p.Recovered[:g.Rec]
+		if p.Missing != nil {
+			p.ResetMissing(g.missing)
+		}
+		return
+	}
+	var errs RecEntry
+	if ok {
+		errs = p.recSince(g.Rec)
+	}
+	p.GrowStep(g, v, ok, errs)
+	p.Recovered = p.Recovered[:g.Rec]
+}
+
+// GrowEndVM ends the iterative VM's growth as the printed growth does: GrowEnd, then the entries after
+// the growth's mark are dropped and the errors of the result recorded, as the missing-token mode records
+// them.
+func (p *Parser) GrowEndVM(r *Rule, g *GrowState) (*value.Node, bool) {
+	v, ok := p.GrowEnd(r, g)
+	best := p.grown
 	p.Recovered = p.Recovered[:g.Rec]
 	if p.Missing != nil {
 		p.ResetMissing(g.missing)
@@ -923,7 +946,7 @@ func (p *Parser) GrowEnd(r *Rule, g *GrowState) (*value.Node, bool) {
 	} else {
 		p.ReplayMissing(p.MissingSeedEvents(best), best.Errs)
 	}
-	return best.Node, best.Ok
+	return v, ok
 }
 
 // invoke evaluates the rule body and builds the value with the action or the CST rules.

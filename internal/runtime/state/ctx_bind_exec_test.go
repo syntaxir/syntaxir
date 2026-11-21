@@ -203,8 +203,8 @@ func (p *Parser) confGrowNext(g GrowState) (bool, GrowState) {
 
 // confGrowStep runs grow.step for the conformance suite.
 // Printed from Exec IR function confGrowStep of internal/ir/code/exec/compose.
-func (p *Parser) confGrowStep(g GrowState, value *zpvalue.Node, ok bool) GrowState {
-	p.GrowStep(&g, value, ok)
+func (p *Parser) confGrowStep(g GrowState, value *zpvalue.Node, ok bool, errs RecEntry) GrowState {
+	p.GrowStep(&g, value, ok, errs)
 	return g
 }
 
