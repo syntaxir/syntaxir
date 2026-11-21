@@ -47,7 +47,7 @@ func (m *Module) Disassemble() string {
 		for k, o := range p.Operands {
 			line(o, fmt.Sprintf("operatorsRule%d.operand%d", i, k))
 		}
-		for _, o := range append(append([]OpInfo{}, p.Prefix...), p.Led...) {
+		for _, o := range append(append([]OperatorInfo{}, p.Prefix...), p.InfixPostfix...) {
 			line(o.Line, fmt.Sprintf("operatorsRule%d.op%d", i, o.ID))
 		}
 	}
@@ -83,7 +83,7 @@ func (m *Module) Disassemble() string {
 	}
 	for i, p := range m.OperatorsRules {
 		fmt.Fprintf(&b, "operatorsRule %d: skip=%d operands=%d\n", i, p.Skip, len(p.Operands))
-		for _, o := range append(append([]OpInfo{}, p.Prefix...), p.Led...) {
+		for _, o := range append(append([]OperatorInfo{}, p.Prefix...), p.InfixPostfix...) {
 			kind := []string{"prefix", "postfix", "infix"}[o.Kind]
 			assoc := []string{"left", "right", "none"}[o.Assoc]
 			fmt.Fprintf(&b, "  op%d %s %s level=%d entry=%d action=%d scope=%s", o.ID, kind, assoc, o.Level, o.Line.Entry, o.Line.Action, names(o.Line.Scope))

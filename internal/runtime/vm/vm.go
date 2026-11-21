@@ -291,7 +291,7 @@ func (vm *Program) operatorsRule(pi *bytecode.OperatorsRuleInfo) *state.Operator
 	for i := range pi.Operands {
 		pr.Operands = append(pr.Operands, vm.line(&pi.Operands[i], false))
 	}
-	op := func(o *bytecode.OpInfo) *state.OperatorsRuleOp {
+	op := func(o *bytecode.OperatorInfo) *state.OperatorsRuleOp {
 		po := &state.OperatorsRuleOp{Id: o.ID, Level: o.Level, Line: vm.line(&o.Line, true)}
 		po.Kind = []string{"prefix", "postfix", "infix"}[o.Kind]
 		if o.Kind == bytecode.OperatorInfix {
@@ -302,8 +302,8 @@ func (vm *Program) operatorsRule(pi *bytecode.OperatorsRuleInfo) *state.Operator
 	for i := range pi.Prefix {
 		pr.Prefix = append(pr.Prefix, op(&pi.Prefix[i]))
 	}
-	for i := range pi.Led {
-		pr.Led = append(pr.Led, op(&pi.Led[i]))
+	for i := range pi.InfixPostfix {
+		pr.Led = append(pr.Led, op(&pi.InfixPostfix[i]))
 	}
 	return pr
 }

@@ -111,8 +111,8 @@ func lines(p *OperatorsRuleInfo, f func(entry int)) {
 	for i := range p.Prefix {
 		f(p.Prefix[i].Line.Entry)
 	}
-	for i := range p.Led {
-		f(p.Led[i].Line.Entry)
+	for i := range p.InfixPostfix {
+		f(p.InfixPostfix[i].Line.Entry)
 	}
 }
 

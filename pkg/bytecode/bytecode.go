@@ -166,10 +166,10 @@ type RuleInfo struct {
 
 // OperatorsRuleInfo is an entry of the Operators Rule table.
 type OperatorsRuleInfo struct {
-	Skip     int // start of the skip code (-1 if none)
-	Operands []LineInfo
-	Prefix   []OpInfo
-	Led      []OpInfo // infix and postfix
+	Skip         int // start of the skip code (-1 if none)
+	Operands     []LineInfo
+	Prefix       []OperatorInfo
+	InfixPostfix []OperatorInfo // infix and postfix operators
 }
 
 // LineInfo is an Operators Rule operand line or operator line. Its code ends with END.
@@ -180,8 +180,8 @@ type LineInfo struct {
 	IsSeq  bool
 }
 
-// OpInfo is an Operators Rule operator.
-type OpInfo struct {
+// OperatorInfo is an Operators Rule operator.
+type OperatorInfo struct {
 	ID    int
 	Kind  int // OperatorPrefix, OperatorPostfix or OperatorInfix
 	Assoc int // AssocLeft, AssocRight or AssocNone

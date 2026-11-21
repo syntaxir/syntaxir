@@ -95,7 +95,7 @@ func (w *Encoder) WriteModule(m *Module) {
 		for i := range p.Operands {
 			w.line(&p.Operands[i])
 		}
-		for _, ops := range [][]OpInfo{p.Prefix, p.Led} {
+		for _, ops := range [][]OperatorInfo{p.Prefix, p.InfixPostfix} {
 			w.Uint(len(ops))
 			for i := range ops {
 				o := &ops[i]
@@ -435,10 +435,10 @@ func (r *Decoder) ReadModule() *Module {
 		for j := 0; j < k && r.Err == nil; j++ {
 			p.Operands = append(p.Operands, r.line())
 		}
-		for _, ops := range []*[]OpInfo{&p.Prefix, &p.Led} {
+		for _, ops := range []*[]OperatorInfo{&p.Prefix, &p.InfixPostfix} {
 			k = r.Count()
 			for j := 0; j < k && r.Err == nil; j++ {
-				o := OpInfo{ID: int(r.int32()), Kind: int(r.int32()), Assoc: int(r.int32()), Level: int(r.int32())}
+				o := OperatorInfo{ID: int(r.int32()), Kind: int(r.int32()), Assoc: int(r.int32()), Level: int(r.int32())}
 				o.Line = r.line()
 				*ops = append(*ops, o)
 			}
@@ -846,7 +846,7 @@ func ValidateModule(m *Module, fieldType func(text string) error) error {
 		for i := range p.Operands {
 			line(&p.Operands[i])
 		}
-		for _, ops := range [][]OpInfo{p.Prefix, p.Led} {
+		for _, ops := range [][]OperatorInfo{p.Prefix, p.InfixPostfix} {
 			for i := range ops {
 				o := &ops[i]
 				in("operator kind", o.Kind, 3)

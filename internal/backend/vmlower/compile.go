@@ -733,7 +733,7 @@ func (c *compiler) operatorsRule(o *ir.OperatorsRule) int {
 		pi.Operands = append(pi.Operands, c.line(l, false))
 	}
 	for _, op := range o.Ops {
-		oi := bytecode.OpInfo{ID: op.ID, Level: op.Level}
+		oi := bytecode.OperatorInfo{ID: op.ID, Level: op.Level}
 		switch op.Kind {
 		case ast.Prefix:
 			oi.Kind = bytecode.OperatorPrefix
@@ -752,7 +752,7 @@ func (c *compiler) operatorsRule(o *ir.OperatorsRule) int {
 		if oi.Kind == bytecode.OperatorPrefix {
 			pi.Prefix = append(pi.Prefix, oi)
 		} else {
-			pi.Led = append(pi.Led, oi)
+			pi.InfixPostfix = append(pi.InfixPostfix, oi)
 		}
 	}
 	c.m.OperatorsRules = append(c.m.OperatorsRules, pi)
