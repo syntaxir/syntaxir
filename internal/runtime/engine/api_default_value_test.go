@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 	"syntaxir.dev/sxir/pkg/runtime/value"
@@ -70,7 +71,7 @@ func stripActions(t *testing.T, g *ast.Grammar) *ast.Grammar {
 // values keep their actions; for them the backends must agree, and the input must match exactly
 // when it matches the grammar without actions (if that compiles).
 func TestDefaultValueCorpus(t *testing.T) {
-	chdirModuleRoot(t)
+	t.Chdir(codegentest.ModuleRoot())
 	grammars, _ := filepath.Glob("examples/*/*.sxir")
 	more, _ := filepath.Glob("testdata/grammars/*/*.sxir")
 	grammars = append(grammars, more...)

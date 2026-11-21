@@ -9,6 +9,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
 )
@@ -22,7 +23,7 @@ import (
 // those of rules on no left-recursion cycle that read no variable, whose evaluations no growth
 // can tell apart.
 func TestBodyEvaluationsReplay(t *testing.T) {
-	chdirModuleRoot(t)
+	t.Chdir(codegentest.ModuleRoot())
 	dirs, err := filepath.Glob("testdata/grammars/*/*.sxir")
 	if err != nil || len(dirs) == 0 {
 		t.Fatalf("no grammars: %v", err)
