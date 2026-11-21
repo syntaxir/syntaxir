@@ -273,7 +273,8 @@ entry points that [benchmarks.md](benchmarks.md) reports, captured by `go run ./
 workloads that `TestGeneratedTSTypedWorkloads` and `TestGeneratedTSTypedSharedDAG` write when
 `SXIR_TS_TYPED_DIR` is set, and `bench/ts-literal.mjs` for literal matching. Compare two generators by
 alternating them in each round, run at least six rounds, and compare medians and ranges. The form without
-`-limits` is the default, so compare it with the controlled form separately. Results are in
+The form with limit controls is the default and `-no-limits` generates the form without them, so compare the two
+forms separately. Results are in
 [record 122](optimizations/122-typescript-from-flow-ir.md).
 
 ## Mechanism Catalog

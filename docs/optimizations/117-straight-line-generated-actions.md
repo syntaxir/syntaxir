@@ -1,5 +1,7 @@
 # 117. Straight-Line Actions and No Unread Variables in Generated Parsers
 
+*Note (2026-11-22):* the controlled form is now the default, `-limits` was removed and `-no-limits` (`NoLimitControls`) generates the ordinary form. Read "without `-limits`" as `-no-limits`, and "with `-limits`" as the default.
+
 - **Status**: Implemented
 - **Date**: 2026-10-22
 

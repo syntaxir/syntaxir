@@ -256,8 +256,8 @@ writes no output. To save another mode, compile the grammar source.
 ## `gen`
 
 ```bash
-sxir gen -g <grammar> -module <import path> [-pkg <package>] [-lib embed|import|only] [-s <rule>] [-o <directory>] [-types] [-document] [-stream] [-recognize] [-typed-only] [-recognize-only] [-expectations] [-observability] [-limits] [-max-depth <n>] [-nodoc] [-source-info] [-default-value] [-optimize <profile>] [-opt <name[=count]>] [-no-opt <names>] [-print-before <passes>] [-print-after <passes>] [-print-changed] [-verify-each] [-stats] [-time-passes] [-opt-bisect-limit <n>]
-sxir gen -lang ts -g <grammar> -o <directory> [-s <rule>] [-lib embed|import|only] [-lib-module <specifier>] [-types] [-recognize] [-expectations] [-observability] [-limits] [-max-depth <n>] [-source-info] [-default-value] [-optimize <profile>] [-opt <name[=count]>] [-no-opt <names>] [-print-before <passes>] [-print-after <passes>] [-print-changed] [-verify-each] [-stats] [-time-passes] [-opt-bisect-limit <n>]
+sxir gen -g <grammar> -module <import path> [-pkg <package>] [-lib embed|import|only] [-s <rule>] [-o <directory>] [-types] [-document] [-stream] [-recognize] [-typed-only] [-recognize-only] [-expectations] [-observability] [-no-limits] [-max-depth <n>] [-nodoc] [-source-info] [-default-value] [-optimize <profile>] [-opt <name[=count]>] [-no-opt <names>] [-print-before <passes>] [-print-after <passes>] [-print-changed] [-verify-each] [-stats] [-time-passes] [-opt-bisect-limit <n>]
+sxir gen -lang ts -g <grammar> -o <directory> [-s <rule>] [-lib embed|import|only] [-lib-module <specifier>] [-types] [-recognize] [-expectations] [-observability] [-no-limits] [-max-depth <n>] [-source-info] [-default-value] [-optimize <profile>] [-opt <name[=count]>] [-no-opt <names>] [-print-before <passes>] [-print-after <passes>] [-print-changed] [-verify-each] [-stats] [-time-passes] [-opt-bisect-limit <n>]
 ```
 
 Generates a standalone Go parser (see [code-generation.md](code-generation.md)) or, with `-lang ts`, a TypeScript

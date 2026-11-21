@@ -1,5 +1,7 @@
 # G050: One Generated Form per Option Set
 
+*Note (2026-11-22):* the controlled form is now the default, `-limits` was removed and `-no-limits` (`NoLimitControls`) generates the ordinary form. Read "without `-limits`" as `-no-limits`, and "with `-limits`" as the default.
+
 Resource checks can cost generated parsing even when no budget control is active. A generated Go
 parser therefore has one form of its functions, chosen at generation time by the options.
 

@@ -97,7 +97,7 @@ Checked against tree-sitter 0.27.1 and gotreesitter 0.56.0.
   and its nodes are dynamic. tree-sitter documents no worst-case bound; its GLR version count is capped by design, and
   an open report shows that the cap can drop a correct branch (issue 6057). SyntaxIR specifies classes of growth. Both
   SyntaxIR and gotreesitter count cost deterministically, but gotreesitter's limits and memory budget are on by default,
-  while SyntaxIR's limits are opt-in today and it has no memory limit.
+  while SyntaxIR's compute limit is on by default in generated parsers too (`-no-limits` opts out) and it has no memory limit.
 - **Can replace.** A tree-sitter grammar written only to parse one language a Go team owns, where typed values and
   generated TypeScript matter more than queries and an editor corpus.
 - **Loses today.** It loses on the corpus, queries, highlighting and editor distribution. It also loses on a tree for
@@ -332,8 +332,8 @@ they are not gates, and the release does not wait for them.
   API) and the unstable ones (`.sxirc`, bytecode, JSON forms);
 - the Go version that generated code needs, documented: Go 1.27.1, the same as the module, with the effect of
   `go get -tool` on a consumer module ([Go Versions](releasing.md#go-versions));
-- compute limits on by default: `sxir gen` generates parsers with limit controls by default (what `-limits` turns
-  on today), one fixed budget proportional to the input length (c·n with a large constant), and a lint warning for
+- compute limits on by default: `sxir gen` generates parsers with limit controls by default (`-no-limits` opts
+  out), one fixed budget proportional to the input length (c·n with a large constant), and a lint warning for
   grammars outside the specification's sufficient conditions for linear cost; at whatever overhead the limits have
   then, plus a compute limit flag in `sxir parse` and [SECURITY.md](../SECURITY.md) updated to these defaults; published
   performance figures are measured with the limits on; reducing the overhead follows in the Performance track, and the
@@ -408,7 +408,7 @@ have no maintained same-source control, so their contribution cannot be re-measu
 | Generated `Recognize` time ÷ `json.Valid` (JSON) | <!-- fig:recognize-vs-valid -->8.05×<!-- /fig --> |
 | Streaming, closure backend ÷ `encoding/csv` read loop (50,000 records) | <!-- fig:stream-vs-std -->11.5×<!-- /fig --> |
 | Typed `ParseValue` allocated bytes ÷ standard library (JSON, XML) | <!-- fig:typed-vs-std-memory-json-xml -->1.18×, 1.25×<!-- /fig --> |
-| Generated Go with finite compute limits ÷ without (`Parse`; JSON and XML, generated with `-limits`) | 1.30–1.47× |
+| Generated Go with finite compute limits ÷ without (`Parse`; JSON and XML, generated without `-no-limits`) | 1.30–1.47× |
 | Engine backends with a context or limits active ÷ inactive | <!-- fig:engine-controls -->1.45–1.79×<!-- /fig --> |
 | Allocations per parse: generated `Recognize`; typed `ParseValue` ÷ standard library (JSON, CSV, XML) | 0 on JSON, CSV and Operators Rule arithmetic, 74–1,700 on the other workloads; 260, 184, 263 against 53 k, 10 k, 80 k |
 | Generated TypeScript `parse` ÷ generated Go `Parse` (seven workloads) | <!-- fig:typescript-vs-go -->2.53–4.19×<!-- /fig --> |
@@ -425,7 +425,7 @@ leadership, not a comparison with the fastest Go parsers. The JSON rows move to 
 exists.
 
 **Targets.** Ratios are measured with the repository suite on the same machine and revision, in the default
-configuration. From the first release, generated parsers have limit controls by default and published figures are
+configuration. Generated parsers have limit controls by default and published figures are
 measured with the limits on, so every speed row includes their cost. The standard-library parsers do
 different work (`encoding/json` builds no positions, `encoding/xml` returns tokens, `encoding/csv` returns records,
 `go/parser` builds a positioned Go syntax tree), so each row names the output class it compares; typed values and
@@ -533,8 +533,8 @@ for untrusted input; the goals below make it so.
   - The specification defines cost, the expressions that repeat it, classes of growth and sufficient conditions for
     linear cost ([Time and Memory](../spec/runtime/parsing.md#time-and-memory)).
   - The nesting depth is capped by default.
-  - The compute limit (`Compute`) and context cancellation are opt-in. Generated parsers carry them only
-    when generated with `-limits`. They cost 1.30–1.47× on generated Go `Parse` and <!-- fig:engine-controls -->1.45–1.79×<!-- /fig --> on the engine
+  - The compute limit (`Compute`) and context cancellation are on by default. Generated parsers carry them
+    unless generated with `-no-limits`. They cost 1.30–1.47× on generated Go `Parse` and <!-- fig:engine-controls -->1.45–1.79×<!-- /fig --> on the engine
     backends.
   - For a given artifact, input and options, the counts are deterministic. With `Compute` set, a parse stops once
     its spent budget exceeds it, whatever its class of growth.
@@ -548,7 +548,7 @@ for untrusted input; the goals below make it so.
   ordinary grammars stay well below it, and a lint warns about grammars outside the specification's sufficient
   conditions for linear cost. An unlimited parse has to be requested explicitly. The complexity classifier of the
   research track can later refine c per grammar; the release does not wait for it. Generated parsers are included:
-  from the first release, `sxir gen` generates them with limit controls by default, as `-limits` does today,
+  `sxir gen` generates them with limit controls by default (`-no-limits` opts out),
   and published performance figures are measured with the limits on. The default ships at the overhead the limits
   have then; the overhead target follows separately.
 - **Goal: one place for production limits.** Optional caps on input length and on estimated memory (memo entries and
@@ -596,7 +596,7 @@ for untrusted input; the goals below make it so.
 |:--|:--|:--|:--|
 | Users can depend on a version | Tagged v0.x release; compatibility policy naming stable and unstable surfaces | No tag | Release |
 | Generated code states its requirements | Minimum Go version documented; `go get -tool` effect on consumers stated | Documented in [Releasing](releasing.md#go-versions): Go 1.27.1 for SyntaxIR and generated code; `go get -tool` raises a consumer's `go` line to 1.27.1 | Release |
-| Untrusted input is bounded by default | Default budget (one fixed c·n budget, and a lint warning for grammars outside the sufficient conditions for linear cost); limit controls generated by default; `SECURITY.md`; compute limit flag in `sxir parse` | Limits opt-in, and in generated parsers only with `-limits`; `SECURITY.md` states today's policy; no flag | Release |
+| Untrusted input is bounded by default | Default budget (one fixed c·n budget, and a lint warning for grammars outside the sufficient conditions for linear cost); limit controls generated by default; `SECURITY.md`; compute limit flag in `sxir parse` | Compute limits on by default, in generated parsers too (`-no-limits` opts out); `SECURITY.md` states today's policy; no flag | Release |
 | Limits are simple | One budget across Go API, engine, generated Go and TypeScript | Two counters | Release |
 | Errors are readable | Long expected lists capped or grouped, with a test on a large grammar | Full lists | Release |
 | Public claims match measurements | README and site claims match this document's limits (tagline, untrusted input, tested runtimes) and [Benchmark Results](benchmarks.md) | The README's figures, tagline, runtime list and untrusted-input statement match; site pages not audited | Release |

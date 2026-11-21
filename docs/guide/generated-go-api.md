@@ -27,7 +27,7 @@ func ParseRule(name, input string, opts ...ParseOption) (*Node, error)
 
 type ParseOption = rt.ParseOption // an alias; the options are internal to the library
 func WithUnit(unit PositionUnit) ParseOption
-func WithLimits(limits Limits) ParseOption // Limits.Depth in every package; Compute and Input need -limits
+func WithLimits(limits Limits) ParseOption // Limits.Depth in every package; Compute needs limit controls (the default; -no-limits opts out), Input does not
 
 type PositionUnit int
 const (
@@ -145,9 +145,10 @@ brackets or AST nodes, and raising the limit does not guarantee host-stack capac
 
 ## Cancellation and Compute Limits
 
-A Go parser generated with `-limits` also accepts invocation-local
-cancellation and compute and memory limits. Use the generated package's options and error
-types; a package generated without the flag exports no `WithContext`, and a parse
+A Go parser generated with limit controls, which is the default, also accepts invocation-local
+cancellation and compute and memory limits, and a parse that sets no limit runs with the default
+`Compute` limit of `max(2^20, 1024 * n)`. Use the generated package's options and error
+types; a package generated with `-no-limits` exports no `WithContext`, and a parse
 that passes a context or a finite `Compute` or `Memory` limit returns an error saying that the parser was generated
 without limit controls (a nil context and `Compute` and `Memory` limits that are zero or `Unlimited` set no control
 and are accepted, as are any `Input` and `Depth`, which every parser checks):

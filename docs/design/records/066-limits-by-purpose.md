@@ -291,6 +291,7 @@ any `Input` and `Depth`.
 ### Generated Code
 
 `sxir gen -budget-controls` becomes `-limits`: it generates the controlled form, which charges compute and memory.
+*Amendment (2026-11-22):* the controlled form is the default and `-limits` is gone; `-no-limits` (`NoLimitControls`) generates the ordinary form.
 Memory charges add no per-site cost (see below), so a separate generation flag for memory would buy nothing.
 [Decision 7](#decisions) records why measures are not selected at generation time, as optimization profiles are.
 

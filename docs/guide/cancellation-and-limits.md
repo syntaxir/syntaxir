@@ -12,9 +12,9 @@ The examples use a parser `p` compiled as in [Running Parsers](running-parsers.m
 
 `Parse` accepts per-invocation `WithContext` and `WithLimits` options. A zero
 limit selects the default described [below](#the-default-compute-limit); `runtime.Unlimited` disables the limit. The counter
-resets for the next call. Generated Go parsers offer the context and a finite `Compute` or `Memory` only when
-generated with `-limits`; see [the generated Go API](generated-go-api.md#cancellation-and-compute-limits). Generated TypeScript parsers
-offer the `signal` option and the `compute` limit only with `-limits` too; see
+resets for the next call. Generated Go parsers offer the context and a finite `Compute` or `Memory` unless
+they are generated with `-no-limits`; see [the generated Go API](generated-go-api.md#cancellation-and-compute-limits). Generated TypeScript parsers
+offer the `signal` option and the `compute` limit unless generated with `-no-limits` too; see
 [TypeScript](typescript.md#cancellation-and-compute-limits). `Input` and `Depth` work in every form.
 
 `WithLimits` merges field by field: a nonzero field overrides the value of an earlier `WithLimits`, and a zero field
@@ -67,8 +67,8 @@ node, err := p.Parse(input, runtime.WithLimits(runtime.Limits{Compute: runtime.U
 A parse with `Unlimited` and no context runs without any control, which is the fastest form. A stream does not know
 its length in advance: its default is `max(2^20, 1024 * d)`, where `d` is the furthest position the parser has asked the stream for, so it does not
 depend on how your reader splits the input. A `Document` resolves the
-default from the text at each `Parse`. Generated Go and TypeScript parsers apply the default when they are generated
-with `-limits`; a parser generated without it spends no budget and accepts only a zero or `Unlimited` `Compute`.
+default from the text at each `Parse`. Generated Go and TypeScript parsers apply the default unless they are generated
+with `-no-limits`; a parser generated with it spends no budget and accepts only a zero or `Unlimited` `Compute`.
 
 To find the rule that makes a parse expensive, run it again with a profile (`runtime.WithProfile`, or `sxir profile`).
 When a parse with a profile exceeds its `Compute` limit, `LimitError.Hotspot` names the rule that the profile ranks
@@ -115,8 +115,8 @@ if errors.As(err, &le) && le.Kind == runtime.LimitMemory {
 The count is checked every 256 compute units, so a parse can pass the limit by what it allocates in that interval
 before it fails; a parse whose final count is at most the limit succeeds. It counts the parser's own buffers from the
 sizes of their elements, not the bytes the Go allocator hands out, and it does not count your input string, which
-`Input` bounds. A finite `Memory` makes the parse controlled, like a finite `Compute`, so a parser generated without
-`-limits` rejects it. A stream returns what it has delivered, so its count follows the largest element and the
+`Input` bounds. A finite `Memory` makes the parse controlled, like a finite `Compute`, so a parser generated with
+`-no-limits` rejects it. A stream returns what it has delivered, so its count follows the largest element and the
 working set around it, not the length of the stream, except for recovered errors, which it keeps for the result
 unless `WithDiagnosticLimit` keeps only the latest ones ([Streaming](streaming.md#memory)). A `Document` counts the caches it keeps from earlier parses:
 when they alone pass the limit it drops them and parses from scratch, and when a parse that reuses them passes the

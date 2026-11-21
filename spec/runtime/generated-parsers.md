@@ -158,7 +158,7 @@ func ParseRule(name, input string, opts ...ParseOption) (*Node, error)
 type ParseOption func(*parseOptions)
 func WithUnit(unit PositionUnit) ParseOption
 func WithLimits(limits Limits) ParseOption
-func WithContext(ctx context.Context) ParseOption       // with limit controls
+func WithContext(ctx context.Context) ParseOption       // unless generated with -no-limits
 
 type PositionUnit int
 const (
@@ -191,13 +191,14 @@ const (
   not guarantee stack capacity. The default error is
   `nesting too deep: more than 100000 nested recursive rule calls`.
 - Every generated Go parser exports `WithLimits`, `Limits`, `LimitKind`, `LimitError`,
-  `ErrLimit`, `LimitCompute`, `LimitInput`, `LimitDepth`, `LimitMemory` and `Unlimited`, and one generated
-  with limit controls (`-limits`, `LimitControls`) also exports `WithContext`. A parser
-  generated without them holds no code that spends budget or reads a control: one
-  form of each function; with `-document` it is the form that serves a Document, without
-  charges. A parser generated with limit controls has the controlled form only, and a parse that
-  sets no limit runs it with the [default budget](parsing.md#default-limits). A parser generated
-  without them, given a context or a finite `Compute` or `Memory` limit, returns an error
+  `ErrLimit`, `LimitCompute`, `LimitInput`, `LimitDepth`, `LimitMemory` and `Unlimited`. A parser is
+  generated with limit controls unless it opts out (`-no-limits`, `NoLimitControls`), and one generated
+  with them also exports `WithContext`. A parser generated with limit controls has the controlled form
+  only, and a parse that sets no limit runs it with the [default budget](parsing.md#default-limits):
+  a generated parser applies the default limits, `Compute` of `max(2^20, 1024 * n)` among them, unless it
+  opts out. A parser generated without them (`-no-limits`) holds no code that spends budget or reads a
+  control: one form of each function; with `-document` it is the form that serves a Document, without
+  charges. Such a parser, given a context or a finite `Compute` or `Memory` limit, returns an error
   that the parser was generated without limit controls; no option is ignored. A nil context,
   `Compute` and `Memory` limits that are zero or `Unlimited`, any `Input` and any `Depth` set
   no control and are accepted.
@@ -385,13 +386,13 @@ export function parseRuleWithOptions(name: string, input: string | Uint8Array, o
 
 export interface ParseOptions {
   unit?: Unit;
-  signal?: CancellationSignal | null;      // with -limits only
+  signal?: CancellationSignal | null;      // unless generated with -no-limits
   limits?: Limits;
 }
 export interface Limits {
-  compute?: number;                       // with -limits only
-  memory?: number;                        // with -limits only
-  input?: number;                         // with -limits only
+  compute?: number;                       // unless generated with -no-limits
+  memory?: number;                        // unless generated with -no-limits
+  input?: number;                         // works with and without -no-limits
   depth?: number;
 }
 export const Unlimited: number;           // Number.MAX_SAFE_INTEGER
@@ -418,8 +419,8 @@ export function marshal(n: Node | null): string;
   `types.ts` with `-types`. From the library it re-exports `Value`, `Unit`, `CodePoints`, `Bytes`, `NodeField`,
   `NodeJSON`, `Node`, `marshal`, `SyntaxError`, `SyntaxErrors`, `ParseResult`, `ParseOptions`, `Limits`,
   `ParseInterruptionKind`, `ParseInterruptionError`, `Unlimited`, `TraceKind`, `TraceEvent`, `TraceFunction`,
-  `SkipReason`, `Profile`, `CallSite`, `SkipReasonCount`, `RuleProfile` and `ProfileSnapshot`, and with `-limits` also
-  `CancellationSignal`. Without `-limits` the exported `ParseOptions` and `Limits` are the forms without `signal` and
+  `SkipReason`, `Profile`, `CallSite`, `SkipReasonCount`, `RuleProfile` and `ProfileSnapshot`, and, unless generated with `-no-limits`, also
+  `CancellationSignal`. With `-no-limits` the exported `ParseOptions` and `Limits` are the forms without `signal` and
   `limits.compute`. `TraceKind` is `"enter"`, `"exit"` or `"skipped"`. The other exports of `lib.ts`, such as
   `ProfileData`, are the contract between the library and the generated code. They are not
   public API and may change between versions.
@@ -447,14 +448,14 @@ export function marshal(n: Node | null): string;
   the generated default. A parse that nests more recursive rule calls returns `node` as
   `null` and `error` as a `ParseInterruptionError` whose `kind` is `"depth-limit"`, with
   `limit` and `used` the depth limit and `requested` 1, in both forms.
-- A parser generated without `-limits` emits no code that spends budget and sets no control, so a parse charges nothing, and its
+- A parser generated with `-no-limits` emits no code that spends budget and sets no control, so a parse charges nothing, and its
   `ParseOptions` has no `signal` and its `Limits` has no `compute` or `memory`; it does not
   export `CancellationSignal`. A call that passes a signal or a finite nonzero compute or
   memory limit anyway returns an error in the result, before
   matching, that says the parser was generated without limit controls; no option is
   ignored. An absent or null signal, zero or `Unlimited` compute and memory limits, and the input
-  and depth limits set no control and are accepted. A parser generated with `-limits` has the controlled form only, and a call
-  that sets no limit runs it with the [default budget](parsing.md#default-limits). The rest of this list describes the controlled form.
+  and depth limits set no control and are accepted. A parser generated without `-no-limits`, the default, has the controlled form only, and a call
+  that sets no limit runs it with the [default budget](parsing.md#default-limits), `compute` of `max(2^20, 1024 * n)` among its defaults. The rest of this list describes the controlled form.
 - `signal` is a structural cancellation signal: any object with `aborted` and an optional
   `reason`, such as an `AbortSignal`. `limits.compute`, `limits.memory` and `limits.input` MUST be finite
   nonnegative safe integers; zero selects the [default](parsing.md#default-limits) and
@@ -557,7 +558,7 @@ program, so a TypeScript parser can reject nesting that the engine accepts.
 | Typed values | `ParseValue`, `ParseRuleValue` with `-types` | `parseValue`, `parseValueWithOptions` with `-types` |
 | Streaming | `ParseStream`, `Iterate` with `-stream` | None; `#stream` is an ordinary repetition |
 | Incremental documents | A subset with `-document` | The same subset, `createDocument` with `-document` |
-| Cancellation and compute limits | `WithContext` and a finite `Compute` with `-limits`; `WithLimits` | `signal` and `limits.compute` with `-limits`; `limits.input`; `ParseInterruptionError` |
+| Cancellation and compute limits | `WithContext` and a finite `Compute` unless generated with `-no-limits`; `WithLimits` | `signal` and `limits.compute` unless generated with `-no-limits`; `limits.input`; `ParseInterruptionError` |
 | Nested recursive rule-call limit | `Limits.Depth`, `-max-depth` | `limits.depth`, `-max-depth`; the host stack also bounds nesting |
 | Choice of backend, saved grammar, `Parser.Grammar()` | Not applicable | Not applicable |
 | Tracing and profiling | With `-observability` | With `-observability` (batch parsers) |

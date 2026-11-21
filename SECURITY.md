@@ -3,7 +3,7 @@
 SyntaxIR parses input that a program often does not control. This page says how to report a vulnerability, what counts as
 one, what happens after a report, and what a parse bounds today and what the caller must bound.
 
-SyntaxIR is not safe by default for untrusted input yet. Only the nesting limit is on by default; compute limits are opt-in,
+SyntaxIR is not safe by default for untrusted input yet. The nesting limit and the compute limit are on by default,
 and input length and memory are bounded only when you set their limits. The [resource policy](#resource-policy) below says what to set.
 
 ## Reporting a Vulnerability
@@ -57,8 +57,8 @@ parser generated with `-lib import` uses the module `syntaxir.dev/sxir/pkg/runti
 
 These behaviors are documented, so they are limits of SyntaxIR today, not vulnerabilities:
 
-- Unbounded time or memory when the limits are off: a compute limit set to `Unlimited`, a parser generated without
-  `-limits`, or an input length or memory left without a limit.
+- Unbounded time or memory when the limits are off: a compute limit set to `Unlimited`, a parser generated with
+  `-no-limits`, or an input length or memory left without a limit.
 - Memory use within the compute limits that were set. Compute limits are not a memory limit: their counters are not bytes,
   and their units differ between backends. The memory a parse allocates is at most proportional to its spent budget
   plus the input ([Time and Memory](spec/runtime/parsing.md#time-and-memory)), so `Compute` bounds memory only
@@ -90,15 +90,14 @@ These behaviors are documented, so they are limits of SyntaxIR today, not vulner
 - **Compute, on by default.** A parse stops once its spent budget exceeds its compute limit, whatever the grammar's
   class of growth. A zero `Compute` selects `max(2^20, 1024 * n)` for an input of `n` units,
   `engine.WithLimits(core.Limits{Compute: ...})` sets another limit and `core.Unlimited` disables it; `engine.WithContext` adds
-  cancellation and deadlines. Generated parsers have the compute limit and these options only when generated with
-  `-limits` (TypeScript: `signal` and `limits.compute`); this is planned to become the default at the first release
-  ([Default Limits](#default-limits)). For a given artifact, input and options, the counts are the same on every run.
+  cancellation and deadlines. Generated parsers have the compute limit and these options unless they are generated with
+  `-no-limits` (TypeScript: `signal` and `limits.compute`) ([Default Limits](#default-limits)). For a given artifact, input and options, the counts are the same on every run.
   The `sxir` commands that parse take `-max-compute`
   ([Cancellation and Compute Limits](docs/guide/cancellation-and-limits.md)).
 - **Input length, opt-in.** `Limits.Input` (TypeScript `limits.input`, `sxir -max-input`) rejects a longer input before
   any parsing, in every parser; a stream fails when the parser reaches a unit beyond the limit.
 - **Memory, opt-in.** `Limits.Memory` (`sxir -max-memory`) bounds the bytes of storage a parse takes into use, in the
-  engine and in generated Go parsers generated with `-limits`; a stream counts its window and a `Document` the caches
+  engine and in generated Go parsers generated without `-no-limits`; a stream counts its window and a `Document` the caches
   it keeps ([Bounding Memory](docs/guide/cancellation-and-limits.md#bounding-memory)). Generated TypeScript has no
   memory limit.
 - **Stream memory, by working set.** A `ParseStream` parse releases the input, the memo entries and each element as it
@@ -131,7 +130,7 @@ for any grammar that parses untrusted input.
 
 1. Set `Compute`. It is one counter for the input a parse inspects, its rule calls and loop iterations, and the
    values it builds, so it bounds a loop that only scans input and a value that grows without reading input alike.
-   Generate parsers with `-limits`.
+   Generate parsers without `-no-limits`, which is the default.
 2. Set a context deadline.
 3. Set `Input`, or limit the input length before parsing; for a stream, also bound what the reader buffers.
 4. Set `Memory` when a parse must stay within a number of bytes.
@@ -142,11 +141,12 @@ for any grammar that parses untrusted input.
 
 ### Default Limits
 
-- **Today.** Every engine parse has a default compute limit proportional to the input length, and generated parsers
-  have it only when generated with `-limits`. The input length and memory have no default limit.
-- **Planned for the first release.** `sxir gen` generates parsers with limit controls by default, as `-limits`
-  does today, so that every parse has the default compute limit and an unlimited parse has to be requested
-  explicitly. A lint warns about grammars outside the specification's sufficient conditions for linear cost.
+- **Today.** Every parse has a default compute limit proportional to the input length: the engine, and generated
+  parsers, which `sxir gen` generates with limit controls by default (`-no-limits` and `NoLimitControls` opt out, and a
+  parser generated with them has no compute limit). An unlimited parse has to be requested explicitly. The input length
+  and memory have no default limit.
+- **Planned for the first release.** A lint warns about grammars outside the specification's sufficient conditions
+  for linear cost.
 - **Later.** Compute limits refined per grammar by a complexity analysis.
 
-Until the planned defaults ship, the limits above are the caller's to set.
+Until the planned defaults ship, the limits above that have no default are the caller's to set.

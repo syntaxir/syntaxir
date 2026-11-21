@@ -166,11 +166,11 @@ export function recognize(input: string | Uint8Array, unit?: Unit): Error | null
 
 export interface ParseOptions {
   unit?: Unit;
-  signal?: CancellationSignal | null;  // with -limits only
+  signal?: CancellationSignal | null;  // unless generated with -no-limits
   limits?: Limits;
 }
 export interface Limits {
-  compute?: number;                    // with -limits only
+  compute?: number;                    // unless generated with -no-limits
   input?: number;
   depth?: number;
 }
@@ -474,14 +474,14 @@ null
 
 ## Cancellation and Compute Limits
 
-A parser generated with `-limits` accepts `signal` and the `compute` and `memory` fields of `limits` in the
-options-aware entry points to stop a parse of input you do not control. Without the option the parser emits no code that spends budget and sets no control, its options type has
+A parser generated with limit controls, which is the default, accepts `signal` and the `compute` and `memory` fields of `limits` in the
+options-aware entry points to stop a parse of input you do not control. With `-no-limits` the parser emits no code that spends budget and sets no control, its options type has
 neither, and a call that passes a signal, a finite `compute` or a finite `memory` returns an error. An unknown option or `limits` key is an
-error in both forms. A parser has one form: with the option it is the controlled one, and a
+error in both forms. A parser has one form: by default it is the controlled one, and a
 parse that sets no limit runs the same code, so generate two parsers if you need the plain form as well. `signal` is any object with `aborted` and an optional `reason`, so an `AbortSignal` fits; each limit is a
 nonnegative safe integer. A zero `compute` (or omitting it) selects the default of `max(2^20, 1024 * n)` for an input of `n` units
 (code points, or bytes with `Bytes`), which also applies to `parse` and the other entry points without options; the
-exported `Unlimited` (`Number.MAX_SAFE_INTEGER`) disables the limit. `input` bounds the input in the same unit (default `Unlimited`), with or without `-limits`: a longer input is rejected before parsing with kind `"input-limit"`. `memory` bounds the bytes of storage the parse takes into use, estimated from the sizes of the runtime's objects in a 64-bit JavaScript engine (default `Unlimited`); a parse whose count passes it stops with kind `"memory-limit"`, and the same input and options give the same count on every run. It bounds what the parser holds, not the process heap. An interrupted parse returns no tree and a
+exported `Unlimited` (`Number.MAX_SAFE_INTEGER`) disables the limit. `input` bounds the input in the same unit (default `Unlimited`), with or without `-no-limits`: a longer input is rejected before parsing with kind `"input-limit"`. `memory` bounds the bytes of storage the parse takes into use, estimated from the sizes of the runtime's objects in a 64-bit JavaScript engine (default `Unlimited`); a parse whose count passes it stops with kind `"memory-limit"`, and the same input and options give the same count on every run. It bounds what the parser holds, not the process heap. An interrupted parse returns no tree and a
 `ParseInterruptionError` whose `kind` says what happened:
 
 ```ts
@@ -500,7 +500,7 @@ that you terminate for cancellation. The units of the limits are explained in
 
 The generated parser calls rules recursively, like the generated Go parser, and defaults to the same limit of 100,000 nested
 recursive rule calls. `-max-depth` / `compiler.TSConfig.MaxDepth` set a generated default; `parseWithOptions`,
-`parseRuleWithOptions` and `recognizeWithOptions` accept `limits.depth` for one invocation, with or without `-limits`.
+`parseRuleWithOptions` and `recognizeWithOptions` accept `limits.depth` for one invocation, with or without `-no-limits`.
 Omitted or zero selects the generated default; a positive safe integer overrides it. `Unlimited`, negative values,
 fractions, NaN, infinity and unsafe integers return a configuration error through the normal result, before matching
 or named-rule lookup; a generated parser nests rule calls on the JavaScript stack, so its depth always has a limit. A
@@ -554,7 +554,7 @@ The parity tests parse in a worker with a 1 GB stack, so that they also check th
 
 Generated TypeScript supports every feature of the grammar language: Rule Expressions, Operators Rules, left recursion, Predicates and variables, actions, built-in functions, `@error` and
 `#recover`. It adds `parseRule` for another start rule, a `unit` argument for the position unit, `recognize` (with
-`-recognize`) for matching without a tree, and `limits.input` and `limits.depth`, and with `-limits` `signal` and the compute limit, in the options-aware
+`-recognize`) for matching without a tree, and `limits.input` and `limits.depth`, and, unless generated with `-no-limits`, `signal` and the compute limit, in the options-aware
 entry points. With `-document` it adds [`createDocument`](generated-documents.md#typescript-documents), a Document that reuses the results of earlier parses as the Go `Document` does. It has no `#stream` and `ParseStream`: `#stream` is an ordinary repetition, as in Go.
 Typed values (`-types`) give interfaces and aliases and `parseValue`/`parseValueWithOptions` for the configured start rule,
 while `parse` still returns Nodes. The [specification](../../spec/runtime/generated-parsers.md#compatibility-and-support) has

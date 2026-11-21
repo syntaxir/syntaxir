@@ -724,7 +724,7 @@ alone. The options of the call hold only what the manager applies to the whole r
   of a generated directory apply per directory, and every check of every directory happens before the first write: a
   failing target writes nothing for any target.
 - *Flags.* Common flags configure the one check and every target: `-g`, `-s`, `-source-info`, `-default-value`,
-  `-optimize`, `-opt`, `-no-opt`. Target flags (`-types`, `-document`, `-observability`, `-expectations`, `-limits`,
+  `-optimize`, `-opt`, `-no-opt`. Target flags (`-types`, `-document`, `-observability`, `-expectations`, `-no-limits`,
   `-recognize`, `-max-depth`, `-lib`) apply to every listed language; the qualified form (`-go.types`,
   `-ts.max-depth`) applies to one language and wins over the unqualified one. Flags that name something of one
   language (`-module`, `-pkg`, `-nodoc` for Go; `-lib-module` for TypeScript) apply to that language. A flag that a
