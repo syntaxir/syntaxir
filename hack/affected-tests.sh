@@ -14,7 +14,7 @@
 #   - the packages that hold or check a copy of the Go library (COPIES below), when a file of it changed: the
 #     engine's shared copies (internal/runtime/state/sharedsrc) and the embedded copy (libsrc) read it by path.
 # A change of go.mod, go.work, go.sum or this script selects every package and both of the following lines. The output ends with the lines
-# "# generate" and "# alpha" when `go generate ./internal/backend/... ./internal/runtime/state/sharedsrc ./bench ./internal/frontend/parser ./spec/language` or hack/test-alpha-parsers.sh is affected.
+# "# generate" and "# alpha" when `go generate ./internal/backend/... ./internal/runtime/state/sharedsrc ./bench ./internal/frontend/parser ./spec/language/...` or hack/test-alpha-parsers.sh is affected.
 # Both run the generator, cmd/sxir: a change of a non-test Go file of cmd/sxir or of a package it depends on, or of a
 # file such a package embeds, affects both, besides the paths that the rules below name (the grammars, the generate
 # targets and their inputs).
