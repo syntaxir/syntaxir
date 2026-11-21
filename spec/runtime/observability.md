@@ -102,7 +102,8 @@ the input, and never includes input examined by the caller before the call. A
 memo hit reports the end stored with the result it reuses. A call that reuses a
 growing left-recursive seed extends its end to the end stored with that seed, so
 the `Examined` of a call depends on the seed it reuses as well as on its other
-fields.
+fields. The initial seed of a growth is a failure whose stored examined end is the
+leader's start.
 
 The methods `LineCol(pos)`, `Text()`, `Failure()` and `Recovered()` read the
 state of the parser and MUST be called only from the trace function, while it

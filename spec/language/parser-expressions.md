@@ -475,10 +475,12 @@ the variables that `R` reads: unlike memoized results (see [Interaction With
 Memoization](predicates.md#interaction-with-memoization)), the current result
 is not kept per combination of variable values.
 
-In an indirect left recursion, one rule of the cycle (the one where the
-recursion is entered, decided by static analysis) is grown in this way, and the
-others are evaluated again in each iteration. A rule that is not left-recursive
-is evaluated once.
+In an indirect left recursion, one rule of the cycle is grown in this way, and
+the others are evaluated again in each iteration. The grown rules are the
+leaders, fixed by the grammar: until every cycle of left calls passes through a
+leader, the rule declared first on a cycle that passes through none becomes one
+(see [Rule Facts](../core-ir/attributes.md#rule-facts)). A rule that is not
+left-recursive is evaluated once.
 
 Static analysis considers calls that may run before consuming input, including
 calls in `#recover(skip=...)`: recovery returns to the base expression's starting
