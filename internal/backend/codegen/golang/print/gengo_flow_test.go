@@ -24,23 +24,23 @@ var flowModes = []struct {
 	opts   common.GenOptions
 	frames bool
 }{
-	{"lean typed-only", common.GenOptions{Types: true, TypedOnly: true}, true},
-	{"lean with nodes", common.GenOptions{Types: true}, true},
-	{"lean recognizer", common.GenOptions{Types: true, Recognize: true}, true},
-	{"lean unguarded", common.GenOptions{Types: true, TypedOnly: true, NoOpt: []string{"guarded-classes"}}, true},
-	{"lean straight terminals", common.GenOptions{Types: true, TypedOnly: true, NoOpt: []string{"terminals"}}, true},
-	{"lean boxed", common.GenOptions{Types: true, TypedOnly: true, NoOpt: []string{"text-dispatch", "field-compare"}}, true},
-	{"controlled typed-only", common.GenOptions{Types: true, TypedOnly: true, LimitControls: true}, true},
-	{"controlled with nodes", common.GenOptions{Types: true, LimitControls: true}, true},
-	{"controlled recognizer", common.GenOptions{Types: true, Recognize: true, LimitControls: true}, true},
-	{"controlled unguarded", common.GenOptions{Types: true, TypedOnly: true, LimitControls: true, NoOpt: []string{"guarded-classes"}}, true},
-	{"controlled boxed", common.GenOptions{Types: true, TypedOnly: true, LimitControls: true, NoOpt: []string{"text-dispatch", "field-compare"}}, true},
-	{"Document", common.GenOptions{Types: true, Document: true}, true},
-	{"Document with budget controls", common.GenOptions{Types: true, Document: true, LimitControls: true}, true},
-	{"observable typed-only", common.GenOptions{Types: true, TypedOnly: true, Observability: true}, true},
-	{"observable with nodes", common.GenOptions{Types: true, Observability: true}, true},
-	{"observable controlled", common.GenOptions{Types: true, TypedOnly: true, Observability: true, LimitControls: true}, true},
-	{"observable Document", common.GenOptions{Types: true, Observability: true, Document: true}, true},
+	{"lean typed-only", common.GenOptions{NoLimitControls: true, Types: true, TypedOnly: true}, true},
+	{"lean with nodes", common.GenOptions{NoLimitControls: true, Types: true}, true},
+	{"lean recognizer", common.GenOptions{NoLimitControls: true, Types: true, Recognize: true}, true},
+	{"lean unguarded", common.GenOptions{NoLimitControls: true, Types: true, TypedOnly: true, NoOpt: []string{"guarded-classes"}}, true},
+	{"lean straight terminals", common.GenOptions{NoLimitControls: true, Types: true, TypedOnly: true, NoOpt: []string{"terminals"}}, true},
+	{"lean boxed", common.GenOptions{NoLimitControls: true, Types: true, TypedOnly: true, NoOpt: []string{"text-dispatch", "field-compare"}}, true},
+	{"controlled typed-only", common.GenOptions{Types: true, TypedOnly: true}, true},
+	{"controlled with nodes", common.GenOptions{Types: true}, true},
+	{"controlled recognizer", common.GenOptions{Types: true, Recognize: true}, true},
+	{"controlled unguarded", common.GenOptions{Types: true, TypedOnly: true, NoOpt: []string{"guarded-classes"}}, true},
+	{"controlled boxed", common.GenOptions{Types: true, TypedOnly: true, NoOpt: []string{"text-dispatch", "field-compare"}}, true},
+	{"Document", common.GenOptions{NoLimitControls: true, Types: true, Document: true}, true},
+	{"Document with budget controls", common.GenOptions{Types: true, Document: true}, true},
+	{"observable typed-only", common.GenOptions{NoLimitControls: true, Types: true, TypedOnly: true, Observability: true}, true},
+	{"observable with nodes", common.GenOptions{NoLimitControls: true, Types: true, Observability: true}, true},
+	{"observable controlled", common.GenOptions{Types: true, TypedOnly: true, Observability: true}, true},
+	{"observable Document", common.GenOptions{NoLimitControls: true, Types: true, Observability: true, Document: true}, true},
 }
 
 // flowUnreadLine matches the line that assigns the variables no statement reads to the blank
@@ -256,8 +256,8 @@ func testFlowTypedObservable(t *testing.T) {
 		name string
 		opts common.GenOptions
 	}{
-		{"with nodes", common.GenOptions{Observability: true}},
-		{"typed-only", common.GenOptions{Observability: true, TypedOnly: true}},
+		{"with nodes", common.GenOptions{NoLimitControls: true, Observability: true}},
+		{"typed-only", common.GenOptions{NoLimitControls: true, Observability: true, TypedOnly: true}},
 	} {
 		t.Run(mode.name, func(t *testing.T) {
 			printed, framed := 0, 0

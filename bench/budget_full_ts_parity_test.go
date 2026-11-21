@@ -39,7 +39,7 @@ func TestGeneratedTSFullWorkloadParity(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			generated, err := gensrc.TypeScript(grammar, common.GenOptions{Types: true, Recognize: true, LimitControls: true, Start: "main"})
+			generated, err := gensrc.TypeScript(grammar, common.GenOptions{Types: true, Recognize: true, Start: "main"})
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -109,7 +109,7 @@ func (d *Document) ResolveParseOptions(opts []ParseOption) (parseOptions, error)
 	}
 	o.maxDepth = depth
 	if d.State.root.g.NoBudgetControls && (o.context != nil || !limitsDisabled(o.limits)) {
-		return o, fmt.Errorf("this parser was generated without limit controls (generate with -limits to use WithContext and a finite Compute or Memory limit)")
+		return o, fmt.Errorf("this parser was generated without limit controls (-no-limits; generate it without that option to use WithContext and a finite Compute or Memory limit)")
 	}
 	if err := o.validateDiagnostics(); err != nil {
 		return o, err

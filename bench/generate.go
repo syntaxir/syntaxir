@@ -13,31 +13,31 @@
 // and *plain is the same grammar without limit controls. The inputs come from internal/bench/inputs.
 package bench
 
-//go:generate go run ../cmd/sxir gen -g ../testdata/grammars/json/json.sxir -module syntaxir.dev/sxir/internal/bench/parsers/json -lib import -recognize -types -limits -o ../internal/bench/parsers/json
-//go:generate go run ../cmd/sxir gen -g ../testdata/grammars/csv/csv.sxir -module syntaxir.dev/sxir/internal/bench/parsers/csv -lib import -recognize -types -limits -o ../internal/bench/parsers/csv
-//go:generate go run ../cmd/sxir gen -g ../testdata/grammars/xml/xml.sxir -module syntaxir.dev/sxir/internal/bench/parsers/xml -lib import -recognize -types -limits -o ../internal/bench/parsers/xml
-//go:generate go run ../cmd/sxir gen -g ../examples/calculator/calc.sxir -module syntaxir.dev/sxir/internal/bench/parsers/calc -lib import -recognize -types -limits -o ../internal/bench/parsers/calc
-//go:generate go run ../cmd/sxir gen -g ../examples/calculator/calc_lr.sxir -module syntaxir.dev/sxir/internal/bench/parsers/calclr -lib import -recognize -types -limits -o ../internal/bench/parsers/calclr
-//go:generate go run ../cmd/sxir gen -g ../examples/minilang/minilang.sxir -module syntaxir.dev/sxir/internal/bench/parsers/minilang -lib import -recognize -types -limits -o ../internal/bench/parsers/minilang
-//go:generate go run ../cmd/sxir gen -g ../examples/outline/outline.sxir -module syntaxir.dev/sxir/internal/bench/parsers/outline -lib import -recognize -types -limits -o ../internal/bench/parsers/outline
-//go:generate go run ../cmd/sxir gen -g grammars/actions/pred.sxir -module syntaxir.dev/sxir/internal/bench/parsers/actionspred -lib import -recognize -types -limits -o ../internal/bench/parsers/actionspred
-//go:generate go run ../cmd/sxir gen -g grammars/actions/heavy.sxir -module syntaxir.dev/sxir/internal/bench/parsers/actionsheavy -lib import -recognize -types -limits -o ../internal/bench/parsers/actionsheavy
-//go:generate go run ../cmd/sxir gen -g ../examples/minilang/minilang.sxir -module syntaxir.dev/sxir/internal/bench/parsers/minilangdoc -lib import -limits -document -o ../internal/bench/parsers/minilangdoc
-//go:generate go run ../cmd/sxir gen -g ../examples/minilang/minilang.sxir -module syntaxir.dev/sxir/internal/bench/parsers/minilangtdoc -lib import -types -limits -document -o ../internal/bench/parsers/minilangtdoc
-//go:generate go run ../cmd/sxir gen -g ../testdata/grammars/csv/csv.sxir -module syntaxir.dev/sxir/internal/bench/parsers/csvdoc -lib import -limits -document -o ../internal/bench/parsers/csvdoc
-//go:generate go run ../cmd/sxir gen -g ../testdata/grammars/csv/csv.sxir -module syntaxir.dev/sxir/internal/bench/parsers/csvstream -lib import -limits -stream -o ../internal/bench/parsers/csvstream
-//go:generate go run ../cmd/sxir gen -g ../testdata/grammars/json/json.sxir -module syntaxir.dev/sxir/internal/bench/parsers/jsonplain -lib import -types -o ../internal/bench/parsers/jsonplain
-//go:generate go run ../cmd/sxir gen -g ../testdata/grammars/json/json.sxir -module syntaxir.dev/sxir/internal/bench/parsers/jsonlogical -lib import -types -limits -charge-units=logical -o ../internal/bench/parsers/jsonlogical
-//go:generate go run ../cmd/sxir gen -g ../testdata/grammars/json/json.sxir -module syntaxir.dev/sxir/internal/bench/parsers/jsonevent -lib import -types -limits -charge-units=logical-event -o ../internal/bench/parsers/jsonevent
-//go:generate go run ../cmd/sxir gen -g ../testdata/grammars/json/json.sxir -module syntaxir.dev/sxir/internal/bench/parsers/jsonkeepguards -lib import -types -limits -charge-units=logical-keep-guards -o ../internal/bench/parsers/jsonkeepguards
-//go:generate go run ../cmd/sxir gen -g ../testdata/grammars/xml/xml.sxir -module syntaxir.dev/sxir/internal/bench/parsers/xmlplain -lib import -types -o ../internal/bench/parsers/xmlplain
-//go:generate go run ../cmd/sxir gen -g ../testdata/grammars/xml/xml.sxir -module syntaxir.dev/sxir/internal/bench/parsers/xmllogical -lib import -types -limits -charge-units=logical -o ../internal/bench/parsers/xmllogical
-//go:generate go run ../cmd/sxir gen -g ../testdata/grammars/xml/xml.sxir -module syntaxir.dev/sxir/internal/bench/parsers/xmlevent -lib import -types -limits -charge-units=logical-event -o ../internal/bench/parsers/xmlevent
-//go:generate go run ../cmd/sxir gen -g ../testdata/grammars/xml/xml.sxir -module syntaxir.dev/sxir/internal/bench/parsers/xmlkeepguards -lib import -types -limits -charge-units=logical-keep-guards -o ../internal/bench/parsers/xmlkeepguards
-//go:generate go run ../cmd/sxir gen -g grammars/logical_policy.sxir -module syntaxir.dev/sxir/internal/bench/parsers/policylogical -lib import -types -limits -charge-units=logical -o ../internal/bench/parsers/policylogical
-//go:generate go run ../cmd/sxir gen -g grammars/logical_policy.sxir -module syntaxir.dev/sxir/internal/bench/parsers/policyevent -lib import -types -limits -charge-units=logical-event -o ../internal/bench/parsers/policyevent
-//go:generate go run ../cmd/sxir gen -g grammars/logical_chain.sxir -module syntaxir.dev/sxir/internal/bench/parsers/chainlogical -lib import -types -limits -charge-units=logical -o ../internal/bench/parsers/chainlogical
-//go:generate go run ../cmd/sxir gen -g grammars/logical_chain.sxir -module syntaxir.dev/sxir/internal/bench/parsers/chainevent -lib import -types -limits -charge-units=logical-event -o ../internal/bench/parsers/chainevent
-//go:generate go run ../cmd/sxir gen -g grammars/logical_keyed.sxir -module syntaxir.dev/sxir/internal/bench/parsers/keyedlogical -lib import -types -limits -charge-units=logical -o ../internal/bench/parsers/keyedlogical
-//go:generate go run ../cmd/sxir gen -g grammars/logical_keyed.sxir -module syntaxir.dev/sxir/internal/bench/parsers/keyedevent -lib import -types -limits -charge-units=logical-event -o ../internal/bench/parsers/keyedevent
-//go:generate go run ../cmd/sxir gen -g grammars/logical_hand.sxir -module syntaxir.dev/sxir/internal/bench/parsers/handlogical -lib import -limits -charge-units=logical -o ../internal/bench/parsers/handlogical
+//go:generate go run ../cmd/sxir gen -g ../testdata/grammars/json/json.sxir -module syntaxir.dev/sxir/internal/bench/parsers/json -lib import -recognize -types -o ../internal/bench/parsers/json
+//go:generate go run ../cmd/sxir gen -g ../testdata/grammars/csv/csv.sxir -module syntaxir.dev/sxir/internal/bench/parsers/csv -lib import -recognize -types -o ../internal/bench/parsers/csv
+//go:generate go run ../cmd/sxir gen -g ../testdata/grammars/xml/xml.sxir -module syntaxir.dev/sxir/internal/bench/parsers/xml -lib import -recognize -types -o ../internal/bench/parsers/xml
+//go:generate go run ../cmd/sxir gen -g ../examples/calculator/calc.sxir -module syntaxir.dev/sxir/internal/bench/parsers/calc -lib import -recognize -types -o ../internal/bench/parsers/calc
+//go:generate go run ../cmd/sxir gen -g ../examples/calculator/calc_lr.sxir -module syntaxir.dev/sxir/internal/bench/parsers/calclr -lib import -recognize -types -o ../internal/bench/parsers/calclr
+//go:generate go run ../cmd/sxir gen -g ../examples/minilang/minilang.sxir -module syntaxir.dev/sxir/internal/bench/parsers/minilang -lib import -recognize -types -o ../internal/bench/parsers/minilang
+//go:generate go run ../cmd/sxir gen -g ../examples/outline/outline.sxir -module syntaxir.dev/sxir/internal/bench/parsers/outline -lib import -recognize -types -o ../internal/bench/parsers/outline
+//go:generate go run ../cmd/sxir gen -g grammars/actions/pred.sxir -module syntaxir.dev/sxir/internal/bench/parsers/actionspred -lib import -recognize -types -o ../internal/bench/parsers/actionspred
+//go:generate go run ../cmd/sxir gen -g grammars/actions/heavy.sxir -module syntaxir.dev/sxir/internal/bench/parsers/actionsheavy -lib import -recognize -types -o ../internal/bench/parsers/actionsheavy
+//go:generate go run ../cmd/sxir gen -g ../examples/minilang/minilang.sxir -module syntaxir.dev/sxir/internal/bench/parsers/minilangdoc -lib import -document -o ../internal/bench/parsers/minilangdoc
+//go:generate go run ../cmd/sxir gen -g ../examples/minilang/minilang.sxir -module syntaxir.dev/sxir/internal/bench/parsers/minilangtdoc -lib import -types -document -o ../internal/bench/parsers/minilangtdoc
+//go:generate go run ../cmd/sxir gen -g ../testdata/grammars/csv/csv.sxir -module syntaxir.dev/sxir/internal/bench/parsers/csvdoc -lib import -document -o ../internal/bench/parsers/csvdoc
+//go:generate go run ../cmd/sxir gen -g ../testdata/grammars/csv/csv.sxir -module syntaxir.dev/sxir/internal/bench/parsers/csvstream -lib import -stream -o ../internal/bench/parsers/csvstream
+//go:generate go run ../cmd/sxir gen -g ../testdata/grammars/json/json.sxir -module syntaxir.dev/sxir/internal/bench/parsers/jsonplain -lib import -types -no-limits -o ../internal/bench/parsers/jsonplain
+//go:generate go run ../cmd/sxir gen -g ../testdata/grammars/json/json.sxir -module syntaxir.dev/sxir/internal/bench/parsers/jsonlogical -lib import -types -charge-units=logical -o ../internal/bench/parsers/jsonlogical
+//go:generate go run ../cmd/sxir gen -g ../testdata/grammars/json/json.sxir -module syntaxir.dev/sxir/internal/bench/parsers/jsonevent -lib import -types -charge-units=logical-event -o ../internal/bench/parsers/jsonevent
+//go:generate go run ../cmd/sxir gen -g ../testdata/grammars/json/json.sxir -module syntaxir.dev/sxir/internal/bench/parsers/jsonkeepguards -lib import -types -charge-units=logical-keep-guards -o ../internal/bench/parsers/jsonkeepguards
+//go:generate go run ../cmd/sxir gen -g ../testdata/grammars/xml/xml.sxir -module syntaxir.dev/sxir/internal/bench/parsers/xmlplain -lib import -types -no-limits -o ../internal/bench/parsers/xmlplain
+//go:generate go run ../cmd/sxir gen -g ../testdata/grammars/xml/xml.sxir -module syntaxir.dev/sxir/internal/bench/parsers/xmllogical -lib import -types -charge-units=logical -o ../internal/bench/parsers/xmllogical
+//go:generate go run ../cmd/sxir gen -g ../testdata/grammars/xml/xml.sxir -module syntaxir.dev/sxir/internal/bench/parsers/xmlevent -lib import -types -charge-units=logical-event -o ../internal/bench/parsers/xmlevent
+//go:generate go run ../cmd/sxir gen -g ../testdata/grammars/xml/xml.sxir -module syntaxir.dev/sxir/internal/bench/parsers/xmlkeepguards -lib import -types -charge-units=logical-keep-guards -o ../internal/bench/parsers/xmlkeepguards
+//go:generate go run ../cmd/sxir gen -g grammars/logical_policy.sxir -module syntaxir.dev/sxir/internal/bench/parsers/policylogical -lib import -types -charge-units=logical -o ../internal/bench/parsers/policylogical
+//go:generate go run ../cmd/sxir gen -g grammars/logical_policy.sxir -module syntaxir.dev/sxir/internal/bench/parsers/policyevent -lib import -types -charge-units=logical-event -o ../internal/bench/parsers/policyevent
+//go:generate go run ../cmd/sxir gen -g grammars/logical_chain.sxir -module syntaxir.dev/sxir/internal/bench/parsers/chainlogical -lib import -types -charge-units=logical -o ../internal/bench/parsers/chainlogical
+//go:generate go run ../cmd/sxir gen -g grammars/logical_chain.sxir -module syntaxir.dev/sxir/internal/bench/parsers/chainevent -lib import -types -charge-units=logical-event -o ../internal/bench/parsers/chainevent
+//go:generate go run ../cmd/sxir gen -g grammars/logical_keyed.sxir -module syntaxir.dev/sxir/internal/bench/parsers/keyedlogical -lib import -types -charge-units=logical -o ../internal/bench/parsers/keyedlogical
+//go:generate go run ../cmd/sxir gen -g grammars/logical_keyed.sxir -module syntaxir.dev/sxir/internal/bench/parsers/keyedevent -lib import -types -charge-units=logical-event -o ../internal/bench/parsers/keyedevent
+//go:generate go run ../cmd/sxir gen -g grammars/logical_hand.sxir -module syntaxir.dev/sxir/internal/bench/parsers/handlogical -lib import -charge-units=logical -o ../internal/bench/parsers/handlogical

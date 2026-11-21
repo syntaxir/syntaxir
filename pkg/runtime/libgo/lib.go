@@ -587,7 +587,7 @@ func ResolveOptions(g *grammar, opts []ParseOption) (parseOptions, error) {
 	}
 	o.maxDepth = depth
 	if g.NoBudgetControls && (o.context != nil || !limitsDisabled(o.limits)) {
-		return o, fmt.Errorf("this parser was generated without limit controls (generate with -limits to use WithContext and a finite Compute or Memory limit)")
+		return o, fmt.Errorf("this parser was generated without limit controls (-no-limits; generate it without that option to use WithContext and a finite Compute or Memory limit)")
 	}
 	if o.expectations && !g.Expectations {
 		return o, fmt.Errorf("this parser was generated without expectations (generate with -expectations to use WithExpectations)")

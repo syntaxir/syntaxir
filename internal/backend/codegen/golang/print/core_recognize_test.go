@@ -43,8 +43,8 @@ func coreRecognizeCase(name, mode string, g *print.Generator) (*coreGenCase, err
 
 // recognizerGenModes are the modes in which the Core IR of the recognizers is frozen.
 var recognizerGenModes = []coreGenMode{
-	{"lean", common.GenOptions{Recognize: true}},
-	{"controlled", common.GenOptions{Recognize: true, LimitControls: true}},
+	{"lean", common.GenOptions{NoLimitControls: true, Recognize: true}},
+	{"controlled", common.GenOptions{Recognize: true}},
 }
 
 // recognizerCorpus is the corpus grammars of the recognizer freeze.
@@ -89,7 +89,7 @@ func TestCoreRecognizerDecisionsFrozen(t *testing.T) {
 					continue
 				}
 				want := 0
-				if !mode.opts.LimitControls {
+				if mode.opts.NoLimitControls {
 					want = 1
 				}
 				if got := len(c.flow.guarded); got != want {
@@ -106,7 +106,7 @@ func TestCoreRecognizerDecisionsFrozen(t *testing.T) {
 		}
 		return cases
 	}, func(t *testing.T, mode coreGenMode, n *coreDecisionCounts) {
-		lean := !mode.opts.LimitControls
+		lean := mode.opts.NoLimitControls
 		if n.guards == 0 || n.scans == 0 || n.scopes == 0 || (n.guardedClasses > 0) != lean {
 			t.Errorf("counts %+v", n)
 		}

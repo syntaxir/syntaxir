@@ -93,7 +93,7 @@ func TestTerminalProgramGeneration(t *testing.T) {
 		}
 		// Parsers with budget controls or Documents keep the straight-line code, which charges
 		// budget for each expression.
-		for _, opts := range []common.GenOptions{{LimitControls: true}, {Document: true}} {
+		for _, opts := range []common.GenOptions{{}, {NoLimitControls: true, Document: true}} {
 			opts.Package, opts.Module, opts.Start, opts.Types, opts.Lib = "terminal", "example.com/generated", "main", true, common.LibImport
 			files, err := codegentest.Generate(t, g, opts)
 			if err != nil {
@@ -140,22 +140,22 @@ func TestTerminalProgramEligibility(t *testing.T) {
 		opts      common.GenOptions
 		want      bool
 	}{
-		{"discarded", "rule main = -" + choice16 + " $$\n", common.GenOptions{}, true},
-		{"lookahead", "rule main = !" + choice16 + " [a-z]* $$\n", common.GenOptions{}, true},
-		{"text is the value", "rule main = " + choice16 + " $$\n", common.GenOptions{}, false},
-		{"captured", "rule main = x:" + choice16 + " $$ => $x\n", common.GenOptions{}, false},
-		{"too few leaves", "rule main = -" + choice15 + " $$\n", common.GenOptions{}, false},
-		{"no choice", "rule main = -(" + seq16 + ") $$\n", common.GenOptions{}, false},
+		{"discarded", "rule main = -" + choice16 + " $$\n", common.GenOptions{NoLimitControls: true}, true},
+		{"lookahead", "rule main = !" + choice16 + " [a-z]* $$\n", common.GenOptions{NoLimitControls: true}, true},
+		{"text is the value", "rule main = " + choice16 + " $$\n", common.GenOptions{NoLimitControls: true}, false},
+		{"captured", "rule main = x:" + choice16 + " $$ => $x\n", common.GenOptions{NoLimitControls: true}, false},
+		{"too few leaves", "rule main = -" + choice15 + " $$\n", common.GenOptions{NoLimitControls: true}, false},
+		{"no choice", "rule main = -(" + seq16 + ") $$\n", common.GenOptions{NoLimitControls: true}, false},
 		// The untraced bodies are those of the build without observability; the traced bodies, which
 		// record every read, hold none (checked below).
-		{"observability", "rule main = -" + choice16 + " $$\n", common.GenOptions{Observability: true}, true},
-		{"budget controls", "rule main = -" + choice16 + " $$\n", common.GenOptions{LimitControls: true}, false},
-		{"document", "rule main = -" + choice16 + " $$\n", common.GenOptions{Document: true}, false},
-		{"disabled", "rule main = -" + choice16 + " $$\n", common.GenOptions{NoOpt: []string{"terminals"}}, false},
+		{"observability", "rule main = -" + choice16 + " $$\n", common.GenOptions{NoLimitControls: true, Observability: true}, true},
+		{"budget controls", "rule main = -" + choice16 + " $$\n", common.GenOptions{}, false},
+		{"document", "rule main = -" + choice16 + " $$\n", common.GenOptions{NoLimitControls: true, Document: true}, false},
+		{"disabled", "rule main = -" + choice16 + " $$\n", common.GenOptions{NoLimitControls: true, NoOpt: []string{"terminals"}}, false},
 		// The typed body of a left-recursive rule is a frame body, which keeps straight-line code.
-		{"left recursion", "rule main = e $$\nrule e = e -" + choice16 + " [0-9] / [0-9]\n", common.GenOptions{}, false},
+		{"left recursion", "rule main = e $$\nrule e = e -" + choice16 + " [0-9] / [0-9]\n", common.GenOptions{NoLimitControls: true}, false},
 		// Streaming parses run the Node bodies; only the typed bodies of ParseValue hold programs.
-		{"stream", "rule main = (-" + choice16 + " w:[0-9]+ \";\")* #stream $$\n", common.GenOptions{Stream: true}, true},
+		{"stream", "rule main = (-" + choice16 + " w:[0-9]+ \";\")* #stream $$\n", common.GenOptions{NoLimitControls: true, Stream: true}, true},
 	} {
 		g, err := parseTest(c.src)
 		if err != nil {
@@ -227,13 +227,13 @@ func TestDepthChecks(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, opts := range []common.GenOptions{{TypedOnly: true}, {LimitControls: true}} {
+		for _, opts := range []common.GenOptions{{NoLimitControls: true, TypedOnly: true}, {}} {
 			opts.Package, opts.Module, opts.Start, opts.Types, opts.Lib = "terminal", "example.com/generated", "main", true, common.LibImport
 			files, err := codegentest.Generate(t, g, opts)
 			if err != nil {
 				t.Fatal(err)
 			}
-			sources[fmt.Sprintf("%s %+v", c.Name, opts.LimitControls)] = string(codegentest.MergeGenerated(files))
+			sources[fmt.Sprintf("%s %+v", c.Name, !opts.NoLimitControls)] = string(codegentest.MergeGenerated(files))
 		}
 	}
 	other := regexp.MustCompile(`\.Depth\s*(\+=|=[^=])|\.MaxDepth\s*(\+\+|--|\+=|-=|=[^=])`)

@@ -22,7 +22,7 @@ func TestGeneratedSourceParserCurrent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	files, err := gensrc.Go(g, common.GenOptions{Module: "syntaxir.dev/sxir/internal/frontend/parser/sxirparser", Lib: common.LibImport, Types: true, TypedOnly: true, LimitControls: true, Expectations: true, Start: "main"})
+	files, err := gensrc.Go(g, common.GenOptions{Module: "syntaxir.dev/sxir/internal/frontend/parser/sxirparser", Lib: common.LibImport, Types: true, TypedOnly: true, Expectations: true, Start: "main"})
 	if err != nil {
 		t.Fatal(err)
 	}

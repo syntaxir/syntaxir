@@ -35,7 +35,7 @@ var Header = &pipe.Header[common.GenOptions]{
 			{Field: "Debug.PrintChanged"}, {Field: "Debug.Stats"}, {Field: "Debug.TimePasses"}, {Field: "Debug.PrintBefore"},
 		}},
 		{Word: "target", Fields: []pipe.HeaderField{
-			{Field: "TypedOnly"}, {Field: "RecognizeOnly"}, {Field: "LimitControls", Key: "limits"},
+			{Field: "TypedOnly"}, {Field: "RecognizeOnly"}, {Field: "NoLimitControls", Key: "no-limits"},
 			{Field: "LogicalUnits"}, {Field: "LogicalVariant"}, {Field: "Expectations"}, {Field: "Observability"}, {Field: "Document"}, {Field: "Stream"},
 			{Field: "Module"}, {Field: "Package"}, {Field: "Lib", Codec: libCodec}, {Field: "LibModule"},
 			{Field: "MaxDepth"}, {Field: "Types"}, {Field: "Recognize"}, {Field: "OmitPackageDoc"},

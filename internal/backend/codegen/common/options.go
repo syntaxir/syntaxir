@@ -23,13 +23,14 @@ type GenOptions struct {
 	// function that builds a Node or a typed value. It excludes Types, TypedOnly, Document and
 	// Stream, and implies Recognize.
 	RecognizeOnly bool
-	// LimitControls emits the limit-controlled form of the generated functions, which charges
-	// cancellation and the compute limit (WithContext and Limits.Compute; signal and the
-	// compute limit in TypeScript), and re-exports WithContext. Without it the functions have no charges (the ordinary form, or with Document
-	// the form that serves a Document), and a parse with a control option fails with an error.
-	LimitControls bool
+	// NoLimitControls opts out of the limit-controlled form of the generated functions, which is the
+	// default: it charges cancellation and the compute limit (WithContext and Limits.Compute; signal
+	// and the compute limit in TypeScript) and re-exports WithContext. With NoLimitControls the
+	// functions have no charges (the ordinary form, or with Document the form that serves a
+	// Document), and a parse with a control option fails with an error.
+	NoLimitControls bool
 	// LogicalUnits (internal, measurement only) prints the ordinary form of the functions with a
-	// counter of logical compute units (design record 076) in place of the charges of LimitControls.
+	// counter of logical compute units (design record 076) in place of the charges of the limit-controlled form.
 	LogicalUnits bool
 	// LogicalVariant selects a measurement variant of LogicalUnits (see compiler.GoConfig).
 	LogicalVariant string

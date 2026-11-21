@@ -33,7 +33,7 @@ func TestTypedOnlyUnreachedNodeRulesAreLeftOut(t *testing.T) {
 func testTypedOnlyUnreached(t *testing.T) {
 	src := typedOnlyLonelyGrammar(t)
 	for _, controls := range []bool{false, true} {
-		opts := common.GenOptions{Types: true, TypedOnly: true, LimitControls: controls}
+		opts := common.GenOptions{Types: true, TypedOnly: true, NoLimitControls: !controls}
 		pruned := generateReach(t, src, opts)
 		kept := opts
 		kept.KeepUnreachable = true

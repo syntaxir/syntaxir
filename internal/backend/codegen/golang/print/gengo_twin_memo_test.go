@@ -61,7 +61,7 @@ func testGeneratedTwinMemo(t *testing.T) {
 		in := strconv.Quote(c.input)
 		// g has no limit controls; l has them, under the default limits.
 		for _, pkg := range []string{fmt.Sprintf("g%d", i), fmt.Sprintf("l%d", i)} {
-			codegentest.GeneratePackage(t, dir, pkg, mustParse(c.src), common.GenOptions{Start: "main", Types: true, Recognize: true, Observability: true, LimitControls: pkg[0] == 'l'})
+			codegentest.GeneratePackage(t, dir, pkg, mustParse(c.src), common.GenOptions{Start: "main", Types: true, Recognize: true, Observability: true, NoLimitControls: pkg[0] != 'l'})
 			fmt.Fprintf(&imports, "\t%q\n", "codegentest/"+pkg)
 			for _, op := range []string{"_, _ = %s.Parse(%s, sxirrt.WithProfile(&p))", "_, _ = %s.ParseValue(%s, sxirrt.WithProfile(&p))", "_ = %s.Recognize(%s, sxirrt.WithProfile(&p))"} {
 				fmt.Fprintf(&calls, "\t{ var p sxirinstrument.Profile; "+op+"; fmt.Print(evals(p), \" \") }\n", pkg, in)
@@ -139,7 +139,7 @@ func testGeneratedLambdaParameter(t *testing.T) {
 	}
 	var imports, calls strings.Builder
 	for _, pkg := range []string{"g", "l"} {
-		codegentest.GeneratePackage(t, dir, pkg, mustParse(codegentest.TwinLambdaParamSrc), common.GenOptions{Start: "main", Types: true, Recognize: true, LimitControls: pkg == "l"})
+		codegentest.GeneratePackage(t, dir, pkg, mustParse(codegentest.TwinLambdaParamSrc), common.GenOptions{Start: "main", Types: true, Recognize: true, NoLimitControls: pkg != "l"})
 		fmt.Fprintf(&imports, "\t%q\n", "codegentest/"+pkg)
 		for _, in := range inputs {
 			fmt.Fprintf(&calls, "\t{ _, perr := %s.Parse(%q); rerr := %[1]s.Recognize(%[2]q); fmt.Println(perr == nil, fmt.Sprint(perr) == fmt.Sprint(rerr)) }\n", pkg, in)

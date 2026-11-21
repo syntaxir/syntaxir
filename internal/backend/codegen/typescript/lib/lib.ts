@@ -1224,7 +1224,7 @@ export function resolveOptions(g: Grammar, options: ParseOptions | undefined, in
     }
   }
   if (!g.controlled && (options?.signal != null || ((limits?.compute ?? 0) !== 0 && limits?.compute !== Unlimited) || ((limits?.memory ?? 0) !== 0 && limits?.memory !== Unlimited))) {
-    return new Error("this parser was generated without limit controls (generate with -limits to use signal and the compute and memory limits)");
+    return new Error("this parser was generated without limit controls (-no-limits; generate it without that option to use signal and the compute and memory limits)");
   }
   if (!g.observable && (options?.profile != null || options?.trace != null || options?.traceRules !== undefined || options?.traceMaxDepth !== undefined)) {
     return new Error("trace and profile options are only supported by a parser generated with observability");

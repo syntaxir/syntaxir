@@ -55,7 +55,7 @@ func TestGeneratedTSMemoJoin(t *testing.T) {
 			// g has no limit controls; l has them, under the default limits.
 			var line []string
 			for _, pkg := range []string{fmt.Sprintf("g%d", i), fmt.Sprintf("l%d", i)} {
-				code, err := codegentest.GenerateTSBundle(mustParse(r.Src), common.GenOptions{Start: "s", Recognize: true, Observability: true, LimitControls: pkg[0] == 'l'})
+				code, err := codegentest.GenerateTSBundle(mustParse(r.Src), common.GenOptions{Start: "s", Recognize: true, Observability: true, NoLimitControls: pkg[0] != 'l'})
 				if err != nil {
 					t.Fatalf("%s: %v", c.Name, err)
 				}

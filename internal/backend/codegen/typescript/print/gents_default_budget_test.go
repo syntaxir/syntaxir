@@ -42,7 +42,7 @@ if (limitOf(p.parseWithOptions(wide, { unit: p.CodePoints }).error) !== 2000 * 1
 if (limitOf(p.parseWithOptions(new TextEncoder().encode(wide), { unit: p.CodePoints }).error) !== 2000 * 1024) fail("code points of bytes");
 if (p.Unlimited !== Number.MAX_SAFE_INTEGER) fail("Unlimited");
 console.log("ok");
-`, common.GenOptions{Start: "main", LimitControls: true, Types: true, Recognize: true})
+`, common.GenOptions{Start: "main", Types: true, Recognize: true})
 	if out != "ok\n" {
 		t.Fatalf("got %q", out)
 	}
@@ -62,7 +62,7 @@ const options = { limits: { compute: Number.MAX_SAFE_INTEGER } } as p.ParseOptio
 const r = p.parseWithOptions("a".repeat(100), options);
 if (r.error !== null || r.node === null) throw new Error("unlimited parse failed: " + r.error);
 console.log("ok");
-`, common.GenOptions{Start: "main", LimitControls: controls, Types: true, Recognize: true})
+`, common.GenOptions{Start: "main", NoLimitControls: !controls, Types: true, Recognize: true})
 		if out != "ok\n" {
 			t.Fatalf("controls=%v: got %q", controls, out)
 		}
@@ -109,7 +109,7 @@ const first = p.parseWithOptions(text, { signal: cancelled, limits: { input: 1 }
 if (!(first instanceof p.ParseInterruptionError) || first.kind !== "input-limit") fail("input limit comes before the signal: " + first);
 if (p.parseWithOptions("abc", { limits: { input: -1 } }).error === null) fail("negative maxInput");
 console.log("ok");
-`, common.GenOptions{Start: "main", LimitControls: true, Types: true, Recognize: true})
+`, common.GenOptions{Start: "main", Types: true, Recognize: true})
 	if out != "ok\n" {
 		t.Fatalf("got %q", out)
 	}
@@ -120,8 +120,8 @@ console.log(p.parseWithOptions("abc", { limits: { input: 3 } }).error === null ?
 const over = p.parseWithOptions("abc", { limits: { input: 2 } }).error;
 console.log(over instanceof p.ParseInterruptionError && over.kind === "input-limit" ? over.message : String(over));
 console.log(String(p.parseWithOptions("abc", { limits: { compute: 3 } } as p.ParseOptions).error));
-`, common.GenOptions{Start: "main", LimitControls: false, Types: true, Recognize: true})
-	if want := "accepted\ninput-limit exceeded: limit 2, length 3\nError: this parser was generated without limit controls (generate with -limits to use signal and the compute and memory limits)\n"; out != want {
+`, common.GenOptions{Start: "main", NoLimitControls: true, Types: true, Recognize: true})
+	if want := "accepted\ninput-limit exceeded: limit 2, length 3\nError: this parser was generated without limit controls (-no-limits; generate it without that option to use signal and the compute and memory limits)\n"; out != want {
 		t.Fatalf("without budget controls: got %q", out)
 	}
 }

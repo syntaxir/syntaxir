@@ -334,7 +334,7 @@ rule main Limits = t:("é") #atomic => Limits{Text: text($t)}`)
 	}
 	for _, convert := range []bool{false, true} {
 		pkg := fmt.Sprintf("collision_%v", convert)
-		opts := common.GenOptions{Package: pkg, Module: "budgetcollision/" + pkg, Lib: common.LibImport, Start: "main", Types: true, ConvertTypes: convert, LimitControls: true}
+		opts := common.GenOptions{Package: pkg, Module: "budgetcollision/" + pkg, Lib: common.LibImport, Start: "main", Types: true, ConvertTypes: convert}
 		files, err := codegentest.Generate(t, g, opts)
 		if err != nil {
 			t.Fatal(err)

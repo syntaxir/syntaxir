@@ -164,7 +164,7 @@ func tsStorePolicyCounts(t *testing.T, node string, limits bool, mutate func(str
 		}
 		i := len(cases)
 		cases = append(cases, c)
-		code, err := codegentest.GenerateTSBundle(mustParse(c.Src), common.GenOptions{Start: c.Start, Recognize: true, Observability: true, LimitControls: limits, Document: true})
+		code, err := codegentest.GenerateTSBundle(mustParse(c.Src), common.GenOptions{Start: c.Start, Recognize: true, Observability: true, NoLimitControls: !limits, Document: true})
 		if err != nil {
 			t.Fatalf("%s: %v", c.Name, err)
 		}

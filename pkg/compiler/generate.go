@@ -88,14 +88,13 @@ type GoConfig struct {
 	// Observability emits rule tracing and profiling for batch parsers and Documents, including
 	// their typed entry points. Collection is selected per invocation.
 	Observability bool
-	// LimitControls generates the limit-controlled form of the parser, which supports cancellation
-	// and the compute limit and re-exports the option WithContext. Without it the generated parser
-	// is smaller and faster to build, and a parse that passes a context or a finite Compute limit
-	// returns an error; Limits.Input and Limits.Depth work in both forms. The controlled form is the only form of the parser: a
-	// parse that sets no limit runs it too, and is slower than with a parser generated without
-	// limit controls.
-	LimitControls bool
-	// LogicalUnits is internal: with LimitControls, the functions count logical compute units
+	// NoLimitControls opts out of the limit-controlled form of the parser, which is the default: the
+	// controlled form supports cancellation and the compute limit, re-exports the option WithContext
+	// and applies the default limits to a parse that sets none. With NoLimitControls the generated
+	// parser is smaller, faster to build and faster to run, and a parse that passes a context or a
+	// finite Compute limit returns an error; Limits.Input and Limits.Depth work in both forms.
+	NoLimitControls bool
+	// LogicalUnits is internal: in the default controlled form, the functions count logical compute units
 	// (design record 076) in place of the charges of the limit-controlled form. It does not cover
 	// Documents, streams, observability, left recursion, Operators Rules or recovery.
 	LogicalUnits bool
@@ -150,29 +149,29 @@ func GenerateGo(src grammar.Source, c GoConfig, opts ...Option) ([]File, error) 
 		return nil, err
 	}
 	return files(generate.Go(g, common.GenOptions{
-		Module:         c.Module,
-		Package:        c.PackageName,
-		Start:          o.start,
-		Lib:            lib,
-		Types:          c.Types,
-		DefaultValue:   o.defaultValue,
-		SourceInfo:     o.sourceInfo,
-		Observability:  c.Observability,
-		LimitControls:  c.LimitControls,
-		LogicalUnits:   c.LogicalUnits,
-		LogicalVariant: c.LogicalVariant,
-		Expectations:   c.Expectations,
-		Recognize:      c.Recognize,
-		MaxDepth:       c.MaxDepth,
-		Document:       c.Document,
-		Stream:         c.Stream,
-		TypedOnly:      c.TypedOnly,
-		RecognizeOnly:  c.RecognizeOnly,
-		OmitPackageDoc: c.OmitPackageDoc,
-		Optimize:       o.optimize.Profile,
-		Opt:            o.optimize.Values,
-		NoOpt:          o.optimize.Off,
-		Debug:          o.debug.internal(),
+		Module:          c.Module,
+		Package:         c.PackageName,
+		Start:           o.start,
+		Lib:             lib,
+		Types:           c.Types,
+		DefaultValue:    o.defaultValue,
+		SourceInfo:      o.sourceInfo,
+		Observability:   c.Observability,
+		NoLimitControls: c.NoLimitControls,
+		LogicalUnits:    c.LogicalUnits,
+		LogicalVariant:  c.LogicalVariant,
+		Expectations:    c.Expectations,
+		Recognize:       c.Recognize,
+		MaxDepth:        c.MaxDepth,
+		Document:        c.Document,
+		Stream:          c.Stream,
+		TypedOnly:       c.TypedOnly,
+		RecognizeOnly:   c.RecognizeOnly,
+		OmitPackageDoc:  c.OmitPackageDoc,
+		Optimize:        o.optimize.Profile,
+		Opt:             o.optimize.Values,
+		NoOpt:           o.optimize.Off,
+		Debug:           o.debug.internal(),
 	}))
 }
 
@@ -205,13 +204,12 @@ type TSConfig struct {
 	// Observability emits rule tracing and profiling for batch parsing, including the typed entry
 	// points. Collection is selected per invocation.
 	Observability bool
-	// LimitControls generates the limit-controlled form of the parser, which supports the signal
-	// option and the compute limit. Without it the generated parser is smaller, and a parse that
-	// passes a signal or a finite compute limit returns an error; the input and depth limits work in
-	// both forms. The controlled form is the only form of the
-	// parser: a parse that sets no limit runs it too, and is slower than with a parser generated
-	// without limit controls.
-	LimitControls bool
+	// NoLimitControls opts out of the limit-controlled form of the parser, which is the default: the
+	// controlled form supports the signal option and the compute limit and applies the default limits
+	// to a parse that sets none. With NoLimitControls the generated parser is smaller and faster, and
+	// a parse that passes a signal or a finite compute limit returns an error; the input and depth
+	// limits work in both forms.
+	NoLimitControls bool
 	// Recognize also generates recognize, which checks the input against the start rule without
 	// building a tree, like runtime.Parser.Recognize.
 	Recognize bool
@@ -247,22 +245,22 @@ func GenerateTypeScript(src grammar.Source, c TSConfig, opts ...Option) ([]File,
 		return nil, err
 	}
 	return files(generate.TypeScript(g, common.GenOptions{
-		Start:         o.start,
-		Lib:           lib,
-		LibModule:     c.LibModule,
-		Types:         c.Types,
-		DefaultValue:  o.defaultValue,
-		SourceInfo:    o.sourceInfo,
-		Observability: c.Observability,
-		LimitControls: c.LimitControls,
-		Expectations:  c.Expectations,
-		Recognize:     c.Recognize,
-		Document:      c.Document,
-		MaxDepth:      c.MaxDepth,
-		Optimize:      o.optimize.Profile,
-		Opt:           o.optimize.Values,
-		NoOpt:         o.optimize.Off,
-		Debug:         o.debug.internal(),
+		Start:           o.start,
+		Lib:             lib,
+		LibModule:       c.LibModule,
+		Types:           c.Types,
+		DefaultValue:    o.defaultValue,
+		SourceInfo:      o.sourceInfo,
+		Observability:   c.Observability,
+		NoLimitControls: c.NoLimitControls,
+		Expectations:    c.Expectations,
+		Recognize:       c.Recognize,
+		Document:        c.Document,
+		MaxDepth:        c.MaxDepth,
+		Optimize:        o.optimize.Profile,
+		Opt:             o.optimize.Values,
+		NoOpt:           o.optimize.Off,
+		Debug:           o.debug.internal(),
 	}))
 }
 

@@ -173,7 +173,7 @@ func TestParserGenArgsAdaptsGoOptionsToTypeScript(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := strings.Join(args, " ")
-	if !strings.HasSuffix(got, "cel/cel.sxir -types") || !strings.Contains(got, "-g "+filepath.Join(root, "testdata", "grammars", "cel", "cel.sxir")) {
+	if !strings.HasSuffix(got, "cel/cel.sxir -types -no-limits") || !strings.Contains(got, "-g "+filepath.Join(root, "testdata", "grammars", "cel", "cel.sxir")) {
 		t.Errorf("cel args: %s", got)
 	}
 	for _, bad := range []string{"-module", "-lib", "-nodoc", "-typed-only", "-o "} {
@@ -181,7 +181,7 @@ func TestParserGenArgsAdaptsGoOptionsToTypeScript(t *testing.T) {
 			t.Errorf("cel args keep %s: %s", bad, got)
 		}
 	}
-	if args, _ := parserGenArgs(root, "json"); !strings.Contains(strings.Join(args, " "), "-recognize -limits") {
+	if args, _ := parserGenArgs(root, "json"); !strings.Contains(strings.Join(args, " "), "-recognize") || strings.Contains(strings.Join(args, " "), "-no-limits") {
 		t.Errorf("json args: %v", args)
 	}
 	if _, err := parserGenArgs(root, "nonexistent"); err == nil {

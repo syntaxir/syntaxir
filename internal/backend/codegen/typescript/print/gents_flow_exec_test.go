@@ -42,12 +42,12 @@ func TestEveryFunctionPrintsFromExecIR(t *testing.T) {
 		name string
 		opts common.GenOptions
 	}{
-		{"plain", common.GenOptions{}},
-		{"recognize", common.GenOptions{Recognize: true}},
-		{"budget", common.GenOptions{Recognize: true, LimitControls: true}},
-		{"observe", common.GenOptions{Observability: true}},
-		{"types", common.GenOptions{Types: true}},
-		{"default value", common.GenOptions{DefaultValue: true}},
+		{"plain", common.GenOptions{NoLimitControls: true}},
+		{"recognize", common.GenOptions{NoLimitControls: true, Recognize: true}},
+		{"budget", common.GenOptions{Recognize: true}},
+		{"observe", common.GenOptions{NoLimitControls: true, Observability: true}},
+		{"types", common.GenOptions{NoLimitControls: true, Types: true}},
+		{"default value", common.GenOptions{NoLimitControls: true, DefaultValue: true}},
 	}
 	for _, mode := range modes {
 		t.Run(mode.name, func(t *testing.T) {

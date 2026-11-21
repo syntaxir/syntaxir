@@ -75,7 +75,7 @@ func TestFlowTableFollowsGoNodeTable(t *testing.T) {
 					}
 				},
 			}
-			opts := common.GenOptions{Package: "p", Module: "example.com/p", LimitControls: true, NoOpt: []string{flowpass.PassInlineLiterals}}
+			opts := common.GenOptions{Package: "p", Module: "example.com/p", NoOpt: []string{flowpass.PassInlineLiterals}}
 			if _, err := print.GenerateParser(g, codegentest.Compile, codegentest.Passes(opts), codegentest.WithLib(opts), hooks); err != nil {
 				t.Fatal(err)
 			}

@@ -29,7 +29,7 @@ const (
 	FeatureStream
 	// FeatureObserve is tracing and profiling (-observability).
 	FeatureObserve
-	// FeatureBudget is the limit controls: cancellation and the compute and memory limits (-limits).
+	// FeatureBudget is the limit controls: cancellation and the compute and memory limits (on by default, off with -no-limits).
 	FeatureBudget
 	// FeatureMemo is the memo table: a reached rule is memoized or leads a left-recursion cycle.
 	FeatureMemo
@@ -94,7 +94,7 @@ func Analyze(prog, rec *Program, opts GenOptions) (FeatureSet, error) {
 	if opts.Observability {
 		f |= FeatureObserve
 	}
-	if opts.LimitControls {
+	if !opts.NoLimitControls {
 		f |= FeatureBudget
 	}
 	for _, p := range []*Program{prog, rec} {

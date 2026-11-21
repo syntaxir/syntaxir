@@ -31,9 +31,9 @@ func TestEveryFlowFunctionRunsTheIRPipelines(t *testing.T) {
 		name string
 		opts common.GenOptions
 	}{
-		{"ordinary", common.GenOptions{Recognize: true}},
-		{"types", common.GenOptions{Recognize: true, Types: true}},
-		{"controls+observability", common.GenOptions{Recognize: true, LimitControls: true, Observability: true}},
+		{"ordinary", common.GenOptions{NoLimitControls: true, Recognize: true}},
+		{"types", common.GenOptions{NoLimitControls: true, Recognize: true, Types: true}},
+		{"controls+observability", common.GenOptions{Recognize: true, Observability: true}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()

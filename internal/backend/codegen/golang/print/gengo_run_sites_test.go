@@ -145,7 +145,7 @@ func runSiteRuns(t *testing.T, goBin string, sources []string, inputs [][]string
 			t.Fatalf("%s: %v", src, err)
 		}
 		pkg := fmt.Sprintf("g%d", i)
-		files, err := codegentest.Generate(t, g, common.GenOptions{Module: "runlin/" + pkg, Package: pkg, Start: "main", Lib: common.LibEmbed, LimitControls: spend})
+		files, err := codegentest.Generate(t, g, common.GenOptions{Module: "runlin/" + pkg, Package: pkg, Start: "main", Lib: common.LibEmbed, NoLimitControls: !spend})
 		if err != nil {
 			t.Fatalf("%s: %v", src, err)
 		}

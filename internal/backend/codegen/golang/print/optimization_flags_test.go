@@ -365,10 +365,10 @@ var nodeRouteModes = []struct {
 	name string
 	opts common.GenOptions
 }{
-	{"plain", common.GenOptions{}},
-	{"observability", common.GenOptions{Observability: true}},
-	{"limits", common.GenOptions{LimitControls: true}},
-	{"recognize", common.GenOptions{Recognize: true}},
+	{"plain", common.GenOptions{NoLimitControls: true}},
+	{"observability", common.GenOptions{NoLimitControls: true, Observability: true}},
+	{"limits", common.GenOptions{}},
+	{"recognize", common.GenOptions{NoLimitControls: true, Recognize: true}},
 }
 
 // TestOptimizationDisabledNodeRouteParity compares Node and recognizer parsers generated with an

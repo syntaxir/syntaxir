@@ -90,13 +90,13 @@ func TestGeneratedLocalVariables(t *testing.T) {
 		opts  common.GenOptions
 		blank bool // the form has no blank lines inside functions
 	}{
-		{"ordinary", common.GenOptions{Types: true}, true},
-		{"budget controls", common.GenOptions{Types: true, LimitControls: true}, false},
-		{"document", common.GenOptions{Types: true, Document: true}, false},
-		{"nodes", common.GenOptions{}, true},
-		{"typed only", common.GenOptions{Types: true, TypedOnly: true}, true},
-		{"recognize", common.GenOptions{Types: true, Recognize: true}, true},
-		{"observability", common.GenOptions{Types: true, Observability: true}, true},
+		{"ordinary", common.GenOptions{NoLimitControls: true, Types: true}, true},
+		{"budget controls", common.GenOptions{Types: true}, false},
+		{"document", common.GenOptions{NoLimitControls: true, Types: true, Document: true}, false},
+		{"nodes", common.GenOptions{NoLimitControls: true}, true},
+		{"typed only", common.GenOptions{NoLimitControls: true, Types: true, TypedOnly: true}, true},
+		{"recognize", common.GenOptions{NoLimitControls: true, Types: true, Recognize: true}, true},
+		{"observability", common.GenOptions{NoLimitControls: true, Types: true, Observability: true}, true},
 	}
 	var checked atomic.Int64
 	cases := codegentest.Representative(codegentest.GenCorpus(t))

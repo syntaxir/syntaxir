@@ -31,7 +31,7 @@ func TestEveryFlowFunctionRunsTheIRPipelines(t *testing.T) {
 			break
 		}
 	}
-	base := common.GenOptions{Package: "x", Module: "example.com/x", Lib: common.LibImport, Debug: common.Debug{PrintAfter: []string{"flowlower", "execlower"}}}
+	base := common.GenOptions{Package: "x", Module: "example.com/x", Lib: common.LibImport, Debug: common.Debug{PrintAfter: []string{"flowlower", "execlower"}}, NoLimitControls: true}
 	for _, c := range []struct {
 		name, grammar string
 		set           func(*common.GenOptions)
@@ -40,7 +40,7 @@ func TestEveryFlowFunctionRunsTheIRPipelines(t *testing.T) {
 		{"node+recognizer", "cel", func(o *common.GenOptions) { o.Recognize = true }, []string{"rules", "recRules"}},
 		{"typed", "cel", func(o *common.GenOptions) { o.Types = true }, []string{"rules", "typed"}},
 		{"typed-only", "cel", func(o *common.GenOptions) { o.Types, o.TypedOnly = true, true }, []string{"typed"}},
-		{"controls+observability", "cel", func(o *common.GenOptions) { o.Recognize, o.LimitControls, o.Observability = true, true, true }, []string{"rules", "recRules"}},
+		{"controls+observability", "cel", func(o *common.GenOptions) { o.Recognize, o.NoLimitControls, o.Observability = true, false, true }, []string{"rules", "recRules"}},
 		{"typed left recursion", "", func(o *common.GenOptions) { o.Types, o.Recognize, o.Start = true, true, "main" }, []string{"rules", "recRules", "typed"}},
 		{"stream", "csv", func(o *common.GenOptions) { o.Stream = true }, []string{"rules"}},
 	} {

@@ -30,7 +30,7 @@ func TestGeneratedMemoryLimit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	typed, err := codegentest.Generate(t, g, common.GenOptions{Package: "mem", Module: "mem", Start: "main", Lib: common.LibImport, Types: true, Document: true, LimitControls: true})
+	typed, err := codegentest.Generate(t, g, common.GenOptions{Package: "mem", Module: "mem", Start: "main", Lib: common.LibImport, Types: true, Document: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +38,7 @@ func TestGeneratedMemoryLimit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stream, err := codegentest.Generate(t, gs, common.GenOptions{Package: "memstream", Module: "mem/memstream", Start: "main", Lib: common.LibImport, Stream: true, Types: true, LimitControls: true})
+	stream, err := codegentest.Generate(t, gs, common.GenOptions{Package: "memstream", Module: "mem/memstream", Start: "main", Lib: common.LibImport, Stream: true, Types: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +58,7 @@ func TestGeneratedMemoryLimit(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		out, err := codegentest.Generate(t, g, common.GenOptions{Package: c.pkg, Module: "mem/" + c.pkg, Start: "main", Lib: common.LibImport, Stream: true, Types: true, LimitControls: true})
+		out, err := codegentest.Generate(t, g, common.GenOptions{Package: c.pkg, Module: "mem/" + c.pkg, Start: "main", Lib: common.LibImport, Stream: true, Types: true})
 		if err != nil {
 			t.Fatal(err)
 		}

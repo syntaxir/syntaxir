@@ -163,7 +163,7 @@ for (let n = 40050; n <= 60000; n += 61) {
   }
 }
 console.log("ok");
-`, common.GenOptions{Start: "main", LimitControls: true})
+`, common.GenOptions{Start: "main"})
 	if !strings.Contains(out, "ok") {
 		t.Fatalf("output %q", out)
 	}

@@ -34,10 +34,10 @@ type coreGenMode struct {
 }
 
 var coreGenModes = []coreGenMode{
-	{"lean", common.GenOptions{Types: true, TypedOnly: true}},
-	{"lean observable", common.GenOptions{Types: true, TypedOnly: true, Observability: true}},
-	{"controlled", common.GenOptions{Types: true, TypedOnly: true, LimitControls: true}},
-	{"lean boxed", common.GenOptions{Types: true, TypedOnly: true, NoOpt: []string{"text-dispatch", "field-compare"}}},
+	{"lean", common.GenOptions{NoLimitControls: true, Types: true, TypedOnly: true}},
+	{"lean observable", common.GenOptions{NoLimitControls: true, Types: true, TypedOnly: true, Observability: true}},
+	{"controlled", common.GenOptions{Types: true, TypedOnly: true}},
+	{"lean boxed", common.GenOptions{NoLimitControls: true, Types: true, TypedOnly: true, NoOpt: []string{"text-dispatch", "field-compare"}}},
 }
 
 // coreGenCase is a corpus grammar generated with the options of a mode, and the Core IR of its
@@ -411,7 +411,7 @@ func TestCoreTypedDecisionsFrozen(t *testing.T) {
 	}, func(t *testing.T, mode coreGenMode, n *coreDecisionCounts) {
 		// The observing bodies of a build with observability are its traced copies, which record every
 		// read and so are not lean: they have no terminal programs, class runs or guarded classes.
-		lean := !mode.opts.LimitControls && !mode.opts.Observability
+		lean := mode.opts.NoLimitControls && !mode.opts.Observability
 		if n.guards == 0 || n.scans == 0 || n.scopes == 0 ||
 			(n.terminals > 0) != lean || (n.classRuns > 0) != lean || (n.guardedClasses > 0) != lean {
 			t.Errorf("counts %+v", n)

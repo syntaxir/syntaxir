@@ -559,7 +559,7 @@ func apiNames(opts common.GenOptions) []string {
 	if opts.Expectations {
 		names = append(names, "WithExpectations")
 	}
-	if opts.LimitControls {
+	if !opts.NoLimitControls {
 		names = append(names, "WithContext")
 	}
 	if opts.Observability {

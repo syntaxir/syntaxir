@@ -63,7 +63,7 @@ func TestFlowTypedOnlyNodeRulesPrintFromFlow(t *testing.T) {
 					return
 				}
 				_, err = codegentest.Generate(t, g, common.GenOptions{Package: "x", Module: "example.com/x", Start: "main", Lib: common.LibImport,
-					Types: true, TypedOnly: true, KeepNodes: true, LimitControls: form.controls})
+					Types: true, TypedOnly: true, KeepNodes: true, NoLimitControls: !form.controls})
 				if err != nil {
 					t.Fatalf("%s: %v", c.Name, err)
 				}
@@ -159,7 +159,7 @@ func TestFlowTypedOnlyEntriesMatchFull(t *testing.T) {
 			gh.OperatorsRoute = func(table string, r *common.Rule) { taken++ }
 			var pkgs []string
 			for i, c := range codegentest.TypedOnlyConverted {
-				base := common.GenOptions{Types: true, LimitControls: form.controls}
+				base := common.GenOptions{Types: true, NoLimitControls: !form.controls}
 				full, flowOnly, mutated := fmt.Sprintf("full%d", i), fmt.Sprintf("flow%d", i), fmt.Sprintf("mut%d", i)
 				before := taken
 				only := base

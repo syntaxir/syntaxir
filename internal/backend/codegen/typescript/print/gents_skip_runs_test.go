@@ -65,7 +65,7 @@ func tsSpends(t *testing.T, node string, sources []string, inputs [][]string, re
 		if err != nil {
 			t.Fatal(err)
 		}
-		files, err := codegentest.GenerateTS(g, common.GenOptions{Start: "main", LimitControls: true, Recognize: true, NoOpt: noOpt})
+		files, err := codegentest.GenerateTS(g, common.GenOptions{Start: "main", Recognize: true, NoOpt: noOpt})
 		if err != nil {
 			t.Fatal(err)
 		}

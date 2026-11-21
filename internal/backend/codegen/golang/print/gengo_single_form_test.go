@@ -120,7 +120,7 @@ func TestGeneratedRuleBodiesHaveOneFormNegativeControls(t *testing.T) {
 		t.Fatal(err)
 	}
 	gen := func(controls, document bool) []byte {
-		files, err := codegentest.Generate(t, g, common.GenOptions{Package: "ordinaryfixture", Module: "example.com/generated", Lib: common.LibImport, Types: true, Document: document, Recognize: true, Start: "main", LimitControls: controls})
+		files, err := codegentest.Generate(t, g, common.GenOptions{Package: "ordinaryfixture", Module: "example.com/generated", Lib: common.LibImport, Types: true, Document: document, Recognize: true, Start: "main", NoLimitControls: !controls})
 		if err != nil {
 			t.Fatal(err)
 		}

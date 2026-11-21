@@ -19,8 +19,8 @@ import (
 // logicalRefusal returns why logical units cannot be generated for the program, nil if they can.
 func logicalRefusal(prog *common.Program, opts common.GenOptions) error {
 	switch {
-	case !opts.LimitControls:
-		return errors.New("logical units need -limits")
+	case opts.NoLimitControls:
+		return errors.New("logical units need limit controls (not with -no-limits)")
 	case opts.Document || opts.Stream:
 		return errors.New("logical units do not cover Documents and streams")
 	case opts.Observability:

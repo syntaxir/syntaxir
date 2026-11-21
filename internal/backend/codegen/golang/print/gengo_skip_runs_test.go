@@ -256,7 +256,7 @@ func libSpends(t *testing.T, goBin string, controls []complexitytest.Control, si
 			t.Fatalf("%s: %v", c.Name, err)
 		}
 		pkg := fmt.Sprintf("g%d", i)
-		files, err := codegentest.Generate(t, g, common.GenOptions{Module: "skiplin/" + pkg, Package: pkg, Start: "main", Lib: common.LibEmbed, LimitControls: true})
+		files, err := codegentest.Generate(t, g, common.GenOptions{Module: "skiplin/" + pkg, Package: pkg, Start: "main", Lib: common.LibEmbed})
 		if err != nil {
 			t.Fatalf("%s: %v", c.Name, err)
 		}

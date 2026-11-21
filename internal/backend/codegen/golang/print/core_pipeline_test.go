@@ -32,13 +32,13 @@ func TestCorePipelineVerifiesEveryPass(t *testing.T) {
 		name string
 		opts common.GenOptions
 	}{
-		{"lean", common.GenOptions{Types: true, TypedOnly: true}},
-		{"lean observable", common.GenOptions{Types: true, TypedOnly: true, Observability: true}},
-		{"controlled", common.GenOptions{Types: true, TypedOnly: true, LimitControls: true}},
-		{"lean boxed", common.GenOptions{Types: true, TypedOnly: true, NoOpt: []string{"text-dispatch", "field-compare"}}},
-		{"lean without guarded classes", common.GenOptions{Types: true, TypedOnly: true, NoOpt: []string{"guarded-classes"}}},
-		{"lean without terminals", common.GenOptions{Types: true, TypedOnly: true, NoOpt: []string{"terminals"}}},
-		{"document", common.GenOptions{Types: true, Document: true}},
+		{"lean", common.GenOptions{NoLimitControls: true, Types: true, TypedOnly: true}},
+		{"lean observable", common.GenOptions{NoLimitControls: true, Types: true, TypedOnly: true, Observability: true}},
+		{"controlled", common.GenOptions{Types: true, TypedOnly: true}},
+		{"lean boxed", common.GenOptions{NoLimitControls: true, Types: true, TypedOnly: true, NoOpt: []string{"text-dispatch", "field-compare"}}},
+		{"lean without guarded classes", common.GenOptions{NoLimitControls: true, Types: true, TypedOnly: true, NoOpt: []string{"guarded-classes"}}},
+		{"lean without terminals", common.GenOptions{NoLimitControls: true, Types: true, TypedOnly: true, NoOpt: []string{"terminals"}}},
+		{"document", common.GenOptions{NoLimitControls: true, Types: true, Document: true}},
 	}
 	cases := append(codegentest.CorpusWithParsers(t), codegentest.CoreExtraGrammars...)
 	compared := 0

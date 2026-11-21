@@ -56,7 +56,7 @@ func TestGeneratedTSProfile(t *testing.T) {
 			if typed {
 				name += "_typed"
 			}
-			options := common.GenOptions{Start: "main", LimitControls: true, Types: typed, Recognize: true}
+			options := common.GenOptions{Start: "main", Types: typed, Recognize: true}
 			reference, err := codegentest.GenerateTSBundle(g, options)
 			if err != nil {
 				t.Fatal(name, err)

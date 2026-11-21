@@ -38,7 +38,7 @@ func TestFlowLeadersPrintFromFlow(t *testing.T) {
 				if err != nil {
 					return
 				}
-				if _, err := codegentest.Generate(t, g, common.GenOptions{Package: "x", Module: "example.com/x", Start: "main", Lib: common.LibImport, Recognize: true, LimitControls: controls}); err != nil {
+				if _, err := codegentest.Generate(t, g, common.GenOptions{Package: "x", Module: "example.com/x", Start: "main", Lib: common.LibImport, Recognize: true, NoLimitControls: !controls}); err != nil {
 					t.Fatalf("%s: %v", c.Name, err)
 				}
 			})

@@ -114,14 +114,14 @@ func testUnreachableBodiesAreLeftOut(t *testing.T) {
 		src  string
 		opts common.GenOptions
 	}{
-		{"twin node", reachTwinGrammar, common.GenOptions{}},
-		{"twin recognizer", reachTwinGrammar, common.GenOptions{Recognize: true}},
-		{"twin document", reachTwinGrammar, common.GenOptions{Document: true, Recognize: true}},
-		{"twin budget controls", reachTwinGrammar, common.GenOptions{LimitControls: true, Recognize: true}},
-		{"stream", reachStreamGrammar, common.GenOptions{Stream: true}},
-		{"mixed", reachMixedGrammar, common.GenOptions{Recognize: true}},
-		{"mixed document", reachMixedGrammar, common.GenOptions{Recognize: true, Document: true}},
-		{"mixed observability", reachMixedGrammar, common.GenOptions{Recognize: true, Observability: true}},
+		{"twin node", reachTwinGrammar, common.GenOptions{NoLimitControls: true}},
+		{"twin recognizer", reachTwinGrammar, common.GenOptions{NoLimitControls: true, Recognize: true}},
+		{"twin document", reachTwinGrammar, common.GenOptions{NoLimitControls: true, Document: true, Recognize: true}},
+		{"twin budget controls", reachTwinGrammar, common.GenOptions{Recognize: true}},
+		{"stream", reachStreamGrammar, common.GenOptions{NoLimitControls: true, Stream: true}},
+		{"mixed", reachMixedGrammar, common.GenOptions{NoLimitControls: true, Recognize: true}},
+		{"mixed document", reachMixedGrammar, common.GenOptions{NoLimitControls: true, Recognize: true, Document: true}},
+		{"mixed observability", reachMixedGrammar, common.GenOptions{NoLimitControls: true, Recognize: true, Observability: true}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			pruned := generateReach(t, tc.src, tc.opts)
@@ -279,13 +279,13 @@ func testUnreachableBodiesRunLikeTheFullOutput(t *testing.T) {
 		src  string
 		opts common.GenOptions
 	}{
-		{"twin", reachTwinGrammar, common.GenOptions{Recognize: true}},
-		{"twin document", reachTwinGrammar, common.GenOptions{Recognize: true, Document: true}},
-		{"stream", reachStreamGrammar, common.GenOptions{Stream: true, Recognize: true}},
-		{"mixed", reachMixedGrammar, common.GenOptions{Recognize: true}},
-		{"mixed document", reachMixedGrammar, common.GenOptions{Recognize: true, Document: true}},
-		{"mixed budget controls", reachMixedGrammar, common.GenOptions{Recognize: true, LimitControls: true}},
-		{"mixed observability", reachMixedGrammar, common.GenOptions{Recognize: true, Observability: true}},
+		{"twin", reachTwinGrammar, common.GenOptions{NoLimitControls: true, Recognize: true}},
+		{"twin document", reachTwinGrammar, common.GenOptions{NoLimitControls: true, Recognize: true, Document: true}},
+		{"stream", reachStreamGrammar, common.GenOptions{NoLimitControls: true, Stream: true, Recognize: true}},
+		{"mixed", reachMixedGrammar, common.GenOptions{NoLimitControls: true, Recognize: true}},
+		{"mixed document", reachMixedGrammar, common.GenOptions{NoLimitControls: true, Recognize: true, Document: true}},
+		{"mixed budget controls", reachMixedGrammar, common.GenOptions{Recognize: true}},
+		{"mixed observability", reachMixedGrammar, common.GenOptions{NoLimitControls: true, Recognize: true, Observability: true}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			pruned, full := runReach(t, tc.src, tc.opts, nil)
@@ -329,7 +329,7 @@ func testUnreachableRootControls(t *testing.T) {
 		hook func(*print.LiveRules)
 		line string // the output that must panic
 	}{
-		{"start rule of Parse", reachTwinGrammar, common.GenOptions{Recognize: true}, func(l *print.LiveRules) {
+		{"start rule of Parse", reachTwinGrammar, common.GenOptions{NoLimitControls: true, Recognize: true}, func(l *print.LiveRules) {
 			var keep []print.RuleKey
 			for _, k := range l.Roots {
 				if k.Table != "rules" {
@@ -339,7 +339,7 @@ func testUnreachableRootControls(t *testing.T) {
 			l.Roots = keep
 			l.ReachFrom(keep)
 		}, "parse"},
-		{"start rule of Recognize", reachTwinGrammar, common.GenOptions{Recognize: true}, func(l *print.LiveRules) {
+		{"start rule of Recognize", reachTwinGrammar, common.GenOptions{NoLimitControls: true, Recognize: true}, func(l *print.LiveRules) {
 			var keep []print.RuleKey
 			for _, k := range l.Roots {
 				if k.Table != "recRules" {

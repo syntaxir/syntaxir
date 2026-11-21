@@ -76,7 +76,7 @@ func generateParsers(t *testing.T) []generatedParser {
 		var imports []string
 		sources := make(map[string][]byte)
 		for _, c := range []common.GenOptions{
-			{Types: true, Document: true, Stream: true, Observability: true, LimitControls: true, Recognize: true, Expectations: true, SourceInfo: true},
+			{Types: true, Document: true, Stream: true, Observability: true, Recognize: true, Expectations: true, SourceInfo: true},
 			{RecognizeOnly: true},
 		} {
 			c.Module, c.Lib = genModule, lib

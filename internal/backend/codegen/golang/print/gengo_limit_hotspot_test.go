@@ -34,7 +34,7 @@ rule x = "x"+`)
 		}
 	}
 	write("go.mod", []byte(codegentest.GoMod("hotspot")))
-	files, err := codegentest.Generate(t, g, common.GenOptions{Module: "hotspot/p", Package: "p", Start: "main", Lib: common.LibImport, LimitControls: true, Observability: true})
+	files, err := codegentest.Generate(t, g, common.GenOptions{Module: "hotspot/p", Package: "p", Start: "main", Lib: common.LibImport, Observability: true})
 	if err != nil {
 		t.Fatal(err)
 	}

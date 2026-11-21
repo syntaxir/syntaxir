@@ -352,7 +352,7 @@ func generatedSteps(t, top *testing.T, name, path string, inputs []string, lenie
 		if err != nil {
 			t.Fatal(err)
 		}
-		files, err := gensrc.Go(g, common.GenOptions{Module: "triage/p", Lib: common.LibImport, LimitControls: true})
+		files, err := gensrc.Go(g, common.GenOptions{Module: "triage/p", Lib: common.LibImport})
 		if err != nil {
 			t.Fatal(err)
 		}

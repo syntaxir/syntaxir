@@ -339,7 +339,7 @@ func generatedTSCharges(t *testing.T, c chargeCase, ref chargeRef, noOpt []strin
 	}
 	inputs, limits := ref.literals(c, true)
 	script := strings.NewReplacer("INPUTS", inputs, "LIMITS", limits).Replace(chargeTSScript)
-	return codegentest.RunTSGrammarScriptBundle(t, g, script, common.GenOptions{Start: "main", LimitControls: true, Expectations: true, NoOpt: noOpt}, codegentest.GenerateTSBundle)
+	return codegentest.RunTSGrammarScriptBundle(t, g, script, common.GenOptions{Start: "main", Expectations: true, NoOpt: noOpt}, codegentest.GenerateTSBundle)
 }
 
 // TestChargeAgreementGenerated compares the units of generated Go parsers (Parse, and ParseValue of

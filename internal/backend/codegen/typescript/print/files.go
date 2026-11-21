@@ -34,7 +34,7 @@ var tsPublicLib = strings.Fields(`
 	TraceKind TraceEvent TraceFunction SkipReason Profile CallSite SkipReasonCount RuleProfile ProfileSnapshot`)
 
 // tsPublicControls lists the library declarations of the limit controls that parser.ts re-exports
-// only with -limits.
+// unless generated with -no-limits.
 var tsPublicControls = strings.Fields(`CancellationSignal`)
 
 // substituteMethods replaces methods of the Parser class in the library source src by the printed
@@ -98,12 +98,12 @@ func tsFiles(opts common.GenOptions, fs common.FeatureSet, shake bool, body, typ
 	parser.WriteString("\n// The names of the library that users of the parser need.\n")
 	var values, typs []string
 	public := slices.Clone(tsPublicLib)
-	if opts.LimitControls {
+	if !opts.NoLimitControls {
 		public = append(public, tsPublicControls...)
 	}
 	for _, name := range public {
 		export := name
-		if !opts.LimitControls && (name == "ParseOptions" || name == "Limits") {
+		if opts.NoLimitControls && (name == "ParseOptions" || name == "Limits") {
 			// Without limit controls the options have no cancellation, and the limits no compute limit.
 			export = "Plain" + name + " as " + name
 			name = "Plain" + name

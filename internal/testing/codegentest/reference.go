@@ -234,7 +234,7 @@ func generatedParsersOutputs(t *testing.T, goBin, lib string, cases []Case, opts
 			// narrowed copy runs: the default compute limit gives every parse a budget control.
 			o := opts
 			o.Lib, o.Module, o.KeepComments = common.LibEmbed, "codegentest/"+o.Package, true
-			o.LimitControls = FixtureBudgetControls(t) || opts.LimitControls
+			o.NoLimitControls = !FixtureBudgetControls(t) && opts.NoLimitControls
 			files, err := Generate(t, g, o)
 			if err != nil {
 				t.Fatalf("%s: %v", c.Name, err)

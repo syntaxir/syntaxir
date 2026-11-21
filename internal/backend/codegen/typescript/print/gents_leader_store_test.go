@@ -125,7 +125,7 @@ func runTS(t *testing.T, cases []tsRunCase, probe string) [][]string {
 		// g has no limit controls; l has them, under the default limits.
 		var runs []string
 		for _, pkg := range []string{fmt.Sprintf("g%d", i), fmt.Sprintf("l%d", i)} {
-			code, err := codegentest.GenerateTSBundle(mustParse(c.src), common.GenOptions{Start: "main", Recognize: true, Observability: true, LimitControls: pkg[0] == 'l'})
+			code, err := codegentest.GenerateTSBundle(mustParse(c.src), common.GenOptions{Start: "main", Recognize: true, Observability: true, NoLimitControls: pkg[0] != 'l'})
 			if err != nil {
 				t.Fatalf("%s: %v", c.name, err)
 			}

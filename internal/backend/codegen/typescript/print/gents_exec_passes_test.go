@@ -32,7 +32,7 @@ func TestTSExecPassesTurnOff(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			files, err := codegentest.GenerateTS(g, common.GenOptions{Start: "main", LimitControls: true, Recognize: true, NoOpt: noOpt})
+			files, err := codegentest.GenerateTS(g, common.GenOptions{Start: "main", Recognize: true, NoOpt: noOpt})
 			if err != nil {
 				t.Fatalf("%s: %v", c.Name, err)
 			}

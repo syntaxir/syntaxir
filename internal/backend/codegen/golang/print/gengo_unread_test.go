@@ -77,7 +77,7 @@ rule leaf Leaf = d:[0-9]+ => Leaf{N: len($d)}
 		t.Errorf("fields out of order do not keep the order written:\n%s", src)
 	}
 	// Negative control: with budget controls the steps are charged.
-	files, err = codegentest.Generate(t, g, common.GenOptions{Package: "p", Start: "main", Lib: common.LibImport, Types: true, Module: "example.com/p", LimitControls: true})
+	files, err = codegentest.Generate(t, g, common.GenOptions{Package: "p", Start: "main", Lib: common.LibImport, Types: true, Module: "example.com/p"})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -58,14 +58,14 @@ func testUnreachableCorpusGeneration(t *testing.T) {
 		name string
 		opts common.GenOptions
 	}{
-		{"plain", common.GenOptions{}},
-		{"recognize", common.GenOptions{Recognize: true}},
-		{"document", common.GenOptions{Document: true}},
-		{"budget controls", common.GenOptions{LimitControls: true}},
-		{"observability", common.GenOptions{Observability: true}},
-		{"observability document", common.GenOptions{Observability: true, Document: true}},
-		{"types", common.GenOptions{Types: true}},
-		{"types recognize", common.GenOptions{Types: true, Recognize: true}},
+		{"plain", common.GenOptions{NoLimitControls: true}},
+		{"recognize", common.GenOptions{NoLimitControls: true, Recognize: true}},
+		{"document", common.GenOptions{NoLimitControls: true, Document: true}},
+		{"budget controls", common.GenOptions{}},
+		{"observability", common.GenOptions{NoLimitControls: true, Observability: true}},
+		{"observability document", common.GenOptions{NoLimitControls: true, Observability: true, Document: true}},
+		{"types", common.GenOptions{NoLimitControls: true, Types: true}},
+		{"types recognize", common.GenOptions{NoLimitControls: true, Types: true, Recognize: true}},
 	}
 	checked, pruned := 0, 0
 	for _, c := range codegentest.Representative(codegentest.GenCorpus(t)) {

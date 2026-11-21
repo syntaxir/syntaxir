@@ -57,7 +57,7 @@ for(const unit of [p.CodePoints,p.Bytes]) {
  check(p.parseValueWithOptions("z",{unit,limits:{compute:0}}).error===null,"fresh retry after field interruption");
 }
 `
-	runTypedTSFixture(t, src, consumer, common.GenOptions{Start: "main", LimitControls: true, Types: true, Recognize: true}, "")
+	runTypedTSFixture(t, src, consumer, common.GenOptions{Start: "main", Types: true, Recognize: true}, "")
 
 	t.Run("capture-attachment", func(t *testing.T) {
 		grammar := `rule main = ` + strings.Join(captures, " ") + `
@@ -75,6 +75,6 @@ for(const unit of [p.CodePoints,p.Bytes]) {
  check(p.parseWithOptions(input,{unit,limits:{compute:0}}).error===null,"capture attachment fresh retry");
 }
 `
-		runTypedTSFixture(t, grammar, consumer, common.GenOptions{Start: "main", LimitControls: true, Types: true}, "")
+		runTypedTSFixture(t, grammar, consumer, common.GenOptions{Start: "main", Types: true}, "")
 	})
 }

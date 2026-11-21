@@ -32,10 +32,10 @@ func TestUsedFeaturesTSParity(t *testing.T) {
 		name string
 		opts common.GenOptions
 	}{
-		{"plain", common.GenOptions{}},
-		{"limits", common.GenOptions{LimitControls: true}},
-		{"types", common.GenOptions{Types: true}},
-		{"document", common.GenOptions{Document: true}},
+		{"plain", common.GenOptions{NoLimitControls: true}},
+		{"limits", common.GenOptions{}},
+		{"types", common.GenOptions{NoLimitControls: true, Types: true}},
+		{"document", common.GenOptions{NoLimitControls: true, Document: true}},
 	}
 	for _, mode := range modes {
 		for _, off := range []bool{false, true} {
@@ -59,8 +59,8 @@ func TestUsedFeaturesTSParity(t *testing.T) {
 	t.Run("limits/charges", func(t *testing.T) {
 		t.Parallel()
 		cases := codegentest.UsedFeatureCases()
-		narrowed := tsSpentUnits(t, node, cases, common.GenOptions{LimitControls: true})
-		whole := tsSpentUnits(t, node, cases, common.GenOptions{LimitControls: true, NoOpt: []string{common.UsedFeatures}})
+		narrowed := tsSpentUnits(t, node, cases, common.GenOptions{})
+		whole := tsSpentUnits(t, node, cases, common.GenOptions{NoOpt: []string{common.UsedFeatures}})
 		if len(narrowed) != len(whole) {
 			t.Fatalf("got %d results narrowed, %d whole", len(narrowed), len(whole))
 		}

@@ -205,7 +205,7 @@ func GenerateParser(g *ast.Grammar, c common.Compiler, p common.Passes, opts com
 			return nil, fmt.Errorf("stream generation needs a #stream repetition at the top level of the start rule %s", start.Name)
 		}
 	}
-	genGo := &Generator{typedOnly: (opts.TypedOnly || opts.RecognizeOnly) && !opts.KeepNodes, Document: opts.Document, NoBudget: !opts.LimitControls || opts.LogicalUnits, Ordinary: (!opts.LimitControls || opts.LogicalUnits) && !opts.Document, Prog: prog, Table: "rules", Runner: p.Runner(dumps), hooks: *h, keepTableRules: (opts.TypedOnly || opts.RecognizeOnly) && !opts.KeepNodes}
+	genGo := &Generator{typedOnly: (opts.TypedOnly || opts.RecognizeOnly) && !opts.KeepNodes, Document: opts.Document, NoBudget: opts.NoLimitControls || opts.LogicalUnits, Ordinary: (opts.NoLimitControls || opts.LogicalUnits) && !opts.Document, Prog: prog, Table: "rules", Runner: p.Runner(dumps), hooks: *h, keepTableRules: (opts.TypedOnly || opts.RecognizeOnly) && !opts.KeepNodes}
 	if opts.LogicalUnits {
 		if err := logicalRefusal(prog, opts); err != nil {
 			return nil, err
@@ -344,7 +344,7 @@ func GenerateParser(g *ast.Grammar, c common.Compiler, p common.Passes, opts com
 	if opts.Observability {
 		genGo.Init.WriteString("\tsxirGrammar.Observable = true\n")
 	}
-	if !opts.LimitControls {
+	if opts.NoLimitControls {
 		genGo.Init.WriteString("\tsxirGrammar.NoBudgetControls = true\n")
 	}
 	if opts.LogicalUnits {

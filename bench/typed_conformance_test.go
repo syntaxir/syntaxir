@@ -70,8 +70,8 @@ func generationsIn(t *testing.T, dir string) []generation {
 				g.config.Expectations = true
 			case "-recognize":
 				g.config.Recognize = true
-			case "-limits":
-				g.config.LimitControls = true
+			case "-no-limits":
+				g.config.NoLimitControls = true
 			case "-typed-only":
 				g.config.TypedOnly = true
 			case "-document":

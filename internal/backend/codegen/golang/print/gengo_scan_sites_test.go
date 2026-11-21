@@ -79,7 +79,7 @@ func scanSiteSpends(t *testing.T, goBin string, sources []string, inputs [][]str
 			t.Fatalf("%s: %v", src, err)
 		}
 		pkg := fmt.Sprintf("g%d", i)
-		files, err := codegentest.Generate(t, g, common.GenOptions{Module: "scanlin/" + pkg, Package: pkg, Start: "main", Lib: common.LibEmbed, LimitControls: true})
+		files, err := codegentest.Generate(t, g, common.GenOptions{Module: "scanlin/" + pkg, Package: pkg, Start: "main", Lib: common.LibEmbed})
 		if err != nil {
 			t.Fatalf("%s: %v", src, err)
 		}

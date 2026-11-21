@@ -31,7 +31,7 @@ if (e.hotspot !== "x" || !e.message.includes("hotspot rule x")) fail("hotspot " 
 const f = p.parseWithOptions(input, { limits: { compute: need - 1 } }).error;
 if (!(f instanceof p.ParseInterruptionError) || f.hotspot !== "" || f.message.includes("hotspot")) fail("without a profile: " + f);
 console.log("ok");
-`, common.GenOptions{Start: "main", LimitControls: true, Observability: true, Types: true, Recognize: true})
+`, common.GenOptions{Start: "main", Observability: true, Types: true, Recognize: true})
 	if out != "ok\n" {
 		t.Fatalf("got %q", out)
 	}

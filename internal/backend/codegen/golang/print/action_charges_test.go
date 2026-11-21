@@ -182,7 +182,7 @@ func checkActionCharges(t *testing.T, golden, what, unset, prefix string, all []
 		for _, in := range c.Inputs {
 			ins = append(ins, fmt.Sprintf("%q", in))
 		}
-		out := codegentest.RunTSGrammarScriptWith(t, g, tsChargeScript(ins), common.GenOptions{Start: "main", LimitControls: true})
+		out := codegentest.RunTSGrammarScriptWith(t, g, tsChargeScript(ins), common.GenOptions{Start: "main"})
 		lines := strings.Split(strings.TrimSpace(out), "\n")
 		if len(lines) != len(c.Inputs) {
 			t.Fatalf("action %d: %d lines for %d inputs:\n%s", i, len(lines), len(c.Inputs), out)

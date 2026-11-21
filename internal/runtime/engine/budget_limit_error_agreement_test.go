@@ -224,7 +224,7 @@ func generatedTSLimitReports(t *testing.T, c limitAgreementCase, patch func(stri
 			return []byte(patch(string(b))), err
 		}
 	}
-	out := codegentest.RunTSGrammarScriptBundle(t, g, script, common.GenOptions{Start: "main", LimitControls: true}, bundle)
+	out := codegentest.RunTSGrammarScriptBundle(t, g, script, common.GenOptions{Start: "main"}, bundle)
 	reports := make([]string, c.max+1)
 	for _, line := range strings.Split(out, "\n") {
 		var l uint64

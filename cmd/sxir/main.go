@@ -6,8 +6,8 @@
 //	sxir test -f suite.json [-format text|json] [-backend closure,bytecode] [-equivalence] [-update] [-max-compute n] [-max-memory n] [-max-input n] [-max-depth n]
 //	sxir fmt [-w] [-l] [-check] [-syntax] [grammar.sxir ...]
 //	sxir convert [-to sxir|json] [-o output] grammar.sxir|grammar.json
-//	sxir gen -g grammar.sxir -module path -o dir [-pkg name] [-lib embed|import|only] [-s main] [-types] [-document] [-stream] [-recognize] [-observability] [-limits] [-typed-only] [-recognize-only] [-nodoc] [-max-depth n] [-source-info] [-default-value] [-expectations] [-optimize profile] [-opt names] [-no-opt names] [-print-before passes] [-print-after passes] [-print-changed] [-verify-each] [-stats] [-time-passes] [-opt-bisect-limit n]
-//	sxir gen -lang ts -g grammar.sxir -o dir [-lib embed|import|only] [-lib-module specifier] [-s main] [-types] [-recognize] [-observability] [-limits] [-max-depth n] [-source-info] [-default-value] [-expectations] [-optimize profile] [-opt names] [-no-opt names] [-print-before passes] [-print-after passes] [-print-changed] [-verify-each] [-stats] [-time-passes] [-opt-bisect-limit n]
+//	sxir gen -g grammar.sxir -module path -o dir [-pkg name] [-lib embed|import|only] [-s main] [-types] [-document] [-stream] [-recognize] [-observability] [-no-limits] [-typed-only] [-recognize-only] [-nodoc] [-max-depth n] [-source-info] [-default-value] [-expectations] [-optimize profile] [-opt names] [-no-opt names] [-print-before passes] [-print-after passes] [-print-changed] [-verify-each] [-stats] [-time-passes] [-opt-bisect-limit n]
+//	sxir gen -lang ts -g grammar.sxir -o dir [-lib embed|import|only] [-lib-module specifier] [-s main] [-types] [-recognize] [-observability] [-no-limits] [-max-depth n] [-source-info] [-default-value] [-expectations] [-optimize profile] [-opt names] [-no-opt names] [-print-before passes] [-print-after passes] [-print-changed] [-verify-each] [-stats] [-time-passes] [-opt-bisect-limit n]
 //	sxir compile -g grammar.sxir [-s main] [-mode parse|recognize|document] [-source-info] [-default-value] -o grammar.sxirc
 //	sxir trace -g grammar.sxir [-s main] [-i input] [-show-depth n] [-rule name] [-failures] [-f text|json] [-max-compute n] [-max-memory n] [-max-input n] [-max-depth n]
 //	sxir profile -g grammar.sxir [-s main] [-i input] [-sort column] [-n rows] [-f text|json] [-max-compute n] [-max-memory n] [-max-input n] [-max-depth n]
@@ -85,13 +85,13 @@ Commands:
       other format of the input.
 
   gen -g <grammar> -module <import path> -o <dir> [-pkg <package>] [-lib embed|import|only] [-s <rule>] [-types]
-        [-document] [-stream] [-recognize] [-observability] [-limits] [-typed-only] [-recognize-only] [-max-depth <n>] [-nodoc] [-source-info] [-default-value]
+        [-document] [-stream] [-recognize] [-observability] [-no-limits] [-typed-only] [-recognize-only] [-max-depth <n>] [-nodoc] [-source-info] [-default-value]
         [-expectations] [-optimize <profile>] [-opt <names>] [-no-opt <names>]
         [-print-before <passes>] [-print-after <passes>] [-print-changed] [-verify-each] [-stats]
         [-time-passes] [-opt-bisect-limit <n>]
   gen -lib only -o <dir>
   gen -lang ts -g <grammar> -o <dir> [-lib embed|import|only] [-lib-module <specifier>] [-s <rule>] [-types]
-        [-recognize] [-observability] [-limits] [-max-depth <n>] [-source-info] [-default-value]
+        [-recognize] [-observability] [-no-limits] [-max-depth <n>] [-source-info] [-default-value]
         [-expectations] [-optimize <profile>] [-opt <names>] [-no-opt <names>]
         [-print-before <passes>] [-print-after <passes>] [-print-changed] [-verify-each] [-stats]
         [-time-passes] [-opt-bisect-limit <n>]
@@ -118,7 +118,7 @@ Commands:
       -types, types for the grammar's types and ParseValue (parseValue in TypeScript),
       which returns the result as typed values, are generated too.
       -document adds an incremental Document; with -types it also provides
-      Document.ParseValue (parseValue in TypeScript). Without -limits the
+      Document.ParseValue (parseValue in TypeScript). With -no-limits the
       Document runs without budget charges.
       -stream adds Go ParseStream, which reads an io.Reader and passes each
       committed element of the start rule's #stream repetition to a callback.
@@ -126,14 +126,15 @@ Commands:
       -observability emits opt-in rule tracing and profiling for Go batch
       parsing and Documents, and TypeScript batch parsing, including typed
       entry points.
-      -limits generates the limit-controlled form of the parser, which
-      supports WithContext and finite Compute and Memory limits (signal and
-      the compute limit in TypeScript); without it WithContext is not
-      exported, the generated code does not spend budget, and a parse that
-      passes a context or a finite Compute or Memory fails. The Input and Depth limits work either
-      way. The parser has this one form only: a parse that sets no limit
-      runs the same code. Generate a second parser without the option to
-      have the plain form too.
+      Generated parsers have limit controls by default: they support
+      WithContext and finite Compute and Memory limits (signal and the
+      compute limit in TypeScript) and apply the default limits to a parse
+      that sets none. -no-limits generates the ordinary form instead: it
+      is smaller and faster, WithContext is not exported, the generated
+      code does not spend budget, and a parse that passes a context or a
+      finite Compute or Memory limit fails. The Input and Depth limits work
+      either way. A parser has one form only: generate a second parser with
+      the other setting to have both.
       -typed-only generates only the typed entry points (ParseValue and its
       siblings), without Parse and ParseRule. It needs -types and cannot be
       combined with -document, -stream or -lang ts. -recognize-only generates
@@ -756,7 +757,7 @@ func genCmd(args []string, stdout io.Writer) error {
 	observability := fs.Bool("observability", false, "emit opt-in rule tracing and profiling for Go batch/Documents and TypeScript batch parsing, including typed entry points")
 	expectations := fs.Bool("expectations", false, "generate a parser that records what a syntax error expects (the expected list and @error messages); without it the error reports only the farthest failure position")
 	chargeUnits := fs.String("charge-units", "", "")
-	limitControls := fs.Bool("limits", false, "generate the limit-controlled form of the parser, which supports WithContext and finite Compute and Memory limits (signal and the compute limit in TypeScript)")
+	noLimitControls := fs.Bool("no-limits", false, "generate the ordinary form of the parser, without limit controls: it is smaller and faster, and a parse that passes a context or a finite Compute or Memory limit (signal and the compute limit in TypeScript) fails")
 	typedOnly := fs.Bool("typed-only", false, "generate only the typed entry points (ParseValue and siblings), without Parse, ParseRule and Recognize (needs -types)")
 	recognizeOnly := fs.Bool("recognize-only", false, "generate only Recognize, without Parse, ParseRule or typed entry points (Go only; not with -types, -typed-only, -document or -stream)")
 	recognize := fs.Bool("recognize", false, "also generate Recognize, which checks input without building a tree")
@@ -791,7 +792,7 @@ func genCmd(args []string, stdout io.Writer) error {
 		}
 		switch mode {
 		case libOnly:
-			for _, name := range []string{"g", "s", "pkg", "module", "types", "document", "stream", "observability", "limits", "typed-only", "recognize-only", "recognize", "max-depth", "nodoc", "source-info", "default-value", "optimize", "opt", "no-opt", "print-before", "print-after", "print-changed", "verify-each", "stats", "time-passes", "opt-bisect-limit"} {
+			for _, name := range []string{"g", "s", "pkg", "module", "types", "document", "stream", "observability", "no-limits", "typed-only", "recognize-only", "recognize", "max-depth", "nodoc", "source-info", "default-value", "optimize", "opt", "no-opt", "print-before", "print-after", "print-changed", "verify-each", "stats", "time-passes", "opt-bisect-limit"} {
 				if isFlagSet(fs, name) {
 					return fmt.Errorf("-%s cannot be combined with -lib only, which writes just the library", name)
 				}
@@ -820,7 +821,7 @@ func genCmd(args []string, stdout io.Writer) error {
 		}
 		switch mode {
 		case libOnly:
-			for _, name := range []string{"g", "s", "types", "observability", "limits", "recognize", "max-depth", "source-info", "default-value", "lib-module", "optimize", "opt", "no-opt", "print-before", "print-after", "print-changed", "verify-each", "stats", "time-passes", "opt-bisect-limit"} {
+			for _, name := range []string{"g", "s", "types", "observability", "no-limits", "recognize", "max-depth", "source-info", "default-value", "lib-module", "optimize", "opt", "no-opt", "print-before", "print-after", "print-changed", "verify-each", "stats", "time-passes", "opt-bisect-limit"} {
 				if isFlagSet(fs, name) {
 					return fmt.Errorf("-%s cannot be combined with -lib only, which writes just the library", name)
 				}
@@ -930,34 +931,34 @@ func genCmd(args []string, stdout io.Writer) error {
 	var files []compiler.File
 	if *lang == "ts" {
 		files, err = compiler.GenerateTypeScript(src, compiler.TSConfig{
-			Lib:           mode.generated(),
-			LibModule:     *libModule,
-			Types:         *types,
-			Observability: *observability,
-			LimitControls: *limitControls,
-			Expectations:  *expectations,
-			Recognize:     *recognize,
-			Document:      *document,
-			MaxDepth:      *maxDepth,
+			Lib:             mode.generated(),
+			LibModule:       *libModule,
+			Types:           *types,
+			Observability:   *observability,
+			NoLimitControls: *noLimitControls,
+			Expectations:    *expectations,
+			Recognize:       *recognize,
+			Document:        *document,
+			MaxDepth:        *maxDepth,
 		}, opts...)
 	} else {
 		files, err = compiler.GenerateGo(src, compiler.GoConfig{
-			Module:         *module,
-			PackageName:    *pkg,
-			Lib:            mode.generated(),
-			Types:          *types,
-			Observability:  *observability,
-			LimitControls:  *limitControls,
-			LogicalUnits:   logicalUnits,
-			LogicalVariant: logicalVariant,
-			Expectations:   *expectations,
-			Recognize:      *recognize,
-			MaxDepth:       *maxDepth,
-			Document:       *document,
-			Stream:         *stream,
-			TypedOnly:      *typedOnly,
-			RecognizeOnly:  *recognizeOnly,
-			OmitPackageDoc: *nodoc,
+			Module:          *module,
+			PackageName:     *pkg,
+			Lib:             mode.generated(),
+			Types:           *types,
+			Observability:   *observability,
+			NoLimitControls: *noLimitControls,
+			LogicalUnits:    logicalUnits,
+			LogicalVariant:  logicalVariant,
+			Expectations:    *expectations,
+			Recognize:       *recognize,
+			MaxDepth:        *maxDepth,
+			Document:        *document,
+			Stream:          *stream,
+			TypedOnly:       *typedOnly,
+			RecognizeOnly:   *recognizeOnly,
+			OmitPackageDoc:  *nodoc,
 		}, opts...)
 	}
 	if err != nil {

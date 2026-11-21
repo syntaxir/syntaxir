@@ -73,7 +73,7 @@ rule item = ("a" "!") #recover(skip=(!";" .)*) ";"`, `"a!;ab;".repeat(n / 6)`},
 				t.Fatal(err)
 			}
 			script := strings.Replace(memoryLimitScript, "INPUT", c.input, 1)
-			out := codegentest.RunTSGrammarScriptWith(t, g, script, common.GenOptions{Start: "main", LimitControls: true})
+			out := codegentest.RunTSGrammarScriptWith(t, g, script, common.GenOptions{Start: "main"})
 			if out != "ok\n" {
 				t.Fatalf("got %q", out)
 			}
@@ -108,7 +108,7 @@ func TestGeneratedTSMemoryLimitValues(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		out := codegentest.RunTSGrammarScriptWith(t, g, memoryGrowthScript, common.GenOptions{Start: "main", LimitControls: true})
+		out := codegentest.RunTSGrammarScriptWith(t, g, memoryGrowthScript, common.GenOptions{Start: "main"})
 		v, err := strconv.Atoi(strings.TrimSpace(out))
 		if err != nil {
 			t.Fatalf("output %q", out)

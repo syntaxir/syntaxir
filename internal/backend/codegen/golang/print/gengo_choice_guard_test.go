@@ -91,15 +91,15 @@ func TestGuardedClassEligibility(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, opts := range []common.GenOptions{{TypedOnly: true}, {TypedOnly: true, LimitControls: true}, {Types: true, LimitControls: true}, {Types: true, Document: true}} {
-			want := !opts.LimitControls && !opts.Document
+		for _, opts := range []common.GenOptions{{NoLimitControls: true, TypedOnly: true}, {TypedOnly: true}, {Types: true}, {NoLimitControls: true, Types: true, Document: true}} {
+			want := opts.NoLimitControls && !opts.Document
 			opts.Package, opts.Module, opts.Start, opts.Types, opts.Lib = "guarded", "example.com/generated", "main", true, common.LibImport
 			files, err := codegentest.Generate(t, g, opts)
 			if err != nil {
 				t.Fatal(err)
 			}
 			if got := strings.Contains(string(codegentest.MergeGenerated(files)), "p.Pos += x"); got != want {
-				t.Errorf("%s (budget controls %v, document %v): a class consumes the guard's character: %v, want %v", c.Name, opts.LimitControls, opts.Document, got, want)
+				t.Errorf("%s (budget controls %v, document %v): a class consumes the guard's character: %v, want %v", c.Name, !opts.NoLimitControls, opts.Document, got, want)
 			}
 		}
 	}

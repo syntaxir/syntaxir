@@ -76,7 +76,7 @@ rule big = {big > 9007199254740992} "!"+ #atomic`, Inputs: []string{"", "a", "ab
 	})
 	t.Run("budget controls", func(t *testing.T) {
 		t.Parallel()
-		codegentest.TSParsersCorpus(t, node, cases, common.GenOptions{LimitControls: true})
+		codegentest.TSParsersCorpus(t, node, cases, common.GenOptions{})
 	})
 }
 

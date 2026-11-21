@@ -15,8 +15,8 @@ import (
 // against the parsers without limit controls and the limit-controlled parsers of today, on the
 // full JSON and XML inputs. Configurations:
 //
-//   - plain: generated without -limits (no options); plain-aa runs it again, for the A/A spread;
-//   - today-finite, today-unlimited, today-ctx: generated with -limits, the default (finite)
+//   - plain: generated with -no-limits; plain-aa runs it again, for the A/A spread;
+//   - today-finite, today-unlimited, today-ctx: generated with the default limit controls (finite)
 //     compute limit, Compute Unlimited, and a cancelable context with Compute Unlimited;
 //   - logical-finite, logical-unlimited, logical-ctx: the same with logical units;
 //   - keepguards-finite: logical units with every dispatch guard kept without the effects of the

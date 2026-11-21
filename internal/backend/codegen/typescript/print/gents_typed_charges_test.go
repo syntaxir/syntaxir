@@ -34,7 +34,7 @@ rule item = k:[a-z]+ "=" v:[0-9]+ ";"`, []string{"", "a=1;", "ab=12;cd=3;", stri
 				in = append(in, fmt.Sprintf("%q", s))
 			}
 			consumer := strings.ReplaceAll(tsTypedChargeConsumer, "INPUTS", "["+strings.Join(in, ",")+"]")
-			runTypedTSFixture(t, c.src, consumer, common.GenOptions{Start: "main", LimitControls: true}, "")
+			runTypedTSFixture(t, c.src, consumer, common.GenOptions{Start: "main"}, "")
 		})
 	}
 }

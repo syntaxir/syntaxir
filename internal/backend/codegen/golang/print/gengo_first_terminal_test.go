@@ -37,7 +37,7 @@ func testGeneratedLookaheadHasNoFirstTerminal(t *testing.T) {
 	var imports, calls strings.Builder
 	// g has no limit controls; l has them, under the default limits.
 	for _, pkg := range []string{"g", "l"} {
-		codegentest.GeneratePackage(t, dir, pkg, mustParse(codegentest.LookaheadFirstSrc), common.GenOptions{Start: "main", Types: true, Recognize: true, Observability: true, LimitControls: pkg == "l"})
+		codegentest.GeneratePackage(t, dir, pkg, mustParse(codegentest.LookaheadFirstSrc), common.GenOptions{Start: "main", Types: true, Recognize: true, Observability: true, NoLimitControls: pkg != "l"})
 		imports.WriteString("\t\"codegentest/" + pkg + "\"\n")
 		for _, op := range []string{"_, err := %s.Parse(\"bc\", sxirrt.WithProfile(&p))", "_, err := %s.ParseValue(\"bc\", sxirrt.WithProfile(&p))", "err := %s.Recognize(\"bc\", sxirrt.WithProfile(&p))"} {
 			calls.WriteString("\t{ var p sxirinstrument.Profile; " + strings.ReplaceAll(op, "%s", pkg) + "; fmt.Print(evals(p, err), \" \") }\n")

@@ -70,7 +70,7 @@ func TestFlowRecoveryPrintsFromFlow(t *testing.T) {
 					return
 				}
 				for _, stream := range []bool{false, true} {
-					if _, err := codegentest.Generate(t, g, common.GenOptions{Package: "x", Module: "example.com/x", Start: "main", Lib: common.LibImport, Recognize: true, Stream: stream, LimitControls: controls}); err != nil && (!stream || strings.Contains(err.Error(), "Flow IR does not print")) {
+					if _, err := codegentest.Generate(t, g, common.GenOptions{Package: "x", Module: "example.com/x", Start: "main", Lib: common.LibImport, Recognize: true, Stream: stream, NoLimitControls: !controls}); err != nil && (!stream || strings.Contains(err.Error(), "Flow IR does not print")) {
 						t.Fatalf("%s: %v", c.Name, err)
 					}
 				}

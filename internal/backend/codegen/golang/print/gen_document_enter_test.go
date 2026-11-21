@@ -213,7 +213,7 @@ func runDocumentEnter(t *testing.T, g *ast.Grammar, patch func(string) (string, 
 		files, err := codegentest.Generate(t, g, common.GenOptions{
 			Package: form.pkg, Module: root + "/" + form.pkg, Start: "main", Lib: form.lib,
 			Document: true, Observability: true, Types: form.typed,
-			LimitControls: codegentest.FixtureBudgetControls(t),
+			NoLimitControls: !codegentest.FixtureBudgetControls(t),
 		})
 		if err != nil {
 			t.Fatal(err)

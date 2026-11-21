@@ -14,7 +14,7 @@ rule item Item = n:name ","? => Item{Name: text($n)}
 rule name = [a-z]+
 rule fast = "z"`
 
-// The generated TypeScript has two forms: without -limits the rules do not spend budget and the
+// The generated TypeScript has two forms: with -no-limits the rules do not spend budget and the
 // entry points reject the control options; with it they charge and accept them.
 func TestGeneratedTSBudgetControlForms(t *testing.T) {
 	t.Parallel()
@@ -23,7 +23,7 @@ func TestGeneratedTSBudgetControlForms(t *testing.T) {
 		t.Fatal(err)
 	}
 	generate := func(controls bool) string {
-		files, err := codegentest.GenerateTS(g, common.GenOptions{Start: "main", Types: true, Recognize: true, LimitControls: controls})
+		files, err := codegentest.GenerateTS(g, common.GenOptions{Start: "main", Types: true, Recognize: true, NoLimitControls: !controls})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -155,5 +155,5 @@ for (const unit of [p.CodePoints, p.Bytes]) {
   }
 }
 `
-	runTypedTSFixture(t, tsBudgetFormsGrammar, consumer, common.GenOptions{Start: "main", Recognize: true, LimitControls: true}, "")
+	runTypedTSFixture(t, tsBudgetFormsGrammar, consumer, common.GenOptions{Start: "main", Recognize: true}, "")
 }

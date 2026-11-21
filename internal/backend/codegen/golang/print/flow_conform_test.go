@@ -454,7 +454,7 @@ func flowConformRun(t *testing.T, cases []flowConformCase, mut flowMutation) (ms
 		pr := &flowProbe{empty: map[string]bool{}, mutate: mut.print}
 		probes[c.name] = pr
 		opts := c.opts
-		opts.Lib, opts.LimitControls, opts.KeepComments, opts.Expectations = common.LibImport, !c.noLimits, true, true
+		opts.Lib, opts.NoLimitControls, opts.KeepComments, opts.Expectations = common.LibImport, c.noLimits, true, true
 		opts.Package, opts.Module = c.name, "flowconf/"+c.name
 		files, err := print.GenerateParser(g, codegentest.Compile, codegentest.Passes(opts), codegentest.WithLib(opts), &print.Hooks{FlowTarget: pr.target})
 		if err != nil {

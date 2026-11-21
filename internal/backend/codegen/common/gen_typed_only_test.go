@@ -87,7 +87,7 @@ func TestGeneratedTypedOnly(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(codegentest.GoMod("ordtest")), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	codegentest.OrdinaryOnlyPackage(t, dir, "full", codegentest.OrdinaryOnlyTyped, common.GenOptions{Types: true, Recognize: true, Document: true, LimitControls: true}, codegentest.OrdinaryOnlyTypedEntries, codegentest.OrdinaryOnlyTypedInputs)
+	codegentest.OrdinaryOnlyPackage(t, dir, "full", codegentest.OrdinaryOnlyTyped, common.GenOptions{Types: true, Recognize: true, Document: true}, codegentest.OrdinaryOnlyTypedEntries, codegentest.OrdinaryOnlyTypedInputs)
 	codegentest.OrdinaryOnlyPackage(t, dir, "only", codegentest.OrdinaryOnlyTyped, common.GenOptions{Types: true, TypedOnly: true}, codegentest.OrdinaryOnlyTypedEntries, codegentest.OrdinaryOnlyTypedInputs)
 	codegentest.OrdinaryOnlyPackage(t, dir, "mutated", strings.Replace(codegentest.OrdinaryOnlyTyped, `"+"`, `"-"`, 1), common.GenOptions{Types: true, TypedOnly: true}, codegentest.OrdinaryOnlyTypedEntries, codegentest.OrdinaryOnlyTypedInputs)
 	out := codegentest.RunTranscripts(t, dir, "full", "only", "mutated")

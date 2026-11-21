@@ -73,7 +73,7 @@ func TestFeatureWitness(t *testing.T) {
 			}
 			t.Run(pkg, func(t *testing.T) {
 				opts := c.opts
-				opts.LimitControls = c.f == common.FeatureBudget
+				opts.NoLimitControls = c.f != common.FeatureBudget
 				found := common.FeatureSet(0)
 				codegentest.SetGenHooks(t, &print.Hooks{Features: func(s common.FeatureSet) common.FeatureSet {
 					found = s
@@ -137,7 +137,7 @@ func TestAnalyzeFeatures(t *testing.T) {
 		want common.FeatureSet
 	}{
 		{src: `rule main = "a" "b"* $$`},
-		{src: `rule main = "a" $$`, opts: common.GenOptions{Document: true, Stream: false, Observability: true, LimitControls: true},
+		{src: `rule main = "a" $$`, opts: common.GenOptions{Document: true, Stream: false, Observability: true},
 			want: common.FeatureSet(common.FeatureDocument | common.FeatureObserve | common.FeatureBudget)},
 		{src: "rule main = e $$\nrule e = e \"+\" n / n\nrule n = [0-9]+", want: common.FeatureSet(common.FeatureMemo | common.FeatureLeftRecursion | common.FeatureScanSites)},
 		// The repetitions in the skip of the Operators Rule are run sites.

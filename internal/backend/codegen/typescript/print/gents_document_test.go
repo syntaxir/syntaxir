@@ -448,7 +448,7 @@ const traced = d.parse({ trace: () => { if (inner === null) inner = [String(d.pa
 console.log(traced.error === null, inner.join(" | "), d.text());
 console.log(String(d.edit(0, 9, "x")), d.text());
 `
-	out := codegentest.RunTSGrammarScriptWith(t, g, script, common.GenOptions{Start: "main", Document: true, LimitControls: true, Observability: true})
+	out := codegentest.RunTSGrammarScriptWith(t, g, script, common.GenOptions{Start: "main", Document: true, Observability: true})
 	want := `ab! true
 Error: document parse cannot change unit
 Error: document parse cannot change expectations

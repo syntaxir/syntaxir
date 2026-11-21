@@ -42,7 +42,7 @@ for(const unit of [p.CodePoints,p.Bytes]) {
  check(fits.error===null&&stable(fits.node)===stable(ordinary.node),"capture restoration charges nothing");
 }
 `
-	runTypedTSFixture(t, src, consumer, common.GenOptions{Start: "main", LimitControls: true, Types: true, Recognize: true}, "")
+	runTypedTSFixture(t, src, consumer, common.GenOptions{Start: "main", Types: true, Recognize: true}, "")
 }
 
 func TestGeneratedTSBudgetControlOperatorsRuleCapturePreservation(t *testing.T) {
@@ -86,7 +86,7 @@ for(const unit of [p.CodePoints,p.Bytes]) {
  check(stable(p.parseValueWithOptions(input,{unit,limits:{compute:limit}}).value)===stable(typed.value),"typed Operators Rule capture preservation charges nothing");
 }
 `
-	runTypedTSFixture(t, src, consumer, common.GenOptions{Start: "main", LimitControls: true, Types: true, Recognize: true}, "")
+	runTypedTSFixture(t, src, consumer, common.GenOptions{Start: "main", Types: true, Recognize: true}, "")
 }
 
 func TestGeneratedTSBudgetControlRecoveredMemoReplay(t *testing.T) {
@@ -131,7 +131,7 @@ for(const unit of [p.CodePoints,p.Bytes]) {
  check(retry.node!==null&&retry.error instanceof p.SyntaxErrors&&retry.error.errors.length===512,"fresh recovered memo retry");
 }
 `
-	runTypedTSFixture(t, src, consumer, common.GenOptions{Start: "main", LimitControls: true, Types: true, Recognize: true}, "")
+	runTypedTSFixture(t, src, consumer, common.GenOptions{Start: "main", Types: true, Recognize: true}, "")
 }
 
 // TestGeneratedTSRecoveredErrorsLinear measures two grammars whose results hold the recovered
@@ -173,7 +173,7 @@ const r=p.parse(input(4*n));
 check(r.error instanceof p.SyntaxErrors&&r.error.errors.length===4*n,"every item recovers: "+String(r.error));
 check(large<5*small,"Compute grows linearly: "+small+" for "+n+" items, "+large+" for "+4*n);
 `
-			runTypedTSFixture(t, tt.src, consumer, common.GenOptions{Start: "main", LimitControls: true}, "")
+			runTypedTSFixture(t, tt.src, consumer, common.GenOptions{Start: "main"}, "")
 		})
 	}
 }
@@ -200,7 +200,7 @@ for(const unit of [p.CodePoints,p.Bytes])for(const input of ` + string(inputs) +
  check(p.recognizeWithOptions(input,{unit,signal:{aborted:false}})?.message===p.recognize(input,unit)?.message,"recognizer recovered parity");
 }
 `
-			runTypedTSFixture(t, tt.Src, consumer, common.GenOptions{Start: "main", LimitControls: true, Types: true, Recognize: true}, "")
+			runTypedTSFixture(t, tt.Src, consumer, common.GenOptions{Start: "main", Types: true, Recognize: true}, "")
 		})
 	}
 }
@@ -251,5 +251,5 @@ for(const unit of [p.CodePoints,p.Bytes]) {
  check(retry.node!==null&&retry.error instanceof p.SyntaxErrors&&retry.error.errors.length===512,"fresh Operators Rule recovered retry");
 }
 `
-	runTypedTSFixture(t, src, consumer, common.GenOptions{Start: "main", LimitControls: true, Types: true, Recognize: true}, "")
+	runTypedTSFixture(t, src, consumer, common.GenOptions{Start: "main", Types: true, Recognize: true}, "")
 }

@@ -26,7 +26,7 @@ type ParseInterruptionError = { Text string }
 type BudgetControl = { Text string }
 
 type ResolvedParseOptions = { Text string }`
-	runTypedTSFixture(t, src, tsBudgetControlFoundationConsumer, common.GenOptions{Start: "main", LimitControls: true, Types: true, Recognize: true}, "")
+	runTypedTSFixture(t, src, tsBudgetControlFoundationConsumer, common.GenOptions{Start: "main", Types: true, Recognize: true}, "")
 }
 
 const tsBudgetControlFoundationConsumer = `import * as p from "./parser.ts";
@@ -122,7 +122,7 @@ rule main Word = t:("a") #atomic => Word{Text: text($t)}`
 			if lib == "es2022,dom" {
 				consumer += tsBudgetControlDOMSignalConsumer
 			}
-			runTypedTSFixtureWithLib(t, src, consumer, common.GenOptions{Start: "main", LimitControls: true, Types: true}, "", lib)
+			runTypedTSFixtureWithLib(t, src, consumer, common.GenOptions{Start: "main", Types: true}, "", lib)
 		})
 	}
 }
@@ -163,7 +163,7 @@ for(const unit of [p.CodePoints,p.Bytes]) {
  }
 }
 `
-	runTypedTSFixture(t, src, consumer, common.GenOptions{Start: "main", LimitControls: true, Types: true}, "")
+	runTypedTSFixture(t, src, consumer, common.GenOptions{Start: "main", Types: true}, "")
 }
 
 func TestGeneratedTSBudgetControlMatcherBudgets(t *testing.T) {
@@ -215,7 +215,7 @@ for(const unit of [p.CodePoints,p.Bytes]) {
  }
 }
 `
-	runTypedTSFixture(t, src, consumer, common.GenOptions{Start: "main", LimitControls: true, Types: true, Recognize: true}, "")
+	runTypedTSFixture(t, src, consumer, common.GenOptions{Start: "main", Types: true, Recognize: true}, "")
 }
 
 func TestGeneratedTSBudgetControlWideClassSteps(t *testing.T) {
@@ -266,7 +266,7 @@ for(const unit of [p.CodePoints,p.Bytes]) {
  check(result.node===null&&result.error instanceof p.ParseInterruptionError&&result.error.kind==="canceled"&&result.error.cause===cause,"cancellation is polled while a wide class is tested");
 }
 `
-	runTypedTSFixture(t, src, consumer, common.GenOptions{Start: "main", LimitControls: true, Recognize: true}, "")
+	runTypedTSFixture(t, src, consumer, common.GenOptions{Start: "main", Recognize: true}, "")
 }
 
 func TestGeneratedTSBudgetControlMemoKeys(t *testing.T) {
@@ -290,7 +290,7 @@ for(const unit of [p.CodePoints,p.Bytes])for(const input of ["a","b","aa","bb",n
  check(p.recognizeWithOptions(input,{unit,signal:{aborted:false}})?.message===p.recognize(input,unit)?.message,"recognizer memo rollback parity");
 }
 `
-		runTypedTSFixture(t, src, consumer, common.GenOptions{Start: "main", LimitControls: true, Types: true, Recognize: true}, "")
+		runTypedTSFixture(t, src, consumer, common.GenOptions{Start: "main", Types: true, Recognize: true}, "")
 	})
 	t.Run("long-string", func(t *testing.T) {
 		key := strings.Repeat("a", 1600)
@@ -324,6 +324,6 @@ for(const unit of [p.CodePoints,p.Bytes])for(const input of ["z",new Uint8Array(
  check(p.parse(input,unit).error===null,"fresh retry after memo interruption");
 }
 `
-		runTypedTSFixture(t, src, consumer, common.GenOptions{Start: "main", LimitControls: true, Types: true, Recognize: true}, "")
+		runTypedTSFixture(t, src, consumer, common.GenOptions{Start: "main", Types: true, Recognize: true}, "")
 	})
 }

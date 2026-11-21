@@ -16,10 +16,10 @@ var tsModes = []struct {
 	name string
 	opts common.GenOptions
 }{
-	{"plain", common.GenOptions{}},
-	{"types", common.GenOptions{Types: true}},
-	{"observability", common.GenOptions{Observability: true}},
-	{"limits", common.GenOptions{LimitControls: true}},
+	{"plain", common.GenOptions{NoLimitControls: true}},
+	{"types", common.GenOptions{NoLimitControls: true, Types: true}},
+	{"observability", common.GenOptions{NoLimitControls: true, Observability: true}},
+	{"limits", common.GenOptions{}},
 }
 
 // TestOptimizationDisabledTSParity compares TypeScript parsers generated with an optimization off,
