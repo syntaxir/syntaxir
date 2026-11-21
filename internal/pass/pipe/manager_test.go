@@ -3,7 +3,9 @@ package pipe
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -55,6 +57,43 @@ func TestSharedKeepsEventsAndNumbering(t *testing.T) {
 	}
 	if !contains(shared.lines, "5 t-upper [ts/a] ran=true changed=true replayed") {
 		t.Errorf("the reuse is not a replay with a fresh number:\n%s", strings.Join(shared.lines, "\n"))
+	}
+}
+
+// TestNumberingContinuesAcrossExecutes checks that the Executes that share a Numbering number the
+// decided runs of optional passes once, in the order they run, and that an Execute without one
+// numbers its own from 1.
+func TestNumberingContinuesAcrossExecutes(t *testing.T) {
+	seqs := func(r *recorder) []int {
+		var out []int
+		for _, l := range r.lines {
+			var n int
+			fmt.Sscanf(l, "%d", &n)
+			if n != 0 {
+				out = append(out, n)
+			}
+		}
+		return out
+	}
+	p := tablePipe(Seq(modIR, upper, appnd))
+	numbering := &Numbering{}
+	var got []int
+	for _, table := range []string{"a", "b"} {
+		rec := &recorder{}
+		if _, err := run(t, &Run{Observers: []Observer{rec}, Numbering: numbering}, p, &prog{tables: []string{table}}); err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, seqs(rec)...)
+	}
+	if want := []int{1, 2, 3, 4}; !slices.Equal(got, want) {
+		t.Errorf("shared numbering gave %v, want %v", got, want)
+	}
+	rec := &recorder{}
+	if _, err := run(t, &Run{Observers: []Observer{rec}}, p, &prog{tables: []string{"c"}}); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := seqs(rec), []int{1, 2}; !slices.Equal(got, want) {
+		t.Errorf("an Execute of its own gave %v, want %v", got, want)
 	}
 }
 

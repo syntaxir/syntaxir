@@ -1150,7 +1150,10 @@ the attributes of its nodes computed, since a kind's verifier checks the unit an
    key, and the per-segment keep declarations become the manager's policy. The driver's stages run `Execute` internally and keep
    their signatures. Copies do not increase, measured against the generation gate.
 3. **The table unit** with its lenses; the lowering of a table becomes one `Execute` of a table pipeline; the origin map
-   moves into the Core module; the planning and lowering data types move into their data packages.
+   moves into the Core module; the planning and lowering data types move into their data packages. Until step 6 makes
+   the compilation one `Execute`, the driver runs one `Execute` per stage or table, and these share one numbering of the
+   decided runs (`Event.Seq`), so a compilation numbers its runs once, in the order they run; the shared counter becomes
+   internal to the manager at step 6.
 4. **Planning as a program-level pass**, and the Go generator prints once. If that renumbers the expectation table or
    changes the scopes of pruned rows, the driver keeps the two runs of the planning fallback, and the numbering is decided
    separately before the fallback is removed.

@@ -24,7 +24,16 @@ type Run struct {
 	Recover    func(x any) error // turns a cancellation panic of a step into an error; nil re-panics
 	Keep       bool              // the caller keeps the input of Execute: the run changes a copy
 	Stop       bool              // the first failure breaks the run: no rollback, so no rollback copy
+	// Numbering, if set, numbers the runs of this Execute (Event.Seq) after those of the other
+	// Executes that share it; nil numbers them from 1.
+	Numbering *Numbering
 }
+
+// Numbering is the numbering of the decided runs of optional passes (Event.Seq) of the Executes that
+// share it, so that one compilation, which still runs one Execute per stage and table, numbers them
+// once, in the order they run. The Executes that share it run one after another. It becomes internal
+// once one Execute runs the whole compilation (record 074, migration step 6).
+type Numbering struct{ last int }
 
 // Needs says what an observer reads, so the manager computes only that.
 type Needs struct {
@@ -37,7 +46,7 @@ type Needs struct {
 
 // Event is one step on one unit.
 type Event struct {
-	Seq      int // the number of a decided run of an optional pass, from 1; 0 for a required step
+	Seq      int // the number of a decided run of an optional pass, from 1 (Run.Numbering); 0 for a required step
 	Step     StepInfo
 	Label    Label
 	Replayed bool // the event of a Shared result that was reused
@@ -128,7 +137,7 @@ type runner struct {
 	ctx       context.Context
 	r         *Run
 	needs     Needs
-	seq       int
+	seq       *int // the last Event.Seq given (Run.Numbering)
 	instances map[*passNode]string
 	shared    map[string]*sharedEntry
 	recs      []*[]recorded
@@ -149,7 +158,10 @@ func (rs *runner) copy(k *kind, u any) any {
 func Execute[I, O any](ctx context.Context, r *Run, p Pipeline[I, O], in I) (O, error) {
 	var zero O
 	root, ins := instantiate(p.n)
-	rs := &runner{ctx: ctx, r: r, instances: ins, shared: map[string]*sharedEntry{}, analyses: map[any]*analyses{}}
+	rs := &runner{ctx: ctx, r: r, seq: new(int), instances: ins, shared: map[string]*sharedEntry{}, analyses: map[any]*analyses{}}
+	if r.Numbering != nil {
+		rs.seq = &r.Numbering.last
+	}
 	for _, o := range r.Observers {
 		n := o.Needs()
 		rs.needs.Before = rs.needs.Before || n.Before
@@ -630,8 +642,8 @@ func (rs *runner) step(x *passNode, in any, e *env, sc *scope) (out any) {
 		if sc.err != nil || !d.Test && rs.r.Settings.Value(d.Name) == 0 || d.applies != nil && !d.applies(cs) {
 			return in
 		}
-		rs.seq++
-		ev.Seq = rs.seq
+		*rs.seq++
+		ev.Seq = *rs.seq
 	}
 	observed := len(rs.r.Observers) > 0
 	// A kind without a printer has no text form: no input dump, no text comparison.
@@ -1078,8 +1090,8 @@ func (rs *runner) sharedRun(x *sharedNode, in any, e *env, sc *scope) any {
 			ev.Replayed = true
 			ev.Label = relabelOf(ev.Label, h.label, e.label)
 			if ev.Seq != 0 {
-				rs.seq++
-				ev.Seq = rs.seq
+				*rs.seq++
+				ev.Seq = *rs.seq
 			}
 			for _, o := range rs.r.Observers {
 				o.Before(ev, func(w io.Writer) { io.WriteString(w, rec.before) })
@@ -1195,12 +1207,12 @@ func (rs *runner) allow(cs *ctxState, pattern string) bool {
 	if rs.r.Settings.Value(pattern) == 0 {
 		return false
 	}
-	rs.seq++
+	*rs.seq++
 	if len(rs.r.Observers) == 0 {
 		return true
 	}
 	k := cs.pass.in.name
-	ev := Event{Seq: rs.seq, Step: StepInfo{Name: pattern, Instance: cs.instance + "/" + pattern, In: k, Out: k}, Label: cs.env.label}
+	ev := Event{Seq: *rs.seq, Step: StepInfo{Name: pattern, Instance: cs.instance + "/" + pattern, In: k, Out: k}, Label: cs.env.label}
 	ran := true
 	for _, o := range rs.r.Observers {
 		if !o.Before(ev, func(io.Writer) {}) {

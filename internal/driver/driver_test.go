@@ -2,6 +2,7 @@ package driver
 
 import (
 	"errors"
+	"io"
 	"slices"
 	"strings"
 	"testing"
@@ -579,6 +580,60 @@ func TestDriverExecFailureKeepsTheLoweredFunction(t *testing.T) {
 		}
 		if err := l.Keeps(); err != nil {
 			t.Errorf("%s: %v", c.what, err)
+		}
+	}
+}
+
+// seqRecorder records the numbers of the decided runs of optional passes (pipe.Event.Seq).
+type seqRecorder struct{ seqs []int }
+
+func (*seqRecorder) Needs() pipe.Needs                       { return pipe.Needs{} }
+func (*seqRecorder) Before(pipe.Event, func(io.Writer)) bool { return true }
+func (r *seqRecorder) After(e pipe.Event, _ *pipe.Result) {
+	if e.Seq != 0 {
+		r.seqs = append(r.seqs, e.Seq)
+	}
+}
+
+// One compilation numbers the decided runs of the optional passes once, in the order they run: the
+// Core, Flow and Exec stages of two tables, run through one driver, give one strictly increasing
+// numbering, which no stage restarts. The Flow and Exec stages run a test pass each, since no pass of
+// theirs applies to the functions of table.
+func TestDriverNumbersTheCompilationOnce(t *testing.T) {
+	rec := &seqRecorder{}
+	d := &Driver{observers: []pipe.Observer{rec}, Hooks: Hooks{FlowPipeline: withTestFlowPass(t),
+		ExecPipeline: execPipeline(testTableExec)}}
+	build := func() (*core.Module, error) {
+		m := framed().Module
+		core.CallGraph(m)
+		return m, nil
+	}
+	var ends []int
+	for _, name := range []string{"rules", "trules"} {
+		if _, err := d.Core(name, build); err != nil {
+			t.Fatal(err)
+		}
+		ends = append(ends, len(rec.seqs))
+		f, err := d.Flow(name, table(), false, flowpass.Target{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		ends = append(ends, len(rec.seqs))
+		if _, err := d.Exec(name, f, noTarget, false); err != nil {
+			t.Fatal(err)
+		}
+		ends = append(ends, len(rec.seqs))
+	}
+	start := 0
+	for i, end := range ends {
+		if end == start {
+			t.Fatalf("stage %d of the compilation numbered no run: %v", i, rec.seqs)
+		}
+		start = end
+	}
+	for i := range rec.seqs {
+		if rec.seqs[i] != i+1 {
+			t.Fatalf("the runs are numbered %v, want 1 to %d in order", rec.seqs, len(rec.seqs))
 		}
 	}
 }
