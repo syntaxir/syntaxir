@@ -143,8 +143,9 @@ func (s Source) decide(data []byte) Encoding {
 // Load returns the grammar AST of s, in grammar syntax or in JSON. JSON is decoded strictly, as
 // ast.DecodeJSON does: an unknown field, a duplicate key or trailing data is an error, as is a
 // tree that ast.Validate rejects. Load returns an error wrapping ErrCompiled for a compiled
-// grammar, the error of reading s, or the errors of the source with their positions; the errors
-// do not name s, so a caller that reports them adds Name.
+// grammar, the error of reading s, or the errors of the source with their positions: SyntaxErrors
+// for grammar syntax and the errors of ast.DecodeJSON for JSON. The errors do not name s, so a
+// caller that reports them adds Name.
 func Load(s Source) (*ast.Grammar, error) {
 	data, enc, err := s.load()
 	if err != nil {
@@ -152,7 +153,11 @@ func Load(s Source) (*ast.Grammar, error) {
 	}
 	switch enc {
 	case EncodingSXIR:
-		return parser.Parse(string(data))
+		g, err := parser.Parse(string(data))
+		if list, ok := err.(parser.ErrorList); ok {
+			return nil, syntaxErrors(list)
+		}
+		return g, err
 	case EncodingJSON:
 		return ast.DecodeJSON(data)
 	}

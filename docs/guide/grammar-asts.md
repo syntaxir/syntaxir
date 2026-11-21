@@ -29,6 +29,29 @@ trailing data is an error. Load's errors carry source positions but not the name
 a tool that reports them adds `Source.Name`. `grammar.Convert(source, grammar.EncodingJSON)` loads a
 source and writes it in the encoding given, here JSON, whatever the encoding of the source.
 
+A source in grammar syntax with errors gives a `grammar.SyntaxErrors`, the list of its errors, each
+with a position, an end and a message. `errors.As` obtains the list, for example to place a
+diagnostic for each error in an editor:
+
+```go
+src := grammar.FromString("g.sxir", "rule main = \"a\" /\n")
+_, err := grammar.Load(src)
+var errs grammar.SyntaxErrors
+if errors.As(err, &errs) {
+    for _, e := range errs {
+        fmt.Printf("%s:%d:%d: %s\n", src.Name(), e.Pos.Line, e.Pos.Col, e.Msg)
+    }
+}
+```
+
+Lines and columns are 1-based, and columns count characters, as do the positions of the AST.
+`End` is the position just after the text an error covers, such as an invalid escape sequence, and
+the zero `ast.Pos` when the error is at a point, such as a missing token. The lexical errors come
+first, then the others in source order, and a source with more than 100 errors ends the list with
+one that says `too many errors`. The error text is the errors' `line:column: message`, one per line.
+The list is the error itself and does not unwrap to its elements, so ask `errors.As` for
+`grammar.SyntaxErrors`, not `*grammar.SyntaxError`.
+
 ## Validate a Hand-Built Grammar
 
 `grammar.Validate(g)` checks the structure before compilation or formatting.

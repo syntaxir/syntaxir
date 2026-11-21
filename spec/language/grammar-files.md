@@ -614,7 +614,24 @@ grammar syntax. For JSON it is `ast.DecodeJSON`, so an unknown field, a duplicat
 and the tree MUST pass structural validation. A source that holds a compiled grammar, which begins with the magic of
 the [file format](../bytecode/README.md#file-format) whatever the encoding, is an error that wraps
 `grammar.ErrCompiled`; test for it with `errors.Is`. Any other error is the error of reading the source or the
-errors of the grammar with their positions. They do not name the source: a program that reports them adds `s.Name()`.
+errors of the grammar with their positions: the errors of `ast.DecodeJSON` for JSON, and `grammar.SyntaxErrors` for
+grammar syntax. They do not name the source: a program that reports them adds `s.Name()`.
+
+A source in grammar syntax that `Load` rejects gives a `grammar.SyntaxErrors`, which `Load` returns as the error itself,
+so `errors.As` with a `grammar.SyntaxErrors` target obtains it. It is a non-empty list of `*grammar.SyntaxError`, each an
+error of the [lexical structure](lexical.md), of the syntax, or of a check that the parser makes on the source:
+
+| Field | Meaning |
+|:--|:--|
+| `Pos` | Where the error is, an `ast.Pos`: the 1-based line and the 1-based character column of [Source Text](lexical.md#source-text) |
+| `End` | The position just after the text that the error covers, such as an invalid escape sequence; the zero `ast.Pos` for an error at the point `Pos`, such as a missing token |
+| `Msg` | The message, without the position |
+
+The lexical errors come first, then the other errors in the order of the source. A source with more than 100 errors
+gives 100 of them and one more with the message `too many errors`, at the position where the errors left out begin. The
+`Error` text of a `SyntaxError` is `line:column: message`, and that of a `SyntaxErrors` is the text of its errors, one
+per line. A `SyntaxErrors` does not unwrap to its elements: `errors.As` with a `*grammar.SyntaxError` target does not
+match it.
 
 `grammar.Convert(s, to)` loads `s` and returns the grammar in the encoding `to`, which MUST be `EncodingSXIR` or
 `EncodingJSON`: for `EncodingSXIR` the text that `grammar.Format` writes, for `EncodingJSON` the result of

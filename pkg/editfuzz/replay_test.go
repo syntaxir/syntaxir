@@ -8,6 +8,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
+	"syntaxir.dev/sxir/pkg/grammar"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value"
@@ -263,6 +264,22 @@ func TestReplayInvalid(t *testing.T) {
 		if !errors.As(err, &invalid) || invalid.Event != tc.event || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("%+v: got %v, want an invalid sequence at %d containing %q", tc.seq.Operations, err, tc.event, tc.want)
 		}
+	}
+}
+
+// TestGrammarSyntaxErrors checks that a grammar source that does not parse gives the public syntax
+// errors of grammar.Load, wrapped in the InvalidError of Replay and returned by Fuzz.
+func TestGrammarSyntaxErrors(t *testing.T) {
+	const src = "rule main = (\n"
+	var errs grammar.SyntaxErrors
+	err := Replay([]byte(src), sequence(src, Closure, input.CodePoints, "a"))
+	var invalid *InvalidError
+	if !errors.As(err, &invalid) || !errors.As(err, &errs) || len(errs) == 0 || errs[0].Pos.Line != 2 {
+		t.Errorf("Replay: %T %v, want an InvalidError wrapping grammar.SyntaxErrors", err, err)
+	}
+	errs = nil
+	if err := Fuzz([]byte(src), Options{Backend: Closure, Unit: input.CodePoints}); !errors.As(err, &errs) || len(errs) == 0 {
+		t.Errorf("Fuzz: %T %v, want grammar.SyntaxErrors", err, err)
 	}
 }
 

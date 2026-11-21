@@ -90,7 +90,9 @@ An `editfuzz.InvalidError` reports a sequence that cannot be applied: its `Event
 for the sequence as a whole, and `Err` is the reason. The reasons are a grammar that does not match the recorded hash or
 does not compile, a Document that cannot be made of the initial text, an unknown backend or unit, an edit outside the text or off a character boundary, and an undo or redo
 without an edit to undo or redo. An `InvalidError` is not a `Mismatch`: it is a problem of the sequence, and not of the
-grammar.
+grammar. A grammar source that does not parse is reported as `grammar.Load` reports it, with
+[`grammar.SyntaxErrors`](../language/grammar-files.md#grammar-sources): `Replay` wraps them in its `InvalidError`, and `Fuzz`
+returns them.
 
 ### Generating Sequences
 

@@ -12,8 +12,8 @@ import (
 	"unicode/utf8"
 
 	"syntaxir.dev/sxir/internal/driver/entry"
-	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/pkg/grammar"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
@@ -121,10 +121,11 @@ func Replay(src []byte, seq *Sequence) error {
 	return replay(p, seq)
 }
 
-// compile compiles the grammar source src to a parser that starts at the rule start (empty for the
-// default start rule).
+// compile compiles the grammar source src, in grammar syntax, to a parser that starts at the rule
+// start (empty for the default start rule). A source that does not parse gives the
+// grammar.SyntaxErrors of grammar.Load.
 func compile(src []byte, start string) (*engine.Parser, error) {
-	g, err := parser.Parse(string(src))
+	g, err := grammar.Load(grammar.FromBytes("", src).As(grammar.EncodingSXIR))
 	if err != nil {
 		return nil, err
 	}
