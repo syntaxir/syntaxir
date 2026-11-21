@@ -300,7 +300,7 @@ component's model and charges what that part charges. An operation that writes c
 and it stops being transitional only once every component it writes has a model. The growth in a context (its steps,
 jumps and runs, and the canonical identities of equal seeds) builds on the same state and stays transitional
 until it has a model of its own; keeping the result of a call in a context is modelled and passes the success of the
-result apart from its value, as a result without a value can succeed; the missing-token mode, in which no result in a context is memoized, and Document parses are outside the
+result apart from its value, as a result without a value can succeed, except for the keep of a cycle leader, which the model refuses until it models the end of the growth (`grow.end`); the missing-token mode, in which no result in a context is memoized, and Document parses are outside the
 cases. One target charges for converting the dependencies that a frame ended into stored ones when the frame ends
 and the other when the result is kept, so both `ctx.pop` and `ctx.keep` declare that cost. *Shared*: what a result depends on and when it is reused, the seed identities, the present sets, the
 order of the dependency sets. *Target*: table layout, keys and hashing, allocation of results, the width of the

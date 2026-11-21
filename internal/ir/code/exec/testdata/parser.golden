@@ -1035,7 +1035,7 @@ op ctx.keep(c Ctx, r Rule, pos int, min int, key Values, ok bool, end int, silen
     // Keeps the result of the call in the table of its context with the dependencies that ctx.pop
     // ended, and the examined end of a Document parse.
   requires:
-    // The last ctx.pop of c returned ctx.storeCtx.
+    // The last ctx.pop of c returned ctx.storeCtx. If r leads a cycle, its growth at pos has ended (grow.end) and the result passed is the one grow.end returned: the result of a leader is final only then.
 
 op ctx.done(c Ctx)
   component growth

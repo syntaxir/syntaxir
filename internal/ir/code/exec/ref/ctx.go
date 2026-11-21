@@ -536,8 +536,10 @@ func (m *Model) allowsCtx(o *code.Op, args []any) bool {
 		c := args[0].(*CtxState)
 		return c.pushed && c.popped < 0 && len(s.frames) == c.frame
 	case "ctx.keep":
+		// The result of a leader is final only when its growth ends, and grow.end keeps it; the model has no
+		// growth end, so it keeps the result of no leader.
 		c := args[0].(*CtxState)
-		return c.popped == CtxStoreCtx && !c.done
+		return c.popped == CtxStoreCtx && !c.done && !m.ctxRule(args[1].(RuleRef)).Leader
 	case "ctx.done":
 		c := args[0].(*CtxState)
 		return c.popped >= 0 && !c.done

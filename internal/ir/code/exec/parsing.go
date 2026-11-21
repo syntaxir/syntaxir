@@ -324,7 +324,7 @@ memo read no growing result and is the same in each of them.`,
 		Reads: []string{Growth, Call}, Writes: []string{Growth}, NoReturn: true, Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QTable}, {Coef: 1, Quantity: QDeps}}},
 		Contract: `Keeps the result of the call in the table of its context with the dependencies that ctx.pop
 ended, and the examined end of a Document parse.`,
-		Requires: `The last ctx.pop of c returned ctx.storeCtx.`})
+		Requires: `The last ctx.pop of c returned ctx.storeCtx. If r leads a cycle, its growth at pos has ended (grow.end) and the result passed is the one grow.end returned: the result of a leader is final only then.`})
 	m.AddOp(&code.Op{Name: "ctx.done", Component: Growth, Params: []code.Param{ctxArg}, Writes: []string{Growth},
 		NoReturn: true, Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QDeps}}},
 		Contract: `Passes the dependencies that ctx.pop ended to the evaluation that encloses the call.`})
