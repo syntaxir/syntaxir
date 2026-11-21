@@ -1,6 +1,6 @@
 # 043. Generated Parser Tracing and Profiling
 
-- **Status**: Implemented
+- **Status**: Implemented; the observation API, event and profile shapes, and examined end are superseded in part by [077](077-observability-contract.md)
 - **Author**: @ornew
 - **Date**: 2026-10-11
 

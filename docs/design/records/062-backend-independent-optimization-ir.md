@@ -273,8 +273,8 @@ such as node identity and the number of times an action runs, is free
 Some existing optimizations are not equivalences but specializations that the contract allows only in a
 mode: recognition drops actions whose values predicates do not need, and with them their errors
 ([Modes](../../../spec/runtime/parsing.md#modes)); a parse without budget controls charges nothing; a parse that neither
-reuses results nor reports examined input, such as a generated batch parse (which reports `ExaminedKnown`
-false), needs no examined-range recording. Core IR keeps the two apart: **rewrites** preserve every
+reuses results nor reports examined input, such as a generated batch parse (which records no examined
+input), needs no examined-range recording. Core IR keeps the two apart: **rewrites** preserve every
 observable above in every mode, and **mode specializations** produce a rule variant for one mode and may
 change only what that mode's contract leaves open. Generated parsers fix every mode when they are
 generated; closures and bytecode select a variant when a parse starts, and engine tracing and Documents
