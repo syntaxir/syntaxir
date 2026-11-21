@@ -93,22 +93,17 @@ func newObservation(o *observeOptions, silent *int) *observation {
 	if o.trace == nil && o.profile == nil {
 		return nil
 	}
-	out := &observation{trace: o.trace, silent: silent}
-	out.profiles = out.one[:0]
+	out := &observation{silent: silent}
+	out.trace = o.trace
 	if o.profile != nil {
-		out.profiles = append(out.profiles, o.profile.Recorder())
+		out.addProfile(o.profile)
 	}
 	if x := o.extras; x != nil {
 		out.maxDepth = x.maxDepth
 		for _, pr := range x.more {
-			out.profiles = append(out.profiles, pr.Recorder())
+			out.addProfile(pr)
 		}
-		if len(x.rules) != 0 {
-			out.rules = make(map[string]bool, len(x.rules))
-			for _, name := range x.rules {
-				out.rules[name] = true
-			}
-		}
+		out.selectRules(x.rules)
 	}
 	return out
 }
@@ -116,9 +111,7 @@ func newObservation(o *observeOptions, silent *int) *observation {
 // release drops what the observation refers to once its parse returns.
 func (o *observation) release() {
 	if o != nil {
-		for _, r := range o.profiles {
-			r.Close()
-		}
+		o.close()
 		*o = observation{}
 	}
 }
@@ -136,22 +129,21 @@ func (o *observation) hotspot() string {
 // stream discarded: no rule is evaluated there again.
 func (o *observation) dropDiscarded(pos int) {
 	if o != nil {
-		for _, r := range o.profiles {
-			r.Discard(pos)
-		}
+		o.discard(pos)
 	}
 }
 
+// raisedForTrace reports whether x, a panic of the trace function, is an interruption that the
+// parser raised while the trace function used it (traceRecorder.deliver). The events of the library
+// carry no parser state, so the trace function reaches nothing that interrupts the parse: every
+// panic of it is its own, whatever its value.
+func raisedForTrace(any) bool { return false }
+
 // Of its fields and methods, Enter, Evaluated, Exit, Skipped are for generated parsers; not a stable API.
 type observation struct {
-	trace func(sxirinstrument.TraceEvent)
-	// profiles record the parse; one holds them when there is one.
-	profiles []*sxirinstrument.ProfileRecorder
-	one      [1]*sxirinstrument.ProfileRecorder
-	rules    map[string]bool
-	maxDepth int
-	silent   *int
-	stack    []observationCall
+	traceRecorder
+	silent *int
+	stack  []observationCall
 }
 
 type observationCall struct {
@@ -159,37 +151,8 @@ type observationCall struct {
 	selected bool
 }
 
-// Only callback panics are wrapped. The parse recovery boundary unwraps before
-// handling its own private interruption types, preserving every callback value.
-type tracePanic struct{ value any }
-
-// record adds e to the profiles and delivers it to the trace function. The
-// profiles record e first and resume after the trace function returns, so that
-// profile times exclude it. e is read before record returns and not kept.
-func (o *observation) record(e *sxirinstrument.TraceEvent, selected bool) {
-	for _, r := range o.profiles {
-		r.Record(*e)
-	}
-	if o.trace == nil || !selected || o.maxDepth > 0 && e.Depth > o.maxDepth {
-		return
-	}
-	o.deliver(e)
-	for _, r := range o.profiles {
-		r.Resume()
-	}
-}
-
-func (o *observation) deliver(e *sxirinstrument.TraceEvent) {
-	defer func() {
-		if x := recover(); x != nil {
-			panic(tracePanic{x})
-		}
-	}()
-	o.trace(*e)
-}
-
 func (o *observation) selected(rule string) bool {
-	return len(o.rules) == 0 || o.rules[rule] || len(o.stack) > 0 && o.stack[len(o.stack)-1].selected
+	return o.selects(rule, len(o.stack) > 0 && o.stack[len(o.stack)-1].selected)
 }
 
 func (o *observation) Enter(rule string, pos, level int) {

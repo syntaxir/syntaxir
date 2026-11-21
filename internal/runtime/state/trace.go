@@ -47,15 +47,8 @@ func TraceExpectations(e TraceEvent) []ExpID {
 // of the exit event being reported (far, exp and the recovered errors) is valid while the trace
 // function and the profile recorders handle it.
 type Tracer struct {
-	p  *Parser
-	fn func(TraceEvent)
-	// rules, if not nil, selects the calls fn receives: those of the rules it holds and the calls
-	// nested in them. maxDepth, if positive, leaves out the calls nested deeper.
-	rules    map[string]bool
-	maxDepth int
-	// profiles record the events of the parse. Each records an event before fn handles it and resumes
-	// after, so that the time of fn is not counted.
-	profiles []*instrument.ProfileRecorder
+	traceRecorder
+	p *Parser
 	// direct is set by tracedCall just before it calls call for the call it has reported, so that
 	// call runs it instead of reporting it again.
 	direct bool
@@ -110,49 +103,20 @@ func (t *Tracer) Recovered() []*value.SyntaxError {
 	return nil
 }
 
-// discard tells the profile recorders that a stream discarded the input before pos: no rule is
-// evaluated there again.
-func (t *Tracer) discard(pos int) {
-	for _, r := range t.profiles {
-		r.Discard(pos)
-	}
-}
-
-// emit passes ev to the profile recorders and, if the call is selected and no deeper than the
-// depth limit, to the trace function. A panic there is carried through recoverParse as a
-// TracePanic, so that it is not taken for a fault of the parse (a runtime error on a bytecode
-// backend is reported as invalid bytecode), and is raised again unchanged.
+// emit records ev (traceRecorder.record). The parse observes its interruptions before the event
+// and after the trace function returns, so that a cancellation that the trace function makes stops
+// the parse before the next function or event.
 func (t *Tracer) emit(ev TraceEvent, selected bool) {
-	p := t.p
-	p.Control.Check()
-	deliver := t.fn != nil && selected && (t.maxDepth <= 0 || ev.Depth <= t.maxDepth)
-	for _, r := range t.profiles {
-		r.Record(ev)
+	t.p.Control.Check()
+	if t.record(&ev, selected) {
+		t.p.Control.Check()
 	}
-	if !deliver {
-		return
-	}
-	if t.profiles != nil {
-		defer func() {
-			for _, r := range t.profiles {
-				r.Resume()
-			}
-		}()
-	}
-	defer func() {
-		if x := recover(); x != nil {
-			if _, ok := x.(Fatal); ok {
-				panic(x) // a charged TraceEvent accessor interrupted engine execution
-			}
-			panic(TracePanic{x})
-		}
-	}()
-	t.fn(ev)
-	p.Control.Check()
 }
 
-// TracePanic is a panic of the trace function, with the value it panicked with.
-type TracePanic struct{ Value any }
+// raisedForTrace reports whether x, a panic of the trace function, is an interruption that the
+// parser raised while the trace function used it (traceRecorder.deliver): the accessors of an event
+// read the parse state and charge the budget, which can interrupt the parse.
+func raisedForTrace(x any) bool { _, ok := x.(Fatal); return ok }
 
 // tracedCallState is the state of a traced call in progress.
 type tracedCallState struct {
@@ -179,9 +143,10 @@ func (p *Parser) SetTrace(fn func(TraceEvent), profiles []*instrument.Profile) {
 	if fn == nil && len(profiles) == 0 {
 		return
 	}
-	t := &Tracer{p: p, fn: fn}
+	t := &Tracer{p: p}
+	t.trace = fn
 	for _, pr := range profiles {
-		t.profiles = append(t.profiles, pr.Recorder())
+		t.addProfile(pr)
 	}
 	p.Tr = t
 	p.NoPlain = true
@@ -202,12 +167,7 @@ func (p *Parser) Hotspot() string {
 func (p *Parser) SelectTrace(s *TraceSelection) {
 	if t := p.Tr; s != nil && t != nil {
 		t.maxDepth = s.MaxDepth
-		if len(s.Rules) != 0 {
-			t.rules = make(map[string]bool, len(s.Rules))
-			for _, name := range s.Rules {
-				t.rules[name] = true
-			}
-		}
+		t.selectRules(s.Rules)
 	}
 }
 
@@ -216,9 +176,7 @@ func (p *Parser) SelectTrace(s *TraceSelection) {
 // events kept by the trace function still refer to.
 func (p *Parser) CloseTrace() {
 	if t := p.Tr; t != nil {
-		for _, r := range t.profiles {
-			r.Close()
-		}
+		t.close()
 		*t = Tracer{p: p}
 	}
 }
@@ -238,7 +196,7 @@ func (p *Parser) tracedCall(r *Rule, min int) (*value.Node, bool) {
 // keep a maximum).
 func (p *Parser) TraceEnter(r *Rule, min int) {
 	t := p.Tr
-	selected := t.rules == nil || t.rules[r.Name] || len(t.stack) > 0 && t.stack[len(t.stack)-1].selected
+	selected := t.selects(r.Name, len(t.stack) > 0 && t.stack[len(t.stack)-1].selected)
 	t.stack = append(t.stack, tracedCallState{r: r, min: min, start: p.Pos, evals: p.Stats.Evaluated, resumed: p.Resumed, hw: p.Hw, rec: len(p.Recovered), selected: selected})
 	p.Hw = p.Pos
 	t.stack[len(t.stack)-1].exp = p.Isolate(p.Pos)

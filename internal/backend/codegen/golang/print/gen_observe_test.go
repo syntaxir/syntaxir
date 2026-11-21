@@ -160,7 +160,7 @@ func TestFilteringAndIsolation(t *testing.T){
  // A later invocation must have no prior callback, even after pooling.
  calls:=0;Parse(INPUT,sxirrt.WithTrace(func(sxirinstrument.TraceEvent){calls++}));before:=calls
  Parse(INPUT);if calls!=before{t.Fatal("observer leaked across parses")}
- private:=&sxirrt.Parser{Observation:&sxirrt.X_observation{X_trace:func(sxirinstrument.TraceEvent){}}}
+ private:=&sxirrt.Parser{Observation:&sxirrt.X_observation{}}
  private.X_release();if private.Observation!=nil {t.Fatal("pool retained observer")}
 }
 func TestCallbackPanicAndInterruption(t *testing.T){

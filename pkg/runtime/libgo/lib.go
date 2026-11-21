@@ -721,7 +721,7 @@ func recoverParse[T any](v *T, err *error) {
 			var zero T
 			*v, *err = zero, x.err
 		case tracePanic:
-			panic(x.value)
+			panic(x.Value)
 		case contextPanic:
 			panic(x.value)
 		default:

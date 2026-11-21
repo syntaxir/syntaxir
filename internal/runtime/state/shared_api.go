@@ -71,3 +71,6 @@ func (p *Parser) Diagnosed() int { return p.diagnosed }
 // SetDiagnosed sets how many entries of Recovered the stream has delivered. It is exported only as a
 // hook for tests in other packages.
 func (p *Parser) SetDiagnosed(n int) { p.diagnosed = n }
+
+// TracePanic is a panic of the trace function, with the value it panicked with.
+type TracePanic = tracePanic

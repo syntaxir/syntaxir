@@ -29,7 +29,7 @@ func newObsMachine(cfg ref.Config) conform.Impl {
 		r.Name = ref.RuleName(int64(i))
 	}
 	if cfg.Observed {
-		m.p.Observation = &observation{trace: m.deliver, silent: &m.p.Silent}
+		m.p.Observation = &observation{traceRecorder: traceRecorder{trace: m.deliver}, silent: &m.p.Silent}
 	}
 	return m
 }

@@ -186,7 +186,7 @@ func TestTypedTraceLifecycle(t *testing.T){
   events=nil;_,err=parse(WithLimits(Limits{Compute:1}),WithTrace(func(e TraceEvent){events=append(events,e)}));if !errors.Is(err,ErrLimit){t.Fatal("typed budget",err)};for _,e:=range events{if e.Kind==TraceExit&&e.Rule=="main"{t.Fatal("fabricated typed exit",events)}}
  }
  var wg sync.WaitGroup;for i:=0;i<4;i++{wg.Go(func(){for j:=0;j<4;j++{ParseValue(INPUT,WithTrace(func(TraceEvent){}))}})};wg.Wait()
- p:=&sxirrt.TParser{Parser:&sxirrt.Parser{Observation:&sxirrt.X_observation{X_trace:func(TraceEvent){}}}};p.X_recycle();if p.Observation!=nil{t.Fatal("typed pool retained observer")}
+ p:=&sxirrt.TParser{Parser:&sxirrt.Parser{Observation:&sxirrt.X_observation{}}};p.X_recycle();if p.Observation!=nil{t.Fatal("typed pool retained observer")}
 }
 `
 
