@@ -302,6 +302,59 @@ rule s = E $$
 rule E = "a" W &"b" [a-z]* "c" / E "x" / "a" W "y"
 rule W = ("a" #cut "b")*
 `, ClassPoly, 2, -1}, // g1
+	// An operator part reads the value of an earlier application through $lhs, as a call on a
+	// recursion would be read: joining it twice doubles the value at each operator. On "a" and k
+	// times "+a" the minimum compute is 634, 8370 and 131306 for k = 8, 12 and 16.
+	{"operators", "operand value joined twice", `@start
+rule main = e:expr $$ => $e
+rule expr string = #operators { operand a:"a" => text($a); level additive { infix left "+" => $lhs + $lhs } }
+`, ClassExp, -1, -1},
+	// The same value bound to a variable: the output is 259, 4099 and 65539 bytes for k = 8, 12
+	// and 16.
+	{"operators", "operand value joined twice into a variable", `var x string
+@start
+rule main = e:expr {x := $e} $$ => x
+rule expr string = #operators { operand a:"a" => text($a); level additive { infix left "+" => $lhs + $lhs } }
+`, ClassExp, -1, -1},
+	// Joining both operands copies the left operand, which grows by one operand at each
+	// operator: the minimum compute is 1987, 6462, 22912 and 85812 for 50, 100, 200 and 400
+	// operators.
+	{"operators", "operand values joined once", `@start
+rule main = e:expr $$ => $e
+rule expr string = #operators { operand a:"a" => text($a); level additive { infix left "+" => $lhs + $rhs } }
+`, ClassPoly, 2, -1},
+	// The whole-rule action reads the folded value through $value, which holds the value of the
+	// call of the parenthesized operand: joining it twice doubles the value at each level of
+	// parentheses. On k parentheses around "a" the minimum compute is 141, 1165 and 16589 for
+	// k = 4, 8 and 12.
+	{"operators", "folded value joined twice", `@start
+rule main = v:e $$ => $v
+rule e string = #operators { operand a:"a" => text($a); operand "(" x:e ")" => $x; level additive { infix left "+" => "p" } } => $value + $value
+`, ClassExp, -1, -1},
+	// Joining it once copies it at each level: the minimum compute is 2141, 6766, 23516 and
+	// 87016 for k = 50, 100, 200 and 400.
+	{"operators", "folded value joined once", `@start
+rule main = v:e $$ => $v
+rule e string = #operators { operand a:"a" => text($a); operand "(" x:e ")" => $x; level additive { infix left "+" => "p" } } => $value + "x"
+`, ClassPoly, 2, -1},
+	// Passing it on copies nothing.
+	{"operators", "folded value passed on", `@start
+rule main = v:e $$ => $v
+rule e string = #operators { operand a:"a" => text($a); operand "(" x:e ")" => $x; level additive { infix left "+" => "p" } } => $value
+`, ClassLinear, -1, -1},
+	// $lhs in the action of a part holds an earlier application in the same call, not a call on
+	// a recursion, so the whole-rule action copies the folded value once per call: the minimum
+	// compute is 1215, 2415 and 4815 for 100, 200 and 400 operators.
+	{"operators", "folded value of earlier applications joined once", `@start
+rule main = v:e $$ => $v
+rule e string = #operators { operand a:"a" => text($a); level additive { infix left "+" => $lhs } } => $value + "x"
+`, ClassLinear, -1, -1},
+	// A parenthesized operand that drops the value of its call holds no call on a recursion:
+	// the minimum compute is 1817, 3617 and 7217 for k = 100, 200 and 400.
+	{"operators", "folded value without the call joined twice", `@start
+rule main = v:e $$ => $v
+rule e string = #operators { operand a:"a" => text($a); operand "(" x:e ")" => "b"; level additive { infix left "+" => $lhs } } => $value + $value
+`, ClassLinear, -1, -1},
 }
 
 // TestClassifierSoundness checks the class of each grammar in classifierSoundnessCases.
@@ -358,6 +411,15 @@ var classifierSoundnessMutants = []struct {
 		"thrown/growth thrown away by a rule that is not a leader",
 		"thrown/growth of a leader that the other leader reads",
 	}, ClassLinear},
+	// $lhs and $rhs of an operator part, and $value of the whole-rule action, counted as values of
+	// unknown size only.
+	{"operandValues", []string{
+		"operators/operand value joined twice",
+		"operators/operand values joined once",
+		"operators/folded value joined twice",
+		"operators/folded value joined once",
+	}, ClassLinear},
+	{"operandValues", []string{"operators/operand value joined twice into a variable"}, ClassLinearEnv},
 	// Either rule alone rejects the dropped result behind a predicate: without both, condition 5
 	// misses the alternative that drops the result and no source is around the call of R.
 	{"leadingPass+leaderSource", []string{"growing/dropped result behind a predicate"}, ClassLinear},
@@ -375,6 +437,8 @@ func setSoundnessHooks(hook string, on bool) {
 		leadingPassOn = on
 	case "leaderSource":
 		leaderSourceOn = on
+	case "operandValues":
+		operandValuesOn = on
 	case "leadingPass+leaderSource":
 		leadingPassOn, leaderSourceOn = on, on
 	default:

@@ -585,6 +585,11 @@ func (k *classifier) sizeOf(t ast.ActionExpr, tc termCtx, mode sizeMode) content
 			c.unbounded = true
 			return c
 		}
+		if d, ok := k.operandValue(tc.rule, t.Name, mode); ok {
+			c.add(d)
+			c.outer = tc.repeat
+			return c
+		}
 		exprs := k.captures[tc.rule][t.Name]
 		if len(exprs) == 0 {
 			c.unbounded = true
@@ -736,6 +741,11 @@ func (k *classifier) sizeOfAny(t ast.ActionExpr, tc termCtx) content {
 					}
 					c.add(p.elem)
 					c.sum = max(c.sum, p.sum)
+					return
+				}
+				if d, ok := k.operandValue(tc.rule, x.Name, textSize); ok {
+					outer = true
+					c.add(d)
 					return
 				}
 				// A value from outside the lambda counts as outer only when it is not bounded.
@@ -992,6 +1002,81 @@ func (k *classifier) includes(rule string, mode sizeMode) bool {
 	}
 	k.includesMemo[key] = v
 	return v
+}
+
+// operandValuesOn makes $lhs and $rhs in the action of an operator part, and $value in the
+// whole-rule action, hold the value of a call on a recursion with the Operators Rule where it can
+// (operandValue), as condition 4 requires. It is on by default; the variable is a test hook, whose
+// off setting is the classifier that counted them as values of unknown size only, which classified
+// the doubling of e = #operators { operand "a" => "a"; level a { infix left "+" => $lhs + $lhs } }
+// linear.
+var operandValuesOn = true
+
+// operandValue describes the size, measured in mode, of $lhs or $rhs in the action of an operator
+// part of the Operators Rule rule, or of $value in its whole-rule action. $lhs and $rhs are the
+// value of an operand or of an earlier application of a part, which the rule applies again at each
+// operator, so they hold the value of the rule as the value of a call on a recursion with it does,
+// and the value of the part holds it in turn. $value is the folded value, the value of a part,
+// which holds what the values of the parts hold (foldedValue). ok is false for any other capture.
+func (k *classifier) operandValue(rule, name string, mode sizeMode) (c content, ok bool) {
+	if !operandValuesOn || name != "lhs" && name != "rhs" && name != "value" || len(k.captures[rule][name]) > 0 {
+		return content{}, false
+	}
+	r := k.byName[rule]
+	if r == nil || !isOperators(r.Expr) {
+		return content{}, false
+	}
+	n := "$" + name
+	if name == "value" {
+		return k.foldedValue(r.Expr.(*ast.OperatorsRule), rule, mode, n), true
+	}
+	return content{unbounded: true, rec: map[string]int{n: 1}, held: map[string]int{n: 1}}, true
+}
+
+// foldedValue describes the size, measured in mode, of the folded value of the Operators Rule ops
+// of rule, the value of one of its parts: it holds a call on a recursion with the rule, once, when
+// the value of a part holds one other than through $lhs and $rhs, and that call holds the value of
+// the rule in turn when it does in the value of a part. name names the value in witnesses.
+func (k *classifier) foldedValue(ops *ast.OperatorsRule, rule string, mode sizeMode, name string) content {
+	tc := termCtx{rule: rule}
+	var parts content
+	for _, o := range ops.Operands {
+		if o.Action != nil && !o.DefaultAction {
+			parts.add(k.sizeOf(o.Action, tc, mode))
+		} else {
+			parts.add(k.exprSize(o.Expr, tc, mode, name))
+		}
+	}
+	for _, l := range ops.Levels {
+		for _, op := range l.Operators {
+			if op.Action != nil && !op.DefaultAction {
+				parts.add(k.sizeOf(op.Action, tc, mode))
+			}
+			// The default action of an operator part builds a node, which is not a string or a
+			// list.
+		}
+	}
+	// $lhs and $rhs in the action of a part stand for the values of parts, which the other
+	// values of parts already describe: they hold earlier applications in the same call, not
+	// calls on a recursion.
+	c := content{unbounded: true, vars: parts.vars, look: parts.look, sum: parts.sum}
+	if hasOtherThanOperands(parts.rec) {
+		c.rec = map[string]int{name: 1}
+	}
+	if hasOtherThanOperands(parts.held) {
+		c.held = map[string]int{name: 1}
+	}
+	return c
+}
+
+// hasOtherThanOperands reports whether counts names a value other than $lhs and $rhs.
+func hasOtherThanOperands(counts map[string]int) bool {
+	for n := range counts {
+		if n != "$lhs" && n != "$rhs" {
+			return true
+		}
+	}
+	return false
 }
 
 func isOperators(e ast.Expr) bool {

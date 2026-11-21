@@ -2107,9 +2107,17 @@ bound by these conditions, and has to say so.
    `r = ("(" c:r ")" {x := $c} => x + x) / ("a" => "a")` the action copies
    the value of the call of `r` twice, as `$c + $c` would, and the value of
    `r` doubles at each level. A value of a rule on a cycle of such values, and the value of
-   an Operators Rule, are taken to include it. A copy whose size does not include
-   such a value does not add up over the levels of the recursion; when it is
-   not bounded by a constant, it is a scanning source, which condition 2
+   an Operators Rule, are taken to include it. In the action of an operator
+   part, `$lhs` and `$rhs` are the values of an operand or of an earlier
+   application of a part, which the rule applies again at each operator, so
+   they count as values of a call on a recursion with the Operators Rule:
+   `$lhs + $lhs` doubles the value at each operator, and `$lhs + $rhs`
+   copies the left operand, which grows by an operand at each operator. In
+   the whole-rule action, `$value` is the value of a part, so it counts as a
+   value of a call on a recursion where the value of a part holds one other
+   than `$lhs` and `$rhs`, as `$x` does in `operand "(" x:e ")" => $x`. A
+   copy whose size does not include such a value does not add up over the
+   levels of the recursion; when it is not bounded by a constant, it is a scanning source, which condition 2
    covers. No copying operation copies a value that is not bounded by a
    constant and whose size can come from a capture made in a positive
    lookahead, directly or as a member, or through the
