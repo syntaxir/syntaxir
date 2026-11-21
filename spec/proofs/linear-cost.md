@@ -4518,12 +4518,31 @@ the cycle is in progress at $p$, the call of the leader that the path
 reaches reads its growing result and evaluates no body again; this remark
 treats only the other case, where that call starts a growth $G$ at $p$ in
 $\mathcal{R}$, which stores no result. Let $A'$ be the evaluation of $A$ in
-a step of $G$, let $\beta'$ lie in $A'$, and let $A'$ be evaluated at the
-binding level of $A$ and read, at each place, the values of the variables
-and captures that $A$ reads there. That last hypothesis is not shown,
-for the binding level or for the values: a capture can hold a growing
-result, as `c` does in `r = &(c:L) ({len($c) > 1} s "!" / L)` with
-`L = r "x" / "a"`, and $A'$ can then branch otherwise than $A$. By the
+a step of $G$, inside the evaluation $X'$ of the rule of $X$ that the step
+reaches at $p$ through left calls, and let $\beta'$ lie in $A'$. Let the part
+of the body of that rule that the evaluation of $A$ follows make no left call
+of the cycle, and let the rule be no Operators Rule. Then $A'$ reads at each
+place the values of the variables and captures that $A$ reads there. Every
+variable that $A$ reads is read by a rule of the cycle, so no binding of it
+runs, in a body of the cycle, before a call into the cycle that runs before
+the input is consumed ([Left
+Recursion](../language/parser-expressions.md#left-recursion)): not in the
+part of $X$ before $A$, nor in the later alternative before its call of the
+leader, nor in the bodies that the step of $G$ evaluates on the way to $X'$,
+and the bindings that $A$ made are undone when it fails
+([Variables](../language/predicates.md#variables)). So $A$ and $A'$ start with
+the values with which the call that starts $G$ is made, the values that the
+steps of $G$ start with. A capture that $A$ reads is made by $A$ or by the
+part of $X$ before it, which runs at $p$ in $X$ and in $X'$ alike, as the
+argument below for $A$ shows of a part that makes no left call of the cycle.
+And the binding level of a body evaluation acts only on the operators that an
+Operators Rule applies, the calls inside the body carrying their own
+([Level-Restricted
+Calls](../language/operators-rule.md#level-restricted-calls)). Without these
+hypotheses $A'$ can branch otherwise than $A$: a capture before $A$ can hold
+a growing result, as `c` does in `r = &(c:L) ({len($c) > 1} s "!" / L)` with
+`L = r "x" / "a"`, and an Operators Rule can be called at another binding
+level in $X'$ than in $X$; those cases are not shown. By the
 [condition](../runtime/parsing.md#conditions-for-linear-cost), $A$ makes no
 left call of the cycle of $G$ and evaluates its scanning sources only inside
 calls that are memoized at the call and read no variable. A call inside $A'$
@@ -4552,8 +4571,8 @@ the call $z^\circ$ of its proof. An activation of $\mathcal{R}$ is **of an
 entered alternative** when it is such a $\beta'$: it lies in an evaluation
 $A'$, in a step of a growth $G$ that a path that enters the growth again
 starts, of the alternative $A$ that the path leaves out of condition 2, and
-$A'$ is evaluated at the binding level of $A$ and reads the values that $A$
-reads. This does not reach an activation that
+the part of the body of the rule of $A$ before $A$ makes no left call of the
+cycle, and that rule is no Operators Rule. This does not reach an activation that
 the path leads to elsewhere in the steps of $G$, in a part of the bodies of
 the cycle before a left call or after a read of the growing result, nor the
 activations that a dropped step at the position of its growth leads to:
@@ -13785,8 +13804,8 @@ theorem covers such a parse.
    those of the parse, and Lemma 5 must count those that are counterparts of
    activations of the parse; this is not shown, apart from those of an
    entered alternative (the remark after *Earlier calls in the reference
-   parse*, under its hypothesis on the binding level and the values that the
-   alternative reads),
+   parse*, under its hypotheses: no left call of the cycle before the alternative in
+   its rule, which is no Operators Rule),
    which *Links to heads* and *Activations held by heads* place, as those
    with a reference link, outside the heads, outside cases (a) and (b) of
    the covered keys on the path to the call $z^\circ$ of that claim; those
