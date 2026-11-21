@@ -53,6 +53,12 @@ func ExpModule() *code.Module {
 // model answers false (exp.maybe: true means that the expectation may be in the record).
 var mayResults = map[string]bool{"exp.maybe": true}
 
+// freshResults are the operations whose result handle is not compared by identity: the result equals
+// another result that an implementation may return or copy, and no operation changes a result, so
+// only what the result holds can be observed (ctx.ok, ctx.value, ctx.end, ctx.errs, and the memo
+// that stores it). The model numbers it as a new handle.
+var freshResults = map[string]bool{"grow.end": true}
+
 // ExpCases returns the handwritten conformance cases of the expectation record, in one module. As
 // with Cases, the model checks each case first.
 func ExpCases() []Case {

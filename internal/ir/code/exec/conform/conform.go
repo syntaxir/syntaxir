@@ -449,6 +449,9 @@ func (p *pair) Call(o *code.Op, args []any) []any {
 				shown = append(shown, "_")
 				continue
 			}
+			if freshResults[o.Name] {
+				p.alignOrdinals(w, g)
+			}
 			rn, in := p.refOrd.of(w), p.implOrd.of(g)
 			if rn != in {
 				panic(mismatch(fmt.Sprintf("result %d is handle #%d on the model and #%d on the implementation", i, rn, in)))
@@ -471,6 +474,20 @@ func (p *pair) Call(o *code.Op, args []any) []any {
 		p.forgetDead()
 	}
 	return res
+}
+
+// alignOrdinals gives the result handles w of the model and g of the implementation of an operation
+// in freshResults one number: the number of whichever of them was seen before, or a new one for both.
+// The results are then not compared by identity, and the numbers of the handles that follow agree.
+func (p *pair) alignOrdinals(w, g any) {
+	rn, rok := p.refOrd.at[w]
+	in, iok := p.implOrd.at[g]
+	switch {
+	case rok && !iok:
+		p.implOrd.at[g] = rn
+	case iok && !rok:
+		p.refOrd.at[w] = in
+	}
 }
 
 // forgetDead drops the numbers of the handles that died.

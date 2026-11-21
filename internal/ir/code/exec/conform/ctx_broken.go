@@ -81,6 +81,19 @@ func CtxBrokenOps() []OprBroken {
 		lastEnd = out[0]
 		return out
 	})
+	// Identity is compared for the results of a lookup, not for the result of grow.end: a lookup that
+	// answers with the entry of an earlier lookup is told from the correct one.
+	var last any
+	add("ctx.lookup answers with the entry of an earlier lookup", "ctx.lookup", func(call func(string, ...any) []any, a []any) []any {
+		out := call("ctx.lookup", a...)
+		if call("ctx.found", out[0])[0].(bool) {
+			if last != nil {
+				out[0] = last
+			}
+			last = out[0]
+		}
+		return out
+	})
 	ignore("grow.step")
 	ignore("grow.adopt")
 	ignore("ctx.keep")
