@@ -1007,7 +1007,7 @@ func (rs *runner) sharedKey(x *sharedNode, in any, e *env, failed bool) string {
 		case *passNode:
 			for _, f := range y.p.Features {
 				if !inner[f] { // a feature provided inside the body is in the fingerprint
-					parts = append(parts, string(f)+"="+featureFormats[f](e.features[f]))
+					parts = append(parts, string(f)+"="+features[f].format(e.features[f]))
 				}
 			}
 			for _, f := range y.p.Params {

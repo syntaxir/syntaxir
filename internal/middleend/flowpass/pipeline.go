@@ -4,6 +4,7 @@ package flowpass
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"strconv"
 	"strings"
@@ -27,10 +28,10 @@ type Unit = code.At[code.Flow]
 
 // ObserveFeature reports that the parser reports the rules it enters and the alternatives that
 // guards skip, which a pass must keep.
-var ObserveFeature = pipe.NewFeature("observe", strconv.FormatBool)
+var ObserveFeature = pipe.NewFeature("observe", strconv.FormatBool, strconv.ParseBool)
 
 // TargetFeature is what the backend that prints the functions can print (Target).
-var TargetFeature = pipe.NewFeature("flow-target", Target.String)
+var TargetFeature = pipe.NewFeature("flow-target", Target.String, ParseTarget)
 
 // FuncAttrs gives the attributes of the function of a unit of one function (flow.Attrs), which record
 // how it was lowered (Attrs.Budget, Node, Document, Traced, Frame) and so where a pass applies; nil
@@ -84,6 +85,32 @@ func (t Target) String() string {
 		}
 	}
 	return strings.Join(on, ",")
+}
+
+// ParseTarget reads the text form of a target that String writes: the names of the passes whose forms
+// it prints, separated by commas. An empty text is the target that prints none of them.
+func ParseTarget(s string) (Target, error) {
+	var t Target
+	if s == "" {
+		return t, nil
+	}
+	for _, name := range strings.Split(s, ",") {
+		switch name {
+		case PassTerminals:
+			t.Terminals = true
+		case PassClassRuns:
+			t.ClassRuns = true
+		case PassClassTables:
+			t.ClassTables = true
+		case PassGuardedClasses:
+			t.GuardedClasses = true
+		case PassInlineLiterals:
+			t.InlineLiterals = true
+		default:
+			return Target{}, fmt.Errorf("flow target: %q names no form", name)
+		}
+	}
+	return t, nil
 }
 
 // Pipeline is the pipeline of the Flow passes on a module, each on every function of the module in

@@ -110,22 +110,36 @@ func listKind(e *kind) *kind {
 type FeatureID string
 
 // FeatureKey is a typed fact of the compilation that an enclosing scope of the pipeline provides
-// (WithConst, WithDerived). Its format gives it a text form, for the keys of Shared; the parser of
-// the text form comes with the text door.
+// (WithConst, WithDerived). Its format and its parser give it a text form: the format writes a value
+// in the keys of Shared and in the pipeline text, and the parser reads a constant of the text back.
 type FeatureKey[T any] struct {
 	id     FeatureID
 	format func(T) string
 }
 
-var featureFormats = map[FeatureID]func(any) string{}
+// feature is a declared feature whatever its type.
+type feature struct {
+	format func(any) string
+	// parse reads a value from its text form; nil for a feature that has none, which a pipeline text
+	// cannot provide as a constant.
+	parse func(string) (any, error)
+}
 
-// NewFeature declares and registers a feature. A name declared twice panics.
-func NewFeature[T any](name string, format func(T) string) *FeatureKey[T] {
+var features = map[FeatureID]*feature{}
+
+// NewFeature declares and registers a feature. format writes a value; parse reads the text that
+// format writes and returns an equal value, or is nil for a feature whose values have no text form
+// (a function, in tests), which only the typed door can provide. A name declared twice panics.
+func NewFeature[T any](name string, format func(T) string, parse func(string) (T, error)) *FeatureKey[T] {
 	id := FeatureID(name)
-	if name == "" || featureFormats[id] != nil {
+	if name == "" || features[id] != nil {
 		panic(fmt.Sprintf("pipe: feature %q has no name or is declared twice", name))
 	}
-	featureFormats[id] = func(v any) string { return format(v.(T)) }
+	f := &feature{format: func(v any) string { return format(v.(T)) }}
+	if parse != nil {
+		f.parse = func(s string) (any, error) { return parse(s) }
+	}
+	features[id] = f
 	return &FeatureKey[T]{id: id, format: format}
 }
 

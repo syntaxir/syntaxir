@@ -121,7 +121,7 @@ func BrokenExecPipeline(table string, seen *int) func(string) pipe.Pipeline[code
 }
 
 // recordFeature is the function that RecordFlowPass calls, which RecordingFlow provides.
-var recordFeature = pipe.NewFeature("test-flow-record", func(func(*code.Module)) string { return "record" })
+var recordFeature = pipe.NewFeature("test-flow-record", func(func(*code.Module)) string { return "record" }, nil)
 
 // RecordFlowPass is a Flow pass of the tests that calls the function of RecordingFlow with the module
 // of each function it runs on and changes nothing. It is no registered optimization: it declares that

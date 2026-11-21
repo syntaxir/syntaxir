@@ -96,7 +96,7 @@ var (
 	tableKey = RegisterKey(tableIR, &Key[table]{Name: "t-key", Of: func(t table) string { return t.name }})
 	modKey   = RegisterKey(modIR, &Key[*mod]{Name: "t-mod-key", Of: func(m *mod) string { return m.String() }})
 
-	targetFeature = NewFeature("t-target", func(s string) string { return s })
+	targetFeature = NewFeature("t-target", func(s string) string { return s }, func(s string) (string, error) { return s, nil })
 
 	modSlot = NewSlot("t-mod-passes", modIR)
 	fnSlot  = NewSlot("t-fn-passes", fnIR)
