@@ -242,56 +242,9 @@ func (g *Generator) FailFlow(what string) {
 	}
 }
 
-// FlowNodeFrameOK reports whether the rule r of the Node or recognizer table is printed from Flow IR as
-// a framed body (flowplan.NodeFrameOK), with its Core rule. The typed table has no framed bodies.
-func (g *Generator) FlowNodeFrameOK(r *Rule) (*core.Rule, bool) {
-	if g.Flow == nil || g.Table == "trules" {
-		return nil, false
-	}
-	cr := g.Flow.M.Rules[r.ID]
-	if !flowplan.NodeFrameOK(r.PlanRule(), cr) {
-		return nil, false
-	}
-	return cr, true
-}
-
-// FlowPasses runs the Flow part of the pipeline (Runner.Flow) on the functions of u, a unit of the
-// table being generated, labeled "typed" for the typed rules as in the dumps of Core IR, and returns
-// its module at the Flow stage. Every function that a generator prints goes through it. An error of
-// the lowering is returned; a failure of the passes is kept as the first internal error of the
-// generation (FlowErr), which fails it, and the module is returned for the printing to go on.
-func (g *Generator) FlowPasses(u lowerdata.Unit) (*code.Module, error) {
-	m, err := g.runner().Flow(g.IRTable(), u, g.Observability, g.FlowTarget)
-	if m == nil {
-		return nil, err
-	}
-	if err != nil && g.FlowErr == nil {
-		g.FlowErr = fmt.Errorf("module %s of table %s: %w", m.Name, g.IRTable(), err)
-	}
-	return m, nil
-}
-
-// ExecPasses runs the Exec part of the pipeline (Runner.Exec) on the module m that FlowPasses
-// returned, with target, the pipeline of the backend's own Exec passes, labeled with the table being
-// generated as FlowPasses labels it, and returns its module at the Exec stage. An error of the
-// conversion to Exec IR is returned; a failure of the passes is kept as the first internal error of
-// the generation (FlowErr), which fails it. The printers print each function with its variables
-// (execlower.View), so a pass keeps that function in the module and those locals in it: the verifier
-// of the lowered function checks it at the end of the target's passes (execlower.Lowered.Keeps).
-func (g *Generator) ExecPasses(m *code.Module, target TargetPipeline) (*code.Module, error) {
-	x, err := g.runner().Exec(g.IRTable(), m, target, g.Observability)
-	if x == nil {
-		return nil, err
-	}
-	if err != nil && g.FlowErr == nil {
-		g.FlowErr = fmt.Errorf("module %s of table %s: %w", x.Name, g.IRTable(), err)
-	}
-	return x, nil
-}
-
 // LowerTable lowers the functions of the plan p of the table being generated, with its decisions
 // (flowplan.Unit; refuse is a test's hook, nil refuses none), through the Flow and the Exec part of
-// the pipeline with target in one run (Runner.LowerTable), labeled as FlowPasses labels it, and
+// the pipeline with target in one run (Runner.LowerTable), labeled with the table (IRTable), and
 // returns the table at the Exec stage, whose functions the printers then print
 // (execlower.Func). An error of the lowering or the conversion is returned; a failure of the
 // passes is kept as the first internal error of the generation (FlowErr), which fails it, and the

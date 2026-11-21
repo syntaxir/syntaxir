@@ -18,7 +18,9 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/types"
+	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	rprogram "syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -345,7 +347,10 @@ type Generator struct {
 	// with limit controls, PlainParseOptions without.
 	optionsType string
 	// live holds the rules that a parse can enter (reach.go).
-	live     *tsLive
+	live *tsLive
+	// table is the table being generated, planned and lowered to the Exec stage (lowerTable), whose
+	// functions the printer prints; nil if its Core IR or its lowering failed (FlowErr).
+	table    *plandata.Table[code.Exec]
 	reachErr error
 	// printed holds, for each table, the rules that the printed code of each rule calls (by ID).
 	printed map[string]map[int][]int
@@ -670,7 +675,7 @@ func (g *Generator) operatorsRule(r *common.Rule, e *ast.OperatorsRule) {
 		if co != nil {
 			skip = co.Skip
 		}
-		m, ok := g.flowLine(skip, e.Skip, check.NewScope(), false)
+		m, ok := g.flowLine(plandata.Key{Use: plandata.OperatorsSkip, Rule: r.ID}, skip, check.NewScope())
 		if !ok {
 			g.FailFlow("the skip of an Operators Rule of rule " + r.Name)
 			m = "null"
@@ -685,7 +690,7 @@ func (g *Generator) operatorsRule(r *common.Rule, e *ast.OperatorsRule) {
 		if co != nil {
 			l = co.Operands[i]
 		}
-		fmt.Fprintf(&b, "    %s,\n", g.operatorsRuleLine(o.Expr, o.Action, false, l))
+		fmt.Fprintf(&b, "    %s,\n", g.operatorsRuleLine(o.Expr, o.Action, false, plandata.Key{Use: plandata.OperatorsLine, Rule: r.ID, Line: i}, l))
 	}
 	b.WriteString("  ],\n")
 	var prefix, led []string
@@ -696,7 +701,7 @@ func (g *Generator) operatorsRule(r *common.Rule, e *ast.OperatorsRule) {
 			if co != nil {
 				line = co.Ops[id].Line
 			}
-			s := fmt.Sprintf("    { id: %d, kind: %s, assoc: %s, level: %d, line: %s },\n", id, TsString(op.Kind), TsString(op.Assoc), i+1, g.operatorsRuleLine(op.Expr, op.Action, true, line))
+			s := fmt.Sprintf("    { id: %d, kind: %s, assoc: %s, level: %d, line: %s },\n", id, TsString(op.Kind), TsString(op.Assoc), i+1, g.operatorsRuleLine(op.Expr, op.Action, true, plandata.Key{Use: plandata.OperatorsLine, Rule: r.ID, Line: len(e.Operands) + id}, line))
 			id++
 			if op.Kind == ast.Prefix {
 				prefix = append(prefix, s)
@@ -712,18 +717,12 @@ func (g *Generator) operatorsRule(r *common.Rule, e *ast.OperatorsRule) {
 	g.Init.WriteString(b.String())
 }
 
-// operatorsRuleLine returns the line of an Operators Rule with the expression e and the action; l is
-// its Core IR if the printer prints it from Flow IR, or nil.
-func (g *Generator) operatorsRuleLine(e ast.Expr, action ast.ActionExpr, operator bool, l *core.OpLine) string {
+// operatorsRuleLine returns the line k of an Operators Rule with the expression e and the action; l is
+// its Core IR, or nil if the table has none. The plan matches a line whose value is unused without
+// values, as the engine does, and so every line of a rule without a value (in the recognizer).
+func (g *Generator) operatorsRuleLine(e ast.Expr, action ast.ActionExpr, operator bool, k plandata.Key, l *core.OpLine) string {
 	s := check.NewScope()
-	var locals []string
-	if operator {
-		locals = []string{"lhs", "rhs", "op"}
-	}
-	// Lines whose value is unused are matched without values, as in the engine; so are all lines
-	// of a rule without a value (in the recognizer).
-	build := !g.Cur.Novalue && !check.LeanLine(action, locals)
-	m, ok := g.flowLine(l, e, s, build)
+	m, ok := g.flowLine(k, l, s)
 	if !ok {
 		g.FailFlow("a line of an Operators Rule of rule " + g.Cur.Name)
 		m = "null"

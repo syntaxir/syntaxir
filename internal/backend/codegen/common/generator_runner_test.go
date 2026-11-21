@@ -8,7 +8,6 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/middleend/execlower"
-	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
 	"syntaxir.dev/sxir/internal/middleend/flowpass"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
@@ -35,8 +34,6 @@ func TestGeneratorWithoutRunnerPanicsClearly(t *testing.T) {
 	for name, use := range map[string]func(g *common.Generator){
 		"Opt":        func(g *common.Generator) { g.Opt() },
 		"Core":       func(g *common.Generator) { _, _ = g.Core("rules", nil) },
-		"FlowPasses": func(g *common.Generator) { _, _ = g.FlowPasses(lowerdata.Unit{}) },
-		"ExecPasses": func(g *common.Generator) { _, _ = g.ExecPasses(nil, common.TargetPipeline{}) },
 		"LowerTable": func(g *common.Generator) { _, _ = g.LowerTable(&plandata.Plan{}, nil, common.TargetPipeline{}) },
 	} {
 		t.Run(name, func(t *testing.T) {

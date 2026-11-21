@@ -13,7 +13,6 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/execlower"
-	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	rprogram "syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -626,11 +625,15 @@ func (p *tsFlowPrinter) outline(c *code.Call) string {
 	}
 	x := c.Imm.(prim.Outline)
 	g := p.g
-	f, err := g.FlowPasses(lowerdata.Unit{Module: g.Flow.M, Opts: g.Flow.Opts, Funcs: []lowerdata.Func{{Form: lowerdata.Outline, Rule: g.Flow.M.Rules[g.Cur.ID], Name: g.Cur.Name, Body: x.Node, Slots: x.Slots, Build: x.Build}}})
-	if err != nil {
-		panic(fmt.Errorf("outlined node of rule %s in table %s: %w", g.Cur.Name, g.Table, err)) // Outlinable holds
+	k, ok := g.table.Plan.Outlined(x.Node, x.Slots, x.Build)
+	var l *execlower.Lowered
+	if ok {
+		l, ok = execlower.Func(g.table, k)
 	}
-	call, ok := g.flowFunc(f, x.Slots, check.NewScope(), g.Cur.Name+" (outlined)", false)
+	if !ok {
+		panic(fmt.Errorf("internal error: the table %s has no function of the outlined node of rule %s", g.Table, g.Cur.Name))
+	}
+	call, ok := g.flowFunc(l, x.Slots, check.NewScope(), g.Cur.Name+" (outlined)", false)
 	if !ok {
 		panic(tsFlowUnsupported("an outlined node"))
 	}

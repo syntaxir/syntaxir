@@ -14,23 +14,18 @@ import (
 
 // Rules printed from the Exec stage of Code IR.
 //
-// The functions of grammar code are written at the Flow stage and converted to the Exec stage
-// (Generator.ExecPasses), and printed by print.Body, which prints their structure and decides which
-// assignments stay (codepass.DeadStores). The primitives are printed in place by tsFlowPrinter.
+// The functions of grammar code are written at the Flow stage and converted to the Exec stage with
+// the TypeScript passes when their table is lowered (Generator.lowerTable), and printed by print.Body,
+// which prints their structure and decides which assignments stay (codepass.DeadStores). The primitives are printed in place by tsFlowPrinter.
 // Before printing, the TypeScript Exec passes (typescript/pass) make charges in a row one spend, the
 // end of an expectation record followed by the merge of its expectations one unisolateMerge, and the
 // test of the call an If's Init the If's condition, so that the locals they no longer read are not
 // declared. Each pass has a flag; the printer prints the operations they replace as well.
 
-// printTSFlowExec is printTSFlow from Exec IR.
-func (g *Generator) printTSFlowExec(f *code.Module) (string, []string, []tsDecl) {
-	fn := flow.FuncOf(f)
-	a := flow.AttrsOf(fn)
-	x, err := g.ExecPasses(f, tspass.Pipeline)
-	if err != nil {
-		panic(fmt.Errorf("rule %s of table %s: %w", fn.Name, g.Table, err))
-	}
-	l := execlower.View(x, 0)
+// printTSFlowExec prints the function l of the table, lowered to the Exec stage with the TypeScript
+// passes (lowerTable), and returns its body, its variable declarations and the declarations it needs.
+func (g *Generator) printTSFlowExec(l *execlower.Lowered) (string, []string, []tsDecl) {
+	a := prim.AttrsOf(l.Func)
 	g.ExecFuncs++
 	vars := map[string]bool{}
 	for _, v := range append(append([]string(nil), a.Vars...), a.Start, a.Result, a.Ctx) {
@@ -103,7 +98,7 @@ func (g *Generator) printTSFlowExec(f *code.Module) (string, []string, []tsDecl)
 		}
 	}
 	var decl []string
-	for _, v := range prim.VarsOf(fn) {
+	for _, v := range prim.VarsOf(l.Func) {
 		t := prim.TypeOf(v.Type)
 		if t == prim.TypeMark {
 			// A mark of the whole parser state is four variables, declared as far as they are read.

@@ -20,7 +20,7 @@ import (
 //
 // The rules of every table (the typed table, the Node table and the recognizer, and the stream
 // body), in the ordinary form, with budget controls and with a Document, are written at the Flow
-// stage and converted to the Exec stage (Generator.ExecPasses, Generator.LowerTable), and printed by the Go backend of the Exec
+// stage and converted to the Exec stage (Generator.LowerTable), and printed by the Go backend of the Exec
 // stage (print.Body), which prints the compositions of the library too. The primitives of grammar
 // code are printed in place by the flow printer (flowPrinter.op).
 

@@ -17,7 +17,7 @@ import (
 func TestFlowExecPrintsStepRunAsUnits(t *testing.T) {
 	t.Parallel()
 	f := framed(t, "steps", nil, &code.Do{Call: &code.Call{Callee: flow.OpStep}}, &code.Do{Call: &code.Call{Callee: flow.OpStep}}, &code.Do{Call: &code.Call{Callee: flow.OpStep}})
-	text, _, _ := testGenerator(pass.Settings{}).printTSFlowExec(f)
+	text, _, _ := testGenerator(pass.Settings{}).printModule(t, f)
 	if !strings.Contains(text, "p.spendUnits(3);") || strings.Contains(text, "p.spend(3)") {
 		t.Errorf("three charges in a row do not print as a run of three units:\n%s", text)
 	}
@@ -36,7 +36,7 @@ func TestFlowExecStepRunFlag(t *testing.T) {
 	}
 	f := framed(t, "steps", nil, &code.Do{Call: &code.Call{Callee: flow.OpStep}}, &code.Do{Call: &code.Call{Callee: flow.OpStep}}, &code.Do{Call: &code.Call{Callee: flow.OpStep}})
 	g := testGenerator(opt)
-	text, _, _ := g.printTSFlowExec(f)
+	text, _, _ := g.printModule(t, f)
 	if strings.Count(text, "p.spend();") != 3 || strings.Contains(text, "p.spendUnits(") {
 		t.Errorf("without the pass, three charges in a row do not print one by one:\n%s", text)
 	}

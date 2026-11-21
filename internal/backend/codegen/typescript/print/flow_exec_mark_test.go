@@ -5,10 +5,12 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	tspass "syntaxir.dev/sxir/internal/backend/codegen/typescript/pass"
 	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
+	"syntaxir.dev/sxir/internal/middleend/execlower"
 	"syntaxir.dev/sxir/internal/pass"
 )
 
@@ -16,6 +18,18 @@ import (
 // them, as the driver makes it for a generation (common.Passes).
 func testGenerator(opt pass.Settings) *Generator {
 	return &Generator{Generator: common.Generator{Runner: &driver.Driver{Opt: opt}}}
+}
+
+// printModule prints the one function of the module f at the Flow stage as printTSFlowExec prints a
+// function of the table: converted to the Exec stage with the TypeScript passes, as the lowering of
+// the table converts it.
+func (g *Generator) printModule(t *testing.T, f *code.Module) (string, []string, []tsDecl) {
+	t.Helper()
+	x, err := g.Runner.Exec("rules", f, tspass.Pipeline, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return g.printTSFlowExec(execlower.View(x, 0))
 }
 
 // markInIfFunc returns a framed function whose mark of the parser state is set in the body of an If
@@ -53,7 +67,7 @@ func TestFlowExecPrintsMarkInIfBody(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			g := testGenerator(pass.Settings{})
-			text, decls, _ := g.printTSFlowExec(markInIfFunc(t, resetInIf))
+			text, decls, _ := g.printModule(t, markInIfFunc(t, resetInIf))
 			for _, want := range []string{"x1Pos = p.pos", "x1Env = p.env", "x1Trail = p.trail.length", "p.reset(x1Pos, x1Env, x1Trail,"} {
 				if !strings.Contains(text, want) {
 					t.Errorf("the printed body has no %q:\n%s", want, text)
@@ -76,7 +90,7 @@ func TestFlowExecOmitsUnreadMarkInIfBody(t *testing.T) {
 	// The body of the function is its block of failure; the If is its first statement.
 	then := flow.FuncOf(f).Body.Stmts[0].(*code.Block).Stmts[0].(*code.If).Then
 	then.Stmts = then.Stmts[:len(then.Stmts)-1] // without the Reset
-	text, decls, _ := testGenerator(pass.Settings{}).printTSFlowExec(f)
+	text, decls, _ := testGenerator(pass.Settings{}).printModule(t, f)
 	if strings.Contains(text, "x1") || strings.Contains(strings.Join(decls, ""), "x1") {
 		t.Errorf("an unread mark prints:\n%s%q", text, decls)
 	}

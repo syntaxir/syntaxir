@@ -7,86 +7,91 @@ import (
 	"strings"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	tspass "syntaxir.dev/sxir/internal/backend/codegen/typescript/pass"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
-	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/internal/middleend/flowlower"
-	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
+	"syntaxir.dev/sxir/internal/middleend/execlower"
 	"syntaxir.dev/sxir/internal/middleend/flowplan"
+	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	rprogram "syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
-// Value-free rules of the TypeScript library printed from Flow IR.
+// Rules of the TypeScript parser printed from Code IR.
 //
-// The rules are lowered by flowlower.Lower (with the options of the untyped tables, except for the
-// Go-only forms: in-place literal reads and class tables) and printed by tsFlowPrinter as one
-// function each. A block becomes a labeled block and a loop a labeled
-// for statement, so that an exit leaves the construct it names with break or continue. A rule
-// that Flow IR or the printer does not cover fails the generation.
+// Each table is planned (flowplan.Plan) and lowered once, with the options of the untyped tables
+// except for the Go-only forms (in-place literal reads and class tables), and every function of the
+// plan, the outlined nodes included, is printed by tsFlowPrinter as a function of its own. A block
+// becomes a labeled block and a loop a labeled for statement, so that an exit leaves the construct it
+// names with break or continue. A rule that the plan has no function for, or that the printer does not
+// cover, fails the generation.
 
 // tsFlowUnsupported is the panic value of the printer for a construct it does not print; the
 // generation then fails.
 type tsFlowUnsupported string
 
-// startTSFlow builds the Core IR of the table being generated for printing its rules from Flow IR, with
-// the outlined nodes that the table's configuration chooses (common.Generator.StartRecFlow). It reports
-// whether the Core IR was built; if not, the generation fails with the error it records.
+// startTSFlow builds the Core IR of the table being generated and lowers its planned functions to the
+// Exec stage (lowerTable) for printing its rules. It reports whether the table was lowered; if not,
+// the generation fails with the error it records.
 func (g *Generator) startTSFlow() bool {
-	g.Flow = nil
-	if err := g.StartRecFlow(g.Prog); err != nil {
+	g.Flow, g.table = nil, nil
+	err := g.StartRecFlow(g.Prog)
+	if err == nil {
+		g.table, err = g.lowerTable()
+	}
+	if err != nil {
 		if g.FlowErr == nil {
 			g.FlowErr = err
 		}
+		g.table = nil
 		return false
 	}
-	// The generated TypeScript reads input through the library's peek and matches literals through
-	// matchLiteral: it has no in-place reads and no class tables, so it prints none of the forms of
-	// the Flow passes that need them (FlowTarget is empty).
 	return true
 }
 
-// flowRule prints the rule r from Flow IR as a function of its own and returns the call
-// expression that runs it, or false if r is not printed from Flow IR. A lean value-free rule that
-// flowlower.LocalRule accepts prints as a flat function; a rule whose body is a framed body prints under the
-// frame the library owns, which also runs its action and finish. On success it sets scope to the
-// capture scope of the printed body.
-func (g *Generator) flowRule(r *common.Rule, scope *check.Scope) (call string, ok bool) {
-	if g.Flow == nil {
-		return "", false
+// lowerTable plans the functions of the table being generated, whose rules, value-free twins included,
+// are by ID, and lowers them through the Flow and the Exec part of the pipeline with the TypeScript
+// passes (common.Generator.LowerTable). The plan leaves out the rules that the generator does not print
+// (pruned). The table's configuration (common.Generator.StartRecFlow) runs a rule that binds variables
+// as a framed body, whose frame the library owns, and outlines nodes, so no function grows large.
+func (g *Generator) lowerTable() (*plandata.Table[code.Exec], error) {
+	all := append(append([]*common.Rule(nil), g.Prog.RuleList...), g.Prog.Twins...)
+	rules := make([]*flowplan.Rule, len(all))
+	for i, r := range all {
+		rules[i] = r.PlanRule()
 	}
-	var f *code.Module
-	var slots []core.Slot
-	cr := g.Flow.M.Rules[r.ID]
-	if flowplan.RecEligible(r.PlanRule()) && flowlower.LocalRule(cr) {
-		var err error
-		if f, err = g.FlowPasses(lowerdata.Unit{Module: g.Flow.M, Opts: g.Flow.Opts, Funcs: []lowerdata.Func{{Form: lowerdata.Flat, Rule: cr, Name: r.Name}}}); err != nil {
-			panic(fmt.Errorf("rule %s of table %s: %w", r.Name, g.Table, err)) // LocalRule holds
-		}
-		if flow.AttrsOf(flow.FuncOf(f)).Binds {
-			f = nil // the library owns the frame the binds write
-		}
+	p := flowplan.Plan(g.Flow.TableIR, rules, func(id int) bool { return !g.pruned(all[id]) })
+	t, err := g.LowerTable(p, nil, tspass.Pipeline)
+	if err != nil {
+		return nil, fmt.Errorf("table %s: %w", g.Table, err)
 	}
-	if f == nil {
-		if _, eligible := g.FlowNodeFrameOK(r); !eligible {
-			return "", false
-		}
-		var err error
-		if f, err = g.FlowPasses(lowerdata.Unit{Module: g.Flow.M, Opts: g.Flow.Opts, Funcs: []lowerdata.Func{{Form: lowerdata.Frame, Rule: cr, Name: r.Name, Body: cr.Body, Slots: cr.Scope, Build: !r.Lean}}}); err != nil {
-			panic(fmt.Errorf("rule %s of table %s: %w", r.Name, g.Table, err)) // FramedBody holds
-		}
-		slots = cr.Scope
-	}
-	return g.flowFunc(f, slots, scope, common.Describe(r.BodyExpr()), true)
+	return t, nil
 }
 
-// flowFunc prints the function f, whose capture scope has the slots, as a function of its own and
-// returns the call expression that runs it, or false if the printer does not print f. On success it
-// sets scope to the capture scope of a framed f. The comment describes the function. The function of
-// a rule body (ruleBody) charges the unit of the body's evaluation first, as Method does.
-func (g *Generator) flowFunc(f *code.Module, slots []core.Slot, scope *check.Scope, comment string, ruleBody bool) (call string, ok bool) {
+// flowRule prints the body of the rule r as a function of its own and returns the call expression
+// that runs it, or false if the plan of the table has none: a lean value-free rule that may run flat
+// is a flat function; another rule's body is a framed body, which runs under the frame the library
+// owns, which also runs its action and finish. On success it sets scope to the capture scope of a
+// framed body.
+func (g *Generator) flowRule(r *common.Rule, scope *check.Scope) (call string, ok bool) {
+	if g.table == nil {
+		return "", false
+	}
+	l, ok := execlower.Func(g.table, plandata.Key{Use: plandata.RuleBody, Rule: r.ID})
+	if !ok {
+		return "", false
+	}
+	return g.flowFunc(l, g.Flow.M.Rules[r.ID].Scope, scope, common.Describe(r.BodyExpr()), true)
+}
+
+// flowFunc prints the lowered function l, whose capture scope has the slots if it is framed, as a
+// function of its own and returns the call expression that runs it, or false if the printer does not
+// print l. On success it sets scope to the capture scope of a framed l. The comment describes the
+// function. The function of a rule body (ruleBody) charges the unit of the body's evaluation first,
+// as Method does.
+func (g *Generator) flowFunc(l *execlower.Lowered, slots []core.Slot, scope *check.Scope, comment string, ruleBody bool) (call string, ok bool) {
 	defer func() {
 		if e := recover(); e != nil {
 			if _, unsupported := e.(tsFlowUnsupported); !unsupported {
@@ -95,11 +100,11 @@ func (g *Generator) flowFunc(f *code.Module, slots []core.Slot, scope *check.Sco
 			call, ok = "", false
 		}
 	}()
-	frame := flow.AttrsOf(flow.FuncOf(f)).Frame // the conversion to the Exec stage moves the function out of f
+	frame := prim.AttrsOf(l.Func).Frame
 	var body string
 	var vars []string
 	var decls []tsDecl
-	body, vars, decls = g.printTSFlowExec(f)
+	body, vars, decls = g.printTSFlowExec(l)
 	var b strings.Builder
 	for _, v := range vars {
 		b.WriteString(v)
@@ -355,20 +360,20 @@ func (p *tsFlowPrinter) grammarTerm(n core.Node) ast.ActionExpr {
 	return e.Action
 }
 
-// flowLine prints the line l of the Operators Rule g.cur, whose expression is e, from Flow IR as a
-// function and returns the call expression that runs it, or false if the printer does not print
-// the line. It sets scope to the capture scope of the line. With budget controls the library loop that
-// runs the line charges its entry and the function charges each iteration of a repetition.
-func (g *Generator) flowLine(l *core.OpLine, e ast.Expr, scope *check.Scope, build bool) (string, bool) {
-	if g.Flow == nil || l == nil || !flowlower.LineOK(e) || !flowlower.FramedBody(l.Body) {
+// flowLine prints the line k of the Operators Rule g.cur, whose Core IR is l, as a function and
+// returns the call expression that runs it, or false if the plan of the table has none. It sets scope
+// to the capture scope of the line. With budget controls the library loop that runs the line charges
+// its entry and the function charges each iteration of a repetition.
+func (g *Generator) flowLine(k plandata.Key, l *core.OpLine, scope *check.Scope) (string, bool) {
+	if g.table == nil || l == nil {
 		return "", false
 	}
-	f, err := g.FlowPasses(lowerdata.Unit{Module: g.Flow.M, Opts: g.Flow.Opts, Funcs: []lowerdata.Func{{Form: lowerdata.Frame, Rule: g.Flow.M.Rules[g.Cur.ID], Name: g.Cur.Name, Body: l.Body, Slots: l.Scope, Build: build}}})
-	if err != nil {
-		panic(fmt.Errorf("line of Operators Rule %s in table %s: %w", g.Cur.Name, g.Table, err)) // FramedBody holds
+	x, ok := execlower.Func(g.table, k)
+	if !ok {
+		return "", false
 	}
 	prev := g.Proj
 	g.Proj = nil // the actions of the lines use no projections of the rule
 	defer func() { g.Proj = prev }()
-	return g.flowFunc(f, l.Scope, scope, g.Cur.Name+" (OperatorsRule line)", false)
+	return g.flowFunc(x, l.Scope, scope, g.Cur.Name+" (OperatorsRule line)", false)
 }
