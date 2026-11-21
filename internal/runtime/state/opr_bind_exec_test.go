@@ -217,6 +217,21 @@ func (p *Parser) confOprAfterEmpty() bool {
 	return r
 }
 
+// confOprSkip runs opr.skip for the conformance suite.
+// Printed from Exec IR function confOprSkip of internal/ir/code/exec/compose.
+func (p *Parser) confOprSkip(r *Rule) bool {
+	var res bool
+	_, res = r.OperatorsRule.Skip(p)
+	return res
+}
+
+// confOprMatch runs opr.match for the conformance suite.
+// Printed from Exec IR function confOprMatch of internal/ir/code/exec/compose.
+func (p *Parser) confOprMatch(l *OperatorsRuleLine) (*sxirvalue.Node, bool) {
+	r0, r1 := l.M(p)
+	return r0, r1
+}
+
 // confOprLongestL runs oprLongest.l for the conformance suite.
 // Printed from Exec IR function confOprLongestL of internal/ir/code/exec/compose.
 func (p *Parser) confOprLongestL(st *LongestState) []*OperatorsRuleOp {
@@ -541,6 +556,8 @@ func confOprBindings(p *Parser) map[string]any {
 		"opr.nudBound":            p.confOprNudBound,
 		"opr.setAfterEmpty":       p.confOprSetAfterEmpty,
 		"opr.afterEmpty":          p.confOprAfterEmpty,
+		"opr.skip":                p.confOprSkip,
+		"opr.match":               p.confOprMatch,
 		"oprLongest.l":            p.confOprLongestL,
 		"oprLongest.setL":         p.confOprLongestSetL,
 		"oprLongest.i":            p.confOprLongestI,

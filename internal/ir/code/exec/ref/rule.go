@@ -194,6 +194,20 @@ func (m *Model) evaluate(index, level int64, count bool) (any, bool) {
 			panic(code.Interrupt{Reason: "nesting"})
 		}
 	}
+	m.perform(e, start)
+	if rec {
+		m.depth--
+	}
+	if !e.OK {
+		return nil, false
+	}
+	return &RuleValue{Rule: index, Eval: k}, true
+}
+
+// perform does what the evaluation e that starts at start does, after the nesting level of its rule:
+// it charges, records errors, inserts missing tokens, extends the examined input and moves the
+// position. The model does not keep captures; an implementation's frame does.
+func (m *Model) perform(e Eval, start int64) {
 	// The suite adds what the implementation charged to the model's units after the call.
 	if m.Exceeds(e.Charge) {
 		panic(code.Interrupt{Reason: "limit"})
@@ -210,13 +224,6 @@ func (m *Model) evaluate(index, level int64, count bool) (any, bool) {
 		m.doc.examined = max(m.doc.examined, start+e.Touch)
 	}
 	m.regs["pos"] = start + e.Len
-	if rec {
-		m.depth--
-	}
-	if !e.OK {
-		return nil, false
-	}
-	return &RuleValue{Rule: index, Eval: k}, true
 }
 
 // bodyQuantity returns exec.QBody for a call of o with args: the units that the evaluation it runs
@@ -233,11 +240,15 @@ func (m *Model) bodyQuantity(o *code.Op, args []any) int64 {
 
 // Unspecified returns the registers that the call of o with args, which returned res, leaves
 // unspecified, so that an implementation may leave any value in them: the position after a failed
-// rule.invoke or rule.run.
+// rule.invoke, rule.run, opr.skip or opr.match.
 func (m *Model) Unspecified(o *code.Op, res []any) []string {
 	switch o.Name {
-	case "rule.invoke", "rule.run":
+	case "rule.invoke", "rule.run", "opr.match":
 		if !res[1].(bool) {
+			return []string{exec.Pos}
+		}
+	case "opr.skip":
+		if !res[0].(bool) {
 			return []string{exec.Pos}
 		}
 	}

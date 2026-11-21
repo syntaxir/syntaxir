@@ -4,29 +4,49 @@ import (
 	"strings"
 
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec"
 )
 
 // The reference model of the Operators Rule descriptors, the matches of operators and the records of
 // the split forms of the loop (the opr operations and the oprLongest, oprNud and oprExpr records).
 // The rules are those of Config.Oprs; the model keeps the handles of their lists, operators and
-// lines, one for each, so that two calls that return the same one return the same handle.
+// lines, one for each, so that two calls that return the same one return the same handle. The grammar
+// code of a rule, its trivia expression and the expressions of its operators' lines, is a script for
+// each, as a rule's body is (RuleSpec.Body): its k-th evaluation in the parse does the k-th entry of the
+// script, or the last once k passes it, and an empty script fails at once.
 
 // OprOp is an operator of a rule of Config.Oprs.
 type OprOp struct {
 	// Kind is "prefix", "infix" or "postfix"; Assoc is "left", "right" or "none".
 	Kind, Assoc string
 	Level       int64
-	// Scope is the number of capture slots of the operator's line.
+	Line        OprLineSpec
+}
+
+// OprLineSpec is a line of a rule of Config.Oprs, an operand or the expression of an operator: the
+// number of its capture slots and the script of its expression (opr.match).
+type OprLineSpec struct {
 	Scope int64
+	Expr  []OprExpr
+}
+
+// OprExpr is what one evaluation of the expression of a line does: what an evaluation of a body does
+// (Eval), and whether the expression passes a cut, which sets the cut register whether or not it
+// matches. A line that matches makes a value no other evaluation made.
+type OprExpr struct {
+	Eval
+	Cut bool
 }
 
 // OprRule is an Operators Rule of Config.Oprs, the rule of the index in RuleRef.
 type OprRule struct {
 	Prefix, Led []OprOp
-	// Operands are the capture slots of each operand line.
-	Operands []int64
-	// Skip is whether the rule skips trivia between its operands and operators.
-	Skip bool
+	// Operands are the operand lines.
+	Operands []OprLineSpec
+	// Skip is whether the rule skips trivia between its operands and operators, and Trivia the script
+	// of its trivia expression (opr.skip), which leaves the cut register as it is.
+	Skip   bool
+	Trivia []Eval
 }
 
 // OprList is the model's Operators handle: a list of operators of a rule. Every list of no operators
@@ -39,8 +59,13 @@ type OprOperator struct {
 	line *OprLine
 }
 
-// OprLine is the model's Line handle.
-type OprLine struct{ scope int64 }
+// OprLine is the model's Line handle: its capture slots, the script of its expression and the number
+// of its evaluations so far.
+type OprLine struct {
+	scope  int64
+	script []OprExpr
+	evals  int64
+}
 
 // OprAttempt is the model's Attempt handle: a match of an operator. The null attempt is nil.
 type OprAttempt struct {
@@ -63,7 +88,11 @@ type OprRecord struct {
 	fields map[string]any
 }
 
-type oprRule struct{ prefix, led *OprList }
+type oprRule struct {
+	prefix, led *OprList
+	// trivia is the number of the evaluations of the rule's trivia expression so far.
+	trivia int64
+}
 
 // OprRecords are the records of the split forms of the loop: the prefix of the operations of each, and
 // the names of its fields.
@@ -94,7 +123,7 @@ func (m *Model) oprRule(i int64) *oprRule {
 			}
 			l := &OprList{}
 			for _, o := range ops {
-				l.ops = append(l.ops, &OprOperator{op: o, line: &OprLine{scope: o.Scope}})
+				l.ops = append(l.ops, &OprOperator{op: o, line: newOprLine(o.Line)})
 			}
 			return l
 		}
@@ -102,6 +131,8 @@ func (m *Model) oprRule(i int64) *oprRule {
 	}
 	return m.oprs[i]
 }
+
+func newOprLine(s OprLineSpec) *OprLine { return &OprLine{scope: s.Scope, script: s.Expr} }
 
 // oprOperands returns the lines of the operands of the rule i.
 func (m *Model) oprOperands(i int64) []*OprLine {
@@ -111,7 +142,7 @@ func (m *Model) oprOperands(i int64) []*OprLine {
 	if m.operands[i] == nil {
 		m.operands[i] = []*OprLine{}
 		for _, s := range m.cfg.Oprs[i].Operands {
-			m.operands[i] = append(m.operands[i], &OprLine{scope: s})
+			m.operands[i] = append(m.operands[i], newOprLine(s))
 		}
 	}
 	return m.operands[i]
@@ -144,6 +175,10 @@ func (m *Model) allowsOpr(o *code.Op, args []any) bool {
 	switch o.Name {
 	case "opr.led", "opr.prefix", "opr.operands", "opr.hasSkip":
 		return m.oprRuleOK(args[0])
+	case "opr.skip":
+		return m.oprRuleOK(args[0]) && m.cfg.Oprs[args[0].(RuleRef).Index].Skip
+	case "opr.match":
+		return args[0] != nil
 	case "opr.operand":
 		return m.oprRuleOK(args[0]) && args[1].(int64) >= 0 && args[1].(int64) < int64(len(m.cfg.Oprs[args[0].(RuleRef).Index].Operands))
 	case "opr.at":
@@ -174,6 +209,16 @@ func (m *Model) oprZero(field string) any {
 		return m.zeroMark
 	}
 	return nil
+}
+
+// scriptAt returns the k-th evaluation of a script: its k-th entry, the last once k passes it, and the
+// zero entry, which fails at once, for an empty script.
+func scriptAt[E any](script []E, k int64) E {
+	var e E
+	if len(script) > 0 {
+		e = script[min(k, int64(len(script)-1))]
+	}
+	return e
 }
 
 func (m *Model) oprRuleOK(r any) bool {
@@ -223,6 +268,25 @@ func (m *Model) callOpr(o *code.Op, args []any) ([]any, bool) {
 		return []any{args[0].(*OprLine).scope}, true
 	case "opr.hasSkip":
 		return []any{m.cfg.Oprs[args[0].(RuleRef).Index].Skip}, true
+	case "opr.skip":
+		i := args[0].(RuleRef).Index
+		r := m.oprRule(i)
+		e := scriptAt(m.cfg.Oprs[i].Trivia, r.trivia)
+		r.trivia++
+		m.perform(e, m.regs["pos"].(int64))
+		return []any{e.OK}, true
+	case "opr.match":
+		l := args[0].(*OprLine)
+		e := scriptAt(l.script, l.evals)
+		l.evals++
+		m.perform(e.Eval, m.regs["pos"].(int64))
+		if e.Cut {
+			m.regs[exec.Cut] = true
+		}
+		if !e.OK {
+			return []any{nil, false}, true
+		}
+		return []any{&Opaque{kind: "the value of a line"}, true}, true
 	case "opr.attempt":
 		return []any{&OprAttempt{op: args[0].(*OprOperator), frame: args[1], v: args[2], start: args[3].(int64),
 			end: m.regs["pos"].(int64), env: m.env, cut: args[4].(bool), errs: args[5]}}, true

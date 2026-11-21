@@ -4,12 +4,15 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec"
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
 	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
@@ -20,6 +23,8 @@ import (
 // compositions run.
 
 // oprMachine binds the Operators Rule operations of the engine, and the rest through engineMachine.
+// The trivia of a rule and the lines of its operators run their scripts (ref.OprExpr) with the
+// engine's own operations.
 type oprMachine struct {
 	*engineMachine
 	oprRules []*Rule
@@ -44,14 +49,14 @@ type markBox struct{ m Mark }
 func newOprMachine(cfg ref.Config) conform.Impl {
 	m := &oprMachine{engineMachine: newEngineMachine(cfg, false, false).(*engineMachine), lists: map[listKey]*listBox{}}
 	id := 0
-	line := func(scope int64) *OperatorsRuleLine {
-		return &OperatorsRuleLine{Scope: &program.Scope{Names: make([]string, scope)}}
+	line := func(s ref.OprLineSpec) *OperatorsRuleLine {
+		return &OperatorsRuleLine{Scope: &program.Scope{Names: make([]string, s.Scope)}, M: m.scripted(s.Expr)}
 	}
 	ops := func(os []ref.OprOp) []*OperatorsRuleOp {
 		var l []*OperatorsRuleOp
 		for _, o := range os {
 			id++
-			l = append(l, &OperatorsRuleOp{Id: id, Kind: o.Kind, Assoc: o.Assoc, Level: int(o.Level), Line: line(o.Scope)})
+			l = append(l, &OperatorsRuleOp{Id: id, Kind: o.Kind, Assoc: o.Assoc, Level: int(o.Level), Line: line(o.Line)})
 		}
 		return l
 	}
@@ -61,7 +66,11 @@ func newOprMachine(cfg ref.Config) conform.Impl {
 			or.Operands = append(or.Operands, line(s))
 		}
 		if r.Skip {
-			or.Skip = func(p *Parser) (*value.Node, bool) { return nil, true }
+			trivia := make([]ref.OprExpr, len(r.Trivia))
+			for k, e := range r.Trivia {
+				trivia[k].Eval = e
+			}
+			or.Skip = m.scripted(trivia)
 		}
 		m.oprRules = append(m.oprRules, &Rule{OperatorsRule: or})
 	}
@@ -69,6 +78,39 @@ func newOprMachine(cfg ref.Config) conform.Impl {
 	m.binder = conform.Binder{Methods: confOprBindings(m.p), Conv: oprConv{m}}
 	return m
 }
+
+// scripted returns the grammar code of a line or of the trivia that runs script: its k-th evaluation
+// does the k-th entry, or the last once k passes it, and an empty script fails at once.
+func (m *oprMachine) scripted(script []ref.OprExpr) Matcher {
+	evals := 0
+	return func(p *Parser) (*value.Node, bool) {
+		var e ref.OprExpr
+		if len(script) > 0 {
+			e = script[min(evals, len(script)-1)]
+		}
+		evals++
+		if len(e.Captures) > 0 || len(e.Missing) > 0 || e.Touch > 0 {
+			panic("engine binding: the scripts of the Operators Rules set no captures, insert no tokens and examine no input")
+		}
+		start := p.Pos
+		if e.Charge > 0 {
+			m.engineMachine.Call(oprOps.Op("budget.charge"), []any{e.Charge})
+		}
+		for _, id := range e.Errs {
+			m.engineMachine.Call(oprOps.Op("rec.push"), []any{m.Err(id)})
+		}
+		if e.Cut {
+			p.Cut = true
+		}
+		p.Pos = start + int(e.Len)
+		if !e.OK {
+			return nil, false
+		}
+		return nodes.Ptr(nodes.Data{Fresh: true}), true
+	}
+}
+
+var oprOps = conform.OprModule()
 
 func (m *oprMachine) Rule(index int64) any { return m.oprRules[index] }
 
@@ -95,10 +137,21 @@ func (m *oprMachine) Handle(name string) any {
 
 func (m *oprMachine) Call(o *code.Op, args []any) []any {
 	if strings.HasPrefix(o.Name, "opr") {
-		if pos, ok := m.regs["pos"].(int64); ok {
+		if pos, ok := m.regs[exec.Pos].(int64); ok {
 			m.p.Pos = int(pos)
 		}
-		return m.binder.Call(o, args)
+		if cut, ok := m.regs[exec.Cut].(bool); ok {
+			m.p.Cut = cut
+		}
+		if silent, ok := m.regs[exec.Silent].(int64); ok {
+			m.p.Silent = int(silent)
+		}
+		res := m.binder.Call(o, args)
+		// The operations that run grammar code write the registers.
+		if slices.Contains(conform.OprMatchOps, o.Name) {
+			m.regs[exec.Pos], m.regs[exec.Cut], m.regs[exec.Silent] = int64(m.p.Pos), m.p.Cut, int64(m.p.Silent)
+		}
+		return res
 	}
 	return m.engineMachine.Call(o, args)
 }
@@ -209,7 +262,7 @@ func (b brokenOpr) Call(o *code.Op, args []any) []any {
 // TestEngineOprConformanceDetectsBrokenEngine is the negative control: the engine with one operation
 // of the family broken, as a wrong line of its printed code would break it, fails the suite.
 func TestEngineOprConformanceDetectsBrokenEngine(t *testing.T) {
-	for _, br := range conform.OprBrokenOps() {
+	for _, br := range append(conform.OprBrokenOps(), conform.OprMatchBrokenOps()...) {
 		t.Run(br.Name, func(t *testing.T) {
 			s := oprSuite()
 			s.New = func(c ref.Config) conform.Impl { return brokenOpr{newOprMachine(c).(*oprMachine), br.Op, br.Edit} }

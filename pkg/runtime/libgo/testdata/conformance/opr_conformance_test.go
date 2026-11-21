@@ -43,12 +43,12 @@ type oprMarkBox struct{ m Mark }
 func newOprMachine(cfg ref.Config) conform.Impl {
 	m := &oprMachine{rtMachine: newRTMachine(cfg, false, false, false).(*rtMachine), lists: map[oprListKey]*oprListBox{}}
 	id := 0
-	line := func(scope int64) *OperatorsRuleLine { return &OperatorsRuleLine{Scope: make([]string, scope)} }
+	line := func(s ref.OprLineSpec) *OperatorsRuleLine { return &OperatorsRuleLine{Scope: make([]string, s.Scope)} }
 	ops := func(os []ref.OprOp) []*OperatorsRuleOp {
 		var l []*OperatorsRuleOp
 		for _, o := range os {
 			id++
-			l = append(l, &OperatorsRuleOp{Id: id, Kind: o.Kind, Assoc: o.Assoc, Level: int(o.Level), Line: line(o.Scope)})
+			l = append(l, &OperatorsRuleOp{Id: id, Kind: o.Kind, Assoc: o.Assoc, Level: int(o.Level), Line: line(o.Line)})
 		}
 		return l
 	}

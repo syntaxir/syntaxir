@@ -6,14 +6,16 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
 )
 
-// OprSuiteOps are the operations of the Operators Rule family that the library runs: the descriptors and the
-// matches of operators, with the support operations that the cases call. The records of the split forms of the
+// OprSuiteOps are the operations of the Operators Rule family that the library runs: the descriptors, the
+// matches of operators and the operations that run the grammar code of a rule, with the support operations
+// that the cases call. The records of the split forms of the
 // loop (oprLongest, oprNud and oprExpr) are left out: the TypeScript target has no implementation of them
 // (the loop of the library keeps them in locals), as print.OperationMethods reports.
-var OprSuiteOps = append(slices.Clone(conform.OprDescriptorOps), conform.OprSupportOps...)
+var OprSuiteOps = slices.Concat(conform.OprDescriptorOps, conform.OprMatchOps, conform.OprSupportOps)
 
 // Opr is the family of the Operators Rule descriptors, the matches of operators and the records of the
-// split forms of their loop. The registers are the position of the parser, which a match ends at.
+// split forms of their loop. The registers are the position of the parser, which a match ends at, and the
+// cut flag and the silent depth, which the grammar code of a rule runs with.
 func Opr() Family {
 	return Family{
 		Name:   "opr",

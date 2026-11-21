@@ -68,18 +68,52 @@ type CtxRule struct {
 
 // OprOp is an operator of an Operators Rule.
 type OprOp struct {
-	Kind  string `json:"kind"`
-	Assoc string `json:"assoc"`
-	Level int64  `json:"level"`
-	Scope int64  `json:"scope"`
+	Kind  string  `json:"kind"`
+	Assoc string  `json:"assoc"`
+	Level int64   `json:"level"`
+	Line  OprLine `json:"line"`
 }
 
-// OprRule is an Operators Rule: its operators, the capture slots of its operand lines, and whether it skips trivia.
+// OprLine is a line of an Operators Rule: the number of its capture slots and the script of its expression.
+type OprLine struct {
+	Scope int64     `json:"scope"`
+	Expr  []OprExpr `json:"expr"`
+}
+
+// OprExpr is one evaluation of the grammar code of an Operators Rule (ref.OprExpr).
+type OprExpr struct {
+	OK     bool    `json:"ok"`
+	Len    int64   `json:"len"`
+	Charge uint64  `json:"charge"`
+	Errs   []int64 `json:"errs"`
+	Cut    bool    `json:"cut"`
+}
+
+// OprRule is an Operators Rule: its operators, its operand lines, whether it skips trivia and the script of its
+// trivia.
 type OprRule struct {
-	Prefix   []OprOp `json:"prefix"`
-	Led      []OprOp `json:"led"`
-	Operands []int64 `json:"operands"`
-	Skip     bool    `json:"skip"`
+	Prefix   []OprOp   `json:"prefix"`
+	Led      []OprOp   `json:"led"`
+	Operands []OprLine `json:"operands"`
+	Skip     bool      `json:"skip"`
+	Trivia   []OprExpr `json:"trivia"`
+}
+
+// scriptEntry returns the evaluation e as the bindings read it. They run neither captures nor missing tokens
+// nor Documents, so a script that has any is not one the bindings can run.
+func scriptEntry(e ref.Eval, cut bool) OprExpr {
+	if len(e.Captures) > 0 || len(e.Missing) > 0 || e.Touch > 0 {
+		panic("tsconformtest: the scripts of the Operators Rules set no captures, insert no tokens and examine no input")
+	}
+	return OprExpr{OK: e.OK, Len: e.Len, Charge: e.Charge, Errs: e.Errs, Cut: cut}
+}
+
+func oprLine(s ref.OprLineSpec) OprLine {
+	l := OprLine{Scope: s.Scope}
+	for _, e := range s.Expr {
+		l.Expr = append(l.Expr, scriptEntry(e.Eval, e.Cut))
+	}
+	return l
 }
 
 func oprRules(rs []ref.OprRule) []OprRule {
@@ -88,11 +122,18 @@ func oprRules(rs []ref.OprRule) []OprRule {
 		ops := func(os []ref.OprOp) []OprOp {
 			var l []OprOp
 			for _, o := range os {
-				l = append(l, OprOp{Kind: o.Kind, Assoc: o.Assoc, Level: o.Level, Scope: o.Scope})
+				l = append(l, OprOp{Kind: o.Kind, Assoc: o.Assoc, Level: o.Level, Line: oprLine(o.Line)})
 			}
 			return l
 		}
-		out = append(out, OprRule{Prefix: ops(r.Prefix), Led: ops(r.Led), Operands: r.Operands, Skip: r.Skip})
+		rule := OprRule{Prefix: ops(r.Prefix), Led: ops(r.Led), Skip: r.Skip}
+		for _, s := range r.Operands {
+			rule.Operands = append(rule.Operands, oprLine(s))
+		}
+		for _, e := range r.Trivia {
+			rule.Trivia = append(rule.Trivia, scriptEntry(e, false))
+		}
+		out = append(out, rule)
 	}
 	return out
 }

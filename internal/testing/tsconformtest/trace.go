@@ -45,7 +45,7 @@ type Answer struct {
 	// Obs are the observations of the components of Entry.Obs.
 	Obs map[string][]string `json:"obs,omitempty"`
 	// Regs are the registers after the call, for the registers of Entry.Regs.
-	Regs map[string]float64 `json:"regs,omitempty"`
+	Regs map[string]any `json:"regs,omitempty"`
 	// Gathered and Made are the identifiers of the elements gathered and of the values made after the
 	// call, 0 for a null element (the family has terms).
 	Gathered []int64 `json:"gathered,omitempty"`
@@ -256,8 +256,11 @@ func (p *Replay) Call(o *code.Op, args []any) []any {
 	}
 	if p.regs != nil {
 		for _, r := range o.Writes {
-			if v, ok := a.Regs[r]; ok {
+			switch v := a.Regs[r].(type) {
+			case float64:
 				p.regs[r] = int64(v)
+			case bool:
+				p.regs[r] = v
 			}
 		}
 	}

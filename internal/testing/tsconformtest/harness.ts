@@ -12,8 +12,10 @@ interface Entry {
   args: Arg[];
   res: (number | null)[];
   obs?: string[];
-  regs?: Record<string, number>;
+  regs?: Regs;
 }
+// The registers: the position and the silent depth are numbers, the cut flag a boolean.
+type Regs = Record<string, number | boolean>;
 interface Config {
   rules: number;
   limit: number;
@@ -24,13 +26,25 @@ interface Config {
   ctxRules?: { cycle: number; leader: boolean }[];
   ruleSpecs?: RuleSpec[];
   observed?: boolean;
-  oprs?: { prefix: OprOpSpec[]; led: OprOpSpec[]; operands: number[]; skip: boolean }[];
+  oprs?: { prefix: OprOpSpec[]; led: OprOpSpec[]; operands: OprLineSpec[] | null; skip: boolean; trivia?: OprExprSpec[] }[];
 }
 interface OprOpSpec {
   kind: string;
   assoc: string;
   level: number;
+  line: OprLineSpec;
+}
+interface OprLineSpec {
   scope: number;
+  expr?: OprExprSpec[] | null;
+}
+// OprExprSpec is one evaluation of the grammar code of an Operators Rule (ref.OprExpr).
+interface OprExprSpec {
+  ok: boolean;
+  len: number;
+  charge: number;
+  errs?: number[];
+  cut?: boolean;
 }
 interface EvalSpec {
   ok: boolean;
@@ -65,7 +79,7 @@ interface Answer {
   unrolled?: number;
   lists?: ([number, number] | null)[];
   obs?: Record<string, string[]>;
-  regs?: Record<string, number>;
+  regs?: Regs;
   gathered?: number[];
   made?: number[];
   items?: (number[] | null)[];
@@ -78,8 +92,8 @@ interface Machine {
   // snapshot adds to the answer the state that the harness inspects after each call.
   snapshot(ans: Answer, e: Entry, res: any[]): void;
   // setRegs sets the registers that the call reads, and getRegs returns them after it (a family with registers).
-  setRegs?(regs: Record<string, number>): void;
-  getRegs?(): Record<string, number>;
+  setRegs?(regs: Regs): void;
+  getRegs?(): Regs;
 }
 
 // The handles: the value that the library returned for each result of a trace, and the identity of
@@ -309,10 +323,10 @@ class FrameM extends Exec {
     (this.P as { frame: p.Frame | null }).frame = null;
   }
 
-  setRegs(regs: Record<string, number>): void {
-    if (regs.pos !== undefined) this.P.pos = regs.pos;
+  setRegs(regs: Regs): void {
+    if (regs.pos !== undefined) this.P.pos = regs.pos as number;
   }
-  getRegs(): Record<string, number> {
+  getRegs(): Regs {
     return { pos: this.P.pos };
   }
 
@@ -362,11 +376,11 @@ class CtxM extends ExpM {
     });
   }
 
-  setRegs(regs: Record<string, number>): void {
-    if (regs.pos !== undefined) this.P.pos = regs.pos;
-    if (regs.silent !== undefined) this.P.silent = regs.silent;
+  setRegs(regs: Regs): void {
+    if (regs.pos !== undefined) this.P.pos = regs.pos as number;
+    if (regs.silent !== undefined) this.P.silent = regs.silent as number;
   }
-  getRegs(): Record<string, number> {
+  getRegs(): Regs {
     return { pos: this.P.pos, silent: this.P.silent };
   }
 
@@ -451,10 +465,10 @@ class RuleM extends Exec {
     });
   }
 
-  setRegs(regs: Record<string, number>): void {
-    if (regs.pos !== undefined) this.P.pos = regs.pos;
+  setRegs(regs: Regs): void {
+    if (regs.pos !== undefined) this.P.pos = regs.pos as number;
   }
-  getRegs(): Record<string, number> {
+  getRegs(): Regs {
     return { pos: this.P.pos };
   }
 
@@ -542,20 +556,40 @@ class OprM extends Exec {
     (this.P as { frame: p.Frame | null }).frame = null;
     this.rules = (cfg.oprs ?? []).map((s, i) => {
       const r = p.mkRule(i, "r" + i, [], 0, false, false, -1, false, []);
-      const op = (o: OprOpSpec): p.OperatorsRuleOp => ({ id: 0, kind: o.kind, assoc: o.assoc, level: o.level,
-        line: { scope: Array.from({ length: o.scope }, (_, k) => "c" + k), m: null as any, action: null, value: null as any } });
+      const line = (l: OprLineSpec) => ({ scope: Array.from({ length: l.scope }, (_, k) => "c" + k), m: this.scripted(l.expr ?? []),
+        action: null, value: null as any });
+      const op = (o: OprOpSpec): p.OperatorsRuleOp => ({ id: 0, kind: o.kind, assoc: o.assoc, level: o.level, line: line(o.line) });
       const list = (os: OprOpSpec[]): p.OperatorsRuleOp[] => ((os ?? []).length === 0 ? this.noOprs : os.map(op));
-      r.operatorsRule = { skip: s.skip ? ((() => undefined) as any) : null, prefix: list(s.prefix), led: list(s.led),
-        operands: (s.operands ?? []).map((n) => ({ scope: Array.from({ length: n }, (_, k) => "c" + k), m: null as any, action: null, value: null as any })) };
+      r.operatorsRule = { skip: s.skip ? this.scripted(s.trivia ?? []) : null, prefix: list(s.prefix), led: list(s.led),
+        operands: (s.operands ?? []).map(line) };
       return r;
     });
   }
 
-  setRegs(regs: Record<string, number>): void {
-    if (regs.pos !== undefined) this.P.pos = regs.pos;
+  // scripted returns the grammar code of a line or of the trivia of a rule that runs the script: its k-th
+  // evaluation does the k-th entry, or the last once k passes it, and an empty script fails at once.
+  scripted(script: OprExprSpec[]): (P: p.Parser) => p.R {
+    let k = 0;
+    return (P: p.Parser): p.R => {
+      const e: OprExprSpec = script.length > 0 ? script[Math.min(k, script.length - 1)]! : { ok: false, len: 0, charge: 0 };
+      k++;
+      const start = P.pos;
+      if (e.charge > 0 && this.ctl !== null) this.ctl.charge(e.charge);
+      for (const id of e.errs ?? []) P.recovered.push(err(id));
+      if (e.cut) P.cut = true;
+      P.pos = start + e.len;
+      if (!e.ok) return undefined;
+      return new p.Node(p.typeTupleValue, "", start, P.pos, "", [], p.noFields, true, false);
+    };
   }
-  getRegs(): Record<string, number> {
-    return { pos: this.P.pos };
+
+  setRegs(regs: Regs): void {
+    if (regs.pos !== undefined) this.P.pos = regs.pos as number;
+    if (regs.cut !== undefined) this.P.cut = regs.cut as boolean;
+    if (regs.silent !== undefined) this.P.silent = regs.silent as number;
+  }
+  getRegs(): Regs {
+    return { pos: this.P.pos, cut: this.P.cut, silent: this.P.silent };
   }
 
   call(op: string, a: any[]): any[] {

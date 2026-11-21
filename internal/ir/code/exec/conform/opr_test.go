@@ -1,10 +1,12 @@
 package conform
 
 import (
+	"maps"
 	"math/rand/v2"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec"
 	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
 )
 
@@ -86,7 +88,7 @@ func TestRandomOprCasesUseTheOperations(t *testing.T) {
 // TestOprMutantsFail is the negative control of the cases of the Operators Rule family: each broken
 // model fails a handwritten or a randomized case.
 func TestOprMutantsFail(t *testing.T) {
-	for _, br := range OprBrokenOps() {
+	for _, br := range append(OprBrokenOps(), OprMatchBrokenOps()...) {
 		t.Run(br.Name, func(t *testing.T) {
 			mu := mutant{op: br.Op, edit: func(m *ref.Model, a []any) []any {
 				return br.Edit(func(op string, args ...any) []any { return oprCall(m, op, args...) }, a)
@@ -97,6 +99,65 @@ func TestOprMutantsFail(t *testing.T) {
 			}
 			if !random {
 				t.Error("no randomized case detected the mutant")
+			}
+		})
+	}
+}
+
+// regMutant is the model with the registers that one operation leaves broken by edit, which gets the
+// registers before and after the call and the results.
+type regMutant struct {
+	modelImpl
+	op   string
+	regs *map[string]any
+	edit func(before, after map[string]any, res []any)
+}
+
+func (m regMutant) UseRegisters(regs map[string]any) {
+	*m.regs = regs
+	m.modelImpl.UseRegisters(regs)
+}
+
+func (m regMutant) Call(o *code.Op, args []any) []any {
+	if o.Name != m.op {
+		return m.Model.Call(o, args)
+	}
+	before := maps.Clone(*m.regs)
+	res := m.Model.Call(o, args)
+	m.edit(before, *m.regs, res)
+	return res
+}
+
+// TestOprRegisterMutantsFail is the negative control of what opr.skip and opr.match do to the registers:
+// a model that leaves one of them wrong fails a handwritten or a randomized case.
+func TestOprRegisterMutantsFail(t *testing.T) {
+	for _, mu := range []struct {
+		name, op string
+		edit     func(before, after map[string]any, res []any)
+	}{
+		{"opr.match ignores the cut", "opr.match", func(b, a map[string]any, _ []any) { a[exec.Cut] = b[exec.Cut] }},
+		{"opr.match clears the cut register", "opr.match", func(_, a map[string]any, _ []any) { a[exec.Cut] = false }},
+		{"opr.match stops one short", "opr.match", func(_, a map[string]any, res []any) {
+			if res[1].(bool) {
+				a[exec.Pos] = a[exec.Pos].(int64) - 1
+			}
+		}},
+		{"opr.skip leaves the position", "opr.skip", func(b, a map[string]any, _ []any) { a[exec.Pos] = b[exec.Pos] }},
+		{"opr.skip sets the cut register", "opr.skip", func(_, a map[string]any, _ []any) { a[exec.Cut] = true }},
+		{"opr.skip clears the cut register", "opr.skip", func(_, a map[string]any, _ []any) { a[exec.Cut] = false }},
+		{"opr.skip leaves the silent depth raised", "opr.skip", func(_, a map[string]any, _ []any) {
+			if n, ok := a[exec.Silent].(int64); ok {
+				a[exec.Silent] = n + 1
+			}
+		}},
+	} {
+		t.Run(mu.name, func(t *testing.T) {
+			s := Suite{Name: mu.name, Ops: OprSuiteOps(), New: func(c ref.Config) Impl {
+				return regMutant{modelImpl{ref.New(c)}, mu.op, new(map[string]any), mu.edit}
+			}}
+			handwritten, random := oprFails(s)
+			if !handwritten && !random {
+				t.Error("no case detected the mutant")
 			}
 		})
 	}

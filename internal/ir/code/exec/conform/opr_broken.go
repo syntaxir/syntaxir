@@ -84,3 +84,31 @@ func OprBrokenOps() []OprBroken {
 	}
 	return bs
 }
+
+// OprMatchBrokenOps returns the broken versions of the operations that run the grammar code of an
+// Operators Rule (OprMatchOps), for a suite that provides them.
+func OprMatchBrokenOps() []OprBroken {
+	var bs []OprBroken
+	add := func(name, op string, edit func(call func(string, ...any) []any, a []any) []any) {
+		bs = append(bs, OprBroken{Name: name, Op: op, Edit: edit})
+	}
+	add("opr.skip is negated", "opr.skip", func(call func(string, ...any) []any, a []any) []any {
+		return []any{!call("opr.skip", a...)[0].(bool)}
+	})
+	add("opr.skip runs the trivia twice", "opr.skip", func(call func(string, ...any) []any, a []any) []any {
+		call("opr.skip", a...)
+		return call("opr.skip", a...)
+	})
+	add("opr.match reports the opposite", "opr.match", func(call func(string, ...any) []any, a []any) []any {
+		r := call("opr.match", a...)
+		return []any{r[0], !r[1].(bool)}
+	})
+	add("opr.match runs the line twice", "opr.match", func(call func(string, ...any) []any, a []any) []any {
+		call("opr.match", a...)
+		return call("opr.match", a...)
+	})
+	add("opr.match makes no value", "opr.match", func(call func(string, ...any) []any, a []any) []any {
+		return []any{nil, call("opr.match", a...)[1]}
+	})
+	return bs
+}

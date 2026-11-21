@@ -355,9 +355,12 @@ the model. *Target*: where the range lives and how the Document counts.
 `opr.setAfterEmpty`, each with its getter) and the records of the split forms (`oprLongest`, `oprNud`, `oprExpr`, a getter and a
 setter for each field, a field holding the zero value of its type until it is set) have a reference model, with
 conformance cases that run on the engine and, for all but the records, on generated Go. A harness that reaches
-the targets' printed bindings by reflection serves both. The operations that run grammar code or build values
-(`opr.skip`, `opr.match`, the value of a line, `opr.build`, `opr.buildTyped`, `opr.attemptMissing`, `opr.replay`) stay
-transitional until the scripted-rule model covers them. *Target*: the representation of lists, lines and attempts.
+the targets' printed bindings by reflection serves both. The operations that run grammar code (`opr.skip`, `opr.match`)
+have a scripted model, the trivia and each operand or operator line a script of evaluations as a rule's body has, with
+conformance cases that run on the engine and on TypeScript; they stay transitional until generated Go runs them too.
+The others that build values or keep missing tokens (the value of a line, `opr.build`, `opr.buildTyped`,
+`opr.attemptMissing`, `opr.replay`) stay transitional until the scripted-rule model covers them. *Target*: the
+representation of lists, lines and attempts.
 
 **Rules.** What the grammar says of a rule (whether a parse from scratch or a Document parse memoizes it, whether it
 leads a cycle, its captures, whether its results depend on positions) and the evaluation of its body are the operations

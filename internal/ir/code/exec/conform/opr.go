@@ -53,6 +53,10 @@ var OprDescriptorOps = []string{
 	"opr.setCutFailed", "opr.cutFailed", "opr.setNudBound", "opr.nudBound", "opr.setAfterEmpty", "opr.afterEmpty",
 }
 
+// OprMatchOps are the operations that run the grammar code of an Operators Rule: its trivia expression
+// and the expression of a line.
+var OprMatchOps = []string{"opr.skip", "opr.match"}
+
 // OprRecordOps are the operations of the records of the split forms of the loop: for each field, the
 // getter and the setter.
 var OprRecordOps = func() []string {
@@ -66,7 +70,7 @@ var OprRecordOps = func() []string {
 }()
 
 // OprOps are all the operations of the Operators Rule family that cases for the reference model cover.
-var OprOps = append(slices.Clone(OprDescriptorOps), OprRecordOps...)
+var OprOps = slices.Concat(OprDescriptorOps, OprMatchOps, OprRecordOps)
 
 // OprSupportOps are the operations that cases of the Operators Rule family call to make the errors and
 // the environments they pass: the implementation provides them besides OprOps.
@@ -94,18 +98,25 @@ func OprModule() *code.Module {
 
 // OprConfig returns the Operators Rules of the cases, with variables for the environment: a rule of
 // each kind of operator that skips trivia, a rule without prefix operators, and one with no operator.
+// The scripts of the trivia and of the lines of the first rule match and fail, move the position by
+// different lengths, record errors and pass cuts; the other lines have none and fail at once.
 func OprConfig() ref.Config {
-	op := func(kind, assoc string, level, scope int64) ref.OprOp {
-		return ref.OprOp{Kind: kind, Assoc: assoc, Level: level, Scope: scope}
+	op := func(kind, assoc string, level, scope int64, expr ...ref.OprExpr) ref.OprOp {
+		return ref.OprOp{Kind: kind, Assoc: assoc, Level: level, Line: ref.OprLineSpec{Scope: scope, Expr: expr}}
+	}
+	x := func(ok bool, n int64, cut bool, errs ...int64) ref.OprExpr {
+		return ref.OprExpr{Eval: ref.Eval{OK: ok, Len: n, Errs: errs}, Cut: cut}
 	}
 	return ref.Config{
 		Vars: []int64{1, 2, 3},
 		Oprs: []ref.OprRule{
-			{Prefix: []ref.OprOp{op("prefix", "left", 9, 1), op("prefix", "left", 8, 0)},
-				Led: []ref.OprOp{op("infix", "left", 1, 0), op("infix", "left", 2, 2), op("infix", "right", 3, 1),
-					op("postfix", "left", 4, 0), op("infix", "none", 5, 3)},
-				Operands: []int64{0, 2}, Skip: true},
-			{Led: []ref.OprOp{op("infix", "right", 1, 0), op("postfix", "none", 2, 1)}, Operands: []int64{1}},
+			{Prefix: []ref.OprOp{op("prefix", "left", 9, 1, x(true, 2, false)), op("prefix", "left", 8, 0)},
+				Led: []ref.OprOp{op("infix", "left", 1, 0, x(true, 1, false), x(false, 2, true), x(true, 3, true, 6), x(false, 0, false)),
+					op("infix", "left", 2, 2), op("infix", "right", 3, 1, x(true, 0, true)),
+					op("postfix", "left", 4, 0, x(false, 1, false, 7), x(true, 4, false)), op("infix", "none", 5, 3)},
+				Operands: []ref.OprLineSpec{{Scope: 0, Expr: []ref.OprExpr{x(true, 3, false), x(false, 1, true)}}, {Scope: 2}}, Skip: true,
+				Trivia: []ref.Eval{{OK: true, Len: 2}, {OK: false, Len: 1}, {OK: true}, {OK: true, Len: 1, Errs: []int64{9}}}},
+			{Led: []ref.OprOp{op("infix", "right", 1, 0), op("postfix", "none", 2, 1)}, Operands: []ref.OprLineSpec{{Scope: 1}}},
 			{},
 		},
 	}
@@ -188,6 +199,83 @@ func OprCases() []Case {
 		b.Let("e1", code.C("opr.env", a))
 		b.Let("e2", code.C("opr.env", a2))
 		b.Let("er", code.C("opr.errs", a))
+	})
+	add("opr_skip", func(b *code.Builder) {
+		r := b.Let("r", rule(0))
+		b.SetReg(exec.Silent, i(1))
+		b.SetReg(exec.Cut, code.BoolC(true))
+		b.SetReg(exec.Pos, i(3))
+		b.Assert(code.C("opr.skip", r), "the trivia matches")
+		b.Assert(eq(code.R(exec.Pos), i(5)), "and the position is after it")
+		b.SetReg(exec.Pos, i(6))
+		b.Assert(code.Not(code.C("opr.skip", r)), "the next evaluation of the trivia fails")
+		b.SetReg(exec.Pos, i(6))
+		b.Assert(code.C("opr.skip", r), "empty trivia matches")
+		b.Assert(eq(code.R(exec.Pos), i(6)), "and leaves the position")
+		b.Assert(code.C("opr.skip", r), "trivia that records an error")
+		b.Assert(eq(code.R(exec.Pos), i(7)), "and moves the position")
+		b.Assert(code.C("opr.skip", r), "the last evaluation of the script repeats")
+		b.Assert(eq(code.R(exec.Pos), i(8)), "and moves the position again")
+		b.Let("errs", code.C("rec.since", i(0)))
+		b.Assert(code.R(exec.Cut), "the trivia leaves the cut register")
+		b.Assert(eq(code.R(exec.Silent), i(1)), "and the silent depth")
+	})
+	add("opr_match", func(b *code.Builder) {
+		r := b.Let("r", rule(0))
+		led := b.Let("led", code.C("opr.led", r))
+		l0 := b.Let("l0", code.C("opr.line", code.C("opr.at", led, i(0))))
+		l2 := b.Let("l2", code.C("opr.line", code.C("opr.at", led, i(2))))
+		l3 := b.Let("l3", code.C("opr.line", code.C("opr.at", led, i(3))))
+		b.SetReg(exec.Silent, i(0))
+		b.SetReg(exec.Cut, code.BoolC(false))
+		b.SetReg(exec.Pos, i(4))
+		ok := b.LetN([]string{"v1", "ok1"}, code.C("opr.match", l0))[1]
+		b.Assert(ok, "the line matches")
+		b.Assert(eq(code.R(exec.Pos), i(5)), "and the position is after it")
+		b.Assert(code.Not(code.R(exec.Cut)), "it passes no cut")
+		b.SetReg(exec.Pos, i(2))
+		ok = b.LetN([]string{"v2", "ok2"}, code.C("opr.match", l2))[1]
+		b.Assert(ok, "another line has a script of its own")
+		b.Assert(eq(code.R(exec.Pos), i(2)), "an empty match leaves the position")
+		b.Assert(code.R(exec.Cut), "a cut sets the cut register")
+		b.SetReg(exec.Cut, code.BoolC(false))
+		b.SetReg(exec.Pos, i(7))
+		ok = b.LetN([]string{"v3", "ok3"}, code.C("opr.match", l0))[1]
+		b.Assert(code.Not(ok), "the second evaluation of the first line fails")
+		b.Assert(code.R(exec.Cut), "and a failure sets the cut register too")
+		b.SetReg(exec.Cut, code.BoolC(false))
+		b.SetReg(exec.Pos, i(7))
+		ok = b.LetN([]string{"v4", "ok4"}, code.C("opr.match", l0))[1]
+		b.Assert(ok, "the third evaluation matches")
+		b.Assert(eq(code.R(exec.Pos), i(10)), "three units long")
+		b.Let("errs", code.C("rec.since", i(0)))
+		b.SetReg(exec.Cut, code.BoolC(false))
+		b.SetReg(exec.Pos, i(1))
+		ok = b.LetN([]string{"v5", "ok5"}, code.C("opr.match", l3))[1]
+		b.Assert(code.Not(ok), "a failure that records an error")
+		b.SetReg(exec.Pos, i(1))
+		ok = b.LetN([]string{"v6", "ok6"}, code.C("opr.match", l3))[1]
+		b.Assert(ok, "and then a match")
+		b.Assert(eq(code.R(exec.Pos), i(5)), "four units long")
+		b.Assert(code.Not(code.R(exec.Cut)), "without a cut, the cut register stays")
+		b.Let("errs2", code.C("rec.since", i(0)))
+		b.Assert(eq(code.R(exec.Silent), i(0)), "the silent depth stays")
+		ol := b.Let("ol", code.C("opr.operand", r, i(0)))
+		b.SetReg(exec.Pos, i(3))
+		b.Assert(b.LetN([]string{"v7", "ok7"}, code.C("opr.match", ol))[1], "an operand line matches")
+		b.Assert(eq(code.R(exec.Pos), i(6)), "with its own script")
+		b.SetReg(exec.Pos, i(3))
+		b.Assert(code.Not(b.LetN([]string{"v9", "ok9"}, code.C("opr.match", ol))[1]), "and then fails")
+		b.Assert(code.R(exec.Cut), "after a cut")
+		b.SetReg(exec.Pos, i(3))
+		ol1 := code.C("opr.operand", r, i(1))
+		b.Assert(code.Not(b.LetN([]string{"v10", "ok10"}, code.C("opr.match", ol1))[1]), "a line without a script fails")
+		o2 := b.Let("o2", code.C("opr.at", led, i(2)))
+		b.SetReg(exec.Pos, i(8))
+		v := b.LetN([]string{"v8", "ok8"}, code.C("opr.match", l2))[0]
+		a := b.Let("a", code.C("opr.attempt", o2, code.C(OprFrameOp), v, i(8), code.R(exec.Cut), code.C("rec.since", i(0))))
+		b.Assert(eq(code.C("opr.end", a), i(8)), "a match of an empty line ends where it started")
+		b.Assert(code.C("opr.cut", a), "with its cut")
 	})
 	add("opr_flags", func(b *code.Builder) {
 		b.Do("opr.setCutFailed", code.BoolC(true))
@@ -307,6 +395,12 @@ func RandomOpr(name string, rng *rand.Rand, opNames []string, n int, cfg ref.Con
 				if o.Results[0].Kind == code.KHandle {
 					keep(o.Results[0], v, res[0])
 				}
+			case 2:
+				// A value and its success (opr.match): the value is a handle only if it matched.
+				vs := b.LetN([]string{fresh(), fresh()}, code.C(opName, exprs...))
+				if res[1].(bool) {
+					keep(o.Results[0], vs[0], res[0])
+				}
 			}
 		}
 		// The handles that the cases cannot get from the descriptors.
@@ -375,10 +469,15 @@ func RandomOpr(name string, rng *rand.Rand, opNames []string, n int, cfg ref.Con
 			if !ok || !mirror.Allows(o, args) {
 				continue
 			}
-			if o.Name == "opr.attempt" {
+			if o.Name == "opr.attempt" || slices.Contains(OprMatchOps, o.Name) {
 				pos := rng.Int64N(12)
 				regs["pos"] = pos
 				b.SetReg(exec.Pos, code.Int(pos))
+			}
+			if slices.Contains(OprMatchOps, o.Name) {
+				cut := rng.IntN(2) == 0
+				regs[exec.Cut] = cut
+				b.SetReg(exec.Cut, code.BoolC(cut))
 			}
 			call(o.Name, args, exprs)
 		}
