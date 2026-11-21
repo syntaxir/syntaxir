@@ -1,4 +1,4 @@
-package engine
+package check_test
 
 import (
 	"fmt"
@@ -8,6 +8,10 @@ import (
 
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/diagnostic"
+	"syntaxir.dev/sxir/internal/driver/checked"
+	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 )
 
 // A name captured several times in one match has the join of the types of its captures: the
@@ -43,7 +47,7 @@ func TestDuplicateCaptureTypes(t *testing.T) {
 				t.Fatal(err)
 			}
 			var errs diagnostic.ErrorList
-			compile.CheckTypes(p.Static(), &errs)
+			compile.CheckTypes(entry.Checked(p), &errs)
 			got, ok := captureType(p, "main", "x")
 			if tc.action {
 				got, ok = inferredType(p, "main")
@@ -58,8 +62,8 @@ func TestDuplicateCaptureTypes(t *testing.T) {
 	}
 }
 
-func captureCheckProgram(src string) (*Program, error) {
-	g, err := parseTest(src)
+func captureCheckProgram(src string) (*engine.Program, error) {
+	g, err := enginetest.Parse(src)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +71,7 @@ func captureCheckProgram(src string) (*Program, error) {
 	for _, d := range g.Types() {
 		sp.Types[d.DeclName()] = d
 	}
-	return checkedProgram(sp), nil
+	return engine.New(checked.Of(sp)), nil
 }
 
 func captureCheckSource(n int, shape string) string {
@@ -102,12 +106,12 @@ func BenchmarkCaptureChecking(b *testing.B) {
 			if err != nil {
 				b.Fatal(err)
 			}
-			g, err := parseTest(string(src))
+			g, err := enginetest.Parse(string(src))
 			if err != nil {
 				b.Fatal(err)
 			}
 			// The examples need the analysis of a full compile, which a hand-built program lacks.
-			p, err := Compile(g, compile.Options{})
+			p, err := entry.Compile(g, compile.Options{})
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -115,7 +119,7 @@ func BenchmarkCaptureChecking(b *testing.B) {
 			b.ResetTimer()
 			for range b.N {
 				var errs diagnostic.ErrorList
-				compile.CheckTypes(p.Static(), &errs)
+				compile.CheckTypes(entry.Checked(p), &errs)
 				if len(errs) != 0 {
 					b.Fatal(errs)
 				}
@@ -133,7 +137,7 @@ func BenchmarkCaptureChecking(b *testing.B) {
 				b.ResetTimer()
 				for range b.N {
 					var errs diagnostic.ErrorList
-					compile.CheckTypes(p.Static(), &errs)
+					compile.CheckTypes(entry.Checked(p), &errs)
 					if len(errs) != 0 {
 						b.Fatal(errs)
 					}
@@ -150,7 +154,7 @@ func BenchmarkCaptureChecking(b *testing.B) {
 		b.ResetTimer()
 		for range b.N {
 			var errs diagnostic.ErrorList
-			compile.CheckTypes(p.Static(), &errs)
+			compile.CheckTypes(entry.Checked(p), &errs)
 			if len(errs) != 0 {
 				b.Fatal(errs)
 			}

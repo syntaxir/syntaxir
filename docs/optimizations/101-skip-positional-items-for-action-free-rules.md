@@ -33,7 +33,7 @@ Both run on Apple M3 Max with Go 1.27.1. Three alternating
 baseline/candidate rounds of two samples each give six samples per case:
 
 ```sh
-go test ./internal/runtime/engine -run '^$' -bench '^BenchmarkCaptureChecking$' -benchmem -count 2
+go test ./internal/frontend/check -run '^$' -bench '^BenchmarkCaptureChecking$' -benchmem -count 2
 ```
 
 Each iteration runs the complete `checkTypes` on an already prepared Program.
