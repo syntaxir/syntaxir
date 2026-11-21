@@ -79,6 +79,13 @@ func TestLogicalExact(t *testing.T) {
 		failed := 0
 		for i, in := range c.inputs {
 			for _, unit := range exactUnits {
+				// Parse and ParseValue run separate generated functions and library paths (untyped and
+				// typed); the plain evaluation, and so the total, is the same.
+				pn, _ := countUnits(c.logical[0], in, unit, unlimited)
+				pv, _ := countUnits(c.logical[1], in, unit, unlimited)
+				if pn != pv {
+					t.Errorf("%s input %d (%v): Parse %d units, ParseValue %d", c.name, i, unit, pn, pv)
+				}
 				for api := range 2 {
 					got, gerr := countUnits(c.logical[api], in, unit, unlimited)
 					want, werr := countUnits(c.event[api], in, unit, unlimited)

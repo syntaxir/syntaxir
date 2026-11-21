@@ -27,14 +27,21 @@ func TestLogicalHandCounts(t *testing.T) {
 		// main ws value object array string chars escape ws: 9 calls (escape fails at the closing quote,
 		// its dispatch guard disabled); `"ab"`: 4; the action builds no value.
 		{`"ab"`, 13, "9 calls + 4 input"},
+		// A failed parse: main ws value object array string number int bool null: 10 calls, no input
+		// (a literal that fails advances over nothing), and the syntax error: 1.
+		{`tru`, 11, "10 calls + 1 error"},
+		// [1,2]: calls main ws value object array ws elements value object array string number int
+		// frac exp ws ws value object array string number int frac exp ws ws: 28; input 5. The
+		// action of elements, concat(list($first), map($rest, (r) => r.$v)) fused: list builds 1,
+		// map visits 1 and builds 1, concat builds 2; that of array, concat($es): builds 2.
+		{`[1,2]`, 40, "28 calls + 5 input + 7 action"},
 	} {
 		for _, u := range []sxirinput.PositionUnit{sxirinput.Bytes, sxirinput.CodePoints} {
 			var a, b uint64
-			if _, err := gjsonlogical.Parse(c.in, rt.WithUnit(u), rt.WithUnitsReport(&a)); err != nil {
-				t.Fatal(err)
-			}
-			if _, err := gjsonlogical.ParseValue(c.in, rt.WithUnit(u), rt.WithUnitsReport(&b)); err != nil {
-				t.Fatal(err)
+			_, err1 := gjsonlogical.Parse(c.in, rt.WithUnit(u), rt.WithUnitsReport(&a))
+			_, err2 := gjsonlogical.ParseValue(c.in, rt.WithUnit(u), rt.WithUnitsReport(&b))
+			if (err1 == nil) != (c.why != "10 calls + 1 error") || (err2 == nil) != (err1 == nil) {
+				t.Fatal(c.in, err1, err2)
 			}
 			if a != c.want || b != c.want {
 				t.Errorf("%s (%v): Parse %d, ParseValue %d units, want %d (%s)", c.in, u, a, b, c.want, c.why)
