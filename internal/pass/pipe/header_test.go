@@ -16,7 +16,15 @@ type opts struct {
 	TSLib     string
 	Mode      mode
 	Writer    io.Writer
+	Debug     dbg
 	unwritten bool
+}
+
+// dbg is a nested struct, whose fields the scheme names by path.
+type dbg struct {
+	Verify bool
+	Limit  *int
+	Out    io.Writer
 }
 
 type mode int
@@ -35,37 +43,50 @@ func optsHeader() *Header[opts] {
 			{Word: "options", Fields: []HeaderField{{Field: "Start"}}},
 			{Word: "target", Fields: []HeaderField{{Field: "Typed"}, {Field: "MaxDepth"}, {Field: "NoOpt"}, {Field: "Opt"},
 				{Field: "TSLib"}, {Field: "Mode", Key: "lib", Codec: modeCodec}}},
+			{Word: "debug", Fields: []HeaderField{{Field: "Debug.Verify", Key: "verify-each"}, {Field: "Debug.Limit"}}},
 		},
-		Omit: []string{"Writer"},
+		Omit: []string{"Writer", "Debug.Out"},
 	}
 }
 
 // TestHeaderRoundTrip checks that every field a scheme writes reads back equal through the text,
-// escapes included, and that the keys are the field names in lower case.
+// escapes, nested fields and pointers included, and that the keys are the last names of the paths
+// in lower case; a nil pointer leaves its key out and reads back nil.
 func TestHeaderRoundTrip(t *testing.T) {
 	h := optsHeader()
 	if err := h.Check(); err != nil {
 		t.Fatal(err)
 	}
+	limit := 7
 	v := opts{Start: "a b%c", Typed: true, MaxDepth: -3, NoOpt: []string{"x,y", "z=1"}, Opt: map[string]int{"p": 2, "o%": 0},
-		TSLib: "../lib.ts", Mode: 1}
-	d := &Description{Version: Format, Header: []Line{h.Line("options", "", v), h.Line("target", "go", v)}, In: "t-mod", Out: "t-mod"}
-	text := d.String()
-	if !strings.Contains(text, "target go typed=true max-depth=-3 no-opt=x%252Cy,z%253D1 opt=o%2525=0,p=2 ts-lib=../lib.ts lib=b\n") {
-		t.Errorf("the target line:\n%s", text)
-	}
-	back, err := Parse(text)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var got opts
-	for _, l := range back.Header {
-		if err := h.Read(l, &got); err != nil {
+		TSLib: "../lib.ts", Mode: 1, Debug: dbg{Verify: true, Limit: &limit}}
+	unset := v
+	unset.Debug.Limit = nil
+	for _, c := range []struct {
+		v     opts
+		debug string
+	}{{v, "debug verify-each=true limit=7\n"}, {unset, "debug verify-each=true\n"}} {
+		d := &Description{Version: Format, Header: []Line{h.Line("options", "", c.v), h.Line("target", "go", c.v), h.Line("debug", "", c.v)},
+			In: "t-mod", Out: "t-mod"}
+		text := d.String()
+		if !strings.Contains(text, "target go typed=true max-depth=-3 no-opt=x%252Cy,z%253D1 opt=o%2525=0,p=2 ts-lib=../lib.ts lib=b\n") ||
+			!strings.Contains(text, c.debug) {
+			t.Errorf("the header lines:\n%s", text)
+		}
+		back, err := Parse(text)
+		if err != nil {
 			t.Fatal(err)
 		}
-	}
-	if !reflect.DeepEqual(got, v) {
-		t.Errorf("read back %+v, want %+v", got, v)
+		// A value read before leaves nothing behind: a nil pointer reads back nil.
+		got := opts{Debug: dbg{Limit: new(int)}}
+		for _, l := range back.Header {
+			if err := h.Read(l, &got); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if !reflect.DeepEqual(got, c.v) {
+			t.Errorf("read back %+v, want %+v", got, c.v)
+		}
 	}
 }
 
@@ -85,6 +106,9 @@ func TestHeaderCheck(t *testing.T) {
 			h.Words[0].Fields = append(h.Words[0].Fields, HeaderField{Field: "Writer"})
 		}, "field Writer of type io.Writer has no text form"},
 		{"key twice", func(h *Header[opts]) { h.Words[1].Fields[0].Key = "max-depth" }, `key "max-depth" of MaxDepth`},
+		{"missing nested field", func(h *Header[opts]) { h.Omit = []string{"Writer"} }, "field Debug.Out is written by no header word and is not omitted"},
+		{"struct and its field", func(h *Header[opts]) { h.Omit = append(h.Omit, "Debug") }, "field Debug.Verify has a place (debug) inside Debug"},
+		{"no such path", func(h *Header[opts]) { h.Omit = append(h.Omit, "Debug.Stop") }, "Debug.Stop is no exported field"},
 	} {
 		h := optsHeader()
 		c.edit(h)
@@ -105,7 +129,7 @@ func TestHeaderReadRejects(t *testing.T) {
 	}{
 		{"missing key", Line{Word: "target", Fields: full.Fields[1:]}, "typed is missing"},
 		{"unknown key", Line{Word: "target", Fields: append(append([]Field(nil), full.Fields...), Field{"typo", "1"})}, "unknown key typo"},
-		{"unknown word", Line{Word: "debug"}, `unknown header word "debug"`},
+		{"unknown word", Line{Word: "program"}, `unknown header word "program"`},
 		{"bad value", Line{Word: "target", Fields: append([]Field{{"typed", "maybe"}}, full.Fields[1:]...)}, "target: typed:"},
 	} {
 		var v opts

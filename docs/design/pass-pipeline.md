@@ -466,7 +466,9 @@ place of the setting. Internal test support uses the textual form to test a pass
 neither the public API nor the public command line.
 
 The typed combinators and the text build the same step tree. How the combinators group the steps (`Then` over `Seq`, or
-a body of one pass) means nothing, so a pipeline and its text verify at the same points and give the same run.
+a body of one pass) means nothing, so a pipeline and its text verify at the same points and give the same run. Each
+option of a build has exactly one header word, and a test holds the header scheme to the generation options, so a new
+option cannot be left out of the text.
 
 ## Related Topics
 
