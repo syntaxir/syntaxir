@@ -167,7 +167,9 @@ and rhs (null for a postfix operator), which ends at the position, or for a post
 the action of the operator's line, or the node of the tuple (lhs, operator, rhs). The operator is the
 value of its line, which takes the line's captures if it is the node of a tuple, or a node of its match
 if the line has no value. When the operators of r have a named node type, the node of the tuple is of
-that type and carries no rule name, and the value of the action is converted to it.`,
+that type and carries no rule name, and the value of the action is converted to it as a term converts
+(the failure not convertible of the Exec IR values): one that is not a string, tuple or list node ends
+the parse with the error "cannot convert <type> to <type> in result of rule <name>".`,
 		Requires: `The operator of a is one of r, and the frame of a has the slots of its line.`})
 	add(&code.Op{Name: "opr.buildTyped", Component: Host, Params: append(r, code.P("a", attempt), code.P("lhs", value),
 		code.P("lstart", code.TInt), code.P("rhs", value)), Results: []code.Type{value, code.TInt}, Reads: []string{Opr, Frames},

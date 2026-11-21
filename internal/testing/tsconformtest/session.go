@@ -81,12 +81,14 @@ type OprOp struct {
 }
 
 // OprLine is a line of an Operators Rule: the number of its capture slots, the script of its expression, the
-// shape of its value (ref.OprShape: "pass", "tuple", "shared" or "none") and whether an action makes it.
+// shape of its value (ref.OprShape: "pass", "tuple", "shared" or "none"), whether an action makes it and
+// whether that action returns the null value.
 type OprLine struct {
-	Scope  int64     `json:"scope"`
-	Expr   []OprExpr `json:"expr"`
-	Shape  string    `json:"shape"`
-	Action bool      `json:"action"`
+	Scope      int64     `json:"scope"`
+	Expr       []OprExpr `json:"expr"`
+	Shape      string    `json:"shape"`
+	Action     bool      `json:"action"`
+	NullAction bool      `json:"nullAction,omitempty"`
 }
 
 // OprExpr is one evaluation of the grammar code of an Operators Rule (ref.OprExpr).
@@ -125,7 +127,7 @@ var oprShapes = map[ref.OprShape]string{ref.OprPass: "pass", ref.OprTuple: "tupl
 	ref.OprWrap: "wrap", ref.OprUnit: "unit"}
 
 func oprLine(s ref.OprLineSpec) OprLine {
-	l := OprLine{Scope: s.Scope, Shape: oprShapes[s.Shape], Action: s.Action}
+	l := OprLine{Scope: s.Scope, Shape: oprShapes[s.Shape], Action: s.Action, NullAction: s.NullAction}
 	for _, e := range s.Expr {
 		l.Expr = append(l.Expr, scriptEntry(e.Eval, e.Cut))
 	}

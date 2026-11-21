@@ -363,7 +363,9 @@ have a model of nodes, with their ranges, elements, fields, rule names and the n
 in which each line has the static shape of its value (one element, a sequence, a sequence whose tuple a memo entry
 shares, an element that is not a sequence but whose scope's value is a node of its range, with one element or none, or
 none for an operator) and may have an action, a probe that returns a node of the range, the locals and the captures it
-was given, whose value converts to the operators' named node type when the rule declares one; the cases take the values
+was given, or the null value. An operator's value converts to the operators' named node type when the rule declares
+one, and one that does not convert, the null value, ends the parse with the evaluation error that the cases expect; the
+cases take the values
 apart and compare them by identity, on the engine and on TypeScript, and `opr.buildTyped` on the model until a target
 of typed values runs it. These stay transitional until generated Go runs them too. Those that keep missing tokens
 (`opr.attemptMissing`, `opr.replay`) have a model on the reference model of the missing-token mode: a match copies the

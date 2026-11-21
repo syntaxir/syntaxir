@@ -84,3 +84,27 @@ func TestTypeScriptConformanceOprDetectsMutants(t *testing.T) {
 		})
 	}
 }
+
+// TestTypeScriptConformanceOprDetectsLibraryMutants is the negative control of the conversion of the
+// operators' values to their named node type, which the library does: the parse whose operator's value
+// does not convert goes on with it, or ends at the compute limit, and the suite fails.
+func TestTypeScriptConformanceOprDetectsLibraryMutants(t *testing.T) {
+	node := codegentest.RequireNode(t)
+	throw := "throw new Fatal(new Error(`cannot convert ${typeName(u)} to ${r.opNodeType} in result of rule ${r.where || r.name}`));"
+	mutants := []tsMutant{
+		{name: "a value that does not convert is kept", sig: "convertOperator(r: Rule", old: throw, new: "return u as unknown as Node;"},
+		{name: "a value that does not convert ends the parse at the limit", sig: "convertOperator(r: Rule", old: throw,
+			new: `throw new Fatal(new ParseInterruptionError("compute-limit"));`},
+	}
+	for _, m := range mutants {
+		t.Run(m.name, func(t *testing.T) {
+			t.Parallel()
+			runner := tsconformtest.Runner{Session: tsconformtest.Start(t, node, tsMutate(t, m))}
+			res := tsOprRun(runner, 60, 250)
+			if len(res.fails) == 0 {
+				t.Fatalf("the suite did not notice: %d cases ran", res.ran)
+			}
+			t.Logf("detected: %v", strings.SplitN(res.fails[0].Error(), "\ncase:", 2)[0])
+		})
+	}
+}

@@ -113,6 +113,9 @@ func newOprMachineControlled(cfg ref.Config, controlled bool) conform.Impl {
 		}
 		if s.Action {
 			l.Act = oprProbe
+			if s.NullAction {
+				l.Act = oprNullProbe
+			}
 		}
 		return l
 	}
@@ -215,6 +218,9 @@ func oprProbe(c *EvalCtx) (any, error) {
 	return nodes.Ptr(d), nil
 }
 
+// oprNullProbe is the action of a line with ref.OprLineSpec.NullAction: it returns the null value.
+func oprNullProbe(*EvalCtx) (any, error) { return nil, nil }
+
 var oprOps = conform.OprModule()
 
 func (m *oprMachine) Rule(index int64) any { return m.oprRules[index] }
@@ -241,6 +247,7 @@ func (m *oprMachine) Handle(name string) any {
 }
 
 func (m *oprMachine) Call(o *code.Op, args []any) []any {
+	defer interrupt()
 	if slices.Contains(ref.OprValueOps, o.Name) {
 		return []any{m.valueOp(o.Name, args)}
 	}
@@ -543,6 +550,37 @@ func TestEngineOprOperatorTypeIsChecked(t *testing.T) {
 					return call("opr.build", args...)
 				}
 				return brokenOpr{m, "opr.build", edit}
+			}
+			if fails, _ := oprConformanceFailures(s, 60, 250); len(fails) == 0 {
+				t.Fatal("no case detected the broken engine")
+			}
+		})
+	}
+}
+
+// TestEngineOprConversionFailureIsChecked is the negative control of the failure of the conversion to
+// the operators' named node type: the engine whose opr.build keeps a value that does not convert, or
+// ends the parse with another interruption than the evaluation error, fails the suite.
+func TestEngineOprConversionFailureIsChecked(t *testing.T) {
+	for name, recovered := range map[string]func() []any{
+		"opr.build keeps the value":         func() []any { return []any{nil} },
+		"opr.build ends the parse on limit": func() []any { panic(code.Interrupt{Reason: "limit"}) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			s := oprSuite()
+			s.New = func(c ref.Config) conform.Impl {
+				edit := func(call func(string, ...any) []any, args []any) (res []any) {
+					defer func() {
+						if x := recover(); x != nil {
+							if x != (code.Interrupt{Reason: "error"}) {
+								panic(x)
+							}
+							res = recovered()
+						}
+					}()
+					return call("opr.build", args...)
+				}
+				return brokenOpr{newOprMachine(c).(*oprMachine), "opr.build", edit}
 			}
 			if fails, _ := oprConformanceFailures(s, 60, 250); len(fails) == 0 {
 				t.Fatal("no case detected the broken engine")

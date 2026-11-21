@@ -42,6 +42,7 @@ interface OprLineSpec {
   expr?: OprExprSpec[] | null;
   shape: "pass" | "tuple" | "shared" | "none" | "wrap" | "unit";
   action: boolean;
+  nullAction?: boolean;
 }
 
 // oprShapers are the shapers of the values of lines (ref.OprShape), as the printer encodes the static shape of the
@@ -70,6 +71,8 @@ const oprProbe: p.Action = (c: p.Actx) => {
   const kids = [c.op, c.lhs, c.rhs] as (p.Node | null)[];
   return [new p.Node("tuple", "", c.start, c.end, "", kids, fields, false, false), null];
 };
+// oprNullProbe is the action of a line with ref.OprLineSpec.NullAction: it returns the null value.
+const oprNullProbe: p.Action = () => [null, null];
 // OprExprSpec is one evaluation of the grammar code of an Operators Rule (ref.OprExpr).
 interface OprExprSpec {
   ok: boolean;
@@ -163,11 +166,14 @@ function datum(id: number): p.Value {
   return "b".repeat(id - 2000);
 }
 
+// interruption is the interruption of the conformance harness that ends a parse: the nesting limit is
+// "nesting", the compute limit "limit" and an evaluation error, a Fatal that is no interruption of the
+// parse, "error". The other interruptions are outside the model.
 function interruption(x: unknown): string | null {
   if (x instanceof p.Fatal) {
-    const kind = (x.err as { kind?: string }).kind;
-    if (kind === "compute-limit") return "limit";
-    if (kind === "depth-limit") return "nesting";
+    if (!(x.err instanceof p.ParseInterruptionError)) return "error";
+    if (x.err.kind === "compute-limit") return "limit";
+    if (x.err.kind === "depth-limit") return "nesting";
   }
   return null;
 }
@@ -604,7 +610,7 @@ class OprM extends Exec {
       const r = p.mkRule(i, "r" + i, [], 0, false, false, -1, s.novalue, []);
       if (s.opType) r.opNodeType = oprTypeName(i);
       const line = (l: OprLineSpec) => ({ scope: Array.from({ length: l.scope }, (_, k) => "c" + k), m: this.scripted(l.expr ?? []),
-        action: l.action ? oprProbe : null, value: oprShapers[l.shape] });
+        action: l.nullAction ? oprNullProbe : l.action ? oprProbe : null, value: oprShapers[l.shape] });
       const op = (o: OprOpSpec): p.OperatorsRuleOp => ({ id: 0, kind: o.kind, assoc: o.assoc, level: o.level, line: line(o.line) });
       const list = (os: OprOpSpec[]): p.OperatorsRuleOp[] => ((os ?? []).length === 0 ? this.noOprs : os.map(op));
       r.operatorsRule = { skip: s.skip ? this.scripted(s.trivia ?? []) : null, prefix: list(s.prefix), led: list(s.led),

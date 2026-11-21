@@ -138,7 +138,9 @@ func (m *engineMachine) key(args []any) MemoKey {
 	return MemoKey{Rule: int(args[0].(int64)), Pos: int(args[1].(int64)), Min: int(args[2].(int64)), Env: m.vals[args[3].(int64)]}
 }
 
-// interrupt turns a panic that ends a parse into the interruption of the conformance harness.
+// interrupt turns a panic that ends a parse into the interruption of the conformance harness: the
+// nesting limit is "nesting", the compute limit "limit" and an evaluation error, a Fatal that is no
+// limit, "error". The other limits are outside the model and stay what they are.
 func interrupt() {
 	if x := recover(); x != nil {
 		f, ok := x.(Fatal)
@@ -146,10 +148,16 @@ func interrupt() {
 			panic(x)
 		}
 		var le *runtime.LimitError
-		if errors.As(f.Err, &le) && le.Kind == runtime.LimitDepth {
+		var me *runtime.MissingTokenLimitError
+		switch {
+		case errors.As(f.Err, &le) && le.Kind == runtime.LimitDepth:
 			panic(code.Interrupt{Reason: "nesting"})
+		case errors.As(f.Err, &le) && le.Kind == runtime.LimitCompute:
+			panic(code.Interrupt{Reason: "limit"})
+		case le == nil && !errors.As(f.Err, &me):
+			panic(code.Interrupt{Reason: "error"})
 		}
-		panic(code.Interrupt{Reason: "limit"})
+		panic(x)
 	}
 }
 

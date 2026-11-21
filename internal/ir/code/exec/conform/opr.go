@@ -150,8 +150,9 @@ if it has none.`, `v is a node and k is an index of ref.OprFieldNames.`, code.TH
 // node type. The scripts of the trivia and of the lines of the first rule match and fail, move the
 // position by different lengths, record errors, pass cuts and capture; those of the last rule match;
 // the other lines have none and fail at once. The lines of the first rule have each shape of value of a
-// sequence or of one element, with and without an action; the last rule has an operator with an action
-// and some without, and the lines of an element that is not a sequence but makes a node of its range.
+// sequence or of one element, with and without an action; the last rule has an operator with an action,
+// one whose action returns the null value, which does not convert to the type, and some without an
+// action, and the lines of an element that is not a sequence but makes a node of its range.
 func OprConfig() ref.Config {
 	op := func(kind, assoc string, level, scope int64, expr ...ref.OprExpr) ref.OprOp {
 		return ref.OprOp{Kind: kind, Assoc: assoc, Level: level, Line: ref.OprLineSpec{Scope: scope, Expr: expr}}
@@ -166,6 +167,11 @@ func OprConfig() ref.Config {
 	// shaped gives an operator's line the shape of its value, and an action.
 	shaped := func(o ref.OprOp, shape ref.OprShape, action bool) ref.OprOp {
 		o.Line.Shape, o.Line.Action = shape, action
+		return o
+	}
+	// null gives an operator's line an action that returns the null value.
+	null := func(o ref.OprOp) ref.OprOp {
+		o.Line.Action, o.Line.NullAction = true, true
 		return o
 	}
 	return ref.Config{
@@ -193,7 +199,8 @@ func OprConfig() ref.Config {
 				Led: []ref.OprOp{shaped(op("infix", "left", 1, 1, captures(true, 1, 0)), ref.OprTuple, true),
 					op("infix", "left", 2, 0, x(true, 2, false)),
 					shaped(op("postfix", "left", 3, 0, x(true, 1, false)), ref.OprNone, false),
-					shaped(op("infix", "left", 4, 1, captures(true, 1, 0)), ref.OprWrap, false)},
+					shaped(op("infix", "left", 4, 1, captures(true, 1, 0)), ref.OprWrap, false),
+					null(op("infix", "left", 5, 0, x(true, 1, false)))},
 				Operands: []ref.OprLineSpec{{Scope: 0, Expr: []ref.OprExpr{x(true, 2, false)}},
 					{Scope: 1, Expr: []ref.OprExpr{captures(true, 1, 0)}, Shape: ref.OprWrap},
 					{Scope: 0, Expr: []ref.OprExpr{x(true, 3, false)}, Shape: ref.OprUnit}}},
@@ -656,6 +663,20 @@ func OprCases() []Case {
 		b.Assert(eq(typeOf(other), i(-1)), "the applications of a rule without the type have none")
 		b.Assert(eq(typeOf(lhs), i(-1)), "nor do its operands")
 	})
+	add("opr_build_not_convertible", func(b *code.Builder) {
+		r := b.Let("r", rule(3))
+		errs := b.Let("errs", code.C("rec.since", i(0)))
+		f0 := frame(b, "f0", 0)
+		lhs := match(b, "lhs", code.C("opr.operand", r, i(0)), 1)
+		rhs := match(b, "rhs", code.C("opr.operand", r, i(0)), 4)
+		o := b.Let("o", code.C("opr.at", code.C("opr.led", r), i(4)))
+		b.SetReg(exec.Pos, i(2))
+		vs := b.LetN([]string{"ov", "ok"}, code.C("opr.match", code.C("opr.line", o)))
+		b.Assert(vs[1], "the operator's line matches")
+		a := b.Let("a", code.C("opr.attempt", o, f0, vs[0], i(2), code.BoolC(false), errs))
+		b.Let("n", code.C("opr.build", r, a, lhs, rhs)) // ends the parse
+		b.Assert(code.BoolC(false), "unreachable: the null value of the action does not convert to the operators' type")
+	})
 	add("opr_flags", func(b *code.Builder) {
 		b.Do("opr.setCutFailed", code.BoolC(true))
 		b.Assert(code.C("opr.cutFailed"), "a candidate failed after a cut")
@@ -808,6 +829,9 @@ type oprEntry struct {
 	h    any
 }
 
+// oprEnded stops the generation of a case of RandomOpr at a call that ends the parse.
+type oprEnded struct{}
+
 // RandomOpr returns a randomized case of n calls of the operations of the Operators Rule family from
 // opNames, drawn with rng, that meets every precondition. Handles come from the descriptors of the
 // rules of cfg and from the operations that make them, and the positions from a small domain.
@@ -828,6 +852,14 @@ func RandomOpr(name string, rng *rand.Rand, opNames []string, n int, cfg ref.Con
 		opNames = slices.Concat(opNames, []string{MissingInsertOp, MissingInsertOp, "missing.reset"})
 	}
 	f := m.AddFunc(name, nil, nil, features, func(b *code.Builder) {
+		// A call that ends the parse (an operator's value that does not convert) ends the case.
+		defer func() {
+			if x := recover(); x != nil {
+				if _, ok := x.(oprEnded); !ok {
+					panic(x)
+				}
+			}
+		}()
 		count := 0
 		fresh := func() string { count++; return fmt.Sprintf("x%d", count) }
 		keep := func(t code.Type, expr code.Expr, h any) {
@@ -841,7 +873,18 @@ func RandomOpr(name string, rng *rand.Rand, opNames []string, n int, cfg ref.Con
 				keep(o.Results[0], b.Let(fresh(), code.C(opName)), h)
 				return pool[o.Results[0].Handle][len(pool[o.Results[0].Handle])-1], true
 			}
-			res := mirror.Call(o, args)
+			res, stop := mirrorCall(mirror, o, args)
+			if stop {
+				switch len(o.Results) {
+				case 0:
+					b.Do(opName, exprs...)
+				case 1:
+					b.Let(fresh(), code.C(opName, exprs...))
+				default:
+					b.LetN([]string{fresh(), fresh()}, code.C(opName, exprs...))
+				}
+				panic(oprEnded{})
+			}
 			switch len(o.Results) {
 			case 0:
 				b.Do(opName, exprs...)

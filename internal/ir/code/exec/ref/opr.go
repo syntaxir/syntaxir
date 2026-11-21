@@ -31,12 +31,14 @@ type OprOp struct {
 //
 // The action of a line is a probe that shows what it was given: a node of the range of its input,
 // whose elements are the locals op, lhs and rhs (null where the action has none) and whose fields
-// c0, c1, ... are the captures in the slots of its frame that are not empty.
+// c0, c1, ... are the captures in the slots of its frame that are not empty. With NullAction it
+// returns the null value instead, which no named node type converts.
 type OprLineSpec struct {
-	Scope  int64
-	Expr   []OprExpr
-	Shape  OprShape
-	Action bool
+	Scope      int64
+	Expr       []OprExpr
+	Shape      OprShape
+	Action     bool
+	NullAction bool
 }
 
 // OprShape is how the value of a line without an action comes from the value of its expression, as
@@ -522,7 +524,7 @@ func (m *Model) oprLineValue(r int64, l *OprLine, f *Frame, v any, start int64) 
 	}
 	pos := m.regs["pos"].(int64)
 	if l.spec.Action {
-		return m.oprAction(f, start, pos, nil, nil, nil)
+		return m.oprAction(l.spec, f, start, pos, nil, nil, nil)
 	}
 	switch l.spec.Shape {
 	case OprShared:
@@ -588,7 +590,7 @@ func (m *Model) oprBuild(r int64, a *OprAttempt, lhs any, lstart int64, rhs any,
 		right = rhs
 	}
 	if l.Action {
-		v := m.oprAction(f, start, end, opv, left, right)
+		v := m.oprAction(l, f, start, end, opv, left, right)
 		if m.cfg.Oprs[r].OpType {
 			v = retype(v, r)
 		}
@@ -616,7 +618,10 @@ func (m *Model) oprBuild(r int64, a *OprAttempt, lhs any, lstart int64, rhs any,
 
 // oprAction is the value of the action of a line (OprLineSpec), given its frame, the range of its
 // input and its locals.
-func (m *Model) oprAction(f *Frame, start, end int64, op, lhs, rhs any) any {
+func (m *Model) oprAction(l OprLineSpec, f *Frame, start, end int64, op, lhs, rhs any) any {
+	if l.NullAction {
+		return nil
+	}
 	n := &OprValue{start: start, end: end, kids: []any{op, lhs, rhs}, rule: -1}
 	for k, c := range f.vals {
 		if c != nil {
@@ -628,12 +633,12 @@ func (m *Model) oprAction(f *Frame, start, end int64, op, lhs, rhs any) any {
 
 // retype converts v, the value of an operator's action, to the named node type of the operators of the
 // rule r: v itself if it has the type, or else a copy of v of the type, with its range, elements and
-// fields, which carries no rule name and is not fresh. The actions of the model return nodes, which
-// convert.
+// fields, which carries no rule name and is not fresh. A value that is not a node does not convert:
+// the parse ends with an evaluation error, which the harness sees as the interruption "error".
 func retype(v any, r int64) any {
 	n, ok := v.(*OprValue)
 	if !ok || n == nil {
-		panic("ref: an operator's action returned no node")
+		panic(code.Interrupt{Reason: "error"})
 	}
 	if n.opType == r+1 {
 		return n
