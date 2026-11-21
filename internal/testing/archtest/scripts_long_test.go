@@ -516,7 +516,12 @@ func mainScripts(t *testing.T) string {
 }
 
 // overlapWork is a command "work.sh RUN [NAME [SECONDS]]" that records how many copies of it run
-// at once in RUN/counts, and its start and end under NAME in RUN/events. It runs 2 seconds.
+// at once in RUN/counts, and its start and end under NAME in RUN/events. It runs 2 seconds. With
+// WORK_RENDEZVOUS=N in its environment it first waits, for at most 60 seconds, until N copies run,
+// and then runs its 2 seconds: on a loaded machine the copies that a queue admits together can start
+// seconds apart, and a fixed run would end before the next one starts, so that copies the queue let
+// run at once would look serialized. The rendezvous only waits: copies that the queue keeps apart
+// still never run at once, and more copies than N that it lets in still show in the counts.
 func overlapWork(t *testing.T) (work, run string) {
 	t.Helper()
 	run = t.TempDir()
@@ -524,6 +529,10 @@ func overlapWork(t *testing.T) (work, run string) {
 	write(t, work, `#!/usr/bin/env bash
 echo "start ${2:-}" >> "$1/events"
 echo $$ > "$1/live.$$"
+if [ -n "${WORK_RENDEZVOUS:-}" ]; then
+	n=0
+	while [ "$(ls "$1" | grep -c '^live\.')" -lt "$WORK_RENDEZVOUS" ] && [ "$n" -lt 600 ]; do n=$((n + 1)); sleep 0.1; done
+fi
 sleep "${3:-2}"
 ls "$1" | grep -c '^live\.' >> "$1/counts"
 rm -f "$1/live.$$"
@@ -664,12 +673,14 @@ func before(ev []string, a, b string) bool {
 	return ia >= 0 && ib >= 0 && ia < ib
 }
 
-// Shared jobs run K at a time, and no more: four of them with K = 2 run two by two.
+// Shared jobs run K at a time, and no more: four of them with K = 2 run two by two. The jobs wait
+// for a second one to run (WORK_RENDEZVOUS), so that two admitted together overlap however loaded
+// the machine is; a queue that admitted them one at a time leaves each alone after the wait.
 func TestBenchlockSharedSlots(t *testing.T) {
 	mutanttest.SkipUnlessChanged(t, scriptsDeps...)
 	needTools(t)
 	state := t.TempDir()
-	env := append(scriptEnv(t, state), "BENCHLOCK_SHARED=2")
+	env := append(scriptEnv(t, state), "BENCHLOCK_SHARED=2", "WORK_RENDEZVOUS=2")
 	work, run := overlapWork(t)
 	var cmds []*exec.Cmd
 	for i := 0; i < 4; i++ {
