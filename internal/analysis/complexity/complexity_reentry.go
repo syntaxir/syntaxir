@@ -29,8 +29,14 @@ import (
 
 // withoutReentry returns the continuations of the unit without the paths that re-enter its
 // cycle, when the conditions above hold, and the continuations of the unit otherwise.
+//
+// A continuation all of whose paths re-enter the cycle in this way is left out as a whole: it
+// examines nothing that the alternative examined before the call, and what follows the call is
+// bounded (restBounded), so there is nothing left to compare. Every path of it is accounted for:
+// a path that cannot be followed, re-enters nothing or is followed by a part that is not bounded
+// is kept as it is.
 func (k *classifier) withoutReentry(u *unit) []contSpec {
-	if u.kind != unitAlt || !k.an.Cyclic[u.rule] || len(u.self) != 1 || len(u.self[0].items) != 1 {
+	if !reentryOn || u.kind != unitAlt || !k.an.Cyclic[u.rule] || len(u.self) != 1 || len(u.self[0].items) != 1 {
 		return u.conts
 	}
 	cycle := k.an.Cycle[u.rule]
@@ -55,6 +61,11 @@ func (k *classifier) withoutReentry(u *unit) []contSpec {
 	}
 	return out
 }
+
+// reentryOn makes withoutReentry leave out the paths of a continuation that re-enter the cycle
+// of the unit. It is on by default; the variable is a test hook, whose off setting compares every
+// path of the continuations with the unit.
+var reentryOn = true
 
 // fixedMemoized reports whether the bodies of the rules of the cycle evaluate every scanning
 // source at a position that is the same in each step of a growth only inside a call that is
