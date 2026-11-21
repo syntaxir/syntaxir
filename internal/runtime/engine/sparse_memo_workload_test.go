@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"unsafe"
 
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/runtime/state"
@@ -127,7 +126,7 @@ func BenchmarkSparseMemoTypeScript(b *testing.B) {
 						if _, err := target.Run(p, backend, "main"); err != nil {
 							b.Fatal(err)
 						}
-						storage := sparseMemoStorage(p.Memo)
+						storage := p.Memo.FirstCallStorage()
 						b.ReportMetric(float64(storage), "seen-storage-B")
 						if !p.Memo.Reset() {
 							storage = 0
@@ -138,13 +137,4 @@ func BenchmarkSparseMemoTypeScript(b *testing.B) {
 			}
 		}
 	}
-}
-
-func sparseMemoStorage(m *state.MemoTable) int {
-	size := cap(m.Seen)*8 + cap(m.Pages)*int(unsafe.Sizeof(state.SeenRulePages{}))
-	size += len(m.BitPages.Chunks)*64*16*8 + cap(m.BitPages.Chunks)*int(unsafe.Sizeof(uintptr(0)))
-	for _, dir := range m.Pages {
-		size += cap(dir.Pages) * int(unsafe.Sizeof(uintptr(0)))
-	}
-	return size
 }

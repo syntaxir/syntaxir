@@ -1,6 +1,9 @@
 package state
 
 import (
+	"math/bits"
+	"unsafe"
+
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
@@ -78,3 +81,45 @@ type TracePanic = tracePanic
 // SetRetained sets the bytes that a Document retains outside the memo table of the parse, which the
 // memory check of c counts.
 func (c *BudgetControl) SetRetained(n uint64) { c.retained = n }
+
+// StartFirstCalls sets the rule count of the record of first calls of a parse (FirstCall) and
+// whether it records them sparsely, by visited page of positions.
+func (t *MemoTable) StartFirstCalls(stride int, sparse bool) { t.stride, t.sparse = stride, sparse }
+
+// SparseFirstCalls reports whether the record of first calls is sparse (StartFirstCalls).
+func (t *MemoTable) SparseFirstCalls() bool { return t.sparse }
+
+// FirstCallStorage returns the bytes of the storage of the record of first calls, by capacity,
+// whether the parse took it into use or kept it from an earlier one.
+func (t *MemoTable) FirstCallStorage() uint64 {
+	f := &t.firstCalls
+	n := uint64(cap(f.seen))*8 + uint64(cap(f.calls))*uint64(unsafe.Sizeof(seenCalls{})) +
+		uint64(cap(f.pages))*uint64(unsafe.Sizeof(seenRulePages{}))
+	for _, dir := range f.pages[:cap(f.pages)] {
+		n += uint64(cap(dir.pages)) * ptrBytes
+	}
+	return n + uint64(cap(f.bitPages.chunks))*ptrBytes + uint64(len(f.bitPages.chunks))*uint64(unsafe.Sizeof([64][16]uint64{}))
+}
+
+// FirstCallRecord returns the (position, rule) pairs that the record of first calls holds, the
+// number of its sparse page directories, and whether each rule is memoized on its first call. It is
+// exported only as a hook for tests in other packages.
+func (t *MemoTable) FirstCallRecord() (pairs, directories int, eager []bool) {
+	f := &t.firstCalls
+	for _, x := range f.seen {
+		pairs += bits.OnesCount64(x)
+	}
+	for _, dir := range f.pages {
+		for _, page := range dir.pages {
+			if page != nil {
+				for _, x := range page {
+					pairs += bits.OnesCount64(x)
+				}
+			}
+		}
+	}
+	for _, c := range f.calls {
+		eager = append(eager, c.eager)
+	}
+	return pairs, len(f.pages), eager
+}

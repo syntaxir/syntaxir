@@ -297,13 +297,6 @@ func (p *Parser) MemoPut(k MemoKey, e *MemoEntry) *MemoEntry {
 	return e
 }
 
-// memoFirstCall records a call of rule r at pos (seen.first). It charges nothing: deferring the
-// memoization of a call changes none of the units that the call charges (ChargeKey), and the record
-// grows to the positions and rules of counted calls, by doubling.
-func (p *Parser) memoFirstCall(pos, r int) bool {
-	return p.Memo.firstCall(pos, r)
-}
-
 // ChargeKey charges the lookup of the memo key of a call of r, a rule that a parse from scratch
 // memoizes (budget.chargeKey): one unit for each variable r reads and one for each byte of each string
 // value among them, whether or not the call looks the key up.

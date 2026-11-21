@@ -63,14 +63,7 @@ func (d *Document) CacheStats() runtime.CacheStats {
 		for _, chunk := range t.Chunks {
 			s.EstimatedBytes += uint64(cap(chunk)) * uint64(unsafe.Sizeof(state.MemoEntry{}))
 		}
-		s.EstimatedBytes += uint64(cap(t.Seen)) * uint64(unsafe.Sizeof(uint64(0)))
-		s.EstimatedBytes += uint64(cap(t.Calls)) * uint64(unsafe.Sizeof(state.SeenCalls{}))
-		s.EstimatedBytes += uint64(cap(t.Pages)) * uint64(unsafe.Sizeof(state.SeenRulePages{}))
-		for _, dir := range t.Pages {
-			s.EstimatedBytes += uint64(cap(dir.Pages)) * uint64(unsafe.Sizeof((*[16]uint64)(nil)))
-		}
-		s.EstimatedBytes += uint64(cap(t.BitPages.Chunks)) * uint64(unsafe.Sizeof((*[64][16]uint64)(nil)))
-		s.EstimatedBytes += uint64(len(t.BitPages.Chunks)) * uint64(unsafe.Sizeof([64][16]uint64{}))
+		s.EstimatedBytes += t.FirstCallStorage()
 	}
 	for _, run := range d.runs {
 		s.RepetitionElements += len(run.Elems)

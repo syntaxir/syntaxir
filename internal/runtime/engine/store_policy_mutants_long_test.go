@@ -37,21 +37,21 @@ type storePolicyMutant struct {
 // evaluated more often than a memo that defers every first call evaluates it, and the test must fail
 // on the case that has the calls where the mutant differs.
 func TestMemoStorePolicyMutantsFail(t *testing.T) {
-	const firstCall = "\treturn p.memoFirstCall(p.Pos, s)\n"
-	const dense = "\t\tfirst = t.MarkSeen(pos, r)\n"
+	const firstCall = "\treturn p.Memo.first(p.Pos, s)\n"
+	const dense = "\t\tfirst = f.markSeen(pos, r)\n"
 	const sparse = "\t\tfirst = markSeenPage(page, pos)\n"
 	const document = "\tfm = p.FreeBegin(p.docOnlyMemo(r))\n\tdirect = !p.memoized(r) && !r.Leader || p.FirstCall(r)\n"
 	const iterative = "\tdirect := !p.Memoizes(r) || p.FirstCall(r)\n"
 	all := []string{"closure", "bytecode", "bytecode-iterative"}
 	mutants := []storePolicyMutant{
 		{"a call inside a lookahead defers its own first call",
-			[]storePolicyEdit{{"internal/runtime/state/call_exec.go", firstCall, "\tpos := p.Pos\n\tif p.Silent > 0 {\n\t\tpos += 1 << 12\n\t}\n\treturn p.memoFirstCall(pos, s)\n"}},
+			[]storePolicyEdit{{"internal/runtime/state/call_exec.go", firstCall, "\tpos := p.Pos\n\tif p.Silent > 0 {\n\t\tpos += 1 << 12\n\t}\n\treturn p.Memo.first(pos, s)\n"}},
 			"TestMemoStorePolicy", "inside first", all},
 		{"a second call at a position defers as well (dense table)",
-			[]storePolicyEdit{{"internal/runtime/state/memo.go", dense, "\t\tfirst = t.MarkSeen(pos, r) || t.MarkSeen(pos+1<<12, r)\n"}},
+			[]storePolicyEdit{{"internal/runtime/state/memo_first.go", dense, "\t\tfirst = f.markSeen(pos, r) || f.markSeen(pos+1<<12, r)\n"}},
 			"TestMemoStorePolicy", "outside only", all},
 		{"a second call at a position defers as well (sparse table)",
-			[]storePolicyEdit{{"internal/runtime/state/memo.go", sparse, "\t\tfirst = markSeenPage(page, pos) || t.MarkSparseSeen(pos+1<<12, r)\n"}},
+			[]storePolicyEdit{{"internal/runtime/state/memo_first.go", sparse, "\t\tfirst = markSeenPage(page, pos) || f.markSparseSeen(pos+1<<12, r)\n"}},
 			"TestMemoStorePolicy", "inside first, sparse", all},
 		{"a Document stores no result computed inside a lookahead",
 			[]storePolicyEdit{

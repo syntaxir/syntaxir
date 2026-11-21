@@ -21,6 +21,7 @@ var Files = []string{
 	"budget_sizes.go",
 	"core.go",
 	"expected.go",
+	"memo_first.go",
 	"memo_index.go",
 	"recovered.go",
 	"term_value.go",

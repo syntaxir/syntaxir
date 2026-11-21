@@ -1,9 +1,6 @@
 package state
 
-import (
-	"slices"
-	"unsafe"
-)
+import "slices"
 
 // MemoTable is the memo table ((rule, position, binding level) → result). It keeps a linked
 // list of entries per position. Positions are offsets from the start of the input; entries at
@@ -22,20 +19,10 @@ type MemoTable struct {
 	// Document edits splice positions in and out at the gap, slots[gap:gap+GapLen] (in Document
 	// tables, where base is 0): moving it costs only the distance to the next edit.
 	Gap, GapLen int
-	// Seen is a bit set of the (position, rule) pairs called once (seen.first), with stride
-	// bits per position. It is used only by whole-input parses, so base is 0.
-	Seen   []uint64
-	Stride int
-	Sparse bool // selected once from rule count and input length
-	// Pages allocate bits only for a rule's visited 1,024-position regions.
-	// Small grammars and inputs keep the dense bitset to avoid directory overhead.
-	Pages    []SeenRulePages
-	BitPages Arena[[16]uint64]
-	// Calls counts, per rule number, the calls and the repeated calls at a position; once repeats
-	// are frequent, the rule is memoized on the first call (eager).
-	Calls []SeenCalls
-	// MemBytes counts the bytes of the slots and first-call tables the table has taken into use
-	// (budget_memory.go, ChargedBytes). Reset clears it.
+	// firstCalls records the calls whose memoization a whole-input parse defers (seen.first).
+	firstCalls
+	// MemBytes counts the bytes of the slots the table has taken into use (budget_memory.go,
+	// ChargedBytes). Reset clears it.
 	MemBytes uint64
 	// Index holds the hash index of each position whose chain has more entries
 	// than a lookup walks (memoScan), by position. Splice drops all of them.
@@ -44,136 +31,9 @@ type MemoTable struct {
 	IndexBytes uint64
 }
 
-// SeenRulePages caches the last visited page beside its directory. Most calls
-// of a rule stay within one region, avoiding a second dependent pointer lookup.
-type SeenRulePages struct {
-	Pages []*[16]uint64
-	Last  *[16]uint64
-	at    int
-}
-
-type SeenCalls struct {
-	calls, repeats int32
-	Eager          bool
-}
-
-// firstCall records a call of rule number r (rule.Seen) at position pos and reports whether its
-// memoization is deferred: it is the first call there, and repeated calls of the rule have been
-// rare so far.
-func (t *MemoTable) firstCall(pos, r int) bool {
-	if t.Calls == nil {
-		t.Calls = make([]SeenCalls, t.Stride)
-		t.MemBytes += uint64(t.Stride) * uint64(unsafe.Sizeof(SeenCalls{}))
-	}
-	c := &t.Calls[r]
-	if c.Eager {
-		return false
-	}
-	// Discount old observations before the compact counters can wrap. Eager
-	// mode is sticky; this estimator only chooses when to enter it.
-	calls := uint32(c.calls) + 1
-	if calls&(1<<31) != 0 {
-		calls >>= 1
-		c.repeats >>= 1
-	}
-	c.calls = int32(calls)
-	var first bool
-	if SparseMemo && t.Sparse {
-		page := t.cachedSeenPage(pos, r)
-		if page == nil {
-			page = t.sparsePage(pos, r)
-		}
-		first = markSeenPage(page, pos)
-	} else {
-		first = t.MarkSeen(pos, r)
-	}
-	if first {
-		return true
-	}
-	// Deferring costs an extra evaluation for each position where the rule is called again, and
-	// saves a memo entry for each position where it is not. Evaluations cost several entries.
-	c.repeats++
-	if c.repeats > c.calls>>4 {
-		c.Eager = true
-	}
-	return false
-}
-
-// MarkSeen records a call of rule number r at position pos and reports whether it is the first.
-func (t *MemoTable) MarkSeen(pos, r int) bool {
-	i := pos*t.Stride + r
-	w, b := i>>6, uint64(1)<<(i&63)
-	if w >= len(t.Seen) {
-		t.Seen = append(t.Seen, make([]uint64, max(w+1-len(t.Seen), len(t.Seen), 64))...)
-	}
-	if t.Seen[w]&b != 0 {
-		return false
-	}
-	t.Seen[w] |= b
-	return true
-}
-
-// MarkSparseSeen records only visited per-rule regions, with page allocation
-// batched to keep the directory savings from adding one allocation per page.
-func (t *MemoTable) MarkSparseSeen(pos, r int) bool {
-	page := t.cachedSeenPage(pos, r)
-	if page == nil {
-		page = t.sparsePage(pos, r)
-	}
-	return markSeenPage(page, pos)
-}
-
-// cachedSeenPage and markSeenPage inline into firstCall. Keeping allocation
-// separate avoids another function call when a rule remains in its last page.
-func (t *MemoTable) cachedSeenPage(pos, r int) *[16]uint64 {
-	if r < len(t.Pages) {
-		dir := &t.Pages[r]
-		if dir.at == pos>>10 {
-			return dir.Last
-		}
-	}
-	return nil
-}
-
-func markSeenPage(page *[16]uint64, pos int) bool {
-	w, b := (pos>>6)&15, uint64(1)<<(pos&63)
-	first := page[w]&b == 0
-	page[w] |= b
-	return first
-}
-
-// sparsePage handles directory growth and page allocation off the hot path.
-func (t *MemoTable) sparsePage(pos, r int) *[16]uint64 {
-	if len(t.Pages) != t.Stride {
-		t.Pages = make([]SeenRulePages, t.Stride)
-		t.MemBytes += uint64(t.Stride) * uint64(unsafe.Sizeof(SeenRulePages{}))
-	}
-	dir := &t.Pages[r]
-	at := pos >> 10
-	page := dir.Last
-	if page == nil || dir.at != at {
-		pages := dir.Pages
-		if at >= len(pages) {
-			t.MemBytes += uint64(at+1-len(pages)) * uint64(unsafe.Sizeof((*[16]uint64)(nil)))
-			if at < cap(pages) {
-				pages = pages[:at+1]
-			} else {
-				grown := make([]*[16]uint64, at+1, max(at+1, 2*cap(pages), 4))
-				copy(grown, pages)
-				pages = grown
-			}
-			dir.Pages = pages
-		}
-		page = pages[at]
-		if page == nil {
-			page = t.BitPages.Alloc()
-			t.MemBytes += uint64(unsafe.Sizeof(*page))
-			pages[at] = page
-		}
-		dir.Last, dir.at = page, at
-	}
-	return page
-}
+// sparseMemo enables the sparse first-call record (firstCalls.sparse); the reference build
+// sxir_reference_sparse_memo disables it.
+const sparseMemo = SparseMemo
 
 func NewMemoTable() *MemoTable { return &MemoTable{} }
 
@@ -338,13 +198,12 @@ func (t *MemoTable) Alloc() *MemoEntry {
 }
 
 // ChargedBytes returns the memory count of the table: the chunks in use, whether kept from an
-// earlier parse or new, so that the count does not depend on what an earlier parse left, the
-// first-call bit set by its length, the slots and first-call tables it has taken (MemBytes), and
-// the hash indexes of long chains (IndexBytes).
-// The chunks and the bit set are counted from the state that Alloc and MarkSeen already keep, so
-// that both stay inlinable.
+// earlier parse or new, so that the count does not depend on what an earlier parse left, the slots
+// it has taken (MemBytes), the record of first calls, and the hash indexes of long chains
+// (IndexBytes). The chunks are counted from the state that Alloc already keeps, so that it stays
+// inlinable.
 func (t *MemoTable) ChargedBytes() uint64 {
-	return t.MemBytes + t.IndexBytes + uint64(t.used)*256*memoBytes + uint64(len(t.Seen))*8
+	return t.MemBytes + t.firstCalls.chargedBytes() + t.IndexBytes + uint64(t.used)*256*memoBytes
 }
 
 // Retire releases all result references and makes an unlinked entry reusable.
@@ -355,34 +214,18 @@ func (t *MemoTable) Retire(e *MemoEntry) {
 }
 
 // Reset empties the table for another parse, keeping its memory, and reports whether that was
-// worth keeping (it is not when it is very large).
+// worth keeping (it is not when its entries are very many). The record of first calls keeps the
+// storage within MaxScratch words (firstCalls.reset).
 func (t *MemoTable) Reset() bool {
-	if cap(t.Slots) > MaxScratch || len(t.Chunks)*256 > MaxScratch || len(t.Seen) > MaxScratch || cap(t.Pages) > MaxScratch/5 || len(t.BitPages.Chunks) > MaxScratch/(64*16) || cap(t.BitPages.Chunks) > MaxScratch {
+	if cap(t.Slots) > MaxScratch || len(t.Chunks)*256 > MaxScratch {
 		return false
-	}
-	// Bound directory backing arrays and the complete stable page chunks.
-	words := 5*cap(t.Pages) + len(t.BitPages.Chunks)*64*16 + cap(t.BitPages.Chunks)
-	if words > MaxScratch {
-		return false
-	}
-	for _, dir := range t.Pages {
-		if cap(dir.Pages) > MaxScratch-words {
-			return false
-		}
-		words += cap(dir.Pages)
 	}
 	clear(t.Slots)
 	for _, c := range t.Chunks[:t.used] {
 		clear(c)
 	}
-	clear(t.Seen)
-	for i := range t.Pages {
-		dir := &t.Pages[i]
-		clear(dir.Pages)
-		dir.Last, dir.at = nil, 0
-	}
-	t.BitPages.reset(0)
-	*t = MemoTable{Slots: t.Slots[:0], Chunks: t.Chunks, Seen: t.Seen[:0], Pages: t.Pages, BitPages: t.BitPages}
+	t.firstCalls.reset(MaxScratch)
+	*t = MemoTable{Slots: t.Slots[:0], Chunks: t.Chunks, firstCalls: t.firstCalls}
 	return true
 }
 

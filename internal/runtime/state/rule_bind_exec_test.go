@@ -94,6 +94,6 @@ func (p *Parser) confSeenDefers() bool {
 // Printed from Exec IR function confSeenFirst of internal/ir/code/exec/compose.
 func (p *Parser) confSeenFirst(rule int, pos int) bool {
 	var r bool
-	r = p.memoFirstCall(pos, rule)
+	r = p.Memo.first(pos, rule)
 	return r
 }

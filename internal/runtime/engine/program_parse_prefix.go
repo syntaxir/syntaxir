@@ -79,11 +79,11 @@ func (prog *Program) runPrefix(p *state.Parser, b Backend, start string) (result
 		return PrefixResult{}, err
 	}
 	p.Descs = prog.descs(b, state.FamilyOf(p))
-	p.Memo.Stride = prog.NSeen
+	stride := prog.NSeen
 	if be := prog.backend(b); be == Bytecode || be == BytecodeIterative {
-		p.Memo.Stride = prog.vmFor(be, state.FamilyOf(p)).NumSeen()
+		stride = prog.vmFor(be, state.FamilyOf(p)).NumSeen()
 	}
-	p.Memo.Sparse = state.SparseMemo && p.Memo.Stride > 64 && p.Loaded() > 1024
+	p.Memo.StartFirstCalls(stride, state.SparseMemo && stride > 64 && p.Loaded() > 1024)
 	defer func() {
 		if x := recover(); x != nil {
 			p.Aborted = true

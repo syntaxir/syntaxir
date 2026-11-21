@@ -2,8 +2,6 @@ package engine
 
 import (
 	"fmt"
-	"math/bits"
-	"slices"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -119,25 +117,9 @@ func parseSpend(prog *Program, start, input string, o ParseOptions) (parseBudget
 			w.entries++
 		}
 	}
-	for _, x := range p.Memo.Seen {
-		w.firstCalls += bits.OnesCount64(x)
-	}
-	for _, dir := range p.Memo.Pages {
-		for _, page := range dir.Pages {
-			if page != nil {
-				for _, x := range page {
-					w.firstCalls += bits.OnesCount64(x)
-				}
-			}
-		}
-	}
-	w.eager = fmt.Sprint(slices.Collect(func(yield func(bool) bool) {
-		for _, c := range p.Memo.Calls {
-			if !yield(c.Eager) {
-				return
-			}
-		}
-	}))
+	pairs, _, eager := p.Memo.FirstCallRecord()
+	w.firstCalls += pairs
+	w.eager = fmt.Sprint(eager)
 	return w, codegentest.ResultJSON(n, err)
 }
 

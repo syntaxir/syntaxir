@@ -32,7 +32,7 @@ type engineMachine struct {
 
 func newEngineMachine(cfg ref.Config, controlled, sparse bool) conform.Impl {
 	p := &Parser{Memo: NewMemoTable(), MaxDepth: int(cfg.MaxDepth), DeferMemo: true}
-	p.Memo.Stride, p.Memo.Sparse = cfg.Rules, sparse
+	p.Memo.stride, p.Memo.sparse = cfg.Rules, sparse
 	m := &engineMachine{p: p, vals: map[int64][]any{}, lists: map[RecEntry]*errorList{}}
 	if len(cfg.Vars) > 0 {
 		vals := make([]any, len(cfg.Vars))

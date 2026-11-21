@@ -24,8 +24,8 @@ of two strings, in the helper that appends the elements concat copies, which cha
 read, which charges the fields it scans, and in the error constructor, which charges the pieces of
 a message.
 
-The record of a first call runs the ordinary body itself after `controlledFirstCallPrepare`, which does the
-controlled charges and growth, so a controlled parse executes the same steps. The Operators
+The record of a first call has no controlled path: it charges no unit, and its memory is counted
+from the lengths of its tables, so a controlled parse executes the same steps. The Operators
 Rule loop of both runtimes replays the recovered errors of an operator match only when there are
 some (an empty append changes nothing).
 

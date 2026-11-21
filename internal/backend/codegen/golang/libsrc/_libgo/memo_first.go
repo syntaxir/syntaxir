@@ -1,0 +1,246 @@
+package libgo
+
+import "unsafe"
+
+// firstCalls is the record of the calls of memoized rules that a parse defers (seen.first): the
+// (position, rule) pairs called once, and per rule how often its calls repeat at a position. A rule
+// whose calls repeat often is memoized on its first call from then on (eager).
+type firstCalls struct {
+	// seen is a bit set of the (position, rule) pairs called once, with stride bits per position.
+	seen   []uint64
+	stride int
+	// sparse selects, once per parse from the rule count and the input length, a page of 1,024
+	// positions per rule and visited region instead of the dense bit set.
+	sparse   bool
+	pages    []seenRulePages
+	bitPages seenPageArena
+	// calls counts, per rule, the calls and the repeated calls at a position.
+	calls []seenCalls
+	// pageBytes counts the bytes of the page directories and pages the parse has taken into use;
+	// the bit set, the call counters and the directory table count by their length (chargedBytes).
+	pageBytes uint64
+}
+
+// seenRulePages caches the last visited page beside its directory. Most calls
+// of a rule stay within one region, avoiding a second dependent pointer lookup.
+type seenRulePages struct {
+	pages []*[16]uint64
+	last  *[16]uint64
+	at    int
+}
+
+// seenCalls counts the calls of a rule and the calls that repeated one at its position.
+type seenCalls struct {
+	calls, repeats int32
+	eager          bool
+}
+
+// first records a call of rule number r at pos and reports whether its memoization is deferred: it
+// is the first call there, and repeated calls of the rule have been rare so far. It charges nothing:
+// deferring the memoization of a call changes none of the units that the call charges, and the
+// record grows to the positions and rules of counted calls.
+func (f *firstCalls) first(pos, r int) bool {
+	if len(f.calls) != f.stride {
+		f.startCalls()
+	}
+	c := &f.calls[r]
+	if c.eager {
+		return false
+	}
+	// Discount old observations before the compact counters can wrap. Eager
+	// mode is sticky; this estimator only chooses when to enter it.
+	calls := uint32(c.calls) + 1
+	if calls&(1<<31) != 0 {
+		calls >>= 1
+		c.repeats >>= 1
+	}
+	c.calls = int32(calls)
+	var first bool
+	if sparseMemo && f.sparse {
+		page := f.cachedSeenPage(pos, r)
+		if page == nil {
+			page = f.sparsePage(pos, r)
+		}
+		first = markSeenPage(page, pos)
+	} else {
+		first = f.markSeen(pos, r)
+	}
+	if first {
+		return true
+	}
+	// Deferring costs an extra evaluation for each position where the rule is called again, and
+	// saves a memo entry for each position where it is not. Evaluations cost several entries.
+	c.repeats++
+	if c.repeats > c.calls>>4 {
+		c.eager = true
+	}
+	return false
+}
+
+// startCalls gives every rule a call counter, reusing the storage of an earlier parse.
+func (f *firstCalls) startCalls() {
+	if cap(f.calls) >= f.stride {
+		f.calls = f.calls[:f.stride] // reset left every counter in the capacity zero
+		return
+	}
+	f.calls = make([]seenCalls, f.stride)
+}
+
+// markSeen records a call of rule number r at pos in the dense bit set and reports whether it is
+// the first.
+func (f *firstCalls) markSeen(pos, r int) bool {
+	i := pos*f.stride + r
+	w, b := i>>6, uint64(1)<<(i&63)
+	if w >= len(f.seen) {
+		f.seen = append(f.seen, make([]uint64, max(w+1-len(f.seen), len(f.seen), 64))...)
+	}
+	if f.seen[w]&b != 0 {
+		return false
+	}
+	f.seen[w] |= b
+	return true
+}
+
+// markSparseSeen records a call of rule number r at pos in the pages of the visited regions and
+// reports whether it is the first.
+func (f *firstCalls) markSparseSeen(pos, r int) bool {
+	page := f.cachedSeenPage(pos, r)
+	if page == nil {
+		page = f.sparsePage(pos, r)
+	}
+	return markSeenPage(page, pos)
+}
+
+// cachedSeenPage and markSeenPage inline into first. Keeping allocation
+// separate avoids another function call when a rule remains in its last page.
+func (f *firstCalls) cachedSeenPage(pos, r int) *[16]uint64 {
+	if r < len(f.pages) {
+		dir := &f.pages[r]
+		if dir.at == pos>>10 {
+			return dir.last
+		}
+	}
+	return nil
+}
+
+func markSeenPage(page *[16]uint64, pos int) bool {
+	w, b := (pos>>6)&15, uint64(1)<<(pos&63)
+	first := page[w]&b == 0
+	page[w] |= b
+	return first
+}
+
+// sparsePage handles directory growth and page allocation off the hot path.
+func (f *firstCalls) sparsePage(pos, r int) *[16]uint64 {
+	if len(f.pages) != f.stride {
+		f.startPages()
+	}
+	dir := &f.pages[r]
+	at := pos >> 10
+	page := dir.last
+	if page == nil || dir.at != at {
+		pages := dir.pages
+		if at >= len(pages) {
+			f.pageBytes += uint64(at+1-len(pages)) * uint64(unsafe.Sizeof((*[16]uint64)(nil)))
+			if at < cap(pages) {
+				pages = pages[:at+1]
+			} else {
+				grown := make([]*[16]uint64, at+1, max(at+1, 2*cap(pages), 4))
+				copy(grown, pages)
+				pages = grown
+			}
+			dir.pages = pages
+		}
+		page = pages[at]
+		if page == nil {
+			page = f.bitPages.alloc()
+			f.pageBytes += uint64(unsafe.Sizeof(*page))
+			pages[at] = page
+		}
+		dir.last, dir.at = page, at
+	}
+	return page
+}
+
+// startPages gives every rule an empty page directory, reusing the storage of an earlier parse.
+func (f *firstCalls) startPages() {
+	if cap(f.pages) < f.stride {
+		f.pages = make([]seenRulePages, f.stride)
+		return
+	}
+	// reset left every directory in the capacity empty.
+	f.pages = f.pages[:f.stride]
+}
+
+// chargedBytes returns the memory count of the record (budget_memory.go): the bit set, the call
+// counters and the directory table by their length, and the directories and pages taken into use.
+// They are counted from the state that first already keeps, so that it stays inlinable, and they
+// do not depend on what an earlier parse left (reset).
+func (f *firstCalls) chargedBytes() uint64 {
+	return f.pageBytes + uint64(len(f.seen))*8 + uint64(len(f.calls))*uint64(unsafe.Sizeof(seenCalls{})) +
+		uint64(len(f.pages))*uint64(unsafe.Sizeof(seenRulePages{}))
+}
+
+// reset empties the record for another parse, keeping its storage within limit words: the parts of
+// the sparse record beyond it, its directories and complete arena chunks, are dropped, and so is a
+// bit set of more than a million words. The lengths that chargedBytes counts start from zero.
+func (f *firstCalls) reset(limit int) {
+	clear(f.seen)
+	f.seen = f.seen[:0]
+	if cap(f.seen) > 1<<20 {
+		f.seen = nil
+	}
+	clear(f.calls)
+	f.calls = f.calls[:0]
+	f.pageBytes = 0
+	f.stride, f.sparse = 0, false
+	if cap(f.pages) > limit/5 || len(f.bitPages.chunks) > limit/(64*16) || cap(f.bitPages.chunks) > limit {
+		f.pages, f.bitPages = nil, seenPageArena{}
+		return
+	}
+	words := 5*cap(f.pages) + len(f.bitPages.chunks)*64*16 + cap(f.bitPages.chunks)
+	if words <= limit {
+		for _, dir := range f.pages[:cap(f.pages)] {
+			if cap(dir.pages) > limit-words {
+				words = limit + 1
+				break
+			}
+			words += cap(dir.pages)
+		}
+	}
+	if words > limit {
+		f.pages, f.bitPages = nil, seenPageArena{}
+		return
+	}
+	for i := range f.pages {
+		dir := &f.pages[i]
+		clear(dir.pages)
+		dir.pages = dir.pages[:0] // the length of a directory is the parse's own
+		dir.last, dir.at = nil, 0
+	}
+	f.pages = f.pages[:0]
+	f.bitPages.reset()
+}
+
+// seenPageArena batches stable bit pages without one allocation per page.
+type seenPageArena struct {
+	chunks []*[64][16]uint64
+	n      int
+}
+
+func (a *seenPageArena) alloc() *[16]uint64 {
+	c := a.n / 64
+	if c == len(a.chunks) {
+		a.chunks = append(a.chunks, new([64][16]uint64))
+	}
+	page := &a.chunks[c][a.n%64]
+	a.n++
+	return page
+}
+
+func (a *seenPageArena) reset() {
+	for i := 0; i < a.n; i++ {
+		a.chunks[i/64][i%64] = [16]uint64{}
+	}
+	a.n = 0
+}

@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
-	"unsafe"
 
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
@@ -1197,58 +1196,6 @@ func (p *Parser) memoPutControlled(rule, pos, min int, key []any, ident bool, e 
 	e.next = slots[pos]
 	slots[pos] = e
 	return e
-}
-
-// controlledFirstCallPrepare grows the first-call bookkeeping of a controlled parse for the rule
-// with the seen index s at pos; the ordinary seenFirst body then runs on the grown state. It charges
-// nothing: the check is bookkeeping of a call, which paid its unit, and the record grows to the
-// positions and rules of counted calls, by doubling or by pages of 1,024 positions.
-func (p *Parser) controlledFirstCallPrepare(s, pos int) {
-	t := &p.memo
-	if t.calls == nil {
-		t.calls = make([]seenCalls, t.stride)
-		t.memBytes += uint64(t.stride) * uint64(unsafe.Sizeof(seenCalls{}))
-	}
-	if !t.calls[s].eager && t.sparse {
-		if len(t.pages) != t.stride {
-			// No step of its own: whether the directory table exists is the pooled parser's state.
-			t.pages = make([]seenRulePages, t.stride)
-			t.memBytes += uint64(t.stride) * uint64(unsafe.Sizeof(seenRulePages{}))
-		}
-		dir := &t.pages[s]
-		at := pos >> 10
-		if at >= len(dir.pages) {
-			// The directory is empty at the start of a parse, so its length is the parse's own.
-			t.memBytes += uint64(at+1-len(dir.pages)) * ptrBytes
-			dir.pages = slices.Grow(dir.pages, at+1-len(dir.pages))[:at+1]
-		}
-		if dir.pages[at] == nil {
-			// Reserve the capacity alloc appends into here.
-			if n := t.bitPages.n; n%64 == 0 {
-				if n/64 == len(t.bitPages.chunks) {
-					t.bitPages.chunks = slices.Grow(t.bitPages.chunks, 1)
-				}
-			}
-			dir.pages[at] = t.bitPages.alloc()
-			t.memBytes += uint64(unsafe.Sizeof(*dir.pages[at]))
-		}
-		dir.last, dir.at = dir.pages[at], at
-	} else if !t.calls[s].eager {
-		w := (pos*t.stride + s) >> 6
-		if w >= len(t.seen) {
-			n := len(t.seen) + max(w+1-len(t.seen), len(t.seen), 64)
-			t.memBytes += uint64(n-len(t.seen)) * 8
-			seen := t.seen
-			if n <= cap(seen) {
-				seen = seen[:n]
-				clear(seen[len(t.seen):])
-			} else {
-				seen = make([]uint64, n)
-				copy(seen, t.seen)
-			}
-			t.seen = seen
-		}
-	}
 }
 
 // Graph helpers account for normal construction and capture restoration.

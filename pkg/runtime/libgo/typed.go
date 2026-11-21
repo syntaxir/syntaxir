@@ -762,13 +762,10 @@ var tpool sync.Pool
 func (p *TParser) recycle() {
 	q := p.Parser
 	q.Observation.release()
-	memo := memoTable{seen: q.memo.seen, calls: q.memo.calls, pages: q.memo.pages, bitPages: q.memo.bitPages}
+	memo := memoTable{firstCalls: q.memo.firstCalls}
 	// Retain useful sparse pages for large inputs, capped at 32 MiB of backing
 	// storage. The next small parse trims this cache when it finishes.
-	memo.resetSeen(max(1<<20, min(q.n, 4<<20)))
-	// The words of the first-call bits are charged when a parse extends them, so a parse starts
-	// from none, as after Parser.release; only the capacity is kept.
-	memo.seen = memo.seen[:0]
+	memo.reset(max(1<<20, min(q.n, 4<<20)))
 	in, offs := q.In[:0], q.offs[:0]
 	if cap(in) > 1<<20 { // do not keep the buffers of a large input for every later parse
 		in, offs = nil, nil

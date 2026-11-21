@@ -808,7 +808,7 @@ func (p *Parser) release() {
 	for _, c := range m.chunks[:m.used] {
 		clear(c)
 	}
-	m.resetSeen(1 << 20)
+	m.reset(1 << 20)
 	clear(p.KidStack[:cap(p.KidStack)])
 	clear(p.Trail[:cap(p.Trail)])
 	clear(p.saved[:cap(p.saved)])
@@ -820,7 +820,7 @@ func (p *Parser) release() {
 	if cap(in) > 1<<20 { // do not keep the buffers of a large input for every later parse
 		in, offs = nil, nil
 	}
-	memo := memoTable{slots: m.slots[:0], chunks: m.chunks, seen: m.seen[:0], calls: m.calls, pages: m.pages, bitPages: m.bitPages}
+	memo := memoTable{slots: m.slots[:0], chunks: m.chunks, firstCalls: m.firstCalls}
 	if discardMemo {
 		memo = memoTable{}
 	}
@@ -1022,9 +1022,6 @@ type documentStats struct {
 func (p *Parser) setGrammar(g *grammar) {
 	p.g, p.sourceInfo, p.memo.stride = g, g.SourceInfo, g.nseen
 	p.Env, p.envDepth = g.initEnv, g.envDepth
-	if len(p.memo.calls) != g.nseen {
-		p.memo.calls = nil // kept from a parse with another rule table
-	}
 }
 
 // documentTouch records that the active rule call of a parse that tracks the examined input (track)
@@ -1087,17 +1084,8 @@ type memoTable struct {
 	// chunks are the areas slab came from, kept for later parses (release); used counts those in use.
 	chunks [][]memoEntry
 	used   int
-	// seen is a bit set of the (position, rule) pairs called once (FirstCall), with stride bits per
-	// position.
-	seen   []uint64
-	stride int
-	sparse bool // selected once from rule count and input length
-	// Large rule tables allocate only visited per-rule 1,024-position regions.
-	pages    []seenRulePages
-	bitPages seenPageArena
-	// calls counts, per rule number, the calls and the repeated calls at a position; once repeats
-	// are frequent, the rule is memoized on the first call (eager).
-	calls []seenCalls
+	// firstCalls records the calls whose memoization the parse defers (FirstCall).
+	firstCalls
 	// free links entries retired by stream memo pruning through next.
 	free *memoEntry
 	// shifts holds, for each entry that an edit of a Document moved (splice), how far the positions in
@@ -1111,198 +1099,13 @@ type memoTable struct {
 	index map[int]memoIndex[memoEntry]
 	// indexBytes counts the bytes of index, for the memory limit (chargedBytes).
 	indexBytes uint64
-	// memBytes counts the bytes of the slots and first-call tables the table has taken into use
-	// (chargedBytes).
+	// memBytes counts the bytes of the slots the table has taken into use (chargedBytes).
 	memBytes uint64
 }
 
-// seenRulePages caches the last visited page beside its directory. Most calls
-// of a rule stay within one region, avoiding a second dependent pointer lookup.
-type seenRulePages struct {
-	pages []*[16]uint64
-	last  *[16]uint64
-	at    int
-}
-
-type seenCalls struct {
-	calls, repeats int32
-	eager          bool
-}
-
-// seenFirst records a call of the rule with the seen index s at pos and reports whether its
-// memoization is deferred (seen.first): it is the first call there, and repeated calls of the rule
-// have been rare so far. FirstCall decides whether the parse and the rule defer at all.
-func (p *Parser) seenFirst(s, pos int) bool {
-	if usedFeatures&featureBudget != 0 && p.Control != nil {
-		p.controlledFirstCallPrepare(s, pos)
-	}
-	t := &p.memo
-	if t.calls == nil {
-		t.calls = make([]seenCalls, t.stride)
-	}
-	c := &t.calls[s]
-	if c.eager {
-		return false
-	}
-	// Discount old observations before the compact counters can wrap. Eager
-	// mode is sticky; this estimator only chooses when to enter it.
-	calls := uint32(c.calls) + 1
-	if calls&(1<<31) != 0 {
-		calls >>= 1
-		c.repeats >>= 1
-	}
-	c.calls = int32(calls)
-	var first bool
-	if t.sparse {
-		page := t.cachedSeenPage(pos, s)
-		if page == nil {
-			page = t.sparsePage(pos, s)
-		}
-		first = markSeenPage(page, pos)
-	} else {
-		first = t.markSeen(pos, s)
-	}
-	if first {
-		return true
-	}
-	// Deferring costs an extra evaluation for each position where the rule is called again, and
-	// saves a memo entry for each position where it is not.
-	c.repeats++
-	if c.repeats > c.calls>>4 {
-		c.eager = true
-	}
-	return false
-}
-
-// seenPageArena batches stable bit pages without one allocation per page.
-type seenPageArena struct {
-	chunks []*[64][16]uint64
-	n      int
-}
-
-func (a *seenPageArena) alloc() *[16]uint64 {
-	c := a.n / 64
-	if c == len(a.chunks) {
-		a.chunks = append(a.chunks, new([64][16]uint64))
-	}
-	page := &a.chunks[c][a.n%64]
-	a.n++
-	return page
-}
-
-func (a *seenPageArena) reset() {
-	for i := 0; i < a.n; i++ {
-		a.chunks[i/64][i%64] = [16]uint64{}
-	}
-	a.n = 0
-}
-
-// resetSeen clears first-call state and bounds sparse scratch storage by limit
-// words, including unused directories and complete arena chunks.
-func (t *memoTable) resetSeen(limit int) {
-	clear(t.seen)
-	clear(t.calls)
-	if cap(t.seen) > 1<<20 {
-		t.seen = nil
-	}
-	if cap(t.pages) > limit/5 || len(t.bitPages.chunks) > limit/(64*16) || cap(t.bitPages.chunks) > limit {
-		t.pages, t.bitPages = nil, seenPageArena{}
-		return
-	}
-	words := 5*cap(t.pages) + len(t.bitPages.chunks)*64*16 + cap(t.bitPages.chunks)
-	if words <= limit {
-		for _, dir := range t.pages {
-			if cap(dir.pages) > limit-words {
-				words = limit + 1
-				break
-			}
-			words += cap(dir.pages)
-		}
-	}
-	if words > limit {
-		t.pages, t.bitPages = nil, seenPageArena{}
-		return
-	}
-	for i := range t.pages {
-		dir := &t.pages[i]
-		clear(dir.pages)
-		dir.pages = dir.pages[:0] // the length of a directory is the parse's own
-		dir.last, dir.at = nil, 0
-	}
-	t.bitPages.reset()
-}
-
-func (t *memoTable) markSeen(pos, r int) bool {
-	i := pos*t.stride + r
-	w, b := i>>6, uint64(1)<<(i&63)
-	if w >= len(t.seen) {
-		t.seen = append(t.seen, make([]uint64, max(w+1-len(t.seen), len(t.seen), 64))...)
-	}
-	if t.seen[w]&b != 0 {
-		return false
-	}
-	t.seen[w] |= b
-	return true
-}
-
-// markSparseSeen records only visited per-rule regions, with page allocation
-// batched to keep the directory savings from adding one allocation per page.
-func (t *memoTable) markSparseSeen(pos, r int) bool {
-	page := t.cachedSeenPage(pos, r)
-	if page == nil {
-		page = t.sparsePage(pos, r)
-	}
-	return markSeenPage(page, pos)
-}
-
-// cachedSeenPage and markSeenPage inline into FirstCall. Keeping allocation
-// separate avoids another function call when a rule remains in its last page.
-func (t *memoTable) cachedSeenPage(pos, r int) *[16]uint64 {
-	if r < len(t.pages) {
-		dir := &t.pages[r]
-		if dir.at == pos>>10 {
-			return dir.last
-		}
-	}
-	return nil
-}
-
-func markSeenPage(page *[16]uint64, pos int) bool {
-	w, b := (pos>>6)&15, uint64(1)<<(pos&63)
-	first := page[w]&b == 0
-	page[w] |= b
-	return first
-}
-
-// sparsePage handles directory growth and page allocation off the hot path.
-func (t *memoTable) sparsePage(pos, r int) *[16]uint64 {
-	if len(t.pages) != t.stride {
-		t.pages = make([]seenRulePages, t.stride)
-	}
-	dir := &t.pages[r]
-	at := pos >> 10
-	page := dir.last
-	if page == nil || dir.at != at {
-		pages := dir.pages
-		if at >= len(pages) {
-			if at < cap(pages) {
-				pages = pages[:at+1]
-			} else {
-				grown := make([]*[16]uint64, at+1, max(at+1, 2*cap(pages), 4))
-				copy(grown, pages)
-				pages = grown
-			}
-			dir.pages = pages
-		}
-		page = pages[at]
-		if page == nil {
-			page = t.bitPages.alloc()
-			pages[at] = page
-		}
-		dir.last, dir.at = page, at
-	}
-	return page
-}
+// sparseMemo enables the sparse first-call record (firstCalls.sparse); the library has no build
+// without it.
+const sparseMemo = true
 
 type memoEntry struct {
 	node     *sxirvalue.Node

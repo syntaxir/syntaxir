@@ -76,9 +76,6 @@ func (c *BudgetControl) AttachMemory(p *Parser) {
 	p.NodeSlab, p.PtrSlab, p.fieldSlab, p.FrameSlab = nil, nil, nil, nil
 	if p.Scratch != nil {
 		p.KidStack = nil
-		// The sparse first-call directory keeps its length across pooled parses; start it
-		// empty so that its pages are charged as they are taken.
-		p.Memo.Pages = nil
 	}
 }
 

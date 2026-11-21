@@ -70,8 +70,6 @@ func (c *BudgetControl) attachMemory(p *Parser) {
 	p.nodeSlab, p.ptrSlab, p.fieldSlab, p.frameSlab = nil, nil, nil, nil
 	p.KidStack, p.Trail, p.saved, p.exp, p.arena = nil, nil, nil, nil, nil
 	p.captureScratch.large = 0
-	// The first-call tables are charged when the parse makes them; a pooled parser keeps them.
-	p.memo.calls, p.memo.pages = nil, nil
 }
 
 // attachTypedMemory is attachMemory for a typed parse, whose values come from the arenas of p and
@@ -113,10 +111,10 @@ func (c *BudgetControl) memoryUsed() uint64 {
 }
 
 // chargedBytes returns the memory count of the memo table: the entry chunks in use, whether kept
-// from an earlier parse or new, counted from used, which alloc already keeps, and the slots and
-// first-call tables it has taken (memBytes), and the hash indexes of long chains (indexBytes).
+// from an earlier parse or new, counted from used, which alloc already keeps, the slots it has taken
+// (memBytes), the record of first calls, and the hash indexes of long chains (indexBytes).
 func (t *memoTable) chargedBytes() uint64 {
-	return t.memBytes + t.indexBytes + uint64(t.used)*256*memoEntryBytes
+	return t.memBytes + t.firstCalls.chargedBytes() + t.indexBytes + uint64(t.used)*256*memoEntryBytes
 }
 
 // bytes returns the bytes of the capture scratch in use: the chunks of frames and slots the

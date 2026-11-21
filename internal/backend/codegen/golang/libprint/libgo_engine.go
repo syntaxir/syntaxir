@@ -417,7 +417,7 @@ func engineTarget() *print.Target {
 		case "seen.defers":
 			return "p.DeferMemo"
 		case "seen.first":
-			return "p.memoFirstCall(" + a[1] + ", " + a[0] + ")"
+			return "p.Memo.first(" + a[1] + ", " + a[0] + ")"
 		case "call.state":
 			return "&CallState{}"
 		case "call.save":

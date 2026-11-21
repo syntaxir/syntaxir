@@ -31,7 +31,7 @@ func TestAdaptiveMemoCounters(t *testing.T) {
 				{"rescale above threshold", maxCalls, 1 << 27, true, 1 << 30, 1<<26 + 1, true},
 			} {
 				t.Run(tc.name, func(t *testing.T) {
-					p := Parser{memo: memoTable{stride: 1, sparse: mode == "sparse"}, deferMemo: true}
+					p := Parser{memo: memoTable{firstCalls: firstCalls{stride: 1, sparse: mode == "sparse"}}, deferMemo: true}
 					r := &Rule{Seen: 0}
 					if tc.repeat {
 						if p.memo.sparse {
@@ -52,6 +52,17 @@ func TestAdaptiveMemoCounters(t *testing.T) {
 						t.Fatal("eager mode resumed counting")
 					}
 				})
+			}
+
+			p := Parser{memo: memoTable{firstCalls: firstCalls{stride: 1, sparse: mode == "sparse", calls: []seenCalls{{calls: maxCalls}}}}, deferMemo: true}
+			r := &Rule{Seen: 0}
+			if !p.FirstCall(r) || p.FirstCall(r) || p.memo.calls[0].eager {
+				t.Fatal("fresh then repeated calls became eager after rescaling")
+			}
+			p.memo.reset(1 << 20)
+			p.memo.stride, p.memo.sparse = 1, mode == "sparse"
+			if !p.FirstCall(r) || p.memo.calls[0].eager {
+				t.Fatal("reset retained adaptive state or seen bits")
 			}
 		})
 	}

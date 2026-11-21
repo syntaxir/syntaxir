@@ -70,17 +70,17 @@ func seedSeenTable(words, capacity int) *MemoTable {
 	for i := range seen {
 		seen[i] = uint64(i+1) * 0x9e3779b97f4a7c15
 	}
-	return &MemoTable{Stride: 1, Seen: seen}
+	return &MemoTable{firstCalls: firstCalls{stride: 1, seen: seen}}
 }
 
 // Growing the record of first calls by an allocation charges nothing, as the record does not
 // (seen.first), and keeps the words recorded before.
 func TestBudgetMemoSeenGrowthChargesNothing(t *testing.T) {
 	table := seedSeenTable(512, 512)
-	old := append([]uint64(nil), table.Seen...)
+	old := append([]uint64(nil), table.seen...)
 	p := memoStorageParser(table, runtime.Limits{Compute: 1})
 	var deferred bool
-	if err := catchFatal(t, func() { deferred = p.memoFirstCall(512*64, 0) }); err != nil {
+	if err := catchFatal(t, func() { deferred = p.Memo.first(512*64, 0) }); err != nil {
 		t.Fatalf("a first call that grows the record under a limit of one unit: %v", err)
 	}
 	if !deferred {
@@ -89,10 +89,10 @@ func TestBudgetMemoSeenGrowthChargesNothing(t *testing.T) {
 	if used := p.Control.Used; used != 0 {
 		t.Fatalf("a first call that grows the record charged %d units, want 0", used)
 	}
-	if len(table.Seen) <= 512 || table.Seen[512]&(1<<0) == 0 {
-		t.Fatalf("growth did not publish the requested bit: len=%d word=%#x", len(table.Seen), table.Seen[512])
+	if len(table.seen) <= 512 || table.seen[512]&(1<<0) == 0 {
+		t.Fatalf("growth did not publish the requested bit: len=%d word=%#x", len(table.seen), table.seen[512])
 	}
-	if !reflect.DeepEqual(table.Seen[:512], old) {
+	if !reflect.DeepEqual(table.seen[:512], old) {
 		t.Fatal("growth changed the words recorded before")
 	}
 }
@@ -101,14 +101,14 @@ func TestBudgetMemoSeenGrowthChargesNothing(t *testing.T) {
 // nothing, whatever the capacity.
 func TestBudgetMemoSeenSpareCapacityIsCleared(t *testing.T) {
 	table := seedSeenTable(512, 1024)
-	backing := table.Seen[:cap(table.Seen)]
+	backing := table.seen[:cap(table.seen)]
 	for i := 512; i < len(backing); i++ {
 		backing[i] = ^uint64(0)
 	}
-	old := append([]uint64(nil), table.Seen...)
+	old := append([]uint64(nil), table.seen...)
 	p := memoStorageParser(table, runtime.Limits{Compute: 1})
 	var deferred bool
-	if err := catchFatal(t, func() { deferred = p.memoFirstCall(512*64, 0) }); err != nil {
+	if err := catchFatal(t, func() { deferred = p.Memo.first(512*64, 0) }); err != nil {
 		t.Fatalf("a first call that grows into spare capacity under a limit of one unit: %v", err)
 	}
 	if !deferred {
@@ -117,15 +117,15 @@ func TestBudgetMemoSeenSpareCapacityIsCleared(t *testing.T) {
 	if used := p.Control.Used; used != 0 {
 		t.Fatalf("a first call that grows into spare capacity charged %d units, want 0", used)
 	}
-	if table.Seen[512] != 1 {
-		t.Fatalf("grown seen bit word = %#x, want 1", table.Seen[512])
+	if table.seen[512] != 1 {
+		t.Fatalf("grown seen bit word = %#x, want 1", table.seen[512])
 	}
-	for i := 513; i < len(table.Seen); i++ {
-		if table.Seen[i] != 0 {
-			t.Fatalf("growth left word %d of the spare capacity uncleared: %#x", i, table.Seen[i])
+	for i := 513; i < len(table.seen); i++ {
+		if table.seen[i] != 0 {
+			t.Fatalf("growth left word %d of the spare capacity uncleared: %#x", i, table.seen[i])
 		}
 	}
-	if !reflect.DeepEqual(table.Seen[:512], old) {
+	if !reflect.DeepEqual(table.seen[:512], old) {
 		t.Fatal("growth changed the words recorded before")
 	}
 }
@@ -134,16 +134,16 @@ func TestBudgetMemoSeenSpareCapacityIsCleared(t *testing.T) {
 // unit would observe leaves the call to finish and grow the record, and the next unit observes it.
 func TestBudgetMemoSeenGrowthReachesNoPoll(t *testing.T) {
 	table := seedSeenTable(512, 512)
-	old := append([]uint64(nil), table.Seen...)
+	old := append([]uint64(nil), table.seen...)
 	ctx := newPollingContext(1)
 	p := memoStorageParser(table, runtime.Limits{})
 	p.Control = NewBudgetControl(ctx, runtime.Limits{})
 	// The next unit reaches the next poll.
 	p.Control.SinceCheck = BudgetCheckInterval - 1
-	if err := catchFatal(t, func() { p.memoFirstCall(512*64, 0) }); err != nil {
+	if err := catchFatal(t, func() { p.Memo.first(512*64, 0) }); err != nil {
 		t.Fatalf("a first call that grows the record before a poll: %v", err)
 	}
-	if len(table.Seen) <= 512 || table.Seen[512]&(1<<0) == 0 || !reflect.DeepEqual(table.Seen[:512], old) {
+	if len(table.seen) <= 512 || table.seen[512]&(1<<0) == 0 || !reflect.DeepEqual(table.seen[:512], old) {
 		t.Fatal("the first call did not grow the record")
 	}
 	if err := catchFatal(t, func() { p.Spend() }); !errors.Is(err, context.Canceled) {
@@ -152,11 +152,11 @@ func TestBudgetMemoSeenGrowthReachesNoPoll(t *testing.T) {
 }
 
 func cloneSeenTable(t *MemoTable) *MemoTable {
-	return &MemoTable{
-		Seen:   append([]uint64(nil), t.Seen...),
-		Stride: t.Stride,
-		Calls:  append([]SeenCalls(nil), t.Calls...),
-	}
+	return &MemoTable{firstCalls: firstCalls{
+		seen:   append([]uint64(nil), t.seen...),
+		stride: t.stride,
+		calls:  append([]seenCalls(nil), t.calls...),
+	}}
 }
 
 func compareFirstCallParity(t *testing.T, seed *MemoTable, calls [][2]int) {
@@ -165,16 +165,16 @@ func compareFirstCallParity(t *testing.T, seed *MemoTable, calls [][2]int) {
 	got := cloneSeenTable(seed)
 	p := memoStorageParser(got, runtime.Limits{Compute: 100_000})
 	for i, call := range calls {
-		expected := want.firstCall(call[0], call[1])
-		actual := p.memoFirstCall(call[0], call[1])
-		if actual != expected || !reflect.DeepEqual(got.Seen, want.Seen) || !reflect.DeepEqual(got.Calls, want.Calls) {
-			t.Fatalf("call %d (%d,%d): controlled=%t state=%#v/%#v, raw=%t state=%#v/%#v", i, call[0], call[1], actual, got.Calls, got.Seen, expected, want.Calls, want.Seen)
+		expected := want.first(call[0], call[1])
+		actual := p.Memo.first(call[0], call[1])
+		if actual != expected || !reflect.DeepEqual(got.seen, want.seen) || !reflect.DeepEqual(got.calls, want.calls) {
+			t.Fatalf("call %d (%d,%d): controlled=%t state=%#v/%#v, raw=%t state=%#v/%#v", i, call[0], call[1], actual, got.calls, got.seen, expected, want.calls, want.seen)
 		}
 	}
 }
 
 func TestBudgetMemoFirstCallMatchesAdaptiveEstimator(t *testing.T) {
-	seed := &MemoTable{Stride: 4}
+	seed := &MemoTable{firstCalls: firstCalls{stride: 4}}
 	var calls [][2]int
 	for i := 0; i < 48; i++ {
 		calls = append(calls, [2]int{0, 1})
@@ -186,10 +186,10 @@ func TestBudgetMemoFirstCallMatchesAdaptiveEstimator(t *testing.T) {
 
 	// Seed a repeated key just below the signed counter ceiling. The next increment
 	// crosses the high bit, so the raw estimator must discount both counters.
-	nearCeiling := &MemoTable{
-		Stride: 4,
-		Calls:  []SeenCalls{{}, {calls: int32(1<<31 - 1)}},
-	}
-	nearCeiling.MarkSeen(3, 1)
+	nearCeiling := &MemoTable{firstCalls: firstCalls{
+		stride: 4,
+		calls:  []seenCalls{{}, {calls: int32(1<<31 - 1)}},
+	}}
+	nearCeiling.markSeen(3, 1)
 	compareFirstCallParity(t, nearCeiling, [][2]int{{3, 1}, {3, 1}})
 }

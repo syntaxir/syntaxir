@@ -76,7 +76,7 @@ func (p *Parser) FirstCall(r *Rule) bool {
 	if !(p.DeferMemo && s >= 0) {
 		return false
 	}
-	return p.memoFirstCall(p.Pos, s)
+	return p.Memo.first(p.Pos, s)
 }
 
 // callDoc is engineCall for a parse that reads a Document. Under the default limit, what a

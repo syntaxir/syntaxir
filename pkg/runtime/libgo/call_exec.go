@@ -127,7 +127,7 @@ func (p *Parser) FirstCall(r *Rule) bool {
 	if !(p.deferMemo && s >= 0) {
 		return false
 	}
-	return p.seenFirst(s, p.Pos)
+	return p.memo.first(p.Pos, s)
 }
 
 // firstCall records a call of the memoized rule r at the position and reports whether its
@@ -145,7 +145,7 @@ func (p *TParser) firstCall(r *TRule) bool {
 	if !(p.deferMemo && s >= 0) {
 		return false
 	}
-	return p.seenFirst(s, p.Pos)
+	return p.memo.first(p.Pos, s)
 }
 
 // grow grows the seed of a left-recursive leader from a failure: it evaluates the body again while

@@ -407,7 +407,7 @@ func goTarget(s goSpec) *print.Target {
 			// Set once at the start of a parse: a stream or a Document parse memoizes on the first call.
 			return "p.deferMemo"
 		case "seen.first":
-			return "p.seenFirst(" + a[0] + ", " + a[1] + ")"
+			return "p.memo.first(" + a[1] + ", " + a[0] + ")"
 		case "rule.memo":
 			return a[0] + ".Memo"
 		case "rule.leader":
