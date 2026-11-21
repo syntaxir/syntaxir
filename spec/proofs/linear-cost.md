@@ -4464,6 +4464,78 @@ which it does not, since the call of $Z$ reads no growth open at its
 start. And $z^\circ$ ends before $e^{k\prime}$ starts, so before $\mathcal{R}(Z)$ starts. By the
 heads in the reference parse, $Z$ is not the head of its class. $\square$
 
+**Earlier calls in the reference parse.** Let $c$ and $c'$ be evaluations in
+$\mathcal{R}$ of calls at which the parse memoizes their rule, with $c$ ending
+before $c'$ starts, that take the same steps up to the variants of their
+calls, and let a read inside $c$ of a growth open at the start of $c$ be, at
+the same place in $c'$, a read of a growth open at the start of $c'$. Let an
+evaluation $Z$ of a key in the parse hold the activation whose counterpart is
+a successful activation $\beta'$ of $\sigma$ at $q$ in $c'$. Then $Z$ is not
+the head of its class, outside cases (a) and (b) of the covered keys. This
+holds whether or not the parse evaluates the call of $c'$.
+
+*Proof.* As in the proof of *Reference links lead to repeated evaluations*,
+with $c$ and $c'$ in the place of $e^k$ and $e^{k\prime}$: $\mathcal{R}(Z)$ is
+$c'$ or lies inside it, and the call $z^\circ$ at the same place in $c$ has a
+key of the class of $Z$ and holds an activation at the place of $\beta'$. If
+$z^\circ$ read a growth open at its start, $\mathcal{R}(Z)$, taking the same
+steps, would read one at the same place: a growth open at the start of $c$
+by the hypothesis, since a growth open at the start of $c'$ encloses
+$\mathcal{R}(Z)$, and one that started inside $c$ before $z^\circ$ through the
+one that started at the same place inside $c'$. An evaluation of a key reads
+none. $z^\circ$ ends before $c'$ starts, so before $\mathcal{R}(Z)$ starts,
+and the heads in the reference parse give the claim. $\square$
+
+The claim applies to some of the activations of $\mathcal{R}$ that a path
+that enters the growth again leads to inside the alternative that the path
+evaluates again. Let $A$ be the alternative at $p$ that the path leaves out
+of condition 2 and $X$ the body evaluation that holds it. When a growth of
+the cycle is in progress at $p$, the call of the leader that the path
+reaches reads its growing result and evaluates no body again; this remark
+treats only the other case, where that call starts a growth $G$ at $p$ in
+$\mathcal{R}$, which stores no result. Let $A'$ be the evaluation of $A$ in
+a step of $G$, let $\beta'$ lie in $A'$, and let $A'$ be evaluated at the
+binding level of $A$ and read, at each place, the values of the variables
+and captures that $A$ reads there. That last hypothesis is not shown,
+for the binding level or for the values: a capture can hold a growing
+result, as `c` does in `r = &(c:L) ({len($c) > 1} s "!" / L)` with
+`L = r "x" / "a"`, and $A'$ can then branch otherwise than $A$. By the
+[condition](../runtime/parsing.md#conditions-for-linear-cost), $A$ makes no
+left call of the cycle of $G$ and evaluates its scanning sources only inside
+calls that are memoized at the call and read no variable. A call inside $A'$
+that reads a growth of the cycle at $p$ is a call at $p$ of a rule of the
+cycle, which $A'$ reaches through left calls, and so a left call of the
+cycle; so $A'$ reads no growing result of the cycle. The growths open at the
+start of $A'$ are those open at the start of $A$, which enclose $X$, and so
+$G$ and $A'$, in the same step, with the same growing results, and growths
+at $p$ that started after $A$ failed: $G$, the growths of other leaders of
+the cycle that the path starts before $G$, and those that started inside
+the step of $G$ before $A'$ and enclose it, whose leaders are reached from a
+rule of the cycle by left calls and reach the rule of $A$ by left calls, so
+are of the cycle too. $A'$ reads none of the latter. So $A$ and $A'$ read
+the same growing results and values at the same places and take the same
+steps up to the variants of their calls, as in the proof of *Reference
+links*. $\beta'$ lies in a call $c'$ of $A'$ at which the parse memoizes the
+rule; let $c$ be the call at its place in $A$, which ends before $A$ fails,
+so before the path starts $G$ and $c'$ starts. A read inside $c$ of a growth
+open at the start of $c$ reads a growth open at the start of $A$, which is
+open at the start of $c'$, or one that started inside $A$ before $c$, for
+which the growth that started at the same place inside $A'$ is open at the
+start of $c'$. So the claim gives that an evaluation of a key that holds the
+activation whose counterpart is $\beta'$ is no head, outside cases (a) and
+(b) of the covered keys on the path of *Heads in the reference parse* to
+the call $z^\circ$ of its proof. An activation of $\mathcal{R}$ is **of an
+entered alternative** when it is such a $\beta'$: it lies in an evaluation
+$A'$, in a step of a growth $G$ that a path that enters the growth again
+starts, of the alternative $A$ that the path leaves out of condition 2, and
+$A'$ is evaluated at the binding level of $A$ and reads the values that $A$
+reads. This does not reach an activation that
+the path leads to elsewhere in the steps of $G$, in a part of the bodies of
+the cycle before a left call or after a read of the growing result, nor the
+activations that a dropped step at the position of its growth leads to:
+there the earlier evaluation of a call at the same place, when there is
+one, can read another growing result or none.
+
 **Links lead to repeated evaluations.** Let the $i$-th link of $\sigma$ at $q$
 be memoized, and let every growth at the position of the link that is open at
 the start of $e_i$ or of $e'_i$ be open at the start of both or be read by
@@ -4675,10 +4747,14 @@ activation has no reference link when a dropped step at the position of its
 growth or a path that enters a growth again of
 $\mathcal{R}$ leads to it. When it has one, of a memoized
 rule as every link here is, by *Reference links lead to repeated evaluations*
-$\alpha_i$ is held by a head only with case (a) or (b) on its path.
+$\alpha_i$ is held by a head only with case (a) or (b) on its path. When it
+is one of an entered alternative, by the remark after *Earlier calls in the
+reference parse* $\alpha_i$ is held by a head only with case (a) or (b) on
+the path to the call $z^\circ$ of that claim.
 When no link of $\sigma$ at $q$ has either case on its path and every free $\alpha_i$
 other than $\alpha_1$ is the counterpart of an activation with a reference
-link, with neither case on its path, at most one of the
+link, with neither case on its path, or of one of an entered alternative,
+with neither case on the path to $z^\circ$, at most one of the
 $\alpha_i$ is held by a head, memoized or in a context of growths. This claim counts nothing: it rests on the links and
 on the claims before it other than *Activations that do not succeed*, and holds
 whoever owns the $\alpha_i$.
@@ -4809,8 +4885,8 @@ Steps](#open-steps).
 exact, (R1) of the [Setting](#setting), *Answered calls*, *Steps with an
 empty seed*, *Reference links* and *Links to heads* hold as stated, and
 *Covered keys*, *Heads in the reference parse*, *Reference links lead to
-repeated evaluations*, *Links lead to repeated evaluations*, *Nothing in a
-memoized link is a head* and *Evaluated pairs of a shared call* hold with
+repeated evaluations*, *Earlier calls in the reference parse*, *Links lead
+to repeated evaluations*, *Nothing in a memoized link is a head* and *Evaluated pairs of a shared call* hold with
 case (d) of the covered keys beside cases (a) and (b). Case (d) arises only
 as follows, where an iteration **of the kind** is an iteration of a walk of
 a site that keeps records.
@@ -4820,7 +4896,8 @@ a site that keeps records.
 2. In *Heads in the reference parse*, only when $z$ lies in $\mathcal{R}$
    in an iteration of the kind. In *Reference links lead to repeated
    evaluations*, only when $Z$ lies in an iteration of the kind, or $e^k$
-   does in $\mathcal{R}$.
+   does in $\mathcal{R}$, and in *Earlier calls in the reference parse*,
+   only when $Z$ lies in one, or $c$ does in $\mathcal{R}$.
 3. In *Links lead to repeated evaluations*, *Nothing in a memoized link is
    a head* and *Evaluated pairs of a shared call*, only when $Z$ lies,
    inside $e'_i$ or $E_2$, in an iteration of the kind. So it does not
@@ -4839,7 +4916,7 @@ full (the [two parses](memoization.md#setting) of the memoization proof);
 the parse enters where a claim takes an activation of the parse as the
 counterpart of one of $\mathcal{R}$, which *Counterparts* gives of a parse
 that keeps records. The proof of *Covered keys* above treats case (d), and
-the proofs of the five claims after it use of the parse, beside *Covered
+the proofs of the six claims after it use of the parse, beside *Covered
 keys*, *Counterparts*, *Restarts*, *Repeats* and *Answered calls*, only
 which calls it evaluates, what they read and in what order. Where the
 innermost evaluation that contains the two activations of a link is a
@@ -4886,7 +4963,9 @@ $\mathcal{R}(Z)$ lies in $e^{k\prime}$. An iteration of the kind that
 contains $z^\circ$ contains $e^k$ or lies inside it. One that lies inside
 it corresponds, in the same steps, to an iteration of the same repetition
 inside $e^{k\prime}$ that contains $\mathcal{R}(Z)$, and then $Z$ lies in
-an iteration of the kind, by the paragraph above.
+an iteration of the kind, by the paragraph above. The same holds in
+*Earlier calls in the reference parse*, with $c$ and $c'$ in the place of
+$e^k$ and $e^{k\prime}$.
 
 3\. In *Links lead to repeated evaluations* the covered keys are applied
 with $e_i$ as $x$, which the parse evaluates, and with the call $z^\circ$
@@ -5066,9 +5145,10 @@ so:
    at an iteration $\iota$ that a record answers, into the iteration
    $\mathcal{R}(\iota_0)$ of 1. Case (c) does not arise when $z$ holds an
    activation at any depth.
-3. *Heads.* *Heads in the reference parse* and *Reference links lead to
-   repeated evaluations* hold outside cases (a) and (b) on their paths
-   followed through the records, with no case (d). So a free activation
+3. *Heads.* *Heads in the reference parse*, *Reference links lead to
+   repeated evaluations* and *Earlier calls in the reference parse* hold
+   outside cases (a) and (b) on their paths followed through the records,
+   with no case (d). So a free activation
    whose reference link has case (d) on its path is held by no head,
    unless case (a) or (b) arises on that path followed through the records.
 
@@ -5181,8 +5261,9 @@ the class of $z$ before $\iota_0$ ended. In each case $Z$ is not the
 first of its class. The proof of *Reference links lead to repeated
 evaluations* applies *Heads in the reference parse* to the call $z^\circ$
 of $e^k$, which holds an activation, reads no growth open at its start and
-ends before $\mathcal{R}(Z)$ starts, and uses nothing else of the parse.
-$\square$
+ends before $\mathcal{R}(Z)$ starts, and uses nothing else of the parse;
+so does the proof of *Earlier calls in the reference parse*, with the call
+$z^\circ$ of $c$. $\square$
 
 The claim counts nothing, and it changes no path of a link: *Heads in a
 parse that keeps records* shows that no link of an activation of
@@ -5239,10 +5320,10 @@ stored and resumed so:
    comes from an earlier parse is case (a), whose definition names it,
    since what answers it was stored by an earlier parse, as an entry of
    case (a) was.
-3. *Heads.* *Heads in the reference parse* and *Reference links lead to
-   repeated evaluations* hold outside cases (a) and (b) on their paths
-   followed through the records and the resumed runs, with no case (d)
-   or (e). So a free activation whose reference link has case (e) on its
+3. *Heads.* *Heads in the reference parse*, *Reference links lead to
+   repeated evaluations* and *Earlier calls in the reference parse* hold
+   outside cases (a) and (b) on their paths followed through the records
+   and the resumed runs, with no case (d) or (e). So a free activation whose reference link has case (e) on its
    path is held by no head, unless case (a) or (b) arises on that path
    followed through the records and the resumed runs.
 
@@ -5316,7 +5397,8 @@ started, and by 2 with $x = \iota_0$ and the call at the place of $z$ in
 $\mathcal{R}(\iota_0)$ it made an evaluation of a key of the class of $z$
 before $\iota_0$ ended. So $Z$ is not the first of its class. The proof of
 *Reference links lead to repeated evaluations* uses nothing else of the
-parse, as there. $\square$
+parse, as there, nor does that of *Earlier calls in the reference
+parse*. $\square$
 
 The claim counts nothing and changes no path of a link: *Heads in a parse
 that resumes runs* shows that no link of an activation of *Replayed
@@ -6326,14 +6408,18 @@ The proofs use nothing else of the parse. $\square$
 **Activations held by heads.** Let no link of $\sigma$ at $q$ have case (a) or
 (b) of the covered keys on its path, and let every free $\alpha_i$ other than $\alpha_1$ be the
 counterpart of an activation of $\mathcal{R}$ that has a reference link with
-neither case (a) nor (b) on its path, or that a dropped step at the position of its growth
+neither case (a) nor (b) on its path, that is one of an entered alternative
+with neither case on the path to the call $z^\circ$ of *Earlier calls in the
+reference parse*, or that a dropped step at the position of its growth
 or a path that enters a growth again of $\mathcal{R}$ leads to. Then, by the replayed
 activations and since a class has at most six
 memoized evaluations, the successful activations of
 $\sigma$ at $q$ held by memoized evaluations are at most six times those
 held by heads, which are $\alpha_1$, those that case 5 or a dropped step at the position of its growth
 repeats, and the free ones that a dropped step at the position of its growth
-or a path that enters a growth again of $\mathcal{R}$ leads to, which step 1 of [Open Steps](#open-steps)
+or a path that enters a growth again of $\mathcal{R}$ leads to, other than
+those of an entered alternative with neither case (a) nor (b) on the path
+to the call $z^\circ$, which step 1 of [Open Steps](#open-steps)
 leaves to count. The free ones whose reference link meets case (a) or (b) are
 outside the hypothesis, and step 1 leaves them open too. Every activation owned by a memoized evaluation is held by it, so
 these bound the successful activations of $\sigma$ at $q$ that memoized
@@ -13620,12 +13706,19 @@ theorem covers such a parse.
    reference parse that a dropped step at the position of its growth or a
    path that enters a growth again of the reference parse leads to, which have no reference link, are more than
    those of the parse, and Lemma 5 must count those that are counterparts of
-   activations of the parse; this is not shown. Nor are the activations of the
+   activations of the parse; this is not shown, apart from those of an
+   entered alternative (the remark after *Earlier calls in the reference
+   parse*, under its hypothesis on the values that the alternative reads),
+   which *Links to heads* and *Activations held by heads* place, as those
+   with a reference link, outside the heads, outside cases (a) and (b) of
+   the covered keys on the path to the call $z^\circ$ of that claim; those
+   with case (a) or (b) on that path stay open. Nor are the activations of the
    reference parse whose reference link meets case (a) or (b) of the covered
    keys, case (a) including the iterations that come from an earlier parse
    in a Document parse that resumes runs; for the activations that memoized
    evaluations hold, *Classes in a Document parse* moves case (a) and the
-   resumed runs to the parse from scratch, apart from case (b) there. Three parts are open.
+   resumed runs to $\mathcal{S}$ of that claim, the parse from scratch
+   that keeps no records, apart from case (b) there. Three parts are open.
    The first two are for a source in a rule that calls no rule and is not
    memoized at its calls. First, the leaf links that lead to an
    activation held by a head: such a link can leave a memoized evaluation that
@@ -13868,7 +13961,7 @@ theorem covers such a parse.
    the other variant, which can lead to an activation held by a head, a case
    that the parse from scratch does not have; *Classes in a Document parse*
    counts the activations that memoized evaluations of a Document parse hold
-   by those that the heads of the parse from scratch hold, outside case (b)
+   by those that the heads of $\mathcal{S}$ of that claim hold, outside case (b)
    of the covered keys there; and a link whose comparison enters a
    lookahead that a result kept in a context of growths observed, which needs
    that lookahead to read the growing result of a leader alone on its cycle
@@ -14033,7 +14126,7 @@ theorem covers such a parse.
    links*, *Calls that call no rule*, *Nesting at one end*, *Seed reads*, *Own regions*, *Counterparts in the
    reference parse*, *Replays*, *Replayed activations*, *Answered calls*, *Covered keys*,
    *Steps with an empty seed*, *Reference links*, *Heads in the reference parse*, *Reference links lead to
-   repeated evaluations*, *Links lead to repeated evaluations*, *Links to heads*,
+   repeated evaluations*, *Earlier calls in the reference parse*, *Links lead to repeated evaluations*, *Links to heads*,
    *Memoized links keep positions* and *Nothing in a memoized link is a head*,
    with the definitions between them; *Activations that do not succeed* and *Activations held by heads* come
    after this step. Three counts remain, made in a parse that answers nothing
