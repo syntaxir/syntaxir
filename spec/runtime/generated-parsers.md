@@ -111,7 +111,8 @@ The settings are not part of the grammar's meaning: an optimization changes the 
 time it needs, but not what it returns. It is either on or off, or it has a count where `0` is off.
 Each optimization has a kind: `pass` (a transformation of the Core IR, the first intermediate
 representation built from the grammar), `flow pass` and `exec pass` (a transformation of Code IR at the Flow
-stage and at the Exec stage that is converted from it), `lowering` (an option of a step that lowers one
+stage and at the Exec stage that is converted from it), `code pass` (a transformation of Code IR at both stages),
+`pattern` (a local rewrite that a code pass applies, each application on its own), `lowering` (an option of a step that lowers one
 representation toward the next), `printer` (a choice of what the Go and TypeScript printers emit) or
 `runtime` (a control of the runtime structures that the printers emit). `sxir gen -h` lists every optimization with its kind, its default and whether it takes a
 count.

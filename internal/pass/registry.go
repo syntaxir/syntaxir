@@ -29,6 +29,11 @@ const (
 	KindFlowPass
 	// KindExecPass is a pass over Exec IR.
 	KindExecPass
+	// KindCodePass is a pass of Code IR that runs at the Flow and the Exec stage.
+	KindCodePass
+	// KindPattern is a local rewrite pattern that a pass applies (canonicalize): each application
+	// is a decision of its own.
+	KindPattern
 	// KindPrinter is a choice of what the Go and TypeScript printers emit: the form of an action expression of an
 	// action or a predicate, or whether equal generated bodies and tables share one helper.
 	KindPrinter
@@ -46,6 +51,10 @@ func (k Kind) String() string {
 		return "flow pass"
 	case KindExecPass:
 		return "exec pass"
+	case KindCodePass:
+		return "code pass"
+	case KindPattern:
+		return "pattern"
 	case KindPrinter:
 		return "printer"
 	case KindRuntime:

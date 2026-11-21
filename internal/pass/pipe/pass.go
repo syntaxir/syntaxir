@@ -187,12 +187,26 @@ type passDesc struct {
 	run     func(*ctxState, any) (any, pass.PreservedSet, error)
 }
 
-var passes = map[string]*passDesc{}
+// passes holds the registered passes by name: the declaration of a pass registered at several kinds
+// is the same at each, so one of its descriptions stands for the name. inKinds holds the input kinds
+// at which each name is registered.
+var (
+	passes  = map[string]*passDesc{}
+	inKinds = map[string][]*kind{}
+)
 
-// New seals and registers a pass. A name registered twice panics.
+// New seals and registers a pass. A pass that keeps the same declaration may be registered at
+// several input kinds, such as a pass of Code IR at each of its stages: one name, one flag and one
+// set of patterns and counters, with one run function for each kind. A name registered twice at one
+// input kind, or with two declarations, panics.
 func New[I, O any](d Def[I, O]) *Pass[I, O] {
-	if d.Name == "" || passes[d.Name] != nil {
-		panic(fmt.Sprintf("pipe: pass %q has no name or is registered twice", d.Name))
+	if d.Name == "" {
+		panic("pipe: a pass has no name")
+	}
+	if prev := passes[d.Name]; prev != nil {
+		if !reflect.DeepEqual(prev.Decl, d.Decl) || slices.Contains(inKinds[d.Name], kindOf(d.In)) {
+			panic(fmt.Sprintf("pipe: pass %q is registered twice at one kind or with two declarations", d.Name))
+		}
 	}
 	if d.Run == nil {
 		panic(fmt.Sprintf("pipe: pass %q has no run function", d.Name))
@@ -212,7 +226,10 @@ func New[I, O any](d Def[I, O]) *Pass[I, O] {
 		ap := d.Applies
 		pd.applies = func(c *ctxState) bool { return ap(ctxOf[I](c)) }
 	}
-	passes[d.Name] = pd
+	if passes[d.Name] == nil {
+		passes[d.Name] = pd
+	}
+	inKinds[d.Name] = append(inKinds[d.Name], pd.in)
 	return &Pass[I, O]{d: pd}
 }
 
