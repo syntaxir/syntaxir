@@ -4555,9 +4555,9 @@ $e_i$ and $e'_i$ of different variants. Then the parse need make no
 evaluation of the key of $z$ before $\hat{u}$, and $Z$ can be the head of its
 class: the link leads to an activation held by a head, which the first part
 of step 1 of [Open Steps](#open-steps) leaves open, a case that the parse
-from scratch does not have. These activations are to be counted
-through their counterparts in the parse from scratch, whose cost bounds the
-Document parse; that is not shown.
+from scratch does not have. *Classes in a Document parse* below counts
+those of these activations that memoized evaluations hold through the parse
+from scratch, outside case (b) there.
 
 Case (b) arises at a call $y$ that the parse answers from what it keeps
 apart from the table, with the result of $y'$, when the path goes on inside
@@ -4575,6 +4575,64 @@ left call in a body of the cycle (*Plain reads* in Lemma 5), which condition 5
 excludes in a cycle with more than one leader, so the growth is one of a
 leader that is alone on its cycle, whose current result at $y$ is not the
 one that $L$ read at $y'$. That such a link leads to an activation that no head holds is not shown.
+
+**Classes in a Document parse.** Let the parse be a
+[Document](../runtime/documents.md) parse, and let $\mathcal{S}$ be the
+parse of the same text from scratch, with the same grammar and options: an
+ordinary parse, not a Document, that keeps no records of scan sites. Let $Z$
+be a memoized evaluation of the parse that holds a successful activation of
+$\sigma$ at $q$, other than the evaluation where the parse begins, and let
+$z$ be the call of $\mathcal{R}$ whose counterpart makes $Z$. Unless case
+(b) of the covered keys arises in $\mathcal{S}$ on the path from
+$\mathcal{R}$ of its start down to $z$, or into an earlier evaluation that
+the path leads to, the head of the class of the key of $Z$ in $\mathcal{S}$
+holds an activation **corresponding** to every successful activation of
+$\sigma$ at $q$ that a memoized evaluation of a key of that class holds in
+the parse: the one whose counterpart lies at the same place in the steps
+that the counterparts of the two evaluations take alike. The evaluation where
+$\mathcal{S}$ begins, a head of its own, holds one corresponding to every
+successful activation of $\sigma$ at $q$ that the evaluation where the parse
+begins holds. So, outside that case, the memoized evaluations of the parse
+hold at most six times as many successful activations of $\sigma$ at $q$ as
+the heads of $\mathcal{S}$ hold.
+
+*Proof.* $Z$ is an evaluation of a key, of a rule other than a leader that
+the parse memoizes, and $z$ reads no growth open at its start, as $Z$ does
+not. Apply the covered keys to $\mathcal{S}$, with the evaluation where it
+begins as $x$: $\mathcal{S}$ has no earlier parse, so case (a) does not
+arise; it is no Document, so it resumes no run, which excludes case (e),
+and stores no transient result; it keeps no records, so case (d) does not
+arise; and case (c) does not, since $z$ holds an activation in
+$\mathcal{R}$. Outside case (b), $\mathcal{S}$ makes an evaluation $Z'$ of
+the key of $z$. Every evaluation of a key of the class, in the parse or in
+$\mathcal{S}$, is made at the position of $z$ with the values of the
+variables of the key and reads no growth open at its start, so its
+counterpart in $\mathcal{R}$ takes the steps of $\mathcal{R}(z)$ up to the
+variants of its calls, as in the proof of *Links lead to repeated
+evaluations*. In its own region a parse evaluates what that counterpart
+evaluates, since it answers no call there (in a Document as *Transient calls
+of a Document* in Lemma 3 reads it), apart from the alternatives that it
+skips by the next character, which hold no activation (*Counterparts in the
+reference parse*), and the iterations that a record answers or a resumed
+walk reuses. So a memoized evaluation of a key of the class in the parse
+holds activations corresponding to some of the successful activations of
+$\sigma$ at $q$ in the own region of $\mathcal{R}(z)$, and every evaluation
+of a key of the class in $\mathcal{S}$, which neither takes records nor
+resumes runs, the head of the class among them, holds activations
+corresponding to all of them. The same holds of the evaluations where the
+two parses begin, whose counterparts are both the evaluation where
+$\mathcal{R}$ begins. The parse makes at most six memoized evaluations of
+keys of one class (Lemma 3), and an activation is held by at most one
+evaluation, so the heads of distinct classes of $\mathcal{S}$ hold distinct
+activations. $\square$
+
+The claim counts the activations that memoized evaluations of a Document
+parse hold, the links that case (a) of the covered keys leaves out
+included, by those that the heads of $\mathcal{S}$ hold, whose count is
+that of $\mathcal{S}$, open in step 1 of [Open Steps](#open-steps) as for
+every parse. It does not count the activations that growth steps and
+evaluations in a context of growths own, which Lemma 5 counts, nor those
+for which case (b) arises in $\mathcal{S}$.
 
 **Links to heads.** Let $\alpha_1, \alpha_2, \ldots$
 be the successful activations of $\sigma$ at $q$ outside case 5 and dropped
@@ -13565,7 +13623,9 @@ theorem covers such a parse.
    activations of the parse; this is not shown. Nor are the activations of the
    reference parse whose reference link meets case (a) or (b) of the covered
    keys, case (a) including the iterations that come from an earlier parse
-   in a Document parse that resumes runs. Three parts are open.
+   in a Document parse that resumes runs; for the activations that memoized
+   evaluations hold, *Classes in a Document parse* moves case (a) and the
+   resumed runs to the parse from scratch, apart from case (b) there. Three parts are open.
    The first two are for a source in a rule that calls no rule and is not
    memoized at its calls. First, the leaf links that lead to an
    activation held by a head: such a link can leave a memoized evaluation that
@@ -13806,9 +13866,10 @@ theorem covers such a parse.
    a context of growths, or a call whose corresponding call in the later
    evaluation is in a smaller lookahead state, in a context of growths or of
    the other variant, which can lead to an activation held by a head, a case
-   that the parse from scratch does not have, so that the count of these links
-   belongs with the activations of the parse from scratch (*Links lead to
-   repeated evaluations*); and a link whose comparison enters a
+   that the parse from scratch does not have; *Classes in a Document parse*
+   counts the activations that memoized evaluations of a Document parse hold
+   by those that the heads of the parse from scratch hold, outside case (b)
+   of the covered keys there; and a link whose comparison enters a
    lookahead that a result kept in a context of growths observed, which needs
    that lookahead to read the growing result of a leader alone on its cycle
    whose current result changed since the result was kept (*Links lead to
