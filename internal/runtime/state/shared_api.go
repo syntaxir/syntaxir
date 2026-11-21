@@ -74,3 +74,7 @@ func (p *Parser) SetDiagnosed(n int) { p.diagnosed = n }
 
 // TracePanic is a panic of the trace function, with the value it panicked with.
 type TracePanic = tracePanic
+
+// SetRetained sets the bytes that a Document retains outside the memo table of the parse, which the
+// memory check of c counts.
+func (c *BudgetControl) SetRetained(n uint64) { c.retained = n }

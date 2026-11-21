@@ -18,6 +18,7 @@ import (
 
 // Files are the shared files, by their name in both packages.
 var Files = []string{
+	"budget_sizes.go",
 	"core.go",
 	"expected.go",
 	"memo_index.go",

@@ -81,7 +81,7 @@ func TypedDocumentParse[T any](d *Document, root *TRule, o parseOptions, a budge
 	p := &TParser{Parser: &Parser{Control: o.control}, TypedDocument: cache, memoSlots: cache.slots}
 	if o.control != nil && o.control.limits.Memory != 0 {
 		o.control.attachTypedMemory(p, a)
-		o.control.mem = cache.retainedBytes()
+		o.control.retained = cache.retainedBytes()
 	}
 	p.Observation = o.control.observe(newObservation(&o.observe, &p.Silent))
 	defer p.releaseObservation()

@@ -106,19 +106,10 @@ type BudgetControl struct {
 	freed    uint64
 	freeMark uint64 // the units reserved when the open region began
 
-	// mem is the memory, in bytes, charged to the control itself: the bytes a typed Document
-	// retains from earlier parses. The memory check adds values, errs and the counters of the
-	// parser and the typed state attached by attachMemory (memoryUsed).
-	mem uint64
-	// values counts the storage of the values the parse builds on the controlled path: text copied
-	// out of the input, concatenated strings, rebound environments, memo keys and the error lists
-	// of memo entries. It belongs to the nodes and memo entries built since, so a stream returns it
-	// with their chunks (streamCommit).
-	values uint64
-	// errs counts the syntax errors the parse builds. A stream returns it at a commit that
-	// releases the recovered errors to the diagnostic tail, which counts those it keeps; otherwise
-	// the errors stay held to the end of the parse.
-	errs uint64
+	// memoryCounts are the memory the control counts itself; retained is what a typed Document
+	// retains from earlier parses. The memory check adds the counters of the parser and the typed
+	// state attached by attachMemory (memoryUsed).
+	memoryCounts
 	memP *Parser
 	// obs is the observation of the parse, which names the hotspot of an exceeded compute limit.
 	obs    *observation
@@ -421,13 +412,6 @@ func exceedsLimit(used, requested, limit uint64) bool {
 // without overflowing. Progress counters are kept below their interval.
 func reachesInterval(used, requested, interval uint64) bool {
 	return used >= interval || requested >= interval-used
-}
-
-func saturatingAdd(a, b uint64) uint64 {
-	if math.MaxUint64-a < b {
-		return math.MaxUint64
-	}
-	return a + b
 }
 
 // Spend helpers keep long engine-owned scans between bounded reservations.

@@ -41,19 +41,10 @@ type BudgetControl struct {
 	freed    uint64
 	freeMark uint64 // Used when the open region began
 
-	// Mem is the memory, in bytes, charged to the control itself: the bytes of the history a
-	// Document retains outside its memo table when its parse starts. The memory check adds values,
-	// errs and the counters of the parser attached by AttachMemory (MemoryUsed).
-	Mem uint64
-	// values counts the storage of the values the parse builds on the controlled path: text
-	// copied out of the input, concatenated strings, rebound environments, memo keys and the error
-	// lists of memo entries. It belongs to the nodes and memo entries built since, so a stream
-	// returns it with their chunks (Parser.splitChunks).
-	values uint64
-	// errs counts the syntax errors the parse builds. A stream returns it at a commit that
-	// releases the recovered errors to the diagnostic tail (Parser.Commit), which counts those it
-	// keeps; otherwise the errors stay held to the end of the parse.
-	errs uint64
+	// memoryCounts are the memory the control counts itself; retained is the history a Document
+	// retains outside its memo table when its parse starts (SetRetained). The memory check adds the
+	// counters of the parser attached by AttachMemory (MemoryUsed).
+	memoryCounts
 	memP *Parser
 	// hotP is the parser whose profile names the hotspot of an exceeded compute limit.
 	hotP *Parser

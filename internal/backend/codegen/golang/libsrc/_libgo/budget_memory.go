@@ -4,8 +4,6 @@ import (
 	"unsafe"
 
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
-	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
-	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // Memory is counted in bytes of logical capacity: the element count of a buffer times the size of
@@ -27,23 +25,16 @@ import (
 // can pass the limit by what one poll interval allocates. Storage dropped by backtracking is never
 // returned; a stream returns what its commits let go of.
 
-// Sizes of the elements that the counters charge.
+// Sizes of the elements that the counters charge, of the types that this package defines for
+// itself; the others are in budget_sizes.go.
 const (
 	nodeBytes      = uint64(unsafe.Sizeof(Data{}))
-	ptrBytes       = uint64(unsafe.Sizeof((*sxirvalue.Node)(nil)))
-	fieldBytes     = uint64(unsafe.Sizeof(valueimpl.NodeField{}))
 	frameBytes     = uint64(unsafe.Sizeof(CaptureFrame{}))
 	memoEntryBytes = uint64(unsafe.Sizeof(memoEntry{}))
-	anyBytes       = uint64(unsafe.Sizeof(any(nil)))
 	matchBytes     = uint64(unsafe.Sizeof(TMatch{}))
-	intBytes       = uint64(unsafe.Sizeof(0))
-	stringBytes    = uint64(unsafe.Sizeof(""))
-	// syntaxErrorBytes is a syntax error; the lists that hold its pointer count the pointer.
-	syntaxErrorBytes = uint64(unsafe.Sizeof(sxirvalue.SyntaxError{}))
-	expIDBytes       = uint64(unsafe.Sizeof(ExpID(0)))
-	sdepBytes        = uint64(unsafe.Sizeof(sdep{}))
-	growKeyBytes     = uint64(unsafe.Sizeof(growKey{}))
-	runStepBytes     = uint64(unsafe.Sizeof(runStep{}))
+	sdepBytes      = uint64(unsafe.Sizeof(sdep{}))
+	growKeyBytes   = uint64(unsafe.Sizeof(growKey{}))
+	runStepBytes   = uint64(unsafe.Sizeof(runStep{}))
 	// The storage of a context table: the table and its map of heads, a head (its key, the
 	// pointer in the map and the slice it points at), a set, a result slot with its key in the
 	// set's map, a canonical seed with its key, and a jump.
@@ -55,13 +46,7 @@ const (
 	// wideKeyBytes is what a key of a set of more than maxCtxDeps dependencies takes beyond a
 	// valsKey, besides the bytes of its values.
 	wideKeyBytes = uint64(unsafe.Sizeof(wideKey{})) - uint64(unsafe.Sizeof(valsKey{}))
-	// internBytes is a number in the map of intern, besides the bytes of its key.
-	internBytes = stringBytes + 8
-	jumpBytes   = uint64(unsafe.Sizeof(jumpKey{})) + uint64(unsafe.Sizeof(jumpRec{}))
-	// mapBytes is the header of a map; an element of a map is counted as its key and value.
-	mapBytes = 48
-	// memoIndexEntryBytes is an element of a hash index of a memo chain, and of the map of indexes.
-	memoIndexEntryBytes = 16
+	jumpBytes    = uint64(unsafe.Sizeof(jumpKey{})) + uint64(unsafe.Sizeof(jumpRec{}))
 	// envNodeBytes bounds a node of a variable environment that a rebind copies: the node and its
 	// values.
 	envNodeBytes = uint64(unsafe.Sizeof(Env{})) + envWidth*anyBytes
@@ -111,7 +96,7 @@ func (c *BudgetControl) checkMemory() {
 
 // memoryUsed returns the memory count of the parse, in bytes.
 func (c *BudgetControl) memoryUsed() uint64 {
-	used := saturatingAdd(saturatingAdd(c.mem, c.values), c.errs)
+	used := c.counted()
 	if p := c.memP; p != nil {
 		used = saturatingAdd(used, saturatingAdd(p.memUsed, p.memKept))
 		used = saturatingAdd(used, p.memo.chargedBytes())
@@ -205,26 +190,6 @@ func (a *tarena[T]) bytes() uint64 {
 // the entries their metadata records.
 func (d *typedDocumentState) retainedBytes() uint64 {
 	return uint64(len(d.slots))*ptrBytes + uint64(len(d.meta))*(uint64(unsafe.Sizeof(tmemoEntry{}))+ptrBytes+uint64(unsafe.Sizeof(typedDocumentMeta{})))
-}
-
-// chargeValueBytes charges n bytes of a value that only the controlled path builds
-// (BudgetControl.values).
-func (p *Parser) chargeValueBytes(n int) {
-	if c := p.Control; c != nil {
-		c.values = saturatingAdd(c.values, uint64(n))
-	}
-}
-
-// chargeError charges the syntax error e (BudgetControl.errs).
-func (p *Parser) chargeError(e *sxirvalue.SyntaxError) {
-	if c := p.Control; c != nil {
-		c.errs = saturatingAdd(c.errs, syntaxErrorSize(e))
-	}
-}
-
-// syntaxErrorSize returns the bytes of the syntax error e and its lists.
-func syntaxErrorSize(e *sxirvalue.SyntaxError) uint64 {
-	return syntaxErrorBytes + uint64(cap(e.Expected)+cap(e.Messages))*stringBytes
 }
 
 // MemoryBytes returns the bytes of the values s has allocated.

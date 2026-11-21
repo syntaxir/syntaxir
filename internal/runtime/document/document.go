@@ -184,7 +184,7 @@ func (d *Document) parseWithCapture(o state.ParseOptions, capture func(*state.Pa
 	p.Control = c
 	p.SetTuning(o.Tune)
 	if c != nil && lim.Memory != 0 {
-		c.Mem = d.historyBytes()
+		c.SetRetained(d.historyBytes())
 		c.AttachMemory(p)
 	}
 	if o.Traced() {
