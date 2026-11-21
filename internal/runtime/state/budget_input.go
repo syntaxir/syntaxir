@@ -20,6 +20,13 @@ func (in *Input) spendReadDoc(n uint64) {
 	}
 }
 
+// controlled reports whether the parse charges a budget: budget controls are compiled in and the
+// parse has a BudgetControl.
+func (p *Parser) controlled() bool { return BudgetControlsEnabled && p.Control != nil }
+
+// abortParse ends the parse with the error err.
+func abortParse(err error) { panic(Fatal{Err: err}) }
+
 func (p *Parser) Spend() {
 	if BudgetControlsEnabled && p.Control != nil {
 		p.Control.Charge(1)

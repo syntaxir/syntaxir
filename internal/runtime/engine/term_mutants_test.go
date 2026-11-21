@@ -11,7 +11,8 @@ import (
 )
 
 // engineMutant changes the printed code of the operators of terms in the engine in one way: in the
-// compositions of internal/runtime/state/term_exec.go, or in the primitives of term_value.go.
+// compositions of internal/runtime/state/term_exec.go, or in the primitives of term_value.go and the
+// other files it calls.
 type engineMutant struct {
 	name, file, fn, old, new string
 }
@@ -28,13 +29,13 @@ var engineMutants = []engineMutant{
 	{"! of a bool does not negate", "term_exec.go", "termUnary", "return any(!x.(bool)), nil", "return any(x.(bool)), nil"},
 	{"a logical operand need not be a bool", "term_exec.go", "termLogic", "if valKind(x) != 3 {", "if false {"},
 	{"the controlled concatenation drops the right string", "term_value.go", "strAdd", "for _, s := range [...]string{ls, rs} {", "for _, s := range [...]string{ls} {"},
-	{"the controlled equality ignores the content", "budget_value.go", "equalText", "return len(ls) == len(rs) && p.CompareText(ls, rs) == 0", "return len(ls) == len(rs)"},
-	{"the controlled comparison orders a prefix after its extension", "budget_value.go", "CompareText", "if len(l) < len(r) {\n\t\treturn -1", "if len(l) < len(r) {\n\t\treturn 1"},
-	{"the fast path of the value equality ignores the control", "budget_value.go", "ValueEqual", "return p.equalText(ls, rs)", "return ls == rs"},
-	{"the fast path of the value equality negates", "budget_value.go", "ValueEqual", "return p.equalText(ls, rs)", "return !p.equalText(ls, rs)"},
+	{"the controlled equality ignores the content", "value_spend.go", "TextEqual", "return len(l) == len(r) && p.compareTextControlled(l, r) == 0", "return len(l) == len(r)"},
+	{"the controlled comparison orders a prefix after its extension", "value_spend.go", "compareTextControlled", "if len(l) < len(r) {\n\t\treturn -1", "if len(l) < len(r) {\n\t\treturn 1"},
+	{"the fast path of the value equality ignores the control", "budget_value.go", "ValueEqual", "return p.TextEqual(ls, rs)", "return ls == rs"},
+	{"the fast path of the value equality negates", "budget_value.go", "ValueEqual", "return p.TextEqual(ls, rs)", "return !p.TextEqual(ls, rs)"},
 	{"a remainder floors", "term_exec.go", "termBinary", `any(l.(int) % r.(int))`, `any(func() int { m := l.(int) % r.(int); if m != 0 && (m < 0) != (r.(int) < 0) { m += r.(int) }; return m }())`},
 	{"a division floors", "term_exec.go", "termBinary", `any(l.(int) / r.(int))`, `any(func() int { q := l.(int) / r.(int); if (l.(int)%r.(int) != 0) && ((l.(int) < 0) != (r.(int) < 0)) { q-- }; return q }())`},
-	{"a box is not opened", "term_value.go", "unboxed", "return unboxed(nodes.D(n).Box)", "return v"},
+	{"a box is not opened", "term_value_engine.go", "unboxed", "return unboxed(nodes.D(n).Box)", "return v"},
 	{"Start reads the value", "term_exec.go", "termMember", "if kind == 1 {", "if kind == 0 {"},
 	{"an unset field of a struct is nil", "term_exec.go", "termMember", "if !st {\n\t\treturn nil, nil\n\t}", "if true {\n\t\treturn nil, nil\n\t}"},
 	{"a struct has captures", "term_exec.go", "termMember", "if st {\n\t\t\treturn nil, p.termError(9", "if false {\n\t\t\treturn nil, p.termError(9"},
@@ -48,9 +49,9 @@ var engineMutants = []engineMutant{
 	{"a function is an element", "term_exec.go", "termPush", "return p.termError(11, v, any(fn), 0, 0)", "return nil"},
 	{"nil pushes no element", "term_exec.go", "termPush", "p.KidStack = append(p.KidStack, nil)\n", ""},
 	{"a node pushes no element", "term_exec.go", "termPush", "p.KidStack = append(p.KidStack, n)\n", "_ = n\n"},
-	{"concat pushes no elements", "term_exec.go", "termPushItems", "\t\tp.KidStack = AppendSpend(", "\t\t_ = AppendSpend("},
+	{"concat pushes no elements", "term_exec.go", "termPushItems", "\t\tp.KidStack = appendSpend(", "\t\t_ = appendSpend("},
 	{"concat takes a value that is not a list", "term_exec.go", "termPushItems", "if ok {", "if ok || true {"},
-	{"concat charges nothing for the elements it pushes", "term_exec.go", "termPushItems", "AppendSpend(p, p.KidStack, items)", "append(p.KidStack, items...)"},
+	{"concat charges nothing for the elements it pushes", "term_exec.go", "termPushItems", "appendSpend(p, p.KidStack, items)", "append(p.KidStack, items...)"},
 	{"concat takes any value", "term_exec.go", "termItems", "return items, p.termError(12, v, any(fn), 0, 0)", "return items, nil"},
 	{"the text of a string node is the input", "term_exec.go", "termText", "if held && int(nodes.ShapeOf(n)) != 3 {", "if held && false {"},
 	{"a list value converts", "term_exec.go", "termConvert", "if nodes.HasBase(n) {", "if true {"},

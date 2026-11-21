@@ -6,7 +6,7 @@ package state
 func (p *Parser) rawValueEqual(l, r any) bool {
 	if s, ok := l.(string); ok {
 		t, ok := r.(string)
-		return ok && len(s) == len(t) && p.CompareText(s, t) == 0
+		return ok && len(s) == len(t) && p.compareText(s, t) == 0
 	}
 	return l == r
 }
@@ -125,7 +125,7 @@ func (p *Parser) bindControlled(slot int, val any) {
 	}
 	// Saved environments are immutable; only publish a completed path.
 	p.Env = p.Env.Set(slot, p.envLevels, val)
-	p.ChargeValueBytes(int(uint64(p.envLevels+1) * envNodeBytes))
+	p.chargeValueBytes(int(uint64(p.envLevels+1) * envNodeBytes))
 }
 
 // MemoGet looks up the entry for k. The lookup charges nothing: the call paid for the lookup of its key
@@ -169,7 +169,7 @@ func (p *Parser) MemoGet(k MemoKey) (*MemoEntry, bool) {
 	if *link == nil {
 		return nil, false
 	}
-	ix := t.indexAt(k.Pos, t.Slots[i], nil)
+	ix := t.indexAt(k.Pos, t.Slots[i])
 	h, _ := memoKeyHash(int32(k.Rule), int32(k.Min), k.MissingSilent, k.Env)
 	_, x := ix.probe(h, func(x *MemoEntry) bool {
 		return x.Rule == int32(k.Rule) && x.Min == int32(k.Min) && x.missingSilent == k.MissingSilent && keysEqual(x.Env, k.Env)
@@ -190,7 +190,7 @@ func (p *Parser) hashMemoKey(rule, min int32, silent bool, env []any) uint64 {
 		p.Spend()
 	}
 	if bytes > 0 {
-		p.SpendValue(bytes)
+		p.spendValue(bytes)
 	}
 	return h
 }
@@ -246,13 +246,13 @@ func (p *Parser) MemoPut(k MemoKey, e *MemoEntry) *MemoEntry {
 		}
 	}
 	var ixSlot uint64
-	var ix memoIndex
+	var ix memoIndex[MemoEntry]
 	if replaced == nil && *link != nil && !ident {
 		// A long chain: the index finds the entry to replace.
 		p.unlinkLagged(k.Pos, link, -1)
 	}
 	if replaced == nil && *link != nil && !ident {
-		ix = t.indexAt(k.Pos, slots[i], nil)
+		ix = t.indexAt(k.Pos, slots[i])
 		h, _ := memoKeyHash(int32(k.Rule), int32(k.Min), k.MissingSilent, k.Env)
 		ixSlot, replaced = ix.probe(h, same)
 		if replaced != nil {

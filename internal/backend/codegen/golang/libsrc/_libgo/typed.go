@@ -1049,7 +1049,7 @@ func (p *TParser) memoGet(rule, pos, min int, env []any, docOnly bool) *tmemoEnt
 	if e == nil {
 		return nil
 	}
-	h, _ := memoKeyHash(int32(rule), int32(min), env)
+	h, _ := memoKeyHash(int32(rule), int32(min), false, env)
 	_, x := p.memoIndexAt(pos).probe(h, func(x *tmemoEntry) bool {
 		return x.rule == int32(rule) && x.min == int32(min) && sameValues(x.env, env)
 	})
@@ -1125,7 +1125,7 @@ func (p *TParser) memoPut(rule, pos, min int, env []any, docOnly bool, e *tmemoE
 			}
 			e.rule, e.min, e.env, e.seen = int32(rule), int32(min), env, p.stamp()
 			if ix := p.memoIndexes[pos]; ix != nil {
-				h, _ := memoKeyHash(x.rule, x.min, x.env)
+				h, _ := memoKeyHash(x.rule, x.min, false, x.env)
 				slot, _ := ix.probe(h, func(y *tmemoEntry) bool { return y == x })
 				ix[slot] = e
 			}
@@ -1138,7 +1138,7 @@ func (p *TParser) memoPut(rule, pos, min int, env []any, docOnly bool, e *tmemoE
 	if *link != nil {
 		// A long chain: the index finds the entry to replace, and a walk finds its link.
 		ix := p.memoIndexAt(pos)
-		h, _ := memoKeyHash(int32(rule), int32(min), env)
+		h, _ := memoKeyHash(int32(rule), int32(min), false, env)
 		slot, x := ix.probe(h, same)
 		if x != nil && p.joinStored(x, e) == x {
 			return x

@@ -28,7 +28,7 @@ func (p *Parser) sortExpected(values []string) {
 			for i < mid && j < hi {
 				order := expectedKind(src[i]) - expectedKind(src[j])
 				if order == 0 {
-					order = p.CompareText(src[i], src[j])
+					order = p.compareText(src[i], src[j])
 				}
 				p.Spend()
 				if order <= 0 {
@@ -40,9 +40,9 @@ func (p *Parser) sortExpected(values []string) {
 				}
 				k++
 			}
-			CopySpend(p, dst[k:k+mid-i], src[i:mid])
+			copySpend(p, dst[k:k+mid-i], src[i:mid])
 			k += mid - i
-			CopySpend(p, dst[k:hi], src[j:hi])
+			copySpend(p, dst[k:hi], src[j:hi])
 			lo = hi
 		}
 		src, dst = dst, src
@@ -53,7 +53,7 @@ func (p *Parser) sortExpected(values []string) {
 		width *= 2
 	}
 	if &src[0] != &values[0] {
-		CopySpend(p, values, src)
+		copySpend(p, values, src)
 	}
 }
 
@@ -106,7 +106,7 @@ func (p *Parser) RecoveryErrorText(e *value.SyntaxError) string {
 func (p *Parser) writeDiagnosticText(out *strings.Builder, text string) {
 	for off := 0; off < len(text); {
 		n := min(spendValueChunk, len(text)-off)
-		p.SpendValue(n)
+		p.spendValue(n)
 		out.WriteString(text[off : off+n])
 		off += n
 	}

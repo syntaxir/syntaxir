@@ -81,11 +81,11 @@ func (p *Parser) PruneStreamMemo(pos int) {
 	// reuse is not charged again.
 	t.MemBytes -= min(t.MemBytes, uint64(min(k, len(t.Slots)))*memoSlotBytes)
 	if k >= len(t.Slots) {
-		ClearSpend(p, t.Slots)
+		clearSpend(p, t.Slots)
 		t.Slots = t.Slots[:0]
 	} else {
 		n := CopyStreamPrefix(p.Control, t.Slots, t.Slots[k:])
-		ClearSpend(p, t.Slots[n:])
+		clearSpend(p, t.Slots[n:])
 		t.Slots = t.Slots[:n]
 	}
 	// The indexes of pruned positions go with their entries, as in MemoTable.Prune: one unit for

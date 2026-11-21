@@ -265,7 +265,7 @@ func (p *Parser) FinishRun(r *RunState) {
 			parts = append(parts, r.Old[r.J:r.J+r.T], r.Post)
 		}
 		for _, part := range parts {
-			CopySpend(p, elems[off:], part)
+			copySpend(p, elems[off:], part)
 			off += len(part)
 		}
 	} else if r.J < 0 {
@@ -362,8 +362,8 @@ func after(elems []RunElem, end int) bool {
 // the Document that a parse from scratch does not do.
 func (p *Parser) ReleaseRunLists(r *RunState) {
 	m := p.FreeBegin(true)
-	ClearSpend(p, r.Mid)
-	ClearSpend(p, r.Post)
+	clearSpend(p, r.Mid)
+	clearSpend(p, r.Post)
 	p.FreeEnd(m)
 }
 
@@ -383,7 +383,7 @@ func (p *Parser) runListGrowth(n int) { p.growthSpend(n, n+1) }
 func (p *Parser) growKids(extra int) {
 	n := len(p.KidStack)
 	if BudgetControlsEnabled && p.Control != nil && extra > 0 && n+extra > p.kidRoom {
-		p.chargeValueBytes(n)
+		p.chargeValues(n)
 		p.kidRoom = max(n+extra, 2*p.kidRoom)
 	}
 	p.KidStack = slices.Grow(p.KidStack, extra)

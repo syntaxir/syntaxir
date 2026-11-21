@@ -25,8 +25,8 @@ var goMutants = []goMutant{
 	{"< is <=", "term_exec.go", "TermBinary", "intCmp(l, r) < 0", "intCmp(l, r) <= 0"},
 	{"strings compare as ints", "term_exec.go", "TermBinary", "p.strCmp(l, r) < 0", "p.strCmp(l, r) > 0"},
 	{"the controlled concatenation drops the right string", "term_value.go", "strAdd", "for _, s := range [...]string{ls, rs} {", "for _, s := range [...]string{ls} {"},
-	{"the controlled equality ignores the content", "term_value.go", "strEq", "return p.TextEqual(ls, rs)", "return len(ls) == len(rs)"},
-	{"the controlled comparison orders a prefix after its extension", "budget.go", "compareTextControlled", "if len(l) < len(r) {\n\t\treturn -1", "if len(l) < len(r) {\n\t\treturn 1"},
+	{"the controlled equality ignores the content", "value_spend.go", "TextEqual", "return len(l) == len(r) && p.compareTextControlled(l, r) == 0", "return len(l) == len(r)"},
+	{"the controlled comparison orders a prefix after its extension", "value_spend.go", "compareTextControlled", "if len(l) < len(r) {\n\t\treturn -1", "if len(l) < len(r) {\n\t\treturn 1"},
 	{"the typed string fast path orders < as <=", "budget.go", "compareStrings", "return p.compareText(l, r) < 0, true", "return p.compareText(l, r) <= 0, true"},
 	{"the typed string fast path decides == without the budget control", "budget.go", "compareStrings", "case OpEq:\n\t\treturn p.TextEqual(l, r), true", "case OpEq:\n\t\treturn l == r, true"},
 	{"the typed string fast path negates ==", "budget.go", "compareStrings", "return p.TextEqual(l, r), true", "return !p.TextEqual(l, r), true"},
@@ -100,7 +100,7 @@ func TestPrintedOperatorMutants(t *testing.T) {
 		if m.file == "term_value.go" || m.fn == "memberKind" {
 			heads = []string{"func "}
 		}
-		if m.file == "budget.go" || m.fn == "strAdd" || m.fn == "strEq" {
+		if m.file == "budget.go" || m.file == "value_spend.go" || m.fn == "strAdd" {
 			heads = []string{"func (p *Parser) "}
 		}
 		if strings.Contains(m.old, "UnboxValue") || strings.Contains(m.old, "UnboxNode") {

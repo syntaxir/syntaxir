@@ -1,0 +1,24 @@
+package libgo
+
+// The library of generated parsers and the engine (internal/runtime/state) share the source of their
+// parsing mechanisms: this package holds it, and the engine's copies differ from it only in their
+// package clause (internal/runtime/state/sharedsrc lists the files and checks the copies). A shared
+// file compiles in both packages, so it refers only to what both define alike: the shared files
+// themselves, and the members of Parser that each package provides under the same name and contract,
+// such as spendValue, chargeValueBytes, appendSpend and use.
+
+// core is the state of the shared mechanisms. Both Parser types embed it, so that its fields have
+// one definition. A method of the mechanisms that reads only this state is a method of core; one that
+// also charges the budget or reads the rest of the parse is a method of Parser.
+type core struct {
+	// Recovered is the record of the syntax errors recovered by #recover: errors and the lists that
+	// results share (recEntry). Backtracking undoes them; recoveredErrors lists them.
+	Recovered []recEntry
+	// diagnosed is the number of entries of Recovered already delivered to the stream's diagnostic
+	// callback or tail; diagnosedSkip errors of the entry after them were delivered too when it is the
+	// list diagnosedList, which took the place of delivered entries (compactDiagnosed). Without a
+	// stream they stay zero.
+	diagnosed     int
+	diagnosedSkip int
+	diagnosedList *errList
+}

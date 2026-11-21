@@ -7,11 +7,12 @@ import (
 	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
-// The value primitives of terms (the component values of exec.Parser) of the node and the typed library. The compositions
-// of the operators in term_exec.go decide which of them applies; each acts on one kind of value.
+// The value primitives of terms (the component values of exec.Parser) that the node library of
+// generated parsers and the engine share. The compositions of the operators in term_exec.go decide
+// which of them applies; each acts on one kind of value.
 
 // valKind is the operation val.kind: the kind of x. A node, a list, a tuple, a struct and a box are
-// valKindOther; a box is opened by UnboxValue.
+// valKindOther; a box is opened by the operation val.unbox.
 func valKind(x any) int {
 	switch x.(type) {
 	case nil:
@@ -61,17 +62,6 @@ func valItems(x any) ([]*sxirvalue.Node, bool) {
 	return nil, false
 }
 
-// tvalItems is the operation seq.items in the typed library.
-func tvalItems(x any) ([]any, bool) {
-	if x == nil {
-		return nil, true
-	}
-	if n, ok := x.(TVal); ok {
-		return n.TKids(), true
-	}
-	return nil, false
-}
-
 // nodeOf is the operation node.of in the node library: x as a node, list, tuple or struct.
 func nodeOf(x any) (*sxirvalue.Node, bool) {
 	n, ok := x.(*sxirvalue.Node)
@@ -95,54 +85,20 @@ func elemSpan(it *sxirvalue.Node) (int, int, bool) {
 	return int(D(it).Start), int(D(it).End), true
 }
 
-// elemSpan is the operation seq.span: a node adds its range, and an int, a string or a bool adds the range
-// of the rule, which the node libraries give the box they hold it in.
-func (c *TActCtx) elemSpan(it any) (int, int, bool) {
-	switch t := it.(type) {
-	case TVal:
-		s, e := t.TSpan()
-		return s, e, true
-	case int, string, bool:
-		return c.Start, c.End, true
-	}
-	return 0, 0, false
-}
-
 // setSpan is the operation node.setSpan.
 func setSpan(n *sxirvalue.Node, start, end int) { D(n).Start, D(n).End = int32(start), int32(end) }
 
-// made is the operation act.made.
-func (c *ActCtx) made(n *sxirvalue.Node) { c.P.created = append(c.P.created, n) }
-
-// made is the operation act.made in the typed library.
-func (c *TActCtx) made(n TVal) { c.P.Created = append(c.P.Created, n) }
-
-// tnodeOf is the operation node.of in the typed library.
-func tnodeOf(x any) (TVal, bool) {
-	n := AsTval(x)
-	return n, n != nil
-}
-
-// tnodeStart and tnodeEnd are the operations node.start and node.end in the typed library.
-func tnodeStart(n TVal) any {
-	s, _ := n.TSpan()
-	return s
-}
-
-func tnodeEnd(n TVal) any {
-	_, e := n.TSpan()
-	return e
-}
-
-// strAdd is the operation str.add. Under budget controls it copies the bytes in chunks, charging each.
+// strAdd is the operation str.add. Under a budget it charges the bytes of the result and copies them
+// in chunks, charging each.
 func (p *Parser) strAdd(l, r any) any {
 	ls, rs := l.(string), r.(string)
-	if p.Control == nil {
+	if !p.controlled() {
 		return ls + rs
 	}
+	size := checkedTextSize(len(ls), len(rs))
+	p.chargeValueBytes(size)
 	var out strings.Builder
-	out.Grow(checkedTextSize(len(ls), len(rs)))
-	p.chargeValueBytes(len(ls) + len(rs))
+	out.Grow(size)
 	for _, s := range [...]string{ls, rs} {
 		for off := 0; off < len(s); {
 			n := min(spendValueChunk, len(s)-off)
@@ -158,22 +114,4 @@ func (p *Parser) strAdd(l, r any) any {
 func (p *Parser) strCmp(l, r any) int { return p.compareText(l.(string), r.(string)) }
 
 // strEq is the operation str.eq.
-func (p *Parser) strEq(l, r any) bool {
-	ls, rs := l.(string), r.(string)
-	if p.Control == nil {
-		return ls == rs
-	}
-	return p.TextEqual(ls, rs)
-}
-
-// tnodeHasText is the operation node.hasText in the typed library.
-func tnodeHasText(n TVal) bool {
-	_, ok := n.TText()
-	return ok
-}
-
-// tnodeWidth is the operation node.width in the typed library.
-func tnodeWidth(n TVal) any {
-	start, end := n.TSpan()
-	return end - start
-}
+func (p *Parser) strEq(l, r any) bool { return p.TextEqual(l.(string), r.(string)) }

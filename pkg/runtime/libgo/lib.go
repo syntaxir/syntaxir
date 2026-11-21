@@ -916,9 +916,9 @@ type Parser struct {
 	arena    []ExpID
 	lastKept []ExpID
 
-	// Recovered is the record of the syntax errors recovered by #recover: errors and the lists that
-	// results share (recEntry). Backtracking undoes them; recoveredErrors lists them.
-	Recovered []recEntry
+	// core is the state of the mechanisms the library shares with the engine (core.go): the
+	// record of recovered errors and the stream's progress in delivering them.
+	core
 
 	// Result slabs, the stack that gathers repetition children, and the reused
 	// evaluation context.
@@ -1324,7 +1324,7 @@ func (t *memoTable) get(rule, pos, min int, env []any) *memoEntry {
 	if e == nil {
 		return nil
 	}
-	h, _ := memoKeyHash(int32(rule), int32(min), env)
+	h, _ := memoKeyHash(int32(rule), int32(min), false, env)
 	_, x := t.indexAt(pos).probe(h, func(x *memoEntry) bool {
 		return x.rule == int32(rule) && x.min == int32(min) && sameValues(x.env, env)
 	})
@@ -1334,14 +1334,14 @@ func (t *memoTable) get(rule, pos, min int, env []any) *memoEntry {
 // indexAt returns the hash index of the chain at pos, building it on first use.
 func (t *memoTable) indexAt(pos int) memoIndex[memoEntry] {
 	return indexAt(&t.index, &t.indexBytes, pos, t.slots[pos], func(e *memoEntry) *memoEntry { return e.next },
-		func(e *memoEntry) uint64 { h, _ := memoKeyHash(e.rule, e.min, e.env); return h })
+		func(e *memoEntry) uint64 { h, _ := memoKeyHash(e.rule, e.min, false, e.env); return h })
 }
 
 // reindex makes the index of pos, if it has one, hold e where it held x, which has the key of e
 // and is replaced by it in the chain.
 func (t *memoTable) reindex(pos int, x, e *memoEntry) {
 	if ix := t.index[pos]; ix != nil {
-		h, _ := memoKeyHash(x.rule, x.min, x.env)
+		h, _ := memoKeyHash(x.rule, x.min, false, x.env)
 		slot, _ := ix.probe(h, func(y *memoEntry) bool { return y == x })
 		ix[slot] = e
 	}
@@ -1378,7 +1378,7 @@ func (t *memoTable) put(rule, pos, min int, env []any, e *memoEntry, join func(x
 	if *link != nil {
 		// A long chain: the index finds the entry to replace, and a walk finds its link.
 		ix := t.indexAt(pos)
-		h, _ := memoKeyHash(int32(rule), int32(min), env)
+		h, _ := memoKeyHash(int32(rule), int32(min), false, env)
 		slot, x := ix.probe(h, same)
 		if x != nil && kept(x) {
 			return x

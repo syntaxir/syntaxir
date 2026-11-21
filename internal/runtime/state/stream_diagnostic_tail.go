@@ -89,14 +89,14 @@ func (t *StreamDiagnosticTail) Preview(p *Parser, suffix []*value.SyntaxError) [
 	p.Control.Check()
 	out := make([]*value.SyntaxError, 0, n)
 	if len(suffix) >= n {
-		return AppendSpend(p, out, suffix[len(suffix)-n:])
+		return appendSpend(p, out, suffix[len(suffix)-n:])
 	}
 	out = t.appendLast(p, out, n-len(suffix))
-	return AppendSpend(p, out, suffix)
+	return appendSpend(p, out, suffix)
 }
 
 // appendLast copies the last n retained errors in occurrence order. Each
-// contiguous segment is charged and copied in bounded chunks by AppendSpend.
+// contiguous segment is charged and copied in bounded chunks by appendSpend.
 func (t *StreamDiagnosticTail) appendLast(p *Parser, dst value.SyntaxErrors, n int) value.SyntaxErrors {
 	if n == 0 {
 		return dst
@@ -110,9 +110,9 @@ func (t *StreamDiagnosticTail) appendLast(p *Parser, dst value.SyntaxErrors, n i
 		index += start
 	}
 	first := min(n, length-index)
-	dst = AppendSpend(p, dst, t.Errors[index:index+first])
+	dst = appendSpend(p, dst, t.Errors[index:index+first])
 	if first < n {
-		dst = AppendSpend(p, dst, t.Errors[:n-first])
+		dst = appendSpend(p, dst, t.Errors[:n-first])
 	}
 	return dst
 }

@@ -30,7 +30,7 @@ func (p *Parser) streamRelease() {
 // do not survive indefinitely in a small stream.
 func (p *Parser) streamDropRecords(pos int) {
 	if StreamUndoCleanup {
-		ClearSpend(p, p.Trail[:cap(p.Trail)])
+		clearSpend(p, p.Trail[:cap(p.Trail)])
 	}
 	if StreamStackCleanup && p.Backend != nil {
 		p.Backend.ClearInactive()
@@ -49,12 +49,12 @@ func (p *Parser) streamDropRecords(pos int) {
 // prefix; speculative element marks are no longer active after emission.
 func (p *Parser) streamSettleErrors() {
 	if p.Tr == nil && cap(p.Recovered) <= streamRecoveryScratchMax {
-		ClearSpend(p, p.Recovered[:cap(p.Recovered)])
+		clearSpend(p, p.Recovered[:cap(p.Recovered)])
 		p.Recovered = p.Recovered[:0]
 	} else {
 		p.Recovered = nil
 	}
-	p.Diagnosed, p.diagnosedSkip, p.diagnosedList = 0, 0, nil
+	p.diagnosed, p.diagnosedSkip, p.diagnosedList = 0, 0, nil
 	if BudgetControlsEnabled && p.Control != nil {
 		// With a diagnostic limit, the errors are now held by the tail, which counts those it
 		// keeps; without one, Recovered keeps them and errs keeps counting them.
@@ -68,36 +68,12 @@ func (p *Parser) ReportRecovered() error {
 	if p.Diagnostic == nil && p.DiagnosticTail.Limit == 0 {
 		return nil
 	}
-	if p.Diagnosed > len(p.Recovered) {
-		p.Diagnosed = len(p.Recovered)
-	}
-	var errs []*value.SyntaxError
-	for p.Diagnosed < len(p.Recovered) {
-		if e := p.Recovered[p.Diagnosed]; e.list == nil {
-			// An error, delivered without listing it.
-			if e.err != nil {
-				if err := p.reportRecovered(e.err); err != nil {
-					// The error ends the parse.
-					return err
-				}
-			}
-			p.Diagnosed++
-			continue
-		}
-		errs = p.Recovered[p.Diagnosed].AppendErrors(errs[:0])
-		for _, original := range errs[p.partialDiagnosed():] {
-			if err := p.reportRecovered(original); err != nil {
-				return err
-			}
-		}
-		p.Diagnosed, p.diagnosedSkip, p.diagnosedList = p.Diagnosed+1, 0, nil
-	}
-	return nil
+	return p.deliverRecovered()
 }
 
-// reportRecovered delivers the recovered error original to the diagnostic callback, as a copy that
-// the callback owns, and to the diagnostic tail.
-func (p *Parser) reportRecovered(original *value.SyntaxError) error {
+// reportError delivers the recovered error original to the diagnostic callback, as a copy that
+// the callback owns, and to the diagnostic tail (deliverRecovered).
+func (p *Parser) reportError(original *value.SyntaxError) error {
 	if BudgetControlsEnabled {
 		p.Control.Check()
 	}

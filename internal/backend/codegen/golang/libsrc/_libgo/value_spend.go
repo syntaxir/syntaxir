@@ -1,0 +1,142 @@
+package libgo
+
+import (
+	"fmt"
+	"strings"
+	"unsafe"
+)
+
+// The charges of the work on values. Strings and lists can come from actions without referring to
+// the input, so the work of copying, clearing and comparing them is charged by itself, in chunks of
+// spendValueChunk elements, so that a limit or a cancellation is seen between them. Allocation,
+// buffer growth and the garbage collector remain nonpreemptible. Each operation has an uncontrolled
+// fast path, which a parse without a budget (p.controlled) takes, and a controlled path of its own.
+
+// spendValueChunk is the number of elements of a value that one charge covers.
+const spendValueChunk = 128
+
+// spendValue spends n units of value work.
+func (p *Parser) spendValue(n int) {
+	if p.controlled() {
+		p.Control.Charge(uint64(n))
+	}
+}
+
+// chargeValues spends n units of value work in chunks, so that a limit or cancellation is seen
+// between them.
+func (p *Parser) chargeValues(n int) {
+	for n > 0 {
+		c := min(spendValueChunk, n)
+		p.spendValue(c)
+		n -= c
+	}
+}
+
+// compareText compares two strings bytewise, as strings.Compare does, malformed UTF-8 included.
+func (p *Parser) compareText(l, r string) int {
+	if p.controlled() {
+		return p.compareTextControlled(l, r)
+	}
+	return strings.Compare(l, r)
+}
+
+// sameData reports whether two strings are the same bytes of the same memory.
+func sameData(l, r string) bool {
+	return len(l) == len(r) && (len(l) == 0 || unsafe.StringData(l) == unsafe.StringData(r))
+}
+
+func (p *Parser) compareTextControlled(l, r string) int {
+	if len(l) > 0 && sameData(l, r) {
+		// The same bytes: the comparison reads none of them, so it costs a constant.
+		p.Spend()
+		return 0
+	}
+	for off, end := 0, min(len(l), len(r)); off < end; {
+		n := min(spendValueChunk, end-off)
+		p.spendValue(2 * n)
+		if order := strings.Compare(l[off:off+n], r[off:off+n]); order != 0 {
+			return order
+		}
+		off += n
+	}
+	if len(l) < len(r) {
+		return -1
+	}
+	if len(l) > len(r) {
+		return 1
+	}
+	return 0
+}
+
+// TextEqual reports whether two strings are equal (the operation str.eq). Under a budget it charges
+// the comparison of their bytes, which strings of different lengths skip.
+func (p *Parser) TextEqual(l, r string) bool {
+	if !p.controlled() {
+		return l == r
+	}
+	return len(l) == len(r) && p.compareTextControlled(l, r) == 0
+}
+
+// checkedTextSize returns size+width, the size of a text that grows by width bytes, and ends the
+// parse when it exceeds the largest string.
+func checkedTextSize(size, width int) int {
+	if size < 0 || width < 0 || size > int(^uint(0)>>1)-width {
+		abortParse(fmt.Errorf("input text exceeds maximum string size"))
+	}
+	return size + width
+}
+
+// copySpend copies src to dst. The callers use disjoint storage; overlapping moves need their own
+// direction-aware implementation rather than a chunked forward copy.
+func copySpend[T any](p *Parser, dst, src []T) {
+	if p.controlled() {
+		copyBudgetControlled(p, dst, src)
+		return
+	}
+	copy(dst, src)
+}
+
+func copyBudgetControlled[T any](p *Parser, dst, src []T) {
+	for off, end := 0, min(len(dst), len(src)); off < end; {
+		n := min(spendValueChunk, end-off)
+		p.spendValue(n)
+		copy(dst[off:off+n], src[off:off+n])
+		off += n
+	}
+}
+
+// appendSpend appends src to dst.
+func appendSpend[T any](p *Parser, dst, src []T) []T {
+	if p.controlled() {
+		return appendBudgetControlled(p, dst, src)
+	}
+	return append(dst, src...)
+}
+
+func appendBudgetControlled[T any](p *Parser, dst, src []T) []T {
+	for off := 0; off < len(src); {
+		n := min(spendValueChunk, len(src)-off)
+		p.spendValue(n)
+		dst = append(dst, src[off:off+n]...)
+		off += n
+	}
+	return dst
+}
+
+// clearSpend clears values.
+func clearSpend[T any](p *Parser, values []T) {
+	if p.controlled() {
+		clearBudgetControlled(p, values)
+		return
+	}
+	clear(values)
+}
+
+func clearBudgetControlled[T any](p *Parser, values []T) {
+	for off := 0; off < len(values); {
+		n := min(spendValueChunk, len(values)-off)
+		p.spendValue(n)
+		clear(values[off : off+n])
+		off += n
+	}
+}

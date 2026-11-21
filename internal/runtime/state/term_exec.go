@@ -350,7 +350,7 @@ func (p *Parser) termPush(c *EvalCtx, fn string, v any) error {
 func (p *Parser) termPushItems(c *EvalCtx, fn string, v any) error {
 	items, ok := valItems(v)
 	if ok {
-		p.KidStack = AppendSpend(p, p.KidStack, items)
+		p.KidStack = appendSpend(p, p.KidStack, items)
 		return nil
 	}
 	return p.termError(12, v, any(fn), 0, 0)

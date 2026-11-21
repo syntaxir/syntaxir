@@ -138,6 +138,7 @@ var layout = []place{
 	{pkg: "internal/runtime/engine", target: "internal/runtime/engine"},
 	{pkg: "internal/runtime/document", target: "internal/runtime/document"},
 	{pkg: "internal/runtime/state", target: "internal/runtime/state"},
+	{pkg: "internal/runtime/state/sharedsrc", target: "internal/runtime/state/sharedsrc"},
 	// vm moves to internal/runtime/vm (the machines); the bytecode compiler is already
 	// internal/backend/vmlower.
 	{pkg: "internal/runtime/vm", target: "internal/runtime/vm"},

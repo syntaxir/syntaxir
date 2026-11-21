@@ -467,7 +467,7 @@ func (p *Parser) walkKey() walkKey {
 	if k == nil || SkipRecordMutation == SkipIgnoreEnv {
 		return walkKey{}
 	}
-	p.ChargeValueBytes(len(k.vars) * int(anyBytes))
+	p.chargeValueBytes(len(k.vars) * int(anyBytes))
 	vals := p.EnvValues(k.vars)
 	h := p.hashMemoKey(0, 0, false, vals)
 	if SkipRecordMutation == SkipKeyEnvObject {
@@ -727,7 +727,7 @@ func (p *Parser) placeVals(vals []*value.Node, tail valSuffix) (*valBuf, int) {
 	p.skipBytes += uint64(len(a)) * ptrBytes
 	place(a[slack:])
 	if tl > 0 {
-		CopySpend(p, a[slack+n:], tail.buf.a[tail.i:])
+		copySpend(p, a[slack+n:], tail.buf.a[tail.i:])
 	}
 	return &valBuf{a: a, lo: slack}, slack
 }
@@ -769,7 +769,7 @@ func (p *Parser) walkBind() []any {
 	if k == nil || len(k.bind) == 0 {
 		return nil
 	}
-	p.ChargeValueBytes(len(k.bind) * int(anyBytes))
+	p.chargeValueBytes(len(k.bind) * int(anyBytes))
 	return p.EnvValues(k.bind)
 }
 

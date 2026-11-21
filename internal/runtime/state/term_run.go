@@ -124,7 +124,7 @@ func (t *TermProgram) run(c *EvalCtx, a []any, n []int, s [][]*value.Node, ts []
 				return nil, err
 			}
 		case TTextEq:
-			n[in.Dst] = b2i(p.equalText(ts[in.A], ts[in.B]))
+			n[in.Dst] = b2i(p.TextEqual(ts[in.A], ts[in.B]))
 		case TLength:
 			if a[in.Dst], err = p.termLength(a[in.A]); err != nil {
 				return nil, err

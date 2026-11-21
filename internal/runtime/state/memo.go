@@ -39,7 +39,7 @@ type MemoTable struct {
 	MemBytes uint64
 	// Index holds the hash index of each position whose chain has more entries
 	// than a lookup walks (memoScan), by position. Splice drops all of them.
-	Index map[int]memoIndex
+	Index map[int]memoIndex[MemoEntry]
 	// IndexBytes counts the bytes of the indexes in Index, for the memory limit (ChargedBytes).
 	IndexBytes uint64
 }
@@ -195,7 +195,7 @@ func (t *MemoTable) Get(k MemoKey) (*MemoEntry, bool) {
 	if e == nil {
 		return nil, false
 	}
-	ix := t.indexAt(k.Pos, t.Slots[i], nil)
+	ix := t.indexAt(k.Pos, t.Slots[i])
 	h, _ := memoKeyHash(int32(k.Rule), int32(k.Min), k.MissingSilent, k.Env)
 	_, x := ix.probe(h, func(x *MemoEntry) bool {
 		return x.Rule == int32(k.Rule) && x.Min == int32(k.Min) && x.missingSilent == k.MissingSilent && slices.Equal(x.Env, k.Env)
@@ -260,7 +260,7 @@ func (t *MemoTable) put(k MemoKey, e *MemoEntry, p *Parser) *MemoEntry {
 				return x
 			}
 			setKey(e, k)
-			t.reindex(k.Pos, x, e, nil)
+			t.reindex(k.Pos, x, e)
 			e.Next = x.Next
 			*link = e
 			if x != e {
@@ -273,7 +273,7 @@ func (t *MemoTable) put(k MemoKey, e *MemoEntry, p *Parser) *MemoEntry {
 	}
 	if *link != nil {
 		// A long chain: the index finds the entry to replace, and a walk finds its link.
-		ix := t.indexAt(k.Pos, t.Slots[i], nil)
+		ix := t.indexAt(k.Pos, t.Slots[i])
 		h, _ := memoKeyHash(int32(k.Rule), int32(k.Min), k.MissingSilent, k.Env)
 		slot, x := ix.probe(h, same)
 		if x != nil && p != nil && p.joinStored(x, e) == x {

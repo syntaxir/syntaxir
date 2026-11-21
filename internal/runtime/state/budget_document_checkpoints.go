@@ -58,7 +58,7 @@ func GrowSpend[T any](p *Parser, values []T, extra int) []T {
 		capacity = max(capacity, 2*cap(values))
 	}
 	out := make([]T, len(values), capacity)
-	CopySpend(p, out, values)
+	copySpend(p, out, values)
 	return out
 }
 

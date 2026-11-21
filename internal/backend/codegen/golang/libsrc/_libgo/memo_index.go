@@ -31,15 +31,20 @@ type memoIndex[E any] map[uint64]*E
 
 // memoKeyHash hashes a memo key deterministically, so that budgeted costs do not
 // vary between runs. Values of types other than the common scalars all hash
-// alike and are told apart by the key comparison. It also returns the number of
+// alike and are told apart by the key comparison. silent is the part of the key
+// that the engine's missing-token mode adds (MemoKey.MissingSilent in the engine);
+// the library has no such mode and passes false. It also returns the number of
 // string bytes hashed, which hashing the key of a record of a skip run charges; a
-// memo lookup charges nothing for its hash. Keys that are equal as
-// interface values have equal hashes.
-func memoKeyHash(rule, min int32, env []any) (h uint64, bytes int) {
+// memo lookup charges nothing for its hash. Keys that are equal as interface
+// values have equal hashes.
+func memoKeyHash(rule, min int32, silent bool, env []any) (h uint64, bytes int) {
 	h = 14695981039346656037
 	mix := func(x uint64) { h = (h ^ x) * 1099511628211; h ^= h >> 29 }
 	mix(uint64(uint32(rule)))
 	mix(uint64(uint32(min)))
+	if silent {
+		mix(1)
+	}
 	for _, v := range env {
 		switch v := v.(type) {
 		case nil:
@@ -98,6 +103,11 @@ func indexAt[E any](all *map[int]memoIndex[E], bytes *uint64, pos int, head *E, 
 		*all = make(map[int]memoIndex[E])
 	}
 	(*all)[pos] = ix
-	*bytes += uint64(len(ix)+1) * memoIndexEntryBytes
+	*bytes += indexBytes(ix)
 	return ix
+}
+
+// indexBytes returns the bytes that the index ix and its place in the map of a table's indexes take.
+func indexBytes[E any](ix memoIndex[E]) uint64 {
+	return uint64(len(ix)+1) * memoIndexEntryBytes
 }

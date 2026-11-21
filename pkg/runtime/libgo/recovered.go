@@ -76,12 +76,21 @@ func appendRecErrors(dst []*sxirvalue.SyntaxError, entries []recEntry) []*sxirva
 	}
 }
 
+// countRecErrors returns the number of errors of the entries.
+func countRecErrors(entries []recEntry) int {
+	n := 0
+	for _, e := range entries {
+		n += e.len()
+	}
+	return n
+}
+
 // recoveredErrors returns the recovered errors of the record, in order.
-func (p *Parser) recoveredErrors() []*sxirvalue.SyntaxError {
-	if len(p.Recovered) == 0 {
+func (c *core) recoveredErrors() []*sxirvalue.SyntaxError {
+	if len(c.Recovered) == 0 {
 		return nil
 	}
-	return appendRecErrors(make([]*sxirvalue.SyntaxError, 0, len(p.Recovered)), p.Recovered)
+	return appendRecErrors(make([]*sxirvalue.SyntaxError, 0, len(c.Recovered)), c.Recovered)
 }
 
 // recSince returns the errors recovered after the mark m (rec.since), charging one unit for each
@@ -100,22 +109,17 @@ func (p *Parser) recSinceSlow(m int) recEntry {
 		return p.Recovered[m]
 	}
 	after := p.Recovered[m:]
-	l := &errList{entries: appendSpend(p, make([]recEntry, 0, len(after)), after)}
-	for _, e := range after {
-		l.n += e.len()
-	}
+	l := &errList{entries: appendSpend(p, make([]recEntry, 0, len(after)), after), n: countRecErrors(after)}
 	p.chargeValueBytes(int(errListBytes + uint64(cap(l.entries))*recEntryBytes))
-	if p.Stream != nil {
-		p.Stream.compactDiagnosed(p, m, l)
-	}
+	p.compactDiagnosed(m, l)
 	p.Recovered = append(p.Recovered[:m], recEntry{list: l})
 	return recEntry{list: l}
 }
 
 // recAdd records the errors of a result again, as one entry, at no cost (rec.add).
-func (p *Parser) recAdd(e recEntry) {
+func (c *core) recAdd(e recEntry) {
 	if !e.none() {
-		p.Recovered = append(p.Recovered, e)
+		c.Recovered = append(c.Recovered, e)
 	}
 }
 
@@ -125,28 +129,56 @@ func (p *Parser) PushRecovered(e *sxirvalue.SyntaxError) {
 	p.Recovered = append(p.Recovered, recEntry{err: e})
 }
 
-// compactDiagnosed keeps the progress of the stream's reports (reportRecovered) when the entries of
+// compactDiagnosed keeps the progress of the stream's reports (deliverRecovered) when the entries of
 // the record from m become the list l. The reports deliver whole entries, and diagnosedSkip errors
 // of the entry at diagnosed when it is diagnosedList, so a list that takes the place of reported
-// entries counts their errors there.
-func (s *streamInput) compactDiagnosed(p *Parser, m int, l *errList) {
+// entries counts their errors there. Without a stream, diagnosed is zero and nothing changes.
+func (c *core) compactDiagnosed(m int, l *errList) {
 	switch {
-	case s.diagnosed > m:
-		skip := s.partialDiagnosed(p)
-		for _, e := range p.Recovered[m:min(s.diagnosed, len(p.Recovered))] {
-			skip += e.len()
-		}
-		s.diagnosed, s.diagnosedSkip, s.diagnosedList = m, skip, l
-	case s.diagnosed == m && s.partialDiagnosed(p) > 0:
-		s.diagnosedList = l
+	case c.diagnosed > m:
+		skip := c.partialDiagnosed() + countRecErrors(c.Recovered[m:min(c.diagnosed, len(c.Recovered))])
+		c.diagnosed, c.diagnosedSkip, c.diagnosedList = m, skip, l
+	case c.diagnosed == m && c.partialDiagnosed() > 0:
+		c.diagnosedList = l
 	}
 }
 
 // partialDiagnosed returns the errors of the entry at diagnosed that the stream has already
 // reported.
-func (s *streamInput) partialDiagnosed(p *Parser) int {
-	if s.diagnosedList == nil || s.diagnosed >= len(p.Recovered) || p.Recovered[s.diagnosed].list != s.diagnosedList {
+func (c *core) partialDiagnosed() int {
+	if c.diagnosedList == nil || c.diagnosed >= len(c.Recovered) || c.Recovered[c.diagnosed].list != c.diagnosedList {
 		return 0
 	}
-	return s.diagnosedSkip
+	return c.diagnosedSkip
+}
+
+// deliverRecovered delivers the recovered errors committed since the last delivery to
+// p.reportError, in order, and stops at the first error it returns. A stream runs it only at its
+// boundaries, which recoveries in abandoned alternatives never reach.
+func (p *Parser) deliverRecovered() error {
+	if p.diagnosed > len(p.Recovered) {
+		p.diagnosed = len(p.Recovered)
+	}
+	var errs []*sxirvalue.SyntaxError
+	for p.diagnosed < len(p.Recovered) {
+		if e := p.Recovered[p.diagnosed]; e.list == nil {
+			// An error, delivered without listing it.
+			if e.err != nil {
+				if err := p.reportError(e.err); err != nil {
+					// The error ends the parse.
+					return err
+				}
+			}
+			p.diagnosed++
+			continue
+		}
+		errs = appendRecErrors(errs[:0], p.Recovered[p.diagnosed:p.diagnosed+1])
+		for _, original := range errs[p.partialDiagnosed():] {
+			if err := p.reportError(original); err != nil {
+				return err
+			}
+		}
+		p.diagnosed, p.diagnosedSkip, p.diagnosedList = p.diagnosed+1, 0, nil
+	}
+	return nil
 }

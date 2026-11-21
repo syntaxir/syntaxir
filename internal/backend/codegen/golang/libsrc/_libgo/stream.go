@@ -47,17 +47,11 @@ type streamInput struct {
 	scratch frameScratchMark
 	// nodeChunks counts the node chunks started since the last split.
 	nodeChunks int
-	// diagnostic receives the committed recovered errors; diagnosed is the
-	// number of entries of p.Recovered already delivered to it or to tail,
-	// and diagnosedSkip errors of the entry after them were delivered too
-	// when it is the list diagnosedList, which took the place of delivered
-	// entries (compactDiagnosed).
-	diagnostic    func(*sxirvalue.SyntaxError) error
-	diagnosed     int
-	diagnosedSkip int
-	diagnosedList *errList
-	tail          streamDiagnosticTail
-	text          streamTextSnapshot
+	// diagnostic receives the committed recovered errors; p.diagnosed counts
+	// the entries of p.Recovered already delivered to it or to tail.
+	diagnostic func(*sxirvalue.SyntaxError) error
+	tail       streamDiagnosticTail
+	text       streamTextSnapshot
 	// lines holds the line starts once the whole input is loaded and
 	// nothing was discarded.
 	lines []int
@@ -286,7 +280,6 @@ func (p *Parser) streamDropRecords(pos int) {
 
 // streamSettleErrors forgets the recovered errors before the boundary, for streamCommit.
 func (p *Parser) streamSettleErrors() {
-	s := p.Stream
 	// The recovered errors before the boundary were delivered and
 	// collected, and no active call restores a longer prefix of them:
 	// the start rule's call saved an empty one, and the element marks
@@ -298,7 +291,7 @@ func (p *Parser) streamSettleErrors() {
 	} else {
 		p.Recovered = nil
 	}
-	s.diagnosed, s.diagnosedSkip, s.diagnosedList = 0, 0, nil
+	p.diagnosed, p.diagnosedSkip, p.diagnosedList = 0, 0, nil
 	if usedFeatures&featureBudget != 0 && p.Control != nil {
 		// With a diagnostic limit, the errors are now held by the tail, which counts
 		// those it keeps; without one, Recovered keeps them and errs keeps counting them.
@@ -314,31 +307,7 @@ func (p *Parser) reportRecovered() error {
 	if s.diagnostic == nil && s.tail.limit == 0 {
 		return nil
 	}
-	if s.diagnosed > len(p.Recovered) {
-		s.diagnosed = len(p.Recovered)
-	}
-	var errs []*sxirvalue.SyntaxError
-	for s.diagnosed < len(p.Recovered) {
-		if e := p.Recovered[s.diagnosed]; e.list == nil {
-			// An error, delivered without listing it.
-			if e.err != nil {
-				if err := p.reportError(e.err); err != nil {
-					// The error ends the parse.
-					return err
-				}
-			}
-			s.diagnosed++
-			continue
-		}
-		errs = appendRecErrors(errs[:0], p.Recovered[s.diagnosed:s.diagnosed+1])
-		for _, original := range errs[s.partialDiagnosed(p):] {
-			if err := p.reportError(original); err != nil {
-				return err
-			}
-		}
-		s.diagnosed, s.diagnosedSkip, s.diagnosedList = s.diagnosed+1, 0, nil
-	}
-	return nil
+	return p.deliverRecovered()
 }
 
 // reportError delivers the recovered error original to the diagnostic callback, as a copy that the
@@ -587,7 +556,7 @@ func (p *Parser) pruneStreamMemo(pos int) {
 		for at, ix := range t.index {
 			if at >= k {
 				moved[at-k] = ix
-				t.indexBytes += uint64(len(ix)+1) * memoIndexEntryBytes
+				t.indexBytes += indexBytes(ix)
 			}
 		}
 		t.index = moved

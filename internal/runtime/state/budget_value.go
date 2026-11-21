@@ -2,25 +2,12 @@ package state
 
 import (
 	"math/bits"
-	"strings"
 	"unicode/utf8"
-	"unsafe"
 
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
-
-// Value spend is charged like any other spend, though strings and collections can
-// come from actions without referring to the input. Keep explicit copies and
-// comparisons bounded; allocation, buffer growth, and GC remain nonpreemptible.
-const spendValueChunk = 128
-
-func (p *Parser) SpendValue(n int) {
-	if BudgetControlsEnabled && p.Control != nil {
-		p.Control.Charge(uint64(n))
-	}
-}
 
 // growthSpend charges the copy that growing a table from oldLen to newLen entries stands for. The
 // charge is a function of the two lengths alone: it falls where the length crosses a power of two,
@@ -29,57 +16,7 @@ func (p *Parser) SpendValue(n int) {
 // follows the charge and is not charged again.
 func (p *Parser) growthSpend(oldLen, newLen int) {
 	if oldLen > 0 && bits.Len(uint(newLen)) > bits.Len(uint(oldLen)) {
-		p.chargeValueBytes(oldLen)
-	}
-}
-
-// chargeValueBytes charges n values in chunks, so that a limit or cancellation is seen between them.
-func (p *Parser) chargeValueBytes(n int) {
-	for n > 0 {
-		c := min(spendValueChunk, n)
-		p.SpendValue(c)
-		n -= c
-	}
-}
-
-func CopySpend[T any](p *Parser, dst, src []T) {
-	if !BudgetControlsEnabled || p.Control == nil {
-		copy(dst, src)
-		return
-	}
-	// Engine callers use disjoint storage; overlapping moves need their own
-	// direction-aware implementation rather than a chunked forward copy.
-	for off, end := 0, min(len(dst), len(src)); off < end; {
-		n := min(spendValueChunk, end-off)
-		p.SpendValue(n)
-		copy(dst[off:off+n], src[off:off+n])
-		off += n
-	}
-}
-
-func AppendSpend[T any](p *Parser, dst, src []T) []T {
-	if !BudgetControlsEnabled || p.Control == nil {
-		return append(dst, src...)
-	}
-	for off := 0; off < len(src); {
-		n := min(spendValueChunk, len(src)-off)
-		p.SpendValue(n)
-		dst = append(dst, src[off:off+n]...)
-		off += n
-	}
-	return dst
-}
-
-func ClearSpend[T any](p *Parser, values []T) {
-	if !BudgetControlsEnabled || p.Control == nil {
-		clear(values)
-		return
-	}
-	for off := 0; off < len(values); {
-		n := min(spendValueChunk, len(values)-off)
-		p.SpendValue(n)
-		clear(values[off : off+n])
-		off += n
+		p.chargeValues(oldLen)
 	}
 }
 
@@ -98,52 +35,12 @@ func ResetSpend[T any](p *Parser, a *Arena[T], n int) {
 	a.N = n
 }
 
-// sameData reports whether two strings are the same bytes of the same memory.
-func sameData(l, r string) bool {
-	return len(l) == len(r) && (len(l) == 0 || unsafe.StringData(l) == unsafe.StringData(r))
-}
-
-// CompareText preserves bytewise Go string ordering, including malformed UTF-8.
-func (p *Parser) CompareText(l, r string) int {
-	if !BudgetControlsEnabled || p.Control == nil {
-		return strings.Compare(l, r)
-	}
-	if len(l) > 0 && sameData(l, r) {
-		// The same bytes: the comparison reads none of them, so it costs a constant.
-		p.Spend()
-		return 0
-	}
-	for off, end := 0, min(len(l), len(r)); off < end; {
-		n := min(spendValueChunk, end-off)
-		p.SpendValue(2 * n)
-		if order := strings.Compare(l[off:off+n], r[off:off+n]); order != 0 {
-			return order
-		}
-		off += n
-	}
-	if len(l) < len(r) {
-		return -1
-	}
-	if len(l) > len(r) {
-		return 1
-	}
-	return 0
-}
-
-// equalText is the operation str.eq on two strings: under budget controls it charges the comparison.
-func (p *Parser) equalText(ls, rs string) bool {
-	if !BudgetControlsEnabled || p.Control == nil {
-		return ls == rs
-	}
-	return len(ls) == len(rs) && p.CompareText(ls, rs) == 0
-}
-
 // ValueEqual reports whether l and r are equal as == compares them; a pair without equality is not.
 func (p *Parser) ValueEqual(l, r any) bool {
 	// Two strings, as the names of fields are, are compared as the composition does, without its dispatch.
 	if ls, ok := l.(string); ok {
 		if rs, ok := r.(string); ok {
-			return p.equalText(ls, rs)
+			return p.TextEqual(ls, rs)
 		}
 	}
 	eq, _ := p.termEqual(l, r)
@@ -184,7 +81,7 @@ func (p *Parser) ValueTextLen(s string) int {
 	}
 	n := 0
 	for off := 0; off < len(s); {
-		p.SpendValue(min(utf8.UTFMax, len(s)-off))
+		p.spendValue(min(utf8.UTFMax, len(s)-off))
 		_, size := utf8.DecodeRuneInString(s[off:])
 		off += size
 		n++

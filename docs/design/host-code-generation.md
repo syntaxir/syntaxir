@@ -91,6 +91,12 @@ parsers.
   and a pipeline of the driver like any generation: the compositions are specialized by the pass that also specializes
   the TypeScript library for each parser, and the library printer only prints the result.
   It is not an import edge, so the runtime side does not depend on the printer.
+- **Shared mechanisms.** The mechanisms that are not compositions (the record of recovered errors, the hash index of
+  the memo, the value primitives of terms and the charges of value work, among others) are Go source that the Go
+  library and the shared engine state both compile. The library holds each such file, and `go:generate` copies it into
+  the engine state with only its package clause changed; a freshness test fails when a copy differs. A shared file
+  names only what both packages define alike: the other shared files, the state that both parser types embed, and the
+  parser members that each package provides under the same name and contract.
 - **Library mode.** The generator either imports the runtime library as a library, or embeds a copy of it in the
   generated output (`-lib import` and `-lib embed` for Go), as far as the packaging of the host language allows. The
   embedded copy compiles by itself, as the rules of the [Package Layering](layering.md) require for generated parsers.

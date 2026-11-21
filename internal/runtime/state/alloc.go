@@ -115,7 +115,7 @@ func (p *Parser) Kids(base int) []*value.Node {
 // one for copying it and one for taking it off, in one reservation before it moves any.
 func (p *Parser) ElemsAbove(base int) []*value.Node {
 	if n := len(p.KidStack) - base; n > 0 {
-		p.SpendValue(2 * n)
+		p.spendValue(2 * n)
 	}
 	return p.Kids(base)
 }
@@ -123,7 +123,7 @@ func (p *Parser) ElemsAbove(base int) []*value.Node {
 // DropKids discards p.KidStack[base:] and charges a unit for each element, as term.dropKids does
 // (spec/exec-ir/values.md).
 func (p *Parser) DropKids(base int) {
-	ClearSpend(p, p.KidStack[base:])
+	clearSpend(p, p.KidStack[base:])
 	p.KidStack = p.KidStack[:base]
 }
 
@@ -208,7 +208,7 @@ func (p *Parser) ResetStreamFrames() {
 			break
 		}
 	}
-	ClearSpend(p, p.FrameSlab[keep:])
+	clearSpend(p, p.FrameSlab[keep:])
 	p.FrameSlab = p.FrameSlab[:keep]
 }
 

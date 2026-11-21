@@ -14,7 +14,7 @@ func TestRepetitionListTakeOffMutants(t *testing.T) {
 	const tests = "TestRuntimeValuesChargeNothing/repetition"
 	t.Run("closure", func(t *testing.T) {
 		runPrintedMutants(t, "internal/runtime/state/alloc.go", []printedMutant{{"Kids charges the take-off",
-			[]printedEdit{{"\tks := p.Nodes(n)\n\tcopy(ks, p.KidStack[base:])", "\tks := p.Nodes(n)\n\tp.SpendValue(2 * n)\n\tcopy(ks, p.KidStack[base:])"}},
+			[]printedEdit{{"\tks := p.Nodes(n)\n\tcopy(ks, p.KidStack[base:])", "\tks := p.Nodes(n)\n\tp.spendValue(2 * n)\n\tcopy(ks, p.KidStack[base:])"}},
 			tests, []string{"."}}})
 	})
 	t.Run("vm", func(t *testing.T) {
@@ -26,9 +26,9 @@ func TestRepetitionListTakeOffMutants(t *testing.T) {
 		const tests = "TestRunSiteListChargesNothing"
 		runPrintedMutants(t, "internal/runtime/state/skip_runs.go", []printedMutant{
 			{"a run site charges the take-off of its list",
-				[]printedEdit{{"func (p *Parser) SkipKids() []*value.Node {\n", "func (p *Parser) SkipKids() []*value.Node {\n\tp.SpendValue(2 * len(p.walk().vals))\n"}}, tests, []string{"."}},
+				[]printedEdit{{"func (p *Parser) SkipKids() []*value.Node {\n", "func (p *Parser) SkipKids() []*value.Node {\n\tp.spendValue(2 * len(p.walk().vals))\n"}}, tests, []string{"."}},
 			{"a run site charges placing its values in its records",
-				[]printedEdit{{"place := func(dst []*value.Node) { copy(dst, vals) }", "place := func(dst []*value.Node) { CopySpend(p, dst, vals) }"}}, tests, []string{"."}},
+				[]printedEdit{{"place := func(dst []*value.Node) { copy(dst, vals) }", "place := func(dst []*value.Node) { copySpend(p, dst, vals) }"}}, tests, []string{"."}},
 		})
 	})
 }

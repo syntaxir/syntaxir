@@ -144,7 +144,7 @@ func (p *Parser) confExpCopy(s []ExpID) []ExpID {
 		p.MemUsed += uint64(cap(p.Arena)) * expIDBytes
 	}
 	off := len(p.Arena)
-	p.Arena = AppendSpend(p, p.Arena, s)
+	p.Arena = appendSpend(p, p.Arena, s)
 	p.LastKept = p.Arena[off:len(p.Arena):len(p.Arena)]
 	r = p.LastKept
 	return r

@@ -678,7 +678,7 @@ p.Arena = make([]ExpID, 0, max(1024, len(%[1]s)))
 p.MemUsed += uint64(cap(p.Arena)) * expIDBytes
 }
 off := len(p.Arena)
-p.Arena = AppendSpend(p, p.Arena, %[1]s)
+p.Arena = appendSpend(p, p.Arena, %[1]s)
 p.LastKept = p.Arena[off:len(p.Arena):len(p.Arena)]
 %[2]s%[3]sp.LastKept`, a[0], dst[0], op), true
 		case "memo.examine":

@@ -528,7 +528,7 @@ func engineValueOp(callee string, a []string) (string, bool) {
 	case "act.push":
 		return fmt.Sprintf("p.KidStack = append(p.KidStack, %s)", a[1]), true
 	case "act.pushAll":
-		return fmt.Sprintf("p.KidStack = AppendSpend(p, p.KidStack, %s)", a[1]), true
+		return fmt.Sprintf("p.KidStack = appendSpend(p, p.KidStack, %s)", a[1]), true
 	case "node.typeName":
 		return a[0] + "[0].Type", true
 	case "node.shape":

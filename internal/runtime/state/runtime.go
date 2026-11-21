@@ -110,19 +110,13 @@ type Parser struct {
 	LastKept []ExpID
 	// Descs maps expectation indices to strings (it differs per backend).
 	Descs []string
-	// Recovered is the record of the syntax errors recovered by #recover: errors and the lists that
-	// results share (RecEntry). Backtracking undoes them; RecoveredErrors lists them.
-	Recovered []RecEntry
-	Missing   *MissingTokenState // invocation-local opt-in insertion accounting
+	// core is the state of the mechanisms the engine shares with the library of generated parsers
+	// (core.go): the record of recovered errors and the stream's progress in delivering them.
+	core
+	Missing *MissingTokenState // invocation-local opt-in insertion accounting
 	// MissingLen is len(missing.path), or 0 without missing. It lives here so that mark and reset
 	// need no pointer chase or call on strict parses.
 	MissingLen int
-	// Diagnosed is the number of entries of Recovered already delivered to the stream diagnostic
-	// callback; diagnosedSkip errors of the entry after them were delivered too when it is the list
-	// diagnosedList, which took the place of delivered entries (compactDiagnosed).
-	Diagnosed     int
-	diagnosedSkip int
-	diagnosedList *ErrList
 
 	// Emit receives the elements of the #stream repetition when parsing a stream.
 	Emit func(*value.Node) error
@@ -482,7 +476,7 @@ func (p *Parser) memoEnv(r *Rule) []any {
 	if p.Env == p.initEnv && r.InitVals != nil && (!BudgetControlsEnabled || p.Control == nil) {
 		return r.InitVals
 	}
-	p.ChargeValueBytes(len(r.VarSlots) * int(anyBytes))
+	p.chargeValueBytes(len(r.VarSlots) * int(anyBytes))
 	return p.keyValues(r.VarSlots)
 }
 

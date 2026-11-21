@@ -72,7 +72,7 @@ func (p *Parser) ActionResult(ctx *EvalCtx, act Evaluator, where string) *value.
 
 // DropCreated releases tracking references without changing the created values.
 func (p *Parser) DropCreated(base int) {
-	ClearSpend(p, p.Created[base:])
+	clearSpend(p, p.Created[base:])
 	p.Created = p.Created[:base]
 }
 
@@ -194,7 +194,7 @@ func (c *EvalCtx) NewStruct(typ string, names []string, vals []any) (*value.Node
 
 func (c *EvalCtx) NewList(items []*value.Node) *value.Node {
 	kids := c.P.Nodes(len(items))
-	CopySpend(c.P, kids, items)
+	copySpend(c.P, kids, items)
 	return c.ListNode(kids)
 }
 

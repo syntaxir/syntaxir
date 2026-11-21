@@ -193,20 +193,7 @@ func (s *surface) typeName(obj *types.TypeName) {
 	named := obj.Type().(*types.Named)
 	tparams := s.typeParams(named.TypeParams())
 	if st, ok := named.Underlying().(*types.Struct); ok {
-		var fs []string
-		for i := range st.NumFields() {
-			f := st.Field(i)
-			if !f.Exported() {
-				continue
-			}
-			if f.Embedded() {
-				fs = append(fs, s.typ(f.Type()))
-			} else {
-				fs = append(fs, f.Name()+" "+s.typ(f.Type()))
-			}
-			s.walk(f.Type())
-		}
-		s.add(fmt.Sprintf("type %s%s struct{%s}", s.qualified(obj), tparams, strings.Join(fs, "; ")))
+		s.add(fmt.Sprintf("type %s%s struct{%s}", s.qualified(obj), tparams, strings.Join(s.fields(st), "; ")))
 	} else {
 		s.add(fmt.Sprintf("type %s%s %s", s.qualified(obj), tparams, s.typ(named.Underlying())))
 		s.walk(named.Underlying())
@@ -223,6 +210,42 @@ func (s *surface) typeName(obj *types.TypeName) {
 		s.add(fmt.Sprintf("method (%s) %s%s", recv, m.Name(), s.signature(m.Signature())))
 		s.walk(m.Signature())
 	}
+}
+
+// fields lists the exported fields of st and walks their types. The exported fields and methods of
+// an unexported embedded struct are promoted, so generated code reaches them as members of st: they
+// are listed in its place. Such a struct has no exported methods; the listing stops if it gets one,
+// which would then need recording as a method of the embedding type.
+func (s *surface) fields(st *types.Struct) []string {
+	var fs []string
+	for i := range st.NumFields() {
+		f := st.Field(i)
+		if !f.Exported() {
+			if !f.Embedded() {
+				continue
+			}
+			named, _ := types.Unalias(f.Type()).(*types.Named)
+			if named == nil {
+				continue
+			}
+			for j := range named.NumMethods() {
+				if named.Method(j).Exported() {
+					panic(fmt.Sprintf("protocol surface: promoted method %s of the unexported embedded %s is not recorded", named.Method(j).Name(), named.Obj().Name()))
+				}
+			}
+			if inner, ok := named.Underlying().(*types.Struct); ok {
+				fs = append(fs, s.fields(inner)...)
+			}
+			continue
+		}
+		if f.Embedded() {
+			fs = append(fs, s.typ(f.Type()))
+		} else {
+			fs = append(fs, f.Name()+" "+s.typ(f.Type()))
+		}
+		s.walk(f.Type())
+	}
+	return fs
 }
 
 // walk records the types of the package that t reaches.

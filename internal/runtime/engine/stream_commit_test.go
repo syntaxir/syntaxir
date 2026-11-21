@@ -116,10 +116,10 @@ func TestStreamCommitPrunesBeforeItSettles(t *testing.T) {
 	memo.Slots = make([]*state.MemoEntry, 2)
 	p := &state.Parser{Input: state.Input{Base: 1023, Control: state.NewBudgetControl(nil, runtime.Limits{Compute: 1})}, Memo: memo, Recovered: []state.RecEntry{state.ErrEntry(first)}}
 	p.DiagnosticTail.Limit = 1
-	p.Diagnosed = 1
+	p.SetDiagnosed(1)
 	got := catchStreamPanic(func() { p.Commit(1024) })
-	if _, ok := got.(state.Fatal); !ok || len(p.Recovered) != 1 || p.Recovered[0] != state.ErrEntry(first) || p.Diagnosed != 1 || memo.Base != 0 {
-		t.Fatalf("interruption=%v recovered=%v diagnosed=%d floor=%d", got, p.Recovered, p.Diagnosed, memo.Base)
+	if _, ok := got.(state.Fatal); !ok || len(p.Recovered) != 1 || p.Recovered[0] != state.ErrEntry(first) || p.Diagnosed() != 1 || memo.Base != 0 {
+		t.Fatalf("interruption=%v recovered=%v diagnosed=%d floor=%d", got, p.Recovered, p.Diagnosed(), memo.Base)
 	}
 }
 

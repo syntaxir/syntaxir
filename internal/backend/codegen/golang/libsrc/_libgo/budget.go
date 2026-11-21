@@ -431,6 +431,14 @@ func (p *Parser) SpendRead(n uint64) {
 
 // spendReadOrdinary is SpendRead in an ordinary parse (ExpectOrdinary), which tracks no input.
 func (p *Parser) spendReadOrdinary(uint64) {}
+
+// controlled reports whether the parse charges a budget: the grammar uses budgets and the parse
+// has a BudgetControl.
+func (p *Parser) controlled() bool { return usedFeatures&featureBudget != 0 && p.Control != nil }
+
+// abortParse ends the parse with the error err.
+func abortParse(err error) { panic(fatal{err: err}) }
+
 func (p *Parser) Spend() {
 	p.Control.chargeStep()
 }
@@ -649,54 +657,6 @@ func (p *Parser) RejectBudgetClass(ch rune, c *BudgetClass) bool {
 	return !c.negated
 }
 
-// Value strings may be action-created, so their scans consume steps alone.
-const spendValueChunk = 128
-
-func (p *Parser) spendValue(n int) {
-	if usedFeatures&featureBudget != 0 && p.Control != nil {
-		p.Control.Charge(uint64(n))
-	}
-}
-
-func (p *Parser) compareText(l, r string) int {
-	if usedFeatures&featureBudget != 0 && p.Control != nil {
-		return p.compareTextControlled(l, r)
-	}
-	return strings.Compare(l, r)
-}
-
-// sameData reports whether two strings are the same bytes of the same memory.
-func sameData(l, r string) bool {
-	return len(l) == len(r) && (len(l) == 0 || unsafe.StringData(l) == unsafe.StringData(r))
-}
-
-func (p *Parser) compareTextControlled(l, r string) int {
-	if len(l) > 0 && sameData(l, r) {
-		// The same bytes: the comparison reads none of them, so it costs a constant.
-		p.Spend()
-		return 0
-	}
-	for off, end := 0, min(len(l), len(r)); off < end; {
-		n := min(spendValueChunk, end-off)
-		p.spendValue(2 * n)
-		if order := strings.Compare(l[off:off+n], r[off:off+n]); order != 0 {
-			return order
-		}
-		off += n
-	}
-	if len(l) < len(r) {
-		return -1
-	}
-	if len(l) > len(r) {
-		return 1
-	}
-	return 0
-}
-
-func (p *Parser) TextEqual(l, r string) bool {
-	return len(l) == len(r) && p.compareText(l, r) == 0
-}
-
 // compareStrings applies the comparison operator with the code op (OpEq ... OpGe) to two strings as the
 // composition TermBinary does, without the values boxed.
 func (p *Parser) compareStrings(op int, l, r string) (bool, bool) {
@@ -746,58 +706,6 @@ func (p *Parser) detachedText(start, end int) string {
 		off += n
 	}
 	return out.String()
-}
-
-func checkedTextSize(size, width int) int {
-	if size < 0 || width < 0 || size > int(^uint(0)>>1)-width {
-		panic(fatal{err: fmt.Errorf("input text exceeds maximum string size")})
-	}
-	return size + width
-}
-
-func copySpend[T any](p *Parser, dst, src []T) {
-	if usedFeatures&featureBudget != 0 && p.Control != nil {
-		copyBudgetControlled(p, dst, src)
-		return
-	}
-	copy(dst, src)
-}
-
-func copyBudgetControlled[T any](p *Parser, dst, src []T) {
-	// Engine callers use disjoint storage; overlapping moves need their own
-	// direction-aware implementation rather than a chunked forward copy.
-	for off, end := 0, min(len(dst), len(src)); off < end; {
-		n := min(spendValueChunk, end-off)
-		p.spendValue(n)
-		copy(dst[off:off+n], src[off:off+n])
-		off += n
-	}
-}
-
-// chargeValues charges n values in chunks, so that a limit or cancellation is seen between them.
-func (p *Parser) chargeValues(n int) {
-	for n > 0 {
-		c := min(spendValueChunk, n)
-		p.spendValue(c)
-		n -= c
-	}
-}
-
-func appendSpend[T any](p *Parser, dst, src []T) []T {
-	if usedFeatures&featureBudget != 0 && p.Control != nil {
-		return appendBudgetControlled(p, dst, src)
-	}
-	return append(dst, src...)
-}
-
-func appendBudgetControlled[T any](p *Parser, dst, src []T) []T {
-	for off := 0; off < len(src); {
-		n := min(spendValueChunk, len(src)-off)
-		p.spendValue(n)
-		dst = append(dst, src[off:off+n]...)
-		off += n
-	}
-	return dst
 }
 
 // sortExpected sorts a newly constructed, parser-owned diagnostic in the order of
@@ -870,7 +778,7 @@ func (p *Parser) recoveryErrorTextControlled(e *sxirvalue.SyntaxError) string {
 	parts := e.Messages
 	if len(parts) == 0 {
 		var rest int
-		parts, rest = expectedShown(e.Expected)
+		parts, rest = e.ExpectedInMessage()
 		sep = ", "
 		intro = "syntax error"
 		if len(parts) > 0 {
@@ -1073,23 +981,6 @@ func (p *Parser) bindControlled(slot int, val any) {
 	p.chargeValueBytes(int(uint64(p.envDepth+1) * envNodeBytes))
 }
 
-func clearSpend[T any](p *Parser, values []T) {
-	if usedFeatures&featureBudget != 0 && p.Control != nil {
-		clearBudgetControlled(p, values)
-		return
-	}
-	clear(values)
-}
-
-func clearBudgetControlled[T any](p *Parser, values []T) {
-	for off := 0; off < len(values); {
-		n := min(spendValueChunk, len(values)-off)
-		p.spendValue(n)
-		clear(values[off : off+n])
-		off += n
-	}
-}
-
 func (p *Parser) controlledEnvValues(slots []int) []any {
 	if len(slots) == 0 {
 		return nil
@@ -1162,7 +1053,7 @@ func (p *Parser) memoGetControlled(rule, pos, min int, key []any, ident bool) *m
 // keyHash hashes a memo key for the index of a long chain, without charges: the call paid for the
 // lookup of its key (ChargeKey), and an entry is hashed once, when it joins the index.
 func keyHash(rule, min int32, env []any) uint64 {
-	h, _ := memoKeyHash(rule, min, env)
+	h, _ := memoKeyHash(rule, min, false, env)
 	return h
 }
 
@@ -1196,7 +1087,7 @@ func (p *Parser) keySize(r *Rule) uint64 {
 // one step plus one per variable of the key, and the bytes of string values as a value comparison
 // would, so a lookup through the index costs the size of the key, not the number of records.
 func (p *Parser) hashMemoKey(rule, min int32, env []any) uint64 {
-	h, bytes := memoKeyHash(rule, min, env)
+	h, bytes := memoKeyHash(rule, min, false, env)
 	for range 1 + len(env) {
 		p.Spend()
 	}

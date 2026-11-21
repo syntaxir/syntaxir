@@ -13,7 +13,7 @@ func (p *Parser) confActPush(c *EvalCtx, e *sxirvalue.Node) {
 // confActPushAll runs act.pushAll for the conformance suite.
 // Printed from Exec IR function confActPushAll of internal/ir/code/exec/compose.
 func (p *Parser) confActPushAll(c *EvalCtx, items []*sxirvalue.Node) {
-	p.KidStack = AppendSpend(p, p.KidStack, items)
+	p.KidStack = appendSpend(p, p.KidStack, items)
 }
 
 // confTermKids runs term.kids for the conformance suite.

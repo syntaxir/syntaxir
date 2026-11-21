@@ -405,11 +405,11 @@ func TestOperatorsLoopMutantsFail(t *testing.T) {
 //
 // Four edits change nothing that a parse can show, and are left out:
 //   - Moving the first checkpoint of EmitStream after the report, or dropping the checkpoint before
-//     each diagnostic in ReportRecovered: nothing changes state between the two, and the checkpoint
+//     each diagnostic in reportError: nothing changes state between the two, and the checkpoint
 //     after each diagnostic covers the next one, so each stands in for the other at the same state,
 //     except for a cancellation that arrives between them, which no order can fix. Together they
 //     are not equivalent, which the mutant that takes both edits shows.
-//   - Dropping the clamp of Diagnosed in ReportRecovered: it exceeds the recovered errors only after
+//   - Dropping the clamp of diagnosed in deliverRecovered: it exceeds the recovered errors only after
 //     a rollback past a report. The elements' own marks are taken after the last report, and the
 //     compiler rejects #recover around a #stream repetition, so what can roll back further is a
 //     failure of the start rule, after which nothing is reported. A panic in its place passes the
@@ -515,7 +515,7 @@ func TestStreamCommitMutantsFail(t *testing.T) {
 		{"the frames stay", []printedEdit{{"\tif StreamFrameScratch {\n\t\tp.ResetStreamFrames()\n\t}\n", ""}}, after, here},
 		{"the chunks stay", []printedEdit{{"\tp.splitChunks()\n", ""}}, "^TestParseStreamMemoryIsBounded$", here},
 		{"the inactive trail stays",
-			[]printedEdit{{"\tif StreamUndoCleanup {\n\t\tClearSpend(p, p.Trail[:cap(p.Trail)])\n\t}\n", ""}}, storage, vm},
+			[]printedEdit{{"\tif StreamUndoCleanup {\n\t\tclearSpend(p, p.Trail[:cap(p.Trail)])\n\t}\n", ""}}, storage, vm},
 		{"the inactive stack stays",
 			[]printedEdit{{"\tif StreamStackCleanup && p.Backend != nil {\n\t\tp.Backend.ClearInactive()\n\t}\n", ""}}, storage, vm},
 		{"the skip records stay", []printedEdit{{"\tp.PruneSkipRecords(pos)\n", ""}}, records, inCore},
@@ -523,7 +523,7 @@ func TestStreamCommitMutantsFail(t *testing.T) {
 		{"a large scratch is kept", []printedEdit{{reuse, "if p.Tr == nil {"}}, bounds, here},
 		{"the scratch is never reused", []printedEdit{{reuse, "if false {"}}, scratch, here},
 		{"the scratch of the errors is cleared free of charge",
-			[]printedEdit{{"\t\tClearSpend(p, p.Recovered[:cap(p.Recovered)])\n", "\t\tclear(p.Recovered[:cap(p.Recovered)])\n"}}, charges, here},
+			[]printedEdit{{"\t\tclearSpend(p, p.Recovered[:cap(p.Recovered)])\n", "\t\tclear(p.Recovered[:cap(p.Recovered)])\n"}}, charges, here},
 		{"a panic of the diagnostic callback is the parser's",
 			[]printedEdit{{"\t\tp.EmitCall = true\n", ""}}, "^TestStreamDiagnosticCallbackPanicIsTheCallers$", here},
 		{"the mark of the diagnostic callback stays",
@@ -532,20 +532,20 @@ func TestStreamCommitMutantsFail(t *testing.T) {
 			[]printedEdit{{"\t\tp.DiagnosticTail.Add(original)\n\t}\n\tif BudgetControlsEnabled {\n\t\tp.Control.Check()\n\t}\n", "\t\tp.DiagnosticTail.Add(original)\n\t}\n"}}, ends, here},
 		{"the frames are scanned for free",
 			[]printedEdit{{"\tif StreamFrameScratch {\n\t\tp.ResetStreamFrames()\n\t}\n", "\tif StreamFrameScratch {\n\t\tp.FrameSlab = p.FrameSlab[:0]\n\t}\n"}}, charges, here},
-		{"the settled errors stay in the scratch", []printedEdit{{"\t\tClearSpend(p, p.Recovered[:cap(p.Recovered)])\n", ""}}, scratch, here},
+		{"the settled errors stay in the scratch", []printedEdit{{"\t\tclearSpend(p, p.Recovered[:cap(p.Recovered)])\n", ""}}, scratch, here},
 		{"the settled errors stay recorded", []printedEdit{{"\t\tp.Recovered = p.Recovered[:0]\n", ""}}, scratch, here},
 		{"the settled errors of a large scratch stay", []printedEdit{{"\t\tp.Recovered = nil\n", ""}}, scratch, here},
-		{"the count of reported errors stays", []printedEdit{{"\tp.Diagnosed, p.diagnosedSkip, p.diagnosedList = 0, 0, nil\n", ""}}, "^TestStreamCommitForgetsTheDiagnosedCount$", here},
+		{"the count of reported errors stays", []printedEdit{{"\tp.diagnosed, p.diagnosedSkip, p.diagnosedList = 0, 0, nil\n", ""}}, "^TestStreamCommitForgetsTheDiagnosedCount$", here},
 		{"the settled errors stay counted", []printedEdit{{"\t\tp.Control.errs = 0\n", ""}}, "^TestMemoryLimitStream$", here},
 	})
 	// The checkpoints before the first diagnostic stand in for each other, so only both go together.
 	reportFile, reportSrc := mutanttest.Source(t, "internal/runtime/state/stream_ops.go")
-	const before = "func (p *Parser) reportRecovered(original *value.SyntaxError) error {\n\tif BudgetControlsEnabled {\n\t\tp.Control.Check()\n\t}\n"
+	const before = "func (p *Parser) reportError(original *value.SyntaxError) error {\n\tif BudgetControlsEnabled {\n\t\tp.Control.Check()\n\t}\n"
 	if strings.Count(string(reportSrc), before) != 1 {
 		t.Fatalf("internal/runtime/state/stream_ops.go has no single checkpoint before a diagnostic")
 	}
 	reportMutant := filepath.Join(t.TempDir(), "stream_ops.go")
-	unchecked := strings.Replace(string(reportSrc), before, "func (p *Parser) reportRecovered(original *value.SyntaxError) error {\n", 1)
+	unchecked := strings.Replace(string(reportSrc), before, "func (p *Parser) reportError(original *value.SyntaxError) error {\n", 1)
 	if err := os.WriteFile(reportMutant, []byte(unchecked), 0o644); err != nil {
 		t.Fatal(err)
 	}

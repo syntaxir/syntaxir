@@ -20,7 +20,7 @@ func TestEnvironmentMutantsFail(t *testing.T) {
 			{"a rebind does not charge the nodes it copies", []printedEdit{{rebind, "\t// Saved"}}, conformance, core},
 			{"a rebind charges one node too many",
 				[]printedEdit{{rebind, "\tfor l := 0; l <= p.envLevels+1; l++ {\n\t\tp.Spend()\n\t}\n\t// Saved"}}, conformance, core},
-			{"a rebind binds nothing", []printedEdit{{"\tp.Env = p.Env.Set(slot, p.envLevels, val)\n\tp.ChargeValueBytes", "\tp.ChargeValueBytes"}},
+			{"a rebind binds nothing", []printedEdit{{"\tp.Env = p.Env.Set(slot, p.envLevels, val)\n\tp.chargeValueBytes", "\tp.chargeValueBytes"}},
 				conformance, core},
 		})
 	})
@@ -53,9 +53,9 @@ func TestRecoveryMutantsFail(t *testing.T) {
 			{"settling releases a list of one slot too many",
 				[]printedEdit{{keep, "if p.Tr == nil && cap(p.Recovered) < streamRecoveryScratchMax {"}}, charges, core},
 			{"settling clears without charging",
-				[]printedEdit{{"ClearSpend(p, p.Recovered[:cap(p.Recovered)])", "clear(p.Recovered[:cap(p.Recovered)])"}}, charges, core},
+				[]printedEdit{{"clearSpend(p, p.Recovered[:cap(p.Recovered)])", "clear(p.Recovered[:cap(p.Recovered)])"}}, charges, core},
 			{"settling leaves the errors counted as delivered",
-				[]printedEdit{{"\tp.Diagnosed, p.diagnosedSkip, p.diagnosedList = 0, 0, nil\n\tif BudgetControlsEnabled && p.Control != nil {\n\t\t// With a diagnostic",
+				[]printedEdit{{"\tp.diagnosed, p.diagnosedSkip, p.diagnosedList = 0, 0, nil\n\tif BudgetControlsEnabled && p.Control != nil {\n\t\t// With a diagnostic",
 					"\tif BudgetControlsEnabled && p.Control != nil {\n\t\t// With a diagnostic"}},
 				"^TestStreamCommitForgetsTheDiagnosedCount$", []string{"."}},
 			{"settling keeps the bytes of the errors",
@@ -65,24 +65,24 @@ func TestRecoveryMutantsFail(t *testing.T) {
 	t.Run("lists", func(t *testing.T) {
 		runPrintedMutants(t, "internal/runtime/state/recovered.go", []printedMutant{
 			{"since leaves the entries in place",
-				[]printedEdit{{"\tp.Recovered = append(p.Recovered[:m], RecEntry{list: l})\n", ""}}, conformance, core},
+				[]printedEdit{{"\tp.Recovered = append(p.Recovered[:m], recEntry{list: l})\n", ""}}, conformance, core},
 			{"since copies the errors of the lists",
 				[]printedEdit{
-					{"entries: AppendSpend(p, make([]RecEntry, 0, len(after)), after)}", "entries: flatEntries(p, after)}"},
-					{"// countRecErrors returns", "func flatEntries(p *Parser, after []RecEntry) []RecEntry {\n\tvar out []RecEntry\n\tfor _, e := range appendRecErrors(nil, after) {\n\t\tp.SpendValue(1)\n\t\tout = append(out, RecEntry{err: e})\n\t}\n\treturn out\n}\n\n// countRecErrors returns"},
+					{"entries: appendSpend(p, make([]recEntry, 0, len(after)), after),", "entries: flatEntries(p, after),"},
+					{"// countRecErrors returns", "func flatEntries(p *Parser, after []RecEntry) []RecEntry {\n\tvar out []RecEntry\n\tfor _, e := range appendRecErrors(nil, after) {\n\t\tp.spendValue(1)\n\t\tout = append(out, RecEntry{err: e})\n\t}\n\treturn out\n}\n\n// countRecErrors returns"},
 				}, conformance, core},
 			// The control of the bound on unrolling: wrapping the one entry after a mark changes no
 			// error and no charge, and only the bound fails.
 			{"since wraps the one entry after its mark",
-				[]printedEdit{{"\tif len(p.Recovered)-m == 1 {\n\t\tp.SpendValue(1)\n\t\treturn p.Recovered[m]\n\t}\n", ""}}, conformance, core},
+				[]printedEdit{{"\tif len(p.Recovered)-m == 1 {\n\t\tp.spendValue(1)\n\t\treturn p.Recovered[m]\n\t}\n", ""}}, conformance, core},
 			{"a list forgets the errors that a stream delivered",
-				[]printedEdit{{"p.Diagnosed, p.diagnosedSkip, p.diagnosedList = m, skip, l", "p.Diagnosed = m\n\t\t_ = skip"}},
+				[]printedEdit{{"c.diagnosed, c.diagnosedSkip, c.diagnosedList = m, skip, l", "c.diagnosed = m\n\t\t_ = skip"}},
 				"^TestReportRecoveredOfLists$", core},
 		})
-		runPrintedMutants(t, "internal/runtime/state/stream_ops.go", []printedMutant{
+		runPrintedMutants(t, "internal/runtime/state/recovered.go", []printedMutant{
 			{"a report delivers no errors of a list",
-				[]printedEdit{{"errs = p.Recovered[p.Diagnosed].AppendErrors(errs[:0])",
-					"errs = errs[:0]\n\t\tif e := p.Recovered[p.Diagnosed]; e.err != nil {\n\t\t\terrs = append(errs, e.err)\n\t\t}"}},
+				[]printedEdit{{"errs = appendRecErrors(errs[:0], p.Recovered[p.diagnosed:p.diagnosed+1])",
+					"errs = errs[:0]\n\t\tif e := p.Recovered[p.diagnosed]; e.err != nil {\n\t\t\terrs = append(errs, e.err)\n\t\t}"}},
 				"^TestStreamDiagnosticsOfSharedLists$", []string{"."}},
 		})
 		runPrintedMutants(t, "internal/runtime/state/call_exec.go", []printedMutant{

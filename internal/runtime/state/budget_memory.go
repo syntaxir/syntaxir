@@ -164,8 +164,8 @@ func (p *Parser) heldBytes() uint64 {
 	return n
 }
 
-// ChargeValueBytes charges n bytes of a value that only the controlled path builds (BudgetControl.values).
-func (p *Parser) ChargeValueBytes(n int) {
+// chargeValueBytes charges n bytes of a value that only the controlled path builds (BudgetControl.values).
+func (p *Parser) chargeValueBytes(n int) {
 	if BudgetControlsEnabled && p.Control != nil {
 		p.Control.chargeValueBytes(n)
 	}

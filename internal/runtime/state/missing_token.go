@@ -49,7 +49,7 @@ func (p *Parser) MissingEvents(mark int) []MissingTokenEvent {
 	if p.Missing == nil {
 		return nil
 	}
-	return AppendSpend(p, []MissingTokenEvent(nil), p.Missing.Path[mark:])
+	return appendSpend(p, []MissingTokenEvent(nil), p.Missing.Path[mark:])
 }
 
 func (p *Parser) InsertMissing(event MissingTokenEvent) bool {

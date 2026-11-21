@@ -279,7 +279,7 @@ func TestStreamDiagnosticTailCommitScratchOwnership(t *testing.T) {
 		backing := &p.Recovered[0]
 		held := p.Recovered[:1:1]
 		p.Commit(1)
-		if p.DiagnosticTail.Errors[0] != current || p.Diagnosed != 0 {
+		if p.DiagnosticTail.Errors[0] != current || p.Diagnosed() != 0 {
 			t.Fatalf("traced=%v lost retained diagnostic", traced)
 		}
 		if traced {
