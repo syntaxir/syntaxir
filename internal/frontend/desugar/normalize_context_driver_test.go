@@ -1,4 +1,4 @@
-package engine
+package desugar_test
 
 import (
 	"context"
@@ -7,8 +7,10 @@ import (
 
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/driver/entry"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -29,7 +31,7 @@ rule main (Alias) = n:([0-9]+) => (T{Text: (text($n))})`,
 		`rule main = "a" #repeat(3, 1)`,
 	} {
 		t.Run(source, func(t *testing.T) {
-			g, err := parseTest(source)
+			g, err := enginetest.Parse(source)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -52,8 +54,8 @@ rule main (Alias) = n:([0-9]+) => (T{Text: (text($n))})`,
 			}
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			got, gotErr := CompileContext(ctx, g, compile.Options{})
-			want, wantErr := Compile(g, compile.Options{})
+			got, gotErr := entry.CompileContext(ctx, g, compile.Options{})
+			want, wantErr := entry.Compile(g, compile.Options{})
 			if !reflect.DeepEqual(gotErr, wantErr) {
 				t.Fatalf("compile diagnostics differ: %v / %v", gotErr, wantErr)
 			}
