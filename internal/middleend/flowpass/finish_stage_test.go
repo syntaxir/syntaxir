@@ -7,6 +7,7 @@ import (
 	"zeroparse.dev/zp/internal/ir/code"
 	"zeroparse.dev/zp/internal/ir/code/flow"
 	"zeroparse.dev/zp/internal/middleend/flowlower"
+	"zeroparse.dev/zp/internal/middleend/flowlower/lowerdata"
 	"zeroparse.dev/zp/internal/pass/pipe"
 )
 
@@ -18,7 +19,7 @@ func TestFinishingStep(t *testing.T) {
 	}
 	lowered := func() *code.Module {
 		m, r := forms(t)
-		f, err := flowlower.Lower(m, r, "r", flowlower.Options{})
+		f, err := flowlower.Lower(m, r, "r", lowerdata.Options{})
 		if err != nil {
 			t.Fatal(err)
 		}

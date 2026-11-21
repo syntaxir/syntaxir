@@ -5,6 +5,7 @@ import (
 
 	"zeroparse.dev/zp/internal/ir/code"
 	"zeroparse.dev/zp/internal/ir/core"
+	"zeroparse.dev/zp/internal/middleend/flowlower/lowerdata"
 	"zeroparse.dev/zp/internal/middleend/flowpass"
 	"zeroparse.dev/zp/internal/pass"
 )
@@ -24,7 +25,7 @@ func finish(t *testing.T, f *code.Module, target flowpass.Target, inline int) *c
 
 // lowerFinished lowers the rule r of m and ends the passes, with the in-place literals of at most
 // inline code points when inline is positive.
-func lowerFinished(t *testing.T, m *core.Module, r *core.Rule, opts Options, inline int) (*code.Module, error) {
+func lowerFinished(t *testing.T, m *core.Module, r *core.Rule, opts lowerdata.Options, inline int) (*code.Module, error) {
 	t.Helper()
 	f, err := Lower(m, r, "r", opts)
 	if err != nil {

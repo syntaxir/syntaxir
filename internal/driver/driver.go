@@ -15,6 +15,7 @@ import (
 	"zeroparse.dev/zp/internal/middleend/corepass"
 	"zeroparse.dev/zp/internal/middleend/execlower"
 	"zeroparse.dev/zp/internal/middleend/flowlower"
+	"zeroparse.dev/zp/internal/middleend/flowlower/lowerdata"
 	"zeroparse.dev/zp/internal/middleend/flowpass"
 	"zeroparse.dev/zp/internal/pass"
 	"zeroparse.dev/zp/internal/pass/pipe"
@@ -193,7 +194,7 @@ func pipeError(err error, required ...string) error {
 // of a pass is an internal error that names the pass, returned with the module, in which the function
 // that the pass failed on is as the lowering made it, and flow-finish has ended every function, for a
 // generation that fails with it.
-func (d *Driver) Flow(table string, u flowlower.Unit, observe bool, target flowpass.Target) (*code.Module, error) {
+func (d *Driver) Flow(table string, u lowerdata.Unit, observe bool, target flowpass.Target) (*code.Module, error) {
 	p := flowpass.Pipeline()
 	if d.FlowPipeline != nil {
 		p = d.FlowPipeline(table)

@@ -3,7 +3,7 @@ package print
 import (
 	"zeroparse.dev/zp/internal/backend/codegen/common"
 	"zeroparse.dev/zp/internal/ir/code/flow"
-	"zeroparse.dev/zp/internal/middleend/flowplan"
+	"zeroparse.dev/zp/internal/middleend/flowplan/plandata"
 )
 
 // Value-free rules of the Node library printed from Flow IR.
@@ -17,7 +17,7 @@ import (
 // flowRecRule prints the flat function spec of the rule r as a flat rule, from the module of the
 // table's plan, which runs it flat (flowplan.Table.Unit). It returns nil, with the internal error of
 // execRecRule, if the printed form breaks the plan's decision.
-func (g *Generator) flowRecRule(r *common.Rule, spec *flowplan.FuncSpec) *flatRule {
+func (g *Generator) flowRecRule(r *common.Rule, spec *plandata.FuncSpec) *flatRule {
 	l := g.planned(spec.Key)
 	g.Cur, g.Proj = r, g.Projections(r)
 	defer func() { g.Proj = nil }()

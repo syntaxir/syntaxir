@@ -12,7 +12,7 @@ import (
 	"zeroparse.dev/zp/internal/ir/code/flow"
 	"zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/middleend/execlower"
-	"zeroparse.dev/zp/internal/middleend/flowlower"
+	"zeroparse.dev/zp/internal/middleend/flowlower/lowerdata"
 	"zeroparse.dev/zp/internal/runtime/nodes"
 	rprogram "zeroparse.dev/zp/internal/runtime/program"
 	"zeroparse.dev/zp/pkg/grammar/ast"
@@ -625,7 +625,7 @@ func (p *tsFlowPrinter) outline(c *code.Call) string {
 	}
 	x := c.Imm.(flow.Outline)
 	g := p.g
-	f, err := g.FlowPasses(flowlower.Unit{Module: g.Flow.M, Opts: g.Flow.Opts, Funcs: []flowlower.Func{{Form: flowlower.Outline, Rule: g.Flow.M.Rules[g.Cur.ID], Name: g.Cur.Name, Body: x.Node, Slots: x.Slots, Build: x.Build}}})
+	f, err := g.FlowPasses(lowerdata.Unit{Module: g.Flow.M, Opts: g.Flow.Opts, Funcs: []lowerdata.Func{{Form: lowerdata.Outline, Rule: g.Flow.M.Rules[g.Cur.ID], Name: g.Cur.Name, Body: x.Node, Slots: x.Slots, Build: x.Build}}})
 	if err != nil {
 		panic(fmt.Errorf("outlined node of rule %s in table %s: %w", g.Cur.Name, g.Table, err)) // Outlinable holds
 	}

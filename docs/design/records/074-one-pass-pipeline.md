@@ -167,10 +167,11 @@ Names are unique across kinds, splits, lenses, views, keys, providers and slots,
 the compositions module is at no stage and its operations have no dialect or the Action dialect. Splits are named after
 the parts they give (`go-tables`, `ts-tables`, `vm-tables`, `closure-tables`, `planned-tables`) and are not kinds.
 
-The table unit `Table[S]`, in a data package of the planning code, is the one value that carries the plan, the table's
-Core module, the origin map and the module to the printer, so no printer needs a lowering, the plan or the driver to
-get them. The origin map is recorded by `elaborate` in the Core module, keyed by the stable IDs of Core nodes, so it
-travels with every Core unit, a shared one included, and survives copies. Kind names are not dump names: a dump is
+The table unit `Table[S]`, in a data package of the planning code (`internal/middleend/flowplan/plandata`, beside
+`internal/middleend/flowlower/lowerdata` for the data that the lowering takes), is the one value that carries the plan,
+the table's Core module, the origin map and the module to the printer, so no printer needs a lowering, the plan or the
+driver to get them. The origin map is recorded by `elaborate` in the Core module, keyed by the stable IDs of Core nodes,
+so it travels with every Core unit, a shared one included, and survives copies. Kind names are not dump names: a dump is
 named after the pass instance that produced it, and the kinds without a printer (`program`, `table`, `cores`, `plan`,
 `planned`, `tables@exec`, the backend inputs and `output`) add no dumps.
 

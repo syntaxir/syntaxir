@@ -9,6 +9,7 @@ import (
 	"zeroparse.dev/zp/internal/ir/code"
 	"zeroparse.dev/zp/internal/ir/code/flow"
 	"zeroparse.dev/zp/internal/ir/core"
+	"zeroparse.dev/zp/internal/middleend/flowlower/lowerdata"
 	"zeroparse.dev/zp/internal/pass/pipe"
 )
 
@@ -20,11 +21,11 @@ func TestLoweringStep(t *testing.T) {
 		t.Errorf("declaration = %+v, want the required step %s", d, Name)
 	}
 	m, r := valueFree(alts(&core.Lit{Text: "ab"}, &core.Lit{Text: "c"}))
-	old, err := Lower(m, r, "r", Options{})
+	old, err := Lower(m, r, "r", lowerdata.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	u, err := pipe.Execute(context.Background(), &pipe.Run{}, pipe.Of(Lowering), Unit{Module: m, Funcs: []Func{{Form: Flat, Rule: r, Name: "r"}}})
+	u, err := pipe.Execute(context.Background(), &pipe.Run{}, pipe.Of(Lowering), lowerdata.Unit{Module: m, Funcs: []lowerdata.Func{{Form: lowerdata.Flat, Rule: r, Name: "r"}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +35,7 @@ func TestLoweringStep(t *testing.T) {
 	}
 	// A unit that the lowering refuses: a local function of a left-recursion leader.
 	r.Policy.Leader = true
-	_, err = pipe.Execute(context.Background(), &pipe.Run{}, pipe.Of(Lowering), Unit{Module: m, Funcs: []Func{{Form: Flat, Rule: r, Name: "r"}}})
+	_, err = pipe.Execute(context.Background(), &pipe.Run{}, pipe.Of(Lowering), lowerdata.Unit{Module: m, Funcs: []lowerdata.Func{{Form: lowerdata.Flat, Rule: r, Name: "r"}}})
 	var se *pipe.StepError
 	if !errors.As(err, &se) || se.Step != Name || !strings.Contains(err.Error(), "is not lowered to a local function") {
 		t.Errorf("a refused unit: %v", err)

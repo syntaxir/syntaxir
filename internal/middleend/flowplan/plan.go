@@ -4,12 +4,12 @@
 // functions: a value-free flat rule where its body allows one, and otherwise the framed body that
 // runs inside the rule frame its runtime owns.
 //
-// A plan lists FuncSpecs in the order a backend lowers them, keyed by their use in the table, and
-// fixes the capture-slot layout of each rule's frame, from which both the Go table rows and the
-// VM's rule scopes derive. The route facts are analyses of Core IR and of the rules of the table
-// (Rule, RecEligible, NodeFrameOK); the refusal of a flat function (Refused) is an analysis of its Flow IR
-// as the lowering writes it, before any pass, which the plan makes once for every backend while the
-// table is lowered (Table.Unit).
+// A plan lists functions (plandata.FuncSpec) in the order a backend lowers them, keyed by their use
+// in the table, and fixes the capture-slot layout of each rule's frame, from which both the Go
+// table rows and the VM's rule scopes derive. The route facts are analyses of Core IR and of the
+// rules of the table (Rule, RecEligible, NodeFrameOK); the refusal of a flat function (Refused) is
+// an analysis of its Flow IR as the lowering writes it, before any pass, which the plan makes once
+// for every backend while the table is lowered (Table.Unit).
 package flowplan
 
 import (
@@ -24,67 +24,35 @@ import (
 	"zeroparse.dev/zp/internal/middleend/codepass"
 	"zeroparse.dev/zp/internal/middleend/execlower"
 	"zeroparse.dev/zp/internal/middleend/flowlower"
+	"zeroparse.dev/zp/internal/middleend/flowlower/lowerdata"
+	"zeroparse.dev/zp/internal/middleend/flowplan/plandata"
 	"zeroparse.dev/zp/pkg/grammar/ast"
 )
-
-// Use is what a planned function is in its table.
-type Use uint8
-
-const (
-	// RuleBody is the body of a rule's table row: a flat rule or a framed body.
-	RuleBody Use = iota
-	// OperatorsSkip is the skip line of an Operators Rule.
-	OperatorsSkip
-	// OperatorsLine is a line of an Operators Rule: its operands in order, then its operators in the
-	// order of their levels.
-	OperatorsLine
-	// StreamBody is the body of the start rule that ParseStream runs, whose #stream repetition delivers
-	// the elements (flowlower.Func.Stream).
-	StreamBody
-)
-
-// Key names a planned function by its use, its rule's ID and, for an Operators Rule line, the line's
-// index.
-type Key struct {
-	Use  Use
-	Rule int
-	Line int
-}
-
-// FuncSpec is one function of a plan: its use in the table and exactly what its lowering takes
-// (flowlower.Func), a flat function or a framed body.
-type FuncSpec struct {
-	Key Key
-	flowlower.Func
-	// Fallback is the framed body of the rule of a flat function, or nil if the rule has none. The plan
-	// holds it in place of a flat function that Refused rejects.
-	Fallback *FuncSpec
-}
 
 // Table is the plan of one rule table.
 type Table struct {
 	// Funcs holds the functions in the order a backend lowers them: the bodies of the rules by ID,
 	// then the skip and the lines of each Operators Rule.
-	Funcs []*FuncSpec
+	Funcs []*plandata.FuncSpec
 	// Layouts holds the capture-slot layout of each rule's frame by rule ID, which the rows of the Node
 	// and recognizer tables keep; nil in the typed table, whose rows have their own scopes.
 	Layouts [][]string
-	byKey   map[Key]*FuncSpec
+	byKey   map[plandata.Key]*plandata.FuncSpec
 	// typed reports the plan of the typed table (PlanTyped), whose flat functions have no fallback and
 	// are never refused.
 	typed bool
 	// module is the module of the functions of the table, bound to the plan after the lowering
 	// (Bind), and index the index of the function of each key in it.
 	module *code.Module
-	index  map[Key]int
+	index  map[plandata.Key]int
 	// refused holds the flat functions that the lowering of the last Unit refused, which Bind replaces
 	// by their fallbacks.
-	refused []*FuncSpec
+	refused []*plandata.FuncSpec
 }
 
 // Func returns the function planned for the use k, or false if the table has none: the rule is left
 // out, or Flow IR cannot lower it, which a backend reports.
-func (t *Table) Func(k Key) (*FuncSpec, bool) {
+func (t *Table) Func(k plandata.Key) (*plandata.FuncSpec, bool) {
 	if t == nil {
 		return nil, false
 	}
@@ -106,7 +74,7 @@ func (t *Table) CheckLayout(rule int, name string, slots []string) error {
 // facts (route). Whether the table runs a flat function or its framed fallback is decided when the
 // table is lowered (Unit), so that every backend that lowers the table from the plan runs the same
 // functions.
-func Plan(t *TableIR, rules []*Rule, live func(rule int) bool) *Table {
+func Plan(t *plandata.TableIR, rules []*Rule, live func(rule int) bool) *Table {
 	return route(t.M, rules, live)
 }
 
@@ -117,9 +85,9 @@ func Plan(t *TableIR, rules []*Rule, live func(rule int) bool) *Table {
 // layout of the frame that the typed runtime shares with the Node table, is a framed body. The lines of
 // an Operators Rule are planned as in the Node table. A rule left out of the plan is one that Flow IR
 // does not print, which the backend reports.
-func PlanTyped(t *TableIR, rules []*Rule, live func(rule int) bool, frameSlots func(rule int) []string) *Table {
+func PlanTyped(t *plandata.TableIR, rules []*Rule, live func(rule int) bool, frameSlots func(rule int) []string) *Table {
 	m := t.M
-	p := &Table{byKey: map[Key]*FuncSpec{}, typed: true}
+	p := &Table{byKey: map[plandata.Key]*plandata.FuncSpec{}, typed: true}
 	names := funcNames(rules)
 	for i, r := range rules {
 		cr := m.Rules[r.ID]
@@ -127,14 +95,14 @@ func PlanTyped(t *TableIR, rules []*Rule, live func(rule int) bool, frameSlots f
 			continue
 		}
 		if flowlower.LocalRule(cr) {
-			p.add(&FuncSpec{Key: Key{RuleBody, r.ID, 0}, Func: flowlower.Func{Form: flowlower.Flat, Rule: cr, Name: names[i]}})
+			p.add(&plandata.FuncSpec{Key: plandata.Key{Use: plandata.RuleBody, Rule: r.ID}, Func: lowerdata.Func{Form: lowerdata.Flat, Rule: cr, Name: names[i]}})
 			continue
 		}
 		if _, ok := r.Body.(*ast.OperatorsRule); ok {
 			continue
 		}
 		if TypedFrameOK(r) && flowlower.FramedBody(cr.Body) && slices.Equal(core.SlotNames(cr.Scope), frameSlots(r.ID)) {
-			p.add(&FuncSpec{Key: Key{RuleBody, r.ID, 0}, Func: flowlower.Func{Form: flowlower.Frame, Rule: cr, Name: names[i], Body: cr.Body, Slots: cr.Scope, Build: cr.Want}})
+			p.add(&plandata.FuncSpec{Key: plandata.Key{Use: plandata.RuleBody, Rule: r.ID}, Func: lowerdata.Func{Form: lowerdata.Frame, Rule: cr, Name: names[i], Body: cr.Body, Slots: cr.Scope, Build: cr.Want}})
 		}
 	}
 	p.operatorsRules(m, rules, live, names)
@@ -164,25 +132,25 @@ func Recovers(e ast.Expr) bool {
 }
 
 // Stream adds to the plan p of the Node table t the body of its start rule r that ParseStream runs
-// (StreamBody), and reports whether it did: the rule is lowered as a framed body (NodeFrameOK), with the
+// (plandata.StreamBody), and reports whether it did: the rule is lowered as a framed body (NodeFrameOK), with the
 // capture layout of the rule's body in the table, which the action addresses by slot. The function comes
 // after the others of the plan.
-func (p *Table) Stream(t *TableIR, r *Rule) bool {
+func (p *Table) Stream(t *plandata.TableIR, r *Rule) bool {
 	cr := t.M.Rules[r.ID]
 	if p.typed || !t.Opts.Node || !NodeFrameOK(r, cr) {
 		return false
 	}
-	p.add(&FuncSpec{Key: Key{StreamBody, r.ID, 0}, Func: flowlower.Func{Form: flowlower.Frame, Rule: cr, Name: r.Name + "/stream", Body: cr.Body, Slots: cr.Scope, Build: !r.Lean, Stream: true}})
+	p.add(&plandata.FuncSpec{Key: plandata.Key{Use: plandata.StreamBody, Rule: r.ID}, Func: lowerdata.Func{Form: lowerdata.Frame, Rule: cr, Name: r.Name + "/stream", Body: cr.Body, Slots: cr.Scope, Build: !r.Lean, Stream: true}})
 	return true
 }
 
 // add adds the function s to the plan.
-func (p *Table) add(s *FuncSpec) {
+func (p *Table) add(s *plandata.FuncSpec) {
 	p.Funcs = append(p.Funcs, s)
 	p.byKey[s.Key] = s
 }
 
-// Unit returns what the lowering of the functions of the plan p takes (flowlower.Unit): the functions
+// Unit returns what the lowering of the functions of the plan p takes (lowerdata.Unit): the functions
 // in the order of p, with the Core IR and the options of the table t, and the decision on each flat
 // function, right after the lowering writes it and before any pass: a function that Refused rejects
 // in its Flow IR, or that refuse rejects by its key (a test's hook; nil rejects none), is replaced in
@@ -190,9 +158,9 @@ func (p *Table) add(s *FuncSpec) {
 // as the lowering writes it, before any pass makes a form of one target, so it is one for every
 // backend. The plan takes the decisions when the module is bound to it (Bind): a lowering that fails
 // leaves the plan as it was.
-func (p *Table) Unit(t *TableIR, refuse func(Key) bool) flowlower.Unit {
+func (p *Table) Unit(t *plandata.TableIR, refuse func(plandata.Key) bool) lowerdata.Unit {
 	specs := slices.Clone(p.Funcs)
-	funcs := make([]flowlower.Func, len(specs))
+	funcs := make([]lowerdata.Func, len(specs))
 	for i, s := range specs {
 		funcs[i] = s.Func
 		if s.Fallback != nil {
@@ -202,9 +170,9 @@ func (p *Table) Unit(t *TableIR, refuse func(Key) bool) flowlower.Unit {
 	}
 	p.refused = nil
 	if p.typed {
-		return flowlower.Unit{Module: t.M, Opts: t.Opts, Funcs: funcs}
+		return lowerdata.Unit{Module: t.M, Opts: t.Opts, Funcs: funcs}
 	}
-	return flowlower.Unit{Module: t.M, Opts: t.Opts, Funcs: funcs, Refuse: func(i int, f *code.Func) bool {
+	return lowerdata.Unit{Module: t.M, Opts: t.Opts, Funcs: funcs, Refuse: func(i int, f *code.Func) bool {
 		s := specs[i]
 		if !Refused(f) && (refuse == nil || !refuse(s.Key)) {
 			return false
@@ -215,7 +183,7 @@ func (p *Table) Unit(t *TableIR, refuse func(Key) bool) flowlower.Unit {
 }
 
 // refuse replaces the flat function s of the plan by its fallback, or leaves it out if it has none.
-func (p *Table) refuse(s *FuncSpec) {
+func (p *Table) refuse(s *plandata.FuncSpec) {
 	i := slices.Index(p.Funcs, s)
 	delete(p.byKey, s.Key)
 	if s.Fallback == nil {
@@ -239,7 +207,7 @@ func (p *Table) Bind(m *code.Module) error {
 	if len(m.Funcs) != len(p.Funcs) {
 		return fmt.Errorf("internal error: the module of the table holds %d functions, not the %d of its plan", len(m.Funcs), len(p.Funcs))
 	}
-	p.index = make(map[Key]int, len(p.Funcs))
+	p.index = make(map[plandata.Key]int, len(p.Funcs))
 	for i, s := range p.Funcs {
 		if m.Funcs[i].Name != s.Name {
 			return fmt.Errorf("internal error: function %d of the module of the table is %s, not %s", i, m.Funcs[i].Name, s.Name)
@@ -252,7 +220,7 @@ func (p *Table) Bind(m *code.Module) error {
 
 // Lowered returns the function of the use k in the Exec module bound to the plan (Bind), with the
 // module and its variables (execlower.View), or false if the table has none.
-func (p *Table) Lowered(k Key) (*execlower.Lowered, bool) {
+func (p *Table) Lowered(k plandata.Key) (*execlower.Lowered, bool) {
 	i, ok := p.index[k]
 	if !ok {
 		return nil, false
@@ -262,7 +230,7 @@ func (p *Table) Lowered(k Key) (*execlower.Lowered, bool) {
 
 // FlowFunc returns a module of the function of the use k alone (code.Module.FuncUnit), in the Flow
 // module bound to the plan (Bind), or false if the table has none.
-func (p *Table) FlowFunc(k Key) (*code.Module, bool) {
+func (p *Table) FlowFunc(k plandata.Key) (*code.Module, bool) {
 	i, ok := p.index[k]
 	if !ok {
 		return nil, false
@@ -274,7 +242,7 @@ func (p *Table) FlowFunc(k Key) (*code.Module, bool) {
 // the facts of its rules: a flat function where the rule may run flat, with its framed body as the
 // fallback, and the framed body otherwise.
 func route(m *core.Module, rules []*Rule, live func(rule int) bool) *Table {
-	t := &Table{Layouts: make([][]string, len(rules)), byKey: map[Key]*FuncSpec{}}
+	t := &Table{Layouts: make([][]string, len(rules)), byKey: map[plandata.Key]*plandata.FuncSpec{}}
 	add := t.add
 	names := funcNames(rules)
 	for i, r := range rules {
@@ -287,12 +255,12 @@ func route(m *core.Module, rules []*Rule, live func(rule int) bool) *Table {
 		if _, ok := r.Body.(*ast.OperatorsRule); ok {
 			continue
 		}
-		var frame *FuncSpec
+		var frame *plandata.FuncSpec
 		if NodeFrameOK(r, cr) {
-			frame = &FuncSpec{Key: Key{RuleBody, r.ID, 0}, Func: flowlower.Func{Form: flowlower.Frame, Rule: cr, Name: name, Body: cr.Body, Slots: cr.Scope, Build: !r.Lean}}
+			frame = &plandata.FuncSpec{Key: plandata.Key{Use: plandata.RuleBody, Rule: r.ID}, Func: lowerdata.Func{Form: lowerdata.Frame, Rule: cr, Name: name, Body: cr.Body, Slots: cr.Scope, Build: !r.Lean}}
 		}
 		if RecEligible(r) && flowlower.LocalRule(cr) {
-			add(&FuncSpec{Key: Key{RuleBody, r.ID, 0}, Func: flowlower.Func{Form: flowlower.Flat, Rule: cr, Name: name}, Fallback: frame})
+			add(&plandata.FuncSpec{Key: plandata.Key{Use: plandata.RuleBody, Rule: r.ID}, Func: lowerdata.Func{Form: lowerdata.Flat, Rule: cr, Name: name}, Fallback: frame})
 		} else if frame != nil {
 			add(frame)
 		}
@@ -332,35 +300,35 @@ func (t *Table) operatorsRules(m *core.Module, rules []*Rule, live func(rule int
 // operators plans the skip and the lines of the Operators Rule e of the rule r, whose Core rule is
 // cr and whose functions are named after rule. A line that Flow IR cannot lower inside the rule's
 // frame is left out.
-func (t *Table) operators(cr *core.Rule, r *Rule, rule string, e *ast.OperatorsRule, add func(*FuncSpec)) {
+func (t *Table) operators(cr *core.Rule, r *Rule, rule string, e *ast.OperatorsRule, add func(*plandata.FuncSpec)) {
 	co, _ := cr.Body.(*core.OperatorsRule)
 	if co == nil {
 		return
 	}
 	// A line is named by its rule and its use.
-	line := func(k Key, l *core.OpLine, x ast.Expr, build bool) {
+	line := func(k plandata.Key, l *core.OpLine, x ast.Expr, build bool) {
 		if l != nil && flowlower.LineOK(x) && flowlower.FramedBody(l.Body) {
 			name := fmt.Sprintf("%s/line%d", rule, k.Line)
-			if k.Use == OperatorsSkip {
+			if k.Use == plandata.OperatorsSkip {
 				name = rule + "/skip"
 			}
-			add(&FuncSpec{Key: k, Func: flowlower.Func{Form: flowlower.Frame, Rule: cr, Name: name, Body: l.Body, Slots: l.Scope, Build: build}})
+			add(&plandata.FuncSpec{Key: k, Func: lowerdata.Func{Form: lowerdata.Frame, Rule: cr, Name: name, Body: l.Body, Slots: l.Scope, Build: build}})
 		}
 	}
 	if e.Skip != nil {
-		line(Key{OperatorsSkip, r.ID, 0}, co.Skip, e.Skip, false)
+		line(plandata.Key{Use: plandata.OperatorsSkip, Rule: r.ID}, co.Skip, e.Skip, false)
 	}
 	// Lines whose value is unused are matched without values; so are all lines of a rule without a
 	// value.
 	i := 0
 	for _, o := range e.Operands {
-		line(Key{OperatorsLine, r.ID, i}, co.Operands[i], o.Expr, !r.Novalue && !check.LeanLine(o.Action, nil))
+		line(plandata.Key{Use: plandata.OperatorsLine, Rule: r.ID, Line: i}, co.Operands[i], o.Expr, !r.Novalue && !check.LeanLine(o.Action, nil))
 		i++
 	}
 	id := 0
 	for _, lv := range e.Levels {
 		for _, op := range lv.Operators {
-			line(Key{OperatorsLine, r.ID, i}, co.Ops[id].Line, op.Expr, !r.Novalue && !check.LeanLine(op.Action, []string{"lhs", "rhs", "op"}))
+			line(plandata.Key{Use: plandata.OperatorsLine, Rule: r.ID, Line: i}, co.Ops[id].Line, op.Expr, !r.Novalue && !check.LeanLine(op.Action, []string{"lhs", "rhs", "op"}))
 			i++
 			id++
 		}
@@ -368,7 +336,7 @@ func (t *Table) operators(cr *core.Rule, r *Rule, rule string, e *ast.OperatorsR
 }
 
 // Refused reports whether the table runs the framed fallback instead of the flat function f, which
-// the lowering of a Flat FuncSpec wrote: a reachable statement of f reads its entry position or its
+// the lowering of a flat plandata.FuncSpec wrote: a reachable statement of f reads its entry position or its
 // context, which a flat rule has no parameters for, or a variable of f holds a value, which a
 // value-free flat rule does not keep. Reachability is that of the printers (codepass.DeadStores). The
 // plan decides on f as the lowering writes it (Unit); a backend that prints a flat function in forms of

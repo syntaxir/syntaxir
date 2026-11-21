@@ -21,9 +21,10 @@ import (
 	"zeroparse.dev/zp/internal/frontend/check"
 	"zeroparse.dev/zp/internal/frontend/types"
 	"zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/internal/middleend/flowlower"
+	"zeroparse.dev/zp/internal/middleend/flowlower/lowerdata"
 	"zeroparse.dev/zp/internal/middleend/flowpass"
 	"zeroparse.dev/zp/internal/middleend/flowplan"
+	"zeroparse.dev/zp/internal/middleend/flowplan/plandata"
 	rprogram "zeroparse.dev/zp/internal/runtime/program"
 	"zeroparse.dev/zp/internal/runtime/state"
 	"zeroparse.dev/zp/pkg/grammar/ast"
@@ -669,7 +670,7 @@ func (g *Generator) rules() {
 		}
 		live := func(id int) bool { return !g.pruned(all[id]) }
 		var p *flowplan.Table
-		var refuse func(flowplan.Key) bool
+		var refuse func(plandata.Key) bool
 		if g.Table == "trules" {
 			// A typed framed body runs under the frame the typed runtime shares with the Node rule, so
 			// it has the slots of the Node rule's scope.
@@ -681,7 +682,7 @@ func (g *Generator) rules() {
 				p.Stream(g.Flow.TableIR, r.PlanRule())
 			}
 			if g.hooks.RefuseFlowRecRule != nil {
-				refuse = func(k flowplan.Key) bool { return k.Use == flowplan.RuleBody && g.hooks.RefuseFlowRecRule(all[k.Rule]) }
+				refuse = func(k plandata.Key) bool { return k.Use == plandata.RuleBody && g.hooks.RefuseFlowRecRule(all[k.Rule]) }
 			}
 		}
 		if err := g.LowerTable(p, refuse, gopass.Pipeline); err != nil {
@@ -714,8 +715,8 @@ func (g *Generator) rules() {
 			continue
 		}
 		// The lines of an Operators Rule are printed with its table row (operatorsRule).
-		spec, ok := g.plan.Func(flowplan.Key{Use: flowplan.RuleBody, Rule: r.ID})
-		if ok && spec.Form == flowlower.Flat {
+		spec, ok := g.plan.Func(plandata.Key{Use: plandata.RuleBody, Rule: r.ID})
+		if ok && spec.Form == lowerdata.Flat {
 			// flowRecRule returns nil only if the printed form breaks the plan's decision, which fails
 			// the generation (Generator.FlowErr).
 			if d := g.flowRecRule(r, spec); d != nil {
@@ -1480,7 +1481,7 @@ func (g *Generator) operatorsRule(r *common.Rule, e *ast.OperatorsRule) {
 	co := g.flowOperatorsRule(r)
 	if e.Skip != nil {
 		s := check.NewScope()
-		m := g.flowOperatorsRuleBody(flowplan.Key{Use: flowplan.OperatorsSkip, Rule: r.ID}, s, false)
+		m := g.flowOperatorsRuleBody(plandata.Key{Use: plandata.OperatorsSkip, Rule: r.ID}, s, false)
 		if m == "" {
 			g.FailFlow("the skip of an Operators Rule of rule " + g.Cur.Name)
 		}
@@ -1492,7 +1493,7 @@ func (g *Generator) operatorsRule(r *common.Rule, e *ast.OperatorsRule) {
 		if co != nil {
 			l = co.Operands[i]
 		}
-		fmt.Fprintf(&b, "\t\t\t%s,\n", g.operatorsRuleLine(flowplan.Key{Use: flowplan.OperatorsLine, Rule: r.ID, Line: i}, o.Expr, o.Action, false, l))
+		fmt.Fprintf(&b, "\t\t\t%s,\n", g.operatorsRuleLine(plandata.Key{Use: plandata.OperatorsLine, Rule: r.ID, Line: i}, o.Expr, o.Action, false, l))
 	}
 	b.WriteString("\t\t},\n")
 	var prefix, led []string
@@ -1503,7 +1504,7 @@ func (g *Generator) operatorsRule(r *common.Rule, e *ast.OperatorsRule) {
 			if co != nil {
 				l = co.Ops[id].Line
 			}
-			s := fmt.Sprintf("{Id: %d, Kind: %q, Assoc: %q, Level: %d, Line: %s}", id, op.Kind, op.Assoc, i+1, g.operatorsRuleLine(flowplan.Key{Use: flowplan.OperatorsLine, Rule: r.ID, Line: len(e.Operands) + id}, op.Expr, op.Action, true, l))
+			s := fmt.Sprintf("{Id: %d, Kind: %q, Assoc: %q, Level: %d, Line: %s}", id, op.Kind, op.Assoc, i+1, g.operatorsRuleLine(plandata.Key{Use: plandata.OperatorsLine, Rule: r.ID, Line: len(e.Operands) + id}, op.Expr, op.Action, true, l))
 			id++
 			if op.Kind == ast.Prefix {
 				prefix = append(prefix, s)
@@ -1523,7 +1524,7 @@ func (g *Generator) operatorsRule(r *common.Rule, e *ast.OperatorsRule) {
 
 // operatorsRuleLine returns the line of an Operators Rule with the expression e and the action;
 // l is its Core IR if it is printed from Flow IR, or nil.
-func (g *Generator) operatorsRuleLine(k flowplan.Key, e ast.Expr, action ast.ActionExpr, operator bool, l *core.OpLine) string {
+func (g *Generator) operatorsRuleLine(k plandata.Key, e ast.Expr, action ast.ActionExpr, operator bool, l *core.OpLine) string {
 	s := check.NewScope()
 	var locals []string
 	if operator {

@@ -8,6 +8,7 @@ import (
 	"zeroparse.dev/zp/internal/ir/code/flow"
 	"zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/middleend/corepass"
+	"zeroparse.dev/zp/internal/middleend/flowlower/lowerdata"
 	"zeroparse.dev/zp/internal/middleend/flowpass"
 	"zeroparse.dev/zp/internal/pass"
 )
@@ -52,7 +53,7 @@ func TestVerifyBudgetCharges(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			m, r := valueFree(c.body)
-			f, err := Lower(m, r, "r", Options{Budget: true})
+			f, err := Lower(m, r, "r", lowerdata.Options{Budget: true})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -79,7 +80,7 @@ func TestVerifyBudgetCharges(t *testing.T) {
 		&core.Repeat{Min: 1, Max: 3, Body: &core.Lit{Text: "ab"}},
 	} {
 		m, r := valueFree(body)
-		f, err := LowerFrame(m, r, body, nil, false, "r", Options{Budget: true})
+		f, err := LowerFrame(m, r, body, nil, false, "r", lowerdata.Options{Budget: true})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -177,12 +178,12 @@ func leanFinish(t *testing.T, f *code.Module) string {
 func TestLeanClassesSkipBudget(t *testing.T) {
 	for _, budget := range []bool{true, false} {
 		m, r := leanClasses()
-		plain, err := lowerFinished(t, m, r, Options{Budget: budget}, 0)
+		plain, err := lowerFinished(t, m, r, lowerdata.Options{Budget: budget}, 0)
 		if err != nil {
 			t.Fatal(err)
 		}
 		m, r = leanClasses()
-		f, err := Lower(m, r, "r", Options{Budget: budget})
+		f, err := Lower(m, r, "r", lowerdata.Options{Budget: budget})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -197,13 +198,13 @@ func TestLeanClassesSkipBudget(t *testing.T) {
 func TestLeanClassesSkipBudgetFrame(t *testing.T) {
 	for _, budget := range []bool{true, false} {
 		m, r := leanClasses()
-		plain, err := LowerFrame(m, r, r.Body, nil, false, "r", Options{Budget: budget})
+		plain, err := LowerFrame(m, r, r.Body, nil, false, "r", lowerdata.Options{Budget: budget})
 		if err != nil {
 			t.Fatal(err)
 		}
 		finish(t, plain, flowpass.Target{}, 0)
 		m, r = leanClasses()
-		f, err := LowerFrame(m, r, r.Body, nil, false, "r", Options{Budget: budget})
+		f, err := LowerFrame(m, r, r.Body, nil, false, "r", lowerdata.Options{Budget: budget})
 		if err != nil {
 			t.Fatal(err)
 		}

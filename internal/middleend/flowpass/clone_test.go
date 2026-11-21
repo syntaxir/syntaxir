@@ -6,6 +6,7 @@ import (
 	"zeroparse.dev/zp/internal/ir/code"
 	"zeroparse.dev/zp/internal/ir/code/flow"
 	"zeroparse.dev/zp/internal/middleend/flowlower"
+	"zeroparse.dev/zp/internal/middleend/flowlower/lowerdata"
 )
 
 // TestCloneKeepsTheForms checks that a copy of a lowered function shares no statement or
@@ -14,7 +15,7 @@ import (
 // lowering made it.
 func TestCloneKeepsTheForms(t *testing.T) {
 	m, r := forms(t)
-	f, err := flowlower.Lower(m, r, "r", flowlower.Options{})
+	f, err := flowlower.Lower(m, r, "r", lowerdata.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +60,7 @@ func TestCloneKeepsTheForms(t *testing.T) {
 	if got := code.FuncStringIn(f, flow.FuncOf(f)); got != before {
 		t.Errorf("the passes on the copy changed the function:\n%s\nwant:\n%s", got, before)
 	}
-	want := lower(t, flowlower.Options{}, &testEnv{Target: all})
+	want := lower(t, lowerdata.Options{}, &testEnv{Target: all})
 	if got := code.FuncStringIn(c, flow.FuncOf(c)); got != want.text {
 		t.Errorf("the passes on the copy made:\n%s\nwant:\n%s", got, want.text)
 	}

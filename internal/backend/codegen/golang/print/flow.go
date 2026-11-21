@@ -11,7 +11,8 @@ import (
 	"zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/middleend/execlower"
 	"zeroparse.dev/zp/internal/middleend/flowlower"
-	"zeroparse.dev/zp/internal/middleend/flowplan"
+	"zeroparse.dev/zp/internal/middleend/flowlower/lowerdata"
+	"zeroparse.dev/zp/internal/middleend/flowplan/plandata"
 	rprogram "zeroparse.dev/zp/internal/runtime/program"
 	"zeroparse.dev/zp/pkg/grammar/ast"
 )
@@ -38,18 +39,18 @@ func (g *Generator) startFlow() error {
 	if err != nil {
 		return err
 	}
-	g.Flow = &common.FlowState{TableIR: &flowplan.TableIR{M: m, Opts: g.FlowOptions(m)},
+	g.Flow = &common.FlowState{TableIR: &plandata.TableIR{M: m, Opts: g.FlowOptions(m)},
 		Rules: append(append([]*common.Rule(nil), g.Prog.RuleList...), g.Prog.Twins...)}
 	return nil
 }
 
 // FlowOptions returns the options of lowering the typed rules of the Core IR m, while the typed
 // table is generated.
-func (g *Generator) FlowOptions(m *core.Module) flowlower.Options {
+func (g *Generator) FlowOptions(m *core.Module) lowerdata.Options {
 	// Node is false: the options of the Node and recognizer tables (common.Generator.StartRecFlow) are
 	// built apart, and a function lowered with one set of options is never printed for the other
 	// runtime.
-	return flowlower.Options{Budget: !g.NoBudget, Recovers: flowlower.Recovers(m), Observe: g.Observability, Document: g.RecordsExamined(), Traced: g.Traced}
+	return lowerdata.Options{Budget: !g.NoBudget, Recovers: flowlower.Recovers(m), Observe: g.Observability, Document: g.RecordsExamined(), Traced: g.Traced}
 }
 
 // flowTypedRule prints the rule r from Flow IR as a flat rule, the flat function of the typed table's
@@ -58,8 +59,8 @@ func (g *Generator) flowTypedRule(r *common.Rule) *flatRule {
 	if g.Table != "trules" {
 		return nil
 	}
-	spec, ok := g.plan.Func(flowplan.Key{Use: flowplan.RuleBody, Rule: r.ID})
-	if !ok || spec.Form != flowlower.Flat {
+	spec, ok := g.plan.Func(plandata.Key{Use: plandata.RuleBody, Rule: r.ID})
+	if !ok || spec.Form != lowerdata.Flat {
 		return nil
 	}
 	l := g.planned(spec.Key)
@@ -77,8 +78,8 @@ func (g *Generator) flowFrameBody(r *common.Rule, scope *check.Scope) string {
 	if g.Table != "trules" {
 		return ""
 	}
-	spec, ok := g.plan.Func(flowplan.Key{Use: flowplan.RuleBody, Rule: r.ID})
-	if !ok || spec.Form != flowlower.Frame {
+	spec, ok := g.plan.Func(plandata.Key{Use: plandata.RuleBody, Rule: r.ID})
+	if !ok || spec.Form != lowerdata.Frame {
 		return ""
 	}
 	if g.Flow.Opts.Node {
@@ -97,7 +98,7 @@ func (g *Generator) flowFrameBody(r *common.Rule, scope *check.Scope) string {
 // holds the body charges one step on entry (flow.Attrs.Entered) and the body charges one on each
 // iteration of a repetition, plus the input spend of each Peek; the limits of a parse hold at these
 // charges.
-func (g *Generator) flowNodeFrameBody(r *common.Rule, spec *flowplan.FuncSpec, scope *check.Scope) string {
+func (g *Generator) flowNodeFrameBody(r *common.Rule, spec *plandata.FuncSpec, scope *check.Scope) string {
 	if !g.Flow.Opts.Node {
 		panic("internal error: a Node rule is lowered with the options of the typed table")
 	}
@@ -109,10 +110,10 @@ func (g *Generator) flowNodeFrameBody(r *common.Rule, spec *flowplan.FuncSpec, s
 
 // flowStreamBody prints the body of the start rule r of ParseStream from Flow IR as the matcher of its
 // frame body, the function of the plan of the Node table that delivers the elements of its #stream
-// repetition (flowplan.StreamBody), or returns "" if the plan has none. The capture layout of the printed
+// repetition (plandata.StreamBody), or returns "" if the plan has none. The capture layout of the printed
 // body must be the batch body's, which the action addresses by slot.
 func (g *Generator) flowStreamBody(r *common.Rule, scope *check.Scope) string {
-	spec, ok := g.plan.Func(flowplan.Key{Use: flowplan.StreamBody, Rule: r.ID})
+	spec, ok := g.plan.Func(plandata.Key{Use: plandata.StreamBody, Rule: r.ID})
 	if !ok {
 		return ""
 	}
@@ -132,7 +133,7 @@ func (g *Generator) flowStreamBody(r *common.Rule, scope *check.Scope) string {
 // on the shape of every capture, and the checker lets an action name only captures of its line. With budget
 // controls (Options.Budget) the method that holds the function charges its entry and the function charges
 // each iteration of a repetition, as Flow IR makes them explicit.
-func (g *Generator) flowOperatorsRuleBody(k flowplan.Key, scope *check.Scope, build bool) string {
+func (g *Generator) flowOperatorsRuleBody(k plandata.Key, scope *check.Scope, build bool) string {
 	spec, ok := g.plan.Func(k)
 	if !ok {
 		return ""
@@ -176,7 +177,7 @@ func (g *Generator) flowFramed(l *execlower.Lowered, slots []core.Slot, scope *c
 
 // planned returns the function of the use k in the module of the table's plan, which LowerTable
 // lowered: the plan holds it, since the printer asks only for the functions of the plan.
-func (g *Generator) planned(k flowplan.Key) *execlower.Lowered {
+func (g *Generator) planned(k plandata.Key) *execlower.Lowered {
 	l, ok := g.plan.Lowered(k)
 	if !ok {
 		panic(fmt.Errorf("internal error: the plan of table %s has no function %+v", g.Table, k))

@@ -14,6 +14,7 @@ import (
 	"zeroparse.dev/zp/internal/middleend/corepass"
 	"zeroparse.dev/zp/internal/middleend/execlower"
 	"zeroparse.dev/zp/internal/middleend/flowlower"
+	"zeroparse.dev/zp/internal/middleend/flowlower/lowerdata"
 	"zeroparse.dev/zp/internal/middleend/flowpass"
 	"zeroparse.dev/zp/internal/pass"
 	"zeroparse.dev/zp/internal/pass/pipe"
@@ -166,18 +167,18 @@ func withTestFlowPass(t *testing.T) func(string) pipe.Pipeline[flowpass.Unit, fl
 }
 
 // framed returns the unit of a framed function r that matches the literal "a" and builds no value.
-func framed() flowlower.Unit {
+func framed() lowerdata.Unit {
 	lit := &core.Lit{Text: "a", Exp: 5}
 	m := &core.Module{Exps: []string{"any character", "beginning of input", "end of input", "beginning of line", "end of line", `"a"`}}
 	r := &core.Rule{Name: "r", Body: lit, Policy: core.Policy{Seen: -1}}
 	m.Rules = []*core.Rule{r}
 	core.Analyze(m)
-	return flowlower.Unit{Module: m, Funcs: []flowlower.Func{{Form: flowlower.Frame, Rule: r, Name: "r", Body: lit}}}
+	return lowerdata.Unit{Module: m, Funcs: []lowerdata.Func{{Form: lowerdata.Frame, Rule: r, Name: "r", Body: lit}}}
 }
 
 // table returns the unit of the framed functions r and s of a table, each of which matches the literal
 // "a" and builds no value.
-func table() flowlower.Unit {
+func table() lowerdata.Unit {
 	u := framed()
 	f := u.Funcs[0]
 	f.Name = "s"
@@ -417,7 +418,7 @@ func TestDriverFlowKeepsTheCoreModule(t *testing.T) {
 // flow-finish ended.
 func TestDriverFlowErrors(t *testing.T) {
 	u := framed()
-	u.Funcs[0].Form = flowlower.Form(9)
+	u.Funcs[0].Form = lowerdata.Form(9)
 	if f, err := (&Driver{}).Flow("rules", u, false, flowpass.Target{}); f != nil || !isStep(err, flowlower.Name) {
 		t.Errorf("a refused unit: %v, %v", f, err)
 	}

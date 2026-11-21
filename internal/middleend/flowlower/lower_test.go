@@ -7,6 +7,7 @@ import (
 	"zeroparse.dev/zp/internal/ir/code"
 	"zeroparse.dev/zp/internal/ir/code/flow"
 	"zeroparse.dev/zp/internal/ir/core"
+	"zeroparse.dev/zp/internal/middleend/flowlower/lowerdata"
 	"zeroparse.dev/zp/internal/middleend/flowpass"
 )
 
@@ -48,10 +49,10 @@ func TestLower(t *testing.T) {
 	for _, c := range []struct {
 		name string
 		body core.Node
-		opts Options
+		opts lowerdata.Options
 		want string
 	}{
-		{"choice of literals", alts(&core.Lit{Text: "ab"}, &core.Lit{Text: "c"}), Options{}, `
+		{"choice of literals", alts(&core.Lit{Text: "ab"}, &core.Lit{Text: "c"}), lowerdata.Options{}, `
 func r() {
   var x1 int
   var ok bool
@@ -83,7 +84,7 @@ func r() {
   v = null(value)
 }
 `},
-		{"repetition with work and recovery", &core.Repeat{Min: 1, Max: -1, Body: &core.Lit{Text: "a"}}, Options{Budget: true, Recovers: true}, `
+		{"repetition with work and recovery", &core.Repeat{Min: 1, Max: -1, Body: &core.Lit{Text: "a"}}, lowerdata.Options{Budget: true, Recovers: true}, `
 func r() {
   var x1 int
   var x2 int
@@ -115,7 +116,7 @@ func r() {
   v = null(value)
 }
 `},
-		{"alternatives after one that cannot fail", alts(&core.Lit{Text: "a"}, &core.Succeed{}, &core.Lit{Text: "b"}), Options{}, `
+		{"alternatives after one that cannot fail", alts(&core.Lit{Text: "a"}, &core.Succeed{}, &core.Lit{Text: "b"}), lowerdata.Options{}, `
 func r() {
   var x1 int
   var ok bool
@@ -283,7 +284,7 @@ func r() (value, bool) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			m, r := valueFree(c.body)
-			f, err := LowerFrame(m, r, r.Body, c.slots, false, "r", Options{})
+			f, err := LowerFrame(m, r, r.Body, c.slots, false, "r", lowerdata.Options{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -303,7 +304,7 @@ func r() (value, bool) {
 func TestLowerNodeValues(t *testing.T) {
 	for _, node := range []bool{false, true} {
 		m, r := valueFree(&core.Repeat{Min: 1, Max: -1, Body: &core.Lit{Text: "a"}})
-		f, err := LowerFrame(m, r, r.Body, nil, true, "r", Options{Node: node})
+		f, err := LowerFrame(m, r, r.Body, nil, true, "r", lowerdata.Options{Node: node})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -325,7 +326,7 @@ func TestLowerNodeValues(t *testing.T) {
 func TestLowerVerifies(t *testing.T) {
 	newLowerer := func() *lowerer {
 		m, _ := valueFree(&core.Succeed{})
-		return newLowerer(m, Options{}, "f", &flow.Attrs{Start: "start", Result: "v", Ctx: "c"})
+		return newLowerer(m, lowerdata.Options{}, "f", &flow.Attrs{Start: "start", Result: "v", Ctx: "c"})
 	}
 	l := newLowerer()
 	l.at.Node = true
@@ -338,7 +339,7 @@ func TestLowerVerifies(t *testing.T) {
 	}
 }
 
-// TestLowerStream checks the lowering of a #stream repetition in a framed Node function: with Func.Stream
+// TestLowerStream checks the lowering of a #stream repetition in a framed Node function: with lowerdata.Func.Stream
 // it starts the stream and delivers each element instead of gathering it, guarded by StreamOn; without the
 // option it is the batch repetition, which has none of these operations.
 func TestLowerStream(t *testing.T) {
@@ -348,7 +349,7 @@ func TestLowerStream(t *testing.T) {
 	r := &core.Rule{Name: "main", Body: body}
 	m.Rules[0] = r
 	lower := func(stream bool) string {
-		f, err := verified(lowerFunc(m, Func{Form: Frame, Rule: r, Name: "main", Body: body, Build: true, Stream: stream}, Options{Node: true}))
+		f, err := verified(lowerFunc(m, lowerdata.Func{Form: lowerdata.Frame, Rule: r, Name: "main", Body: body, Build: true, Stream: stream}, lowerdata.Options{Node: true}))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -378,7 +379,7 @@ func TestVerifyDocumentReads(t *testing.T) {
 	lit := &core.Lit{Text: "ab"}
 	m, r := valueFree(lit)
 	build := func(document bool) *code.Module {
-		f, err := lowerFinished(t, m, r, Options{Document: document}, 4)
+		f, err := lowerFinished(t, m, r, lowerdata.Options{Document: document}, 4)
 		if err != nil {
 			t.Fatal(err)
 		}

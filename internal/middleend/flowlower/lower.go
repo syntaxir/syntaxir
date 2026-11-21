@@ -34,35 +34,8 @@ import (
 	"zeroparse.dev/zp/internal/ir/code/flow"
 	"zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/middleend/corepass"
+	"zeroparse.dev/zp/internal/middleend/flowlower/lowerdata"
 )
-
-// Options selects the forms the lowering writes.
-type Options struct {
-	// Budget charges one compute unit on each loop iteration and for each character a Peek reads;
-	// the method that holds a rule's body charges its entry.
-	Budget bool
-	// Recovers reports that the module can append recovered errors (Recovers), so backtracking
-	// points save their number.
-	Recovers bool
-	// Observe reports the alternatives that the guards of choices skip (ObserveSkip).
-	Observe bool
-	// Node builds the values of the Node runtime (NewTerminalNode, NewBranchNode) in place of the typed
-	// ones, in the functions it lowers (flow.Attrs.Node). It holds for every function of a module's lowering,
-	// so the options of the Node and recognizer tables are never shared with the typed table's.
-	Node bool
-	// Document lowers for a build with Documents. A parse of a Document records how far it examined the input
-	// in the primitives that read it; the form that reads input in place (HasLit) is then valid only with
-	// the recording primitive (MatchLit) as its alternative, which the target takes when the parse is a
-	// Document's. The Flow verifier rejects an in-place read without one in a function lowered with it (flow.Attrs.Document).
-	Document bool
-	// Traced lowers the traced copy of a rule that an observed parse runs (flow.Attrs.Traced): every read of the
-	// input records how far the parse examined, and the Flow verifier rejects a read in place in the function.
-	Traced bool
-	// Outline, if not nil, selects the nodes of a framed function that run as functions of their own: the
-	// function calls them (CallOutline) under its frame and lowers them with LowerOutline. A node it selects
-	// must be Outlinable; the lowering keeps every node in a function lowered with Observe.
-	Outline func(core.Node) bool
-}
 
 // Recovers reports whether the module has a Recover, which appends recovered errors.
 func Recovers(m *core.Module) bool {
@@ -114,10 +87,11 @@ func FramedBody(n core.Node) bool {
 
 // LowerFrame lowers the body n with the capture scope slots, building its value if build, to the
 // framed function name of the rule r: the body of a left-recursion leader or of a rule that
-// recovers, or a line of an Operators Rule of r. Analyze must have run on m. With Options.Budget the
-// function does not charge its entry: the method that calls it does (flow.Attrs.Entered).
-func LowerFrame(m *core.Module, r *core.Rule, n core.Node, slots []core.Slot, build bool, name string, opts Options) (*code.Module, error) {
-	return verified(lowerFunc(m, Func{Form: Frame, Rule: r, Name: name, Body: n, Slots: slots, Build: build}, opts))
+// recovers, or a line of an Operators Rule of r. Analyze must have run on m. With
+// lowerdata.Options.Budget the function does not charge its entry: the method that calls it does
+// (flow.Attrs.Entered).
+func LowerFrame(m *core.Module, r *core.Rule, n core.Node, slots []core.Slot, build bool, name string, opts lowerdata.Options) (*code.Module, error) {
+	return verified(lowerFunc(m, lowerdata.Func{Form: lowerdata.Frame, Rule: r, Name: name, Body: n, Slots: slots, Build: build}, opts))
 }
 
 // Outlinable reports whether a node can run as a function of its own (LowerOutline): it is a framed
@@ -139,11 +113,11 @@ func Outlinable(n core.Node) bool {
 // LowerOutline lowers the node n, which a CallOutline of a framed function runs, to the framed function
 // name. The function belongs to the rule of its caller, which charged the entry of the rule: it
 // charges only the repetitions below n. Analyze must have run on m.
-func LowerOutline(m *core.Module, r *core.Rule, n core.Node, slots []core.Slot, build bool, name string, opts Options) (*code.Module, error) {
-	return verified(lowerFunc(m, Func{Form: Outline, Rule: r, Name: name, Body: n, Slots: slots, Build: build}, opts))
+func LowerOutline(m *core.Module, r *core.Rule, n core.Node, slots []core.Slot, build bool, name string, opts lowerdata.Options) (*code.Module, error) {
+	return verified(lowerFunc(m, lowerdata.Func{Form: lowerdata.Outline, Rule: r, Name: name, Body: n, Slots: slots, Build: build}, opts))
 }
 
-func lowerFrameBody(m *core.Module, r *core.Rule, n core.Node, slots []core.Slot, build, stream bool, name string, opts Options) (*code.Module, error) {
+func lowerFrameBody(m *core.Module, r *core.Rule, n core.Node, slots []core.Slot, build, stream bool, name string, opts lowerdata.Options) (*code.Module, error) {
 	if !FramedBody(n) {
 		return nil, fmt.Errorf("a body of rule %s is not lowered to a framed function", r.Name)
 	}
@@ -172,11 +146,11 @@ func lowerFrameBody(m *core.Module, r *core.Rule, n core.Node, slots []core.Slot
 // Lower lowers the rule r of the module m, a LocalRule, to the function name. Analyze must have
 // run on m. The terminal regions of the rule (corepass.TerminalRegions) are forms of the function
 // (flow.Forms), which the terminals pass may match as one program.
-func Lower(m *core.Module, r *core.Rule, name string, opts Options) (*code.Module, error) {
-	return verified(lowerFunc(m, Func{Form: Flat, Rule: r, Name: name}, opts))
+func Lower(m *core.Module, r *core.Rule, name string, opts lowerdata.Options) (*code.Module, error) {
+	return verified(lowerFunc(m, lowerdata.Func{Form: lowerdata.Flat, Rule: r, Name: name}, opts))
 }
 
-func lowerFlat(m *core.Module, r *core.Rule, name string, opts Options) (*code.Module, error) {
+func lowerFlat(m *core.Module, r *core.Rule, name string, opts lowerdata.Options) (*code.Module, error) {
 	if !LocalRule(r) {
 		return nil, fmt.Errorf("rule %s is not lowered to a local function", r.Name)
 	}
@@ -205,7 +179,7 @@ type lowerer struct {
 	// top is the root of a framed function, which stays in it.
 	top  core.Node
 	m    *core.Module
-	opts Options
+	opts lowerdata.Options
 	// fn is the function being lowered and at its attributes; body is the block that the body
 	// leaves on failure (Attrs.Fail).
 	fn   *code.Func
@@ -239,15 +213,15 @@ type lowerer struct {
 	regions   map[core.Node]bool
 	// frame reports a framed function.
 	frame bool
-	// stream lowers the #stream repetition as the one that delivers the elements (Func.Stream).
+	// stream lowers the #stream repetition as the one that delivers the elements (lowerdata.Func.Stream).
 	stream bool
-	// streaming is the repetition of the Stream node being lowered in a stream parse (Func.Stream).
+	// streaming is the repetition of the Stream node being lowered in a stream parse (lowerdata.Func.Stream).
 	streaming *core.Repeat
 }
 
 // newLowerer returns a lowerer of the function name with the attributes at, whose body is the block
 // that it leaves on failure.
-func newLowerer(m *core.Module, opts Options, name string, at *flow.Attrs) *lowerer {
+func newLowerer(m *core.Module, opts lowerdata.Options, name string, at *flow.Attrs) *lowerer {
 	at.Fail = "fail"
 	at.Forms = &flow.Forms{}
 	l := &lowerer{m: m, opts: opts, at: at, fn: &code.Func{Name: name, Attrs: at}, body: &code.Block{Label: at.Fail},

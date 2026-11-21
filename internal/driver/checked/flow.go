@@ -9,12 +9,13 @@ import (
 	"zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/middleend/flowpass"
 	"zeroparse.dev/zp/internal/middleend/flowplan"
+	"zeroparse.dev/zp/internal/middleend/flowplan/plandata"
 )
 
 // FlowTable is the Node table of a program as the bytecode VM runs it from Flow IR: the table's Core
 // IR and lowering options, its plan, and the Flow function of each rule body that the plan holds.
 type FlowTable struct {
-	IR   *flowplan.TableIR
+	IR   *plandata.TableIR
 	Plan *flowplan.Table
 	// Bodies maps the ID of each rule whose body the plan holds to a module of the function the table
 	// runs for it alone (flowplan.Table.FlowFunc), after the Flow passes: the rule's flat function or
@@ -30,7 +31,7 @@ type FlowTable struct {
 func (s *Source) FlowTable() (*FlowTable, error) {
 	p := s.prog
 	d := &driver.Driver{}
-	t, err := flowplan.BuildTable(p, flowplan.TableConfig{Values: true, Budget: true}, func(build func() (*core.Module, error)) (*core.Module, error) {
+	t, err := flowplan.BuildTable(p, plandata.TableConfig{Values: true, Budget: true}, func(build func() (*core.Module, error)) (*core.Module, error) {
 		return d.Core("rules", build)
 	})
 	if err != nil {
@@ -47,7 +48,7 @@ func (s *Source) FlowTable() (*FlowTable, error) {
 	}
 	ft := &FlowTable{IR: t, Plan: plan, Bodies: map[int]*code.Module{}}
 	for _, r := range rules {
-		if f, ok := plan.FlowFunc(flowplan.Key{Use: flowplan.RuleBody, Rule: r.ID}); ok {
+		if f, ok := plan.FlowFunc(plandata.Key{Use: plandata.RuleBody, Rule: r.ID}); ok {
 			ft.Bodies[r.ID] = f
 		}
 	}

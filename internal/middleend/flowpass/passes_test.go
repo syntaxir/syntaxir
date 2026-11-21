@@ -11,6 +11,7 @@ import (
 	"zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/middleend/corepass"
 	"zeroparse.dev/zp/internal/middleend/flowlower"
+	"zeroparse.dev/zp/internal/middleend/flowlower/lowerdata"
 	"zeroparse.dev/zp/internal/pass"
 )
 
@@ -134,7 +135,7 @@ func (e *testEnv) options(t *testing.T) RunOptions {
 
 // lower lowers the forms rule with opts, runs the passes under env, verifying after each, and ends
 // them.
-func lower(t *testing.T, opts flowlower.Options, env *testEnv) lowered {
+func lower(t *testing.T, opts lowerdata.Options, env *testEnv) lowered {
 	t.Helper()
 	m, r := forms(t)
 	f, err := flowlower.Lower(m, r, "r", opts)
@@ -191,12 +192,12 @@ func shows(l lowered) []string {
 // removes exactly its pass and its mark.
 func TestPassesDisable(t *testing.T) {
 	names := Names()
-	full := lower(t, flowlower.Options{}, &testEnv{Target: all})
+	full := lower(t, lowerdata.Options{}, &testEnv{Target: all})
 	if !slices.Equal(full.ran, names) || !slices.Equal(shows(full), names) {
 		t.Fatalf("ran %v, shows %v, want %v:\n%s", full.ran, shows(full), names, full.text)
 	}
 	for _, off := range names {
-		l := lower(t, flowlower.Options{}, &testEnv{Target: all, Flag: func(name string) bool { return name != off }})
+		l := lower(t, lowerdata.Options{}, &testEnv{Target: all, Flag: func(name string) bool { return name != off }})
 		want := slices.DeleteFunc(slices.Clone(names), func(n string) bool { return n == off })
 		if !slices.Equal(l.ran, want) {
 			t.Errorf("without %s: ran %v, want %v", off, l.ran, want)
@@ -210,7 +211,7 @@ func TestPassesDisable(t *testing.T) {
 	}
 	// A pass that takes a number is off at 0 too.
 	for _, name := range []string{PassClassTables, PassInlineLiterals} {
-		l := lower(t, flowlower.Options{}, &testEnv{Target: all, Value: func(n string) int {
+		l := lower(t, lowerdata.Options{}, &testEnv{Target: all, Value: func(n string) int {
 			if n == name {
 				return 0
 			}
@@ -221,7 +222,7 @@ func TestPassesDisable(t *testing.T) {
 		}
 	}
 	// guarded-classes needs the guards: without the Core pass it does not run.
-	l := lower(t, flowlower.Options{}, &testEnv{Target: all, Flag: func(name string) bool { return name != corepass.PassGuards }})
+	l := lower(t, lowerdata.Options{}, &testEnv{Target: all, Flag: func(name string) bool { return name != corepass.PassGuards }})
 	if slices.Contains(l.ran, PassGuardedClasses) {
 		t.Errorf("guarded-classes ran without guards")
 	}
@@ -230,7 +231,7 @@ func TestPassesDisable(t *testing.T) {
 // A pass applies only to the targets that have its form, and none to the empty target, which keeps
 // the function as the lowering wrote it.
 func TestPassesTarget(t *testing.T) {
-	plain := lower(t, flowlower.Options{}, &testEnv{})
+	plain := lower(t, lowerdata.Options{}, &testEnv{})
 	if len(plain.ran) != 0 || len(shows(plain)) != 0 {
 		t.Fatalf("empty target: ran %v, shows %v", plain.ran, shows(plain))
 	}
@@ -242,7 +243,7 @@ func TestPassesTarget(t *testing.T) {
 		PassInlineLiterals: {InlineLiterals: true},
 	}
 	for name, target := range only {
-		l := lower(t, flowlower.Options{}, &testEnv{Target: target})
+		l := lower(t, lowerdata.Options{}, &testEnv{Target: target})
 		if !slices.Equal(l.ran, []string{name}) || !slices.Equal(shows(l), []string{name}) {
 			t.Errorf("target of %s: ran %v, shows %v", name, l.ran, shows(l))
 		}
@@ -255,15 +256,15 @@ func TestPassesTarget(t *testing.T) {
 func TestPassesFunction(t *testing.T) {
 	for _, c := range []struct {
 		name string
-		opts flowlower.Options
+		opts lowerdata.Options
 		env  testEnv
 		want []string
 	}{
-		{"observed", flowlower.Options{Observe: true}, testEnv{Observe: true, Target: all},
+		{"observed", lowerdata.Options{Observe: true}, testEnv{Observe: true, Target: all},
 			[]string{PassGuardedClasses, PassClassRuns, PassClassTables, PassInlineLiterals}},
-		{"budget", flowlower.Options{Budget: true}, testEnv{Target: all}, []string{PassInlineLiterals}},
-		{"traced", flowlower.Options{Traced: true, Observe: true}, testEnv{Observe: true, Target: all}, nil},
-		{"node", flowlower.Options{Node: true}, testEnv{Target: all}, []string{PassGuardedClasses, PassInlineLiterals}},
+		{"budget", lowerdata.Options{Budget: true}, testEnv{Target: all}, []string{PassInlineLiterals}},
+		{"traced", lowerdata.Options{Traced: true, Observe: true}, testEnv{Observe: true, Target: all}, nil},
+		{"node", lowerdata.Options{Node: true}, testEnv{Target: all}, []string{PassGuardedClasses, PassInlineLiterals}},
 	} {
 		env := c.env
 		l := lower(t, c.opts, &env)
@@ -277,7 +278,7 @@ func TestPassesFunction(t *testing.T) {
 // character is none of them, so the guarded alternative's run begins at its second class, and the
 // other alternative's run is its two classes after the literal.
 func TestClassRunsGuarded(t *testing.T) {
-	l := lower(t, flowlower.Options{}, &testEnv{Target: Target{ClassRuns: true, GuardedClasses: true}})
+	l := lower(t, lowerdata.Options{}, &testEnv{Target: Target{ClassRuns: true, GuardedClasses: true}})
 	var runs []string
 	code.Walk(flow.FuncOf(l.m).Body, func(s code.Stmt) {
 		if st, ok := s.(*code.If); ok {
@@ -296,7 +297,7 @@ func TestClassRunsGuarded(t *testing.T) {
 // Finish leaves no block of a form, no variable that only a replaced form named, and the
 // variables a pass made among the others; it does nothing to a function without forms.
 func TestFinish(t *testing.T) {
-	l := lower(t, flowlower.Options{}, &testEnv{Target: all})
+	l := lower(t, lowerdata.Options{}, &testEnv{Target: all})
 	if strings.Contains(l.text, "form") {
 		t.Errorf("a form block is left:\n%s", l.text)
 	}

@@ -8,9 +8,10 @@ import (
 	"zeroparse.dev/zp/internal/frontend/types"
 	"zeroparse.dev/zp/internal/ir/code"
 	"zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/internal/middleend/flowlower"
+	"zeroparse.dev/zp/internal/middleend/flowlower/lowerdata"
 	"zeroparse.dev/zp/internal/middleend/flowpass"
 	"zeroparse.dev/zp/internal/middleend/flowplan"
+	"zeroparse.dev/zp/internal/middleend/flowplan/plandata"
 	"zeroparse.dev/zp/internal/pass"
 	"zeroparse.dev/zp/internal/runtime/limits"
 	"zeroparse.dev/zp/internal/runtime/program"
@@ -206,9 +207,9 @@ func (g *Generator) Projections(r *Rule) map[string]string {
 }
 
 // FlowState holds the Core IR of the table being printed from Flow IR, with the options its functions
-// are lowered with (flowplan.TableIR), and the rules of its program.
+// are lowered with (plandata.TableIR), and the rules of its program.
 type FlowState struct {
-	*flowplan.TableIR
+	*plandata.TableIR
 	// Rules holds the rules of the program by ID, value-free twins included.
 	Rules []*Rule
 }
@@ -252,7 +253,7 @@ func (g *Generator) FlowNodeFrameOK(r *Rule) (*core.Rule, bool) {
 // its module at the Flow stage. Every function that a generator prints goes through it. An error of
 // the lowering is returned; a failure of the passes is kept as the first internal error of the
 // generation (FlowErr), which fails it, and the module is returned for the printing to go on.
-func (g *Generator) FlowPasses(u flowlower.Unit) (*code.Module, error) {
+func (g *Generator) FlowPasses(u lowerdata.Unit) (*code.Module, error) {
 	m, err := g.runner().Flow(g.IRTable(), u, g.Observability, g.FlowTarget)
 	if m == nil {
 		return nil, err
@@ -285,7 +286,7 @@ func (g *Generator) ExecPasses(m *code.Module, target TargetPipeline) (*code.Mod
 // (flowplan.Table.Unit; refuse is a test's hook, nil refuses none), through the Flow and the Exec part
 // of the pipeline with target, as FlowPasses and ExecPasses run them, and binds the module at the Exec
 // stage to p, whose functions the printers then print (flowplan.Table.Lowered).
-func (g *Generator) LowerTable(p *flowplan.Table, refuse func(flowplan.Key) bool, target TargetPipeline) error {
+func (g *Generator) LowerTable(p *flowplan.Table, refuse func(plandata.Key) bool, target TargetPipeline) error {
 	m, err := g.FlowPasses(p.Unit(g.Flow.TableIR, refuse))
 	if err != nil {
 		return err
@@ -331,7 +332,7 @@ func FrameScope(names []string) *check.Scope {
 // (flowplan.BuildTable), for printing its rules from Flow IR. The bytecode VM builds the Node table it
 // runs from Flow IR through the same function.
 func (g *Generator) StartRecFlow(rec *Program) error {
-	c := flowplan.TableConfig{Values: g.Table != "recRules", Budget: !g.NoBudget, Observe: g.Observability,
+	c := plandata.TableConfig{Values: g.Table != "recRules", Budget: !g.NoBudget, Observe: g.Observability,
 		Document: g.RecordsExamined(), Traced: g.Traced}
 	t, err := flowplan.BuildTable(rec.Elab, c, func(build func() (*core.Module, error)) (*core.Module, error) {
 		return g.Core(g.IRTable(), build)

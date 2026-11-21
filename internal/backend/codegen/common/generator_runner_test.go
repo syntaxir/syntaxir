@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/middleend/flowlower"
+	"zeroparse.dev/zp/internal/middleend/flowlower/lowerdata"
 	"zeroparse.dev/zp/internal/testing/codegentest"
 )
 
@@ -30,7 +30,7 @@ func TestGeneratorWithoutRunnerPanicsClearly(t *testing.T) {
 	for name, use := range map[string]func(g *common.Generator){
 		"Opt":        func(g *common.Generator) { g.Opt() },
 		"Core":       func(g *common.Generator) { _, _ = g.Core("rules", nil) },
-		"FlowPasses": func(g *common.Generator) { _, _ = g.FlowPasses(flowlower.Unit{}) },
+		"FlowPasses": func(g *common.Generator) { _, _ = g.FlowPasses(lowerdata.Unit{}) },
 		"ExecPasses": func(g *common.Generator) { _, _ = g.ExecPasses(nil, common.TargetPipeline{}) },
 	} {
 		t.Run(name, func(t *testing.T) {
