@@ -238,3 +238,32 @@ func TestTypeScriptConformanceMemoInput(t *testing.T) {
 	}
 	tsReport(t, res, s.Ops, known)
 }
+
+// TestTypeScriptConformancePrintedOps pins the operations that the harness does not run as printed
+// code. The harness runs every other operation of the suites through the method that the printer prints
+// for it (print.OperationMethods), so these are all that the cases run on the library's own state.
+//
+// The printer never emits them, which tsTarget.Op in print/exec_lib.go shows: it panics with "no
+// TypeScript implementation" for each name. term.elemsAbove and term.keep are emitted only by the term
+// compiler of the Go state engine (actionlower.go); rule.docMemo and rule.positional only by the
+// DocumentParser target; obs.active, obs.enter and obs.exit have no printed form of their own (the printer
+// emits the observation hooks inside the printed rule code); env.scope, env.lookup, rec.push and
+// budget.used are support operations of the cases.
+func TestTypeScriptConformancePrintedOps(t *testing.T) {
+	h, err := tsconformtest.Printed()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"budget.used", "env.lookup", "env.scope", "obs.active", "obs.enter", "obs.exit", "rec.push", "rule.docMemo", "rule.positional", "term.elemsAbove", "term.keep"}
+	var got []string
+	for name, reason := range h.Unprinted {
+		got = append(got, name)
+		if !strings.Contains(reason, "no TypeScript implementation") {
+			t.Errorf("%s is not printed for a reason other than that the printer has no implementation: %s", name, reason)
+		}
+	}
+	slices.Sort(got)
+	if !slices.Equal(got, want) {
+		t.Fatalf("the operations that are not printed are\n%v\nwant\n%v", got, want)
+	}
+}
