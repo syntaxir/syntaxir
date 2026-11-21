@@ -397,8 +397,7 @@ leave the text form unchanged.
 values whatever other observers watch the run. When an observer needs the text comparison, the manager also compares
 the text form before and after the pass into `TextChanged`, so `-print-changed` prints nothing after a pass that changed
 nothing whatever it reported, and `-verify-each` cross-checks the report against the same comparison. The two are
-separate fields because needs are joined per run: a per-target `-print-changed` must not change what a call-wide
-`-stats` reports for another target. In general, the value of every field that an observer reads depends only on the
+separate fields because needs are joined per run: `-print-changed` must not change what `-stats` reports. In general, the value of every field that an observer reads depends only on the
 run and the pipeline, never on which other observers watch.
 
 **Copies.** The manager follows one policy, and no pass declares anything about copies.
@@ -545,12 +544,12 @@ run from the text alone (with the grammar). Each option has one scope, and each 
   A text whose `pipeline` line starts at `library` is the text of the Go library; otherwise a text without a `program`
   line is the text of a generation.
 - `settings` (the call) holds the profile and the overrides.
-- `debug` (the call) holds the manager's policies, which one manager applies to the whole compilation: `verify-each`,
-  and the observation flags that are call-wide as they are added (`stats`, `time-passes`, `opt-bisect-limit`, since
-  bisection numbers one sequence of decisions across the run).
+- `debug` (the call) holds the debugging settings, which apply to the whole compilation: the manager's policies
+  (`verify-each`, and `opt-bisect-limit`, since bisection numbers one sequence of decisions across the run) and the
+  observation flags (`print-after`, `print-changed`, `stats`, `time-passes`, and `print-before` when it is added). One
+  writer receives the output of every target; each dump and each report line names the backend in its label.
 - `target <label>` (one line per target, in order) holds every other generation option of that target, in declaration
-  order, and the dumps of the target (`print-after`, and `print-before` and `print-changed` when they are added). The
-  dumps are per target because each target selects and receives its own.
+  order.
 
 The writer of the dumps and the library file systems are the only options not written; the reader supplies them. A
 reflection test lists the exported fields of the generation options and fails unless each is written by exactly one
@@ -571,8 +570,8 @@ sxir-pipeline 1.0
 sxir 0.9.0
 options start= source-info=false default-value=false left-recursion-bindings=false
 settings profile=speed opt= no-opt=
-debug verify-each=false
-target go typed-only=false recognize-only=false limits=false expectations=false ... print-after=
+debug verify-each=false print-after= print-changed=false stats=false time-passes=false
+target go typed-only=false recognize-only=false limits=false expectations=false ...
 pipeline program -> []output {
   fork {
     branch go {
@@ -662,9 +661,9 @@ const (
 type Backend = result.Backend // Go, TypeScript, VM, Closure
 
 // Target is one backend of a compilation with its options. Gen holds the options of Go and
-// TypeScript, the dumps of the target included. Its fields that Program holds and that the call
-// holds (optimization, verification) must be zero or equal to the call's values; otherwise Compile
-// fails before any step, naming the target and the field.
+// TypeScript. Its fields that Program holds and that the call holds (optimization, debugging) must
+// be zero or equal to the call's values; otherwise Compile fails before any step, naming the target
+// and the field.
 type Target struct {
 	Backend Backend
 	Gen     common.GenOptions
@@ -673,14 +672,15 @@ type Target struct {
 // Options are the settings of a compilation, common to every target.
 type Options struct {
 	Settings pass.Settings
-	Debug    Debug       // the manager's policies, which apply to the whole call
+	Debug    Debug       // the debugging settings, which apply to the whole call
 	Edits    []pass.Edit // internal: typed edits of the assembled pipeline (tests)
 	Pipeline string      // internal: a pipeline text whose headers and body replace the assembled ones
 }
 
-type Debug struct {
-	VerifyEach bool // -verify-each; call-wide observation flags are added here as they are implemented
-}
+// Debug holds the debugging settings of the call (common.Debug): the dumps, the verification
+// after every pass, the statistics and times and, when added, the bisection limit. Every target's
+// output goes to its one writer, labeled with the backend.
+type Debug = common.Debug
 
 type Output = result.Output
 
@@ -722,12 +722,14 @@ alone. The options of the call hold only what the manager applies to the whole r
   failing target writes nothing for any target.
 - *Flags.* Common flags configure the one check and every target: `-g`, `-s`, `-source-info`, `-default-value`,
   `-optimize`, `-opt`, `-no-opt`. Target flags (`-types`, `-document`, `-observability`, `-expectations`, `-limits`,
-  `-recognize`, `-max-depth`, `-lib`, `-print-after`) apply to every listed language; the qualified form (`-go.types`,
+  `-recognize`, `-max-depth`, `-lib`) apply to every listed language; the qualified form (`-go.types`,
   `-ts.max-depth`) applies to one language and wins over the unqualified one. Flags that name something of one
   language (`-module`, `-pkg`, `-nodoc` for Go; `-lib-module` for TypeScript) apply to that language. A flag that a
   listed language does not support (`-stream`, `-typed-only`, `-recognize-only` with `ts` listed) is an error that
   names its qualified form. With one language every flag means what it means without the list.
-- *Diagnostics.* Dumps name the backend in their label, and the driver writes them in target order. `-lib only` writes
+- *Diagnostics.* The debugging flags (`-print-after`, `-print-changed`, `-verify-each`, `-stats`, `-time-passes`) are
+  common flags: they apply to the whole call, and dumps and report lines name the backend in their label. The driver
+  writes the dumps in the order the steps run. `-lib only` writes
   the library of each listed language.
 
 **Several targets from the API.** `pkg/compiler` gets one function over the existing configurations:
@@ -743,8 +745,8 @@ type Generated struct {
 }
 
 // Generate generates a parser for each target from one check of src, in order. The Options apply
-// to every target (start rule, source information, default values, optimization); each config's
-// fields apply to its target, PrintAfter and PrintTo included. The targets share the steps whose
+// to every target (start rule, source information, default values, optimization, debugging, whose
+// dumps and reports name the backend); each config's fields apply to its target. The targets share the steps whose
 // input and settings are equal. Each result equals what GenerateGo or GenerateTypeScript returns
 // for that target alone. On an error no files are returned.
 func Generate(src grammar.Source, targets []Target, opts ...Option) ([]Generated, error)
@@ -1033,10 +1035,12 @@ must report. The kind rule's control plants a printing pass on `code@flow` and o
 - **A closure target per family.** Each family's compilation would elaborate the program and run the Core passes again,
   since the Core module is one for the program. Rejected for one closure target per program, with the engine's cache
   around it.
-- **One set of debug options for the whole call**, or **every debug option per target.** The first cannot send two
-  targets' dumps to two writers; the second gives verification and bisection, which one manager applies across shared
-  steps, values that could differ between targets that share a step. Rejected for dumps per target and manager policies
-  per call.
+- **Dumps per target and manager policies per call**, or **every debug option per target.** The first puts the
+  debugging settings in two places, the call and each target's configuration, so the command and the Go API need two
+  surfaces for one concern; it only buys separate writers, which the backend in each label already gives a reader. The
+  second gives verification and bisection, which one manager applies across shared steps, values that could differ
+  between targets that share a step. Rejected for one set of debugging settings for the whole call, with one writer
+  and the backend in every label.
 - **A second check with rule flags and a cancel control** for the run-time programs. It duplicates the check that the
   compiler side of a run-time program already does. Rejected for wrapping the program it holds.
 - **The optimization settings in the options of the check.** The derivation of the recognizer would carry them without
@@ -1048,8 +1052,7 @@ must report. The kind rule's control plants a printing pass on `code@flow` and o
   no part body and drops the table from the branches' dumps; the second forbids a meaningful shape. Rejected for labels
   that each combinator sets one field of.
 - **`Changed` by text comparison for every observer once one needs it.** A per-target `-print-changed` would change
-  what a call-wide `-stats` reports. Rejected for the pass's report and a separate text comparison; placing
-  `-print-changed` among the call-wide policies was also rejected, since its dumps go to each target's writer.
+  what `-stats` reports. Rejected for the pass's report and a separate text comparison.
 - **Printers that keep importing the Flow dialect for names, attributes and types**, or aliases to the new types. The
   printers would still depend on the Flow stage, and an alias gives one thing two names. Rejected for the primitives'
   own package and Exec-stage attributes that `execlower` writes.
@@ -1094,8 +1097,7 @@ its subject exists is proven by its negative control instead.
   `PerFunc` segment of a kept unit.
 - Labels: a slot filled for a part, inside a `Fork` inside an `Each`, runs in the branch, and the branch's events carry
   the table in their label.
-- Observers do not change each other's values: `-stats` for the Go target is the same with and without a
-  `-print-changed` selection on the TypeScript target in the same compilation, and a pass that reports a change without
+- Observers do not change each other's values: `-stats` is the same with and without `-print-changed`, and a pass that reports a change without
   making one gives `Changed` true and `TextChanged` false. No unit is printed without an observer that needs dumps, and
   an observer that needs only dumps gets a non-empty dump on every event whose kind prints, live and replayed.
 - The closure target: one compilation gives the program's module, every family is built from it without elaborating

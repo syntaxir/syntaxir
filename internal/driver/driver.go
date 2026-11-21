@@ -186,7 +186,9 @@ func execute[I, O any](d *Driver, r *pipe.Run, p pipe.Pipeline[I, O], in I) (O, 
 
 // pipeObserver writes the dumps of PrintAfter and PrintChanged and calls CoreHook for the steps of a
 // stage that runs through the manager of internal/pass/pipe. A stage runs on the units of one table,
-// which the observer adds to the label of each dump.
+// which the observer adds to the label of each dump; the label of a step in a branch of a Fork names
+// its backend first, as the reports do, since the debugging settings and their writer are one for
+// every target of a compilation.
 type pipeObserver struct {
 	d     *Driver
 	table string
@@ -221,11 +223,11 @@ func (o pipeObserver) After(e pipe.Event, r *pipe.Result) {
 	if r.Print == nil {
 		return
 	}
-	l := pass.Label{Table: o.table, Func: e.Label.Func}
+	l := qualified(e.Label.Backend, pass.Label{Table: o.table, Func: e.Label.Func}.String())
 	changed := o.d.PrintChanged && e.Step.In == e.Step.Out && r.TextChanged
 	if changed {
 		w := o.d.watch
-		unit := l.String() + "@" + e.Step.In
+		unit := l + "@" + e.Step.In
 		if w.printed == nil {
 			w.printed = map[string]bool{}
 		}
@@ -333,7 +335,8 @@ func (d *Driver) Report() {
 	}
 }
 
-// qualified returns the name of an instance in a report: with its backend before a slash, if any.
+// qualified returns the name of an instance or a unit in a dump or a report: with its backend before
+// a slash, if any.
 func qualified(backend, instance string) string {
 	if backend == "" {
 		return instance

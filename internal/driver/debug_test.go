@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"io"
 	"regexp"
 	"strings"
 	"testing"
@@ -141,5 +142,18 @@ func TestDriverReport(t *testing.T) {
 	}
 	if strings.Join(names, " ") != "elaborate test-debug-same test-debug-rename test-debug-count test-debug-rename#2 manager total" {
 		t.Errorf("time lines %v", names)
+	}
+}
+
+// A dump of a step in a branch of a Fork names the backend first, since every target writes to the
+// one writer of the debugging settings.
+func TestDriverDumpNamesTheBackend(t *testing.T) {
+	var dump strings.Builder
+	d := &Driver{PrintAfter: []string{"guards"}, Output: &dump}
+	o := pipeObserver{d: d, table: "rules"}
+	e := pipe.Event{Step: pipe.StepInfo{Name: "guards", Instance: "guards", In: "core", Out: "core"}, Label: pipe.Label{Backend: "go", Func: "main"}}
+	o.After(e, &pipe.Result{Ran: true, Print: func(w io.Writer) { io.WriteString(w, "unit\n") }})
+	if got := dump.String(); got != "-- after guards [go/rules/main] --\nunit\n" {
+		t.Errorf("dump %q", got)
 	}
 }
