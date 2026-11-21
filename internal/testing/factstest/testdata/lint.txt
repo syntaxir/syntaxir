@@ -1073,7 +1073,7 @@
 # examples/calculator/calc.zp
 # examples/calculator/calc_lr.zp
 # examples/minilang/minilang.zp
-83:40: hint: the cost can grow as n^2: after the operator part at 77:17 in rule operation fails, the operator parts that the enclosing operator parts of operation try again can start again inside the input that the repetition idchar* at 83:40 in rule ident examined; this repeats in the recursion of rule operation [super-linear] rule=ident
+101:11: hint: the cost can grow as n^2: after the operator part at 77:17 in rule operation fails, the operator parts that the enclosing operator parts of operation try again evaluate the repetition ([ \t\r\n] / "//" [^\n]*)* at 101:11 in rule ws again at each level; this repeats in the recursion of rule operation [super-linear] rule=ws
 # examples/outline/outline.zp
 36:14: hint: the cost can grow as n^2: after an iteration of the repetition at 22:18 in rule block fails, what follows the repetition blank* can start again inside the input that the repetition [ \t]* at 36:14 in rule blank examined; this repeats in the repetition (blank* i:item)+ at 22:17 in rule block [super-linear] rule=blank
 36:14: hint: the cost can grow as n^3: after an iteration of the repetition at 31:19 in rule children fails, what follows the repetition blank* can start again inside the input that the repetition [ \t]* at 36:14 in rule blank examined; it is evaluated again inside the lookahead at 31:17 in rule children; this repeats in the recursion of rule children [super-linear] rule=blank
