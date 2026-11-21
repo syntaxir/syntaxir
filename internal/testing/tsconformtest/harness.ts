@@ -244,9 +244,13 @@ class Exec implements Machine {
   // of the cases that make a handle, and those that the printer never prints (print.OperationMethods
   // lists them: they are no operation of a composition), run on the library's own state.
   call(op: string, a: any[]): any[] {
-    // The printed charge of a run of units (spendUnits) takes a step for each unit when the run does not fit
-    // between two polls of the control, so a charge of 2^40 units of a case of an unlimited budget would not
-    // end: such a charge is made as the one reservation that the library's charge makes.
+    // The printed charge of a run of units (spendUnits, as Take of the Go library and ChargeUnits of the Go
+    // engine do) reserves the run at once only if it ends before the next poll of the control, and otherwise
+    // one unit at a time, so that a poll falls where it does for the units and a failed run reports the unit
+    // that does not fit. That is bounded by design, as the work is: the generated code charges a constant
+    // or opr.count of the lines of an operator match (compose/operators.go chargeLines), both bounded by
+    // the input. The case of an unlimited budget charges 2^40 units, which no parse can reach, so a charge
+    // of more than 2^20 units is made as the one reservation that the library's charge makes.
     if (op === "budget.charge" && Number(a[0]) > 1 << 20) {
       this.P.spend(Number(a[0]));
       return [];

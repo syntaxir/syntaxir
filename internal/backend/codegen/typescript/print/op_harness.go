@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/exec"
 	"zeroparse.dev/zp/internal/ir/code/exec/compose"
 )
 
@@ -22,20 +21,21 @@ type OperationHarness struct {
 	Unprinted map[string]string
 }
 
-// opParts are the locals that hold a value of a handle type that a TypeScript target holds in several
-// locals, in the order of a tuple: the parts of Target.Parts, and those of the record that an isolation
-// sets aside, which exp.isolate and exp.unisolate print as the locals xFar and xBase.
-var opParts = map[string][]string{
-	exec.Backtrack: {"Pos", "Env", "Trail", "Rec"},
-	exec.Set:       {"From", "To"},
-	exec.Mark:      {"Far", "Base"},
+// opPartNames returns the suffixes of the parts that the TypeScript target holds a value of the handle type
+// in (Target.Parts), in the order of a tuple, or nil.
+func opPartNames(handle string) []string {
+	var out []string
+	for _, p := range tsTarget.Parts[handle] {
+		out = append(out, p.Suffix)
+	}
+	return out
 }
 
 // OperationMethods prints the operations names with the TypeScript target of the generated parsers.
 //
 // Each operation is a method of a class that extends the library's Parser, whose body is what the
 // printer prints for a call of the operation in a composition. A value that the target holds in
-// several locals (opParts) is a parameter or a result of several, and printedOps folds them in a tuple
+// several locals (Target.Parts) is a parameter or a result of several, and printedOps folds them in a tuple
 // for the arguments and the results that the conformance harness exchanges. An operation the target
 // does not implement (its Op panics) is reported in Unprinted, with the operations that have no printed form
 // of their own (a variadic operation).
@@ -77,7 +77,7 @@ func OperationMethods(names []string) (OperationHarness, error) {
 func opParams(o *code.Op) []string {
 	var ps []string
 	for i, p := range o.Params {
-		if parts := opParts[p.Type.Handle]; parts != nil {
+		if parts := opPartNames(p.Type.Handle); parts != nil {
 			for _, s := range parts {
 				ps = append(ps, fmt.Sprintf("p%d%s: any", i, s))
 			}
@@ -116,7 +116,7 @@ func printOperation(m *code.Module, o *code.Op) (body string, err error) {
 				break
 			}
 			names[i] = fmt.Sprintf("r%d", i)
-			if parts := opParts[r.Handle]; parts != nil {
+			if parts := opPartNames(r.Handle); parts != nil {
 				for _, s := range parts {
 					rets = append(rets, names[i]+s)
 				}
@@ -172,7 +172,7 @@ func opAdapter(o *code.Op, name string) string {
 	var args []string
 	for i, p := range o.Params {
 		arg := fmt.Sprintf("a[%d]", i)
-		if opParts[p.Type.Handle] != nil {
+		if opPartNames(p.Type.Handle) != nil {
 			args = append(args, "..."+arg)
 		} else {
 			args = append(args, fmt.Sprintf("c.in(%q, %s)", p.Type.Handle, arg))
@@ -188,7 +188,7 @@ func opAdapter(o *code.Op, name string) string {
 	slots := 0
 	var res []string
 	for _, r := range o.Results {
-		if parts := opParts[r.Handle]; parts != nil {
+		if parts := opPartNames(r.Handle); parts != nil {
 			res = append(res, fmt.Sprintf("c.out(%q, r.slice(%d, %d), %q, a)", r.Handle, slots, slots+len(parts), o.Name))
 			slots += len(parts)
 			continue

@@ -209,6 +209,11 @@ func tsTermError() string {
 	return b.String()
 }
 
+// tsIsolationParts are the parts of the mark that exp.isolate returns and exp.unisolate takes: the farthest
+// position and the base of the record that the isolation set aside. The two operations print the mark as
+// the locals of these parts, and tsTarget.Parts names them for the callers that hold such a mark.
+var tsIsolationParts = []Part{{Suffix: "Far", Type: "number"}, {Suffix: "Base", Type: "number"}}
+
 // tsTarget is the TypeScript implementation of the operations in the library's Parser class.
 var tsTarget = &Target{
 	Source: "internal/ir/code/exec/compose",
@@ -220,6 +225,8 @@ var tsTarget = &Target{
 		// number of recovered errors.
 		exec.Backtrack: {{Suffix: "Pos", Type: "number"}, {Suffix: "Env", Type: "Env | null"}, {Suffix: "Trail", Type: "number"},
 			{Suffix: "Rec", Type: "number"}},
+		// The mark of an isolation is the farthest position and the base of the record that it set aside.
+		exec.Mark: tsIsolationParts,
 	},
 	Handle: func(name string) string {
 		return map[string]string{
@@ -630,11 +637,13 @@ var tsTarget = &Target{
 			return fmt.Sprintf("this.lastKept = this.control === null ? this.exp.slice(%[1]sFrom, %[1]sTo) : copyIDsSpend(this.exp, %[1]sFrom, %[1]sTo, this.control);\n%[2]s = this.lastKept;", a[0], lhs(dst[0])), true
 		case "exp.isolate":
 			m := dst[0]
-			return fmt.Sprintf("const %sFar = this.farthest;\nconst %sBase = this.expBase;\nthis.expBase = this.expTop;\nthis.farthest = %s;", m, m, a[0]), true
+			return fmt.Sprintf("const %s%s = this.farthest;\nconst %s%s = this.expBase;\nthis.expBase = this.expTop;\nthis.farthest = %s;",
+				m, tsIsolationParts[0].Suffix, m, tsIsolationParts[1].Suffix, a[0]), true
 		case "exp.unisolate":
 			far, set, m := dst[0], dst[1], a[0]
 			return fmt.Sprintf("const %s = this.farthest;\nconst %sFrom = this.expBase;\nconst %sTo = this.expTop;\n"+
-				"this.expTop = this.expBase;\nthis.expBase = %sBase;\nthis.farthest = %sFar;", far, set, set, m, m), true
+				"this.expTop = this.expBase;\nthis.expBase = %s%s;\nthis.farthest = %s%s;",
+				far, set, set, m, tsIsolationParts[1].Suffix, m, tsIsolationParts[0].Suffix), true
 		}
 		return "", false
 	},

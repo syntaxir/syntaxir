@@ -13,7 +13,7 @@ import (
 )
 
 // The dependency memo of left recursion and the growths of the conformance suite on the TypeScript
-// library. A case that calls ctx.keep is pending: the complete model of ctx.keep is not settled (#202),
+// library. A case that calls ctx.keep is pending: the complete model of ctx.keep is not settled (#203),
 // so the runner counts it and does not run it on the library.
 
 func tsCtxSuite(controlled bool) conform.Suite {
@@ -51,7 +51,7 @@ func TestTypeScriptConformanceCtxDetectsMutants(t *testing.T) {
 	node := codegentest.RequireNode(t)
 	// Not here: the mutants that nothing but a kept result shows, such as a seed that keeps its identity
 	// when it is adopted and a lookup of the context that charges nothing for the dependencies it
-	// replays. A case that keeps a result calls ctx.keep, which is pending (#202).
+	// replays. A case that keeps a result calls ctx.keep, which is pending (#203).
 	mutants := []tsMutant{
 		{name: "a result answers a call in any context", sig: "memoAllows(c: CtxCall", old: "(c.present & ~present) === 0", new: "true"},
 		{name: "a result that read a seed goes to the memo", sig: "ctxPop(c: CtxCall", old: "if (d.kind !== depShadow) {", new: "if (false) {"},
@@ -85,7 +85,7 @@ func TestTypeScriptConformanceCtxDetectsMutants(t *testing.T) {
 // the suite runs that code, so a change of it must fail.
 func TestTypeScriptConformanceCtxPrintedDetectsMutants(t *testing.T) {
 	mutanttest.SkipUnlessChanged(t, mutanttest.Pipeline...)
-	// Not here: a lookup of another rule, which only a kept result shows (ctx.keep is pending, #202),
+	// Not here: a lookup of another rule, which only a kept result shows (ctx.keep is pending, #203),
 	// and an entry for a rule of no cycle, which no case tells from the entry that the library makes of
 	// it (checked: the suite does not notice it).
 	mutants := []tsPrintedMutant{

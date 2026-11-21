@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"zeroparse.dev/zp/internal/ir/code/exec/ref"
 )
@@ -170,6 +171,7 @@ func StartSources(t testing.TB, node string, src Sources) *Session {
 	}
 	cmd := exec.Command(node, "harness.ts")
 	cmd.Dir = dir
+	ownGroup(cmd)
 	s := &Session{t: t, cmd: cmd, stderr: &bytes.Buffer{}}
 	cmd.Stderr = s.stderr
 	in, err := cmd.StdinPipe()
@@ -184,12 +186,22 @@ func StartSources(t testing.TB, node string, src Sources) *Session {
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("starting %s: %v", node, err)
 	}
+	// The process ends with the test, whatever it does: a harness that does not end by itself after its input
+	// closes is killed with its group, so that a failed or interrupted run leaves no Node behind.
 	t.Cleanup(func() {
 		s.in.Close()
-		s.cmd.Wait()
+		done := make(chan struct{})
+		timer := time.AfterFunc(10*time.Second, func() { killGroup(s.cmd) })
+		go func() { s.cmd.Wait(); close(done) }()
+		<-done
+		timer.Stop()
 	})
 	return s
 }
+
+// runTimeout is how long the library may take to answer one request. A request of the suites takes
+// milliseconds; a request that takes longer is a loop in the code under test.
+const runTimeout = 2 * time.Minute
 
 // Run replays the request on the library.
 func (s *Session) Run(req Request) (Response, error) {
@@ -197,6 +209,11 @@ func (s *Session) Run(req Request) (Response, error) {
 	if err != nil {
 		return Response{}, err
 	}
+	watchdog := time.AfterFunc(runTimeout, func() {
+		s.t.Errorf("node did not answer in %v; its process group is killed", runTimeout)
+		killGroup(s.cmd)
+	})
+	defer watchdog.Stop()
 	if _, err := s.in.Write(append(data, '\n')); err != nil {
 		return Response{}, fmt.Errorf("node: %v\n%s", err, clip(s.stderr.String()))
 	}
