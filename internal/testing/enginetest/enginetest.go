@@ -208,3 +208,18 @@ func CompileSource(src, start string, opts ...CompileOption) (*engine.Parser, er
 	}
 	return Compile(g, start, opts...)
 }
+
+// CorpusProgram compiles a corpus grammar, or reports false for a grammar that does not compile or
+// that generated parsers refuse (#missing).
+func CorpusProgram(t testing.TB, c codegentest.Case) (*engine.Program, bool) {
+	t.Helper()
+	g, err := Parse(c.Src)
+	if err != nil {
+		return nil, false
+	}
+	prog, err := entry.Compile(g, compile.Options{})
+	if err != nil || prog.HasMissing {
+		return nil, false
+	}
+	return prog, true
+}

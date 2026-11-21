@@ -3,6 +3,7 @@ package codegentest
 import (
 	"fmt"
 	"runtime"
+	"sync"
 	"testing"
 )
 
@@ -26,4 +27,21 @@ func EachParallel[T any](t *testing.T, items []T, f func(t *testing.T, item T)) 
 			})
 		}
 	})
+}
+
+// MapParallel returns f(0), ..., f(n-1), computed on at most GOMAXPROCS goroutines. f must not call
+// t.Fatal, t.FailNow or t.Skip, which are for the goroutine of the test.
+func MapParallel[T any](n int, f func(i int) T) []T {
+	out := make([]T, n)
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, runtime.GOMAXPROCS(0))
+	for i := range n {
+		sem <- struct{}{}
+		wg.Go(func() {
+			defer func() { <-sem }()
+			out[i] = f(i)
+		})
+	}
+	wg.Wait()
+	return out
 }
