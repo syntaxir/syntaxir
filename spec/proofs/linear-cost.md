@@ -8893,6 +8893,29 @@ So a pair that shares a call is bounded as one that shares none: the steps
 left out are those of *Sources at fixed offsets* for the parts after the
 shared calls, and one step for each memoized rule. $\square$
 
+The evaluations for which the claim is not shown are narrowed as follows.
+Such an $x$ lies in a step $t$ of a growth of a leader $R$ that a step of the
+growth at $p$ nests at $p$, and $t$, which is not kept, is the last step of
+that growth, so each step of the growth at $p$ holds at most one such $t$
+for each growth of $R$ that it nests. $x$ is at $p$ and calls no rule of the
+cycle at $p$, so, when the values of the variables that it reads do not
+change, the steps of the growth at $p$ that reach it evaluate it alike
+(*Evaluations that read no growing result*), whichever seed $s$ each step
+has: its outcome and the input that it examines do not depend on $s$, only
+whether the step reaches it does. In a parse that keeps no records and
+resumes no run, the memo answers each call of $x$ that is memoized at the
+call from the third of those steps on. So, apart from two of those steps,
+the input that $x$ examines again in them is examined in its own region,
+outside the calls that are memoized at the call. Not shown is that the
+steps of the growth at $p$ whose nested step $t$ reaches $x$ are a constant
+number, or that the own region of $x$ examines a constant amount of the
+input there: condition 2 bounds what $Q'$ examines again after $U'$ within
+$t$, not the scan of $x$ itself, which each later step of the growth at $p$
+repeats by starting the growth of $R$ anew. In a parse that keeps records,
+a walk of a later step that finds no record evaluates again the iterations
+that a record answered in an earlier one, so there the memo alone does not
+give the narrowing.
+
 **Decided units at the position of the growth.** In the steps that
 *Failures at the position of the growth* does not leave out, outside the
 evaluations for which that claim is not shown, let the unit $V$
@@ -9476,7 +9499,12 @@ claims of this lemma that rest on them hold apart from them:
    the step nests at $p$, when that step is not kept, its result is not
    empty, and the unit that fails around the evaluation either decides the
    continuation with which the step ends or is committing for it by its
-   words, the result of the step then having at most $c_w$ characters.
+   words, the result of the step then having at most $c_w$ characters; in a
+   parse that keeps no records and resumes no run, and with unchanged values
+   of the variables that the evaluation reads, the remark after that claim
+   leaves of it the input that the own region of the evaluation examines in
+   the steps of the outer growth whose nested step reaches it, unless those
+   steps are a constant number.
 
 The first two bear on every claim that applies *Steps that begin anew*:
 *Growths inside a step*, which takes the hypothesis on kept steps as a
@@ -14005,7 +14033,11 @@ theorem covers such a parse.
    nests, with a seed that is not empty, when that step is not kept and its
    result, which is not empty, has at most $c_w$ characters or the unit
    that fails around the evaluation decides the continuation with which the
-   step ends; and it rests, through *Growths inside a step* and
+   step ends; in a parse that keeps no records and resumes no run, and with
+   unchanged values of the variables that the evaluation reads, the remark
+   after that claim leaves of it only what its own region examines in the
+   steps of the outer growth that reach it, unless those steps are a
+   constant number; and it rests, through *Growths inside a step* and
    *Results that do not include the seed*, on the hypothesis of *Steps that
    begin anew* on kept steps, which is not shown, for a leader with a
    scanning source, in the units that *Later steps that abandon their reads
