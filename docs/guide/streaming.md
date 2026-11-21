@@ -477,10 +477,9 @@ the stream unless `WithDiagnosticLimit` keeps only the latest ones; a diagnostic
 They count against `Limits.Memory` too, so a stream that recovers from errors and runs under a memory limit should
 set a diagnostic limit.
 
-The effect on a real input, a 27 MiB CSV file with 1,000,000 records (Apple silicon, Go 1.27.1, with the grammar of
-[alpha-parsers/csv](../../testdata/grammars/csv/csv.zp) and a callback that sums a column): `ParseStream` finished in about 1.4 seconds
-with a peak resident size of about 13 MB, and `Parse` finished in about 0.8 seconds with about 1.0 GB. Streaming is not faster: it trades a little
-time for memory, and the memory is bounded by the working set rather than by the size of the input.
+The effect on a real input, a 27 MiB CSV file with 1,000,000 records of five fields (Apple silicon, Go 1.27.1, the reference parser with the grammar of
+[alpha-parsers/csv](../../testdata/grammars/csv/csv.zp), the file read from disk, and a callback that only counts the records; the median of three runs, each in a process of its own with the machine to itself): `ParseStream` finished in about 2.1 seconds
+with a peak resident size of about 18 MB, and `Parse` finished in about 1.3 seconds with about 1.45 GB. Streaming is not faster: it takes about 1.6 times the time and trades that for memory, and the memory is bounded by the working set rather than by the size of the input.
 
 The nodes handed to you are allocated in chunks, and a chunk stays reachable while anything in it is. The parser starts
 new chunks at element boundaries from time to time, so the elements you drop do not stay reachable through chunks shared
