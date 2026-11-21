@@ -88,6 +88,22 @@ func TestReferenceExaminedByHand(t *testing.T) {
 			want:  examinedref.Result{Matched: false, End: 0, Examined: 2},
 		},
 		{
+			// spec/language/parser-expressions.md (Cut): a cut inside &a commits only choices inside that
+			// expression, so the lookahead fails as for any other failure and the choice tries its next
+			// alternative.
+			name:  "a cut inside a positive lookahead does not commit the choice around it",
+			src:   `rule main = (&("a" #cut "b") "a" "c") / "a" "d"`,
+			input: "ad",
+			want:  examinedref.Result{Matched: true, End: 2, Examined: 2},
+		},
+		{
+			// The same for !a: its expression fails after the cut, so the negative lookahead succeeds.
+			name:  "a cut inside a negative lookahead does not commit the choice around it",
+			src:   `rule main = (!("a" #cut "b") "a" "c") / "a" "d"`,
+			input: "ad",
+			want:  examinedref.Result{Matched: true, End: 2, Examined: 2},
+		},
+		{
 			name:  "a cut does not escape its rule: the calling choice tries its next alternative",
 			src:   "rule main = s \"d\" / \"a\" \"d\"\nrule s = \"a\" #cut \"b\"",
 			input: "ad",
