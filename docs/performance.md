@@ -26,7 +26,7 @@ document describes the benchmarks, analyzes the results, and records how they ca
 
 ## Where SyntaxIR Stands
 
-This analysis describes the generated full-suite snapshot in [benchmarks.md](benchmarks.md), measured on 2026-10-29 at commit `356a61a9` (Go 1.27.1, Apple M3 Max, darwin/arm64, 16 cores, `GOMAXPROCS=16`). It contains 253 benchmark cases, three samples per case, and the Go benchmarks took 892.334 seconds; the generated TypeScript timings and the parser sizes were captured in the same run. This is one revision's snapshot, not a before-and-after comparison; ratios below compare operations within this run and do not attribute changes to a particular mechanism.
+This analysis describes the generated full-suite snapshot in [benchmarks.md](benchmarks.md), measured on <!-- fig:run-date -->2026-10-29<!-- /fig --> at commit `<!-- fig:run-commit -->13b3d186<!-- /fig -->` (Go 1.27.1, Apple M3 Max, darwin/arm64, 16 cores, `GOMAXPROCS=16`). It contains 253 benchmark cases, three samples per case, and the Go benchmarks took 892.334 seconds; the generated TypeScript timings and the parser sizes were captured in the same run. This is one revision's snapshot, not a before-and-after comparison; ratios below compare operations within this run and do not attribute changes to a particular mechanism.
 Budget-control behavior and its generated-Go cost are described in
 [design 033](design/records/033-cancellable-parses-and-budgets.md) and
 [optimization record 096](optimizations/096-specialize-generated-go-method-helpers.md).

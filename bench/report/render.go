@@ -234,7 +234,7 @@ func renderDoc(root string, data, tsData, sizeData []byte) ([]byte, map[string]s
 		}
 		return ra.ns / rb.ns
 	}
-	figureRows, figureByName := figureValues(get, tsData != nil)
+	figureRows, figureByName := figureValues(get, r.meta, tsData != nil)
 	funcs := template.FuncMap{
 		// workloads and directWorkloads list the parsing workloads; figures are the rows of the table of figures.
 		"workloads":       func() []string { return allWorkloads },

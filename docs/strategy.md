@@ -3,7 +3,7 @@
 This page covers what SyntaxIR aims to be, where it earns its first proof, what must become true on the way, and how
 progress is measured. It is written for contributors who are choosing what to work on and judging the result; the
 summary for readers is [Why SyntaxIR](why-syntaxir.md). Facts about SyntaxIR refer to this repository. Benchmark figures come from
-[Benchmark Results](benchmarks.md) (commit `356a61a9`, Go 1.27.1, Apple M3 Max, darwin/arm64, median of three runs,
+[Benchmark Results](benchmarks.md) (commit `<!-- fig:run-commit -->13b3d186<!-- /fig -->`, Go 1.27.1, Apple M3 Max, darwin/arm64, median of three runs,
 positions in code points). Comparisons checked on 2026-10-29.
 
 ## Vision and Positioning

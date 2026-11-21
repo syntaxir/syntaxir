@@ -209,6 +209,8 @@ that the guides carry.
 
 | Figure | What it is | Value |
 |:--|:--|--:|
+| `run-commit` | The commit that the results were measured at | 13b3d186 |
+| `run-date` | The date of the run | 2026-10-29 |
 | `generated-vs-closure-codepoints` | Generated Go `Parse` time over closure time, in code points, across the eight workloads | 0.44–0.61× |
 | `generated-vs-closure-bytes` | The same in bytes | 0.50–0.66× |
 | `bytecode-vs-closure` | Recursive bytecode VM parse time over closure time, both position units together | 1.13–1.35× |

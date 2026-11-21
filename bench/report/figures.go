@@ -35,7 +35,8 @@ type figure struct {
 
 // figureCalc reads the results for the value of a figure.
 type figureCalc struct {
-	get func(name string) *result
+	get  func(name string) *result
+	meta map[string]string // the description of the run: date, commit, go, cores
 }
 
 // ratios is, for each workload, the figure of a over the figure of b: a and b are the names of
@@ -76,6 +77,10 @@ func (c *figureCalc) pairMs(a, b string) string {
 // figureCatalog is every figure that a document can quote; each is in the table of the figures in
 // docs/benchmarks.md.
 var figureCatalog = []figure{
+	{name: "run-commit", meaning: "The commit that the results were measured at",
+		value: func(c *figureCalc) string { return c.meta["commit"] }},
+	{name: "run-date", meaning: "The date of the run",
+		value: func(c *figureCalc) string { return c.meta["date"] }},
 	{name: "generated-vs-closure-codepoints", meaning: "Generated Go `Parse` time over closure time, in code points, across the eight workloads",
 		value: func(c *figureCalc) string {
 			return factorRange(c.ratios(allWorkloads, benchName("Parse/%s/generated/codepoints"), benchName("Parse/%s/closure/codepoints"), nsOf))
@@ -273,8 +278,8 @@ type figureRow struct {
 
 // figureValues computes the figures of the catalog from the results. A figure that needs the
 // TypeScript results is left out when there are none.
-func figureValues(get func(string) *result, hasTS bool) (rows []figureRow, values map[string]string) {
-	c := &figureCalc{get: get}
+func figureValues(get func(string) *result, meta map[string]string, hasTS bool) (rows []figureRow, values map[string]string) {
+	c := &figureCalc{get: get, meta: meta}
 	values = map[string]string{}
 	for _, f := range figureCatalog {
 		if f.ts && !hasTS {
