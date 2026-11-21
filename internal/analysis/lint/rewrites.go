@@ -63,15 +63,15 @@ func rewritesOf(ctx context.Context, res *frontend.Result, g *ast.Grammar, findi
 		control = &lintControl{ctx: ctx}
 		defer func() {
 			if failure := recover(); failure != nil {
-				cancelled, ok := failure.(lintCancellation)
-				if !ok {
+				cancelled := cancellation(failure)
+				if cancelled == nil {
 					panic(failure)
 				}
-				out, err = nil, cancelled.err
+				out, err = nil, cancelled
 			}
 		}()
 	}
-	l := &linter{control: control, an: newAnalysisControlled(res.Grammar(), control, tablesOf(res)), source: g}
+	l := &linter{control: control, an: newAnalysisControlled(res, control), source: g}
 	out = make([]Rewrite, len(findings))
 	for i, f := range findings {
 		control.poll()

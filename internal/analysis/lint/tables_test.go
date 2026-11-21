@@ -6,7 +6,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/parser"
 )
 
-// TestRuleTablesRefineLeftCalls requires the rule tables to come from the fixed point of the
+// TestRuleTablesRefineLeftCalls requires the rule facts lint reads to come from the fixed point of the
 // left-call refinement, not from its first rounds. A choice stops its left calls after an
 // alternative that always succeeds, but a rule on a cycle is not proven to succeed: a's first
 // alternative b always succeeds, which removes a's left call of itself in the second round, and
@@ -17,10 +17,10 @@ func TestRuleTablesRefineLeftCalls(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tables := tablesOf(checked(g))
+	a := newAnalysis(g)
 	for _, name := range []string{"a", "c"} {
-		if tables.cyclic[name] || !tables.succeeds[name] {
-			t.Errorf("rule %s: cyclic %v, succeeds %v; want not cyclic and succeeding", name, tables.cyclic[name], tables.succeeds[name])
+		if a.leftRecursive(name) || !a.rule(name).Succeeds {
+			t.Errorf("rule %s: cyclic %v, succeeds %v; want not cyclic and succeeding", name, a.leftRecursive(name), a.rule(name).Succeeds)
 		}
 	}
 }

@@ -15,7 +15,7 @@ func TestNullableRepetitionProofs(t *testing.T) {
 				t.Fatal(err)
 			}
 			a := newAnalysis(g)
-			e := g.Rules()[0].Expr
+			e := a.g.Rules()[0].Expr
 			want := minimum <= 1
 			if a.isEngineNullable(e) != want || a.nullableAt(e, false) != want || a.nullableAt(e, true) != want || a.succeeds(e) != want {
 				t.Errorf("%s min=%d: nullable=%v/%v/%v succeeds=%v, want %v", body, minimum, a.isEngineNullable(e), a.nullableAt(e, false), a.nullableAt(e, true), a.succeeds(e), want)

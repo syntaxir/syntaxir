@@ -18,17 +18,17 @@ import (
 // TestAnalysisAnswers pins what the analysis answers for every rule and every expression of the
 // rules of the corpus grammars, the inline grammars of the end-of-input differential test and the
 // grammars in testdata and examples: the rule sets and, for each expression, its nullability at and
-// away from the end of the input, the engine's nullability, whether it may match, whether it
-// certainly succeeds, its loose cuts, its prefix with whether the prefix folds case and its left
-// calls. The checks are built on these answers, so a change in how the analysis computes them must
-// leave them as they are.
+// before the end of the input, the engine's nullability, whether it may match, whether it certainly
+// succeeds, its loose cuts, its prefix with whether the prefix folds case and its left calls. The
+// checks are built on these answers, so a change in how the analysis computes them must leave them
+// as they are.
 //
 // The answers of a large grammar are pinned by their SHA-256 digest; -lint-analysis-dump writes
 // them in full to a directory, so that a change can be compared with the dump of the base.
 //
-// An expression is named by its rule, its position, its kind and its rank among the expressions of
-// the rule with the same position and kind, so that the answers do not depend on the grouping
-// parentheses of the grammar or on how its pragmas are spelled.
+// An expression of the grammar that the front end checked, which has no grouping parentheses, is
+// named by its rule, its position, its kind and its rank among the expressions of the rule with the
+// same position and kind.
 func TestAnalysisAnswers(t *testing.T) {
 	t.Parallel()
 	var paths []string
@@ -88,37 +88,33 @@ func analysisAnswers(t *testing.T, name, src string) string {
 	if res == nil {
 		return fmt.Sprintf("# %s: does not check\n", name)
 	}
-	a := newAnalysisControlled(res.Grammar(), nil, tablesOf(res))
+	a := newAnalysisControlled(res, nil)
 	var b strings.Builder
 	fmt.Fprintf(&b, "# %s\n", name)
-	set := func(m map[string]bool) string {
+	set := func(holds func(string) bool) string {
 		var names []string
 		for _, r := range a.order {
-			if m[r.Name] {
+			if holds(r.Name) {
 				names = append(names, r.Name)
 			}
 		}
 		return strings.Join(names, " ")
 	}
-	fmt.Fprintf(&b, "nullable: %s\n", set(a.nullable[0]))
-	fmt.Fprintf(&b, "nullable at end: %s\n", set(a.nullable[1]))
-	fmt.Fprintf(&b, "can match: %s\n", set(a.canMatch))
-	fmt.Fprintf(&b, "base case: %s\n", set(a.baseCase))
+	fmt.Fprintf(&b, "nullable before end: %s\n", set(func(n string) bool { return a.rule(n).NullableBeforeEnd }))
+	fmt.Fprintf(&b, "nullable at end: %s\n", set(func(n string) bool { return a.rule(n).NullableAtEnd }))
+	fmt.Fprintf(&b, "can match: %s\n", set(func(n string) bool { return a.rule(n).CanMatch }))
+	fmt.Fprintf(&b, "base case: %s\n", set(func(n string) bool { return a.baseCase[n] }))
 	for _, r := range a.order {
 		rank := map[string]int{}
 		walkExpr(r.Expr, func(e ast.Expr) {
-			if _, ok := e.(*ast.Group); ok {
-				return // the walk visits the grouped expression next
-			}
-			x := analysisExpr(e, nil)
-			pos := posOf(x)
-			key := fmt.Sprintf("%s %d:%d %T", r.Name, pos.Line, pos.Col, x)
+			pos := posOf(e)
+			key := fmt.Sprintf("%s %d:%d %T", r.Name, pos.Line, pos.Col, e)
 			rank[key]++
-			p := a.prefix(x)
-			fmt.Fprintf(&b, "%s #%d: null=%s eng=%s match=%s succ=%s always=%s cut=%s prefix=%q exact=%s fold=%s left=%s\n",
-				key, rank[key], bits(a.nullableAt(x, false), a.nullableAt(x, true)), bits(a.isEngineNullable(x)),
-				bits(a.mayMatch(x)), bits(a.succeeds(x)), bits(a.alwaysSucceeds(x)), bits(a.hasLooseCut(x)),
-				p.s, bits(p.exact), bits(p.fold), strings.Join(a.leftCalls(x, nil), ","))
+			p := a.prefix(e)
+			fmt.Fprintf(&b, "%s #%d: null=%s eng=%s match=%s succ=%s cut=%s prefix=%q exact=%s fold=%s left=%s\n",
+				key, rank[key], bits(a.nullableAt(e, false), a.nullableAt(e, true)), bits(a.isEngineNullable(e)),
+				bits(a.mayMatch(e)), bits(a.succeeds(e)), bits(a.hasLooseCut(e)),
+				p.s, bits(p.exact), bits(p.fold), strings.Join(a.leftCalls(e, nil), ","))
 		})
 	}
 	return b.String()

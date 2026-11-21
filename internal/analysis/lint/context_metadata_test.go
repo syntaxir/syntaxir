@@ -11,25 +11,28 @@ import (
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
-func TestLintGroupUnwrapPhaseCancellation(t *testing.T) {
-	leaf := &ast.Literal{Value: "a"}
+// TestLintSequenceNodePhaseCancellation requires the Core node of a deeply nested sequence that a
+// check makes, which the analysis builds from the nodes of its items, to stop at a cancellation
+// during the left-call analysis and to leave the caller's expression as it was.
+func TestLintSequenceNodePhaseCancellation(t *testing.T) {
+	a := newAnalysis(lintContextGrammar(t, `rule main = "a"`))
+	leaf := a.rules["main"].Expr
 	var expr ast.Expr = leaf
 	for range 1024 {
-		expr = &ast.Group{Expr: expr}
+		expr = &ast.Seq{Items: []ast.Expr{expr}}
 	}
-	before := expr.(*ast.Group).Expr
+	before := expr.(*ast.Seq).Items[0]
 	control := &lintControl{ctx: lintTestContext(t, 1)}
 	defer func() {
 		failure := recover()
-		cancelled, ok := failure.(lintCancellation)
-		if !ok || !errors.Is(cancelled.err, context.Canceled) {
-			t.Fatalf("group unwrapping did not stop during left-call analysis: %v", failure)
+		if err := cancellation(failure); !errors.Is(err, context.Canceled) {
+			t.Fatalf("building the node did not stop during left-call analysis: %v", failure)
 		}
-		if expr.(*ast.Group).Expr != before || leaf.Value != "a" {
+		if expr.(*ast.Seq).Items[0] != before || leaf.(*ast.Literal).Value != "a" {
 			t.Fatal("cancellation changed the caller's expression")
 		}
 	}()
-	(&analysis{control: control}).leftCalls(expr, nil)
+	a.withControl(control).leftCalls(expr, nil)
 }
 
 func TestLintMetadataPhaseCancellation(t *testing.T) {

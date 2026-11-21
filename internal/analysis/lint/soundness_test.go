@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
@@ -241,7 +242,7 @@ func applyFinding(g *ast.Grammar, f Finding, fix bool) bool {
 						done = true
 						return e
 					}
-					if strings.Contains(f.Fix, "left-recursive") || !never && hasLooseCut(e.Alts[j]) {
+					if strings.Contains(f.Fix, "left-recursive") || !never && astfacts.HasLooseCut(e.Alts[j]) {
 						return e
 					}
 					// A choice of one alternative is kept: a choice has a value even when its

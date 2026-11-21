@@ -1,22 +1,29 @@
 package lint
 
 import (
+	"fmt"
 	"strings"
 	"unicode/utf8"
 
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/cancel"
+	"syntaxir.dev/sxir/internal/frontend"
+	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
-// analysis holds what the checks need to know about a grammar. Every property is either an
+// analysis holds what the checks need to know about a grammar: the grammar that the front end
+// checked and the facts of its Core IR module, which the front end computed. A fact of an expression
+// is the fact of the outermost node built from it (Module.Origin). Every property is either an
 // over-approximation or an under-approximation, chosen so that a check built on it reports only
 // what is certain:
 //
-//   - nullable (may succeed without consuming input, at the end of the input or elsewhere) and
-//     canMatch (may succeed at all) are over-approximations: "not nullable" and "cannot match"
+//   - nullable (may succeed without consuming input, at the end of the input or before it) and
+//     mayMatch (may succeed at all) are over-approximations: "not nullable" and "cannot match"
 //     are certain.
-//   - succeeds (matchPrefix: certainly succeeds on every input that begins with a given string)
-//     and fails (certainly fails on such inputs) are under-approximations.
+//   - succeeds (certainly succeeds, whatever the input), matchPrefix (certainly succeeds on every
+//     input that begins with a given string) and fails (certainly fails on such inputs) are
+//     under-approximations.
 //   - prefix (a string that every match begins with) is an under-approximation.
 //
 // None of them account for the nesting limit (Limits.Depth), which can make any rule call fail.
@@ -26,22 +33,18 @@ type analysis struct {
 	order   []*ast.RuleDef
 	rules   map[string]*ast.RuleDef
 
-	// nullable[end] holds the rules that may succeed without consuming input at the end of the
-	// input (end = true) or elsewhere (false).
-	nullable [2]map[string]bool
-	canMatch map[string]bool
+	// m is the Core IR module of g and facts its facts, whose node queries poll the control of the
+	// run. nodes maps each expression of g to the outermost node built from it, and ids each rule
+	// name to the ID of the rule (not of its value-free twin).
+	m     *core.Module
+	facts *corepass.Facts
+	nodes map[ast.Expr]core.Node
+	ids   map[string]int
+
 	// baseCase holds the rules that can match if _|_ and ! of an expression that always
 	// succeeds are taken to match: the rules not in it can only match by matching themselves
 	// (or another rule not in it) first.
 	baseCase map[string]bool
-	// leftRecursive holds the rules on a left-recursion cycle. While such a rule grows its
-	// match, a call of it inside the cycle returns the match found so far, which can be a
-	// failure: a call of it is never certain to succeed.
-	leftRecursive map[string]bool
-	// engineNullable is nullability as the engine computes it to find left recursion (cruder
-	// than nullable: every lookahead counts as nullable).
-	engineNullable   map[string]bool
-	engineSucceeding map[string]bool
 
 	// Memos of the analyses that follow rule calls, and the rules being followed (a call of a
 	// rule that is being followed is not followed again: the result is "not certain").
@@ -53,308 +56,145 @@ type analysis struct {
 	cycles int
 }
 
-func newAnalysisControlled(g *ast.Grammar, control *lintControl, tables ruleTables) *analysis {
+// newAnalysisControlled returns the analysis of the grammar that the front end checked to res.
+func newAnalysisControlled(res *frontend.Result, control *lintControl) *analysis {
 	control.poll()
 
-	a := &analysis{control: control, g: g, rules: map[string]*ast.RuleDef{}, nullable: [2]map[string]bool{{}, {}}, canMatch: map[string]bool{},
+	var facts *cancel.Control
+	if control != nil {
+		facts = &cancel.Control{Ctx: control.ctx}
+	}
+	a := &analysis{control: control, g: res.Grammar(), rules: map[string]*ast.RuleDef{}, m: res.Module,
+		facts: res.Facts.WithControl(facts), nodes: map[ast.Expr]core.Node{}, ids: map[string]int{},
 		baseCase:  map[string]bool{},
 		matchMemo: map[matchKey]matchResult{}, prefixMemo: map[string]prefixResult{}, busy: map[string]bool{}}
-	for _, r := range control.rules(g) {
+	for _, r := range control.rules(a.g) {
 		control.poll()
 		if a.rules[r.Name] == nil {
 			a.rules[r.Name] = r
 			a.order = append(a.order, r)
 		}
 	}
-	// The rule tables of the front end's facts: the other analyses use them (through matchPrefix).
-	a.engineNullable, a.leftRecursive, a.engineSucceeding = tables.nullable, tables.cyclic, tables.succeeds
-	for _, end := range []bool{false, true} {
-		control.poll()
-		set := a.nullable[b2i(end)]
-		for changed := true; changed; {
+	// A value-free twin is built from the expressions of its rule: the rule's own nodes come first.
+	for _, twins := range []bool{false, true} {
+		for _, r := range a.m.Rules {
 			control.poll()
-			changed = false
-			for _, r := range a.order {
-				control.poll()
-				if !set[r.Name] && a.nullableAt(r.Expr, end) {
-					set[r.Name], changed = true, true
-				}
+			if r == nil || (r.Twin != nil) != twins {
+				continue
 			}
+			if !twins {
+				a.ids[r.Name] = r.ID
+			}
+			core.Walk(r.Body, func(n core.Node) {
+				control.poll()
+				if e := a.m.Origin.Of(n); e != nil && a.nodes[e] == nil {
+					a.nodes[e] = n
+				}
+			})
 		}
 	}
-	for _, m := range []struct {
-		set     map[string]bool
-		lenient bool
-	}{{a.canMatch, false}, {a.baseCase, true}} {
-		for changed := true; changed; {
+	for changed := true; changed; {
+		control.poll()
+		changed = false
+		for _, r := range a.order {
 			control.poll()
-			changed = false
-			for _, r := range a.order {
-				control.poll()
-				if !m.set[r.Name] && a.mayMatchIn(r.Expr, m.set, m.lenient) {
-					m.set[r.Name], changed = true, true
-				}
+			if !a.baseCase[r.Name] && a.mayMatchLeniently(r.Expr, a.baseCase) {
+				a.baseCase[r.Name], changed = true, true
 			}
 		}
 	}
 	return a
 }
 
-// isEngineNullable reports whether e may succeed without consuming input, as the engine
-// computes it.
-func (a *analysis) isEngineNullable(e ast.Expr) bool {
-	control := a.control
-	control.poll()
-
-	switch e := analysisExpr(e, control).(type) {
-	case *ast.Ref:
-		return a.engineNullable[e.Name]
-	case *ast.Literal:
-		return e.Value == ""
-	case *ast.CharClass, *ast.Any, *ast.Bottom:
-		return false
-	case *ast.Seq:
-		for _, it := range e.Items {
-			control.poll()
-			if !a.isEngineNullable(it) {
-				return false
-			}
-		}
-		return true
-	case *ast.Choice:
-		for _, alt := range e.Alts {
-			control.poll()
-			if a.isEngineNullable(alt) {
-				return true
-			}
-		}
-		return false
-	case *ast.Repeat:
-		return e.Min == 0 || e.Min == 1 && a.isEngineNullable(e.Expr)
-	case *ast.Atomic:
-		return a.isEngineNullable(e.Expr)
-	case *ast.Discard:
-		return a.isEngineNullable(e.Expr)
-	case *ast.Capture:
-		return a.isEngineNullable(e.Expr)
-	case *ast.Attributed:
-		return a.isEngineNullable(e.Expr)
-	case *ast.OperatorsRule:
-		for _, o := range e.Operands {
-			control.poll()
-			if a.isEngineNullable(o.Expr) {
-				return true
-			}
-		}
-		return false
+// node returns the Core node of e: the outermost node built from it, or, for a sequence of items
+// that a check makes from a part of a sequence, a sequence of the nodes of the items.
+func (a *analysis) node(e ast.Expr) core.Node {
+	if n := a.nodes[e]; n != nil {
+		return n
 	}
-	return true
+	if s, ok := e.(*ast.Seq); ok {
+		items := make([]core.Node, len(s.Items))
+		for i, it := range s.Items {
+			a.control.poll()
+			items[i] = a.node(it)
+		}
+		return &core.Seq{Items: items}
+	}
+	pos := posOf(e)
+	panic(fmt.Sprintf("lint: no Core node for the %T at %d:%d", e, pos.Line, pos.Col))
 }
 
-// leftCalls returns the rules that e may call before consuming input, as the engine finds them.
-func (a *analysis) leftCalls(e ast.Expr, acc []string) []string {
-	control := a.control
-	control.poll()
+// rule returns the facts of the rule named name, which is a rule of g.
+func (a *analysis) rule(name string) *corepass.Rule { return &a.facts.Rules[a.ids[name]] }
 
-	switch e := analysisExpr(e, control).(type) {
-	case *ast.Ref:
-		return append(acc, e.Name)
-	case *ast.Seq:
-		for _, it := range e.Items {
-			control.poll()
-			acc = a.leftCalls(it, acc)
-			if !a.isEngineNullable(it) {
-				break
-			}
-		}
-	case *ast.Choice:
-		for _, alt := range e.Alts {
-			control.poll()
-			acc = a.leftCalls(alt, acc)
-			if a.alwaysSucceeds(alt) {
-				break
-			}
-		}
-	case *ast.Repeat:
-		if e.Max != 0 {
-			acc = a.leftCalls(e.Expr, acc)
-		}
-	case *ast.Optional:
-		acc = a.leftCalls(e.Expr, acc)
-	case *ast.And:
-		acc = a.leftCalls(e.Expr, acc)
-	case *ast.Not:
-		acc = a.leftCalls(e.Expr, acc)
-	case *ast.Atomic:
-		acc = a.leftCalls(e.Expr, acc)
-	case *ast.Discard:
-		acc = a.leftCalls(e.Expr, acc)
-	case *ast.Capture:
-		acc = a.leftCalls(e.Expr, acc)
-	case *ast.Attributed:
-		acc = a.leftCalls(e.Expr, acc)
-		if !a.alwaysSucceeds(e.Expr) {
-			for _, at := range e.Attrs {
-				control.poll()
-				if at.Name == "recover" {
-					if skip, ok := at.Arg("skip"); ok {
-						acc = a.leftCalls(skip, acc)
-					}
-				}
-			}
-		}
-	case *ast.OperatorsRule:
-		if e.Skip != nil {
-			acc = a.leftCalls(e.Skip, acc)
-		}
-		for _, o := range e.Operands {
-			control.poll()
-			acc = a.leftCalls(o.Expr, acc)
-			if a.alwaysSucceeds(o.Expr) {
-				break
-			}
-		}
-		for _, l := range e.Levels {
-			control.poll()
-			for _, op := range l.Operators {
-				control.poll()
-				if op.Kind == ast.Prefix {
-					acc = a.leftCalls(op.Expr, acc)
-				}
-			}
-		}
+// leftRecursive reports that the rule named name is on a left-recursion cycle. While such a rule
+// grows its match, a call of it inside the cycle returns the match found so far, which can be a
+// failure: a call of it is never certain to succeed.
+func (a *analysis) leftRecursive(name string) bool {
+	_, ok := a.ids[name]
+	return ok && a.rule(name).Cyclic()
+}
+
+// isEngineNullable reports whether e may succeed without consuming input, as the engine computes it
+// to find left recursion (cruder than nullableAt: every lookahead counts as nullable).
+func (a *analysis) isEngineNullable(e ast.Expr) bool {
+	a.control.poll()
+	return a.facts.Nullable(a.node(e))
+}
+
+// leftCalls appends to acc the rules that e may call before consuming input, as the engine finds
+// them.
+func (a *analysis) leftCalls(e ast.Expr, acc []string) []string {
+	a.control.poll()
+	for _, id := range a.facts.LeftCalls(a.node(e), false) {
+		a.control.poll()
+		acc = append(acc, a.m.Rules[id].Name)
 	}
 	return acc
 }
 
 // mayMatch reports whether e may succeed.
 func (a *analysis) mayMatch(e ast.Expr) bool {
-	control := a.control
-	control.poll()
-	return a.mayMatchIn(e, a.canMatch, false)
-}
-
-func b2i(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
+	a.control.poll()
+	return a.facts.MayMatch(a.node(e))
 }
 
 // isNullable reports whether e may succeed without consuming input.
 func (a *analysis) isNullable(e ast.Expr) bool {
-	control := a.control
-	control.poll()
-
 	return a.nullableAt(e, false) || a.nullableAt(e, true)
 }
 
 // nullableAt reports whether e may succeed without consuming input at the end of the input (end
-// set) or at another position. Telling the two apart makes "!$$ x" not nullable when x can only
-// match nothing at the end of the input, as in a line that ends with ("\n" / $$).
+// set) or before it. Telling the two apart makes "!$$ x" not nullable when x can only match nothing
+// at the end of the input, as in a line that ends with ("\n" / $$).
 func (a *analysis) nullableAt(e ast.Expr, end bool) bool {
-	control := a.control
-	control.poll()
-
-	switch e := analysisExpr(e, control).(type) {
-	case *ast.Ref:
-		return a.nullable[b2i(end)][e.Name]
-	case *ast.Literal:
-		return e.Value == ""
-	case *ast.CharClass, *ast.Any, *ast.Bottom:
-		return false
-	case *ast.EndInput:
-		return end
-	case *ast.Seq:
-		for _, it := range e.Items {
-			control.poll()
-			if !a.nullableAt(it, end) {
-				return false
-			}
-		}
-		return true
-	case *ast.Choice:
-		for _, alt := range e.Alts {
-			control.poll()
-			if a.nullableAt(alt, end) {
-				return true
-			}
-		}
-		return false
-	case *ast.Repeat:
-		return e.Min == 0 || e.Min == 1 && a.nullableAt(e.Expr, end)
-	case *ast.And:
-		// At the end of the input, the operand can only match without consuming input.
-		return !end || a.nullableAt(e.Expr, true)
-	case *ast.Not:
-		return !a.succeedsAt(e.Expr, end)
-	case *ast.Atomic:
-		return a.nullableAt(e.Expr, end)
-	case *ast.Discard:
-		return a.nullableAt(e.Expr, end)
-	case *ast.Capture:
-		return a.nullableAt(e.Expr, end)
-	case *ast.Attributed:
-		// A recovery must consume input.
-		return a.nullableAt(e.Expr, end)
-	case *ast.OperatorsRule:
-		for _, o := range e.Operands {
-			control.poll()
-			if a.nullableAt(o.Expr, end) {
-				return true
-			}
-		}
-		return false
+	a.control.poll()
+	if end {
+		return a.facts.NullableAtEnd(a.node(e))
 	}
-	// Optional, predicate, other anchors, cut, top
-	return true
+	return a.facts.NullableBeforeEnd(a.node(e))
 }
 
-// succeedsAt reports whether e certainly succeeds at the end of the input (end set) or at any
-// other position.
-func (a *analysis) succeedsAt(e ast.Expr, end bool) bool {
-	control := a.control
-	control.poll()
-
-	switch e := neutral(e, true, control).(type) {
-	case *ast.EndInput:
-		return end
-	case *ast.Any:
-		return !end
-	case *ast.Not:
-		return a.failsAt(e.Expr, end)
-	}
-	return a.succeeds(e)
+// succeeds reports whether e certainly succeeds, whatever the input.
+func (a *analysis) succeeds(e ast.Expr) bool {
+	a.control.poll()
+	return a.facts.Succeeds(a.node(e))
 }
 
-// failsAt reports whether e certainly fails at the end of the input (end set) or at any other
-// position.
-func (a *analysis) failsAt(e ast.Expr, end bool) bool {
-	control := a.control
-	control.poll()
-
-	switch e := neutral(e, true, control).(type) {
-	case *ast.EndInput:
-		return !end
-	case *ast.Any, *ast.CharClass:
-		return end
-	case *ast.Literal:
-		return end && e.Value != ""
-	case *ast.Bottom:
-		return true
-	case *ast.Not:
-		return a.succeedsAt(e.Expr, end)
-	}
-	return false
+// hasLooseCut reports whether e contains a cut that commits a choice, repetition or optional
+// expression around e: one that is not inside a choice, repetition, optional expression or
+// lookahead of its own (which stop it), or in another rule (cuts do not cross rules).
+func (a *analysis) hasLooseCut(e ast.Expr) bool {
+	a.control.poll()
+	return corepass.LooseCut(a.node(e))
 }
 
-// mayMatchIn reports whether e may succeed, given the rules in set that may (a least fixed
-// point: a rule that can only match by matching itself first never matches). With lenient set,
-// _|_ and ! of an expression that always succeeds are taken to match.
+// mayMatchLeniently reports whether e may succeed, given the rules in set that may, with _|_ and !
+// taken to match (baseCase is the least fixed point: a rule that can only match by matching itself
+// first is not in it).
 //
-// Anchors that contradict their neighbors (anchorConflict) are not taken into account, so that
-// canMatch is known before prefix, which uses it, runs.
-func (a *analysis) mayMatchIn(e ast.Expr, set map[string]bool, lenient bool) bool {
+// Anchors that contradict their neighbors (anchorConflict) are not taken into account.
+func (a *analysis) mayMatchLeniently(e ast.Expr, set map[string]bool) bool {
 	control := a.control
 	control.poll()
 
@@ -362,40 +202,40 @@ func (a *analysis) mayMatchIn(e ast.Expr, set map[string]bool, lenient bool) boo
 	case *ast.Ref:
 		return set[e.Name]
 	case *ast.Bottom:
-		return lenient
+		return true
 	case *ast.Seq:
 		for _, it := range e.Items {
 			control.poll()
-			if !a.mayMatchIn(it, set, lenient) {
+			if !a.mayMatchLeniently(it, set) {
 				return false
 			}
 		}
 	case *ast.Choice:
 		for _, alt := range e.Alts {
 			control.poll()
-			if a.mayMatchIn(alt, set, lenient) {
+			if a.mayMatchLeniently(alt, set) {
 				return true
 			}
 		}
 		return false
 	case *ast.Repeat:
-		return e.Min == 0 || a.mayMatchIn(e.Expr, set, lenient)
+		return e.Min == 0 || a.mayMatchLeniently(e.Expr, set)
 	case *ast.And:
-		return a.mayMatchIn(e.Expr, set, lenient)
+		return a.mayMatchLeniently(e.Expr, set)
 	case *ast.Not:
-		return lenient || !a.succeeds(e.Expr)
+		return true
 	case *ast.Atomic:
-		return a.mayMatchIn(e.Expr, set, lenient)
+		return a.mayMatchLeniently(e.Expr, set)
 	case *ast.Discard:
-		return a.mayMatchIn(e.Expr, set, lenient)
+		return a.mayMatchLeniently(e.Expr, set)
 	case *ast.Capture:
-		return a.mayMatchIn(e.Expr, set, lenient)
+		return a.mayMatchLeniently(e.Expr, set)
 	case *ast.Attributed:
-		return hasAttr(e, "recover", control) || hasAttr(e, "missing", control) || a.mayMatchIn(e.Expr, set, lenient)
+		return hasAttr(e, "recover", control) || hasAttr(e, "missing", control) || a.mayMatchLeniently(e.Expr, set)
 	case *ast.OperatorsRule:
 		for _, o := range e.Operands {
 			control.poll()
-			if a.mayMatchIn(o.Expr, set, lenient) {
+			if a.mayMatchLeniently(o.Expr, set) {
 				return true
 			}
 		}
@@ -447,13 +287,6 @@ func (a *analysis) anchorConflict(s *ast.Seq) ast.Expr {
 		}
 	}
 	return nil
-}
-
-// succeeds reports whether e certainly succeeds, whatever the input.
-func (a *analysis) succeeds(e ast.Expr) bool {
-	control := a.control
-	control.poll()
-	return a.matchPrefix(e, "", false).ok
 }
 
 // matchResult is the result of matchPrefix.
@@ -583,7 +416,7 @@ func (a *analysis) matchPrefix(e ast.Expr, t string, fold bool) matchResult {
 		}
 	case *ast.Ref:
 		r := a.rules[e.Name]
-		if r == nil || e.Level != "" || a.leftRecursive[e.Name] {
+		if r == nil || e.Level != "" || a.leftRecursive(e.Name) {
 			break
 		}
 		if pr, _ := ast.RuleOperators(r.Expr); pr != nil {
@@ -671,13 +504,6 @@ func (a *analysis) fails(e ast.Expr, t string, fold bool) bool {
 		return a.fails(r.Expr, t, fold)
 	}
 	return false
-}
-
-// hasLooseCut reports whether e contains a cut that commits a choice, repetition or optional
-// expression around e: one that is not inside a choice, repetition, optional expression or
-// lookahead of its own (which stop it), or in another rule (cuts do not cross rules).
-func hasLooseCut(e ast.Expr) bool {
-	return astfacts.HasLooseCut(e)
 }
 
 // hasPrefixFold reports whether s begins with p when the ASCII letters of both are compared in
@@ -1217,21 +1043,6 @@ func analysisExpr(e ast.Expr, control *lintControl) ast.Expr {
 		return &ast.Attributed{Expr: x.Expr, Attrs: []*ast.Attribute{{Pos: x.Diagnostic(), Name: "recover", Pragma: true, KwArgs: map[string]any{"skip": x.Skip}}}}
 	}
 	return e
-}
-
-// alwaysSucceeds preserves the ordinary proof and shares the invocation control.
-func (a *analysis) alwaysSucceeds(e ast.Expr) bool {
-	if a.control == nil {
-		return astfacts.AlwaysSucceeds(e, a.engineSucceeding)
-	}
-	return astfacts.AlwaysSucceedsWithPoll(e, a.engineSucceeding, a.control.poll)
-}
-
-func (a *analysis) hasLooseCut(e ast.Expr) bool {
-	if a.control == nil {
-		return hasLooseCut(e)
-	}
-	return astfacts.HasLooseCutWithPoll(e, a.control.poll)
 }
 
 func walkExpr(e ast.Expr, f func(ast.Expr)) {

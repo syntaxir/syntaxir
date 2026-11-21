@@ -178,7 +178,7 @@ func (a *analysis) shadowedSuffixCaveat(prior ast.Expr, later ...ast.Expr) strin
 	control := a.control
 	control.poll()
 
-	if a.alwaysSucceeds(prior) {
+	if a.succeeds(prior) {
 		return ""
 	}
 	return a.leftRecursionCaveat(later...)
@@ -196,7 +196,7 @@ func (a *analysis) leftRecursionCaveat(es ...ast.Expr) string {
 		control.poll()
 		for _, c := range a.leftCalls(e, nil) {
 			control.poll()
-			if a.leftRecursive[c] {
+			if a.leftRecursive(c) {
 				return " (it calls " + c + ", which is left-recursive, before consuming input: " +
 					"this changes how the left recursion is grown, so compare the results)"
 			}
@@ -362,7 +362,7 @@ func (l *linter) neverMatches() {
 			changed = false
 			for _, n := range group {
 				control.poll()
-				if !assumed[n] && a.mayMatchIn(a.rules[n].Expr, assumed, true) {
+				if !assumed[n] && a.mayMatchLeniently(a.rules[n].Expr, assumed) {
 					assumed[n], changed = true, true
 				}
 			}

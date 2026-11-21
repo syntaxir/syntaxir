@@ -249,7 +249,7 @@ func run(res *frontend.Result, g *ast.Grammar, start string, opts options, contr
 	// front end checked, with them lowered to hidden rules, and report their findings as the inline
 	// actions written.
 	names := res.InlineNames()
-	l := &linter{control: control, opts: opts, an: newAnalysisControlled(res.Grammar(), control, tablesOf(res))}
+	l := &linter{control: control, opts: opts, an: newAnalysisControlled(res, control)}
 	for _, c := range []struct {
 		name string
 		run  func(*linter)

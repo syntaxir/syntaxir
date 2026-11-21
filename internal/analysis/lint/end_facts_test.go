@@ -9,7 +9,7 @@ import (
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
-// endFactsGrammars are the grammars of the differential test besides the repository's corpus:
+// endFactsGrammars are the grammars of the end-of-input tests besides the repository's corpus:
 // the constructs whose behavior at the end of the input differs (end of input, lookaheads,
 // predicates, recovery, missing tokens, operators and calls).
 var endFactsGrammars = []string{
@@ -42,10 +42,11 @@ var endFactsGrammars = []string{
 	"rule main = x:\"a\" !x:$$",
 }
 
-// TestEndFactsMatchTheAnalysis checks the Core facts NullableAtEnd, NullableBeforeEnd and CanMatch,
-// of each rule and of its body, against the lint analysis they replace: the nullable and canMatch
-// sets of the analysis and its nullableAt and mayMatch on the rule's expression.
-func TestEndFactsMatchTheAnalysis(t *testing.T) {
+// TestEndFactsHoldForRuleBodies checks the Core facts NullableAtEnd, NullableBeforeEnd and CanMatch
+// of each rule against the node queries on its body, which lint reads for every expression: at the
+// least fixed point, a rule has a fact exactly when its body does. The answers that lint computed
+// for these grammars on its own are pinned by TestAnalysisAnswers.
+func TestEndFactsHoldForRuleBodies(t *testing.T) {
 	t.Parallel()
 	var srcs []string
 	for _, p := range factstest.Corpus {
@@ -68,35 +69,19 @@ func TestEndFactsMatchTheAnalysis(t *testing.T) {
 			continue
 		}
 		compared++
-		// The analysis reads the grammar that the front end checked, as lint does.
-		g := res.Grammar()
-		an := newAnalysis(g)
 		for _, r := range res.Module.Rules {
 			if r == nil || r.Twin != nil {
 				continue
 			}
-			rd := ruleDef(g, r.Name)
-			if rd == nil {
-				continue
-			}
 			f := res.Facts.Rules[r.ID]
-			if want := an.nullable[1][r.Name]; f.NullableAtEnd != want {
-				t.Errorf("%q rule %s: NullableAtEnd=%v, analysis nullable[end]=%v", src, r.Name, f.NullableAtEnd, want)
+			if got := res.Facts.NullableAtEnd(r.Body); f.NullableAtEnd != got {
+				t.Errorf("%q rule %s: NullableAtEnd=%v, body NullableAtEnd=%v", src, r.Name, f.NullableAtEnd, got)
 			}
-			if want := an.nullable[0][r.Name]; f.NullableBeforeEnd != want {
-				t.Errorf("%q rule %s: NullableBeforeEnd=%v, analysis nullable[before end]=%v", src, r.Name, f.NullableBeforeEnd, want)
+			if got := res.Facts.NullableBeforeEnd(r.Body); f.NullableBeforeEnd != got {
+				t.Errorf("%q rule %s: NullableBeforeEnd=%v, body NullableBeforeEnd=%v", src, r.Name, f.NullableBeforeEnd, got)
 			}
-			if want := an.canMatch[r.Name]; f.CanMatch != want {
-				t.Errorf("%q rule %s: CanMatch=%v, analysis canMatch=%v", src, r.Name, f.CanMatch, want)
-			}
-			if got, want := res.Facts.NullableAtEnd(r.Body), an.nullableAt(rd.Expr, true); got != want {
-				t.Errorf("%q rule %s: body NullableAtEnd=%v, analysis nullableAt=%v", src, r.Name, got, want)
-			}
-			if got, want := res.Facts.NullableBeforeEnd(r.Body), an.nullableAt(rd.Expr, false); got != want {
-				t.Errorf("%q rule %s: body NullableBeforeEnd=%v, analysis nullableAt=%v", src, r.Name, got, want)
-			}
-			if got, want := res.Facts.MayMatch(r.Body), an.mayMatch(rd.Expr); got != want {
-				t.Errorf("%q rule %s: body MayMatch=%v, analysis mayMatch=%v", src, r.Name, got, want)
+			if got := res.Facts.MayMatch(r.Body); f.CanMatch != got {
+				t.Errorf("%q rule %s: CanMatch=%v, body MayMatch=%v", src, r.Name, f.CanMatch, got)
 			}
 		}
 	}
@@ -110,14 +95,4 @@ func checkedOrNil(g *ast.Grammar) (res *frontend.Result) {
 		}
 	}()
 	return checked(g)
-}
-
-// ruleDef returns the rule of g named name, or nil.
-func ruleDef(g *ast.Grammar, name string) *ast.RuleDef {
-	for _, rd := range g.Rules() {
-		if rd.Name == name {
-			return rd
-		}
-	}
-	return nil
 }

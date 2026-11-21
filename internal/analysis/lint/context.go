@@ -3,6 +3,7 @@ package lint
 import (
 	"context"
 
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/internal/syntax/fmt"
@@ -13,8 +14,8 @@ import (
 // Cancellation discards all findings, including those accumulated before the
 // stopping point. Without an active control nothing polls. Polling covers lint-owned
 // analysis, check and suppression loops, recursive analyses and result sorting.
-// Shared success proofs, metadata walks, character-range work and diagnostic
-// formatting also poll. Other individual operations retain unpolled spans; no
+// The queries of the front end's facts, metadata walks, character-range work and
+// diagnostic formatting also poll. Other individual operations retain unpolled spans; no
 // wall-clock bound is promised.
 func runContext(ctx context.Context, res *frontend.Result, g *ast.Grammar, start string, opts options) (findings []Finding, err error) {
 	if err := ctx.Err(); err != nil {
@@ -26,14 +27,26 @@ func runContext(ctx context.Context, res *frontend.Result, g *ast.Grammar, start
 	}
 	defer func() {
 		if failure := recover(); failure != nil {
-			if cancelled, ok := failure.(lintCancellation); ok {
-				findings, err = nil, cancelled.err
-			} else {
+			cancelled := cancellation(failure)
+			if cancelled == nil {
 				panic(failure)
 			}
+			findings, err = nil, cancelled
 		}
 	}()
 	return run(res, g, start, opts, &lintControl{ctx: ctx}), nil
+}
+
+// cancellation returns the error of the cancellation that failure unwinds with, lint's own or that
+// of a query of the front end's facts, which polls the same context; nil if failure is not one.
+func cancellation(failure any) error {
+	switch c := failure.(type) {
+	case lintCancellation:
+		return c.err
+	case cancel.Cancellation:
+		return c.Err
+	}
+	return nil
 }
 
 // Recursive proof routines unwind only to runContext and Rewrites. A control belongs to one

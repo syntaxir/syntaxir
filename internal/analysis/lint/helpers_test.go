@@ -4,6 +4,7 @@ import (
 	"context"
 	"slices"
 
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -61,8 +62,18 @@ func testRunContext(ctx context.Context, g *ast.Grammar, start string, opts opti
 	return runContext(ctx, checked(g), g, start, opts)
 }
 
+// newAnalysis returns the analysis of the grammar that the front end checked g to: its expressions
+// are those of the analysis's grammar (analysis.g), not of g.
 func newAnalysis(g *ast.Grammar) *analysis { return testNewAnalysisControlled(g, nil) }
 
 func testNewAnalysisControlled(g *ast.Grammar, control *lintControl) *analysis {
-	return newAnalysisControlled(g, control, tablesOf(checked(g)))
+	return newAnalysisControlled(checked(g), control)
+}
+
+// withControl returns a copy of a whose checks and fact queries poll control.
+func (a *analysis) withControl(control *lintControl) *analysis {
+	copied := *a
+	copied.control = control
+	copied.facts = a.facts.WithControl(&cancel.Control{Ctx: control.ctx})
+	return &copied
 }

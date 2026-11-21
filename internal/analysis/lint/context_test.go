@@ -77,33 +77,34 @@ func TestRunContextCancellationDiscardsFindings(t *testing.T) {
 func TestLintContextPhaseCancellation(t *testing.T) {
 	g := lintContextGrammar(t, lintManyRules())
 	an := newAnalysis(g)
+	// The proofs run on long expressions of a grammar: a sequence of 1024 items that always
+	// succeed, a negative lookahead of a choice of 1024 alternatives that always fail, and a choice
+	// of 1024 equal alternatives.
+	long := func(item, sep string) string { return strings.TrimSuffix(strings.Repeat(item+sep, 1024), sep) }
+	proofs := newAnalysis(lintContextGrammar(t, "rule succeed = "+long("_", " ")+
+		"\nrule fail = !("+long("_|_", " / ")+")\nrule shadowed = "+long(`"a"`, " / ")))
+	body := func(name string) ast.Expr { return proofs.rules[name].Expr }
 	for _, phase := range []string{"analysis", "success-proof", "failure-proof", "cut-proof", "dependency-graph", "shadowed", "suppression"} {
 		t.Run(phase, func(t *testing.T) {
 			control := &lintControl{ctx: lintTestContext(t, 1)}
 			defer func() {
-				cancelled, ok := recover().(lintCancellation)
-				if !ok || !errors.Is(cancelled.err, context.Canceled) {
-					t.Fatalf("phase did not stop at a lint cancellation: %+v", cancelled)
+				failure := recover()
+				if err := cancellation(failure); !errors.Is(err, context.Canceled) {
+					t.Fatalf("phase did not stop at a cancellation: %+v", failure)
 				}
 			}()
 			switch phase {
 			case "analysis":
 				testNewAnalysisControlled(g, control)
-			case "success-proof", "failure-proof", "cut-proof":
-				items := make([]ast.Expr, 1024)
-				for i := range items {
-					items[i] = &ast.Top{}
-					if phase == "failure-proof" {
-						items[i] = &ast.Bottom{}
-					}
-				}
-				controlled := &analysis{control: control}
-				if phase == "cut-proof" {
-					controlled.hasLooseCut(&ast.Seq{Items: items})
-				} else if phase == "failure-proof" {
-					controlled.alwaysSucceeds(&ast.Not{Expr: &ast.Choice{Alts: items}})
-				} else {
-					controlled.alwaysSucceeds(&ast.Seq{Items: items})
+			case "success-proof":
+				proofs.withControl(control).succeeds(body("succeed"))
+			case "failure-proof":
+				proofs.withControl(control).succeeds(body("fail"))
+			case "cut-proof":
+				// A loose cut is found without following calls; the items are proven one by one.
+				controlled := proofs.withControl(control)
+				for _, item := range body("succeed").(*ast.Seq).Items {
+					controlled.hasLooseCut(item)
 				}
 			case "dependency-graph":
 				edges := map[string][]string{}
@@ -112,14 +113,8 @@ func TestLintContextPhaseCancellation(t *testing.T) {
 				}
 				findCycleControlled("0", edges, control)
 			case "shadowed":
-				alts := make([]ast.Expr, 1024)
-				for i := range alts {
-					alts[i] = &ast.Literal{Value: "a"}
-				}
-				copyAnalysis := *an
-				copyAnalysis.control = control
-				l := &linter{control: control, an: &copyAnalysis}
-				l.shadowedAlts(alts, "alternative")
+				l := &linter{control: control, an: proofs.withControl(control)}
+				l.shadowedAlts(body("shadowed").(*ast.Choice).Alts, "alternative")
 			case "suppression":
 				findings := make([]Finding, 1024)
 				for i := range findings {
