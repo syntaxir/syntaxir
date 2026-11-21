@@ -245,14 +245,11 @@ type options struct {
 // run lints g, which the front end checked to the result res, from start.
 func run(res *frontend.Result, g *ast.Grammar, start string, opts options, control *lintControl) []Finding {
 	control.check()
-	// Each inline action is a rule of its own with its captures and cuts: lint the grammar with
-	// them lowered to hidden rules, and report their findings as the inline actions written.
-	lowered, names, err := desugar.LowerInlineActions(g)
-	if err != nil {
-		lowered, names = g, nil // a grammar that does not compile is not linted properly
-	}
-	control.check()
-	l := &linter{control: control, opts: opts, an: newAnalysisControlled(lowered, control, tablesOf(res))}
+	// Each inline action is a rule of its own with its captures and cuts: lint the grammar that the
+	// front end checked, with them lowered to hidden rules, and report their findings as the inline
+	// actions written.
+	names := res.InlineNames()
+	l := &linter{control: control, opts: opts, an: newAnalysisControlled(res.Grammar(), control, tablesOf(res))}
 	for _, c := range []struct {
 		name string
 		run  func(*linter)
@@ -297,6 +294,9 @@ type linter struct {
 	an       *analysis
 	findings []Finding
 	rule     *ast.RuleDef // the rule being checked
+	// source is the grammar as written, whose text a rewrite edits; the checks read the grammar of
+	// the analysis, which the front end checked.
+	source *ast.Grammar
 }
 
 func (l *linter) report(check string, sev Severity, pos ast.Pos, fix, format string, args ...any) {
@@ -317,8 +317,8 @@ func (l *linter) report(check string, sev Severity, pos ast.Pos, fix, format str
 // a finding in the hidden rule of an inline action is in the rule that holds it, a generated name
 // in a message or a suggestion becomes the inline action, and the rule of an inline action is not
 // reported as unreachable apart from the rule that holds it.
-func (l *linter) written(names *desugar.InlineActionNames) []Finding {
-	if names == nil {
+func (l *linter) written(names desugar.InlineNames) []Finding {
+	if len(names) == 0 {
 		return l.findings
 	}
 	out := make([]Finding, 0, len(l.findings))
@@ -330,7 +330,7 @@ func (l *linter) written(names *desugar.InlineActionNames) []Finding {
 			}
 			f.Rule = holder
 		}
-		f.Message, f.Fix = names.Message(f.Message), names.Message(f.Fix)
+		f.Message, f.Fix = names.Text(f.Message), names.Text(f.Fix)
 		out = append(out, f)
 	}
 	return out

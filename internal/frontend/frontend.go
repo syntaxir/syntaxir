@@ -34,6 +34,15 @@ type Result struct {
 	Analyses *pass.AnalysisManager[*core.Module]
 }
 
+// Grammar returns the grammar that the program runs: the grammar as written with its inline actions
+// lowered to hidden rules and its attributes normalized. The origin map of Module gives the
+// expressions of this grammar.
+func (r *Result) Grammar() *ast.Grammar { return r.Program.Grammar }
+
+// InlineNames returns the hidden rules of Grammar that stand for the inline actions of the grammar
+// as written.
+func (r *Result) InlineNames() desugar.InlineNames { return r.Program.InlineNames }
+
 // RunDefault is Run with the default options, for the tools that check a grammar without
 // compiling it for a backend.
 func RunDefault(g *ast.Grammar, control *cancel.Control) (*Result, error) {

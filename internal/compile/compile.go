@@ -42,7 +42,10 @@ type Program struct {
 	// MakesDefaultValue reports that value actions and declared rule types were dropped
 	// (Options.DefaultValue).
 	MakesDefaultValue bool
-	ByName            map[string]*Rule
+	// InlineNames are the hidden rules that the inline actions of the grammar as written were
+	// lowered to, with the inline actions they stand for; empty if it has none.
+	InlineNames desugar.InlineNames
+	ByName      map[string]*Rule
 	// structZeros caches the zero descriptors of the struct types (StructZeroOf) by name.
 	structZeros sync.Map
 	// Opts are the options the program was compiled with. The engine builds further programs from the
@@ -465,6 +468,7 @@ func CheckCanonical(canon *Canonical, opts Options, flags []RuleFlags, names des
 	prog.NoProjections = opts.NoProjections
 	prog.RecordsSourceInfo = opts.SourceInfo
 	prog.MakesDefaultValue = opts.DefaultValue
+	prog.InlineNames = names
 
 	for _, td := range control.Types(g) {
 		control.Poll()

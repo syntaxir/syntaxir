@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/testing/factstest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -85,15 +84,11 @@ func analysisAnswers(t *testing.T, name, src string) string {
 	if err != nil {
 		return fmt.Sprintf("# %s: does not parse\n", name)
 	}
-	g, _, err := desugar.LowerInlineActions(parsed)
-	if err != nil {
-		return fmt.Sprintf("# %s: inline actions do not lower\n", name)
-	}
-	res := checkedOrNil(g)
+	res := checkedOrNil(parsed)
 	if res == nil {
 		return fmt.Sprintf("# %s: does not check\n", name)
 	}
-	a := newAnalysisControlled(g, nil, tablesOf(res))
+	a := newAnalysisControlled(res.Grammar(), nil, tablesOf(res))
 	var b strings.Builder
 	fmt.Fprintf(&b, "# %s\n", name)
 	set := func(m map[string]bool) string {

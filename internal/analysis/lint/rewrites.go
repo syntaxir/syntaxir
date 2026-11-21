@@ -2,10 +2,11 @@ package lint
 
 import (
 	"context"
+	"reflect"
 	"slices"
 
 	"syntaxir.dev/sxir/internal/frontend"
-	"syntaxir.dev/sxir/internal/frontend/desugar"
+	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -70,11 +71,7 @@ func rewritesOf(ctx context.Context, res *frontend.Result, g *ast.Grammar, findi
 			}
 		}()
 	}
-	lowered, _, lowerErr := desugar.LowerInlineActions(g)
-	if lowerErr != nil {
-		lowered = g
-	}
-	l := &linter{control: control, an: newAnalysisControlled(lowered, control, tablesOf(res))}
+	l := &linter{control: control, an: newAnalysisControlled(res.Grammar(), control, tablesOf(res)), source: g}
 	out = make([]Rewrite, len(findings))
 	for i, f := range findings {
 		control.poll()
@@ -173,7 +170,7 @@ func (l *linter) lookaheadRewrite(f Finding) Rewrite {
 		}
 		return false
 	})
-	if e == nil || !l.seqItem(e) {
+	if e == nil || !l.seqItem(f.Pos, e) {
 		return Rewrite{}
 	}
 	var body ast.Expr
@@ -198,21 +195,28 @@ func (l *linter) lookaheadRewrite(f Finding) Rewrite {
 	return Rewrite{Start: src.Pos, End: src.End}
 }
 
-// seqItem reports whether e is itself an item of a sequence of at least three items, so that at
-// least two remain and the sequence stays a tuple. A lookahead that
-// another construct holds is not: under a discard "-", deleting it would move the "-" onto the next
-// item, and a label, an operator or a repetition would be left without its operand.
-func (l *linter) seqItem(e ast.Expr) bool {
+// seqItem reports whether the expression at pos of the grammar as written, of the kind of e, is
+// itself an item of a sequence of at least three items, so that at least two remain and the
+// sequence stays a tuple. The grammar the front end checked has no groups, so the grammar as
+// written decides: a lookahead in a group is not an item, since deleting it would leave the group
+// empty. A lookahead that another construct holds is not either: under a discard "-", deleting it
+// would move the "-" onto the next item, and a label, an operator or a repetition would be left
+// without its operand.
+func (l *linter) seqItem(pos ast.Pos, e ast.Expr) bool {
 	control := l.control
 	found := false
-	for _, r := range l.an.order {
+	for _, r := range control.rules(l.source) {
 		control.poll()
-		walkExprControlled(r.Expr, func(x ast.Expr) {
+		astfacts.WalkExprWithPoll(r.Expr, func(x ast.Expr) {
 			control.poll()
 			if seq, ok := x.(*ast.Seq); ok && len(seq.Items) >= 3 {
-				found = found || slices.ContainsFunc(seq.Items, func(it ast.Expr) bool { control.poll(); return it == e })
+				found = found || slices.ContainsFunc(seq.Items, func(it ast.Expr) bool {
+					control.poll()
+					n, ok := it.(ast.SourceNode)
+					return ok && reflect.TypeOf(it) == reflect.TypeOf(e) && n.Source().Diagnostic() == pos
+				})
 			}
-		}, control)
+		}, control.poll)
 	}
 	return found
 }

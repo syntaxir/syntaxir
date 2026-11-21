@@ -947,7 +947,90 @@ number 38:35 *ast.Repeat #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix=
 number 38:35 *ast.CharClass #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=
 ws 39:11 *ast.Repeat #1: null=11 eng=1 match=1 succ=1 always=1 cut=0 prefix="" exact=0 fold=0 left=
 ws 39:11 *ast.CharClass #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=
-# internal/testing/codegentest/testdata/typed/direct_backtrack.sxir: does not check
+# internal/testing/codegentest/testdata/typed/direct_backtrack.sxir
+nullable: 
+nullable at end: main
+can match: main alt name bump
+base case: main alt name bump
+main 10:15 *ast.Seq #1: null=01 eng=1 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=alt
+main 10:15 *ast.Predicate #1: null=11 eng=1 match=1 succ=0 always=0 cut=0 prefix="" exact=1 fold=0 left=
+main 10:24 *ast.Capture #1: null=11 eng=1 match=1 succ=1 always=1 cut=0 prefix="" exact=0 fold=0 left=alt
+main 10:27 *ast.Repeat #1: null=11 eng=1 match=1 succ=1 always=1 cut=0 prefix="" exact=0 fold=0 left=alt
+main 10:28 *ast.Seq #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=alt
+main 10:28 *ast.Capture #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=alt
+main 10:30 *ast.Ref #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=alt
+main 10:34 *ast.Discard #1: null=11 eng=1 match=1 succ=1 always=1 cut=0 prefix="" exact=0 fold=0 left=
+main 10:35 *ast.Optional #1: null=11 eng=1 match=1 succ=1 always=1 cut=0 prefix="" exact=0 fold=0 left=
+main 10:35 *ast.Literal #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix=";" exact=1 fold=0 left=
+main 10:42 *ast.EndInput #1: null=01 eng=1 match=1 succ=0 always=0 cut=0 prefix="" exact=1 fold=0 left=
+alt 12:6 *ast.Seq #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=name,name
+alt 12:6 *ast.Choice #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=name,name
+alt 12:6 *ast.Seq #2: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=name
+alt 12:6 *ast.Capture #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=name
+alt 12:8 *ast.Ref #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=name
+alt 12:13 *ast.Literal #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="+" exact=1 fold=0 left=
+alt 12:17 *ast.Capture #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=name
+alt 12:19 *ast.Ref #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=name
+alt 12:24 *ast.Literal #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="!" exact=1 fold=0 left=
+alt 12:30 *ast.Seq #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=name
+alt 12:30 *ast.Capture #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=name
+alt 12:32 *ast.Ref #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=name
+alt 12:37 *ast.Literal #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="+" exact=1 fold=0 left=
+alt 12:41 *ast.Capture #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=name
+alt 12:43 *ast.Ref #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=name
+alt 13:5 *ast.Optional #1: null=11 eng=1 match=1 succ=1 always=1 cut=0 prefix="" exact=0 fold=0 left=
+alt 13:6 *ast.Seq #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="(" exact=0 fold=0 left=
+alt 13:6 *ast.Literal #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="(" exact=1 fold=0 left=
+alt 13:10 *ast.Capture #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=name
+alt 13:12 *ast.Ref #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=name
+alt 13:17 *ast.Literal #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix=")" exact=1 fold=0 left=
+alt 13:23 *ast.Optional #1: null=11 eng=1 match=1 succ=1 always=1 cut=0 prefix="" exact=0 fold=0 left=
+alt 13:24 *ast.Seq #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="(" exact=0 fold=0 left=
+alt 13:24 *ast.Literal #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="(" exact=1 fold=0 left=
+alt 13:28 *ast.Capture #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=name
+alt 13:30 *ast.Ref #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=name
+alt 13:35 *ast.Literal #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="." exact=1 fold=0 left=
+alt 14:5 *ast.Optional #1: null=11 eng=1 match=1 succ=1 always=1 cut=0 prefix="" exact=0 fold=0 left=
+alt 14:6 *ast.Seq #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="[" exact=0 fold=0 left=
+alt 14:6 *ast.Literal #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="[" exact=1 fold=0 left=
+alt 14:10 *ast.Capture #1: null=11 eng=1 match=1 succ=1 always=1 cut=0 prefix="" exact=0 fold=0 left=name,name
+alt 14:13 *ast.Repeat #1: null=11 eng=1 match=1 succ=1 always=1 cut=0 prefix="" exact=0 fold=0 left=name,name
+alt 14:14 *ast.Seq #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=name,name
+alt 14:14 *ast.And #1: null=10 eng=1 match=1 succ=0 always=0 cut=0 prefix="" exact=1 fold=0 left=name
+alt 14:15 *ast.Capture #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=name
+alt 14:17 *ast.Ref #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=name
+alt 14:22 *ast.Ref #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=name
+alt 14:27 *ast.Literal #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="," exact=1 fold=0 left=
+alt 14:33 *ast.Capture #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=name
+alt 14:38 *ast.Ref #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=name
+alt 14:43 *ast.Literal #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="]" exact=1 fold=0 left=
+alt 15:5 *ast.Optional #1: null=11 eng=1 match=1 succ=1 always=1 cut=0 prefix="" exact=0 fold=0 left=
+alt 15:6 *ast.Choice #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=
+alt 15:6 *ast.Seq #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="<" exact=1 fold=0 left=
+alt 15:6 *ast.Predicate #1: null=11 eng=1 match=1 succ=0 always=0 cut=0 prefix="" exact=1 fold=0 left=
+alt 15:15 *ast.Literal #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="<" exact=1 fold=0 left=
+alt 15:21 *ast.Literal #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix=">" exact=1 fold=0 left=
+alt 15:27 *ast.Optional #1: null=11 eng=1 match=1 succ=1 always=1 cut=0 prefix="" exact=0 fold=0 left=bump
+alt 15:27 *ast.Ref #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="~" exact=1 fold=0 left=bump
+alt 15:33 *ast.Capture #1: null=11 eng=1 match=1 succ=1 always=1 cut=0 prefix="" exact=0 fold=0 left=
+alt 15:74 *ast.Atomic #1: null=11 eng=1 match=1 succ=1 always=1 cut=0 prefix="" exact=0 fold=0 left=
+alt 15:35 *ast.Optional #1: null=11 eng=1 match=1 succ=1 always=1 cut=0 prefix="" exact=0 fold=0 left=
+alt 15:36 *ast.Choice #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=
+alt 15:36 *ast.Seq #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="-" exact=0 fold=0 left=
+alt 15:36 *ast.Literal #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="-" exact=1 fold=0 left=
+alt 15:40 *ast.CharClass #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=
+alt 15:46 *ast.Literal #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="!" exact=1 fold=0 left=
+alt 15:52 *ast.Seq #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="-" exact=0 fold=0 left=
+alt 15:52 *ast.Literal #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="-" exact=1 fold=0 left=
+alt 15:56 *ast.CharClass #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=
+alt 15:62 *ast.Literal #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="?" exact=1 fold=0 left=
+alt 15:68 *ast.Literal #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="+" exact=1 fold=0 left=
+name 17:27 *ast.Atomic #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=
+name 17:19 *ast.Repeat #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=
+name 17:19 *ast.CharClass #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=
+bump 18:13 *ast.Seq #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="~" exact=1 fold=0 left=
+bump 18:13 *ast.Predicate #1: null=11 eng=1 match=1 succ=0 always=0 cut=0 prefix="" exact=1 fold=0 left=
+bump 18:22 *ast.Literal #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="~" exact=1 fold=0 left=
 # internal/testing/codegentest/testdata/typed/direct_errors.sxir
 nullable: end
 nullable at end: main end
@@ -1155,7 +1238,22 @@ main 4:22 *ast.Literal #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="a
 main 4:28 *ast.Predicate #1: null=11 eng=1 match=1 succ=0 always=0 cut=0 prefix="" exact=1 fold=0 left=
 main 4:43 *ast.Any #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=
 main 4:47 *ast.Literal #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="b" exact=1 fold=0 left=
-# internal/testing/codegentest/testdata/typed/element_scope_plain.sxir: does not check
+# internal/testing/codegentest/testdata/typed/element_scope_plain.sxir
+nullable: r1
+nullable at end: r1
+can match: main r1
+base case: main r1
+main 4:15 *ast.Seq #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=r1
+main 4:15 *ast.Discard #1: null=11 eng=1 match=1 succ=1 always=1 cut=0 prefix="" exact=0 fold=0 left=r1
+main 4:16 *ast.Ref #1: null=11 eng=1 match=1 succ=1 always=1 cut=0 prefix="" exact=0 fold=0 left=r1
+main 4:19 *ast.Capture #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="a" exact=1 fold=0 left=
+main 4:21 *ast.Literal #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="a" exact=1 fold=0 left=
+r1 5:11 *ast.Repeat #1: null=11 eng=1 match=1 succ=1 always=1 cut=0 prefix="" exact=0 fold=0 left=
+r1 5:12 *ast.And #1: null=10 eng=1 match=1 succ=0 always=0 cut=0 prefix="" exact=1 fold=0 left=
+r1 5:14 *ast.Seq #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=
+r1 5:14 *ast.Capture #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=
+r1 5:16 *ast.Any #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="" exact=0 fold=0 left=
+r1 5:18 *ast.Predicate #1: null=11 eng=1 match=1 succ=0 always=0 cut=0 prefix="" exact=1 fold=0 left=
 # internal/testing/codegentest/testdata/typed/element_scope_recover.sxir
 nullable: r1
 nullable at end: r1
@@ -2182,7 +2280,7 @@ ws 44:11 *ast.CharClass #1: null=00 eng=0 match=1 succ=0 always=0 cut=0 prefix="
 # testdata/grammars/typescript/typescript.sxir sha256 faff17b599c29728a2d67c3f33dd199721c9407710a547af5af936768daa1354
 # testdata/grammars/xml/xml.sxir sha256 b6e15b97833bea2b526c2607bba1ef507c11339aedb3430b2b6ae3cc953e634d
 # testdata/grammars/yaml/yaml.sxir sha256 679092ae40a5794c3d21ade38cb6c63b17f4d62ecca6b513de79ffe25d55ee32
-# sxir.sxir sha256 14ecf5a21cef3d4a910dbe84e10cae355d0a04fed7988d9099f720e8452c353d
+# sxir.sxir sha256 98c51394d3351de0aaa097035c40cbd59aa7e61342c7b7d56acb1f2b33c59273
 # inline 0 "rule main = $$"
 nullable: 
 nullable at end: main

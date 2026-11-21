@@ -2,34 +2,53 @@ package lint
 
 import (
 	"context"
-	"strings"
+	"slices"
 
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend"
-	"syntaxir.dev/sxir/internal/frontend/parser"
-	"syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // checked runs the front end on g without cancellation. Many test grammars are one rule without
-// @start; the front end checks a copy whose first rule starts, which has the same rule names and
-// so the same rule facts for the analysis.
+// @start; the front end checks a copy whose first rule starts. The copy shares the expressions of g,
+// so the grammar that the front end checked keeps the positions of g, as RunChecked requires.
 func checked(g *ast.Grammar) *frontend.Result {
 	res, err := frontend.Run(g, compile.Options{}, nil)
 	if err == nil {
 		return res
 	}
-	text := fmt.Format(g)
-	if i := strings.Index(text, "rule "); i >= 0 && !strings.Contains(text, "@start") {
-		text = text[:i] + "@start\n" + text[i:]
-	}
-	copied, perr := parser.Parse(text)
-	if perr == nil {
+	if copied := firstRuleStarts(g); copied != nil {
 		if res, err2 := frontend.Run(copied, compile.Options{}, nil); err2 == nil {
 			return res
 		}
 	}
 	panic(err)
+}
+
+// firstRuleStarts returns a copy of g whose first rule is marked @start, or nil if g has a start
+// rule or no rule. g is not changed.
+func firstRuleStarts(g *ast.Grammar) *ast.Grammar {
+	copied := *g
+	copied.File.Decls = slices.Clone(g.File.Decls)
+	for i, d := range copied.File.Decls {
+		rd, ok := d.(*ast.RuleDef)
+		if !ok {
+			continue
+		}
+		if slices.ContainsFunc(rd.Attrs, func(a *ast.Attribute) bool { return a.Name == "start" }) {
+			return nil
+		}
+		first := *rd
+		first.Attrs = append([]*ast.Attribute{{Name: "start"}}, rd.Attrs...)
+		copied.File.Decls[i] = &first
+		for _, d := range copied.File.Decls[i+1:] {
+			if rd, ok := d.(*ast.RuleDef); ok && slices.ContainsFunc(rd.Attrs, func(a *ast.Attribute) bool { return a.Name == "start" }) {
+				return nil
+			}
+		}
+		return &copied
+	}
+	return nil
 }
 
 // runUnchecked lints g from start without a cancellation control.
