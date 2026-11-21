@@ -364,21 +364,25 @@ input, in an order that keeps the sum before each check point and each demand of
   decision and the same memo state (the seen marks, policy counts and stored entries that later calls read, as in
   [Memo Policy](#memo-policy)). Any other guard is disabled, and the alternative is tried. The plain evaluation of the
   grammar is the reference. A pass establishes the equivalence statically, for alternatives that fail at a terminal
-  without advancing after a fixed set of calls on every character the guard rejects:
-  - the left corner of the alternative, followed through first items, captures, every alternative of a choice and
-    the first calls of each rule it reaches, ends in a non-empty literal or class on every branch, with no predicate,
-    action, binding, repetition or recovery before it;
-  - no rule of the chain is the leader of a cycle of left recursion, and no call names a binding level;
-  - a rule of the chain that the parse memoizes makes no call before its own failing terminal and reads no
-    variables, so that a later call of it at the position costs one unit whether its entry answers it or not.
+  without advancing after a fixed chain of calls on every character the guard rejects:
+  - the left corner of the alternative, followed through first items, captures and the bodies of the rules it calls,
+    is a chain of calls that ends in a non-empty literal or class, with no choice, predicate, action, binding,
+    repetition, recovery or inlined call before it, so every character the guard rejects makes the same calls in
+    the same order and fails at the same terminal;
+  - no rule of the chain is the leader of a cycle of left recursion or a rule of operators, and no call names a
+    binding level.
 
-  The skip charges the calls of the chain, a static count, on the path that skips the alternative and only there,
-  and checks the counter; it may charge before it examines the next character on that path. For each call of a
-  memoized rule it makes the memo effects of the call: the seen mark and the policy counts of the first call, and
-  the failure entry, with the expectations of its terminal, that the call stores when its memoization is not
-  deferred. Whether a rule is memoized depends on the parse. A transient rule (one that only a `Document` memoizes)
-  goes straight to its body outside a `Document`, so its call there has no memo effect and its guards are kept. In a
-  `Document` parse its guards stay disabled ([Documents](#documents)).
+  The skip makes the events of the chain on the path that skips the alternative and only there. It walks the calls
+  outermost first, as the evaluation enters them. Each call counts one unit and checks the counter where the
+  evaluation checks it. A call of a rule that the parse memoizes counts its key and makes the first call's seen mark
+  and policy counts. If its memoization is deferred, the walk goes on to the next call. Otherwise it looks the call
+  up: an entry that answers the call ends the walk, with the entry's expectations; any other call goes on, and on
+  the way back the walk stores the failure entry of the call, with the expectations of the terminal and the
+  silence of the context, innermost first, as the evaluation stores them. A chain without a memoized rule is a static
+  count of units. Whether a rule is memoized depends on the parse. A transient rule (one that only a `Document`
+  memoizes) goes straight to its body outside a `Document`, so its call there has no memo effect and its guards are
+  kept. A `Document` parse does not count logical units until its reuse policy is specified
+  ([Documents](#documents)).
 - **A pass that removes a call** (a value-free twin replaced by a recognizer, for example) charges the calls it
   removed and keeps their memo effects, or is not a pass that may run under limit controls.
 
@@ -399,8 +403,9 @@ reused counts its evaluation. The reuse policy of a `Document` (which results of
 retires and which a lookup finds) is therefore normative on every backend, like the store policy of the memo. Step 3
 states it in [Documents](../../../spec/runtime/documents.md), and the total-agreement test covers reparses.
 
-A `Document` memoizes transient rules under that reuse policy, so a guard whose chain calls one stays disabled in a
-`Document` parse: skipping the call would leave out an entry that a reparse may reuse.
+A `Document` memoizes transient rules under that reuse policy, so a skip in a `Document` parse must also make the
+entries and reuse effects of the transient calls of its chain, as the evaluation makes them. Until that policy is
+specified, a parser with logical units is not built for `Document` parses, and its guards need no `Document` form.
 
 ### Streams
 
@@ -489,7 +494,10 @@ The parts of the earlier plan that have not landed are re-judged under the event
    proofs where they name the units of a backend: the linear cost proof's setting and its Document lemma, and the
    cost view's units.
 4. Each backend in turn (closure, bytecode machines, generated Go, generated TypeScript), each behind the
-   conformance suites and the total-agreement test.
+   conformance suites and the total-agreement test. Generated Go counts logical units first for parses from scratch,
+   with guards kept by the equivalence of
+   [Obligations of Optimization Passes](#obligations-of-optimization-passes). `Document` parses follow once their
+   reuse policy is specified, with the `Document` tests of [Testing](#testing).
 5. The performance document and the strategy's safety claims, with the measured overhead.
 
 ## Alternatives Considered
@@ -519,11 +527,15 @@ The parts of the earlier plan that have not landed are re-judged under the event
   insertion) are rejected within the bound.
 - **Passes.** Mutants that drop or double one charge in fusion, inlining, dispatch and check hoisting fail the
   differential test.
-- **Kept guards.** A grammar whose skipped calls of a memoized rule decide when that rule switches to storing every
-  first call: its total with the guards kept equals the total of an evaluation that tries every guarded alternative,
-  and mutants that charge the skipped calls without their seen marks, policy counts or stored entries fail it. The
-  same holds for transient rules outside a `Document`, and a `Document` reparse of the same grammar keeps the total
-  of the parse from scratch.
+- **Kept guards.** Each parse's total and memo state (seen marks, policy counts and the entries in chain order) with
+  the guards kept equal those of an evaluation that tries every guarded alternative. The grammars include one whose
+  skipped calls of a memoized rule decide when that rule switches to storing every first call, one whose chains pass
+  memoized rules that call before their terminal, with an entry that answers mid-chain and stores innermost first,
+  and one whose memoized rule reads a variable. Mutants that leave out a call's unit, key, seen mark, policy counts
+  or stored entry, store outermost first, use the wrong key or let an answering entry continue the walk fail it.
+  The same holds for transient rules outside a `Document`. Once `Document` parses count logical units, a `Document`
+  reparse of such a grammar keeps the total of the parse from scratch, and a mutant that skips without the entries
+  of transient calls fails it.
 - **Documents.** The first parse equals the parse from scratch on every backend. A reparse never exceeds the parse from
   scratch on the edit fuzz corpus.
 - **Streams.** Deliveries before an interruption are identical on every backend. Under the default limit, a sweep of

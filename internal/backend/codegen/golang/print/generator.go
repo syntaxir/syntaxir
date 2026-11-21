@@ -8,7 +8,6 @@ import (
 	"io"
 	"maps"
 	"math"
-	"os"
 	"path"
 	"slices"
 	"sort"
@@ -209,9 +208,15 @@ func generateOnce(g *ast.Grammar, c common.Compiler, p common.Passes, opts commo
 			return nil, err
 		}
 		genGo.Logical = true
-		genGo.LogicalKeepGuards = opts.LogicalVariant == "keep-guards"
-		genGo.LogicalEvent = opts.LogicalVariant == "event"
-		genGo.LogicalTransient = opts.LogicalVariant == "transient"
+		switch opts.LogicalVariant {
+		case "":
+		case "keep-guards":
+			genGo.LogicalGuards = lowerdata.GuardsKeep
+		case "event":
+			genGo.LogicalGuards = lowerdata.GuardsEvent
+		default:
+			return nil, fmt.Errorf("unknown variant %q of logical units", opts.LogicalVariant)
+		}
 	}
 	// Go prints every form of the Flow passes.
 	genGo.FlowTarget = flowpass.Target{Terminals: true, ClassRuns: true, ClassTables: true, GuardedClasses: true, InlineLiterals: true}
@@ -434,12 +439,6 @@ func ParseRule(name, input string, opts ...ParseOption) (*Node, error) {
 		out.WriteString("func init() {\n" + tracedInit + "}\n\n")
 	}
 	out.WriteString(genGo.Methods.String())
-	if genGo.Logical {
-		// Measured by the prototype: the guards kept with a static count, and those disabled.
-		if os.Getenv("SXIR_LOGICAL_STATS") != "" {
-			fmt.Fprintf(os.Stderr, "logical units: guards kept %d, disabled %d\n", genGo.guardsKept, genGo.guardsDisabled)
-		}
-	}
 	whole, err := format.Source([]byte("package " + opts.Package + "\n" + out.String()))
 	if err != nil {
 		return nil, fmt.Errorf("generated code does not compile: %w\n%s", err, out.String())
@@ -536,20 +535,6 @@ func goFieldType(t *types.FieldType) string {
 // TypeScript generator through common.Generator.
 type Generator struct {
 	common.Generator
-	// guards and guardsOf cache the logical counts of the guards of the Core IR guardsOf (logicalGuard);
-	// guardsKept and guardsDisabled count the guards printed under logical units.
-	guards                     map[*core.First]guardInfo
-	guardsOf                   *core.Module
-	guardsKept, guardsDisabled int
-	// LogicalKeepGuards keeps every dispatch guard under Logical without its charge: a variant
-	// that measures what disabling the guards costs, and does not count exactly.
-	LogicalKeepGuards bool
-	// LogicalEvent prints the reference of the exactness tests under Logical: each event counted
-	// where it happens, with no static sum (every dispatch guard disabled).
-	LogicalEvent bool
-	// LogicalTransient admits transient rules into the chains of skipped alternatives: a
-	// measurement variant (see compiler.GoConfig.LogicalVariant).
-	LogicalTransient    bool
 	directTypedDocument bool
 	budgetClassNames    map[string]string
 	budgetClassKeys     []string

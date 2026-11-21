@@ -55,6 +55,22 @@ type Unit struct {
 	Refuse func(i int, f *code.Func) bool
 }
 
+// LogicalGuards selects what the guard of an alternative does under logical compute units.
+type LogicalGuards uint8
+
+const (
+	// GuardsExact keeps a guard when skipping the alternative can leave the state that evaluating
+	// it leaves: when core.GuardCalls describes the calls of the alternative, whose effects the skip
+	// makes (flow.skippedCalls). Every other guard is left out, and the alternative is tried.
+	GuardsExact LogicalGuards = iota
+	// GuardsEvent keeps only the guards whose skip makes no call, so that every call is counted
+	// where it happens: the reference of the tests of GuardsExact.
+	GuardsEvent
+	// GuardsKeep keeps every guard and makes none of the effects of the calls it skips. It is not
+	// exact, and measures what the effects cost.
+	GuardsKeep
+)
+
 // Options selects the forms the lowering writes.
 type Options struct {
 	// Budget charges one compute unit on each loop iteration and for each character a Peek reads;
@@ -63,6 +79,8 @@ type Options struct {
 	// Logical emits the step of each loop iteration without Budget, as the check of a counter of
 	// logical compute units (design record 076); nothing else charges.
 	Logical bool
+	// Guards selects what the guards of choices do under Logical.
+	Guards LogicalGuards
 	// Recovers reports that the module can append recovered errors (flowlower.Recovers), so backtracking
 	// points save their number.
 	Recovers bool

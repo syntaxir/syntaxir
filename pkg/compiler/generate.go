@@ -96,15 +96,14 @@ type GoConfig struct {
 	// parse that sets no limit runs it too, and is slower than with a parser generated without
 	// limit controls.
 	LimitControls bool
-	// LogicalUnits is internal and measures a prototype only: with LimitControls, the functions count
-	// logical compute units in place of the charges of the limit-controlled form.
+	// LogicalUnits is internal: with LimitControls, the functions count logical compute units
+	// (design record 076) in place of the charges of the limit-controlled form. It does not cover
+	// Documents, streams, observability, left recursion, Operators Rules or recovery.
 	LogicalUnits bool
-	// LogicalVariant selects a variant of LogicalUnits for measurement: "keep-guards" keeps every
-	// dispatch guard without its charge (inexact, to measure what disabling costs); "event" counts
-	// each event where it happens, with no static sum, as the reference of the exactness tests;
-	// "transient" also keeps the guards of chains through transient rules, which a Document would
-	// look up (inexact under Documents, which the prototype refuses), to measure what excluding
-	// them costs.
+	// LogicalVariant selects a variant of LogicalUnits for tests and measurements: "keep-guards"
+	// keeps every dispatch guard without the effects of the calls it skips (inexact, to measure what
+	// the effects cost); "event" keeps only the guards whose skip makes no call, so that each call is
+	// counted where it happens, as the reference of the exactness tests.
 	LogicalVariant string
 	// Recognize also generates a function Recognize, which checks the input against the start
 	// rule without building a tree, like runtime.Parser.Recognize.

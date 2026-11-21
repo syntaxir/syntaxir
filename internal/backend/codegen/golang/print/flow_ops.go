@@ -120,6 +120,8 @@ func (p *flowPrinter) op(c *code.Call, args []string) string {
 	case flow.OpObserveSkip:
 		// The alternative's expression begins with the call it skips, if any.
 		return strings.TrimSuffix(strings.TrimPrefix(g.traceSkip(g.Flow.M.Origin.Of(c.Imm.(core.Node))), "\n"), "\n")
+	case flow.OpSkippedCalls:
+		return p.skippedCalls(c.Imm.(flow.SkippedCalls))
 	case flow.OpSetEnv:
 		return "p.Env = " + args[0]
 	case flow.OpSetFrame:
@@ -173,32 +175,6 @@ func (p *flowPrinter) op(c *code.Call, args []string) string {
 			}
 		} else {
 			cond = NegateCondition(g.ControlledClassReject(grammarClass(guard.Class)))
-		}
-		if g.Logical && !g.LogicalKeepGuards {
-			info := g.logicalGuard(g.Flow.M, guard)
-			if g.LogicalEvent && info.calls > 0 {
-				// The reference counts each call where it happens. A guard whose skip counts nothing
-				// stays: the alternative after it may begin past the character it tested.
-				info = guardInfo{}
-			}
-			if !info.static {
-				// Disabled: the alternative is always tried. The condition stays, dead, for the
-				// variables of the peeked character.
-				g.guardsDisabled++
-				return fmt.Sprintf("false && %s && (%s)", args[1], chIdent.ReplaceAllString(cond, args[0]))
-			}
-			g.guardsKept++
-			if info.calls > 0 {
-				// The skip reproduces the calls: the policy effects of each memoized one, then their
-				// units and a check of the counter.
-				var memo strings.Builder
-				if info.memo != "" {
-					for _, r := range strings.Split(info.memo, ",") {
-						fmt.Fprintf(&memo, " && p.SkipFirstCall(rules[%s])", r)
-					}
-				}
-				return fmt.Sprintf("!(%s && (%s)) && %s%s && p.SkipCalls(%d)", args[1], chIdent.ReplaceAllString(cond, args[0]), depthLimit(guard.Depth), memo.String(), info.calls)
-			}
 		}
 		return fmt.Sprintf("!(%s && (%s)) && %s", args[1], chIdent.ReplaceAllString(cond, args[0]), depthLimit(guard.Depth))
 	case flow.OpCallRule:

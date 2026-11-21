@@ -335,7 +335,7 @@ type grammar struct {
 	// NoBudgetControls reports that the parser was generated without limit controls, so that a parse
 	// asking for them fails.
 	NoBudgetControls bool
-	// Logical reports a parser generated with logical compute units (units.go), a prototype.
+	// Logical reports a parser generated with logical compute units (units.go).
 	Logical bool
 	// MaxDepth is the default maximum nesting of recursive rule calls.
 	maxDepth int
@@ -536,6 +536,7 @@ type parseOptions struct {
 	unitsLimit uint64
 	unitsCtx   context.Context
 	unitsOut   *uint64
+	memoOut    *string
 	// observe selects the observation of the parse (trace.go).
 	observe observeOptions
 	// streaming is set by the stream entry points, which alone accept the
@@ -777,6 +778,9 @@ func parseResolvedSpend(r *Rule, input string, o parseOptions) (n *sxirvalue.Nod
 	v, ok := p.Call(r.forParse(p), 0)
 	p.Control.Check()
 	p.endUnits(!ok || p.Pos != p.n)
+	if p.units.memo != nil {
+		p.reportMemo(p.memoLines())
+	}
 	if ok && p.Pos == p.n {
 		if len(p.Recovered) > 0 {
 			return v, sxirvalue.SyntaxErrors(p.recoveredErrors())

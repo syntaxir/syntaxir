@@ -4,6 +4,7 @@
 package policyevent
 
 import (
+	types "syntaxir.dev/sxir/internal/bench/parsers/policyevent/types"
 	rt "syntaxir.dev/sxir/pkg/runtime/libgo"
 	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
@@ -29,6 +30,153 @@ func ParseRule(name, input string, opts ...rt.ParseOption) (*sxirvalue.Node, err
 		return nil, err
 	}
 	return rt.RunParseResolved(r, input, o)
+}
+
+func tinit() {
+}
+
+func tv0(a *tslabs, v any) *types.TNode[types.Tuple1[*types.TNode[[]any]]] {
+	a.spend()
+	return tv1(a, v)
+}
+
+func tv1(a *tslabs, v any) *types.TNode[types.Tuple1[*types.TNode[[]any]]] {
+	a.spend()
+	switch x := v.(type) {
+	case *rt.TSeq:
+		if x.Typ == rt.TypeTupleValue || x.Typ == rt.TypeListValue {
+			return nil
+		}
+		out := &types.TNode[types.Tuple1[*types.TNode[[]any]]]{Span: x.Span}
+		out.Value = tv2(a, x)
+		return out
+	case *rt.TError:
+		return nil
+	case rt.TVal:
+		if x.TStruct() {
+			return nil
+		}
+		s, e := x.TSpan()
+		text, _ := x.TText()
+		_ = text
+		out := &types.TNode[types.Tuple1[*types.TNode[[]any]]]{Span: rt.Span{Start: s, End: e}}
+		out.Value = tv2(a, text)
+		return out
+	}
+	return nil
+}
+
+func tv2(a *tslabs, v any) types.Tuple1[*types.TNode[[]any]] {
+	a.spend()
+	var out types.Tuple1[*types.TNode[[]any]]
+	x, _ := v.(*rt.TSeq)
+	if x == nil {
+		return out
+	}
+	out.E0 = tv3(a, rt.TKid(x.Kids, 0))
+	return out
+}
+
+func tv3(a *tslabs, v any) *types.TNode[[]any] {
+	a.spend()
+	switch x := v.(type) {
+	case *rt.TSeq:
+		if x.Typ == rt.TypeTupleValue || x.Typ == rt.TypeListValue {
+			return nil
+		}
+		out := &types.TNode[[]any]{Span: x.Span}
+		out.Value = tl0(a, x)
+		return out
+	case *rt.TError:
+		return nil
+	case rt.TVal:
+		if x.TStruct() {
+			return nil
+		}
+		s, e := x.TSpan()
+		text, _ := x.TText()
+		_ = text
+		out := &types.TNode[[]any]{Span: rt.Span{Start: s, End: e}}
+		out.Value = tl0(a, text)
+		return out
+	}
+	return nil
+}
+
+func tl0(a *tslabs, v any) []any {
+	a.spend()
+	if v == nil {
+		return nil
+	}
+	n, _ := v.(*rt.TSeq)
+	if n == nil {
+		return []any{}
+	}
+	out := rt.AllocSlice(&a.tl0Chunk, len(n.Kids))
+	for i, c := range n.Kids {
+		a.spend()
+		out[i] = tv4(a, c)
+	}
+	return out
+}
+
+func tv4(a *tslabs, v any) any {
+	a.spend()
+	return rt.TPubIn(types.SXIRHooks, nil, v)
+}
+
+type tslabs struct {
+	control  *rt.BudgetControl
+	result   bool
+	steps    uint64
+	tl0Chunk rt.Chunk[any]
+}
+
+func (a *tslabs) SetBudgetControl(c *rt.BudgetControl) { a.control = c }
+
+func (a *tslabs) spend() {
+	if a.control == nil {
+		return
+	}
+	if a.result {
+		a.steps++
+		if a.steps%256 == 0 {
+			a.control.Check()
+		}
+		return
+	}
+	a.control.Charge(1)
+}
+
+func (a *tslabs) MemoryBytes() uint64 { return a.tl0Chunk.MemoryBytes() }
+
+// ParseValue parses the input like Parse and returns the result as typed values. If the parse recovered
+// from errors, the result is returned together with SyntaxErrors; an Error node where a struct
+// type is expected becomes nil.
+// It builds the values directly, without the nodes Parse returns.
+func ParseValue(input string, opts ...rt.ParseOption) (*types.TNode[types.Tuple1[*types.TNode[[]any]]], error) {
+	a := &tslabs{}
+	return rt.TParse(trules[0], input, opts, a, func(v any) *types.TNode[types.Tuple1[*types.TNode[[]any]]] { a.result = true; return tv0(a, v) })
+}
+
+// ParseRuleValue parses the whole input with the named start rule and returns its typed value; an empty
+// name selects the grammar's default start rule.
+// Recovered values accompany SyntaxErrors. Nil results and failed parses return the selected type's zero value.
+// Invalid options and names of rules that are not start rules return nil with an error. Start rule result types:
+//
+//	doc: *TNode[Tuple1[*TNode[[]any]]]
+func ParseRuleValue(name, input string, opts ...rt.ParseOption) (any, error) {
+	o, err := rt.ResolveOptions(sxirGrammar, opts)
+	if err != nil {
+		return nil, err
+	}
+	switch name {
+	case "doc", "":
+		a := &tslabs{}
+		return rt.TParseResolved(trules[0], input, o, a, func(v any) *types.TNode[types.Tuple1[*types.TNode[[]any]]] { a.result = true; return tv0(a, v) })
+	default:
+		return nil, sxirGrammar.StartError(name)
+	}
 }
 
 var sh1 = rt.Shaper{Elems: false, K: 1, Mode: 1, Tuple: false, Shared: false}
@@ -79,6 +227,9 @@ func init() {
 	sxirGrammar.Starts = []string{"doc"}
 	sxirGrammar.DefaultStart = "doc"
 	sxirGrammar.Logical = true
+	trules = rt.NewTRules(rules)
+	defer tinit()
+	trules[0].Entry = s0
 }
 
 func e2(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
@@ -136,56 +287,51 @@ fail:
 
 func e6(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	var x1 rt.Mark
-	var v2, v10, v12, v13, v14, v18 *sxirvalue.Node
-	var x4 rune
-	var x5, ok bool
-	var x8, x11, x17 int
-	var x9 []*sxirvalue.Node
+	var v2, v7, v9, v10, v11, v17 *sxirvalue.Node
+	var x5, x8, x16 int
+	var x6 []*sxirvalue.Node
+	var ok, x13 bool
+	var x12 rune
 	x1 = p.Mark()
-	x4, _, x5 = p.NextOrdinary()
-	if false && x5 && (x4 == 97) {
-		p.ExpectOrdinary(p.Pos, 5)
-		goto L6
+	x5 = p.Pos
+	x6 = p.Nodes(2)[:0]
+	if v7, ok = p.CallLogical(rules[3], 0); !ok {
+		goto L4
 	}
+	x6 = append(x6, v7)
 	x8 = p.Pos
-	x9 = p.Nodes(2)[:0]
-	if v10, ok = p.CallLogical(rules[3], 0); !ok {
-		goto L7
-	}
-	x9 = append(x9, v10)
-	x11 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 33 {
 		p.Pos++
 		p.Units += 1
-	} else if _, ok = p.MatchLiteralLogical(lit3, "!", 6, false); !ok {
-		goto L7
+	} else if _, ok = p.MatchLiteralLogical(lit3, "!", 5, false); !ok {
+		goto L4
 	}
-	v12 = p.NewTerminalOrdinary(x11, "!")
-	x9 = append(x9, v12)
-	v13 = p.NewBranchOrdinary(rt.SeqKind, x8, x9)
-	v14, _ = p.ShapeSingle(sh4, v13, x1.Pos)
-	v2 = v14
+	v9 = p.NewTerminalOrdinary(x8, "!")
+	x6 = append(x6, v9)
+	v10 = p.NewBranchOrdinary(rt.SeqKind, x5, x6)
+	v11, _ = p.ShapeSingle(sh4, v10, x1.Pos)
+	v2 = v11
 	goto L3
-L7:
+L4:
 	p.Reset(x1)
-L6:
-	if !(x5 && (x4 == 99)) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 7)
-		goto L15
+	x12, _, x13 = p.NextOrdinary()
+	if !(x13 && (x12 == 99)) && p.Depth <= p.MaxDepth {
+		p.ExpectOrdinary(p.Pos, 6)
+		goto L14
 	}
-	x17 = p.Pos
+	x16 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 99 {
 		p.Pos++
 		p.Units += 1
-	} else if _, ok = p.MatchLiteralLogical(lit5, "c", 7, false); !ok {
-		goto L16
+	} else if _, ok = p.MatchLiteralLogical(lit5, "c", 6, false); !ok {
+		goto L15
 	}
-	v18 = p.NewTerminalOrdinary(x17, "c")
-	v2 = v18
+	v17 = p.NewTerminalOrdinary(x16, "c")
+	v2 = v17
 	goto L3
-L16:
-	p.Reset(x1)
 L15:
+	p.Reset(x1)
+L14:
 	goto fail
 L3:
 	return v2, true
@@ -195,56 +341,51 @@ fail:
 
 func e9(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	var x1 rt.Mark
-	var v2, v10, v12, v13, v14, v18 *sxirvalue.Node
-	var x4 rune
-	var x5, ok bool
-	var x8, x11, x17 int
-	var x9 []*sxirvalue.Node
+	var v2, v7, v9, v10, v11, v17 *sxirvalue.Node
+	var x5, x8, x16 int
+	var x6 []*sxirvalue.Node
+	var ok, x13 bool
+	var x12 rune
 	x1 = p.Mark()
-	x4, _, x5 = p.NextOrdinary()
-	if false && x5 && (x4 == 97) {
-		p.ExpectOrdinary(p.Pos, 5)
-		goto L6
+	x5 = p.Pos
+	x6 = p.Nodes(2)[:0]
+	if v7, ok = p.CallLogical(rules[3], 0); !ok {
+		goto L4
 	}
+	x6 = append(x6, v7)
 	x8 = p.Pos
-	x9 = p.Nodes(2)[:0]
-	if v10, ok = p.CallLogical(rules[3], 0); !ok {
-		goto L7
-	}
-	x9 = append(x9, v10)
-	x11 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 46 {
 		p.Pos++
 		p.Units += 1
-	} else if _, ok = p.MatchLiteralLogical(lit7, ".", 8, false); !ok {
-		goto L7
+	} else if _, ok = p.MatchLiteralLogical(lit7, ".", 7, false); !ok {
+		goto L4
 	}
-	v12 = p.NewTerminalOrdinary(x11, ".")
-	x9 = append(x9, v12)
-	v13 = p.NewBranchOrdinary(rt.SeqKind, x8, x9)
-	v14, _ = p.ShapeSingle(sh4, v13, x1.Pos)
-	v2 = v14
+	v9 = p.NewTerminalOrdinary(x8, ".")
+	x6 = append(x6, v9)
+	v10 = p.NewBranchOrdinary(rt.SeqKind, x5, x6)
+	v11, _ = p.ShapeSingle(sh4, v10, x1.Pos)
+	v2 = v11
 	goto L3
-L7:
+L4:
 	p.Reset(x1)
-L6:
-	if !(x5 && (x4 == 98)) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 9)
-		goto L15
+	x12, _, x13 = p.NextOrdinary()
+	if !(x13 && (x12 == 98)) && p.Depth <= p.MaxDepth {
+		p.ExpectOrdinary(p.Pos, 8)
+		goto L14
 	}
-	x17 = p.Pos
+	x16 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 98 {
 		p.Pos++
 		p.Units += 1
-	} else if _, ok = p.MatchLiteralLogical(lit8, "b", 9, false); !ok {
-		goto L16
+	} else if _, ok = p.MatchLiteralLogical(lit8, "b", 8, false); !ok {
+		goto L15
 	}
-	v18 = p.NewTerminalOrdinary(x17, "b")
-	v2 = v18
+	v17 = p.NewTerminalOrdinary(x16, "b")
+	v2 = v17
 	goto L3
-L16:
-	p.Reset(x1)
 L15:
+	p.Reset(x1)
+L14:
 	goto fail
 L3:
 	return v2, true
@@ -263,7 +404,7 @@ func e11(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	if p.Pos < len(p.In) && p.In[p.Pos] == 97 {
 		p.Pos++
 		p.Units += 1
-	} else if _, ok = p.MatchLiteralLogical(lit10, "a", 5, false); !ok {
+	} else if _, ok = p.MatchLiteralLogical(lit10, "a", 9, false); !ok {
 		goto fail
 	}
 	v4 = p.NewTerminalOrdinary(x3, "a")
@@ -365,4 +506,269 @@ func r4(p *rt.Parser) (*sxirvalue.Node, bool) {
 	return v, ok
 }
 
-const _ = rt.Protocol24
+var trules []*rt.TRule
+
+func s0(p *rt.TParser) (any, bool) {
+	p.Units++
+	var start, x1, x3, x4, x6, x8 int
+	var v, v9, v12, v14, v15, v16, v17 any
+	var x2 []any
+	var ok bool
+	start = p.Pos
+	x1 = p.Pos
+	x2 = p.NewVals(1)[:0]
+	x3, x4 = p.Pos, len(p.KidStack)
+	for {
+		if p.Units > p.UnitsCheck {
+			p.PollUnits()
+		}
+		x6 = p.Pos
+		x8 = p.Pos
+		if v12, ok = s1(p); !ok {
+			goto L11
+		}
+		v9 = v12
+		goto L10
+	L11:
+		p.Pos = x8
+		if v14, ok = s2(p); !ok {
+			goto L13
+		}
+		v9 = v14
+		goto L10
+	L13:
+		p.Pos = x8
+		goto L7
+	L10:
+		v15 = p.ScopeValue(sh1, v9, x6)
+		p.PushKid(v15)
+		if p.Pos == x6 {
+			break
+		}
+		continue
+	L7:
+		p.Pos = x6
+		break
+	}
+	v16 = p.NewNodeOrdinary("list", x3, p.Pos, p.Kids(x4))
+	x2 = append(x2, v16)
+	if !p.AtEndBatchOrdinary() {
+		p.ExpectOrdinary(p.Pos, rt.IdEndInput)
+		goto fail
+	}
+	v17 = p.NewNodeOrdinary("tuple", x1, p.Pos, x2)
+	v = p.ScopeValue(sh13, v17, start)
+	if n := rt.AsTval(v); n != nil {
+		n.TSetFresh(false)
+	}
+	return v, true
+fail:
+	p.Pos = start
+	return nil, false
+}
+
+func s1(p *rt.TParser) (any, bool) {
+	p.Units++
+	var start, x1, x5, x8, x16 int
+	var v, v2, v7, v9, v10, v11, v17 any
+	var x6 []any
+	var ok, x13 bool
+	var x12 rune
+	start = p.Pos
+	x1 = p.Pos
+	x5 = p.Pos
+	x6 = p.NewVals(2)[:0]
+	if v7, ok = u3(p); !ok {
+		goto L4
+	}
+	x6 = append(x6, v7)
+	x8 = p.Pos
+	if p.Pos < len(p.In) && p.In[p.Pos] == 33 {
+		p.Pos++
+		p.Units += 1
+	} else if _, ok = p.Parser.MatchLiteralLogical(lit3, "!", 5, false); !ok {
+		goto L4
+	}
+	v9 = p.NewMatchOrdinary(x8, p.Pos, "!", true)
+	x6 = append(x6, v9)
+	v10 = p.NewNodeOrdinary("tuple", x5, p.Pos, x6)
+	v11, _ = p.ShapeSingle(sh4, v10, x1)
+	v2 = v11
+	goto L3
+L4:
+	p.Pos = x1
+	x12, _, x13 = p.NextOrdinary()
+	if !(x13 && (x12 == 99)) && p.Depth <= p.MaxDepth {
+		p.ExpectOrdinary(p.Pos, 6)
+		goto L14
+	}
+	x16 = p.Pos
+	if p.Pos < len(p.In) && p.In[p.Pos] == 99 {
+		p.Pos++
+		p.Units += 1
+	} else if _, ok = p.Parser.MatchLiteralLogical(lit5, "c", 6, false); !ok {
+		goto L15
+	}
+	v17 = p.NewMatchOrdinary(x16, p.Pos, "c", true)
+	v2 = v17
+	goto L3
+L15:
+	p.Pos = x1
+L14:
+	goto fail
+L3:
+	v = p.ScopeValue(sh1, v2, start)
+	if n := rt.AsTval(v); n != nil {
+		n.TSetFresh(false)
+	}
+	return v, true
+fail:
+	p.Pos = start
+	return nil, false
+}
+
+func s2(p *rt.TParser) (any, bool) {
+	p.Units++
+	var start, x1, x5, x8, x16 int
+	var v, v2, v7, v9, v10, v11, v17 any
+	var x6 []any
+	var ok, x13 bool
+	var x12 rune
+	start = p.Pos
+	x1 = p.Pos
+	x5 = p.Pos
+	x6 = p.NewVals(2)[:0]
+	if v7, ok = u3(p); !ok {
+		goto L4
+	}
+	x6 = append(x6, v7)
+	x8 = p.Pos
+	if p.Pos < len(p.In) && p.In[p.Pos] == 46 {
+		p.Pos++
+		p.Units += 1
+	} else if _, ok = p.Parser.MatchLiteralLogical(lit7, ".", 7, false); !ok {
+		goto L4
+	}
+	v9 = p.NewMatchOrdinary(x8, p.Pos, ".", true)
+	x6 = append(x6, v9)
+	v10 = p.NewNodeOrdinary("tuple", x5, p.Pos, x6)
+	v11, _ = p.ShapeSingle(sh4, v10, x1)
+	v2 = v11
+	goto L3
+L4:
+	p.Pos = x1
+	x12, _, x13 = p.NextOrdinary()
+	if !(x13 && (x12 == 98)) && p.Depth <= p.MaxDepth {
+		p.ExpectOrdinary(p.Pos, 8)
+		goto L14
+	}
+	x16 = p.Pos
+	if p.Pos < len(p.In) && p.In[p.Pos] == 98 {
+		p.Pos++
+		p.Units += 1
+	} else if _, ok = p.Parser.MatchLiteralLogical(lit8, "b", 8, false); !ok {
+		goto L15
+	}
+	v17 = p.NewMatchOrdinary(x16, p.Pos, "b", true)
+	v2 = v17
+	goto L3
+L15:
+	p.Pos = x1
+L14:
+	goto fail
+L3:
+	v = p.ScopeValue(sh1, v2, start)
+	if n := rt.AsTval(v); n != nil {
+		n.TSetFresh(false)
+	}
+	return v, true
+fail:
+	p.Pos = start
+	return nil, false
+}
+
+// rule word
+func u3(p *rt.TParser) (any, bool) {
+	p.Units++
+	if !p.FirstCall(rules[3]) {
+		return p.CallMemo(trules[3], v3)
+	}
+	return v3(p)
+}
+
+func v3(p *rt.TParser) (any, bool) {
+	var start, x1, x3 int
+	var v, v4, v5, v6 any
+	var x2 []any
+	var ok bool
+	start = p.Pos
+	x1 = p.Pos
+	x2 = p.NewVals(2)[:0]
+	x3 = p.Pos
+	if p.Pos < len(p.In) && p.In[p.Pos] == 97 {
+		p.Pos++
+		p.Units += 1
+	} else if _, ok = p.Parser.MatchLiteralLogical(lit10, "a", 9, false); !ok {
+		goto fail
+	}
+	v4 = p.NewMatchOrdinary(x3, p.Pos, "a", true)
+	x2 = append(x2, v4)
+	if v5, ok = s4(p); !ok {
+		goto fail
+	}
+	x2 = append(x2, v5)
+	v6 = p.NewNodeOrdinary("tuple", x1, p.Pos, x2)
+	v = p.ScopeValue(sh4, v6, start)
+	if n := rt.AsTval(v); n != nil {
+		n.TSetFresh(false)
+	}
+	return v, true
+fail:
+	p.Pos = start
+	return nil, false
+}
+
+func s4(p *rt.TParser) (any, bool) {
+	p.Units++
+	var start, x1, x2, x3, x4, size, x6 int
+	var v, v7, v8, v9 any
+	var ch rune
+	var ok bool
+	start = p.Pos
+	x1, x3, x2 = p.Pos, len(p.KidStack), 0
+	for {
+		if p.Units > p.UnitsCheck {
+			p.PollUnits()
+		}
+		x4 = p.Pos
+		ch, size, ok = p.NextOrdinary()
+		if !ok || !(ch >= 97 && ch <= 122) {
+			p.ExpectOrdinary(p.Pos, 10)
+			goto L5
+		}
+		x6 = p.Pos
+		p.Pos += size
+		p.Units += uint64(size)
+		v7 = p.NewMatchOrdinary(x6, p.Pos, p.Text(x6, p.Pos), true)
+		v8 = p.ScopeValue(sh1, v7, x4)
+		p.PushKid(v8)
+		x2++
+		if x2 == 16 {
+			x2 = p.ScanReach(2, x1, x2)
+		}
+		continue
+	L5:
+		p.Pos = x4
+		break
+	}
+	v9 = p.NewNodeOrdinary("list", x1, p.Pos, p.ScanKids(2, x1, x3, x2))
+	v = p.ScopeValue(sh1, v9, start)
+	if n := rt.AsTval(v); n != nil {
+		n.TSetFresh(false)
+	}
+	return v, true
+}
+
+const _ = types.SXIRSchema_cb8710b2035b698a
+
+const _ = rt.Protocol26

@@ -1,4 +1,4 @@
-protocol 25
+protocol 26
 const BaseString untyped int = 0
 const ExpFar ExpID = 536870912
 const IdAny ExpID = 0
@@ -105,13 +105,16 @@ func WithDiagnosticCallback(func(*syntaxir.dev/sxir/pkg/runtime/value.SyntaxErro
 func WithDiagnosticLimit(int) ParseOption
 func WithExpectations() ParseOption
 func WithLimits(syntaxir.dev/sxir/pkg/runtime.Limits) ParseOption
+func WithMemoReport(*string) ParseOption
 func WithProfile(*syntaxir.dev/sxir/pkg/runtime/instrument.Profile) ParseOption
 func WithTrace(func(syntaxir.dev/sxir/pkg/runtime/instrument.TraceEvent)) ParseOption
 func WithTraceFilter(...string) ParseOption
 func WithTraceMaxDepth(int) ParseOption
 func WithUnit(syntaxir.dev/sxir/pkg/runtime/input.PositionUnit) ParseOption
+func WithUnitsReport(*uint64) ParseOption
 method (*ActCtx) Cap(int) any
 method (*ActCtx) NewList([]*syntaxir.dev/sxir/pkg/runtime/value.Node) *syntaxir.dev/sxir/pkg/runtime/value.Node
+method (*ActCtx) NewListLogical([]*syntaxir.dev/sxir/pkg/runtime/value.Node) *syntaxir.dev/sxir/pkg/runtime/value.Node
 method (*ActCtx) TermCastFailed(any, *FieldType, int, int) any
 method (*ActCtx) TermSetField(*syntaxir.dev/sxir/pkg/runtime/value.Node, string, any)
 method (*ActCtx) TermStruct(string, int) *syntaxir.dev/sxir/pkg/runtime/value.Node
@@ -146,6 +149,7 @@ method (*Parser) AtLineStartOrdinary() bool
 method (*Parser) AttachCaptures(*syntaxir.dev/sxir/pkg/runtime/value.Node, []string, *CaptureFrame, int, int) *syntaxir.dev/sxir/pkg/runtime/value.Node
 method (*Parser) Bind(int, func(*ActCtx) (any, any)) bool
 method (*Parser) Call(*Rule, int) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
+method (*Parser) CallLogical(*Rule, int) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) ChargeKey(*Rule)
 method (*Parser) DiagnosticAttr(matcher, ExpID) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) DropKids(int)
@@ -162,6 +166,7 @@ method (*Parser) FirstCall(*Rule) bool
 method (*Parser) InvokePlain(*Rule, int) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) Isolate(int) ExpMark
 method (*Parser) Keep([]ExpID) []ExpID
+method (*Parser) KeyUnits(*Rule)
 method (*Parser) Kids(int) []*syntaxir.dev/sxir/pkg/runtime/value.Node
 method (*Parser) LiteralText(int, string) string
 method (*Parser) LookBegin(int)
@@ -169,11 +174,14 @@ method (*Parser) LookEnd(bool)
 method (*Parser) MakeError(int, []ExpID) *syntaxir.dev/sxir/pkg/runtime/value.SyntaxError
 method (*Parser) Mark() Mark
 method (*Parser) MatchAny(bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
+method (*Parser) MatchAnyLogical(bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) MatchAnyOrdinary(bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) MatchLiteral([]rune, string, ExpID, bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) MatchLiteralFold([]rune, ExpID, bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
+method (*Parser) MatchLiteralFoldLogical([]rune, ExpID, bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) MatchLiteralFoldOrdinary([]rune, ExpID, bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) MatchLiteralFoldTraced([]rune, ExpID, bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
+method (*Parser) MatchLiteralLogical([]rune, string, ExpID, bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) MatchLiteralOrdinary([]rune, string, ExpID, bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) MatchLiteralTraced([]rune, string, ExpID, bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) MergeExpected(int, []ExpID)
@@ -191,6 +199,7 @@ method (*Parser) OperatorsRuleParse(*Rule, int) (*syntaxir.dev/sxir/pkg/runtime/
 method (*Parser) Peek() (rune, int, bool)
 method (*Parser) PeekOrdinary() (rune, int, bool)
 method (*Parser) PeekTraced() (rune, int, bool)
+method (*Parser) PollUnits()
 method (*Parser) Predicate(func(*ActCtx) (any, any)) bool
 method (*Parser) PushRecovered(*syntaxir.dev/sxir/pkg/runtime/value.SyntaxError)
 method (*Parser) RecoverAttr(matcher, matcher, bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
@@ -210,9 +219,12 @@ method (*Parser) ShapeCapture(Shaper, *syntaxir.dev/sxir/pkg/runtime/value.Node,
 method (*Parser) ShapeSingle(Shaper, *syntaxir.dev/sxir/pkg/runtime/value.Node, int) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) Single(int, bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) SkipBegin(int)
+method (*Parser) SkipCall(*Rule, ExpID)
+method (*Parser) SkipCalls(ExpID, ...*Rule)
 method (*Parser) SkipEnd()
 method (*Parser) SkipHit() bool
 method (*Parser) SkipKids() []*syntaxir.dev/sxir/pkg/runtime/value.Node
+method (*Parser) SkipUnits(uint64)
 method (*Parser) SkipValue(*syntaxir.dev/sxir/pkg/runtime/value.Node)
 method (*Parser) SkipVisit()
 method (*Parser) Spend()
@@ -225,6 +237,7 @@ method (*Parser) TermConvert(*nodeTypeKinds, any) (any, any)
 method (*Parser) TermCover(*syntaxir.dev/sxir/pkg/runtime/value.Node, any, bool) bool
 method (*Parser) TermFilterKeep(any) (bool, any)
 method (*Parser) TermHull(*ActCtx, bool, []*syntaxir.dev/sxir/pkg/runtime/value.Node) *syntaxir.dev/sxir/pkg/runtime/value.Node
+method (*Parser) TermHullLogical(*ActCtx, bool, []*syntaxir.dev/sxir/pkg/runtime/value.Node) *syntaxir.dev/sxir/pkg/runtime/value.Node
 method (*Parser) TermItemAt([]*syntaxir.dev/sxir/pkg/runtime/value.Node, int, bool) any
 method (*Parser) TermItems(string, any) ([]*syntaxir.dev/sxir/pkg/runtime/value.Node, any)
 method (*Parser) TermLength(any) (any, any)
@@ -238,8 +251,11 @@ method (*Parser) TermText(any) (string, any)
 method (*Parser) TermUnary(int, any) (any, any)
 method (*Parser) Text(int, int) string
 method (*Parser) TextEqual(string, string) bool
+method (*Parser) TextEqualLogical(string, string) bool
 method (*Parser) TooDeep()
 method (*Parser) Unisolate(ExpMark) (int, []ExpID)
+method (*Parser) UnitsOfItems(any, int)
+method (*Parser) UnitsSized(int)
 method (*Span) TSetSpan(int, int)
 method (*Span) TSpan() (int, int)
 method (*StreamPull) Close()
@@ -248,6 +264,7 @@ method (*TActCtx) Cap(int) any
 method (*TActCtx) Finish(any) any
 method (*TActCtx) MadeOf(TVal, ...any) any
 method (*TActCtx) NewList([]any) any
+method (*TActCtx) NewListLogical([]any) any
 method (*TActCtx) Result(func(*TActCtx) (any, any), string) any
 method (*TActCtx) TermCastFailed(any, *FieldType, int, int) any
 method (*TActCtx) TermCompare(int, TOperand, TOperand) (any, any)
@@ -274,8 +291,11 @@ method (*TParser) Bind(int, func(*TActCtx) (any, any)) bool
 method (*TParser) Call(*TRule, int) (any, bool)
 method (*TParser) CallMemo(*TRule, func(*TParser) (any, bool)) (any, bool)
 method (*TParser) ClassFast(*Class) bool
+method (*TParser) ClassFastLogical(*Class) bool
 method (*TParser) ClassSkip(*Class, ExpID) bool
+method (*TParser) ClassSkipLogical(*Class, ExpID) bool
 method (*TParser) ClassesSkip([]ClassStep) bool
+method (*TParser) ClassesSkipLogical([]ClassStep) bool
 method (*TParser) DiagnosticAttr(tmatcher, ExpID) (any, bool)
 method (*TParser) DocumentCall(*TRule, int, func(*TParser) (any, bool)) (any, bool)
 method (*TParser) DropCreated(int)
@@ -312,8 +332,11 @@ method (*TParser) SetCapture(int, any)
 method (*TParser) ShapeCapture(Shaper, any, int) any
 method (*TParser) ShapeSingle(Shaper, any, int) (any, bool)
 method (*TParser) Single(int, bool) (any, bool)
+method (*TParser) SkipCall(*Rule, ExpID)
+method (*TParser) SkipCalls(ExpID, ...*Rule)
 method (*TParser) SkipKids() []any
 method (*TParser) SkipTerminal(*TerminalProgram) bool
+method (*TParser) SkipTerminalLogical(*TerminalProgram) bool
 method (*TParser) SkipValue(any)
 method (*TParser) TConvertResult(*TRule, any) any
 method (*TParser) TConvertResultOwned(*TRule, any, any) any
@@ -323,6 +346,7 @@ method (*TParser) TermConvert(uint16, any) (any, any)
 method (*TParser) TermCover(TVal, any, bool) bool
 method (*TParser) TermFilterKeep(any) (bool, any)
 method (*TParser) TermHull(*TActCtx, bool, []any) TVal
+method (*TParser) TermHullLogical(*TActCtx, bool, []any) TVal
 method (*TParser) TermItemAt([]any, int, bool) any
 method (*TParser) TermItems(string, any) ([]any, any)
 method (*TParser) TermLength(any) (any, any)
@@ -333,6 +357,7 @@ method (*TParser) TermPush(*TActCtx, string, any) any
 method (*TParser) TermPushItems(*TActCtx, string, any) any
 method (*TParser) TermText(any) (string, any)
 method (*TParser) TermUnary(int, any) (any, any)
+method (*TParser) UnitsOfItems(any, int)
 method (*TParser) UseCtx(TActCtx) *TActCtx
 method (*TSeq) TField(string) (any, bool)
 method (*TSeq) TFresh() bool
@@ -384,7 +409,7 @@ type OperatorsRule struct{Skip matcher; Operands []*OperatorsRuleLine; Prefix []
 type OperatorsRuleLine struct{Scope []string; M matcher; Action func(*ActCtx) (any, any); Value Shaper}
 type OperatorsRuleOp struct{Id int; Kind string; Assoc string; Level int; Line *OperatorsRuleLine}
 type ParseOption func(*parseOptions)
-type Parser struct{Control *BudgetControl; Observation *observation; Document *documentState; In []rune; Pos int; MaxDepth int; Depth int; Env *Env; Frame *CaptureFrame; Trail []undo; Cut bool; Silent int; Expectations bool; Recovered []recEntry; KidStack []*syntaxir.dev/sxir/pkg/runtime/value.Node; Stream *streamInput}
+type Parser struct{Control *BudgetControl; Units uint64; UnitsCheck uint64; Observation *observation; Document *documentState; In []rune; Pos int; MaxDepth int; Depth int; Env *Env; Frame *CaptureFrame; Trail []undo; Cut bool; Silent int; Expectations bool; Recovered []recEntry; KidStack []*syntaxir.dev/sxir/pkg/runtime/value.Node; Stream *streamInput}
 type Rule struct{Id int; Name string; Scope []string; Body func(*Parser, int) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool); Action func(*ActCtx) (any, any); Value Shaper; NodeType string; OpNodeType string; Memo bool; Leader bool; Rec bool; Cycle int32; DocMemo bool; Positional bool; Seen int; OperatorsRule *OperatorsRule; Novalue bool; Splice bool; Where string; Vars []string}
 type RuleExtra struct{Id int; Where string; NodeType string; OpNodeType string; Cycle int32}
 type RuleSpec struct{Name string; Value *Shaper; Flags uint8; Seen int32; Scope uint16; Vars uint16}
@@ -412,7 +437,7 @@ type TypedDocumentCloneBase struct{Control *BudgetControl; Values map[any]any; S
 type TypedDocumentCloneTask struct{Source any; Target any}
 type budgetControlSetter interface{SetBudgetControl(*BudgetControl)}
 type documentState struct{}
-type grammar struct{Starts []string; DefaultStart string; Descs []string; Expectations bool; StructFields map[string]*structFields; TypeKinds map[string]*syntaxir.dev/sxir/pkg/runtime/value/impl.Kind; NodeTypes map[string]*nodeTypeKinds; SourceInfo bool; Observable bool; NoBudgetControls bool}
+type grammar struct{Starts []string; DefaultStart string; Descs []string; Expectations bool; StructFields map[string]*structFields; TypeKinds map[string]*syntaxir.dev/sxir/pkg/runtime/value/impl.Kind; NodeTypes map[string]*nodeTypeKinds; SourceInfo bool; Observable bool; NoBudgetControls bool; Logical bool}
 type matcher = func(*Parser) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 type nodeTypeKinds [3]*syntaxir.dev/sxir/pkg/runtime/value/impl.Kind
 type observation struct{}

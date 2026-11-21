@@ -806,6 +806,19 @@ func leadingClass(n core.Node) *core.ClassNode {
 	return c
 }
 
+// guard reports whether the alternative a keeps its guard, and the rules whose calls its skip
+// makes under logical units (lowerdata.Options.Guards).
+func (l *lowerer) guard(a *core.Alt) (bool, []int) {
+	if a.Guard == nil || !l.opts.Logical || l.opts.Guards == lowerdata.GuardsKeep {
+		return a.Guard != nil, nil
+	}
+	calls, ok := core.GuardCalls(l.m, a.Body)
+	if !ok || len(calls) > 0 && l.opts.Guards == lowerdata.GuardsEvent {
+		return false, nil
+	}
+	return true, calls
+}
+
 func (l *lowerer) choice(n *core.Choice, s *scope, build bool, fail string) code.Expr {
 	m := l.mark(s, n, true)
 	var v string
@@ -832,7 +845,8 @@ func (l *lowerer) choice(n *core.Choice, s *scope, build bool, fail string) code
 		}
 		var bs *code.Block
 		var guarded *core.ClassNode
-		if a.Guard != nil {
+		guard, skipped := l.guard(a)
+		if guard {
 			// The alternative is skipped when the next character cannot begin it. With budget controls
 			// each guard reads the character again, as the guard of each alternative is a terminal that
 			// examines it (spec/runtime/parsing.md#cost); without them one read serves all the guards.
@@ -852,6 +866,9 @@ func (l *lowerer) choice(n *core.Choice, s *scope, build bool, fail string) code
 			skip := l.label()
 			bs = l.open(skip)
 			pre := []code.Stmt{do(flow.OpExpect, flow.Expectation{Exp: a.Guard.Exp}, pos())}
+			if len(skipped) > 0 {
+				pre = append(pre, do(flow.OpSkippedCalls, flow.SkippedCalls{Rules: skipped, Exp: a.Guard.Exp}))
+			}
 			if l.opts.Observe {
 				pre = append(pre, do(flow.OpObserveSkip, a.Body))
 			}

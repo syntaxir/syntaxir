@@ -103,6 +103,7 @@ const (
 	OpAdvance         = "flow.advance"
 	OpExpect          = "flow.expect"
 	OpObserveSkip     = "flow.observeSkip"
+	OpSkippedCalls    = "flow.skippedCalls"
 	OpRestore         = "flow.restore"
 	OpMergeExpected   = "flow.mergeExpected"
 	OpMergeRenamed    = "flow.mergeRenamed"
@@ -213,6 +214,14 @@ type Slot int
 type Expectation struct {
 	Exp     core.ExpID
 	Message bool
+}
+
+// SkippedCalls is the immediate of flow.skippedCalls: the rules that the alternative a guard skips
+// calls before it fails at its first terminal, outermost first (core.GuardCalls), and the
+// expectation of that terminal, the guard's.
+type SkippedCalls struct {
+	Rules []int
+	Exp   core.ExpID
 }
 
 // Spread is the immediate of flow.append: whether the children of a tuple node are appended
@@ -378,6 +387,9 @@ parse what loading the input charges; in a Document parse it records how far the
 	withImm(op(&code.Op{Name: OpObserveSkip, Writes: []string{State}, NoReturn: true,
 		Contract: "Reports to the observation of the parse that the guard of a choice skips the alternative."}),
 		"the alternative (core.Node)", immOf[core.Node]())
+	withImm(op(&code.Op{Name: OpSkippedCalls, Writes: []string{State}, NoReturn: true,
+		Contract: "Makes the effects of the calls that the alternative a guard skips would make under logical compute units, as the evaluation of the alternative makes them: one unit for each call and the units of the key of each memoized rule, the seen mark and policy counts of each memoized call, and the failure entry that a call stores when its memoization is not deferred, with the expectation of the terminal. A call that a stored entry answers ends the calls, as it ends the evaluation. It checks the counter. It charges no budget: only a lowering with logical units, which count in place of the budget, makes the call."}),
+		"the calls (SkippedCalls)", immOf[SkippedCalls]())
 	op(&code.Op{Name: OpRestore, Params: []code.Param{P("pos", i), P("rec", i)}, Writes: []string{State, Pos},
 		Contract: "Moves the position back to pos and drops the recovered errors after the first rec."})
 	op(&code.Op{Name: OpMergeExpected, Params: []code.Param{P("far", i), P("exps", expids)}, Writes: []string{State}, Cost: per(QMerge),

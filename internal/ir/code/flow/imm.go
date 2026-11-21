@@ -101,6 +101,8 @@ func ImmString(imm any) string {
 		return fmt.Sprintf("class exp %d", x.Exp)
 	case *core.First:
 		return fmt.Sprintf("guard exp %d depth %d", x.Exp, x.Depth)
+	case SkippedCalls:
+		return fmt.Sprintf("rules %v exp %d", x.Rules, x.Exp)
 	case core.AnchorKind:
 		return [...]string{"begin input", "end input", "begin line", "end line"}[x]
 	case *core.Terminal:

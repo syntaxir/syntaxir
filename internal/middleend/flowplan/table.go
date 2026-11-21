@@ -20,7 +20,7 @@ func BuildTable(prog elaborate.Program, c plandata.TableConfig, coreStep func(bu
 	if err != nil {
 		return nil, err
 	}
-	opts := lowerdata.Options{Budget: c.Budget, Logical: c.Logical, Recovers: flowlower.Recovers(m), Observe: c.Observe, Node: true,
+	opts := lowerdata.Options{Budget: c.Budget, Logical: c.Logical, Guards: c.Guards, Recovers: flowlower.Recovers(m), Observe: c.Observe, Node: true,
 		Document: c.Document, Traced: c.Traced}
 	return &plandata.TableIR{M: m, Opts: opts}, nil
 }

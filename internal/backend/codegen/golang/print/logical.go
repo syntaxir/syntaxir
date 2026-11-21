@@ -3,21 +3,20 @@ package print
 import (
 	"errors"
 	"fmt"
-	"os"
-	"strconv"
+	"strings"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
-	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
-// The prototype of logical compute units (design record 076): the ordinary form of the functions,
-// with a counter that each logical event adds to and checks of the counter on cycles. The option is
-// internal and measures the design; it covers the grammars without left recursion, Operators Rules
-// and recovery, in batch parses.
+// Logical compute units (design record 076): the ordinary form of the functions, with a counter
+// that each logical event adds to and checks of the counter on cycles. The option is internal; it
+// covers the grammars without left recursion, Operators Rules and recovery, in batch parses outside
+// a Document.
 
-// logicalRefusal returns why the prototype cannot generate the program, nil if it can.
+// logicalRefusal returns why logical units cannot be generated for the program, nil if they can.
 func logicalRefusal(prog *common.Program, opts common.GenOptions) error {
 	switch {
 	case !opts.LimitControls:
@@ -36,7 +35,7 @@ func logicalRefusal(prog *common.Program, opts common.GenOptions) error {
 	return nil
 }
 
-// ruleFeaturesOf names a feature of r that the prototype does not cover, "" if none.
+// ruleFeaturesOf names a feature of r that logical units do not cover, "" if none.
 func ruleFeaturesOf(r *common.Rule) string {
 	if r.Leader || r.Member || r.Cycle != 0 {
 		return "left recursion"
@@ -79,160 +78,33 @@ func (g *Generator) callUnit(recv string, r *common.Rule) string {
 // logicalPoll is the check of the counter at a loop's iteration.
 const logicalPoll = "if p.Units > p.UnitsCheck {\np.PollUnits()\n}"
 
-// guardInfo is what the skip of a guarded alternative counts under logical units. The skip is
-// kept (static) when, on every character the guard rejects, the plain evaluation of the
-// alternative makes a fixed set of calls and fails at a terminal without advancing: the
-// alternative begins with a chain of calls, every alternative of every callee in the chain
-// begins the same way, and no predicate, action, binding or recovery runs before that terminal.
-// calls is the number of those calls. memo lists the rules of the calls that are ordinarily
-// memoized, in order, each as its index in the rule table: the skip reproduces the memo policy
-// effects of their calls (the seen mark and the policy counts of FirstCall). Such a rule must make
-// no call before its own failing terminal, so whether its call at the position is answered from
-// the memo or evaluated costs the same 1 unit, and the failure entry that the plain evaluation may
-// store changes no later total; it must read no variables, so its key counts nothing. Leaders and
-// transient rules (memoized only by a Document) end the chain, so the guard is disabled.
-type guardInfo struct {
-	calls  int
-	memo   string
-	static bool
-}
-
-// logicalGuard returns what the skip of the alternative of guard counts, from the Core IR of the
-// table being printed.
-func (g *Generator) logicalGuard(m *core.Module, guard *core.First) guardInfo {
-	if g.guards == nil || g.guardsOf != m {
-		g.guards, g.guardsOf = map[*core.First]guardInfo{}, m
-		var walk func(n core.Node)
-		walk = func(n core.Node) {
-			if c, ok := n.(*core.Choice); ok {
-				for _, a := range c.Alts {
-					if a.Guard == nil {
-						continue
-					}
-					info := g.chainOf(m, a.Body)
-					if !info.static && os.Getenv("SXIR_LOGICAL_STATS") != "" {
-						fmt.Fprintf(os.Stderr, "guard disabled: %s\n", core.PrintNode(m, a.Body, true))
-					}
-					if prev, ok := g.guards[a.Guard]; ok && prev != info {
-						// One guard object for alternatives that count differently. Disabling it would
-						// be wrong where an alternative begins past the character the guard tested,
-						// so the prototype stops.
-						panic(fmt.Sprintf("sxir: logical units: one dispatch guard for alternatives that count differently (%+v, %+v)", prev, info))
-					}
-					g.guards[a.Guard] = info
-				}
-			}
-			if o, ok := n.(*core.OperatorsRule); ok {
-				for _, l := range o.Lines() {
-					walk(l.Body)
-				}
-				return
-			}
-			for _, c := range core.Children(n) {
-				walk(c)
-			}
-		}
-		for _, r := range m.Rules {
-			if r != nil {
-				walk(r.Body)
-			}
-		}
+// skippedCalls prints the effects of the calls that the alternative a guard skips would make
+// (flow.skippedCalls). Calls of rules that the parse does not memoize only count their units; the
+// calls of memoized rules have the effects of the memo too, which the library makes.
+func (p *flowPrinter) skippedCalls(x flow.SkippedCalls) string {
+	g := p.g
+	memo := false
+	for _, k := range x.Rules {
+		pol := g.Flow.M.Rules[k].Policy
+		memo = memo || pol.Memo && !pol.Transient
 	}
-	info, ok := g.guards[guard]
-	if !ok {
-		return guardInfo{}
+	if !memo {
+		return fmt.Sprintf("p.SkipUnits(%d)", len(x.Rules))
 	}
-	return info
-}
-
-// chainOf returns what skipping n counts, if n fails at its first terminal with a fixed set
-// of calls (see guardInfo).
-func (g *Generator) chainOf(m *core.Module, n core.Node) guardInfo {
-	calls, memo, ok := g.chain(m, n, 0)
-	if !ok {
-		return guardInfo{}
+	// The typed library makes the memo effects from the rows of the Node table, as the entries of
+	// typed rules do (FirstCall).
+	table := g.tableVar()
+	if g.Table == "trules" {
+		table = "rules"
 	}
-	info := guardInfo{calls: calls, static: true}
-	for i, r := range memo {
-		if i > 0 {
-			info.memo += ","
-		}
-		info.memo += strconv.Itoa(r)
+	rules := make([]string, len(x.Rules))
+	for i, k := range x.Rules {
+		rules[i] = fmt.Sprintf("%s[%d]", table, g.Flow.Rules[k].ID)
 	}
-	return info
-}
-
-// chain returns the calls n makes before it fails at its first terminal, and the ordinarily
-// memoized rules among them; ok is false if n is not such an expression.
-func (g *Generator) chain(m *core.Module, n core.Node, depth int) (calls int, memo []int, ok bool) {
-	if depth > 64 {
-		return 0, nil, false
+	if len(rules) == 1 {
+		return fmt.Sprintf("p.SkipCall(%s, %s)", rules[0], p.exp(x.Exp))
 	}
-	stop := func(why string) (int, []int, bool) {
-		if os.Getenv("SXIR_LOGICAL_STATS") != "" {
-			fmt.Fprintf(os.Stderr, "chain stops at %s\n", why)
-		}
-		return 0, nil, false
-	}
-	switch x := n.(type) {
-	case *core.Lit:
-		if x.Text == "" {
-			return stop("empty literal")
-		}
-		return 0, nil, true
-	case *core.ClassNode:
-		return 0, nil, true
-	case *core.ClassRun:
-		if len(x.Classes) == 0 {
-			return stop("empty class run")
-		}
-		return 0, nil, true
-	case *core.Seq:
-		if len(x.Items) == 0 {
-			return stop("empty sequence")
-		}
-		return g.chain(m, x.Items[0], depth+1)
-	case *core.Capture:
-		// The binding runs after its body matched, and the body fails.
-		return g.chain(m, x.Body, depth+1)
-	case *core.Text:
-		return g.chain(m, x.Body, depth+1)
-	case *core.Drop:
-		return g.chain(m, x.Body, depth+1)
-	case *core.Terminal:
-		return g.chain(m, x.Body, depth+1)
-	case *core.Choice:
-		// Every alternative is tried, and each fails at its first terminal.
-		for _, a := range x.Alts {
-			c, mm, ok := g.chain(m, a.Body, depth+1)
-			if !ok {
-				return 0, nil, false
-			}
-			calls += c
-			memo = append(memo, mm...)
-		}
-		return calls, memo, true
-	case *core.Call:
-		r := m.Rules[x.Rule]
-		if x.Level != 0 || r.Policy.Leader {
-			return stop("leader or level call of " + r.Name)
-		}
-		if r.Policy.Transient && !g.LogicalTransient {
-			return stop("transient rule " + r.Name)
-		}
-		c, mm, ok := g.chain(m, r.Body, depth+1)
-		if !ok {
-			return 0, nil, false
-		}
-		if r.Policy.Memo && !r.Policy.Transient {
-			if c != 0 || len(r.Policy.Vars) != 0 {
-				return stop("memoized rule " + r.Name + " with calls or a key")
-			}
-			return 1, []int{x.Rule}, true
-		}
-		return 1 + c, mm, true
-	}
-	return stop(fmt.Sprintf("%T", n))
+	return fmt.Sprintf("p.SkipCalls(%s, %s)", p.exp(x.Exp), strings.Join(rules, ", "))
 }
 
 // callName names the library method that calls a rule through the call protocol: under logical

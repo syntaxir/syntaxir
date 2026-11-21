@@ -184,3 +184,8 @@ func Walk(root *Node, visit func(WalkVisit) (WalkAction, error)) error {
 // WithContext selects cooperative cancellation for one invocation.
 // A nil context is equivalent to context.Background.
 func WithContext(ctx context.Context) ParseOption { return rt.WithContext(ctx) }
+
+// Span is the range of input a typed value covers, in the parse's position unit (End is exclusive).
+//
+// Of its fields and methods, TSetSpan, TSpan are for generated parsers; not a stable API.
+type Span = rt.Span

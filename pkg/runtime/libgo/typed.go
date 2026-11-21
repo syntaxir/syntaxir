@@ -729,6 +729,9 @@ func (p *TParser) run(r *TRule, input string, o parseOptions, ext any) (v any, e
 		v, ok = p.Call(r, 0)
 	}
 	p.endUnits(!ok || p.Pos != p.n)
+	if p.units.memo != nil {
+		p.reportMemo(p.memoLines())
+	}
 	// Normal completion polls even for a nil typed value. Fatal unwinding
 	// returns through the recovery above without replacing its established error.
 	p.Control.Check()

@@ -1,0 +1,16 @@
+// Rules whose dispatch guards skip calls of a memoized rule that reads a variable
+// (bench/logical_exact_test.go): word reads k, so its memo key holds the value of k, whose bytes
+// its calls count. Each group binds k to its name, so the calls of word at one position may have
+// different keys, and a skipped call must count and store under the key of the call it skips.
+package keyed
+
+var k string = ""
+
+@start
+rule doc = group* $$
+rule group = "=" n:name {k := text($n)} ":" (item / u)* ";"
+rule u = word "!" / "c"
+rule item = word "." / "b"
+rule word = "a" tail {k != "stop"}
+rule name = [a-z]+
+rule tail = [a-z]*

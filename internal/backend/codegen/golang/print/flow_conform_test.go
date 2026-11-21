@@ -169,6 +169,18 @@ rule main = sum $$
 rule sum = sum "+" n:[0-9] ps:(a:[a-z] b:[0-9])* / [0-9]
 `, opts: common.GenOptions{Types: true}, inputs: []string{"1+2+3", "1+", "1+2a1b2+3"},
 		entries: []string{flowConformParse, "_, err = ParseValue(in, opts...)"}},
+	// Logical compute units: the guards of x, u and item skip chains of calls through memoized rules,
+	// which flow.skippedCalls makes the calls of.
+	{name: "logical", src: `@start
+rule main = (-x / -u / -item / z)* $$
+rule x = inner ";" / "e"
+rule u = outer "!" / outer "?" / "c"
+rule item = inner "." / "b"
+rule z = "y" &u
+rule outer = inner "-"
+rule inner = "a" tail
+rule tail = [a-z]*
+`, opts: common.GenOptions{LogicalUnits: true}, inputs: []string{"ccbeyca.a;a-!a-?", "aqq-?aqqq.ya-!", "a-", "q", ""}},
 	{name: "observe", src: `@start
 rule main = (kw / id)* $$
 rule kw = "if" / "else"
@@ -518,7 +530,7 @@ func TestProbe(t *testing.T) {
 						isolated = isolated[:n-1]
 					}
 				}
-				for _, msg := range checkFlowCall(in, flowOps()[name], call, &e) {
+				for _, msg := range checkFlowCall(in, flowOps()[name], call, &e, !c.opts.LogicalUnits) {
 					msgs = append(msgs, fmt.Sprintf("%s %q: %s at %d: %s", c.name, r.Input, name, e.Pos, msg))
 				}
 			}
@@ -644,8 +656,11 @@ func flowBound(in *ref.Input, o *code.Op, c *code.Call, e *flowEvent) int {
 	return n
 }
 
-// checkFlowCall returns what the recorded call e of the operation o, the call c, breaks.
-func checkFlowCall(in *ref.Input, o *code.Op, c *code.Call, e *flowEvent) []string {
+// checkFlowCall returns what the recorded call e of the operation o, the call c, breaks. budget is
+// false for a parser that counts logical compute units, which charges no budget: its calls are held
+// to the bounds, which zero meets, but not to the exact charges of flowExactCharges. The bench
+// package checks the logical units against a reference that counts each event.
+func checkFlowCall(in *ref.Input, o *code.Op, c *code.Call, e *flowEvent, budget bool) []string {
 	var errs []string
 	fail := func(format string, args ...any) { errs = append(errs, fmt.Sprintf(format, args...)) }
 	if !slices.Contains(o.Writes, flow.Pos) && e.PosAfter != e.Pos {
@@ -654,7 +669,7 @@ func checkFlowCall(in *ref.Input, o *code.Op, c *code.Call, e *flowEvent) []stri
 	self := int(e.UsedAfter-e.Used) - int(e.Nested)
 	if bound := flowBound(in, o, c, e); self > bound {
 		fail("charged %d units, more than its bound %d", self, bound)
-	} else if slices.Contains(flowExactCharges, o.Name) && self != bound {
+	} else if budget && slices.Contains(flowExactCharges, o.Name) && self != bound {
 		fail("charged %d units, not its bound %d", self, bound)
 	}
 	if check := flowConformChecks[o.Name]; check != nil {

@@ -407,6 +407,12 @@ func goValueOp(callee string, a []string, typed bool) (string, bool) {
 		return "D(" + a[0] + ").Children", true
 	case "seq.step":
 		return "p.Spend()", true
+	case "units.add":
+		return "p.UnitsSized(" + a[0] + ")", true
+	case "units.items":
+		return "p.UnitsOfItems(" + a[0] + ", " + a[1] + ")", true
+	case "units.since":
+		return "p.UnitsSized(len(p.KidStack) - " + a[0] + ")", true
 	}
 	return "", false
 }

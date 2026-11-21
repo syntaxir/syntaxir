@@ -80,6 +80,12 @@ func generationsIn(t *testing.T, dir string) []generation {
 				g.config.Stream = true
 			case "-nodoc":
 				g.config.OmitPackageDoc = true
+			case "-charge-units=logical":
+				g.config.LogicalUnits = true
+			case "-charge-units=logical-event":
+				g.config.LogicalUnits, g.config.LogicalVariant = true, "event"
+			case "-charge-units=logical-keep-guards":
+				g.config.LogicalUnits, g.config.LogicalVariant = true, "keep-guards"
 			default:
 				t.Fatalf("generate.go: unknown argument %s", fs[i])
 			}

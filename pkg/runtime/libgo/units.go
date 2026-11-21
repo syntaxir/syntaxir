@@ -2,14 +2,16 @@ package libgo
 
 import (
 	"context"
+	"fmt"
 	"math"
+	"strings"
 
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
-// Logical compute units, a prototype of design record 076 for measurement: a parser generated with
-// them (Generator.Logical) counts the logical events of a parse in Parser.Units. The generated code
+// Logical compute units (design record 076): a parser generated with them (Generator.Logical)
+// counts the logical events of a parse in Parser.Units. The generated code
 // adds the calls of rules and the input that terminals advance over; the library adds what its
 // matchers advance over and the sized events (values built, string comparisons, keys, the syntax
 // error built). The counter is checked against the compute limit and the context only at checks: on
@@ -24,13 +26,23 @@ type unitsState struct {
 	ctx   context.Context
 	ctxAt uint64  // the count at which the next check observes the context
 	out   *uint64 // where the end of the parse reports the count (WithUnitsReport)
+	memo  *string // where the end of the parse reports the memo (WithMemoReport)
 }
 
 // WithUnitsReport makes a parse with logical units store its count in *out when it ends, whether it
-// succeeds, fails or is stopped by a limit. It is for the measurement of the prototype; not a stable
+// succeeds, fails or is stopped by a limit. It is for tests and measurements; not a stable
 // API.
 func WithUnitsReport(out *uint64) ParseOption {
 	return func(o *parseOptions) { o.unitsOut = out }
+}
+
+// WithMemoReport makes a parse with logical units store in *out, when it ends without being stopped,
+// the state of its memo that later calls read: the policy counts of each rule, the positions where
+// each rule was called (the seen marks) and the stored entries, each chain in its order. It is for
+// the tests of logical units, which compare it between parsers that must leave the same state; not
+// a stable API.
+func WithMemoReport(out *string) ParseOption {
+	return func(o *parseOptions) { o.memoOut = out }
 }
 
 // startUnits starts the counter of a parse with the options o.
@@ -41,7 +53,7 @@ func (p *Parser) startUnits(o parseOptions) {
 		return
 	}
 	p.Units = 0
-	p.units = unitsState{on: true, limit: o.unitsLimit, ctx: o.unitsCtx, ctxAt: budgetCheckInterval, out: o.unitsOut}
+	p.units = unitsState{on: true, limit: o.unitsLimit, ctx: o.unitsCtx, ctxAt: budgetCheckInterval, out: o.unitsOut, memo: o.memoOut}
 	if p.units.ctx != nil {
 		if p.units.ctx.Done() == nil {
 			p.units.ctx = nil
@@ -128,27 +140,130 @@ func (p *Parser) valueUnits(n int) bool {
 	return true
 }
 
-// SkipCalls counts the n calls that a skipped alternative would have made, each failing at its
-// first terminal, and checks the counter. It reports true, for the guard's condition.
+// SkipUnits counts the n calls that a skipped alternative would have made, none of them of a
+// memoized rule, each failing at the alternative's first terminal, and checks the counter.
 //
-// SkipCalls is for generated parsers; not a stable API.
-func (p *Parser) SkipCalls(n uint64) bool {
+// SkipUnits is for generated parsers; not a stable API.
+func (p *Parser) SkipUnits(n uint64) {
 	p.Units += n
 	if p.Units > p.UnitsCheck {
 		p.PollUnits()
 	}
-	return true
 }
 
-// SkipFirstCall makes the memo policy effects of a call of the memoized rule r at the position
-// that a skipped alternative would have made: the seen mark and the policy counts of FirstCall.
-// The call would fail at r's first terminal, and so would every later call of r at the position,
-// whether the memo answers it or not. It reports true, for the guard's condition.
+// SkipCall makes the effects of a call of the memoized rule r that a skipped alternative would
+// have made at the position: the call is the alternative's only call, and fails at r's first
+// terminal, whose expectation is exp (skipCalls).
 //
-// SkipFirstCall is for generated parsers; not a stable API.
-func (p *Parser) SkipFirstCall(r *Rule) bool {
-	p.FirstCall(r)
-	return true
+// SkipCall is for generated parsers; not a stable API.
+func (p *Parser) SkipCall(r *Rule, exp ExpID) {
+	p.skipCalls([]*Rule{r}, exp)
+}
+
+// SkipCalls makes the effects of the calls of rules that a skipped alternative would have made at
+// the position: each rule calls the next before its first terminal, and the last fails at its
+// first terminal, whose expectation is exp (skipCalls).
+//
+// SkipCalls is for generated parsers; not a stable API.
+func (p *Parser) SkipCalls(exp ExpID, rules ...*Rule) {
+	p.skipCalls(rules, exp)
+}
+
+// skipCalls makes the effects that the calls of rules make when the first terminal of the last
+// fails at the position with the expectation exp, as the evaluation makes them (CallLogical and
+// Call): each call counts its unit, and a call of a memoized rule the units of its key, checked
+// where the evaluation checks them. A memoized rule records its first call (FirstCall). Unless that
+// defers its memoization, an entry that answers the call ends it, merging the entry's expectations,
+// and the calls it would make are not made; otherwise the rest of the calls run in a record of
+// their own, and the call stores the failure entry with that record's expectations, after those of
+// the calls inside it. The failing terminal records exp. The calls are outside every left-recursion
+// context and Document, which logical units do not cover.
+func (p *Parser) skipCalls(rules []*Rule, exp ExpID) {
+	if len(rules) == 0 {
+		p.ExpectOrdinary(p.Pos, exp)
+		return
+	}
+	r := rules[0]
+	p.Units++
+	if r.Rec && p.Units > p.UnitsCheck {
+		p.PollUnits()
+	}
+	if !r.Memo {
+		p.skipCalls(rules[1:], exp)
+		return
+	}
+	p.KeyUnits(r)
+	if p.FirstCall(r) {
+		p.skipCalls(rules[1:], exp)
+		return
+	}
+	start := p.Pos
+	env := p.memoEnv(r)
+	if e := p.memoGet(r.Id, start, 0, env, false); e != nil && (!e.silent || p.Silent > 0) {
+		p.MergeExpected(e.far, e.expected)
+		return
+	}
+	m := p.Isolate(start)
+	p.skipCalls(rules[1:], exp)
+	far, inner := p.Unisolate(m)
+	kept := p.Keep(inner)
+	entry := p.memo.alloc()
+	*entry = memoEntry{end: start, silent: p.Silent > 0, errs: p.recSince(len(p.Recovered))}
+	entry = p.memoPut(r.Id, start, 0, env, false, entry)
+	if !(p.Silent > 0) || entry.silent {
+		entry.far, entry.expected = far, kept
+	}
+	p.MergeExpected(far, inner)
+}
+
+// SkipCall is Parser.SkipCall for the typed library, whose memo it stores in.
+func (p *TParser) SkipCall(r *Rule, exp ExpID) {
+	p.skipCalls([]*Rule{r}, exp)
+}
+
+// SkipCalls is Parser.SkipCalls for the typed library, whose memo it stores in.
+func (p *TParser) SkipCalls(exp ExpID, rules ...*Rule) {
+	p.skipCalls(rules, exp)
+}
+
+// skipCalls is Parser.skipCalls for the typed library, as the entries of typed rules and CallMemo
+// make the calls.
+func (p *TParser) skipCalls(rules []*Rule, exp ExpID) {
+	if len(rules) == 0 {
+		p.ExpectOrdinary(p.Pos, exp)
+		return
+	}
+	r := rules[0]
+	p.Units++
+	if r.Rec && p.Units > p.UnitsCheck {
+		p.PollUnits()
+	}
+	if !r.Memo {
+		p.skipCalls(rules[1:], exp)
+		return
+	}
+	p.KeyUnits(r)
+	if p.FirstCall(r) {
+		p.skipCalls(rules[1:], exp)
+		return
+	}
+	start := p.Pos
+	env := p.memoEnv(r)
+	if e := p.memoGet(r.Id, start, 0, env, false); e != nil && (!e.silent || p.Silent > 0) {
+		p.MergeExpected(e.far, e.expected)
+		return
+	}
+	m := p.Isolate(start)
+	p.skipCalls(rules[1:], exp)
+	far, inner := p.Unisolate(m)
+	kept := p.Keep(inner)
+	entry := p.memoSlab.one()
+	*entry = tmemoEntry{end: start, silent: p.Silent > 0, errs: p.recSince(len(p.Recovered))}
+	entry = p.memoPut(r.Id, start, 0, env, false, entry)
+	if !(p.Silent > 0) || entry.silent {
+		entry.far, entry.expected = far, kept
+	}
+	p.MergeExpected(far, inner)
 }
 
 // CallLogical is Call that counts the unit of the call, and the key of a call of a memoized rule,
@@ -409,4 +524,70 @@ func (p *TParser) UnitsOfItems(v any, k int) {
 	if items, ok := tvalItems(v); ok {
 		p.unitsSized(k * len(items))
 	}
+}
+
+// reportMemo stores the report of WithMemoReport, with the lines of the entries of the memo that
+// the parse stored them in.
+func (p *Parser) reportMemo(entries []string) {
+	if !p.units.on || p.units.memo == nil {
+		return
+	}
+	var b strings.Builder
+	t := &p.memo
+	for s, c := range t.calls {
+		fmt.Fprintf(&b, "policy %d: calls %d repeats %d eager %t\n", s, c.calls, c.repeats, c.eager)
+	}
+	for s := 0; s < t.stride; s++ {
+		var at []int
+		for pos := 0; pos <= p.n; pos++ {
+			if t.isSeen(pos, s) {
+				at = append(at, pos)
+			}
+		}
+		if len(at) > 0 {
+			fmt.Fprintf(&b, "seen %d: %v\n", s, at)
+		}
+	}
+	for _, l := range entries {
+		b.WriteString(l)
+	}
+	*p.units.memo = b.String()
+}
+
+// isSeen reports whether the rule with the seen index s was called at pos (markSeen).
+func (t *memoTable) isSeen(pos, s int) bool {
+	if t.sparse {
+		if s >= len(t.pages) || pos>>10 >= len(t.pages[s].pages) {
+			return false
+		}
+		page := t.pages[s].pages[pos>>10]
+		return page != nil && page[(pos>>6)&15]&(uint64(1)<<(pos&63)) != 0
+	}
+	i := pos*t.stride + s
+	return i>>6 < len(t.seen) && t.seen[i>>6]&(uint64(1)<<(i&63)) != 0
+}
+
+// memoLines returns the lines of the report of WithMemoReport for the entries of the memo of a
+// Node parse: per position, its chain in order.
+func (p *Parser) memoLines() []string {
+	var out []string
+	for pos, e := range p.memo.slots {
+		for ; e != nil; e = e.next {
+			out = append(out, fmt.Sprintf("entry %d: rule %d min %d env %v ok %t end %d silent %t far %d expected %v errs %d seen %d present %d\n",
+				pos, e.rule, e.min, e.env, e.ok, e.end, e.silent, e.far, e.expected, e.errs.len(), e.seen, e.present))
+		}
+	}
+	return out
+}
+
+// memoLines is Parser.memoLines for the memo of a typed parse.
+func (p *TParser) memoLines() []string {
+	var out []string
+	for pos, e := range p.memoSlots {
+		for ; e != nil; e = e.next {
+			out = append(out, fmt.Sprintf("entry %d: rule %d min %d env %v ok %t end %d silent %t far %d expected %v errs %d seen %d present %d\n",
+				pos, e.rule, e.min, e.env, e.ok, e.end, e.silent, e.far, e.expected, e.errs.len(), e.seen, e.present))
+		}
+	}
+	return out
 }

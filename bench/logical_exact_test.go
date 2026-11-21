@@ -8,23 +8,25 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/bench/inputs"
+	gchainevent "syntaxir.dev/sxir/internal/bench/parsers/chainevent"
+	gchainlogical "syntaxir.dev/sxir/internal/bench/parsers/chainlogical"
 	gjsonevent "syntaxir.dev/sxir/internal/bench/parsers/jsonevent"
 	gjsonlogical "syntaxir.dev/sxir/internal/bench/parsers/jsonlogical"
-	gjsontransient "syntaxir.dev/sxir/internal/bench/parsers/jsontransient"
+	gkeyedevent "syntaxir.dev/sxir/internal/bench/parsers/keyedevent"
+	gkeyedlogical "syntaxir.dev/sxir/internal/bench/parsers/keyedlogical"
 	gpolicyevent "syntaxir.dev/sxir/internal/bench/parsers/policyevent"
 	gpolicylogical "syntaxir.dev/sxir/internal/bench/parsers/policylogical"
 	gxmlevent "syntaxir.dev/sxir/internal/bench/parsers/xmlevent"
 	gxmllogical "syntaxir.dev/sxir/internal/bench/parsers/xmllogical"
-	gxmltransient "syntaxir.dev/sxir/internal/bench/parsers/xmltransient"
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	rt "syntaxir.dev/sxir/pkg/runtime/libgo"
 )
 
-// The exactness of the prototype of logical compute units (design record 076): the generated code
-// with its static sums (the charges of kept dispatch guards) against the per-event reference, which
-// counts each event where it happens; a sweep of compute limits; and the overshoot of a stopped
-// parse against K + B.
+// The exactness of logical compute units (design record 076): the generated code, whose kept
+// dispatch guards make the effects of the calls they skip, against the per-event reference, which
+// evaluates every alternative whose skip would make a call, in the total and in the state of the
+// memo; a sweep of compute limits; and the overshoot of a stopped parse against K + B.
 
 type unitsParse func(string, ...rt.ParseOption) error
 
@@ -49,24 +51,21 @@ func exactCases() []exactCase {
 				func(s string, o ...rt.ParseOption) error { _, err := gxmllogical.ParseValue(s, o...); return err }),
 			ps(func(s string, o ...rt.ParseOption) error { _, err := gxmlevent.Parse(s, o...); return err },
 				func(s string, o ...rt.ParseOption) error { _, err := gxmlevent.ParseValue(s, o...); return err })},
-		// The measurement variant that keeps guards through transient rules is exact outside
-		// Documents, which the prototype refuses.
-		{"JSON transient", exactInputs(inputs.JSONInput(4<<10), nil),
-			ps(func(s string, o ...rt.ParseOption) error { _, err := gjsontransient.Parse(s, o...); return err },
-				func(s string, o ...rt.ParseOption) error { _, err := gjsontransient.ParseValue(s, o...); return err }),
-			ps(func(s string, o ...rt.ParseOption) error { _, err := gjsonevent.Parse(s, o...); return err },
-				func(s string, o ...rt.ParseOption) error { _, err := gjsonevent.ParseValue(s, o...); return err })},
-		{"XML transient", exactInputs(inputs.XMLInput(4<<10), nil),
-			ps(func(s string, o ...rt.ParseOption) error { _, err := gxmltransient.Parse(s, o...); return err },
-				func(s string, o ...rt.ParseOption) error { _, err := gxmltransient.ParseValue(s, o...); return err }),
-			ps(func(s string, o ...rt.ParseOption) error { _, err := gxmlevent.Parse(s, o...); return err },
-				func(s string, o ...rt.ParseOption) error { _, err := gxmlevent.ParseValue(s, o...); return err })},
-		// The grammar has no types, so both entries are Parse.
 		{"policy", policyInputs(),
 			ps(func(s string, o ...rt.ParseOption) error { _, err := gpolicylogical.Parse(s, o...); return err },
-				func(s string, o ...rt.ParseOption) error { _, err := gpolicylogical.Parse(s, o...); return err }),
+				func(s string, o ...rt.ParseOption) error { _, err := gpolicylogical.ParseValue(s, o...); return err }),
 			ps(func(s string, o ...rt.ParseOption) error { _, err := gpolicyevent.Parse(s, o...); return err },
-				func(s string, o ...rt.ParseOption) error { _, err := gpolicyevent.Parse(s, o...); return err })},
+				func(s string, o ...rt.ParseOption) error { _, err := gpolicyevent.ParseValue(s, o...); return err })},
+		{"chain", chainInputs(),
+			ps(func(s string, o ...rt.ParseOption) error { _, err := gchainlogical.Parse(s, o...); return err },
+				func(s string, o ...rt.ParseOption) error { _, err := gchainlogical.ParseValue(s, o...); return err }),
+			ps(func(s string, o ...rt.ParseOption) error { _, err := gchainevent.Parse(s, o...); return err },
+				func(s string, o ...rt.ParseOption) error { _, err := gchainevent.ParseValue(s, o...); return err })},
+		{"keyed", keyedInputs(),
+			ps(func(s string, o ...rt.ParseOption) error { _, err := gkeyedlogical.Parse(s, o...); return err },
+				func(s string, o ...rt.ParseOption) error { _, err := gkeyedlogical.ParseValue(s, o...); return err }),
+			ps(func(s string, o ...rt.ParseOption) error { _, err := gkeyedevent.Parse(s, o...); return err },
+				func(s string, o ...rt.ParseOption) error { _, err := gkeyedevent.ParseValue(s, o...); return err })},
 	}
 }
 
@@ -83,6 +82,50 @@ func policyInputs() []string {
 		strings.Repeat(word, 50) + strings.Repeat("c", 3000) + strings.Repeat(word, 50),
 		strings.Repeat("c", 500) + "b" + word + "x",
 	}
+}
+
+// chainInputs returns inputs of bench/grammars/logical_chain.sxir: runs of the characters where
+// the guards skip calls of outer and inner, among words that the rules match, in a fixed random
+// order, before and after the "|", with lookaheads after each "y"; and inputs that fail.
+func chainInputs() []string {
+	r := rand.New(rand.NewPCG(3, 4))
+	tokens := []string{"c", "c", "c", "b", "e", "yc", "a.", "aq.", "a;", "a-!", "a-?", "aqq-?", "aqqq.", "ya-!"}
+	part := func(n int) string {
+		var b strings.Builder
+		for range n {
+			b.WriteString(tokens[r.IntN(len(tokens))])
+		}
+		return b.String()
+	}
+	var out []string
+	for _, n := range []int{1, 10, 200, 3000} {
+		out = append(out, part(n), part(n)+"|"+part(n), "|"+part(n))
+	}
+	return append(out, strings.Repeat("c", 3000)+"|"+strings.Repeat("cb", 1000)+strings.Repeat("a-!", 300),
+		"|"+strings.Repeat("b", 3000), strings.Repeat("yc", 500), "", "a", "a-", "ccca-.", "|a-x")
+}
+
+// keyedInputs returns inputs of bench/grammars/logical_keyed.sxir: groups that bind k to names of
+// different lengths, so that the calls of word, and the calls that guards skip, at the positions of
+// a group have keys of different sizes, and the group "stop", where every word fails; and inputs that
+// fail.
+func keyedInputs() []string {
+	r := rand.New(rand.NewPCG(5, 6))
+	names := []string{"x", "yy", "zzzzzzzz", "stop", "x"}
+	tokens := []string{"c", "c", "b", "a.", "aq.", "a!", "aqq!"}
+	var out []string
+	for _, n := range []int{1, 10, 400} {
+		var b strings.Builder
+		for range n {
+			b.WriteString("=" + names[r.IntN(len(names))] + ":")
+			for range r.IntN(12) {
+				b.WriteString(tokens[r.IntN(len(tokens))])
+			}
+			b.WriteString(";")
+		}
+		out = append(out, b.String())
+	}
+	return append(out, "=stop:ccc;", "=stop:a.;", "=x:"+strings.Repeat("c", 2000)+strings.Repeat("a.", 200)+";", "=x:a.", "=:;", "")
 }
 
 // exactInputs returns the small inputs, the document, its prefixes at a few cuts and copies of it with
@@ -107,6 +150,31 @@ func countUnits(f unitsParse, in string, unit sxirinput.PositionUnit, opts ...rt
 	return n, err
 }
 
+// memoReport returns the state of the memo that the parse of in by f leaves (rt.WithMemoReport).
+func memoReport(f unitsParse, in string, unit sxirinput.PositionUnit, opts ...rt.ParseOption) string {
+	var m string
+	_ = f(in, append([]rt.ParseOption{rt.WithUnit(unit), rt.WithMemoReport(&m)}, opts...)...)
+	return m
+}
+
+// firstDiff returns the first line where the reports got and want differ.
+func firstDiff(got, want string) string {
+	g, w := strings.Split(got, "\n"), strings.Split(want, "\n")
+	for i := range max(len(g), len(w)) {
+		var a, b string
+		if i < len(g) {
+			a = g[i]
+		}
+		if i < len(w) {
+			b = w[i]
+		}
+		if a != b {
+			return fmt.Sprintf("line %d: got %q, reference %q", i+1, a, b)
+		}
+	}
+	return "no difference"
+}
+
 var exactUnits = []sxirinput.PositionUnit{sxirinput.Bytes, sxirinput.CodePoints}
 
 // TestLogicalExact checks the totals of the generated code against the per-event reference on
@@ -114,7 +182,7 @@ var exactUnits = []sxirinput.PositionUnit{sxirinput.Bytes, sxirinput.CodePoints}
 func TestLogicalExact(t *testing.T) {
 	unlimited := rt.WithLimits(sxirruntime.Limits{Compute: sxirruntime.Unlimited})
 	for _, c := range exactCases() {
-		failed := 0
+		failed, entries := 0, 0
 		for i, in := range c.inputs {
 			for _, unit := range exactUnits {
 				// Parse and ParseValue run separate generated functions and library paths (untyped and
@@ -133,10 +201,17 @@ func TestLogicalExact(t *testing.T) {
 					if gerr != nil {
 						failed++
 					}
+					// The memo: the kept guards leave the policy counts, seen marks and entries that the
+					// evaluation of the alternatives they skip leaves.
+					gm, wm := memoReport(c.logical[api], in, unit, unlimited), memoReport(c.event[api], in, unit, unlimited)
+					if gm != wm {
+						t.Errorf("%s input %d (%v, api %d): the memo differs from the reference's:\n%s", c.name, i, unit, api, firstDiff(gm, wm))
+					}
+					entries += strings.Count(gm, "\nentry ")
 				}
 			}
 		}
-		t.Logf("%s: %d inputs, %d failing parses", c.name, len(c.inputs), failed)
+		t.Logf("%s: %d inputs, %d failing parses, %d memo entries", c.name, len(c.inputs), failed, entries)
 	}
 }
 

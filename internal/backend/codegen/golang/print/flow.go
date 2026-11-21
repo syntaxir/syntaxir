@@ -50,7 +50,7 @@ func (g *Generator) FlowOptions(m *core.Module) lowerdata.Options {
 	// Node is false: the options of the Node and recognizer tables (common.Generator.StartRecFlow) are
 	// built apart, and a function lowered with one set of options is never printed for the other
 	// runtime.
-	return lowerdata.Options{Budget: !g.NoBudget, Logical: g.Logical, Recovers: flowlower.Recovers(m), Observe: g.Observability, Document: g.RecordsExamined(), Traced: g.Traced}
+	return lowerdata.Options{Budget: !g.NoBudget, Logical: g.Logical, Guards: g.LogicalGuards, Recovers: flowlower.Recovers(m), Observe: g.Observability, Document: g.RecordsExamined(), Traced: g.Traced}
 }
 
 // flowTypedRule prints the rule r from Flow IR as a flat rule, the flat function of the typed table's

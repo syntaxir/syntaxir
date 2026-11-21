@@ -874,7 +874,8 @@ func genCmd(args []string, stdout io.Writer) error {
 	if *sourceInfo {
 		opts = append(opts, compiler.WithSourceInfo())
 	}
-	// -charge-units is internal: it generates the prototype of logical compute units for measurement.
+	// -charge-units is internal: it generates logical compute units (design record 076), and its
+	// variants for the tests and measurements of them.
 	var logicalUnits bool
 	var logicalVariant string
 	switch *chargeUnits {
@@ -885,8 +886,6 @@ func genCmd(args []string, stdout io.Writer) error {
 		logicalUnits, logicalVariant = true, "keep-guards"
 	case "logical-event":
 		logicalUnits, logicalVariant = true, "event"
-	case "logical-transient":
-		logicalUnits, logicalVariant = true, "transient"
 	default:
 		return fmt.Errorf("-charge-units: unknown value %q", *chargeUnits)
 	}

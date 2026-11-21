@@ -20,6 +20,7 @@ the Exec stage and the backends rely on.
 | `flow.advance` | n int |  |  | Moves the position forward by n. |
 | `flow.expect` | at int |  | `expectation` | Records the expectation at the position at, unless the silent depth is positive. |
 | `flow.observeSkip` |  |  | `node` | Reports to the observation of the parse that the guard of a choice skips the alternative. |
+| `flow.skippedCalls` |  |  | `skippedcalls` | Makes the effects of the calls that the alternative a guard skips would make under logical compute units, as the evaluation of the alternative makes them: one unit for each call and the units of the key of each memoized rule, the seen mark and policy counts of each memoized call, and the failure entry that a call stores when its memoization is not deferred, with the expectation of the terminal. A call that a stored entry answers ends the calls, as it ends the evaluation. It checks the counter. It charges no budget: only a lowering with logical units, which count in place of the budget, makes the call. |
 | `flow.restore` | pos int, rec int |  |  | Moves the position back to pos and drops the recovered errors after the first rec. |
 | `flow.mergeExpected` | far int, exps expids |  |  | Merges the expectations exps, recorded at far, into the enclosing expectation scope. |
 | `flow.mergeRenamed` | far int, exps expids |  | `expid` | Merges the expectations exps, recorded at far, into the enclosing scope, renamed to the expectation of the immediate (@diagnostic). |

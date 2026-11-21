@@ -1,0 +1,20 @@
+// Rules whose dispatch guards skip calls through two memoized rules (bench/logical_exact_test.go).
+// The guards of u skip a call of outer, which calls inner before its first terminal; those of x
+// and item skip a call of inner alone. Before the "|", x skips a call of inner at each position
+// first, so a skipped call of outer finds an entry of inner that answers it, which ends the calls.
+// After it, the first skipped calls at a position are those of u, which store the entry of inner
+// and then that of outer. After a "y", z looks ahead at u, whose skipped calls run in a lookahead
+// and store entries that the calls outside it do not reuse. The loops discard the values, so that
+// the calls in them and in the lookahead call the same rules: the value-free forms of x, u and
+// item, and through them of outer and inner.
+package chain
+
+@start
+rule doc = (-x / -u / -item / z)* ("|" (-u / -item / z)*)? $$
+rule x = inner ";" / "e"
+rule u = outer "!" / outer "?" / "c"
+rule item = inner "." / "b"
+rule z = "y" &u
+rule outer = inner "-"
+rule inner = "a" tail
+rule tail = [a-z]*

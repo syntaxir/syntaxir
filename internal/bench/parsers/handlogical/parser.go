@@ -378,4 +378,4 @@ func r3(p *rt.Parser) (*sxirvalue.Node, bool) {
 	return v, ok
 }
 
-const _ = rt.Protocol24
+const _ = rt.Protocol26

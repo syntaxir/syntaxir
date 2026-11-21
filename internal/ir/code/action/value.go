@@ -550,7 +550,7 @@ ShapeListValue or ShapeStruct, which a value of a node type has by its base.`,
 		Contract: `Charges the step of one element of a list or a tuple: an element that is examined against its type,
 walked by a built-in function or made by a constructor. A target that bounds the work charges one unit; a target
 that does not charges nothing.`})
-	// Logical compute units (the prototype of design record 076): the lists that a fused concat does
+	// Logical compute units (design record 076): the lists that a fused concat does
 	// not build.
 	pure(&code.Op{Name: "units.add", Kind: code.OpHost, NoReturn: true, Params: []code.Param{code.P("n", code.TInt)},
 		Contract: `Counts n logical compute units of values that the plain evaluation builds and the lowering does not.`})
