@@ -54,9 +54,10 @@ var oprBindingDescriptorOps = []string{
 }
 
 // oprBindingEngineOps returns the operations of the Operators Rule family that the engine binds: the
-// descriptors, those that run the grammar code of a rule (conform.OprMatchOps), and the records.
+// descriptors, those that run the grammar code of a rule (conform.OprMatchOps), those that make its
+// values (conform.OprValueBuildOps), and the records.
 func oprBindingEngineOps() []string {
-	names := append(slices.Clone(oprBindingDescriptorOps), "opr.skip", "opr.match")
+	names := append(slices.Clone(oprBindingDescriptorOps), "opr.skip", "opr.match", "opr.lineValue", "opr.build")
 	for _, o := range compose.Build().Ops {
 		if o.Component == exec.Suspended && strings.HasPrefix(o.Name, "opr") {
 			names = append(names, o.Name)

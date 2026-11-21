@@ -158,17 +158,22 @@ failure the position is unspecified. A cut in the expression sets the cut regist
 		code.P("v", value), code.P("start", code.TInt)), Results: []code.Type{value}, Reads: []string{Frames},
 		Writes: []string{Host}, NoReturn: true,
 		Contract: `Returns the value of the operand line l of the rule r that matched from start to the position
-with the value v and the captures of f: the line's action, or its shaped value with its captures.`})
+with the value v and the captures of f: the line's action, or its shaped value with its captures.`,
+		Requires: `l is an operand line of r, and f a frame of opr.scope(l) slots.`})
 	add(&code.Op{Name: "opr.build", Component: Host, Params: append(r, code.P("a", attempt), code.P("lhs", value), code.P("rhs", value)),
 		Results: []code.Type{value}, Reads: []string{Opr, Frames}, Writes: []string{Host}, NoReturn: true,
 		Contract: `Returns the value of the application of the operator of a to lhs (null for a prefix operator)
-and rhs (null for a postfix operator), which ends at the position: the action of the operator's line,
-or the node of the tuple (lhs, operator, rhs) with the line's captures.`})
+and rhs (null for a postfix operator), which ends at the position, or for a postfix operator with it:
+the action of the operator's line, or the node of the tuple (lhs, operator, rhs). The operator is the
+value of its line, which takes the line's captures if it is the node of a tuple, or a node of its match
+if the line has no value.`,
+		Requires: `The operator of a is one of r, and the frame of a has the slots of its line.`})
 	add(&code.Op{Name: "opr.buildTyped", Component: Host, Params: append(r, code.P("a", attempt), code.P("lhs", value),
 		code.P("lstart", code.TInt), code.P("rhs", value)), Results: []code.Type{value, code.TInt}, Reads: []string{Opr, Frames},
 		Writes: []string{Host}, NoReturn: true, Features: []string{Typed},
 		Contract: `Is opr.build for typed values, where lhs, if it is not a node, starts at lstart; it also returns
-where the value of the application starts.`})
+where the value of the application starts.`,
+		Requires: `As for opr.build.`})
 
 	// The matches of operators.
 	m.AddOp(&code.Op{Name: "opr.attempt", Component: Opr, Params: append(o, code.P("f", frame), code.P("v", value),

@@ -3,6 +3,7 @@ package conform
 import (
 	"maps"
 	"math/rand/v2"
+	"slices"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/ir/code"
@@ -17,7 +18,7 @@ var oprModule = OprModule()
 func oprCall(m *ref.Model, name string, args ...any) []any { return m.Call(oprModule.Op(name), args) }
 
 func oprSuite(name string, mu *mutant) Suite {
-	return Suite{Name: name, Ops: OprSuiteOps(), New: func(c ref.Config) Impl {
+	return Suite{Name: name, Ops: slices.Concat(OprSuiteOps(), OprTypedOps), New: func(c ref.Config) Impl {
 		if mu == nil {
 			return modelImpl{ref.New(c)}
 		}
@@ -49,7 +50,7 @@ func oprFails(s Suite) (handwritten, random bool) {
 		}
 	}
 	for seed := uint64(0); seed < oprSeeds && !random; seed++ {
-		c := RandomOpr("random", rand.New(rand.NewPCG(seed, 7)), OprOps, oprCalls, OprConfig())
+		c := RandomOpr("random", rand.New(rand.NewPCG(seed, 7)), slices.Concat(OprOps, OprTypedOps), oprCalls, OprConfig())
 		_, err := Run(s, c)
 		random = err != nil
 	}
@@ -64,7 +65,7 @@ func TestModelPassesOprCases(t *testing.T) {
 		}
 	}
 	for seed := uint64(0); seed < oprSeeds; seed++ {
-		c := RandomOpr("random", rand.New(rand.NewPCG(seed, 7)), OprOps, oprCalls, OprConfig())
+		c := RandomOpr("random", rand.New(rand.NewPCG(seed, 7)), slices.Concat(OprOps, OprTypedOps), oprCalls, OprConfig())
 		if _, err := Run(s, c); err != nil {
 			t.Fatal(err)
 		}
@@ -75,10 +76,10 @@ func TestModelPassesOprCases(t *testing.T) {
 func TestRandomOprCasesUseTheOperations(t *testing.T) {
 	counts := map[string]int{}
 	for seed := uint64(0); seed < oprSeeds; seed++ {
-		c := RandomOpr("random", rand.New(rand.NewPCG(seed, 7)), OprOps, oprCalls, OprConfig())
+		c := RandomOpr("random", rand.New(rand.NewPCG(seed, 7)), slices.Concat(OprOps, OprTypedOps), oprCalls, OprConfig())
 		walkCalls(c.Func.Body, func(x *code.Call) { counts[x.Callee]++ })
 	}
-	for _, name := range OprOps {
+	for _, name := range slices.Concat(OprOps, OprTypedOps, ref.OprValueOps) {
 		if counts[name] < 20 {
 			t.Errorf("randomized cases call %s %d times", name, counts[name])
 		}
@@ -88,7 +89,7 @@ func TestRandomOprCasesUseTheOperations(t *testing.T) {
 // TestOprMutantsFail is the negative control of the cases of the Operators Rule family: each broken
 // model fails a handwritten or a randomized case.
 func TestOprMutantsFail(t *testing.T) {
-	for _, br := range append(OprBrokenOps(), OprMatchBrokenOps()...) {
+	for _, br := range slices.Concat(OprBrokenOps(), OprMatchBrokenOps(), OprValueBrokenOps(), OprTypedBrokenOps()) {
 		t.Run(br.Name, func(t *testing.T) {
 			mu := mutant{op: br.Op, edit: func(m *ref.Model, a []any) []any {
 				return br.Edit(func(op string, args ...any) []any { return oprCall(m, op, args...) }, a)

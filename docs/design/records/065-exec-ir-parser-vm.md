@@ -357,9 +357,14 @@ setter for each field, a field holding the zero value of its type until it is se
 conformance cases that run on the engine and, for all but the records, on generated Go. A harness that reaches
 the targets' printed bindings by reflection serves both. The operations that run grammar code (`opr.skip`, `opr.match`)
 have a scripted model, the trivia and each operand or operator line a script of evaluations as a rule's body has, with
-conformance cases that run on the engine and on TypeScript; they stay transitional until generated Go runs them too.
-The others that build values or keep missing tokens (the value of a line, `opr.build`, `opr.buildTyped`,
-`opr.attemptMissing`, `opr.replay`) stay transitional until the scripted-rule model covers them. *Target*: the
+conformance cases that run on the engine and on TypeScript; a line's captures are writes to the slots of the current
+frame, which the cases read back. The operations that build values (`opr.lineValue`, `opr.build`, `opr.buildTyped`)
+have a model of nodes, with their ranges, elements, fields and rule names, in which each line has the static shape of
+its value (one element, a sequence, a sequence whose tuple a memo entry shares, or none for an operator) and may have an
+action, a probe that returns a node of the range, the locals and the captures it was given; the cases take the values
+apart and compare them by identity, on the engine and on TypeScript, and `opr.buildTyped` on the model until a target
+of typed values runs it. These stay transitional until generated Go runs them too. Those that keep missing tokens
+(`opr.attemptMissing`, `opr.replay`) stay transitional until the scripted-rule model covers them. *Target*: the
 representation of lists, lines and attempts.
 
 **Rules.** What the grammar says of a rule (whether a parse from scratch or a Document parse memoizes it, whether it

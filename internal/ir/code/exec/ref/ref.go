@@ -42,6 +42,9 @@ type Config struct {
 	// Oprs are the Operators Rules of a case, the rules of the indexes of RuleRef for the operations
 	// of the Operators Rule family.
 	Oprs []OprRule
+	// SourceInfo makes a parse that records source information: a node that an Operators Rule makes
+	// carries the name of the rule.
+	SourceInfo bool
 	// CtxRules are the left-recursion shapes of the rules of the indexes of RuleRef for the ctx
 	// operations; a rule past the list is on no cycle.
 	CtxRules []CtxRule

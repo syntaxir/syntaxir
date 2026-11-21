@@ -118,3 +118,56 @@ func OprMatchBrokenOps() []OprBroken {
 	})
 	return bs
 }
+
+// OprValueBrokenOps returns the broken versions of the operations that make the values of an
+// Operators Rule (OprValueBuildOps), for a suite that provides them.
+func OprValueBrokenOps() []OprBroken {
+	var bs []OprBroken
+	add := func(name, op string, edit func(call func(string, ...any) []any, a []any) []any) {
+		bs = append(bs, OprBroken{Name: name, Op: op, Edit: edit})
+	}
+	add("opr.lineValue drops the captures", "opr.lineValue", func(call func(string, ...any) []any, a []any) []any {
+		f := call("frame.open", call("opr.scope", a[1])[0])[0]
+		return call("opr.lineValue", a[0], a[1], f, a[3], a[4])
+	})
+	add("opr.lineValue starts after its start", "opr.lineValue", func(call func(string, ...any) []any, a []any) []any {
+		return call("opr.lineValue", a[0], a[1], a[2], a[3], a[4].(int64)+1)
+	})
+	add("opr.lineValue is the value of the expression", "opr.lineValue", func(call func(string, ...any) []any, a []any) []any {
+		return []any{a[3]}
+	})
+	add("opr.lineValue has no value", "opr.lineValue", func(call func(string, ...any) []any, a []any) []any {
+		return []any{nil}
+	})
+	add("opr.build swaps the operands", "opr.build", func(call func(string, ...any) []any, a []any) []any {
+		return call("opr.build", a[0], a[1], a[3], a[2])
+	})
+	add("opr.build is its left operand", "opr.build", func(call func(string, ...any) []any, a []any) []any {
+		return []any{a[2]}
+	})
+	add("opr.build has no value", "opr.build", func(call func(string, ...any) []any, a []any) []any {
+		return []any{nil}
+	})
+	add("opr.build builds twice", "opr.build", func(call func(string, ...any) []any, a []any) []any {
+		call("opr.build", a...)
+		return call("opr.build", a...)
+	})
+	return bs
+}
+
+// OprTypedBrokenOps returns the broken versions of the operations of a parser of typed values
+// (OprTypedOps).
+func OprTypedBrokenOps() []OprBroken {
+	return []OprBroken{
+		{Name: "opr.buildTyped starts where the left operand would", Op: "opr.buildTyped",
+			Edit: func(call func(string, ...any) []any, a []any) []any {
+				r := call("opr.buildTyped", a...)
+				return []any{r[0], a[3]}
+			}},
+		{Name: "opr.buildTyped is opr.build", Op: "opr.buildTyped",
+			Edit: func(call func(string, ...any) []any, a []any) []any {
+				r := call("opr.buildTyped", a...)
+				return []any{call("opr.build", a[0], a[1], a[2], a[4])[0], r[1]}
+			}},
+	}
+}

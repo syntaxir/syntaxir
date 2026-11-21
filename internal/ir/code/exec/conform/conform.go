@@ -456,7 +456,12 @@ func (p *pair) Call(o *code.Op, args []any) []any {
 			if rn != in {
 				panic(mismatch(fmt.Sprintf("result %d is handle #%d on the model and #%d on the implementation", i, rn, in)))
 			}
-			res[i] = p.wrap(w, g)
+			if w == nil {
+				// The null handle is the null constant of its type; the implementation's has its number.
+				res[i] = nil
+			} else {
+				res[i] = p.wrap(w, g)
+			}
 			shown = append(shown, fmt.Sprintf("#%d", rn))
 			continue
 		}

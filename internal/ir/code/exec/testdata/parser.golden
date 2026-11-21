@@ -2021,6 +2021,8 @@ transitional op opr.lineValue(r Rule, l Line, f Frame, v Value, start int) Value
   contract:
     // Returns the value of the operand line l of the rule r that matched from start to the position
     // with the value v and the captures of f: the line's action, or its shaped value with its captures.
+  requires:
+    // l is an operand line of r, and f a frame of opr.scope(l) slots.
 
 transitional op opr.build(r Rule, a Attempt, lhs Value, rhs Value) Value
   component host
@@ -2030,8 +2032,12 @@ transitional op opr.build(r Rule, a Attempt, lhs Value, rhs Value) Value
   cost <= 0
   contract:
     // Returns the value of the application of the operator of a to lhs (null for a prefix operator)
-    // and rhs (null for a postfix operator), which ends at the position: the action of the operator's line,
-    // or the node of the tuple (lhs, operator, rhs) with the line's captures.
+    // and rhs (null for a postfix operator), which ends at the position, or for a postfix operator with it:
+    // the action of the operator's line, or the node of the tuple (lhs, operator, rhs). The operator is the
+    // value of its line, which takes the line's captures if it is the node of a tuple, or a node of its match
+    // if the line has no value.
+  requires:
+    // The operator of a is one of r, and the frame of a has the slots of its line.
 
 transitional op opr.buildTyped(r Rule, a Attempt, lhs Value, lstart int, rhs Value) (Value, int)
   component host
@@ -2043,6 +2049,8 @@ transitional op opr.buildTyped(r Rule, a Attempt, lhs Value, lstart int, rhs Val
   contract:
     // Is opr.build for typed values, where lhs, if it is not a node, starts at lstart; it also returns
     // where the value of the application starts.
+  requires:
+    // As for opr.build.
 
 op opr.attempt(op Operator, f Frame, v Value, start int, cut bool, errs Errs) Attempt
   component operators

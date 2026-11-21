@@ -2,8 +2,8 @@ package state
 
 import (
 	"fmt"
-	"math/rand/v2"
 	"maps"
+	"math/rand/v2"
 	"reflect"
 	"slices"
 	"strings"
@@ -16,6 +16,7 @@ import (
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/runtime/value"
+	valueimpl "syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // The engine's Operators Rule descriptors, matches of operators and records of the split forms of the
@@ -49,9 +50,42 @@ type markBox struct{ m Mark }
 
 func newOprMachine(cfg ref.Config) conform.Impl {
 	m := &oprMachine{engineMachine: newEngineMachine(cfg, false, false).(*engineMachine), lists: map[listKey]*listBox{}}
+	if m.p.Prog != nil {
+		panic("engine binding: the machine has a program")
+	}
+	m.p.Prog = &SharedProgram{staticProgram: &program.Program{RecordsSourceInfo: cfg.SourceInfo}}
 	id := 0
 	line := func(s ref.OprLineSpec) *OperatorsRuleLine {
-		return &OperatorsRuleLine{Scope: &program.Scope{Names: make([]string, s.Scope)}, M: m.scripted(s.Expr)}
+		l := &OperatorsRuleLine{Scope: &program.Scope{}, M: m.scripted(s.Expr)}
+		for k := range s.Scope {
+			l.Scope.Names = append(l.Scope.Names, fmt.Sprint("c", k))
+		}
+		// The shape of the value of the line, as the closure backend's builder makes it from the static
+		// shape of its expression.
+		switch s.Shape {
+		case ref.OprPass:
+			l.Single = program.SinglePass
+		case ref.OprTuple:
+			l.Shape, l.Single = program.Shaper{Elems: true, K: 2}, program.SingleTuple
+		case ref.OprShared:
+			l.Shape, l.Single = program.Shaper{Elems: true, Shared: true, K: 2}, program.SingleTuple
+		case ref.OprNone:
+			l.Single = program.SingleNone
+		}
+		tuple := s.Shape == ref.OprTuple || s.Shape == ref.OprShared
+		l.Value = func(p *Parser, v *value.Node, start int) *value.Node {
+			if s.Shape == ref.OprNone {
+				panic("engine binding: an operand line has a value")
+			}
+			if tuple {
+				return ShapeTuple(p, l.Shape, v, start)
+			}
+			return l.Shape.One(v)
+		}
+		if s.Action {
+			l.Act = oprProbe
+		}
+		return l
 	}
 	ops := func(os []ref.OprOp) []*OperatorsRuleOp {
 		var l []*OperatorsRuleOp
@@ -61,7 +95,7 @@ func newOprMachine(cfg ref.Config) conform.Impl {
 		}
 		return l
 	}
-	for _, r := range cfg.Oprs {
+	for i, r := range cfg.Oprs {
 		or := &OperatorsRule{Prefix: ops(r.Prefix), Led: ops(r.Led)}
 		for _, s := range r.Operands {
 			or.Operands = append(or.Operands, line(s))
@@ -76,7 +110,9 @@ func newOprMachine(cfg ref.Config) conform.Impl {
 			}
 			or.Skip = m.scripted(trivia)
 		}
-		m.oprRules = append(m.oprRules, &Rule{OperatorsRule: or})
+		rule := &Rule{OperatorsRule: or, Kinds: valueimpl.NewRuleKinds(fmt.Sprint("r", i))}
+		rule.Name, rule.Novalue = fmt.Sprint("r", i), r.Novalue
+		m.oprRules = append(m.oprRules, rule)
 	}
 	m.zeroMark = &markBox{}
 	// The frame operations that the cases call run through the engine's frame bindings.
@@ -108,7 +144,7 @@ func (m *oprMachine) scripted(script []ref.OprExpr) Matcher {
 		}
 		// A capture of the line is a write to a slot of the current frame, as the grammar code's is.
 		for _, k := range e.Captures {
-			m.binder.Call(oprOps.Op("frame.set"), []any{k, nodes.Ptr(nodes.Data{Fresh: true})})
+			m.binder.Call(oprOps.Op("frame.set"), []any{k, p.NewNode(nodes.Data{Kind: valueimpl.SeqKind, Start: int32(start), End: int32(start), Fresh: true})})
 		}
 		if e.Cut {
 			p.Cut = true
@@ -117,8 +153,30 @@ func (m *oprMachine) scripted(script []ref.OprExpr) Matcher {
 		if !e.OK {
 			return nil, false
 		}
-		return nodes.Ptr(nodes.Data{Fresh: true}), true
+		return p.NewNode(nodes.Data{Kind: valueimpl.SeqKind, Start: int32(start), End: int32(p.Pos), Fresh: true}), true
 	}
+}
+
+// oprProbe is the action of a line (ref.OprLineSpec): a node of the range of its input whose elements
+// are the locals op, lhs and rhs and whose fields are the captures of its frame.
+func oprProbe(c *EvalCtx) (any, error) {
+	local := func(name string) *value.Node {
+		for l := c.Locals; l != nil; l = l.Next {
+			if l.Name == name {
+				v, _ := l.Val.(*value.Node)
+				return v
+			}
+		}
+		return nil
+	}
+	d := nodes.Data{Kind: valueimpl.SeqKind, Start: int32(c.Start), End: int32(c.End),
+		Children: []*value.Node{local("op"), local("lhs"), local("rhs")}}
+	for k, v := range c.Frame.Vals {
+		if v != nil {
+			valueimpl.SetField(&d.Fields, fmt.Sprint("c", k), v)
+		}
+	}
+	return nodes.Ptr(d), nil
 }
 
 var oprOps = conform.OprModule()
@@ -147,6 +205,9 @@ func (m *oprMachine) Handle(name string) any {
 }
 
 func (m *oprMachine) Call(o *code.Op, args []any) []any {
+	if slices.Contains(ref.OprValueOps, o.Name) {
+		return []any{m.valueOp(o.Name, args)}
+	}
 	if o.Name == ref.FrameSlotOp {
 		// An empty slot is the null value, which has one identity.
 		if v := args[0].(*Frame).Vals[args[1].(int64)]; v != nil {
@@ -172,6 +233,45 @@ func (m *oprMachine) Call(o *code.Op, args []any) []any {
 		return res
 	}
 	return m.engineMachine.Call(o, args)
+}
+
+// valueOp takes a value apart (ref.OprValueOps).
+func (m *oprMachine) valueOp(name string, args []any) any {
+	d := nodes.D(args[0].(*value.Node))
+	switch name {
+	case ref.OprValueStartOp:
+		return int64(d.Start)
+	case ref.OprValueEndOp:
+		return int64(d.End)
+	case ref.OprValueKidsOp:
+		return int64(len(d.Children))
+	case ref.OprValueKidOp:
+		return nodeOrNil(d.Children[args[1].(int64)])
+	case ref.OprValueFieldOp:
+		v, _ := d.Fields.Get(ref.OprFieldNames[args[1].(int64)])
+		if n, ok := v.(*value.Node); ok {
+			return nodeOrNil(n)
+		}
+		return v
+	case ref.OprValueRuleOp:
+		if d.Kind != nil {
+			for i, r := range m.oprRules {
+				if d.Kind.Rule == r.Name {
+					return int64(i)
+				}
+			}
+		}
+		return int64(-1)
+	}
+	panic("engine binding: no value operation " + name)
+}
+
+// nodeOrNil is the handle of a node: the null value, which has one identity, for none.
+func nodeOrNil(n *value.Node) any {
+	if n == nil {
+		return nil
+	}
+	return n
 }
 
 // oprConv converts the handles of the Operators Rule operations of the engine.
@@ -217,6 +317,8 @@ func (c oprConv) FromImpl(v reflect.Value) (any, bool) {
 		return &markBox{x}, true
 	case RecEntry:
 		return c.m.handle(x), true
+	case *value.Node:
+		return nodeOrNil(x), true
 	}
 	return nil, false
 }
@@ -280,7 +382,7 @@ func (b brokenOpr) Call(o *code.Op, args []any) []any {
 // TestEngineOprConformanceDetectsBrokenEngine is the negative control: the engine with one operation
 // of the family broken, as a wrong line of its printed code would break it, fails the suite.
 func TestEngineOprConformanceDetectsBrokenEngine(t *testing.T) {
-	for _, br := range append(conform.OprBrokenOps(), conform.OprMatchBrokenOps()...) {
+	for _, br := range slices.Concat(conform.OprBrokenOps(), conform.OprMatchBrokenOps(), conform.OprValueBrokenOps()) {
 		t.Run(br.Name, func(t *testing.T) {
 			s := oprSuite()
 			s.New = func(c ref.Config) conform.Impl { return brokenOpr{newOprMachine(c).(*oprMachine), br.Op, br.Edit} }

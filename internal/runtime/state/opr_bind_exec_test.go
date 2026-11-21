@@ -232,6 +232,22 @@ func (p *Parser) confOprMatch(l *OperatorsRuleLine) (*sxirvalue.Node, bool) {
 	return r0, r1
 }
 
+// confOprLineValue runs opr.lineValue for the conformance suite.
+// Printed from Exec IR function confOprLineValue of internal/ir/code/exec/compose.
+func (p *Parser) confOprLineValue(r *Rule, l *OperatorsRuleLine, f *Frame, v *sxirvalue.Node, start int) *sxirvalue.Node {
+	var res *sxirvalue.Node
+	res = p.LineResult(r, l, f, v, start, nil)
+	return res
+}
+
+// confOprBuild runs opr.build for the conformance suite.
+// Printed from Exec IR function confOprBuild of internal/ir/code/exec/compose.
+func (p *Parser) confOprBuild(r *Rule, a OperatorsRuleAttempt, lhs *sxirvalue.Node, rhs *sxirvalue.Node) *sxirvalue.Node {
+	var res *sxirvalue.Node
+	res = p.OperatorsRuleBuild(r, &a, lhs, rhs)
+	return res
+}
+
 // confOprLongestL runs oprLongest.l for the conformance suite.
 // Printed from Exec IR function confOprLongestL of internal/ir/code/exec/compose.
 func (p *Parser) confOprLongestL(st *LongestState) []*OperatorsRuleOp {
@@ -558,6 +574,8 @@ func confOprBindings(p *Parser) map[string]any {
 		"opr.afterEmpty":          p.confOprAfterEmpty,
 		"opr.skip":                p.confOprSkip,
 		"opr.match":               p.confOprMatch,
+		"opr.lineValue":           p.confOprLineValue,
+		"opr.build":               p.confOprBuild,
 		"oprLongest.l":            p.confOprLongestL,
 		"oprLongest.setL":         p.confOprLongestSetL,
 		"oprLongest.i":            p.confOprLongestI,

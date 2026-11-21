@@ -27,7 +27,9 @@ interface Config {
   ruleSpecs?: RuleSpec[];
   observed?: boolean;
   document?: boolean;
-  oprs?: { prefix: OprOpSpec[]; led: OprOpSpec[]; operands: OprLineSpec[] | null; skip: boolean; trivia?: OprExprSpec[] }[];
+  oprs?: { novalue: boolean; prefix: OprOpSpec[]; led: OprOpSpec[]; operands: OprLineSpec[] | null; skip: boolean; trivia?: OprExprSpec[] }[];
+  sourceInfo?: boolean;
+  fieldNames?: string[] | null;
 }
 interface OprOpSpec {
   kind: string;
@@ -38,7 +40,30 @@ interface OprOpSpec {
 interface OprLineSpec {
   scope: number;
   expr?: OprExprSpec[] | null;
+  shape: "pass" | "tuple" | "shared" | "none";
+  action: boolean;
 }
+
+// oprShapers are the shapers of the values of lines (ref.OprShape), as the printer encodes the static shape of the
+// line's expression: an expression of one element, a sequence, a sequence whose tuple node a memo entry shares, and
+// an operator's expression of no value.
+const oprShapers: Record<OprLineSpec["shape"], number> = {
+  pass: p.singlePass << 2,
+  tuple: p.shaperElems | p.shaperTuple | (p.singleTuple << 2) | (2 << 5),
+  shared: p.shaperElems | p.shaperTuple | p.shaperShared | (p.singleTuple << 2) | (2 << 5),
+  none: p.singleNone << 2,
+};
+
+// oprProbe is the action of a line (ref.OprLineSpec): a node of the range of its input whose elements are the
+// locals op, lhs and rhs and whose fields are the captures of its frame.
+const oprProbe: p.Action = (c: p.Actx) => {
+  const fields: p.NodeField[] = [];
+  c.f.forEach((v, k) => {
+    if (v !== null) fields.push({ name: "c" + k, value: v });
+  });
+  const kids = [c.op, c.lhs, c.rhs] as (p.Node | null)[];
+  return [new p.Node("tuple", "", c.start, c.end, "", kids, fields, false, false), null];
+};
 // OprExprSpec is one evaluation of the grammar code of an Operators Rule (ref.OprExpr).
 interface OprExprSpec {
   ok: boolean;
@@ -562,14 +587,17 @@ class TermM extends Exec {
 // The Operators Rules: the descriptors that the printed code reads (OperatorsRule).
 class OprM extends Exec {
   noOprs: p.OperatorsRuleOp[] = [];
+  fieldNames: string[] = [];
 
   constructor(cfg: Config, controlled: boolean, options: Record<string, unknown> | null) {
     super(cfg, controlled, options);
     (this.P as { frame: p.Frame | null }).frame = null;
+    (this.P as { sourceInfo: boolean }).sourceInfo = cfg.sourceInfo ?? false;
+    this.fieldNames = cfg.fieldNames ?? [];
     this.rules = (cfg.oprs ?? []).map((s, i) => {
-      const r = p.mkRule(i, "r" + i, [], 0, false, false, -1, false, []);
+      const r = p.mkRule(i, "r" + i, [], 0, false, false, -1, s.novalue, []);
       const line = (l: OprLineSpec) => ({ scope: Array.from({ length: l.scope }, (_, k) => "c" + k), m: this.scripted(l.expr ?? []),
-        action: null, value: null as any });
+        action: l.action ? oprProbe : null, value: oprShapers[l.shape] });
       const op = (o: OprOpSpec): p.OperatorsRuleOp => ({ id: 0, kind: o.kind, assoc: o.assoc, level: o.level, line: line(o.line) });
       const list = (os: OprOpSpec[]): p.OperatorsRuleOp[] => ((os ?? []).length === 0 ? this.noOprs : os.map(op));
       r.operatorsRule = { skip: s.skip ? this.scripted(s.trivia ?? []) : null, prefix: list(s.prefix), led: list(s.led),
@@ -589,11 +617,11 @@ class OprM extends Exec {
       if (e.charge > 0 && this.ctl !== null) this.ctl.charge(e.charge);
       for (const id of e.errs ?? []) P.recovered.push(err(id));
       // A capture of the line is a write to a slot of the current frame, as the grammar code's is.
-      for (const c of e.captures ?? []) this.call("frame.set", [c, new p.Node(p.typeTupleValue, "", 0, 0, "", [], p.noFields, false, false)]);
+      for (const c of e.captures ?? []) this.call("frame.set", [c, new p.Node("tuple", "", start, start, "", [], p.noFields, true, false)]);
       if (e.cut) P.cut = true;
       P.pos = start + e.len;
       if (!e.ok) return undefined;
-      return new p.Node(p.typeTupleValue, "", start, P.pos, "", [], p.noFields, true, false);
+      return new p.Node("tuple", "", start, P.pos, "", [], p.noFields, true, false);
     };
   }
 
@@ -609,6 +637,23 @@ class OprM extends Exec {
   call(op: string, a: any[]): any[] {
     if (op === "test.frame" || op === "test.mark") return [{}];
     if (op === "test.slot") return [(a[0] as p.Frame)[a[1]] ?? null];
+    // A value that a rule has taken: an empty node at the start of the input.
+    if (op === "test.node") return [new p.Node("tuple", "", 0, 0, "", [], p.noFields, false, false)];
+    const n = a[0] as p.Node;
+    switch (op) {
+      case "test.valueStart":
+        return [n.start];
+      case "test.valueEnd":
+        return [n.end];
+      case "test.valueKids":
+        return [n.children.length];
+      case "test.valueKid":
+        return [n.children[a[1]] ?? null];
+      case "test.valueField":
+        return [n.fields.find((f) => f.name === this.fieldNames[a[1]])?.value ?? null];
+      case "test.valueRule":
+        return [this.rules.findIndex((r) => r.name === n.rule && n.rule !== "")];
+    }
     return super.call(op, a);
   }
 }

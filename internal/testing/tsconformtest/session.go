@@ -39,6 +39,10 @@ type Config struct {
 	RuleSpecs []RuleSpec `json:"ruleSpecs"`
 	// Oprs are the Operators Rules, the rules of the indexes of RuleRef.
 	Oprs []OprRule `json:"oprs"`
+	// SourceInfo makes a parse that records source information.
+	SourceInfo bool `json:"sourceInfo"`
+	// FieldNames are the names of the fields that the cases read, by index (ref.OprFieldNames).
+	FieldNames []string `json:"fieldNames"`
 }
 
 // RuleSpec is ref.RuleSpec as the bindings read it.
@@ -76,10 +80,13 @@ type OprOp struct {
 	Line  OprLine `json:"line"`
 }
 
-// OprLine is a line of an Operators Rule: the number of its capture slots and the script of its expression.
+// OprLine is a line of an Operators Rule: the number of its capture slots, the script of its expression, the
+// shape of its value (ref.OprShape: "pass", "tuple", "shared" or "none") and whether an action makes it.
 type OprLine struct {
-	Scope int64     `json:"scope"`
-	Expr  []OprExpr `json:"expr"`
+	Scope  int64     `json:"scope"`
+	Expr   []OprExpr `json:"expr"`
+	Shape  string    `json:"shape"`
+	Action bool      `json:"action"`
 }
 
 // OprExpr is one evaluation of the grammar code of an Operators Rule (ref.OprExpr).
@@ -92,9 +99,10 @@ type OprExpr struct {
 	Cut      bool    `json:"cut"`
 }
 
-// OprRule is an Operators Rule: its operators, its operand lines, whether it skips trivia and the script of its
-// trivia.
+// OprRule is an Operators Rule: whether its value is unused, its operators, its operand lines, whether it skips
+// trivia and the script of its trivia.
 type OprRule struct {
+	Novalue  bool      `json:"novalue"`
 	Prefix   []OprOp   `json:"prefix"`
 	Led      []OprOp   `json:"led"`
 	Operands []OprLine `json:"operands"`
@@ -111,8 +119,11 @@ func scriptEntry(e ref.Eval, cut bool) OprExpr {
 	return OprExpr{OK: e.OK, Len: e.Len, Charge: e.Charge, Errs: e.Errs, Captures: e.Captures, Cut: cut}
 }
 
+// oprShapes are the names of the shapes of the values of lines.
+var oprShapes = map[ref.OprShape]string{ref.OprPass: "pass", ref.OprTuple: "tuple", ref.OprShared: "shared", ref.OprNone: "none"}
+
 func oprLine(s ref.OprLineSpec) OprLine {
-	l := OprLine{Scope: s.Scope}
+	l := OprLine{Scope: s.Scope, Shape: oprShapes[s.Shape], Action: s.Action}
 	for _, e := range s.Expr {
 		l.Expr = append(l.Expr, scriptEntry(e.Eval, e.Cut))
 	}
@@ -129,7 +140,7 @@ func oprRules(rs []ref.OprRule) []OprRule {
 			}
 			return l
 		}
-		rule := OprRule{Prefix: ops(r.Prefix), Led: ops(r.Led), Skip: r.Skip}
+		rule := OprRule{Novalue: r.Novalue, Prefix: ops(r.Prefix), Led: ops(r.Led), Skip: r.Skip}
 		for _, s := range r.Operands {
 			rule.Operands = append(rule.Operands, oprLine(s))
 		}
@@ -146,7 +157,8 @@ func oprRules(rs []ref.OprRule) []OprRule {
 
 // ConfigOf returns the part of cfg that the bindings read.
 func ConfigOf(cfg ref.Config) Config {
-	return Config{Rules: cfg.Rules, Limit: cfg.Limit, MaxDepth: cfg.MaxDepth, Vars: cfg.Vars, RuleVars: cfg.RuleVars, NoExpectations: cfg.NoExpectations, CtxRules: ctxRules(cfg.CtxRules), RuleSpecs: ruleSpecs(cfg), Observed: cfg.Observed, Document: cfg.Document, Oprs: oprRules(cfg.Oprs)}
+	return Config{Rules: cfg.Rules, Limit: cfg.Limit, MaxDepth: cfg.MaxDepth, Vars: cfg.Vars, RuleVars: cfg.RuleVars, NoExpectations: cfg.NoExpectations, CtxRules: ctxRules(cfg.CtxRules), RuleSpecs: ruleSpecs(cfg), Observed: cfg.Observed, Document: cfg.Document, Oprs: oprRules(cfg.Oprs),
+		SourceInfo: cfg.SourceInfo, FieldNames: ref.OprFieldNames}
 }
 
 // Request is a case for the library: the trace to replay, on a parser made for Family with Config.
