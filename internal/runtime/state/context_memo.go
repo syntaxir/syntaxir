@@ -53,27 +53,29 @@ var ContextMemoMutation = 0
 
 // The checks that ContextMemoMutation breaks.
 const (
-	CtxIgnoreSeeds     = 1 + iota // a reuse does not compare the identities of the seeds read
-	CtxIgnoreObs                  // a reuse does not check observations
-	CtxIgnorePresent              // a result in the memo table is reused whatever its present set
-	CtxNoCanonical                // equal step results get the same identity without comparing them
-	CtxKeepSeedResults            // a Document keeps the results that read a seed for later parses
-	CtxJumpAnySeed                // a jump uses observations whose outcomes read the growing seed
-	CtxStaleReplay                // a reuse replays the seeds its observations read where they were made
-	CtxNoReplayObs                // a reuse passes on only the seeds its observations read where they were made
-	CtxCapDeps                    // a result with more than maxCtxDeps dependencies is not stored
-	CtxNarrowPresent              // a context whose present set needs more than a word records nothing
-	CtxNarrowOutcome              // a lookahead whose examined range needs more than a word is not stored
-	CtxStrictMissing              // a parse with missing-token insertion keeps no result in a context
-	CtxStoreInserts               // rules that insert tokens keep their results in contexts too
-	CtxConstWide                  // all present sets of leaders without bits have one identity
-	CtxNoReplayLookup             // a reused result of a lookup passes no dependencies to the enclosing call
-	CtxNoStepMemo                 // a growth in a context takes no memoized step or jump and evaluates the body
-	CtxKeepInPlace                // the keep of a leader's result changes the result that grow.end returned
-	CtxNoJumpReplayDeps           // a jump passes on none of the dependencies of its steps
-	CtxNoJumpMergeExp             // a jump passes on none of the expectations of its steps
-	CtxNoStepReplayDeps           // a memoized step passes on none of its dependencies
-	CtxNoStepMergeExp             // a memoized step passes on none of its expectations
+	CtxIgnoreSeeds      = 1 + iota // a reuse does not compare the identities of the seeds read
+	CtxIgnoreObs                   // a reuse does not check observations
+	CtxIgnorePresent               // a result in the memo table is reused whatever its present set
+	CtxNoCanonical                 // equal step results get the same identity without comparing them
+	CtxKeepSeedResults             // a Document keeps the results that read a seed for later parses
+	CtxJumpAnySeed                 // a jump uses observations whose outcomes read the growing seed
+	CtxStaleReplay                 // a reuse replays the seeds its observations read where they were made
+	CtxNoReplayObs                 // a reuse passes on only the seeds its observations read where they were made
+	CtxCapDeps                     // a result with more than maxCtxDeps dependencies is not stored
+	CtxNarrowPresent               // a context whose present set needs more than a word records nothing
+	CtxNarrowOutcome               // a lookahead whose examined range needs more than a word is not stored
+	CtxStrictMissing               // a parse with missing-token insertion keeps no result in a context
+	CtxStoreInserts                // rules that insert tokens keep their results in contexts too
+	CtxConstWide                   // all present sets of leaders without bits have one identity
+	CtxNoReplayLookup              // a reused result of a lookup passes no dependencies to the enclosing call
+	CtxNoStepMemo                  // a growth in a context takes no memoized step or jump and evaluates the body
+	CtxKeepInPlace                 // the keep of a leader's result changes the result that grow.end returned
+	CtxNoJumpReplayDeps            // a jump passes on none of the dependencies of its steps
+	CtxNoJumpMergeExp              // a jump passes on none of the expectations of its steps
+	CtxNoStepReplayDeps            // a memoized step passes on none of its dependencies
+	CtxNoStepMergeExp              // a memoized step passes on none of its expectations
+	CtxNoJumpSeedRead              // a jump does not count as a read of the seed of the growth
+	CtxNoStepSeedRead              // a memoized step does not count as a read of the seed of the growth
 )
 
 // growRec is a growth in progress: the leader's key, its current seed and the seed's identity.

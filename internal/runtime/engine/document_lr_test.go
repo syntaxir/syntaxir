@@ -113,6 +113,82 @@ func TestDocumentSeedDependentResultsNotInMemo(t *testing.T) {
 	})
 }
 
+// memoStepSeedReads grows a leader twice at one position inside the growth of another leader, the
+// first time evaluating four steps that each read the growth's seed, and returns the body steps
+// that the second growth evaluated and the reads of seeds it counted: that growth takes its steps
+// from the table and a jump over them, and evaluates no body.
+func memoStepSeedReads(t *testing.T, mutation int) (bodySteps, seedReads int) {
+	t.Helper()
+	defer func(m int) { state.ContextMemoMutation = m }(state.ContextMemoMutation)
+	state.ContextMemoMutation = mutation
+	leader := func(id int, bit uint64) *state.Rule {
+		r := &state.Rule{}
+		r.ID, r.Leader, r.LeaderBit, r.Cycle = id, true, bit, 1
+		return r
+	}
+	p := &state.Parser{Memo: state.NewMemoTable(), MemoAll: true}
+	outer, inner := leader(1, 1), leader(2, 2)
+	var outerCall state.CallState
+	p.CallBegin(outer, 0, &outerCall)
+	outerGrow := p.GrowBegin(p.GrowKey(outer, 0), outer)
+	p.GrowNext(&outerGrow)
+	grow := func(call bool) (steps int) {
+		p.Pos = 0
+		var innerCall state.CallState
+		if call {
+			p.CallBegin(inner, 0, &innerCall)
+		}
+		g := p.GrowBegin(p.GrowKey(inner, 0), inner)
+		for p.GrowNext(&g) {
+			steps++
+			p.CallBegin(inner, 0, &state.CallState{})
+			p.Pos = 0
+			if steps <= 4 {
+				p.Pos = steps
+			}
+			p.GrowStepVM(&g, nil, steps <= 4)
+			p.Pos = 0
+		}
+		v, ok := p.GrowEndVM(inner, &g)
+		if call {
+			p.CallEnd(inner, &innerCall, v, ok)
+		}
+		return steps
+	}
+	if steps := grow(true); steps != 5 {
+		t.Fatalf("the first growth evaluated %d body steps, want 5", steps)
+	}
+	before := p.SeedReads
+	bodySteps = grow(false)
+	return bodySteps, p.SeedReads - before
+}
+
+// TestDocumentSeedReadsOfMemoizedSteps checks that a growth in a context that takes its steps from
+// the table or a jump counts each as a read of a seed (Parser.SeedReads), which is all that a
+// Document's repetition run records to know that its elements depend on a growth that is open:
+// a run recorded from such steps would be resumed where no growth is open. The second growth reads
+// no seed in a body, so the counts are the jump and the final memoized step alone. The controls
+// drop one of the counts. Document parses of 3000 random grammars of cycles with two repetitions
+// showed no difference in the runs recorded or in the results, because a run whose element took a
+// jump or a memoized step also evaluated a body that read a seed there; this test holds the count
+// where Document parses do not.
+func TestDocumentSeedReadsOfMemoizedSteps(t *testing.T) {
+	steps, reads := memoStepSeedReads(t, 0)
+	if steps != 0 || reads != 2 {
+		t.Fatalf("the second growth evaluated %d body steps and counted %d seed reads, want 0 and 2 (a jump and a memoized step)", steps, reads)
+	}
+	for _, c := range []struct {
+		name string
+		m    int
+	}{{"jump", state.CtxNoJumpSeedRead}, {"step", state.CtxNoStepSeedRead}} {
+		t.Run("control without the read of a "+c.name, func(t *testing.T) {
+			if steps, reads := memoStepSeedReads(t, c.m); steps != 0 || reads == 2 {
+				t.Errorf("the second growth evaluated %d body steps and counted %d seed reads: the mutation changed nothing", steps, reads)
+			}
+		})
+	}
+}
+
 // BenchmarkDocumentLeftRecursion measures edits to the last line of a thousand
 // direct or indirect left-recursive expressions.
 func BenchmarkDocumentLeftRecursion(b *testing.B) {

@@ -621,7 +621,9 @@ func (p *Parser) GrowNext(g *GrowState) bool {
 			return true
 		}
 		if j := p.findJump(g, gp, id); j != nil {
-			p.seedRead(gp)
+			if ContextMemoMutation != CtxNoJumpSeedRead {
+				p.seedRead(gp)
+			}
 			if ContextMemoMutation != CtxNoJumpReplayDeps {
 				p.replayDeps(g.start, gp, g.present, j.deps)
 			}
@@ -635,7 +637,9 @@ func (p *Parser) GrowNext(g *GrowState) bool {
 		}
 		h := ctxHeadKey{kind: ctxStep, id: int32(g.Key.Rule), min: int32(g.Key.Min), ms: g.Key.MissingSilent, present: g.present}
 		if s := p.ctxFind(g.start, gp, h, nil); s != nil && p.reusable(s.silent) {
-			p.seedRead(gp)
+			if ContextMemoMutation != CtxNoStepSeedRead {
+				p.seedRead(gp)
+			}
 			if ContextMemoMutation != CtxNoStepReplayDeps {
 				p.replayDeps(g.start, gp, g.present, s.deps)
 			}
