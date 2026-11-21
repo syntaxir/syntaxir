@@ -1,10 +1,12 @@
 package examinedref_test
 
 import (
+	"slices"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/internal/testing/examinedref"
+	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 // The expectations below are worked out by hand from the specification's definitions of the examined
@@ -13,7 +15,10 @@ import (
 func TestReferenceExaminedByHand(t *testing.T) {
 	tests := []struct {
 		name, src, input string
+		opts             examinedref.Options
 		want             examinedref.Result
+		// exits, when set, must be among the exits of the evaluation.
+		exits []examinedref.Exit
 	}{
 		{
 			name:  "literal rejected at its second character examines two slots",
@@ -167,6 +172,107 @@ func TestReferenceExaminedByHand(t *testing.T) {
 			input: "1+2",
 			want:  examinedref.Result{Matched: true, End: 3, Examined: 4},
 		},
+		{
+			name:  "a recovery skips what its skip matches and examines what both read",
+			src:   `rule main = "a" #recover(skip=[b]+)`,
+			input: "bbc",
+			want:  examinedref.Result{Matched: true, End: 2, Examined: 3},
+		},
+		{
+			name:  "a recovery whose skip consumes nothing fails",
+			src:   `rule main = "a" #recover(skip=[b]*)`,
+			input: "c",
+			want:  examinedref.Result{Matched: false, End: 0, Examined: 1},
+		},
+		{
+			name:  "bottom fails without examining and the next alternative matches",
+			src:   `rule main = _|_ / "a"`,
+			input: "a",
+			want:  examinedref.Result{Matched: true, End: 1, Examined: 1},
+		},
+		{
+			name:  "top matches without examining",
+			src:   `rule main = _ "a"`,
+			input: "a",
+			want:  examinedref.Result{Matched: true, End: 1, Examined: 1},
+		},
+		{
+			name:  "ignorecase matches the letters in either case",
+			src:   `rule main = "ab" #ignorecase`,
+			input: "AB",
+			want:  examinedref.Result{Matched: true, End: 2, Examined: 2},
+		},
+		{
+			// The predicate reads the capture and examines nothing: "2" is rejected after "1" matched.
+			name:  "a predicate over a capture decides the match and examines nothing",
+			src:   "rule main = x:[0-9] { text($x) == \"1\" } \"a\"",
+			input: "2a",
+			want:  examinedref.Result{Matched: false, End: 0, Examined: 1},
+		},
+		{
+			name:  "a binding is visible to the predicates after it",
+			src:   "var n int\nrule main = { n := 2 } b\nrule b = { n == 2 } \"a\"",
+			input: "a",
+			want:  examinedref.Result{Matched: true, End: 1, Examined: 1},
+		},
+		{
+			// After 3 the tail tries "+" and "*" at the end slot 5; $$ examines slot 5 as well.
+			name:  "an Operators Rule examines the operator parts it tries after the last operand",
+			src:   "rule main = e $$\nrule e = #operators {\n operand [0-9]\n level add { infix left \"+\" }\n level mul { infix left \"*\" }\n}",
+			input: "1+2*3",
+			want:  examinedref.Result{Matched: true, End: 5, Examined: 6},
+		},
+		{
+			// level(e, mul) applies the operators of mul and tighter ones, so the selected "+" ends the
+			// call after 1, having examined it; the call reports level 1, the level below mul.
+			name:  "a level-restricted call ends before a looser operator it has examined",
+			src:   "rule main = level(e, mul) \"+\" [0-9]\nrule e = #operators {\n operand [0-9]\n level add { infix left \"+\" }\n level mul { infix left \"*\" }\n}",
+			input: "1+2",
+			want:  examinedref.Result{Matched: true, End: 3, Examined: 3},
+			exits: []examinedref.Exit{{Rule: "e", Level: 1, Pos: 0, End: 1, Examined: 2, Matched: true}},
+		},
+		{
+			name:  "a missing token is inserted where its literal fails",
+			src:   `rule main = "a" "b" #missing "c"`,
+			input: "ac",
+			opts:  examinedref.Options{MissingTokens: true},
+			want:  examinedref.Result{Matched: true, End: 2, Examined: 2},
+		},
+		{
+			name:  "without token insertion the same literal fails",
+			src:   `rule main = "a" "b" #missing "c"`,
+			input: "ac",
+			want:  examinedref.Result{Matched: false, End: 0, Examined: 2},
+		},
+		{
+			name:  "no token is inserted in a lookahead",
+			src:   `rule main = &("b" #missing) "a"`,
+			input: "a",
+			opts:  examinedref.Options{MissingTokens: true},
+			want:  examinedref.Result{Matched: false, End: 0, Examined: 1},
+		},
+		{
+			// In bytes, decoding reads E2 82 and rejects "A" as the third byte: an invalid byte of one
+			// position whose decoding examined three slots.
+			name:  "a truncated sequence in bytes examines the byte that invalidates it",
+			src:   `rule main = .`,
+			input: "\xe2\x82A",
+			opts:  examinedref.Options{Unit: input.Bytes},
+			want:  examinedref.Result{Matched: true, End: 1, Examined: 3},
+		},
+		{
+			name:  "the same input in code points is three characters",
+			src:   `rule main = .`,
+			input: "\xe2\x82A",
+			want:  examinedref.Result{Matched: true, End: 1, Examined: 1},
+		},
+		{
+			name:  "an inline action is a call of its hidden rule",
+			src:   "rule main = (\"a\" => 1) \"b\"",
+			input: "ab",
+			want:  examinedref.Result{Matched: true, End: 2, Examined: 2},
+			exits: []examinedref.Exit{{Rule: "_main_1", Pos: 0, End: 1, Examined: 1, Matched: true}},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -174,25 +280,35 @@ func TestReferenceExaminedByHand(t *testing.T) {
 			if err != nil {
 				t.Fatalf("parse: %v", err)
 			}
-			got, _, err := examinedref.Evaluate(g, "main", tt.input)
+			got, exits, err := examinedref.EvaluateWith(g, "main", tt.input, tt.opts)
 			if err != nil {
 				t.Fatalf("evaluate: %v", err)
 			}
 			if got != tt.want {
 				t.Fatalf("got %+v, want %+v", got, tt.want)
 			}
+			for _, x := range tt.exits {
+				if !slices.Contains(exits, x) {
+					t.Errorf("no exit %+v among %+v", x, exits)
+				}
+			}
 		})
 	}
 }
 
-func TestReferenceRejectsOutsideFragment(t *testing.T) {
-	g, err := enginetest.ParseGrammar("rule main = \"a\" #recover(skip=[b]+)")
+// TestReferenceRejectsActionValues checks that a predicate reading the value of a user action makes
+// the input fall outside the reference, naming the rule.
+func TestReferenceRejectsActionValues(t *testing.T) {
+	g, err := enginetest.ParseGrammar("rule main = x:n { $x == 1 } \"a\"\nrule n int = [0-9] => 1")
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	if _, _, err := examinedref.Evaluate(g, "main", "a"); err == nil {
-		t.Fatal("recovery is outside the reference fragment and must be refused")
-	} else if _, ok := err.(*examinedref.UnsupportedError); !ok {
-		t.Fatalf("got %T, want *UnsupportedError", err)
+	_, _, err = examinedref.Evaluate(g, "main", "1a")
+	uns, ok := err.(*examinedref.UnsupportedError)
+	if !ok {
+		t.Fatalf("got %v (%T), want *UnsupportedError", err, err)
+	}
+	if want := "a predicate that reads the value of the action of rule n"; uns.Construct != want {
+		t.Fatalf("construct %q, want %q", uns.Construct, want)
 	}
 }

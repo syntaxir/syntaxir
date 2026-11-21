@@ -56,7 +56,11 @@ func TestLeaders(t *testing.T) {
 			if err != nil {
 				t.Fatalf("parse: %v", err)
 			}
-			facts, err := analyzeRules(g.Rules())
+			rs, err := newRuleSet(g)
+			if err != nil {
+				t.Fatalf("rules: %v", err)
+			}
+			facts, err := analyzeRules(rs, false)
 			if err != nil {
 				t.Fatalf("analyze: %v", err)
 			}

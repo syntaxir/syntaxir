@@ -7,8 +7,10 @@ import (
 )
 
 // The facts of the rules that decide the growths of left recursion, computed from the definitions in
-// spec/core-ir/attributes.md (Nullability, Rule Facts) for a parse without token insertion. The
-// definitions are restated here from the spec, not taken from the lowering or the engine.
+// spec/core-ir/attributes.md (Nullability, Rule Facts), once for a parse without token insertion and
+// once for a parse with it (spec/language/parser-expressions.md, Left Recursion). The definitions are
+// restated here from the spec, not taken from the lowering or the engine. The rules are those of
+// ruleSet: the rules as written and the hidden rules of their inline actions.
 //
 // Nullable is the least fixed point over the rules. Succeeds (a rule off every left-recursion cycle
 // whose body always succeeds) starts with no rule proven and grows: the left calls, the cycles and the
@@ -17,8 +19,9 @@ import (
 
 // analysis holds the facts of one grammar while they are computed.
 type analysis struct {
-	rules    map[string]*ast.RuleDef
+	rules    map[string]*rule
 	names    []string // rule names in declaration order
+	ins      bool     // the facts of a parse with token insertion: NullableIns in place of Nullable
 	nullable map[string]bool
 	proven   map[string]bool
 	left     map[string][]string
@@ -30,17 +33,15 @@ type ruleFacts struct {
 	leaders map[string]bool
 }
 
-// analyzeRules computes the leaders of the grammar.
-func analyzeRules(defs []*ast.RuleDef) (ruleFacts, error) {
+// analyzeRules computes the leaders of the rules, with token insertion if ins is set.
+func analyzeRules(rs *ruleSet, ins bool) (ruleFacts, error) {
 	a := &analysis{
-		rules:    map[string]*ast.RuleDef{},
+		rules:    rs.byName,
+		names:    rs.order,
+		ins:      ins,
 		nullable: map[string]bool{},
 		proven:   map[string]bool{},
 		left:     map[string][]string{},
-	}
-	for _, r := range defs {
-		a.names = append(a.names, r.Name)
-		a.rules[r.Name] = r
 	}
 	a.computeNullable()
 	a.computeSucceeds()
@@ -62,7 +63,7 @@ func (a *analysis) computeNullable() {
 	for changed := true; changed; {
 		changed = false
 		for _, name := range a.names {
-			if !a.nullable[name] && a.nullableExpr(a.rules[name].Expr) {
+			if !a.nullable[name] && a.nullableExpr(a.rules[name].body) {
 				a.nullable[name] = true
 				changed = true
 			}
@@ -70,14 +71,31 @@ func (a *analysis) computeNullable() {
 	}
 }
 
-// nullableExpr reports whether e can succeed without consuming input when no token is inserted.
+// nullableExpr reports whether e can succeed without consuming input (Nullable, or NullableIns in the
+// facts with insertion).
 func (a *analysis) nullableExpr(e ast.Expr) bool {
 	switch e := e.(type) {
 	case *ast.Ref:
 		return a.nullable[e.Name]
 	case *ast.Literal:
 		return e.Value == ""
-	case *ast.CharClass, *ast.Any:
+	case *ast.CharClass, *ast.Any, *ast.Bottom:
+		return false
+	case *ast.Recovery:
+		// When the body fails, a skip that consumes nothing is no recovery.
+		return a.nullableExpr(e.Expr)
+	case *ast.Attributed:
+		if base, missing := splitMissing(e); missing != nil {
+			// An insertion consumes no input.
+			return a.ins || a.nullableExpr(base)
+		}
+		return a.nullableExpr(e.Expr)
+	case *ast.OperatorsRule:
+		for _, o := range e.Operands {
+			if a.nullableExpr(o.Expr) {
+				return true
+			}
+		}
 		return false
 	case *ast.Seq:
 		for _, item := range e.Items {
@@ -95,9 +113,9 @@ func (a *analysis) nullableExpr(e ast.Expr) bool {
 		return false
 	case *ast.Repeat:
 		return e.Min == 0 || (e.Min == 1 && a.nullableExpr(e.Expr))
-	case *ast.Optional, *ast.And, *ast.Not, *ast.Cut, *ast.BeginInput, *ast.EndInput, *ast.BeginLine, *ast.EndLine:
+	case *ast.Optional, *ast.And, *ast.Not, *ast.Cut, *ast.Top, *ast.Predicate, *ast.BeginInput, *ast.EndInput, *ast.BeginLine, *ast.EndLine:
 		return true
-	case *ast.Group, *ast.InlineAction, *ast.Atomic, *ast.Discard, *ast.Capture, *ast.Stream:
+	case *ast.Group, *ast.Atomic, *ast.Discard, *ast.Capture, *ast.Stream:
 		return a.nullableExpr(transparentBody(e))
 	}
 	a.unsupported(e)
@@ -108,8 +126,6 @@ func (a *analysis) nullableExpr(e ast.Expr) bool {
 func transparentBody(e ast.Expr) ast.Expr {
 	switch e := e.(type) {
 	case *ast.Group:
-		return e.Expr
-	case *ast.InlineAction:
 		return e.Expr
 	case *ast.Atomic:
 		return e.Expr
@@ -129,12 +145,12 @@ func transparentBody(e ast.Expr) ast.Expr {
 func (a *analysis) computeSucceeds() {
 	for {
 		for _, name := range a.names {
-			a.left[name] = a.leftCalls(a.rules[name].Expr)
+			a.left[name] = a.leftCalls(a.rules[name].body)
 		}
 		onCycle := cyclicRules(a.names, a.left, nil)
 		added := false
 		for _, name := range a.names {
-			if !a.proven[name] && !onCycle[name] && a.alwaysSucc(a.rules[name].Expr) {
+			if !a.proven[name] && !onCycle[name] && a.alwaysSucc(a.rules[name].body) {
 				a.proven[name] = true
 				added = true
 			}
@@ -170,6 +186,33 @@ func (a *analysis) leftCalls(e ast.Expr) []string {
 	switch e := e.(type) {
 	case *ast.Ref:
 		return []string{e.Name}
+	case *ast.Recovery:
+		out := a.leftCalls(e.Expr)
+		if !a.alwaysSucc(e.Expr) {
+			out = append(out, a.leftCalls(e.Skip)...)
+		}
+		return out
+	case *ast.Attributed:
+		return a.leftCalls(e.Expr)
+	case *ast.OperatorsRule:
+		var out []string
+		if e.Skip != nil {
+			out = append(out, a.leftCalls(e.Skip)...)
+		}
+		for _, o := range e.Operands {
+			out = append(out, a.leftCalls(o.Expr)...)
+			if a.alwaysSucc(o.Expr) {
+				break
+			}
+		}
+		for _, l := range e.Levels {
+			for _, op := range l.Operators {
+				if op.Kind == ast.Prefix {
+					out = append(out, a.leftCalls(op.Expr)...)
+				}
+			}
+		}
+		return out
 	case *ast.Seq:
 		var out []string
 		for _, item := range e.Items {
@@ -199,9 +242,9 @@ func (a *analysis) leftCalls(e ast.Expr) []string {
 		return a.leftCalls(e.Expr)
 	case *ast.Not:
 		return a.leftCalls(e.Expr)
-	case *ast.Group, *ast.InlineAction, *ast.Atomic, *ast.Discard, *ast.Capture, *ast.Stream:
+	case *ast.Group, *ast.Atomic, *ast.Discard, *ast.Capture, *ast.Stream:
 		return a.leftCalls(transparentBody(e))
-	case *ast.Literal, *ast.CharClass, *ast.Any, *ast.Cut, *ast.BeginInput, *ast.EndInput, *ast.BeginLine, *ast.EndLine:
+	case *ast.Literal, *ast.CharClass, *ast.Any, *ast.Cut, *ast.Top, *ast.Bottom, *ast.Predicate, *ast.BeginInput, *ast.EndInput, *ast.BeginLine, *ast.EndLine:
 		return nil
 	}
 	a.unsupported(e)
@@ -215,8 +258,15 @@ func (a *analysis) alwaysSucc(e ast.Expr) bool {
 		return a.proven[e.Name]
 	case *ast.Literal:
 		return e.Value == ""
-	case *ast.Cut:
+	case *ast.Cut, *ast.Top:
 		return true
+	case *ast.Recovery:
+		return a.alwaysSucc(e.Expr)
+	case *ast.Attributed:
+		if _, missing := splitMissing(e); missing != nil {
+			return false
+		}
+		return a.alwaysSucc(e.Expr)
 	case *ast.Seq:
 		for _, item := range e.Items {
 			if !a.alwaysSucc(item) {
@@ -249,9 +299,9 @@ func (a *analysis) alwaysSucc(e ast.Expr) bool {
 		return a.alwaysSucc(e.Expr)
 	case *ast.Not:
 		return a.alwaysFail(e.Expr)
-	case *ast.Group, *ast.InlineAction, *ast.Atomic, *ast.Discard, *ast.Capture, *ast.Stream:
+	case *ast.Group, *ast.Atomic, *ast.Discard, *ast.Capture, *ast.Stream:
 		return a.alwaysSucc(transparentBody(e))
-	case *ast.CharClass, *ast.Any, *ast.BeginInput, *ast.EndInput, *ast.BeginLine, *ast.EndLine:
+	case *ast.CharClass, *ast.Any, *ast.Bottom, *ast.Predicate, *ast.OperatorsRule, *ast.BeginInput, *ast.EndInput, *ast.BeginLine, *ast.EndLine:
 		return false
 	}
 	a.unsupported(e)
@@ -261,6 +311,13 @@ func (a *analysis) alwaysSucc(e ast.Expr) bool {
 // alwaysFail reports whether e always fails, given the rules proven to succeed (Rule Facts).
 func (a *analysis) alwaysFail(e ast.Expr) bool {
 	switch e := e.(type) {
+	case *ast.Bottom:
+		return true
+	case *ast.Attributed:
+		if _, missing := splitMissing(e); missing != nil {
+			return false
+		}
+		return a.alwaysFail(e.Expr)
 	case *ast.Seq:
 		for _, item := range e.Items {
 			if a.alwaysFail(item) {
@@ -279,9 +336,10 @@ func (a *analysis) alwaysFail(e ast.Expr) bool {
 		return a.alwaysFail(e.Expr)
 	case *ast.Not:
 		return a.alwaysSucc(e.Expr)
-	case *ast.Group, *ast.InlineAction, *ast.Atomic, *ast.Discard, *ast.Capture, *ast.Stream:
+	case *ast.Group, *ast.Atomic, *ast.Discard, *ast.Capture, *ast.Stream:
 		return a.alwaysFail(transparentBody(e))
-	case *ast.Ref, *ast.Literal, *ast.CharClass, *ast.Any, *ast.Optional, *ast.Repeat, *ast.Cut, *ast.BeginInput, *ast.EndInput, *ast.BeginLine, *ast.EndLine:
+	case *ast.Ref, *ast.Literal, *ast.CharClass, *ast.Any, *ast.Optional, *ast.Repeat, *ast.Cut, *ast.Top, *ast.Predicate,
+		*ast.Recovery, *ast.OperatorsRule, *ast.BeginInput, *ast.EndInput, *ast.BeginLine, *ast.EndLine:
 		return false
 	}
 	a.unsupported(e)
@@ -301,9 +359,15 @@ func (a *analysis) looseCut(e ast.Expr) bool {
 			}
 		}
 		return false
-	case *ast.Group, *ast.InlineAction, *ast.Atomic, *ast.Discard, *ast.Capture, *ast.Stream:
+	case *ast.Group, *ast.Atomic, *ast.Discard, *ast.Capture, *ast.Stream:
 		return a.looseCut(transparentBody(e))
-	case *ast.Ref, *ast.Literal, *ast.CharClass, *ast.Any, *ast.Choice, *ast.Optional, *ast.Repeat, *ast.And, *ast.Not, *ast.BeginInput, *ast.EndInput, *ast.BeginLine, *ast.EndLine:
+	case *ast.Attributed:
+		return a.looseCut(e.Expr)
+	case *ast.Recovery:
+		// The skip of a recovery is in the scope of its body.
+		return a.looseCut(e.Expr) || a.looseCut(e.Skip)
+	case *ast.Ref, *ast.Literal, *ast.CharClass, *ast.Any, *ast.Choice, *ast.Optional, *ast.Repeat, *ast.And, *ast.Not,
+		*ast.Top, *ast.Bottom, *ast.Predicate, *ast.OperatorsRule, *ast.BeginInput, *ast.EndInput, *ast.BeginLine, *ast.EndLine:
 		return false
 	}
 	a.unsupported(e)
