@@ -3,12 +3,22 @@ package corepass
 import (
 	"fmt"
 
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/ir/core"
 )
 
 // The queries below answer for any node of the module the facts were computed on, with the rule
 // facts of Facts. A node's nullability, first terminal and effects are its attributes
 // (core.Node.Attrs); these are the facts that depend on the rules called.
+
+// WithControl returns the facts f with node queries that poll control, which may be nil, in place of
+// the control they were computed under: a tool that reads the facts later polls its own. The copy
+// shares the rule facts of f.
+func (f *Facts) WithControl(control *cancel.Control) *Facts {
+	c := *f.c
+	c.control = control
+	return &Facts{Rules: f.Rules, c: &c}
+}
 
 // Succeeds reports a proof that n cannot fail, at any position. Errors that end the parse are
 // not failures.

@@ -1,8 +1,12 @@
 package corepass_test
 
 import (
+	"context"
+	"errors"
+	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
@@ -47,5 +51,34 @@ func TestNullableAtAndBeforeEnd(t *testing.T) {
 		if got := f.NullableBeforeEnd(main.Body); got != tc.beforeEnd {
 			t.Errorf("%q: body NullableBeforeEnd %v, want %v", tc.src, got, tc.beforeEnd)
 		}
+	}
+}
+
+// TestFactsWithControl requires the node queries of facts given another control to poll it, and
+// the facts they were made from to keep their own.
+func TestFactsWithControl(t *testing.T) {
+	t.Parallel()
+	g, err := compiletest.Parse("rule main = " + strings.Repeat("_ ", 64))
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := elaborate.Structural(compile.StructuralInput(g, g.Rules(), nil), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := corepass.Compute(m, nil)
+	ctx, stop := context.WithCancel(context.Background())
+	stop()
+	polled := f.WithControl(&cancel.Control{Ctx: ctx})
+	func() {
+		defer func() {
+			if c, ok := recover().(cancel.Cancellation); !ok || !errors.Is(c.Err, context.Canceled) {
+				t.Errorf("a query of the facts with a cancelled control did not stop: %v", c)
+			}
+		}()
+		polled.Succeeds(m.Rules[0].Body)
+	}()
+	if !f.Succeeds(m.Rules[0].Body) || polled.Rules[0].Succeeds != f.Rules[0].Succeeds {
+		t.Errorf("the facts changed with the control of their copy")
 	}
 }
