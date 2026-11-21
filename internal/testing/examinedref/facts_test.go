@@ -44,6 +44,11 @@ func TestLeaders(t *testing.T) {
 			src:  "rule a = b \"x\" / \"y\"\nrule b = a \"z\" / c \"u\" / \"w\"\nrule c = b \"v\" / \"t\"",
 			want: []string{"a", "b"},
 		},
+		{
+			name: "the same cycles with the alternatives of the shared rule reversed give the same leaders",
+			src:  "rule a = b \"x\" / \"y\"\nrule b = c \"u\" / a \"z\" / \"w\"\nrule c = b \"v\" / \"t\"",
+			want: []string{"a", "b"},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
