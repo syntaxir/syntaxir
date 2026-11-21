@@ -63,7 +63,7 @@ var recognizerKnownDifferences = []codegentest.Case{
 }
 
 // TestCoreRecognizerDecisionsFrozen compares the decisions of the Core IR of the recognizers of the
-// corpus with those frozen in testdata/recognizer_decisions.golden, in each recognizer mode. The
+// corpus with those frozen in testdata/decisions/recognizer, in each recognizer mode. The
 // grammars of recognizerKnownDifferences must have a guarded class in the lean mode, and none in the
 // controlled one. -update rewrites the golden (core_typed_decisions_test.go).
 func TestCoreRecognizerDecisionsFrozen(t *testing.T) {

@@ -1,0 +1,164 @@
+# Typed lowering decisions of the Core IR and Flow passes (see core_typed_decisions_test.go).
+cond	0	"!((ch == 34 || ch == 92 || ch == 10))"
+cond	1	""
+cond	2	"(ch == 32 || ch == 9 || ch == 13 || ch == 10)"
+cond	3	"ch == 101"
+cond	4	"ch == 102"
+cond	5	"ch == 105"
+cond	6	"ch == 108"
+cond	7	"ch == 114"
+cond	8	"ch == 116"
+cond	9	"ch == 119"
+cond	10	"ch == 123"
+cond	11	"ch == 33"
+cond	12	"ch == 37"
+cond	13	"ch == 42"
+cond	14	"ch == 43"
+cond	15	"ch == 45"
+cond	16	"ch == 47"
+cond	17	"ch == 60"
+cond	18	"ch == 61"
+cond	19	"ch == 62"
+cond	20	"ch == 92"
+grammar	lean,lean boxed	"../../examples/minilang/minilang.sxir"
+guard	14	28	1	0	0	"\"==\""	18
+guard	14	29	1	0	0	"\"!=\""	11
+guard	14	30	1	0	0	"\"<=\""	17
+guard	14	31	1	0	0	"\">=\""	19
+guard	14	32	1	0	0	"\"<\""	17
+guard	14	33	1	0	0	"\">\""	19
+guard	14	35	1	0	0	"\"+\""	14
+guard	14	36	1	0	0	"\"-\""	15
+guard	14	38	1	0	0	"\"*\""	13
+guard	14	39	1	0	0	"\"/\""	16
+guard	14	40	1	0	0	"\"%\""	12
+guard	14	42	1	0	0	"\"-\""	15
+guard	14	43	1	0	0	"\"!\""	11
+guard	18	2	1	0	0	"\"let\""	6
+guard	18	3	1	0	0	"\"fn\""	4
+guard	18	4	1	0	0	"\"if\""	5
+guard	18	5	1	0	0	"\"else\""	3
+guard	18	6	1	0	0	"\"while\""	9
+guard	18	7	1	0	0	"\"return\""	7
+guard	18	8	1	0	0	"\"true\""	8
+guard	18	9	1	0	0	"\"false\""	4
+guard	22	3	1	0	1	"[^\"\\\\\\n]"	0
+guard	22	4	1	0	0	"\"\\\\\""	20
+guard	23	3	1	0	0	"\"true\""	8
+guard	23	4	1	0	0	"\"false\""	4
+guard	3	10	0	0	0	""	1
+guard	3	3	1	0	0	"\"let\""	6
+guard	3	4	1	1	0	"\"fn\""	4
+guard	3	5	1	1	0	"\"if\""	5
+guard	3	6	1	1	0	"\"while\""	9
+guard	3	7	1	0	0	"\"return\""	7
+guard	3	8	1	1	0	"\"{\""	10
+guard	3	9	0	0	0	""	1
+guard	30	2	1	0	1	"[ \\t\\r\\n]"	2
+guard	30	3	1	0	0	"\"//\""	16
+guard	31	2	1	0	1	"[ \\t\\r\\n]"	2
+guard	31	3	1	0	0	"\"//\""	16
+guard	38	2	1	0	0	"\"let\""	6
+guard	38	3	1	0	0	"\"fn\""	4
+guard	38	4	1	0	0	"\"if\""	5
+guard	38	5	1	0	0	"\"else\""	3
+guard	38	6	1	0	0	"\"while\""	9
+guard	38	7	1	0	0	"\"return\""	7
+guard	38	8	1	0	0	"\"true\""	8
+guard	38	9	1	0	0	"\"false\""	4
+guard	7	6	1	1	0	"\"if\""	5
+guard	7	7	1	1	0	"\"{\""	10
+scan	20	2
+scan	20	7
+scan	31	5
+scope	1	2	s
+scope	11	5	p
+scope	14	1	
+scope	14	12	xs
+scope	14	19	t
+scope	14	2	
+scope	14	25	
+scope	14	26	
+scope	14	27	
+scope	14	3	
+scope	14	34	
+scope	14	37	
+scope	14	4	
+scope	14	41	
+scope	14	44	xs
+scope	14	5	
+scope	14	51	i
+scope	14	57	n
+scope	14	6	e
+scope	15	5	x
+grammar	lean observable,controlled	"../../examples/minilang/minilang.sxir"
+guard	14	28	1	0	0	"\"==\""	18
+guard	14	29	1	0	0	"\"!=\""	11
+guard	14	30	1	0	0	"\"<=\""	17
+guard	14	31	1	0	0	"\">=\""	19
+guard	14	32	1	0	0	"\"<\""	17
+guard	14	33	1	0	0	"\">\""	19
+guard	14	35	1	0	0	"\"+\""	14
+guard	14	36	1	0	0	"\"-\""	15
+guard	14	38	1	0	0	"\"*\""	13
+guard	14	39	1	0	0	"\"/\""	16
+guard	14	40	1	0	0	"\"%\""	12
+guard	14	42	1	0	0	"\"-\""	15
+guard	14	43	1	0	0	"\"!\""	11
+guard	18	2	1	0	0	"\"let\""	6
+guard	18	3	1	0	0	"\"fn\""	4
+guard	18	4	1	0	0	"\"if\""	5
+guard	18	5	1	0	0	"\"else\""	3
+guard	18	6	1	0	0	"\"while\""	9
+guard	18	7	1	0	0	"\"return\""	7
+guard	18	8	1	0	0	"\"true\""	8
+guard	18	9	1	0	0	"\"false\""	4
+guard	22	3	1	0	0	"[^\"\\\\\\n]"	0
+guard	22	4	1	0	0	"\"\\\\\""	20
+guard	23	3	1	0	0	"\"true\""	8
+guard	23	4	1	0	0	"\"false\""	4
+guard	3	10	0	0	0	""	1
+guard	3	3	1	0	0	"\"let\""	6
+guard	3	4	1	1	0	"\"fn\""	4
+guard	3	5	1	1	0	"\"if\""	5
+guard	3	6	1	1	0	"\"while\""	9
+guard	3	7	1	0	0	"\"return\""	7
+guard	3	8	1	1	0	"\"{\""	10
+guard	3	9	0	0	0	""	1
+guard	30	2	1	0	0	"[ \\t\\r\\n]"	2
+guard	30	3	1	0	0	"\"//\""	16
+guard	31	2	1	0	0	"[ \\t\\r\\n]"	2
+guard	31	3	1	0	0	"\"//\""	16
+guard	38	2	1	0	0	"\"let\""	6
+guard	38	3	1	0	0	"\"fn\""	4
+guard	38	4	1	0	0	"\"if\""	5
+guard	38	5	1	0	0	"\"else\""	3
+guard	38	6	1	0	0	"\"while\""	9
+guard	38	7	1	0	0	"\"return\""	7
+guard	38	8	1	0	0	"\"true\""	8
+guard	38	9	1	0	0	"\"false\""	4
+guard	7	6	1	1	0	"\"if\""	5
+guard	7	7	1	1	0	"\"{\""	10
+scan	20	2
+scan	20	7
+scan	31	5
+scope	1	2	s
+scope	11	5	p
+scope	14	1	
+scope	14	12	xs
+scope	14	19	t
+scope	14	2	
+scope	14	25	
+scope	14	26	
+scope	14	27	
+scope	14	3	
+scope	14	34	
+scope	14	37	
+scope	14	4	
+scope	14	41	
+scope	14	44	xs
+scope	14	5	
+scope	14	51	i
+scope	14	57	n
+scope	14	6	e
+scope	15	5	x

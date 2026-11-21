@@ -1,0 +1,576 @@
+# Recognizer lowering decisions of the Core IR and Flow passes (see core_typed_decisions_test.go).
+cond	0	"!(((p.Control != nil && p.RejectBudgetClass(ch, budgetClass)) || (p.Control == nil && (!(ch == 48 || ch == 97 || ch == 98 || ch == 116 || ch == 9 || ch == 110 || ch == 118 || ch == 102 || ch == 114 || ch == 101 || ch == 32 || ch == 34 || ch == 47 || ch == 92 || ch == 78 || ch == 95 || ch == 76 || ch == 80)))))"
+cond	1	"!(((p.Control != nil && p.RejectBudgetClass(ch, budgetClass)) || (p.Control == nil && (!(ch >= 48 && ch <= 57 || ch >= 97 && ch <= 122 || ch >= 65 && ch <= 90 || ch == 45 || ch == 35 || ch == 59 || ch == 47 || ch == 63 || ch == 58 || ch == 64 || ch == 38 || ch == 61 || ch == 43 || ch == 36 || ch == 44 || ch == 95 || ch == 46 || ch == 33 || ch == 126 || ch == 42 || ch == 39 || ch == 40 || ch == 41 || ch == 91 || ch == 93)))))"
+cond	2	"!(((p.Control != nil && p.RejectBudgetClass(ch, budgetClass)) || (p.Control == nil && (!(ch >= 48 && ch <= 57 || ch >= 97 && ch <= 122 || ch >= 65 && ch <= 90 || ch == 45 || ch == 35 || ch == 59 || ch == 47 || ch == 63 || ch == 58 || ch == 64 || ch == 38 || ch == 61 || ch == 43 || ch == 36 || ch == 95 || ch == 46 || ch == 126 || ch == 42 || ch == 39 || ch == 40 || ch == 41)))))"
+cond	3	"!(((p.Control != nil && p.RejectBudgetClass(ch, budgetClass)) || (p.Control == nil && ((ch >= 0 && ch <= 32 || ch >= 127 && ch <= 132 || ch >= 134 && ch <= 159 || ch == 65279 || ch == 65534 || ch == 65535 || ch == 45 || ch == 63 || ch == 58 || ch == 44 || ch == 91 || ch == 93 || ch == 123 || ch == 125 || ch == 35 || ch == 38 || ch == 42 || ch == 33 || ch == 124 || ch == 62 || ch == 39 || ch == 34 || ch == 37 || ch == 64 || ch == 96)))))"
+cond	4	"!(((p.Control != nil && p.RejectBudgetClass(ch, budgetClass)) || (p.Control == nil && ((ch >= 0 && ch <= 32 || ch >= 127 && ch <= 132 || ch >= 134 && ch <= 159 || ch == 65279 || ch == 65534 || ch == 65535 || ch == 58 || ch == 35 || ch == 44 || ch == 91 || ch == 93 || ch == 123 || ch == 125)))))"
+cond	5	"!(((p.Control != nil && p.RejectBudgetClass(ch, budgetClass)) || (p.Control == nil && ((ch >= 0 && ch <= 32 || ch >= 127 && ch <= 132 || ch >= 134 && ch <= 159 || ch == 65279 || ch == 65534 || ch == 65535 || ch == 58 || ch == 35)))))"
+cond	6	"!((ch >= 0 && ch <= 32 || ch == 34 || ch == 92))"
+cond	7	"!((ch >= 0 && ch <= 32 || ch == 39))"
+cond	8	"!((ch >= 0 && ch <= 32 || ch >= 127 && ch <= 132 || ch >= 134 && ch <= 159 || ch == 65279 || ch == 65534 || ch == 65535 || ch == 45 || ch == 63 || ch == 58 || ch == 44 || ch == 91 || ch == 93 || ch == 123 || ch == 125 || ch == 35 || ch == 38 || ch == 42 || ch == 33 || ch == 124 || ch == 62 || ch == 39 || ch == 34 || ch == 37 || ch == 64 || ch == 96))"
+cond	9	"!((ch >= 0 && ch <= 32 || ch >= 127 && ch <= 132 || ch >= 134 && ch <= 159 || ch == 65279 || ch == 65534 || ch == 65535 || ch == 58 || ch == 35 || ch == 44 || ch == 91 || ch == 93 || ch == 123 || ch == 125))"
+cond	10	"!((ch >= 0 && ch <= 32 || ch >= 127 && ch <= 132 || ch >= 134 && ch <= 159 || ch == 65279 || ch == 65534 || ch == 65535 || ch == 58 || ch == 35))"
+cond	11	""
+cond	12	"(ch == 13 || ch == 10 || ch == 32 || ch == 9)"
+cond	13	"(ch == 35 || ch == 13 || ch == 10)"
+cond	14	"(ch == 45 || ch == 63 || ch == 58)"
+cond	15	"(ch == 48 || ch == 97 || ch == 98 || ch == 116 || ch == 9 || ch == 110 || ch == 118 || ch == 102 || ch == 114 || ch == 101 || ch == 32 || ch == 34 || ch == 47 || ch == 92 || ch == 78 || ch == 95 || ch == 76 || ch == 80)"
+cond	16	"(ch >= 48 && ch <= 57 || ch >= 97 && ch <= 122 || ch >= 65 && ch <= 90 || ch == 45 || ch == 35 || ch == 59 || ch == 47 || ch == 63 || ch == 58 || ch == 64 || ch == 38 || ch == 61 || ch == 43 || ch == 36 || ch == 44 || ch == 95 || ch == 46 || ch == 33 || ch == 126 || ch == 42 || ch == 39 || ch == 40 || ch == 41 || ch == 91 || ch == 93)"
+cond	17	"(ch >= 48 && ch <= 57 || ch >= 97 && ch <= 122 || ch >= 65 && ch <= 90 || ch == 45 || ch == 35 || ch == 59 || ch == 47 || ch == 63 || ch == 58 || ch == 64 || ch == 38 || ch == 61 || ch == 43 || ch == 36 || ch == 95 || ch == 46 || ch == 126 || ch == 42 || ch == 39 || ch == 40 || ch == 41)"
+cond	18	"ch == 10"
+cond	19	"ch == 117"
+cond	20	"ch == 120"
+cond	21	"ch == 124"
+cond	22	"ch == 13"
+cond	23	"ch == 33"
+cond	24	"ch == 37"
+cond	25	"ch == 38"
+cond	26	"ch == 39"
+cond	27	"ch == 42"
+cond	28	"ch == 45"
+cond	29	"ch == 46"
+cond	30	"ch == 49"
+cond	31	"ch == 50"
+cond	32	"ch == 51"
+cond	33	"ch == 52"
+cond	34	"ch == 53"
+cond	35	"ch == 54"
+cond	36	"ch == 55"
+cond	37	"ch == 56"
+cond	38	"ch == 57"
+cond	39	"ch == 58"
+cond	40	"ch == 62"
+cond	41	"ch == 63"
+cond	42	"ch == 65279"
+cond	43	"ch == 84"
+cond	44	"ch == 85"
+cond	45	"ch == 89"
+cond	46	"ch == 92"
+grammar	lean	"grammars/yaml"
+guard	1	10	0	0	0	""	11
+guard	1	20	0	0	0	""	11
+guard	1	29	1	0	0	"\"...\""	29
+guard	1	30	0	0	0	""	11
+guard	10	1	0	0	0	""	11
+guard	10	2	0	0	0	""	11
+guard	100	4	0	0	0	""	11
+guard	100	5	0	0	0	""	11
+guard	102	1	0	0	0	""	11
+guard	102	10	0	0	0	""	11
+guard	102	4	0	0	0	""	11
+guard	102	7	0	0	0	""	11
+guard	103	1	0	0	0	""	11
+guard	103	4	0	0	0	""	11
+guard	105	4	1	0	1	"[^\\x00- \\x7f-\\u0084\\u0086-\\u009f\\ufeff\\ufffe\\uffff\\-?:,\\[\\]{}#&*!|>\\'\"%@`]"	8
+guard	105	5	1	0	1	"[\\-?:]"	14
+guard	106	12	1	0	1	"[^\\x00- \\x7f-\\u0084\\u0086-\\u009f\\ufeff\\ufffe\\uffff:#]"	10
+guard	106	13	1	0	0	"\":\""	39
+guard	106	2	0	0	0	""	11
+guard	106	4	1	0	0	"\":\""	39
+guard	106	8	0	0	0	""	11
+guard	107	8	1	0	1	"[^\\x00- \\x7f-\\u0084\\u0086-\\u009f\\ufeff\\ufffe\\uffff:#]"	10
+guard	107	9	1	0	0	"\":\""	39
+guard	108	4	1	0	1	"[^\\x00- \\x7f-\\u0084\\u0086-\\u009f\\ufeff\\ufffe\\uffff\\-?:,\\[\\]{}#&*!|>\\'\"%@`]"	8
+guard	108	5	1	0	1	"[\\-?:]"	14
+guard	109	12	1	0	1	"[^\\x00- \\x7f-\\u0084\\u0086-\\u009f\\ufeff\\ufffe\\uffff:#,\\[\\]{}]"	9
+guard	109	13	1	0	0	"\":\""	39
+guard	109	2	0	0	0	""	11
+guard	109	4	1	0	0	"\":\""	39
+guard	109	8	0	0	0	""	11
+guard	110	8	1	0	1	"[^\\x00- \\x7f-\\u0084\\u0086-\\u009f\\ufeff\\ufffe\\uffff:#,\\[\\]{}]"	9
+guard	110	9	1	0	0	"\":\""	39
+guard	112	3	0	0	0	""	11
+guard	112	6	0	0	0	""	11
+guard	113	2	0	0	0	""	11
+guard	113	4	1	0	0	"\"\\\\\""	46
+guard	114	12	1	0	0	"\"U\""	44
+guard	114	3	1	0	1	"[0abt\\tnvfre \"/\\\\N_LP]"	15
+guard	114	4	1	0	0	"\"x\""	20
+guard	114	8	1	0	0	"\"u\""	19
+guard	115	11	0	0	0	""	11
+guard	115	6	0	0	0	""	11
+guard	116	2	0	0	0	""	11
+guard	116	4	1	0	0	"\"\\\\\""	46
+guard	116	5	0	0	0	""	11
+guard	117	1	1	0	1	"[^\\x00- \"\\\\]"	6
+guard	117	2	1	0	0	"\"\\\\\""	46
+guard	118	1	0	0	0	""	11
+guard	118	9	0	0	0	""	11
+guard	120	3	0	0	0	""	11
+guard	120	6	0	0	0	""	11
+guard	121	2	0	0	0	""	11
+guard	121	4	1	0	0	"\"''\""	26
+guard	122	11	0	0	0	""	11
+guard	122	6	0	0	0	""	11
+guard	123	2	0	0	0	""	11
+guard	123	4	1	0	0	"\"''\""	26
+guard	123	5	0	0	0	""	11
+guard	124	1	1	0	1	"[^\\x00- \\']"	7
+guard	124	2	1	0	0	"\"''\""	26
+guard	126	10	0	0	0	""	11
+guard	126	6	0	0	0	""	11
+guard	128	1	0	0	0	""	11
+guard	128	4	0	0	0	""	11
+guard	129	1	0	0	0	""	11
+guard	129	11	0	0	0	""	11
+guard	129	8	0	0	0	""	11
+guard	130	1	0	0	0	""	11
+guard	130	3	0	0	0	""	11
+guard	131	1	0	0	0	""	11
+guard	131	10	0	0	0	""	11
+guard	131	12	0	0	0	""	11
+guard	131	13	0	0	0	""	11
+guard	135	1	1	0	0	"\"\\r\\n\""	22
+guard	135	2	1	0	0	"\"\\r\""	22
+guard	135	3	1	0	0	"\"\\n\""	18
+guard	135	4	0	0	0	""	11
+guard	137	1	1	0	0	"\"\\r\\n\""	22
+guard	137	2	1	0	0	"\"\\r\""	22
+guard	137	3	1	0	0	"\"\\n\""	18
+guard	14	4	1	0	0	"\"YAML\""	45
+guard	14	5	1	0	0	"\"TAG\""	43
+guard	14	6	0	0	0	""	11
+guard	2	1	1	0	0	"\"\\ufeff\""	42
+guard	2	5	0	0	0	""	11
+guard	21	2	1	0	0	"\"!\""	23
+guard	21	6	0	0	0	""	11
+guard	22	3	1	0	0	"\"YAML\""	45
+guard	22	7	1	0	0	"\"TAG\""	43
+guard	25	1	0	0	0	""	11
+guard	25	10	1	0	0	"\"&\""	25
+guard	26	11	1	0	0	"\"!\""	23
+guard	26	2	1	0	0	"\"!<\""	23
+guard	26	7	0	0	0	""	11
+guard	27	1	1	0	0	"\"!\""	23
+guard	27	6	1	0	0	"\"!!\""	23
+guard	27	7	1	0	0	"\"!\""	23
+guard	31	1	1	0	0	"\"%\""	24
+guard	31	5	1	0	1	"[0-9a-zA-Z\\-#;/?:@&=+$,_.!~*\\'()\\[\\]]"	16
+guard	32	1	1	0	0	"\"%\""	24
+guard	32	5	1	0	1	"[0-9a-zA-Z\\-#;/?:@&=+$_.~*\\'()]"	17
+guard	34	1	0	0	0	""	11
+guard	34	10	0	0	0	""	11
+guard	34	11	0	0	0	""	11
+guard	34	12	0	0	0	""	11
+guard	34	15	0	0	0	""	11
+guard	34	16	0	0	0	""	11
+guard	34	20	1	0	1	"[#\\r\\n]"	13
+guard	34	21	0	0	0	""	11
+guard	34	24	0	0	0	""	11
+guard	34	25	0	0	0	""	11
+guard	34	26	0	0	0	""	11
+guard	34	27	0	0	0	""	11
+guard	34	9	0	0	0	""	11
+guard	35	10	0	0	0	""	11
+guard	35	13	0	0	0	""	11
+guard	35	14	0	0	0	""	11
+guard	35	16	0	0	0	""	11
+guard	35	25	0	0	0	""	11
+guard	35	3	0	0	0	""	11
+guard	38	1	0	0	0	""	11
+guard	38	2	0	0	0	""	11
+guard	41	1	0	0	0	""	11
+guard	41	12	0	0	0	""	11
+guard	41	16	0	0	0	""	11
+guard	41	8	0	0	0	""	11
+guard	42	1	0	0	0	""	11
+guard	42	12	0	0	0	""	11
+guard	42	16	0	0	0	""	11
+guard	42	8	0	0	0	""	11
+guard	44	4	0	0	0	""	11
+guard	44	6	1	0	0	"\"&\""	25
+guard	45	10	0	0	0	""	11
+guard	45	13	0	0	0	""	11
+guard	48	1	0	0	0	""	11
+guard	48	2	0	0	0	""	11
+guard	48	3	0	0	0	""	11
+guard	49	8	1	2	0	"\"-\""	28
+guard	49	9	0	0	0	""	11
+guard	53	1	1	2	0	"\"?\""	41
+guard	53	2	0	0	0	""	11
+guard	54	5	0	0	0	""	11
+guard	54	6	0	0	0	""	11
+guard	57	3	0	0	0	""	11
+guard	57	4	0	0	0	""	11
+guard	58	12	0	0	0	""	11
+guard	58	2	0	0	0	""	11
+guard	58	4	0	0	0	""	11
+guard	58	7	0	0	0	""	11
+guard	6	3	1	0	0	"\"---\""	28
+guard	6	4	1	0	0	"\"...\""	29
+guard	6	6	1	0	1	"[\\r\\n \\t]"	12
+guard	6	7	0	0	0	""	11
+guard	60	4	0	0	0	""	11
+guard	60	5	0	0	0	""	11
+guard	61	1	0	0	0	""	11
+guard	61	9	0	0	0	""	11
+guard	62	15	1	0	0	"\"1\""	30
+guard	62	18	1	0	0	"\"2\""	31
+guard	62	21	1	0	0	"\"3\""	32
+guard	62	24	1	0	0	"\"4\""	33
+guard	62	27	1	0	0	"\"5\""	34
+guard	62	30	1	0	0	"\"6\""	35
+guard	62	33	1	0	0	"\"7\""	36
+guard	62	36	1	0	0	"\"8\""	37
+guard	62	39	1	0	0	"\"9\""	38
+guard	62	42	0	0	0	""	11
+guard	62	58	0	0	0	""	11
+guard	62	77	0	0	0	""	11
+guard	62	8	1	0	0	"\"|\""	21
+guard	62	9	1	0	0	"\">\""	40
+guard	62	92	0	0	0	""	11
+guard	62	93	0	0	0	""	11
+guard	65	10	0	0	0	""	11
+guard	65	9	0	0	0	""	11
+guard	66	10	0	0	0	""	11
+guard	66	11	0	0	0	""	11
+guard	67	10	0	0	0	""	11
+guard	67	9	0	0	0	""	11
+guard	69	1	0	0	0	""	11
+guard	69	6	0	0	0	""	11
+guard	7	1	0	0	0	""	11
+guard	7	2	1	0	0	"\"---\""	28
+guard	7	3	0	0	0	""	11
+guard	70	1	1	0	0	"\"*\""	27
+guard	70	2	0	0	0	""	11
+guard	70	3	0	0	0	""	11
+guard	71	1	0	0	0	""	11
+guard	71	2	0	0	0	""	11
+guard	71	3	0	0	0	""	11
+guard	71	4	0	0	0	""	11
+guard	76	11	0	0	0	""	11
+guard	76	12	0	0	0	""	11
+guard	76	15	0	0	0	""	11
+guard	78	1	0	0	0	""	11
+guard	78	2	0	0	0	""	11
+guard	79	11	0	0	0	""	11
+guard	79	12	0	0	0	""	11
+guard	79	15	0	0	0	""	11
+guard	81	1	1	1	0	"\"?\""	41
+guard	81	2	0	0	0	""	11
+guard	83	1	0	0	0	""	11
+guard	83	2	0	0	0	""	11
+guard	85	1	0	0	0	""	11
+guard	85	2	0	0	0	""	11
+guard	85	3	0	0	0	""	11
+guard	86	5	0	0	0	""	11
+guard	86	6	0	0	0	""	11
+guard	89	6	0	0	0	""	11
+guard	89	7	0	0	0	""	11
+guard	91	7	0	0	0	""	11
+guard	91	8	0	0	0	""	11
+guard	93	4	0	0	0	""	11
+guard	93	5	0	0	0	""	11
+guard	95	2	1	1	0	"\"?\""	41
+guard	95	3	0	0	0	""	11
+guard	96	1	0	0	0	""	11
+guard	96	2	0	0	0	""	11
+guard	96	3	0	0	0	""	11
+guard	98	2	0	0	0	""	11
+guard	98	3	0	0	0	""	11
+scan	106	2
+scan	106	9
+scan	109	2
+scan	109	9
+scan	113	2
+scan	115	13
+scan	116	2
+scan	116	6
+scan	118	2
+scan	121	2
+scan	122	13
+scan	123	2
+scan	123	6
+scan	125	1
+scan	126	8
+scan	127	6
+scan	129	2
+scan	130	1
+scan	131	2
+scan	131	7
+scan	134	2
+scan	17	2
+scan	17	5
+scan	27	3
+scan	34	17
+scan	34	4
+scan	35	17
+scan	35	22
+scan	35	4
+scan	41	5
+scan	42	5
+scan	61	4
+scope	1	9	
+scope	22	15	
+scope	46	10	
+scope	50	5	
+scope	51	10	
+scope	52	5	
+scope	62	65	e
+scope	62	84	e
+scope	77	8	
+scope	80	8	
+grammar	controlled	"grammars/yaml"
+guard	1	10	0	0	0	""	11
+guard	1	20	0	0	0	""	11
+guard	1	29	1	0	0	"\"...\""	29
+guard	1	30	0	0	0	""	11
+guard	10	1	0	0	0	""	11
+guard	10	2	0	0	0	""	11
+guard	100	4	0	0	0	""	11
+guard	100	5	0	0	0	""	11
+guard	102	1	0	0	0	""	11
+guard	102	10	0	0	0	""	11
+guard	102	4	0	0	0	""	11
+guard	102	7	0	0	0	""	11
+guard	103	1	0	0	0	""	11
+guard	103	4	0	0	0	""	11
+guard	105	4	1	0	0	"[^\\x00- \\x7f-\\u0084\\u0086-\\u009f\\ufeff\\ufffe\\uffff\\-?:,\\[\\]{}#&*!|>\\'\"%@`]"	3
+guard	105	5	1	0	0	"[\\-?:]"	14
+guard	106	12	1	0	0	"[^\\x00- \\x7f-\\u0084\\u0086-\\u009f\\ufeff\\ufffe\\uffff:#]"	5
+guard	106	13	1	0	0	"\":\""	39
+guard	106	2	0	0	0	""	11
+guard	106	4	1	0	0	"\":\""	39
+guard	106	8	0	0	0	""	11
+guard	107	8	1	0	0	"[^\\x00- \\x7f-\\u0084\\u0086-\\u009f\\ufeff\\ufffe\\uffff:#]"	5
+guard	107	9	1	0	0	"\":\""	39
+guard	108	4	1	0	0	"[^\\x00- \\x7f-\\u0084\\u0086-\\u009f\\ufeff\\ufffe\\uffff\\-?:,\\[\\]{}#&*!|>\\'\"%@`]"	3
+guard	108	5	1	0	0	"[\\-?:]"	14
+guard	109	12	1	0	0	"[^\\x00- \\x7f-\\u0084\\u0086-\\u009f\\ufeff\\ufffe\\uffff:#,\\[\\]{}]"	4
+guard	109	13	1	0	0	"\":\""	39
+guard	109	2	0	0	0	""	11
+guard	109	4	1	0	0	"\":\""	39
+guard	109	8	0	0	0	""	11
+guard	110	8	1	0	0	"[^\\x00- \\x7f-\\u0084\\u0086-\\u009f\\ufeff\\ufffe\\uffff:#,\\[\\]{}]"	4
+guard	110	9	1	0	0	"\":\""	39
+guard	112	3	0	0	0	""	11
+guard	112	6	0	0	0	""	11
+guard	113	2	0	0	0	""	11
+guard	113	4	1	0	0	"\"\\\\\""	46
+guard	114	12	1	0	0	"\"U\""	44
+guard	114	3	1	0	0	"[0abt\\tnvfre \"/\\\\N_LP]"	0
+guard	114	4	1	0	0	"\"x\""	20
+guard	114	8	1	0	0	"\"u\""	19
+guard	115	11	0	0	0	""	11
+guard	115	6	0	0	0	""	11
+guard	116	2	0	0	0	""	11
+guard	116	4	1	0	0	"\"\\\\\""	46
+guard	116	5	0	0	0	""	11
+guard	117	1	1	0	0	"[^\\x00- \"\\\\]"	6
+guard	117	2	1	0	0	"\"\\\\\""	46
+guard	118	1	0	0	0	""	11
+guard	118	9	0	0	0	""	11
+guard	120	3	0	0	0	""	11
+guard	120	6	0	0	0	""	11
+guard	121	2	0	0	0	""	11
+guard	121	4	1	0	0	"\"''\""	26
+guard	122	11	0	0	0	""	11
+guard	122	6	0	0	0	""	11
+guard	123	2	0	0	0	""	11
+guard	123	4	1	0	0	"\"''\""	26
+guard	123	5	0	0	0	""	11
+guard	124	1	1	0	0	"[^\\x00- \\']"	7
+guard	124	2	1	0	0	"\"''\""	26
+guard	126	10	0	0	0	""	11
+guard	126	6	0	0	0	""	11
+guard	128	1	0	0	0	""	11
+guard	128	4	0	0	0	""	11
+guard	129	1	0	0	0	""	11
+guard	129	11	0	0	0	""	11
+guard	129	8	0	0	0	""	11
+guard	130	1	0	0	0	""	11
+guard	130	3	0	0	0	""	11
+guard	131	1	0	0	0	""	11
+guard	131	10	0	0	0	""	11
+guard	131	12	0	0	0	""	11
+guard	131	13	0	0	0	""	11
+guard	135	1	1	0	0	"\"\\r\\n\""	22
+guard	135	2	1	0	0	"\"\\r\""	22
+guard	135	3	1	0	0	"\"\\n\""	18
+guard	135	4	0	0	0	""	11
+guard	137	1	1	0	0	"\"\\r\\n\""	22
+guard	137	2	1	0	0	"\"\\r\""	22
+guard	137	3	1	0	0	"\"\\n\""	18
+guard	14	4	1	0	0	"\"YAML\""	45
+guard	14	5	1	0	0	"\"TAG\""	43
+guard	14	6	0	0	0	""	11
+guard	2	1	1	0	0	"\"\\ufeff\""	42
+guard	2	5	0	0	0	""	11
+guard	21	2	1	0	0	"\"!\""	23
+guard	21	6	0	0	0	""	11
+guard	22	3	1	0	0	"\"YAML\""	45
+guard	22	7	1	0	0	"\"TAG\""	43
+guard	25	1	0	0	0	""	11
+guard	25	10	1	0	0	"\"&\""	25
+guard	26	11	1	0	0	"\"!\""	23
+guard	26	2	1	0	0	"\"!<\""	23
+guard	26	7	0	0	0	""	11
+guard	27	1	1	0	0	"\"!\""	23
+guard	27	6	1	0	0	"\"!!\""	23
+guard	27	7	1	0	0	"\"!\""	23
+guard	31	1	1	0	0	"\"%\""	24
+guard	31	5	1	0	0	"[0-9a-zA-Z\\-#;/?:@&=+$,_.!~*\\'()\\[\\]]"	1
+guard	32	1	1	0	0	"\"%\""	24
+guard	32	5	1	0	0	"[0-9a-zA-Z\\-#;/?:@&=+$_.~*\\'()]"	2
+guard	34	1	0	0	0	""	11
+guard	34	10	0	0	0	""	11
+guard	34	11	0	0	0	""	11
+guard	34	12	0	0	0	""	11
+guard	34	15	0	0	0	""	11
+guard	34	16	0	0	0	""	11
+guard	34	20	1	0	0	"[#\\r\\n]"	13
+guard	34	21	0	0	0	""	11
+guard	34	24	0	0	0	""	11
+guard	34	25	0	0	0	""	11
+guard	34	26	0	0	0	""	11
+guard	34	27	0	0	0	""	11
+guard	34	9	0	0	0	""	11
+guard	35	10	0	0	0	""	11
+guard	35	13	0	0	0	""	11
+guard	35	14	0	0	0	""	11
+guard	35	16	0	0	0	""	11
+guard	35	25	0	0	0	""	11
+guard	35	3	0	0	0	""	11
+guard	38	1	0	0	0	""	11
+guard	38	2	0	0	0	""	11
+guard	41	1	0	0	0	""	11
+guard	41	12	0	0	0	""	11
+guard	41	16	0	0	0	""	11
+guard	41	8	0	0	0	""	11
+guard	42	1	0	0	0	""	11
+guard	42	12	0	0	0	""	11
+guard	42	16	0	0	0	""	11
+guard	42	8	0	0	0	""	11
+guard	44	4	0	0	0	""	11
+guard	44	6	1	0	0	"\"&\""	25
+guard	45	10	0	0	0	""	11
+guard	45	13	0	0	0	""	11
+guard	48	1	0	0	0	""	11
+guard	48	2	0	0	0	""	11
+guard	48	3	0	0	0	""	11
+guard	49	8	1	2	0	"\"-\""	28
+guard	49	9	0	0	0	""	11
+guard	53	1	1	2	0	"\"?\""	41
+guard	53	2	0	0	0	""	11
+guard	54	5	0	0	0	""	11
+guard	54	6	0	0	0	""	11
+guard	57	3	0	0	0	""	11
+guard	57	4	0	0	0	""	11
+guard	58	12	0	0	0	""	11
+guard	58	2	0	0	0	""	11
+guard	58	4	0	0	0	""	11
+guard	58	7	0	0	0	""	11
+guard	6	3	1	0	0	"\"---\""	28
+guard	6	4	1	0	0	"\"...\""	29
+guard	6	6	1	0	0	"[\\r\\n \\t]"	12
+guard	6	7	0	0	0	""	11
+guard	60	4	0	0	0	""	11
+guard	60	5	0	0	0	""	11
+guard	61	1	0	0	0	""	11
+guard	61	9	0	0	0	""	11
+guard	62	15	1	0	0	"\"1\""	30
+guard	62	18	1	0	0	"\"2\""	31
+guard	62	21	1	0	0	"\"3\""	32
+guard	62	24	1	0	0	"\"4\""	33
+guard	62	27	1	0	0	"\"5\""	34
+guard	62	30	1	0	0	"\"6\""	35
+guard	62	33	1	0	0	"\"7\""	36
+guard	62	36	1	0	0	"\"8\""	37
+guard	62	39	1	0	0	"\"9\""	38
+guard	62	42	0	0	0	""	11
+guard	62	58	0	0	0	""	11
+guard	62	77	0	0	0	""	11
+guard	62	8	1	0	0	"\"|\""	21
+guard	62	9	1	0	0	"\">\""	40
+guard	62	92	0	0	0	""	11
+guard	62	93	0	0	0	""	11
+guard	65	10	0	0	0	""	11
+guard	65	9	0	0	0	""	11
+guard	66	10	0	0	0	""	11
+guard	66	11	0	0	0	""	11
+guard	67	10	0	0	0	""	11
+guard	67	9	0	0	0	""	11
+guard	69	1	0	0	0	""	11
+guard	69	6	0	0	0	""	11
+guard	7	1	0	0	0	""	11
+guard	7	2	1	0	0	"\"---\""	28
+guard	7	3	0	0	0	""	11
+guard	70	1	1	0	0	"\"*\""	27
+guard	70	2	0	0	0	""	11
+guard	70	3	0	0	0	""	11
+guard	71	1	0	0	0	""	11
+guard	71	2	0	0	0	""	11
+guard	71	3	0	0	0	""	11
+guard	71	4	0	0	0	""	11
+guard	76	11	0	0	0	""	11
+guard	76	12	0	0	0	""	11
+guard	76	15	0	0	0	""	11
+guard	78	1	0	0	0	""	11
+guard	78	2	0	0	0	""	11
+guard	79	11	0	0	0	""	11
+guard	79	12	0	0	0	""	11
+guard	79	15	0	0	0	""	11
+guard	81	1	1	1	0	"\"?\""	41
+guard	81	2	0	0	0	""	11
+guard	83	1	0	0	0	""	11
+guard	83	2	0	0	0	""	11
+guard	85	1	0	0	0	""	11
+guard	85	2	0	0	0	""	11
+guard	85	3	0	0	0	""	11
+guard	86	5	0	0	0	""	11
+guard	86	6	0	0	0	""	11
+guard	89	6	0	0	0	""	11
+guard	89	7	0	0	0	""	11
+guard	91	7	0	0	0	""	11
+guard	91	8	0	0	0	""	11
+guard	93	4	0	0	0	""	11
+guard	93	5	0	0	0	""	11
+guard	95	2	1	1	0	"\"?\""	41
+guard	95	3	0	0	0	""	11
+guard	96	1	0	0	0	""	11
+guard	96	2	0	0	0	""	11
+guard	96	3	0	0	0	""	11
+guard	98	2	0	0	0	""	11
+guard	98	3	0	0	0	""	11
+scan	106	2
+scan	106	9
+scan	109	2
+scan	109	9
+scan	113	2
+scan	115	13
+scan	116	2
+scan	116	6
+scan	118	2
+scan	121	2
+scan	122	13
+scan	123	2
+scan	123	6
+scan	125	1
+scan	126	8
+scan	127	6
+scan	129	2
+scan	130	1
+scan	131	2
+scan	131	7
+scan	134	2
+scan	17	2
+scan	17	5
+scan	27	3
+scan	34	17
+scan	34	4
+scan	35	17
+scan	35	22
+scan	35	4
+scan	41	5
+scan	42	5
+scan	61	4
+scope	1	9	
+scope	22	15	
+scope	46	10	
+scope	50	5	
+scope	51	10	
+scope	52	5	
+scope	62	65	e
+scope	62	84	e
+scope	77	8	
+scope	80	8	

@@ -6,7 +6,6 @@ import (
 	"runtime"
 	"slices"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -23,7 +22,7 @@ import (
 )
 
 // The tests here check the Core IR of the typed Go rules, after the passes of
-// print.Generator.TypedCore, against the decisions frozen in testdata/typed_decisions.golden
+// print.Generator.TypedCore, against the decisions frozen in testdata/decisions/typed
 // (core_typed_decisions_test.go).
 
 // coreGenMode is a set of generator options under which the Core passes are frozen.
@@ -379,34 +378,12 @@ func compareCoreDecisions(c *coreGenCase, n *coreDecisionCounts) []string {
 		errs = append(errs, "verify: "+e)
 	}
 	if !*codegentest.UpdateGoldens {
-		c.golden.read()
-		want, ok := c.golden.lines[decisionsKey{c.mode, c.name}]
-		if !ok {
-			errs = append(errs, fmt.Sprintf("golden: no entry for this grammar in %s (run with -update after review)", c.golden.path))
-		}
-		count := map[string]int{}
-		for _, l := range lines {
-			count[l]++
-		}
-		for _, l := range want {
-			count[l]--
-		}
-		for l, k := range count {
-			if k == 0 {
-				continue
-			}
-			f := strings.Split(l, "\t")
-			id, _ := strconv.Atoi(f[1])
-			name := "?"
+		errs = append(errs, c.golden.differences(decisionsKey{c.mode, c.name}, lines, func(id int) string {
 			if id >= 0 && id < len(c.rules) {
-				name = c.rules[id].Name
+				return c.rules[id].Name
 			}
-			who, other := "Core", "golden"
-			if k < 0 {
-				who, other = other, who
-			}
-			errs = append(errs, fmt.Sprintf("%s: rule %s: %s %s, %s none", decisionAspects[f[0]], name, who, strings.Join(f[2:], " "), other))
-		}
+			return "?"
+		})...)
 	}
 	slices.Sort(errs)
 	return errs
@@ -424,7 +401,7 @@ func coreAspectErrors(errs []string, aspect string) []string {
 }
 
 // TestCoreTypedDecisionsFrozen compares the decisions of the Core IR passes over the corpus in
-// each mode with the typed decisions frozen in testdata/typed_decisions.golden, and checks that
+// each mode with the typed decisions frozen in testdata/decisions/typed, and checks that
 // every kind of decision is met. -update rewrites the golden (core_typed_decisions_test.go).
 func TestCoreTypedDecisionsFrozen(t *testing.T) {
 	typedGolden.freeze(t, coreGenModes, func(t *testing.T, mode coreGenMode) []*coreGenCase {
