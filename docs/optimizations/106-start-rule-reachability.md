@@ -75,8 +75,8 @@ machine and are not reported.
 ## Correctness and Tradeoffs
 
 The engine tests check that the typed output sets one `Entry` (the start rule's), that
-it leaves out the methods of a rule no start rule reaches, that a callee the first pass
-left out fails generation, and that the parser with the unreached rules left out
+it leaves out the methods of a rule no start rule reaches, that a callee left out of
+the reachable rules fails generation, and that the parser with the unreached rules left out
 returns what the one that keeps them returns. The engine tests, the root suite and
 `alpha-parsers/test.sh` pass.
 

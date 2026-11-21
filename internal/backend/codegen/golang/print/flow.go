@@ -148,7 +148,7 @@ func (g *Generator) flowOperatorsRuleBody(k plandata.Key, scope *check.Scope, bu
 	comment := " (typed OperatorsRule body inlined)"
 	if g.Table != "trules" {
 		comment = " (OperatorsRule body inlined)"
-		if g.hooks.OperatorsRoute != nil && g.collect == nil && !g.Traced {
+		if g.hooks.OperatorsRoute != nil && !g.Traced {
 			g.hooks.OperatorsRoute(g.Table, g.Cur)
 		}
 	}

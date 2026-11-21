@@ -23,27 +23,26 @@ import (
 // The program is planned before any table is printed (planProgram, flowplan.Planning): the plan takes
 // the calls of the rules from the Core IR (core.Module.Reach), routes each call of a rule through its
 // wrapper or its slot (flowplan.CallsWrapper), and starts from the start rules and the typed rules that
-// the typed entry points enter (typedEntries, decided before printing). GenerateParser prints in a
-// second pass that leaves out the rules the plan does not reach. The first pass prints the Node and
-// recognizer tables, for their expectation table, and no typed code. The rule tables still list
-// every rule, a left-out row with the frame layout of the plan (plandata.Plan.Layouts): only the
-// Body, Action, Entry and OperatorsRule assignments and the functions of an unreachable rule are left
-// out. What a left-out rule would have declared (its expectations, literals, class tables and typed
-// helpers) is not declared either, so the IDs of what remains are those of the second pass.
+// the typed entry points enter (typedEntries, decided before printing). GenerateParser then prints
+// once and leaves out the rules that the plan does not reach. The rule tables still list every rule,
+// a left-out row with the frame layout of the plan (plandata.Plan.Layouts): only the Body, Action,
+// Entry and OperatorsRule assignments and the functions of an unreachable rule are left out. What a
+// left-out rule would have declared (its literals, class tables and typed helpers) is not declared
+// either.
 //
-// The expectation table that the Node and recognizer tables fix (descs) is the one of the first
-// pass up to the end of those tables, because a left-out rule of them keeps its table row. The
-// typed table has no such rows, so the expectations of its left-out rules are not in any table.
+// The expectation table of the Node and recognizer tables is numbered before they are printed, from
+// the tables lowered with every rule (expectationTable), because a left-out rule of them keeps its
+// table row: its IDs are those that printing every rule would give. The typed table has no such rows,
+// so the expectations of its left-out rules are not in any table.
 
 // ruleKey names what of a rule is entered: its slot in the rule table (the Body that p.Call and
 // InvokePlain run), or the wrapper function of a plain rule, which a call of it (ruleCall) uses
 // instead and which does not run the Body.
 type ruleKey = plandata.Entry
 
-// liveRules is what the first pass of GenerateParser records for the second: the reach of the plan of
-// the program, which a test may change, and the expectation table.
+// liveRules is what the generator prints of the plan of the program: the rules that it reaches, which
+// a test may change (Hooks.Reach).
 type liveRules struct {
-	descs []string  // the expectation table, whose IDs the printed bodies keep
 	Roots []ruleKey // the start rules of the tables and the entries of the typed table
 	Reach map[ruleKey]bool
 	cores *plandata.Cores   // what the program was planned from
@@ -107,9 +106,9 @@ func (g *Generator) printedBody(r *common.Rule) {
 
 // planProgram plans the program before any table is printed (flowplan.Planning) and keeps the plan
 // in g.program: the Node table of prog, the recognizer table of rec if it is not nil and, if typed is
-// set, the typed table, which enters the rules that the typed entry points enter (typedRoots). The
-// first pass records the plan for the second (liveRules).
-func (g *Generator) planProgram(prog, rec *common.Program, typed bool) error {
+// set, the typed table, which enters the rules that the typed entry points enter (typedRoots). Unless
+// keepUnreachable is set, the generator then prints only the rules that the plan reaches (g.live).
+func (g *Generator) planProgram(prog, rec *common.Program, typed, keepUnreachable bool) error {
 	c := &plandata.Cores{}
 	for _, name := range prog.StartRules {
 		c.Roots = append(c.Roots, ruleKey{Table: "rules", ID: prog.ByName[name].ID})
@@ -149,8 +148,8 @@ func (g *Generator) planProgram(prog, rec *common.Program, typed bool) error {
 		return err
 	}
 	g.program = p
-	if g.collect != nil {
-		g.collect.Roots, g.collect.Reach, g.collect.cores, g.collect.plan = p.Roots, p.Reach, c, p
+	if !keepUnreachable {
+		g.live = &liveRules{Roots: p.Roots, Reach: p.Reach, cores: c, plan: p}
 	}
 	return nil
 }

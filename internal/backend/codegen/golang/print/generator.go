@@ -23,6 +23,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/types"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/execlower"
 	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
 	"syntaxir.dev/sxir/internal/middleend/flowpass"
 	"syntaxir.dev/sxir/internal/middleend/flowplan"
@@ -71,12 +72,18 @@ type Hooks struct {
 	// Features replaces the features that a parser generated with FeatureWitness records (a negative
 	// control of the analysis).
 	Features func(common.FeatureSet) common.FeatureSet
-	// Reach receives the result of the first pass of GenerateParser, before the second pass; a test
-	// removes a root from it to show that the output then fails.
+	// Reach receives the reachable rules of the plan of the program before any table is printed; a
+	// test removes a root from it to show that the output then fails.
 	Reach func(*liveRules)
-	// Lowered receives each Node or recognizer table that the first pass of GenerateParser lowers,
-	// with its name, so that a test numbers the expectation table from the lowered tables.
+	// Lowered receives each Node or recognizer table that the expectation table is numbered from
+	// (expectationTable), with its name.
 	Lowered func(table string, t *plandata.Table[code.Exec])
+	// Numbering replaces the expectation table numbered from the lowered tables before any table is
+	// printed, so that a test has the printing of the Node and recognizer tables number it instead.
+	Numbering func(descs []string) []string
+	// Printed receives the expectation table after the Node and recognizer tables are printed, before
+	// the generation checks that printing them recorded no expectation that the numbering lacks.
+	Printed func(descs []string)
 	// LeanRoute is called with the rule table and the rule for each rule that takes the lean route
 	// in rules, in a Node or recognizer table, so that a test checks the route that is chosen, not
 	// the text of the generated code.
@@ -109,36 +116,21 @@ type Hooks struct {
 	FlowTarget func(t *Target, pre *string) *Target
 }
 
-// GenerateParser generates the files of Generate (other than for LibOnly). It generates twice: the
-// first pass records which rules of the Node, recognizer and typed tables a generated call or an
-// entry point can reach (liveRules), and the second leaves out the others. A typed-only parser
-// without Node rules has no Node or recognizer rule to leave out (keepTableRules); one that keeps
-// Node rules for its converting entry points prints those that the entry points reach, like any
-// other output.
-func GenerateParser(g *ast.Grammar, c common.Compiler, p common.Passes, opts common.GenOptions, h *Hooks) ([]common.GeneratedFile, error) {
+// GenerateParser generates the files of Generate (other than for LibOnly). Before it prints any
+// table, it plans the program (planProgram), which decides the rules of the Node, recognizer and
+// typed tables that a generated call or an entry point can reach (liveRules), and numbers the
+// expectation table from the Node and recognizer tables lowered in full (expectationTable); then it
+// prints once, leaving out the rules that the plan does not reach. A typed-only parser without Node
+// rules has no Node or recognizer rule to leave out (keepTableRules); one that keeps Node rules for
+// its converting entry points prints those that the entry points reach, like any other output.
+func GenerateParser(g *ast.Grammar, c common.Compiler, p common.Passes, opts common.GenOptions, h *Hooks) (files []common.GeneratedFile, err error) {
 	if h == nil {
 		h = &Hooks{}
 	}
-	// Under a bisection limit the runs of the optional passes are numbered in one generation, so it
-	// generates once, keeping the unreachable rules.
-	if opts.KeepUnreachable || opts.Debug.OptBisectLimit != nil {
-		return generateOnce(g, c, p, opts, h, nil, nil)
-	}
-	var lv liveRules
-	if _, err := generateOnce(g, c, p, opts, h, nil, &lv); err != nil {
-		return nil, err
-	}
-	if h.Reach != nil {
-		h.Reach(&lv)
-	}
-	return generateOnce(g, c, p, opts, h, &lv, nil)
-}
-
-// generateOnce is one pass of GenerateParser. A pass with collect records the reachable rules into it;
-// a pass with live omits the rules that are not reachable in live.
-func generateOnce(g *ast.Grammar, c common.Compiler, p common.Passes, opts common.GenOptions, h *Hooks, live, collect *liveRules) (files []common.GeneratedFile, err error) {
-	if collect != nil {
-		*collect = liveRules{}
+	// Under a bisection limit the generator keeps the unreachable rules, so that the numbered runs of
+	// the optional passes are those of every rule whatever the plan leaves out.
+	if opts.Debug.OptBisectLimit != nil {
+		opts.KeepUnreachable = true
 	}
 	if opts.Module == "" && (opts.Lib == common.LibEmbed || opts.Package == "") {
 		return nil, fmt.Errorf("module path is required")
@@ -182,13 +174,13 @@ func generateOnce(g *ast.Grammar, c common.Compiler, p common.Passes, opts commo
 	if err := p.Validate(); err != nil {
 		return nil, err
 	}
-	// Only the pass that writes the output writes the dumps and the reports of the pipeline, and only
-	// if it does not generate again (restarted): they are kept in dumped until it returns, and written
-	// also on an error, whose dumps show what led to it.
+	// The dumps and the reports of the pipeline are written only by the generation that writes the
+	// output, not by one that generates again (restarted): they are kept in dumped until it returns,
+	// and written also on an error, whose dumps show what led to it.
 	var dumps io.Writer
 	var dumped *bytes.Buffer
 	restarted := false
-	if collect == nil && opts.Debug.Output != nil {
+	if opts.Debug.Output != nil {
 		dumped = &bytes.Buffer{}
 		dumps = dumped
 	}
@@ -213,7 +205,7 @@ func generateOnce(g *ast.Grammar, c common.Compiler, p common.Passes, opts commo
 			return nil, fmt.Errorf("stream generation needs a #stream repetition at the top level of the start rule %s", start.Name)
 		}
 	}
-	genGo := &Generator{typedOnly: (opts.TypedOnly || opts.RecognizeOnly) && !opts.KeepNodes, Document: opts.Document, NoBudget: !opts.LimitControls || opts.LogicalUnits, Ordinary: (!opts.LimitControls || opts.LogicalUnits) && !opts.Document, Prog: prog, Table: "rules", Runner: p.Runner(dumps), hooks: *h, live: live, collect: collect, keepTableRules: (opts.TypedOnly || opts.RecognizeOnly) && !opts.KeepNodes}
+	genGo := &Generator{typedOnly: (opts.TypedOnly || opts.RecognizeOnly) && !opts.KeepNodes, Document: opts.Document, NoBudget: !opts.LimitControls || opts.LogicalUnits, Ordinary: (!opts.LimitControls || opts.LogicalUnits) && !opts.Document, Prog: prog, Table: "rules", Runner: p.Runner(dumps), hooks: *h, keepTableRules: (opts.TypedOnly || opts.RecognizeOnly) && !opts.KeepNodes}
 	if opts.LogicalUnits {
 		if err := logicalRefusal(prog, opts); err != nil {
 			return nil, err
@@ -245,13 +237,6 @@ func generateOnce(g *ast.Grammar, c common.Compiler, p common.Passes, opts commo
 	}
 	// Go prints every form of the Flow passes.
 	genGo.FlowTarget = flowpass.Target{Terminals: true, ClassRuns: true, ClassTables: true, GuardedClasses: true, InlineLiterals: true}
-	if live != nil {
-		genGo.SeedDescs()
-		for _, d := range live.descs[len(genGo.Descs):] {
-			genGo.DescIDs[d] = rprogram.ExpID(len(genGo.Descs))
-			genGo.Descs = append(genGo.Descs, d)
-		}
-	}
 	if opts.Stream {
 		genGo.streamStart = start
 	}
@@ -268,7 +253,7 @@ func generateOnce(g *ast.Grammar, c common.Compiler, p common.Passes, opts commo
 			// are needed; generate with them.
 			opts.KeepNodes = true
 			restarted = true
-			return generateOnce(g, c, p, opts, h, live, collect)
+			return GenerateParser(g, c, p, opts, h)
 		}
 	}
 	var rec *common.Program
@@ -280,10 +265,29 @@ func generateOnce(g *ast.Grammar, c common.Compiler, p common.Passes, opts commo
 	}
 	// The program is planned before any table is printed: the routes of the calls and the rules that
 	// the entry points reach.
-	if err := genGo.planProgram(prog, rec, opts.Types); err != nil {
+	if err := genGo.planProgram(prog, rec, opts.Types, opts.KeepUnreachable); err != nil {
 		return nil, err
 	}
-	if h.Generator != nil && collect == nil {
+	if h.Reach != nil && genGo.live != nil {
+		h.Reach(genGo.live)
+	}
+	// The expectation table of the Node and recognizer tables is numbered from them before they are
+	// printed; the typed code and the traced copies add their own after it as they are printed.
+	descs, err := genGo.expectationTable(prog, rec, p.Runner(nil))
+	if err != nil {
+		return nil, err
+	}
+	if h.Numbering != nil {
+		descs = h.Numbering(descs)
+	}
+	if len(genGo.Descs) != len(core.FixedDescs) {
+		return nil, fmt.Errorf("internal error: %d expectations are recorded before the expectation table is numbered", len(genGo.Descs))
+	}
+	for _, d := range descs {
+		genGo.Desc(d)
+	}
+	numbered := len(genGo.Descs)
+	if h.Generator != nil {
 		h.Generator(genGo)
 	}
 	if err := genGo.StartRecFlow(prog); err != nil {
@@ -315,11 +319,11 @@ func generateOnce(g *ast.Grammar, c common.Compiler, p common.Passes, opts commo
 			return nil, genGo.FlowErr
 		}
 	}
-	if collect != nil {
-		// The expectations of the Node and recognizer tables are those the second pass keeps; the typed
-		// code adds its own after them, and only for the rules it reaches.
-		collect.descs = append([]string(nil), genGo.Descs...)
-		return nil, genGo.finishReach()
+	if h.Printed != nil {
+		h.Printed(append([]string(nil), genGo.Descs...))
+	}
+	if len(genGo.Descs) != numbered {
+		return nil, fmt.Errorf("internal error: the Node and recognizer tables record the expectation %q, which the numbering of their lowered tables does not", genGo.Descs[numbered])
 	}
 	fmt.Fprintf(&genGo.Init, "\tsxirGrammar.Starts = %s\n", goStrings(prog.StartRules))
 	fmt.Fprintf(&genGo.Init, "\tsxirGrammar.DefaultStart = %q\n", prog.DefaultStartRule)
@@ -599,11 +603,11 @@ type Generator struct {
 	// for the rules in plainCalled.
 	plainCalled map[*common.Rule]bool
 	wrappers    []wrapperSpan
-	// live and collect are the passes of GenerateParser (reach.go): live leaves out the unreachable
-	// rules of the Node and recognizer tables, collect records the rules that the first pass reaches.
-	live, collect *liveRules
-	// program is the plan of the program (planProgram), which routes every call of a rule.
+	// program is the plan of the program (planProgram), which routes every call of a rule, and live
+	// the rules that it reaches, which the generator prints, or nil if it prints every rule
+	// (GenOptions.KeepUnreachable).
 	program *plandata.Program
+	live    *liveRules
 	// keepTableRules marks a typed-only parser without Node rules: its Node and recognizer tables
 	// have no rule bodies to check; the typed table leaves its unreached rules out as usual.
 	keepTableRules bool
@@ -708,6 +712,84 @@ func (g *Generator) recovers() bool {
 	return found
 }
 
+// lowerTable plans the functions of the table being generated, whose rules, value-free twins included,
+// are all by ID, and lowers them to the Exec stage (common.Generator.LowerTable). The plan leaves out
+// the rules that the generator does not print (pruned).
+func (g *Generator) lowerTable(all []*common.Rule) (*plandata.Table[code.Exec], error) {
+	rules := make([]*flowplan.Rule, len(all))
+	for i, r := range all {
+		rules[i] = r.PlanRule()
+	}
+	// A typed-only parser prints the Node rule bodies only for the frame layouts they fix, and not
+	// the lines of the Node table's Operators Rules, which are not planned.
+	bodiesOnly := g.Table == "rules" && g.typedOnly
+	live := func(id int) bool {
+		if _, operatorsRule := all[id].Def.Expr.(*ast.OperatorsRule); operatorsRule && bodiesOnly {
+			return false
+		}
+		return !g.pruned(all[id])
+	}
+	var p *plandata.Plan
+	var refuse func(plandata.Key) bool
+	if g.Table == "trules" {
+		// A typed framed body runs under the frame the typed runtime shares with the Node rule, so
+		// it has the slots of the Node rule's planned layout.
+		p = flowplan.PlanTyped(g.Flow.TableIR, rules, live, func(id int) []string { return g.nodeLayouts[id] })
+	} else {
+		p = flowplan.Plan(g.Flow.TableIR, rules, live)
+		if r := g.streamStart; r != nil && g.Table == "rules" {
+			// ParseStream runs a copy of the start rule whose body emits the #stream elements.
+			flowplan.Stream(p, g.Flow.TableIR, r.PlanRule())
+		}
+		if g.hooks.RefuseFlowRecRule != nil {
+			refuse = func(k plandata.Key) bool { return k.Use == plandata.RuleBody && g.hooks.RefuseFlowRecRule(all[k.Rule]) }
+		}
+	}
+	t, err := g.LowerTable(p, refuse, gopass.Pipeline)
+	if err != nil {
+		return nil, fmt.Errorf("table %s: %w", g.Table, err)
+	}
+	return t, nil
+}
+
+// expectationTable numbers the expectation table of the Node table of prog and the recognizer table
+// of rec, if it is not nil, from the tables lowered with every rule that the parser could print, as
+// they are planned and lowered for printing but without leaving out the rules that the plan of the
+// program does not reach (execlower.Expectations): a left-out rule keeps its table row, so the IDs
+// are those of the parser that prints every rule. r runs the lowerings, without the dumps of the
+// generation, which show the tables that the parser prints.
+func (g *Generator) expectationTable(prog, rec *common.Program, r common.Runner) ([]string, error) {
+	n := &Generator{typedOnly: g.typedOnly, Document: g.Document, NoBudget: g.NoBudget, Ordinary: g.Ordinary, streamStart: g.streamStart, hooks: g.hooks, Runner: r}
+	n.FlowTarget = g.FlowTarget
+	// Logical units lower the guards of choices in their own way, so the numbering lowers as printing does.
+	n.Logical, n.LogicalGuards = g.Logical, g.LogicalGuards
+	var tables []*plandata.Table[code.Exec]
+	for _, t := range []struct {
+		name string
+		prog *common.Program
+	}{{"rules", prog}, {"recRules", rec}} {
+		if t.prog == nil {
+			continue
+		}
+		n.Prog, n.Table = t.prog, t.name
+		if err := n.StartRecFlow(t.prog); err != nil {
+			return nil, err
+		}
+		x, err := n.lowerTable(append(append([]*common.Rule(nil), t.prog.RuleList...), t.prog.Twins...))
+		if err != nil {
+			return nil, err
+		}
+		if n.FlowErr != nil {
+			return nil, n.FlowErr
+		}
+		if g.hooks.Lowered != nil {
+			g.hooks.Lowered(t.name, x)
+		}
+		tables = append(tables, x)
+	}
+	return execlower.Expectations(tables...)
+}
+
 func (g *Generator) rules() {
 	init := &g.Init
 	methodsBefore := g.Methods.String()
@@ -719,43 +801,11 @@ func (g *Generator) rules() {
 	if g.Flow != nil {
 		// The functions of every table, and the frame layout of each rule, are planned in the middle
 		// end and lowered as one module; the bodies follow the plan.
-		rules := make([]*flowplan.Rule, len(all))
-		for i, r := range all {
-			rules[i] = r.PlanRule()
-		}
-		// A typed-only parser prints the Node rule bodies only for the frame layouts they fix, and not
-		// the lines of the Node table's Operators Rules, which are not planned.
-		bodiesOnly := g.Table == "rules" && g.typedOnly
-		live := func(id int) bool {
-			if _, operatorsRule := all[id].Def.Expr.(*ast.OperatorsRule); operatorsRule && bodiesOnly {
-				return false
-			}
-			return !g.pruned(all[id])
-		}
-		var p *plandata.Plan
-		var refuse func(plandata.Key) bool
-		if g.Table == "trules" {
-			// A typed framed body runs under the frame the typed runtime shares with the Node rule, so
-			// it has the slots of the Node rule's planned layout.
-			p = flowplan.PlanTyped(g.Flow.TableIR, rules, live, func(id int) []string { return g.nodeLayouts[id] })
-		} else {
-			p = flowplan.Plan(g.Flow.TableIR, rules, live)
-			if r := g.streamStart; r != nil && g.Table == "rules" {
-				// ParseStream runs a copy of the start rule whose body emits the #stream elements.
-				flowplan.Stream(p, g.Flow.TableIR, r.PlanRule())
-			}
-			if g.hooks.RefuseFlowRecRule != nil {
-				refuse = func(k plandata.Key) bool { return k.Use == plandata.RuleBody && g.hooks.RefuseFlowRecRule(all[k.Rule]) }
-			}
-		}
-		t, err := g.LowerTable(p, refuse, gopass.Pipeline)
+		t, err := g.lowerTable(all)
 		if err != nil {
-			panic(fmt.Errorf("table %s: %w", g.Table, err))
+			panic(err)
 		}
 		g.plan, g.table = t.Plan, t
-		if g.hooks.Lowered != nil && g.collect != nil && !g.Traced && g.Table != "trules" {
-			g.hooks.Lowered(g.Table, t)
-		}
 	}
 	for _, r := range all {
 		s := check.NewScope()
@@ -790,7 +840,7 @@ func (g *Generator) rules() {
 			// flowRecRule returns nil only if the printed form breaks the plan's decision, which fails
 			// the generation (Generator.FlowErr).
 			if d := g.flowRecRule(r, spec); d != nil {
-				if g.hooks.LeanRoute != nil && g.collect == nil && !g.Traced {
+				if g.hooks.LeanRoute != nil && !g.Traced {
 					g.hooks.LeanRoute(g.Table, r)
 				}
 				flats[r] = d
@@ -801,7 +851,7 @@ func (g *Generator) rules() {
 			continue
 		}
 		if ok {
-			if g.hooks.FramedRoute != nil && g.collect == nil && !g.Traced {
+			if g.hooks.FramedRoute != nil && !g.Traced {
 				g.hooks.FramedRoute(g.Table, r)
 			}
 			bodies[r] = g.flowNodeFrameBody(r, spec, s)
@@ -994,7 +1044,7 @@ func (g *Generator) rules() {
 		s := check.NewScope()
 		body := g.flowStreamBody(r, s)
 		if body != "" {
-			if g.hooks.StreamRoute != nil && g.collect == nil && !g.Traced {
+			if g.hooks.StreamRoute != nil && !g.Traced {
 				g.hooks.StreamRoute(g.Table, r)
 			}
 		} else {

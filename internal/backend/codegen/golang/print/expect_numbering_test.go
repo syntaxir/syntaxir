@@ -3,6 +3,7 @@ package print_test
 import (
 	"runtime"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 
@@ -16,10 +17,12 @@ import (
 )
 
 // TestExpectationsOfTheLoweredTables checks that the expectation table numbered from the lowered
-// Node and recognizer tables (execlower.Expectations) is the one that printing every rule of them
-// numbers (the first pass of GenerateParser), across the corpus and the outputs that change which
-// functions a table prints. The same expectations in the order of the Core module of the Node table
-// (core.Module.Exps) must differ for some grammar, which shows that the comparison sees the order.
+// Node and recognizer tables (execlower.Expectations), which GenerateParser numbers before it prints,
+// is the one that printing every rule of them numbers on first use, across the corpus and the outputs
+// that change which functions a table prints. The printing numbers the table when the hook Numbering
+// takes the numbering away, which the generation then reports as an expectation that the numbering
+// lacks. The same expectations in the order of the Core module of the Node table (core.Module.Exps)
+// must differ for some grammar, which shows that the comparison sees the order.
 func TestExpectationsOfTheLoweredTables(t *testing.T) {
 	modes := []struct {
 		name string
@@ -53,11 +56,18 @@ func TestExpectationsOfTheLoweredTables(t *testing.T) {
 				var printed []string
 				opts := mode.opts
 				opts.Module = "example.com/p"
+				opts.KeepUnreachable = true
 				h := &print.Hooks{
-					Lowered: func(_ string, t *plandata.Table[code.Exec]) { tables = append(tables, t) },
-					Reach:   func(l *print.LiveRules) { printed = l.Descs() },
+					Lowered:   func(_ string, t *plandata.Table[code.Exec]) { tables = append(tables, t) },
+					Numbering: func([]string) []string { return nil },
+					Printed:   func(descs []string) { printed = descs },
 				}
-				if _, err := print.GenerateParser(pg, codegentest.Compile, codegentest.Passes(opts), codegentest.WithLib(opts), h); err != nil || printed == nil {
+				_, err = print.GenerateParser(pg, codegentest.Compile, codegentest.Passes(opts), codegentest.WithLib(opts), h)
+				if printed == nil {
+					return
+				}
+				if len(printed) > len(core.FixedDescs) && (err == nil || !strings.Contains(err.Error(), "which the numbering of their lowered tables does not")) {
+					t.Errorf("%s: %s: the printing numbers expectations that the numbering lacks, and the generation gives %v", mode.name, c.Name, err)
 					return
 				}
 				got, err := execlower.Expectations(tables...)

@@ -15,12 +15,13 @@ every call through the rule slot, so there the twins and originals follow the ca
 same way. On the 14 grammars of the output manifest, between 34% and 44% of the generated Node
 source belonged to such bodies.
 
-The generator runs twice. The first pass computes, for each rule table (`rules`, `recRules`, and `trules` of typed
-output), the rule slots and wrapper functions that a parse can enter, with `core.Module.Reach` on the call graph of the
-Core IR: it follows the calls of the rule bodies, and `callWrapper` says whether a call of a rule is printed through its
-wrapper or its slot. The roots are the start rules of the Node and recognizer tables, which the generated entry points and
-`Starts` reach, and the typed rules whose `Entry` a typed entry point runs; the stream body copies the start rule's
-calls. The second pass prints only the entered (rule, slot or wrapper) pairs:
+Before the generator prints a table, the plan of the program (the step `plan`) computes, for
+each rule table (`rules`, `recRules`, and `trules` of typed output), the rule slots and wrapper functions that a parse
+can enter, with `core.Module.Reach` on the call graph of the Core IR: it follows the calls of the rule bodies, and
+the plan decides whether a call of a rule goes through its wrapper or its slot, which the printer follows.
+The roots are the start rules of the Node and recognizer tables, which the generated entry points and `Starts` reach,
+and the typed rules whose `Entry` a typed entry point runs; the stream body copies the start rule's calls. The
+generator then prints only the entered (rule, slot or wrapper) pairs:
 
 - a rule with neither its slot nor its wrapper entered has no body, no helper functions and no
   `Body`, `Action` or `OperatorsRule` assignment;
@@ -28,7 +29,8 @@ calls. The second pass prints only the entered (rule, slot or wrapper) pairs:
   uses, and has no `Body` assignment and, when the wrapper is the direct form, no body
   function;
 - the rule table rows, the expectation table of the Node and recognizer tables and their capture layouts are the
-  same as before, so every ID in the printed Node and recognizer code keeps its value;
+  same as before, so every ID in the printed Node and recognizer code keeps its value: the expectation table is
+  numbered from these two tables lowered with every rule before they are printed;
 - a typed rule that nothing enters has no `Body`, `Action`, `Entry`, method, capture layout, expectation, literal, class
   table or term. The typed table has no rows of its own to keep (`NewTRules` builds it from the rule table), so the
   expectations and tables that only such rules would have used are not declared and the IDs of the rest are numbered
@@ -38,7 +40,7 @@ calls. The second pass prints only the entered (rule, slot or wrapper) pairs:
   another kept variable (`internal/backend/codegen/golang/print/shake.go`; a lexical scan of the identifiers, which can keep an unused one and never drops a
   used one). The scan runs after the passes that edit the text of the functions, which can leave a variable unused.
 
-The second pass fails generation if a printed call reaches a rule that was left out, and if an
+The generator fails if a printed call reaches a rule that was left out, and if an
 entered slot has no printed `Body`, so a missing root cannot become a nil `Body` at run time.
 A typed-only parser has no Node or recognizer rule to leave out when its entry points do not convert Nodes. When they
 do (an action reads a field of a struct that has no plain Go form), it prints the Node rules that the entry points reach, under the same checks as
@@ -92,7 +94,7 @@ that prints every rule: duckdb Node with recognizer 6.39 s before and 3.85 s aft
 
 ### Typed tables
 
-The typed rules are part of the two passes, and the fixed helpers and one-line package variables are kept only if
+The typed rules are part of the plan, and the fixed helpers and one-line package variables are kept only if
 named. The output equals that of a generator that prints all typed rules and then removes, from the printed source, what
 only an `Entry` of a rule other than a start rule could reach (a parse and format of the whole file), except that the
 expectations, literals, shapers, class tables and capture layouts of left-out rules are not numbered; that removal finds
