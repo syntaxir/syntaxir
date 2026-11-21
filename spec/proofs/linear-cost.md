@@ -3482,6 +3482,14 @@ more case:
   input, a left call at $q$ of a leader of the cycle other than $R$,
   through which it goes on.
 
+Cases (1) to (3) leave few steps. In case (1), $\sigma'$ is the second step
+of $G$; case (2) does not arise; and in case (3), the result of $\sigma'$ has
+at most $c_w$ characters, where $c_w$ is the length of the longest
+literal of the grammar. So, outside case (4) and the units that the claim
+leaves aside, at most $c_w + 1$ kept steps of $G$ after the first have a
+result that does not include the seed: the second step and steps whose
+results have at most $c_w$ characters.
+
 *Proof.* Every read of the seed in $\sigma'$ is a call of $R$ at $q$ that
 returns the seed, a success. Only those reads answer otherwise in
 $\sigma'$ than in the first step $\sigma_1$ of $G$, where they fail.
@@ -3663,7 +3671,46 @@ condition 5 instead: a call of $T$ in $F$, a rule of the cycle other than
 a leader, can drop the result of $T$, which grows where $E$ grows from its
 growing result, and a call of $E$ there can drop the result of $E$ in the
 same way; but that condition 5 excludes every grammar of case (4) is not
-shown. $\square$
+shown.
+
+It remains to bound the steps of cases (1) to (3). In case (1), let the seed
+end at or before $u$. The calls that $U$ and $Q$ share at their starts begin
+every path of $U$, the path through $\rho$ among them, so on that path they
+are evaluated at $q$ before $\rho$ or hold it. A shared call that neither is
+$\rho$ nor holds it ends no later than where $\rho$ starts, at $q$, and so
+consumes nothing. A shared call that is $\rho$ or holds it begins every path
+of $Q$ as well, at $q$, where it reads no variable and lies in the same
+growths (*Alike calls end alike*): a call of $R$ there reads the seed, and a
+call that holds $\rho$ is evaluated alike, so its result includes the read
+there too. The match of $Q$, which lies in that of $\sigma'$ outside every
+lookahead, then holds a read of the seed that succeeds or a call whose result
+includes one, which the result of $\sigma'$ does not. So $u = q$, the seed,
+which ends at or before $u$, is empty, and only the result of the first step
+can be empty: $\sigma'$ is the second step. For the words of $U$, the word $w$
+of the path of $U$ through $\rho$ begins at $u = q$, and it begins that path
+along the paths of the steps whose results the seed holds, down to that of the
+first step, which matched it at $q$; so $w$ ends within the first result,
+which the seed holds, and when the seed ends at or before the end of $w$, the
+seed is the first result, and $\sigma'$ is again the second step. No scanning
+source remaining in $U$ after the shared calls does not arise: $\rho$ is not
+among them, as shown, and $U$ contains the scanning sources of $R$ through it.
+
+In case (2), the path $P$ of the decisions above parts from the path that
+$Q$ follows at a negative lookahead `!K` on the side of $U$, before its
+second call of $R$. Every symbol of $P$ before that call was evaluated in
+$\sigma'$ at $q$ and succeeded there, `!K` among them, so `K` fails at $q$
+in $\sigma'$. The symbols that $Q$ passes alike consume nothing, so the rest
+of $Q$ starts at $q$, and it matches only where an alternative $A$ of `K`
+matches, with no cut that commits the choice of `K` before $A$
+([Conditions for Linear
+Cost](../runtime/parsing.md#conditions-for-linear-cost)). The rest of $Q$
+matches at $q$ in $\sigma'$, since $Q$ succeeds, so $A$, and with it `K`,
+matches at $q$, against the outcome of `!K` there. So case (2) does not
+arise.
+
+In case (3), $e' \le q + |w| \le q + c_w$. The results of the kept
+steps after the first are each longer than the one before and not empty, so
+at most $c_w$ of them end at or before $q + c_w$. $\square$
 
 The claim needs the finite reading for every decision, not only for the
 form of `!K`: without it the comparison would follow the path $P$ through
@@ -8974,9 +9021,12 @@ claims of this lemma that rest on them hold apart from them:
 
 1. the hypothesis of *Steps that begin anew* on kept steps for a leader that
    contains a scanning source, in the cases that *Later steps that abandon
-   their reads of the seed* leaves open or aside: its cases (1) to (4), and
-   an abandoned unit that is a dropped step of another growth or lies in a
-   growth of another leader at the position;
+   their reads of the seed* leaves open or aside: its case (4), and an
+   abandoned unit that is a dropped step of another growth or lies in a
+   growth of another leader at the position; and, in its cases (1) and (3),
+   for the at most $c_w + 1$ kept steps of a growth that it leaves, the
+   second step and steps whose results have at most $c_w$ characters,
+   which the claims that take the hypothesis are not shown to allow;
 2. the claim of *Steps that begin anew* for a growth of another leader $T$
    that a step nests, in its remaining case, a result of $T$ that is not
    empty and does not include the growing result before one that does, when
@@ -13417,15 +13467,12 @@ theorem covers such a parse.
    reading it only inside a lookahead or only in an alternative that it
    abandons, which *Later steps that abandon their reads of the seed*
    excludes apart from a dropped step of another growth or a growth of
-   another leader at the position in its place, a growing unit whose path
-   in the first step has a word inside which or at whose end the kept step
-   ends, a unit of a rule of the cycle other than a leader whose path in the
-   first step goes on through a left call of another leader, a seed that
-   ends inside the calls
-   that the unit shares with what the step evaluates after it (an empty
-   seed included) or at the end of the word, a unit without a scanning
-   source after those calls, and a unit decided through a negative
-   lookahead on its own side; and apart from a pair of nested evaluations with a unit on the path between
+   another leader at the position in its place, a unit of a rule of the
+   cycle other than a leader whose path in the first step goes on through a
+   left call of another leader, and the second step of a growth and its
+   kept steps whose results have at most as many characters as the longest
+   literal of the grammar; and apart from a pair of nested evaluations
+   with a unit on the path between
    them that decides its continuation only through a negative lookahead on
    its own side, where *Negative lookaheads at one end* shows that the
    continuation starts no scanning source other than a bounded scan after
@@ -13489,7 +13536,9 @@ theorem covers such a parse.
    *Results that do not include the seed*, on the hypothesis of *Steps that
    begin anew* on kept steps, which is not shown, for a leader with a
    scanning source, in the cases that *Later steps that abandon their reads
-   of the seed* leaves open or aside, cases (1) to (4) among them (step 1),
+   of the seed* leaves open or aside (step 1): its case (4), and the second
+   step and steps whose results have at most $c_w$ characters, which
+   its cases (1) and (3) leave,
    and which no claim takes for a leader without one, whose growths nest
    with no other (*Leaders without a scanning source*), and on the claim of
    *Steps that begin
@@ -13549,8 +13598,10 @@ theorem covers such a parse.
    as a hypothesis that every kept step of a growth after the first has a
    result that includes the growing result, which *Later steps that abandon
    their reads of the seed* gives only for a leader that contains a
-   scanning source and outside its cases (1) to (4) and the units that it
-   leaves aside (step 1); for a leader without one the hypothesis can fail,
+   scanning source, outside its case (4) and the units that it leaves aside
+   and apart from the second step and steps whose results have at most
+   $c_w$ characters, which its cases (1) and (3) leave (step 1); for a
+   leader without one the hypothesis can fail,
    but its growths nest with no other, its steps that drop the seed number
    a constant and each costs a constant beyond the evaluations that Lemmas
    3, 10 and 13 count, and no claim takes the hypothesis for it (*Leaders
