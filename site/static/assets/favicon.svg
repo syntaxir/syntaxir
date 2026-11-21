@@ -1,1 +1,25 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><style>path{fill:#0a0a0a}@media (prefers-color-scheme:dark){path{fill:#fff}}</style><g transform="translate(5.77 8)"><g transform="translate(8.46 0) skewX(-10)"><path fill-rule="evenodd" d="M0 0H44V48H0ZM8 9V39H36V9Z"/><path d="M28.8 0H40.8L15.2 48H3.2Z"/></g></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 49.57">
+<style>.d{display:none}@media (prefers-color-scheme: dark){.l{display:none}.d{display:inline}}</style>
+<g class="l">
+<path d="M5.21 4.70 L18.79 4.70 L12.00 16.46 Z" fill="#F0533A"/>
+<path d="M20.00 5.40 L26.79 17.16 L13.21 17.16 Z" fill="#F4A00F"/>
+<path d="M21.21 4.70 L34.79 4.70 L28.00 16.46 Z" fill="#38B26A"/>
+<path d="M36.00 5.40 L42.79 17.16 L29.21 17.16 Z" fill="#1F87DA"/>
+<path d="M37.21 4.70 L50.79 4.70 L44.00 16.46 Z" fill="#D14BC4"/>
+<path d="M13.21 18.56 L26.79 18.56 L20.00 30.31 Z" fill="#5B45F5"/>
+<path d="M28.00 19.26 L34.79 31.01 L21.21 31.01 Z" fill="#5B45F5" fill-opacity="0.70"/>
+<path d="M29.21 18.56 L42.79 18.56 L36.00 30.31 Z" fill="#5B45F5"/>
+<path d="M21.21 32.41 L34.79 32.41 L28.00 44.17 Z" fill="#141826"/>
+</g>
+<g class="d">
+<path d="M5.21 4.70 L18.79 4.70 L12.00 16.46 Z" fill="#F0533A"/>
+<path d="M20.00 5.40 L26.79 17.16 L13.21 17.16 Z" fill="#F4A00F"/>
+<path d="M21.21 4.70 L34.79 4.70 L28.00 16.46 Z" fill="#38B26A"/>
+<path d="M36.00 5.40 L42.79 17.16 L29.21 17.16 Z" fill="#1F87DA"/>
+<path d="M37.21 4.70 L50.79 4.70 L44.00 16.46 Z" fill="#D14BC4"/>
+<path d="M13.21 18.56 L26.79 18.56 L20.00 30.31 Z" fill="#9A88FF"/>
+<path d="M28.00 19.26 L34.79 31.01 L21.21 31.01 Z" fill="#9A88FF" fill-opacity="0.70"/>
+<path d="M29.21 18.56 L42.79 18.56 L36.00 30.31 Z" fill="#9A88FF"/>
+<path d="M21.21 32.41 L34.79 32.41 L28.00 44.17 Z" fill="#F4F5FA"/>
+</g>
+</svg>

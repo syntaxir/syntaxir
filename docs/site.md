@@ -312,8 +312,11 @@ decoding excludes compression/encoding, browser DOM, worker and WebAssembly cost
   grammar, an input and a description. The smoke test then checks it too.
 - **Icons.** `site/static/assets/favicon.svg` is the icon browsers show, light or dark with the color scheme. Search
   engines and phone bookmarks take raster icons from the site root: `favicon.ico` (16, 32 and 48 px) and
-  `apple-touch-icon.png` (180 px, with a margin for the rounded corners). Both draw the mark in white on `#0a0a0a` and
-  are rendered from it with `rsvg-convert` and ImageMagick `magick`; render them again when the mark changes.
+  `apple-touch-icon.png` (180 px, with a margin for the rounded corners). Both draw the dark-scheme colors of the mark
+  on `#0a0a0a`: `favicon.ico` the three rows of `favicon.svg`, `apple-touch-icon.png` the full four-row mark. They are
+  rendered with `rsvg-convert` and ImageMagick `magick`; render them again when the mark changes. The header of every
+  page draws the horizontal lockup of `assets/logo-black.svg` inline, with the wordmark in the text color and the
+  accent in `--brand-accent`.
 - **Templates, styles and scripts** are in `site/templates/` and `site/static/`. They are plain HTML, CSS and JavaScript
   modules; there is no build step and no npm dependency.
   The client-side code highlighter is in `site/static/assets/highlight.js`; fenced code language aliases are mapped in

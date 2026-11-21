@@ -5,6 +5,7 @@
   --bg-soft: #f5f5f5;
   --bg-sunken: #ececec;
   --fg: #0a0a0a;
+  --brand-accent: #5b45f5;
   --fg-soft: #474747;
   --fg-faint: #767676;
   --border: #e0e0e0;
@@ -43,6 +44,7 @@
     --bg-soft: #141414;
     --bg-sunken: #050505;
     --fg: #f2f2f2;
+    --brand-accent: #9a88ff;
     --fg-soft: #b4b4b4;
     --fg-faint: #838383;
     --border: #2a2a2a;
@@ -77,6 +79,7 @@
   --bg-soft: #141414;
   --bg-sunken: #050505;
   --fg: #f2f2f2;
+  --brand-accent: #9a88ff;
   --fg-soft: #b4b4b4;
   --fg-faint: #838383;
   --border: #2a2a2a;
@@ -150,6 +153,7 @@ code, kbd, pre { font-family: var(--mono); font-size: 0.9em; }
   color: var(--fg);
 }
 .brand svg { display: block; width: auto; }
+.brand .brand-accent { fill: var(--brand-accent); }
 .brand:hover { text-decoration: none; }
 
 .topnav { display: flex; gap: 4px; margin-left: 8px; }
