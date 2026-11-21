@@ -12,7 +12,8 @@
 //
 // The fragment it evaluates is the matching core: rule references without a binding level, literals
 // without ignore-case, character classes, `.`, all four anchors (`$$`, `^^`, `$` and `^`), sequences, choices,
-// groups, repetitions, optionals and the two lookaheads, with value-only wrappers (actions, captures, discards, #atomic,
+// groups, repetitions, optionals, the two lookaheads and cuts (`#cut`, committed by the innermost choice, option or
+// repetition of the rule; a lookahead is a boundary), with value-only wrappers (actions, captures, discards, #atomic,
 // #stream) transparent. Other constructs make Evaluate return an *UnsupportedError; a grammar with
 // one is outside the oracle and is named by the caller.
 package examinedref
@@ -61,7 +62,12 @@ func Evaluate(g *ast.Grammar, start, input string) (Result, []Exit, error) {
 	if err != nil {
 		return Result{}, nil, err
 	}
-	ev := &evaluator{rules: map[string]*ast.RuleDef{}, leaders: facts.leaders, in: []rune(input), growths: map[growthKey]*growth{}}
+	ev := &evaluator{
+		rules:   map[string]*ast.RuleDef{},
+		leaders: facts.leaders,
+		in:      []rune(input),
+		growths: map[growthKey]*growth{},
+	}
 	for _, r := range defs {
 		ev.rules[r.Name] = r
 	}
@@ -77,10 +83,13 @@ func Evaluate(g *ast.Grammar, start, input string) (Result, []Exit, error) {
 
 // outcome is the result of an evaluation at a position: whether it matched, its end (the position when
 // it failed) and the examined end h, one past the greatest slot that it or a call within it examined,
-// and at least its start.
+// and at least its start. cut reports that the evaluation passed a #cut that no enclosing choice,
+// option, repetition or lookahead has committed yet: a failure with cut set fails the innermost such
+// scope without trying its other alternatives, and it is an ordinary failure outside that scope.
 type outcome struct {
 	matched bool
 	end, h  int
+	cut     bool
 }
 
 // growthKey identifies a growth: the rule and the position it is evaluated at. The fragment has no
@@ -266,24 +275,33 @@ func (ev *evaluator) eval(e ast.Expr, pos int) outcome {
 			return ok(pos, h)
 		}
 		return bad(h)
+	case *ast.Cut:
+		// A cut consumes nothing and examines nothing; it marks the failures that follow it.
+		return outcome{matched: true, end: pos, h: pos, cut: true}
 	case *ast.Seq:
-		h, cur := pos, pos
+		h, cur, passed := pos, pos, false
 		for _, item := range e.Items {
 			o := ev.eval(item, cur)
 			h = maxInt(h, o.h)
+			passed = passed || o.cut
 			if !o.matched {
-				return bad(h)
+				return outcome{end: pos, h: h, cut: passed}
 			}
 			cur = o.end
 		}
-		return ok(cur, h)
+		return outcome{matched: true, end: cur, h: h, cut: passed}
 	case *ast.Choice:
+		// An alternative that fails after a cut commits the choice: the choice fails without trying the
+		// others, and the failure is an ordinary one outside the choice.
 		h := pos
 		for _, alt := range e.Alts {
 			o := ev.eval(alt, pos)
 			h = maxInt(h, o.h)
 			if o.matched {
 				return ok(o.end, h)
+			}
+			if o.cut {
+				break
 			}
 		}
 		return bad(h)
@@ -300,12 +318,17 @@ func (ev *evaluator) eval(e ast.Expr, pos int) outcome {
 	case *ast.Stream:
 		return ev.eval(e.Expr, pos)
 	case *ast.Optional:
+		// The optional is a choice between matching and stopping: a failure after a cut fails it.
 		o := ev.eval(e.Expr, pos)
 		if o.matched {
 			return ok(o.end, o.h)
 		}
+		if o.cut {
+			return bad(o.h)
+		}
 		return ok(pos, o.h)
 	case *ast.And:
+		// A lookahead is a boundary for cuts: a cut inside it commits nothing outside.
 		o := ev.eval(e.Expr, pos)
 		if o.matched {
 			return ok(pos, o.h)
@@ -329,13 +352,17 @@ func (ev *evaluator) eval(e ast.Expr, pos int) outcome {
 
 // repeat follows the repetition rule of spec/language/parser-expressions.md: it stops at the first
 // failure, at the maximum, or at the first iteration that succeeds without consuming input (which
-// still counts); the minimum is checked after stopping.
+// still counts); the minimum is checked after stopping. An iteration that fails after a cut fails the
+// whole repetition instead of stopping.
 func (ev *evaluator) repeat(e *ast.Repeat, pos int) outcome {
 	h, cur, count := pos, pos, 0
 	for e.Max < 0 || count < e.Max {
 		o := ev.eval(e.Expr, cur)
 		h = maxInt(h, o.h)
 		if !o.matched {
+			if o.cut {
+				return outcome{end: pos, h: h}
+			}
 			break
 		}
 		count++
