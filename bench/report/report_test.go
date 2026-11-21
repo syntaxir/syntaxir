@@ -309,7 +309,9 @@ func TestApplyFigures(t *testing.T) {
 		}
 	}
 	put("README.md", "It takes <!-- fig:a -->1.00×<!-- /fig --> and <!-- fig:b -->old<!-- /fig --> time.\n")
-	put("docs/guide/g.md", "Same <!-- fig:a -->1.00×<!-- /fig -->.\n")
+	// A temporary tree, not a repository path.
+	guide := filepath.Join("docs", "guide", "g.md")
+	put(guide, "Same <!-- fig:a -->1.00×<!-- /fig -->.\n")
 	put("docs/benchmarks.md", "<!-- fig:missing -->x<!-- /fig -->\n")
 	values := map[string]string{"a": "1.00×", "b": "0.5–0.7×"}
 	stale, err := applyFigures(dir, values, true)
@@ -326,7 +328,7 @@ func TestApplyFigures(t *testing.T) {
 	if stale, err = applyFigures(dir, values, false); err != nil || len(stale) != 0 {
 		t.Errorf("second pass: stale %v, err %v", stale, err)
 	}
-	put("docs/guide/g.md", "Unknown <!-- fig:nope -->1<!-- /fig -->.\n")
+	put(guide, "Unknown <!-- fig:nope -->1<!-- /fig -->.\n")
 	if _, err = applyFigures(dir, values, false); err == nil || !strings.Contains(err.Error(), "nope") {
 		t.Errorf("unknown figure: err = %v, want one naming nope", err)
 	}
