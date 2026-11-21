@@ -58,6 +58,18 @@ for that parse only. Trace functions and profiles given to a parse are added to
 those of the defaults, so both receive the parse; a trace filter or depth limit
 given to a parse replaces the default for that parse.
 
+In Go, the trace filter and the depth limit of a parse are one
+`instrument.TraceSelection`, whose `Rules` and `MaxDepth` the two options set; an
+option replaces the selection rather than changing it. Two types of package
+`instrument` serve the parsers that produce events, not their users: a parser gives
+its events access to its state through an `instrument.TraceSource`
+(`TraceEvent.WithSource`), which answers the line and column of a position, the
+text of a range, and the failure and recovered errors of the current exit event;
+and it records a profile through an `instrument.ProfileRecorder`
+(`Profile.Recorder`), to which it passes every event of the parse in order
+(`Record`, then `Resume` after the trace functions have handled it) and which it
+closes when the parse returns (`Close`).
+
 ## Engine Tracing
 
 `runtime.WithTrace(f)` calls `f` at the start and at the end of every rule call of

@@ -23,7 +23,8 @@ node and the labels of its captures. Rule constraints need it.
 
 ### Output Schemas
 
-`p.OutputSchema(opts...)` returns the schema of the parser's grammar.
+`p.OutputSchema(opts...)` returns the schema of the parser's grammar. Its options are `runtime.SchemaOption` values,
+which set the fields of a `runtime.SchemaOptions`.
 
 - The default schema contains the configured start rule, the rules it calls and the
   types that their output shapes reference. `WithAllSchemaRules()` also includes

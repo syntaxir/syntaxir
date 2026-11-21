@@ -143,7 +143,8 @@ receives a `WalkVisit` and returns a `WalkAction` and an error.
   Scalar and nil values are visited. Other containers are leaves.
 - A shared node or list is visited once for each incoming edge. Only a cycle on
   the active traversal path is an error: `Walk` returns `*value.CycleError`, which
-  holds the path of the back edge.
+  holds the path of the back edge: its `Path` lists the `value.WalkEdge` of each step from
+  the root, whose `Kind` is `WalkRoot`, `WalkChild`, `WalkField` or `WalkListElement`.
 - `WalkSkip` omits the descendants of the visit; `WalkStop` ends the walk
   successfully. An error returned by `visit` stops the walk and is returned
   unchanged. A nil callback is an error.

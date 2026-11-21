@@ -48,7 +48,8 @@ version once, including an edit that changes nothing. A failed edit changes
 nothing.
 
 `doc.EditBatch(base, edits...)` applies replacements simultaneously to the text
-identified by the token `base`.
+identified by the token `base`, a `DocumentVersion` that `doc.Version()` returned. Each
+edit is an `input.TextEdit`, which replaces `[Start, End)` with `Text`.
 
 - Every range uses coordinates in the original base text and the document's unit.
 - Starts MUST be strictly increasing and ranges MUST NOT overlap. A repeated
@@ -183,7 +184,7 @@ accept a nil node.
 `ChildCount` and `Child` address the elements of a tuple or list node, and `ChildCount` includes nil slots. `Field(name)` returns a value and a
 presence flag that distinguishes an absent field from a present nil value; a typed
 nil `*Node` field becomes a zero handle and an untyped nil stays nil. `Fields()`
-returns an owned slice in original order. Handles and snapshots are immutable and
+returns an owned slice of `SnapshotField` values, each a `Name` and a `Value`, in original order. Handles and snapshots are immutable and
 safe for concurrent reads while the document has one editing and parsing owner.
 
 Freezing preserves shared node identities, cycles, nil child slots and nil versus
@@ -476,7 +477,11 @@ one document before the edits and parses to be observed. The positive `limit`
 bounds the number of queued events; it does not bound the bytes of replacement
 text or the size of the comparison snapshot. Enabling twice is rejected.
 `doc.DrainChanges()` transfers owned records out and clears the queue. Tracking
-retains one comparison snapshot.
+retains one comparison snapshot. A record is a `DocumentChange`: its `Kind` (an
+`input.DocumentChangeKind`), the versions `From` and `To`, the position `Unit`, the
+`Edits` of an edit event as `input.TextEdit` values, `FullRefresh`, the conservative
+`Invalidated` and `Reevaluation` of an edit, and the `Output` comparison of an outcome
+(an `input.OutputChange`).
 
 There are three kinds of event.
 

@@ -65,6 +65,12 @@ early `Close`, `Next` returns `ErrStreamClosed`. The iterator does not close its
 reader. One goroutine owns an iterator: calls to `Next` and `Close` MUST NOT
 overlap, including from a callback. `Close` cannot interrupt a blocked `Read`.
 
+Every parser that streams returns the one type `runtime.StreamIterator`, which
+`runtime.NewStreamIterator(run)` makes: `run` parses the stream, passes each committed
+element to its `yield` argument and returns the error that ends the parse, or nil, and
+stops once `yield` returns false. `run` starts at the first call of `Next`. Programs
+get an iterator from a parser rather than make one.
+
 ### Delivery and Finality
 
 - Each element is delivered as soon as it matches, in the middle of the parse and
