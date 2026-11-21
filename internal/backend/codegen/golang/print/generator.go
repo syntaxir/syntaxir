@@ -20,6 +20,7 @@ import (
 	"zeroparse.dev/zp/internal/frontend/astfacts"
 	"zeroparse.dev/zp/internal/frontend/check"
 	"zeroparse.dev/zp/internal/frontend/types"
+	"zeroparse.dev/zp/internal/ir/code"
 	"zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/middleend/flowlower/lowerdata"
 	"zeroparse.dev/zp/internal/middleend/flowpass"
@@ -86,7 +87,7 @@ type Hooks struct {
 	// printed from Flow IR (flowStreamBody).
 	StreamRoute func(table string, r *common.Rule)
 	// RefuseFlowRecRule makes the plan of the Node and recognizer tables refuse the flat functions of
-	// the rules it selects (flowplan.Table.Unit), so that the framed body that takes their place is
+	// the rules it selects (flowplan.Unit), so that the framed body that takes their place is
 	// exercised. No manifest grammar reaches that fallback.
 	RefuseFlowRecRule func(*common.Rule) bool
 	// FlowVarsMutant makes every variable of a printed function unread: the generated code must
@@ -563,9 +564,10 @@ type Generator struct {
 	reachErr   error
 	// typedTable reports that the typed rule table is generated.
 	typedTable bool
-	// plan is the plan of the Node or recognizer table being printed (flowplan.Plan), nil for the
-	// typed table.
-	plan *flowplan.Table
+	// plan is the plan of the table being printed (flowplan.Plan, flowplan.PlanTyped), with the
+	// decisions of its lowering taken, and table the table that its lowering made, at the Exec stage.
+	plan  *plandata.Plan
+	table *plandata.Table[code.Exec]
 }
 
 func (g *Generator) literal(value string) string {
@@ -660,7 +662,7 @@ func (g *Generator) rules() {
 	scopes := map[*common.Rule]*check.Scope{}
 	flats := map[*common.Rule]*flatRule{}
 	all := append(append([]*common.Rule(nil), g.Prog.RuleList...), g.Prog.Twins...)
-	g.plan = nil
+	g.plan, g.table = nil, nil
 	if g.Flow != nil {
 		// The functions of every table, and the frame layout of each rule, are planned in the middle
 		// end and lowered as one module; the bodies follow the plan.
@@ -669,7 +671,7 @@ func (g *Generator) rules() {
 			rules[i] = r.PlanRule()
 		}
 		live := func(id int) bool { return !g.pruned(all[id]) }
-		var p *flowplan.Table
+		var p *plandata.Plan
 		var refuse func(plandata.Key) bool
 		if g.Table == "trules" {
 			// A typed framed body runs under the frame the typed runtime shares with the Node rule, so
@@ -679,16 +681,17 @@ func (g *Generator) rules() {
 			p = flowplan.Plan(g.Flow.TableIR, rules, live)
 			if r := g.streamStart; r != nil && g.Table == "rules" {
 				// ParseStream runs a copy of the start rule whose body emits the #stream elements.
-				p.Stream(g.Flow.TableIR, r.PlanRule())
+				flowplan.Stream(p, g.Flow.TableIR, r.PlanRule())
 			}
 			if g.hooks.RefuseFlowRecRule != nil {
 				refuse = func(k plandata.Key) bool { return k.Use == plandata.RuleBody && g.hooks.RefuseFlowRecRule(all[k.Rule]) }
 			}
 		}
-		if err := g.LowerTable(p, refuse, gopass.Pipeline); err != nil {
+		t, err := g.LowerTable(p, refuse, gopass.Pipeline)
+		if err != nil {
 			panic(fmt.Errorf("table %s: %w", g.Table, err))
 		}
-		g.plan = p
+		g.plan, g.table = t.Plan, t
 	}
 	for _, r := range all {
 		s := check.NewScope()

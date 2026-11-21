@@ -1,11 +1,16 @@
 package common_test
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
 	"zeroparse.dev/zp/internal/backend/codegen/common"
+	"zeroparse.dev/zp/internal/ir/code"
+	"zeroparse.dev/zp/internal/middleend/execlower"
 	"zeroparse.dev/zp/internal/middleend/flowlower/lowerdata"
+	"zeroparse.dev/zp/internal/middleend/flowpass"
+	"zeroparse.dev/zp/internal/middleend/flowplan/plandata"
 	"zeroparse.dev/zp/internal/testing/codegentest"
 )
 
@@ -32,6 +37,7 @@ func TestGeneratorWithoutRunnerPanicsClearly(t *testing.T) {
 		"Core":       func(g *common.Generator) { _, _ = g.Core("rules", nil) },
 		"FlowPasses": func(g *common.Generator) { _, _ = g.FlowPasses(lowerdata.Unit{}) },
 		"ExecPasses": func(g *common.Generator) { _, _ = g.ExecPasses(nil, common.TargetPipeline{}) },
+		"LowerTable": func(g *common.Generator) { _, _ = g.LowerTable(&plandata.Plan{}, nil, common.TargetPipeline{}) },
 	} {
 		t.Run(name, func(t *testing.T) {
 			defer func() {
@@ -42,5 +48,36 @@ func TestGeneratorWithoutRunnerPanicsClearly(t *testing.T) {
 			}()
 			use(&common.Generator{})
 		})
+	}
+}
+
+// failingRunner is a Runner whose run of a table fails in a pass and returns the table with the
+// failure, as the driver does.
+type failingRunner struct {
+	common.Runner
+	table *plandata.Table[code.Exec]
+}
+
+var errPass = errors.New("internal error: a pass failed")
+
+func (r failingRunner) LowerTable(string, plandata.Planned, bool, flowpass.Target, common.TargetPipeline) (*plandata.Table[code.Exec], error) {
+	return r.table, errPass
+}
+
+// A failure of a pass in the run of a table is the first internal error of the generation (FlowErr),
+// which fails it, and the table comes back for the printing to go on.
+func TestLowerTableKeepsAPassFailure(t *testing.T) {
+	t.Parallel()
+	x, err := plandata.NewTable(nil, nil, code.At[code.Exec]{}.With(&code.Module{Name: "m", Stage: execlower.Stage}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	g := &common.Generator{Runner: failingRunner{table: x}, Table: "rules", Flow: &common.FlowState{TableIR: &plandata.TableIR{}}}
+	got, err := g.LowerTable(&plandata.Plan{}, nil, common.TargetPipeline{})
+	if got != x || err != nil {
+		t.Fatalf("LowerTable = %v, %v; want the table and no error", got, err)
+	}
+	if !errors.Is(g.FlowErr, errPass) || g.FlowErr.Error() != "module m of table rules: "+errPass.Error() {
+		t.Errorf("FlowErr = %v, want the failure of the pass", g.FlowErr)
 	}
 }

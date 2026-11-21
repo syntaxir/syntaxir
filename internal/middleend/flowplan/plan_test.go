@@ -40,7 +40,7 @@ rule expr = #operators {
 
 // plan compiles src with the recognition mode rec and plans its table: the Node table for
 // compile.BuildValues, the recognizer for compile.Recognize.
-func plan(t *testing.T, src string, rec compile.Recognition, live func(int) bool) (*core.Module, []*compile.Rule, *flowplan.Table) {
+func plan(t *testing.T, src string, rec compile.Recognition, live func(int) bool) (*core.Module, []*compile.Rule, *plandata.Plan) {
 	t.Helper()
 	prog := compiletest.Program(t, src, compile.Options{Recognition: rec})
 	m, err := elaborate.CoreProjecting(prog, false, rec == compile.BuildValues)
@@ -55,7 +55,7 @@ func plan(t *testing.T, src string, rec compile.Recognition, live func(int) bool
 	opts := lowerdata.Options{Budget: true, Recovers: flowlower.Recovers(m), Node: true}
 	ir := &plandata.TableIR{M: m, Opts: opts}
 	p := flowplan.Plan(ir, planRules(rules), live)
-	if _, err := (&driver.Driver{}).Flow("rules", p.Unit(ir, nil), false, flowpass.Bytecode); err != nil {
+	if _, err := (&driver.Driver{}).LowerFlowTable("rules", flowplan.Unit(p, ir, nil), false, flowpass.Bytecode); err != nil {
 		t.Fatal(err)
 	}
 	return m, rules, p
@@ -289,15 +289,11 @@ func TestPlanDecidesBeforeThePasses(t *testing.T) {
 	var dump strings.Builder
 	d := &driver.Driver{PrintAfter: []string{flowlower.Name}, PrintTo: &dump,
 		Hooks: driver.Hooks{FlowPipeline: func(string) pipe.Pipeline[flowpass.Unit, flowpass.Unit] { return pl }}}
-	fm, err := d.Flow("rules", p.Unit(ir, nil), false, flowpass.Bytecode)
-	if err != nil {
+	if _, err := d.LowerFlowTable("rules", flowplan.Unit(p, ir, nil), false, flowpass.Bytecode); err != nil {
 		t.Fatal(err)
 	}
 	if len(planned) == 0 || !slices.Equal(seen, planned) {
 		t.Errorf("the first pass ran on %v, want the functions of the plan %v", seen, planned)
-	}
-	if err := p.Bind(fm); err != nil {
-		t.Fatal(err)
 	}
 	// The module is dumped once after flowlower, its functions in the order of the plan.
 	body, ok := strings.CutPrefix(dump.String(), "-- after flowlower [rules] --\n")
@@ -369,7 +365,7 @@ func TestPlanTyped(t *testing.T) {
 	if lines != 4 {
 		t.Errorf("%d skips and lines of the Operators Rule, want 4", lines)
 	}
-	if u := p.Unit(ir, func(plandata.Key) bool { return true }); u.Refuse != nil {
+	if u := flowplan.Unit(p, ir, func(plandata.Key) bool { return true }); u.Refuse != nil {
 		t.Error("the typed table refuses its flat functions")
 	}
 	other := flowplan.PlanTyped(ir, planRules(rules), nil, func(id int) []string { return append(slots(id), "other") })
@@ -395,7 +391,7 @@ func TestPlanStream(t *testing.T) {
 	rules := planRules(append(append([]*compile.Rule(nil), prog.RuleList...), prog.Twins...))
 	ir := &plandata.TableIR{M: m, Opts: lowerdata.Options{Budget: true, Recovers: flowlower.Recovers(m), Node: true}}
 	p := flowplan.Plan(ir, rules, nil)
-	if !p.Stream(ir, rules[0]) {
+	if !flowplan.Stream(p, ir, rules[0]) {
 		t.Fatal("no stream body planned")
 	}
 	s := p.Funcs[len(p.Funcs)-1]
@@ -403,19 +399,20 @@ func TestPlanStream(t *testing.T) {
 	if s.Key != (plandata.Key{Use: plandata.StreamBody, Rule: 0}) || !s.Stream || s.Name != "main/stream" || !ok || !slices.Equal(core.SlotNames(s.Slots), core.SlotNames(body.Slots)) {
 		t.Fatalf("stream body %+v", s)
 	}
-	fm, err := (&driver.Driver{}).Flow("rules", p.Unit(ir, nil), false, flowpass.Bytecode)
-	if err == nil {
-		err = p.Bind(fm)
-	}
+	lt, err := (&driver.Driver{}).LowerFlowTable("rules", flowplan.Unit(p, ir, nil), false, flowpass.Bytecode)
 	if err != nil {
 		t.Fatal(err)
 	}
-	f, _ := p.FlowFunc(s.Key)
+	i, ok := lt.Index(s.Key)
+	if !ok {
+		t.Fatal("the lowered table has no stream body")
+	}
+	f := lt.Module.Module().FuncUnit(i)
 	if text := code.FuncStringIn(f, flow.FuncOf(f)); !strings.Contains(text, flow.OpEmitStream+"(") {
 		t.Errorf("the stream body delivers no element:\n%s", text)
 	}
 	rec := &plandata.TableIR{M: m, Opts: lowerdata.Options{Budget: true}}
-	if flowplan.Plan(rec, rules, nil).Stream(rec, rules[0]) {
+	if flowplan.Stream(flowplan.Plan(rec, rules, nil), rec, rules[0]) {
 		t.Error("a stream body is planned for a table of other than Node values")
 	}
 }

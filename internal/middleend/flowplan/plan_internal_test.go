@@ -18,9 +18,10 @@ import (
 )
 
 // TestPlanTakesTheFallbackOfARefusedFunction checks the decision of the plan while the table is
-// lowered: a flat function that the refusal rejects is replaced, in the plan and in the module, by its
-// framed fallback under the same key, one without a fallback is left out of both, and an accepted one
-// stays flat; the module then holds the functions of the plan in order. (No grammar of the repository
+// lowered: a flat function that the refusal rejects is replaced, in the plan of the lowered table and in
+// its module, by its framed fallback under the same key, one without a fallback is left out of both, and
+// an accepted one stays flat; the module then holds the functions of the plan in order, and the plan
+// that was lowered is unchanged. (No grammar of the repository
 // has a flat function that Refused rejects, so the test refuses by the hook.)
 func TestPlanTakesTheFallbackOfARefusedFunction(t *testing.T) {
 	prog := compiletest.Program(t, "rule main = a b !.\nrule a = \"a\"+\nrule b = [b]*\n", compile.Options{Recognition: compile.Recognize})
@@ -45,22 +46,22 @@ func TestPlanTakesTheFallbackOfARefusedFunction(t *testing.T) {
 			t.Fatalf("rule %s is not routed flat with a fallback: %+v", name, s)
 		}
 	}
-	p := Plan(ir, rules, nil)
-	fallbackOfA := p.byKey[plandata.Key{Rule: byName["a"]}].Fallback
-	p.byKey[plandata.Key{Rule: byName["b"]}].Fallback = nil
+	planned := Plan(ir, rules, nil)
+	a, _ := planned.Func(plandata.Key{Rule: byName["a"]})
+	fallbackOfA := a.Fallback
+	b, _ := planned.Func(plandata.Key{Rule: byName["b"]})
+	b.Fallback = nil
 	refused := map[string]bool{"a": true, "b": true}
 	d := &driver.Driver{}
-	fm, err := d.Flow("rules", p.Unit(ir, func(k plandata.Key) bool { return refused[rules[k.Rule].Name] }), false, flowpass.Bytecode)
+	lt, err := d.LowerFlowTable("rules", Unit(planned, ir, func(k plandata.Key) bool { return refused[rules[k.Rule].Name] }), false, flowpass.Bytecode)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// The plan takes the decisions when the module is bound.
-	if len(p.Funcs) != len(all.Funcs) || p.Funcs[1].Form != lowerdata.Flat {
-		t.Errorf("the plan changed before the module was bound: %d functions", len(p.Funcs))
+	// The lowered table takes the decisions on a plan of its own.
+	if len(planned.Funcs) != len(all.Funcs) || planned.Funcs[1].Form != lowerdata.Flat {
+		t.Errorf("the lowering changed the plan it lowered: %d functions", len(planned.Funcs))
 	}
-	if err := p.Bind(fm); err != nil {
-		t.Fatal(err)
-	}
+	p := lt.Plan
 	if s, ok := p.Func(plandata.Key{Rule: byName["main"]}); !ok || s.Form != lowerdata.Flat {
 		t.Errorf("main: %+v, want the accepted flat function", s)
 	}
@@ -75,18 +76,18 @@ func TestPlanTakesTheFallbackOfARefusedFunction(t *testing.T) {
 			t.Errorf("%s: the refused flat function stays in the functions of the plan", s.Name)
 		}
 	}
-	if f, ok := p.FlowFunc(plandata.Key{Rule: byName["a"]}); !ok || !flow.AttrsOf(flow.FuncOf(f)).Frame {
+	if f, ok := flowFunc(lt, plandata.Key{Rule: byName["a"]}); !ok || !flow.AttrsOf(f).Frame {
 		t.Error("a: the module does not hold its framed fallback")
 	}
-	if f, ok := p.FlowFunc(plandata.Key{Rule: byName["main"]}); !ok || flow.AttrsOf(flow.FuncOf(f)).Frame {
+	if f, ok := flowFunc(lt, plandata.Key{Rule: byName["main"]}); !ok || flow.AttrsOf(f).Frame {
 		t.Error("main: the module does not hold its flat function")
 	}
 }
 
 // TestPlanRefusesByItsPredicate checks the refusal through the plan's own predicate (Refused) while the
 // table is lowered: a flat function whose Flow IR reads its entry position, as the lowering hands it
-// to the decision, is replaced by its framed fallback, in the plan and in the module, and the others stay
-// flat.
+// to the decision, is replaced by its framed fallback, in the plan and in the module of the lowered
+// table, and the others stay flat.
 func TestPlanRefusesByItsPredicate(t *testing.T) {
 	prog := compiletest.Program(t, "rule main = a b !.\nrule a = \"a\"+\nrule b = [b]*\n", compile.Options{Recognition: compile.Recognize})
 	m, err := elaborate.CoreProjecting(prog, false, false)
@@ -102,33 +103,39 @@ func TestPlanRefusesByItsPredicate(t *testing.T) {
 		rules = append(rules, &Rule{ID: r.ID, Name: r.Name, Body: r.Def.Expr, Action: r.Action, Plain: r.Plain, Lean: r.Lean, Novalue: r.Novalue, Leader: r.Leader})
 	}
 	ir := &plandata.TableIR{M: m, Opts: lowerdata.Options{Budget: true, Recovers: flowlower.Recovers(m), Node: true}}
-	p := Plan(ir, rules, nil)
-	u := p.Unit(ir, nil)
+	u := Unit(Plan(ir, rules, nil), ir, nil)
 	decide := u.Refuse
 	reads := 0
-	u.Refuse = func(i int, f *code.Func) bool {
+	u.Refuse = func(k plandata.Key, f *code.Func) bool {
 		if a := flow.AttrsOf(f); f.Name == "a" && a.Start != "" {
 			// The function as a lowering that reads the entry position would write it.
 			f.Body.Stmts = append([]code.Stmt{&code.Assert{Cond: code.L(a.Start)}}, f.Body.Stmts...)
 			reads++
 		}
-		return decide(i, f)
+		return decide(k, f)
 	}
-	fm, err := (&driver.Driver{}).Flow("rules", u, false, flowpass.Bytecode)
+	lt, err := (&driver.Driver{}).LowerFlowTable("rules", u, false, flowpass.Bytecode)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if reads != 1 {
 		t.Fatalf("the flat function of a was handed to the decision %d times with an entry position", reads)
 	}
-	if err := p.Bind(fm); err != nil {
-		t.Fatal(err)
-	}
-	for _, s := range p.Funcs {
-		f, _ := p.FlowFunc(s.Key)
-		frame := flow.AttrsOf(flow.FuncOf(f)).Frame
+	for _, s := range lt.Plan.Funcs {
+		f, _ := flowFunc(lt, s.Key)
+		frame := flow.AttrsOf(f).Frame
 		if want := rules[s.Key.Rule].Name == "a"; frame != want || (s.Form == lowerdata.Frame) != want {
 			t.Errorf("%s: framed %v in the module, form %v in the plan; want framed %v", s.Name, frame, s.Form, want)
 		}
 	}
+}
+
+// flowFunc returns the function of the use k in the module of the table t, or false if the table has
+// none.
+func flowFunc(t *plandata.Table[code.Flow], k plandata.Key) (*code.Func, bool) {
+	i, ok := t.Index(k)
+	if !ok {
+		return nil, false
+	}
+	return t.Module.Module().Funcs[i], true
 }

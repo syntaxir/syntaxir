@@ -175,10 +175,10 @@ func (g *Generator) flowFramed(l *execlower.Lowered, slots []core.Slot, scope *c
 	return g.execFramed(p, l, slots, scope, comment, ruleBody)
 }
 
-// planned returns the function of the use k in the module of the table's plan, which LowerTable
-// lowered: the plan holds it, since the printer asks only for the functions of the plan.
+// planned returns the function of the use k in the module of the table, which LowerTable lowered: the
+// plan holds it, since the printer asks only for the functions of the plan.
 func (g *Generator) planned(k plandata.Key) *execlower.Lowered {
-	l, ok := g.plan.Lowered(k)
+	l, ok := execlower.Func(g.table, k)
 	if !ok {
 		panic(fmt.Errorf("internal error: the plan of table %s has no function %+v", g.Table, k))
 	}

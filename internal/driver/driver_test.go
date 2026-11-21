@@ -16,6 +16,7 @@ import (
 	"zeroparse.dev/zp/internal/middleend/flowlower"
 	"zeroparse.dev/zp/internal/middleend/flowlower/lowerdata"
 	"zeroparse.dev/zp/internal/middleend/flowpass"
+	"zeroparse.dev/zp/internal/middleend/flowplan/plandata"
 	"zeroparse.dev/zp/internal/pass"
 	"zeroparse.dev/zp/internal/pass/pipe"
 )
@@ -276,6 +277,64 @@ func TestDriverTable(t *testing.T) {
 	}
 }
 
+// plannedTable returns the planned table of the functions of table(), each the body of a rule.
+func plannedTable() plandata.Planned {
+	u := table()
+	p := &plandata.Plan{}
+	for i, f := range u.Funcs {
+		p.Add(&plandata.FuncSpec{Key: plandata.Key{Use: plandata.RuleBody, Rule: i}, Func: f})
+	}
+	return plandata.Planned{Plan: p, IR: &plandata.TableIR{M: u.Module, Opts: u.Opts}}
+}
+
+// The driver runs the pipeline of a planned table in one run, from its lowering to the Exec stage, as
+// the current Flow and then Exec run it on the functions of the table: the dumps are the same, the
+// passes run on the same functions, and the table at the Exec stage holds the function of each use of
+// the plan. The test compares the two paths of this code only; that the one run generates and dumps what
+// the separate runs did before it rests on comparing the generated parsers and dumps of the two builds.
+func TestDriverLowerTable(t *testing.T) {
+	steps := []string{flowlower.Name, testFlowPass, flowpass.FinishName, execlower.Name, testTableExec.Name()}
+	run := func(lower func(d *Driver)) (string, []string) {
+		tableRuns = nil
+		var dump strings.Builder
+		d := &Driver{PrintAfter: steps, PrintTo: &dump,
+			Hooks: Hooks{FlowPipeline: withTestFlowPass(t), ExecPipeline: execPipeline(testTableExec)}}
+		lower(d)
+		return dump.String(), tableRuns
+	}
+	stages, stageRuns := run(func(d *Driver) {
+		f, err := d.Flow("rules", table(), false, flowpass.Target{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := d.Exec("rules", f, noTarget, false); err != nil {
+			t.Fatal(err)
+		}
+	})
+	var x *plandata.Table[code.Exec]
+	one, oneRuns := run(func(d *Driver) {
+		var err error
+		if x, err = d.LowerTable("rules", plannedTable(), false, flowpass.Target{}, noTarget); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if one != stages {
+		t.Errorf("one run dumped\n%s\nwhere Flow and Exec dump\n%s", one, stages)
+	}
+	if !slices.Equal(oneRuns, stageRuns) || len(oneRuns) != 2 {
+		t.Errorf("the Exec pass ran on %v in one run, on %v through Flow and Exec", oneRuns, stageRuns)
+	}
+	for i, name := range []string{"r", "s"} {
+		j, ok := x.Index(plandata.Key{Use: plandata.RuleBody, Rule: i})
+		if !ok || x.Module.Module().Funcs[j].Name != name {
+			t.Errorf("the table has function %d, ok %v, for the rule %s", j, ok, name)
+		}
+	}
+	if st := x.Module.Module().Stage; st != execlower.Stage {
+		t.Errorf("the module of the table is at the %q stage", st)
+	}
+}
+
 // The driver lowers a function, runs a Flow pass when its flag is on, and a profile or a flag turns
 // it off; the dumps show the function as lowered under "flowlower" and after each selected pass, labeled
 // with its table.
@@ -426,6 +485,24 @@ func TestDriverFlowErrors(t *testing.T) {
 	f, err := d.Flow("rules", framed(), false, flowpass.Target{})
 	if f == nil || !errors.Is(err, errBroken) || !strings.HasPrefix(err.Error(), "internal error: test-flow-fail [r]: ") {
 		t.Errorf("a failing pass: %v, %v", f, err)
+	}
+}
+
+// A Flow pass that fails in the run of a table ends that run's optional passes: the Exec pass of the
+// table runs on no function, while the required steps go on, so the table comes back at the Exec stage,
+// with the internal error that names the failed pass.
+func TestDriverLowerTableFlowFailure(t *testing.T) {
+	tableRuns = nil
+	d := &Driver{Hooks: Hooks{FlowPipeline: flowPipeline(testFlowFail), ExecPipeline: execPipeline(testTableExec)}}
+	x, err := d.LowerTable("rules", plannedTable(), false, flowpass.Target{}, noTarget)
+	if x == nil || !errors.Is(err, errBroken) || !strings.HasPrefix(err.Error(), "internal error: test-flow-fail [r]: ") {
+		t.Fatalf("a failing Flow pass: %v, %v", x, err)
+	}
+	if len(tableRuns) != 0 {
+		t.Errorf("the optional Exec pass ran on %v after the Flow pass failed", tableRuns)
+	}
+	if m := x.Module.Module(); m.Stage != execlower.Stage || len(m.Funcs) != 2 {
+		t.Errorf("the table holds %d functions at the %q stage, want the 2 of its plan at the Exec stage", len(m.Funcs), m.Stage)
 	}
 }
 

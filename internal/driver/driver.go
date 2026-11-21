@@ -17,6 +17,7 @@ import (
 	"zeroparse.dev/zp/internal/middleend/flowlower"
 	"zeroparse.dev/zp/internal/middleend/flowlower/lowerdata"
 	"zeroparse.dev/zp/internal/middleend/flowpass"
+	"zeroparse.dev/zp/internal/middleend/flowplan/plandata"
 	"zeroparse.dev/zp/internal/pass"
 	"zeroparse.dev/zp/internal/pass/pipe"
 )
@@ -177,67 +178,131 @@ func pipeError(err error, required ...string) error {
 	return fmt.Errorf("internal error: %w", err)
 }
 
-// Flow runs the Flow part of the pipeline on the functions of the table named table: the lowering
-// flowlower of u, which its postcondition verifies, the Flow passes with the optimizations of the
-// driver on each function of the module, pass by pass (pipe.PerFunc), and flow-finish, which also
-// runs after a failed pass. observe says that the parser reports its rules and skipped alternatives,
-// and target what the backend prints (flowpass.ObserveFeature, flowpass.TargetFeature). The module is
-// dumped as "flowlower" as the lowering made it and as "flow-finish" as it leaves the Flow stage, and
-// each function after each Flow pass, labeled with its table.
+// LowerTable runs the pipeline of the planned table p, the table named table, from its lowering to
+// the Exec stage, in one run of the manager:
 //
-// The Core module of u stays the caller's: flowlower only reads it, and the module it makes shares
-// the Core nodes and rules with it, which the Flow passes and flow-finish read and never change
-// (flow.Forms). So Flow consumes only the module that the lowering made, and copies nothing for the
-// Core module.
+//	flowlower!
+//	within module@flow {
+//	  func funcs@flow { Flow passes }
+//	  flow-finish!
+//	}
+//	execlower!
+//	within module@exec {
+//	  func funcs@exec { Exec passes }
+//	  func lowered-funcs@exec { target }
+//	}
 //
-// A failure of flowlower is returned as the *pass.StepError that names it, with no module. A failure
-// of a pass is an internal error that names the pass, returned with the module, in which the function
-// that the pass failed on is as the lowering made it, and flow-finish has ended every function, for a
-// generation that fails with it.
-func (d *Driver) Flow(table string, u lowerdata.Unit, observe bool, target flowpass.Target) (*code.Module, error) {
+// The lowering flowlower lowers the functions of the plan, with its decisions (plandata.Planned.Refuse),
+// to the table at the Flow stage, which its postcondition verifies. The Flow passes run with the
+// optimizations of the driver on each function of the module, pass by pass (pipe.PerFunc), and
+// flow-finish ends each function, also after a failed pass. observe says that the parser reports its
+// rules and skipped alternatives, and flowTarget what the backend prints (flowpass.ObserveFeature,
+// flowpass.TargetFeature). The conversion execlower converts the module to the Exec stage, which its
+// postcondition verifies, and the Exec passes that every target runs and then target, the pipeline of
+// the backend's own Exec passes, run on each function. The module is dumped as "flowlower" as the
+// lowering made it, as "flow-finish" as it leaves the Flow stage and as "execlower" as the conversion
+// made it, and each function after each pass, labeled with its table.
+//
+// The passes of target run on each function as a lowered function (execlower.LoweredFuncs), which
+// keeps what the printers print: the function in its module with its variables
+// (execlower.Lowered.Keeps), which the verifier of the lowered function (execlower.LoweredIR) checks
+// after the passes of target. Every pass keeps the functions of the plan in the module, which the
+// lenses of the module check (plandata.Table.With).
+//
+// The plan and the Core module of p stay the caller's: flowlower only reads them, and the module it
+// makes shares the Core nodes and rules with the Core module, which the passes and flow-finish read and
+// never change (flow.Forms). So the run consumes only the module that the lowering made, and copies
+// nothing for the Core module.
+//
+// A failure of flowlower or execlower is returned as the *pass.StepError that names it, with no table.
+// A failure of a pass or of a verification is an internal error that names it, returned with the
+// table, in which the function that it failed on is as it was before the passes of its segment, for a
+// generation that fails with it; the optional passes after it do not run.
+func (d *Driver) LowerTable(table string, p plandata.Planned, observe bool, flowTarget flowpass.Target, target TargetPipeline) (*plandata.Table[code.Exec], error) {
+	s := pipe.Then3(pipe.Of(flowlower.Lowering), d.flowPasses(table, observe, flowTarget), d.execPasses(table, observe, target))
+	t, err := pipe.Execute(context.Background(), d.pipeRun(table, false), s, p)
+	if err != nil {
+		return t, pipeError(err, flowlower.Name, execlower.Name)
+	}
+	return t, nil
+}
+
+// LowerFlowTable runs the pipeline of the planned table p, the table named table, from its lowering
+// to the end of the Flow stage, for a backend that runs the functions of the table at the Flow stage:
+// the steps of LowerTable before execlower, with the same dumps and failures.
+func (d *Driver) LowerFlowTable(table string, p plandata.Planned, observe bool, target flowpass.Target) (*plandata.Table[code.Flow], error) {
+	s := pipe.Then(pipe.Of(flowlower.Lowering), d.flowPasses(table, observe, target))
+	t, err := pipe.Execute(context.Background(), d.pipeRun(table, false), s, p)
+	if err != nil {
+		return t, pipeError(err, flowlower.Name)
+	}
+	return t, nil
+}
+
+// flowPasses returns the Flow stage of the pipeline of a table after its lowering: the Flow passes of
+// the table named table (FlowPipeline, if set) and flow-finish, on the module of the table.
+func (d *Driver) flowPasses(table string, observe bool, target flowpass.Target) pipe.Pipeline[*plandata.Table[code.Flow], *plandata.Table[code.Flow]] {
 	p := flowpass.Pipeline()
 	if d.FlowPipeline != nil {
 		p = d.FlowPipeline(table)
 	}
-	s := pipe.Then3(pipe.Of(flowlower.Lowering),
+	return pipe.Within(plandata.FlowModule, pipe.Then(
 		pipe.WithConst(flowpass.ObserveFeature, observe, pipe.WithConst(flowpass.TargetFeature, target, p)),
-		pipe.Of(flowpass.Finishing))
-	m, err := pipe.Execute(context.Background(), d.pipeRun(table, false), s, u)
-	if err != nil {
-		return m.Module(), pipeError(err, flowlower.Name)
-	}
-	return m.Module(), nil
+		pipe.Of(flowpass.Finishing)))
 }
 
-// Exec runs the Exec part of the pipeline on the module m of the functions of the table named table,
-// which Flow returned: the conversion execlower, which its postcondition verifies, the Exec passes
-// that every target runs and then target, the pipeline of the backend's own Exec passes, with the
-// optimizations of the driver, each on every function of the module pass by pass (pipe.PerFunc). The
-// module is dumped as "execlower" as the conversion made it, and each function after each Exec pass
-// and each pass of target, labeled with its table. observe is as for Flow: the feature
-// flowpass.ObserveFeature, which no Exec pass reads yet.
-//
-// The passes of target run on each function as a lowered function (execlower.LoweredFuncs), which
-// keeps what the printers print: the function in its module with its variables (execlower.Lowered.Keeps),
-// which the verifier of the lowered function (execlower.LoweredIR) checks after the passes of target.
-//
-// m is consumed: execlower moves its functions into the result. A failure of execlower is returned
-// as the *pass.StepError that names it, with no result. A failure of a pass or of a verification is
-// an internal error that names it, returned with the result, in which the function that it failed on
-// is as it was before the passes of its segment, for a generation that fails with it.
-func (d *Driver) Exec(table string, m *code.Module, target TargetPipeline, observe bool) (*code.Module, error) {
+// execPasses returns the Exec stage of the pipeline of a table: execlower and then, on the module of
+// the table, the Exec passes of the table named table (ExecPipeline, if set) and target.
+func (d *Driver) execPasses(table string, observe bool, target TargetPipeline) pipe.Pipeline[*plandata.Table[code.Flow], *plandata.Table[code.Exec]] {
 	p := codepass.Pipeline()
 	if d.ExecPipeline != nil {
 		p = d.ExecPipeline(table)
 	}
-	s := pipe.Then(pipe.Of(execlower.Lowering), pipe.WithConst(flowpass.ObserveFeature, observe,
-		pipe.Then(p, pipe.PerFunc(execlower.LoweredFuncs, target))))
-	// The module is at the Flow stage, as Flow made it.
-	x, err := pipe.Execute(context.Background(), d.pipeRun(table, false), s, code.At[code.Flow]{}.With(m))
-	if err != nil {
-		return x.Module(), pipeError(err, execlower.Name)
+	return pipe.Then(pipe.Of(execlower.Lowering), pipe.Within(plandata.ExecModule,
+		pipe.WithConst(flowpass.ObserveFeature, observe, pipe.Then(p, pipe.PerFunc(execlower.LoweredFuncs, target)))))
+}
+
+// Flow runs the Flow stage of LowerFlowTable on the functions of u, which no plan holds, and returns
+// the module of the table: the functions that the TypeScript printer lowers one at a time, until their
+// routes are planned (record 074, migration step 5). The functions of u are planned in its order,
+// each keyed by its index (plandata.Key.Line), and u.Refuse is the decision of the plan.
+func (d *Driver) Flow(table string, u lowerdata.Unit, observe bool, target flowpass.Target) (*code.Module, error) {
+	plan := &plandata.Plan{}
+	for i, f := range u.Funcs {
+		s := &plandata.FuncSpec{Key: plandata.Key{Line: i}, Func: f}
+		if f.Fallback != nil {
+			s.Fallback = &plandata.FuncSpec{Key: s.Key, Func: *f.Fallback}
+		}
+		plan.Add(s)
 	}
-	return x.Module(), nil
+	p := plandata.Planned{Plan: plan, IR: &plandata.TableIR{M: u.Module, Opts: u.Opts}}
+	if u.Refuse != nil {
+		p.Refuse = func(k plandata.Key, f *code.Func) bool { return u.Refuse(k.Line, f) }
+	}
+	t, err := d.LowerFlowTable(table, p, observe, target)
+	if t == nil {
+		return nil, err
+	}
+	return t.Module.Module(), err
+}
+
+// Exec runs the Exec stage of LowerTable on the module m of the functions of the table named table,
+// which Flow returned, and returns the module at the Exec stage. m is consumed: execlower moves its
+// functions into the result.
+func (d *Driver) Exec(table string, m *code.Module, target TargetPipeline, observe bool) (*code.Module, error) {
+	// The module is at the Flow stage, as Flow made it, and no plan holds its functions.
+	t, err := plandata.NewTable(nil, nil, code.At[code.Flow]{}.With(m))
+	if err != nil {
+		return nil, err
+	}
+	x, err := pipe.Execute(context.Background(), d.pipeRun(table, false), d.execPasses(table, observe, target), t)
+	if err != nil {
+		err = pipeError(err, execlower.Name)
+	}
+	if x == nil {
+		return nil, err
+	}
+	return x.Module.Module(), err
 }
 
 // TargetPipeline is the pipeline of the Exec passes of one target (golang/pass, typescript/pass), which

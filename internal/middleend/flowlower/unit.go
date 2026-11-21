@@ -7,6 +7,7 @@ import (
 	"zeroparse.dev/zp/internal/ir/code/flow"
 	"zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/middleend/flowlower/lowerdata"
+	"zeroparse.dev/zp/internal/middleend/flowplan/plandata"
 	"zeroparse.dev/zp/internal/pass"
 	"zeroparse.dev/zp/internal/pass/pipe"
 )
@@ -16,8 +17,8 @@ import (
 // A lowerdata.Unit is what one lowering takes: the functions of a table, each with the arguments of
 // Lower, LowerFrame or LowerOutline and the form that selects among them. Lowering is the lowering
 // as the required pass "flowlower" from the Core stage to the Flow stage: it lowers a
-// lowerdata.Unit to one module of its functions, and the Flow verifier (Verify), its postcondition,
-// checks the result before any Flow pass sees it.
+// planned table (plandata.Planned) to the table of one module of its functions, and the Flow
+// verifier (Verify), its postcondition, checks the module before any Flow pass sees it.
 
 // LowerUnit lowers the functions of u to one module at the Flow stage, in the order of u.Funcs, less
 // the functions that u.Refuse refuses, each in the place of the function it replaces. It does not
@@ -84,21 +85,46 @@ func verified(m *code.Module, err error) (*code.Module, error) {
 // Name is the name of the lowering as a step of the pipeline.
 const Name = "flowlower"
 
-// Planned is the kind of a lowerdata.Unit: the planned functions of a table and its Core module, which the
-// lowering takes.
-var Planned = pipe.RegisterIR(&pipe.IR[lowerdata.Unit]{Name: "planned"})
-
-// Lowering is the lowering as the required step Name from a lowerdata.Unit to a module at the Flow stage
-// (code.FlowStage), whose verifier, the postcondition of the lowering, checks the result before any
-// Flow pass sees it. A failure of the lowering ends the run.
-var Lowering = pipe.New(pipe.Def[lowerdata.Unit, code.At[code.Flow]]{
-	Decl: pipe.Decl{Name: Name, Required: true, Obligation: "The module holds the functions of the unit, lowered to the Flow dialect."},
-	In:   Planned, Out: code.FlowStage,
-	Run: func(_ *pipe.Ctx[lowerdata.Unit], u lowerdata.Unit) (code.At[code.Flow], pass.PreservedSet, error) {
-		m, err := LowerUnit(u)
-		if err != nil {
-			return code.At[code.Flow]{}, pass.PreserveNone(), err
-		}
-		return code.At[code.Flow]{}.With(m), pass.PreserveNone(), nil
+// Lowering is the lowering as the required step Name from a planned table to the table at the Flow
+// stage (plandata.FlowTable), whose verifier, the postcondition of the lowering, checks its module
+// before any Flow pass sees it. A failure of the lowering ends the run.
+var Lowering = pipe.New(pipe.Def[plandata.Planned, *plandata.Table[code.Flow]]{
+	Decl: pipe.Decl{Name: Name, Required: true, Obligation: "The module holds the functions of the plan, lowered to the Flow dialect."},
+	In:   plandata.PlannedIR, Out: plandata.FlowTable,
+	Run: func(_ *pipe.Ctx[plandata.Planned], p plandata.Planned) (*plandata.Table[code.Flow], pass.PreservedSet, error) {
+		t, err := LowerTable(p)
+		return t, pass.PreserveNone(), err
 	},
 })
+
+// LowerTable lowers the functions of the plan of p to one module at the Flow stage (LowerUnit), with
+// the Core IR and the options of the table, and returns the table of the module and of the plan with
+// the decisions of the lowering taken: a flat function that p.Refuse refuses is replaced by its
+// fallback, or left out if its rule has none (plandata.Plan.Refusing). The plan of p is unchanged. It
+// does not verify the module: Verify, the postcondition of the lowering, does.
+func LowerTable(p plandata.Planned) (*plandata.Table[code.Flow], error) {
+	specs := p.Plan.Funcs
+	u := lowerdata.Unit{Module: p.IR.M, Opts: p.IR.Opts, Funcs: make([]lowerdata.Func, len(specs))}
+	for i, s := range specs {
+		u.Funcs[i] = s.Func
+		if s.Fallback != nil {
+			fb := s.Fallback.Func
+			u.Funcs[i].Fallback = &fb
+		}
+	}
+	var refused []*plandata.FuncSpec
+	if p.Refuse != nil {
+		u.Refuse = func(i int, f *code.Func) bool {
+			if !p.Refuse(specs[i].Key, f) {
+				return false
+			}
+			refused = append(refused, specs[i])
+			return true
+		}
+	}
+	m, err := LowerUnit(u)
+	if err != nil {
+		return nil, err
+	}
+	return plandata.NewTable(p.Plan.Refusing(refused), p.IR, code.At[code.Flow]{}.With(m))
+}

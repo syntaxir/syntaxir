@@ -11,7 +11,7 @@ import (
 	flowpkg "zeroparse.dev/zp/internal/ir/code/flow"
 	ir "zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/middleend/corepass"
-	"zeroparse.dev/zp/internal/middleend/flowplan"
+	"zeroparse.dev/zp/internal/middleend/flowplan/plandata"
 	"zeroparse.dev/zp/internal/runtime/program"
 	"zeroparse.dev/zp/pkg/bytecode"
 )
@@ -34,11 +34,11 @@ func CoreOf(prog *compile.Program) (*ir.Module, error) {
 // SelectFlows sets the Flow bodies of the rules of flows (rule ID to the Flow module of the rule's
 // body in the planned Node table, checked.Source.FlowTable) in bc, a module that Compile emitted from
 // prog. m is the Core IR of the table and plan its plan: a body runs in the rule frame of the VM,
-// whose slots must be the capture layout that the plan gave the rule (flowplan.Table.CheckLayout).
+// whose slots must be the capture layout that the plan gave the rule (plandata.Plan.CheckLayout).
 // A rule whose Flow function uses an operation that the bytecode Flow bodies do not yet have is an
 // error, and the module keeps no body of that rule and no term of its predicates. The term of a
 // predicate of a body is added to the module's term table, after the terms of the match code.
-func SelectFlows(bc *bytecode.Module, prog *compile.Program, m *ir.Module, plan *flowplan.Table, flows map[int]*code.Module) error {
+func SelectFlows(bc *bytecode.Module, prog *compile.Program, m *ir.Module, plan *plandata.Plan, flows map[int]*code.Module) error {
 	c := &compiler{prog: prog, core: m, m: bc, strs: map[string]int{}}
 	for i, s := range bc.Strings {
 		if _, ok := c.strs[s]; !ok {

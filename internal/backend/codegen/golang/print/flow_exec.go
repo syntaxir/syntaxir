@@ -224,7 +224,7 @@ func (g *Generator) execFlatRule(p *flowPrinter, l *execlower.Lowered) *flatRule
 }
 
 // execRecRule prints the lowered local function l of a rule of the Node library as a flat rule. The
-// plan has accepted the function as the lowering wrote it (flowplan.Table.Unit); if the forms that the
+// plan has accepted the function as the lowering wrote it (flowplan.Unit); if the forms that the
 // Go passes chose make flowplan.Refused reject it, the generation fails with an internal error
 // (Generator.FlowErr) and execRecRule returns nil. It counts only a rule it prints.
 func (g *Generator) execRecRule(p *flowPrinter, l *execlower.Lowered) *flatRule {

@@ -6,6 +6,7 @@ import (
 
 	"zeroparse.dev/zp/internal/ir/code"
 	"zeroparse.dev/zp/internal/ir/code/flow"
+	"zeroparse.dev/zp/internal/middleend/flowplan/plandata"
 	"zeroparse.dev/zp/internal/pass"
 	"zeroparse.dev/zp/internal/pass/pipe"
 )
@@ -13,8 +14,8 @@ import (
 // The conversion as a step of the pipeline of a compilation.
 //
 // Lowering is the conversion as the required pass "execlower" from the Flow stage to the Exec stage:
-// it converts a module of the functions of a table, and the verifier of the Exec stage, its
-// postcondition, checks the result before any Exec pass sees it. The printers print each function of
+// it converts the module of the functions of a table (plandata.Table), and the verifier of the Exec
+// stage, its postcondition, checks the result before any Exec pass sees it. The printers print each function of
 // the result as a Lowered (View), and the passes of a target take each function so (LoweredFuncs).
 
 // View returns the function i of the Exec module m, which the conversion made, as a lowered function:
@@ -61,16 +62,29 @@ var LoweredFuncs = pipe.RegisterFuncs(code.ExecStage, LoweredIR, &pipe.Funcs[cod
 // Name is the name of the conversion as a step of the pipeline.
 const Name = "execlower"
 
-// Lowering is the conversion as the required step Name from the Flow stage to the Exec stage. It
-// converts the module as lower does, moving its functions to the result.
-var Lowering = pipe.New(pipe.Def[code.At[code.Flow], code.At[code.Exec]]{
+// Lowering is the conversion as the required step Name from a table at the Flow stage to the table at
+// the Exec stage (plandata.ExecTable), whose verifier checks its module before any Exec pass sees it.
+// It converts the module of the table as lower does, moving its functions to the result, and keeps
+// the plan of the table.
+var Lowering = pipe.New(pipe.Def[*plandata.Table[code.Flow], *plandata.Table[code.Exec]]{
 	Decl: pipe.Decl{Name: Name, Required: true, Obligation: "The functions of the module run the Flow operations they ran, as primitives of the runtime."},
-	In:   code.FlowStage, Out: code.ExecStage,
-	Run: func(_ *pipe.Ctx[code.At[code.Flow]], u code.At[code.Flow]) (code.At[code.Exec], pass.PreservedSet, error) {
-		out, err := lower(u.Module())
+	In:   plandata.FlowTable, Out: plandata.ExecTable,
+	Run: func(_ *pipe.Ctx[*plandata.Table[code.Flow]], t *plandata.Table[code.Flow]) (*plandata.Table[code.Exec], pass.PreservedSet, error) {
+		out, err := lower(t.Module.Module())
 		if err != nil {
-			return code.At[code.Exec]{}, pass.PreserveNone(), err
+			return nil, pass.PreserveNone(), err
 		}
-		return code.At[code.Exec]{}.With(out), pass.PreserveNone(), nil
+		x, err := plandata.NewTable(t.Plan, t.IR, code.At[code.Exec]{}.With(out))
+		return x, pass.PreserveNone(), err
 	},
 })
+
+// Func returns the function of the use k in the module of the table t, which the conversion made, as
+// a lowered function (View), or false if the table has none.
+func Func(t *plandata.Table[code.Exec], k plandata.Key) (*Lowered, bool) {
+	i, ok := t.Index(k)
+	if !ok {
+		return nil, false
+	}
+	return View(t.Module.Module(), i), true
+}

@@ -1,7 +1,8 @@
 // Package plandata holds what the planning of a rule table (flowplan) works with and gives: the
-// configuration and the Core IR of a table, and the functions of its plan by their use. It holds no
-// pass code, so the lowering, the driver and the backends name these types without importing the
-// planning.
+// configuration and the Core IR of a table, its plan, the functions of the plan by their use, and the
+// table unit, which carries the plan and the module of the table through the stages of its pipeline,
+// with the kinds and lenses that the pass manager knows them by. It holds no pass code, so the
+// lowering, the driver and the backends name these types without importing the planning.
 package plandata
 
 import (

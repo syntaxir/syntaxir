@@ -283,18 +283,22 @@ func (g *Generator) ExecPasses(m *code.Module, target TargetPipeline) (*code.Mod
 }
 
 // LowerTable lowers the functions of the plan p of the table being generated, with its decisions
-// (flowplan.Table.Unit; refuse is a test's hook, nil refuses none), through the Flow and the Exec part
-// of the pipeline with target, as FlowPasses and ExecPasses run them, and binds the module at the Exec
-// stage to p, whose functions the printers then print (flowplan.Table.Lowered).
-func (g *Generator) LowerTable(p *flowplan.Table, refuse func(plandata.Key) bool, target TargetPipeline) error {
-	m, err := g.FlowPasses(p.Unit(g.Flow.TableIR, refuse))
-	if err != nil {
-		return err
+// (flowplan.Unit; refuse is a test's hook, nil refuses none), through the Flow and the Exec part of
+// the pipeline with target in one run (Runner.LowerTable), labeled as FlowPasses labels it, and
+// returns the table at the Exec stage, whose functions the printers then print
+// (execlower.Func). An error of the lowering or the conversion is returned; a failure of the
+// passes is kept as the first internal error of the generation (FlowErr), which fails it, and the
+// table is returned for the printing to go on.
+func (g *Generator) LowerTable(p *plandata.Plan, refuse func(plandata.Key) bool, target TargetPipeline) (*plandata.Table[code.Exec], error) {
+	r := g.runner()
+	t, err := r.LowerTable(g.IRTable(), flowplan.Unit(p, g.Flow.TableIR, refuse), g.Observability, g.FlowTarget, target)
+	if t == nil {
+		return nil, err
 	}
-	if m, err = g.ExecPasses(m, target); err != nil {
-		return err
+	if err != nil && g.FlowErr == nil {
+		g.FlowErr = fmt.Errorf("module %s of table %s: %w", t.Module.Module().Name, g.IRTable(), err)
 	}
-	return p.Bind(m)
+	return t, nil
 }
 
 // IRTable is the name of the table being generated in the dumps of the IR: "typed" for the typed

@@ -9,6 +9,7 @@ import (
 
 	"zeroparse.dev/zp/internal/ir/code"
 	"zeroparse.dev/zp/internal/ir/code/flow"
+	"zeroparse.dev/zp/internal/middleend/flowplan/plandata"
 	"zeroparse.dev/zp/internal/pass/pipe"
 )
 
@@ -23,22 +24,32 @@ func TestLoweringStep(t *testing.T) {
 	m := flowModule()
 	fn := m.Funcs[0]
 	fn.Attrs = &flow.Attrs{Vars: []string{"ok"}}
-	u, err := pipe.Execute(context.Background(), &pipe.Run{}, pipe.Of(Lowering), code.At[code.Flow]{}.With(m))
+	u, err := pipe.Execute(context.Background(), &pipe.Run{}, pipe.Of(Lowering), flowTable(t, m))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if l := View(u.Module(), 0); l.Func != fn || !slices.Equal(l.Vars, []string{"ok"}) || !slices.Contains(l.Module.Funcs, fn) || l.Module.Stage != Stage {
+	if l := View(u.Module.Module(), 0); l.Func != fn || !slices.Equal(l.Vars, []string{"ok"}) || !slices.Contains(l.Module.Funcs, fn) || l.Module.Stage != Stage {
 		t.Errorf("lowered = %+v", l)
 	}
 	// A call of an operation that the Flow module does not declare is not legal after the conversion.
 	m = flowModule()
 	m.Funcs[0].Attrs = &flow.Attrs{}
 	m.Funcs[0].Body.Stmts = append(m.Funcs[0].Body.Stmts, &code.Do{Call: &code.Call{Callee: "flow.undeclared"}})
-	_, err = pipe.Execute(context.Background(), &pipe.Run{}, pipe.Of(Lowering), code.At[code.Flow]{}.With(m))
+	_, err = pipe.Execute(context.Background(), &pipe.Run{}, pipe.Of(Lowering), flowTable(t, m))
 	var se *pipe.StepError
 	if !errors.As(err, &se) || se.Step != Name || !strings.Contains(err.Error(), "call of undeclared runtime.undeclared") {
 		t.Errorf("an invalid result: %v", err)
 	}
+}
+
+// flowTable returns the table of no plan whose module at the Flow stage is m.
+func flowTable(t *testing.T, m *code.Module) *plandata.Table[code.Flow] {
+	t.Helper()
+	ft, err := plandata.NewTable(nil, nil, code.At[code.Flow]{}.With(m))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ft
 }
 
 // lowered returns a lowered function with the variable ok.

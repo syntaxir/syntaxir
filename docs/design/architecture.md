@@ -260,7 +260,7 @@ in [Package Layering](layering.md), and the public packages are described in [Th
 | `internal/frontend/schemaexport` | Export of the output schema |
 | `internal/middleend/corepass` | Core rewrites and the analyses of facts |
 | `internal/middleend/flowplan` | The plan of the functions of a rule table: their forms, fallbacks and frame layouts |
-| `internal/middleend/flowplan/plandata` | The data of planning, without pass code: a table's configuration and Core IR, and the keys and functions of a plan |
+| `internal/middleend/flowplan/plandata` | The data of planning, without pass code: a table's configuration and Core IR, its plan, and the table unit that carries the plan and the module of the table through its pipeline |
 | `internal/middleend/flowlower` | Core IR to Code IR at the Flow stage |
 | `internal/middleend/flowlower/lowerdata` | The data that the lowering to the Flow stage takes, without pass code: the functions of a table, their forms and options |
 | `internal/middleend/flowpass` | The Flow passes |

@@ -8,6 +8,7 @@ import (
 	"zeroparse.dev/zp/internal/middleend/execlower"
 	"zeroparse.dev/zp/internal/middleend/flowlower/lowerdata"
 	"zeroparse.dev/zp/internal/middleend/flowpass"
+	"zeroparse.dev/zp/internal/middleend/flowplan/plandata"
 	"zeroparse.dev/zp/internal/pass"
 	"zeroparse.dev/zp/internal/pass/pipe"
 )
@@ -53,6 +54,12 @@ type Runner interface {
 	// observe is as for Flow. A failure of the conversion is a *pass.StepError, returned with no
 	// module; a failure of a pass is returned with the module.
 	Exec(table string, m *code.Module, p TargetPipeline, observe bool) (*code.Module, error)
+	// LowerTable runs the pipeline of the planned table p, the table named table, from its lowering
+	// to the Exec stage in one run: the steps of Flow and then those of Exec with p, the pipeline of
+	// the target's own Exec passes, on the module of the table, whose functions the passes keep. A
+	// failure of the lowering or the conversion is a *pass.StepError, returned with no table; a
+	// failure of a pass is returned with the table, and the optional passes after it do not run.
+	LowerTable(table string, u plandata.Planned, observe bool, flowTarget flowpass.Target, p TargetPipeline) (*plandata.Table[code.Exec], error)
 }
 
 // TargetPipeline is the pipeline of the Exec passes of one target (golang/pass, typescript/pass), which

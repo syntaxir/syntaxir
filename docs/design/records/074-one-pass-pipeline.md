@@ -1154,7 +1154,9 @@ the attributes of its nodes computed, since a kind's verifier checks the unit an
    moves into the Core module; the planning and lowering data types move into their data packages. Until step 6 makes
    the compilation one `Execute`, the driver runs one `Execute` per stage or table, and these share one numbering of the
    decided runs (`Event.Seq`), so a compilation numbers its runs once, in the order they run; the shared counter becomes
-   internal to the manager at step 6.
+   internal to the manager at step 6. Until step 5 plans the functions that the TypeScript printer lowers one at a time,
+   the driver runs each through the same steps as a table of its own: a plan of its functions in order before
+   `flowlower`, and a table that no plan holds before `execlower`.
 4. **Planning as a program-level pass**, and the Go generator prints once. If that renumbers the expectation table or
    changes the scopes of pruned rows, the driver keeps the two runs of the planning fallback, and the numbering is decided
    separately before the fallback is removed.

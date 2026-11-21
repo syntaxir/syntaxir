@@ -15,7 +15,7 @@ import (
 // whole output afterwards.
 
 // flowRecRule prints the flat function spec of the rule r as a flat rule, from the module of the
-// table's plan, which runs it flat (flowplan.Table.Unit). It returns nil, with the internal error of
+// table's plan, which runs it flat (flowplan.Unit). It returns nil, with the internal error of
 // execRecRule, if the printed form breaks the plan's decision.
 func (g *Generator) flowRecRule(r *common.Rule, spec *plandata.FuncSpec) *flatRule {
 	l := g.planned(spec.Key)
