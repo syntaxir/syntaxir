@@ -88,9 +88,11 @@ func TestTypeScriptConformanceExecDetectsMutants(t *testing.T) {
 }
 
 // tsPrintedMutant is a change of the code that the TypeScript printer prints for one operation
-// (print.OperationMethods): in the method method, the text old becomes new.
+// (print.OperationMethods): in the method method of the class class (PrintedParser if empty), the text
+// old becomes new.
 type tsPrintedMutant struct {
 	name, method, old, new string
+	class                  string
 	// charges makes the mutant a change of charges: the suite runs with budget controls and must fail
 	// at a bound or an exact cost.
 	charges bool
@@ -129,15 +131,26 @@ func tsPrintedSources(t testing.TB, m tsPrintedMutant) tsconformtest.Sources {
 	if err != nil {
 		t.Fatal(err)
 	}
-	head := "\n  " + m.method + "("
-	i := strings.Index(s.Printed, head)
-	if i < 0 || strings.Count(s.Printed, head) != 1 {
-		t.Fatalf("the printed code has no method %s", m.method)
+	class := m.class
+	if class == "" {
+		class = "PrintedParser"
 	}
+	from := strings.Index(s.Printed, "export class "+class+" ")
+	if from < 0 {
+		t.Fatalf("the printed code has no class %s", class)
+	}
+	to := from + strings.Index(s.Printed[from:], "\n}\n")
+	head := "\n  " + m.method + "("
+	cls := s.Printed[from:to]
+	i := strings.Index(cls, head)
+	if i < 0 || strings.Count(cls, head) != 1 {
+		t.Fatalf("the printed class %s has no method %s", class, m.method)
+	}
+	i += from
 	end := i + strings.Index(s.Printed[i+1:], "\n  }\n") + 1
 	body := s.Printed[i:end]
 	if strings.Count(body, m.old) < 1 {
-		t.Fatalf("the printed method %s has no %q:\n%s", m.method, m.old, body)
+		t.Fatalf("the printed method %s.%s has no %q:\n%s", class, m.method, m.old, body)
 	}
 	s.Printed = s.Printed[:i] + strings.Replace(body, m.old, m.new, 1) + s.Printed[end:]
 	return s

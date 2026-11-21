@@ -5774,6 +5774,22 @@ export class TrackedParser extends Parser {
     if (end > this.docExamined) this.docExamined = end;
   }
 
+  // docExaminedBegin starts measuring how far an observed call examines the input: the call's examined
+  // end starts at the position. It returns the enclosing call's examined end, for docExaminedEnd.
+  docExaminedBegin(): number {
+    const enclosing = this.docExamined;
+    this.docExamined = this.pos;
+    return enclosing;
+  }
+
+  // docExaminedEnd ends measuring the examined end of an observed call, whose docExaminedBegin returned
+  // enclosing, and merges it into the enclosing call's; it returns the call's examined end.
+  docExaminedEnd(enclosing: number): number {
+    const examined = this.docExamined;
+    this.docExamined = Math.max(enclosing, examined);
+    return examined;
+  }
+
   // scanExamined is the examined end of the enclosing call while the rest of a scan walk that records
   // itself runs (scanExaminedBegin).
   scanExamined = 0;
@@ -5871,12 +5887,10 @@ export class ObservedParser extends TrackedParser {
   override call(r: Rule, min: number): R {
     const o = this.observation!;
     o.enter(r.name, this.pos, min);
-    const enclosing = this.docExamined;
-    this.docExamined = this.pos;
+    const enclosing = this.docExaminedBegin();
     this.spend();
     const v = !r.memo && !r.leader || this.firstCall(r) ? this.callUnmemoized(r, min) : this.callTracked(r, min);
-    const examined = this.docExamined;
-    this.docExamined = Math.max(enclosing, examined);
+    const examined = this.docExaminedEnd(enclosing);
     o.exit(v !== undefined, this.pos, examined);
     return v;
   }
@@ -5884,12 +5898,10 @@ export class ObservedParser extends TrackedParser {
   override invokePlain(r: Rule, min: number): R {
     const o = this.observation!;
     o.enter(r.name, this.pos, min);
-    const enclosing = this.docExamined;
-    this.docExamined = this.pos;
+    const enclosing = this.docExaminedBegin();
     this.spend();
     const v = this.invokePlainBody(r, min);
-    const examined = this.docExamined;
-    this.docExamined = Math.max(enclosing, examined);
+    const examined = this.docExaminedEnd(enclosing);
     o.exit(v !== undefined, this.pos, examined);
     return v;
   }
@@ -5900,11 +5912,9 @@ export class ObservedParser extends TrackedParser {
     const o = this.observation!;
     o.enter(name, this.pos, 0);
     o.evaluated();
-    const enclosing = this.docExamined;
-    this.docExamined = this.pos;
+    const enclosing = this.docExaminedBegin();
     const v = body(this);
-    const examined = this.docExamined;
-    this.docExamined = Math.max(enclosing, examined);
+    const examined = this.docExaminedEnd(enclosing);
     o.exit(v !== undefined, this.pos, examined);
     return v;
   }
@@ -5946,11 +5956,9 @@ export class DocumentParser extends TrackedParser {
     o.enter(r.name, this.pos, min);
     // callDocument restores the enclosing call's examined input; the call's own is what it leaves
     // from the position on.
-    const enclosing = this.docExamined;
-    this.docExamined = this.pos;
+    const enclosing = this.docExaminedBegin();
     const v = this.callDocument(r, min);
-    const examined = this.docExamined;
-    this.docExamined = Math.max(enclosing, examined);
+    const examined = this.docExaminedEnd(enclosing);
     o.exit(v !== undefined, this.pos, examined);
     return v;
   }

@@ -33,6 +33,8 @@ type Config struct {
 	CtxRules []CtxRule `json:"ctxRules"`
 	// Observed makes a parse that is observed.
 	Observed bool `json:"observed"`
+	// Document makes a Document parse.
+	Document bool `json:"document"`
 	// RuleSpecs are the properties and the scripted bodies of the rules, with their seen indexes.
 	RuleSpecs []RuleSpec `json:"ruleSpecs"`
 	// Oprs are the Operators Rules, the rules of the indexes of RuleRef.
@@ -140,7 +142,7 @@ func oprRules(rs []ref.OprRule) []OprRule {
 
 // ConfigOf returns the part of cfg that the bindings read.
 func ConfigOf(cfg ref.Config) Config {
-	return Config{Rules: cfg.Rules, Limit: cfg.Limit, MaxDepth: cfg.MaxDepth, Vars: cfg.Vars, RuleVars: cfg.RuleVars, NoExpectations: cfg.NoExpectations, CtxRules: ctxRules(cfg.CtxRules), RuleSpecs: ruleSpecs(cfg), Observed: cfg.Observed, Oprs: oprRules(cfg.Oprs)}
+	return Config{Rules: cfg.Rules, Limit: cfg.Limit, MaxDepth: cfg.MaxDepth, Vars: cfg.Vars, RuleVars: cfg.RuleVars, NoExpectations: cfg.NoExpectations, CtxRules: ctxRules(cfg.CtxRules), RuleSpecs: ruleSpecs(cfg), Observed: cfg.Observed, Document: cfg.Document, Oprs: oprRules(cfg.Oprs)}
 }
 
 // Request is a case for the library: the trace to replay, on a parser made for Family with Config.

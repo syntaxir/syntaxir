@@ -676,6 +676,12 @@ var tsDocTarget = func() *Target {
 			return "this.docLow"
 		case "doc.reused":
 			return "this.reused++"
+		case "doc.evaluated":
+			return "this.evaluated++"
+		case "doc.examinedBegin":
+			return "this.docExaminedBegin()"
+		case "doc.examinedEnd":
+			return "this.docExaminedEnd(" + a[0] + ")"
 		case "doc.move":
 			return "this.documentMove(" + a[0] + ")"
 		case "memo.examined":
@@ -711,7 +717,7 @@ var tsObsTarget = func() *Target {
 			return "false"
 		case "memo.examine":
 			return fmt.Sprintf("%s.examined = %s", a[0], a[2])
-		case "doc.touchFrom", "doc.low", "doc.reused", "doc.move", "memo.before", "memo.pin":
+		case "doc.touchFrom", "doc.low", "doc.reused", "doc.evaluated", "doc.move", "memo.before", "memo.pin":
 			panic("tsgen: the Document operation " + c.Callee + " in a method of an observed parse")
 		}
 		return tsDocTarget.Op(c, a)

@@ -1038,15 +1038,16 @@ These stay transitional, each declared with its contract and cost bound and impl
   tests bind what they do;
 - the primitives of grammar code, which reach each runtime's helpers through the lowering of Flow IR, among them the
   sites that make a recovered error;
-- TypeScript's conformance of the Document and call operations: the suite runs on the TypeScript library for the
-  memo, the budget, the variable environment, the recovered errors, the capture frames, the expectation record, the
-  context and its growths, the rules, the Operators Rule, the observation and what terms make. The harness cannot
-  share a process with the library, so a runner replays a trace of each case on Node (4e7bd51f0), and it calls the
-  TypeScript that the printer prints for each operation (fd3b8fea7). A test pins the operations that the printer has
-  no form for, which run on the library's own state (a6998ba4a), and the charge differences that remain are named
-  and tolerated one by one (c2cefdece). The `doc` operations, which TypeScript implements, are not in the suite and
-  stay on the parity tests of the Document, as do the `call` operations and the missing-token mode, which only the
-  engine has.
+- the conformance of the `call` operations and the missing-token mode, which only the engine has, on the engine
+  alone. Every other modelled operation also runs on the TypeScript library: the suite covers the memo, the budget,
+  the variable environment, the recovered errors, the capture frames, the expectation record, the context and its
+  growths, the rules, the Operators Rule, the observation, the examined input and the statistics of Document and
+  observed parses (the `doc` operations), and what terms make. The harness cannot share a process with the library,
+  so a runner replays a trace of each case on Node (4e7bd51f0), and it calls the TypeScript that the printer prints
+  for each operation (fd3b8fea7). A test pins the operations that the printer has no form for, which run on the
+  library's own state (a6998ba4a), and the charge differences that remain are named and tolerated one by one
+  (c2cefdece). Each `doc` case runs on the TypeScript parser class of its parse (the Document parser, the observed
+  parser or the batch parser), with the operations as the printer prints them in that class.
 
 ### Pilot
 

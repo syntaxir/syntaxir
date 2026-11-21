@@ -26,6 +26,7 @@ interface Config {
   ctxRules?: { cycle: number; leader: boolean }[];
   ruleSpecs?: RuleSpec[];
   observed?: boolean;
+  document?: boolean;
   oprs?: { prefix: OprOpSpec[]; led: OprOpSpec[]; operands: OprLineSpec[] | null; skip: boolean; trivia?: OprExprSpec[] }[];
 }
 interface OprOpSpec {
@@ -203,13 +204,23 @@ class Exec implements Machine {
     }
     const input = "x".repeat(Number(options?.input ?? 0));
     // The parser is made without a control: making it charges for the input, which a case does not.
-    this.P = new p.PrintedParser(g, input, p.CodePoints, Math.max(cfg.rules, 1), cfg.maxDepth);
+    this.P = this.newParser(g, input, cfg);
     if (options?.sparse) this.P.sparse = true;
     if (controlled) {
       this.ctl = new p.BudgetControl({ signal: null, budget: cfg.limit === 0 ? Number.MAX_SAFE_INTEGER : cfg.limit, memory: 0 } as unknown as p.ResolvedParseOptions);
       (this.P as { control: p.BudgetControl | null }).control = this.ctl;
       this.ctl.held = () => this.P.heldBytes();
     }
+  }
+
+  // newParser makes the parser of the case: the batch Parser with the printed operations.
+  newParser(g: p.Grammar, input: string, cfg: Config): p.PrintedParser {
+    return new p.PrintedParser(g, input, p.CodePoints, Math.max(cfg.rules, 1), cfg.maxDepth);
+  }
+
+  // printed is the table of the printed operations of the parser's class.
+  printed(): Record<string, (P: any, a: any[], c: any) => any[]> {
+    return p.printedOps;
   }
 
   used(): number {
@@ -269,7 +280,7 @@ class Exec implements Machine {
       this.P.spend(Number(a[0]));
       return [];
     }
-    const printed = p.printedOps[op];
+    const printed = this.printed()[op];
     if (printed !== undefined) return printed(this.P, a, this.conv);
     const P = this.P;
     switch (op) {
@@ -638,6 +649,56 @@ class ObsM extends Exec {
   }
 }
 
+// The doc operations. The parser of a case is the library's parser of its parse: a DocumentParser for a
+// Document parse, an ObservedParser for an observed parse without one, and the batch Parser otherwise,
+// each with the operations as the printer prints them in that class. The registers are the position.
+class DocM extends Exec {
+  newParser(g: p.Grammar, input: string, cfg: Config): p.PrintedParser {
+    const n = Math.max(cfg.rules, 1);
+    if (cfg.document) return new p.PrintedDocumentParser(g, input, p.CodePoints, n, cfg.maxDepth) as unknown as p.PrintedParser;
+    if (cfg.observed) return new p.PrintedObservedParser(g, input, p.CodePoints, n, cfg.maxDepth) as unknown as p.PrintedParser;
+    return super.newParser(g, input, cfg);
+  }
+
+  printed(): Record<string, (P: any, a: any[], c: any) => any[]> {
+    if (this.P instanceof p.DocumentParser) return p.printedDocOps;
+    if (this.P instanceof p.ObservedParser) return p.printedObsOps;
+    return p.printedOps;
+  }
+
+  setRegs(regs: Record<string, number>): void {
+    if (regs.pos !== undefined) this.P.pos = regs.pos;
+  }
+  getRegs(): Record<string, number> {
+    return { pos: this.P.pos };
+  }
+
+  // The operations that a class does not print (print.OperationMethods reports them) run on the library's
+  // own state: the batch Parser reads no Document and tracks nothing, and an observed parse keeps no
+  // start of the examined input.
+  call(op: string, a: any[]): any[] {
+    const P = this.P as unknown as p.Parser;
+    if (this.printed()[op] !== undefined) return super.call(op, a);
+    switch (op) {
+      case "test.docStat": {
+        const d = P as unknown as p.DocumentParser;
+        return [a[0] === 0 ? d.reused : d.evaluated];
+      }
+      case "doc.active":
+        return [P instanceof p.DocumentParser];
+      case "doc.tracking":
+        return [P.track];
+      case "doc.touch":
+        P.documentTouch(a[0]);
+        return [];
+      case "doc.touchFrom":
+        P.documentTouchFrom(a[0]);
+        return [];
+    }
+    return super.call(op, a);
+  }
+}
+
 const errsMarker = { errs: true };
 
 function make(family: string, cfg: Config, controlled: boolean, options: Record<string, unknown> | null): Machine {
@@ -658,6 +719,8 @@ function make(family: string, cfg: Config, controlled: boolean, options: Record<
       return new ExpM(cfg, controlled, options);
     case "frame":
       return new FrameM(cfg, controlled, options);
+    case "doc":
+      return new DocM(cfg, controlled, options);
   }
   throw new Error("no family " + family);
 }

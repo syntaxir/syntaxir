@@ -237,30 +237,49 @@ func TestTypeScriptConformanceMemoInput(t *testing.T) {
 }
 
 // TestTypeScriptConformancePrintedOps pins the operations that the harness does not run as printed
-// code. The harness runs every other operation of the suites through the method that the printer prints
-// for it (print.OperationMethods), so these are all that the cases run on the library's own state.
+// code, in each class of the printed operations (print.OperationClasses). The harness runs every other
+// operation of the suites through the method that the printer prints for it in the class of the case's
+// parser (print.OperationMethods), so these are all that the cases run on the library's own state.
 //
-// The printer never emits them, which tsTarget.Op in print/exec_lib.go shows: it panics with "no
-// TypeScript implementation" for each name. term.elemsAbove and term.keep are emitted only by the term
-// compiler of the Go state engine (actionlower.go); rule.docMemo and rule.positional only by the
-// DocumentParser target; obs.active, obs.enter and obs.exit have no printed form of their own (the printer
-// emits the observation hooks inside the printed rule code); env.scope, env.lookup, rec.push and
-// budget.used are support operations of the cases.
+// The printer never emits them in that class, which the targets in print/exec_lib.go show: tsTarget.Op
+// panics with "no TypeScript implementation" for each name, and tsObsTarget.Op with "the Document operation"
+// for the Document bookkeeping. term.elemsAbove and term.keep are emitted only by the term compiler of the
+// Go state engine (actionlower.go); rule.docMemo, rule.positional and the doc operations only by the
+// DocumentParser and ObservedParser targets, since the batch Parser reads no Document and tracks nothing;
+// obs.active, obs.enter and obs.exit have no printed form of their own (the printer emits the observation
+// hooks inside the printed rule code); env.scope, env.lookup, rec.push and budget.used are support
+// operations of the cases. An observed parse without a Document keeps no start of the examined input and
+// no statistics.
 func TestTypeScriptConformancePrintedOps(t *testing.T) {
 	h, err := tsconformtest.Printed()
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"budget.used", "env.lookup", "env.scope", "obs.active", "obs.enter", "obs.exit", "rec.push", "rule.docMemo", "rule.positional", "term.elemsAbove", "term.keep"}
-	var got []string
-	for name, reason := range h.Unprinted {
-		got = append(got, name)
-		if !strings.Contains(reason, "no TypeScript implementation") {
-			t.Errorf("%s is not printed for a reason other than that the printer has no implementation: %s", name, reason)
-		}
+	classes := []struct {
+		name, reason string
+		want         []string
+	}{
+		{"PrintedParser", "no TypeScript implementation", append([]string{"budget.used", "env.lookup", "env.scope", "obs.active", "obs.enter", "obs.exit", "rec.push", "rule.docMemo", "rule.positional", "term.elemsAbove", "term.keep"}, tsconformtest.DocOps...)},
+		{"PrintedDocumentParser", "", nil},
+		{"PrintedObservedParser", "the Document operation", []string{"doc.evaluated", "doc.low", "doc.reused", "doc.touchFrom"}},
 	}
-	slices.Sort(got)
-	if !slices.Equal(got, want) {
-		t.Fatalf("the operations that are not printed are\n%v\nwant\n%v", got, want)
+	for _, c := range classes {
+		unprinted, ok := h.Unprinted[c.name]
+		if !ok {
+			t.Errorf("the printed operations have no class %s", c.name)
+			continue
+		}
+		var got []string
+		for name, reason := range unprinted {
+			got = append(got, name)
+			if !strings.Contains(reason, c.reason) {
+				t.Errorf("%s: %s is not printed for a reason other than %q: %s", c.name, name, c.reason, reason)
+			}
+		}
+		slices.Sort(got)
+		want := slices.Sorted(slices.Values(c.want))
+		if !slices.Equal(got, want) {
+			t.Errorf("%s: the operations that are not printed are\n%v\nwant\n%v", c.name, got, want)
+		}
 	}
 }

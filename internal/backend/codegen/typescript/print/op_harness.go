@@ -10,15 +10,32 @@ import (
 )
 
 // OperationHarness is the printed code of operations, one method each, for the conformance tests of the
-// TypeScript library (internal/testing/tsconformtest): the text of the class and the operations that
-// the printer does not print.
+// TypeScript library (internal/testing/tsconformtest): the text of the classes and the operations that
+// the printer does not print in each.
 type OperationHarness struct {
-	// Source is TypeScript that extends the library's source: the class PrintedParser, a Parser with
-	// a method for each printed operation, and printedOps, which calls each of them with the arguments
-	// and the results of a call of the operation of the conformance suite.
+	// Source is TypeScript that extends the library's source: for each class of OperationClasses, a
+	// subclass of its library class with a method for each printed operation, and its table, which calls
+	// each of them with the arguments and the results of a call of the operation of the conformance suite.
 	Source string
-	// Unprinted are the operations that have no printed method, each with the reason.
-	Unprinted map[string]string
+	// Unprinted are, for each class by name, the operations that have no printed method in it, each
+	// with the reason.
+	Unprinted map[string]map[string]string
+}
+
+// OperationClass is a class of the library whose methods the printer prints with a target of its own:
+// the harness class Name extends Base, and the table Table calls its methods.
+type OperationClass struct {
+	Name, Base, Table string
+	target            *Target
+}
+
+// OperationClasses are the classes that OperationMethods prints: the batch Parser (tsTarget), the
+// DocumentParser of a Document parse (tsDocTarget) and the ObservedParser of an observed parse without a
+// Document (tsObsTarget). An operation prints in each as in the library methods of that class.
+var OperationClasses = []OperationClass{
+	{Name: "PrintedParser", Base: "Parser", Table: "printedOps", target: tsTarget},
+	{Name: "PrintedDocumentParser", Base: "DocumentParser", Table: "printedDocOps", target: tsDocTarget},
+	{Name: "PrintedObservedParser", Base: "ObservedParser", Table: "printedObsOps", target: tsObsTarget},
 }
 
 // opPartNames returns the suffixes of the parts that the TypeScript target holds a value of the handle type
@@ -31,45 +48,49 @@ func opPartNames(handle string) []string {
 	return out
 }
 
-// OperationMethods prints the operations names with the TypeScript target of the generated parsers.
+// OperationMethods prints the operations names with the TypeScript target of the generated parsers, for
+// each class of OperationClasses whose name keys its operations in names.
 //
-// Each operation is a method of a class that extends the library's Parser, whose body is what the
-// printer prints for a call of the operation in a composition. A value that the target holds in
-// several locals (Target.Parts) is a parameter or a result of several, and printedOps folds them in a tuple
-// for the arguments and the results that the conformance harness exchanges. An operation the target
-// does not implement (its Op panics) is reported in Unprinted, with the operations that have no printed form
-// of their own (a variadic operation).
-func OperationMethods(names []string) (OperationHarness, error) {
+// Each operation is a method of a class that extends the library's class, whose body is what the
+// printer prints for a call of the operation in a composition of that class. A value that the target
+// holds in several locals (Target.Parts) is a parameter or a result of several, and the table folds them
+// in a tuple for the arguments and the results that the conformance harness exchanges. An operation the
+// target does not implement (its Op panics) is reported in Unprinted, with the operations that have no
+// printed form of their own (a variadic operation).
+func OperationMethods(names map[string][]string) (OperationHarness, error) {
 	m := compose.Build()
-	type wrapper struct {
-		op   *code.Op
-		name string
-	}
-	var ws []wrapper
-	out := OperationHarness{Unprinted: map[string]string{}}
-	for _, n := range names {
-		o := m.Op(n)
-		if o == nil {
-			return out, fmt.Errorf("tsgen: no operation %s", n)
-		}
-		if o.Variadic {
-			out.Unprinted[n] = "a variadic operation"
+	out := OperationHarness{Unprinted: map[string]map[string]string{}}
+	var src strings.Builder
+	for _, c := range OperationClasses {
+		ops, ok := names[c.Name]
+		if !ok {
 			continue
 		}
-		ws = append(ws, wrapper{o, "op_" + strings.NewReplacer(".", "_").Replace(n)})
-	}
-	var methods, table strings.Builder
-	for _, w := range ws {
-		body, err := printOperation(m, w.op)
-		if err != nil {
-			out.Unprinted[w.op.Name] = err.Error()
-			continue
+		unprinted := map[string]string{}
+		out.Unprinted[c.Name] = unprinted
+		var methods, table strings.Builder
+		for _, n := range ops {
+			o := m.Op(n)
+			if o == nil {
+				return out, fmt.Errorf("tsgen: no operation %s", n)
+			}
+			if o.Variadic {
+				unprinted[n] = "a variadic operation"
+				continue
+			}
+			name := "op_" + strings.NewReplacer(".", "_").Replace(n)
+			body, err := printOperation(m, o, c.target)
+			if err != nil {
+				unprinted[n] = err.Error()
+				continue
+			}
+			fmt.Fprintf(&methods, "  %s(%s): any {\n%s  }\n", name, strings.Join(opParams(o), ", "), body)
+			fmt.Fprintf(&table, "  %q: (P, a, c) => %s,\n", n, opAdapter(o, name))
 		}
-		fmt.Fprintf(&methods, "  %s(%s): any {\n%s  }\n", w.name, strings.Join(opParams(w.op), ", "), body)
-		fmt.Fprintf(&table, "  %q: (P, a, c) => %s,\n", w.op.Name, opAdapter(w.op, w.name))
+		fmt.Fprintf(&src, "export class %s extends %s {\n%s}\n\n", c.Name, c.Base, methods.String())
+		fmt.Fprintf(&src, "export const %s: Record<string, (P: %s, a: any[], c: any) => any[]> = {\n%s};\n\n", c.Table, c.Name, table.String())
 	}
-	out.Source = "export class PrintedParser extends Parser {\n" + methods.String() + "}\n\n" +
-		"export const printedOps: Record<string, (P: PrintedParser, a: any[], c: any) => any[]> = {\n" + table.String() + "};\n"
+	out.Source = src.String()
 	return out, nil
 }
 
@@ -88,9 +109,9 @@ func opParams(o *code.Op) []string {
 	return ps
 }
 
-// printOperation returns the statements that the printer prints for a call of op in a function of the module
-// m, and a return of its results.
-func printOperation(m *code.Module, o *code.Op) (body string, err error) {
+// printOperation returns the statements that the target t prints for a call of op in a function of the
+// module m, and a return of its results.
+func printOperation(m *code.Module, o *code.Op, t *Target) (body string, err error) {
 	defer func() {
 		if x := recover(); x != nil {
 			err = fmt.Errorf("%v", x)
@@ -145,7 +166,7 @@ func printOperation(m *code.Module, o *code.Op) (body string, err error) {
 	if err := code.Verify(&mod); err != nil {
 		return "", err
 	}
-	src, err := Statements(&mod, f, tsTarget, 2)
+	src, err := Statements(&mod, f, t, 2)
 	if err != nil {
 		return "", err
 	}
