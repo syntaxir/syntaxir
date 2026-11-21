@@ -151,7 +151,7 @@ func tb0(v *Number) any {
 // is no named node type. It is for generated parsers.
 var SXIRNodeTypes [2]uint16
 
-// SXIRSchema_1758b48940b2027f ties the parser package to this package: the parser refers to it once, so a
+// SXIRSchema_8542efa0ed0e2417 ties the parser package to this package: the parser refers to it once, so a
 // parser and a types package generated from different schemas do not compile together.
 // It is for generated parsers; not a stable API.
-const SXIRSchema_1758b48940b2027f = 0
+const SXIRSchema_8542efa0ed0e2417 = 0

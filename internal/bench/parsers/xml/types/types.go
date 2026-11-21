@@ -1376,7 +1376,7 @@ func tb17(v *PERef) any {
 // is no named node type. It is for generated parsers.
 var SXIRNodeTypes [19]uint16
 
-// SXIRSchema_b044f4d2cb8d65a3 ties the parser package to this package: the parser refers to it once, so a
+// SXIRSchema_f2495284b507cf77 ties the parser package to this package: the parser refers to it once, so a
 // parser and a types package generated from different schemas do not compile together.
 // It is for generated parsers; not a stable API.
-const SXIRSchema_b044f4d2cb8d65a3 = 0
+const SXIRSchema_f2495284b507cf77 = 0

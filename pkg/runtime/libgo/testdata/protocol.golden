@@ -1,4 +1,4 @@
-protocol 23
+protocol 24
 const BaseString untyped int = 0
 const ExpFar ExpID = 536870912
 const IdAny ExpID = 0
@@ -420,14 +420,14 @@ type recEntry struct{}
 type singleMode uint8
 type streamInput struct{Emit func(*syntaxir.dev/sxir/pkg/runtime/value.Node, *BudgetControl) error}
 type structFields struct{}
-type tmatcher = func(*TParser) (any, bool)
-type tundo struct{}
-type typedDocumentState struct{}
-type undo struct{}
 type syntaxir.dev/sxir/pkg/runtime/value/impl.Data[N any] struct{Kind *syntaxir.dev/sxir/pkg/runtime/value/impl.Kind; Start int32; End int32; Text string; Children []*N; Fields syntaxir.dev/sxir/pkg/runtime/value/impl.Fields; Fresh bool; Terminal bool; Labeled bool; Mark uint32; Box any}
 type syntaxir.dev/sxir/pkg/runtime/value/impl.Fields []syntaxir.dev/sxir/pkg/runtime/value/impl.NodeField
 type syntaxir.dev/sxir/pkg/runtime/value/impl.Kind struct{Type string; Rule string; Reserved int; Base int}
 type syntaxir.dev/sxir/pkg/runtime/value/impl.NodeField struct{Name string; Value any}
+type tmatcher = func(*TParser) (any, bool)
+type tundo struct{}
+type typedDocumentState struct{}
+type undo struct{}
 var DocumentBusy error
 var EmptyFrame *CaptureFrame
 var EmptyTFrame *TCaptureFrame

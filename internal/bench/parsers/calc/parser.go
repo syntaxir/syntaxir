@@ -1553,6 +1553,6 @@ func s4(p *rt.TParser) (any, bool) {
 	return v, true
 }
 
-const _ = types.SXIRSchema_1758b48940b2027f
+const _ = types.SXIRSchema_8542efa0ed0e2417
 
-const _ = rt.Protocol23
+const _ = rt.Protocol24

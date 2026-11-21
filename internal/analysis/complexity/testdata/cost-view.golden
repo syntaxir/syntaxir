@@ -302,6 +302,69 @@ rule scope_end = [)\]}] / $$
 == spec/language/testdata/comment-boundaries.sxir matching=true
 applied: N1=13 N13=22 N8=2
 sha256 2f6fa1cfbe0dd416902db91f9bd74372aafcb8e9332583825517157eb9336788
+== sxir.sxir matching=false
+applied: N8=12
+rule sync_open = [(\[{] / (!digit ident_char+ / [)\]]) "["
+  241:18 [(\[{] / (!digit ident_char+ / [)\]]) "[" = "\"(\" / \"{\" / \"[\" / (!digit ident_char+ / \")\" / \"]\") \"[\""
+  241:18 [(\[{] = "\"(\" / \"{\" / \"[\""
+  241:36 (!digit ident_char+ / [)\]]) "[" = "(!digit ident_char+ / \")\" / \"]\") \"[\""
+  241:37 !digit ident_char+ / [)\]] = "!digit ident_char+ / \")\" / \"]\""
+  241:58 [)\]] = "\")\" / \"]\""
+rule decl_shape_line = space_no_line+ ![/:] (assign_op / source_string / source_class / inline_comment / !nl !"//" ![(-);={}-~] .)* [=~]
+  273:113 !nl !"//" ![(-);={}-~] . = "!nl !\"//\" !(\"=\" / \"~\" / \";\" / \"{\" / \"}\" / \"(\" / \")\") ."
+  273:123 ![(-);={}-~] = "!(\"=\" / \"~\" / \";\" / \"{\" / \"}\" / \"(\" / \")\")"
+  273:125 [(-);={}-~] = "\"=\" / \"~\" / \";\" / \"{\" / \"}\" / \"(\" / \")\""
+  273:171 [=~] = "\"=\" / \"~\""
+  273:24 space_no_line+ ![/:] (assign_op / source_string / source_class / inline_comment / !nl !"//" ![(-);={}-~] .)* [=~] = "space_no_line+ !(\":\" / \"/\") (assign_op / source_string / source_class / inline_comment / !nl !\"//\" !(\"=\" / \"~\" / \";\" / \"{\" / \"}\" / \"(\" / \")\") .)* (\"=\" / \"~\")"
+  273:39 ![/:] = "!(\":\" / \"/\")"
+  273:41 [/:] = "\":\" / \"/\""
+  273:52 (assign_op / source_string / source_class / inline_comment / !nl !"//" ![(-);={}-~] .)* = "(assign_op / source_string / source_class / inline_comment / !nl !\"//\" !(\"=\" / \"~\" / \";\" / \"{\" / \"}\" / \"(\" / \")\") .)*"
+  273:53 assign_op / source_string / source_class / inline_comment / !nl !"//" ![(-);={}-~] . = "assign_op / source_string / source_class / inline_comment / !nl !\"//\" !(\"=\" / \"~\" / \";\" / \"{\" / \"}\" / \"(\" / \")\") ."
+rule attr_paren = "(" (attr_paren / source_string / inline_comment / comment_line / ![(-)] .)* ")"
+  290:19 "(" (attr_paren / source_string / inline_comment / comment_line / ![(-)] .)* ")" = "\"(\" (attr_paren / source_string / inline_comment / comment_line / !(\"(\" / \")\") .)* \")\""
+  290:23 (attr_paren / source_string / inline_comment / comment_line / ![(-)] .)* = "(attr_paren / source_string / inline_comment / comment_line / !(\"(\" / \")\") .)*"
+  290:24 attr_paren / source_string / inline_comment / comment_line / ![(-)] . = "attr_paren / source_string / inline_comment / comment_line / !(\"(\" / \")\") ."
+  290:85 ![(-)] . = "!(\"(\" / \")\") ."
+  290:85 ![(-)] = "!(\"(\" / \")\")"
+  290:87 [(-)] = "\"(\" / \")\""
+rule sync_ml_paren = "(" (sync_ml / ![(-)] .)* ")"
+  297:22 "(" (sync_ml / ![(-)] .)* ")" = "\"(\" (sync_ml / !(\"(\" / \")\") .)* \")\""
+  297:26 (sync_ml / ![(-)] .)* = "(sync_ml / !(\"(\" / \")\") .)*"
+  297:27 sync_ml / ![(-)] . = "sync_ml / !(\"(\" / \")\") ."
+  297:37 ![(-)] . = "!(\"(\" / \")\") ."
+  297:37 ![(-)] = "!(\"(\" / \")\")"
+  297:39 [(-)] = "\"(\" / \")\""
+rule sync_ml_brace = "{" (sync_ml / ![{}] .)* "}"
+  298:22 "{" (sync_ml / ![{}] .)* "}" = "\"{\" (sync_ml / !(\"{\" / \"}\") .)* \"}\""
+  298:26 (sync_ml / ![{}] .)* = "(sync_ml / !(\"{\" / \"}\") .)*"
+  298:27 sync_ml / ![{}] . = "sync_ml / !(\"{\" / \"}\") ."
+  298:37 ![{}] . = "!(\"{\" / \"}\") ."
+  298:37 ![{}] = "!(\"{\" / \"}\")"
+  298:39 [{}] = "\"{\" / \"}\""
+rule legacy_operators_start = "operators" !ident_char horizontal "{" comments (("skip" / "operand" / "level" / "prefix" / "postfix" / "infix") !ident_char (comments (["\[] / ident_start) / space comments "(") / "level" !ident_char comments "{" comments ("prefix" / "postfix" / "infix") !ident_char)
+  461:5 "operators" !ident_char horizontal "{" comments (("skip" / "operand" / "level" / "prefix" / "postfix" / "infix") !ident_char (comments (["\[] / ident_start) / space comments "(") / "level" !ident_char comments "{" comments ("prefix" / "postfix" / "infix") !ident_char) = "\"operators\" !ident_char horizontal \"{\" comments ((\"skip\" / \"operand\" / \"level\" / \"prefix\" / \"postfix\" / \"infix\") !ident_char (comments (\"\\\"\" / \"[\" / ident_start) / space comments \"(\") / \"level\" !ident_char comments \"{\" comments (\"prefix\" / \"postfix\" / \"infix\") !ident_char)"
+  462:9 ("skip" / "operand" / "level" / "prefix" / "postfix" / "infix") !ident_char (comments (["\[] / ident_start) / space comments "(") / "level" !ident_char comments "{" comments ("prefix" / "postfix" / "infix") !ident_char = "(\"skip\" / \"operand\" / \"level\" / \"prefix\" / \"postfix\" / \"infix\") !ident_char (comments (\"\\\"\" / \"[\" / ident_start) / space comments \"(\") / \"level\" !ident_char comments \"{\" comments (\"prefix\" / \"postfix\" / \"infix\") !ident_char"
+  462:9 ("skip" / "operand" / "level" / "prefix" / "postfix" / "infix") !ident_char (comments (["\[] / ident_start) / space comments "(") = "(\"skip\" / \"operand\" / \"level\" / \"prefix\" / \"postfix\" / \"infix\") !ident_char (comments (\"\\\"\" / \"[\" / ident_start) / space comments \"(\")"
+  463:10 comments (["\[] / ident_start) / space comments "(" = "comments (\"\\\"\" / \"[\" / ident_start) / space comments \"(\""
+  463:10 comments (["\[] / ident_start) = "comments (\"\\\"\" / \"[\" / ident_start)"
+  463:20 ["\[] / ident_start = "\"\\\"\" / \"[\" / ident_start"
+  463:20 ["\[] = "\"\\\"\" / \"[\""
+rule lambda_param = !((true_lit / false_lit / nil_lit) -ws &[),]) i:ident
+  647:27 !((true_lit / false_lit / nil_lit) -ws &[),]) = "!((true_lit / false_lit / nil_lit) -ws &(\",\" / \")\"))"
+  647:27 !((true_lit / false_lit / nil_lit) -ws &[),]) i:ident = "!((true_lit / false_lit / nil_lit) -ws &(\",\" / \")\")) i:ident"
+  647:29 (true_lit / false_lit / nil_lit) -ws &[),] = "(true_lit / false_lit / nil_lit) -ws &(\",\" / \")\")"
+  647:66 &[),] = "&(\",\" / \")\")"
+  647:68 [),] = "\",\" / \")\""
+rule source_scope_end = [);\]}] / $$
+  861:25 [);\]}] / $$ = "\")\" / \"]\" / \"}\" / \";\" / $$"
+  861:25 [);\]}] = "\")\" / \"]\" / \"}\" / \";\""
+rule source_bracket = (ident_char / [)\]}]) "["
+  894:23 (ident_char / [)\]}]) "[" = "(ident_char / \")\" / \"]\" / \"}\") \"[\""
+  894:24 ident_char / [)\]}] = "ident_char / \")\" / \"]\" / \"}\""
+  894:37 [)\]}] = "\")\" / \"]\" / \"}\""
+== sxir.sxir matching=true
+applied: N1=38 N12=2 N13=220 N4=7 N7=74 N8=28
+sha256 91c6242ce873d92c210b424db604f8e37b03d6a78135a186c5799c307d6d9b94
 == testdata/grammars/cel/cel.sxir matching=false
 applied: N1=6 N11=2 N12=6 N4=5
 rule expected_start = _|_ #atomic
@@ -574,66 +637,3 @@ rule b_break = "\r\n" / [\n\r]
 == testdata/grammars/yaml/yaml.sxir matching=true
 applied: N1=14 N13=114 N8=4
 sha256 81b719687d7b973189221277a1d837ef64dd335826b780a2ea5a59d92fb5069e
-== sxir.sxir matching=false
-applied: N8=12
-rule sync_open = [(\[{] / (!digit ident_char+ / [)\]]) "["
-  241:18 [(\[{] / (!digit ident_char+ / [)\]]) "[" = "\"(\" / \"{\" / \"[\" / (!digit ident_char+ / \")\" / \"]\") \"[\""
-  241:18 [(\[{] = "\"(\" / \"{\" / \"[\""
-  241:36 (!digit ident_char+ / [)\]]) "[" = "(!digit ident_char+ / \")\" / \"]\") \"[\""
-  241:37 !digit ident_char+ / [)\]] = "!digit ident_char+ / \")\" / \"]\""
-  241:58 [)\]] = "\")\" / \"]\""
-rule decl_shape_line = space_no_line+ ![/:] (assign_op / source_string / source_class / inline_comment / !nl !"//" ![(-);={}-~] .)* [=~]
-  273:113 !nl !"//" ![(-);={}-~] . = "!nl !\"//\" !(\"=\" / \"~\" / \";\" / \"{\" / \"}\" / \"(\" / \")\") ."
-  273:123 ![(-);={}-~] = "!(\"=\" / \"~\" / \";\" / \"{\" / \"}\" / \"(\" / \")\")"
-  273:125 [(-);={}-~] = "\"=\" / \"~\" / \";\" / \"{\" / \"}\" / \"(\" / \")\""
-  273:171 [=~] = "\"=\" / \"~\""
-  273:24 space_no_line+ ![/:] (assign_op / source_string / source_class / inline_comment / !nl !"//" ![(-);={}-~] .)* [=~] = "space_no_line+ !(\":\" / \"/\") (assign_op / source_string / source_class / inline_comment / !nl !\"//\" !(\"=\" / \"~\" / \";\" / \"{\" / \"}\" / \"(\" / \")\") .)* (\"=\" / \"~\")"
-  273:39 ![/:] = "!(\":\" / \"/\")"
-  273:41 [/:] = "\":\" / \"/\""
-  273:52 (assign_op / source_string / source_class / inline_comment / !nl !"//" ![(-);={}-~] .)* = "(assign_op / source_string / source_class / inline_comment / !nl !\"//\" !(\"=\" / \"~\" / \";\" / \"{\" / \"}\" / \"(\" / \")\") .)*"
-  273:53 assign_op / source_string / source_class / inline_comment / !nl !"//" ![(-);={}-~] . = "assign_op / source_string / source_class / inline_comment / !nl !\"//\" !(\"=\" / \"~\" / \";\" / \"{\" / \"}\" / \"(\" / \")\") ."
-rule attr_paren = "(" (attr_paren / source_string / inline_comment / comment_line / ![(-)] .)* ")"
-  290:19 "(" (attr_paren / source_string / inline_comment / comment_line / ![(-)] .)* ")" = "\"(\" (attr_paren / source_string / inline_comment / comment_line / !(\"(\" / \")\") .)* \")\""
-  290:23 (attr_paren / source_string / inline_comment / comment_line / ![(-)] .)* = "(attr_paren / source_string / inline_comment / comment_line / !(\"(\" / \")\") .)*"
-  290:24 attr_paren / source_string / inline_comment / comment_line / ![(-)] . = "attr_paren / source_string / inline_comment / comment_line / !(\"(\" / \")\") ."
-  290:85 ![(-)] . = "!(\"(\" / \")\") ."
-  290:85 ![(-)] = "!(\"(\" / \")\")"
-  290:87 [(-)] = "\"(\" / \")\""
-rule sync_ml_paren = "(" (sync_ml / ![(-)] .)* ")"
-  297:22 "(" (sync_ml / ![(-)] .)* ")" = "\"(\" (sync_ml / !(\"(\" / \")\") .)* \")\""
-  297:26 (sync_ml / ![(-)] .)* = "(sync_ml / !(\"(\" / \")\") .)*"
-  297:27 sync_ml / ![(-)] . = "sync_ml / !(\"(\" / \")\") ."
-  297:37 ![(-)] . = "!(\"(\" / \")\") ."
-  297:37 ![(-)] = "!(\"(\" / \")\")"
-  297:39 [(-)] = "\"(\" / \")\""
-rule sync_ml_brace = "{" (sync_ml / ![{}] .)* "}"
-  298:22 "{" (sync_ml / ![{}] .)* "}" = "\"{\" (sync_ml / !(\"{\" / \"}\") .)* \"}\""
-  298:26 (sync_ml / ![{}] .)* = "(sync_ml / !(\"{\" / \"}\") .)*"
-  298:27 sync_ml / ![{}] . = "sync_ml / !(\"{\" / \"}\") ."
-  298:37 ![{}] . = "!(\"{\" / \"}\") ."
-  298:37 ![{}] = "!(\"{\" / \"}\")"
-  298:39 [{}] = "\"{\" / \"}\""
-rule legacy_operators_start = "operators" !ident_char horizontal "{" comments (("skip" / "operand" / "level" / "prefix" / "postfix" / "infix") !ident_char (comments (["\[] / ident_start) / space comments "(") / "level" !ident_char comments "{" comments ("prefix" / "postfix" / "infix") !ident_char)
-  461:5 "operators" !ident_char horizontal "{" comments (("skip" / "operand" / "level" / "prefix" / "postfix" / "infix") !ident_char (comments (["\[] / ident_start) / space comments "(") / "level" !ident_char comments "{" comments ("prefix" / "postfix" / "infix") !ident_char) = "\"operators\" !ident_char horizontal \"{\" comments ((\"skip\" / \"operand\" / \"level\" / \"prefix\" / \"postfix\" / \"infix\") !ident_char (comments (\"\\\"\" / \"[\" / ident_start) / space comments \"(\") / \"level\" !ident_char comments \"{\" comments (\"prefix\" / \"postfix\" / \"infix\") !ident_char)"
-  462:9 ("skip" / "operand" / "level" / "prefix" / "postfix" / "infix") !ident_char (comments (["\[] / ident_start) / space comments "(") / "level" !ident_char comments "{" comments ("prefix" / "postfix" / "infix") !ident_char = "(\"skip\" / \"operand\" / \"level\" / \"prefix\" / \"postfix\" / \"infix\") !ident_char (comments (\"\\\"\" / \"[\" / ident_start) / space comments \"(\") / \"level\" !ident_char comments \"{\" comments (\"prefix\" / \"postfix\" / \"infix\") !ident_char"
-  462:9 ("skip" / "operand" / "level" / "prefix" / "postfix" / "infix") !ident_char (comments (["\[] / ident_start) / space comments "(") = "(\"skip\" / \"operand\" / \"level\" / \"prefix\" / \"postfix\" / \"infix\") !ident_char (comments (\"\\\"\" / \"[\" / ident_start) / space comments \"(\")"
-  463:10 comments (["\[] / ident_start) / space comments "(" = "comments (\"\\\"\" / \"[\" / ident_start) / space comments \"(\""
-  463:10 comments (["\[] / ident_start) = "comments (\"\\\"\" / \"[\" / ident_start)"
-  463:20 ["\[] / ident_start = "\"\\\"\" / \"[\" / ident_start"
-  463:20 ["\[] = "\"\\\"\" / \"[\""
-rule lambda_param = !((true_lit / false_lit / nil_lit) -ws &[),]) i:ident
-  647:27 !((true_lit / false_lit / nil_lit) -ws &[),]) = "!((true_lit / false_lit / nil_lit) -ws &(\",\" / \")\"))"
-  647:27 !((true_lit / false_lit / nil_lit) -ws &[),]) i:ident = "!((true_lit / false_lit / nil_lit) -ws &(\",\" / \")\")) i:ident"
-  647:29 (true_lit / false_lit / nil_lit) -ws &[),] = "(true_lit / false_lit / nil_lit) -ws &(\",\" / \")\")"
-  647:66 &[),] = "&(\",\" / \")\")"
-  647:68 [),] = "\",\" / \")\""
-rule source_scope_end = [);\]}] / $$
-  861:25 [);\]}] / $$ = "\")\" / \"]\" / \"}\" / \";\" / $$"
-  861:25 [);\]}] = "\")\" / \"]\" / \"}\" / \";\""
-rule source_bracket = (ident_char / [)\]}]) "["
-  894:23 (ident_char / [)\]}]) "[" = "(ident_char / \")\" / \"]\" / \"}\") \"[\""
-  894:24 ident_char / [)\]}] = "ident_char / \")\" / \"]\" / \"}\""
-  894:37 [)\]}] = "\")\" / \"]\" / \"}\""
-== sxir.sxir matching=true
-applied: N1=38 N12=2 N13=220 N4=7 N7=74 N8=28
-sha256 91c6242ce873d92c210b424db604f8e37b03d6a78135a186c5799c307d6d9b94

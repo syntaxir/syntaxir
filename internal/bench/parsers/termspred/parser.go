@@ -950,6 +950,6 @@ fail:
 	return nil, false
 }
 
-const _ = types.SXIRSchema_2e326dad401977ae
+const _ = types.SXIRSchema_6886dca7f98265ec
 
-const _ = rt.Protocol23
+const _ = rt.Protocol24

@@ -158,7 +158,7 @@ func (v *Line) TZeroField(c *rt.TActCtx, name string) (any, bool) {
 	return nil, false
 }
 
-// SXIRSchema_e363e9a5033ad260 ties the parser package to this package: the parser refers to it once, so a
+// SXIRSchema_7d2b5b08b7e4e435 ties the parser package to this package: the parser refers to it once, so a
 // parser and a types package generated from different schemas do not compile together.
 // It is for generated parsers; not a stable API.
-const SXIRSchema_e363e9a5033ad260 = 0
+const SXIRSchema_7d2b5b08b7e4e435 = 0
