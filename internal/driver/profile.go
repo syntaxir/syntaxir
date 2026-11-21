@@ -226,17 +226,33 @@ var stageSteps = map[string]string{"core": Elaborate, "flow": flowlower.Name, "e
 // -print-after takes it, and returns the names in order, without the spaces around them. The empty
 // string selects nothing.
 func ParsePrintAfter(list string) ([]string, error) {
+	out := splitNames(list)
+	if err := CheckPrintAfter(out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// ParsePrintBefore validates a comma-separated list of pass names for printing, as -print-before
+// takes it, and returns the names in order, without the spaces around them. The empty string
+// selects nothing.
+func ParsePrintBefore(list string) ([]string, error) {
+	out := splitNames(list)
+	if err := CheckPrintBefore(out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func splitNames(list string) []string {
 	if list == "" {
-		return nil, nil
+		return nil
 	}
 	var out []string
 	for _, n := range strings.Split(list, ",") {
 		out = append(out, strings.TrimSpace(n))
 	}
-	if err := CheckPrintAfter(out); err != nil {
-		return nil, err
-	}
-	return out, nil
+	return out
 }
 
 // CheckPrintAfter reports a name in names that is not a step or a pass to print after (PrintNames).
@@ -249,6 +265,29 @@ func CheckPrintAfter(names []string) error {
 				return fmt.Errorf("unknown pass or step %q to print after: %s is a stage; the step that makes its IR is %s (valid: %s)", n, n, step, strings.Join(valid, ", "))
 			}
 			return fmt.Errorf("unknown pass or step %q to print after (valid: %s)", n, strings.Join(valid, ", "))
+		}
+	}
+	return nil
+}
+
+// PrintBeforeNames returns the names of the passes that select what to print before, in the order
+// they run, and "all": the names of PrintNames without the required steps, whose input is the dump
+// after the step before them.
+func PrintBeforeNames() []string {
+	return slices.DeleteFunc(PrintNames(), func(n string) bool { return slices.Contains(requiredSteps(), n) })
+}
+
+// CheckPrintBefore reports a name in names that is not a pass to print before (PrintBeforeNames). A
+// required step is an error that says so; a stage name is an error like any unknown name.
+func CheckPrintBefore(names []string) error {
+	valid := PrintBeforeNames()
+	for _, n := range names {
+		switch {
+		case slices.Contains(valid, n):
+		case slices.Contains(requiredSteps(), n):
+			return fmt.Errorf("%s is a required step, and -print-before takes passes; -print-after prints the unit after the step before it", n)
+		default:
+			return fmt.Errorf("unknown pass %q to print before (valid: %s)", n, strings.Join(valid, ", "))
 		}
 	}
 	return nil

@@ -15,8 +15,9 @@ import (
 // Settings returns the optimizations that o.Optimize, o.Opt and o.NoOpt select, in that order, or an
 // error for a profile or an optimization that does not exist, a value that it does not take, or a name
 // that Opt gives twice (keys that are the same once their spaces are trimmed), and validates
-// o.Debug: every name that PrintAfter lists is a step or a pass (driver.PrintNames), and a Debug that
-// writes anything needs an Output.
+// o.Debug: every name that PrintAfter lists is a step or a pass (driver.PrintNames), every name that
+// PrintBefore lists is a pass (driver.PrintBeforeNames), a bisection limit is not negative, and a
+// Debug that writes anything needs an Output.
 func Settings(o common.GenOptions) (pass.Settings, error) {
 	return resolve(o)
 }
@@ -29,6 +30,10 @@ func resolve(o common.GenOptions) (pass.Settings, error) {
 	}
 	if err := driver.CheckPrintAfter(o.Debug.PrintAfter); err != nil {
 		return pass.Settings{}, err
+	} else if err := driver.CheckPrintBefore(o.Debug.PrintBefore); err != nil {
+		return pass.Settings{}, err
+	} else if l := o.Debug.OptBisectLimit; l != nil && *l < 0 {
+		return pass.Settings{}, fmt.Errorf("the bisection limit %d is negative", *l)
 	} else if o.Debug.Writes() && o.Debug.Output == nil {
 		return pass.Settings{}, fmt.Errorf("the debugging settings need an Output writer")
 	}
@@ -63,8 +68,9 @@ func Passes(o common.GenOptions, hooks Hooks) common.Passes {
 	s, err := resolve(o)
 	g := o.Debug
 	d := driver.Driver{
-		Opt: s, PrintAfter: g.PrintAfter, PrintChanged: g.PrintChanged, VerifyEach: g.VerifyEach,
-		Stats: g.Stats, TimePasses: g.TimePasses, Hooks: hooks,
+		Opt: s, PrintAfter: g.PrintAfter, PrintBefore: g.PrintBefore, PrintChanged: g.PrintChanged,
+		VerifyEach: g.VerifyEach, Stats: g.Stats, TimePasses: g.TimePasses, OptBisectLimit: g.OptBisectLimit,
+		Hooks: hooks,
 	}
 	return passes{driver: d, err: err}
 }

@@ -6,8 +6,8 @@
 //	sxir test -f suite.json [-format text|json] [-backend closure,bytecode] [-equivalence] [-update] [-max-compute n] [-max-memory n] [-max-input n] [-max-depth n]
 //	sxir fmt [-w] [-l] [-check] [-syntax] [grammar.sxir ...]
 //	sxir convert [-to sxir|json] [-o output] grammar.sxir|grammar.json
-//	sxir gen -g grammar.sxir -module path -o dir [-pkg name] [-lib embed|import|only] [-s main] [-types] [-document] [-stream] [-recognize] [-observability] [-limits] [-typed-only] [-recognize-only] [-nodoc] [-max-depth n] [-source-info] [-default-value] [-expectations] [-optimize profile] [-opt names] [-no-opt names] [-print-after passes] [-print-changed] [-verify-each] [-stats] [-time-passes]
-//	sxir gen -lang ts -g grammar.sxir -o dir [-lib embed|import|only] [-lib-module specifier] [-s main] [-types] [-recognize] [-observability] [-limits] [-max-depth n] [-source-info] [-default-value] [-expectations] [-optimize profile] [-opt names] [-no-opt names] [-print-after passes] [-print-changed] [-verify-each] [-stats] [-time-passes]
+//	sxir gen -g grammar.sxir -module path -o dir [-pkg name] [-lib embed|import|only] [-s main] [-types] [-document] [-stream] [-recognize] [-observability] [-limits] [-typed-only] [-recognize-only] [-nodoc] [-max-depth n] [-source-info] [-default-value] [-expectations] [-optimize profile] [-opt names] [-no-opt names] [-print-before passes] [-print-after passes] [-print-changed] [-verify-each] [-stats] [-time-passes] [-opt-bisect-limit n]
+//	sxir gen -lang ts -g grammar.sxir -o dir [-lib embed|import|only] [-lib-module specifier] [-s main] [-types] [-recognize] [-observability] [-limits] [-max-depth n] [-source-info] [-default-value] [-expectations] [-optimize profile] [-opt names] [-no-opt names] [-print-before passes] [-print-after passes] [-print-changed] [-verify-each] [-stats] [-time-passes] [-opt-bisect-limit n]
 //	sxir compile -g grammar.sxir [-s main] [-mode parse|recognize|document] [-source-info] [-default-value] -o grammar.sxirc
 //	sxir trace -g grammar.sxir [-s main] [-i input] [-show-depth n] [-rule name] [-failures] [-f text|json] [-max-compute n] [-max-memory n] [-max-input n] [-max-depth n]
 //	sxir profile -g grammar.sxir [-s main] [-i input] [-sort column] [-n rows] [-f text|json] [-max-compute n] [-max-memory n] [-max-input n] [-max-depth n]
@@ -87,12 +87,14 @@ Commands:
   gen -g <grammar> -module <import path> -o <dir> [-pkg <package>] [-lib embed|import|only] [-s <rule>] [-types]
         [-document] [-stream] [-recognize] [-observability] [-limits] [-typed-only] [-recognize-only] [-max-depth <n>] [-nodoc] [-source-info] [-default-value]
         [-expectations] [-optimize <profile>] [-opt <names>] [-no-opt <names>]
-        [-print-after <passes>] [-print-changed] [-verify-each] [-stats] [-time-passes]
+        [-print-before <passes>] [-print-after <passes>] [-print-changed] [-verify-each] [-stats]
+        [-time-passes] [-opt-bisect-limit <n>]
   gen -lib only -o <dir>
   gen -lang ts -g <grammar> -o <dir> [-lib embed|import|only] [-lib-module <specifier>] [-s <rule>] [-types]
         [-recognize] [-observability] [-limits] [-max-depth <n>] [-source-info] [-default-value]
         [-expectations] [-optimize <profile>] [-opt <names>] [-no-opt <names>]
-        [-print-after <passes>] [-print-changed] [-verify-each] [-stats] [-time-passes]
+        [-print-before <passes>] [-print-after <passes>] [-print-changed] [-verify-each] [-stats]
+        [-time-passes] [-opt-bisect-limit <n>]
   gen -lang ts -lib only -o <dir>
       Generate a Go parser (or, with -lang ts, TypeScript modules) from a
       grammar. A Go parser is a package: parser.go, api.go and, with
@@ -152,11 +154,15 @@ Commands:
       optimization option changes what the parser returns: "sxir gen -h"
       lists the profiles, the optimizations and the pass names.
       -print-after writes the Core IR or Code IR to standard error after
-      the named steps and passes, -print-changed after each pass that
-      changed it, -verify-each verifies it after every pass, and -stats
-      and -time-passes write the statistics and times of the passes after
-      the build. They debug the generator and change no generated file;
-      their output is not stable and may change in any version.
+      the named steps and passes, -print-before before the named passes,
+      -print-changed after each pass that changed it, -verify-each
+      verifies it after every pass, and -stats and -time-passes write the
+      statistics and times of the passes after the build. They debug the
+      generator and change no generated file. -opt-bisect-limit n runs
+      only the first n runs of optional passes and reports each decision,
+      to find the pass that breaks a parser; it generates once, keeping
+      rules that a build would leave out. Their output is not stable and
+      may change in any version.
 
   compile -g <grammar> [-s <rule>] [-mode parse|recognize|document] [-source-info] [-default-value] -o <file.sxirc>
       Compile a grammar and save the bytecode of one mode. The result runs
@@ -762,9 +768,11 @@ func genCmd(args []string, stdout io.Writer) error {
 	opt := fs.String("opt", "", "optimizations to give a value, separated by commas, as name or name=count: a name alone turns on an optimization that the profile leaves off, and 0 turns one off; applied after the profile and before -no-opt; the optimizations, with kind and default: "+pass.Summaries())
 	noOpt := fs.String("no-opt", "", "optimizations to turn off after the profile is applied, separated by commas, for isolating a miscompilation or measuring one optimization; the optimizations, with kind and default: "+pass.Summaries())
 	printAfter := fs.String("print-after", "", "write the IR to standard error after the named steps and passes, separated by commas: elaborate and the Core passes print the Core IR of each table, flowlower, the Flow passes and flow-finish each function printed from Flow IR, execlower and the Exec passes each function printed from Exec IR; a pass that does not apply to the parser prints nothing: "+strings.Join(driver.PrintNames(), ", "))
+	printBefore := fs.String("print-before", "", "write the IR to standard error before the runs of the named passes, separated by commas, as -print-after writes it; the required steps are no passes to print before: "+strings.Join(driver.PrintBeforeNames(), ", "))
 	printChanged := fs.Bool("print-changed", false, "write the IR to standard error after each pass that changed it, and once before the first change of each unit what the pass received")
 	verifyEach := fs.Bool("verify-each", false, "verify the IR after every pass and step, so that an error names the first pass that broke it")
 	stats := fs.Bool("stats", false, "write to standard error, after the build, the statistics of each pass that ran: units it ran on, units it changed, its counters and the applications of its patterns")
+	optBisectLimit := fs.Int("opt-bisect-limit", 0, "run only the runs of optional passes, and the applications of their patterns, numbered up to n in pipeline order, skip the later ones and write each decision to standard error; the required steps always run, and the generator generates once")
 	timePasses := fs.Bool("time-passes", false, "write to standard error, after the build, the time of each pass and step that ran, summed over its units, with its share of the total")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -783,7 +791,7 @@ func genCmd(args []string, stdout io.Writer) error {
 		}
 		switch mode {
 		case libOnly:
-			for _, name := range []string{"g", "s", "pkg", "module", "types", "document", "stream", "observability", "limits", "typed-only", "recognize-only", "recognize", "max-depth", "nodoc", "source-info", "default-value", "optimize", "opt", "no-opt", "print-after", "print-changed", "verify-each", "stats", "time-passes"} {
+			for _, name := range []string{"g", "s", "pkg", "module", "types", "document", "stream", "observability", "limits", "typed-only", "recognize-only", "recognize", "max-depth", "nodoc", "source-info", "default-value", "optimize", "opt", "no-opt", "print-before", "print-after", "print-changed", "verify-each", "stats", "time-passes", "opt-bisect-limit"} {
 				if isFlagSet(fs, name) {
 					return fmt.Errorf("-%s cannot be combined with -lib only, which writes just the library", name)
 				}
@@ -812,7 +820,7 @@ func genCmd(args []string, stdout io.Writer) error {
 		}
 		switch mode {
 		case libOnly:
-			for _, name := range []string{"g", "s", "types", "observability", "limits", "recognize", "max-depth", "source-info", "default-value", "lib-module", "optimize", "opt", "no-opt", "print-after", "print-changed", "verify-each", "stats", "time-passes"} {
+			for _, name := range []string{"g", "s", "types", "observability", "limits", "recognize", "max-depth", "source-info", "default-value", "lib-module", "optimize", "opt", "no-opt", "print-before", "print-after", "print-changed", "verify-each", "stats", "time-passes", "opt-bisect-limit"} {
 				if isFlagSet(fs, name) {
 					return fmt.Errorf("-%s cannot be combined with -lib only, which writes just the library", name)
 				}
@@ -865,7 +873,21 @@ func genCmd(args []string, stdout io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("-print-after: %w", err)
 	}
-	debug := genDebug(printAfterNames, *printChanged, *verifyEach, *stats, *timePasses)
+	printBeforeNames, err := driver.ParsePrintBefore(*printBefore)
+	if err != nil {
+		return fmt.Errorf("-print-before: %w", err)
+	}
+	var bisectLimit *int
+	if isFlagSet(fs, "opt-bisect-limit") {
+		if *optBisectLimit < 0 {
+			return fmt.Errorf("-opt-bisect-limit: the limit %d is negative", *optBisectLimit)
+		}
+		bisectLimit = optBisectLimit
+	}
+	debug := genDebug(compiler.Debug{
+		PrintBefore: printBeforeNames, PrintAfter: printAfterNames, PrintChanged: *printChanged,
+		VerifyEach: *verifyEach, Stats: *stats, TimePasses: *timePasses, OptBisectLimit: bisectLimit,
+	})
 	if mode == libOnly {
 		var files []compiler.File
 		if *lang == "ts" {
@@ -944,12 +966,11 @@ func genCmd(args []string, stdout io.Writer) error {
 	return writeGenerated(*output, files, mode, *lang == "ts")
 }
 
-// genDebug returns the debugging setting of the debugging flags of sxir gen, which writes to
-// genDiagnostics when any flag writes. It is the only place that maps the flags to the fields, one to
-// one, so the command and a Go program that sets the same fields get the same output.
-func genDebug(printAfter []string, printChanged, verifyEach, stats, timePasses bool) compiler.Debug {
-	d := compiler.Debug{PrintAfter: printAfter, PrintChanged: printChanged, VerifyEach: verifyEach, Stats: stats, TimePasses: timePasses}
-	if len(printAfter) > 0 || printChanged || stats || timePasses {
+// genDebug returns d, the debugging setting of the debugging flags of sxir gen, writing to
+// genDiagnostics when any of its fields writes. genCmd builds d from the flags in one place, one
+// field per flag, so the command and a Go program that sets the same fields get the same output.
+func genDebug(d compiler.Debug) compiler.Debug {
+	if len(d.PrintBefore) > 0 || len(d.PrintAfter) > 0 || d.PrintChanged || d.Stats || d.TimePasses || d.OptBisectLimit != nil {
 		d.Output = genDiagnostics
 	}
 	return d

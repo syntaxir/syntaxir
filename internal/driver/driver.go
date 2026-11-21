@@ -50,6 +50,10 @@ type Driver struct {
 	// PrintAfter lists the names of the steps and passes (PrintNames) after which a unit is written
 	// to Output; "all" selects every step and pass.
 	PrintAfter []string
+	// PrintBefore lists the names of the passes (PrintBeforeNames) before whose runs the unit they
+	// receive is written to Output; "all" selects every pass. A run that does not happen, because the
+	// pass is off or does not apply, writes nothing.
+	PrintBefore []string
 	// PrintChanged writes a unit to Output after each transform that changed its text form, and,
 	// before the first such dump of the unit, the unit as that transform received it. A step that
 	// PrintAfter also selects is written once.
@@ -62,6 +66,11 @@ type Driver struct {
 	Stats bool
 	// TimePasses collects the wall time of every step instance for Report.
 	TimePasses bool
+	// OptBisectLimit, if set, lets run only the runs of the optional passes and the applications of
+	// their patterns numbered up to the limit (pipe.Event.Seq), over every stage the driver runs, and
+	// vetoes the later ones; the required steps always run. Each decision is written to Output as
+	// "opt-bisect: <number> run|skip <instance> [<unit>]".
+	OptBisectLimit *int
 	// Output receives the dumps and the reports; nil writes nothing, whatever the settings above.
 	Output io.Writer
 	Hooks
@@ -97,9 +106,16 @@ type Hooks struct {
 // Settings returns the optimizations that are on (Opt), as common.Runner requires.
 func (d *Driver) Settings() pass.Settings { return d.Opt }
 
-// prints reports whether the unit is dumped after the step whose dump name is name.
+// prints reports whether the unit is dumped after the runs of the step or pass named name: of every
+// instance of it, as its dumps name them.
 func (d *Driver) prints(name string) bool {
 	return d.Output != nil && name != "" && (slices.Contains(d.PrintAfter, name) || slices.Contains(d.PrintAfter, PrintAll))
+}
+
+// printsBefore reports whether the unit is dumped before the runs of the pass named name, of every
+// instance of it.
+func (d *Driver) printsBefore(name string) bool {
+	return d.Output != nil && (slices.Contains(d.PrintBefore, name) || slices.Contains(d.PrintBefore, PrintAll))
 }
 
 // Elaborate is the name of the step that builds the Core IR of a table from its elaborated program,
@@ -168,6 +184,9 @@ func (d *Driver) pipeRun(table string, stop bool) *pipe.Run {
 	if d.Output != nil && d.TimePasses {
 		r.Observers = append(r.Observers, (*timer)(d.watch))
 	}
+	if d.OptBisectLimit != nil {
+		r.Observers = append(r.Observers, bisector{d: d, table: table})
+	}
 	r.Observers = append(r.Observers, d.Observers...)
 	return r
 }
@@ -184,7 +203,7 @@ func execute[I, O any](d *Driver, r *pipe.Run, p pipe.Pipeline[I, O], in I) (O, 
 	return out, err
 }
 
-// pipeObserver writes the dumps of PrintAfter and PrintChanged and calls CoreHook for the steps of a
+// pipeObserver writes the dumps of PrintBefore, PrintAfter and PrintChanged and calls CoreHook for the steps of a
 // stage that runs through the manager of internal/pass/pipe. A stage runs on the units of one table,
 // which the observer adds to the label of each dump; the label of a step in a branch of a Fork names
 // its backend first, as the reports do, since the debugging settings and their writer are one for
@@ -199,13 +218,14 @@ func (o pipeObserver) Needs() pipe.Needs {
 	return pipe.Needs{
 		Units:       o.d.CoreHook != nil,
 		Print:       o.d.Output != nil && (len(o.d.PrintAfter) > 0 || o.d.PrintChanged),
-		Before:      changed,
+		Before:      changed || o.d.Output != nil && len(o.d.PrintBefore) > 0,
 		TextChanged: changed,
 	}
 }
 
-// Before keeps the dump of the input of a step, which PrintChanged writes before the first change of
-// the unit.
+// Before keeps the dump of the input of a step, which PrintBefore writes before the dumps after the
+// run, and PrintChanged before the first change of the unit. Both are written by After, once the run
+// is known to have happened: a run that an observer vetoed is not dumped.
 func (o pipeObserver) Before(e pipe.Event, in func(io.Writer)) bool {
 	if !e.Step.Pattern {
 		o.d.watch.input = in
@@ -214,7 +234,17 @@ func (o pipeObserver) Before(e pipe.Event, in func(io.Writer)) bool {
 }
 
 func (o pipeObserver) After(e pipe.Event, r *pipe.Result) {
-	if e.Step.Pattern || !r.Ran || r.Err != nil {
+	if e.Step.Pattern || !r.Ran {
+		return
+	}
+	l := qualified(e.Label.Backend, pass.Label{Table: o.table, Func: e.Label.Func}.String())
+	before := !e.Step.Required && o.d.printsBefore(e.Step.Name) && o.d.watch.input != nil
+	if before {
+		// Also before a run that failed, whose input is what to look at.
+		fmt.Fprintf(o.d.Output, "-- before %s [%s] --\n", e.Step.Instance, l)
+		o.d.watch.input(o.d.Output)
+	}
+	if r.Err != nil {
 		return
 	}
 	if m, ok := r.Unit.(*core.Module); ok && o.d.CoreHook != nil {
@@ -223,7 +253,6 @@ func (o pipeObserver) After(e pipe.Event, r *pipe.Result) {
 	if r.Print == nil {
 		return
 	}
-	l := qualified(e.Label.Backend, pass.Label{Table: o.table, Func: e.Label.Func}.String())
 	changed := o.d.PrintChanged && e.Step.In == e.Step.Out && r.TextChanged
 	if changed {
 		w := o.d.watch
@@ -231,17 +260,44 @@ func (o pipeObserver) After(e pipe.Event, r *pipe.Result) {
 		if w.printed == nil {
 			w.printed = map[string]bool{}
 		}
-		if !w.printed[unit] && w.input != nil {
+		if !w.printed[unit] && w.input != nil && !before {
 			fmt.Fprintf(o.d.Output, "-- before %s [%s] --\n", e.Step.Instance, l)
 			w.input(o.d.Output)
 		}
 		w.printed[unit] = true
 	}
-	if changed || o.d.prints(e.Step.Instance) {
+	if changed || o.d.prints(e.Step.Name) {
 		fmt.Fprintf(o.d.Output, "-- after %s [%s] --\n", e.Step.Instance, l)
 		r.Print(o.d.Output)
 	}
 }
+
+// bisector is the observer of OptBisectLimit: it vetoes the runs of optional passes and the
+// applications of patterns numbered after the limit, and writes each decision to Output.
+type bisector struct {
+	d     *Driver
+	table string
+}
+
+func (bisector) Needs() pipe.Needs { return pipe.Needs{Veto: true} }
+
+func (b bisector) Before(e pipe.Event, _ func(io.Writer)) bool {
+	if e.Seq == 0 {
+		return true // a required step
+	}
+	run := e.Seq <= *b.d.OptBisectLimit
+	if b.d.Output != nil {
+		verdict := "skip"
+		if run {
+			verdict = "run"
+		}
+		l := qualified(e.Label.Backend, pass.Label{Table: b.table, Func: e.Label.Func}.String())
+		fmt.Fprintf(b.d.Output, "opt-bisect: %d %s %s [%s]\n", e.Seq, verdict, e.Step.Instance, l)
+	}
+	return run
+}
+
+func (bisector) After(pipe.Event, *pipe.Result) {}
 
 // watch holds what the observers of a driver collect over the stages it runs: the statistics and
 // the times for Report, and for PrintChanged the input of the running step and the units already

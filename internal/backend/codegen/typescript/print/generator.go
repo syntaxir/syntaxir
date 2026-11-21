@@ -107,7 +107,9 @@ func GenerateParser(g *ast.Grammar, c common.Compiler, p common.Passes, opts com
 	if err != nil {
 		return nil, err
 	}
-	// The code is generated up to twice; only the last generation's dumps and reports are written.
+	// The code is generated up to twice; only the last generation's dumps and reports are written, and
+	// the dumps also when it fails, since they show what led to the error. Under a bisection limit it
+	// generates once, so that one sequence numbers the runs of the optional passes.
 	var dumped *bytes.Buffer
 	newGen := func(live *tsLive) (*Generator, error) {
 		dumped = &bytes.Buffer{}
@@ -145,14 +147,21 @@ func GenerateParser(g *ast.Grammar, c common.Compiler, p common.Passes, opts com
 		}
 		return tsg, nil
 	}
+	flush := func() {
+		if opts.Debug.Output != nil && dumped != nil {
+			_, _ = opts.Debug.Output.Write(dumped.Bytes()) // the error of the generation is the one to return
+		}
+	}
 	tsg, err := newGen(live)
 	if err != nil {
+		flush()
 		return nil, err
 	}
 	// The printed code can call fewer rules than the Core IR does (a call after an expression that
 	// cannot match is not printed): the rules that only such calls reach are generated again without.
-	if printed := tsg.printedReach(prog, rec, start); !printed.equal(live) {
+	if printed := tsg.printedReach(prog, rec, start); !printed.equal(live) && opts.Debug.OptBisectLimit == nil {
 		if tsg, err = newGen(printed); err != nil {
+			flush()
 			return nil, err
 		}
 	}

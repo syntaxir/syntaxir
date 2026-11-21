@@ -98,9 +98,10 @@ var (
 func WithOptimize(o Optimize) Option { return func(opts *options) { opts.optimize = o } }
 
 // Debug is the debugging setting of the compiler: it observes and checks the pass pipeline that
-// makes an artifact, and never changes the artifact. Each field is a flag of sxir gen: PrintAfter is
-// -print-after, PrintChanged -print-changed, VerifyEach -verify-each, Stats -stats and TimePasses
-// -time-passes; Output has no flag, as the command writes to standard error. The pass and counter
+// makes an artifact, and changes the artifact only under a bisection limit. Each field is a flag of
+// sxir gen: PrintBefore is -print-before, PrintAfter -print-after, PrintChanged -print-changed,
+// VerifyEach -verify-each, Stats -stats, TimePasses -time-passes and OptBisectLimit
+// -opt-bisect-limit; Output has no flag, as the command writes to standard error. The pass and counter
 // names and the text written to Output are a debugging aid: their form is not stable and may change
 // in any version.
 type Debug struct {
@@ -109,6 +110,10 @@ type Debug struct {
 	// names of the Flow passes and flow-finish for Code IR at the Flow stage; execlower and the names
 	// of the Exec passes for Code IR at the Exec stage; or all. "sxir gen -h" lists the names.
 	PrintAfter []string
+	// PrintBefore lists the passes before whose runs the intermediate representation they receive is
+	// written to Output, as PrintAfter writes it, or all for every pass. The required steps
+	// (elaborate, flowlower, flow-finish and execlower) are not passes to print before.
+	PrintBefore []string
 	// PrintChanged writes the intermediate representation after each pass that changed it, and the
 	// unit that the first such pass received before its first dump. A pass that PrintAfter also
 	// names is written once.
@@ -123,19 +128,26 @@ type Debug struct {
 	// TimePasses writes, after the build, the time each pass took, summed over the units it ran on,
 	// and its share of the total.
 	TimePasses bool
+	// OptBisectLimit, if set, runs only the runs of optional passes numbered up to the limit, in the
+	// order the pipeline makes them, and skips the later ones; the required steps always run, so the
+	// output stays a valid parser. A run is one pass on one unit, such as one function, and each
+	// application of a pattern of a pass takes a number of its own. Each decision is written to
+	// Output with its number, the pass and the unit. Under a limit the generators generate once, so
+	// the output may keep rules that it would otherwise leave out. A negative limit is an error.
+	OptBisectLimit *int
 	// Output receives everything above. It is required when any of it is set.
 	Output io.Writer
 }
 
-// WithDebug selects the debugging setting. A name that PrintAfter does not know, or a setting that
-// writes without an Output, is an error of every function. The setting takes effect in the
+// WithDebug selects the debugging setting. A name that PrintAfter or PrintBefore does not know, a
+// negative OptBisectLimit, or a setting that writes without an Output, is an error of every function. The setting takes effect in the
 // functions that run the pass pipeline, the generators today; for the others it is checked and has
 // no further effect.
 func WithDebug(d Debug) Option { return func(o *options) { o.debug = d } }
 
 // internal returns the debugging setting of the generators.
 func (d Debug) internal() common.Debug {
-	return common.Debug{PrintAfter: d.PrintAfter, PrintChanged: d.PrintChanged, VerifyEach: d.VerifyEach, Stats: d.Stats, TimePasses: d.TimePasses, Output: d.Output}
+	return common.Debug{PrintAfter: d.PrintAfter, PrintBefore: d.PrintBefore, PrintChanged: d.PrintChanged, VerifyEach: d.VerifyEach, Stats: d.Stats, TimePasses: d.TimePasses, OptBisectLimit: d.OptBisectLimit, Output: d.Output}
 }
 
 // check reports an invalid optimization or debugging setting.

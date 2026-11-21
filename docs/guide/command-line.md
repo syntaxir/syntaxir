@@ -256,8 +256,8 @@ writes no output. To save another mode, compile the grammar source.
 ## `gen`
 
 ```bash
-sxir gen -g <grammar> -module <import path> [-pkg <package>] [-lib embed|import|only] [-s <rule>] [-o <directory>] [-types] [-document] [-stream] [-recognize] [-typed-only] [-recognize-only] [-expectations] [-observability] [-limits] [-max-depth <n>] [-nodoc] [-source-info] [-default-value] [-optimize <profile>] [-opt <name[=count]>] [-no-opt <names>] [-print-after <passes>] [-print-changed] [-verify-each] [-stats] [-time-passes]
-sxir gen -lang ts -g <grammar> -o <directory> [-s <rule>] [-lib embed|import|only] [-lib-module <specifier>] [-types] [-recognize] [-expectations] [-observability] [-limits] [-max-depth <n>] [-source-info] [-default-value] [-optimize <profile>] [-opt <name[=count]>] [-no-opt <names>] [-print-after <passes>] [-print-changed] [-verify-each] [-stats] [-time-passes]
+sxir gen -g <grammar> -module <import path> [-pkg <package>] [-lib embed|import|only] [-s <rule>] [-o <directory>] [-types] [-document] [-stream] [-recognize] [-typed-only] [-recognize-only] [-expectations] [-observability] [-limits] [-max-depth <n>] [-nodoc] [-source-info] [-default-value] [-optimize <profile>] [-opt <name[=count]>] [-no-opt <names>] [-print-before <passes>] [-print-after <passes>] [-print-changed] [-verify-each] [-stats] [-time-passes] [-opt-bisect-limit <n>]
+sxir gen -lang ts -g <grammar> -o <directory> [-s <rule>] [-lib embed|import|only] [-lib-module <specifier>] [-types] [-recognize] [-expectations] [-observability] [-limits] [-max-depth <n>] [-source-info] [-default-value] [-optimize <profile>] [-opt <name[=count]>] [-no-opt <names>] [-print-before <passes>] [-print-after <passes>] [-print-changed] [-verify-each] [-stats] [-time-passes] [-opt-bisect-limit <n>]
 ```
 
 Generates a standalone Go parser (see [code-generation.md](code-generation.md)) or, with `-lang ts`, a TypeScript
@@ -271,10 +271,13 @@ turns named optimizations off. None of them changes what the generated parser re
 [Optimizations](code-generation.md#optimizations). A required step (`elaborate`, `flowlower`, `flow-finish`,
 `execlower`) always runs, and naming one in `-opt` or `-no-opt` is an error.
 The debugging flags write to standard error and change no generated file: `-print-after <pass>[,<pass>]` writes the
-Core IR or Code IR at the Flow or Exec stage after the named steps and passes, `-print-changed` after each pass that
-changed it, `-verify-each` verifies it after every pass, and `-stats` and `-time-passes` write the statistics and the
-times of the passes after the build (see [Debugging the generator](code-generation.md#debugging-the-generator)). Their
-output is not stable and may change in any version. None of these flags can be combined with `-lib only`.
+Core IR or Code IR at the Flow or Exec stage after the named steps and passes, `-print-before <pass>[,<pass>]` before
+the named passes, `-print-changed` after each pass that changed it, `-verify-each` verifies it after every pass, and
+`-stats` and `-time-passes` write the statistics and the times of the passes after the build.
+`-opt-bisect-limit <n>` runs only the first `n` runs of optional passes and writes each decision, to find the pass that
+breaks a parser; it generates once, so its files can keep rules that a build leaves out (see
+[Debugging the generator](code-generation.md#debugging-the-generator)). Their output is not stable and may change in
+any version. None of these flags can be combined with `-lib only`.
 
 A `.sxirc` compiled without `-default-value` cannot be used with `-default-value` in `parse`: the command
 asks you to compile it again with `-default-value`.

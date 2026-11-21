@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -63,7 +64,7 @@ func TestGenDebug(t *testing.T) {
 	api := func(lang string, d compiler.Debug) string {
 		t.Helper()
 		var diag bytes.Buffer
-		if d.PrintAfter != nil || d.PrintChanged || d.Stats || d.TimePasses {
+		if d.PrintAfter != nil || d.PrintBefore != nil || d.PrintChanged || d.Stats || d.TimePasses || d.OptBisectLimit != nil {
 			d.Output = &diag
 		}
 		var err error
@@ -90,6 +91,7 @@ func TestGenDebug(t *testing.T) {
 			}{
 				{[]string{"-print-after", "guards"}, compiler.Debug{PrintAfter: []string{"guards"}}, "-- after guards ["},
 				{[]string{"-print-changed"}, compiler.Debug{PrintChanged: true}, "-- after guards ["},
+				{[]string{"-print-before", "guards"}, compiler.Debug{PrintBefore: []string{"guards"}}, "-- before guards ["},
 				{[]string{"-verify-each"}, compiler.Debug{VerifyEach: true}, ""},
 				{[]string{"-stats"}, compiler.Debug{Stats: true}, "-- stats --\n"},
 				{[]string{"-time-passes"}, compiler.Debug{TimePasses: true}, "-- time-passes --\n"},
@@ -110,12 +112,46 @@ func TestGenDebug(t *testing.T) {
 					t.Errorf("%v and %+v differ:\n%.500s\n---\n%.500s", c.flags, c.field, diag, got)
 				}
 			}
+			// Under a bisection limit the generator generates once: limit 0 skips every optional run
+			// and a limit past the last runs them all, which the flag and the field report alike. A
+			// skipped pass decides none of its patterns, so the two report different numbers of runs.
+			zero, n := 0, 1<<20
+			_, none0 := gen(lang, "-opt-bisect-limit", "0")
+			_, all := gen(lang, "-opt-bisect-limit", "1048576")
+			if !strings.HasPrefix(none0, "opt-bisect: 1 skip ") || strings.Contains(none0, " run ") {
+				t.Errorf("-opt-bisect-limit 0 wrote:\n%.500s", none0)
+			}
+			if !strings.HasPrefix(all, "opt-bisect: 1 run ") || strings.Contains(all, " skip ") {
+				t.Errorf("-opt-bisect-limit %d wrote:\n%.500s", n, all)
+			}
+			if got := api(lang, compiler.Debug{OptBisectLimit: &zero}); got != none0 {
+				t.Errorf("-opt-bisect-limit 0 and OptBisectLimit 0 differ:\n%.500s\n---\n%.500s", none0, got)
+			}
 			// The statistics are the same in every run.
 			_, first := gen(lang, "-stats")
 			if _, again := gen(lang, "-stats"); again != first || !strings.Contains(first, "  guards ") {
 				t.Errorf("-stats differs between runs or lacks guards:\n%s\n---\n%s", first, again)
 			}
 		})
+	}
+	// A required step is not a pass to print before, and a negative limit is an error.
+	for _, c := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"-print-before", "flowlower"}, "-print-before: flowlower is a required step"},
+		{[]string{"-opt-bisect-limit", "-1"}, "-opt-bisect-limit: the limit -1 is negative"},
+	} {
+		_, err := runCLI(t, "", append([]string{"gen", "-g", path, "-o", t.TempDir(), "-module", "example.com/gen"}, c.args...)...)
+		if err == nil || !strings.HasPrefix(err.Error(), c.want) {
+			t.Errorf("%v: %v, want %q", c.args, err, c.want)
+		}
+	}
+	neg := -1
+	for _, d := range []compiler.Debug{{PrintBefore: []string{"flowlower"}, Output: io.Discard}, {OptBisectLimit: &neg, Output: io.Discard}, {PrintBefore: []string{"guards"}}} {
+		if _, err := compiler.GenerateGo(src, compiler.GoConfig{Module: "example.com/gen"}, compiler.WithDebug(d)); err == nil {
+			t.Errorf("WithDebug(%+v) is no error", d)
+		}
 	}
 	// A required step is not an optimization to turn on or off.
 	for _, c := range [][]string{{"-no-opt", "flowlower"}, {"-opt", "execlower=1"}} {
@@ -125,12 +161,13 @@ func TestGenDebug(t *testing.T) {
 		}
 	}
 	// The debugging flags do not apply to the library alone.
-	for _, name := range []string{"-print-changed", "-verify-each", "-stats", "-time-passes"} {
-		_, err := runCLI(t, "", "gen", "-lib", "only", "-o", t.TempDir(), name)
+	for _, args := range [][]string{{"-print-changed"}, {"-verify-each"}, {"-stats"}, {"-time-passes"}, {"-print-before", "guards"}, {"-opt-bisect-limit", "3"}} {
+		name := strings.Join(args, " ")
+		_, err := runCLI(t, "", append([]string{"gen", "-lib", "only", "-o", t.TempDir()}, args...)...)
 		if err == nil || !strings.Contains(err.Error(), "cannot be combined with -lib only") {
 			t.Errorf("%s with -lib only: %v", name, err)
 		}
-		_, err = runCLI(t, "", "gen", "-lang", "ts", "-lib", "only", "-o", t.TempDir(), name)
+		_, err = runCLI(t, "", append([]string{"gen", "-lang", "ts", "-lib", "only", "-o", t.TempDir()}, args...)...)
 		if err == nil || !strings.Contains(err.Error(), "cannot be combined with -lib only") {
 			t.Errorf("%s with -lang ts -lib only: %v", name, err)
 		}

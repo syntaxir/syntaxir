@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"fmt"
 	"io"
 	"regexp"
 	"strings"
@@ -28,6 +29,13 @@ var (
 			for _, r := range m.Rules {
 				r.Name += "x"
 			}
+			return m, pass.PreserveNone(), nil
+		}})
+	debugBreak = pipe.New(pipe.Def[*core.Module, *core.Module]{
+		Decl: pipe.Decl{Name: "test-debug-break", Test: true, Obligation: "none: it stands for a pass that miscompiles"},
+		In:   corepass.IR, Out: corepass.IR,
+		Run: func(_ *pipe.Ctx[*core.Module], m *core.Module) (*core.Module, pass.PreservedSet, error) {
+			m.Rules[0].Name = "broken"
 			return m, pass.PreserveNone(), nil
 		}})
 	debugCount = pipe.New(pipe.Def[*core.Module, *core.Module]{
@@ -98,6 +106,63 @@ func TestDriverPrintChanged(t *testing.T) {
 	}
 }
 
+// PrintBefore dumps the unit that each run of a selected pass receives, of every instance of the pass,
+// before the dump after it if PrintAfter selects it too; PrintAfter selects every instance as well. A
+// required step is no pass to print before.
+func TestDriverPrintBefore(t *testing.T) {
+	var dump strings.Builder
+	d := &Driver{PrintBefore: []string{"test-debug-rename"}, PrintAfter: []string{"test-debug-rename"}, Output: &dump, Hooks: Hooks{CorePipeline: debugPipeline}}
+	if _, err := d.Core("rules", oneRule); err != nil {
+		t.Fatal(err)
+	}
+	want := strings.Join([]string{
+		"-- before test-debug-rename [rules] --", "rule 0 r",
+		"-- after test-debug-rename [rules] --", "rule 0 rx",
+		"-- before test-debug-rename#2 [rules] --", "rule 0 rx",
+		"-- after test-debug-rename#2 [rules] --", "rule 0 rxx",
+	}, "\n")
+	var got []string
+	for _, l := range strings.Split(dump.String(), "\n") {
+		if strings.HasPrefix(l, "-- ") || strings.HasPrefix(l, "rule 0 ") {
+			got = append(got, l)
+		}
+	}
+	if strings.Join(got, "\n") != want {
+		t.Errorf("dumps:\n%s\nwant the lines:\n%s", dump.String(), want)
+	}
+
+	// With PrintChanged too, the input is written once before the first change.
+	dump.Reset()
+	d = &Driver{PrintBefore: []string{"all"}, PrintChanged: true, Output: &dump, Hooks: Hooks{CorePipeline: debugPipeline}}
+	if _, err := d.Core("rules", oneRule); err != nil {
+		t.Fatal(err)
+	}
+	if n := strings.Count(dump.String(), "-- before test-debug-rename [rules] --"); n != 1 {
+		t.Errorf("the input of the first change is written %d times:\n%s", n, dump.String())
+	}
+	if strings.Contains(dump.String(), "-- before elaborate") {
+		t.Errorf("all selected the required step elaborate:\n%s", dump.String())
+	}
+	for _, name := range []string{"test-debug-same", "test-debug-count", "test-debug-rename#2"} {
+		if !strings.Contains(dump.String(), "-- before "+name+" [rules] --") {
+			t.Errorf("all did not select %s:\n%s", name, dump.String())
+		}
+	}
+
+	if err := CheckPrintBefore([]string{"guards", "all"}); err != nil {
+		t.Error(err)
+	}
+	for _, c := range []struct{ name, want string }{
+		{"flowlower", "flowlower is a required step, and -print-before takes passes"},
+		{"core", `unknown pass "core" to print before`},
+		{"nosuch", `unknown pass "nosuch" to print before`},
+	} {
+		if err := CheckPrintBefore([]string{c.name}); err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: %v, want %q", c.name, err, c.want)
+		}
+	}
+}
+
 // Report writes the statistics of every pass instance that ran, in the order it ran, over all the
 // stages the driver ran, and the times of every step instance with a total.
 func TestDriverReport(t *testing.T) {
@@ -155,5 +220,65 @@ func TestDriverDumpNamesTheBackend(t *testing.T) {
 	o.After(e, &pipe.Result{Ran: true, Print: func(w io.Writer) { io.WriteString(w, "unit\n") }})
 	if got := dump.String(); got != "-- after guards [go/rules/main] --\nunit\n" {
 		t.Errorf("dump %q", got)
+	}
+}
+
+// OptBisectLimit runs the optional runs numbered up to the limit, over every stage the driver runs,
+// skips the later ones, always runs the required steps and writes each decision. Searching for the
+// smallest limit whose output differs from that of limit 0 finds the run of the pass that broke it.
+func TestDriverOptBisectLimit(t *testing.T) {
+	breaking := func(string) pipe.Pipeline[*core.Module, *core.Module] {
+		return pipe.Seq(corepass.IR, debugSame, debugCount, debugBreak, debugRename)
+	}
+	run := func(limit int) (string, string) {
+		t.Helper()
+		var out strings.Builder
+		d := &Driver{OptBisectLimit: &limit, Output: &out, Hooks: Hooks{CorePipeline: breaking}}
+		m, err := d.Core("rules", oneRule)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return m.Rules[0].Name, out.String()
+	}
+	name, decisions := run(2)
+	if name != "r" {
+		t.Errorf("limit 2 left the rule %q, want r", name)
+	}
+	if want := strings.Join([]string{
+		"opt-bisect: 1 run test-debug-same [rules]",
+		"opt-bisect: 2 run test-debug-count [rules]",
+		"opt-bisect: 3 skip test-debug-break [rules]",
+		"opt-bisect: 4 skip test-debug-rename [rules]",
+	}, "\n") + "\n"; decisions != want {
+		t.Errorf("decisions:\n%s\nwant:\n%s", decisions, want)
+	}
+	if name, _ := run(4); name != "brokenx" {
+		t.Errorf("limit 4 left the rule %q, want brokenx", name)
+	}
+
+	// The search: the smallest limit whose output differs from limit 0 names the run that broke it.
+	good, _ := run(0)
+	first := -1
+	for n := 1; n <= 4; n++ {
+		if got, _ := run(n); got != good {
+			first = n
+			break
+		}
+	}
+	if _, decisions := run(first); !strings.Contains(decisions, fmt.Sprintf("opt-bisect: %d run test-debug-break [rules]\n", first)) {
+		t.Errorf("the first limit that breaks the output is %d, whose run is not test-debug-break:\n%s", first, decisions)
+	}
+
+	// The numbers go on over the stages of one driver.
+	limit := 5
+	var out strings.Builder
+	d := &Driver{OptBisectLimit: &limit, Output: &out, Hooks: Hooks{CorePipeline: breaking}}
+	for range 2 {
+		if _, err := d.Core("rules", oneRule); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if !strings.Contains(out.String(), "opt-bisect: 5 run test-debug-same [rules]\nopt-bisect: 6 skip test-debug-count [rules]\n") {
+		t.Errorf("the second stage is not numbered after the first:\n%s", out.String())
 	}
 }

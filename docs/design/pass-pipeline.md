@@ -385,10 +385,13 @@ overrides of individual flags.
 
 ### Observing the Pipeline
 
-- `-print-after` takes step names, pass names and `all`, and dumps the module after each, as described above. The
-  names of the stages (`core`, `flow`, `exec`) select nothing: the error names the step that makes the IR of the stage
-  (`elaborate`, `flowlower`, `execlower`).
-- `-print-before` takes pass names and `all`, and dumps the module that each named pass receives.
+- `-print-after` takes step names, pass names and `all`, and dumps the module after each, as described above. A name
+  selects every instance of its pass. The names of the stages (`core`, `flow`, `exec`) select nothing: the error names
+  the step that makes the IR of the stage (`elaborate`, `flowlower`, `execlower`).
+- `-print-before` takes pass names and `all`, and dumps the unit that each run of a named pass receives, as
+  `-- before <pass> [<unit>] --`, before the dump after the run if `-print-after` selects the pass too. A required step
+  is an error: its input is the dump after the step before it. A run that does not happen (the pass is off, does not
+  apply or is skipped by bisection) dumps nothing; a run that fails dumps its input, which is what to look at.
 - `-verify-each` runs the verifier after every transform, so that an error names the first pass that left the module
   invalid, and reports a pass that claims to preserve everything but changed the text form of the unit.
 - `-print-changed` dumps the unit after each transform whose text form it changed, and nothing after a transform that
@@ -414,22 +417,22 @@ overrides of individual flags.
 
 A generator that runs the pipeline more than once, to find the rules that the printed code reaches before it prints
 them again without the others, observes only the run that writes the files: its dumps, statistics and times are the
-ones reported.
+ones reported. It keeps them until that run ends and writes them also when it fails, since they show what led to the
+error, but not when it starts the run again with other settings.
 
-These settings do not change the parser that is built, so they are not part of `Optimize`. In Go they are a value of
-`Debug`, given with `WithDebug`, whose fields mirror the flags one to one: the passes to print after (`-print-after`),
-printing after a change (`-print-changed`), verification after each transform (`-verify-each`), the statistics
-(`-stats`) and the timing (`-time-passes`). The writer the output goes to has no flag: the command writes to standard
-error. The command builds its `Debug` value from its flags in one place, so a test and the command line see the same
-pipeline and the same dumps. `-print-before`, `-print-pipeline` and `-opt-bisect-limit` are not implemented yet; each
-adds its field when it lands, for eight fields that mirror flags.
+These settings do not change the parser that is built, bisection apart, so they are not part of `Optimize`. In Go they
+are a value of `Debug`, given with `WithDebug`, whose fields mirror the flags one to one: the passes to print before
+(`-print-before`) and after (`-print-after`), printing after a change (`-print-changed`), verification after each
+transform (`-verify-each`), the statistics (`-stats`), the timing (`-time-passes`) and the bisection limit
+(`-opt-bisect-limit`). The writer the output goes to has no flag: the command writes to standard error. The command
+builds its `Debug` value from its flags in one place, so a test and the command line see the same pipeline and the
+same dumps. `-print-pipeline` is not implemented yet; it adds its field when it lands, for eight fields that mirror
+flags.
 
 The text these settings write is a debugging aid. Its form, the pass names and the counter names are not stable and may
 change in any version; the flags and the fields are the interface.
 
 ### Bisecting Passes
-
-This section describes planned behavior; the flag is not implemented yet.
 
 `-opt-bisect-limit N` numbers the runs of optional passes in the order the pipeline makes them, runs those numbered up
 to N and skips the later ones. A run is one pass on one unit, so a pass that runs per function counts once for each
@@ -438,8 +441,15 @@ pass on each function in the order of the module, then the second, so the number
 the passes and, within a pass, the functions. A run of `canonicalize` on a unit takes one number like every pass, and
 each application of one of its patterns takes a number of its own, so that skipping a number skips that one application.
 Required passes always run, so the output stays a valid parser whatever N is. Each decision is reported with its number,
-the name of the pass, the unit and whether the pass ran. In Go, the limit is the bisection field of `Debug`. A
-differential test against the closure reference parser can then search for the smallest N at which the generated parser
+the name of the pass, the unit and whether the pass ran, as `opt-bisect: <number> run|skip <instance> [<unit>]`. The
+numbers run on over every stage and table of a build. In Go, the limit is `OptBisectLimit` of `Debug`, a pointer that is
+nil without a limit.
+
+A generator that runs the pipeline more than once would number the runs of each pass differently in each, since the
+first run lowers rules that the second leaves out. Under a limit it therefore generates once: the Go generator keeps
+the rules that the printed code cannot reach, and the TypeScript generator does not generate
+again without the rules that only its unprinted calls reach. The output of a bisection is a valid parser with the same
+behavior unless a skipped pass is wrong, but its files are not those of a build without a limit. A differential test against the closure reference parser can then search for the smallest N at which the generated parser
 differs from the reference, and that run names the pass, and the unit, that introduced the difference.
 
 ### Textual Pipelines

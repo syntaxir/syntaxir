@@ -1,6 +1,7 @@
 package print
 
 import (
+	"bytes"
 	"cmp"
 	"fmt"
 	"go/format"
@@ -115,7 +116,9 @@ func GenerateParser(g *ast.Grammar, c common.Compiler, p common.Passes, opts com
 	if h == nil {
 		h = &Hooks{}
 	}
-	if opts.KeepUnreachable {
+	// Under a bisection limit the runs of the optional passes are numbered in one generation, so it
+	// generates once, keeping the unreachable rules.
+	if opts.KeepUnreachable || opts.Debug.OptBisectLimit != nil {
 		return generateOnce(g, c, p, opts, h, nil, nil)
 	}
 	var lv liveRules
@@ -176,10 +179,15 @@ func generateOnce(g *ast.Grammar, c common.Compiler, p common.Passes, opts commo
 	if err := p.Validate(); err != nil {
 		return nil, err
 	}
-	// Only the pass that writes the output writes the dumps and the reports of the pipeline.
+	// Only the pass that writes the output writes the dumps and the reports of the pipeline, and only
+	// if it does not generate again (restarted): they are kept in dumped until it returns, and written
+	// also on an error, whose dumps show what led to it.
 	var dumps io.Writer
-	if collect == nil {
-		dumps = opts.Debug.Output
+	var dumped *bytes.Buffer
+	restarted := false
+	if collect == nil && opts.Debug.Output != nil {
+		dumped = &bytes.Buffer{}
+		dumps = dumped
 	}
 	info, err := loadLib(opts)
 	if err != nil {
@@ -219,10 +227,16 @@ func generateOnce(g *ast.Grammar, c common.Compiler, p common.Passes, opts commo
 		}
 	}
 	// The reports of the pipelines come after the last of them.
-	if collect == nil {
+	if dumped != nil {
 		defer func() {
+			if restarted {
+				return
+			}
 			if err == nil {
 				genGo.Runner.Report()
+			}
+			if _, werr := opts.Debug.Output.Write(dumped.Bytes()); werr != nil && err == nil {
+				files, err = nil, werr
 			}
 		}()
 	}
@@ -292,6 +306,7 @@ func generateOnce(g *ast.Grammar, c common.Compiler, p common.Passes, opts commo
 		genGo.convertsNodes = typed.needNodes
 		if opts.TypedOnly && typed.needNodes && !opts.KeepNodes && !opts.DisableKeepNodes {
 			opts.KeepNodes = true
+			restarted = true
 			return generateOnce(g, c, p, opts, h, live, collect)
 		}
 		return nil, genGo.finishReach(prog, rec)
@@ -408,6 +423,7 @@ func ParseRule(name, input string, opts ...ParseOption) (*Node, error) {
 			// A typed entry point converts the Node result of its rule, so the Node rule functions
 			// are needed; generate again with them.
 			opts.KeepNodes = true
+			restarted = true
 			return generateOnce(g, c, p, opts, h, live, collect)
 		}
 		if opts.TypedOnly {

@@ -140,6 +140,10 @@ type Debug struct {
 	// the Flow IR and the Exec IR once for each function it prints from them. "all" selects every
 	// step and pass.
 	PrintAfter []string
+	// PrintBefore lists the passes (internal/driver: PrintBeforeNames) before whose runs the IR they
+	// receive is written to Output, as PrintAfter writes it. "all" selects every pass. The required
+	// steps are not passes to print before: their input is the dump after the step before them.
+	PrintBefore []string
 	// PrintChanged writes the IR after each pass that changed its text, and, before the first such
 	// dump of a unit, the IR that the pass received, so that the first change has something to
 	// compare against. A pass that PrintAfter also selects is written once.
@@ -156,13 +160,20 @@ type Debug struct {
 	// TimePasses writes, after the build, the wall time of each pass instance that ran, required
 	// steps included, summed over the units, with its share of the time of the pipelines.
 	TimePasses bool
+	// OptBisectLimit, if set, runs only the runs of the optional passes and the applications of
+	// their patterns numbered up to the limit, in the order the pipeline makes them, and skips the
+	// later ones; the required steps always run. Each decision is written to Output with its number.
+	// The generator generates once under a limit, so that one sequence numbers every run: the Go
+	// generator keeps the unreachable rules (GenOptions.KeepUnreachable), and the TypeScript generator
+	// does not generate again without the rules that only its unprinted calls reach.
+	OptBisectLimit *int
 	// Output receives everything above. It is required when any of it is set.
 	Output io.Writer
 }
 
 // Writes reports whether d writes anything to Output.
 func (d Debug) Writes() bool {
-	return len(d.PrintAfter) > 0 || d.PrintChanged || d.Stats || d.TimePasses
+	return len(d.PrintAfter) > 0 || len(d.PrintBefore) > 0 || d.PrintChanged || d.Stats || d.TimePasses || d.OptBisectLimit != nil
 }
 
 // ValidateDefaultValue rejects typed output with default values: the types come from the actions and

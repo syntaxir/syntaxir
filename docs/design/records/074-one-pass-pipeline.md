@@ -678,7 +678,7 @@ type Options struct {
 }
 
 // Debug holds the debugging settings of the call (common.Debug): the dumps, the verification
-// after every pass, the statistics and times and, when added, the bisection limit. Every target's
+// after every pass, the statistics and times and the bisection limit. Every target's
 // output goes to its one writer, labeled with the backend.
 type Debug = common.Debug
 
@@ -767,8 +767,9 @@ replaced by its lowered fallback in the same lowering, so a table is lowered onc
 pruned rows, the driver keeps two runs instead: it executes the Go pipeline once with the feature `reach` unset, so
 every rule is printed, and takes the reach facts that `print-go` returns with its files; then it executes the same
 pipeline again with those facts as a constant `reach`, and returns the second result. No pass runs a pipeline. The
-first run has no dumping observer and reports no events. Bisection decides in the first run, which lowers every table,
-and the second run applies the decision recorded for each instance and label under the first run's number.
+first run has no dumping observer and reports no events. Under a bisection limit the driver executes only the first
+run, with the observers, and returns its output, which prints every rule, so that one execution numbers every decision;
+the generators already generate once under a limit.
 `-print-pipeline` prints the second run with `with reach` as a derived provider, whose value a reader recomputes by the
 first run.
 
