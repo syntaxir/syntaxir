@@ -12,6 +12,7 @@ func TestLimitError(t *testing.T) {
 		want string
 	}{
 		{&LimitError{Kind: LimitCompute, Limit: 10, Used: 8, Requested: 3}, "parse compute limit exceeded: limit 10, used 8, requested 3"},
+		{&LimitError{Kind: LimitCompute, Limit: 10, Used: 8, Requested: 3, Hotspot: "expr"}, "parse compute limit exceeded: limit 10, used 8, requested 3, hotspot rule expr"},
 		{&LimitError{Kind: LimitInput, Limit: 4, Requested: 9}, "parse input limit exceeded: limit 4, length 9"},
 		{&LimitError{Kind: LimitDepth, Limit: 7, Used: 7, Requested: 1}, "nesting too deep: more than 7 nested recursive rule calls"},
 		{&LimitError{Kind: LimitMemory, Limit: 100, Used: 120}, "parse memory limit exceeded: limit 100, used 120"},

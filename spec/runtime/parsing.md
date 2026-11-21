@@ -2810,6 +2810,16 @@ is one reservation of 2n units, one for copying each element and one for taking
 it off, made before any element moves, however long the list. The lists that
 the parse builds charge nothing ([Cost](#cost)).
 
+A `LimitError` of kind `LimitCompute` also has `Hotspot`, the rule that the
+[profile](observability.md) of the parse ranks first when the limit is exceeded:
+the rule with the highest `MaxEvals`, the most evaluating calls at one position
+and level, at least 2; a tie goes to the rule with more `Repeats`, then to the
+first name in order. `Hotspot` is empty when the parse has no profile, when no
+rule evaluated twice at one position and level, and on a backend that does not
+record the profile while the parse runs. The message of the error names it
+(`, hotspot rule R`). It is not the rule that the parse was evaluating when the
+check found the limit exceeded.
+
 Every backend must make the same charges, so that every backend reports the
 same `Used` and `Requested` for the same grammar, input and options; a backend
 that charges differently has a defect, not a permitted variation. The current

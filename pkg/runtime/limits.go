@@ -71,11 +71,19 @@ const (
 // Used is the depth reached (the limit) and Requested is one, the nested call that would exceed
 // it. For LimitMemory, Used is the count of bytes at the check that failed and Requested is zero,
 // since memory is checked at polls rather than reserved.
+//
+// For LimitCompute, Hotspot is the rule that the Profile of the parse ranks first when the limit is
+// exceeded (Profile.Hotspot: the most evaluations at one position and level, a tie going to the
+// rule with more repeated evaluations, then to the first name). It is empty without a Profile, when
+// no rule evaluated twice at a position, and for a backend that does not record the profile
+// during the parse. A parse without a Profile does not name one: run it again with WithProfile to
+// find the hotspot.
 type LimitError struct {
 	Kind      LimitKind
 	Limit     uint64
 	Used      uint64
 	Requested uint64
+	Hotspot   string
 }
 
 func (e *LimitError) Error() string {
@@ -89,6 +97,9 @@ func (e *LimitError) Error() string {
 		return fmt.Sprintf("nesting too deep: more than %d nested recursive rule calls", e.Limit)
 	case LimitMemory:
 		return fmt.Sprintf("parse memory limit exceeded: limit %d, used %d", e.Limit, e.Used)
+	}
+	if e.Hotspot != "" {
+		return fmt.Sprintf("parse compute limit exceeded: limit %d, used %d, requested %d, hotspot rule %s", e.Limit, e.Used, e.Requested, e.Hotspot)
 	}
 	return fmt.Sprintf("parse compute limit exceeded: limit %d, used %d, requested %d", e.Limit, e.Used, e.Requested)
 }

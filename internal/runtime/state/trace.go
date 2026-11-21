@@ -187,6 +187,15 @@ func (p *Parser) SetTrace(fn func(TraceEvent), profiles []*instrument.Profile) {
 	p.NoPlain = true
 }
 
+// Hotspot returns the hotspot of the first profile that records the parse (instrument.Profile.Hotspot),
+// as of the events recorded so far, or the empty string when no profile records it.
+func (p *Parser) Hotspot() string {
+	if t := p.Tr; t != nil && len(t.profiles) > 0 {
+		return t.profiles[0].Hotspot()
+	}
+	return ""
+}
+
 // SelectTrace limits the events that the trace function given to SetTrace receives to those that s
 // selects (all if s is nil). It is apart from SetTrace so that SetTrace stays small enough to
 // inline into the parse entry points.

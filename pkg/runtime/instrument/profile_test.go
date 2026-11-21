@@ -388,3 +388,31 @@ func TestProfileSnapshotJSON(t *testing.T) {
 }
 
 var update = flag.Bool("update", false, "rewrite the golden files")
+
+func TestProfileHotspot(t *testing.T) {
+	if (*Profile)(nil).Hotspot() != "" || (*ProfileRecorder)(nil).Hotspot() != "" {
+		t.Error("a nil profile or recorder names a hotspot")
+	}
+	pr := &Profile{}
+	if got := pr.Hotspot(); got != "" {
+		t.Errorf("empty profile: %q", got)
+	}
+	rows := []RuleProfile{
+		{Rule: "once", MaxEvals: 1, Repeats: 0},
+		{Rule: "b", MaxEvals: 3, Repeats: 5},
+		{Rule: "a", MaxEvals: 3, Repeats: 5},
+		{Rule: "c", MaxEvals: 3, Repeats: 2},
+		{Rule: "low", MaxEvals: 2, Repeats: 100},
+	}
+	for _, r := range rows {
+		r := r
+		pr.rows = append(pr.rows, &r)
+	}
+	if got := pr.Hotspot(); got != "a" {
+		t.Errorf("ties go to more repeats, then the smaller name: %q", got)
+	}
+	pr = &Profile{rows: []*RuleProfile{{Rule: "once", MaxEvals: 1}}}
+	if got := pr.Hotspot(); got != "" {
+		t.Errorf("a rule evaluated once at each position is no hotspot: %q", got)
+	}
+}

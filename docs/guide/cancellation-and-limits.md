@@ -70,6 +70,11 @@ depend on how your reader splits the input. A `Document` resolves the
 default from the text at each `Parse`. Generated Go and TypeScript parsers apply the default when they are generated
 with `-limits`; a parser generated without it spends no budget and accepts only a zero or `Unlimited` `Compute`.
 
+To find the rule that makes a parse expensive, run it again with a profile (`runtime.WithProfile`, or `sxir profile`).
+When a parse with a profile exceeds its `Compute` limit, `LimitError.Hotspot` names the rule that the profile ranks
+first: the one with the most evaluations at a single position and level, and the error message names it. A parse
+without a profile leaves `Hotspot` empty.
+
 ## Bounding the Input Length
 
 `Limits.Input` bounds the length of the input in the position unit. Its default is `runtime.Unlimited`: the default

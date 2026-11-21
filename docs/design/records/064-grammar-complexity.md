@@ -303,8 +303,8 @@ per-call or per-iteration charge alone lets E4 cost 2^n while charging n.
 The automatic budget is opt-in: a parse option sets the budget to c · (n + 1) + k for the input length n. The default
 c is c_G of a `Linear` start rule, times a safety factor. For other verdicts the caller must give c explicitly. Without
 the option, parses stay unbounded, as today. Exhausting the automatic budget returns the ordinary budget limit error. When
-profiling is active, the error names the rule with the most repeated evaluations at one position, as `Profile` reports
-them (`MaxEvals` of its rule rows, in package `core`).
+the parse has a profile, the error names its hotspot, the rule with the most repeated evaluations at one position
+(`MaxEvals` of the rule rows of `Profile`), as [record 078](078-limit-error-hotspot.md) specifies.
 
 ### Specification
 

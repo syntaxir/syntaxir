@@ -285,12 +285,21 @@ func (c *BudgetControl) chargeSlow(n uint64, poll, exceeded bool) {
 	if exceeded {
 		panic(Fatal{Err: &runtime.LimitError{
 			Kind: runtime.LimitCompute, Limit: c.Limits.Compute - c.Doc,
-			Used: c.Used - c.Doc, Requested: n,
+			Used: c.Used - c.Doc, Requested: n, Hotspot: c.hotspot(),
 		}})
 	}
 	// Not exceeded, so the reservation reached a poll boundary.
 	c.Used = limits.SaturatingAdd(c.Used, n)
 	c.SinceCheck = 0
+}
+
+// hotspot returns the hotspot of the profile that records the parse the control belongs to, or the
+// empty string without one (Parser.Hotspot). It runs only when a limit is exceeded.
+func (c *BudgetControl) hotspot() string {
+	if c.memP == nil {
+		return ""
+	}
+	return c.memP.Hotspot()
 }
 
 // InputUnits returns the length of s in units of the position unit. Below the size at which the

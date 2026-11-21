@@ -136,6 +136,42 @@ func (pr *Profile) Snapshot() ProfileSnapshot {
 	return s
 }
 
+// Hotspot returns the rule that the profile ranks first by repeated evaluations: the rule with the
+// highest MaxEvals, the most evaluating calls at one position and level, with at least one
+// repeated evaluation (MaxEvals above 1). A tie goes to the rule with the higher Repeats, and then
+// to the first rule in name order. It returns the empty string if no rule evaluated twice at one
+// position and level, and for a nil profile.
+func (pr *Profile) Hotspot() string {
+	if pr == nil {
+		return ""
+	}
+	var best *RuleProfile
+	for _, r := range pr.rows {
+		if r.MaxEvals < 2 {
+			continue
+		}
+		switch {
+		case best == nil, r.MaxEvals > best.MaxEvals,
+			r.MaxEvals == best.MaxEvals && r.Repeats > best.Repeats,
+			r.MaxEvals == best.MaxEvals && r.Repeats == best.Repeats && r.Rule < best.Rule:
+			best = r
+		}
+	}
+	if best == nil {
+		return ""
+	}
+	return best.Rule
+}
+
+// Hotspot returns the Hotspot of the profile that the recorder adds to, as of the events recorded
+// so far. It is the empty string for a nil recorder.
+func (r *ProfileRecorder) Hotspot() string {
+	if r == nil {
+		return ""
+	}
+	return r.pr.Hotspot()
+}
+
 // row returns the index of the row of the rule name, adding it if needed.
 func (pr *Profile) row(name string) int {
 	if i, ok := pr.index[name]; ok {
