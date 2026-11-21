@@ -181,24 +181,30 @@ func render(root string, data []byte) ([]byte, error) { return renderAll(root, d
 // renderAll renders the document from the Go benchmark results and, when they are not nil, the
 // TypeScript results (see tsLines) and the generated sizes (see sizeLines).
 func renderAll(root string, data, tsData, sizeData []byte) ([]byte, error) {
+	doc, _, err := renderDoc(root, data, tsData, sizeData)
+	return doc, err
+}
+
+// renderDoc renders the document and computes the figures that other documents quote.
+func renderDoc(root string, data, tsData, sizeData []byte) ([]byte, map[string]string, error) {
 	r, err := parseResults(data)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if tsData != nil {
 		ts, err := parseBenchLines(tsData, false)
 		if err != nil {
-			return nil, fmt.Errorf("TypeScript results: %w", err)
+			return nil, nil, fmt.Errorf("TypeScript results: %w", err)
 		}
 		for k, v := range ts.meta {
 			r.meta["ts."+k] = v
 		}
 		for _, name := range ts.order {
 			if !strings.HasPrefix(name, "TS/") {
-				return nil, fmt.Errorf("TypeScript results: benchmark %q does not start with TS/", name)
+				return nil, nil, fmt.Errorf("TypeScript results: benchmark %q does not start with TS/", name)
 			}
 			if _, dup := r.bench[name]; dup {
-				return nil, fmt.Errorf("TypeScript results: duplicate benchmark %q", name)
+				return nil, nil, fmt.Errorf("TypeScript results: duplicate benchmark %q", name)
 			}
 			r.bench[name] = ts.bench[name]
 			r.order = append(r.order, name)
@@ -207,7 +213,7 @@ func renderAll(root string, data, tsData, sizeData []byte) ([]byte, error) {
 	var sizes map[string]map[string]float64
 	if sizeData != nil {
 		if sizes, err = parseSizes(sizeData, r.meta); err != nil {
-			return nil, fmt.Errorf("size results: %w", err)
+			return nil, nil, fmt.Errorf("size results: %w", err)
 		}
 	}
 	var missing []string
@@ -228,7 +234,12 @@ func renderAll(root string, data, tsData, sizeData []byte) ([]byte, error) {
 		}
 		return ra.ns / rb.ns
 	}
+	figureRows, figureByName := figureValues(get, tsData != nil)
 	funcs := template.FuncMap{
+		// workloads and directWorkloads list the parsing workloads; figures are the rows of the table of figures.
+		"workloads":       func() []string { return allWorkloads },
+		"directWorkloads": func() []string { return directWorkloads },
+		"figures":         func() []figureRow { return figureRows },
 		"meta": func(k string) string {
 			if v, ok := r.meta[k]; ok {
 				return v
@@ -364,15 +375,15 @@ func renderAll(root string, data, tsData, sizeData []byte) ([]byte, error) {
 	}
 	tmpl, err := template.New("benchmarks.md").Funcs(funcs).Parse(docTemplate)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var out bytes.Buffer
 	if err := tmpl.Execute(&out, nil); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if len(missing) > 0 {
 		slices.Sort(missing)
-		return nil, fmt.Errorf("the results lack %s", strings.Join(slices.Compact(missing), ", "))
+		return nil, nil, fmt.Errorf("the results lack %s", strings.Join(slices.Compact(missing), ", "))
 	}
 	// The Go results and the TypeScript results are separate runs; each must be complete.
 	wantRuns := map[bool]int{}
@@ -384,10 +395,10 @@ func renderAll(root string, data, tsData, sizeData []byte) ([]byte, error) {
 	}
 	for name := range used {
 		if b := r.bench[name]; b != nil && b.runs != wantRuns[strings.HasPrefix(name, "TS/")] {
-			return nil, fmt.Errorf("benchmark %s has %d runs, want %d to match the complete saved run", name, b.runs, wantRuns[strings.HasPrefix(name, "TS/")])
+			return nil, nil, fmt.Errorf("benchmark %s has %d runs, want %d to match the complete saved run", name, b.runs, wantRuns[strings.HasPrefix(name, "TS/")])
 		}
 	}
-	return out.Bytes(), nil
+	return out.Bytes(), figureByName, nil
 }
 
 // stdPackage names the standard-library parser of a benchmark.

@@ -18,6 +18,11 @@
 // The document is rendered from the files and the template benchmarks.md.tmpl; it holds results only
 // (their analysis is in docs/performance.md), and every figure in it is computed from the results.
 // TestDocumentIsUpToDate checks that it matches them.
+//
+// The ranges and ratios that README.md and the Markdown files of docs/ quote from the results are
+// figures (figures.go): each quoting place marks the text with <!-- fig:NAME --> and <!-- /fig -->,
+// the document lists the value of every figure, and the tool rewrites the marked texts, so that a
+// new run leaves no stale number behind. TestFiguresAreUpToDate checks that they match.
 package main
 
 import (
@@ -109,7 +114,7 @@ func run(in, dir, docPath, capture string, count int, node string) error {
 	if err != nil {
 		return err
 	}
-	doc, err := renderAll(root, data, tsData, sizeData)
+	doc, figures, err := renderDoc(root, data, tsData, sizeData)
 	if err != nil {
 		return err
 	}
@@ -121,6 +126,16 @@ func run(in, dir, docPath, capture string, count int, node string) error {
 		return err
 	}
 	fmt.Println("wrote", out)
+	if docPath != "" {
+		return nil // a preview elsewhere leaves the documents of the repository as they are
+	}
+	stale, err := applyFigures(root, figures, true)
+	if err != nil {
+		return err
+	}
+	for _, path := range stale {
+		fmt.Println("updated the figures in", path)
+	}
 	return nil
 }
 

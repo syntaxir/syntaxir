@@ -414,7 +414,7 @@ Three ways to get a grammar into a Go program:
 |:--|:--|:--|:--|
 | What the program holds | The `.sxir` text | A binary file, embedded or read | Go source, compiled in |
 | Start-up | Compiles: tens of microseconds to tens of milliseconds, by size | Loads: a fraction of that (see above) | None |
-| Parsing speed | Bytecode VM | Bytecode VM | Generated Go takes 0.44–0.61× closure time in CodePoints and 0.50–0.66× in Bytes across current workloads ([benchmarks](../benchmarks.md)) |
+| Parsing speed | Bytecode VM | Bytecode VM | Generated Go takes <!-- fig:generated-vs-closure-codepoints -->0.44–0.61×<!-- /fig --> closure time in CodePoints and <!-- fig:generated-vs-closure-bytes -->0.50–0.66×<!-- /fig --> in Bytes across current workloads ([benchmarks](../benchmarks.md)) |
 | Depends on SyntaxIR at run time | Yes | Yes (the runtime and `vm.LoadParser`) | Only the packages under `pkg/runtime` (result and error types), not the compiler |
 | Change the grammar without rebuilding the program | Yes (read the file) | Yes (read the file) | No |
 | Streaming, incremental parsing, backend choice, recognition mode | Yes | Yes, on the bytecode backends, each in the mode that serves it | No |

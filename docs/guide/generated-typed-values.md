@@ -122,10 +122,10 @@ stars text 42
   `SyntaxErrors` anyway).
 - **Speed.** When every value has a Go type of its own and actions read the fields of struct values that have no
   plain form (a node, a named node type, a join, an `any` or a record) only to copy them, the generated parser builds
-  the values directly, without the nodes `Parse` makes: on the benchmarks `ParseValue` then takes 0.7 to 1.0 times the time of `Parse` and 0.3 to 0.4 times
-  the memory (JSON 5.7 → 3.9 ms and 9.1 → 2.6 MB; XML, CSV, the left-recursive calculator and the
+  the values directly, without the nodes `Parse` makes: on the benchmarks `ParseValue` then takes <!-- fig:typed-vs-parse-time -->0.69–0.98×<!-- /fig --> the time of `Parse` and <!-- fig:typed-vs-parse-memory -->0.27–0.41×<!-- /fig -->
+  the memory (JSON <!-- fig:json-typed-time -->5.7 → 3.9 ms<!-- /fig --> and <!-- fig:json-typed-memory -->9.1 → 2.6 MB<!-- /fig -->; XML, CSV, the left-recursive calculator and the
   outline grammar alike; the Operators Rule calculator is about as fast). Otherwise
-  `ParseValue` runs `Parse` and converts the tree, which takes about 0.95 times the time of `Parse` and 0.3 times the
+  `ParseValue` runs `Parse` and converts the tree, which takes <!-- fig:converted-vs-parse-time -->0.95×<!-- /fig --> the time of `Parse` and <!-- fig:converted-vs-parse-memory -->0.28–0.30×<!-- /fig --> the
   memory (minilang and the recovery grammar). The figures are those of the
   [benchmark results](../benchmarks.md#typed-values-parsevalue-of-sxir-gen--types). The
   [design record](../design/records/012-typed-values.md) explains both. The types, their conversions and the typed rules add about

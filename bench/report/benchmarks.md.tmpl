@@ -1,6 +1,6 @@
-{{- $all := list "JSON" "CSV" "XML" "Arith_OperatorsRule" "Arith_LeftRec" "Minilang" "Recovery" "Outline" -}}
+{{- $all := workloads -}}
 {{- /* Workloads whose ParseValue builds the values directly; the others convert the tree of Parse. */ -}}
-{{- $typedDirect := list "JSON" "CSV" "XML" "Arith_OperatorsRule" "Arith_LeftRec" "Outline" -}}
+{{- $typedDirect := directWorkloads -}}
 {{- $std := list "JSON:encoding_json" "CSV:encoding_csv" "XML:encoding_xml" "Arith_OperatorsRule:go_parser" "Arith_LeftRec:go_parser" -}}
 {{- $backends := list "closure" "bytecode" "iterative" -}}
 # Benchmark Results
@@ -181,6 +181,18 @@ weighs {{sizeOf "runtime" "ts-lib-raw"}}, {{sizeOf "runtime" "ts-lib-gzip"}} gzi
 {{- end}}
 
 {{end -}}
+## Figures Quoted Elsewhere
+
+The guides quote ranges and ratios from these results. Each is computed here from the benchmarks above, over the workloads
+that its description names, and `go run ./bench/report` writes it into the places that mark it. A table row is the value
+that the guides carry.
+
+| Figure | What it is | Value |
+|:--|:--|--:|
+{{- range figures}}
+| `{{.Name}}` | {{.Meaning}} | {{.Value}} |
+{{- end}}
+
 ## All Results
 
 Every benchmark of the run, by its name under `bench/` (median of the runs; the throughput is in MB/s of input).

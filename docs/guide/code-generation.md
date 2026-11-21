@@ -23,7 +23,7 @@ TypeScript modules with the same behavior instead; it has a guide of its own, [T
 
 | | Compiled parser (`compiler.Compile`) | Generated parser |
 |:--|:--|:--|
-| Speed | Bytecode VM by default | Generated Go takes 0.44–0.61× closure time in CodePoints and 0.50–0.66× in Bytes; direct typed values take 0.69–0.98× generated `Parse` time ([benchmarks](../benchmarks.md), [analysis](../performance.md#where-syntaxir-stands)) |
+| Speed | Bytecode VM by default | Generated Go takes <!-- fig:generated-vs-closure-codepoints -->0.44–0.61×<!-- /fig --> closure time in CodePoints and <!-- fig:generated-vs-closure-bytes -->0.50–0.66×<!-- /fig --> in Bytes; direct typed values take <!-- fig:typed-vs-parse-time -->0.69–0.98×<!-- /fig --> generated `Parse` time ([benchmarks](../benchmarks.md), [analysis](../performance.md#where-syntaxir-stands)) |
 | Dependencies | `syntaxir.dev/sxir` | `syntaxir.dev/sxir/pkg/runtime` and its subpackages only (the library is copied into the package; `-lib import` imports it from `syntaxir.dev/sxir/pkg/runtime/libgo` instead) |
 | Grammar at run time | Loaded and compiled (or loaded from `.sxirc`) | Gone: it is compiled into Go code |
 | Grammar changes | Edit the grammar, restart | Regenerate and rebuild |
@@ -515,8 +515,8 @@ and inputs that exercise each feature of your grammar.
 
 ## Trade-Offs
 
-- **Speed.** In the current [benchmark results](../benchmarks.md), generated Go takes 0.44–0.61× closure time in
-  CodePoints and 0.50–0.66× in Bytes across eight workloads. Direct `ParseValue` values take 0.69–0.98× generated
+- **Speed.** In the current [benchmark results](../benchmarks.md), generated Go takes <!-- fig:generated-vs-closure-codepoints -->0.44–0.61×<!-- /fig --> closure time in
+  CodePoints and <!-- fig:generated-vs-closure-bytes -->0.50–0.66×<!-- /fig --> in Bytes across eight workloads. Direct `ParseValue` values take <!-- fig:typed-vs-parse-time -->0.69–0.98×<!-- /fig --> generated
   `Parse` time; conversion workloads that include generic nodes can take longer. Standard-library comparisons produce
   different outputs and remain faster where they apply. These measurements are from one machine and commit; run
   `go run ./bench/report` to measure yours.

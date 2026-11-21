@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -225,5 +226,108 @@ func TestFormats(t *testing.T) {
 		if c.got != c.want {
 			t.Errorf("got %q, want %q", c.got, c.want)
 		}
+	}
+}
+
+// loadFigures renders the saved results and returns the values of their figures.
+func loadFigures(t *testing.T) map[string]string {
+	t.Helper()
+	data, tsData, sizeData, err := loadResults(filepath.Join(root, "bench", "results.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, figures, err := renderDoc(root, data, tsData, sizeData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return figures
+}
+
+// TestFiguresAreUpToDate checks that every figure that README.md and the Markdown files of docs/
+// quote is what the saved results give: the figures are generated, not edited by hand.
+func TestFiguresAreUpToDate(t *testing.T) {
+	stale, err := applyFigures(root, loadFigures(t), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stale) > 0 {
+		t.Errorf("figures are out of date in %s: run go run ./bench/report -in bench/results.txt", strings.Join(stale, ", "))
+	}
+}
+
+// TestFiguresFollowResults checks that a figure changes with the results it is computed from, and
+// that the documents that quote it are then reported stale: the negative control of
+// TestFiguresAreUpToDate. It slows the closure parse of JSON down tenfold in the saved results.
+func TestFiguresFollowResults(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join(root, "bench", "results.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var slowed []string
+	for _, l := range strings.Split(string(data), "\n") {
+		if f := strings.Fields(l); len(f) > 3 && strings.HasPrefix(f[0], "BenchmarkParse/JSON/closure/codepoints") {
+			var ns float64
+			if _, err := fmt.Sscan(f[2], &ns); err != nil {
+				t.Fatal(err)
+			}
+			f[2] = fmt.Sprint(ns * 10)
+			l = strings.Join(f, " ")
+		}
+		slowed = append(slowed, l)
+	}
+	_, tsData, sizeData, err := loadResults(filepath.Join(root, "bench", "results.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, got, err := renderDoc(root, []byte(strings.Join(slowed, "\n")), tsData, sizeData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got["generated-vs-closure-codepoints"] == loadFigures(t)["generated-vs-closure-codepoints"] {
+		t.Errorf("generated-vs-closure-codepoints did not change when the closure time of JSON did: %s", got["generated-vs-closure-codepoints"])
+	}
+	stale, err := applyFigures(root, got, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stale) == 0 {
+		t.Error("no document is reported stale for changed results")
+	}
+}
+
+// TestApplyFigures checks the rewrite of the markers in a scratch tree: a stale text is replaced
+// and reported, an up-to-date one is left alone, the text around the marker is kept, and a marker
+// that names no figure is an error that names it.
+func TestApplyFigures(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "docs", "guide"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	put := func(rel, text string) {
+		if err := os.WriteFile(filepath.Join(dir, rel), []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	put("README.md", "It takes <!-- fig:a -->1.00×<!-- /fig --> and <!-- fig:b -->old<!-- /fig --> time.\n")
+	put("docs/guide/g.md", "Same <!-- fig:a -->1.00×<!-- /fig -->.\n")
+	put("docs/benchmarks.md", "<!-- fig:missing -->x<!-- /fig -->\n")
+	values := map[string]string{"a": "1.00×", "b": "0.5–0.7×"}
+	stale, err := applyFigures(dir, values, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stale) != 1 || stale[0] != "README.md" {
+		t.Errorf("stale = %v, want [README.md]", stale)
+	}
+	got, _ := os.ReadFile(filepath.Join(dir, "README.md"))
+	if want := "It takes <!-- fig:a -->1.00×<!-- /fig --> and <!-- fig:b -->0.5–0.7×<!-- /fig --> time.\n"; string(got) != want {
+		t.Errorf("README.md = %q, want %q", got, want)
+	}
+	if stale, err = applyFigures(dir, values, false); err != nil || len(stale) != 0 {
+		t.Errorf("second pass: stale %v, err %v", stale, err)
+	}
+	put("docs/guide/g.md", "Unknown <!-- fig:nope -->1<!-- /fig -->.\n")
+	if _, err = applyFigures(dir, values, false); err == nil || !strings.Contains(err.Error(), "nope") {
+		t.Errorf("unknown figure: err = %v, want one naming nope", err)
 	}
 }

@@ -201,6 +201,33 @@ weighs 277 KB, 72.2 KB gzipped); both are given raw and compressed with `gzip -9
 | typescript | 1.09 MB | 5.02 MB | 400 KB | 4.87 MB | 1.48 MB | 141 KB | 236 KB | 61.7 KB |
 | duckdb | 1.85 MB | 6.36 MB | 400 KB | 6.14 MB | 2.54 MB | 191 KB | 237 KB | 62.0 KB |
 
+## Figures Quoted Elsewhere
+
+The guides quote ranges and ratios from these results. Each is computed here from the benchmarks above, over the workloads
+that its description names, and `go run ./bench/report` writes it into the places that mark it. A table row is the value
+that the guides carry.
+
+| Figure | What it is | Value |
+|:--|:--|--:|
+| `generated-vs-closure-codepoints` | Generated Go `Parse` time over closure time, in code points, across the eight workloads | 0.44–0.61× |
+| `generated-vs-closure-bytes` | The same in bytes | 0.50–0.66× |
+| `bytecode-vs-closure` | Recursive bytecode VM parse time over closure time, both position units together | 1.13–1.35× |
+| `iterative-vs-closure` | Iterative bytecode VM parse time over closure time, both position units together | 1.33–1.76× |
+| `typed-vs-parse-time` | `ParseValue` time over generated `Parse` time, the workloads whose values are built directly | 0.69–0.98× |
+| `typed-vs-parse-memory` | `ParseValue` bytes allocated over `Parse` bytes allocated, the workloads whose values are built directly | 0.27–0.41× |
+| `converted-vs-parse-time` | `ParseValue` time over `Parse` time, the workloads that convert the tree | 0.95× |
+| `converted-vs-parse-memory` | `ParseValue` bytes allocated over `Parse` bytes allocated, the workloads that convert the tree | 0.28–0.30× |
+| `json-typed-time` | JSON, generated Go `Parse` time then `ParseValue` time | 5.7 → 3.9 ms |
+| `json-typed-memory` | JSON, generated Go `Parse` bytes allocated then `ParseValue` bytes allocated | 9.1 → 2.6 MB |
+| `recognize-speedup-closure` | Closure `Parse` time over closure `Recognize` time | 1.3–1.6× |
+| `recognize-vs-parse-generated` | Generated Go `Recognize` time over generated `Parse` time, in code points | 0.43–0.70× |
+| `json-recognize-time` | JSON, generated Go `Parse` time then `Recognize` time | 5.7 → 2.5 ms |
+| `csv-recognize-time` | CSV, generated Go `Parse` time then `Recognize` time | 2.8 → 1.2 ms |
+| `operators-closure-time` | Arith_OperatorsRule, closure `Parse` time in code points | 12.3 ms |
+| `leftrec-closure-time` | Arith_LeftRec, closure `Parse` time in code points | 28.2 ms |
+| `leftrec-over-operators` | Arith_LeftRec closure time over Arith_OperatorsRule closure time | 2.3 |
+| `typescript-json-parse-time` | JSON, generated TypeScript `parse` time under Node, code points | 24 ms |
+
 ## All Results
 
 Every benchmark of the run, by its name under `bench/` (median of the runs; the throughput is in MB/s of input).

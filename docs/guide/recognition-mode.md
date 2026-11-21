@@ -18,7 +18,7 @@ rule ws = [ \t\n]*
 ```
 
 With it, `Recognize` returns only an error, the same syntax errors as a full parse, and builds no node. It is faster and allocates less: the
-benchmarks measure recognition at 1.3–1.6× faster than a full parse on the closure backend.
+benchmarks measure recognition at <!-- fig:recognize-speedup-closure -->1.3–1.6×<!-- /fig --> faster than a full parse on the closure backend.
 
 ```go
 err := p.Recognize("abc=12")

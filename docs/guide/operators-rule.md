@@ -688,11 +688,11 @@ and the operators are not.
 | Whitespace | `skip`, hidden from error messages | By hand in every rule | By hand in every rule |
 | Tree depth without actions | Proportional to the expression | One node per level for every operand | One node per level for every operand |
 | Rules callable for a sub-level | `level(expr, level)` | Each level is a rule | Each level is a rule |
-| Speed (20,000-term expression) | 12.3 ms | 28.2 ms | not in the benchmarks |
+| Speed (20,000-term expression) | <!-- fig:operators-closure-time -->12.3 ms<!-- /fig --> | <!-- fig:leftrec-closure-time -->28.2 ms<!-- /fig --> | not in the benchmarks |
 | Needs left recursion support | No | Yes | No |
 
 The speed row is from [benchmarks.md](../benchmarks.md) (closure backend, 133 KB input): the Operators Rule calculator is about
-2.3 times as fast as the left-recursive one, as you would expect from a loop that does not make one rule call per level
+<!-- fig:leftrec-over-operators -->2.3<!-- /fig --> times as fast as the left-recursive one, as you would expect from a loop that does not make one rule call per level
 for every operand and does not grow seeds.
 
 A rule of thumb:

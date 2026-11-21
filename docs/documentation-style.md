@@ -174,6 +174,11 @@ Every example is run, and its output is pasted from that run. An example that a 
 - State the unit of every position that is shown, or write it as `line:column`. Write ranges as `[start, end)`.
 - Machine-dependent numbers (times, sizes of memory) say on what they were measured, and a page says that they differ
   between machines.
+- A number that a guide takes from the benchmark results (a range of ratios, a time) is not typed in. Mark it
+  `<!-- fig:NAME -->0.44–0.61×<!-- /fig -->` with a figure `NAME` of [benchmarks.md](benchmarks.md#figures-quoted-elsewhere):
+  `go run ./bench/report` rewrites the marked text from the results, and a test of `bench/report` fails when it
+  differs. A figure that the catalog lacks is added to `bench/report/figures.go`. A number from a measurement that
+  the page itself describes (the output of a program that the page shows) stays in the page.
 
 ## Before Committing a Page
 

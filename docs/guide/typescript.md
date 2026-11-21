@@ -605,8 +605,8 @@ in strict TypeScript builds.
   grammar; the copy written next to a parser keeps only the code that the parser can run.
   [Generated Parser Size](../benchmarks.md#generated-parser-size) lists both for the grammars of the repository.
   Minified and compressed by a bundler, they are a fraction of that.
-- **Speed.** On Node.js 24 (Apple M-series), the JSON grammar parses a 260 KB document in about 18 ms in code points
-  and 25 ms in bytes, once the code is warm. That is fine for editors and tools, but no match for `JSON.parse`: use a
+- **Speed.** On Node.js 24 (Apple M-series), the JSON grammar parses a 262 KB document in about <!-- fig:typescript-json-parse-time -->24 ms<!-- /fig --> in code points,
+  once the code is warm. That is fine for editors and tools, but no match for `JSON.parse`: use a
   generated parser for formats that have no native parser.
 - **Stack.** Deep nesting needs a bigger stack than JavaScript gives by default (see
   [above](#deep-nesting-and-the-javascript-stack)).

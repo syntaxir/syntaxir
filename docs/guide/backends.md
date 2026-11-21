@@ -51,13 +51,13 @@ grammar and input.
 | You want | Choose | Why |
 |:--|:--|:--|
 | The best default for a Go program that loads a grammar at start-up | Bytecode (the default) | It is what `compiler.Compile` returns and what a `.sxirc` file loads into; it needs no grammar AST at run time. |
-| The fastest parsing, with a fixed grammar | [Generated Go](code-generation.md) | Current benchmarks show it at 0.44–0.61× closure time in CodePoints and 0.50–0.66× in Bytes; direct typed values are 0.69–0.98× generated `Parse`. |
+| The fastest parsing, with a fixed grammar | [Generated Go](code-generation.md) | Current benchmarks show it at <!-- fig:generated-vs-closure-codepoints -->0.44–0.61×<!-- /fig --> closure time in CodePoints and <!-- fig:generated-vs-closure-bytes -->0.50–0.66×<!-- /fig --> in Bytes; direct typed values are <!-- fig:typed-vs-parse-time -->0.69–0.98×<!-- /fig --> generated `Parse`. |
 | Input that can nest very deeply (untrusted JSON-like data, generated code) | Bytecode (iterative) | Recursive rule calls live on the VM's own stack, not the Go stack. |
 | A grammar distributed as a data file, not source | Bytecode, from a `.sxirc` | See the [compiled grammars guide](compiled-grammars.md). |
 | Checking validity only | Any backend with [`Recognize`](recognition-mode.md) | No tree is built. |
 
-Across both units, the recursive bytecode VM is 1.13–1.35× slower than the reference parser in the benchmarks and the
-iterative VM 1.33–1.76× slower; you pay that for portability (the same bytecode is specified for other runtimes in
+Across both units, the recursive bytecode VM takes <!-- fig:bytecode-vs-closure -->1.13–1.35×<!-- /fig --> the time of the reference parser in the benchmarks and the
+iterative VM <!-- fig:iterative-vs-closure -->1.33–1.76×<!-- /fig -->; you pay that for portability (the same bytecode is specified for other runtimes in
 [bytecode.md](../../spec/bytecode/README.md)) and, for the iterative VM, for the independence from the Go stack. The
 reference parser keeps the grammar AST and closures for each rule, and it is the parser that inserts missing tokens
 (`runtime.WithMissingTokens`).

@@ -88,7 +88,7 @@ preserves the earlier result, the paired ranges, and the measurement limits.
 ## How to Measure
 
 The benchmarks are in `bench/`. `go run ./bench/report` runs all of them, measures the generated TypeScript parsers under Node and the sizes of the
-generated parsers (about 20 minutes), and regenerates [benchmarks.md](benchmarks.md); see [the benchmark workloads](#benchmark-workloads) for what they measure.
+generated parsers (about 20 minutes), and regenerates [benchmarks.md](benchmarks.md) and the figures that the guides quote from it; see [the benchmark workloads](#benchmark-workloads) for what they measure.
 
 ```bash
 # Full benchmark suite (all backends, both position units, stdlib counterparts), and the results document
