@@ -138,6 +138,21 @@ rule expr = #operators {
     }
 }
 `, inputs: []string{"1+2+-3", "1+", "-"}},
+	{name: "typedops", src: `type Number = node[string]
+type Binary = { Left Expr; Op node[string]; Right Expr }
+type Expr ~ Number | Binary
+@start
+rule main Expr = e:expr ws $$ => $e
+rule expr Expr = #operators {
+    skip ws
+    operand number
+    operand "(" e:expr ws ")" => $e
+    level { infix left "+" => Binary{Left: $lhs, Op: $op, Right: $rhs} }
+}
+rule number Number = [0-9]+ #atomic
+rule ws = [ ]*
+`, opts: common.GenOptions{Types: true}, inputs: []string{"1+(2+3)", "(1", "1+", "((4))"},
+		entries: []string{flowConformParse, "_, err = ParseValue(in, opts...)"}},
 	{name: "leftrec", src: `@start
 rule main = sum $$
 rule sum = sum "+" n:[0-9] ps:(a:[a-z] b:[0-9])* / [0-9]
