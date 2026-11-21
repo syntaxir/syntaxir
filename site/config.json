@@ -387,7 +387,8 @@
             "spec/runtime/lint.md",
             "spec/runtime/test-formats.md",
             "spec/runtime/sampling.md",
-            "spec/runtime/edit-fuzzing.md"
+            "spec/runtime/edit-fuzzing.md",
+            "spec/runtime/go-packages.md"
           ],
           "first": [
             "spec/runtime/observability.md",
@@ -397,7 +398,8 @@
             "spec/runtime/lint.md",
             "spec/runtime/test-formats.md",
             "spec/runtime/sampling.md",
-            "spec/runtime/edit-fuzzing.md"
+            "spec/runtime/edit-fuzzing.md",
+            "spec/runtime/go-packages.md"
           ]
         }
       ]

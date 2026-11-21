@@ -62,6 +62,7 @@ definition and the place where the term is defined.
 | predicate | A Rule Expression `{ expr }` that evaluates a Predicate Action without consuming input; a single expression retains the established predicate semantics. See [Predicates and Variables](language/predicates.md). |
 | Predicate Action | `{ expr }`: an action in a Rule Expression that evaluates without consuming input or producing a value, and fails if the result is false or an error. See [Predicates and Variables](language/predicates.md#predicate-actions). |
 | prefix parse | A parse that matches the start rule at the beginning of the input and reports how much it consumed, instead of requiring the whole input. See [Prefix Parsing](runtime/parsing.md#prefix-parsing). |
+| public package | A Go package under `syntaxir.dev/sxir/pkg`; together they are the Go API. See [Go Packages](runtime/go-packages.md). |
 | range | The pair of positions `[start, end)` that a node covers. See [Nodes and Values](runtime/nodes.md#node-model). |
 | recognition | Recognition decides whether the input matches the grammar without building a tree. It returns the same success, failure and syntax errors as a parse, recovered errors included. Predicates, and the actions they read, run; the run-time errors of other actions and typed conversions are not checked. See [Modes](runtime/parsing.md#modes). |
 | recovery | `#recover`: after a failure in an element, skips input to a synchronization point, keeps an error value and continues. See [`#recover`](language/pragmas.md#recover). |

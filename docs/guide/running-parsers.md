@@ -3,8 +3,9 @@
 Turn a grammar into a parser in Go, call it, and read what comes back. This guide covers the pipeline from source to
 parser, start rules, results and errors, concurrency and how to choose among the features of the engine. Cancellation
 and compute limits, parsing a prefix, position units, backends and recognition mode have guides of their own. It assumes you
-can write a grammar; the [language specification](../../spec/README.md) defines the language, and
-[Parsing](../../spec/runtime/parsing.md) defines what a parse returns.
+can write a grammar; the [language specification](../../spec/README.md) defines the language,
+[Parsing](../../spec/runtime/parsing.md) defines what a parse returns, and [Go Packages](../../spec/runtime/go-packages.md)
+defines the packages that this guide imports and the functions and options of `compiler`.
 
 All examples use one small grammar, `pairs.sxir`, that reads `key=value` pairs separated by optional semicolons:
 

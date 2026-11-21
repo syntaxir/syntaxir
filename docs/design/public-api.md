@@ -7,7 +7,8 @@ The public API is the set of packages under `pkg/`. It is the only Go API that u
 side and the compiler side of the module, which [Package Layering](layering.md) keeps apart. The decided shapes, their
 names and their roles are listed in [Decided Interfaces](records/072-release-package-layout.md#decided-interfaces) of
 [Record 072](records/072-release-package-layout.md). The other shapes follow the current API, and each is settled in the
-package documentation as its part is implemented.
+package documentation as its part is implemented. The normative contract of the packages, their responsibilities and
+the compiler entry points is [Go Packages](../../spec/runtime/go-packages.md).
 
 ## Grammar Source and Grammar AST
 
