@@ -321,71 +321,15 @@ func TestCompressedAssetRetention(t *testing.T) {
 	}
 }
 
-// TestPreviousAssetsFormerPrefix checks that a deployment can import the pair that the previous
-// deployment published under either binary prefix, and keep it under its published name, while the
-// pairs it builds itself must carry the current prefix.
-func TestPreviousAssetsFormerPrefix(t *testing.T) {
-	for _, prefix := range []string{wasmPrefix, formerWasmPrefix} {
-		t.Run(prefix, func(t *testing.T) {
-			w := append([]byte{0, 'a', 's', 'm', 1, 0, 0, 0}, []byte("published")...)
-			r := []byte("// Go runtime published")
-			old := &assetBytes{describeAssetsAs(prefix, w, r), w, r}
-			if !strings.HasPrefix(old.asset.Wasm, prefix) {
-				t.Fatalf("published pair is named %s", old.asset.Wasm)
-			}
-			dir := t.TempDir()
-			if err := writeFile(filepath.Join(dir, "playground", old.asset.Wasm), old.wasm); err != nil {
-				t.Fatal(err)
-			}
-			if err := writeFile(filepath.Join(dir, "playground", old.asset.Runtime), old.runtime); err != nil {
-				t.Fatal(err)
-			}
-			b, err := json.Marshal(assetManifest{Version: 1, Current: old.asset})
-			if err != nil {
-				t.Fatal(err)
-			}
-			if err := writeFile(filepath.Join(dir, "playground", "assets.json"), b); err != nil {
-				t.Fatal(err)
-			}
-			s := httptest.NewServer(http.FileServer(http.Dir(dir)))
-			defer s.Close()
-			got, err := readPreviousAssets(s.URL)
-			if err != nil {
-				t.Fatalf("import: %v", err)
-			}
-			if got.asset != old.asset {
-				t.Fatalf("imported %+v, want %+v", got.asset, old.asset)
-			}
-
-			out := filepath.Join(t.TempDir(), "playground")
-			seedAssets(t, out, testAssets("current"), got, "")
-			data, err := os.ReadFile(filepath.Join(out, "assets.json"))
-			if err != nil {
-				t.Fatal(err)
-			}
-			var m assetManifest
-			if err := json.Unmarshal(data, &m); err != nil {
-				t.Fatal(err)
-			}
-			if m.Previous == nil || *m.Previous != old.asset {
-				t.Fatalf("previous pair %+v, want %+v", m.Previous, old.asset)
-			}
-			if !strings.HasPrefix(m.Current.Wasm, wasmPrefix) {
-				t.Fatalf("current pair is named %s", m.Current.Wasm)
-			}
-			if b, err := os.ReadFile(filepath.Join(out, old.asset.Wasm)); err != nil || !bytes.Equal(b, old.wasm) {
-				t.Fatalf("previous binary not kept under %s: %v", old.asset.Wasm, err)
-			}
-		})
+// TestAssetPrefix checks that a pair is accepted only under the prefix the site publishes.
+func TestAssetPrefix(t *testing.T) {
+	w, r := []byte{0, 'a', 's', 'm', 1, 0, 0, 0}, []byte("rt")
+	a := describeAssets(w, r)
+	if !strings.HasPrefix(a.Wasm, wasmPrefix) || a.validate() != nil {
+		t.Fatalf("published pair %+v was rejected", a)
 	}
-	built := describeAssetsAs(formerWasmPrefix, []byte{0, 'a', 's', 'm', 1, 0, 0, 0}, []byte("rt"))
-	if built.validate() == nil {
-		t.Fatal("a built pair under the former prefix was accepted")
-	}
-	if built.validateImported() != nil {
-		t.Fatal("an imported pair under the former prefix was rejected")
-	}
-	if other := describeAssetsAs("wasm/other-", []byte{0, 'a', 's', 'm', 1, 0, 0, 0}, []byte("rt")); other.validateImported() == nil {
-		t.Fatal("an imported pair under an unknown prefix was accepted")
+	a.Wasm = "wasm/other-" + strings.TrimPrefix(a.Wasm, wasmPrefix)
+	if a.validate() == nil {
+		t.Fatal("a pair under another prefix was accepted")
 	}
 }

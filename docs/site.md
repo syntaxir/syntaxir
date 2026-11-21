@@ -98,10 +98,7 @@ Production builds (Workers Builds of the `main` branch) download the currently p
 The output retains at most the new pair and one previous pair per compiler; builds of other branches do not import production assets
 automatically. A page from the preceding deploy can therefore start its old parser after publication. The worker reads
 `assets.json` and imports the matching hashed runtime. Generations outside that window must reload.
-Builds name their binaries `wasm/sxir-<hash>`; an imported previous pair may also carry the prefix that the site used
-before the project was renamed, and keeps its published name. <!-- keep-old-name: the former prefix is wasm/zp- -->
-That exception is removed after the first deployment of the renamed site, once the published manifest names only
-`wasm/sxir-` binaries.
+Builds name their binaries `wasm/sxir-<hash>`, and an imported previous pair must carry the same prefix.
 
 Dual mode is opt-in: `site/build.sh -wasm-mode=dual` requires a compatible
 TinyGo installation and Binaryen's `wasm-opt` executable on `PATH`. The
