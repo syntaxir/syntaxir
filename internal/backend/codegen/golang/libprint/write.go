@@ -34,6 +34,7 @@ var outputs = []struct {
 	{engineExpBindingsFile, printEngineExpBindings},
 	{engineRuleBindingsFile, printEngineRuleBindings},
 	{engineMissingBindingsFile, printEngineMissingBindings},
+	{engineCallBindingsFile, printEngineCallBindings},
 	{engineTermStateBindingsFile, printEngineTermStateBindings},
 }
 

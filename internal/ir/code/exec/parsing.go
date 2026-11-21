@@ -132,12 +132,16 @@ that read a seed), or the last result of a growth.`)
 	ruleArg := []code.Param{code.P("r", rule)}
 	call := []code.Param{code.P("r", rule), code.P("min", code.TInt)}
 
-	add(&code.Op{Name: "call.tracked", Component: Call, Results: []code.Type{code.TBool}, Reads: []string{Call},
+	body := code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QBody}}}
+	// Making the rule's value from its captures charges nothing (spec/runtime/parsing.md#cost).
+	invoke := code.Cost{Const: 1, Terms: []code.CostTerm{{Coef: 1, Quantity: QBody}}}
+	m.AddOp(&code.Op{Name: "call.tracked", Component: Call, Results: []code.Type{code.TBool}, Reads: []string{Call}, Writes: []string{Call},
 		Features: []string{Document},
 		Contract: `Reports whether a rule call of the engine takes its traced path: in a traced parse, for a call
-that the traced path has not yet entered.`})
-	add(&code.Op{Name: "call.track", Component: Call, Params: call, Results: result, Writes: append([]string{Call}, regs...),
-		Features: []string{Document}, NoReturn: true,
+that the traced path has not yet entered. The call that call.track makes back is not traced a second
+time: for it the operation reports false and clears the mark that says so.`})
+	m.AddOp(&code.Op{Name: "call.track", Component: Call, Params: call, Results: result, Writes: append([]string{Call}, regs...),
+		Features: []string{Document}, NoReturn: true, Cost: invoke,
 		Contract: `Calls the rule at the binding level min on the engine's traced path and returns its result.`})
 
 	for _, a := range []struct{ name, doc string }{
@@ -158,9 +162,6 @@ that the traced path has not yet entered.`})
 call at a position (seen.first), or -1 for a rule without one: a rule that a parse from scratch
 does not memoize, and a leader of a left-recursive cycle. The rules with an index are numbered from 0
 in the order of their indexes (rule.id).`})
-	body := code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QBody}}}
-	// Making the rule's value from its captures charges nothing (spec/runtime/parsing.md#cost).
-	invoke := code.Cost{Const: 1, Terms: []code.CostTerm{{Coef: 1, Quantity: QBody}}}
 	m.AddOp(&code.Op{Name: "rule.invoke", Component: Rules, Params: call, Results: result, Writes: append([]string{Rules}, regs...),
 		NoReturn: true, Cost: invoke,
 		Contract: `Runs the rule's body at the binding level min in a frame of its own and makes the rule's

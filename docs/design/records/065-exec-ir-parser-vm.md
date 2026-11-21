@@ -441,7 +441,11 @@ rolled back. The nesting limit is fatal when exceeded. Observation reports go to
 component `observe` (`obs.active`, `obs.enter`, `obs.exit` and the count of the memo entries a call reuses) have a
 reference model of the calls that have begun and not ended and of the events a trace delivers, and conformance cases
 that compare those events after each call, on generated Go (the engine traces a call on a path of its own and has none
-of them). The silent depth is a register that functions assign, not an operation. *Shared*: when a charge interrupts and
+of them). The engine's traced call path, `call.tracked` and `call.track`, has a reference model of the events that a
+traced call delivers around its rule, including those of a call that fails, and conformance cases that run on the
+engine alone. `call.track` declares the bound of `rule.invoke`, a unit and its body, but the model checks no charge
+for it, because the engine charges a traced call more units than an untraced one until the charges count logical
+events. The model covers direct calls of rules that are not memoized and lead no cycle; it excludes cycle leaders. The silent depth is a register that functions assign, not an operation. *Shared*: when a charge interrupts and
 when each event reports. *Target*: counter representation, the cancellation interval and the sink.
 
 **Stream window.** A commit is the composition `streamCommit`: it makes everything before a position final.
@@ -1026,7 +1030,7 @@ implements. That definition does not make each operation's implementation shared
 These stay transitional, each declared with its contract and cost bound and implemented by hand on each target:
 
 - the operations of the call protocol, the Operators Rule, Documents, the stream window and the split call protocol
-  that have no reference model, whose charges a static test follows instead (left-recursion growth, calls, missing tokens, Operators Rule lines, Documents and the stream window); printed
+  that have no reference model, whose charges a static test follows instead (left-recursion growth, missing tokens, Operators Rule lines, Documents and the stream window); printed
   tests bind what they do;
 - the primitives of grammar code, which reach each runtime's helpers through the lowering of Flow IR, among them the
   sites that make a recovered error;

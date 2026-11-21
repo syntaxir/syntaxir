@@ -54,6 +54,8 @@ type Config struct {
 	DocCallMemo bool
 	// Observed makes a parse that is observed (obs.active is true).
 	Observed bool
+	// Traced makes a parse that is traced (call.tracked is true outside a traced call).
+	Traced bool
 	// Missing makes a parse in the missing-token mode, and MissingRules the rules, by index in RuleVars,
 	// that can insert a missing token themselves or through a rule they call.
 	Missing      bool
@@ -169,6 +171,9 @@ type Model struct {
 
 	// missing-token mode
 	missing missingState
+
+	// call: the traced call path
+	call callState
 
 	// what terms make: the elements gathered and the values made
 	terms termState
@@ -388,6 +393,9 @@ func (m *Model) Allows(o *code.Op, args []any) bool {
 		return allowed
 	}
 	if allowed, ok := m.allowsRule(o, args); ok {
+		return allowed
+	}
+	if allowed, ok := m.allowsCall(o, args); ok {
 		return allowed
 	}
 	if allowed, ok := m.allowsMissing(o, args); ok {
@@ -628,6 +636,9 @@ func (m *Model) Call(o *code.Op, args []any) []any {
 		return res
 	}
 	if res, ok := m.callMissing(o, args); ok {
+		return res
+	}
+	if res, ok := m.callCall(o, args); ok {
 		return res
 	}
 	panic(fmt.Sprintf("ref: no model of %s", o.Name))

@@ -263,6 +263,8 @@ func (m *Model) Observe(component string) []string {
 		return append([]string{}, m.obs.events...)
 	case exec.Rec:
 		return m.observeMissing()
+	case exec.Call:
+		return append([]string{}, m.call.events...)
 	}
 	return nil
 }

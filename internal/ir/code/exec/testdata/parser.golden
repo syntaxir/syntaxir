@@ -589,21 +589,23 @@ op stream.settleErrors()
   requires:
     // The parse retains the tail (stream.tail), and no call holds a mark of the list.
 
-transitional op call.tracked() bool
+op call.tracked() bool
   component call
   reads call
+  writes call
   features document
   cost <= 0
   contract:
     // Reports whether a rule call of the engine takes its traced path: in a traced parse, for a call
-    // that the traced path has not yet entered.
+    // that the traced path has not yet entered. The call that call.track makes back is not traced a second
+    // time: for it the operation reports false and clears the mark that says so.
 
-transitional op call.track(r Rule, min int) (Value, bool)
+op call.track(r Rule, min int) (Value, bool)
   component call
   writes call, pos, silent
   features document
   noreturn
-  cost <= 0
+  cost <= 1 + 1*body
   contract:
     // Calls the rule at the binding level min on the engine's traced path and returns its result.
 

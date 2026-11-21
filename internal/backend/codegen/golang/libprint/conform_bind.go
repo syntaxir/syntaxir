@@ -347,6 +347,20 @@ func printEngineMissingBindings() (string, error) {
 	return bindingFile("state", missingBindingOps, engineTarget(), "")
 }
 
+// engineCallBindingsFile is the file of the engine's conformance bindings of the traced call path,
+// relative to the directory of this package. It is a test file of package state of the engine.
+const engineCallBindingsFile = "../../../../runtime/state/call_bind_exec_test.go"
+
+// callBindingOps are the operations of the traced call path.
+var callBindingOps = []string{"call.tracked", "call.track"}
+
+// printEngineCallBindings returns the Go test file of the conformance bindings of the traced call path
+// for package state of the engine, the only target that has the path: the generated runtimes observe a
+// call with obs and doc operations of their own.
+func printEngineCallBindings() (string, error) {
+	return bindingFile("state", callBindingOps, engineTarget(), "")
+}
+
 // termStateBindingOps are the operations of the elements gathered and the values made.
 var termStateBindingOps = []string{"act.push", "act.pushAll", "term.kids", "term.dropKids", "term.elemsAbove", "term.keep", "act.made", "term.created", "term.dropCreated"}
 

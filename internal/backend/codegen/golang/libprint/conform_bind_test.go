@@ -117,6 +117,22 @@ func TestEngineMissingBindingsCurrent(t *testing.T) {
 	}
 }
 
+// TestEngineCallBindingsCurrent checks that the engine's conformance bindings of the traced call path
+// are those the engine's printer prints now.
+func TestEngineCallBindingsCurrent(t *testing.T) {
+	want, err := printEngineCallBindings()
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(engineCallBindingsFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != want {
+		t.Errorf("%s is stale; run go generate ./internal/backend/codegen/golang/libprint", engineCallBindingsFile)
+	}
+}
+
 // TestEngineTermStateBindingsCurrent checks that the engine's conformance bindings of the elements gathered
 // and the values made are those the engine's printer prints now.
 func TestEngineTermStateBindingsCurrent(t *testing.T) {
