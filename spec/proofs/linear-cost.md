@@ -8733,10 +8733,13 @@ that includes it, and then the growth and its result are fixed by the
 **outcomes at $p$** of its reads of that growing result: for each place of
 a read in the bodies, which of the units that start at $p$ and hold the read
 is the innermost one that fails. These are a constant number of
-combinations. The remaining
-case, a growth of $T$ with a result that is not empty and does not include
-the growing result of $R$ before a result that does, is not shown (*Open
-parts of the kept steps*).
+combinations. In the remaining case, a growth of $T$ with a result that is
+not empty and does not include the growing result of $R$ before a result that
+does, a later step of $T$ fails after a left call that read its seed in a
+unit that matched in the first step without it, and goes on with a
+continuation of that unit that holds the read; condition 2 excludes this when
+that unit lies in the body of $T$ or of a rule of the cycle that is not a
+leader, apart from the cases that *Open parts of the kept steps* lists.
 
 *Proof.* By induction on the number of leaders that do not grow at $p$, the
 claim for $T$ first. In a step of $R$, the evaluations at $p$ read the same
@@ -8792,14 +8795,51 @@ reads no growing result at $p$. So, by induction on the steps of $T$, each
 seed of $T$, each step and the result of the growth are fixed by the
 combination. This holds whether a step of $T$ goes on, after a unit that
 fails after a read that succeeds, in an alternative that it does not reach
-where the read fails, or not. In the remaining case, the first result of $T$
-that is not empty does not include the growing result of $R$ and a later
-one does; that case is not shown here. It needs a step of $T$ that goes on
-in such an alternative, since otherwise every path through a read in a step
-of $T$ fails or behaves as where the read fails, and no result includes the
-growing result: it is the growth of another leader at the position in which
-*Later steps that abandon their reads of the seed* leaves the abandoned unit
-aside. $\square$
+where the read fails, or not.
+
+In the remaining case, the first result of $T$ that is not empty does not
+include the growing result of $R$ and a later one does. Let $\tau$ be the
+first step of $T$ whose result includes it. Its path at $p$ goes through a
+read at a place that the path of the first step of $T$ does not reach: there
+a read fails with the same innermost unit as in $\tau$, and one whose units
+all succeed puts the growing result in the first result. The two steps
+evaluate alike at $p$ up to a left call of $T$: the reads of the growing
+result of $R$ return the same result, the other calls that read no growing
+result of $T$ return the same result (*Evaluations that read no growing
+result*), no value bound from a growing result is in effect, and condition 5
+excludes, in a cycle with more than one leader, as that of $R$ and $T$ is, a
+`#cut` passed after a left call and a lookahead that makes one. A left call of
+$T$ fails in the first step; where it fails in $\tau$ too, both go on alike,
+and where it reads the seed, which is not empty, what follows starts after
+$p$. So the two paths part at a unit $A$ at $p$ and its continuation: in the
+first step $A$ matches on a path $P$ that examines the input before any left
+call of $T$ or matches nothing, after a path through a left call failed, and
+in $\tau$ the unit $A$ reads the seed and fails after it, and $\tau$ goes on
+from $p$ with a continuation $Q$ of $A$, such as a later alternative of its
+choice or what follows an option or a repetition, that holds the read and
+that the first step does not evaluate at $p$. $Q$ consumes the character at $p$,
+since the read is not empty, and $P$ matched at $p$ in the first step, so it
+begins with that character or matches nothing and begins with every
+character: the first characters of $P$ and $Q$ meet. Condition 2 checks $A$
+on $P$ against $Q$. When $A$ lies in the body of $T$, it contains a scanning
+source, the read, a call of the leader $R$ in the body of another rule, which
+its left call of $T$ reaches, so $P$ must be committing against $Q$ at its
+own start, with no shared call removed, which the meeting first characters
+contradict unless the words of $P$ exclude $Q$. When $A$ lies in a rule of the
+cycle that is not a leader, $A$ is checked on all its paths and still
+contains the scanning source after the shared calls, through its left call;
+when the shared calls read no growing result of $T$, both steps evaluate them
+with the same result, so $Q$ goes on at the end of the same calls at which
+$P$ matched in the first step, and first characters that are disjoint there
+make $Q$ fail. In a cycle with a third leader, $A$ can also lie in the body of
+that leader, whose growth a step of $T$ nests at $p$ and whose steps read the
+growing result of $T$, as in `R = R "z" / T "r" / "q"`,
+`T = T "w" / U "u" / "t"` and `U = U "v" / (T "x"? / "") "s" / R "k"`; the
+argument above is not carried into such a body. The case is not shown when
+$A$ lies in the body of such a third leader, or when $A$ is committing against
+$Q$ only through its words, or, in a rule that is not a leader, through a
+shared call that reads the growing result of $T$ or at which the removal
+stops (*Open parts of the kept steps*). $\square$
 
 **Plain reads.** Under condition 5, the reads of every growth of a leader $R$
 at $p$ whose steps nest, or are nested in, a growth of another leader at $p$
@@ -8938,8 +8978,14 @@ claims of this lemma that rest on them hold apart from them:
    an abandoned unit that is a dropped step of another growth or lies in a
    growth of another leader at the position;
 2. the claim of *Steps that begin anew* for a growth of another leader $T$
-   that a step nests, in its remaining case: a result of $T$ that is not
-   empty and does not include the growing result before one that does;
+   that a step nests, in its remaining case, a result of $T$ that is not
+   empty and does not include the growing result before one that does, when
+   the unit that fails after its left call of $T$ read the seed lies in the
+   body of a third leader whose growth a step of $T$ nests, or is committing
+   against the continuation that holds the read only through its words or,
+   in a rule of the cycle that is not a leader, through a shared call that
+   reads the growing result of $T$ or at which the removal of shared calls
+   stops;
 3. in *Failures at the position of the growth*, an evaluation in a later
    step, with a seed that is not empty, of a growth of another leader that
    the step nests at $p$, when that step is not kept and its result is not
@@ -13449,7 +13495,12 @@ theorem covers such a parse.
    *Steps that begin
    anew* for a nested growth of another leader, which is not shown for a
    growth with a result that is not empty and does not include the growing
-   result before one that does.
+   result before one that does, when the unit that fails after its left
+   call read the seed lies in the body of a third leader whose growth the
+   nested one nests, or is committing against the continuation that holds
+   the read only through its words or, outside the bodies of leaders,
+   through a shared call that reads the growing result or at which the
+   removal stops.
 3. **Operators Rules.** Lemma 4 places the operators that an Operators Rule
    applies and its units among the activations and units of its claims, with the
    operator parts that an enclosing level tries again as a continuation of an
@@ -13506,9 +13557,15 @@ theorem covers such a parse.
    without a scanning source*); and
    *Steps that begin anew* is not shown for a nested growth of another
    leader with a result that is not empty and does not include the growing
-   result before one that does; a nested growth with no result that includes
-   it is fixed by the outcomes at the position of its reads, a constant
-   number of combinations. The claims that use these
+   result before one that does, when the unit that fails after its left
+   call read the seed lies in the body of a third leader whose growth the
+   nested one nests, or is committing against the continuation that holds
+   the read only through its words or, outside the bodies of leaders,
+   through a shared call that reads the growing result or at which the
+   removal stops;
+   condition 2 excludes the other such growths, and a nested growth with no
+   result that includes it is fixed by the outcomes at the position of its
+   reads, a constant number of combinations. The claims that use these
    bounds, *Results that do not include the seed*, *Failures at the
    position of the growth*, *Suffix copies in every parse* and *Growths at
    many positions* among them, are conditional on the same parts. It also relates two activations at one position whose innermost
