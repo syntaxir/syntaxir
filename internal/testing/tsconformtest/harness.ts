@@ -514,9 +514,10 @@ class TermM extends Exec {
       case "test.items":
         return [Array.from({ length: a[1] }, (_, i) => ({ id: a[0] + i }))];
       // The printer prints neither of these two (it takes the elements of a list off with the parser's kids
-      // method, and has no filter list): they run on the library's own stack.
+      // method, and has no filter list): they run on the library's own stack, elemsAbove as the library's
+      // method of the operation, which charges two units for each element.
       case "term.elemsAbove":
-        return [P.kids(a[0])];
+        return [P.elemsAbove(a[0])];
       case "term.keep":
         P.kidStack.push(a[0][a[1]]);
         return [];

@@ -78,9 +78,9 @@ func TestTypeScriptConformanceTermDetectsMutants(t *testing.T) {
 		{name: "pushAll pushes nothing", sig: "pushAll(items: readonly (Node | null)[])", old: "this.p.kidStack.push(it);", new: "void it;"},
 		{name: "pushAll pushes the first element", sig: "pushAll(items: readonly (Node | null)[])", old: "this.p.kidStack.push(it);", new: "this.p.kidStack.push(items[0]!);"},
 		{name: "pushAll charges nothing", sig: "pushAll(items: readonly (Node | null)[])", old: "this.spend();", new: "", charges: true, controlled: true},
-		{name: "kids leaves the elements", sig: "kids(base: number): (Node | null)[]", old: "const ks = this.kidStack.slice(base);\n      this.kidStack.length = base;", new: "const ks = this.kidStack.slice(base);"},
-		{name: "kids takes one element too many", sig: "kids(base: number): (Node | null)[]", old: "const ks = this.kidStack.slice(base);\n      this.kidStack.length = base;", new: "const ks = this.kidStack.slice(base);\n      this.kidStack.length = Math.max(base - 1, 0);"},
-		{name: "kids charges one unit for each element", sig: "kids(base: number): (Node | null)[]", old: "c.charge(2 * n);", new: "c.charge(n);", charges: true, controlled: true},
+		{name: "kids leaves the elements", sig: "kids(base: number): (Node | null)[]", old: "const ks = this.kidStack.slice(base);\n    this.kidStack.length = base;", new: "const ks = this.kidStack.slice(base);"},
+		{name: "kids takes one element too many", sig: "kids(base: number): (Node | null)[]", old: "const ks = this.kidStack.slice(base);\n    this.kidStack.length = base;", new: "const ks = this.kidStack.slice(base);\n    this.kidStack.length = Math.max(base - 1, 0);"},
+		{name: "elemsAbove charges one unit for each element", sig: "elemsAbove(base: number)", old: "this.control?.charge(2 * n);", new: "this.control?.charge(n);", charges: true, controlled: true},
 		{name: "dropKids drops one fewer", sig: "dropSpend(values: unknown[], base: number)", old: "values.length = base;", new: "values.length = Math.min(base + 1, values.length);"},
 		{name: "dropSpend charges nothing", sig: "dropSpend(values: unknown[], base: number)", old: "this.spend(values.length - base);", new: "", charges: true, controlled: true},
 	}
