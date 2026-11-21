@@ -117,11 +117,11 @@ outside it; predicates the evaluator cannot run exclude a grammar and are named 
 parses without token insertion.
 
 Status: the reference evaluator is in `internal/testing/examinedref`. It evaluates the matching core of the language,
-including left recursion by the growth rules above, and the examined ends it computes are checked by hand on
-representative grammars. Its comparison with the engine is a passing check in the long tier (`TestExaminedOracle`): on
-the generated corpus and the shapes, none of the 612 inputs of grammars inside the core has an exit whose examined end
-differs. Grammars outside the core (predicates, variables, actions with effects, recovery, cuts, anchors of lines,
-binding levels, Operators Rules, attributes) are not covered: 222 corpus grammars, which the test counts and does not
+including left recursion by the growth rules above, line anchors, and cuts (a lookahead is a boundary for a cut, as the
+Cut section of the language specification states). Its comparison with the engine is a passing check in the long tier
+(`TestExaminedOracle`): on the generated corpus and the shapes, none of the 784 inputs of grammars inside the core has an
+exit whose examined end differs. Grammars outside the core (predicates, variables, actions with effects, recovery,
+binding levels, Operators Rules, attributes) are not covered: 198 corpus grammars, which the test counts and does not
 compare. Perturbation and the stream high-water mark are not yet implemented.
 
 ## Limitations and Open Work
