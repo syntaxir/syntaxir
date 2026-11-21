@@ -117,7 +117,7 @@ func generatorsReachingCheckedProgram(t *testing.T, g *graph) []string {
 }
 
 // analysisPackages are the analyses and tools that check a grammar through the front end
-// (frontend.Run, frontend.CheckTyped) and read the facts of its Core IR, not the checked program.
+// (frontend.Run, frontend.CheckStructural) and read the facts of its Core IR, not the checked program.
 // The front end itself still imports the checked program, so the check is on direct imports.
 var analysisPackages = []string{
 	"internal/analysis/complexity",

@@ -32,6 +32,10 @@ type Result struct {
 	// Analyses is the manager of the analyses of Module, through which the tools read its facts
 	// (corepass.FactsOf); the front end computes none of them.
 	Analyses *pass.AnalysisManager[*core.Module]
+	// Structural is the untyped Core IR module of the program's rules, from which the compiler took
+	// its rule facts, with the manager of its analyses, which holds them. The complexity classifier
+	// reads it.
+	Structural *Structural
 }
 
 // Grammar returns the grammar that the program runs: the grammar as written with its inline actions
@@ -54,19 +58,29 @@ func RunDefault(g *ast.Grammar, facts FactSource, control *cancel.Control) (*Res
 // hidden rules that inline actions generate shown as written.
 func Run(g *ast.Grammar, opts compile.Options, facts FactSource, control *cancel.Control) (*Result, error) {
 	names := desugar.InlineNames{}
-	prog, _, err := CheckStructural(g, opts, nil, names, facts, control)
+	prog, st, err := CheckStructural(g, opts, nil, names, facts, control)
 	if err != nil {
 		return nil, names.Rewrite(err)
 	}
-	return FromProgram(prog, control)
+	return fromProgram(prog, st, control)
 }
 
 // FromProgram builds the Result of a program that was compiled already, for a caller that keeps
-// the program for its own use and must not compile the grammar twice.
+// the program for its own use and must not compile the grammar twice. The program does not keep
+// its structural module, which is built again from the program's grammar.
 func FromProgram(prog *compile.Program, control *cancel.Control) (*Result, error) {
+	st, err := structuralOf(prog, control)
+	if err != nil {
+		return nil, err
+	}
+	return fromProgram(prog, st, control)
+}
+
+// fromProgram builds the Result of prog, whose structural module is st.
+func fromProgram(prog *compile.Program, st *Structural, control *cancel.Control) (*Result, error) {
 	m, err := elaborate.CoreFrom(prog, true)
 	if err != nil {
 		return nil, err
 	}
-	return &Result{Program: prog, Module: m, Analyses: newAnalyses(control)}, nil
+	return &Result{Program: prog, Module: m, Analyses: newAnalyses(control), Structural: st}, nil
 }

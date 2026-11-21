@@ -145,61 +145,111 @@ type Complexity struct {
 
 // ClassifyComplexityControlled classifies the cost of g from the start rule start ("" selects the default
 // start rule, and its absence is an error). g must compile. A start that parsing rejects, as a
-// name that is not defined or not a start rule, is the error that parsing gives. It analyzes the grammar that the compiler runs: inline actions are
-// lowered to hidden rules and attributes are normalized. A non-nil control polls for
-// cancellation.
+// name that is not defined or not a start rule, is the error that parsing gives. It analyzes the
+// grammar that the compiler runs, as the front end checks it: inline actions are lowered to hidden
+// rules and attributes are normalized. A non-nil control polls for cancellation.
 func ClassifyComplexityControlled(g *ast.Grammar, start string, control *cancel.Control) (*Complexity, error) {
-	k, names, err := prepareClassifier(g, start, control)
+	in, err := checkedInput(g, control)
 	if err != nil {
 		return nil, err
 	}
-	c := k.classify()
-	if k.stringLen {
-		// Only the types tell whether the operand of len is a string value; the classification
-		// without them stands when no len counted its operand, or when g does not compile.
-		if typed, typedNames := prepareTypedClassifier(g, start, control); typed != nil {
-			c, names = typed.classify(), typedNames
-		}
-	}
-	return c.written(names), nil
+	return in.classify(start, control)
+}
+
+// ClassifyCheckedControlled is ClassifyComplexityControlled of the grammar whose front-end result
+// is res, which it does not check again.
+func ClassifyCheckedControlled(res *frontend.Result, start string, control *cancel.Control) (*Complexity, error) {
+	return resultInput(res).classify(start, control)
 }
 
 // GrowingBindingsControlled returns the Growing member of the classification of g from start, without the
 // rest of the classification, which costs more. It has the preconditions of ClassifyComplexity.
 func GrowingBindingsControlled(g *ast.Grammar, start string, control *cancel.Control) ([]GrowingBinding, error) {
-	k, names, err := prepareClassifier(g, start, control)
+	in, err := checkedInput(g, control)
+	if err != nil {
+		return nil, err
+	}
+	return in.growingBindings(start, control)
+}
+
+// GrowingBindingsCheckedControlled is GrowingBindingsControlled of the grammar whose front-end
+// result is res, which it does not check again.
+func GrowingBindingsCheckedControlled(res *frontend.Result, start string, control *cancel.Control) ([]GrowingBinding, error) {
+	return resultInput(res).growingBindings(start, control)
+}
+
+// classifierInput is what the classifier reads of a grammar that the front end checked: the
+// structural module of its canonical rules with the facts of the module, the value types of its
+// terms, and the hidden rules of its inline actions.
+type classifierInput struct {
+	structural *frontend.Structural
+	// types are nil if the grammar does not type check; only the operand of len, which may be a
+	// string value or not, is then sized as a string.
+	types *check.ValueRecord
+	names desugar.InlineNames
+}
+
+// checkedInput checks g with the front end and returns what the classifier reads of it. A grammar
+// that the compiler rejects is classified without the types of its terms, if its structural module
+// is built.
+func checkedInput(g *ast.Grammar, control *cancel.Control) (*classifierInput, error) {
+	names := desugar.InlineNames{}
+	st, types, err := frontend.CheckDefault(g, names, checkfacts.Source{}, control)
+	if st == nil {
+		return nil, err
+	}
+	return &classifierInput{structural: st, types: types, names: names}, nil
+}
+
+// resultInput returns what the classifier reads of the grammar whose front-end result is res.
+func resultInput(res *frontend.Result) *classifierInput {
+	return &classifierInput{structural: res.Structural, types: res.Program.ValueRecord(), names: res.InlineNames()}
+}
+
+func (in *classifierInput) classify(start string, control *cancel.Control) (*Complexity, error) {
+	k, err := in.classifier(start, control, newViewClassifier)
+	if err != nil {
+		return nil, err
+	}
+	return k.classify().written(in.names), nil
+}
+
+func (in *classifierInput) growingBindings(start string, control *cancel.Control) ([]GrowingBinding, error) {
+	k, err := in.classifier(start, control, newViewClassifier)
 	if err != nil {
 		return nil, err
 	}
 	k.collect()
 	c := &Complexity{Growing: k.growingBindings()}
-	return c.written(names).Growing, nil
+	return c.written(in.names).Growing, nil
 }
 
-// prepareTypedClassifier is prepareClassifier with the value types of the terms of g, which tell
-// a node from a string value. It compiles g, without building matchers, for them, and returns nil
-// if g does not compile.
-func prepareTypedClassifier(g *ast.Grammar, start string, control *cancel.Control) (*classifier, desugar.InlineNames) {
+// classifier returns the classifier that build makes of the rules of in from start.
+func (in *classifierInput) classifier(start string, control *cancel.Control, build func(*ast.Grammar, []*ast.RuleDef, *ruleFacts, string, *cancel.Control) *classifier) (*classifier, error) {
 	control.Check()
-	names := desugar.InlineNames{}
-	typed, err := frontend.CheckTyped(g, names, checkfacts.Source{}, control)
-	if err != nil {
-		return nil, nil
+	st := in.structural
+	if len(st.Canonical.StartErrors) > 0 {
+		return nil, st.Canonical.StartErrors
+	}
+	rules := st.Rules
+	defined := func(name string) bool {
+		return slices.ContainsFunc(rules, func(rd *ast.RuleDef) bool { return rd.Name == name })
+	}
+	if err := check.CheckStartName(st.Canonical.Starts, st.Canonical.DefaultStart, defined, start); err != nil {
+		return nil, err
 	}
 	if start == "" {
-		start = typed.DefaultStart
+		start = st.Canonical.DefaultStart
 	}
-	// The facts are those the check took, of the module of the same rules: they are not computed
-	// again.
-	rules := typed.Rules
-	rf := sourceFacts(&Source{Module: typed.Module, Facts: corepass.FactsOf(typed.Analyses, typed.Module)}, rules, control)
-	k := newViewClassifier(typed.Grammar, rules, rf, start, control)
-	k.types = typed.Types
-	return k, names
+	rf := sourceFacts(&Source{Module: st.Module, Facts: corepass.FactsOf(st.Analyses, st.Module).WithControl(control)}, rules, control)
+	k := build(st.Canonical.Grammar, rules, rf, start, control)
+	k.types = in.types
+	k.inlineNames = in.names
+	return k, nil
 }
 
-// prepareClassifier lowers and normalizes g as the compiler does and returns a classifier of it
-// from start, with the names of the hidden rules of its inline actions.
+// prepareClassifier checks g with the front end and returns a classifier of its cost view from
+// start, with the names of the hidden rules of its inline actions.
 func prepareClassifier(g *ast.Grammar, start string, control *cancel.Control) (*classifier, desugar.InlineNames, error) {
 	return prepareClassifierWith(g, start, control, newViewClassifier)
 }
@@ -214,43 +264,15 @@ func prepareBaseClassifier(g *ast.Grammar, start string, control *cancel.Control
 }
 
 func prepareClassifierWith(g *ast.Grammar, start string, control *cancel.Control, build func(*ast.Grammar, []*ast.RuleDef, *ruleFacts, string, *cancel.Control) *classifier) (*classifier, desugar.InlineNames, error) {
-	control.Check()
-	names := desugar.InlineNames{}
-	if desugar.HasInlineAction(g, control) {
-		lowered, errs := desugar.LowerInlineActionsControlled(g, names, control)
-		if errs != nil {
-			return nil, nil, errs
-		}
-		g = lowered
-	}
-	g, err := desugar.NormalizeAttributesControlled(g, false, control)
+	in, err := checkedInput(g, control)
 	if err != nil {
 		return nil, nil, err
 	}
-	rules, errs := desugar.UniqueRules(g, control)
-	if len(errs) > 0 {
-		return nil, nil, errs
-	}
-	starts, def, errs := desugar.ResolveStarts(rules, control)
-	if len(errs) > 0 {
-		return nil, nil, errs
-	}
-	defined := func(name string) bool {
-		return slices.ContainsFunc(rules, func(rd *ast.RuleDef) bool { return rd.Name == name })
-	}
-	if err := check.CheckStartName(starts, def, defined, start); err != nil {
-		return nil, nil, err
-	}
-	if start == "" {
-		start = def
-	}
-	rf, err := classifierFacts(g, rules, control)
+	k, err := in.classifier(start, control, build)
 	if err != nil {
 		return nil, nil, err
 	}
-	k := build(g, rules, rf, start, control)
-	k.inlineNames = names
-	return k, names, nil
+	return k, in.names, nil
 }
 
 // newViewClassifier returns a classifier of the cost view of rules (internal/analysis/complexity) from
@@ -308,9 +330,6 @@ type classifier struct {
 	// combinations is the product of the sizes of the value sets of the variables with finite
 	// values, which checkValues computes.
 	combinations int
-	// stringLen reports that a len counted its operand, without its type, as a string value of
-	// unbounded size.
-	stringLen bool
 
 	reach     map[string]bool // rules that the start rule reaches
 	calls     map[string][]string

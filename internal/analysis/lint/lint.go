@@ -275,7 +275,7 @@ func run(res *frontend.Result, g *ast.Grammar, start string, opts options, contr
 		}
 	}
 	control.check()
-	l.complexity(g, start)
+	l.complexity(res, start)
 	control.check()
 	l.findings = l.written(names)
 	findings := l.suppress(g)

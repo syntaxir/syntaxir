@@ -7,7 +7,7 @@ import (
 )
 
 // ruleAnalysis holds the rule facts that the classifier reads by rule name, taken from the facts
-// of the Core IR module of the rules (classifierFacts), and answers the questions about the
+// of the Core IR module of the rules (sourceFacts), and answers the questions about the
 // expressions of the grammar (or of a view of it) that the classifier asks with them.
 type ruleAnalysis struct {
 	control *cancel.Control

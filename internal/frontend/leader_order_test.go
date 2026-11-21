@@ -4,6 +4,7 @@ import (
 	"slices"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/parser"
@@ -25,12 +26,12 @@ func TestLeaderDeclarationOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	typed, err := frontend.CheckTyped(g, desugar.InlineNames{}, checkfacts.Source{}, nil)
+	_, st, err := frontend.CheckStructural(g, compile.Options{}, nil, desugar.InlineNames{}, checkfacts.Source{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	var names []string
-	for i, r := range typed.Module.Rules {
+	for i, r := range st.Module.Rules {
 		if r.ID != i {
 			t.Errorf("rule %s has ID %d at position %d, want the declaration position", r.Name, r.ID, i)
 		}
@@ -40,9 +41,9 @@ func TestLeaderDeclarationOrder(t *testing.T) {
 		t.Fatalf("rules %v, want declaration order %v", names, want)
 	}
 	var leaders []string
-	for i, r := range corepass.FactsOf(typed.Analyses, typed.Module).Rules {
+	for i, r := range corepass.FactsOf(st.Analyses, st.Module).Rules {
 		if r.Leader {
-			leaders = append(leaders, typed.Module.Rules[i].Name)
+			leaders = append(leaders, st.Module.Rules[i].Name)
 		}
 	}
 	if want := []string{"a", "b"}; !slices.Equal(leaders, want) {

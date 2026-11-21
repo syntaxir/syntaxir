@@ -80,11 +80,11 @@ agree with fresh parses. Budget totals drop where grammars take `len` of
 nodes, and with them the context-poll counts of some of them, since a parse
 polls its context once per fixed amount of budget; no total or count grows.
 
-The classifier needs the types of the grammar, which come from compiling it
-without building matchers. Compiling costs about as much as classifying, so
-the classifier compiles only when a `len` without types counted an operand of
-unbounded size, and keeps the untyped classification when the grammar does
-not compile. The classes of the corpus grammars do not change; the Python
+The classifier needs the types of the grammar. It reads the grammar as the
+front end checked it, types included, so the type of the operand of a `len`
+is known whenever the grammar compiles; a grammar that does not compile is
+classified without types, and every operand of its `len` calls may be a
+string. The classes of the corpus grammars do not change; the Python
 grammar loses 18 causes, all `len` of list captures.
 
 ## Decision and Limits

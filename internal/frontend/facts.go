@@ -51,6 +51,9 @@ type Structural struct {
 	Analyses *pass.AnalysisManager[*core.Module]
 	// failure is why Module is nil: an error or the value of a panic.
 	failure any
+	// redeclared tells that the grammar declares a rule twice, which the compiler reports: Rules
+	// and Module hold the first declaration of each rule.
+	redeclared bool
 }
 
 // CheckStructural is Check that also returns the structural module the facts were taken from, so
@@ -91,30 +94,33 @@ func CheckStructural(g *ast.Grammar, opts compile.Options, flags []compile.RuleF
 	return prog, s, nil
 }
 
-// Typed is what the complexity classifier reads of a checked grammar: the grammar as the compiler
-// canonicalized it, its default start rule, its unique rules with the untyped Core IR module they
-// were elaborated into, with its origin map (core.Module.Origin), and the manager of the analyses of
-// that module, which holds its facts, and the value types of its terms.
-type Typed struct {
-	Grammar      *ast.Grammar
-	DefaultStart string
-	Rules        []*ast.RuleDef
-	Module       *core.Module
-	Analyses     *pass.AnalysisManager[*core.Module]
-	Types        *check.ValueRecord
+// CheckDefault is CheckStructural with the default options and no rule flags, for an analysis of
+// the structure of g, such as the complexity classifier, which reads the structural module of g
+// also when the compiler rejects g. It returns the value types of the terms of g (nil if the
+// compiler rejects g) in place of the program. The module is nil only with an error, and it is nil
+// when g declares a rule twice: the module holds the first declaration only, so it is not g.
+func CheckDefault(g *ast.Grammar, names desugar.InlineNames, facts FactSource, control *cancel.Control) (*Structural, *check.ValueRecord, error) {
+	prog, st, err := CheckStructural(g, compile.Options{}, nil, names, facts, control)
+	if err != nil {
+		if st != nil && (st.Module == nil || st.redeclared) {
+			st = nil
+		}
+		return st, nil, err
+	}
+	return st, prog.ValueRecord(), nil
 }
 
-// CheckTyped checks g with the default options, without building matchers, and returns what the
-// classifier reads of it. names receives the hidden rules that the lowering of inline actions
-// generates; facts computes the facts that the check reads. It returns an error if g does not
-// compile.
-func CheckTyped(g *ast.Grammar, names desugar.InlineNames, facts FactSource, control *cancel.Control) (*Typed, error) {
-	prog, st, err := CheckStructural(g, compile.Options{}, nil, names, facts, control)
+// structuralOf builds the structural module of the rules of prog, a program that the compiler
+// accepted, from its canonical grammar, which it does not canonicalize again.
+func structuralOf(prog *compile.Program, control *cancel.Control) (*Structural, error) {
+	canon := &compile.Canonical{Grammar: prog.Grammar, Source: prog.Source, Starts: prog.StartRules,
+		DefaultStart: prog.DefaultStartRule}
+	defs, _ := desugar.UniqueRules(canon.Grammar, control)
+	m, err := elaborate.Structural(elaborate.StructuralInput(canon.Grammar, defs, canon.Starts), true)
 	if err != nil {
 		return nil, err
 	}
-	return &Typed{Grammar: prog.Grammar, DefaultStart: prog.DefaultStartRule, Rules: st.Rules,
-		Module: st.Module, Analyses: st.Analyses, Types: prog.ValueRecord()}, nil
+	return &Structural{Canonical: canon, Rules: defs, Module: m, Analyses: newAnalyses(control)}, nil
 }
 
 // buildStructural canonicalizes g and builds the untyped Core IR module of its unique rules. A
@@ -126,8 +132,8 @@ func buildStructural(g *ast.Grammar, opts compile.Options, names desugar.InlineN
 	if err != nil {
 		return nil, err
 	}
-	defs, _ := desugar.UniqueRules(canon.Grammar, control)
-	s := &Structural{Canonical: canon, Rules: defs, Analyses: newAnalyses(control)}
+	defs, dups := desugar.UniqueRules(canon.Grammar, control)
+	s := &Structural{Canonical: canon, Rules: defs, Analyses: newAnalyses(control), redeclared: len(dups) > 0}
 	func() {
 		defer func() {
 			if r := recover(); r != nil {

@@ -270,9 +270,6 @@ func (k *classifier) walkTerm(t ast.ActionExpr, tc termCtx) {
 					size.add(k.sizeOf(a, tc, textSize))
 				}
 			}
-			if k.types == nil && !size.bounded() {
-				k.stringLen = true
-			}
 			// The length is an int, which holds none of what it examines.
 			k.copied(t, termPosOf(t), tc.part(false), size)
 		case copyFuncs[t.Func]:

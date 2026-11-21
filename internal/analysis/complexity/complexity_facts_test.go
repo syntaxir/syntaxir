@@ -11,6 +11,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/testing/factstest"
 	"syntaxir.dev/sxir/internal/testing/starttest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -40,14 +41,14 @@ func classifierCorpus(t *testing.T) map[string]string {
 	return srcs
 }
 
-// testClassifierRules returns the rules the classifier reads for g (classifierRules).
+// testClassifierRules returns the rules the classifier reads for g, as the front end checks it.
 func testClassifierRules(t *testing.T, g *ast.Grammar) (*ast.Grammar, []*ast.RuleDef) {
 	t.Helper()
-	g, rules, err := classifierRules(g, nil)
+	cs, err := NewCostSource(g, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return g, rules
+	return cs.Grammar, cs.Rules
 }
 
 // testRuleFacts returns the rule facts of rules, the rules of g, for a test of the normal view,
@@ -57,12 +58,12 @@ func testClassifierRules(t *testing.T, g *ast.Grammar) (*ast.Grammar, []*ast.Rul
 // built, and the test fails.
 func testRuleFacts(t *testing.T, g *ast.Grammar, rules []*ast.RuleDef) *ruleFacts {
 	t.Helper()
-	canon, canonRules := testClassifierRules(t, g)
-	rf, err := classifierFacts(canon, canonRules, nil)
+	in, err := checkedInput(g, nil)
 	if err != nil {
 		t.Fatalf("no Core IR of the rules: %v", err)
 	}
-	return rf
+	st := in.structural
+	return sourceFacts(&Source{Module: st.Module, Facts: corepass.FactsOf(st.Analyses, st.Module)}, st.Rules, nil)
 }
 
 // renderRuleFacts writes the rule facts of rules that the compiled rules carry too, one line per

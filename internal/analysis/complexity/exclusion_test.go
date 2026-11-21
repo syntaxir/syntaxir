@@ -663,11 +663,6 @@ func TestExclusionReport(t *testing.T) {
 				t.Fatal(err)
 			}
 			c := k.classify()
-			if k.stringLen {
-				if typed, _ := prepareTypedClassifier(g, "", nil); typed != nil {
-					k, c = typed, typed.classify()
-				}
-			}
 			if s.h.trivia {
 				var rules []string
 				for _, r := range k.rules {

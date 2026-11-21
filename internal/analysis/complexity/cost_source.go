@@ -4,8 +4,6 @@ import (
 	"slices"
 
 	"syntaxir.dev/sxir/internal/cancel"
-	"syntaxir.dev/sxir/internal/frontend/desugar"
-	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -23,39 +21,14 @@ type CostSource struct {
 	Facts  *corepass.Facts
 }
 
-// NewCostSource returns the cost source of g, which must compile.
+// NewCostSource returns the cost source of g, which must compile, as the front end checks it.
 func NewCostSource(g *ast.Grammar, control *cancel.Control) (*CostSource, error) {
-	g, rules, err := classifierRules(g, control)
+	in, err := checkedInput(g, control)
 	if err != nil {
 		return nil, err
 	}
-	src, err := costSource(g, rules, control)
-	if err != nil {
-		return nil, err
-	}
-	return &CostSource{Grammar: g, Rules: rules, Module: src.Module, Facts: src.Facts}, nil
-}
-
-// classifierRules returns g with inline actions lowered and attributes normalized, and its unique
-// rules: the rules that the complexity classifier and the normal view read.
-func classifierRules(g *ast.Grammar, control *cancel.Control) (*ast.Grammar, []*ast.RuleDef, error) {
-	control.Check()
-	if desugar.HasInlineAction(g, control) {
-		lowered, errs := desugar.LowerInlineActionsControlled(g, desugar.InlineNames{}, control)
-		if errs != nil {
-			return nil, nil, errs
-		}
-		g = lowered
-	}
-	g, err := desugar.NormalizeAttributesControlled(g, false, control)
-	if err != nil {
-		return nil, nil, err
-	}
-	rules, errs := desugar.UniqueRules(g, control)
-	if len(errs) > 0 {
-		return nil, nil, errs
-	}
-	return g, rules, nil
+	st := in.structural
+	return &CostSource{Grammar: st.Canonical.Grammar, Rules: st.Rules, Module: st.Module, Facts: corepass.FactsOf(st.Analyses, st.Module).WithControl(control)}, nil
 }
 
 // NormalView returns the grammar that the compiler runs for g, with inline actions lowered and
@@ -86,21 +59,4 @@ func NormalView(g *ast.Grammar, opts Options, control *cancel.Control) (*ast.Gra
 		}
 	}
 	return &out, v, nil
-}
-
-// costSource returns the untyped Core IR module of rules, the unique rules of g, whose start rules
-// are those marked @start, with the expression each node is built from and the facts of the
-// module: what the cost view is built from. Rule i of rules has ID i in the module.
-func costSource(g *ast.Grammar, rules []*ast.RuleDef, control *cancel.Control) (*Source, error) {
-	var starts []string
-	for _, rd := range rules {
-		if desugar.StartMarked(rd) {
-			starts = append(starts, rd.Name)
-		}
-	}
-	m, err := elaborate.Structural(elaborate.StructuralInput(g, rules, starts), true)
-	if err != nil {
-		return nil, err
-	}
-	return &Source{Module: m, Facts: corepass.FactsOf(corepass.NewAnalyses(control), m)}, nil
 }

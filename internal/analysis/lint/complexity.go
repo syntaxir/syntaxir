@@ -5,13 +5,14 @@ import (
 	"fmt"
 
 	"syntaxir.dev/sxir/internal/analysis/complexity"
+	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
-// complexity runs the checks that come from the classification of the cost of the grammar g as
-// written from start: growing-variable, and super-linear when the classification is requested.
-// The classification lowers inline actions itself and describes its findings as written.
-func (l *linter) complexity(g *ast.Grammar, start string) {
+// complexity runs the checks that come from the classification of the cost of the grammar whose
+// front-end result is res from start: growing-variable, and super-linear when the classification is
+// requested. The classification describes its findings as the grammar is written.
+func (l *linter) complexity(res *frontend.Result, start string) {
 	growing := !l.opts.Disable[CheckGrowingVariable]
 	superLinear := l.opts.Classify && !l.opts.Disable[CheckSuperLinear]
 	if !growing && !superLinear {
@@ -26,17 +27,17 @@ func (l *linter) complexity(g *ast.Grammar, start string) {
 	var c *complexity.Complexity
 	var err error
 	if superLinear {
-		c, err = complexity.ClassifyComplexity(ctx, g, start)
+		c, err = complexity.ClassifyChecked(ctx, res, start)
 	} else {
 		c = &complexity.Complexity{}
-		c.Growing, err = complexity.GrowingBindings(ctx, g, start)
+		c.Growing, err = complexity.GrowingBindingsChecked(ctx, res, start)
 	}
 	if err != nil {
 		l.control.check()
-		return // a grammar that does not compile is not classified
+		return // a start that is not a start rule is not classified
 	}
 	defs := map[string]*ast.RuleDef{}
-	for _, r := range l.control.rules(g) {
+	for _, r := range l.control.rules(res.Grammar()) {
 		defs[r.Name] = r
 	}
 	add := func(check string, sev Severity, rule string, pos ast.Pos, msg string) {
@@ -72,5 +73,5 @@ func Classify(ctx context.Context, g *ast.Grammar, start string) (*complexity.Co
 	if start, err = resolveStart(res, start); err != nil {
 		return nil, err
 	}
-	return complexity.ClassifyComplexity(ctx, g, start)
+	return complexity.ClassifyChecked(ctx, res, start)
 }

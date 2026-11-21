@@ -27,15 +27,6 @@ type ruleFacts struct {
 	source *Source
 }
 
-// classifierFacts returns the rule facts of rules, the unique rules of g.
-func classifierFacts(g *ast.Grammar, rules []*ast.RuleDef, control *cancel.Control) (*ruleFacts, error) {
-	src, err := costSource(g, rules, control)
-	if err != nil {
-		return nil, err
-	}
-	return sourceFacts(src, rules, control), nil
-}
-
 // sourceFacts returns the rule facts of rules, the rules of the module of src in order.
 func sourceFacts(src *Source, rules []*ast.RuleDef, control *cancel.Control) *ruleFacts {
 	f := src.Facts
