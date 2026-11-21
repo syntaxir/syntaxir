@@ -201,11 +201,11 @@ func Execute[I, O any](ctx context.Context, r *Run, p Pipeline[I, O], in I) (O, 
 // value may be used in several places), and names the occurrences: the k-th occurrence of a name on
 // one path of execution is name#k (k > 1). The branches of a Fork and the alternative bodies of a
 // slot are numbered apart, since no unit runs through two of them. The copy is in the normal form
-// (normalize), so the grouping of the combinators does not change the run.
+// (normalize), so a tree runs and prints the same whichever door built it.
 func instantiate(n node) (node, map[*passNode]string) {
 	n = normalize(rewrite(n, func(x node) node {
 		if p, ok := x.(*passNode); ok {
-			return &passNode{p: p.p}
+			return &passNode{p: p.p, params: p.params}
 		}
 		return x
 	}))
@@ -648,7 +648,7 @@ func (rs *runner) step(x *passNode, in any, e *env, sc *scope) (out any) {
 	if !transform || sc.seg == nil || sc.seg.k != d.in {
 		sc.seg = &segment{k: d.in, start: in}
 	}
-	cs := &ctxState{rs: rs, env: e, pass: d, instance: ev.Step.Instance, unit: in}
+	cs := &ctxState{rs: rs, env: e, pass: d, params: x.params, instance: ev.Step.Instance, unit: in}
 	if !d.Required {
 		if sc.err != nil || !d.Test && rs.r.Settings.Value(d.Name) == 0 || d.applies != nil && !d.applies(cs) {
 			return in
@@ -1012,7 +1012,7 @@ func (rs *runner) sharedKey(x *sharedNode, in any, e *env, failed bool) string {
 				}
 			}
 			for _, f := range y.p.Params {
-				parts = append(parts, fmt.Sprintf("%s.%s=%d", y.p.Name, f, rs.r.Settings.Value(f)))
+				parts = append(parts, fmt.Sprintf("%s.%s=%d", y.p.Name, f, y.value(f, rs.r.Settings)))
 			}
 			return
 		case *withNode:

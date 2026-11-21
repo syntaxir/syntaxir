@@ -234,6 +234,7 @@ type ctxState struct {
 	rs       *runner
 	env      *env
 	pass     *passDesc
+	params   map[string]int // the instance's overrides of its parameters (the text door)
 	instance string
 	counts   map[string]int
 	// decisions counts the answers of Allow per pattern, only in an observed run.
@@ -273,11 +274,14 @@ func (c *Ctx[M]) Label() Label { return c.s.env.label }
 // Context returns the context of the run, for cancellation polling.
 func (c *Ctx[M]) Context() context.Context { return c.s.rs.ctx }
 
-// Value returns the value of a declared parameter: its setting. (The text door adds overrides per
-// instance.)
+// Value returns the value of a declared parameter: the override that the pipeline text gives this
+// instance, if there is one, else the setting.
 func (c *Ctx[M]) Value(flag string) int {
 	if !contains(c.s.pass.Params, flag) {
 		panic(fmt.Sprintf("pipe: pass %s reads the undeclared parameter %s", c.s.pass.Name, flag))
+	}
+	if v, ok := c.s.params[flag]; ok {
+		return v
 	}
 	return c.s.rs.r.Settings.Value(flag)
 }

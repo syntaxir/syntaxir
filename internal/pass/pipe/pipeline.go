@@ -1,6 +1,10 @@
 package pipe
 
-import "fmt"
+import (
+	"fmt"
+
+	"syntaxir.dev/sxir/internal/pass"
+)
 
 // Pipeline is an immutable composition of passes from units of I to units of O. It is built only
 // with the combinators below (the typed door), and Execute is its one executor.
@@ -9,8 +13,13 @@ type Pipeline[I, O any] struct{ n node }
 type node interface{ kinds() (in, out *kind) }
 
 type (
-	passNode struct{ p *passDesc }
-	seqNode  struct {
+	passNode struct {
+		p *passDesc
+		// params holds the overrides of the instance's parameters that a pipeline text gives; nil
+		// for a pass of the typed door.
+		params map[string]int
+	}
+	seqNode struct {
 		k     *kind
 		steps []node
 	} // transforms of one kind, or a chain of steps
@@ -63,6 +72,14 @@ func (n *sharedNode) kinds() (*kind, *kind)  { return n.body.kinds() }
 func (n *withNode) kinds() (*kind, *kind)    { return n.body.kinds() }
 func (n *slotNode) kinds() (*kind, *kind)    { return n.slot.k, n.slot.k }
 func (n *forkNode) kinds() (*kind, *kind)    { return n.in, n.out }
+
+// value returns the value of the parameter flag for this instance: its override, else the setting.
+func (n *passNode) value(flag string, s pass.Settings) int {
+	if v, ok := n.params[flag]; ok {
+		return v
+	}
+	return s.Value(flag)
+}
 
 // Of makes a pipeline of one pass.
 func Of[I, O any](p *Pass[I, O]) Pipeline[I, O] { return Pipeline[I, O]{&passNode{p: p.d}} }
@@ -365,8 +382,9 @@ func Fork[I, O any](bs ...Branch[I, O]) Pipeline[I, []O] {
 // sequence or chain inside a chain is spliced into it (an empty one is dropped), and every block
 // body (of within, with, shared, each, a slot and a fork branch) is a sequence or chain even if it
 // holds one step. The manager verifies where a run of transforms ends inside a block, so without
-// the normal form Then(Seq(a, b), Of(c)) and Seq(k, a, b, c) would verify at different points, and
-// so would a body Of(a) and a body Seq(k, a). Execute normalizes the tree it runs.
+// the normal form Then(Seq(a, b), Of(c)) and the text "a b c" would verify at different points, and
+// so would a body Of(a) and a body Seq(k, a). Execute and Describe both normalize, so the typed door
+// and the text door give the same run for the same text.
 func normalize(n node) node {
 	block := func(b node) node {
 		switch b.(type) {

@@ -461,8 +461,12 @@ carries every option of the build in its headers, so the driver can assemble the
 reorder, repeat, insert or remove optional passes only. The driver checks it against the pipeline it assembles for the
 same options before any pass runs: each pass takes the kind that the previous one returns, the ordering that the passes
 declare holds, and the required passes, the blocks that hold them and the constant features are those of the assembled
-pipeline. Internal test support uses the textual form to test a pass in a chosen context; it belongs to neither the
-public API nor the public command line.
+pipeline. A text may also set a parameter of one pass instance, such as `pass(flag=3)`, which that instance reads in
+place of the setting. Internal test support uses the textual form to test a pass in a chosen context; it belongs to
+neither the public API nor the public command line.
+
+The typed combinators and the text build the same step tree. How the combinators group the steps (`Then` over `Seq`, or
+a body of one pass) means nothing, so a pipeline and its text verify at the same points and give the same run.
 
 ## Related Topics
 
