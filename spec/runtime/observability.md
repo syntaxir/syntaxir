@@ -238,6 +238,10 @@ call reused an existing memo result without evaluating its body, so `Evals` is
 zero. Calls that evaluate left-recursion growth attempts have `Memo=false`;
 their `Evals` counts their own body attempts, including growth attempts.
 Recursive calls that reuse the growing seed have `Memo=true` and `Evals=0`.
+So does a leader call whose growth takes every step from the steps that the
+parse memoized while another growth of its cycle was in progress at its
+position: it evaluates no attempt and reuses memoized results, so it also
+counts as a reuse in `Document.Stats().Reused`.
 Generated parsers do not resume repetitions, so `ReusedElements` is always 0.
 Every exit event MUST report in `Examined` the call's exact examined end, as
 [Engine Tracing](#engine-tracing) defines it.

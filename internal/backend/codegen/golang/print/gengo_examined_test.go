@@ -304,14 +304,14 @@ func examinedMismatches(t *testing.T, cases []codegentest.Case, reports []examin
 }
 
 // TestObservedExaminedEndsAreExact checks the examined ends of the observed parses of every route against
-// their references, on examinedCases and examinedOnlyCases.
+// their references, on examinedCases.
 func TestObservedExaminedEndsAreExact(t *testing.T) {
 	t.Parallel()
 	if testing.Short() {
 		t.Skip("builds generated consumers")
 	}
 	codegentest.EachMode(t, func(t *testing.T) {
-		cases := append(examinedCases(t), examinedOnlyCases()...)
+		cases := examinedCases(t)
 		compared, diffs := examinedMismatches(t, cases, runExaminedProbes(t, cases, codegentest.LibCopy(), nil))
 		t.Logf("exits compared by entry: %v", compared)
 		for _, entry := range []string{"value", "parse", "recognize", "stream"} {
@@ -331,9 +331,16 @@ func TestObservedExaminedEndsAreExact(t *testing.T) {
 
 // examinedExtras are shapes that reach records the library replays only on particular inputs:
 // a lookahead at the start of a member called where its leader grows, whose outcome a context keeps, a
-// recovery that ends its rule, whose skip walks the skip records serve, and a lookahead whose outcome is
+// recovery that ends its rule, whose skip walks the skip records serve, a lookahead whose outcome is
 // the same for two seeds of a growth but examines a different extent, reduced from random cycle grammar
-// 304.
+// 304, and a growth whose last step, which does not grow, is taken from the context, reduced from
+// random cycle grammar 103, where the leader r4 takes every growth step from the context at depth 4
+// and evaluates nothing, so every producer reports that call with Memo=true and Evals=0 and its
+// Document counts it as a reuse, and one reduced from random cycle grammar 210, which needs the record
+// of a growth step taken from the context: without it, recognizing "ca" reports r2 at 0 with examined
+// end 0, below its match end 2, where the reference examines to 3. Its r2 at 0 also takes every growth
+// step from the context. Those two take a growth from the context only in a recognizer; random cycle
+// grammar 2136 with cuts takes one in a Document too, which counts it as a reuse.
 func examinedExtras() []codegentest.Case {
 	unit := strings.Repeat("a", 40) + "c" + strings.Repeat("a", 9) + "e" + strings.Repeat("a", 20) + "d"
 	return []codegentest.Case{
@@ -350,21 +357,6 @@ rule b = a "x" / b "y" / "b"`, Inputs: []string{"b1", "by2", "ax2", "byy1x2", "b
 rule r0 = r2
 rule r1 = (r2 (r1 "b" "c" / r0) / &"b" r0) / "a"
 rule r2 = r0 "b" / !r1? / "a"`, Inputs: []string{"a", "aac", "acb", "aaac", "acabca", "acbccc"}},
-	}
-}
-
-// examinedOnlyCases are shapes whose examined ends the exactness tests check, but whose other fields
-// producers do not yet report alike, so the observation agreement compares only their examined ends,
-// those of calls that cannot match included:
-// a growth whose last step, which does not grow, is taken from the context, reduced from random cycle
-// grammar 103. Its leader takes every growth step from the context and evaluates nothing, which the
-// engine reports as Memo=true and generated parsers as Memo=false
-// (https://github.com/syntaxir/syntaxir/issues/295).
-// The second, reduced from random cycle grammar 210, needs the record of a growth step taken from
-// the context: without it, recognizing "ca" reports r2 at 0 with examined end 0, below its match
-// end 2, where the reference examines to 3.
-func examinedOnlyCases() []codegentest.Case {
-	return []codegentest.Case{
 		{Name: "last growth step taken from the context", Src: `rule main = r0
 rule r0 = r3 / r1 / "a"
 rule r1 = !("c" / r4)* / r0
@@ -375,5 +367,10 @@ rule r0 = r4 / r0 r2
 rule r2 = &r4 r0
 rule r3 = r2 r0 / "a"
 rule r4 = r3 / !r0 / !r4 r2 / "c"`, Inputs: []string{"ca"}},
+		{Name: "growth taken from the context in a Document", Src: `rule main = r0 $$
+rule r0 = !"a" / r1 !r1 r1 / "a"
+rule r1 = r2 &"c" / (r3 "a" / "b" r0) / !"c" / "b"
+rule r2 = !r2 r1? / ("a" &"c" / r3 !#cut) / "a"
+rule r3 = !"a" #cut "b" / r0 / "b"`, Inputs: []string{"a"}},
 	}
 }

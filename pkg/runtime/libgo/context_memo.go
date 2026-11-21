@@ -952,6 +952,10 @@ type growState struct {
 	ctx     bool
 	present uint32
 	done    bool
+	// evaluated reports that a growth in a context evaluated the body for a step (growNext); one that took
+	// every step from the context memo evaluated nothing, and its call reuses that memo (growEnd). A
+	// growth outside a context evaluates every step and does not set it.
+	evaluated bool
 	// The step being evaluated in a context: the Document examined end and the expectation record it is
 	// kept apart from.
 	savedExamined int
@@ -1039,6 +1043,7 @@ func (p *Parser) growNext(g *growState) bool {
 			continue
 		}
 		// Evaluate the step, with its own frame, examined end and expectations.
+		g.evaluated = true
 		p.pushFrame(g.start, g.gp)
 		if p.track {
 			g.savedExamined = p.docExamined
@@ -1148,6 +1153,14 @@ func (p *Parser) setSeed(g *growState, e *ctxResult, id uint64) {
 // recovered errors: the printed growth drops the entries after the growth's mark and records the errors
 // of the result.
 func (p *Parser) growEnd(g *growState) ctxResult {
+	if g.ctx && !g.evaluated {
+		// Every step came from the context memo: the call reuses memoized results without evaluating
+		// its body, like a memo hit (Memo=true, Evals=0), and a Document counts the reuse.
+		p.Observation.memoHit()
+		if p.track && p.Document != nil {
+			p.Document.stats.Reused++
+		}
+	}
 	p.recordJumps(g)
 	p.dropTable(g.gi)
 	best := *p.seedAt(g.gi)

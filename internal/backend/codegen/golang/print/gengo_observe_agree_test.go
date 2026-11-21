@@ -238,7 +238,8 @@ func profilesAgree(a, b instrument.ProfileSnapshot, aside setAside) string {
 // agreeProbeMain is the consumer of the generated packages: for each input, unit and entry it prints one
 // JSON report with the events and the profile (without times) of an observed parse, and its error. The
 // document entry parses a new Document of the input, observed; the edit entry parses it, replaces the
-// character in its middle with itself and parses it again, observed.
+// character in its middle with itself and parses it again, observed. Both report the Document's
+// statistics of the observed parse.
 const agreeProbeMain = `package main
 
 import (
@@ -247,6 +248,7 @@ import (
 	"io"
 	"os"
 
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
@@ -262,6 +264,13 @@ type entry struct {
 
 var entries = [][]entry{
 ENTRIES}
+
+// docStats holds the evaluations and reuses of the last parse of the Document of a document or edit
+// entry, which sets it after the parse it observes.
+var docStats *[2]int
+
+// keepStats keeps the statistics s of a Document's parse in docStats.
+func keepStats(s sxirruntime.ParseStats) { docStats = &[2]int{s.Evaluated, s.Reused} }
 
 type oneByte struct{ s string }
 
@@ -310,8 +319,10 @@ func main() {
 					// Two trace functions and two profiles, each of which must receive the whole parse.
 					var events, second []sxirinstrument.TraceEvent
 					var prof, prof2 sxirinstrument.Profile
+					docStats = nil
 					err := e.run(string(in), unit, sxirrt.WithTrace(func(ev sxirinstrument.TraceEvent) { events = append(events, ev) }), sxirrt.WithProfile(&prof),
 						sxirrt.WithTrace(func(ev sxirinstrument.TraceEvent) { second = append(second, ev) }), sxirrt.WithProfile(&prof2))
+					stats := docStats
 					// The same parse with a trace filter and a depth limit: the filter names a rule called
 					// within the start rule, if any, and a name that is not a rule.
 					filter := []string{"main", "no such rule"}
@@ -337,7 +348,8 @@ func main() {
 						Filtered    []sxirinstrument.TraceEvent
 						FilteredProfile sxirinstrument.ProfileSnapshot
 						Err         string
-					}{i, j, unit == sxirinput.Bytes, e.name, events, untimed(&prof), second, untimed(&prof2), filter, filtered, untimed(&filteredProf), fmt.Sprint(err)})
+						Stats       *[2]int
+					}{i, j, unit == sxirinput.Bytes, e.name, events, untimed(&prof), second, untimed(&prof2), filter, filtered, untimed(&filteredProf), fmt.Sprint(err), stats})
 					fmt.Println(string(b))
 				}
 			}
@@ -348,7 +360,8 @@ func main() {
 
 // agreeReport is one report of the consumer: the events and the profile of the parse, those of the
 // second trace function and profile given to it (Second, Profile2), and those of the same parse with the
-// trace filter Filter and the depth limit agreeMaxDepth (Filtered, FilteredProfile).
+// trace filter Filter and the depth limit agreeMaxDepth (Filtered, FilteredProfile). Stats are the
+// evaluations and reuses that the Document of a document or edit entry reports for the observed parse.
 type agreeReport struct {
 	Case, Input     int
 	Bytes           bool
@@ -361,6 +374,27 @@ type agreeReport struct {
 	Filtered        []instrument.TraceEvent
 	FilteredProfile instrument.ProfileSnapshot
 	Err             string
+	Stats           *[2]int
+}
+
+// statsCounted reports how the Document statistics of the observed parse of r differ from its profile:
+// the specification requires the parse's increases in profile Evals and MemoHits to equal the
+// Document's Evaluated and Reused. An entry whose Document or edit failed before the parse has none.
+func statsCounted(producer string, r agreeReport) string {
+	if r.Entry != "document" && r.Entry != "edit" {
+		return ""
+	}
+	if r.Stats == nil && r.Err != "<nil>" {
+		return ""
+	}
+	if r.Stats == nil {
+		return producer + " reported no Document statistics"
+	}
+	if r.Stats[0] != r.Profile.Evals || r.Stats[1] != r.Profile.MemoHits {
+		return fmt.Sprintf("%s Document evaluated %d and reused %d, its profile has %d evals and %d memo hits",
+			producer, r.Stats[0], r.Stats[1], r.Profile.Evals, r.Profile.MemoHits)
+	}
+	return ""
 }
 
 // agreeLibPatchEnv names the environment variable through which the mutants of
@@ -465,6 +499,7 @@ func runAgreeProbes(t *testing.T, cases []codegentest.Case) []agreeReport {
 				return err
 			}
 			_, err = d.Parse(o...)
+			keepStats(d.Stats())
 			return err
 		}},
 		{"edit", func(in string, u sxirinput.PositionUnit, o ...sxirrt.ParseOption) error {
@@ -478,6 +513,7 @@ func runAgreeProbes(t *testing.T, cases []codegentest.Case) []agreeReport {
 				return err
 			}
 			_, err = d.Parse(o...)
+			keepStats(d.Stats())
 			return err
 		}},
 `, i)
@@ -532,7 +568,9 @@ func middleChar(in string, unit input.PositionUnit) (int, int, string) {
 }
 
 // engineObservation runs the parse of the report r on the engine with the backend b, the trace filter
-// rules and the depth limit maxDepth, and returns its events, its profile and its error.
+// rules and the depth limit maxDepth, and returns its events, its profile and its error. It fails t if
+// the parse of a Document reports statistics that differ from its profile, as statsCounted checks those
+// of generated parsers, with the elements of resumed repetitions apart.
 func engineObservation(t *testing.T, prog *engine.Program, r agreeReport, in string, b engine.Backend, rules []string, maxDepth int) ([]instrument.TraceEvent, instrument.ProfileSnapshot, error) {
 	t.Helper()
 	var events []instrument.TraceEvent
@@ -566,6 +604,12 @@ func engineObservation(t *testing.T, prog *engine.Program, r agreeReport, in str
 			}
 		}
 		_, err = d.ParseWith(traced)
+		// The engine also resumes repetitions: Reused counts their elements too (ResumedElements).
+		s := d.Stats()
+		if p := prof.Snapshot(); s.Evaluated != p.Evals || s.MemoHits != p.MemoHits || s.ResumedElements != p.ReusedElements {
+			t.Errorf("%q bytes=%v %s %v: engine Document evaluated %d, hit the memo %d times and resumed %d elements, its profile has %d evals, %d memo hits and %d reused elements",
+				in, r.Bytes, r.Entry, b, s.Evaluated, s.MemoHits, s.ResumedElements, p.Evals, p.MemoHits, p.ReusedElements)
+		}
 	default:
 		t.Fatalf("unknown entry %q", r.Entry)
 	}
@@ -585,12 +629,10 @@ func engineObservation(t *testing.T, prog *engine.Program, r agreeReport, in str
 // Examined. A producer can make such a call more
 // than once with different examined ends, within the growth of a left-recursive seed, because Examined
 // depends on the seed, which those fields leave out. A call that fails having examined no more than the
-// character at its position cannot match (callsAgree): a producer may skip it, so it is left out unless
-// cannotMatch is set, which compares those calls too where both producers make them, for parses whose
-// producers make the same such calls. The edit of the parse replaces a character of the input in with
-// itself, so in is also the input of the parse. It returns the number of exits compared and the
-// differences.
-func sameCallExamined(a, b []instrument.TraceEvent, in string, unit input.PositionUnit, cannotMatch bool) (compared int, diffs []string) {
+// character at its position cannot match (callsAgree): a producer may skip it, so it is left out. The
+// edit of the parse replaces a character of the input in with itself, so in is also the input of the
+// parse. It returns the number of exits compared and the differences.
+func sameCallExamined(a, b []instrument.TraceEvent, in string, unit input.PositionUnit) (compared int, diffs []string) {
 	type key struct {
 		rule                   string
 		level, depth, pos, end int
@@ -599,7 +641,7 @@ func sameCallExamined(a, b []instrument.TraceEvent, in string, unit input.Positi
 	ends := func(evs []instrument.TraceEvent) (map[key][]int, []key) {
 		m, order := map[key][]int{}, []key(nil)
 		for _, e := range evs {
-			if e.Kind == instrument.TraceExit && (cannotMatch || e.Matched || e.Examined > firstCharEnd(in, e.Pos, unit)) {
+			if e.Kind == instrument.TraceExit && (e.Matched || e.Examined > firstCharEnd(in, e.Pos, unit)) {
 				k := key{e.Rule, e.Level, e.Depth, e.Pos, e.End, e.Matched}
 				if m[k] == nil {
 					order = append(order, k)
@@ -702,7 +744,9 @@ func optionsHonored(producer string, events []instrument.TraceEvent, prof instru
 }
 
 // agreementMismatches checks each report against the same parse on each engine backend with callsAgree
-// and profilesAgree, and returns the differences and what it compared, by entry.
+// and profilesAgree, and its Document statistics with statsCounted, and returns the differences and what
+// it compared, by entry. engineObservation fails t where the engine's Document statistics differ from
+// its profile.
 func agreementMismatches(t *testing.T, cases []codegentest.Case, reports []agreeReport) (map[string][]string, map[string]*agreementStats) {
 	t.Helper()
 	diffs, stats := map[string][]string{}, map[string]*agreementStats{}
@@ -729,6 +773,9 @@ func agreementMismatches(t *testing.T, cases []codegentest.Case, reports []agree
 		if msg := optionsHonored("generated", r.Events, r.Profile, r.Second, r.Profile2, r.Filter, r.Filtered, r.FilteredProfile); msg != "" {
 			diffs[r.Entry] = append(diffs[r.Entry], where+": "+msg)
 		}
+		if msg := statsCounted("generated", r); msg != "" {
+			diffs[r.Entry] = append(diffs[r.Entry], where+": "+msg)
+		}
 		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 			events, snap, err := engineObservation(t, prog, r, in, b, nil, 0)
 			where := fmt.Sprintf("%s %v", where, b)
@@ -746,14 +793,14 @@ func agreementMismatches(t *testing.T, cases []codegentest.Case, reports []agree
 				st.partial++
 			}
 			if r.Entry == "edit" {
-				n, d := sameCallExamined(events, r.Events, in, unit, false)
+				n, d := sameCallExamined(events, r.Events, in, unit)
 				st.compared += n
 				for _, msg := range d {
 					diffs[r.Entry] = append(diffs[r.Entry], where+": "+msg)
 				}
 				if swapped := swapGrowthExamined(events, in, unit); swapped != nil && len(d) == 0 {
 					st.swaps++
-					if _, d := sameCallExamined(swapped, r.Events, in, unit, false); len(d) == 0 {
+					if _, d := sameCallExamined(swapped, r.Events, in, unit); len(d) == 0 {
 						diffs[r.Entry] = append(diffs[r.Entry], where+": swapped examined ends of growth steps not told apart")
 					}
 				}
@@ -791,9 +838,9 @@ func agreementMismatches(t *testing.T, cases []codegentest.Case, reports []agree
 }
 
 // TestEngineObservationsAgreeWithGenerated checks the events and profiles of every engine backend against
-// those of the generated parsers (callsAgree, profilesAgree) on every route both have, in both units, and
+// those of the generated parsers (callsAgree, profilesAgree) on every route both have, in both units,
 // that both producers honor several trace functions and profiles and the trace filter and depth limit
-// (optionsHonored).
+// (optionsHonored), and that the Document statistics of both equal their profiles (statsCounted).
 func TestEngineObservationsAgreeWithGenerated(t *testing.T) {
 	t.Parallel()
 	if testing.Short() {

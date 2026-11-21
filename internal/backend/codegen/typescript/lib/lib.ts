@@ -2679,6 +2679,8 @@ export interface GrowState {
   ctx: boolean;
   present: number;
   done: boolean;
+  // evaluated reports that a growth in a context evaluated the body for a step (growNext, growEnd).
+  evaluated: boolean;
   savedExamined: number;
   exp: number;
   run: RunStep[];
@@ -4756,7 +4758,7 @@ export class Parser {
     const start = this.pos;
     const gi = this.gamma.length;
     const gp = this.gammaAt(start, r.cycle);
-    const g: GrowState = { rule: r.id, min, start, gi, gp, ctx: false, present: 0, done: false, savedExamined: 0, exp: 0, run: [] };
+    const g: GrowState = { rule: r.id, min, start, gi, gp, ctx: false, present: 0, done: false, evaluated: false, savedExamined: 0, exp: 0, run: [] };
     this.alloc(objectBytes(7) + objectBytes(8));
     this.gamma.push({ rule: r.id, min, pos: start, cycle: r.cycle, bit: r.leaderBit, idx: r.leaderIndex, seed: newCtxResult(undefined, false, start, false, noErrs, 0, noExp, this.examinedNow()), id: failSeed });
     if (gp < gi) {
@@ -4801,6 +4803,7 @@ export class Parser {
         continue;
       }
       // Evaluate the step, with its own frame, examined end and expectations.
+      g.evaluated = true;
       this.pushFrame(g.start, g.gp);
       if (this.track) {
         g.savedExamined = this.docExamined;
@@ -4911,6 +4914,9 @@ export class Parser {
   // recovered errors: the printed growth drops the entries after the growth's mark and records the
   // errors of the result.
   growEnd(g: GrowState): CtxResult {
+    if (g.ctx && !g.evaluated) {
+      this.contextReused();
+    }
     this.recordJumps(g);
     this.dropTable(g.gi);
     const best = this.gamma[g.gi]!.seed;
@@ -4920,6 +4926,13 @@ export class Parser {
     }
     this.pos = best.end;
     return best;
+  }
+
+  // contextReused reports a growth in a context that took every step from the context memo: the call
+  // reuses memoized results without evaluating its body, like a memo hit (memo true, evals 0), and a
+  // Document counts the reuse (DocumentParser).
+  contextReused(): void {
+    this.observation?.memoHit();
   }
 
   // recordJumps records, for each seed of the run, a jump to the current seed with what the steps
@@ -5977,6 +5990,11 @@ export class DocumentParser extends TrackedParser {
     this.evaluated++;
     this.observation?.evaluated();
     return super.invokePlainBody(r, min);
+  }
+
+  override contextReused(): void {
+    super.contextReused();
+    this.reused++;
   }
 
   override documentTouchFrom(from: number): void {

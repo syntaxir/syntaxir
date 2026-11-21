@@ -564,6 +564,10 @@ type GrowState struct {
 	inCtx   bool
 	present uint64
 	done    bool
+	// evaluated reports that a growth in a context evaluated the body for a step (GrowNext); one that took
+	// every step from the context memo evaluated nothing, and its call reuses that memo (GrowEnd). A
+	// growth outside a context evaluates every step and does not set it.
+	evaluated bool
 	// The step being evaluated in a context: the examined range and expectation record it is kept
 	// apart from.
 	savedHW, savedLW int
@@ -624,6 +628,7 @@ func (p *Parser) GrowNext(g *GrowState) bool {
 	for {
 		id := p.Gamma[g.gi].id
 		if p.tune.MemoMut == CtxNoStepMemo {
+			g.evaluated = true
 			p.pushFrame(g.start, g.gp)
 			g.savedHW, g.savedLW = p.Hw, p.lw
 			p.Hw, p.lw = g.start, g.start
@@ -664,6 +669,7 @@ func (p *Parser) GrowNext(g *GrowState) bool {
 			continue
 		}
 		// Evaluate the step, with its own frame, examined range and expectations.
+		g.evaluated = true
 		p.pushFrame(g.start, g.gp)
 		g.savedHW, g.savedLW = p.Hw, p.lw
 		p.Hw, p.lw = g.start, g.start
@@ -897,6 +903,11 @@ func (p *Parser) unionExpected(a, b []ExpID) []ExpID {
 // the recovered errors: the printed growth drops the entries after the growth's mark and records the
 // errors of the result.
 func (p *Parser) GrowEnd(r *Rule, g *GrowState) (*value.Node, bool) {
+	if g.ctx && !g.evaluated {
+		// Every step came from the context memo: the call reuses memoized results without evaluating
+		// its body, which its trace reports as a memo hit (Memo=true, Evals=0), and counts the reuse.
+		p.Stats.Reused++
+	}
 	p.recordJumps(g)
 	p.dropTable(g.gi)
 	p.Gamma = p.Gamma[:g.gi]
