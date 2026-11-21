@@ -255,10 +255,17 @@ type Func struct {
 	// NoInline asks backends that can to keep the function out of its callers' bodies, so that a
 	// caller's guard stays small enough to inline and the function runs only when the guard fails.
 	NoInline bool
+	// Derived, if not nil, says that a pass made the function from another one of the module, so that a
+	// backend names the pass and that function as the source of the printed function.
+	Derived *Derived
 	// Attrs holds the attributes that a dialect gives the function (the Flow dialect's function
 	// attributes); the base keeps them and does not read them.
 	Attrs any
 }
+
+// Derived names where a function that a pass made comes from: the pass and the function of the module
+// whose body it holds a part of.
+type Derived struct{ Pass, From string }
 
 // Stmt is a statement.
 type Stmt interface{ stmt() }

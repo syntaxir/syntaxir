@@ -747,18 +747,6 @@ so its outermost entry is the first; any other rule is entered once). It is not 
 lookahead is dropped, one past it starts the record anew, and one at it joins the entries. It records no
 examined input: the read that failed at pos recorded what it examined. It is for parser code and not a
 stable API.`
-	expectSlow := m.AddFunc("expectSlow", expParams, nil, []string{exec.Budget}, func(b *Builder) { record(b) })
-	expectSlow.Doc = `expectSlow records the expectation of expectOrdinary at or beyond the farthest position. It is
-separate so that the guard of expectOrdinary inlines into the generated code.`
-	expectSlow.NoInline = true
-	expectOrdinary := m.AddFunc("expectOrdinary", expParams, nil, []string{exec.Budget}, func(b *Builder) {
-		b.If(Bin("||", silent, Lt(pos, C("exp.farthest"))), func(b *Builder) { b.Return() })
-		b.Do("expectSlow", pos, eid)
-	})
-	expectOrdinary.Doc = `expectOrdinary is expect in an ordinary parse: one without limit controls and outside a Document.
-The generated rule bodies have a branch for such parses that calls the Ordinary forms of the runtime
-helpers, which leave out the budget charges and the Document's record of the examined input. It is for generated
-parsers and not a stable API.`
 
 	mergeKept := m.AddFunc("mergeKept", []Param{P("far", TInt), P("k", THandle(exec.Kept))}, nil,
 		[]string{exec.Budget}, func(b *Builder) {

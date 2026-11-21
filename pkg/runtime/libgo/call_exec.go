@@ -227,12 +227,12 @@ func (p *Parser) Expect(pos int, id ExpID) {
 	p.exp = append(p.exp, id)
 }
 
-// ExpectOrdinary is expect in an ordinary parse: one without limit controls and outside a Document.
+// ExpectOrdinary is the form of an ordinary parse: one without limit controls and outside a Document.
 // The generated rule bodies have a branch for such parses that calls the Ordinary forms of the runtime
 // helpers, which leave out the budget charges and the Document's record of the examined input. It is for generated
 // parsers and not a stable API.
 //
-// Printed from Exec IR function expectOrdinary of internal/ir/code/exec/compose.
+// Printed from Exec IR function expect of internal/ir/code/exec/compose.
 func (p *Parser) ExpectOrdinary(pos int, id ExpID) {
 	if p.Silent > 0 || pos < p.farthest {
 		return
@@ -240,10 +240,10 @@ func (p *Parser) ExpectOrdinary(pos int, id ExpID) {
 	p.expectOrdinarySlow(pos, id)
 }
 
-// expectOrdinarySlow records the expectation of expectOrdinary at or beyond the farthest position. It is
-// separate so that the guard of expectOrdinary inlines into the generated code.
+// expectOrdinarySlow runs what expect does once its guards have not returned. The Go target splits it from expect
+// (the pass go-cold-path) so that the guards inline into the generated code.
 //
-// Printed from Exec IR function expectSlow of internal/ir/code/exec/compose.
+// Printed from the part that the pass go-cold-path splits off Exec IR function expect of internal/ir/code/exec/compose.
 //
 //go:noinline
 func (p *Parser) expectOrdinarySlow(pos int, id ExpID) {

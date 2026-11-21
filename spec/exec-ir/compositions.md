@@ -35,9 +35,7 @@ Recording an expectation, keeping a set and merging a set at a position.
 
 | Declaration | Meaning |
 |:--|:--|
-| `func expect(pos int, id ExpID) [budget]` | Records that id was expected at pos: an expectation before the farthest failure or in a lookahead is dropped, one past it starts the record anew, and one at it joins the entries. It records no examined input: the read that failed at pos recorded what it examined. |
-| `func expectOrdinary(pos int, id ExpID) [budget]` | `expect` in an ordinary parse: one without limit controls and outside a Document, for the branch of a generated rule body that runs in such parses and leaves out the budget charges and the Document's record of the examined input. Printed only for the generated Go runtime, which parsers of nodes and of typed values share, so that only the nodes column lists it. |
-| `func expectSlow(pos int, id ExpID) [budget]` | Records the expectation of `expectOrdinary` at or beyond the farthest position. It is separate so that the guard of `expectOrdinary` inlines into the generated code. Printed only for the generated Go runtime, which parsers of nodes and of typed values share, so that only the nodes column lists it. |
+| `func expect(pos int, id ExpID) [budget]` | Records that id was expected at pos: an expectation before the farthest failure or in a lookahead is dropped, one past it starts the record anew, and one at it joins the entries. It records no examined input: the read that failed at pos recorded what it examined. The generated Go runtime also prints it for an ordinary parse, one without limit controls and outside a Document, as the specialization with every feature off, for the branch of a generated rule body that runs in such parses and leaves out the budget charges and the Document's record of the examined input; there the target splits the recording from the early return for a silent position or one before the farthest failure, so that the early return inlines into the generated code. |
 | `func mergeKept(far int, k ExpKept) [budget]` | Records the expectations that a memo entry kept at far, as expect does for each of them. |
 | `func mergeExpected(far int, s ExpSet) [budget]` | Records the expectations of s at far, as expect does for each of them, so that the expectations of a call that a memo entry or a finished isolation kept become those of the enclosing record. s may alias the stack above the current record: writes only happen below the read position. |
 | `func keep(s ExpSet) ExpKept [budget]` | Returns the expectations of s as a set that outlives the record, for a memo entry, a context or a recovery to keep: the empty set for none, the set kept last when it has the same entries in the same order, and otherwise a copy, which becomes the set kept last. |
@@ -153,9 +151,7 @@ row includes what its backends print into packages of their own.
 | streamCommit | `[stream]` |  | `[stream]` |  |
 | streamEmit | `[stream]` |  | `[stream]` |  |
 | streamsIn | `[stream]` |  | `[stream]` |  |
-| expect | `[budget]` |  | `[budget]` | `[budget]` |
-| expectSlow | `[]` |  |  |  |
-| expectOrdinary | `[]` |  |  |  |
+| expect | `[budget]` `[]` |  | `[budget]` | `[budget]` |
 | mergeKept |  |  |  | `[budget]` |
 | mergeExpected | `[budget]` |  | `[budget]` | `[budget]` |
 | keep | `[budget]` |  | `[budget]` | `[budget]` |

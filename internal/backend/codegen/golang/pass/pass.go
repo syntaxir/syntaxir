@@ -1,6 +1,7 @@
 // Package pass holds the Go backend's Exec passes: the forms of a lowered function that the Go printer
 // prints, made after the Exec passes that every backend runs. The Go printer prints each operation of
-// the Exec stage as it is, so the pipeline has no passes yet.
+// the Exec stage as it is, so the pipeline of the rule bodies has no passes yet. The compositions of the
+// Go library have a pipeline of their own (Library).
 package pass
 
 import (

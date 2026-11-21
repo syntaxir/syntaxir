@@ -250,6 +250,10 @@ func (p *execPrinter) fn() string {
 		}
 	}
 	source := "printed from Exec IR function " + f.Name
+	if f.Derived != nil {
+		// A function that a pass made has no Exec IR function of its own to name.
+		source = "printed from the part that the pass " + f.Derived.Pass + " splits off Exec IR function " + f.Derived.From
+	}
 	if p.t.Source != "" {
 		source += " of " + p.t.Source
 	}

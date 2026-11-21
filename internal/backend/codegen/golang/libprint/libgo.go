@@ -1,15 +1,20 @@
 package libprint
 
 import (
+	"context"
 	"fmt"
+	"slices"
 	"strings"
 
+	gopass "syntaxir.dev/sxir/internal/backend/codegen/golang/pass"
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/action"
 	"syntaxir.dev/sxir/internal/ir/code/exec"
 	"syntaxir.dev/sxir/internal/ir/code/exec/compose"
 	"syntaxir.dev/sxir/internal/middleend/codepass"
+	"syntaxir.dev/sxir/internal/middleend/execlower"
+	"syntaxir.dev/sxir/internal/pass/pipe"
 )
 
 // libGoFile is the file of the printed compositions in the Go library of generated parsers,
@@ -35,6 +40,11 @@ type goSpec struct {
 	// docMeta keeps the Document record of a typed memo entry beside the entry (typedDocumentState.meta),
 	// as a typed Document does; other typed calls keep the examined end in the entry.
 	docMeta bool
+	// doc, if not empty, replaces the Doc of the function; the Go library names the form of an
+	// ordinary parse, which no Exec IR function describes.
+	doc string
+	// cold is the Go name of the function that the cold path of fn is split into (gopass.ColdPaths).
+	cold string
 }
 
 // goSpecs are the functions of the Go library that the compositions replace.
@@ -50,8 +60,10 @@ var goSpecs = []goSpec{
 	// The expectation record: the form of a parse with limit controls or a Document, and the form of
 	// an ordinary parse with its slow path.
 	{fn: "expect", on: []string{exec.Budget}, name: "Expect"},
-	{fn: "expectOrdinary", name: "ExpectOrdinary"},
-	{fn: "expectSlow", name: "expectOrdinarySlow"},
+	{fn: "expect", name: "ExpectOrdinary", cold: "expectOrdinarySlow", doc: `expect is the form of an ordinary parse: one without limit controls and outside a Document.
+The generated rule bodies have a branch for such parses that calls the Ordinary forms of the runtime
+helpers, which leave out the budget charges and the Document's record of the examined input. It is for generated
+parsers and not a stable API.`},
 	{fn: "mergeExpected", on: []string{exec.Budget}, name: "MergeExpected"},
 	{fn: "keep", on: []string{exec.Budget}, name: "Keep"},
 	{fn: "call", typed: true, on: []string{exec.Document, exec.Observe, exec.Typed, exec.Budget}, name: "callBody"},
@@ -163,17 +175,40 @@ func goBody(specs []goSpec) (string, error) {
 	m := compose.Build()
 	var b strings.Builder
 	for _, s := range specs {
-		f, err := codepass.Specialize(m, m.Func(s.fn), s.fn, s.on)
+		fs, err := goFuncs(m, s)
 		if err != nil {
 			return "", err
 		}
-		src, err := print.Func(m, f, goTarget(s))
-		if err != nil {
-			return "", err
+		for _, f := range fs {
+			src, err := print.Func(m, f, goTarget(s))
+			if err != nil {
+				return "", err
+			}
+			b.WriteString("\n" + src)
 		}
-		b.WriteString("\n" + src)
 	}
 	return b.String(), nil
+}
+
+// goFuncs returns the functions that the Go library prints for s: the function of the composition
+// specialized for its features, and the functions that the Go Exec passes of the library (gopass.Library)
+// make of it, such as the cold path that they split from its guard.
+func goFuncs(m *code.Module, s goSpec) ([]*code.Func, error) {
+	f, err := codepass.Specialize(m, m.Func(s.fn), s.fn, s.on)
+	if err != nil {
+		return nil, err
+	}
+	if s.doc != "" {
+		f.Doc = s.doc
+	}
+	with := *m
+	with.Funcs = append(slices.Clone(m.Funcs), f)
+	l, err := pipe.Execute(context.Background(), &pipe.Run{}, gopass.Library, &execlower.Lowered{Module: &with, Func: f})
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", s.fn, err)
+	}
+	// The passes add the functions they make after the functions of the module and the specialized one.
+	return append([]*code.Func{l.Func}, l.Module.Funcs[len(m.Funcs)+1:]...), nil
 }
 
 // goTarget returns the Go implementation of the operations in the node or the typed library, for
@@ -192,7 +227,7 @@ func goTarget(s goSpec) *print.Target {
 		action.NodeType: "*nodeTypeKinds", action.FType: "*FieldType",
 	}
 	names := map[string]string{"streamEmit": "EmitStream", "streamCommit": "streamCommit", "streamsIn": "StreamsIn", "call": "Call", "firstCall": "FirstCall", "grow": "grow", "unmemoized": "callUnmemoized", "memoized": "callMemo",
-		"document": "callDocument", "body": "callBody", "observed": "callObserved", "tracked": "callTracked", "expectSlow": "expectOrdinarySlow", "expect": "Expect", "mergeExpected": "MergeExpected", "keep": "Keep",
+		"document": "callDocument", "body": "callBody", "observed": "callObserved", "tracked": "callTracked", "expect": "Expect", "mergeExpected": "MergeExpected", "keep": "Keep",
 		// A kept set is a slice like the set of an isolation, so MergeExpected merges both.
 		"mergeKept": "MergeExpected"}
 	for _, s := range goOperatorSpecs {
@@ -228,6 +263,9 @@ func goTarget(s goSpec) *print.Target {
 		step = func(v string) string { return "nil, " + v }
 	}
 	names[s.fn] = s.name
+	if s.cold != "" {
+		names[gopass.ColdPaths[s.fn]] = s.cold
+	}
 	t.Handle = func(name string) string { return handles[name] }
 	t.FuncName = func(name string) string { return names[name] }
 	t.Reg = func(name string) string {
