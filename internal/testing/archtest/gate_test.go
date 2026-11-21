@@ -3,6 +3,7 @@ package archtest
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -126,5 +127,56 @@ func TestGateGroupRunsStepsTogether(t *testing.T) {
 	want(r, true, "build exit 0", "vet exit 0", "test-long exit 0", "alpha-parsers exit 4")
 	if !strings.Contains(r.log, "end test-long\nstart alpha\nend alpha\n") || strings.Contains(r.log, "start ref") {
 		t.Errorf("GATE_PARALLEL=0 does not run the steps one after the other:\n%s", r.log)
+	}
+}
+
+// TestGateAutoChoosesLevels runs hack/gate.sh --dry-run auto in a scratch repository over changes of different
+// paths, with a stub of the affected-packages computation that prints $GATE_TEST_AFFECTED, and checks the levels it
+// chooses: engine for the engine, a generator or the runtime, or when generation or alpha-parsers is affected; code
+// when only packages are affected; docs beside either when the site paths changed; and docs and engine when the
+// affected packages cannot be computed.
+func TestGateAutoChoosesLevels(t *testing.T) {
+	needTools(t)
+	b, err := os.ReadFile(filepath.Join("..", "..", "..", "hack", "gate.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := t.TempDir()
+	write(t, filepath.Join(w, "hack", "gate.sh"), string(b), 0o755)
+	write(t, filepath.Join(w, "affected.sh"), "#!/bin/sh\n[ -z \"${GATE_TEST_FAIL:-}\" ] || exit 1\nprintf '%b' \"$GATE_TEST_AFFECTED\"\n", 0o755)
+	env := append(scriptEnv(t, t.TempDir()), "GATE_AFFECTED_CMD="+filepath.Join(w, "affected.sh"))
+	mustRun(t, w, env, "git", "init", "-q", "-b", "main")
+	mustRun(t, w, env, "git", "add", ".")
+	mustRun(t, w, env, "git", "commit", "-q", "-m", "Seed")
+	for _, c := range []struct {
+		name, dir, affected, fail string // the change adds the file x in dir
+		want                      []string
+	}{
+		{"engine", "internal/runtime/engine", "p\n", "", []string{"engine"}},
+		{"generator", "internal/backend/codegen/golang/print", "p\n", "", []string{"engine"}},
+		{"generate", "internal/middleend/flowlower", "p\n# generate\n", "", []string{"engine"}},
+		{"alpha", "testdata/grammars", "# alpha\n", "", []string{"engine"}},
+		{"code", "internal/lsp", "p\n", "", []string{"code"}},
+		{"docs and code", "docs", "p\n", "", []string{"docs", "code"}},
+		{"docs", "spec", "", "", []string{"docs"}},
+		{"nothing", ".agents", "", "", []string{"docs"}},
+		{"failed", "internal/lsp", "p\n", "1", []string{"docs", "engine"}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			mustRun(t, w, env, "git", "checkout", "-q", "--detach", "main")
+			write(t, filepath.Join(w, c.dir, "x"), c.name+"\n", 0o644)
+			mustRun(t, w, env, "git", "add", ".")
+			mustRun(t, w, env, "git", "commit", "-q", "-m", c.name)
+			out, err := runIn(t, w, append(env[:len(env):len(env)], "GATE_TEST_AFFECTED="+c.affected, "GATE_TEST_FAIL="+c.fail), "bash", "hack/gate.sh", "--base", "main", "--dry-run", "auto")
+			if (err != nil) != (c.fail != "") { // the dry run lists the affected packages and fails with their computation
+				t.Fatalf("gate.sh: %v\n%s", err, out)
+			}
+			if !strings.Contains(out, "gate: auto chose "+strings.Join(c.want, " ")+" (") {
+				t.Errorf("want the levels %v:\n%s", c.want, out)
+			}
+			if steps := slices.Contains(c.want, "engine"); steps != strings.Contains(out, "  alpha-parsers") {
+				t.Errorf("the plan has alpha-parsers: %v, want %v:\n%s", !steps, steps, out)
+			}
+		})
 	}
 }

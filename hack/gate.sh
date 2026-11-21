@@ -4,6 +4,12 @@
 #	hack/gate.sh [--base REV] [--keep-going] [--summary FILE] [--dry-run] LEVEL...
 #
 # Levels (several may be given; a step that two levels share runs once):
+#   auto    the levels that the change since REV needs, as AGENTS.md and docs/development.md choose them: engine when
+#           it touches internal/runtime/, pkg/runtime/, internal/backend/ or internal/testing/codegentest/, or when
+#           hack/affected-tests.sh reports go generate or alpha-parsers as affected (a change of the generator or of a
+#           package it imports); otherwise code when any package is affected; docs beside either when docs/, spec/,
+#           site/ or README.md changed, and docs alone when nothing else applies. It prints the levels and the reason,
+#           and chooses docs and engine when the changes or the affected packages cannot be computed.
 #   docs    go vet ./..., the tests of the site module, and a site build with its link check (without the WebAssembly
 #           binary, which the playground checks cover).
 #   code    go build ./..., go vet ./..., and go test of the packages that changed since REV and of every package that
@@ -64,11 +70,11 @@ while [ $# -gt 0 ]; do
 	--keep-going) keep=1; shift ;;
 	--dry-run) dry=1; shift ;;
 	-h | --help) sed -n '2,/^set -/p' "$0" | sed '$d; s/^# \{0,1\}//'; exit 0 ;;
-	docs | code | engine | full | all) levels+=("$1"); shift ;;
-	*) echo "gate: unknown argument $1 (levels: docs code engine full all)" >&2; exit 2 ;;
+	auto | docs | code | engine | full | all) levels+=("$1"); shift ;;
+	*) echo "gate: unknown argument $1 (levels: auto docs code engine full all)" >&2; exit 2 ;;
 	esac
 done
-[ ${#levels[@]} -gt 0 ] || { echo "usage: hack/gate.sh [--base REV] [--keep-going] [--summary FILE] [--dry-run] docs|code|engine|full|all..." >&2; exit 2; }
+[ ${#levels[@]} -gt 0 ] || { echo "usage: hack/gate.sh [--base REV] [--keep-going] [--summary FILE] [--dry-run] auto|docs|code|engine|full|all..." >&2; exit 2; }
 
 [ -z "$summary" ] || case $summary in /*) ;; *) summary=$PWD/$summary ;; esac
 root=$(git rev-parse --show-toplevel)
@@ -192,6 +198,36 @@ docs_changed() { affected_load; [ "$chg_state" = ok ] || return 0; has_line "$ch
 skipstep() { step "$1" "skipped ($2)" ":skip:$2"; }
 
 want() { local l; for l in "${levels[@]}"; do [ "$l" = "$1" ] && return 0; done; return 1; }
+
+# auto (see the header): it replaces itself in the levels by the levels it chooses.
+GATE_ENGINE_PATHS='^(internal/runtime/|pkg/runtime/|internal/backend/|internal/testing/codegentest/)'
+if want auto; then
+	affected_load
+	chosen=()
+	if [ "$aff_state" != ok ] || [ "$chg_state" != ok ]; then
+		chosen=(docs engine)
+		why='the changes or the affected packages could not be computed'
+	else
+		docs_changed && chosen+=(docs)
+		if has_line "$chg" -E "$GATE_ENGINE_PATHS"; then
+			chosen+=(engine)
+			why='a change under internal/runtime/, pkg/runtime/, internal/backend/ or internal/testing/codegentest/'
+		elif has_line "$aff_raw" -x -e '# generate' -e '# alpha'; then
+			chosen+=(engine)
+			why='generation or alpha-parsers is affected'
+		elif has_line "$aff_raw" '^[^#]'; then
+			chosen+=(code)
+			why='packages are affected'
+		else
+			why='no package is affected'
+		fi
+		[ ${#chosen[@]} -gt 0 ] || chosen=(docs)
+	fi
+	rest=()
+	for l in "${levels[@]}"; do [ "$l" = auto ] || rest+=("$l"); done
+	levels=(${rest[@]+"${rest[@]}"} "${chosen[@]}")
+	echo "gate: auto chose ${chosen[*]} ($why)" >&2
+fi
 
 if want docs; then
 	step vet 'go vet ./...' 'go vet ./...'
