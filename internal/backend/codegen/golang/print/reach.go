@@ -6,7 +6,8 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	irbuild "syntaxir.dev/sxir/internal/frontend/elaborate"
-	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/flowplan"
+	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -19,14 +20,16 @@ import (
 // so a rule referenced only from value-free contexts has an original body that nothing calls, and
 // so on transitively.
 //
-// GenerateParser finds the reachable rules with a first pass, which takes the calls of the rules from the
-// Core IR (core.Module.Reach), how a call of each rule is printed (callWrapper), and the typed rules
-// that the typed entry points enter (typedEntries, decided before printing), and a second pass leaves
-// out the others. The first pass prints the Node and recognizer tables, for their expectation table,
-// and no typed code. The rule tables still list every rule, a left-out row with the frame layout of
-// the plan (plandata.Plan.Layouts): only the Body, Action, Entry and OperatorsRule assignments and the
-// functions of an unreachable rule are left out. What a left-out rule would have declared (its expectations, literals, class tables and typed helpers) is
-// not declared either, so the IDs of what remains are those of the second pass.
+// The program is planned before any table is printed (planProgram, flowplan.Planning): the plan takes
+// the calls of the rules from the Core IR (core.Module.Reach), routes each call of a rule through its
+// wrapper or its slot (flowplan.CallsWrapper), and starts from the start rules and the typed rules that
+// the typed entry points enter (typedEntries, decided before printing). GenerateParser prints in a
+// second pass that leaves out the rules the plan does not reach. The first pass prints the Node and
+// recognizer tables, for their expectation table, and no typed code. The rule tables still list
+// every rule, a left-out row with the frame layout of the plan (plandata.Plan.Layouts): only the
+// Body, Action, Entry and OperatorsRule assignments and the functions of an unreachable rule are left
+// out. What a left-out rule would have declared (its expectations, literals, class tables and typed
+// helpers) is not declared either, so the IDs of what remains are those of the second pass.
 //
 // The expectation table that the Node and recognizer tables fix (descs) is the one of the first
 // pass up to the end of those tables, because a left-out rule of them keeps its table row. The
@@ -35,51 +38,21 @@ import (
 // ruleKey names what of a rule is entered: its slot in the rule table (the Body that p.Call and
 // InvokePlain run), or the wrapper function of a plain rule, which a call of it (ruleCall) uses
 // instead and which does not run the Body.
-type ruleKey struct {
-	Table   string
-	ID      int
-	Wrapper bool
-}
+type ruleKey = plandata.Entry
 
-// liveRules is what the first pass of GenerateParser records for the second.
+// liveRules is what the first pass of GenerateParser records for the second: the reach of the plan of
+// the program, which a test may change, and the expectation table.
 type liveRules struct {
 	descs []string  // the expectation table, whose IDs the printed bodies keep
 	Roots []ruleKey // the start rules of the tables and the entries of the typed table
 	Reach map[ruleKey]bool
-	mods  map[string]*core.Module         // the Core IR of each table, whose calls reachFrom follows
-	enter func(table string, id int) bool // whether a call of a rule is printed as a call of its wrapper
+	cores *plandata.Cores   // what the program was planned from
+	plan  *plandata.Program // the plan, whose routes reachFrom follows
 }
 
-// reachFrom sets l.Reach to the rules that the roots enter, with the reachability of the Core IR
-// (core.Module.Reach) of each table, in the way enter prints a call of a rule.
+// reachFrom sets l.Reach to the rules that the roots reach in the plan (flowplan.Reach).
 func (l *liveRules) reachFrom(roots []ruleKey) {
-	l.Reach = map[ruleKey]bool{}
-	for table, m := range l.mods {
-		var rs []core.Root
-		for _, k := range roots {
-			if k.Table == table {
-				e := core.EnterSlot
-				if k.Wrapper {
-					e = core.EnterWrapper
-				}
-				rs = append(rs, core.Root{Rule: k.ID, Entry: e})
-			}
-		}
-		reach := m.Reach(rs, func(id int) core.Entry {
-			if l.enter(table, id) {
-				return core.EnterWrapper
-			}
-			return core.EnterSlot
-		})
-		for id, e := range reach {
-			if e&core.EnterSlot != 0 {
-				l.Reach[ruleKey{table, id, false}] = true
-			}
-			if e&core.EnterWrapper != 0 {
-				l.Reach[ruleKey{table, id, true}] = true
-			}
-		}
-	}
+	l.Reach = flowplan.Reach(l.cores, l.plan, roots)
 }
 
 // missingBodies returns the rules of the table that are reachable but have no printed Body.
@@ -99,36 +72,26 @@ func (g *Generator) pruned(r *common.Rule) bool {
 	if g.live == nil || g.keepTableRules && g.Table == "rules" {
 		return false
 	}
-	return !g.live.Reach[ruleKey{g.Table, r.ID, false}] && !g.live.Reach[ruleKey{g.Table, r.ID, true}]
+	return !g.live.Reach[ruleKey{Table: g.Table, ID: r.ID, Wrapper: false}] && !g.live.Reach[ruleKey{Table: g.Table, ID: r.ID, Wrapper: true}]
 }
 
 // slotReached reports whether the Body of rule r is printed: something enters the rule through its
 // slot, and not only through its wrapper.
 func (g *Generator) slotReached(r *common.Rule) bool {
-	return g.live == nil || g.Table == "trules" || g.live.Reach[ruleKey{g.Table, r.ID, false}]
+	return g.live == nil || g.Table == "trules" || g.live.Reach[ruleKey{Table: g.Table, ID: r.ID, Wrapper: false}]
 }
 
 // callWrapper reports whether a call of the rule r of the table is printed as a call of its wrapper
-// function, which does not run the Body of its table entry, rather than through the entry (ruleCall).
+// function, which does not run the Body of its table entry, rather than through the entry (ruleCall):
+// the route of the plan of the program.
 func (g *Generator) callWrapper(table string, r *common.Rule) bool {
-	_, operatorsRule := r.Def.Expr.(*ast.OperatorsRule)
-	switch {
-	case g.Document && table == "rules":
-		return false
-	case g.directTypedDocument && table == "trules" && operatorsRule:
-		return false
-	case r.Plain && !operatorsRule:
-		return true
-	case table == "trules" && !operatorsRule && !r.Leader:
-		return true
-	}
-	return false
+	return g.program.Wrapper(table, r.ID)
 }
 
 // checkCall checks in the second pass that the callee of a printed call, through its wrapper or its
 // slot, was not left out.
 func (g *Generator) checkCall(r *common.Rule, wrapper bool) {
-	to := ruleKey{g.Table, r.ID, wrapper}
+	to := ruleKey{Table: g.Table, ID: r.ID, Wrapper: wrapper}
 	if g.live != nil && !g.live.Reach[to] && g.reachErr == nil && (g.Table != "rules" || !g.keepTableRules) {
 		g.reachErr = fmt.Errorf("internal error: a generated call reaches the rule %s of %s, whose body is left out", r.Name, g.Table)
 	}
@@ -139,44 +102,62 @@ func (g *Generator) printedBody(r *common.Rule) {
 	if g.bodySet == nil {
 		g.bodySet = map[ruleKey]bool{}
 	}
-	g.bodySet[ruleKey{g.Table, r.ID, false}] = true
+	g.bodySet[ruleKey{Table: g.Table, ID: r.ID, Wrapper: false}] = true
 }
 
-// finishReach ends a pass: the first pass computes the reachable rules from the start rules and
-// the calls outside rule bodies; the second checks that no printed call reaches a rule left out and
-// that every reachable rule has its Body.
-func (g *Generator) finishReach(prog, rec *common.Program) error {
-	if g.collect != nil {
-		var roots []ruleKey
-		for _, name := range prog.StartRules {
-			roots = append(roots, ruleKey{"rules", prog.ByName[name].ID, false})
-			if rec != nil {
-				roots = append(roots, ruleKey{"recRules", rec.ByName[name].ID, false})
-			}
-		}
-		roots = append(roots, g.typedRoots...)
-		g.collect.Roots = roots
-		mods := map[string]*core.Module{}
-		progs := map[string]*common.Program{"rules": prog, "trules": prog}
+// planProgram plans the program before any table is printed (flowplan.Planning) and keeps the plan
+// in g.program: the Node table of prog, the recognizer table of rec if it is not nil and, if typed is
+// set, the typed table, which enters the rules that the typed entry points enter (typedRoots). The
+// first pass records the plan for the second (liveRules).
+func (g *Generator) planProgram(prog, rec *common.Program, typed bool) error {
+	c := &plandata.Cores{}
+	for _, name := range prog.StartRules {
+		c.Roots = append(c.Roots, ruleKey{Table: "rules", ID: prog.ByName[name].ID})
 		if rec != nil {
-			progs["recRules"] = rec
+			c.Roots = append(c.Roots, ruleKey{Table: "recRules", ID: rec.ByName[name].ID})
 		}
-		byID := map[string][]*common.Rule{}
-		for table, pr := range progs {
-			if table == "trules" && len(g.typedRoots) == 0 {
-				continue
-			}
-			m, err := irbuild.CoreFrom(pr.Elab, false)
-			if err != nil {
-				return err
-			}
-			mods[table] = m
-			byID[table] = append(append([]*common.Rule(nil), pr.RuleList...), pr.Twins...)
-		}
-		g.collect.mods = mods
-		g.collect.enter = func(table string, id int) bool { return g.callWrapper(table, byID[table][id]) }
-		g.collect.reachFrom(roots)
 	}
+	c.Roots = append(c.Roots, g.typedRoots...)
+	add := func(table string, pr *common.Program) error {
+		m, err := irbuild.CoreFrom(pr.Elab, false)
+		if err != nil {
+			return err
+		}
+		t := plandata.CoreTable{Name: table, M: m, Typed: table == "trules", Slots: table == "rules" && g.Document}
+		for _, r := range append(append([]*common.Rule(nil), pr.RuleList...), pr.Twins...) {
+			_, operatorsRule := r.Def.Expr.(*ast.OperatorsRule)
+			t.Rules = append(t.Rules, plandata.CallRule{Plain: r.Plain, Leader: r.Leader, Operators: operatorsRule})
+		}
+		c.Tables = append(c.Tables, t)
+		return nil
+	}
+	if err := add("rules", prog); err != nil {
+		return err
+	}
+	if rec != nil {
+		if err := add("recRules", rec); err != nil {
+			return err
+		}
+	}
+	if typed {
+		if err := add("trules", prog); err != nil {
+			return err
+		}
+	}
+	p, err := g.Runner.Plan(c)
+	if err != nil {
+		return err
+	}
+	g.program = p
+	if g.collect != nil {
+		g.collect.Roots, g.collect.Reach, g.collect.cores, g.collect.plan = p.Roots, p.Reach, c, p
+	}
+	return nil
+}
+
+// finishReach ends a pass: the second checks that no printed call reaches a rule left out and that
+// every reachable rule has its Body.
+func (g *Generator) finishReach() error {
 	if g.keepTableRules && g.convertsNodes {
 		return fmt.Errorf("internal error: a typed entry point converts Nodes, but the parser prints no Node rule bodies")
 	}

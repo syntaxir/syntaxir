@@ -271,6 +271,18 @@ func generateOnce(g *ast.Grammar, c common.Compiler, p common.Passes, opts commo
 			return generateOnce(g, c, p, opts, h, live, collect)
 		}
 	}
+	var rec *common.Program
+	if opts.Recognize {
+		// The recognizer: the program in which no rule builds a value, in a rule table of its own.
+		if rec, err = recognizer(); err != nil {
+			return nil, err
+		}
+	}
+	// The program is planned before any table is printed: the routes of the calls and the rules that
+	// the entry points reach.
+	if err := genGo.planProgram(prog, rec, opts.Types); err != nil {
+		return nil, err
+	}
 	if h.Generator != nil && collect == nil {
 		h.Generator(genGo)
 	}
@@ -288,14 +300,7 @@ func generateOnce(g *ast.Grammar, c common.Compiler, p common.Passes, opts commo
 	if genGo.FlowErr != nil {
 		return nil, genGo.FlowErr
 	}
-	var rec *common.Program
-	if opts.Recognize {
-		// The recognizer: the program in which no rule builds a value, in a rule table of its own.
-		recView, err := recognizer()
-		if err != nil {
-			return nil, err
-		}
-		rec = recView
+	if rec != nil {
 		genGo.Prog, genGo.Table = rec, "recRules"
 		if err := genGo.StartRecFlow(rec); err != nil {
 			return nil, err
@@ -314,7 +319,7 @@ func generateOnce(g *ast.Grammar, c common.Compiler, p common.Passes, opts commo
 		// The expectations of the Node and recognizer tables are those the second pass keeps; the typed
 		// code adds its own after them, and only for the rules it reaches.
 		collect.descs = append([]string(nil), genGo.Descs...)
-		return nil, genGo.finishReach(prog, rec)
+		return nil, genGo.finishReach()
 	}
 	fmt.Fprintf(&genGo.Init, "\tsxirGrammar.Starts = %s\n", goStrings(prog.StartRules))
 	fmt.Fprintf(&genGo.Init, "\tsxirGrammar.DefaultStart = %q\n", prog.DefaultStartRule)
@@ -448,7 +453,7 @@ func ParseRule(name, input string, opts ...ParseOption) (*Node, error) {
 			return nil, err
 		}
 	}
-	if err := genGo.finishReach(prog, rec); err != nil {
+	if err := genGo.finishReach(); err != nil {
 		return nil, err
 	}
 	out.WriteString(genGo.Vars.String())
@@ -597,6 +602,8 @@ type Generator struct {
 	// live and collect are the passes of GenerateParser (reach.go): live leaves out the unreachable
 	// rules of the Node and recognizer tables, collect records the rules that the first pass reaches.
 	live, collect *liveRules
+	// program is the plan of the program (planProgram), which routes every call of a rule.
+	program *plandata.Program
 	// keepTableRules marks a typed-only parser without Node rules: its Node and recognizer tables
 	// have no rule bodies to check; the typed table leaves its unreached rules out as usual.
 	keepTableRules bool
@@ -1617,13 +1624,7 @@ func (g *Generator) ruleCall(r *common.Rule, min int) string {
 	wrapper := g.callWrapper(g.Table, r)
 	g.checkCall(r, wrapper)
 	switch {
-	case g.Document && g.Table == "rules":
-		// Document parses route every call through call, which memoizes per rule.docMemo,
-		// including otherwise plain rules.
-		return fmt.Sprintf("p.%s(%s[%d], %d)", g.callName(), g.tableVar(), r.ID, min)
-	case g.directTypedDocument && g.Table == "trules" && operatorsRule:
-		return fmt.Sprintf("p.%s(%s[%d], %d)", g.callName(), g.tableVar(), r.ID, min)
-	case r.Plain && !operatorsRule:
+	case wrapper && r.Plain:
 		// Never memoized and without captures: call does nothing but invokePlain, which a
 		// method of its own does with a direct call of the body (see plainCalls).
 		if g.plainCalled == nil {
@@ -1631,9 +1632,13 @@ func (g *Generator) ruleCall(r *common.Rule, min int) string {
 		}
 		g.plainCalled[r] = true
 		return g.ruleFunc(g.plainPrefix(), r.ID) + "(p)"
-	case g.Table == "trules" && !operatorsRule && !r.Leader:
+	case wrapper:
 		// The typed library calls a method of the rule's own (typedCall).
 		return g.ruleFunc("u", r.ID) + "(p)"
+	case g.Document && g.Table == "rules":
+		// Document parses route every call through call, which memoizes per rule.docMemo,
+		// including otherwise plain rules.
+	case g.directTypedDocument && g.Table == "trules" && operatorsRule:
 	case r.Plain:
 		return fmt.Sprintf("p.%s(%s[%d], %d)", g.pickLogical("InvokePlain"), g.tableVar(), r.ID, min)
 	}

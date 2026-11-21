@@ -19,6 +19,7 @@ import (
 	"syntaxir.dev/sxir/internal/middleend/flowlower"
 	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
 	"syntaxir.dev/sxir/internal/middleend/flowpass"
+	"syntaxir.dev/sxir/internal/middleend/flowplan"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/pass/pipe"
@@ -409,6 +410,16 @@ func pipeError(err error, required ...string) error {
 		return &pass.StepError{Step: pass.Step{Name: se.Step, Required: true}, Err: se.Err}
 	}
 	return fmt.Errorf("internal error: %w", err)
+}
+
+// Plan runs the step that plans the program c (flowplan.Planning) and returns its plan. The plan
+// has no dump; a failure is an internal error.
+func (d *Driver) Plan(c *plandata.Cores) (*plandata.Program, error) {
+	p, err := pipe.Execute(context.Background(), d.pipeRun("", true), pipe.Of(flowplan.Planning), c)
+	if err != nil {
+		return nil, pipeError(err)
+	}
+	return p, nil
 }
 
 // LowerTable runs the pipeline of the planned table p, the table named table, from its lowering to

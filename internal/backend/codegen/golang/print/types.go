@@ -114,7 +114,7 @@ func (g *Generator) typedEntries(start *common.Rule, conv bool) (typedEntries, e
 	g.directTypedDocument = g.Document && e.direct
 	g.convertsNodes = e.needNodes
 	for _, r := range e.roots {
-		g.typedRoots = append(g.typedRoots, ruleKey{"trules", r.ID, true})
+		g.typedRoots = append(g.typedRoots, ruleKey{Table: "trules", ID: r.ID, Wrapper: true})
 		if g.typedEntry == nil {
 			g.typedEntry = map[int]bool{}
 		}

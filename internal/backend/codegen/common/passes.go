@@ -61,6 +61,9 @@ type Runner interface {
 	// the target's own Exec passes, on the module of the table, whose functions the passes keep. A
 	// failure of the lowering or the conversion is a *pass.StepError, returned with no table; a
 	// failure of a pass is returned with the table, and the optional passes after it do not run.
+	// Plan runs the step that plans the program c (flowplan.Planning): the routes of the calls of
+	// its rules and the rules that its entry points reach. The plan has no dump.
+	Plan(c *plandata.Cores) (*plandata.Program, error)
 	LowerTable(table string, u plandata.Planned, observe bool, flowTarget flowpass.Target, p TargetPipeline) (*plandata.Table[code.Exec], error)
 	// Report writes the reports of Debug.Stats and Debug.TimePasses over everything the runner ran
 	// to its writer, if it has one. A generator calls it once, after the last pipeline of the run
