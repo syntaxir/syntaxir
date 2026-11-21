@@ -36,6 +36,8 @@ A test (`internal/testing/archtest`) fails when a path in backticks here does no
 commit first. `docs`: docs, spec, site, skills. `code`: Go changes. `engine`: `code` plus the
 long tier, generation, alpha-parsers (needs a checkout:
 `SXIR_ALPHA_PARSERS`) and, when the affected packages include the engine, the reference build. `full`: the long tier of the affected packages; `all`: the whole tree in the long tier, for a release.
+`auto` picks `docs`, `code` or `engine` from the changed paths and the generator's dependencies, and
+falls back to `docs engine` when it cannot tell.
 The gate runs only what the change can affect and lists each step it leaves out. Choose the level
 by what each change touches, for a lane and a landing batch alike: `docs` for documentation only,
 `code` for Go changes, and `engine` only when the engine, a generator or the runtime changes. A
