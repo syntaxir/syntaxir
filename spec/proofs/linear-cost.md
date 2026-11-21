@@ -3962,13 +3962,23 @@ context of growths at the position between them. The claims below sum them over 
 activations of each later evaluation of a memoized rule at a position to an
 earlier one.
 
-**Owners.** A **memoized evaluation** is a body evaluation of a rule that the
-parse memoizes (Lemma 3), made by a call, that is neither a growth step nor in a
-context of growths, or the evaluation where the parse begins. The **owner** of
-an activation is the innermost evaluation that contains it and is a memoized
-evaluation, a growth step or an evaluation in a context of growths; the
-evaluation where the parse begins contains every evaluation, so each activation
-has one. Lemma 5 counts the activations owned by growth steps and by
+**Owners.** The parse begins with a call of the start rule at $0$ ([Start
+Rule](../runtime/parsing.md#start-rule)). The **evaluation where the parse
+begins** is the evaluation of that call: the body evaluation of the start rule
+when the start rule is no leader, and otherwise the growth at $0$ that the call
+starts, whose body evaluations are all growth steps. A **memoized evaluation**
+is a body evaluation of a rule that the parse memoizes (Lemma 3), made by a
+call, that is neither a growth step nor in a context of growths, or the
+evaluation where the parse begins when the start rule is no leader, memoized or
+not. The **owner** of an activation is the innermost evaluation that contains
+it and is a memoized evaluation, a growth step or an evaluation in a context of
+growths. Each activation has one: the evaluation where the parse begins
+contains every evaluation, and when the start rule is a leader every
+other evaluation is one of the steps of that growth or lies in one. In that case the
+evaluation where the parse begins is no memoized evaluation and no head, so the
+claims below that name it among the memoized evaluations or the heads do not
+arise for it, and the growth steps of the start rule own what they hold, as
+those of every leader do. Lemma 5 counts the activations owned by growth steps and by
 evaluations in a context of growths. In a [Document](../runtime/documents.md)
 parse, an entry from an earlier parse evaluates nothing, so the memoized
 evaluations below are those of this parse; what its answer does beyond that is
@@ -4012,7 +4022,7 @@ proof](memoization.md#lemma-2-reading-an-open-growth)) and a memoized
 evaluation is in no context of growths. An evaluation in a context of growths
 whose call reads no growing result is one too. The first evaluation of a key of
 a class is the **head** of the class, and the evaluation where the parse begins
-is a head of its own. By Lemma 3, a class has at most six memoized evaluations,
+is a head of its own when the start rule is no leader. By Lemma 3, a class has at most six memoized evaluations,
 three of each variant. The parse memoizes a twin exactly when it memoizes its
 rule ([Evaluations of Rules](../runtime/parsing.md#evaluations-of-rules)).
 
@@ -4675,8 +4685,9 @@ the path leads to, the head of the class of the key of $Z$ in $\mathcal{S}$
 holds an activation **corresponding** to every successful activation of
 $\sigma$ at $q$ that a memoized evaluation of a key of that class holds in
 the parse: the one whose counterpart lies at the same place in the steps
-that the counterparts of the two evaluations take alike. The evaluation where
-$\mathcal{S}$ begins, a head of its own, holds one corresponding to every
+that the counterparts of the two evaluations take alike. When the start
+rule is no leader, the evaluation where $\mathcal{S}$ begins, a head of its
+own, holds one corresponding to every
 successful activation of $\sigma$ at $q$ that the evaluation where the parse
 begins holds. So, outside that case, the memoized evaluations of the parse
 hold at most six times as many successful activations of $\sigma$ at $q$ as
