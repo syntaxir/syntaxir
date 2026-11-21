@@ -1,6 +1,7 @@
 package common
 
 import (
+	"slices"
 	"sort"
 	"strings"
 
@@ -116,10 +117,10 @@ func (t *ValueResolver) ResolveValue(x types.Ty) types.Ty {
 	return x
 }
 
-// anonJoin is a join of declared node types that the typed output writes where no alias declares
-// it: the type of a field, of a list element or option, or the value type of a rule.
+// anonJoin is a node join (NodeJoin) that the typed output writes where no alias declares it: the type of a field, of a list element or option, or the value type of a rule.
 type anonJoin struct {
-	// Members are the distinct declared node types in the order written, nested joins flattened.
+	// Members are the distinct members other than error in the order written, nested joins
+	// flattened.
 	Members types.JoinTy
 	// Alias is the alias that declares the same members, or empty if none does; then the join is
 	// the type of that alias.
@@ -132,9 +133,10 @@ type anonJoin struct {
 // AnonJoins returns the joins that the typed output of the program writes without naming them: the
 // types of fields, of list elements and options inside them, of aliases, and the value types of
 // rules, in the order of the declarations of the file and of the fields in them. A join is
-// returned once for the same set of members, in the order of its first appearance there. Each has at least two distinct members, all of them declared node types (a struct or
-// a named node type), besides error, or one declared node type and error; a join with a member that is not a declared node type, such as
-// node[string] or a list, has no interface to give and keeps its Go type.
+// returned once for the same set of members, in the order of its first appearance there. Each is
+// a node join (NodeJoin) with a declared member (a struct or a named node type) and at least two
+// distinct members besides error, or one member and error; a join with another member, such as int or a list, or with two unnamed node members of
+// one kind, has no interface to give and keeps its open Go type.
 func (r *ValueResolver) AnonJoins() []anonJoin {
 	aliasOf := map[string]string{} // the set of the members of an alias join -> the alias
 	var aliasNames []string
@@ -230,50 +232,43 @@ func (r *ValueResolver) AnonJoins() []anonJoin {
 }
 
 // joinKey returns the members of a join as anonJoins compares them, and whether the join is one
-// that has an interface: at least two distinct members, or one with error, all of them declared
-// node types. Error is no member to compare: it implements every interface of a join.
+// that has an interface: a node join (NodeJoin) with at least two distinct members, or one with
+// error, and a declared member, a struct type or a named node type. The name of the interface is
+// made of its members, and a join of unnamed node types alone has no name worth reading: an alias
+// names it. Error is no member to compare: it implements every interface of a join.
 func joinKey(u types.JoinTy) (types.JoinTy, bool) {
 	var alts []types.Ty
 	seen := map[string]bool{}
 	hasError := false
-	var add func(x types.Ty) bool
-	add = func(x types.Ty) bool {
-		if m, ok := check.JoinMembers(x).(types.JoinTy); ok {
+	var add func(x types.Ty)
+	add = func(x types.Ty) {
+		if m, ok := x.(types.JoinTy); ok {
 			for _, a := range m.Alts {
-				if !add(a) {
-					return false
-				}
+				add(a)
 			}
-			return true
+			return
 		}
-		x = check.JoinMembers(types.JoinTy{Alts: []types.Ty{x}}).(types.JoinTy).Alts[0]
-		switch a := x.(type) {
-		case types.NamedTy:
-			if a == types.TyError {
-				hasError = true // every interface of a join has the Error member
-				return true
-			}
-			if a.Kind != 's' {
-				return false
-			}
-		case types.NodeTy:
-			if a.Name == "" {
-				return false
-			}
-		default:
-			return false
+		if x == types.TyErr {
+			hasError = true // every interface of a join has the Error member
+			return
 		}
 		if !seen[x.String()] {
 			seen[x.String()] = true
 			alts = append(alts, x)
 		}
-		return true
 	}
+	add(u)
+	m := types.JoinTy{Alts: alts}
+	declared := slices.ContainsFunc(alts, func(a types.Ty) bool {
+		n, ok := a.(types.NodeTy)
+		_, named := a.(types.NamedTy)
+		return named || ok && n.Name != ""
+	})
 	// A declared node type with error is a join, too: the value of a rule that recovers.
-	if !add(u) || len(alts) < 2 && !(len(alts) == 1 && hasError) {
+	if !NodeJoin(m) || !declared || len(alts) < 2 && !(len(alts) == 1 && hasError) {
 		return types.JoinTy{}, false
 	}
-	return types.JoinTy{Alts: alts}, true
+	return m, true
 }
 
 // joinSetKey returns a string that is the same for joins with the same members in any order.

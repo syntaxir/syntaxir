@@ -40,15 +40,16 @@ func TestGeneratedTypedAnonymousJoinInterface(t *testing.T) {
 	}
 }
 
-// A join with the members of an alias is that alias, not an interface of its own, and a join with a
-// member that is no declared node type keeps its Go type.
+// A join with the members of an alias is that alias, not an interface of its own; a join with an
+// unnamed node member has an interface named after it, and a join with a member that is no node type
+// keeps its Go type.
 func TestGeneratedTypedAnonymousJoinReusesAlias(t *testing.T) {
 	t.Parallel()
 	types, err := codegentest.GoTypesOf(t, `type A = { X string }
 type B = { Y string }
 type AB ~ A | B
-type R = { F *(B | A); G *(A | node[string]) }
-rule main R = a:a $$ => R{F: $a, G: $a}
+type R = { F *(B | A); G *(A | node[string]); H *(A | int) }
+rule main R = a:a $$ => R{F: $a, G: $a, H: $a}
 rule a A = t:[a-z] => A{X: text($t)}`)
 	if err != nil {
 		t.Fatal(err)
@@ -56,11 +57,14 @@ rule a A = t:[a-z] => A{X: text($t)}`)
 	if !strings.Contains(types, "F AB") {
 		t.Errorf("F is not the alias AB:\n%s", types)
 	}
-	if strings.Contains(types, "BOrA") || strings.Contains(types, "AOrB") || strings.Contains(types, "AOrNode") {
+	if strings.Contains(types, "BOrA") || strings.Contains(types, "AOrB") || strings.Contains(types, "AOrInt") {
 		t.Errorf("an interface was made for a join that has one already or none:\n%s", types)
 	}
-	if !strings.Contains(types, "G any") {
-		t.Errorf("G keeps its Go type:\n%s", types)
+	if !strings.Contains(types, "G AOrStringNode") || !strings.Contains(types, "func (*TNode[T]) isAOrStringNode() {}") {
+		t.Errorf("G has no interface of its own:\n%s", types)
+	}
+	if !strings.Contains(types, "H any") {
+		t.Errorf("H keeps its Go type:\n%s", types)
 	}
 }
 

@@ -513,13 +513,8 @@ func FromLegacy(t Ty) Ty {
 		}
 		return t
 	case NamedTy:
-		switch {
-		case t == TyMatch:
-			return TyStringNode
-		case t == TyError || t == TyMissing:
+		if t == TyMissing {
 			return TyErr
-		case t.Kind == 'c':
-			return NodeTy{Value: TyTop}
 		}
 		return t
 	case ListTy:

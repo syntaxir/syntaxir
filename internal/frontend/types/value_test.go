@@ -70,7 +70,7 @@ func vjoinReference(ts ...Ty) Ty {
 // randomTy returns a random type of at most the given depth. The types are drawn from a few names
 // so that duplicates, and types that differ only where their text does not show it, are common.
 func randomTy(r *rand.Rand, depth int) Ty {
-	leaves := []Ty{TyString, TyTop, TyBottom, TyAny, TyNil, TyNode, TyErr, TyMatch, TyError, TyMissing,
+	leaves := []Ty{TyString, TyTop, TyBottom, TyAny, TyNil, TyNode, TyErr, TyMissing,
 		NamedTy{"P", 's'}, NamedTy{"Q", 's'}, RuleTy{"P"}, RuleTy{"Q"}, TyStringNode, nil}
 	if depth == 0 || r.IntN(4) == 0 {
 		return leaves[r.IntN(len(leaves))]

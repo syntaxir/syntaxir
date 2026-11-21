@@ -179,7 +179,12 @@ func (t *TypedGen) typedHelpers(b *strings.Builder, done *int) bool {
 		wrote = true
 		h := t.dhelpers.order[*done]
 		g := t.goType(h.x)
-		fmt.Fprintf(b, "func %s(a *tslabs, v any) %s {\n\ta.spend()\n", h.name, g)
+		fmt.Fprintf(b, "func %s(a *tslabs, v any) %s {\n", h.name, g)
+		if _, join := h.x.(types.JoinTy); !join {
+			// The choice of a join's member is no step of the conversion: its member's conversion
+			// charges as the member's own does.
+			b.WriteString("\ta.spend()\n")
+		}
 		switch x := h.x.(type) {
 		case common.Vrule:
 			fmt.Fprintf(b, "\treturn %s\n", t.dconv(t.Vres[x.Name], "v", "a"))
@@ -191,6 +196,12 @@ func (t *TypedGen) typedHelpers(b *strings.Builder, done *int) bool {
 				fmt.Fprintf(b, "\tout.E%d = %s\n", i, t.dconv(e, fmt.Sprintf("TKid(x.Kids, %d)", i), "a"))
 			}
 			b.WriteString("\treturn out\n")
+		case types.JoinTy:
+			// A value converts to the unnamed node member of its kind (joinKindCases), and any other
+			// to its public form, which is its member's value if the join has it.
+			b.WriteString("\tx := AsTval(v)\n\tif x == nil {\n\t\treturn nil\n\t}\n\tswitch x.TName() {\n")
+			t.joinKindCases(b, x, func(m types.NodeTy) string { return t.dconv(m, "v", "a") })
+			fmt.Fprintf(b, "\t}\n\treturn TAs[%s](%s)\n", g, t.tpub("v", "a"))
 		case types.NodeTy:
 			if x.Name != "" && x.Value == types.TyString {
 				// A string node of a named node type is its own public value (tmatchAs): the type is declared as

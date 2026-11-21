@@ -13,18 +13,24 @@ import (
 // or inferred for a field: both forms share one TypeScript union and one recipe.
 func TestGeneratedTypedErrorJoinHasNoOpenMember(t *testing.T) {
 	t.Parallel()
-	if common.CstJoin(types.JoinTy{Alts: []types.Ty{types.NamedTy{Name: "A", Kind: 's'}, types.TyErr}}) {
-		t.Error("cstJoin counts the error member as an open node")
+	a := types.NamedTy{Name: "A", Kind: 's'}
+	open := func(alts ...types.Ty) bool {
+		u := types.JoinTy{Alts: alts}
+		_, open := common.JoinNodeMembers(u)
+		return common.NodeJoin(u) && open
 	}
-	if !common.CstJoin(types.JoinTy{Alts: []types.Ty{types.NamedTy{Name: "A", Kind: 's'}, types.TyInt}}) {
-		t.Error("cstJoin must keep counting a scalar member as an open node")
+	if open(a, types.TyErr) || !common.NodeJoin(types.JoinTy{Alts: []types.Ty{a, types.TyErr}}) {
+		t.Error("the error member counts as an open node, or A | error has no union")
+	}
+	if common.NodeJoin(types.JoinTy{Alts: []types.Ty{a, types.TyInt}}) {
+		t.Error("a join with a scalar member must keep its open type")
 	}
 	// The raw spelling of node[_] is an open member, with or without error next to it.
-	if !common.CstJoin(types.JoinTy{Alts: []types.Ty{types.NamedTy{Name: "A", Kind: 's'}, types.NodeTy{Value: types.TyTop}}}) {
-		t.Error("cstJoin does not count a raw node[_] member as an open node")
+	if !open(a, types.NodeTy{Value: types.TyTop}) {
+		t.Error("a raw node[_] member is no open node")
 	}
-	if !common.CstJoin(types.JoinTy{Alts: []types.Ty{types.NamedTy{Name: "A", Kind: 's'}, types.NodeTy{Value: types.TyTop}, types.TyErr}}) {
-		t.Error("cstJoin does not count a raw node[_] member next to error as an open node")
+	if !open(a, types.NodeTy{Value: types.TyTop}, types.TyErr) {
+		t.Error("a raw node[_] member next to error is no open node")
 	}
 	src := `type Block = { Body []Stmt }
 type Let = { N string }

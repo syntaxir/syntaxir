@@ -73,14 +73,8 @@ func NewFieldType(t Ty) *FieldType {
 		}
 	case NamedTy:
 		switch {
-		case t == TyMatch:
-			f = &FieldType{Kind: FtStringNode}
-		case t == TyError:
-			f = &FieldType{Kind: FtError}
 		case t == TyMissing:
 			f = &FieldType{Kind: FtMissing}
-		case t.Kind == 'c':
-			f = &FieldType{Kind: FtNode}
 		default:
 			f = &FieldType{Kind: FtNamed, Name: t.Name}
 		}

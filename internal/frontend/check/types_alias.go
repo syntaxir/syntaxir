@@ -31,8 +31,6 @@ const (
 )
 
 var (
-	TyMatch      = types.TyMatch
-	TyError      = types.TyError
 	TyMissing    = types.TyMissing
 	TyStringNode = types.TyStringNode
 )

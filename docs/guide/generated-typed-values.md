@@ -98,8 +98,8 @@ stars text 42
 | tuple `(A, B, ...)` | `TupleN[A', B', ...]`: the fields `E0`, `E1`, ... |
 | unit `()` | `Unit` |
 | `error` (left by `#recover`) | `*Error`: `Span`, `Text` and `Message` |
-| join `U ~ A \| B` | an interface `U`, implemented by `*A`, `*B` and `*Error` (and by `*TNode` if a member is a node type) |
-| join of declared node types written in place, for example `*(If \| Block)` or `*(Block \| error)` | an interface named after its members in the order of their first spelling in the file, `IfOrBlock`, or `BlockOrError` for one node type and `error`; it is implemented like the interface of an alias. The same members in any order share it, a join that an alias declares is that alias, and a join with `node[string]`, `node[_]`, a list or a scalar member stays `any`. Two different sets that get the same name, or a grammar type with that name, are a generation error |
+| join `U ~ A \| B` of struct types, node types and `error` | an interface `U`, implemented by `*A`, `*B` and `*Error` (and by every `*TNode` if a member is an unnamed node type); a node converts to the member of its name, or to the unnamed node member of its kind (string, tuple or list) |
+| join of node types written in place, for example `*(If \| Block)`, `*(Block \| error)` or `*(Item \| node[[]Item])` | an interface named after its members in the order of their first spelling in the file, `IfOrBlock`, `BlockOrError` for one member and `error`, or `ItemOrItemListNode`; it is implemented like the interface of an alias. The same members in any order share it, a join that an alias declares is that alias, and a join with a list or a scalar member, or with no struct or named node type member, stays `any`. Two different sets that get the same name, or a grammar type with that name, are a generation error |
 | `[]T` | a slice; an empty list is an empty slice, not `nil` |
 | `*T` | `*int`, `*string` or `*bool` for basic types; otherwise the Go type of `T`, `nil` when absent |
 | `_`, joins with basic members or members that are not declared node types | `any`, holding the converted value |

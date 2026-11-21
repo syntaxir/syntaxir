@@ -12,6 +12,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/types"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
+	valueimpl "syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // Typed values in generated parsers (GenOptions.Types).
@@ -475,7 +476,7 @@ func (t *TypedGen) Name() error {
 			}
 			t.structs = append(t.structs, name)
 		case *ast.TypeAlias:
-			if u, ok := t.Info.Aliases[name].(types.JoinTy); ok && t.nodeJoin(u) {
+			if u, ok := t.Info.Aliases[name].(types.JoinTy); ok && common.NodeJoin(u) {
 				if _, dup := t.Joins[u.String()]; !dup {
 					t.Joins[u.String()] = name
 					t.aliases = append(t.aliases, name)
@@ -536,16 +537,6 @@ func (t *TypedGen) joinOf(name string) types.JoinTy {
 	return t.Info.Aliases[name].(types.JoinTy)
 }
 
-// nodeJoin reports whether every member of the join is a node type (so it can be an interface).
-func (t *TypedGen) nodeJoin(u types.JoinTy) bool {
-	for _, a := range u.Alts {
-		if !types.IsNode(a) {
-			return false
-		}
-	}
-	return true
-}
-
 // goType returns the Go type of values of type x.
 func (t *TypedGen) goType(x types.Ty) string {
 	switch x := x.(type) {
@@ -571,11 +562,7 @@ func (t *TypedGen) goType(x types.Ty) string {
 		return "*TNode[" + t.goType(x.Value) + "]"
 	case types.NamedTy:
 		switch {
-		case x == types.TyMatch:
-			return "*TNode[string]"
-		case x == types.TyError:
-			return "*Error"
-		case x.Kind == 'c':
+		case x.Kind == 'c': // Missing
 			return "*TNode[any]"
 		}
 		return "*" + t.ref(x.Name)
@@ -639,11 +626,7 @@ func (t *TypedGen) conv(x types.Ty, v string) string {
 		return "a." + t.vconvHelper(x) + "(" + v + ")"
 	case types.NamedTy:
 		switch {
-		case x == types.TyMatch:
-			return "a.toMatch(astNode(" + v + "))"
-		case x == types.TyError:
-			return "a.toError(astNode(" + v + "))"
-		case x.Kind == 'c':
+		case x.Kind == 'c': // Missing
 			return "a.toNode(astNode(" + v + "))"
 		}
 		return "a." + convName(x.Name) + "(astNode(" + v + "))"
@@ -709,22 +692,19 @@ func (t *TypedGen) decls(b *strings.Builder) {
 			fmt.Fprintf(b, "// %s is the join type %s ~ %s. Error (left by #recover) also implements it.\n", goName, name, u)
 		}
 		fmt.Fprintf(b, "type %s interface{ is%s() }\n\n", goName, goName)
+		// Every unnamed node member is a TNode[T], which one generic marker method covers.
 		members := map[string]bool{"Error": true}
 		for _, a := range u.Alts {
-			if n, ok := a.(types.NodeTy); ok && n.Name != "" {
-				members[n.Name] = true
-			}
-			if n, ok := a.(types.NamedTy); ok {
-				switch {
-				case n == types.TyMatch:
+			switch a := a.(type) {
+			case types.NodeTy:
+				if a.Name != "" {
+					members[a.Name] = true
+				} else {
 					members["TNode"] = true
-				case n.Kind == 's':
-					members[n.Name] = true
 				}
+			case types.NamedTy:
+				members[a.Name] = true
 			}
-		}
-		if common.CstJoin(u) {
-			members["TNode"] = true
 		}
 		for m := range members {
 			impl[m] = append(impl[m], goName)
@@ -747,6 +727,42 @@ func (t *TypedGen) decls(b *strings.Builder) {
 		}
 	}
 	b.WriteString("\n")
+}
+
+// joinKindCases writes the cases of a switch on the run-time type of a value of the node join u that
+// convert a node of an unnamed node type, and one of a named node type that is no member, to the
+// unnamed node member of its kind with conv. Without node[_], a node of a kind that no member takes
+// converts to nil, as no member is its type; with it, such a node is left to the default.
+func (t *TypedGen) joinKindCases(b *strings.Builder, u types.JoinTy, conv func(types.NodeTy) string) {
+	kinds, open := common.JoinNodeMembers(u)
+	if open {
+		return // node[_] is the only unnamed node member, and the default
+	}
+	member := map[string]types.NodeTy{}
+	for _, k := range kinds {
+		member[k.Kind] = k.Member
+	}
+	named := map[string]bool{}
+	for _, m := range u.Alts {
+		if n, ok := m.(types.NodeTy); ok && n.Name != "" {
+			named[n.Name] = true
+		}
+	}
+	for _, name := range t.NodeTypes {
+		n, _ := t.G.Prog.Check.NodeTypeOf(name)
+		if k, ok := common.NamedNodeKind(n.Underlying()); ok && !named[name] {
+			if m, ok := member[k]; ok {
+				fmt.Fprintf(b, "\tcase %q:\n\t\treturn %s\n", name, conv(m))
+			}
+		}
+	}
+	for _, k := range []string{valueimpl.TypeString, valueimpl.TypeTuple, valueimpl.TypeList} {
+		if m, ok := member[k]; ok {
+			fmt.Fprintf(b, "\tcase %q:\n\t\treturn %s\n", k, conv(m))
+		} else {
+			fmt.Fprintf(b, "\tcase %q:\n\t\treturn nil\n", k)
+		}
+	}
 }
 
 // converters writes the converter type and its methods. The converter allocates typed values of
@@ -841,22 +857,22 @@ func (a *astConv) toError(n *Node) *Error {
 		b.WriteString("\treturn v\n}\n\n")
 	}
 	for _, name := range t.aliases {
+		// A value converts to the member its node type names, or to the unnamed node member of its
+		// kind (common.JoinNodeMembers); node[_] takes every other node.
 		u := t.joinOf(name)
 		fmt.Fprintf(b, "func (a *astConv) %s(n *Node) %s {\n\ta.step()\n\tif n == nil {\n\t\treturn nil\n\t}\n\tswitch n.Type() {\n\tcase \"error\":\n\t\treturn a.toError(n)\n", convName(name), t.ref(name))
 		for _, m := range u.Alts {
-			if m, ok := m.(types.NodeTy); ok && m.Name != "" {
-				fmt.Fprintf(b, "\tcase %q:\n\t\treturn a.%s(n)\n", m.Name, convName(m.Name))
-			}
-			if m, ok := m.(types.NamedTy); ok {
-				switch {
-				case m == types.TyMatch:
-					b.WriteString("\tcase \"string\":\n\t\treturn a.toMatch(n)\n")
-				case m.Kind == 's':
+			switch m := m.(type) {
+			case types.NodeTy:
+				if m.Name != "" {
 					fmt.Fprintf(b, "\tcase %q:\n\t\treturn a.%s(n)\n", m.Name, convName(m.Name))
 				}
+			case types.NamedTy:
+				fmt.Fprintf(b, "\tcase %q:\n\t\treturn a.%s(n)\n", m.Name, convName(m.Name))
 			}
 		}
-		if common.CstJoin(u) {
+		t.joinKindCases(b, u, func(m types.NodeTy) string { return t.conv(m, "n") })
+		if _, open := common.JoinNodeMembers(u); open {
 			b.WriteString("\t}\n\treturn a.toNode(n)\n}\n\n")
 		} else {
 			b.WriteString("\t}\n\treturn nil\n}\n\n")
@@ -1312,12 +1328,23 @@ func (t *TypedGen) zeroKind(ty types.Ty) string {
 // backNodeTypes writes an init function that completes SXIRHooks.Back with the named node types: a value of
 // a named node type that an action reads back from a field of a join, node or any type becomes the
 // string, tuple or list node of the typed library with the type's index, which converts to the same value
-// again. The conversions read SXIRHooks, so they cannot be part of its initializer.
+// again. It completes it with the unnamed node members of the joins, too: the library reads back
+// TNode[string] and TNode[any] only, and a TNode of another value is the value of one member.
+// The conversions read SXIRHooks, so they cannot be part of its initializer.
 func (t *TypedGen) backNodeTypes(b *strings.Builder) {
 	var cases strings.Builder
 	for _, name := range t.NodeTypes {
 		if n, ok := t.G.Prog.Check.NodeTypeOf(name); ok {
 			fmt.Fprintf(&cases, "\t\tcase *%s:\n\t\t\treturn %s\n", name, t.back(n, "x"))
+		}
+	}
+	seen := map[string]bool{"*TNode[string]": true, "*TNode[any]": true}
+	for _, name := range t.aliases {
+		for _, m := range t.joinOf(name).Alts {
+			if n, ok := m.(types.NodeTy); ok && n.Name == "" && !seen[t.goType(n)] && t.representable(n) {
+				seen[t.goType(n)] = true
+				fmt.Fprintf(&cases, "\t\tcase %s:\n\t\t\treturn %s\n", t.goType(n), t.back(n, "x"))
+			}
 		}
 	}
 	if cases.Len() == 0 {
@@ -1422,11 +1449,7 @@ func (t *TypedGen) dconv(x types.Ty, v, a string) string {
 		return t.tpubNode(v, a)
 	case types.NamedTy:
 		switch {
-		case x == types.TyMatch:
-			return "(*TNode[string])(TPubMatch(" + v + "))"
-		case x == types.TyError:
-			return "(*Error)(TPubError(" + v + "))"
-		case x.Kind == 'c':
+		case x.Kind == 'c': // Missing
 			return t.tpubNode(v, a)
 		}
 		return "TAs[" + t.goType(x) + "](" + v + ")"
@@ -1436,6 +1459,9 @@ func (t *TypedGen) dconv(x types.Ty, v, a string) string {
 				return t.dconv(x.Alts[0], v, a)
 			}
 			return t.tpub(v, a)
+		}
+		if kinds, open := common.JoinNodeMembers(x); len(kinds) > 0 && !open {
+			return t.vdconvHelper(x) + "(" + a + ", " + v + ")"
 		}
 		return "TAs[" + t.goType(x) + "](" + t.tpub(v, a) + ")"
 	case types.OptTy:

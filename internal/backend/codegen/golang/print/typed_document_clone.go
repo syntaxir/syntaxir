@@ -41,11 +41,7 @@ func (t *TypedGen) documentClone(b *strings.Builder, result types.Ty) string {
 			return "c.toNode(" + value + ")"
 		case types.NamedTy:
 			name := convName(x.Name)
-			if x == types.TyMatch {
-				name = "toMatch"
-			} else if x == types.TyError {
-				name = "toError"
-			} else if x.Kind == 'c' {
+			if x.Kind == 'c' { // Missing
 				name = "toNode"
 			}
 			return "c." + name + "(" + value + ")"

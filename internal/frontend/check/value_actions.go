@@ -396,12 +396,7 @@ func (v *ValueInference) convertible(s Ty, d NodeTy) bool {
 				return false
 			}
 		case NamedTy:
-			if x.Kind != 'c' || x == TyError || x == TyMissing {
-				return false
-			}
-			if n, ok := FromLegacy(x).(NodeTy); !ok || !v.assignable(n, under) {
-				return false
-			}
+			return false // a struct or Missing is no node of a named node type's underlying type
 		default:
 			if x != TyAny && x != TyBottom {
 				return false
@@ -998,10 +993,6 @@ func (v *ValueInference) elemsOf(x Ty) (Ty, bool) {
 			ts[i] = t
 		}
 		return Vjoin(ts...), true
-	case NamedTy:
-		if x == TyError {
-			return TyBottom, true
-		}
 	case BasicTy:
 		switch x {
 		case TyAny:

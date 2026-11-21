@@ -414,7 +414,7 @@ func parseTS(src string) map[string]tsDecl {
 }
 
 // tsNames returns the names of a schema shape as TypeScript writes them in a union or a list: a
-// reference is its name, a node of a string is TNode<string>, an optional is its element, and a join
+// reference is its name, a node of a string is StringNode, an optional is its element, and a join
 // is the names of its alternatives.
 func tsNames(sc confSchema, sh *confShape) ([]string, error) {
 	sh, err := sc.resolve(sh)
@@ -428,7 +428,7 @@ func tsNames(sc confSchema, sh *confShape) ([]string, error) {
 		}
 	case "node":
 		if sh.Value != nil && sh.Value.Kind == "scalar" && sh.Value.Scalar == "string" {
-			return []string{"TNode<string>"}, nil
+			return []string{"StringNode"}, nil
 		}
 	case "optional":
 		return tsNames(sc, sh.Element)
@@ -481,10 +481,10 @@ func matchTS(sc confSchema, sh *confShape, text string) string {
 		return fmt.Sprintf("want %q for scalar %s, got %q", tsScalars[sh.Scalar], sh.Scalar, text)
 	case "node":
 		if sh.Value != nil && sh.Value.Kind == "scalar" && sh.Value.Scalar == "string" {
-			if text == "TNode<string> | null" {
+			if text == "StringNode | null" {
 				return ""
 			}
-			return fmt.Sprintf("want %q for a node of a string, got %q", "TNode<string> | null", text)
+			return fmt.Sprintf("want %q for a node of a string, got %q", "StringNode | null", text)
 		}
 	case "list":
 		m := tsList.FindStringSubmatch(text)

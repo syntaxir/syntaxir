@@ -10,8 +10,8 @@ import (
 )
 
 func TestRuleTypeWithPollParity(t *testing.T) {
-	record := types.RecordTy{Fields: map[string]types.Ty{"z": types.ListTy{Elem: types.JoinTy{Alts: []types.Ty{types.TyMatch, types.TyNil}}}, "a": types.OptTy{Elem: types.TyString}}}
-	cases := []types.Ty{types.TyAny, types.TyNever, types.TyNil, types.TyInt, types.TyBool, types.TyString, types.TyNode, types.TyMatch, types.ListTy{Elem: types.TyMatch}, types.OptTy{Elem: types.TyMatch}, types.JoinTy{}, types.JoinTy{Alts: []types.Ty{types.TyMatch, types.TySeq, types.TyMissing}}, record, types.RecordTy{Fields: map[string]types.Ty{}}, types.ListTy{Elem: record},
+	record := types.RecordTy{Fields: map[string]types.Ty{"z": types.ListTy{Elem: types.JoinTy{Alts: []types.Ty{types.TyStringNode, types.TyNil}}}, "a": types.OptTy{Elem: types.TyString}}}
+	cases := []types.Ty{types.TyAny, types.TyNever, types.TyNil, types.TyInt, types.TyBool, types.TyString, types.TyNode, types.TyStringNode, types.ListTy{Elem: types.TyStringNode}, types.OptTy{Elem: types.TyStringNode}, types.JoinTy{}, types.JoinTy{Alts: []types.Ty{types.TyStringNode, types.NodeTy{Value: types.TyTop}, types.TyMissing}}, record, types.RecordTy{Fields: map[string]types.Ty{}}, types.ListTy{Elem: record},
 		// Value-model types
 		types.TyTop, types.TyBottom, types.RuleTy{Name: "expr"}, types.NodeTy{Value: types.TyTop}, types.NodeTy{Value: types.ListTy{Elem: types.TyStringNode}}, types.TupleTy{Elems: []types.Ty{types.TyStringNode}},
 		types.NodeTy{Value: types.TupleTy{Elems: []types.Ty{types.OptTy{Elem: types.TyStringNode}, types.RuleTy{Name: "x"}}}, Caps: []types.CapIndex{{Name: "a", Paths: [][]int{{0}, {1, 0}}}, {Name: "b", Side: true}}}}
@@ -48,10 +48,10 @@ func TestRuleTypeWithPollCancelsWithinCollections(t *testing.T) {
 	var union types.JoinTy
 	record := types.RecordTy{Fields: map[string]types.Ty{}}
 	for i := range 1024 {
-		union.Alts = append(union.Alts, types.TyMatch)
-		record.Fields[fmt.Sprintf("f%d", i)] = types.TyMatch
+		union.Alts = append(union.Alts, types.TyStringNode)
+		record.Fields[fmt.Sprintf("f%d", i)] = types.TyStringNode
 	}
-	for _, typ := range []types.Ty{union, record, types.JoinTy{Alts: []types.Ty{types.NamedTy{Name: strings.Repeat("x", 1<<20)}, types.TyMatch}}} {
+	for _, typ := range []types.Ty{union, record, types.JoinTy{Alts: []types.Ty{types.NamedTy{Name: strings.Repeat("x", 1<<20)}, types.TyStringNode}}} {
 		func() {
 			marker := &struct{}{}
 			calls := 0

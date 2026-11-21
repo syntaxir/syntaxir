@@ -17,7 +17,7 @@ import (
 
 // TsReservedTypes are the names types.ts declares itself, or imports. A grammar type with one of
 // these names would shadow or redeclare it, so the generator rejects it.
-var TsReservedTypes = []string{"Span", "TNode", "StringNode", "RecoveredError", "TypedParseResult", "TypedValue", "RuntimeNode"}
+var TsReservedTypes = []string{"Span", "TNode", "StringNode", "TupleNode", "ListNode", "RecoveredError", "TypedParseResult", "TypedValue", "RuntimeNode"}
 
 // tsTypedNameRef matches the identifiers of a TypeScript type expression of typedTS.
 var tsTypedNameRef = regexp.MustCompile(`[\p{L}_$][\p{L}\p{N}_$]*`)
@@ -54,7 +54,7 @@ func (g *Generator) typedTS(start *common.Rule) (typesSrc, parser string, err er
 			return "", "", fmt.Errorf("the grammar type %s cannot be generated for TypeScript: types.ts declares a type with that name (reserved: %s)", name, strings.Join(TsReservedTypes, ", "))
 		}
 		t.names[name] = name
-		if a, ok := t.info.Aliases[name].(types.JoinTy); ok && tsNodeJoin(a) {
+		if a, ok := t.info.Aliases[name].(types.JoinTy); ok && common.NodeJoin(a) {
 			t.joins[a.String()] = true
 		}
 	}
@@ -73,7 +73,11 @@ func (g *Generator) typedTS(start *common.Rule) (typesSrc, parser string, err er
 		case *ast.TypeDef:
 			open = append(open, t.names[name])
 			if n, ok := g.Prog.Check.NodeTypeOf(name); ok && spec.Struct() == nil {
-				under := strings.TrimSuffix(t.tsType(n.Underlying()), " | null")
+				// A named node type has its name as its type: it extends TNode, not the node of its kind.
+				under := "TNode<unknown>"
+				if u := n.Underlying(); u.Value != types.TyTop && u.Value != types.TyAny {
+					under = "TNode<" + t.tsType(u.Value) + ">"
+				}
 				fmt.Fprintf(&b, "/** Grammar node type %s = %s. */\nexport interface %s extends %s {\n  readonly type: %s;\n}\n\n", name, n.Underlying(), t.names[name], under, TsString(name))
 				t.recipe(n)
 				continue
@@ -107,17 +111,14 @@ func (g *Generator) typedTS(start *common.Rule) (typesSrc, parser string, err er
 	b.WriteString(tsTypedLib)
 	// recipe() reserves an ID before visiting child types, so recursive fields
 	// reference the same representation. Write the table after all registration.
-	t.recipe(types.TyMatch)
-	t.recipe(types.TyError)
+	stringID, errorID := t.recipe(types.TyStringNode), t.recipe(types.TyErr)
 	openID, elemsID := t.recipe(openNode), t.recipe(types.ListTy{Elem: types.TyAny})
 	b.WriteString(tsTypedRecipeTable)
 	for _, r := range t.recipes {
 		b.WriteString("  " + r + ",\n")
 	}
 	b.WriteString(tsTypedNodeRecipeTable)
-	for _, n := range []types.NamedTy{types.TyMatch, types.TyError} {
-		fmt.Fprintf(&b, "  [%s, %d],\n", TsString(n.Name), t.recipe(n))
-	}
+	fmt.Fprintf(&b, "  [%s, %d],\n  [%s, %d],\n", TsString(valueimpl.TypeString), stringID, TsString(valueimpl.TypeError), errorID)
 	// Open values: tuple and list nodes become TNode<unknown>, and tuple and list values arrays.
 	for _, name := range []string{valueimpl.TypeTuple, valueimpl.TypeList} {
 		fmt.Fprintf(&b, "  [%s, %d],\n", TsString(name), openID)
@@ -151,15 +152,6 @@ type tsTypedGen struct {
 	recipes []string
 }
 
-func tsNodeJoin(u types.JoinTy) bool {
-	for _, a := range u.Alts {
-		if !types.IsNode(a) {
-			return false
-		}
-	}
-	return true
-}
-
 func (t *tsTypedGen) tsType(x types.Ty) string {
 	switch x := x.(type) {
 	case types.BasicTy:
@@ -188,14 +180,18 @@ func (t *tsTypedGen) tsType(x types.Ty) string {
 		if x.Value == types.TyTop || x.Value == types.TyAny {
 			return "TNode<unknown> | null" // the value of an open node is its text or its elements
 		}
+		// A node of one kind has that kind as its type (nodeKind), so a union narrows by it.
+		switch k, _ := nodeKind(x); k {
+		case valueimpl.TypeString:
+			return "StringNode | null"
+		case valueimpl.TypeTuple:
+			return "TupleNode<" + t.tsType(x.Value) + "> | null"
+		case valueimpl.TypeList:
+			return "ListNode<" + t.tsType(x.Value) + "> | null"
+		}
 		return "TNode<" + t.tsType(x.Value) + "> | null"
 	case types.NamedTy:
-		switch {
-		case x == types.TyMatch:
-			return "StringNode | null"
-		case x == types.TyError:
-			return "RecoveredError | null"
-		case x.Kind == 'c':
+		if x.Kind == 'c' { // Missing
 			return "TNode<unknown> | null"
 		}
 		return t.names[x.Name] + " | null"
@@ -212,19 +208,9 @@ func (t *tsTypedGen) tsType(x types.Ty) string {
 		if t.joins[x.String()] {
 			parts := []string{"RecoveredError", "null"}
 			for _, a := range x.Alts {
-				switch a := a.(type) {
-				case types.NamedTy:
-					if a == types.TyMatch || a.Kind == 's' {
-						parts = append(parts, strings.TrimSuffix(t.tsType(a), " | null"))
-					}
-				case types.NodeTy:
-					if a.Name != "" {
-						parts = append(parts, strings.TrimSuffix(t.tsType(a), " | null"))
-					}
+				if a != types.TyErr {
+					parts = append(parts, strings.TrimSuffix(t.tsType(a), " | null"))
 				}
-			}
-			if common.CstJoin(x) {
-				parts = append(parts, "TNode<unknown>")
 			}
 			return strings.Join(parts, " | ")
 		}
@@ -275,7 +261,7 @@ func (t *tsTypedGen) conversionKey(x types.Ty) string {
 		}
 		return "tnode:" + tnodeMode(x) + ":" + t.conversionKey(x.Value)
 	case types.NamedTy:
-		if x.Kind != 'c' || x == types.TyMatch || x == types.TyError {
+		if x.Kind != 'c' {
 			return "named:" + x.Name
 		}
 		return t.conversionKey(openNode)
@@ -300,6 +286,20 @@ func (t *tsTypedGen) conversionKey(x types.Ty) string {
 		}
 	}
 	return "any"
+}
+
+// nodeKind returns the kind of the nodes of the unnamed node type x (types.NodeKinds), and whether it
+// has exactly one. Such a node's typed value has its kind as its type, also when the node is one of
+// a named node type assignable to x: the type of a value is the type it converts to.
+func nodeKind(x types.NodeTy) (string, bool) {
+	if x.Name != "" {
+		return "", false
+	}
+	ks := types.NodeKinds(x)
+	if len(ks) != 1 {
+		return "", false
+	}
+	return ks[0], true
 }
 
 // openNode is the type of the nodes of CST types: their values are their text or their elements.
@@ -328,7 +328,7 @@ func (t *tsTypedGen) recipe(x types.Ty) int {
 		case types.TyInt, types.TyString, types.TyBool:
 			kind, key = string(a), string(a)
 		case types.TyErr:
-			return t.recipe(types.TyError)
+			kind, key = "error", t.conversionKey(a)
 		}
 	case common.Vrule:
 		return t.recipe(t.Vres[a.Name])
@@ -341,14 +341,10 @@ func (t *tsTypedGen) recipe(x types.Ty) int {
 			x, _ = t.Prog.Check.NodeTypeOf(a.Name)
 		}
 	case types.NamedTy:
-		kind, key = "terminal", "named:"+a.Name
-		if a == types.TyError {
-			kind = "error"
-		} else if a.Kind == 's' {
-			kind = "struct"
-		} else if a.Kind == 'c' && a != types.TyMatch {
+		if a.Kind == 'c' { // Missing
 			return t.recipe(openNode)
 		}
+		kind, key = "struct", "named:"+a.Name
 	case types.OptTy:
 		if a.Elem == types.TyInt || a.Elem == types.TyString || a.Elem == types.TyBool {
 			kind, key = "opt"+a.Elem.String(), "opt"+a.Elem.String()
@@ -376,17 +372,16 @@ func (t *tsTypedGen) recipe(x types.Ty) int {
 	t.recipes = append(t.recipes, "")
 	r := "{ kind: " + TsString(kind)
 	switch a := x.(type) {
+	case types.BasicTy:
+		if kind == "error" {
+			r += ", name: " + TsString(valueimpl.TypeError)
+		}
 	case types.NamedTy:
-		if kind == "struct" || kind == "terminal" || kind == "error" {
-			r += ", name: " + TsString(a.Name)
+		var fields []string
+		for _, f := range t.info.Fields[a.Name] {
+			fields = append(fields, fmt.Sprintf("{ name: %s, repr: %d }", TsString(f.Name), t.recipe(f.T)))
 		}
-		if kind == "struct" {
-			var fields []string
-			for _, f := range t.info.Fields[a.Name] {
-				fields = append(fields, fmt.Sprintf("{ name: %s, repr: %d }", TsString(f.Name), t.recipe(f.T)))
-			}
-			r += ", fields: [" + strings.Join(fields, ", ") + "]"
-		}
+		r += ", name: " + TsString(a.Name) + ", fields: [" + strings.Join(fields, ", ") + "]"
 	case types.ListTy:
 		r += ", elem: " + strconv.Itoa(t.recipe(a.Elem))
 	case types.OptTy:
@@ -394,6 +389,9 @@ func (t *tsTypedGen) recipe(x types.Ty) int {
 	case types.NodeTy:
 		if a.Name != "" {
 			r += ", name: " + TsString(a.Name)
+		}
+		if k, ok := nodeKind(a); ok {
+			r += ", type: " + TsString(k)
 		}
 		r += ", mode: " + TsString(tnodeMode(a)) + ", elem: " + strconv.Itoa(t.recipe(a.Value))
 	case types.TupleTy:
@@ -404,17 +402,48 @@ func (t *tsTypedGen) recipe(x types.Ty) int {
 		r += ", elems: [" + strings.Join(elems, ", ") + "]"
 	case types.JoinTy:
 		if kind == "union" {
-			members := []string{fmt.Sprintf("[%s, %d]", TsString(valueimpl.TypeError), t.recipe(types.TyError))}
+			// A value converts to the member its node type names, or to the unnamed node member of
+			// its kind, also a node of a named node type that is no member; node[_] takes every
+			// other node.
+			members := []string{fmt.Sprintf("[%s, %d]", TsString(valueimpl.TypeError), t.recipe(types.TyErr))}
+			named := map[string]bool{}
 			for _, m := range a.Alts {
-				if m, ok := m.(types.NamedTy); ok && (m == types.TyMatch || m.Kind == 's') {
+				switch m := m.(type) {
+				case types.NamedTy:
 					members = append(members, fmt.Sprintf("[%s, %d]", TsString(m.Name), t.recipe(m)))
+				case types.NodeTy:
+					if m.Name != "" {
+						named[m.Name] = true
+						members = append(members, fmt.Sprintf("[%s, %d]", TsString(m.Name), t.recipe(m)))
+					}
 				}
-				if m, ok := m.(types.NodeTy); ok && m.Name != "" {
-					members = append(members, fmt.Sprintf("[%s, %d]", TsString(m.Name), t.recipe(m)))
+			}
+			kinds, open := common.JoinNodeMembers(a)
+			if !open {
+				byKind := map[string]types.NodeTy{}
+				for _, k := range kinds {
+					byKind[k.Kind] = k.Member
+				}
+				for _, name := range t.all {
+					n, ok := t.Prog.Check.NodeTypeOf(name)
+					if !ok || named[name] {
+						continue
+					}
+					if td, ok := t.Prog.Types[name].(*ast.TypeDef); !ok || td.Struct() != nil {
+						continue
+					}
+					if k, ok := common.NamedNodeKind(n.Underlying()); ok {
+						if m, ok := byKind[k]; ok {
+							members = append(members, fmt.Sprintf("[%s, %d]", TsString(name), t.recipe(m)))
+						}
+					}
+				}
+				for _, k := range kinds {
+					members = append(members, fmt.Sprintf("[%s, %d]", TsString(k.Kind), t.recipe(k.Member)))
 				}
 			}
 			r += ", members: new Map([" + strings.Join(members, ", ") + "])"
-			if common.CstJoin(a) {
+			if open {
 				r += ", fallback: " + strconv.Itoa(t.recipe(openNode))
 			}
 		}
@@ -429,6 +458,10 @@ const tsTypedDeclarations = `export interface Span { readonly start: number; rea
 /** A node with the value T: a string node has its text, other nodes their elements. */
 export interface TNode<T> extends Span { readonly type: string; readonly value: T }
 export interface StringNode extends TNode<string> { readonly type: "string" }
+/** A tuple node: its value is its elements. */
+export interface TupleNode<T> extends TNode<T> { readonly type: "tuple" }
+/** A list node: its value is its elements. */
+export interface ListNode<T> extends TNode<T> { readonly type: "list" }
 export interface RecoveredError extends Span {
   readonly type: "error";
   readonly message: string;
@@ -468,6 +501,7 @@ const tsTypedLib = `interface ValueRecipe {
   readonly elem?: number;
   readonly elems?: readonly number[];
   readonly mode?: string;
+  readonly type?: string;
   readonly members?: ReadonlyMap<string, number>;
   readonly fallback?: number;
 }
@@ -553,11 +587,9 @@ function astConvert(value: Value, repr: number, control: BudgetControl | null = 
         out = new Array<unknown>(recipe.elems!.length);
       } else if (recipe.kind === "tnode") {
         // A named node type takes only its own nodes.
-        out = recipe.name === undefined || v.type === recipe.name ? { type: v.type, start: v.start, end: v.end, value: null } : null;
+        out = recipe.name === undefined || v.type === recipe.name ? { type: recipe.type ?? v.type, start: v.start, end: v.end, value: null } : null;
       } else if (v.type === recipe.name) {
         const obj: ValueObject = { type: v.type, start: v.start, end: v.end };
-        if (recipe.name === "string") obj["value"] = v.text;
-        else if (recipe.kind !== "struct" && recipe.kind !== "error") obj["text"] = v.text;
         if (recipe.kind === "error") {
           const msg = v.field("message");
           obj["message"] = typeof msg === "string" ? msg : "";

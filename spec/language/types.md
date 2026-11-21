@@ -351,6 +351,11 @@ for it. The rule applies to the join as written, after normalization, so
 node[(node[string], A)] | node[string]` and `A | node[_]`, with `A` a struct
 type, are accepted.
 
+A node of a named node type that is no member of the join is a value of the
+unnamed node member it is assignable to (see [Assignability](#assignability)),
+the member of its kind, and has the type of that member: in a value of
+`A | node[string]`, a node of `type N = node[string]` is a `node[string]`.
+
 ## Assignability
 
 A value of type `V` is assignable to a location of type `T` (a struct field, the

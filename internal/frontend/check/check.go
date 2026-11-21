@@ -70,7 +70,7 @@ func CheckTypesControlled(prog *Checker, errs *diagnostic.ErrorList, control *ca
 				info.Fields[td.DeclName()] = append(info.Fields[td.DeclName()], typedField{f.Name, k.Resolve(f.Type)})
 			}
 		case *ast.TypeAlias:
-			info.Aliases[td.DeclName()] = JoinMembers(k.ResolveNamed(td.DeclName(), td.Diagnostic()))
+			info.Aliases[td.DeclName()] = k.ResolveNamed(td.DeclName(), td.Diagnostic())
 		}
 	}
 	prog.Typed = info
@@ -121,31 +121,6 @@ func (p *Checker) RuleType(name string) (string, bool) {
 		return "", false
 	}
 	return t.String(), true
-}
-
-// JoinMembers returns t with the members of a join written as the node kinds that the typed
-// generators give a Go type and a converter of their own: node[string] as a string node, node[_]
-// as any node and error as an error node.
-func JoinMembers(t Ty) Ty {
-	u, ok := t.(JoinTy)
-	if !ok {
-		return t
-	}
-	alts := make([]Ty, len(u.Alts))
-	for i, a := range u.Alts {
-		n, node := a.(NodeTy)
-		switch {
-		case node && n.Name == "" && n.Value == TyString && len(n.Caps) == 0:
-			alts[i] = TyMatch
-		case anyNode(a):
-			alts[i] = TyNode
-		case a == TyErr:
-			alts[i] = TyError
-		default:
-			alts[i] = a
-		}
-	}
-	return JoinTy{Alts: alts}
 }
 
 type typedField struct {

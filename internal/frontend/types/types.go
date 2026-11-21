@@ -38,26 +38,14 @@ func (t BasicTy) String() string {
 // NamedTy is a named node type.
 type NamedTy struct {
 	Name string
-	Kind byte // 's': struct, 'c': reserved node kind
+	Kind byte // 's': struct, 'c': the reserved node kind Missing
 }
 
-// String returns the name of a struct or Missing, and the value-model term of another reserved
-// node kind (node[string], node, error), so that diagnostics name the types a grammar can write.
-func (t NamedTy) String() string {
-	if t.Kind == 'c' && t != TyMissing {
-		return FromLegacy(t).String()
-	}
-	return t.Name
-}
+// String returns the name of the type.
+func (t NamedTy) String() string { return t.Name }
 
-// The reserved node kinds as named types.
-var (
-	TyMatch   = NamedTy{valueimpl.TypeString, 'c'}
-	TySeq     = NamedTy{valueimpl.TypeTuple, 'c'}
-	TyList    = NamedTy{valueimpl.TypeList, 'c'}
-	TyError   = NamedTy{valueimpl.TypeError, 'c'}
-	TyMissing = NamedTy{valueimpl.TypeMissing, 'c'}
-)
+// TyMissing is the error value that a missing element leaves, a reserved node kind.
+var TyMissing = NamedTy{valueimpl.TypeMissing, 'c'}
 
 // ListTy is the list type []Elem.
 type ListTy struct{ Elem Ty }

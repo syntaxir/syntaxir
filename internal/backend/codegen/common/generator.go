@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"syntaxir.dev/sxir/internal/frontend/check"
@@ -15,6 +16,7 @@ import (
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/runtime/limits"
 	"syntaxir.dev/sxir/internal/runtime/program"
+	valueimpl "syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // Generator is the state that the Go and TypeScript generators share: the program and rule being
@@ -348,22 +350,84 @@ func (g *Generator) StartRecFlow(rec *Program) error {
 	return nil
 }
 
-// CstJoin reports whether the join has members that stay *Node. The members are read as
-// joinMembers writes them, so a join that is spelled with node[_] or error has the same answer as
-// the alias that names it: node[_] stays a node, and error converts to an Error.
-func CstJoin(u types.JoinTy) bool {
-	if m, ok := check.JoinMembers(u).(types.JoinTy); ok {
-		u = m
-	}
+// NodeJoin reports whether the join u has a Go interface and a TypeScript union of its own: every
+// member is a struct type, a named node type, an unnamed node type or error, and no two unnamed
+// node members admit nodes of one kind (types.NodeKinds), which the checker reports for a join
+// written so. A value of such a join converts to the member that its run-time type selects
+// (JoinNodeMembers).
+func NodeJoin(u types.JoinTy) bool {
+	seen := map[string]bool{}
 	for _, a := range u.Alts {
 		switch a := a.(type) {
 		case types.NamedTy:
-			if a.Kind == 'c' && a != types.TyMatch && a != types.TyError {
-				return true
+			if a.Kind != 's' {
+				return false
 			}
-		case types.BasicTy, types.ListTy, types.RecordTy:
-			return true
+		case types.NodeTy:
+			if a.Name != "" {
+				continue
+			}
+			for _, k := range types.NodeKinds(a) {
+				if seen[k] {
+					return false
+				}
+				seen[k] = true
+			}
+		case types.BasicTy:
+			if a != types.TyErr {
+				return false
+			}
+		default:
+			return false
 		}
 	}
-	return false
+	return true
+}
+
+// JoinNodeMembers returns the unnamed node members of the node join u (NodeJoin) by the kinds of
+// node they take: valueimpl.TypeString, TypeTuple and TypeList, in that order, each with its
+// member. Open is the member node[_] (or node[unknown]) if u has it: it takes every node that no
+// other member takes by its name.
+func JoinNodeMembers(u types.JoinTy) (kinds []KindMember, open bool) {
+	for _, a := range u.Alts {
+		n, ok := a.(types.NodeTy)
+		if !ok || n.Name != "" {
+			continue
+		}
+		if n.Value == types.TyTop || n.Value == types.TyAny {
+			open = true
+		}
+		for _, k := range types.NodeKinds(n) {
+			kinds = append(kinds, KindMember{k, n})
+		}
+	}
+	slices.SortStableFunc(kinds, func(a, b KindMember) int { return kindOrder(a.Kind) - kindOrder(b.Kind) })
+	return kinds, open
+}
+
+// KindMember is an unnamed node member of a join with a kind of node it takes.
+type KindMember struct {
+	Kind   string // valueimpl.TypeString, TypeTuple or TypeList
+	Member types.NodeTy
+}
+
+func kindOrder(k string) int {
+	switch k {
+	case valueimpl.TypeString:
+		return 0
+	case valueimpl.TypeTuple:
+		return 1
+	}
+	return 2
+}
+
+// NamedNodeKind returns the kind of the nodes of the named node type whose underlying node type is
+// under, and whether it has exactly one: a node of a named node type that is no member of a join
+// converts to the unnamed node member of its kind, the member it is assignable to.
+func NamedNodeKind(under types.NodeTy) (string, bool) {
+	ks := types.NodeKinds(under)
+	if len(ks) != 1 {
+		return "", false
+	}
+	return ks[0], true
 }

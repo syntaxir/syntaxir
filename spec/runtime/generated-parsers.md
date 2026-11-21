@@ -213,12 +213,12 @@ func ParseRuleValue(name, input string, opts ...ParseOption) (any, error)
 | `node[T]` | `*TNode[T']`, with `Span` and `Value` of the Go type `T'` of `T`: `*TNode[string]` for a string node, whose `Value` is the text, and `*TNode[any]` for `node[_]` |
 | Tuple `(A, B, ...)` | `TupleN[A', B', ...]` with the fields `E0`, `E1`, ...; `Unit` for `()` |
 | `error` (from `#recover`) | `*Error` with `Span`, `Text` and `Message` |
-| Join `U ~ A \| B` of node types | An interface `U` implemented by `*A`, `*B` and `*Error` (and by every `*TNode[T]` if a member is a node type) |
-| Join of declared node types written in place (a field, a list element, a rule value) and declared by no alias: `A \| B` (two or more distinct declared node types, with or without `error`), or `A \| error` (one declared node type and `error`) | An interface named after its members in the order of their first spelling in the file (declarations in source order, then the fields of a type), `AOrB`, or `AOrError` for one node type and `error`, implemented by `*A`, `*B` and `*Error`. The same set of members in any order is one interface, and a set that an alias declares is that alias. A type of the grammar with the generated name, or two different sets with the same name, is a generation error. A join with a member that is not a declared node type (`node[string]`, `node[_]`, a list, a scalar) has no interface and is `any` |
+| Join `U ~ A \| B` of node types: struct types, named node types, unnamed node types and `error` | An interface `U` implemented by `*A`, `*B` and `*Error`, and by every `*TNode[T]` if a member is an unnamed node type. A value converts to the member its type names, or, for a node of an unnamed node type or of a named node type that is no member, to the unnamed node member of its kind (string, tuple or list) with that member's Go type; `node[_]` takes every other node as a `*TNode[any]` |
+| Join of node types written in place (a field, a list element, a rule value) and declared by no alias: `A \| B` (two or more distinct members, with or without `error`), or `A \| error` (one member and `error`) | An interface named after its members in the order of their first spelling in the file (declarations in source order, then the fields of a type), `AOrB`, or `AOrError` for one member and `error`, implemented like the interface of an alias; an unnamed node member is named after its value and `Node`, as `StringNode` for `node[string]`, `ItemListNode` for `node[[]Item]` and `Node` for `node[_]`. The same set of members in any order is one interface, and a set that an alias declares is that alias. A type of the grammar with the generated name, or two different sets with the same name, is a generation error. A join without a struct or named node type member, a join with a member that is no node type (a list, a scalar), or one with two unnamed node members of one kind has no interface and is `any`; an alias gives a join of unnamed node types an interface |
 | `[]T` | A slice; an empty list is an empty slice and not `nil` |
 | `*T` | `*int`, `*string` or `*bool` for basic types; otherwise the Go type of `T`, `nil` when absent |
 | A rule whose type is not declared | The Go type of its value (an action's value maps by the rows above): `*TNode[TupleN[E0, ..., En]]` for a tuple of known elements, `*TNode[[]E]` for a list, `*TNode[Unit]` for the unit `()`; `*TNode[any]` when the elements are not known; a rule with a declared type, `node[_]` included, always has the Go type of that type |
-| `_`, joins with basic members, with node members that are not declared node types, or with members of different shapes, a value that closes a cycle of rules | `any`, holding the converted value |
+| `_`, joins with basic members, with unnamed node members of one kind, or with members of different shapes, a value that closes a cycle of rules | `any`, holding the converted value |
 | Alias `Alias ~ T` | A Go alias to the value type of `T` |
 
 - `TNode[T]` is `struct { Span; Value T }`; `TupleN` is `struct { E0 E0; ...; En En }`
@@ -257,15 +257,15 @@ mapping is:
 | Grammar type | TypeScript value |
 |:--|:--|
 | Struct | An interface with `type` (the grammar name), `start`, `end` and the fields; nullable where an absent or incompatible recovered value becomes nil |
-| `node[T]` | `TNode<T'>`, with `start`, `end` and `value` of the TypeScript type `T'` of `T`; `StringNode`, which extends `TNode<string>`, for a string node, and `TNode<unknown>` for `node[_]` |
+| `node[T]` | `TNode<T'>`, with `start`, `end` and `value` of the TypeScript type `T'` of `T`; for a node of one kind, the interface of that kind, which extends it with that kind as its `type`: `StringNode` for a string node, `TupleNode<T'>` for a tuple node and `ListNode<T'>` for a list node, also when the node is one of a named node type; `TNode<unknown>` for `node[_]` |
 | Tuple `(A, B, ...)` | `readonly [A', B', ...]` |
 | `[]T` | A readonly array, or null; null differs from an empty array |
 | `*T` | A nullable target |
 | `int` | `number \| bigint`, with signed 64-bit arithmetic and safe-number canonicalization |
 | `string`, `bool` | `string`, `boolean`; an absent non-optional scalar field is `""`, `false` or `0` |
 | Declared alias | The complete target type |
-| Join of declared node types, declared by an alias or written in place | The member interfaces, `RecoveredError` and null; tuple and list node members remain `Node` |
-| Join with a member that is not a declared node type, `_` | `TypedValue`, following the conversion of `any` in Go |
+| Join of node types, declared by an alias or written in place | The TypeScript types of the members, `RecoveredError` and null, which narrow by `type`; a value converts to its member as in Go |
+| Join with a member that is no node type, `_` | `TypedValue`, following the conversion of `any` in Go |
 
 Names collide the same way as in Go, with trailing underscores. Typed parsing by
 rule name is not available in TypeScript.

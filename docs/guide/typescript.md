@@ -228,7 +228,7 @@ Compared with the Go API:
   `-lib import -lib-module` to share it (then a `Node` from one parser is an `instanceof Node` of the other).
 - **Names of types.** `types.ts` is a module of its own, so a grammar type may be called `Node`, `Value`, `Parser` or
   anything else of the library; `parser.ts` exports the library's own declaration under such a name, and the type
-  stays reachable from `types.ts`. The names `Span`, `TNode`, `StringNode`, `RecoveredError`, `TypedParseResult`,
+  stays reachable from `types.ts`. The names `Span`, `TNode`, `StringNode`, `TupleNode`, `ListNode`, `RecoveredError`, `TypedParseResult`,
   `TypedValue` and `RuntimeNode` are declared by `types.ts` itself, and the generator rejects a grammar type with one
   of them.
 - A parser keeps no state between calls; it is safe to call from several workers.
@@ -314,7 +314,7 @@ are read and validated once; a zero `limits.depth` selects the generated default
 
 Converted values are plain objects with readonly fields, lowercase `type`
 discriminators and `start`/`end` spans. Grammar field spelling is unchanged.
-String nodes (`StringNode`, a `TNode<string>` whose `type` is `"string"`) have `value`; recovered errors have `text` and `message`.
+Nodes have `value`: a node of one kind has that kind as its `type` (`StringNode`, `TupleNode<T>` and `ListNode<T>`, which extend `TNode<T>` with the `type` `"string"`, `"tuple"` or `"list"`); recovered errors have `text` and `message`.
 `readonly` is a type-checking contract; the objects are not frozen.
 
 | Grammar type | Generated value |
@@ -325,10 +325,10 @@ String nodes (`StringNode`, a `TNode<string>` whose `type` is `"string"`) have `
 | `int` | `number \| bigint`, preserving signed 64-bit arithmetic and safe-number canonicalization |
 | `string`, `bool` | `string`, `boolean`; absent nonoptional scalar fields use `""` and `false` (`int` uses `0`) |
 | declared aliases | complete target type, preserving optional, list and node representations |
-| `node[T]` | `TNode<T'>` with `T'` the TypeScript type of `T`; text is a `StringNode`, a `TNode<string>`, and `node[_]` is `TNode<unknown>` |
+| `node[T]` | `TNode<T'>` with `T'` the TypeScript type of `T`, as `StringNode`, `TupleNode<T'>` or `ListNode<T'>` for a node of one kind; `node[_]` is `TNode<unknown>` |
 | tuple `(A, B, ...)` | `readonly [A', B', ...]` |
-| join of declared node types, or of one declared node type and `error`, named by an alias or written in place | member interfaces plus `RecoveredError` and null; node members are `TNode` values |
-| join with a member that is not a declared node type, `_` | conservative `TypedValue`, following Go's any-conversion semantics |
+| join of node types and `error`, named by an alias or written in place | the members' types plus `RecoveredError` and null, narrowed by `type` |
+| join with a member that is no node type, `_` | conservative `TypedValue`, following Go's any-conversion semantics |
 
 A grammar join type `T | U` becomes a TypeScript union of the converted members.
 
@@ -348,7 +348,7 @@ rejected by the existing type checker; scalar fields and aliases are supported.
 Grammar names are allocated in sorted order. Every top-level library and
 generated declaration is reserved, including private `Parser`, `Actx`, `Rule`,
 `OperatorsRuleLine`, generated symbols such as `R0`, globals used by the library, and
-new helpers `Span`, `StringNode`, `RecoveredError`, `TypedValue`, `TypedParseResult`.
+new helpers `Span`, `StringNode`, `TupleNode`, `ListNode`, `RecoveredError`, `TypedValue`, `TypedParseResult`.
 Collisions append underscores until the name is free: grammar `Parser` exports
 `Parser_`; `R0` and `R0_` can export `R0_` and `R0__`. Discriminators retain the
 original grammar name. Regeneration can therefore change a collision cascade
