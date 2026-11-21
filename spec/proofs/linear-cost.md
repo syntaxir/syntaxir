@@ -8728,10 +8728,15 @@ or second step. Then
 every result of the growth after $\bar{r}$ begins with the result before it, so
 every result from $\bar{r}$ on includes $\bar{r}$. A growth of another leader $T$ that
 a step of $R$ nests at $p$ either has only results, from its first result that
-is not empty on, that include the growing result of $R$, or reads it only on
-paths that fail and takes the steps it takes where that read fails, apart
-from a step of $T$ that goes on in an alternative that it does not reach
-where the read fails, which is not shown (*Open parts of the kept steps*).
+is not empty on, that include the growing result of $R$, or has no result
+that includes it, and then the growth and its result are fixed by the
+**outcomes at $p$** of its reads of that growing result: for each place of
+a read in the bodies, which of the units that start at $p$ and hold the read
+is the innermost one that fails. These are a constant number of
+combinations. The remaining
+case, a growth of $T$ with a result that is not empty and does not include
+the growing result of $R$ before a result that does, is not shown (*Open
+parts of the kept steps*).
 
 *Proof.* By induction on the number of leaders that do not grow at $p$, the
 claim for $T$ first. In a step of $R$, the evaluations at $p$ read the same
@@ -8764,14 +8769,37 @@ each begin with the one before, so they include $\bar{r}$. For $T$, the same
 argument applies to its steps, with the reads of the growing result of $R$ in
 the role of the first step's failing reads: if the first result of $T$ that is
 not empty passes through a read that succeeds, every later one begins with it
-and includes it; if not, every path through such a read in a step of $T$ fails
-or behaves as where the read fails, so the steps of $T$ are those it takes
-where the read fails, apart from a step in which a path through a read that
-succeeds fails after its choice took the read's alternative, as above, and
-the step goes on in a later alternative that it does not reach where the read
-fails. That case is not shown here: it is the growth of another leader at the
-position in which *Later steps that abandon their reads of the seed* leaves
-the abandoned unit aside. $\square$
+and includes it. Let no result of $T$ include the growing result of $R$. A
+read is a left call, so what comes before it on its path consumes nothing and
+binds no value from a growing result, since $R$ is not the only leader of its
+cycle (*Values bound from a growing result*); every read in the growth
+returns the same growing result, ending at $e > p$, and what follows it
+starts at $e$, reads no growing result at $p$ and so evaluates alike
+wherever the read is made in the growth. The units that start at $p$ and
+hold the read, from the read up, succeed with the read in their match until
+one fails, and one does, since otherwise the step would end with a result
+that includes the growing result; which one is the innermost that fails is
+fixed by the place of the read, the same in every step of $T$ inside the
+step of $R$, and the unit around it goes on from there as the bodies say,
+without the read. The places of the reads are a constant number,
+by the argument of *Calls in a context of growths*, and each lies in a
+constant number of units that start at $p$, so these outcomes take a
+constant number of combinations over all the steps of $R$. Every other
+evaluation at $p$ in a step of $T$ evaluates alike in every step of $R$ from
+the same seed of $T$, by the claim for the leaders nested deeper and
+*Evaluations that read no growing result*, and what follows it after $p$
+reads no growing result at $p$. So, by induction on the steps of $T$, each
+seed of $T$, each step and the result of the growth are fixed by the
+combination. This holds whether a step of $T$ goes on, after a unit that
+fails after a read that succeeds, in an alternative that it does not reach
+where the read fails, or not. In the remaining case, the first result of $T$
+that is not empty does not include the growing result of $R$ and a later
+one does; that case is not shown here. It needs a step of $T$ that goes on
+in such an alternative, since otherwise every path through a read in a step
+of $T$ fails or behaves as where the read fails, and no result includes the
+growing result: it is the growth of another leader at the position in which
+*Later steps that abandon their reads of the seed* leaves the abandoned unit
+aside. $\square$
 
 **Plain reads.** Under condition 5, the reads of every growth of a leader $R$
 at $p$ whose steps nest, or are nested in, a growth of another leader at $p$
@@ -8910,8 +8938,8 @@ claims of this lemma that rest on them hold apart from them:
    an abandoned unit that is a dropped step of another growth or lies in a
    growth of another leader at the position;
 2. the claim of *Steps that begin anew* for a growth of another leader $T$
-   that a step nests, in a step of $T$ that goes on in an alternative that
-   it does not reach where the read of the growing result fails;
+   that a step nests, in its remaining case: a result of $T$ that is not
+   empty and does not include the growing result before one that does;
 3. in *Failures at the position of the growth*, an evaluation in a later
    step, with a seed that is not empty, of a growth of another leader that
    the step nests at $p$, when that step is not kept and its result is not
@@ -8952,21 +8980,18 @@ of $R$ is taken at once. By *Steps that begin anew* for the growth of $S$,
 applied to the growth of $R$ that its step nests, apart from its case that
 is not shown (part 2 of *Open parts of the kept steps*), that growth either includes
 the growing result of $S$ in all its results from the first that is not
-empty, or reads it only on paths that fail and takes the steps it takes where
-that read fails. In the first
+empty, or includes it in none of its results. In the first
 case the results that include the growing result of $S$ end at $e$ or after
 it and each is longer than the one before, so there are at most one more of
 them than the length by which the last passes $e$, one step ends the growth,
 and a first result that is empty, which includes no growing result that is not
-empty, adds one more. In the second case, the steps of $R$ depend
-on the growing result of $S$ only through the outcomes of the paths through
-its reads: the reads are calls of $S$ at $p$, which return the same result in
-every step of $R$, and what follows them starts at $e$, after $p$, where
-nothing reads a growing result at $p$ (*Evaluations that read no growing
-result*). By *Calls in a context of growths* there are at most a constant
-number of such paths, so the outcomes take a constant number of combinations,
-and each fixes the growth of $R$ and its result. The growth takes at most two
-steps more than the length of its result ([Evaluations of
+empty, adds one more. In the second case, the growth of $R$ and its result
+are fixed by the outcomes at $p$ of its reads of the growing result of $S$,
+which take a constant number of combinations (*Steps that begin anew*): the
+reads are calls of $S$ at $p$, which return the same result in every step of
+$R$, and what follows them starts at $e$, after $p$, where nothing reads a
+growing result at $p$ (*Evaluations that read no growing result*). The growth
+takes at most two steps more than the length of its result ([Evaluations of
 Rules](../runtime/parsing.md#evaluations-of-rules)). $\square$
 
 So the growths of $R$ of the first kind cost a constant for each step of $S$
@@ -9035,7 +9060,7 @@ find the growing results equal, is a growth of the second or the third kind:
 by *Steps that begin anew*, apart from its case that is not shown, every
 growth of $R$ that a step of $S$ nests either
 includes the growing result of $S$ in all its results from the first that is
-not empty, or reads it only on paths that fail, or not at all. So it is
+not empty, or in none of them. So it is
 bounded as those kinds are, and the comparison changes the constant of the
 bound, not its form. An answer in a context, from the memo or from a kept
 result, and a run of steps taken at once take the place of the evaluations
@@ -13423,8 +13448,8 @@ theorem covers such a parse.
    with no other (*Leaders without a scanning source*), and on the claim of
    *Steps that begin
    anew* for a nested growth of another leader, which is not shown for a
-   step of that growth that goes on in an alternative that it does not reach
-   where the read of the growing result fails.
+   growth with a result that is not empty and does not include the growing
+   result before one that does.
 3. **Operators Rules.** Lemma 4 places the operators that an Operators Rule
    applies and its units among the activations and units of its claims, with the
    operator parts that an enclosing level tries again as a continuation of an
@@ -13479,9 +13504,11 @@ theorem covers such a parse.
    a constant and each costs a constant beyond the evaluations that Lemmas
    3, 10 and 13 count, and no claim takes the hypothesis for it (*Leaders
    without a scanning source*); and
-   *Steps that begin anew* is not shown for a step of a nested growth of
-   another leader that goes on in an alternative that it does not reach
-   where the read of the growing result fails. The claims that use these
+   *Steps that begin anew* is not shown for a nested growth of another
+   leader with a result that is not empty and does not include the growing
+   result before one that does; a nested growth with no result that includes
+   it is fixed by the outcomes at the position of its reads, a constant
+   number of combinations. The claims that use these
    bounds, *Results that do not include the seed*, *Failures at the
    position of the growth*, *Suffix copies in every parse* and *Growths at
    many positions* among them, are conditional on the same parts. It also relates two activations at one position whose innermost
