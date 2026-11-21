@@ -1970,7 +1970,7 @@ func (p *parser) unary() (sourceResult ast.ActionExpr) {
 		if t := p.tok(); t.kind == tCapture && !p.boundary() {
 			// x.$y reads the capture y of the node x.
 			p.next()
-			x = &ast.Member{SourceInfo: ast.SourceInfo{Pos: t.pos}, X: x, Name: "$" + t.text}
+			x = &ast.FieldAccess{SourceInfo: ast.SourceInfo{Pos: t.pos}, X: x, Name: "$" + t.text}
 			p.sourceNode(x, sourceStart)
 			continue
 		}
@@ -1978,7 +1978,7 @@ func (p *parser) unary() (sourceResult ast.ActionExpr) {
 		if captureMember(name.text) {
 			p.errs.addRange(name.pos, name.end, fmt.Sprintf("a capture is read with .$%s", name.text))
 		}
-		x = &ast.Member{SourceInfo: ast.SourceInfo{Pos: name.pos}, X: x, Name: name.text}
+		x = &ast.FieldAccess{SourceInfo: ast.SourceInfo{Pos: name.pos}, X: x, Name: name.text}
 		p.sourceNode(x, sourceStart)
 	}
 	if t := p.tok(); t.kind == tCharClass && !p.boundary() {
@@ -2127,20 +2127,20 @@ func (p *parser) newActionExpr() (sourceResult ast.ActionExpr) {
 	p.expect("{")
 	defer p.restoreBreak()()
 	openBreak, bodyBreak := p.openList()
-	finish := func(n *ast.New, trailing bool) {
+	finish := func(n *ast.Constructor, trailing bool) {
 		n.OpenBreak, n.BodyBreak = openBreak, bodyBreak
 		n.CloseBreak, n.TrailingComma = p.lineBreak(), trailing
 		p.expect("}")
 	}
 	if !p.is("}") && !(p.tok().kind == tIdent && p.peek(1).text == ":") {
 		args, trailing := p.listItems("}")
-		n := &ast.New{SourceInfo: ast.SourceInfo{Pos: nameToken.pos}, Type: nameToken.text}
+		n := &ast.Constructor{SourceInfo: ast.SourceInfo{Pos: nameToken.pos}, Type: nameToken.text}
 		finish(n, trailing)
 		// A positional constructor converts its value to a named node type.
 		n.Args = args
 		return n
 	}
-	n := &ast.New{SourceInfo: ast.SourceInfo{Pos: nameToken.pos}, Type: nameToken.text}
+	n := &ast.Constructor{SourceInfo: ast.SourceInfo{Pos: nameToken.pos}, Type: nameToken.text}
 	trailing := false
 	for !p.is("}") {
 		fieldStart := p.i

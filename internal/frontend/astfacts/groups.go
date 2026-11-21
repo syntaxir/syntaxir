@@ -133,7 +133,7 @@ func ungroupTerm(t ast.ActionExpr, poll func()) ast.ActionExpr {
 	switch t := t.(type) {
 	case *ast.ActionGroup:
 		return ungroupTerm(t.Action, poll)
-	case *ast.Member:
+	case *ast.FieldAccess:
 		child := ungroupTerm(t.X, poll)
 		if child != t.X {
 			v := *t
@@ -157,7 +157,7 @@ func ungroupTerm(t ast.ActionExpr, poll func()) ast.ActionExpr {
 			}
 			return &v
 		}
-	case *ast.New:
+	case *ast.Constructor:
 		var fields []*ast.FieldInit
 		for i, f := range t.Fields {
 			child := ungroupTerm(f.Value, poll)

@@ -124,7 +124,7 @@ func (g *Grammar) allComments(control *metadataControl) []*Comment {
 			for _, stmt := range t.Statements {
 				term(stmt)
 			}
-		case *New:
+		case *Constructor:
 			add(t.OpenBreak)
 			add(t.BodyBreak)
 			add(t.CloseBreak)
@@ -178,7 +178,7 @@ func (g *Grammar) allComments(control *metadataControl) []*Comment {
 			typ(t.Type)
 		case *Bind:
 			term(t.Value)
-		case *Member:
+		case *FieldAccess:
 			term(t.X)
 		}
 	}

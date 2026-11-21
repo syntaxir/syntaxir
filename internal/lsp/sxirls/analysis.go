@@ -651,14 +651,14 @@ func (a *analysis) walkActionExpr(t ast.ActionExpr, control *renderControl) {
 			control.poll()
 			a.walkActionExpr(stmt, control)
 		}
-	case *ast.Member:
+	case *ast.FieldAccess:
 		a.walkActionExpr(t.X, control)
 		mods := 0
 		if findBuiltin(builtinMembers, t.Name) != nil {
 			mods = modDefaultLibrary
 		}
 		a.mark(t.Diagnostic(), semProperty, mods)
-	case *ast.New:
+	case *ast.Constructor:
 		// The constructor starts at its type name.
 		if i, ok := a.tokenIndex(t.Diagnostic()); ok {
 			a.refToken(kindType, t.Type, i)

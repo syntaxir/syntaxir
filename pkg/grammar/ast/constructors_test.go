@@ -12,10 +12,10 @@ func TestConstructorJSONRoundTrip(t *testing.T) {
 		&RuleDef{Name: "list", Expr: &Literal{Value: "x"}, Action: &ListConstructor{
 			Elem: &ListType{Elem: &TypeRef{Name: "Foo"}},
 			Items: []ActionExpr{&ListConstructor{Elem: &TypeRef{Name: "Foo"}, Items: []ActionExpr{
-				&New{Type: "Int", Fields: []*FieldInit{{Name: "Text", Value: &StringLit{Value: "0"}}}},
+				&Constructor{Type: "Int", Fields: []*FieldInit{{Name: "Text", Value: &StringLit{Value: "0"}}}},
 			}}},
 		}},
-		&RuleDef{Name: "args", Expr: &Literal{Value: "x"}, Action: &New{Type: "Int", Fields: []*FieldInit{
+		&RuleDef{Name: "args", Expr: &Literal{Value: "x"}, Action: &Constructor{Type: "Int", Fields: []*FieldInit{
 			{Name: "Text", Value: &StringLit{Value: "a"}}, {Name: "Rest", Value: &StringLit{Value: "b"}},
 		}}},
 		&RuleDef{Name: "empty", Expr: &Literal{Value: "x"}, Action: &ListConstructor{Elem: &TypeRef{Name: "Foo"}, Items: []ActionExpr{}}},
@@ -24,7 +24,7 @@ func TestConstructorJSONRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`"@type": "ListConstructor"`, `"@type": "New"`, `"elem"`, `"items": []`, `"fields"`} {
+	for _, want := range []string{`"@type": "ListConstructor"`, `"@type": "Constructor"`, `"elem"`, `"items": []`, `"fields"`} {
 		if !strings.Contains(string(data), want) {
 			t.Errorf("JSON lacks %q:\n%s", want, data)
 		}
@@ -49,7 +49,7 @@ func TestConstructorValidationChildrenAndCycles(t *testing.T) {
 	}{
 		{"missing list element type", &ListConstructor{Items: []ActionExpr{}}, "$.file.decls[0].action.elem"},
 		{"typed nil list item", &ListConstructor{Elem: &TypeRef{Name: "Foo"}, Items: []ActionExpr{(*StringLit)(nil)}}, "$.file.decls[0].action.items[0]"},
-		{"typed nil field value", &New{Type: "Int", Fields: []*FieldInit{{Name: "Text", Value: (*StringLit)(nil)}}}, "$.file.decls[0].action.fields[0].value"},
+		{"typed nil field value", &Constructor{Type: "Int", Fields: []*FieldInit{{Name: "Text", Value: (*StringLit)(nil)}}}, "$.file.decls[0].action.fields[0].value"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			g := listGrammar(tc.term)

@@ -277,14 +277,14 @@ func TestParseRejectsTerminalType(t *testing.T) {
 	}
 }
 
-// A positional constructor parses to New.Args; the checker accepts it only for a node type.
+// A positional constructor parses to Constructor.Args; the checker accepts it only for a node type.
 func TestParsePositionalConstructor(t *testing.T) {
 	const src = "type T = { Text string }\nrule r T = \"x\" => T{\"x\"}"
 	g, err := Parse(src)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if n, ok := g.File.Decls[1].(*ast.RuleDef).Action.(*ast.New); !ok || len(n.Args) != 1 || len(n.Fields) != 0 {
+	if n, ok := g.File.Decls[1].(*ast.RuleDef).Action.(*ast.Constructor); !ok || len(n.Args) != 1 || len(n.Fields) != 0 {
 		t.Errorf("action is %#v, want a constructor with one argument", g.File.Decls[1].(*ast.RuleDef).Action)
 	}
 }
@@ -295,7 +295,7 @@ func TestParsePositionalConstructorArity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if n := g.File.Decls[1].(*ast.RuleDef).Action.(*ast.New); len(n.Args) != 2 {
+	if n := g.File.Decls[1].(*ast.RuleDef).Action.(*ast.Constructor); len(n.Args) != 2 {
 		t.Errorf("got %d arguments, want 2", len(n.Args))
 	}
 	for _, src := range []string{

@@ -34,8 +34,8 @@ func init() {
 		(*Bottom)(nil), (*BeginInput)(nil), (*EndInput)(nil), (*BeginLine)(nil),
 		(*EndLine)(nil), (*Predicate)(nil), (*Attributed)(nil), (*OperatorsRule)(nil),
 		(*IntLit)(nil), (*StringLit)(nil), (*BoolLit)(nil), (*NilLit)(nil),
-		(*CaptureRef)(nil), (*VarRef)(nil), (*Member)(nil),
-		(*New)(nil), (*Call)(nil), (*Lambda)(nil), (*Binary)(nil), (*Unary)(nil), (*Cast)(nil),
+		(*CaptureRef)(nil), (*VarRef)(nil), (*FieldAccess)(nil),
+		(*Constructor)(nil), (*Call)(nil), (*Lambda)(nil), (*Binary)(nil), (*Unary)(nil), (*Cast)(nil),
 		(*Bind)(nil), (*Block)(nil), (*ActionGroup)(nil), (*ListConstructor)(nil), (*TupleLit)(nil),
 	)
 }

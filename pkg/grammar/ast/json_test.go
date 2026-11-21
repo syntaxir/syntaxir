@@ -36,8 +36,8 @@ func sampleGrammar() *Grammar {
 				Action: &Call{Func: "foldl", Args: []ActionExpr{
 					&CaptureRef{Name: "l"},
 					&IntLit{Value: 2},
-					&Lambda{Params: []string{"acc", "i"}, Body: &New{Type: "Op", Fields: []*FieldInit{
-						{Name: "Left", Value: &Member{X: &CaptureRef{Name: "acc"}, Name: "Left"}},
+					&Lambda{Params: []string{"acc", "i"}, Body: &Constructor{Type: "Op", Fields: []*FieldInit{
+						{Name: "Left", Value: &FieldAccess{X: &CaptureRef{Name: "acc"}, Name: "Left"}},
 					}}},
 				}},
 			},

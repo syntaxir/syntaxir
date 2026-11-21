@@ -139,7 +139,7 @@ func (k *classifier) heldCalls(t ast.ActionExpr, tc termCtx, mode sizeMode) []si
 			out = append(out, k.heldExprCalls(e, tc, mode)...)
 		}
 		return out
-	case *ast.Member:
+	case *ast.FieldAccess:
 		exprs, _, ok := k.termExprs(t, tc)
 		if !ok {
 			return nil

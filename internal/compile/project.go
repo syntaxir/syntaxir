@@ -116,9 +116,9 @@ func ruleProjectionsControlled(prog *Program, r *Rule, control *cancel.Control) 
 				inner[p] = true
 			}
 			use(t.Body, inner)
-		case *ast.Member:
+		case *ast.FieldAccess:
 			use(t.X, shadow)
-		case *ast.New:
+		case *ast.Constructor:
 			for _, f := range t.Fields {
 				control.Poll()
 				use(f.Value, shadow)
@@ -167,7 +167,7 @@ func projField(t ast.ActionExpr) (string, bool) {
 	if !ok || len(l.Params) != 1 {
 		return "", false
 	}
-	m, ok := l.Body.(*ast.Member)
+	m, ok := l.Body.(*ast.FieldAccess)
 	if !ok {
 		return "", false
 	}
@@ -243,7 +243,7 @@ func nonNil(prog *Program, e ast.Expr, seen map[string]bool, control *cancel.Con
 		if pr, ok := r.Def.Expr.(*ast.OperatorsRule); ok {
 			switch t := r.Def.Action.(type) {
 			case nil:
-			case *ast.New, *ast.ListConstructor, *ast.TupleLit:
+			case *ast.Constructor, *ast.ListConstructor, *ast.TupleLit:
 				return true
 			case *ast.CaptureRef:
 				if t.Name != OperatorsRuleValue {
@@ -282,7 +282,7 @@ func lineNonNil(prog *Program, e ast.Expr, t ast.ActionExpr, operator bool, seen
 	switch t := t.(type) {
 	case nil:
 		return nonNil(prog, e, seen, control)
-	case *ast.New, *ast.ListConstructor, *ast.TupleLit:
+	case *ast.Constructor, *ast.ListConstructor, *ast.TupleLit:
 		return true
 	case *ast.CaptureRef:
 		if operator && (t.Name == "lhs" || t.Name == "rhs" || t.Name == "op") {

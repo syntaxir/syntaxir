@@ -30,7 +30,7 @@ rule inferred = number:number => $number
 	if len(rs) != 4 || rs[0].Type.(*ast.TypeRef).Name != "Box" || rs[3].Type != nil {
 		t.Fatalf("headers: %+v", rs)
 	}
-	if _, ok := rs[0].Action.(*ast.New); !ok {
+	if _, ok := rs[0].Action.(*ast.Constructor); !ok {
 		t.Fatalf("constructor: %T", rs[0].Action)
 	}
 	capture, ok := rs[1].Expr.(*ast.Capture)

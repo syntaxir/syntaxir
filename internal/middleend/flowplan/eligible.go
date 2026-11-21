@@ -107,9 +107,9 @@ func capRefs(t ast.ActionExpr, f func(name string)) {
 // termChildren calls f with the direct subterms of t.
 func termChildren(t ast.ActionExpr, f func(ast.ActionExpr)) {
 	switch t := t.(type) {
-	case *ast.Member:
+	case *ast.FieldAccess:
 		f(t.X)
-	case *ast.New:
+	case *ast.Constructor:
 		for _, fi := range t.Fields {
 			f(fi.Value)
 		}

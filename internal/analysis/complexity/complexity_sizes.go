@@ -716,9 +716,9 @@ func (w *ownWalk) term(t ast.ActionExpr, lam *ownLam) {
 		w.term(t.Action, lam)
 	case *ast.Cast:
 		w.term(t.X, lam)
-	case *ast.Member:
+	case *ast.FieldAccess:
 		w.term(t.X, lam)
-	case *ast.New:
+	case *ast.Constructor:
 		for _, a := range t.Args {
 			w.term(a, lam)
 		}
@@ -867,7 +867,7 @@ func paramPath(t ast.ActionExpr, names []string) (string, bool) {
 	switch t := t.(type) {
 	case *ast.CaptureRef:
 		return t.Name, t.Param && containsName(names, t.Name)
-	case *ast.Member:
+	case *ast.FieldAccess:
 		p, ok := paramPath(t.X, names)
 		return p + "." + t.Name, ok
 	}
@@ -903,9 +903,9 @@ func termChildren(t ast.ActionExpr) []ast.ActionExpr {
 		return []ast.ActionExpr{t.Action}
 	case *ast.Block:
 		return t.Statements
-	case *ast.Member:
+	case *ast.FieldAccess:
 		return []ast.ActionExpr{t.X}
-	case *ast.New:
+	case *ast.Constructor:
 		out := append([]ast.ActionExpr(nil), t.Args...)
 		for _, f := range t.Fields {
 			out = append(out, f.Value)

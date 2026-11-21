@@ -31,7 +31,7 @@ func TestFormatNativeMinimumRoundTrip(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			g.Rules()[0].Action.(*ast.New).Fields[0].Value = tc.term
+			g.Rules()[0].Action.(*ast.Constructor).Fields[0].Value = tc.term
 			data, err := ast.MarshalJSON(g)
 			if err != nil {
 				t.Fatal(err)

@@ -574,7 +574,7 @@ func (r *layoutReplay) unary(t ast.ActionExpr) {
 				}
 			case *ast.Cast:
 				x = n.X
-			case *ast.Member:
+			case *ast.FieldAccess:
 				x = n.X
 			}
 			if x == nil {
@@ -600,7 +600,7 @@ func (r *layoutReplay) unary(t ast.ActionExpr) {
 				lc.next() // (
 				r.typ(n.Type)
 				lc.next() // )
-			case *ast.Member:
+			case *ast.FieldAccess:
 				lc.next() // the name
 			}
 		}
@@ -618,7 +618,7 @@ func (r *layoutReplay) unary(t ast.ActionExpr) {
 func (r *layoutReplay) actionExprPrimary(t ast.ActionExpr) {
 	lc := r.lc
 	switch x := t.(type) {
-	case *ast.New:
+	case *ast.Constructor:
 		r.newActionExpr(x)
 	case *ast.Call:
 		lc.next() // the name
@@ -684,7 +684,7 @@ func (r *layoutReplay) tupleLit(t *ast.TupleLit) {
 	lc.next() // )
 }
 
-func (r *layoutReplay) newActionExpr(n *ast.New) {
+func (r *layoutReplay) newActionExpr(n *ast.Constructor) {
 	lc := r.lc
 	lc.next() // the type
 	lc.next() // {

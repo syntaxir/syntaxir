@@ -93,7 +93,7 @@ func TestGrammarCloneSourcesAndSharing(t *testing.T) {
 }
 
 func TestValidationUsesDiagnosticToken(t *testing.T) {
-	g := termGrammar(&Member{SourceInfo: SourceInfo{Pos: Pos{Line: 1, Col: 17}, DiagnosticPos: Pos{Line: 1, Col: 20}}, X: &VarRef{Name: "x"}, Name: "_reserved"})
+	g := termGrammar(&FieldAccess{SourceInfo: SourceInfo{Pos: Pos{Line: 1, Col: 17}, DiagnosticPos: Pos{Line: 1, Col: 20}}, X: &VarRef{Name: "x"}, Name: "_reserved"})
 	err, ok := Validate(g).(*ValidationError)
 	if !ok || err.Pos != (Pos{Line: 1, Col: 20}) {
 		t.Fatalf("diagnostic=%v", err)

@@ -951,7 +951,7 @@ func (t *TypedGen) plainField(x types.Ty) bool {
 
 // nodeMember reports whether the member access m reads only members of nodes and recovered values, never a
 // struct field (check.TypeInfo.NodeMembers).
-func (t *TypedGen) nodeMember(m *ast.Member) bool {
+func (t *TypedGen) nodeMember(m *ast.FieldAccess) bool {
 	return t.Info.NodeMembers[m]
 }
 
@@ -1012,9 +1012,9 @@ func (t *TypedGen) fieldType(st, name string) (types.Ty, bool) {
 //     arguments), an argument of list, or the body of the function of map, for an element.
 //
 // Each place converts the value it holds to its type and nothing else reads it.
-func (t *TypedGen) transfers() map[*ast.Member]bool {
+func (t *TypedGen) transfers() map[*ast.FieldAccess]bool {
 	rec := t.G.Prog.Check.ValueRecord()
-	out := map[*ast.Member]bool{}
+	out := map[*ast.FieldAccess]bool{}
 	if rec == nil {
 		return out
 	}
@@ -1028,7 +1028,7 @@ func (t *TypedGen) transfers() map[*ast.Member]bool {
 			x = g.Action
 		}
 		switch x := x.(type) {
-		case *ast.Member:
+		case *ast.FieldAccess:
 			st, ok := oneStruct(rec, rec.ActionExprs[x.X])
 			if !ok {
 				return
@@ -1061,7 +1061,7 @@ func (t *TypedGen) transfers() map[*ast.Member]bool {
 	}
 	for _, term := range t.actionTerms() {
 		astfacts.WalkTerm(term, func(y ast.ActionExpr) {
-			n, ok := y.(*ast.New)
+			n, ok := y.(*ast.Constructor)
 			if !ok {
 				return
 			}
@@ -1126,17 +1126,17 @@ func (t *TypedGen) fieldReads() map[string]bool {
 
 // fieldReadMembers returns the member accesses of actions and predicates whose name is that of a field of
 // a struct type and that are not reads of the range or the value of a node.
-func (t *TypedGen) fieldReadMembers() []*ast.Member {
+func (t *TypedGen) fieldReadMembers() []*ast.FieldAccess {
 	fields := map[string]bool{}
 	for _, name := range t.structs {
 		for _, f := range t.Info.Fields[name] {
 			fields[f.Name] = true
 		}
 	}
-	var out []*ast.Member
+	var out []*ast.FieldAccess
 	for _, x := range t.actionTerms() {
 		astfacts.WalkTerm(x, func(y ast.ActionExpr) {
-			if m, ok := y.(*ast.Member); ok && fields[m.Name] && !t.nodeMember(m) {
+			if m, ok := y.(*ast.FieldAccess); ok && fields[m.Name] && !t.nodeMember(m) {
 				out = append(out, m)
 			}
 		})

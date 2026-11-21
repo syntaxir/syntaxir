@@ -759,9 +759,9 @@ func captureRefsControlled(t ast.ActionExpr, params []string, refs map[string]bo
 		}
 	case *ast.Lambda:
 		captureRefsControlled(t.Body, append(slices.Clip(params), t.Params...), refs, control)
-	case *ast.Member:
+	case *ast.FieldAccess:
 		captureRefsControlled(t.X, params, refs, control)
-	case *ast.New:
+	case *ast.Constructor:
 		for _, fi := range t.Fields {
 			control.poll()
 			captureRefsControlled(fi.Value, params, refs, control)
@@ -1155,10 +1155,10 @@ func positionRead(r *ast.RuleDef, control *lintControl) (ast.Pos, bool) {
 	}, control)
 	for _, t := range exprs {
 		control.poll()
-		var found *ast.Member
+		var found *ast.FieldAccess
 		walkActionExpr(t, func(x ast.ActionExpr) {
 			control.poll()
-			if m, ok := x.(*ast.Member); ok && (m.Name == "Start" || m.Name == "End") && found == nil {
+			if m, ok := x.(*ast.FieldAccess); ok && (m.Name == "Start" || m.Name == "End") && found == nil {
 				found = m
 			}
 		})

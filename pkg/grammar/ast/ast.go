@@ -873,19 +873,19 @@ type VarRef struct {
 	Name       string `json:"name"`
 }
 
-// Member is a field access x.Name, or, when Name is "$" and a capture name, the capture
+// FieldAccess is a field access x.Name, or, when Name is "$" and a capture name, the capture
 // access x.$y, which reads capture y of the node x.
-type Member struct {
+type FieldAccess struct {
 	SourceInfo `json:"source,omitempty"`
 	X          ActionExpr `json:"x"`
 	Name       string     `json:"name"`
 }
 
-// New creates a value of a defined type. A struct constructor names its
+// Constructor creates a value of a defined type. A struct constructor names its
 // fields: Type{Field: value, ...}. A node type constructor takes one
 // positional value, Type{value}, held in Args. A constructor uses Fields or
 // Args, never both.
-type New struct {
+type Constructor struct {
 	SourceInfo `json:"source,omitempty"`
 	Type       string       `json:"type"`
 	Fields     []*FieldInit `json:"fields,omitempty"`
@@ -1019,8 +1019,8 @@ func (*BoolLit) actionExpr()         {}
 func (*NilLit) actionExpr()          {}
 func (*CaptureRef) actionExpr()      {}
 func (*VarRef) actionExpr()          {}
-func (*Member) actionExpr()          {}
-func (*New) actionExpr()             {}
+func (*FieldAccess) actionExpr()     {}
+func (*Constructor) actionExpr()     {}
 func (*ListConstructor) actionExpr() {}
 func (*TupleLit) actionExpr()        {}
 func (*Call) actionExpr()            {}

@@ -59,11 +59,11 @@ rule grouped = "x" => (
 	if _, ok := list("pointers").Items[0].(*ast.NilLit); !ok {
 		t.Fatalf("pointer list nil item: %#v", list("pointers").Items[0])
 	}
-	terminal, ok := rules["terminal"].Action.(*ast.New)
+	terminal, ok := rules["terminal"].Action.(*ast.Constructor)
 	if !ok || terminal.Type != "Int" || len(terminal.Fields) != 0 || len(terminal.Args) != 1 {
 		t.Fatalf("positional constructor: %#v", rules["terminal"].Action)
 	}
-	emptyTerminal, ok := rules["terminal_empty"].Action.(*ast.New)
+	emptyTerminal, ok := rules["terminal_empty"].Action.(*ast.Constructor)
 	if !ok || emptyTerminal.Type != "Int" || len(emptyTerminal.Fields) != 0 || len(emptyTerminal.Args) != 0 {
 		t.Fatalf("empty constructor source was not preserved: %#v", rules["terminal_empty"].Action)
 	}
@@ -72,10 +72,10 @@ rule grouped = "x" => (
 	if err != nil {
 		t.Fatal(err)
 	}
-	if n := g2.File.Decls[1].(*ast.RuleDef).Action.(*ast.New); len(n.Args) != 2 || len(n.Fields) != 0 {
+	if n := g2.File.Decls[1].(*ast.RuleDef).Action.(*ast.Constructor); len(n.Args) != 2 || len(n.Fields) != 0 {
 		t.Fatalf("positional constructor of two arguments: %#v", n)
 	}
-	if _, ok := rules["fields"].Action.(*ast.New); !ok {
+	if _, ok := rules["fields"].Action.(*ast.Constructor); !ok {
 		t.Fatalf("named-field constructor became %T", rules["fields"].Action)
 	}
 

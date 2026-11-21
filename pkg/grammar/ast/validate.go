@@ -222,7 +222,7 @@ func validate(g *Grammar, control *validationControl) error {
 			default:
 				return fail("type", "a type definition defines a struct type or node[T]")
 			}
-		case *New:
+		case *Constructor:
 			if len(n.Args) != 0 && len(n.Fields) != 0 {
 				return fail("args", "a constructor takes named fields or one value, not both")
 			}
@@ -401,11 +401,11 @@ func validate(g *Grammar, control *validationControl) error {
 			for i := len(n.Statements) - 1; i >= 0; i-- {
 				push(n.Statements[i], "statements", i, false)
 			}
-		case *Member:
+		case *FieldAccess:
 			push(n.X, "x", -1, false)
 		case *ActionGroup:
 			push(n.Action, "action", -1, false)
-		case *New:
+		case *Constructor:
 			for i := len(n.Args) - 1; i >= 0; i-- {
 				push(n.Args[i], "args", i, false)
 			}
@@ -513,10 +513,10 @@ func invalidIdentifier(node any, control *validationControl) (field, name string
 		field, name = "name", n.Name
 	case *Bind:
 		field, name = "name", n.Name
-	case *Member:
+	case *FieldAccess:
 		// x.$y names the capture y.
 		field, name = "name", strings.TrimPrefix(n.Name, "$")
-	case *New:
+	case *Constructor:
 		field, name = "type", n.Type
 	case *FieldInit:
 		field, name = "name", n.Name

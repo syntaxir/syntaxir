@@ -2264,7 +2264,7 @@ func leadingComments(t ast.ActionExpr) *ast.SourceLayout {
 			t = x.L
 		case *ast.Cast:
 			t = x.X
-		case *ast.Member:
+		case *ast.FieldAccess:
 			t = x.X
 		default:
 			return nil
@@ -2391,9 +2391,9 @@ func formatActionExprNode(t ast.ActionExpr, outer int, control *formatControl) s
 		return "$" + t.Name
 	case *ast.VarRef:
 		return t.Name
-	case *ast.Member:
+	case *ast.FieldAccess:
 		return formatActionExpr(t.X, 7, control) + "." + t.Name
-	case *ast.New:
+	case *ast.Constructor:
 		elems := make([]listElem, 0, len(t.Fields)+len(t.Args))
 		for _, f := range t.Fields {
 			pollFormat(control)
@@ -2446,7 +2446,7 @@ func formatActionExprNode(t ast.ActionExpr, outer int, control *formatControl) s
 		if t.Op == "[]" {
 			l := formatActionExpr(t.L, 7, control)
 			switch t.L.(type) {
-			case *ast.IntLit, *ast.StringLit, *ast.New, *ast.ListConstructor, *ast.Lambda:
+			case *ast.IntLit, *ast.StringLit, *ast.Constructor, *ast.ListConstructor, *ast.Lambda:
 				// "[" is an index only directly after a name, a capture, ")" or "]".
 				l = parenActionExpr(l, control)
 			}

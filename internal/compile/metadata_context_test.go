@@ -50,7 +50,7 @@ func TestProjectionMetadataCancellation(t *testing.T) {
 	var term ast.ActionExpr = &ast.StringLit{Value: "a"}
 	for range 1024 {
 		expr = &ast.Optional{Expr: expr}
-		term = &ast.Member{Name: "field", X: term}
+		term = &ast.FieldAccess{Name: "field", X: term}
 	}
 	for _, phase := range []struct {
 		name string

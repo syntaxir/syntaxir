@@ -77,8 +77,8 @@ func TestFormatTrailingComma(t *testing.T) {
 	}{
 		{"call", &ast.Call{Func: "f", Args: []ast.ActionExpr{one, two}}, "f(1, 2)"},
 		{"call with a trailing comma", &ast.Call{Func: "f", Args: []ast.ActionExpr{one, two}, TrailingComma: true}, "f(\n    1,\n    2,\n)"},
-		{"constructor", &ast.New{Type: "N", Args: []ast.ActionExpr{one}}, "N{1}"},
-		{"constructor with a trailing comma", &ast.New{Type: "N", Args: []ast.ActionExpr{one}, TrailingComma: true}, "N{\n    1,\n}"},
+		{"constructor", &ast.Constructor{Type: "N", Args: []ast.ActionExpr{one}}, "N{1}"},
+		{"constructor with a trailing comma", &ast.Constructor{Type: "N", Args: []ast.ActionExpr{one}, TrailingComma: true}, "N{\n    1,\n}"},
 		{"list constructor", &ast.ListConstructor{Elem: &ast.TypeRef{Name: "int"}, Items: []ast.ActionExpr{one, two}}, "[]int{1, 2}"},
 		{"list constructor with a trailing comma", &ast.ListConstructor{Elem: &ast.TypeRef{Name: "int"}, Items: []ast.ActionExpr{one, two}, TrailingComma: true}, "[]int{\n    1,\n    2,\n}"},
 		{"tuple", &ast.TupleLit{Elems: []ast.ActionExpr{one, two}}, "(1, 2)"},

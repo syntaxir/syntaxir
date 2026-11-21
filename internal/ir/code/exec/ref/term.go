@@ -98,9 +98,9 @@ func (e *TermEnv) eval(t ast.ActionExpr, p params) V {
 			fail("undefined variable %s", t.Name)
 		}
 		return v
-	case *ast.Member:
+	case *ast.FieldAccess:
 		return e.member(e.eval(t.X, p), t.Name)
-	case *ast.New:
+	case *ast.Constructor:
 		if len(t.Args) > 0 {
 			// N{x} converts the node x to the named node type N: it keeps the range and the content
 			// of x and carries the name N (types.md, Named Node Types). The conversion type-checks only

@@ -519,10 +519,10 @@ func (s *shaper) action(n *value.Node) {
 		s.span("Unary", n)
 	case "FieldAccess":
 		s.action(fieldNode(n, "X"))
-		s.created(s.span("Member", n), fieldNode(n, "Name").Start())
+		s.created(s.span("FieldAccess", n), fieldNode(n, "Name").Start())
 	case "CaptureAccess":
 		s.action(fieldNode(n, "X"))
-		s.created(s.span("Member", n), fieldNode(n, "Capture").Start())
+		s.created(s.span("FieldAccess", n), fieldNode(n, "Capture").Start())
 	case "Cast":
 		s.action(fieldNode(n, "X"))
 		s.typ(fieldNode(n, "Type"))
@@ -538,7 +538,7 @@ func (s *shaper) action(n *value.Node) {
 			s.statement("FieldInit", f, separators(s.src, span.End(), ',', 1))
 		}
 		s.list(n, "Args", s.action)
-		s.span("New", n)
+		s.span("Constructor", n)
 	case "ListConstructor":
 		s.typ(fieldNode(n, "Elem"))
 		s.list(n, "Items", s.action)

@@ -98,7 +98,7 @@ func TestCastSyntax(t *testing.T) {
 	if _, err := parseTest(formatted); err != nil {
 		t.Fatalf("formatted grammar does not parse: %v", err)
 	}
-	member := g.Rules()[0].Action.(*ast.Member)
+	member := g.Rules()[0].Action.(*ast.FieldAccess)
 	if cast, ok := member.X.(*ast.Cast); !ok || member.Name != "Start" {
 		t.Fatalf("cast %#v", member)
 	} else if _, ok := cast.Type.(*ast.JoinType); !ok {

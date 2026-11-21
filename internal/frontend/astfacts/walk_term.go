@@ -15,9 +15,9 @@ func WalkTerm(t ast.ActionExpr, f func(ast.ActionExpr)) {
 		for _, stmt := range t.Statements {
 			WalkTerm(stmt, f)
 		}
-	case *ast.Member:
+	case *ast.FieldAccess:
 		WalkTerm(t.X, f)
-	case *ast.New:
+	case *ast.Constructor:
 		for _, fi := range t.Fields {
 			WalkTerm(fi.Value, f)
 		}

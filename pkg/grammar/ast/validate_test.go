@@ -53,9 +53,9 @@ func TestValidateRequiredChildren(t *testing.T) {
 		{"level", expressionGrammar(&OperatorsRule{Levels: []*OperatorsRuleLevel{nil}}), "$.file.decls[0].expr.levels[0]"},
 		{"operator", expressionGrammar(&OperatorsRule{Levels: []*OperatorsRuleLevel{{Operators: []*OperatorsRuleOperator{nil}}}}), "$.file.decls[0].expr.levels[0].operators[0]"},
 		{"operator expression", expressionGrammar(&OperatorsRule{Levels: []*OperatorsRuleLevel{{Operators: []*OperatorsRuleOperator{{Kind: Infix, Assoc: AssocLeft}}}}}), "$.file.decls[0].expr.levels[0].operators[0].expr"},
-		{"member", termGrammar(&Member{Name: "Value"}), "$.file.decls[0].action.x"},
-		{"field initializer", termGrammar(&New{Type: "T", Fields: []*FieldInit{nil}}), "$.file.decls[0].action.fields[0]"},
-		{"field value", termGrammar(&New{Type: "T", Fields: []*FieldInit{{Name: "F"}}}), "$.file.decls[0].action.fields[0].value"},
+		{"member", termGrammar(&FieldAccess{Name: "Value"}), "$.file.decls[0].action.x"},
+		{"field initializer", termGrammar(&Constructor{Type: "T", Fields: []*FieldInit{nil}}), "$.file.decls[0].action.fields[0]"},
+		{"field value", termGrammar(&Constructor{Type: "T", Fields: []*FieldInit{{Name: "F"}}}), "$.file.decls[0].action.fields[0].value"},
 		{"call", termGrammar(&Call{Func: "len", Args: []ActionExpr{nil}}), "$.file.decls[0].action.args[0]"},
 		{"tuple literal", termGrammar(&TupleLit{Elems: []ActionExpr{nil}}), "$.file.decls[0].action.elems[0]"},
 		{"lambda", termGrammar(&Lambda{}), "$.file.decls[0].action.body"},
@@ -143,7 +143,7 @@ func TestValidateCyclesAndSharing(t *testing.T) {
 	typ.Elem = typ
 	assertValidationError(t, Validate(typeGrammar(typ)), "$.file.decls[0].type.elem")
 	term := &Unary{Op: "-"}
-	term.X = &Member{X: term, Name: "F"}
+	term.X = &FieldAccess{X: term, Name: "F"}
 	assertValidationError(t, Validate(termGrammar(term)), "$.file.decls[0].action.x.x")
 	groupType := &TypeGroup{}
 	groupType.Type = groupType

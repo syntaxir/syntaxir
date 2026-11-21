@@ -361,7 +361,7 @@ func anyNode(t Ty) bool {
 
 // convertNew returns the type of the node type constructor t, N{x}, which converts x to the
 // named node type n.
-func (v *ValueInference) convertNew(t *ast.New, n NodeTy, env *valueEnv) Ty {
+func (v *ValueInference) convertNew(t *ast.Constructor, n NodeTy, env *valueEnv) Ty {
 	for _, fi := range t.Fields {
 		v.actionExpr(fi.Value, env)
 	}
@@ -535,9 +535,9 @@ func (v *ValueInference) actionExprType(t ast.ActionExpr, env *valueEnv) Ty {
 			return d.Typ
 		}
 		return TyAny // an undeclared variable was reported when names were resolved
-	case *ast.Member:
+	case *ast.FieldAccess:
 		return v.member(v.actionExpr(t.X, env), t)
-	case *ast.New:
+	case *ast.Constructor:
 		if nt, ok := v.Prog.NodeTypeOf(t.Type); ok {
 			return v.convertNew(t, nt, env)
 		}
@@ -798,7 +798,7 @@ func UngroupActionExpr(t ast.ActionExpr) ast.ActionExpr {
 
 // member returns the type of x.Name. On a join every argument must have the member, and the
 // result is the join of their types (optional if a recovered value may be read); .$y needs every argument to capture y.
-func (v *ValueInference) member(x Ty, m *ast.Member) Ty {
+func (v *ValueInference) member(x Ty, m *ast.FieldAccess) Ty {
 	x = v.Expand(x)
 	if x == TyAny || x == TyBottom {
 		v.noteMember(m, x == TyBottom)
@@ -909,7 +909,7 @@ func recoveredMember(name string, missing bool) []Ty {
 // (.Start, .End and .Value, and the fields expected and message of missing), never a struct field,
 // which holds when every type its receiver may have is a node, a recovered value or _|_: an access
 // typed several times (in a lambda body) must read such members every time.
-func (v *ValueInference) noteMember(m *ast.Member, nodeOnly bool) {
+func (v *ValueInference) noteMember(m *ast.FieldAccess, nodeOnly bool) {
 	if v.nodeMembers == nil || v.Quiet {
 		return
 	}
@@ -921,7 +921,7 @@ func (v *ValueInference) noteMember(m *ast.Member, nodeOnly bool) {
 
 // captureAccess returns the type of x.$name: every argument of x must be a node that captures
 // name, and the type is the join of their capture types.
-func (v *ValueInference) captureAccess(x Ty, name string, m *ast.Member) Ty {
+func (v *ValueInference) captureAccess(x Ty, name string, m *ast.FieldAccess) Ty {
 	var found []Ty
 	for _, a := range v.alts(x) {
 		if a == TyAny {

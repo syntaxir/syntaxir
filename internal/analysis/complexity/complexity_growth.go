@@ -378,7 +378,7 @@ func (k *classifier) growthOf(t ast.ActionExpr, env growthEnv, tc termCtx) (grow
 		return k.growthOf(t.Action, env, tc)
 	case *ast.Cast:
 		return k.growthOf(t.X, env, tc)
-	case *ast.Member:
+	case *ast.FieldAccess:
 		// A field or a part of the value, at most the value.
 		g, c := k.growthOf(t.X, env, tc)
 		return sized(g.S), c
@@ -386,7 +386,7 @@ func (k *classifier) growthOf(t ast.ActionExpr, env growthEnv, tc termCtx) (grow
 		return build(t.Elems)
 	case *ast.ListConstructor:
 		return build(t.Items)
-	case *ast.New:
+	case *ast.Constructor:
 		ts := append([]ast.ActionExpr(nil), t.Args...)
 		for _, f := range t.Fields {
 			ts = append(ts, f.Value)

@@ -48,7 +48,7 @@ type ValueInference struct {
 	// them.
 	bottoms map[string]bool
 	// nodeMembers, if not nil, receives the member accesses that read only node members.
-	nodeMembers map[*ast.Member]bool
+	nodeMembers map[*ast.FieldAccess]bool
 	// rec, if not nil, receives the types of action expressions, scopes and rules.
 	rec *ValueRecord
 	// memo, if not nil, holds the elements of the expressions met outside the bodies of splice
@@ -66,7 +66,7 @@ type ValueRecord struct {
 	ActionExprs map[ast.ActionExpr]Ty
 	// Proven reports, for each node type constructor that converts a value, that the conversion
 	// is proven: every value of the operand converts, without a check at run time.
-	Proven map[*ast.New]bool
+	Proven map[*ast.Constructor]bool
 	// Scopes holds, for the body of each capture scope (a rule body, a repetition element with
 	// captures of its own, an Operators Rule line), the type of each capture an action expression reads.
 	Scopes map[ast.Expr]map[string]Ty
@@ -75,7 +75,7 @@ type ValueRecord struct {
 }
 
 func newValueRecord() *ValueRecord {
-	return &ValueRecord{ActionExprs: map[ast.ActionExpr]Ty{}, Proven: map[*ast.New]bool{}, Scopes: map[ast.Expr]map[string]Ty{}}
+	return &ValueRecord{ActionExprs: map[ast.ActionExpr]Ty{}, Proven: map[*ast.Constructor]bool{}, Scopes: map[ast.Expr]map[string]Ty{}}
 }
 
 // scope records the capture types of the scope with the body e and the captures caps.
@@ -128,7 +128,7 @@ func ValueTypes(p *Checker, control *cancel.Control) (map[string]Ty, diagnostic.
 
 // valueTypesChecked is valueTypes recording the node member accesses in nodeMembers and the
 // types of the program's parts in rec, each if not nil.
-func valueTypesChecked(p *Checker, control *cancel.Control, nodeMembers map[*ast.Member]bool, rec *ValueRecord) (map[string]Ty, diagnostic.ErrorList) {
+func valueTypesChecked(p *Checker, control *cancel.Control, nodeMembers map[*ast.FieldAccess]bool, rec *ValueRecord) (map[string]Ty, diagnostic.ErrorList) {
 	v := &ValueInference{Prog: p, control: control, Rules: map[string]*ast.RuleDef{}, Out: map[string]Ty{}, Approx: map[string]Ty{}, Computing: map[string]bool{}, nodeMembers: nodeMembers, rec: rec}
 	rules := p.Grammar().Rules()
 	for _, rd := range rules {

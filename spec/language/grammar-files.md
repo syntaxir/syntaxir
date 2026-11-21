@@ -317,7 +317,7 @@ after the last argument is a trailing comma, as in every other list. Two commas
 in a row are a syntax error in every list.
 
 A trailing comma is not part of the normalized grammar: it is kept in the
-`TrailingComma` field of `TupleType`, `TypeApp`, `TupleLit`, `New`,
+`TrailingComma` field of `TupleType`, `TypeApp`, `TupleLit`, `Constructor`,
 `ListConstructor`, `Call` and `Attribute`, which JSON omits, so a grammar decoded
 from JSON formats every list on one line.
 

@@ -50,7 +50,7 @@ func CheckTypesControlled(prog *Checker, errs *diagnostic.ErrorList, control *ca
 	// Check the values.
 	// Every compilation builds Core IR, which reads the types of the program's parts, so the
 	// inference records them as it checks.
-	nodeMembers := map[*ast.Member]bool{}
+	nodeMembers := map[*ast.FieldAccess]bool{}
 	rec := newValueRecord()
 	values, valueErrs := valueTypesChecked(prog, control, nodeMembers, rec)
 	*errs = append(*errs, valueErrs...)
@@ -88,7 +88,7 @@ type TypeInfo struct {
 	// NodeMembers reports, for each member access of an action, whether it reads only members of
 	// nodes and recovered values (.Start, .End and .Value, and the fields expected and message of
 	// missing) and never a struct field.
-	NodeMembers map[*ast.Member]bool
+	NodeMembers map[*ast.FieldAccess]bool
 	// rec holds the types of the action expressions, scopes and rules of the checked program, recorded by the
 	// inference of the type check (or, for type information made without it, on first use by
 	// ValueRecord).
@@ -214,9 +214,9 @@ func ActionExprPos(t ast.ActionExpr, def ast.Pos) ast.Pos {
 		return t.Diagnostic()
 	case *ast.VarRef:
 		return t.Diagnostic()
-	case *ast.Member:
+	case *ast.FieldAccess:
 		return t.Diagnostic()
-	case *ast.New:
+	case *ast.Constructor:
 		return t.Diagnostic()
 	case *ast.ListConstructor:
 		return t.Diagnostic()

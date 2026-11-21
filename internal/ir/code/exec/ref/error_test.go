@@ -104,7 +104,7 @@ func TestErrorValueTerms(t *testing.T) {
 					t.Errorf("N{%s}: panic %q, want a term that does not type-check", name, s)
 				}
 			}()
-			env.Eval(&ast.New{Type: "N", Args: []ast.ActionExpr{capt(name)}})
+			env.Eval(&ast.Constructor{Type: "N", Args: []ast.ActionExpr{capt(name)}})
 		}()
 	}
 }

@@ -22,7 +22,7 @@ func fn(name string, args ...ast.ActionExpr) ast.ActionExpr {
 func lam(body ast.ActionExpr, params ...string) ast.ActionExpr {
 	return &ast.Lambda{Params: params, Body: body}
 }
-func mem(x ast.ActionExpr, name string) ast.ActionExpr { return &ast.Member{X: x, Name: name} }
+func mem(x ast.ActionExpr, name string) ast.ActionExpr { return &ast.FieldAccess{X: x, Name: name} }
 
 // unknownTerms read the capture x, which the tests make unknown, the known capture xs (a list node
 // holding x and an int) and the variables v (unknown) and n (known).

@@ -203,13 +203,13 @@ func (k *classifier) walkTerm(t ast.ActionExpr, tc termCtx) {
 	case *ast.Bind:
 		k.binds = append(k.binds, &binding{rule: tc.rule, b: t, c: tc.c, p: tc.pred})
 		k.walkTerm(t.Value, tc.part(false))
-	case *ast.Member:
+	case *ast.FieldAccess:
 		k.walkTerm(t.X, tc.part(false))
 	case *ast.Cast:
 		k.walkTerm(t.X, tc)
 	case *ast.Unary:
 		k.walkTerm(t.X, tc.part(false))
-	case *ast.New:
+	case *ast.Constructor:
 		for _, f := range t.Fields {
 			k.walkTerm(f.Value, tc)
 		}
@@ -378,7 +378,7 @@ func (k *classifier) lambdaCtx(call *ast.Call, i int, lam *ast.Lambda, tc termCt
 	var elems []ast.Expr
 	if listArg != nil {
 		if bounded {
-			elem = k.sizeOf(&ast.Member{X: listArg}, tc, textSize)
+			elem = k.sizeOf(&ast.FieldAccess{X: listArg}, tc, textSize)
 		} else {
 			elem = k.elemSize(listArg, tc)
 		}
@@ -501,7 +501,7 @@ func (k *classifier) foldRuns(list ast.ActionExpr, tc termCtx) int {
 func (k *classifier) elemSize(t ast.ActionExpr, tc termCtx) content {
 	saved, savedRepeat := tc.lambda, tc.repeat
 	tc.lambda, tc.repeat = false, false
-	c := k.sizeOf(&ast.Member{X: t}, tc, textSize)
+	c := k.sizeOf(&ast.FieldAccess{X: t}, tc, textSize)
 	tc.lambda, tc.repeat = saved, savedRepeat
 	c.outer = false
 	return c
@@ -566,7 +566,7 @@ func (k *classifier) sizeOf(t ast.ActionExpr, tc termCtx, mode sizeMode) content
 	var c content
 	switch t := t.(type) {
 	case nil, *ast.IntLit, *ast.BoolLit, *ast.NilLit, *ast.StringLit, *ast.Unary, *ast.Lambda,
-		*ast.New, *ast.TupleLit, *ast.ListConstructor:
+		*ast.Constructor, *ast.TupleLit, *ast.ListConstructor:
 		// Numbers, Booleans and structs are not strings or lists; a list literal has as many
 		// elements as it has items.
 	case *ast.ActionGroup:
@@ -601,7 +601,7 @@ func (k *classifier) sizeOf(t ast.ActionExpr, tc termCtx, mode sizeMode) content
 		// consume.
 		c.look = c.look || k.lookCaptures(tc.rule)[t.Name] && c.unbounded
 		c.outer = tc.repeat && c.unbounded
-	case *ast.Member:
+	case *ast.FieldAccess:
 		exprs, param, ok := k.termExprs(t, tc)
 		if !ok {
 			return k.sizeOfAny(t, tc)
@@ -783,7 +783,7 @@ func (k *classifier) termExprs(t ast.ActionExpr, tc termCtx) (exprs []ast.Expr, 
 		}
 		exprs := k.captures[tc.rule][t.Name]
 		return exprs, false, len(exprs) > 0
-	case *ast.Member:
+	case *ast.FieldAccess:
 		if !strings.HasPrefix(t.Name, "$") {
 			return nil, false, false
 		}
@@ -829,7 +829,7 @@ func (k *classifier) inLook(t ast.ActionExpr, tc termCtx) bool {
 			return p.look
 		}
 		return k.lookCaptures(tc.rule)[t.Name]
-	case *ast.Member:
+	case *ast.FieldAccess:
 		if k.inLook(t.X, tc) {
 			return true
 		}
@@ -1225,7 +1225,7 @@ func constant(t ast.ActionExpr) bool {
 	ok := true
 	astfacts.WalkTerm(t, func(x ast.ActionExpr) {
 		switch x.(type) {
-		case *ast.VarRef, *ast.CaptureRef, *ast.Member:
+		case *ast.VarRef, *ast.CaptureRef, *ast.FieldAccess:
 			ok = false
 		}
 	})

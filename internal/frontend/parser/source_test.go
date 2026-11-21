@@ -202,8 +202,8 @@ func TestSourceSpansAndDiagnostics(t *testing.T) {
 			return []ast.SourceNode{b, b.R.(*ast.Binary)}
 		}, [][2]ast.Pos{{{Line: 1, Col: 17}, {Line: 1, Col: 26}}, {{Line: 1, Col: 21}, {Line: 1, Col: 26}}}},
 		{"rule a = \"x\" => $x.A.B", func(g *ast.Grammar) []ast.SourceNode {
-			b := g.Rules()[0].Action.(*ast.Member)
-			return []ast.SourceNode{b, b.X.(*ast.Member)}
+			b := g.Rules()[0].Action.(*ast.FieldAccess)
+			return []ast.SourceNode{b, b.X.(*ast.FieldAccess)}
 		}, [][2]ast.Pos{{{Line: 1, Col: 17}, {Line: 1, Col: 23}}, {{Line: 1, Col: 17}, {Line: 1, Col: 21}}}},
 	}
 	for _, tc := range cases {

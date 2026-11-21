@@ -117,7 +117,7 @@ func (c *canonical) action(n any) ast.ActionExpr {
 		c.span(&t.SourceInfo, n)
 		return t
 	case *types.FieldAccess:
-		t := &ast.Member{Name: c.name(n.Name)}
+		t := &ast.FieldAccess{Name: c.name(n.Name)}
 		t.X = c.action(n.X)
 		if captureMember(t.Name) {
 			c.errorAt(n.Name, "a capture is read with .$%s", t.Name)
@@ -128,7 +128,7 @@ func (c *canonical) action(n any) ast.ActionExpr {
 		if n.Capture == nil {
 			c.fail("the source tree has no capture of a member")
 		}
-		t := &ast.Member{Name: n.Capture.Value}
+		t := &ast.FieldAccess{Name: n.Capture.Value}
 		t.X = c.action(n.X)
 		c.created(c.span(&t.SourceInfo, n), n.Capture.Start)
 		return t
@@ -145,7 +145,7 @@ func (c *canonical) action(n any) ast.ActionExpr {
 		c.span(&t.SourceInfo, n)
 		return t
 	case *types.Constructor:
-		t := &ast.New{Type: c.text(c.present(n.X))}
+		t := &ast.Constructor{Type: c.text(c.present(n.X))}
 		for _, f := range n.Inits {
 			if f == nil || f.SourceSpan == nil {
 				c.fail("the source tree has a syntax error in a constructor")

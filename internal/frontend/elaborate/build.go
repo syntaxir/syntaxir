@@ -810,14 +810,14 @@ func (b *coreBuilder) actionExprNode(t ast.ActionExpr, s *coreScope, env map[str
 		return &core.SlotRef{Slot: slot, Name: t.Name}, nil
 	case *ast.VarRef:
 		return &core.VarRef{Name: t.Name}, nil
-	case *ast.Member:
+	case *ast.FieldAccess:
 		x, err := sub(t.X)
 		if err != nil {
 			return nil, err
 		}
 		field, _ := check.ProjectionField(t.Name)
 		return &core.Member{X: x, Name: t.Name, Field: field}, nil
-	case *ast.New:
+	case *ast.Constructor:
 		if len(t.Args) != 0 {
 			x, err := sub(t.Args[0])
 			if err != nil {

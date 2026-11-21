@@ -714,9 +714,9 @@ func walkTerm(t ast.ActionExpr, f func(ast.ActionExpr)) {
 	}
 	f(t)
 	switch t := t.(type) {
-	case *ast.Member:
+	case *ast.FieldAccess:
 		walkTerm(t.X, f)
-	case *ast.New:
+	case *ast.Constructor:
 		for _, fi := range t.Fields {
 			walkTerm(fi.Value, f)
 		}

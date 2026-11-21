@@ -84,7 +84,7 @@ func optionalOf(text string) string {
 
 // unsetFields reports the fields of the struct st that a constructor of it leaves unset although
 // their types have no zero value.
-func (v *ValueInference) unsetFields(t *ast.New, st *ast.TypeDef) {
+func (v *ValueInference) unsetFields(t *ast.Constructor, st *ast.TypeDef) {
 	set := map[string]bool{}
 	for _, fi := range t.Fields {
 		set[fi.Name] = true

@@ -79,7 +79,7 @@ func TestCaptureAccessMatchesField(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	member := g.Rules()[0].Action.(*ast.Call).Args[1].(*ast.Lambda).Body.(*ast.Member)
+	member := g.Rules()[0].Action.(*ast.Call).Args[1].(*ast.Lambda).Body.(*ast.FieldAccess)
 	member.Name = "y"
 	if _, err := Compile(g, compile.Options{}); err == nil || !strings.Contains(err.Error(), "read the capture with .$y") {
 		t.Fatalf("field access on a node: %v", err)
@@ -107,8 +107,8 @@ func TestCaptureAccessSyntax(t *testing.T) {
 	if got := fmt.Format(g); !strings.Contains(got, "i.$y.Start") {
 		t.Fatalf("formatted:\n%s", got)
 	}
-	body := g.Rules()[0].Action.(*ast.Call).Args[1].(*ast.Lambda).Body.(*ast.Member)
-	if inner, ok := body.X.(*ast.Member); !ok || inner.Name != "$y" || body.Name != "Start" {
+	body := g.Rules()[0].Action.(*ast.Call).Args[1].(*ast.Lambda).Body.(*ast.FieldAccess)
+	if inner, ok := body.X.(*ast.FieldAccess); !ok || inner.Name != "$y" || body.Name != "Start" {
 		t.Fatalf("access %#v", body)
 	}
 	program := mustCompile(t, `rule main = xs:(y:"a" "b")* $$ => $xs[0].$y`)

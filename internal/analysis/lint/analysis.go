@@ -1032,9 +1032,9 @@ func walkActionExpr(t ast.ActionExpr, f func(ast.ActionExpr)) {
 		for _, stmt := range t.Statements {
 			walkActionExpr(stmt, f)
 		}
-	case *ast.Member:
+	case *ast.FieldAccess:
 		walkActionExpr(t.X, f)
-	case *ast.New:
+	case *ast.Constructor:
 		for _, fi := range t.Fields {
 			walkActionExpr(fi.Value, f)
 		}
