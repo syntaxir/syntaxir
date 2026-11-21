@@ -11,15 +11,18 @@ units at a small set of **logical events**: the events that the language defines
 are no longer counted per operation of a backend. The events are calls of rules, input that terminals advance over
 (counted again after backtracking), the size of the values that actions build or compare, the suffix copies of run
 sites, and the syntax errors built. Every other piece of work is bounded by these events times a constant of
-the grammar, so it charges nothing.
+the grammar, so it charges nothing. Body evaluations, iterations and operators were proposed as events at the start of this
+design; the table drops them because calls and input bound them. That departure needs the owner's decision
+([Open Questions](#limitations-and-open-questions), question 1).
 
 Two things must be identical on every backend and at every optimization setting: the **total** of a parse that ends
 on its own, and the **decision** whether a limit rejects the parse. The units charged at a given instant need not be.
 Charging is a plain addition, often of a static count for a whole block. Checking is separate: the counter is compared
 with the limit only on cycles (recursive calls and loop back-edges), before charges whose size depends on the input,
-at deliveries to the caller and at the end of the parse. Work after the limit is exceeded is therefore bounded by a
-stated overshoot. A `LimitError` reports `Used` exactly when the parse is rejected at its end, and within that
-overshoot otherwise.
+at deliveries to the caller, at each demand of a stream for more input and at the end of the parse. Every check first
+settles the pending charges, so it compares the exact sum of the events performed so far. Work after the limit is
+exceeded is therefore bounded by a stated overshoot. A `LimitError` reports `Used` exactly when the parse is rejected
+at its end, and within that overshoot otherwise.
 
 This record is a proposal. A measured prototype on generated Go comes before any change to the specification or to a
 backend.
@@ -114,8 +117,8 @@ call. A unit that bounds neither kind defends against nothing and only costs tim
 | Event | Units | Attack it defends against |
 | --- | --- | --- |
 | Call of a rule, including a call answered from the memo, a call of a value-free twin, the entry call and a step of a growing left-recursive rule | 1 | Calls that memoization does not share: exponential backtracking in rules without a memo, call storms at one position, and growth of left recursion |
-| Key of a call of a rule that a parse from scratch memoizes | 1 for each variable that the rule reads, plus the UTF-8 bytes of each string value among them | Long string keys hashed and compared on every call |
-| Input that a terminal advances over: a literal, a character class, `.`, or a fused scan | 1 for each position unit advanced, counted again each time backtracking returns before it and a terminal advances over it again | Backtracking that re-examines input (quadratic and worse re-scans) and long scans |
+| Key of a call of a rule that a parse from scratch memoizes, and the key of a walk of a [run site](../../../spec/runtime/parsing.md#run-sites) keyed by variables (see [Keys of Walks](#keys-of-walks)) | 1 for each variable of the key, plus the UTF-8 bytes of each string value among them | Long string keys hashed and compared on every call or lookup |
+| Input that a terminal advances over: a literal, a character class, `.`, or a fused scan, including inside a lookahead and inside an alternative that later fails | 1 for each position unit advanced, counted again each time backtracking returns before it and a terminal advances over it again | Backtracking that re-examines input (quadratic and worse re-scans) and long scans |
 | A value that an action, a predicate or a binding builds | 1 for each element of a list and each byte of a string that it builds | Values that grow faster than the input, such as a concatenation in a repetition |
 | A comparison of strings by an action, a predicate, a binding or a key | The length in bytes of the shorter operand | Repeated comparison of long equal strings |
 | A list operation that visits elements (`map`, `filter`, folds) | 1 for each element visited | Repeated walks of long lists |
@@ -124,8 +127,30 @@ call. A unit that bounds neither kind defends against nothing and only costs tim
 | An entry of recovered errors taken at a store of a memo entry, a growth result or an Operators Rule attempt | 1 | The errors of reused results that missing-token insertion records one by one |
 | A text value in a stream (`text` of a node) | 1 for each position unit of its result | A stream discards input, so a text is a copy |
 
-A terminal that fails, or a lookahead that ends, advances over nothing. A later advance over the same input after
-backtracking counts again; examining input without advancing counts nothing.
+The advances of terminals inside a lookahead, and inside an alternative that fails after them, count when they
+happen; the rewind at the end of the lookahead or at the failure adds and removes nothing. A terminal that fails
+advances over nothing and counts nothing. A later advance over the same input after backtracking counts again;
+examining input without advancing counts nothing.
+
+Body evaluations, iterations and operators are not in the table, although the direction that opened this design
+listed them as events. [Work That Is Not an Event](#work-that-is-not-an-event) gives the bounds that justify the
+omission, and question 1 asks the owner to confirm it.
+
+#### Keys of Walks
+
+A walk of a run site keyed by variables looks up a record at each position it visits, with the values that the
+variables of the key hold there. The predicates of the element may bind variables of the key, so those values can
+change between the start of the walk and a later position; the engine and the Go library read and hash them at each
+lookup today (`walkKey` in the skip runs of `pkg/runtime/libgo`). The charge therefore follows the site, which is
+static:
+
+- a site whose element binds no variable of the key (its `RunKey.Bind` is empty) keeps the values of the key for the
+  whole walk. Its key is charged once, when the walk starts, and may be hashed once;
+- a site whose element binds a variable of the key charges its key at each lookup, because each lookup hashes and
+  compares values that may differ from the last.
+
+Hashing once where values cannot change saves the per-lookup charge and the per-lookup hash together, and the
+charge stays a property of the grammar, so every backend agrees on it.
 
 ### Work That Is Not an Event
 
@@ -133,8 +158,9 @@ Each item below is bounded by the events above, times a constant of the grammar.
 proofs update carries.
 
 - **Rule body evaluations.** Each evaluation of a body follows a call or a growth step, which are counted. Whether a
-  call evaluates its body or reads the memo is a policy of the memo and changes time, not units. The total is
-  therefore independent of what the memo holds and of the store policy.
+  call evaluates its body or reads the memo still changes the total: an evaluation counts the events of the body,
+  and a hit counts only the call and its key. The total is therefore defined by the plain evaluation together with
+  the store policy of the memo, which becomes normative (see [Memo Policy](#memo-policy)).
 - **Iterations of repetitions.** Every iteration but the last of each repetition advances the position. It does so by
   a terminal or a call, which are counted, or by the take of a record, which ends the walk. The last
   iteration happens once for each time the repetition is entered. Entries are bounded by the evaluations and
@@ -145,7 +171,8 @@ proofs update carries.
   grammar for each body evaluation or iteration. The input that a retried alternative advances over again is counted.
 - **Lookups and records of skip runs, run sites and scan sites.** There is at most one lookup for each iteration and
   one take for each repetition entry. The iterations and characters that a take skips are not done, so they are not
-  counted.
+  counted. The key of a keyed walk is the one exception, an event of its own ([Keys of Walks](#keys-of-walks)),
+  because its size depends on string values.
 - **Runtime-built values, captures, the gathering and taking off of lists, typed conversion and storage growth.** These
   already charge nothing.
 - **Expectations.** Recording, merging, keeping and copying the expected items is at most a constant of the grammar for
@@ -160,44 +187,97 @@ proofs update carries.
   caller pays for them in time.
 - **Delivery.** Read calls of a stream, deliveries to callbacks and listing the errors of the outcome charge nothing.
 
+### Memo Policy
+
+A memo hit and an evaluation count different events, so the total depends on which calls the memo answers. The
+plain evaluation that defines the total includes the store policy of the reference implementation, which this record
+makes normative on every backend:
+
+- which memoized rules defer their memoization (those that the compiler gives a seen index) and which parses
+  memoize on the first call are static choices that the policy fixes;
+- outside the contexts of growths, the first call of a deferring rule at a position is evaluated and its result is
+  not stored; the call only marks the position as seen for the rule, whatever the values of its variables;
+- a later call at a seen position is evaluated once and stored, and later calls there are hits;
+- each rule keeps a count of its calls and of its repeated calls (calls at a seen position). Once the repeated calls
+  exceed a sixteenth of the calls, the rule stores every first call from then on, for the rest of the parse. Both
+  counts are halved together before the count of calls would reach 2^31.
+
+This is `firstCall` in `internal/runtime/state`, `pkg/runtime/libgo` and the TypeScript library. The store-policy
+conformance tests hold each backend only between a memo that stores every first call and one that defers each;
+step 3 states the policy exactly in the specification and the total-agreement test holds every backend to it. Totals
+agree because the policy is a deterministic function of the sequence of calls, which the plain evaluation fixes.
+
+Any pass that changes what the memo sees must preserve the policy:
+
+- inlining a memoized rule is forbidden under limit controls, unless the inlined code reproduces the hit or miss, the
+  seen mark, the store and the counts of the call it replaces;
+- a pass that skips, moves or duplicates a call of a memoized rule must leave the same seen marks, stores and counts
+  as the plain evaluation, or not run under limit controls.
+
+A `Document` adds the reuse of results of earlier parses, which is normative in the same way (see
+[Documents](#documents)).
+
 ### Accounting
 
-The counter is one integer for each invocation. An implementation may charge in any grouping, provided that the
-total of the parse is the sum of the events in the table:
+The counter is one integer for each invocation. An implementation may charge in any grouping, under two rules:
 
-- **Straight-line code.** A block with no branch charges the static sum of its events once. Each exit of a block that
-  can fail charges the static sum of the events before that exit.
+- **Exact at checks.** Every check first settles what is pending: position deltas not yet added, and the static count
+  of the events of the current block performed before the check, which is known for each check site. The counter it
+  compares is then exactly the sum of the events performed so far, on every backend.
+- **Never ahead of the event.** No charge counts an event before it happens. A block charges its static sum at its
+  exits, not at its entry; a fused scan charges a chunk after scanning it. The one exception is a sized operation
+  (below), whose event begins when its size is known.
+
+Within these rules:
+
+- **Straight-line code.** A block with no branch charges the static sum of its events once, at its end. Each exit of a
+  block that can fail charges the static sum of the events before that exit.
 - **Terminals.** A literal that matches adds its length, which is static in `Bytes` and in `CodePoints`. A class adds
-  one. A fused scan adds the distance it advanced, once, after its loop.
+  one. A fused scan adds the distance it advanced, after its loop or after each chunk.
 - **Position deltas.** In a region without jumps, the input advanced by terminals equals the end position minus the
   start, plus the distance rewound. An implementation may settle the input count at rewinds and rule exits from
   positions alone. A jump that does not examine input, such as a memo hit or the take of a record, is subtracted.
 - **Inlining.** An inlined rule charges the call it replaced; an inlined block charges its static count.
-- **Bulk charges.** A value of n elements or bytes charges n once, before it is built, with a check (below).
+- **Sized operations.** A value of n elements or bytes, a string comparison, a key or a suffix copy charges n once,
+  when n is known and before the work, with a check (below). The operation has begun when it charges, and it
+  runs unless that check or another limit stops the parse.
 
 ### Checks and Overshoot
 
-A **check** compares the counter with the limit and, when the context interval has passed, observes the context. The
-counter is checked at these points:
+A **check** settles the pending charges ([Accounting](#accounting)), compares the counter with the limit and, when
+the context interval has passed, observes the context. The counter is checked at these points:
 
 1. at the entry of each call of a recursive rule (a rule on a cycle of the call graph), and at each step of a growth;
 2. at the back-edge of each loop: repetitions, the loops of an Operators Rule, and recovery skips. A fused loop is
-   checked once for each chunk of at most B units;
-3. after each charge whose size is not a constant of the grammar (a value, a comparison, a key, a suffix copy, a stream
-   text), and before the work that the charge covers;
+   checked once for each chunk of at most B units, after the chunk is scanned and charged;
+3. after each sized charge (a value, a comparison, a key, a suffix copy, a stream text), and before the work that the
+   charge covers;
 4. before each delivery to the caller: a stream element, a commit, or a callback with recovered errors;
-5. at the end of the parse, before the outcome is returned.
+5. in a stream, at each demand for more input, before the demand raises a limit that depends on the input demanded
+   (see [Streams](#streams));
+6. at the end of the parse, before the outcome is returned.
 
-Between two checks, a parse follows a path that has no cycle of the grammar's control flow, so it charges at most a
-constant K of the grammar and the backend, plus at most B for a chunk. When a check finds the counter above the limit,
-the parse stops.
+Between two checks, a parse follows a path that has no cycle of the grammar's control flow. The compiler inserts
+further checks on long acyclic paths, splitting blocks, so that the static charges between two checks stay within a
+cap. An atomic static charge, the length of a single literal, is not split. The bound is therefore
 
-- The work done after the counter first exceeded the limit is at most K + B units.
-- A charge of a large value is compared before the value is built. The work that it covers is not done, although its
-  units count in `Used`.
+> K = max(4096, A), where A is the largest atomic static charge of the grammar,
 
-An implementation may check more often. The specification bounds K for each backend, and the cost view reports it for
-a grammar.
+plus at most B for a chunk of a fused loop. Splitting a literal into chunks with checks between them would remove A
+from the bound, but it costs code in the hottest terminal for literals that grammars do not have: A is the length of
+the longest literal of a trusted grammar, a constant that the cost view reports. When a check finds the counter above
+the limit, the parse stops.
+
+- The units charged after the counter first exceeded the limit are at most K + B.
+- A sized charge is compared before its work. The work that it covers is not done, although its units count in
+  `Used`.
+- The work that charges nothing is at most a constant of the grammar for each counted event ([Work That Is Not an
+  Event](#work-that-is-not-an-event)). The uncharged work done after the limit was exceeded is therefore at most
+  (K + B) times a constant of the grammar, besides the work of the `Document` itself, which
+  [Documents](#documents) bounds separately.
+
+An implementation may check more often; [Decision Rule](#decision-rule) shows that extra checks cannot change the
+decision.
 
 ### Decision Rule
 
@@ -212,19 +292,34 @@ The rule holds on every backend because the counter only grows:
 
 The decision therefore depends only on the total, which is identical on every backend and optimization setting.
 
+**A limit that moves.** The default limit of a stream is a function of the input demanded so far, so it rises at
+each demand. Let the demands be d1, d2, ..., dm, let L0 be the limit before d1 and Li the limit between di and
+d(i+1), and let Si be the sum of the events that the plain evaluation performs before demand d(i+1) (Sm is the total).
+The rule is then: a stream is rejected if and only if Si > Li for some i. Check 5 compares exactly Si with Li, because
+every check settles first and no charge runs ahead of its event; check 6 compares Sm with Lm. Each Si is the same on
+every backend, provided that the events before each demand are the same, which the obligations of passes ensure.
+
+Extra checks cannot change this decision. A check at an instant between di and d(i+1) compares a partial sum with Li.
+The partial sum is at most Si, because the counter only grows and every event before the instant comes before
+d(i+1). So a check there rejects only if the check at d(i+1) would reject, and a parse stopped early has the same
+decision, reached sooner. The same argument with one interval gives the fixed-limit rule above: every check, wherever
+it runs, compares a partial sum of the total with the same limit.
+
 ### LimitError Contract
 
 For a `LimitError` of kind `LimitCompute`:
 
 - `Limit` is the resolved limit;
-- `Used` is the counter at the check that stopped the parse, so `Limit < Used <= Limit + K + B` (or up to the last large
-  charge, which item 3 checks);
-- when the end-of-parse check rejects the parse, `Used` is the exact total.
+- `Used` is the counter at the check that stopped the parse, so `Limit < Used <= Limit + K + B`, or up to the last
+  sized charge, which check 3 compares before its work;
+- when the end-of-parse check rejects the parse, `Used` is the exact total;
+- `Requested` is absent, as decided on 2026-11-20 for the exact unit table: compute errors no longer carry it, and the
+  other kinds keep it. A check that covers many charges gives it no meaning either.
 
-`Used` of a rejected parse may differ between backends within the overshoot. A parse that completes reports its
-exact total, for example through the statistics of the outcome, identical on every backend. `Requested` is not
-meaningful for a compute check that covers many charges. It is removed from compute errors, and the other kinds keep
-it.
+The same decision of 2026-11-20 made units atomic, so that `Used` equalled `Limit` when a parse stopped. This record
+changes that part: `Used` may exceed `Limit` by the overshoot, and `Used` of a rejected parse may differ between
+backends within it. A parse that completes reports its exact total, for example through the statistics of the
+outcome, identical on every backend.
 
 A cancellation is observed at checks once at least P units have been charged since the last observation (P is 256
 today). The latency of a cancellation is therefore at most P + K + B units. When a check finds both a context error and
@@ -240,18 +335,23 @@ The rule that every reservation keeps its place among trace events, deliveries a
 ### Obligations of Optimization Passes
 
 A pass of the [pass pipeline](../pass-pipeline.md) that changes the code of a rule must keep the events of every
-input:
+input, in an order that keeps the sum before each check point and each demand of a stream:
 
-- **Fusion** keeps the input advanced and charges it in bulk.
-- **Inlining** charges the call it replaces.
+- **Fusion** keeps the input advanced and charges it in bulk, after the scan.
+- **Inlining** charges the call it replaces. A memoized rule is not inlined under limit controls unless the inlined
+  code reproduces the memo behaviour of the call ([Memo Policy](#memo-policy)).
 - **Hoisting or sinking a check** may move it only between the points listed in [Checks and
-  Overshoot](#checks-and-overshoot), and must keep K within its stated bound.
-- **Dispatch on the next character, guards and left factoring** may skip an alternative only if the events that the
-  plain evaluation of that alternative would charge before failing are known, and the pass charges them. A skipped
-  alternative that fails at its first terminal charges the calls on its left corner. Where that number depends on
-  the memo or on values, the pass does not skip. The plain evaluation of the grammar is the reference.
+  Overshoot](#checks-and-overshoot), and must keep K within its stated bound. It may not move a demand of a stream
+  before events that the plain evaluation performs before that demand.
+- **Dispatch on the next character, guards and left factoring** are disabled under limit controls by default. The
+  plain evaluation of the grammar is the reference, and a skipped alternative must reproduce both its events and its
+  memo effects (the seen marks, stores and policy counts of its calls), or not be skipped. There is one exception: a
+  skipped alternative whose left corner is a fixed chain of calls of rules that are neither memoized nor keyed, and
+  that fails at its first terminal. It has no memo effects, no key and no input advanced, so the pass charges the
+  number of calls in the chain, a static count, before it examines the next character. Step 2 measures how many
+  dispatches of the benchmark grammars fall into this class and how many are disabled.
 - **A pass that removes a call** (a value-free twin replaced by a recognizer, for example) charges the calls it
-  removed, or is not a pass that may run under limit controls.
+  removed and keeps their memo effects, or is not a pass that may run under limit controls.
 
 A differential test runs each optimization setting against the plain evaluation and compares totals. Mutants that
 drop or double one charge in each pass show that the test catches it.
@@ -265,11 +365,22 @@ events it performs: a reused result is one call, and its key is counted if the r
 the default count the same events, so a reparse under the default limit succeeds whenever a parse of the same text
 from scratch does. The proof target is that a reparse never counts more than the parse from scratch.
 
+What a reparse reuses decides what it counts: a reused result counts one call and its key, and a result that is not
+reused counts its evaluation. The reuse policy of a `Document` (which results of earlier parses it keeps, which it
+retires and which a lookup finds) is therefore normative on every backend, like the store policy of the memo. Step 3
+states it in [Documents](../../../spec/runtime/documents.md), and the total-agreement test covers reparses.
+
 ### Streams
 
 A stream counts the same events. A text value copies its range, so it counts its length. The checks before each
-delivery keep the decision and the deliveries identical on every backend. The default limit stays a function of the
-input demanded so far, not of the reads.
+delivery keep the decision and the deliveries identical on every backend.
+
+The default limit of a stream stays a function of the input demanded so far, not of the reads, so it rises at each
+demand. A check is therefore required at every demand point: it settles the counter and compares it with the limit
+for the input demanded so far, before the demand raises that limit. Without it, a parse could exceed the limit of
+the input it had and then pass once more input arrived, so the decision would depend on where a backend placed its
+checks. With it, and the check at the end, the decision is the moving-limit rule of [Decision Rule](#decision-rule).
+An explicit, fixed `Compute` limit needs no demand check, though one does no harm.
 
 ### Disposition of the Earlier Plan
 
@@ -308,7 +419,8 @@ The parts of the earlier plan that have not landed are re-judged under the event
    stated K + B on a sweep of limits.
 3. The specification: [Cost](../../../spec/runtime/parsing.md#cost),
    [Reservations and Interruptions](../../../spec/runtime/parsing.md#reservations-and-interruptions), the `LimitError`
-   paragraphs and [Work of a Document Parse](../../../spec/runtime/documents.md#work-of-a-document-parse). The
+   paragraphs, the store policy of the memo ([Memo Policy](#memo-policy)), the reuse policy of a `Document` and
+   [Work of a Document Parse](../../../spec/runtime/documents.md#work-of-a-document-parse). The
    proofs where they name the units of a backend: the linear cost proof's setting and its Document lemma, and the
    cost view's units.
 4. Each backend in turn (closure, bytecode machines, generated Go, generated TypeScript), each behind the
@@ -318,7 +430,7 @@ The parts of the earlier plan that have not landed are re-judged under the event
 ## Alternatives Considered
 
 - **Exact units at every instant (the earlier plan).** Every backend reserves the same units in the same order, so
-  `Used` and `Requested` of a `LimitError` agree everywhere. It costs a check per reservation, blocks fusion and
+  `Used` of a `LimitError` agrees everywhere. It costs a check per reservation, blocks fusion and
   hoisting, and needs exact emulation of every skipped alternative. Rejected: the agreement it adds is the agreement of
   error details, which serves no goal.
 - **Backend-local units, as the specification allowed before.** This is cheapest, but the decision then depends on the
@@ -345,7 +457,10 @@ The parts of the earlier plan that have not landed are re-judged under the event
   differential test.
 - **Documents.** The first parse equals the parse from scratch on every backend. A reparse never exceeds the parse from
   scratch on the edit fuzz corpus.
-- **Streams.** Deliveries before an interruption are identical on every backend.
+- **Streams.** Deliveries before an interruption are identical on every backend. Under the default limit, a sweep of
+  input chunk sizes gives the same decision, and a mutant that drops the demand check fails it.
+- **Memo and reuse policy.** The evaluations and hits of each rule are the same on every backend, for parses and for
+  `Document` reparses, and a mutant of the store policy (deferring never, or always) fails the total-agreement test.
 
 ## Performance and Results
 
@@ -363,7 +478,9 @@ No result yet. The prototype of step 2 is measured as follows.
   - Finite limits against no limit controls, today against the prototype.
   - The prototype's unlimited mode against no controls, to show the cost of carrying the counter.
   - Units per input byte on each workload, to set the factor of the default limit.
-  - The largest observed overshoot.
+  - The largest observed overshoot, against K + B.
+  - Dispatches of the benchmark grammars, by class: kept under limits with a static charge (a fixed chain of
+    non-memoized, non-keyed rules failing at its first terminal) and disabled, with the time that disabling costs.
   - Generated code size and binary size.
 - **Method.** Go 1.27.1 on one named machine, exclusive. At least ten alternating samples per configuration, reported
   as medians with ranges, and allocations per operation. The revisions are pinned, and the raw rows are kept with the
@@ -374,9 +491,10 @@ No result yet. The prototype of step 2 is measured as follows.
 These need the owner's decision before step 2. Each states a recommendation.
 
 1. **Audit of the Cost items.** Should body evaluations, iterations and operators stop being events, because calls and
-   input bound them? Recommendation: yes. It makes the total independent of the memo and lets a fused scan charge its
-   advance alone. The alternative keeps them, at the price of a second count in every loop. The proofs must carry the
-   bounds of [Work That Is Not an Event](#work-that-is-not-an-event) either way.
+   input bound them? This departs from the direction that opened this design, which listed them. Recommendation: yes.
+   It lets a fused scan charge its advance alone and a loop carry no second count. The total still depends on the
+   memo, through the normative store policy, either way. The proofs must carry the bounds of [Work That Is Not an
+   Event](#work-that-is-not-an-event).
 2. **Preparation of the input.** Should it stop being charged (reversing the earlier "input as a whole is n units"
    ruling), so that creating a `Document` never fails a compute limit? Recommendation: yes; `Input` bounds it.
 3. **Lines of errors.** Should the line and column of a syntax error be resolved when the caller reads the error, not
@@ -385,17 +503,16 @@ These need the owner's decision before step 2. Each states a recommendation.
    which no event bounds.
 4. **Comparison of strings.** Should a comparison charge the length of the shorter operand instead of the bytes up to
    the first difference? Recommendation: yes, for constant-time accounting.
-5. **`Requested`.** Remove it from compute errors, or keep it as the size of the charge that the stopping check
-   covered? Recommendation: remove; it has no meaning for a check that covers many charges.
-6. **Overshoot bound.** Should K be specified per grammar (reported by the cost view) or capped by a fixed number, with
-   extra checks inserted where a grammar's acyclic paths are longer? Recommendation: a fixed cap, 4096 units, with
-   extra checks where needed. A caller can then rely on one number.
-7. **Overhead target.** Is 1.10× of the time without controls on JSON and XML the acceptance bar for the prototype?
+5. **Overshoot bound.** Is K = max(4096, A) the contract, with checks inserted on longer acyclic paths and literals
+   left whole? Recommendation: yes. A caller relies on 4096 except for grammars with longer literals, which the cost
+   view reports.
+6. **Overhead target.** Is 1.10× of the time without controls on JSON and XML the acceptance bar for the prototype?
    Recommendation: yes as the target. If the prototype misses it, report the measured figure and decide after.
-8. **Dispatch under limits.** Should a dispatch that cannot charge the skipped left-corner calls exactly be disabled
-   under limit controls, or should calls that fail without advancing be made free, so that dispatch charges nothing?
-   Recommendation: disable such a dispatch and measure how many are lost. Making those calls free also exempts key
-   hashing of the calls, which is an attack surface.
+
+Two earlier questions are settled. `Requested` is absent from compute errors, as decided on 2026-11-20; this record
+changes only the `Used = Limit` part of that decision ([LimitError Contract](#limiterror-contract)). Dispatch is
+disabled under limits except for the static class in [Obligations of Optimization
+Passes](#obligations-of-optimization-passes), and step 2 measures what that costs.
 
 The bound arguments in [Work That Is Not an Event](#work-that-is-not-an-event) are sketches, not proofs. The
 proofs update of step 3 must state them, and must restate the linear cost and cost view proofs in units that no longer
