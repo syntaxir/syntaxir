@@ -1,4 +1,4 @@
-package engine
+package compile_test
 
 import (
 	"context"
@@ -13,6 +13,8 @@ import (
 	"syntaxir.dev/sxir/internal/backend/closure"
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/starttest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -124,12 +126,12 @@ func TestClassConstructionCompileContextParity(t *testing.T) {
 		g := &ast.Grammar{File: ast.File{Decls: []ast.Decl{&ast.RuleDef{Name: "main", Expr: e}}}}
 		starttest.MarkAll(g)
 		for _, compiledRecognition := range []bool{false, true} {
-			a, err := Compile(g, compile.Options{Recognition: recognitionMode(compiledRecognition)})
+			a, err := entry.Compile(g, compile.Options{Recognition: recognitionMode(compiledRecognition)})
 			if err != nil {
 				t.Fatal(err)
 			}
 			ctx, cancel := context.WithCancel(context.Background())
-			b, err := CompileContext(ctx, g, compile.Options{Recognition: recognitionMode(compiledRecognition)})
+			b, err := entry.CompileContext(ctx, g, compile.Options{Recognition: recognitionMode(compiledRecognition)})
 			cancel()
 			if err != nil {
 				t.Fatal(err)
@@ -141,7 +143,7 @@ func TestClassConstructionCompileContextParity(t *testing.T) {
 							// Active budget controls and Recognize lazily compile separate graphs.
 							// Their disabled cases exercise the controlled compiler's own matchers,
 							// including its directly compiled recognition-only graph.
-							opts := ParseOptions{Unit: unit, Recognize: recognize}
+							opts := engine.ParseOptions{Unit: unit, Recognize: recognize}
 							if active {
 								opts.Limits = sxirruntime.Limits{Compute: 1 << 30}
 							}
@@ -172,13 +174,13 @@ type classCompilationContext struct {
 func (c *classCompilationContext) Done() <-chan struct{} { return c.done }
 
 //go:noinline
-func classProgramWithoutContext(t *testing.T) (*Program, weak.Pointer[classCompilationContext]) {
+func classProgramWithoutContext(t *testing.T) (*engine.Program, weak.Pointer[classCompilationContext]) {
 	ctx := &classCompilationContext{Context: context.Background(), done: make(chan struct{})}
 	ref := weak.Make(ctx)
 	cl := &ast.CharClass{Ranges: []ast.CharRange{{Lo: 'a', Hi: 'a'}, {Lo: 'b', Hi: 'b'}, {Lo: 'β', Hi: 'β'}}}
 	g := &ast.Grammar{File: ast.File{Decls: []ast.Decl{&ast.RuleDef{Name: "main", Expr: &ast.Choice{Alts: []ast.Expr{&ast.Seq{Items: []ast.Expr{cl, &ast.EndInput{}}}, &ast.Discard{Expr: &ast.Repeat{Expr: cl, Min: 1, Max: -1}}}}}}}}
 	starttest.MarkAll(g)
-	p, err := CompileContext(ctx, g, compile.Options{})
+	p, err := entry.CompileContext(ctx, g, compile.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -210,4 +212,13 @@ func TestClassConstructionProgramReleasesCompileContext(t *testing.T) {
 		}
 	}
 	runtime.KeepAlive(p)
+}
+
+// recognitionMode returns the compile mode of a program that recognizes (RecognizeWithStreamValues) or builds
+// values.
+func recognitionMode(recognize bool) compile.Recognition {
+	if recognize {
+		return compile.RecognizeWithStreamValues
+	}
+	return compile.BuildValues
 }

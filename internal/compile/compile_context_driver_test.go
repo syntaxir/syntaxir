@@ -1,4 +1,4 @@
-package engine
+package compile_test
 
 import (
 	"context"
@@ -10,12 +10,14 @@ import (
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/diagnostic"
+	"syntaxir.dev/sxir/internal/driver/entry"
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	fcheck "syntaxir.dev/sxir/internal/frontend/check"
 	corebuild "syntaxir.dev/sxir/internal/frontend/elaborate"
 	ir "syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -43,7 +45,7 @@ func compileTestContext(t *testing.T, polls int) *compilePollContext {
 
 func compileTestGrammar(t *testing.T) *ast.Grammar {
 	t.Helper()
-	g, err := parseTest(codegentest.InferredChain(1024, false, ""))
+	g, err := enginetest.Parse(codegentest.InferredChain(1024, false, ""))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +61,7 @@ func TestCompileContextCancellation(t *testing.T) {
 	}
 	for _, polls := range []int{1, 3, 12} {
 		ctx := compileTestContext(t, polls)
-		prog, err := CompileContext(ctx, g, compile.Options{})
+		prog, err := entry.CompileContext(ctx, g, compile.Options{})
 		if prog != nil || !errors.Is(err, context.Canceled) {
 			t.Fatalf("polls=%d: program=%v error=%v", polls, prog, err)
 		}
@@ -76,7 +78,7 @@ func TestCompileContextCancellation(t *testing.T) {
 func TestCompileContextPhaseCancellation(t *testing.T) {
 	t.Parallel()
 	g := compileTestGrammar(t)
-	p, err := Compile(g, compile.Options{})
+	p, err := entry.Compile(g, compile.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,9 +117,9 @@ func TestCompileContextPhaseCancellation(t *testing.T) {
 				corepass.ComputeSites(structuralModule(t, g), make([]corepass.SiteRule, len(g.Rules())), control)
 			case "type-checking":
 				var diagnostics diagnostic.ErrorList
-				compile.CheckTypesControlled(p.Static(), &diagnostics, control)
+				compile.CheckTypesControlled(entry.Checked(p), &diagnostics, control)
 			case "type-inference":
-				compile.ValueTypes(p.Static(), control)
+				compile.ValueTypes(entry.Checked(p), control)
 			case "list-constructor-type":
 				// The entry poll alone cannot cancel: cancellation must be
 				// observed inside the temporary checker resolving Elem.
@@ -125,12 +127,12 @@ func TestCompileContextPhaseCancellation(t *testing.T) {
 				for range 1024 {
 					elem = &ast.ListType{Elem: elem}
 				}
-				c := &compile.Compiler{Prog: p.Static(), Control: control}
+				c := &compile.Compiler{Prog: entry.Checked(p), Control: control}
 				c.CheckActionExpr(&ast.ListConstructor{Elem: elem}, fcheck.NewScope(), nil)
 			case "core-build":
-				_, _ = corebuild.CoreControlled(p.Static(), control)
+				_, _ = corebuild.CoreControlled(entry.Checked(p), control)
 			case "core-analysis", "core-passes", "core-pass-guards", "core-pass-scans", "core-verify":
-				m, err := corebuild.CoreFrom(p.Static(), false)
+				m, err := corebuild.CoreFrom(entry.Checked(p), false)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -168,13 +170,13 @@ func TestCompileContextOrdinaryParity(t *testing.T) {
 		`rule main = "a" / missing`,
 		`type P = { X node[string] }; rule main = "a" => P{X: 1}`,
 	} {
-		g, err := parseTest(src)
+		g, err := enginetest.Parse(src)
 		if err != nil {
 			t.Fatal(err)
 		}
-		ordinary, ordinaryErr := Compile(g, compile.Options{})
+		ordinary, ordinaryErr := entry.Compile(g, compile.Options{})
 		ctx, cancel := context.WithCancel(context.Background())
-		controlled, controlledErr := CompileContext(ctx, g, compile.Options{})
+		controlled, controlledErr := entry.CompileContext(ctx, g, compile.Options{})
 		cancel()
 		if (ordinaryErr == nil) != (controlledErr == nil) {
 			t.Fatalf("error mismatch: %v / %v", ordinaryErr, controlledErr)
