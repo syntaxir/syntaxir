@@ -5,7 +5,9 @@ import (
 	"testing"
 
 	gjsonkeep "syntaxir.dev/sxir/internal/bench/parsers/jsonkeepguards"
+	gjsontransient "syntaxir.dev/sxir/internal/bench/parsers/jsontransient"
 	gxmlkeep "syntaxir.dev/sxir/internal/bench/parsers/xmlkeepguards"
+	gxmltransient "syntaxir.dev/sxir/internal/bench/parsers/xmltransient"
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	rt "syntaxir.dev/sxir/pkg/runtime/libgo"
 	"syntaxir.dev/sxir/pkg/runtime/value"
@@ -20,7 +22,9 @@ import (
 //     compute limit, Compute Unlimited, and a cancelable context with Compute Unlimited;
 //   - logical-finite, logical-unlimited, logical-ctx: the same with logical units;
 //   - keepguards-finite: logical units with every dispatch guard kept uncharged (inexact), which
-//     measures what disabling the guards costs.
+//     measures what disabling the guards costs;
+//   - transient-finite: logical units with the guards of chains through transient rules kept too,
+//     which a Document would make inexact, to measure what excluding them costs.
 func BenchmarkLogicalUnits(b *testing.B) {
 	keep := map[string][2]func(string, ...rt.ParseOption) error{
 		"JSON": {
@@ -30,6 +34,16 @@ func BenchmarkLogicalUnits(b *testing.B) {
 		"XML": {
 			func(s string, o ...rt.ParseOption) error { _, err := gxmlkeep.Parse(s, o...); return err },
 			func(s string, o ...rt.ParseOption) error { _, err := gxmlkeep.ParseValue(s, o...); return err },
+		},
+	}
+	transient := map[string][2]func(string, ...rt.ParseOption) error{
+		"JSON": {
+			func(s string, o ...rt.ParseOption) error { _, err := gjsontransient.Parse(s, o...); return err },
+			func(s string, o ...rt.ParseOption) error { _, err := gjsontransient.ParseValue(s, o...); return err },
+		},
+		"XML": {
+			func(s string, o ...rt.ParseOption) error { _, err := gxmltransient.Parse(s, o...); return err },
+			func(s string, o ...rt.ParseOption) error { _, err := gxmltransient.ParseValue(s, o...); return err },
 		},
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -60,6 +74,7 @@ func BenchmarkLogicalUnits(b *testing.B) {
 					{"logical-unlimited", logical, []rt.ParseOption{unit, unlimited}},
 					{"logical-ctx", logical, []rt.ParseOption{unit, unlimited, rt.WithContext(ctx)}},
 					{"keepguards-finite", keep[c.name][i], []rt.ParseOption{unit}},
+					{"transient-finite", transient[c.name][i], []rt.ParseOption{unit}},
 				}
 				for _, cf := range configs {
 					b.Run(c.name+"/"+api+"/"+un+"/"+cf.name, func(b *testing.B) {

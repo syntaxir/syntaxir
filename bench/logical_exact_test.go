@@ -10,10 +10,12 @@ import (
 	"syntaxir.dev/sxir/internal/bench/inputs"
 	gjsonevent "syntaxir.dev/sxir/internal/bench/parsers/jsonevent"
 	gjsonlogical "syntaxir.dev/sxir/internal/bench/parsers/jsonlogical"
+	gjsontransient "syntaxir.dev/sxir/internal/bench/parsers/jsontransient"
 	gpolicyevent "syntaxir.dev/sxir/internal/bench/parsers/policyevent"
 	gpolicylogical "syntaxir.dev/sxir/internal/bench/parsers/policylogical"
 	gxmlevent "syntaxir.dev/sxir/internal/bench/parsers/xmlevent"
 	gxmllogical "syntaxir.dev/sxir/internal/bench/parsers/xmllogical"
+	gxmltransient "syntaxir.dev/sxir/internal/bench/parsers/xmltransient"
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	rt "syntaxir.dev/sxir/pkg/runtime/libgo"
@@ -45,6 +47,18 @@ func exactCases() []exactCase {
 		{"XML", exactInputs(inputs.XMLInput(4<<10), []string{`<a/>`, `<a b="c">t</a>`, `<?xml version="1.0"?><a><!-- c --><b/></a>`, `<a><![CDATA[x]]></a>`, `<a>&amp;&#65;</a>`, `<a></b>`, `<a`, ``, `<a b=c/>`}),
 			ps(func(s string, o ...rt.ParseOption) error { _, err := gxmllogical.Parse(s, o...); return err },
 				func(s string, o ...rt.ParseOption) error { _, err := gxmllogical.ParseValue(s, o...); return err }),
+			ps(func(s string, o ...rt.ParseOption) error { _, err := gxmlevent.Parse(s, o...); return err },
+				func(s string, o ...rt.ParseOption) error { _, err := gxmlevent.ParseValue(s, o...); return err })},
+		// The measurement variant that keeps guards through transient rules is exact outside
+		// Documents, which the prototype refuses.
+		{"JSON transient", exactInputs(inputs.JSONInput(4<<10), nil),
+			ps(func(s string, o ...rt.ParseOption) error { _, err := gjsontransient.Parse(s, o...); return err },
+				func(s string, o ...rt.ParseOption) error { _, err := gjsontransient.ParseValue(s, o...); return err }),
+			ps(func(s string, o ...rt.ParseOption) error { _, err := gjsonevent.Parse(s, o...); return err },
+				func(s string, o ...rt.ParseOption) error { _, err := gjsonevent.ParseValue(s, o...); return err })},
+		{"XML transient", exactInputs(inputs.XMLInput(4<<10), nil),
+			ps(func(s string, o ...rt.ParseOption) error { _, err := gxmltransient.Parse(s, o...); return err },
+				func(s string, o ...rt.ParseOption) error { _, err := gxmltransient.ParseValue(s, o...); return err }),
 			ps(func(s string, o ...rt.ParseOption) error { _, err := gxmlevent.Parse(s, o...); return err },
 				func(s string, o ...rt.ParseOption) error { _, err := gxmlevent.ParseValue(s, o...); return err })},
 		// The grammar has no types, so both entries are Parse.

@@ -233,7 +233,8 @@ func (g *Generator) termTarget(s *check.Scope, locals map[string]string) *Target
 // call: the compositions of libgo.GoTermExports and the operations of the leaves that the library
 // exports for them.
 func loweredTermNames() []string {
-	names := []string{rtTermNodeType, rtTermCastFailed, rtTermStruct, rtTermSetField, "TermRaise", "TermFieldOperand", "TermCompare"}
+	// TermHullLogical is TermHull under logical units (the prototype of design record 076).
+	names := []string{rtTermNodeType, rtTermCastFailed, rtTermStruct, rtTermSetField, "TermRaise", "TermFieldOperand", "TermCompare", "TermHullLogical"}
 	for _, n := range TermExports {
 		names = append(names, n)
 	}

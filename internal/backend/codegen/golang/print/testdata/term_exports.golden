@@ -10,6 +10,7 @@ Parser.TermConvert
 Parser.TermCover
 Parser.TermFilterKeep
 Parser.TermHull
+Parser.TermHullLogical
 Parser.TermItemAt
 Parser.TermItems
 Parser.TermLength
@@ -31,6 +32,7 @@ TParser.TermConvert
 TParser.TermCover
 TParser.TermFilterKeep
 TParser.TermHull
+TParser.TermHullLogical
 TParser.TermItemAt
 TParser.TermItems
 TParser.TermLength
