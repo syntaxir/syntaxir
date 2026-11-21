@@ -2232,6 +2232,86 @@ $w_i$, nested at most $|\text{rules}|$ deep, so the frames started after the
 end of $w_i$ at $p$ are at most a constant. So $k - i$ is at most a
 constant. $\square$
 
+**Leaf links after other shared calls.** Let the rule $r$ of the links
+$l < l'$ of $\sigma$ at $q$ call no rule, read no variable, not be memoized
+at its calls and not be a scan-only rule, and let the shared call of each
+link be the $x$-th call that its unit and continuation share, $x \ge 1$. For
+the link $l$, let those $x$ calls start at $\tau_0 \le \cdots \le
+\tau_{x-1}$ in $w_l$, where $\tau_0$ is the start of $w_l$ and
+$\tau_{x-1}$ that of $e_l$ and $e'_l$. Call the body evaluations other than
+$w_l$ that contain $w_l$ and that the parser leaves from the end of $w_l$ to
+the start of $e'_l$ the frames that the link leaves, and let none of them be
+a growth step. Then:
+
+1. Each frame that the link $l$ leaves succeeds, is not the expression of a
+   lookahead and ends at one of $\tau_0, \ldots, \tau_{x-1}$.
+2. Let both links leave frames, let $Y_l$ be the last frame that $l$ leaves,
+   $\pi_l$ the call place of $Y_l$ and $\rho_l$ the position where $Y_l$
+   ends, and $Y_{l'}$, $\pi_{l'}$ and $\rho_{l'}$ likewise. Let
+   $\pi_l = \pi_{l'}$, $\rho_l = \rho_{l'}$, let $Y_l$ start before $\rho_l$,
+   and let $Y_{l'}$ contain $w_l$. Then, under the hypotheses of *Nesting at
+   one end* on the dropped and the later kept steps of the growths on the
+   path from $Y_{l'}$ to $Y_l$, and outside its case of a unit decided by a
+   negative lookahead on its own side, the call of $r$ that the links share
+   is not shared, against the choice of the links.
+
+With $x = 1$, $\tau_0$ is the position $p$ of *Calls that call no rule*, and
+an outer link there is one whose $Y_l$ starts before $\rho_l = p$.
+
+*Proof.* Let $N_l$ be the innermost evaluation that contains $\alpha_{l-1}$
+and $\alpha_l$. Every evaluation above $w_l$ on the path from $N_l$ to
+$\alpha_{l-1}$ succeeds and is not the expression of a lookahead
+(*Restarts*), and $e'_l$, which starts after $w_l$ ends and contains
+$\alpha_l$, lies in $N_l$. A frame $F$ that the link leaves contains $w_l$
+and ends before $e'_l$ starts, so it does not contain $e'_l$ and lies on
+that path below $N_l$, above $w_l$: it succeeds and is not the expression of
+a lookahead, and the parser leaves it at the end of its body. From the end
+of $w_l$ the parser goes on at $\tau_0$ with the continuation $\kappa_l$,
+whose evaluation reaches $e'_l$. It returns to $\tau_0$ or before only by
+abandoning an evaluation in progress that started there or before, which
+contains $w_l$ when it started before $w_l$ ended and then lies on that path,
+or through a later step of a growth around $w_l$, which starts only after the
+step of that growth on the path, a frame that the link leaves, has ended
+(*Restarts*). So the parser leaves $F$ while it evaluates $\kappa_l$ on its
+way to $e'_l$. Every path of
+$\kappa_l$ that examines the input begins with the shared calls, each with
+the result that it has in $w_l$ and each starting at the end of the one
+before (*Direct activations*, case 2). So until $e'_l$ starts, the parser
+consumes input on that way only through the first $x - 1$ of those calls,
+and it leaves $F$ at $\tau_0$ or at the end of one of them, which is one of
+$\tau_1, \ldots, \tau_{x-1}$. This is 1.
+
+For 2, $Y_l$ and $Y_{l'}$ both contain $w_l$, so one contains the other.
+$Y_l$ ends before $e'_l$ starts, and so before $\alpha_l$, while $Y_{l'}$
+contains $w_{l'}$, which contains $\alpha_{l'-1}$, which starts no earlier
+than $\alpha_l$. So $Y_{l'}$ contains $Y_l$ and is not $Y_l$. By 1 both
+succeed, and both end at $\rho_l$. Let $Y$ be the rule that $\pi_l$ calls
+and $Z$ the rule in whose body $\pi_l$ lies. $Y_{l'}$ is an evaluation of a
+call of $Y$ that contains an evaluation of $\pi_l$, so $Y$ reaches $Z$ and
+$Z$ is of the recursion of $Y$. With $\pi_l$ as $t$, $Y_{l'}$ as $X$, $Y_l$
+as $T$ and $\rho_l$ as $p_0$, the hypotheses of *Nesting at one end* hold:
+$X$ succeeds and ends at $p_0$, and $T$, inside $X$ and other than it,
+starts before $p_0$, ends at $p_0$ and holds $\alpha_{l-1}$, a successful
+activation of $\sigma$, which is no bounded scan. So $Y$ is in $E_{\pi_l}$
+and $\pi_l$ nests at one end. The continuation $\kappa_l$ leaves the body of
+$Y_l$ at its end and then reaches the call of $r$ that starts $e'_l$ in what
+follows $\pi_l$, after the shared calls that end after $\rho_l$. A call of a
+rule that is not memoized at the call, contains a scanning source and is no
+scan-only rule is not shared when the continuation reaches it after the end
+of a rule body in what follows a call that nests at one end ([Conditions for
+Linear Cost](../runtime/parsing.md#conditions-for-linear-cost)), against the
+choice of the links. $\square$
+
+The claim does not bound the links of a run whose shared call is not the
+first. The positions $\tau_1, \ldots, \tau_{x-1}$ are the ends of the shared
+calls of the unit of each link, and the units of consecutive links in a run
+need not start at one position, so the positions at which the links of a run
+leave their last frames are not shown to be a constant number; nor are the
+outer links through one call place and one such position whose later frame
+does not contain the earlier unit, as across runs below, nor the links that
+leave frames that start at the position where they end, which *Calls that
+call no rule* bounds through the frames started at its one position $p$.
+
 **Outer links across runs.** Let $l < l'$ be leaf links of $\sigma$ at $q$
 whose shared call is the first, both at one position $p$, so that $w_l$ and
 $w_{l'}$ start at $p$, and let both leave frames, with $Y_l$, $Y_{l'}$,
@@ -13589,6 +13669,13 @@ theorem covers such a parse.
    them, as in `e = "(" (e R "x" / e) / "."` with `R = [ ]*`, where the call
    of `e` that both alternatives share comes before the call of `R`. *Calls
    that call no rule* counts only frames left at the position of the scan.
+   *Leaf links after other shared calls* shows that the frames are left at
+   the starts of the shared calls, and that two links through one call
+   place that leave their last frames, started before, at one position
+   contradict the sharing of the call when the later frame contains the
+   earlier unit; it does not bound the number of those positions in a run,
+   the links whose later frame does not contain the earlier unit, or the
+   links whose last frame starts where it ends.
    *Nesting at one end* shows that evaluations of a call that nest without a
    bound and end at one position, through restarts as well, make the call
    nest at one end, which keeps the call of `R` in that grammar from being
