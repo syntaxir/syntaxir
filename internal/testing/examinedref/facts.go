@@ -95,7 +95,7 @@ func (a *analysis) nullableExpr(e ast.Expr) bool {
 		return false
 	case *ast.Repeat:
 		return e.Min == 0 || (e.Min == 1 && a.nullableExpr(e.Expr))
-	case *ast.Optional, *ast.And, *ast.Not, *ast.Cut, *ast.BeginInput, *ast.EndInput:
+	case *ast.Optional, *ast.And, *ast.Not, *ast.Cut, *ast.BeginInput, *ast.EndInput, *ast.BeginLine, *ast.EndLine:
 		return true
 	case *ast.Group, *ast.InlineAction, *ast.Atomic, *ast.Discard, *ast.Capture, *ast.Stream:
 		return a.nullableExpr(transparentBody(e))
@@ -201,7 +201,7 @@ func (a *analysis) leftCalls(e ast.Expr) []string {
 		return a.leftCalls(e.Expr)
 	case *ast.Group, *ast.InlineAction, *ast.Atomic, *ast.Discard, *ast.Capture, *ast.Stream:
 		return a.leftCalls(transparentBody(e))
-	case *ast.Literal, *ast.CharClass, *ast.Any, *ast.Cut, *ast.BeginInput, *ast.EndInput:
+	case *ast.Literal, *ast.CharClass, *ast.Any, *ast.Cut, *ast.BeginInput, *ast.EndInput, *ast.BeginLine, *ast.EndLine:
 		return nil
 	}
 	a.unsupported(e)
@@ -251,7 +251,7 @@ func (a *analysis) alwaysSucc(e ast.Expr) bool {
 		return a.alwaysFail(e.Expr)
 	case *ast.Group, *ast.InlineAction, *ast.Atomic, *ast.Discard, *ast.Capture, *ast.Stream:
 		return a.alwaysSucc(transparentBody(e))
-	case *ast.CharClass, *ast.Any, *ast.BeginInput, *ast.EndInput:
+	case *ast.CharClass, *ast.Any, *ast.BeginInput, *ast.EndInput, *ast.BeginLine, *ast.EndLine:
 		return false
 	}
 	a.unsupported(e)
@@ -281,7 +281,7 @@ func (a *analysis) alwaysFail(e ast.Expr) bool {
 		return a.alwaysSucc(e.Expr)
 	case *ast.Group, *ast.InlineAction, *ast.Atomic, *ast.Discard, *ast.Capture, *ast.Stream:
 		return a.alwaysFail(transparentBody(e))
-	case *ast.Ref, *ast.Literal, *ast.CharClass, *ast.Any, *ast.Optional, *ast.Repeat, *ast.Cut, *ast.BeginInput, *ast.EndInput:
+	case *ast.Ref, *ast.Literal, *ast.CharClass, *ast.Any, *ast.Optional, *ast.Repeat, *ast.Cut, *ast.BeginInput, *ast.EndInput, *ast.BeginLine, *ast.EndLine:
 		return false
 	}
 	a.unsupported(e)
@@ -303,7 +303,7 @@ func (a *analysis) looseCut(e ast.Expr) bool {
 		return false
 	case *ast.Group, *ast.InlineAction, *ast.Atomic, *ast.Discard, *ast.Capture, *ast.Stream:
 		return a.looseCut(transparentBody(e))
-	case *ast.Ref, *ast.Literal, *ast.CharClass, *ast.Any, *ast.Choice, *ast.Optional, *ast.Repeat, *ast.And, *ast.Not, *ast.BeginInput, *ast.EndInput:
+	case *ast.Ref, *ast.Literal, *ast.CharClass, *ast.Any, *ast.Choice, *ast.Optional, *ast.Repeat, *ast.And, *ast.Not, *ast.BeginInput, *ast.EndInput, *ast.BeginLine, *ast.EndLine:
 		return false
 	}
 	a.unsupported(e)

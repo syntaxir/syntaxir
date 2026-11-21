@@ -11,8 +11,8 @@
 // the growth repeats while a step's result ends farther.
 //
 // The fragment it evaluates is the matching core: rule references without a binding level, literals
-// without ignore-case, character classes, `.`, `$$` and `^^`, sequences, choices, groups, repetitions,
-// optionals and the two lookaheads, with value-only wrappers (actions, captures, discards, #atomic,
+// without ignore-case, character classes, `.`, all four anchors (`$$`, `^^`, `$` and `^`), sequences, choices,
+// groups, repetitions, optionals and the two lookaheads, with value-only wrappers (actions, captures, discards, #atomic,
 // #stream) transparent. Other constructs make Evaluate return an *UnsupportedError; a grammar with
 // one is outside the oracle and is named by the caller.
 package examinedref
@@ -251,6 +251,21 @@ func (ev *evaluator) eval(e ast.Expr, pos int) outcome {
 			return bad(pos)
 		}
 		return ok(pos, pos)
+	case *ast.BeginLine:
+		// Testing for the beginning of a line examines the slot before pos, or the absence of one at 0.
+		h := pos
+		if pos == 0 || ev.in[pos-1] == '\n' {
+			return ok(pos, h)
+		}
+		return bad(h)
+	case *ast.EndLine:
+		// Testing for the end of a line examines slot pos: the end of the input, a line feed or a carriage
+		// return there ends a line.
+		h := examine(pos, pos)
+		if pos == n || ev.in[pos] == '\n' || ev.in[pos] == '\r' {
+			return ok(pos, h)
+		}
+		return bad(h)
 	case *ast.Seq:
 		h, cur := pos, pos
 		for _, item := range e.Items {

@@ -46,6 +46,30 @@ func TestReferenceExaminedByHand(t *testing.T) {
 			want:  examinedref.Result{Matched: false, End: 0, Examined: 2},
 		},
 		{
+			name:  "end of line before a line feed matches and examines the slot it tests",
+			src:   "rule main = \"a\" $",
+			input: "a\nb",
+			want:  examinedref.Result{Matched: true, End: 1, Examined: 2},
+		},
+		{
+			name:  "end of line before a letter fails and examines that letter",
+			src:   "rule main = \"a\" $",
+			input: "ab",
+			want:  examinedref.Result{Matched: false, End: 0, Examined: 2},
+		},
+		{
+			name:  "beginning of line after a line feed examines the slot before it",
+			src:   "rule main = \"a\" \"\\n\" ^ \"b\"",
+			input: "a\nb",
+			want:  examinedref.Result{Matched: true, End: 3, Examined: 3},
+		},
+		{
+			name:  "beginning of line after a letter fails and examines the letter before it",
+			src:   "rule main = \"a\" ^ \"b\"",
+			input: "ab",
+			want:  examinedref.Result{Matched: false, End: 0, Examined: 1},
+		},
+		{
 			name:  "positive lookahead examines what it reads and fails with it",
 			src:   `rule main = &"abc" "a"`,
 			input: "abd",
