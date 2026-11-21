@@ -7873,8 +7873,16 @@ memoizes, so the call of $M$ is outside the own region of the outer one.
 $\square$
 
 The claim moves case (ii) to the count of those evaluations around $q$,
-which can nest without a bound, so it bounds nothing alone, and case (i)
-stays open as below.
+and they can nest without a bound: the evaluations of nested calls whose
+results all contain the character at $q$ each contain an activation there.
+Only those that are the $M$ of a pair count. The $M$ of a pair of $H$ lies
+between two activations at $q$ that $H$ holds, in its own region and so
+outside $M$. So when the $M$ of pairs of $H_1, H_2, \ldots$ all contain one
+activation, each $H_k$ inside the $M$ of $H_{k-1}$, each $H_k$ holds two
+activations at $q$ that no other one holds: the depth of such a chain is
+at most half the number of activations of $\sigma$ at $q$, the number that
+these claims are to bound, and no bound on it that does not rest on that
+number is shown. Case (i) stays open as below.
 
 These claims prove no bound on the activations that one evaluation holds.
 With the second claim, such a bound follows from a bound $I$ on the
@@ -13670,7 +13678,9 @@ theorem covers such a parse.
    in calls of an own region* charges the pairs of the second case, over all
    memoized evaluations, to distinct evaluations of memoized calls, made in
    an own region, that contain an activation at the position of the scan,
-   which can nest without a bound. In a
+   which can nest without a bound; the depth of a chain of those that
+   contain one activation is bounded only by the number of activations at
+   that position, which is what is to be bounded. In a
    parse that keeps records or resumes runs the claim has a third case,
    in which the continuation passes the call inside an iteration that a
    record answers or a resumed walk reuses and evaluates it in no
