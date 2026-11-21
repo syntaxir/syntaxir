@@ -4543,6 +4543,22 @@ $\hat{u}$, so $\hat{u}$ is in a smaller state, in a context of growths or of
 the other variant, which only a link whose evaluations differ in variant can
 reach. $\square$
 
+The links that case (a) leaves out arise only in a Document parse: in the
+parse of the same text from scratch no entry of an earlier parse exists. At
+such a link the entry answers a call $u$ on the path from
+$\mathcal{R}(e_i)$, and its corresponding call $\hat{u}$ is evaluated, in one
+of three ways: $u$ is in a context of growths, where *Answered calls* does
+not apply; $\hat{u}$ is in a context of growths; or $\hat{u}$ is in a
+smaller lookahead state or of the other variant, which needs $e_i$ in a
+greater lookahead state than $e'_i$, an entry stored inside a lookahead, or
+$e_i$ and $e'_i$ of different variants. Then the parse need make no
+evaluation of the key of $z$ before $\hat{u}$, and $Z$ can be the head of its
+class: the link leads to an activation held by a head, which the first part
+of step 1 of [Open Steps](#open-steps) leaves open, a case that the parse
+from scratch does not have. These activations are to be counted
+through their counterparts in the parse from scratch, whose cost bounds the
+Document parse; that is not shown.
+
 **Links to heads.** Let $\alpha_1, \alpha_2, \ldots$
 be the successful activations of $\sigma$ at $q$ outside case 5 and dropped
 steps, as above. Every link is memoized at both calls or a call of a rule that
@@ -13717,7 +13733,10 @@ theorem covers such a parse.
    whose comparison meets an entry of an earlier parse that answers a call in
    a context of growths, or a call whose corresponding call in the later
    evaluation is in a smaller lookahead state, in a context of growths or of
-   the other variant; and a link whose comparison enters a
+   the other variant, which can lead to an activation held by a head, a case
+   that the parse from scratch does not have, so that the count of these links
+   belongs with the activations of the parse from scratch (*Links lead to
+   repeated evaluations*); and a link whose comparison enters a
    lookahead that a result kept in a context of growths observed. Such a link can lead to
    an activation held by a head. The activations include
    those of the copying operations, the units of the own spans that they read
