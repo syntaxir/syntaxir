@@ -100,6 +100,17 @@ rule num int = d:[0-9]+ => len(text($d))
 `, opts: common.GenOptions{Types: true, TypedOnly: true, Recognize: true}, inputs: []string{"a=1,2;b.c=3", "a=;b=1", flowConformLong + "=1,", "", "a=1;1!22!"},
 		entries: []string{"_, err = ParseValue(in, opts...)", "err = Recognize(in, opts...)", "_, err = ParseValue(in, ordinary...)",
 			"err = Recognize(in, ordinary...)"}},
+	{name: "scanhot", src: `type Word = node[string]
+@start
+rule main Word = (w:word "!" => $w) / (w:word "?" => $w) / (w:word "=" => $w) / (w:word ";" => $w)
+rule word Word = [a-z]+ #atomic
+`, opts: common.GenOptions{Types: true, TypedOnly: true, Recognize: true}, inputs: []string{flowConformLong + flowConformLong + ";", flowConformLong + "=", "ab;"},
+		entries: []string{"_, err = ParseValue(in, opts...)", "err = Recognize(in, opts...)"}},
+	{name: "scanvals", src: `@start
+rule main = (w:letters "!" => $w) / (w:letters "?" => $w) / (w:letters "=" => $w) / (w:letters ":" => $w) / (w:letters "," => $w) / (w:letters "." => $w) / (w:letters ";" => $w)
+rule letters = d:[a-z]+ => text($d)
+`, opts: common.GenOptions{Types: true, TypedOnly: true}, inputs: []string{flowConformLong + flowConformLong + ";", "ab;"},
+		entries: []string{"_, err = ParseValue(in, opts...)"}},
 	{name: "ordinary", src: `@start
 rule main = (stmt ";")* $$
 rule stmt = -([a-z] [0-9] [a-z]) "!" / (c:[a-zA-Z0-9_+*/%.] "#" => text($c)) / -kw "(" / -kw "[" / !kw id
@@ -723,6 +734,9 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 		}
 		if r.Start > r.End || r.End > e.Pos {
 			fail("gave the value the span %d to %d, the position is %d", r.Start, r.End, e.Pos)
+		}
+		if (r.Start != a.Start || r.End != a.End) && r.End != e.Pos {
+			fail("changed the span of the value from %d-%d to %d-%d, which does not end at the position %d", a.Start, a.End, r.Start, r.End, e.Pos)
 		}
 	},
 	flow.OpFreshNode: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
