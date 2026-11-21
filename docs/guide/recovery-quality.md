@@ -8,7 +8,7 @@ recovering parser and count what it repairs.
 ## Method
 
 - **Inputs.** The corpus is made of near misses: valid inputs generated from the ready-made grammar with
-  [`zp sample`](sampling-and-fuzzing.md), each changed by one mutation (`delete`, `insert`, `replace`, `duplicate`,
+  [`sxir sample`](sampling-and-fuzzing.md), each changed by one mutation (`delete`, `insert`, `replace`, `duplicate`,
   `swap` or `truncate`) that the ready-made grammar rejects. Only inputs with a separator (a `,`) are kept, because
   recovery here works on the elements of a list, so an input without one has no place to recover at. Each language has
   about 300 inputs, fixed and kept with the offset of the mutation.

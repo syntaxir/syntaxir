@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/enginetest"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 )
 
 // runSitesGrammar restarts a scan at each position: without run records the cost of a parse grows

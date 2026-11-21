@@ -19,17 +19,17 @@ tag of its own namespace, `playground-wasm-v<version>`, which never names a rele
 `hack/playground-release.sh` builds a release from a clean checkout of one commit and publishes it with the
 `gh` command:
 
-- `zp.wasm.gz`: the binary, gzip-compressed at the highest level with no name or time in the header, so the same
+- `sxir.wasm.gz`: the binary, gzip-compressed at the highest level with no name or time in the header, so the same
   commit and toolchain give the same bytes;
 - `wasm_exec.js`: the runtime support of the toolchain that built it;
 - `manifest.json`: the toolchain and its version, the build arguments, the source commit, and the size and SHA-256
   digest of each file, with those of the decompressed binary.
 
-`site/playground-wasm.json` pins the release: the repository, the tag and the SHA-256 digests of `zp.wasm.gz` and
+`site/playground-wasm.json` pins the release: the repository, the tag and the SHA-256 digests of `sxir.wasm.gz` and
 `wasm_exec.js`. The site build downloads the two files from the pinned release and fails unless both match their
 digests and the binary decompresses to a WebAssembly module. It then publishes them as the current pair of
 [asset retention](023-playground-asset-retention.md), under the content-hashed name
-`playground/wasm/zp-<hash>.wasm.gz`, the hash being that of the compressed bytes. A deploy therefore publishes
+`playground/wasm/sxir-<hash>.wasm.gz`, the hash being that of the compressed bytes. A deploy therefore publishes
 exactly the reviewed bytes and needs no WebAssembly toolchain; updating the playground means publishing a new
 release and changing the pin in a commit.
 
@@ -51,7 +51,7 @@ try playground changes before a release; the opt-in dual Go and TinyGo build is 
   publishes a binary nobody reviewed, and a site change must wait for the compilation.
 - **Brotli instead of gzip.** Brotli makes the Go binary 4.3 MB instead of 6.2 MB, but browsers expose no Brotli
   decompression to scripts, so the page would need a decompressor of its own.
-- **Serve the stored gzip as the `Content-Encoding` of `zp.wasm`.** The browser would decompress it before the
+- **Serve the stored gzip as the `Content-Encoding` of `sxir.wasm`.** The browser would decompress it before the
   page sees it, but the server would have to answer one path with another file and set the encoding; the site is
   served as static assets with no Worker script, and adding one is a larger change than decompressing in the page.
 - **Commit the binary or store it in another service.** Git history would grow by megabytes per update, and another

@@ -4,9 +4,9 @@ import (
 	"slices"
 	"testing"
 
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/exec"
-	"zeroparse.dev/zp/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec"
+	"syntaxir.dev/sxir/internal/runtime/state"
 )
 
 // TestTermDeclareKeepsTheFile checks that a local keeps the register file of its first

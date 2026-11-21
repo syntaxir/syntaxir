@@ -1,4 +1,4 @@
-//go:build !zp_charge_log
+//go:build !sxir_charge_log
 
 package state
 

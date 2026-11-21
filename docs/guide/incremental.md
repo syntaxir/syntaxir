@@ -108,7 +108,7 @@ if err != nil {
 node, err := doc.Parse()
 ```
 
-The example assumes `doc` and the `zp` import are already in scope. The insertion at 3 is interpreted against the original text, even though the earlier replacement is also in the batch.
+The example assumes `doc` and the `sxir` import are already in scope. The insertion at 3 is interpreted against the original text, even though the earlier replacement is also in the batch.
 
 Piece-backed storage is internal to `Document`; batch parsing and streaming keep
 their contiguous input paths. `Document.Text()` and `Node.Text()` keep their
@@ -220,9 +220,9 @@ import (
 	"fmt"
 	"log"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
-	"zeroparse.dev/zp/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/runtime"
 )
 
 const grammarSrc = `@start
@@ -230,7 +230,7 @@ rule main =  line* $$
 rule line =  [a-z]+ "\n" `
 
 func main() {
-	p, err := compiler.Compile(grammar.FromString("grammar.zp", grammarSrc), compiler.WithStart("main"))
+	p, err := compiler.Compile(grammar.FromString("grammar.sxir", grammarSrc), compiler.WithStart("main"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -300,9 +300,9 @@ import (
 	"fmt"
 	"strings"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 func js(n *value.Node) string {
@@ -311,7 +311,7 @@ func js(n *value.Node) string {
 }
 
 func main() {
-	p, _ := compiler.Compile(grammar.FromString("grammar.zp", `@start
+	p, _ := compiler.Compile(grammar.FromString("grammar.sxir", `@start
 rule main =  line* $$
 rule line =  [a-z]+ "\n" `), compiler.WithStart("main"))
 	d, _ := p.NewDocument(strings.Repeat("ab\n", 100))

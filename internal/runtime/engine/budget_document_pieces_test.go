@@ -1,4 +1,4 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package engine
 
@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 func TestBudgetDocumentPieceConstruction(t *testing.T) {

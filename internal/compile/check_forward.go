@@ -1,11 +1,11 @@
 package compile
 
 import (
-	"zeroparse.dev/zp/internal/cancel"
-	"zeroparse.dev/zp/internal/diagnostic"
-	"zeroparse.dev/zp/internal/frontend/check"
-	"zeroparse.dev/zp/internal/frontend/types"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/cancel"
+	"syntaxir.dev/sxir/internal/diagnostic"
+	"syntaxir.dev/sxir/internal/frontend/check"
+	"syntaxir.dev/sxir/internal/frontend/types"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // The functions and methods of this file run the checker of internal/frontend/check over a

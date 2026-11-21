@@ -12,15 +12,15 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // runSpanAt returns a mutation of a generated parser that imports the library which makes the run
 // sites of the program turn hot at span instead of the threshold of the library.
 func runSpanAt(t *testing.T, span int) func([]byte) []byte {
 	return func(code []byte) []byte {
-		const lib = "rt \"zeroparse.dev/zp/pkg/runtime/libgo\""
+		const lib = "rt \"syntaxir.dev/sxir/pkg/runtime/libgo\""
 		if !bytes.Contains(code, []byte(lib)) {
 			t.Fatalf("the generated parser does not import the library as rt")
 		}

@@ -16,12 +16,12 @@ import (
 	"strconv"
 	"strings"
 
-	"zeroparse.dev/zp/internal/middleend/codepass"
-	"zeroparse.dev/zp/internal/middleend/corepass"
-	"zeroparse.dev/zp/internal/middleend/execlower"
-	"zeroparse.dev/zp/internal/middleend/flowlower"
-	"zeroparse.dev/zp/internal/middleend/flowpass"
-	"zeroparse.dev/zp/internal/pass"
+	"syntaxir.dev/sxir/internal/middleend/codepass"
+	"syntaxir.dev/sxir/internal/middleend/corepass"
+	"syntaxir.dev/sxir/internal/middleend/execlower"
+	"syntaxir.dev/sxir/internal/middleend/flowlower"
+	"syntaxir.dev/sxir/internal/middleend/flowpass"
+	"syntaxir.dev/sxir/internal/pass"
 )
 
 // ParseValues parses a comma-separated list of name or name=count items, as -opt takes it, into the

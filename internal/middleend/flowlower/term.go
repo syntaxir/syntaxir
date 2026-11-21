@@ -7,11 +7,11 @@ import (
 	"strings"
 	"sync"
 
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/action"
-	"zeroparse.dev/zp/internal/ir/code/exec"
-	"zeroparse.dev/zp/internal/ir/code/exec/compose"
-	ir "zeroparse.dev/zp/internal/ir/core"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/action"
+	"syntaxir.dev/sxir/internal/ir/code/exec"
+	"syntaxir.dev/sxir/internal/ir/code/exec/compose"
+	ir "syntaxir.dev/sxir/internal/ir/core"
 )
 
 // Action expressions lowered to the Action dialect.

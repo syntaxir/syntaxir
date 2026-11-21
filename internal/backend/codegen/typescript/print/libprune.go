@@ -6,7 +6,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
 )
 
 // The library embedded in a TypeScript parser (LibEmbed) is narrowed to what the parser uses, as

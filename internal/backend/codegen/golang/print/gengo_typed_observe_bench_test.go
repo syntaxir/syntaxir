@@ -8,17 +8,17 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // Export isolated typed tracing controls, keeping generation, compilation and
 // raw measurements outside the timed parse loop and outside the repository.
 func TestExportGeneratedTypedTraceBenchmarks(t *testing.T) {
 	t.Parallel()
-	dir := os.Getenv("ZP_TYPED_TRACE_BENCH_DIR")
+	dir := os.Getenv("SXIR_TYPED_TRACE_BENCH_DIR")
 	if dir == "" {
-		t.Skip("set ZP_TYPED_TRACE_BENCH_DIR to export benchmark controls")
+		t.Skip("set SXIR_TYPED_TRACE_BENCH_DIR to export benchmark controls")
 	}
 	write := func(name string, data []byte) {
 		t.Helper()
@@ -36,9 +36,9 @@ func TestExportGeneratedTypedTraceBenchmarks(t *testing.T) {
 		DirectStart bool
 	}{}
 	for _, fixture := range []struct{ name, path, input string }{
-		{"json", "testdata/grammars/json/json.zp", "[" + strings.TrimSuffix(strings.Repeat(`{"name":"éclair","n":123,"ok":true},`, 64), ",") + "]"},
-		{"xml", "testdata/grammars/xml/xml.zp", "<root>" + strings.Repeat(`<item name="éclair">123</item>`, 64) + "</root>"},
-		{"calc", "examples/calculator/calc.zp", strings.TrimSuffix(strings.Repeat("1+2*3+", 32), "+")},
+		{"json", "testdata/grammars/json/json.sxir", "[" + strings.TrimSuffix(strings.Repeat(`{"name":"éclair","n":123,"ok":true},`, 64), ",") + "]"},
+		{"xml", "testdata/grammars/xml/xml.sxir", "<root>" + strings.Repeat(`<item name="éclair">123</item>`, 64) + "</root>"},
+		{"calc", "examples/calculator/calc.sxir", strings.TrimSuffix(strings.Repeat("1+2*3+", 32), "+")},
 	} {
 		data, err := os.ReadFile(filepath.Join("../../../../..", fixture.path))
 		if err != nil {
@@ -66,7 +66,7 @@ func TestExportGeneratedTypedTraceBenchmarks(t *testing.T) {
 				manifest[path] = struct {
 					Bytes       int
 					DirectStart bool
-				}{len(code), strings.Contains(string(code), "return zprt.TParse(trules[")}
+				}{len(code), strings.Contains(string(code), "return sxirrt.TParse(trules[")}
 				write(path+"/parser.go", code)
 				driver := strings.NewReplacer("PACKAGE", pkg, "INPUT", fmt.Sprintf("%q", fixture.input)).Replace(generatedTypedTraceBenchmark)
 				if enabled {

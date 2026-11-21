@@ -11,12 +11,12 @@ import (
 	"sync"
 	"testing"
 
-	"zeroparse.dev/zp/internal/analysis/complexity"
-	"zeroparse.dev/zp/internal/frontend/parser"
-	"zeroparse.dev/zp/internal/ir/core"
-	syntaxfmt "zeroparse.dev/zp/internal/syntax/fmt"
-	"zeroparse.dev/zp/internal/testing/factstest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/analysis/complexity"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/ir/core"
+	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
+	"syntaxir.dev/sxir/internal/testing/factstest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // corpus returns the sources of the grammars the classifier's tests read: the pinned corpus, the
@@ -27,7 +27,7 @@ func corpus(t *testing.T) map[string]string {
 	for _, p := range factstest.Corpus {
 		srcs[p] = factstest.Read(t, p)
 	}
-	for _, pattern := range []string{"../../../testdata/grammars/*/*.zp", "../../../examples/*/*.zp"} {
+	for _, pattern := range []string{"../../../testdata/grammars/*/*.sxir", "../../../examples/*/*.sxir"} {
 		paths, err := filepath.Glob(pattern)
 		if err != nil {
 			t.Fatal(err)

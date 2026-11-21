@@ -2,7 +2,7 @@
 
 package libgo
 
-import zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+import sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 
 // pendingEditLimit is the number of edits after which a Document drops its memo until the next parse
 // (exec.PendingEditLimit): the engine treats a memo entry that lags behind by more edits as absent, and
@@ -17,8 +17,8 @@ const pendingEditLimit = 128
 // nodes an observed parse too (tracked).
 //
 // Printed from Exec IR function call of internal/ir/code/exec/compose, specialized for document, observe, budget.
-func (p *Parser) Call(r *Rule, min int) (*zpvalue.Node, bool) {
-	var v *zpvalue.Node
+func (p *Parser) Call(r *Rule, min int) (*sxirvalue.Node, bool) {
+	var v *sxirvalue.Node
 	var ok bool
 	if (p.Observation != nil) || (p.Document != nil) {
 		v, ok = p.callTracked(r, min)
@@ -156,8 +156,8 @@ func (p *TParser) firstCall(r *TRule) bool {
 // of its last result in place of the entries recorded since it began.
 //
 // Printed from Exec IR function grow of internal/ir/code/exec/compose.
-func (p *Parser) grow(r *Rule, min int) (*zpvalue.Node, bool) {
-	var bv *zpvalue.Node
+func (p *Parser) grow(r *Rule, min int) (*sxirvalue.Node, bool) {
+	var bv *sxirvalue.Node
 	var bok bool
 	rec := len(p.Recovered)
 	{
@@ -600,8 +600,8 @@ func (p *TParser) grow(r *TRule, min int) (any, bool) {
 // itself, or the node call of the tracked path without observation.
 //
 // Printed from Exec IR function observed of internal/ir/code/exec/compose, specialized for document, observe.
-func (p *Parser) callObserved(r *Rule, min int) (*zpvalue.Node, bool) {
-	var v *zpvalue.Node
+func (p *Parser) callObserved(r *Rule, min int) (*sxirvalue.Node, bool) {
+	var v *sxirvalue.Node
 	var ok bool
 	p.Observation.Enter(r.Name, p.Pos, min)
 	h := p.ExaminedBegin()
@@ -615,8 +615,8 @@ func (p *Parser) callObserved(r *Rule, min int) (*zpvalue.Node, bool) {
 // reports the invocation to the observation as observed reports a call.
 //
 // Printed from Exec IR function observedPlain of internal/ir/code/exec/compose, specialized for document, observe.
-func (p *Parser) invokePlainObserved(r *Rule, min int) (*zpvalue.Node, bool) {
-	var v *zpvalue.Node
+func (p *Parser) invokePlainObserved(r *Rule, min int) (*sxirvalue.Node, bool) {
+	var v *sxirvalue.Node
 	var ok bool
 	p.Observation.Enter(r.Name, p.Pos, min)
 	h := p.ExaminedBegin()
@@ -663,7 +663,7 @@ func (p *TParser) invokePlainObserved(r *TRule, min int) (any, bool) {
 // start from otherwise.
 //
 // Printed from Exec IR function document of internal/ir/code/exec/compose, specialized for document, budget.
-func (p *Parser) callDocument(r *Rule, min int) (*zpvalue.Node, bool) {
+func (p *Parser) callDocument(r *Rule, min int) (*sxirvalue.Node, bool) {
 	oldExamined, oldLow := p.docExamined, p.docLow
 	p.docExamined, p.docLow = p.Pos, p.Pos
 	defer func() {
@@ -685,8 +685,8 @@ func (p *Parser) callDocument(r *Rule, min int) (*zpvalue.Node, bool) {
 // position and the recovered errors.
 //
 // Printed from Exec IR function unmemoized of internal/ir/code/exec/compose.
-func (p *Parser) callUnmemoized(r *Rule, min int) (*zpvalue.Node, bool) {
-	var v *zpvalue.Node
+func (p *Parser) callUnmemoized(r *Rule, min int) (*sxirvalue.Node, bool) {
+	var v *sxirvalue.Node
 	var ok bool
 	start := p.Pos
 	if len(r.Scope) == 0 {
@@ -707,8 +707,8 @@ func (p *Parser) callUnmemoized(r *Rule, min int) (*zpvalue.Node, bool) {
 // bookkeeping of how far each call examined the input.
 //
 // Printed from Exec IR function memoized of internal/ir/code/exec/compose, specialized for document, observe, budget.
-func (p *Parser) callMemo(r *Rule, min int) (*zpvalue.Node, bool) {
-	var v *zpvalue.Node
+func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
+	var v *sxirvalue.Node
 	var ok bool
 	var fm uint64
 	start := p.Pos
@@ -859,7 +859,7 @@ func (p *Parser) callMemo(r *Rule, min int) (*zpvalue.Node, bool) {
 // call after.
 //
 // Printed from Exec IR function body of internal/ir/code/exec/compose, specialized for document, budget.
-func (p *Parser) callBody(r *Rule, min int) (*zpvalue.Node, bool) {
+func (p *Parser) callBody(r *Rule, min int) (*sxirvalue.Node, bool) {
 	p.Spend()
 	if r.Leader || r.Memo && !(r.DocMemo && !r.Memo && !r.Leader) {
 		p.ChargeKey(r)
@@ -880,7 +880,7 @@ func (p *Parser) callBody(r *Rule, min int) (*zpvalue.Node, bool) {
 // and otherwise the call without observation.
 //
 // Printed from Exec IR function tracked of internal/ir/code/exec/compose, specialized for document, observe.
-func (p *Parser) callTracked(r *Rule, min int) (*zpvalue.Node, bool) {
+func (p *Parser) callTracked(r *Rule, min int) (*sxirvalue.Node, bool) {
 	if p.Observation != nil {
 		v, ok := p.callObserved(r, min)
 		return v, ok

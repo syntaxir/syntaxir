@@ -1,9 +1,9 @@
 package astfacts
 
 import (
-	"zeroparse.dev/zp/internal/cancel"
-	"zeroparse.dev/zp/internal/runtime/program"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/cancel"
+	"syntaxir.dev/sxir/internal/runtime/program"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // The walks and syntactic questions about the expressions and terms of a rule that the compiler and

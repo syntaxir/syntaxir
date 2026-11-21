@@ -1,7 +1,7 @@
 # Building Grammars as ASTs and JSON
 
-Package `ast` (`zeroparse.dev/zp/pkg/grammar/ast`) is the grammar AST: use it when a tool builds
-a grammar in Go or reads its JSON representation. Package `grammar` (`zeroparse.dev/zp/pkg/grammar`)
+Package `ast` (`syntaxir.dev/sxir/pkg/grammar/ast`) is the grammar AST: use it when a tool builds
+a grammar in Go or reads its JSON representation. Package `grammar` (`syntaxir.dev/sxir/pkg/grammar`)
 loads a grammar source in grammar syntax or JSON into the AST, and validates, formats and converts
 it; the specification defines [grammar sources](../../spec/language/grammar-files.md#grammar-sources),
 [validation](../../spec/language/grammar-files.md#validation-of-a-grammar-ast) and
@@ -14,15 +14,15 @@ A grammar source is one named input, made from bytes, a string, a reader or a pa
 system:
 
 ```go
-g, err := grammar.Load(grammar.FromFS(os.DirFS("grammars"), "json.zp"))
+g, err := grammar.Load(grammar.FromFS(os.DirFS("grammars"), "json.sxir"))
 if errors.Is(err, grammar.ErrCompiled) {
-    // A compiled grammar (.zpc) holds bytecode, not the grammar.
+    // A compiled grammar (.sxirc) holds bytecode, not the grammar.
 }
 ```
 
 The encoding is grammar syntax or JSON. `As` sets it explicitly, as in
 `grammar.FromString("", text).As(grammar.EncodingJSON)`; otherwise the extension of the name decides
-(`.zp` or `.json`), and then the content, which is JSON when its first character other than white
+(`.sxir` or `.json`), and then the content, which is JSON when its first character other than white
 space is `{`, and `Source.Decide` reports the encoding that Load will use. A reader is read in full when the source is first loaded, and the source keeps what it
 read, so it can be loaded again. JSON is decoded strictly: an unknown field, a duplicate key or
 trailing data is an error. Load's errors carry source positions but not the name of the source, so
@@ -45,7 +45,7 @@ if errors.As(err, &problem) {
 }
 ```
 
-Import `errors`, `fmt`, `zeroparse.dev/zp/pkg/grammar` and `zeroparse.dev/zp/pkg/grammar/ast`
+Import `errors`, `fmt`, `syntaxir.dev/sxir/pkg/grammar` and `syntaxir.dev/sxir/pkg/grammar/ast`
 for this snippet. `grammar.Validate` is `ast.Validate`.
 `Path` uses JSON field names and zero-based indexes. `Pos` is the closest known
 diagnostic position. Source-parsed grammars carry source spans and comment
@@ -124,7 +124,7 @@ to print the full grammar.
 The command-line form writes to standard output:
 
 ```bash
-zp fmt -syntax grammar.zp
+sxir fmt -syntax grammar.sxir
 ```
 
 `-syntax` cannot be combined with `-w`, `-l` or `-check`. Comments on retained forms
@@ -279,7 +279,7 @@ this increment's coverage, so this is not a lossless formatter guarantee for
 every grammar form.
 
 Direct grammar JSON includes normalized source metadata. A compiled grammar
-(`.zpc`) holds bytecode only, with no tree, source positions or comments.
+(`.sxirc`) holds bytecode only, with no tree, source positions or comments.
 
 Source-only syntax has dedicated AST nodes. An explicit Rule Expression grouping is `Group{Expr}`; formatting and JSON preserve the group, while compilation normalizes it away before matching. The source-aware AST retains the group body, closing-delimiter comments and layout. Parenthesized type and action expressions likewise use source-only `TypeGroup{Type}` and `ActionGroup{Action}` nodes; `TypeGroup` implements `TypeExpr`, and `ActionGroup` implements `ActionExpr`, the interface of Action Expressions. These groups preserve their delimiters and enclosed comments in source formatting. Their `OpenBreak`, `BodyBreak`, `CloseBreak` and `OneLine` fields retain raw line placement; `TupleLit`, `Call`, `New` and `ListConstructor` keep the comments at their delimiters in `OpenBreak`, `BodyBreak` and `CloseBreak`. A tuple, call, constructor, list constructor, tuple type, type application, attribute or lambda writes one element per line when it has a trailing comma (`TrailingComma`) or a comment that needs its own line, and is otherwise written on one line; the comma of a one-element tuple does not count. Compilation and generators lower the wrappers transparently before execution. JSON retains normalized source positions and ownership but omits formatter layout and exact raw comment tokens. A braced action sequence is `Block{Statements}`. A single-statement Predicate Action remains in `Predicate.Action`; a nonempty multi-statement block is represented by `Block{Statements}` and executes its statements in order, like adjacent Predicate Actions. Empty predicate blocks and braced Value Actions can be parsed, formatted and serialized, but semantic checking rejects them as unsupported.
 

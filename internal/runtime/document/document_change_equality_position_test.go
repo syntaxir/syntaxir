@@ -1,12 +1,12 @@
-//go:build zp_snapshot_position_overlays
+//go:build sxir_snapshot_position_overlays
 
 package document
 
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	valueimpl "zeroparse.dev/zp/pkg/runtime/value/impl"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	valueimpl "syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 func TestDocumentChangesDirectoryEqualityUsesPositionOverlay(t *testing.T) {

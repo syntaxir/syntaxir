@@ -46,7 +46,7 @@ func TestCommittedGeneratedFilesAreDevel(t *testing.T) {
 		n++
 		if line != want {
 			rel, _ := filepath.Rel(root, path)
-			t.Errorf("%s: header %q, want %q; regenerate with go run ./cmd/zp or go generate", rel, line, want)
+			t.Errorf("%s: header %q, want %q; regenerate with go run ./cmd/sxir or go generate", rel, line, want)
 		}
 		return nil
 	})

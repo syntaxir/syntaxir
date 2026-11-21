@@ -1,4 +1,4 @@
-//go:build zp_snapshot_position_overlays
+//go:build sxir_snapshot_position_overlays
 
 package document
 
@@ -6,11 +6,11 @@ import (
 	"errors"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/value"
-	valueimpl "zeroparse.dev/zp/pkg/runtime/value/impl"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/value"
+	valueimpl "syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 func TestSnapshotPositionOverlayZeroAndOverflow(t *testing.T) {

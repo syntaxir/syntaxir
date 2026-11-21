@@ -3,13 +3,13 @@ package engine
 import (
 	"context"
 
-	"zeroparse.dev/zp/internal/cancel"
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/driver/checked"
-	"zeroparse.dev/zp/internal/frontend/schemaexport"
-	"zeroparse.dev/zp/internal/runtime/program"
-	"zeroparse.dev/zp/pkg/bytecode"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/cancel"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/driver/checked"
+	"syntaxir.dev/sxir/internal/frontend/schemaexport"
+	"syntaxir.dev/sxir/internal/runtime/program"
+	"syntaxir.dev/sxir/pkg/bytecode"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // The tests of this package compile grammars through the compiler side of the driver

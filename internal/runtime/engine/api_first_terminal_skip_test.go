@@ -3,9 +3,9 @@ package engine_test
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/internal/testing/enginetest"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 )
 
 // TestLookaheadHasNoFirstTerminal checks, on both engine backends, in a parse and a recognition,

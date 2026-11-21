@@ -1,4 +1,4 @@
-// Package exec declares the operations of the ZeroParse parser VM in Exec IR (design 065): their
+// Package exec declares the operations of the SyntaxIR parser VM in Exec IR (design 065): their
 // signatures, behavior contracts, preconditions, effects and cost bounds. The declarations are
 // shared by every target; each target implements them, and the conformance suite
 // (internal/ir/code/exec/conform) checks an implementation against a reference model
@@ -9,7 +9,7 @@
 // models compute.
 package exec
 
-import "zeroparse.dev/zp/internal/ir/code"
+import "syntaxir.dev/sxir/internal/ir/code"
 
 // Features of the parser VM.
 const (

@@ -7,12 +7,12 @@ import (
 	"strconv"
 	"strings"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/frontend/check"
-	"zeroparse.dev/zp/internal/frontend/types"
-	syntaxfmt "zeroparse.dev/zp/internal/syntax/fmt"
-	"zeroparse.dev/zp/pkg/grammar/ast"
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/frontend/check"
+	"syntaxir.dev/sxir/internal/frontend/types"
+	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // TsReservedTypes are the names types.ts declares itself, or imports. A grammar type with one of
@@ -97,7 +97,7 @@ func (g *Generator) typedTS(start *common.Rule) (typesSrc, parser string, err er
 	repr := t.recipe(st)
 	stType := qualifyTypes(t.tsType(st))
 	g.startType, g.startRepr = stType, repr
-	b.WriteString("\n// --- Typed values (zp gen -types) ---\n\n")
+	b.WriteString("\n// --- Typed values (sxir gen -types) ---\n\n")
 	// With limit controls every parse is controlled, so parseValue takes the path of parseValueWithOptions.
 	astBody := fmt.Sprintf("astResult<%s>(run(G, R%d, nseen, input, unit), %d)", stType, start.ID, repr)
 	if !g.NoBudget {

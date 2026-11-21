@@ -7,11 +7,11 @@ import (
 	"sort"
 	"strings"
 
-	"zeroparse.dev/zp/internal/frontend/astfacts"
-	"zeroparse.dev/zp/internal/frontend/check"
-	"zeroparse.dev/zp/internal/frontend/types"
-	syntaxfmt "zeroparse.dev/zp/internal/syntax/fmt"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/check"
+	"syntaxir.dev/sxir/internal/frontend/types"
+	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // termCtx is the context of a value expression in the walk.

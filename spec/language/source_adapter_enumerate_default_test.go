@@ -1,4 +1,4 @@
-//go:build !zp_long
+//go:build !sxir_long
 
 package language_test
 

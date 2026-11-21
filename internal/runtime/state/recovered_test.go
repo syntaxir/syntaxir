@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // TestReportRecoveredOfLists delivers each recovered error to a stream's callback once, in order:

@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	tspass "zeroparse.dev/zp/internal/backend/codegen/typescript/pass"
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/flow"
-	"zeroparse.dev/zp/internal/middleend/codepass"
-	"zeroparse.dev/zp/internal/middleend/execlower"
+	tspass "syntaxir.dev/sxir/internal/backend/codegen/typescript/pass"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/flow"
+	"syntaxir.dev/sxir/internal/middleend/codepass"
+	"syntaxir.dev/sxir/internal/middleend/execlower"
 )
 
 // Rules printed from the Exec stage of Code IR.

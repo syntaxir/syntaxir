@@ -3,12 +3,12 @@ package flowpass
 import (
 	"strconv"
 
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/flow"
-	"zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/internal/middleend/corepass"
-	"zeroparse.dev/zp/internal/pass"
-	"zeroparse.dev/zp/internal/pass/pipe"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/flow"
+	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/corepass"
+	"syntaxir.dev/sxir/internal/pass"
+	"syntaxir.dev/sxir/internal/pass/pipe"
 )
 
 // Names of the passes. A name is also the name of the flag that turns the pass off; the passes that

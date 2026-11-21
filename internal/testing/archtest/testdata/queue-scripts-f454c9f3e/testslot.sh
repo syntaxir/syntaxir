@@ -12,14 +12,14 @@
 # fresh mutex, and a dead mutex whose pid was reused by an unrelated live process stays until
 # that process ends. A TERM that arrives before the command has called setpgrp does not reach it.
 # The command is a background process group, so it cannot read the terminal.
-# State: $ZP_AGENT_STATE/slots.
+# State: $SXIR_AGENT_STATE/slots.
 set -euo pipefail
 # shellcheck source=lib.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
-D=$zp_state/slots
+D=$sxir_state/slots
 n=${TESTSLOT_N:-4}
 [ $# -gt 0 ] || { echo "usage: testslot.sh <cmd...>" >&2; exit 2; }
-zp_queue_note
+sxir_queue_note
 mkdir -p "$D"
 mine=
 locked=

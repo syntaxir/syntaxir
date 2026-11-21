@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/frontend/parser"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // partialCanonical parses src as the editor APIs do, with parser.ParsePartial: the declarations
@@ -107,7 +107,7 @@ func TestPartialSourceTree(t *testing.T) {
 // declarations as the hand-written parser, which is what an editor that shows a grammar with a
 // mistake in one rule needs of the rest of the file.
 func TestPartialKeepsDeclarationsOfRepositoryGrammars(t *testing.T) {
-	files, err := filepath.Glob("../../testdata/grammars/*/*.zp")
+	files, err := filepath.Glob("../../testdata/grammars/*/*.sxir")
 	if err != nil || len(files) == 0 {
 		t.Fatalf("grammars of the repository: %v, %v", files, err)
 	}

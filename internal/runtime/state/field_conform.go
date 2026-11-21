@@ -3,8 +3,8 @@ package state
 import (
 	"strconv"
 
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/internal/runtime/program"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/internal/runtime/program"
 )
 
 // Convert evaluates a node type constructor T{v}: it converts v to the named node type of ks, as the

@@ -1,4 +1,4 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package engine
 
@@ -6,9 +6,9 @@ import (
 	"errors"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // leastLimit returns the least limit, as set by with, under which parse ends without reaching a

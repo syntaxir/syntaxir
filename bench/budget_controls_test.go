@@ -1,4 +1,4 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package bench
 
@@ -6,11 +6,11 @@ import (
 	"encoding/json"
 	"testing"
 
-	gjson "zeroparse.dev/zp/internal/bench/parsers/json"
-	gxml "zeroparse.dev/zp/internal/bench/parsers/xml"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/pkg/runtime"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
+	gjson "syntaxir.dev/sxir/internal/bench/parsers/json"
+	gxml "syntaxir.dev/sxir/internal/bench/parsers/xml"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 // BenchmarkControlledParse uses finite but effectively inexhaustible counters
@@ -52,13 +52,13 @@ func BenchmarkControlledParse(b *testing.B) {
 						var err error
 						if w.name == "JSON" {
 							selected := gjson.CodePoints
-							if unit.u == zpinput.Bytes {
+							if unit.u == sxirinput.Bytes {
 								selected = gjson.Bytes
 							}
 							_, err = gjson.Parse(input, gjson.WithUnit(selected), gjson.WithLimits(gjson.Limits(limits)))
 						} else {
 							selected := gxml.CodePoints
-							if unit.u == zpinput.Bytes {
+							if unit.u == sxirinput.Bytes {
 								selected = gxml.Bytes
 							}
 							_, err = gxml.Parse(input, gxml.WithUnit(selected), gxml.WithLimits(gxml.Limits(limits)))
@@ -75,13 +75,13 @@ func BenchmarkControlledParse(b *testing.B) {
 						var err error
 						if w.name == "JSON" {
 							selected := gjson.CodePoints
-							if unit.u == zpinput.Bytes {
+							if unit.u == sxirinput.Bytes {
 								selected = gjson.Bytes
 							}
 							_, err = gjson.ParseValue(input, gjson.WithUnit(selected), gjson.WithLimits(gjson.Limits(limits)))
 						} else {
 							selected := gxml.CodePoints
-							if unit.u == zpinput.Bytes {
+							if unit.u == sxirinput.Bytes {
 								selected = gxml.Bytes
 							}
 							_, err = gxml.ParseValue(input, gxml.WithUnit(selected), gxml.WithLimits(gxml.Limits(limits)))
@@ -140,7 +140,7 @@ func TestControlledWorkloads(t *testing.T) {
 			for _, unit := range units {
 				if w.name == "JSON" {
 					selected := gjson.CodePoints
-					if unit.u == zpinput.Bytes {
+					if unit.u == sxirinput.Bytes {
 						selected = gjson.Bytes
 					}
 					plain, err := gjson.Parse(input, gjson.WithUnit(selected), gjson.WithLimits(gjson.Limits{Compute: gjson.Unlimited}))
@@ -163,7 +163,7 @@ func TestControlledWorkloads(t *testing.T) {
 					equal(plainValue, controlledValue)
 				} else {
 					selected := gxml.CodePoints
-					if unit.u == zpinput.Bytes {
+					if unit.u == sxirinput.Bytes {
 						selected = gxml.Bytes
 					}
 					plain, err := gxml.Parse(input, gxml.WithUnit(selected), gxml.WithLimits(gxml.Limits{Compute: gxml.Unlimited}))

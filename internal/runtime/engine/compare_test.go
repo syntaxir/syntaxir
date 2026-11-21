@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 func TestCompareAcrossBackends(t *testing.T) {
@@ -14,7 +14,7 @@ func TestCompareAcrossBackends(t *testing.T) {
 	for _, fixture := range codegentest.CompareCases() {
 		t.Run(fixture.Name, func(t *testing.T) {
 			program := mustCompile(t, fixture.Src)
-			for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+			for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 				for _, input := range fixture.Inputs {
 					baseline := codegentest.ResultJSON(program.ParseWith("main", input, ParseOptions{Backend: Closure, Unit: unit}))
 					for _, backend := range []Backend{Bytecode, BytecodeIterative} {

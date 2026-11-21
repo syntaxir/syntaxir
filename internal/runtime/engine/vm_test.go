@@ -7,12 +7,12 @@ import (
 	"sync"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/runtime"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // TestBackendsMatchOnCorpus checks that the bytecode VM returns the same results as the closure
@@ -30,7 +30,7 @@ func TestBackendsMatchOnCorpus(t *testing.T) {
 			// Projected repetitions (internal/compile/project.go) give what the repetitions as written give.
 			prog, plain := mustCompile(t, c.Src), mustCompile(t, c.Src, compile.Options{NoProjections: true})
 			for _, in := range c.Inputs {
-				for _, u := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+				for _, u := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 					n1, err1 := prog.ParseWith("main", in, ParseOptions{Expectations: true, Unit: u})
 					n2, err2 := plain.ParseWith("main", in, ParseOptions{Expectations: true, Unit: u})
 					if a, b := codegentest.ResultJSON(n1, err1), codegentest.ResultJSON(n2, err2); a != b {
@@ -48,7 +48,7 @@ func TestBackendsMatchOnStream(t *testing.T) {
 	prog := mustCompile(t, codegentest.Records)
 	inputs := []string{"#records\na=1\nbc=22\n", "#records\na=1\nb\n", "#rec"}
 	for _, in := range inputs {
-		for _, u := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+		for _, u := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 			var out [3]string
 			for i, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
 				var got []string
@@ -149,7 +149,7 @@ rule e = #operators {
 			{strings.Repeat("-;x^;-x;", 128), 2, true}, // failed child frames must also release depth
 		} {
 			for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-				for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+				for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 					for _, recognize := range []bool{false, true} {
 						opts := ParseOptions{Expectations: true, Backend: backend, Unit: unit, Limits: runtime.Limits{Depth: uint64(tc.depth)}, Recognize: recognize}
 						n, err := prog.ParseWith("main", tc.input, opts)
@@ -175,7 +175,7 @@ rule e = #operators {
     level { prefix "-" }
 }`)
 	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+		for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 			for _, tc := range []struct {
 				input string
 				count int

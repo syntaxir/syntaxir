@@ -5,8 +5,8 @@ import (
 	"testing"
 	"unicode"
 
-	"zeroparse.dev/zp/internal/frontend/parser"
-	"zeroparse.dev/zp/internal/frontend/parser/zpparser"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/frontend/parser/sxirparser"
 )
 
 // The positions of the errors of the canonical frontend come from SourceErrors, which moves the
@@ -109,7 +109,7 @@ func TestPositionPlacementsAreSeen(t *testing.T) {
 		if invalid || merr == nil {
 			continue
 		}
-		_, perr := zpparser.ParseValue(text)
+		_, perr := sxirparser.ParseValue(text)
 		if perr == nil {
 			continue
 		}

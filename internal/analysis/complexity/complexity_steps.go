@@ -3,8 +3,8 @@ package complexity
 import (
 	"fmt"
 
-	"zeroparse.dev/zp/internal/frontend/astfacts"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // --- Steps of a growth ---

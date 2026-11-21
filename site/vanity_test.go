@@ -24,7 +24,7 @@ func TestVanityPages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"zp/index.html", "zp/cmd/zp/index.html", "zp/pkg/grammar/index.html", "zp/pkg/grammar/ast/index.html", "zp/pkg/compiler/index.html", "zp/pkg/runtime/index.html", "zp/pkg/runtime/vm/index.html", "zp/pkg/runtime/libgo/index.html", "alpha-parsers/index.html"} {
+	for _, name := range []string{"sxir/index.html", "sxir/cmd/sxir/index.html", "sxir/pkg/grammar/index.html", "sxir/pkg/grammar/ast/index.html", "sxir/pkg/compiler/index.html", "sxir/pkg/runtime/index.html", "sxir/pkg/runtime/vm/index.html", "sxir/pkg/runtime/libgo/index.html", "alpha-parsers/index.html"} {
 		if _, ok := pages[name]; !ok {
 			t.Errorf("missing vanity page %s", name)
 		}
@@ -36,11 +36,11 @@ func TestVanityPages(t *testing.T) {
 			}
 		}
 	}
-	page := string(pages["zp/cmd/zp/index.html"])
-	if m := goImportRe.FindStringSubmatch(page); m == nil || m[1] != "zeroparse.dev/zp git https://github.com/zeroparse/zp" {
+	page := string(pages["sxir/cmd/sxir/index.html"])
+	if m := goImportRe.FindStringSubmatch(page); m == nil || m[1] != "syntaxir.dev/sxir git https://github.com/syntaxir/syntaxir" {
 		t.Errorf("go-import = %v", m)
 	}
-	want := "zeroparse.dev/zp https://github.com/zeroparse/zp https://github.com/zeroparse/zp/tree/main{/dir} https://github.com/zeroparse/zp/blob/main{/dir}/{file}#L{line}"
+	want := "syntaxir.dev/sxir https://github.com/syntaxir/syntaxir https://github.com/syntaxir/syntaxir/tree/main{/dir} https://github.com/syntaxir/syntaxir/blob/main{/dir}/{file}#L{line}"
 	if m := goSourceRe.FindStringSubmatch(page); m == nil || m[1] != want {
 		t.Errorf("go-source = %v", m)
 	}
@@ -59,7 +59,7 @@ func TestVanityCoversPackages(t *testing.T) {
 	}
 	var missing []string
 	for _, d := range dirs {
-		if _, ok := pages[path.Join("zp", d, "index.html")]; !ok {
+		if _, ok := pages[path.Join("sxir", d, "index.html")]; !ok {
 			missing = append(missing, d)
 		}
 	}
@@ -130,10 +130,10 @@ func TestVanityDiscovery(t *testing.T) {
 	}))
 	defer srv.Close()
 	for _, c := range []struct{ importPath, prefix, repo string }{
-		{"zeroparse.dev/zp", "zeroparse.dev/zp", "https://github.com/zeroparse/zp"},
-		{"zeroparse.dev/zp/cmd/zp", "zeroparse.dev/zp", "https://github.com/zeroparse/zp"},
-		{"zeroparse.dev/zp/pkg/grammar/ast", "zeroparse.dev/zp", "https://github.com/zeroparse/zp"},
-		{"zeroparse.dev/alpha-parsers", "zeroparse.dev/alpha-parsers", "https://github.com/zeroparse/alpha-parsers"},
+		{"syntaxir.dev/sxir", "syntaxir.dev/sxir", "https://github.com/syntaxir/syntaxir"},
+		{"syntaxir.dev/sxir/cmd/sxir", "syntaxir.dev/sxir", "https://github.com/syntaxir/syntaxir"},
+		{"syntaxir.dev/sxir/pkg/grammar/ast", "syntaxir.dev/sxir", "https://github.com/syntaxir/syntaxir"},
+		{"syntaxir.dev/alpha-parsers", "syntaxir.dev/alpha-parsers", "https://github.com/syntaxir/alpha-parsers"},
 	} {
 		resp, err := http.Get(srv.URL + strings.TrimPrefix(c.importPath, vanityHost) + "?go-get=1")
 		if err != nil {

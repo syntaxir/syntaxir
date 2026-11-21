@@ -4,15 +4,15 @@
 to blame. You want a measurement that points at a rule, a change that fixes it, and a second measurement that shows the
 fix worked.
 
-Run `zp profile` on a realistic input. It parses the input and reports, for each rule, how many times it was called,
+Run `sxir profile` on a realistic input. It parses the input and reports, for each rule, how many times it was called,
 how many of those calls did work, how much input the failed calls examined and threw away (`wasted`), and the time spent
 in the rule itself. Counts do not depend on the machine, so use them to compare a grammar before and after a change; times
 do.
 
 The grammar reads lines of comma-separated items that end with `;` or `.`, and was written with one rule for each ending:
 
-```zp
-// slow.zp
+```sxir
+// slow.sxir
 @start
 rule main = line* $$
 
@@ -30,7 +30,7 @@ Make an input of 20,000 lines, half ending in `;` and half in `.`, and profile i
 
 ```bash
 awk 'BEGIN { for (i = 0; i < 20000; i++) print "alpha beta, gamma delta, epsilon zeta, eta theta, iota kappa" (i % 2 ? "." : ";") }' > big.txt
-zp profile -g slow.zp -n 3 < big.txt
+sxir profile -g slow.sxir -n 3 < big.txt
 ```
 
 ## Expected Output
@@ -63,8 +63,8 @@ What to look at:
 - The profile says the same in words: a choice whose alternatives begin with the same calls should have the common part
   factored out. Here, only the last character differs, so make it a choice inside one rule:
 
-```zp
-// fast.zp
+```sxir
+// fast.sxir
 @start
 rule main = line* $$
 
@@ -77,7 +77,7 @@ rule ws = [ \t]*
 
 <!-- example: skip: the output has timings of this machine -->
 ```bash
-zp profile -g fast.zp -n 3 < big.txt
+sxir profile -g fast.sxir -n 3 < big.txt
 ```
 
 ```text
@@ -108,5 +108,5 @@ point at. The grammar accepts the same input.
   alternative stops the parser from trying the others; see the [rule expressions guide](../guide/rule-expressions.md).
 - Use a sample of real input. A grammar can be fast on small inputs and slow on a long line, and the profile shows the
   rules that dominate for the input you give it.
-- `zp explain` tells you why an input fails, and `zp trace` shows every call; see
+- `sxir explain` tells you why an input fails, and `sxir trace` shows every call; see
   [Debugging and Profiling](../guide/debugging.md).

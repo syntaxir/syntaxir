@@ -1,4 +1,4 @@
-//go:build zp_long
+//go:build sxir_long
 
 package print_test
 
@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // runKeySources are grammars whose run site is keyed by the variables: walks under equal values

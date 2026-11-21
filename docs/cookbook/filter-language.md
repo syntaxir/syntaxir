@@ -6,8 +6,8 @@ file. You want a `func(Record) bool` that is cheap to call on every record.
 Parse the filter once and turn the tree into Go closures. The grammar gives the keywords, the precedence of `or`, `and`
 and `not`, and comparisons that do not chain.
 
-```zp
-// filter.zp
+```sxir
+// filter.sxir
 type Num = node[string]
 type Str = node[string]
 type Bool = node[string]
@@ -56,13 +56,13 @@ import (
 	"strconv"
 	"strings"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
-	"zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
-//go:embed filter.zp
+//go:embed filter.sxir
 var grammarSrc string
 
 // Record is what a filter looks at.
@@ -161,7 +161,7 @@ func Compile(p runtime.Parser, src string) (func(Record) bool, error) {
 }
 
 func main() {
-	p, err := compiler.Compile(grammar.FromString("grammar.zp", grammarSrc), compiler.WithStart("main"))
+	p, err := compiler.Compile(grammar.FromString("grammar.sxir", grammarSrc), compiler.WithStart("main"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -225,6 +225,6 @@ age > 30 and                                     error: 1:13: syntax error: expe
 - **Messages for users.** Replace the expected list with a short message using `@error`, and show a caret under the
   position: [Report an error with its source line and a caret](error-carets.md).
 - **Ready-made.** For the Common Expression Language (CEL), which is a complete expression language for policies and
-  filters, use [alpha-parsers/cel](https://github.com/zeroparse/alpha-parsers/tree/main/cel/).
+  filters, use [alpha-parsers/cel](https://github.com/syntaxir/alpha-parsers/tree/main/cel/).
 
 See [Expressions](../guide/operators-rule.md) and [Operators Rule](../../spec/language/operators-rule.md).

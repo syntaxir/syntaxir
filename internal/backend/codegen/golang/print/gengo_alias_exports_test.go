@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 const aliasExportsGrammar = `type Word = { Text string }

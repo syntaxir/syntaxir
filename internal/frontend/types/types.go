@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // Ty is a type used in type checking.

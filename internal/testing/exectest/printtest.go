@@ -13,8 +13,8 @@ import (
 	"math"
 	"strings"
 
-	. "zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/middleend/codepass"
+	. "syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/middleend/codepass"
 )
 
 // Box is the handle type of the test module.

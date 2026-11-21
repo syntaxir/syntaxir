@@ -11,13 +11,13 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/runtime/input"
-	zprt "zeroparse.dev/zp/pkg/runtime/libgo"
-	"zeroparse.dev/zp/pkg/runtime/value"
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/runtime/input"
+	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
+	"syntaxir.dev/sxir/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // Exercise the exported APIs against the same hand-built DAG, including nil,
@@ -25,11 +25,11 @@ import (
 func TestTreeLibParity(t *testing.T) {
 	t.Parallel()
 	leaf := nodes.Ptr(nodes.Data{Kind: valueimpl.MatchKind, Terminal: true, Text: "é<&>", Start: 1, End: 3})
-	gLeaf := zprt.NewNode(value.KindString, 1, 3, nodes.D(leaf).Text, nil, "", nil, nil)
+	gLeaf := sxirrt.NewNode(value.KindString, 1, 3, nodes.D(leaf).Text, nil, "", nil, nil)
 	child := nodes.Ptr(nodes.Data{Children: []*value.Node{leaf}, Fields: valueimpl.Fields{{Name: "list", Value: []any{leaf, nil, []byte{1, 2}}}}})
-	gChild := zprt.NewNode(value.KindStruct, 0, 0, "", []*value.Node{gLeaf}, "", valueimpl.Fields{{Name: "list", Value: []any{gLeaf, nil, []byte{1, 2}}}}, nil)
+	gChild := sxirrt.NewNode(value.KindStruct, 0, 0, "", []*value.Node{gLeaf}, "", valueimpl.Fields{{Name: "list", Value: []any{gLeaf, nil, []byte{1, 2}}}}, nil)
 	root := nodes.Ptr(nodes.Data{Children: []*value.Node{child, nil, leaf}, Fields: valueimpl.Fields{{Name: "z", Value: true}, {Name: "a", Value: leaf}}})
-	gRoot := zprt.NewNode(value.KindStruct, 0, 0, "", []*value.Node{gChild, nil, gLeaf}, "", valueimpl.Fields{{Name: "z", Value: true}, {Name: "a", Value: gLeaf}}, nil)
+	gRoot := sxirrt.NewNode(value.KindStruct, 0, 0, "", []*value.Node{gChild, nil, gLeaf}, "", valueimpl.Fields{{Name: "z", Value: true}, {Name: "a", Value: gLeaf}}, nil)
 	core, err := root.MarshalJSON()
 	if err != nil {
 		t.Fatal(err)
@@ -88,7 +88,7 @@ func TestTreeLibParity(t *testing.T) {
 		}
 	}
 	nodes.D(root).Children = []*value.Node{root}
-	zprt.SetNodeElems(gRoot, []*value.Node{gRoot})
+	sxirrt.SetNodeElems(gRoot, []*value.Node{gRoot})
 	var c *value.CycleError
 	var gc *value.CycleError
 	if !errors.As(value.Walk(root, ca), &c) || !errors.As(value.Walk(gRoot, cb), &gc) {
@@ -142,16 +142,16 @@ func testGeneratedTreeTraversal(t *testing.T) {
 	// The traversal itself is the library's and is tested there; this checks that the generated
 	// package declares the colliding grammar types beside the library's names and walks a tree.
 	var consumer strings.Builder
-	consumer.WriteString("package tree\n\nimport (\n\t\"testing\"\n\n\t\"codegentest/tree/types\"\n\tzprt \"zeroparse.dev/zp/pkg/runtime/libgo\"\n\tzpvalue \"zeroparse.dev/zp/pkg/runtime/value\"\n)\n\nfunc TestWalk(t *testing.T) {\n")
+	consumer.WriteString("package tree\n\nimport (\n\t\"testing\"\n\n\t\"codegentest/tree/types\"\n\tsxirrt \"syntaxir.dev/sxir/pkg/runtime/libgo\"\n\tsxirvalue \"syntaxir.dev/sxir/pkg/runtime/value\"\n)\n\nfunc TestWalk(t *testing.T) {\n")
 	for _, name := range names {
 		fmt.Fprintf(&consumer, "\t_ = types.%s{Value: 1}\n", name)
 	}
-	consumer.WriteString(`	leaf := zprt.NewNode(zpvalue.KindString, 0, 2, "é", nil, "", nil, nil)
-	root := zprt.NewNode(zpvalue.KindTuple, 0, 2, "", []*zpvalue.Node{leaf}, "", nil, nil)
+	consumer.WriteString(`	leaf := sxirrt.NewNode(sxirvalue.KindString, 0, 2, "é", nil, "", nil, nil)
+	root := sxirrt.NewNode(sxirvalue.KindTuple, 0, 2, "", []*sxirvalue.Node{leaf}, "", nil, nil)
 	visits := 0
-	if err := zpvalue.Walk(root, func(v zpvalue.WalkVisit) (zpvalue.WalkAction, error) {
+	if err := sxirvalue.Walk(root, func(v sxirvalue.WalkVisit) (sxirvalue.WalkAction, error) {
 		visits++
-		return zpvalue.WalkContinue, nil
+		return sxirvalue.WalkContinue, nil
 	}); err != nil || visits != 2 {
 		t.Fatalf("visits=%d err=%v", visits, err)
 	}

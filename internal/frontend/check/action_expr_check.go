@@ -5,11 +5,11 @@ import (
 	"slices"
 	"strings"
 
-	"zeroparse.dev/zp/internal/cancel"
-	"zeroparse.dev/zp/internal/diagnostic"
-	"zeroparse.dev/zp/internal/frontend/types"
-	"zeroparse.dev/zp/internal/runtime/program"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/cancel"
+	"syntaxir.dev/sxir/internal/diagnostic"
+	"syntaxir.dev/sxir/internal/frontend/types"
+	"syntaxir.dev/sxir/internal/runtime/program"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // NodeMemberNames are the members of a node, and the removed ones that the checker reports: they are

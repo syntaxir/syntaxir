@@ -1,4 +1,4 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package document_test
 
@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	. "zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/pkg/runtime"
+	. "syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/pkg/runtime"
 )
 
 const documentMemoryGrammar = `type Pair = { K string; V string }

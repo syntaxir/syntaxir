@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"io"
 
-	"zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/internal/pass/pipe"
+	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/pass/pipe"
 )
 
 // IR is the kind of a Core IR module, which the Core passes take and return: it is dumped as the

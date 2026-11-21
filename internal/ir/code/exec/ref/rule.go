@@ -3,8 +3,8 @@ package ref
 import (
 	"fmt"
 
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/exec"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec"
 )
 
 // The reference model of the rules of a grammar (component rules): what the grammar says of each rule,

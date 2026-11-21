@@ -1,9 +1,9 @@
-# ZeroParse Site Build
+# SyntaxIR Site Build
 
 The pinned ZeroSite CLI and `sitegen.BuildWith` share the standard publication
 pipeline. `site/config.json` controls source publication, defaults, front matter,
 record indexes, navigation, paging, and search. The project driver supplies the
-ZeroParse landing page, API reference and Playground/theme integration through
+SyntaxIR landing page, API reference and Playground/theme integration through
 ZeroSite extension hooks; consult the installed ZeroSite skill for config
 semantics. The driver owns project-specific build flags and integration only.
 

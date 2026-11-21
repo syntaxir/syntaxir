@@ -5,17 +5,17 @@ import (
 	"strconv"
 	"strings"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	tspass "zeroparse.dev/zp/internal/backend/codegen/typescript/pass"
-	"zeroparse.dev/zp/internal/frontend/check"
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/flow"
-	"zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/internal/middleend/execlower"
-	"zeroparse.dev/zp/internal/middleend/flowlower/lowerdata"
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	rprogram "zeroparse.dev/zp/internal/runtime/program"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	tspass "syntaxir.dev/sxir/internal/backend/codegen/typescript/pass"
+	"syntaxir.dev/sxir/internal/frontend/check"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/flow"
+	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/execlower"
+	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	rprogram "syntaxir.dev/sxir/internal/runtime/program"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // The TypeScript forms of the primitive operations of grammar code at the Exec stage. Each primitive

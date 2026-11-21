@@ -1,12 +1,12 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package state
 
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/limits"
-	"zeroparse.dev/zp/pkg/runtime"
+	"syntaxir.dev/sxir/internal/runtime/limits"
+	"syntaxir.dev/sxir/pkg/runtime"
 )
 
 func TestResolveLimits(t *testing.T) {

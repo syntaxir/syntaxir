@@ -7,11 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/exec"
-	"zeroparse.dev/zp/internal/ir/code/exec/conform"
-	"zeroparse.dev/zp/internal/ir/code/exec/ref"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec"
+	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
+	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // The operations of the rules of the node library under conformance: every operation runs through its
@@ -63,7 +63,7 @@ type meteredRule struct{ *ruleMachine }
 func (m meteredRule) Used() uint64 { return m.p.Control.budgetUsed() }
 
 // scriptRules gives the rules of cfg.RuleVars the properties of cfg.RuleSpecs, and bodies that run eval.
-func scriptRules(rules []*Rule, cfg ref.Config, eval func(index int64, p *Parser, min int) (*zpvalue.Node, bool)) {
+func scriptRules(rules []*Rule, cfg ref.Config, eval func(index int64, p *Parser, min int) (*sxirvalue.Node, bool)) {
 	for i, r := range rules {
 		var s ref.RuleSpec
 		if i < len(cfg.RuleSpecs) {
@@ -83,12 +83,12 @@ func scriptRules(rules []*Rule, cfg ref.Config, eval func(index int64, p *Parser
 			r.Value = Shaper{K: 1, Tuple: true}
 		}
 		index := int64(i)
-		r.Body = func(p *Parser, min int) (*zpvalue.Node, bool) { return eval(index, p, min) }
+		r.Body = func(p *Parser, min int) (*sxirvalue.Node, bool) { return eval(index, p, min) }
 	}
 }
 
 // evaluate runs the next evaluation of the script of the rule with the index on the library.
-func (m *ruleMachine) evaluate(index int64, p *Parser, level int) (*zpvalue.Node, bool) {
+func (m *ruleMachine) evaluate(index int64, p *Parser, level int) (*sxirvalue.Node, bool) {
 	var e ref.Eval
 	if s := m.spec(index); len(s.Body) > 0 {
 		e = s.Body[min(m.evals[index], int64(len(s.Body)-1))]
@@ -137,7 +137,7 @@ func (m *ruleMachine) Call(o *code.Op, args []any) (res []any) {
 	defer interrupted()
 	p := m.p
 	rule := func() *Rule { return args[0].(*Rule) }
-	invoke := func(f func(r *Rule, min int) (*zpvalue.Node, bool)) []any {
+	invoke := func(f func(r *Rule, min int) (*sxirvalue.Node, bool)) []any {
 		p.Pos = int(m.regs[exec.Pos].(int64))
 		defer func() { m.regs[exec.Pos] = int64(p.Pos) }()
 		v, ok := f(rule(), int(args[1].(int64)))

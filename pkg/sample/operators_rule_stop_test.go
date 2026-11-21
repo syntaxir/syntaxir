@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/testing/enginetest"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 )
 
 // Pending scopes can outlive later choices and caller continuations. Their immutable state remains

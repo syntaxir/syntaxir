@@ -1,4 +1,4 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package engine
 
@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/runtime"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 // scanGrammar scans the rest of the input from every position of a scan from every position, so its
@@ -37,13 +37,13 @@ func TestBudgetDefault(t *testing.T) {
 		for _, c := range []struct {
 			name  string
 			input string
-			unit  zpinput.PositionUnit
+			unit  sxirinput.PositionUnit
 			want  uint64
 		}{
-			{"floor", strings.Repeat("a", 300), zpinput.CodePoints, 1 << 20},
-			{"ascii bytes", strings.Repeat("a", 5000), zpinput.Bytes, 5000 * 1024},
-			{"wide bytes", strings.Repeat("é", 2000), zpinput.Bytes, 4000 * 1024},
-			{"wide code points", strings.Repeat("é", 2000), zpinput.CodePoints, 2000 * 1024},
+			{"floor", strings.Repeat("a", 300), sxirinput.CodePoints, 1 << 20},
+			{"ascii bytes", strings.Repeat("a", 5000), sxirinput.Bytes, 5000 * 1024},
+			{"wide bytes", strings.Repeat("é", 2000), sxirinput.Bytes, 4000 * 1024},
+			{"wide code points", strings.Repeat("é", 2000), sxirinput.CodePoints, 2000 * 1024},
 		} {
 			t.Run(fmt.Sprintf("%s/%s", b, c.name), func(t *testing.T) {
 				_, err := prog.ParseWith("main", c.input, ParseOptions{Backend: b, Unit: c.unit})

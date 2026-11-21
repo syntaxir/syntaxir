@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	ir "zeroparse.dev/zp/internal/ir/code"
+	ir "syntaxir.dev/sxir/internal/ir/code"
 )
 
 // bodyModule returns a module with the operations of the body tests and the function f of int

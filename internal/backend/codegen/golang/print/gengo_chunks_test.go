@@ -8,11 +8,11 @@ import (
 	"strconv"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
-// ZP_TYPED_CHUNK_DIR retains both generated paths for paired allocation
+// SXIR_TYPED_CHUNK_DIR retains both generated paths for paired allocation
 // measurements. Normal test runs remove the fixtures automatically.
 func TestGeneratedTypedChunkOwnership(t *testing.T) {
 	t.Parallel()
@@ -41,7 +41,7 @@ rule token Token = t:("é") #atomic => Token{Text: text($t)}`)
 				if err != nil {
 					t.Fatal(err)
 				}
-				dir := os.Getenv("ZP_TYPED_CHUNK_DIR")
+				dir := os.Getenv("SXIR_TYPED_CHUNK_DIR")
 				if dir == "" {
 					dir = t.TempDir()
 				} else {

@@ -72,7 +72,7 @@ func run(in, dir, docPath, capture string, count int, node string) error {
 			return err
 		}
 		commit := describeCommit(root)
-		work, err := os.MkdirTemp("", "zp-report-")
+		work, err := os.MkdirTemp("", "sxir-report-")
 		if err != nil {
 			return err
 		}
@@ -148,7 +148,7 @@ func loadResults(goPath string) (data, tsData, sizeData []byte, err error) {
 
 // repoRoot returns the root of the repository (the directory of the module's go.mod).
 func repoRoot() (string, error) {
-	out, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", "zeroparse.dev/zp").Output()
+	out, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", "syntaxir.dev/sxir").Output()
 	if err != nil {
 		return "", fmt.Errorf("finding the repository (run inside it): %w", err)
 	}

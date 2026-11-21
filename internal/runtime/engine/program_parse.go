@@ -8,11 +8,11 @@ import (
 	"runtime"
 	"sync"
 
-	"zeroparse.dev/zp/internal/runtime/program"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/internal/runtime/vm"
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/runtime/program"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/runtime/vm"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // Parse parses the whole input with the rule start.
@@ -442,7 +442,7 @@ func (prog *Program) ParseStreamWith(start string, r io.Reader, emit func(*value
 	p := state.NewControlledStreamParser(&prog.sharedProgram, r, o.Unit, control)
 	control.AttachMemory(p)
 	// A limit beyond math.MaxInt bounds no stream.
-	if lim := o.Limits.Input; lim != 0 && lim != zpruntime.Unlimited && lim <= math.MaxInt {
+	if lim := o.Limits.Input; lim != 0 && lim != sxirruntime.Unlimited && lim <= math.MaxInt {
 		p.Input.MaxInput = int(lim)
 	}
 	defer p.ReleaseTraceReferences() // after error recovery, including rethrown panics

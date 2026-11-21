@@ -9,11 +9,11 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/instrument"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/instrument"
 )
 
 // depMemoGrammars returns the grammars that the dependency memo tests compare
@@ -331,10 +331,10 @@ func TestEndedByResourceLimit(t *testing.T) {
 	}
 	// The reference build without budget controls rejects a limit, so there the classifier reads
 	// the error that a parse ended by the compute limit returns.
-	res := codegentest.ResultJSON(nil, &zpruntime.LimitError{Kind: zpruntime.LimitCompute, Limit: 5, Used: 4, Requested: 2})
+	res := codegentest.ResultJSON(nil, &sxirruntime.LimitError{Kind: sxirruntime.LimitCompute, Limit: 5, Used: 4, Requested: 2})
 	if state.BudgetControlsEnabled {
 		loop := mustCompile(t, "@start\nrule main = \"a\"+")
-		res = codegentest.ResultJSON(loop.ParseWith("", strings.Repeat("a", 100), ParseOptions{Backend: Closure, Limits: zpruntime.Limits{Compute: 5}}))
+		res = codegentest.ResultJSON(loop.ParseWith("", strings.Repeat("a", 100), ParseOptions{Backend: Closure, Limits: sxirruntime.Limits{Compute: 5}}))
 	}
 	if !strings.Contains(res, "compute limit") || !endedByResourceLimit(res, "x") || !endedByResourceLimit("x", res) {
 		t.Errorf("the compute limit error %s must count as a resource limit", res)

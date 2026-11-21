@@ -1,4 +1,4 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package document_test
 
@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	. "zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/pkg/runtime"
+	. "syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/pkg/runtime"
 )
 
 // A Document charges by its logical state only: the capacity that its earlier parses left in the

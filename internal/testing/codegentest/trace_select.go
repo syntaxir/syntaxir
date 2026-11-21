@@ -3,7 +3,7 @@ package codegentest
 import (
 	"slices"
 
-	"zeroparse.dev/zp/pkg/runtime/instrument"
+	"syntaxir.dev/sxir/pkg/runtime/instrument"
 )
 
 // SelectedEvents returns the events of a whole trace that a trace function receives with the trace

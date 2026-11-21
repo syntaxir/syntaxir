@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/internal/testing/enginetest"
-	"zeroparse.dev/zp/pkg/runtime"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
+	"syntaxir.dev/sxir/pkg/runtime"
 )
 
 // termBackends are the backends that print the term compositions.

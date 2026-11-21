@@ -6,7 +6,7 @@
 
 ## Summary
 
-Parse ZeroParse grammar source with a typed Go parser generated from ZeroParse's
+Parse SyntaxIR grammar source with a typed Go parser generated from SyntaxIR's
 own complete grammar. It is the only frontend of the source APIs and commands:
 `ParseGrammar`, `CompileSource`, `parse`, `compile`, `gen`, `fmt`, `lint` and
 the language server. The hand-written recursive-descent parser stays in the
@@ -24,7 +24,7 @@ not by keeping a second frontend.
 
 ## Motivation
 
-A parser described by ZeroParse's own grammar removes the duplicated syntax
+A parser described by SyntaxIR's own grammar removes the duplicated syntax
 logic of a hand-written parser and makes grammar evolution inspectable: the
 grammar of the language is the executable source of its frontend. It also
 makes the language's frontend a workload of the generator, so improvements of
@@ -33,9 +33,9 @@ independent oracle of acceptance, ASTs, source metadata and diagnostics.
 
 ## Goals
 
-- Describe the complete grammar-file syntax in a canonical root `.zp` file.
+- Describe the complete grammar-file syntax in a canonical root `.sxir` file.
 - Generate a typed Go parser from that grammar without requiring users to run
-  generation before building or using ZeroParse.
+  generation before building or using SyntaxIR.
 - Use one frontend for every source-consuming API and command, with no
   selection and no mutable global configuration.
 - Hold the generated frontend to the oracle: outputs, source metadata,
@@ -47,7 +47,7 @@ independent oracle of acceptance, ASTs, source metadata and diagnostics.
 
 This proposal does not replace the grammar compiler, type checker, formatter,
 semantic analysis, or the `Compile(*grammar.Grammar, ...)` AST entry point.
-It does not keep a selectable second frontend. It does not claim ZeroParse can generate its parser without a checked-in bootstrap
+It does not keep a selectable second frontend. It does not claim SyntaxIR can generate its parser without a checked-in bootstrap
 artifact.
 
 ## Proposed Design
@@ -342,7 +342,7 @@ distinctions away to make the parsers appear equal.
 
 ## Compatibility and Bootstrap
 
-Existing `.zp`, JSON grammar AST, compiled grammar and generated parser formats
+Existing `.sxir`, JSON grammar AST, compiled grammar and generated parser formats
 remain unchanged; the generated frontend is only a frontend change. The root
 grammar and checked-in generated Go parser must be updated together. Bootstrap
 and generation checks must work from a clean checkout without network access or
@@ -350,7 +350,7 @@ a prior generated artifact outside the repository.
 
 ## Acceptance Tests
 
-- Differentially parse every repository `.zp` file, grammar fixture and
+- Differentially parse every repository `.sxir` file, grammar fixture and
   documentation example with both parsers. For the generated path, compare
   the concrete source AST with the root grammar's declared node structure,
   then compare its adapter output with the manual parser's public
@@ -373,7 +373,7 @@ a prior generated artifact outside the repository.
   partial results for editor recovery where supported.
 - Compare formatter parse/format/parse stability and LSP diagnostics and
   source ranges of the generated frontend with those of the oracle.
-- Enumerate every sequence of up to two tokens (three in the `zp_long` tier) of
+- Enumerate every sequence of up to two tokens (three in the `sxir_long` tier) of
   a fixed alphabet after each of twelve heads and tails (declarations, type
   bodies, Operators Rules, action blocks, attribute arguments, groups and
   index brackets), joined by a space and directly, and require the same
@@ -401,7 +401,7 @@ a prior generated artifact outside the repository.
 ### Mutation Measurement
 
 The mutation tests take windows of whole declarations (up to about 400 code
-points) from the repository `.zp` files, the parity-test corpora, a set of
+points) from the repository `.sxir` files, the parity-test corpora, a set of
 valid grammars that use `rule`, `type` and `var` as names, and 100 valid
 grammars that a generator writes from the forms of those names (fields, rule
 references, variables and attributes named like a keyword, in groups, blocks
@@ -414,7 +414,7 @@ as `same` or by one of the forms in the Diagnostic Contract, and the errors of
 the two parsers are matched by declaration. A class that is not `same` has a
 cap, in parts per 10,000 of the rejected sources. Controls break the
 comparison on purpose and must be detected. The default tier runs 3 seeds of
-3,000 sources; the `zp_long` tier runs 8 seeds of 100,000.
+3,000 sources; the `sxir_long` tier runs 8 seeds of 100,000.
 
 The caps are drift alarms, not bounds that the design guarantees. Each is the
 mean share that a class took in 12 seeds of 100,000 sources (the 8 of the long
@@ -455,7 +455,7 @@ The corpus has many short sources with action blocks, whose errors the
 reference reports at a token and the generated parser at the token next to it
 (`near`), so `near` is a larger share than it is for a corpus of grammars
 alone. `other later` and `other earlier` are the errors that
-no form names; the tests list their sources with `ZP_HARM_EXAMPLES`. The
+no form names; the tests list their sources with `SXIR_HARM_EXAMPLES`. The
 later ones are a rule written without `=` before a `{` block, which the
 grammar reads as a rule header and its body, so that the recovered mistakes
 inside the block are dropped when the missing `=` makes the rule fail, and a
@@ -522,12 +522,12 @@ place with the shape of a declaration, which the parser looks ahead for. On
 the grammars of the benchmark (`go test -bench CanonicalFrontend`, parsing
 and building the grammar, 8 alternating rounds of 40 iterations against the
 tree at the previous revision of the recovery), the median time changes by
-+0.5% for `golang.zp` (57.31 and 57.58 ms) and by +0.2% for `python.zp`, and
++0.5% for `golang.sxir` (57.31 and 57.58 ms) and by +0.2% for `python.sxir`, and
 the bytes allocated per iteration by +6.1% and +1.5%. A run of 7 iterations
 had shown +6.6% in time and +16% and +14% in bytes; that was a measure at too
 small a count, because the memo chunks a parse takes are kept for the next
 parse, so the bytes of an iteration depend on how many iterations run. With a
-memory profile of 300 iterations of `golang.zp`, the bytes allocated in the
+memory profile of 300 iterations of `golang.sxir`, the bytes allocated in the
 adapter's parse grow by 132 MB of 10,698 MB (+1.2%), of which 105 MB is in
 `MemoTable.Alloc`, 14 MB in the first call of a memoized rule and 3 MB in
 `MemoPut`; every other function allocates the same. The measured grammar has 264

@@ -1,6 +1,6 @@
 package action
 
-import "zeroparse.dev/zp/internal/ir/code"
+import "syntaxir.dev/sxir/internal/ir/code"
 
 // The handle type of applying a term.
 const (

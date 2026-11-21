@@ -6,15 +6,15 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/frontend/parser"
-	"zeroparse.dev/zp/internal/syntax/fmt"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/syntax/fmt"
 )
 
 var formatBenchmarkOutput string
 
 func BenchmarkGrammarFormatCancellation(b *testing.B) {
 	sources := map[string]string{"long-literal": `rule main = "` + strings.Repeat("x", 8192) + `"`}
-	for name, path := range map[string]string{"json": "../../../testdata/grammars/json/json.zp", "source-grammar": "../../../zp.zp"} {
+	for name, path := range map[string]string{"json": "../../../testdata/grammars/json/json.sxir", "source-grammar": "../../../sxir.sxir"} {
 		data, err := os.ReadFile(path)
 		if err != nil {
 			b.Fatal(err)

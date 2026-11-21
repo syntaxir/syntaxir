@@ -1,6 +1,6 @@
 package check
 
-import "zeroparse.dev/zp/internal/frontend/types"
+import "syntaxir.dev/sxir/internal/frontend/types"
 
 // The type model lives in internal/frontend/types. The checker names it unqualified through these aliases.
 

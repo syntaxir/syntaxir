@@ -1,4 +1,4 @@
-//go:build !zp_snapshot_sharing_reference
+//go:build !sxir_snapshot_sharing_reference
 
 package document
 
@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/pkg/runtime"
-	valueimpl "zeroparse.dev/zp/pkg/runtime/value/impl"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/pkg/runtime"
+	valueimpl "syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 func TestSnapshotSharedStringComparisonRespectsBudgetLimit(t *testing.T) {

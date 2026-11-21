@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"reflect"
 
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // The dependency memo of left recursion, the same as the engine's (see "Evaluations of Rules" in
@@ -75,7 +75,7 @@ const (
 // result read a seed of the context, so their results stay in the context too; the memo entry of the
 // leader is the only one that such a reuse can reach, and it was made by those frames.
 type ctxResult struct {
-	node     *zpvalue.Node
+	node     *sxirvalue.Node
 	val      any
 	errs     recEntry
 	expected []ExpID
@@ -1059,7 +1059,7 @@ func (p *Parser) growLonger(g *growState, ok bool) bool {
 // growAdopt adopts the successful longer step of a growth outside a context, a node or a typed value,
 // with the errors errs that it recovered, as its seed, and returns to the start of the growth. The
 // caller drops the errors after the growth's mark.
-func (p *Parser) growAdopt(g *growState, node *zpvalue.Node, val any, errs recEntry) {
+func (p *Parser) growAdopt(g *growState, node *sxirvalue.Node, val any, errs recEntry) {
 	p.Spend()
 	p.gamma[g.gi].inl = ctxResult{node: node, val: val, ok: true, end: p.Pos, examined: p.examinedNow(), errs: errs}
 	p.gamma[g.gi].id = p.nextSeedID()
@@ -1070,7 +1070,7 @@ func (p *Parser) growAdopt(g *growState, node *zpvalue.Node, val any, errs recEn
 // errors errs that it recovered if it succeeded, and adopts it as the seed if the match grew. It does not
 // change the recovered errors: the printed growth lists the errors of the step with recSince and drops
 // them after the step.
-func (p *Parser) growStep(g *growState, node *zpvalue.Node, val any, ok bool, errs recEntry) {
+func (p *Parser) growStep(g *growState, node *sxirvalue.Node, val any, ok bool, errs recEntry) {
 	id := p.gamma[g.gi].id
 	_, ds := p.popFrame()
 	far, inner := p.Unisolate(g.exp)
@@ -1329,7 +1329,7 @@ func (p *Parser) canonicalSeed(g *growState, e *ctxResult) (*ctxResult, uint64) 
 // nodesEqual reports whether two trees are equal, comparing at most *budget pairs of distinct nodes
 // (false beyond: two results that are not shown equal get different identities, which costs only
 // reuse).
-func (p *Parser) nodesEqual(a, b *zpvalue.Node, budget *int) bool {
+func (p *Parser) nodesEqual(a, b *sxirvalue.Node, budget *int) bool {
 	if a == b {
 		return true
 	}
@@ -1354,8 +1354,8 @@ func (p *Parser) nodesEqual(a, b *zpvalue.Node, budget *int) bool {
 		if fa.Name != fb.Name {
 			return false
 		}
-		na, aok := fa.Value.(*zpvalue.Node)
-		nb, bok := fb.Value.(*zpvalue.Node)
+		na, aok := fa.Value.(*sxirvalue.Node)
+		nb, bok := fb.Value.(*sxirvalue.Node)
 		switch {
 		case aok && bok:
 			if !p.nodesEqual(na, nb, budget) {

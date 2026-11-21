@@ -1,19 +1,19 @@
-# Generating Parsers With `zp gen`
+# Generating Parsers With `sxir gen`
 
-`zp gen` turns a grammar into Go source files: a parser package you commit to your repository, build with your program, and
-call like any other package. By default the generated Go package depends only on the packages under `zeroparse.dev/zp/pkg/runtime` (`value`, `input`, `instrument`, `value/impl` and the runtime package itself), which define the
-nodes and errors that the compiled parsers return too, and on the standard library: it carries a copy of the ZeroParse library
+`sxir gen` turns a grammar into Go source files: a parser package you commit to your repository, build with your program, and
+call like any other package. By default the generated Go package depends only on the packages under `syntaxir.dev/sxir/pkg/runtime` (`value`, `input`, `instrument`, `value/impl` and the runtime package itself), which define the
+nodes and errors that the compiled parsers return too, and on the standard library: it carries a copy of the SyntaxIR library
 of generated parsers in its `internal/libgo` directory, and it does not load or compile the grammar at run time.
 
 This guide shows how to generate a parser, what the generator supports compared with the engine (the `runtime.Parser` of
 [Running Parsers](running-parsers.md)), how to keep generated code up to date, and when it is the right choice. The API
 of the generated Go package is in [The Generated Go API](generated-go-api.md), and the options that add typed values,
-documents and streams have guides of their own, linked below. `zp gen -lang ts` generates
+documents and streams have guides of their own, linked below. `sxir gen -lang ts` generates
 TypeScript modules with the same behavior instead; it has a guide of its own, [TypeScript parsers](typescript.md).
 
 - [Why generate](#why-generate)
 - [Quick start](#quick-start)
-- [The `zp gen` command](#the-zp-gen-command)
+- [The `sxir gen` command](#the-sxir-gen-command)
 - [What is supported](#what-is-supported)
 - [Keeping generated code up to date](#keeping-generated-code-up-to-date)
 - [Trade-offs](#trade-offs)
@@ -23,15 +23,15 @@ TypeScript modules with the same behavior instead; it has a guide of its own, [T
 
 | | Compiled parser (`compiler.Compile`) | Generated parser |
 |:--|:--|:--|
-| Speed | Bytecode VM by default | Generated Go takes 0.44–0.61× closure time in CodePoints and 0.50–0.66× in Bytes; direct typed values take 0.69–0.98× generated `Parse` time ([benchmarks](../benchmarks.md), [analysis](../performance.md#where-zeroparse-stands)) |
-| Dependencies | `zeroparse.dev/zp` | `zeroparse.dev/zp/pkg/runtime` and its subpackages only (the library is copied into the package; `-lib import` imports it from `zeroparse.dev/zp/pkg/runtime/libgo` instead) |
-| Grammar at run time | Loaded and compiled (or loaded from `.zpc`) | Gone: it is compiled into Go code |
+| Speed | Bytecode VM by default | Generated Go takes 0.44–0.61× closure time in CodePoints and 0.50–0.66× in Bytes; direct typed values take 0.69–0.98× generated `Parse` time ([benchmarks](../benchmarks.md), [analysis](../performance.md#where-syntaxir-stands)) |
+| Dependencies | `syntaxir.dev/sxir` | `syntaxir.dev/sxir/pkg/runtime` and its subpackages only (the library is copied into the package; `-lib import` imports it from `syntaxir.dev/sxir/pkg/runtime/libgo` instead) |
+| Grammar at run time | Loaded and compiled (or loaded from `.sxirc`) | Gone: it is compiled into Go code |
 | Grammar changes | Edit the grammar, restart | Regenerate and rebuild |
 | Recognition (no tree) | `Recognize` | `Recognize`, with [`-recognize`](generated-go-api.md#recognition--recognize) |
 | Streaming, incremental, backends | Yes | Go Node `ParseStream` with `-stream` (`-types` adds `ParseStreamValue`); Go Node `Document` with `-document`; `-types` adds `Document.ParseValue`, using direct incremental matching for eligible grammars and Node conversion otherwise. No backend choice (see [what is supported](#what-is-supported)) |
 
 Generate a parser when the grammar is fixed, the parser is on a hot path or in a small binary, or you want no
-dependency on ZeroParse at run time. Use the engine when the grammar is data. For streams of Nodes, generate a Go
+dependency on SyntaxIR at run time. Use the engine when the grammar is data. For streams of Nodes, generate a Go
 `ParseStream` with `-stream`; for incremental Node parsing, generate a Go `Document` with `-document`. The engine offers
 the broader stream and Document APIs.
 A good deal of the time you can use both: the engine in tools and tests, and the generated code in production
@@ -43,10 +43,10 @@ change what your code sees. The test suite checks this for every grammar in `exa
 
 ## Quick Start
 
-A complete, runnable setup. The grammar, `pairs.zp`, is the one used in the [Running Parsers](running-parsers.md):
+A complete, runnable setup. The grammar, `pairs.sxir`, is the one used in the [Running Parsers](running-parsers.md):
 
-```zp
-// pairs.zp
+```sxir
+// pairs.sxir
 type Pair = { Key node[string]; Value node[string] }
 
 @start(default)
@@ -64,7 +64,7 @@ package (see [why its own package](#one-grammar-one-package)):
 ```text
 example.com/pairs
 ├── go.mod
-├── pairs.zp
+├── pairs.sxir
 ├── generate.go
 ├── main.go
 └── pairsparser/        # created by go generate
@@ -73,21 +73,21 @@ example.com/pairs
     └── internal/libgo/   # and, with -types, types/types.go
 ```
 
-Record `zp` as a tool dependency of the module, so that `go generate` runs the pinned version and nobody needs a
+Record `sxir` as a tool dependency of the module, so that `go generate` runs the pinned version and nobody needs a
 separate install:
 
 ```bash
-go get -tool zeroparse.dev/zp/cmd/zp
+go get -tool syntaxir.dev/sxir/cmd/sxir
 ```
 
-This adds a `tool zeroparse.dev/zp/cmd/zp` line to `go.mod`. Then declare the generation step with a
-`go:generate` directive; `zp gen` creates the output directory:
+This adds a `tool syntaxir.dev/sxir/cmd/sxir` line to `go.mod`. Then declare the generation step with a
+`go:generate` directive; `sxir gen` creates the output directory:
 
 ```go
 // generate.go
 package main
 
-//go:generate go tool zp gen -g pairs.zp -module example.com/pairs/pairsparser -o pairsparser
+//go:generate go tool sxir gen -g pairs.sxir -module example.com/pairs/pairsparser -o pairsparser
 ```
 
 ```bash
@@ -95,19 +95,19 @@ go generate ./...
 ```
 
 `-module` is the import path of the generated package, which the copy of the library in `pairsparser/internal/libgo`
-is imported by; `-o` is the output directory, which `zp gen` creates. The result is `pairsparser/parser.go`, with the
+is imported by; `-o` is the output directory, which `sxir gen` creates. The result is `pairsparser/parser.go`, with the
 code generated from the grammar, `pairsparser/api.go`, which re-exports the names the users of the parser need
 (`Node`, `SyntaxError` and so on), the library copy and, with `-types`, `pairsparser/types/types.go`, the package of the Go types of the grammar (the `-module` path is then required). `parser.go` starts with:
 
 ```go
-// Code generated by zp v0.1.0. DO NOT EDIT.
+// Code generated by sxir v0.1.0. DO NOT EDIT.
 
-// Package pairsparser is a parser generated from a ZeroParse grammar.
+// Package pairsparser is a parser generated from a SyntaxIR grammar.
 package pairsparser
 ```
 
-The first line of every generated file names the version of `zp` that wrote it (`(devel)` for a `zp` run from a
-checkout with `go run`; `go build ./cmd/zp` in a checkout stamps a pseudo-version of its commit instead), so that a parser can be checked against security advisories, which name affected versions the
+The first line of every generated file names the version of `sxir` that wrote it (`(devel)` for a `sxir` run from a
+checkout with `go run`; `go build ./cmd/sxir` in a checkout stamps a pseudo-version of its commit instead), so that a parser can be checked against security advisories, which name affected versions the
 same way. One version always writes the same header, so regeneration stays reproducible.
 
 Now use it:
@@ -169,24 +169,24 @@ true 1 5 [[0-9]] 1:5: syntax error: expected [0-9]
 
 The output is exactly what the engine prints for the same grammar and input.
 
-## The `zp gen` Command
+## The `sxir gen` Command
 
 ```bash
-zp gen -g <grammar> -module <import path> -o <directory> [-lang go] [-pkg <package>] [-lib embed|import|only] [-s <rule>] [-types] [-document] [-stream] [-recognize] [-typed-only] [-recognize-only] [-expectations] [-observability] [-limits] [-source-info] [-default-value] [-nodoc] [-max-depth <n>] [-optimize speed|memory|size] [-opt <name[=count],...>] [-no-opt <name,...>] [-print-after <pass,...>]
-zp gen -lang ts -g <grammar> -o <directory> [-lib embed|import|only] [-lib-module <specifier>] [-s <rule>] [-types] [-recognize] [-expectations] [-observability] [-limits] [-source-info] [-default-value] [-max-depth <n>] [-optimize speed|memory|size] [-opt <name[=count],...>] [-no-opt <name,...>] [-print-after <pass,...>]
-zp gen -lib only -o <directory> [-lang go|ts]
+sxir gen -g <grammar> -module <import path> -o <directory> [-lang go] [-pkg <package>] [-lib embed|import|only] [-s <rule>] [-types] [-document] [-stream] [-recognize] [-typed-only] [-recognize-only] [-expectations] [-observability] [-limits] [-source-info] [-default-value] [-nodoc] [-max-depth <n>] [-optimize speed|memory|size] [-opt <name[=count],...>] [-no-opt <name,...>] [-print-after <pass,...>]
+sxir gen -lang ts -g <grammar> -o <directory> [-lib embed|import|only] [-lib-module <specifier>] [-s <rule>] [-types] [-recognize] [-expectations] [-observability] [-limits] [-source-info] [-default-value] [-max-depth <n>] [-optimize speed|memory|size] [-opt <name[=count],...>] [-no-opt <name,...>] [-print-after <pass,...>]
+sxir gen -lib only -o <directory> [-lang go|ts]
 ```
 
 | Flag | Default | Meaning |
 |:--|:--|:--|
 | `-lang` | `go` | The language: `go`, or `ts` for TypeScript (see [TypeScript parsers](typescript.md)) |
-| `-g` | (required, except with `-lib only`) | The grammar: `.zp` or `.json` |
+| `-g` | (required, except with `-lib only`) | The grammar: `.sxir` or `.json` |
 | `-module` | (required for Go with `-lib embed`) | The import path of the generated package. The copy of the library is imported by `<module>/internal/libgo`. With `-lib import`, `-pkg` can stand in for it, since the package then needs no import path of its own. |
 | `-pkg` | last element of `-module`, without a major version suffix (`example.com/m/v2` gives `m`) | The package name of the generated code. It must be a valid Go identifier; a module path whose last element is not one (`my-parser`) needs `-pkg`. |
-| `-lib` | `embed` | How the generated code reaches the library: `embed` writes a copy (Go: `internal/libgo`; TypeScript: `lib.ts`), `import` imports it (Go: `zeroparse.dev/zp/pkg/runtime/libgo`; TypeScript: the module of `-lib-module`), and `only` writes just the copy, to refresh it without regenerating the parser. `only` takes only `-o`; a grammar or any other generation flag is an error |
+| `-lib` | `embed` | How the generated code reaches the library: `embed` writes a copy (Go: `internal/libgo`; TypeScript: `lib.ts`), `import` imports it (Go: `syntaxir.dev/sxir/pkg/runtime/libgo`; TypeScript: the module of `-lib-module`), and `only` writes just the copy, to refresh it without regenerating the parser. `only` takes only `-o`; a grammar or any other generation flag is an error |
 | `-lib-module` | (required for TypeScript with `-lib import`) | The module specifier that the generated TypeScript imports the library from, for example `../shared/lib.ts`. An error otherwise, and for Go |
 | `-s` | the default start rule | The start rule of the generated `Parse` function |
-| `-o` | (required) | The output directory (it is created). Generated files that the new run does not write again are removed, but `-lib only` never removes `parser.go`, `api.go`, `types/types.go`, `parser.ts` or `types.ts`, and no file without the `// Code generated by zp <version>. DO NOT EDIT.` header is replaced or removed: `zp gen` stops with an error instead. |
+| `-o` | (required) | The output directory (it is created). Generated files that the new run does not write again are removed, but `-lib only` never removes `parser.go`, `api.go`, `types/types.go`, `parser.ts` or `types.ts`, and no file without the `// Code generated by sxir <version>. DO NOT EDIT.` header is replaced or removed: `sxir gen` stops with an error instead. |
 | `-types` | off | Also generate the Go types for the grammar's types, in the package `<module>/types`, and `ParseValue` (see [typed values](generated-typed-values.md)) |
 | `-document` | off | Also generate the incremental Node `Document` API (`createDocument` in TypeScript); with `-types`, it also exposes `Document.ParseValue` (`parseValue` in TypeScript) (see [incremental documents](generated-documents.md)) |
 | `-stream` | off | Also generate the Go Node `ParseStream` (see [streams](generated-streams.md)); the start rule must have a `#stream` repetition; with `-types` it also generates `ParseStreamValue`, and it cannot be combined with `-lang ts` |
@@ -198,8 +198,8 @@ zp gen -lib only -o <directory> [-lang go|ts]
 | `-observability` | off | Emit opt-in tracing and profiling for Go or TypeScript parsers; combines with `-types`, `-recognize`, and Go `-document` and `-stream` (see [generated parser tracing and profiling](debugging.md#generated-go-node-and-typed-traces)) |
 | `-max-depth` | `0` | Default nested recursive rule-call limit in the generated parser; zero selects 100,000, a positive value overrides it, and negatives fail generation |
 | `-default-value` | off | Make the parser return the default node tree: value actions and declared rule types are dropped, predicates still run (see [Default Values](../../spec/language/actions.md#default-values)). Cannot be combined with `-types` |
-| `-source-info` | off | Make the parser record the rule of each node and the names of captures, so that results can be printed with them (as `zp parse -source-info` does) |
-| `-nodoc` | off | Leave out the package comment (`// Package p is a parser generated from a ZeroParse grammar.`), for a package that has its own documentation in another file |
+| `-source-info` | off | Make the parser record the rule of each node and the names of captures, so that results can be printed with them (as `sxir parse -source-info` does) |
+| `-nodoc` | off | Leave out the package comment (`// Package p is a parser generated from a SyntaxIR grammar.`), for a package that has its own documentation in another file |
 | `-optimize` | `speed` | The optimization profile (see [Optimizations](#optimizations)). `speed`, `memory` or `size`; any other name is an error that lists the valid ones |
 | `-opt` | none | Optimizations to give a value after the profile is applied and before `-no-opt`, separated by commas, as `name` or `name=count`: a name alone turns on an optimization that the profile leaves off (`-opt ts-literal-sharing`), a count sets an integer one (`-opt class-tables=3`), and `0` turns one off. An unknown name, a count that is not a number, or a value that the optimization does not take is an error |
 | `-no-opt` | none | Optimizations to turn off after the profile is applied, separated by commas (names in [Optimizations](#optimizations)). A name that is unknown is an error; a known name that does not apply to the parser being generated does nothing |
@@ -214,64 +214,64 @@ Details:
   error:
 
   <!-- example: error -->
-  ```zp
-  // broken.zp
+  ```sxir
+  // broken.sxir
   @start
   rule main =
   ```
 
   ```bash
-  zp gen -g broken.zp -module example.com/pairs -o /dev/null
+  sxir gen -g broken.sxir -module example.com/pairs -o /dev/null
   ```
 
   ```text
-  zp: broken.zp:4:1: expected an expression, found end of file
+  sxir: broken.sxir:4:1: expected an expression, found end of file
   ```
 
   An action that reads a capture the rule does not have is a compile error:
 
   <!-- example: error -->
-  ```zp
-  // typeerr.zp
+  ```sxir
+  // typeerr.sxir
   @start
   rule main = x:[a-z]+ => $y
   ```
 
   ```bash
-  zp gen -g typeerr.zp -module example.com/pairs -o /dev/null
+  sxir gen -g typeerr.sxir -module example.com/pairs -o /dev/null
   ```
 
   ```text
-  zp: typeerr.zp:3:25: undefined capture $y
+  sxir: typeerr.sxir:3:25: undefined capture $y
   ```
 
   ```bash
-  zp gen -g pairs.zp -module example.com/pairs -s nope -o /dev/null
+  sxir gen -g pairs.sxir -module example.com/pairs -s nope -o /dev/null
   ```
 
   ```text
-  zp: pairs.zp: rule nope is not defined
+  sxir: pairs.sxir: rule nope is not defined
   ```
 
   ```bash
-  zp gen -g pairs.zp -module example.com/pairs -pkg foo-bar -o /dev/null
+  sxir gen -g pairs.sxir -module example.com/pairs -pkg foo-bar -o /dev/null
   ```
 
   ```text
-  zp: pairs.zp: invalid package name "foo-bar"
+  sxir: pairs.sxir: invalid package name "foo-bar"
   ```
 
-- A `.zpc` cannot be used, because code generation needs the grammar and a compiled grammar holds only bytecode:
-  `zp: pairs.zpc: a compiled grammar holds only the bytecode of one mode; gen needs the grammar source (.zp or .json)`.
+- A `.sxirc` cannot be used, because code generation needs the grammar and a compiled grammar holds only bytecode:
+  `sxir: pairs.sxirc: a compiled grammar holds only the bytecode of one mode; gen needs the grammar source (.sxir or .json)`.
 - Without `-s`, the grammar's default start rule is used.
-- The module of the generated package requires `zeroparse.dev/zp` (`go get zeroparse.dev/zp@vX.Y.Z`, the version of
-  `zp`): the generated code imports the packages of `zeroparse.dev/zp/pkg/runtime` with either `-lib` mode, and with `-lib import` also
-  `zeroparse.dev/zp/pkg/runtime/libgo`. Both refer to the library protocol they were generated for, so a mismatched
+- The module of the generated package requires `syntaxir.dev/sxir` (`go get syntaxir.dev/sxir@vX.Y.Z`, the version of
+  `sxir`): the generated code imports the packages of `syntaxir.dev/sxir/pkg/runtime` with either `-lib` mode, and with `-lib import` also
+  `syntaxir.dev/sxir/pkg/runtime/libgo`. Both refer to the library protocol they were generated for, so a mismatched
   version fails the build on that line instead of misbehaving. With `-lib import`, `parser.go` declares
   `const _ = rt.Protocol23`, and a library that does not implement the protocol fails with
   `undefined: rt.Protocol23`. The embedded copy declares `const _ = valueimpl.Protocol15`, and a `pkg/runtime/value/impl` package that does
   not serve the node representation of that protocol fails with `undefined: valueimpl.Protocol15`. Regenerate the
-  parser with the `zp` of the required version, or require a version of `zeroparse.dev/zp` that implements the
+  parser with the `sxir` of the required version, or require a version of `syntaxir.dev/sxir` that implements the
   protocol.
 
 ### Choosing Entry Points
@@ -364,10 +364,10 @@ Code IR at the Exec stage; the Flow and Exec passes print each function they run
 
 ### From Go
 
-The same generator is available from Go, in package `zeroparse.dev/zp/pkg/compiler`, for build tools that produce parsers programmatically:
+The same generator is available from Go, in package `syntaxir.dev/sxir/pkg/compiler`, for build tools that produce parsers programmatically:
 
 ```go
-files, err := compiler.GenerateGo(grammar.FromString("grammar.zp", src),
+files, err := compiler.GenerateGo(grammar.FromString("grammar.sxir", src),
 	compiler.GoConfig{Module: "example.com/pairs/pairsparser"}, compiler.WithStart("main")) // grammar, config, start rule
 if err != nil {
 	log.Fatal(err)
@@ -383,9 +383,9 @@ for _, f := range files { // parser.go, api.go, types/types.go with Types, and t
 }
 ```
 
-The fields of `compiler.GoConfig` are the flags of `zp gen`: `Module` is `-module`; `Types: true` is `-types`; `Document` is `-document`; `Stream` is `-stream`; `Recognize` is `-recognize`; `TypedOnly` is `-typed-only`; `RecognizeOnly` is `-recognize-only`; `LimitControls` is `-limits`; `Observability` is `-observability`; `OmitPackageDoc` is `-nodoc`; `Lib: compiler.LibImport` is `-lib import`; `PackageName: "p"` is `-pkg p`; and `MaxDepth: 600_000` is `-max-depth 600000`; and `PrintAfter` with `PrintTo` is `-print-after` (it needs a writer, such as `os.Stderr`). `compiler.TSConfig` has the same fields except for `Stream`, `TypedOnly`, `RecognizeOnly` and `PackageName`, and takes `LibModule` for `-lib-module`. The options of `compiler.GenerateGo` and `compiler.GenerateTypeScript` set the rest: `compiler.WithSourceInfo()` is `-source-info`, `compiler.WithDefaultValue()` is `-default-value`, and `compiler.WithOptimize(compiler.Optimize{Profile: "size", Values: map[string]int{"class-tables": 3}, Off: []string{"guards"}})` is `-optimize size -opt class-tables=3 -no-opt guards`. Omitted, zero and explicit 100,000 defaults generate identical source. Observability supports standalone Go Node and typed batch parsers, including `ParseValue` and `ParseRuleValue`, Go Documents and streams, and TypeScript batch parsers with or without `-types`. Generated Go Node, typed and Document packages expose `WithProfile`; TypeScript batch packages expose `Profile` through per-call options. Typed direct execution and Node-conversion fallback report their actual rule calls; conversion itself has no separate event. Invalid defaults return an error before generated output is written.
+The fields of `compiler.GoConfig` are the flags of `sxir gen`: `Module` is `-module`; `Types: true` is `-types`; `Document` is `-document`; `Stream` is `-stream`; `Recognize` is `-recognize`; `TypedOnly` is `-typed-only`; `RecognizeOnly` is `-recognize-only`; `LimitControls` is `-limits`; `Observability` is `-observability`; `OmitPackageDoc` is `-nodoc`; `Lib: compiler.LibImport` is `-lib import`; `PackageName: "p"` is `-pkg p`; and `MaxDepth: 600_000` is `-max-depth 600000`; and `PrintAfter` with `PrintTo` is `-print-after` (it needs a writer, such as `os.Stderr`). `compiler.TSConfig` has the same fields except for `Stream`, `TypedOnly`, `RecognizeOnly` and `PackageName`, and takes `LibModule` for `-lib-module`. The options of `compiler.GenerateGo` and `compiler.GenerateTypeScript` set the rest: `compiler.WithSourceInfo()` is `-source-info`, `compiler.WithDefaultValue()` is `-default-value`, and `compiler.WithOptimize(compiler.Optimize{Profile: "size", Values: map[string]int{"class-tables": 3}, Off: []string{"guards"}})` is `-optimize size -opt class-tables=3 -no-opt guards`. Omitted, zero and explicit 100,000 defaults generate identical source. Observability supports standalone Go Node and typed batch parsers, including `ParseValue` and `ParseRuleValue`, Go Documents and streams, and TypeScript batch parsers with or without `-types`. Generated Go Node, typed and Document packages expose `WithProfile`; TypeScript batch packages expose `Profile` through per-call options. Typed direct execution and Node-conversion fallback report their actual rule calls; conversion itself has no separate event. Invalid defaults return an error before generated output is written.
 
-`zp gen` is a thin wrapper around `compiler.GenerateGo` (and `compiler.GenerateTypeScript` with `-lang ts`, which returns the files too). Because a grammar built with the `ast` package (see the
+`sxir gen` is a thin wrapper around `compiler.GenerateGo` (and `compiler.GenerateTypeScript` with `-lang ts`, which returns the files too). Because a grammar built with the `ast` package (see the
 [Running Parsers](running-parsers.md#from-go-values-programmatic-grammars)) is just an AST, it can be generated from, too.
 
 When `-observability` is enabled, the generated Go or TypeScript package
@@ -447,22 +447,22 @@ Notes:
 ## Keeping Generated Code Up to Date
 
 Generated code is source: commit it, review its diffs, and regenerate it whenever the grammar changes **or you upgrade
-ZeroParse** (the embedded library comes from the version of `zp` that generated it). Three habits keep it honest.
+SyntaxIR** (the embedded library comes from the version of `sxir` that generated it). Three habits keep it honest.
 
 **1. Generate with `go generate`.** Put the directive next to the grammar, as in [Quick start](#quick-start), and run `go generate ./...`. Pin the generator with
-`go get -tool` as shown above. (`go install zeroparse.dev/zp/cmd/zp@latest` and
-`//go:generate zp gen ...` works, too, but every developer then has to install a matching version.) With several grammars, add one directive per grammar.
+`go get -tool` as shown above. (`go install syntaxir.dev/sxir/cmd/sxir@latest` and
+`//go:generate sxir gen ...` works, too, but every developer then has to install a matching version.) With several grammars, add one directive per grammar.
 
 **2. Test that it is up to date.** A test regenerates in memory and compares with the committed file; it fails with a
 reminder when somebody changed the grammar and forgot to regenerate:
 
 ```go
-//go:embed pairs.zp
+//go:embed pairs.sxir
 var grammarSrc string
 
-// The files of pairsparser are up to date with pairs.zp.
+// The files of pairsparser are up to date with pairs.sxir.
 func TestGeneratedIsUpToDate(t *testing.T) {
-	want, err := compiler.GenerateGo(grammar.FromString("grammar.zp", grammarSrc),
+	want, err := compiler.GenerateGo(grammar.FromString("grammar.sxir", grammarSrc),
 		compiler.GoConfig{Module: "example.com/pairs/pairsparser"}, compiler.WithStart("main"))
 	if err != nil {
 		t.Fatal(err)
@@ -479,7 +479,7 @@ func TestGeneratedIsUpToDate(t *testing.T) {
 }
 ```
 
-If you change `pairs.zp` (here: `rule value =  [0-9a-f]+ #atomic `) and skip regeneration, the test fails. Among the output:
+If you change `pairs.sxir` (here: `rule value =  [0-9a-f]+ #atomic `) and skip regeneration, the test fails. Among the output:
 
 ```text
 --- FAIL: TestGeneratedIsUpToDate (0.00s)
@@ -494,7 +494,7 @@ protects you from the two diverging (for example after an upgrade):
 
 ```go
 func TestGeneratedMatchesEngine(t *testing.T) {
-	p, err := compiler.Compile(grammar.FromString("grammar.zp", grammarSrc), compiler.WithStart("main"))
+	p, err := compiler.Compile(grammar.FromString("grammar.sxir", grammarSrc), compiler.WithStart("main"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -522,21 +522,21 @@ and inputs that exercise each feature of your grammar.
   `go run ./bench/report` to measure yours.
 - **Binary and repository size.** Each generated parser adds source that you commit and that compiles into your
   binary: `parser.go` and `api.go`, with `-types` `types/types.go`, and with `-lib embed` a copy of the library in `internal/libgo` (the same for
-  every grammar; `-lib import` shares one copy through `zeroparse.dev/zp/pkg/runtime/libgo` instead). It does not pull in
-  ZeroParse's compiler, analyzer or VMs.
+  every grammar; `-lib import` shares one copy through `syntaxir.dev/sxir/pkg/runtime/libgo` instead). It does not pull in
+  SyntaxIR's compiler, analyzer or VMs.
 - **Start-up.** There is none: no grammar to parse or compile. If start-up time is the only concern and a source file
-  is acceptable, loading a [`.zpc`](compiled-grammars.md) is the cheaper alternative.
+  is acceptable, loading a [`.sxirc`](compiled-grammars.md) is the cheaper alternative.
 - **Flexibility.** The grammar is frozen into the binary. Changing it means regenerating, rebuilding and redeploying;
   if users supply grammars at run time, use the engine.
 - **Features.** No backend choice; streaming requires `-stream` and incremental Node parsing `-document` (see
   [what is supported](#what-is-supported)).
-- **Review noise.** Large diffs on regeneration (particularly after upgrading ZeroParse) are expected. Mark the files as
-  generated for your review tool: the first line, `// Code generated by zp <version>. DO NOT EDIT.`, follows the Go
+- **Review noise.** Large diffs on regeneration (particularly after upgrading SyntaxIR) are expected. Mark the files as
+  generated for your review tool: the first line, `// Code generated by sxir <version>. DO NOT EDIT.`, follows the Go
   convention that tools recognize.
 - **Typed values.** `Parse` returns generic `*Node` trees like the engine, which is what makes the two interchangeable.
   For Go types matching the grammar's types, generate with [`-types`](generated-typed-values.md) and call `ParseValue`;
   for types of your own, write a small conversion from `*Node` or from the typed values, as
-  [alpha-parsers/json](https://github.com/zeroparse/alpha-parsers/blob/main/json/json.go) does (`ToAny`).
+  [alpha-parsers/json](https://github.com/syntaxir/alpha-parsers/blob/main/json/json.go) does (`ToAny`).
 
 ## Recipes
 
@@ -555,14 +555,14 @@ want several entry points of one grammar, use `ParseRule` rather than generating
 
 ### Engine in Development, Generated in Production
 
-Keep one `.zp` file. Use `zp parse` and the compiled parser (`compiler.Compile`) in tools, experiments and tests, where start-up
+Keep one `.sxir` file. Use `sxir parse` and the compiled parser (`compiler.Compile`) in tools, experiments and tests, where start-up
 and features matter more than speed; generate the production parser from the same file; and let the
 [parity test](#keeping-generated-code-up-to-date) prove they agree.
 
 ### Choosing the Start Rule
 
 Mark every rule where parsing may begin with `@start`, and the usual entry rule with `@start(default)`, so that
-`Parse` is the common case; `-s` (for example `zp gen -g lang.zp -module example.com/lang -s program`) selects
+`Parse` is the common case; `-s` (for example `sxir gen -g lang.sxir -module example.com/lang -s program`) selects
 another start rule for `Parse`. Use `ParseRule("expr", input)` for the other start rules, for example for an
 expression evaluator embedded in a larger tool.
 

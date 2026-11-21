@@ -12,7 +12,7 @@ the value of the level inside it twice and doubles with the depth. Copies made a
 of a value that the next level does not read, cost the size of the value of the call each time, which adds up to n² over
 the levels, and are polynomial of degree 2.
 
-```zp
+```sxir
 @start
 rule main = E $$
 

@@ -3,7 +3,7 @@ package libgo
 import (
 	"slices"
 
-	zpinstrument "zeroparse.dev/zp/pkg/runtime/instrument"
+	sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
 )
 
 // WithTrace observes actual generated calls synchronously. With several
@@ -11,14 +11,14 @@ import (
 // options; a nil function is ignored. Callback panics propagate unchanged after
 // cleanup; an aborted parse can omit exit events. The events carry no parser
 // state: their LineCol, Text, Failure and Recovered return zero values.
-func WithTrace(trace func(zpinstrument.TraceEvent)) ParseOption {
+func WithTrace(trace func(sxirinstrument.TraceEvent)) ParseOption {
 	return func(o *parseOptions) {
 		switch prev := o.observe.trace; {
 		case trace == nil:
 		case prev == nil:
 			o.observe.trace = trace
 		default:
-			o.observe.trace = func(e zpinstrument.TraceEvent) {
+			o.observe.trace = func(e sxirinstrument.TraceEvent) {
 				prev(e)
 				trace(e)
 			}
@@ -31,7 +31,7 @@ func WithTrace(trace func(zpinstrument.TraceEvent)) ParseOption {
 // exclude the trace functions. With several WithProfile options, each profile
 // records the parse; a nil profile is ignored. A Profile must not be shared by
 // concurrent parses.
-func WithProfile(profile *zpinstrument.Profile) ParseOption {
+func WithProfile(profile *sxirinstrument.Profile) ParseOption {
 	return func(o *parseOptions) {
 		switch {
 		case profile == nil:
@@ -63,8 +63,8 @@ func WithTraceMaxDepth(n int) ParseOption {
 // function (the trace functions of the options in order), the first profile and
 // the rarer options, which an unobserved parse carries as one nil pointer.
 type observeOptions struct {
-	trace   func(zpinstrument.TraceEvent)
-	profile *zpinstrument.Profile
+	trace   func(sxirinstrument.TraceEvent)
+	profile *sxirinstrument.Profile
 	extras  *observeExtras
 }
 
@@ -72,7 +72,7 @@ type observeOptions struct {
 // depth limit. Options replace them instead of changing them, since a
 // Document's defaults share them with each parse.
 type observeExtras struct {
-	more     []*zpinstrument.Profile
+	more     []*sxirinstrument.Profile
 	rules    []string
 	maxDepth int
 }
@@ -135,10 +135,10 @@ func (o *observation) dropDiscarded(pos int) {
 
 // Of its fields and methods, Enter, Evaluated, Exit, Skipped are for generated parsers; not a stable API.
 type observation struct {
-	trace func(zpinstrument.TraceEvent)
+	trace func(sxirinstrument.TraceEvent)
 	// profiles record the parse; one holds them when there is one.
-	profiles []*zpinstrument.ProfileRecorder
-	one      [1]*zpinstrument.ProfileRecorder
+	profiles []*sxirinstrument.ProfileRecorder
+	one      [1]*sxirinstrument.ProfileRecorder
 	rules    map[string]bool
 	maxDepth int
 	silent   *int
@@ -146,7 +146,7 @@ type observation struct {
 }
 
 type observationCall struct {
-	event    zpinstrument.TraceEvent
+	event    sxirinstrument.TraceEvent
 	selected bool
 }
 
@@ -157,7 +157,7 @@ type tracePanic struct{ value any }
 // record adds e to the profiles and delivers it to the trace function. The
 // profiles record e first and resume after the trace function returns, so that
 // profile times exclude it. e is read before record returns and not kept.
-func (o *observation) record(e *zpinstrument.TraceEvent, selected bool) {
+func (o *observation) record(e *sxirinstrument.TraceEvent, selected bool) {
 	for _, r := range o.profiles {
 		r.Record(*e)
 	}
@@ -170,7 +170,7 @@ func (o *observation) record(e *zpinstrument.TraceEvent, selected bool) {
 	}
 }
 
-func (o *observation) deliver(e *zpinstrument.TraceEvent) {
+func (o *observation) deliver(e *sxirinstrument.TraceEvent) {
 	defer func() {
 		if x := recover(); x != nil {
 			panic(tracePanic{x})
@@ -185,7 +185,7 @@ func (o *observation) selected(rule string) bool {
 
 func (o *observation) Enter(rule string, pos, level int) {
 	selected := o.selected(rule)
-	e := zpinstrument.TraceEvent{Kind: zpinstrument.TraceEnter, Rule: rule, Pos: pos, Level: level, Depth: len(o.stack) + 1,
+	e := sxirinstrument.TraceEvent{Kind: sxirinstrument.TraceEnter, Rule: rule, Pos: pos, Level: level, Depth: len(o.stack) + 1,
 		Lookahead: *o.silent > 0}
 	o.stack = append(o.stack, observationCall{event: e, selected: selected})
 	o.record(&e, selected)
@@ -208,14 +208,14 @@ func (o *observation) Exit(matched bool, end, examined int) {
 	call := &o.stack[i]
 	o.stack = o.stack[:i]
 	e := &call.event
-	e.Kind, e.Matched, e.End, e.Examined = zpinstrument.TraceExit, matched, end, examined
+	e.Kind, e.Matched, e.End, e.Examined = sxirinstrument.TraceExit, matched, end, examined
 	o.record(e, call.selected)
 }
 
 func (o *observation) Skipped(rule string, pos, level int) {
 	if o != nil {
-		e := zpinstrument.TraceEvent{Kind: zpinstrument.TraceSkipped, Rule: rule, Pos: pos, Level: level,
-			Depth: len(o.stack) + 1, Lookahead: *o.silent > 0, SkipReason: zpinstrument.SkipFirstCharacter}
+		e := sxirinstrument.TraceEvent{Kind: sxirinstrument.TraceSkipped, Rule: rule, Pos: pos, Level: level,
+			Depth: len(o.stack) + 1, Lookahead: *o.silent > 0, SkipReason: sxirinstrument.SkipFirstCharacter}
 		o.record(&e, o.selected(rule))
 	}
 }

@@ -3,9 +3,9 @@ package compile
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/frontend/desugar"
-	"zeroparse.dev/zp/internal/frontend/parser"
-	"zeroparse.dev/zp/internal/middleend/corepass"
+	"syntaxir.dev/sxir/internal/frontend/desugar"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/middleend/corepass"
 )
 
 // TestRunSitesNeedRecordedReach checks that a repetition is no run site when its element or a rule

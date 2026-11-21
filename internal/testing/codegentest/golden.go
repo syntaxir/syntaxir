@@ -107,7 +107,7 @@ func (g GoldenFile) Check(t *testing.T, scope string, got map[string]string) {
 func (g GoldenFile) CheckSampled(t *testing.T, scope string, got map[string]string) {
 	t.Helper()
 	if *UpdateGoldens && !allCases {
-		t.Fatalf("%s: -update rewrites the golden from a sample of the corpus; run it with -tags zp_long", t.Name())
+		t.Fatalf("%s: -update rewrites the golden from a sample of the corpus; run it with -tags sxir_long", t.Name())
 	}
 	g.check(t, scope, got, !allCases)
 }

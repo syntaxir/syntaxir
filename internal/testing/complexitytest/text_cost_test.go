@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"zeroparse.dev/zp/internal/testing/enginetest"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 )
 
 // The replacement fields of Python f-strings take the text of a capture that holds the nested
@@ -15,7 +15,7 @@ func TestPythonFieldTextIsLinear(t *testing.T) {
 	if testing.Short() {
 		t.Skip("measures the Python grammar")
 	}
-	src, err := os.ReadFile("../../../testdata/grammars/python/python.zp")
+	src, err := os.ReadFile("../../../testdata/grammars/python/python.sxir")
 	if err != nil {
 		t.Fatal(err)
 	}

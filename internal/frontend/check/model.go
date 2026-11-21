@@ -1,8 +1,8 @@
 package check
 
 import (
-	"zeroparse.dev/zp/internal/runtime/program"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/runtime/program"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Model is the semantic model of a checked grammar: the grammar the checker read, its type

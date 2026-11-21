@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 func TestCaptures(t *testing.T) {
@@ -338,7 +338,7 @@ rule main = x:"a" => T{N: len("日本"), M: len(text($x) + "é")}`)
 			want string
 		}{
 			{ParseOptions{Backend: b}, `T{M: 2, N: 2}`},
-			{ParseOptions{Backend: b, Unit: zpinput.Bytes}, `T{M: 3, N: 6}`},
+			{ParseOptions{Backend: b, Unit: sxirinput.Bytes}, `T{M: 3, N: 6}`},
 		} {
 			if n, err := prog.ParseWith("main", "a", tc.o); err != nil || n.String() != tc.want {
 				t.Errorf("%v %v: got %v, %v, want %s", b, tc.o.Unit, n, err, tc.want)

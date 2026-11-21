@@ -4,13 +4,13 @@ import (
 	"slices"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/ir/code/action"
-	"zeroparse.dev/zp/internal/ir/code/exec"
-	ir "zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/internal/runtime/program"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/ir/code/action"
+	"syntaxir.dev/sxir/internal/ir/code/exec"
+	ir "syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/runtime/program"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // TestRuntimeTablesMatchTheCompiler checks the values that the runtime side holds a copy of, because

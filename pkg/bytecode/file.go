@@ -2,9 +2,9 @@ package bytecode
 
 import "bytes"
 
-// FileMagic begins every compiled grammar file (.zpc), whose format the File format section of
+// FileMagic begins every compiled grammar file (.sxirc), whose format the File format section of
 // spec/bytecode/README.md specifies.
-const FileMagic = "ZPC\x00"
+const FileMagic = "SXC\x00"
 
 // IsCompiled reports whether the data begins with FileMagic, that is, whether it is in the
 // compiled grammar format rather than a grammar source.

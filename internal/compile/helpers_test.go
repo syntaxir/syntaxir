@@ -4,18 +4,18 @@ import (
 	"context"
 	"testing"
 
-	"zeroparse.dev/zp/internal/cancel"
-	"zeroparse.dev/zp/internal/frontend/check"
-	"zeroparse.dev/zp/internal/frontend/desugar"
-	"zeroparse.dev/zp/internal/frontend/parser"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/cancel"
+	"syntaxir.dev/sxir/internal/frontend/check"
+	"syntaxir.dev/sxir/internal/frontend/desugar"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
-// The helpers of the tests that check the compile phase: they compile ZeroParse source with
+// The helpers of the tests that check the compile phase: they compile SyntaxIR source with
 // compileStatic, which builds no matchers. The engine's tests keep their own copies, which return
 // the engine's program.
 
-// mustParse parses ZeroParse source with parseTest, panicking on a syntax error.
+// mustParse parses SyntaxIR source with parseTest, panicking on a syntax error.
 func mustParse(src string) *ast.Grammar {
 	g, err := parseTest(src)
 	if err != nil {
@@ -24,7 +24,7 @@ func mustParse(src string) *ast.Grammar {
 	return g
 }
 
-// mustCompile compiles ZeroParse source with source information, so that results show rule names and
+// mustCompile compiles SyntaxIR source with source information, so that results show rule names and
 // capture labels.
 func mustCompile(t *testing.T, src string, opts ...Options) *Program {
 	t.Helper()
@@ -36,7 +36,7 @@ func mustCompile(t *testing.T, src string, opts ...Options) *Program {
 	return compileBare(t, src, o)
 }
 
-// compileBare compiles ZeroParse source with the options as given: without source information unless
+// compileBare compiles SyntaxIR source with the options as given: without source information unless
 // they request it.
 func compileBare(t *testing.T, src string, opts ...Options) *Program {
 	t.Helper()

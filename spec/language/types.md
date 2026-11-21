@@ -1,6 +1,6 @@
 # Type System
 
-ZeroParse is statically typed. Types describe the values that rules produce (see [Nodes and Values](../runtime/nodes.md)) and the
+SyntaxIR is statically typed. Types describe the values that rules produce (see [Nodes and Values](../runtime/nodes.md)) and the
 shape of the values that actions build. This chapter defines the types, how they
 are declared, their names and when a value of one type may be used where another
 is expected. How the type of an expression is determined, and the errors that
@@ -47,7 +47,7 @@ the type that follows, `&` forms a meet and binds tighter than `|`, which forms
 a join, parentheses with commas form a tuple, and parentheses without a comma
 group.
 
-```zp
+```sxir
 type Example = {
     Items  []Item                       // a list
     Maybe  *Item                        // an Item or nil
@@ -219,7 +219,7 @@ Fields are separated by newlines
 or semicolons. Field names MUST be unique within a struct. Constructor fields
 and function arguments remain comma-separated.
 
-```zp
+```sxir
 type MyNode = {
     Field1 SomeType
     Field2 AnotherType
@@ -266,7 +266,7 @@ time. `U` may be any type, including `_`, as in `type N = node[_]`, and `N` itse
 node type, even one with the same underlying type. `U` may refer to `N` or to other types, as in
 a recursive definition:
 
-```zp
+```sxir
 type Num = node[int]
 type Ident = node[string]
 type Tree = node[[]Tree]
@@ -317,7 +317,7 @@ A Type Alias `type T ~ U` declares `T` as another name for the type `U`. With `|
 right-hand side is a join type, whose values are the values of any of its
 members, much like an interface type in Go.
 
-```zp
+```sxir
 type Node ~ Expression | Statement | Declaration
 type Entry ~ (node[string], Value)
 type Words ~ node[[]node[string]]

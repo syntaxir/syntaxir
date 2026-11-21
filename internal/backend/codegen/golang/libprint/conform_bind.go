@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"strings"
 
-	"zeroparse.dev/zp/internal/backend/codegen/golang/print"
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/exec"
-	"zeroparse.dev/zp/internal/ir/code/exec/compose"
+	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec"
+	"syntaxir.dev/sxir/internal/ir/code/exec/compose"
 )
 
 // The conformance bindings of the operations that a target prints inline: for each, a function that

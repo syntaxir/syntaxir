@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/runtime/state"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 func TestSparseMemoRuleAndPageBoundaries(t *testing.T) {
@@ -94,7 +94,7 @@ func TestSparseMemoResetBounds(t *testing.T) {
 
 func TestSparseMemoParseControls(t *testing.T) {
 	t.Parallel()
-	src, err := os.ReadFile("../../../testdata/grammars/typescript/typescript.zp")
+	src, err := os.ReadFile("../../../testdata/grammars/typescript/typescript.sxir")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +110,7 @@ func TestSparseMemoParseControls(t *testing.T) {
 		t.Fatal("control no longer exercises sparse rule count")
 	}
 	for i, input := range []string{"const 日本語 = \"😀\";\nconst v = [1, 2].map(x => x + 1);\n", "function f( { return 1;", strings.Repeat("const 日本語 = 1 + 2;\n", 100), strings.Repeat("const a = 1;\n", 100) + "function f( { return 1;"} {
-		for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+		for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 			for _, recognize := range []bool{false, true} {
 				checkTrace(t, prog, "main", input, ParseOptions{Unit: unit, Recognize: recognize})
 				for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
@@ -124,7 +124,7 @@ func TestSparseMemoParseControls(t *testing.T) {
 
 func TestSparseMemoInputSelection(t *testing.T) {
 	t.Parallel()
-	data, err := os.ReadFile("../../../testdata/grammars/typescript/typescript.zp")
+	data, err := os.ReadFile("../../../testdata/grammars/typescript/typescript.sxir")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -143,14 +143,14 @@ func TestSparseMemoInputSelection(t *testing.T) {
 		"/*" + strings.Repeat("a", 1020) + "*/",
 	} {
 		for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-			for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+			for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 				p := state.NewParser(&prog.sharedProgram, text, unit, true)
 				p.DeferMemo = true
 				if _, err := prog.Run(p, backend, "main"); err != nil {
 					t.Fatal(err)
 				}
 				want := len([]rune(text)) > 1024
-				if unit == zpinput.Bytes {
+				if unit == sxirinput.Bytes {
 					want = len(text) > 1024
 				}
 				want = want && state.SparseMemo

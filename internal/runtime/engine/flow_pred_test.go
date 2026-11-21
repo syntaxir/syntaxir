@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/bytecode"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/bytecode"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // flowGrammar is a grammar of the tests of Flow bodies, with its inputs. want says that a Flow body of

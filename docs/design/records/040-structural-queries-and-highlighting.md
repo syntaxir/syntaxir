@@ -6,7 +6,7 @@
 
 ## Summary
 
-Add a declarative query API over ZeroParse Node results for matching node kinds, rules, fields, child structure, and bounded text predicates, with named captures usable for syntactic highlighting. Type and field checks use an explicitly supplied schema where available. The programmatic Go subset described under Implemented Go API is implemented; the illustrative text syntax, text predicates, highlighting, and TypeScript support remain deferred.
+Add a declarative query API over SyntaxIR Node results for matching node kinds, rules, fields, child structure, and bounded text predicates, with named captures usable for syntactic highlighting. Type and field checks use an explicitly supplied schema where available. The programmatic Go subset described under Implemented Go API is implemented; the illustrative text syntax, text predicates, highlighting, and TypeScript support remain deferred.
 
 ## Motivation
 
@@ -66,7 +66,7 @@ The programmatic Go API and Node traversal contract in design 031 are implemente
 
 ## Alternatives Considered
 
-- **Copy Tree-sitter query syntax:** it implies different field, node, and lossless-source semantics. Consider an adapter only after ZeroParse contracts are stable.
+- **Copy Tree-sitter query syntax:** it implies different field, node, and lossless-source semantics. Consider an adapter only after SyntaxIR contracts are stable.
 - **Query serialized JSON:** it couples matching to Node serialization and allocates an intermediate tree. Evaluate graph values directly.
 - **Allow arbitrary Go callbacks:** these are unportable and cannot be bounded reliably. Keep the initial query declarative.
 - **Use a lexer for every highlight:** it can recover punctuation but duplicates grammar behavior. Keep it as a consumer choice when actions discard needed tokens.

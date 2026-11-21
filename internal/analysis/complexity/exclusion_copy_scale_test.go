@@ -4,11 +4,11 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/analysis/complexity"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/internal/testing/complexitytest"
-	"zeroparse.dev/zp/internal/testing/enginetest"
-	"zeroparse.dev/zp/internal/testing/starttest"
+	"syntaxir.dev/sxir/internal/analysis/complexity"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/complexitytest"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
+	"syntaxir.dev/sxir/internal/testing/starttest"
 )
 
 // copyScaleHead is the grammar of TestCopyStopsScale without W, whose first alternative

@@ -9,8 +9,8 @@ import (
 	"unsafe"
 	"weak"
 
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 //go:noinline

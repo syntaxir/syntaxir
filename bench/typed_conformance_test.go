@@ -15,13 +15,13 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	gensrc "zeroparse.dev/zp/internal/driver/generate"
-	"zeroparse.dev/zp/internal/testing/enginetest"
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	gensrc "syntaxir.dev/sxir/internal/driver/generate"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 )
 
-// generation is a zp gen command of generate.go.
+// generation is a sxir gen command of generate.go.
 type generation struct {
 	grammar, module, out string
 	hasTypes             bool
@@ -40,7 +40,7 @@ func generationsIn(t *testing.T, dir string) []generation {
 	var gens []generation
 	sc := bufio.NewScanner(f)
 	for sc.Scan() {
-		args, ok := strings.CutPrefix(sc.Text(), "//go:generate go run ../cmd/zp gen ")
+		args, ok := strings.CutPrefix(sc.Text(), "//go:generate go run ../cmd/sxir gen ")
 		if !ok {
 			continue
 		}
@@ -152,7 +152,7 @@ func conformanceSchema(t *testing.T, path string) confSchema {
 	if err != nil {
 		t.Fatalf("%s: %v", path, err)
 	}
-	s, err := p.OutputSchema(zpruntime.WithAllSchemaRules())
+	s, err := p.OutputSchema(sxirruntime.WithAllSchemaRules())
 	if err != nil {
 		t.Fatalf("%s: schema: %v", path, err)
 	}

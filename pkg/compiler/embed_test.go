@@ -7,20 +7,20 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
 )
 
-// TestGenerateGoEmbeddedPackageBuilds generates a parser with the library embedded, as zp gen does
+// TestGenerateGoEmbeddedPackageBuilds generates a parser with the library embedded, as sxir gen does
 // by default, and builds and runs it in a module that requires only the runtime packages of
-// zeroparse.dev/zp: the copy of the library must compile against them, and the parser must work
+// syntaxir.dev/sxir: the copy of the library must compile against them, and the parser must work
 // with it.
 func TestGenerateGoEmbeddedPackageBuilds(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds a generated parser")
 	}
-	g := grammar.FromString("embedded.zp", `type Pair = { Key node[string]; Value node[string] }
+	g := grammar.FromString("embedded.sxir", `type Pair = { Key node[string]; Value node[string] }
 @start
 rule main Pair = k:[a-z]+ #atomic "=" v:[0-9]+ #atomic => Pair{Key: $k, Value: $v}`)
 	files, err := compiler.GenerateGo(g, compiler.GoConfig{Module: "example.com/embedded/v2", Types: true, Recognize: true, Document: true, Observability: true}, compiler.WithStart("main"))
@@ -51,7 +51,7 @@ rule main Pair = k:[a-z]+ #atomic "=" v:[0-9]+ #atomic => Pair{Key: $k, Value: $
 		}
 	}
 	// The package and its copy of the library import only the runtime packages of
-	// zeroparse.dev/zp, which a partial copy of this module holds.
+	// syntaxir.dev/sxir, which a partial copy of this module holds.
 	write("go.mod", codegentest.GoModAt("example.com/embedded/v2", codegentest.LibCopy()))
 	write("embedded_test.go", `package embedded
 

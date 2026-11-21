@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"strings"
 
-	"zeroparse.dev/zp/internal/frontend/types"
+	"syntaxir.dev/sxir/internal/frontend/types"
 )
 
 // The range of a list or a tuple that an action reads from a field of a struct is the range it had where it
 // was made: an action that builds a struct from it gives the struct the range that covers it. The typed
 // library keeps a struct's lists and tuples as Go slices and tuple structs, which have no range, so a struct
 // of a parser that runs the typed library keeps the ranges of the lists and tuples of each field that some
-// action reads in an unexported field next to it (zpr_Field), written where the constructor converts the
+// action reads in an unexported field next to it (sxirr_Field), written where the constructor converts the
 // value (tmk_) and read back where the field is read (TField, TFieldSpend). A field holds
 //
 //   - no range unless it is read and its type is a list or a tuple (rangeNone);
@@ -63,7 +63,7 @@ func (t *TypedGen) rangeKind(name string, x types.Ty) int {
 }
 
 // rangeField returns the name of the unexported field that keeps the ranges of the field name.
-func (t *TypedGen) rangeField(name string) string { return "zpr_" + t.fieldGo(name) }
+func (t *TypedGen) rangeField(name string) string { return "sxirr_" + t.fieldGo(name) }
 
 // rangeDecls writes the unexported fields that keep the ranges of the lists and tuples of the fields of the
 // struct name.
@@ -127,11 +127,11 @@ func (t *TypedGen) readField(name string, x types.Ty, v string, spend bool) stri
 		}
 		return t.back(x, expr)
 	}
-	return fmt.Sprintf("func() any { zc := &zpRangeCursor{%s}; return %s }()", cursor, t.backRanged(x, expr, "zc", spend))
+	return fmt.Sprintf("func() any { zc := &sxirRangeCursor{%s}; return %s }()", cursor, t.backRanged(x, expr, "zc", spend))
 }
 
 // backRanged is back (backSpend if spend) for a list or a tuple whose range, and the range of each list and
-// tuple in it, the cursor cur (a Go expression of type *zpRangeCursor) hands out, a list or tuple before its
+// tuple in it, the cursor cur (a Go expression of type *sxirRangeCursor) hands out, a list or tuple before its
 // elements.
 func (t *TypedGen) backRanged(x types.Ty, v, cur string, spend bool) string {
 	switch x := x.(type) {
@@ -141,9 +141,9 @@ func (t *TypedGen) backRanged(x types.Ty, v, cur string, spend bool) string {
 			step = strings.ReplaceAll(t.G.step("p"), "\n", "; ")
 		}
 		elem = t.backRanged(x.Elem, "x", cur, spend)
-		done := "zpListAt(kids, sp)"
+		done := "sxirListAt(kids, sp)"
 		if spend {
-			done = "zpListFieldAt(p, kids, sp)"
+			done = "sxirListFieldAt(p, kids, sp)"
 		}
 		return fmt.Sprintf("func() any { if %[1]s == nil { return nil }; sp := %[2]s.Next(); kids := make([]any, len(%[1]s)); for i, x := range %[1]s { %[3]skids[i] = %[4]s }; return %[5]s }()", v, cur, step, elem, done)
 	case types.TupleTy:
@@ -158,7 +158,7 @@ func (t *TypedGen) backRanged(x types.Ty, v, cur string, spend bool) string {
 // rangedHelper writes the helper h of backRanged: the tuple value of a Go tuple.
 func (t *TypedGen) rangedHelper(b *strings.Builder, h vhelper) {
 	x := h.x.(types.TupleTy)
-	fmt.Fprintf(b, "func %s(v %s, zc *zpRangeCursor) any {\n", h.name, t.goType(x))
+	fmt.Fprintf(b, "func %s(v %s, zc *sxirRangeCursor) any {\n", h.name, t.goType(x))
 	if len(x.Elems) == 0 {
 		fmt.Fprintf(b, "\treturn &%s.TSeq{Span: zc.Next(), Typ: %[1]s.TypeTupleValue}\n}\n\n", libAlias)
 		return
@@ -253,18 +253,18 @@ func (t *TypedGen) rangeHelpers(b *strings.Builder) {
 	if !t.anyRanges() {
 		return
 	}
-	b.WriteString(`// zpRangeCursor hands out the ranges that the lists and tuples of a field had where they were made, in the
+	b.WriteString(`// sxirRangeCursor hands out the ranges that the lists and tuples of a field had where they were made, in the
 // order that a read of the field builds them: a list or a tuple before its elements, the elements in order, and
 // only those that are not nil. A field whose lists and tuples hold no list or tuple stores the one range in
 // One; a field of nested lists and tuples stores them all in All.
-type zpRangeCursor struct {
+type sxirRangeCursor struct {
 	One rt.Span
 	All []rt.Span
 	I   int
 }
 
 // Next returns the next range; a cursor that has none left hands out the empty range at 0.
-func (c *zpRangeCursor) Next() rt.Span {
+func (c *sxirRangeCursor) Next() rt.Span {
 	if c.All == nil {
 		return c.One
 	}
@@ -276,13 +276,13 @@ func (c *zpRangeCursor) Next() rt.Span {
 	return r
 }
 
-// zpListAt returns the list value of kids with the range r that the list had where it was made.
-func zpListAt(kids []any, r rt.Span) any {
+// sxirListAt returns the list value of kids with the range r that the list had where it was made.
+func sxirListAt(kids []any, r rt.Span) any {
 	return &rt.TSeq{Typ: rt.TypeListValue, Kids: kids, Span: r}
 }
 
-// zpListFieldAt is zpListAt that charges a step for each element (TParser.ListField).
-func zpListFieldAt(p *rt.TParser, kids []any, r rt.Span) any {
+// sxirListFieldAt is sxirListAt that charges a step for each element (TParser.ListField).
+func sxirListFieldAt(p *rt.TParser, kids []any, r rt.Span) any {
 	n := p.ListField(kids).(*rt.TSeq)
 	n.Span = r
 	return n

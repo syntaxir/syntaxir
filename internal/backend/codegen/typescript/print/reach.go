@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"slices"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	irbuild "zeroparse.dev/zp/internal/frontend/elaborate"
-	"zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	irbuild "syntaxir.dev/sxir/internal/frontend/elaborate"
+	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // A generated parser prints only the rules that a parse can enter: the start rules, which parseRule

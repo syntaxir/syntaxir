@@ -4,9 +4,9 @@ import (
 	"maps"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/testing/compiletest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/testing/compiletest"
 )
 
 // TestGeneratorViewPointsToTheOwners checks the view that the generators read (Source.Generator)

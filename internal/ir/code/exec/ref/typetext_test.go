@@ -3,9 +3,9 @@ package ref
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/frontend/parser"
-	syntaxfmt "zeroparse.dev/zp/internal/syntax/fmt"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // TestTypeTextMatchesFormatter checks that the type printer of the evaluator spells every kind of

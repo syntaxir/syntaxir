@@ -5,11 +5,11 @@
 package pass
 
 import (
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/flow"
-	"zeroparse.dev/zp/internal/middleend/execlower"
-	"zeroparse.dev/zp/internal/pass"
-	"zeroparse.dev/zp/internal/pass/pipe"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/flow"
+	"syntaxir.dev/sxir/internal/middleend/execlower"
+	"syntaxir.dev/sxir/internal/pass"
+	"syntaxir.dev/sxir/internal/pass/pipe"
 )
 
 // Names of the passes, which are also the names of their flags.

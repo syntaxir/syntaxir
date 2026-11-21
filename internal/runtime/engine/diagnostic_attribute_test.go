@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/bytecode"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/bytecode"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 func TestDiagnosticAttribute(t *testing.T) {

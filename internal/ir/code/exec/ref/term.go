@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // TermEnv is what a term reads: the captures of the rule, the unit of positions and the place of the

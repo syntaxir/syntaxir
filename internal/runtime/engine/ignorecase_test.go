@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/pkg/bytecode"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/pkg/bytecode"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // ignoreCaseCase is one parse of a grammar whose main rule has case-insensitive literals. The
@@ -20,13 +20,13 @@ type ignoreCaseCase struct {
 
 // ignoreCaseOutcome parses input with the closure backend and returns "error", or "ok" with the
 // consumed input. A rule without an action has no text of its own, so the span is read from the input.
-func ignoreCaseOutcome(t *testing.T, program *Program, input string, unit zpinput.PositionUnit) string {
+func ignoreCaseOutcome(t *testing.T, program *Program, input string, unit sxirinput.PositionUnit) string {
 	t.Helper()
 	n, err := program.ParseWith("main", input, ParseOptions{Expectations: true, Backend: Closure, Unit: unit})
 	if err != nil {
 		return "error"
 	}
-	if unit == zpinput.Bytes {
+	if unit == sxirinput.Bytes {
 		return "ok " + input[n.Start():n.End()]
 	}
 	runes := []rune(input)
@@ -70,7 +70,7 @@ func TestIgnoreCaseLiterals(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			program := mustCompile(t, c.src)
-			for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+			for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 				if got := ignoreCaseOutcome(t, program, c.input, unit); got != c.want {
 					t.Fatalf("%s input %q: got %s, want %s", unit, c.input, got, c.want)
 				}
@@ -87,7 +87,7 @@ func TestIgnoreCaseMatchesClassForm(t *testing.T) {
 	classes := mustCompile(t, `rule main = [sS][eE][lL][eE][cC][tT]`)
 	inputs := []string{"select", "SELECT", "SeLeCt", "selec", "selects", "SELECX", "sElEcT", "xelect", "", "s", "seleé", "SELEK"}
 	for _, input := range inputs {
-		for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+		for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 			a := ignoreCaseOutcome(t, folded, input, unit)
 			b := ignoreCaseOutcome(t, classes, input, unit)
 			if a != b {
@@ -148,7 +148,7 @@ rule expr = #operators {
 		{"1PlUs2", "ok 1PlUs2"},
 		{"1+2", "error"},
 	} {
-		if got := ignoreCaseOutcome(t, program, c.input, zpinput.CodePoints); got != c.want {
+		if got := ignoreCaseOutcome(t, program, c.input, sxirinput.CodePoints); got != c.want {
 			t.Fatalf("input %q: got %s, want %s", c.input, got, c.want)
 		}
 	}
@@ -173,7 +173,7 @@ rule expr = #operators {
 		{"1PlUs2", "ok 1PlUs2"},
 		{"1+2", "error"},
 	} {
-		for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+		for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 			if got := ignoreCaseOutcome(t, program, c.input, unit); got != c.want {
 				t.Fatalf("%s input %q: got %s, want %s", unit, c.input, got, c.want)
 			}
@@ -182,7 +182,7 @@ rule expr = #operators {
 	}
 	// Without the pragma the same rule is exact.
 	exact := mustCompile(t, strings.Replace(src, "} #ignorecase", "}", 1))
-	if got := ignoreCaseOutcome(t, exact, "1PLUS2", zpinput.CodePoints); got != "error" {
+	if got := ignoreCaseOutcome(t, exact, "1PLUS2", sxirinput.CodePoints); got != "error" {
 		t.Fatalf("without the pragma: got %s, want error", got)
 	}
 	for _, bad := range []string{
@@ -308,13 +308,13 @@ func TestIgnoreCaseDocumentAndStream(t *testing.T) {
 	if _, err := doc.Parse(); err != nil {
 		t.Fatal("document: ", err)
 	}
-	if err := doc.EditBatch(doc.Version(), zpinput.TextEdit{Start: 0, End: 1, Text: "s"}); err != nil {
+	if err := doc.EditBatch(doc.Version(), sxirinput.TextEdit{Start: 0, End: 1, Text: "s"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := doc.Parse(); err != nil {
 		t.Fatal("edited document: ", err)
 	}
-	if err := doc.EditBatch(doc.Version(), zpinput.TextEdit{Start: 7, End: 8, Text: "y"}); err != nil {
+	if err := doc.EditBatch(doc.Version(), sxirinput.TextEdit{Start: 7, End: 8, Text: "y"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := doc.Parse(); err == nil {
@@ -362,13 +362,13 @@ func TestIgnoreCaseDocumentAndStreamBackends(t *testing.T) {
 		if _, err := doc.Parse(); err != nil {
 			t.Fatal(b, "document: ", err)
 		}
-		if err := doc.EditBatch(doc.Version(), zpinput.TextEdit{Start: 0, End: 1, Text: "s"}); err != nil {
+		if err := doc.EditBatch(doc.Version(), sxirinput.TextEdit{Start: 0, End: 1, Text: "s"}); err != nil {
 			t.Fatal(b, err)
 		}
 		if _, err := doc.Parse(); err != nil {
 			t.Fatal(b, "edited document: ", err)
 		}
-		if err := doc.EditBatch(doc.Version(), zpinput.TextEdit{Start: 7, End: 8, Text: "y"}); err != nil {
+		if err := doc.EditBatch(doc.Version(), sxirinput.TextEdit{Start: 7, End: 8, Text: "y"}); err != nil {
 			t.Fatal(b, err)
 		}
 		if _, err := doc.Parse(); err == nil {

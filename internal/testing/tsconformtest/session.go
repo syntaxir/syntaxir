@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"zeroparse.dev/zp/internal/ir/code/exec/ref"
+	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
 )
 
 //go:embed harness.ts

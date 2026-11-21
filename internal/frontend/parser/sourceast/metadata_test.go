@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 func TestPositionsAndOwnership(t *testing.T) {

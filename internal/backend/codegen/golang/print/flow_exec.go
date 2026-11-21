@@ -7,12 +7,12 @@ import (
 	"go/token"
 	"strings"
 
-	"zeroparse.dev/zp/internal/frontend/check"
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/flow"
-	irc "zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/internal/middleend/execlower"
-	"zeroparse.dev/zp/internal/middleend/flowplan"
+	"syntaxir.dev/sxir/internal/frontend/check"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/flow"
+	irc "syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/execlower"
+	"syntaxir.dev/sxir/internal/middleend/flowplan"
 )
 
 // Go rules printed from the Exec stage of Code IR.

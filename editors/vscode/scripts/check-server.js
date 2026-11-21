@@ -2,14 +2,14 @@
 // extension does, to check that the two interoperate: initialize, diagnostics after an edit,
 // hover, completion, formatting, and a clean shutdown.
 //
-// Usage: node scripts/check-server.js [zp command]   (default: zp on the PATH)
+// Usage: node scripts/check-server.js [sxir command]   (default: sxir on the PATH)
 'use strict';
 
 const { spawn } = require('child_process');
 const rpc = require('vscode-jsonrpc/node');
 
-const command = process.argv[2] || 'zp';
-const uri = 'file:///check/calc.zp';
+const command = process.argv[2] || 'sxir';
+const uri = 'file:///check/calc.sxir';
 const text = 'rule main = "😀" num\nrule num = [0-9]+\n';
 
 function fail(message) {
@@ -43,7 +43,7 @@ async function main() {
   }
   conn.sendNotification('initialized', {});
 
-  conn.sendNotification('textDocument/didOpen', { textDocument: { uri, languageId: 'zp', version: 1, text } });
+  conn.sendNotification('textDocument/didOpen', { textDocument: { uri, languageId: 'sxir', version: 1, text } });
   let d = await nextDiagnostics();
   if (d.diagnostics.length !== 0) fail('diagnostics of a valid grammar: ' + JSON.stringify(d));
 

@@ -7,12 +7,12 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 const frameScratchGrammar = `rule main = h:"#head\n" #atomic items:record* #stream $$ {text($h) == "#head\n"}
@@ -36,7 +36,7 @@ func BenchmarkStreamFrameScratch(b *testing.B) {
 			if _, err := prog.rule(backend, "main", state.Inlined, nil); err != nil {
 				b.Fatal(err)
 			}
-			for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+			for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 				b.Run(fmt.Sprintf("%d/%s/%s", size, backend, unit), func(b *testing.B) {
 					b.SetBytes(int64(len(input)))
 					b.ReportAllocs()
@@ -73,7 +73,7 @@ rule item = x:"x" #atomic / e:"" #atomic`, strings.Repeat("x", 300), 301, false,
 	} {
 		prog := mustCompile(t, tc.src)
 		for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-			for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+			for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 				t.Run(fmt.Sprintf("%s/%s/%s", tc.name, backend, unit), func(t *testing.T) {
 					var retained []*value.Node
 					var snapshots [][]byte
@@ -138,7 +138,7 @@ func checkStreamFrameScratchRetainedResults(t *testing.T, src string) {
 		input.WriteByte('\n')
 	}
 	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+		for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 			t.Run(fmt.Sprintf("%s/%s", backend, unit), func(t *testing.T) {
 				opts := ParseOptions{Backend: backend, Unit: unit}
 				whole, err := prog.ParseWith("main", input.String(), opts)
@@ -183,7 +183,7 @@ func TestStreamFrameScratchClearsDeadFrames(t *testing.T) {
 	if !state.StreamFrameScratch {
 		t.Skip("reference build does not reuse capture frames")
 	}
-	p := state.NewParser(&mustCompile(t, `rule main = "a"`).sharedProgram, "a", zpinput.CodePoints, false)
+	p := state.NewParser(&mustCompile(t, `rule main = "a"`).sharedProgram, "a", sxirinput.CodePoints, false)
 	root := p.NewFrame(1)
 	root.Vals[0] = nodes.Ptr(nodes.Data{Text: "live root"})
 	p.Frame = root

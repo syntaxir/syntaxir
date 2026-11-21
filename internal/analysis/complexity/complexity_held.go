@@ -1,6 +1,6 @@
 package complexity
 
-import "zeroparse.dev/zp/pkg/grammar/ast"
+import "syntaxir.dev/sxir/pkg/grammar/ast"
 
 // Values that hold one another. The size of a value that copies the value of a call on a
 // recursion with its rule adds up over the levels of the recursion (condition 4 of

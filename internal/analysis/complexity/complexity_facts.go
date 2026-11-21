@@ -1,8 +1,8 @@
 package complexity
 
 import (
-	"zeroparse.dev/zp/internal/cancel"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/cancel"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // ruleFacts are the rule facts that the classifier reads, by rule name. They are the facts of the

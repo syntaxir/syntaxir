@@ -3,9 +3,9 @@ package desugar
 import (
 	"fmt"
 
-	"zeroparse.dev/zp/internal/cancel"
-	"zeroparse.dev/zp/internal/diagnostic"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/cancel"
+	"syntaxir.dev/sxir/internal/diagnostic"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // UniqueRules returns the first declaration of each rule name of g in order, and an error for each

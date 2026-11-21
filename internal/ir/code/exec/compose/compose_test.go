@@ -6,11 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/action"
-	"zeroparse.dev/zp/internal/ir/code/exec"
-	"zeroparse.dev/zp/internal/ir/code/exec/ref"
-	"zeroparse.dev/zp/internal/middleend/codepass"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/action"
+	"syntaxir.dev/sxir/internal/ir/code/exec"
+	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
+	"syntaxir.dev/sxir/internal/middleend/codepass"
 )
 
 // The tests of this file run the compositions on a model of the operations: the reference model of

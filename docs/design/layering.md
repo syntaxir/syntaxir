@@ -18,7 +18,7 @@ themselves are listed in [The Package Layout](architecture.md#the-package-layout
 ```mermaid
 flowchart TD
   subgraph C["Compiler side"]
-    cmd["cmd/zp, cmd/playground"]
+    cmd["cmd/sxir, cmd/playground"]
     pub["pkg/compiler, pkg/grammar, pkg/lint, pkg/sample, pkg/editfuzz, internal/fixture"]
     lsp["internal/lsp/**"]
     driver["internal/driver"]

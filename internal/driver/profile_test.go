@@ -5,12 +5,12 @@ import (
 	"strings"
 	"testing"
 
-	gopass "zeroparse.dev/zp/internal/backend/codegen/golang/pass"
-	tspass "zeroparse.dev/zp/internal/backend/codegen/typescript/pass"
-	"zeroparse.dev/zp/internal/middleend/codepass"
-	"zeroparse.dev/zp/internal/middleend/corepass"
-	"zeroparse.dev/zp/internal/middleend/flowpass"
-	"zeroparse.dev/zp/internal/pass"
+	gopass "syntaxir.dev/sxir/internal/backend/codegen/golang/pass"
+	tspass "syntaxir.dev/sxir/internal/backend/codegen/typescript/pass"
+	"syntaxir.dev/sxir/internal/middleend/codepass"
+	"syntaxir.dev/sxir/internal/middleend/corepass"
+	"syntaxir.dev/sxir/internal/middleend/flowpass"
+	"syntaxir.dev/sxir/internal/pass"
 )
 
 // The flags of the passes that the tests of the driver add to the pipelines. The registry of this

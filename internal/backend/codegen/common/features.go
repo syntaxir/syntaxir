@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	"zeroparse.dev/zp/internal/frontend/astfacts"
-	irbuild "zeroparse.dev/zp/internal/frontend/elaborate"
-	"zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/internal/pass"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	irbuild "syntaxir.dev/sxir/internal/frontend/elaborate"
+	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/pass"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // A Feature is a mechanism of the library of generated parsers that a parser runs only if its grammar

@@ -5,7 +5,7 @@
 #
 # The binary is built from a clean, detached worktree of REV (default HEAD) by the site program's
 # playground-release command, which writes into OUT_DIR (created; must not exist):
-#   zp.wasm.gz     the binary, gzip-compressed
+#   sxir.wasm.gz     the binary, gzip-compressed
 #   wasm_exec.js   the runtime support of the toolchain that built it
 #   manifest.json  toolchain, build arguments, source commit, sizes and SHA-256 digests
 #   pin.json       the site/playground-wasm.json that publishes this release
@@ -14,7 +14,7 @@
 # REV must already be on GitHub. An existing tag or release is never changed. See docs/site.md.
 set -eu
 repo_dir=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd -P)
-repository=https://github.com/zeroparse/zp
+repository=https://github.com/syntaxir/syntaxir
 commit=HEAD
 publish=false
 while [ $# -gt 0 ]; do
@@ -48,7 +48,7 @@ if [ "$publish" = true ]; then
 fi
 
 # The physical path: go resolves the workspace of the build against it.
-work=$(CDPATH= cd -- "$(mktemp -d "${TMPDIR:-/tmp}/zp-playground-release.XXXXXX")" && pwd -P)
+work=$(CDPATH= cd -- "$(mktemp -d "${TMPDIR:-/tmp}/sxir-playground-release.XXXXXX")" && pwd -P)
 cleanup() {
   git -C "$repo_dir" worktree remove --force "$work/src" >/dev/null 2>&1 || true
   rm -rf -- "$work"
@@ -60,8 +60,8 @@ git -C "$repo_dir" worktree add --detach --quiet "$work/src" "$rev"
 if [ "$publish" = true ]; then
   gh release create "$tag" --repo "$slug" --prerelease --target "$rev" \
     --title "Playground WebAssembly $tag" \
-    --notes "The WebAssembly binary of the ZeroParse playground, built from $rev and published on zeroparse.dev. manifest.json records the toolchain, the build arguments and the SHA-256 digest of each file; zp.wasm.gz is gzip-compressed. This is not a release of the ZeroParse module." \
-    "$out/zp.wasm.gz" "$out/wasm_exec.js" "$out/manifest.json"
+    --notes "The WebAssembly binary of the SyntaxIR playground, built from $rev and published on syntaxir.dev. manifest.json records the toolchain, the build arguments and the SHA-256 digest of each file; sxir.wasm.gz is gzip-compressed. This is not a release of the SyntaxIR module." \
+    "$out/sxir.wasm.gz" "$out/wasm_exec.js" "$out/manifest.json"
   cp -- "$out/pin.json" "$repo_dir/site/playground-wasm.json"
   echo "published $tag; site/playground-wasm.json now pins it" >&2
 else

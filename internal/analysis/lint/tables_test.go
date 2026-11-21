@@ -3,7 +3,7 @@ package lint
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/frontend/parser"
 )
 
 // TestRuleTablesRefineLeftCalls requires the rule tables to come from the fixed point of the

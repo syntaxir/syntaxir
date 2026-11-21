@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/syntax/fmt"
-	"zeroparse.dev/zp/internal/testing/compiletest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/syntax/fmt"
+	"syntaxir.dev/sxir/internal/testing/compiletest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 func TypedFramedCutCases(t *testing.T) []Case {

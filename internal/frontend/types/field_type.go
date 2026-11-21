@@ -1,6 +1,6 @@
 package types
 
-import "zeroparse.dev/zp/internal/runtime/program"
+import "syntaxir.dev/sxir/internal/runtime/program"
 
 // FieldType is the run-time form of a declared struct field type (program.FieldType); the
 // checker makes it from a resolved type (NewFieldType).

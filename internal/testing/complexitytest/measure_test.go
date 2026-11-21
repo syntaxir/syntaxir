@@ -5,8 +5,8 @@ import (
 	"math"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // series builds a series of three doubling sizes from f.

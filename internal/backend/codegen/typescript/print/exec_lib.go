@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"strings"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/action"
-	"zeroparse.dev/zp/internal/ir/code/exec"
-	"zeroparse.dev/zp/internal/ir/code/exec/compose"
-	"zeroparse.dev/zp/internal/middleend/codepass"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/action"
+	"syntaxir.dev/sxir/internal/ir/code/exec"
+	"syntaxir.dev/sxir/internal/ir/code/exec/compose"
+	"syntaxir.dev/sxir/internal/middleend/codepass"
 )
 
 // tsMethod is a printed method of the TypeScript library's Parser class.

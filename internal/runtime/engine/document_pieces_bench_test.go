@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 // BenchmarkDocumentInputEdit isolates storage and memo-splice costs from

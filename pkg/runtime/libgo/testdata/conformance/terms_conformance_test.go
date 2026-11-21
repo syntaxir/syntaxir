@@ -7,10 +7,10 @@ import (
 	"slices"
 	"testing"
 
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/exec/conform"
-	"zeroparse.dev/zp/internal/ir/code/exec/ref"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
+	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // The elements gathered and the values made of the node and the typed library under conformance: every
@@ -75,7 +75,7 @@ func (m *termStateMachine) Act() any {
 // value returns a new element or struct of the library with the identifier id: a node, or a value of the
 // typed library.
 func (m *termStateMachine) value(id int64) any {
-	var v any = new(zpvalue.Node)
+	var v any = new(sxirvalue.Node)
 	if m.tp != nil {
 		v = new(TMatch)
 	}
@@ -89,18 +89,18 @@ func (m *termStateMachine) Struct(id int64) any { return m.value(id) }
 
 // itemsBox holds the elements of a list, which the harness compares by identity.
 type itemsBox struct {
-	nodes []*zpvalue.Node
+	nodes []*sxirvalue.Node
 	vals  []any
 }
 
 func (m *termStateMachine) Items(ids []int64) any {
-	b := &itemsBox{nodes: []*zpvalue.Node{}, vals: []any{}}
+	b := &itemsBox{nodes: []*sxirvalue.Node{}, vals: []any{}}
 	for _, id := range ids {
 		v := m.value(id)
 		if m.tp != nil {
 			b.vals = append(b.vals, v)
 		} else {
-			b.nodes = append(b.nodes, v.(*zpvalue.Node))
+			b.nodes = append(b.nodes, v.(*sxirvalue.Node))
 		}
 	}
 	return b
@@ -165,7 +165,7 @@ func (termStateConv) ToImpl(arg any, t reflect.Type) (reflect.Value, bool) {
 
 func (termStateConv) FromImpl(v reflect.Value) (any, bool) {
 	switch x := v.Interface().(type) {
-	case []*zpvalue.Node:
+	case []*sxirvalue.Node:
 		return &itemsBox{nodes: x}, true
 	case []any:
 		return &itemsBox{vals: x}, true

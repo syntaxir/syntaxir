@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/internal/testing/enginetest"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 )
 
 // TestTwinMemo checks, on both engine backends, the two facts about value-free twins that the

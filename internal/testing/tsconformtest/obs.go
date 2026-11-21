@@ -1,7 +1,7 @@
 package tsconformtest
 
 import (
-	"zeroparse.dev/zp/internal/ir/code/exec/conform"
+	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
 )
 
 // Obs is the family of the observation of a parse: the library's Observation, whose events the trace

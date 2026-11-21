@@ -3,11 +3,11 @@
 #        train.sh gate <name> [LEVEL...]   run the gate on its tip (default: engine full)
 #        train.sh land <name>              push the tip to main and record the landing
 # The integrator's landing train: cherry-pick the candidates onto current origin/main in a detached
-# worktree $ZP_AGENT_STATE/wt/train-<name>, run one gate on the tip, fast-forward main.
+# worktree $SXIR_AGENT_STATE/wt/train-<name>, run one gate on the tip, fast-forward main.
 #   <rev> is a commit, or a range A..B (cherry-picked in order). Merge commits are refused: main stays
 #   linear. A conflict stops the stack with the worktree left as it is; resolve it there, run
 #   `git cherry-pick --continue`, and pick the remaining revs by hand.
-#   gate: see run-gate.sh; the log is $ZP_AGENT_STATE/gates/train-<name>.log. Without levels it
+#   gate: see run-gate.sh; the log is $SXIR_AGENT_STATE/gates/train-<name>.log. Without levels it
 #   runs the ones the stack needs: `docs` for a stack of documentation, spec, site and skill paths;
 #   `engine` for any other path, and `full` besides when a path of the engine, the generators
 #   or the runtime changed: internal/runtime/engine, internal/backend/codegen/common, internal/compile, internal/ir,
@@ -51,16 +51,16 @@ needed_levels() {
 }
 [ $# -ge 2 ] || usage
 cmd=$1; name=$2; shift 2
-wt=$zp_state/wt/train-$name
+wt=$sxir_state/wt/train-$name
 case $cmd in
   stack)
     [ $# -ge 1 ] || usage
     [ ! -e "$wt" ] || die "$wt exists"
     git fetch -q origin
     base=$(git rev-parse origin/main)
-    mkdir -p "$zp_state/wt" "$zp_state/gates"
+    mkdir -p "$sxir_state/wt" "$sxir_state/gates"
     git worktree add -q --detach "$wt" "$base"
-    echo "$base" > "$zp_state/gates/train-$name.base"
+    echo "$base" > "$sxir_state/gates/train-$name.base"
     for r in "$@"; do
       case $r in *..*) revs=$(git rev-list --reverse "$r") ;; *) revs=$(git rev-parse "$r^{commit}") ;; esac
       for c in $revs; do
@@ -76,7 +76,7 @@ case $cmd in
     ;;
   gate)
     [ -d "$wt" ] || die "no train worktree $wt"
-    g=$zp_state/gates
+    g=$sxir_state/gates
     base=$(cat "$g/train-$name.base")
     tip=$(git -C "$wt" rev-parse HEAD)
     if [ $# -eq 0 ]; then read -r -a lv <<< "$(needed_levels "$base" "$tip")"; set -- "${lv[@]}"; fi
@@ -89,7 +89,7 @@ case $cmd in
     ;;
   land)
     [ -d "$wt" ] || die "no train worktree $wt"
-    g=$zp_state/gates
+    g=$sxir_state/gates
     tip=$(git -C "$wt" rev-parse HEAD)
     base=$(cat "$g/train-$name.base")
     ok=$(cat "$g/train-$name.ok" 2>/dev/null || true)
@@ -106,7 +106,7 @@ case $cmd in
     "$here/../../hack/check-commits.sh" "$base" "$tip"
     git -C "$wt" push origin "$tip:refs/heads/main"
     line="LANDED train-$name $(date +%F): main $(git rev-parse --short "$base")..$(git rev-parse --short "$tip")"
-    printf '%s\n' "$line" >> "$zp_state/landing-train.md"
+    printf '%s\n' "$line" >> "$sxir_state/landing-train.md"
     echo "$line"
     ;;
   *) usage ;;

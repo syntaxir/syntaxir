@@ -6,11 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/exec"
-	"zeroparse.dev/zp/internal/ir/code/exec/conform"
-	"zeroparse.dev/zp/internal/ir/code/exec/ref"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec"
+	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
+	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // The operations of the rules of the typed library under conformance: every operation runs through its
@@ -55,7 +55,7 @@ func newTypedRuleMachine(cfg ref.Config, controlled bool) conform.Impl {
 	base.p.setDeferMemo()
 	m := &typedRuleMachine{docMachine: &docMachine{rtMachine: base}, tp: tp, invs: map[int64]*typedInvocation{}, specs: cfg.RuleSpecs,
 		evals: map[int64]int64{}}
-	scriptRules(base.env.rules, cfg, func(int64, *Parser, int) (*zpvalue.Node, bool) {
+	scriptRules(base.env.rules, cfg, func(int64, *Parser, int) (*sxirvalue.Node, bool) {
 		panic("the typed library runs the typed body of a rule")
 	})
 	for i, r := range base.env.rules {

@@ -1,4 +1,4 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package bench
 
@@ -6,8 +6,8 @@ import (
 	"context"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/pkg/runtime"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/pkg/runtime"
 )
 
 // BenchmarkBudgetControlModes separates warm context polling from finite counters. The inactive and

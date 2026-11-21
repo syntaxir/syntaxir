@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
-	valueimpl "zeroparse.dev/zp/pkg/runtime/value/impl"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
+	valueimpl "syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // The codes of the binary operators, as the compositions of terms take them, for generated parsers;
@@ -412,7 +412,7 @@ func (p *Parser) TermPushItems(c *ActCtx, fn string, v any) any {
 // TermItems is for generated parsers; not a stable API.
 //
 // Printed from Exec IR function items of internal/ir/code/exec/compose.
-func (p *Parser) TermItems(fn string, v any) ([]*zpvalue.Node, any) {
+func (p *Parser) TermItems(fn string, v any) ([]*sxirvalue.Node, any) {
 	items, ok := valItems(v)
 	if ok {
 		return items, nil
@@ -426,7 +426,7 @@ func (p *Parser) TermItems(fn string, v any) ([]*zpvalue.Node, any) {
 // TermItemAt is for generated parsers; not a stable API.
 //
 // Printed from Exec IR function itemAt of internal/ir/code/exec/compose.
-func (p *Parser) TermItemAt(items []*zpvalue.Node, i int, right bool) any {
+func (p *Parser) TermItemAt(items []*sxirvalue.Node, i int, right bool) any {
 	if right {
 		return UnboxNode(items[len(items)-1-i])
 	}
@@ -516,7 +516,7 @@ func (p *Parser) TermConvert(t *nodeTypeKinds, x any) (any, any) {
 // TermCover is for generated parsers; not a stable API.
 //
 // Printed from Exec IR function cover of internal/ir/code/exec/compose.
-func (p *Parser) TermCover(n *zpvalue.Node, v any, first bool) bool {
+func (p *Parser) TermCover(n *sxirvalue.Node, v any, first bool) bool {
 	k, ok := nodeOf(v)
 	if !ok {
 		return first
@@ -540,7 +540,7 @@ func (p *Parser) TermCover(n *zpvalue.Node, v any, first bool) bool {
 // TermMade is for generated parsers; not a stable API.
 //
 // Printed from Exec IR function made of internal/ir/code/exec/compose.
-func (p *Parser) TermMade(c *ActCtx, n *zpvalue.Node, first bool) {
+func (p *Parser) TermMade(c *ActCtx, n *sxirvalue.Node, first bool) {
 	if first {
 		rs, re := c.start, c.end
 		setSpan(n, rs, re)
@@ -555,7 +555,7 @@ func (p *Parser) TermMade(c *ActCtx, n *zpvalue.Node, first bool) {
 // TermHull is for generated parsers; not a stable API.
 //
 // Printed from Exec IR function hull of internal/ir/code/exec/compose.
-func (p *Parser) TermHull(c *ActCtx, tuple bool, kids []*zpvalue.Node) *zpvalue.Node {
+func (p *Parser) TermHull(c *ActCtx, tuple bool, kids []*sxirvalue.Node) *sxirvalue.Node {
 	var j int
 	n := p.NewNode(Data{Kind: seqKind(tuple), Children: kids})
 	rs, _ := c.start, c.end
@@ -670,7 +670,7 @@ func (p *Parser) TermConforms(t *FieldType, v any) bool {
 // node has a string, and a tuple node or a list node its elements as value.
 //
 // Printed from Exec IR function valueConforms of internal/ir/code/exec/compose.
-func (p *Parser) termValueConforms(t *FieldType, n *zpvalue.Node, shape int) bool {
+func (p *Parser) termValueConforms(t *FieldType, n *sxirvalue.Node, shape int) bool {
 	var i int
 	kt := int(t.Kind)
 	// A node of a type whose value is a string, a tuple or a list.
@@ -711,7 +711,7 @@ func (p *Parser) termValueConforms(t *FieldType, n *zpvalue.Node, shape int) boo
 // of the list, charging a step for each element it examines; the type _ takes every element, and charges nothing.
 //
 // Printed from Exec IR function elemsConform of internal/ir/code/exec/compose.
-func (p *Parser) termElemsConform(t *FieldType, items []*zpvalue.Node) bool {
+func (p *Parser) termElemsConform(t *FieldType, items []*sxirvalue.Node) bool {
 	var j int
 	if int(t.Kind) == 95 {
 		return true
@@ -730,7 +730,7 @@ func (p *Parser) termElemsConform(t *FieldType, items []*zpvalue.Node) bool {
 // as many, and each of its own type, charging a step for each element it examines.
 //
 // Printed from Exec IR function tupleConform of internal/ir/code/exec/compose.
-func (p *Parser) termTupleConform(t *FieldType, items []*zpvalue.Node) bool {
+func (p *Parser) termTupleConform(t *FieldType, items []*sxirvalue.Node) bool {
 	var j int
 	count := len(items)
 	if count != len(t.Alts) {

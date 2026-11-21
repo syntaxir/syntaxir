@@ -5,15 +5,15 @@ import (
 	"maps"
 	"slices"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/frontend/elaborate"
-	"zeroparse.dev/zp/internal/ir/code"
-	flowpkg "zeroparse.dev/zp/internal/ir/code/flow"
-	ir "zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/internal/middleend/corepass"
-	"zeroparse.dev/zp/internal/middleend/flowplan/plandata"
-	"zeroparse.dev/zp/internal/runtime/program"
-	"zeroparse.dev/zp/pkg/bytecode"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/elaborate"
+	"syntaxir.dev/sxir/internal/ir/code"
+	flowpkg "syntaxir.dev/sxir/internal/ir/code/flow"
+	ir "syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/corepass"
+	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
+	"syntaxir.dev/sxir/internal/runtime/program"
+	"syntaxir.dev/sxir/pkg/bytecode"
 )
 
 // CoreOf returns the Core IR of prog after the bytecode pipeline, the module that Compile emits

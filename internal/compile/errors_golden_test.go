@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/frontend/desugar"
-	"zeroparse.dev/zp/internal/frontend/parser"
-	"zeroparse.dev/zp/internal/testing/factstest"
+	"syntaxir.dev/sxir/internal/frontend/desugar"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/testing/factstest"
 )
 
 // TestErrorsGolden pins the error lists of grammars with errors of several kinds: type errors

@@ -7,11 +7,11 @@ import (
 	"sort"
 	"strings"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/frontend/astfacts"
-	"zeroparse.dev/zp/internal/frontend/check"
-	"zeroparse.dev/zp/internal/frontend/types"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/check"
+	"syntaxir.dev/sxir/internal/frontend/types"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Typed values in generated parsers (GenOptions.Types).
@@ -47,7 +47,7 @@ type typedOutput struct {
 //
 // The source of the types package refers to the library by its package name and to the types by
 // their names; that of the parser package refers to the types of the grammar as types.Name, and the
-// names that only the types package declares (Error, TNode, Unit, TupleN, ZPHooks) unqualified,
+// names that only the types package declares (Error, TNode, Unit, TupleN, SXIRHooks) unqualified,
 // which qualifyLib resolves.
 func (g *Generator) typedGo(start *common.Rule, conv bool) (typedOutput, error) {
 	info := g.Prog.Typed
@@ -111,7 +111,7 @@ func ParseValue(input string, opts ...ParseOption) (%s, error) {
 		fmt.Fprintf(&entries, `%sfunc ParseValue(input string, opts ...ParseOption) (%s, error) {
  convert := func(n *Node, c *BudgetControl, err error) %s {
 %s%s }
- o, err := ResolveOptions(zpGrammar, opts)
+ o, err := ResolveOptions(sxirGrammar, opts)
  if err != nil { return convert(nil, nil, err), err }
  return RunParseConverted(rules[%d], input, o, convert)
 }
@@ -182,7 +182,7 @@ type StreamValueIterator struct{ pull *StreamPull[StreamValue] }
 // IterateValue returns an iterator over the typed elements that ParseStreamValue would pass to emit, parsing
 // only as far as each call to Next needs. Options are validated before it returns; r is first read by Next.
 func IterateValue(r io.Reader, opts ...ParseOption) (*StreamValueIterator, error) {
-	pull, err := IterateStream(zpGrammar, opts, func(emit func(StreamValue) error) error { return ParseStreamValue(r, emit, opts...) })
+	pull, err := IterateStream(sxirGrammar, opts, func(emit func(StreamValue) error) error { return ParseStreamValue(r, emit, opts...) })
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +210,7 @@ func (it *StreamValueIterator) Close() { it.pull.Close() }
 		fmt.Fprintf(&named, "//\t%s: %s\n", r.Name, t.goType(ruleType(r)))
 	}
 	named.WriteString(`func ParseRuleValue(name, input string, opts ...ParseOption) (any, error) {
-	o, err := ResolveOptions(zpGrammar, opts)
+	o, err := ResolveOptions(sxirGrammar, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -240,7 +240,7 @@ func (it *StreamValueIterator) Close() { it.pull.Close() }
 			fmt.Fprintf(&named, "\t\t\treturn %s\n\t\t})\n", result)
 		}
 	}
-	named.WriteString("\tdefault:\n\t\treturn nil, zpGrammar.StartError(name)\n\t}\n}\n")
+	named.WriteString("\tdefault:\n\t\treturn nil, sxirGrammar.StartError(name)\n\t}\n}\n")
 	units := append([]shakeUnit(nil), astHelperUnits...)
 	bootstrap := g.Opt().On("typed-output-bootstrap")
 	// The default form of the chunk helpers is the library's (Chunk, Alloc, AllocSlice); only the
@@ -402,11 +402,11 @@ var LibMethodNames = map[string]bool{
 
 // hooksName is the name of the variable of the types package that makes the values of the types
 // package from those the typed library builds, and back.
-const hooksName = "ZPHooks"
+const hooksName = "SXIRHooks"
 
 // nodeTypesName is the name of the variable of the types package that holds the registered indexes
 // of the named node types.
-const nodeTypesName = "ZPNodeTypes"
+const nodeTypesName = "SXIRNodeTypes"
 
 // checkTypesNames rejects a type of the grammar that has the name of a type the types package
 // declares for the typed values: TNode, the tuple types and Unit that the output uses, and the
@@ -1309,10 +1309,10 @@ func (t *TypedGen) zeroKind(ty types.Ty) string {
 	return ""
 }
 
-// backNodeTypes writes an init function that completes ZPHooks.Back with the named node types: a value of
+// backNodeTypes writes an init function that completes SXIRHooks.Back with the named node types: a value of
 // a named node type that an action reads back from a field of a join, node or any type becomes the
 // string, tuple or list node of the typed library with the type's index, which converts to the same value
-// again. The conversions read ZPHooks, so they cannot be part of its initializer.
+// again. The conversions read SXIRHooks, so they cannot be part of its initializer.
 func (t *TypedGen) backNodeTypes(b *strings.Builder) {
 	var cases strings.Builder
 	for _, name := range t.NodeTypes {

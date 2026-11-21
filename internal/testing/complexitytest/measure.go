@@ -14,12 +14,12 @@ import (
 	"math"
 	"strings"
 
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/internal/testing/enginetest"
-	"zeroparse.dev/zp/internal/testing/starttest"
-	"zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
+	"syntaxir.dev/sxir/internal/testing/starttest"
+	"syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // Backends are the backends whose cost is measured.
@@ -38,7 +38,7 @@ func BackendName(b engine.Backend) string {
 	return fmt.Sprint(int(b))
 }
 
-// Compile compiles the ZeroParse source with every rule a start rule and main as the default start
+// Compile compiles the SyntaxIR source with every rule a start rule and main as the default start
 // rule.
 func Compile(src string) (*engine.Parser, error) {
 	g, err := enginetest.ParseGrammar(src)

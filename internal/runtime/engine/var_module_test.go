@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	fcheck "zeroparse.dev/zp/internal/frontend/check"
-	"zeroparse.dev/zp/internal/runtime/program"
-	"zeroparse.dev/zp/pkg/bytecode"
+	"syntaxir.dev/sxir/internal/compile"
+	fcheck "syntaxir.dev/sxir/internal/frontend/check"
+	"syntaxir.dev/sxir/internal/runtime/program"
+	"syntaxir.dev/sxir/pkg/bytecode"
 )
 
 // varModuleSource declares variables of each type, reads them in predicates and rebinds them.

@@ -5,10 +5,10 @@ import (
 	"reflect"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 func TestWalkEdgeOrderAndSharedParents(t *testing.T) {

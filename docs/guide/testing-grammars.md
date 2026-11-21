@@ -32,11 +32,11 @@ backend, a compiled file, generated code, an incremental reparse) behave like th
 
 ## The Grammar Under Test
 
-The examples use `pairs.zp` of the [Running Parsers](running-parsers.md), which reads `key=value` pairs separated by optional
+The examples use `pairs.sxir` of the [Running Parsers](running-parsers.md), which reads `key=value` pairs separated by optional
 semicolons and whitespace:
 
-```zp
-// pairs.zp
+```sxir
+// pairs.sxir
 type Pair = { Key node[string]; Value node[string] }
 
 @start
@@ -53,7 +53,7 @@ embedded and compiled once, because a `runtime.Parser` is safe for concurrent us
 ```text
 example.com/pairs
 ├── go.mod
-├── pairs.zp
+├── pairs.sxir
 ├── pairs_test.go
 ├── golden_test.go
 ├── properties_test.go
@@ -81,18 +81,18 @@ import (
 	"slices"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
-	"zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
-//go:embed pairs.zp
+//go:embed pairs.sxir
 var grammarSrc string
 
 // parser is shared by every test: a runtime.Parser is safe for concurrent use.
 var parser = func() runtime.Parser {
-	p, err := compiler.Compile(grammar.FromString("grammar.zp", grammarSrc), compiler.WithStart("main"))
+	p, err := compiler.Compile(grammar.FromString("grammar.sxir", grammarSrc), compiler.WithStart("main"))
 	if err != nil {
 		panic(err)
 	}
@@ -250,8 +250,8 @@ Notes:
   rule of each node), at the price of larger files. A grammar with `#recover` should also print the recovered errors
   (`var recovered value.SyntaxErrors; errors.As(err, &recovered)`): a parse can return a tree and an error together.
 - Keep a few inputs that **fail**, with the error in the golden file. Error messages are part of a parser's interface.
-- The same layout is used by [examples/](../../examples/) and by every module of [parsers/](https://github.com/zeroparse/alpha-parsers); the zp
-  command makes a golden file too: `zp parse -g pairs.zp -f sexpr < testdata/basic.txt`.
+- The same layout is used by [examples/](../../examples/) and by every module of [parsers/](https://github.com/syntaxir/alpha-parsers); the sxir
+  command makes a golden file too: `sxir parse -g pairs.sxir -f sexpr < testdata/basic.txt`.
 
 ## Fixture Suites
 
@@ -261,7 +261,7 @@ suite file; each case must provide an `input` string and an expected outcome:
 ```json
 {
   "version": 1,
-  "grammar": "grammar.zp",
+  "grammar": "grammar.sxir",
   "backends": ["closure", "bytecode"],
   "equivalence": true,
   "cases": [
@@ -272,10 +272,10 @@ suite file; each case must provide an `input` string and an expected outcome:
 }
 ```
 
-For example, `grammar.zp` can contain:
+For example, `grammar.sxir` can contain:
 
-```zp
-// grammar.zp
+```sxir
+// grammar.sxir
 @start
 rule main = "a" #recover(skip=[^;]+ ";"?)
 ```
@@ -283,7 +283,7 @@ rule main = "a" #recover(skip=[^;]+ ";"?)
 Run the suite with:
 
 ```bash
-zp test -f suite.json
+sxir test -f suite.json
 ```
 
 The three outcomes are independent of whether the parse produced a node: a successful or recovered parse may have
@@ -302,7 +302,7 @@ may additionally include node JSON, root `start`/`end` positions, and ordered sy
 To refresh observed node and location goldens for one backend, select it explicitly:
 
 ```bash
-zp test -f suite.json -backend closure -update
+sxir test -f suite.json -backend closure -update
 ```
 
 The update refuses to write if any selected case has a runtime error or its observed outcome differs from the
@@ -336,10 +336,10 @@ import (
 	"fmt"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/value"
-	"zeroparse.dev/zp/pkg/runtime/vm"
+	"syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/vm"
 )
 
 // checkInput checks what must hold for every input, valid or not.
@@ -436,7 +436,7 @@ package pairs_test
 import (
 	"testing"
 
-	"zeroparse.dev/zp/pkg/sample"
+	"syntaxir.dev/sxir/pkg/sample"
 )
 
 // TestGeneratedInputs runs the checks on inputs generated from the grammar, and requires that they exercise
@@ -479,7 +479,7 @@ test is deterministic, and try other seeds from time to time.
 On the command line:
 
 ```bash
-zp sample -g pairs.zp -n 3 -seed 1 -coverage
+sxir sample -g pairs.sxir -n 3 -seed 1 -coverage
 ```
 
 ```text
@@ -490,7 +490,7 @@ rules 5/5 (100%), alternatives 0/0 (100%)
 ```
 
 ```bash
-zp sample -g pairs.zp -n 2 -seed 1 -invalid
+sxir sample -g pairs.sxir -n 2 -seed 1 -invalid
 ```
 
 ```text
@@ -538,9 +538,9 @@ commit the file, as a regression test. The fuzzer works best with short inputs: 
 If another parser of the language exists (the standard library's, or the language's own), the strongest test is to
 compare the two on the same inputs: accepted or not, and what the result says. Feed both the generated inputs, the
 near misses and the fuzzer's inputs. A test of this kind finds mistakes that no hand-written example does, because the
-reference is right where you misread the specification. The [ready-made parsers](https://github.com/zeroparse/alpha-parsers) are checked this way
+reference is right where you misread the specification. The [ready-made parsers](https://github.com/syntaxir/alpha-parsers) are checked this way
 against `encoding/json` (JSON), `encoding/csv`, `encoding/xml`, `go/parser`, CPython's `ast`, the TypeScript compiler,
-cel-go and `cue/parser`, and against conformance suites ([alpha-parsers/README.md](https://github.com/zeroparse/alpha-parsers/blob/main/README.md)). The shape of the
+cel-go and `cue/parser`, and against conformance suites ([alpha-parsers/README.md](https://github.com/syntaxir/alpha-parsers/blob/main/README.md)). The shape of the
 test is the one of the [sampling guide](sampling-and-fuzzing.md#from-go):
 
 ```go
@@ -575,7 +575,7 @@ import (
 	"math/rand/v2"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/sample"
+	"syntaxir.dev/sxir/pkg/sample"
 )
 
 // TestDocumentMatchesFreshParse edits generated inputs at random and checks that reparsing the document gives the
@@ -612,7 +612,7 @@ func TestDocumentMatchesFreshParse(t *testing.T) {
 }
 ```
 
-`zp edit-fuzz` and package `editfuzz` run the same check with undo, redo, invalid UTF-8, spans and every backend
+`sxir edit-fuzz` and package `editfuzz` run the same check with undo, redo, invalid UTF-8, spans and every backend
 and unit, and save a failing edit sequence as a file that replays it ([fuzzing edits](sampling-and-fuzzing.md#fuzzing-edits)).
 
 **A compiled grammar** must behave like the grammar it was made from ([compiled grammars](compiled-grammars.md)). This
@@ -625,8 +625,8 @@ import (
 	"fmt"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/runtime/vm"
-	"zeroparse.dev/zp/pkg/sample"
+	"syntaxir.dev/sxir/pkg/runtime/vm"
+	"syntaxir.dev/sxir/pkg/sample"
 )
 
 // TestLoadedMatchesCompiled checks that a grammar saved and loaded again behaves like the one compiled from source.
@@ -664,13 +664,13 @@ those of the repetition in the tree that `Parse` returns for the same input. Cop
 
 Check the grammar as a file, too:
 
-- **`zp lint`** finds alternatives that can never match, contradictory anchors, nullable repetitions and unused rules
+- **`sxir lint`** finds alternatives that can never match, contradictory anchors, nullable repetitions and unused rules
   ([linting grammars](linting.md)). `lint.Config.Run` makes it a test: see the example in that guide.
-- **`zp fmt -check`** lists the files whose formatting differs from the canonical one and exits with status 1 when
-  there are any (2 when a file cannot be parsed), so it can be a CI step as it is. `zp fmt -l` lists the same files
+- **`sxir fmt -check`** lists the files whose formatting differs from the canonical one and exits with status 1 when
+  there are any (2 when a file cannot be parsed), so it can be a CI step as it is. `sxir fmt -l` lists the same files
   but exits with status 0.
 
-- **Generated files** (`zp gen`, `zp compile`) are checked for staleness by a test that regenerates in memory and
+- **Generated files** (`sxir gen`, `sxir compile`) are checked for staleness by a test that regenerates in memory and
   compares: [code generation](code-generation.md#keeping-generated-code-up-to-date) and
   [compiled grammars](compiled-grammars.md#embedding-with-goembed).
 
@@ -680,8 +680,8 @@ Check the grammar as a file, too:
 go vet ./...
 go test ./...                                             # examples, golden files, properties, generated inputs
 go test -run '^$' -fuzz=FuzzParse -fuzztime=30s .         # a short fuzz run; the corpus of failures is kept in testdata/fuzz
-zp lint -g pairs.zp                                   # exits with status 1 on an error finding (-strict: also on warnings)
-zp fmt -check *.zp                                    # exits with status 1 if a file is not formatted
+sxir lint -g pairs.sxir                                   # exits with status 1 on an error finding (-strict: also on warnings)
+sxir fmt -check *.sxir                                    # exits with status 1 if a file is not formatted
 ```
 
 Fuzz for longer on a schedule rather than on every commit.
@@ -692,4 +692,4 @@ Fuzz for longer on a schedule rather than on every commit.
 - [Error messages](error-messages.md): shaping the errors that these tests check.
 - [Linting grammars](linting.md), [code generation](code-generation.md) and
   [compiled grammars](compiled-grammars.md): keeping the other artifacts honest.
-- [Debugging and profiling](debugging.md): when a test fails and you need to know why (`zp explain`, `zp trace`).
+- [Debugging and profiling](debugging.md): when a test fails and you need to know why (`sxir explain`, `sxir trace`).

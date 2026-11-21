@@ -3,8 +3,8 @@ package corepass
 import (
 	"slices"
 
-	"zeroparse.dev/zp/internal/cancel"
-	"zeroparse.dev/zp/internal/ir/core"
+	"syntaxir.dev/sxir/internal/cancel"
+	"syntaxir.dev/sxir/internal/ir/core"
 )
 
 // Site numbering.

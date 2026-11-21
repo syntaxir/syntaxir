@@ -3,8 +3,8 @@ package flowlower
 import (
 	"fmt"
 
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/flow"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/flow"
 )
 
 // The constructions of Code IR that the lowering writes: the operations of the Flow dialect, with

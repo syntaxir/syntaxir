@@ -3,8 +3,8 @@ package state
 import (
 	"context"
 
-	"zeroparse.dev/zp/internal/runtime/program"
-	"zeroparse.dev/zp/pkg/bytecode"
+	"syntaxir.dev/sxir/internal/runtime/program"
+	"syntaxir.dev/sxir/pkg/bytecode"
 )
 
 // A Source is the compiler side of a program compiled from a grammar: what the parses of the

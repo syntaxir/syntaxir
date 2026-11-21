@@ -1,4 +1,4 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package document_test
 
@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	. "zeroparse.dev/zp/internal/runtime/engine"
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
+	. "syntaxir.dev/sxir/internal/runtime/engine"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 )
 
 // minSecondSnapshotCompute returns the least Compute limit under which the snapshot after an edit
@@ -38,7 +38,7 @@ func minSecondSnapshotCompute(t *testing.T, prog *Program, text string, keep boo
 				t.Fatal("the first snapshot was not collected")
 			}
 		}
-		_, err = d.SnapshotWith(ParseOptions{Limits: zpruntime.Limits{Compute: limit}})
+		_, err = d.SnapshotWith(ParseOptions{Limits: sxirruntime.Limits{Compute: limit}})
 		return err == nil
 	}
 	lo, hi := uint64(1), uint64(1<<24)

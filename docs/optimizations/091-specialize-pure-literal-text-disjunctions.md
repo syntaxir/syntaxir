@@ -72,13 +72,13 @@ increased by 8 and 14 bytes respectively.
 The reproducible fixture exporter is:
 
 ```sh
-ZP_LITERAL_DISPATCH_DIR=/tmp/zp-literal-dispatch \
+SXIR_LITERAL_DISPATCH_DIR=/tmp/sxir-literal-dispatch \
   go test ./internal/backend/codegen/common -run '^TestGeneratedLiteralDispatchWorkload$' -count=1
 ```
 
 The measured revision was based on `97668bc` with the literal-dispatch change.
 Full generated plain-Go, typed-Go and TypeScript corpus validation and all
 parser-module suites pass. The clean 131-case, three-sample full snapshot at
-[c85db9e](https://github.com/zeroparse/zp/commit/c85db9e5e6fa2d2b84e0327e5ba4ffbc4b010dc8)
+[c85db9e](https://github.com/syntaxir/syntaxir/commit/c85db9e5e6fa2d2b84e0327e5ba4ffbc4b010dc8)
 is recorded in [the full results](../benchmarks.md), without attributing it to
 this optimization.

@@ -1,4 +1,4 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package vm
 
@@ -8,14 +8,14 @@ import (
 	"reflect"
 	"testing"
 
-	value "zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/internal/runtime/program"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/pkg/bytecode"
-	"zeroparse.dev/zp/pkg/grammar/ast"
-	"zeroparse.dev/zp/pkg/runtime"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	value "syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/internal/runtime/program"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/pkg/bytecode"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/runtime"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // TestBudgetStateVMChildAssembly pins that the match code assembles the children of a sequence and of a
@@ -28,7 +28,7 @@ func TestBudgetStateVMChildAssembly(t *testing.T) {
 			start := 3
 			retained := value.Ptr(value.Data{Text: "retained", Fields: valueimpl.Fields{{Name: "keep", Value: "unchanged"}}})
 			machineOf(p).vals = append(machineOf(p).vals, &start)
-			want := make([]*zpvalue.Node, 320)
+			want := make([]*sxirvalue.Node, 320)
 			for i := range want {
 				if i%3 != 0 {
 					want[i] = retained
@@ -42,7 +42,7 @@ func TestBudgetStateVMChildAssembly(t *testing.T) {
 			}
 			vm := &Program{m: &bytecode.Module{Code: []bytecode.Instr{instruction, {Op: bytecode.OpEnd}}}}
 			body := vmBody{}
-			var result *zpvalue.Node
+			var result *sxirvalue.Node
 			err := catchFatal(t, func() { _, result, _ = machineOf(p).step(vm, &body, false, false, nil) })
 			if err != nil || result == nil || !reflect.DeepEqual(value.D(result).Children, want) || value.D(result).Start != 3 {
 				t.Fatalf("%v assembled children/position differs: %v", op, err)
@@ -146,7 +146,7 @@ func TestBudgetStateOperatorsRuleFrameSnapshotAndRestoration(t *testing.T) {
 					f.next(ivmMachineOf(p), nil, iresult{ok: true, v: retained})
 					best = ivmMachineOf(p).attempt
 				} else {
-					op.Line.M = func(p *state.Parser) (*zpvalue.Node, bool) { setup(p.Frame); return retained, true }
+					op.Line.M = func(p *state.Parser) (*sxirvalue.Node, bool) { setup(p.Frame); return retained, true }
 					best = p.Longest([]*state.OperatorsRuleOp{op})
 				}
 			})
@@ -178,7 +178,7 @@ func TestBudgetResetAndVMRestoreChargeNothing(t *testing.T) {
 			p.Frame = f
 			p.Pos = 99
 			p.SetVars([]any{1})
-			p.Recovered = []state.RecEntry{state.ErrEntry(&zpvalue.SyntaxError{Messages: []string{"temporary"}})}
+			p.Recovered = []state.RecEntry{state.ErrEntry(&sxirvalue.SyntaxError{Messages: []string{"temporary"}})}
 			if name == "reset" {
 				m := state.Mark{Pos: 4, Trail: 0}
 				if err := catchFatal(t, func() { p.Reset(m) }); err != nil {

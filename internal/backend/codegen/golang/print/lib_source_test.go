@@ -7,8 +7,8 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/backend/codegen/golang/print"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
 )
 
 // miniLib is a library source with one file whose text carries marker.

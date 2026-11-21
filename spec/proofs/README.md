@@ -1,4 +1,4 @@
-# ZeroParse Proofs
+# SyntaxIR Proofs
 
 The runtimes reuse results to bound the cost of a parse, and they stop a parse
 that a limit or a cancellation interrupts. Each mechanism is stated in the
@@ -12,7 +12,7 @@ that they cite.
 Each proof names its author and the date of its last revision under its title.
 A change to a statement or a proof updates the date. From the first release
 on, each proof also lists the releases that changed it. To cite a proof, cite
-ZeroParse and name the proof.
+SyntaxIR and name the proof.
 
 ## Contents
 

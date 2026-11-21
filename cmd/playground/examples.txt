@@ -1,13 +1,13 @@
 # Examples offered by the playground, in menu order. The site generator copies them into the site,
-# and the WebAssembly smoke test parses each input and compares the result with the zp command.
+# and the WebAssembly smoke test parses each input and compares the result with the sxir command.
 #
 # name              grammar                              input                                      description
-calculator          examples/calculator/calc.zp        examples/calculator/testdata/mixed.txt     Operators Rules and a typed AST
-calculator-lr       examples/calculator/calc_lr.zp     examples/calculator/testdata/mixed.txt     The same calculator with left recursion
-json                testdata/grammars/json/json.zp               testdata/grammars/json/object.txt           Join and terminal types, separated lists
-csv                 testdata/grammars/csv/csv.zp                 testdata/grammars/csv/basic.txt             Quoted fields and #stream
-xml                 testdata/grammars/xml/xml.zp                 testdata/grammars/xml/document.txt          Matching tag names with a predicate
-xml-error           testdata/grammars/xml/xml.zp                 testdata/grammars/xml/mismatch.txt          A custom message with @error
-outline             examples/outline/outline.zp        examples/outline/testdata/nested.txt       Indentation with predicates and variables
-minilang            examples/minilang/minilang.zp      examples/minilang/testdata/fib.txt         A small programming language
-minilang-recover    examples/minilang/minilang.zp      examples/minilang/testdata/recover.txt     Error recovery with #recover
+calculator          examples/calculator/calc.sxir        examples/calculator/testdata/mixed.txt     Operators Rules and a typed AST
+calculator-lr       examples/calculator/calc_lr.sxir     examples/calculator/testdata/mixed.txt     The same calculator with left recursion
+json                testdata/grammars/json/json.sxir               testdata/grammars/json/object.txt           Join and terminal types, separated lists
+csv                 testdata/grammars/csv/csv.sxir                 testdata/grammars/csv/basic.txt             Quoted fields and #stream
+xml                 testdata/grammars/xml/xml.sxir                 testdata/grammars/xml/document.txt          Matching tag names with a predicate
+xml-error           testdata/grammars/xml/xml.sxir                 testdata/grammars/xml/mismatch.txt          A custom message with @error
+outline             examples/outline/outline.sxir        examples/outline/testdata/nested.txt       Indentation with predicates and variables
+minilang            examples/minilang/minilang.sxir      examples/minilang/testdata/fib.txt         A small programming language
+minilang-recover    examples/minilang/minilang.sxir      examples/minilang/testdata/recover.txt     Error recovery with #recover

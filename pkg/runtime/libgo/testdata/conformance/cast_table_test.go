@@ -3,10 +3,10 @@ package libgo
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/ir/code/exec/conform"
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // The cast table (conform.CastCases) on the compositions conforms, valueConforms, elemsConform and
@@ -27,7 +27,7 @@ func castFieldType(t *conform.CastType) *FieldType {
 
 // nodeCastValue builds a value of the table in the node library.
 func nodeCastValue(c *ActCtx, v conform.CastValue) any {
-	text := func() *zpvalue.Node {
+	text := func() *sxirvalue.Node {
 		return nodeOfData(&Data{Kind: MatchKind, Terminal: true, Text: "xyz", Start: 2, End: 4})
 	}
 	elems := func() []any {
@@ -45,7 +45,7 @@ func nodeCastValue(c *ActCtx, v conform.CastValue) any {
 	case "nil":
 		return nil
 	case "nilnode":
-		return (*zpvalue.Node)(nil)
+		return (*sxirvalue.Node)(nil)
 	case "int":
 		return 1
 	case "string":
@@ -55,9 +55,9 @@ func nodeCastValue(c *ActCtx, v conform.CastValue) any {
 	case "text":
 		return text()
 	case "tuple":
-		return nodeOfData(&Data{Kind: SeqKind, Start: 2, End: 5, Children: []*zpvalue.Node{text(), text()}})
+		return nodeOfData(&Data{Kind: SeqKind, Start: 2, End: 5, Children: []*sxirvalue.Node{text(), text()}})
 	case "rep":
-		return nodeOfData(&Data{Kind: ListKind, Start: 2, End: 5, Children: []*zpvalue.Node{text(), text()}})
+		return nodeOfData(&Data{Kind: ListKind, Start: 2, End: 5, Children: []*sxirvalue.Node{text(), text()}})
 	case "err":
 		return nodeOfData(&Data{Kind: valueimpl.ErrorKind, Terminal: true, Start: 2, End: 4, Text: "x"})
 	case "struct":
@@ -118,8 +118,8 @@ func TestValueCastTable(t *testing.T) {
 		p := &Parser{g: g}
 		tp := &Parser{}
 		if controlled {
-			p.Control = newBudgetControl(t.Context(), zpruntime.Limits{Compute: 1 << 62})
-			tp.Control = newBudgetControl(t.Context(), zpruntime.Limits{Compute: 1 << 62})
+			p.Control = newBudgetControl(t.Context(), sxirruntime.Limits{Compute: 1 << 62})
+			tp.Control = newBudgetControl(t.Context(), sxirruntime.Limits{Compute: 1 << 62})
 		}
 		c := &ActCtx{P: p}
 		if err := conform.RunCasts("node", controlled, func(typ *conform.CastType, v conform.CastValue) (bool, int) {

@@ -3,7 +3,7 @@ package engine
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
+	"syntaxir.dev/sxir/internal/compile"
 )
 
 // TestCalleeBindingsUndoneAtReturn checks that a binding made in a called rule is not visible to

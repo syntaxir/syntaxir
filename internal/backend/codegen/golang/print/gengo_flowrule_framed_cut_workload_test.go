@@ -5,11 +5,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
-// ZP_TYPED_FRAMED_CUT_DIR preserves current direct/reference modules for
+// SXIR_TYPED_FRAMED_CUT_DIR preserves current direct/reference modules for
 // separate-binary paired benchmarks without any generated library selector.
 func TestGeneratedTypedFramedCutWorkloads(t *testing.T) {
 	t.Parallel()
@@ -20,7 +20,7 @@ func testGeneratedTypedFramedCutWorkloads(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds generated code")
 	}
-	dir := os.Getenv("ZP_TYPED_FRAMED_CUT_DIR")
+	dir := os.Getenv("SXIR_TYPED_FRAMED_CUT_DIR")
 	if dir == "" {
 		dir = t.TempDir()
 	}

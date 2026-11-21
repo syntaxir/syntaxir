@@ -13,10 +13,10 @@ import (
 	"sync"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	gensrc "zeroparse.dev/zp/internal/driver/generate"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/internal/testing/enginetest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	gensrc "syntaxir.dev/sxir/internal/driver/generate"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 )
 
 // manifestFile is the checked-in manifest of the generated output of manifestGrammars in every
@@ -29,20 +29,20 @@ var outputTree = flag.String("output-tree", "", "with TestGeneratedOutputManifes
 // manifestGrammars are the grammars of the output manifest: the grammars of testdata/grammars and the examples
 // that the benchmarks generate. Paths are relative to this package.
 var manifestGrammars = []struct{ name, path string }{
-	{"cel", "../../../../testdata/grammars/cel/cel.zp"},
-	{"csv", "../../../../testdata/grammars/csv/csv.zp"},
-	{"cue", "../../../../testdata/grammars/cue/cue.zp"},
-	{"duckdb", "../../../../testdata/grammars/duckdb/duckdb.zp"},
-	{"golang", "../../../../testdata/grammars/golang/golang.zp"},
-	{"json", "../../../../testdata/grammars/json/json.zp"},
-	{"python", "../../../../testdata/grammars/python/python.zp"},
-	{"typescript", "../../../../testdata/grammars/typescript/typescript.zp"},
-	{"xml", "../../../../testdata/grammars/xml/xml.zp"},
-	{"yaml", "../../../../testdata/grammars/yaml/yaml.zp"},
-	{"calc", "../../../../examples/calculator/calc.zp"},
-	{"calclr", "../../../../examples/calculator/calc_lr.zp"},
-	{"minilang", "../../../../examples/minilang/minilang.zp"},
-	{"outline", "../../../../examples/outline/outline.zp"},
+	{"cel", "../../../../testdata/grammars/cel/cel.sxir"},
+	{"csv", "../../../../testdata/grammars/csv/csv.sxir"},
+	{"cue", "../../../../testdata/grammars/cue/cue.sxir"},
+	{"duckdb", "../../../../testdata/grammars/duckdb/duckdb.sxir"},
+	{"golang", "../../../../testdata/grammars/golang/golang.sxir"},
+	{"json", "../../../../testdata/grammars/json/json.sxir"},
+	{"python", "../../../../testdata/grammars/python/python.sxir"},
+	{"typescript", "../../../../testdata/grammars/typescript/typescript.sxir"},
+	{"xml", "../../../../testdata/grammars/xml/xml.sxir"},
+	{"yaml", "../../../../testdata/grammars/yaml/yaml.sxir"},
+	{"calc", "../../../../examples/calculator/calc.sxir"},
+	{"calclr", "../../../../examples/calculator/calc_lr.sxir"},
+	{"minilang", "../../../../examples/minilang/minilang.sxir"},
+	{"outline", "../../../../examples/outline/outline.sxir"},
 }
 
 // manifestModes are the configurations of the output manifest. Each is generated for every grammar.

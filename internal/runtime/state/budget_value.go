@@ -6,9 +6,9 @@ import (
 	"unicode/utf8"
 	"unsafe"
 
-	"zeroparse.dev/zp/internal/runtime/program"
-	"zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	"syntaxir.dev/sxir/internal/runtime/program"
+	"syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // Value spend is charged like any other spend, though strings and collections can

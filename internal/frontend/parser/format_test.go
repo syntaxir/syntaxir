@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	syntaxfmt "zeroparse.dev/zp/internal/syntax/fmt"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // format parses src and formats it.
@@ -175,7 +175,7 @@ func TestFormatMinusBoundaries(t *testing.T) {
 var formattedGrammarSink string
 
 func BenchmarkFormatGrammar(b *testing.B) {
-	for _, name := range []string{"../../../examples/minilang/minilang.zp", "../../../testdata/grammars/yaml/yaml.zp"} {
+	for _, name := range []string{"../../../examples/minilang/minilang.sxir", "../../../testdata/grammars/yaml/yaml.sxir"} {
 		b.Run(filepath.Base(name), func(b *testing.B) {
 			data, err := os.ReadFile(name)
 			if err != nil {
@@ -434,7 +434,7 @@ func TestFormatExamples(t *testing.T) {
 	var paths []string
 	for _, root := range []string{"../../../examples", "../../../testdata/grammars"} {
 		err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-			if err == nil && !d.IsDir() && strings.HasSuffix(path, ".zp") {
+			if err == nil && !d.IsDir() && strings.HasSuffix(path, ".sxir") {
 				paths = append(paths, path)
 			}
 			return err

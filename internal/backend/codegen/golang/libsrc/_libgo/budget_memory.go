@@ -3,9 +3,9 @@ package libgo
 import (
 	"unsafe"
 
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // Memory is counted in bytes of logical capacity: the element count of a buffer times the size of
@@ -30,7 +30,7 @@ import (
 // Sizes of the elements that the counters charge.
 const (
 	nodeBytes      = uint64(unsafe.Sizeof(Data{}))
-	ptrBytes       = uint64(unsafe.Sizeof((*zpvalue.Node)(nil)))
+	ptrBytes       = uint64(unsafe.Sizeof((*sxirvalue.Node)(nil)))
 	fieldBytes     = uint64(unsafe.Sizeof(valueimpl.NodeField{}))
 	frameBytes     = uint64(unsafe.Sizeof(CaptureFrame{}))
 	memoEntryBytes = uint64(unsafe.Sizeof(memoEntry{}))
@@ -39,7 +39,7 @@ const (
 	intBytes       = uint64(unsafe.Sizeof(0))
 	stringBytes    = uint64(unsafe.Sizeof(""))
 	// syntaxErrorBytes is a syntax error; the lists that hold its pointer count the pointer.
-	syntaxErrorBytes = uint64(unsafe.Sizeof(zpvalue.SyntaxError{}))
+	syntaxErrorBytes = uint64(unsafe.Sizeof(sxirvalue.SyntaxError{}))
 	expIDBytes       = uint64(unsafe.Sizeof(ExpID(0)))
 	sdepBytes        = uint64(unsafe.Sizeof(sdep{}))
 	growKeyBytes     = uint64(unsafe.Sizeof(growKey{}))
@@ -105,7 +105,7 @@ func (c *BudgetControl) attachTypedMemory(p *TParser, ext any) {
 func (c *BudgetControl) checkMemory() {
 	if used := c.memoryUsed(); used > c.limits.Memory {
 		c.interrupted = true
-		panic(fatal{err: &zpruntime.LimitError{Kind: zpruntime.LimitMemory, Limit: c.limits.Memory, Used: used}})
+		panic(fatal{err: &sxirruntime.LimitError{Kind: sxirruntime.LimitMemory, Limit: c.limits.Memory, Used: used}})
 	}
 }
 
@@ -216,14 +216,14 @@ func (p *Parser) chargeValueBytes(n int) {
 }
 
 // chargeError charges the syntax error e (BudgetControl.errs).
-func (p *Parser) chargeError(e *zpvalue.SyntaxError) {
+func (p *Parser) chargeError(e *sxirvalue.SyntaxError) {
 	if c := p.Control; c != nil {
 		c.errs = saturatingAdd(c.errs, syntaxErrorSize(e))
 	}
 }
 
 // syntaxErrorSize returns the bytes of the syntax error e and its lists.
-func syntaxErrorSize(e *zpvalue.SyntaxError) uint64 {
+func syntaxErrorSize(e *sxirvalue.SyntaxError) uint64 {
 	return syntaxErrorBytes + uint64(cap(e.Expected)+cap(e.Messages))*stringBytes
 }
 

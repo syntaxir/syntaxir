@@ -7,12 +7,12 @@ import (
 )
 
 // Representative returns the cases that a test of the default tier runs when running all of them
-// is too slow to repeat on every change; the long tier (go test -tags zp_long) runs every case.
+// is too slow to repeat on every change; the long tier (go test -tags sxir_long) runs every case.
 //
 // The selection is fixed and does not depend on the order of the corpus or on a random seed:
 //   - the first case of every family is kept, where the family of a case is its name up to the
 //     first ':' ("inline action: sequence"), or, for a path, up to the first '_' of its last element
-//     ("typed/LR_direct") or else up to its last '/' ("testdata/typed/mix.zp"); a name with neither has no family. So
+//     ("typed/LR_direct") or else up to its last '/' ("testdata/typed/mix.sxir"); a name with neither has no family. So
 //     every family that the corpus names (inline actions, hidden rules, typed cuts, left
 //     recursion, Operators Rule, recovery, locals, attribute shapes, the typed testdata) is
 //     exercised at least once;
@@ -107,7 +107,7 @@ func ScaleFloor(n int) int {
 
 // LongOnly skips the test or subtest in the default tier, for a case that repeats what a smaller
 // case of the same test already shows and costs much more (a large checked-in grammar built next to
-// a small one); the long tier (go test -tags zp_long) runs it.
+// a small one); the long tier (go test -tags sxir_long) runs it.
 func LongOnly(t testing.TB, why string) {
 	t.Helper()
 	if !allCases {
@@ -117,13 +117,13 @@ func LongOnly(t testing.TB, why string) {
 
 // Sampled reports whether a test of the default tier runs the fixture of the name, for a test that
 // builds a list of fixtures that each show one feature and share no case family: the long tier
-// (go test -tags zp_long) runs every fixture, and the default tier those whose name has an FNV-1a hash
+// (go test -tags sxir_long) runs every fixture, and the default tier those whose name has an FNV-1a hash
 // divisible by three, a third of them, so that adding or renaming a fixture changes its own selection only.
 func Sampled(name string) bool {
 	return allCases || hashOf(name)%3 == 0
 }
 
-// Long reports whether the long tier (go test -tags zp_long) is running.
+// Long reports whether the long tier (go test -tags sxir_long) is running.
 func Long() bool { return allCases }
 
 // SampledShapes returns the dependency-memo shapes that the default tier checks: the ones that

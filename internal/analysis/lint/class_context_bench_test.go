@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 func BenchmarkClassLintCancellation(b *testing.B) {

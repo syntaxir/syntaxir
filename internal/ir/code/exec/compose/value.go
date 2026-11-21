@@ -1,9 +1,9 @@
 package compose
 
 import (
-	. "zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/action"
-	"zeroparse.dev/zp/internal/ir/code/exec"
+	. "syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/action"
+	"syntaxir.dev/sxir/internal/ir/code/exec"
 )
 
 // addValue adds the compositions of the operators of terms: the policy of which operands an operator

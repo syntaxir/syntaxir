@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/runtime/schema"
+	"syntaxir.dev/sxir/pkg/runtime/schema"
 )
 
 func TestQuerySchemaRejectsInvalidSchema(t *testing.T) {

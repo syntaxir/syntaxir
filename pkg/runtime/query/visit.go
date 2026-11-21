@@ -3,9 +3,9 @@ package query
 import (
 	"sort"
 
-	value "zeroparse.dev/zp/internal/runtime/nodes"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	value "syntaxir.dev/sxir/internal/runtime/nodes"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // graphVisit is the adapter boundary for a future common graph walker. Each event contains a
@@ -15,7 +15,7 @@ import (
 // walker rejects active-path cycles and charges before discovery.
 type graphVisit struct {
 	Value  any
-	parent *zpvalue.Node
+	parent *sxirvalue.Node
 	path   []Edge
 }
 type visitFrame struct {
@@ -25,15 +25,15 @@ type visitFrame struct {
 
 // visitGraph calls visit for every value reachable from root, in the order graphVisit
 // describes, charging the spend to b.
-func visitGraph(root *zpvalue.Node, b *budget, visit func(graphVisit) error) error {
+func visitGraph(root *sxirvalue.Node, b *budget, visit func(graphVisit) error) error {
 	frames := []visitFrame{{visit: graphVisit{Value: value.UnboxNode(root)}}}
-	nodes := map[*zpvalue.Node]bool{}
+	nodes := map[*sxirvalue.Node]bool{}
 	for len(frames) > 0 {
 		f := frames[len(frames)-1]
 		frames = frames[:len(frames)-1]
 		v := f.visit
 		if f.leave {
-			delete(nodes, v.Value.(*zpvalue.Node))
+			delete(nodes, v.Value.(*sxirvalue.Node))
 			continue
 		}
 		if err := b.charge(uint64(1 + len(v.path))); err != nil {
@@ -42,7 +42,7 @@ func visitGraph(root *zpvalue.Node, b *budget, visit func(graphVisit) error) err
 		if _, err := valueCategory(v.Value); err != nil {
 			return err
 		}
-		x, ok := v.Value.(*zpvalue.Node)
+		x, ok := v.Value.(*sxirvalue.Node)
 		if ok && x != nil {
 			if nodes[x] {
 				return ErrCycle

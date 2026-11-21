@@ -1,4 +1,4 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package engine
 
@@ -10,10 +10,10 @@ import (
 	"testing"
 	"weak"
 
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 type streamControlRetentionSentinel struct{ data [128]byte }
@@ -148,7 +148,7 @@ func runStreamControlRetentionCase(t *testing.T, prog *Program, outcome string, 
 
 func streamControlRetentionOptions(o ParseOptions, ctx context.Context, trace func(TraceEvent)) ParseOptions {
 	o.Context = ctx
-	o.Limits = zpruntime.Limits{Compute: 1 << 30}
+	o.Limits = sxirruntime.Limits{Compute: 1 << 30}
 	o.Trace = trace
 	return o
 }
@@ -179,7 +179,7 @@ func TestBudgetStreamTraceRetentionWithActiveControls(t *testing.T) {
 						t.Fatalf("panic=%v err=%v emitted=%d", run.panic, run.err, len(run.nodes))
 					}
 				case "input-limit":
-					if run.panic != nil || !errors.Is(run.err, zpruntime.ErrLimit) || len(run.nodes) != 1 {
+					if run.panic != nil || !errors.Is(run.err, sxirruntime.ErrLimit) || len(run.nodes) != 1 {
 						t.Fatalf("panic=%v err=%v emitted=%d", run.panic, run.err, len(run.nodes))
 					}
 				case "reader-error", "emit-error":

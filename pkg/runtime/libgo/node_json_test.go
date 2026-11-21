@@ -9,15 +9,15 @@ import (
 	"strings"
 	"testing"
 
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // referenceJSON builds the JSON shape of a value with encoding/json, without invoking
 // Node.MarshalJSON: a string, tuple or list node is {start, end, value} (with rule when it has
 // one), and a struct is {type, start, end, fields}. It is intentionally used only for shallow, acyclic test
 // values without captures.
-func referenceJSON(n *zpvalue.Node) any {
+func referenceJSON(n *sxirvalue.Node) any {
 	if n == nil {
 		return nil
 	}
@@ -52,7 +52,7 @@ func referenceJSON(n *zpvalue.Node) any {
 
 func referenceField(value any) any {
 	switch value := value.(type) {
-	case *zpvalue.Node:
+	case *sxirvalue.Node:
 		return referenceJSON(value)
 	case []any:
 		if value == nil {
@@ -77,8 +77,8 @@ func TestNodeWriteJSONMatchesReferenceShape(t *testing.T) {
 		{Name: "emptyList", Value: []any{}},
 	},
 	})
-	tuple := nodeOfData(&Data{Kind: KindOf("Seq", "pair"), Start: 1, End: 8, Children: []*zpvalue.Node{child, nil, child}})
-	for _, n := range []*zpvalue.Node{record, tuple} {
+	tuple := nodeOfData(&Data{Kind: KindOf("Seq", "pair"), Start: 1, End: 8, Children: []*sxirvalue.Node{child, nil, child}})
+	for _, n := range []*sxirvalue.Node{record, tuple} {
 		want, err := json.Marshal(referenceJSON(n))
 		if err != nil {
 			t.Fatal(err)
@@ -101,7 +101,7 @@ func TestNodeWriteJSONMatchesReferenceShape(t *testing.T) {
 }
 
 func TestNodeWriteJSONNilAndFields(t *testing.T) {
-	var n *zpvalue.Node
+	var n *sxirvalue.Node
 	got, err := n.MarshalJSON()
 	if err != nil || string(got) != "null" {
 		t.Fatalf("nil MarshalJSON = %q, %v; want null, nil", got, err)
@@ -132,7 +132,7 @@ func TestNodeWriteJSONNilAndFields(t *testing.T) {
 
 func TestNodeWriteJSONSharedNodesAndCycles(t *testing.T) {
 	leaf := nodeOfData(&Data{Kind: valueimpl.MatchKind, Text: "shared"})
-	root := nodeOfData(&Data{Kind: valueimpl.SeqKind, Children: []*zpvalue.Node{leaf, leaf}})
+	root := nodeOfData(&Data{Kind: valueimpl.SeqKind, Children: []*sxirvalue.Node{leaf, leaf}})
 	data, err := root.MarshalJSON()
 	if err != nil {
 		t.Fatal(err)
@@ -143,19 +143,19 @@ func TestNodeWriteJSONSharedNodesAndCycles(t *testing.T) {
 
 	for _, makeCycle := range []struct {
 		name string
-		make func() *zpvalue.Node
+		make func() *sxirvalue.Node
 	}{
-		{"child", func() *zpvalue.Node {
+		{"child", func() *sxirvalue.Node {
 			n := nodeOfData(&Data{Kind: valueimpl.SeqKind})
-			D(n).Children = []*zpvalue.Node{n}
+			D(n).Children = []*sxirvalue.Node{n}
 			return n
 		}},
-		{"field", func() *zpvalue.Node {
+		{"field", func() *sxirvalue.Node {
 			n := nodeOfData(&Data{Kind: KindOf("R", "")})
 			D(n).Fields = valueimpl.Fields{{Name: "self", Value: n}}
 			return n
 		}},
-		{"slice", func() *zpvalue.Node {
+		{"slice", func() *sxirvalue.Node {
 			var values []any
 			values = append(values, nil)
 			values[0] = values
@@ -203,7 +203,7 @@ func TestNodeWriteJSONDeepAndStandardLibraryLimit(t *testing.T) {
 	current := root
 	for i := 1; i < depth; i++ {
 		child := nodeOfData(&Data{Kind: valueimpl.SeqKind})
-		D(current).Children = []*zpvalue.Node{child}
+		D(current).Children = []*sxirvalue.Node{child}
 		current = child
 	}
 	var sink countingWriter

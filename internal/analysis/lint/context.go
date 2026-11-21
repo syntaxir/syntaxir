@@ -3,10 +3,10 @@ package lint
 import (
 	"context"
 
-	"zeroparse.dev/zp/internal/frontend"
-	"zeroparse.dev/zp/internal/frontend/astfacts"
-	"zeroparse.dev/zp/internal/syntax/fmt"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend"
+	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/syntax/fmt"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // runContext lints g, which the front end checked to the result res, from start.

@@ -10,15 +10,15 @@ evaluates again.
 
 ## Before You Start
 
-Complete [Building Typed Trees](typed-trees.md): you need `config.zp` and a Go module that requires `zeroparse.dev/zp`.
+Complete [Building Typed Trees](typed-trees.md): you need `config.sxir` and a Go module that requires `syntaxir.dev/sxir`.
 
 ## Streaming
 
 Mark a repetition at the top level of the start rule with `#stream` and each element is handed to your code and
-forgotten, so memory depends on the size of one element and not on the size of the file. Save as `stream.zp`:
+forgotten, so memory depends on the size of one element and not on the size of the file. Save as `stream.sxir`:
 
-```zp
-// stream.zp
+```sxir
+// stream.sxir
 type Key = node[string]
 type Number = node[string]
 type String = node[string]
@@ -50,20 +50,20 @@ On the command line, `-stream` prints one line per element. Entries that matched
 error is reported with positions in the whole input:
 
 ```bash
-printf 'host = "localhost"\nport = 8080\ndebug = maybe\n' | zp parse -g stream.zp -stream -f sexpr
+printf 'host = "localhost"\nport = 8080\ndebug = maybe\n' | sxir parse -g stream.sxir -stream -f sexpr
 ```
 
 ```text
 Entry{Key: Key("host"), Value: String("\"localhost\"")}
 Entry{Key: Key("port"), Value: Number("8080")}
-zp: 3:9: syntax error: expected "#", "\"", "false", "true", [ \t\r\n], [0-9]
+sxir: 3:9: syntax error: expected "#", "\"", "false", "true", [ \t\r\n], [0-9]
 ```
 
 ## Incremental Parsing
 
 An editor changes a few characters and needs a new tree at once. A `Document` holds the text, applies edits and parses
 again, reusing the results that the edit did not affect. This program, which also reads the entries with
-`ParseStream`, parses `example.conf`-like text, changes `8080` to `9090` and reparses. Put `stream.zp` and `config.zp`
+`ParseStream`, parses `example.conf`-like text, changes `8080` to `9090` and reparses. Put `stream.sxir` and `config.sxir`
 next to it:
 
 ```go
@@ -75,20 +75,20 @@ import (
 	"log"
 	"strings"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
-//go:embed stream.zp
+//go:embed stream.sxir
 var streamSource string
 
-//go:embed config.zp
+//go:embed config.sxir
 var configSource string
 
 func main() {
 	// Streaming: entries arrive one at a time and are forgotten.
-	sp, err := compiler.Compile(grammar.FromString("grammar.zp", streamSource), compiler.WithStart("main"))
+	sp, err := compiler.Compile(grammar.FromString("grammar.sxir", streamSource), compiler.WithStart("main"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -103,7 +103,7 @@ func main() {
 	}
 
 	// Incremental parsing: edit a document and parse it again.
-	cp, err := compiler.Compile(grammar.FromString("grammar.zp", configSource), compiler.WithStart("main"))
+	cp, err := compiler.Compile(grammar.FromString("grammar.sxir", configSource), compiler.WithStart("main"))
 	if err != nil {
 		log.Fatal(err)
 	}

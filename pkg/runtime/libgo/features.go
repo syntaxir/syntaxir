@@ -32,10 +32,10 @@ const (
 const usedFeatures = allFeatures
 
 // featureWitnessed marks the features of a grammar as recorded (WitnessFeatures, declared only with
-// the tag zp_feature_witness), so that a parser for which nothing was recorded is not checked.
+// the tag sxir_feature_witness), so that a parser for which nothing was recorded is not checked.
 const featureWitnessed feature = 1 << 31
 
-// use reports that the parse uses the feature f. With the tag zp_feature_witness it panics when the
+// use reports that the parse uses the feature f. With the tag sxir_feature_witness it panics when the
 // generator ruled f out for the parser; otherwise it does nothing and compiles away.
 func (p *Parser) use(f feature) {
 	if witnessFeatures {
@@ -46,6 +46,6 @@ func (p *Parser) use(f feature) {
 // useFeature is use for the grammar g.
 func useFeature(g *grammar, f feature) {
 	if g != nil && g.features&featureWitnessed != 0 && g.features&f != f {
-		panic(fmt.Sprintf("zp: the parser uses feature %#x outside its analysed features %#x", uint32(f), uint32(g.features&^featureWitnessed)))
+		panic(fmt.Sprintf("sxir: the parser uses feature %#x outside its analysed features %#x", uint32(f), uint32(g.features&^featureWitnessed)))
 	}
 }

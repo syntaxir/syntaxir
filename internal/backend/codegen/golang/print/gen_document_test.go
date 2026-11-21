@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 func TestGenerateDocumentNode(t *testing.T) {
@@ -39,8 +39,8 @@ func TestGenerateDocumentNode(t *testing.T) {
 		"batch/parser.go": string(ordinary),
 		"parser_test.go": `package fixture
 import (
-	zprt "zeroparse.dev/zp/pkg/runtime/libgo"
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
   "context"
   "encoding/json"
   "fmt"
@@ -49,7 +49,7 @@ import (
 func TestGeneratedDocumentAgainstBatch(t *testing.T) {
   for _, unit := range []PositionUnit{CodePoints, Bytes} {
    count := 0
-   d, err := NewDocument("aa", func(o *zprt.X_parseOptions) { count++; o.X_unit = unit })
+   d, err := NewDocument("aa", func(o *sxirrt.X_parseOptions) { count++; o.X_unit = unit })
    if err != nil || count != 1 { t.Fatalf("new document: %v, option count %d", err, count) }
    for _, change := range []struct{ start, end int; text string }{{2, 2, "a"}, {1, 2, "b"}, {1, 2, "a"}} {
     node, err := d.Parse()
@@ -70,13 +70,13 @@ func TestGeneratedDocumentContract(t *testing.T) {
   first, err := d.Parse()
   if err != nil { t.Fatal(err) }
   clone := first.Clone()
-  if clone == first || zprt.D(clone).Children[0] == zprt.D(first).Children[0] { t.Fatal("clone retained document nodes") }
+  if clone == first || sxirrt.D(clone).Children[0] == sxirrt.D(first).Children[0] { t.Fatal("clone retained document nodes") }
   if err := d.Edit(2, 2, "a"); err != nil { t.Fatal(err) }
   second, err := d.Parse()
   if err != nil { t.Fatal(err) }
   if d.Stats().Reused == 0 || d.Stats().Evaluated == 0 { t.Fatalf("no rule accounting: %+v", d.Stats()) }
   if st := d.Stats(); st.MemoHits != st.Reused || st.ResumedElements != 0 { t.Fatalf("reuses are not memo hits: %+v", st) }
-  if len(zprt.D(zprt.D(clone).Children[0]).Children) != 2 || len(zprt.D(zprt.D(second).Children[0]).Children) != 3 { t.Fatal("clone changed after edit") }
+  if len(sxirrt.D(sxirrt.D(clone).Children[0]).Children) != 2 || len(sxirrt.D(sxirrt.D(second).Children[0]).Children) != 3 { t.Fatal("clone changed after edit") }
   before := d.Text()
   if err := d.Edit(-1, 0, "x"); err == nil || d.Text() != before { t.Fatal("invalid edit changed document") }
   if _, err := d.Parse(WithUnit(Bytes)); err == nil { t.Fatal("unit change accepted") }
@@ -94,17 +94,17 @@ func TestGeneratedDocumentByteBoundary(t *testing.T) {
   if err := d.Edit(2, 2, ""); err != nil { t.Fatal(err) }
   if d.Text() != "é" { t.Fatal("no-op edit changed text") }
 }
-func dataNode(d zprt.Data) *Node { n := new(Node); *zprt.D(n) = d; return n }
+func dataNode(d sxirrt.Data) *Node { n := new(Node); *sxirrt.D(n) = d; return n }
 func TestGeneratedDocumentCloneSharing(t *testing.T) {
-  n := dataNode(zprt.Data{Text: "a"})
-  parent := dataNode(zprt.Data{Children: []*Node{n,n}, Fields: valueimpl.Fields{{Name: "value", Value: []any{n}}}})
+  n := dataNode(sxirrt.Data{Text: "a"})
+  parent := dataNode(sxirrt.Data{Children: []*Node{n,n}, Fields: valueimpl.Fields{{Name: "value", Value: []any{n}}}})
   copy := parent.Clone()
-  if zprt.D(copy).Children[0] != zprt.D(copy).Children[1] || zprt.D(copy).Children[0] == n { t.Fatal("shared children not cloned") }
-  value := zprt.D(copy).Fields[0].Value.([]any)[0].(*Node)
-  if value != zprt.D(copy).Children[0] { t.Fatal("field alias not preserved") }
+  if sxirrt.D(copy).Children[0] != sxirrt.D(copy).Children[1] || sxirrt.D(copy).Children[0] == n { t.Fatal("shared children not cloned") }
+  value := sxirrt.D(copy).Fields[0].Value.([]any)[0].(*Node)
+  if value != sxirrt.D(copy).Children[0] { t.Fatal("field alias not preserved") }
 }
 func TestGeneratedDocumentCloneCyclicAndSharedSlices(t *testing.T) {
-  child := dataNode(zprt.Data{Text: "original"})
+  child := dataNode(sxirrt.Data{Text: "original"})
   const backingCapacity = 1 << 16
   values := make([]any, 2, backingCapacity)
   values[0], values[1] = values, child
@@ -112,30 +112,30 @@ func TestGeneratedDocumentCloneCyclicAndSharedSlices(t *testing.T) {
   nodes[0] = child
   emptyValues := make([]any, 0, backingCapacity)
   emptyNodes := make([]*Node, 0, backingCapacity)
-  root := dataNode(zprt.Data{Children: nodes, Fields: valueimpl.Fields{
+  root := dataNode(sxirrt.Data{Children: nodes, Fields: valueimpl.Fields{
     {Name: "first", Value: values}, {Name: "second", Value: values},
     {Name: "nodes1", Value: nodes}, {Name: "nodes2", Value: nodes},
     {Name: "emptyValues", Value: emptyValues}, {Name: "emptyNodes", Value: emptyNodes},
   }})
   copy := root.Clone()
-  first := zprt.D(copy).Fields[0].Value.([]any)
-  second := zprt.D(copy).Fields[1].Value.([]any)
+  first := sxirrt.D(copy).Fields[0].Value.([]any)
+  second := sxirrt.D(copy).Fields[1].Value.([]any)
   if &first[0] == &values[0] || &first[0] != &second[0] { t.Fatal("shared slice was not copied once") }
   cycle := first[0].([]any)
   if &cycle[0] != &first[0] { t.Fatal("slice cycle was not preserved") }
-  if first[1].(*Node) != zprt.D(copy).Children[0] || zprt.D(copy).Children[0] == child { t.Fatal("node identity was not preserved") }
-  nodes1 := zprt.D(copy).Fields[2].Value.([]*Node)
-  nodes2 := zprt.D(copy).Fields[3].Value.([]*Node)
+  if first[1].(*Node) != sxirrt.D(copy).Children[0] || sxirrt.D(copy).Children[0] == child { t.Fatal("node identity was not preserved") }
+  nodes1 := sxirrt.D(copy).Fields[2].Value.([]*Node)
+  nodes2 := sxirrt.D(copy).Fields[3].Value.([]*Node)
   if cap(first) != len(first) || cap(nodes1) != len(nodes1) ||
-    cap(zprt.D(copy).Fields[4].Value.([]any)) != 0 || cap(zprt.D(copy).Fields[5].Value.([]*Node)) != 0 {
+    cap(sxirrt.D(copy).Fields[4].Value.([]any)) != 0 || cap(sxirrt.D(copy).Fields[5].Value.([]*Node)) != 0 {
     t.Fatal("clone retained oversized source capacity")
   }
-  if &nodes1[0] == &nodes[0] || &nodes1[0] != &nodes2[0] || &nodes1[0] != &zprt.D(copy).Children[0] || nodes1[0] != zprt.D(copy).Children[0] {
+  if &nodes1[0] == &nodes[0] || &nodes1[0] != &nodes2[0] || &nodes1[0] != &sxirrt.D(copy).Children[0] || nodes1[0] != sxirrt.D(copy).Children[0] {
     t.Fatal("shared node slice was not copied once")
   }
   values[1] = nil
   nodes[0] = nil
-  if first[1] != zprt.D(copy).Children[0] || nodes1[0] != zprt.D(copy).Children[0] { t.Fatal("clone retained source slice storage") }
+  if first[1] != sxirrt.D(copy).Children[0] || nodes1[0] != sxirrt.D(copy).Children[0] { t.Fatal("clone retained source slice storage") }
 }
 `,
 	} {

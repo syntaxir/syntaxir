@@ -11,7 +11,7 @@ except for the values that actions build from a value that the view reshapes
 and their run-time errors.
 
 This document states the equivalences ("laws") that hold between Rule
-Expressions of ZeroParse grammars, such as `X* X*` and `X*`, and a rewrite
+Expressions of SyntaxIR grammars, such as `X* X*` and `X*`, and a rewrite
 system that normalizes expressions with them. Each law says exactly which
 parts of an evaluation it preserves: whether the expression matches and where
 it ends, its value, the expectations of a syntax error, and the cost. A law

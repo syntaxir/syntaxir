@@ -9,8 +9,8 @@ the grammar again, but takes every result that the change did not touch from the
 The grammar is that of [Report several errors in one run](several-errors.md), with a root that builds nothing. A text that
 is half typed is not valid, so the grammar recovers from errors, and every keystroke gets a tree and the errors so far.
 
-```zp
-// settings.zp
+```sxir
+// settings.sxir
 type Setting = { Key node[string]; Value node[string] }
 type Item ~ Setting | error
 
@@ -46,16 +46,16 @@ import (
 	"strings"
 	"time"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
-//go:embed settings.zp
+//go:embed settings.sxir
 var grammarSrc string
 
 func main() {
-	p, err := compiler.Compile(grammar.FromString("grammar.zp", grammarSrc), compiler.WithStart("main"))
+	p, err := compiler.Compile(grammar.FromString("grammar.sxir", grammarSrc), compiler.WithStart("main"))
 	if err != nil {
 		log.Fatal(err)
 	}

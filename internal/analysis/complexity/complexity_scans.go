@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"unicode/utf8"
 
-	"zeroparse.dev/zp/internal/frontend/astfacts"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Bounded scans (see "Conditions for Linear Cost" in spec/runtime/parsing.md and Lemma 13 of

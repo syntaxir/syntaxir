@@ -49,7 +49,7 @@ To regenerate both latest-generator controls and check that they return the
 same values and errors:
 
 ```sh
-export ZP_TYPED_CUT_DIR=/tmp/zp-typed-cuts
+export SXIR_TYPED_CUT_DIR=/tmp/sxir-typed-cuts
 go test ./internal/backend/codegen/golang/print -run '^TestGeneratedTypedCutWorkload$' -count=1
 ```
 
@@ -57,8 +57,8 @@ Build each fixture into its own benchmark binary:
 
 ```sh
 for variant in direct general; do
-  (cd "$ZP_TYPED_CUT_DIR/$variant" && \
-    go test -c -o "$ZP_TYPED_CUT_DIR/$variant.test" .)
+  (cd "$SXIR_TYPED_CUT_DIR/$variant" && \
+    go test -c -o "$SXIR_TYPED_CUT_DIR/$variant.test" .)
 done
 ```
 
@@ -71,16 +71,16 @@ for pair in 1 2 3 4 5; do
   else
     first=direct; second=general
   fi
-  "$ZP_TYPED_CUT_DIR/$first.test" -test.run='^$' \
+  "$SXIR_TYPED_CUT_DIR/$first.test" -test.run='^$' \
     -test.bench='^BenchmarkTypedCuts$' -test.benchtime=300ms -test.benchmem
-  "$ZP_TYPED_CUT_DIR/$second.test" -test.run='^$' \
+  "$SXIR_TYPED_CUT_DIR/$second.test" -test.run='^$' \
     -test.bench='^BenchmarkTypedCuts$' -test.benchtime=300ms -test.benchmem
 done
 ```
 
 The benchmark grammar has two cut-bearing alternatives for each typed row:
 
-```zp
+```sxir
 type Row = { Key node[string]; Value node[string] }
 type Doc = { Rows []Row }
 rule main Doc = rows:row+ $$ => Doc{Rows: $rows}

@@ -19,7 +19,7 @@ for.
 | Interface | How the start rule is selected |
 |:--|:--|
 | Go API | The `compiler.WithStart` option of `compiler.Compile` and `compiler.CompileGrammar`, where an empty name selects the default start rule; `Parser.WithStart` makes a parser with another start rule for whole-input parsing; `Parser.ParsePrefix` selects a start rule for one prefix parse without changing the configured start rule. Both take an empty name for the default start rule |
-| Command line | `zp parse -s <rule>`. It defaults to the start rule saved in a compiled grammar (`.zpc`), and otherwise to the default start rule |
+| Command line | `sxir parse -s <rule>`. It defaults to the start rule saved in a compiled grammar (`.sxirc`), and otherwise to the default start rule |
 | Generated parsers | `Parse` uses the start rule selected when the parser was generated, the default start rule unless another was named; `ParseRule` and `ParseRuleValue` (`parseRule` and `parseRuleWithOptions` in TypeScript) take the name of a start rule, or an empty name for the default start rule |
 
 Naming a rule that is not a start rule is an error that names the rule and says
@@ -66,8 +66,8 @@ while code-point mode substitutes U+FFFD. The literal's spelling need not have
 the same byte length as the matched input.
 
 The unit is selected with `runtime.WithUnit(input.Bytes)` in the Go API and with
-`zp parse -unit bytes` on the command line. In the Go API, `parse` names the package
-`zeroparse.dev/zp/pkg/runtime` and its subpackages, which hold the types that the compiled parsers and generated
+`sxir parse -unit bytes` on the command line. In the Go API, `parse` names the package
+`syntaxir.dev/sxir/pkg/runtime` and its subpackages, which hold the types that the compiled parsers and generated
 parsers share: limits, position units, syntax errors, edits and statistics.
 
 ### Lines and Columns
@@ -89,7 +89,7 @@ stopped, and the parse fails with a syntax error. The error is reported at the
 farthest position that parsing reached, which can be beyond where the start
 rule stopped.
 
-```zp
+```sxir
 rule main = "a" ("b" "c")?
 ```
 
@@ -249,8 +249,8 @@ Recording is requested as follows.
 | Parse | Request |
 |:--|:--|
 | `Parser.Parse`, `ParseStream`, `ParsePrefix`, `Document` | The option `runtime.WithExpectations()`. A `Document` fixes the mode when it is created; a later parse that asks for the other mode is an error |
-| Generated Go and TypeScript parsers | Generate with the option `Expectations` (`-expectations` in `zp gen`), which gives the parser its table of expectations and a parse option `WithExpectations` (Go) or `expectations` (TypeScript). A parse records them only when it passes the option; a generated parser without the generation option has no table and no such option, and a parse of it that passes the runtime's `WithExpectations` or `expectations: true` returns an error |
-| `zp parse`, `zp debug`, `zp trace`, `zp explain`, `zp profile`, `zp test`, `zp editfuzz` and the playground | Always on |
+| Generated Go and TypeScript parsers | Generate with the option `Expectations` (`-expectations` in `sxir gen`), which gives the parser its table of expectations and a parse option `WithExpectations` (Go) or `expectations` (TypeScript). A parse records them only when it passes the option; a generated parser without the generation option has no table and no such option, and a parse of it that passes the runtime's `WithExpectations` or `expectations: true` returns an error |
+| `sxir parse`, `sxir debug`, `sxir trace`, `sxir explain`, `sxir profile`, `sxir test`, `sxir editfuzz` and the playground | Always on |
 
 ### Errors in Go and on the Command Line
 
@@ -264,7 +264,7 @@ an error of type `value.SyntaxErrors`, a list of `*SyntaxError`; `errors.As` tel
 apart from a fatal `*SyntaxError`, and the node is valid. The list holds only the
 recoveries that the result keeps: one that backtracking undoes, or that is
 inside a [lookahead](../language/parser-expressions.md#lookahead) or the
-[`skip` of an Operators Rule](../language/operators-rule.md#skip), is not in it. The command `zp parse`
+[`skip` of an Operators Rule](../language/operators-rule.md#skip), is not in it. The command `sxir parse`
 prints the tree and then each error on its own line, and exits with status 1 in
 both cases. Run-time errors of actions, nesting-limit errors and interruptions are
 other error values, not `SyntaxError`.
@@ -2399,7 +2399,7 @@ one item; the rewrites that change a value have the conditions above.
 
 ### Classification
 
-`zp lint -classify` (`lint.Config.Classify` in Go) classifies the cost of
+`sxir lint -classify` (`lint.Config.Classify` in Go) classifies the cost of
 the start rule that it checks and shows the class. The classes are ordered
 from best to worst, as in the table: each is a weaker claim than the classes
 before it. A grammar has the worst class of its causes and reasons. A

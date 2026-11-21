@@ -1,6 +1,6 @@
 package common
 
-import "zeroparse.dev/zp/internal/pass"
+import "syntaxir.dev/sxir/internal/pass"
 
 // The flags that the Go and TypeScript printers share, registered here because this package reads
 // them for both.

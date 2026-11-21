@@ -10,13 +10,13 @@ import (
 	"unsafe"
 	"weak"
 
-	value "zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/internal/runtime/program"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/input"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	value "syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/internal/runtime/program"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/input"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // Snapshot owns an immutable parse outcome for one document revision. Readers
@@ -211,9 +211,9 @@ func (n SnapshotNode) fields() valueimpl.Fields {
 }
 
 // Kind returns what the node stands for, as Node.Kind does. Like Node.Kind, it panics on a nil node.
-func (n SnapshotNode) Kind() zpvalue.NodeKind {
+func (n SnapshotNode) Kind() sxirvalue.NodeKind {
 	if !n.Valid() {
-		panic("zp: Kind of a nil snapshot node")
+		panic("sxir: Kind of a nil snapshot node")
 	}
 	return value.KindOfShape(n.shape())
 }
@@ -276,17 +276,17 @@ func (n SnapshotNode) Fields() []SnapshotField {
 
 // Materialize makes an independent mutable graph, preserving sharing, cycles,
 // nil child slots, and nil versus allocated-empty slices.
-func (s *Snapshot) Materialize() *zpvalue.Node {
+func (s *Snapshot) Materialize() *sxirvalue.Node {
 	if s.graph.root == 0 {
 		return nil
 	}
-	nodes := make([]*zpvalue.Node, s.graph.count())
+	nodes := make([]*sxirvalue.Node, s.graph.count())
 	for i := range nodes {
 		r := s.graph.at(i)
 		pos := s.graph.position(i, r)
 		nodes[i] = value.Ptr(value.Data{Kind: r.kind, Start: pos.start, End: pos.end, Text: r.text, Fresh: r.fresh, Terminal: r.terminal, Mark: pos.gen})
 	}
-	node := func(id int) *zpvalue.Node {
+	node := func(id int) *sxirvalue.Node {
 		if id == 0 {
 			return nil
 		}
@@ -297,14 +297,14 @@ func (s *Snapshot) Materialize() *zpvalue.Node {
 		n := nodes[i]
 		if r.childChunked {
 			chunks := s.graph.childChunks[r]
-			value.D(n).Children = make([]*zpvalue.Node, chunks.length)
+			value.D(n).Children = make([]*sxirvalue.Node, chunks.length)
 			for part, ids := range chunks.parts {
 				for j, id := range ids {
 					value.D(n).Children[part*snapshotChildChunkSize+j] = node(id)
 				}
 			}
 		} else if r.children != nil {
-			value.D(n).Children = make([]*zpvalue.Node, len(r.children))
+			value.D(n).Children = make([]*sxirvalue.Node, len(r.children))
 			for j, id := range r.children {
 				value.D(n).Children[j] = node(id)
 			}
@@ -351,7 +351,7 @@ func interruptsSnapshot(err error) bool {
 	return errors.As(err, &le) && le.Kind != runtime.LimitDepth
 }
 
-func (d *Document) snapshotWith(o state.ParseOptions, legacy **zpvalue.Node) (*Snapshot, error) {
+func (d *Document) snapshotWith(o state.ParseOptions, legacy **sxirvalue.Node) (*Snapshot, error) {
 	if d.runner.Shared().HasMissing || o.MissingTokens != 0 {
 		return nil, program.MissingUnsupported("Document parsing")
 	}
@@ -362,7 +362,7 @@ func (d *Document) snapshotWith(o state.ParseOptions, legacy **zpvalue.Node) (*S
 	}
 	var result *Snapshot
 	output := input.OutputUnavailable
-	_, err := d.parseWithCapture(o, func(p *state.Parser, root *zpvalue.Node, parseErr error) error {
+	_, err := d.parseWithCapture(o, func(p *state.Parser, root *sxirvalue.Node, parseErr error) error {
 		if observed != nil && observed.interrupted || interruptsSnapshot(parseErr) {
 			return parseErr
 		}
@@ -435,7 +435,7 @@ func snapshotStrings(p *state.Parser, in []string) []string {
 	return out
 }
 func copySnapshotError(p *state.Parser, err error) error {
-	syntax := func(e *zpvalue.SyntaxError) *zpvalue.SyntaxError {
+	syntax := func(e *sxirvalue.SyntaxError) *sxirvalue.SyntaxError {
 		if e == nil {
 			return nil
 		}
@@ -449,13 +449,13 @@ func copySnapshotError(p *state.Parser, err error) error {
 	switch e := err.(type) {
 	case nil:
 		return nil
-	case *zpvalue.SyntaxError:
+	case *sxirvalue.SyntaxError:
 		return syntax(e)
-	case zpvalue.SyntaxErrors:
+	case sxirvalue.SyntaxErrors:
 		if e == nil {
-			return zpvalue.SyntaxErrors(nil)
+			return sxirvalue.SyntaxErrors(nil)
 		}
-		out := make(zpvalue.SyntaxErrors, len(e))
+		out := make(sxirvalue.SyntaxErrors, len(e))
 		for i, x := range e {
 			out[i] = syntax(x)
 		}
@@ -479,14 +479,14 @@ type snapshotEdge struct {
 	name  string
 }
 type snapshotFrame struct {
-	node     *zpvalue.Node
+	node     *sxirvalue.Node
 	id, next int
 	edge     snapshotEdge
 }
 
 // unsupportedBox returns the dynamic type of the value of a box node that a snapshot cannot hold, as
 // it cannot hold a field value of that type, and nil for any other node.
-func unsupportedBox(n *zpvalue.Node) reflect.Type {
+func unsupportedBox(n *sxirvalue.Node) reflect.Type {
 	if n == nil || value.D(n).Kind != valueimpl.BoxKind {
 		return nil
 	}
@@ -500,13 +500,13 @@ func unsupportedBox(n *zpvalue.Node) reflect.Type {
 // freezeSnapshotGraph registers identities before following their edges. The
 // explicit DFS stack gives deterministic child-then-field rejection paths and
 // supports arbitrary depth and caller-created cycles without recursion.
-func freezeSnapshotGraph(p *state.Parser, root *zpvalue.Node) (snapshotGraph, *runtime.SnapshotCaptureError) {
+func freezeSnapshotGraph(p *state.Parser, root *sxirvalue.Node) (snapshotGraph, *runtime.SnapshotCaptureError) {
 	var g snapshotGraph
 	if root == nil {
 		return g, nil
 	}
-	seen := make(map[*zpvalue.Node]int)
-	register := func(n *zpvalue.Node) (int, bool) {
+	seen := make(map[*sxirvalue.Node]int)
+	register := func(n *sxirvalue.Node) (int, bool) {
 		if n == nil {
 			return 0, false
 		}
@@ -540,7 +540,7 @@ func freezeSnapshotGraph(p *state.Parser, root *zpvalue.Node) (snapshotGraph, *r
 	for len(stack) > 0 {
 		p.Spend()
 		f := &stack[len(stack)-1]
-		var child *zpvalue.Node
+		var child *sxirvalue.Node
 		var edge snapshotEdge
 		if f.next < len(value.D(f.node).Children) {
 			edge = snapshotEdge{child: true, index: f.next}
@@ -555,7 +555,7 @@ func freezeSnapshotGraph(p *state.Parser, root *zpvalue.Node) (snapshotGraph, *r
 			edge = snapshotEdge{index: i, name: field.Name}
 			var val any
 			switch v := field.Value.(type) {
-			case *zpvalue.Node:
+			case *sxirvalue.Node:
 				child = v
 			case nil, int, string, bool:
 				val = v
@@ -570,7 +570,7 @@ func freezeSnapshotGraph(p *state.Parser, root *zpvalue.Node) (snapshotGraph, *r
 		id, fresh := register(child)
 		if edge.child {
 			g.nodes[f.id-1].children[edge.index] = id
-		} else if _, ok := value.D(f.node).Fields[edge.index].Value.(*zpvalue.Node); ok {
+		} else if _, ok := value.D(f.node).Fields[edge.index].Value.(*sxirvalue.Node); ok {
 			g.nodes[f.id-1].fields[edge.index].Value = snapshotRef(id)
 		}
 		f.next++

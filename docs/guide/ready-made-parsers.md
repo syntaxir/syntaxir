@@ -1,6 +1,6 @@
 # Using the Ready-Made Parsers
 
-[parsers/](https://github.com/zeroparse/alpha-parsers/blob/main/README.md) holds complete parsers for ten languages, written in ZeroParse and generated into Go:
+[parsers/](https://github.com/syntaxir/alpha-parsers/blob/main/README.md) holds complete parsers for ten languages, written in SyntaxIR and generated into Go:
 CEL, CSV, CUE, DuckDB SQL, Go, JSON, Python, TypeScript, XML and YAML. You import one, call a function and get a tree
 or an error, with nothing to compile or generate at run time. This guide is for the program that uses them: how to
 pick an entry point, how to read the tree, what the positions mean, how errors look, what the limits are, and how to
@@ -19,12 +19,12 @@ it differs from the reference implementation; this guide covers what they have i
 
 ## Install
 
-The parsers are packages of the one Go module `zeroparse.dev/alpha-parsers`. They depend only on the standard library
-and the ZeroParse library of generated parsers (`zeroparse.dev/zp/pkg/runtime/libgo`, which itself needs only
-the packages under `zeroparse.dev/zp/pkg/runtime`), not on the ZeroParse engine and not on the language's own implementation (DuckDB's parser does not need DuckDB).
+The parsers are packages of the one Go module `syntaxir.dev/alpha-parsers`. They depend only on the standard library
+and the SyntaxIR library of generated parsers (`syntaxir.dev/sxir/pkg/runtime/libgo`, which itself needs only
+the packages under `syntaxir.dev/sxir/pkg/runtime`), not on the SyntaxIR engine and not on the language's own implementation (DuckDB's parser does not need DuckDB).
 
-The alpha-parsers module is not published yet, so `go get zeroparse.dev/alpha-parsers/json` does not work from another
-module. It requires published versions of the ZeroParse modules, so a checkout of the alpha-parsers repository is all
+The alpha-parsers module is not published yet, so `go get syntaxir.dev/alpha-parsers/json` does not work from another
+module. It requires published versions of the SyntaxIR modules, so a checkout of the alpha-parsers repository is all
 a parser needs. Use it in one of two ways.
 
 With a `go.work` file next to your module's `go.mod`:
@@ -37,16 +37,16 @@ go work use ~/src/alpha-parsers
 or with a `replace` directive in your own `go.mod`:
 
 ```text
-require zeroparse.dev/alpha-parsers v0.0.0
+require syntaxir.dev/alpha-parsers v0.0.0
 
-replace zeroparse.dev/alpha-parsers => /path/to/alpha-parsers
+replace syntaxir.dev/alpha-parsers => /path/to/alpha-parsers
 ```
 
 (`/path/to/alpha-parsers` is the full path of your checkout; `go.mod` does not expand `~`.) Run `go mod tidy`
 afterwards to record the requirements of the module. Then import the parser:
 
 ```go
-import "zeroparse.dev/alpha-parsers/json"
+import "syntaxir.dev/alpha-parsers/json"
 ```
 
 The parsers are generated code, and large ones are very large: the `parser.go` of the JSON parser is a few hundred
@@ -57,7 +57,7 @@ cold build cache (with other builds running), the Go one about 11. They are the 
 
 ## What Every Parser Offers
 
-All ten have the API of a parser generated with `zp gen -types -recognize`
+All ten have the API of a parser generated with `sxir gen -types -recognize`
 ([code generation](generated-go-api.md#the-generated-api)):
 
 | | |
@@ -93,15 +93,15 @@ import (
 	"errors"
 	"fmt"
 
-	"zeroparse.dev/alpha-parsers/csv"
-	"zeroparse.dev/alpha-parsers/yaml"
+	"syntaxir.dev/alpha-parsers/csv"
+	"syntaxir.dev/alpha-parsers/yaml"
 )
 
 func main() {
 	header, rows, err := csv.Table("id,name\n1,alice\n2,\"bob, jr\"\n")
 	fmt.Println(header, rows, err)
 
-	v, err := yaml.Load("name: zp\ntags: [peg, operators-rule]\nstars: 42\n")
+	v, err := yaml.Load("name: sxir\ntags: [peg, operators-rule]\nstars: 42\n")
 	fmt.Println(v, err)
 
 	_, _, err = csv.Table("id,name\n1\n")
@@ -112,7 +112,7 @@ func main() {
 
 ```text
 [id name] [[1 alice] [2 bob, jr]] <nil>
-map[name:zp stars:42 tags:[peg operators-rule]] <nil>
+map[name:sxir stars:42 tags:[peg operators-rule]] <nil>
 true csv: line 2: record has 1 fields, the header has 2
 ```
 
@@ -127,7 +127,7 @@ There are four kinds of entry point, and the same input costs different amounts 
 |:--|:--|:--|
 | The language's own (`Decode`, `Load`, `ParseFile`, `ParseModule`, `ParseExpr`, `Records`) | Values or a tree as the language's tools produce them, after the checks that the language's reference does and that are not part of its grammar | You want what the reference implementation would give you: it accepts what the reference accepts |
 | `ParseValue` | The grammar's own typed values, with positions | You analyze or transform the source and need to know where everything is, or the language has no value form (SQL, TypeScript) |
-| `Parse` | The generic `*Node` tree, as the engine builds it | You work with several ZeroParse grammars at once, or compare with the engine ([testing](testing-grammars.md)) |
+| `Parse` | The generic `*Node` tree, as the engine builds it | You work with several SyntaxIR grammars at once, or compare with the engine ([testing](testing-grammars.md)) |
 | `Recognize`, `Valid` | Only whether the input matches the grammar | You check the syntax of input and do not need the tree |
 
 Note the first row: `ParseValue` is the grammar alone. The language's own function also runs the checks that a grammar
@@ -151,7 +151,7 @@ a quarter of the memory. Prefer it. And `Valid` (`Recognize`) builds nothing, bu
 hand-written scanner: here it takes about as long as `ParseValue` and is 11 times slower than `encoding/json`'s `Valid`.
 Use it to avoid allocating, not to save time. These are the numbers of one grammar and one input; measure yours.
 How these compare with the engine's backends is in [benchmarks.md](../benchmarks.md) and
-[performance.md](../performance.md#where-zeroparse-stands).
+[performance.md](../performance.md#where-syntaxir-stands).
 
 ## Reading the Tree
 
@@ -168,7 +168,7 @@ import (
 	"fmt"
 	"os"
 
-	"zeroparse.dev/alpha-parsers/json"
+	"syntaxir.dev/alpha-parsers/json"
 )
 
 // lineCol converts an offset in code points to a 1-based line and column.
@@ -256,7 +256,7 @@ import (
 	"go/ast"
 	"go/token"
 
-	"zeroparse.dev/alpha-parsers/golang"
+	"syntaxir.dev/alpha-parsers/golang"
 )
 
 const src = `package shapes
@@ -327,7 +327,7 @@ import (
 	"slices"
 	"strings"
 
-	"zeroparse.dev/alpha-parsers/duckdb"
+	"syntaxir.dev/alpha-parsers/duckdb"
 )
 
 const script = `
@@ -376,7 +376,7 @@ import (
 	"errors"
 	"fmt"
 
-	"zeroparse.dev/alpha-parsers/json"
+	"syntaxir.dev/alpha-parsers/json"
 )
 
 func main() {
@@ -416,7 +416,7 @@ Do not mix units: if you parse with `Bytes` and report to an editor that counts 
 ## Errors
 
 A parse that fails returns a `*SyntaxError` of the parser's own package (not `value.SyntaxError`: the parsers do not
-import ZeroParse). Use `errors.As`:
+import SyntaxIR). Use `errors.As`:
 
 ```go
 _, err := json.ParseValue(`{"a": [1, 2,]}`)
@@ -450,7 +450,7 @@ README says how that was checked and where the two differ (leniencies and deviat
 - Python is checked against CPython's `ast.dump` on the standard library and its test suite; TypeScript against the
   compiler's trees on its own test cases; DuckDB against DuckDB on 158,605 texts, for acceptance and statement splitting.
 
-The table of [alpha-parsers/README.md](https://github.com/zeroparse/alpha-parsers/blob/main/README.md) has the specification and the suite for each. Where your
+The table of [alpha-parsers/README.md](https://github.com/syntaxir/alpha-parsers/blob/main/README.md) has the specification and the suite for each. Where your
 program depends on a subtle behavior, read the README's list of deviations first.
 
 Limits to plan for:
@@ -469,19 +469,19 @@ Limits to plan for:
 ## Using the Grammar With the Engine
 
 The generated Go code gives up what the engine offers: streaming, incremental reparsing, the choice of backend and
-the tools (`zp trace`, `zp profile`, `zp sample`). The grammar each parser is generated from, `<language>.zp`, is
+the tools (`sxir trace`, `sxir profile`, `sxir sample`). The grammar each parser is generated from, `<language>.sxir`, is
 in its module, so you can use it with the engine without copying it. Find it in the module cache:
 
 ```bash
-go list -m -f '{{.Dir}}' zeroparse.dev/alpha-parsers/csv    # the directory of the module, with csv.zp in it
+go list -m -f '{{.Dir}}' syntaxir.dev/alpha-parsers/csv    # the directory of the module, with csv.sxir in it
 ```
 
-and give it to `zp parse`, or read it in Go and compile it with `compiler.Compile`. The CSV grammar marks its
+and give it to `sxir parse`, or read it in Go and compile it with `compiler.Compile`. The CSV grammar marks its
 records with `#stream`, so a file larger than memory can be read one record at a time:
 
 ```bash
-csv=$(go list -m -f '{{.Dir}}' zeroparse.dev/alpha-parsers/csv)/csv.zp
-printf 'id,name\n1,alice\n2,"bob, jr"\n' | zp parse -g "$csv" -stream -f sexpr
+csv=$(go list -m -f '{{.Dir}}' syntaxir.dev/alpha-parsers/csv)/csv.sxir
+printf 'id,name\n1,alice\n2,"bob, jr"\n' | sxir parse -g "$csv" -stream -f sexpr
 ```
 
 ```text
@@ -491,24 +491,24 @@ Record{Fields: ["2" "\"bob, jr\""]}
 ```
 
 The same grammar works with `NewDocument` for incremental parsing of an edited text
-([incremental parsing](incremental.md)), and `zp sample -g csv.zp` generates inputs for tests
+([incremental parsing](incremental.md)), and `sxir sample -g csv.sxir` generates inputs for tests
 ([testing grammars](testing-grammars.md)). The engine gives the same trees as the generated parser, because the parser
 is generated from the same grammar and tested against it on every backend
-([alpha-parsers/README.md](https://github.com/zeroparse/alpha-parsers/blob/main/README.md#development)). The price is the engine's speed against generated code
-([code generation](code-generation.md#why-generate)) and a dependency on `zeroparse.dev/zp`.
+([alpha-parsers/README.md](https://github.com/syntaxir/alpha-parsers/blob/main/README.md#development)). The price is the engine's speed against generated code
+([code generation](code-generation.md#why-generate)) and a dependency on `syntaxir.dev/sxir`.
 
 ## When to Write Your Own
 
 If a ready-made parser matches what you need, use it: it has been checked against the language's reference on far more
 input than you will write tests for. Write your own grammar when the language is not here, or when you need a variant:
 a subset, a dialect, an extra construct, a tree shaped for your program. The ready-made grammars are also the best
-examples of large ZeroParse grammars: [testdata/grammars/json/json.zp](../../testdata/grammars/json/json.zp) is 41 lines,
-[testdata/grammars/csv/csv.zp](../../testdata/grammars/csv/csv.zp) 28, and you can copy one and change it (each module carries its own
+examples of large SyntaxIR grammars: [testdata/grammars/json/json.sxir](../../testdata/grammars/json/json.sxir) is 41 lines,
+[testdata/grammars/csv/csv.sxir](../../testdata/grammars/csv/csv.sxir) 28, and you can copy one and change it (each module carries its own
 licence file). [Code generation](code-generation.md) turns a grammar of your own into a package like these.
 
 ## See Also
 
-- [alpha-parsers/README.md](https://github.com/zeroparse/alpha-parsers/blob/main/README.md): the list of parsers with the specification and the checks of each.
+- [alpha-parsers/README.md](https://github.com/syntaxir/alpha-parsers/blob/main/README.md): the list of parsers with the specification and the checks of each.
 - [Code generation](code-generation.md): how these parsers are made and what their API is.
 - [Error messages](error-messages.md), [recovering from errors](recovery.md), [running parsers](running-parsers.md) and
   [testing grammars](testing-grammars.md).

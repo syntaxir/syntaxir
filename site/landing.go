@@ -14,7 +14,7 @@ import (
 
 // The landing page is assembled from README.md, so that the pitch on the site and in the repository
 // cannot drift apart: the tagline and the introduction come from the top of the README, the feature
-// cards from the list under "Why ZeroParse", and the live example from its first zp code block and the
+// cards from the list under "Why SyntaxIR", and the live example from its first sxir code block and the
 // -i input of its first bash block. The sections after that are rendered as they are, except the
 // documentation table, which the site replaces with its own navigation.
 
@@ -50,7 +50,7 @@ var (
 )
 
 // skippedSections are README sections that the landing page replaces.
-var skippedSections = map[string]bool{"Why ZeroParse": true, "Documentation": true}
+var skippedSections = map[string]bool{"Why SyntaxIR": true, "Documentation": true}
 
 func (s *Site) renderLanding() error {
 	p := s.bySrc["README.md"]
@@ -69,7 +69,7 @@ func (s *Site) renderLanding() error {
 		switch {
 		case section == "":
 			s.landingIntro(&d, m, n, &snippets)
-		case section == "Why ZeroParse":
+		case section == "Why SyntaxIR":
 			if l, ok := n.(*ast.List); ok {
 				for it := l.FirstChild(); it != nil; it = it.NextSibling() {
 					li := liRe.FindStringSubmatch(m.render(it))
@@ -82,7 +82,7 @@ func (s *Site) renderLanding() error {
 					}
 					f := strongRe.FindStringSubmatch(body)
 					if f == nil {
-						return fmt.Errorf("README.md: a feature under Why ZeroParse does not start with bold text: %.80s", body)
+						return fmt.Errorf("README.md: a feature under Why SyntaxIR does not start with bold text: %.80s", body)
 					}
 					d.Features = append(d.Features, feature{Title: strings.TrimSuffix(f[1], "."), Body: template.HTML(f[2])})
 				}
@@ -92,7 +92,7 @@ func (s *Site) renderLanding() error {
 		}
 	}
 	if d.Tagline == "" || len(d.Features) == 0 || d.Example == "" || d.ExampleIn == "" {
-		return fmt.Errorf("README.md: could not find the tagline, the features under Why ZeroParse, a zp code block or a bash block with -i '...' for the landing page")
+		return fmt.Errorf("README.md: could not find the tagline, the features under Why SyntaxIR, a sxir code block or a bash block with -i '...' for the landing page")
 	}
 	d.Phrases = taglinePhrases(d.Tagline)
 	d.Snippets = template.HTML(snippets.String())
@@ -101,10 +101,10 @@ func (s *Site) renderLanding() error {
 	for _, c := range []struct{ url, text string }{
 		{"docs/tutorial/getting-started/", "From a first grammar to typed trees and operator precedence, step by step."},
 		{"docs/guide/", "Task-oriented guides to trees, expressions, errors, context, runtimes and code generation."},
-		{"spec/", "The normative definition of the ZeroParse grammar language."},
+		{"spec/", "The normative definition of the SyntaxIR grammar language."},
 		{"reference/", "The Go API and the command-line tool, generated from the source."},
 		{"examples/", "Small grammars that show the features: a calculator, an outline and a small language."},
-		{"docs/design/records/", "The decisions behind ZeroParse and their rationale."},
+		{"docs/design/records/", "The decisions behind SyntaxIR and their rationale."},
 	} {
 		q := s.page(c.url)
 		if q == nil {
@@ -121,7 +121,7 @@ func (s *Site) renderLanding() error {
 	if err := tmpl.Execute(&b, d); err != nil {
 		return err
 	}
-	p.Title = "ZeroParse: " + d.Tagline
+	p.Title = "SyntaxIR: " + d.Tagline
 	p.Description = d.Description
 	p.Body = template.HTML(b.String())
 	p.Scripts = []string{"assets/landing.js"}
@@ -154,7 +154,7 @@ func (s *Site) landingIntro(d *landingData, m *markdown, n ast.Node, snippets *s
 			code.Write(seg.Value(src))
 		}
 		switch {
-		case lang == "zp" && d.Example == "":
+		case lang == "sxir" && d.Example == "":
 			d.Example = code.String()
 		case lang == "bash" && d.ExampleIn == "":
 			if mm := inputRe.FindStringSubmatch(code.String()); mm != nil {

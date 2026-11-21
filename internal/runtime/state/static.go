@@ -1,6 +1,6 @@
 package state
 
-import "zeroparse.dev/zp/internal/runtime/program"
+import "syntaxir.dev/sxir/internal/runtime/program"
 
 // staticProgram and staticRule are the run-time program and rule. SharedProgram and Rule embed
 // them under these names, so the embedded fields stay unexported.

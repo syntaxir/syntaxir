@@ -18,8 +18,8 @@ Generated/TypeScript parsers have no stream path.
 
 ## Reference Control
 
-Build tag `zp_reference_stream_prefix` selects ordinary prefix slabs; combined
-`zp_reference_stream_storage` also disables cleanup routes. The independent
+Build tag `sxir_reference_stream_prefix` selects ordinary prefix slabs; combined
+`sxir_reference_stream_storage` also disables cleanup routes. The independent
 tag isolates prefix ownership.
 
 ## Evidence and Implementation

@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // TestGeneratedTSMemoJoin checks that a store in a generated TypeScript parser never narrows the

@@ -3,7 +3,7 @@ package tsconformtest
 import (
 	"slices"
 
-	"zeroparse.dev/zp/internal/ir/code/exec/conform"
+	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
 )
 
 // OprSuiteOps are the operations of the Operators Rule family that the library runs: the descriptors and the

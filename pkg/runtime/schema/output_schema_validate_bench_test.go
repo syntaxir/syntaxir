@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/runtime/schema"
+	"syntaxir.dev/sxir/pkg/runtime/schema"
 )
 
 // outputSchemaUnvalidated has schema.Output's fields and JSON tags but no
@@ -45,7 +45,7 @@ func outputSchemaValidationBenchmarkValue(typeCount int) schema.Output {
 		})
 	}
 	return schema.Output{
-		Format:                  "zp-output-schema",
+		Format:                  "sxir-output-schema",
 		Version:                 2,
 		Start:                   "parseItem000",
 		PositionUnitIndependent: true,

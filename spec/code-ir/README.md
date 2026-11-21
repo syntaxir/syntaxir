@@ -1,6 +1,6 @@
-# ZeroParse Code IR Specification
+# SyntaxIR Code IR Specification
 
-Code IR is the form of the code that ZeroParse compiles a grammar to and that its runtimes are written in: a module
+Code IR is the form of the code that SyntaxIR compiles a grammar to and that its runtimes are written in: a module
 that declares state, types and operations, and functions in structured code over them. The base of Code IR defines
 the module, the statements and expressions of functions and what running them does, the invariants that every module
 satisfies and the text form. It does not give any operation a meaning: the operations belong to dialects, each of
@@ -14,7 +14,7 @@ may appear in it.
 
 [Core IR](../core-ir/README.md) is lowered to Code IR at the Flow stage, which says how a parser runs each rule;
 conversion from the Flow stage to the Exec stage replaces the operations of the Flow dialect by those of the
-abstract machine, and the backends print the Exec stage as Go and TypeScript. Code IR is internal to the ZeroParse
+abstract machine, and the backends print the Exec stage as Go and TypeScript. Code IR is internal to the SyntaxIR
 engine and written for engine maintainers and backend authors: it is not a public API, and nothing here changes how a
 grammar behaves, which the [Grammar Language Specification](../language/README.md) and the
 [Parser and Runtime Specification](../runtime/README.md) define.

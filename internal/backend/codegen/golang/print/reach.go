@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"sort"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	irbuild "zeroparse.dev/zp/internal/frontend/elaborate"
-	"zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	irbuild "syntaxir.dev/sxir/internal/frontend/elaborate"
+	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // A rule of the Node table (rules), the recognizer table (recRules) or the typed table (trules) has

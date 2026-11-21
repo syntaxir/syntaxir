@@ -9,10 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/frontend/parser"
-	"zeroparse.dev/zp/internal/frontend/parser/zpparser"
-	"zeroparse.dev/zp/pkg/grammar/ast"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/frontend/parser/sxirparser"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // The generated source parser, with its adapter, must build the grammar that
@@ -42,8 +42,8 @@ func canonicalErrors(src string, err error) error {
 // or by the engine, and whether err holds them.
 func sourceErrorsOf(err error) ([]parser.SourceError, bool) {
 	var out []parser.SourceError
-	var glist zpparser.SyntaxErrors
-	var gone *zpparser.SyntaxError
+	var glist sxirparser.SyntaxErrors
+	var gone *sxirparser.SyntaxError
 	var list value.SyntaxErrors
 	var one *value.SyntaxError
 	switch {

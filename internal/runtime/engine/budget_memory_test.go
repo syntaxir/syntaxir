@@ -1,4 +1,4 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package engine
 
@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/runtime"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // memoryGrammar builds nodes, child and field lists, memo entries and strings concatenated by
@@ -71,7 +71,7 @@ func TestMemoryLimitThreshold(t *testing.T) {
 	t.Parallel()
 	input := memoryInput(300)
 	for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		for _, u := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+		for _, u := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 			t.Run(fmt.Sprintf("%s/%s", b, u), func(t *testing.T) {
 				t.Parallel()
 				prog := mustCompile(t, memoryGrammar)

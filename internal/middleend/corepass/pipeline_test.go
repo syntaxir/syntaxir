@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/internal/pass"
-	"zeroparse.dev/zp/internal/pass/pipe"
+	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/pass"
+	"syntaxir.dev/sxir/internal/pass/pipe"
 )
 
 // The declarations of the pipeline can be run: the manager accepts it (names, After), and every

@@ -1,4 +1,4 @@
-//go:build zp_long
+//go:build sxir_long
 
 package engine_test
 
@@ -8,7 +8,7 @@ import "testing"
 // environment: each mutant breaks one part of env.bind, env.lookup or env.key.
 func TestEnvironmentMutantsFail(t *testing.T) {
 	const conformance = "^TestEngineExecConformance$"
-	core := []string{"zeroparse.dev/zp/internal/runtime/state"}
+	core := []string{"syntaxir.dev/sxir/internal/runtime/state"}
 	t.Run("bind", func(t *testing.T) {
 		const equal = "\tif p.rawValueEqual(p.Env.Get(slot, p.envLevels), val) {\n\t\treturn\n\t}\n"
 		const rebind = "\tfor l := 0; l <= p.envLevels; l++ {\n\t\tp.Spend()\n\t}\n\t// Saved"
@@ -43,7 +43,7 @@ func TestEnvironmentMutantsFail(t *testing.T) {
 func TestRecoveryMutantsFail(t *testing.T) {
 	const conformance = "^TestEngineExecConformance$"
 	const charges = "^TestSettlingChargesTheSlotsItClears$"
-	core := []string{"zeroparse.dev/zp/internal/runtime/state"}
+	core := []string{"syntaxir.dev/sxir/internal/runtime/state"}
 	t.Run("settle", func(t *testing.T) {
 		const keep = "if p.Tr == nil && cap(p.Recovered) <= streamRecoveryScratchMax {"
 		runPrintedMutants(t, "internal/runtime/state/stream_ops.go", []printedMutant{
@@ -97,7 +97,7 @@ func TestRecoveryMutantsFail(t *testing.T) {
 		runPrintedMutants(t, "internal/runtime/state/runtime.go", []printedMutant{
 			{"a growth step of the VM keeps the errors of the step before",
 				[]printedEdit{{"\t\tp.growAdopt(g, v, p.recSince(g.Rec))\n\t\tp.Recovered = p.Recovered[:g.Rec]\n", "\t\tp.growAdopt(g, v, p.recSince(g.Rec))\n"}},
-				"^TestBudgetDiagnosticRecoveredLists$", []string{"zeroparse.dev/zp/internal/runtime/vm"}},
+				"^TestBudgetDiagnosticRecoveredLists$", []string{"syntaxir.dev/sxir/internal/runtime/vm"}},
 			{"a growth step of the VM in a context keeps the errors of the step before",
 				[]printedEdit{{"\tp.GrowStep(g, v, ok, errs)\n\tp.Recovered = p.Recovered[:g.Rec]\n", "\tp.GrowStep(g, v, ok, errs)\n"}},
 				"^TestLeftRecursionDependencyMemoUnexamined$", []string{"."}},

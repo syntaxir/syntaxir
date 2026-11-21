@@ -1,4 +1,4 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package engine
 
@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/pkg/runtime"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 func TestBudgetParsePreCancelledAndValidation(t *testing.T) {
@@ -37,7 +37,7 @@ func TestBudgetParseBudgetAndPoolRetry(t *testing.T) {
 	t.Parallel()
 	prog := mustCompile(t, `rule main = [a-z]+ #atomic $$`)
 	for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		for _, u := range []zpinput.PositionUnit{zpinput.Bytes, zpinput.CodePoints} {
+		for _, u := range []sxirinput.PositionUnit{sxirinput.Bytes, sxirinput.CodePoints} {
 			for _, lim := range []runtime.Limits{{Compute: 1}, {Compute: 1}} {
 				n, err := prog.ParseWith("main", strings.Repeat("a", 10000), ParseOptions{Backend: b, Unit: u, Limits: lim})
 				if n != nil || !errors.Is(err, runtime.ErrLimit) {
@@ -82,7 +82,7 @@ func TestBudgetParseLongLiteralAndScanner(t *testing.T) {
 		for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
 			ctx, cancel := context.WithCancel(context.Background())
 			calls := 0
-			n, err := prog.ParseWith("main", literal, ParseOptions{Backend: b, Unit: zpinput.Bytes, Context: ctx, Trace: func(e TraceEvent) {
+			n, err := prog.ParseWith("main", literal, ParseOptions{Backend: b, Unit: sxirinput.Bytes, Context: ctx, Trace: func(e TraceEvent) {
 				if e.Kind == TraceEnter {
 					calls++
 					state.TraceParser(e).Control.Ctx = newPollingContext(2)
@@ -203,7 +203,7 @@ func TestBudgetParseControlledUnicodeParity(t *testing.T) {
 	for _, src := range []string{`rule main = .* $$`, `rule main = "é💡" "x" $$`} {
 		prog := mustCompile(t, src)
 		for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
-			for _, u := range []zpinput.PositionUnit{zpinput.Bytes, zpinput.CodePoints} {
+			for _, u := range []sxirinput.PositionUnit{sxirinput.Bytes, sxirinput.CodePoints} {
 				for _, recognize := range []bool{false, true} {
 					for _, input := range inputs {
 						opts := ParseOptions{Backend: b, Unit: u, Recognize: recognize}

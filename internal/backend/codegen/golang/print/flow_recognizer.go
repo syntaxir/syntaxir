@@ -1,9 +1,9 @@
 package print
 
 import (
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/ir/code/flow"
-	"zeroparse.dev/zp/internal/middleend/flowplan/plandata"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/ir/code/flow"
+	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 )
 
 // Value-free rules of the Node library printed from Flow IR.

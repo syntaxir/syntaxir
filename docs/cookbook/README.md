@@ -1,4 +1,4 @@
-# ZeroParse Cookbook
+# SyntaxIR Cookbook
 
 Short recipes for concrete problems. Each one is a complete solution: the problem in a sentence or two, the grammar and
 the Go program, the output they print, and a few lines on how it works and what to change. They differ from the other
@@ -12,18 +12,18 @@ documents in how they are organized:
 ## Running a Recipe
 
 Every program is a `main` package that you can run as it is. Put the files in a directory (a block whose first line is
-`// name.go` or `// name.zp` is a file of that name, without that line), make it a module that uses ZeroParse, and run it:
+`// name.go` or `// name.sxir` is a file of that name, without that line), make it a module that uses SyntaxIR, and run it:
 
 ```bash
 mkdir recipe && cd recipe
 go mod init example.com/recipe
-go get zeroparse.dev/zp
+go get syntaxir.dev/sxir
 go run .
 ```
 
 The recipes need Go 1.27 or later and nothing else, except where a recipe says otherwise (the ones that generate code
-install the `zp` tool with `go get -tool`, and the one about ready-made parsers adds a module). The grammars are
-embedded in the programs with `go:embed`, so the `.zp` files are real files that `zp fmt`, `zp parse` and the
+install the `sxir` tool with `go get -tool`, and the one about ready-made parsers adds a module). The grammars are
+embedded in the programs with `go:embed`, so the `.sxir` files are real files that `sxir fmt`, `sxir parse` and the
 editor support work with. Every output was produced by running the code shown, with Go 1.27.1 on an Apple M3 Max;
 times differ from machine to machine.
 
@@ -55,7 +55,7 @@ times differ from machine to machine.
 | [Report an error with its source line and a caret](error-carets.md) | `@error` messages and the position of a `*value.SyntaxError`, printed like a compiler |
 | [Report several errors in one run](several-errors.md) | `#recover`: a tree of what could be read, the errors, and what to watch for in the `skip` |
 | [Keep going after a bad statement in nested blocks](recover-statements.md) | Recovery at the statement rule shared by every block: errors from all levels and the statements that were fine |
-| [Find out why a grammar is slow](slow-grammar.md) | `zp profile` on a 20,000-line input: which rule wastes input, the change that fixes it, and the profile that proves it |
+| [Find out why a grammar is slow](slow-grammar.md) | `sxir profile` on a 20,000-line input: which rule wastes input, the change that fixes it, and the profile that proves it |
 | [Rewrite a slow pattern to linear cost](linear-rewrites.md) | For each growth class: a minimal grammar, its measured cost, the linear rewrite, and what the rewrite changes |
 
 ## Build Tools
@@ -71,12 +71,12 @@ times differ from machine to machine.
 | Recipe | What it shows |
 |:--|:--|
 | [Embed a grammar in a program and share the parser](embed-grammar.md) | `go:embed`, one compiled parser used from many goroutines with `WithStart`, and a `-race` test |
-| [Ship a parser and keep it up to date](ship-a-parser.md) | `zp gen` with `go generate`, a test that fails when the generated file is stale, and `.zpc` for grammars that stay data |
-| [Check a YAML file and point at the problem](ready-made-parsers.md) | A ready-made parser of [parsers/](https://github.com/zeroparse/alpha-parsers/blob/main/README.md): syntax errors with positions, and your own checks with the positions of the typed tree |
+| [Ship a parser and keep it up to date](ship-a-parser.md) | `sxir gen` with `go generate`, a test that fails when the generated file is stale, and `.sxirc` for grammars that stay data |
+| [Check a YAML file and point at the problem](ready-made-parsers.md) | A ready-made parser of [parsers/](https://github.com/syntaxir/alpha-parsers/blob/main/README.md): syntax errors with positions, and your own checks with the positions of the typed tree |
 | [Test hand-written code against a grammar](test-with-samples.md) | Inputs and near misses generated from the grammar, a differential test and a fuzz test |
 | [Fuzz the edits of a grammar in your tests](edit-fuzz-grammar.md) | `editfuzz` in `go test`: random edits, undos and redos checked against fresh parses, saved failures as regression tests, and a case written by hand |
-| [Check a file in a TypeScript tool with the same grammar](typescript-parser.md) | `zp gen -lang ts -types`: a dependency-free module, typed values, recovered syntax errors and a check of the tool's own |
-| [Check grammars in continuous integration](lint-in-ci.md) | One script for `zp fmt -check`, `zp lint -strict` and `zp test`, and a workflow that runs it |
+| [Check a file in a TypeScript tool with the same grammar](typescript-parser.md) | `sxir gen -lang ts -types`: a dependency-free module, typed values, recovered syntax errors and a check of the tool's own |
+| [Check grammars in continuous integration](lint-in-ci.md) | One script for `sxir fmt -check`, `sxir lint -strict` and `sxir test`, and a workflow that runs it |
 
 ## Where to Go Next
 
@@ -84,4 +84,4 @@ times differ from machine to machine.
 |:--|:--|
 | One feature in depth | [Guides](../guide/README.md) |
 | The exact rules of a construct | [Language specification](../../spec/README.md) |
-| Complete grammars with tests | [examples/](../../examples/README.md) and [parsers/](https://github.com/zeroparse/alpha-parsers/blob/main/README.md) |
+| Complete grammars with tests | [examples/](../../examples/README.md) and [parsers/](https://github.com/syntaxir/alpha-parsers/blob/main/README.md) |

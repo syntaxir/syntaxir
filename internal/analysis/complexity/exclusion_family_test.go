@@ -3,11 +3,11 @@ package complexity_test
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/analysis/complexity"
-	"zeroparse.dev/zp/internal/testing/complexitytest"
-	"zeroparse.dev/zp/internal/testing/enginetest"
-	"zeroparse.dev/zp/internal/testing/starttest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/analysis/complexity"
+	"syntaxir.dev/sxir/internal/testing/complexitytest"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
+	"syntaxir.dev/sxir/internal/testing/starttest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // TestSharedContinuationsFlip checks that the classifier's use of the exclusion analysis changes

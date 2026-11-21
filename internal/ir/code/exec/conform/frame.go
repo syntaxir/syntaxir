@@ -5,9 +5,9 @@ import (
 	"math/rand/v2"
 	"slices"
 
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/exec"
-	"zeroparse.dev/zp/internal/ir/code/exec/ref"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec"
+	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
 )
 
 // The cases of the capture frames (the frame operations). They read the slots of frames with

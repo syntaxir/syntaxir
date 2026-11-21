@@ -1,9 +1,9 @@
 package check
 
 import (
-	"zeroparse.dev/zp/internal/cancel"
-	"zeroparse.dev/zp/internal/runtime/program"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/cancel"
+	"syntaxir.dev/sxir/internal/runtime/program"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // The static shapes of values in the value model. Every backend builds the values of an

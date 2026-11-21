@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // GNode is a node of the value model: the range of input a rule or a valued subexpression
@@ -73,7 +73,7 @@ func (n *GNode) Elem(i int) any {
 	case List:
 		return v.At(i)
 	}
-	panic("zp: Elem of a node whose value is neither a tuple nor a list")
+	panic("sxir: Elem of a node whose value is neither a tuple nor a list")
 }
 
 // Rule returns the name of the rule that produced the node, or "" without source information.

@@ -1,4 +1,4 @@
-// Command calculator parses an arithmetic expression with calc.zp and evaluates it.
+// Command calculator parses an arithmetic expression with calc.sxir and evaluates it.
 //
 //	go run ./examples/calculator "1 + 2 * (3 - 4) ^ 2"
 package main
@@ -11,17 +11,17 @@ import (
 	"strconv"
 	"strings"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
-	"zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
-//go:embed calc.zp
+//go:embed calc.sxir
 var source string
 
 func main() {
-	p, err := compiler.Compile(grammar.FromString("calc.zp", source), compiler.WithStart("main"))
+	p, err := compiler.Compile(grammar.FromString("calc.sxir", source), compiler.WithStart("main"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -42,7 +42,7 @@ func eval(p runtime.Parser, src string) (float64, error) {
 	return evalNode(n)
 }
 
-// evalNode evaluates the AST (Number, Binary, Unary) built by the actions of calc.zp.
+// evalNode evaluates the AST (Number, Binary, Unary) built by the actions of calc.sxir.
 func evalNode(n *value.Node) (float64, error) {
 	switch n.Type() {
 	case "Number":

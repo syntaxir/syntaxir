@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
 )
 
 // TestLexTS checks that the lexer reads strings, the text of template literals, regular

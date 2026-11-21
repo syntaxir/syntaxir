@@ -3,8 +3,8 @@ package engine
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 func TestFragmentCursorOriginalBytes(t *testing.T) {

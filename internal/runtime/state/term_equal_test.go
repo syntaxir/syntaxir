@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/ir/code/exec/conform"
-	"zeroparse.dev/zp/internal/ir/code/exec/ref"
-	"zeroparse.dev/zp/pkg/runtime"
+	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
+	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
+	"syntaxir.dev/sxir/pkg/runtime"
 )
 
 // TestEngineValueEqualCharges holds ValueEqual, whose fast path for two strings is written by hand,

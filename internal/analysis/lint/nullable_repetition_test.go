@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"zeroparse.dev/zp/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/frontend/parser"
 )
 
 func TestNullableRepetitionProofs(t *testing.T) {

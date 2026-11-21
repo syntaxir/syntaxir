@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/vm"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/bytecode"
+	"syntaxir.dev/sxir/internal/runtime/vm"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/bytecode"
 )
 
 // cloneTerms returns a copy of the term code ts that shares no slice with it.

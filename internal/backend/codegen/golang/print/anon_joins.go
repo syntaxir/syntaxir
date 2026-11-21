@@ -3,7 +3,7 @@ package print
 import (
 	"strings"
 
-	"zeroparse.dev/zp/internal/frontend/types"
+	"syntaxir.dev/sxir/internal/frontend/types"
 )
 
 // anonJoinName returns the Go name of the interface of an undeclared join: its members in the order

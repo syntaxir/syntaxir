@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"slices"
 
-	"zeroparse.dev/zp/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code"
 )
 
 // The reference model of the missing-token mode (the operations of component recovered with the

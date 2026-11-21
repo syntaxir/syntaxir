@@ -8,16 +8,16 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/driver/checked"
-	"zeroparse.dev/zp/internal/driver/entry"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/internal/testing/compiletest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/driver/checked"
+	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/compiletest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // TestGeneratedSourceParserMatchesEngine runs the canonical grammar as a generated Go parser on the
@@ -58,9 +58,9 @@ func TestGeneratedSourceParserMatchesEngine(t *testing.T) {
 			t.Fatal(err)
 		}
 		return func(input string, bytes, recognize bool) (*value.Node, error) {
-			unit := zpinput.CodePoints
+			unit := sxirinput.CodePoints
 			if bytes {
-				unit = zpinput.Bytes
+				unit = sxirinput.Bytes
 			}
 			return prog.ParseWith("main", input, engine.ParseOptions{Unit: unit, Recognize: recognize, Expectations: true})
 		}
@@ -74,7 +74,7 @@ func TestGeneratedSourceParserMatchesEngine(t *testing.T) {
 	for i := 0; i < generatedMutations; i++ {
 		inputs = append(inputs, mutatedSource(rng, corpus))
 	}
-	cases := []codegentest.Case{{Name: "zp.zp", Src: self, Inputs: inputs}}
+	cases := []codegentest.Case{{Name: "sxir.sxir", Src: self, Inputs: inputs}}
 	// Control: the generated parser builds the name of a rule from the expression of its body. The
 	// comparison must notice.
 	t.Run("control", func(t *testing.T) {

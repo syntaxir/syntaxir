@@ -3,9 +3,9 @@ package compile
 import (
 	"slices"
 
-	"zeroparse.dev/zp/internal/cancel"
-	"zeroparse.dev/zp/internal/frontend/astfacts"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/cancel"
+	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // PredicateCaptures tells which captures of a rule body record their values in a program that

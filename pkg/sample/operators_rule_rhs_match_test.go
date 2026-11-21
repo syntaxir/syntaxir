@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/testing/enginetest"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 )
 
 func rhsCheck(t *testing.T, rules string) (*info, *operatorsRuleCheck) {

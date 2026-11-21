@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Embedded AST nodes promote their interface methods even in other packages.

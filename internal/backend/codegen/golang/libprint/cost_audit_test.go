@@ -15,10 +15,10 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/action"
-	"zeroparse.dev/zp/internal/ir/code/exec"
-	"zeroparse.dev/zp/internal/ir/code/exec/compose"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/action"
+	"syntaxir.dev/sxir/internal/ir/code/exec"
+	"syntaxir.dev/sxir/internal/ir/code/exec/compose"
 )
 
 // chargeRoots are the methods of the budget control that reserve compute units.
@@ -43,7 +43,7 @@ func libCalls(t *testing.T) (*types.Package, map[*types.Func][]*types.Func, map[
 	}
 	info := &types.Info{Uses: map[*ast.Ident]types.Object{}, Defs: map[*ast.Ident]types.Object{}}
 	conf := types.Config{Importer: importer.ForCompiler(fset, "source", nil)}
-	pkg, err := conf.Check("zeroparse.dev/zp/pkg/runtime/libgo", fset, files, info)
+	pkg, err := conf.Check("syntaxir.dev/sxir/pkg/runtime/libgo", fset, files, info)
 	if err != nil {
 		t.Fatal(err)
 	}

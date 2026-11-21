@@ -8,7 +8,7 @@ package cancel
 import (
 	"context"
 
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Cancellation is the panic value that unwinds cancelled work with its error. Only the entry

@@ -6,12 +6,12 @@ import (
 	"sync/atomic"
 	"unsafe"
 
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
-// The typed library, appended to generated parsers made with zp gen -types. It parses like the
+// The typed library, appended to generated parsers made with sxir gen -types. It parses like the
 // library in lib.go, but builds the values of the grammar's types directly, as Go values,
 // instead of Node trees: the value of an expression is an any holding a pointer to a struct
 // type, *TMatch (a string node), *TError (an error value), an int, string or bool, nil,
@@ -695,9 +695,9 @@ func (p *TParser) run(r *TRule, input string, o parseOptions, ext any) (v any, e
 	p.Ext = ext
 	p.setGrammar(r.g)
 	p.Expectations = o.expectations
-	if o.unit == zpinput.Bytes {
+	if o.unit == sxirinput.Bytes {
 		// p.In stays empty: direct rules read code points from it while p.Pos < len(p.In).
-		p.unit, p.bs, p.n, p.In = zpinput.Bytes, input, len(input), p.In[:0]
+		p.unit, p.bs, p.n, p.In = sxirinput.Bytes, input, len(input), p.In[:0]
 	} else {
 		p.setSource(input)
 	}
@@ -732,7 +732,7 @@ func (p *TParser) run(r *TRule, input string, o parseOptions, ext any) (v any, e
 			errors := p.recoveredErrors()
 			p.chargeValues(len(errors))
 			p.Control.Check()
-			return v, zpvalue.SyntaxErrors(errors)
+			return v, sxirvalue.SyntaxErrors(errors)
 		}
 		return v, nil
 	}

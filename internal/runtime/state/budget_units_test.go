@@ -1,4 +1,4 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package state
 
@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime"
 )
 
 // TestChargeUnitsIsOneUnitReservations pins that ChargeUnits(n) reserves what n calls of Charge(1)

@@ -1,4 +1,4 @@
-//go:build zp_long
+//go:build sxir_long
 
 package archtest
 
@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"zeroparse.dev/zp/internal/testing/mutanttest"
+	"syntaxir.dev/sxir/internal/testing/mutanttest"
 )
 
 // scriptsDeps are what the tests of the queue scripts depend on: the scripts and the test package (the harness

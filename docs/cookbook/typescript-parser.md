@@ -8,8 +8,8 @@ Generate a TypeScript module from the grammar. It has no dependencies, returns t
 engine, and with `-types` it returns typed values. The grammar recovers from errors, so one run reports every
 syntax problem, and the tool adds its own checks on top of the values that were read.
 
-```zp
-// settings.zp
+```sxir
+// settings.sxir
 type Setting = { Key node[string]; Value node[string] }
 type Item ~ Setting | error
 type File = { Settings []Item }
@@ -30,10 +30,10 @@ rule num = [0-9]+ #atomic
 rule ws = (&[ \t\r\n] .)*
 ```
 
-Generate the module next to the tool. The `zp` command comes from `go install zeroparse.dev/zp/cmd/zp@latest`:
+Generate the module next to the tool. The `sxir` command comes from `go install syntaxir.dev/sxir/cmd/sxir@latest`:
 
 ```bash
-zp gen -lang ts -types -g settings.zp -o settings
+sxir gen -lang ts -types -g settings.sxir -o settings
 ```
 
 The tool reads the text, reports the syntax errors, and checks the limits of the settings that were read:

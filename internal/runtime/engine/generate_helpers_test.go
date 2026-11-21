@@ -1,13 +1,13 @@
 package engine
 
 import (
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/frontend/schemaexport"
-	"zeroparse.dev/zp/pkg/grammar/ast"
-	"zeroparse.dev/zp/pkg/runtime/schema"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/schemaexport"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/runtime/schema"
 )
 
-// The engine does not import the generators or the output schema; packages gen and zp join them
+// The engine does not import the generators or the output schema; packages gen and sxir join them
 // (codegen.Go, codegen.TypeScript and Parser.OutputSchema). These helpers join them the
 // same way for the tests of this package.
 

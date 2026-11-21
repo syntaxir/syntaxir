@@ -37,7 +37,7 @@ table holds fewer rules.
 
 ## Results
 
-Bytes of `parser.ts` (`zp gen -lang ts -types -recognize -lib import`):
+Bytes of `parser.ts` (`sxir gen -lang ts -types -recognize -lib import`):
 
 | Grammar | Before | After | Change |
 |:--|--:|--:|--:|

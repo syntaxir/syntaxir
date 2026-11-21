@@ -4,11 +4,11 @@ import (
 	"os"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/frontend/elaborate"
-	"zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/internal/middleend/corepass"
-	"zeroparse.dev/zp/internal/testing/compiletest"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/elaborate"
+	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/corepass"
+	"syntaxir.dev/sxir/internal/testing/compiletest"
 )
 
 // BenchmarkBytecodeLowering isolates the construction of the module, match code and term code, from
@@ -16,8 +16,8 @@ import (
 // the Core IR build and VM setup are out.
 func BenchmarkBytecodeLowering(b *testing.B) {
 	for _, c := range []struct{ name, path string }{
-		{"JSON", "../../../testdata/grammars/json/json.zp"},
-		{"Minilang", "../../../examples/minilang/minilang.zp"},
+		{"JSON", "../../../testdata/grammars/json/json.sxir"},
+		{"Minilang", "../../../examples/minilang/minilang.sxir"},
 	} {
 		b.Run(c.name, func(b *testing.B) {
 			source, err := os.ReadFile(c.path)

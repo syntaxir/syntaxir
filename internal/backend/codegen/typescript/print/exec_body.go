@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/middleend/codepass"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/middleend/codepass"
 )
 
 // Grammar code lowered from Flow IR prints with Body, by the conventions of the TypeScript printer

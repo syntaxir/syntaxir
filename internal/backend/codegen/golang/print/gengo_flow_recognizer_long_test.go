@@ -1,4 +1,4 @@
-//go:build zp_long
+//go:build sxir_long
 
 package print_test
 
@@ -20,7 +20,7 @@ func TestGeneratedFlowRecognizerNegativeControl(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			cmd := exec.Command(os.Args[0], "-test.run=^TestGeneratedFlowRecognizerMutantChild$", "-test.count=1")
-			cmd.Env = append(os.Environ(), "ZP_FLOW_MUTANT="+name)
+			cmd.Env = append(os.Environ(), "SXIR_FLOW_MUTANT="+name)
 			out, err := cmd.CombinedOutput()
 			if err == nil {
 				t.Fatalf("the %s mutant passed the parity test:\n%s", name, out)

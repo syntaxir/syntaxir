@@ -6,7 +6,7 @@ import (
 	"slices"
 	"testing"
 
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // referenceInvalidate is a copying splice, written from the contract of memo.splice. It returns
@@ -90,7 +90,7 @@ func TestInvalidateMatchesCopyingReference(t *testing.T) {
 					e.next = d.slots[pos]
 					d.slots[pos] = e
 					if r.Intn(8) == 0 {
-						e.errs = recEntry{err: &zpvalue.SyntaxError{}}
+						e.errs = recEntry{err: &sxirvalue.SyntaxError{}}
 					}
 					switch r.Intn(6) {
 					case 0: // incomplete: no metadata

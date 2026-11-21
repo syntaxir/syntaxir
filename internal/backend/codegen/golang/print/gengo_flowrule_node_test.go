@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 func TestGeneratedNodeDirectFrameRoutes(t *testing.T) {
@@ -64,12 +64,12 @@ func testGeneratedNodeDirectRetention(t *testing.T) {
 	}
 	p := compileBare(t, c.Src) // generated parsers keep no source information by default
 	var rows strings.Builder
-	for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+	for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 		for _, rule := range []string{"main", "pair"} {
 			for _, input := range []string{"a-123456?", "b-7!", "c-1", "d-x?", ""} {
 				n, err := p.ParseWith(rule, input, engine.ParseOptions{Expectations: true, Unit: unit})
 				fmt.Fprintf(&rows, "{%q,%q,%s,%q},\n", rule, input,
-					map[zpinput.PositionUnit]string{zpinput.CodePoints: "CodePoints", zpinput.Bytes: "Bytes"}[unit], codegentest.ResultJSON(n, err))
+					map[sxirinput.PositionUnit]string{sxirinput.CodePoints: "CodePoints", sxirinput.Bytes: "Bytes"}[unit], codegentest.ResultJSON(n, err))
 			}
 		}
 	}

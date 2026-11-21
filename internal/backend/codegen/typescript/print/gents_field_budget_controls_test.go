@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
 )
 
 func TestGeneratedTSBudgetControlFields(t *testing.T) {

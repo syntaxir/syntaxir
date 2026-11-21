@@ -7,8 +7,8 @@ Use `value.Walk` for the first question: it visits every node, and the visit giv
 `value.Cursor` for the second: `At` visits the nodes whose span contains a position, outermost first. This recipe lists
 the calls of a small program with their positions, and finds the call that contains a position and the argument under it.
 
-```zp
-// calls.zp
+```sxir
+// calls.sxir
 package calls
 
 type Name = node[string]
@@ -37,19 +37,19 @@ import (
 	"fmt"
 	"os"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
-	"zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
-//go:embed calls.zp
+//go:embed calls.sxir
 var grammarSrc string
 
 const source = "print(add(1, mul(2, x)));\nlog(sum());\n"
 
 func main() {
-	p, err := compiler.Compile(grammar.FromString("grammar.zp", grammarSrc), compiler.WithStart("main"))
+	p, err := compiler.Compile(grammar.FromString("grammar.sxir", grammarSrc), compiler.WithStart("main"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

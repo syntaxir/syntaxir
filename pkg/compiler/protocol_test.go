@@ -11,10 +11,10 @@ import (
 	"strings"
 	"testing"
 
-	igen "zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
+	igen "syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
 )
 
 func TestMain(m *testing.M) {
@@ -38,7 +38,7 @@ func bumpProtocol(src []byte, by int) []byte {
 	})
 }
 
-// protocolBuild writes a module zeroparse.dev/zp in dir/zp that holds this module's runtime
+// protocolBuild writes a module syntaxir.dev/sxir in dir/sxir that holds this module's runtime
 // packages, with the source of value/impl passed through valueimpl, and the files libFiles at their paths
 // below lib (the directory of the library in it, or "" to leave it out), and the parser files in
 // dir/p, a module that requires it; then it builds the parser.
@@ -58,7 +58,7 @@ func protocolBuild(t *testing.T, files, libFiles []compiler.File, lib string, va
 	for _, f := range files {
 		write("p/"+f.Path, f.Content)
 	}
-	write("zp/go.mod", []byte("module zeroparse.dev/zp\n\ngo 1.27.1\n"))
+	write("sxir/go.mod", []byte("module syntaxir.dev/sxir\n\ngo 1.27.1\n"))
 	for _, pkg := range []string{"pkg/runtime", "pkg/runtime/input", "pkg/runtime/value", "pkg/runtime/value/impl", "pkg/runtime/instrument", "pkg/runtime/schema"} {
 		src := filepath.Join(codegentest.ModuleRoot(), filepath.FromSlash(pkg))
 		entries, err := os.ReadDir(src)
@@ -76,13 +76,13 @@ func protocolBuild(t *testing.T, files, libFiles []compiler.File, lib string, va
 			if pkg == "pkg/runtime/value/impl" && valueimpl != nil {
 				data = valueimpl(data)
 			}
-			write("zp/"+pkg+"/"+e.Name(), data)
+			write("sxir/"+pkg+"/"+e.Name(), data)
 		}
 	}
 	for _, f := range libFiles {
 		write(lib+"/"+path.Base(f.Path), f.Content)
 	}
-	write("p/go.mod", []byte("module example.com/proto\n\ngo 1.27.1\n\nrequire zeroparse.dev/zp v0.0.0\n\nreplace zeroparse.dev/zp => ../zp\n"))
+	write("p/go.mod", []byte("module example.com/proto\n\ngo 1.27.1\n\nrequire syntaxir.dev/sxir v0.0.0\n\nreplace syntaxir.dev/sxir => ../sxir\n"))
 	cmd := exec.Command("go", "build", "./...")
 	cmd.Dir = filepath.Join(dir, "p")
 	cmd.Env = append(os.Environ(), "GOTOOLCHAIN=local", codegentest.GoFlagsEnv, "GOWORK=off")
@@ -114,7 +114,7 @@ func TestImportProtocol(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds a generated parser")
 	}
-	g := grammar.FromString("proto.zp", `@start
+	g := grammar.FromString("proto.sxir", `@start
 rule main = [a-z]+ "=" [0-9]+`)
 	files, err := compiler.GenerateGo(g, compiler.GoConfig{Module: "example.com/proto", Lib: compiler.LibImport}, compiler.WithStart("main"))
 	if err != nil {
@@ -134,7 +134,7 @@ rule main = [a-z]+ "=" [0-9]+`)
 	if want := "const _ = rt." + protocol + "\n"; !bytes.Contains(parser, []byte(want)) {
 		t.Fatalf("parser.go does not refer to the protocol with %q", want)
 	}
-	const lib = "zp/pkg/runtime/libgo"
+	const lib = "sxir/pkg/runtime/libgo"
 	if out, err := protocolBuild(t, files, libFiles, lib, nil); err != nil {
 		t.Fatalf("the parser does not build against the library of its generator: %v\n%s", err, out)
 	}
@@ -152,14 +152,14 @@ rule main = [a-z]+ "=" [0-9]+`)
 }
 
 // TestEmbedCoreProtocol builds a parser generated with LibEmbed, whose copy of the library imports
-// the runtime packages from zeroparse.dev/zp, against this module's runtime packages, which builds, and against
+// the runtime packages from syntaxir.dev/sxir, against this module's runtime packages, which builds, and against
 // runtime packages whose value/impl serves the representation of the protocol version after or before the
 // library's, which must fail to build on the valueimpl constant the copy refers to.
 func TestEmbedCoreProtocol(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds a generated parser")
 	}
-	g := grammar.FromString("proto.zp", `@start
+	g := grammar.FromString("proto.sxir", `@start
 rule main = [a-z]+ "=" [0-9]+`)
 	files, err := compiler.GenerateGo(g, compiler.GoConfig{Module: "example.com/proto"}, compiler.WithStart("main"))
 	if err != nil {
@@ -203,11 +203,11 @@ var goGenerated = regexp.MustCompile(`^// Code generated .* DO NOT EDIT\.$`)
 // TestGeneratedHeader checks that every generated Go and TypeScript file starts with the header that
 // names the generator version, and that generating twice gives the same files.
 func TestGeneratedHeader(t *testing.T) {
-	g := grammar.FromString("proto.zp", `type Pair = { Key node[string]; Value node[string] }
+	g := grammar.FromString("proto.sxir", `type Pair = { Key node[string]; Value node[string] }
 @start
 rule main Pair = k:[a-z]+ #atomic "=" v:[0-9]+ #atomic => Pair{Key: $k, Value: $v}`)
 	header := igen.Header()
-	if !goGenerated.MatchString(header) || !strings.Contains(header, " zp "+igen.Version()+".") {
+	if !goGenerated.MatchString(header) || !strings.Contains(header, " sxir "+igen.Version()+".") {
 		t.Fatalf("header %q", header)
 	}
 	goGen := func(c compiler.GoConfig) func() ([]compiler.File, error) {

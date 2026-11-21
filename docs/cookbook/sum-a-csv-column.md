@@ -3,8 +3,8 @@
 **Problem.** A CSV export is too big to read into memory. You want the total of one column and, if a record is bad, the
 place where it is, without loading the file.
 
-The CSV grammar of [alpha-parsers/csv](../../testdata/grammars/csv/csv.zp) marks its records with `#stream`, so `ParseStream` delivers
-them one at a time. Copy `csv.zp` next to this program, which sums the third column and reports the first bad record
+The CSV grammar of [alpha-parsers/csv](../../testdata/grammars/csv/csv.sxir) marks its records with `#stream`, so `ParseStream` delivers
+them one at a time. Copy `csv.sxir` next to this program, which sums the third column and reports the first bad record
 with its offset; with `-whole` it uses `Parse` instead, to compare. See [Process a file that does not fit in
 memory](big-files.md) for the same method on a log.
 
@@ -20,19 +20,19 @@ import (
 	"os"
 	"strconv"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
-//go:embed csv.zp
+//go:embed csv.sxir
 var grammarSrc string
 
 func main() {
 	whole := flag.Bool("whole", false, "read all the input and call Parse instead of ParseStream")
 	flag.Parse()
 
-	p, err := compiler.Compile(grammar.FromString("grammar.zp", grammarSrc), compiler.WithStart("main"))
+	p, err := compiler.Compile(grammar.FromString("grammar.sxir", grammarSrc), compiler.WithStart("main"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
@@ -139,7 +139,7 @@ says the quoted field never ended.
 ## Variations and Limits
 
 - Line-oriented formats work the same way. The parts that matter are a record rule that cannot match the empty string at
-  the end of the input (`!$$`), an `eol` that also accepts `$$`, and `$$` after the repetition, as in `csv.zp`.
+  the end of the input (`!$$`), an `eol` that also accepts `$$`, and `$$` after the repetition, as in `csv.sxir`.
 - Streaming trades a little time for memory: it takes about as long as `Parse` or somewhat longer, and its memory does not
   grow with the input.
 - To read a header and then records of another shape, see [Read a header and then records](header-and-records.md).

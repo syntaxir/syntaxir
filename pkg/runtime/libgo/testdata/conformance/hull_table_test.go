@@ -5,8 +5,8 @@ import (
 	"slices"
 	"testing"
 
-	"zeroparse.dev/zp/internal/ir/code/exec/conform"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // The hull table (conform.HullCases) on the composition hull of the node and the typed library (termHull,
@@ -18,13 +18,13 @@ func TestValueHullTable(t *testing.T) {
 		vals[conform.StructLate] = nodeOfData(&Data{Kind: MatchKind, Terminal: true, Text: "q", Start: 7, End: 9})
 		c.start, c.end = conform.StructRuleStart, conform.StructRuleEnd
 		if err := conform.RunHulls("node", controlled, func(kind string, elems []string) (string, int) {
-			var n *zpvalue.Node
+			var n *sxirvalue.Node
 			if kind == "tuple" {
 				var args []any
 				for _, e := range elems {
 					args = append(args, vals[e])
 				}
-				n = c.fxTuple(args...).(*zpvalue.Node)
+				n = c.fxTuple(args...).(*sxirvalue.Node)
 			} else {
 				base := len(c.P.KidStack)
 				for _, e := range elems {

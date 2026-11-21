@@ -1,4 +1,4 @@
-// Package runtime defines what a parse runs under and reports that every ZeroParse parser shares:
+// Package runtime defines what a parse runs under and reports that every SyntaxIR parser shares:
 // the limits of a parse and its limit errors, the stream iterator, and the statistics of a
 // Document. The nodes a parse produces are in package value, the position unit and the edits of
 // its input in package input, and traces and profiles in package instrument. Parsers loaded from

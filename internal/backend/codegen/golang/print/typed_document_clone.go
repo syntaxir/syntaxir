@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/frontend/types"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/frontend/types"
 )
 
 // documentClone emits the CloneValue path, which copies the private values retained

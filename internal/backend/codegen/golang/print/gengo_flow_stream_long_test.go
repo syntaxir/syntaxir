@@ -1,4 +1,4 @@
-//go:build zp_long
+//go:build sxir_long
 
 package print_test
 
@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/internal/testing/mutanttest"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/mutanttest"
 )
 
 // TestFlowStreamObservationMutants checks that the reports of stream parses notice a stream body that

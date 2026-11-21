@@ -13,23 +13,23 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"zeroparse.dev/zp/internal/bench/inputs"
-	gcalc "zeroparse.dev/zp/internal/bench/parsers/calc"
-	gcalclr "zeroparse.dev/zp/internal/bench/parsers/calclr"
-	gcsv "zeroparse.dev/zp/internal/bench/parsers/csv"
-	gcsvdoc "zeroparse.dev/zp/internal/bench/parsers/csvdoc"
-	gcsvstream "zeroparse.dev/zp/internal/bench/parsers/csvstream"
-	gjson "zeroparse.dev/zp/internal/bench/parsers/json"
-	gminilang "zeroparse.dev/zp/internal/bench/parsers/minilang"
-	gminilangdoc "zeroparse.dev/zp/internal/bench/parsers/minilangdoc"
-	gminilangtdoc "zeroparse.dev/zp/internal/bench/parsers/minilangtdoc"
-	goutline "zeroparse.dev/zp/internal/bench/parsers/outline"
-	gxml "zeroparse.dev/zp/internal/bench/parsers/xml"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/enginetest"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	rt "zeroparse.dev/zp/pkg/runtime/libgo"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/bench/inputs"
+	gcalc "syntaxir.dev/sxir/internal/bench/parsers/calc"
+	gcalclr "syntaxir.dev/sxir/internal/bench/parsers/calclr"
+	gcsv "syntaxir.dev/sxir/internal/bench/parsers/csv"
+	gcsvdoc "syntaxir.dev/sxir/internal/bench/parsers/csvdoc"
+	gcsvstream "syntaxir.dev/sxir/internal/bench/parsers/csvstream"
+	gjson "syntaxir.dev/sxir/internal/bench/parsers/json"
+	gminilang "syntaxir.dev/sxir/internal/bench/parsers/minilang"
+	gminilangdoc "syntaxir.dev/sxir/internal/bench/parsers/minilangdoc"
+	gminilangtdoc "syntaxir.dev/sxir/internal/bench/parsers/minilangtdoc"
+	goutline "syntaxir.dev/sxir/internal/bench/parsers/outline"
+	gxml "syntaxir.dev/sxir/internal/bench/parsers/xml"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	rt "syntaxir.dev/sxir/pkg/runtime/libgo"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // workload is the grammar and input of one benchmark.
@@ -54,7 +54,7 @@ func genErr[N any](_ N, err error) error { return err }
 
 var workloads = []workload{
 	{
-		name: "JSON", grammar: "../testdata/grammars/json/json.zp", input: func(k int) string { return inputs.JSONInput(256 << 10 / k) },
+		name: "JSON", grammar: "../testdata/grammars/json/json.sxir", input: func(k int) string { return inputs.JSONInput(256 << 10 / k) },
 		gen: func(s string, b bool) error {
 			if b {
 				return genErr(gjson.Parse(s, gjson.WithUnit(gjson.Bytes)))
@@ -69,7 +69,7 @@ var workloads = []workload{
 		},
 	},
 	{
-		name: "CSV", grammar: "../testdata/grammars/csv/csv.zp", input: func(k int) string { return inputs.CSVInput(5000 / k) },
+		name: "CSV", grammar: "../testdata/grammars/csv/csv.sxir", input: func(k int) string { return inputs.CSVInput(5000 / k) },
 		gen: func(s string, b bool) error {
 			if b {
 				return genErr(gcsv.Parse(s, gcsv.WithUnit(gcsv.Bytes)))
@@ -86,7 +86,7 @@ var workloads = []workload{
 		},
 	},
 	{
-		name: "XML", grammar: "../testdata/grammars/xml/xml.zp", input: func(k int) string { return inputs.XMLInput(256 << 10 / k) },
+		name: "XML", grammar: "../testdata/grammars/xml/xml.sxir", input: func(k int) string { return inputs.XMLInput(256 << 10 / k) },
 		gen: func(s string, b bool) error {
 			if b {
 				return genErr(gxml.Parse(s, gxml.WithUnit(gxml.Bytes)))
@@ -107,7 +107,7 @@ var workloads = []workload{
 		},
 	},
 	{
-		name: "Arith_OperatorsRule", grammar: "../examples/calculator/calc.zp", input: func(k int) string { return inputs.ArithInput(20000 / k) },
+		name: "Arith_OperatorsRule", grammar: "../examples/calculator/calc.sxir", input: func(k int) string { return inputs.ArithInput(20000 / k) },
 		gen: func(s string, b bool) error {
 			if b {
 				return genErr(gcalc.Parse(s, gcalc.WithUnit(gcalc.Bytes)))
@@ -119,7 +119,7 @@ var workloads = []workload{
 		stdName: "go_parser", std: func(s string) error { return genErr(parser.ParseExpr(s)) },
 	},
 	{
-		name: "Arith_LeftRec", grammar: "../examples/calculator/calc_lr.zp", input: func(k int) string { return inputs.ArithInput(20000 / k) },
+		name: "Arith_LeftRec", grammar: "../examples/calculator/calc_lr.sxir", input: func(k int) string { return inputs.ArithInput(20000 / k) },
 		gen: func(s string, b bool) error {
 			if b {
 				return genErr(gcalclr.Parse(s, gcalclr.WithUnit(gcalclr.Bytes)))
@@ -131,7 +131,7 @@ var workloads = []workload{
 		stdName: "go_parser", std: func(s string) error { return genErr(parser.ParseExpr(s)) },
 	},
 	{
-		name: "Minilang", grammar: "../examples/minilang/minilang.zp", input: func(k int) string { return inputs.MinilangInput(300/k, 0) },
+		name: "Minilang", grammar: "../examples/minilang/minilang.sxir", input: func(k int) string { return inputs.MinilangInput(300/k, 0) },
 		gen: func(s string, b bool) error {
 			if b {
 				return genErr(gminilang.Parse(s, gminilang.WithUnit(gminilang.Bytes)))
@@ -142,7 +142,7 @@ var workloads = []workload{
 		ast: func(s string) error { return genErr(gminilang.ParseValue(s)) },
 	},
 	{
-		name: "Recovery", grammar: "../examples/minilang/minilang.zp", input: func(k int) string { return inputs.MinilangInput(300/k, 7) },
+		name: "Recovery", grammar: "../examples/minilang/minilang.sxir", input: func(k int) string { return inputs.MinilangInput(300/k, 7) },
 		partial: true,
 		gen: func(s string, b bool) error {
 			u := gminilang.CodePoints
@@ -163,7 +163,7 @@ var workloads = []workload{
 		},
 	},
 	{
-		name: "Outline", grammar: "../examples/outline/outline.zp", input: func(k int) string { return inputs.OutlineInput(5000 / k) },
+		name: "Outline", grammar: "../examples/outline/outline.sxir", input: func(k int) string { return inputs.OutlineInput(5000 / k) },
 		gen: func(s string, b bool) error {
 			if b {
 				return genErr(goutline.Parse(s, goutline.WithUnit(goutline.Bytes)))
@@ -186,10 +186,10 @@ var backends = []struct {
 
 var units = []struct {
 	name string
-	u    zpinput.PositionUnit
+	u    sxirinput.PositionUnit
 }{
-	{"codepoints", zpinput.CodePoints},
-	{"bytes", zpinput.Bytes},
+	{"codepoints", sxirinput.CodePoints},
+	{"bytes", sxirinput.Bytes},
 }
 
 func load(tb testing.TB, path string) *engine.Parser {
@@ -213,7 +213,7 @@ func parseOK(p *engine.Parser, w *workload, input string, opts ...engine.ParseOp
 	return err
 }
 
-// TestWorkloads checks that every input parses on every backend and that the ZeroParse backends agree.
+// TestWorkloads checks that every input parses on every backend and that the SyntaxIR backends agree.
 func TestWorkloads(t *testing.T) {
 	for i := range workloads {
 		w := &workloads[i]
@@ -227,7 +227,7 @@ func TestWorkloads(t *testing.T) {
 					if err != nil && !(w.partial && n != nil) {
 						t.Fatalf("%s/%s: %v", be.name, u.name, err)
 					}
-					if u.u == zpinput.Bytes {
+					if u.u == sxirinput.Bytes {
 						continue
 					}
 					got, _ := json.Marshal(n)
@@ -315,7 +315,7 @@ func TestGeneratedDocumentAndStream(t *testing.T) {
 	})
 	t.Run("Stream", func(t *testing.T) {
 		input := inputs.CSVInput(500)
-		p := load(t, "../testdata/grammars/csv/csv.zp")
+		p := load(t, "../testdata/grammars/csv/csv.sxir")
 		var want, got []string
 		if err := p.ParseStream(strings.NewReader(input), func(n *value.Node) error {
 			b, err := json.Marshal(n)
@@ -337,7 +337,7 @@ func TestGeneratedDocumentAndStream(t *testing.T) {
 	})
 }
 
-// BenchmarkParse parses each workload with every ZeroParse backend (closure, recursive and iterative bytecode,
+// BenchmarkParse parses each workload with every SyntaxIR backend (closure, recursive and iterative bytecode,
 // generated Go) in both position units, and with the standard library parser where one exists.
 func BenchmarkParse(b *testing.B) {
 	for i := range workloads {
@@ -363,7 +363,7 @@ func BenchmarkParse(b *testing.B) {
 					b.SetBytes(int64(len(input)))
 					b.ReportAllocs()
 					for b.Loop() {
-						if err := w.gen(input, u.u == zpinput.Bytes); err != nil {
+						if err := w.gen(input, u.u == sxirinput.Bytes); err != nil {
 							b.Fatal(err)
 						}
 					}
@@ -469,7 +469,7 @@ func documentEdits(b *testing.B, at int, edit func(start, end int, text string) 
 // Document (incremental) and with a fresh parse each time, on every backend and with the generated
 // parser (generated with -document; its fresh parse is the same package's Parse).
 func BenchmarkIncremental(b *testing.B) {
-	p := load(b, "../examples/minilang/minilang.zp")
+	p := load(b, "../examples/minilang/minilang.sxir")
 	input := inputs.MinilangInput(300, 0)
 	// Document positions are in code points.
 	at := utf8.RuneCountInString(input[:strings.Index(input, "fn f150(")+len("fn f150(")])
@@ -534,7 +534,7 @@ func BenchmarkIncremental(b *testing.B) {
 // records) followed by a parse with a Document, on every backend and with the generated parser
 // (generated with -document).
 func BenchmarkIncrementalLong(b *testing.B) {
-	p := load(b, "../testdata/grammars/csv/csv.zp")
+	p := load(b, "../testdata/grammars/csv/csv.sxir")
 	input := inputs.CSVInput(50000)
 	at := utf8.RuneCountInString(input[:strings.Index(input, "\n25000,")+len("\n25000,")])
 	for _, be := range backends {
@@ -573,7 +573,7 @@ func BenchmarkIncrementalLong(b *testing.B) {
 // BenchmarkStream parses CSV as a stream, receiving one record at a time, on every backend, with the
 // generated parser (generated with -stream) and with encoding/csv.
 func BenchmarkStream(b *testing.B) {
-	p := load(b, "../testdata/grammars/csv/csv.zp")
+	p := load(b, "../testdata/grammars/csv/csv.sxir")
 	input := inputs.CSVInput(50000)
 	for _, be := range backends {
 		b.Run(be.name, func(b *testing.B) {
@@ -624,8 +624,8 @@ func BenchmarkStream(b *testing.B) {
 // default backend, with loading a compiled grammar of each mode, including backend setup on the
 // first parse after loading.
 func BenchmarkPrepare(b *testing.B) {
-	for _, path := range []string{"../testdata/grammars/json/json.zp", "../examples/minilang/minilang.zp"} {
-		name := strings.TrimSuffix(path[strings.LastIndex(path, "/")+1:], ".zp")
+	for _, path := range []string{"../testdata/grammars/json/json.sxir", "../examples/minilang/minilang.sxir"} {
+		name := strings.TrimSuffix(path[strings.LastIndex(path, "/")+1:], ".sxir")
 		src, err := os.ReadFile(path)
 		if err != nil {
 			b.Fatal(err)
@@ -672,7 +672,7 @@ func BenchmarkPrepare(b *testing.B) {
 				b.Fatal(err)
 			}
 			opts := append([]engine.ParseOption{engine.WithBackend(engine.Bytecode)}, c.opts...)
-			b.Run(name+"/zpc/"+c.mode.String()+"/bytecode", func(b *testing.B) {
+			b.Run(name+"/sxirc/"+c.mode.String()+"/bytecode", func(b *testing.B) {
 				b.ReportAllocs()
 				for b.Loop() {
 					lp, err := engine.LoadParser(data)

@@ -6,11 +6,11 @@ import (
 	"sync"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	goprint "zeroparse.dev/zp/internal/backend/codegen/golang/print"
-	tsprint "zeroparse.dev/zp/internal/backend/codegen/typescript/print"
-	"zeroparse.dev/zp/internal/driver/generate"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	goprint "syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	tsprint "syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
+	"syntaxir.dev/sxir/internal/driver/generate"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Compile compiles grammars for the generators, as the compiler of package codegen does. The

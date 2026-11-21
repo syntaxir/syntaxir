@@ -1,8 +1,8 @@
 package tsconformtest
 
 import (
-	"zeroparse.dev/zp/internal/ir/code/exec/conform"
-	"zeroparse.dev/zp/internal/ir/code/exec/ref"
+	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
+	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
 )
 
 // ExpOps are the operations of the expectation record and of the memo that keep the expectations of an

@@ -3,7 +3,7 @@ package print_test
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
 )
 
 func TestGeneratedTSConversionControlCheckpoints(t *testing.T) {

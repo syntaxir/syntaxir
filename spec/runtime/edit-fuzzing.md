@@ -1,7 +1,7 @@
 # Edit Fuzzing
 
 An incremental [Document](documents.md) reuses the work of earlier parses, and it MUST give the result that a parse of
-its current text from scratch gives. The `editfuzz` package and the `zp edit-fuzz` command test that for a grammar: they
+its current text from scratch gives. The `editfuzz` package and the `sxir edit-fuzz` command test that for a grammar: they
 apply sequences of edits to a Document, compare it with a fresh parse, and save a failing sequence as a file that
 replays the failure exactly. This chapter defines the checks, the operations and the Go API. The file that holds a
 sequence is defined in [Edit Sequences](test-formats.md#edit-sequences).
@@ -24,9 +24,9 @@ uses Go recursion for rule calls; and `bytecode-iterative`, the one that keeps r
 
 ### Entry Points
 
-| | Command line | Go (`zeroparse.dev/zp/pkg/editfuzz`) |
+| | Command line | Go (`syntaxir.dev/sxir/pkg/editfuzz`) |
 |:--|:--|:--|
-| Generate sequences and check them | `zp edit-fuzz -g g.zp` | `editfuzz.Fuzz(src, opts)` |
+| Generate sequences and check them | `sxir edit-fuzz -g g.sxir` | `editfuzz.Fuzz(src, opts)` |
 | Replay a saved sequence | `-replay file` | `editfuzz.Load(path)` and `editfuzz.Replay(src, seq)` |
 | Minimize a failing sequence | `-minimize` | `editfuzz.Minimize(src, seq, maxAttempts)` or `Options.Minimize` |
 | Save a sequence | `-save-failures dir` | `editfuzz.Save(dir, seq)` or `Options.SaveFailures` |
@@ -146,7 +146,7 @@ that was saved; its errors name the file.
 
 ### The Command
 
-`zp edit-fuzz -g g.zp` fuzzes the grammar `g.zp` (ZeroParse source) on each backend of `-backend` (default `closure`,
+`sxir edit-fuzz -g g.sxir` fuzzes the grammar `g.sxir` (SyntaxIR source) on each backend of `-backend` (default `closure`,
 `bytecode` and `bytecode-iterative`) and each unit of `-unit` (default `codepoints` and `bytes`), with `-sequences` and
 `-operations`, `-seed` and `-s`. `-corpus` names a file, or a directory whose files are read in the order of their
 names, with the initial texts; hidden files (names that start with a dot) and files that are not regular are skipped. A negative `-sequences`, `-operations` or `-max-attempts` is an error. `-save-failures` names the directory for failing sequences, and is required with
@@ -169,7 +169,7 @@ in the directory of the file. With `-replay`, the flags that give limits (`-max-
 ## Compatibility and Support
 
 The package and the command need the grammar source, and a compiled grammar cannot be fuzzed. Both are part of the Go
-API and the `zp` command, and not of generated parsers. The sequence format is at version 1 and a reader supports only
+API and the `sxir` command, and not of generated parsers. The sequence format is at version 1 and a reader supports only
 the versions that it names.
 
 ## Conformance

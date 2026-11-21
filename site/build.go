@@ -171,7 +171,7 @@ var templateFS embed.FS
 var staticFS embed.FS
 
 // marker marks an output directory written by Build, which a later build may replace.
-const marker = ".zp-site"
+const marker = ".sxir-site"
 
 // docSection lists the Markdown files of a section of the documentation.
 func prepareOut(out string) error {
@@ -439,12 +439,12 @@ func selectWasmBuild(toolchain, output string) (wasmBuildSpec, error) {
 // compileWasm builds the playground's WebAssembly binary with toolchain (go or tinygo) and returns
 // it with the matching runtime support (wasm_exec.js) of the same toolchain.
 func compileWasm(repo, toolchain string) (wasm, runtime []byte, err error) {
-	dir, err := os.MkdirTemp("", "zp-wasm-")
+	dir, err := os.MkdirTemp("", "sxir-wasm-")
 	if err != nil {
 		return nil, nil, err
 	}
 	defer os.RemoveAll(dir)
-	tmp := filepath.Join(dir, "zp.wasm")
+	tmp := filepath.Join(dir, "sxir.wasm")
 	spec, err := selectWasmBuild(toolchain, tmp)
 	if err != nil {
 		return nil, nil, err
@@ -457,7 +457,7 @@ func compileWasm(repo, toolchain string) (wasm, runtime []byte, err error) {
 	cmd.Dir = repo
 	cmd.Env = append(repoEnv(repo), "GOOS=js", "GOARCH=wasm")
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return nil, nil, fmt.Errorf("building zp.wasm with %s: %v\n%s", spec.command, err, out)
+		return nil, nil, fmt.Errorf("building sxir.wasm with %s: %v\n%s", spec.command, err, out)
 	}
 	if wasm, err = os.ReadFile(tmp); err != nil {
 		return nil, nil, err

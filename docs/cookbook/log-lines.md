@@ -10,8 +10,8 @@ A line looks like this:
 2026-10-09T11:12:41Z INFO api GET /users/42 200 12ms
 ```
 
-```zp
-// logs.zp
+```sxir
+// logs.sxir
 type Time = node[string]
 type Level = node[string]
 type Service = node[string]
@@ -48,7 +48,7 @@ rule millis Millis = ([0-9]+) #atomic
 ```
 
 Generate the parser with `-types` (Go types for the grammar's types and `ParseValue`) and `-recognize` (`Recognize`).
-The tool is recorded in the module with `go get -tool zeroparse.dev/zp/cmd/zp`, and `zp gen` creates the output
+The tool is recorded in the module with `go get -tool syntaxir.dev/sxir/cmd/sxir`, and `sxir gen` creates the output
 directory:
 
 ```bash
@@ -68,7 +68,7 @@ import (
 	"example.com/logs/logparser"
 )
 
-//go:generate go tool zp gen -g logs.zp -module example.com/logs/logparser -types -recognize -o logparser
+//go:generate go tool sxir gen -g logs.sxir -module example.com/logs/logparser -types -recognize -o logparser
 
 func main() {
 	data, err := io.ReadAll(os.Stdin)
@@ -135,7 +135,7 @@ printf '2026-10-09T11:12:41Z INFO api GET /x 200 12ms\n2026-10-09T11:12:41Z INFO
 
 ## How It Works
 
-- **A generated parser is the fast one.** `zp gen` writes a Go package that needs only ZeroParse's `pkg/runtime` packages, not the compiler. With `-types`, every
+- **A generated parser is the fast one.** `sxir gen` writes a Go package that needs only SyntaxIR's `pkg/runtime` packages, not the compiler. With `-types`, every
   rule here has a Go type of its own, so `ParseValue` builds `*Line` values directly, without the generic nodes `Parse`
   would build first. The values are plain structs: `l.Level.Value`, `l.Millis.Value`.
 - **Strings stay strings.** `Millis` is a string node, so its `Value` is the matched digits, and you convert

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/golang/libprint"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/golang/libprint"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 func TestMain(m *testing.M) {

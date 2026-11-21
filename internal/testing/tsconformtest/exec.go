@@ -1,8 +1,8 @@
 package tsconformtest
 
 import (
-	"zeroparse.dev/zp/internal/ir/code/exec/conform"
-	"zeroparse.dev/zp/internal/ir/code/exec/ref"
+	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
+	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
 )
 
 // ExecOps are the operations of the memo, the deferred memoization, the budget, the variable

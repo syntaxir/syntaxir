@@ -4,9 +4,9 @@ import (
 	"slices"
 	"testing"
 
-	"zeroparse.dev/zp/internal/frontend/astfacts"
-	"zeroparse.dev/zp/internal/syntax/fmt"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/syntax/fmt"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // TestSkipSites checks which repetitions are skip-run sites: each condition of the site analysis (internal/middleend/corepass/sites.go)

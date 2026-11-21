@@ -1,6 +1,6 @@
 package fmt
 
-import "zeroparse.dev/zp/pkg/grammar/ast"
+import "syntaxir.dev/sxir/pkg/grammar/ast"
 
 // FormatSyntax renders the parsing syntax of g without modifying it. It omits
 // type declarations, result annotations, Value Actions (including inline and

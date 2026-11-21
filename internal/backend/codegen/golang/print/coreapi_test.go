@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/golang/print"
+	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
 )
 
 // TestCoreAPICurrent checks that coreapi_gen.go, the index of the declarations of the runtime packages that the

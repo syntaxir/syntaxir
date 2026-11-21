@@ -1,7 +1,7 @@
 package tsconformtest
 
 import (
-	"zeroparse.dev/zp/internal/ir/code/exec/conform"
+	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
 )
 
 // CtxOps are the operations that a suite of the dependency memo provides: those of

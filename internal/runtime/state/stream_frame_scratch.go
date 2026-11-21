@@ -1,4 +1,4 @@
-//go:build !zp_reference_stream_frames
+//go:build !sxir_reference_stream_frames
 
 package state
 

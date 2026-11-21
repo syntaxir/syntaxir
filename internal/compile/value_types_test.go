@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/diagnostic"
-	"zeroparse.dev/zp/internal/frontend/types"
+	"syntaxir.dev/sxir/internal/diagnostic"
+	"syntaxir.dev/sxir/internal/frontend/types"
 )
 
 // The value types of rules follow the value model (spec/language/types.md).
@@ -90,7 +90,7 @@ func TestValueTypes(t *testing.T) {
 // Every rule of the repository grammars has a value type.
 func TestValueTypesOfRepositoryGrammars(t *testing.T) {
 	var paths []string
-	for _, pattern := range []string{"../../examples/*/*.zp", "../../testdata/grammars/*/*.zp", "../../spec/*/*.zp"} {
+	for _, pattern := range []string{"../../examples/*/*.sxir", "../../testdata/grammars/*/*.sxir", "../../spec/*/*.sxir"} {
 		m, err := filepath.Glob(pattern)
 		if err != nil {
 			t.Fatal(err)

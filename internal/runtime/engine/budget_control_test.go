@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/pkg/runtime"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/pkg/runtime"
 )
 
 func catchFatal(t *testing.T, f func()) error {

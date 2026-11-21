@@ -12,13 +12,13 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/backend/codegen/golang/print"
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/driver/checked"
-	"zeroparse.dev/zp/internal/driver/entry"
-	"zeroparse.dev/zp/internal/frontend/types"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/driver/checked"
+	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/types"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // Compare public typed values with the existing generated Go Node-conversion

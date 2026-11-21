@@ -6,16 +6,16 @@ import (
 	"testing"
 	"time"
 
-	"zeroparse.dev/zp/internal/bench/inputs"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/bench/inputs"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 const streamAdoptionElements = 50001 // inputs.CSVInput(50000) includes the header.
 
 var (
-	cacheAdoptionStats zpruntime.CacheStats
+	cacheAdoptionStats sxirruntime.CacheStats
 	cacheAdoptionNode  *value.Node
 )
 
@@ -23,7 +23,7 @@ var (
 // on BenchmarkStream's unchanged CSV grammar and input. Both run to clean EOF.
 // Count ok rather than non-nil nodes: a successful stream element may be nil.
 func BenchmarkStreamDeliveryAdoption(b *testing.B) {
-	p := load(b, "../testdata/grammars/csv/csv.zp")
+	p := load(b, "../testdata/grammars/csv/csv.sxir")
 	input := inputs.CSVInput(50000)
 	for _, be := range backends {
 		for _, u := range units {
@@ -75,7 +75,7 @@ func BenchmarkStreamDeliveryAdoption(b *testing.B) {
 // until its first committed element. Parsing continues to clean EOF so this
 // measurement does not include a callback-error or early-close path.
 func BenchmarkStreamFirstElementAdoption(b *testing.B) {
-	p := load(b, "../testdata/grammars/csv/csv.zp")
+	p := load(b, "../testdata/grammars/csv/csv.sxir")
 	input := inputs.CSVInput(50000)
 	for _, be := range backends {
 		for _, u := range units {
@@ -133,7 +133,7 @@ func BenchmarkStreamFirstElementAdoption(b *testing.B) {
 // ResetAndParse measures the explicit reset plus the next parse; FreshDocument
 // includes constructing and parsing a new Document with the same options.
 func BenchmarkDocumentCacheAdoption(b *testing.B) {
-	p := load(b, "../examples/minilang/minilang.zp")
+	p := load(b, "../examples/minilang/minilang.sxir")
 	input := inputs.MinilangInput(300, 0)
 	for _, be := range backends {
 		for _, u := range units {
@@ -187,7 +187,7 @@ func BenchmarkDocumentCacheAdoption(b *testing.B) {
 					}
 					if mode == "ResetAndParse" {
 						d.ResetHistory()
-						if after := d.CacheStats(); after != (zpruntime.CacheStats{}) {
+						if after := d.CacheStats(); after != (sxirruntime.CacheStats{}) {
 							b.Fatalf("reset retained cache state: %+v", after)
 						}
 					}

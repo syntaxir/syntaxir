@@ -16,7 +16,7 @@ func ParseRuleValue(name, input string, opts ...ParseOption) (any, error)
 
 For a JSON grammar whose start rule has the type `Value`:
 
-```zp
+```sxir
 type Object = { Members []Member }
 type Member = { Key Text; Value Value }
 type Array = { Elements []Value }
@@ -68,7 +68,7 @@ type Value interface{ isValue() }
 and `jsonparser.ParseValue` returns a `types.Value`. A type switch replaces the field lookups and type assertions of `*Node`:
 
 ```go
-v, err := jsonparser.ParseValue(`{"name": "zp", "tags": ["peg", "go"], "stars": 42}`)
+v, err := jsonparser.ParseValue(`{"name": "sxir", "tags": ["peg", "go"], "stars": 42}`)
 if err != nil {
 	log.Fatal(err)
 }
@@ -83,7 +83,7 @@ for _, m := range v.(*types.Object).Members {
 ```
 
 ```text
-name text zp
+name text sxir
 tags array of 2
 stars text 42
 ```
@@ -109,7 +109,7 @@ stars text 42
 
 - **Names.** Go types have the names of the grammar types. They live in the package `types`, apart from the names
   `parser.go` and `api.go` declare, so a grammar type may be called `Node`, `Parse` or `Walk`. The package also declares
-  `TNode`, `Error`, `ZPHooks` and, where the grammar uses them, `Unit`, `TupleN` and `ZPNodeTypes`, and the constant `ZPSchema_<digest>` that ties the parser to this package: a grammar type
+  `TNode`, `Error`, `SXIRHooks` and, where the grammar uses them, `Unit`, `TupleN` and `SXIRNodeTypes`, and the constant `SXIRSchema_<digest>` that ties the parser to this package: a grammar type
   with one of these names is an error. A field named like a field or method of `Span` or like a method of the typed
   values (`Start`, `End`, `Range`, `TName`, ...) gets a trailing underscore, so `Start` and `End` always read the
   span.
@@ -127,7 +127,7 @@ stars text 42
   outline grammar alike; the Operators Rule calculator is about as fast). Otherwise
   `ParseValue` runs `Parse` and converts the tree, which takes about 0.95 times the time of `Parse` and 0.3 times the
   memory (minilang and the recovery grammar). The figures are those of the
-  [benchmark results](../benchmarks.md#typed-values-parsevalue-of-zp-gen--types). The
+  [benchmark results](../benchmarks.md#typed-values-parsevalue-of-sxir-gen--types). The
   [design record](../design/records/012-typed-values.md) explains both. The types, their conversions and the typed rules add about
   as much code to `parser.go` as the parser itself.
 

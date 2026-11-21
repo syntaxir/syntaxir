@@ -1,8 +1,8 @@
 package print
 
 import (
-	"zeroparse.dev/zp/internal/middleend/codepass"
-	"zeroparse.dev/zp/internal/middleend/execlower"
+	"syntaxir.dev/sxir/internal/middleend/codepass"
+	"syntaxir.dev/sxir/internal/middleend/execlower"
 )
 
 // The tests of package gogen_test compile grammars with the engine, which imports packages that

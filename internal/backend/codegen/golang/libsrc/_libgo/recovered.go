@@ -3,7 +3,7 @@ package libgo
 import (
 	"unsafe"
 
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // The record of recovered errors (Parser.Recovered) is a sequence of entries: errors that recoveries
@@ -15,7 +15,7 @@ import (
 // recEntry is an entry of the record of recovered errors, or the errors that a result holds: an
 // error, a shared list, or, as the zero value, no errors.
 type recEntry struct {
-	err  *zpvalue.SyntaxError
+	err  *sxirvalue.SyntaxError
 	list *errList
 }
 
@@ -49,7 +49,7 @@ func (e recEntry) len() int {
 // appendRecErrors appends the errors of the entries to dst, in order. It unrolls the lists without
 // recursion, since they nest as deep as the steps of a growth go; listing k errors visits at most 2k
 // entries (Lemma 14).
-func appendRecErrors(dst []*zpvalue.SyntaxError, entries []recEntry) []*zpvalue.SyntaxError {
+func appendRecErrors(dst []*sxirvalue.SyntaxError, entries []recEntry) []*sxirvalue.SyntaxError {
 	type frame struct {
 		entries []recEntry
 		i       int
@@ -77,11 +77,11 @@ func appendRecErrors(dst []*zpvalue.SyntaxError, entries []recEntry) []*zpvalue.
 }
 
 // recoveredErrors returns the recovered errors of the record, in order.
-func (p *Parser) recoveredErrors() []*zpvalue.SyntaxError {
+func (p *Parser) recoveredErrors() []*sxirvalue.SyntaxError {
 	if len(p.Recovered) == 0 {
 		return nil
 	}
-	return appendRecErrors(make([]*zpvalue.SyntaxError, 0, len(p.Recovered)), p.Recovered)
+	return appendRecErrors(make([]*sxirvalue.SyntaxError, 0, len(p.Recovered)), p.Recovered)
 }
 
 // recSince returns the errors recovered after the mark m (rec.since), charging one unit for each
@@ -120,7 +120,7 @@ func (p *Parser) recAdd(e recEntry) {
 }
 
 // PushRecovered records the error e that a recovery made (rec.push). Generated parsers call it.
-func (p *Parser) PushRecovered(e *zpvalue.SyntaxError) {
+func (p *Parser) PushRecovered(e *sxirvalue.SyntaxError) {
 	p.use(featureRecovery)
 	p.Recovered = append(p.Recovered, recEntry{err: e})
 }

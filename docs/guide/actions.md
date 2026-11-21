@@ -9,7 +9,7 @@ Rule](operators-rule.md).
 
 An action is an expression after `=>` inside a rule body that computes the value of the rule from what the body matched:
 
-```zp
+```sxir
 rule <name> [<type>] = <rule expression> => <action expression>
 ```
 
@@ -20,15 +20,15 @@ position: the group is one element of the enclosing sequence, its value is the r
 only the captures made inside the parentheses. The captures of the enclosing rule are not visible there, and the ones made
 inside are not visible outside.
 
-```zp
-// inline-action.zp
+```sxir
+// inline-action.sxir
 type Pair = { Left node[string]; Right node[string] }
 @start
 rule pairs = (l:[a-z] r:[a-z] => Pair{Left: $l, Right: $r})+
 ```
 
 ```bash
-zp parse -g inline-action.zp -s pairs -f sexpr -i 'abcd'
+sxir parse -g inline-action.sxir -s pairs -f sexpr -i 'abcd'
 ```
 
 ```text
@@ -44,7 +44,7 @@ contributes what its expression would if it were written in its place as a group
 it cannot be the start rule or be parsed by name. [Shaping Trees](shaping-trees.md#hidden-rules) shows the effect on
 the tree.
 
-```zp
+```sxir
 rule pair = "(" _items ")"
 rule _items = [a-z] ("," [a-z])*
 ```
@@ -66,8 +66,8 @@ undefined capture is a compile-time error (`undefined capture $z`).
 mismatches are compile-time errors:
 
 <!-- example: error -->
-```zp
-// field-errors.zp
+```sxir
+// field-errors.sxir
 type Assign = { Name node[string]; Value node[string] }
 
 @start
@@ -78,11 +78,11 @@ rule number = [0-9]+ #atomic
 ```
 
 ```bash
-zp parse -g field-errors.zp -s a -i 'a=b'
+sxir parse -g field-errors.sxir -s a -i 'a=b'
 ```
 
 ```text
-zp: field-errors.zp:6:57: Assign has no field Valu
+sxir: field-errors.sxir:6:57: Assign has no field Valu
 ```
 
 ## Typed Lists
@@ -92,7 +92,7 @@ it from the evaluated values. Every item must have a known type assignable
 to the target, including items in nested lists. Nil is accepted only for an optional element
 type; an empty typed list is still a non-nil list.
 
-```zp
+```sxir
 type NameNode = { Name string }
 rule name NameNode = v1:[a-z]+ => NameNode{Name: text($v1)}
 rule names []NameNode = a:name "," b:name => []NameNode{$a, $b}
@@ -112,8 +112,8 @@ member declares it.
 
 Struct fields can hold integers, strings and booleans too, which is how you attach derived data to a node:
 
-```zp
-// derived.zp
+```sxir
+// derived.sxir
 type Word = {
     Text   string
     Length int
@@ -129,7 +129,7 @@ rule ws = " "*
 ```
 
 ```bash
-zp parse -g derived.zp -f sexpr -i '  hello '
+sxir parse -g derived.sxir -f sexpr -i '  hello '
 ```
 
 ```text
@@ -143,7 +143,7 @@ A tuple literal builds a tuple value of its elements: `()` is the unit, `(x,)` h
 comma stay a group. The elements may be nodes, ints, strings, bools or `nil`, and the literal fits
 a declared tuple type of the same arity elementwise.
 
-```zp
+```sxir
 type Entry = { Key (int, string) }
 rule entry Entry = "a" => Entry{Key: (1, "a")}
 rule pair (node[string], node[string]) = a:"a" b:"b" => ($a, $b)
@@ -168,8 +168,8 @@ of the enclosing rule with `$`. The function passed to `map` may produce any val
 Boolean. The [specification](../../spec/language/actions.md#built-in-functions) defines each function exactly: element types, `nil`
 and `Error` arguments, evaluation order and what happens when a callback fails.
 
-```zp
-// builtins.zp
+```sxir
+// builtins.sxir
 type Call = {
     Name  string
     Arity int
@@ -181,7 +181,7 @@ rule call Call = n:[a-z]+ #atomic "(" args:(a:[a-z]+ #atomic -","?)* ")" => Call
 ```
 
 ```bash
-zp parse -g builtins.zp -s call -f sexpr -i 'f(a,b,c)'
+sxir parse -g builtins.sxir -s call -f sexpr -i 'f(a,b,c)'
 ```
 
 ```text
@@ -192,8 +192,8 @@ Call{Arity: 3, Name: "f", Raw: "a,b,c"}
 properties of the input, not of the elements. Here is a lambda that reads a capture of the enclosing rule, `$k`, to
 pair the key with every item:
 
-```zp
-// outer-capture.zp
+```sxir
+// outer-capture.sxir
 type Pair = { A node[string]; B node[string] }
 type Pairs = { Items []Pair }
 
@@ -203,7 +203,7 @@ rule ident = [a-z]+ #atomic
 ```
 
 ```bash
-zp parse -g outer-capture.zp -s pairs -f sexpr -i 'k:a,b'
+sxir parse -g outer-capture.sxir -s pairs -f sexpr -i 'k:a,b'
 ```
 
 ```text
@@ -229,16 +229,16 @@ Positions are counted in **code points** by default, or in UTF-8 **bytes** with 
 (`runtime.WithUnit(input.Bytes)` in Go). Matching is always by code point; the unit only changes how positions and `len`
 are measured. The value `v` below starts at position 3 in code points and at 7 in bytes:
 
-```zp
-// unit.zp
+```sxir
+// unit.sxir
 rule name = [^=]+ #atomic
 @start
 rule kv = k:name "=" v:name
 ```
 
 ```bash
-zp parse -g unit.zp -s kv -i 'あい=うえお' | grep -B2 '"うえお"'
-zp parse -g unit.zp -s kv -i 'あい=うえお' -unit bytes | grep -B2 '"うえお"'
+sxir parse -g unit.sxir -s kv -i 'あい=うえお' | grep -B2 '"うえお"'
+sxir parse -g unit.sxir -s kv -i 'あい=うえお' -unit bytes | grep -B2 '"うえお"'
 ```
 
 ```text
@@ -257,8 +257,8 @@ zp parse -g unit.zp -s kv -i 'あい=うえお' -unit bytes | grep -B2 '"うえ�
 A repetition gives a flat list; a fold turns it into the nested tree. Capture the first operand, capture the repeated
 `(operator, operand)` pairs, and fold from the left, so that `1 - 2 + 3` becomes `(1 - 2) + 3`:
 
-```zp
-// sum.zp
+```sxir
+// sum.sxir
 type Bin = {
     Left  Expr
     Op    node[string]
@@ -275,8 +275,8 @@ rule ws = " "*
 ```
 
 ```bash
-zp parse -g sum.zp -f sexpr -i '1 - 2 + 3'
-zp parse -g sum.zp -f sexpr -i '7'
+sxir parse -g sum.sxir -f sexpr -i '1 - 2 + 3'
+sxir parse -g sum.sxir -f sexpr -i '7'
 ```
 
 ```text
@@ -294,8 +294,8 @@ rule per level; for that case also look at [Operators Rule](operators-rule.md).
 `a ^ b ^ c` must be `a ^ (b ^ c)`. Capture the pairs *(operand, operator)* and the last operand separately, and fold
 from the right, starting with the last operand:
 
-```zp
-// pow.zp
+```sxir
+// pow.sxir
 type Bin = {
     Left  Expr
     Op    node[string]
@@ -311,8 +311,8 @@ rule ws = " "*
 ```
 
 ```bash
-zp parse -g pow.zp -s pow -f sexpr -i '2 ^ 3 ^ 4'
-zp parse -g pow.zp -s pow -f sexpr -i '2'
+sxir parse -g pow.sxir -s pow -f sexpr -i '2 ^ 3 ^ 4'
+sxir parse -g pow.sxir -s pow -f sexpr -i '2'
 ```
 
 ```text
@@ -328,8 +328,8 @@ The repetition is greedy and does not backtrack, but it is still correct here: i
 The same fold builds `a.b.c`. The accumulator is first a node and then a `Member`, so declare the join and use it
 for the rule type and the field:
 
-```zp
-// path.zp
+```sxir
+// path.sxir
 type Member = {
     X    Path
     Name node[string]
@@ -342,7 +342,7 @@ rule ident = [a-z]+ #atomic
 ```
 
 ```bash
-zp parse -g path.zp -s path -f sexpr -i 'a.b.c'
+sxir parse -g path.sxir -s path -f sexpr -i 'a.b.c'
 ```
 
 ```text
@@ -355,8 +355,8 @@ Member{Name: "c", X: Member{Name: "b", X: "a"}}
 rebuild a list: `list($first)` makes a one-element list, `map` extracts the item from every iteration, and `concat`
 joins them. A list that is optional (`args?`) works with `concat` too, because a `nil` argument counts as empty:
 
-```zp
-// args.zp
+```sxir
+// args.sxir
 type Call = {
     Fn   node[string]
     Args []node[string]
@@ -372,9 +372,9 @@ rule ws = " "*
 ```
 
 ```bash
-zp parse -g args.zp -s call -f sexpr -i 'f(a, b, c)'
-zp parse -g args.zp -s call -f sexpr -i 'f()'
-zp parse -g args.zp -s args_cst -f sexpr -i 'a, b, c'
+sxir parse -g args.sxir -s call -f sexpr -i 'f(a, b, c)'
+sxir parse -g args.sxir -s call -f sexpr -i 'f()'
+sxir parse -g args.sxir -s args_cst -f sexpr -i 'a, b, c'
 ```
 
 ```text
@@ -387,8 +387,8 @@ Call{Args: [], Fn: "f"}
 `Args: $args` directly does not compile, because `$args` is optional and the field is a plain list:
 
 <!-- example: error -->
-```zp
-// args-optional.zp
+```sxir
+// args-optional.sxir
 type Call = { Fn node[string]; Args []node[string] }
 @start
 rule call Call = fn:ident "(" args:args? ")" => Call{Fn: $fn, Args: $args}
@@ -397,11 +397,11 @@ rule ident = [a-z]+ #atomic
 ```
 
 ```bash
-zp parse -g args-optional.zp -s call -i 'f(a)'
+sxir parse -g args-optional.sxir -s call -i 'f(a)'
 ```
 
 ```text
-zp: args-optional.zp:4:63: cannot use *[]ident as []node[string] in field Args of Call
+sxir: args-optional.sxir:4:63: cannot use *[]ident as []node[string] in field Args of Call
 ```
 
 ### Keeping Only the AST You Need
@@ -415,8 +415,8 @@ contain the data. Four habits get you there:
 3. **Pick fields with `map`** when each iteration carries more than the value you want.
 4. **Unwrap the start rule** with `e:rule $$ => $e`.
 
-```zp
-// config.zp
+```sxir
+// config.sxir
 type Entry = {
     Key   node[string]
     Value node[string]
@@ -433,7 +433,7 @@ rule ws = ([ \t\r\n] / "#" [^\n]*)*
 ```
 
 ```bash
-zp parse -g config.zp -f sexpr -i $'# web server\nhost = example.com;  # comment\nport = 8080;\n'
+sxir parse -g config.sxir -f sexpr -i $'# web server\nhost = example.com;  # comment\nport = 8080;\n'
 ```
 
 ```text

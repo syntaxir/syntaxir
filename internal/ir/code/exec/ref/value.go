@@ -6,8 +6,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/action"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/action"
 )
 
 // Kind is the kind of a value of the model.

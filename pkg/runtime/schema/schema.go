@@ -11,7 +11,7 @@ import (
 // Format and Version identify the output schema format: an Output carries them in its fields of
 // the same names.
 const (
-	Format  = "zp-output-schema"
+	Format  = "sxir-output-schema"
 	Version = 2
 )
 

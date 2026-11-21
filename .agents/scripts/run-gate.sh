@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Usage: run-gate.sh [-w worktree] [-t tag] [-b base] LEVEL...
 # Runs hack/gate.sh (levels docs, code, engine, full, all; see its header) in the worktree, in the run
-# class its heaviest level needs, logs to $ZP_AGENT_STATE/gates/<tag>.log, and prints the per-step
+# class its heaviest level needs, logs to $SXIR_AGENT_STATE/gates/<tag>.log, and prints the per-step
 # summary with the exit status. The gate stops at the first failing step.
 #   docs   directly, throttled (nice 15, GOMAXPROCS 4)
 #   code   through testslot.sh
@@ -33,8 +33,8 @@ for l in "$@"; do
     *) die "unknown level $l (docs, code, engine, full, all)" ;;
   esac
 done
-mkdir -p "$zp_state/gates"
-log=$zp_state/gates/$tag.log; sum=$zp_state/gates/$tag.sum
+mkdir -p "$sxir_state/gates"
+log=$sxir_state/gates/$tag.log; sum=$sxir_state/gates/$tag.sum
 rm -f "$sum"
 # shellcheck disable=SC2016  # the inner script expands its own arguments
 run=(bash -c 'cd "$1" && shift && exec "$@"' _ "$wt" env GATE_NICE=15 GOMAXPROCS="${GOMAXPROCS:-8}" "$wt/hack/gate.sh" --base "$base" --summary "$sum" "$@")

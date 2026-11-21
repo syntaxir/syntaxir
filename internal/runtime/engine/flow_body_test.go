@@ -11,14 +11,14 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"zeroparse.dev/zp/internal/backend/vmlower"
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/driver/checked"
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/runtime/program"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/pkg/bytecode"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/backend/vmlower"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/driver/checked"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/runtime/program"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/pkg/bytecode"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // parseCharged parses input with the recursive bytecode VM of prog as Parse does, and returns the
@@ -75,7 +75,7 @@ func parseChargedOpts(t *testing.T, prog *Program, input string, o ParseOptions)
 // value rule from its Flow form. mutate, if not nil, changes the selected body before it is installed.
 func jsonFlowPrograms(t *testing.T, mutate func(*bytecode.Flow)) (*Program, *Program) {
 	t.Helper()
-	old, flows, n := flowPrograms(t, "../../../testdata/grammars/json/json.zp", func(name string) bool { return name == "value" }, func(_ string, f *bytecode.Flow) {
+	old, flows, n := flowPrograms(t, "../../../testdata/grammars/json/json.sxir", func(name string) bool { return name == "value" }, func(_ string, f *bytecode.Flow) {
 		if mutate != nil {
 			mutate(f)
 		}
@@ -327,7 +327,7 @@ func grammarCorpus(t *testing.T, path string) []string {
 // current Flow bodies do not charge what the match code of their rules charges, a defect that
 // spec/bytecode/README.md (Flow Bodies) records.
 func TestFlowBodiesTestdataGrammars(t *testing.T) {
-	paths, err := filepath.Glob("../../../testdata/grammars/*/*.zp")
+	paths, err := filepath.Glob("../../../testdata/grammars/*/*.sxir")
 	if err != nil || len(paths) == 0 {
 		t.Fatalf("no grammars: %v", err)
 	}

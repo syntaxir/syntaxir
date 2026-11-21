@@ -429,13 +429,13 @@ rule e = #operators {
 	cases = append(cases, AttributeShapeCases...)
 	// Grammars of typed values with their inputs, from reviews of the typed library: each was a
 	// case where it differed from converting the result of Parse.
-	typed, _ := filepath.Glob(path(t, "testdata/typed/*.zp"))
+	typed, _ := filepath.Glob(path(t, "testdata/typed/*.sxir"))
 	for _, gp := range typed {
 		src, err := os.ReadFile(gp)
 		if err != nil {
 			t.Fatal(err)
 		}
-		data, err := os.ReadFile(strings.TrimSuffix(gp, ".zp") + ".json")
+		data, err := os.ReadFile(strings.TrimSuffix(gp, ".sxir") + ".json")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -446,7 +446,7 @@ rule e = #operators {
 		cases = append(cases, c)
 	}
 	// Grammars and inputs from examples/.
-	grammars, _ := filepath.Glob(path(t, "../../../examples/*/*.zp"))
+	grammars, _ := filepath.Glob(path(t, "../../../examples/*/*.sxir"))
 	for _, gp := range grammars {
 		src, err := os.ReadFile(gp)
 		if err != nil {
@@ -485,7 +485,7 @@ rule num Num = t:([0-9]+) #atomic => Num{Text: text($t)}`
 // from.
 func SpliceTypeCases(t *testing.T) []Case {
 	t.Helper()
-	files, _ := filepath.Glob(path(t, "testdata/typed/splice_recursive_*.zp"))
+	files, _ := filepath.Glob(path(t, "testdata/typed/splice_recursive_*.sxir"))
 	if len(files) == 0 {
 		t.Fatal("no recursive splice grammars")
 	}
@@ -495,11 +495,11 @@ func SpliceTypeCases(t *testing.T) []Case {
 		if err != nil {
 			t.Fatal(err)
 		}
-		data, err := os.ReadFile(strings.TrimSuffix(gp, ".zp") + ".json")
+		data, err := os.ReadFile(strings.TrimSuffix(gp, ".sxir") + ".json")
 		if err != nil {
 			t.Fatal(err)
 		}
-		c := Case{Name: strings.TrimSuffix(filepath.Base(gp), ".zp"), Src: string(src)}
+		c := Case{Name: strings.TrimSuffix(filepath.Base(gp), ".sxir"), Src: string(src)}
 		if err := json.Unmarshal(data, &c.Inputs); err != nil {
 			t.Fatalf("%s: %v", gp, err)
 		}

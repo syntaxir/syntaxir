@@ -1,8 +1,8 @@
 package lint
 
 import (
-	"zeroparse.dev/zp/internal/frontend"
-	"zeroparse.dev/zp/internal/middleend/corepass"
+	"syntaxir.dev/sxir/internal/frontend"
+	"syntaxir.dev/sxir/internal/middleend/corepass"
 )
 
 // ruleTables are the rule facts the analysis reads, by rule name: the rules the engine finds

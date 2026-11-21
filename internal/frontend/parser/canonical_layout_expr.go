@@ -1,6 +1,6 @@
 package parser
 
-import "zeroparse.dev/zp/pkg/grammar/ast"
+import "syntaxir.dev/sxir/pkg/grammar/ast"
 
 // This file replays the layout inside rule expressions and actions (see
 // layoutReplay). Each method mirrors the parser method of the same name and

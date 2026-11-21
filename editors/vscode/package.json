@@ -1,13 +1,13 @@
 {
-  "name": "zp",
-  "displayName": "ZeroParse",
-  "description": "ZeroParse grammar files: syntax highlighting, and diagnostics, formatting, navigation, hover, rename and completion from the zp language server",
+  "name": "sxir",
+  "displayName": "SyntaxIR",
+  "description": "SyntaxIR grammar files: syntax highlighting, and diagnostics, formatting, navigation, hover, rename and completion from the sxir language server",
   "version": "0.1.0",
   "publisher": "ornew",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/zeroparse/zp",
+    "url": "https://github.com/syntaxir/syntaxir",
     "directory": "editors/vscode"
   },
   "engines": {
@@ -20,9 +20,9 @@
   "capabilities": {
     "untrustedWorkspaces": {
       "supported": "limited",
-      "description": "In an untrusted workspace, the workspace cannot choose the command that runs the language server (zp.server.path).",
+      "description": "In an untrusted workspace, the workspace cannot choose the command that runs the language server (sxir.server.path).",
       "restrictedConfigurations": [
-        "zp.server.path"
+        "sxir.server.path"
       ]
     }
   },
@@ -30,39 +30,39 @@
   "contributes": {
     "languages": [
       {
-        "id": "zp",
+        "id": "sxir",
         "aliases": [
-          "ZeroParse",
-          "zp"
+          "SyntaxIR",
+          "sxir"
         ],
         "extensions": [
-          ".zp"
+          ".sxir"
         ],
         "configuration": "./language-configuration.json"
       }
     ],
     "grammars": [
       {
-        "language": "zp",
-        "scopeName": "source.zp",
-        "path": "./syntaxes/zp.tmLanguage.json"
+        "language": "sxir",
+        "scopeName": "source.sxir",
+        "path": "./syntaxes/sxir.tmLanguage.json"
       }
     ],
     "configuration": {
-      "title": "ZeroParse",
+      "title": "SyntaxIR",
       "properties": {
-        "zp.server.enabled": {
+        "sxir.server.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Start the ZeroParse language server (zp lsp) for .zp files. Syntax highlighting works without it."
+          "description": "Start the SyntaxIR language server (sxir lsp) for .sxir files. Syntax highlighting works without it."
         },
-        "zp.server.path": {
+        "sxir.server.path": {
           "type": "string",
-          "default": "zp",
-          "description": "The zp command that runs the language server: a name looked up on the PATH, or an absolute path. In an untrusted workspace, the workspace's value is ignored.",
+          "default": "sxir",
+          "description": "The sxir command that runs the language server: a name looked up on the PATH, or an absolute path. In an untrusted workspace, the workspace's value is ignored.",
           "scope": "machine-overridable"
         },
-        "zp.trace.server": {
+        "sxir.trace.server": {
           "type": "string",
           "enum": [
             "off",
@@ -70,9 +70,9 @@
             "verbose"
           ],
           "default": "off",
-          "description": "Log the messages between VS Code and the language server in the ZeroParse Language Server output channel."
+          "description": "Log the messages between VS Code and the language server in the SyntaxIR Language Server output channel."
         },
-        "zp.server.experimentalLint": {
+        "sxir.server.experimentalLint": {
           "type": "boolean",
           "default": false,
           "description": "Enable experimental lint diagnostics, guarded explanations, version-checked quick fixes (suppression, merging overlapping character-class ranges, removing a lookahead that always succeeds, and deleting an unused rule) and responsive analysis. Restart the language server when this setting changes."
@@ -81,9 +81,9 @@
     },
     "commands": [
       {
-        "command": "zp.restartServer",
+        "command": "sxir.restartServer",
         "title": "Restart Language Server",
-        "category": "ZeroParse"
+        "category": "SyntaxIR"
       }
     ]
   },

@@ -5,15 +5,15 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
 )
 
 // WithOptimize and the PrintAfter fields of GoConfig and TSConfig are the flags -optimize, -no-opt
-// and -print-after of zp gen: a name that is turned off changes the code, an unknown name or profile is
+// and -print-after of sxir gen: a name that is turned off changes the code, an unknown name or profile is
 // an error that lists the valid ones, and a request to print needs a writer.
 func TestOptimizationFields(t *testing.T) {
-	src := grammar.FromString("opt.zp", `@start
+	src := grammar.FromString("opt.sxir", `@start
 rule main = (word / num / -" ")* $$
 rule word = "if" / "else" / [a-z]+
 rule num = [0-9]+

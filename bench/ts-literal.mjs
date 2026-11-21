@@ -1,6 +1,6 @@
 // Run the embedded TypeScript literal matcher without rule/input setup or trees.
 // Requires a Node.js version that runs TypeScript directly, and Go to generate the library.
-// The library is the lib.ts that `zp gen -lang ts -lib only` writes: the lib.ts source of the tree
+// The library is the lib.ts that `sxir gen -lang ts -lib only` writes: the lib.ts source of the tree
 // holds placeholder methods and lacks budget.ts, trace.ts and profile.ts, which generation fills in
 // and appends. An optional path selects another generated lib.ts for before/after comparisons.
 import { readFileSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
@@ -10,12 +10,12 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
 function generatedLibrary() {
-  const out = mkdtempSync(join(tmpdir(), "zp-ts-lib-"));
+  const out = mkdtempSync(join(tmpdir(), "sxir-ts-lib-"));
   try {
     const root = fileURLToPath(new URL("..", import.meta.url));
-    const gen = spawnSync("go", ["run", "./cmd/zp", "gen", "-lang", "ts", "-lib", "only", "-o", out], { cwd: root, stdio: "inherit" });
+    const gen = spawnSync("go", ["run", "./cmd/sxir", "gen", "-lang", "ts", "-lib", "only", "-o", out], { cwd: root, stdio: "inherit" });
     if (gen.error) throw gen.error;
-    if (gen.status !== 0) throw new Error("zp gen failed");
+    if (gen.status !== 0) throw new Error("sxir gen failed");
     return readFileSync(join(out, "lib.ts"), "utf8");
   } finally {
     rmSync(out, { recursive: true, force: true });
@@ -42,7 +42,7 @@ export function benchmarkLiteralMatchers() {
 }
 benchmarkLiteralMatchers();
 `;
-const dir = mkdtempSync(join(tmpdir(), "zp-ts-literal-"));
+const dir = mkdtempSync(join(tmpdir(), "sxir-ts-literal-"));
 try {
   const path = join(dir, "matcher.ts");
   writeFileSync(path, source + helper);

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/frontend/parser"
 )
 
 // keywordNameCorpus are grammars that use rule, type and var as names: fields, rule references and

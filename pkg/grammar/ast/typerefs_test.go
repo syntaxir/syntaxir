@@ -4,8 +4,8 @@ import (
 	"slices"
 	"testing"
 
-	"zeroparse.dev/zp/internal/testing/enginetest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 func TestTypeRefs(t *testing.T) {

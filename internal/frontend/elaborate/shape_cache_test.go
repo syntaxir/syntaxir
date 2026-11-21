@@ -4,12 +4,12 @@ import (
 	"slices"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/frontend/astfacts"
-	"zeroparse.dev/zp/internal/frontend/check"
-	"zeroparse.dev/zp/internal/testing/compiletest"
-	"zeroparse.dev/zp/internal/testing/factstest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/check"
+	"syntaxir.dev/sxir/internal/testing/compiletest"
+	"syntaxir.dev/sxir/internal/testing/factstest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // TestShapeCacheFacts checks that the shape cache the build uses gives every expression of every

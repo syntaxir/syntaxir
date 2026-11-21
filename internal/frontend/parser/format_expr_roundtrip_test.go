@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/frontend/parser"
-	syntaxfmt "zeroparse.dev/zp/internal/syntax/fmt"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // shape returns the structure of v: node kinds and semantic fields, without
@@ -161,7 +161,7 @@ func TestFormatExprNestedRoundTrip(t *testing.T) {
 // print the same text.
 func TestFormatBundledGrammarsRoundTrip(t *testing.T) {
 	var paths []string
-	for _, pattern := range []string{"../../../testdata/grammars/*/*.zp", "../../../examples/*/*.zp", "../../../zp.zp"} {
+	for _, pattern := range []string{"../../../testdata/grammars/*/*.sxir", "../../../examples/*/*.sxir", "../../../sxir.sxir"} {
 		m, err := filepath.Glob(pattern)
 		if err != nil {
 			t.Fatal(err)

@@ -1,4 +1,4 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package engine
 
@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime"
 )
 
 // leastBudget returns the smallest budget under which the parse succeeds.

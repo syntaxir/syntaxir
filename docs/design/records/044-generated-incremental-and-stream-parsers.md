@@ -119,7 +119,7 @@ shares nothing with the Document or with other results, so the caller may modify
 preserved. Every slice in a published value has capacity equal to its length, so appending to one result cannot write
 into another. Diagnostics returned as error results are copied on publication, because they are parser state that a
 later parse could otherwise share. An `*Error` inside a typed result points at the memo's error and shares its
-`Expected` and `Messages` slices with it. Under the read-only contract this is intended, and `CloneValue` copies them. CST `Node` values in fields that require concrete ZeroParse nodes, `_` values, and grammars whose actions
+`Expected` and `Messages` slices with it. Under the read-only contract this is intended, and `CloneValue` copies them. CST `Node` values in fields that require concrete SyntaxIR nodes, `_` values, and grammars whose actions
 read fields without a plain form other than to copy them remain on the existing Node conversion path. That path converts the completed Node result for each call.
 Parsing, diagnostic copying and publication use the same invocation controller; interruption returns the result's
 zero value and clears reusable state as needed for a retry. The `Document` remains mutable and is not an immutable
@@ -289,7 +289,7 @@ values; no pooled parser or conversion arena is shared between concurrent invoca
 | Generated TS Node/typed conversion | Documents without memo reuse (each parse parses the whole text); memo reuse and streams remain proposed; streams require continuation lowering |
 | Recognition | Continue rejecting Document/stream mode; batch recognition is unaffected |
 
-This source-generation feature needs no .zpc or ISA change by itself. If continuation tables are instead stored
+This source-generation feature needs no .sxirc or ISA change by itself. If continuation tables are instead stored
 as bytecode, allocate/version new operands and validate them; do not silently change existing NEXT semantics.
 Keep generated name collision resolution stable and compile external consumers for new exports. Requests for an
 unimplemented generation/backend combination fail explicitly, rather than silently batch-parse all input.

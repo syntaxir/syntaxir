@@ -25,7 +25,7 @@ func TestGenOptionsAndGenTSArgs(t *testing.T) {
 			t.Errorf("TypeScript arguments keep the Go-only %q: %v", a, ts)
 		}
 	}
-	if len(ts) < 2 || ts[0] != "-g" || !strings.HasSuffix(ts[1], filepath.Join("json", "json.zp")) {
+	if len(ts) < 2 || ts[0] != "-g" || !strings.HasSuffix(ts[1], filepath.Join("json", "json.sxir")) {
 		t.Errorf("TypeScript arguments = %v", ts)
 	}
 	if _, err := GenOptions(root, "nosuch"); err == nil {

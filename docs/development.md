@@ -13,18 +13,18 @@ This document describes the repository layout and architecture, how to run tests
 |:--|:--|
 | `pkg/compiler/` | Public API that makes parsers from grammars: `Compile` and `CompileGrammar` (parsers on the bytecode VM), `NewReferenceParser` (the closure backend), `Marshal` (compiled grammars), `OutputSchema`, and the generation of Go and TypeScript parsers and their libraries (`GenerateGo`, `GenerateTypeScript`, `GenerateLibGo`, `GenerateTypeScriptLib`) |
 | `pkg/runtime/` | What every parser shares: the `Parser` and `Document` interfaces, the parse options (`WithLimits`, `WithTrace` and others), limits and their errors, the stream iterator and statistics. Its packages `input/` (position units, locations, edits), `value/` (nodes, traversal, cursors, syntax errors) and `instrument/` (traces and profiles) hold the rest of the types that the parsers and generated Go parsers share |
-| `pkg/runtime/vm/` | The parser on the bytecode VM that `compiler.Compile` returns and `LoadParser` loads from a compiled grammar (`.zpc`), with its Document (versions, edit batches, snapshots, change reports) and prefix parses |
+| `pkg/runtime/vm/` | The parser on the bytecode VM that `compiler.Compile` returns and `LoadParser` loads from a compiled grammar (`.sxirc`), with its Document (versions, edit batches, snapshots, change reports) and prefix parses |
 | `internal/driver/generate/` | Generation of Go and TypeScript parsers from grammar syntax trees, with the sources of the libraries of generated parsers (`pkg/runtime/libgo/`, `internal/backend/codegen/typescript/lib/`) that the generators copy into them; `pkg/compiler` wraps it for grammar sources |
-| `pkg/grammar/ast/` | Grammar AST, structural validation (`Validate`), JSON conversion (`MarshalJSON`, `UnmarshalJSON`, strict `DecodeJSON`) and formatting as ZeroParse source (`Format`, which preserves comments). Public package. |
+| `pkg/grammar/ast/` | Grammar AST, structural validation (`Validate`), JSON conversion (`MarshalJSON`, `UnmarshalJSON`, strict `DecodeJSON`) and formatting as SyntaxIR source (`Format`, which preserves comments). Public package. |
 | `internal/frontend/astfacts/` | Conservative success and cut proofs, and the walks of a rule's calls, terms and attributes, shared by the compiler and the analyses |
-| `pkg/lint/` | Public entry of the grammar linter (`lint.Config`) behind `zp lint`: it re-exports the types of `internal/analysis/lint/`. |
+| `pkg/lint/` | Public entry of the grammar linter (`lint.Config`) behind `sxir lint`: it re-exports the types of `internal/analysis/lint/`. |
 | `internal/analysis/lint/` | Implementation of the grammar linter, shared by `pkg/lint/` and the language server: shared static analysis (`analysis.go`) and checks (`checks.go`) |
-| `internal/lsp/` | Language Server Protocol server for `.zp` files (`zp lsp`): JSON-RPC over standard input and output, document sync, diagnostics, formatting, navigation, hover, rename, completion, semantic tokens |
-| `editors/vscode/` | VS Code extension (Node.js, not part of the Go module): language configuration, TextMate grammar (`syntaxes/zp.tmLanguage.json`) and a client that starts `zp lsp` |
+| `internal/lsp/` | Language Server Protocol server for `.sxir` files (`sxir lsp`): JSON-RPC over standard input and output, document sync, diagnostics, formatting, navigation, hover, rename, completion, semantic tokens |
+| `editors/vscode/` | VS Code extension (Node.js, not part of the Go module): language configuration, TextMate grammar (`syntaxes/sxir.tmLanguage.json`) and a client that starts `sxir lsp` |
 | `pkg/sample/` | Generation of inputs that a grammar accepts, coverage reports, near-miss invalid inputs and a fuzzing helper (`Generate`, `New`, `Seed`). Public package. |
-| `pkg/editfuzz/` | Random edit sequences checked against fresh parses, their minimization, saved sequences and their replay (`Fuzz`, `Minimize`, `Replay`, `Load`, `Save`); the library behind `zp edit-fuzz`. Public package. |
-| `zp.zp` | Typed source grammar and recoverable syntax tree; the generated source-parser integration is [proposed](design/records/054-generated-grammar-source-parser.md). |
-| `internal/frontend/parser/` | Frontend of ZeroParse source code (source → `ast.Grammar`): `zpparser/` holds the typed Go parser generated from `zp.zp`, checked in and regenerated with `go generate ./internal/frontend/parser`, and the adapter builds the grammar AST from its typed values; the hand-written parser is the oracle of the differential tests and the reader of the removed syntax that `zp fix` rewrites |
+| `pkg/editfuzz/` | Random edit sequences checked against fresh parses, their minimization, saved sequences and their replay (`Fuzz`, `Minimize`, `Replay`, `Load`, `Save`); the library behind `sxir edit-fuzz`. Public package. |
+| `sxir.sxir` | Typed source grammar and recoverable syntax tree; the generated source-parser integration is [proposed](design/records/054-generated-grammar-source-parser.md). |
+| `internal/frontend/parser/` | Frontend of SyntaxIR source code (source → `ast.Grammar`): `sxirparser/` holds the typed Go parser generated from `sxir.sxir`, checked in and regenerated with `go generate ./internal/frontend/parser`, and the adapter builds the grammar AST from its typed values; the hand-written parser is the oracle of the differential tests and the reader of the removed syntax that `sxir fix` rewrites |
 | `internal/compile/` | Compiler and static analysis: call and dependency analysis, the walk of rule bodies that decides their static facts, and the bytecode compiler. Its program embeds the semantic model of `internal/frontend/check/` (the grammar, its types, variables and start rules), whose checker resolves names and types and which also holds the capture scopes |
 | `internal/runtime/engine/` | Parser runtime: `Compile`, compiled grammars, streams and limit controls, built on `internal/runtime/state/`, the closure backend of `internal/backend/closure/`, the bytecode VMs of `internal/runtime/vm/`, the bytecode compiler of `internal/backend/vmlower/` and the Document of `internal/runtime/document/`. It does not import the compiler driver or the generators: `pkg/compiler` joins them to it |
 | `internal/runtime/state/` | The part of the parser runtime that every backend shares: the parser state, input, memo table, expectations, values, built-ins of actions, limit controls, tracing and stream state, and the parse options, results and errors that `internal/runtime/engine` re-exports. Its package documentation states what a backend provides and what it may use |
@@ -39,7 +39,7 @@ This document describes the repository layout and architecture, how to run tests
 | `internal/runtime/limits/` | Defaults of the limits of a parse invocation and overflow-safe budget arithmetic, shared by the parser, the Document and package `query` |
 | `pkg/bytecode/` | The bytecode instruction set and module, its disassembly, the encoding of modules in compiled grammars and the validation of loaded modules |
 | `internal/backend/codegen/common/` | What the Go and TypeScript generators share: generation options, the library mode of generated Go parsers, generated files, and the generator state both print with (the program and rule being printed, the expectation table, shared names, the Flow state of recognizer rules and the action value resolver) |
-| `pkg/runtime/libgo/` | Library of generated Go parsers, imported by them or copied into them (`zeroparse.dev/zp/pkg/runtime/libgo`); it imports only `pkg/runtime` and its packages |
+| `pkg/runtime/libgo/` | Library of generated Go parsers, imported by them or copied into them (`syntaxir.dev/sxir/pkg/runtime/libgo`); it imports only `pkg/runtime` and its packages |
 | `pkg/runtime/value/impl/` | The representation of `value.Node` that the parsers build and read (package `valueimpl`); not a stable API |
 | `internal/backend/codegen/golang/print/` | Go generator: prints the parser, its types package and the library copy from the compiled program and Code IR at the Exec stage, and leaves out what the entry points cannot reach |
 | `internal/backend/codegen/typescript/print/` | TypeScript generator: prints the parser, its types and its library file from the compiled program and Code IR at the Exec stage |
@@ -48,24 +48,24 @@ This document describes the repository layout and architecture, how to run tests
 | `internal/driver/` | The `speed`, `memory` and `size` profiles over the registered optimizations, and the driver that runs the IR pass pipelines under them with their dumps and verification; `tooling/` is what it gives the language server (tokens, partial parses, formatting, compilation, the checked front-end result, lint findings and rewrites), the only way the server reaches the compiler |
 | `internal/middleend/` | The passes and lowerings between the representations: `corepass/` (the Core passes and the rule facts), `flowlower/` (the lowering from Core IR to Code IR at the Flow stage, and which compiled rules it lowers), `execlower/` (the conversion from the Flow stage to the Exec stage) and `codepass/` (the passes of Code IR that do not depend on a dialect) |
 | `internal/backend/codegen/typescript/lib/` | Source of `lib.ts`, the library that generated TypeScript parsers import (joined from `lib.ts`, `budget.ts`, `trace.ts` and `profile.ts`) |
-| `cmd/zp/` | Command-line tool |
+| `cmd/sxir/` | Command-line tool |
 | `examples/` | Small example grammars that show the features, with golden tests |
-| `testdata/grammars/` | The grammars of ten languages (`<language>/<language>.zp`, with sample inputs) that the tests and benchmarks of this module read, and `generate.txt` with the `zp gen` options of each; the ready-made parsers generated from them live in the separate [alpha-parsers](https://github.com/zeroparse/alpha-parsers) repository |
+| `testdata/grammars/` | The grammars of ten languages (`<language>/<language>.sxir`, with sample inputs) that the tests and benchmarks of this module read, and `generate.txt` with the `sxir gen` options of each; the ready-made parsers generated from them live in the separate [alpha-parsers](https://github.com/syntaxir/alpha-parsers) repository |
 | `cmd/playground/` | WebAssembly API used by the web playground (package `main`; `GOOS=js GOARCH=wasm`) |
 | `site/` | Web site generator (a separate Go module): landing page, docs, reference and playground; see [website maintenance](site.md) |
 | `wrangler.jsonc` | Cloudflare Worker with static assets that serves the site from `site/dist`; see [website maintenance](site.md) |
-| `bench/` | Benchmarks comparing the backends with each other and with standard-library parsers (the generated parsers they run are in `internal/bench/parsers/`). Results are in [benchmarks.md](benchmarks.md), generated with `go run ./bench/report` (`report/`) from the raw results in `results.txt`, `results-ts.txt` (generated TypeScript under Node) and `results-size.txt` (generated parser sizes). `go run ./bench/profilematrix` compares generation options (`internal/bench/probe` holds the generation and size helpers it shares with `report/`). `node bench/ts-literal.mjs [lib.ts]` measures the embedded TS literal matcher of the generated library (`zp gen -lang ts -lib only`), excluding input/rule setup, trees and error construction; its optional path names another generated `lib.ts`, to compare checkouts. |
+| `bench/` | Benchmarks comparing the backends with each other and with standard-library parsers (the generated parsers they run are in `internal/bench/parsers/`). Results are in [benchmarks.md](benchmarks.md), generated with `go run ./bench/report` (`report/`) from the raw results in `results.txt`, `results-ts.txt` (generated TypeScript under Node) and `results-size.txt` (generated parser sizes). `go run ./bench/profilematrix` compares generation options (`internal/bench/probe` holds the generation and size helpers it shares with `report/`). `node bench/ts-literal.mjs [lib.ts]` measures the embedded TS literal matcher of the generated library (`sxir gen -lang ts -lib only`), excluding input/rule setup, trees and error construction; its optional path names another generated `lib.ts`, to compare checkouts. |
 | `spec/` | The specifications: grammar language, parser and runtime, Core IR, and bytecode and VM ([bytecode](../spec/bytecode/README.md)) |
 | `docs/tutorial/` | The ordered tutorial series ([index](tutorial/README.md)) |
 | `docs/guide/` | Task-oriented guides to each feature ([index](guide/README.md)) |
 | `docs/cookbook/` | Recipes: complete, runnable solutions to concrete tasks ([index](cookbook/README.md)) |
-| `docs/why-zeroparse.md`, `docs/strategy.md` | Project positioning: [who ZeroParse is for and how it compares](why-zeroparse.md), and the [project strategy](strategy.md) with its tracks and targets |
+| `docs/why-syntaxir.md`, `docs/strategy.md` | Project positioning: [who SyntaxIR is for and how it compares](why-syntaxir.md), and the [project strategy](strategy.md) with its tracks and targets |
 | `docs/documentation-style.md` | How the documentation is organized and written: page kinds, link directions, titles, voice and examples |
 | `docs/design/` | How the system is built: [architecture](design/architecture.md), with the target package layout, the [pass pipeline](design/pass-pipeline.md) and [Core IR and Code IR](design/intermediate-representations.md) |
 | `docs/design/records/` | Design records; [template](design/records/000-template.md) for new proposals |
 | `docs/optimizations/` | Numbered optimization history, measured evidence and backend applicability ([catalog](optimizations/README.md)); measurement method and latest analysis remain in [performance.md](performance.md) |
 
-A generator program that renders one set of files lives beside them and is run by a `//go:generate` directive in that package: `spec/language/internal/gensyntax` renders the simplified grammar reference of `spec/language`, `internal/backend/codegen/golang/libprint` prints the compositions of the Go library into `pkg/runtime/libgo/`, and `internal/backend/codegen/golang/print` writes the index of the declarations of `core` that the Go generator reads. There is no shared tools directory. Files generated by `zp gen` itself (the benchmark parsers) are declared by the `//go:generate` directives of `bench/`.
+A generator program that renders one set of files lives beside them and is run by a `//go:generate` directive in that package: `spec/language/internal/gensyntax` renders the simplified grammar reference of `spec/language`, `internal/backend/codegen/golang/libprint` prints the compositions of the Go library into `pkg/runtime/libgo/`, and `internal/backend/codegen/golang/print` writes the index of the declarations of `core` that the Go generator reads. There is no shared tools directory. Files generated by `sxir gen` itself (the benchmark parsers) are declared by the `//go:generate` directives of `bench/`.
 
 ## Architecture
 
@@ -142,7 +142,7 @@ the generic manager in `internal/pass/pipe` under the settings of the driver in 
    engine and fails for a flag that changes neither the code nor the Core IR.
 3. Add a row to the optimizations table of the [code-generation guide](guide/code-generation.md#optimizations).
 
-`zp gen -print-after all` shows the Core IR after each pass, and `-no-opt name` isolates a miscompilation to one
+`sxir gen -print-after all` shows the Core IR after each pass, and `-no-opt name` isolates a miscompilation to one
 optimization. The test helpers of `internal/testing/codegentest` verify the Core IR after every pass
 (`GenOptions.VerifyEachPass`), so a pass that breaks an invariant is named by the failing test.
 
@@ -154,19 +154,19 @@ The repository holds two modules:
 
 | Module | Directory | Holds |
 |:--|:--|:--|
-| `zeroparse.dev/zp` | the root | The engine, the generators, the library of generated Go parsers, the `zp` command and the public packages |
-| `zeroparse.dev/zp/site` | `site/` | The documentation site |
+| `syntaxir.dev/sxir` | the root | The engine, the generators, the library of generated Go parsers, the `sxir` command and the public packages |
+| `syntaxir.dev/sxir/site` | `site/` | The documentation site |
 
 The committed `go.work` joins them. The root module requires no other module, so a generated Go parser, which imports `core` and with `-lib import` the
-library, adds only `zeroparse.dev/zp` to its module's requirements.
+library, adds only `syntaxir.dev/sxir` to its module's requirements.
 
 - A pattern such as `./...` matches the packages of the module of the current directory only, so the root suite is
   `go test ./...`, and the site's is `cd site && go test ./...`.
 - `site/build.sh` builds the site module with `GOWORK=off`, to check the pinned version of its site generator, and gives
-  the go commands that it runs in the root module (the `zp` command, the playground) `GOWORK` set to the checkout's
+  the go commands that it runs in the root module (the `sxir` command, the playground) `GOWORK` set to the checkout's
   `go.work`.
 - Tests that build generated programs write temporary modules outside the checkout, which the workspace does not
-  reach. Those modules `replace` `zeroparse.dev/zp` with a directory: a partial copy of the module that holds only the
+  reach. Those modules `replace` `syntaxir.dev/sxir` with a directory: a partial copy of the module that holds only the
   packages generated code imports (`codegentest.GoModAt`), or the checkout when they import other packages. The library's
   conformance tests (`pkg/runtime/libgo/conformance_test.go`) add the tests of `pkg/runtime/libgo/testdata/conformance/` and the
   bindings that the printer prints to the library package with a `go build` overlay, so that they reach its unexported code.
@@ -200,9 +200,9 @@ An import block has at most one blank line: between the standard library group a
 |---|---|
 | `docs` | `go vet ./...`, then, only when `docs/`, `spec/`, `site/` or `README.md` changed since `REV`, `cd site && go test ./...` and a site build into a temporary directory with its link check (without the WebAssembly binary; see [website maintenance](site.md)) |
 | `code` | `go build ./...`, `go vet ./...`, and `go test` of the packages that changed since `REV` (default `origin/main`) and of every package that depends on them, which `hack/affected-tests.sh` finds with `go list`; the packages whose tests take longest go first |
-| `engine` | `code`, with the tests of the affected packages run in the long tier (`-tags zp_long`, which includes the default tier), then, only when a generator, a generator input or a generated file is affected (`internal/backend/codegen/common`, `codegen`, `core`, `bench`, `internal/frontend/parser`, `spec/language`, `internal/compile`, `internal/runtime/engine`, `internal/ir`, `testdata/grammars`), `go generate ./internal/backend/... ./bench ./internal/frontend/parser ./spec/language` with a check that it left the tree unchanged, only when a codegen or runtime library is affected, `hack/test-alpha-parsers.sh`, and, only when the affected packages include `internal/runtime/engine`, `internal/runtime/state` or `internal/runtime/document`, `hack/test-reference-tags.sh` (the gate prints why it left the step out; it plans the step when the affected packages cannot be computed) |
+| `engine` | `code`, with the tests of the affected packages run in the long tier (`-tags sxir_long`, which includes the default tier), then, only when a generator, a generator input or a generated file is affected (`internal/backend/codegen/common`, `codegen`, `core`, `bench`, `internal/frontend/parser`, `spec/language`, `internal/compile`, `internal/runtime/engine`, `internal/ir`, `testdata/grammars`), `go generate ./internal/backend/... ./bench ./internal/frontend/parser ./spec/language` with a check that it left the tree unchanged, only when a codegen or runtime library is affected, `hack/test-alpha-parsers.sh`, and, only when the affected packages include `internal/runtime/engine`, `internal/runtime/state` or `internal/runtime/document`, `hack/test-reference-tags.sh` (the gate prints why it left the step out; it plans the step when the affected packages cannot be computed) |
 | `full` | the long tier of the affected packages alone (the `test-long` step of `engine`) |
-| `all` | `go test -tags zp_long -timeout 90m ./...`, the whole tree with the packages whose tests take longest named first, for a release; it replaces the affected-package test steps |
+| `all` | `go test -tags sxir_long -timeout 90m ./...`, the whole tree with the packages whose tests take longest named first, for a release; it replaces the affected-package test steps |
 
 `go test` starts the test runs of its packages in the order of its arguments, at most `-p` (by default `GOMAXPROCS`) at a time, so a long package named late would start after the short ones and end the run alone; the gate names the longest packages (`GATE_HEAVY` in `hack/gate.sh`) first and changes nothing else. The changed packages are those of `REV..HEAD`, so commit before running; the gate warns when the tree has uncommitted changes. `GATE_NICE` (default 0) is the `nice` increment of every step, and `GOMAXPROCS` and the other Go variables pass through. `GATE_SELFTEST_FAIL=1` adds a first step that fails, to see the gate stop, and `GATE_AFFECTED_CMD=false` replaces the computation of the affected packages by a failing command, to see that the gate then fails closed: the test steps run every package and every conditional step runs.
 
@@ -216,9 +216,9 @@ go test ./...
 
 `go test` stops a package's tests after 10 minutes by default, which a loaded machine can exceed in the packages that build generated parsers (`internal/runtime/engine`, `internal/backend/codegen/golang/print`, `internal/backend/codegen/typescript/print`, `internal/testing/complexitytest`). Run the root suite with `-timeout 45m` and the long tier with `-timeout 90m`; CI uses the 45-minute value (below). The tests that compare wall-clock times (the Document memo-drop check and the linear-scaling tests of recovery) compare ratios of times measured in one attempt and pass if any of a few attempts does, so a loaded machine slows them but does not fail them; a ratio that fails every attempt is a real growth.
 
-The negative controls and mutants that rebuild or rerun the generated corpora many times are in the long tier: files named `*_long_test.go` with `//go:build zp_long`, run once per batch of changes with `go test -tags zp_long ./...`. The long tier includes every test of the default tier at the same or a larger size, so a batch that needs it runs it instead of the default run, not after it. `hack/affected-tests.sh [base [head]]` prints the packages whose tests a change between two commits can affect, to choose what to run while developing; the `code` and `engine` levels of `hack/gate.sh` test exactly those packages, and a batch that needs the whole tree before a release runs the `all` level. Each keeps its parity or invariant test, which checks the unmutated behavior, in the default tier. In `internal/backend/codegen/golang/print` and `internal/backend/codegen/typescript/print` the long tier holds the dependency-memo controls (`TestGeneratedLeftRecursionDependencyMemoControls`, `TestGeneratedTSLeftRecursionDependencyMemoControls`), the mutants of the Node budget, observation, stream observation and Document tests, the negative control of the Flow recognizer and the rule table limit test.
+The negative controls and mutants that rebuild or rerun the generated corpora many times are in the long tier: files named `*_long_test.go` with `//go:build sxir_long`, run once per batch of changes with `go test -tags sxir_long ./...`. The long tier includes every test of the default tier at the same or a larger size, so a batch that needs it runs it instead of the default run, not after it. `hack/affected-tests.sh [base [head]]` prints the packages whose tests a change between two commits can affect, to choose what to run while developing; the `code` and `engine` levels of `hack/gate.sh` test exactly those packages, and a batch that needs the whole tree before a release runs the `all` level. Each keeps its parity or invariant test, which checks the unmutated behavior, in the default tier. In `internal/backend/codegen/golang/print` and `internal/backend/codegen/typescript/print` the long tier holds the dependency-memo controls (`TestGeneratedLeftRecursionDependencyMemoControls`, `TestGeneratedTSLeftRecursionDependencyMemoControls`), the mutants of the Node budget, observation, stream observation and Document tests, the negative control of the Flow recognizer and the rule table limit test.
 
-A runner of mutants, or of another negative control that rebuilds the code under test for each mutant, runs only when something its verdict depends on has changed. `hack/gate.sh` exports `ZP_MUTANTS_BASE` set to its base revision, and such a test calls `mutanttest.SkipUnlessChanged` (`internal/testing/mutanttest`) first with the repository paths it depends on: `mutanttest.Pipeline` (the module packages that the tests of the code generators and the engine import, with `testdata`) for the runners of `internal/runtime/engine`, `internal/backend/codegen/common`, `internal/backend/codegen/golang/print`, `internal/backend/codegen/typescript/print`, `pkg/runtime/libgo` and `pkg/sample`, and `internal/ir`, `internal/syntax` and `pkg/grammar` for those of `internal/ir/code/exec/ref`. When no file under those paths, `go.mod`, `go.sum`, `go.work` or the helper differs between the base and the working tree (untracked files count), the test skips with a message that names the base and the paths; otherwise it runs. The rule fails closed: with `ZP_MUTANTS_BASE` unset, as in a plain `go test -tags zp_long`, every mutant runs, and when git fails or the base is not a revision they run and say so. `TestPipelineCoversImports` fails when a package that the runners' tests import is outside `Pipeline`. A new runner that rebuilds code for each mutant calls the helper with the paths it depends on; the in-process mutants of `internal/ir/code/exec/conform` and the `DetectsBroken*` conformance tests of `internal/runtime/state`, which are cheap, always run. The long tests of the queue scripts in `internal/testing/archtest` use the same rule with `.agents/scripts` and the package itself as their paths.
+A runner of mutants, or of another negative control that rebuilds the code under test for each mutant, runs only when something its verdict depends on has changed. `hack/gate.sh` exports `SXIR_MUTANTS_BASE` set to its base revision, and such a test calls `mutanttest.SkipUnlessChanged` (`internal/testing/mutanttest`) first with the repository paths it depends on: `mutanttest.Pipeline` (the module packages that the tests of the code generators and the engine import, with `testdata`) for the runners of `internal/runtime/engine`, `internal/backend/codegen/common`, `internal/backend/codegen/golang/print`, `internal/backend/codegen/typescript/print`, `pkg/runtime/libgo` and `pkg/sample`, and `internal/ir`, `internal/syntax` and `pkg/grammar` for those of `internal/ir/code/exec/ref`. When no file under those paths, `go.mod`, `go.sum`, `go.work` or the helper differs between the base and the working tree (untracked files count), the test skips with a message that names the base and the paths; otherwise it runs. The rule fails closed: with `SXIR_MUTANTS_BASE` unset, as in a plain `go test -tags sxir_long`, every mutant runs, and when git fails or the base is not a revision they run and say so. `TestPipelineCoversImports` fails when a package that the runners' tests import is outside `Pipeline`. A new runner that rebuilds code for each mutant calls the helper with the paths it depends on; the in-process mutants of `internal/ir/code/exec/conform` and the `DetectsBroken*` conformance tests of `internal/runtime/state`, which are cheap, always run. The long tests of the queue scripts in `internal/testing/archtest` use the same rule with `.agents/scripts` and the package itself as their paths.
 
 In `internal/testing/complexitytest` the default tier measures every control, corpus entry and family of random grammars at the reduced sizes and counts that `-short` selects, and the long tier measures them at full size. `TestSlopeGate` holds the classes that the classifier assigns to random grammars to their measured slopes on every backend, and leaves out of the cost the copies of recovered errors that Compute counts: it runs a few seeds, and the seeds in `slopeCaught` that found a false class under a negative control, in the default tier, and many more in the long tier. A seed that catches a new false class belongs in `slopeCaught`, and its grammar in `TestSlopeGateGrowth`. The gate holds the class Linear and the degree of a polynomial class, and fails on a polynomial class that has reasons for the class unknown. Its grammars reach some checks of the classifier too rarely to hold them: breaking the cut check of a choice in what an expression surely consumes, the condition that a counted rule is off every cycle, or the repetition depth of the nesting check passes the gate, and only the class tests of `internal/complexity` and the controls of `TestControlClasses` catch it.
 
@@ -242,11 +242,11 @@ The tests that build generated parsers (in `internal/backend/codegen/golang/prin
 
 Each test records its form by name and its subtests inherit it, so tests of either form can run in parallel. A test that builds a fixture without any of these fails the run when it finishes, because it would check one form only. `go test ./...` therefore covers both forms and needs no setting.
 
-`ZP_TEST_ORDINARY` restricts a run to one form: `0` runs everything that builds fixtures with limit controls, and `1` runs it without, skipping the tests that pass a control. Use it to reproduce a failure of one form; it does not widen coverage.
+`SXIR_TEST_ORDINARY` restricts a run to one form: `0` runs everything that builds fixtures with limit controls, and `1` runs it without, skipping the tests that pass a control. Use it to reproduce a failure of one form; it does not widen coverage.
 
 The top-level tests of `internal/runtime/engine` call `t.Parallel()`. A test stays sequential when it measures heap or time in the test process, changes a process-wide setting such as `debug.SetMaxStack` or `state.MinRecorded`, or shares mutable fixtures with other tests (the generators cached by `coreGenerations`); Go runs every sequential test before it releases the parallel ones, so these run alone. A test that observes or changes the Go generator passes `Hooks` of `internal/backend/codegen/golang/print` to the generation, directly or for itself and its subtests with `codegentest.SetGenHooks`, instead of setting package state.
 
-Engine tests write grammars in ZeroParse source and compare results using the S-expression form of nodes (`Node.String`).
+Engine tests write grammars in SyntaxIR source and compare results using the S-expression form of nodes (`Node.String`).
 The `check` helper also verifies that the result is the same with memoization disabled, with every backend (closure, recursive bytecode, iterative bytecode), with both position units, in recognition-only mode, and with tracing on.
 
 The behavior of package `engine` is tested from outside it, by the tests of package `engine_test` in `internal/runtime/engine/`: they call its exported API, with internal packages only to build values, to mark start rules and to count how often options apply. Tests of an engine mechanism that package `engine` exposes through traces and profiles (the memo, evaluation counts, twins) are there too. The module root holds no Go package; `TestModuleRootHoldsNoPackage` fails when a Go file appears there.
@@ -260,11 +260,11 @@ TypeScript is printed from the same Flow stage as Go (`internal/backend/codegen/
 
 `lint` tests every check with positive and negative cases, lints every example grammar against a hand-checked list of findings, and `TestSoundness` checks the certain findings against the engine on random grammars, exhaustively over short inputs (`-soundness=N` for a longer run).
 
-`internal/lsp/zpls` tests talk to the server in process over pipes (lifecycle, malformed messages, incremental edits with non-ASCII and astral characters and `\r\n`, every request) and analyze every example grammar. In `editors/vscode`, `npm install && npm run check` compiles the TextMate grammar's regular expressions with Oniguruma and checks the scopes of a sample, and tokenizes the example and ready-made parser grammars; `npm run check-server -- <path to zp>` talks to the server with the VS Code client's JSON-RPC library.
+`internal/lsp/sxirls` tests talk to the server in process over pipes (lifecycle, malformed messages, incremental edits with non-ASCII and astral characters and `\r\n`, every request) and analyze every example grammar. In `editors/vscode`, `npm install && npm run check` compiles the TextMate grammar's regular expressions with Oniguruma and checks the scopes of a sample, and tokenizes the example and ready-made parser grammars; `npm run check-server -- <path to sxir>` talks to the server with the VS Code client's JSON-RPC library.
 
 `sample` tests generate inputs for every example grammar and every grammar of the shared test corpus (`sample/sample_engine_test.go`, with the corpus of `internal/testing/codegentest`) and parse them on every backend.
 
-`go generate ./spec/language` renders the simple grammar view from `zp.zp` and `spec/language/syntax.md.tmpl`; edit the template rather than the generated page. `spec/language/source_grammar_test.go` verifies the simplified display against the canonical source grammar, checks concrete trees and recovery across backends, and builds a generated typed Go consumer. `spec/language/syntax_test.go` runs the grammar of [Grammar Syntax](../spec/language/syntax.md) on every `.zp` file and every `zp` code block of the repository and requires it to agree with the parser of `internal/syntax`.
+`go generate ./spec/language` renders the simple grammar view from `sxir.sxir` and `spec/language/syntax.md.tmpl`; edit the template rather than the generated page. `spec/language/source_grammar_test.go` verifies the simplified display against the canonical source grammar, checks concrete trees and recovery across backends, and builds a generated typed Go consumer. `spec/language/syntax_test.go` runs the grammar of [Grammar Syntax](../spec/language/syntax.md) on every `.sxir` file and every `sxir` code block of the repository and requires it to agree with the parser of `internal/syntax`.
 
 `cd site && go test ./...` builds the site and checks its pages and links; `go test ./cmd/playground` runs the WebAssembly smoke test when Node is installed.
 The site publishes the playground's binary from a pinned GitHub pre-release instead of compiling it;
@@ -290,10 +290,10 @@ distinguishes equivalent small-tree work from wide-tree display reduction; real 
 The same-source budget-control reference build compiles and tests the engine packages without core budget-control
 instrumentation. After changing test files of `internal/runtime/engine` or `engine`, check that both builds compile
 with `go vet ./internal/runtime/engine/... ./engine` and
-`go vet -tags zp_budget_controls_reference ./internal/runtime/engine/... ./engine`; test files that use helpers
+`go vet -tags sxir_budget_controls_reference ./internal/runtime/engine/... ./engine`; test files that use helpers
 defined in untagged files keep both builds compiling.
-The other reference tags (`zp_reference_*` and `zp_snapshot_*_reference`) likewise select the simpler or the
-former form of an optimized mechanism. The candidate tag `zp_snapshot_position_overlays` instead selects an opt-in
+The other reference tags (`sxir_reference_*` and `sxir_snapshot_*_reference`) likewise select the simpler or the
+former form of an optimized mechanism. The candidate tag `sxir_snapshot_position_overlays` instead selects an opt-in
 representation that the default build has not adopted. `hack/test-reference-tags.sh [tag...]` vets and tests
 with `-short` the engine packages, `engine` and every package with a file constrained by a tag, under
 every tag of the tree or the tags it is given; it rejects a tag that no build constraint names. A test whose
@@ -308,7 +308,7 @@ The TypeScript differential harness uses the upstream
 [`microsoft/TypeScript` v5.9.3 `tests/cases`](https://github.com/microsoft/TypeScript/tree/v5.9.3/tests/cases) corpus.
 Required-tool checks fail before tests if a required runtime or the TypeScript corpus is absent. Go tests run with
 `-v` so optional skips are visible in the retained 14-day logs. Python uses its installed standard library and recorded
-reference data; the live comparisons on a CPython checkout (`ZP_CPYTHON_SRC`) and the DuckDB `REFERENCE_FILE` corpus
+reference data; the live comparisons on a CPython checkout (`SXIR_CPYTHON_SRC`) and the DuckDB `REFERENCE_FILE` corpus
 are not supplied. DuckDB checks use recorded reference results, not a live DuckDB oracle. These jobs do not claim
 browser-engine or deployed-site validation.
 
@@ -323,8 +323,8 @@ The guides show how to test a grammar in an application. The repository uses the
 | Coverage | Location |
 |:--|:--|
 | Example grammar golden files | [`examples/examples_test.go`](../examples/examples_test.go) |
-| Ready-made parser goldens across engine backends and generated parsers | `parsers_test.go` in [alpha-parsers](https://github.com/zeroparse/alpha-parsers) |
-| Reference-implementation and conformance tests with fuzz targets | Each parser module's tests, for example [`alpha-parsers/json/json_test.go`](https://github.com/zeroparse/alpha-parsers/blob/main/json/json_test.go) |
+| Ready-made parser goldens across engine backends and generated parsers | `parsers_test.go` in [alpha-parsers](https://github.com/syntaxir/alpha-parsers) |
+| Reference-implementation and conformance tests with fuzz targets | Each parser module's tests, for example [`alpha-parsers/json/json_test.go`](https://github.com/syntaxir/alpha-parsers/blob/main/json/json_test.go) |
 | Generated inputs and backend comparisons | [`pkg/sample/example_test.go`](../pkg/sample/example_test.go) |
 | Compiled grammars, Documents and backend equivalence | `internal/runtime/engine/` tests such as `compiled_test.go` and `document_test.go`, and the tests of `internal/runtime/document/` |
 | Generated Go against the engine and regression freezes of what the engine cannot say (observation, Documents, budget, streams, lowering decisions) | `internal/backend/codegen/golang/print/` tests such as `gengo_flow_*_test.go` with `internal/backend/codegen/golang/print/testdata/*.golden`, and `internal/runtime/engine/` tests `core_*_test.go` with `internal/runtime/engine/testdata/*.golden`; a change of what a golden freezes is rewritten with `go test <package> -run <test> -update` and its diff reviewed |
@@ -333,14 +333,14 @@ Root `go test ./...` covers the main module. Run `hack/test-alpha-parsers.sh` to
 
 ### Ready-Made Parsers and Their Corpora
 
-The ready-made parsers are in the separate [alpha-parsers](https://github.com/zeroparse/alpha-parsers) repository
-(module `zeroparse.dev/alpha-parsers`), generated from `testdata/grammars/`. Its conformance suites use text from
+The ready-made parsers are in the separate [alpha-parsers](https://github.com/syntaxir/alpha-parsers) repository
+(module `syntaxir.dev/alpha-parsers`), generated from `testdata/grammars/`. Its conformance suites use text from
 other projects, which it fetches and checks against pinned digests (see its README). To check a change of the generator
-or the engine against it, keep a checkout next to this one (`../alpha-parsers`; in the layout `~/src/github.com/zeroparse/`
-that is `~/src/github.com/zeroparse/alpha-parsers`), or name another directory with `ZP_ALPHA_PARSERS`:
+or the engine against it, keep a checkout next to this one (`../alpha-parsers`; in the layout `~/src/github.com/syntaxir/`
+that is `~/src/github.com/syntaxir/alpha-parsers`), or name another directory with `SXIR_ALPHA_PARSERS`:
 
 ```bash
-git clone https://github.com/zeroparse/alpha-parsers ../alpha-parsers
+git clone https://github.com/syntaxir/alpha-parsers ../alpha-parsers
 hack/sync-alpha-parsers.sh     # copy the grammars, inputs and duckdb/inspect.go; regenerate every parser
 hack/test-alpha-parsers.sh     # check the checkout is in sync, then vet and test it
 ```
@@ -349,12 +349,12 @@ Both scripts join this tree and the checkout with a temporary `go.work` file, so
 working tree they are run from, not a pushed commit: run them from the tree that holds the change. They print the
 checkout they use. `hack/test-alpha-parsers.sh` fails when there is no checkout, when a grammar, a sample input or
 `duckdb/inspect.go` differs from `testdata/grammars/`, and when the options of the checkout's `generate.go` differ from
-`testdata/grammars/generate.txt`; `ZP_ALPHA_PARSERS=skip` skips it on purpose. `hack/sync-alpha-parsers.sh` leaves the
+`testdata/grammars/generate.txt`; `SXIR_ALPHA_PARSERS=skip` skips it on purpose. `hack/sync-alpha-parsers.sh` leaves the
 regenerated files uncommitted in the checkout and does not rewrite `generate.go`, whose options are edited by hand.
 Commit the result in the alpha-parsers repository whenever a change of the generator, the library or the grammars
 changes the generated files.
 
-Regenerate committed generated files with `go run ./cmd/zp` or `go generate`, never with a built `zp`: a built binary stamps a version in the header, and committed files carry `(devel)`, which a test checks.
+Regenerate committed generated files with `go run ./cmd/sxir` or `go generate`, never with a built `sxir`: a built binary stamps a version in the header, and committed files carry `(devel)`, which a test checks.
 
 ## Language Feature Status
 
@@ -391,15 +391,15 @@ Regenerate committed generated files with `go run ./cmd/zp` or `go generate`, ne
 | Done | | Built-in functions (`foldl`, `len`, `text`, and others) |
 | Done | | Struct constructors (`Type{Field: value}`), and typed node-list constructors (`[]Type{...}`) |
 | Done | Advanced | Left recursion |
-| Done | | Parsing ZeroParse source (`.zp`) |
+| Done | | Parsing SyntaxIR source (`.sxir`) |
 | Done | | Operators Rule declarations |
 | Done | | Stream parsing (`#stream`) |
 | Done | | Mutable incremental parsing (`Document`); snapshots and change notifications |
-| Done | | Code generation (Go, `zp gen`) |
-| Done | | Typed values in generated parsers (`zp gen -types`) |
-| Done | | Saving and loading compiled grammars (`.zpc`) |
-| Done | | Code generation (TypeScript, `zp gen -lang ts`) |
-| Done | | Input generation and fuzzing (`zp sample`, package `sample`) |
-| Done | | Grammar linting (`zp lint`, package `lint`) |
-| Done | | Editor support (`zp lsp`, VS Code extension with a TextMate grammar) |
-| Done | | Tracing, profiling and error explanation (`WithTrace`, `WithProfile`, `zp trace/profile/explain`) |
+| Done | | Code generation (Go, `sxir gen`) |
+| Done | | Typed values in generated parsers (`sxir gen -types`) |
+| Done | | Saving and loading compiled grammars (`.sxirc`) |
+| Done | | Code generation (TypeScript, `sxir gen -lang ts`) |
+| Done | | Input generation and fuzzing (`sxir sample`, package `sample`) |
+| Done | | Grammar linting (`sxir lint`, package `lint`) |
+| Done | | Editor support (`sxir lsp`, VS Code extension with a TextMate grammar) |
+| Done | | Tracing, profiling and error explanation (`WithTrace`, `WithProfile`, `sxir trace/profile/explain`) |

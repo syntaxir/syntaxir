@@ -5,8 +5,8 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // examinedEndCases are the cases of the tests of the examined end of terminals: the literal a call
@@ -44,15 +44,15 @@ var examinedEndCases = []struct {
 // at the end of the input examines the unit at the end, in both units, so that the entry of the call
 // is dropped by an edit of exactly that unit and no earlier one.
 func TestPrivateDocumentLiteralExaminedEnd(t *testing.T) {
-	for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+	for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 		for _, c := range examinedEndCases {
 			t.Run(fmt.Sprintf("unit %d %q in %q", unit, c.literal, c.input), func(t *testing.T) {
 				lit := &Rule{Id: 1, Name: "lit", Memo: true, DocMemo: true, Seen: -1}
-				lit.Body = func(p *Parser, _ int) (*zpvalue.Node, bool) {
+				lit.Body = func(p *Parser, _ int) (*sxirvalue.Node, bool) {
 					return p.MatchLiteral([]rune(c.literal), c.literal, IdAny, true)
 				}
 				main := &Rule{Id: 0, Name: "main", Memo: true, DocMemo: true, Seen: -1}
-				main.Body = func(p *Parser, _ int) (*zpvalue.Node, bool) {
+				main.Body = func(p *Parser, _ int) (*sxirvalue.Node, bool) {
 					for range c.skip {
 						_, size, _ := p.Peek()
 						p.Pos += size
@@ -63,7 +63,7 @@ func TestPrivateDocumentLiteralExaminedEnd(t *testing.T) {
 				d := testDocumentState(main, c.input, unit)
 				d.parse(parseOptions{unit: unit, maxDepth: defaultMaxDepth})
 				at, want := 0, c.codePoints
-				if unit == zpinput.Bytes {
+				if unit == sxirinput.Bytes {
 					at, want = len(c.input[:min(len(c.input), skipBytes(c.input, c.skip))]), c.bytes
 				} else {
 					at = c.skip

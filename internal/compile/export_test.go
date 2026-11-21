@@ -1,9 +1,9 @@
 package compile
 
 import (
-	"zeroparse.dev/zp/internal/cancel"
-	"zeroparse.dev/zp/internal/frontend/desugar"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/cancel"
+	"syntaxir.dev/sxir/internal/frontend/desugar"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // CheckGrammar checks a grammar as internal/frontend.Check does, which computes the rule facts and

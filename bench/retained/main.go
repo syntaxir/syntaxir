@@ -13,10 +13,10 @@ import (
 	"runtime"
 	"runtime/debug"
 
-	"zeroparse.dev/zp/internal/bench/inputs"
-	"zeroparse.dev/zp/internal/driver/entry"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/bench/inputs"
+	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 const forcedGCs = 3
@@ -131,13 +131,13 @@ func corpus(repo, name string) (source, input string, err error) {
 	var path string
 	switch name {
 	case "json":
-		path, input = "testdata/grammars/json/json.zp", inputs.JSONInput(256<<10)
+		path, input = "testdata/grammars/json/json.sxir", inputs.JSONInput(256<<10)
 	case "xml":
-		path, input = "testdata/grammars/xml/xml.zp", inputs.XMLInput(256<<10)
+		path, input = "testdata/grammars/xml/xml.sxir", inputs.XMLInput(256<<10)
 	case "arithmetic":
-		path, input = "examples/calculator/calc.zp", inputs.ArithInput(20000)
+		path, input = "examples/calculator/calc.sxir", inputs.ArithInput(20000)
 	case "minilang":
-		path, input = "examples/minilang/minilang.zp", inputs.MinilangInput(300, 0)
+		path, input = "examples/minilang/minilang.sxir", inputs.MinilangInput(300, 0)
 	default:
 		return "", "", fmt.Errorf("unknown corpus %q", name)
 	}
@@ -154,7 +154,7 @@ func warm(source, input string, count int) (string, error) {
 			return "", fmt.Errorf("warmup compilation %d: %w", i, err)
 		}
 		if i == 0 {
-			n, err := p.Parse(input, engine.WithBackend(engine.Closure), engine.WithUnit(zpinput.CodePoints))
+			n, err := p.Parse(input, engine.WithBackend(engine.Closure), engine.WithUnit(sxirinput.CodePoints))
 			if err != nil {
 				return "", fmt.Errorf("full-input validation: %w", err)
 			}

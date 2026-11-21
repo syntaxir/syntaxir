@@ -7,14 +7,14 @@ before choosing an edit location:
 
 | Concern | First stop |
 |:--|:--|
-| Public Go API and grammar AST | `pkg/compiler/` (compiling, the reference parser, compiled grammars, generation), `pkg/runtime/` (the `Parser` and `Document` interfaces, options, and `input/`, `value/`, `instrument/`), `pkg/runtime/vm/` (the VM parser and loaded `.zpc`), `pkg/grammar/` and `pkg/grammar/ast/` |
+| Public Go API and grammar AST | `pkg/compiler/` (compiling, the reference parser, compiled grammars, generation), `pkg/runtime/` (the `Parser` and `Document` interfaces, options, and `input/`, `value/`, `instrument/`), `pkg/runtime/vm/` (the VM parser and loaded `.sxirc`), `pkg/grammar/` and `pkg/grammar/ast/` |
 | Grammar source parsing | `internal/frontend/parser/` |
 | Compiler and static analysis | `internal/compile/` |
 | Runtime: execution, bytecode VMs, Documents, streams and limit controls | `internal/runtime/engine/` (parse, Document and stream entries) over `internal/runtime/` (`program/` the run-time program, `state/` the shared parser state, `vm/` the VMs, `document/` the Document, `nodes/`, `limits/`); the compile entry in `internal/driver/entry/`, and in `internal/driver/checked/` the compiler side that the runtime reaches through `state.Source`; backends in `internal/backend/` (`closure/`, `vmlower/` the bytecode compiler, `codegen/{common,golang,typescript}/`) |
 | Code generation entry points | `pkg/compiler/` (`GenerateGo`, `GenerateTypeScript`) over `internal/driver/generate/` (embedding the library sources `pkg/runtime/libgo/` and `internal/backend/codegen/typescript/lib/`), `internal/backend/codegen/common/` |
 | Output schema and structural queries | `pkg/runtime/schema/` (the types, their validation and `Compare`), `internal/frontend/schemaexport/` (the export), `pkg/runtime/query/` (the queries) |
 | Generated Go parser source | Generator `internal/backend/codegen/golang/print/generator.go` and library package `pkg/runtime/libgo/` (imported or copied into generated parsers; imports only `pkg/runtime/` and its packages); generated parsers under `internal/bench/parsers/` are outputs |
-| CLI, linter, editor service and sample generation | `cmd/zp/`, `pkg/lint/`, `internal/lsp/`, `pkg/sample/` |
+| CLI, linter, editor service and sample generation | `cmd/sxir/`, `pkg/lint/`, `internal/lsp/`, `pkg/sample/` |
 | Grammars of ten languages, playground and site | `testdata/grammars/`, `cmd/playground/`, `site/` (ready-made parsers: the separate alpha-parsers repository) |
 
 Use [specification index](../../../../spec/README.md) for supported language and
@@ -26,8 +26,8 @@ for user-facing workflows. For optimization mechanisms and applicability, use th
 [performance method](../../../../docs/performance.md).
 
 The backlog (one issue per item, in the
-[ZeroParse backlog project](https://github.com/orgs/zeroparse/projects/2)) and the work
-status page [Issue #1](https://github.com/zeroparse/zp/issues/1) are not a language
+[SyntaxIR backlog project](https://github.com/orgs/syntaxir/projects/2)) and the work
+status page [Issue #1](https://github.com/syntaxir/syntaxir/issues/1) are not a language
 contract. Fetch the present issue and its comments before planning or updating an
 item; branch, worktree and integration status also need live checks.
 Use the [documentation](../../documentation/SKILL.md),

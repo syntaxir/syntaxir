@@ -9,11 +9,11 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/frontend/parser"
-	"zeroparse.dev/zp/internal/frontend/parser/zpparser"
-	"zeroparse.dev/zp/internal/frontend/parser/zpparser/types"
-	"zeroparse.dev/zp/internal/testing/enginetest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/frontend/parser/sxirparser"
+	"syntaxir.dev/sxir/internal/frontend/parser/sxirparser/types"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // The comparison of the frontends is only worth something if it sees a change
@@ -220,7 +220,7 @@ func TestGrammarComparisonSeesEveryField(t *testing.T) {
 	t.Logf("changed %d leaves of %d fields", total, len(kinds))
 }
 
-// grammarMutants change the source grammar zp.zp in one place. Each must make
+// grammarMutants change the source grammar sxir.sxir in one place. Each must make
 // the canonical frontend disagree with the hand-written parser on some source
 // of the parity corpora.
 var grammarMutants = []struct{ name, old, new string }{
@@ -370,7 +370,7 @@ func TestGrammarComparisonSeesBrokenAdapters(t *testing.T) {
 			changed := 0
 			broken := func(src string) (*ast.Grammar, error) {
 				text, invalid := parser.WithoutInvalidCharacters(src)
-				f, err := zpparser.ParseValue(text)
+				f, err := sxirparser.ParseValue(text)
 				if err != nil || invalid {
 					return adaptCanonical(src)
 				}

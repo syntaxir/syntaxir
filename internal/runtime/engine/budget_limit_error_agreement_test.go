@@ -1,4 +1,4 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package engine
 
@@ -11,10 +11,10 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 )
 
 // A LimitError of kind LimitCompute reports the reservation that failed and the units reserved before
@@ -120,8 +120,8 @@ func engineLimitReports(t *testing.T, c limitAgreementCase, b Backend) []string 
 	prog := compileBare(t, c.grammar)
 	out := make([]string, c.max+1)
 	for l := uint64(1); l <= c.max; l++ {
-		_, err := prog.ParseWith("main", c.input, ParseOptions{Backend: b, Limits: zpruntime.Limits{Compute: l}})
-		var le *zpruntime.LimitError
+		_, err := prog.ParseWith("main", c.input, ParseOptions{Backend: b, Limits: sxirruntime.Limits{Compute: l}})
+		var le *sxirruntime.LimitError
 		ok := errors.As(err, &le)
 		if ok {
 			out[l] = limitReport(err, le.Used, le.Requested, ok)
@@ -298,7 +298,7 @@ func TestLimitErrorAgreement(t *testing.T) {
 			} else {
 				t.Log("node not found: generated TypeScript is not compared")
 			}
-			if os.Getenv("ZP_LIMIT_AGREEMENT_DUMP") != "" {
+			if os.Getenv("SXIR_LIMIT_AGREEMENT_DUMP") != "" {
 				for l := uint64(1); l <= c.max; l++ {
 					tsl := "-"
 					if ts != nil {

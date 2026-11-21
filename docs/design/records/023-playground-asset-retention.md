@@ -41,7 +41,7 @@ the manifest at the production alias, then downloads its current assets from tha
 alias change between those downloads from mixing deploys. A local/manual build without that flag downloads from the
 specified site root; the caller must keep it stable during the build.
 
-The CLI defaults `-previous-site` to `https://zeroparse.dev` only in a Workers Builds run of the production branch
+The CLI defaults `-previous-site` to `https://syntaxir.dev` only in a Workers Builds run of the production branch
 (`WORKERS_CI=1` and `WORKERS_CI_BRANCH=main`). Workers Builds knows no immutable URL for a deployment before it is
 published, so `-deploy-url` has no default there and the next build reads the manifest and the assets from the
 production site root. Local builds and builds of other branches default to neither flag. Explicit
@@ -51,7 +51,7 @@ flags override the defaults, including an empty `-previous-site` for a deliberat
 
 `playground/assets.json` has `version: 1`, optional `source`, `current`, and optional `previous`. Each pair records:
 
-- `wasm`: `wasm/zp-<16 hex characters>.wasm.gz` for a gzip-compressed binary, or `wasm/zp-<16 hex characters>.wasm`
+- `wasm`: `wasm/sxir-<16 hex characters>.wasm.gz` for a gzip-compressed binary, or `wasm/sxir-<16 hex characters>.wasm`
   for an uncompressed one, with the full `wasmSHA256` of the stored bytes;
 - `runtime`: `runtime/wasm_exec-<16 hex characters>.js`, with the full `runtimeSHA256`.
 
@@ -59,7 +59,7 @@ The site publishes compressed binaries; the uncompressed form remains valid so t
 compression is retained for one more deploy. The page and the worker decompress a gzip body before compiling it.
 The worker requests the revalidated manifest when starting a content-hashed parser, finds the exact requested WASM
 URL in either pair, and imports its matching runtime. An expired parser or unavailable manifest fails initialization;
-an expired-generation message asks the user to reload. The explicit unhashed `zp.wasm` convention continues to use
+an expired-generation message asks the user to reload. The explicit unhashed `sxir.wasm` convention continues to use
 `wasm_exec.js` for standalone callers.
 
 Pre-manifest workers import the stable `wasm_exec.js` path. When importing a previous pair, the builder serves that

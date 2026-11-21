@@ -3,7 +3,7 @@ package ref
 import (
 	"strings"
 
-	"zeroparse.dev/zp/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code"
 )
 
 // The reference model of the Operators Rule descriptors, the matches of operators and the records of

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"zeroparse.dev/zp/internal/ir/code/exec/conform"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // The struct table (conform.StructCases) on the compositions cover and made of the node and the typed
@@ -23,7 +23,7 @@ func TestValueStructTable(t *testing.T) {
 				kv = append(kv, fmt.Sprintf("F%d", i), vals[f])
 			}
 			before := len(c.P.created)
-			n := c.fxStruct("S", kv...).(*zpvalue.Node)
+			n := c.fxStruct("S", kv...).(*sxirvalue.Node)
 			return structResult(D(n).Start, D(n).End, len(c.P.created) == before+1 && c.P.created[before] == n)
 		}); err != nil {
 			t.Errorf("controlled=%v: %v", controlled, err)

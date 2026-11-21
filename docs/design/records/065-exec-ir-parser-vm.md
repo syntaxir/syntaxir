@@ -15,7 +15,7 @@ compositions as they stand; this record keeps the decision, the measurements and
 
 ## Summary
 
-The algorithmic core of a ZeroParse parse — memoization, left-recursion growth, expected-set merging, recovery bookkeeping,
+The algorithmic core of a SyntaxIR parse — memoization, left-recursion growth, expected-set merging, recovery bookkeeping,
 the variable environment, budget charges, stream commitment, Document reuse and the Operators Rule loop — is written
 once per runtime: in the engine (`internal/runtime/state`, shared by the closure backend and both bytecode VMs), twice in
 the generated Go runtime (the node `Parser` in `pkg/runtime/libgo/lib.go` and the typed `TParser` in `pkg/runtime/libgo/typed.go`), and
@@ -559,7 +559,7 @@ Compositions, operation declarations and conformance cases are written with Go b
 [invariants](../../../spec/exec-ir/invariants.md). The IR has a text form for tests, golden files and error
 messages ([Text Form](../../../spec/code-ir/text-form.md)), which nothing parses, and an interpreter that runs a
 function against a machine of operations, which is how Go runs conformance cases until a backend prints them. A
-textual syntax, parsed by a ZeroParse grammar, can be added later without changing the IR.
+textual syntax, parsed by a SyntaxIR grammar, can be added later without changing the IR.
 
 ### Passes
 
@@ -672,7 +672,7 @@ runtime alike, because every stage prints grammar code through the Exec IR backe
 - **Engine** (final stage). The full-suite benchmarks of the closure backend and both VMs, in both families of
   record 062, and `Compile` time.
 - **Size and build.** Generated source bytes per repository parser, Go runtime source bytes and the binary size of each
-  generated parser package; TypeScript runtime bytes and gzipped bytes; generation time of `zp gen` for each
+  generated parser package; TypeScript runtime bytes and gzipped bytes; generation time of `sxir gen` for each
   repository parser.
 
 A stage is accepted when no benchmark shows a statistically significant slowdown in `sec/op` (benchstat, p < 0.05),
@@ -793,7 +793,7 @@ move to Exec IR at once while mechanisms move one at a time.
    recovered errors before keeping the expectations each fail named tests, and a long test builds them with
    each mutant through `-overlay`. In nine interleaved rounds against the hand-written protocol, no engine `sec/op` row is more than
    0.8% slower, 43 engine rows are faster and 6 slower, and the geomean of all rows is 0.3% faster; on engine
-   time-benchmark rows `B/op` rises by at most 0.2% and `allocs/op` does not rise, and the `zp` binary grows by 528 bytes.
+   time-benchmark rows `B/op` rises by at most 0.2% and `allocs/op` does not rise, and the `sxir` binary grows by 528 bytes.
 
    In the second part, the compositions `expect`, `mergeExpected` and `keep` print the engine's `Expect`,
    `MergeExpected` and `Keep` into the same file, specialized for budget controls. They are specialized without the
@@ -806,7 +806,7 @@ move to Exec IR at once while mechanisms move one at a time.
    the placeholder and its filter stays empty, so a merge past the farthest position that keeps the record or the
    filter leaves the same state. In ten interleaved rounds against the hand-written record, no engine `sec/op` row
    is more than 1.0% slower, 38 engine rows are faster and 10 slower, and the geomean of all rows is 0.3% faster; on
-   engine time-benchmark rows `B/op` rises by at most 0.01% and `allocs/op` does not rise, and the `zp` binary
+   engine time-benchmark rows `B/op` rises by at most 0.01% and `allocs/op` does not rise, and the `sxir` binary
    shrinks by 80 bytes.
 
    The call compositions read the values of a rule's variables for its memo key with `env.key`, so this part adopts
@@ -863,7 +863,7 @@ move to Exec IR at once while mechanisms move one at a time.
    builds that differ in the split forms and in a rebase of about 1,200 lines of other changes, so layout is a
    plausible cause of those rows that is not separated from the rest. On `Parse` rows `B/op` rises by at most 0.01%;
    `Recognize` rows, whose median swings by up to 55% between rounds, rise by at most 6.6%, and `allocs/op` by at most
-   1.2%. The `zp` binary grows by 201 KB, nearly all of it the builders of the split forms, which the generator
+   1.2%. The `sxir` binary grows by 201 KB, nearly all of it the builders of the split forms, which the generator
    links: their code grows by 78 KB and the engine's by 3.9 KB. Generated parsers are at most 0.8% slower.
 
    In the fourth part, the compositions `streamEmit`, `streamCommit` and `streamsIn` print the engine's `EmitStream`,
@@ -909,7 +909,7 @@ move to Exec IR at once while mechanisms move one at a time.
    offset per build, the hand-written commit padded so that `Machine.step` starts at 48 has a geomean of +0.37%, no
    row above 1% and `Parse/CSV/bytecode/bytes` at +0.53%; the unpadded printed commit has +1.22%, 9 rows and +2.05%;
    and the printed commit padded to 0 has -0.30%, no row and +0.32%. The rows are accepted. Whether another binary
-   shows them is not measured. `B/op` rises by at most 0.06% and `allocs/op` by at most 0.02%. The `zp` binary grows
+   shows them is not measured. `B/op` rises by at most 0.06% and `allocs/op` by at most 0.02%. The `sxir` binary grows
    by 240 bytes. Generated parsers run the same code as before: their significant changes range from -1.59% to +0.76%.
 
    In the fifth part, the composition `memoAdvance` prints the engine's `AdvanceEntry` into `state/document_exec.go` in
@@ -994,7 +994,7 @@ move to Exec IR at once while mechanisms move one at a time.
    allocation of each run is amortised over `b.N`, which can differ between the builds: at an equal count of iterations the builds
    agree, within 0.05% in bytes (`Recognize/Recovery/closure` at 25: 478,246 to 478,255 B/op and
    615 allocs/op; `Parse/XML/closure/codepoints` at 18: 14,081,220 to 14,081,693 B/op and 1,660 or 1,661 allocs/op;
-   `Recognize/Arith_OperatorsRule/closure` at 33: 23,389 to 23,399 B/op and 54 allocs/op). The `zp` binary grows by
+   `Recognize/Arith_OperatorsRule/closure` at 33: 23,389 to 23,399 B/op and 54 allocs/op). The `sxir` binary grows by
    50,208 bytes: the builders and contracts of the new operations and compositions, which it links because it also
    generates parsers. Generated parsers run the same code as before: their significant changes range from -1.96% to
    +0.99%.

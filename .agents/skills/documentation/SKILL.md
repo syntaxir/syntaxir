@@ -1,6 +1,6 @@
 ---
 name: documentation
-description: Maintain ZeroParse user documentation, contracts, design records and development guidance.
+description: Maintain SyntaxIR user documentation, contracts, design records and development guidance.
 ---
 
 # Documentation

@@ -7,16 +7,16 @@ import (
 	"reflect"
 	"testing"
 
-	"zeroparse.dev/zp/internal/cancel"
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/diagnostic"
-	"zeroparse.dev/zp/internal/frontend/astfacts"
-	fcheck "zeroparse.dev/zp/internal/frontend/check"
-	corebuild "zeroparse.dev/zp/internal/frontend/elaborate"
-	ir "zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/internal/middleend/corepass"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/cancel"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/diagnostic"
+	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	fcheck "syntaxir.dev/sxir/internal/frontend/check"
+	corebuild "syntaxir.dev/sxir/internal/frontend/elaborate"
+	ir "syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/corepass"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Cancel at a deterministic poll, without timing or global compiler hooks.

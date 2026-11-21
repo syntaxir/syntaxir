@@ -3,8 +3,8 @@ package print_test
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // A budget of zero selects the default of max(2^20, 1024 times the input length) in the position unit,

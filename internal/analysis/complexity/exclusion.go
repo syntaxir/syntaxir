@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"slices"
 
-	"zeroparse.dev/zp/internal/frontend/astfacts"
-	syntaxfmt "zeroparse.dev/zp/internal/syntax/fmt"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // This file is the exclusion analysis over symbols, which the classifier uses as a cost argument:

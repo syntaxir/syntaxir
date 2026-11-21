@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/internal/testing/enginetest"
-	"zeroparse.dev/zp/internal/testing/starttest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
+	"syntaxir.dev/sxir/internal/testing/starttest"
 )
 
 // TestDocumentEmptyEnterReuse checks that a generated Go Document starts the examined range of a

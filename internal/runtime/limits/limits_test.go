@@ -5,7 +5,7 @@ import (
 	"math"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime"
 )
 
 func TestLimitError(t *testing.T) {

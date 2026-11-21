@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // indentUnit is one level of indentation.
@@ -1006,7 +1006,7 @@ func pad(s string, w int, control *formatControl) string {
 	return s + strings.Repeat(" ", w-formatRuneCount(s, control))
 }
 
-// FormatType returns t in ZeroParse syntax.
+// FormatType returns t in SyntaxIR syntax.
 func formatType(t ast.TypeExpr, control *formatControl) string {
 	pollFormat(control)
 	switch t := t.(type) {
@@ -1517,7 +1517,7 @@ const (
 	precSuffix
 )
 
-// FormatExpr returns the parser expression e in ZeroParse syntax.
+// FormatExpr returns the parser expression e in SyntaxIR syntax.
 func FormatExpr(e ast.Expr) string { return formatExpr(e, precChoice, nil) }
 
 func paren(s string, inner, outer int) string {
@@ -2172,7 +2172,7 @@ func formatAttributeValue(value any, control *formatControl) string {
 	return fmt.Sprintf("<%T>", value)
 }
 
-// quote returns s as a ZeroParse string literal.
+// quote returns s as a SyntaxIR string literal.
 func quote(s string, control *formatControl) string {
 	pollFormat(control)
 	var b strings.Builder
@@ -2243,7 +2243,7 @@ var actionExprPrec = map[string]int{
 	"*": 5, "/": 5, "%": 5,
 }
 
-// FormatActionExpr returns the action expression t in ZeroParse syntax.
+// FormatActionExpr returns the action expression t in SyntaxIR syntax.
 func FormatActionExpr(t ast.ActionExpr) string { return formatActionExpr(t, 0, nil) }
 
 func formatActionExpr(t ast.ActionExpr, outer int, control *formatControl) string {

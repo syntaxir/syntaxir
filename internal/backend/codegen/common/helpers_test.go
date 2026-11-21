@@ -3,7 +3,7 @@ package common_test
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/testing/enginetest"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 )
 
 // The tests of this package compile the grammars that they generate parsers for with the engine,

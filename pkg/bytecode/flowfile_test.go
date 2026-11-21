@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/bytecode"
+	"syntaxir.dev/sxir/pkg/bytecode"
 )
 
 // flowModule returns a module of two rules, the second with a Flow body that uses every operation

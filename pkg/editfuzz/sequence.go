@@ -11,7 +11,7 @@
 // Minimize shortens a failing one while it fails the same way. The design is described in
 // docs/design/records/037-replayable-edit-fuzzing.md.
 //
-// Its audience is Go programs that fuzz their own grammars and documents from Go tests; the zp command
+// Its audience is Go programs that fuzz their own grammars and documents from Go tests; the sxir command
 // uses it for the same purpose. At v0.x its API and the sequence file format are unstable and may change
 // in any release.
 package editfuzz
@@ -27,10 +27,10 @@ import (
 	"slices"
 	"sort"
 
-	"zeroparse.dev/zp/internal/cliflag"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/cliflag"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 // Version is the version of the Sequence format that this package reads and writes.
@@ -124,7 +124,7 @@ func (o *Operation) UnmarshalJSON(data []byte) error {
 }
 
 // Backend names the parser that a sequence runs on, as the sequence format and the -backend flag of
-// zp editfuzz write it.
+// sxir editfuzz write it.
 type Backend string
 
 // The backends.

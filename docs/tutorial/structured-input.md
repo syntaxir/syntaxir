@@ -10,7 +10,7 @@ A grammar for files of `key = value` lines with comments, and the tree it produc
 
 ## Before You Start
 
-Complete [Getting Started With ZeroParse](getting-started.md). Work in the same directory.
+Complete [Getting Started With SyntaxIR](getting-started.md). Work in the same directory.
 
 ## Building Blocks
 
@@ -21,11 +21,11 @@ word, an equals sign, and a number, as in `port=8080`.
 
 A **character class** `[...]` matches one character from a set written as characters and ranges: `[a-z]` is a
 lowercase ASCII letter and `[0-9]` is a digit. `+` after an expression repeats it one or more times (`*` is zero or
-more, `?` is zero or one). A rule can call another rule by name. Save as `kv.zp`; each step below replaces its
+more, `?` is zero or one). A rule can call another rule by name. Save as `kv.sxir`; each step below replaces its
 contents with the next version:
 
-```zp
-// kv.zp
+```sxir
+// kv.sxir
 @start
 rule main = key "=" value
 rule key = [a-z]+
@@ -33,7 +33,7 @@ rule value = [0-9]+
 ```
 
 ```bash
-zp parse -g kv.zp -f sexpr -i 'port=8080'
+sxir parse -g kv.sxir -f sexpr -i 'port=8080'
 ```
 
 ```text
@@ -48,8 +48,8 @@ single-letter strings.
 `expr #atomic` matches `expr` and produces one string node holding all of the matched text, without building a node for each
 part. `[a-z]+ #atomic` applies atomic construction suppression to the repeated character class:
 
-```zp
-// kv.zp
+```sxir
+// kv.sxir
 @start
 rule main = key "=" value
 rule key = [a-z]+ #atomic
@@ -65,8 +65,8 @@ rule value = [0-9]+ #atomic
 The `=` is needed to parse the input but is of no interest in the tree. `-expr` matches `expr` and throws the result
 away:
 
-```zp
-// kv.zp
+```sxir
+// kv.sxir
 @start
 rule main = key -"=" value
 rule key = [a-z]+ #atomic
@@ -83,8 +83,8 @@ A **capture** `name:expr` gives the value of `expr` a name. The tree is unchange
 the sequence, but actions refer to it as `$name`, as the next step shows. The names appear in the output when you ask for
 source information with `-source-info`:
 
-```zp
-// kv.zp
+```sxir
+// kv.sxir
 @start
 rule main = k:key "=" v:value
 rule key = [a-z]+ #atomic
@@ -96,7 +96,7 @@ rule value = [0-9]+ #atomic
 ```
 
 ```bash
-zp parse -g kv.zp -f sexpr -source-info -i 'port=8080'
+sxir parse -g kv.sxir -f sexpr -source-info -i 'port=8080'
 ```
 
 ```text
@@ -108,10 +108,10 @@ The label and the colon must be written together (`k:key`, not `k :key`).
 ### Value Actions and Struct Types: `=>`
 
 An **action** builds the value of a rule yourself. It is written after `=>` inside the rule body, and can create a value of a struct type
-declared with `type`. This is the grammar from the README (`kv.zp`, final version):
+declared with `type`. This is the grammar from the README (`kv.sxir`, final version):
 
-```zp
-// kv.zp
+```sxir
+// kv.sxir
 type Pair = { Key node[string]; Value node[string] }
 
 @start
@@ -119,7 +119,7 @@ rule main = k:[a-z]+ #atomic "=" v:[0-9]+ #atomic => Pair{Key: $k, Value: $v}
 ```
 
 ```bash
-zp parse -g kv.zp -f sexpr -i 'abc=12'
+sxir parse -g kv.sxir -f sexpr -i 'abc=12'
 ```
 
 ```text
@@ -159,10 +159,10 @@ debug = true
 EOF
 ```
 
-Save the following grammar as `config-cst.zp`. It produces plain syntax-tree nodes, with no actions; the next lesson adds types.
+Save the following grammar as `config-cst.sxir`. It produces plain syntax-tree nodes, with no actions; the next lesson adds types.
 
-```zp
-// config-cst.zp
+```sxir
+// config-cst.sxir
 @start
 rule main = -ws entry* $$
 
@@ -180,16 +180,16 @@ rule comment = "#" [^\n]*
 ```
 
 ```bash
-zp parse -g config-cst.zp -f sexpr < example.conf
+sxir parse -g config-cst.sxir -f sexpr < example.conf
 ```
 
 ```text
 ([("host" "\"localhost\"") ("port" "8080") ("debug" "true")])
 ```
 
-Without `-i`, `zp parse` reads the input from standard input. The new pieces:
+Without `-i`, `sxir parse` reads the input from standard input. The new pieces:
 
-- **Whitespace is explicit.** ZeroParse does not skip whitespace for you. The rule `ws` matches any run of blanks, newlines
+- **Whitespace is explicit.** SyntaxIR does not skip whitespace for you. The rule `ws` matches any run of blanks, newlines
   and comments, and the grammar says where it is allowed. Each `entry` consumes the whitespace after itself, and
   `main` starts with one `-ws` for the whitespace before the first entry. Whitespace is discarded with `-`, so it never
   appears in the tree.
@@ -199,18 +199,18 @@ Without `-i`, `zp parse` reads the input from standard input. The new pieces:
   matches. Order matters: with `("a" / "ab") $$`, the input `ab` fails because `"a"` matches first and is never
   reconsidered.
 
-  ```zp
-  // ab.zp
+  ```sxir
+  // ab.sxir
   @start
   rule main = ("a" / "ab") $$
   ```
 
   ```bash
-  zp parse -g ab.zp -f sexpr -i 'ab'
+  sxir parse -g ab.sxir -f sexpr -i 'ab'
   ```
 
   ```text
-  zp: 1:2: syntax error: expected end of input
+  sxir: 1:2: syntax error: expected end of input
   ```
 
   Write `("ab" / "a")` (the longer alternative first) to accept both.

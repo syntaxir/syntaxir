@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // TestGeneratedTraceOptionsNeedObservability checks that a parser generated without observability
@@ -52,21 +52,21 @@ import (
 	"strings"
 	"testing"
 
-	zprt "zeroparse.dev/zp/pkg/runtime/libgo"
-	zpinstrument "zeroparse.dev/zp/pkg/runtime/instrument"
+	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
+	sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
 )
 
 func TestTraceOptions(t *testing.T) {
 	observed := `+want+`
 	var events int
-	var profile zpinstrument.Profile
-	trace := func(zpinstrument.TraceEvent) { events++ }
+	var profile sxirinstrument.Profile
+	trace := func(sxirinstrument.TraceEvent) { events++ }
 	for name, opts := range map[string][]ParseOption{
-		"trace":       {zprt.WithTrace(trace)},
-		"profile":     {zprt.WithProfile(&profile)},
-		"filter":      {zprt.WithTraceFilter("main")},
-		"trace depth": {zprt.WithTraceMaxDepth(1)},
-		"both":        {zprt.WithTrace(trace), zprt.WithProfile(&profile)},
+		"trace":       {sxirrt.WithTrace(trace)},
+		"profile":     {sxirrt.WithProfile(&profile)},
+		"filter":      {sxirrt.WithTraceFilter("main")},
+		"trace depth": {sxirrt.WithTraceMaxDepth(1)},
+		"both":        {sxirrt.WithTrace(trace), sxirrt.WithProfile(&profile)},
 	} {
 		entries := map[string]func() error{
 			"Parse":     func() error { _, err := Parse("aa", opts...); return err },

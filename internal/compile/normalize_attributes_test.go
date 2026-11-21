@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
-	"zeroparse.dev/zp/internal/frontend/desugar"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend/desugar"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 var normalizationBenchmarkGrammar *ast.Grammar
@@ -19,12 +19,12 @@ func BenchmarkAttributeNormalization(b *testing.B) {
 		"pragmas":    `rule main = ("a" #repeat(1, 3) #atomic ";") #recover(skip=[^;]+ ";") $$`,
 		"operators":  `rule main = #operators { skip " "*; operand [0-9]+; operand "(" main ")"; level { infix left "+" / "-" }; level product { infix left "*" / "/" } }`,
 	}
-	source, err := os.ReadFile("../../zp.zp")
+	source, err := os.ReadFile("../../sxir.sxir")
 	if err != nil {
 		b.Fatal(err)
 	}
 	sources["source-grammar"] = string(source)
-	for name, path := range map[string]string{"json": "../../testdata/grammars/json/json.zp", "minilang": "../../examples/minilang/minilang.zp"} {
+	for name, path := range map[string]string{"json": "../../testdata/grammars/json/json.sxir", "minilang": "../../examples/minilang/minilang.sxir"} {
 		data, err := os.ReadFile(path)
 		if err != nil {
 			b.Fatal(err)

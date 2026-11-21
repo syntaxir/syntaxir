@@ -3,7 +3,7 @@
 // The dialect is legal at the Flow and the Exec stage.
 package action
 
-import "zeroparse.dev/zp/internal/ir/code"
+import "syntaxir.dev/sxir/internal/ir/code"
 
 // Dialect is the name of the dialect, the Dialect of its operations.
 const Dialect = "action"

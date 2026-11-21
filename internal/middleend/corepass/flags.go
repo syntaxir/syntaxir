@@ -1,6 +1,6 @@
 package corepass
 
-import "zeroparse.dev/zp/internal/pass"
+import "syntaxir.dev/sxir/internal/pass"
 
 // The Core passes register their flags under the names of the passes.
 func init() {

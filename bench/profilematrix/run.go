@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"zeroparse.dev/zp/internal/bench/inputs"
-	"zeroparse.dev/zp/internal/bench/probe"
+	"syntaxir.dev/sxir/internal/bench/inputs"
+	"syntaxir.dev/sxir/internal/bench/probe"
 )
 
 type variant struct {
@@ -46,7 +46,7 @@ var scaledInputs = map[string]func() string{
 // the use that the flags of the generated Document and of ParseStream touch.
 type row struct {
 	grammar string   // the grammar and the line of generate.txt
-	extra   []string // options of zp gen added to those of generate.txt
+	extra   []string // options of sxir gen added to those of generate.txt
 	main    string   // the measuring program
 }
 
@@ -111,14 +111,14 @@ func run(cfg config, out, log io.Writer) error {
 	}
 	work := cfg.Work
 	if work == "" {
-		if work, err = os.MkdirTemp("", "zp-profilematrix-"); err != nil {
+		if work, err = os.MkdirTemp("", "sxir-profilematrix-"); err != nil {
 			return err
 		}
 		defer os.RemoveAll(work)
 	} else if err := os.MkdirAll(work, 0o755); err != nil {
 		return err
 	}
-	zpBin, err := probe.BuildZP(root, work)
+	sxirBin, err := probe.BuildSXIR(root, work)
 	if err != nil {
 		return err
 	}
@@ -137,7 +137,7 @@ func run(cfg config, out, log io.Writer) error {
 		baseDir := ""
 		for _, v := range variants {
 			fmt.Fprintf(log, "generate %s %s\n", g, v.Name)
-			dir, err := generate(root, zpBin, work, g, r, v)
+			dir, err := generate(root, sxirBin, work, g, r, v)
 			if err != nil {
 				return fmt.Errorf("%s %s: %w", g, v.Name, err)
 			}
@@ -153,7 +153,7 @@ func run(cfg config, out, log io.Writer) error {
 				noEffect[g+"\x00"+v.Name] = same
 			}
 			if r.grammar == g && cfg.TS {
-				if err := recordTS(root, zpBin, work, g, v, c); err != nil {
+				if err := recordTS(root, sxirBin, work, g, v, c); err != nil {
 					return fmt.Errorf("%s %s: %w", g, v.Name, err)
 				}
 			}
@@ -245,9 +245,9 @@ func writeInputs(root, work, name string) error {
 }
 
 // generate generates a variant of a row into a directory of work and returns the directory.
-func generate(root, zpBin, work, name string, r row, v variant) (string, error) {
+func generate(root, sxirBin, work, name string, r row, v variant) (string, error) {
 	genDir := filepath.Join(work, "gen", name, v.Name)
-	if err := probe.GenerateGo(root, zpBin, genDir, r.grammar, append(slices.Clone(r.extra), v.Args...)...); err != nil {
+	if err := probe.GenerateGo(root, sxirBin, genDir, r.grammar, append(slices.Clone(r.extra), v.Args...)...); err != nil {
 		return "", err
 	}
 	return genDir, nil
@@ -291,9 +291,9 @@ func sameDir(a, b string) (bool, error) {
 }
 
 // recordTS generates the TypeScript parser of a grammar and records its sizes.
-func recordTS(root, zpBin, work, grammar string, v variant, c cells) error {
+func recordTS(root, sxirBin, work, grammar string, v variant, c cells) error {
 	tsDir := filepath.Join(work, "ts", grammar, v.Name)
-	if err := probe.GenerateTS(root, zpBin, tsDir, grammar, v.Args...); err != nil {
+	if err := probe.GenerateTS(root, sxirBin, tsDir, grammar, v.Args...); err != nil {
 		return err
 	}
 	raw, gz, err := probe.SizeOfFile(filepath.Join(tsDir, "parser.ts"))

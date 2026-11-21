@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"strings"
 
-	"zeroparse.dev/zp/internal/cancel"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/cancel"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // CharClassStringControlled is CharClassString polling control for cancellation; a nil control

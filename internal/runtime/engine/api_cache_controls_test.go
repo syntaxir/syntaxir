@@ -3,8 +3,8 @@ package engine_test
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/pkg/runtime"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/pkg/runtime"
 )
 
 func TestPublicDocumentCacheControls(t *testing.T) {

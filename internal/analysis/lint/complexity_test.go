@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/analysis/complexity"
-	"zeroparse.dev/zp/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/analysis/complexity"
+	"syntaxir.dev/sxir/internal/frontend/parser"
 )
 
 func TestGrowingVariable(t *testing.T) {
@@ -63,7 +63,7 @@ func TestSuperLinear(t *testing.T) {
 }
 
 // TestExampleClassifications pins the classes of the example grammars from their default start
-// rules, which zp lint -classify shows, with the degree of a polynomial class or the witnessed
+// rules, which sxir lint -classify shows, with the degree of a polynomial class or the witnessed
 // degree of the class unknown.
 func TestExampleClassifications(t *testing.T) {
 	for _, tc := range []struct {
@@ -71,10 +71,10 @@ func TestExampleClassifications(t *testing.T) {
 		class  complexity.ComplexityClass
 		degree int
 	}{
-		{"calculator/calc.zp", complexity.ClassLinear, 0},
-		{"calculator/calc_lr.zp", complexity.ClassLinear, 0},
-		{"minilang/minilang.zp", complexity.ClassUnknown, 2},
-		{"outline/outline.zp", complexity.ClassUnknown, 3},
+		{"calculator/calc.sxir", complexity.ClassLinear, 0},
+		{"calculator/calc_lr.sxir", complexity.ClassLinear, 0},
+		{"minilang/minilang.sxir", complexity.ClassUnknown, 2},
+		{"outline/outline.sxir", complexity.ClassUnknown, 3},
 	} {
 		t.Run(tc.file, func(t *testing.T) {
 			src, err := os.ReadFile("../../../examples/" + tc.file)

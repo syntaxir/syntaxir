@@ -3,16 +3,16 @@ package state_test
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/actionlower"
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/ir/code/exec/conform"
-	ir "zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/internal/runtime/program"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/internal/testing/compiletest"
-	"zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/backend/actionlower"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
+	ir "syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/runtime/program"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/compiletest"
+	"syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // TestEngineValueIterTable runs the iteration table (conform.IterCases) on the engine's compositions itemAt and

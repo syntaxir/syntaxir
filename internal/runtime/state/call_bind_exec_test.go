@@ -2,7 +2,7 @@
 
 package state
 
-import zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+import sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 
 // confCallTracked runs call.tracked for the conformance suite.
 // Printed from Exec IR function confCallTracked of internal/ir/code/exec/compose, specialized for document.
@@ -14,7 +14,7 @@ func (p *Parser) confCallTracked() bool {
 
 // confCallTrack runs call.track for the conformance suite.
 // Printed from Exec IR function confCallTrack of internal/ir/code/exec/compose, specialized for document.
-func (p *Parser) confCallTrack(r *Rule, min int) (*zpvalue.Node, bool) {
+func (p *Parser) confCallTrack(r *Rule, min int) (*sxirvalue.Node, bool) {
 	r0, r1 := p.tracedCall(r, min)
 	return r0, r1
 }

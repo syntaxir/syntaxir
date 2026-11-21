@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
 )
 
 // The copy of the library that a parser carries (LibEmbed) holds only what the parser can run. The
@@ -507,7 +507,7 @@ func recvName(e goast.Expr) string {
 
 // importNames are the package names of the imports of the library whose last path element is not
 // their name.
-var importNames = map[string]string{"zeroparse.dev/zp/pkg/runtime/value/impl": "valueimpl"}
+var importNames = map[string]string{"syntaxir.dev/sxir/pkg/runtime/value/impl": "valueimpl"}
 
 // dropUnusedImports returns src without the imports whose package it no longer names.
 func dropUnusedImports(name string, src []byte) ([]byte, error) {

@@ -5,16 +5,16 @@ import (
 	"path/filepath"
 	"testing"
 
-	"zeroparse.dev/zp/internal/bench/inputs"
+	"syntaxir.dev/sxir/internal/bench/inputs"
 )
 
 // TestExportTSInputs writes the inputs of the plain-parse TypeScript throughput script
-// (ts-parse.mjs) to the directory named by ZP_TS_INPUT_DIR, one file per workload. It does
+// (ts-parse.mjs) to the directory named by SXIR_TS_INPUT_DIR, one file per workload. It does
 // nothing without the variable.
 func TestExportTSInputs(t *testing.T) {
-	dir := os.Getenv("ZP_TS_INPUT_DIR")
+	dir := os.Getenv("SXIR_TS_INPUT_DIR")
 	if dir == "" {
-		t.Skip("ZP_TS_INPUT_DIR is not set")
+		t.Skip("SXIR_TS_INPUT_DIR is not set")
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)

@@ -11,14 +11,14 @@
 set -euo pipefail
 # shellcheck source=lib.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
-D=$zp_state
+D=$sxir_state
 echo "state: $D"
 L=$D/benchlock
 stale=()
 if [ -f "$L/owner" ]; then
   read -r otag opid _ < "$L/owner" || true
   echo "lock: exclusive, owner ${otag:-} ${opid:-}"
-  if [ -n "${opid:-}" ] && ! zp_bench_live "$opid" "$otag"; then
+  if [ -n "${opid:-}" ] && ! sxir_bench_live "$opid" "$otag"; then
     stale+=("exclusive holder $otag $opid is gone; it holds benchlock/")
   fi
 elif [ -d "$L/shared" ]; then
@@ -27,12 +27,12 @@ elif [ -d "$L/shared" ]; then
     [ -f "$e" ] || continue
     read -r htag hpid _ < "$e" || true
     holders+=("${htag:-} ${hpid:-}")
-    if [ -n "${hpid:-}" ] && ! zp_bench_live "$hpid" "$htag"; then
+    if [ -n "${hpid:-}" ] && ! sxir_bench_live "$hpid" "$htag"; then
       stale+=("shared holder $htag $hpid is gone; its slot ${e##*/} holds benchlock/")
     fi
   done
   list=$(printf '%s, ' ${holders[@]+"${holders[@]}"}); list=${list%, }
-  echo "lock: shared, ${#holders[@]} of $(zp_shared_slots) slots: $list"
+  echo "lock: shared, ${#holders[@]} of $(sxir_shared_slots) slots: $list"
 elif [ -d "$L" ]; then
   echo "lock: held, no owner yet: $(find "$L" -mindepth 1 -maxdepth 1 2>/dev/null | sed 's|.*/||' | tr '\n' ' ')"
 else
@@ -40,15 +40,15 @@ else
 fi
 for f in "$D"/runs/*; do
   [ -f "$f" ] || continue
-  read -r _ start seq class <<< "$(zp_run_fields "$f")" || continue
+  read -r _ start seq class <<< "$(sxir_run_fields "$f")" || continue
   printf '%s %s %s\t%s\n' "$start" "$seq" "$class" "$(cut -c1-200 "$f" 2>/dev/null || true)"
 done | sort
 q=0; r=0
 for f in "$D"/runs/*; do
   [ -f "$f" ] || continue
-  read -r st _ <<< "$(zp_run_fields "$f")" || continue
+  read -r st _ <<< "$(sxir_run_fields "$f")" || continue
   ft=${f##*/}
-  if ! zp_bench_live "${ft##*.}" "${ft%.*}"; then
+  if ! sxir_bench_live "${ft##*.}" "${ft%.*}"; then
     stale+=("$st record $ft: its benchlock.sh is gone")
     continue
   fi

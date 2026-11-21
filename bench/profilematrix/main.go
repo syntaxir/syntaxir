@@ -7,7 +7,7 @@
 //	    -variant speed= -variant size='-optimize size' -variant nosharing='-no-opt method-sharing' \
 //	    -control -rounds 8
 //
-// A variant is NAME=ARGS, where ARGS are options of zp gen added to the options of
+// A variant is NAME=ARGS, where ARGS are options of sxir gen added to the options of
 // testdata/grammars/generate.txt (they may be empty). The first variant is the baseline; the ratios are
 // relative to it. -control adds a copy of the baseline under the name "control": its ratios show the
 // noise of the machine, and the deterministic metrics must equal the baseline's.
@@ -48,7 +48,7 @@ func (v *variantFlags) Set(s string) error { *v = append(*v, s); return nil }
 
 func main() {
 	var variants variantFlags
-	flag.Var(&variants, "variant", "NAME=ARGS: a variant, with options of zp gen in ARGS (repeatable; the first is the baseline)")
+	flag.Var(&variants, "variant", "NAME=ARGS: a variant, with options of sxir gen in ARGS (repeatable; the first is the baseline)")
 	root := flag.String("root", ".", "the root of the repository")
 	grammars := flag.String("grammars", "", "grammars to measure, comma-separated (default: the ten language grammars)")
 	rounds := flag.Int("rounds", 8, "rounds of measurements; the minimum time is kept")

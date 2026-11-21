@@ -6,11 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
-// ZP_TYPED_FRAME_LAYOUT_DIR preserves same-generator layout controls for
+// SXIR_TYPED_FRAME_LAYOUT_DIR preserves same-generator layout controls for
 // timing prebuilt fixture binaries independently of generation and compilation.
 func TestGeneratedTypedFrameLayoutWorkloads(t *testing.T) {
 	t.Parallel()
@@ -21,7 +21,7 @@ func testGeneratedTypedFrameLayoutWorkloads(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds generated code")
 	}
-	dir := os.Getenv("ZP_TYPED_FRAME_LAYOUT_DIR")
+	dir := os.Getenv("SXIR_TYPED_FRAME_LAYOUT_DIR")
 	if dir == "" {
 		dir = t.TempDir()
 	}
@@ -57,11 +57,11 @@ rule atom Atom = t:("a") #atomic => Atom{Text: text($t)}
 // This measures generation separately from matching, using the same source
 // and a generation-only environment-selected reference before timing starts.
 func BenchmarkTypedFrameLayoutGeneration(b *testing.B) {
-	calculator, err := os.ReadFile("../../../../../examples/calculator/calc.zp")
+	calculator, err := os.ReadFile("../../../../../examples/calculator/calc.sxir")
 	if err != nil {
 		b.Fatal(err)
 	}
-	typescript, err := os.ReadFile("../../../../../testdata/grammars/typescript/typescript.zp")
+	typescript, err := os.ReadFile("../../../../../testdata/grammars/typescript/typescript.sxir")
 	if err != nil {
 		b.Fatal(err)
 	}

@@ -21,7 +21,7 @@ flag in one registry:
 - the module can be printed after any pass.
 
 The default pipeline produces the generated output of the former hand-written sequences byte for byte. Users select a
-profile with `zp gen -optimize`, set flags with `-opt`, remove optimizations with `-no-opt`, and print the Core IR with `-print-after`.
+profile with `sxir gen -optimize`, set flags with `-opt`, remove optimizations with `-no-opt`, and print the Core IR with `-print-after`.
 
 ## Motivation
 
@@ -224,7 +224,7 @@ stripped binary 0.986 of `speed`'s, for a parse time of 1.022. A third candidate
 `guarded-classes` made the source 15% smaller but parsing 14% slower (29% on one grammar) and was dropped. Adding a profile is a row
 in the registry, a consumer of the profile name, and a measurement against the rule above.
 
-The word "profile" already names the rule profiler (`zp profile`, `WithProfile`), so the flag that selects a profile is
+The word "profile" already names the rule profiler (`sxir profile`, `WithProfile`), so the flag that selects a profile is
 `-optimize`.
 
 ### Print After Pass
@@ -240,20 +240,20 @@ the same hook.
 
 Three surfaces were considered.
 
-**Option A: Internal only.** Flags exist for tests and diagnostics through private fields. `zp gen` and the Go options
+**Option A: Internal only.** Flags exist for tests and diagnostics through private fields. `sxir gen` and the Go options
 do not change. Profiles are not offered.
 
-**Option B: Profiles.** `zp gen -optimize speed|memory|size` and a Go option select a profile. Per-pass flags stay
+**Option B: Profiles.** `sxir gen -optimize speed|memory|size` and a Go option select a profile. Per-pass flags stay
 internal.
 
-**Option C: Profiles and per-optimization flags.** Option B plus `zp gen -no-opt name[,name]` for reproducing a
+**Option C: Profiles and per-optimization flags.** Option B plus `sxir gen -no-opt name[,name]` for reproducing a
 miscompilation or measuring one optimization, and `-print-after name|all` for the IR dump.
 
 Decision: **C, with the profile flag named `-optimize`.** The Go API mirrors the flags in the fields of `codegen.Go` and
 `codegen.TypeScript`, as `Types` mirrors `-types`: `Optimize string`, `Opt map[string]int`, `NoOpt []string`, `PrintAfter string` and
 `PrintTo io.Writer`. A profile is applied first, then `-opt` sets flags, and `-no-opt` removes optimizations, so `-optimize size -no-opt
 guards` is `size` without `guards`, and the same flag in `-opt` and `-no-opt` is off. `PrintAfter` without `PrintTo` is an error. The name `-optimize` avoids the rule
-profiler's `zp profile` and `WithProfile`. The flags and the names are described in the
+profiler's `sxir profile` and `WithProfile`. The flags and the names are described in the
 [code-generation guide](../../guide/code-generation.md#optimizations); the
 [specification of generated parsers](../../../spec/runtime/generated-parsers.md) does not change, because it constrains
 the parser's behavior, not the generated code. Optimization names follow the pass set, which record 062 expects to
@@ -315,7 +315,7 @@ plain fields, and their options are fields. Rejected for consistency.
   (plain, with observability, with limit controls), the recognizer, the Document runner, `ParseStream`, and TypeScript in four
   modes (`TestProfilesParity`, `TestProfilesRouteParity`, `TestProfilesStreamParity`, `TestProfilesTSParity`), and each profile
   must change the generated code of some case. The Document route has a negative control.
-- Options: the fields of `codegen.Go` and `codegen.TypeScript` and the flags of `zp gen` reject an unknown profile, optimization
+- Options: the fields of `codegen.Go` and `codegen.TypeScript` and the flags of `sxir gen` reject an unknown profile, optimization
   and pass, accept `speed`, apply `Opt` and then `NoOpt` in that order (`NoOpt` wins), and change the output only through them.
 
 ## Performance and Results

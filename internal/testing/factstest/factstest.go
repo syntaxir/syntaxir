@@ -17,74 +17,74 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/internal/middleend/corepass"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/corepass"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 var update = flag.Bool("update-facts", false, "rewrite the grammar facts golden files")
 
 // Corpus lists the grammars whose facts are pinned, relative to the repository root.
 var Corpus = []string{
-	"bench/grammars/terms/heavy.zp",
-	"bench/grammars/terms/pred.zp",
-	"examples/calculator/calc_lr.zp",
-	"examples/calculator/calc.zp",
-	"examples/minilang/minilang.zp",
-	"examples/outline/outline.zp",
-	"internal/backend/codegen/golang/print/testdata/routes/lr_calls_ops.zp",
-	"internal/backend/codegen/golang/print/testdata/routes/lr_inline.zp",
-	"internal/backend/codegen/golang/print/testdata/routes/lr_looks.zp",
-	"internal/backend/codegen/golang/print/testdata/routes/lr_recover_rep.zp",
-	"internal/backend/codegen/golang/print/testdata/routes/lr_recover.zp",
-	"internal/backend/codegen/golang/print/testdata/routes/ops_lines.zp",
-	"internal/backend/codegen/golang/print/testdata/routes/ops_recover.zp",
-	"internal/backend/codegen/golang/print/testdata/routes/recover_nested.zp",
-	"internal/backend/codegen/golang/print/testdata/routes/scopes.zp",
-	"internal/testing/codegentest/testdata/typed/calclr.zp",
-	"internal/testing/codegentest/testdata/typed/direct_backtrack.zp",
-	"internal/testing/codegentest/testdata/typed/direct_errors.zp",
-	"internal/testing/codegentest/testdata/typed/direct_lists.zp",
-	"internal/testing/codegentest/testdata/typed/direct_literals.zp",
-	"internal/testing/codegentest/testdata/typed/direct_names.zp",
-	"internal/testing/codegentest/testdata/typed/element_scope_optional.zp",
-	"internal/testing/codegentest/testdata/typed/element_scope_plain.zp",
-	"internal/testing/codegentest/testdata/typed/element_scope_recover.zp",
-	"internal/testing/codegentest/testdata/typed/errlist.zp",
-	"internal/testing/codegentest/testdata/typed/errlist2.zp",
-	"internal/testing/codegentest/testdata/typed/fields.zp",
-	"internal/testing/codegentest/testdata/typed/mix.zp",
-	"internal/testing/codegentest/testdata/typed/mixf.zp",
-	"internal/testing/codegentest/testdata/typed/operators_rule1.zp",
-	"internal/testing/codegentest/testdata/typed/operators_rule1f.zp",
-	"internal/testing/codegentest/testdata/typed/order.zp",
-	"internal/testing/codegentest/testdata/typed/proj1.zp",
-	"internal/testing/codegentest/testdata/typed/proj2.zp",
-	"internal/testing/codegentest/testdata/typed/proj3.zp",
-	"internal/testing/codegentest/testdata/typed/proj4.zp",
-	"internal/testing/codegentest/testdata/typed/proj5.zp",
-	"internal/testing/codegentest/testdata/typed/proj6.zp",
-	"internal/testing/codegentest/testdata/typed/proj7.zp",
-	"internal/testing/codegentest/testdata/typed/spanname.zp",
-	"internal/testing/codegentest/testdata/typed/splice_recursive_capture_action.zp",
-	"internal/testing/codegentest/testdata/typed/splice_recursive_capture.zp",
-	"internal/testing/codegentest/testdata/typed/splice_recursive_choice_in_seq.zp",
-	"internal/testing/codegentest/testdata/typed/splice_recursive_choice.zp",
-	"internal/testing/codegentest/testdata/typed/splice_recursive_optional.zp",
-	"internal/testing/codegentest/testdata/typed/splice_recursive_repeat.zp",
-	"internal/testing/codegentest/testdata/typed/unif.zp",
-	"spec/language/testdata/comment-boundaries.zp",
-	"testdata/grammars/cel/cel.zp",
-	"testdata/grammars/csv/csv.zp",
-	"testdata/grammars/cue/cue.zp",
-	"testdata/grammars/duckdb/duckdb.zp",
-	"testdata/grammars/golang/golang.zp",
-	"testdata/grammars/json/json.zp",
-	"testdata/grammars/python/python.zp",
-	"testdata/grammars/typescript/typescript.zp",
-	"testdata/grammars/xml/xml.zp",
-	"testdata/grammars/yaml/yaml.zp",
-	"zp.zp",
+	"bench/grammars/terms/heavy.sxir",
+	"bench/grammars/terms/pred.sxir",
+	"examples/calculator/calc_lr.sxir",
+	"examples/calculator/calc.sxir",
+	"examples/minilang/minilang.sxir",
+	"examples/outline/outline.sxir",
+	"internal/backend/codegen/golang/print/testdata/routes/lr_calls_ops.sxir",
+	"internal/backend/codegen/golang/print/testdata/routes/lr_inline.sxir",
+	"internal/backend/codegen/golang/print/testdata/routes/lr_looks.sxir",
+	"internal/backend/codegen/golang/print/testdata/routes/lr_recover_rep.sxir",
+	"internal/backend/codegen/golang/print/testdata/routes/lr_recover.sxir",
+	"internal/backend/codegen/golang/print/testdata/routes/ops_lines.sxir",
+	"internal/backend/codegen/golang/print/testdata/routes/ops_recover.sxir",
+	"internal/backend/codegen/golang/print/testdata/routes/recover_nested.sxir",
+	"internal/backend/codegen/golang/print/testdata/routes/scopes.sxir",
+	"internal/testing/codegentest/testdata/typed/calclr.sxir",
+	"internal/testing/codegentest/testdata/typed/direct_backtrack.sxir",
+	"internal/testing/codegentest/testdata/typed/direct_errors.sxir",
+	"internal/testing/codegentest/testdata/typed/direct_lists.sxir",
+	"internal/testing/codegentest/testdata/typed/direct_literals.sxir",
+	"internal/testing/codegentest/testdata/typed/direct_names.sxir",
+	"internal/testing/codegentest/testdata/typed/element_scope_optional.sxir",
+	"internal/testing/codegentest/testdata/typed/element_scope_plain.sxir",
+	"internal/testing/codegentest/testdata/typed/element_scope_recover.sxir",
+	"internal/testing/codegentest/testdata/typed/errlist.sxir",
+	"internal/testing/codegentest/testdata/typed/errlist2.sxir",
+	"internal/testing/codegentest/testdata/typed/fields.sxir",
+	"internal/testing/codegentest/testdata/typed/mix.sxir",
+	"internal/testing/codegentest/testdata/typed/mixf.sxir",
+	"internal/testing/codegentest/testdata/typed/operators_rule1.sxir",
+	"internal/testing/codegentest/testdata/typed/operators_rule1f.sxir",
+	"internal/testing/codegentest/testdata/typed/order.sxir",
+	"internal/testing/codegentest/testdata/typed/proj1.sxir",
+	"internal/testing/codegentest/testdata/typed/proj2.sxir",
+	"internal/testing/codegentest/testdata/typed/proj3.sxir",
+	"internal/testing/codegentest/testdata/typed/proj4.sxir",
+	"internal/testing/codegentest/testdata/typed/proj5.sxir",
+	"internal/testing/codegentest/testdata/typed/proj6.sxir",
+	"internal/testing/codegentest/testdata/typed/proj7.sxir",
+	"internal/testing/codegentest/testdata/typed/spanname.sxir",
+	"internal/testing/codegentest/testdata/typed/splice_recursive_capture_action.sxir",
+	"internal/testing/codegentest/testdata/typed/splice_recursive_capture.sxir",
+	"internal/testing/codegentest/testdata/typed/splice_recursive_choice_in_seq.sxir",
+	"internal/testing/codegentest/testdata/typed/splice_recursive_choice.sxir",
+	"internal/testing/codegentest/testdata/typed/splice_recursive_optional.sxir",
+	"internal/testing/codegentest/testdata/typed/splice_recursive_repeat.sxir",
+	"internal/testing/codegentest/testdata/typed/unif.sxir",
+	"spec/language/testdata/comment-boundaries.sxir",
+	"testdata/grammars/cel/cel.sxir",
+	"testdata/grammars/csv/csv.sxir",
+	"testdata/grammars/cue/cue.sxir",
+	"testdata/grammars/duckdb/duckdb.sxir",
+	"testdata/grammars/golang/golang.sxir",
+	"testdata/grammars/json/json.sxir",
+	"testdata/grammars/python/python.sxir",
+	"testdata/grammars/typescript/typescript.sxir",
+	"testdata/grammars/xml/xml.sxir",
+	"testdata/grammars/yaml/yaml.sxir",
+	"sxir.sxir",
 }
 
 // Root returns the repository root: the nearest directory above the working directory with the
@@ -96,7 +96,7 @@ func Root(tb testing.TB) string {
 		tb.Fatal(err)
 	}
 	for {
-		if b, err := os.ReadFile(filepath.Join(dir, "go.mod")); err == nil && strings.HasPrefix(string(b), "module zeroparse.dev/zp\n") {
+		if b, err := os.ReadFile(filepath.Join(dir, "go.mod")); err == nil && strings.HasPrefix(string(b), "module syntaxir.dev/sxir\n") {
 			return dir
 		}
 		up := filepath.Dir(dir)
@@ -237,7 +237,7 @@ func Golden(tb testing.TB, path, got string) {
 }
 
 func goldenName(path string) string {
-	return strings.ReplaceAll(strings.TrimSuffix(path, ".zp"), "/", "__") + ".txt"
+	return strings.ReplaceAll(strings.TrimSuffix(path, ".sxir"), "/", "__") + ".txt"
 }
 
 // GoldenFile compares got with the file name in this package's testdata, or rewrites it when the

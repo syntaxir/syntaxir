@@ -14,9 +14,9 @@ import (
 	"sync"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/backend/codegen/golang/print"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // The generated fixtures are built in two forms: with budget controls, so that the tests of
@@ -29,7 +29,7 @@ import (
 // subtests inherit it, so that tests in either form run in parallel. Set in the environment of go
 // test, modeEnv restricts the run to one form: EachMode then runs its body once, in that form,
 // and the tests that need controls skip under "1".
-const modeEnv = "ZP_TEST_ORDINARY"
+const modeEnv = "SXIR_TEST_ORDINARY"
 
 // EnvForm is the form to which the environment restricts the run, or "".
 var EnvForm = os.Getenv(modeEnv)
@@ -129,7 +129,7 @@ var fixtureModes = []struct{ name, value string }{{"controls", "0"}, {"ordinary"
 
 // EachMode runs body once per form of the generated fixtures, as the parallel subtests "controls"
 // and "ordinary", so it must be the caller's last statement. When modeEnv is set in the
-// environment, it runs body once, in that form. In the default tier (without the zp_long tag) it
+// environment, it runs body once, in that form. In the default tier (without the sxir_long tag) it
 // runs one form per test, the one that the FNV-1a hash of the test name picks, so that the tests
 // as a whole still cover both forms; the long tier runs both forms of every test.
 func EachMode(t *testing.T, body func(t *testing.T)) {
@@ -184,12 +184,12 @@ var (
 	libCopyDir  string
 )
 
-// LibCopy returns the directory of a module zeroparse.dev/zp that holds a copy of the packages
+// LibCopy returns the directory of a module syntaxir.dev/sxir that holds a copy of the packages
 // generated code imports (copiedPackages), with the identifiers that testdata/export_names.txt
 // lists renamed in the library package (see ExportNames).
 func LibCopy() string {
 	libCopyOnce.Do(func() {
-		dir, err := os.MkdirTemp("", "zplib-copy")
+		dir, err := os.MkdirTemp("", "sxirlib-copy")
 		if err != nil {
 			panic(err)
 		}
@@ -221,7 +221,7 @@ func writeLibCopy(dir string, patch func(name, src string) string, extra map[str
 			panic(err)
 		}
 	}
-	must(os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module zeroparse.dev/zp\n\ngo 1.27.1\n"), 0o644))
+	must(os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module syntaxir.dev/sxir\n\ngo 1.27.1\n"), 0o644))
 	for i, pkg := range copiedPackages {
 		src, dst := filepath.Join(moduleRoot(), filepath.FromSlash(pkg)), filepath.Join(dir, filepath.FromSlash(pkg))
 		must(os.MkdirAll(dst, 0o755))
@@ -258,7 +258,7 @@ func GoMod(module string) string {
 // GoModAt returns the go.mod of a test module that imports the library from the copy of this
 // module in dir (LibCopy, LibCopyWith).
 func GoModAt(module, dir string) string {
-	return "module " + module + "\n\ngo 1.27.1\n\nrequire zeroparse.dev/zp v0.0.0\n\nreplace zeroparse.dev/zp => " + dir + "\n"
+	return "module " + module + "\n\ngo 1.27.1\n\nrequire syntaxir.dev/sxir v0.0.0\n\nreplace syntaxir.dev/sxir => " + dir + "\n"
 }
 
 // WriteGenerated writes the files of a generated package into dir. A go.mod for the module is

@@ -21,14 +21,14 @@ if [ "${REQUIRE_TSC:-}" = "1" ]; then
 fi
 
 if [ "${REQUIRE_PYTHON:-}" = "1" ]; then
-	python=${ZP_PYTHON:-python3}
+	python=${SXIR_PYTHON:-python3}
 	require_version Python "$("$python" --version 2>&1)" "Python 3.14.0"
 	"$python" -c 'import sys; assert sys.version_info[:3] == (3, 14, 0), sys.version'
 fi
 
 if [ "${REQUIRE_TYPESCRIPT_CORPUS:-}" = "1" ]; then
-	: "${ZP_TYPESCRIPT:?ZP_TYPESCRIPT must name the TypeScript 5.9.3 package}"
-	: "${ZP_TYPESCRIPT_TESTS:?ZP_TYPESCRIPT_TESTS must name the v5.9.3 tests/cases corpus}"
-	node -e 'const p=require(process.argv[1]+"/package.json"); if (p.version !== "5.9.3") throw Error(`expected TypeScript 5.9.3, got ${p.version}`)' "$ZP_TYPESCRIPT"
-	test -d "$ZP_TYPESCRIPT_TESTS"
+	: "${SXIR_TYPESCRIPT:?SXIR_TYPESCRIPT must name the TypeScript 5.9.3 package}"
+	: "${SXIR_TYPESCRIPT_TESTS:?SXIR_TYPESCRIPT_TESTS must name the v5.9.3 tests/cases corpus}"
+	node -e 'const p=require(process.argv[1]+"/package.json"); if (p.version !== "5.9.3") throw Error(`expected TypeScript 5.9.3, got ${p.version}`)' "$SXIR_TYPESCRIPT"
+	test -d "$SXIR_TYPESCRIPT_TESTS"
 fi

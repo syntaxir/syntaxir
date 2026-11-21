@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 // Profile accumulates the cost of each rule over the parses it is given to. Its zero value is

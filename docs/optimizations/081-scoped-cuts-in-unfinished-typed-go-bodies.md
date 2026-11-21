@@ -50,7 +50,7 @@
 Generate same-revision direct and reference fixtures and check parity:
 
 ```sh
-export ZP_TYPED_FRAMED_CUT_DIR=/tmp/zp-typed-framed-cuts
+export SXIR_TYPED_FRAMED_CUT_DIR=/tmp/sxir-typed-framed-cuts
 go test ./internal/backend/codegen/golang/print -run '^TestGeneratedTypedFramedCutWorkloads$' -count=1
 ```
 
@@ -59,8 +59,8 @@ Build each fixture as a separate benchmark binary:
 ```sh
 for workload in lr operatorsRule; do
   for variant in direct general; do
-    fixture="$ZP_TYPED_FRAMED_CUT_DIR/$workload/$variant"
-    (cd "$fixture" && go test -c -o "$ZP_TYPED_FRAMED_CUT_DIR/$workload-$variant.test" .)
+    fixture="$SXIR_TYPED_FRAMED_CUT_DIR/$workload/$variant"
+    (cd "$fixture" && go test -c -o "$SXIR_TYPED_FRAMED_CUT_DIR/$workload-$variant.test" .)
   done
 done
 ```
@@ -77,7 +77,7 @@ for pair in 1 2 3 4 5; do
   fi
   for workload in lr operatorsRule; do
     for variant in "$first" "$second"; do
-      "$ZP_TYPED_FRAMED_CUT_DIR/$workload-$variant.test" -test.run='^$' \
+      "$SXIR_TYPED_FRAMED_CUT_DIR/$workload-$variant.test" -test.run='^$' \
         -test.bench='^BenchmarkTyped(LR|OperatorsRule)$' -test.benchtime=300ms -test.benchmem
     done
   done

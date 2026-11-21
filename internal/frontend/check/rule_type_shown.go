@@ -1,9 +1,9 @@
 package check
 
 import (
-	"zeroparse.dev/zp/internal/cancel"
-	"zeroparse.dev/zp/internal/frontend/types"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/cancel"
+	"syntaxir.dev/sxir/internal/frontend/types"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // shownRuleTypes returns the type of each rule as Program.RuleType shows it: the declared type of

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 func TestGenerateDocumentDiagnosticOwnership(t *testing.T) {
@@ -29,7 +29,7 @@ rule token Token = t:("a;" @error(message="want token")) #atomic => Token{Text: 
 		t.Fatal(err)
 	}
 	dir := t.TempDir()
-	export := os.Getenv("ZP_DOCUMENT_DIAGNOSTIC_BENCH_DIR")
+	export := os.Getenv("SXIR_DOCUMENT_DIAGNOSTIC_BENCH_DIR")
 	if export != "" {
 		dir = export
 		if err := os.MkdirAll(dir, 0755); err != nil {

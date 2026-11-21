@@ -544,4 +544,4 @@ does, and its `stats` has only `evaluated` and `reused`. See
 
 The behavior is established by the document tests of the repository, which
 compare random edits with fresh parses, and by the edit fuzzer of
-`zp edit-fuzz`, which compares every reparse with a fresh parse.
+`sxir edit-fuzz`, which compares every reparse with a fresh parse.

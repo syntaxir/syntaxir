@@ -1,9 +1,9 @@
 package compile
 
 import (
-	"zeroparse.dev/zp/internal/frontend/check"
-	"zeroparse.dev/zp/internal/frontend/desugar"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend/check"
+	"syntaxir.dev/sxir/internal/frontend/desugar"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // walker walks the rule bodies of a program for the compiler: it checks them, reports the errors,

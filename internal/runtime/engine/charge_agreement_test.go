@@ -1,4 +1,4 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package engine
 
@@ -9,10 +9,10 @@ import (
 	"slices"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/document"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/runtime/document"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 // Compute units are abstract units of the specification (spec/runtime/parsing.md#cost): for a
@@ -91,8 +91,8 @@ func chargeLimits(total uint64) []uint64 {
 
 // limitReportOf reports err as chargeRun does.
 func limitReportOf(err error) string {
-	var le *zpruntime.LimitError
-	if errors.As(err, &le) && le.Kind == zpruntime.LimitCompute {
+	var le *sxirruntime.LimitError
+	if errors.As(err, &le) && le.Kind == sxirruntime.LimitCompute {
 		return fmt.Sprintf("%d/%d", le.Used, le.Requested)
 	}
 	return "ok"
@@ -112,7 +112,7 @@ func engineChargeBackendsTraced(t testing.TB, src string, unit input.PositionUni
 	old, flows, n := flowProgramsOf(t, src, func(string) bool { return true }, nil)
 	on := func(prog *Program, b Backend) chargeRun {
 		return func(in string, limit uint64) string {
-			o := ParseOptions{Backend: b, Unit: unit, Expectations: true, Limits: zpruntime.Limits{Compute: limit}}
+			o := ParseOptions{Backend: b, Unit: unit, Expectations: true, Limits: sxirruntime.Limits{Compute: limit}}
 			if traced {
 				o.Trace = func(TraceEvent) {}
 			}
@@ -217,11 +217,11 @@ func TestChargeAgreementEngine(t *testing.T) {
 
 // reportChargeDivergence reports that backend disagrees with the reference on the case name, as
 // msg says. The backends do not yet charge the same units: a divergence of a pair of case and backend
-// in knownChargeDivergences is only logged, and any other fails the test. With ZP_CHARGE_INVENTORY set
+// in knownChargeDivergences is only logged, and any other fails the test. With SXIR_CHARGE_INVENTORY set
 // every divergence is only logged, so that a run lists them all.
 func reportChargeDivergence(t *testing.T, name, backend, msg string) {
 	t.Helper()
-	if os.Getenv("ZP_CHARGE_INVENTORY") != "" || knownChargeDivergences[name+"|"+backend] || knownChargeDivergences[name+"|*"] {
+	if os.Getenv("SXIR_CHARGE_INVENTORY") != "" || knownChargeDivergences[name+"|"+backend] || knownChargeDivergences[name+"|*"] {
 		t.Logf("DIVERGENCE %s: %s: %s", name, backend, msg)
 		return
 	}
@@ -233,7 +233,7 @@ func reportChargeDivergence(t *testing.T, name, backend, msg string) {
 func documentCharges(t *testing.T, prog *Program, b Backend, unit input.PositionUnit, in string) uint64 {
 	t.Helper()
 	run := func(in string, limit uint64) string {
-		d, err := prog.NewDocumentWith("", in, ParseOptions{Backend: b, Unit: unit, Limits: zpruntime.Limits{Compute: limit}})
+		d, err := prog.NewDocumentWith("", in, ParseOptions{Backend: b, Unit: unit, Limits: sxirruntime.Limits{Compute: limit}})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -275,7 +275,7 @@ func TestChargeAgreementDocument(t *testing.T) {
 						}
 						editMiddle(t, d)
 						o := d.ParseDefaults()
-						o.Limits = zpruntime.Limits{Compute: limit}
+						o.Limits = sxirruntime.Limits{Compute: limit}
 						_, err = d.ParseWith(o)
 						return limitReportOf(err)
 					}, in))

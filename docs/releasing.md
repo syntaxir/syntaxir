@@ -1,35 +1,35 @@
 # Releasing
 
-This page says what a ZeroParse release promises, which platforms and Go versions it supports, and how a release is
+This page says what a SyntaxIR release promises, which platforms and Go versions it supports, and how a release is
 tagged. It is written for maintainers who cut a release and for users who decide whether to depend on one. The
 vulnerability policy is in [SECURITY.md](../SECURITY.md).
 
-ZeroParse has no tagged release yet.
+SyntaxIR has no tagged release yet.
 
 ## What a v0.x Release Promises
 
-Go modules give a v0 version no compatibility guarantee. ZeroParse states its intent for each surface instead.
+Go modules give a v0 version no compatibility guarantee. SyntaxIR states its intent for each surface instead.
 
 | Surface | At v0.x |
 |:--|:--|
-| The grammar language: `.zp` syntax and meaning ([specification](../spec/README.md)) | Stable in intent. A change that breaks a grammar is announced with how to update the grammar |
-| The API of generated Go parsers (`Parse`, `ParseValue`, the options and the error types) | Stable in intent. A generated parser carries the library of the generator that produced it, so regenerate it after upgrading ZeroParse |
+| The grammar language: `.sxir` syntax and meaning ([specification](../spec/README.md)) | Stable in intent. A change that breaks a grammar is announced with how to update the grammar |
+| The API of generated Go parsers (`Parse`, `ParseValue`, the options and the error types) | Stable in intent. A generated parser carries the library of the generator that produced it, so regenerate it after upgrading SyntaxIR |
 | The module API, including the `pkg/compiler`, `pkg/runtime` and `pkg/grammar` packages | May change in any release; changes are announced |
 | The testing packages `sample` (input generation) and `editfuzz` (incremental-parsing fuzzing), and the sequence files of `editfuzz` | Public so that Go programs can test their own grammars and documents; unstable: may change in any release |
-| The fixture suites of `zp test` (the JSON format) | Unstable: may change in any release; the runner is internal, not a Go API |
-| The packages `zeroparse.dev/zp/pkg/runtime`, `zeroparse.dev/zp/pkg/runtime/value`, `zeroparse.dev/zp/pkg/runtime/input` and `zeroparse.dev/zp/pkg/runtime/instrument`: the nodes, limits, positions, errors, edits and statistics that `zp` and generated Go parsers share | Stable in intent, as part of the API of generated parsers |
-| The packages `zeroparse.dev/zp/pkg/runtime/libgo` and `zeroparse.dev/zp/pkg/runtime/value/impl`, as generated code uses them with `zp gen -lib import` | Not a stable API. Judged by the protocol version (see [the library protocol](#the-library-protocol)), not by the release version |
-| Compiled grammars (`.zpc`) and the bytecode: container version 8, instruction-set version 37 ([bytecode specification](../spec/bytecode/README.md)) | Unstable: may change in any release. A loader accepts only its own versions and asks for the grammar to be compiled again |
+| The fixture suites of `sxir test` (the JSON format) | Unstable: may change in any release; the runner is internal, not a Go API |
+| The packages `syntaxir.dev/sxir/pkg/runtime`, `syntaxir.dev/sxir/pkg/runtime/value`, `syntaxir.dev/sxir/pkg/runtime/input` and `syntaxir.dev/sxir/pkg/runtime/instrument`: the nodes, limits, positions, errors, edits and statistics that `sxir` and generated Go parsers share | Stable in intent, as part of the API of generated parsers |
+| The packages `syntaxir.dev/sxir/pkg/runtime/libgo` and `syntaxir.dev/sxir/pkg/runtime/value/impl`, as generated code uses them with `sxir gen -lib import` | Not a stable API. Judged by the protocol version (see [the library protocol](#the-library-protocol)), not by the release version |
+| Compiled grammars (`.sxirc`) and the bytecode: container version 8, instruction-set version 37 ([bytecode specification](../spec/bytecode/README.md)) | Unstable: may change in any release. A loader accepts only its own versions and asks for the grammar to be compiled again |
 | The JSON forms of grammars and nodes | Unstable: may change in any release |
-| Ready-made parsers (`zeroparse.dev/alpha-parsers`) | Not part of a release: a separate repository, used from a checkout next to this one with a `go.work` |
+| Ready-made parsers (`syntaxir.dev/alpha-parsers`) | Not part of a release: a separate repository, used from a checkout next to this one with a `go.work` |
 
 "Stable in intent" means that a change needs a reason and is announced; it is not the compatibility guarantee of a
 v1 module.
 
 ### The Library Protocol
 
-The library of generated Go parsers is the package `zeroparse.dev/zp/pkg/runtime/libgo` in the directory
-`pkg/runtime/libgo/`, released with the module `zeroparse.dev/zp`. Which parsers a library can serve is decided by the
+The library of generated Go parsers is the package `syntaxir.dev/sxir/pkg/runtime/libgo` in the directory
+`pkg/runtime/libgo/`, released with the module `syntaxir.dev/sxir`. Which parsers a library can serve is decided by the
 **protocol version**: a number that names one state of the interface between generated code and the library,
 independent of the release version. The interface is the exported declarations of the library package, the exported
 fields and methods of the types they reach, and what they mean, including the encoding of the data generated parsers
@@ -38,7 +38,7 @@ pass to the library.
 - The library declares a constant `ProtocolN` for each protocol version N it implements.
 - A parser generated with `-lib import` refers to the constant of the protocol it was generated for, so a parser
   and a library that do not match fail to build (`undefined: rt.Protocol23`), never at run time.
-- The package `zeroparse.dev/zp/pkg/runtime/value/impl` declares exactly one constant `ProtocolN`, where N is the protocol
+- The package `syntaxir.dev/sxir/pkg/runtime/value/impl` declares exactly one constant `ProtocolN`, where N is the protocol
   version that introduced the node representation it serves, and the library refers to that constant. A copy of the
   library embedded in a generated parser and a `value/impl` package that do not match therefore fail to build
   (`undefined: valueimpl.Protocol15`), in either direction. A test of `valueimpl` records the representation (the layout
@@ -50,7 +50,7 @@ pass to the library.
 
 A release whose library keeps the protocol serves the parsers generated by earlier releases of that protocol; a release
 that changes it needs the parsers regenerated. The release notes say whether the protocol changed. The header of a
-generated file (`// Code generated by zp vX.Y.Z. DO NOT EDIT.`) names the version of its generator, which is how security
+generated file (`// Code generated by sxir vX.Y.Z. DO NOT EDIT.`) names the version of its generator, which is how security
 advisories name affected parsers: a tag for a release, a pseudo-version for a build from a commit, `(devel)` for a build
 that has no reproducible identity (a modified tree, a replaced module, `go run`).
 
@@ -85,37 +85,37 @@ benchmarks run it under Node.js 24.13.0. It is written to run in Deno, Bun and b
 
 ## Go Versions
 
-**ZeroParse requires Go 1.27.1 or later, and so does the Go code it generates.** That covers the `zp` command, the compiler and runtime
+**SyntaxIR requires Go 1.27.1 or later, and so does the Go code it generates.** That covers the `sxir` command, the compiler and runtime
 API and generated Go with either library mode: the default `-lib embed`, which copies the library into the generated
-package, and `-lib import`; with both, the consumer depends on the ZeroParse module for its `pkg/runtime` packages. Generated Go is required to build
+package, and `-lib import`; with both, the consumer depends on the SyntaxIR module for its `pkg/runtime` packages. Generated Go is required to build
 with Go 1.27.1 or later; no lower version is promised.
 
-**Recording `zp` as a tool raises the module's `go` line to 1.27.1.** `go get -tool zeroparse.dev/zp/cmd/zp` adds
-the ZeroParse module as a dependency, and because that module requires Go 1.27.1, the `go` command raises the consumer
+**Recording `sxir` as a tool raises the module's `go` line to 1.27.1.** `go get -tool syntaxir.dev/sxir/cmd/sxir` adds
+the SyntaxIR module as a dependency, and because that module requires Go 1.27.1, the `go` command raises the consumer
 module's `go` line to match (`go: upgraded go 1.23 => 1.27.1`). This is expected: the generated code needs the same
 version.
 
 ## Tagging a Release
 
-In the commands below, `vX.Y.Z` is the version being released and the module path is `zeroparse.dev/zp`.
+In the commands below, `vX.Y.Z` is the version being released and the module path is `syntaxir.dev/sxir`.
 
 1. Check that the release items of the [project strategy](strategy.md#wedge-and-sequencing) are done.
-2. The repository lives in the `zeroparse` GitHub organization, at `github.com/zeroparse/zp`, and its module path is
-   `zeroparse.dev/zp`. The site serves `go-import` and `go-source` meta tags so that `zeroparse.dev/X` resolves to
-   `github.com/zeroparse/X` for the repositories listed in `site/vanity.go` (see
+2. The repository lives in the `syntaxir` GitHub organization, at `github.com/syntaxir/syntaxir`, and its module path is
+   `syntaxir.dev/sxir`. The site serves `go-import` and `go-source` meta tags so that `syntaxir.dev/X` resolves to
+   `github.com/syntaxir/X` for the repositories listed in `site/vanity.go` (see
    [Go vanity imports](site.md#go-vanity-imports)). Before the first release, check that the deployed site serves
    them:
 
    ```bash
-   curl -sL 'https://zeroparse.dev/zp/cmd/zp?go-get=1' | grep go-import
+   curl -sL 'https://syntaxir.dev/sxir/cmd/sxir?go-get=1' | grep go-import
    ```
 
-   It prints `<meta name="go-import" content="zeroparse.dev/zp git https://github.com/zeroparse/zp">`. Also check that
+   It prints `<meta name="go-import" content="syntaxir.dev/sxir git https://github.com/syntaxir/syntaxir">`. Also check that
    private vulnerability reporting is enabled for the repository, so that the route in [SECURITY.md](../SECURITY.md)
    works.
 
-   The ready-made parsers are in their own repository, `github.com/zeroparse/alpha-parsers`, which the site serves as
-   `zeroparse.dev/alpha-parsers`.
+   The ready-made parsers are in their own repository, `github.com/syntaxir/alpha-parsers`, which the site serves as
+   `syntaxir.dev/alpha-parsers`.
 
 3. Start from a clean checkout of `main` at the commit to tag:
 
@@ -134,16 +134,16 @@ In the commands below, `vX.Y.Z` is the version being released and the module pat
 
 5. Run the checks of step 4 on linux/amd64 as well, on a Linux machine or by a run of the continuous-integration
    workflow. While workflows are paused, this run is a precondition of the release.
-6. Check the figures in the README and in [Why ZeroParse](why-zeroparse.md) against the current
+6. Check the figures in the README and in [Why SyntaxIR](why-syntaxir.md) against the current
    [benchmark report](benchmarks.md); rerun the benchmarks only if the report is older than the changes it describes.
-   From the first release, `zp gen` generates parsers with limit controls by default (today `-limits` turns
+   From the first release, `sxir gen` generates parsers with limit controls by default (today `-limits` turns
    them on), and published performance figures are measured with the limits on.
 7. Update the resource policy of [SECURITY.md](../SECURITY.md) to the defaults that this release ships.
 8. Write the release notes ([Announcing Changes](#announcing-changes)).
 9. Tag the commit checked in steps 3 to 5 with an annotated tag and push it:
 
    ```bash
-   git tag -a vX.Y.Z -m "ZeroParse vX.Y.Z"
+   git tag -a vX.Y.Z -m "SyntaxIR vX.Y.Z"
    git push origin vX.Y.Z
    ```
 
@@ -153,7 +153,7 @@ In the commands below, `vX.Y.Z` is the version being released and the module pat
 10. Ask the Go module proxy for the new version, so that `go get` and pkg.go.dev see it:
 
     ```bash
-    GOPROXY=https://proxy.golang.org go list -m zeroparse.dev/zp@vX.Y.Z
+    GOPROXY=https://proxy.golang.org go list -m syntaxir.dev/sxir@vX.Y.Z
     ```
 
 11. Publish the release notes on the GitHub release of the tag.

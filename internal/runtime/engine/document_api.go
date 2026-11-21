@@ -1,7 +1,7 @@
 package engine
 
 import (
-	"zeroparse.dev/zp/internal/runtime/document"
+	"syntaxir.dev/sxir/internal/runtime/document"
 )
 
 // The Document, its snapshots and change notifications are declared in the document package. The

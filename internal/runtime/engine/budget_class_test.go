@@ -1,4 +1,4 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package engine
 
@@ -9,13 +9,13 @@ import (
 	"strconv"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/pkg/bytecode"
-	"zeroparse.dev/zp/pkg/grammar/ast"
-	"zeroparse.dev/zp/pkg/runtime"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/pkg/bytecode"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 const budgetClassRangeCount = 2048
@@ -39,7 +39,7 @@ func budgetClassNode(t *testing.T, p *Program, input string, opts ParseOptions) 
 	return n
 }
 
-func budgetClassBudgetOptions(backend Backend, unit zpinput.PositionUnit, allowance uint64, observed **state.Parser) ParseOptions {
+func budgetClassBudgetOptions(backend Backend, unit sxirinput.PositionUnit, allowance uint64, observed **state.Parser) ParseOptions {
 	return ParseOptions{
 		Backend: backend,
 		Unit:    unit,
@@ -55,7 +55,7 @@ func budgetClassBudgetOptions(backend Backend, unit zpinput.PositionUnit, allowa
 	}
 }
 
-func requireClassBudgetLimit(t *testing.T, p *Program, input string, backend Backend, unit zpinput.PositionUnit) *state.Parser {
+func requireClassBudgetLimit(t *testing.T, p *Program, input string, backend Backend, unit sxirinput.PositionUnit) *state.Parser {
 	t.Helper()
 	var observed *state.Parser
 	n, err := p.ParseWith("main", input, budgetClassBudgetOptions(backend, unit, 32, &observed))
@@ -81,7 +81,7 @@ func TestBudgetClassLargeNonASCIIRangesAreCharged(t *testing.T) {
 	negative := classMembershipProgram(t, &ast.CharClass{Ranges: ranges, Negated: true})
 
 	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+		for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 			t.Run(backend.String()+"/"+unit.String(), func(t *testing.T) {
 				if n := budgetClassNode(t, positive, late, ParseOptions{Backend: backend, Unit: unit}); nodes.D(n).Text != late {
 					t.Fatalf("late class hit text=%q, want %q", nodes.D(n).Text, late)
@@ -110,7 +110,7 @@ func TestBudgetClassRangeCancellationAndPoolRetry(t *testing.T) {
 	p := classMembershipProgram(t, &ast.CharClass{Ranges: ranges})
 
 	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+		for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 			t.Run(backend.String()+"/"+unit.String(), func(t *testing.T) {
 				var observed *state.Parser
 				var control *state.BudgetControl
@@ -179,7 +179,7 @@ func TestBudgetClassInterruptionBypassesChoiceAndRecovery(t *testing.T) {
 		t.Fatalf("uncontrolled recovery baseline: node=%v err=%v", n, err)
 	}
 	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		if observed := requireClassBudgetLimit(t, p, gap, backend, zpinput.CodePoints); observed == nil {
+		if observed := requireClassBudgetLimit(t, p, gap, backend, sxirinput.CodePoints); observed == nil {
 			t.Fatalf("%v: trace did not observe start rule", backend)
 		}
 	}
@@ -200,7 +200,7 @@ func TestBudgetClassFastPathParity(t *testing.T) {
 	for _, tc := range cases {
 		p := classMembershipProgram(t, tc.class)
 		for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-			for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+			for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 				t.Run(tc.name+"/"+backend.String()+"/"+unit.String(), func(t *testing.T) {
 					base, baseErr := p.ParseWith("main", tc.input, ParseOptions{Backend: backend, Unit: unit})
 					controlled, controlledErr := p.ParseWith("main", tc.input, ParseOptions{
@@ -269,7 +269,7 @@ func TestBudgetClassOptimizedRoutes(t *testing.T) {
 			// the parse, which a compiled grammar serves in document mode.
 			loaded := saveLoad(t, p, "main", CompiledDocument)
 			for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-				for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+				for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 					for _, program := range []*Program{p, loaded} {
 						if program == loaded && backend == Closure {
 							continue

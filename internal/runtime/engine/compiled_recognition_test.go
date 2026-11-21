@@ -10,12 +10,12 @@ import (
 	"sync"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/bytecode"
-	"zeroparse.dev/zp/pkg/grammar/ast"
-	"zeroparse.dev/zp/pkg/runtime"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/bytecode"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 // moduleRuleNames returns the names of the rules of m in order, each once: value-free twins follow
@@ -83,7 +83,7 @@ func TestCompiledRecognitionRoundTrip(t *testing.T) {
 				}
 				for _, name := range moduleRuleNames(p.Module()) {
 					for _, input := range append(append([]string{}, c.Inputs...), "\xff", "", "trailing") {
-						for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+						for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 							want, werr := p.ParseWith(name, input, ParseOptions{Recognize: true, Unit: unit})
 							for _, backend := range []Backend{Default, Bytecode, BytecodeIterative} {
 								got, gerr := loaded.ParseWith(name, input, ParseOptions{Recognize: true, Unit: unit, Backend: backend})
@@ -165,7 +165,7 @@ rule second = "é"`)
 		input string
 		match bool
 	}{{"a", true}, {"é", true}, {"", false}, {"a?", false}} {
-		for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+		for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 			for _, backend := range []Backend{Bytecode, BytecodeIterative} {
 				got, gotErr := recognizing.ParseWith("main", tc.input, ParseOptions{Backend: backend, Unit: unit, Recognize: true})
 				if got != nil || (gotErr == nil) != tc.match {

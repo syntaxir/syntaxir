@@ -5,7 +5,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 // BenchmarkLiteralMatcher excludes generated rule calls, input setup and tree
@@ -20,10 +20,10 @@ func BenchmarkLiteralMatcher(b *testing.B) {
 				chars[len(chars)-1] = '!'
 				input = string(chars)
 			}
-			for _, unit := range []zpinput.PositionUnit{zpinput.Bytes, zpinput.CodePoints} {
+			for _, unit := range []sxirinput.PositionUnit{sxirinput.Bytes, sxirinput.CodePoints} {
 				b.Run(fmt.Sprintf("%x/%t/%d", text, match, unit), func(b *testing.B) {
 					p := Parser{unit: unit, bs: input, n: len(input), In: []rune(input), Silent: 1}
-					if unit == zpinput.CodePoints {
+					if unit == sxirinput.CodePoints {
 						p.n = utf8.RuneCountInString(input)
 					}
 					b.ReportAllocs()

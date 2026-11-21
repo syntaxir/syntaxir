@@ -4,8 +4,8 @@ import (
 	"math/rand"
 	"testing"
 
-	. "zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/runtime/state"
+	. "syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/state"
 )
 
 // TestDocumentEntriesExamineFromTheirPosition checks the bound that the call protocol records

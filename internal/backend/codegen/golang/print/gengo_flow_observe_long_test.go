@@ -1,4 +1,4 @@
-//go:build zp_long
+//go:build sxir_long
 
 package print_test
 
@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/internal/testing/mutanttest"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/mutanttest"
 )
 
 // TestFlowNodeObservationMutants checks that the golden notices a Flow build that drops, moves or reorders

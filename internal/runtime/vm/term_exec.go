@@ -2,7 +2,7 @@
 
 package vm
 
-import "zeroparse.dev/zp/internal/runtime/state"
+import "syntaxir.dev/sxir/internal/runtime/state"
 
 // predicate applies the term of a predicate to the context that term.ctx makes. It fails on the boolean
 // false and on a term that fails, and holds on every other value. The value of a term is never a function.

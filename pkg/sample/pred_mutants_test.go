@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/testing/mutanttest"
+	"syntaxir.dev/sxir/internal/testing/mutanttest"
 )
 
 // predicateMutants each break one way in which the generator gives predicates the values that the

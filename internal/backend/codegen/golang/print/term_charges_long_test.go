@@ -1,4 +1,4 @@
-//go:build zp_long
+//go:build sxir_long
 
 package print_test
 
@@ -9,8 +9,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/internal/testing/mutanttest"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/mutanttest"
 )
 
 // TestTermChargeGoldensDetectBrokenCharges checks that the term charge goldens notice generated Go that

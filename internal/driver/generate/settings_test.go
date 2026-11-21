@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/driver"
-	"zeroparse.dev/zp/internal/driver/generate"
-	"zeroparse.dev/zp/internal/ir/core"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/driver"
+	"syntaxir.dev/sxir/internal/driver/generate"
+	"syntaxir.dev/sxir/internal/ir/core"
 )
 
 // Settings applies the profile, then Opt, then NoOpt, so an optimization that is both given a

@@ -3,13 +3,13 @@ package checked
 import (
 	"fmt"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/driver"
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/internal/middleend/flowpass"
-	"zeroparse.dev/zp/internal/middleend/flowplan"
-	"zeroparse.dev/zp/internal/middleend/flowplan/plandata"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/driver"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/flowpass"
+	"syntaxir.dev/sxir/internal/middleend/flowplan"
+	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 )
 
 // FlowTable is the Node table of a program as the bytecode VM runs it from Flow IR: the table's Core

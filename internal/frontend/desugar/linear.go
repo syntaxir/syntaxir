@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"slices"
 
-	"zeroparse.dev/zp/internal/cancel"
-	"zeroparse.dev/zp/internal/diagnostic"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/cancel"
+	"syntaxir.dev/sxir/internal/diagnostic"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // LinearAttribute is the name of the declaration attribute that declares linear cost: on the

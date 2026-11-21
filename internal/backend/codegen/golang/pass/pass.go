@@ -4,8 +4,8 @@
 package pass
 
 import (
-	"zeroparse.dev/zp/internal/middleend/execlower"
-	"zeroparse.dev/zp/internal/pass/pipe"
+	"syntaxir.dev/sxir/internal/middleend/execlower"
+	"syntaxir.dev/sxir/internal/pass/pipe"
 )
 
 // Passes are the Go Exec passes, in the order they run on a lowered function with its module. There

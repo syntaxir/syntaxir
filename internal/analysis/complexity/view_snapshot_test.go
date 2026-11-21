@@ -9,11 +9,11 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/analysis/complexity"
-	"zeroparse.dev/zp/internal/frontend/astfacts"
-	syntaxfmt "zeroparse.dev/zp/internal/syntax/fmt"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/analysis/complexity"
+	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 var update = codegentest.UpdateGoldens // -update: enginetest links codegentest, which defines the flag

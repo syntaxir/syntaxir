@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"zeroparse.dev/zp/internal/ir/core"
+	"syntaxir.dev/sxir/internal/ir/core"
 )
 
 // ImmString returns the immediate imm of a Flow operation as listings print it (code.Op.FormatImm):

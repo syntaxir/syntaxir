@@ -6,9 +6,9 @@ compare a parser with another implementation of the same language, and to seed a
 from inputs that get past the first token. Near-miss invalid inputs, valid ones with one mutation, exercise error
 reporting and recovery.
 
-| | Command line | Go (`zeroparse.dev/zp/pkg/sample`) |
+| | Command line | Go (`syntaxir.dev/sxir/pkg/sample`) |
 |:--|:--|:--|
-| Inputs the grammar accepts | `zp sample -g g.zp` | `sample.Generate`, `Generator.Next`, `Generator.Generate` |
+| Inputs the grammar accepts | `sxir sample -g g.sxir` | `sample.Generate`, `Generator.Next`, `Generator.Generate` |
 | Prefer what was not exercised yet, and report it | `-coverage` | `sample.WithCoverage()`, `Generator.Coverage` |
 | Near-miss inputs the grammar rejects | `-invalid` | `Generator.Invalid`, `Generator.GenerateInvalid` |
 | Seed a fuzz test | | `sample.Seed(f, p, n)` |
@@ -34,12 +34,12 @@ How generated inputs fit into a test suite for a grammar is in [testing grammars
 
 ## On the Command Line
 
-`zp sample` prints distinct inputs that the grammar accepts, ten by default (`-n`), each as a Go-quoted string on its
+`sxir sample` prints distinct inputs that the grammar accepts, ten by default (`-n`), each as a Go-quoted string on its
 own line, so that inputs containing line breaks stay on one line. With the JSON grammar of
-[alpha-parsers/json](../../testdata/grammars/json/json.zp):
+[alpha-parsers/json](../../testdata/grammars/json/json.sxir):
 
 ```bash
-zp sample -g testdata/grammars/json/json.zp -n 8
+sxir sample -g testdata/grammars/json/json.sxir -n 8
 ```
 
 ```text
@@ -57,13 +57,13 @@ The inputs are random, not pretty: the grammar allows whitespace between tokens,
 characters are drawn mostly from printable ASCII with some multi-byte characters mixed in, and otherwise from any code
 point the character class matches (never a surrogate). `strconv.Unquote` reads each line back.
 
-`-seed` selects the random decisions; the default is 0. With the same version of ZeroParse, the same grammar, options and
+`-seed` selects the random decisions; the default is 0. With the same version of SyntaxIR, the same grammar, options and
 seed give the same inputs on every run and machine, whichever Go release built it, so a seed is enough to reproduce a
-test case. Across versions of ZeroParse they may differ, as the generator's algorithm changes as it improves. Keep the
+test case. Across versions of SyntaxIR they may differ, as the generator's algorithm changes as it improves. Keep the
 inputs themselves (as test files, or in a fuzz corpus) where they must not change. `-f json` prints a JSON document instead:
 
 ```bash
-zp sample -g testdata/grammars/json/json.zp -n 2 -seed 5 -f json
+sxir sample -g testdata/grammars/json/json.sxir -n 2 -seed 5 -f json
 ```
 
 ```text
@@ -96,16 +96,16 @@ zp sample -g testdata/grammars/json/json.zp -n 2 -seed 5 -f json
 `stats` counts the work, as `Stats` does in Go (see [From Go](#from-go)). `ruleCuts` splits the cuts by the rule
 whose body holds the check or predicate, the rules with the most cuts first, as `Generator.Cuts` does.
 
-`-s` selects the start rule (the grammar's default start rule if omitted). A compiled grammar (`.zpc`) cannot be
+`-s` selects the start rule (the grammar's default start rule if omitted). A compiled grammar (`.sxirc`) cannot be
 sampled: generation needs the grammar source.
 
-If the grammar accepts fewer distinct inputs than requested, or the generator cannot find more, `zp sample` prints
-what it found and says so on standard error (`zp sample: found only 3 distinct inputs`). If it finds none at all, it
+If the grammar accepts fewer distinct inputs than requested, or the generator cannot find more, `sxir sample` prints
+what it found and says so on standard error (`sxir sample: found only 3 distinct inputs`). If it finds none at all, it
 fails: the grammar may accept nothing (`rule main = "a"* "a"`: the repetition takes every `a`), or every input may fail
 an action at run time. The error tells what became of the attempts:
 
 ```text
-zp: sample: no input found that the parser accepts in 100 attempts: 0 candidates rejected by the parser, 0 searches out of budget, 100 searches without a way to finish (2900 ways cut by checks, 0 by predicates; most cuts in main (2900 by checks, 0 by predicates))
+sxir: sample: no input found that the parser accepts in 100 attempts: 0 candidates rejected by the parser, 0 searches out of budget, 100 searches without a way to finish (2900 ways cut by checks, 0 by predicates; most cuts in main (2900 by checks, 0 by predicates))
 ```
 
 Here no search found a way to finish, and checks cut thousands of ways: the generator saw that the parser would not
@@ -134,7 +134,7 @@ A repetition takes each further iteration with probability 1/2, so short lists a
 calculator expressions:
 
 ```bash
-zp sample -g examples/calculator/calc.zp -n 5 -seed 7 -max-len 30 -max-repeat 1
+sxir sample -g examples/calculator/calc.sxir -n 5 -seed 7 -max-len 30 -max-repeat 1
 ```
 
 ```text
@@ -169,12 +169,12 @@ Three limits are hard, and each has a knob:
 
 ## Coverage
 
-With `-coverage`, the generator prefers rules and alternatives that no input has exercised yet, and `zp sample`
+With `-coverage`, the generator prefers rules and alternatives that no input has exercised yet, and `sxir sample`
 reports on standard error what the inputs exercised and what they missed. Take a list whose items may be words,
 numbers or booleans:
 
-```zp
-// items.zp
+```sxir
+// items.sxir
 @start
 rule main = item ("," item)*
 rule item = word / number / "true" / "false"
@@ -183,7 +183,7 @@ rule number = [0-9]+ #atomic
 ```
 
 ```bash
-zp sample -g items.zp -n 5 -coverage
+sxir sample -g items.sxir -n 5 -coverage
 ```
 
 ```text
@@ -214,23 +214,23 @@ An [inline action](actions.md) counts as a rule, because the parser runs it as o
 the rule that holds it: `the inline action in rule main`, or `inline action 2 in rule main` when the rule holds
 several. The alternatives are printed as written, with the inline action in place.
 
-For the XML grammar of [alpha-parsers/xml](../../testdata/grammars/xml/xml.zp), 50 inputs cover all of it:
+For the XML grammar of [alpha-parsers/xml](../../testdata/grammars/xml/xml.sxir), 50 inputs cover all of it:
 
 ```bash
-zp sample -g testdata/grammars/xml/xml.zp -n 50 -seed 1 -coverage > /dev/null
+sxir sample -g testdata/grammars/xml/xml.sxir -n 50 -seed 1 -coverage > /dev/null
 ```
 
 ```text
 rules 74/74 (100%), alternatives 89/89 (100%)
 ```
 
-Not every grammar is like that. The Python grammar of [alpha-parsers/python](../../testdata/grammars/python/python.zp) keeps the
+Not every grammar is like that. The Python grammar of [alpha-parsers/python](../../testdata/grammars/python/python.sxir) keeps the
 indentation of the current block packed in a variable and compares it in predicates (`stmt_sep`, `indented_block`).
 The generator evaluates these predicates on the indentation it generated, but few of the indentations it tries
 match the block's, so it seldom gets past the first line of a block and misses the rules that need more:
 
 ```bash
-zp sample -g testdata/grammars/python/python.zp -n 50 -seed 1 -coverage > /dev/null
+sxir sample -g testdata/grammars/python/python.sxir -n 50 -seed 1 -coverage > /dev/null
 ```
 
 ```text
@@ -257,7 +257,7 @@ format, each comes with the input it was made from, the mutation (positions are 
 error:
 
 ```bash
-zp sample -g testdata/grammars/json/json.zp -n 3 -invalid -f json
+sxir sample -g testdata/grammars/json/json.sxir -n 3 -invalid -f json
 ```
 
 ```text
@@ -290,7 +290,7 @@ zp sample -g testdata/grammars/json/json.zp -n 3 -invalid -f json
 
 Use them to check error messages and positions, and recovery with `#recover`: a recovered error counts as rejected, so
 the inputs of a grammar with `#recover` include ones that produce both a tree and errors. A grammar that accepts every
-input, such as `rule main = .*`, has no near misses: `zp sample -invalid` then fails with "no mutation found that the
+input, such as `rule main = .*`, has no near misses: `sxir sample -invalid` then fails with "no mutation found that the
 parser rejects" (`sample.ErrNoInvalid` in Go), not with the error for grammars that accept nothing.
 
 ## From Go
@@ -299,7 +299,7 @@ parser rejects" (`sample.ErrNoInvalid` in Go), not with the error for grammars t
 parser's start rule (use `Parser.WithStart` for another).
 
 ```go
-p, err := compiler.Compile(grammar.FromString("grammar.zp", `@start
+p, err := compiler.Compile(grammar.FromString("grammar.sxir", `@start
 rule main =  pair ("," " "? pair)*
 rule pair =  key "=" value
 rule key =  [a-z]+ #atomic
@@ -371,12 +371,12 @@ forget, and a seed reproduces any failure. Two kinds of checks work without know
 - **Properties** of your code that hold for every valid input: an evaluator does not panic and returns a value or a
   well-formed error; pretty-printing and parsing again gives the same tree; a converter's output is valid in the target
   format.
-- **Differential tests** against another implementation of the same language. This test checks that the JSON grammar of [alpha-parsers/json](https://github.com/zeroparse/alpha-parsers/tree/main/json/) and Go's
+- **Differential tests** against another implementation of the same language. This test checks that the JSON grammar of [alpha-parsers/json](https://github.com/syntaxir/alpha-parsers/tree/main/json/) and Go's
   `encoding/json` agree, on 200 generated documents and on 200 near-miss invalid ones:
 
 ```go
 func TestJSONAgreesWithEncodingJSON(t *testing.T) {
-	p := ... // the parser of testdata/grammars/json/json.zp
+	p := ... // the parser of testdata/grammars/json/json.sxir
 	g, err := sample.New(p, sample.WithSeed(1), sample.WithCoverage())
 	if err != nil {
 		t.Fatal(err)
@@ -416,11 +416,11 @@ cannot generate any, and returns them:
 // FuzzCalculator checks that the calculator never panics, whatever the input, that all backends agree,
 // and that the generated inputs it is seeded with parse.
 func FuzzCalculator(f *testing.F) {
-	src, err := os.ReadFile("../examples/calculator/calc.zp")
+	src, err := os.ReadFile("../examples/calculator/calc.sxir")
 	if err != nil {
 		f.Fatal(err)
 	}
-	p, err := compiler.Compile(grammar.FromString("grammar.zp", string(src)), compiler.WithStart("main"))
+	p, err := compiler.Compile(grammar.FromString("grammar.sxir", string(src)), compiler.WithStart("main"))
 	if err != nil {
 		f.Fatal(err)
 	}
@@ -470,19 +470,19 @@ Replace the body of the fuzz function with what you want to hold for every input
 must not panic, must not loop, and must handle `SyntaxError` and `SyntaxErrors` (from `#recover`). Keep seeds short
 with `WithMaxLen`: the fuzzer works best on short inputs.
 
-To fuzz incremental parsing, use `zp edit-fuzz`, which starts from generated inputs too and edits them; see
+To fuzz incremental parsing, use `sxir edit-fuzz`, which starts from generated inputs too and edits them; see
 [Fuzzing Edits](#fuzzing-edits).
 
 ## Fuzzing Edits
 
 A `Document` has one rule: its result equals a fresh parse of its text. The rule can be checked mechanically for any grammar
-(see [Incremental Parsing](incremental.md)). `zp edit-fuzz` applies random sequences of edits, undos
+(see [Incremental Parsing](incremental.md)). `sxir edit-fuzz` applies random sequences of edits, undos
 and redos to a `Document` and, at the initial text and at each checkpoint, compares its result with a fresh parse of
 `doc.Text()`: values with their full spans, and errors with their positions, expectations and messages. It runs
 every backend in both position units:
 
 ```bash
-zp edit-fuzz -g examples/calculator/calc.zp -seed 1
+sxir edit-fuzz -g examples/calculator/calc.sxir -seed 1
 ```
 
 ```text
@@ -509,11 +509,11 @@ next to it. `-max-attempts n` bounds the candidate replays that `-minimize` trie
 
 <!-- example: skip: the failure comes from a deliberately broken Document, which no build has -->
 ```bash
-zp edit-fuzz -g calc.zp -save-failures failures -minimize
+sxir edit-fuzz -g calc.sxir -save-failures failures -minimize
 ```
 
 ```text
-zp: calc.zp (seed 0): closure/codepoints: document result differs from a fresh parse at operation 21 (text "…") in error.error.col:
+sxir: calc.sxir (seed 0): closure/codepoints: document result differs from a fresh parse at operation 21 (text "…") in error.error.col:
 document: 1
 fresh:    2
 saved to failures/editfuzz-0be4ccb60eadff90.json
@@ -526,11 +526,11 @@ Replaying the minimized sequence fails the same way:
 
 <!-- example: skip: the failure comes from a deliberately broken Document, which no build has -->
 ```bash
-zp edit-fuzz -g calc.zp -replay failures/editfuzz-9d0bcab55578f1b5.json
+sxir edit-fuzz -g calc.sxir -replay failures/editfuzz-9d0bcab55578f1b5.json
 ```
 
 ```text
-zp: failures/editfuzz-9d0bcab55578f1b5.json: closure/codepoints: document result differs from a fresh parse at operation 3 (text " �6\t") in error.error.col:
+sxir: failures/editfuzz-9d0bcab55578f1b5.json: closure/codepoints: document result differs from a fresh parse at operation 3 (text " �6\t") in error.error.col:
 document: 1
 fresh:    2
 ```
@@ -577,7 +577,7 @@ The same is available from Go in package `editfuzz`, whose API the specification
 cases:
 
 ```go
-src, err := os.ReadFile("grammar.zp")
+src, err := os.ReadFile("grammar.sxir")
 if err != nil {
 	t.Fatal(err)
 }
@@ -615,8 +615,8 @@ parser would read differently:
 - `!e` must not match; for `&e`, a text for `e` is generated and the input must continue with it;
 - predicates are evaluated as the parser evaluates them where the generator knows the values that the generated text gives: captures with
   their text and positions, the elements of repetitions and the captures of rule nodes and iterations, variables,
-  built-in functions, operators and casts, so indentation (as in [examples/outline](../../examples/outline/outline.zp)) and matching tags (as in
-  [alpha-parsers/xml](../../testdata/grammars/xml/xml.zp)) work. The node of a rule declared with a named node
+  built-in functions, operators and casts, so indentation (as in [examples/outline](../../examples/outline/outline.sxir)) and matching tags (as in
+  [alpha-parsers/xml](../../testdata/grammars/xml/xml.sxir)) work. The node of a rule declared with a named node
   type has a type that the generator does not model, so a cast to that type stays undecided and the parser decides;
 - Operators Rule expressions are generated as chains of operands and operators, avoiding chains of `infix none` operators,
   with the outer infix/postfix tail filtered by level-restricted calls. Prefixes remain available at every operand
@@ -655,7 +655,7 @@ elements of sequences, and lookaheads into Operators Rules or left-recursive rul
 and checking, which costs attempts; a grammar where most choices depend on them yields fewer inputs per second and
 lower coverage. In practice:
 
-- **No input found** (`sample.ErrNoInput`, or `zp sample` fails): the error counts what became of the attempts.
+- **No input found** (`sample.ErrNoInput`, or `sxir sample` fails): the error counts what became of the attempts.
   Check that some input parses at all: the grammar may accept nothing, or every input may fail an action at run time
   (candidates rejected by the parser). If the inputs it needs are long (searches out of budget), raise the budget
   (`WithBudget`) or, for long repetitions, `WithMaxRepeat`; if they are merely rare, raise `WithAttempts`.

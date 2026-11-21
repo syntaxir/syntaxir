@@ -1,4 +1,4 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package document_test
 
@@ -8,10 +8,10 @@ import (
 	"os"
 	"testing"
 
-	. "zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	. "syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // knownDocumentCountDivergences lists the grammars of documentCountCases whose Document parse does
@@ -67,7 +67,7 @@ func TestChargeDocumentDefaultCount(t *testing.T) {
 				continue
 			}
 			msg := fmt.Sprintf("%s %v: a Document counts %d against the default limit, a parse from scratch %d", c.name, b, counted, fresh)
-			if os.Getenv("ZP_CHARGE_INVENTORY") != "" || knownDocumentCountDivergences[c.name] {
+			if os.Getenv("SXIR_CHARGE_INVENTORY") != "" || knownDocumentCountDivergences[c.name] {
 				t.Log("DIVERGENCE " + msg)
 			} else {
 				t.Error(msg)

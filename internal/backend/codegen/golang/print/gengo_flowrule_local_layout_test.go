@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 func TestGeneratedTypedLocalLayouts(t *testing.T) {
@@ -52,7 +52,7 @@ func TestGeneratedTypedLocalLayoutControls(t *testing.T) {
 }
 
 func testGeneratedTypedLocalLayoutControls(t *testing.T) {
-	for _, path := range []string{"../../../../../examples/calculator/calc.zp", "../../../../../testdata/grammars/typescript/typescript.zp"} {
+	for _, path := range []string{"../../../../../examples/calculator/calc.sxir", "../../../../../testdata/grammars/typescript/typescript.sxir"} {
 		src, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatal(err)

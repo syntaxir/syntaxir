@@ -6,8 +6,8 @@ import (
 	"runtime"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // Generated Go parsers, plain and typed, and generated TypeScript parsers read a scalar operator

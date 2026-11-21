@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // The grammar takes the text of every level of a nesting: the texts sum to the square of the
@@ -57,14 +57,14 @@ import (
 	"strings"
 	"testing"
 
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 )
 
 func leastBudget(t *testing.T, parse func(budget uint64) error) uint64 {
 	finishes := func(budget uint64) bool {
 		err := parse(budget)
-		var le *zpruntime.LimitError
-		if errors.As(err, &le) && le.Kind == zpruntime.LimitCompute {
+		var le *sxirruntime.LimitError
+		if errors.As(err, &le) && le.Kind == sxirruntime.LimitCompute {
 			return false
 		}
 		if err != nil {

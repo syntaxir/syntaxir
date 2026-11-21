@@ -29,7 +29,7 @@ go list -json ./... > "$tmp.pkgs"
 python3 -I -c '
 import json, sys, os, re, subprocess
 why = int(sys.argv[1]); files = [l.strip() for l in open(sys.argv[2]) if l.strip()]
-root = os.getcwd(); mod = "zeroparse.dev/zp"
+root = os.getcwd(); mod = "syntaxir.dev/sxir"
 dec = json.JSONDecoder(); s = open(sys.argv[3]).read(); i = 0; pk = {}
 while i < len(s):
     while i < len(s) and s[i].isspace(): i += 1

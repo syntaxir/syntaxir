@@ -13,11 +13,11 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/backend/codegen/golang/print"
-	"zeroparse.dev/zp/internal/middleend/flowplan"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/internal/testing/mutanttest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	"syntaxir.dev/sxir/internal/middleend/flowplan"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/mutanttest"
 )
 
 // TestGeneratedFlowRecognizerParity runs the generated recognizers printed from Flow IR against the
@@ -89,7 +89,7 @@ func shiftGuardFirstCharacters(code []byte) []byte {
 	})
 }
 
-// flowRecognizerMutants are the wrong recognizers of the negative control, by ZP_FLOW_MUTANT value.
+// flowRecognizerMutants are the wrong recognizers of the negative control, by SXIR_FLOW_MUTANT value.
 // A dropped guard is not among them: a guard only skips an alternative that cannot match, so dropping
 // one keeps the results and only the guard test in TestFlowRecognizerGuardsChoiceAlternatives sees it.
 var flowRecognizerMutants = map[string]func([]byte) []byte{
@@ -131,7 +131,7 @@ func skipWithoutRewind(code []byte) []byte { return skipRewind.ReplaceAll(code, 
 var (
 	ruleBodyRef = regexp.MustCompile(`(?m)^\t(rules|recRules)\[(\d+)\]\.Body = (e\d+)$`)
 	funcBody    = func(name string) *regexp.Regexp {
-		return regexp.MustCompile(`(?ms)^func ` + name + `\(p \*rt\.Parser(?:, _ int)?\) \(\*zpvalue\.Node, bool\) \{\n.*?^\}\n`)
+		return regexp.MustCompile(`(?ms)^func ` + name + `\(p \*rt\.Parser(?:, _ int)?\) \(\*sxirvalue\.Node, bool\) \{\n.*?^\}\n`)
 	}
 )
 
@@ -183,11 +183,11 @@ func dropCaptures(code []byte) []byte {
 	return setCapture.ReplaceAll(code, []byte("_ = $2"))
 }
 
-// TestGeneratedFlowRecognizerMutantChild runs the parity test with the mutant that ZP_FLOW_MUTANT
+// TestGeneratedFlowRecognizerMutantChild runs the parity test with the mutant that SXIR_FLOW_MUTANT
 // names. It runs only as a child of TestGeneratedFlowRecognizerNegativeControl.
 func TestGeneratedFlowRecognizerMutantChild(t *testing.T) {
 	mutanttest.SkipUnlessChanged(t, mutanttest.Pipeline...)
-	name := os.Getenv("ZP_FLOW_MUTANT")
+	name := os.Getenv("SXIR_FLOW_MUTANT")
 	if name == "" {
 		t.Skip("run by TestGeneratedFlowRecognizerNegativeControl")
 	}

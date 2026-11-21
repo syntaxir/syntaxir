@@ -1,4 +1,4 @@
-//go:build zp_long && !zp_budget_controls_reference
+//go:build sxir_long && !sxir_budget_controls_reference
 
 package engine_test
 

@@ -3,7 +3,7 @@ package state
 import (
 	"unsafe"
 
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // The record of recovered errors (Parser.Recovered) is a sequence of entries: errors that recoveries

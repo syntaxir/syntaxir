@@ -7,13 +7,13 @@ import (
 	"slices"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	gensrc "zeroparse.dev/zp/internal/driver/generate"
-	"zeroparse.dev/zp/internal/testing/enginetest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	gensrc "syntaxir.dev/sxir/internal/driver/generate"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 )
 
 // TestGeneratedSourceParserCurrent requires that the checked-in generated parser of the grammar
-// source is what the generator writes from zp.zp with the options of its go:generate line, so that
+// source is what the generator writes from sxir.sxir with the options of its go:generate line, so that
 // the frontend a build uses is the grammar of the language. The first line, which names the version
 // of the generator, is not compared.
 func TestGeneratedSourceParserCurrent(t *testing.T) {
@@ -22,11 +22,11 @@ func TestGeneratedSourceParserCurrent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	files, err := gensrc.Go(g, common.GenOptions{Module: "zeroparse.dev/zp/internal/frontend/parser/zpparser", Lib: common.LibImport, Types: true, TypedOnly: true, LimitControls: true, Expectations: true, Start: "main"})
+	files, err := gensrc.Go(g, common.GenOptions{Module: "syntaxir.dev/sxir/internal/frontend/parser/sxirparser", Lib: common.LibImport, Types: true, TypedOnly: true, LimitControls: true, Expectations: true, Start: "main"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	dir := filepath.Join("..", "..", "internal", "frontend", "parser", "zpparser")
+	dir := filepath.Join("..", "..", "internal", "frontend", "parser", "sxirparser")
 	var want []string
 	for _, f := range files {
 		want = append(want, filepath.ToSlash(f.Path))

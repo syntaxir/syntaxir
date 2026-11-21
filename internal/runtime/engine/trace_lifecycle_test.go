@@ -8,11 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	value "zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/runtime/input"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+	value "syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/runtime/input"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 func assertTraceParserDetached(t *testing.T, p *state.Parser, aborted bool) {
@@ -75,11 +75,11 @@ func TestTraceLifecycleStreamDetachment(t *testing.T) {
 					}
 					r := &traceLifecycleClosingReader{Reader: reader}
 					var e TraceEvent
-					var nodes []*zpvalue.Node
+					var nodes []*sxirvalue.Node
 					var snapshots []string
 					err := error(nil)
 					got := traceLifecycleRecover(func() {
-						err = prog.ParseStreamWith("main", r, func(n *zpvalue.Node) error {
+						err = prog.ParseStreamWith("main", r, func(n *sxirvalue.Node) error {
 							nodes = append(nodes, n)
 							snapshots = append(snapshots, codegentest.ResultJSON(n, nil))
 							if outcome == "emit-error" {
@@ -107,7 +107,7 @@ func TestTraceLifecycleStreamDetachment(t *testing.T) {
 							t.Fatalf("err=%v panic=%v nodes=%d", err, got, len(nodes))
 						}
 					case "syntax":
-						var se *zpvalue.SyntaxError
+						var se *sxirvalue.SyntaxError
 						if got != nil || !errors.As(err, &se) || len(nodes) != 1 {
 							t.Fatalf("err=%v panic=%v nodes=%d", err, got, len(nodes))
 						}
@@ -127,10 +127,10 @@ func TestTraceLifecycleStreamDetachment(t *testing.T) {
 					if r.closed {
 						t.Fatal("parser closed caller's reader")
 					}
-					if value.D(nodes[0].Field("k").(*zpvalue.Node)).Text != "a" || value.D(nodes[0].Field("v").(*zpvalue.Node)).Text != "1" {
+					if value.D(nodes[0].Field("k").(*sxirvalue.Node)).Text != "a" || value.D(nodes[0].Field("v").(*sxirvalue.Node)).Text != "1" {
 						t.Fatal("emitted fields changed")
 					}
-					if err := prog.ParseStreamWith("main", strings.NewReader("#records\nxy=3\n"), func(*zpvalue.Node) error { return nil }, ParseOptions{Backend: b, Unit: u}); err != nil {
+					if err := prog.ParseStreamWith("main", strings.NewReader("#records\nxy=3\n"), func(*sxirvalue.Node) error { return nil }, ParseOptions{Backend: b, Unit: u}); err != nil {
 						t.Fatal(err)
 					}
 					for i, n := range nodes {

@@ -173,7 +173,7 @@ func TestParserGenArgsAdaptsGoOptionsToTypeScript(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := strings.Join(args, " ")
-	if !strings.HasSuffix(got, "cel/cel.zp -types") || !strings.Contains(got, "-g "+filepath.Join(root, "testdata", "grammars", "cel", "cel.zp")) {
+	if !strings.HasSuffix(got, "cel/cel.sxir -types") || !strings.Contains(got, "-g "+filepath.Join(root, "testdata", "grammars", "cel", "cel.sxir")) {
 		t.Errorf("cel args: %s", got)
 	}
 	for _, bad := range []string{"-module", "-lib", "-nodoc", "-typed-only", "-o "} {
@@ -191,7 +191,7 @@ func TestParserGenArgsAdaptsGoOptionsToTypeScript(t *testing.T) {
 
 func TestEverySizeParserHasAGrammarAndOptions(t *testing.T) {
 	for _, name := range sizeParsers {
-		if _, err := os.Stat(filepath.Join(root, "testdata", "grammars", name, name+".zp")); err != nil {
+		if _, err := os.Stat(filepath.Join(root, "testdata", "grammars", name, name+".sxir")); err != nil {
 			t.Error(err)
 		}
 		if _, err := parserGenArgs(root, name); err != nil {

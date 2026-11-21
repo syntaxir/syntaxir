@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // A parser generated without expectations, and one generated with them that a parse does not ask
@@ -199,7 +199,7 @@ import (
 	avail "codegentest/avail"
 	off "codegentest/off"
 	offs "codegentest/offs"
-	rt "zeroparse.dev/zp/pkg/runtime/libgo"
+	rt "syntaxir.dev/sxir/pkg/runtime/libgo"
 )
 
 func try(name string, f func() error) {

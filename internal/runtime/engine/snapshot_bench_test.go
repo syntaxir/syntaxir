@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/compile"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 var snapshotBenchmarkResult any
@@ -20,7 +20,7 @@ type snapshotLegacyResult struct {
 	text    string
 	root    *value.Node
 	err     error
-	stats   zpruntime.ParseStats
+	stats   sxirruntime.ParseStats
 }
 
 // Compare complete capture and later materialization against a legacy Parse

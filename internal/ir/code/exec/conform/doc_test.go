@@ -4,8 +4,8 @@ import (
 	"math/rand/v2"
 	"testing"
 
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/exec/ref"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
 )
 
 // docConfig returns the configuration of the randomized case with the seed: every third parse reads no

@@ -5,9 +5,9 @@ import (
 	"os"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/enginetest"
-	"zeroparse.dev/zp/pkg/sample"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
+	"syntaxir.dev/sxir/pkg/sample"
 )
 
 const settings = `rule main = pair ("," " "? pair)*
@@ -90,7 +90,7 @@ func ExampleGenerator_GenerateInvalid() {
 // that all backends agree, and that the generated inputs it is seeded with parse. Run it with
 // go test -fuzz=FuzzCalculator ./sample; go test runs it on the seeds only.
 func FuzzCalculator(f *testing.F) {
-	src, err := os.ReadFile("../../examples/calculator/calc.zp")
+	src, err := os.ReadFile("../../examples/calculator/calc.sxir")
 	if err != nil {
 		f.Fatal(err)
 	}

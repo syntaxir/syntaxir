@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // scanDocumentRules returns a main rule that walks the same scan site from the same start four
@@ -16,7 +16,7 @@ import (
 // the fourth takes the record (ScanReach) while its rule's memo entry is recorded; hit tells it did.
 func scanDocumentRules(hit *bool) (main, last *Rule) {
 	const site = 1
-	walk := func(p *Parser) (*zpvalue.Node, bool) {
+	walk := func(p *Parser) (*sxirvalue.Node, bool) {
 		start, count := p.Pos, 0
 		for {
 			ch, size, ok := p.Peek()
@@ -41,15 +41,15 @@ func scanDocumentRules(hit *bool) (main, last *Rule) {
 		return nodeOfData(&Data{Kind: valueimpl.ListKind, Start: int32(start), End: int32(p.Pos)}), true
 	}
 	plain := &Rule{Id: 1, Name: "plain", Seen: -1}
-	plain.Body = func(p *Parser, _ int) (*zpvalue.Node, bool) { return walk(p) }
+	plain.Body = func(p *Parser, _ int) (*sxirvalue.Node, bool) { return walk(p) }
 	last = &Rule{Id: 2, Name: "last", Memo: true, DocMemo: true, Seen: -1}
-	last.Body = func(p *Parser, _ int) (*zpvalue.Node, bool) {
+	last.Body = func(p *Parser, _ int) (*sxirvalue.Node, bool) {
 		v, ok := walk(p)
 		*hit = p.scanWalk.hit
 		return v, ok
 	}
 	main = &Rule{Id: 0, Name: "main", Memo: true, DocMemo: true, Seen: -1}
-	main.Body = func(p *Parser, _ int) (*zpvalue.Node, bool) {
+	main.Body = func(p *Parser, _ int) (*sxirvalue.Node, bool) {
 		for range 3 {
 			p.Pos = 0
 			if _, ok := p.Call(plain, 0); !ok {
@@ -79,7 +79,7 @@ func scanDocumentRules(hit *bool) (main, last *Rule) {
 // position before that end drops the entry, so that the parse after it equals a parse of a new
 // Document.
 func TestPrivateDocumentScanRecordHitExaminedEnd(t *testing.T) {
-	for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+	for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 		const run = 20
 		text := strings.Repeat("a", run) + "bcd"
 		var hit bool

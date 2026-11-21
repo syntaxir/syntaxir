@@ -107,7 +107,7 @@ func TestOutputSchemaJSONExactKeysAndDuplicates(t *testing.T) {
 		t.Fatalf("fixture round trip: %v", err)
 	}
 	for _, spot := range []struct{ name, prefix, key, value string }{
-		{"envelope", `"format":"zp-output-schema"`, "format", `"zp-output-schema"`},
+		{"envelope", `"format":"sxir-output-schema"`, "format", `"sxir-output-schema"`},
 		{"type", `"id":"declared/Item"`, "id", `"declared/Item"`},
 		{"rule", `"rules":[{"name":"main"`, "name", `"main"`},
 		{"shape", `"shape":{"kind":"struct"`, "kind", `"struct"`},

@@ -2,7 +2,7 @@ package fmt
 
 import "testing"
 
-import "zeroparse.dev/zp/pkg/grammar/ast"
+import "syntaxir.dev/sxir/pkg/grammar/ast"
 
 // A grammar built by hand writes the comments its nodes own: a text that ends
 // in a line break is line comments, any other text is a block comment, and a

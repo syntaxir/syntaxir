@@ -3,8 +3,8 @@ package state
 import (
 	"unsafe"
 
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // termRegs holds the registers of the term programs that a parser evaluates, in four files (see

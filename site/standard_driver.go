@@ -37,7 +37,7 @@ func selectWasmMode(mode string) (string, error) {
 }
 
 // Build uses ZeroSite for document selection, Markdown, indexes, navigation,
-// search and publication. Hooks supply only ZeroParse's product-specific pages.
+// search and publication. Hooks supply only SyntaxIR's product-specific pages.
 func Build(cfg Config) (Stats, error) {
 	if cfg.DeployURL != "" {
 		if _, err := siteURL(cfg.DeployURL); err != nil {
@@ -60,7 +60,7 @@ func Build(cfg Config) (Stats, error) {
 		return Stats{}, err
 	}
 	c.Repository, c.Branch = cfg.GitHub, cfg.Ref
-	s := &Site{cfg: cfg, bySrc: map[string]*Page{}, byDir: map[string]*Page{}, wasm: "playground/zp.wasm"}
+	s := &Site{cfg: cfg, bySrc: map[string]*Page{}, byDir: map[string]*Page{}, wasm: "playground/sxir.wasm"}
 	mapped := map[*sitegen.Page]*Page{}
 	lookup := func(p *sitegen.Page) *Page {
 		if p == nil {
@@ -98,7 +98,7 @@ func Build(cfg Config) (Stats, error) {
 			}
 			if q.Source == "README.md" {
 				p.Kind = "landing"
-				p.Title = "ZeroParse"
+				p.Title = "SyntaxIR"
 				p.Nav = "Home"
 				p.SourceURL = ""
 			}
@@ -114,7 +114,7 @@ func Build(cfg Config) (Stats, error) {
 			}
 			mapped[q] = p
 		}
-		pg := &Page{URL: "playground/", Kind: "playground", Title: "Playground", Nav: "Playground", Description: "Write a ZeroParse grammar and parse input with it in your browser.", Scripts: []string{"playground/app.js"}, Styles: []string{"playground/playground.css"}}
+		pg := &Page{URL: "playground/", Kind: "playground", Title: "Playground", Nav: "Playground", Description: "Write a SyntaxIR grammar and parse input with it in your browser.", Scripts: []string{"playground/app.js"}, Styles: []string{"playground/playground.css"}}
 		s.add(pg)
 		if err := s.renderPlayground(); err != nil {
 			return err
@@ -191,7 +191,7 @@ func Build(cfg Config) (Stats, error) {
 				}
 			}
 			s.wasm = "playground/" + current.asset.Wasm
-			temp, err := os.MkdirTemp("", "zp-standard-assets-")
+			temp, err := os.MkdirTemp("", "sxir-standard-assets-")
 			if err != nil {
 				return err
 			}

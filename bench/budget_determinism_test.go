@@ -1,4 +1,4 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package bench
 
@@ -7,10 +7,10 @@ import (
 	"runtime"
 	"testing"
 
-	"zeroparse.dev/zp/internal/bench/inputs"
-	gcsv "zeroparse.dev/zp/internal/bench/parsers/csv"
-	gjson "zeroparse.dev/zp/internal/bench/parsers/json"
-	gxml "zeroparse.dev/zp/internal/bench/parsers/xml"
+	"syntaxir.dev/sxir/internal/bench/inputs"
+	gcsv "syntaxir.dev/sxir/internal/bench/parsers/csv"
+	gjson "syntaxir.dev/sxir/internal/bench/parsers/json"
+	gxml "syntaxir.dev/sxir/internal/bench/parsers/xml"
 )
 
 // TestGeneratedBudgetErrorsAreDeterministic requires that a parse under a finite budget fails the

@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	goprint "zeroparse.dev/zp/internal/backend/codegen/golang/print"
-	tsprint "zeroparse.dev/zp/internal/backend/codegen/typescript/print"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	goprint "syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	tsprint "syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 func TestGeneratedSharingIdentity(t *testing.T) {
@@ -106,19 +106,19 @@ rule a = ("é" / "ab")+ #atomic`)
 	}
 }
 
-// ZP_GENERATED_SHARING selects generation-only controls: combined also
+// SXIR_GENERATED_SHARING selects generation-only controls: combined also
 // enables experimental TypeScript literal sharing; methods, literals, or
 // both disables the corresponding mechanism in that experiment. Empty uses
 // production defaults. Standalone parsers have no matching-time selector.
 func BenchmarkGeneratedSharing(b *testing.B) {
 	opts := common.GenOptions{Package: "shared", Start: "main", Types: true, Recognize: true}
-	mode := os.Getenv("ZP_GENERATED_SHARING")
+	mode := os.Getenv("SXIR_GENERATED_SHARING")
 	opts.NoOpt = sharingNoOpt(mode)
 	if mode == "combined" || mode == "methods" || mode == "literals" || mode == "both" {
 		opts.Opt = map[string]int{"ts-literal-sharing": 1}
 	}
 	for _, name := range []string{"json", "typescript", "duckdb"} {
-		src, err := os.ReadFile(filepath.Join("../../../../testdata/grammars", name, name+".zp"))
+		src, err := os.ReadFile(filepath.Join("../../../../testdata/grammars", name, name+".sxir"))
 		if err != nil {
 			b.Fatal(err)
 		}

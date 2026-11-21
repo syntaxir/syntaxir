@@ -8,16 +8,16 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // Export standalone controls; keep generated fixtures and results outside Git.
 func TestExportGeneratedGoProfileBenchmarks(t *testing.T) {
 	t.Parallel()
-	dir := os.Getenv("ZP_PROFILE_BENCH_DIR")
+	dir := os.Getenv("SXIR_PROFILE_BENCH_DIR")
 	if dir == "" {
-		t.Skip("set ZP_PROFILE_BENCH_DIR to export profile benchmarks")
+		t.Skip("set SXIR_PROFILE_BENCH_DIR to export profile benchmarks")
 	}
 	write := func(name string, data []byte) {
 		t.Helper()
@@ -32,9 +32,9 @@ func TestExportGeneratedGoProfileBenchmarks(t *testing.T) {
 	write("go.mod", []byte(codegentest.GoMod("profilebench")))
 	sizes := map[string]int{}
 	for _, f := range []struct{ name, path, input string }{
-		{"json", "testdata/grammars/json/json.zp", "[" + strings.TrimSuffix(strings.Repeat(`{"name":"éclair","n":123,"ok":true},`, 64), ",") + "]"},
-		{"xml", "testdata/grammars/xml/xml.zp", "<root>" + strings.Repeat(`<item name="éclair">123</item>`, 64) + "</root>"},
-		{"calc", "examples/calculator/calc.zp", strings.TrimSuffix(strings.Repeat("1+2*3+", 32), "+")},
+		{"json", "testdata/grammars/json/json.sxir", "[" + strings.TrimSuffix(strings.Repeat(`{"name":"éclair","n":123,"ok":true},`, 64), ",") + "]"},
+		{"xml", "testdata/grammars/xml/xml.sxir", "<root>" + strings.Repeat(`<item name="éclair">123</item>`, 64) + "</root>"},
+		{"calc", "examples/calculator/calc.sxir", strings.TrimSuffix(strings.Repeat("1+2*3+", 32), "+")},
 	} {
 		src, err := os.ReadFile(filepath.Join("../../../../..", f.path))
 		if err != nil {
@@ -68,7 +68,7 @@ func TestExportGeneratedGoProfileBenchmarks(t *testing.T) {
 				if observed {
 					driver += generatedGoProfileTraceBenchmark
 				}
-				if observed && os.Getenv("ZP_PROFILE_BASE") == "" {
+				if observed && os.Getenv("SXIR_PROFILE_BASE") == "" {
 					driver += generatedGoProfileEnabledBenchmark
 					if typed {
 						driver += generatedGoProfileTypedEnabledBenchmark

@@ -3,9 +3,9 @@ package engine
 import (
 	"fmt"
 
-	"zeroparse.dev/zp/internal/runtime/document"
-	"zeroparse.dev/zp/internal/runtime/program"
-	"zeroparse.dev/zp/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/runtime/document"
+	"syntaxir.dev/sxir/internal/runtime/program"
+	"syntaxir.dev/sxir/internal/runtime/state"
 )
 
 // NewDocument creates a Document that parses text with the rule start. Positions are in code

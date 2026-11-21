@@ -13,11 +13,11 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/backend/codegen/golang/print"
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/driver/entry"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // libNameTypes are names that the library and the generated parser package declare. A type of a
@@ -195,7 +195,7 @@ func TestGeneratedTypeNamedLikeTypesPackageName(t *testing.T) {
 		rejected      bool
 	}{
 		{"TNode", "type TNode = { Value int }\nrule main = \"a\"\n", true},
-		{"hooks", "type ZPHooks = { Value int }\nrule main = \"a\"\n", true},
+		{"hooks", "type SXIRHooks = { Value int }\nrule main = \"a\"\n", true},
 		{"unit used", "type Unit = { Value int }\nrule main = \"a\" => ()\n", true},
 		{"unit unused", "type Unit = { Value int }\nrule main = \"a\"\n", false},
 		{"tuple used", "type Tuple2 = { Value int }\nrule main = \"a\" \"b\" => (1, 2)\n", true},
@@ -238,7 +238,7 @@ func TestGeneratedTypesPackageNamesTheLibExplicitly(t *testing.T) {
 	}
 	for _, name := range []string{"json", "csv", "cel", "yaml"} {
 		t.Run(name, func(t *testing.T) {
-			data, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "testdata", "grammars", name, name+".zp"))
+			data, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "testdata", "grammars", name, name+".sxir"))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -491,8 +491,8 @@ var o = [2]NodeKind{1: KindTuple}
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		"zpvalue.KindString: \"s\"", "zpvalue.KindTuple: \"t\"", "zpvalue.KindList: \"l\"", "zpvalue.KindError: \"e\"", "zpvalue.KindStruct: \"x\"",
-		"{zpvalue.KindString: {zpvalue.KindTuple: 1}", "{\"a\": {zpvalue.KindString: 1}", "{{zpvalue.KindList: 1}}", "{zpvalue.KindList: {{KindString: 1}}}",
+		"sxirvalue.KindString: \"s\"", "sxirvalue.KindTuple: \"t\"", "sxirvalue.KindList: \"l\"", "sxirvalue.KindError: \"e\"", "sxirvalue.KindStruct: \"x\"",
+		"{sxirvalue.KindString: {sxirvalue.KindTuple: 1}", "{\"a\": {sxirvalue.KindString: 1}", "{{sxirvalue.KindList: 1}}", "{sxirvalue.KindList: {{KindString: 1}}}",
 		"pair{KindString: 1, KindTuple: 2}", "&pair{KindString: 1}", "[]*pair{{KindString: 1}}",
 	} {
 		if !strings.Contains(strings.ReplaceAll(out, "\n", ""), want) {
@@ -503,7 +503,7 @@ var o = [2]NodeKind{1: KindTuple}
 	// there: the keys of a map are runtime constants, the field names of a struct are not.
 	decls := map[string]goast.Expr{}
 	f, err := goparser.ParseFile(token.NewFileSet(), "types.go", `package p
-type Table map[zpvalue.NodeKind]string
+type Table map[sxirvalue.NodeKind]string
 type Pair struct{ KindString, KindTuple int }`, goparser.SkipObjectResolution)
 	if err != nil {
 		t.Fatal(err)
@@ -522,7 +522,7 @@ var c = []types.Table{{KindList: "l"}}
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`types.Table{zpvalue.KindString: "s"}`, "&types.Pair{KindString: 1}", `[]types.Table{{zpvalue.KindList: "l"}}`} {
+	for _, want := range []string{`types.Table{sxirvalue.KindString: "s"}`, "&types.Pair{KindString: 1}", `[]types.Table{{sxirvalue.KindList: "l"}}`} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in\n%s", want, out)
 		}
@@ -539,7 +539,7 @@ func TestEmbeddedModeCompilesRichGrammars(t *testing.T) {
 	}
 	for _, name := range []string{"json", "csv", "cel", "yaml"} {
 		t.Run(name, func(t *testing.T) {
-			data, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "testdata", "grammars", name, name+".zp"))
+			data, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "testdata", "grammars", name, name+".sxir"))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -587,7 +587,7 @@ func TestGeneratedRichGrammarsWithTypesNamedLikeLibExports(t *testing.T) {
 	declares := regexp.MustCompile(`(?m)^\s*type\s+(\w+)`)
 	for _, name := range []string{"json", "csv", "cel", "yaml"} {
 		t.Run(name, func(t *testing.T) {
-			data, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "testdata", "grammars", name, name+".zp"))
+			data, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "testdata", "grammars", name, name+".sxir"))
 			if err != nil {
 				t.Fatal(err)
 			}

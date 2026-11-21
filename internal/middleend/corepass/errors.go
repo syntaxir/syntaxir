@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"slices"
 
-	"zeroparse.dev/zp/internal/ir/core"
+	"syntaxir.dev/sxir/internal/ir/core"
 )
 
 // Error is a grammar that the facts reject: a construct that is valid in itself but not on a

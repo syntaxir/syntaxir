@@ -1,4 +1,4 @@
-//go:build zp_snapshot_position_overlays
+//go:build sxir_snapshot_position_overlays
 
 package document
 

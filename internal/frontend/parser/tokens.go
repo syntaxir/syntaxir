@@ -4,11 +4,11 @@ import (
 	"context"
 	"unicode/utf8"
 
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // This file exposes the lexer and an error-tolerant parse to tools that work on source as it is
-// being edited, such as the language server (internal/lsp/zpls).
+// being edited, such as the language server (internal/lsp/sxirls).
 
 // TokenKind is the kind of a Token.
 type TokenKind int
@@ -25,7 +25,7 @@ const (
 	TokenComment                        // // ... or /* ... */
 )
 
-// Token is a lexical token of ZeroParse source.
+// Token is a lexical token of SyntaxIR source.
 type Token struct {
 	Kind TokenKind
 	// Text is the name of an identifier or a capture reference, the punctuation, the digits of an

@@ -7,9 +7,9 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 // decodedBoundaries is an independent oracle for edit validation: invalid

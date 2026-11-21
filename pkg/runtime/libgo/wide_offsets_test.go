@@ -5,8 +5,8 @@ import (
 	"testing"
 	"unsafe"
 
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 // A code-point source too large for int32 offsets still gives text without copying: the first
@@ -23,9 +23,9 @@ func TestTextOfSourceBeyondInt32Offsets(t *testing.T) {
 			name, source string
 			shares       bool
 		}{{"valid", valid, true}, {"invalid", invalid, false}} {
-			p := &Parser{unit: zpinput.CodePoints}
+			p := &Parser{unit: sxirinput.CodePoints}
 			if controlled {
-				p.Control = newBudgetControl(nil, zpruntime.Limits{Compute: 1 << 30})
+				p.Control = newBudgetControl(nil, sxirruntime.Limits{Compute: 1 << 30})
 			}
 			p.setSource(tc.source)
 			if p.offs != nil {

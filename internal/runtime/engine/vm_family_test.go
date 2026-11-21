@@ -1,4 +1,4 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package engine
 
@@ -8,11 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 var vmBackends = []Backend{Bytecode, BytecodeIterative}
@@ -81,7 +81,7 @@ func TestVMFamiliesMatchOnCorpus(t *testing.T) {
 				}
 				for _, b := range vmBackends {
 					for _, in := range c.Inputs {
-						for _, u := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+						for _, u := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 							x, xs := parseInFamily(prog, b, in, u, state.Inlined)
 							y, ys := parseInFamily(prog, b, in, u, state.CallPreserving)
 							if x != y || xs != ys {

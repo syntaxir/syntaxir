@@ -1,11 +1,11 @@
-// Tests of ZPClient (static/assets/zp-client.js) with a fake worker. Run by TestJavaScript.
+// Tests of SXIRClient (static/assets/sxir-client.js) with a fake worker. Run by TestJavaScript.
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { gzipSync } from "node:zlib";
 
-import { ZPClient, wasmBytes } from "../static/assets/zp-client.js";
+import { SXIRClient, wasmBytes } from "../static/assets/sxir-client.js";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -44,7 +44,7 @@ function fakeWorkers() {
   return { FakeWorker, workers };
 }
 
-const client = (opts) => new ZPClient("https://example.test/playground/", { compile: async () => ({}), ...opts });
+const client = (opts) => new SXIRClient("https://example.test/playground/", { compile: async () => ({}), ...opts });
 
 test("a timeout keeps the calls queued behind the stuck one", async () => {
   const { FakeWorker, workers } = fakeWorkers();
@@ -133,11 +133,11 @@ test("a worker that fails to start is started again by the next call", async () 
 test("the client loads the binary the page names", async () => {
   const { FakeWorker, workers } = fakeWorkers();
   let compiled = null;
-  const c = client({ Worker: FakeWorker, wasm: "wasm/zp-0123456789abcdef.wasm", compile: async (url) => ((compiled = url), {}) });
+  const c = client({ Worker: FakeWorker, wasm: "wasm/sxir-0123456789abcdef.wasm", compile: async (url) => ((compiled = url), {}) });
   await c.call("echo", {});
-  assert.equal(compiled, "https://example.test/playground/wasm/zp-0123456789abcdef.wasm");
+  assert.equal(compiled, "https://example.test/playground/wasm/sxir-0123456789abcdef.wasm");
   assert.equal(workers[0].received[0].wasm, compiled);
-  assert.equal(new ZPClient("https://example.test/playground/", { wasm: null }).wasm, "https://example.test/playground/zp.wasm");
+  assert.equal(new SXIRClient("https://example.test/playground/", { wasm: null }).wasm, "https://example.test/playground/sxir.wasm");
 });
 
 test("a stack overflow restarts the worker", async () => {
@@ -166,7 +166,7 @@ test("default compilation shares a pending module only for the same resolved URL
     const pending = deferred(); modules.set(url, pending);
     return pending.promise;
   });
-  const make = (wasm) => new ZPClient("https://cache.test/playground/", { wasm, Worker: FakeWorker });
+  const make = (wasm) => new SXIRClient("https://cache.test/playground/", { wasm, Worker: FakeWorker });
   const a = make("a.wasm"), same = make("./a.wasm"), b = make("b.wasm");
   const starts = [a.start(), same.start(), b.start()];
   await Promise.resolve(); await Promise.resolve();
@@ -194,7 +194,7 @@ test("a failed compilation can retry without evicting a different URL", async (t
     if (url.endsWith("failed.wasm")) return fail ? failed.promise : retriedModule;
     return stableModule;
   });
-  const make = (wasm) => new ZPClient("https://retry.test/playground/", { wasm, Worker: FakeWorker });
+  const make = (wasm) => new SXIRClient("https://retry.test/playground/", { wasm, Worker: FakeWorker });
   const bad = make("failed.wasm"), same = make("failed.wasm"), stable = make("stable.wasm");
   const failures = [assert.rejects(bad.start(), /network down/), assert.rejects(same.start(), /network down/)];
   await stable.start();
@@ -225,9 +225,9 @@ test("a compressed binary is fetched once, decompressed and compiled", async (t)
   t.mock.method(globalThis, "fetch", async (url) => { fetched.push(url); return new Response(gzipSync(fakeModule)); });
   t.mock.method(WebAssembly, "compileStreaming", async () => { throw new Error("compileStreaming used"); });
   t.mock.method(WebAssembly, "compile", async (bytes) => { compiled.push(new Uint8Array(bytes)); return { binary: "gz" }; });
-  const c = new ZPClient("https://gz.test/playground/", { wasm: "wasm/zp-0123456789abcdef.wasm.gz", Worker: FakeWorker });
+  const c = new SXIRClient("https://gz.test/playground/", { wasm: "wasm/sxir-0123456789abcdef.wasm.gz", Worker: FakeWorker });
   await c.start();
-  assert.deepEqual(fetched, ["https://gz.test/playground/wasm/zp-0123456789abcdef.wasm.gz"]);
+  assert.deepEqual(fetched, ["https://gz.test/playground/wasm/sxir-0123456789abcdef.wasm.gz"]);
   assert.deepEqual(compiled, [fakeModule]);
   assert.deepEqual(workers[0].received[0].module, { binary: "gz" });
 });

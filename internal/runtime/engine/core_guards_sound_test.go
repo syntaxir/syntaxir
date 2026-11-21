@@ -8,11 +8,11 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/ir/core"
-	syntaxfmt "zeroparse.dev/zp/internal/syntax/fmt"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/ir/core"
+	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // The guards of the Core IR (corepass.Guards) skip an alternative of a choice when the next character

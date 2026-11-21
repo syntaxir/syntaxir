@@ -5,12 +5,12 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
 )
 
 func TestMaxDepth(t *testing.T) {
-	src := grammar.FromString("depth.zp", "@start\nrule main = \"x\"")
+	src := grammar.FromString("depth.sxir", "@start\nrule main = \"x\"")
 	for _, ts := range []bool{false, true} {
 		generate := func(depth int) ([]byte, error) {
 			files, err := compiler.GenerateGo(src, compiler.GoConfig{Module: "depth", Lib: compiler.LibImport, MaxDepth: depth}, compiler.WithStart("main"))
@@ -31,7 +31,7 @@ func TestMaxDepth(t *testing.T) {
 			t.Fatalf("equivalent default: %v", err)
 		}
 		got, err = generate(7)
-		want := "var zpGrammar = rt.NewGrammar(7)"
+		want := "var sxirGrammar = rt.NewGrammar(7)"
 		if ts {
 			want = "const G = mkGrammar(7, "
 		}

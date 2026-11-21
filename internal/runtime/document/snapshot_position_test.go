@@ -1,4 +1,4 @@
-//go:build zp_snapshot_position_overlays
+//go:build sxir_snapshot_position_overlays
 
 package document_test
 
@@ -9,11 +9,11 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/document"
-	. "zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/runtime/document"
+	. "syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 func TestSnapshotPositionOverlaysAcrossEdits(t *testing.T) {

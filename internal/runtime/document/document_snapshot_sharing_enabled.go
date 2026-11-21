@@ -1,4 +1,4 @@
-//go:build !zp_snapshot_sharing_reference
+//go:build !sxir_snapshot_sharing_reference
 
 package document
 

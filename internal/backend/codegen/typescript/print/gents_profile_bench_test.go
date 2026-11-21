@@ -5,9 +5,9 @@ package print_test
 const generatedTSProfileBenchmark = `import * as p from "./parser.ts";
 import {performance} from "node:perf_hooks";
 const input=INPUT;
-const duration=Number(process.env.ZP_PROFILE_BENCH_MS??150);
-const warm=Number(process.env.ZP_PROFILE_WARM_MS??75);
-const modes=(process.env.ZP_PROFILE_MODES??(OBSERVED?"none,trace,profile":"none")).split(",");
+const duration=Number(process.env.SXIR_PROFILE_BENCH_MS??150);
+const warm=Number(process.env.SXIR_PROFILE_WARM_MS??75);
+const modes=(process.env.SXIR_PROFILE_MODES??(OBSERVED?"none,trace,profile":"none")).split(",");
 const operations=TYPED?["Parse","ParseValue","Recognize"]:["Parse","Recognize"];
 let sink,eventSink;
 const trace=e=>{eventSink=e.pos^e.end^e.evals};

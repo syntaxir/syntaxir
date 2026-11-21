@@ -8,12 +8,12 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	irbuild "zeroparse.dev/zp/internal/frontend/elaborate"
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/internal/middleend/flowlower"
-	"zeroparse.dev/zp/internal/testing/compiletest"
+	"syntaxir.dev/sxir/internal/compile"
+	irbuild "syntaxir.dev/sxir/internal/frontend/elaborate"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/flowlower"
+	"syntaxir.dev/sxir/internal/testing/compiletest"
 )
 
 var update = flag.Bool("update", false, "update golden files")
@@ -23,12 +23,12 @@ var update = flag.Bool("update", false, "update golden files")
 // printed programs. A term that Term does not lower is listed by the kinds that it holds and Term
 // does not lower.
 func TestTermDumpGolden(t *testing.T) {
-	paths, err := filepath.Glob("../../../testdata/grammars/*/*.zp")
+	paths, err := filepath.Glob("../../../testdata/grammars/*/*.sxir")
 	if err != nil || len(paths) == 0 {
 		t.Fatalf("no grammars: %v", err)
 	}
 	for _, path := range paths {
-		name := strings.TrimSuffix(filepath.Base(path), ".zp")
+		name := strings.TrimSuffix(filepath.Base(path), ".sxir")
 		t.Run(name, func(t *testing.T) {
 			src, err := os.ReadFile(path)
 			if err != nil {

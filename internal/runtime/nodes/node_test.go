@@ -4,8 +4,8 @@ import (
 	"testing"
 	"unsafe"
 
-	"zeroparse.dev/zp/pkg/runtime/value"
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	"syntaxir.dev/sxir/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // KindOfShape and core.Node.Kind map shapes to kinds by separate copies of one table.

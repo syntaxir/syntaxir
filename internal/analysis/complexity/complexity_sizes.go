@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"zeroparse.dev/zp/internal/frontend/astfacts"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Size degrees of values. The bounds on folds and lambdas take the size of a value from the

@@ -1,4 +1,4 @@
-//go:build zp_long && !zp_budget_controls_reference
+//go:build sxir_long && !sxir_budget_controls_reference
 
 package engine
 
@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // TestLimitErrorAgreementMutants checks that TestLimitErrorAgreement notices a backend that reports a

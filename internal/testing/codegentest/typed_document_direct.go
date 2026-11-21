@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/compiletest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/compiletest"
 )
 
 // DirectTypedDocument builds typed Document parsers generated with the options extra, which
@@ -112,7 +112,7 @@ rule main Text = v1:[aé😀]* #atomic => Text{S: text($v1)}`, []string{"", "aé
 
 const DirectTypedDocumentTests = `package PACKAGE
 import (
-	zprt "zeroparse.dev/zp/pkg/runtime/libgo"
+	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
  "context"
  "encoding/json"
  "errors"
@@ -133,7 +133,7 @@ func assertDirect(t *testing.T,d *Document,unit PositionUnit){
  if !reflect.DeepEqual(got,want)||!reflect.DeepEqual(gotErr,wantErr){t.Fatalf("unit %v input %q: Document %#v / %#v; batch %#v / %#v",unit,d.Text(),got,gotErr,want,wantErr)}
  ref,refErr:=reference.ParseValue(d.Text(),reference.WithUnit(reference.PositionUnit(unit)))
  if jsonValue(t,got)!=jsonValue(t,ref)||errorValue(gotErr)!=errorValue(refErr){t.Fatalf("unit %v input %q differs from conversion: %s / %s; %v / %v",unit,d.Text(),jsonValue(t,got),jsonValue(t,ref),gotErr,refErr)}
- if _,ok:=d.X_typedMemo.(*zprt.X_typedDocumentState);!ok{t.Fatal("direct typed cache not retained")}
+ if _,ok:=d.X_typedMemo.(*sxirrt.X_typedDocumentState);!ok{t.Fatal("direct typed cache not retained")}
 }
 func TestEditsAndReuse(t *testing.T){
  for _,unit:=range []PositionUnit{CodePoints,Bytes}{

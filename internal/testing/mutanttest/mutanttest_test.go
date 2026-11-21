@@ -180,7 +180,7 @@ func TestPipelineCoversImports(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	const mod = "zeroparse.dev/zp/"
+	const mod = "syntaxir.dev/sxir/"
 	for _, p := range imports {
 		rel, ok := strings.CutPrefix(p, mod)
 		if !ok {

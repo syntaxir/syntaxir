@@ -3,8 +3,8 @@ package sample
 import (
 	"unicode/utf8"
 
-	"zeroparse.dev/zp/internal/ir/code/exec/ref"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Kinds of generated values (see val).

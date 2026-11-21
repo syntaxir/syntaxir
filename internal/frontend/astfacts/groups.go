@@ -1,6 +1,6 @@
 package astfacts
 
-import "zeroparse.dev/zp/pkg/grammar/ast"
+import "syntaxir.dev/sxir/pkg/grammar/ast"
 
 // UngroupType removes source-only grouping without changing its input.
 func UngroupType(t ast.TypeExpr) ast.TypeExpr {

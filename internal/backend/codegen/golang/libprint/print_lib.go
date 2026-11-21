@@ -11,7 +11,7 @@ package main
 import (
 	"log"
 
-	libprint "zeroparse.dev/zp/internal/backend/codegen/golang/libprint"
+	libprint "syntaxir.dev/sxir/internal/backend/codegen/golang/libprint"
 )
 
 func main() {

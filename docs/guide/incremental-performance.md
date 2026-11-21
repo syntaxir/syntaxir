@@ -23,9 +23,9 @@ import (
 	"strings"
 	"time"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
-	"zeroparse.dev/zp/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/runtime"
 )
 
 // Three grammars for a file of "key = value" lines.
@@ -83,7 +83,7 @@ func live(build func() any) float64 {
 
 func main() {
 	for _, g := range grammars {
-		p, err := compiler.Compile(grammar.FromString("grammar.zp", g.grammar), compiler.WithStart("main"))
+		p, err := compiler.Compile(grammar.FromString("grammar.sxir", g.grammar), compiler.WithStart("main"))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -187,7 +187,7 @@ settings, everything in one rule
 
 ## A Real Grammar
 
-A real grammar, [alpha-parsers/json](../../testdata/grammars/json/json.zp), on an array of 5,000 objects (283 KB). Run it from the
+A real grammar, [alpha-parsers/json](../../testdata/grammars/json/json.sxir), on an array of 5,000 objects (283 KB). Run it from the
 root of the repository:
 
 <details>
@@ -203,17 +203,17 @@ import (
 	"strings"
 	"time"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
 )
 
-// Run it from the root of the repository: go run ./jsondoc testdata/grammars/json/json.zp
+// Run it from the root of the repository: go run ./jsondoc testdata/grammars/json/json.sxir
 func main() {
 	src, err := os.ReadFile(os.Args[1])
 	if err != nil {
 		log.Fatal(err)
 	}
-	p, err := compiler.Compile(grammar.FromString("grammar.zp", string(src)), compiler.WithStart("main"))
+	p, err := compiler.Compile(grammar.FromString("grammar.sxir", string(src)), compiler.WithStart("main"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -266,7 +266,7 @@ func main() {
 </details>
 
 ```bash
-go run ./jsondoc testdata/grammars/json/json.zp
+go run ./jsondoc testdata/grammars/json/json.sxir
 ```
 
 ```text

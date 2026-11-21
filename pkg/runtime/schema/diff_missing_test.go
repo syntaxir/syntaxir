@@ -3,8 +3,8 @@ package schema_test
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/testing/enginetest"
-	"zeroparse.dev/zp/pkg/runtime/schema"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
+	"syntaxir.dev/sxir/pkg/runtime/schema"
 )
 
 // A field that changes between error and missing is a change of its type.

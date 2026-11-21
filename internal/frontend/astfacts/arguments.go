@@ -4,7 +4,7 @@ import (
 	"cmp"
 	"slices"
 
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // ExpressionArgsWithPoll preserves Attribute.ExpressionArgs order and fresh

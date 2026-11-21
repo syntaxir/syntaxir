@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"slices"
 
-	"zeroparse.dev/zp/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code"
 )
 
 // The reference model of the expectation record (component expected): the current record is an

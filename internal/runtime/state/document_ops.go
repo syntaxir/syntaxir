@@ -1,8 +1,8 @@
 package state
 
 import (
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // The engine's implementations of the Document operations (document_exec.go, printed from

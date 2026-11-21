@@ -8,32 +8,32 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"zeroparse.dev/zp/internal/backend/closure"
-	"zeroparse.dev/zp/internal/compile"
-	irbuild "zeroparse.dev/zp/internal/frontend/elaborate"
-	"zeroparse.dev/zp/internal/frontend/parser"
-	ir "zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/internal/middleend/corepass"
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/internal/runtime/vm"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/internal/testing/starttest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
-	"zeroparse.dev/zp/pkg/runtime"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	"syntaxir.dev/sxir/internal/backend/closure"
+	"syntaxir.dev/sxir/internal/compile"
+	irbuild "syntaxir.dev/sxir/internal/frontend/elaborate"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	ir "syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/corepass"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/runtime/vm"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/starttest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
-// parseTest parses ZeroParse source for a test whose subject is not start rules: unless the source
+// parseTest parses SyntaxIR source for a test whose subject is not start rules: unless the source
 // has declaration attributes, every rule becomes a start rule, the first one the default.
 func parseTest(src string) (*ast.Grammar, error) {
 	g, err := parser.Parse(src)
 	return starttest.MarkAll(g), err
 }
 
-// mustCompile compiles ZeroParse source with source information, so that results show rule names and
+// mustCompile compiles SyntaxIR source with source information, so that results show rule names and
 // capture labels.
 func mustCompile(t testing.TB, src string, opts ...compile.Options) *Program {
 	t.Helper()
@@ -45,7 +45,7 @@ func mustCompile(t testing.TB, src string, opts ...compile.Options) *Program {
 	return compileBare(t, src, o)
 }
 
-// compileBare compiles ZeroParse source with the options as given: without source information unless
+// compileBare compiles SyntaxIR source with the options as given: without source information unless
 // they request it.
 func compileBare(t testing.TB, src string, opts ...compile.Options) *Program {
 	t.Helper()
@@ -159,8 +159,8 @@ func mustParse(src string) *ast.Grammar {
 // points, matches the result of parsing in code points.
 func checkUnits(t *testing.T, prog *Program, start, input string, b Backend) {
 	t.Helper()
-	n1, err1 := prog.ParseWith(start, input, ParseOptions{Expectations: true, Unit: zpinput.CodePoints, Backend: b})
-	n2, err2 := prog.ParseWith(start, input, ParseOptions{Expectations: true, Unit: zpinput.Bytes, Backend: b})
+	n1, err1 := prog.ParseWith(start, input, ParseOptions{Expectations: true, Unit: sxirinput.CodePoints, Backend: b})
+	n2, err2 := prog.ParseWith(start, input, ParseOptions{Expectations: true, Unit: sxirinput.Bytes, Backend: b})
 	n2, err2 = toCodePoints(input, n2, err2)
 	if a, b := codegentest.ResultJSON(n1, err1), codegentest.ResultJSON(n2, err2); a != b {
 		t.Errorf("input %q: results differ between units\n codepoints %s\n bytes      %s", input, a, b)
@@ -170,7 +170,7 @@ func checkUnits(t *testing.T, prog *Program, start, input string, b Backend) {
 // checkBackends checks that every backend produces the same result (value, positions, errors).
 func checkBackends(t *testing.T, prog *Program, start, input string) {
 	t.Helper()
-	for _, u := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+	for _, u := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 		n1, err1 := prog.ParseWith(start, input, ParseOptions{Expectations: true, Unit: u})
 		want := codegentest.ResultJSON(n1, err1)
 		checkRecognize(t, prog, start, input, u, err1)
@@ -194,7 +194,7 @@ func checkBackends(t *testing.T, prog *Program, start, input string) {
 // error as an ordinary parse (or succeeds if it does). Results are not compared when the
 // ordinary parse fails with a runtime error in an action (recognition does not evaluate
 // actions).
-func checkRecognize(t *testing.T, prog *Program, start, input string, u zpinput.PositionUnit, want error) {
+func checkRecognize(t *testing.T, prog *Program, start, input string, u sxirinput.PositionUnit, want error) {
 	t.Helper()
 	switch want.(type) {
 	case nil, *value.SyntaxError, value.SyntaxErrors:

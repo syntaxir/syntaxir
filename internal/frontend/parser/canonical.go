@@ -8,13 +8,13 @@ import (
 	"strconv"
 	"strings"
 
-	"zeroparse.dev/zp/internal/frontend/parser/sourceast"
-	"zeroparse.dev/zp/internal/frontend/parser/zpparser/types"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend/parser/sourceast"
+	"syntaxir.dev/sxir/internal/frontend/parser/sxirparser/types"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // FromSourceTree builds the public grammar AST from the canonical source tree:
-// the File that the grammar zp.zp parses src into, as the typed values of its
+// the File that the grammar sxir.sxir parses src into, as the typed values of its
 // generated parser. root must come from a parse of src that reported no syntax
 // error and use code point positions (the default position unit).
 //

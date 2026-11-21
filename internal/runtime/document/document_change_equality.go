@@ -1,8 +1,8 @@
 package document
 
 import (
-	"zeroparse.dev/zp/internal/runtime/state"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // equalChangeDiagnostics compares complete supported diagnostic values. Unknown
@@ -12,8 +12,8 @@ func equalChangeDiagnostics(p *state.Parser, a, b error) bool {
 		return a == nil && b == nil
 	}
 	switch x := a.(type) {
-	case *zpvalue.SyntaxError:
-		y, ok := b.(*zpvalue.SyntaxError)
+	case *sxirvalue.SyntaxError:
+		y, ok := b.(*sxirvalue.SyntaxError)
 		if !ok {
 			return false
 		}
@@ -36,8 +36,8 @@ func equalChangeDiagnostics(p *state.Parser, a, b error) bool {
 			}
 		}
 		return true
-	case zpvalue.SyntaxErrors:
-		y, ok := b.(zpvalue.SyntaxErrors)
+	case sxirvalue.SyntaxErrors:
+		y, ok := b.(sxirvalue.SyntaxErrors)
 		if !ok || (x == nil) != (y == nil) || len(x) != len(y) {
 			return false
 		}

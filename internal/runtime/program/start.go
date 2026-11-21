@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	"zeroparse.dev/zp/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime"
 )
 
 // HiddenRule reports whether the rule name is hidden: a name that begins with an underscore,

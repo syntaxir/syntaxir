@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 func TestGeneratedGoActionErrorBudget(t *testing.T) {
@@ -71,7 +71,7 @@ func TestGeneratedGoActionErrorBudget(t *testing.T) {
 
 const generatedGoActionErrorConsumer = `package PACKAGE
 
-import zprt "zeroparse.dev/zp/pkg/runtime/libgo"
+import sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
 import("context";"errors";"reflect";"strings";"testing")
 const wantError=WANT_ERROR
 const recognize=CHECK_RECOGNIZE
@@ -89,37 +89,37 @@ func TestPublicActionErrorAccounting(t *testing.T){
   retry,retryErr:=actionCall(mode);if (retryErr==nil)!=(e==nil) || retryErr!=nil && retryErr.Error()!=e.Error() || !reflect.DeepEqual(retry,n){t.Fatal("action error retry changed output",retryErr)}
  }
 }
-func catchActionText(f func())(text string,err error){defer func(){if x:=recover();x!=nil{switch x:=x.(type){case zprt.X_evalError:text=x.X_msg;case zprt.X_fatal:err=x.X_err;default:panic(x)}}}();f();return}
+func catchActionText(f func())(text string,err error){defer func(){if x:=recover();x!=nil{switch x:=x.(type){case sxirrt.X_evalError:text=x.X_msg;case sxirrt.X_fatal:err=x.X_err;default:panic(x)}}}();f();return}
 func TestActionTextFragmentsAndFlatPrefix(t *testing.T){
  for _,parts:=range [][]string{{""},{"","",""},{"a","","λ\xff"},{strings.Repeat("n",8192)}}{
-  want:=strings.Join(parts,"");steps:=uint64(len(want)+2*len(parts));p:=&zprt.Parser{Control:zprt.X_newBudgetControl(nil,Limits{Compute:steps})}
+  want:=strings.Join(parts,"");steps:=uint64(len(want)+2*len(parts));p:=&sxirrt.Parser{Control:sxirrt.X_newBudgetControl(nil,Limits{Compute:steps})}
   retained:=p.X_actionErrorText(parts...);if retained!=want || p.Control.X_budgetUsed()!=steps{t.Fatal("fragment text/counters")}
-  p.Control=zprt.X_newBudgetControl(nil,Limits{Compute:steps-1});var partial string
+  p.Control=sxirrt.X_newBudgetControl(nil,Limits{Compute:steps-1});var partial string
   _,e:=catchActionText(func(){partial=p.X_actionErrorText(parts...)});if !errors.Is(e,ErrLimit) || partial!=""{t.Fatal("one-short message",e)}
-  p.Control=zprt.X_newBudgetControl(nil,Limits{Compute:100});if p.X_actionErrorText("retry")!="retry" || retained!=want{t.Fatal("retained message changed")}
+  p.Control=sxirrt.X_newBudgetControl(nil,Limits{Compute:100});if p.X_actionErrorText("retry")!="retry" || retained!=want{t.Fatal("retained message changed")}
  }
  where:=strings.Repeat("rule",512);message:="division by zero";want:="action in "+where+": "+message
- p:=&zprt.Parser{Control:zprt.X_newBudgetControl(nil,Limits{Compute:uint64(len(want)+8)})};e:=p.X_wrapEvalError(where,message)
+ p:=&sxirrt.Parser{Control:sxirrt.X_newBudgetControl(nil,Limits{Compute:uint64(len(want)+8)})};e:=p.X_wrapEvalError(where,message)
  if e.Error()!=want || errors.Unwrap(e)!=nil || p.Control.X_budgetUsed()!=uint64(len(want)+8){t.Fatal("flat wrapper contract",e)}
- p.Control=zprt.X_newBudgetControl(nil,Limits{Compute:uint64(len(want)+7)});_,e=catchActionText(func(){p.X_wrapEvalError(where,message)});if !errors.Is(e,ErrLimit){t.Fatal("one-short wrapper",e)}
+ p.Control=sxirrt.X_newBudgetControl(nil,Limits{Compute:uint64(len(want)+7)});_,e=catchActionText(func(){p.X_wrapEvalError(where,message)});if !errors.Is(e,ErrLimit){t.Fatal("one-short wrapper",e)}
 }
 func TestTermCompositionErrorText(t *testing.T){
- long:=strings.Repeat("Kind",2048);n:=new(Node);zprt.D(n).Kind=zprt.KindOf(long,"");tn:=&zprt.TSeq{Typ:"tuple",Kids:make([]any,2048)}
+ long:=strings.Repeat("Kind",2048);n:=new(Node);sxirrt.D(n).Kind=sxirrt.KindOf(long,"");tn:=&sxirrt.TSeq{Typ:"tuple",Kids:make([]any,2048)}
  raise:=func(f any){if f!=nil{panic(f)}}
  for _,typed:=range []bool{false,true}{
-  p:=&zprt.Parser{};tp:=&zprt.TParser{Parser:p}
+  p:=&sxirrt.Parser{};tp:=&sxirrt.TParser{Parser:p}
   cases:=[]func(){
-   func(){if typed{_,f:=tp.TermUnary(zprt.OpNeg,tn);raise(f)}else{_,f:=p.TermUnary(zprt.OpNeg,n);raise(f)}},
-   func(){if typed{_,f:=tp.TermBinary(zprt.OpAdd,tn,1);raise(f)}else{_,f:=p.TermBinary(zprt.OpAdd,n,1);raise(f)}},
-   func(){if typed{_,f:=tp.TermLogic(zprt.OpAnd,tn);raise(f)}else{_,f:=p.TermLogic(zprt.OpAnd,n);raise(f)}},
-   func(){if typed{_,f:=tp.TermLogic(zprt.OpOr,tn);raise(f)}else{_,f:=p.TermLogic(zprt.OpOr,n);raise(f)}},
+   func(){if typed{_,f:=tp.TermUnary(sxirrt.OpNeg,tn);raise(f)}else{_,f:=p.TermUnary(sxirrt.OpNeg,n);raise(f)}},
+   func(){if typed{_,f:=tp.TermBinary(sxirrt.OpAdd,tn,1);raise(f)}else{_,f:=p.TermBinary(sxirrt.OpAdd,n,1);raise(f)}},
+   func(){if typed{_,f:=tp.TermLogic(sxirrt.OpAnd,tn);raise(f)}else{_,f:=p.TermLogic(sxirrt.OpAnd,n);raise(f)}},
+   func(){if typed{_,f:=tp.TermLogic(sxirrt.OpOr,tn);raise(f)}else{_,f:=p.TermLogic(sxirrt.OpOr,n);raise(f)}},
    func(){if typed{_,f:=tp.TermItems(long,1);raise(f)}else{_,f:=p.TermItems(long,1);raise(f)}},
-   func(){fn:=func(...any)any{return nil};if typed{raise(tp.TermPush(&zprt.TActCtx{P:tp},long,fn))}else{raise(p.TermPush(&zprt.ActCtx{P:p},long,fn))}},
+   func(){fn:=func(...any)any{return nil};if typed{raise(tp.TermPush(&sxirrt.TActCtx{P:tp},long,fn))}else{raise(p.TermPush(&sxirrt.ActCtx{P:p},long,fn))}},
   }
   for _,run:=range cases{
    p.Control=nil;ordinary,e:=catchActionText(run);if e!=nil || ordinary==""{t.Fatal("ordinary helper error",e)}
-   p.Control=zprt.X_newBudgetControl(nil,Limits{Compute:1<<50});active,e:=catchActionText(run);if e!=nil || active!=ordinary{t.Fatal("active helper error changed",e)}
-   p.Control=zprt.X_newBudgetControl(nil,Limits{Compute:256});partial,e:=catchActionText(run);if partial!="" || !errors.Is(e,ErrLimit){t.Fatal("helper error unbounded",e)}
+   p.Control=sxirrt.X_newBudgetControl(nil,Limits{Compute:1<<50});active,e:=catchActionText(run);if e!=nil || active!=ordinary{t.Fatal("active helper error changed",e)}
+   p.Control=sxirrt.X_newBudgetControl(nil,Limits{Compute:256});partial,e:=catchActionText(run);if partial!="" || !errors.Is(e,ErrLimit){t.Fatal("helper error unbounded",e)}
   }
  }
 }

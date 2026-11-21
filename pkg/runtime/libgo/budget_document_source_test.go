@@ -3,7 +3,7 @@ package libgo
 import (
 	"testing"
 
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 )
 
 // A Document charges the two passes of its source by the size of each character it decodes, so the
@@ -17,7 +17,7 @@ func TestSetControlledSourceInDocumentChargesTwoUnitsPerByte(t *testing.T) {
 	for _, s := range []string{"", "abc", "é", "日本語", "a\xffb", "\xe6\x97", long, long + "é日" + long, long[:100] + "\xff\xfe" + long[:100]} {
 		var p *Parser
 		spend := func(limit uint64) (used uint64, err error) {
-			p = &Parser{Control: newBudgetControl(nil, zpruntime.Limits{Compute: limit}), Document: &documentState{}}
+			p = &Parser{Control: newBudgetControl(nil, sxirruntime.Limits{Compute: limit}), Document: &documentState{}}
 			defer func() {
 				if x := recover(); x != nil {
 					err = x.(fatal).err

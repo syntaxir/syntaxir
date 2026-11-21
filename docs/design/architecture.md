@@ -3,7 +3,7 @@
 > [!WARNING]
 > This page describes the target architecture. The code may still differ from it.
 
-ZeroParse is a parser compiler: it turns a grammar written in an extended PEG language into parsers for several
+SyntaxIR is a parser compiler: it turns a grammar written in an extended PEG language into parsers for several
 backends, and every backend gives the same parse result for the same grammar and input. This page is the overview of
 the system: what it provides, the execution model, the two intermediate representations and the pipeline between them,
 the backends, the tools and the command line, and the package layout. Each part is explained in full on its own page,
@@ -11,7 +11,7 @@ which the sections below link to. Read this page before you work in any part of 
 
 The contracts that every backend must keep are in the [specification](../../spec/README.md).
 
-## What ZeroParse Provides
+## What SyntaxIR Provides
 
 One pipeline of intermediate representations carries every feature, so a grammar has one meaning wherever it is used.
 
@@ -26,7 +26,7 @@ One pipeline of intermediate representations carries every feature, so a grammar
 ### The Grammar Language
 
 A grammar is written in an extended PEG: PEG with types, actions, predicates, expectations, recovery, Operators Rules
-and pragmas. Grammar sources use the extension `.zp`. A grammar can also be written as JSON, and that JSON form is a
+and pragmas. Grammar sources use the extension `.sxir`. A grammar can also be written as JSON, and that JSON form is a
 public contract that the specification defines.
 
 ### Parsers and Parse Values
@@ -74,7 +74,7 @@ that the Exec dialect defines; "the VM" is only the bytecode VM.
 
 ```mermaid
 flowchart TD
-  src["Grammar source (.zp or JSON)"] -->|"parse: self-hosted generated parser, scannerless"| ast["Grammar AST = GST, with trivia"]
+  src["Grammar source (.sxir or JSON)"] -->|"parse: self-hosted generated parser, scannerless"| ast["Grammar AST = GST, with trivia"]
   ast -->|"desugar, resolve, check"| sem["Semantic model: checked GST with names, types and scopes"]
   sem -->|elaborate| core["Core IR: typed, with facts"]
   core -->|"corepass: rewrites that keep meaning"| core
@@ -82,11 +82,11 @@ flowchart TD
   flow -->|"flowpass: control-level decisions"| flow
   flow -->|"execlower: complete conversion"| exec["Code IR at the Exec stage: Exec and Action dialects, with compositions"]
   exec -->|"codepass: passes independent of the dialect"| exec
-  flow -->|"vmlower: instruction selection"| zpc["Bytecode (.zpc)"] --> vm["Bytecode VM: compositions are native"]
+  flow -->|"vmlower: instruction selection"| sxirc["Bytecode (.sxirc)"] --> vm["Bytecode VM: compositions are native"]
   exec -->|"language passes, then print"| host["Parser source in each host language"]
   exec -.->|"lower (future)"| llvm["LLVM IR"]
   core -->|build| closure["Closure: the reference parser"]
-  core -->|"tables from Core and Exec"| prog["Runtime program"] --> zpc
+  core -->|"tables from Core and Exec"| prog["Runtime program"] --> sxirc
   ast --> fmt["fmt, grammar language server"]
   sem --> lsp["Language server and lint findings"]
   core -->|"facts through the analysis manager"| tools["lint, sample"]
@@ -183,7 +183,7 @@ present design.
 
 ### Language Servers
 
-- **The grammar language server** supports editing `.zp` files: syntax and type errors, go to definition, rename and
+- **The grammar language server** supports editing `.sxir` files: syntax and type errors, go to definition, rename and
   formatting.
 - **A language server for user languages** (future) loads any grammar and provides editor support for the language it
   describes, from Document mode and structural queries. It depends on the text syntax of queries.
@@ -200,7 +200,7 @@ Run-time observation is described in [Observability](observability.md).
 
 ## The Command Line
 
-The `zp` command groups its subcommands by task. A command that reads a grammar takes it with `-g`, `-i` gives an input
+The `sxir` command groups its subcommands by task. A command that reads a grammar takes it with `-g`, `-i` gives an input
 inline and `-o` names an output.
 
 | Task | Commands and flags | Purpose |
@@ -208,7 +208,7 @@ inline and `-o` names an output.
 | Parsing and recognition | `parse`, with `-f` for the output format (JSON or `sexpr`) and `-recognize` for recognition | Prints the parse result; in recognition mode prints success and syntax errors without building a tree |
 | Run-time observation | `explain`; `trace`, with `-failures`, `-rule`, `-show-depth` and `-f json`; `profile` | Explains the rule calls behind a syntax error; traces rules, filtered by failure or by rule and limited in depth; reports the cost and the wasted backtracking of each rule |
 | Static analysis, formatting and editor support | `lint`; `fmt`, with `-w` and `-check`; `lsp` | Runs the checks and reports the complexity class; formats grammars keeping comments, or reports whether a change is needed; starts the grammar language server |
-| Grammars and schemas | `convert`, with `-to zp` or `-to json`; `schema`, with `-all-rules` and `-o`; `schema diff` | Converts between grammar source and JSON; writes the output schema; compares two schemas and reports the effect of their difference |
+| Grammars and schemas | `convert`, with `-to sxir` or `-to json`; `schema`, with `-all-rules` and `-o`; `schema diff` | Converts between grammar source and JSON; writes the output schema; compares two schemas and reports the effect of their difference |
 | Compilation and code generation | `compile`, with `-mode parse`, `recognize` or `document`; `gen`, with `-module`, `-types`, `-lang ts`, `-recognize`, `-recognize-only`, `-lib import` or `-lib embed`, and the pass controls `-optimize`, `-opt`, `-no-opt`, `-print-after`, `-print-before`, `-print-changed`, `-verify-each`, `-print-pipeline`, `-stats`, `-time-passes` and `-opt-bisect-limit` | Writes a compiled grammar in one of its modes; generates a parser in a host language, optionally with types and with a Recognize function (`-recognize-only` generates only that function); chooses the optimizations, dumps and verifies the IR around the named stages and passes, prints the assembled pipeline, the statistics and the time of each pass, and bisects the optional passes, as [Controlling Passes](pass-pipeline.md#controlling-passes) describes |
 | Testing | `test`, with `-f`, `-backend`, `-equivalence` and `-update`; `sample`, with `-n` and `-coverage`; `edit-fuzz`, with `-minimize` and `-save-failures` | Runs JSON fixture suites; generates accepted inputs; fuzzes edit sequences |
 
@@ -221,7 +221,7 @@ in [Package Layering](layering.md), and the public packages are described in [Th
 
 | Package | Holds |
 |:--|:--|
-| `cmd/zp` | The command line; reaches every feature through the driver |
+| `cmd/sxir` | The command line; reaches every feature through the driver |
 | `cmd/playground` | The WebAssembly side of the playground |
 | `pkg/compiler` | Makes executable artifacts from a grammar: parsers on the VM, reference parsers, compiled files, host-language parsers, the output schema, the optimization setting |
 | `pkg/grammar` | Grammar sources, their loading, formatting and conversion between grammar syntax and JSON |
@@ -239,11 +239,11 @@ in [Package Layering](layering.md), and the public packages are described in [Th
 | `pkg/runtime/instrument` | Trace events, filters, depth and profiles |
 | `pkg/runtime/vm` | Loading a compiled file into a parser, and the parser and Document of the VM |
 | `pkg/runtime/libgo` | The support library of generated Go parsers |
-| `internal/driver` | Assembles and drives the compiler pipeline; the table of optimization profiles; the body of `pkg/compiler` and `cmd/zp`. `entry` is the compile entry, and `checked` the compiler side of a compiled program, which the runtime reaches only through an interface of the parser state; `tooling` is what the language server uses of the compiler, its only way to reach it |
+| `internal/driver` | Assembles and drives the compiler pipeline; the table of optimization profiles; the body of `pkg/compiler` and `cmd/sxir`. `entry` is the compile entry, and `checked` the compiler side of a compiled program, which the runtime reaches only through an interface of the parser state; `tooling` is what the language server uses of the compiler, its only way to reach it |
 | `internal/diagnostic` | Positioned static errors |
 | `internal/cancel` | Cancellation of static work |
 | `internal/cliflag` | Flag names of backends and position units |
-| `internal/fixture` | JSON fixture suites of `zp test` (a tool: it uses `pkg/compiler`) |
+| `internal/fixture` | JSON fixture suites of `sxir test` (a tool: it uses `pkg/compiler`) |
 | `internal/pass` | The generic pass infrastructure: analysis manager, preserved sets, registry; the manager of one pass pipeline per compilation in `pipe/` |
 | `internal/ir/core` | Core IR: the meaning tree, attributes, verifier, printer |
 | `internal/ir/code` | The Code IR base: structure, operation declarations, verifier, printer, reference interpreter, builder |
@@ -251,7 +251,7 @@ in [Package Layering](layering.md), and the public packages are described in [Th
 | `internal/ir/code/action` | The Action dialect: operations that evaluate action expressions |
 | `internal/ir/code/exec` | The Exec dialect: operations of the abstract machine, with `compose` (compositions), `ref` (reference models), `conform` (conformance suite) and `spectest` (specification tests) below it |
 | `internal/frontend` | Drives the front end and returns the semantic model and Core IR; the facts are computed by the analyses of the Core passes |
-| `internal/frontend/parser` | `.zp` to grammar AST, with `zpparser`, the parser generated from the grammar of the grammar language |
+| `internal/frontend/parser` | `.sxir` to grammar AST, with `sxirparser`, the parser generated from the grammar of the grammar language |
 | `internal/frontend/desugar` | Rewriting into a smaller language |
 | `internal/frontend/check` | Name resolution and the checks of the value model: the semantic model |
 | `internal/frontend/types` | The type model |
@@ -288,7 +288,7 @@ in [Package Layering](layering.md), and the public packages are described in [Th
 | `internal/analysis/lint` | The linter |
 | `internal/analysis/complexity` | The cost view and the complexity classification |
 | `internal/lsp/protocol` | JSON-RPC and LSP messages |
-| `internal/lsp/zpls` | The grammar language server |
+| `internal/lsp/sxirls` | The grammar language server |
 | `internal/testing` | Repository test support, one package per kind of test: `codegentest`, `compiletest`, `enginetest`, `factstest`, `starttest`, `complexitytest`, `linearity`, `recoveryquality`, `archtest` (the import-graph test) and `exectest` |
 | `internal/bench` | Benchmark inputs, size measurement and generated benchmark parsers; not part of the public or the runtime layer |
 
@@ -319,7 +319,7 @@ The repository also holds `bench/`, `spec/`, `site/` and `examples/`.
 - **The dialects are nested under the base.** The tree and the import paths say that Flow, Action and Exec are dialects of
   Code IR. The lowerings are packages of their own outside the IR packages, apart from the passes of each dialect. This
   is where their code lives; each one runs as a pass of the pipeline.
-- **Names avoid clashes that matter**: `internal/lsp/zpls` is not named like `pkg/grammar`, and
+- **Names avoid clashes that matter**: `internal/lsp/sxirls` is not named like `pkg/grammar`, and
   `ir/code/exec/compose` is not named like `ir/core`. A clash matters only between packages that are imported together:
   `pkg/grammar/ast` shares its name with `go/ast`, which a program that reads grammars rarely imports beside it, and the
   few files that use `internal/syntax/fmt` together with the standard `fmt` import the formatter under another name.

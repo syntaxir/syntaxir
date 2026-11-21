@@ -16,11 +16,11 @@
 # be signalled again: TERM, INT or HUP, even one that arrives while the command starts, signals
 # the group, waits for it, frees the slot and exits 143. The command runs as a background job,
 # so its standard input is /dev/null, not the terminal: a queued command must not read it.
-# State: $ZP_AGENT_STATE/slots.
+# State: $SXIR_AGENT_STATE/slots.
 set -euo pipefail
 # shellcheck source=lib.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
-D=$zp_state/slots
+D=$sxir_state/slots
 n=${TESTSLOT_N:-4}
 [ $# -gt 0 ] || { echo "usage: testslot.sh <cmd...>" >&2; exit 2; }
 command -v perl >/dev/null 2>&1 || { echo "testslot.sh: perl is required for the claim lock and is not installed" >&2; exit 127; }
@@ -28,7 +28,7 @@ mkdir -p "$D"
 mine=
 child=
 term=
-me="$$ $(zp_lstart $$)"
+me="$$ $(sxir_lstart $$)"
 # shellcheck disable=SC2329  # runs from the traps
 release() {
   if [ -n "$mine" ]; then
@@ -46,7 +46,7 @@ trap on_term TERM INT HUP
 # holder_alive PID START: PID is the holder. START is empty for an old holder.
 holder_alive() {
   kill -0 "$1" 2>/dev/null || return 1
-  [ -z "${2:-}" ] || [ "$(zp_lstart "$1")" = "$2" ]
+  [ -z "${2:-}" ] || [ "$(sxir_lstart "$1")" = "$2" ]
 }
 # slot_dead DIR: the holder of the slot is gone. A claimer writes its pid right after it makes
 # the slot, inside the claim, so a slot without a pid that is older than a minute was left by a

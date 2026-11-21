@@ -8,11 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 func TestParseStream(t *testing.T) {
@@ -122,7 +122,7 @@ func TestParseStreamDiscardsInput(t *testing.T) {
 	prog := mustCompile(t, codegentest.Records)
 	r := &lineReader{header: "#records\n", line: "key=42\n", n: 100000}
 	maxBuf := 0
-	p := state.NewStreamParser(&prog.sharedProgram, r, zpinput.CodePoints)
+	p := state.NewStreamParser(&prog.sharedProgram, r, sxirinput.CodePoints)
 	p.Emit = func(*value.Node) error {
 		maxBuf = max(maxBuf, len(p.In))
 		return nil

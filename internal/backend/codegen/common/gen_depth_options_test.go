@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 func TestGeneratedMaxDepthValidation(t *testing.T) {
@@ -56,7 +56,7 @@ func testGeneratedMaxDepthValidation(t *testing.T) {
 				}
 				continue
 			}
-			want := fmt.Sprintf("var zpGrammar = rt.NewGrammar(%d)", n)
+			want := fmt.Sprintf("var sxirGrammar = rt.NewGrammar(%d)", n)
 			if ts {
 				want = fmt.Sprintf("const G = mkGrammar(%d, ", n)
 			}

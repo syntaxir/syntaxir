@@ -7,10 +7,10 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"zeroparse.dev/zp/internal/runtime/program"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/internal/runtime/vm"
-	"zeroparse.dev/zp/pkg/bytecode"
+	"syntaxir.dev/sxir/internal/runtime/program"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/runtime/vm"
+	"syntaxir.dev/sxir/pkg/bytecode"
 )
 
 // sharedProgram names the part of a program that every backend shares, so that Program embeds it

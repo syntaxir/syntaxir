@@ -1,6 +1,6 @@
 package corepass
 
-import "zeroparse.dev/zp/internal/ir/core"
+import "syntaxir.dev/sxir/internal/ir/core"
 
 // Passes rewrite Core IR. Each states its precondition, reads the attributes of the nodes, which
 // core.Analyze computes, and keeps them current, so that core.CheckAttributes and core.Verify hold

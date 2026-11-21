@@ -3,7 +3,7 @@ package state
 import (
 	"unicode/utf8"
 
-	"zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 // spendRead and Spend have a statically removable instrumentation boundary.

@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/internal/testing/mutanttest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/mutanttest"
 )
 
 // TestGeneratedTSStorePolicy checks the store policy of "Evaluations of Rules" in

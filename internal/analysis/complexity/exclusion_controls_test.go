@@ -3,10 +3,10 @@ package complexity_test
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/analysis/complexity"
-	"zeroparse.dev/zp/internal/testing/complexitytest"
-	"zeroparse.dev/zp/internal/testing/enginetest"
-	"zeroparse.dev/zp/internal/testing/starttest"
+	"syntaxir.dev/sxir/internal/analysis/complexity"
+	"syntaxir.dev/sxir/internal/testing/complexitytest"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
+	"syntaxir.dev/sxir/internal/testing/starttest"
 )
 
 // TestExclusionControls classifies the complexity controls with the defaults of the classifier

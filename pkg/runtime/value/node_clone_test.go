@@ -3,7 +3,7 @@ package value
 import (
 	"testing"
 
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // Clone copies a tree built without a generator: subtrees, slice views and cycles stay shared in the

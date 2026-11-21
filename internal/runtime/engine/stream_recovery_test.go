@@ -7,11 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/pkg/bytecode"
-	"zeroparse.dev/zp/pkg/grammar/ast"
-	"zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/pkg/bytecode"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // legacyStreamRecovery builds the bytecode emitted before recovery around a
@@ -33,7 +33,7 @@ func legacyStreamRecovery(t *testing.T, streamFirst bool) *Program {
 		t.Fatalf("legacy fixture has %d NEXT instructions", next)
 	}
 	a := p.Static().Grammar.Rules()[0].Expr.(*ast.Seq).Items[0].(*ast.Attributed)
-	// Mutate the normalized executable AST, which is the .zpc payload.
+	// Mutate the normalized executable AST, which is the .sxirc payload.
 	stream := &ast.Attribute{Name: "stream", Pragma: true}
 	if streamFirst {
 		a.Attrs = append([]*ast.Attribute{stream}, a.Attrs...)

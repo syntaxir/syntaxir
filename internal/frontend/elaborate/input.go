@@ -1,9 +1,9 @@
 package elaborate
 
 import (
-	"zeroparse.dev/zp/internal/frontend/check"
-	"zeroparse.dev/zp/internal/frontend/types"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend/check"
+	"syntaxir.dev/sxir/internal/frontend/types"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Program is the compiled program as the builder reads it. The builder depends on this interface

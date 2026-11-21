@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"testing"
 
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 func naiveLineCol(text []rune, pos int) (int, int) {
@@ -24,7 +24,7 @@ func naiveLineCol(text []rune, pos int) (int, int) {
 // between them.
 func TestStreamLineColMatchesScan(t *testing.T) {
 	t.Parallel()
-	for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+	for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 		rng := rand.New(rand.NewSource(1))
 		for round := 0; round < 200; round++ {
 			text := make([]rune, 1+rng.Intn(300))
@@ -34,7 +34,7 @@ func TestStreamLineColMatchesScan(t *testing.T) {
 			p := &Parser{unit: unit, Stream: &streamInput{baseLine: 1, baseCol: 1}}
 			s := p.Stream
 			for _, r := range text {
-				if unit == zpinput.Bytes {
+				if unit == sxirinput.Bytes {
 					s.bs = append(s.bs, byte(r))
 				} else {
 					s.in = append(s.in, r)

@@ -1,0 +1,445 @@
+package main
+
+import (
+	"io/fs"
+	"os"
+	"path/filepath"
+	"reflect"
+	"slices"
+	"strings"
+	"testing"
+
+	igen "syntaxir.dev/sxir/internal/backend/codegen/common"
+)
+
+// listGenerated returns the files below dir, relative to it and with slashes.
+func listGenerated(t *testing.T, dir string) []string {
+	t.Helper()
+	var out []string
+	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		rel, err := filepath.Rel(dir, path)
+		out = append(out, filepath.ToSlash(rel))
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	slices.Sort(out)
+	return out
+}
+
+func hasLibFiles(files []string) bool {
+	for _, f := range files {
+		if strings.HasPrefix(f, "internal/libgo/") {
+			return true
+		}
+	}
+	return false
+}
+
+// afterOnly returns the generated files that a generation with only leaves when files were there:
+// the files of the parser stay, and the library is the whole one, libFiles, which may have files
+// that a copy narrowed to a parser left out.
+func afterOnly(files, libFiles []string) []string {
+	var out []string
+	for _, f := range files {
+		if !strings.HasPrefix(f, "internal/libgo/") {
+			out = append(out, f)
+		}
+	}
+	out = append(out, libFiles...)
+	slices.Sort(out)
+	return out
+}
+
+// TestGenModesReplaceEachOther checks which files a generation in each library mode writes and
+// removes: embed and import own parser.go, api.go and internal/libgo, while only owns
+// internal/libgo alone and never touches the parser.
+func TestGenModesReplaceEachOther(t *testing.T) {
+	g := writeFile(t, "kv.sxir", kv)
+	gen := func(t *testing.T, dir string, args ...string) {
+		t.Helper()
+		if out, err := runCLI(t, "", append([]string{"gen", "-o", dir}, args...)...); err != nil || out != "" {
+			t.Fatalf("gen %v: %q, %v", args, out, err)
+		}
+	}
+	embed := []string{"-g", g, "-module", "example.com/kv", "-lib", "embed"}
+	imp := []string{"-g", g, "-module", "example.com/kv", "-lib", "import"}
+	only := []string{"-lib", "only"}
+
+	t.Run("embed then import", func(t *testing.T) {
+		dir := t.TempDir()
+		gen(t, dir, embed...)
+		if files := listGenerated(t, dir); !hasLibFiles(files) || !slices.Contains(files, "parser.go") || !slices.Contains(files, "api.go") {
+			t.Fatalf("embed wrote %v", files)
+		}
+		gen(t, dir, imp...)
+		if files := listGenerated(t, dir); !slices.Equal(files, []string{"api.go", "parser.go"}) {
+			t.Errorf("import left %v, want api.go and parser.go only", files)
+		}
+		if _, err := os.Stat(filepath.Join(dir, "internal")); !os.IsNotExist(err) {
+			t.Errorf("the emptied internal directory was kept: %v", err)
+		}
+	})
+	t.Run("import then embed", func(t *testing.T) {
+		dir := t.TempDir()
+		gen(t, dir, imp...)
+		if files := listGenerated(t, dir); hasLibFiles(files) {
+			t.Fatalf("import wrote %v", files)
+		}
+		gen(t, dir, embed...)
+		if files := listGenerated(t, dir); !hasLibFiles(files) || !slices.Contains(files, "parser.go") {
+			t.Errorf("embed wrote %v", files)
+		}
+	})
+	t.Run("types write and remove types/types.go", func(t *testing.T) {
+		dir := t.TempDir()
+		gen(t, dir, append([]string{"-types"}, imp...)...)
+		if files := listGenerated(t, dir); !slices.Equal(files, []string{"api.go", "parser.go", "types/types.go"}) {
+			t.Fatalf("-types wrote %v", files)
+		}
+		if data, err := os.ReadFile(filepath.Join(dir, "types", "types.go")); err != nil || !igen.IsGenerated(data) || !strings.Contains(string(data), "package types\n") {
+			t.Errorf("types/types.go: %v", err)
+		}
+		gen(t, dir, imp...)
+		if files := listGenerated(t, dir); !slices.Equal(files, []string{"api.go", "parser.go"}) {
+			t.Errorf("a generation without -types left %v", files)
+		}
+		if _, err := os.Stat(filepath.Join(dir, "types")); !os.IsNotExist(err) {
+			t.Errorf("the emptied types directory was kept: %v", err)
+		}
+	})
+	t.Run("a generation without types keeps a hand-written types package", func(t *testing.T) {
+		dir := t.TempDir()
+		hand := filepath.Join(dir, "types", "types.go")
+		if err := os.MkdirAll(filepath.Dir(hand), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(hand, []byte("package types\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		gen(t, dir, imp...)
+		if data, err := os.ReadFile(hand); err != nil || string(data) != "package types\n" {
+			t.Errorf("types/types.go: %q, %v", data, err)
+		}
+	})
+	whole := t.TempDir()
+	gen(t, whole, only...)
+	libFiles := listGenerated(t, whole)
+	t.Run("only keeps types/types.go", func(t *testing.T) {
+		dir := t.TempDir()
+		gen(t, dir, append([]string{"-types"}, embed...)...)
+		before := listGenerated(t, dir)
+		gen(t, dir, only...)
+		if after := listGenerated(t, dir); !slices.Equal(afterOnly(before, libFiles), after) || !slices.Contains(after, "types/types.go") {
+			t.Errorf("only changed the files: before %v, after %v", before, after)
+		}
+	})
+	t.Run("only after embed keeps the parser", func(t *testing.T) {
+		dir := t.TempDir()
+		gen(t, dir, embed...)
+		before := listGenerated(t, dir)
+		parser, err := os.ReadFile(filepath.Join(dir, "parser.go"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		// A stale library file is removed; the parser stays.
+		stale := filepath.Join(dir, "internal", "libgo", "stale.go")
+		if err := os.WriteFile(stale, []byte(igen.Header()+"\n\npackage libgo\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		gen(t, dir, only...)
+		if after := listGenerated(t, dir); !slices.Equal(afterOnly(before, libFiles), after) {
+			t.Errorf("only changed the files: before %v, after %v", before, after)
+		}
+		if now, err := os.ReadFile(filepath.Join(dir, "parser.go")); err != nil || string(now) != string(parser) {
+			t.Errorf("only changed parser.go: %v", err)
+		}
+	})
+	t.Run("only alone writes the library", func(t *testing.T) {
+		dir := t.TempDir()
+		gen(t, dir, only...)
+		files := listGenerated(t, dir)
+		if !hasLibFiles(files) || slices.Contains(files, "parser.go") || slices.Contains(files, "api.go") {
+			t.Errorf("only wrote %v", files)
+		}
+	})
+	t.Run("only keeps a hand-written parser", func(t *testing.T) {
+		dir := t.TempDir()
+		for _, name := range []string{"parser.go", "api.go"} {
+			if err := os.WriteFile(filepath.Join(dir, name), []byte("package p\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		gen(t, dir, only...)
+		for _, name := range []string{"parser.go", "api.go"} {
+			if data, err := os.ReadFile(filepath.Join(dir, name)); err != nil || string(data) != "package p\n" {
+				t.Errorf("%s: %q, %v", name, data, err)
+			}
+		}
+	})
+}
+
+// TestOwnedFiles checks the files each mode may remove as stale.
+func TestOwnedFiles(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "internal", "libgo"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	rt := filepath.Join(dir, "internal", "libgo", "x.go")
+	if err := os.WriteFile(rt, []byte("package libgo\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	parser, api, types := filepath.Join(dir, "parser.go"), filepath.Join(dir, "api.go"), filepath.Join(dir, "types", "types.go")
+	for mode, want := range map[genLib][]string{
+		libEmbed:  {parser, api, types, rt},
+		libImport: {parser, api, types, rt},
+		libOnly:   {rt},
+	} {
+		if got := ownedFiles(dir, mode, false); !slices.Equal(got, want) {
+			t.Errorf("%v owns %v, want %v", mode, got, want)
+		}
+	}
+}
+
+// TestGenRefusesOlderHeader checks that gen refuses to replace a file whose header an older sxir
+// wrote, and says that the file needs regenerating.
+func TestGenRefusesOlderHeader(t *testing.T) {
+	g := writeFile(t, "kv.sxir", kv)
+	dir := t.TempDir()
+	file := filepath.Join(dir, "parser.go")
+	const old = "// Code generated by sxir. DO NOT EDIT.\r\n\r\npackage kv\r\n"
+	if err := os.WriteFile(file, []byte(old), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := runCLI(t, "", "gen", "-g", g, "-module", "example.com/kv", "-o", dir)
+	want := `parser.go was generated by an older sxir, whose header ("// Code generated by sxir. DO NOT EDIT.") this sxir does not recognize; delete it and regenerate`
+	if err == nil || !strings.Contains(err.Error(), want) {
+		t.Fatalf("got %v, want an error containing %q", err, want)
+	}
+	if data, _ := os.ReadFile(file); string(data) != old {
+		t.Errorf("parser.go was overwritten: %q", data)
+	}
+}
+
+// TestGenKeepsHandWrittenFiles checks that gen refuses to replace a file it did not generate.
+func TestGenKeepsHandWrittenFiles(t *testing.T) {
+	g := writeFile(t, "kv.sxir", kv)
+	for _, name := range []string{"parser.go", "api.go", "types/types.go", "internal/libgo/lib.go"} {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			file := filepath.Join(dir, filepath.FromSlash(name))
+			if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			const hand = "package kv\n\n// hand-written\n"
+			if err := os.WriteFile(file, []byte(hand), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			_, err := runCLI(t, "", "gen", "-g", g, "-module", "example.com/kv", "-types", "-o", dir)
+			if err == nil || !strings.Contains(err.Error(), "was not generated by sxir") || !strings.Contains(err.Error(), name) {
+				t.Fatalf("got %v, want a refusal naming %s", err, name)
+			}
+			if data, _ := os.ReadFile(file); string(data) != hand {
+				t.Errorf("%s was overwritten: %q", name, data)
+			}
+			// Nothing else was written before the refusal.
+			if files := listGenerated(t, dir); len(files) != 1 {
+				t.Errorf("files after the refusal: %v", files)
+			}
+		})
+	}
+}
+
+// TestGenFlagMisuse checks that flags that do nothing in a mode are errors.
+func TestGenFlagMisuse(t *testing.T) {
+	g := writeFile(t, "kv.sxir", kv)
+	out := t.TempDir()
+	for _, tc := range []struct {
+		name string
+		args []string
+		want string
+	}{
+		{"grammar with only", []string{"-g", g, "-lib", "only", "-o", out}, "-g cannot be combined with -lib only"},
+		{"types with only", []string{"-lib", "only", "-types", "-o", out}, "-types cannot be combined with -lib only"},
+		{"recognize with only", []string{"-lib", "only", "-recognize", "-o", out}, "-recognize cannot be combined"},
+		{"pkg with only", []string{"-lib", "only", "-pkg", "x", "-o", out}, "-pkg cannot be combined"},
+		{"module with only", []string{"-lib", "only", "-module", "example.com/x", "-o", out}, "-module cannot be combined"},
+		{"import without library module", []string{"-lang", "ts", "-g", g, "-lib", "import", "-o", out}, "-lib-module"},
+		{"library module with embed", []string{"-lang", "ts", "-g", g, "-lib-module", "../rt.js", "-o", out}, "-lib-module can only be combined with -lib import"},
+		{"library module with go", []string{"-g", g, "-module", "example.com/x", "-lib-module", "../rt.js", "-o", out}, "-lib-module is only supported with -lang ts"},
+		{"grammar with ts only", []string{"-lang", "ts", "-g", g, "-lib", "only", "-o", out}, "-g cannot be combined with -lib only"},
+		{"types with ts only", []string{"-lang", "ts", "-lib", "only", "-types", "-o", out}, "-types cannot be combined with -lib only"},
+		{"module with ts only", []string{"-lang", "ts", "-lib", "only", "-lib-module", "../rt.js", "-o", out}, "-lib-module cannot be combined"},
+		{"ts without output", []string{"-lang", "ts", "-g", g}, "-o"},
+		{"embed without module", []string{"-g", g, "-pkg", "kv", "-o", out}, "-module"},
+		{"import without module or pkg", []string{"-g", g, "-lib", "import", "-o", out}, "-pkg or -module"},
+		{"hyphenated module", []string{"-g", g, "-module", "example.com/my-parser", "-o", out}, "-pkg"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := runCLI(t, "", append([]string{"gen"}, tc.args...)...)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("got %v, want an error containing %q", err, tc.want)
+			}
+		})
+	}
+	if files := listGenerated(t, out); len(files) != 0 {
+		t.Errorf("a rejected command wrote %v", files)
+	}
+}
+
+// TestGenImportNeedsOnlyPackageName checks that an import-mode parser can be generated with -pkg
+// alone, and that the default package name drops a major version suffix.
+func TestGenImportNeedsOnlyPackageName(t *testing.T) {
+	g := writeFile(t, "kv.sxir", kv)
+	dir := t.TempDir()
+	if _, err := runCLI(t, "", "gen", "-g", g, "-lib", "import", "-pkg", "kv", "-o", dir); err != nil {
+		t.Fatal(err)
+	}
+	if data, err := os.ReadFile(filepath.Join(dir, "parser.go")); err != nil || !strings.Contains(string(data), "package kv\n") {
+		t.Errorf("parser.go: %v", err)
+	}
+	dir = t.TempDir()
+	if _, err := runCLI(t, "", "gen", "-g", g, "-module", "example.com/kv/v2", "-o", dir); err != nil {
+		t.Fatal(err)
+	}
+	if data, err := os.ReadFile(filepath.Join(dir, "parser.go")); err != nil || !strings.Contains(string(data), "package kv\n") {
+		t.Errorf("a /v2 module did not name the package after its parent: %v", err)
+	}
+}
+
+// TestOwnedFilesTS checks the files each mode may remove as stale for TypeScript.
+func TestOwnedFilesTS(t *testing.T) {
+	dir := t.TempDir()
+	parser, types, rt := filepath.Join(dir, "parser.ts"), filepath.Join(dir, "types.ts"), filepath.Join(dir, "lib.ts")
+	for mode, want := range map[genLib][]string{
+		libEmbed:  {parser, types, rt},
+		libImport: {parser, types},
+		libOnly:   {rt},
+	} {
+		if got := ownedFiles(dir, mode, true); !slices.Equal(got, want) {
+			t.Errorf("%v owns %v, want %v", mode, got, want)
+		}
+	}
+}
+
+// TestGenTypeScriptModes checks the files of each TypeScript library mode, and that a later
+// generation removes the generated files that the new mode no longer writes.
+func TestGenTypeScriptModes(t *testing.T) {
+	g := writeFile(t, "kv.sxir", kv)
+	dir := t.TempDir()
+	list := func() string {
+		var names []string
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, e := range entries {
+			names = append(names, e.Name())
+		}
+		return strings.Join(names, " ")
+	}
+	gen := func(args ...string) {
+		t.Helper()
+		if _, err := runCLI(t, "", append([]string{"gen", "-lang", "ts", "-o", dir}, args...)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	gen("-g", g, "-types")
+	if got := list(); got != "lib.ts parser.ts types.ts" {
+		t.Fatalf("embed -types wrote %q", got)
+	}
+	gen("-g", g, "-lib", "import", "-lib-module", "../shared/lib.ts")
+	if got := list(); got != "lib.ts parser.ts" {
+		t.Fatalf("import wrote %q; the stale types.ts must be gone and lib.ts, which it does not own, must stay", got)
+	}
+	if data := readTS(t, dir, "parser.ts"); !strings.Contains(data, `from "../shared/lib.ts"`) || strings.Contains(data, "./lib.ts") {
+		t.Errorf("parser.ts does not import the library module:\n%.400s", data)
+	}
+	gen("-lib", "only")
+	if got := list(); got != "lib.ts parser.ts" {
+		t.Fatalf("only wrote %q; it must leave parser.ts alone", got)
+	}
+	gen("-g", g)
+	if got := list(); got != "lib.ts parser.ts" {
+		t.Fatalf("embed wrote %q", got)
+	}
+	hand := filepath.Join(dir, "types.ts")
+	if err := os.WriteFile(hand, []byte("export type A = 1;\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gen("-g", g) // types.ts is hand-written: not touched, as it is not generated
+	if data, _ := os.ReadFile(hand); string(data) != "export type A = 1;\n" {
+		t.Errorf("a hand-written types.ts was changed: %q", data)
+	}
+	if _, err := runCLI(t, "", "gen", "-lang", "ts", "-o", dir, "-g", g, "-types"); err == nil || !strings.Contains(err.Error(), "was not generated by sxir") {
+		t.Errorf("-types over a hand-written types.ts: %v", err)
+	}
+}
+
+// TestGenImportKeepsSharedLib checks that a parser generated with -lib import neither
+// writes nor removes the lib.ts it imports, which -lib only wrote into the same directory.
+func TestGenImportKeepsSharedLib(t *testing.T) {
+	g := writeFile(t, "kv.sxir", kv)
+	dir := t.TempDir()
+	gen := func(args ...string) {
+		t.Helper()
+		if _, err := runCLI(t, "", append([]string{"gen", "-lang", "ts", "-o", dir}, args...)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	gen("-lib", "only")
+	shared := readTS(t, dir, "lib.ts")
+	gen("-g", g, "-lib", "import", "-lib-module", "./lib.ts")
+	if got := readTS(t, dir, "lib.ts"); got != shared {
+		t.Errorf("-lib import changed the shared lib.ts")
+	}
+	if data := readTS(t, dir, "parser.ts"); !strings.Contains(data, `from "./lib.ts"`) {
+		t.Errorf("parser.ts does not import the shared library:\n%.400s", data)
+	}
+	// A hand-written lib.ts is not touched either, and not refused: the import mode does not own it.
+	if err := os.WriteFile(filepath.Join(dir, "lib.ts"), []byte("export const x = 1;\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gen("-g", g, "-lib", "import", "-lib-module", "./lib.ts")
+	if got := readTS(t, dir, "lib.ts"); got != "export const x = 1;\n" {
+		t.Errorf("a hand-written lib.ts was changed: %q", got)
+	}
+}
+
+// TestGenIsReproducible checks that two generations of one grammar by one generator write
+// byte-identical trees, Go and TypeScript, so the version stamp does not make output vary.
+func TestGenIsReproducible(t *testing.T) {
+	g := writeFile(t, "kv.sxir", kv)
+	for _, args := range [][]string{
+		{"-module", "example.com/kv"},
+		{"-lang", "ts", "-lib", "embed"},
+	} {
+		var trees [2]map[string]string
+		for i := range trees {
+			dir := filepath.Join(t.TempDir(), "out")
+			if _, err := runCLI(t, "", append([]string{"gen", "-g", g, "-o", dir}, args...)...); err != nil {
+				t.Fatalf("%v: %v", args, err)
+			}
+			trees[i] = map[string]string{}
+			err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+				if err != nil || d.IsDir() {
+					return err
+				}
+				data, err := os.ReadFile(p)
+				rel, _ := filepath.Rel(dir, p)
+				trees[i][rel] = string(data)
+				return err
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		if len(trees[0]) == 0 || !reflect.DeepEqual(trees[0], trees[1]) {
+			t.Errorf("%v: generations differ (%d and %d files)", args, len(trees[0]), len(trees[1]))
+		}
+	}
+}

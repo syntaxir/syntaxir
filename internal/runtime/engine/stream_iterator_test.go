@@ -7,11 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/pkg/runtime"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 type demandReader struct {
@@ -24,7 +24,7 @@ func (r *demandReader) Read(p []byte) (int, error) { r.calls++; return r.reader.
 func TestStreamIteratorParityDemandAndTermination(t *testing.T) {
 	t.Parallel()
 	for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		for _, u := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+		for _, u := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 			t.Run(b.String()+"/"+u.String(), func(t *testing.T) {
 				p := mustCompile(t, `rule main = item* #stream $$
 rule item = "あ" / "b"`)
@@ -110,7 +110,7 @@ func TestStreamIteratorCloseBeforeFirstNext(t *testing.T) {
 	t.Parallel()
 	p := mustCompile(t, `rule main = "a"* #stream $$`)
 	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+		for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 			t.Run(backend.String()+"/"+unit.String(), func(t *testing.T) {
 				reader := &demandReader{reader: strings.NewReader("aaa")}
 				traces := 0
@@ -139,7 +139,7 @@ func TestStreamIteratorRecoveredErrorsMatchCallback(t *testing.T) {
 rule item = "ab" @error(message="record") #recover(skip=[^a]+)`)
 	const input = "abX!abY?ab"
 	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+		for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 			t.Run(backend.String()+"/"+unit.String(), func(t *testing.T) {
 				options := ParseOptions{Backend: backend, Unit: unit}
 				var wantNodes []string

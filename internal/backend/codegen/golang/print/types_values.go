@@ -5,11 +5,11 @@ import (
 	"sort"
 	"strings"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/frontend/astfacts"
-	"zeroparse.dev/zp/internal/frontend/check"
-	"zeroparse.dev/zp/internal/frontend/types"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/check"
+	"syntaxir.dev/sxir/internal/frontend/types"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Typed values of rules in the value model.
@@ -30,7 +30,7 @@ type vhelper struct {
 	name string
 	x    types.Ty
 	// ranged is set for a helper of back that takes the ranges of the lists and tuples that a field holds
-	// from a cursor (see zpRangeCursor).
+	// from a cursor (see sxirRangeCursor).
 	ranged bool
 }
 

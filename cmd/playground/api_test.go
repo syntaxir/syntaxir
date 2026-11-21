@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	igen "zeroparse.dev/zp/internal/backend/codegen/common"
+	igen "syntaxir.dev/sxir/internal/backend/codegen/common"
 )
 
 func call[T any](t *testing.T, method string, req any) T {
@@ -86,7 +86,7 @@ func TestCompileDiagnostics(t *testing.T) {
 }
 
 // TestParseNamedNodeTypes checks that the S-expression names the type of a node of a named node
-// type, as zp parse -f sexpr does, and that a plain node[string] stays bare.
+// type, as sxir parse -f sexpr does, and that a plain node[string] stays bare.
 func TestParseNamedNodeTypes(t *testing.T) {
 	const named = `type Ident = node[string]
 type Out = { Id Ident; Plain node[string] }
@@ -113,7 +113,7 @@ func TestParse(t *testing.T) {
 		t.Errorf("json = %s, nodes = %d", r.JSON, r.Nodes)
 	}
 
-	// Source information adds the rules and capture names, as zp parse -source-info does.
+	// Source information adds the rules and capture names, as sxir parse -source-info does.
 	r = call[parseResult](t, "parse", parseRequest{Grammar: pairs, Input: "abc=12; d=3", SourceInfo: true})
 	if want := `[Pair{Key: "abc"@key, Value: "12"@value} Pair{Key: "d"@key, Value: "3"@value}]`; r.SExpr != want {
 		t.Errorf("source info sexpr = %s", r.SExpr)

@@ -8,12 +8,12 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	gensrc "zeroparse.dev/zp/internal/driver/generate"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/internal/testing/enginetest"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	gensrc "syntaxir.dev/sxir/internal/driver/generate"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 const commentOwnerExample = "// orphan\n\n// foo\npackage foo // trailing\n// trailing\n\n// B2\n// B2\n\n// B1\n// B1\nrule B = \"b\" // trailing\n// trailing\n"
@@ -21,7 +21,7 @@ const commentOwnerExample = "// orphan\n\n// foo\npackage foo // trailing\n// tr
 // The boundary grammar is an executable design fixture: ownership is produced
 // by grammar recognition and construction actions, without semantic analysis.
 func TestSourceCommentBoundaryGrammar(t *testing.T) {
-	src, err := os.ReadFile("testdata/comment-boundaries.zp")
+	src, err := os.ReadFile("testdata/comment-boundaries.sxir")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +74,7 @@ func TestSourceCommentBoundaryGrammar(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+			for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 				for _, backend := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 					n, err := parsers[tc.rule].Parse(tc.input, engine.WithUnit(unit), engine.WithBackend(backend))
 					if err != nil {
@@ -126,7 +126,7 @@ func TestSourceCommentBoundaryGeneratedGo(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds the generated comment-owner consumer")
 	}
-	src, err := os.ReadFile("testdata/comment-boundaries.zp")
+	src, err := os.ReadFile("testdata/comment-boundaries.sxir")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,12 +140,12 @@ func TestSourceCommentBoundaryGeneratedGo(t *testing.T) {
 	}
 	dir := t.TempDir()
 	for name, data := range map[string][]byte{
-		"go.mod":   []byte(codegentest.GoMod("comments")),
-		"input.zp": []byte(commentOwnerExample),
+		"go.mod":     []byte(codegentest.GoMod("comments")),
+		"input.sxir": []byte(commentOwnerExample),
 		"parser_test.go": []byte(`package comments
 import("os";"testing")
 func TestOwners(t *testing.T){
- src,err:=os.ReadFile("input.zp");if err!=nil{t.Fatal(err)}
+ src,err:=os.ReadFile("input.sxir");if err!=nil{t.Fatal(err)}
  ast,err:=ParseValue(string(src));if err!=nil{t.Fatal(err)}
  if ast.Package.Comments.Leading!=" foo\n"||ast.Package.Comments.Trailing!=" trailing\n"{t.Fatal("package ownership")}
  if ast.Rule.Comments.Leading!=" B1\n B1\n"||ast.Rule.Comments.Trailing!=" trailing\n"{t.Fatal("rule ownership")}

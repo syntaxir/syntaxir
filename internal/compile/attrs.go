@@ -1,6 +1,6 @@
 package compile
 
-import "zeroparse.dev/zp/pkg/grammar/ast"
+import "syntaxir.dev/sxir/pkg/grammar/ast"
 
 func validArg(attr, arg string) bool {
 	switch attr {

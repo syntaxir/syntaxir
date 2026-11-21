@@ -1,8 +1,8 @@
 package compile
 
 import (
-	"zeroparse.dev/zp/internal/frontend/desugar"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend/desugar"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Sites numbers the skip-run, run and scan sites of a program's repetitions: the repetitions whose

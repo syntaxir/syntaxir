@@ -10,16 +10,16 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/driver/entry"
-	"zeroparse.dev/zp/internal/frontend/parser"
-	. "zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/internal/testing/starttest"
-	"zeroparse.dev/zp/pkg/bytecode"
-	"zeroparse.dev/zp/pkg/grammar/ast"
-	"zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	. "syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/starttest"
+	"syntaxir.dev/sxir/pkg/bytecode"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // The tests in this file's package parse with the engine's programs. These helpers are the
@@ -139,14 +139,14 @@ func resultJSON(n *value.Node, err error) string {
 	return string(data)
 }
 
-// parseTest parses ZeroParse source for a test whose subject is not start rules: unless the source
+// parseTest parses SyntaxIR source for a test whose subject is not start rules: unless the source
 // has declaration attributes, every rule becomes a start rule, the first one the default.
 func parseTest(src string) (*ast.Grammar, error) {
 	g, err := parser.Parse(src)
 	return starttest.MarkAll(g), err
 }
 
-// mustCompile compiles ZeroParse source with source information, so that results show rule names and
+// mustCompile compiles SyntaxIR source with source information, so that results show rule names and
 // capture labels.
 func mustCompile(t *testing.T, src string, opts ...compile.Options) *Program {
 	t.Helper()
@@ -274,7 +274,7 @@ func snapshotVariants(t *testing.T, run func(*testing.T, state.ParseOptions)) {
 	}
 }
 
-// compileBare compiles ZeroParse source with the options as given: without source information unless
+// compileBare compiles SyntaxIR source with the options as given: without source information unless
 // they request it.
 func compileBare(t *testing.T, src string, opts ...compile.Options) *Program {
 	t.Helper()

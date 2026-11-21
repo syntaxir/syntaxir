@@ -7,9 +7,9 @@ import (
 	"slices"
 	"strings"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/driver"
-	"zeroparse.dev/zp/internal/pass"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/driver"
+	"syntaxir.dev/sxir/internal/pass"
 )
 
 // Settings returns the optimizations that o.Optimize, o.Opt and o.NoOpt select, in that order, or an

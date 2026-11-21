@@ -1,6 +1,6 @@
 package compile
 
-import "zeroparse.dev/zp/pkg/grammar/ast"
+import "syntaxir.dev/sxir/pkg/grammar/ast"
 
 // Fusable reports whether every argument of the concat call t is itself a call of list, map or a
 // fusable concat. Their elements can then be pushed directly, without building the intermediate

@@ -3,9 +3,9 @@ package complexity
 import (
 	"maps"
 
-	"zeroparse.dev/zp/internal/frontend/astfacts"
-	"zeroparse.dev/zp/internal/frontend/check"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/check"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // The growth of a fold accumulator. One step of a fold maps its accumulator A to the value of its

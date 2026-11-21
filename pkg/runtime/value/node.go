@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // Node is a value produced by parsing. It is a CST node, a terminal, a list, or a struct built by
@@ -222,7 +222,7 @@ func (n *Node) Len() int {
 // match. It panics if i is out of the range [0, Len()).
 func (n *Node) Elem(i int) *Node {
 	if i < 0 || i >= n.Len() {
-		panic(fmt.Sprintf("zp: element %d of a node with %d elements", i, n.Len()))
+		panic(fmt.Sprintf("sxir: element %d of a node with %d elements", i, n.Len()))
 	}
 	return n.d.Children[i]
 }

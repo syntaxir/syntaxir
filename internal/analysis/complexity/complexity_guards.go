@@ -4,9 +4,9 @@ import (
 	"math"
 	"slices"
 
-	"zeroparse.dev/zp/internal/frontend/check"
-	"zeroparse.dev/zp/internal/syntax/fmt"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend/check"
+	"syntaxir.dev/sxir/internal/syntax/fmt"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // guard is what the predicates next to a binding of an int variable test of the value that it

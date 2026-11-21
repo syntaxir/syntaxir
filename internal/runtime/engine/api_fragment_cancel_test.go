@@ -1,4 +1,4 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package engine_test
 
@@ -7,7 +7,7 @@ import (
 	"errors"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/engine"
 )
 
 func TestParsePrefixCancellation(t *testing.T) {

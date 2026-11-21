@@ -20,7 +20,7 @@ import (
 	"strings"
 	"sync"
 
-	"zeroparse.dev/zp/internal/pass"
+	"syntaxir.dev/sxir/internal/pass"
 )
 
 // IR describes the units of Go type M to the manager. A kind is identified by its Go type: one Go

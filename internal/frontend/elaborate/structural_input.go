@@ -1,9 +1,9 @@
 package elaborate
 
 import (
-	"zeroparse.dev/zp/internal/frontend/check"
-	"zeroparse.dev/zp/internal/frontend/desugar"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend/check"
+	"syntaxir.dev/sxir/internal/frontend/desugar"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // StructuralInput returns the input of the untyped Core IR module (Structural) of rules,

@@ -9,7 +9,7 @@ import (
 
 func BenchmarkNormalizationCompileCancellation(b *testing.B) {
 	sources := map[string]string{"attributes": `rule main = "a"` + strings.Repeat(` @error("label")`, 64)}
-	for name, path := range map[string]string{"source-grammar": "../../zp.zp", "json": "../../testdata/grammars/json/json.zp"} {
+	for name, path := range map[string]string{"source-grammar": "../../sxir.sxir", "json": "../../testdata/grammars/json/json.sxir"} {
 		data, err := os.ReadFile(path)
 		if err != nil {
 			b.Fatal(err)

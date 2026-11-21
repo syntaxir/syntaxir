@@ -4,9 +4,9 @@ Recognition decides whether the input matches the grammar without building a tre
 
 A parser's `Recognize` method recognizes the input; it applies to every [backend](backends.md). This guide shows what it returns, what it still evaluates and what it cannot be combined with.
 
-The example uses `pairs.zp` and a parser `p` compiled as in [Running Parsers](running-parsers.md):
+The example uses `pairs.sxir` and a parser `p` compiled as in [Running Parsers](running-parsers.md):
 
-```zp
+```sxir
 type Pair = { Key node[string]; Value node[string] }
 
 @start
@@ -31,10 +31,10 @@ What it does not do:
 
 - **Actions are conditionally evaluated.** Actions whose values are not needed to evaluate predicates are skipped. Actions needed by predicates still run and can report run-time errors. With the grammar
   `rule main Ratio =  a:[0-9]+ #atomic "/" b:[0-9]+ #atomic $$ => Ratio{Num: len($a) / (len($b) - len($b))} `, the input `12/34`
-  fails a full parse with `action in main: division by zero` but is accepted by recognition (`zp parse -recognize` prints
+  fails a full parse with `action in main: division by zero` but is accepted by recognition (`sxir parse -recognize` prints
   `ok`). Use recognition for syntax checks, and a full parse where action errors matter.
 - Captures that [predicates](../../spec/language/predicates.md) read are still built, since a predicate can depend on them.
-- A compiled grammar recognizes when it is saved in recognize mode (`zp compile -mode recognize`, or
+- A compiled grammar recognizes when it is saved in recognize mode (`sxir compile -mode recognize`, or
   `compiler.Marshal(src, vm.CompiledRecognize)`), on the bytecode backends. A file in another mode returns an error that names
   the mode it needs, and traced or profiled recognition needs the grammar source. The [compiled grammars
   guide](compiled-grammars.md#modes) explains the modes.
@@ -42,7 +42,7 @@ What it does not do:
   values.
 
 Typical uses are checking the syntax of uploads or configuration before doing real work, linting loops, and pre-filtering large
-inputs. On the command line: `zp parse -g grammar.zp -recognize < input`, which prints `ok` or the syntax error (and
+inputs. On the command line: `sxir parse -g grammar.sxir -recognize < input`, which prints `ok` or the syntax error (and
 exits with status 1).
 
 ## Related Topics

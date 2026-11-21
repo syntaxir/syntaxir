@@ -3,7 +3,7 @@ package engine_test
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/testing/enginetest"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 )
 
 // startAPISource has the default start rule main, which matches "aa", and the

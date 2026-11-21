@@ -1,4 +1,4 @@
-# ZeroParse
+# SyntaxIR
 
 A Go parser framework with an extended PEG grammar language (Go 1.27.1). Read on every task.
 Start with the `onboarding` skill; use `documentation`, `performance`, `backlog`, `zerosite`
@@ -14,7 +14,7 @@ A test (`internal/testing/archtest`) fails when a path in backticks here does no
   library, input, values, instrumentation, schema, query), `pkg/bytecode/`, `pkg/grammar/`,
   `pkg/lint/`, `pkg/sample/`, `pkg/editfuzz/` (release layout:
   `internal/testing/archtest/layout_test.go`).
-- `internal/` implementation; `cmd/zp/` CLI; `testdata/grammars/` corpus; `bench/`; `site/`
+- `internal/` implementation; `cmd/sxir/` CLI; `testdata/grammars/` corpus; `bench/`; `site/`
   (own Go module); `hack/` and `.agents/scripts/` scripts. Ready-made parsers: the separate
   alpha-parsers repository.
 
@@ -35,13 +35,13 @@ A test (`internal/testing/archtest`) fails when a path in backticks here does no
 `hack/gate.sh [--base REV] LEVEL` stops at the first failing step and checks `REV..HEAD`, so
 commit first. `docs`: docs, spec, site, skills. `code`: Go changes. `engine`: `code` plus the
 long tier, generation, alpha-parsers (needs a checkout:
-`ZP_ALPHA_PARSERS`) and, when the affected packages include the engine, the reference build. `full`: the long tier of the affected packages; `all`: the whole tree in the long tier, for a release.
+`SXIR_ALPHA_PARSERS`) and, when the affected packages include the engine, the reference build. `full`: the long tier of the affected packages; `all`: the whole tree in the long tier, for a release.
 The gate runs only what the change can affect and lists each step it leaves out. A landing batch runs `engine`, and `docs` when it also changes documentation. A lane runs `docs` or `code`. New slow
-tests go to the long tier (`zp_long`).
+tests go to the long tier (`sxir_long`).
 
 ## Agent scripts
 
-Export one absolute `ZP_AGENT_STATE` for every lane on the machine (required), so that all
+Export one absolute `SXIR_AGENT_STATE` for every lane on the machine (required), so that all
 share one queue and one set of worktrees. `-h` prints usage. Heavy runs go through the queue only.
 
 - Start a lane: `.agents/scripts/lane-new.sh <name> <branch>`
@@ -62,7 +62,7 @@ share one queue and one set of worktrees. `-h` prints usage. Heavy runs go throu
   integrator pushes main, within the task's scope and authorization. Delete a remote branch only after verifying it is integrated.
 - Commits, issues, PRs: the owner's voice, English, with a body (`docs/commit-messages.md`),
   `Refs #N` never `Closes`, no agent or work-history mentions, no AI attribution.
-- [#1](https://github.com/zeroparse/zp/issues/1) is the live backlog status page (use the
+- [#1](https://github.com/syntaxir/syntaxir/issues/1) is the live backlog status page (use the
   `backlog` skill); close an issue by hand after verified integration.
 
 GitHub Actions are paused: do not trigger, rerun, cancel, poll or enable workflows. 32-bit and

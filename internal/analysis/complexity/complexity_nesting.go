@@ -3,7 +3,7 @@ package complexity
 import (
 	"slices"
 
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // --- Nesting at one end ---

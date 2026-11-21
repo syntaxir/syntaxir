@@ -19,7 +19,7 @@ linter, identified by a name.
 
 | | Command line | Go |
 |:--|:--|:--|
-| Lint a grammar | `zp lint -g g.zp` | `lint.Config.Run(ctx, g, start)` |
+| Lint a grammar | `sxir lint -g g.sxir` | `lint.Config.Run(ctx, g, start)` |
 | Machine-readable output | `-f json` | `[]lint.Finding` |
 | Turn checks off | `-disable check,...` (or the flag repeated) | `lint.Config.Disable` |
 | Classify the cost | `-classify` | `lint.Config.Classify` |
@@ -30,13 +30,13 @@ linter, identified by a name.
   If the grammar does not compile, or the start rule is not a start rule of the grammar, it returns
   an error and no findings. Cancelling the context stops the compilation and the checks and
   discards all findings. An empty start rule selects the default start rule.
-- `zp lint` accepts ZeroParse source and grammar JSON; a compiled grammar holds no
+- `sxir lint` accepts SyntaxIR source and grammar JSON; a compiled grammar holds no
   grammar and is an error. The start rule is the one `-s` names, otherwise the
   default start rule of the grammar. A grammar that does not compile is reported with its compile
   errors.
 - Each finding prints on one line as `file:line:col: severity: message [check]`,
   followed by a line `fix: ...` when there is a suggested fix. A run that exits
-  with status 1 ends with the error line `zp: lint: N errors, N warnings, N hints`
+  with status 1 ends with the error line `sxir: lint: N errors, N warnings, N hints`
   on the standard error, where each count is written as `1 error`, `1 warning` or `1 hint`
   when it is one and in the plural otherwise; a run that exits with status 0 prints no summary.
 - `-f json` prints one JSON document with the members `grammar`, `start` and
@@ -61,7 +61,7 @@ linter, identified by a name.
   than 1), and
   every witness and reason in `witnesses` and `reasons`, each with `line`,
   `col`, `rule` and `message`.
-- `zp lint` exits with status 1 if there is a finding of severity `error`, and
+- `sxir lint` exits with status 1 if there is a finding of severity `error`, and
   with 0 otherwise. With `-strict`, a warning also gives status 1. A hint never
   does.
 - A grammar decoded from JSON has no source
@@ -70,7 +70,7 @@ linter, identified by a name.
 
 ### Go API
 
-The package `lint` (`zeroparse.dev/zp/pkg/lint`) is the Go form of the linter. It works on a grammar AST
+The package `lint` (`syntaxir.dev/sxir/pkg/lint`) is the Go form of the linter. It works on a grammar AST
 (`ast.Grammar`, see [Grammar Representations](../language/grammar-files.md#grammar-representations)), not on text, and
 it reports positions as `ast.Pos`.
 
@@ -223,7 +223,7 @@ them, do not change this, as groups do not. Each
 evaluation can then at least double the size of the variable, so that its size
 can grow exponentially with the input:
 
-```zp
+```sxir
 var s string = "a"
 
 @start
@@ -300,7 +300,7 @@ finding per cause, at the scanning source, binding or operation that causes it.
 Its message names the class and the witness path, as positions of the rules
 and expressions on it. In
 
-```zp
+```sxir
 @start
 rule main = (A / "a")* $$
 
@@ -352,11 +352,11 @@ as `lint-directive`.
 |:--|:--|
 | The grammar does not compile | `lint.Config.Run` returns the compile errors and no findings |
 | `-disable` or `Config.Disable` names an unknown check | An error |
-| A compiled grammar | Error: `lint needs the grammar source (.zp or .json)` |
+| A compiled grammar | Error: `lint needs the grammar source (.sxir or .json)` |
 
 ## Compatibility and Support
 
-The linter is available from the Go API and the `zp` command. Generated parsers
+The linter is available from the Go API and the `sxir` command. Generated parsers
 do not include it. The linter does not find what it cannot prove (a choice whose
 alternatives start with overlapping characters, shadowing through predicates, an
 Operators Rule with level-restricted calls, or left-recursive rules), mistakes the

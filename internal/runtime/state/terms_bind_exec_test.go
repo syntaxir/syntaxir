@@ -2,17 +2,17 @@
 
 package state
 
-import zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+import sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 
 // confActPush runs act.push for the conformance suite.
 // Printed from Exec IR function confActPush of internal/ir/code/exec/compose.
-func (p *Parser) confActPush(c *EvalCtx, e *zpvalue.Node) {
+func (p *Parser) confActPush(c *EvalCtx, e *sxirvalue.Node) {
 	p.KidStack = append(p.KidStack, e)
 }
 
 // confActPushAll runs act.pushAll for the conformance suite.
 // Printed from Exec IR function confActPushAll of internal/ir/code/exec/compose.
-func (p *Parser) confActPushAll(c *EvalCtx, items []*zpvalue.Node) {
+func (p *Parser) confActPushAll(c *EvalCtx, items []*sxirvalue.Node) {
 	p.KidStack = AppendSpend(p, p.KidStack, items)
 }
 
@@ -32,21 +32,21 @@ func (p *Parser) confTermDropKids(mark int) {
 
 // confTermElemsAbove runs term.elemsAbove for the conformance suite.
 // Printed from Exec IR function confTermElemsAbove of internal/ir/code/exec/compose.
-func (p *Parser) confTermElemsAbove(mark int) []*zpvalue.Node {
-	var r []*zpvalue.Node
+func (p *Parser) confTermElemsAbove(mark int) []*sxirvalue.Node {
+	var r []*sxirvalue.Node
 	r = p.ElemsAbove(mark)
 	return r
 }
 
 // confTermKeep runs term.keep for the conformance suite.
 // Printed from Exec IR function confTermKeep of internal/ir/code/exec/compose.
-func (p *Parser) confTermKeep(items []*zpvalue.Node, i int) {
+func (p *Parser) confTermKeep(items []*sxirvalue.Node, i int) {
 	p.KidStack = append(p.KidStack, items[i])
 }
 
 // confActMade runs act.made for the conformance suite.
 // Printed from Exec IR function confActMade of internal/ir/code/exec/compose.
-func (p *Parser) confActMade(c *EvalCtx, n *zpvalue.Node) {
+func (p *Parser) confActMade(c *EvalCtx, n *sxirvalue.Node) {
 	c.made(n)
 }
 

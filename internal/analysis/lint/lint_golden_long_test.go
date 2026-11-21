@@ -1,4 +1,4 @@
-//go:build zp_long
+//go:build sxir_long
 
 package lint
 
@@ -9,19 +9,19 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/frontend/parser"
-	"zeroparse.dev/zp/internal/testing/factstest"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/testing/factstest"
 )
 
 // TestLintGolden pins the findings, with the cost classification, of the grammars in testdata and
 // examples from their default start rules.
 func TestLintGolden(t *testing.T) {
 	root := factstest.Root(t)
-	files, err := filepath.Glob(filepath.Join(root, "testdata", "grammars", "*", "*.zp"))
+	files, err := filepath.Glob(filepath.Join(root, "testdata", "grammars", "*", "*.sxir"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	more, err := filepath.Glob(filepath.Join(root, "examples", "*", "*.zp"))
+	more, err := filepath.Glob(filepath.Join(root, "examples", "*", "*.sxir"))
 	if err != nil {
 		t.Fatal(err)
 	}

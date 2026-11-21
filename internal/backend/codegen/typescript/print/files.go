@@ -7,7 +7,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
 )
 
 // TsGeneratedHeader starts every generated TypeScript file. The command line tool removes stale
@@ -80,7 +80,7 @@ func tsFiles(opts common.GenOptions, fs common.FeatureSet, shake bool, body, typ
 	var files []common.GeneratedFile
 	var parser strings.Builder
 	parser.WriteString(TsGeneratedHeader())
-	parser.WriteString("// A parser generated from a ZeroParse grammar; see parse below. It imports its runtime.\n\n")
+	parser.WriteString("// A parser generated from a SyntaxIR grammar; see parse below. It imports its runtime.\n\n")
 	parser.WriteString("/* eslint-disable */\n\n")
 	used := tsIdentifiers(body)
 	exports := lib.exports
@@ -130,7 +130,7 @@ func tsFiles(opts common.GenOptions, fs common.FeatureSet, shake bool, body, typ
 	if types != "" {
 		var t strings.Builder
 		t.WriteString(TsGeneratedHeader())
-		t.WriteString("// The types of a ZeroParse grammar, as the typed parseValue of parser.ts returns them.\n\n")
+		t.WriteString("// The types of a SyntaxIR grammar, as the typed parseValue of parser.ts returns them.\n\n")
 		t.WriteString("/* eslint-disable */\n\n")
 		t.WriteString("import type {Node as RuntimeNode} from " + TsString(spec) + ";\n\n")
 		t.WriteString(types)

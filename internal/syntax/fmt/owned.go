@@ -2,7 +2,7 @@ package fmt
 
 import "strings"
 
-import "zeroparse.dev/zp/pkg/grammar/ast"
+import "syntaxir.dev/sxir/pkg/grammar/ast"
 
 // A grammar decoded from JSON, or built by hand, has no LineBreak values, but
 // its nodes may own comments (SourceInfo.LeadingComments, TrailingComments and

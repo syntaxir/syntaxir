@@ -1,4 +1,4 @@
-//go:build zp_long
+//go:build sxir_long
 
 package complexitytest
 
@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/analysis/complexity"
-	"zeroparse.dev/zp/internal/testing/enginetest"
-	"zeroparse.dev/zp/internal/testing/factstest"
-	"zeroparse.dev/zp/internal/testing/starttest"
+	"syntaxir.dev/sxir/internal/analysis/complexity"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
+	"syntaxir.dev/sxir/internal/testing/factstest"
+	"syntaxir.dev/sxir/internal/testing/starttest"
 )
 
 // TestClassGolden pins the cost class, degree and witnessed degree of every corpus grammar (internal/testing/factstest)

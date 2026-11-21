@@ -1,4 +1,4 @@
-module zeroparse.dev/zp/site
+module syntaxir.dev/sxir/site
 
 go 1.27.1
 

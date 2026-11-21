@@ -4,15 +4,15 @@ import (
 	"os"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 func BenchmarkCharacterRangeValidation(b *testing.B) {
-	for _, tc := range []struct{ name, path string }{{"JSON", "../../testdata/grammars/json/json.zp"}, {"Go", "../../testdata/grammars/golang/golang.zp"}, {"YAML", "../../testdata/grammars/yaml/yaml.zp"}} {
+	for _, tc := range []struct{ name, path string }{{"JSON", "../../testdata/grammars/json/json.sxir"}, {"Go", "../../testdata/grammars/golang/golang.sxir"}, {"YAML", "../../testdata/grammars/yaml/yaml.sxir"}} {
 		b.Run(tc.name, func(b *testing.B) {
 			path := tc.path
-			if tc.name == "YAML" && os.Getenv("ZP_BENCH_YAML_GRAMMAR") != "" {
-				path = os.Getenv("ZP_BENCH_YAML_GRAMMAR")
+			if tc.name == "YAML" && os.Getenv("SXIR_BENCH_YAML_GRAMMAR") != "" {
+				path = os.Getenv("SXIR_BENCH_YAML_GRAMMAR")
 			}
 			source, err := os.ReadFile(path)
 			if err != nil {

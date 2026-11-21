@@ -5,11 +5,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
-// ZP_TYPED_LOCAL_LAYOUT_DIR preserves generated controls for benchmarks of
+// SXIR_TYPED_LOCAL_LAYOUT_DIR preserves generated controls for benchmarks of
 // prebuilt binaries, independently of source generation and compilation.
 func TestGeneratedTypedLocalLayoutWorkloads(t *testing.T) {
 	t.Parallel()
@@ -20,7 +20,7 @@ func testGeneratedTypedLocalLayoutWorkloads(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds generated code")
 	}
-	dir := os.Getenv("ZP_TYPED_LOCAL_LAYOUT_DIR")
+	dir := os.Getenv("SXIR_TYPED_LOCAL_LAYOUT_DIR")
 	if dir == "" {
 		dir = t.TempDir()
 	}
@@ -57,11 +57,11 @@ rule body Doc = (
 }
 
 func BenchmarkTypedLocalLayoutGeneration(b *testing.B) {
-	calculator, err := os.ReadFile("../../../../../examples/calculator/calc.zp")
+	calculator, err := os.ReadFile("../../../../../examples/calculator/calc.sxir")
 	if err != nil {
 		b.Fatal(err)
 	}
-	typescript, err := os.ReadFile("../../../../../testdata/grammars/typescript/typescript.zp")
+	typescript, err := os.ReadFile("../../../../../testdata/grammars/typescript/typescript.sxir")
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -95,7 +95,7 @@ func BenchmarkTypedLocalLayoutGeneration(b *testing.B) {
 const typedLocalLayoutWorkloadFixture = `package lrfixture
 
 import (
-	zprt "zeroparse.dev/zp/pkg/runtime/libgo"
+	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
     "encoding/json"
     "fmt"
     "strings"
@@ -124,12 +124,12 @@ func TestLocalLayoutWorkload(t *testing.T) {
         saved, err := ParseValue(localInput(3,false),WithUnit(unit))
         if !checkLocal(saved,err,3,false,unit) { t.Fatalf("saved value %v %v",saved,err) }
         before, _ := json.Marshal(saved)
-        p := &zprt.TParser{Parser:&zprt.Parser{}}
+        p := &sxirrt.TParser{Parser:&sxirrt.Parser{}}
         for _, n := range []int{1,128,1} {
             for _, rejected := range []bool{false,true} {
                 input := localInput(n,rejected)
-                value, err := p.X_run(trules[0],input,zprt.X_parseOptions{X_expectations: true, X_unit: unit, X_maxDepth: zpGrammar.X_maxDepth},&tslabs{})
-                v := zprt.TAs[*Doc](value)
+                value, err := p.X_run(trules[0],input,sxirrt.X_parseOptions{X_expectations: true, X_unit: unit, X_maxDepth: sxirGrammar.X_maxDepth},&tslabs{})
+                v := sxirrt.TAs[*Doc](value)
                 if !checkLocal(v,err,n,rejected,unit) { t.Fatalf("%d/%v: %v %v",n,rejected,v,err) }
                 data, _ := json.Marshal(struct { Value any; Error string }{v,fmt.Sprint(err)})
                 pooled, pooledErr := ParseValue(input,WithUnit(unit))

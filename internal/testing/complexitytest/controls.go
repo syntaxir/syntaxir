@@ -3,7 +3,7 @@ package complexitytest
 import (
 	"strings"
 
-	"zeroparse.dev/zp/internal/analysis/complexity"
+	"syntaxir.dev/sxir/internal/analysis/complexity"
 )
 
 // The classes that the complexity classifier assigns to a start rule.
@@ -19,7 +19,7 @@ const (
 type Control struct {
 	Name   string
 	Family string // E0 to E10, or a name for a case outside the table
-	Source string // ZeroParse source with the start rule main
+	Source string // SyntaxIR source with the start rule main
 	// Input builds the input of size n.
 	Input func(n int) string
 	// Sizes are n of the series n, 2n, 4n; ShortSizes are used with testing.Short.

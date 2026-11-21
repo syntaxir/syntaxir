@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	gensrc "zeroparse.dev/zp/internal/driver/generate"
-	"zeroparse.dev/zp/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	gensrc "syntaxir.dev/sxir/internal/driver/generate"
+	"syntaxir.dev/sxir/internal/frontend/parser"
 )
 
 // TestGeneratedTSFullWorkloadParity compares generated TypeScript against its
@@ -63,7 +63,7 @@ func TestGeneratedTSFullWorkloadParity(t *testing.T) {
 				"input.json":   inputs,
 				"consumer.ts":  []byte(tsFullWorkloadConsumer),
 				"runner.mjs": []byte(`import { readFileSync } from "node:fs";
-globalThis.__zpFullWorkloads = JSON.parse(readFileSync(new URL("./input.json", import.meta.url), "utf8"));
+globalThis.__sxirFullWorkloads = JSON.parse(readFileSync(new URL("./input.json", import.meta.url), "utf8"));
 await import("./consumer.ts");
 `),
 			} {
@@ -89,7 +89,7 @@ await import("./consumer.ts");
 const tsFullWorkloadConsumer = `import * as p from "./parser.ts";
 
 type Workload={name:string;input:string;recovery:boolean};
-const workloads=(globalThis as typeof globalThis & {__zpFullWorkloads:Workload[]}).__zpFullWorkloads;
+const workloads=(globalThis as typeof globalThis & {__sxirFullWorkloads:Workload[]}).__sxirFullWorkloads;
 function check(ok:unknown,why:string):asserts ok {if(!ok)throw new Error(why)}
 // Flat iterative frames avoid Node.toJSON and the host stringify depth limit.
 function stable(value:unknown):string {

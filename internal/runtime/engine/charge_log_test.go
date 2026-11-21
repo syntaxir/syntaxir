@@ -1,4 +1,4 @@
-//go:build zp_charge_log
+//go:build sxir_charge_log
 
 package engine
 
@@ -8,23 +8,23 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/state"
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
-// TestChargeLog prints the reservations of each engine backend for ZP_CL_GRAMMAR on ZP_CL_INPUT.
+// TestChargeLog prints the reservations of each engine backend for SXIR_CL_GRAMMAR on SXIR_CL_INPUT.
 func TestChargeLog(t *testing.T) {
-	src, in := os.Getenv("ZP_CL_GRAMMAR"), os.Getenv("ZP_CL_INPUT")
+	src, in := os.Getenv("SXIR_CL_GRAMMAR"), os.Getenv("SXIR_CL_INPUT")
 	if src == "" {
 		t.Skip()
 	}
-	if os.Getenv("ZP_CL_HOT") != "" {
+	if os.Getenv("SXIR_CL_HOT") != "" {
 		defer func(n, m int) { state.RunHotSpan, state.ScanHotSpan = n, m }(state.RunHotSpan, state.ScanHotSpan)
 		state.RunHotSpan, state.ScanHotSpan = 1, 1
 	}
 	unit := input.CodePoints
-	if os.Getenv("ZP_CL_BYTES") != "" {
+	if os.Getenv("SXIR_CL_BYTES") != "" {
 		unit = input.Bytes
 	}
 	old, flows, _ := flowProgramsOf(t, src, func(string) bool { return true }, nil)
@@ -39,15 +39,15 @@ func TestChargeLog(t *testing.T) {
 			total += n
 			lines = append(lines, fmt.Sprintf("%3d +%d %s", total, n, where))
 		}
-		if os.Getenv("ZP_CL_DOC") != "" {
-			d, err := c.p.NewDocumentWith("", in, ParseOptions{Backend: c.b, Unit: unit, Limits: zpruntime.Limits{Compute: 1 << 40}})
+		if os.Getenv("SXIR_CL_DOC") != "" {
+			d, err := c.p.NewDocumentWith("", in, ParseOptions{Backend: c.b, Unit: unit, Limits: sxirruntime.Limits{Compute: 1 << 40}})
 			if err != nil {
 				t.Fatal(err)
 			}
 			_, err = d.Parse()
 			_ = err
 		} else {
-			_, _ = c.p.ParseWith("", in, ParseOptions{Backend: c.b, Unit: unit, Limits: zpruntime.Limits{Compute: 1 << 40}})
+			_, _ = c.p.ParseWith("", in, ParseOptions{Backend: c.b, Unit: unit, Limits: sxirruntime.Limits{Compute: 1 << 40}})
 		}
 		state.ChargeLog = nil
 		fmt.Printf("== %s total %d\n%s\n", c.name, total, strings.Join(lines, "\n"))

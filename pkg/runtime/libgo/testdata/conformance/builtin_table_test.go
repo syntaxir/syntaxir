@@ -4,11 +4,11 @@ import (
 	"context"
 	"testing"
 
-	"zeroparse.dev/zp/internal/ir/code/exec/conform"
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // The built-in table (conform.BuiltinCases) on the compositions length, text, items and convert
@@ -22,9 +22,9 @@ func nodeBuiltinFixture(controlled bool) (*ActCtx, map[string]any) {
 	for _, typ := range []string{conform.BuiltinType, conform.BuiltinOther} {
 		g.NodeTypes[typ] = NewNodeTypeKinds(typ)
 	}
-	p := &Parser{g: g, unit: zpinput.Bytes, bs: conform.BuiltinInput}
+	p := &Parser{g: g, unit: sxirinput.Bytes, bs: conform.BuiltinInput}
 	if controlled {
-		p.Control = newBudgetControl(context.Background(), zpruntime.Limits{Compute: 1 << 62})
+		p.Control = newBudgetControl(context.Background(), sxirruntime.Limits{Compute: 1 << 62})
 	}
 	c := &ActCtx{P: p}
 	text := nodeOfData(&Data{Kind: MatchKind, Terminal: true, Text: "xyz", Start: 2, End: 4})
@@ -37,7 +37,7 @@ func nodeBuiltinFixture(controlled bool) (*ActCtx, map[string]any) {
 		conform.BuiltinString: "ab",
 		conform.BuiltinBool:   true,
 		conform.BuiltinText:   text,
-		conform.BuiltinNode:   nodeOfData(&Data{Kind: SeqKind, Start: 2, End: 5, Children: []*zpvalue.Node{text, text}}),
+		conform.BuiltinNode:   nodeOfData(&Data{Kind: SeqKind, Start: 2, End: 5, Children: []*sxirvalue.Node{text, text}}),
 		conform.BuiltinPair:   c.fxList(1, 2),
 		conform.MemberList:    c.fxList(),
 		conform.BuiltinFunc:   func(x any) any { return x },
@@ -47,9 +47,9 @@ func nodeBuiltinFixture(controlled bool) (*ActCtx, map[string]any) {
 // typedBuiltinFixture returns the context of a typed parser over conform.BuiltinInput and the values of
 // the fixture.
 func typedBuiltinFixture(controlled bool) (*TActCtx, map[string]any) {
-	p := &Parser{unit: zpinput.Bytes, bs: conform.BuiltinInput}
+	p := &Parser{unit: sxirinput.Bytes, bs: conform.BuiltinInput}
 	if controlled {
-		p.Control = newBudgetControl(context.Background(), zpruntime.Limits{Compute: 1 << 62})
+		p.Control = newBudgetControl(context.Background(), sxirruntime.Limits{Compute: 1 << 62})
 	}
 	c := &TActCtx{P: &TParser{Parser: p}}
 	text := &TMatch{TNode: TNode[string]{Span: Span{2, 4}, Value: "xyz"}}

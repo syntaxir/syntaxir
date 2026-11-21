@@ -28,7 +28,7 @@
   allocations for Recovery in this schedule; this is Node-construction
   propagation, not typed-emitter adoption or retained-heap evidence.
   The full-suite snapshot at `b43c759` includes this change; see
-  [Where ZeroParse stands](../performance.md#where-zeroparse-stands) for current
+  [Where SyntaxIR stands](../performance.md#where-syntaxir-stands) for current
   comparisons. That run is not paired attribution for this optimization.
 - Three paired isolated compiler runs (`go tool compile -pack`, shared
   standard-library export files) measured median candidate/baseline ratios
@@ -46,7 +46,7 @@
   operation are unchanged (about 90.7 KB and 8 allocations).
   Use this fixture:
 
-  ```zp
+  ```sxir
   type Pair = { Left node[string]; Right node[string] }
   type Doc = { Items []Pair }
   rule main Doc =  items:row+ $$ => Doc{Items: $items}
@@ -89,4 +89,4 @@
   each revision separately with `go test -c -o bench.test ./bench`, then
   alternate those binaries with the same selectors and `-test.benchmem`.
   For the memo case, generate the grammar above with
-  `zp gen -g memo.zp -module example.com/memo -o .`, then use the loop above.
+  `sxir gen -g memo.sxir -module example.com/memo -o .`, then use the loop above.

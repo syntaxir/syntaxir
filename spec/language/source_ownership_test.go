@@ -10,11 +10,11 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/frontend/parser"
-	"zeroparse.dev/zp/internal/frontend/parser/sourceast"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/pkg/grammar/ast"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/frontend/parser/sourceast"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // The canonical grammar and the hand-written frontend must assign the same
@@ -379,7 +379,7 @@ func TestCanonicalOwnerParityRepository(t *testing.T) {
 			return nil
 		}
 		switch filepath.Ext(path) {
-		case ".zp":
+		case ".sxir":
 			src, err := os.ReadFile(path)
 			if err != nil {
 				return err
@@ -392,7 +392,7 @@ func TestCanonicalOwnerParityRepository(t *testing.T) {
 			if err != nil {
 				return err
 			}
-			for i, block := range zpCodeBlocks(string(src)) {
+			for i, block := range sxirCodeBlocks(string(src)) {
 				checked++
 				assertOwnerParity(t, p, fmt.Sprintf("%s block %d", path, i+1), block)
 				assertNodeParity(t, p, fmt.Sprintf("%s block %d", path, i+1), block)

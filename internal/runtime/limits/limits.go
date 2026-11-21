@@ -6,7 +6,7 @@ package limits
 import (
 	"math"
 
-	"zeroparse.dev/zp/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime"
 )
 
 // Default limits on call nesting depth. Backends that run recursively use the host stack, so

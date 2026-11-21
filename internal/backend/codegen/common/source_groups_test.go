@@ -3,13 +3,13 @@ package common_test
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/driver/entry"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 func TestSourceGroupsExecutableParity(t *testing.T) {
@@ -54,7 +54,7 @@ rule number Alias = v1:[0-9]+ => Number{Text: text($v1)}
 			t.Fatal(err)
 		}
 		for _, backend := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
-			for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+			for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 				for _, source := range []string{"123", "0", "", "x"} {
 					opts := engine.ParseOptions{Expectations: true, Backend: backend, Unit: unit}
 					if got, want := codegentest.ResultJSON(p.ParseWith("main", source, opts)), codegentest.ResultJSON(ref.ParseWith("main", source, opts)); got != want {

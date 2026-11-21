@@ -1,4 +1,4 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package engine
 
@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"testing"
 
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 // runtimeValueVariants are grammars whose cost (Cost in spec/runtime/parsing.md) is the same on
@@ -88,7 +88,7 @@ func engineRecognizeBackends(t testing.TB, src string, unit input.PositionUnit) 
 	old, flows, n := flowProgramsOf(t, src, func(string) bool { return true }, nil)
 	on := func(prog *Program, b Backend) chargeRun {
 		return func(in string, limit uint64) string {
-			_, err := prog.ParseWith("", in, ParseOptions{Backend: b, Unit: unit, Expectations: true, Recognize: true, Limits: zpruntime.Limits{Compute: limit}})
+			_, err := prog.ParseWith("", in, ParseOptions{Backend: b, Unit: unit, Expectations: true, Recognize: true, Limits: sxirruntime.Limits{Compute: limit}})
 			return limitReportOf(err)
 		}
 	}

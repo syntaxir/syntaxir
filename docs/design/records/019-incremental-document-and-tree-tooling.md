@@ -7,24 +7,24 @@
 ## Summary
 
 Extend `Document` with input storage that avoids whole-document copying on small edits, immutable/versioned syntax
-tree views and change notifications. Add traversal, schema and query tools for consumers of those trees. Keep ZeroParse's
+tree views and change notifications. Add traversal, schema and query tools for consumers of those trees. Keep SyntaxIR's
 ordered PEG choices, actions, typed results and standalone generators. This proposal defines component boundaries
 and compatibility constraints; feature-specific records must settle API signatures and representation choices.
 
 ## Motivation
 
 Reusing a parse result is only one part of an editor update. Moving input, preserving old trees and updating indexes
-or highlights can dominate even when the parser evaluates few rules. ZeroParse already has incremental memoization; the
+or highlights can dominate even when the parser evaluates few rules. SyntaxIR already has incremental memoization; the
 proposal addresses the surrounding costs and gives grammar authors reproducible ways to check editing correctness.
 
 ### Evidence
 
-The comparison scope is ZeroParse at `f29d1220cb87` and Tree-sitter at
+The comparison scope is SyntaxIR at `f29d1220cb87` and Tree-sitter at
 [`e9930e091568`](https://github.com/tree-sitter/tree-sitter/tree/e9930e0915685efb98a9d325b8f23dfdb9e99559).
-ZeroParse's [input representation](../../../internal/runtime/state/input.go), [Document reuse](../../../internal/runtime/document/document.go),
+SyntaxIR's [input representation](../../../internal/runtime/state/input.go), [Document reuse](../../../internal/runtime/document/document.go),
 [incremental tests](../../../internal/runtime/engine/document_test.go) and
 [interruption tests](../../../internal/runtime/document/document_abort_test.go) establish the current behavior.
-Equivalent ZeroParse and Tree-sitter workloads have not been benchmarked for this proposal. Expected performance benefits
+Equivalent SyntaxIR and Tree-sitter workloads have not been benchmarked for this proposal. Expected performance benefits
 remain hypotheses; existing engine memo retirement has focused measurements in [optimization 067](../../optimizations/067-retire-memo-entries-when-their-lookup-slots-are-removed.md).
 
 Relevant upstream interfaces include [chunked input](https://tree-sitter.github.io/tree-sitter/using-parsers/2-basic-parsing.html),
@@ -49,7 +49,7 @@ Current limitations matter to the new APIs:
   references shared by children and fields, or nil; output is more general than a conventional CST.
 - Discarded punctuation, comments and whitespace cannot be reconstructed from an AST. The existing highlighting
   cookbook demonstrates grammar-controlled captures, not a general lossless syntax tree.
-- The language server edits `.zp` grammars. Target-language queries/highlighting are a separate consumer layer.
+- The language server edits `.sxir` grammars. Target-language queries/highlighting are a separate consumer layer.
 - Generated Go/TypeScript parsers currently support neither streams nor Document. New engine APIs must identify
   supported backends explicitly rather than imply generator support.
 
@@ -119,7 +119,7 @@ contract; a context check in the parser cannot promise that. Generated equivalen
 
 **Input and snapshots.** Do not silently change `Node.Start/End`, exported children/fields, `Document.Parse` sharing
 or `Clone`. Prototype an internal input abstraction with character reads, interval text and position conversion.
-Tree-sitter's input callback allows caller-owned ropes/piece tables; it does not supply ZeroParse with a rope implementation.
+Tree-sitter's input callback allows caller-owned ropes/piece tables; it does not supply SyntaxIR with a rope implementation.
 For snapshots, investigate relative internal spans plus versioned references and chunked child sequences. Keeping a
 mutable Node API may require materialization; include that cost. Structural sharing does not make an action that
 stores a position value reusable after a shift. A breaking Node/Document contract requires an explicit compatibility
@@ -174,9 +174,9 @@ Document abstraction; compare a built-in piece table with caller-owned input bef
 - **Notify only exact structural differences.** This can reduce downstream work, but misses same-shape text and scalar
   changes, and requires an old immutable view or extra comparison state. Begin with conservative versioned
   invalidation; exact differences can optimize it after consumers pass full-recomputation comparisons.
-- **Implement Tree-sitter Query compatibility first.** It would reuse existing query knowledge, but ZeroParse output has
+- **Implement Tree-sitter Query compatibility first.** It would reuse existing query knowledge, but SyntaxIR output has
   scalar fields, aliases and action-generated graphs that need different ownership/order rules. Start with a small
-  ZeroParse schema-aware query layer and consider compatibility only when the required semantics are clear.
+  SyntaxIR schema-aware query layer and consider compatibility only when the required semantics are clear.
 - **Allow current skip recovery to consume nothing.** This is a smaller syntax change, but permits repeated recovery
   at one position without progress and gives typed results no missing-token contract. Use explicit bounded insertion
   rather than weakening the existing consuming recovery guarantee.

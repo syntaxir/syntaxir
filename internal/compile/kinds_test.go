@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"zeroparse.dev/zp/internal/cancel"
+	"syntaxir.dev/sxir/internal/cancel"
 )
 
 // The run-time kinds of a program's types are the checker's (check.Checker.Kinds): the program

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 func TestGeneratedTypedTrace(t *testing.T) {
@@ -173,7 +173,7 @@ func TestTypedTraceLifecycle(t *testing.T){
  routes:=[]func(...ParseOption)(any,error){func(opts ...ParseOption)(any,error){return ParseValue(INPUT,opts...)},func(opts ...ParseOption)(any,error){return ParseRuleValue("main",INPUT,opts...)}}
  for _,parse:=range routes{
   marker:=&struct{n int}{11}
-  for _,value:=range []any{marker,zprt.X_fatal{errors.New("private marker")},zprt.X_evalError{X_msg:"private marker"},zprt.X_contextPanic{marker},zprt.X_tracePanic{marker}}{func(){defer func(){if got:=recover();got!=value{t.Fatalf("typed panic %T %v want %T %v",got,got,value,value)}}();parse(WithTrace(func(TraceEvent){panic(value)}));t.Fatal("panic absent")}()}
+  for _,value:=range []any{marker,sxirrt.X_fatal{errors.New("private marker")},sxirrt.X_evalError{X_msg:"private marker"},sxirrt.X_contextPanic{marker},sxirrt.X_tracePanic{marker}}{func(){defer func(){if got:=recover();got!=value{t.Fatalf("typed panic %T %v want %T %v",got,got,value,value)}}();parse(WithTrace(func(TraceEvent){panic(value)}));t.Fatal("panic absent")}()}
   late:=0;func(){defer func(){if recover()!=marker{t.Fatal("late typed panic")}}();parse(WithTrace(func(TraceEvent){late++;if late==2{panic(marker)}}));t.Fatal("late panic absent")}()
   var events []TraceEvent;parse(WithTrace(func(e TraceEvent){events=append(events,e)}));checkTypedTrace(t,events)
   seen:=0;parse(WithTrace(func(TraceEvent){seen++}));before:=seen;parse();if seen!=before{t.Fatal("typed callback retained")}
@@ -186,7 +186,7 @@ func TestTypedTraceLifecycle(t *testing.T){
   events=nil;_,err=parse(WithLimits(Limits{Compute:1}),WithTrace(func(e TraceEvent){events=append(events,e)}));if !errors.Is(err,ErrLimit){t.Fatal("typed budget",err)};for _,e:=range events{if e.Kind==TraceExit&&e.Rule=="main"{t.Fatal("fabricated typed exit",events)}}
  }
  var wg sync.WaitGroup;for i:=0;i<4;i++{wg.Go(func(){for j:=0;j<4;j++{ParseValue(INPUT,WithTrace(func(TraceEvent){}))}})};wg.Wait()
- p:=&zprt.TParser{Parser:&zprt.Parser{Observation:&zprt.X_observation{X_trace:func(TraceEvent){}}}};p.X_recycle();if p.Observation!=nil{t.Fatal("typed pool retained observer")}
+ p:=&sxirrt.TParser{Parser:&sxirrt.Parser{Observation:&sxirrt.X_observation{X_trace:func(TraceEvent){}}}};p.X_recycle();if p.Observation!=nil{t.Fatal("typed pool retained observer")}
 }
 `
 

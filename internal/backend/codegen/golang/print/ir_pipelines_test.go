@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // TestEveryFlowFunctionRunsTheIRPipelines generates parsers whose functions take every route from
@@ -18,7 +18,7 @@ import (
 func TestEveryFlowFunctionRunsTheIRPipelines(t *testing.T) {
 	t.Parallel()
 	read := func(name string) string {
-		src, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "testdata", "grammars", name, name+".zp"))
+		src, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "testdata", "grammars", name, name+".sxir"))
 		if err != nil {
 			t.Fatal(err)
 		}

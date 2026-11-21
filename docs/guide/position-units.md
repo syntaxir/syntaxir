@@ -1,12 +1,12 @@
 # Position Units
 
-Every position that ZeroParse reports is a count in one of two units. This guide shows what the unit changes, how to choose
+Every position that SyntaxIR reports is a count in one of two units. This guide shows what the unit changes, how to choose
 it and what invalid UTF-8 does.
 
-The examples use `pairs.zp` and a parser `p` compiled as in [Running Parsers](running-parsers.md):
+The examples use `pairs.sxir` and a parser `p` compiled as in [Running Parsers](running-parsers.md):
 
-```zp
-// pairs.zp
+```sxir
+// pairs.sxir
 type Pair = { Key node[string]; Value node[string] }
 
 @start
@@ -31,19 +31,19 @@ fmt.Println(n.Elem(0).Field("Key").(*value.Node).End()) // 6
 Syntax errors follow the unit, too (the same `あい=x` input, with the error at the `x`):
 
 ```bash
-zp parse -g pairs.zp -i 'あい=x'
+sxir parse -g pairs.sxir -i 'あい=x'
 ```
 
 ```text
-zp: 1:4: syntax error: expected [0-9]
+sxir: 1:4: syntax error: expected [0-9]
 ```
 
 ```bash
-zp parse -g pairs.zp -unit bytes -i 'あい=x'
+sxir parse -g pairs.sxir -unit bytes -i 'あい=x'
 ```
 
 ```text
-zp: 1:8: syntax error: expected [0-9]
+sxir: 1:8: syntax error: expected [0-9]
 ```
 
 Choosing:

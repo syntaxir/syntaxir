@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // node[string] is the type of a string node, in fields, rules and casts, and is checked like one.

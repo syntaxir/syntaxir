@@ -1,8 +1,8 @@
 package compile
 
 import (
-	"zeroparse.dev/zp/internal/frontend/elaborate"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend/elaborate"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // StructuralInput is elaborate.StructuralInput. It stays for the tests that call it through

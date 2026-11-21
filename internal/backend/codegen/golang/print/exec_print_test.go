@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	ir "zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/testing/exectest"
+	ir "syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/testing/exectest"
 )
 
 // testTarget implements the operations of printtest on the type P of the test program.

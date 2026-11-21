@@ -8,12 +8,12 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/backend/codegen/typescript/print"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/runtime"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 func TestGeneratedTSDepthOptions(t *testing.T) {
@@ -74,7 +74,7 @@ let depthErrors=0;
 		fmt.Fprintf(&script, "{ const m = await import('./g%d.ts'); const rows = [\n", i)
 		for _, name := range []string{"main", prog.RuleList[len(prog.RuleList)-1].Name} {
 			for _, input := range c.Inputs {
-				for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+				for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 					for _, limit := range []int{1, 2, 3, 4, 5, 6, 8, 20} {
 						_, err := prog.ParseWith(name, input, engine.ParseOptions{Expectations: true, Unit: unit, Limits: runtime.Limits{Depth: uint64(limit)}})
 						want := ""

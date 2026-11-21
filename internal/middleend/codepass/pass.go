@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"slices"
 
-	"zeroparse.dev/zp/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code"
 )
 
 // Specialize returns a copy of the function f of the module m named name and specialized for the

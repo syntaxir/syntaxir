@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/runtime/instrument"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/runtime/instrument"
 )
 
 // TestTraceFirstCharacterDispatch records executed calls, not synthetic calls

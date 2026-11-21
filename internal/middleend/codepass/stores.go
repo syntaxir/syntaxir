@@ -1,6 +1,6 @@
 package codepass
 
-import "zeroparse.dev/zp/internal/ir/code"
+import "syntaxir.dev/sxir/internal/ir/code"
 
 // Stores is what DeadStores finds about the locals of a function: which are never read, so that a
 // backend does not declare them, and which assignments it leaves out.

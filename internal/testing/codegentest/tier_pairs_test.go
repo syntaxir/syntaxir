@@ -10,7 +10,7 @@ import (
 )
 
 // tierPairs lists the files that give the default tier and the long tier different sizes of the same
-// test: the long tier must run at least the default tier's size, so that `go test -tags zp_long` runs
+// test: the long tier must run at least the default tier's size, so that `go test -tags sxir_long` runs
 // every test of the default run and the landing gate needs only the long run.
 var tierPairs = []struct{ def, long string }{
 	{"internal/backend/codegen/common/term_seeds_test.go", "internal/backend/codegen/common/term_seeds_long_test.go"},

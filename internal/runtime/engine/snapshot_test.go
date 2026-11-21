@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/value"
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // snapshotPhaseContext changes state only while the freezer is on the stack.
@@ -59,7 +59,7 @@ func TestSnapshotUnsupportedLegacyFieldPreservesParseError(t *testing.T) {
 	}
 	nodes.D(legacy).Fields = valueimpl.Fields{{Name: "bad", Value: []int{1}}}
 	s, err := d.SnapshotWith(ParseOptions{})
-	var capture *zpruntime.SnapshotCaptureError
+	var capture *sxirruntime.SnapshotCaptureError
 	if s != nil || !errors.As(err, &capture) || capture.ValueType != reflect.TypeOf([]int{}) || !strings.Contains(capture.Path, "bad") || capture.ParseError != nil {
 		t.Fatal("unsupported legacy field", s, err)
 	}
@@ -90,7 +90,7 @@ func TestSnapshotUnsupportedBoxIsRejected(t *testing.T) {
 	}
 	nodes.SetNodeElems(legacy, []*value.Node{nodes.NewNode(value.KindValue, 0, 0, "", nil, "", nil, []int{1})})
 	s, err = d.SnapshotWith(ParseOptions{})
-	var capture *zpruntime.SnapshotCaptureError
+	var capture *sxirruntime.SnapshotCaptureError
 	if s != nil || !errors.As(err, &capture) || capture.ValueType != reflect.TypeOf([]int{}) || !strings.Contains(capture.Path, "Children[0]") {
 		t.Fatal("unsupported boxed element", s, err)
 	}

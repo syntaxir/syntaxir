@@ -2,7 +2,7 @@
 // and for seeding fuzz tests.
 //
 // Its audience is Go programs that test their own grammars and parse results, such as fuzz tests and
-// table tests; the zp command uses it for the same purpose. At v0.x its API is unstable and may change
+// table tests; the sxir command uses it for the same purpose. At v0.x its API is unstable and may change
 // in any release.
 //
 // A Generator walks the grammar AST of a parser from its start rule and writes candidate inputs, making
@@ -37,11 +37,11 @@ import (
 	"slices"
 	"strings"
 
-	"zeroparse.dev/zp/internal/driver/entry"
-	"zeroparse.dev/zp/internal/frontend/desugar"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	syntaxfmt "zeroparse.dev/zp/internal/syntax/fmt"
-	"zeroparse.dev/zp/pkg/runtime"
+	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/desugar"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
+	"syntaxir.dev/sxir/pkg/runtime"
 )
 
 // Defaults of the options.
@@ -348,7 +348,7 @@ type Alternative struct {
 	// Index is the position of the alternative in its choice, or of the operand or operator in the
 	// Operators Rule expression (operators are counted across all levels).
 	Index int `json:"index"`
-	// Expr is the alternative in ZeroParse syntax.
+	// Expr is the alternative in SyntaxIR syntax.
 	Expr string `json:"expr"`
 }
 

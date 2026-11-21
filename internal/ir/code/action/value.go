@@ -3,7 +3,7 @@ package action
 import (
 	"strings"
 
-	"zeroparse.dev/zp/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code"
 )
 
 // Val is the component of the value primitives: the operations on the values of terms. A primitive

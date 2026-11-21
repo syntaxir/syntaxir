@@ -13,11 +13,11 @@ import (
 	"sync"
 	"testing"
 
-	"zeroparse.dev/zp/internal/analysis/complexity"
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	gensrc "zeroparse.dev/zp/internal/driver/generate"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/enginetest"
+	"syntaxir.dev/sxir/internal/analysis/complexity"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	gensrc "syntaxir.dev/sxir/internal/driver/generate"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 )
 
 var updateTriage = flag.Bool("update-triage", false, "rewrite the cause lists in testdata/triage")
@@ -167,22 +167,22 @@ func TestTriageTable(t *testing.T) {
 const triageCap = 4_000_000_000
 
 // TestTriageMeasure measures every family of the triage table on every backend and, with
-// ZP_TRIAGE_GO set, on a Go parser generated with limit controls. It prints one Markdown row
+// SXIR_TRIAGE_GO set, on a Go parser generated with limit controls. It prints one Markdown row
 // per family and backend: the input lengths, the costs, the growth exponents of the cost against
-// the length and the order read from them. It runs only when ZP_TRIAGE is set to a regular
+// the length and the order read from them. It runs only when SXIR_TRIAGE is set to a regular
 // expression that selects grammar/group/family names ("." for all), because it takes minutes:
 //
-//	ZP_TRIAGE=. ZP_TRIAGE_GO=1 go test -run TestTriageMeasure -v ./internal/testing/complexitytest
+//	SXIR_TRIAGE=. SXIR_TRIAGE_GO=1 go test -run TestTriageMeasure -v ./internal/testing/complexitytest
 //
 // A family whose measured order differs from the recorded one fails.
 func TestTriageMeasure(t *testing.T) {
 	top := t
-	sel := os.Getenv("ZP_TRIAGE")
+	sel := os.Getenv("SXIR_TRIAGE")
 	if sel == "" {
-		t.Skip("set ZP_TRIAGE to measure the triage families")
+		t.Skip("set SXIR_TRIAGE to measure the triage families")
 	}
 	re := regexp.MustCompile(sel)
-	withGo := os.Getenv("ZP_TRIAGE_GO") != ""
+	withGo := os.Getenv("SXIR_TRIAGE_GO") != ""
 	paths := map[string]string{}
 	for _, tg := range TriageGrammars {
 		paths[tg.Name] = tg.Path
@@ -360,7 +360,7 @@ func generatedSteps(t, top *testing.T, name, path string, inputs []string, lenie
 		if err != nil {
 			t.Fatal(err)
 		}
-		dir, err := os.MkdirTemp("", "zp-triage-")
+		dir, err := os.MkdirTemp("", "sxir-triage-")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -377,7 +377,7 @@ func generatedSteps(t, top *testing.T, name, path string, inputs []string, lenie
 		for _, f := range files {
 			write("p/"+f.Path, f.Content)
 		}
-		write("go.mod", []byte("module triage\n\ngo 1.27.1\n\nrequire zeroparse.dev/zp v0.0.0\n\nreplace zeroparse.dev/zp => "+root+"\n"))
+		write("go.mod", []byte("module triage\n\ngo 1.27.1\n\nrequire syntaxir.dev/sxir v0.0.0\n\nreplace syntaxir.dev/sxir => "+root+"\n"))
 		write("main.go", []byte(generatedDriverMain))
 		out := filepath.Join(dir, "driver")
 		cmd := exec.Command("go", "build", "-o", out, ".")

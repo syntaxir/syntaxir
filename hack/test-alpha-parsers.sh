@@ -1,7 +1,7 @@
 #!/bin/sh
 # Run the tests of the alpha-parsers checkout against this working tree.
 #
-# alpha-parsers (zeroparse.dev/alpha-parsers) holds the ready-made parsers, generated from the grammars of
+# alpha-parsers (syntaxir.dev/alpha-parsers) holds the ready-made parsers, generated from the grammars of
 # testdata/grammars/, which are the source of truth: the script first checks that every grammar, every sample
 # input and duckdb/inspect.go of the checkout equals this tree's copy and that its generator options are those of
 # testdata/grammars/generate.txt, and fails when one differs. It is a separate repository, so a change of the generator or the engine is checked
@@ -9,8 +9,8 @@
 #
 #	hack/test-alpha-parsers.sh [go test arguments]
 #
-# $ZP_ALPHA_PARSERS names the checkout (default: ../alpha-parsers). The script fails when there is no checkout:
-# a check that is skipped without notice hides a stale checkout. ZP_ALPHA_PARSERS=skip skips it on purpose.
+# $SXIR_ALPHA_PARSERS names the checkout (default: ../alpha-parsers). The script fails when there is no checkout:
+# a check that is skipped without notice hides a stale checkout. SXIR_ALPHA_PARSERS=skip skips it on purpose.
 # hack/sync-alpha-parsers.sh brings a stale checkout up to date. The script tests the tree it is run from.
 set -u
 . "$(dirname "$0")/alpha-parsers-common.sh" || exit 1
@@ -20,7 +20,7 @@ bad=0
 alpha_options_drift || bad=1
 for d in "$root"/testdata/grammars/*/; do
 	n=$(basename "$d")
-	for f in "$d"*.zp "$d"inspect.go; do
+	for f in "$d"*.sxir "$d"inspect.go; do
 		[ -f "$f" ] || continue
 		cmp -s "$f" "$dir/$n/$(basename "$f")" || { echo "alpha-parsers: $n/$(basename "$f") differs from testdata/grammars/$n" >&2; bad=1; }
 	done

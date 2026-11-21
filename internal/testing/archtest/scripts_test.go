@@ -45,7 +45,7 @@ func repoEnv() []string {
 func scriptEnv(t *testing.T, state string) []string {
 	t.Helper()
 	env := append(inheritedEnv(),
-		"ZP_AGENT_STATE="+state, "BENCHLOCK_POLL=1",
+		"SXIR_AGENT_STATE="+state, "BENCHLOCK_POLL=1",
 		"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.com",
 		"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@example.com")
 	return append(env, gitIsolated...)
@@ -110,7 +110,7 @@ func TestCheckCommitsClosingTrailers(t *testing.T) {
 		{"Fix 3 flaky tests", "They failed under load.", false},
 		{"Rework the prefix handling", "This resolves nothing about issue numbering.", false},
 		{"Rework the cache", "Closes #12", true},
-		{"Rework the cache", "Closes zeroparse/zp#1", true},
+		{"Rework the cache", "Closes syntaxir/syntaxir#1", true},
 		{"Rework the cache", "fixes: #7", true},
 		{"Rework the cache", "Resolved owner/repo#3", true},
 	} {
@@ -259,7 +259,7 @@ func TestTrainLandRequiresACompletedGate(t *testing.T) {
 	}
 }
 
-// The scripts that use the state directory stop when ZP_AGENT_STATE is unset or relative, before
+// The scripts that use the state directory stop when SXIR_AGENT_STATE is unset or relative, before
 // they create anything: a default would let a lane that forgot it run a private queue beside the
 // shared one. push-branch.sh does not use the state and does not ask for it.
 func TestScriptsRequireAgentState(t *testing.T) {
@@ -267,7 +267,7 @@ func TestScriptsRequireAgentState(t *testing.T) {
 	home := t.TempDir()
 	var base []string
 	for _, kv := range inheritedEnv() {
-		if !strings.HasPrefix(kv, "ZP_AGENT_STATE=") && !strings.HasPrefix(kv, "HOME=") && !strings.HasPrefix(kv, "XDG_STATE_HOME=") {
+		if !strings.HasPrefix(kv, "SXIR_AGENT_STATE=") && !strings.HasPrefix(kv, "HOME=") && !strings.HasPrefix(kv, "XDG_STATE_HOME=") {
 			base = append(base, kv)
 		}
 	}
@@ -299,12 +299,12 @@ func TestScriptsRequireAgentState(t *testing.T) {
 	for _, state := range []string{"", "relative/state"} {
 		env := base
 		if state != "" {
-			env = append(append([]string{}, base...), "ZP_AGENT_STATE="+state)
+			env = append(append([]string{}, base...), "SXIR_AGENT_STATE="+state)
 		}
 		for name, args := range scripts {
 			out, err := runIn(t, root, env, "bash", append([]string{filepath.Join(root, ".agents", "scripts", name)}, args...)...)
-			if err == nil || !strings.Contains(out, "ZP_AGENT_STATE") {
-				t.Errorf("%s with ZP_AGENT_STATE=%q: err %v, output %q; want a stop that names ZP_AGENT_STATE", name, state, err, out)
+			if err == nil || !strings.Contains(out, "SXIR_AGENT_STATE") {
+				t.Errorf("%s with SXIR_AGENT_STATE=%q: err %v, output %q; want a stop that names SXIR_AGENT_STATE", name, state, err, out)
 			}
 		}
 	}
@@ -315,8 +315,8 @@ func TestScriptsRequireAgentState(t *testing.T) {
 		t.Errorf("the scripts created relative/ in the repository")
 	}
 	out, _ := runIn(t, root, base, "bash", filepath.Join(root, ".agents", "scripts", "push-branch.sh"))
-	if strings.Contains(out, "ZP_AGENT_STATE") {
-		t.Errorf("push-branch.sh asks for ZP_AGENT_STATE: %q", out)
+	if strings.Contains(out, "SXIR_AGENT_STATE") {
+		t.Errorf("push-branch.sh asks for SXIR_AGENT_STATE: %q", out)
 	}
 }
 
@@ -395,7 +395,7 @@ func TestAffectedTestsDeletedPackages(t *testing.T) {
 	}
 	w := t.TempDir()
 	env := append(scriptEnv(t, t.TempDir()), "GOFLAGS=-mod=mod", "GOWORK=off", "GOTOOLCHAIN=local")
-	const mod = "zeroparse.dev/zp"
+	const mod = "syntaxir.dev/sxir"
 	write(t, filepath.Join(w, "hack", "affected-tests.sh"), string(b), 0o755)
 	write(t, filepath.Join(w, "go.mod"), "module "+mod+"\n\ngo 1.21\n", 0o644)
 	write(t, filepath.Join(w, "pkg", "runtime", "libgo", "g.go"), "package libgo\n", 0o644)

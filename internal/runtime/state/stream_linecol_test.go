@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 // naiveLineCol is the line and column of pos in text, counted from the start, clamped to the end.

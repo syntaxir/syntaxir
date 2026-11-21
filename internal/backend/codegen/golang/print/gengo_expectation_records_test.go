@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 func TestGeneratedExpectationRecords(t *testing.T) {
@@ -31,9 +31,9 @@ rule main N = ("é") #atomic`)
 	}
 	// The fixture is also a test of the state package; the generated library exports the names it
 	// uses except for the expectation record itself, which the library keeps unexported.
-	fixture = []byte(strings.NewReplacer("package state", "package engine", "&Parser{", "&zprt.Parser{", "ExpID", "zprt.ExpID", "ExpMark", "zprt.ExpMark", "MsgBit", "zprt.MsgBit",
+	fixture = []byte(strings.NewReplacer("package state", "package engine", "&Parser{", "&sxirrt.Parser{", "ExpID", "sxirrt.ExpID", "ExpMark", "sxirrt.ExpMark", "MsgBit", "sxirrt.MsgBit",
 		"p.ExpBase", "p.expBase", "p.Expect(", "p.Expect(", "p.Exp", "p.exp", "p.Farthest", "p.farthest").Replace(string(fixture)))
-	fixture = []byte(strings.Replace(string(fixture), "import (", "import (\n\tzprt \"zeroparse.dev/zp/pkg/runtime/libgo\"", 1))
+	fixture = []byte(strings.Replace(string(fixture), "import (", "import (\n\tsxirrt \"syntaxir.dev/sxir/pkg/runtime/libgo\"", 1))
 	for _, mode := range []string{"plain", "direct", "conversion"} {
 		t.Run(mode, func(t *testing.T) {
 			code, err := codegentest.GenerateCode(t, g, common.GenOptions{Package: "engine", Start: "main", Types: mode != "plain", ConvertTypes: mode == "conversion"})
@@ -49,7 +49,7 @@ func TestExpectationPoolReuse(t *testing.T) {
  for _,unit := range []PositionUnit{CodePoints,Bytes} {
   for i:=0;i<3;i++ {
    if _,err:=Parse("!",WithUnit(unit));err==nil { t.Fatal("invalid input accepted") }
-   if n,err:=Parse("é",WithUnit(unit));err!=nil || zprt.D(n).Text!="é" { t.Fatalf("plain reuse: %v",err) }
+   if n,err:=Parse("é",WithUnit(unit));err!=nil || sxirrt.D(n).Text!="é" { t.Fatalf("plain reuse: %v",err) }
   }
  }
 }
@@ -86,4 +86,4 @@ func TestTypedExpectationPoolReuse(t *testing.T) {
 }
 
 // qualifyFixtureNames qualifies the library names that the code of the fixtures above uses.
-var qualifyFixtureNames = strings.NewReplacer("TParser", "zprt.TParser", "Parser:", "Parser:", "Parser", "zprt.Parser", "ExpID", "zprt.ExpID", "MsgBit", "zprt.MsgBit")
+var qualifyFixtureNames = strings.NewReplacer("TParser", "sxirrt.TParser", "Parser:", "Parser:", "Parser", "sxirrt.Parser", "ExpID", "sxirrt.ExpID", "MsgBit", "sxirrt.MsgBit")

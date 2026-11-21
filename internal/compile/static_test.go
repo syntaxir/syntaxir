@@ -4,16 +4,16 @@ import (
 	"context"
 	"testing"
 
-	"zeroparse.dev/zp/internal/frontend/desugar"
-	"zeroparse.dev/zp/internal/frontend/parser"
-	"zeroparse.dev/zp/internal/testing/starttest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend/desugar"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/testing/starttest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // The tests of this package check grammars to their static programs (Check), which builds no
 // matchers: they check what the compiler decides, which the engine's tests check by running it.
 
-// parseTest parses ZeroParse source for a test whose subject is not start rules: unless the source has
+// parseTest parses SyntaxIR source for a test whose subject is not start rules: unless the source has
 // declaration attributes, every rule becomes a start rule, the first one the default.
 func parseTest(src string) (*ast.Grammar, error) {
 	g, err := parser.Parse(src)

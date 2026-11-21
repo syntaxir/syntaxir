@@ -6,16 +6,16 @@ package generate
 import (
 	"io/fs"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/backend/codegen/golang/libsrc"
-	goprint "zeroparse.dev/zp/internal/backend/codegen/golang/print"
-	tslib "zeroparse.dev/zp/internal/backend/codegen/typescript/lib"
-	tsprint "zeroparse.dev/zp/internal/backend/codegen/typescript/print"
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/driver/checked"
-	"zeroparse.dev/zp/internal/frontend"
-	"zeroparse.dev/zp/internal/frontend/desugar"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/golang/libsrc"
+	goprint "syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	tslib "syntaxir.dev/sxir/internal/backend/codegen/typescript/lib"
+	tsprint "syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/driver/checked"
+	"syntaxir.dev/sxir/internal/frontend"
+	"syntaxir.dev/sxir/internal/frontend/desugar"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Go generates the files of a Go parser for g with o, running the passes that o selects (Passes),

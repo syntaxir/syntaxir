@@ -1,8 +1,8 @@
 package document
 
 import (
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // The external tests of this package parse with the engine's programs, which import this

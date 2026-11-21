@@ -6,7 +6,7 @@ import (
 	"io"
 	"strings"
 
-	"zeroparse.dev/zp/internal/pass"
+	"syntaxir.dev/sxir/internal/pass"
 )
 
 // A toy compilation for the tests of the manager: a program of named tables, each lowered to a

@@ -6,11 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
-// ZP_TYPED_OPERATORS_RULE_DIR preserves latest-generator controls for paired timing.
+// SXIR_TYPED_OPERATORS_RULE_DIR preserves latest-generator controls for paired timing.
 func TestGeneratedTypedOperatorsRuleWorkload(t *testing.T) {
 	t.Parallel()
 	codegentest.EachMode(t, testGeneratedTypedOperatorsRuleWorkload)
@@ -20,11 +20,11 @@ func testGeneratedTypedOperatorsRuleWorkload(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds generated code")
 	}
-	src, err := os.ReadFile("../../../../../examples/calculator/calc.zp")
+	src, err := os.ReadFile("../../../../../examples/calculator/calc.sxir")
 	if err != nil {
 		t.Fatal(err)
 	}
-	dir := os.Getenv("ZP_TYPED_OPERATORS_RULE_DIR")
+	dir := os.Getenv("SXIR_TYPED_OPERATORS_RULE_DIR")
 	if dir == "" {
 		dir = t.TempDir()
 	}
@@ -42,7 +42,7 @@ func testGeneratedTypedOperatorsRuleActionWorkload(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds generated code")
 	}
-	dir := os.Getenv("ZP_TYPED_OPERATORS_RULE_DIR")
+	dir := os.Getenv("SXIR_TYPED_OPERATORS_RULE_DIR")
 	if dir == "" {
 		dir = t.TempDir()
 	} else {
@@ -66,7 +66,7 @@ rule atom Atom = t:("a") #atomic => Atom{Text: text($t)}
 const typedOperatorsRuleActionWorkloadFixture = `package lrfixture
 
 import (
-	zprt "zeroparse.dev/zp/pkg/runtime/libgo"
+	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -83,9 +83,9 @@ func TestOperatorsRuleWorkload(t *testing.T) {
 			t.Fatalf("typed capture result: %v %v", saved, err)
 		}
 		before, _ := json.Marshal(saved)
-		p := &zprt.TParser{Parser: &zprt.Parser{}}
+		p := &sxirrt.TParser{Parser: &sxirrt.Parser{}}
 		for _, input := range []string{operatorsRuleInput(1), operatorsRuleInput(128), "a", "a[b,c,]", "a[b,c,d,", "a[b,c,d,e,]", "a[b,é,d,]", "", "a[b,c,d,]?"} {
-			v, err := p.X_run(trules[0], input, zprt.X_parseOptions{X_expectations: true, X_unit: unit, X_maxDepth: zpGrammar.X_maxDepth}, &tslabs{})
+			v, err := p.X_run(trules[0], input, sxirrt.X_parseOptions{X_expectations: true, X_unit: unit, X_maxDepth: sxirGrammar.X_maxDepth}, &tslabs{})
 			data, _ := json.Marshal(struct { Value any; Error string }{v, fmt.Sprint(err)})
 			pooled, pooledErr := ParseValue(input, WithUnit(unit))
 			pooledData, _ := json.Marshal(struct { Value any; Error string }{pooled, fmt.Sprint(pooledErr)})

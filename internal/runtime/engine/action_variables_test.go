@@ -3,10 +3,10 @@ package engine
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 func TestMemoActionVariables(t *testing.T) {
@@ -19,7 +19,7 @@ func TestMemoActionVariables(t *testing.T) {
 					t.Errorf("r variable dependencies: %v", vars)
 				}
 				for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-					for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+					for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 						opts := ParseOptions{Backend: backend, Unit: unit}
 						input := c.Inputs[0]
 						n, err := prog.ParseWith("main", input, opts)
@@ -50,7 +50,7 @@ var n int
 rule main = text:[a-z]+ #atomic {n := len($text)} r
 rule r = "!" => V{N: n}`)
 	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+		for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 			doc, err := prog.NewDocumentWith("main", "a!", ParseOptions{Backend: backend, Unit: unit})
 			if err != nil {
 				t.Fatal(err)

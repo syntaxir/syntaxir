@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/diagnostic"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/diagnostic"
 )
 
 // A name captured several times in one match has the join of the types of its captures: the
@@ -97,7 +97,7 @@ rule main = ` + strings.Repeat(`x:a x:b? `, n) + `$$`
 }
 
 func BenchmarkCaptureChecking(b *testing.B) {
-	for _, path := range []string{"../../../examples/calculator/calc.zp", "../../../examples/minilang/minilang.zp", "../../../testdata/grammars/json/json.zp"} {
+	for _, path := range []string{"../../../examples/calculator/calc.sxir", "../../../examples/minilang/minilang.sxir", "../../../testdata/grammars/json/json.sxir"} {
 		b.Run("control/"+path[strings.LastIndex(path, "/")+1:], func(b *testing.B) {
 			src, err := os.ReadFile(path)
 			if err != nil {

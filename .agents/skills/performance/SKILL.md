@@ -1,6 +1,6 @@
 ---
 name: performance
-description: Maintain ZeroParse's optimization method and reproducible performance evidence.
+description: Maintain SyntaxIR's optimization method and reproducible performance evidence.
 ---
 
 # Performance Evidence

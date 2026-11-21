@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"zeroparse.dev/zp/internal/pass"
+	"syntaxir.dev/sxir/internal/pass"
 )
 
 // The tests of the manager's policies at their edges: sharing, analyses, failures, copies, the

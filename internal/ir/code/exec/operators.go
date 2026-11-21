@@ -3,7 +3,7 @@ package exec
 import (
 	"strings"
 
-	"zeroparse.dev/zp/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code"
 )
 
 // State components of the capture frames and the Operators Rule loop.

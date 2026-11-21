@@ -1,6 +1,6 @@
 package flowpass
 
-import "zeroparse.dev/zp/internal/pass"
+import "syntaxir.dev/sxir/internal/pass"
 
 // The Flow passes register their flags under the names of the passes.
 func init() {

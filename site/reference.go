@@ -18,7 +18,7 @@ import (
 // The reference is generated from the Go source of the repository with go/doc, so that it always
 // matches the code it is built with; pkg.go.dev has the reference of published versions.
 
-const modulePath = "zeroparse.dev/zp"
+const modulePath = "syntaxir.dev/sxir"
 
 // refPackage is a package documented in the reference.
 type refPackage struct {
@@ -26,22 +26,22 @@ type refPackage struct {
 }
 
 var refPackages = []refPackage{
-	{dir: "pkg/compiler", importPath: modulePath + "/pkg/compiler", url: "reference/compiler/", title: "Package zp/pkg/compiler", label: "zp/pkg/compiler"},
-	{dir: "pkg/runtime", importPath: modulePath + "/pkg/runtime", url: "reference/runtime/", title: "Package zp/pkg/runtime", label: "zp/pkg/runtime"},
-	{dir: "pkg/runtime/vm", importPath: modulePath + "/pkg/runtime/vm", url: "reference/vm/", title: "Package zp/pkg/runtime/vm", label: "zp/pkg/runtime/vm"},
-	{dir: "pkg/runtime/input", importPath: modulePath + "/pkg/runtime/input", url: "reference/input/", title: "Package zp/pkg/runtime/input", label: "zp/pkg/runtime/input"},
-	{dir: "pkg/runtime/value", importPath: modulePath + "/pkg/runtime/value", url: "reference/value/", title: "Package zp/pkg/runtime/value", label: "zp/pkg/runtime/value"},
-	{dir: "pkg/runtime/instrument", importPath: modulePath + "/pkg/runtime/instrument", url: "reference/instrument/", title: "Package zp/pkg/runtime/instrument", label: "zp/pkg/runtime/instrument"},
-	{dir: "pkg/grammar", importPath: modulePath + "/pkg/grammar", url: "reference/grammar/", title: "Package zp/pkg/grammar", label: "zp/pkg/grammar"},
-	{dir: "pkg/grammar/ast", importPath: modulePath + "/pkg/grammar/ast", url: "reference/grammarast/", title: "Package zp/pkg/grammar/ast", label: "zp/pkg/grammar/ast"},
-	{dir: "pkg/runtime/value/impl", importPath: modulePath + "/pkg/runtime/value/impl", url: "reference/valueimpl/", title: "Package zp/pkg/runtime/value/impl", label: "zp/pkg/runtime/value/impl"},
-	{dir: "pkg/runtime/libgo", importPath: modulePath + "/pkg/runtime/libgo", url: "reference/libgo/", title: "Package zp/pkg/runtime/libgo", label: "zp/pkg/runtime/libgo"},
-	{dir: "pkg/bytecode", importPath: modulePath + "/pkg/bytecode", url: "reference/bytecode/", title: "Package zp/pkg/bytecode", label: "zp/pkg/bytecode"},
-	{dir: "pkg/lint", importPath: modulePath + "/pkg/lint", url: "reference/lint/", title: "Package zp/pkg/lint", label: "zp/pkg/lint"},
-	{dir: "pkg/runtime/schema", importPath: modulePath + "/pkg/runtime/schema", url: "reference/schema/", title: "Package zp/pkg/runtime/schema", label: "zp/pkg/runtime/schema"},
-	{dir: "pkg/runtime/query", importPath: modulePath + "/pkg/runtime/query", url: "reference/query/", title: "Package zp/pkg/runtime/query", label: "zp/pkg/runtime/query"},
-	{dir: "pkg/sample", importPath: modulePath + "/pkg/sample", url: "reference/sample/", title: "Package zp/pkg/sample", label: "zp/pkg/sample"},
-	{dir: "pkg/editfuzz", importPath: modulePath + "/pkg/editfuzz", url: "reference/editfuzz/", title: "Package zp/pkg/editfuzz", label: "zp/pkg/editfuzz"},
+	{dir: "pkg/compiler", importPath: modulePath + "/pkg/compiler", url: "reference/compiler/", title: "Package sxir/pkg/compiler", label: "sxir/pkg/compiler"},
+	{dir: "pkg/runtime", importPath: modulePath + "/pkg/runtime", url: "reference/runtime/", title: "Package sxir/pkg/runtime", label: "sxir/pkg/runtime"},
+	{dir: "pkg/runtime/vm", importPath: modulePath + "/pkg/runtime/vm", url: "reference/vm/", title: "Package sxir/pkg/runtime/vm", label: "sxir/pkg/runtime/vm"},
+	{dir: "pkg/runtime/input", importPath: modulePath + "/pkg/runtime/input", url: "reference/input/", title: "Package sxir/pkg/runtime/input", label: "sxir/pkg/runtime/input"},
+	{dir: "pkg/runtime/value", importPath: modulePath + "/pkg/runtime/value", url: "reference/value/", title: "Package sxir/pkg/runtime/value", label: "sxir/pkg/runtime/value"},
+	{dir: "pkg/runtime/instrument", importPath: modulePath + "/pkg/runtime/instrument", url: "reference/instrument/", title: "Package sxir/pkg/runtime/instrument", label: "sxir/pkg/runtime/instrument"},
+	{dir: "pkg/grammar", importPath: modulePath + "/pkg/grammar", url: "reference/grammar/", title: "Package sxir/pkg/grammar", label: "sxir/pkg/grammar"},
+	{dir: "pkg/grammar/ast", importPath: modulePath + "/pkg/grammar/ast", url: "reference/grammarast/", title: "Package sxir/pkg/grammar/ast", label: "sxir/pkg/grammar/ast"},
+	{dir: "pkg/runtime/value/impl", importPath: modulePath + "/pkg/runtime/value/impl", url: "reference/valueimpl/", title: "Package sxir/pkg/runtime/value/impl", label: "sxir/pkg/runtime/value/impl"},
+	{dir: "pkg/runtime/libgo", importPath: modulePath + "/pkg/runtime/libgo", url: "reference/libgo/", title: "Package sxir/pkg/runtime/libgo", label: "sxir/pkg/runtime/libgo"},
+	{dir: "pkg/bytecode", importPath: modulePath + "/pkg/bytecode", url: "reference/bytecode/", title: "Package sxir/pkg/bytecode", label: "sxir/pkg/bytecode"},
+	{dir: "pkg/lint", importPath: modulePath + "/pkg/lint", url: "reference/lint/", title: "Package sxir/pkg/lint", label: "sxir/pkg/lint"},
+	{dir: "pkg/runtime/schema", importPath: modulePath + "/pkg/runtime/schema", url: "reference/schema/", title: "Package sxir/pkg/runtime/schema", label: "sxir/pkg/runtime/schema"},
+	{dir: "pkg/runtime/query", importPath: modulePath + "/pkg/runtime/query", url: "reference/query/", title: "Package sxir/pkg/runtime/query", label: "sxir/pkg/runtime/query"},
+	{dir: "pkg/sample", importPath: modulePath + "/pkg/sample", url: "reference/sample/", title: "Package sxir/pkg/sample", label: "sxir/pkg/sample"},
+	{dir: "pkg/editfuzz", importPath: modulePath + "/pkg/editfuzz", url: "reference/editfuzz/", title: "Package sxir/pkg/editfuzz", label: "sxir/pkg/editfuzz"},
 }
 
 const cliURL = "reference/cli/"
@@ -58,7 +58,7 @@ func (s *Site) referencePages() *Section {
 		sec.Pages = append(sec.Pages, p)
 	}
 	cli := &Page{URL: cliURL, Kind: "doc", Title: "CLI Reference", Nav: "CLI Reference", Section: sec.Name,
-		SourceURL: s.cfg.GitHub + "/blob/" + s.cfg.Ref + "/cmd/zp/main.go"}
+		SourceURL: s.cfg.GitHub + "/blob/" + s.cfg.Ref + "/cmd/sxir/main.go"}
 	s.add(cli)
 	sec.Pages = append(sec.Pages, cli)
 	return sec
@@ -111,8 +111,8 @@ func (s *Site) renderReference() error {
 	var ib strings.Builder
 	ib.WriteString(`<h1 id="api-reference">Go API Reference</h1>
 <p>The reference of the public Go API, generated from the source of this
-version of ZeroParse. The reference of released versions is also on
-<a href="https://pkg.go.dev/zeroparse.dev/zp">pkg.go.dev</a>.</p>
+version of SyntaxIR. The reference of released versions is also on
+<a href="https://pkg.go.dev/syntaxir.dev/sxir">pkg.go.dev</a>.</p>
 <table><thead><tr><th>Package</th><th>Synopsis</th></tr></thead><tbody>
 `)
 	for _, rp := range refPackages {
@@ -141,7 +141,7 @@ version of ZeroParse. The reference of released versions is also on
 	cli := s.page(cliURL)
 	body, toc, err := s.renderCLI(cli)
 	if err != nil {
-		return fmt.Errorf("reference of the zp command: %w", err)
+		return fmt.Errorf("reference of the sxir command: %w", err)
 	}
 	cli.Body, cli.TOC, cli.Text = template.HTML(body), toc, plainText(body)
 	ib.WriteString("</tbody></table>\n")

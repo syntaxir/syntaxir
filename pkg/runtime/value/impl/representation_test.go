@@ -127,7 +127,7 @@ func representation(t *testing.T, dir string) (int, string) {
 		files = append(files, f)
 	}
 	conf := types.Config{Importer: importer.ForCompiler(fset, "source", nil)}
-	pkg, err := conf.Check("zeroparse.dev/zp/pkg/runtime/value/impl", fset, files, nil)
+	pkg, err := conf.Check("syntaxir.dev/sxir/pkg/runtime/value/impl", fset, files, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

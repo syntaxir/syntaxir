@@ -11,9 +11,9 @@
 package compose
 
 import (
-	. "zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/action"
-	"zeroparse.dev/zp/internal/ir/code/exec"
+	. "syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/action"
+	"syntaxir.dev/sxir/internal/ir/code/exec"
 )
 
 // docMode selects the Document bookkeeping of a memoized call.

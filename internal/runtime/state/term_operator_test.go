@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/ir/code/action"
+	"syntaxir.dev/sxir/internal/ir/code/action"
 )
 
 // TestOperatorCodes holds the lookups of the codes of operators to the tables of operators, whose

@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 )
 
 // The hand-written forms of the expectation record that the compositions of internal/ir/code/exec/compose
@@ -125,7 +125,7 @@ func TestKeepMatchesReference(t *testing.T) {
 			newP := func() *Parser {
 				p := &Parser{}
 				if controlled {
-					p.Control = newBudgetControl(nil, zpruntime.Limits{Compute: 1 << 40})
+					p.Control = newBudgetControl(nil, sxirruntime.Limits{Compute: 1 << 40})
 				}
 				return p
 			}
@@ -189,7 +189,7 @@ func TestExpectRecordMatchesReference(t *testing.T) {
 							p.Document, p.track = &documentState{}, true
 						}
 						if controlled {
-							p.Control = newBudgetControl(nil, zpruntime.Limits{Compute: 1 << 40})
+							p.Control = newBudgetControl(nil, sxirruntime.Limits{Compute: 1 << 40})
 						}
 						return p
 					}
@@ -305,7 +305,7 @@ func TestNonRecordingRecordHoldsOnePlaceholder(t *testing.T) {
 		for round := 0; round < 400; round++ {
 			p := &Parser{}
 			if controlled {
-				p.Control = newBudgetControl(nil, zpruntime.Limits{Compute: 1 << 40})
+				p.Control = newBudgetControl(nil, sxirruntime.Limits{Compute: 1 << 40})
 			}
 			var marks []ExpMark
 			for step := 0; step < 80; step++ {

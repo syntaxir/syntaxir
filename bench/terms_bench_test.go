@@ -3,10 +3,10 @@ package bench
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/bench/inputs"
-	gtermsheavy "zeroparse.dev/zp/internal/bench/parsers/termsheavy"
-	gtermspred "zeroparse.dev/zp/internal/bench/parsers/termspred"
-	"zeroparse.dev/zp/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/bench/inputs"
+	gtermsheavy "syntaxir.dev/sxir/internal/bench/parsers/termsheavy"
+	gtermspred "syntaxir.dev/sxir/internal/bench/parsers/termspred"
+	"syntaxir.dev/sxir/internal/runtime/engine"
 )
 
 // termWorkloads measure the cost of evaluating terms. pred runs four predicate terms per line and builds
@@ -18,11 +18,11 @@ var termWorkloads = []struct {
 	ast           func(input string) error
 	rec           func(input string) error
 }{
-	{"TermsPredicates", "grammars/terms/pred.zp",
+	{"TermsPredicates", "grammars/terms/pred.sxir",
 		func(s string) error { return genErr(gtermspred.Parse(s)) },
 		func(s string) error { return genErr(gtermspred.ParseValue(s)) },
 		func(s string) error { return gtermspred.Recognize(s) }},
-	{"TermsHeavy", "grammars/terms/heavy.zp",
+	{"TermsHeavy", "grammars/terms/heavy.sxir",
 		func(s string) error { return genErr(gtermsheavy.Parse(s)) },
 		func(s string) error { return genErr(gtermsheavy.ParseValue(s)) },
 		func(s string) error { return gtermsheavy.Recognize(s) }},

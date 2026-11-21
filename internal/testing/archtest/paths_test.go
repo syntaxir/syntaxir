@@ -30,7 +30,7 @@ import (
 // the test, or to the repository root. Import paths of the file itself are not paths. A call of
 // filepath.Join or path.Join whose first argument is a literal starting with .., or the module
 // root (moduleRoot, ModuleRoot(), RepoRoot()), names the path its leading literal arguments join
-// to. A literal names a package of the module wherever it holds zeroparse.dev/zp/<path>, as the
+// to. A literal names a package of the module wherever it holds syntaxir.dev/sxir/<path>, as the
 // import blocks of generated code do; the directory must hold Go files.
 
 // repoTopDirs are the top-level directories that a repository-relative path starts with: the
@@ -117,7 +117,7 @@ func pathScanFiles(root string) ([]string, error) {
 }
 
 var (
-	modPathRE = regexp.MustCompile(`zeroparse\.dev/zp((?:/[A-Za-z0-9_.-]+)*)`)
+	modPathRE = regexp.MustCompile(`syntaxir\.dev/sxir((?:/[A-Za-z0-9_.-]+)*)`)
 	// declRE is the name of a declaration that follows a package path, as in impl.Kind.
 	declRE    = regexp.MustCompile(`\.[A-Z][A-Za-z0-9_]*$`)
 	pathLitRE = regexp.MustCompile(`^(?:\.\.?/)*[A-Za-z0-9_.@-]+(?:/[A-Za-z0-9_.@-]+)*/?$`)
@@ -176,7 +176,7 @@ func scanPaths(root string, allow, layout []string) (findings []pathFinding, unu
 				}
 				for _, m := range modPathRE.FindAllStringSubmatch(s, -1) {
 					lit := declRE.ReplaceAllString(m[0], "")
-					if !packageExists(root, strings.TrimSuffix(strings.TrimPrefix(lit, "zeroparse.dev/zp"), "/...")) {
+					if !packageExists(root, strings.TrimSuffix(strings.TrimPrefix(lit, "syntaxir.dev/sxir"), "/...")) {
 						report(n.Pos(), lit, "package")
 					}
 				}
@@ -339,8 +339,8 @@ func TestTestPathsNegativeControl(t *testing.T) {
 	}
 	write("pkg/runtime/libgo/lib.go", "package libgo\n")
 	write("internal/runtime/state/resume.go", "package state\n")
-	write("internal/runtime/engine/testdata/a.zp", "")
-	write("internal/runtime/engine/x_long_test.go", `//go:build zp_long
+	write("internal/runtime/engine/testdata/a.sxir", "")
+	write("internal/runtime/engine/x_long_test.go", `//go:build sxir_long
 
 package engine
 
@@ -352,18 +352,18 @@ import (
 var (
 	ok1 = "internal/runtime/state/resume.go"
 	ok2 = "../state/resume.go"
-	ok3 = filepath.Join("testdata", "a.zp")
+	ok3 = filepath.Join("testdata", "a.sxir")
 	ok4 = filepath.Join("..", "..", "..", "pkg", "runtime", "libgo", name)
 	ok5 = filepath.Join(moduleRoot, "pkg", "runtime", "libgo")
-	ok6 = "import rt \"zeroparse.dev/zp/pkg/runtime/libgo\"; rt.Kind"
-	ok7 = "zeroparse.dev/zp/pkg/runtime/libgo.Kind"
+	ok6 = "import rt \"syntaxir.dev/sxir/pkg/runtime/libgo\"; rt.Kind"
+	ok7 = "syntaxir.dev/sxir/pkg/runtime/libgo.Kind"
 	ok8 = "./lib.ts"
 	ok9 = "internal/libgo/lib.go"
 	ok10 = "../rt.js"
-	bad1 = "../../../../testdata/grammars/x.zp"
+	bad1 = "../../../../testdata/grammars/x.sxir"
 	bad2 = filepath.Join("..", "..", "..", "core", "impl")
 	bad3 = filepath.Join(moduleRoot, "codegen", "go", "lib")
-	bad4 = `+"`"+`import rt "zeroparse.dev/zp/codegen/go/lib"`+"`"+`
+	bad4 = `+"`"+`import rt "syntaxir.dev/sxir/codegen/go/lib"`+"`"+`
 	bad5 = "codegen/ts/lib/trace.ts"
 	bad6 = "./engine"
 	allowed = "internal/fake"
@@ -383,8 +383,8 @@ var (
 		got = append(got, f.file+": "+f.literal)
 	}
 	const x = "internal/runtime/engine/x_long_test.go: "
-	want := []string{x + "../../../../testdata/grammars/x.zp", x + "../../../core/impl", x + "codegen/go/lib",
-		x + "zeroparse.dev/zp/codegen/go/lib", x + "codegen/ts/lib/trace.ts", x + "./engine",
+	want := []string{x + "../../../../testdata/grammars/x.sxir", x + "../../../core/impl", x + "codegen/go/lib",
+		x + "syntaxir.dev/sxir/codegen/go/lib", x + "codegen/ts/lib/trace.ts", x + "./engine",
 		"internal/testing/support/support.go: ../../../../pkg/sample"}
 	if !slices.Equal(got, want) {
 		t.Errorf("findings\n%q\nwant\n%q", got, want)

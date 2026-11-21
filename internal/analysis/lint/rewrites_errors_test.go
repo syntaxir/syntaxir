@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"zeroparse.dev/zp/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/frontend/parser"
 )
 
 // TestRewritesErrors requires Rewrites to return an error and no rewrites for a grammar that does

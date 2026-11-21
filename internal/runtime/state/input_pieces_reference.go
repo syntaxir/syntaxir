@@ -1,4 +1,4 @@
-//go:build zp_reference_document_pieces
+//go:build sxir_reference_document_pieces
 
 package state
 

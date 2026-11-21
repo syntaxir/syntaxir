@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 func TestGeneratedTypedOnly(t *testing.T) {
@@ -41,7 +41,7 @@ func TestGeneratedTypedOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, absent := range []string{"func Parse(", "func ParseRule(", "func Recognize(", "recRules", "zpRecGrammar", "RunParse("} {
+	for _, absent := range []string{"func Parse(", "func ParseRule(", "func Recognize(", "recRules", "sxirRecGrammar", "RunParse("} {
 		if strings.Contains(only, absent) {
 			t.Errorf("a typed-only parser has %q", absent)
 		}

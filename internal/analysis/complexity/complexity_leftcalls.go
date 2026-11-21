@@ -1,6 +1,6 @@
 package complexity
 
-import "zeroparse.dev/zp/pkg/grammar/ast"
+import "syntaxir.dev/sxir/pkg/grammar/ast"
 
 // leftMode says what may come before a left call of the unit that starts with it: in leftExamine,
 // nothing that examines the input, and in leftConsume, nothing that consumes input.

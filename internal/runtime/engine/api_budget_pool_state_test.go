@@ -1,4 +1,4 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package engine_test
 
@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/enginetest"
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 )
 
 // leastSteps returns the least Compute limit under which the parse succeeds, and the error text of
@@ -17,7 +17,7 @@ import (
 func leastSteps(t *testing.T, p *engine.Parser, in string) (uint64, string) {
 	t.Helper()
 	fails := func(n uint64) (bool, string) {
-		_, err := p.Parse(in, engine.WithLimits(zpruntime.Limits{Compute: n}))
+		_, err := p.Parse(in, engine.WithLimits(sxirruntime.Limits{Compute: n}))
 		if err == nil {
 			return false, ""
 		}
@@ -83,11 +83,11 @@ rule num = [0-9]+`, "main")
 	want, wantMsg := leastSteps(t, p, input)
 	for _, s := range states {
 		s.prep()
-		if _, err := p.Parse(input, engine.WithLimits(zpruntime.Limits{Compute: want})); err != nil {
+		if _, err := p.Parse(input, engine.WithLimits(sxirruntime.Limits{Compute: want})); err != nil {
 			t.Errorf("%s: limit %d fails: %v", s.name, want, err)
 		}
 		s.prep()
-		_, err := p.Parse(input, engine.WithLimits(zpruntime.Limits{Compute: want - 1}))
+		_, err := p.Parse(input, engine.WithLimits(sxirruntime.Limits{Compute: want - 1}))
 		if err == nil || err.Error() != wantMsg {
 			t.Errorf("%s: limit %d: error %v, want %q", s.name, want-1, err, wantMsg)
 		}

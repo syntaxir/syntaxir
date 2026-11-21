@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"strings"
 
-	"zeroparse.dev/zp/internal/backend/codegen/golang/print"
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/action"
-	"zeroparse.dev/zp/internal/ir/code/exec"
-	"zeroparse.dev/zp/internal/ir/code/exec/compose"
-	"zeroparse.dev/zp/internal/middleend/codepass"
+	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/action"
+	"syntaxir.dev/sxir/internal/ir/code/exec"
+	"syntaxir.dev/sxir/internal/ir/code/exec/compose"
+	"syntaxir.dev/sxir/internal/middleend/codepass"
 )
 
 // libGoFile is the file of the printed compositions in the Go library of generated parsers,
@@ -182,13 +182,13 @@ func goTarget(s goSpec) *print.Target {
 	typed := s.typed
 	t := &print.Target{Recv: "p *Parser", Source: "internal/ir/code/exec/compose"}
 	handles := map[string]string{
-		exec.Rule: "*Rule", exec.Value: "*zpvalue.Node", exec.Entry: "*memoEntry", exec.Values: "[]any", exec.Errs: "recEntry",
+		exec.Rule: "*Rule", exec.Value: "*sxirvalue.Node", exec.Entry: "*memoEntry", exec.Values: "[]any", exec.Errs: "recEntry",
 		exec.ExpID: "ExpID", exec.Mark: "ExpMark", exec.Set: "[]ExpID", exec.Kept: "[]ExpID",
 		exec.Ctx: "ctxCallState", exec.Res: "*ctxResult", exec.Grow: "growState",
 		exec.Frame: "*CaptureFrame", exec.Backtrack: "Mark", exec.Scope: "*Env", exec.Operators: "[]*OperatorsRuleOp",
 		exec.Operator: "*OperatorsRuleOp", exec.Line: "*OperatorsRuleLine", exec.Attempt: "operatorsRuleAttempt",
-		action.Term: "func(*ActCtx) (any, any)", exec.Datum: "any", action.Seq: "[]*zpvalue.Node",
-		action.Obj: "*zpvalue.Node", action.Name: "string", action.Str: "string", action.Act: "*ActCtx", action.Fail: "any", action.Elem: "*zpvalue.Node",
+		action.Term: "func(*ActCtx) (any, any)", exec.Datum: "any", action.Seq: "[]*sxirvalue.Node",
+		action.Obj: "*sxirvalue.Node", action.Name: "string", action.Str: "string", action.Act: "*ActCtx", action.Fail: "any", action.Elem: "*sxirvalue.Node",
 		action.NodeType: "*nodeTypeKinds", action.FType: "*FieldType",
 	}
 	names := map[string]string{"streamEmit": "EmitStream", "streamCommit": "streamCommit", "streamsIn": "StreamsIn", "call": "Call", "firstCall": "FirstCall", "grow": "grow", "unmemoized": "callUnmemoized", "memoized": "callMemo",

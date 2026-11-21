@@ -7,16 +7,16 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 func TestBytePositions(t *testing.T) {
 	t.Parallel()
 	prog := mustCompile(t, `rule main = w:[^ ]+ #atomic " " x:.`)
-	n, err := prog.ParseWith("main", "日本 語", ParseOptions{Unit: zpinput.Bytes})
+	n, err := prog.ParseWith("main", "日本 語", ParseOptions{Unit: sxirinput.Bytes})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -25,11 +25,11 @@ func TestBytePositions(t *testing.T) {
 	if nodes.D(w).Start != 0 || nodes.D(w).End != 6 || nodes.D(x).Start != 7 || nodes.D(x).End != 10 || nodes.D(x).Text != "語" {
 		t.Errorf("w [%d,%d) x [%d,%d) %q", nodes.D(w).Start, nodes.D(w).End, nodes.D(x).Start, nodes.D(x).End, nodes.D(x).Text)
 	}
-	n, err = prog.ParseWith("main", "日本 語", ParseOptions{Unit: zpinput.CodePoints})
+	n, err = prog.ParseWith("main", "日本 語", ParseOptions{Unit: sxirinput.CodePoints})
 	if err != nil || nodes.D(n.Field("x").(*value.Node)).Start != 3 {
 		t.Errorf("codepoints: %v %v", n, err)
 	}
-	_, err = prog.ParseWith("main", "日本 ", ParseOptions{Unit: zpinput.Bytes})
+	_, err = prog.ParseWith("main", "日本 ", ParseOptions{Unit: sxirinput.Bytes})
 	var se *value.SyntaxError
 	if !errors.As(err, &se) || se.Pos != 7 || se.Line != 1 || se.Col != 8 {
 		t.Errorf("got %v", err)
@@ -40,7 +40,7 @@ func TestBytePositions(t *testing.T) {
 func TestInvalidUTF8(t *testing.T) {
 	t.Parallel()
 	prog := mustCompile(t, `rule main = "a" x:. "b"`)
-	n, err := prog.ParseWith("main", "a\xffb", ParseOptions{Unit: zpinput.Bytes})
+	n, err := prog.ParseWith("main", "a\xffb", ParseOptions{Unit: sxirinput.Bytes})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +56,7 @@ func TestLenInUnits(t *testing.T) {
 	t.Parallel()
 	prog := mustCompile(t, `type N = { N int }
 rule main = s:.* #atomic => N{N: len($s) + len(text($s))}`)
-	for unit, want := range map[zpinput.PositionUnit]int{zpinput.CodePoints: 4, zpinput.Bytes: 12} {
+	for unit, want := range map[sxirinput.PositionUnit]int{sxirinput.CodePoints: 4, sxirinput.Bytes: 12} {
 		n, err := prog.ParseWith("main", "日本", ParseOptions{Unit: unit})
 		if err != nil || n.Field("N") != want {
 			t.Errorf("%v: got %v %v", unit, n, err)
@@ -80,7 +80,7 @@ func TestLenOfNodes(t *testing.T) {
 	for _, input := range c.Inputs {
 		checkBackends(t, prog, "main", input)
 	}
-	for unit, want := range map[zpinput.PositionUnit][7]int{zpinput.CodePoints: {2, 2, 2, 3, 3, 3, 2}, zpinput.Bytes: {4, 6, 4, 6, 3, 3, 2}} {
+	for unit, want := range map[sxirinput.PositionUnit][7]int{sxirinput.CodePoints: {2, 2, 2, 3, 3, 3, 2}, sxirinput.Bytes: {4, 6, 4, 6, 3, 3, 2}} {
 		n, err := prog.ParseWith("main", c.Inputs[1], ParseOptions{Unit: unit})
 		if err != nil {
 			t.Fatal(err)
@@ -93,7 +93,7 @@ func TestLenOfNodes(t *testing.T) {
 			t.Errorf("%v: S I V T N Q R = %v, want %v", unit, got, want)
 		}
 	}
-	for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+	for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 		doc, err := prog.NewDocumentWith("main", c.Inputs[0], ParseOptions{Unit: unit})
 		if err != nil {
 			t.Fatal(err)
@@ -101,7 +101,7 @@ func TestLenOfNodes(t *testing.T) {
 		doc.Parse()
 		// at is the offset of the end of s in the unit.
 		at := func(s string) int {
-			if unit == zpinput.Bytes {
+			if unit == sxirinput.Bytes {
 				return len(s)
 			}
 			return utf8.RuneCountInString(s)
@@ -128,7 +128,7 @@ func TestDocumentInBytes(t *testing.T) {
 	prog := mustCompile(t, codegentest.IncrementalGrammar)
 	rng := rand.New(rand.NewSource(2))
 	pieces := []string{"a", "x = ", "1", "+", "é", "日", "\n", "@", "(", ")"}
-	doc, err := prog.NewDocumentWith("main", "x = 1+2\nab,cd\n@pos\n", ParseOptions{Unit: zpinput.Bytes})
+	doc, err := prog.NewDocumentWith("main", "x = 1+2\nab,cd\n@pos\n", ParseOptions{Unit: sxirinput.Bytes})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,7 +151,7 @@ func TestDocumentInBytes(t *testing.T) {
 			t.Fatal(err)
 		}
 		n, err := doc.Parse()
-		fn, ferr := prog.ParseWith("main", doc.Text(), ParseOptions{Unit: zpinput.Bytes})
+		fn, ferr := prog.ParseWith("main", doc.Text(), ParseOptions{Unit: sxirinput.Bytes})
 		if a, b := codegentest.ResultJSON(n, err), codegentest.ResultJSON(fn, ferr); a != b {
 			t.Fatalf("edit %d: text %q\n got  %s\n want %s", i, doc.Text(), a, b)
 		}
@@ -173,7 +173,7 @@ func TestStreamInBytes(t *testing.T) {
 	err := prog.ParseStreamWith("main", strings.NewReader("#records\nä=1\nb=2\n"), func(n *value.Node) error {
 		got = append(got, n.String())
 		return nil
-	}, ParseOptions{Unit: zpinput.Bytes})
+	}, ParseOptions{Unit: sxirinput.Bytes})
 	var se *value.SyntaxError
 	// ä does not match [a-z]. The error column is in bytes.
 	if !errors.As(err, &se) || se.Line != 2 || se.Col != 1 {
@@ -186,7 +186,7 @@ func TestStreamInBytes(t *testing.T) {
 		b.WriteString("ab=12\n")
 	}
 	b.WriteString("ab=日\n")
-	err = prog.ParseStreamWith("main", strings.NewReader(b.String()), func(*value.Node) error { return nil }, ParseOptions{Unit: zpinput.Bytes})
+	err = prog.ParseStreamWith("main", strings.NewReader(b.String()), func(*value.Node) error { return nil }, ParseOptions{Unit: sxirinput.Bytes})
 	if !errors.As(err, &se) || se.Line != 3002 || se.Col != 4 || se.Pos != len("#records\n")+3000*6+3 {
 		t.Errorf("got %v (pos %d)", err, se.Pos)
 	}

@@ -11,18 +11,18 @@ import (
 	"strings"
 )
 
-// Go vanity imports. The module path of the repository is zeroparse.dev/zp, and zeroparse.dev/X
-// resolves to https://github.com/zeroparse/X for the repositories of the organization. The go
-// command (and the module proxy) discover this by requesting https://zeroparse.dev/X/...?go-get=1
+// Go vanity imports. The module path of the repository is syntaxir.dev/sxir, and syntaxir.dev/X
+// resolves to https://github.com/syntaxir/X for the repositories of the organization. The go
+// command (and the module proxy) discover this by requesting https://syntaxir.dev/X/...?go-get=1
 // and reading go-import meta tags, so the site publishes one small HTML page per importable
 // package directory instead of running a script. See docs/site.md.
 const (
-	vanityHost   = "zeroparse.dev"
-	vanityOrgURL = "https://github.com/zeroparse"
+	vanityHost   = "syntaxir.dev"
+	vanityOrgURL = "https://github.com/syntaxir"
 	vanityBranch = "main"
 )
 
-// vanityRepo is a repository of the organization served as zeroparse.dev/<Name>.
+// vanityRepo is a repository of the organization served as syntaxir.dev/<Name>.
 type vanityRepo struct {
 	Name string
 	// Local reports that the repository is the one being built, so a page is published for every
@@ -34,7 +34,7 @@ type vanityRepo struct {
 // vanityRepos lists the repositories of the organization that Go code imports. Adding a repository
 // means adding it here and deploying the site.
 var vanityRepos = []vanityRepo{
-	{Name: "zp", Local: true},
+	{Name: "sxir", Local: true},
 	{Name: "alpha-parsers"},
 }
 
@@ -64,7 +64,7 @@ func vanityPages(repo string) (map[string][]byte, error) {
 	return files, nil
 }
 
-// vanityPage renders the page for the import path zeroparse.dev/<repo>/<dir>. Every page names the
+// vanityPage renders the page for the import path syntaxir.dev/<repo>/<dir>. Every page names the
 // repository root as the go-import prefix, so that the go command resolves a package to its module
 // from any of them.
 func vanityPage(repo, dir string) []byte {

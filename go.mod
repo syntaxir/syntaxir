@@ -1,3 +1,3 @@
-module zeroparse.dev/zp
+module syntaxir.dev/sxir
 
 go 1.27.1

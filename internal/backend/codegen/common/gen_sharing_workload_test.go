@@ -7,15 +7,15 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
-// ZP_GENERATED_SHARING_DIR preserves standalone controls for prebuilt
+// SXIR_GENERATED_SHARING_DIR preserves standalone controls for prebuilt
 // parsing, generation-size, compiler-cost and binary-size measurements.
 func TestGeneratedSharingWorkloads(t *testing.T) {
 	t.Parallel()
-	if os.Getenv("ZP_GENERATED_SHARING_DIR") != "" {
+	if os.Getenv("SXIR_GENERATED_SHARING_DIR") != "" {
 		// The preserved controls have one layout, so they are written in one form.
 		codegentest.PinOrdinary(t)
 		testGeneratedSharingWorkloads(t)
@@ -28,7 +28,7 @@ func testGeneratedSharingWorkloads(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds standalone controls")
 	}
-	dir := os.Getenv("ZP_GENERATED_SHARING_DIR")
+	dir := os.Getenv("SXIR_GENERATED_SHARING_DIR")
 	if dir == "" {
 		dir = t.TempDir()
 	}
@@ -38,7 +38,7 @@ func testGeneratedSharingWorkloads(t *testing.T) {
 			if lang == "typescript" {
 				codegentest.LongOnly(t, "the TypeScript grammar builds five large standalone controls next to the JSON ones")
 			}
-			src, err := os.ReadFile(filepath.Join("../../../../testdata/grammars", lang, lang+".zp"))
+			src, err := os.ReadFile(filepath.Join("../../../../testdata/grammars", lang, lang+".sxir"))
 			if err != nil {
 				t.Fatal(err)
 			}

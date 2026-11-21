@@ -1,6 +1,6 @@
 package compile
 
-import "zeroparse.dev/zp/pkg/grammar/ast"
+import "syntaxir.dev/sxir/pkg/grammar/ast"
 
 // firstTerminal returns the terminal (a *ast.Literal or *ast.CharClass) that the expression
 // e must begin with, if any, and the number of rule calls on the way: e is the terminal, possibly

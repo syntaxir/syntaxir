@@ -4,9 +4,9 @@ import (
 	"errors"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/compile"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 var missingBenchmarkNode *value.Node
@@ -33,7 +33,7 @@ func BenchmarkMissingLiteral(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+		for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 			b.Run(tc.name+"/"+unit.String(), func(b *testing.B) {
 				o := ParseOptions{Unit: unit, MissingTokens: tc.limit}
 				b.ReportAllocs()

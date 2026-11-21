@@ -11,10 +11,10 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 // The examined end of a call in an observed parse is exact: every unit of input that can change the
@@ -34,17 +34,17 @@ import (
 	"io"
 	"os"
 
-	zprt "zeroparse.dev/zp/pkg/runtime/libgo"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	zpinstrument "zeroparse.dev/zp/pkg/runtime/instrument"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 IMPORTS)
 
-var _ *zpvalue.Node
+var _ *sxirvalue.Node
 
 type entry struct {
 	name string
-	run  func(string, ...zprt.ParseOption) error
+	run  func(string, ...sxirrt.ParseOption) error
 }
 
 var entries = [][]entry{
@@ -69,11 +69,11 @@ func main() {
 	}
 	for i := range entries {
 		for j, in := range inputs[i] {
-			for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+			for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 				for _, e := range entries[i] {
-					var exits []zpinstrument.TraceEvent
-					err := e.run(string(in), zprt.WithUnit(unit), zprt.WithTrace(func(ev zpinstrument.TraceEvent) {
-						if ev.Kind == zpinstrument.TraceExit {
+					var exits []sxirinstrument.TraceEvent
+					err := e.run(string(in), sxirrt.WithUnit(unit), sxirrt.WithTrace(func(ev sxirinstrument.TraceEvent) {
+						if ev.Kind == sxirinstrument.TraceExit {
 							exits = append(exits, ev)
 						}
 					}))
@@ -81,9 +81,9 @@ func main() {
 						Case, Input int
 						Bytes       bool
 						Entry       string
-						Exits       []zpinstrument.TraceEvent
+						Exits       []sxirinstrument.TraceEvent
 						Err         string
-					}{i, j, unit == zpinput.Bytes, e.name, exits, fmt.Sprint(err)})
+					}{i, j, unit == sxirinput.Bytes, e.name, exits, fmt.Sprint(err)})
 					fmt.Println(string(b))
 				}
 			}
@@ -184,13 +184,13 @@ func runExaminedProbes(t *testing.T, cases []codegentest.Case, lib string, mutat
 		}
 		fmt.Fprintf(&imports, "\tf%d \"examinedprobe/f%d\"\n", i, i)
 		fmt.Fprintf(&entries, `	{
-		{"value", func(in string, o ...zprt.ParseOption) error { _, err := f%[1]d.ParseValue(in, o...); return err }},
-		{"parse", func(in string, o ...zprt.ParseOption) error { _, err := f%[1]d.Parse(in, o...); return err }},
-		{"recognize", func(in string, o ...zprt.ParseOption) error { return f%[1]d.Recognize(in, o...) }},
+		{"value", func(in string, o ...sxirrt.ParseOption) error { _, err := f%[1]d.ParseValue(in, o...); return err }},
+		{"parse", func(in string, o ...sxirrt.ParseOption) error { _, err := f%[1]d.Parse(in, o...); return err }},
+		{"recognize", func(in string, o ...sxirrt.ParseOption) error { return f%[1]d.Recognize(in, o...) }},
 `, i)
 		if o.Stream {
-			fmt.Fprintf(&entries, `		{"stream", func(in string, o ...zprt.ParseOption) error {
-			return f%d.ParseStream(&oneByte{in}, func(*zpvalue.Node) error { return nil }, o...)
+			fmt.Fprintf(&entries, `		{"stream", func(in string, o ...sxirrt.ParseOption) error {
+			return f%d.ParseStream(&oneByte{in}, func(*sxirvalue.Node) error { return nil }, o...)
 		}},
 `, i)
 		}
@@ -359,7 +359,7 @@ rule r2 = r0 "b" / !r1? / "a"`, Inputs: []string{"a", "aac", "acb", "aaac", "aca
 // a growth whose last step, which does not grow, is taken from the context, reduced from random cycle
 // grammar 103. Its leader takes every growth step from the context and evaluates nothing, which the
 // engine reports as Memo=true and generated parsers as Memo=false
-// (https://github.com/zeroparse/zp/issues/295).
+// (https://github.com/syntaxir/syntaxir/issues/295).
 // The second, reduced from random cycle grammar 210, needs the record of a growth step taken from
 // the context: without it, recognizing "ca" reports r2 at 0 with examined end 0, below its match
 // end 2, where the reference examines to 3.

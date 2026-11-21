@@ -3,8 +3,8 @@ package document
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 func TestDocumentDiagnosticContainers(t *testing.T) {

@@ -5,9 +5,9 @@ import (
 	"math/rand/v2"
 	"slices"
 
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/exec"
-	"zeroparse.dev/zp/internal/ir/code/exec/ref"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec"
+	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
 )
 
 // The cases of the traced call path (call.tracked and call.track). A call of a case runs the body of a

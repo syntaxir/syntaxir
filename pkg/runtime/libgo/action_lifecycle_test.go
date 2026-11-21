@@ -3,7 +3,7 @@ package libgo
 import (
 	"testing"
 
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 func TestActionTrackingReleasesReferences(t *testing.T) {
@@ -12,9 +12,9 @@ func TestActionTrackingReleasesReferences(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			prefix := nodeOfData(&Data{Text: "keep"})
 			made := nodeOfData(&Data{Fresh: true})
-			p := &Parser{created: []*zpvalue.Node{prefix}}
+			p := &Parser{created: []*sxirvalue.Node{prefix}}
 			c := &ActCtx{P: p, cbase: 1, start: 3, end: 4}
-			var got *zpvalue.Node
+			var got *sxirvalue.Node
 			var panicValue any
 			func() {
 				defer func() { panicValue = recover() }()

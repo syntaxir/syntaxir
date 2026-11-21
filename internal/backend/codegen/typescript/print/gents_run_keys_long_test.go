@@ -1,4 +1,4 @@
-//go:build zp_long
+//go:build sxir_long
 
 package print_test
 
@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // TestRunSitesTSKeyedByValues checks (R2) and (R3) of the linear-cost proof in generated TypeScript

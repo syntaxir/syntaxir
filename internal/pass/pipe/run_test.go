@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/pass"
+	"syntaxir.dev/sxir/internal/pass"
 )
 
 func settings(t *testing.T, off ...string) pass.Settings {

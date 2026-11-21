@@ -1,6 +1,6 @@
 package complexity
 
-import "zeroparse.dev/zp/internal/ir/core"
+import "syntaxir.dev/sxir/internal/ir/core"
 
 // values are the value conditions of the rules of a module: where a predicate can read a value.
 // The rules of the view that change values, which keep only ≡E,X, are off there, because

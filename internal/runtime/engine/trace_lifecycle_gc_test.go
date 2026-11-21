@@ -9,10 +9,10 @@ import (
 	"unsafe"
 	"weak"
 
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/runtime/input"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/runtime/input"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 type traceLifecycleSentinel struct{ value [128]byte }
@@ -68,7 +68,7 @@ func traceLifecycleDocument(t *testing.T, p *Program, b Backend, u input.Positio
 }
 
 //go:noinline
-func traceLifecycleStream(t *testing.T, p *Program, b Backend, u input.PositionUnit) (TraceEvent, weak.Pointer[traceLifecycleReader], weak.Pointer[traceLifecycleSentinel], *zpvalue.Node) {
+func traceLifecycleStream(t *testing.T, p *Program, b Backend, u input.PositionUnit) (TraceEvent, weak.Pointer[traceLifecycleReader], weak.Pointer[traceLifecycleSentinel], *sxirvalue.Node) {
 	s := &traceLifecycleSentinel{}
 	s.value[0] = 42
 	r := &traceLifecycleReader{text: "#records\na=1\nbc=22\n"}
@@ -79,8 +79,8 @@ func traceLifecycleStream(t *testing.T, p *Program, b Backend, u input.PositionU
 		t.Fatal("positive control failed")
 	}
 	var e TraceEvent
-	var held *zpvalue.Node
-	err := p.ParseStreamWith("main", r, func(n *zpvalue.Node) error {
+	var held *sxirvalue.Node
+	err := p.ParseStreamWith("main", r, func(n *sxirvalue.Node) error {
 		if held == nil {
 			held = n
 		}
@@ -132,7 +132,7 @@ func TestTraceLifecycleReleasesOwnersAfterGC(t *testing.T) {
 				if sr.Value() != nil {
 					t.Error("stream event retains callback sentinel")
 				}
-				if before != n.String() || nodes.D(n.Field("k").(*zpvalue.Node)).Text != "a" {
+				if before != n.String() || nodes.D(n.Field("k").(*sxirvalue.Node)).Text != "a" {
 					t.Fatal("emitted node changed")
 				}
 				runtime.KeepAlive(e)

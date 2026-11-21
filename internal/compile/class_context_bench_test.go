@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"zeroparse.dev/zp/internal/testing/starttest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/testing/starttest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 func BenchmarkClassCompileCancellation(b *testing.B) {

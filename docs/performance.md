@@ -19,12 +19,12 @@ results document.
 The measured results of every benchmark are in [benchmarks.md](benchmarks.md), which is generated from a run; this
 document describes the benchmarks, analyzes the results, and records how they came about.
 
-- [Where ZeroParse stands](#where-zeroparse-stands): an analysis of the latest results
+- [Where SyntaxIR stands](#where-syntaxir-stands): an analysis of the latest results
 - [How to measure](#how-to-measure): the benchmarks, their workloads and method, and tools for measuring a change
 - [Optimization catalog](optimizations/README.md): mechanisms, applicability,
   numbered evidence records and experiments
 
-## Where ZeroParse Stands
+## Where SyntaxIR Stands
 
 This analysis describes the generated full-suite snapshot in [benchmarks.md](benchmarks.md), measured on 2026-10-29 at commit `356a61a9` (Go 1.27.1, Apple M3 Max, darwin/arm64, 16 cores, `GOMAXPROCS=16`). It contains 253 benchmark cases, three samples per case, and the Go benchmarks took 892.334 seconds; the generated TypeScript timings and the parser sizes were captured in the same run. This is one revision's snapshot, not a before-and-after comparison; ratios below compare operations within this run and do not attribute changes to a particular mechanism.
 Budget-control behavior and its generated-Go cost are described in
@@ -36,7 +36,7 @@ units, a cancelable context takes 1.45–1.68× the time, finite compute limits 
 the same allocation counts. Generated Go with finite compute limits takes 1.30–1.47× its ordinary `Parse` time and
 1.47–1.61× its ordinary (CodePoints) `ParseValue` time. Neither this snapshot nor these records imply deployed behavior.
 
-**Backends.** Across all eight parsing workloads, generated Go Node parsing takes 0.44–0.61× closure time in CodePoints and 0.50–0.66× in Bytes. Recursive VM parsing takes 1.14–1.32× closure time in CodePoints and 1.13–1.35× in Bytes. Iterative VM parsing takes 1.33–1.76× closure time in CodePoints and 1.35–1.76× in Bytes. The slowest relative case is iterative Operators Rule arithmetic at 1.76× closure in both units. Closure remains the default (see the [Choosing a Backend](guide/backends.md)); the VMs serve loaded compiled grammars (a `.zpc` file holds one bytecode module of one mode and loads on the bytecode backends only) and, iteratively, deep nesting.
+**Backends.** Across all eight parsing workloads, generated Go Node parsing takes 0.44–0.61× closure time in CodePoints and 0.50–0.66× in Bytes. Recursive VM parsing takes 1.14–1.32× closure time in CodePoints and 1.13–1.35× in Bytes. Iterative VM parsing takes 1.33–1.76× closure time in CodePoints and 1.35–1.76× in Bytes. The slowest relative case is iterative Operators Rule arithmetic at 1.76× closure in both units. Closure remains the default (see the [Choosing a Backend](guide/backends.md)); the VMs serve loaded compiled grammars (a `.sxirc` file holds one bytecode module of one mode and loads on the bytecode backends only) and, iteratively, deep nesting.
 
 **Typed values.** `ParseValue` directly constructs values for JSON, CSV, XML, both calculator grammars and Outline. For those six direct workloads, it takes 0.69–0.98× generated CodePoints `Parse` time and allocates 0.27–0.41× its bytes. Minilang and Recovery use converted output: `ParseValue` takes 0.95× generated `Parse` time on both and allocates 0.28× and 0.30× its bytes, respectively. On JSON and XML, direct `ParseValue` takes 1.11× and 1.33× standard-library time, with 1.18× and 1.25× its allocated bytes. These operations return different structures and should not be treated as equivalent outputs. CSV constructs typed `File`, `Record` and `Field` values directly.
 
@@ -49,7 +49,7 @@ A separate generated-Go typed-allocation bootstrap and its focused measurements 
 
 **Generated TypeScript.** Under Node 24.13.0, generated `parse` takes 2.43–4.00× the time of generated Go `Parse` on the seven workloads that the TypeScript benchmark covers (Recovery is not measured). `parseValue` takes 1.12–1.43× `parse` time and `recognize` 0.31–0.72×. These are single-process means on the same inputs, not a comparison of equivalent outputs.
 
-**Generated size.** A generated Go `parser.go` ranges from 25.3 KB (CSV) to 1.59 MB (DuckDB), and a binary that calls the parser's `ParseValue` from 2.15 to 6.45 MB, most of which is the ZeroParse runtime and the standard library. The TypeScript `parser.ts` ranges from 32.0 KB to 3.32 MB, which is 6.57–257 KB gzipped with `gzip -9`, plus a runtime of 146 KB (36.9 KB gzipped) that every parser shares.
+**Generated size.** A generated Go `parser.go` ranges from 25.3 KB (CSV) to 1.59 MB (DuckDB), and a binary that calls the parser's `ParseValue` from 2.15 to 6.45 MB, most of which is the SyntaxIR runtime and the standard library. The TypeScript `parser.ts` ranges from 32.0 KB to 3.32 MB, which is 6.57–257 KB gzipped with `gzip -9`, plus a runtime of 146 KB (36.9 KB gzipped) that every parser shares.
 
 **Position unit.** On the ready-made DuckDB and Python grammars (generated Go, typed `ParseValue`), the Bytes unit takes 1.03–1.08× the CodePoints time and allocates the same bytes per warm parse, so it does not pay for the saved decoding. Decoding the input to code points happens once per parse into reused buffers, whereas Bytes decodes each character while matching. In a fresh process, a CodePoints parse allocates about 8 bytes per input character more than Bytes (a `[]rune` and a 4-byte offset table: 2.1 MB for the 263 KB DuckDB script, 1.8 MB for the 227 KB `_pydecimal.py`), which is 1.5–2.5 MB or 1.5–4% of the process's peak resident set size; allocation of the tree dominates (about 500 bytes per input byte). The generated source is identical for both units, so the sizes of `parser.go` and of binaries do not depend on the unit. On the closure engine (CSV, 50,000 records, 2.9 MB), Bytes parses 4% faster and streams 15% faster with 9% fewer bytes, and a one-character `Document` edit with its re-parse takes 6% longer (1.06×). Error positions and spans become byte offsets under Bytes. These figures support no change of the default: it stays CodePoints, which reports character positions and costs a few percent of memory. The measurement is below.
 
@@ -81,9 +81,9 @@ also favored scratch in the medians. Intervening changes prevent attribution
 of the parent comparison to scratch. [Record 092](optimizations/092-reuse-generated-node-capture-scratch.md)
 preserves the earlier result, the paired ranges, and the measurement limits.
 
-**Streaming.** In this run, reading and discarding 50,000 CSV records plus the header takes 78.5–99.0 ms and 22–28 MB/s. Cumulative allocation is 94.8–106 MB/op, or about 44–49 bytes per input byte. The ZeroParse streaming backends allocate about 0.16–0.21 objects per data record. Batch closure parsing of 5,000 records (211 KB) uses about 28 bytes per input byte and 0.06 allocations per record. These are cumulative allocation figures, not retained-heap measurements. The focused stream-storage measurements are described in [record 089](optimizations/089-isolate-stream-prefixes-and-batch-scratch-cleanup.md). The full snapshot does not isolate the effect of any individual change.
+**Streaming.** In this run, reading and discarding 50,000 CSV records plus the header takes 78.5–99.0 ms and 22–28 MB/s. Cumulative allocation is 94.8–106 MB/op, or about 44–49 bytes per input byte. The SyntaxIR streaming backends allocate about 0.16–0.21 objects per data record. Batch closure parsing of 5,000 records (211 KB) uses about 28 bytes per input byte and 0.06 allocations per record. These are cumulative allocation figures, not retained-heap measurements. The focused stream-storage measurements are described in [record 089](optimizations/089-isolate-stream-prefixes-and-batch-scratch-cleanup.md). The full snapshot does not isolate the effect of any individual change.
 
-**Preparation.** A compiled grammar holds the module of one mode. Loading a `.zpc` file in this snapshot takes 0.15× (JSON) and 0.07× (Minilang) of source-compilation time in parse mode, 0.09× and 0.05× in recognize mode, and 0.16× and 0.08× in document mode. Loading runs on the bytecode backend and includes backend setup by one parse that the mode serves, with empty input. Focused allocation and timing measurements for attribute normalization are recorded in [optimization 095](optimizations/095-attribute-copy-on-change.md); this full snapshot does not attribute preparation results to that mechanism.
+**Preparation.** A compiled grammar holds the module of one mode. Loading a `.sxirc` file in this snapshot takes 0.15× (JSON) and 0.07× (Minilang) of source-compilation time in parse mode, 0.09× and 0.05× in recognize mode, and 0.16× and 0.08× in document mode. Loading runs on the bytecode backend and includes backend setup by one parse that the mode serves, with empty input. Focused allocation and timing measurements for attribute normalization are recorded in [optimization 095](optimizations/095-attribute-copy-on-change.md); this full snapshot does not attribute preparation results to that mechanism.
 
 ## How to Measure
 
@@ -105,7 +105,7 @@ go tool pprof -sample_index=alloc_space -top -nodecount 30 bench.test mem.out
 ```
 
 To compare generation options on the generated parsers of the ten language grammars and of two CSV use cases, `bench/profilematrix` generates each grammar once per
-variant (`NAME=ARGS`, the options of `zp gen` added to those of `testdata/grammars/generate.txt`), builds the parsers and measures them in fresh
+variant (`NAME=ARGS`, the options of `sxir gen` added to those of `testdata/grammars/generate.txt`), builds the parsers and measures them in fresh
 processes in rotated order:
 
 ```bash
@@ -159,7 +159,7 @@ does not count as slab retention. See [record 098](optimizations/098-bootstrap-g
 for the focused results and limits.
 
 ```bash
-ZP_TYPED_OUTPUT_RETENTION_DIR=/tmp/typed-output-retention \
+SXIR_TYPED_OUTPUT_RETENTION_DIR=/tmp/typed-output-retention \
   go test ./internal/backend/codegen/golang/print -run '^TestGeneratedTypedOutputRetentionFixture$' -count=1
 cd /tmp/typed-output-retention/slabs
 go test -c -o typed-retention.test .
@@ -219,13 +219,13 @@ Its peak resident set size is 154.6–158.5 MB against 152.4–152.8 MB (DuckDB 
 the ranges overlap (154.6–155.6 MB against 152.6–155.8 MB).
 
 The harness is not committed. To repeat: generate the two parsers into a scratch package inside the module with
-`zp gen -g testdata/grammars/<name>/<name>.zp -module <path> <options> -o <dir>`, benchmark `ParseValue` with
+`sxir gen -g testdata/grammars/<name>/<name>.sxir -module <path> <options> -o <dir>`, benchmark `ParseValue` with
 `WithUnit(CodePoints)` and `WithUnit(Bytes)`, and measure memory with one parse per process.
 
 ### Benchmark Workloads
 
 `TestWorkloads` in `bench/` checks, on reduced inputs, that every input can be parsed by every backend and that the
-ZeroParse backends return the same results.
+SyntaxIR backends return the same results.
 
 - Inputs are generated by `internal/bench/inputs` from a fixed random seed, so they are identical across runs. They include
   multi-byte characters such as Japanese text.
@@ -233,7 +233,7 @@ ZeroParse backends return the same results.
   left-recursive forms, minilang, and outline). The generated parsers in `internal/bench/parsers/` are generated from them (`go generate ./bench`);
   the `Document` and stream parsers are separate packages, so the batch parsers keep their generated form.
 - Each benchmark runs three times and the median is reported.
-- Comparisons with the standard library measure different outputs. Every ZeroParse backend builds a tree whose nodes carry
+- Comparisons with the standard library measure different outputs. Every SyntaxIR backend builds a tree whose nodes carry
   positions (start and end) and rule names, and records the expectations at the farthest failure. The standard-library
   parsers produce:
   - `encoding/json`: decoding into `any` (no positions).
@@ -246,15 +246,15 @@ ZeroParse backends return the same results.
 | JSON | `alpha-parsers/json` | Array of objects, 262 KB | Lexical repetition, AST of join types |
 | CSV | `alpha-parsers/csv` | 5,000 rows (211 KB); fields with quotes, commas and newlines | Simple repetition, many terminals |
 | XML | `alpha-parsers/xml` | Nesting, attributes, character references, comments, CDATA; 262 KB | Nesting, a predicate comparing start-tag and end-tag names |
-| Arith_OperatorsRule | `examples/calculator/calc.zp` | Expression with 20,000 terms (133 KB), parentheses nested up to depth 40 | Operators Rule loop and longest match |
-| Arith_LeftRec | `examples/calculator/calc_lr.zp` | Same as above | Left-recursion seed growing |
+| Arith_OperatorsRule | `examples/calculator/calc.sxir` | Expression with 20,000 terms (133 KB), parentheses nested up to depth 40 | Operators Rule loop and longest match |
+| Arith_LeftRec | `examples/calculator/calc_lr.sxir` | Same as above | Left-recursion seed growing |
 | Minilang | `examples/minilang` | 300 functions (89 KB) | PEG statements nested with Operators Rule expressions, keyword exclusion |
 | Recovery | `examples/minilang` | Same as above, with one line in seven broken | `#recover`, expectation recording |
 | Outline | `examples/outline` | 5,000 lines (83 KB), depth up to 10 | Predicates and variables (non-memoized rules) |
 | Incremental | `examples/minilang` | Repeated one-character insertions and deletions in 300 functions | Memo reuse with `Document`, on every backend, a parser generated with `-document` and one generated with `-document -types` (compared with a full parse each time) |
 | Incremental, long | `alpha-parsers/csv` | Repeated one-character insertions and deletions in the middle of 50,000 records | Resuming long repetitions with `Document`, on every backend and a parser generated with `-document` |
 | Stream | `alpha-parsers/csv` | 50,000 rows (2.2 MB) | Reading and discarding with `ParseStream`, on every backend and a parser generated with `-stream` |
-| Prepare | JSON, minilang | None | Compiling from source and loading `.zpc` (in each mode) |
+| Prepare | JSON, minilang | None | Compiling from source and loading `.sxirc` (in each mode) |
 
 The 2026-10-09 run and the current analysis use the ready-made grammars in `alpha-parsers/csv` and `alpha-parsers/xml`.
 Use the paired measurements in each tuning entry to isolate the effect of a runtime change.
@@ -271,7 +271,7 @@ Generated TypeScript parsers are measured with Node (24 or later) by running a g
 `node --experimental-strip-types`: `bench/ts-parse.mjs` for parsing a file with `parse`, `parseValue` or `recognize` (the
 entry points that [benchmarks.md](benchmarks.md) reports, captured by `go run ./bench/report`), `bench/ts-typed.mjs` for the typed
 workloads that `TestGeneratedTSTypedWorkloads` and `TestGeneratedTSTypedSharedDAG` write when
-`ZP_TS_TYPED_DIR` is set, and `bench/ts-literal.mjs` for literal matching. Compare two generators by
+`SXIR_TS_TYPED_DIR` is set, and `bench/ts-literal.mjs` for literal matching. Compare two generators by
 alternating them in each round, run at least six rounds, and compare medians and ranges. The form without
 `-limits` is the default, so compare it with the controlled form separately. Results are in
 [record 122](optimizations/122-typescript-from-flow-ir.md).

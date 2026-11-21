@@ -11,10 +11,10 @@ import (
 	"unicode/utf8"
 	"unsafe"
 
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // The default budget of a parse is defaultBudgetPerUnit for each unit of input, and at least
@@ -37,8 +37,8 @@ func defaultBudget(n uint64) uint64 {
 // inputUnits returns the length of s in units of the position unit. Below the size at which the
 // default budget leaves its floor the byte length stands in for the count of code points, which it
 // bounds from above.
-func inputUnits(s string, unit zpinput.PositionUnit) uint64 {
-	if unit == zpinput.Bytes || len(s) <= defaultBudgetFloor/defaultBudgetPerUnit {
+func inputUnits(s string, unit sxirinput.PositionUnit) uint64 {
+	if unit == sxirinput.Bytes || len(s) <= defaultBudgetFloor/defaultBudgetPerUnit {
 		return uint64(len(s))
 	}
 	return uint64(utf8.RuneCountInString(s))
@@ -46,14 +46,14 @@ func inputUnits(s string, unit zpinput.PositionUnit) uint64 {
 
 // limitsDisabled reports whether l needs no control: Compute and Memory are zero or Unlimited. Input is
 // checked against the length of the input and Depth by the parser, so neither needs one.
-func limitsDisabled(l zpruntime.Limits) bool {
-	return (l.Compute == 0 || l.Compute == zpruntime.Unlimited) && (l.Memory == 0 || l.Memory == zpruntime.Unlimited)
+func limitsDisabled(l sxirruntime.Limits) bool {
+	return (l.Compute == 0 || l.Compute == sxirruntime.Unlimited) && (l.Memory == 0 || l.Memory == sxirruntime.Unlimited)
 }
 
 // mergeLimits returns l with every nonzero field of o in place of the field of l: the limits of a
 // later WithLimits over those of an earlier one. A zero field of o keeps the field of l.
-func mergeLimits(l, o zpruntime.Limits) zpruntime.Limits {
-	return zpruntime.Limits{Compute: nonzero(o.Compute, l.Compute), Memory: nonzero(o.Memory, l.Memory), Input: nonzero(o.Input, l.Input), Depth: nonzero(o.Depth, l.Depth)}
+func mergeLimits(l, o sxirruntime.Limits) sxirruntime.Limits {
+	return sxirruntime.Limits{Compute: nonzero(o.Compute, l.Compute), Memory: nonzero(o.Memory, l.Memory), Input: nonzero(o.Input, l.Input), Depth: nonzero(o.Depth, l.Depth)}
 }
 
 // nonzero returns v, or def if v is zero.
@@ -74,7 +74,7 @@ const budgetCheckInterval = uint64(256)
 // BudgetControl is for generated parsers; not a stable API.
 type BudgetControl struct {
 	ctx    context.Context
-	limits zpruntime.Limits
+	limits sxirruntime.Limits
 
 	// The units reserved are base, which the slow path of charge keeps, plus
 	// what the fast path reserved since (used). room is the units the fast path
@@ -143,7 +143,7 @@ func (c *BudgetControl) demand(n int) {
 // active. Without a cancelable context or a memory limit the control never polls, so a parse with
 // only a budget reaches the slow path of a charge only at its limit. A nil context is equivalent
 // to context.Background.
-func newBudgetControl(ctx context.Context, limits zpruntime.Limits) *BudgetControl {
+func newBudgetControl(ctx context.Context, limits sxirruntime.Limits) *BudgetControl {
 	if ctx != nil && ctx.Done() == nil {
 		ctx = nil // it can never be canceled
 	}
@@ -384,8 +384,8 @@ func (c *BudgetControl) chargeSlow(n uint64) {
 	}
 	if exceeded {
 		c.interrupted = true
-		panic(fatal{err: &zpruntime.LimitError{
-			Kind: zpruntime.LimitCompute, Limit: c.limits.Compute - c.doc,
+		panic(fatal{err: &sxirruntime.LimitError{
+			Kind: sxirruntime.LimitCompute, Limit: c.limits.Compute - c.doc,
 			Used: c.base - c.doc, Requested: n,
 		}})
 	}
@@ -570,7 +570,7 @@ func (p *Parser) hasLiteralPrefix(text string) bool {
 // RunParseConverted shares admission and counters with a Node-to-typed converter.
 //
 // RunParseConverted is for generated parsers; not a stable API.
-func RunParseConverted[T any](r *Rule, input string, o parseOptions, conv func(*zpvalue.Node, *BudgetControl, error) T) (res T, err error) {
+func RunParseConverted[T any](r *Rule, input string, o parseOptions, conv func(*sxirvalue.Node, *BudgetControl, error) T) (res T, err error) {
 	defer recoverParse(&res, &err)
 	o = prepareText(o, input)
 	n, err := parseConversionInput(r, input, o)
@@ -583,7 +583,7 @@ func RunParseConverted[T any](r *Rule, input string, o parseOptions, conv func(*
 // Ordinary runtime/depth errors retain the configured ParseValue converter's
 // historical nil mapping. Budget interruptions bypass conversion without calling
 // methods on a caller-owned error to classify it.
-func parseConversionInput(r *Rule, input string, o parseOptions) (n *zpvalue.Node, err error) {
+func parseConversionInput(r *Rule, input string, o parseOptions) (n *sxirvalue.Node, err error) {
 	defer func() {
 		if x := recover(); x != nil {
 			if f, ok := x.(fatal); ok && (o.control == nil || !o.control.interrupted) {
@@ -857,14 +857,14 @@ func (p *Parser) sortExpectedControlled(values []string) {
 // RecoveryErrorText is only for engine-owned Error-node materialization.
 // Public post-return Error/Message calls remain caller spend. The local builder
 // owns its immutable output and is never pooled or written after return.
-func (p *Parser) RecoveryErrorText(e *zpvalue.SyntaxError) string {
+func (p *Parser) RecoveryErrorText(e *sxirvalue.SyntaxError) string {
 	if usedFeatures&featureBudget != 0 && p.Control != nil {
 		return p.recoveryErrorTextControlled(e)
 	}
 	return e.Error()
 }
 
-func (p *Parser) recoveryErrorTextControlled(e *zpvalue.SyntaxError) string {
+func (p *Parser) recoveryErrorTextControlled(e *sxirvalue.SyntaxError) string {
 	prefix := fmt.Sprintf("%d:%d: ", e.Line, e.Col) // bounded integer formatting
 	intro, sep, tail := "", "; ", ""
 	parts := e.Messages
@@ -922,8 +922,8 @@ func checkedDiagnosticSize(size, width int) int {
 
 // makeControlledError owns any partially assembled diagnostic until completion.
 // Interrupted invocations release their partial line table with parser scratch.
-func (p *Parser) makeControlledError(pos int, expected []ExpID) *zpvalue.SyntaxError {
-	e := &zpvalue.SyntaxError{Pos: pos}
+func (p *Parser) makeControlledError(pos int, expected []ExpID) *sxirvalue.SyntaxError {
+	e := &sxirvalue.SyntaxError{Pos: pos}
 	for _, x := range expected {
 		p.Spend()
 		if x == ExpFar {
@@ -945,7 +945,7 @@ func (p *Parser) makeControlledError(pos int, expected []ExpID) *zpvalue.SyntaxE
 		p.lines = append(p.lines, 0)
 		for i := 0; i < p.n; i++ {
 			p.SpendRead(1)
-			if p.unit == zpinput.Bytes && p.bs[i] == '\n' || p.unit == zpinput.CodePoints && p.In[i] == '\n' {
+			if p.unit == sxirinput.Bytes && p.bs[i] == '\n' || p.unit == sxirinput.CodePoints && p.In[i] == '\n' {
 				p.lines = append(p.lines, i+1)
 			}
 		}
@@ -1402,7 +1402,7 @@ func (p *Parser) setValueFieldControlled(fs *valueimpl.Fields, name string, v an
 	// Adding the field is constant work, which the step that sets it has paid.
 	*fs = append(*fs, valueimpl.NodeField{Name: name, Value: v})
 }
-func (p *Parser) pushKid(v *zpvalue.Node) { p.KidStack = append(p.KidStack, v) }
+func (p *Parser) pushKid(v *sxirvalue.Node) { p.KidStack = append(p.KidStack, v) }
 
 // undoCaptures is frame.undo, which charges nothing: captures are not an item of the cost.
 func (p *Parser) undoCaptures(from int) {

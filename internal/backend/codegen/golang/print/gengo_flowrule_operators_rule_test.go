@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 func TestGeneratedTypedOperatorsRuleBodies(t *testing.T) {
@@ -20,7 +20,7 @@ func testGeneratedTypedOperatorsRuleBodies(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds generated code")
 	}
-	calculator, err := os.ReadFile("../../../../../examples/calculator/calc.zp")
+	calculator, err := os.ReadFile("../../../../../examples/calculator/calc.sxir")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -6,7 +6,7 @@
 #
 # Known limit: a TERM that arrives before the command has called setpgrp does not reach it, and
 # the command, a background process group, cannot read the terminal.
-# State: $ZP_AGENT_STATE (see lib.sh). The layout is the one of the earlier
+# State: $SXIR_AGENT_STATE (see lib.sh). The layout is the one of the earlier
 # zsh version of this script, so jobs queued by either version are ranked together.
 #
 # Deadlock freedom: every waiter is ranked by the key (start, seq). seq is a counter handed out
@@ -18,12 +18,12 @@ set -euo pipefail
 # shellcheck source=lib.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 [ $# -ge 2 ] || { echo "usage: benchlock.sh <owner-tag> <command...>" >&2; exit 2; }
-D=$zp_state
+D=$sxir_state
 L=$D/benchlock
 R=$D/runs
 stall=${BENCHLOCK_STALL:-300}
 tag=$1; shift
-zp_queue_note
+sxir_queue_note
 mkdir -p "$R"
 seq=$(perl -e 'use Fcntl qw(:flock); open(my $f, "+>>", $ARGV[0]) or die "seq: $!\n"; flock($f, LOCK_EX) or die; seek($f, 0, 0); my $n = <$f> // 0; $n = int($n) + 1; truncate($f, 0); print $f "$n\n"; close $f; print $n' "$D/benchlock.seq") || { echo "benchlock: cannot allocate a ticket" >&2; exit 125; }
 rec=$R/$tag.$$

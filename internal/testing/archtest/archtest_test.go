@@ -12,9 +12,9 @@ import (
 	"sync"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	gensrc "zeroparse.dev/zp/internal/driver/generate"
-	"zeroparse.dev/zp/internal/testing/enginetest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	gensrc "syntaxir.dev/sxir/internal/driver/generate"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 )
 
 // The graphs are loaded once per test binary: every test of the package reads them.
@@ -63,7 +63,7 @@ func generatedParsers(t *testing.T) []generatedParser {
 // imports, and returns the imports of their files.
 func generateParsers(t *testing.T) []generatedParser {
 	t.Helper()
-	src, err := os.ReadFile(filepath.Join(moduleRoot, "testdata/grammars/csv/csv.zp"))
+	src, err := os.ReadFile(filepath.Join(moduleRoot, "testdata/grammars/csv/csv.sxir"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,7 +168,7 @@ func TestNegativeControls(t *testing.T) {
 	addEdge(mod("internal/ir/code/flow"), mod("internal/ir/code/exec"))         // code/flow
 	addEdge(mod("internal/ir/code/exec"), mod("internal/ir/code/exec/compose")) // code/exec
 	addEdge(mod("internal/ir/code/exec/compose"), mod("internal/ir/core"))      // the packages under code/exec
-	addEdge(mod("bench/report"), mod("internal/lsp/zpls"))                      // internal/lsp
+	addEdge(mod("bench/report"), mod("internal/lsp/sxirls"))                    // internal/lsp
 	addEdge(mod("internal/analysis/lint"), mod("internal/testing/starttest"))   // internal/testing
 	addEdge(mod("pkg/grammar/ast"), mod("internal/diagnostic"))                 // the utilities are above the grammar AST
 	// Rule 2: the grammar AST imports a runtime-side package and a third-party package.
@@ -211,7 +211,7 @@ func TestNegativeControls(t *testing.T) {
 	addEdge(mod("internal/bench/parsers/json"), "example.org/thirdparty")
 	// A package that no layout row places.
 	g.pkgs[mod("internal/unplaced")] = &pkg{ImportPath: mod("internal/unplaced"), Module: &struct{ Path string }{modulePath}}
-	addEdge(mod("cmd/zp"), mod("internal/unplaced"))
+	addEdge(mod("cmd/sxir"), mod("internal/unplaced"))
 	// An allowlisted edge that disappears.
 	front := g.pkgs[mod("internal/frontend")]
 	front.Imports = slices.DeleteFunc(front.Imports, func(p string) bool { return p == mod("internal/middleend/corepass") })
@@ -232,7 +232,7 @@ func TestNegativeControls(t *testing.T) {
 			"pkg/runtime/libgo imports only pkg/runtime and its input, value, value/impl, instrument and schema packages, not internal/runtime/vm",
 			"a generated parser links neither pkg/runtime/vm nor internal/runtime/**",
 			"pkg/runtime/libgo -> internal/runtime/vm\n",
-			"generated parser (-lib import)", "internal/bench/parsers/json,", "internal/frontend/parser/zpparser,"}},
+			"generated parser (-lib import)", "internal/bench/parsers/json,", "internal/frontend/parser/sxirparser,"}},
 		{"rule 1a: pkg/runtime/value/impl -> internal/runtime/nodes", []string{"pkg/runtime/libgo -> pkg/runtime/value/impl -> internal/runtime/nodes\n\tbuilds", "\tgenerated parsers: generated parser (-lib embed), generated parser (-lib import), internal/bench/parsers/"}},
 		{"rule 2: internal/ir/code -> internal/ir/code/flow", []string{"\tbreaks: internal/ir/code imports no dialect (internal/ir/code -> internal/ir/code/flow)\n"}},
 		{"rule 2: internal/frontend/desugar -> internal/analysis/lint", []string{"the front end layer does not import the analysis layer (internal/frontend/desugar -> internal/analysis/lint)"}},
@@ -242,7 +242,7 @@ func TestNegativeControls(t *testing.T) {
 		{"rule 2: internal/ir/code/flow -> internal/ir/code/exec", []string{"within internal/ir, code/flow imports only code and ir/core (internal/ir/code/flow -> internal/ir/code/exec)"}},
 		{"rule 2: internal/ir/code/exec -> internal/ir/code/exec/compose", []string{"within internal/ir, code/exec imports only code (internal/ir/code/exec -> internal/ir/code/exec/compose)"}},
 		{"rule 2: internal/ir/code/exec/compose -> internal/ir/core", []string{"within internal/ir, the packages under code/exec import only code, code/exec and code/action (internal/ir/code/exec/compose -> internal/ir/core)"}},
-		{"rule 2: bench/report -> internal/lsp/zpls", []string{"only cmd/** and internal/testing/** import internal/lsp/** (bench/report -> internal/lsp/zpls)"}},
+		{"rule 2: bench/report -> internal/lsp/sxirls", []string{"only cmd/** and internal/testing/** import internal/lsp/** (bench/report -> internal/lsp/sxirls)"}},
 		{"rule 2: internal/analysis/lint -> internal/testing/starttest", []string{"only internal/testing/** imports internal/testing/** outside tests (internal/analysis/lint -> internal/testing/starttest)"}},
 		{"rule 2: pkg/grammar/ast -> internal/diagnostic", []string{"the grammar AST layer does not import the utility layer (pkg/grammar/ast -> internal/diagnostic)"}},
 		{"rule 2: pkg/grammar/ast -> pkg/runtime/value", []string{"the grammar AST imports only the standard library (pkg/grammar/ast -> "}},
@@ -296,7 +296,7 @@ func TestLayerGraph(t *testing.T) {
 	g := loadAll(t)[0].clone()
 	// One package of each layer.
 	rep := map[layer]string{
-		layerCmd: "cmd/zp", layerPublic: "pkg/lint", layerLSP: "internal/lsp/zpls", layerDriver: "internal/driver",
+		layerCmd: "cmd/sxir", layerPublic: "pkg/lint", layerLSP: "internal/lsp/sxirls", layerDriver: "internal/driver",
 		layerAnalysis: "internal/analysis/lint", layerBackend: "internal/backend/codegen/common", layerMiddle: "internal/middleend/flowlower",
 		layerFront: "internal/frontend/desugar", layerIR: "internal/ir/core", layerPass: "internal/pass",
 		layerGrammar: "pkg/grammar/ast", layerUtil: "internal/diagnostic", layerTesting: "internal/testing/starttest",

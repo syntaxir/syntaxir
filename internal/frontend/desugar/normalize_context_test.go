@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"testing"
 
-	"zeroparse.dev/zp/internal/cancel"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/cancel"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 func TestNormalizationContextCancellation(t *testing.T) {

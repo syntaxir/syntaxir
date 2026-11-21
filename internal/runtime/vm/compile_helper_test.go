@@ -3,10 +3,10 @@ package vm
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/vmlower"
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/testing/compiletest"
-	"zeroparse.dev/zp/pkg/bytecode"
+	"syntaxir.dev/sxir/internal/backend/vmlower"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/testing/compiletest"
+	"syntaxir.dev/sxir/pkg/bytecode"
 )
 
 // compileModule compiles src with source information to a module.

@@ -1,9 +1,9 @@
 package corepass
 
 import (
-	"zeroparse.dev/zp/internal/cancel"
-	"zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/internal/pass"
+	"syntaxir.dev/sxir/internal/cancel"
+	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/pass"
 )
 
 // The analyses of a Core IR module that the front end, the passes and the tools share through an

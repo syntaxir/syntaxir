@@ -7,7 +7,7 @@
 # Retries a transient failure up to 5 times. Exit status 1 when any branch failed.
 set -euo pipefail
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
-zp_no_state=1
+sxir_no_state=1
 # shellcheck source=lib.sh
 . "$here/lib.sh"
 if [ -z "${SSH_AUTH_SOCK:-}" ] && command -v gpgconf >/dev/null 2>&1; then
@@ -21,7 +21,7 @@ err=$(mktemp)
 trap 'rm -f "$err"' EXIT
 for b in "$@"; do
   case $b in main | master) echo "push-branch: refusing $b" >&2; fail=1; continue ;; *) ;; esac
-  zp_branch_ok "$b" || { echo "push-branch: $b has no prefix feat/, fix/, perf/ or docs/" >&2; fail=1; continue; }
+  sxir_branch_ok "$b" || { echo "push-branch: $b has no prefix feat/, fix/, perf/ or docs/" >&2; fail=1; continue; }
   git rev-parse -q --verify "refs/heads/$b" >/dev/null || { echo "skip $b (missing)"; continue; }
   "$here/../../hack/check-commits.sh" origin/main "$b" || { echo "FAIL $b: commit check" >&2; fail=1; continue; }
   ok=0

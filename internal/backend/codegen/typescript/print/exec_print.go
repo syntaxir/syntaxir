@@ -24,7 +24,7 @@ import (
 	"strconv"
 	"strings"
 
-	"zeroparse.dev/zp/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code"
 )
 
 // Target is how printed code reaches the parser state and the operations of one TypeScript

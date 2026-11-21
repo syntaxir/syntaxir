@@ -3,7 +3,7 @@ package parser
 import (
 	"slices"
 
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // The raw formatter state of a grammar (the comment tokens and line breaks

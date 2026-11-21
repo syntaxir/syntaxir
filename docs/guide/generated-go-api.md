@@ -1,6 +1,6 @@
 # The Generated Go API
 
-A Go parser written by [`zp gen`](code-generation.md) has a small API: `parser.go` defines the functions that parse, `api.go` re-exports the result types of the `value`, `input`, `runtime` and `instrument` packages (under `zeroparse.dev/zp/pkg/runtime`) and the options of the library package under their own names (generated code imports the library as `rt "<module>/internal/libgo"`, its copy, or as `rt "zeroparse.dev/zp/pkg/runtime/libgo"` with `-lib import`), and, with `-types`, `types/types.go` defines the Go types of the grammar. This guide describes
+A Go parser written by [`sxir gen`](code-generation.md) has a small API: `parser.go` defines the functions that parse, `api.go` re-exports the result types of the `value`, `input`, `runtime` and `instrument` packages (under `syntaxir.dev/sxir/pkg/runtime`) and the options of the library package under their own names (generated code imports the library as `rt "<module>/internal/libgo"`, its copy, or as `rt "syntaxir.dev/sxir/pkg/runtime/libgo"` with `-lib import`), and, with `-types`, `types/types.go` defines the Go types of the grammar. This guide describes
 it, the call options that all entry points share, and recognition. Options that add typed values, incremental documents
 and streams have their own guides:
 
@@ -55,7 +55,7 @@ Compared with the engine's API:
   `rule pair is not a start rule; parsing can begin only at a rule marked @start`, and so is an unknown name,
   `rule nope is not defined`. An empty name selects the grammar's default start rule, as for
   `Parser.WithStart`. Like the engine, both require the rule to consume the whole input.
-- **The types are those of the `pkg/runtime` packages.** `pairsparser.Node` is `value.Node` of `zeroparse.dev/zp/pkg/runtime/value`, the
+- **The types are those of the `pkg/runtime` packages.** `pairsparser.Node` is `value.Node` of `syntaxir.dev/sxir/pkg/runtime/value`, the
   type the engine returns, and likewise for the errors, limits and traversal, with the embedded library and with
   `-lib import`: a tree from either can be passed where the other is expected, and `errors.As` and `errors.Is` work
   with the types and values of either.
@@ -63,9 +63,9 @@ Compared with the engine's API:
   `*pairsparser.Node` (as the example does with `Field("Key")`), which is `*value.Node` only with `-lib import`.
 - **Errors** carry the same positions and messages. Recovered errors work too, and the error value that a
   `#recover` produces in a typed result has the range of the skipped input (`Span`) and the `Message`.
-  With this grammar, `rec.zp`:
+  With this grammar, `rec.sxir`:
 
-  ```zp
+  ```sxir
   @start
   rule main =  stmt* $$
   rule stmt =  s:("let" " " name ";") #recover(skip=[^;]* ";") => $s
@@ -99,7 +99,7 @@ Compared with the engine's API:
 
 | Part | Contents |
 |:--|:--|
-| Library | The parser state, memoization, left recursion, Operators Rule loop, attribute handling and the built-in functions of actions. It is **the same for every grammar**: the package `zeroparse.dev/zp/pkg/runtime/libgo`, which the generated package imports (`-lib import`) or carries a copy of in `internal/libgo` (`-lib embed`, the default). Either way it depends only on the packages under `zeroparse.dev/zp/pkg/runtime`. |
+| Library | The parser state, memoization, left recursion, Operators Rule loop, attribute handling and the built-in functions of actions. It is **the same for every grammar**: the package `syntaxir.dev/sxir/pkg/runtime/libgo`, which the generated package imports (`-lib import`) or carries a copy of in `internal/libgo` (`-lib embed`, the default). Either way it depends only on the packages under `syntaxir.dev/sxir/pkg/runtime`. |
 | `api.go` | The names of the runtime packages and the library that the users of the parser need (`Node`, `SyntaxError`, the options and so on), as aliases and wrappers. It is the same for grammars generated with the same options. |
 | `types/types.go` | With `-types`, the package `<module>/types`: a Go type for each type of the grammar, `TNode`, `Error` and the tuple types. |
 | Rule table | For each rule, the results of the engine's static analysis (memoized? left-recursion leader? capture names?). |
@@ -124,7 +124,7 @@ It is the engine's [`Recognize`](recognition-mode.md) in generated form: the gra
 with no rule building a value (except those whose values predicates read), into a second rule table in the same file.
 Actions whose values are not needed by predicates are skipped. Actions needed by predicates still run and can report runtime errors. On the benchmark workloads it
 takes about half the time of `Parse` (JSON 8.8 → 4.9 ms on a 262 KB input, CSV 4.0 → 1.8 ms), and it is the fastest
-way ZeroParse has to check the syntax of an input. The price is a larger file: the second table adds about as much code as the first.
+way SyntaxIR has to check the syntax of an input. The price is a larger file: the second table adds about as much code as the first.
 
 ## Invocation Options
 
@@ -199,7 +199,7 @@ preparation and before publishing a result.
 With `-types`, the types of the grammar are declared in the package `<module>/types`, not in the parser package, so they
 share no namespace with `parser.go` and `api.go`: a grammar type may be called `Node`, `ParseOption`, `Walk` or like any
 other name of the parser package, and is then used as `types.Node`. The types package declares `TNode`, `Error`,
-`ZPHooks` and, where used, `Unit`, `TupleN`, `ZPNodeTypes` itself and the constant `ZPSchema_<digest>` (which ties the parser to this package), and generation fails if a grammar type has one
+`SXIRHooks` and, where used, `Unit`, `TupleN`, `SXIRNodeTypes` itself and the constant `SXIRSchema_<digest>` (which ties the parser to this package), and generation fails if a grammar type has one
 of those names. Declarations that you add by hand to the generated packages must not reuse the names they declare. The
 [generated parser contract](../../spec/runtime/generated-parsers.md) lists the rule.
 

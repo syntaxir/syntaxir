@@ -4,9 +4,9 @@ A backend is the way a compiled grammar is executed. This guide compares them, h
 nesting limit that bounds recursion. [Recognition Mode](recognition-mode.md) and [Memoization](memoization.md) apply to every
 backend.
 
-The examples use `pairs.zp` and a parser `p` compiled as in [Running Parsers](running-parsers.md):
+The examples use `pairs.sxir` and a parser `p` compiled as in [Running Parsers](running-parsers.md):
 
-```zp
+```sxir
 type Pair = { Key node[string]; Value node[string] }
 
 @start
@@ -28,7 +28,7 @@ reference parser serves as the reference. They differ in speed, memory, how they
 | Bytecode (recursive) | `compiler.Compile`, `compiler.CompileGrammar` or `vm.LoadParser` (the default) | A VM running [portable bytecode](../../spec/bytecode/README.md); rule calls use Go recursion | No |
 | Bytecode (iterative) | `p.(*vm.Parser).Iterative()` | The same bytecode on a VM with its own call stack | No |
 | Reference (closure) | `compiler.NewReferenceParser` | Compiles Rule Expressions into Go closures | Yes |
-| Generated Go | (not a parser option) | A Go parser generated ahead of time by `zp gen` | At generation time |
+| Generated Go | (not a parser option) | A Go parser generated ahead of time by `sxir gen` | At generation time |
 
 The first three are chosen when you make the parser: the parser of `compiler.Compile` is a `*vm.Parser`, and its
 `Iterative` method returns a parser for the same grammar that runs on the iterative VM.
@@ -38,22 +38,22 @@ iter := p.(*vm.Parser).Iterative()
 n, err := iter.Parse("abc=12")
 ```
 
-A parser compiled from a grammar and one loaded from a `.zpc` file both run on the recursive VM by default; the
+A parser compiled from a grammar and one loaded from a `.sxirc` file both run on the recursive VM by default; the
 reference parser is made from the grammar source only. On the command line, `-backend closure|bytecode|bytecode-iterative` does the same.
 
 ### Which One
 
 The measurements are in [benchmarks.md](../benchmarks.md) and their analysis in
-[performance.md](../performance.md#where-zeroparse-stands); the figures below are summarized from them (one machine, so
+[performance.md](../performance.md#where-syntaxir-stands); the figures below are summarized from them (one machine, so
 treat them as orders of magnitude rather than promises). Run `go test ./bench -bench . -benchmem` to measure your own
 grammar and input.
 
 | You want | Choose | Why |
 |:--|:--|:--|
-| The best default for a Go program that loads a grammar at start-up | Bytecode (the default) | It is what `compiler.Compile` returns and what a `.zpc` file loads into; it needs no grammar AST at run time. |
+| The best default for a Go program that loads a grammar at start-up | Bytecode (the default) | It is what `compiler.Compile` returns and what a `.sxirc` file loads into; it needs no grammar AST at run time. |
 | The fastest parsing, with a fixed grammar | [Generated Go](code-generation.md) | Current benchmarks show it at 0.44–0.61× closure time in CodePoints and 0.50–0.66× in Bytes; direct typed values are 0.69–0.98× generated `Parse`. |
 | Input that can nest very deeply (untrusted JSON-like data, generated code) | Bytecode (iterative) | Recursive rule calls live on the VM's own stack, not the Go stack. |
-| A grammar distributed as a data file, not source | Bytecode, from a `.zpc` | See the [compiled grammars guide](compiled-grammars.md). |
+| A grammar distributed as a data file, not source | Bytecode, from a `.sxirc` | See the [compiled grammars guide](compiled-grammars.md). |
 | Checking validity only | Any backend with [`Recognize`](recognition-mode.md) | No tree is built. |
 
 Across both units, the recursive bytecode VM is 1.13–1.35× slower than the reference parser in the benchmarks and the
@@ -102,7 +102,7 @@ Two things to know:
   need depth beyond the default, use the iterative VM rather than raising the limit. Only the iterative VM
   accepts `Depth: runtime.Unlimited`; the other backends reject it as an option error.
 
-Generated parsers have the same default of 100,000. The `MaxDepth` field of `compiler.GoConfig` or `zp gen -max-depth` sets a
+Generated parsers have the same default of 100,000. The `MaxDepth` field of `compiler.GoConfig` or `sxir gen -max-depth` sets a
 generated default; generated Go `Limits.Depth` and TypeScript options-aware entry points override it per invocation
 (see [code generation](generated-go-api.md#invocation-options) and
 [TypeScript depth options](typescript.md#deep-nesting-and-the-javascript-stack)). Their recursive host stacks still

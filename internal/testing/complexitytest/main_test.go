@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // skipWithoutBudget skips the rest of t in the reference build, which has no budget controls: the

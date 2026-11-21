@@ -11,9 +11,9 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/internal/testing/complexitytest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/complexitytest"
 )
 
 // skipRunsGoBin returns the go command for the tests that build generated parsers, or skips.
@@ -104,7 +104,7 @@ func generatedDocumentEdits(t *testing.T, goBin string, grammars []struct{ Name,
 		}
 		codegentest.GeneratePackageIn(t, dir, "skipdoc", fmt.Sprintf("g%d", n), g, common.GenOptions{Start: "main", Types: true, Document: true})
 		if hotSpan > 0 {
-			write(fmt.Sprintf("g%d/span.go", n), fmt.Sprintf("package g%d\n\nimport rt %q\n\nfunc init() { rt.RunHotSpan = %d }\n", n, "zeroparse.dev/zp/pkg/runtime/libgo", hotSpan))
+			write(fmt.Sprintf("g%d/span.go", n), fmt.Sprintf("package g%d\n\nimport rt %q\n\nfunc init() { rt.RunHotSpan = %d }\n", n, "syntaxir.dev/sxir/pkg/runtime/libgo", hotSpan))
 		}
 		fmt.Fprintf(&imports, "\tg%d \"skipdoc/g%d\"\n", n, n)
 		fmt.Fprintf(&checks, `	{%q, %q, func(text string, edits func(string) (int, int, string, bool)) string {

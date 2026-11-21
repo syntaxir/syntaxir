@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/syntax/fmt"
-	"zeroparse.dev/zp/internal/testing/enginetest"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/syntax/fmt"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 )
 
 func controlByName(t *testing.T, name string) Control {
@@ -79,7 +79,7 @@ func TestRewriteLanguage(t *testing.T) {
 	}
 }
 
-var zpFence = regexp.MustCompile("(?s)```zp\n(.*?)```")
+var sxirFence = regexp.MustCompile("(?s)```sxir\n(.*?)```")
 
 // normalized formats a grammar source without the attributes of its rules, so that the grammars of
 // the recipe and the controls compare equal when they differ in layout and the @start line only.
@@ -104,7 +104,7 @@ func TestRewriteRecipe(t *testing.T) {
 		t.Fatal(err)
 	}
 	var quoted []string
-	for _, m := range zpFence.FindAllStringSubmatch(string(data), -1) {
+	for _, m := range sxirFence.FindAllStringSubmatch(string(data), -1) {
 		src := m[1]
 		if strings.HasPrefix(src, "// ") { // the name of the file to save
 			_, src, _ = strings.Cut(src, "\n")

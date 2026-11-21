@@ -3,9 +3,9 @@
 //
 // A mutant runner rebuilds and reruns tests for every mutant of one set of source files, so its verdict can
 // change only when those files, the tests it runs against, or the runner itself change. The gate
-// (hack/gate.sh) exports ZP_MUTANTS_BASE=<its base revision>; a runner then calls SkipUnlessChanged with the
+// (hack/gate.sh) exports SXIR_MUTANTS_BASE=<its base revision>; a runner then calls SkipUnlessChanged with the
 // repository paths it depends on, and skips with a message that names the base when none of them differs from
-// it. With ZP_MUTANTS_BASE unset, as in a plain `go test -tags zp_long`, nothing skips and every mutant runs.
+// it. With SXIR_MUTANTS_BASE unset, as in a plain `go test -tags sxir_long`, nothing skips and every mutant runs.
 //
 // The rule fails closed: whenever the answer is uncertain (git fails, the base is not a revision, or a path
 // is not given) the runner runs.
@@ -24,7 +24,7 @@ import (
 )
 
 // BaseEnv names the environment variable that holds the base revision.
-const BaseEnv = "ZP_MUTANTS_BASE"
+const BaseEnv = "SXIR_MUTANTS_BASE"
 
 // always are the paths that every runner depends on: the module files that select the toolchain and the
 // dependencies, and this package.
@@ -49,7 +49,7 @@ func gitEnv() []string {
 	return append(env, "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
 }
 
-// SkipUnlessChanged skips t when ZP_MUTANTS_BASE is set and no file under any of paths, which are slash-separated
+// SkipUnlessChanged skips t when SXIR_MUTANTS_BASE is set and no file under any of paths, which are slash-separated
 // paths from the repository root (a directory stands for everything under it), differs between that revision
 // and the working tree, counting untracked files. Call it first in the test, before t.Parallel.
 func SkipUnlessChanged(t testing.TB, paths ...string) {

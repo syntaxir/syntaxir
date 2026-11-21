@@ -9,13 +9,13 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/pkg/runtime"
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/query"
-	"zeroparse.dev/zp/pkg/runtime/schema"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/pkg/runtime"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/query"
+	"syntaxir.dev/sxir/pkg/runtime/schema"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 func TestPublicOutputSchema(t *testing.T) {
@@ -33,7 +33,7 @@ rule unused = "z"`, "main")
 	if _, err := query.Compile(query.Pattern{Type: "Missing"}, s); err == nil {
 		t.Fatal("accepted a type absent from the supplied schema")
 	}
-	if s.Format != "zp-output-schema" || s.Version != 2 || s.Start != "main" || len(s.Rules) != 2 {
+	if s.Format != "sxir-output-schema" || s.Version != 2 || s.Start != "main" || len(s.Rules) != 2 {
 		t.Fatalf("default schema: %+v", s)
 	}
 	first, err := json.Marshal(s)
@@ -50,7 +50,7 @@ rule unused = "z"`, "main")
 			t.Fatalf("unstable schema: %s, %v", encoded, err)
 		}
 	}
-	all, err := p.OutputSchema(zpruntime.WithAllSchemaRules())
+	all, err := p.OutputSchema(sxirruntime.WithAllSchemaRules())
 	if err != nil || len(all.Rules) != 3 {
 		t.Fatalf("all rules: %+v, %v", all, err)
 	}
@@ -61,7 +61,7 @@ rule unused = "z"`, "main")
 	if got, _ := json.Marshal(&decoded); !bytes.Equal(first, got) {
 		t.Fatalf("round trip changed schema: %s", got)
 	}
-	if err := json.Unmarshal([]byte(`{"format":"zp-output-schema","version":3}`), &decoded); err == nil {
+	if err := json.Unmarshal([]byte(`{"format":"sxir-output-schema","version":3}`), &decoded); err == nil {
 		t.Fatal("accepted a future schema version")
 	}
 	data, err := p.MarshalBinary()
@@ -73,7 +73,7 @@ rule unused = "z"`, "main")
 		t.Fatal(err)
 	}
 	// A compiled grammar holds no schema in any mode: the schema comes from the grammar source.
-	if _, err := loaded.OutputSchema(); !errors.Is(err, zpruntime.ErrSchemaUnavailable) || !strings.Contains(err.Error(), "grammar source") {
+	if _, err := loaded.OutputSchema(); !errors.Is(err, sxirruntime.ErrSchemaUnavailable) || !strings.Contains(err.Error(), "grammar source") {
 		t.Fatalf("loaded parser schema: %v", err)
 	}
 	for _, mode := range []engine.CompiledMode{engine.CompiledParse, engine.CompiledRecognize, engine.CompiledDocument} {
@@ -85,7 +85,7 @@ rule unused = "z"`, "main")
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := loaded.OutputSchema(); !errors.Is(err, zpruntime.ErrSchemaUnavailable) || !strings.Contains(err.Error(), "grammar source") {
+		if _, err := loaded.OutputSchema(); !errors.Is(err, sxirruntime.ErrSchemaUnavailable) || !strings.Contains(err.Error(), "grammar source") {
 			t.Fatalf("%s mode: loaded parser schema: %v", mode, err)
 		}
 	}

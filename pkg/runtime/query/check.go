@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"zeroparse.dev/zp/pkg/runtime/schema"
+	"syntaxir.dev/sxir/pkg/runtime/schema"
 )
 
 // A query pattern compiled with a schema must be able to match some value the schema admits where

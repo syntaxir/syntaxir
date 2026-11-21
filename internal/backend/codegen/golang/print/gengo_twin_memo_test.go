@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // TestGeneratedTwinMemo checks the memo of value-free twins in a generated Go parser, as
@@ -63,8 +63,8 @@ func testGeneratedTwinMemo(t *testing.T) {
 		for _, pkg := range []string{fmt.Sprintf("g%d", i), fmt.Sprintf("l%d", i)} {
 			codegentest.GeneratePackage(t, dir, pkg, mustParse(c.src), common.GenOptions{Start: "main", Types: true, Recognize: true, Observability: true, LimitControls: pkg[0] == 'l'})
 			fmt.Fprintf(&imports, "\t%q\n", "codegentest/"+pkg)
-			for _, op := range []string{"_, _ = %s.Parse(%s, zprt.WithProfile(&p))", "_, _ = %s.ParseValue(%s, zprt.WithProfile(&p))", "_ = %s.Recognize(%s, zprt.WithProfile(&p))"} {
-				fmt.Fprintf(&calls, "\t{ var p zpinstrument.Profile; "+op+"; fmt.Print(evals(p), \" \") }\n", pkg, in)
+			for _, op := range []string{"_, _ = %s.Parse(%s, sxirrt.WithProfile(&p))", "_, _ = %s.ParseValue(%s, sxirrt.WithProfile(&p))", "_ = %s.Recognize(%s, sxirrt.WithProfile(&p))"} {
+				fmt.Fprintf(&calls, "\t{ var p sxirinstrument.Profile; "+op+"; fmt.Print(evals(p), \" \") }\n", pkg, in)
 			}
 		}
 		calls.WriteString("\tfmt.Println()\n")
@@ -74,12 +74,12 @@ func testGeneratedTwinMemo(t *testing.T) {
 import (
 	"fmt"
 
-	zprt "zeroparse.dev/zp/pkg/runtime/libgo"
-	zpinstrument "zeroparse.dev/zp/pkg/runtime/instrument"
+	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
+	sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
 ` + imports.String() + `)
 
 // evals sums the body evaluations of r and of its twin, which the profile reports under its name.
-func evals(p zpinstrument.Profile) int {
+func evals(p sxirinstrument.Profile) int {
 	n := 0
 	for _, r := range p.Snapshot().Rules {
 		if r.Rule == "r" {

@@ -5,10 +5,10 @@ import (
 	"go/format"
 	"strings"
 
-	"zeroparse.dev/zp/internal/backend/codegen/golang/print"
-	"zeroparse.dev/zp/internal/ir/code/action"
-	"zeroparse.dev/zp/internal/ir/code/exec/compose"
-	"zeroparse.dev/zp/internal/middleend/codepass"
+	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	"syntaxir.dev/sxir/internal/ir/code/action"
+	"syntaxir.dev/sxir/internal/ir/code/exec/compose"
+	"syntaxir.dev/sxir/internal/middleend/codepass"
 )
 
 // goTermsFile is the file of the printed term compositions in the generated Go library, relative to

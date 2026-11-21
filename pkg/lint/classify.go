@@ -3,9 +3,9 @@ package lint
 import (
 	"context"
 
-	"zeroparse.dev/zp/internal/analysis/complexity"
-	impl "zeroparse.dev/zp/internal/analysis/lint"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/analysis/complexity"
+	impl "syntaxir.dev/sxir/internal/analysis/lint"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Class is the class of the cost of a parse from a start rule (see "Classification" in the parsing

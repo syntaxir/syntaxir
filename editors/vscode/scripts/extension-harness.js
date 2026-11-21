@@ -31,7 +31,7 @@ async function within(promise) {
 
 function loadExtension(plans = [], options = {}) {
   const h = {
-    settings: { 'server.enabled': true, 'server.path': '/zp' },
+    settings: { 'server.enabled': true, 'server.path': '/sxir' },
     commands: {}, events: [], clients: [], running: new Set(), resources: new Set(),
     created: 0, maxRunning: 0, information: [], applied: [], appliedVersions: [], requests: [],
   };
@@ -142,7 +142,7 @@ function loadExtension(plans = [], options = {}) {
       this.state = 1;
     }
   }
-  const extensionPath = path.resolve(options.extension || process.env.ZP_EXTENSION || path.join(__dirname, '..', 'extension.js'));
+  const extensionPath = path.resolve(options.extension || process.env.SXIR_EXTENSION || path.join(__dirname, '..', 'extension.js'));
   const load = Module._load;
   Module._load = function (request, ...rest) {
     if (request === 'vscode') return vscode;
@@ -160,7 +160,7 @@ function loadExtension(plans = [], options = {}) {
   }
   h.workspace = vscode.workspace;
   h.activate = () => h.extension.activate({ subscriptions: [] });
-  h.restart = () => h.commands['zp.restartServer']();
+  h.restart = () => h.commands['sxir.restartServer']();
   h.change = (affected = true) => h.configuration({ affectsConfiguration: () => affected });
   return h;
 }

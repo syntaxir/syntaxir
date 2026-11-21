@@ -1787,7 +1787,7 @@ of the shared call that holds $\alpha$ can be an abandoned unit that examined
 input past the end of the call, and the memo can then answer the call in
 $\kappa$:
 
-```zp
+```sxir
 @start
 rule main = s "x" / s "w" / s ":" R "y" / P
 rule P = (" " " ")* R "?"
@@ -2313,7 +2313,7 @@ one call place are at most one in each run, and the argument of the claim above 
 bound them without a bound on the runs. The second case occurs in a grammar
 that the conditions accept:
 
-```zp
+```sxir
 @start
 rule main = &B B / P
 rule P = (" " " ")* ws "?"
@@ -11703,7 +11703,7 @@ evaluation after the first reads a value built, through captures, rule values
 and the reads of variables, from the value that the one before it binds. One
 binding can occur in a chain any number of times. In
 
-```zp
+```sxir
 var x string
 rule main = r $$
 rule r = ("(" c:r ")" {x := $c} => x) / ("a" => "a")

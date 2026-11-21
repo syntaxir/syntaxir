@@ -12,7 +12,7 @@ with a reason and no exponential cause is unknown; when it also has polynomial c
 largest of their degrees as its **witnessed degree**, a lower estimate rather than a bound:
 
 ```text
-grammar.zp: the cost from start rule main is unknown (witnessed n^2)
+grammar.sxir: the cost from start rule main is unknown (witnessed n^2)
 ```
 
 This revises the chain of verdicts of [record 064](064-grammar-complexity.md#classifier), which ranked any witnessed

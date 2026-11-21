@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Error is an error at a position in the grammar source.

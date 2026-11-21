@@ -8,11 +8,11 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/internal/runtime/state"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 func TestInvalidUTF8LiteralMatching(t *testing.T) {
@@ -31,7 +31,7 @@ func TestInvalidUTF8LiteralMatching(t *testing.T) {
 	}
 	for _, tc := range cases {
 		for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-			for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+			for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 				t.Run(fmt.Sprintf("%q/%x/%s/%s", tc.literal, tc.input, backend, unit), func(t *testing.T) {
 					p := mustCompile(t, "rule main = "+fmt.Sprintf("%q", tc.literal)+" $$")
 					opts := ParseOptions{Backend: backend, Unit: unit}
@@ -46,11 +46,11 @@ func TestInvalidUTF8LiteralMatching(t *testing.T) {
 					}
 					if tc.ok {
 						wantEnd := utf8.RuneCountInString(tc.input)
-						if unit == zpinput.Bytes {
+						if unit == sxirinput.Bytes {
 							wantEnd = len(tc.input)
 						}
 						wantText := tc.input
-						if unit == zpinput.CodePoints {
+						if unit == sxirinput.CodePoints {
 							wantText = string([]rune(tc.input))
 						}
 						if nodes.D(nodes.D(n).Children[0]).Text != wantText {
@@ -71,10 +71,10 @@ func TestReplacementLiteralTextPredicate(t *testing.T) {
 	prog := mustCompile(t, `rule main = c:"�" {text($c) == "�"} $$`)
 	for _, input := range []string{"\xff", "\x80", "\xc3", "�"} {
 		for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-			for _, unit := range []zpinput.PositionUnit{zpinput.Bytes, zpinput.CodePoints} {
+			for _, unit := range []sxirinput.PositionUnit{sxirinput.Bytes, sxirinput.CodePoints} {
 				for _, recognize := range []bool{false, true} {
 					_, err := prog.ParseWith("main", input, ParseOptions{Backend: backend, Unit: unit, Recognize: recognize})
-					want := unit == zpinput.CodePoints || utf8.ValidString(input)
+					want := unit == sxirinput.CodePoints || utf8.ValidString(input)
 					if (err == nil) != want {
 						t.Errorf("%s/%s recognize=%v input=%x: %v", backend, unit, recognize, input, err)
 					}
@@ -87,7 +87,7 @@ func TestReplacementLiteralTextPredicate(t *testing.T) {
 func TestInvalidUTF8LiteralStream(t *testing.T) {
 	t.Parallel()
 	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+		for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 			for _, expr := range []string{`"�"`, `[�]`, `"x" / "�"`, `"a�"`} {
 				t.Run(fmt.Sprintf("%s/%s/%s", backend, unit, expr), func(t *testing.T) {
 					p := mustCompile(t, "rule main = item* #stream $$\nrule item = "+expr+` "\n"`)
@@ -100,7 +100,7 @@ func TestInvalidUTF8LiteralStream(t *testing.T) {
 					err := p.ParseStreamWith("main", strings.NewReader(input), func(n *value.Node) error {
 						count++
 						width := utf8.RuneCountInString(item)
-						if unit == zpinput.Bytes {
+						if unit == sxirinput.Bytes {
 							width = len(item)
 						}
 						if nodes.D(n).Start != int32((count-1)*width) || nodes.D(n).End != int32(count*width) {
@@ -120,7 +120,7 @@ func TestInvalidUTF8LiteralStream(t *testing.T) {
 func TestOpenPipeInvalidUTF8Literal(t *testing.T) {
 	t.Parallel()
 	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+		for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 			for _, input := range []string{"\xff\n", "\x80\n", "\xc3\n", "�\n"} {
 				t.Run(fmt.Sprintf("%s/%s/%x", backend, unit, input), func(t *testing.T) {
 					prog := mustCompile(t, `rule main = item* #stream $$
@@ -151,7 +151,7 @@ rule item = "�" "\n"`)
 					probe.armed.Store(true)
 					n := awaitEmitted(t, emitted, probe, done, "literal waited for future input or EOF")
 					width := len(input)
-					if unit == zpinput.CodePoints {
+					if unit == sxirinput.CodePoints {
 						width = utf8.RuneCountInString(input)
 					}
 					if nodes.D(n).End != int32(width) {
@@ -187,7 +187,7 @@ func BenchmarkByteLiteralMatching(b *testing.B) {
 				if _, err := prog.rule(backend, "main", state.Inlined, nil); err != nil {
 					b.Fatal(err)
 				}
-				for _, unit := range []zpinput.PositionUnit{zpinput.Bytes, zpinput.CodePoints} {
+				for _, unit := range []sxirinput.PositionUnit{sxirinput.Bytes, sxirinput.CodePoints} {
 					for _, recognize := range []bool{true, false} {
 						b.Run(fmt.Sprintf("%x/%t/%s/%s/Recognize%t", literal, match, backend, unit, recognize), func(b *testing.B) {
 							opts := ParseOptions{Backend: backend, Unit: unit, Recognize: recognize}

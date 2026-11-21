@@ -1,6 +1,6 @@
 package ref
 
-import "zeroparse.dev/zp/internal/ir/code"
+import "syntaxir.dev/sxir/internal/ir/code"
 
 // The reference model of the examined input of a Document parse (the doc operations of the component
 // call): the input that the active rule call examined is the range [low, examined), which a call starts

@@ -6,9 +6,9 @@ import (
 	"slices"
 	"strings"
 
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/action"
-	"zeroparse.dev/zp/internal/ir/code/exec/ref"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/action"
+	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
 )
 
 // ValueImpl is an implementation of the value primitives (the component values of exec.Parser) under test.

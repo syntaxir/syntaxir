@@ -1,4 +1,4 @@
-// Package grammar loads, validates, formats and converts ZeroParse grammars.
+// Package grammar loads, validates, formats and converts SyntaxIR grammars.
 //
 // A grammar source (Source) is one grammar input: a named value made from bytes, a string, a
 // reader or a path in a file system, in grammar syntax or in JSON. Load gives the grammar AST of a
@@ -17,39 +17,39 @@ import (
 	"path"
 	"sync"
 
-	"zeroparse.dev/zp/internal/frontend/parser"
-	"zeroparse.dev/zp/pkg/bytecode"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/pkg/bytecode"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Encoding is the encoding of a grammar source: grammar syntax or JSON.
 type Encoding int
 
 const (
-	// EncodingAuto decides the encoding from the source: the extension of its name (.zp or
+	// EncodingAuto decides the encoding from the source: the extension of its name (.sxir or
 	// .json), then its content, where JSON is content whose first byte other than a space, tab,
 	// carriage return or line feed is '{', and anything else is grammar syntax.
 	EncodingAuto Encoding = iota
-	// EncodingZP is grammar syntax.
-	EncodingZP
+	// EncodingSXIR is grammar syntax.
+	EncodingSXIR
 	// EncodingJSON is the JSON form of the grammar AST.
 	EncodingJSON
 )
 
-// String returns the name of the encoding: "auto", "zp" or "json".
+// String returns the name of the encoding: "auto", "sxir" or "json".
 func (e Encoding) String() string {
 	switch e {
 	case EncodingAuto:
 		return "auto"
-	case EncodingZP:
-		return "zp"
+	case EncodingSXIR:
+		return "sxir"
 	case EncodingJSON:
 		return "json"
 	}
 	return fmt.Sprintf("Encoding(%d)", int(e))
 }
 
-// ErrCompiled is the error, wrapped, of loading a compiled grammar (the output of zp compile),
+// ErrCompiled is the error, wrapped, of loading a compiled grammar (the output of sxir compile),
 // which holds the bytecode of a parser and not the grammar.
 var ErrCompiled = errors.New("a compiled grammar holds the bytecode of a parser, not the grammar source")
 
@@ -129,15 +129,15 @@ func (s Source) decide(data []byte) Encoding {
 		return s.encoding
 	}
 	switch path.Ext(s.name) {
-	case ".zp":
-		return EncodingZP
+	case ".sxir":
+		return EncodingSXIR
 	case ".json":
 		return EncodingJSON
 	}
 	if t := bytes.TrimLeft(data, " \t\r\n"); len(t) > 0 && t[0] == '{' {
 		return EncodingJSON
 	}
-	return EncodingZP
+	return EncodingSXIR
 }
 
 // Load returns the grammar AST of s, in grammar syntax or in JSON. JSON is decoded strictly, as
@@ -151,7 +151,7 @@ func Load(s Source) (*ast.Grammar, error) {
 		return nil, err
 	}
 	switch enc {
-	case EncodingZP:
+	case EncodingSXIR:
 		return parser.Parse(string(data))
 	case EncodingJSON:
 		return ast.DecodeJSON(data)
@@ -165,14 +165,14 @@ func Validate(g *ast.Grammar) error { return ast.Validate(g) }
 // Convert returns the grammar of s in the encoding to: grammar syntax as Format writes it, or the
 // JSON form of the AST. It returns an error for EncodingAuto and the errors of Load.
 func Convert(s Source, to Encoding) ([]byte, error) {
-	if to != EncodingZP && to != EncodingJSON {
-		return nil, fmt.Errorf("convert: the target encoding must be zp or json, not %v", to)
+	if to != EncodingSXIR && to != EncodingJSON {
+		return nil, fmt.Errorf("convert: the target encoding must be sxir or json, not %v", to)
 	}
 	g, err := Load(s)
 	if err != nil {
 		return nil, err
 	}
-	if to == EncodingZP {
+	if to == EncodingSXIR {
 		return []byte(Format(g)), nil
 	}
 	return ast.MarshalJSON(g)

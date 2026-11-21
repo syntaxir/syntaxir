@@ -6,7 +6,7 @@ import (
 	"io"
 	"reflect"
 
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 type nodeJSONFrame struct {
@@ -50,7 +50,7 @@ type nodeJSONSliceID struct {
 	len int
 }
 
-// writeJSONValue encodes ZeroParse nodes and []any values without recursive calls through their nested
+// writeJSONValue encodes SyntaxIR nodes and []any values without recursive calls through their nested
 // edges. Other values are delegated to encoding/json, preserving its scalar and custom-marshaler
 // behavior. []byte intentionally stays in that fallback so it keeps encoding as base64.
 func writeJSONValue(w io.Writer, value any) error {

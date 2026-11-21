@@ -23,7 +23,7 @@ string already produced or transformed by another expression. Positional
 construction expresses this directly without representing a terminal as a
 struct with fields.
 
-```zp
+```sxir
 type Int terminal
 rule digits Int = [0-9]+
 rule zero Int = "0" => Int{"0"}

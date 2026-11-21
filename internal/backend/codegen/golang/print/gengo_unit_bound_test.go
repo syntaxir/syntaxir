@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // A generated Go parser with limit controls charges at least one unit, and at most a constant, for
@@ -76,7 +76,7 @@ import (
 	"strings"
 	"testing"
 
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 )
 
 func chargesEachElement(t *testing.T, before, unit, after string, want uint64, parse func(text string, budget uint64) error) {
@@ -84,8 +84,8 @@ func chargesEachElement(t *testing.T, before, unit, after string, want uint64, p
 		text := before + strings.Repeat(unit, k) + after
 		finishes := func(budget uint64) bool {
 			err := parse(text, budget)
-			var le *zpruntime.LimitError
-			if errors.As(err, &le) && le.Kind == zpruntime.LimitCompute {
+			var le *sxirruntime.LimitError
+			if errors.As(err, &le) && le.Kind == sxirruntime.LimitCompute {
 				return false
 			}
 			if err != nil {

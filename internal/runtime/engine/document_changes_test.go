@@ -3,7 +3,7 @@ package engine
 import (
 	"testing"
 
-	"zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 func newChangeTestDocument(t *testing.T, prog *Program, text string, o ParseOptions, limit int) *ChangeDocument {

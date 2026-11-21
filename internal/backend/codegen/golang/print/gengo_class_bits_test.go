@@ -3,9 +3,9 @@ package print_test
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/golang/print"
-	"zeroparse.dev/zp/pkg/grammar/ast"
-	zprt "zeroparse.dev/zp/pkg/runtime/libgo"
+	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
 )
 
 // TestClassBits builds the library's Class from the generator's tables for classes whose ranges
@@ -25,7 +25,7 @@ func TestClassBits(t *testing.T) {
 		for _, neg := range []bool{false, true} {
 			e := &ast.CharClass{Ranges: rs, Negated: neg}
 			ascii, wide := print.ClassBits(e)
-			c := zprt.Class{ASCII: ascii, Wide: wide, Neg: neg}
+			c := sxirrt.Class{ASCII: ascii, Wide: wide, Neg: neg}
 			for r := rune(0); r < 0x200; r++ {
 				in := false
 				for _, x := range rs {

@@ -13,7 +13,7 @@ and its source stay together.
 
 For behavior changes, compare the observable result across applicable backends and
 position units, including failures and recovery. Include Document edits and streams
-when their shared paths change. For a parser module, inspect its module tests in alpha-parsers; use [parser documentation](https://github.com/zeroparse/alpha-parsers/blob/main/README.md)
+when their shared paths change. For a parser module, inspect its module tests in alpha-parsers; use [parser documentation](https://github.com/syntaxir/alpha-parsers/blob/main/README.md)
 for its own generation and conformance conventions. For site work, follow
 [site maintenance](../../../../docs/site.md).
 

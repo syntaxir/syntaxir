@@ -66,7 +66,7 @@ Tracing works with every backend, with `Parse`, `ParsePrefix`, recognition,
 `ParseStream` and `Document`. The trace options of generated parsers are those of
 their own package, with the same meaning
 ([Observation Options](#observation-options)). The events are the `TraceEvent`
-of the package `instrument` (`zeroparse.dev/zp/pkg/runtime/instrument`), which every producer of events uses.
+of the package `instrument` (`syntaxir.dev/sxir/pkg/runtime/instrument`), which every producer of events uses.
 
 The engine reports the calls that its backend makes, as defined in
 [Reported Calls](#reported-calls). It never reports `TraceSkipped`.
@@ -187,7 +187,7 @@ camel-case field names, and `Time` and `SelfTime` are in nanoseconds.
 ## Generated Go Batch Tracing
 
 Standalone generated Go Node parsers may be generated with tracing enabled by
-`Observability` of `compiler.GoConfig` or `zp gen -observability`. This mode
+`Observability` of `compiler.GoConfig` or `sxir gen -observability`. This mode
 supports batch `Parse` and `ParseRule`; it also supports `Recognize` when that
 entry point is generated. With generated types, it additionally supports
 `ParseValue` and `ParseRuleValue`, for both direct typed execution and Node-conversion
@@ -323,7 +323,7 @@ Documents and batch `Parse` calls remain allowed from callbacks.
 ## Generated TypeScript Tracing and Profiling
 
 Generated TypeScript parsers observe parses when generated with
-`Observability` of `compiler.TSConfig` or `zp gen -lang ts -observability`.
+`Observability` of `compiler.TSConfig` or `sxir gen -lang ts -observability`.
 The observation options are fields of `ParseOptions`, accepted by
 `parseWithOptions`, `parseRuleWithOptions` and, when generated,
 `recognizeWithOptions`, by `parseValueWithOptions` with `-types`, and by

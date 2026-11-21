@@ -4,17 +4,17 @@ import (
 	"fmt"
 	"strings"
 
-	"zeroparse.dev/zp/internal/frontend/check"
-	"zeroparse.dev/zp/internal/frontend/types"
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/internal/middleend/flowlower/lowerdata"
-	"zeroparse.dev/zp/internal/middleend/flowpass"
-	"zeroparse.dev/zp/internal/middleend/flowplan"
-	"zeroparse.dev/zp/internal/middleend/flowplan/plandata"
-	"zeroparse.dev/zp/internal/pass"
-	"zeroparse.dev/zp/internal/runtime/limits"
-	"zeroparse.dev/zp/internal/runtime/program"
+	"syntaxir.dev/sxir/internal/frontend/check"
+	"syntaxir.dev/sxir/internal/frontend/types"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
+	"syntaxir.dev/sxir/internal/middleend/flowpass"
+	"syntaxir.dev/sxir/internal/middleend/flowplan"
+	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
+	"syntaxir.dev/sxir/internal/pass"
+	"syntaxir.dev/sxir/internal/runtime/limits"
+	"syntaxir.dev/sxir/internal/runtime/program"
 )
 
 // Generator is the state that the Go and TypeScript generators share: the program and rule being

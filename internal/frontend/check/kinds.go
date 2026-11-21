@@ -1,10 +1,10 @@
 package check
 
 import (
-	"zeroparse.dev/zp/internal/frontend/types"
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/pkg/grammar/ast"
-	valueimpl "zeroparse.dev/zp/pkg/runtime/value/impl"
+	"syntaxir.dev/sxir/internal/frontend/types"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+	valueimpl "syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // Kinds are the run-time kinds of the values of a grammar's types.

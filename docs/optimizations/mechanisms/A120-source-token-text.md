@@ -21,7 +21,7 @@ TypeScript. Exact copying depends on input representation and unit.
 ## Reference Control
 
 No universal substring/copy reference control exists.
-`zp_reference_stream_text` controls bounded stream snapshots only.
+`sxir_reference_stream_text` controls bounded stream snapshots only.
 
 ## Evidence and Implementation
 

@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/pkg/runtime/schema"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/pkg/runtime/schema"
 )
 
 const missingSchemaGrammar = `type P = { M missing; E error; O *missing; L []missing }

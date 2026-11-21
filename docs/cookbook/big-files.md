@@ -6,8 +6,8 @@ constant amount of memory, whatever the size of the file.
 Mark the repetition of records with `#stream` and call `ParseStream` with a function that receives each record as soon
 as it has been parsed. The input before the record is dropped after it.
 
-```zp
-// stream.zp
+```sxir
+// stream.sxir
 type Level = node[string]
 type Millis = node[string]
 type Entry = { Level Level; Millis Millis }
@@ -41,13 +41,13 @@ import (
 	goruntime "runtime"
 	"strconv"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
-	"zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
-//go:embed stream.zp
+//go:embed stream.sxir
 var grammarSrc string
 
 // logFile is an io.Reader that makes n log lines as they are read, so the input never exists in memory.
@@ -82,7 +82,7 @@ func main() {
 	whole := flag.Bool("whole", false, "read everything and call Parse instead of ParseStream")
 	flag.Parse()
 
-	p, err := compiler.Compile(grammar.FromString("grammar.zp", grammarSrc), compiler.WithStart("main"))
+	p, err := compiler.Compile(grammar.FromString("grammar.sxir", grammarSrc), compiler.WithStart("main"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -166,7 +166,7 @@ memory figures vary by a few MiB from run to run.)
   value (`Kind()` is `value.KindError`) that your function receives, and `ParseStream` returns the recorded errors at the end.
 - **Do not hold on to nodes.** The record is reachable only through your function; if you keep it (in a slice, say),
   memory grows again.
-- **CSV.** [Sum a column of a big CSV file](sum-a-csv-column.md) streams the grammar of [alpha-parsers/csv](https://github.com/zeroparse/alpha-parsers/tree/main/csv/).
+- **CSV.** [Sum a column of a big CSV file](sum-a-csv-column.md) streams the grammar of [alpha-parsers/csv](https://github.com/syntaxir/alpha-parsers/tree/main/csv/).
 - **A header.** [Read a header and then records](header-and-records.md) makes the header an element.
 
 See [spec/language/pragmas.md](../../spec/language/pragmas.md) for the rules of `#stream`.

@@ -3,11 +3,11 @@ package engine
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/driver/checked"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/driver/checked"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // The tests of this package compile the grammars that they generate parsers for with the engine.
@@ -21,9 +21,9 @@ func referenceProgram(t *testing.T, src string, opts compile.Options) codegentes
 	t.Helper()
 	prog := compileBare(t, src, opts)
 	return func(input string, bytes, recognize bool) (*value.Node, error) {
-		unit := zpinput.CodePoints
+		unit := sxirinput.CodePoints
 		if bytes {
-			unit = zpinput.Bytes
+			unit = sxirinput.Bytes
 		}
 		return prog.ParseWith("main", input, ParseOptions{Unit: unit, Recognize: recognize})
 	}

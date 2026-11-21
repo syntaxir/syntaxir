@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/enginetest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // stripActions returns g written without value actions and rule types, which it removes from the
@@ -71,8 +71,8 @@ func stripActions(t *testing.T, g *ast.Grammar) *ast.Grammar {
 // when it matches the grammar without actions (if that compiles).
 func TestDefaultValueCorpus(t *testing.T) {
 	chdirModuleRoot(t)
-	grammars, _ := filepath.Glob("examples/*/*.zp")
-	more, _ := filepath.Glob("testdata/grammars/*/*.zp")
+	grammars, _ := filepath.Glob("examples/*/*.sxir")
+	more, _ := filepath.Glob("testdata/grammars/*/*.sxir")
 	grammars = append(grammars, more...)
 	if len(grammars) == 0 {
 		t.Fatal("no grammars")

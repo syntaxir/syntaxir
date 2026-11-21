@@ -3,7 +3,7 @@
 > [!WARNING]
 > This page describes the target architecture. The code may still differ from it.
 
-The host language is the language of a generated parser. ZeroParse generates parsers in Go and TypeScript today. Another
+The host language is the language of a generated parser. SyntaxIR generates parsers in Go and TypeScript today. Another
 host language is added in the same pattern, so the representations and the pass infrastructure do not change. This page
 explains the pattern, the path from the Exec stage to printed source, the passes that the host languages share, the
 passes of each of the two current instances, and the runtime library of generated parsers. The backends as a whole are

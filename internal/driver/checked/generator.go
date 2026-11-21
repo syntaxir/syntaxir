@@ -1,9 +1,9 @@
 package checked
 
 import (
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Generator returns the view of the checked program that the generators read (common.Program): the

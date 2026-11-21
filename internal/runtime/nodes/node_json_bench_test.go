@@ -3,8 +3,8 @@ package nodes
 import (
 	"testing"
 
-	"zeroparse.dev/zp/pkg/runtime/value"
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	"syntaxir.dev/sxir/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 var benchmarkNodeJSONBytes []byte

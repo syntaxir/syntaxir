@@ -4,7 +4,7 @@
 rules it calls and the types their output references; `runtime.WithAllSchemaRules()` also includes unreachable rules and all
 declared types. A structural query searches the values of an
 actual parse result. Together they let a tool inspect the shape of a grammar and find values without generating code or
-serializing a result. Structural queries are in package `zeroparse.dev/zp/pkg/runtime/query`. These Go APIs are experimental; the schema JSON format is versioned. The contract is defined in
+serializing a result. Structural queries are in package `syntaxir.dev/sxir/pkg/runtime/query`. These Go APIs are experimental; the schema JSON format is versioned. The contract is defined in
 [Output Schemas and Structural Queries](../../spec/runtime/schemas-and-queries.md).
 
 ```go
@@ -15,13 +15,13 @@ import (
 	"fmt"
 	"log"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
-	"zeroparse.dev/zp/pkg/runtime/query"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/runtime/query"
 )
 
 func main() {
-	p, err := compiler.Compile(grammar.FromString("grammar.zp", "@start\nrule main = name\nrule name = [a-z]+ #atomic"), compiler.WithStart("main"))
+	p, err := compiler.Compile(grammar.FromString("grammar.sxir", "@start\nrule main = name\nrule name = [a-z]+ #atomic"), compiler.WithStart("main"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -67,7 +67,7 @@ q, err := prepared.Compile(query.Pattern{
 })
 ```
 
-`schema.Compare(before, after)` in package `zeroparse.dev/zp/pkg/runtime/schema` compares two schemas and returns the added,
+`schema.Compare(before, after)` in package `syntaxir.dev/sxir/pkg/runtime/schema` compares two schemas and returns the added,
 removed and changed entries, for example to review how a grammar change alters its output:
 
 ```go
@@ -89,21 +89,21 @@ it, such as `field-removed` at `$.fields.Old`.
 
 ## The Command Line
 
-`zp schema` prints the schema of a grammar as JSON, and `zp schema diff` compares two schemas. An operand of the
+`sxir schema` prints the schema of a grammar as JSON, and `sxir schema diff` compares two schemas. An operand of the
 diff is a schema file or a grammar, so a schema saved with `-o` can be compared with the grammar it came from:
 
 ```bash
-zp schema -g pairs.zp -o before.json
-zp schema diff before.json pairs.zp
-zp schema diff -all-rules -f json before.json pairs.zp
+sxir schema -g pairs.sxir -o before.json
+sxir schema diff before.json pairs.sxir
+sxir schema diff -all-rules -f json before.json pairs.sxir
 ```
 
-See [the `zp` command](command-line.md#schema) for the flags.
+See [the `sxir` command](command-line.md#schema) for the flags.
 
 Keep in mind:
 
 - The schema comes from the grammar source. A parser restored by `LoadParser` holds no schema in any mode, and its
-  `OutputSchema` returns an error that matches `runtime.ErrSchemaUnavailable`; `zp schema` rejects a `.zpc`.
+  `OutputSchema` returns an error that matches `runtime.ErrSchemaUnavailable`; `sxir schema` rejects a `.sxirc`.
 - A query sees only what the tree retains. Actions and discard operators remove punctuation and comments, and a query
   does not recover them or interpret source positions.
 - `Elements` sees through nodes: on a node it matches the elements of the node's value, as `x[i]` does in an action.

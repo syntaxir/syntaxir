@@ -3,8 +3,8 @@ package engine
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // A compiled grammar keeps hidden rules and inline actions, with and without default values, and

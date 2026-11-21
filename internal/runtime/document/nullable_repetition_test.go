@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	. "zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/pkg/runtime/input"
+	. "syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 func TestNullableRepetitionResumedMinimum(t *testing.T) {

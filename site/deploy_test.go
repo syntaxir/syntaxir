@@ -45,7 +45,7 @@ func wranglerConfig(t *testing.T) map[string]any {
 // has no script of its own.
 func TestWranglerAssetsDirectory(t *testing.T) {
 	cfg := wranglerConfig(t)
-	if cfg["name"] != "zeroparse" {
+	if cfg["name"] != "syntaxir" {
 		t.Errorf("name = %v", cfg["name"])
 	}
 	if _, err := os.Stat("../wrangler.jsonc"); err != nil {
@@ -80,7 +80,7 @@ func TestWranglerAssetsDirectory(t *testing.T) {
 // site files and documentation.
 func TestNoNetlify(t *testing.T) {
 	name := "net" + "lify"
-	oldHost := "zp." + "ornew.net"
+	oldHost := "sxir." + "ornew.net"
 	for _, f := range []string{"../netlify.toml", "../.netlify", "../netlify"} {
 		if _, err := os.Stat(f); err == nil {
 			t.Errorf("%s still exists", f)
@@ -134,8 +134,8 @@ func TestCanonicalHost(t *testing.T) {
 	if err := json.Unmarshal(raw, &cfg); err != nil {
 		t.Fatal(err)
 	}
-	if cfg.SiteURL != productionSite || productionSite != "https://zeroparse.dev" {
-		t.Errorf("siteURL %q, productionSite %q, want https://zeroparse.dev", cfg.SiteURL, productionSite)
+	if cfg.SiteURL != productionSite || productionSite != "https://syntaxir.dev" {
+		t.Errorf("siteURL %q, productionSite %q, want https://syntaxir.dev", cfg.SiteURL, productionSite)
 	}
 	if cfg.RedirectRules == nil || !*cfg.RedirectRules {
 		t.Error("redirectRules must be true: the Worker reads _redirects")

@@ -3,14 +3,14 @@
 **Problem.** You wrote a grammar and want your program, or your library, to use it without compiling or interpreting the
 grammar at run time, and without a stale parser after somebody changes the grammar.
 
-Generate Go code from the grammar with `zp gen`, commit it, regenerate it with `go generate`, and let a test fail
+Generate Go code from the grammar with `sxir gen`, commit it, regenerate it with `go generate`, and let a test fail
 when the committed file does not match the grammar. The generated package imports only the standard library and
-ZeroParse's small `pkg/runtime` packages (with `pkg/runtime/value/impl`), not the compiler or the generator.
+SyntaxIR's small `pkg/runtime` packages (with `pkg/runtime/value/impl`), not the compiler or the generator.
 
 The grammar reads versions such as `1.2.3` and `1.2.3-rc.1`:
 
-```zp
-// version.zp
+```sxir
+// version.sxir
 type Num = node[string]
 type Ident = node[string]
 type Version = { Major Num; Minor Num; Patch Num; Pre *Ident }
@@ -33,7 +33,7 @@ own:
 ```text
 example.com/ship
 ├── go.mod
-├── version.zp
+├── version.sxir
 ├── main.go
 ├── generated_test.go
 └── versionparser/       created by go generate
@@ -42,11 +42,11 @@ example.com/ship
     └── internal/libgo/
 ```
 
-Record `zp` as a tool of the module, so that `go generate` runs the version you pinned and nobody installs anything:
+Record `sxir` as a tool of the module, so that `go generate` runs the version you pinned and nobody installs anything:
 
 ```bash
 go mod init example.com/ship
-go get -tool zeroparse.dev/zp/cmd/zp
+go get -tool syntaxir.dev/sxir/cmd/sxir
 ```
 
 Then the program, with the `go:generate` line that makes the parser (`-types` adds Go types and `ParseValue`):
@@ -62,7 +62,7 @@ import (
 	"example.com/ship/versionparser"
 )
 
-//go:generate go tool zp gen -g version.zp -module example.com/ship/versionparser -types -o versionparser
+//go:generate go tool sxir gen -g version.sxir -module example.com/ship/versionparser -types -o versionparser
 
 func main() {
 	v, err := versionparser.ParseValue(os.Args[1])
@@ -105,17 +105,17 @@ import (
 	"path/filepath"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
 )
 
-//go:embed version.zp
+//go:embed version.sxir
 var grammarSrc string
 
-// The files of versionparser are what zp generates from version.zp. The module path and the options must be those
+// The files of versionparser are what sxir generates from version.sxir. The module path and the options must be those
 // of the go:generate line.
 func TestGeneratedIsUpToDate(t *testing.T) {
-	want, err := compiler.GenerateGo(grammar.FromString("grammar.zp", grammarSrc),
+	want, err := compiler.GenerateGo(grammar.FromString("grammar.sxir", grammarSrc),
 		compiler.GoConfig{Module: "example.com/ship/versionparser", Types: true}, compiler.WithStart("main"))
 	if err != nil {
 		t.Fatal(err)
@@ -144,29 +144,29 @@ FAIL
 
 ## How It Works
 
-- **A small dependency at run time.** `go list -deps .` for the program lists only the packages under `zeroparse.dev/zp/pkg/runtime` (including
-  `zeroparse.dev/zp/pkg/runtime/value/impl`) of ZeroParse: the result and error types of the generated API. The engine and the
-  generator are not linked into it. `go.mod` requires ZeroParse for these, for the tool and for the test.
+- **A small dependency at run time.** `go list -deps .` for the program lists only the packages under `syntaxir.dev/sxir/pkg/runtime` (including
+  `syntaxir.dev/sxir/pkg/runtime/value/impl`) of SyntaxIR: the result and error types of the generated API. The engine and the
+  generator are not linked into it. `go.mod` requires SyntaxIR for these, for the tool and for the test.
 - **The generator is deterministic.** The same grammar and options give the same file, which is what makes the
   comparison in the test, and a review of a diff of `parser.go`, meaningful.
-- **Regenerate after upgrading ZeroParse.** The copy of the library in `versionparser/internal/libgo` comes from the version of `zp` that wrote it.
+- **Regenerate after upgrading SyntaxIR.** The copy of the library in `versionparser/internal/libgo` comes from the version of `sxir` that wrote it.
   Without the test, a new version of the tool leaves the old library in place until somebody runs `go generate`; with it,
   the test fails. Pinning the tool with `go get -tool` keeps every developer and CI on the same version.
 - **Without the test**, `go generate ./... && git diff --exit-code` in CI says the same.
 - **The same tree.** The generated `Parse` returns the same tree and errors as the engine for the same grammar, so you
-  can develop with the engine and the `zp` tools (`zp parse`, `zp trace`) and ship the generated code.
+  can develop with the engine and the `sxir` tools (`sxir parse`, `sxir trace`) and ship the generated code.
 
 ## When the Grammar Must Stay Data
 
 If you want the grammar to be a file you load, not code (users supply it, or it changes without a rebuild), compile it
-once to a `.zpc` file and embed or ship that, which skips parsing and checking the grammar at start-up:
+once to a `.sxirc` file and embed or ship that, which skips parsing and checking the grammar at start-up:
 
 ```bash
-go tool zp compile -g version.zp -o version.zpc
+go tool sxir compile -g version.sxir -o version.sxirc
 ```
 
 ```go
-//go:embed version.zpc
+//go:embed version.sxirc
 var compiled []byte
 
 p, err := vm.LoadParser(compiled) // then p.Parse(...) as with compiler.Compile
@@ -174,17 +174,17 @@ p, err := vm.LoadParser(compiled) // then p.Parse(...) as with compiler.Compile
 
 The file serves `Parse` and `ParseStream` on the bytecode backends; compile it with `-mode recognize` for
 `Recognize` or `-mode document` for documents and traces. Loading is much faster than compiling: for the
-Python grammar of [alpha-parsers/python](https://github.com/zeroparse/alpha-parsers/tree/main/python/), on an Apple M3 Max with Go 1.27.1, `compiler.Compile` took
-about 60 ms and `vm.LoadParser` of the `.zpc` under 1 ms in every mode.
+Python grammar of [alpha-parsers/python](https://github.com/syntaxir/alpha-parsers/tree/main/python/), on an Apple M3 Max with Go 1.27.1, `compiler.Compile` took
+about 60 ms and `vm.LoadParser` of the `.sxirc` under 1 ms in every mode.
 
 A generated parser needs no preparation at all, and is also the fastest at parsing.
 
 ## Variations and Limits
 
-- **Several grammars**: one `go:generate` line and one package each; [alpha-parsers/generate.go](https://github.com/zeroparse/alpha-parsers/blob/main/generate.go) does
+- **Several grammars**: one `go:generate` line and one package each; [alpha-parsers/generate.go](https://github.com/syntaxir/alpha-parsers/blob/main/generate.go) does
   this for the ready-made parsers.
 - **A recognizer**: add `-recognize` for `Recognize`, which only checks, as in [Parse log lines fast](log-lines.md).
-- **TypeScript**: `zp gen -lang ts` generates a module with no dependencies; see
+- **TypeScript**: `sxir gen -lang ts` generates a module with no dependencies; see
   [TypeScript parsers](../guide/typescript.md).
 - **A parity test**: compare the generated parser with the engine on a list of inputs, to catch a difference after an
   upgrade (see the code generation guide).

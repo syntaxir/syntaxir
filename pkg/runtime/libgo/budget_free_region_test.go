@@ -5,7 +5,7 @@ import (
 	"math"
 	"testing"
 
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 )
 
 // The operations of a region of Document work declare a cost of zero: they open and close the region
@@ -14,7 +14,7 @@ import (
 func TestFreeRegionChargesExactly(t *testing.T) {
 	const limit = 1000
 	for _, work := range []uint64{0, 1, 999, limit, limit + 1, 1 << 40, math.MaxUint64 / 4} {
-		c := newBudgetControl(nil, zpruntime.Limits{Compute: limit})
+		c := newBudgetControl(nil, sxirruntime.Limits{Compute: limit})
 		c.defaultCompute = true
 		mark := c.FreeBegin(true)
 		if c.budgetUsed() != 0 || c.doc != 0 {
@@ -29,7 +29,7 @@ func TestFreeRegionChargesExactly(t *testing.T) {
 			t.Fatalf("work %d: the limit is %d after the region, want %d", work, c.limits.Compute, limit+work)
 		}
 		c.Charge(limit)
-		var le *zpruntime.LimitError
+		var le *sxirruntime.LimitError
 		func() {
 			defer func() {
 				if f, ok := recover().(fatal); ok {
@@ -47,7 +47,7 @@ func TestFreeRegionChargesExactly(t *testing.T) {
 // ChargeDoc reserves exactly the units it is given, as Charge does, and counts them as Document work
 // under a default limit only.
 func TestChargeDocChargesExactly(t *testing.T) {
-	c := newBudgetControl(nil, zpruntime.Limits{Compute: 100})
+	c := newBudgetControl(nil, sxirruntime.Limits{Compute: 100})
 	c.defaultCompute = true
 	c.ChargeDoc(70)
 	c.ChargeDoc(70)
@@ -55,7 +55,7 @@ func TestChargeDocChargesExactly(t *testing.T) {
 	if c.budgetUsed() != 170 || c.doc != 140 {
 		t.Fatalf("default limit: used %d (want 170), Document units %d (want 140)", c.budgetUsed(), c.doc)
 	}
-	c = newBudgetControl(nil, zpruntime.Limits{Compute: 100})
+	c = newBudgetControl(nil, sxirruntime.Limits{Compute: 100})
 	c.ChargeDoc(70)
 	if c.budgetUsed() != 70 || c.doc != 0 {
 		t.Fatalf("explicit limit: used %d (want 70), Document units %d (want 0)", c.budgetUsed(), c.doc)
@@ -70,7 +70,7 @@ func TestChargeDocChargesExactly(t *testing.T) {
 
 // A region opens at most once, and none opens under an explicit limit or on no control.
 func TestFreeRegionDoesNotNest(t *testing.T) {
-	c := newBudgetControl(nil, zpruntime.Limits{Compute: 10})
+	c := newBudgetControl(nil, sxirruntime.Limits{Compute: 10})
 	c.defaultCompute = true
 	outer := c.FreeBegin(true)
 	inner := c.FreeBegin(true)
@@ -84,7 +84,7 @@ func TestFreeRegionDoesNotNest(t *testing.T) {
 	if c.budgetUsed() != 10 || c.doc != 10 || c.limits.Compute != 20 {
 		t.Fatalf("used %d, Document units %d, limit %d", c.budgetUsed(), c.doc, c.limits.Compute)
 	}
-	explicit := newBudgetControl(nil, zpruntime.Limits{Compute: 10})
+	explicit := newBudgetControl(nil, sxirruntime.Limits{Compute: 10})
 	if explicit.FreeBegin(true) != noFree {
 		t.Fatal("a region opened under an explicit limit")
 	}

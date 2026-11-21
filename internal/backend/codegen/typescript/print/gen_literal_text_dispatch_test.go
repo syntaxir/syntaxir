@@ -8,12 +8,12 @@ import (
 	"regexp"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/driver/entry"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 func TestLiteralTextPredicateDispatchTSDisabledParity(t *testing.T) {
@@ -114,9 +114,9 @@ process.stdout.write(JSON.stringify(out));
 		t.Fatalf("Node disabled-route comparison: %v\n%s", err, out)
 	}
 	var got []struct {
-		Key  string               `json:"key"`
-		Unit zpinput.PositionUnit `json:"unit"`
-		OK   bool                 `json:"ok"`
+		Key  string                 `json:"key"`
+		Unit sxirinput.PositionUnit `json:"unit"`
+		OK   bool                   `json:"ok"`
 	}
 	if err := json.Unmarshal(out, &got); err != nil {
 		t.Fatalf("decode Node results: %v\n%s", err, out)

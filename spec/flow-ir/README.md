@@ -1,4 +1,4 @@
-# ZeroParse Flow Dialect Specification
+# SyntaxIR Flow Dialect Specification
 
 The Flow dialect is the form of a rule that says how a parser runs it: the body of one rule variant as operations on the
 state of a parse with structured control. A function at the Flow stage of [Code IR](../code-ir/README.md) has locals that
@@ -14,7 +14,7 @@ specification does not say which functions a grammar produces. The module is con
 [Lowering From the Flow Stage](../exec-ir/lowering.md)), where each operation of the Flow dialect becomes a primitive,
 and the backends print the rules of generated parsers from there. This specification defines the functions, the
 operations of the dialect, the invariants that the verifier enforces, the text form and the passes of the compiler
-pipeline that run at the Flow stage. The Flow dialect is internal to the ZeroParse engine and written for engine
+pipeline that run at the Flow stage. The Flow dialect is internal to the SyntaxIR engine and written for engine
 maintainers and backend authors: it is not a public API, and nothing here changes how a grammar behaves, which the
 [Grammar Language Specification](../language/README.md) and the [Parser and Runtime Specification](../runtime/README.md)
 define.

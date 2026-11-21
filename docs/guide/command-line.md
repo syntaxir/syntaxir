@@ -1,17 +1,17 @@
-# The `zp` Command
+# The `sxir` Command
 
-`zp` is the command-line tool of ZeroParse: it parses input with a grammar, formats and converts grammars, saves compiled
+`sxir` is the command-line tool of SyntaxIR: it parses input with a grammar, formats and converts grammars, saves compiled
 grammars, generates parsers, tests, lints, samples, debugs and runs a language server. This guide shows the workflows
-of the commands that work on one grammar and its input. The flags of every command are listed by `zp <command> -h`
+of the commands that work on one grammar and its input. The flags of every command are listed by `sxir <command> -h`
 and in the generated command reference.
 
-`zp` with no arguments prints the usage and exits with status 1. Every command takes `-h` to list its flags.
-Errors are printed to standard error as `zp: ...` and give exit status 1. `fmt` and `convert` accept flags before or
+`sxir` with no arguments prints the usage and exits with status 1. Every command takes `-h` to list its flags.
+Errors are printed to standard error as `sxir: ...` and give exit status 1. `fmt` and `convert` accept flags before or
 after their file arguments.
 
-A `<grammar>` argument is ZeroParse source (`.zp`), a grammar in JSON (`.json`) or, for `parse`, `trace`, `profile`,
-`explain` and `compile`, a compiled grammar (`.zpc`). The type is recognized by the contents of a `.zpc` and by the
-`.json` suffix; anything else is parsed as ZeroParse source. A compiled grammar runs only the parses of the mode it was
+A `<grammar>` argument is SyntaxIR source (`.sxir`), a grammar in JSON (`.json`) or, for `parse`, `trace`, `profile`,
+`explain` and `compile`, a compiled grammar (`.sxirc`). The type is recognized by the contents of a `.sxirc` and by the
+`.json` suffix; anything else is parsed as SyntaxIR source. A compiled grammar runs only the parses of the mode it was
 saved in, and the commands that need the grammar itself (`convert`, `gen`, `lint`, `sample` and `schema`) reject it.
 
 | Command | Use it to | Read more |
@@ -27,10 +27,10 @@ saved in, and the commands that need the grammar itself (`convert`, `gen`, `lint
 | `schema`, `schema diff` | Print the output schema of a grammar, compare two schemas | [Output Schemas](output-schemas-and-queries.md#the-command-line) |
 | `lsp` | Run the language server | [Editor Support](editor-support.md) |
 
-The examples use the grammar `pairs.zp`:
+The examples use the grammar `pairs.sxir`:
 
-```zp
-// pairs.zp
+```sxir
+// pairs.sxir
 type Pair = { Key node[string]; Value node[string] }
 
 @start(default)
@@ -45,7 +45,7 @@ rule ws = [ \t\n]*
 ## `parse`
 
 ```bash
-zp parse -g <grammar> [-s <rule>] [-i <input>] [-f json|sexpr] [-stream] [-recognize]
+sxir parse -g <grammar> [-s <rule>] [-i <input>] [-f json|sexpr] [-stream] [-recognize]
            [-unit codepoints|bytes] [-backend closure|bytecode|bytecode-iterative] [-source-info] [-default-value]
            [-max-compute <n|unlimited>] [-max-memory <n|unlimited>] [-max-input <n|unlimited>] [-max-depth <n|unlimited>]
 ```
@@ -53,7 +53,7 @@ zp parse -g <grammar> [-s <rule>] [-i <input>] [-f json|sexpr] [-stream] [-recog
 | Flag | Default | Meaning |
 |:--|:--|:--|
 | `-g` | (required) | The grammar |
-| `-s` | saved in a `.zpc`, otherwise the default start rule | Start rule |
+| `-s` | saved in a `.sxirc`, otherwise the default start rule | Start rule |
 | `-i` | standard input | The input text. Without `-i`, input is read from standard input. |
 | `-f` | `json` | Output format: `json` (indented, like `encoding/json`'s `MarshalIndent`) or `sexpr` (`Node.String()`) |
 | `-recognize` | off | Recognition only: print `ok`, or the syntax error |
@@ -67,12 +67,12 @@ zp parse -g <grammar> [-s <rule>] [-i <input>] [-f json|sexpr] [-stream] [-recog
 | `-max-input` | `0` | `Limits.Input`: the longest input accepted, in the position unit. `0` and `unlimited` accept any length |
 | `-max-depth` | `0` | `Limits.Depth`: the deepest nesting of recursive rule calls. `0` selects the backend's default (100,000; 10,000,000 for `bytecode-iterative`), and `unlimited`, accepted only with `bytecode-iterative`, disables the limit |
 
-`zp parse`, like `explain`, `trace`, `profile`, `test` and `edit-fuzz`, records [expectations](error-messages.md#recording-expectations), so a syntax error lists what was expected.
+`sxir parse`, like `explain`, `trace`, `profile`, `test` and `edit-fuzz`, records [expectations](error-messages.md#recording-expectations), so a syntax error lists what was expected.
 
 A parse that reaches a limit prints the message of the `*runtime.LimitError` (for example `parse compute limit exceeded: limit 1048576, used 1048576, requested 1`) to standard error and exits with status 1, like any other failed parse. See [cancellation-and-limits.md](cancellation-and-limits.md).
 
 ```bash
-zp parse -g pairs.zp -f sexpr -i 'abc=12; あい=3'
+sxir parse -g pairs.sxir -f sexpr -i 'abc=12; あい=3'
 ```
 
 ```text
@@ -80,7 +80,7 @@ zp parse -g pairs.zp -f sexpr -i 'abc=12; あい=3'
 ```
 
 ```bash
-printf 'abc=12; def=3\n' | zp parse -g pairs.zp -f sexpr
+printf 'abc=12; def=3\n' | sxir parse -g pairs.sxir -f sexpr
 ```
 
 ```text
@@ -88,7 +88,7 @@ printf 'abc=12; def=3\n' | zp parse -g pairs.zp -f sexpr
 ```
 
 ```bash
-zp parse -g pairs.zp -s key -f sexpr -i 'abc'
+sxir parse -g pairs.sxir -s key -f sexpr -i 'abc'
 ```
 
 ```text
@@ -96,7 +96,7 @@ zp parse -g pairs.zp -s key -f sexpr -i 'abc'
 ```
 
 ```bash
-zp parse -g pairs.zp -recognize -i 'abc=12'
+sxir parse -g pairs.sxir -recognize -i 'abc=12'
 ```
 
 ```text
@@ -104,11 +104,11 @@ ok
 ```
 
 ```bash
-zp parse -g pairs.zp -recognize -i 'abc=x'; echo "exit $?"
+sxir parse -g pairs.sxir -recognize -i 'abc=x'; echo "exit $?"
 ```
 
 ```text
-zp: 1:5: syntax error: expected [0-9]
+sxir: 1:5: syntax error: expected [0-9]
 exit 1
 ```
 
@@ -145,7 +145,7 @@ or capture names unless you ask for them with `-source-info`, which adds a `rule
 has them) in JSON, and `@rule` suffixes and `name:` labels in S-expressions:
 
 ```bash
-zp parse -g pairs.zp -source-info -f sexpr -i 'abc=12'
+sxir parse -g pairs.sxir -source-info -f sexpr -i 'abc=12'
 ```
 
 ```text
@@ -158,13 +158,13 @@ printed first and then the errors, with exit status 1, so you can still inspect 
 ## `fmt`
 
 ```bash
-zp fmt [-w] [-l] [-check] [<file.zp> ...]
+sxir fmt [-w] [-l] [-check] [<file.sxir> ...]
 ```
 
-Formats ZeroParse source and **keeps comments**. Without `-w` it prints the result; `-w` rewrites the files in place;
+Formats SyntaxIR source and **keeps comments**. Without `-w` it prints the result; `-w` rewrites the files in place;
 `-l` lists the files whose formatting differs. `-check` lists them too, without changing them, and exits with status 1
-when there are any and 2 when a file cannot be read or parsed, so a CI job can run `zp fmt -check *.zp`; `-l` alone
-exits with status 0 whatever it lists. Without file arguments it formats standard input (`-w` is then an error). It accepts only `.zp` files; for JSON grammars it points you to `convert`.
+when there are any and 2 when a file cannot be read or parsed, so a CI job can run `sxir fmt -check *.sxir`; `-l` alone
+exits with status 0 whatever it lists. Without file arguments it formats standard input (`-w` is then an error). It accepts only `.sxir` files; for JSON grammars it points you to `convert`.
 Adjacent minus operators stay separated: `- -"a"` remains two discards, and `- -1` remains two unary negations.
 The whitespace keeps either expression from becoming `--`, a reserved token that is an error.
 
@@ -180,7 +180,7 @@ Symlinks keep pointing to the same path and that target is replaced; formatting 
 names with their original content. Files whose formatting is unchanged are left in place.
 
 ```bash
-cat messy.zp
+cat messy.sxir
 ```
 
 ```text
@@ -191,15 +191,15 @@ rule ws =  [ \t\n]*
 ```
 
 ```bash
-zp fmt -l messy.zp
+sxir fmt -l messy.sxir
 ```
 
 ```text
-messy.zp
+messy.sxir
 ```
 
 ```bash
-zp fmt -w messy.zp && cat messy.zp
+sxir fmt -w messy.sxir && cat messy.sxir
 ```
 
 ```text
@@ -210,32 +210,32 @@ rule ws = [ \t\n]*
 ```
 
 ```bash
-zp fmt -l messy.zp     # nothing listed: already formatted
-zp fmt -check messy.zp # exit status 0
+sxir fmt -l messy.sxir     # nothing listed: already formatted
+sxir fmt -check messy.sxir # exit status 0
 ```
 
 ## `convert`
 
 ```bash
-zp convert [-to zp|json] [-o <file>] <grammar>
+sxir convert [-to sxir|json] [-o <file>] <grammar>
 ```
 
-Converts between ZeroParse source and the JSON form of the grammar AST. `-to` defaults to the other format (`.zp` becomes
-JSON, `.json` becomes ZeroParse source, and a file with another extension is JSON when its first character other than
+Converts between SyntaxIR source and the JSON form of the grammar AST. `-to` defaults to the other format (`.sxir` becomes
+JSON, `.json` becomes SyntaxIR source, and a file with another extension is JSON when its first character other than
 white space is `{`); a compiled grammar holds no source and is rejected. Without `-o`, the result goes to standard
 output. JSON carries the comments that declarations, struct fields and operators rule lines own, and converting it
 back to source writes them again, but it carries no layout and no other comments. Keep the
-`.zp` as the source of truth.
+`.sxir` as the source of truth.
 
 ```bash
-zp convert -to json pairs.zp -o pairs.json
-zp parse -g pairs.json -f sexpr -i 'abc=12'      # JSON grammars work everywhere a grammar is expected
+sxir convert -to json pairs.sxir -o pairs.json
+sxir parse -g pairs.json -f sexpr -i 'abc=12'      # JSON grammars work everywhere a grammar is expected
 ```
 
 ## `compile`
 
 ```bash
-zp compile -g <grammar> [-s <rule>] [-mode parse|recognize|document] [-source-info] [-default-value] -o <file.zpc>
+sxir compile -g <grammar> [-s <rule>] [-mode parse|recognize|document] [-source-info] [-default-value] -o <file.sxirc>
 ```
 
 Saves a compiled grammar; see [compiled grammars](compiled-grammars.md). `-s` sets the default start rule stored in
@@ -245,23 +245,23 @@ and `-o` are required.
 
 | `-mode` | The file serves |
 |:--|:--|
-| `parse` (default) | `zp parse` and `zp parse -stream` |
-| `recognize` | `zp parse -recognize` |
-| `document` | `zp trace`, `zp profile` and `zp explain` |
+| `parse` (default) | `sxir parse` and `sxir parse -stream` |
+| `recognize` | `sxir parse -recognize` |
+| `document` | `sxir trace`, `sxir profile` and `sxir explain` |
 
-Another command given the file reports the file's mode and the `-mode` it needs. When `<grammar>` is itself a `.zpc`,
+Another command given the file reports the file's mode and the `-mode` it needs. When `<grammar>` is itself a `.sxirc`,
 it is saved again only in its own mode, so pass that mode with `-mode`; otherwise the command reports the mismatch and
 writes no output. To save another mode, compile the grammar source.
 
 ## `gen`
 
 ```bash
-zp gen -g <grammar> -module <import path> [-pkg <package>] [-lib embed|import|only] [-s <rule>] [-o <directory>] [-types] [-document] [-stream] [-recognize] [-typed-only] [-recognize-only] [-expectations] [-observability] [-limits] [-max-depth <n>] [-nodoc] [-source-info] [-default-value] [-optimize <profile>] [-opt <name[=count]>] [-no-opt <names>] [-print-after <passes>]
-zp gen -lang ts -g <grammar> -o <directory> [-s <rule>] [-lib embed|import|only] [-lib-module <specifier>] [-types] [-recognize] [-expectations] [-observability] [-limits] [-max-depth <n>] [-source-info] [-default-value] [-optimize <profile>] [-opt <name[=count]>] [-no-opt <names>] [-print-after <passes>]
+sxir gen -g <grammar> -module <import path> [-pkg <package>] [-lib embed|import|only] [-s <rule>] [-o <directory>] [-types] [-document] [-stream] [-recognize] [-typed-only] [-recognize-only] [-expectations] [-observability] [-limits] [-max-depth <n>] [-nodoc] [-source-info] [-default-value] [-optimize <profile>] [-opt <name[=count]>] [-no-opt <names>] [-print-after <passes>]
+sxir gen -lang ts -g <grammar> -o <directory> [-s <rule>] [-lib embed|import|only] [-lib-module <specifier>] [-types] [-recognize] [-expectations] [-observability] [-limits] [-max-depth <n>] [-source-info] [-default-value] [-optimize <profile>] [-opt <name[=count]>] [-no-opt <names>] [-print-after <passes>]
 ```
 
 Generates a standalone Go parser (see [code-generation.md](code-generation.md)) or, with `-lang ts`, a TypeScript
-parser (see [typescript.md](typescript.md)). `-g` is required (except with `-lib only`), and for Go `-o`, the output directory, and `-module`, the import path of the package (with `-lib import`, `-pkg` is enough). The Go output is `parser.go`, `api.go` and, with `-lib embed`, a copy of the library in `internal/libgo`; `zp gen` refuses to replace a file in the directory that it did not generate. TypeScript needs `-o` as well and writes `parser.ts`, `lib.ts` and, with `-types`, `types.ts`; `-lib import` imports the library from `-lib-module` instead of writing `lib.ts`. `-source-info` makes the generated Go parser record the rule of each node and the names of captures.
+parser (see [typescript.md](typescript.md)). `-g` is required (except with `-lib only`), and for Go `-o`, the output directory, and `-module`, the import path of the package (with `-lib import`, `-pkg` is enough). The Go output is `parser.go`, `api.go` and, with `-lib embed`, a copy of the library in `internal/libgo`; `sxir gen` refuses to replace a file in the directory that it did not generate. TypeScript needs `-o` as well and writes `parser.ts`, `lib.ts` and, with `-types`, `types.ts`; `-lib import` imports the library from `-lib-module` instead of writing `lib.ts`. `-source-info` makes the generated Go parser record the rule of each node and the names of captures.
 `-default-value` makes the generated parser return default values; it cannot be combined with `-types`, because the
 types come from the dropped actions.
 `-optimize <profile>` selects an optimization profile (`speed`, the default, `memory` or `size`), `-opt <name>[=<count>][,...]`
@@ -270,14 +270,14 @@ turns named optimizations off, and `-print-after <pass>[,<pass>]` writes the Cor
 error after the named steps and passes. None of them changes what the generated parser returns; the names are in
 [Optimizations](code-generation.md#optimizations). They cannot be combined with `-lib only`.
 
-A `.zpc` compiled without `-default-value` cannot be used with `-default-value` in `parse`: the command
+A `.sxirc` compiled without `-default-value` cannot be used with `-default-value` in `parse`: the command
 asks you to compile it again with `-default-value`.
 
 ## `schema`
 
 ```bash
-zp schema -g <grammar> [-s <rule>] [-all-rules] [-o <file>]
-zp schema diff [-s <rule>] [-all-rules] [-f text|json] <before> <after>
+sxir schema -g <grammar> [-s <rule>] [-all-rules] [-o <file>]
+sxir schema diff [-s <rule>] [-all-rules] [-f text|json] <before> <after>
 ```
 
 `schema` prints the [output schema](output-schemas-and-queries.md) of a grammar as JSON, without parsing an input. `-s`
@@ -288,7 +288,7 @@ and every declared type, as `runtime.WithAllSchemaRules()` does. `-o` writes the
 `schema diff` compares two schemas and prints one line per added, removed or changed type and rule with its
 compatibility class and the rules behind it, for example `changed type declared/Pair: breaking (field-removed at
 $.fields.Old)`. Each operand is either a schema JSON file, as written by `schema -o`, or a grammar. A file is recognized
-by its `"format": "zp-output-schema"` member, so a grammar in JSON is never mistaken for a schema. `-s` and
+by its `"format": "sxir-output-schema"` member, so a grammar in JSON is never mistaken for a schema. `-s` and
 `-all-rules` apply to the grammar operands only; a schema file already holds the rules it was exported with. With `-f
 json`, the output lists the changes with their `class`, their `impacts` (`path`, `class` and `rule`) and the entries of
 both sides. The command exits with status 0 whenever both operands are valid, even when they differ, so a script must
@@ -297,18 +297,18 @@ compiling against the generated types or stop handling a value, and `compatible`
 field or capture; see [the compatibility criterion](../../spec/runtime/schemas-and-queries.md#comparing-schemas).
 
 ```bash
-zp schema -g pairs.zp -o before.json
-# edit pairs.zp
-zp schema diff before.json pairs.zp        # a schema file and a grammar
-zp schema diff -all-rules -f json before.json pairs.zp
+sxir schema -g pairs.sxir -o before.json
+# edit pairs.sxir
+sxir schema diff before.json pairs.sxir        # a schema file and a grammar
+sxir schema diff -all-rules -f json before.json pairs.sxir
 ```
 
 ## `explain`, `trace` and `profile`
 
 ```bash
-zp explain -g <grammar> [-s <rule>] [-i <input>] [-n <calls>]
-zp trace -g <grammar> [-s <rule>] [-i <input>] [-show-depth <n>] [-rule <name>] [-failures] [-f text|json]
-zp profile -g <grammar> [-s <rule>] [-i <input>] [-sort <column>] [-n <rows>] [-f text|json]
+sxir explain -g <grammar> [-s <rule>] [-i <input>] [-n <calls>]
+sxir trace -g <grammar> [-s <rule>] [-i <input>] [-show-depth <n>] [-rule <name>] [-failures] [-f text|json]
+sxir profile -g <grammar> [-s <rule>] [-i <input>] [-sort <column>] [-n <rows>] [-f text|json]
 ```
 
 Debugging tools; all three also take `-unit`, `-backend`, `-max-compute`, `-max-memory`, `-max-input` and `-max-depth` (as in `parse`), and all read the input from standard input without `-i`. The `-show-depth` of `trace` selects the calls it shows; `-max-depth` is the depth limit of the parse.
@@ -319,7 +319,7 @@ from `runtime.WithTrace` and `runtime.WithProfile`. A parse that reaches a limit
 ## `sample`
 
 ```bash
-zp sample -g <grammar> [-s <rule>] [-n 10] [-seed <n>] [-max-depth <d>] [-max-repeat <r>] [-max-len <bytes>] [-budget <steps>] [-coverage] [-invalid] [-f lines|json]
+sxir sample -g <grammar> [-s <rule>] [-n 10] [-seed <n>] [-max-depth <d>] [-max-repeat <r>] [-max-len <bytes>] [-budget <steps>] [-coverage] [-invalid] [-f lines|json]
 ```
 
 Prints distinct inputs that the grammar accepts, one Go-quoted string per line or as a JSON document; `-invalid`

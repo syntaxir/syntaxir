@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"testing"
 
-	. "zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/pkg/runtime/input"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+	. "syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/pkg/runtime/input"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 func TestTraceLifecycleDocumentDetachment(t *testing.T) {
@@ -39,7 +39,7 @@ func TestTraceLifecycleDocumentDetachment(t *testing.T) {
 					if err != nil {
 						t.Fatal(err)
 					}
-					var n *zpvalue.Node
+					var n *sxirvalue.Node
 					got := traceLifecycleRecover(func() { n, err = d.Parse() })
 					switch outcome {
 					case "success":
@@ -47,7 +47,7 @@ func TestTraceLifecycleDocumentDetachment(t *testing.T) {
 							t.Fatalf("node=%v err=%v panic=%v", n, err, got)
 						}
 					case "syntax":
-						var se *zpvalue.SyntaxError
+						var se *sxirvalue.SyntaxError
 						if got != nil || n != nil || !errors.As(err, &se) {
 							t.Fatalf("node=%v err=%v panic=%v", n, err, got)
 						}
@@ -66,7 +66,7 @@ func TestTraceLifecycleDocumentDetachment(t *testing.T) {
 					if e.Kind != TraceEnter || e.Rule != "main" || e.Depth != 1 || e.Pos != 0 {
 						t.Fatal("saved event metadata changed")
 					}
-					var clone *zpvalue.Node
+					var clone *sxirvalue.Node
 					var before string
 					if n != nil {
 						clone = n.Clone()

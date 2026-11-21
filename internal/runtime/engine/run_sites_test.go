@@ -8,13 +8,13 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/middleend/corepass"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/bytecode"
-	"zeroparse.dev/zp/pkg/runtime"
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/middleend/corepass"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/bytecode"
+	"syntaxir.dev/sxir/pkg/runtime"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 )
 
 // hotSpans are the thresholds at which the differential tests of run sites run: the one of the
@@ -489,7 +489,7 @@ rule w = ("x" { k > 0 })*`, strings.Repeat("xy", 1000), 1, []mutant{{state.SkipS
 			t.Fatal(err)
 		}
 		o := func(b Backend) ParseOptions {
-			return ParseOptions{Backend: b, Limits: zpruntime.Limits{Compute: 150 * uint64(len(c.input))}}
+			return ParseOptions{Backend: b, Limits: sxirruntime.Limits{Compute: 150 * uint64(len(c.input))}}
 		}
 		for _, m := range append([]mutant{{}}, c.mutants...) {
 			mutated := m != mutant{}
@@ -500,7 +500,7 @@ rule w = ("x" { k > 0 })*`, strings.Repeat("xy", 1000), 1, []mutant{{state.SkipS
 						continue
 					}
 					_, err := p.ParseWith("main", c.input, o(b))
-					if over := errors.Is(err, zpruntime.ErrLimit); over != mutated {
+					if over := errors.Is(err, sxirruntime.ErrLimit); over != mutated {
 						t.Errorf("%s, %s, loaded %v, mutant %+v: over the linear budget %v (%v)", c.name, b, p == loaded, m, over, err)
 					}
 				}

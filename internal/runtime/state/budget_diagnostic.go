@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // sortExpected sorts a newly constructed, parser-owned diagnostic in the order of

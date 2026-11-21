@@ -11,10 +11,10 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/testing/compiletest"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/testing/compiletest"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // ReferenceParse parses input with a program compiled for Reference: with positions in bytes if
@@ -162,7 +162,7 @@ func GeneratedParsersMismatches(t *testing.T, goBin string, cases []Case, opts c
 }
 
 // GeneratedParsersEmbedCorpus is GeneratedParsersCorpus with packages that carry their own copy of
-// the library, as zp gen writes them with -lib embed, generated with opts (whose Lib is ignored)
+// the library, as sxir gen writes them with -lib embed, generated with opts (whose Lib is ignored)
 // with comments and the limit controls of the fixtures.
 func GeneratedParsersEmbedCorpus(t *testing.T, goBin string, cases []Case, opts common.GenOptions) {
 	t.Helper()
@@ -221,7 +221,7 @@ func generatedParsersOutputs(t *testing.T, goBin string, cases []Case, opts comm
 		}
 		opts.Package, opts.Start, opts.Recognize = fmt.Sprintf("g%d", i), "main", true
 		if embed {
-			// The package carries its own copy of the library, as zp gen writes it. Limit controls
+			// The package carries its own copy of the library, as sxir gen writes it. Limit controls
 			// asked for by opts stay on whatever the fixture form, so that the budget code of a
 			// narrowed copy runs: the default compute limit gives every parse a budget control.
 			o := opts

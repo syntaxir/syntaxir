@@ -1,16 +1,16 @@
-// Command playground is the WebAssembly half of the ZeroParse web playground.
+// Command playground is the WebAssembly half of the SyntaxIR web playground.
 //
-// Built with GOOS=js GOARCH=wasm, it installs a global object zp whose methods take a request
+// Built with GOOS=js GOARCH=wasm, it installs a global object sxir whose methods take a request
 // encoded as JSON and return a response encoded as JSON:
 //
-//	zp.compile(req)  -> grammar info and diagnostics          (req: {grammar})
-//	zp.parse(req)    -> tree as JSON and S-expression, errors (req: parseRequest)
-//	zp.format(req)   -> formatted grammar                     (req: {grammar})
-//	zp.generate(req) -> generated Go or TypeScript code       (req: generateRequest)
-//	zp.version(req)  -> versions of Go and of this module
+//	sxir.compile(req)  -> grammar info and diagnostics          (req: {grammar})
+//	sxir.parse(req)    -> tree as JSON and S-expression, errors (req: parseRequest)
+//	sxir.format(req)   -> formatted grammar                     (req: {grammar})
+//	sxir.generate(req) -> generated Go or TypeScript code       (req: generateRequest)
+//	sxir.version(req)  -> versions of Go and of this module
 //
 // Requests and responses are plain JSON so that the API is easy to call from a Web Worker and from
-// Node, and so that it can be tested natively. Everything is implemented with the public zp and
+// Node, and so that it can be tested natively. Everything is implemented with the public sxir and
 // grammar packages only; see site/ for the page that uses it.
 package main
 
@@ -28,16 +28,16 @@ import (
 	"strings"
 	"time"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/driver/entry"
-	gensrc "zeroparse.dev/zp/internal/driver/generate"
-	"zeroparse.dev/zp/internal/frontend/parser"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	syntaxfmt "zeroparse.dev/zp/internal/syntax/fmt"
-	"zeroparse.dev/zp/pkg/grammar/ast"
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/driver/entry"
+	gensrc "syntaxir.dev/sxir/internal/driver/generate"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // diagnostic is an error in a grammar. Line and Col are 1-based (Col counts code points) and are 0
@@ -86,10 +86,10 @@ type parseRequest struct {
 	Backend   string `json:"backend"`   // closure, bytecode, bytecode-iterative, or empty for the default
 	Recognize bool   `json:"recognize"` // check the input without building a tree
 	// SourceInfo adds the rule of each node and the names of captures to the tree, as
-	// zp parse -source-info does.
+	// sxir parse -source-info does.
 	SourceInfo bool `json:"sourceInfo,omitempty"`
 	// DefaultValue drops value actions and declared rule types, so the tree is the default node
-	// tree, as zp parse -default-value does. Predicates still run.
+	// tree, as sxir parse -default-value does. Predicates still run.
 	DefaultValue bool `json:"defaultValue,omitempty"`
 	// MaxDepth limits the nesting of recursive rule calls (runtime.Limits.Depth); 0 selects the
 	// playground's limit, maxDepth, for the backends that nest rule calls on the stack.
@@ -100,7 +100,7 @@ type parseRequest struct {
 }
 
 // syntaxError mirrors value.SyntaxError. Pos is in the unit of the parse; Message is the description
-// without the position, as printed by the zp command.
+// without the position, as printed by the sxir command.
 type syntaxError struct {
 	Pos      int      `json:"pos"`
 	Line     int      `json:"line"`
@@ -115,7 +115,7 @@ type parseResult struct {
 	Start   string        `json:"start,omitempty"` // the start rule used; empty if the requested one is not defined
 	// Matched reports that the input matched, possibly after recovering from errors.
 	Matched bool `json:"matched"`
-	// JSON is the tree exactly as zp parse prints it, and SExpr as zp parse -f sexpr prints it
+	// JSON is the tree exactly as sxir parse prints it, and SExpr as sxir parse -f sexpr prints it
 	// (without the final newline). Both are empty in recognition mode and when the input does not match.
 	JSON  string `json:"json,omitempty"`
 	SExpr string `json:"sexpr,omitempty"`
@@ -352,7 +352,7 @@ func describeType(t ast.TypeDecl) typeInfo {
 // posPrefix matches the position that grammar and compile errors start with.
 var posPrefix = regexp.MustCompile(`^(\d+):(\d+): `)
 
-// diagnostics splits a grammar or compile error into one diagnostic per line. The zp package reports
+// diagnostics splits a grammar or compile error into one diagnostic per line. The sxir package reports
 // several errors as lines of the form "line:col: message" (or "message" without a position).
 func diagnostics(err error) []diagnostic {
 	var ds []diagnostic
@@ -404,9 +404,9 @@ func runParse(req parseRequest) parseResult {
 	}
 	// The iterative backend keeps rule calls on its own stack, so only the others need maxDepth.
 	if d := req.MaxDepth; d > 0 {
-		opts = append(opts, engine.WithLimits(zpruntime.Limits{Depth: uint64(d)}))
+		opts = append(opts, engine.WithLimits(sxirruntime.Limits{Depth: uint64(d)}))
 	} else if maxDepth > 0 && req.Backend != "bytecode-iterative" {
-		opts = append(opts, engine.WithLimits(zpruntime.Limits{Depth: maxDepth}))
+		opts = append(opts, engine.WithLimits(sxirruntime.Limits{Depth: maxDepth}))
 	}
 	p := c.parser
 	if req.SourceInfo || req.DefaultValue {
@@ -450,7 +450,7 @@ func runParse(req parseRequest) parseResult {
 		node = nil
 	}
 	if node != nil {
-		// Encode exactly like zp parse: an indented json.Encoder, without the final newline.
+		// Encode exactly like sxir parse: an indented json.Encoder, without the final newline.
 		var b bytes.Buffer
 		enc := json.NewEncoder(&b)
 		enc.SetIndent("", "  ")

@@ -72,7 +72,7 @@ Generate same-generator direct and reference fixtures and check value and
 error parity:
 
 ```sh
-export ZP_TYPED_LOCAL_LAYOUT_DIR=/tmp/zp-typed-local-layouts
+export SXIR_TYPED_LOCAL_LAYOUT_DIR=/tmp/sxir-typed-local-layouts
 go test ./internal/backend/codegen/golang/print -run '^TestGeneratedTypedLocalLayoutWorkloads$' -count=1
 ```
 
@@ -81,8 +81,8 @@ Build each workload and route as a separate benchmark binary:
 ```sh
 for workload in ordinary element cuts; do
   for variant in direct general; do
-    fixture="$ZP_TYPED_LOCAL_LAYOUT_DIR/$workload/$variant"
-    (cd "$fixture" && go test -c -o "$ZP_TYPED_LOCAL_LAYOUT_DIR/$workload-$variant.test" .)
+    fixture="$SXIR_TYPED_LOCAL_LAYOUT_DIR/$workload/$variant"
+    (cd "$fixture" && go test -c -o "$SXIR_TYPED_LOCAL_LAYOUT_DIR/$workload-$variant.test" .)
   done
 done
 ```
@@ -98,7 +98,7 @@ for pair in 1 2 3 4 5; do
   fi
   for workload in ordinary element cuts; do
     for variant in "$first" "$second"; do
-      "$ZP_TYPED_LOCAL_LAYOUT_DIR/$workload-$variant.test" -test.run='^$' \
+      "$SXIR_TYPED_LOCAL_LAYOUT_DIR/$workload-$variant.test" -test.run='^$' \
         -test.bench='^BenchmarkTypedLocalLayout$' -test.benchtime=300ms -test.benchmem
     done
   done
@@ -107,14 +107,14 @@ done
 
 For generation, compile the engine test binary once. Run it from
 `internal/runtime/engine`, where its fixture paths resolve, alternating
-`ZP_REFERENCE_LOCAL_LAYOUTS=0` and `1` across five pairs:
+`SXIR_REFERENCE_LOCAL_LAYOUTS=0` and `1` across five pairs:
 
 ```sh
-go test -c -o /tmp/zp-typed-local-layout-engine.test ./internal/runtime/engine
+go test -c -o /tmp/sxir-typed-local-layout-engine.test ./internal/runtime/engine
 (cd internal/runtime/engine && for pair in 1 2 3 4 5; do
   if [ "$((pair % 2))" -eq 1 ]; then first=1; second=0; else first=0; second=1; fi
   for reference in "$first" "$second"; do
-    ZP_REFERENCE_LOCAL_LAYOUTS=$reference /tmp/zp-typed-local-layout-engine.test \
+    SXIR_REFERENCE_LOCAL_LAYOUTS=$reference /tmp/sxir-typed-local-layout-engine.test \
       -test.run='^$' -test.bench='^BenchmarkTypedLocalLayoutGeneration$' \
       -test.benchtime=300ms -test.benchmem
   done

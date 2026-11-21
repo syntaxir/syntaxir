@@ -8,16 +8,16 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/internal/syntax/fmt"
-	"zeroparse.dev/zp/pkg/grammar/ast"
-	"zeroparse.dev/zp/pkg/runtime"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/schema"
-	"zeroparse.dev/zp/pkg/runtime/value"
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/syntax/fmt"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/schema"
+	"syntaxir.dev/sxir/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 func missingNodes(t *testing.T, root *value.Node) []*value.Node {
@@ -55,7 +55,7 @@ func requireInsertions(t *testing.T, prog *Program, input string, o ParseOptions
 
 func TestMissingTokensLiteralAndUnits(t *testing.T) {
 	t.Parallel()
-	for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+	for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 		for _, controlled := range []bool{false, true} {
 			if controlled && !state.BudgetControlsEnabled {
 				continue
@@ -69,7 +69,7 @@ func TestMissingTokensLiteralAndUnits(t *testing.T) {
 			n, errs := requireInsertions(t, prog, "é", o, 1)
 			insertions := missingNodes(t, n)
 			pos := int32(1)
-			if unit == zpinput.Bytes {
+			if unit == sxirinput.Bytes {
 				pos = 2
 			}
 			if len(insertions) != 1 {
@@ -106,7 +106,7 @@ func TestMissingTokensLiteralAndUnits(t *testing.T) {
 		t.Fatal("partial prefix was consumed", m)
 	}
 	invalid := mustCompile(t, `rule main = . ";" #missing $$`)
-	for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+	for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 		n, errs := requireInsertions(t, invalid, "\xff", ParseOptions{Expectations: true, Unit: unit, MissingTokens: 2}, 1)
 		if nodes.D(missingNodes(t, n)[0]).Start != 1 || errs[0].Pos != 1 {
 			t.Fatal("invalid UTF-8 position")

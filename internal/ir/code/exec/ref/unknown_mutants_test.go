@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/testing/mutanttest"
+	"syntaxir.dev/sxir/internal/testing/mutanttest"
 )
 
 // unknownMutants each break one way in which the evaluation keeps Unknown out of known results.

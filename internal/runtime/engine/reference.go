@@ -3,10 +3,10 @@ package engine
 import (
 	"io"
 
-	"zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/schema"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/schema"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // Reference returns the public reference parser of p: p on the closure backend, with the options

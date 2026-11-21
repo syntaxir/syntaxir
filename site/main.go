@@ -1,4 +1,4 @@
-// Command site builds the ZeroParse web site: a landing page, the documentation rendered from the
+// Command site builds the SyntaxIR web site: a landing page, the documentation rendered from the
 // repository's Markdown, an API reference generated from the Go source, and the playground.
 //
 // Usage (from the site directory):
@@ -30,13 +30,13 @@ func main() {
 	}
 	var cfg Config
 	previous, deploy := deploymentURLs(os.Getenv)
-	flag.StringVar(&cfg.Repo, "repo", "..", "root of the ZeroParse repository")
+	flag.StringVar(&cfg.Repo, "repo", "..", "root of the SyntaxIR repository")
 	flag.StringVar(&cfg.Out, "out", "dist", "output directory (replaced by each build)")
 	flag.BoolVar(&cfg.Wasm, "wasm", true, "include the playground's WebAssembly binary")
 	flag.StringVar(&cfg.WasmSource, "wasm-source", "release", "where the playground's binary comes from: release (the release pinned by site/playground-wasm.json) or build (from source)")
 	flag.StringVar(&cfg.WasmMode, "wasm-mode", "go", "playground WASM binaries: go or dual (Go and TinyGo; needs -wasm-source=build)")
 	flag.BoolVar(&cfg.Check, "check", true, "fail if a generated page links to a missing page or anchor")
-	flag.StringVar(&cfg.GitHub, "github", "https://github.com/zeroparse/zp", "repository URL for links to source files")
+	flag.StringVar(&cfg.GitHub, "github", "https://github.com/syntaxir/syntaxir", "repository URL for links to source files")
 	flag.StringVar(&cfg.Ref, "ref", "main", "branch or tag for links to source files")
 	flag.StringVar(&cfg.PreviousSite, "previous-site", previous, "retain the current WASM/runtime pair from this published site URL (automatic for Workers Builds of the production branch)")
 	flag.StringVar(&cfg.DeployURL, "deploy-url", deploy, "immutable URL of this deploy, for fetching its assets on the next production build")

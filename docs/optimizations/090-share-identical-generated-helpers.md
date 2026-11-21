@@ -106,8 +106,8 @@ without an established general parsing-speed improvement.
 
 The generated-sharing harness is `TestGeneratedSharingWorkloads` and
 `BenchmarkGeneratedSharing` in `internal/runtime/engine`. It writes standalone Go and
-TypeScript fixtures when `ZP_GENERATED_SHARING_DIR` is set. The benchmark
-controls are selected with `ZP_GENERATED_SHARING`:
+TypeScript fixtures when `SXIR_GENERATED_SHARING_DIR` is set. The benchmark
+controls are selected with `SXIR_GENERATED_SHARING`:
 
 | Mode | Go generation | TypeScript generation |
 |:--|:--|:--|
@@ -120,9 +120,9 @@ controls are selected with `ZP_GENERATED_SHARING`:
 For example, generate fixtures and run one measurement mode with:
 
 ```sh
-ZP_GENERATED_SHARING_DIR=/tmp/zp-generated-sharing \
+SXIR_GENERATED_SHARING_DIR=/tmp/sxir-generated-sharing \
   go test ./internal/backend/codegen/common -run '^TestGeneratedSharingWorkloads$' -count=1
-ZP_GENERATED_SHARING=literals go test ./internal/backend/codegen/common -run '^$' \
+SXIR_GENERATED_SHARING=literals go test ./internal/backend/codegen/common -run '^$' \
   -bench '^BenchmarkGeneratedSharing$' -benchmem
 ```
 

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	syntaxfmt "zeroparse.dev/zp/internal/syntax/fmt"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 func TestUnicodeScalarEscapes(t *testing.T) {

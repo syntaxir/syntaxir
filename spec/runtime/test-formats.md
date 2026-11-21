@@ -1,7 +1,7 @@
 # Fixture Suites and Edit Sequences
 
-Two JSON files carry test data between a user and the tools: the fixture suite that `zp test` runs and the saved edit
-sequence that `zp edit-fuzz` writes and replays. This chapter defines both formats. Each is versioned; a reader
+Two JSON files carry test data between a user and the tools: the fixture suite that `sxir test` runs and the saved edit
+sequence that `sxir edit-fuzz` writes and replays. This chapter defines both formats. Each is versioned; a reader
 rejects a version it does not know.
 
 ## Scope and Terminology
@@ -21,7 +21,7 @@ A suite is a JSON object with these members. Unknown members are errors.
 | Member | Meaning |
 |:--|:--|
 | `version` | The format version, the integer 1. Any other value is an error |
-| `grammar` | Required. The grammar file: read as grammar JSON if its name ends in `.json`, and as ZeroParse source otherwise. A relative path is relative to the suite file |
+| `grammar` | Required. The grammar file: read as grammar JSON if its name ends in `.json`, and as SyntaxIR source otherwise. A relative path is relative to the suite file |
 | `start` | The start rule. Default: the grammar's default start rule |
 | `unit` | `codepoints` or `bytes`. Default: `codepoints` |
 | `backends` | A list of `default`, `closure`, `bytecode` and `bytecode-iterative`. Default: `["default"]`, which is the closure backend. Two names for the same backend, such as `default` and `closure`, are an error; repeated names are ignored |
@@ -47,12 +47,12 @@ A member that an expectation omits is not checked. The expectation for a backend
 `byBackend` entry laid over it: a given member replaces the inherited one, and a name in `clear` removes it.
 
 Each case runs on each selected backend and produces one result per pair. A runtime error is reported for that pair
-and later cases continue. With `equivalence`, or with `zp test -equivalence`, which overrides the member in either
+and later cases continue. With `equivalence`, or with `sxir test -equivalence`, which overrides the member in either
 direction, the backends must also agree for each case on the outcome, whether a runtime error occurred, the node,
 the root span and the syntax-error locations; the report lists the fields that differ. The expectations and the
 equivalence are judged independently.
 
-`zp test -update` writes the observed node, span and syntax-error locations of one explicitly selected backend as
+`sxir test -update` writes the observed node, span and syntax-error locations of one explicitly selected backend as
 goldens, in the `expect` of each case or, when the case has `byBackend` entries, in the entry of the selected backend.
 It changes no input or outcome, and it refuses to write when a selected case has a runtime error or an outcome that
 differs from its expectation. It cannot be combined with `-equivalence`.

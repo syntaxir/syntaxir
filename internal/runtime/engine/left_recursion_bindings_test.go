@@ -3,10 +3,10 @@ package engine
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/runtime"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 // TestLeftRecursionGuardIgnoresVariables checks that a left-recursive re-entry at the same
@@ -21,7 +21,7 @@ func TestLeftRecursionGuardIgnoresVariables(t *testing.T) {
 		prog := mustCompile(t, codegentest.LRBindingSource, options)
 		plain := mustCompile(t, codegentest.PlainLRSource, options)
 		for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-			for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+			for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 				for _, recognize := range []bool{false, true} {
 					// A compute limit makes the parse take the controlled memo lookups.
 					for _, lim := range []runtime.Limits{{Depth: 400}, {Compute: 1 << 40, Depth: 400}} {

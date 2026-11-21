@@ -13,15 +13,15 @@ import (
 	"log"
 	"os"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
-	"zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 func main() {
-	parser, err := compiler.Compile(grammar.FromString("grammar.zp", `@start
+	parser, err := compiler.Compile(grammar.FromString("grammar.sxir", `@start
 rule start = "a" "b"`), compiler.WithStart("start"))
 	if err != nil {
 		log.Fatal(err)

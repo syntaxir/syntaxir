@@ -1,4 +1,4 @@
-//go:build zp_budget_controls_reference
+//go:build sxir_budget_controls_reference
 
 package state
 

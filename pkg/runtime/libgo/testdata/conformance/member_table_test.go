@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"zeroparse.dev/zp/internal/ir/code/exec/conform"
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // The member table (conform.MemberCases) on the composition member of the node and the typed library
@@ -24,7 +24,7 @@ func memberCanon(x any) string {
 		return conform.MemberCanon("string", x, nil)
 	case bool:
 		return conform.MemberCanon("bool", x, nil)
-	case *zpvalue.Node:
+	case *sxirvalue.Node:
 		if x == nil {
 			return conform.MemberCanon("nil", nil, nil)
 		}
@@ -75,7 +75,7 @@ func nodeMemberFixture(controlled bool) (*ActCtx, map[string]any) {
 	}
 	p := &Parser{g: g}
 	if controlled {
-		p.Control = newBudgetControl(context.Background(), zpruntime.Limits{Compute: 1 << 62})
+		p.Control = newBudgetControl(context.Background(), sxirruntime.Limits{Compute: 1 << 62})
 	}
 	c := &ActCtx{P: p}
 	node := nodeOfData(&Data{Kind: SeqKind, Start: 2, End: 5})
@@ -139,7 +139,7 @@ func tmemberCanon(x any) string {
 func typedMemberFixture(controlled bool) (*TActCtx, map[string]any) {
 	p := &Parser{}
 	if controlled {
-		p.Control = newBudgetControl(context.Background(), zpruntime.Limits{Compute: 1 << 62})
+		p.Control = newBudgetControl(context.Background(), sxirruntime.Limits{Compute: 1 << 62})
 	}
 	c := &TActCtx{P: &TParser{Parser: p}}
 	s := func(a int, b string) *memberStruct {

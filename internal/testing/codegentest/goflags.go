@@ -8,7 +8,7 @@ import (
 // SetGoFlags sets the GOFLAGS of the test process, which the go commands it runs inherit, for
 // building generated programs: -trimpath, so that their builds in fresh temporary directories share
 // the build cache, -mod=mod, so that the temporary modules that replace this module resolve it
-// without a go.sum, and the tag zp_feature_witness, so that every generated parser checks that its
+// without a go.sum, and the tag sxir_feature_witness, so that every generated parser checks that its
 // parses use only the library features that the generator's analysis found
 // (codegen.GenOptions.FeatureWitness). The tag joins the tags of a -tags flag already in GOFLAGS,
 // since the go command keeps only the last of repeated -tags flags.
@@ -21,7 +21,7 @@ func buildFlags(goflags string) string {
 	return WithWitnessTag(strings.TrimSpace(goflags + " -trimpath -mod=mod"))
 }
 
-// WithWitnessTag returns goflags, a GOFLAGS value, with the tag zp_feature_witness added to the
+// WithWitnessTag returns goflags, a GOFLAGS value, with the tag sxir_feature_witness added to the
 // tags of its -tags flag, or with a -tags flag that names the tag if it has none.
 func WithWitnessTag(goflags string) string {
 	fields := strings.Fields(goflags)
@@ -41,7 +41,7 @@ func WithWitnessTag(goflags string) string {
 }
 
 // witnessTag is the build tag that turns on the check of the features of the generated parsers.
-const witnessTag = "zp_feature_witness"
+const witnessTag = "sxir_feature_witness"
 
 // GoFlags are the flags of a go command that sets its GOFLAGS itself (GoFlagsEnv): the GOFLAGS of
 // the test process when the package was initialized, with the flags that SetGoFlags adds.
@@ -70,7 +70,7 @@ var GoFlagsEnv = "GOFLAGS=" + GoFlags
 // a cache private to the test process still shares the builds of the standard library and of this
 // module among the tests of a package.
 func SetGoCache() (remove func()) {
-	dir, err := os.MkdirTemp("", "zp-gocache-")
+	dir, err := os.MkdirTemp("", "sxir-gocache-")
 	if err != nil {
 		panic(err)
 	}

@@ -138,16 +138,16 @@ VM and generated parsers nest rule calls on the goroutine stack and reject it as
 
 ## Limits on the Command Line
 
-The `zp` commands that run a parse (`parse`, `test`, `trace`, `profile`, `explain` and `edit-fuzz`) take `-max-compute`,
+The `sxir` commands that run a parse (`parse`, `test`, `trace`, `profile`, `explain` and `edit-fuzz`) take `-max-compute`,
 `-max-memory`, `-max-input` and `-max-depth`, which set `Limits.Compute`, `Limits.Memory`, `Limits.Input` and
 `Limits.Depth`. Each takes a number, `0`
 for the default, or `unlimited`:
 
 ```bash
-zp parse -g grammar.zp -max-compute unlimited -max-input 1048576 -i "$input"
+sxir parse -g grammar.sxir -max-compute unlimited -max-input 1048576 -i "$input"
 ```
 
-A parse that reaches a limit prints the `*runtime.LimitError` message and exits with status 1. `zp test` reports it as
+A parse that reaches a limit prints the `*runtime.LimitError` message and exits with status 1. `sxir test` reports it as
 the runtime error of the case. A saved `edit-fuzz` sequence does not record the limits, so `edit-fuzz -replay` takes
 `-max-compute`, `-max-memory`, `-max-input` and `-max-depth` again. A `Document` reuses earlier work and spends less than a fresh parse, so `edit-fuzz`
 compares nothing at a check where either parse exhausts its budget.

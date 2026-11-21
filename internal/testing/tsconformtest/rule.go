@@ -1,8 +1,8 @@
 package tsconformtest
 
 import (
-	"zeroparse.dev/zp/internal/ir/code/exec/conform"
-	"zeroparse.dev/zp/internal/ir/code/exec/ref"
+	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
+	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
 )
 
 // RuleOps are the operations of the rules that the library implements: those of conform.RuleOps and the

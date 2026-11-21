@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/analysis/complexity"
-	"zeroparse.dev/zp/internal/driver/entry"
-	"zeroparse.dev/zp/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/analysis/complexity"
+	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/parser"
 )
 
 // TestDeclaredLinear checks @linear on the package clause and on rules: a declaration whose start
@@ -60,7 +60,7 @@ func TestDeclaredLinear(t *testing.T) {
 			}
 			for i, line := range lines {
 				if !strings.Contains(line, tc.want[i]) || !strings.Contains(line, "is declared @linear") ||
-					!strings.Contains(line, "https://zeroparse.dev/docs/cookbook/linear-rewrites/") {
+					!strings.Contains(line, "https://syntaxir.dev/docs/cookbook/linear-rewrites/") {
 					t.Errorf("error %q, want %q", line, tc.want[i])
 				}
 			}
@@ -123,7 +123,7 @@ func TestDeclaredLinearKeepsClassification(t *testing.T) {
 // of the recipe. Each grammar must name its own section and no other, so that a cause mapped to
 // the wrong kind fails.
 func TestDeclaredLinearRewrites(t *testing.T) {
-	const recipe = "https://zeroparse.dev/docs/cookbook/linear-rewrites/"
+	const recipe = "https://syntaxir.dev/docs/cookbook/linear-rewrites/"
 	sections := map[string]string{
 		"restart":   "scan once: put the scan and what may follow it in one alternative (see " + recipe + "#a-repetition-restarted-after-backtracking)",
 		"lookahead": "check once after the scan instead of at every iteration (see " + recipe + "#a-lookahead-over-a-scan)",

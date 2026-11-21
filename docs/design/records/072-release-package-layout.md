@@ -9,7 +9,7 @@
 
 ## Summary
 
-ZeroParse is released with one package layout. A public layer `pkg/` is the only Go API, the runtime side of the module
+SyntaxIR is released with one package layout. A public layer `pkg/` is the only Go API, the runtime side of the module
 never links the compiler side, and the middle of the pipeline is one Code IR with three dialects. This record fixes that
 layout as the **target** and gives the reasons for it. The complete architecture is [Architecture](../architecture.md);
 its import rules are in [Package Layering](../layering.md), its public API in [The Public API](../public-api.md) and its
@@ -119,7 +119,7 @@ compiler side. The rules, which a test enforces, are these.
      analysis tool or language server; a backend imports no analysis tool or language server.
    - The utility packages (diagnostics, cancellation and command-line flag names) may import the grammar AST, because
      diagnostics carry source positions. The grammar AST imports only the standard library, and `pkg/grammar` is in the
-     layer of the public tool packages and imports only the parser, the formatter, the AST and the bytecode package. The fixture suite of `zp test` is a tool that uses the
+     layer of the public tool packages and imports only the parser, the formatter, the AST and the bytecode package. The fixture suite of `sxir test` is a tool that uses the
      compiler, in the same layer as the public tool packages.
    - The language server uses the compiler only through the driver (`internal/driver/tooling`) and the grammar AST; it
      imports no layer below the driver.
@@ -149,9 +149,9 @@ asks for through the analysis manager, and the front end does not return them.
 
 ```mermaid
 flowchart TD
-  cmd["cmd/zp, cmd/playground"] --> pub["pkg/compiler, pkg/grammar, pkg/lint, pkg/sample, pkg/editfuzz"]
+  cmd["cmd/sxir, cmd/playground"] --> pub["pkg/compiler, pkg/grammar, pkg/lint, pkg/sample, pkg/editfuzz"]
   pub --> driver["internal/driver"]
-  cmd --> fixture["fixture suites of zp test"] --> pub
+  cmd --> fixture["fixture suites of sxir test"] --> pub
   driver --> backend["internal/backend: closure, vmlower, llvm (future), codegen: common and one package per host language"]
   driver --> middle["internal/middleend: corepass, flowlower, flowpass, execlower, codepass"]
   driver --> front["internal/frontend: parser, desugar, check, types, astfacts, elaborate, schemaexport"]
@@ -161,7 +161,7 @@ flowchart TD
   ir --> pass["internal/pass: manager, analysis manager, registry"]
   util["utilities: diagnostics, cancellation, command-line flag names"] --> gram["pkg/grammar/ast"]
   ir --> gram
-  cmd --> lsp["internal/lsp: protocol, zpls"] --> driver
+  cmd --> lsp["internal/lsp: protocol, sxirls"] --> driver
   driver --> analysis["internal/analysis: lint, complexity"]
   analysis --> backend
   backend --> middle
@@ -348,7 +348,7 @@ describes the packages and points here for the decided shapes.
 | `FromBytes`, `FromString`, `FromReader` | Constructors from bytes, from a string and from a reader. A reader is read in full when the source is loaded, because a diagnostic may need the text of any line. |
 | `FromFS` | Constructor from a path in a file system. The name of the source is the path, and a future import resolves against the same file system. The command line reads grammars through this constructor. |
 | `As` | Gives a source an explicit encoding. |
-| `Encoding` with `EncodingAuto`, `EncodingZP` and `EncodingJSON` | The encoding of a source: grammar syntax or JSON. `EncodingAuto` decides in this order: the explicit encoding, the extension, then the content, where a leading brace means JSON. |
+| `Encoding` with `EncodingAuto`, `EncodingSXIR` and `EncodingJSON` | The encoding of a source: grammar syntax or JSON. `EncodingAuto` decides in this order: the explicit encoding, the extension, then the content, where a leading brace means JSON. |
 | `Load` | Gives the grammar AST of a source in grammar syntax or in JSON. A compiled file is rejected with an explicit error. |
 | `Validate` | Checks the structure of an AST that a program has built. |
 | `Format` (function) and `Convert` | `Format` writes a grammar AST as grammar syntax. `Convert` converts a source to the other encoding, given as an `Encoding`. |
@@ -405,7 +405,7 @@ the preserved sets that say which analyses a transform keeps. Its exact shapes a
 
 ### Pass Control
 
-The passes are controlled by flags of `zp gen` and by the same settings in Go, which the driver reads, so the command
+The passes are controlled by flags of `sxir gen` and by the same settings in Go, which the driver reads, so the command
 line and the Go API cannot drift. A required pass, and every lowering is one, cannot be turned on or off; naming it in a
 setting that does so is an error. [Controlling Passes](../pass-pipeline.md#controlling-passes) describes the behavior.
 

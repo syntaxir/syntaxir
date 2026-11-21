@@ -8,9 +8,9 @@ import (
 	"sort"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/backend/codegen/golang/print"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // The rules of the Node table are printed from Flow IR (the lean value-free rules by the same route
@@ -87,7 +87,7 @@ func TestFlowNodeRulesPrintFromFlow(t *testing.T) {
 		for _, name := range names {
 			t.Run(name+"/"+form.name, func(t *testing.T) {
 				t.Parallel()
-				src, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "testdata", "grammars", name, name+".zp"))
+				src, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "testdata", "grammars", name, name+".sxir"))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -174,7 +174,7 @@ func testFlowNodeRecognizersOnGrammars(t *testing.T) {
 	var cases []codegentest.Case
 	for _, name := range codegentest.RepresentativeNames([]string{"json", "cel", "cue", "duckdb", "golang", "python", "xml", "yaml", "csv", "typescript"}) {
 		dir := filepath.Join("..", "..", "..", "..", "..", "testdata", "grammars", name)
-		src, err := os.ReadFile(filepath.Join(dir, name+".zp"))
+		src, err := os.ReadFile(filepath.Join(dir, name+".sxir"))
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -15,22 +15,22 @@ Contents:
 - [Recipes](#recipes): a missing closing bracket, skipping to the next statement or line, recovering inside a list
 - [Troubleshooting](#troubleshooting)
 
-The examples use the `zp` command; build it once with `go build -o zp ./cmd/zp` (or run `go run ./cmd/zp`
-instead of `zp`). Each command is followed by its output with standard output and standard error shown together, as
-a terminal shows them. `zp` prints errors on standard error with the prefix `zp: ` and exits with status 1 when
+The examples use the `sxir` command; build it once with `go build -o sxir ./cmd/sxir` (or run `go run ./cmd/sxir`
+instead of `sxir`). Each command is followed by its output with standard output and standard error shown together, as
+a terminal shows them. `sxir` prints errors on standard error with the prefix `sxir: ` and exits with status 1 when
 the input has a syntax error, even if it recovered from all of them (the tree is then printed first, on standard
 output).
 
-A grammar block whose first line is `// name.zp` is a complete file: save it under that name. A block whose first
-line is `// name.zp (changed rules)` replaces the rules of the same names in that file, and the examples after it use
+A grammar block whose first line is `// name.sxir` is a complete file: save it under that name. A block whose first
+line is `// name.sxir (changed rules)` replaces the rules of the same names in that file, and the examples after it use
 the edited file. Every command and its output below were run as shown, in this order.
 
-The grammar is the finished `toy.zp` of [Writing Readable Messages](error-messages.md#writing-readable-messages): a
+The grammar is the finished `toy.sxir` of [Writing Readable Messages](error-messages.md#writing-readable-messages): a
 small statement language with `let x = 1 + 2;`, `print x;` and `{ ... }` blocks whose errors carry `@error` labels. Save
 it under that name:
 
-```zp
-// toy.zp
+```sxir
+// toy.sxir
 package toy
 
 type Let = { Name node[string]; Value Expr }
@@ -79,19 +79,19 @@ repetition cannot loop forever on empty skips).
 Recover at the statement level: when a statement does not parse, skip to the end of its line or to the next
 `;`, whichever comes first, but never past a brace.
 
-```zp
-// toy.zp (changed rules)
+```sxir
+// toy.sxir (changed rules)
 // If a statement does not parse, skip to the next ";" (but never past a brace) and carry on.
 rule stmt Stmt = s:(let / print / block) #recover(skip=[^;{}\n]+ ";"?) => $s
 ```
 
 ```bash
-zp parse -g toy.zp -f sexpr -i $'let a = 1;\nlet = 2;\nprint (a +);\nprint a\nlet b = a + 1;\n{ print 1 let c = ; print 2; }\nprint b;\n'
+sxir parse -g toy.sxir -f sexpr -i $'let a = 1;\nlet = 2;\nprint (a +);\nprint a\nlet b = a + 1;\n{ print 1 let c = ; print 2; }\nprint b;\n'
 ```
 
 ```text
 Program{Body: [Let{Name: "a", Value: "1"} error("2:5: expected a name") error("3:11: expected an expression") error("5:1: expected ';'") Let{Name: "b", Value: Sum{Left: "a", Right: "1"}} Block{Body: [error("6:11: expected ';'") Print{Value: "2"}]} Print{Value: "b"}]}
-zp: 2:5: expected a name
+sxir: 2:5: expected a name
 3:11: expected an expression
 5:1: expected ';'
 6:11: expected ';'
@@ -103,7 +103,7 @@ values in the `Body` list. `error` is a built-in type that only recovery produce
 default output format, an error value looks like this:
 
 ```bash
-zp parse -g toy.zp -i $'let = 2;\nprint 1;\n'
+sxir parse -g toy.sxir -i $'let = 2;\nprint 1;\n'
 ```
 
 ```text
@@ -133,7 +133,7 @@ zp parse -g toy.zp -i $'let = 2;\nprint 1;\n'
     ]
   }
 }
-zp: 1:5: expected a name
+sxir: 1:5: expected a name
 ```
 
 `start`/`end` delimit the skipped text, and `error` is the recorded message, with its position, as a string.
@@ -151,8 +151,8 @@ Details worth knowing:
   `@error(...) #recover(...)`: the label is applied first, so the recovered error carries the label. With the order
   reversed, `@error` wraps a `#recover` that almost never fails, so the label is never used:
 
-```zp
-// order.zp
+```sxir
+// order.sxir
 @start(default)
 rule good = stmt @error(message="bad statement") #recover(skip=[^;]* ";")* $$
 @start
@@ -161,21 +161,21 @@ rule stmt = "a" ";"
 ```
 
 ```bash
-zp parse -g order.zp -s good -f sexpr -i 'a;b;a;'
+sxir parse -g order.sxir -s good -f sexpr -i 'a;b;a;'
 ```
 
 ```text
 ([("a" ";") error("1:3: bad statement") ("a" ";")])
-zp: 1:3: bad statement
+sxir: 1:3: bad statement
 ```
 
 ```bash
-zp parse -g order.zp -s bad -f sexpr -i 'a;b;a;'
+sxir parse -g order.sxir -s bad -f sexpr -i 'a;b;a;'
 ```
 
 ```text
 ([("a" ";") error("1:3: syntax error: expected \"a\"") ("a" ";")])
-zp: 1:3: syntax error: expected "a"
+sxir: 1:3: syntax error: expected "a"
 ```
 
 ## What Happens to the Errors
@@ -192,11 +192,11 @@ This matters most for unclosed constructs. The statements recovered inside a blo
 failed, so a single missing `}` at the end of the file replaces all the earlier reports with one:
 
 ```bash
-zp parse -g toy.zp -i $'{ let = 1;\nprint 2;\n'
+sxir parse -g toy.sxir -i $'{ let = 1;\nprint 2;\n'
 ```
 
 ```text
-zp: 3:1: expected '}'
+sxir: 3:1: expected '}'
 ```
 
 Here `let = 1;` had been recovered inside the block, but the block as a whole failed at the end of the input (see the
@@ -206,11 +206,11 @@ Here `let = 1;` had been recovered inside the block, but the block as a whole fa
 list of expected items also contains the class that `skip` tried to match:
 
 ```bash
-zp parse -g toy.zp -i $'print 1;\n}\n'
+sxir parse -g toy.sxir -i $'print 1;\n}\n'
 ```
 
 ```text
-zp: 2:1: syntax error: expected end of input, "let", "print", "{", [^;{}\n]
+sxir: 2:1: syntax error: expected end of input, "let", "print", "{", [^;{}\n]
 ```
 
 The stray `}` stops every recovery in this grammar, because `skip` refuses to eat braces. That is the right trade-off
@@ -219,8 +219,8 @@ them.
 
 ## Using the Errors From Go
 
-The following program parses three inputs with the finished `toy.zp` and handles each outcome. Run it in the directory
-that contains `toy.zp` (the module that contains it must depend on `zeroparse.dev/zp`).
+The following program parses three inputs with the finished `toy.sxir` and handles each outcome. Run it in the directory
+that contains `toy.sxir` (the module that contains it must depend on `syntaxir.dev/sxir`).
 
 ```go
 // main.go
@@ -231,10 +231,10 @@ import (
 	"fmt"
 	"os"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
-	"zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // errorNodes collects the error values of a tree.
@@ -259,12 +259,12 @@ func errorNodes(n *value.Node, out *[]*value.Node) {
 }
 
 func main() {
-	src, err := os.ReadFile("toy.zp")
+	src, err := os.ReadFile("toy.sxir")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	p, err := compiler.Compile(grammar.FromString("grammar.zp", string(src)), compiler.WithStart("main"))
+	p, err := compiler.Compile(grammar.FromString("grammar.sxir", string(src)), compiler.WithStart("main"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -323,10 +323,10 @@ failed: 2:1: syntax error: expected end of input, "let", "print", "{", [^;{}\n] 
 
 A recovery inside a repetition is attempted every time an element fails to parse, including the normal end of the
 repetition. When the closing bracket of the enclosing construct can be matched by `skip`, recovery swallows it. This is
-what the `toy.zp` statement rule does if `{}` is not excluded from the skip:
+what the `toy.sxir` statement rule does if `{}` is not excluded from the skip:
 
-```zp
-// toy_greedy.zp
+```sxir
+// toy_greedy.sxir
 package toy
 
 type Let = { Name node[string]; Value Expr }
@@ -352,19 +352,19 @@ rule ws = (&[ \t\r\n] .)*
 ```
 
 ```bash
-zp parse -g toy_greedy.zp -f sexpr -i $'{ print 1; }\nprint 2;\n'
+sxir parse -g toy_greedy.sxir -f sexpr -i $'{ print 1; }\nprint 2;\n'
 ```
 
 ```text
 Program{Body: [error("3:1: expected '}'") error("1:12: syntax error: expected \"let\", \"print\", \"{\"") Print{Value: "2"}]}
-zp: 3:1: expected '}'
+sxir: 3:1: expected '}'
 1:12: syntax error: expected "let", "print", "{"
 ```
 
 The valid input `{ print 1; }` is reported as erroneous. At the `}`, the `stmt` rule inside the block fails (a `}` is
 not a statement), and `skip` consumes the `}` as the "rest of a broken line". The block runs on to the end of the input
 without finding its closing brace, and the outer statement recoveries then produce the two errors shown. The fix is the
-one `toy.zp` uses: `skip` must not be able to start at, or run over, the token that ends the enclosing repetition. The
+one `toy.sxir` uses: `skip` must not be able to start at, or run over, the token that ends the enclosing repetition. The
 same applies to `)`, `]`, `end` and so on. In general, `skip` should describe "the rest of this element" and be unable
 to match at the delimiter that closes the list the element is in.
 
@@ -402,9 +402,9 @@ specification](../../spec/language/pragmas.md#missing) defines the full contract
 
 A missing `)`, `]` or `}` fails at the position where the closer was expected, which is where the parser could not
 continue. Label the closer, not the group, so that errors inside the group keep their own messages. This is how
-`toy.zp` does it:
+`toy.sxir` does it:
 
-```zp
+```sxir
 rule group Expr = "(" ws e:expr ws ")" @error(message="expected ')'") => $e
 ```
 
@@ -412,34 +412,34 @@ rule group Expr = "(" ws e:expr ws ")" @error(message="expected ')'") => $e
 one message.) With the statement-level recovery of the `stmt` rule above, a missing `)` costs one statement and nothing else:
 
 ```bash
-zp parse -g toy.zp -f sexpr -i $'let x = (1 + 2;\nprint x;\n'
+sxir parse -g toy.sxir -f sexpr -i $'let x = (1 + 2;\nprint x;\n'
 ```
 
 ```text
 Program{Body: [error("1:15: expected ')'") Print{Value: "x"}]}
-zp: 1:15: expected ')'
+sxir: 1:15: expected ')'
 ```
 
 The same holds inside a block: the broken statement becomes an `error` value, and the statements after it, up to the
 block's own `}`, are parsed normally.
 
 ```bash
-zp parse -g toy.zp -f sexpr -i $'{ print (1; let y = 2;\n  print 3;\n}\n'
+sxir parse -g toy.sxir -f sexpr -i $'{ print (1; let y = 2;\n  print 3;\n}\n'
 ```
 
 ```text
 Program{Body: [Block{Body: [error("1:11: expected ')'") Let{Name: "y", Value: "2"} Print{Value: "3"}]}]}
-zp: 1:11: expected ')'
+sxir: 1:11: expected ')'
 ```
 
 A missing closer for a construct that spans several statements is different, because there is nothing left to skip:
 
 ```bash
-zp parse -g toy.zp -f sexpr -i $'{ print 1;\nprint 2;\n'
+sxir parse -g toy.sxir -f sexpr -i $'{ print 1;\nprint 2;\n'
 ```
 
 ```text
-zp: 3:1: expected '}'
+sxir: 3:1: expected '}'
 ```
 
 - The error is at the end of the input, where the `}` was expected. It cannot point at the *opening* brace: errors are
@@ -453,7 +453,7 @@ zp: 3:1: expected '}'
 
 This is the `stmt` rule from the start of this guide. The pattern is always the same:
 
-```zp
+```sxir
 rule stmt = s:(let / print / block) #recover(skip=[^;{}\n]+ ";"?) => $s
 ```
 
@@ -469,8 +469,8 @@ lines after it**; otherwise the body of a broken header would be parsed as state
 reads the indentation variable (see the [context-sensitive guide](context-sensitive.md#indentation-blocks)). This
 grammar has assignments and `if` blocks:
 
-```zp
-// blocks.zp
+```sxir
+// blocks.sxir
 package blocks
 
 type Assign = { Name node[string]; Value node[string] }
@@ -503,24 +503,24 @@ rule blank = [ \t]* "\n"
 ```
 
 ```bash
-zp parse -g blocks.zp -f sexpr -i $'if x:\n    y = 1\n    z = = 2\n        w = 3\n    v = 4\nu = 5\n'
+sxir parse -g blocks.sxir -f sexpr -i $'if x:\n    y = 1\n    z = = 2\n        w = 3\n    v = 4\nu = 5\n'
 ```
 
 ```text
 [If{Body: [Assign{Name: "y", Value: "1"} error("3:9: syntax error: expected [0-9]") Assign{Name: "v", Value: "4"}], Test: "x"} Assign{Name: "u", Value: "5"}]
-zp: 3:9: syntax error: expected [0-9]
+sxir: 3:9: syntax error: expected [0-9]
 ```
 
 The broken line and its more indented continuation became one `error` value; `v = 4` and `u = 5` were parsed normally,
 each in its own block. A broken header takes its body with it:
 
 ```bash
-zp parse -g blocks.zp -f sexpr -i $'if x\n    y = 1\nu = 5\n'
+sxir parse -g blocks.sxir -f sexpr -i $'if x\n    y = 1\nu = 5\n'
 ```
 
 ```text
 [error("1:5: syntax error: expected \":\", [a-z]") Assign{Name: "u", Value: "5"}]
-zp: 1:5: syntax error: expected ":", [a-z]
+sxir: 1:5: syntax error: expected ":", [a-z]
 ```
 
 The indentation check is outside the `#recover`: a line that is not at the indentation of the block fails `stmt` before
@@ -531,8 +531,8 @@ the recovery starts, which ends the block instead of being skipped.
 Recovery does not have to be at the statement level. In a bracketed, comma-separated list, recover element by element
 and let `skip` stop in front of the separator and the closing bracket, so that neither is consumed:
 
-```zp
-// list.zp
+```sxir
+// list.sxir
 package nums
 
 type Item ~ node[string] | error
@@ -552,12 +552,12 @@ rule ws = (&[ \t\n] .)*
 ```
 
 ```bash
-zp parse -g list.zp -f sexpr -i '[1, x, 3, y z]'
+sxir parse -g list.sxir -f sexpr -i '[1, x, 3, y z]'
 ```
 
 ```text
 Numbers{Items: ["1" error("1:5: expected a number") "3" error("1:11: expected a number")]}
-zp: 1:5: expected a number
+sxir: 1:5: expected a number
 1:11: expected a number
 ```
 
@@ -565,19 +565,19 @@ The stop set (`,`, `]` and the line end) keeps `skip` from consuming the separat
 `[1, x, 3]` it eats only the `x`, and the `,` and `]` stay for the list rule. Two limits of recovery are visible:
 
 ```bash
-zp parse -g list.zp -i '[1, , 3]'
+sxir parse -g list.sxir -i '[1, , 3]'
 ```
 
 ```text
-zp: 1:5: expected a number
+sxir: 1:5: expected a number
 ```
 
 ```bash
-zp parse -g list.zp -i '[1, 2'
+sxir parse -g list.sxir -i '[1, 2'
 ```
 
 ```text
-zp: 1:6: expected ',' or ']'
+sxir: 1:6: expected ',' or ']'
 ```
 
 - A *missing* element (`[1, , 3]`) cannot be recovered: `skip` cannot match at the `,`, there is nothing to skip, and

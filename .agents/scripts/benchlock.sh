@@ -15,7 +15,7 @@
 # The command runs in a process group of its own (job control), created as the command is forked,
 # so TERM, INT or HUP to this script, even one that arrives while the command starts, signals
 # the group. The command's standard input is /dev/null, set explicitly: job control does not redirect it.
-# State: $ZP_AGENT_STATE (see lib.sh). The layout is the one of the earlier versions of this script
+# State: $SXIR_AGENT_STATE (see lib.sh). The layout is the one of the earlier versions of this script
 # (the zsh one and the bash one without classes), so jobs queued by any of them are ranked together:
 #   benchlock/owner         "<tag> <pid>" of the exclusive holder; the directory is the lock.
 #   benchlock/shared/<tag>.<pid>   one file per shared holder. Earlier versions see benchlock/
@@ -39,7 +39,7 @@ set -euo pipefail
 # shellcheck source=lib.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 [ $# -ge 2 ] || { echo "usage: [BENCHLOCK_CLASS=shared] benchlock.sh <owner-tag> <command...>" >&2; exit 2; }
-D=$zp_state
+D=$sxir_state
 L=$D/benchlock
 S=$L/shared
 R=$D/runs
@@ -47,7 +47,7 @@ stall=${BENCHLOCK_STALL:-300}
 poll=${BENCHLOCK_POLL:-20}
 class=${BENCHLOCK_CLASS:-exclusive}
 case $class in exclusive | shared) ;; *) echo "benchlock.sh: BENCHLOCK_CLASS must be exclusive or shared, not '$class'" >&2; exit 2 ;; esac
-k=$(zp_shared_slots)
+k=$(sxir_shared_slots)
 tag=$1; shift
 command -v perl >/dev/null 2>&1 || { echo "benchlock.sh: perl is required for the ticket and is not installed" >&2; exit 127; }
 mkdir -p "$R"
@@ -58,20 +58,20 @@ printf '%s\n' "$recline" > "$rec"
 # A wrapper is live only if its PID still runs this script with its own tag: PIDs are reused, and a
 # record whose PID now belongs to another process would otherwise block the queue forever.
 # Records of wrappers that are no longer live, queued or running, are moved to runs-stale/.
-live() { zp_bench_live "$@"; }
+live() { sxir_bench_live "$@"; }
 # scan sets ahead to the number of live queued records ranked before this one by the key
 # (start, seq), and ahead_x to those of them that are not shared. The start= may be edited by
 # the integrator for train priority.
 scan() {
   local f w ft st t s c mine
-  read -r _ t s _ <<< "$(zp_run_fields "$rec")"
+  read -r _ t s _ <<< "$(sxir_run_fields "$rec")"
   mine="$t $s"
   ahead=0; ahead_x=0
   for f in "$R"/*; do
     [ -f "$f" ] && [ "$f" != "$rec" ] || continue
     w=${f##*.}; ft=${f##*/}; ft=${ft%.*}
     live "$w" "$ft" || { mkdir -p "$D/runs-stale"; mv -f "$f" "$D/runs-stale/" 2>/dev/null || true; continue; }
-    read -r st t s c <<< "$(zp_run_fields "$f")"
+    read -r st t s c <<< "$(sxir_run_fields "$f")"
     [ "$st" = queued ] || continue
     if [[ "$t $s" < "$mine" ]]; then
       ahead=$((ahead + 1))
@@ -135,7 +135,7 @@ admit() {
   else
     return 1
   fi
-  echo "$tag $$ $(zp_lstart $$)" > "$S/$tag.$$"
+  echo "$tag $$ $(sxir_lstart $$)" > "$S/$tag.$$"
 }
 # release frees this job's hold; the last shared holder removes benchlock/. A stray file in
 # benchlock/ keeps it from going: release reports that on stderr and in benchlock-stalls.log, which

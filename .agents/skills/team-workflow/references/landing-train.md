@@ -5,7 +5,7 @@ together take hours. They run only on train tips, never once per lane.
 
 ## Queue file
 
-`$ZP_AGENT_STATE/landing-train.md` is append-only for lanes. It starts with this line:
+`$SXIR_AGENT_STATE/landing-train.md` is append-only for lanes. It starts with this line:
 
 ```text
 Format: READY <branch> <sha> base <sha> | <scope, Refs #N> | <checks run, each with its exit status> | <review verdict file>; the leader's go is a separate LEADER go line
@@ -31,10 +31,10 @@ Format: READY <branch> <sha> base <sha> | <scope, Refs #N> | <checks run, each w
 - `.agents/scripts/run-gate.sh docs` or `code` (the levels of `hack/gate.sh`; see
   [machine load](machine-load.md) for the run classes).
 - Lanes do not run the `engine` or `full` levels (generation, alpha-parsers); the train gate does. When the generator changed, diff the
-  `zp gen` output of the affected grammars against main.
+  `sxir gen` output of the affected grammars against main.
 - A change to evaluation charges, emitted code or generated output runs the golden and
   mutant tests that pin them, even if they sit in the long tier. Run them targeted:
-  `-tags zp_long -run 'TermCharges|OutputManifest|Mutant|DetectsMutation|Charges'` in the
+  `-tags sxir_long -run 'TermCharges|OutputManifest|Mutant|DetectsMutation|Charges'` in the
   affected packages. Updated goldens land in the commit that changed them, with the reason in
   its body.
 - A new or changed test that asserts charges, budgets or limits runs under
@@ -69,7 +69,7 @@ Format: READY <branch> <sha> base <sha> | <scope, Refs #N> | <checks run, each w
 
 A candidate that changes only docs, spec, site or skills, or only moves or edits test files
 (no non-test Go code), takes the `docs` level of `hack/gate.sh` (`code` when test files changed), through
-`.agents/scripts/run-gate.sh`. It skips zp_long, generation and alpha. The
+`.agents/scripts/run-gate.sh`. It skips sxir_long, generation and alpha. The
 integrator may land it between trains. A train then rebases onto it
 without rerunning its gate when the intervening commits are fast-lane only. Before queuing a
 full gate, check its scope against what the batch actually touches.

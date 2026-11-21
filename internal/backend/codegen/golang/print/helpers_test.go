@@ -8,10 +8,10 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/internal/testing/enginetest"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 // The tests of this package compile the grammars that they generate parsers for with the engine,
@@ -90,8 +90,8 @@ func ignoreCaseLines(t *testing.T, src string, inputs []string) string {
 
 // firstCharEnd returns the position after the character at pos in the unit u: what a call that
 // looks at that character only has examined, which is pos+1 at the end of the input.
-func firstCharEnd(input string, pos int, u zpinput.PositionUnit) int {
-	if u == zpinput.Bytes && pos < len(input) {
+func firstCharEnd(input string, pos int, u sxirinput.PositionUnit) int {
+	if u == sxirinput.Bytes && pos < len(input) {
 		_, size := utf8.DecodeRuneInString(input[pos:])
 		return pos + size
 	}

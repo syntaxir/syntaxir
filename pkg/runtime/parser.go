@@ -4,9 +4,9 @@ import (
 	"errors"
 	"io"
 
-	"zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/schema"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/schema"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // Parser parses inputs with one grammar from one start rule. A parser compiled from a grammar

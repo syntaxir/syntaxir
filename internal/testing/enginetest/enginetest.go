@@ -10,18 +10,18 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/driver/checked"
-	"zeroparse.dev/zp/internal/driver/entry"
-	"zeroparse.dev/zp/internal/frontend/parser"
-	"zeroparse.dev/zp/internal/frontend/schemaexport"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/internal/testing/compiletest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/schema"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/driver/checked"
+	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/frontend/schemaexport"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/compiletest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/schema"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // UseEngine makes codegentest compile the grammars that tests generate parsers for with the engine,
@@ -53,7 +53,7 @@ func Main(m *testing.M) {
 	os.Exit(code)
 }
 
-// Parse parses ZeroParse source for a test whose subject is not start rules (compiletest.Parse).
+// Parse parses SyntaxIR source for a test whose subject is not start rules (compiletest.Parse).
 func Parse(src string) (*ast.Grammar, error) { return compiletest.Parse(src) }
 
 // MustParse is Parse that panics on a syntax error.
@@ -65,7 +65,7 @@ func MustParse(src string) *ast.Grammar {
 	return g
 }
 
-// MustCompile compiles ZeroParse source with source information, so that results show rule names
+// MustCompile compiles SyntaxIR source with source information, so that results show rule names
 // and capture labels.
 func MustCompile(t testing.TB, src string, opts ...compile.Options) *engine.Program {
 	t.Helper()
@@ -77,7 +77,7 @@ func MustCompile(t testing.TB, src string, opts ...compile.Options) *engine.Prog
 	return CompileBare(t, src, o)
 }
 
-// CompileBare compiles ZeroParse source with the options as given: without source information
+// CompileBare compiles SyntaxIR source with the options as given: without source information
 // unless they request it.
 func CompileBare(t testing.TB, src string, opts ...compile.Options) *engine.Program {
 	t.Helper()
@@ -130,9 +130,9 @@ func Reference(t *testing.T, src string, opts compile.Options) codegentest.Refer
 	t.Helper()
 	prog := CompileBare(t, src, opts)
 	return func(input string, bytes, recognize bool) (*value.Node, error) {
-		unit := zpinput.CodePoints
+		unit := sxirinput.CodePoints
 		if bytes {
-			unit = zpinput.Bytes
+			unit = sxirinput.Bytes
 		}
 		return prog.ParseWith("main", input, engine.ParseOptions{Unit: unit, Recognize: recognize, Expectations: true})
 	}
@@ -177,7 +177,7 @@ func Result(prog *engine.Program, input string, o engine.ParseOptions) string {
 	return n.String()
 }
 
-// ParseGrammar parses ZeroParse source to its syntax tree, as the compiler does.
+// ParseGrammar parses SyntaxIR source to its syntax tree, as the compiler does.
 func ParseGrammar(src string) (*ast.Grammar, error) { return parser.Parse(src) }
 
 // CompileOption configures Compile and CompileSource.
@@ -200,7 +200,7 @@ func Compile(g *ast.Grammar, start string, opts ...CompileOption) (*engine.Parse
 	return entry.CompileParser(g, start, o)
 }
 
-// CompileSource parses ZeroParse source and compiles it with Compile.
+// CompileSource parses SyntaxIR source and compiles it with Compile.
 func CompileSource(src, start string, opts ...CompileOption) (*engine.Parser, error) {
 	g, err := ParseGrammar(src)
 	if err != nil {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 )
 
 // unitsContext counts its polls and reports cancellation from the at-th on (never when at is 0);
@@ -37,7 +37,7 @@ func TestTakeIsOneUnitReservations(t *testing.T) {
 	}
 	run := func(pre, n, limit uint64, cancel, units bool) (o outcome) {
 		ctx := &unitsContext{Context: context.Background(), done: make(chan struct{})}
-		c := newBudgetControl(ctx, zpruntime.Limits{Compute: limit})
+		c := newBudgetControl(ctx, sxirruntime.Limits{Compute: limit})
 		for range pre {
 			c.Charge(1)
 		}
@@ -77,7 +77,7 @@ func TestTakeIsOneUnitReservations(t *testing.T) {
 			}
 		}
 	}
-	c := newBudgetControl(&unitsContext{Context: context.Background(), done: make(chan struct{})}, zpruntime.Limits{})
+	c := newBudgetControl(&unitsContext{Context: context.Background(), done: make(chan struct{})}, sxirruntime.Limits{})
 	c.Take(1 << 32)
 	if c.budgetUsed() != 1<<32 {
 		t.Fatalf("used %d after a run of 1<<32 units", c.budgetUsed())

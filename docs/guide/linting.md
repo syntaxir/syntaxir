@@ -7,7 +7,7 @@ input. The linter finds them, and other likely mistakes, by reading the grammar 
 
 | | Command line | Go |
 |:--|:--|:--|
-| Lint a grammar | `zp lint -g g.zp` | `lint.Config{}.Run(ctx, g, "main")` |
+| Lint a grammar | `sxir lint -g g.sxir` | `lint.Config{}.Run(ctx, g, "main")` |
 | Machine-readable output | `-f json` | `[]lint.Finding` |
 | Turn checks off | `-disable check,...` | `lint.Config{Disable: []string{...}}` |
 | Classify the parse cost | `-classify` | `lint.Classify(ctx, g, "main")`; `lint.Config{Classify: true}` for the hints |
@@ -32,8 +32,8 @@ design, and how the checks are kept free of false positives, is in
 
 Take a list whose items may be words, numbers or booleans:
 
-```zp
-// items.zp
+```sxir
+// items.sxir
 @start
 rule main = item ("," item)*
 rule item = word / number / "true" / "false"
@@ -42,37 +42,37 @@ rule number = [0-9]+ #atomic
 ```
 
 ```bash
-zp lint -g items.zp
+sxir lint -g items.sxir
 ```
 
 ```text
-items.zp:4:29: error: alternative 3 (`"true"`) can never match: alternative 1 (`word` at 4:13) matches first wherever it could [shadowed-alternative]
+items.sxir:4:29: error: alternative 3 (`"true"`) can never match: alternative 1 (`word` at 4:13) matches first wherever it could [shadowed-alternative]
 	fix: move it before alternative 1
-items.zp:4:38: error: alternative 4 (`"false"`) can never match: alternative 1 (`word` at 4:13) matches first wherever it could [shadowed-alternative]
+items.sxir:4:38: error: alternative 4 (`"false"`) can never match: alternative 1 (`word` at 4:13) matches first wherever it could [shadowed-alternative]
 	fix: move it before alternative 1
-zp: lint: 2 errors, 0 warnings, 0 hints
+sxir: lint: 2 errors, 0 warnings, 0 hints
 ```
 
 `word` matches `true` itself, so the parser never reaches the keywords. Each finding is one line,
 `file:line:col: severity: message [check]`, followed by a suggested fix when there is one. Here the fix is to try the
 keywords first, and to make sure that they are whole words: `rule item =  ("true" / "false") ![a-z] / word / number `.
-(`zp sample -coverage` finds the same mistake by generating inputs: see
+(`sxir sample -coverage` finds the same mistake by generating inputs: see
 [Sampling inputs and fuzzing](sampling-and-fuzzing.md#coverage).)
 
-`zp lint` exits with status 1 if it finds an error, and 0 otherwise; with `-strict`, warnings fail too. Hints never
-fail. The grammar is ZeroParse source or JSON (a compiled grammar holds no grammar to lint); the start rule is the one `-s`
+`sxir lint` exits with status 1 if it finds an error, and 0 otherwise; with `-strict`, warnings fail too. Hints never
+fail. The grammar is SyntaxIR source or JSON (a compiled grammar holds no grammar to lint); the start rule is the one `-s`
 names, otherwise the grammar's default start rule. A grammar that does not compile is reported with its compile errors,
 like the other commands do.
 
 With `-f json`, the findings are printed as one JSON document:
 
 ```bash
-zp lint -g items.zp -f json
+sxir lint -g items.sxir -f json
 ```
 
 ```text
 {
-  "grammar": "items.zp",
+  "grammar": "items.sxir",
   "start": "main",
   "findings": [
     {
@@ -98,8 +98,8 @@ check with its severity.
 grammar a failed `A` gives its input back to the repetition in `main`, which tries `"a"` and then `A` again one
 character further on:
 
-```zp
-// scan.zp
+```sxir
+// scan.sxir
 @start
 rule main = (A / "a")* $$
 
@@ -107,13 +107,13 @@ rule A = "a"* "c"
 ```
 
 ```bash
-zp lint -g scan.zp -classify
+sxir lint -g scan.sxir -classify
 ```
 
 ```text
-scan.zp:5:10: hint: the cost can grow as n^2: after the alternative at 3:14 in rule main fails, the later alternative "a" at 3:18 in rule main can start again inside the input that the repetition "a"* at 5:10 in rule A examined; this repeats in the repetition (A / "a")* at 3:13 in rule main [super-linear]
-scan.zp: the cost from start rule main is polynomial (n^2)
-	witness: scan.zp:5:10: the cost can grow as n^2: after the alternative at 3:14 in rule main fails, the later alternative "a" at 3:18 in rule main can start again inside the input that the repetition "a"* at 5:10 in rule A examined; this repeats in the repetition (A / "a")* at 3:13 in rule main
+scan.sxir:5:10: hint: the cost can grow as n^2: after the alternative at 3:14 in rule main fails, the later alternative "a" at 3:18 in rule main can start again inside the input that the repetition "a"* at 5:10 in rule A examined; this repeats in the repetition (A / "a")* at 3:13 in rule main [super-linear]
+scan.sxir: the cost from start rule main is polynomial (n^2)
+	witness: scan.sxir:5:10: the cost can grow as n^2: after the alternative at 3:14 in rule main fails, the later alternative "a" at 3:18 in rule main can start again inside the input that the repetition "a"* at 5:10 in rule A examined; this repeats in the repetition (A / "a")* at 3:13 in rule main
 ```
 
 On `a` repeated n times, `"a"*` scans to the end of the input from every position. Each cause is a
@@ -144,8 +144,8 @@ rule costs linear time, and compiling the grammar fails with an error at each ca
 cannot rule out, so the grammar stays linear as it changes. The same grammar as above, declared linear:
 
 <!-- example: error -->
-```zp
-// linear.zp
+```sxir
+// linear.sxir
 @linear
 package scan
 
@@ -156,14 +156,14 @@ rule A = "a"* "c"
 ```
 
 ```bash
-zp lint -g linear.zp
+sxir lint -g linear.sxir
 ```
 
 ```text
-zp: linear.zp:8:10: the grammar from start rule main is declared @linear, but the cost can grow as n^2: after the alternative at 6:14 in rule main fails, the later alternative "a" at 6:18 in rule main can start again inside the input that the repetition "a"* at 8:10 in rule A examined; this repeats in the repetition (A / "a")* at 6:13 in rule main; scan once: put the scan and what may follow it in one alternative (see https://zeroparse.dev/docs/cookbook/linear-rewrites/#a-repetition-restarted-after-backtracking)
+sxir: linear.sxir:8:10: the grammar from start rule main is declared @linear, but the cost can grow as n^2: after the alternative at 6:14 in rule main fails, the later alternative "a" at 6:18 in rule main can start again inside the input that the repetition "a"* at 8:10 in rule A examined; this repeats in the repetition (A / "a")* at 6:13 in rule main; scan once: put the scan and what may follow it in one alternative (see https://syntaxir.dev/docs/cookbook/linear-rewrites/#a-repetition-restarted-after-backtracking)
 ```
 
-Every command that compiles the grammar, `zp parse` and `zp gen` among them, fails the same way, and so do `compiler.Compile`
+Every command that compiles the grammar, `sxir parse` and `sxir gen` among them, fails the same way, and so do `compiler.Compile`
 and the editor. Each error ends with the rewrite for its kind of cause and a link to the section of the cookbook recipe
 Rewrite a Grammar to Linear Cost that shows it; a reason for the class unknown links to
 the recipe as a whole. Here the cause is a repetition restarted after backtracking, and `A = "a" "c"` makes the grammar
@@ -182,13 +182,13 @@ linear time even in a grammar declared `@linear`. The exact rules are in [Declar
 
 ## From Go
 
-Package `zeroparse.dev/zp/pkg/lint` lints from Go. A `lint.Config` holds the settings of a run, and its `Run`
+Package `syntaxir.dev/sxir/pkg/lint` lints from Go. A `lint.Config` holds the settings of a run, and its `Run`
 method takes a context, a grammar AST and the start rule. It returns an error, and no findings, if the grammar
 does not compile or the context ends. The types, functions and errors of the package are defined in
 [Go API](../../spec/runtime/lint.md#go-api):
 
 ```go
-g, err := grammar.Load(grammar.FromString("grammar.zp", src))
+g, err := grammar.Load(grammar.FromString("grammar.sxir", src))
 if err != nil {
 	log.Fatal(err)
 }
@@ -208,7 +208,7 @@ A test can keep a grammar free of mistakes:
 
 ```go
 func TestGrammarLint(t *testing.T) {
-	g, err := grammar.Load(grammar.FromString("grammar.zp", grammarSource))
+	g, err := grammar.Load(grammar.FromString("grammar.sxir", grammarSource))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -295,7 +295,7 @@ commits to the earlier one. The linter proves it in three ways.
 
 An earlier alternative always succeeds, so the later ones are never even tried:
 
-```zp
+```sxir
 rule sign = "+"? / "-" // "+"? matches nothing when there is no "+": "-" is never tried
 ```
 
@@ -304,7 +304,7 @@ optional).
 
 An earlier alternative is a prefix of a later one:
 
-```zp
+```sxir
 rule op = "=" / "==" // "=" matches the start of "=="
 rule arrow = "-" / "->"
 rule call = ident / ident "(" args ")" // the same first item, and nothing more
@@ -334,7 +334,7 @@ Two things to know when you remove or move a dead alternative:
 
 An anchor that contradicts its neighbors in a sequence makes the sequence impossible:
 
-```zp
+```sxir
 rule file = items $$ "\n" // nothing can follow the end of the input
 rule doc = header ^^ body // header consumed input, so this is not the beginning
 rule line = text $ "x" // $ is followed by a line break or the end, not "x"
@@ -345,7 +345,7 @@ Move `$$` to the end (`items "\n"? $$`), and `^^` to the beginning.
 
 A rule that can only match by matching itself first has no base case and never matches:
 
-```zp
+```sxir
 rule list = item "," list // every list needs a longer list
 rule expr = expr "+" term // left recursion that never starts
 ```
@@ -357,7 +357,7 @@ An explicit `_|_` is never reported: it is written on purpose, as in `_|_ @error
 
 ### `useless-lookahead`
 
-```zp
+```sxir
 rule a = !"x"? y // error: "x"? always succeeds, so !"x"? never does
 rule b = &ws* y // warning: ws* always succeeds, so &ws* has no effect
 rule c = !_|_ y // warning: _|_ never matches, so !_|_ always succeeds
@@ -369,7 +369,7 @@ The language-server quick fix removes a lookahead that always succeeds when it i
 
 ### `nullable-repetition`
 
-```zp
+```sxir
 rule list = item?* // item? can match nothing
 rule text = word*+
 rule lines = line* // line = [^\n]* "\n"? can match nothing too
@@ -383,7 +383,7 @@ iteration still adds an element to the list (a `nil`, or an empty match), and th
 
 ### `redundant-optional`
 
-```zp
+```sxir
 rule a = "x"*? y // "x"* always succeeds: the ? does nothing
 ```
 
@@ -391,7 +391,7 @@ Remove the `?`. An optional lookahead (`(&x)?`) is not reported: it adds a `nil`
 
 ### `growing-variable`
 
-```zp
+```sxir
 var s string = "a"
 
 @start
@@ -399,7 +399,7 @@ rule main = "x" {s := s + s} main / ""
 ```
 
 ```text
-grow.zp:4:18: warning: s := s + s can at least double the size of s on each recursion or iteration, so that it can grow exponentially with the input [growing-variable]
+grow.sxir:4:18: warning: s := s + s can at least double the size of s on each recursion or iteration, so that it can grow exponentially with the input [growing-variable]
 ```
 
 Each call of `main` sees the value that the call before it bound, so after n characters `s` holds 2^n characters. A
@@ -412,7 +412,7 @@ variables are checked; growth through `int` variables, and a fold accumulator th
 
 A capture is reported when nothing can read its value:
 
-```zp
+```sxir
 rule ret = "return" v:(ws x:expr)? => Return{Value: $x} // v: is never read
 rule kv = k:key "=" v:value => $k // v: is never read
 rule all = (x:item)* => nil // the list of the repetition is discarded
@@ -424,14 +424,14 @@ parameter, which is written without `$`, is not a capture), or, in a rule withou
 
 ### `duplicate-capture`
 
-```zp
+```sxir
 rule pair = a:key "=" a:value // the second a: overwrites the first
 ```
 
 A capture stores its value after its expression matches. For nested captures, the inner capture is stored first and
 the outer capture then overwrites it. The finding points to the outer capture and identifies the inner one:
 
-```zp
+```sxir
 @start
 rule main = a:a:"x"
 ```
@@ -441,7 +441,7 @@ own.
 
 ### `char-class`
 
-```zp
+```sxir
 rule id = [a-zA-Za-f_] // a-f overlaps a-z
 rule word = [A-z]+ // A-z also matches [\]^_` between Z and a
 ```
@@ -460,7 +460,7 @@ The language-server quick fix deletes the rule with its attributes and the comme
 
 ### `right-recursion`
 
-```zp
+```sxir
 rule lines = line lines?
 rule args = expr ("," args)?
 ```
@@ -480,7 +480,7 @@ you).
 
 ### `long-lookahead`
 
-```zp
+```sxir
 rule line = text "\n" &([^!]* ($$ / "!")) // looks ahead to the next "!", across lines
 ```
 
@@ -507,7 +507,7 @@ level does not read, stays quadratic. Build each level's value from the one insi
 
 ### `case-insensitive-literal`
 
-```zp
+```sxir
 rule SELECT = [sS][eE][lL][eE][cC][tT] !ident_char // write "select"i
 ```
 
@@ -520,7 +520,7 @@ partial run is reported with only its own letters.
 A comment that starts with `lint:ignore` and the names of checks suppresses their findings, with an optional reason:
 
 <!-- example: skip: a fragment that refers to rules shown elsewhere -->
-```zp
+```sxir
 // lint:ignore unreachable-rule kept for the next version of the format
 rule expr_entry = expr $$
 
@@ -547,4 +547,4 @@ suppressions do not outlive what they excused. Grammars without comments (JSON) 
 - Mistakes the compiler already rejects: undefined rules and captures, captures inside `!`, `@` or `-`, type errors
   in actions, unknown escapes.
 - Anchors across rules: `rule a = "x" $$` called as `a "y"` is not reported.
-- Performance on real input: use [`zp profile`](debugging.md) for that.
+- Performance on real input: use [`sxir profile`](debugging.md) for that.

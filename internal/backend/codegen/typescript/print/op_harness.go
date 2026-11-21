@@ -5,8 +5,8 @@ import (
 	"slices"
 	"strings"
 
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/exec/compose"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/compose"
 )
 
 // OperationHarness is the printed code of operations, one method each, for the conformance tests of the

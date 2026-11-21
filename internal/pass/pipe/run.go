@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"zeroparse.dev/zp/internal/pass"
+	"syntaxir.dev/sxir/internal/pass"
 )
 
 // Run is the manager of one compilation.

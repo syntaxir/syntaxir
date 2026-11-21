@@ -3,7 +3,7 @@ package engine
 import (
 	"testing"
 
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 func jsonActionBlockGrammar(t *testing.T, g *ast.Grammar) *ast.Grammar {

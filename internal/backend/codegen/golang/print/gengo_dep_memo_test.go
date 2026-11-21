@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // depMemoGenCases returns the grammars of codegentest.DependencyMemoCases for seeds below seeds that
@@ -102,10 +102,10 @@ func testGeneratedLeftRecursionDependencyMemoLinear(t *testing.T) {
 			// budget grants, so with controls they get a budget linear in the input with their constant.
 			limit := ""
 			if i >= costly && controls {
-				limit = fmt.Sprintf(", zprt.WithLimits(zpruntime.Limits{Compute: %d})", codegentest.ContextStoreBudgetPerUnit*uint64(len(input)))
+				limit = fmt.Sprintf(", sxirrt.WithLimits(sxirruntime.Limits{Compute: %d})", codegentest.ContextStoreBudgetPerUnit*uint64(len(input)))
 			}
-			fmt.Fprintf(&calls, "\t{ var p zpinstrument.Profile; if _, err := %s.Parse(%s, zprt.WithProfile(&p)%s); err != nil { panic(err) }; fmt.Print(p.Snapshot().Evals, \" \") }\n", pkg, in, limit)
-			fmt.Fprintf(&calls, "\t{ var p zpinstrument.Profile; if _, err := %s.ParseValue(%s, zprt.WithProfile(&p)%s); err != nil { panic(err) }; fmt.Print(p.Snapshot().Evals, \" \") }\n", pkg, in, limit)
+			fmt.Fprintf(&calls, "\t{ var p sxirinstrument.Profile; if _, err := %s.Parse(%s, sxirrt.WithProfile(&p)%s); err != nil { panic(err) }; fmt.Print(p.Snapshot().Evals, \" \") }\n", pkg, in, limit)
+			fmt.Fprintf(&calls, "\t{ var p sxirinstrument.Profile; if _, err := %s.ParseValue(%s, sxirrt.WithProfile(&p)%s); err != nil { panic(err) }; fmt.Print(p.Snapshot().Evals, \" \") }\n", pkg, in, limit)
 		}
 		if long == 0 {
 			calls.WriteString("\tfmt.Print(true, \" \", true)\n")
@@ -120,12 +120,12 @@ func testGeneratedLeftRecursionDependencyMemoLinear(t *testing.T) {
 import (
 	"fmt"
 
-	zprt "zeroparse.dev/zp/pkg/runtime/libgo"
-	zpinstrument "zeroparse.dev/zp/pkg/runtime/instrument"
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
+	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
+	sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 ` + imports.String() + `)
 
-var _ zpruntime.Limits
+var _ sxirruntime.Limits
 
 func main() {
 ` + calls.String() + `}

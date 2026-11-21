@@ -3,7 +3,7 @@ package cliflag
 import (
 	"testing"
 
-	"zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 func TestParseUnit(t *testing.T) {

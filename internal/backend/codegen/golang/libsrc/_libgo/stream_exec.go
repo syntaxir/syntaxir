@@ -2,7 +2,7 @@
 
 package libgo
 
-import zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+import sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 
 // EmitStream passes a committed element v of the start rule's #stream repetition to the caller and
 // commits the input before end. The recovered errors committed so far are reported first, so that an
@@ -10,7 +10,7 @@ import zpvalue "zeroparse.dev/zp/pkg/runtime/value"
 // once emitted: a caller error ends the parse unchanged.
 //
 // Printed from Exec IR function streamEmit of internal/ir/code/exec/compose, specialized for stream.
-func (p *Parser) EmitStream(v *zpvalue.Node, end int) {
+func (p *Parser) EmitStream(v *sxirvalue.Node, end int) {
 	p.Control.Check()
 	p.streamReport()
 	p.streamDeliver(v)

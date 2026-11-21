@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	ir "zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/middleend/codepass"
+	ir "syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/middleend/codepass"
 )
 
 // bodyFunc returns a module with the operations of the body tests and the function f of the locals

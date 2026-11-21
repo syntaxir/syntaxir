@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/frontend/parser"
-	"zeroparse.dev/zp/internal/middleend/corepass"
-	"zeroparse.dev/zp/internal/testing/starttest"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/middleend/corepass"
+	"syntaxir.dev/sxir/internal/testing/starttest"
 )
 
 // nestingRestarts are grammars whose cost is quadratic because a unit restarts a nesting: the
@@ -93,7 +93,7 @@ var nestingHooks = []struct {
 // keeps the linear grammars of the same shapes linear. It classifies them without scan sites.
 func TestNestingRestarts(t *testing.T) {
 	withoutScanSites(t)
-	calc, err := os.ReadFile("../../../examples/calculator/calc_lr.zp")
+	calc, err := os.ReadFile("../../../examples/calculator/calc_lr.sxir")
 	if err != nil {
 		t.Fatal(err)
 	}

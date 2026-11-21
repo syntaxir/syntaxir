@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 func generated(t *testing.T, src string, opts Options) (seqs []string, err error) {

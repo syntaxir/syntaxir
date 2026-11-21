@@ -1,8 +1,8 @@
 package closure
 
 import (
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // ClassAccept returns the membership test of a character class. Classes of one or two ranges,

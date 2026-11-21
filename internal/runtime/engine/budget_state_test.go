@@ -1,4 +1,4 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package engine
 
@@ -9,16 +9,16 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/closure"
-	"zeroparse.dev/zp/internal/compile"
-	ir "zeroparse.dev/zp/internal/ir/core"
-	value "zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/internal/runtime/program"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/input"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	"syntaxir.dev/sxir/internal/backend/closure"
+	"syntaxir.dev/sxir/internal/compile"
+	ir "syntaxir.dev/sxir/internal/ir/core"
+	value "syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/internal/runtime/program"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/input"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 func stateBudgetParser(limits runtime.Limits) *state.Parser {
@@ -27,18 +27,18 @@ func stateBudgetParser(limits runtime.Limits) *state.Parser {
 	return &state.Parser{Prog: prog, Input: state.Input{Control: state.NewBudgetControl(nil, limits)}}
 }
 
-func undoFixture(p *state.Parser) (*state.Frame, []*zpvalue.Node) {
+func undoFixture(p *state.Parser) (*state.Frame, []*sxirvalue.Node) {
 	old0 := value.Ptr(value.Data{Text: "old-zero", Fields: valueimpl.Fields{{Name: "keep", Value: "zero"}}})
 	first0 := value.Ptr(value.Data{Text: "first-zero"})
 	latest0 := value.Ptr(value.Data{Text: "latest-zero"})
 	old1 := value.Ptr(value.Data{Text: "old-one"})
 	last1 := value.Ptr(value.Data{Text: "last-one"})
-	f := &state.Frame{Vals: []*zpvalue.Node{latest0, old1}}
+	f := &state.Frame{Vals: []*sxirvalue.Node{latest0, old1}}
 	p.Trail = []state.Undo{{F: f, Slot: 0, Old: old0}, {F: f, Slot: 0, Old: first0}, {F: f, Slot: 1, Old: old1}, {F: f, Slot: 1, Old: last1}}
-	return f, []*zpvalue.Node{old0, first0, old1, last1, latest0}
+	return f, []*sxirvalue.Node{old0, first0, old1, last1, latest0}
 }
 
-func assertUndoRestored(t *testing.T, f *state.Frame, nodes []*zpvalue.Node) {
+func assertUndoRestored(t *testing.T, f *state.Frame, nodes []*sxirvalue.Node) {
 	t.Helper()
 	if f.Vals[0] != nodes[0] || f.Vals[1] != nodes[2] {
 		t.Fatalf("restored slots = (%p,%p), want (%p,%p)", f.Vals[0], f.Vals[1], nodes[0], nodes[2])
@@ -55,7 +55,7 @@ func TestBudgetResetRestoresRepeatedCaptureWritesInReverse(t *testing.T) {
 	p.Pos = 71
 	p.Frame = f
 	p.SetVars([]any{1})
-	p.Recovered = []state.RecEntry{state.ErrEntry(&zpvalue.SyntaxError{Messages: []string{"temporary"}})}
+	p.Recovered = []state.RecEntry{state.ErrEntry(&sxirvalue.SyntaxError{Messages: []string{"temporary"}})}
 	m := state.Mark{Pos: 4, Env: nil, Trail: 0, Recovered: 0}
 
 	p.Reset(m)
@@ -71,7 +71,7 @@ func TestBudgetResetRestoresRepeatedCaptureWritesInReverse(t *testing.T) {
 func TestBudgetResetUndoChargesNothing(t *testing.T) {
 	t.Parallel()
 	p := stateBudgetParser(runtime.Limits{})
-	f := &state.Frame{Vals: make([]*zpvalue.Node, 257)}
+	f := &state.Frame{Vals: make([]*sxirvalue.Node, 257)}
 	for i := range f.Vals {
 		old := value.Ptr(value.Data{Text: "old"})
 		f.Vals[i] = value.Ptr(value.Data{Text: "new"})
@@ -98,7 +98,7 @@ func TestBudgetResetUndoChargesNothing(t *testing.T) {
 func TestBudgetAttachCapturesNilFrameAndFieldOrder(t *testing.T) {
 	t.Parallel()
 	retained := value.Ptr(value.Data{Text: "base", Fields: valueimpl.Fields{{Name: "existing", Value: "kept"}}})
-	allNil := &state.Frame{Vals: make([]*zpvalue.Node, 320)}
+	allNil := &state.Frame{Vals: make([]*sxirvalue.Node, 320)}
 	p := stateBudgetParser(runtime.Limits{Compute: 100_000})
 	got := p.AttachCaptures(retained, &program.Scope{Names: make([]string, len(allNil.Vals))}, allNil, 2, 9)
 	if got != retained || len(value.D(retained).Fields) != 1 || value.D(retained).Fields[0].Value != "kept" {
@@ -106,7 +106,7 @@ func TestBudgetAttachCapturesNilFrameAndFieldOrder(t *testing.T) {
 	}
 
 	fields := []string{"first", "duplicate", "third", "duplicate", "late_" + strings.Repeat("p", 80)}
-	values := []*zpvalue.Node{
+	values := []*sxirvalue.Node{
 		value.Ptr(value.Data{Text: "first-value"}), value.Ptr(value.Data{Text: "old-duplicate"}), value.Ptr(value.Data{Text: "third-value"}), value.Ptr(value.Data{Text: "new-duplicate"}), value.Ptr(value.Data{Text: "late-value"}),
 	}
 	base := value.Ptr(value.Data{Text: "fresh-body", Fresh: true})
@@ -134,7 +134,7 @@ func TestBudgetAttachCapturesWrapsNonfreshAndSelfCapture(t *testing.T) {
 	prior := valueimpl.Fields{{Name: "prior", Value: "unchanged"}}
 	shared := value.Ptr(value.Data{Text: "shared", Fields: append(valueimpl.Fields(nil), prior...)})
 	p := stateBudgetParser(runtime.Limits{Compute: 100_000})
-	wrapped := p.AttachCaptures(shared, &program.Scope{Names: []string{"child"}}, &state.Frame{Vals: []*zpvalue.Node{child}}, 4, 7)
+	wrapped := p.AttachCaptures(shared, &program.Scope{Names: []string{"child"}}, &state.Frame{Vals: []*sxirvalue.Node{child}}, 4, 7)
 	if wrapped == shared || len(value.D(wrapped).Children) != 1 || value.D(wrapped).Children[0] != shared {
 		t.Fatal("nonfresh node was not wrapped before capture attachment")
 	}
@@ -146,7 +146,7 @@ func TestBudgetAttachCapturesWrapsNonfreshAndSelfCapture(t *testing.T) {
 	}
 
 	self := value.Ptr(value.Data{Text: "self", Fresh: true})
-	got := p.AttachCaptures(self, &program.Scope{Names: []string{"self"}}, &state.Frame{Vals: []*zpvalue.Node{self}}, 1, 2)
+	got := p.AttachCaptures(self, &program.Scope{Names: []string{"self"}}, &state.Frame{Vals: []*sxirvalue.Node{self}}, 1, 2)
 	if got == self || len(value.D(got).Children) != 1 || value.D(got).Children[0] != self {
 		t.Fatal("self-capture did not wrap the body node")
 	}
@@ -162,7 +162,7 @@ func TestBudgetAttachCapturesWrapsNonfreshAndSelfCapture(t *testing.T) {
 func TestBudgetAttachCapturesWideScopesChargeNothing(t *testing.T) {
 	t.Parallel()
 	base := value.Ptr(value.Data{Text: "retained", Fields: valueimpl.Fields{{Name: "prior", Value: "kept"}}})
-	wide := &state.Frame{Vals: make([]*zpvalue.Node, 320)}
+	wide := &state.Frame{Vals: make([]*sxirvalue.Node, 320)}
 	p := stateBudgetParser(runtime.Limits{Compute: 128})
 	if err := catchFatal(t, func() { _ = p.AttachCaptures(base, &program.Scope{Names: make([]string, 320)}, wide, 0, 1) }); err != nil {
 		t.Fatalf("all-nil scan = %v, want no error", err)
@@ -176,14 +176,14 @@ func TestBudgetAttachCapturesWideScopesChargeNothing(t *testing.T) {
 
 	const n = 48
 	names := make([]string, n)
-	vals := make([]*zpvalue.Node, n)
+	vals := make([]*sxirvalue.Node, n)
 	for i := range names {
 		names[i] = fmt.Sprintf("capture_%03d_%s", i, strings.Repeat("common_prefix_", 12))
 		vals[i] = value.Ptr(value.Data{Text: fmt.Sprintf("value-%d", i)})
 	}
 	retained := value.Ptr(value.Data{Text: "shared-retained", Fields: valueimpl.Fields{{Name: "existing", Value: "stable"}}})
 	p = stateBudgetParser(runtime.Limits{Compute: 32})
-	var got *zpvalue.Node
+	var got *sxirvalue.Node
 	if err := catchFatal(t, func() { got = p.AttachCaptures(retained, &program.Scope{Names: names}, &state.Frame{Vals: vals}, 3, 9) }); err != nil {
 		t.Fatalf("capture field walk = %v, want no error", err)
 	}

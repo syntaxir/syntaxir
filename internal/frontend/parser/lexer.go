@@ -1,4 +1,4 @@
-// Package parser parses ZeroParse source code into a grammar AST.
+// Package parser parses SyntaxIR source code into a grammar AST.
 package parser
 
 import (
@@ -9,7 +9,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 type tokenKind int

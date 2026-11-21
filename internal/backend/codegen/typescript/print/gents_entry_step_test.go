@@ -3,8 +3,8 @@ package print_test
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // A rule call costs one step at its entry. A rule that reads no captures and takes callBody's unmemoized

@@ -40,7 +40,7 @@ func TestBuild(t *testing.T) {
 		t.Skip("the go command is not available")
 	}
 	out := siteTestOutput(t)
-	cfg := Config{Repo: "..", Out: out, Wasm: !testing.Short(), WasmSource: "build", Check: true, GitHub: "https://github.com/zeroparse/zp", Ref: "main"}
+	cfg := Config{Repo: "..", Out: out, Wasm: !testing.Short(), WasmSource: "build", Check: true, GitHub: "https://github.com/syntaxir/syntaxir", Ref: "main"}
 	st, err := Build(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -199,7 +199,7 @@ func TestBuild(t *testing.T) {
 	// Generated pages.
 	for page, wants := range map[string][]string{
 		"index.html": {
-			"One Grammar. Every Parser.", `class="feature"`, `id="live"`, `data-input="1 &#43; 2 * 3 ^ 2"`, `id="live-input" class="live-input" value="1 &#43; 2 * 3 ^ 2"`, "zp parse -g calc.zp",
+			"One Grammar. Every Parser.", `class="feature"`, `id="live"`, `data-input="1 &#43; 2 * 3 ^ 2"`, `id="live-input" class="live-input" value="1 &#43; 2 * 3 ^ 2"`, "sxir parse -g calc.sxir",
 			`href="docs/tutorial/getting-started/"`, `id="install"`,
 		},
 		"reference/compiler/index.html": {
@@ -223,7 +223,7 @@ func TestBuild(t *testing.T) {
 		"docs/performance/index.html":     {`id="1-value-free-rule-bodies-value-free-twins-transient-rules-0b2c903"`, `id="76-inline-value-free-plain-generated-go-rules"`, `id="77-inline-value-building-and-memoized-node-expressions-in-generated-go-parsers"`},
 		"playground/index.html":           {`id="pg-grammar"`, `src="../playground/app.js"`, `href="../playground/playground.css"`},
 		"docs/guide/running-parsers/index.html": {
-			`id="compiled-grammars"`, `href="../../../spec/"`, `<pre><code class="language-zp">`,
+			`id="compiled-grammars"`, `href="../../../spec/"`, `<pre><code class="language-sxir">`,
 		},
 	} {
 		data, err := os.ReadFile(filepath.Join(out, filepath.FromSlash(page)))
@@ -283,7 +283,7 @@ func TestBuild(t *testing.T) {
 		t.Error("site script does not install legacy optimization redirects")
 	}
 
-	// The reference of the zp command has a section for every command, with every flag.
+	// The reference of the sxir command has a section for every command, with every flag.
 	cli, err := os.ReadFile(filepath.Join(out, "reference", "cli", "index.html"))
 	if err != nil {
 		t.Fatal(err)
@@ -313,7 +313,7 @@ func TestBuild(t *testing.T) {
 		}
 		for _, f := range flags {
 			if !strings.Contains(section, "<code>"+f+"</code>") {
-				t.Errorf("zp %s: no flag %s", cmd, f)
+				t.Errorf("sxir %s: no flag %s", cmd, f)
 			}
 		}
 	}
@@ -352,7 +352,7 @@ func TestBuild(t *testing.T) {
 	if len(exs) < 6 || exs[0].Grammar == "" || exs[0].Input == "" {
 		t.Errorf("examples.json has %d examples", len(exs))
 	}
-	files := []string{"worker.js", "app.js", "../assets/zp-client.js", "../assets/state.js", "../assets/highlight.js"}
+	files := []string{"worker.js", "app.js", "../assets/sxir-client.js", "../assets/state.js", "../assets/highlight.js"}
 	if cfg.Wasm {
 		files = append(files, "wasm_exec.js")
 	}
@@ -377,7 +377,7 @@ func TestBuild(t *testing.T) {
 				continue
 			}
 			ref := filepath.Join(out, filepath.FromSlash(filepath.Dir(page)), filepath.FromSlash(string(m[1])))
-			if !regexp.MustCompile(`/playground/wasm/zp-[0-9a-f]{16}\.wasm\.gz$`).MatchString(filepath.ToSlash(ref)) {
+			if !regexp.MustCompile(`/playground/wasm/sxir-[0-9a-f]{16}\.wasm\.gz$`).MatchString(filepath.ToSlash(ref)) {
 				t.Errorf("%s: %s is not content-hashed", page, m[1])
 			}
 			wasm, err := os.ReadFile(ref)
@@ -417,7 +417,7 @@ func TestJavaScript(t *testing.T) {
 }
 
 func TestParseUsage(t *testing.T) {
-	u, err := parseUsage(`usage: zp <command> [flags]
+	u, err := parseUsage(`usage: sxir <command> [flags]
 
 Commands:
 
@@ -433,30 +433,30 @@ Commands:
   gen -lang ts
       Generate a parser.
 
-A <grammar> is ZeroParse source
+A <grammar> is SyntaxIR source
 or JSON.
 
-Run "zp <command> -h".
+Run "sxir <command> -h".
 `)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if u.synopsis != "zp <command> [flags]" || len(u.commands) != 3 || len(u.notes) != 2 {
+	if u.synopsis != "sxir <command> [flags]" || len(u.commands) != 3 || len(u.notes) != 2 {
 		t.Fatalf("%+v", u)
 	}
 	p := u.commands[0]
-	if p.name != "parse" || p.synopsis != "zp parse -g <grammar> [-s <rule>]\n     [-unit u]" || p.description != "Parse the input. Without -i, it reads standard input." {
+	if p.name != "parse" || p.synopsis != "sxir parse -g <grammar> [-s <rule>]\n     [-unit u]" || p.description != "Parse the input. Without -i, it reads standard input." {
 		t.Errorf("parse: %+v", p)
 	}
-	if u.commands[1].name != "fmt" || u.notes[0] != "A <grammar> is ZeroParse source or JSON." {
+	if u.commands[1].name != "fmt" || u.notes[0] != "A <grammar> is SyntaxIR source or JSON." {
 		t.Errorf("%+v", u)
 	}
-	if g := u.commands[2]; g.name != "gen" || g.synopsis != "zp gen -pkg <name>\nzp gen -lang ts" || g.description != "Generate a parser." {
+	if g := u.commands[2]; g.name != "gen" || g.synopsis != "sxir gen -pkg <name>\nsxir gen -lang ts" || g.description != "Generate a parser." {
 		t.Errorf("gen (two forms of one command): %+v", g)
 	}
 
 	flags := parseFlagDefaults("Usage of trace:\n  -f string\n    \toutput format (default \"text\")\n  -n int\n    \trows (0 shows all) (default 30)\n" +
-		"  -rule value\n    \tonly this rule\n  -w\twrite the result\n  -s string\n    \tstart rule (default: main)\nzp: flag: help requested\n")
+		"  -rule value\n    \tonly this rule\n  -w\twrite the result\n  -s string\n    \tstart rule (default: main)\nsxir: flag: help requested\n")
 	want := []cliFlag{
 		{"f", "string", `"text"`, "output format"},
 		{"n", "int", "30", "rows (0 shows all)"},
@@ -505,7 +505,7 @@ func TestCheckLinks(t *testing.T) {
 }
 
 func TestResolveLink(t *testing.T) {
-	s := &Site{cfg: Config{Repo: "..", GitHub: "https://github.com/zeroparse/zp", Ref: "main"}, bySrc: map[string]*Page{}, byDir: map[string]*Page{}}
+	s := &Site{cfg: Config{Repo: "..", GitHub: "https://github.com/syntaxir/syntaxir", Ref: "main"}, bySrc: map[string]*Page{}, byDir: map[string]*Page{}}
 	from := &Page{Src: "docs/guide/runtime.md", URL: "docs/guide/runtime/"}
 	s.add(from)
 	s.add(&Page{Src: "spec/README.md", URL: "spec/"})
@@ -518,11 +518,11 @@ func TestResolveLink(t *testing.T) {
 		{"../../spec/", "../../../spec/"},
 		{"../../spec/README.md", "../../../spec/"},
 		{"../../README.md", "../../../"},
-		{"../../examples/calculator/calc.zp", "https://github.com/zeroparse/zp/blob/main/examples/calculator/calc.zp"},
-		{"../../examples/calculator/", "https://github.com/zeroparse/zp/tree/main/examples/calculator"},
+		{"../../examples/calculator/calc.sxir", "https://github.com/syntaxir/syntaxir/blob/main/examples/calculator/calc.sxir"},
+		{"../../examples/calculator/", "https://github.com/syntaxir/syntaxir/tree/main/examples/calculator"},
 		// Links relative to the repository root and percent-encoded paths work on GitHub too.
 		{"/spec/language/operators-rule.md#levels", "../../../spec/language/operators-rule/#levels"},
-		{"/examples/calculator/calc.zp", "https://github.com/zeroparse/zp/blob/main/examples/calculator/calc.zp"},
+		{"/examples/calculator/calc.sxir", "https://github.com/syntaxir/syntaxir/blob/main/examples/calculator/calc.sxir"},
 		{"/", "../../../"},
 		{"%2E%2E/%2E%2E/spec/language/operators-rule.md", "../../../spec/language/operators-rule/"},
 		{"../../spec/language/operators-rule.md#caf%C3%A9", "../../../spec/language/operators-rule/#caf%C3%A9"},
@@ -545,7 +545,7 @@ func TestResolveLink(t *testing.T) {
 // TestNonASCIIAnchors renders headings and links with non-ASCII text, which goldmark percent-encodes
 // in link destinations, and checks that the links resolve.
 func TestNonASCIIAnchors(t *testing.T) {
-	s := &Site{cfg: Config{Repo: "..", GitHub: "https://github.com/zeroparse/zp", Ref: "main"}, bySrc: map[string]*Page{}, byDir: map[string]*Page{}}
+	s := &Site{cfg: Config{Repo: "..", GitHub: "https://github.com/syntaxir/syntaxir", Ref: "main"}, bySrc: map[string]*Page{}, byDir: map[string]*Page{}}
 	p := &Page{Src: "docs/x.md", URL: "docs/x/"}
 	s.add(p)
 	m := s.parseMarkdown(p, []byte("# Title\n\n## Café au lait\n\n## 日本語の見出し\n\n[a](#café-au-lait) [b](#日本語の見出し) [c](#caf%C3%A9-au-lait)\n"))
@@ -564,17 +564,17 @@ func TestNonASCIIAnchors(t *testing.T) {
 // TestHeadingText checks that heading anchors and the table of contents use the text of a heading as
 // displayed, after entities and escapes, as GitHub does.
 func TestHeadingText(t *testing.T) {
-	s := &Site{cfg: Config{Repo: "..", GitHub: "https://github.com/zeroparse/zp", Ref: "main"}, bySrc: map[string]*Page{}, byDir: map[string]*Page{}}
+	s := &Site{cfg: Config{Repo: "..", GitHub: "https://github.com/syntaxir/syntaxir", Ref: "main"}, bySrc: map[string]*Page{}, byDir: map[string]*Page{}}
 	p := &Page{Src: "docs/x.md", URL: "docs/x/"}
 	s.add(p)
-	m := s.parseMarkdown(p, []byte("# Title\n\n## A &amp; B\n\n## Escaped \\*star\\*\n\n## The `#recover` pragma & <b>more</b>\n\nSoft\nbreak\n----\n\n## Compiled grammars (`.zpc`)\n"))
+	m := s.parseMarkdown(p, []byte("# Title\n\n## A &amp; B\n\n## Escaped \\*star\\*\n\n## The `#recover` pragma & <b>more</b>\n\nSoft\nbreak\n----\n\n## Compiled grammars (`.sxirc`)\n"))
 	want := []Heading{
 		{Level: 1, ID: "title", Text: "Title"},
 		{Level: 2, ID: "a--b", Text: "A & B"},
 		{Level: 2, ID: "escaped-star", Text: "Escaped *star*"},
 		{Level: 2, ID: "the-recover-pragma--more", Text: "The #recover pragma & more"},
 		{Level: 2, ID: "soft-break", Text: "Soft break"},
-		{Level: 2, ID: "compiled-grammars-zpc", Text: "Compiled grammars (.zpc)"},
+		{Level: 2, ID: "compiled-grammars-sxirc", Text: "Compiled grammars (.sxirc)"},
 	}
 	if len(m.headings) != len(want) {
 		t.Fatalf("headings = %+v", m.headings)
@@ -588,7 +588,7 @@ func TestHeadingText(t *testing.T) {
 
 func TestSlug(t *testing.T) {
 	for in, want := range map[string]string{
-		"Compiled grammars (.zpc)":             "compiled-grammars-zpc",
+		"Compiled grammars (.sxirc)":           "compiled-grammars-sxirc",
 		"Deep nesting and WithMaxDepth":        "deep-nesting-and-withmaxdepth",
 		"005. Operators Rule (operators rule)": "005-operators-rule-operators-rule",
 		"Choosing: a cheat sheet":              "choosing-a-cheat-sheet",
@@ -670,7 +670,7 @@ func readSidebar(t *testing.T, page string) []sidebarSection {
 // TestNavigation checks the navigation of the documentation, including the nested numbered design records.
 func TestNavigation(t *testing.T) {
 	out := siteTestOutput(t)
-	if _, err := Build(Config{Repo: "..", Out: out, Check: true, GitHub: "https://github.com/zeroparse/zp", Ref: "main"}); err != nil {
+	if _, err := Build(Config{Repo: "..", Out: out, Check: true, GitHub: "https://github.com/syntaxir/syntaxir", Ref: "main"}); err != nil {
 		t.Fatal(err)
 	}
 	// The links of the navigation are relative to the page; this strips the "../" that leads to the root.
@@ -756,14 +756,14 @@ func TestNavigation(t *testing.T) {
 	if !strings.Contains(ordinaryReference, ">CLI Reference</a>") || strings.Contains(ordinaryReference, "Package ") {
 		t.Error("CLI should remain directly visible and package links should appear only inside Go API Reference")
 	}
-	if !strings.Contains(apiGroup[1], `aria-current="page">Package <code>zp/pkg/grammar</code>`) {
+	if !strings.Contains(apiGroup[1], `aria-current="page">Package <code>sxir/pkg/grammar</code>`) {
 		t.Error("current package is not marked within its Go API group")
 	}
 	for path, heading := range map[string]string{
 		"reference/index.html":            `<h1 id="api-reference">Go API Reference</h1>`,
-		"reference/compiler/index.html":   `<h1 id="top">Package <code>zp/pkg/compiler</code></h1>`,
-		"reference/grammar/index.html":    `<h1 id="top">Package <code>zp/pkg/grammar</code></h1>`,
-		"reference/grammarast/index.html": `<h1 id="top">Package <code>zp/pkg/grammar/ast</code></h1>`,
+		"reference/compiler/index.html":   `<h1 id="top">Package <code>sxir/pkg/compiler</code></h1>`,
+		"reference/grammar/index.html":    `<h1 id="top">Package <code>sxir/pkg/grammar</code></h1>`,
+		"reference/grammarast/index.html": `<h1 id="top">Package <code>sxir/pkg/grammar/ast</code></h1>`,
 		"reference/cli/index.html":        `<h1 id="top">CLI Reference</h1>`,
 	} {
 		content, err := os.ReadFile(filepath.Join(out, filepath.FromSlash(path)))
@@ -1016,7 +1016,7 @@ func checkCanonicalPages(t *testing.T, out string) (int, []string) {
 		if !strings.HasPrefix(canonical, "https://") || !strings.HasSuffix(canonical, "/") {
 			problem("%s: canonical %q is not an absolute https URL ending in a slash", rel, canonical)
 		}
-		if want := "https://zeroparse.dev/" + strings.TrimSuffix(rel, "index.html"); canonical != want {
+		if want := "https://syntaxir.dev/" + strings.TrimSuffix(rel, "index.html"); canonical != want {
 			problem("%s: canonical %q, want %q", rel, canonical, want)
 		}
 		if og := ogURLTagRe.FindStringSubmatch(string(page)); og == nil || html.UnescapeString(og[1]) != canonical {
@@ -1035,7 +1035,7 @@ func checkCanonicalPages(t *testing.T, out string) (int, []string) {
 		t.Fatal(err)
 	}
 	for loc := range sitemap {
-		if !listed[loc] && loc != "https://zeroparse.dev/" && !strings.HasPrefix(loc, "https://zeroparse.dev/playground") {
+		if !listed[loc] && loc != "https://syntaxir.dev/" && !strings.HasPrefix(loc, "https://syntaxir.dev/playground") {
 			problem("sitemap lists %s, which no document page names as its canonical URL", loc)
 		}
 	}
@@ -1046,7 +1046,7 @@ func checkCanonicalPages(t *testing.T, out string) (int, []string) {
 // page's canonical URL is the URL the sitemap lists, so that search engines see one URL per page.
 func TestCanonicalURLs(t *testing.T) {
 	out := siteTestOutput(t)
-	if _, err := Build(Config{Repo: "..", Out: out, GitHub: "https://github.com/zeroparse/zp", Ref: "main"}); err != nil {
+	if _, err := Build(Config{Repo: "..", Out: out, GitHub: "https://github.com/syntaxir/syntaxir", Ref: "main"}); err != nil {
 		t.Fatal(err)
 	}
 	n, problems := checkCanonicalPages(t, out)
@@ -1062,7 +1062,7 @@ func TestCanonicalURLs(t *testing.T) {
 // check must fail on a page whose canonical link is removed or whose URL is not the sitemap's.
 func TestCanonicalURLCheckDetectsMissingTag(t *testing.T) {
 	out := siteTestOutput(t)
-	if _, err := Build(Config{Repo: "..", Out: out, GitHub: "https://github.com/zeroparse/zp", Ref: "main"}); err != nil {
+	if _, err := Build(Config{Repo: "..", Out: out, GitHub: "https://github.com/syntaxir/syntaxir", Ref: "main"}); err != nil {
 		t.Fatal(err)
 	}
 	page := filepath.Join(out, "spec", "index.html")

@@ -8,12 +8,12 @@ import (
 	"slices"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/vmlower"
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/driver/checked"
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/testing/compiletest"
-	"zeroparse.dev/zp/pkg/bytecode"
+	"syntaxir.dev/sxir/internal/backend/vmlower"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/driver/checked"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/testing/compiletest"
+	"syntaxir.dev/sxir/pkg/bytecode"
 )
 
 func grammarProgram(t *testing.T, path string) *compile.Program {
@@ -59,7 +59,7 @@ func selectRule(prog *compile.Program, ft *checked.FlowTable, bc *bytecode.Modul
 
 // TestSelectJSONValueFlow selects the body of the JSON value rule, a framed body of the plan.
 func TestSelectJSONValueFlow(t *testing.T) {
-	prog := grammarProgram(t, "../../../testdata/grammars/json/json.zp")
+	prog := grammarProgram(t, "../../../testdata/grammars/json/json.sxir")
 	ft, bc := flowTable(t, prog)
 	id := ruleID(t, ft, "value")
 	if err := selectRule(prog, ft, bc, id); err != nil {
@@ -76,7 +76,7 @@ func TestSelectJSONValueFlow(t *testing.T) {
 // Flow form with the operations selected so far; a body that has none is an error that names its
 // operation.
 func TestSelectJSONRulesCount(t *testing.T) {
-	prog := grammarProgram(t, "../../../testdata/grammars/json/json.zp")
+	prog := grammarProgram(t, "../../../testdata/grammars/json/json.sxir")
 	ft, _ := flowTable(t, prog)
 	ok := 0
 	for _, id := range slices.Sorted(maps.Keys(ft.Bodies)) {
@@ -93,7 +93,7 @@ func TestSelectJSONRulesCount(t *testing.T) {
 // TestSelectFlowsChecksTheLayout checks that a body is selected only into a rule frame whose slots
 // are the capture layout that the plan gave the rule.
 func TestSelectFlowsChecksTheLayout(t *testing.T) {
-	prog := grammarProgram(t, "../../../testdata/grammars/json/json.zp")
+	prog := grammarProgram(t, "../../../testdata/grammars/json/json.sxir")
 	ft, bc := flowTable(t, prog)
 	id := ruleID(t, ft, "main") // its frame has the slot of a capture
 	if len(bc.Rules[id].Scope) == 0 {
@@ -109,7 +109,7 @@ func TestSelectFlowsChecksTheLayout(t *testing.T) {
 // has one with the operations selected so far, and checks that the module validates and that its
 // bodies and scopes read back from the module file as they were written.
 func TestSelectedFlowsSurviveTheFileForm(t *testing.T) {
-	paths, err := filepath.Glob("../../../testdata/grammars/*/*.zp")
+	paths, err := filepath.Glob("../../../testdata/grammars/*/*.sxir")
 	if err != nil || len(paths) == 0 {
 		t.Fatalf("no grammars: %v", err)
 	}

@@ -1,8 +1,8 @@
 package flowlower
 
 import (
-	"zeroparse.dev/zp/internal/frontend/astfacts"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // The expressions that Flow IR lowers: in place, and as lines of an Operators Rule. Which compiled

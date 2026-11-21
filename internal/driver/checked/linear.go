@@ -6,16 +6,16 @@ import (
 	"slices"
 	"strconv"
 
-	"zeroparse.dev/zp/internal/analysis/complexity"
-	"zeroparse.dev/zp/internal/cancel"
-	"zeroparse.dev/zp/internal/diagnostic"
-	"zeroparse.dev/zp/internal/frontend/desugar"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/analysis/complexity"
+	"syntaxir.dev/sxir/internal/cancel"
+	"syntaxir.dev/sxir/internal/diagnostic"
+	"syntaxir.dev/sxir/internal/frontend/desugar"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // linearRewrites is the recipe that shows how to rewrite the constructs whose cost the classifier
 // cannot prove linear.
-const linearRewrites = "https://zeroparse.dev/docs/cookbook/linear-rewrites/"
+const linearRewrites = "https://syntaxir.dev/docs/cookbook/linear-rewrites/"
 
 // A rewrite is the advice of the recipe of linear rewrites for one kind of cause: the rewrite in a
 // few words and the anchor of its section.

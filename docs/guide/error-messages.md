@@ -1,6 +1,6 @@
 # Error Messages
 
-This guide explains how ZeroParse reports syntax errors and how to make the messages useful: what an error contains, how to
+This guide explains how SyntaxIR reports syntax errors and how to make the messages useful: what an error contains, how to
 get it out on the command line and in Go, and how to label the places where a user can go wrong. It is a companion to the
 normative text on [attributes](../../spec/language/attributes.md) (`@error`) and [syntax
 errors](../../spec/runtime/parsing.md#syntax-errors). [Recovering from Errors](recovery.md) continues with keeping the parse
@@ -13,28 +13,28 @@ Contents:
 - [Writing Readable Messages](#writing-readable-messages): quiet whitespace, `@error`, cuts and their pitfalls
 - [Troubleshooting](#troubleshooting)
 
-The examples use the `zp` command; build it once with `go build -o zp ./cmd/zp` (or run `go run ./cmd/zp`
-instead of `zp`). Each command is followed by its output with standard output and standard error shown together, as
-a terminal shows them. `zp` prints errors on standard error with the prefix `zp: ` and exits with status 1 when
+The examples use the `sxir` command; build it once with `go build -o sxir ./cmd/sxir` (or run `go run ./cmd/sxir`
+instead of `sxir`). Each command is followed by its output with standard output and standard error shown together, as
+a terminal shows them. `sxir` prints errors on standard error with the prefix `sxir: ` and exits with status 1 when
 the input has a syntax error, even if it recovered from all of them (the tree is then printed first, on standard
 output).
 
-A grammar block whose first line is `// name.zp` is a complete file: save it under that name. A block whose first
-line is `// name.zp (changed rules)` replaces the rules of the same names in that file, and the examples after it use
+A grammar block whose first line is `// name.sxir` is a complete file: save it under that name. A block whose first
+line is `// name.sxir (changed rules)` replaces the rules of the same names in that file, and the examples after it use
 the edited file. Every command and its output below were run as shown, in this order.
 
 ## What a Syntax Error Is
 
 Listing what was expected costs time and code at every failed alternative, so a parse lists it only when it is asked to
-([Recording Expectations](#recording-expectations)). The `zp` commands and the playground ask for
+([Recording Expectations](#recording-expectations)). The `sxir` commands and the playground ask for
 it, which is why the examples below show the lists.
 
 A PEG parser backtracks: when `a / b` fails in `a`, it simply tries `b`, so "where the parse failed" is not a single
-event. ZeroParse reports the **farthest failure**: the largest input position at which any expression failed to match,
+event. SyntaxIR reports the **farthest failure**: the largest input position at which any expression failed to match,
 together with everything that was expected there. If the whole parse fails, that is the error.
 
-```zp
-// calc.zp
+```sxir
+// calc.sxir
 @start
 rule main = expr
 rule expr = term (("+" / "-") term)*
@@ -44,11 +44,11 @@ rule number = [0-9]+ #atomic
 ```
 
 ```bash
-zp parse -g calc.zp -i '1+2*(3-' -f sexpr
+sxir parse -g calc.sxir -i '1+2*(3-' -f sexpr
 ```
 
 ```text
-zp: 1:8: syntax error: expected "(", [0-9]
+sxir: 1:8: syntax error: expected "(", [0-9]
 ```
 
 The input ends after `-`, so position 8 (line 1, column 8, one past the last character) is the farthest point, and a
@@ -64,17 +64,17 @@ items are descriptions of the primitive expressions that failed:
 
 Names such as `end of input` come first, then literals, then classes, each group in byte order. A message lists at most
 ten items: a longer list is cut after the tenth and ends with `, ... and N more`. `SyntaxError.Expected` keeps every
-item, and [`zp explain`](debugging.md) shows the whole list.
+item, and [`sxir explain`](debugging.md) shows the whole list.
 
 Only the farthest position counts. A failure at an earlier position, however many alternatives were tried there, is
 not reported:
 
 ```bash
-zp parse -g calc.zp -i '1+*'
+sxir parse -g calc.sxir -i '1+*'
 ```
 
 ```text
-zp: 1:3: syntax error: expected "(", [0-9]
+sxir: 1:3: syntax error: expected "(", [0-9]
 ```
 
 ### The End of the Input
@@ -83,21 +83,21 @@ The start rule must match the whole input. When it matches only a prefix, `end o
 unconsumed position, next to whatever could have continued the match there:
 
 ```bash
-zp parse -g calc.zp -i '1+2)'
+sxir parse -g calc.sxir -i '1+2)'
 ```
 
 ```text
-zp: 1:4: syntax error: expected end of input, "*", "+", "-", "/", [0-9]
+sxir: 1:4: syntax error: expected end of input, "*", "+", "-", "/", [0-9]
 ```
 
 An empty input fails at 1:1 like any other expression that needs something there:
 
 ```bash
-zp parse -g calc.zp -i ''
+sxir parse -g calc.sxir -i ''
 ```
 
 ```text
-zp: 1:1: syntax error: expected "(", [0-9]
+sxir: 1:1: syntax error: expected "(", [0-9]
 ```
 
 ### Lines, Columns and Units
@@ -107,26 +107,26 @@ carriage return is the last column of its line). Columns are counted in the
 [position unit](../../spec/runtime/parsing.md#positions): code points by default, bytes with `-unit bytes`
 (`runtime.WithUnit(input.Bytes)` in Go). The two differ only after non-ASCII text:
 
-```zp
-// unit.zp
+```sxir
+// unit.sxir
 @start
 rule main = "é" "x"
 ```
 
 ```bash
-zp parse -g unit.zp -i 'éy'
+sxir parse -g unit.sxir -i 'éy'
 ```
 
 ```text
-zp: 1:2: syntax error: expected "x"
+sxir: 1:2: syntax error: expected "x"
 ```
 
 ```bash
-zp parse -g unit.zp -unit bytes -i 'éy'
+sxir parse -g unit.sxir -unit bytes -i 'éy'
 ```
 
 ```text
-zp: 1:3: syntax error: expected "x"
+sxir: 1:3: syntax error: expected "x"
 ```
 
 ### What Is Not in the List
@@ -137,8 +137,8 @@ usually means "this alternative is not allowed here", not "something else was ex
 error caused only by such an expression is reported without any expected item, at the farthest position that did
 record something, often the start of the input:
 
-```zp
-// keyword.zp
+```sxir
+// keyword.sxir
 @start
 rule main = !keyword ident $$
 rule keyword = ("if" / "else") ![a-z]
@@ -146,11 +146,11 @@ rule ident = [a-z]+ #atomic
 ```
 
 ```bash
-zp parse -g keyword.zp -i 'if'
+sxir parse -g keyword.sxir -i 'if'
 ```
 
 ```text
-zp: 1:1: syntax error
+sxir: 1:1: syntax error
 ```
 
 A message like this is a sign that an `@error` label is missing (see [Writing Readable Messages](#writing-readable-messages)).
@@ -160,7 +160,7 @@ Whitespace rules suffer in a different way, which is the first thing to fix in a
 
 ### On the Command Line
 
-`zp parse` prints the tree on standard output and errors on standard error, as above. `-recognize` (recognition only)
+`sxir parse` prints the tree on standard output and errors on standard error, as above. `-recognize` (recognition only)
 reports the same errors without building a tree. Grammar errors (a rule that does not type-check, an unknown
 attribute) are a different kind of error: they are reported with the grammar's file name and position, before any
 input is read.
@@ -219,11 +219,11 @@ Things to keep in mind:
 
 ## Writing Readable Messages
 
-This section builds a small statement language, `toy.zp`, with `let x = 1 + 2;`, `print x;` and `{ ... }` blocks,
+This section builds a small statement language, `toy.sxir`, with `let x = 1 + 2;`, `print x;` and `{ ... }` blocks,
 and improves its errors step by step. The first version has the usual whitespace rule:
 
-```zp
-// toy.zp
+```sxir
+// toy.sxir
 package toy
 
 type Name = node[string]
@@ -255,7 +255,7 @@ rule ws = [ \t\r\n]*
 ```
 
 ```bash
-zp parse -g toy.zp -f sexpr -i 'let x = 1 + 2;'
+sxir parse -g toy.sxir -f sexpr -i 'let x = 1 + 2;'
 ```
 
 ```text
@@ -263,11 +263,11 @@ Program{Body: [Let{Name: Name("x"), Value: Sum{Left: Num("1"), Right: Num("2")}}
 ```
 
 ```bash
-zp parse -g toy.zp -i 'let x = 1 +;'
+sxir parse -g toy.sxir -i 'let x = 1 +;'
 ```
 
 ```text
-zp: 1:12: syntax error: expected "(", [ \t\r\n], [0-9], [a-z]
+sxir: 1:12: syntax error: expected "(", [ \t\r\n], [0-9], [a-z]
 ```
 
 The list contains `[ \t\r\n]`: after `+`, the whitespace rule tried one more whitespace character at the failing
@@ -275,18 +275,18 @@ position, and that attempt is part of the farthest failure. Whitespace is never 
 failure inside a lookahead is not reported, the whitespace rule can be written so that it consumes the same input
 without ever recording a failure:
 
-```zp
-// toy.zp (changed rules)
+```sxir
+// toy.sxir (changed rules)
 // Whitespace stays out of the "expected" lists: a failure inside a lookahead is not reported.
 rule ws = (&[ \t\r\n] .)*
 ```
 
 ```bash
-zp parse -g toy.zp -i 'let x = 1 +;'
+sxir parse -g toy.sxir -i 'let x = 1 +;'
 ```
 
 ```text
-zp: 1:12: syntax error: expected "(", [0-9], [a-z]
+sxir: 1:12: syntax error: expected "(", [0-9], [a-z]
 ```
 
 `[0-9]` and `[a-z]` are the first characters of a `number` and a `name`. The list is accurate, but for a human,
@@ -299,11 +299,11 @@ item recorded **inside** it is replaced by the message, which is reported at the
 expression. If the expression succeeds, nothing changes. A message is part of the recorded expectations: a parse that
 does not [record them](#recording-expectations) reports `syntax error` instead.
 
-Here are the labels for `toy.zp`. The statement rules are rewritten so that each place a user can go wrong has a
+Here are the labels for `toy.sxir`. The statement rules are rewritten so that each place a user can go wrong has a
 label, and `term` is split so that its label covers only the "no expression here" case:
 
-```zp
-// toy.zp (changed rules)
+```sxir
+// toy.sxir (changed rules)
 rule let Let = (
     "let" ws n:name @error(message="expected a name") ws "=" @error(message="expected '='")
     ws v:expr ws ";" @error(message="expected ';'")
@@ -316,43 +316,43 @@ rule group Expr = "(" ws e:expr ws ")" @error(message="expected ')'") => $e
 ```
 
 ```bash
-zp parse -g toy.zp -i 'let x = 1 +;'
+sxir parse -g toy.sxir -i 'let x = 1 +;'
 ```
 
 ```text
-zp: 1:12: expected an expression
+sxir: 1:12: expected an expression
 ```
 
 ```bash
-zp parse -g toy.zp -i 'let x = (1 + 2;'
+sxir parse -g toy.sxir -i 'let x = (1 + 2;'
 ```
 
 ```text
-zp: 1:15: expected ')'
+sxir: 1:15: expected ')'
 ```
 
 ```bash
-zp parse -g toy.zp -i 'let = 1;'
+sxir parse -g toy.sxir -i 'let = 1;'
 ```
 
 ```text
-zp: 1:5: expected a name
+sxir: 1:5: expected a name
 ```
 
 ```bash
-zp parse -g toy.zp -i 'let x 1;'
+sxir parse -g toy.sxir -i 'let x 1;'
 ```
 
 ```text
-zp: 1:7: expected '='
+sxir: 1:7: expected '='
 ```
 
 ```bash
-zp parse -g toy.zp -i '{ print 1; let y = 2;'
+sxir parse -g toy.sxir -i '{ print 1; let y = 2;'
 ```
 
 ```text
-zp: 1:22: expected '}'
+sxir: 1:22: expected '}'
 ```
 
 How to place a label:
@@ -372,8 +372,8 @@ How to place a label:
 
 The last two points are easiest to see in a tiny grammar:
 
-```zp
-// labels.zp
+```sxir
+// labels.sxir
 @start(default)
 rule joined = "a" @error(message="m1") / "b" @error(message="m2")
 @start
@@ -381,27 +381,27 @@ rule dropped = "a" "b" @error(message="after a") / "a" "c" "d"
 ```
 
 ```bash
-zp parse -g labels.zp -s joined -i 'x'
+sxir parse -g labels.sxir -s joined -i 'x'
 ```
 
 ```text
-zp: 1:1: m1; m2
+sxir: 1:1: m1; m2
 ```
 
 ```bash
-zp parse -g labels.zp -s dropped -i 'ax'
+sxir parse -g labels.sxir -s dropped -i 'ax'
 ```
 
 ```text
-zp: 1:2: after a
+sxir: 1:2: after a
 ```
 
 ```bash
-zp parse -g labels.zp -s dropped -i 'acx'
+sxir parse -g labels.sxir -s dropped -i 'acx'
 ```
 
 ```text
-zp: 1:3: syntax error: expected "d"
+sxir: 1:3: syntax error: expected "d"
 ```
 
 For `ax` the first alternative fails at the `b` (column 2) and its message is the only thing recorded there. For `acx`
@@ -413,8 +413,8 @@ A [predicate](../../spec/language/predicates.md) that fails records nothing, so 
 `syntax error`. Attach `@error` to it. The same goes for a rule that exists only to report a message: `_|_` always
 fails and can carry the label:
 
-```zp
-// xmlish.zp
+```sxir
+// xmlish.sxir
 @start
 rule pair = "<" a:name ">" "</" b:name {text($a) == text($b)} @error(message="mismatched end tag") ">"
 rule name = [a-z]+ #atomic
@@ -422,11 +422,11 @@ rule unknown = "x" / _|_ @error(message="expected 'x'")
 ```
 
 ```bash
-zp parse -g xmlish.zp -s pair -i '<a></b>'
+sxir parse -g xmlish.sxir -s pair -i '<a></b>'
 ```
 
 ```text
-zp: 1:7: mismatched end tag
+sxir: 1:7: mismatched end tag
 ```
 
 (Without the label, this input fails with `expected [a-z]`: the farthest recorded failure is the name rule looking
@@ -439,11 +439,11 @@ token that did not fit, because the whitespace before the `;` (and before the op
 newline while looking for more input:
 
 ```bash
-zp parse -g toy.zp -i $'print x\nprint y;\n'
+sxir parse -g toy.sxir -i $'print x\nprint y;\n'
 ```
 
 ```text
-zp: 2:1: expected ';'
+sxir: 2:1: expected ';'
 ```
 
 This is the position of the unexpected token, which is what most parsers report. Pointing at the end of the previous
@@ -456,8 +456,8 @@ its other alternatives, so their failures are never recorded. When a keyword mak
 unambiguous, a cut also removes the expectations of the generic alternatives that would otherwise have failed at the
 same position:
 
-```zp
-// cut.zp
+```sxir
+// cut.sxir
 @start(default)
 rule plain = stmt $$
 rule stmt = let / call
@@ -481,27 +481,27 @@ rule ws = (&[ \t\n] .)*
 ```
 
 ```bash
-zp parse -g cut.zp -s plain -i 'let 5;'
+sxir parse -g cut.sxir -s plain -i 'let 5;'
 ```
 
 ```text
-zp: 1:5: syntax error: expected "(", [a-z]
+sxir: 1:5: syntax error: expected "(", [a-z]
 ```
 
 ```bash
-zp parse -g cut.zp -s committed -i 'let 5;'
+sxir parse -g cut.sxir -s committed -i 'let 5;'
 ```
 
 ```text
-zp: 1:5: syntax error: expected [a-z]
+sxir: 1:5: syntax error: expected [a-z]
 ```
 
 ```bash
-zp parse -g cut.zp -s elsewhere -i 'let 5;'
+sxir parse -g cut.sxir -s elsewhere -i 'let 5;'
 ```
 
 ```text
-zp: 1:5: syntax error: expected "(", [a-z]
+sxir: 1:5: syntax error: expected "(", [a-z]
 ```
 
 Without the cut, `call` also read `let` as a name and expected a `(` after it. With the cut in the same rule as the
@@ -527,5 +527,5 @@ common mistake: a cut commits only the choice of the rule it is written in. Two 
 
 - [Recovering from Errors](recovery.md): `#recover`, `#missing` and several errors in one run.
 - [Rule Expressions](rule-expressions.md): the cuts and lookaheads that decide where a parse fails.
-- [Debugging and Profiling](debugging.md): `zp explain` shows where each expected item comes from.
+- [Debugging and Profiling](debugging.md): `sxir explain` shows where each expected item comes from.
 - [Testing Grammars](testing-grammars.md): checking the errors a grammar reports.

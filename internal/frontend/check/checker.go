@@ -3,7 +3,7 @@ package check
 import (
 	"sync"
 
-	"zeroparse.dev/zp/internal/cancel"
+	"syntaxir.dev/sxir/internal/cancel"
 )
 
 // Checker checks the types of one program and keeps what the checks compute for it. It reads the

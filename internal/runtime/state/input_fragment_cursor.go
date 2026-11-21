@@ -3,7 +3,7 @@ package state
 import (
 	"unicode/utf8"
 
-	"zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 // PrefixByteOffset translates a successful batch cursor back to the original

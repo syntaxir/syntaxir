@@ -1,6 +1,6 @@
 package astfacts
 
-import "zeroparse.dev/zp/pkg/grammar/ast"
+import "syntaxir.dev/sxir/pkg/grammar/ast"
 
 // WalkTerm visits the value expression and its subexpressions in preorder.
 func WalkTerm(t ast.ActionExpr, f func(ast.ActionExpr)) {

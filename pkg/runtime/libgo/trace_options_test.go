@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	zpinstrument "zeroparse.dev/zp/pkg/runtime/instrument"
+	sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
 )
 
 // observeCalls reports a fixed sequence of calls to the observation that opts select: main calls
@@ -43,7 +43,7 @@ func observeCalls(opts ...ParseOption) {
 // eventLog records events as "kind rule depth".
 type eventLog []string
 
-func (l *eventLog) trace(e zpinstrument.TraceEvent) {
+func (l *eventLog) trace(e sxirinstrument.TraceEvent) {
 	*l = append(*l, fmt.Sprintf("%v %s %d", e.Kind, e.Rule, e.Depth))
 }
 
@@ -71,7 +71,7 @@ func TestTraceOptionSelection(t *testing.T) {
 		{"unknown rule", []ParseOption{WithTraceFilter("no such rule")}, ""},
 	} {
 		var got eventLog
-		var prof zpinstrument.Profile
+		var prof sxirinstrument.Profile
 		observeCalls(append(c.opts, WithTrace(got.trace), WithProfile(&prof))...)
 		if s := strings.Join(got, ","); s != c.want {
 			t.Errorf("%s: got\n%s\nwant\n%s", c.name, s, c.want)
@@ -89,9 +89,9 @@ func TestTraceOptionComposition(t *testing.T) {
 	var all, a, b eventLog
 	observeCalls(WithTrace(all.trace))
 	var order []string
-	var pa, pb zpinstrument.Profile
-	observeCalls(WithTrace(a.trace), WithTrace(nil), WithProfile(&pa), WithProfile(nil), WithTrace(func(zpinstrument.TraceEvent) { order = append(order, "a") }),
-		WithTrace(b.trace), WithProfile(&pb), WithTrace(func(zpinstrument.TraceEvent) { order = append(order, "b") }))
+	var pa, pb sxirinstrument.Profile
+	observeCalls(WithTrace(a.trace), WithTrace(nil), WithProfile(&pa), WithProfile(nil), WithTrace(func(sxirinstrument.TraceEvent) { order = append(order, "a") }),
+		WithTrace(b.trace), WithProfile(&pb), WithTrace(func(sxirinstrument.TraceEvent) { order = append(order, "b") }))
 	if !slices.Equal(a, all) || !slices.Equal(b, all) {
 		t.Errorf("trace functions received\n%v\n%v\nwant\n%v", a, b, all)
 	}
@@ -104,8 +104,8 @@ func TestTraceOptionComposition(t *testing.T) {
 
 	// The defaults of a Document are copied for each parse, which may add profiles.
 	var defaults parseOptions
-	var p1, p2, p3, p4, pc zpinstrument.Profile
-	for _, pr := range []*zpinstrument.Profile{&p1, &p2, &p3, &p4} {
+	var p1, p2, p3, p4, pc sxirinstrument.Profile
+	for _, pr := range []*sxirinstrument.Profile{&p1, &p2, &p3, &p4} {
 		WithProfile(pr)(&defaults)
 	}
 	first, second := defaults, defaults

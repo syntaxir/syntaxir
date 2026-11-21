@@ -10,10 +10,10 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"zeroparse.dev/zp/internal/frontend/check"
-	"zeroparse.dev/zp/internal/frontend/parser"
-	"zeroparse.dev/zp/internal/testing/starttest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend/check"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/testing/starttest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // complexityMemoSources are grammars with the shapes that decide memoization: left-recursion
@@ -38,7 +38,7 @@ func TestComplexityMemoPolicy(t *testing.T) {
 	for i, src := range complexityMemoSources {
 		srcs[string(rune('a'+i))] = src
 	}
-	for _, pattern := range []string{"../../../testdata/grammars/*/*.zp", "../../../examples/*/*.zp"} {
+	for _, pattern := range []string{"../../../testdata/grammars/*/*.sxir", "../../../examples/*/*.sxir"} {
 		paths, err := filepath.Glob(pattern)
 		if err != nil {
 			t.Fatal(err)
@@ -683,7 +683,7 @@ func TestGrowingBindingsAlone(t *testing.T) {
 		"inline action": "var s string = \"a\"\nrule main = r $$\nrule r = ((\"x\" {s := s + s})* => 1) \"y\"\n",
 		"variables":     "var s string = \"a\"\nvar t string\nrule main = (\"x\" {t := t + t} {s := s + s + \"b\"})* $$\n",
 	}
-	for _, pattern := range []string{"../../../testdata/grammars/*/*.zp", "../../../examples/*/*.zp"} {
+	for _, pattern := range []string{"../../../testdata/grammars/*/*.sxir", "../../../examples/*/*.sxir"} {
 		paths, err := filepath.Glob(pattern)
 		if err != nil {
 			t.Fatal(err)

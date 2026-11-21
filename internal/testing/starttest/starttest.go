@@ -5,7 +5,7 @@ package starttest
 import (
 	"strings"
 
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // MarkAll marks every rule of g that is not hidden @start, and the first of

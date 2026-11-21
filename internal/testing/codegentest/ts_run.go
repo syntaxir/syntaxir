@@ -17,12 +17,12 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/backend/codegen/typescript/print"
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/testing/compiletest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/testing/compiletest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // NodeTSArgs are the arguments that run a .ts script of a directory written by writeTSFiles.
@@ -539,7 +539,7 @@ func TSOutputsWithin(t *testing.T, node string, cases []Case, bundles [][]byte, 
 // library reaches generated code embedded in the generator, which the go command's overlay does not
 // change, so the tests that run generated TypeScript apply the patch to the code they generate
 // (PatchTSLib).
-const TSLibPatchEnv = "ZP_TS_LIB_PATCH"
+const TSLibPatchEnv = "SXIR_TS_LIB_PATCH"
 
 // MutantOptions returns o for the parsers of a run with a library mutant (TSLibPatchEnv set): without
 // the narrowing of the library to the features a parser uses (common.UsedFeatures), so that a mutant

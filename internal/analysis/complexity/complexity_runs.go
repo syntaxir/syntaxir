@@ -1,8 +1,8 @@
 package complexity
 
 import (
-	"zeroparse.dev/zp/internal/frontend/astfacts"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Run sites in the classifier (see Run Sites in spec/runtime/parsing.md).

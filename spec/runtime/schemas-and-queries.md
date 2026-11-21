@@ -36,7 +36,7 @@ node and the labels of its captures. Rule constraints need it.
   exports of one checked grammar encode to identical JSON bytes.
 - Export needs checked grammar metadata, which only the grammar source has. A
   parser loaded from a compiled grammar holds none, in any mode: its export fails
-  with an error that matches `runtime.ErrSchemaUnavailable`, and `zp schema`
+  with an error that matches `runtime.ErrSchemaUnavailable`, and `sxir schema`
   rejects a compiled grammar. Export the schema from the grammar source.
 
 ### Shapes
@@ -69,12 +69,12 @@ A tuple of no elements is the unit value.
 
 ### Schema JSON, Version 2
 
-The package `schema` (`zeroparse.dev/zp/pkg/runtime/schema`) holds the schema as a `schema.Output`, whose JSON form is
+The package `schema` (`syntaxir.dev/sxir/pkg/runtime/schema`) holds the schema as a `schema.Output`, whose JSON form is
 the format. A schema is an object with these members, and every nested object has exactly the members of its table.
 
 | Object | Members |
 |:--|:--|
-| Envelope, `schema.Output` | `format`, the string `zp-output-schema` (`schema.Format`); `version`, the integer 2 (`schema.Version`); `start`, the name of the root rule; `positionUnitIndependent`, the boolean true; `sourceInfo`; `types`; and `rules` |
+| Envelope, `schema.Output` | `format`, the string `sxir-output-schema` (`schema.Format`); `version`, the integer 2 (`schema.Version`); `start`, the name of the root rule; `positionUnitIndependent`, the boolean true; `sourceInfo`; `types`; and `rules` |
 | Type entry, `schema.Type` | `id`, `name`, `origin` (`declared` or `inferred`) and `shape` |
 | Rule, `schema.Rule` | `name`, `origin` (`declared` when the rule declares its type, `inferred` otherwise) and `result`, a shape |
 | Shape, `schema.Shape` | `kind` and the members of [Shapes](#shapes): `scalar`, `ref`, `element`, `elements`, `alternatives`, `fields`, `value` and `captures` |

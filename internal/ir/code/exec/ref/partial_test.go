@@ -3,7 +3,7 @@ package ref
 import (
 	"testing"
 
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 func cast(x ast.ActionExpr, t ast.TypeExpr) ast.ActionExpr { return &ast.Cast{X: x, Type: t} }

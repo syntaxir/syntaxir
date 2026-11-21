@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/state"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 type diagnosticBoundaryReader struct {
@@ -29,7 +29,7 @@ func TestStreamDiagnosticCallbackSkipsSpeculativeRecovery(t *testing.T) {
 	p := mustCompile(t, `rule main = item+ #stream $$
 rule item = (("ab" #recover(skip="X!") "z") / "X!a")`)
 	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+		for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 			t.Run(backend.String()+"/"+unit.String(), func(t *testing.T) {
 				calls, elements := 0, 0
 				err := p.ParseStreamWith("main", strings.NewReader("X!a"), func(*value.Node) error {
@@ -168,7 +168,7 @@ rule item = "ab" #recover(skip=[^a]+)`)
 	const count = 1000
 	input := strings.Repeat("abX!", count)
 	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+		for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 			o := ParseOptions{Backend: backend, Unit: unit, DiagnosticLimit: 3}
 			callbacks, elements := 0, 0
 			maxWorking := 0
@@ -262,7 +262,7 @@ func TestStreamDiagnosticTailCommitScratchOwnership(t *testing.T) {
 	t.Parallel()
 	prog := mustCompile(t, `rule main = "a"`)
 	for _, traced := range []bool{false, true} {
-		p := state.NewParser(&prog.sharedProgram, "a", zpinput.CodePoints, false)
+		p := state.NewParser(&prog.sharedProgram, "a", sxirinput.CodePoints, false)
 		p.DiagnosticTail.Limit = 1
 		if traced {
 			p.Tr = &state.Tracer{}

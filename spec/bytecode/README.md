@@ -1,6 +1,6 @@
-# ZeroParse Bytecode Specification
+# SyntaxIR Bytecode Specification
 
-This document specifies the bytecode (the *module*) that a ZeroParse grammar compiles to, and the behavior of the virtual machine (VM) that executes it.
+This document specifies the bytecode (the *module*) that a SyntaxIR grammar compiles to, and the behavior of the virtual machine (VM) that executes it.
 A runtime for another language must implement this document. The meaning of the language that the bytecode implements is defined by the [Grammar Language Specification](../language/README.md); for the results a parse must produce, see [Parsing](../runtime/parsing.md).
 
 A bytecode VM must produce the same results as the closure backend.
@@ -475,7 +475,7 @@ A compiled grammar uses container version 8. It stores one execution-only compil
 
 | Part | Contents |
 |:--|:--|
-| Magic | `ZPC\x00` (6 bytes) |
+| Magic | `SXC\x00` (6 bytes) |
 | Version | 1 byte: 8. A loader refuses any other value. |
 | Mode | 1 byte: 0 parse, 1 recognize, 2 document. The module serves the operations of this mode only. A parse-mode or document-mode module is the module of the grammar; a recognize-mode module is the module of its recognizer. A loader refuses any other value. |
 | Instruction-set version | Unsigned integer for this module: 37. Every module uses this version, whatever instructions it contains; a runtime rejects a module of another version and asks for the grammar to be compiled again. |

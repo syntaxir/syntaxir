@@ -1,6 +1,6 @@
-// Package fixture runs JSON-described examples against ZeroParse grammars.
+// Package fixture runs JSON-described examples against SyntaxIR grammars.
 //
-// It is internal: its only user is the zp test command, and the JSON format of a fixture suite is not
+// It is internal: its only user is the sxir test command, and the JSON format of a fixture suite is not
 // yet declared stable, so the package is not offered as a public API.
 package fixture
 
@@ -16,13 +16,13 @@ import (
 	"slices"
 	"strings"
 
-	"zeroparse.dev/zp/internal/driver/entry"
-	"zeroparse.dev/zp/internal/frontend/parser"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/pkg/grammar/ast"
-	"zeroparse.dev/zp/pkg/runtime"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // FormatVersion is the only fixture format version understood by this package.
@@ -248,7 +248,7 @@ type Report struct {
 	Equivalence []EquivalenceResult `json:"equivalence,omitempty"`
 }
 
-// Load reads and validates a suite and its ZeroParse-source or JSON grammar.
+// Load reads and validates a suite and its SyntaxIR-source or JSON grammar.
 func Load(path string) (*Suite, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -392,9 +392,9 @@ func Run(suite *Suite, opts RunOptions) (Report, error) {
 			return report, err
 		}
 	}
-	unit := zpinput.CodePoints
+	unit := sxirinput.CodePoints
 	if suite.Unit == "bytes" {
-		unit = zpinput.Bytes
+		unit = sxirinput.Bytes
 	}
 	parsers := make(map[string]*engine.Parser, len(backends))
 	for _, backend := range backends {
@@ -605,7 +605,7 @@ func setGoldens(exp *Expectation, actual Actual) {
 	copy(exp.Errors, actual.Errors)
 }
 
-func runCase(p *engine.Parser, backend string, unit zpinput.PositionUnit, input string, ctx context.Context, limits runtime.Limits) (Actual, error) {
+func runCase(p *engine.Parser, backend string, unit sxirinput.PositionUnit, input string, ctx context.Context, limits runtime.Limits) (Actual, error) {
 	var b engine.Backend
 	switch backend {
 	case "default":
@@ -631,8 +631,8 @@ func runCase(p *engine.Parser, backend string, unit zpinput.PositionUnit, input 
 		actual.Node = data
 		actual.Start, actual.End = intPointer(int(node.Start())), intPointer(int(node.End()))
 	}
-	var many zpvalue.SyntaxErrors
-	var one *zpvalue.SyntaxError
+	var many sxirvalue.SyntaxErrors
+	var one *sxirvalue.SyntaxError
 	switch {
 	case parseErr == nil:
 		actual.Outcome = Accepted
@@ -659,7 +659,7 @@ func runCase(p *engine.Parser, backend string, unit zpinput.PositionUnit, input 
 	return actual, nil
 }
 
-func errorLocation(e *zpvalue.SyntaxError) ErrorLocation {
+func errorLocation(e *sxirvalue.SyntaxError) ErrorLocation {
 	return ErrorLocation{Pos: e.Pos, Line: e.Line, Column: e.Col}
 }
 

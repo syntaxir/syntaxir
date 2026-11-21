@@ -8,9 +8,9 @@ import (
 	"testing"
 	"unsafe"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 var sparseMemoSynthetic = func() string {
@@ -74,7 +74,7 @@ const total%[1]d = [...table%[1]d.values()].reduce((a, b) => a + b * 2 ** 3, 0) 
 // metrics include bit buffers, full arena chunks, and directory capacity;
 // they exclude memo entries and the containing memo table.
 func BenchmarkSparseMemoTypeScript(b *testing.B) {
-	data, err := os.ReadFile("../../../testdata/grammars/typescript/typescript.zp")
+	data, err := os.ReadFile("../../../testdata/grammars/typescript/typescript.sxir")
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -87,7 +87,7 @@ func BenchmarkSparseMemoTypeScript(b *testing.B) {
 		b.Fatal(err)
 	}
 	sources := []struct{ name, text string }{{"synthetic", sparseMemoSynthetic}, {"small", "const 日本語 = 1 + 2;\n"}}
-	if pkg := os.Getenv("ZP_TYPESCRIPT"); pkg != "" {
+	if pkg := os.Getenv("SXIR_TYPESCRIPT"); pkg != "" {
 		data, err := os.ReadFile(filepath.Join(pkg, "lib", "_tsc.js"))
 		if err != nil {
 			b.Fatal(err)

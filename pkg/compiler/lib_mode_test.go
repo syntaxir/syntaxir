@@ -4,15 +4,15 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
 )
 
 func TestLibMode(t *testing.T) {
 	if compiler.LibEmbed.String() != "embed" || compiler.LibImport.String() != "import" || compiler.LibMode(2).String() != "LibMode(2)" {
 		t.Errorf("names: %v %v %v", compiler.LibEmbed, compiler.LibImport, compiler.LibMode(2))
 	}
-	src := grammar.FromString("lib.zp", "@start\nrule main = \"x\"")
+	src := grammar.FromString("lib.sxir", "@start\nrule main = \"x\"")
 	if _, err := compiler.GenerateGo(src, compiler.GoConfig{Module: "example.com/m", Lib: compiler.LibMode(2)}); err == nil || !strings.Contains(err.Error(), "unknown library mode") {
 		t.Errorf("Go: %v", err)
 	}

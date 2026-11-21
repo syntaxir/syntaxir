@@ -8,18 +8,18 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/frontend/parser"
-	"zeroparse.dev/zp/internal/frontend/parser/zpparser/types"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/pkg/grammar/ast"
-	rt "zeroparse.dev/zp/pkg/runtime/libgo"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/frontend/parser/sxirparser/types"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+	rt "syntaxir.dev/sxir/pkg/runtime/libgo"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
-// The adapter reads the typed values of the generated parser of zp.zp. A
-// changed copy of zp.zp has no generated parser, so the tests that run such
+// The adapter reads the typed values of the generated parser of sxir.sxir. A
+// changed copy of sxir.sxir has no generated parser, so the tests that run such
 // copies parse with the engine and move the tree of the engine into the
-// typed values by the names of the types and fields, which zp.zp declares for
+// typed values by the names of the types and fields, which sxir.sxir declares for
 // both. This file holds that move; it is part of the tests, not a frontend.
 
 // treeTypes are the struct and node types of the typed values, by name.
@@ -136,9 +136,9 @@ var treeTypes = func() map[string]reflect.Type {
 }()
 
 // TestTreeTypesComplete requires treeTypes to name every exported struct type
-// of the typed values, so that a type that zp.zp adds is not missed.
+// of the typed values, so that a type that sxir.sxir adds is not missed.
 func TestTreeTypesComplete(t *testing.T) {
-	f, err := goparser.ParseFile(token.NewFileSet(), "../../internal/frontend/parser/zpparser/types/types.go", nil, 0)
+	f, err := goparser.ParseFile(token.NewFileSet(), "../../internal/frontend/parser/sxirparser/types/types.go", nil, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -252,7 +252,7 @@ func fill(t testing.TB, n *value.Node, s reflect.Value) {
 	}
 }
 
-// bridgedFrontend returns the frontend of a changed copy of zp.zp compiled by
+// bridgedFrontend returns the frontend of a changed copy of sxir.sxir compiled by
 // the engine: the parse, the move into the typed values and the adapter.
 func bridgedFrontend(t testing.TB, p *engine.Parser) func(string) (*ast.Grammar, error) {
 	return func(src string) (*ast.Grammar, error) {

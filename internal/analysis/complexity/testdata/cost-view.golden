@@ -1,19 +1,19 @@
-== bench/grammars/terms/heavy.zp matching=false
+== bench/grammars/terms/heavy.sxir matching=false
 applied:
-== bench/grammars/terms/heavy.zp matching=true
-applied:
-sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
-== bench/grammars/terms/pred.zp matching=false
-applied:
-== bench/grammars/terms/pred.zp matching=true
+== bench/grammars/terms/heavy.sxir matching=true
 applied:
 sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
-== examples/calculator/calc.zp matching=false
+== bench/grammars/terms/pred.sxir matching=false
 applied:
-== examples/calculator/calc.zp matching=true
+== bench/grammars/terms/pred.sxir matching=true
+applied:
+sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
+== examples/calculator/calc.sxir matching=false
+applied:
+== examples/calculator/calc.sxir matching=true
 applied: N13=1
 sha256 446c0f25de59447d6a435472f71bfe4366b8df29833718c5f0deb81c6a41e4a5
-== examples/calculator/calc_lr.zp matching=false
+== examples/calculator/calc_lr.sxir matching=false
 applied: N8=3
 rule add = l:expr ws op:[+\-] #atomic r:term
   24:17 l:expr ws op:[+\-] #atomic r:term = "l:expr ws op:(\"+\" / \"-\") #atomic r:term"
@@ -30,60 +30,60 @@ rule neg = ws op:[+\-] #atomic x:unary
   30:20 op:[+\-] #atomic = "op:(\"-\" / \"+\") #atomic"
   30:24 [+\-] = "\"-\" / \"+\""
   30:35 [+\-] #atomic = "(\"-\" / \"+\") #atomic"
-== examples/calculator/calc_lr.zp matching=true
+== examples/calculator/calc_lr.sxir matching=true
 applied: N1=1 N13=9 N8=3
 sha256 64ed61f0cafcdb2ed1fbf31e4e604396aef206c6001074fae2488b11364dcbaa
-== examples/minilang/minilang.zp matching=false
+== examples/minilang/minilang.sxir matching=false
 applied:
-== examples/minilang/minilang.zp matching=true
+== examples/minilang/minilang.sxir matching=true
 applied: N1=6 N13=45 N7=2
 sha256 c053f70ef805805acd91b1a61c2829c9102b47d6b51fbb5163e28267697c5c63
-== examples/outline/outline.zp matching=false
+== examples/outline/outline.sxir matching=false
 applied:
-== examples/outline/outline.zp matching=true
+== examples/outline/outline.sxir matching=true
 applied: N13=5
 sha256 45586980bb7e9887548224bdc570cd129bd9f837e72bf1f81b15c91618919ce5
-== internal/backend/codegen/golang/print/testdata/routes/lr_calls_ops.zp matching=false
+== internal/backend/codegen/golang/print/testdata/routes/lr_calls_ops.sxir matching=false
 applied:
-== internal/backend/codegen/golang/print/testdata/routes/lr_calls_ops.zp matching=true
+== internal/backend/codegen/golang/print/testdata/routes/lr_calls_ops.sxir matching=true
 applied:
 sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
-== internal/backend/codegen/golang/print/testdata/routes/lr_inline.zp matching=false
+== internal/backend/codegen/golang/print/testdata/routes/lr_inline.sxir matching=false
 applied: N4=1
 rule a = a "," x:[a-z] &(y:[a-z0-9] {text($y) != "q"}) !("z" {text($x) != "z"}) / "(" _|_ / [0-9]
   4:10 a "," x:[a-z] &(y:[a-z0-9] {text($y) != "q"}) !("z" {text($x) != "z"}) / "(" _|_ / [0-9] = "a \",\" x:[a-z] &(y:[a-z0-9] {text($y) != \"q\"}) !(\"z\" {text($x) != \"z\"}) / \"(\" _|_ [0-9] \")\" / [0-9]"
   4:83 "(" _|_ = "\"(\" _|_ [0-9] \")\""
-== internal/backend/codegen/golang/print/testdata/routes/lr_inline.zp matching=true
+== internal/backend/codegen/golang/print/testdata/routes/lr_inline.sxir matching=true
 applied: N4=1
 sha256 679aeb1e10d20c6ab78d39cd05d17cbf33d831e6be7b88a0e0106fc99d6347a8
-== internal/backend/codegen/golang/print/testdata/routes/lr_looks.zp matching=false
+== internal/backend/codegen/golang/print/testdata/routes/lr_looks.sxir matching=false
 applied: N4=1
 rule _e_2 = "(" _|_
   3:99 "(" _|_ = "\"(\" _|_ m:[0-9] \")\""
-== internal/backend/codegen/golang/print/testdata/routes/lr_looks.zp matching=true
+== internal/backend/codegen/golang/print/testdata/routes/lr_looks.sxir matching=true
 applied: N4=1
 sha256 3230700b6736d516fb00bce20062fbf88b821e7c88225148f52d2f18387081ac
-== internal/backend/codegen/golang/print/testdata/routes/lr_recover.zp matching=false
+== internal/backend/codegen/golang/print/testdata/routes/lr_recover.sxir matching=false
 applied:
-== internal/backend/codegen/golang/print/testdata/routes/lr_recover.zp matching=true
-applied:
-sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
-== internal/backend/codegen/golang/print/testdata/routes/lr_recover_rep.zp matching=false
-applied:
-== internal/backend/codegen/golang/print/testdata/routes/lr_recover_rep.zp matching=true
+== internal/backend/codegen/golang/print/testdata/routes/lr_recover.sxir matching=true
 applied:
 sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
-== internal/backend/codegen/golang/print/testdata/routes/ops_lines.zp matching=false
+== internal/backend/codegen/golang/print/testdata/routes/lr_recover_rep.sxir matching=false
 applied:
-== internal/backend/codegen/golang/print/testdata/routes/ops_lines.zp matching=true
-applied:
-sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
-== internal/backend/codegen/golang/print/testdata/routes/ops_recover.zp matching=false
-applied:
-== internal/backend/codegen/golang/print/testdata/routes/ops_recover.zp matching=true
+== internal/backend/codegen/golang/print/testdata/routes/lr_recover_rep.sxir matching=true
 applied:
 sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
-== internal/backend/codegen/golang/print/testdata/routes/recover_nested.zp matching=false
+== internal/backend/codegen/golang/print/testdata/routes/ops_lines.sxir matching=false
+applied:
+== internal/backend/codegen/golang/print/testdata/routes/ops_lines.sxir matching=true
+applied:
+sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
+== internal/backend/codegen/golang/print/testdata/routes/ops_recover.sxir matching=false
+applied:
+== internal/backend/codegen/golang/print/testdata/routes/ops_recover.sxir matching=true
+applied:
+sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
+== internal/backend/codegen/golang/print/testdata/routes/recover_nested.sxir matching=false
 applied: N4=1 N6=1
 rule items = xs:(x:[a-z] &(y:[a-z0-9] {len($y) == 1})? ("!" _|_ / [0-9]?))* #recover(skip=[^>]*)
   0:0 (x:[a-z] &(y:[a-z0-9] {len($y) == 1})? ("!" _|_ / [0-9]?))* #recover(skip=[^>]*) = "(x:[a-z] &(y:[a-z0-9] {len($y) == 1})? (\"!\" _|_ [0-9] / [0-9]?) #recover(skip=[^a-z>]*))* #recover(skip=[^>]*)"
@@ -92,15 +92,15 @@ rule items = xs:(x:[a-z] &(y:[a-z0-9] {len($y) == 1})? ("!" _|_ / [0-9]?))* #rec
   3:25 x:[a-z] &(y:[a-z0-9] {len($y) == 1})? ("!" _|_ / [0-9]?) = "x:[a-z] &(y:[a-z0-9] {len($y) == 1})? (\"!\" _|_ [0-9] / [0-9]?) #recover(skip=[^a-z>]*)"
   3:64 "!" _|_ / [0-9]? = "\"!\" _|_ [0-9] / [0-9]?"
   3:64 "!" _|_ = "\"!\" _|_ [0-9]"
-== internal/backend/codegen/golang/print/testdata/routes/recover_nested.zp matching=true
+== internal/backend/codegen/golang/print/testdata/routes/recover_nested.sxir matching=true
 applied: N4=1 N6=1
 sha256 6b91499d2f983c01ba9f2a37efc97c04fb499b61209774bc1408319535fbc53f
-== internal/backend/codegen/golang/print/testdata/routes/scopes.zp matching=false
+== internal/backend/codegen/golang/print/testdata/routes/scopes.sxir matching=false
 applied:
-== internal/backend/codegen/golang/print/testdata/routes/scopes.zp matching=true
+== internal/backend/codegen/golang/print/testdata/routes/scopes.sxir matching=true
 applied:
 sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
-== internal/testing/codegentest/testdata/typed/calclr.zp matching=false
+== internal/testing/codegentest/testdata/typed/calclr.sxir matching=false
 applied: N8=3
 rule add = l:expr ws op:[+\-] #atomic r:term
   23:17 l:expr ws op:[+\-] #atomic r:term = "l:expr ws op:(\"+\" / \"-\") #atomic r:term"
@@ -117,10 +117,10 @@ rule neg = ws op:[+\-] #atomic x:unary
   29:20 op:[+\-] #atomic = "op:(\"-\" / \"+\") #atomic"
   29:24 [+\-] = "\"-\" / \"+\""
   29:35 [+\-] #atomic = "(\"-\" / \"+\") #atomic"
-== internal/testing/codegentest/testdata/typed/calclr.zp matching=true
+== internal/testing/codegentest/testdata/typed/calclr.sxir matching=true
 applied: N1=1 N13=9 N8=3
 sha256 b813dde9448801c326b8907506d33176104e0276d82382a2f7956ea02316e7df
-== internal/testing/codegentest/testdata/typed/direct_backtrack.zp matching=false
+== internal/testing/codegentest/testdata/typed/direct_backtrack.sxir matching=false
 applied: N1=1 N12=2 N8=1
 rule alt = x:name "+" (y:name "!" / z:name) ("(" q:name ")")? ("(" w:name ".")? ("[" ps:(&p:name name ",")* last:name "]")? ({m := 1} "<" / ">")? bump? s:("-" [0-9] [!?] / "+")? #atomic
   12:5 x:name "+" (y:name "!" / z:name) ("(" q:name ")")? ("(" w:name ".")? ("[" ps:(&p:name name ",")* last:name "]")? ({m := 1} "<" / ">")? bump? s:("-" [0-9] [!?] / "+")? #atomic = "(x:name \"+\" y:name \"!\" / x:name \"+\" z:name) (\"(\" q:name \")\")? (\"(\" w:name \".\")? (\"[\" ps:(&p:name name \",\")* last:name \"]\")? ({m := 1} \"<\" / \">\")? bump? s:(\"-\" [0-9] \"!\" / \"-\" [0-9] \"?\" / \"+\")? #atomic"
@@ -132,10 +132,10 @@ rule alt = x:name "+" (y:name "!" / z:name) ("(" q:name ")")? ("(" w:name ".")? 
   15:36 "-" [0-9] [!?] = "\"-\" [0-9] \"!\""
   15:46 [!?] = "\"!\" / \"?\""
   15:74 ("-" [0-9] [!?] / "+")? #atomic = "(\"-\" [0-9] \"!\" / \"-\" [0-9] \"?\" / \"+\")? #atomic"
-== internal/testing/codegentest/testdata/typed/direct_backtrack.zp matching=true
+== internal/testing/codegentest/testdata/typed/direct_backtrack.sxir matching=true
 applied: N1=1 N12=2 N13=9 N8=1
 sha256 94f165d3b4f03d38c790efd197f22767089498e8ed157bea4132534c35dd1c74
-== internal/testing/codegentest/testdata/typed/direct_errors.zp matching=false
+== internal/testing/codegentest/testdata/typed/direct_errors.sxir matching=false
 applied: N12=1 N2=1 N8=1
 rule main = ^^ ts:(t:tag [.;])* e:end $$
   7:15 ^^ ts:(t:tag [.;])* e:end $$ = "^^ ts:(t:tag \";\" / t:tag \".\")* e:end $$"
@@ -146,163 +146,163 @@ rule main = ^^ ts:(t:tag [.;])* e:end $$
 rule tag = "<" a:name ">" ("w" _|_ / "w")? b:name {text($a) == text($b)} @error(message="mismatched") n:note? k:"Q"? ws:(-"," w:[0-9] #repeat(2, 3) #atomic)* "\n"? x:((^ "!") #atomic / $ #atomic / _)
   10:5 k:"Q"? = "k:(\"Q\"? / \"Z\")"
   9:5 "<" a:name ">" ("w" _|_ / "w")? b:name {text($a) == text($b)} @error(message="mismatched") n:note? k:"Q"? ws:(-"," w:[0-9] #repeat(2, 3) #atomic)* "\n"? x:((^ "!") #atomic / $ #atomic / _) = "\"<\" a:name \">\" (\"w\" _|_ / \"w\")? b:name {text($a) == text($b)} @error(message=\"mismatched\") n:note? k:(\"Q\"? / \"Z\") ws:(-\",\" w:[0-9] #repeat(2, 3) #atomic)* \"\\n\"? x:((^ \"!\") #atomic / $ #atomic / _)"
-== internal/testing/codegentest/testdata/typed/direct_errors.zp matching=true
+== internal/testing/codegentest/testdata/typed/direct_errors.sxir matching=true
 applied: N12=1 N13=1 N2=1 N7=1 N8=1
 sha256 003c3f053149b9067e7473339d35f907bf8eab3a24e386b1ac172cb0ebee6ae8
-== internal/testing/codegentest/testdata/typed/direct_lists.zp matching=false
+== internal/testing/codegentest/testdata/typed/direct_lists.sxir matching=false
 applied:
-== internal/testing/codegentest/testdata/typed/direct_lists.zp matching=true
+== internal/testing/codegentest/testdata/typed/direct_lists.sxir matching=true
 applied: N13=5
 sha256 a37617de2bb9f465df8a684c428723650ec9b60c1aaa580b6129cf0aafc50b64
-== internal/testing/codegentest/testdata/typed/direct_literals.zp matching=false
+== internal/testing/codegentest/testdata/typed/direct_literals.sxir matching=false
 applied:
-== internal/testing/codegentest/testdata/typed/direct_literals.zp matching=true
-applied:
-sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
-== internal/testing/codegentest/testdata/typed/direct_names.zp matching=false
-applied:
-== internal/testing/codegentest/testdata/typed/direct_names.zp matching=true
+== internal/testing/codegentest/testdata/typed/direct_literals.sxir matching=true
 applied:
 sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
-== internal/testing/codegentest/testdata/typed/element_scope_optional.zp matching=false
+== internal/testing/codegentest/testdata/typed/direct_names.sxir matching=false
 applied:
-== internal/testing/codegentest/testdata/typed/element_scope_optional.zp matching=true
-applied:
-sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
-== internal/testing/codegentest/testdata/typed/element_scope_plain.zp matching=false
-applied:
-== internal/testing/codegentest/testdata/typed/element_scope_plain.zp matching=true
+== internal/testing/codegentest/testdata/typed/direct_names.sxir matching=true
 applied:
 sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
-== internal/testing/codegentest/testdata/typed/element_scope_recover.zp matching=false
+== internal/testing/codegentest/testdata/typed/element_scope_optional.sxir matching=false
 applied:
-== internal/testing/codegentest/testdata/typed/element_scope_recover.zp matching=true
-applied:
-sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
-== internal/testing/codegentest/testdata/typed/errlist.zp matching=false
-applied:
-== internal/testing/codegentest/testdata/typed/errlist.zp matching=true
+== internal/testing/codegentest/testdata/typed/element_scope_optional.sxir matching=true
 applied:
 sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
-== internal/testing/codegentest/testdata/typed/errlist2.zp matching=false
+== internal/testing/codegentest/testdata/typed/element_scope_plain.sxir matching=false
 applied:
-== internal/testing/codegentest/testdata/typed/errlist2.zp matching=true
-applied:
-sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
-== internal/testing/codegentest/testdata/typed/fields.zp matching=false
-applied:
-== internal/testing/codegentest/testdata/typed/fields.zp matching=true
+== internal/testing/codegentest/testdata/typed/element_scope_plain.sxir matching=true
 applied:
 sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
-== internal/testing/codegentest/testdata/typed/mix.zp matching=false
+== internal/testing/codegentest/testdata/typed/element_scope_recover.sxir matching=false
 applied:
-== internal/testing/codegentest/testdata/typed/mix.zp matching=true
+== internal/testing/codegentest/testdata/typed/element_scope_recover.sxir matching=true
+applied:
+sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
+== internal/testing/codegentest/testdata/typed/errlist.sxir matching=false
+applied:
+== internal/testing/codegentest/testdata/typed/errlist.sxir matching=true
+applied:
+sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
+== internal/testing/codegentest/testdata/typed/errlist2.sxir matching=false
+applied:
+== internal/testing/codegentest/testdata/typed/errlist2.sxir matching=true
+applied:
+sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
+== internal/testing/codegentest/testdata/typed/fields.sxir matching=false
+applied:
+== internal/testing/codegentest/testdata/typed/fields.sxir matching=true
+applied:
+sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
+== internal/testing/codegentest/testdata/typed/mix.sxir matching=false
+applied:
+== internal/testing/codegentest/testdata/typed/mix.sxir matching=true
 applied: N13=3
 sha256 67856f305b290d131eb0cbcfb4f1a946ef5efe2a65ec08baf52b707a10860b28
-== internal/testing/codegentest/testdata/typed/mixf.zp matching=false
+== internal/testing/codegentest/testdata/typed/mixf.sxir matching=false
 applied:
-== internal/testing/codegentest/testdata/typed/mixf.zp matching=true
+== internal/testing/codegentest/testdata/typed/mixf.sxir matching=true
 applied: N13=3
 sha256 67856f305b290d131eb0cbcfb4f1a946ef5efe2a65ec08baf52b707a10860b28
-== internal/testing/codegentest/testdata/typed/operators_rule1.zp matching=false
+== internal/testing/codegentest/testdata/typed/operators_rule1.sxir matching=false
 applied:
-== internal/testing/codegentest/testdata/typed/operators_rule1.zp matching=true
+== internal/testing/codegentest/testdata/typed/operators_rule1.sxir matching=true
 applied: N13=1
 sha256 1018021f8a6fc8855c867ccd6d7b2d7f35c32c3cd76dee8cc83067f765cf10d3
-== internal/testing/codegentest/testdata/typed/operators_rule1f.zp matching=false
+== internal/testing/codegentest/testdata/typed/operators_rule1f.sxir matching=false
 applied:
-== internal/testing/codegentest/testdata/typed/operators_rule1f.zp matching=true
+== internal/testing/codegentest/testdata/typed/operators_rule1f.sxir matching=true
 applied: N13=1
 sha256 1018021f8a6fc8855c867ccd6d7b2d7f35c32c3cd76dee8cc83067f765cf10d3
-== internal/testing/codegentest/testdata/typed/order.zp matching=false
+== internal/testing/codegentest/testdata/typed/order.sxir matching=false
 applied:
-== internal/testing/codegentest/testdata/typed/order.zp matching=true
-applied:
-sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
-== internal/testing/codegentest/testdata/typed/proj1.zp matching=false
-applied:
-== internal/testing/codegentest/testdata/typed/proj1.zp matching=true
+== internal/testing/codegentest/testdata/typed/order.sxir matching=true
 applied:
 sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
-== internal/testing/codegentest/testdata/typed/proj2.zp matching=false
+== internal/testing/codegentest/testdata/typed/proj1.sxir matching=false
 applied:
-== internal/testing/codegentest/testdata/typed/proj2.zp matching=true
-applied:
-sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
-== internal/testing/codegentest/testdata/typed/proj3.zp matching=false
-applied:
-== internal/testing/codegentest/testdata/typed/proj3.zp matching=true
+== internal/testing/codegentest/testdata/typed/proj1.sxir matching=true
 applied:
 sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
-== internal/testing/codegentest/testdata/typed/proj4.zp matching=false
+== internal/testing/codegentest/testdata/typed/proj2.sxir matching=false
 applied:
-== internal/testing/codegentest/testdata/typed/proj4.zp matching=true
-applied:
-sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
-== internal/testing/codegentest/testdata/typed/proj5.zp matching=false
-applied:
-== internal/testing/codegentest/testdata/typed/proj5.zp matching=true
+== internal/testing/codegentest/testdata/typed/proj2.sxir matching=true
 applied:
 sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
-== internal/testing/codegentest/testdata/typed/proj6.zp matching=false
+== internal/testing/codegentest/testdata/typed/proj3.sxir matching=false
 applied:
-== internal/testing/codegentest/testdata/typed/proj6.zp matching=true
-applied:
-sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
-== internal/testing/codegentest/testdata/typed/proj7.zp matching=false
-applied:
-== internal/testing/codegentest/testdata/typed/proj7.zp matching=true
+== internal/testing/codegentest/testdata/typed/proj3.sxir matching=true
 applied:
 sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
-== internal/testing/codegentest/testdata/typed/spanname.zp matching=false
+== internal/testing/codegentest/testdata/typed/proj4.sxir matching=false
 applied:
-== internal/testing/codegentest/testdata/typed/spanname.zp matching=true
-applied:
-sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
-== internal/testing/codegentest/testdata/typed/splice_recursive_capture.zp matching=false
-applied:
-== internal/testing/codegentest/testdata/typed/splice_recursive_capture.zp matching=true
+== internal/testing/codegentest/testdata/typed/proj4.sxir matching=true
 applied:
 sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
-== internal/testing/codegentest/testdata/typed/splice_recursive_capture_action.zp matching=false
+== internal/testing/codegentest/testdata/typed/proj5.sxir matching=false
 applied:
-== internal/testing/codegentest/testdata/typed/splice_recursive_capture_action.zp matching=true
-applied:
-sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
-== internal/testing/codegentest/testdata/typed/splice_recursive_choice.zp matching=false
-applied:
-== internal/testing/codegentest/testdata/typed/splice_recursive_choice.zp matching=true
+== internal/testing/codegentest/testdata/typed/proj5.sxir matching=true
 applied:
 sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
-== internal/testing/codegentest/testdata/typed/splice_recursive_choice_in_seq.zp matching=false
+== internal/testing/codegentest/testdata/typed/proj6.sxir matching=false
 applied:
-== internal/testing/codegentest/testdata/typed/splice_recursive_choice_in_seq.zp matching=true
-applied:
-sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
-== internal/testing/codegentest/testdata/typed/splice_recursive_optional.zp matching=false
-applied:
-== internal/testing/codegentest/testdata/typed/splice_recursive_optional.zp matching=true
+== internal/testing/codegentest/testdata/typed/proj6.sxir matching=true
 applied:
 sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
-== internal/testing/codegentest/testdata/typed/splice_recursive_repeat.zp matching=false
+== internal/testing/codegentest/testdata/typed/proj7.sxir matching=false
 applied:
-== internal/testing/codegentest/testdata/typed/splice_recursive_repeat.zp matching=true
+== internal/testing/codegentest/testdata/typed/proj7.sxir matching=true
 applied:
 sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
-== internal/testing/codegentest/testdata/typed/unif.zp matching=false
+== internal/testing/codegentest/testdata/typed/spanname.sxir matching=false
 applied:
-== internal/testing/codegentest/testdata/typed/unif.zp matching=true
+== internal/testing/codegentest/testdata/typed/spanname.sxir matching=true
+applied:
+sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
+== internal/testing/codegentest/testdata/typed/splice_recursive_capture.sxir matching=false
+applied:
+== internal/testing/codegentest/testdata/typed/splice_recursive_capture.sxir matching=true
+applied:
+sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
+== internal/testing/codegentest/testdata/typed/splice_recursive_capture_action.sxir matching=false
+applied:
+== internal/testing/codegentest/testdata/typed/splice_recursive_capture_action.sxir matching=true
+applied:
+sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
+== internal/testing/codegentest/testdata/typed/splice_recursive_choice.sxir matching=false
+applied:
+== internal/testing/codegentest/testdata/typed/splice_recursive_choice.sxir matching=true
+applied:
+sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
+== internal/testing/codegentest/testdata/typed/splice_recursive_choice_in_seq.sxir matching=false
+applied:
+== internal/testing/codegentest/testdata/typed/splice_recursive_choice_in_seq.sxir matching=true
+applied:
+sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
+== internal/testing/codegentest/testdata/typed/splice_recursive_optional.sxir matching=false
+applied:
+== internal/testing/codegentest/testdata/typed/splice_recursive_optional.sxir matching=true
+applied:
+sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
+== internal/testing/codegentest/testdata/typed/splice_recursive_repeat.sxir matching=false
+applied:
+== internal/testing/codegentest/testdata/typed/splice_recursive_repeat.sxir matching=true
+applied:
+sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
+== internal/testing/codegentest/testdata/typed/unif.sxir matching=false
+applied:
+== internal/testing/codegentest/testdata/typed/unif.sxir matching=true
 applied: N13=1
 sha256 4456d51da6a68b73cbbbf448dc9ac532d2a2b491a4e7de8be3a16095058fee93
-== spec/language/testdata/comment-boundaries.zp matching=false
+== spec/language/testdata/comment-boundaries.sxir matching=false
 applied: N8=1
 rule scope_end = [)\]}] / $$
   77:18 [)\]}] / $$ = "\")\" / \"]\" / \"}\" / $$"
   77:18 [)\]}] = "\")\" / \"]\" / \"}\""
-== spec/language/testdata/comment-boundaries.zp matching=true
+== spec/language/testdata/comment-boundaries.sxir matching=true
 applied: N1=13 N13=22 N8=2
 sha256 2f6fa1cfbe0dd416902db91f9bd74372aafcb8e9332583825517157eb9336788
-== testdata/grammars/cel/cel.zp matching=false
+== testdata/grammars/cel/cel.sxir matching=false
 applied: N1=6 N11=2 N12=6 N4=5
 rule expected_start = _|_ #atomic
   96:103 _|_ #atomic = "(![A-Za-z_] [A-Za-z_] / ![0-9] [0-9] / ![\"'] [\"'] / !\".\" \".\" / !\"-\" \"-\") #atomic"
@@ -325,10 +325,10 @@ rule ws = ([ \t\r\n\u{c}] / "//" [^\n]*)*
   192:11 ([ \t\r\n\u{c}] / "//" [^\n]*)* = "[ \\t\\r\\n\\u{c}]* (\"//\" [^\\n]* [ \\t\\r\\n\\u{c}]*)*"
   192:11 [ \t\r\n\u{c}] / "//" [^\n]* = ""
   192:28 "//" [^\n]* = ""
-== testdata/grammars/cel/cel.zp matching=true
+== testdata/grammars/cel/cel.sxir matching=true
 applied: N1=17 N11=3 N12=11 N13=81 N4=10
 sha256 e636fbedcf3f111c61a99f4d2c7f1e2d7f9d4c675fae85bbd7f6742d4521398e
-== testdata/grammars/csv/csv.zp matching=false
+== testdata/grammars/csv/csv.sxir matching=false
 applied: N1=1 N11=2
 rule field = ("\"" ([^"] / "\"\"")* "\"" / ([^,"\r\n] / "\r" &[^\n])*) #atomic
   29:10 ([^"] / "\"\"")* = "[^\"]* (\"\\\"\\\"\" [^\"]*)*"
@@ -339,10 +339,10 @@ rule field = ("\"" ([^"] / "\"\"")* "\"" / ([^,"\r\n] / "\r" &[^\n])*) #atomic
   30:7 ([^,"\r\n] / "\r" &[^\n])* = "[^,\"\\r\\n]* (\"\\r\" &[^\\n] [^,\"\\r\\n]*)*"
   30:7 [^,"\r\n] / "\r" &[^\n] = ""
   31:3 ("\"" ([^"] / "\"\"")* "\"" / ([^,"\r\n] / "\r" &[^\n])*) #atomic = "(\"\\\"\" [^\"]* (\"\\\"\\\"\" [^\"]*)* \"\\\"\" / [^,\"\\r\\n]* (\"\\r\" &[^\\n] [^,\"\\r\\n]*)*) #atomic"
-== testdata/grammars/csv/csv.zp matching=true
+== testdata/grammars/csv/csv.sxir matching=true
 applied: N1=2 N11=4 N13=3
 sha256 7f0fd0828202a69dac853c82d628332fb4d576f30caff4ff38b4a9506ea1121c
-== testdata/grammars/cue/cue.zp matching=false
+== testdata/grammars/cue/cue.sxir matching=false
 applied: N8=13
 rule isep = comma / sp &[)}]
   106:13 comma / sp &[)}] = "comma / sp &(\")\" / \"}\")"
@@ -421,10 +421,10 @@ rule bare_for_if = ("for" !idchar &(sp (":" / "=" ![=~] / "?" / "!" ![=~] / [\n,
   291:44 [\n,?] = "\"?\" / \",\" / \"\\n\""
   291:7 "if" !idchar &(sp (":" / "=" ![=~] / [\n,?] / "//" / $$ / "!" ws ":")) = "\"if\" !idchar &(sp (\":\" / \"=\" ![=~] / \"?\" / \",\" / \"\\n\" / \"//\" / $$ / \"!\" ws \":\"))"
   292:3 ("for" !idchar &(sp (":" / "=" ![=~] / "?" / "!" ![=~] / [\n,] / "//" / $$)) / "if" !idchar &(sp (":" / "=" ![=~] / [\n,?] / "//" / $$ / "!" ws ":"))) #atomic = "(\"for\" !idchar &(sp (\":\" / \"=\" ![=~] / \"?\" / \"!\" ![=~] / \",\" / \"\\n\" / \"//\" / $$)) / \"if\" !idchar &(sp (\":\" / \"=\" ![=~] / \"?\" / \",\" / \"\\n\" / \"//\" / $$ / \"!\" ws \":\"))) #atomic"
-== testdata/grammars/cue/cue.zp matching=true
+== testdata/grammars/cue/cue.sxir matching=true
 applied: N1=51 N12=4 N13=228 N8=18
 sha256 a8007c4745c24ed7d2200e1c26318e99311c4fbe792b9d6a17a699cc07bc2c6f
-== testdata/grammars/duckdb/duckdb.zp matching=false
+== testdata/grammars/duckdb/duckdb.sxir matching=false
 applied: N1=1 N8=10
 rule op_special = !(([%\^] / "!=") !rc) (!cut [+\-*/<>=])* [~!@\^&|`%] (!cut opc)*
   545:19 !(([%\^] / "!=") !rc) (!cut [+\-*/<>=])* [~!@\^&|`%] (!cut opc)* = "!((\"^\" / \"%\" / \"!=\") !rc) (!cut [+\\-*/<>=])* [~!@\\^&|`%] (!cut opc)*"
@@ -484,10 +484,10 @@ rule kw_u = ([aA] ([bB] ([oO] [rR] [tT] / [sS] [oO] [lL] [uU] [tT] [eE]) / [cC] 
   2572:4576 [DRdr] = "[dD] / [rR]"
   2572:5 ([aA] ([bB] ([oO] [rR] [tT] / [sS] [oO] [lL] [uU] [tT] [eE]) / [cC] ([cC] [eE] [sS] [sS] / [tT] [iI] [oO] [nN]) / [dD] ([dD] / [mM] [iI] [nN]) / [fF] [tT] [eE] [rR] / [gG] [gG] [rR] [eE] [gG] [aA] [tT] [eE] / [lL] ([sS] [oO] / [tT] [eE] [rR] / [wW] [aA] [yY] [sS]) / [sS] [sS] ([eE] [rR] [tT] [iI] [oO] [nN] / [iI] [gG] [nN] [mM] [eE] [nN] [tT]) / [tT] [tT] ([aA] [cC] [hH] / [rR] [iI] [bB] [uU] [tT] [eE])) / [bB] ([aA] [cC] [kK] [wW] [aA] [rR] [dD] / [eE] ([fF] [oO] [rR] [eE] / [gG] [iI] [nN])) / [cC] ([aA] ([cC] [hH] [eE] / [lL] [lL] ([eE] [dD])? / [sS] [cC] [aA] [dD] [eE] [dD]? / [tT] [aA] [lL] [oO] [gG]) / [eE] [nN] [tT] [uU] [rR] ([iI] [eE] [sS] / [yY]) / [hH] ([aA] ([iI] [nN] / [rR] [aA] [cC] [tT] [eE] [rR] [iI] [sS] [tT] [iI] [cC] [sS]) / [eE] [cC] [kK] [pP] [oO] [iI] [nN] [tT]) / [lL] ([aA] [sS] [sS] / [oO] [sS] [eE] / [uU] [sS] [tT] [eE] [rR]) / [oO] ([mM] ([mM] ([eE] [nN] [tT] [sS]? / [iI] [tT] ([tT] [eE] [dD])?) / [pP] [rR] [eE] [sS] [sS] [iI] [oO] [nN]) / [nN] ([fF] ([iI] [gG] [uU] [rR] [aA] [tT] [iI] [oO] [nN] / [lL] [iI] [cC] [tT]) / [nN] [eE] [cC] [tT] [iI] [oO] [nN] / [sS] [tT] [rR] [aA] [iI] [nN] [tT] [sS] / [tT] ([eE] [nN] [tT] / [iI] [nN] [uU] [eE]) / [vV] [eE] [rR] [sS] [iI] [oO] [nN]) / [pP] [yY] / [sS] [tT]) / [sS] [vV] / [uU] ([bB] [eE] / [rR] ([rR] [eE] [nN] [tT] / [sS] [oO] [rR])) / [yY] [cC] [lL] [eE]) / [dD] ([aA] ([tT] [aA] ([bB] [aA] [sS] [eE])? / [yY] [sS]?) / [eE] ([aA] [lL] [lL] [oO] [cC] [aA] [tT] [eE] / [cC] ([aA] [dD] [eE] [sS]? / [lL] [aA] [rR] [eE]) / [fF] ([aA] [uU] [lL] [tT] [sS] / [eE] [rR] [rR] [eE] [dD] / [iI] [nN] [eE] [rR]) / [lL] ([eE] [tT] [eE] / [iI] [mM] [iI] [tT] [eE] [rR] [sS]?) / [pP] [eE] [nN] [dD] [sS] / [tT] [aA] [cC] [hH]) / [iI] ([cC] [tT] [iI] [oO] [nN] [aA] [rR] [yY] / [sS] ([aA] [bB] [lL] [eE] / [cC] [aA] [rR] [dD])) / [oO] ([cC] [uU] [mM] [eE] [nN] [tT] / [mM] [aA] [iI] [nN] / [uU] [bB] [lL] [eE]) / [rR] [oO] [pP]) / [eE] ([aA] [cC] [hH] / [nN] ([aA] [bB] [lL] [eE] / [cC] ([oO] [dD] [iI] [nN] [gG] / [rR] [yY] [pP] [tT] [eE] [dD]) / [uU] [mM]) / [rR] [rR] [oO] [rR] / [sS] [cC] [aA] [pP] [eE] / [vV] [eE] [nN] [tT] / [xX] ([cC] [lL] [uU] ([dD] ([eE] / [iI] [nN] [gG]) / [sS] [iI] [vV] [eE]) / [eE] [cC] [uU] [tT] [eE] / [pP] ([lL] [aA] [iI] [nN] / [oO] [rR] [tT] ("_" [sS] [tT] [aA] [tT] [eE])?) / [tT] [eE] ([nN] [sS] [iI] [oO] [nN] [sS]? / [rR] [nN] [aA] [lL]))) / [fF] ([aA] [mM] [iI] [lL] [yY] / [iI] ([lL] [tT] [eE] [rR] / [rR] [sS] [tT]) / [oO] ([lL] [lL] [oO] [wW] [iI] [nN] [gG] / [rR] ([cC] [eE] / [wW] [aA] [rR] [dD])) / [uU] [nN] [cC] [tT] [iI] [oO] [nN] [sS]?) / [gG] ([lL] [oO] [bB] [aA] [lL] / [rR] ([aA] [nN] [tT] ([eE] [dD])? / [oO] [uU] [pP] [sS])) / [hH] ([aA] [nN] [dD] [lL] [eE] [rR] / [eE] [aA] [dD] [eE] [rR] / [oO] ([lL] [dD] / [uU] [rR] [sS]?)) / [iI] ([dD] [eE] [nN] [tT] [iI] [tT] [yY] / [fF] / [gG] [nN] [oO] [rR] [eE] / [mM] ([mM] ([eE] [dD] [iI] [aA] [tT] [eE] / [uU] [tT] [aA] [bB] [lL] [eE]) / [pP] ([lL] [iI] [cC] [iI] [tT] / [oO] [rR] [tT])) / [nN] ([cC] ([lL] [uU] [dD] ([eE] / [iI] [nN] [gG]) / [rR] [eE] [mM] [eE] [nN] [tT]) / [dD] [eE] [xX] ([eE] [sS])? / [hH] [eE] [rR] [iI] [tT] [sS]? / [lL] [iI] [nN] [eE] / [pP] [uU] [tT] / [sS] ([eE] ([nN] [sS] [iI] [tT] [iI] [vV] [eE] / [rR] [tT]) / [tT] ([aA] [lL] [lL] / [eE] [aA] [dD])) / [vV] [oO] [kK] [eE] [rR]) / [sS] [oO] [lL] [aA] [tT] [iI] [oO] [nN]) / [jJ] [sS] [oO] [nN] / [kK] [eE] [yY] / [lL] ([aA] ([bB] [eE] [lL] / [nN] [gG] [uU] [aA] [gG] [eE] / [rR] [gG] [eE] / [sS] [tT]) / [eE] ([aA] [kK] [pP] [rR] [oO] [oO] [fF] / [vV] [eE] [lL]) / [iI] [sS] [tT] [eE] [nN] / [oO] ([aA] [dD] / [cC] ([aA] ([lL] / [tT] [iI] [oO] [nN]) / [kK] ([eE] [dD])?) / [gG] [gG] [eE] [dD])) / [mM] ([aA] ([cC] [rR] [oO] / [pP] [pP] [iI] [nN] [gG] / [tT] ([cC] [hH] ([eE] [dD])? / [eE] [rR] [iI] [aA] [lL] [iI] [zZ] [eE] [dD]) / [xX] [vV] [aA] [lL] [uU] [eE]) / [eE] ([rR] [gG] [eE] / [tT] [hH] [oO] [dD]) / [iI] ([cC] [rR] [oO] [sS] [eE] [cC] [oO] [nN] [dD] [sS]? / [lL] [lL] ([eE] [nN] [nN] [iI] ([aA] / [uU] [mM]) / [iI] [sS] [eE] [cC] [oO] [nN] [dD] [sS]?) / [nN] ([uU] [tT] [eE] [sS]? / [vV] [aA] [lL] [uU] [eE])) / [oO] ([dD] [eE] / [nN] [tT] [hH] [sS]? / [vV] [eE])) / [nN] ([aA] [mM] [eE] [sS]? / [eE] ([wW] / [xX] [tT]) / [oO] ([tT] ([hH] [iI] [nN] [gG] / [iI] [fF] [yY]) / [wW] [aA] [iI] [tT])? / [uU] [lL] [lL] [sS]) / [oO] ([bB] [jJ] [eE] [cC] [tT] / [fF] [fF]? / [iI] [dD] [sS] / [lL] [dD] / [pP] ([eE] [rR] [aA] [tT] [oO] [rR] / [tT] [iI] [oO] [nN] [sS]?) / [rR] [dD] [iI] [nN] [aA] [lL] [iI] [tT] [yY] / [tT] [hH] [eE] [rR] [sS] / [vV] [eE] [rR] ([rR] [iI] [dD] [iI] [nN] [gG])? / [wW] [nN] [eE] [DRdr]) / [pP] ([aA] ([rR] ([aA] [lL] [lL] [eE] [lL] / [sS] [eE] [rR] / [tT] [iI] ([aA] [lL] / [tT] [iI] [oO] [nN] ([eE] [dD])?)) / [sS] [sS] ([iI] [nN] [gG] / [wW] [oO] [rR] [dD])) / [eE] [rR] ([cC] [eE] [nN] [tT] / [sS] [iI] [sS] [tT] [eE] [nN] [tT]) / [lL] [aA] [nN] [sS] / [oO] [lL] [iI] [cC] [yY] / [rR] ([aA] [gG] [mM] [aA] / [eE] ([cC] [eE] [dD] [iI] [nN] [gG] / [pP] [aA] [rR] [eE] [dD]? / [sS] [eE] [rR] [vV] [eE]) / [iI] ([oO] [rR] / [vV] [iI] [lL] [eE] [gG] [eE] [sS]) / [oO] ([cC] [eE] [dD] [uU] [rR] ([aA] [lL] / [eE]) / [gG] [rR] [aA] [mM])) / [uU] [bB] [lL] [iI] [cC] [aA] [tT] [iI] [oO] [nN]) / [qQ] [uU] ([aA] [rR] [tT] [eE] [rR] [sS]? / [oO] [tT] [eE]) / [rR] ([aA] [nN] [gG] [eE] / [eE] ([aA] ([dD] / [sS] [sS] [iI] [gG] [nN]) / [cC] ([hH] [eE] [cC] [kK] / [uU] [rR] [sS] [iI] [vV] [eE]) / [fF] ([eE] [rR] [eE] [nN] [cC] [iI] [nN] [gG] / [rR] [eE] [sS] [hH])? / [iI] [nN] [dD] [eE] [xX] / [lL] ([aA] [tT] [iI] [vV] [eE] / [eE] [aA] [sS] [eE]) / [nN] [aA] [mM] [eE] / [pP] ([eE] [aA] [tT] [aA] [bB] [lL] [eE] / [lL] ([aA] [cC] [eE] / [iI] [cC] [aA])) / [sS] ([eE] [tT] / [pP] [eE] [cC] [tT] / [tT] ([aA] [rR] [tT] / [rR] [iI] [cC] [tT])) / [tT] [uU] [rR] [nN] [sS] / [vV] [oO] [kK] [eE]) / [oO] ([lL] ([eE] / [lL] ([bB] [aA] [cC] [kK] / [uU] [pP])) / [wW] [sS]) / [uU] [lL] [eE]) / [sS] ([aA] ([mM] [pP] [lL] [eE] / [vV] [eE] [pP] [oO] [iI] [nN] [tT]) / [cC] ([hH] [eE] [mM] [aA] [sS]? / [oO] [pP] [eE] / [rR] [oO] [lL] [lL]) / [eE] ([aA] [rR] [cC] [hH] / [cC] ([oO] [nN] [dD] [sS]? / [rR] [eE] [tT] / [uU] [rR] [iI] [tT] [yY]) / [qQ] [uU] [eE] [nN] [cC] [eE] [sS]? / [rR] ([iI] [aA] [lL] [iI] [zZ] [aA] [bB] [lL] [eE] / [vV] [eE] [rR]) / [sS] [sS] [iI] [oO] [nN] / [tT] [sS]?) / [hH] [aA] [rR] [eE] / [iI] [mM] [pP] [lL] [eE] / [kK] [iI] [pP] / [nN] [aA] [pP] [sS] [hH] [oO] [tT] / [oO] ([rR] [tT] [eE] [dD] / [uU] [rR] [cC] [eE]) / [qQ] [lL] / [tT] ([aA] ([bB] [lL] [eE] / [nN] [dD] [aA] [lL] [oO] [nN] [eE] / [rR] [tT] / [tT] ([eE] [mM] [eE] [nN] [tT] / [iI] [sS] [tT] [iI] [cC] [sS])) / [dD] ([iI] [nN] / [oO] [uU] [tT]) / [oO] [rR] ([aA] [gG] [eE] / [eE] [dD]) / [rR] [iI] ([cC] [tT] / [pP])) / [uU] [bB] [sS] [cC] [rR] [iI] [pP] [tT] [iI] [oO] [nN] / [yY] [sS] ([iI] [dD] / [tT] [eE] [mM])) / [tT] ([aA] ([bB] [lL] [eE] [sS] ([pP] [aA] [cC] [eE])? / [rR] [gG] [eE] [tT]) / [eE] ([mM] [pP] ([lL] [aA] [tT] [eE] / [oO] [rR] [aA] [rR] [yY])? / [xX] [tT]) / [iI] [eE] [sS] / [rR] ([aA] [nN] [sS] ([aA] [cC] [tT] [iI] [oO] [nN] / [fF] [oO] [rR] [mM]) / [iI] [gG] [gG] [eE] [rR] / [uU] ([nN] [cC] [aA] [tT] [eE] / [sS] [tT] [eE] [dD])) / [yY] [pP] [eE] [sS]?) / [uU] ([nN] ([bB] [oO] [uU] [nN] [dD] [eE] [dD] / [cC] [oO] [mM] [mM] [iI] [tT] [tT] [eE] [dD] / [eE] [nN] [cC] [rR] [yY] [pP] [tT] [eE] [dD] / [kK] [nN] [oO] [wW] [nN] / [lL] ([iI] [sS] [tT] [eE] [nN] / [oO] [gG] [gG] [eE] [dD]) / [tT] [iI] [lL]) / [pP] [dD] [aA] [tT] [eE] / [sS] [eE] [rR]?) / [vV] ([aA] ([cC] [uU] [uU] [mM] / [lL] ([iI] [dD] ([aA] [tT] ([eE] / [oO] [rR]))? / [uU] [eE]) / [rR] ([iI] [aA] [bB] [lL] [eE] / [yY] [iI] [nN] [gG])) / [eE] [rR] [sS] [iI] [oO] [nN] / [iI] ([eE] [wW] [sS]? / [rR] [tT] [uU] [aA] [lL]) / [oO] [lL] [aA] [tT] [iI] [lL] [eE]) / [wW] ([eE] [eE] [kK] [sS]? / [hH] [iI] [tT] [eE] [sS] [pP] [aA] [cC] [eE] / [iI] [tT] [hH] ([iI] [nN] / [oO] [uU] [tT]) / [oO] [rR] [kK] / [rR] ([aA] [pP] [pP] [eE] [rR] / [iI] [tT] [eE])) / [xX] [mM] [lL] / [yY] [eE] ([aA] [rR] [sS]? / [sS]) / [zZ] [oO] [nN] [eE]) ![a-zA-Z0-9_$\u{80}-\u{9f}¡-\u{1fff}\u{200c}-\u{202e}‰-⁞\u{2061}-⿿、-\u{fefe}\u{ff00}-\u{10ffff}] = "([aA] ([bB] ([oO] [rR] [tT] / [sS] [oO] [lL] [uU] [tT] [eE]) / [cC] ([cC] [eE] [sS] [sS] / [tT] [iI] [oO] [nN]) / [dD] ([dD] / [mM] [iI] [nN]) / [fF] [tT] [eE] [rR] / [gG] [gG] [rR] [eE] [gG] [aA] [tT] [eE] / [lL] ([sS] [oO] / [tT] [eE] [rR] / [wW] [aA] [yY] [sS]) / [sS] [sS] ([eE] [rR] [tT] [iI] [oO] [nN] / [iI] [gG] [nN] [mM] [eE] [nN] [tT]) / [tT] [tT] ([aA] [cC] [hH] / [rR] [iI] [bB] [uU] [tT] [eE])) / [bB] ([aA] [cC] [kK] [wW] [aA] [rR] [dD] / [eE] ([fF] [oO] [rR] [eE] / [gG] [iI] [nN])) / [cC] ([aA] ([cC] [hH] [eE] / [lL] [lL] ([eE] [dD])? / [sS] [cC] [aA] [dD] [eE] [dD]? / [tT] [aA] [lL] [oO] [gG]) / [eE] [nN] [tT] [uU] [rR] ([iI] [eE] [sS] / [yY]) / [hH] ([aA] ([iI] [nN] / [rR] [aA] [cC] [tT] [eE] [rR] [iI] [sS] [tT] [iI] [cC] [sS]) / [eE] [cC] [kK] [pP] [oO] [iI] [nN] [tT]) / [lL] ([aA] [sS] [sS] / [oO] [sS] [eE] / [uU] [sS] [tT] [eE] [rR]) / [oO] ([mM] ([mM] ([eE] [nN] [tT] [sS]? / [iI] [tT] ([tT] [eE] [dD])?) / [pP] [rR] [eE] [sS] [sS] [iI] [oO] [nN]) / [nN] ([fF] ([iI] [gG] [uU] [rR] [aA] [tT] [iI] [oO] [nN] / [lL] [iI] [cC] [tT]) / [nN] [eE] [cC] [tT] [iI] [oO] [nN] / [sS] [tT] [rR] [aA] [iI] [nN] [tT] [sS] / [tT] ([eE] [nN] [tT] / [iI] [nN] [uU] [eE]) / [vV] [eE] [rR] [sS] [iI] [oO] [nN]) / [pP] [yY] / [sS] [tT]) / [sS] [vV] / [uU] ([bB] [eE] / [rR] ([rR] [eE] [nN] [tT] / [sS] [oO] [rR])) / [yY] [cC] [lL] [eE]) / [dD] ([aA] ([tT] [aA] ([bB] [aA] [sS] [eE])? / [yY] [sS]?) / [eE] ([aA] [lL] [lL] [oO] [cC] [aA] [tT] [eE] / [cC] ([aA] [dD] [eE] [sS]? / [lL] [aA] [rR] [eE]) / [fF] ([aA] [uU] [lL] [tT] [sS] / [eE] [rR] [rR] [eE] [dD] / [iI] [nN] [eE] [rR]) / [lL] ([eE] [tT] [eE] / [iI] [mM] [iI] [tT] [eE] [rR] [sS]?) / [pP] [eE] [nN] [dD] [sS] / [tT] [aA] [cC] [hH]) / [iI] ([cC] [tT] [iI] [oO] [nN] [aA] [rR] [yY] / [sS] ([aA] [bB] [lL] [eE] / [cC] [aA] [rR] [dD])) / [oO] ([cC] [uU] [mM] [eE] [nN] [tT] / [mM] [aA] [iI] [nN] / [uU] [bB] [lL] [eE]) / [rR] [oO] [pP]) / [eE] ([aA] [cC] [hH] / [nN] ([aA] [bB] [lL] [eE] / [cC] ([oO] [dD] [iI] [nN] [gG] / [rR] [yY] [pP] [tT] [eE] [dD]) / [uU] [mM]) / [rR] [rR] [oO] [rR] / [sS] [cC] [aA] [pP] [eE] / [vV] [eE] [nN] [tT] / [xX] ([cC] [lL] [uU] ([dD] ([eE] / [iI] [nN] [gG]) / [sS] [iI] [vV] [eE]) / [eE] [cC] [uU] [tT] [eE] / [pP] ([lL] [aA] [iI] [nN] / [oO] [rR] [tT] (\"_\" [sS] [tT] [aA] [tT] [eE])?) / [tT] [eE] ([nN] [sS] [iI] [oO] [nN] [sS]? / [rR] [nN] [aA] [lL]))) / [fF] ([aA] [mM] [iI] [lL] [yY] / [iI] ([lL] [tT] [eE] [rR] / [rR] [sS] [tT]) / [oO] ([lL] [lL] [oO] [wW] [iI] [nN] [gG] / [rR] ([cC] [eE] / [wW] [aA] [rR] [dD])) / [uU] [nN] [cC] [tT] [iI] [oO] [nN] [sS]?) / [gG] ([lL] [oO] [bB] [aA] [lL] / [rR] ([aA] [nN] [tT] ([eE] [dD])? / [oO] [uU] [pP] [sS])) / [hH] ([aA] [nN] [dD] [lL] [eE] [rR] / [eE] [aA] [dD] [eE] [rR] / [oO] ([lL] [dD] / [uU] [rR] [sS]?)) / [iI] ([dD] [eE] [nN] [tT] [iI] [tT] [yY] / [fF] / [gG] [nN] [oO] [rR] [eE] / [mM] ([mM] ([eE] [dD] [iI] [aA] [tT] [eE] / [uU] [tT] [aA] [bB] [lL] [eE]) / [pP] ([lL] [iI] [cC] [iI] [tT] / [oO] [rR] [tT])) / [nN] ([cC] ([lL] [uU] [dD] ([eE] / [iI] [nN] [gG]) / [rR] [eE] [mM] [eE] [nN] [tT]) / [dD] [eE] [xX] ([eE] [sS])? / [hH] [eE] [rR] [iI] [tT] [sS]? / [lL] [iI] [nN] [eE] / [pP] [uU] [tT] / [sS] ([eE] ([nN] [sS] [iI] [tT] [iI] [vV] [eE] / [rR] [tT]) / [tT] ([aA] [lL] [lL] / [eE] [aA] [dD])) / [vV] [oO] [kK] [eE] [rR]) / [sS] [oO] [lL] [aA] [tT] [iI] [oO] [nN]) / [jJ] [sS] [oO] [nN] / [kK] [eE] [yY] / [lL] ([aA] ([bB] [eE] [lL] / [nN] [gG] [uU] [aA] [gG] [eE] / [rR] [gG] [eE] / [sS] [tT]) / [eE] ([aA] [kK] [pP] [rR] [oO] [oO] [fF] / [vV] [eE] [lL]) / [iI] [sS] [tT] [eE] [nN] / [oO] ([aA] [dD] / [cC] ([aA] ([lL] / [tT] [iI] [oO] [nN]) / [kK] ([eE] [dD])?) / [gG] [gG] [eE] [dD])) / [mM] ([aA] ([cC] [rR] [oO] / [pP] [pP] [iI] [nN] [gG] / [tT] ([cC] [hH] ([eE] [dD])? / [eE] [rR] [iI] [aA] [lL] [iI] [zZ] [eE] [dD]) / [xX] [vV] [aA] [lL] [uU] [eE]) / [eE] ([rR] [gG] [eE] / [tT] [hH] [oO] [dD]) / [iI] ([cC] [rR] [oO] [sS] [eE] [cC] [oO] [nN] [dD] [sS]? / [lL] [lL] ([eE] [nN] [nN] [iI] ([aA] / [uU] [mM]) / [iI] [sS] [eE] [cC] [oO] [nN] [dD] [sS]?) / [nN] ([uU] [tT] [eE] [sS]? / [vV] [aA] [lL] [uU] [eE])) / [oO] ([dD] [eE] / [nN] [tT] [hH] [sS]? / [vV] [eE])) / [nN] ([aA] [mM] [eE] [sS]? / [eE] ([wW] / [xX] [tT]) / [oO] ([tT] ([hH] [iI] [nN] [gG] / [iI] [fF] [yY]) / [wW] [aA] [iI] [tT])? / [uU] [lL] [lL] [sS]) / [oO] ([bB] [jJ] [eE] [cC] [tT] / [fF] [fF]? / [iI] [dD] [sS] / [lL] [dD] / [pP] ([eE] [rR] [aA] [tT] [oO] [rR] / [tT] [iI] [oO] [nN] [sS]?) / [rR] [dD] [iI] [nN] [aA] [lL] [iI] [tT] [yY] / [tT] [hH] [eE] [rR] [sS] / [vV] [eE] [rR] ([rR] [iI] [dD] [iI] [nN] [gG])? / [wW] [nN] [eE] ([dD] / [rR])) / [pP] ([aA] ([rR] ([aA] [lL] [lL] [eE] [lL] / [sS] [eE] [rR] / [tT] [iI] ([aA] [lL] / [tT] [iI] [oO] [nN] ([eE] [dD])?)) / [sS] [sS] ([iI] [nN] [gG] / [wW] [oO] [rR] [dD])) / [eE] [rR] ([cC] [eE] [nN] [tT] / [sS] [iI] [sS] [tT] [eE] [nN] [tT]) / [lL] [aA] [nN] [sS] / [oO] [lL] [iI] [cC] [yY] / [rR] ([aA] [gG] [mM] [aA] / [eE] ([cC] [eE] [dD] [iI] [nN] [gG] / [pP] [aA] [rR] [eE] [dD]? / [sS] [eE] [rR] [vV] [eE]) / [iI] ([oO] [rR] / [vV] [iI] [lL] [eE] [gG] [eE] [sS]) / [oO] ([cC] [eE] [dD] [uU] [rR] ([aA] [lL] / [eE]) / [gG] [rR] [aA] [mM])) / [uU] [bB] [lL] [iI] [cC] [aA] [tT] [iI] [oO] [nN]) / [qQ] [uU] ([aA] [rR] [tT] [eE] [rR] [sS]? / [oO] [tT] [eE]) / [rR] ([aA] [nN] [gG] [eE] / [eE] ([aA] ([dD] / [sS] [sS] [iI] [gG] [nN]) / [cC] ([hH] [eE] [cC] [kK] / [uU] [rR] [sS] [iI] [vV] [eE]) / [fF] ([eE] [rR] [eE] [nN] [cC] [iI] [nN] [gG] / [rR] [eE] [sS] [hH])? / [iI] [nN] [dD] [eE] [xX] / [lL] ([aA] [tT] [iI] [vV] [eE] / [eE] [aA] [sS] [eE]) / [nN] [aA] [mM] [eE] / [pP] ([eE] [aA] [tT] [aA] [bB] [lL] [eE] / [lL] ([aA] [cC] [eE] / [iI] [cC] [aA])) / [sS] ([eE] [tT] / [pP] [eE] [cC] [tT] / [tT] ([aA] [rR] [tT] / [rR] [iI] [cC] [tT])) / [tT] [uU] [rR] [nN] [sS] / [vV] [oO] [kK] [eE]) / [oO] ([lL] ([eE] / [lL] ([bB] [aA] [cC] [kK] / [uU] [pP])) / [wW] [sS]) / [uU] [lL] [eE]) / [sS] ([aA] ([mM] [pP] [lL] [eE] / [vV] [eE] [pP] [oO] [iI] [nN] [tT]) / [cC] ([hH] [eE] [mM] [aA] [sS]? / [oO] [pP] [eE] / [rR] [oO] [lL] [lL]) / [eE] ([aA] [rR] [cC] [hH] / [cC] ([oO] [nN] [dD] [sS]? / [rR] [eE] [tT] / [uU] [rR] [iI] [tT] [yY]) / [qQ] [uU] [eE] [nN] [cC] [eE] [sS]? / [rR] ([iI] [aA] [lL] [iI] [zZ] [aA] [bB] [lL] [eE] / [vV] [eE] [rR]) / [sS] [sS] [iI] [oO] [nN] / [tT] [sS]?) / [hH] [aA] [rR] [eE] / [iI] [mM] [pP] [lL] [eE] / [kK] [iI] [pP] / [nN] [aA] [pP] [sS] [hH] [oO] [tT] / [oO] ([rR] [tT] [eE] [dD] / [uU] [rR] [cC] [eE]) / [qQ] [lL] / [tT] ([aA] ([bB] [lL] [eE] / [nN] [dD] [aA] [lL] [oO] [nN] [eE] / [rR] [tT] / [tT] ([eE] [mM] [eE] [nN] [tT] / [iI] [sS] [tT] [iI] [cC] [sS])) / [dD] ([iI] [nN] / [oO] [uU] [tT]) / [oO] [rR] ([aA] [gG] [eE] / [eE] [dD]) / [rR] [iI] ([cC] [tT] / [pP])) / [uU] [bB] [sS] [cC] [rR] [iI] [pP] [tT] [iI] [oO] [nN] / [yY] [sS] ([iI] [dD] / [tT] [eE] [mM])) / [tT] ([aA] ([bB] [lL] [eE] [sS] ([pP] [aA] [cC] [eE])? / [rR] [gG] [eE] [tT]) / [eE] ([mM] [pP] ([lL] [aA] [tT] [eE] / [oO] [rR] [aA] [rR] [yY])? / [xX] [tT]) / [iI] [eE] [sS] / [rR] ([aA] [nN] [sS] ([aA] [cC] [tT] [iI] [oO] [nN] / [fF] [oO] [rR] [mM]) / [iI] [gG] [gG] [eE] [rR] / [uU] ([nN] [cC] [aA] [tT] [eE] / [sS] [tT] [eE] [dD])) / [yY] [pP] [eE] [sS]?) / [uU] ([nN] ([bB] [oO] [uU] [nN] [dD] [eE] [dD] / [cC] [oO] [mM] [mM] [iI] [tT] [tT] [eE] [dD] / [eE] [nN] [cC] [rR] [yY] [pP] [tT] [eE] [dD] / [kK] [nN] [oO] [wW] [nN] / [lL] ([iI] [sS] [tT] [eE] [nN] / [oO] [gG] [gG] [eE] [dD]) / [tT] [iI] [lL]) / [pP] [dD] [aA] [tT] [eE] / [sS] [eE] [rR]?) / [vV] ([aA] ([cC] [uU] [uU] [mM] / [lL] ([iI] [dD] ([aA] [tT] ([eE] / [oO] [rR]))? / [uU] [eE]) / [rR] ([iI] [aA] [bB] [lL] [eE] / [yY] [iI] [nN] [gG])) / [eE] [rR] [sS] [iI] [oO] [nN] / [iI] ([eE] [wW] [sS]? / [rR] [tT] [uU] [aA] [lL]) / [oO] [lL] [aA] [tT] [iI] [lL] [eE]) / [wW] ([eE] [eE] [kK] [sS]? / [hH] [iI] [tT] [eE] [sS] [pP] [aA] [cC] [eE] / [iI] [tT] [hH] ([iI] [nN] / [oO] [uU] [tT]) / [oO] [rR] [kK] / [rR] ([aA] [pP] [pP] [eE] [rR] / [iI] [tT] [eE])) / [xX] [mM] [lL] / [yY] [eE] ([aA] [rR] [sS]? / [sS]) / [zZ] [oO] [nN] [eE]) ![a-zA-Z0-9_$\\u{80}-\\u{9f}¡-\\u{1fff}\\u{200c}-\\u{202e}‰-⁞\\u{2061}-⿿、-\\u{fefe}\\u{ff00}-\\u{10ffff}]"
   2572:6 [aA] ([bB] ([oO] [rR] [tT] / [sS] [oO] [lL] [uU] [tT] [eE]) / [cC] ([cC] [eE] [sS] [sS] / [tT] [iI] [oO] [nN]) / [dD] ([dD] / [mM] [iI] [nN]) / [fF] [tT] [eE] [rR] / [gG] [gG] [rR] [eE] [gG] [aA] [tT] [eE] / [lL] ([sS] [oO] / [tT] [eE] [rR] / [wW] [aA] [yY] [sS]) / [sS] [sS] ([eE] [rR] [tT] [iI] [oO] [nN] / [iI] [gG] [nN] [mM] [eE] [nN] [tT]) / [tT] [tT] ([aA] [cC] [hH] / [rR] [iI] [bB] [uU] [tT] [eE])) / [bB] ([aA] [cC] [kK] [wW] [aA] [rR] [dD] / [eE] ([fF] [oO] [rR] [eE] / [gG] [iI] [nN])) / [cC] ([aA] ([cC] [hH] [eE] / [lL] [lL] ([eE] [dD])? / [sS] [cC] [aA] [dD] [eE] [dD]? / [tT] [aA] [lL] [oO] [gG]) / [eE] [nN] [tT] [uU] [rR] ([iI] [eE] [sS] / [yY]) / [hH] ([aA] ([iI] [nN] / [rR] [aA] [cC] [tT] [eE] [rR] [iI] [sS] [tT] [iI] [cC] [sS]) / [eE] [cC] [kK] [pP] [oO] [iI] [nN] [tT]) / [lL] ([aA] [sS] [sS] / [oO] [sS] [eE] / [uU] [sS] [tT] [eE] [rR]) / [oO] ([mM] ([mM] ([eE] [nN] [tT] [sS]? / [iI] [tT] ([tT] [eE] [dD])?) / [pP] [rR] [eE] [sS] [sS] [iI] [oO] [nN]) / [nN] ([fF] ([iI] [gG] [uU] [rR] [aA] [tT] [iI] [oO] [nN] / [lL] [iI] [cC] [tT]) / [nN] [eE] [cC] [tT] [iI] [oO] [nN] / [sS] [tT] [rR] [aA] [iI] [nN] [tT] [sS] / [tT] ([eE] [nN] [tT] / [iI] [nN] [uU] [eE]) / [vV] [eE] [rR] [sS] [iI] [oO] [nN]) / [pP] [yY] / [sS] [tT]) / [sS] [vV] / [uU] ([bB] [eE] / [rR] ([rR] [eE] [nN] [tT] / [sS] [oO] [rR])) / [yY] [cC] [lL] [eE]) / [dD] ([aA] ([tT] [aA] ([bB] [aA] [sS] [eE])? / [yY] [sS]?) / [eE] ([aA] [lL] [lL] [oO] [cC] [aA] [tT] [eE] / [cC] ([aA] [dD] [eE] [sS]? / [lL] [aA] [rR] [eE]) / [fF] ([aA] [uU] [lL] [tT] [sS] / [eE] [rR] [rR] [eE] [dD] / [iI] [nN] [eE] [rR]) / [lL] ([eE] [tT] [eE] / [iI] [mM] [iI] [tT] [eE] [rR] [sS]?) / [pP] [eE] [nN] [dD] [sS] / [tT] [aA] [cC] [hH]) / [iI] ([cC] [tT] [iI] [oO] [nN] [aA] [rR] [yY] / [sS] ([aA] [bB] [lL] [eE] / [cC] [aA] [rR] [dD])) / [oO] ([cC] [uU] [mM] [eE] [nN] [tT] / [mM] [aA] [iI] [nN] / [uU] [bB] [lL] [eE]) / [rR] [oO] [pP]) / [eE] ([aA] [cC] [hH] / [nN] ([aA] [bB] [lL] [eE] / [cC] ([oO] [dD] [iI] [nN] [gG] / [rR] [yY] [pP] [tT] [eE] [dD]) / [uU] [mM]) / [rR] [rR] [oO] [rR] / [sS] [cC] [aA] [pP] [eE] / [vV] [eE] [nN] [tT] / [xX] ([cC] [lL] [uU] ([dD] ([eE] / [iI] [nN] [gG]) / [sS] [iI] [vV] [eE]) / [eE] [cC] [uU] [tT] [eE] / [pP] ([lL] [aA] [iI] [nN] / [oO] [rR] [tT] ("_" [sS] [tT] [aA] [tT] [eE])?) / [tT] [eE] ([nN] [sS] [iI] [oO] [nN] [sS]? / [rR] [nN] [aA] [lL]))) / [fF] ([aA] [mM] [iI] [lL] [yY] / [iI] ([lL] [tT] [eE] [rR] / [rR] [sS] [tT]) / [oO] ([lL] [lL] [oO] [wW] [iI] [nN] [gG] / [rR] ([cC] [eE] / [wW] [aA] [rR] [dD])) / [uU] [nN] [cC] [tT] [iI] [oO] [nN] [sS]?) / [gG] ([lL] [oO] [bB] [aA] [lL] / [rR] ([aA] [nN] [tT] ([eE] [dD])? / [oO] [uU] [pP] [sS])) / [hH] ([aA] [nN] [dD] [lL] [eE] [rR] / [eE] [aA] [dD] [eE] [rR] / [oO] ([lL] [dD] / [uU] [rR] [sS]?)) / [iI] ([dD] [eE] [nN] [tT] [iI] [tT] [yY] / [fF] / [gG] [nN] [oO] [rR] [eE] / [mM] ([mM] ([eE] [dD] [iI] [aA] [tT] [eE] / [uU] [tT] [aA] [bB] [lL] [eE]) / [pP] ([lL] [iI] [cC] [iI] [tT] / [oO] [rR] [tT])) / [nN] ([cC] ([lL] [uU] [dD] ([eE] / [iI] [nN] [gG]) / [rR] [eE] [mM] [eE] [nN] [tT]) / [dD] [eE] [xX] ([eE] [sS])? / [hH] [eE] [rR] [iI] [tT] [sS]? / [lL] [iI] [nN] [eE] / [pP] [uU] [tT] / [sS] ([eE] ([nN] [sS] [iI] [tT] [iI] [vV] [eE] / [rR] [tT]) / [tT] ([aA] [lL] [lL] / [eE] [aA] [dD])) / [vV] [oO] [kK] [eE] [rR]) / [sS] [oO] [lL] [aA] [tT] [iI] [oO] [nN]) / [jJ] [sS] [oO] [nN] / [kK] [eE] [yY] / [lL] ([aA] ([bB] [eE] [lL] / [nN] [gG] [uU] [aA] [gG] [eE] / [rR] [gG] [eE] / [sS] [tT]) / [eE] ([aA] [kK] [pP] [rR] [oO] [oO] [fF] / [vV] [eE] [lL]) / [iI] [sS] [tT] [eE] [nN] / [oO] ([aA] [dD] / [cC] ([aA] ([lL] / [tT] [iI] [oO] [nN]) / [kK] ([eE] [dD])?) / [gG] [gG] [eE] [dD])) / [mM] ([aA] ([cC] [rR] [oO] / [pP] [pP] [iI] [nN] [gG] / [tT] ([cC] [hH] ([eE] [dD])? / [eE] [rR] [iI] [aA] [lL] [iI] [zZ] [eE] [dD]) / [xX] [vV] [aA] [lL] [uU] [eE]) / [eE] ([rR] [gG] [eE] / [tT] [hH] [oO] [dD]) / [iI] ([cC] [rR] [oO] [sS] [eE] [cC] [oO] [nN] [dD] [sS]? / [lL] [lL] ([eE] [nN] [nN] [iI] ([aA] / [uU] [mM]) / [iI] [sS] [eE] [cC] [oO] [nN] [dD] [sS]?) / [nN] ([uU] [tT] [eE] [sS]? / [vV] [aA] [lL] [uU] [eE])) / [oO] ([dD] [eE] / [nN] [tT] [hH] [sS]? / [vV] [eE])) / [nN] ([aA] [mM] [eE] [sS]? / [eE] ([wW] / [xX] [tT]) / [oO] ([tT] ([hH] [iI] [nN] [gG] / [iI] [fF] [yY]) / [wW] [aA] [iI] [tT])? / [uU] [lL] [lL] [sS]) / [oO] ([bB] [jJ] [eE] [cC] [tT] / [fF] [fF]? / [iI] [dD] [sS] / [lL] [dD] / [pP] ([eE] [rR] [aA] [tT] [oO] [rR] / [tT] [iI] [oO] [nN] [sS]?) / [rR] [dD] [iI] [nN] [aA] [lL] [iI] [tT] [yY] / [tT] [hH] [eE] [rR] [sS] / [vV] [eE] [rR] ([rR] [iI] [dD] [iI] [nN] [gG])? / [wW] [nN] [eE] [DRdr]) / [pP] ([aA] ([rR] ([aA] [lL] [lL] [eE] [lL] / [sS] [eE] [rR] / [tT] [iI] ([aA] [lL] / [tT] [iI] [oO] [nN] ([eE] [dD])?)) / [sS] [sS] ([iI] [nN] [gG] / [wW] [oO] [rR] [dD])) / [eE] [rR] ([cC] [eE] [nN] [tT] / [sS] [iI] [sS] [tT] [eE] [nN] [tT]) / [lL] [aA] [nN] [sS] / [oO] [lL] [iI] [cC] [yY] / [rR] ([aA] [gG] [mM] [aA] / [eE] ([cC] [eE] [dD] [iI] [nN] [gG] / [pP] [aA] [rR] [eE] [dD]? / [sS] [eE] [rR] [vV] [eE]) / [iI] ([oO] [rR] / [vV] [iI] [lL] [eE] [gG] [eE] [sS]) / [oO] ([cC] [eE] [dD] [uU] [rR] ([aA] [lL] / [eE]) / [gG] [rR] [aA] [mM])) / [uU] [bB] [lL] [iI] [cC] [aA] [tT] [iI] [oO] [nN]) / [qQ] [uU] ([aA] [rR] [tT] [eE] [rR] [sS]? / [oO] [tT] [eE]) / [rR] ([aA] [nN] [gG] [eE] / [eE] ([aA] ([dD] / [sS] [sS] [iI] [gG] [nN]) / [cC] ([hH] [eE] [cC] [kK] / [uU] [rR] [sS] [iI] [vV] [eE]) / [fF] ([eE] [rR] [eE] [nN] [cC] [iI] [nN] [gG] / [rR] [eE] [sS] [hH])? / [iI] [nN] [dD] [eE] [xX] / [lL] ([aA] [tT] [iI] [vV] [eE] / [eE] [aA] [sS] [eE]) / [nN] [aA] [mM] [eE] / [pP] ([eE] [aA] [tT] [aA] [bB] [lL] [eE] / [lL] ([aA] [cC] [eE] / [iI] [cC] [aA])) / [sS] ([eE] [tT] / [pP] [eE] [cC] [tT] / [tT] ([aA] [rR] [tT] / [rR] [iI] [cC] [tT])) / [tT] [uU] [rR] [nN] [sS] / [vV] [oO] [kK] [eE]) / [oO] ([lL] ([eE] / [lL] ([bB] [aA] [cC] [kK] / [uU] [pP])) / [wW] [sS]) / [uU] [lL] [eE]) / [sS] ([aA] ([mM] [pP] [lL] [eE] / [vV] [eE] [pP] [oO] [iI] [nN] [tT]) / [cC] ([hH] [eE] [mM] [aA] [sS]? / [oO] [pP] [eE] / [rR] [oO] [lL] [lL]) / [eE] ([aA] [rR] [cC] [hH] / [cC] ([oO] [nN] [dD] [sS]? / [rR] [eE] [tT] / [uU] [rR] [iI] [tT] [yY]) / [qQ] [uU] [eE] [nN] [cC] [eE] [sS]? / [rR] ([iI] [aA] [lL] [iI] [zZ] [aA] [bB] [lL] [eE] / [vV] [eE] [rR]) / [sS] [sS] [iI] [oO] [nN] / [tT] [sS]?) / [hH] [aA] [rR] [eE] / [iI] [mM] [pP] [lL] [eE] / [kK] [iI] [pP] / [nN] [aA] [pP] [sS] [hH] [oO] [tT] / [oO] ([rR] [tT] [eE] [dD] / [uU] [rR] [cC] [eE]) / [qQ] [lL] / [tT] ([aA] ([bB] [lL] [eE] / [nN] [dD] [aA] [lL] [oO] [nN] [eE] / [rR] [tT] / [tT] ([eE] [mM] [eE] [nN] [tT] / [iI] [sS] [tT] [iI] [cC] [sS])) / [dD] ([iI] [nN] / [oO] [uU] [tT]) / [oO] [rR] ([aA] [gG] [eE] / [eE] [dD]) / [rR] [iI] ([cC] [tT] / [pP])) / [uU] [bB] [sS] [cC] [rR] [iI] [pP] [tT] [iI] [oO] [nN] / [yY] [sS] ([iI] [dD] / [tT] [eE] [mM])) / [tT] ([aA] ([bB] [lL] [eE] [sS] ([pP] [aA] [cC] [eE])? / [rR] [gG] [eE] [tT]) / [eE] ([mM] [pP] ([lL] [aA] [tT] [eE] / [oO] [rR] [aA] [rR] [yY])? / [xX] [tT]) / [iI] [eE] [sS] / [rR] ([aA] [nN] [sS] ([aA] [cC] [tT] [iI] [oO] [nN] / [fF] [oO] [rR] [mM]) / [iI] [gG] [gG] [eE] [rR] / [uU] ([nN] [cC] [aA] [tT] [eE] / [sS] [tT] [eE] [dD])) / [yY] [pP] [eE] [sS]?) / [uU] ([nN] ([bB] [oO] [uU] [nN] [dD] [eE] [dD] / [cC] [oO] [mM] [mM] [iI] [tT] [tT] [eE] [dD] / [eE] [nN] [cC] [rR] [yY] [pP] [tT] [eE] [dD] / [kK] [nN] [oO] [wW] [nN] / [lL] ([iI] [sS] [tT] [eE] [nN] / [oO] [gG] [gG] [eE] [dD]) / [tT] [iI] [lL]) / [pP] [dD] [aA] [tT] [eE] / [sS] [eE] [rR]?) / [vV] ([aA] ([cC] [uU] [uU] [mM] / [lL] ([iI] [dD] ([aA] [tT] ([eE] / [oO] [rR]))? / [uU] [eE]) / [rR] ([iI] [aA] [bB] [lL] [eE] / [yY] [iI] [nN] [gG])) / [eE] [rR] [sS] [iI] [oO] [nN] / [iI] ([eE] [wW] [sS]? / [rR] [tT] [uU] [aA] [lL]) / [oO] [lL] [aA] [tT] [iI] [lL] [eE]) / [wW] ([eE] [eE] [kK] [sS]? / [hH] [iI] [tT] [eE] [sS] [pP] [aA] [cC] [eE] / [iI] [tT] [hH] ([iI] [nN] / [oO] [uU] [tT]) / [oO] [rR] [kK] / [rR] ([aA] [pP] [pP] [eE] [rR] / [iI] [tT] [eE])) / [xX] [mM] [lL] / [yY] [eE] ([aA] [rR] [sS]? / [sS]) / [zZ] [oO] [nN] [eE] = "[aA] ([bB] ([oO] [rR] [tT] / [sS] [oO] [lL] [uU] [tT] [eE]) / [cC] ([cC] [eE] [sS] [sS] / [tT] [iI] [oO] [nN]) / [dD] ([dD] / [mM] [iI] [nN]) / [fF] [tT] [eE] [rR] / [gG] [gG] [rR] [eE] [gG] [aA] [tT] [eE] / [lL] ([sS] [oO] / [tT] [eE] [rR] / [wW] [aA] [yY] [sS]) / [sS] [sS] ([eE] [rR] [tT] [iI] [oO] [nN] / [iI] [gG] [nN] [mM] [eE] [nN] [tT]) / [tT] [tT] ([aA] [cC] [hH] / [rR] [iI] [bB] [uU] [tT] [eE])) / [bB] ([aA] [cC] [kK] [wW] [aA] [rR] [dD] / [eE] ([fF] [oO] [rR] [eE] / [gG] [iI] [nN])) / [cC] ([aA] ([cC] [hH] [eE] / [lL] [lL] ([eE] [dD])? / [sS] [cC] [aA] [dD] [eE] [dD]? / [tT] [aA] [lL] [oO] [gG]) / [eE] [nN] [tT] [uU] [rR] ([iI] [eE] [sS] / [yY]) / [hH] ([aA] ([iI] [nN] / [rR] [aA] [cC] [tT] [eE] [rR] [iI] [sS] [tT] [iI] [cC] [sS]) / [eE] [cC] [kK] [pP] [oO] [iI] [nN] [tT]) / [lL] ([aA] [sS] [sS] / [oO] [sS] [eE] / [uU] [sS] [tT] [eE] [rR]) / [oO] ([mM] ([mM] ([eE] [nN] [tT] [sS]? / [iI] [tT] ([tT] [eE] [dD])?) / [pP] [rR] [eE] [sS] [sS] [iI] [oO] [nN]) / [nN] ([fF] ([iI] [gG] [uU] [rR] [aA] [tT] [iI] [oO] [nN] / [lL] [iI] [cC] [tT]) / [nN] [eE] [cC] [tT] [iI] [oO] [nN] / [sS] [tT] [rR] [aA] [iI] [nN] [tT] [sS] / [tT] ([eE] [nN] [tT] / [iI] [nN] [uU] [eE]) / [vV] [eE] [rR] [sS] [iI] [oO] [nN]) / [pP] [yY] / [sS] [tT]) / [sS] [vV] / [uU] ([bB] [eE] / [rR] ([rR] [eE] [nN] [tT] / [sS] [oO] [rR])) / [yY] [cC] [lL] [eE]) / [dD] ([aA] ([tT] [aA] ([bB] [aA] [sS] [eE])? / [yY] [sS]?) / [eE] ([aA] [lL] [lL] [oO] [cC] [aA] [tT] [eE] / [cC] ([aA] [dD] [eE] [sS]? / [lL] [aA] [rR] [eE]) / [fF] ([aA] [uU] [lL] [tT] [sS] / [eE] [rR] [rR] [eE] [dD] / [iI] [nN] [eE] [rR]) / [lL] ([eE] [tT] [eE] / [iI] [mM] [iI] [tT] [eE] [rR] [sS]?) / [pP] [eE] [nN] [dD] [sS] / [tT] [aA] [cC] [hH]) / [iI] ([cC] [tT] [iI] [oO] [nN] [aA] [rR] [yY] / [sS] ([aA] [bB] [lL] [eE] / [cC] [aA] [rR] [dD])) / [oO] ([cC] [uU] [mM] [eE] [nN] [tT] / [mM] [aA] [iI] [nN] / [uU] [bB] [lL] [eE]) / [rR] [oO] [pP]) / [eE] ([aA] [cC] [hH] / [nN] ([aA] [bB] [lL] [eE] / [cC] ([oO] [dD] [iI] [nN] [gG] / [rR] [yY] [pP] [tT] [eE] [dD]) / [uU] [mM]) / [rR] [rR] [oO] [rR] / [sS] [cC] [aA] [pP] [eE] / [vV] [eE] [nN] [tT] / [xX] ([cC] [lL] [uU] ([dD] ([eE] / [iI] [nN] [gG]) / [sS] [iI] [vV] [eE]) / [eE] [cC] [uU] [tT] [eE] / [pP] ([lL] [aA] [iI] [nN] / [oO] [rR] [tT] (\"_\" [sS] [tT] [aA] [tT] [eE])?) / [tT] [eE] ([nN] [sS] [iI] [oO] [nN] [sS]? / [rR] [nN] [aA] [lL]))) / [fF] ([aA] [mM] [iI] [lL] [yY] / [iI] ([lL] [tT] [eE] [rR] / [rR] [sS] [tT]) / [oO] ([lL] [lL] [oO] [wW] [iI] [nN] [gG] / [rR] ([cC] [eE] / [wW] [aA] [rR] [dD])) / [uU] [nN] [cC] [tT] [iI] [oO] [nN] [sS]?) / [gG] ([lL] [oO] [bB] [aA] [lL] / [rR] ([aA] [nN] [tT] ([eE] [dD])? / [oO] [uU] [pP] [sS])) / [hH] ([aA] [nN] [dD] [lL] [eE] [rR] / [eE] [aA] [dD] [eE] [rR] / [oO] ([lL] [dD] / [uU] [rR] [sS]?)) / [iI] ([dD] [eE] [nN] [tT] [iI] [tT] [yY] / [fF] / [gG] [nN] [oO] [rR] [eE] / [mM] ([mM] ([eE] [dD] [iI] [aA] [tT] [eE] / [uU] [tT] [aA] [bB] [lL] [eE]) / [pP] ([lL] [iI] [cC] [iI] [tT] / [oO] [rR] [tT])) / [nN] ([cC] ([lL] [uU] [dD] ([eE] / [iI] [nN] [gG]) / [rR] [eE] [mM] [eE] [nN] [tT]) / [dD] [eE] [xX] ([eE] [sS])? / [hH] [eE] [rR] [iI] [tT] [sS]? / [lL] [iI] [nN] [eE] / [pP] [uU] [tT] / [sS] ([eE] ([nN] [sS] [iI] [tT] [iI] [vV] [eE] / [rR] [tT]) / [tT] ([aA] [lL] [lL] / [eE] [aA] [dD])) / [vV] [oO] [kK] [eE] [rR]) / [sS] [oO] [lL] [aA] [tT] [iI] [oO] [nN]) / [jJ] [sS] [oO] [nN] / [kK] [eE] [yY] / [lL] ([aA] ([bB] [eE] [lL] / [nN] [gG] [uU] [aA] [gG] [eE] / [rR] [gG] [eE] / [sS] [tT]) / [eE] ([aA] [kK] [pP] [rR] [oO] [oO] [fF] / [vV] [eE] [lL]) / [iI] [sS] [tT] [eE] [nN] / [oO] ([aA] [dD] / [cC] ([aA] ([lL] / [tT] [iI] [oO] [nN]) / [kK] ([eE] [dD])?) / [gG] [gG] [eE] [dD])) / [mM] ([aA] ([cC] [rR] [oO] / [pP] [pP] [iI] [nN] [gG] / [tT] ([cC] [hH] ([eE] [dD])? / [eE] [rR] [iI] [aA] [lL] [iI] [zZ] [eE] [dD]) / [xX] [vV] [aA] [lL] [uU] [eE]) / [eE] ([rR] [gG] [eE] / [tT] [hH] [oO] [dD]) / [iI] ([cC] [rR] [oO] [sS] [eE] [cC] [oO] [nN] [dD] [sS]? / [lL] [lL] ([eE] [nN] [nN] [iI] ([aA] / [uU] [mM]) / [iI] [sS] [eE] [cC] [oO] [nN] [dD] [sS]?) / [nN] ([uU] [tT] [eE] [sS]? / [vV] [aA] [lL] [uU] [eE])) / [oO] ([dD] [eE] / [nN] [tT] [hH] [sS]? / [vV] [eE])) / [nN] ([aA] [mM] [eE] [sS]? / [eE] ([wW] / [xX] [tT]) / [oO] ([tT] ([hH] [iI] [nN] [gG] / [iI] [fF] [yY]) / [wW] [aA] [iI] [tT])? / [uU] [lL] [lL] [sS]) / [oO] ([bB] [jJ] [eE] [cC] [tT] / [fF] [fF]? / [iI] [dD] [sS] / [lL] [dD] / [pP] ([eE] [rR] [aA] [tT] [oO] [rR] / [tT] [iI] [oO] [nN] [sS]?) / [rR] [dD] [iI] [nN] [aA] [lL] [iI] [tT] [yY] / [tT] [hH] [eE] [rR] [sS] / [vV] [eE] [rR] ([rR] [iI] [dD] [iI] [nN] [gG])? / [wW] [nN] [eE] ([dD] / [rR])) / [pP] ([aA] ([rR] ([aA] [lL] [lL] [eE] [lL] / [sS] [eE] [rR] / [tT] [iI] ([aA] [lL] / [tT] [iI] [oO] [nN] ([eE] [dD])?)) / [sS] [sS] ([iI] [nN] [gG] / [wW] [oO] [rR] [dD])) / [eE] [rR] ([cC] [eE] [nN] [tT] / [sS] [iI] [sS] [tT] [eE] [nN] [tT]) / [lL] [aA] [nN] [sS] / [oO] [lL] [iI] [cC] [yY] / [rR] ([aA] [gG] [mM] [aA] / [eE] ([cC] [eE] [dD] [iI] [nN] [gG] / [pP] [aA] [rR] [eE] [dD]? / [sS] [eE] [rR] [vV] [eE]) / [iI] ([oO] [rR] / [vV] [iI] [lL] [eE] [gG] [eE] [sS]) / [oO] ([cC] [eE] [dD] [uU] [rR] ([aA] [lL] / [eE]) / [gG] [rR] [aA] [mM])) / [uU] [bB] [lL] [iI] [cC] [aA] [tT] [iI] [oO] [nN]) / [qQ] [uU] ([aA] [rR] [tT] [eE] [rR] [sS]? / [oO] [tT] [eE]) / [rR] ([aA] [nN] [gG] [eE] / [eE] ([aA] ([dD] / [sS] [sS] [iI] [gG] [nN]) / [cC] ([hH] [eE] [cC] [kK] / [uU] [rR] [sS] [iI] [vV] [eE]) / [fF] ([eE] [rR] [eE] [nN] [cC] [iI] [nN] [gG] / [rR] [eE] [sS] [hH])? / [iI] [nN] [dD] [eE] [xX] / [lL] ([aA] [tT] [iI] [vV] [eE] / [eE] [aA] [sS] [eE]) / [nN] [aA] [mM] [eE] / [pP] ([eE] [aA] [tT] [aA] [bB] [lL] [eE] / [lL] ([aA] [cC] [eE] / [iI] [cC] [aA])) / [sS] ([eE] [tT] / [pP] [eE] [cC] [tT] / [tT] ([aA] [rR] [tT] / [rR] [iI] [cC] [tT])) / [tT] [uU] [rR] [nN] [sS] / [vV] [oO] [kK] [eE]) / [oO] ([lL] ([eE] / [lL] ([bB] [aA] [cC] [kK] / [uU] [pP])) / [wW] [sS]) / [uU] [lL] [eE]) / [sS] ([aA] ([mM] [pP] [lL] [eE] / [vV] [eE] [pP] [oO] [iI] [nN] [tT]) / [cC] ([hH] [eE] [mM] [aA] [sS]? / [oO] [pP] [eE] / [rR] [oO] [lL] [lL]) / [eE] ([aA] [rR] [cC] [hH] / [cC] ([oO] [nN] [dD] [sS]? / [rR] [eE] [tT] / [uU] [rR] [iI] [tT] [yY]) / [qQ] [uU] [eE] [nN] [cC] [eE] [sS]? / [rR] ([iI] [aA] [lL] [iI] [zZ] [aA] [bB] [lL] [eE] / [vV] [eE] [rR]) / [sS] [sS] [iI] [oO] [nN] / [tT] [sS]?) / [hH] [aA] [rR] [eE] / [iI] [mM] [pP] [lL] [eE] / [kK] [iI] [pP] / [nN] [aA] [pP] [sS] [hH] [oO] [tT] / [oO] ([rR] [tT] [eE] [dD] / [uU] [rR] [cC] [eE]) / [qQ] [lL] / [tT] ([aA] ([bB] [lL] [eE] / [nN] [dD] [aA] [lL] [oO] [nN] [eE] / [rR] [tT] / [tT] ([eE] [mM] [eE] [nN] [tT] / [iI] [sS] [tT] [iI] [cC] [sS])) / [dD] ([iI] [nN] / [oO] [uU] [tT]) / [oO] [rR] ([aA] [gG] [eE] / [eE] [dD]) / [rR] [iI] ([cC] [tT] / [pP])) / [uU] [bB] [sS] [cC] [rR] [iI] [pP] [tT] [iI] [oO] [nN] / [yY] [sS] ([iI] [dD] / [tT] [eE] [mM])) / [tT] ([aA] ([bB] [lL] [eE] [sS] ([pP] [aA] [cC] [eE])? / [rR] [gG] [eE] [tT]) / [eE] ([mM] [pP] ([lL] [aA] [tT] [eE] / [oO] [rR] [aA] [rR] [yY])? / [xX] [tT]) / [iI] [eE] [sS] / [rR] ([aA] [nN] [sS] ([aA] [cC] [tT] [iI] [oO] [nN] / [fF] [oO] [rR] [mM]) / [iI] [gG] [gG] [eE] [rR] / [uU] ([nN] [cC] [aA] [tT] [eE] / [sS] [tT] [eE] [dD])) / [yY] [pP] [eE] [sS]?) / [uU] ([nN] ([bB] [oO] [uU] [nN] [dD] [eE] [dD] / [cC] [oO] [mM] [mM] [iI] [tT] [tT] [eE] [dD] / [eE] [nN] [cC] [rR] [yY] [pP] [tT] [eE] [dD] / [kK] [nN] [oO] [wW] [nN] / [lL] ([iI] [sS] [tT] [eE] [nN] / [oO] [gG] [gG] [eE] [dD]) / [tT] [iI] [lL]) / [pP] [dD] [aA] [tT] [eE] / [sS] [eE] [rR]?) / [vV] ([aA] ([cC] [uU] [uU] [mM] / [lL] ([iI] [dD] ([aA] [tT] ([eE] / [oO] [rR]))? / [uU] [eE]) / [rR] ([iI] [aA] [bB] [lL] [eE] / [yY] [iI] [nN] [gG])) / [eE] [rR] [sS] [iI] [oO] [nN] / [iI] ([eE] [wW] [sS]? / [rR] [tT] [uU] [aA] [lL]) / [oO] [lL] [aA] [tT] [iI] [lL] [eE]) / [wW] ([eE] [eE] [kK] [sS]? / [hH] [iI] [tT] [eE] [sS] [pP] [aA] [cC] [eE] / [iI] [tT] [hH] ([iI] [nN] / [oO] [uU] [tT]) / [oO] [rR] [kK] / [rR] ([aA] [pP] [pP] [eE] [rR] / [iI] [tT] [eE])) / [xX] [mM] [lL] / [yY] [eE] ([aA] [rR] [sS]? / [sS]) / [zZ] [oO] [nN] [eE]"
-== testdata/grammars/duckdb/duckdb.zp matching=true
+== testdata/grammars/duckdb/duckdb.sxir matching=true
 applied: N1=714 N12=129 N13=1454 N8=16
 sha256 c0595a6d63fb45b03d812152e34e78c026f3123490a02f7763464558b5d36350
-== testdata/grammars/golang/golang.zp matching=false
+== testdata/grammars/golang/golang.sxir matching=false
 applied: N8=5
 rule generalStart = "[" -ws ident -sp !("]" / binaryOp / dot / [(\[{])
   167:21 "[" -ws ident -sp !("]" / binaryOp / dot / [(\[{]) = "\"[\" -ws ident -sp !(\"]\" / binaryOp / dot / \"(\" / \"{\" / \"[\")"
@@ -509,15 +509,15 @@ rule semi = [\n;] / blockComment / $$
 rule hsemi = [\n;] / blockComment
   660:14 [\n;] / blockComment = "\";\" / \"\\n\" / blockComment"
   660:14 [\n;] = "\";\" / \"\\n\""
-== testdata/grammars/golang/golang.zp matching=true
+== testdata/grammars/golang/golang.sxir matching=true
 applied: N1=4 N13=24 N4=2 N7=2 N8=5
 sha256 f1cbdee66eb0cc7ff2cb454867c388be9e21e81c6d82e871e7800b888f911488
-== testdata/grammars/json/json.zp matching=false
+== testdata/grammars/json/json.sxir matching=false
 applied:
-== testdata/grammars/json/json.zp matching=true
+== testdata/grammars/json/json.sxir matching=true
 applied: N13=32
 sha256 d263f1f732c4c123fba93f4ff5fbebd39927948492b12ac4c8615c3be05e486b
-== testdata/grammars/python/python.zp matching=false
+== testdata/grammars/python/python.sxir matching=false
 applied: N8=1
 rule del_stmt = kw_del -ws f:del_target r:(-ws -"," -ws t:del_target)* (-ws -",")? &(ws ([#;] / newline / $$))
   317:5 kw_del -ws f:del_target r:(-ws -"," -ws t:del_target)* (-ws -",")? &(ws ([#;] / newline / $$)) = "kw_del -ws f:del_target r:(-ws -\",\" -ws t:del_target)* (-ws -\",\")? &(ws (\";\" / \"#\" / newline / $$))"
@@ -525,10 +525,10 @@ rule del_stmt = kw_del -ws f:del_target r:(-ws -"," -ws t:del_target)* (-ws -","
   317:74 ws ([#;] / newline / $$) = "ws (\";\" / \"#\" / newline / $$)"
   317:78 [#;] / newline / $$ = "\";\" / \"#\" / newline / $$"
   317:78 [#;] = "\";\" / \"#\""
-== testdata/grammars/python/python.zp matching=true
+== testdata/grammars/python/python.sxir matching=true
 applied: N1=1 N11=3 N13=20 N7=20 N8=1
 sha256 ef476193e4e0c112e89afbfadbb66c0511181301a4dac6372c3f735af8e51476
-== testdata/grammars/typescript/typescript.zp matching=false
+== testdata/grammars/typescript/typescript.sxir matching=false
 applied: N12=2 N8=4
 rule declarationStart = ("var" / "let" / "const" / "function" / "class" / "enum") !idPart / "using" !idPart usingFollows / "await" !idPart -ws "using" !idPart usingFollows / ("interface" / "type" / "defer") !idPart sp identifier / ("module" / "namespace") !idPart sp (identifier / ["']) / "declare" !idPart sp "type" !idPart / ("abstract" / "accessor" / "async" / "declare" / "private" / "protected" / "public" / "readonly") !idPart !nlAhead -ws declarationStart / "global" !idPart -ws ("{" / !anyKeyword identifierName / "export" !idPart) / "import" !idPart -ws ("defer" !idPart / ["'*{#] / idStart) / "export" !idPart -ws (("type" !idPart -ws)? ([=*{@] / ("default" / "as") !idPart) / declarationStart) / "static" !idPart -ws declarationStart
   661:5 ("var" / "let" / "const" / "function" / "class" / "enum") !idPart / "using" !idPart usingFollows / "await" !idPart -ws "using" !idPart usingFollows / ("interface" / "type" / "defer") !idPart sp identifier / ("module" / "namespace") !idPart sp (identifier / ["']) / "declare" !idPart sp "type" !idPart / ("abstract" / "accessor" / "async" / "declare" / "private" / "protected" / "public" / "readonly") !idPart !nlAhead -ws declarationStart / "global" !idPart -ws ("{" / !anyKeyword identifierName / "export" !idPart) / "import" !idPart -ws ("defer" !idPart / ["'*{#] / idStart) / "export" !idPart -ws (("type" !idPart -ws)? ([=*{@] / ("default" / "as") !idPart) / declarationStart) / "static" !idPart -ws declarationStart = "(\"var\" / \"let\" / \"const\" / \"function\" / \"class\" / \"enum\") !idPart / \"using\" !idPart usingFollows / \"await\" !idPart -ws \"using\" !idPart usingFollows / (\"interface\" / \"type\" / \"defer\") !idPart sp identifier / (\"module\" / \"namespace\") !idPart sp (identifier / [\"']) / \"declare\" !idPart sp \"type\" !idPart / (\"abstract\" / \"accessor\" / \"async\" / \"declare\" / \"private\" / \"protected\" / \"public\" / \"readonly\") !idPart !nlAhead -ws declarationStart / \"global\" !idPart -ws (\"{\" / !anyKeyword identifierName / \"export\" !idPart) / \"import\" !idPart -ws (\"defer\" !idPart / [\"'*{#] / idStart) / \"export\" !idPart -ws (\"type\" !idPart -ws)? ([=*{@] / (\"default\" / \"as\") !idPart) / \"export\" !idPart -ws declarationStart / \"static\" !idPart -ws declarationStart"
@@ -555,15 +555,15 @@ rule typeMemberStart = [(<] / ("get" / "set") !idPart / (modifierKeyword -ws)* (
   1741:7 "[" / literalPropertyNameToken typeMemberNameFollows = "(modifierKeyword -ws)* \"[\" / (modifierKeyword -ws)* literalPropertyNameToken typeMemberNameFollows"
   1741:7 (modifierKeyword -ws)* ("[" / literalPropertyNameToken typeMemberNameFollows) = "(modifierKeyword -ws)* \"[\""
   1742:7 literalPropertyNameToken typeMemberNameFollows = "(modifierKeyword -ws)* literalPropertyNameToken typeMemberNameFollows"
-== testdata/grammars/typescript/typescript.zp matching=true
+== testdata/grammars/typescript/typescript.sxir matching=true
 applied: N1=3 N12=2 N13=89 N7=2 N8=4
 sha256 ab5e2711ba40896f82655d1cf5a039ef6ebe4c8d0ff96280490efd006d5de176
-== testdata/grammars/xml/xml.zp matching=false
+== testdata/grammars/xml/xml.sxir matching=false
 applied:
-== testdata/grammars/xml/xml.zp matching=true
+== testdata/grammars/xml/xml.sxir matching=true
 applied: N1=2 N13=124 N7=2
 sha256 4da107c6c2eb44683f95aefa5cf21fad9af28b114d66bc4ae695b4cc32e43b8e
-== testdata/grammars/yaml/yaml.zp matching=false
+== testdata/grammars/yaml/yaml.sxir matching=false
 applied: N8=2
 rule b_comment = "\r\n" / [\n\r] / $$
   509:18 "\r\n" / [\n\r] / $$ = "\"\\r\\n\" / \"\\r\" / \"\\n\" / $$"
@@ -571,10 +571,10 @@ rule b_comment = "\r\n" / [\n\r] / $$
 rule b_break = "\r\n" / [\n\r]
   520:16 "\r\n" / [\n\r] = "\"\\r\\n\" / \"\\r\" / \"\\n\""
   520:25 [\n\r] = "\"\\r\" / \"\\n\""
-== testdata/grammars/yaml/yaml.zp matching=true
+== testdata/grammars/yaml/yaml.sxir matching=true
 applied: N1=14 N13=114 N8=4
 sha256 81b719687d7b973189221277a1d837ef64dd335826b780a2ea5a59d92fb5069e
-== zp.zp matching=false
+== sxir.sxir matching=false
 applied: N8=12
 rule sync_open = [(\[{] / (!digit ident_char+ / [)\]]) "["
   241:18 [(\[{] / (!digit ident_char+ / [)\]]) "[" = "\"(\" / \"{\" / \"[\" / (!digit ident_char+ / \")\" / \"]\") \"[\""
@@ -634,6 +634,6 @@ rule source_bracket = (ident_char / [)\]}]) "["
   894:23 (ident_char / [)\]}]) "[" = "(ident_char / \")\" / \"]\" / \"}\") \"[\""
   894:24 ident_char / [)\]}] = "ident_char / \")\" / \"]\" / \"}\""
   894:37 [)\]}] = "\")\" / \"]\" / \"}\""
-== zp.zp matching=true
+== sxir.sxir matching=true
 applied: N1=38 N12=2 N13=220 N4=7 N7=74 N8=28
 sha256 91c6242ce873d92c210b424db604f8e37b03d6a78135a186c5799c307d6d9b94

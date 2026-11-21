@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/testing/importgroups"
+	"syntaxir.dev/sxir/internal/testing/importgroups"
 )
 
 // importGroupExceptions lists tracked Go files that the import grouping rule does not

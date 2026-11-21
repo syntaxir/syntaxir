@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/engine"
 )
 
 // TestDocumentChangeFields checks that engine.DocumentChange has the fields of the engine's change

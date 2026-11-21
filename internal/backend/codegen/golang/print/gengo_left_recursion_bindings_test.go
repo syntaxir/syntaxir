@@ -10,13 +10,13 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // typedLRBindingSource is lrBindingSource with typed values, so that ParseValue runs the typed
@@ -68,9 +68,9 @@ func testGeneratedLeftRecursionGuardIgnoresVariables(t *testing.T) {
 	for _, in := range codegentest.LRBindingInputs {
 		quoted = append(quoted, strconv.Quote(in))
 		for _, unit := range []input.PositionUnit{input.CodePoints, input.Bytes} {
-			o := engine.ParseOptions{Expectations: true, Unit: unit, Limits: zpruntime.Limits{Depth: 400}}
+			o := engine.ParseOptions{Expectations: true, Unit: unit, Limits: sxirruntime.Limits{Depth: 400}}
 			n, err := prog.ParseWith("main", in, o)
-			_, recErr := prog.ParseWith("main", in, engine.ParseOptions{Expectations: true, Unit: unit, Limits: zpruntime.Limits{Depth: 400}, Recognize: true})
+			_, recErr := prog.ParseWith("main", in, engine.ParseOptions{Expectations: true, Unit: unit, Limits: sxirruntime.Limits{Depth: 400}, Recognize: true})
 			v, typedErr := typed.ParseWith("main", in, o)
 			line := fmt.Sprintf("%s %v %v | %v\n", codegentest.ResultJSON(n, err), recErr, typedErr, typedN(v))
 			want.WriteString(line)

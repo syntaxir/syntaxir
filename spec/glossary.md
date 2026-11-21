@@ -17,15 +17,15 @@ definition and the place where the term is defined.
 | character class | `[...]` or `[^...]`: matches one code point from a set of characters and ranges. See [Character Matching](language/parser-expressions.md#character-classes). |
 | choice | `a / b`: an ordered choice, which commits to the first alternative that succeeds. See [Ordered choice](language/parser-expressions.md#ordered-choice). |
 | code point | A Unicode code point; the unit in which the input is matched. See [Input and positions](runtime/parsing.md#input-and-positions). |
-| compiled grammar | A grammar saved as a `.zpc` file holding the bytecode of one mode (parse, recognize or document), with no grammar AST, that loads without parsing grammar source. See [Compiled Grammars](runtime/compiled-grammars.md). |
-| Code IR | The form of the code that a grammar is compiled to and that the runtimes are written in: modules of types, state and operations, and functions of structured code over them, at the Flow or the Exec stage. See [ZeroParse Code IR Specification](code-ir/README.md). |
+| compiled grammar | A grammar saved as a `.sxirc` file holding the bytecode of one mode (parse, recognize or document), with no grammar AST, that loads without parsing grammar source. See [Compiled Grammars](runtime/compiled-grammars.md). |
+| Code IR | The form of the code that a grammar is compiled to and that the runtimes are written in: modules of types, state and operations, and functions of structured code over them, at the Flow or the Exec stage. See [SyntaxIR Code IR Specification](code-ir/README.md). |
 | composition | A function at the Exec stage of Code IR that every runtime shares, written once over the operations of the abstract machine, such as the call protocol of a rule. See [Compositions](exec-ir/compositions.md). |
 | concrete syntax tree (CST) | The tree of nodes that Rule Expressions produce when no action is involved: string nodes, tuples for sequences and lists for repetitions. See [Values and the concrete syntax tree](language/parser-expressions.md#values-and-the-concrete-syntax-tree). |
 | contextual word | A grammar word interpreted as syntax only in a Declaration Statement or Operators Rule position; the same spelling may be an identifier elsewhere. See [Contextual Words](language/lexical.md#contextual-words). |
-| Core IR | The intermediate representation of a checked grammar, whose nodes make their effects explicit. See [ZeroParse Core IR Specification](core-ir/README.md). |
+| Core IR | The intermediate representation of a checked grammar, whose nodes make their effects explicit. See [SyntaxIR Core IR Specification](core-ir/README.md). |
 | cost | What a parse spends: the rule bodies evaluated, the input examined, the iterations and operators applied and the size of the values built. Time is proportional to it, and the budget caps it, in compute units. See [Time and Memory](runtime/parsing.md#time-and-memory). |
 | cut | `#cut`: commits the enclosing choice to the current alternative. See [Cut](language/parser-expressions.md#cut). |
-| Declaration Statement | A Type Declaration Statement or Rule Declaration Statement in a `.zp` file. See [Grammar Files](language/grammar-files.md#structure). |
+| Declaration Statement | A Type Declaration Statement or Rule Declaration Statement in a `.sxir` file. See [Grammar Files](language/grammar-files.md#structure). |
 | diagnostic | A syntax error that a parse reports with its position and expectations; a recovered parse and a Document publish them as caller-owned values, and a stream delivers them through diagnostic options. See [Syntax Errors](runtime/parsing.md#syntax-errors) and [Incremental Documents](runtime/documents.md). |
 | dialect | A named set of operations of Code IR with their contracts: Flow, Action or Exec. See [Dialects and Stages](code-ir/module.md#dialects-and-stages). |
 | discard | `-a`: matches `a` and has no value. See [Discard](language/parser-expressions.md#discard). |
@@ -33,15 +33,15 @@ definition and the place where the term is defined.
 | edit | The replacement of a range of a Document's text; the next parse reuses the results that the edit did not affect. See [Edits](runtime/documents.md#edits). |
 | edit sequence | A replayable edit history for one grammar: an initial text and edit, undo, redo and checkpoint operations, saved as a versioned JSON file. See [Edit Fuzzing](runtime/edit-fuzzing.md). |
 | effect | One thing a Core IR node can do besides succeed or fail, such as consuming input, recording expectations or writing a capture. See [Attributes and Effects](core-ir/attributes.md#effects). |
-| Exec dialect | The operations of the abstract machine, with the compositions written over them; with the Action dialect it is what Code IR at the Exec stage calls. See [ZeroParse Exec Dialect Specification](exec-ir/README.md). |
+| Exec dialect | The operations of the abstract machine, with the compositions written over them; with the Action dialect it is what Code IR at the Exec stage calls. See [SyntaxIR Exec Dialect Specification](exec-ir/README.md). |
 | expectation | An item that a syntax error lists as expected at a position: a literal, a character class, `any character` or an anchor. A parse records expectations only on request. See [Recording expectations](runtime/parsing.md#recording-expectations). |
 | farthest failure | The farthest position at which parsing failed, with the items expected there when the parse records expectations; the syntax error reports it. See [Syntax errors](runtime/parsing.md#syntax-errors). |
 | finding | One report of the linter: a position, a severity, the name of a check, a message and, if there is one, a fix. See [Grammar Lint](runtime/lint.md#scope-and-terminology). |
-| fixture suite | A versioned JSON file of named inputs with expected outcomes and goldens, run by `zp test`. See [Fixture Suites and Edit Sequences](runtime/test-formats.md). |
-| Flow dialect | The operations that say how a parser runs a rule: matching, backtracking, expectations, rule calls, values and charges; Code IR at the Flow stage calls them. See [ZeroParse Flow Dialect Specification](flow-ir/README.md). |
+| fixture suite | A versioned JSON file of named inputs with expected outcomes and goldens, run by `sxir test`. See [Fixture Suites and Edit Sequences](runtime/test-formats.md). |
+| Flow dialect | The operations that say how a parser runs a rule: matching, backtracking, expectations, rule calls, values and charges; Code IR at the Flow stage calls them. See [SyntaxIR Flow Dialect Specification](flow-ir/README.md). |
 | fragment | A part of a text that is parsed alone: a prefix parse matches the start rule at the beginning of a supplied string, which the caller confines by slicing both ends. See [Prefix Parsing](runtime/parsing.md#prefix-parsing). |
-| generated parser | A standalone Go or TypeScript parser written for one grammar by `zp gen`. See [Generated Parsers](runtime/generated-parsers.md). |
-| grammar | An optional package clause followed by Type and Rule Declaration Statements, normally written in a `.zp` file. See [Grammar Files](language/grammar-files.md). |
+| generated parser | A standalone Go or TypeScript parser written for one grammar by `sxir gen`. See [Generated Parsers](runtime/generated-parsers.md). |
+| grammar | An optional package clause followed by Type and Rule Declaration Statements, normally written in a `.sxir` file. See [Grammar Files](language/grammar-files.md). |
 | grammar source | One named input in grammar syntax or JSON that `grammar.Load` reads into a grammar AST. See [Grammar Sources](language/grammar-files.md#grammar-sources). |
 | join type | The join `T \| U` of types: a type whose values are the values of any one of its member types. See [Join Types](language/types.md#join-types). |
 | left recursion | A rule that calls itself at the position where it started. It is evaluated by growing a seed. See [Left recursion](language/parser-expressions.md#left-recursion). |

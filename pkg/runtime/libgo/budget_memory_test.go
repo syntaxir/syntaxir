@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 // A Document counts the memo it retains, keeps it under a limit the count fits, and drops it before
@@ -17,10 +17,10 @@ func TestDocumentMemoryLimitRetainedMemo(t *testing.T) {
 	main, _ := documentTestRules()
 	text := strings.Repeat("a", 2000)
 	opts := func(mem uint64) parseOptions {
-		return parseOptions{maxDepth: defaultMaxDepth, limits: zpruntime.Limits{Memory: mem}}
+		return parseOptions{maxDepth: defaultMaxDepth, limits: sxirruntime.Limits{Memory: mem}}
 	}
 	fresh := func(mem uint64) error {
-		_, err := testDocumentState(main, text, zpinput.CodePoints).parse(opts(mem))
+		_, err := testDocumentState(main, text, sxirinput.CodePoints).parse(opts(mem))
 		return err
 	}
 	lo, hi := uint64(0), uint64(1<<40)
@@ -35,12 +35,12 @@ func TestDocumentMemoryLimitRetainedMemo(t *testing.T) {
 	if err := fresh(m); err != nil {
 		t.Fatalf("limit %d: %v", m, err)
 	}
-	var le *zpruntime.LimitError
-	if err := fresh(m - 1); !errors.As(err, &le) || le.Kind != zpruntime.LimitMemory || le.Used != m {
+	var le *sxirruntime.LimitError
+	if err := fresh(m - 1); !errors.As(err, &le) || le.Kind != sxirruntime.LimitMemory || le.Used != m {
 		t.Fatalf("limit %d: %v", m-1, err)
 	}
 
-	d := testDocumentState(main, text, zpinput.CodePoints)
+	d := testDocumentState(main, text, sxirinput.CodePoints)
 	if _, err := d.parse(opts(0)); err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +48,7 @@ func TestDocumentMemoryLimitRetainedMemo(t *testing.T) {
 	if retained == 0 || retained > m {
 		t.Fatalf("retained %d bytes, a fresh parse counts %d", retained, m)
 	}
-	if _, err := d.parse(opts(zpruntime.Unlimited - 1)); err != nil || d.stats.Reused == 0 {
+	if _, err := d.parse(opts(sxirruntime.Unlimited - 1)); err != nil || d.stats.Reused == 0 {
 		t.Fatalf("finite limit: %v, stats %+v", err, d.stats)
 	}
 
@@ -63,7 +63,7 @@ func TestDocumentMemoryLimitRetainedMemo(t *testing.T) {
 		t.Fatal(err)
 	}
 	d.memo.memBytes += m - d.memo.chargedBytes()
-	if _, err := d.parse(opts(m)); !errors.As(err, &le) || le.Kind != zpruntime.LimitMemory {
+	if _, err := d.parse(opts(m)); !errors.As(err, &le) || le.Kind != sxirruntime.LimitMemory {
 		t.Fatalf("retained at the limit: %v", err)
 	}
 	// The interruption drops the retained memo, so the next parse counts as a fresh one.

@@ -7,15 +7,15 @@ import (
 	"fmt"
 	"hash/crc32"
 
-	"zeroparse.dev/zp/internal/runtime/program"
-	"zeroparse.dev/zp/internal/runtime/vm"
-	"zeroparse.dev/zp/pkg/bytecode"
+	"syntaxir.dev/sxir/internal/runtime/program"
+	"syntaxir.dev/sxir/internal/runtime/vm"
+	"syntaxir.dev/sxir/pkg/bytecode"
 )
 
-// The compiled grammar format (.zpc), specified in the File format section of
+// The compiled grammar format (.sxirc), specified in the File format section of
 // spec/bytecode/README.md. A file holds one execution-only compile result: the module of one mode.
 //
-//	magic    "ZPC\x00"
+//	magic    "SXC\x00"
 //	version  1 byte (compiledVersion)
 //	mode     1 byte (CompiledMode)
 //	payload  instruction set version, string table, start rule, module
@@ -71,7 +71,7 @@ func ParseCompiledMode(s string) (CompiledMode, error) {
 // unsupportedISA is the error for a module of instruction set isa.
 func unsupportedISA(isa int) error {
 	if isa < bytecode.ISAVersion {
-		return fmt.Errorf("unsupported instruction set version %d: the file was compiled by an older zp; compile the grammar again", isa)
+		return fmt.Errorf("unsupported instruction set version %d: the file was compiled by an older sxir; compile the grammar again", isa)
 	}
 	return fmt.Errorf("unsupported instruction set version %d", isa)
 }
@@ -81,7 +81,7 @@ func unsupportedISA(isa int) error {
 var errClosureNeedsSource = errors.New("the closure backend needs the grammar source; a compiled grammar runs on the bytecode backends")
 
 // ErrNotCompiled reports that the data is not a compiled grammar.
-var ErrNotCompiled = errors.New("not a compiled ZeroParse grammar")
+var ErrNotCompiled = errors.New("not a compiled SyntaxIR grammar")
 
 // IsCompiled reports whether the data is in the compiled grammar format.
 func IsCompiled(data []byte) bool { return bytecode.IsCompiled(data) }

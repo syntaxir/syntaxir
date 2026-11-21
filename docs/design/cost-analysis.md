@@ -3,7 +3,7 @@
 > [!WARNING]
 > This page describes the target architecture. The code may still differ from it.
 
-`zp lint -classify` tells you how the cost of a parse can grow with the length of the input. This page explains how that
+`sxir lint -classify` tells you how the cost of a parse can grow with the length of the input. This page explains how that
 answer is built: a normalized view of the grammar that analyses read instead of the source, a classifier that finds the
 places where work can repeat, an exclusion analysis that shows most of those places are harmless, and run records that the
 engine keeps so that some of the rest stop being a problem. The contract that a user relies on is

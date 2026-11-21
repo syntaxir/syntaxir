@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Usage: ready.sh [--base REV] "<scope, Refs #N>" "<checks run, each with its exit status>" ["<review verdict file>"]
-# Run in your worktree after pushing. Appends the READY line to $ZP_AGENT_STATE/landing-train.md:
+# Run in your worktree after pushing. Appends the READY line to $SXIR_AGENT_STATE/landing-train.md:
 #   READY <branch> <sha> base <sha> | <scope> | <checks> | <review>
 # The base is the merge base with origin/main. For a branch stacked on another, --base REV (the
 # parent branch or commit, an ancestor of HEAD) makes the base the parent tip and records it as
@@ -16,7 +16,7 @@ if [ "${1:-}" = --base ]; then [ $# -ge 2 ] || die "--base needs a revision"; pb
 [ $# -ge 2 ] && [ $# -le 3 ] || { echo 'usage: ready.sh [--base REV] "<scope>" "<checks with exit status>" ["<review file>"]' >&2; exit 2; }
 scope=$1; checks=$2; review=${3:-none}
 branch=$(git symbolic-ref --short HEAD) || die "detached HEAD"
-zp_branch_ok "$branch" || die "branch $branch has no prefix feat/, fix/, perf/ or docs/"
+sxir_branch_ok "$branch" || die "branch $branch has no prefix feat/, fix/, perf/ or docs/"
 [ -z "$(git status --porcelain --untracked-files=no)" ] || die "the worktree has uncommitted changes"
 git fetch -q origin
 sha=$(git rev-parse HEAD)
@@ -32,7 +32,7 @@ else
   range=origin/main
 fi
 "$here/../../hack/check-commits.sh" "$range" HEAD
-mkdir -p "$zp_state"
+mkdir -p "$sxir_state"
 line="READY $branch $(git rev-parse --short=9 "$sha") base $baseinfo | $scope | $checks | $review"
-printf '%s\n' "$line" >> "$zp_state/landing-train.md"
+printf '%s\n' "$line" >> "$sxir_state/landing-train.md"
 echo "$line"

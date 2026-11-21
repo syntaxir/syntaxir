@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"zeroparse.dev/zp/internal/analysis/complexity"
-	"zeroparse.dev/zp/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/analysis/complexity"
+	"syntaxir.dev/sxir/internal/frontend/parser"
 )
 
 // duplicateRuleGrammars declare a rule twice where the rules call rules; the analyses once

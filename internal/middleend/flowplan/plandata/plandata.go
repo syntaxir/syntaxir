@@ -6,8 +6,8 @@
 package plandata
 
 import (
-	"zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/internal/middleend/flowlower/lowerdata"
+	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
 )
 
 // Use is what a planned function is in its table.

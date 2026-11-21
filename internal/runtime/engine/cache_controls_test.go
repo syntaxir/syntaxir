@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/runtime"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 func TestCacheControlsResetAfterFailureAndAbort(t *testing.T) {
@@ -48,7 +48,7 @@ func TestCacheControlsResetAfterFailureAndAbort(t *testing.T) {
 func TestCacheControlsReuseCounters(t *testing.T) {
 	t.Parallel()
 	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+		for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 			prog := mustCompile(t, `rule main = line* $$
 rule line = [a-z]+ #atomic "\n"`)
 			d, err := prog.NewDocumentWith("main", strings.Repeat("ab\n", 20), ParseOptions{Backend: backend, Unit: unit})
@@ -82,7 +82,7 @@ func TestCacheControlsResetAfterLargeEditAndResumption(t *testing.T) {
 	prog := mustCompile(t, `rule main = line* $$
 rule line = [a-z]+ #atomic "\n"`)
 	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+		for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 			t.Run(backend.String()+"/"+unit.String(), func(t *testing.T) {
 				options := ParseOptions{Backend: backend, Unit: unit}
 				d, err := prog.NewDocumentWith("main", strings.Repeat("ab\n", 2000), options)
@@ -134,7 +134,7 @@ rule item = "ab" #recover(skip=[^a]+)`, "abXab", true},
 		t.Run(tc.name, func(t *testing.T) {
 			prog := mustCompile(t, tc.grammar)
 			for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-				for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+				for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 					options := ParseOptions{Backend: backend, Unit: unit}
 					d, err := prog.NewDocumentWith("main", tc.input, options)
 					if err != nil {

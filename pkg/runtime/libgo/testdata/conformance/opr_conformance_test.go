@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/exec/conform"
-	"zeroparse.dev/zp/internal/ir/code/exec/ref"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
+	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // The Operators Rule descriptors and the matches of operators of the node library under conformance:
@@ -58,7 +58,7 @@ func newOprMachine(cfg ref.Config) conform.Impl {
 			or.Operands = append(or.Operands, line(s))
 		}
 		if r.Skip {
-			or.Skip = func(p *Parser) (*zpvalue.Node, bool) { return nil, true }
+			or.Skip = func(p *Parser) (*sxirvalue.Node, bool) { return nil, true }
 		}
 		m.oprRules = append(m.oprRules, &Rule{OperatorsRule: or})
 	}
@@ -79,7 +79,7 @@ func (m *oprMachine) Handle(name string) any {
 	case conform.OprMarkOp:
 		return &oprMarkBox{m.p.Mark()}
 	case conform.OprNodeOp:
-		return new(zpvalue.Node)
+		return new(sxirvalue.Node)
 	}
 	panic("library binding: no handle " + name)
 }

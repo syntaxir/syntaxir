@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/internal/testing/mutanttest"
-	"zeroparse.dev/zp/internal/testing/tsconformtest"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/mutanttest"
+	"syntaxir.dev/sxir/internal/testing/tsconformtest"
 )
 
 // tsMutant is a change of the source of the TypeScript library that the conformance suite must notice.

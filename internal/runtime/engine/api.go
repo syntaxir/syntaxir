@@ -4,13 +4,13 @@ import (
 	"context"
 	"io"
 
-	"zeroparse.dev/zp/internal/runtime/document"
-	"zeroparse.dev/zp/internal/runtime/program"
-	"zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/instrument"
-	"zeroparse.dev/zp/pkg/runtime/schema"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/runtime/document"
+	"syntaxir.dev/sxir/internal/runtime/program"
+	"syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/instrument"
+	"syntaxir.dev/sxir/pkg/runtime/schema"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // This file is the option-driven API of the engine: Parser and Document run a Program with
@@ -232,7 +232,7 @@ func (p *Parser) SourceInfo() bool { return p.prog.SourceInfo() }
 // MarshalBinary encodes the parser in parse mode; see Marshal.
 func (p *Parser) MarshalBinary() ([]byte, error) { return p.prog.Marshal(p.start, CompiledParse) }
 
-// Marshal encodes the parser in the .zpc format: the bytecode of mode and the start rule.
+// Marshal encodes the parser in the .sxirc format: the bytecode of mode and the start rule.
 func (p *Parser) Marshal(mode CompiledMode) ([]byte, error) { return p.prog.Marshal(p.start, mode) }
 
 // CompiledMode returns the mode of a parser loaded from a compiled grammar and true, or false

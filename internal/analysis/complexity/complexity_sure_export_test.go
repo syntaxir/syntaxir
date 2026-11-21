@@ -1,6 +1,6 @@
 package complexity
 
-import "zeroparse.dev/zp/pkg/grammar/ast"
+import "syntaxir.dev/sxir/pkg/grammar/ast"
 
 // SurelyConsumed returns the characters of chars on which the classifier of g proves that a call of
 // each rule surely consumes.

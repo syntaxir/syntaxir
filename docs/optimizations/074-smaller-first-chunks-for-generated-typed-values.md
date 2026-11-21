@@ -61,7 +61,7 @@
   `cd alpha-parsers/cel && go test -run '^$' -bench 'Benchmark(PoliciesParseValue|LargeParseValue)$' -benchtime=300ms -count=1`.
   Use the final benchmark sources on both production versions. For the
   ownership workloads, generate both paths with
-  `ZP_TYPED_CHUNK_DIR=/tmp/zp-chunks go test ./internal/backend/codegen/golang/print -run '^TestGeneratedTypedChunkOwnership$' -count=1`,
+  `SXIR_TYPED_CHUNK_DIR=/tmp/sxir-chunks go test ./internal/backend/codegen/golang/print -run '^TestGeneratedTypedChunkOwnership$' -count=1`,
   using a Go overlay of baseline `internal/runtime/engine/gen_types.go` when building
   the parent. In each generated `false`/`true` directory, benchmark
   `BenchmarkChunkParseValue` with the same 300 ms flags. Alternate five pairs
@@ -76,7 +76,7 @@
   These separate full runs do not isolate a speedup or regression from
   this method; the alternating controls above remain the causal comparison.
   The current backend, recognition, incremental and stream analysis is
-  recorded under [Where ZeroParse stands](../performance.md#where-zeroparse-stands).
+  recorded under [Where SyntaxIR stands](../performance.md#where-syntaxir-stands).
 
 ## Same-Revision Allocation Controls
 

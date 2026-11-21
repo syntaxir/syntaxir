@@ -7,7 +7,7 @@ arguments, and for each register and handle type, how the code reaches the regis
 language stands for the handle type. A backend prints only the code that the function holds; it never adds a call of
 an operation or a decision of the parse.
 
-ZeroParse has two backends, Go and TypeScript. They print the compositions into each runtime (see
+SyntaxIR has two backends, Go and TypeScript. They print the compositions into each runtime (see
 [Compositions](compositions.md#specializations)) and the rules of a grammar, converted from the Flow stage (see
 [Lowering From the Flow Stage](lowering.md)), into generated parsers.
 

@@ -1,6 +1,6 @@
 name: "Ready-made parser"
 description: "A problem specific to one ready-made parser"
-projects: ["zeroparse/2"]
+projects: ["syntaxir/2"]
 body:
   - type: markdown
     attributes:

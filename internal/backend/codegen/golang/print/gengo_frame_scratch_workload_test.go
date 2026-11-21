@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 const nodeFrameScratchGrammar = `type Tok = { Text string }
@@ -25,8 +25,8 @@ rule abort = x:"é"* #atomic => Bad{N: 10 / len($x)}
 rule recovering = x:("é" "!") #recover(skip="?") $$ => $x
 `
 
-// ZP_NODE_FRAME_DIR preserves paired fixtures. Optional
-// ZP_NODE_FRAME_TYPESCRIPT adds the unchanged TypeScript grammar workload.
+// SXIR_NODE_FRAME_DIR preserves paired fixtures. Optional
+// SXIR_NODE_FRAME_TYPESCRIPT adds the unchanged TypeScript grammar workload.
 // This test validates fixtures without running their benchmarks.
 func TestGeneratedNodeFrameScratchWorkloads(t *testing.T) {
 	t.Parallel()
@@ -37,7 +37,7 @@ func testGeneratedNodeFrameScratchWorkloads(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds generated fixtures")
 	}
-	dir := os.Getenv("ZP_NODE_FRAME_DIR")
+	dir := os.Getenv("SXIR_NODE_FRAME_DIR")
 	if dir == "" {
 		dir = t.TempDir()
 	}
@@ -46,8 +46,8 @@ func testGeneratedNodeFrameScratchWorkloads(t *testing.T) {
 		{"nocapture", `type Tok = { Text string }
 rule main Tok = t:(("é" / "�")* $$) #atomic => Tok{Text: text($t)}`, `func frameInputs() (string,string,string) {return "é",strings.Repeat("é",5000),"é!"}`},
 	}
-	if os.Getenv("ZP_NODE_FRAME_TYPESCRIPT") != "" {
-		source, err := os.ReadFile("../../../../../testdata/grammars/typescript/typescript.zp")
+	if os.Getenv("SXIR_NODE_FRAME_TYPESCRIPT") != "" {
+		source, err := os.ReadFile("../../../../../testdata/grammars/typescript/typescript.sxir")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -64,10 +64,10 @@ rule main Tok = t:(("é" / "�")* $$) #atomic => Tok{Text: text($t)}`, `func fr
 			var rows strings.Builder
 			if c.name != "typescript" {
 				for _, input := range []string{"", "é", "éé", "�", "é�", "é!", "\xff", "é\xff", "\xe2\x82"} {
-					for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+					for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 						n, err := prog.ParseWith("main", input, engine.ParseOptions{Expectations: true, Unit: unit})
 						_, rerr := prog.ParseWith("main", input, engine.ParseOptions{Expectations: true, Unit: unit, Recognize: true})
-						fmt.Fprintf(&rows, "{%q,%s,%q,%q},\n", input, map[zpinput.PositionUnit]string{zpinput.CodePoints: "CodePoints", zpinput.Bytes: "Bytes"}[unit], codegentest.ResultJSON(n, err), fmt.Sprint(rerr))
+						fmt.Fprintf(&rows, "{%q,%s,%q,%q},\n", input, map[sxirinput.PositionUnit]string{sxirinput.CodePoints: "CodePoints", sxirinput.Bytes: "Bytes"}[unit], codegentest.ResultJSON(n, err), fmt.Sprint(rerr))
 					}
 				}
 			}
@@ -84,7 +84,7 @@ rule main Tok = t:(("é" / "�")* $$) #atomic => Tok{Text: text($t)}`, `func fr
 				depthLimit := "maxDepth"
 				if strings.Contains(string(code), "type ParseOption ") {
 					workload = strings.ReplaceAll(workload, ", unit)", ", WithUnit(unit))")
-					depthLimit = "zpGrammar.X_maxDepth"
+					depthLimit = "sxirGrammar.X_maxDepth"
 				}
 				fixture = strings.ReplaceAll(fixture, "FRAME_DEPTH_LIMIT", depthLimit)
 				path := filepath.Join(dir, c.name, variant)
@@ -112,11 +112,11 @@ rule main Tok = t:(("é" / "�")* $$) #atomic => Tok{Text: text($t)}`, `func fr
 
 const frameScratchFixture = `package framefixture
 
-import zprt "zeroparse.dev/zp/pkg/runtime/libgo"
+import sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
 import("crypto/sha256";"encoding/json";"fmt";"strings";"sync";"testing")
 const captureCase = CAPTURE_CASE
 func frameJSON(n *Node,err error)string {out:=map[string]any{"node":n};if err!=nil {out["err"]=err.Error()};b,_:=json.Marshal(out);return string(b)}
-func frameCleared(t *testing.T,p *zprt.Parser) {
+func frameCleared(t *testing.T,p *sxirrt.Parser) {
  t.Helper()
  if p.X_captureScratch.X_frameN!=0 || p.X_captureScratch.X_slotCI!=0 || p.X_captureScratch.X_slotOff!=0 {t.Fatal("scratch cursor survived release")}
  for _,chunk:=range p.X_captureScratch.X_frames {for _,f:=range chunk {if f.Vals!=nil {t.Fatal("released frame retains values")}}}
@@ -154,20 +154,20 @@ func TestFrameResults(t *testing.T) {
  }
 }
 func TestFrameAbortCleanup(t *testing.T) {
- var observed *zprt.Parser
- r:=&zprt.Rule{Name:"abort-test",Seen:-1,Scope:[]string{"x"},Body:func(p *zprt.Parser,_ int)(*Node,bool){
-  observed=p;p.SetCapture(0,p.NewNode(zprt.Data{Text:"abandoned"}));p.X_saved=append(p.X_saved,p.Frame.Vals[0]);panic(zprt.X_fatal{fmt.Errorf("fixture abort")})
+ var observed *sxirrt.Parser
+ r:=&sxirrt.Rule{Name:"abort-test",Seen:-1,Scope:[]string{"x"},Body:func(p *sxirrt.Parser,_ int)(*Node,bool){
+  observed=p;p.SetCapture(0,p.NewNode(sxirrt.Data{Text:"abandoned"}));p.X_saved=append(p.X_saved,p.Frame.Vals[0]);panic(sxirrt.X_fatal{fmt.Errorf("fixture abort")})
  }}
- g:=zprt.NewGrammar(0);g.SetRules([]*zprt.Rule{r},0);g.Share(zpGrammar)
- if _,err:=zprt.RunParse(r,"",nil);err==nil || err.Error()!="fixture abort" {t.Fatal("abort did not propagate")}
+ g:=sxirrt.NewGrammar(0);g.SetRules([]*sxirrt.Rule{r},0);g.Share(sxirGrammar)
+ if _,err:=sxirrt.RunParse(r,"",nil);err==nil || err.Error()!="fixture abort" {t.Fatal("abort did not propagate")}
  frameCleared(t,observed)
 }
 func TestFrameDepthAbortCleanup(t *testing.T) {
- var observed *zprt.Parser
- r:=&zprt.Rule{Name:"depth-abort",Rec:true,Seen:-1,Scope:[]string{"x"}}
- r.Body=func(p *zprt.Parser,_ int)(*Node,bool){observed=p;p.SetCapture(0,p.NewNode(zprt.Data{Text:"abandoned"}));p.Depth=FRAME_DEPTH_LIMIT;return p.Call(r,0)}
- g:=zprt.NewGrammar(0);g.SetRules([]*zprt.Rule{r},0);g.Share(zpGrammar)
- if _,err:=zprt.RunParse(r,"",nil);err==nil || !strings.Contains(err.Error(),"nesting too deep") {t.Fatal("depth abort did not propagate")}
+ var observed *sxirrt.Parser
+ r:=&sxirrt.Rule{Name:"depth-abort",Rec:true,Seen:-1,Scope:[]string{"x"}}
+ r.Body=func(p *sxirrt.Parser,_ int)(*Node,bool){observed=p;p.SetCapture(0,p.NewNode(sxirrt.Data{Text:"abandoned"}));p.Depth=FRAME_DEPTH_LIMIT;return p.Call(r,0)}
+ g:=sxirrt.NewGrammar(0);g.SetRules([]*sxirrt.Rule{r},0);g.Share(sxirGrammar)
+ if _,err:=sxirrt.RunParse(r,"",nil);err==nil || !strings.Contains(err.Error(),"nesting too deep") {t.Fatal("depth abort did not propagate")}
  frameCleared(t,observed)
 }
 func TestFrameConcurrentReuse(t *testing.T) {

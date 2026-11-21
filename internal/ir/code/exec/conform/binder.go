@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"strings"
 
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/exec/ref"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
 )
 
 // A Converter converts between the handles of the conformance harness and the Go values that the

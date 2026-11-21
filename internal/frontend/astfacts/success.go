@@ -3,7 +3,7 @@
 // facts never justify excluding a rule call.
 package astfacts
 
-import "zeroparse.dev/zp/pkg/grammar/ast"
+import "syntaxir.dev/sxir/pkg/grammar/ast"
 
 // SucceedingRules finds ordinary, non-cyclic rules that cannot return a matching
 // failure. A recursive call can read a failing growth seed even when its rule's

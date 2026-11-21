@@ -12,19 +12,19 @@ import (
 	"sync"
 	"testing"
 
-	"zeroparse.dev/zp/internal/analysis/complexity"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/internal/testing/enginetest"
-	"zeroparse.dev/zp/internal/testing/starttest"
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
+	"syntaxir.dev/sxir/internal/analysis/complexity"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
+	"syntaxir.dev/sxir/internal/testing/starttest"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 )
 
 // The slope gate holds the classifier to what it says against measured cost. It writes random
 // grammars from fixed seeds, classifies each and measures it on every backend on inputs made of
 // repeated fragments. A grammar of the class Linear whose cost grows faster than the input fails the
 // gate, and so does a polynomial one that grows clearly faster than its degree, or that has reasons
-// for the class unknown, which leave its cost open. The default tier runs a few seeds and those of slopeCaught; the tag zp_long runs many more. The gate
+// for the class unknown, which leave its cost open. The default tier runs a few seeds and those of slopeCaught; the tag sxir_long runs many more. The gate
 // holds the classifier only where its grammars reach: some checks (the cut of a choice in what an
 // expression surely consumes, counted rules off every cycle, the repetition depth of nesting) are
 // held by the class tests and controls instead.
@@ -194,13 +194,13 @@ func (g *slopeGrammar) source() string {
 // spent returns the cost of a parse, its Compute. It reports a parse that used up slopeCap as
 // capped.
 func spent(p *engine.Parser, input string, b engine.Backend) (cost uint64, capped bool) {
-	_, err := p.Parse(input, engine.WithBackend(b), engine.WithLimits(zpruntime.Limits{Compute: slopeCap}),
+	_, err := p.Parse(input, engine.WithBackend(b), engine.WithLimits(sxirruntime.Limits{Compute: slopeCap}),
 		engine.WithTrace(func(e engine.TraceEvent) {
 			if c := state.TraceParser(e).Control; c != nil {
 				cost = c.Used
 			}
 		}))
-	var le *zpruntime.LimitError
+	var le *sxirruntime.LimitError
 	return cost, errors.As(err, &le)
 }
 

@@ -3,7 +3,7 @@ package libgo
 import (
 	"unsafe"
 
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // Skip runs and run sites: the records of the walks of skip-run sites and run sites, a mirror of
@@ -52,7 +52,7 @@ type skipRecord struct {
 	list           bool
 	// key holds the values of the variables of the key that the walk from the position started with.
 	key, bind []any
-	nodes     valSuffix[*zpvalue.Node]
+	nodes     valSuffix[*sxirvalue.Node]
 	tvals     valSuffix[any]
 	errs      *recEntry // nil for none, so that a record of no errors stays small
 }
@@ -284,7 +284,7 @@ type skipWalk struct {
 	// build reports that the walk collects the values of its iterations: nodes in a Node parse,
 	// tvals in a typed one (typed).
 	build, typed bool
-	nodes        walkVals[*zpvalue.Node]
+	nodes        walkVals[*sxirvalue.Node]
 	tvals        walkVals[any]
 }
 
@@ -379,7 +379,7 @@ func (p *Parser) skipBegin(site int, build, keyEnv bool) {
 
 // SkipValue adds the value of the iteration that matched. Nodes in records are shared by the lists
 // that reuse them, so a node that the rule that made it may still change is final from here.
-func (p *Parser) SkipValue(v *zpvalue.Node) {
+func (p *Parser) SkipValue(v *sxirvalue.Node) {
 	w := p.walk()
 	if v != nil {
 		D(v).Fresh = false
@@ -547,7 +547,7 @@ func (p *Parser) SkipEnd() {
 // lists of other walks. Like Kids it charges nothing: the values that the parse gathers, takes off,
 // places in records and drops are not an item of the cost (spec/runtime/parsing.md#cost); each is
 // moved a constant number of times for the iteration that gathered it or the record that holds it.
-func (p *Parser) SkipKids() []*zpvalue.Node {
+func (p *Parser) SkipKids() []*sxirvalue.Node {
 	p.skipEnd()
 	w := p.walk()
 	kids := endVals(p, &w.nodes, p.Nodes)
@@ -629,7 +629,7 @@ func (p *Parser) skipEnd() {
 // from the iteration on, and the errors of the iteration before those of the rest, rest.
 func (p *Parser) skipLink(w *skipWalk, r *skipRecord, v skipVisit, rest *recEntry) {
 	if i := w.nodes.lo + v.vi; w.nodes.placed && i < len(w.nodes.buf.a) {
-		r.nodes = valSuffix[*zpvalue.Node]{w.nodes.buf, i} // (an empty suffix keeps nothing alive)
+		r.nodes = valSuffix[*sxirvalue.Node]{w.nodes.buf, i} // (an empty suffix keeps nothing alive)
 	}
 	if i := w.tvals.lo + v.vi; w.tvals.placed && i < len(w.tvals.buf.a) {
 		r.tvals = valSuffix[any]{w.tvals.buf, i}

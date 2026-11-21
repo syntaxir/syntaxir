@@ -10,20 +10,20 @@ import (
 	"runtime"
 	"strings"
 
-	"zeroparse.dev/zp/internal/driver/entry"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/input"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/input"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 type legacyResult struct {
 	version engine.DocumentVersion
 	unit    input.PositionUnit
 	text    string
-	root    *zpvalue.Node
+	root    *sxirvalue.Node
 	err     error
-	stats   zpruntime.ParseStats
+	stats   sxirruntime.ParseStats
 }
 
 type result struct {

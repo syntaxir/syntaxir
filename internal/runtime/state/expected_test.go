@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // Expected entries are ordered names, then literals, then classes, each by their bytes, and the

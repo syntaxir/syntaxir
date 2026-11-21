@@ -1,4 +1,4 @@
-//go:build zp_long && !zp_budget_controls_reference
+//go:build sxir_long && !sxir_budget_controls_reference
 
 package engine
 
@@ -10,16 +10,16 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/pass"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/pass"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 // chargeCorpusCases returns the testdata grammars with their samples and prefixes of them.
 func chargeCorpusCases(t *testing.T) []chargeCase {
 	t.Helper()
-	paths, err := filepath.Glob("../../../testdata/grammars/*/*.zp")
+	paths, err := filepath.Glob("../../../testdata/grammars/*/*.sxir")
 	if err != nil || len(paths) == 0 {
 		t.Fatalf("no grammars: %v", err)
 	}
@@ -61,7 +61,7 @@ import (
 	"strings"
 	"testing"
 
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 func report(err error) string {
@@ -97,7 +97,7 @@ var inputs = INPUTS
 var limits = LIMITS
 
 func TestCharges(t *testing.T) {
-	for u, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+	for u, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 		for i, in := range inputs {
 			run := func(l uint64) string {
 				_, err := PARSE(in, WithUnit(unit), WithLimits(Limits{Compute: l}))
@@ -336,7 +336,7 @@ func generatedTSCharges(t *testing.T, c chargeCase, ref chargeRef, noOpt []strin
 func TestChargeAgreementGenerated(t *testing.T) {
 	codegentest.NeedsBudgetControls(t)
 	cases := append([]chargeCase{}, chargeCases...)
-	if os.Getenv("ZP_CHARGE_SMALL") == "" {
+	if os.Getenv("SXIR_CHARGE_SMALL") == "" {
 		cases = append(cases, chargeCorpusCases(t)...)
 	}
 	refs := make([]chargeRef, len(cases))

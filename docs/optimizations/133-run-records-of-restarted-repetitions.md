@@ -44,8 +44,8 @@ Steps of the closure backend on the restarted scans of the cookbook
 
 | Grammar | n = 100 | 200 | 400 | Before, n = 400 |
 |:--|--:|--:|--:|--:|
-| `scan.zp` | 3,078 | 6,178 | 12,378 | 325,888 |
-| `look.zp` | 2,078 | 4,178 | 8,378 | 163,840 |
+| `scan.sxir` | 3,078 | 6,178 | 12,378 | 325,888 |
+| `look.sxir` | 2,078 | 4,178 | 8,378 | 163,840 |
 
 Time, bytes and allocations against the base (12 interleaved rounds):
 

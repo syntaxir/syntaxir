@@ -90,8 +90,8 @@ test("TypeScript highlighting escapes code and both fence aliases use the page h
   const typescript = codeBlock("language-typescript", "type Box<T> = { readonly value: T };");
   const unknown = codeBlock("language-rust", "<script>alert(1)</script>");
   const grammar = 'rule main = "hello"';
-  const zp = codeBlock("language-zp", `${grammar}\n`);
-  const h = await pageHighlight([ts, typescript, unknown, zp]);
+  const sxir = codeBlock("language-sxir", `${grammar}\n`);
+  const h = await pageHighlight([ts, typescript, unknown, sxir]);
 
   assert.match(ts.code.innerHTML, /tok-keyword">const<\/span>/);
   assert.match(ts.code.innerHTML, /tok-type">string<\/span>/);
@@ -102,7 +102,7 @@ test("TypeScript highlighting escapes code and both fence aliases use the page h
   assert.match(typescript.code.innerHTML, /tok-keyword">readonly<\/span>/);
   assert.equal(unknown.code.innerHTML, "unchanged", "unknown fence languages keep their original contents");
 
-  for (const block of [ts, typescript, unknown, zp]) {
+  for (const block of [ts, typescript, unknown, sxir]) {
     const frame = block.pre.parentElement;
     assert.equal(frame.className, "code-frame");
     assert.equal(frame.children[0], block.pre);
@@ -113,8 +113,8 @@ test("TypeScript highlighting escapes code and both fence aliases use the page h
   await tsActions.children.find((control) => control.tagName === "button").click();
   assert.deepEqual(h.clipboardWrites, [source.replace(/\n$/, "")], "Copy writes original code text, without highlight markup");
 
-  const playground = zp.pre.parentElement.children[1].children.find((control) => control.tagName === "a");
-  assert.ok(playground, "ZeroParse blocks retain their Playground action outside the pre");
+  const playground = sxir.pre.parentElement.children[1].children.find((control) => control.tagName === "a");
+  assert.ok(playground, "SyntaxIR blocks retain their Playground action outside the pre");
   await playground.click();
   assert.equal(h.encodedStates.length, 1);
   assert.equal(h.encodedStates[0].g, `${grammar}\n`);
@@ -135,10 +135,10 @@ test("TypeScript highlighting preserves ordinary identifiers and source text", (
 });
 
 
-test("ZeroParse highlighting follows expressions, pragmas and nested comments", () => {
+test("SyntaxIR highlighting follows expressions, pragmas and nested comments", () => {
   const source = 'rule main Result = "/*" [#] {n := 1} @error(message="x") #atomic => Result{}\n'
     + '/* outer\n/* inner */ tail */\nrule expr = #operators { operand main } // line\n';
-  const tokens = tokenize(source, "zp");
+  const tokens = tokenize(source, "sxir");
   const words = cls => tokens.filter(t => t.cls === cls).map(t => source.slice(t.from, t.to));
   assert.deepEqual(words("comment"), ['/* outer\n/* inner */ tail */', '// line']);
   assert.deepEqual(words("attr"), ['@error', '#atomic']);
@@ -150,12 +150,12 @@ test("ZeroParse highlighting follows expressions, pragmas and nested comments", 
   assert.deepEqual(words("class"), ['[#]']);
   assert.deepEqual(words("string"), ['"/*"', '"x"']);
   const incomplete = '/* outer /* inner */';
-  assert.deepEqual(tokenize(incomplete, "zp"), [{from: 0, to: incomplete.length, cls: 'comment'}]);
+  assert.deepEqual(tokenize(incomplete, "sxir"), [{from: 0, to: incomplete.length, cls: 'comment'}]);
 });
 
-test("ZeroParse highlighting restricts identifiers to ASCII", () => {
+test("SyntaxIR highlighting restricts identifiers to ASCII", () => {
   const source = 'rule ab = "名前" @error(message="é") café';
-  const tokens = tokenize(source, "zp");
+  const tokens = tokenize(source, "sxir");
   const names = tokens.filter((t) => ["rule", "ident", "attr"].includes(t.cls))
     .map((t) => source.slice(t.from, t.to));
   assert.ok(names.includes("ab"));
@@ -165,9 +165,9 @@ test("ZeroParse highlighting restricts identifiers to ASCII", () => {
 });
 
 
-test("ZeroParse words are contextual and action braces restore PEG context", () => {
+test("SyntaxIR words are contextual and action braces restore PEG context", () => {
   const source = 'rule type = "x"\nrule main = type type:operand {type := 1} => {type; Result{}}\nrule expr = #operators { operand type; level prefix { infix left "+" => Result{} }; level { prefix type } }';
-  const tokens = tokenize(source, "zp");
+  const tokens = tokenize(source, "sxir");
   const words = (cls) => tokens.filter((t) => t.cls === cls).map((t) => source.slice(t.from,t.to));
   assert.ok(words("rule").includes("type"));
   assert.ok(words("label").includes("type"));
@@ -177,7 +177,7 @@ test("ZeroParse words are contextual and action braces restore PEG context", () 
   assert.ok(words("keyword").includes("left"));
   assert.ok(!tokens.some((t) => t.cls === "ident"));
   const call = 'rule a = level(expr, additive)';
-  const levels = tokenize(call,"zp").filter((t) => call.slice(t.from,t.to) === "level");
+  const levels = tokenize(call,"sxir").filter((t) => call.slice(t.from,t.to) === "level");
   assert.equal(levels[0].cls,"keyword");
 });
 

@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/compiletest"
-	"zeroparse.dev/zp/internal/testing/enginetest"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/compiletest"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 )
 
 // TestBodyEvaluationsReplay checks, on the sample inputs of the grammars in testdata/grammars and
@@ -23,7 +23,7 @@ import (
 // can tell apart.
 func TestBodyEvaluationsReplay(t *testing.T) {
 	chdirModuleRoot(t)
-	dirs, err := filepath.Glob("testdata/grammars/*/*.zp")
+	dirs, err := filepath.Glob("testdata/grammars/*/*.sxir")
 	if err != nil || len(dirs) == 0 {
 		t.Fatalf("no grammars: %v", err)
 	}

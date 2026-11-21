@@ -3,14 +3,14 @@ package engine
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/analysis/complexity"
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/frontend/parser"
-	zpfmt "zeroparse.dev/zp/internal/syntax/fmt"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/internal/testing/starttest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/analysis/complexity"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	sxirfmt "syntaxir.dev/sxir/internal/syntax/fmt"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/starttest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 // shapeRun is the outcome of a parse: its result with the value shape, and the units reserved.
@@ -21,7 +21,7 @@ func shapeRun(t *testing.T, g *ast.Grammar, input string, back Backend) (string,
 		t.Fatalf("compile: %v", err)
 	}
 	var used uint64
-	o := ParseOptions{Backend: back, Unit: zpinput.Bytes, Expectations: true}
+	o := ParseOptions{Backend: back, Unit: sxirinput.Bytes, Expectations: true}
 	o.Trace = func(e TraceEvent) { used = shapeUnits(e) }
 	n, err := prog.ParseWith("main", input, o)
 	return codegentest.ResultJSON(n, err), used
@@ -74,7 +74,7 @@ func TestFormatKeepsShapeOfViewRoundTrip(t *testing.T) {
 				}
 				view.File.Decls = append(view.File.Decls, d)
 			}
-			text := zpfmt.Format(&view)
+			text := sxirfmt.Format(&view)
 			back, err := parser.Parse(text)
 			if err != nil {
 				t.Fatalf("the printed view does not parse: %v\n%s", err, text)
@@ -120,7 +120,7 @@ func TestFormatKeepsShapeOfOneItemSequences(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			g := &ast.Grammar{File: ast.File{Decls: []ast.Decl{&ast.RuleDef{Name: "main", Expr: c.expr}}}}
-			text := zpfmt.Format(g)
+			text := sxirfmt.Format(g)
 			back, err := parser.Parse(text)
 			if err != nil {
 				t.Fatalf("the printed grammar does not parse: %v\n%s", err, text)

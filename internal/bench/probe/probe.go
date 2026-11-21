@@ -31,10 +31,10 @@ func ExecOut(dir string, env []string, name string, args ...string) (string, err
 	return string(out), nil
 }
 
-// BuildZP builds the zp command of the repository at root into the work directory.
-func BuildZP(root, work string) (string, error) {
-	out := filepath.Join(work, "zp")
-	if _, err := ExecOut(root, []string{"GOFLAGS=" + os.Getenv("GOFLAGS")}, "go", "build", "-trimpath", "-o", out, "./cmd/zp"); err != nil {
+// BuildSXIR builds the sxir command of the repository at root into the work directory.
+func BuildSXIR(root, work string) (string, error) {
+	out := filepath.Join(work, "sxir")
+	if _, err := ExecOut(root, []string{"GOFLAGS=" + os.Getenv("GOFLAGS")}, "go", "build", "-trimpath", "-o", out, "./cmd/sxir"); err != nil {
 		return "", err
 	}
 	return out, nil
@@ -62,7 +62,7 @@ func GenTSArgs(root, name string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	out := []string{"-g", filepath.Join(root, "testdata", "grammars", name, name+".zp")}
+	out := []string{"-g", filepath.Join(root, "testdata", "grammars", name, name+".sxir")}
 	for i := 0; i < len(f); i++ {
 		switch f[i] {
 		case "-module", "-lib", "-o":
@@ -77,25 +77,25 @@ func GenTSArgs(root, name string) ([]string, error) {
 
 // GenerateGo generates the Go parser of grammar name into dir with the options of
 // testdata/grammars/generate.txt followed by extra (for example -optimize or -no-opt).
-func GenerateGo(root, zpBin, dir, name string, extra ...string) error {
+func GenerateGo(root, sxirBin, dir, name string, extra ...string) error {
 	f, err := GenOptions(root, name)
 	if err != nil {
 		return err
 	}
-	args := append([]string{"gen", "-g", filepath.Join(root, "testdata", "grammars", name, name+".zp"), "-module", "sizeprobe/gen"}, f...)
+	args := append([]string{"gen", "-g", filepath.Join(root, "testdata", "grammars", name, name+".sxir"), "-module", "sizeprobe/gen"}, f...)
 	args = append(args, extra...)
-	_, err = ExecOut(root, nil, zpBin, append(args, "-o", dir)...)
+	_, err = ExecOut(root, nil, sxirBin, append(args, "-o", dir)...)
 	return err
 }
 
 // GenerateTS generates the TypeScript parser of grammar name into dir, with extra options after those
 // of GenTSArgs.
-func GenerateTS(root, zpBin, dir, name string, extra ...string) error {
+func GenerateTS(root, sxirBin, dir, name string, extra ...string) error {
 	args, err := GenTSArgs(root, name)
 	if err != nil {
 		return err
 	}
-	_, err = ExecOut(root, nil, zpBin, append(append(append([]string{"gen", "-lang", "ts"}, args...), extra...), "-o", dir)...)
+	_, err = ExecOut(root, nil, sxirBin, append(append(append([]string{"gen", "-lang", "ts"}, args...), extra...), "-o", dir)...)
 	return err
 }
 
@@ -148,7 +148,7 @@ go 1.27.1
 require %[1]s v0.0.0
 
 replace %[1]s => %[2]s
-`, "zeroparse.dev/zp", root)
+`, "syntaxir.dev/sxir", root)
 	if err := os.CopyFS(filepath.Join(dir, "gen"), os.DirFS(genDir)); err != nil {
 		return "", 0, err
 	}

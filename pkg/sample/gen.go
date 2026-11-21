@@ -6,7 +6,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // The generator walks the grammar AST and writes a candidate input, making a random decision at each

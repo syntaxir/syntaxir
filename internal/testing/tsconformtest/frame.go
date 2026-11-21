@@ -1,7 +1,7 @@
 package tsconformtest
 
 import (
-	"zeroparse.dev/zp/internal/ir/code/exec/conform"
+	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
 )
 
 // FrameOps are the operations of the capture frames that the library implements, with the support

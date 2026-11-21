@@ -18,7 +18,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"zeroparse.dev/zp/internal/testing/importgroups"
+	"syntaxir.dev/sxir/internal/testing/importgroups"
 )
 
 func main() {

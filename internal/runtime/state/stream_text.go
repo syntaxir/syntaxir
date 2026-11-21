@@ -1,6 +1,6 @@
 package state
 
-import "zeroparse.dev/zp/pkg/runtime/input"
+import "syntaxir.dev/sxir/pkg/runtime/input"
 
 const StreamTextChunk = 1024
 

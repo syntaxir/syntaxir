@@ -1,6 +1,6 @@
 package print
 
-import "zeroparse.dev/zp/internal/pass"
+import "syntaxir.dev/sxir/internal/pass"
 
 // The flags that only the Go printer reads.
 func init() {

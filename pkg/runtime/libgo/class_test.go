@@ -3,7 +3,7 @@ package libgo
 import (
 	"testing"
 
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 // TestClassHas builds the tables the way the generator does for [a-c_ à-ÿ] and its negation and
@@ -40,9 +40,9 @@ func TestClassSkip(t *testing.T) {
 			notQ.ASCII[r>>6] |= 1 << (uint(r) & 63)
 		}
 	}
-	parser := func(unit zpinput.PositionUnit, in string, pos int) *TParser {
+	parser := func(unit sxirinput.PositionUnit, in string, pos int) *TParser {
 		p := &TParser{Parser: &Parser{unit: unit, Expectations: true}}
-		if unit == zpinput.Bytes {
+		if unit == sxirinput.Bytes {
 			p.bs, p.n = in, len(in)
 		} else {
 			p.In = []rune(in)
@@ -53,28 +53,28 @@ func TestClassSkip(t *testing.T) {
 	}
 	for _, tc := range []struct {
 		name    string
-		unit    zpinput.PositionUnit
+		unit    sxirinput.PositionUnit
 		in      string
 		pos     int
 		c       *Class
 		ok      bool
 		wantPos int
 	}{
-		{"ascii rune", zpinput.CodePoints, "xa", 1, letters, true, 2},
-		{"bit 63", zpinput.CodePoints, "?", 0, letters, true, 1},
-		{"bit 64 miss", zpinput.CodePoints, "@", 0, letters, false, 0},
-		{"bit 127 miss", zpinput.CodePoints, "\x7f", 0, letters, false, 0},
-		{"wide rune", zpinput.CodePoints, "é", 0, letters, true, 1},
-		{"wide miss", zpinput.CodePoints, "ā", 0, letters, false, 0},
-		{"end rune", zpinput.CodePoints, "a", 1, letters, false, 1},
-		{"ascii byte", zpinput.Bytes, "xz", 1, letters, true, 2},
-		{"ascii byte miss", zpinput.Bytes, "b", 0, letters, false, 0},
-		{"wide byte", zpinput.Bytes, "é", 0, letters, true, 2},
-		{"invalid byte", zpinput.Bytes, "\xff", 0, letters, false, 0},
-		{"invalid byte negated", zpinput.Bytes, "\xff", 0, notQ, true, 1},
-		{"negated wide", zpinput.Bytes, "ā", 0, notQ, true, 2},
-		{"negated miss", zpinput.CodePoints, "q", 0, notQ, false, 0},
-		{"end byte", zpinput.Bytes, "a", 1, letters, false, 1},
+		{"ascii rune", sxirinput.CodePoints, "xa", 1, letters, true, 2},
+		{"bit 63", sxirinput.CodePoints, "?", 0, letters, true, 1},
+		{"bit 64 miss", sxirinput.CodePoints, "@", 0, letters, false, 0},
+		{"bit 127 miss", sxirinput.CodePoints, "\x7f", 0, letters, false, 0},
+		{"wide rune", sxirinput.CodePoints, "é", 0, letters, true, 1},
+		{"wide miss", sxirinput.CodePoints, "ā", 0, letters, false, 0},
+		{"end rune", sxirinput.CodePoints, "a", 1, letters, false, 1},
+		{"ascii byte", sxirinput.Bytes, "xz", 1, letters, true, 2},
+		{"ascii byte miss", sxirinput.Bytes, "b", 0, letters, false, 0},
+		{"wide byte", sxirinput.Bytes, "é", 0, letters, true, 2},
+		{"invalid byte", sxirinput.Bytes, "\xff", 0, letters, false, 0},
+		{"invalid byte negated", sxirinput.Bytes, "\xff", 0, notQ, true, 1},
+		{"negated wide", sxirinput.Bytes, "ā", 0, notQ, true, 2},
+		{"negated miss", sxirinput.CodePoints, "q", 0, notQ, false, 0},
+		{"end byte", sxirinput.Bytes, "a", 1, letters, false, 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			p := parser(tc.unit, tc.in, tc.pos)
@@ -91,7 +91,7 @@ func TestClassSkip(t *testing.T) {
 		})
 	}
 	steps := []ClassStep{{letters, 1}, {notQ, 2}, {letters, 3}}
-	for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+	for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 		p := parser(unit, "aéz", 0)
 		if !p.ClassesSkip(steps) || p.Pos != p.n {
 			t.Fatalf("unit %v: ClassesSkip(aéz) stopped at %d", unit, p.Pos)

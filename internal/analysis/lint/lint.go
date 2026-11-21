@@ -1,5 +1,5 @@
-// Package lint implements the grammar linter behind the public package zp/pkg/lint, which re-exports
-// its types, and behind the language server. It reports likely mistakes in ZeroParse grammars:
+// Package lint implements the grammar linter behind the public package sxir/pkg/lint, which re-exports
+// its types, and behind the language server. It reports likely mistakes in SyntaxIR grammars:
 // rules and alternatives that can never match, expressions that have no effect, captures that are
 // never read, and grammar shapes that defeat incremental parsing.
 //
@@ -16,10 +16,10 @@ import (
 	"slices"
 	"strings"
 
-	"zeroparse.dev/zp/internal/cancel"
-	"zeroparse.dev/zp/internal/frontend"
-	"zeroparse.dev/zp/internal/frontend/desugar"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/cancel"
+	"syntaxir.dev/sxir/internal/frontend"
+	"syntaxir.dev/sxir/internal/frontend/desugar"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Severity tells how likely a finding is to be a mistake.

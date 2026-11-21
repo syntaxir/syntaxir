@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 func at(p ast.Pos) string {

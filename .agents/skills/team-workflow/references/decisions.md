@@ -41,7 +41,7 @@
   defer structure or naming work to "after the next train".
 - Release scope is not cut to gain speed. Compress the schedule by parallel and stacked
   work.
-- Before the first release, the formats (`.zpc`, JSON, bytecode) and APIs may change
+- Before the first release, the formats (`.sxirc`, JSON, bytecode) and APIs may change
   incompatibly. Add no compatibility shims or version bumps for compatibility alone, and
   remove such shims when you touch them.
 - Code left unreachable by a change is deleted with the tests that exercise only it, in a

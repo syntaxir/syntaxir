@@ -9,7 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"zeroparse.dev/zp/internal/backend/codegen/golang/print"
+	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
 )
 
 func main() {

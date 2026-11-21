@@ -3,8 +3,8 @@ package libgo
 import (
 	"strings"
 
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // The value primitives of terms (the component values of exec.Parser) of the node and the typed library. The compositions
@@ -48,11 +48,11 @@ func intIndex(x any, n int) (int, bool) {
 }
 
 // valItems is the operation seq.items in the node library.
-func valItems(x any) ([]*zpvalue.Node, bool) {
+func valItems(x any) ([]*sxirvalue.Node, bool) {
 	switch x := x.(type) {
 	case nil:
 		return nil, true
-	case *zpvalue.Node:
+	case *sxirvalue.Node:
 		if x == nil {
 			return nil, true
 		}
@@ -73,8 +73,8 @@ func tvalItems(x any) ([]any, bool) {
 }
 
 // nodeOf is the operation node.of in the node library: x as a node, list, tuple or struct.
-func nodeOf(x any) (*zpvalue.Node, bool) {
-	n, ok := x.(*zpvalue.Node)
+func nodeOf(x any) (*sxirvalue.Node, bool) {
+	n, ok := x.(*sxirvalue.Node)
 	return n, ok && n != nil
 }
 
@@ -88,7 +88,7 @@ func seqKind(tuple bool) *valueimpl.Kind {
 
 // elemSpan is the operation seq.span: an element of a list or a tuple is a node, boxed if it was a scalar,
 // and nil adds no range.
-func elemSpan(it *zpvalue.Node) (int, int, bool) {
+func elemSpan(it *sxirvalue.Node) (int, int, bool) {
 	if it == nil {
 		return 0, 0, false
 	}
@@ -109,10 +109,10 @@ func (c *TActCtx) elemSpan(it any) (int, int, bool) {
 }
 
 // setSpan is the operation node.setSpan.
-func setSpan(n *zpvalue.Node, start, end int) { D(n).Start, D(n).End = int32(start), int32(end) }
+func setSpan(n *sxirvalue.Node, start, end int) { D(n).Start, D(n).End = int32(start), int32(end) }
 
 // made is the operation act.made.
-func (c *ActCtx) made(n *zpvalue.Node) { c.P.created = append(c.P.created, n) }
+func (c *ActCtx) made(n *sxirvalue.Node) { c.P.created = append(c.P.created, n) }
 
 // made is the operation act.made in the typed library.
 func (c *TActCtx) made(n TVal) { c.P.Created = append(c.P.Created, n) }

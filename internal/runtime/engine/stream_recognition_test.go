@@ -7,11 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/frontend/parser"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 func TestStreamCaptureRecognition(t *testing.T) {
@@ -50,7 +50,7 @@ func TestStreamCaptureRecognition(t *testing.T) {
 							wantClosureRefused(t, err)
 							continue
 						}
-						for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+						for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 							opts := ParseOptions{Backend: backend, Unit: unit}
 							for _, recognize := range []bool{false, true} {
 								opts.Recognize = recognize
@@ -91,7 +91,7 @@ func BenchmarkStreamCaptureRecognition(b *testing.B) {
 		// The old capture-bearing #stream recognizer is invalid. Its ordinary
 		// repetition is the equivalent successful baseline, since #stream has
 		// no effect on recognition. Keep grammar setup outside the timed loop.
-		if os.Getenv("ZP_BENCH_RECOGNITION_PLAIN") != "" {
+		if os.Getenv("SXIR_BENCH_RECOGNITION_PLAIN") != "" {
 			source = strings.ReplaceAll(source, " #stream", "")
 		}
 		g, err := parseTest(source)

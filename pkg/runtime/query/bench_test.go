@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/runtime/query"
-	"zeroparse.dev/zp/pkg/runtime/schema"
+	"syntaxir.dev/sxir/pkg/runtime/query"
+	"syntaxir.dev/sxir/pkg/runtime/schema"
 )
 
 var compileSink *query.Query

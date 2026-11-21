@@ -3,7 +3,7 @@ package query
 import (
 	"fmt"
 
-	"zeroparse.dev/zp/pkg/runtime/schema"
+	"syntaxir.dev/sxir/pkg/runtime/schema"
 )
 
 // Schema is an output schema validated once for compiling many queries. It owns a deep copy of

@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // FixedDescs are the descriptions of the fixed expectations of the runtime, in ExpID order: Any

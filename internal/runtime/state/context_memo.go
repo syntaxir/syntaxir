@@ -3,8 +3,8 @@ package state
 import (
 	"encoding/binary"
 
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // The dependency memo of left recursion (see "Evaluations of Rules" in spec/runtime/parsing.md

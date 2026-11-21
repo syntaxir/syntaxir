@@ -16,10 +16,10 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/internal/testing/compiletest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/compiletest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // TestUsedFeaturesKeepUserAPI checks that narrowing the library copy keeps every method that a user
@@ -51,7 +51,7 @@ func TestUsedFeaturesKeepUserAPI(t *testing.T) {
 		name    string
 		configs []config
 	}{{"csv", append(plain, streaming...)}, {"json", plain}, {"python", plain}} {
-		src, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "testdata", "grammars", gr.name, gr.name+".zp"))
+		src, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "testdata", "grammars", gr.name, gr.name+".sxir"))
 		if err != nil {
 			t.Fatal(err)
 		}

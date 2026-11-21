@@ -3,10 +3,10 @@ package libgo
 import (
 	"fmt"
 
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
-// The typed Document runtime, appended to generated parsers made with both zp gen -types and
+// The typed Document runtime, appended to generated parsers made with both sxir gen -types and
 // -document: Document.ParseValue parses directly into typed values, which a typed Document keeps
 // privately (typedDocumentState) and publishes as read-only values that later results may share.
 // The generated CloneValue copies a published value.
@@ -98,7 +98,7 @@ func TypedDocumentParse[T any](d *Document, root *TRule, o parseOptions, a budge
 	}
 	if parseErr != nil {
 		switch parseErr.(type) {
-		case *zpvalue.SyntaxError, zpvalue.SyntaxErrors:
+		case *sxirvalue.SyntaxError, sxirvalue.SyntaxErrors:
 		default:
 			return res, parseErr
 		}
@@ -117,12 +117,12 @@ func TypedDocumentParse[T any](d *Document, root *TRule, o parseOptions, a budge
 // too; publishing their original pointers or Expected/Messages slices would let caller mutation
 // alter a later parse.
 func typedDocumentError(err error, control *BudgetControl) error {
-	clone := func(e *zpvalue.SyntaxError) *zpvalue.SyntaxError {
+	clone := func(e *sxirvalue.SyntaxError) *sxirvalue.SyntaxError {
 		control.Charge(1)
 		if e == nil {
 			return nil
 		}
-		out := new(zpvalue.SyntaxError)
+		out := new(sxirvalue.SyntaxError)
 		*out = *e
 		if e.Expected != nil {
 			control.Charge(uint64(len(e.Expected)))
@@ -143,11 +143,11 @@ func typedDocumentError(err error, control *BudgetControl) error {
 		return out
 	}
 	switch e := err.(type) {
-	case *zpvalue.SyntaxError:
+	case *sxirvalue.SyntaxError:
 		return clone(e)
-	case zpvalue.SyntaxErrors:
+	case sxirvalue.SyntaxErrors:
 		control.Charge(uint64(len(e)))
-		out := make(zpvalue.SyntaxErrors, len(e))
+		out := make(sxirvalue.SyntaxErrors, len(e))
 		for i, item := range e {
 			out[i] = clone(item)
 		}

@@ -15,10 +15,10 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/backend/codegen/golang/print"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/internal/testing/mutanttest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/mutanttest"
 )
 
 // streamCases are the grammars with a #stream repetition of the generated-code tests, and the checked-in
@@ -32,7 +32,7 @@ func streamCases(t *testing.T) []codegentest.Case {
 		}
 	}
 	for _, name := range []string{"csv"} {
-		src, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "testdata", "grammars", name, name+".zp"))
+		src, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "testdata", "grammars", name, name+".sxir"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -149,7 +149,7 @@ var (
 	// The traced copies, in a build with observability.
 	tracedStreamBodyRef = regexp.MustCompile(`(?m)^\tstreamRuleTraced\.Body = (e\d+)$`)
 	tracedBatchBodyRef  = regexp.MustCompile(`(?m)^\trulesTraced\[\d+\]\.Body = (e\d+)$`)
-	streamMethodRe      = regexp.MustCompile(`(?ms)^func (e\d+)\(p \*rt\.Parser(?:, _ int)?\) \(\*zpvalue\.Node, bool\) \{\n.*?^\}\n`)
+	streamMethodRe      = regexp.MustCompile(`(?ms)^func (e\d+)\(p \*rt\.Parser(?:, _ int)?\) \(\*sxirvalue\.Node, bool\) \{\n.*?^\}\n`)
 	methodRefRe         = regexp.MustCompile(`\be\d+\b`)
 	scopeVarRe          = regexp.MustCompile(`\bscope\d+\b`)
 	// streamStatements are the statements that the stream repetition adds to the batch body.
@@ -230,11 +230,11 @@ import (
 	"os"
 	"strings"
 
-	zprt "zeroparse.dev/zp/pkg/runtime/libgo"; zpinstrument "zeroparse.dev/zp/pkg/runtime/instrument"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"; sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 IMPORTS)
 
-var entries = []func(io.Reader, func(*zpvalue.Node) error, ...zprt.ParseOption) error{
+var entries = []func(io.Reader, func(*sxirvalue.Node) error, ...sxirrt.ParseOption) error{
 ENTRIES}
 
 func sum(v any) string {
@@ -272,15 +272,15 @@ func main() {
 	for i := range inputs {
 		for j, in := range inputs[i] {
 			for _, chunk := range []int{0, 1, 5} {
-				var events []zpinstrument.TraceEvent
+				var events []sxirinstrument.TraceEvent
 				var elems []any
 				reads := 0
-				emit := func(n *zpvalue.Node) error { elems = append(elems, [2]any{reads, n}); return nil }
-				err := entries[i](&reader{s: in, chunk: chunk, reads: &reads}, emit, zprt.WithTrace(func(e zpinstrument.TraceEvent) { events = append(events, e) }))
-				var prof zpinstrument.Profile
+				emit := func(n *sxirvalue.Node) error { elems = append(elems, [2]any{reads, n}); return nil }
+				err := entries[i](&reader{s: in, chunk: chunk, reads: &reads}, emit, sxirrt.WithTrace(func(e sxirinstrument.TraceEvent) { events = append(events, e) }))
+				var prof sxirinstrument.Profile
 				reads = 0
 				elems2 := 0
-				perr := entries[i](&reader{s: in, chunk: chunk, reads: &reads}, func(*zpvalue.Node) error { elems2++; return nil }, zprt.WithProfile(&prof))
+				perr := entries[i](&reader{s: in, chunk: chunk, reads: &reads}, func(*sxirvalue.Node) error { elems2++; return nil }, sxirrt.WithProfile(&prof))
 				snap := prof.Snapshot()
 				snap.Time = 0
 				for k := range snap.Rules {

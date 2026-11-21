@@ -11,12 +11,12 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"zeroparse.dev/zp/internal/driver/entry"
-	"zeroparse.dev/zp/internal/frontend/parser"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/input"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/input"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // A Mismatch is an operation after which the Document does not behave like a fresh parse: at a checkpoint
@@ -355,9 +355,9 @@ var corruptDocumentResult func(text string, tree map[string]any)
 func (r *replayer) check(event int) *Mismatch {
 	// Encode the Document's result before any other parse can move the nodes it shares.
 	var docErr, freshErr error
-	doc, docPanic := result(func() (n *zpvalue.Node, err error) { n, docErr = r.doc.Parse(); return n, docErr })
+	doc, docPanic := result(func() (n *sxirvalue.Node, err error) { n, docErr = r.doc.Parse(); return n, docErr })
 	text := r.doc.Text()
-	fresh, freshPanic := result(func() (*zpvalue.Node, error) { n, err := r.p.Parse(text, r.opts...); freshErr = err; return n, err })
+	fresh, freshPanic := result(func() (*sxirvalue.Node, error) { n, err := r.p.Parse(text, r.opts...); freshErr = err; return n, err })
 	if docPanic != "" || freshPanic != "" {
 		// A panic in the Document parse alone points at incremental parsing; in both, at the grammar or
 		// the engine.
@@ -400,7 +400,7 @@ func (r *replayer) check(event int) *Mismatch {
 // result parses and returns the value and error as a JSON-like tree: {"value": ..., "error": ...}, or the
 // panic value if the parse panicked. Strings that are not valid UTF-8, which JSON cannot hold, are also
 // listed quoted under "value_invalid_utf8", in tree order.
-func result(parse func() (*zpvalue.Node, error)) (tree map[string]any, panicked string) {
+func result(parse func() (*sxirvalue.Node, error)) (tree map[string]any, panicked string) {
 	defer func() {
 		if x := recover(); x != nil {
 			tree, panicked = nil, fmt.Sprint(x)
@@ -444,7 +444,7 @@ func expand(tree map[string]any) {
 }
 
 // invalidStrings returns the quoted texts and string values of the tree at n that are not valid UTF-8.
-func invalidStrings(n *zpvalue.Node) []any {
+func invalidStrings(n *sxirvalue.Node) []any {
 	if n == nil {
 		return nil
 	}
@@ -454,13 +454,13 @@ func invalidStrings(n *zpvalue.Node) []any {
 			l = append(l, strconv.Quote(s))
 		}
 	}
-	err := zpvalue.Walk(n, func(v zpvalue.WalkVisit) (zpvalue.WalkAction, error) {
+	err := sxirvalue.Walk(n, func(v sxirvalue.WalkVisit) (sxirvalue.WalkAction, error) {
 		if v.Node != nil {
 			add(v.Node.Text())
 		} else if s, ok := v.Value.(string); ok {
 			add(s)
 		}
-		return zpvalue.WalkContinue, nil
+		return sxirvalue.WalkContinue, nil
 	})
 	if err != nil {
 		l = append(l, "walk: "+err.Error())
@@ -474,10 +474,10 @@ func errorTree(err error) any {
 	if err == nil {
 		return nil
 	}
-	syntax := func(e *zpvalue.SyntaxError) any {
+	syntax := func(e *sxirvalue.SyntaxError) any {
 		return map[string]any{"pos": e.Pos, "line": e.Line, "col": e.Col, "expected": anyList(e.Expected), "messages": anyList(e.Messages)}
 	}
-	var all zpvalue.SyntaxErrors
+	var all sxirvalue.SyntaxErrors
 	if errors.As(err, &all) {
 		errs := make([]any, len(all))
 		for i, e := range all {
@@ -485,7 +485,7 @@ func errorTree(err error) any {
 		}
 		return map[string]any{"kind": "syntax errors", "errors": errs}
 	}
-	var one *zpvalue.SyntaxError
+	var one *sxirvalue.SyntaxError
 	if errors.As(err, &one) {
 		return map[string]any{"kind": "syntax error", "error": syntax(one)}
 	}

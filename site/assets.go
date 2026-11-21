@@ -30,7 +30,7 @@ type assetManifest struct {
 }
 
 // A playgroundAsset names a WASM binary and its runtime. The binary is stored either as is
-// (wasm/zp-<hash>.wasm) or gzip-compressed (wasm/zp-<hash>.wasm.gz), which the browser decompresses
+// (wasm/sxir-<hash>.wasm) or gzip-compressed (wasm/sxir-<hash>.wasm.gz), which the browser decompresses
 // before compiling; the hash is that of the stored bytes in both cases.
 type playgroundAsset struct {
 	Wasm          string `json:"wasm"`
@@ -45,11 +45,11 @@ type assetBytes struct {
 }
 
 var digestPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
-var legacyWasmPattern = regexp.MustCompile(`data-wasm="(?:\.\./)?playground/(wasm/zp-[0-9a-f]{16}\.wasm)"`)
+var legacyWasmPattern = regexp.MustCompile(`data-wasm="(?:\.\./)?playground/(wasm/sxir-[0-9a-f]{16}\.wasm)"`)
 
 // productionSite is the canonical origin of the published site; site/config.json names the same
 // origin as siteURL.
-const productionSite = "https://zeroparse.dev"
+const productionSite = "https://syntaxir.dev"
 
 // productionBranch is the branch that Workers Builds deploys to the production site.
 const productionBranch = "main"
@@ -95,13 +95,13 @@ func describeAssets(wasm, runtime []byte) playgroundAsset {
 	if bytes.HasPrefix(wasm, gzipMagic) {
 		ext = ".wasm.gz"
 	}
-	return playgroundAsset{Wasm: "wasm/zp-" + w[:16] + ext, WasmSHA256: w,
+	return playgroundAsset{Wasm: "wasm/sxir-" + w[:16] + ext, WasmSHA256: w,
 		Runtime: "runtime/wasm_exec-" + r[:16] + ".js", RuntimeSHA256: r}
 }
 
 func (a playgroundAsset) validate() error {
 	if !digestPattern.MatchString(a.WasmSHA256) || !digestPattern.MatchString(a.RuntimeSHA256) ||
-		(a.Wasm != "wasm/zp-"+a.WasmSHA256[:16]+".wasm" && a.Wasm != "wasm/zp-"+a.WasmSHA256[:16]+".wasm.gz") ||
+		(a.Wasm != "wasm/sxir-"+a.WasmSHA256[:16]+".wasm" && a.Wasm != "wasm/sxir-"+a.WasmSHA256[:16]+".wasm.gz") ||
 		a.Runtime != "runtime/wasm_exec-"+a.RuntimeSHA256[:16]+".js" {
 		return errors.New("invalid playground asset paths or hashes")
 	}
@@ -198,7 +198,7 @@ func readPreviousAssetsWithTinyGo(raw string, tinygoOut **assetBytes) (*assetByt
 		return nil, err
 	}
 	if status == http.StatusOK && !looksLikeJSONObject(b) {
-		// The domain serves something other than a ZeroParse site, such as the
+		// The domain serves something other than a SyntaxIR site, such as the
 		// placeholder of a newly created Worker: there is nothing to retain.
 		fmt.Fprintf(os.Stderr, "site: %s serves no playground asset manifest; building as a first deployment\n", base)
 		return nil, nil

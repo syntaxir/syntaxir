@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/enginetest"
-	"zeroparse.dev/zp/internal/testing/starttest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
+	"syntaxir.dev/sxir/internal/testing/starttest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 func analysisChain(n int, leafFirst bool) string {
@@ -202,9 +202,9 @@ func BenchmarkSampleAnalysis(b *testing.B) {
 	}
 	for _, name := range []string{"calculator", "minilang", "outline"} {
 		b.Run(name, func(b *testing.B) {
-			file := "../../examples/" + name + "/" + name + ".zp"
+			file := "../../examples/" + name + "/" + name + ".sxir"
 			if name == "calculator" {
-				file = "../../examples/calculator/calc.zp"
+				file = "../../examples/calculator/calc.sxir"
 			}
 			src, err := os.ReadFile(file)
 			if err != nil {

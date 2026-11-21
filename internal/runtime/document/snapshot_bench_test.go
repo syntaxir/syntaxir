@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/driver/entry"
-	. "zeroparse.dev/zp/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/driver/entry"
+	. "syntaxir.dev/sxir/internal/runtime/engine"
 )
 
 func benchmarkDocumentSnapshotEditRead(b *testing.B, prefix bool) {

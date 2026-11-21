@@ -3,7 +3,7 @@ package engine
 import (
 	"testing"
 
-	"zeroparse.dev/zp/pkg/runtime/instrument"
+	"syntaxir.dev/sxir/pkg/runtime/instrument"
 )
 
 // offCycleMemoCases are grammars where rule w, on no left-recursion cycle, is called at position 0

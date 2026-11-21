@@ -6,7 +6,7 @@
 
 ## Summary
 
-With `zp gen -types` (`codegen.Go{Types: true}`), a generated parser also defines a Go type for each type of the grammar
+With `sxir gen -types` (`codegen.Go{Types: true}`), a generated parser also defines a Go type for each type of the grammar
 and a function `ParseValue`, which parses like `Parse` and returns the result of the start rule as values of those
 types instead of `*Node`.
 
@@ -32,7 +32,7 @@ fields of each struct type and the resolved alias types), and the generator maps
 
 The types are declared in the package `types`, apart from the names that `parser.go` and `api.go` declare, so a
 grammar type keeps its name whatever it is (`Node`, `Parse`, `Walk`, ...). The names `types` declares itself (`TNode`,
-`Error`, `ZPHooks`, and `Unit`, `TupleN` and `ZPNodeTypes` where used) are an error for a grammar type.
+`Error`, `SXIRHooks`, and `Unit`, `TupleN` and `SXIRNodeTypes` where used) are an error for a grammar type.
 
 Every declared alias is exported as a Go alias to its resolved value representation: `type Alias = Word` in the
 grammar becomes `type Alias = *Word` in Go, and a list alias becomes an alias to the corresponding slice. Chained,
@@ -57,7 +57,7 @@ list type, an argument of `concat` or, for an element, an argument of `list` or 
 The read converts the Go value back into a value of the typed runtime and the place converts it to the same type
 again; converting to a type a value that the conversion to that type made gives the same value (an `Error` that
 became `nil` where a struct is expected stays `nil`, one that a join keeps stays), so the place holds what the
-conversion of the node's field gives. A value of a named node type reads back through `ZPHooks.Back`, which the types
+conversion of the node's field gives. A value of a named node type reads back through `SXIRHooks.Back`, which the types
 package completes in an `init` function, since the conversions of those values refer to the hooks themselves. A field of a plain type (an `int`, `string` or `bool`, an optional one, a struct, and a tuple or list of
 these, declared with one type by every struct that has a field of the name) reads as it does from a node: a list or
 struct field that a constructor leaves out is a nil slice or pointer, which a read turns into the zero value of the
@@ -134,7 +134,7 @@ The parity test generates every corpus grammar twice, with the typed runtime and
 that `ParseValue` returns the same values and errors, also when parsing concurrently. The corpus includes the cases two
 reviews found where the first version differed (the typed grammars of the code generator tests): field reads in actions, the order
 in which fields are evaluated, projections of names captured twice, of lists that `$n` also reaches and of nil
-values, and an `Error` where a list is expected; and grammars for the code paths of direct rules (`direct_*.zp`).
+values, and an `Error` where a list is expected; and grammars for the code paths of direct rules (`direct_*.sxir`).
 It runs in both position units.
 
 ### Conversion After the Parse

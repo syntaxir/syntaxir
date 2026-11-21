@@ -53,7 +53,7 @@ A parse has two limits and one separate option:
 |:--|:--|:--|:--|
 | Cost budget | `Limits.Budget` through `WithLimits` | `LimitError`, kind `LimitBudget` | `max(2^20, 1024 · n)` |
 | Input length | `Limits.MaxInput` through `WithLimits` | `LimitError`, kind `LimitInput` | `Unlimited` |
-| Nesting depth | `WithMaxDepth(int)` | a plain error, `nesting too deep: more than N nested recursive rule calls` | 100,000; 10,000,000 on the iterative VM; the generated default from `zp gen -max-depth` |
+| Nesting depth | `WithMaxDepth(int)` | a plain error, `nesting too deep: more than N nested recursive rule calls` | 100,000; 10,000,000 on the iterative VM; the generated default from `sxir gen -max-depth` |
 
 The same three controls exist in generated Go (package-local `WithLimits`, `WithMaxDepth`) and generated TypeScript
 (the `budget`, `maxInput` and `maxDepth` options, `ParseInterruptionError` with kinds `"budget-limit"` and
@@ -250,7 +250,7 @@ meaning.
 
 ### Go API
 
-The engine (`zp`) and generated Go packages expose the same names:
+The engine (`sxir`) and generated Go packages expose the same names:
 
 ```go
 const Unlimited = math.MaxUint64
@@ -282,7 +282,7 @@ any `Input` and `Depth`.
 
 ### Generated Code
 
-`zp gen -budget-controls` becomes `-limits`: it generates the controlled form, which charges compute and memory.
+`sxir gen -budget-controls` becomes `-limits`: it generates the controlled form, which charges compute and memory.
 Memory charges add no per-site cost (see below), so a separate generation flag for memory would buy nothing.
 [Decision 7](#decisions) records why measures are not selected at generation time, as optimization profiles are.
 
@@ -316,10 +316,10 @@ generated without them carry no charge. [Decision 2](#decisions) orders TypeScri
 ### Command Line
 
 The commands that run a parse (`parse`, `test`, `trace`, `profile`, `explain` and `edit-fuzz`) take `-max-compute`,
-`-max-memory`, `-max-input` and `-max-depth`. Each accepts a number, `0` for the default, or `unlimited`. `zp trace`
+`-max-memory`, `-max-input` and `-max-depth`. Each accepts a number, `0` for the default, or `unlimited`. `sxir trace`
 names its filter of the calls it shows `-show-depth`, so that `-max-depth` means the same in every command. The
-playground exposes the depth limit only, as its `maxDepth` field. `zp sample -budget` and
-`zp sample -max-depth` bound input generation, not a parse. They keep their names and are documented as unrelated.
+playground exposes the depth limit only, as its `maxDepth` field. `sxir sample -budget` and
+`sxir sample -max-depth` bound input generation, not a parse. They keep their names and are documented as unrelated.
 
 ### Static Bounds and the Classifier Default
 
@@ -353,14 +353,14 @@ the first release.
 | (new) | `Limits.Memory`, `LimitMemory` |
 | `LimitBudget` | `LimitCompute` |
 | (plain error) | `LimitDepth` |
-| `zp gen -budget-controls` | `zp gen -limits` |
+| `sxir gen -budget-controls` | `sxir gen -limits` |
 | `-budget` | `-max-compute` |
 | (new) | `-max-memory` |
 | TypeScript `budget`, `maxInput`, `maxDepth` | `limits: { compute, input, depth }`, plus `memory` |
 | TypeScript `"budget-limit"` | `"compute-limit"`, plus `"memory-limit"` and `"depth-limit"` |
 
 The rename touches `engine/`, `internal/runtime/limits`, `pkg/runtime/libgo/budget.go`, the generated `api.go` template, the TypeScript
-runtime, `cmd/zp`, `cmd/playground`, and the specification pages for parsing, generated parsers, streaming and
+runtime, `cmd/sxir`, `cmd/playground`, and the specification pages for parsing, generated parsers, streaming and
 Documents. `Limits`, `WithLimits`, `LimitError`, `LimitKind`, `ErrLimit` and `Unlimited` keep their names
 ([decision 1](#decisions)).
 
@@ -834,7 +834,7 @@ the prototype leaves out, in particular the decoded input, at 8 bytes per input 
    recovered. This is the one exception to the rule that `Unlimited` disables every field. Accepting it everywhere
    would let one input crash the process. Mapping it to the backend's largest safe depth would make `Unlimited` mean
    something other than unlimited.
-7. **One generation flag, `zp gen -limits`, compiles in every measure.** It replaces `-budget-controls`. Memory has no
+7. **One generation flag, `sxir gen -limits`, compiles in every measure.** It replaces `-budget-controls`. Memory has no
    hot-path cost, so selecting measures at generation time, as optimization profiles are selected, would add
    generated forms to test without benefit. That alternative is reconsidered if a future measure has a hot-path cost.
 8. **TypeScript takes a nested `limits: { compute, memory, input, depth }` object.** The kinds are

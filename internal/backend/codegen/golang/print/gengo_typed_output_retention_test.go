@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 var typedAllocatorControls = []struct {
@@ -24,7 +24,7 @@ var typedAllocatorControls = []struct {
 	{"individual", true, true, false},
 }
 
-// ZP_TYPED_OUTPUT_RETENTION_DIR preserves the generated fixture for the
+// SXIR_TYPED_OUTPUT_RETENTION_DIR preserves the generated fixture for the
 // retained-heap and parse-throughput benchmarks below. Normal tests clean it up.
 func TestGeneratedTypedOutputRetentionFixture(t *testing.T) {
 	t.Parallel()
@@ -77,7 +77,7 @@ rule small Token = t:("b") #atomic => Token{Text: text($t)}
 				if variant.legacy && strings.Contains(string(code), "s.bootstrap") {
 					t.Fatal("reference output used untracked bootstrap allocations")
 				}
-				dir := os.Getenv("ZP_TYPED_OUTPUT_RETENTION_DIR")
+				dir := os.Getenv("SXIR_TYPED_OUTPUT_RETENTION_DIR")
 				if dir == "" {
 					dir = t.TempDir()
 				} else {

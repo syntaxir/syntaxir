@@ -5,7 +5,7 @@ import (
 	"os/exec"
 	"testing"
 
-	"zeroparse.dev/zp/internal/testing/complexitytest"
+	"syntaxir.dev/sxir/internal/testing/complexitytest"
 )
 
 // TestOperatorsRefusedPartTSLinear checks the cost contract of an Operators Rule that nests in

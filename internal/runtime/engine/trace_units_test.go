@@ -1,15 +1,15 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package engine
 
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/frontend/parser"
-	"zeroparse.dev/zp/internal/testing/starttest"
-	"zeroparse.dev/zp/pkg/runtime"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/testing/starttest"
+	"syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 // TestTracedUnitsEqualUntraced checks that a traced parse charges exactly the units of an untraced one
@@ -28,7 +28,7 @@ func TestTracedUnitsEqualUntraced(t *testing.T) {
 	// smallest returns the smallest compute limit under which the parse succeeds.
 	smallest := func(back Backend, traced bool) uint64 {
 		for n := uint64(1); n < 200; n++ {
-			o := ParseOptions{Backend: back, Unit: zpinput.Bytes, Limits: runtime.Limits{Compute: n}}
+			o := ParseOptions{Backend: back, Unit: sxirinput.Bytes, Limits: runtime.Limits{Compute: n}}
 			if traced {
 				o.Trace = func(TraceEvent) {}
 			}

@@ -3,7 +3,7 @@ package libgo
 import (
 	"unsafe"
 
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // Scan sites: the records of the walks of the repetitions of one character without a maximum in
@@ -38,7 +38,7 @@ const scanHotSpan = 16
 // walk that builds a value, its elements (kids for a Node parse, tkids for a typed one).
 type scanRecord struct {
 	end, count, examined int
-	kids                 []*zpvalue.Node
+	kids                 []*sxirvalue.Node
 	tkids                []any
 }
 
@@ -128,7 +128,7 @@ func (p *Parser) ScanEnd(site, start, count int) {
 // scanHotSpan characters or more that took the rest from a record, the elements of the record, which
 // it shares (the gathered ones are dropped); otherwise the gathered elements, which a walk of that
 // length records at a hot site.
-func (p *Parser) ScanKids(site, start, base, count int) []*zpvalue.Node {
+func (p *Parser) ScanKids(site, start, base, count int) []*sxirvalue.Node {
 	if count < scanHotSpan {
 		return p.Kids(base)
 	}

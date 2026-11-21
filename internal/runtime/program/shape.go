@@ -1,8 +1,8 @@
 package program
 
 import (
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // SingleMode is how a parser takes the value of an expression where it takes one element: an

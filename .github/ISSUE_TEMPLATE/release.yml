@@ -1,6 +1,6 @@
 name: "Release"
 description: "Tagging, announcements, posts, launch measurement"
-projects: ["zeroparse/2"]
+projects: ["syntaxir/2"]
 body:
   - type: markdown
     attributes:

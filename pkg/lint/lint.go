@@ -1,4 +1,4 @@
-// Package lint reports likely mistakes in ZeroParse grammars: rules and alternatives that can never
+// Package lint reports likely mistakes in SyntaxIR grammars: rules and alternatives that can never
 // match, expressions that have no effect, captures that are never read, and grammar shapes that
 // defeat incremental parsing.
 //
@@ -12,8 +12,8 @@ package lint
 import (
 	"context"
 
-	impl "zeroparse.dev/zp/internal/analysis/lint"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	impl "syntaxir.dev/sxir/internal/analysis/lint"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Severity tells how likely a finding is to be a mistake.

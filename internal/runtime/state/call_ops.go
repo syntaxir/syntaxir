@@ -1,6 +1,6 @@
 package state
 
-import "zeroparse.dev/zp/pkg/runtime/value"
+import "syntaxir.dev/sxir/pkg/runtime/value"
 
 // The engine's implementations of the operations of the call protocol that its printed
 // compositions call (call_exec.go, printed from internal/ir/code/exec/compose): the call state, the context

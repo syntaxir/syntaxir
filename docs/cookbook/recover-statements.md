@@ -7,8 +7,8 @@ Put `#recover` on the statement rule, which every block body uses. A bad stateme
 that holds it, the recovery happens in the innermost block that contains the mistake, and the blocks around it are
 unaffected. The one rule to keep is that the skip must not eat a brace, or it would swallow the end of the block.
 
-```zp
-// script.zp
+```sxir
+// script.sxir
 package script
 
 type Name = node[string]
@@ -50,12 +50,12 @@ import (
 	"os"
 	"strings"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
-//go:embed script.zp
+//go:embed script.sxir
 var grammarSrc string
 
 const source = `set a = 1;
@@ -71,7 +71,7 @@ set f = 6;
 `
 
 func main() {
-	p, err := compiler.Compile(grammar.FromString("grammar.zp", grammarSrc), compiler.WithStart("main"))
+	p, err := compiler.Compile(grammar.FromString("grammar.sxir", grammarSrc), compiler.WithStart("main"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

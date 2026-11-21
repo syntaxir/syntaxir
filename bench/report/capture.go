@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"zeroparse.dev/zp/internal/bench/inputs"
-	"zeroparse.dev/zp/internal/bench/probe"
+	"syntaxir.dev/sxir/internal/bench/inputs"
+	"syntaxir.dev/sxir/internal/bench/probe"
 )
 
 // tsWorkload is a workload measured on the generated TypeScript parser: the grammar and the input
@@ -20,13 +20,13 @@ type tsWorkload struct {
 }
 
 var tsWorkloads = []tsWorkload{
-	{"JSON", "testdata/grammars/json/json.zp", func() string { return inputs.JSONInput(256 << 10) }},
-	{"CSV", "testdata/grammars/csv/csv.zp", func() string { return inputs.CSVInput(5000) }},
-	{"XML", "testdata/grammars/xml/xml.zp", func() string { return inputs.XMLInput(256 << 10) }},
-	{"Arith_OperatorsRule", "examples/calculator/calc.zp", func() string { return inputs.ArithInput(20000) }},
-	{"Arith_LeftRec", "examples/calculator/calc_lr.zp", func() string { return inputs.ArithInput(20000) }},
-	{"Minilang", "examples/minilang/minilang.zp", func() string { return inputs.MinilangInput(300, 0) }},
-	{"Outline", "examples/outline/outline.zp", func() string { return inputs.OutlineInput(5000) }},
+	{"JSON", "testdata/grammars/json/json.sxir", func() string { return inputs.JSONInput(256 << 10) }},
+	{"CSV", "testdata/grammars/csv/csv.sxir", func() string { return inputs.CSVInput(5000) }},
+	{"XML", "testdata/grammars/xml/xml.sxir", func() string { return inputs.XMLInput(256 << 10) }},
+	{"Arith_OperatorsRule", "examples/calculator/calc.sxir", func() string { return inputs.ArithInput(20000) }},
+	{"Arith_LeftRec", "examples/calculator/calc_lr.sxir", func() string { return inputs.ArithInput(20000) }},
+	{"Minilang", "examples/minilang/minilang.sxir", func() string { return inputs.MinilangInput(300, 0) }},
+	{"Outline", "examples/outline/outline.sxir", func() string { return inputs.OutlineInput(5000) }},
 }
 
 // tsModes are the entry points of a generated TypeScript parser that are measured, by the name
@@ -40,7 +40,7 @@ var tsModes = []struct{ name, entry string }{
 // captureTS generates a TypeScript parser for every workload, measures each entry point in count
 // rounds of fresh Node processes (bench/ts-parse.mjs) and returns the results with a header.
 func captureTS(root, commit, work, node string, count int) ([]byte, error) {
-	zpBin, err := buildZP(root, work)
+	sxirBin, err := buildSXIR(root, work)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ func captureTS(root, commit, work, node string, count int) ([]byte, error) {
 			return nil, err
 		}
 		args := []string{"gen", "-lang", "ts", "-types", "-recognize", "-g", filepath.Join(root, w.grammar), "-o", filepath.Join(work, "ts", w.name)}
-		if _, err := execOut(root, nil, zpBin, args...); err != nil {
+		if _, err := execOut(root, nil, sxirBin, args...); err != nil {
 			return nil, err
 		}
 	}
@@ -111,7 +111,7 @@ func parserGenArgs(root, name string) ([]string, error) { return probe.GenTSArgs
 // library generated with it, each raw and compressed with gzip -9 (the whole lib.ts, which
 // -no-opt used-features writes, is recorded once as parser "runtime").
 func captureSizes(root, commit, work string) ([]byte, error) {
-	zpBin, err := buildZP(root, work)
+	sxirBin, err := buildSXIR(root, work)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +119,7 @@ func captureSizes(root, commit, work string) ([]byte, error) {
 	writeHeader(&b, commit)
 	fmt.Fprintln(&b, "# go binary: a main that calls ParseValue; go build -trimpath -ldflags=\"-s -w\"")
 	for _, name := range sizeParsers {
-		genDir, err := generateGo(root, zpBin, work, name)
+		genDir, err := generateGo(root, sxirBin, work, name)
 		if err != nil {
 			return nil, err
 		}
@@ -135,7 +135,7 @@ func captureSizes(root, commit, work string) ([]byte, error) {
 		fmt.Fprintf(&b, "size %s go-binary %d\n", name, bin)
 		// The same parser with its own copy of the library, narrowed to its features.
 		embedDir := filepath.Join(work, "gen-embed-"+name)
-		if err := probe.GenerateGo(root, zpBin, embedDir, name, "-lib", "embed"); err != nil {
+		if err := probe.GenerateGo(root, sxirBin, embedDir, name, "-lib", "embed"); err != nil {
 			return nil, err
 		}
 		lib, err := dirGoSize(filepath.Join(embedDir, "internal", "libgo"))
@@ -151,7 +151,7 @@ func captureSizes(root, commit, work string) ([]byte, error) {
 		if name == sizeParsers[0] {
 			// The whole library, which every copy had before it was narrowed.
 			fullDir := filepath.Join(work, "gen-full-"+name)
-			if err := probe.GenerateGo(root, zpBin, fullDir, name, "-lib", "embed", "-no-opt", "used-features"); err != nil {
+			if err := probe.GenerateGo(root, sxirBin, fullDir, name, "-lib", "embed", "-no-opt", "used-features"); err != nil {
 				return nil, err
 			}
 			full, err := dirGoSize(filepath.Join(fullDir, "internal", "libgo"))
@@ -165,7 +165,7 @@ func captureSizes(root, commit, work string) ([]byte, error) {
 			return nil, err
 		}
 		out := filepath.Join(work, "size-ts", name)
-		if _, err := execOut(root, nil, zpBin, append(append([]string{"gen", "-lang", "ts"}, args...), "-o", out)...); err != nil {
+		if _, err := execOut(root, nil, sxirBin, append(append([]string{"gen", "-lang", "ts"}, args...), "-o", out)...); err != nil {
 			return nil, err
 		}
 		raw, gz, err := sizeOfFile(filepath.Join(out, "parser.ts"))
@@ -181,7 +181,7 @@ func captureSizes(root, commit, work string) ([]byte, error) {
 		if name == sizeParsers[0] {
 			// The whole library, which every copy had before it was narrowed.
 			fullOut := filepath.Join(work, "size-ts-full", name)
-			if _, err := execOut(root, nil, zpBin, append(append([]string{"gen", "-lang", "ts", "-no-opt", "used-features"}, args...), "-o", fullOut)...); err != nil {
+			if _, err := execOut(root, nil, sxirBin, append(append([]string{"gen", "-lang", "ts", "-no-opt", "used-features"}, args...), "-o", fullOut)...); err != nil {
 				return nil, err
 			}
 			raw, gz, err := sizeOfFile(filepath.Join(fullOut, "lib.ts"))
@@ -218,9 +218,9 @@ func sizeOfFile(path string) (raw, gz int, err error) { return probe.SizeOfFile(
 
 // generateGo generates the Go parser of grammar name with the options of testdata/grammars/generate.txt
 // into the work directory and returns the directory.
-func generateGo(root, zpBin, work, name string) (string, error) {
+func generateGo(root, sxirBin, work, name string) (string, error) {
 	dir := filepath.Join(work, "gen-"+name)
-	return dir, probe.GenerateGo(root, zpBin, dir, name)
+	return dir, probe.GenerateGo(root, sxirBin, dir, name)
 }
 
 // buildBinary builds a program that calls ParseValue of the parser generated into genDir, in a module of
@@ -230,8 +230,8 @@ func buildBinary(root, work, name, genDir string) (int, error) {
 	return size, err
 }
 
-// buildZP builds the zp command of the repository into the work directory.
-func buildZP(root, work string) (string, error) { return probe.BuildZP(root, work) }
+// buildSXIR builds the sxir command of the repository into the work directory.
+func buildSXIR(root, work string) (string, error) { return probe.BuildSXIR(root, work) }
 
 // execOut runs a command in dir, with extra environment variables, and returns its standard output.
 func execOut(dir string, env []string, name string, args ...string) (string, error) {

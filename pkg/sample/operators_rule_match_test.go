@@ -3,8 +3,8 @@ package sample
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/testing/enginetest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 func TestOperatorsRuleStopSelectionStatus(t *testing.T) {

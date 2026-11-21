@@ -12,17 +12,17 @@ accepts in place of the source.
 
 ## Before You Start
 
-Complete [Building Typed Trees](typed-trees.md): you need `config.zp` and a Go module (`go mod init example.com/hello`).
+Complete [Building Typed Trees](typed-trees.md): you need `config.sxir` and a Go module (`go mod init example.com/hello`).
 
 ## Generating a Standalone Go Parser
 
-`zp gen` turns a grammar into Go source, so your program does not need the ZeroParse engine or the grammar at run time.
+`sxir gen` turns a grammar into Go source, so your program does not need the SyntaxIR engine or the grammar at run time.
 The generated package (`parser.go`, `api.go` and a copy of the parser library in `internal/libgo`) uses only the standard
-library and ZeroParse's small `pkg/runtime` packages, so your module still requires `zeroparse.dev/zp`. `-module` is the import
+library and SyntaxIR's small `pkg/runtime` packages, so your module still requires `syntaxir.dev/sxir`. `-module` is the import
 path the package will have, so it starts with your module path. Generate it into a `config` package:
 
 ```bash
-zp gen -g config.zp -module example.com/hello/config -o config
+sxir gen -g config.sxir -module example.com/hello/config -o config
 ```
 
 and call it:
@@ -53,7 +53,7 @@ Config{Entries: [Entry{Key: Key("port"), Value: Number("8080")}]}
 The generated `Node` type mirrors `value.Node`, and the generated parser gives the same trees and errors as the
 engine. `config.ParseRule(name, input)` starts at another rule. The generated entry points accept functional
 options: `config.Parse(input, config.WithUnit(config.Bytes), config.WithLimits(config.Limits{Depth: 600_000}))`.
-`zp gen -max-depth 600000` sets the generated default; omitted or zero keeps 100,000.
+`sxir gen -max-depth 600000` sets the generated default; omitted or zero keeps 100,000.
 
 ## Backends and Compiled Grammars
 
@@ -62,21 +62,21 @@ a bytecode VM that uses an explicit stack instead of the Go stack for deeply nes
 or in Go:
 
 ```bash
-zp parse -g config.zp -f sexpr -backend bytecode < example.conf
-zp parse -g config.zp -recognize -backend bytecode-iterative < example.conf   # recognize only, prints ok
+sxir parse -g config.sxir -f sexpr -backend bytecode < example.conf
+sxir parse -g config.sxir -recognize -backend bytecode-iterative < example.conf   # recognize only, prints ok
 ```
 
 ```go
 n, err := p.Parse("abc=12") // also runtime.WithUnit(input.Bytes); p.Recognize("abc=12") checks only; p.(*vm.Parser).Iterative() selects the iterative VM
 ```
 
-`zp compile -g config.zp -o config.zpc` saves a compiled grammar that `zp parse` accepts in place of the
-`.zp` file (`zp parse -g config.zpc ...`), and `vm.LoadParser` loads it without recompiling. The file serves
+`sxir compile -g config.sxir -o config.sxirc` saves a compiled grammar that `sxir parse` accepts in place of the
+`.sxir` file (`sxir parse -g config.sxirc ...`), and `vm.LoadParser` loads it without recompiling. The file serves
 the parses of one mode: `-mode parse` (the default) for parsing, `-mode recognize` for `-recognize`, and `-mode document`
 for documents and traces.
-`zp convert -to json config.zp` converts a grammar to JSON, which is handy for tools that generate grammars.
+`sxir convert -to json config.sxir` converts a grammar to JSON, which is handy for tools that generate grammars.
 The [Running Parsers](../guide/running-parsers.md) guide describes the backends and options in detail, and the
-[Compiled Grammars](../guide/compiled-grammars.md) guide the `.zpc` format.
+[Compiled Grammars](../guide/compiled-grammars.md) guide the `.sxirc` format.
 
 ## Next Steps
 

@@ -5,7 +5,7 @@ import (
 	"sort"
 	"testing"
 
-	. "zeroparse.dev/zp/internal/ir/code"
+	. "syntaxir.dev/sxir/internal/ir/code"
 )
 
 // storesFunc returns a function of the test module with the locals names, all ints, and the body.

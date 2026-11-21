@@ -3,8 +3,8 @@ package check
 import (
 	"strings"
 
-	"zeroparse.dev/zp/internal/syntax/fmt"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/syntax/fmt"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // HasZero reports whether the type t has a zero value, the value that an unset field of a struct

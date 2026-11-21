@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/bytecode"
+	"syntaxir.dev/sxir/pkg/bytecode"
 )
 
 // TestTermCodeEncoding checks that term code survives writing and reading, with operands that are

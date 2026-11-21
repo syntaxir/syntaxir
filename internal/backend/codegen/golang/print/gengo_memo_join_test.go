@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // TestGeneratedMemoJoin checks that a store in a generated Go parser never narrows the calls that
@@ -50,8 +50,8 @@ func testGeneratedMemoJoin(t *testing.T) {
 			for _, pkg := range []string{fmt.Sprintf("g%d", i), fmt.Sprintf("l%d", i)} {
 				codegentest.GeneratePackage(t, dir, pkg, mustParse(r.Src), common.GenOptions{Start: "s", Types: true, Recognize: true, Observability: true, LimitControls: pkg[0] == 'l'})
 				fmt.Fprintf(&imports, "\t%q\n", "codegentest/"+pkg)
-				for _, op := range []string{"_, _ = %s.Parse(%s, zprt.WithProfile(&p))", "_, _ = %s.ParseValue(%s, zprt.WithProfile(&p))", "_ = %s.Recognize(%s, zprt.WithProfile(&p))"} {
-					fmt.Fprintf(&calls, "\t{ var p zpinstrument.Profile; "+op+"; fmt.Print(evals(p), \" \") }\n", pkg, in)
+				for _, op := range []string{"_, _ = %s.Parse(%s, sxirrt.WithProfile(&p))", "_, _ = %s.ParseValue(%s, sxirrt.WithProfile(&p))", "_ = %s.Recognize(%s, sxirrt.WithProfile(&p))"} {
+					fmt.Fprintf(&calls, "\t{ var p sxirinstrument.Profile; "+op+"; fmt.Print(evals(p), \" \") }\n", pkg, in)
 				}
 			}
 			calls.WriteString("\tfmt.Println()\n")
@@ -62,11 +62,11 @@ func testGeneratedMemoJoin(t *testing.T) {
 import (
 	"fmt"
 
-	zprt "zeroparse.dev/zp/pkg/runtime/libgo"
-	zpinstrument "zeroparse.dev/zp/pkg/runtime/instrument"
+	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
+	sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
 ` + imports.String() + `)
 
-func evals(p zpinstrument.Profile) int {
+func evals(p sxirinstrument.Profile) int {
 	for _, r := range p.Snapshot().Rules {
 		if r.Rule == "k" {
 			return r.Evals

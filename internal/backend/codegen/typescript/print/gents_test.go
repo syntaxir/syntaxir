@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/frontend/parser"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // tsVariantLen is the length up to which TestGeneratedTSParsersMatchEngine also parses variants of
@@ -97,7 +97,7 @@ func TestGenerateTSErrors(t *testing.T) {
 		t.Errorf("got %v", err)
 	}
 	// Generating is deterministic.
-	src, _ := os.ReadFile("../../../../../testdata/grammars/json/json.zp")
+	src, _ := os.ReadFile("../../../../../testdata/grammars/json/json.sxir")
 	jg, err := parseTest(string(src))
 	if err != nil {
 		t.Fatal(err)

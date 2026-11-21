@@ -135,7 +135,7 @@ underlying type is the right-hand side. Only struct literals are allowed today;
 `type Int = int` parses but is a semantic error. `type T ~ U` is an alias: `T`
 is only another name that resolves to `U` and creates no type.
 
-```zp
+```sxir
 type T = {}   // a new type, distinct from {} and from any other definition
 type T ~ {}   // another name for the unnamed type {}
 ```
@@ -300,7 +300,7 @@ and every guide. Saved bytecode and schema formats need new versions.
   capture names are written only when the grammar is compiled with source
   information, as `"rule"` and `"captures"` members in JSON and as `@rule`
   and a `name:` label before the element in S-expressions, for example
-  `(k:["a"]@key ":" v:["1"]@num)@main`. `zp parse` does not request source
+  `(k:["a"]@key ":" v:["1"]@num)@main`. `sxir parse` does not request source
   information unless asked to.
 - **The Go node is opaque.** The public `Node` exposes methods only: its
   range, its value, the elements of a tuple or list value, and, with source

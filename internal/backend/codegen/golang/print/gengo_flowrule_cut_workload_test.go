@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
-// ZP_TYPED_CUT_DIR preserves both latest-generator variants so their test
+// SXIR_TYPED_CUT_DIR preserves both latest-generator variants so their test
 // binaries can be built once and measured in alternating benchmark runs.
 func TestGeneratedTypedCutWorkload(t *testing.T) {
 	t.Parallel()
@@ -30,7 +30,7 @@ rule row Row = "let" " " #cut key:[a-z]+ #atomic ":" value:[0-9]+ #atomic ";" / 
 	if err != nil {
 		t.Fatal(err)
 	}
-	dir := os.Getenv("ZP_TYPED_CUT_DIR")
+	dir := os.Getenv("SXIR_TYPED_CUT_DIR")
 	if dir == "" {
 		dir = t.TempDir()
 	}

@@ -1,6 +1,6 @@
 name: "Bug"
 description: "A defect: wrong behavior, panic, miscompilation"
-projects: ["zeroparse/2"]
+projects: ["syntaxir/2"]
 body:
   - type: markdown
     attributes:

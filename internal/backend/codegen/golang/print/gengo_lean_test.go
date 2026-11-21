@@ -9,12 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/backend/codegen/golang/print"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/runtime"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 // External rule-table entry and nested direct calls must count the same rule
@@ -69,31 +69,31 @@ rule left = left "+" "é" / "é"
 			t.Fatalf("unsupported direct route for %s in recRules", name)
 		}
 	}
-	if !strings.Contains(string(code), "var zpGrammar = rt.NewGrammar(100000)") {
+	if !strings.Contains(string(code), "var sxirGrammar = rt.NewGrammar(100000)") {
 		t.Fatal("generated depth default not found")
 	}
-	code = []byte(strings.Replace(string(code), "var zpGrammar = rt.NewGrammar(100000)", "var zpGrammar = rt.NewGrammar(5)", 1))
+	code = []byte(strings.Replace(string(code), "var sxirGrammar = rt.NewGrammar(100000)", "var sxirGrammar = rt.NewGrammar(5)", 1))
 	prog := mustCompile(t, src)
 	var rows strings.Builder
 	// Go literals preserve invalid UTF-8 bytes; the JSON-transport corpus would
 	// replace them before generated parsers receive the input.
 	for _, name := range []string{"main", "one", "two", "three", "four", "five", "cap", "bind", "cut", "recovering", "expression", "left"} {
 		for _, input := range []string{"é", "?", "é!", "-é", "é+é", "", "\xff", "\xffé", "\xe2\x82", "�é", "😀"} {
-			for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+			for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 				_, err := prog.ParseWith(name, input, engine.ParseOptions{Expectations: true, Unit: unit, Limits: runtime.Limits{Depth: 5}, Recognize: true})
-				fmt.Fprintf(&rows, "{%q,%q,%s,%s},\n", name, input, map[zpinput.PositionUnit]string{zpinput.CodePoints: "CodePoints", zpinput.Bytes: "Bytes"}[unit], strconv.Quote(fmt.Sprint(err)))
+				fmt.Fprintf(&rows, "{%q,%q,%s,%s},\n", name, input, map[sxirinput.PositionUnit]string{sxirinput.CodePoints: "CodePoints", sxirinput.Bytes: "Bytes"}[unit], strconv.Quote(fmt.Sprint(err)))
 			}
 		}
 	}
 	tests := `package depth
-import("fmt";"testing";zprt "zeroparse.dev/zp/pkg/runtime/libgo")
+import("fmt";"testing";sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo")
 func TestRoutesAndReuse(t *testing.T) {
  cases:=[]struct{name,input string; unit PositionUnit; want string}{` + rows.String() + `}
  for repeat:=0;repeat<3;repeat++ { for _,c:=range cases {
-  var selected *zprt.Rule
+  var selected *sxirrt.Rule
   for _,r:=range recRules {if r.Name==c.name {selected=r;break}}
   if selected==nil {t.Fatal(c.name)}
-  n,err:=zprt.RunParse(selected,c.input,[]ParseOption{WithExpectations(), WithUnit(c.unit)})
+  n,err:=sxirrt.RunParse(selected,c.input,[]ParseOption{WithExpectations(), WithUnit(c.unit)})
   if n!=nil {t.Fatalf("recognition built a value for %s",c.name)}
   if got:=fmt.Sprint(err);got!=c.want {t.Fatalf("%s %q unit%d: got %s want %s",c.name,c.input,c.unit,got,c.want)}
  }}

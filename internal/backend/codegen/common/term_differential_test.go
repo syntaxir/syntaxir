@@ -14,23 +14,23 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/driver/entry"
-	"zeroparse.dev/zp/internal/ir/code/exec/ref"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/internal/testing/mutanttest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/mutanttest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // termDifferentialCases is the number of terms of each seed. The tests that run in the process
 // (the reference evaluator and the engine's backends) read termProcessSeeds seeds, and the tests that
-// build generated parsers termGeneratedSeeds, which is larger under -tags zp_long; ZP_TERM_SEEDS
+// build generated parsers termGeneratedSeeds, which is larger under -tags sxir_long; SXIR_TERM_SEEDS
 // sets both for a longer search. The default of the first kills the mutants of the arithmetic that
 // the few seeds of a build did not reach (a floored remainder, a division that floors).
 const termDifferentialCases = 60
@@ -38,7 +38,7 @@ const termDifferentialCases = 60
 const termProcessSeedsDefault = 200
 
 func envSeeds(def uint64) uint64 {
-	if n, err := strconv.ParseUint(os.Getenv("ZP_TERM_SEEDS"), 10, 64); err == nil && n > 0 {
+	if n, err := strconv.ParseUint(os.Getenv("SXIR_TERM_SEEDS"), 10, 64); err == nil && n > 0 {
 		return n
 	}
 	return def
@@ -128,7 +128,7 @@ func TestTermEngineBackends(t *testing.T) {
 					var want string
 					for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 						var used uint64
-						n, err := prog.ParseWith("main", in, engine.ParseOptions{Backend: b, Unit: unit, Limits: zpruntime.Limits{Compute: 1 << 50},
+						n, err := prog.ParseWith("main", in, engine.ParseOptions{Backend: b, Unit: unit, Limits: sxirruntime.Limits{Compute: 1 << 50},
 							Trace: func(e engine.TraceEvent) { used = state.TraceParser(e).Control.Used }})
 						got := codegentest.ResultJSON(n, err)
 						if used == 0 {
@@ -141,7 +141,7 @@ func TestTermEngineBackends(t *testing.T) {
 						}
 					}
 					for _, b := range []engine.Backend{engine.Bytecode, engine.BytecodeIterative} {
-						n, err := loaded.ParseWith("main", in, engine.ParseOptions{Backend: b, Unit: unit, Limits: zpruntime.Limits{Compute: 1 << 50}})
+						n, err := loaded.ParseWith("main", in, engine.ParseOptions{Backend: b, Unit: unit, Limits: sxirruntime.Limits{Compute: 1 << 50}})
 						if got := codegentest.ResultJSON(n, err); got != want {
 							t.Errorf("%s: input %q unit %d: loaded backend %d gives\n %s\nclosure gives\n %s", c.Name, in, unit, b, got, want)
 						}

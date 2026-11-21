@@ -5,8 +5,8 @@ import (
 	"math/rand"
 	"testing"
 
-	. "zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/runtime/state"
+	. "syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/state"
 )
 
 // Grammars where a repetition runs at a position first outside a growth there, where its first

@@ -4,12 +4,12 @@ import (
 	"os"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/frontend"
-	"zeroparse.dev/zp/internal/frontend/astfacts"
-	"zeroparse.dev/zp/internal/frontend/desugar"
-	"zeroparse.dev/zp/internal/frontend/parser"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend"
+	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/desugar"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // TestRunSitesInClassification checks that the classifier's marking of run sites is off by default,
@@ -45,9 +45,9 @@ func TestRunSitesInClassification(t *testing.T) {
 func TestRunSitesMatchClassifier(t *testing.T) {
 	defer func() { runSitesOn = false }()
 	for _, name := range []string{
-		"testdata/grammars/cel/cel.zp", "testdata/grammars/cue/cue.zp", "testdata/grammars/duckdb/duckdb.zp",
-		"testdata/grammars/golang/golang.zp", "testdata/grammars/python/python.zp", "testdata/grammars/typescript/typescript.zp",
-		"testdata/grammars/xml/xml.zp", "testdata/grammars/yaml/yaml.zp", "examples/minilang/minilang.zp", "examples/outline/outline.zp",
+		"testdata/grammars/cel/cel.sxir", "testdata/grammars/cue/cue.sxir", "testdata/grammars/duckdb/duckdb.sxir",
+		"testdata/grammars/golang/golang.sxir", "testdata/grammars/python/python.sxir", "testdata/grammars/typescript/typescript.sxir",
+		"testdata/grammars/xml/xml.sxir", "testdata/grammars/yaml/yaml.sxir", "examples/minilang/minilang.sxir", "examples/outline/outline.sxir",
 	} {
 		src, err := os.ReadFile("../../../" + name)
 		if err != nil {

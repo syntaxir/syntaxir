@@ -13,7 +13,7 @@ the caller enables insertion. Existing consuming `#recover(skip=...)` retains it
 The nonempty-literal syntax and Closure whole-input option below define the initial slice.
 The remaining backend and generated-type APIs in this record are proposals:
 
-```zp
+```sxir
 rule main = name ";" #missing $$
 rule name = [a-z]+
 ```

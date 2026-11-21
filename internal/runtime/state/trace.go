@@ -1,8 +1,8 @@
 package state
 
 import (
-	"zeroparse.dev/zp/pkg/runtime/instrument"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/instrument"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // Tracing reports every rule call of a parse to a function (ParseOptions.Trace). It is built

@@ -1,6 +1,6 @@
 package exec
 
-import "zeroparse.dev/zp/internal/ir/code"
+import "syntaxir.dev/sxir/internal/ir/code"
 
 // Suspended is the state component of the calls whose split protocol is suspended while their rule
 // body runs.

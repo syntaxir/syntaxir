@@ -1,6 +1,6 @@
 package parser
 
-import "zeroparse.dev/zp/pkg/grammar/ast"
+import "syntaxir.dev/sxir/pkg/grammar/ast"
 
 // ExprPrefix is the rule header that ParseExpr puts before an expression: the
 // columns of the positions of the expression are those of src plus its length.

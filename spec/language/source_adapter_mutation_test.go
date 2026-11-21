@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/frontend/parser"
 )
 
 // mutationTokens are the pieces a mutation inserts: punctuation, keywords,
@@ -72,7 +72,7 @@ func mutationCorpus(t *testing.T) []string {
 			}
 			return nil
 		}
-		if filepath.Ext(path) == ".zp" {
+		if filepath.Ext(path) == ".sxir" {
 			b, err := os.ReadFile(path)
 			if err != nil {
 				return err

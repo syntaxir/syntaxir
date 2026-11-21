@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/ir/core"
+	"syntaxir.dev/sxir/internal/ir/core"
 )
 
 // passes runs the passes on m in turn, each followed by Analyze and Verify.

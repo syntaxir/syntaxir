@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/bytecode"
+	"syntaxir.dev/sxir/pkg/bytecode"
 )
 
 // TestFlowBodyRecoveries runs grammars with #recover from Flow bodies (checkFlowGrammars). A recovery
@@ -40,7 +40,7 @@ rule item = ("a" @error(message="want a") ";") #recover(skip=[^;]+ ";")`, []stri
 func TestFlowBodyRecoveryCorpora(t *testing.T) {
 	for _, name := range []string{"json", "cel"} {
 		dir := "../../../testdata/recovery"
-		src, err := os.ReadFile(filepath.Join(dir, name+".zp"))
+		src, err := os.ReadFile(filepath.Join(dir, name+".sxir"))
 		if err != nil {
 			t.Fatal(err)
 		}

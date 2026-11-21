@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	"zeroparse.dev/zp/internal/testing/enginetest"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // An error value that #recover produces is a node with a range and no value, so text(x) accepts a value

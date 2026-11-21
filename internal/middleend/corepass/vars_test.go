@@ -9,14 +9,14 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/frontend"
-	"zeroparse.dev/zp/internal/frontend/astfacts"
-	"zeroparse.dev/zp/internal/frontend/desugar"
-	"zeroparse.dev/zp/internal/frontend/elaborate"
-	"zeroparse.dev/zp/internal/middleend/corepass"
-	"zeroparse.dev/zp/internal/testing/compiletest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend"
+	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/desugar"
+	"syntaxir.dev/sxir/internal/frontend/elaborate"
+	"syntaxir.dev/sxir/internal/middleend/corepass"
+	"syntaxir.dev/sxir/internal/testing/compiletest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // The variables that the rule facts give each rule (Rule.Vars), against an independent closure of
@@ -304,7 +304,7 @@ func BenchmarkVariableDependencies(b *testing.B) {
 	}
 	cases = append(cases, struct{ name, src string }{"shared/128", variableGraph(128, false)}, struct{ name, src string }{"cyclic/128", variableGraph(128, true)})
 	cases = append(cases, struct{ name, src string }{"many-reads/chain-128", variableManyReads(128, false)}, struct{ name, src string }{"many-reads/cycle-128", variableManyReads(128, true)})
-	for _, path := range []string{"../../../examples/calculator/calc.zp", "../../../examples/minilang/minilang.zp", "../../../examples/outline/outline.zp", "../../../testdata/grammars/json/json.zp"} {
+	for _, path := range []string{"../../../examples/calculator/calc.sxir", "../../../examples/minilang/minilang.sxir", "../../../examples/outline/outline.sxir", "../../../testdata/grammars/json/json.sxir"} {
 		src, err := os.ReadFile(path)
 		if err != nil {
 			b.Fatal(err)

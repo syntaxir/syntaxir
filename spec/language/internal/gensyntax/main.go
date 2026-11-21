@@ -7,8 +7,8 @@ import (
 	"os"
 	"text/template"
 
-	"zeroparse.dev/zp/internal/frontend/parser"
-	syntaxfmt "zeroparse.dev/zp/internal/syntax/fmt"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
 )
 
 func main() {
@@ -19,7 +19,7 @@ func main() {
 }
 
 func generate() error {
-	full, err := os.ReadFile("../../zp.zp")
+	full, err := os.ReadFile("../../sxir.sxir")
 	if err != nil {
 		return err
 	}

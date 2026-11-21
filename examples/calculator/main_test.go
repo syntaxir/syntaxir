@@ -3,12 +3,12 @@ package main
 import (
 	"testing"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
 )
 
 func TestEval(t *testing.T) {
-	p, err := compiler.Compile(grammar.FromString("calc.zp", source), compiler.WithStart("main"))
+	p, err := compiler.Compile(grammar.FromString("calc.sxir", source), compiler.WithStart("main"))
 	if err != nil {
 		t.Fatal(err)
 	}

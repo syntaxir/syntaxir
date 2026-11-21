@@ -7,15 +7,15 @@ package compiletest
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/frontend"
-	"zeroparse.dev/zp/internal/frontend/desugar"
-	"zeroparse.dev/zp/internal/frontend/parser"
-	"zeroparse.dev/zp/internal/testing/starttest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend"
+	"syntaxir.dev/sxir/internal/frontend/desugar"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/testing/starttest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
-// Parse parses ZeroParse source for a test whose subject is not start rules: unless the source has
+// Parse parses SyntaxIR source for a test whose subject is not start rules: unless the source has
 // declaration attributes, every rule becomes a start rule, the first one the default.
 func Parse(src string) (*ast.Grammar, error) {
 	g, err := parser.Parse(src)

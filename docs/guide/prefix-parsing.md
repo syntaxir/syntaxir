@@ -16,12 +16,12 @@ import (
     "fmt"
     "log"
 
-    "zeroparse.dev/zp/pkg/compiler"
-    "zeroparse.dev/zp/pkg/grammar"
+    "syntaxir.dev/sxir/pkg/compiler"
+    "syntaxir.dev/sxir/pkg/grammar"
 )
 
 func main() {
-    parser, err := compiler.Compile(grammar.FromString("grammar.zp", `
+    parser, err := compiler.Compile(grammar.FromString("grammar.sxir", `
 @start(default)
 rule main = value $$
 @start

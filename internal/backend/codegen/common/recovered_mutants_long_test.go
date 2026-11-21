@@ -1,4 +1,4 @@
-//go:build zp_long
+//go:build sxir_long
 
 package common_test
 
@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/internal/testing/mutanttest"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/mutanttest"
 )
 
 // recoveredMutants each give a recovered value a wrong field or a wrong range in a struct: the engine's fields

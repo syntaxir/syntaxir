@@ -5,8 +5,8 @@ import (
 	"io"
 	"slices"
 
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/pass/pipe"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/pass/pipe"
 )
 
 // Plan is the plan of one rule table, which flowplan makes (flowplan.Plan, flowplan.PlanTyped): the

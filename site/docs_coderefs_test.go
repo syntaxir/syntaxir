@@ -89,7 +89,7 @@ var (
 	publicNames = map[string]bool{"maxDepth": true, "recRules": true}
 	// readerFileNames are files that readers create in their own projects.
 	readerFileNames = map[string]bool{"main.go": true, "main_test.go": true, "go.mod": true, "go.sum": true, "tools.go": true, "generate.go": true,
-		// the files that zp gen writes
+		// the files that sxir gen writes
 		"api.go": true, "parser.go": true, "types.go": true}
 )
 
@@ -517,7 +517,7 @@ func coderefProblems(refs []codeRef, list map[string]int) []string {
 // style.
 func TestDocumentCodeReferences(t *testing.T) {
 	refs := allCodeRefs(t, "..")
-	if dump := os.Getenv("ZP_CODEREFS_DUMP"); dump != "" {
+	if dump := os.Getenv("SXIR_CODEREFS_DUMP"); dump != "" {
 		counts := map[string]int{}
 		for _, r := range refs {
 			counts[r.key()]++
@@ -543,10 +543,10 @@ func TestDocumentCodeReferences(t *testing.T) {
 
 func TestCodeReferencesScanner(t *testing.T) {
 	c := &repoCode{
-		goFiles:     map[string]bool{"internal/runtime/state/scan.go": true, "cmd/zp/main.go": true},
+		goFiles:     map[string]bool{"internal/runtime/state/scan.go": true, "cmd/sxir/main.go": true},
 		goBases:     map[string]bool{"scan.go": true, "main.go": true},
 		goDirs:      map[string]bool{"internal/runtime/state": true},
-		codeDirs:    map[string]bool{"internal": true, "internal/runtime/engine": true, "internal/runtime/state": true, "internal/runtime/state/sub": true, "cmd": true, "cmd/zp": true},
+		codeDirs:    map[string]bool{"internal": true, "internal/runtime/engine": true, "internal/runtime/state": true, "internal/runtime/state/sub": true, "cmd": true, "cmd/sxir": true},
 		declared:    map[string]bool{"scanSpan": true, "seq": true},
 		unexported:  map[string]bool{"scanSpan": true},
 		internalPkg: map[string]bool{"core": true},
@@ -561,7 +561,7 @@ func TestCodeReferencesScanner(t *testing.T) {
 		"Run it as `go run main.go` and read main.go:3: error.\n" +
 		"```text\nmain.go:12:3: syntax error\n```\n" +
 		"```go\n// main.go\npackage main\n```\n" +
-		"The `zp.Parse` function takes `text`.\n"
+		"The `sxir.Parse` function takes `text`.\n"
 	var got []string
 	for _, r := range c.codeRefsIn("README.md", []byte(doc), false) {
 		got = append(got, r.kind+" "+r.token)

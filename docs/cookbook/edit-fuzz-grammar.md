@@ -5,14 +5,14 @@ the same text gives. Incremental reuse is where a grammar with state (a variable
 wrong in ways that a few hand-written edits never reach. You want a test that applies thousands of edits, undos and
 redos, a regression test for each failure it finds, and a place to write down a case you thought of yourself.
 
-The `editfuzz` package does what `zp edit-fuzz` does, inside `go test`. It applies random sequences of edits to a
+The `editfuzz` package does what `sxir edit-fuzz` does, inside `go test`. It applies random sequences of edits to a
 `Document`, and at each checkpoint compares its result with a fresh parse of `doc.Text()`: the values with their spans,
 and the errors with their positions and messages. The grammar here is the indentation grammar of
 [Parse indentation-based input](indentation.md), which keeps the current depth in a variable. That is the kind of
 grammar where a reused result can disagree with a fresh one.
 
-```zp
-// nested.zp
+```sxir
+// nested.sxir
 type Entry = {
     Key      node[string]
     Value    *node[string]
@@ -73,11 +73,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/editfuzz"
+	"syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/editfuzz"
 )
 
-//go:embed nested.zp
+//go:embed nested.sxir
 var grammar []byte
 
 // corpus reads the real files that the fuzzer starts its edits from.
@@ -215,7 +215,7 @@ from run to run.
 
 ## Variations and Limits
 
-- Start with `zp edit-fuzz -g nested.zp -corpus testdata/corpus` on the command line; it runs the same checks, and
+- Start with `sxir edit-fuzz -g nested.sxir -corpus testdata/corpus` on the command line; it runs the same checks, and
   `-replay` runs a saved sequence. See [Fuzzing edits](../guide/sampling-and-fuzzing.md#fuzzing-edits).
 - A grammar that is only edited in one unit needs only that unit; the bytes unit finds the edits that split a multibyte
   character, so test it for input that is not ASCII.

@@ -1,5 +1,5 @@
 // Measure generated TypeScript Node and typed entry points in one fresh process.
-// Export fixtures with ZP_TS_TYPED_DIR; see design 030 for the sampling protocol.
+// Export fixtures with SXIR_TS_TYPED_DIR; see design 030 for the sampling protocol.
 import {readFileSync} from "node:fs";
 import {createHash} from "node:crypto";
 import {resolve, join} from "node:path";
@@ -158,14 +158,14 @@ function collect() {
 // Result-producing calls and observation arguments stay off the module frame.
 function observeFresh() { return observe(invoke()); }
 function fillRetained() {
-  globalThis.__zpTypedRetainedResults = [];
-  for (let i = 0; i < retainCount; i++) globalThis.__zpTypedRetainedResults.push(invoke());
+  globalThis.__sxirTypedRetainedResults = [];
+  for (let i = 0; i < retainCount; i++) globalThis.__sxirTypedRetainedResults.push(invoke());
 }
-function observeRetained() { return observe(globalThis.__zpTypedRetainedResults[0]); }
-function releaseRetained() { globalThis.__zpTypedRetainedResults = null; }
+function observeRetained() { return observe(globalThis.__sxirTypedRetainedResults[0]); }
+function releaseRetained() { globalThis.__sxirTypedRetainedResults = null; }
 const initial = observeFresh(); // Only its bounded summary reaches module scope.
 const provenance = {
-  protocol: "zp-typed-typescript-process-v1", phase, fixture, size, unit: unitName, mode,
+  protocol: "sxir-typed-typescript-process-v1", phase, fixture, size, unit: unitName, mode,
   variant: args.variant ?? mode, revision_label: args.revision ?? "unspecified",
   entry_mode: entryMode, input_kind: inputKind, options: options ?? {unit},
   node_version: process.version, v8_version: process.versions.v8,

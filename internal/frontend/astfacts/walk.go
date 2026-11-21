@@ -1,6 +1,6 @@
 package astfacts
 
-import "zeroparse.dev/zp/pkg/grammar/ast"
+import "syntaxir.dev/sxir/pkg/grammar/ast"
 
 // WalkExpr visits the expression and its subexpressions in preorder, including the expression
 // arguments of attributes and the operand and operator expressions of an Operators Rule.

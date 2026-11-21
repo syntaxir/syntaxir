@@ -237,7 +237,7 @@ and read that leader's current result is not recorded, and that is the case
 that reusing it at the position of an open growth would get wrong. The
 condition is needed. In the grammar
 
-```zp
+```sxir
 rule main = r "!" / m "?"
 rule m = m "m" / l
 rule l = l "l" / m "k" / r

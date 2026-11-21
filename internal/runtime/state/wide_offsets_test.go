@@ -5,8 +5,8 @@ import (
 	"testing"
 	"unsafe"
 
-	"zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 // A code-point source too large for int32 offsets still gives text without copying: the first

@@ -1,8 +1,8 @@
 package compile
 
 import (
-	"zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/internal/runtime/program"
+	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/runtime/program"
 )
 
 // ExpID is an expectation (an index into descs); see program.ExpID.

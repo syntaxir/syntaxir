@@ -8,11 +8,11 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/runtime"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // traceLines parses input with a trace and returns one line per event:
@@ -192,7 +192,7 @@ func TestTraceKeepsResults(t *testing.T) {
 	for _, c := range codegentest.GenCorpus(t) {
 		prog := mustCompile(t, c.Src)
 		for _, in := range c.Inputs {
-			for _, u := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+			for _, u := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 				checkTrace(t, prog, "main", in, ParseOptions{Expectations: true, Unit: u})
 				checkTrace(t, prog, "main", in, ParseOptions{Expectations: true, Unit: u, Recognize: true})
 			}
@@ -533,7 +533,7 @@ func TestTracesAgreeAcrossBackends(t *testing.T) {
 	for _, c := range codegentest.GenCorpus(t) {
 		prog := mustCompile(t, c.Src)
 		for _, in := range c.Inputs {
-			for _, o := range []ParseOptions{{Expectations: true, Unit: zpinput.CodePoints}, {Unit: zpinput.Bytes}, {Unit: zpinput.CodePoints, Recognize: true}} {
+			for _, o := range []ParseOptions{{Expectations: true, Unit: sxirinput.CodePoints}, {Unit: sxirinput.Bytes}, {Unit: sxirinput.CodePoints, Recognize: true}} {
 				o.Backend = Closure
 				want, wantResult := dispatchFreeTrace(prog, in, o)
 				for _, b := range []Backend{Bytecode, BytecodeIterative} {
@@ -554,8 +554,8 @@ func TestTracesAgreeAcrossBackends(t *testing.T) {
 
 // firstCharEnd returns the position after the character at pos in the unit u: what a call that
 // looks at that character only has examined, which is pos+1 at the end of the input.
-func firstCharEnd(input string, pos int, u zpinput.PositionUnit) int {
-	if u == zpinput.Bytes && pos < len(input) {
+func firstCharEnd(input string, pos int, u sxirinput.PositionUnit) int {
+	if u == sxirinput.Bytes && pos < len(input) {
 		_, size := utf8.DecodeRuneInString(input[pos:])
 		return pos + size
 	}

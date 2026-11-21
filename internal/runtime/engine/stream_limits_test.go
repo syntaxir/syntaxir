@@ -6,11 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 func TestFiniteStreamRepetitions(t *testing.T) {
@@ -48,7 +48,7 @@ func TestFiniteStreamRepetitions(t *testing.T) {
 			for _, mode := range allModes {
 				programs = append(programs, saveLoad(t, prog, "main", mode))
 			}
-			for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+			for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 				var expected []string
 				refErr := prog.ParseStreamWith("main", strings.NewReader(tc.input), func(n *value.Node) error {
 					expected = append(expected, codegentest.ResultJSON(n, nil))
@@ -101,7 +101,7 @@ func TestZeroRepetitionDoesNotRunElement(t *testing.T) {
 		t.Run(src, func(t *testing.T) {
 			prog := mustCompile(t, src)
 			checkBackends(t, prog, "main", "ab")
-			for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+			for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 				want, err := prog.ParseWith("main", "ab", ParseOptions{Unit: unit})
 				if err != nil {
 					t.Fatal(err)
@@ -128,7 +128,7 @@ func TestFiniteStreamConsumerError(t *testing.T) {
 	prog := mustCompile(t, `rule main = "a" #repeat(1, 2) #stream $$`)
 	stop := errors.New("consumer stopped")
 	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+		for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 			count := 0
 			err := prog.ParseStreamWith("main", strings.NewReader("aaa"), func(*value.Node) error {
 				count++

@@ -8,15 +8,15 @@ import (
 	"testing/fstest"
 	"testing/iotest"
 
-	"zeroparse.dev/zp/pkg/grammar"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 const src = "rule main = \"a\"+\n"
 
 func jsonOf(t *testing.T) []byte {
 	t.Helper()
-	g, err := grammar.Load(grammar.FromString("g.zp", src))
+	g, err := grammar.Load(grammar.FromString("g.sxir", src))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,16 +42,16 @@ func loadedRules(t *testing.T, s grammar.Source) []string {
 
 func TestLoadDecidesTheEncoding(t *testing.T) {
 	data := jsonOf(t)
-	fsys := fstest.MapFS{"dir/g.zp": {Data: []byte(src)}, "dir/g.json": {Data: data}, "dir/g.txt": {Data: data}}
+	fsys := fstest.MapFS{"dir/g.sxir": {Data: []byte(src)}, "dir/g.json": {Data: data}, "dir/g.txt": {Data: data}}
 	for _, s := range []grammar.Source{
-		grammar.FromString("g.zp", src),
+		grammar.FromString("g.sxir", src),
 		grammar.FromString("", src),
 		grammar.FromBytes("g.json", data),
-		grammar.FromBytes("", data),                              // a leading brace means JSON
-		grammar.FromBytes("g", append([]byte(" \n"), data...)),   // after white space
-		grammar.FromString("g.json", src).As(grammar.EncodingZP), // the explicit encoding wins
-		grammar.FromReader("g.zp", strings.NewReader(src)),
-		grammar.FromFS(fsys, "dir/g.zp"),
+		grammar.FromBytes("", data),                                // a leading brace means JSON
+		grammar.FromBytes("g", append([]byte(" \n"), data...)),     // after white space
+		grammar.FromString("g.json", src).As(grammar.EncodingSXIR), // the explicit encoding wins
+		grammar.FromReader("g.sxir", strings.NewReader(src)),
+		grammar.FromFS(fsys, "dir/g.sxir"),
 		grammar.FromFS(fsys, "dir/g.json"),
 		grammar.FromFS(fsys, "dir/g.txt"),
 	} {
@@ -60,8 +60,8 @@ func TestLoadDecidesTheEncoding(t *testing.T) {
 		}
 	}
 	// The extension decides before the content.
-	if _, err := grammar.Load(grammar.FromBytes("g.zp", data)); err == nil {
-		t.Error("JSON named .zp loaded")
+	if _, err := grammar.Load(grammar.FromBytes("g.sxir", data)); err == nil {
+		t.Error("JSON named .sxir loaded")
 	}
 	if _, err := grammar.Load(grammar.FromString("g", src).As(grammar.EncodingJSON)); err == nil {
 		t.Error("grammar syntax loaded as JSON")
@@ -69,11 +69,11 @@ func TestLoadDecidesTheEncoding(t *testing.T) {
 }
 
 func TestSourceNameAndEncoding(t *testing.T) {
-	s := grammar.FromFS(fstest.MapFS{}, "a/b.zp")
-	if s.Name() != "a/b.zp" || s.Encoding() != grammar.EncodingAuto || s.As(grammar.EncodingJSON).Encoding() != grammar.EncodingJSON {
+	s := grammar.FromFS(fstest.MapFS{}, "a/b.sxir")
+	if s.Name() != "a/b.sxir" || s.Encoding() != grammar.EncodingAuto || s.As(grammar.EncodingJSON).Encoding() != grammar.EncodingJSON {
 		t.Fatalf("name %q, encoding %v", s.Name(), s.Encoding())
 	}
-	for e, want := range map[grammar.Encoding]string{grammar.EncodingAuto: "auto", grammar.EncodingZP: "zp", grammar.EncodingJSON: "json", 7: "Encoding(7)"} {
+	for e, want := range map[grammar.Encoding]string{grammar.EncodingAuto: "auto", grammar.EncodingSXIR: "sxir", grammar.EncodingJSON: "json", 7: "Encoding(7)"} {
 		if e.String() != want {
 			t.Errorf("%d: %q, want %q", int(e), e.String(), want)
 		}
@@ -81,14 +81,14 @@ func TestSourceNameAndEncoding(t *testing.T) {
 }
 
 func TestLoadErrors(t *testing.T) {
-	if _, err := grammar.Load(grammar.FromBytes("g.zpc", []byte("ZPC\x00rest"))); !errors.Is(err, grammar.ErrCompiled) {
+	if _, err := grammar.Load(grammar.FromBytes("g.sxirc", []byte("SXC\x00rest"))); !errors.Is(err, grammar.ErrCompiled) {
 		t.Errorf("compiled grammar: %v", err)
 	}
-	if _, err := grammar.Load(grammar.FromFS(fstest.MapFS{}, "missing.zp")); !errors.Is(err, fs.ErrNotExist) {
+	if _, err := grammar.Load(grammar.FromFS(fstest.MapFS{}, "missing.sxir")); !errors.Is(err, fs.ErrNotExist) {
 		t.Errorf("missing file: %v", err)
 	}
-	_, err := grammar.Load(grammar.FromString("g.zp", "rule main = (\n"))
-	if err == nil || strings.Contains(err.Error(), "g.zp") || !strings.HasPrefix(err.Error(), "1:") && !strings.HasPrefix(err.Error(), "2:") {
+	_, err := grammar.Load(grammar.FromString("g.sxir", "rule main = (\n"))
+	if err == nil || strings.Contains(err.Error(), "g.sxir") || !strings.HasPrefix(err.Error(), "1:") && !strings.HasPrefix(err.Error(), "2:") {
 		t.Errorf("syntax error without the name, with its position: %v", err)
 	}
 	if g, err := grammar.Load(grammar.Source{}); err != nil || len(g.Rules()) != 0 {
@@ -97,15 +97,15 @@ func TestLoadErrors(t *testing.T) {
 }
 
 func TestConvert(t *testing.T) {
-	data, err := grammar.Convert(grammar.FromString("g.zp", src), grammar.EncodingJSON)
+	data, err := grammar.Convert(grammar.FromString("g.sxir", src), grammar.EncodingJSON)
 	if err != nil || string(data) != string(jsonOf(t)) {
 		t.Fatalf("to JSON: %s, %v", data, err)
 	}
-	back, err := grammar.Convert(grammar.FromBytes("g.json", data), grammar.EncodingZP)
+	back, err := grammar.Convert(grammar.FromBytes("g.json", data), grammar.EncodingSXIR)
 	if err != nil || string(back) != src {
 		t.Fatalf("to grammar syntax: %q, %v", back, err)
 	}
-	if _, err := grammar.Convert(grammar.FromString("g.zp", src), grammar.EncodingAuto); err == nil {
+	if _, err := grammar.Convert(grammar.FromString("g.sxir", src), grammar.EncodingAuto); err == nil {
 		t.Error("converted to EncodingAuto")
 	}
 }
@@ -124,7 +124,7 @@ func TestValidateAndFormat(t *testing.T) {
 }
 
 func TestLoadDecodesJSONStrictly(t *testing.T) {
-	data, err := grammar.Convert(grammar.FromString("p.zp", "rule main = \"a\" { true }\n"), grammar.EncodingJSON)
+	data, err := grammar.Convert(grammar.FromString("p.sxir", "rule main = \"a\" { true }\n"), grammar.EncodingJSON)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,8 +147,8 @@ func TestLoadDecodesJSONStrictly(t *testing.T) {
 }
 
 func TestReaderSourceLoadsAgain(t *testing.T) {
-	s := grammar.FromReader("g.zp", strings.NewReader(src))
-	for i, c := range []grammar.Source{s, s, s.As(grammar.EncodingZP)} {
+	s := grammar.FromReader("g.sxir", strings.NewReader(src))
+	for i, c := range []grammar.Source{s, s, s.As(grammar.EncodingSXIR)} {
 		if got := loadedRules(t, c); len(got) != 1 || got[0] != "main" {
 			t.Errorf("load %d: rules %v", i, got)
 		}
@@ -157,7 +157,7 @@ func TestReaderSourceLoadsAgain(t *testing.T) {
 	if err != nil || string(data) != string(jsonOf(t)) {
 		t.Errorf("convert after loads: %s, %v", data, err)
 	}
-	failing := grammar.FromReader("r.zp", iotest.ErrReader(errors.New("boom")))
+	failing := grammar.FromReader("r.sxir", iotest.ErrReader(errors.New("boom")))
 	for range 2 {
 		if _, err := grammar.Load(failing); err == nil || err.Error() != "boom" {
 			t.Errorf("read error: %v", err)
@@ -171,16 +171,16 @@ func TestDecide(t *testing.T) {
 		s    grammar.Source
 		want grammar.Encoding
 	}{
-		{grammar.FromString("g.zp", src), grammar.EncodingZP},
+		{grammar.FromString("g.sxir", src), grammar.EncodingSXIR},
 		{grammar.FromBytes("g", append([]byte("\t"), data...)), grammar.EncodingJSON},
-		{grammar.FromString("g", src), grammar.EncodingZP},
-		{grammar.FromBytes("g.zp", data).As(grammar.EncodingJSON), grammar.EncodingJSON},
+		{grammar.FromString("g", src), grammar.EncodingSXIR},
+		{grammar.FromBytes("g.sxir", data).As(grammar.EncodingJSON), grammar.EncodingJSON},
 	} {
 		if got, err := c.s.Decide(); err != nil || got != c.want {
 			t.Errorf("%s: %v, %v; want %v", c.s.Name(), got, err, c.want)
 		}
 	}
-	if _, err := grammar.FromBytes("g", []byte("ZPC\x00")).Decide(); !errors.Is(err, grammar.ErrCompiled) {
+	if _, err := grammar.FromBytes("g", []byte("SXC\x00")).Decide(); !errors.Is(err, grammar.ErrCompiled) {
 		t.Errorf("compiled grammar: %v", err)
 	}
 }

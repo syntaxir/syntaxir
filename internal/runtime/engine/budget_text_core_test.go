@@ -1,4 +1,4 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package engine
 
@@ -10,17 +10,17 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/pkg/runtime"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 func TestBudgetTextFallbackBudgetCore(t *testing.T) {
 	t.Parallel()
-	for _, u := range []zpinput.PositionUnit{zpinput.Bytes, zpinput.CodePoints} {
+	for _, u := range []sxirinput.PositionUnit{sxirinput.Bytes, sxirinput.CodePoints} {
 		in := state.Input{Unit: u, Bs: make([]byte, 8192), In: make([]rune, 256), Control: state.NewBudgetControl(nil, runtime.Limits{Compute: 1})}
 		end := len(in.Bs)
-		if u == zpinput.CodePoints {
+		if u == sxirinput.CodePoints {
 			end = len(in.In)
 		}
 		if err := catchFatal(t, func() { _ = in.Text(0, end) }); !errors.Is(err, runtime.ErrLimit) {
@@ -56,7 +56,7 @@ rule piece = .*`
 		}
 		prog := mustCompile(t, grammar)
 		for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
-			for _, u := range []zpinput.PositionUnit{zpinput.Bytes, zpinput.CodePoints} {
+			for _, u := range []sxirinput.PositionUnit{sxirinput.Bytes, sxirinput.CodePoints} {
 				retained, err := prog.ParseWith("main", strings.Repeat("oldλ\xff", 90), ParseOptions{Backend: b, Unit: u, Limits: runtime.Limits{Compute: 1 << 50}})
 				if err != nil || retained == nil {
 					t.Fatalf("retained parse %v/%v: %v", b, u, err)
@@ -64,7 +64,7 @@ rule piece = .*`
 				before, _ := json.Marshal(retained)
 				for _, recognize := range []bool{false, true} {
 					for _, cancel := range []bool{false, true} {
-						if cancel && u == zpinput.Bytes {
+						if cancel && u == sxirinput.Bytes {
 							continue
 						}
 						var observed *state.Parser
@@ -82,7 +82,7 @@ rule piece = .*`
 									polls = 1
 								}
 								state.TraceParser(e).Control.Ctx = newPollingContext(polls)
-							} else if u == zpinput.CodePoints {
+							} else if u == sxirinput.CodePoints {
 								// A source substring of Bytes charges no input, so only
 								// code points see the tightened budget.
 								state.TraceParser(e).Control.Limits.Compute = state.TraceParser(e).Control.Used + 16
@@ -102,7 +102,7 @@ rule piece = .*`
 						// still polls, interrupts such a parse; the text of the trace hook in a
 						// recognition is the first text and is interrupted while decoding.
 						decodedEarly := !cancel && (!recognize || !traceText)
-						if u == zpinput.CodePoints && !decodedEarly {
+						if u == sxirinput.CodePoints && !decodedEarly {
 							target := runtime.ErrLimit
 							if cancel {
 								target = context.Canceled
@@ -130,10 +130,10 @@ rule piece = .*`
 
 func TestBudgetTextStepBudgetAndLazyOffsets(t *testing.T) {
 	t.Parallel()
-	for _, u := range []zpinput.PositionUnit{zpinput.Bytes, zpinput.CodePoints} {
+	for _, u := range []sxirinput.PositionUnit{sxirinput.Bytes, sxirinput.CodePoints} {
 		in := state.Input{Unit: u, Bs: make([]byte, 4097), In: make([]rune, 129), Control: state.NewBudgetControl(nil, runtime.Limits{Compute: 128})}
 		end := len(in.In)
-		if u == zpinput.Bytes {
+		if u == sxirinput.Bytes {
 			end = len(in.Bs)
 			in.Control.Limits.Compute = 1
 		}
@@ -144,7 +144,7 @@ func TestBudgetTextStepBudgetAndLazyOffsets(t *testing.T) {
 		}
 	}
 	source := "aé😀z"
-	in := state.Input{Unit: zpinput.CodePoints, Src: source, SrcOK: true, In: []rune(source), Control: state.NewBudgetControl(nil, runtime.Limits{Compute: 1})}
+	in := state.Input{Unit: sxirinput.CodePoints, Src: source, SrcOK: true, In: []rune(source), Control: state.NewBudgetControl(nil, runtime.Limits{Compute: 1})}
 	if err := catchFatal(t, func() { _ = in.Text(1, 3) }); !errors.Is(err, runtime.ErrLimit) || in.Offs != nil {
 		t.Fatalf("lazy offsets error=%v offsets=%v", err, in.Offs)
 	}
@@ -164,7 +164,7 @@ rule main Token = t:(.* $$) #atomic => Token{Text: text($t)}`, `rule main = item
 rule item = "!" #recover(skip=.*)`} {
 		prog := mustCompile(t, src)
 		for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
-			for _, u := range []zpinput.PositionUnit{zpinput.Bytes, zpinput.CodePoints} {
+			for _, u := range []sxirinput.PositionUnit{sxirinput.Bytes, sxirinput.CodePoints} {
 				for _, recognize := range []bool{false, true} {
 					opts := ParseOptions{Backend: b, Unit: u, Recognize: recognize}
 					want, wantErr := prog.ParseWith("main", input, opts)

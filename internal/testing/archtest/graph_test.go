@@ -18,7 +18,7 @@ import (
 )
 
 // modulePath is the path of the module whose graph the test checks.
-const modulePath = "zeroparse.dev/zp"
+const modulePath = "syntaxir.dev/sxir"
 
 // moduleRoot is the root directory of the module, relative to the directory of this package.
 const moduleRoot = "../../.."
@@ -50,11 +50,11 @@ func rel(p string) string {
 	return strings.TrimPrefix(p, modulePath+"/")
 }
 
-// buildTag matches a zp_ build tag in a build constraint.
-var buildTag = regexp.MustCompile(`zp_[a-z0-9_]*`)
+// buildTag matches a sxir_ build tag in a build constraint.
+var buildTag = regexp.MustCompile(`sxir_[a-z0-9_]*`)
 
 // referenceTags returns the tags that hack/test-reference-tags.sh checks without arguments: every
-// zp_ tag named in a build constraint of a Go file outside the dot directories, except zp_long.
+// sxir_ tag named in a build constraint of a Go file outside the dot directories, except sxir_long.
 func referenceTags(root string) ([]string, error) {
 	seen := map[string]bool{}
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
@@ -74,14 +74,14 @@ func referenceTags(root string) ([]string, error) {
 		if err != nil {
 			return err
 		}
-		if !bytes.Contains(data, []byte("zp_")) {
+		if !bytes.Contains(data, []byte("sxir_")) {
 			return nil
 		}
 		sc := bufio.NewScanner(bytes.NewReader(data))
 		sc.Buffer(nil, 1<<20)
 		for sc.Scan() {
 			line := sc.Text()
-			if strings.HasPrefix(line, "//go:build ") && strings.Contains(line, "zp_") {
+			if strings.HasPrefix(line, "//go:build ") && strings.Contains(line, "sxir_") {
 				for _, t := range buildTag.FindAllString(line, -1) {
 					seen[t] = true
 				}
@@ -92,7 +92,7 @@ func referenceTags(root string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	delete(seen, "zp_long")
+	delete(seen, "sxir_long")
 	tags := make([]string, 0, len(seen))
 	for t := range seen {
 		tags = append(tags, t)

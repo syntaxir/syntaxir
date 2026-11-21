@@ -1,6 +1,6 @@
 ---
 name: team-workflow
-description: Run ZeroParse development as a team of parallel lanes on one machine. Covers the per-machine state directory, worktrees, the landing train and its gates, the heavy-run queue, briefs, reviews, handovers and Issue #1 sync. Use when you lead or join a multi-lane session, integrate branches onto main, or run heavy tests or measurements next to other agents.
+description: Run SyntaxIR development as a team of parallel lanes on one machine. Covers the per-machine state directory, worktrees, the landing train and its gates, the heavy-run queue, briefs, reviews, handovers and Issue #1 sync. Use when you lead or join a multi-lane session, integrate branches onto main, or run heavy tests or measurements next to other agents.
 ---
 
 # Team Workflow
@@ -18,12 +18,12 @@ state directory below is disposable coordination scratch.
 
 ## Set up a machine
 
-1. The state directory is `$ZP_AGENT_STATE`, an absolute path that every lane on the machine
-   exports, for example `${XDG_STATE_HOME:-$HOME/.local/state}/zp-team`. It has no default: the
+1. The state directory is `$SXIR_AGENT_STATE`, an absolute path that every lane on the machine
+   exports, for example `${XDG_STATE_HOME:-$HOME/.local/state}/sxir-team`. It has no default: the
    scripts stop when it is unset, so no lane can fall into a private queue. The scripts in
    `.agents/scripts/` create it, its queue files and `wt/` on first use; `AGENTS.md` lists them
    with their usage. They need `bash`, `git` and `perl`.
-2. Create `$ZP_AGENT_STATE/review/` for handovers, and `landing-train.md` with the format line
+2. Create `$SXIR_AGENT_STATE/review/` for handovers, and `landing-train.md` with the format line
    from [landing train](references/landing-train.md).
 
 Layout: `landing-train.md` (the live queue of candidates), `landing-train-archive.md` (history

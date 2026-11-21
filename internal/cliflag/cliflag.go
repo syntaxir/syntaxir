@@ -1,12 +1,12 @@
 // Package cliflag parses the names that command-line flags and serialized files use for the
-// values of the zp options: position units. The zp command and the editfuzz sequence format
+// values of the sxir options: position units. The sxir command and the editfuzz sequence format
 // share it.
 package cliflag
 
 import (
 	"fmt"
 
-	"zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 // ParseUnit returns the unit named codepoints or bytes.

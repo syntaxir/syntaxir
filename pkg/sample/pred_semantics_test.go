@@ -3,8 +3,8 @@ package sample_test
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/pkg/sample"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/pkg/sample"
 )
 
 // predicateSemantics are grammars whose predicates the generator must decide as the parser does. Each

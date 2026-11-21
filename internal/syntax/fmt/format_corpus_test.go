@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/syntax/fmt"
-	"zeroparse.dev/zp/internal/testing/enginetest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/syntax/fmt"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // TestFormatRoundTripThroughParseGrammar checks, through the public API only, that Format is the
@@ -17,7 +17,7 @@ import (
 // (apart from source ranges) and printing it again gives the same text.
 func TestFormatRoundTripThroughParseGrammar(t *testing.T) {
 	var paths []string
-	for _, pattern := range []string{"../../../testdata/grammars/*/*.zp", "../../../examples/*/*.zp", "../../../zp.zp"} {
+	for _, pattern := range []string{"../../../testdata/grammars/*/*.sxir", "../../../examples/*/*.sxir", "../../../sxir.sxir"} {
 		m, err := filepath.Glob(pattern)
 		if err != nil {
 			t.Fatal(err)

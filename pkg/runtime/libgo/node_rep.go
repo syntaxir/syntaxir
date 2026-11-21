@@ -3,23 +3,23 @@ package libgo
 import (
 	"unsafe"
 
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // Data is the representation of a value.Node, which the library builds and reads nodes through.
 //
 // Data is for generated parsers; not a stable API.
-type Data = valueimpl.Data[zpvalue.Node]
+type Data = valueimpl.Data[sxirvalue.Node]
 
 // D returns the representation of the node n. A value.Node holds a Data as its only field, so
 // the conversion is free.
 //
 // D is for generated parsers; not a stable API.
-func D(n *zpvalue.Node) *Data { return (*Data)(unsafe.Pointer(n)) }
+func D(n *sxirvalue.Node) *Data { return (*Data)(unsafe.Pointer(n)) }
 
 // nodeOf returns the node whose representation is d.
-func nodeOfData(d *Data) *zpvalue.Node { return (*zpvalue.Node)(unsafe.Pointer(d)) }
+func nodeOfData(d *Data) *sxirvalue.Node { return (*sxirvalue.Node)(unsafe.Pointer(d)) }
 
 // The kinds of the reserved types without a rule that generated parsers name.
 //
@@ -47,4 +47,4 @@ const BaseString = valueimpl.BaseString
 var baseKinds = [...]*valueimpl.Kind{valueimpl.BaseString: valueimpl.MatchKind, valueimpl.BaseTuple: valueimpl.SeqKind, valueimpl.BaseList: valueimpl.ListKind}
 
 // shape returns what the node n stands for in the value model.
-func shape(n *zpvalue.Node) valueimpl.Shape { return valueimpl.ShapeOfKind(D(n).Kind, D(n).Terminal) }
+func shape(n *sxirvalue.Node) valueimpl.Shape { return valueimpl.ShapeOfKind(D(n).Kind, D(n).Terminal) }

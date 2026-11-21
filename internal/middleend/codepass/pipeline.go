@@ -1,8 +1,8 @@
 package codepass
 
 import (
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/pass/pipe"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/pass/pipe"
 )
 
 // The passes of Exec IR as a pipeline (design 063): transformations of a lowered module that keep the

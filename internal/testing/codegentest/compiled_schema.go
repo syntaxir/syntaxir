@@ -11,7 +11,7 @@ import (
 // grammars of testdata/grammars, which are the examples of the generated parsers.
 func CorpusWithParsers(t *testing.T) []Case {
 	cases := GenCorpus(t)
-	paths, err := filepath.Glob(path(t, "../../../testdata/grammars/*/*.zp"))
+	paths, err := filepath.Glob(path(t, "../../../testdata/grammars/*/*.sxir"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +36,7 @@ func shortSkips(src []byte) bool { return testing.Short() && len(src) > 20000 }
 // CorpusWithParsers leaves out in this run (in the short tier, the large ones), so that a test
 // that compares the corpus with a stored list can tell a stale entry from a grammar not run.
 func CorpusWithParsersSkipped(t *testing.T) map[string]bool {
-	paths, err := filepath.Glob(path(t, "../../../testdata/grammars/*/*.zp"))
+	paths, err := filepath.Glob(path(t, "../../../testdata/grammars/*/*.sxir"))
 	if err != nil {
 		t.Fatal(err)
 	}

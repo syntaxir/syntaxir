@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math"
 
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // Keep only small recovery scratch slices across stream elements. The

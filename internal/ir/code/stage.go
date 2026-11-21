@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	"zeroparse.dev/zp/internal/pass/pipe"
+	"syntaxir.dev/sxir/internal/pass/pipe"
 )
 
 // Modules at a stage as units of the pipeline (design record 074, Units and Kinds).

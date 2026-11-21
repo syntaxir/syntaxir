@@ -12,7 +12,7 @@
 # iterations, so compare B/op only between runs of the same BENCHTIME.
 set -eu
 sourcebench_repo=$(CDPATH= cd "$(dirname "$0")/.." && pwd)
-sourcebench_dir=$(mktemp -d "${TMPDIR:-/tmp}/zp-sourcebench.XXXXXX")
+sourcebench_dir=$(mktemp -d "${TMPDIR:-/tmp}/sxir-sourcebench.XXXXXX")
 trap 'rm -rf "$sourcebench_dir"' 0
 sourcebench_rounds=${ROUNDS:-20}
 sourcebench_time=${BENCHTIME:-500ms}

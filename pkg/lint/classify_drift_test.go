@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"zeroparse.dev/zp/internal/analysis/complexity"
+	"syntaxir.dev/sxir/internal/analysis/complexity"
 )
 
 // TestClassifyMirrorsImplementation checks that the classes and cause kinds of the public package

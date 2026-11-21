@@ -18,7 +18,7 @@ func TestSavedCompiledGrammarLabelMapsToCurrentName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if value := r.bench["Prepare/json/zpc/parse/bytecode"]; value == nil || value.ns != 123 || len(r.order) != 1 {
+	if value := r.bench["Prepare/json/sxirc/parse/bytecode"]; value == nil || value.ns != 123 || len(r.order) != 1 {
 		t.Fatalf("saved compiled-grammar label not mapped: %+v", r)
 	}
 }

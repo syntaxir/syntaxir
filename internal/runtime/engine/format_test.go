@@ -9,12 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/frontend/parser"
-	"zeroparse.dev/zp/internal/syntax/fmt"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/syntax/fmt"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 func TestFormatPreservesMinusSemantics(t *testing.T) {
@@ -33,7 +33,7 @@ func TestFormatPreservesMinusSemantics(t *testing.T) {
 				for _, input := range []string{"", "a", "b", "aa", "ab", "ac"} {
 					checkBackends(t, before, "main", input)
 					checkBackends(t, after, "main", input)
-					for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+					for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 						for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
 							opts := ParseOptions{Backend: backend, Unit: unit}
 							n1, err1 := before.ParseWith("main", input, opts)
@@ -63,7 +63,7 @@ func TestFormatPreservesCorpus(t *testing.T) {
 	for _, c := range codegentest.GenCorpus(t) {
 		sources = append(sources, source{c.Name, c.Src, c.Inputs})
 	}
-	out, err := exec.Command("git", "-C", "../../..", "ls-files", "*.zp").Output()
+	out, err := exec.Command("git", "-C", "../../..", "ls-files", "*.sxir").Output()
 	if errors.Is(err, exec.ErrNotFound) {
 		t.Skip("git ls-files:", err)
 	}
@@ -106,7 +106,7 @@ func TestFormatPreservesCorpus(t *testing.T) {
 			}
 			p1, p2 := mustCompile(t, s.src, compile.Options{NoProjections: true}), mustCompile(t, formatted, compile.Options{NoProjections: true})
 			for _, input := range s.inputs {
-				for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+				for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 					opts := ParseOptions{Unit: unit}
 					n1, err1 := p1.ParseWith("main", input, opts)
 					n2, err2 := p2.ParseWith("main", input, opts)

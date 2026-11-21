@@ -10,7 +10,7 @@ until EOF; `WithDiagnosticLimit` can bound the retained diagnostic tail.
 |  |  |
 |:--|:--|
 | Input | An `io.Reader`, possibly unbounded |
-| API | `Parser.ParseStream`, `Parser.Iterate`, and `zp parse -stream` on the command line |
+| API | `Parser.ParseStream`, `Parser.Iterate`, and `sxir parse -stream` on the command line |
 | Grammar | The start rule has a `#stream` repetition |
 | You get | Each element of that repetition, as soon as it matches |
 | Saves | Memory: neither the input nor the tree ever exists whole |
@@ -43,8 +43,8 @@ backends as well as the reference parser; recognition from a saved grammar requi
 `#stream` marks a repetition at the top level of the start rule. Everything the repetition matches is handed to your
 function one element at a time, and forgotten.
 
-```zp
-// kv.zp
+```sxir
+// kv.sxir
 package kv
 
 type Pair = { Key node[string]; Value node[string] }
@@ -57,20 +57,20 @@ rule key = [a-z_]+ #atomic
 rule value = [0-9]+ #atomic
 ```
 
-From the command line, `zp parse -stream` prints one line per element (JSON by default, `-f sexpr` for
+From the command line, `sxir parse -stream` prints one line per element (JSON by default, `-f sexpr` for
 S-expressions). Elements that matched before an error are printed, then the error is reported:
 
 ```bash
-printf 'a=1\nbb=22\nccc=x\n' | zp parse -g kv.zp -stream
+printf 'a=1\nbb=22\nccc=x\n' | sxir parse -g kv.sxir -stream
 ```
 
 ```text
 {"type":"Pair","start":0,"end":4,"fields":{"Key":{"start":0,"end":1,"value":"a"},"Value":{"start":2,"end":3,"value":"1"}}}
 {"type":"Pair","start":4,"end":10,"fields":{"Key":{"start":4,"end":6,"value":"bb"},"Value":{"start":7,"end":9,"value":"22"}}}
-zp: 3:5: syntax error: expected [0-9]
+sxir: 3:5: syntax error: expected [0-9]
 ```
 
-From Go (in a module that requires `zeroparse.dev/zp`):
+From Go (in a module that requires `syntaxir.dev/sxir`):
 
 ```go
 package main
@@ -79,10 +79,10 @@ import (
 	"fmt"
 	"os"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
-	"zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 const grammarSrc = `package kv
@@ -97,7 +97,7 @@ rule key = [a-z_]+ #atomic
 rule value = [0-9]+ #atomic `
 
 func main() {
-	p, err := compiler.Compile(grammar.FromString("grammar.zp", grammarSrc), compiler.WithStart("main"))
+	p, err := compiler.Compile(grammar.FromString("grammar.sxir", grammarSrc), compiler.WithStart("main"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
@@ -189,14 +189,14 @@ import (
 	"log"
 	"time"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // run feeds the chunks to the parser through a pipe, 200 ms apart, and prints when each element arrives.
 func run(grammarSrc string, chunks ...string) {
-	p, err := compiler.Compile(grammar.FromString("grammar.zp", grammarSrc), compiler.WithStart("main"))
+	p, err := compiler.Compile(grammar.FromString("grammar.sxir", grammarSrc), compiler.WithStart("main"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -274,7 +274,7 @@ The rules that matter when you write a grammar, in short:
   from the same position, which would deliver elements again. Left recursion inside an element, such as an
   `e = e "+" t / t` that `item` calls, is fine.
 - An element that can match nothing is delivered once and then ends the repetition. Without a guard like the `!$$` in
-  [alpha-parsers/csv](../../testdata/grammars/csv/csv.zp), a record rule whose fields and line end can all match nothing delivers
+  [alpha-parsers/csv](../../testdata/grammars/csv/csv.sxir), a record rule whose fields and line end can all match nothing delivers
   one extra empty record at the end of the input.
 - `WithUnit` and `Limits.Depth` work; `Recognize` is an error. After an element only the one
   character before it is kept, so `^` still works at the start of the next element.
@@ -308,14 +308,14 @@ import (
 	"fmt"
 	"strings"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
-	"zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 func compile(src string) runtime.Parser {
-	p, err := compiler.Compile(grammar.FromString("grammar.zp", src), compiler.WithStart("main"))
+	p, err := compiler.Compile(grammar.FromString("grammar.sxir", src), compiler.WithStart("main"))
 	if err != nil {
 		panic(err)
 	}
@@ -478,7 +478,7 @@ They count against `Limits.Memory` too, so a stream that recovers from errors an
 set a diagnostic limit.
 
 The effect on a real input, a 27 MiB CSV file with 1,000,000 records of five fields (Apple silicon, Go 1.27.1, the reference parser with the grammar of
-[alpha-parsers/csv](../../testdata/grammars/csv/csv.zp), the file read from disk, and a callback that only counts the records; the median of three runs, each in a process of its own with the machine to itself): `ParseStream` finished in about 2.1 seconds
+[alpha-parsers/csv](../../testdata/grammars/csv/csv.sxir), the file read from disk, and a callback that only counts the records; the median of three runs, each in a process of its own with the machine to itself): `ParseStream` finished in about 2.1 seconds
 with a peak resident size of about 18 MB, and `Parse` finished in about 1.3 seconds with about 1.45 GB. Streaming is not faster: it takes about 1.6 times the time and trades that for memory, and the memory is bounded by the working set rather than by the size of the input.
 
 The nodes handed to you are allocated in chunks, and a chunk stays reachable while anything in it is. The parser starts
@@ -496,10 +496,10 @@ import (
 	"os"
 	goruntime "runtime"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
-	"zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // Two grammars for the same input: the elements are either tuple nodes or structs built by an action.
@@ -535,7 +535,7 @@ func (r *repeat) Read(b []byte) (int, error) {
 }
 
 func main() {
-	p, err := compiler.Compile(grammar.FromString("grammar.zp", grammars[os.Args[1]]), compiler.WithStart("main"))
+	p, err := compiler.Compile(grammar.FromString("grammar.sxir", grammars[os.Args[1]]), compiler.WithStart("main"))
 	if err != nil {
 		panic(err)
 	}

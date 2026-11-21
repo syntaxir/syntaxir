@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 // TestScratchReuse checks that parses that reuse the buffers of earlier ones (state.AcquirePooledParser)

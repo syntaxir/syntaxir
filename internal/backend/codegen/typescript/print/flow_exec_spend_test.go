@@ -4,10 +4,10 @@ import (
 	"strings"
 	"testing"
 
-	tspass "zeroparse.dev/zp/internal/backend/codegen/typescript/pass"
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/flow"
-	"zeroparse.dev/zp/internal/pass"
+	tspass "syntaxir.dev/sxir/internal/backend/codegen/typescript/pass"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/flow"
+	"syntaxir.dev/sxir/internal/pass"
 )
 
 // TestFlowExecPrintsStepRunAsUnits checks that charges in a row, which the printer joins into one

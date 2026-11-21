@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/backend/codegen/golang/print"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/internal/testing/compiletest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/compiletest"
 )
 
 // featureCase is a grammar whose parses use the library feature f, with the options it needs and the
@@ -51,7 +51,7 @@ var featureCases = []featureCase{
 // TestFeatureWitness checks the witness of the feature analysis: a parser of each grammar whose
 // parses use a feature runs with the features the analysis finds, and the same parser generated with
 // that feature removed from the recorded set (the negative control) panics in its first use, so that
-// the check every generated-parser test runs under the tag zp_feature_witness can fail.
+// the check every generated-parser test runs under the tag sxir_feature_witness can fail.
 func TestFeatureWitness(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds generated code")

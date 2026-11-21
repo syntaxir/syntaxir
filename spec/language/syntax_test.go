@@ -10,16 +10,16 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/enginetest"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 )
 
-var zpBlock = regexp.MustCompile("(?ms)^([ \t]*)```zp[ \t]*\r?\n(.*?)^[ \t]*```[ \t]*$")
+var sxirBlock = regexp.MustCompile("(?ms)^([ \t]*)```sxir[ \t]*\r?\n(.*?)^[ \t]*```[ \t]*$")
 
 // Markdown removes the fence indentation from list-nested code blocks.
-func zpCodeBlocks(src string) []string {
+func sxirCodeBlocks(src string) []string {
 	var blocks []string
-	for _, m := range zpBlock.FindAllStringSubmatch(src, -1) {
+	for _, m := range sxirBlock.FindAllStringSubmatch(src, -1) {
 		lines := strings.Split(m[2], "\n")
 		for i := range lines {
 			lines[i] = strings.TrimPrefix(lines[i], m[1])
@@ -32,18 +32,18 @@ func zpCodeBlocks(src string) []string {
 // notExpressed lists the errors of the grammar reader that syntax.md says its grammar does not express.
 var notExpressed = []string{"invalid range", "invalid repetition", "invalid number"}
 
-// TestSyntaxSummary runs the grammar of syntax.md on every .zp file of the repository and on every zp
+// TestSyntaxSummary runs the grammar of syntax.md on every .sxir file of the repository and on every sxir
 // code block of the documentation, and requires it to accept exactly what enginetest.ParseGrammar accepts.
 func TestSyntaxSummary(t *testing.T) {
 	doc, err := os.ReadFile("syntax.md")
 	if err != nil {
 		t.Fatal(err)
 	}
-	blocks := zpCodeBlocks(string(doc))
+	blocks := sxirCodeBlocks(string(doc))
 	if len(blocks) != 1 {
-		t.Fatalf("syntax.md has %d zp code blocks, want 1", len(blocks))
+		t.Fatalf("syntax.md has %d sxir code blocks, want 1", len(blocks))
 	}
-	full, err := os.ReadFile("../../zp.zp")
+	full, err := os.ReadFile("../../sxir.sxir")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +87,7 @@ func TestSyntaxSummary(t *testing.T) {
 			return nil
 		}
 		switch filepath.Ext(path) {
-		case ".zp":
+		case ".sxir":
 			src, err := os.ReadFile(path)
 			if err != nil {
 				return err
@@ -99,7 +99,7 @@ func TestSyntaxSummary(t *testing.T) {
 			if err != nil {
 				return err
 			}
-			for i, m := range zpCodeBlocks(string(src)) {
+			for i, m := range sxirCodeBlocks(string(src)) {
 				blocksChecked++
 				check(fmt.Sprintf("%s block %d", path, i+1), m)
 			}
@@ -121,7 +121,7 @@ func TestSyntaxSummaryRejects(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := enginetest.CompileSource(zpCodeBlocks(string(doc))[0], "file")
+	p, err := enginetest.CompileSource(sxirCodeBlocks(string(doc))[0], "file")
 	if err != nil {
 		t.Fatal(err)
 	}

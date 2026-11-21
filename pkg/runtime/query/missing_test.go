@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/query"
-	"zeroparse.dev/zp/pkg/runtime/schema"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/query"
+	"syntaxir.dev/sxir/pkg/runtime/schema"
 )
 
 const missingSchemaGrammar = `type P = { M missing; E error; O *missing; L []missing }
@@ -15,7 +15,7 @@ rule semi = ";" #missing`
 
 func missingSchema(t *testing.T) *schema.Output {
 	t.Helper()
-	return mustSchema(t, mustCompile(t, missingSchemaGrammar), zpruntime.WithAllSchemaRules())
+	return mustSchema(t, mustCompile(t, missingSchemaGrammar), sxirruntime.WithAllSchemaRules())
 }
 
 // Patterns of errors apply to the values of the shape missing, and others do not.

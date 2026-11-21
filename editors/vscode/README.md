@@ -1,34 +1,34 @@
-# ZeroParse for Visual Studio Code
+# SyntaxIR for Visual Studio Code
 
-Support for [ZeroParse](https://github.com/zeroparse/zp) grammar files (`.zp`):
+Support for [SyntaxIR](https://github.com/syntaxir/syntaxir) grammar files (`.sxir`):
 
 - syntax highlighting (a TextMate grammar, which works on its own);
 - comment toggling, bracket matching and auto-closing pairs;
-- through the ZeroParse language server, `zp lsp`: errors as you type, formatting, go to definition, find references,
+- through the SyntaxIR language server, `sxir lsp`: errors as you type, formatting, go to definition, find references,
   the outline, hover with the type of each rule, rename, completion and semantic highlighting.
 
-See the [editor support guide](https://github.com/zeroparse/zp/blob/main/docs/guide/editor-support.md) for what the
+See the [editor support guide](https://github.com/syntaxir/syntaxir/blob/main/docs/guide/editor-support.md) for what the
 language server does.
 
 ## Requirements
 
-The language server is the `zp` command:
+The language server is the `sxir` command:
 
 ```sh
-go install zeroparse.dev/zp/cmd/zp@latest
+go install syntaxir.dev/sxir/cmd/sxir@latest
 ```
 
-VS Code must find `zp` on its `PATH`, or set `zp.server.path` to the command.
+VS Code must find `sxir` on its `PATH`, or set `sxir.server.path` to the command.
 
 ## Settings
 
 | Setting | Default | Meaning |
 |:--|:--|:--|
-| `zp.server.enabled` | `true` | Start the language server. Without it, only highlighting and the editing settings apply |
-| `zp.server.path` | `zp` | The `zp` command: a name looked up on the `PATH`, or an absolute path. In an untrusted workspace (Restricted Mode), the workspace's value is ignored, so that opening a folder cannot make VS Code run a program of its choosing |
-| `zp.trace.server` | `off` | Log the protocol messages (`messages` or `verbose`) in the *ZeroParse Language Server* output channel |
+| `sxir.server.enabled` | `true` | Start the language server. Without it, only highlighting and the editing settings apply |
+| `sxir.server.path` | `sxir` | The `sxir` command: a name looked up on the `PATH`, or an absolute path. In an untrusted workspace (Restricted Mode), the workspace's value is ignored, so that opening a folder cannot make VS Code run a program of its choosing |
+| `sxir.trace.server` | `off` | Log the protocol messages (`messages` or `verbose`) in the *SyntaxIR Language Server* output channel |
 
-The command **ZeroParse: Restart Language Server** restarts the server, for example after installing a new `zp`.
+The command **SyntaxIR: Restart Language Server** restarts the server, for example after installing a new `sxir`.
 Startup, restarts, server-setting changes and shutdown run in sequence. A replacement starts only after the
 previous client's cleanup succeeds, using the current server settings. Failed cleanup retains that client for
 the next cleanup attempt; a failed explicit restart rejects, while a setting-change failure is shown as an error.
@@ -42,8 +42,8 @@ The extension is plain JavaScript; it has no compile step. With Node.js 20 or la
 ```sh
 npm install            # the language client, and the tools below
 npm run check          # validate the JSON files and the TextMate grammar
-npm run package        # build zp-<version>.vsix with vsce
-code --install-extension zp-0.1.0.vsix
+npm run package        # build sxir-<version>.vsix with vsce
+code --install-extension sxir-0.1.0.vsix
 ```
 
 To try it without installing, open this directory in VS Code and press F5 (Run Extension): a new window opens with the
@@ -61,5 +61,5 @@ fields. These checks do not start a VS Code window or establish live editor beha
 `node scripts/bench-extension.js [extension.js]` measures sequential restart dispatch with immediate stand-ins
 (10,000 warmups, 200,000 measured restarts), excluding host, process and IPC costs. Its optional path compares
 another revision; overlapping operations have different intended behavior and are tested separately.
-`npm run check-server -- <path to zp>` starts the language server and talks to it with the JSON-RPC library of the
+`npm run check-server -- <path to sxir>` starts the language server and talks to it with the JSON-RPC library of the
 language client (initialize, diagnostics after an edit, hover, completion, formatting, shutdown).

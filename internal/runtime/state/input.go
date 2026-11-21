@@ -9,11 +9,11 @@ import (
 	"slices"
 	"unicode/utf8"
 
-	"zeroparse.dev/zp/internal/runtime/limits"
-	"zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/instrument"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/runtime/limits"
+	"syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/instrument"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // ParseOptions holds per-parse settings.

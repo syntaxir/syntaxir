@@ -498,7 +498,7 @@ exact main ranged as follows:
 | Generated Go typed parse (8 profiles) | 1.192–1.402× |
 
 The exact-parent comparison captures total implementation cost, including state
-layout. The same-source `zp_budget_controls_reference` disables core
+layout. The same-source `sxir_budget_controls_reference` disables core
 instrumentation checks but retains core state layout. It does not isolate
 generated-Go instrumentation: the generated sources are identical across those
 variants and retain `budgetControlsEnabled=true`. The generated-Go results above

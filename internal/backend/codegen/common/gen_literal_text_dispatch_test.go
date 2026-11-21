@@ -10,12 +10,12 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/driver/entry"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 func TestLiteralTextPredicateDispatchGeneration(t *testing.T) {
@@ -101,12 +101,12 @@ func TestLiteralTextPredicateSingleLiteralIsEquality(t *testing.T) {
 }
 
 // TestGeneratedLiteralDispatchWorkload preserves paired generated parsers for
-// separate library measurements when ZP_LITERAL_DISPATCH_DIR is set.
+// separate library measurements when SXIR_LITERAL_DISPATCH_DIR is set.
 func TestGeneratedLiteralDispatchWorkload(t *testing.T) {
 	t.Parallel()
-	dir := os.Getenv("ZP_LITERAL_DISPATCH_DIR")
+	dir := os.Getenv("SXIR_LITERAL_DISPATCH_DIR")
 	if dir == "" {
-		t.Skip("set ZP_LITERAL_DISPATCH_DIR to write standalone workload fixtures")
+		t.Skip("set SXIR_LITERAL_DISPATCH_DIR to write standalone workload fixtures")
 	}
 	workloads := []literalDispatchWorkload{
 		{name: "small", source: `rule main = w:[^!]+ #atomic {text($w) == "alpha" || "β" == text($w)} $$`, inputs: []literalDispatchInput{{Key: "hit-first", Value: "alpha"}, {Key: "hit-last-unicode", Value: "β"}, {Key: "miss", Value: "miss"}, {Key: "unicode-miss", Value: "éclair"}}},
@@ -126,9 +126,9 @@ func TestGeneratedLiteralDispatchWorkload(t *testing.T) {
 		for i := range workload.inputs {
 			input := &workload.inputs[i]
 			for _, unit := range []struct {
-				unit zpinput.PositionUnit
+				unit sxirinput.PositionUnit
 				key  string
-			}{{zpinput.CodePoints, "codePoints"}, {zpinput.Bytes, "bytes"}} {
+			}{{sxirinput.CodePoints, "codePoints"}, {sxirinput.Bytes, "bytes"}} {
 				_, parseErr := prog.ParseWith("main", input.Value, engine.ParseOptions{Expectations: true, Unit: unit.unit})
 				input.Expected = append(input.Expected, literalDispatchExpected{Unit: unit.key, Accepted: parseErr == nil})
 			}
@@ -155,7 +155,7 @@ func TestGeneratedLiteralDispatchWorkload(t *testing.T) {
 				}
 				fingerprint := sha256.Sum256(code)
 				api := "variadic-unit"
-				if strings.Contains(string(code), "func Parse(input string, opts ...zprt.ParseOption)") {
+				if strings.Contains(string(code), "func Parse(input string, opts ...sxirrt.ParseOption)") {
 					api = "functional-options"
 				}
 				if mode.types {

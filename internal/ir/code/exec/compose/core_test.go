@@ -3,7 +3,7 @@ package compose
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code"
 )
 
 // TestCompositionsDocumented checks that every composition has a doc and logs its Exec IR.

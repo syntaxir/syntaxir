@@ -1,11 +1,11 @@
-//go:build zp_long
+//go:build sxir_long
 
 package print_test
 
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // Every combination of entry points over the grammars whose typed entry points convert Nodes.

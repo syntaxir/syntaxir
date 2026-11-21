@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 func TestGeneratedNamedValue(t *testing.T) {
@@ -187,7 +187,7 @@ func testGeneratedNamedValueXMLFragments(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds generated XML workload")
 	}
-	source, err := os.ReadFile("../../../../../testdata/grammars/xml/xml.zp")
+	source, err := os.ReadFile("../../../../../testdata/grammars/xml/xml.sxir")
 	if err != nil {
 		t.Fatal(err)
 	}

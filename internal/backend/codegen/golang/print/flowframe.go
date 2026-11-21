@@ -1,6 +1,6 @@
 package print
 
-import "zeroparse.dev/zp/internal/backend/codegen/common"
+import "syntaxir.dev/sxir/internal/backend/codegen/common"
 
 // typedFrameComment returns the comment of the matcher of the body of the typed rule r that runs in
 // place under the runtime-owned frame (flowplan.TypedFrameOK): a left-recursion leader or a rule that

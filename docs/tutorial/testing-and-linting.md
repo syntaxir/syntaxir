@@ -9,7 +9,7 @@ A fixture suite for the configuration grammar, a lint run that finds a real mist
 
 ## Before You Start
 
-Complete [Building Typed Trees](typed-trees.md) and [Reporting Errors](errors.md): you need `config.zp` and `robust.zp`.
+Complete [Building Typed Trees](typed-trees.md) and [Reporting Errors](errors.md): you need `config.sxir` and `robust.sxir`.
 <!-- example: use docs/tutorial/typed-trees.md -->
 <!-- example: use docs/tutorial/errors.md -->
 
@@ -22,7 +22,7 @@ match, `rejected` for a syntax error, and `recovered` for a match that needed `#
 ```json
 {
   "version": 1,
-  "grammar": "config.zp",
+  "grammar": "config.sxir",
   "backends": ["closure", "bytecode"],
   "equivalence": true,
   "cases": [
@@ -36,7 +36,7 @@ match, `rejected` for a syntax error, and `recovered` for a match that needed `#
 ```
 
 ```bash
-zp test -f suite.json
+sxir test -f suite.json
 ```
 
 ```text
@@ -60,15 +60,15 @@ all fixtures passed
 
 Each case runs on both backends, and `"equivalence": true` also requires that the two backends produce the same tree and
 errors. A failing case prints `FAIL` with what differed and the command exits with status 1, so the suite works in a
-continuous integration job as it is. Cases can also pin the tree, the root range and the positions of errors; `zp test
+continuous integration job as it is. Cases can also pin the tree, the root range and the positions of errors; `sxir test
 -update` refreshes those expectations from the observed results.
 
 ## Linting
 
-`zp lint` examines a grammar without running it. Save a grammar with two mistakes as `buggy.zp`:
+`sxir lint` examines a grammar without running it. Save a grammar with two mistakes as `buggy.sxir`:
 
-```zp
-// buggy.zp
+```sxir
+// buggy.sxir
 @start
 rule main = "a" ws op ws "b" $$
 rule op = "<" / "<="
@@ -77,15 +77,15 @@ rule unused = "x"
 ```
 
 ```bash
-zp lint -g buggy.zp
+sxir lint -g buggy.sxir
 ```
 
 ```text
-buggy.zp:4:17: error: alternative 2 (`"<="`) can never match: alternative 1 (`"<"` at 4:11) matches first wherever it could [shadowed-alternative]
+buggy.sxir:4:17: error: alternative 2 (`"<="`) can never match: alternative 1 (`"<"` at 4:11) matches first wherever it could [shadowed-alternative]
 	fix: move it before alternative 1
-buggy.zp:6:1: warning: rule unused is never used: main does not call it, directly or indirectly [unreachable-rule]
+buggy.sxir:6:1: warning: rule unused is never used: main does not call it, directly or indirectly [unreachable-rule]
 	fix: remove the rule, or call it from a rule that main reaches
-zp: lint: 1 error, 1 warning, 0 hints
+sxir: lint: 1 error, 1 warning, 0 hints
 ```
 
 The first finding is the mistake of the previous lessons in disguise: `"<"` matches the start of `"<="`, so the
@@ -94,8 +94,8 @@ suggested fix. The command exits with status 1 if there is an error, and with `-
 of this tutorial are clean:
 
 ```bash
-zp lint -g config.zp
-zp lint -g robust.zp
+sxir lint -g config.sxir
+sxir lint -g robust.sxir
 ```
 
 A run with no findings prints nothing and exits with status 0.
@@ -105,12 +105,12 @@ Grammar to Linear Cost](../cookbook/linear-rewrites.md) shows the rewrite for ea
 
 ## Formatting
 
-`zp fmt` rewrites a grammar into the canonical layout and keeps comments. `-l` lists the files whose formatting
+`sxir fmt` rewrites a grammar into the canonical layout and keeps comments. `-l` lists the files whose formatting
 differs, `-w` rewrites them in place and `-check` lists them and exits with status 1, which suits CI:
 
 ```bash
-zp fmt -l config.zp robust.zp
-zp fmt -w config.zp
+sxir fmt -l config.sxir robust.sxir
+sxir fmt -w config.sxir
 ```
 
 ## Next Steps

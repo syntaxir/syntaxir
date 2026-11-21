@@ -5,8 +5,8 @@ import (
 	"slices"
 	"unicode/utf8"
 
-	"zeroparse.dev/zp/internal/frontend/astfacts"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // charset is a set of characters as sorted, disjoint, non-adjacent ranges. The classifier uses it

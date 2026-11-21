@@ -4,9 +4,9 @@ import (
 	"context"
 	"slices"
 
-	"zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/instrument"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/instrument"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // ParseOptions holds the settings of one parse, which ParseOption functions set. Parsers read it

@@ -3,8 +3,8 @@ package instrument
 import (
 	"fmt"
 
-	"zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // TraceKind tells what a TraceEvent reports: the start of a rule call, its end, or a call that the

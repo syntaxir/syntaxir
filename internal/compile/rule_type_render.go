@@ -4,7 +4,7 @@ import (
 	"slices"
 	"strings"
 
-	"zeroparse.dev/zp/internal/frontend/types"
+	"syntaxir.dev/sxir/internal/frontend/types"
 )
 
 // RuleTypeWithPoll is RuleTypeWithPoll.

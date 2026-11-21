@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/bench/inputs"
+	"syntaxir.dev/sxir/internal/bench/inputs"
 )
 
 // corpusCap bounds the budget of one corpus parse; a linear grammar stays far below it.
@@ -63,32 +63,32 @@ func corpusEntries() []corpusEntry {
 	const units = "hand-written units repeated under a list-like start rule"
 	one := func(f func(n int) string) func(n, v int) string { return func(n, _ int) string { return f(n) } }
 	return []corpusEntry{
-		{name: "json", grammar: "../../../testdata/grammars/json/json.zp", build: one(inputs.JSONInput), variants: 1,
+		{name: "json", grammar: "../../../testdata/grammars/json/json.sxir", build: one(inputs.JSONInput), variants: 1,
 			sizes: double(4096), shortSizes: double(1024), order: Linear, source: bench},
-		{name: "csv", grammar: "../../../testdata/grammars/csv/csv.zp", build: one(inputs.CSVInput), variants: 1,
+		{name: "csv", grammar: "../../../testdata/grammars/csv/csv.sxir", build: one(inputs.CSVInput), variants: 1,
 			sizes: double(100), shortSizes: double(25), order: Linear, source: bench},
-		{name: "xml", grammar: "../../../testdata/grammars/xml/xml.zp", build: one(inputs.XMLInput), variants: 1,
+		{name: "xml", grammar: "../../../testdata/grammars/xml/xml.sxir", build: one(inputs.XMLInput), variants: 1,
 			sizes: double(4096), shortSizes: double(1024), order: Linear, source: bench},
-		{name: "calc operators rule", grammar: "../../../examples/calculator/calc.zp", build: one(inputs.ArithInput), variants: 1,
+		{name: "calc operators rule", grammar: "../../../examples/calculator/calc.sxir", build: one(inputs.ArithInput), variants: 1,
 			sizes: double(100), shortSizes: double(25), order: Linear, source: bench},
-		{name: "calc left recursion", grammar: "../../../examples/calculator/calc_lr.zp", build: one(inputs.ArithInput), variants: 1,
+		{name: "calc left recursion", grammar: "../../../examples/calculator/calc_lr.sxir", build: one(inputs.ArithInput), variants: 1,
 			sizes: double(100), shortSizes: double(25), order: Linear, source: bench},
-		{name: "minilang", grammar: "../../../examples/minilang/minilang.zp",
+		{name: "minilang", grammar: "../../../examples/minilang/minilang.sxir",
 			build: one(func(n int) string { return inputs.MinilangInput(n, 0) }), variants: 1,
 			sizes: double(10), shortSizes: double(5), order: Linear, source: bench},
-		{name: "minilang recovery", grammar: "../../../examples/minilang/minilang.zp",
+		{name: "minilang recovery", grammar: "../../../examples/minilang/minilang.sxir",
 			build: one(func(n int) string { return inputs.MinilangInput(n, 7) }), variants: 1, syntaxErrors: true,
 			sizes: double(10), shortSizes: double(5), order: Linear, source: bench},
-		{name: "outline", grammar: "../../../examples/outline/outline.zp", build: one(inputs.OutlineInput), variants: 1,
+		{name: "outline", grammar: "../../../examples/outline/outline.sxir", build: one(inputs.OutlineInput), variants: 1,
 			sizes: double(100), shortSizes: double(25), order: Linear, source: bench},
-		{name: "golang", grammar: "../../../testdata/grammars/golang/golang.zp", variants: 3, source: units,
+		{name: "golang", grammar: "../../../testdata/grammars/golang/golang.sxir", variants: 3, source: units,
 			build: repeated("package p\n\n", []string{
 				"func f%d(a, b int) int {\n\treturn a*b + 1\n}\n\n",
 				"type T%d struct {\n\tA int\n\tB string\n}\n\n",
 				"var v%d = map[string][]int{\"a\": {1, 2}, \"b\": {3}}\n",
 			}, ""),
 			sizes: double(40), shortSizes: double(10), order: Linear},
-		{name: "python", grammar: "../../../testdata/grammars/python/python.zp", variants: 3, source: units,
+		{name: "python", grammar: "../../../testdata/grammars/python/python.sxir", variants: 3, source: units,
 			build: repeated("", []string{
 				"def f%d(x):\n    return x + 1\n\n",
 				"class C%d:\n    def m(self, a, b=1):\n        if a:\n            return b\n        return None\n\n",
@@ -97,7 +97,7 @@ func corpusEntries() []corpusEntry {
 			sizes: double(40), shortSizes: double(10), order: Linear},
 		// Parameter lists and dictionary displays whose actions fold over a list of at most one
 		// element: the / marker of the parameters, and the #repeat(,1) value of the display.
-		{name: "python bounded folds", grammar: "../../../testdata/grammars/python/python.zp", variants: 3,
+		{name: "python bounded folds", grammar: "../../../testdata/grammars/python/python.sxir", variants: 3,
 			source: "one parameter list or dictionary display that grows with n",
 			build: func(n, v int) string {
 				switch v {
@@ -109,7 +109,7 @@ func corpusEntries() []corpusEntry {
 				return "x = {" + list("", "%d: 1", ", ", "")(n) + "}\n"
 			},
 			sizes: double(500), shortSizes: double(100), order: Linear},
-		{name: "cel", grammar: "../../../testdata/grammars/cel/cel.zp", variants: 3, source: units,
+		{name: "cel", grammar: "../../../testdata/grammars/cel/cel.sxir", variants: 3, source: units,
 			build: repeated("true", []string{
 				" && request.auth.claims.email.endsWith(\"@example.com\") && %d > 0",
 				" && (resource.name.startsWith(\"p-\") || \"admin\" in groups) && %d > 0",
@@ -118,13 +118,13 @@ func corpusEntries() []corpusEntry {
 			sizes: double(40), shortSizes: double(10), order: Linear},
 		// A ladder of conditionals whose last branch is followed by a long run of spaces: every
 		// level of the ladder scans the run again from the same position.
-		{name: "cel conditional ladder", grammar: "../../../testdata/grammars/cel/cel.zp", variants: 1, source: "a ladder of n conditionals and n spaces",
+		{name: "cel conditional ladder", grammar: "../../../testdata/grammars/cel/cel.sxir", variants: 1, source: "a ladder of n conditionals and n spaces",
 			build: one(func(n int) string { return rep("a?b:", n) + "x" + rep(" ", n) }),
 			sizes: double(250), shortSizes: double(100), order: Linear},
 		// Prefix operators or right operands of ^ nested n deep: the levels that end at one
 		// position each try the operator parts after an operand again, and with them the skip,
 		// whose records answer every try after the first.
-		{name: "calc nested operator levels", grammar: "../../../examples/calculator/calc.zp", variants: 3,
+		{name: "calc nested operator levels", grammar: "../../../examples/calculator/calc.sxir", variants: 3,
 			source: "n nested negations or powers, then n spaces or nothing",
 			build: func(n, v int) string {
 				switch v {
@@ -136,28 +136,28 @@ func corpusEntries() []corpusEntry {
 				return rep("-", n) + "1"
 			},
 			sizes: double(250), shortSizes: double(100), order: Linear},
-		{name: "cue", grammar: "../../../testdata/grammars/cue/cue.zp", variants: 3, source: units,
+		{name: "cue", grammar: "../../../testdata/grammars/cue/cue.sxir", variants: 3, source: units,
 			build: repeated("package p\n\n", []string{
 				"a%d: 1 + 2\n",
 				"#D%d: {name!: string, age?: int & >=0}\n",
 				"l%d: [for i in [1, 2, 3] if i > 1 {i * 2}]\n",
 			}, ""),
 			sizes: double(40), shortSizes: double(10), order: Linear},
-		{name: "duckdb", grammar: "../../../testdata/grammars/duckdb/duckdb.zp", variants: 3, source: units,
+		{name: "duckdb", grammar: "../../../testdata/grammars/duckdb/duckdb.sxir", variants: 3, source: units,
 			build: repeated("", []string{
 				"SELECT a, b FROM t WHERE a > %d;\n",
 				"INSERT INTO t VALUES (%d, 'x');\n",
 				"WITH r AS (SELECT o.id, sum(o.total) AS s FROM orders AS o GROUP BY o.id) SELECT id, s FROM r WHERE id > %d ORDER BY s DESC LIMIT 10;\n",
 			}, ""),
 			sizes: double(40), shortSizes: double(10), order: Linear},
-		{name: "typescript", grammar: "../../../testdata/grammars/typescript/typescript.zp", variants: 3, source: units,
+		{name: "typescript", grammar: "../../../testdata/grammars/typescript/typescript.sxir", variants: 3, source: units,
 			build: repeated("", []string{
 				"export function f%d(a: number, b?: string): number {\n  return a * 2 + 1;\n}\n",
 				"interface P%d<T = number> {\n  x: T;\n  readonly y?: T;\n}\n",
 				"const v%d = async <T,>(xs: T[]) => xs.map((x) => x as unknown as string);\n",
 			}, ""),
 			sizes: double(40), shortSizes: double(10), order: Linear},
-		{name: "yaml", grammar: "../../../testdata/grammars/yaml/yaml.zp", variants: 3, source: units,
+		{name: "yaml", grammar: "../../../testdata/grammars/yaml/yaml.sxir", variants: 3, source: units,
 			build: repeated("", []string{
 				"key%d: value\n",
 				"- item%d\n",

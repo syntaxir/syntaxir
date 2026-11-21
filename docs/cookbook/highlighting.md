@@ -6,8 +6,8 @@ broken (the user is typing), so the tokenizer must never fail, and every charact
 Write a grammar of tokens, not of the language: a repetition of token rules, the last of which accepts any character.
 The tree is a flat list, and the highlighter turns each token into a `<span>`.
 
-```zp
-// tokens.zp
+```sxir
+// tokens.sxir
 type Comment = node[string]
 type Keyword = node[string]
 type Ident = node[string]
@@ -48,13 +48,13 @@ import (
 	"log"
 	"strings"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
-	"zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
-//go:embed tokens.zp
+//go:embed tokens.sxir
 var grammarSrc string
 
 // class maps the type of a token to a CSS class.
@@ -81,7 +81,7 @@ func Highlight(p runtime.Parser, src string) (string, error) {
 }
 
 func main() {
-	p, err := compiler.Compile(grammar.FromString("grammar.zp", grammarSrc), compiler.WithStart("main"))
+	p, err := compiler.Compile(grammar.FromString("grammar.sxir", grammarSrc), compiler.WithStart("main"))
 	if err != nil {
 		log.Fatal(err)
 	}

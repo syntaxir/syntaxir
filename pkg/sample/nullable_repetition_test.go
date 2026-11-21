@@ -3,7 +3,7 @@ package sample
 import (
 	"testing"
 
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 func TestNullableRepetitionMatcher(t *testing.T) {

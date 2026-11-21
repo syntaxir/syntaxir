@@ -4,8 +4,8 @@
 package nolowering
 
 import (
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/pass/pipe"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/pass/pipe"
 )
 
 var _ = pipe.Then(pipe.Seq(code.FlowStage), pipe.Seq(code.ExecStage))

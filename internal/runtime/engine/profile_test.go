@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/instrument"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/instrument"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 func TestProfile(t *testing.T) {
@@ -40,10 +40,10 @@ rule x = "x"+`)
 		}
 		x, y, m := got["x"], got["y"], got["main"]
 		if x.Calls != 6 || x.Evals != 6 || x.Matched != 6 || x.Failed != 0 || x.Consumed != 12 || x.Wasted != 0 ||
-			x.Repeats != 4 || x.MaxEvals != 3 || x.MaxEvalsAt != (instrument.CallSite{Location: zpinput.Location{Pos: 0, Line: 1, Col: 1}}) {
+			x.Repeats != 4 || x.MaxEvals != 3 || x.MaxEvalsAt != (instrument.CallSite{Location: sxirinput.Location{Pos: 0, Line: 1, Col: 1}}) {
 			t.Errorf("%v: x %+v", b, x)
 		}
-		if y.Calls != 2 || y.Failed != 2 || y.Wasted != 6 || y.LongestFail != 3 || y.LongestFailAt != (instrument.CallSite{Location: zpinput.Location{Pos: 0, Line: 1, Col: 1}}) || y.Repeats != 0 {
+		if y.Calls != 2 || y.Failed != 2 || y.Wasted != 6 || y.LongestFail != 3 || y.LongestFailAt != (instrument.CallSite{Location: sxirinput.Location{Pos: 0, Line: 1, Col: 1}}) || y.Repeats != 0 {
 			t.Errorf("%v: y %+v", b, y)
 		}
 		if m.Calls != 2 || m.Matched != 2 || m.Consumed != 6 || m.Time != pr.Time {
@@ -124,14 +124,14 @@ rule line = [a-z]* #atomic "\n"`)
 			t.Errorf("%v: %d wrong locations, %d unknown", back, bad, unknown)
 		}
 		for _, r := range prof.Snapshot().Rules {
-			for _, l := range []zpinput.Location{r.MaxEvalsAt.Location, r.LongestFailAt.Location} {
+			for _, l := range []sxirinput.Location{r.MaxEvalsAt.Location, r.LongestFailAt.Location} {
 				if wl, wc := want(l.Pos); l.Line != 0 && (l.Line != wl || l.Col != wc) {
 					t.Errorf("%v: %s: location %+v", back, r.Rule, l)
 				}
 			}
 		}
 	}
-	if got := (zpinput.Location{Pos: 12}).String(); got != "position 12" {
+	if got := (sxirinput.Location{Pos: 12}).String(); got != "position 12" {
 		t.Errorf("unknown location prints as %q", got)
 	}
 }
@@ -141,7 +141,7 @@ rule line = [a-z]* #atomic "\n"`)
 func TestHintsWithoutTime(t *testing.T) {
 	t.Parallel()
 	pr := instrument.ProfileSnapshot{Calls: 10, Examined: 100, Rules: []instrument.RuleProfile{
-		{Rule: "x", Calls: 10, Evals: 10, Repeats: 5, MaxEvals: 3, MaxEvalsAt: instrument.CallSite{Location: zpinput.Location{Pos: 0, Line: 1, Col: 1}}},
+		{Rule: "x", Calls: 10, Evals: 10, Repeats: 5, MaxEvals: 3, MaxEvalsAt: instrument.CallSite{Location: sxirinput.Location{Pos: 0, Line: 1, Col: 1}}},
 	}}
 	hints := pr.Hints()
 	if len(hints) != 1 || !strings.HasPrefix(hints[0], "Evaluated again") {

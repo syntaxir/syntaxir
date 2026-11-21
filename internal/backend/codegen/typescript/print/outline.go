@@ -1,8 +1,8 @@
 package print
 
 import (
-	"zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/internal/middleend/flowlower"
+	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/flowlower"
 )
 
 // Outlining of the generated TypeScript.

@@ -6,7 +6,7 @@
 
 ## Summary
 
-ZeroParse exposes mutable parse-result `Node` values. The Go API now provides iterative JSON writing, edge-oriented traversal, and cursor-based range selection for core and generated Go nodes. These APIs define edge order, shared-node behavior, cycles, range units, empty spans, and ownership without changing the JSON representation. TypeScript traversal remains deferred; its existing iterative `marshal` and `toString` APIs are unchanged.
+SyntaxIR exposes mutable parse-result `Node` values. The Go API now provides iterative JSON writing, edge-oriented traversal, and cursor-based range selection for core and generated Go nodes. These APIs define edge order, shared-node behavior, cycles, range units, empty spans, and ownership without changing the JSON representation. TypeScript traversal remains deferred; its existing iterative `marshal` and `toString` APIs are unchanged.
 
 ## Motivation
 

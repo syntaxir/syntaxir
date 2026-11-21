@@ -202,8 +202,8 @@ func BenchmarkTypedDocumentFresh(b *testing.B) {
 // TestGeneratedTypedDocumentRetained is an opt-in retained-heap probe. Run it
 // separately from timing, in a fresh test process, with no other tests selected.
 func TestGeneratedTypedDocumentRetained(t *testing.T) {
-	if os.Getenv("ZP_GENERATED_DOCUMENT_RETAINED") == "" {
-		t.Skip("set ZP_GENERATED_DOCUMENT_RETAINED for the isolated heap probe")
+	if os.Getenv("SXIR_GENERATED_DOCUMENT_RETAINED") == "" {
+		t.Skip("set SXIR_GENERATED_DOCUMENT_RETAINED for the isolated heap probe")
 	}
 	for _, unit := range []struct {
 		name string

@@ -1,4 +1,4 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package engine
 
@@ -6,12 +6,12 @@ import (
 	"errors"
 	"testing"
 
-	value "zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/internal/runtime/program"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/libgo"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+	value "syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/internal/runtime/program"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/libgo"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // attachCase is a value and a capture frame to attach to it: the value is nil, a fresh node of the
@@ -53,14 +53,14 @@ func TestAttachCapturesChargesAsGoLibrary(t *testing.T) {
 
 func engineAttachCharge(c attachCase) uint64 {
 	p := stateBudgetParser(runtime.Limits{Compute: 1 << 30})
-	var v *zpvalue.Node
+	var v *sxirvalue.Node
 	switch c.value {
 	case "fresh":
 		v = value.Ptr(value.Data{Text: "body", Fresh: true})
 	case "other":
 		v = value.Ptr(value.Data{Text: "other"})
 	}
-	f := &state.Frame{Vals: make([]*zpvalue.Node, len(c.slots))}
+	f := &state.Frame{Vals: make([]*sxirvalue.Node, len(c.slots))}
 	for i, set := range c.slots {
 		if set {
 			f.Vals[i] = value.Ptr(value.Data{Text: "capture"})
@@ -83,22 +83,22 @@ func libgoAttachCharge(t *testing.T, c attachCase) uint64 {
 func libgoLeastLimit(t *testing.T, c *attachCase) uint64 {
 	t.Helper()
 	g := libgo.NewGrammar(100)
-	r := &libgo.Rule{Name: "S", Body: func(p *libgo.Parser, _ int) (*zpvalue.Node, bool) {
+	r := &libgo.Rule{Name: "S", Body: func(p *libgo.Parser, _ int) (*sxirvalue.Node, bool) {
 		if c == nil {
 			return nil, true
 		}
-		var v *zpvalue.Node
+		var v *sxirvalue.Node
 		switch c.value {
 		case "fresh":
-			v = libgo.NewNode(zpvalue.KindTuple, 0, 0, "", nil, "", nil, nil)
+			v = libgo.NewNode(sxirvalue.KindTuple, 0, 0, "", nil, "", nil, nil)
 			libgo.D(v).Fresh = true
 		case "other":
-			v = libgo.NewNode(zpvalue.KindString, 0, 0, "other", nil, "", nil, nil)
+			v = libgo.NewNode(sxirvalue.KindString, 0, 0, "other", nil, "", nil, nil)
 		}
-		f := &libgo.CaptureFrame{Vals: make([]*zpvalue.Node, len(c.slots))}
+		f := &libgo.CaptureFrame{Vals: make([]*sxirvalue.Node, len(c.slots))}
 		for i, set := range c.slots {
 			if set {
-				f.Vals[i] = libgo.NewNode(zpvalue.KindString, 0, 0, "capture", nil, "", nil, nil)
+				f.Vals[i] = libgo.NewNode(sxirvalue.KindString, 0, 0, "capture", nil, "", nil, nil)
 			}
 		}
 		if c.self {

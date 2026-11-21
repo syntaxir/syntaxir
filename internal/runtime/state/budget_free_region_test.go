@@ -1,4 +1,4 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package state
 
@@ -7,7 +7,7 @@ import (
 	"math"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime"
 )
 
 // The operations of a region of Document work declare a cost of zero: they open and close the region

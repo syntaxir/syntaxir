@@ -1,8 +1,8 @@
 package check
 
 import (
-	"zeroparse.dev/zp/internal/cancel"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/cancel"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // The functions below let the tests of internal/compile reach checker internals that its tests

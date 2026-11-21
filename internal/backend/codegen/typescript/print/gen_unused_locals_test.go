@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // tsFunctionDecl matches the declaration of a top-level function of generated code.
@@ -81,12 +81,12 @@ func TestGeneratedTSNoUnusedLocals(t *testing.T) {
 		}
 		files = append(files, name)
 	}
-	paths, err := filepath.Glob("../../../../../testdata/grammars/*/*.zp")
+	paths, err := filepath.Glob("../../../../../testdata/grammars/*/*.sxir")
 	if err != nil || len(paths) == 0 {
 		t.Fatalf("no grammars: %v", err)
 	}
 	for _, path := range paths {
-		if !codegentest.Long() && len(codegentest.RepresentativeNames([]string{strings.TrimSuffix(filepath.Base(path), ".zp")})) == 0 {
+		if !codegentest.Long() && len(codegentest.RepresentativeNames([]string{strings.TrimSuffix(filepath.Base(path), ".sxir")})) == 0 {
 			continue
 		}
 		src, err := os.ReadFile(path)
@@ -104,7 +104,7 @@ func TestGeneratedTSNoUnusedLocals(t *testing.T) {
 			if err != nil {
 				t.Fatalf("%s: %v", path, err)
 			}
-			sub := fmt.Sprintf("%s_%d", strings.TrimSuffix(filepath.Base(path), ".zp"), i)
+			sub := fmt.Sprintf("%s_%d", strings.TrimSuffix(filepath.Base(path), ".sxir"), i)
 			writeTSFiles(t, filepath.Join(dir, sub), gfs)
 			files = append(files, filepath.Join(sub, "parser.ts"))
 		}

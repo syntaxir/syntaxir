@@ -1,5 +1,5 @@
-// Package vm runs grammars compiled to bytecode on the ZeroParse virtual machine. LoadParser loads a
-// compiled grammar (a .zpc file, written by zp compile or compiler.Marshal) without parsing,
+// Package vm runs grammars compiled to bytecode on the SyntaxIR virtual machine. LoadParser loads a
+// compiled grammar (a .sxirc file, written by sxir compile or compiler.Marshal) without parsing,
 // checking or compiling the grammar again, so a program that only loads parsers links no compiler.
 // compiler.Compile returns a *Parser too, for a grammar compiled in the same program.
 //
@@ -12,11 +12,11 @@ package vm
 import (
 	"io"
 
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/pkg/runtime"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/schema"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/schema"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // Parser parses with a grammar compiled to bytecode, from one start rule. It is safe for
@@ -40,9 +40,9 @@ func init() {
 // newParser returns the vm parser of p, on the recursive VM.
 func newParser(p *engine.Parser) *Parser { return &Parser{p.OnBackend(engine.Bytecode)} }
 
-// LoadParser loads a parser saved by compiler.Marshal or zp compile. Corruption is detected by a
+// LoadParser loads a parser saved by compiler.Marshal or sxir compile. Corruption is detected by a
 // checksum and structural validation, but types are not checked again: load only data from trusted
-// sources, such as the output of zp compile or compiler.Marshal. The parser runs on the bytecode backends and serves
+// sources, such as the output of sxir compile or compiler.Marshal. The parser runs on the bytecode backends and serves
 // the parses of the file's mode only; any other parse returns an error that names the mode it needs.
 func LoadParser(data []byte) (*Parser, error) {
 	p, err := engine.LoadParser(data)
@@ -52,7 +52,7 @@ func LoadParser(data []byte) (*Parser, error) {
 	return newParser(p), nil
 }
 
-// IsCompiled reports whether data is a compiled grammar written by compiler.Marshal or zp compile.
+// IsCompiled reports whether data is a compiled grammar written by compiler.Marshal or sxir compile.
 func IsCompiled(data []byte) bool { return engine.IsCompiled(data) }
 
 // Iterative returns a parser that shares the program and the start rule and runs on the VM that
@@ -154,7 +154,7 @@ func (p *Parser) Starts() []string { return p.p.Starts() }
 // DefaultStart returns the default start rule of the grammar.
 func (p *Parser) DefaultStart() string { return p.p.DefaultStart() }
 
-// Marshal encodes the parser in the .zpc format: the bytecode of mode and the start rule.
+// Marshal encodes the parser in the .sxirc format: the bytecode of mode and the start rule.
 // LoadParser restores it without parsing, analyzing, type checking or compiling the grammar again.
 // A loaded parser is saved only in its own mode (CompiledMode), which reproduces the file it was
 // loaded from; saving another mode needs the grammar source.
@@ -221,13 +221,13 @@ func (v DocumentVersion) Sequence() uint64 { return v.v.Sequence() }
 func (d *Document) Version() DocumentVersion { return DocumentVersion{d.doc.Version()} }
 
 // Unit returns the position unit selected when the document was constructed.
-func (d *Document) Unit() zpinput.PositionUnit { return d.doc.Unit() }
+func (d *Document) Unit() sxirinput.PositionUnit { return d.doc.Unit() }
 
 // EditBatch atomically applies ordered, nonoverlapping edits in base coordinates.
 // It rejects stale or foreign tokens, repeated starts, invalid ranges and byte
 // boundaries. An empty batch validates base but changes nothing. A nonempty
 // batch advances one revision and clears parse caches without parsing.
-func (d *Document) EditBatch(base DocumentVersion, edits ...zpinput.TextEdit) error {
+func (d *Document) EditBatch(base DocumentVersion, edits ...sxirinput.TextEdit) error {
 	return d.doc.EditBatch(base.v, edits...)
 }
 
@@ -244,7 +244,7 @@ func (s *Snapshot) Version() DocumentVersion { return DocumentVersion{s.s.Versio
 func (s *Snapshot) Text() string { return s.s.Text() }
 
 // Unit returns the position unit of the captured tree.
-func (s *Snapshot) Unit() zpinput.PositionUnit { return s.s.Unit() }
+func (s *Snapshot) Unit() sxirinput.PositionUnit { return s.s.Unit() }
 
 // Root returns the captured root, or the zero handle for a nil result.
 func (s *Snapshot) Root() SnapshotNode { return SnapshotNode{s.s.Root()} }
@@ -377,16 +377,16 @@ func (d *Document) Stats() runtime.ParseStats { return d.doc.Stats() }
 // advance source revisions; outcome From/To identify compared snapshots. Consumers
 // track those streams separately. FullRefresh requires rebuilding current state.
 type DocumentChange struct {
-	Kind        zpinput.DocumentChangeKind
+	Kind        sxirinput.DocumentChangeKind
 	From, To    DocumentVersion
-	Unit        zpinput.PositionUnit
-	Edits       []zpinput.TextEdit
+	Unit        sxirinput.PositionUnit
+	Edits       []sxirinput.TextEdit
 	FullRefresh bool
 	// Invalidated is conservative: an accepted edit may affect the whole output.
 	// Reevaluation remains unknown; invalidation is not evidence of execution.
 	Invalidated  bool
 	Reevaluation string
-	Output       zpinput.OutputChange
+	Output       sxirinput.OutputChange
 }
 
 // EnableChanges opts into bounded notifications and one retained comparison

@@ -1,4 +1,4 @@
-// Package compiler makes executable artifacts from ZeroParse grammars: parsers that run on the
+// Package compiler makes executable artifacts from SyntaxIR grammars: parsers that run on the
 // bytecode VM (Compile, CompileGrammar), the reference parser that differential tests compare with
 // (NewReferenceParser), compiled grammar files (Marshal), Go and TypeScript parser source
 // (GenerateGo, GenerateTypeScript) and output schemas (OutputSchema).
@@ -11,15 +11,15 @@
 package compiler
 
 import (
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/driver/entry"
-	"zeroparse.dev/zp/internal/driver/generate"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/pkg/grammar"
-	"zeroparse.dev/zp/pkg/grammar/ast"
-	"zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/schema"
-	"zeroparse.dev/zp/pkg/runtime/vm"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/driver/generate"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/schema"
+	"syntaxir.dev/sxir/pkg/runtime/vm"
 )
 
 // Option configures a compilation.
@@ -62,7 +62,7 @@ func WithDefaultValue() Option { return func(o *options) { o.defaultValue = true
 
 // Optimize is an optimization setting: a profile, then values for single optimizations, then
 // optimizations turned off. None of them changes what a parser returns, only how it runs. The
-// names are those of the guide to generated code and of zp gen -opt and -no-opt.
+// names are those of the guide to generated code and of sxir gen -opt and -no-opt.
 type Optimize struct {
 	// Profile is "speed" (the default, also for an empty name), "memory" or "size".
 	Profile string
@@ -146,7 +146,7 @@ func NewReferenceParser(src grammar.Source, opts ...Option) (runtime.Parser, err
 	return engine.Reference(p), nil
 }
 
-// Marshal compiles the grammar src and encodes it in the .zpc format in mode: the bytecode that
+// Marshal compiles the grammar src and encodes it in the .sxirc format in mode: the bytecode that
 // mode serves and the start rule. vm.LoadParser loads it without the grammar or the compiler.
 func Marshal(src grammar.Source, mode vm.CompiledMode, opts ...Option) ([]byte, error) {
 	p, err := load(src, newOptions(opts))

@@ -7,9 +7,9 @@ import (
 	"reflect"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/frontend/schemaexport"
-	"zeroparse.dev/zp/pkg/runtime/schema"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/schemaexport"
+	"syntaxir.dev/sxir/pkg/runtime/schema"
 )
 
 func TestOutputSchemaPrototype(t *testing.T) {
@@ -91,10 +91,10 @@ rule unused = "z"`)
 	if !bytes.Equal(first, roundtrip) {
 		t.Fatal("schema roundtrip")
 	}
-	if err := json.Unmarshal([]byte(`{"format":"zp-output-schema","version":3}`), &decoded); err == nil {
+	if err := json.Unmarshal([]byte(`{"format":"sxir-output-schema","version":3}`), &decoded); err == nil {
 		t.Fatal("accepted future version")
 	}
-	if err := json.Unmarshal([]byte(`{"format":"zp-output-schema","version":1}`), &decoded); err == nil {
+	if err := json.Unmarshal([]byte(`{"format":"sxir-output-schema","version":1}`), &decoded); err == nil {
 		t.Fatal("accepted version 1")
 	}
 	all, err := outputSchemaPrototype(p, "main", true)

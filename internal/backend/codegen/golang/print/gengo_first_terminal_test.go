@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // TestGeneratedLookaheadHasNoFirstTerminal checks that a generated Go parser does not skip, by the
@@ -39,8 +39,8 @@ func testGeneratedLookaheadHasNoFirstTerminal(t *testing.T) {
 	for _, pkg := range []string{"g", "l"} {
 		codegentest.GeneratePackage(t, dir, pkg, mustParse(codegentest.LookaheadFirstSrc), common.GenOptions{Start: "main", Types: true, Recognize: true, Observability: true, LimitControls: pkg == "l"})
 		imports.WriteString("\t\"codegentest/" + pkg + "\"\n")
-		for _, op := range []string{"_, err := %s.Parse(\"bc\", zprt.WithProfile(&p))", "_, err := %s.ParseValue(\"bc\", zprt.WithProfile(&p))", "err := %s.Recognize(\"bc\", zprt.WithProfile(&p))"} {
-			calls.WriteString("\t{ var p zpinstrument.Profile; " + strings.ReplaceAll(op, "%s", pkg) + "; fmt.Print(evals(p, err), \" \") }\n")
+		for _, op := range []string{"_, err := %s.Parse(\"bc\", sxirrt.WithProfile(&p))", "_, err := %s.ParseValue(\"bc\", sxirrt.WithProfile(&p))", "err := %s.Recognize(\"bc\", sxirrt.WithProfile(&p))"} {
+			calls.WriteString("\t{ var p sxirinstrument.Profile; " + strings.ReplaceAll(op, "%s", pkg) + "; fmt.Print(evals(p, err), \" \") }\n")
 		}
 	}
 	main := `package main
@@ -48,12 +48,12 @@ func testGeneratedLookaheadHasNoFirstTerminal(t *testing.T) {
 import (
 	"fmt"
 
-	zprt "zeroparse.dev/zp/pkg/runtime/libgo"
-	zpinstrument "zeroparse.dev/zp/pkg/runtime/instrument"
+	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
+	sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
 ` + imports.String() + `)
 
 // evals returns the body evaluations of x, or the error of the parse.
-func evals(p zpinstrument.Profile, err error) string {
+func evals(p sxirinstrument.Profile, err error) string {
 	if err != nil {
 		return err.Error()
 	}

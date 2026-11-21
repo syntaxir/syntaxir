@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/backend/codegen/typescript/print"
-	"zeroparse.dev/zp/internal/driver/generate"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
+	"syntaxir.dev/sxir/internal/driver/generate"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // TestEveryFlowFunctionRunsTheIRPipelines generates TypeScript parsers whose functions take every route
@@ -19,7 +19,7 @@ import (
 // Exec IR went through the Flow pipeline and the Exec pipeline once per lowering.
 func TestEveryFlowFunctionRunsTheIRPipelines(t *testing.T) {
 	t.Parallel()
-	src, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "testdata", "grammars", "cel", "cel.zp"))
+	src, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "testdata", "grammars", "cel", "cel.sxir"))
 	if err != nil {
 		t.Fatal(err)
 	}

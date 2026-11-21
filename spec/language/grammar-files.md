@@ -6,7 +6,7 @@ the errors that make a grammar invalid.
 
 ## Structure
 
-A grammar file, normally written as a `.zp` file, consists of an optional
+A grammar file, normally written as a `.sxir` file, consists of an optional
 package clause followed by a list of Declaration Statements in any order: Type
 Declaration Statements `type ...`, Variable Declaration Statements `var ...` and
 Rule Declaration Statements `rule ...`.
@@ -14,7 +14,7 @@ Type Declaration Statements use Type Expressions; Rule Definitions combine a
 Rule Expression with an optional Value Action containing an Action Expression.
 An Operators Rule is a specialized Rule Definition.
 
-```zp
+```sxir
 package example
 type Number = node[string]
 @start
@@ -121,7 +121,7 @@ comment on a line when a token follows them on that line, those between the
 tokens of a rule expression and those inside the lists whose layout is kept
 apart, such as attribute arguments.
 
-The canonical `zp.zp` grammar and its source adapter assign the same spans
+The canonical `sxir.sxir` grammar and its source adapter assign the same spans
 and owners as the hand-written frontend to every source-bearing node: the
 package clause, type and rule declarations, struct fields, operators lines and
 constructor field initializers, and the operands, member markers and closing
@@ -339,7 +339,7 @@ A Variable Declaration Statement `var ...` declares a parser variable: `var
 <name> [<type>] [= <value>]`. At least one of the type and the value is
 required.
 
-```zp
+```sxir
 var depth int = 0
 var mode string
 var seen = false
@@ -403,7 +403,7 @@ may follow; a newline MUST separate the last attribute from `rule` or `package`.
 Comments may occur between the attributes and before the keyword. The arguments
 follow the attribute argument syntax of [Attributes](attributes.md).
 
-```zp
+```sxir
 // The rule where parsing begins.
 @start // a comment may follow an attribute
 rule main = item*
@@ -444,7 +444,7 @@ of them, and the others are called only from Rule Expressions. One start rule
 is the **default start rule**, used when parsing names no rule: the only start
 rule, or the one marked `@start(default)`.
 
-```zp
+```sxir
 @start(default)
 rule file = stmt*
 @start
@@ -504,7 +504,7 @@ and the link to the recipe. The check rests on
 the classification, which can be pessimistic: a grammar whose parses do cost
 linear time is rejected when the classifier cannot prove it.
 
-```zp
+```sxir
 @linear
 package scan
 
@@ -518,7 +518,7 @@ input that `"a"*` scanned, the cost from `main` grows as n², and the grammar is
 invalid:
 
 ```text
-scan.zp:6:10: the grammar from start rule main is declared @linear, but the cost can grow as n^2: after the alternative at 5:14 in rule main fails, the later alternative "a" at 5:18 in rule main can start again inside the input that the repetition "a"* at 6:10 in rule A examined; this repeats in the repetition (A / "a")* at 5:13 in rule main; scan once: put the scan and what may follow it in one alternative (see https://zeroparse.dev/docs/cookbook/linear-rewrites/#a-repetition-restarted-after-backtracking)
+scan.sxir:6:10: the grammar from start rule main is declared @linear, but the cost can grow as n^2: after the alternative at 5:14 in rule main fails, the later alternative "a" at 5:18 in rule main can start again inside the input that the repetition "a"* at 6:10 in rule A examined; this repeats in the repetition (A / "a")* at 5:13 in rule main; scan once: put the scan and what may follow it in one alternative (see https://syntaxir.dev/docs/cookbook/linear-rewrites/#a-repetition-restarted-after-backtracking)
 ```
 
 `@linear` on `A` alone is valid in that grammar: parsing that begins at `A`
@@ -547,30 +547,30 @@ start rule and declaration attribute errors, and then, if there are none, the
 declared cost errors. This file has three definition
 and reference errors:
 
-```zp
+```sxir
 rule main = item $$
 rule item = k:"a" => $v
 rule other = unknown
 rule main = "b"
 ```
 
-Parsing with it (`zp parse -g bad.zp -i a`) reports:
+Parsing with it (`sxir parse -g bad.sxir -i a`) reports:
 
 ```text
-zp: bad.zp:4:1: rule main is already defined
-bad.zp:2:22: undefined capture $v
-bad.zp:3:14: undefined rule unknown
+sxir: bad.sxir:4:1: rule main is already defined
+bad.sxir:2:22: undefined capture $v
+bad.sxir:3:14: undefined rule unknown
 ```
 
 ## Grammar Representations
 
-Besides `.zp` source files, a grammar can be represented as JSON, which is
+Besides `.sxir` source files, a grammar can be represented as JSON, which is
 the abstract syntax tree of the grammar (the public package `ast` under `pkg/grammar`), and as
-a compiled grammar file (`.zpc`), which holds the bytecode of one mode and
+a compiled grammar file (`.sxirc`), which holds the bytecode of one mode and
 no tree (see [Compiled Grammars](../runtime/compiled-grammars.md) and
 [File Format](../bytecode/README.md#file-format)). Source and JSON describe the same
-grammar, and a compiled grammar runs it. The `zp convert` command converts
-between source and JSON, and `zp fmt` formats `.zp` source files, keeping
+grammar, and a compiled grammar runs it. The `sxir convert` command converts
+between source and JSON, and `sxir fmt` formats `.sxir` source files, keeping
 comments.
 
 Direct grammar JSON can preserve normalized source positions and comment
@@ -588,7 +588,7 @@ unknown JSON fields, while `ast.DecodeJSON` and `grammar.Load` reject them.
 
 ### Grammar Sources
 
-The Go package `grammar` (`zeroparse.dev/zp/pkg/grammar`) reads a grammar from a **source**: one named input in
+The Go package `grammar` (`syntaxir.dev/sxir/pkg/grammar`) reads a grammar from a **source**: one named input in
 grammar syntax or in JSON. The package does not run a grammar; compiling and running one belong to the compiler
 and the runtime.
 
@@ -603,9 +603,9 @@ and the runtime.
 | `s.Name()`, `s.Encoding()` | The name given to the constructor, and the encoding that `As` set, or `EncodingAuto` |
 | `s.Decide()` | The encoding in which `Load` reads `s`, with the errors of reading `s` that `Load` has, including `ErrCompiled` |
 
-An `Encoding` is `EncodingAuto`, `EncodingZP` (grammar syntax) or `EncodingJSON` (the [JSON form](#grammar-json) of the
-AST); its `String` is `auto`, `zp` or `json`. `EncodingAuto` decides from the name and then the content: the extension
-`.zp` is grammar syntax and `.json` is JSON; any other name is JSON if the first byte of the content other than a
+An `Encoding` is `EncodingAuto`, `EncodingSXIR` (grammar syntax) or `EncodingJSON` (the [JSON form](#grammar-json) of the
+AST); its `String` is `auto`, `sxir` or `json`. `EncodingAuto` decides from the name and then the content: the extension
+`.sxir` is grammar syntax and `.json` is JSON; any other name is JSON if the first byte of the content other than a
 space, tab, carriage return and line feed is `{`, and grammar syntax otherwise. An encoding that `As` set is used as
 it is.
 
@@ -616,9 +616,9 @@ the [file format](../bytecode/README.md#file-format) whatever the encoding, is a
 `grammar.ErrCompiled`; test for it with `errors.Is`. Any other error is the error of reading the source or the
 errors of the grammar with their positions. They do not name the source: a program that reports them adds `s.Name()`.
 
-`grammar.Convert(s, to)` loads `s` and returns the grammar in the encoding `to`, which MUST be `EncodingZP` or
-`EncodingJSON`: for `EncodingZP` the text that `grammar.Format` writes, for `EncodingJSON` the result of
-`ast.MarshalJSON`. `EncodingAuto` is an error, and so are the errors of `Load`. `zp convert` is the command for it.
+`grammar.Convert(s, to)` loads `s` and returns the grammar in the encoding `to`, which MUST be `EncodingSXIR` or
+`EncodingJSON`: for `EncodingSXIR` the text that `grammar.Format` writes, for `EncodingJSON` the result of
+`ast.MarshalJSON`. `EncodingAuto` is an error, and so are the errors of `Load`. `sxir convert` is the command for it.
 
 ### Formatting
 
@@ -732,7 +732,7 @@ cooperative in every case, and the AST MUST NOT be mutated while these functions
 
 ### Syntax Projection
 
-`grammar.FormatSyntax(g)` (command line: `zp fmt -syntax`) prints the recognition
+`grammar.FormatSyntax(g)` (command line: `sxir fmt -syntax`) prints the recognition
 syntax of a grammar and leaves the AST unchanged. It omits Type Declaration
 Statements, result types, Value Actions, metadata attributes, captures and `#recover`
 wrappers; it removes groups whose parentheses are not required for precedence or

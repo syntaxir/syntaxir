@@ -3,7 +3,7 @@ package print
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/ir/code/exec/ref"
+	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
 )
 
 // TestLeaderBitsMatchModel checks that the generated TypeScript parsers give a bit in present sets to

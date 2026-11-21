@@ -1,6 +1,6 @@
 package complexity
 
-import "zeroparse.dev/zp/pkg/grammar/ast"
+import "syntaxir.dev/sxir/pkg/grammar/ast"
 
 // --- Growth that carries a growing result ---
 

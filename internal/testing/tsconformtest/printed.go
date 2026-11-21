@@ -5,8 +5,8 @@ import (
 	"strings"
 	"sync"
 
-	"zeroparse.dev/zp/internal/backend/codegen/typescript/print"
-	"zeroparse.dev/zp/internal/ir/code/exec/conform"
+	"syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
+	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
 )
 
 // ObsOps are the operations of the observation of a parse.

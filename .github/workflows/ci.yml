@@ -34,8 +34,8 @@ jobs:
           python-version: 3.14.0
       - name: Install pinned TypeScript reference compiler
         run: |
-          npm install --prefix "$RUNNER_TEMP/zp-typescript" --no-save --ignore-scripts typescript@5.9.3
-          echo "$RUNNER_TEMP/zp-typescript/node_modules/.bin" >> "$GITHUB_PATH"
+          npm install --prefix "$RUNNER_TEMP/sxir-typescript" --no-save --ignore-scripts typescript@5.9.3
+          echo "$RUNNER_TEMP/sxir-typescript/node_modules/.bin" >> "$GITHUB_PATH"
       - uses: actions/checkout@v4
         with:
           repository: microsoft/TypeScript
@@ -49,26 +49,26 @@ jobs:
           REQUIRE_PYTHON: "1"
           REQUIRE_TSC: "1"
           REQUIRE_TYPESCRIPT_CORPUS: "1"
-          ZP_PYTHON: python
-          ZP_TYPESCRIPT: ${{ runner.temp }}/zp-typescript/node_modules/typescript
-          ZP_TYPESCRIPT_TESTS: ${{ github.workspace }}/typescript-reference/tests/cases
+          SXIR_PYTHON: python
+          SXIR_TYPESCRIPT: ${{ runner.temp }}/sxir-typescript/node_modules/typescript
+          SXIR_TYPESCRIPT_TESTS: ${{ github.workspace }}/typescript-reference/tests/cases
         run: .github/scripts/require-toolchain.sh
       - name: Record test provenance
         env:
-          ZP_PYTHON: python
-          ZP_TYPESCRIPT: ${{ runner.temp }}/zp-typescript/node_modules/typescript
-          ZP_TYPESCRIPT_REF: ${{ github.workspace }}/typescript-reference
-          ZP_TYPESCRIPT_TESTS: ${{ github.workspace }}/typescript-reference/tests/cases
-        run: .github/scripts/write-provenance.sh "$RUNNER_TEMP/zp-ci-provenance.log"
+          SXIR_PYTHON: python
+          SXIR_TYPESCRIPT: ${{ runner.temp }}/sxir-typescript/node_modules/typescript
+          SXIR_TYPESCRIPT_REF: ${{ github.workspace }}/typescript-reference
+          SXIR_TYPESCRIPT_TESTS: ${{ github.workspace }}/typescript-reference/tests/cases
+        run: .github/scripts/write-provenance.sh "$RUNNER_TEMP/sxir-ci-provenance.log"
       - name: Test root module
-        run: go test -v -timeout=45m ./... 2>&1 | tee "$RUNNER_TEMP/zp-root-test.log"
+        run: go test -v -timeout=45m ./... 2>&1 | tee "$RUNNER_TEMP/sxir-root-test.log"
       - name: Vet root module
-        run: go vet ./... 2>&1 | tee "$RUNNER_TEMP/zp-root-vet.log"
+        run: go vet ./... 2>&1 | tee "$RUNNER_TEMP/sxir-root-vet.log"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: go-native-test-logs
-          path: ${{ runner.temp }}/zp-*.log
+          path: ${{ runner.temp }}/sxir-*.log
           if-no-files-found: ignore
           retention-days: 14
 
@@ -90,16 +90,16 @@ jobs:
           REQUIRE_NODE: "1"
         run: .github/scripts/require-toolchain.sh
       - name: Record test provenance
-        run: .github/scripts/write-provenance.sh "$RUNNER_TEMP/zp-ci-provenance.log"
+        run: .github/scripts/write-provenance.sh "$RUNNER_TEMP/sxir-ci-provenance.log"
       - name: Test site module
-        run: cd site && go test -v -timeout=45m ./... 2>&1 | tee "$RUNNER_TEMP/zp-site-test.log"
+        run: cd site && go test -v -timeout=45m ./... 2>&1 | tee "$RUNNER_TEMP/sxir-site-test.log"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: site-test-logs
           path: |
-            ${{ runner.temp }}/zp-site-test.log
-            ${{ runner.temp }}/zp-ci-provenance.log
+            ${{ runner.temp }}/sxir-site-test.log
+            ${{ runner.temp }}/sxir-ci-provenance.log
           if-no-files-found: ignore
           retention-days: 14
 
@@ -124,17 +124,17 @@ jobs:
           REQUIRE_TSC: "1"
         run: .github/scripts/require-toolchain.sh
       - name: Record test provenance
-        run: ZP_TYPESCRIPT="$(npm root -g)/typescript" .github/scripts/write-provenance.sh "$RUNNER_TEMP/zp-ci-provenance.log"
+        run: SXIR_TYPESCRIPT="$(npm root -g)/typescript" .github/scripts/write-provenance.sh "$RUNNER_TEMP/sxir-ci-provenance.log"
       - name: Run WebAssembly smoke test in Node.js
-        run: go test -v -timeout=20m ./cmd/playground -run '^TestWasmSmoke$' -count=1 2>&1 | tee "$RUNNER_TEMP/zp-wasm-test.log"
+        run: go test -v -timeout=20m ./cmd/playground -run '^TestWasmSmoke$' -count=1 2>&1 | tee "$RUNNER_TEMP/sxir-wasm-test.log"
       - name: Run generated TypeScript parser tests and strict type checks
-        run: go test -v -timeout=20m ./internal/backend/codegen/common ./internal/backend/codegen/typescript/print -run '^TestGeneratedTS' -count=1 2>&1 | tee "$RUNNER_TEMP/zp-generated-ts-test.log"
+        run: go test -v -timeout=20m ./internal/backend/codegen/common ./internal/backend/codegen/typescript/print -run '^TestGeneratedTS' -count=1 2>&1 | tee "$RUNNER_TEMP/sxir-generated-ts-test.log"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: node-wasm-typescript-test-logs
           path: |
-            ${{ runner.temp }}/zp-*-test.log
-            ${{ runner.temp }}/zp-ci-provenance.log
+            ${{ runner.temp }}/sxir-*-test.log
+            ${{ runner.temp }}/sxir-ci-provenance.log
           if-no-files-found: ignore
           retention-days: 14

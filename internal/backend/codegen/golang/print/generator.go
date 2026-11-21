@@ -15,20 +15,20 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	gopass "zeroparse.dev/zp/internal/backend/codegen/golang/pass"
-	"zeroparse.dev/zp/internal/frontend/astfacts"
-	"zeroparse.dev/zp/internal/frontend/check"
-	"zeroparse.dev/zp/internal/frontend/types"
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/internal/middleend/flowlower/lowerdata"
-	"zeroparse.dev/zp/internal/middleend/flowpass"
-	"zeroparse.dev/zp/internal/middleend/flowplan"
-	"zeroparse.dev/zp/internal/middleend/flowplan/plandata"
-	rprogram "zeroparse.dev/zp/internal/runtime/program"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	gopass "syntaxir.dev/sxir/internal/backend/codegen/golang/pass"
+	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/check"
+	"syntaxir.dev/sxir/internal/frontend/types"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
+	"syntaxir.dev/sxir/internal/middleend/flowpass"
+	"syntaxir.dev/sxir/internal/middleend/flowplan"
+	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
+	rprogram "syntaxir.dev/sxir/internal/runtime/program"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // defaultPackageName returns the package name of the generated code for a module path: its last
@@ -273,8 +273,8 @@ func generateOnce(g *ast.Grammar, c common.Compiler, p common.Passes, opts commo
 		}
 		return nil, genGo.finishReach(prog, rec)
 	}
-	fmt.Fprintf(&genGo.Init, "\tzpGrammar.Starts = %s\n", goStrings(prog.StartRules))
-	fmt.Fprintf(&genGo.Init, "\tzpGrammar.DefaultStart = %q\n", prog.DefaultStartRule)
+	fmt.Fprintf(&genGo.Init, "\tsxirGrammar.Starts = %s\n", goStrings(prog.StartRules))
+	fmt.Fprintf(&genGo.Init, "\tsxirGrammar.DefaultStart = %q\n", prog.DefaultStartRule)
 	features, err := common.ParserFeatures(prog, rec, opts, genGo.Opt())
 	if err != nil {
 		return nil, err
@@ -284,19 +284,19 @@ func generateOnce(g *ast.Grammar, c common.Compiler, p common.Passes, opts commo
 		if h.Features != nil {
 			witnessed = h.Features(witnessed)
 		}
-		fmt.Fprintf(&genGo.Init, "\tzpGrammar.WitnessFeatures(%d) // %s\n", witnessed, witnessed)
+		fmt.Fprintf(&genGo.Init, "\tsxirGrammar.WitnessFeatures(%d) // %s\n", witnessed, witnessed)
 	}
 	if !opts.TypedOnly {
 		genGo.writeDescs(opts)
 	}
 	if opts.Observability {
-		genGo.Init.WriteString("\tzpGrammar.Observable = true\n")
+		genGo.Init.WriteString("\tsxirGrammar.Observable = true\n")
 	}
 	if !opts.LimitControls {
-		genGo.Init.WriteString("\tzpGrammar.NoBudgetControls = true\n")
+		genGo.Init.WriteString("\tsxirGrammar.NoBudgetControls = true\n")
 	}
 	if prog.Run.RecordsSourceInfo {
-		genGo.Init.WriteString("\tzpGrammar.SourceInfo = true\n")
+		genGo.Init.WriteString("\tsxirGrammar.SourceInfo = true\n")
 	}
 	if t := prog.Vars; t != nil {
 		var names, vals []string
@@ -304,13 +304,13 @@ func generateOnce(g *ast.Grammar, c common.Compiler, p common.Passes, opts commo
 			names = append(names, d.Name)
 			vals = append(vals, fmt.Sprintf("%#v", d.Init))
 		}
-		fmt.Fprintf(&genGo.Init, "\tzpGrammar.SetVars(%s, []any{%s})\n", goStrings(names), strings.Join(vals, ", "))
+		fmt.Fprintf(&genGo.Init, "\tsxirGrammar.SetVars(%s, []any{%s})\n", goStrings(names), strings.Join(vals, ", "))
 	}
-	writeRunKeys(&genGo.Init, "zpGrammar", prog)
+	writeRunKeys(&genGo.Init, "sxirGrammar", prog)
 
 	if rec != nil && !opts.TypedOnly {
-		genGo.Init.WriteString("\tzpRecGrammar.Share(zpGrammar)\n")
-		writeRunKeys(&genGo.Init, "zpRecGrammar", rec)
+		genGo.Init.WriteString("\tsxirRecGrammar.Share(sxirGrammar)\n")
+		writeRunKeys(&genGo.Init, "sxirRecGrammar", rec)
 	}
 
 	var out strings.Builder
@@ -331,7 +331,7 @@ func generateOnce(g *ast.Grammar, c common.Compiler, p common.Passes, opts commo
 // far as each call to Next needs. Options are validated before it returns; r is first read by Next.
 // The parser's lookahead and buffering may read ahead of the returned elements.
 func Iterate(r io.Reader, opts ...ParseOption) (*StreamIterator, error) {
-	return IterateNodes(zpGrammar, opts, func(emit func(*Node) error) error { return RunParseStream(streamRule, r, emit, opts) })
+	return IterateNodes(sxirGrammar, opts, func(emit func(*Node) error) error { return RunParseStream(streamRule, r, emit, opts) })
 }
 
 `)
@@ -348,18 +348,18 @@ func Iterate(r io.Reader, opts ...ParseOption) (*StreamIterator, error) {
 		fmt.Fprintf(&out, "// Recognize checks that the whole input matches the rule %s without building a tree, and returns the\n", start.Name)
 		out.WriteString("// syntax errors Parse would return (SyntaxErrors for errors recovered with #recover). Actions needed by\n// predicates are evaluated and can report runtime errors; other actions are skipped.\n")
 		fmt.Fprintf(&out, "func Recognize(input string, opts ...ParseOption) error {\n\t_, err := RunParse(recRules[%d], input, opts)\n\treturn err\n}\n\n", rec.ByName[start.Name].ID)
-		fmt.Fprintf(&out, "// recRules is the rule table of Recognize, and zpRecGrammar its grammar.\nvar recRules []*Rule\nvar zpRecGrammar = NewGrammar(%d)\n\n", common.GeneratedMaxDepth(opts))
+		fmt.Fprintf(&out, "// recRules is the rule table of Recognize, and sxirRecGrammar its grammar.\nvar recRules []*Rule\nvar sxirRecGrammar = NewGrammar(%d)\n\n", common.GeneratedMaxDepth(opts))
 	}
-	fmt.Fprintf(&out, "// rules is the rule table, and zpGrammar its grammar.\nvar rules []*Rule\nvar zpGrammar = NewGrammar(%d)\n\n", common.GeneratedMaxDepth(opts))
+	fmt.Fprintf(&out, "// rules is the rule table, and sxirGrammar its grammar.\nvar rules []*Rule\nvar sxirGrammar = NewGrammar(%d)\n\n", common.GeneratedMaxDepth(opts))
 	if !opts.TypedOnly && !opts.RecognizeOnly {
 		out.WriteString(`// ParseRule parses the whole input with the start rule name, a rule marked @start; an empty
 // name selects the grammar's default start rule.
 func ParseRule(name, input string, opts ...ParseOption) (*Node, error) {
-	o, err := ResolveOptions(zpGrammar, opts)
+	o, err := ResolveOptions(sxirGrammar, opts)
 	if err != nil {
 		return nil, err
 	}
-	r, err := zpGrammar.StartRule(name)
+	r, err := sxirGrammar.StartRule(name)
 	if err != nil {
 		return nil, err
 	}
@@ -394,9 +394,9 @@ func ParseRule(name, input string, opts ...ParseOption) (*Node, error) {
 		typesBody = typesPreamble + typed.types
 	}
 	if rec != nil && opts.TypedOnly {
-		// The recognizer grammar shares zpGrammar by copying, so Share follows the expectation table,
+		// The recognizer grammar shares sxirGrammar by copying, so Share follows the expectation table,
 		// which a typed-only parser writes only after its typed code.
-		genGo.Init.WriteString("\tzpRecGrammar.Share(zpGrammar)\n")
+		genGo.Init.WriteString("\tsxirRecGrammar.Share(sxirGrammar)\n")
 	}
 	// The bodies above are those of a parser without observability; an observed parse runs the
 	// traced copies of the tables, generated last.
@@ -447,7 +447,7 @@ func ParseRule(name, input string, opts ...ParseOption) (*Node, error) {
 	var file strings.Builder
 	file.WriteString(common.Header() + "\n\n")
 	if !opts.OmitPackageDoc {
-		fmt.Fprintf(&file, "// Package %s is a parser generated from a ZeroParse grammar.\n", opts.Package)
+		fmt.Fprintf(&file, "// Package %s is a parser generated from a SyntaxIR grammar.\n", opts.Package)
 	}
 	fmt.Fprintf(&file, "package %s\n\n%s", opts.Package, body)
 	src, err := format.Source([]byte(file.String()))
@@ -971,8 +971,8 @@ func (g *Generator) rules() {
 		for _, f := range sz.Names {
 			fields = append(fields, fmt.Sprintf("%q, %q", f, sz.Zeros[f]))
 		}
-		fmt.Fprintf(init, "\tzpGrammar.DeclareStruct(%q%s)\n", name, joinPrefixed(fields))
-		fmt.Fprintf(init, "\tzpGrammar.TypeKinds[%q] = KindOf(%q, \"\")\n", name, name)
+		fmt.Fprintf(init, "\tsxirGrammar.DeclareStruct(%q%s)\n", name, joinPrefixed(fields))
+		fmt.Fprintf(init, "\tsxirGrammar.TypeKinds[%q] = KindOf(%q, \"\")\n", name, name)
 	}
 	// The kinds of the named node types, under their names and those of their aliases.
 	names = names[:0]
@@ -981,7 +981,7 @@ func (g *Generator) rules() {
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		fmt.Fprintf(init, "\tzpGrammar.NodeTypes[%q] = NewNodeTypeKinds(%q)\n", name, g.Prog.Run.NodeKinds[name][0].Type)
+		fmt.Fprintf(init, "\tsxirGrammar.NodeTypes[%q] = NewNodeTypeKinds(%q)\n", name, g.Prog.Run.NodeKinds[name][0].Type)
 	}
 }
 
@@ -1286,9 +1286,9 @@ func (g *Generator) rt() string       { return g.pick("rt", "trt") }
 // grammarVar returns the generated grammar of the rule table being generated.
 func (g *Generator) grammarVar() string {
 	if g.Table == "rules" {
-		return "zpGrammar"
+		return "sxirGrammar"
 	}
-	return "zpRecGrammar"
+	return "sxirRecGrammar"
 }
 
 // Method emits a method with the given body and returns its name.
@@ -1727,8 +1727,8 @@ func (g *Generator) writeDescs(opts common.GenOptions) {
 	if !opts.Expectations {
 		return
 	}
-	fmt.Fprintf(&g.Init, "\tzpGrammar.Descs = %s\n", goStrings(g.Descs))
-	g.Init.WriteString("\tzpGrammar.Expectations = true\n")
+	fmt.Fprintf(&g.Init, "\tsxirGrammar.Descs = %s\n", goStrings(g.Descs))
+	g.Init.WriteString("\tsxirGrammar.Expectations = true\n")
 }
 
 // joinPrefixed returns the items separated by commas, with a comma before the first.

@@ -1,9 +1,9 @@
 ---
 name: onboarding
-description: Orient an agent at the start of a ZeroParse development session to current contracts, code ownership, backlog, and proportionate validation. Use for repository work; skip for an isolated factual answer.
+description: Orient an agent at the start of a SyntaxIR development session to current contracts, code ownership, backlog, and proportionate validation. Use for repository work; skip for an isolated factual answer.
 ---
 
-# ZeroParse Development Onboarding
+# SyntaxIR Development Onboarding
 
 Before changing code or documentation, identify the requested scope and inspect the live
 checkout (`pwd`, branch, worktree status and relevant files). This skill is a route to

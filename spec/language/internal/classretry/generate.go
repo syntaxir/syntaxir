@@ -4,4 +4,4 @@
 
 package classretry
 
-//go:generate go run ../../../../cmd/zp gen -g classretry.zp -module zeroparse.dev/zp/spec/language/internal/classretry -lib import -limits -o .
+//go:generate go run ../../../../cmd/sxir gen -g classretry.sxir -module syntaxir.dev/sxir/spec/language/internal/classretry -lib import -limits -o .

@@ -3,7 +3,7 @@ package print_test
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
 )
 
 // TestGeneratedCheckTypeName checks that a grammar type named like the generated check type

@@ -1,8 +1,8 @@
 package codegentest
 
 import (
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 var TypedDirectCutCases = []Case{

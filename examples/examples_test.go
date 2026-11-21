@@ -1,7 +1,7 @@
 // Package examples_test parses the testdata inputs of every example grammar and compares the results with
 // golden files.
 //
-// Every .zp file in a directory is run against that directory's testdata/*.txt. Grammars in the same
+// Every .sxir file in a directory is run against that directory's testdata/*.txt. Grammars in the same
 // directory must produce the same results, except where a result depends on how the grammar is written
 // (such as the expected alternatives of a syntax error); such results can be overridden per grammar with
 // <input>.<grammar>.golden. Run go test ./examples -update to regenerate the golden files.
@@ -13,15 +13,15 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/internal/testing/enginetest"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 )
 
 var update = codegentest.UpdateGoldens // -update: enginetest links codegentest, which defines the flag
 
 func TestExamples(t *testing.T) {
-	grammars, err := filepath.Glob("*/*.zp")
+	grammars, err := filepath.Glob("*/*.sxir")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +62,7 @@ func TestExamples(t *testing.T) {
 				}
 				base := strings.TrimSuffix(in, ".txt")
 				golden := base + ".golden"
-				own := base + "." + strings.TrimSuffix(filepath.Base(gpath), ".zp") + ".golden"
+				own := base + "." + strings.TrimSuffix(filepath.Base(gpath), ".sxir") + ".golden"
 				if _, err := os.Stat(own); err == nil {
 					golden = own
 				}

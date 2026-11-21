@@ -1,4 +1,4 @@
-//go:build !zp_reference_stream_text
+//go:build !sxir_reference_stream_text
 
 package state
 

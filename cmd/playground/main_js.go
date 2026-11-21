@@ -28,9 +28,9 @@ func main() {
 			return string(handle(method, []byte(req)))
 		}))
 	}
-	js.Global().Set("zp", api)
+	js.Global().Set("sxir", api)
 	// Tell a loader that is waiting for the API that it is ready.
-	if ready := js.Global().Get("zpReady"); ready.Type() == js.TypeFunction {
+	if ready := js.Global().Get("sxirReady"); ready.Type() == js.TypeFunction {
 		ready.Invoke()
 	}
 	select {}

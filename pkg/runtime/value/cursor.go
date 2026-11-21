@@ -3,7 +3,7 @@ package value
 import (
 	"fmt"
 
-	"zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 // Cursor filters edge-oriented node visits using spans in Unit. Unit must match
@@ -16,10 +16,10 @@ type Cursor struct {
 
 func (c Cursor) validate(start, end int32) error {
 	if c.Unit != input.CodePoints && c.Unit != input.Bytes {
-		return fmt.Errorf("zp: invalid cursor unit %d", c.Unit)
+		return fmt.Errorf("sxir: invalid cursor unit %d", c.Unit)
 	}
 	if start < 0 || end < start {
-		return fmt.Errorf("zp: invalid cursor range [%d,%d)", start, end)
+		return fmt.Errorf("sxir: invalid cursor range [%d,%d)", start, end)
 	}
 	return nil
 }
@@ -53,7 +53,7 @@ func (c Cursor) Range(start, end int32, visit func(WalkVisit) (WalkAction, error
 
 func (c Cursor) filter(visit func(WalkVisit) (WalkAction, error), matches func(*Node) bool) error {
 	if visit == nil {
-		return fmt.Errorf("zp: nil cursor callback")
+		return fmt.Errorf("sxir: nil cursor callback")
 	}
 	return Walk(c.Root, func(v WalkVisit) (WalkAction, error) {
 		if v.Node != nil && matches(v.Node) {

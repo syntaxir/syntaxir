@@ -3,10 +3,10 @@
 # Rewrite with: go test ./internal/backend/codegen/golang/print -run Document -update
 # A run checks every entry of its scope: an entry that is missing, stale or different fails. -update replaces the
 # entries of the scope, drops stale ones and logs a summary per case. Review the diff: it is a regression freeze.
-corpus/0/../../examples/calculator/calc.zp	4b0b4b77b121f1fa345a07ec
-corpus/0/../../examples/calculator/calc_lr.zp	bb84e99e034efdb574ebcaad
-corpus/0/../../examples/minilang/minilang.zp	2002faf43a4e984cf91c765a
-corpus/0/../../examples/outline/outline.zp	ac2b4410d93427e9ee495bfa
+corpus/0/../../examples/calculator/calc.sxir	4b0b4b77b121f1fa345a07ec
+corpus/0/../../examples/calculator/calc_lr.sxir	bb84e99e034efdb574ebcaad
+corpus/0/../../examples/minilang/minilang.sxir	2002faf43a4e984cf91c765a
+corpus/0/../../examples/outline/outline.sxir	ac2b4410d93427e9ee495bfa
 corpus/0/LR cut inside optional	03c3e1a93fef00c8d8c65b36
 corpus/0/Operators Rule explicit default action	d7c08179f772d4e8f11089de
 corpus/0/Operators Rule operand with a cut in the recovered body	85144bc177c1982c04d0a47b
@@ -209,38 +209,38 @@ corpus/0/terminal constructor predicate error	5e26bc80f6e48520e53868ad
 corpus/0/terminal constructor root	fbdccdae5c944ccc4eb21fdd
 corpus/0/terminal constructor value error	82dd5e82b84efdd81a73ae4a
 corpus/0/terminal singleton union	4103c6040af4ed997227c531
-corpus/0/testdata/typed/calclr.zp	37fa94976a727bdfd8ab70cd
-corpus/0/testdata/typed/direct_backtrack.zp	af0816fdd5b081b8d6b559f8
-corpus/0/testdata/typed/direct_errors.zp	1a9c872ef4b91353eb46164d
-corpus/0/testdata/typed/direct_lists.zp	2c6103178622a3f7a42cbba3
-corpus/0/testdata/typed/direct_literals.zp	1d8fc73b466e878005066d21
-corpus/0/testdata/typed/direct_names.zp	3f9cf7cad40a8f517954a84b
-corpus/0/testdata/typed/element_scope_optional.zp	7b94fb53225e7c11a2cdf883
-corpus/0/testdata/typed/element_scope_plain.zp	653a9fa51e48997d0619147a
-corpus/0/testdata/typed/element_scope_recover.zp	afb15b7c39c16694eacf6e50
-corpus/0/testdata/typed/errlist.zp	97a38cde9a658fc678608e48
-corpus/0/testdata/typed/errlist2.zp	9242e35400934613cdd0df1f
-corpus/0/testdata/typed/fields.zp	91d6e39fc94bfa26c9fbe1c1
-corpus/0/testdata/typed/mix.zp	c221c6d0adea56a76bd0ab81
-corpus/0/testdata/typed/mixf.zp	31fbb0ee3df74bbf511af8de
-corpus/0/testdata/typed/operators_rule1.zp	4a5ca3531974c744e8053bc1
-corpus/0/testdata/typed/operators_rule1f.zp	6bc26be7eabe20c7837a77bd
-corpus/0/testdata/typed/order.zp	61e2f234ca3dec4deff850c0
-corpus/0/testdata/typed/proj1.zp	5a67b183b1a544180a9f3bc6
-corpus/0/testdata/typed/proj2.zp	b06236eaf6af81a866d2a6fd
-corpus/0/testdata/typed/proj3.zp	abc07517e10e029482e6d84e
-corpus/0/testdata/typed/proj4.zp	a3f8e3d096e255dd709144c2
-corpus/0/testdata/typed/proj5.zp	fc3564815487bbaf33774370
-corpus/0/testdata/typed/proj6.zp	41b64a8a53e415d4c1a38dfd
-corpus/0/testdata/typed/proj7.zp	5230436f46491b63ec010e6f
-corpus/0/testdata/typed/spanname.zp	8cca6a2a76dcd783d286a3ad
-corpus/0/testdata/typed/splice_recursive_capture.zp	5b94705370ac16f38724f432
-corpus/0/testdata/typed/splice_recursive_capture_action.zp	31d60ceed2db134bc6e4947a
-corpus/0/testdata/typed/splice_recursive_choice.zp	3a0ed66ede43fc205345379d
-corpus/0/testdata/typed/splice_recursive_choice_in_seq.zp	3cdd70598b1cb3c90d3b6d1c
-corpus/0/testdata/typed/splice_recursive_optional.zp	80d0f74ae3edb9b320d2114f
-corpus/0/testdata/typed/splice_recursive_repeat.zp	d46c5285ff014bd9a2de06b1
-corpus/0/testdata/typed/unif.zp	5bc1c92733e542c0a1364eb0
+corpus/0/testdata/typed/calclr.sxir	37fa94976a727bdfd8ab70cd
+corpus/0/testdata/typed/direct_backtrack.sxir	af0816fdd5b081b8d6b559f8
+corpus/0/testdata/typed/direct_errors.sxir	1a9c872ef4b91353eb46164d
+corpus/0/testdata/typed/direct_lists.sxir	2c6103178622a3f7a42cbba3
+corpus/0/testdata/typed/direct_literals.sxir	1d8fc73b466e878005066d21
+corpus/0/testdata/typed/direct_names.sxir	3f9cf7cad40a8f517954a84b
+corpus/0/testdata/typed/element_scope_optional.sxir	7b94fb53225e7c11a2cdf883
+corpus/0/testdata/typed/element_scope_plain.sxir	653a9fa51e48997d0619147a
+corpus/0/testdata/typed/element_scope_recover.sxir	afb15b7c39c16694eacf6e50
+corpus/0/testdata/typed/errlist.sxir	97a38cde9a658fc678608e48
+corpus/0/testdata/typed/errlist2.sxir	9242e35400934613cdd0df1f
+corpus/0/testdata/typed/fields.sxir	91d6e39fc94bfa26c9fbe1c1
+corpus/0/testdata/typed/mix.sxir	c221c6d0adea56a76bd0ab81
+corpus/0/testdata/typed/mixf.sxir	31fbb0ee3df74bbf511af8de
+corpus/0/testdata/typed/operators_rule1.sxir	4a5ca3531974c744e8053bc1
+corpus/0/testdata/typed/operators_rule1f.sxir	6bc26be7eabe20c7837a77bd
+corpus/0/testdata/typed/order.sxir	61e2f234ca3dec4deff850c0
+corpus/0/testdata/typed/proj1.sxir	5a67b183b1a544180a9f3bc6
+corpus/0/testdata/typed/proj2.sxir	b06236eaf6af81a866d2a6fd
+corpus/0/testdata/typed/proj3.sxir	abc07517e10e029482e6d84e
+corpus/0/testdata/typed/proj4.sxir	a3f8e3d096e255dd709144c2
+corpus/0/testdata/typed/proj5.sxir	fc3564815487bbaf33774370
+corpus/0/testdata/typed/proj6.sxir	41b64a8a53e415d4c1a38dfd
+corpus/0/testdata/typed/proj7.sxir	5230436f46491b63ec010e6f
+corpus/0/testdata/typed/spanname.sxir	8cca6a2a76dcd783d286a3ad
+corpus/0/testdata/typed/splice_recursive_capture.sxir	5b94705370ac16f38724f432
+corpus/0/testdata/typed/splice_recursive_capture_action.sxir	31d60ceed2db134bc6e4947a
+corpus/0/testdata/typed/splice_recursive_choice.sxir	3a0ed66ede43fc205345379d
+corpus/0/testdata/typed/splice_recursive_choice_in_seq.sxir	3cdd70598b1cb3c90d3b6d1c
+corpus/0/testdata/typed/splice_recursive_optional.sxir	80d0f74ae3edb9b320d2114f
+corpus/0/testdata/typed/splice_recursive_repeat.sxir	d46c5285ff014bd9a2de06b1
+corpus/0/testdata/typed/unif.sxir	5bc1c92733e542c0a1364eb0
 corpus/0/top-level cut in a called rule	9901ed26008209bd5a74580b
 corpus/0/transitive action variables	c35aa3119327e3b272d43461
 corpus/0/tuple literal in struct fields	155298136a11f8d168501cf2
@@ -366,10 +366,10 @@ corpus/0/wide scan minimum 9223372036854775807	3cdcb63140a6418b6190f5c4
 corpus/0/wide unbounded minimum 2147483648	dc22f98e217c2a4badad7964
 corpus/0/wide unbounded minimum 4294967296	dc22f98e217c2a4badad7964
 corpus/0/wide unbounded minimum 9223372036854775807	dc22f98e217c2a4badad7964
-corpus/1/../../examples/calculator/calc.zp	4b0b4b77b121f1fa345a07ec
-corpus/1/../../examples/calculator/calc_lr.zp	bb84e99e034efdb574ebcaad
-corpus/1/../../examples/minilang/minilang.zp	2002faf43a4e984cf91c765a
-corpus/1/../../examples/outline/outline.zp	ac2b4410d93427e9ee495bfa
+corpus/1/../../examples/calculator/calc.sxir	4b0b4b77b121f1fa345a07ec
+corpus/1/../../examples/calculator/calc_lr.sxir	bb84e99e034efdb574ebcaad
+corpus/1/../../examples/minilang/minilang.sxir	2002faf43a4e984cf91c765a
+corpus/1/../../examples/outline/outline.sxir	ac2b4410d93427e9ee495bfa
 corpus/1/LR cut inside optional	03c3e1a93fef00c8d8c65b36
 corpus/1/Operators Rule explicit default action	d7c08179f772d4e8f11089de
 corpus/1/Operators Rule operand with a cut in the recovered body	85144bc177c1982c04d0a47b
@@ -572,38 +572,38 @@ corpus/1/terminal constructor predicate error	5e26bc80f6e48520e53868ad
 corpus/1/terminal constructor root	fbdccdae5c944ccc4eb21fdd
 corpus/1/terminal constructor value error	82dd5e82b84efdd81a73ae4a
 corpus/1/terminal singleton union	4103c6040af4ed997227c531
-corpus/1/testdata/typed/calclr.zp	37fa94976a727bdfd8ab70cd
-corpus/1/testdata/typed/direct_backtrack.zp	af0816fdd5b081b8d6b559f8
-corpus/1/testdata/typed/direct_errors.zp	1a9c872ef4b91353eb46164d
-corpus/1/testdata/typed/direct_lists.zp	2c6103178622a3f7a42cbba3
-corpus/1/testdata/typed/direct_literals.zp	1d8fc73b466e878005066d21
-corpus/1/testdata/typed/direct_names.zp	3f9cf7cad40a8f517954a84b
-corpus/1/testdata/typed/element_scope_optional.zp	7b94fb53225e7c11a2cdf883
-corpus/1/testdata/typed/element_scope_plain.zp	653a9fa51e48997d0619147a
-corpus/1/testdata/typed/element_scope_recover.zp	afb15b7c39c16694eacf6e50
-corpus/1/testdata/typed/errlist.zp	97a38cde9a658fc678608e48
-corpus/1/testdata/typed/errlist2.zp	9242e35400934613cdd0df1f
-corpus/1/testdata/typed/fields.zp	91d6e39fc94bfa26c9fbe1c1
-corpus/1/testdata/typed/mix.zp	c221c6d0adea56a76bd0ab81
-corpus/1/testdata/typed/mixf.zp	31fbb0ee3df74bbf511af8de
-corpus/1/testdata/typed/operators_rule1.zp	4a5ca3531974c744e8053bc1
-corpus/1/testdata/typed/operators_rule1f.zp	6bc26be7eabe20c7837a77bd
-corpus/1/testdata/typed/order.zp	61e2f234ca3dec4deff850c0
-corpus/1/testdata/typed/proj1.zp	5a67b183b1a544180a9f3bc6
-corpus/1/testdata/typed/proj2.zp	b06236eaf6af81a866d2a6fd
-corpus/1/testdata/typed/proj3.zp	abc07517e10e029482e6d84e
-corpus/1/testdata/typed/proj4.zp	a3f8e3d096e255dd709144c2
-corpus/1/testdata/typed/proj5.zp	fc3564815487bbaf33774370
-corpus/1/testdata/typed/proj6.zp	41b64a8a53e415d4c1a38dfd
-corpus/1/testdata/typed/proj7.zp	5230436f46491b63ec010e6f
-corpus/1/testdata/typed/spanname.zp	8cca6a2a76dcd783d286a3ad
-corpus/1/testdata/typed/splice_recursive_capture.zp	5b94705370ac16f38724f432
-corpus/1/testdata/typed/splice_recursive_capture_action.zp	31d60ceed2db134bc6e4947a
-corpus/1/testdata/typed/splice_recursive_choice.zp	3a0ed66ede43fc205345379d
-corpus/1/testdata/typed/splice_recursive_choice_in_seq.zp	3cdd70598b1cb3c90d3b6d1c
-corpus/1/testdata/typed/splice_recursive_optional.zp	80d0f74ae3edb9b320d2114f
-corpus/1/testdata/typed/splice_recursive_repeat.zp	d46c5285ff014bd9a2de06b1
-corpus/1/testdata/typed/unif.zp	5bc1c92733e542c0a1364eb0
+corpus/1/testdata/typed/calclr.sxir	37fa94976a727bdfd8ab70cd
+corpus/1/testdata/typed/direct_backtrack.sxir	af0816fdd5b081b8d6b559f8
+corpus/1/testdata/typed/direct_errors.sxir	1a9c872ef4b91353eb46164d
+corpus/1/testdata/typed/direct_lists.sxir	2c6103178622a3f7a42cbba3
+corpus/1/testdata/typed/direct_literals.sxir	1d8fc73b466e878005066d21
+corpus/1/testdata/typed/direct_names.sxir	3f9cf7cad40a8f517954a84b
+corpus/1/testdata/typed/element_scope_optional.sxir	7b94fb53225e7c11a2cdf883
+corpus/1/testdata/typed/element_scope_plain.sxir	653a9fa51e48997d0619147a
+corpus/1/testdata/typed/element_scope_recover.sxir	afb15b7c39c16694eacf6e50
+corpus/1/testdata/typed/errlist.sxir	97a38cde9a658fc678608e48
+corpus/1/testdata/typed/errlist2.sxir	9242e35400934613cdd0df1f
+corpus/1/testdata/typed/fields.sxir	91d6e39fc94bfa26c9fbe1c1
+corpus/1/testdata/typed/mix.sxir	c221c6d0adea56a76bd0ab81
+corpus/1/testdata/typed/mixf.sxir	31fbb0ee3df74bbf511af8de
+corpus/1/testdata/typed/operators_rule1.sxir	4a5ca3531974c744e8053bc1
+corpus/1/testdata/typed/operators_rule1f.sxir	6bc26be7eabe20c7837a77bd
+corpus/1/testdata/typed/order.sxir	61e2f234ca3dec4deff850c0
+corpus/1/testdata/typed/proj1.sxir	5a67b183b1a544180a9f3bc6
+corpus/1/testdata/typed/proj2.sxir	b06236eaf6af81a866d2a6fd
+corpus/1/testdata/typed/proj3.sxir	abc07517e10e029482e6d84e
+corpus/1/testdata/typed/proj4.sxir	a3f8e3d096e255dd709144c2
+corpus/1/testdata/typed/proj5.sxir	fc3564815487bbaf33774370
+corpus/1/testdata/typed/proj6.sxir	41b64a8a53e415d4c1a38dfd
+corpus/1/testdata/typed/proj7.sxir	5230436f46491b63ec010e6f
+corpus/1/testdata/typed/spanname.sxir	8cca6a2a76dcd783d286a3ad
+corpus/1/testdata/typed/splice_recursive_capture.sxir	5b94705370ac16f38724f432
+corpus/1/testdata/typed/splice_recursive_capture_action.sxir	31d60ceed2db134bc6e4947a
+corpus/1/testdata/typed/splice_recursive_choice.sxir	3a0ed66ede43fc205345379d
+corpus/1/testdata/typed/splice_recursive_choice_in_seq.sxir	3cdd70598b1cb3c90d3b6d1c
+corpus/1/testdata/typed/splice_recursive_optional.sxir	80d0f74ae3edb9b320d2114f
+corpus/1/testdata/typed/splice_recursive_repeat.sxir	d46c5285ff014bd9a2de06b1
+corpus/1/testdata/typed/unif.sxir	5bc1c92733e542c0a1364eb0
 corpus/1/top-level cut in a called rule	9901ed26008209bd5a74580b
 corpus/1/transitive action variables	c35aa3119327e3b272d43461
 corpus/1/tuple literal in struct fields	155298136a11f8d168501cf2

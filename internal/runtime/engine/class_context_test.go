@@ -10,14 +10,14 @@ import (
 	"testing"
 	"weak"
 
-	"zeroparse.dev/zp/internal/backend/closure"
-	"zeroparse.dev/zp/internal/cancel"
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/internal/testing/starttest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/backend/closure"
+	"syntaxir.dev/sxir/internal/cancel"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/starttest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 func contextClassRanges() []ast.CharRange {
@@ -82,7 +82,7 @@ func TestClassConstructionContextFacts(t *testing.T) {
 					for _, active := range []bool{false, true} {
 						p := &state.Parser{}
 						if active {
-							p.Control = state.NewBudgetControl(nil, zpruntime.Limits{Compute: 1 << 30})
+							p.Control = state.NewBudgetControl(nil, sxirruntime.Limits{Compute: 1 << 30})
 						}
 						expected := false
 						for _, rg := range rs {
@@ -143,7 +143,7 @@ func TestClassConstructionCompileContextParity(t *testing.T) {
 							// including its directly compiled recognition-only graph.
 							opts := ParseOptions{Unit: unit, Recognize: recognize}
 							if active {
-								opts.Limits = zpruntime.Limits{Compute: 1 << 30}
+								opts.Limits = sxirruntime.Limits{Compute: 1 << 30}
 							}
 							x, xe := a.ParseWith("main", s, opts)
 							y, ye := b.ParseWith("main", s, opts)

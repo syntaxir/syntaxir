@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/backend/codegen/golang/print"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // routeInputs are the inputs of each route grammar, by file name without the extension.
@@ -28,7 +28,7 @@ var routeInputs = map[string][]string{
 
 // routeCases returns the route grammars with their inputs.
 func routeCases(t *testing.T) []codegentest.Case {
-	paths, err := filepath.Glob(filepath.Join("testdata", "routes", "*.zp"))
+	paths, err := filepath.Glob(filepath.Join("testdata", "routes", "*.sxir"))
 	if err != nil || len(paths) != len(routeInputs) {
 		t.Fatalf("route grammars: %d files, want %d: %v", len(paths), len(routeInputs), err)
 	}
@@ -38,7 +38,7 @@ func routeCases(t *testing.T) []codegentest.Case {
 		if err != nil {
 			t.Fatal(err)
 		}
-		name := strings.TrimSuffix(filepath.Base(p), ".zp")
+		name := strings.TrimSuffix(filepath.Base(p), ".sxir")
 		inputs, ok := routeInputs[name]
 		if !ok {
 			t.Fatalf("no inputs for route grammar %s", name)

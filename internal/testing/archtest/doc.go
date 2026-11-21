@@ -9,7 +9,7 @@
 //     in either library mode, links neither the VM (pkg/runtime/vm) nor internal/runtime/**.
 //   - Rule 2: the layers of the compiler side. Each layer imports only the layers that the
 //     layer graph puts below it: cmd over the public tool API (pkg/compiler, pkg/lint,
-//     pkg/sample, pkg/editfuzz and the fixture suites of zp test) and the LSP, the public tool API
+//     pkg/sample, pkg/editfuzz and the fixture suites of sxir test) and the LSP, the public tool API
 //     and the LSP over the driver, the driver over analysis, analysis over the back end, the back
 //     end over the middle end, the middle end over the front end, and those over internal/ir,
 //     which is over internal/pass and the grammar AST (pkg/grammar/ast); every layer may import the

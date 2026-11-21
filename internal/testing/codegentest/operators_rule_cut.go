@@ -1,6 +1,6 @@
 package codegentest
 
-import "zeroparse.dev/zp/pkg/runtime/value/impl"
+import "syntaxir.dev/sxir/pkg/runtime/value/impl"
 
 // One shared grammar keeps the same scope/selection cases in the engine and generated Go/TS corpus.
 const PrefixPartCuts = `type Atom = { Text string }

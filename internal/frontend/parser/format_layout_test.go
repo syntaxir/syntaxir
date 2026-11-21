@@ -3,7 +3,7 @@ package parser
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/syntax/fmt"
+	"syntaxir.dev/sxir/internal/syntax/fmt"
 )
 
 // A comment before a value on the same line brings its own space, so the separator before it

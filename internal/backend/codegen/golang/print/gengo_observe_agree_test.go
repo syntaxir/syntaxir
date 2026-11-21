@@ -12,12 +12,12 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/instrument"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/instrument"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // The engine and the generated Go parsers report the calls of a parse with the same events and add them
@@ -247,17 +247,17 @@ import (
 	"io"
 	"os"
 
-	zprt "zeroparse.dev/zp/pkg/runtime/libgo"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	zpinstrument "zeroparse.dev/zp/pkg/runtime/instrument"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 IMPORTS)
 
-var _ *zpvalue.Node
+var _ *sxirvalue.Node
 
 type entry struct {
 	name string
-	run  func(string, zpinput.PositionUnit, ...zprt.ParseOption) error
+	run  func(string, sxirinput.PositionUnit, ...sxirrt.ParseOption) error
 }
 
 var entries = [][]entry{
@@ -274,13 +274,13 @@ func (r *oneByte) Read(b []byte) (int, error) {
 }
 
 // middle returns the position and the end of the character in the middle of in, and the character.
-func middle(in string, unit zpinput.PositionUnit) (int, int, string) {
+func middle(in string, unit sxirinput.PositionUnit) (int, int, string) {
 	r := []rune(in)
 	k := len(r) / 2
 	if k == len(r) {
 		return 0, 0, ""
 	}
-	if unit == zpinput.Bytes {
+	if unit == sxirinput.Bytes {
 		pos := len(string(r[:k]))
 		return pos, pos + len(string(r[k])), string(r[k])
 	}
@@ -288,7 +288,7 @@ func middle(in string, unit zpinput.PositionUnit) (int, int, string) {
 }
 
 // untimed returns the snapshot of prof without its times.
-func untimed(prof *zpinstrument.Profile) zpinstrument.ProfileSnapshot {
+func untimed(prof *sxirinstrument.Profile) sxirinstrument.ProfileSnapshot {
 	snap := prof.Snapshot()
 	snap.Time = 0
 	for k := range snap.Rules {
@@ -305,13 +305,13 @@ func main() {
 	}
 	for i := range entries {
 		for j, in := range inputs[i] {
-			for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+			for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 				for _, e := range entries[i] {
 					// Two trace functions and two profiles, each of which must receive the whole parse.
-					var events, second []zpinstrument.TraceEvent
-					var prof, prof2 zpinstrument.Profile
-					err := e.run(string(in), unit, zprt.WithTrace(func(ev zpinstrument.TraceEvent) { events = append(events, ev) }), zprt.WithProfile(&prof),
-						zprt.WithTrace(func(ev zpinstrument.TraceEvent) { second = append(second, ev) }), zprt.WithProfile(&prof2))
+					var events, second []sxirinstrument.TraceEvent
+					var prof, prof2 sxirinstrument.Profile
+					err := e.run(string(in), unit, sxirrt.WithTrace(func(ev sxirinstrument.TraceEvent) { events = append(events, ev) }), sxirrt.WithProfile(&prof),
+						sxirrt.WithTrace(func(ev sxirinstrument.TraceEvent) { second = append(second, ev) }), sxirrt.WithProfile(&prof2))
 					// The same parse with a trace filter and a depth limit: the filter names a rule called
 					// within the start rule, if any, and a name that is not a rule.
 					filter := []string{"main", "no such rule"}
@@ -321,23 +321,23 @@ func main() {
 							break
 						}
 					}
-					var filtered []zpinstrument.TraceEvent
-					var filteredProf zpinstrument.Profile
-					e.run(string(in), unit, zprt.WithTraceFilter("main"), zprt.WithTraceFilter(filter...), zprt.WithTraceMaxDepth(1), zprt.WithTraceMaxDepth(MAXDEPTH),
-						zprt.WithTrace(func(ev zpinstrument.TraceEvent) { filtered = append(filtered, ev) }), zprt.WithProfile(&filteredProf))
+					var filtered []sxirinstrument.TraceEvent
+					var filteredProf sxirinstrument.Profile
+					e.run(string(in), unit, sxirrt.WithTraceFilter("main"), sxirrt.WithTraceFilter(filter...), sxirrt.WithTraceMaxDepth(1), sxirrt.WithTraceMaxDepth(MAXDEPTH),
+						sxirrt.WithTrace(func(ev sxirinstrument.TraceEvent) { filtered = append(filtered, ev) }), sxirrt.WithProfile(&filteredProf))
 					b, _ := json.Marshal(struct {
 						Case, Input int
 						Bytes       bool
 						Entry       string
-						Events      []zpinstrument.TraceEvent
-						Profile     zpinstrument.ProfileSnapshot
-						Second      []zpinstrument.TraceEvent
-						Profile2    zpinstrument.ProfileSnapshot
+						Events      []sxirinstrument.TraceEvent
+						Profile     sxirinstrument.ProfileSnapshot
+						Second      []sxirinstrument.TraceEvent
+						Profile2    sxirinstrument.ProfileSnapshot
 						Filter      []string
-						Filtered    []zpinstrument.TraceEvent
-						FilteredProfile zpinstrument.ProfileSnapshot
+						Filtered    []sxirinstrument.TraceEvent
+						FilteredProfile sxirinstrument.ProfileSnapshot
 						Err         string
-					}{i, j, unit == zpinput.Bytes, e.name, events, untimed(&prof), second, untimed(&prof2), filter, filtered, untimed(&filteredProf), fmt.Sprint(err)})
+					}{i, j, unit == sxirinput.Bytes, e.name, events, untimed(&prof), second, untimed(&prof2), filter, filtered, untimed(&filteredProf), fmt.Sprint(err)})
 					fmt.Println(string(b))
 				}
 			}
@@ -368,7 +368,7 @@ type agreeReport struct {
 // build them in a module of their own (the agreement and the generated Document observation): a JSON
 // object with the file of the library (relative to the module root) and the text to replace (Old) with
 // New. The go command's overlay does not reach those copies of the library.
-const agreeLibPatchEnv = "ZP_AGREE_LIB_PATCH"
+const agreeLibPatchEnv = "SXIR_AGREE_LIB_PATCH"
 
 // libPatchFromEnv returns the patch of agreeLibPatchEnv, applied after then (if not nil), for
 // codegentest.LibCopyWith, and a function that fails t unless the patch replaced exactly one occurrence.
@@ -454,21 +454,21 @@ func runAgreeProbes(t *testing.T, cases []codegentest.Case) []agreeReport {
 		codegentest.GeneratePackageIn(t, dir, "agreeprobe", pkg, g, o)
 		fmt.Fprintf(&imports, "\tf%d \"agreeprobe/f%d\"\n", i, i)
 		fmt.Fprintf(&entries, `	{
-		{"parse", func(in string, u zpinput.PositionUnit, o ...zprt.ParseOption) error {
-			_, err := f%[1]d.Parse(in, append(o, zprt.WithUnit(u))...)
+		{"parse", func(in string, u sxirinput.PositionUnit, o ...sxirrt.ParseOption) error {
+			_, err := f%[1]d.Parse(in, append(o, sxirrt.WithUnit(u))...)
 			return err
 		}},
-		{"recognize", func(in string, u zpinput.PositionUnit, o ...zprt.ParseOption) error { return f%[1]d.Recognize(in, append(o, zprt.WithUnit(u))...) }},
-		{"document", func(in string, u zpinput.PositionUnit, o ...zprt.ParseOption) error {
-			d, err := f%[1]d.NewDocument(in, zprt.WithUnit(u))
+		{"recognize", func(in string, u sxirinput.PositionUnit, o ...sxirrt.ParseOption) error { return f%[1]d.Recognize(in, append(o, sxirrt.WithUnit(u))...) }},
+		{"document", func(in string, u sxirinput.PositionUnit, o ...sxirrt.ParseOption) error {
+			d, err := f%[1]d.NewDocument(in, sxirrt.WithUnit(u))
 			if err != nil {
 				return err
 			}
 			_, err = d.Parse(o...)
 			return err
 		}},
-		{"edit", func(in string, u zpinput.PositionUnit, o ...zprt.ParseOption) error {
-			d, err := f%[1]d.NewDocument(in, zprt.WithUnit(u))
+		{"edit", func(in string, u sxirinput.PositionUnit, o ...sxirrt.ParseOption) error {
+			d, err := f%[1]d.NewDocument(in, sxirrt.WithUnit(u))
 			if err != nil {
 				return err
 			}
@@ -482,8 +482,8 @@ func runAgreeProbes(t *testing.T, cases []codegentest.Case) []agreeReport {
 		}},
 `, i)
 		if o.Stream {
-			fmt.Fprintf(&entries, `		{"stream", func(in string, u zpinput.PositionUnit, o ...zprt.ParseOption) error {
-			return f%d.ParseStream(&oneByte{in}, func(*zpvalue.Node) error { return nil }, append(o, zprt.WithUnit(u))...)
+			fmt.Fprintf(&entries, `		{"stream", func(in string, u sxirinput.PositionUnit, o ...sxirrt.ParseOption) error {
+			return f%d.ParseStream(&oneByte{in}, func(*sxirvalue.Node) error { return nil }, append(o, sxirrt.WithUnit(u))...)
 		}},
 `, i)
 		}

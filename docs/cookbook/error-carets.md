@@ -12,8 +12,8 @@ app.conf:2:8: expected a number or a string
 Two things make this: a grammar whose errors have readable messages (`@error`), and a few lines of Go that print the
 position of the `*value.SyntaxError`.
 
-```zp
-// settings.zp
+```sxir
+// settings.sxir
 @start
 rule main = -ws setting* $$
 
@@ -43,12 +43,12 @@ import (
 	"strconv"
 	"strings"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
-//go:embed settings.zp
+//go:embed settings.sxir
 var grammarSrc string
 
 // report formats a syntax error with the line it is on and a caret under the column.
@@ -78,7 +78,7 @@ func report(file, src string, err error) string {
 }
 
 func main() {
-	p, err := compiler.Compile(grammar.FromString("grammar.zp", grammarSrc), compiler.WithStart("main"))
+	p, err := compiler.Compile(grammar.FromString("grammar.sxir", grammarSrc), compiler.WithStart("main"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -150,6 +150,6 @@ app.conf:1:11: expected ';'
 - **Where the message points.** A missing `;` at the end of a line is reported at the first token that did not fit, which
   can be on the next line, because the rule for white space reads past line ends. [Error
   Messages](../guide/error-messages.md) explains this and how to place labels.
-- **Find out why a grammar reports what it does** with `zp explain -g settings.zp < app.conf`; see
+- **Find out why a grammar reports what it does** with `sxir explain -g settings.sxir < app.conf`; see
   [Debugging and profiling](../guide/debugging.md).
-- **Editors**: [`zp lsp`](../guide/editor-support.md) shows the same errors as you type.
+- **Editors**: [`sxir lsp`](../guide/editor-support.md) shows the same errors as you type.

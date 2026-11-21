@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"zeroparse.dev/zp/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/frontend/parser"
 )
 
 // enumerationAlphabet are the tokens that the exhaustive enumeration combines: each decides how a

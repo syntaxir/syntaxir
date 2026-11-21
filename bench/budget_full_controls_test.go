@@ -1,4 +1,4 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package bench
 
@@ -9,18 +9,18 @@ import (
 	"reflect"
 	"testing"
 
-	gcalc "zeroparse.dev/zp/internal/bench/parsers/calc"
-	gcalclr "zeroparse.dev/zp/internal/bench/parsers/calclr"
-	gcsv "zeroparse.dev/zp/internal/bench/parsers/csv"
-	gjson "zeroparse.dev/zp/internal/bench/parsers/json"
-	gminilang "zeroparse.dev/zp/internal/bench/parsers/minilang"
-	goutline "zeroparse.dev/zp/internal/bench/parsers/outline"
-	gxml "zeroparse.dev/zp/internal/bench/parsers/xml"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/value"
-	valueimpl "zeroparse.dev/zp/pkg/runtime/value/impl"
+	gcalc "syntaxir.dev/sxir/internal/bench/parsers/calc"
+	gcalclr "syntaxir.dev/sxir/internal/bench/parsers/calclr"
+	gcsv "syntaxir.dev/sxir/internal/bench/parsers/csv"
+	gjson "syntaxir.dev/sxir/internal/bench/parsers/json"
+	gminilang "syntaxir.dev/sxir/internal/bench/parsers/minilang"
+	goutline "syntaxir.dev/sxir/internal/bench/parsers/outline"
+	gxml "syntaxir.dev/sxir/internal/bench/parsers/xml"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/value"
+	valueimpl "syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 type fullGeneratedProbe struct {

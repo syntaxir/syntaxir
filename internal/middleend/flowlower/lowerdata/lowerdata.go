@@ -4,8 +4,8 @@
 package lowerdata
 
 import (
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/core"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/core"
 )
 
 // Form selects the function a Unit is lowered to.

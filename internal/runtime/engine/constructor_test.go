@@ -6,13 +6,13 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/bytecode"
-	"zeroparse.dev/zp/pkg/grammar/ast"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/bytecode"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // constructorGrammar builds text structs in typed list constructors, through an alias too.
@@ -42,7 +42,7 @@ func TestTypedNodeConstructors(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+		for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 			var want string
 			for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
 				n, err := p.ParseWith("main", "😀", ParseOptions{Backend: backend, Unit: unit})
@@ -60,7 +60,7 @@ func TestTypedNodeConstructors(t *testing.T) {
 					t.Fatal(got)
 				}
 				end := int32(1)
-				if unit == zpinput.Bytes {
+				if unit == sxirinput.Bytes {
 					end = 4
 				}
 				if nodes.D(items).Start != 0 || nodes.D(items).End != end || nodes.D(nodes.D(items).Children[0]).Start != 0 || nodes.D(nodes.D(items).Children[0]).End != end {
@@ -96,7 +96,7 @@ func TestNodeConstructorCompiledVersions(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, backend := range []Backend{Bytecode, BytecodeIterative} {
-			for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+			for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 				opts := ParseOptions{Backend: backend, Unit: unit}
 				if got, want := codegentest.ResultJSON(loaded.ParseWith("main", "😀", servedBy(mode, opts))), codegentest.ResultJSON(p.ParseWith("main", "😀", opts)); got != want {
 					t.Fatalf("loaded constructors: %s / %s", got, want)

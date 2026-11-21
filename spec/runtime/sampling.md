@@ -1,6 +1,6 @@
 # Input Generation
 
-A grammar describes the inputs that it accepts, so it can also produce them. The `sample` package and the `zp sample`
+A grammar describes the inputs that it accepts, so it can also produce them. The `sample` package and the `sxir sample`
 command generate inputs that a parser accepts, near-miss inputs that it rejects, and a report of which parts of the
 grammar the accepted inputs exercised. They serve tests of code that consumes parse results and the seed corpora of
 fuzz tests. This chapter defines what the generator guarantees, its options and its Go API.
@@ -30,9 +30,9 @@ decides.
 
 ### Entry Points
 
-| | Command line | Go (`zeroparse.dev/zp/pkg/sample`) |
+| | Command line | Go (`syntaxir.dev/sxir/pkg/sample`) |
 |:--|:--|:--|
-| Make a generator | `zp sample -g g.zp` | `sample.New(p, opts...)` |
+| Make a generator | `sxir sample -g g.sxir` | `sample.New(p, opts...)` |
 | Accepted inputs | `-n` | `sample.Generate(p, n, opts...)`, `Generator.Generate(n)`, `Generator.Next()` |
 | Near-miss invalid inputs | `-invalid` | `Generator.GenerateInvalid(n)`, `Generator.Invalid()` |
 | Prefer what is not exercised yet, and report it | `-coverage` | `sample.WithCoverage()`, `Generator.Coverage()` |
@@ -173,9 +173,9 @@ it cannot generate any input, or if `p` does not accept a generated input when i
 
 ### The Command
 
-`zp sample -g g.zp` prints distinct accepted inputs: `-s` selects the start rule, `-n` the number (10; a negative number is
+`sxir sample -g g.sxir` prints distinct accepted inputs: `-s` selects the start rule, `-n` the number (10; a negative number is
 an error), `-seed`, `-max-depth`, `-max-repeat`, `-max-len` and `-budget` the options with the same names, `-coverage`
-the coverage and `-invalid` near-miss inputs instead. The grammar is ZeroParse source or grammar JSON; a compiled
+the coverage and `-invalid` near-miss inputs instead. The grammar is SyntaxIR source or grammar JSON; a compiled
 grammar is an error, as is an unknown value of `-f`.
 
 - With `-f lines`, the default, each input is printed as a Go-quoted string on a line, so that an input with line breaks
@@ -186,7 +186,7 @@ grammar is an error, as is an unknown value of `-f`.
   which has the members of `Stats` in camel case and the list of `Generator.Cuts()` as the member ruleCuts, with the members
   `rule`, `checks` and `predicates`. Empty lists are omitted.
 - If the generator finds fewer inputs than `-n` but at least one, the command prints them, says
-  `zp sample: found only N distinct inputs` on the standard error and succeeds. If it finds none it fails with the
+  `sxir sample: found only N distinct inputs` on the standard error and succeeds. If it finds none it fails with the
   error of the generator; with `-coverage` the report, and with `-coverage` and `-f json` the document, are still printed.
 
 ## Validation and Errors
@@ -202,7 +202,7 @@ grammar is an error, as is an unknown value of `-f`.
 ## Compatibility and Support
 
 The generator needs the grammar, so it works for a parser built from grammar source or grammar JSON and not for one
-loaded from a compiled grammar. It is part of the Go API and the `zp` command and not of generated parsers.
+loaded from a compiled grammar. It is part of the Go API and the `sxir` command and not of generated parsers.
 
 ## Conformance
 

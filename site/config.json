@@ -1,9 +1,9 @@
 {
-  "title": "ZeroParse",
+  "title": "SyntaxIR",
   "lang": "en",
-  "repository": "https://github.com/zeroparse/zp",
+  "repository": "https://github.com/syntaxir/syntaxir",
   "branch": "main",
-  "siteURL": "https://zeroparse.dev",
+  "siteURL": "https://syntaxir.dev",
   "include": [
     "README.md",
     "SECURITY.md",
@@ -540,7 +540,7 @@
         "docs/optimizations/mechanisms/*.md"
       ],
       "first": [
-        "docs/why-zeroparse.md",
+        "docs/why-syntaxir.md",
         "docs/strategy.md",
         "examples/README.md",
         "docs/development.md",
@@ -616,7 +616,7 @@
       "source": "docs/design/records/README.md",
       "directory": "docs/design/records",
       "title": "Design Records",
-      "introduction": "Each record explains a decision in the design of ZeroParse and the alternatives that were considered.",
+      "introduction": "Each record explains a decision in the design of SyntaxIR and the alternatives that were considered.",
       "includeTemplate": true,
       "tableClass": "design-index",
       "columns": [
@@ -637,7 +637,7 @@
   ],
   "pagerOrder": [
     "docs/design/records/README.md",
-    "docs/why-zeroparse.md",
+    "docs/why-syntaxir.md",
     "docs/strategy.md",
     "examples/README.md",
     "docs/development.md",

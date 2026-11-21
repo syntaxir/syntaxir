@@ -1,4 +1,4 @@
-//go:build !zp_snapshot_sharing_reference
+//go:build !sxir_snapshot_sharing_reference
 
 package document_test
 
@@ -6,10 +6,10 @@ import (
 	"runtime"
 	"testing"
 
-	. "zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/pkg/runtime/value"
-	valueimpl "zeroparse.dev/zp/pkg/runtime/value/impl"
+	. "syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/pkg/runtime/value"
+	valueimpl "syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 func TestSnapshotSharingCyclesAndTypedNil(t *testing.T) {

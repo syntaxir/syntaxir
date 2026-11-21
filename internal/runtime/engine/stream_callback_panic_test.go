@@ -8,12 +8,12 @@ import (
 	"strings"
 	"testing"
 
-	value "zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/bytecode"
-	"zeroparse.dev/zp/pkg/runtime/input"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+	value "syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/bytecode"
+	"syntaxir.dev/sxir/pkg/runtime/input"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 type streamRuntimePanicToken struct{ phase string }
@@ -87,10 +87,10 @@ func TestStreamCallerPanicIdentity(t *testing.T) {
 									}
 								}
 								var err error
-								var nodes []*zpvalue.Node
+								var nodes []*sxirvalue.Node
 								var before []string
 								got := catchStreamPanic(func() {
-									err = prog.ParseStreamWith("main", reader, func(n *zpvalue.Node) error {
+									err = prog.ParseStreamWith("main", reader, func(n *sxirvalue.Node) error {
 										nodes = append(nodes, n)
 										before = append(before, codegentest.ResultJSON(n, nil))
 										if phase == "emit" && len(nodes) == 2 {
@@ -108,11 +108,11 @@ func TestStreamCallerPanicIdentity(t *testing.T) {
 								if traced && (event.Rule != "main" || event.Depth != 1 || event.Pos != 0) {
 									t.Fatal("saved event metadata changed")
 								}
-								if value.D(nodes[0].Field("k").(*zpvalue.Node)).Text != "a" || value.D(nodes[1].Field("v").(*zpvalue.Node)).Text != "22" {
+								if value.D(nodes[0].Field("k").(*sxirvalue.Node)).Text != "a" || value.D(nodes[1].Field("v").(*sxirvalue.Node)).Text != "22" {
 									t.Fatal("delivered fields changed")
 								}
 								retryCount := 0
-								if err := prog.ParseStreamWith("main", strings.NewReader("#records\nxy=3\n"), func(*zpvalue.Node) error { retryCount++; return nil }, ParseOptions{Backend: b, Unit: u}); err != nil || retryCount != 1 {
+								if err := prog.ParseStreamWith("main", strings.NewReader("#records\nxy=3\n"), func(*sxirvalue.Node) error { retryCount++; return nil }, ParseOptions{Backend: b, Unit: u}); err != nil || retryCount != 1 {
 									t.Fatalf("retry error=%v emitted=%d", err, retryCount)
 								}
 								for i, n := range nodes {
@@ -149,7 +149,7 @@ func TestStreamCallerReturnedErrorIdentity(t *testing.T) {
 						count := 0
 						var err error
 						got := catchStreamPanic(func() {
-							err = prog.ParseStreamWith("main", r, func(*zpvalue.Node) error {
+							err = prog.ParseStreamWith("main", r, func(*sxirvalue.Node) error {
 								count++
 								if phase == "emit" && count == 2 {
 									return stop
@@ -211,7 +211,7 @@ func TestStreamNormalCallerReturnKeepsVMFaultAttribution(t *testing.T) {
 					count := 0
 					var err error
 					got := catchStreamPanic(func() {
-						err = prog.ParseStreamWith("main", r, func(*zpvalue.Node) error {
+						err = prog.ParseStreamWith("main", r, func(*sxirvalue.Node) error {
 							count++
 							if phase == "emit" {
 								damage()

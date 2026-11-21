@@ -4,7 +4,7 @@ package sourceast
 import (
 	"fmt"
 
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Metadata is the offset representation of a canonical SourceMetadata value.

@@ -10,7 +10,7 @@ import (
 	"sync"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
 )
 
 // LibGoSource is the Go library source that tests give to the generator: the live directory

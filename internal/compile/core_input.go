@@ -1,6 +1,6 @@
 package compile
 
-import "zeroparse.dev/zp/internal/frontend/elaborate"
+import "syntaxir.dev/sxir/internal/frontend/elaborate"
 
 // CoreInput returns the rules and declarations of the program as the Core IR builder reads them
 // (elaborate.Program).

@@ -3,7 +3,7 @@ package sourceast
 import (
 	"fmt"
 
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Gap is the canonical record of the trivia between two tokens when it holds a

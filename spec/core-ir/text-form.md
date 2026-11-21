@@ -53,7 +53,7 @@ for the final struct of a rule or line; `Node(expr)` for a conversion; `(a, b)` 
 
 The example grammar is the following.
 
-```zp
+```sxir
 package list
 
 type Item = { Name node[string] }

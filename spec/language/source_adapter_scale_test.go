@@ -8,11 +8,11 @@ import (
 	"sync"
 	"testing"
 
-	"zeroparse.dev/zp/internal/frontend/parser"
-	"zeroparse.dev/zp/internal/frontend/parser/zpparser"
-	"zeroparse.dev/zp/internal/testing/linearity"
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/spec/language/internal/classretry"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/frontend/parser/sxirparser"
+	"syntaxir.dev/sxir/internal/testing/linearity"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/spec/language/internal/classretry"
 )
 
 // The recovery of a declaration skips to the next one over the brackets it opens. A bracket that is not
@@ -73,14 +73,14 @@ func computeCost(t *testing.T, run func(limit uint64) error) uint64 {
 	t.Helper()
 	return linearity.LeastLimit(t, func(limit uint64) bool {
 		err := run(limit)
-		var syntax zpparser.SyntaxErrors
-		var one *zpparser.SyntaxError
+		var syntax sxirparser.SyntaxErrors
+		var one *sxirparser.SyntaxError
 		switch {
 		case err == nil, errors.As(err, &syntax), errors.As(err, &one):
 			return true
-		case errors.Is(err, zpruntime.ErrLimit):
-			var l *zpruntime.LimitError
-			if errors.As(err, &l) && l.Kind == zpruntime.LimitCompute {
+		case errors.Is(err, sxirruntime.ErrLimit):
+			var l *sxirruntime.LimitError
+			if errors.As(err, &l) && l.Kind == sxirruntime.LimitCompute {
 				return false
 			}
 		}
@@ -112,12 +112,12 @@ func scalesLinearly(t *testing.T, small int, cost func(n int) uint64) (ratio flo
 	return ratio, ok
 }
 
-// sourceCost is the compute cost of the generated parser of ZeroParse sources on src, with the options
+// sourceCost is the compute cost of the generated parser of SyntaxIR sources on src, with the options
 // and the limits of the source APIs except for Compute.
 func sourceCost(t *testing.T, src string) uint64 {
 	t.Helper()
 	return computeCost(t, func(limit uint64) error {
-		_, err := zpparser.ParseValue(src, zpparser.WithExpectations(), zpparser.WithLimits(zpparser.Limits{Compute: limit}))
+		_, err := sxirparser.ParseValue(src, sxirparser.WithExpectations(), sxirparser.WithLimits(sxirparser.Limits{Compute: limit}))
 		return err
 	})
 }
@@ -175,7 +175,7 @@ func TestSourceAPIAllocationsScaleLinearly(t *testing.T) {
 func classRetryCost(t *testing.T, src string) uint64 {
 	t.Helper()
 	return computeCost(t, func(limit uint64) error {
-		_, err := classretry.Parse(src, classretry.WithLimits(zpruntime.Limits{Compute: limit}))
+		_, err := classretry.Parse(src, classretry.WithLimits(sxirruntime.Limits{Compute: limit}))
 		return err
 	})
 }
@@ -265,9 +265,9 @@ var scaleSink int
 // recovery does not run; the measure shows the cost of the lookahead that ends a list at a declaration.
 func BenchmarkCanonicalFrontend(b *testing.B) {
 	for _, c := range []struct{ name, path string }{
-		{"zp.zp", "../../zp.zp"},
-		{"golang", "../../testdata/grammars/golang/golang.zp"},
-		{"python", "../../testdata/grammars/python/python.zp"},
+		{"sxir.sxir", "../../sxir.sxir"},
+		{"golang", "../../testdata/grammars/golang/golang.sxir"},
+		{"python", "../../testdata/grammars/python/python.sxir"},
 	} {
 		bs, err := os.ReadFile(c.path)
 		if err != nil {

@@ -9,10 +9,10 @@ import (
 	"slices"
 	"unicode/utf8"
 
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // streamInput is the input of a stream parse. Positions are absolute; the
@@ -37,7 +37,7 @@ type streamInput struct {
 	// Emit receives the committed elements of the start rule's #stream
 	// repetition with the parse's budget control. Nil collects the repetition
 	// as a batch parse does.
-	Emit func(*zpvalue.Node, *BudgetControl) error
+	Emit func(*sxirvalue.Node, *BudgetControl) error
 	// memoBase is the position of memo.slots[0], the floor of the memo: the
 	// entries before it were discarded.
 	memoBase int
@@ -52,7 +52,7 @@ type streamInput struct {
 	// and diagnosedSkip errors of the entry after them were delivered too
 	// when it is the list diagnosedList, which took the place of delivered
 	// entries (compactDiagnosed).
-	diagnostic    func(*zpvalue.SyntaxError) error
+	diagnostic    func(*sxirvalue.SyntaxError) error
 	diagnosed     int
 	diagnosedSkip int
 	diagnosedList *errList
@@ -128,13 +128,13 @@ func (r *streamReader) Read(dst []byte) (int, error) {
 // committed element of the rule's #stream repetition to emit.
 //
 // RunParseStream is for generated parsers; not a stable API.
-func RunParseStream(r *Rule, reader io.Reader, emit func(*zpvalue.Node) error, opts []ParseOption) error {
+func RunParseStream(r *Rule, reader io.Reader, emit func(*sxirvalue.Node) error, opts []ParseOption) error {
 	if witnessFeatures {
 		useFeature(r.g, featureStream)
 	}
-	var e func(*zpvalue.Node, *BudgetControl) error
+	var e func(*sxirvalue.Node, *BudgetControl) error
 	if emit != nil {
-		e = func(n *zpvalue.Node, _ *BudgetControl) error { return emit(n) }
+		e = func(n *sxirvalue.Node, _ *BudgetControl) error { return emit(n) }
 	}
 	return RunParseStreamWithBudget(r, reader, e, opts)
 }
@@ -143,7 +143,7 @@ func RunParseStream(r *Rule, reader io.Reader, emit func(*zpvalue.Node) error, o
 // control, so that converting elements to typed values is charged to it.
 //
 // RunParseStreamWithBudget is for generated parsers; not a stable API.
-func RunParseStreamWithBudget(r *Rule, reader io.Reader, emit func(*zpvalue.Node, *BudgetControl) error, opts []ParseOption) (err error) {
+func RunParseStreamWithBudget(r *Rule, reader io.Reader, emit func(*sxirvalue.Node, *BudgetControl) error, opts []ParseOption) (err error) {
 	if witnessFeatures {
 		useFeature(r.g, featureStream)
 	}
@@ -153,9 +153,9 @@ func RunParseStreamWithBudget(r *Rule, reader io.Reader, emit func(*zpvalue.Node
 	}
 	if emit == nil && (o.diagnostic != nil || o.diagnosticLimit > 0) {
 		// A diagnostic-only stream still needs element commit boundaries.
-		emit = func(*zpvalue.Node, *BudgetControl) error { return nil }
+		emit = func(*sxirvalue.Node, *BudgetControl) error { return nil }
 	}
-	var n *zpvalue.Node
+	var n *sxirvalue.Node
 	defer recoverParse(&n, &err)
 	o = prepareOptions(o, 0, true)
 	if o.control != nil {
@@ -187,7 +187,7 @@ func RunParseStreamWithBudget(r *Rule, reader io.Reader, emit func(*zpvalue.Node
 			return p.Stream.tail.result(p)
 		}
 		if len(p.Recovered) > 0 {
-			return zpvalue.SyntaxErrors(p.recoveredErrors())
+			return sxirvalue.SyntaxErrors(p.recoveredErrors())
 		}
 		return nil
 	}
@@ -225,7 +225,7 @@ func (p *Parser) streamReport() {
 
 // streamDeliver passes the element v to the callback of the stream parse; v is final from then on,
 // and a callback error ends the parse unchanged.
-func (p *Parser) streamDeliver(v *zpvalue.Node) {
+func (p *Parser) streamDeliver(v *sxirvalue.Node) {
 	if v != nil {
 		D(v).Fresh = false
 	}
@@ -317,7 +317,7 @@ func (p *Parser) reportRecovered() error {
 	if s.diagnosed > len(p.Recovered) {
 		s.diagnosed = len(p.Recovered)
 	}
-	var errs []*zpvalue.SyntaxError
+	var errs []*sxirvalue.SyntaxError
 	for s.diagnosed < len(p.Recovered) {
 		if e := p.Recovered[s.diagnosed]; e.list == nil {
 			// An error, delivered without listing it.
@@ -343,7 +343,7 @@ func (p *Parser) reportRecovered() error {
 
 // reportError delivers the recovered error original to the diagnostic callback, as a copy that the
 // callback owns, and to the retained tail.
-func (p *Parser) reportError(original *zpvalue.SyntaxError) error {
+func (p *Parser) reportError(original *sxirvalue.SyntaxError) error {
 	s := p.Stream
 	p.Control.Check()
 	if s.diagnostic != nil {
@@ -370,7 +370,7 @@ func streaming(o *parseOptions) { o.streaming = true }
 // that element and is returned unchanged. A nil callback disables delivery. The option is invalid
 // with other entry points. Recoveries after the #stream repetition are reported before the result.
 // With or without this option, recovered errors remain available at the end of the stream.
-func WithDiagnosticCallback(f func(*zpvalue.SyntaxError) error) ParseOption {
+func WithDiagnosticCallback(f func(*sxirvalue.SyntaxError) error) ParseOption {
 	return func(o *parseOptions) { o.diagnostic = f }
 }
 
@@ -390,7 +390,7 @@ const streamRecoveryScratchMax = 16
 // avoids shifting a large tail for each committed recovery.
 type streamDiagnosticTail struct {
 	limit           int
-	errors          zpvalue.SyntaxErrors
+	errors          sxirvalue.SyntaxErrors
 	head            int
 	total           uint64
 	dropped         uint64
@@ -400,7 +400,7 @@ type streamDiagnosticTail struct {
 	bytes uint64
 }
 
-func (t *streamDiagnosticTail) add(e *zpvalue.SyntaxError) {
+func (t *streamDiagnosticTail) add(e *sxirvalue.SyntaxError) {
 	t.bytes += syntaxErrorSize(e)
 	if t.total == math.MaxUint64 {
 		t.countsSaturated = true
@@ -436,10 +436,10 @@ func (t *streamDiagnosticTail) result(p *Parser) error {
 	ordered := t.errors
 	if t.head != 0 {
 		p.Control.Charge(uint64(len(t.errors)))
-		ordered = append(append(make(zpvalue.SyntaxErrors, 0, len(t.errors)), t.errors[t.head:]...), t.errors[:t.head]...)
+		ordered = append(append(make(sxirvalue.SyntaxErrors, 0, len(t.errors)), t.errors[t.head:]...), t.errors[:t.head]...)
 	}
 	p.Control.Check()
-	return &zpvalue.TruncatedSyntaxErrors{Errors: ordered, Total: t.total, Dropped: t.dropped, CountsSaturated: t.countsSaturated}
+	return &sxirvalue.TruncatedSyntaxErrors{Errors: ordered, Total: t.total, Dropped: t.dropped, CountsSaturated: t.countsSaturated}
 }
 
 var errIteratorStop = errors.New("stream iterator stopped")
@@ -475,11 +475,11 @@ func IterateStream[T any](g *grammar, opts []ParseOption, run func(emit func(T) 
 // iterator over the nodes that run passes to emit.
 //
 // IterateNodes is for generated parsers; not a stable API.
-func IterateNodes(g *grammar, opts []ParseOption, run func(emit func(*zpvalue.Node) error) error) (*zpruntime.StreamIterator, error) {
+func IterateNodes(g *grammar, opts []ParseOption, run func(emit func(*sxirvalue.Node) error) error) (*sxirruntime.StreamIterator, error) {
 	if err := validateStream(g, opts); err != nil {
 		return nil, err
 	}
-	return zpruntime.NewStreamIterator(func(yield func(*zpvalue.Node) bool) error { return run(emitTo(yield)) }), nil
+	return sxirruntime.NewStreamIterator(func(yield func(*sxirvalue.Node) bool) error { return run(emitTo(yield)) }), nil
 }
 
 // validateStream validates the options of a stream entry point of grammar g.
@@ -527,7 +527,7 @@ func (it *StreamPull[T]) Close() {
 	it.terminal = true
 	stop := it.stop
 	it.next, it.stop = nil, nil
-	defer func() { it.err = zpruntime.ErrStreamClosed }()
+	defer func() { it.err = sxirruntime.ErrStreamClosed }()
 	stop()
 }
 
@@ -543,7 +543,7 @@ func (p *Parser) streamDiscard(keep int) {
 	// Drop the line starts up to the new base; streamLineCol has scanned up to keep.
 	k, _ := slices.BinarySearch(s.nlStarts, keep+1)
 	s.nlStarts = s.nlStarts[:copy(s.nlStarts, s.nlStarts[k:])]
-	if p.unit == zpinput.Bytes {
+	if p.unit == sxirinput.Bytes {
 		p.SpendRead(uint64(len(s.bs) - n))
 		s.bs = s.bs[:copy(s.bs, s.bs[n:])]
 	} else {
@@ -609,7 +609,7 @@ func (p *Parser) streamFill(n int) bool {
 	if max := p.Stream.maxInput; max > 0 && n > max && p.Stream.loaded() > max {
 		// The outcome does not depend on how the reader chunks the stream: the parser needed the
 		// unit at MaxInput and the stream holds it. loaded is at least n unless the stream ended.
-		panic(fatal{err: &zpruntime.LimitError{Kind: zpruntime.LimitInput, Limit: uint64(max), Requested: uint64(min(n, p.Stream.loaded()))}})
+		panic(fatal{err: &sxirruntime.LimitError{Kind: sxirruntime.LimitInput, Limit: uint64(max), Requested: uint64(min(n, p.Stream.loaded()))}})
 	}
 	return ok
 }
@@ -619,7 +619,7 @@ func (p *Parser) streamFillTo(n int) bool {
 	for s.loaded() < n && !s.eof {
 		p.streamRead()
 		for s.reader.Buffered() > 0 {
-			if p.unit == zpinput.CodePoints {
+			if p.unit == sxirinput.CodePoints {
 				if b, _ := s.reader.Peek(s.reader.Buffered()); !utf8.FullRune(b) {
 					break
 				}
@@ -635,7 +635,7 @@ func (p *Parser) streamRead() {
 	p.Spend()
 	s := p.Stream
 	var err error
-	if p.unit == zpinput.Bytes {
+	if p.unit == sxirinput.Bytes {
 		var b byte
 		if b, err = s.reader.ReadByte(); err == nil {
 			s.bs = append(s.bs, b)
@@ -661,7 +661,7 @@ func (p *Parser) streamPeek() (rune, int, bool) {
 	if p.Pos < s.base || !p.streamFill(p.Pos+1) {
 		return 0, 0, false
 	}
-	if p.unit == zpinput.CodePoints {
+	if p.unit == sxirinput.CodePoints {
 		return s.in[p.Pos-s.base], 1, true
 	}
 	b := s.bs[p.Pos-s.base:]
@@ -693,7 +693,7 @@ func (p *Parser) PeekTraced() (rune, int, bool) {
 	end := p.Pos + size
 	if !ok {
 		end = p.Pos + 1
-	} else if size == 1 && r == utf8.RuneError && p.unit == zpinput.Bytes {
+	} else if size == 1 && r == utf8.RuneError && p.unit == sxirinput.Bytes {
 		end = decodedEndBytes(p.Stream.bs[p.Pos-p.Stream.base:], p.Pos, size)
 	}
 	p.documentTouch(end)
@@ -703,13 +703,13 @@ func (p *Parser) PeekTraced() (rune, int, bool) {
 // MatchLiteralTraced is MatchLiteral in a traced rule body.
 //
 // MatchLiteralTraced is for generated parsers; not a stable API.
-func (p *Parser) MatchLiteralTraced(rs []rune, text string, desc ExpID, build bool) (*zpvalue.Node, bool) {
+func (p *Parser) MatchLiteralTraced(rs []rune, text string, desc ExpID, build bool) (*sxirvalue.Node, bool) {
 	if p.Stream == nil {
 		return p.MatchLiteral(rs, text, desc, build)
 	}
 	start := p.Pos
 	s := p.Stream
-	if p.unit == zpinput.Bytes {
+	if p.unit == sxirinput.Bytes {
 		for i := 0; i < len(text); i++ {
 			if c, ok := p.streamByte(p.Pos); !ok || c != text[i] {
 				p.documentTouch(p.Pos + 1)
@@ -738,7 +738,7 @@ func (p *Parser) MatchLiteralTraced(rs []rune, text string, desc ExpID, build bo
 }
 
 // matchReplacementLiteralTraced is matchReplacementLiteral on a stream in a traced rule body.
-func (p *Parser) matchReplacementLiteralTraced(rs []rune, text string, desc ExpID, build bool) (*zpvalue.Node, bool) {
+func (p *Parser) matchReplacementLiteralTraced(rs []rune, text string, desc ExpID, build bool) (*sxirvalue.Node, bool) {
 	start := p.Pos
 	if !p.literalHasReplacement(rs) {
 		p.Expect(start, desc)
@@ -761,7 +761,7 @@ func (p *Parser) matchReplacementLiteralTraced(rs []rune, text string, desc ExpI
 // MatchLiteralFoldTraced is MatchLiteralFold in a traced rule body.
 //
 // MatchLiteralFoldTraced is for generated parsers; not a stable API.
-func (p *Parser) MatchLiteralFoldTraced(rs []rune, desc ExpID, build bool) (*zpvalue.Node, bool) {
+func (p *Parser) MatchLiteralFoldTraced(rs []rune, desc ExpID, build bool) (*sxirvalue.Node, bool) {
 	if p.Stream == nil {
 		return p.MatchLiteralFold(rs, desc, build)
 	}
@@ -815,10 +815,10 @@ func (p *Parser) streamByte(i int) (byte, bool) {
 
 // streamMatchLiteral is MatchLiteral on a stream. It reads only as far as the
 // literal matches.
-func (p *Parser) streamMatchLiteral(rs []rune, text string, desc ExpID, build bool) (*zpvalue.Node, bool) {
+func (p *Parser) streamMatchLiteral(rs []rune, text string, desc ExpID, build bool) (*sxirvalue.Node, bool) {
 	start := p.Pos
 	s := p.Stream
-	if p.unit == zpinput.Bytes {
+	if p.unit == sxirinput.Bytes {
 		for i := 0; i < len(text); i++ {
 			if c, ok := p.streamByte(p.Pos); !ok || c != text[i] {
 				p.Pos = start
@@ -847,7 +847,7 @@ func (p *Parser) streamAtLineStart() bool {
 	if p.Pos == 0 {
 		return true
 	}
-	if p.unit == zpinput.Bytes {
+	if p.unit == sxirinput.Bytes {
 		c, ok := p.streamByte(p.Pos - 1)
 		return ok && c == '\n'
 	}
@@ -871,7 +871,7 @@ func (p *Parser) streamText(start, end int) string {
 	}
 	c := &s.text
 	if start >= c.base && end <= c.end && c.source != "" {
-		if p.unit == zpinput.Bytes {
+		if p.unit == sxirinput.Bytes {
 			return c.source[start-c.base : end-c.base]
 		}
 		return c.source[c.offsets[start-c.base]:c.offsets[end-c.base]]
@@ -883,7 +883,7 @@ func (p *Parser) streamText(start, end int) string {
 	}
 	snap := streamTextSnapshot{base: start, end: start + min(streamTextChunk, s.loaded()-start)}
 	snap.source = p.streamCopy(snap.base, snap.end)
-	if p.unit == zpinput.Bytes {
+	if p.unit == sxirinput.Bytes {
 		*c = snap
 		return snap.source[:end-start]
 	}
@@ -914,7 +914,7 @@ func (p *Parser) streamText(start, end int) string {
 func (p *Parser) streamCopy(start, end int) string {
 	s := p.Stream
 	start, end = start-s.base, end-s.base
-	if p.unit == zpinput.Bytes {
+	if p.unit == sxirinput.Bytes {
 		if usedFeatures&featureBudget != 0 && p.Control != nil {
 			p.Control.Charge(uint64(end - start))
 		}
@@ -939,7 +939,7 @@ func (p *Parser) streamLineCol(pos int) (int, int) {
 			s.lines = []int{0}
 			for i := range s.loaded() {
 				p.SpendRead(1)
-				if p.unit == zpinput.Bytes && s.bs[i] == '\n' || p.unit == zpinput.CodePoints && s.in[i] == '\n' {
+				if p.unit == sxirinput.Bytes && s.bs[i] == '\n' || p.unit == sxirinput.CodePoints && s.in[i] == '\n' {
 					s.lines = append(s.lines, i+1)
 				}
 			}
@@ -962,7 +962,7 @@ func (p *Parser) streamLineCol(pos int) (int, int) {
 	for ; s.nlScanned < pos; s.nlScanned++ {
 		p.SpendRead(1)
 		var nl bool
-		if p.unit == zpinput.Bytes {
+		if p.unit == sxirinput.Bytes {
 			nl = s.bs[s.nlScanned-s.base] == '\n'
 		} else {
 			nl = s.in[s.nlScanned-s.base] == '\n'

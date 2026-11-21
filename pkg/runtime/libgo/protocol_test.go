@@ -123,7 +123,7 @@ func packageSurface(t *testing.T, dir string, tags []string) (int, string) {
 		files = append(files, f)
 	}
 	conf := types.Config{Importer: importer.ForCompiler(fset, "source", nil)}
-	pkg, err := conf.Check("zeroparse.dev/zp/pkg/runtime/libgo", fset, files, nil)
+	pkg, err := conf.Check("syntaxir.dev/sxir/pkg/runtime/libgo", fset, files, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,7 +175,7 @@ func (s *surface) add(line string) { s.lines[line] = true }
 
 // coreimplPath is the import path of the node representation, which generated code reaches through
 // the library (Data) and which belongs to the protocol like the library's own declarations.
-const coreimplPath = "zeroparse.dev/zp/pkg/runtime/value/impl"
+const coreimplPath = "syntaxir.dev/sxir/pkg/runtime/value/impl"
 
 // typeName records a type or alias declaration of the package or of valueimpl and walks what it
 // reaches.
@@ -407,14 +407,14 @@ func TestProtocolSurfaceSeesReachedTypes(t *testing.T) {
 	_, want := packageSurface(t, ".", nil)
 	for _, line := range []string{
 		"method (*grammar) DeclareStruct(string, ...string)",
-		"type zeroparse.dev/zp/pkg/runtime/value/impl.Kind struct{Type string; Rule string; Reserved int; Base int}",
-		"method (*zeroparse.dev/zp/pkg/runtime/value/impl.Kind) IsNodeType() bool",
+		"type syntaxir.dev/sxir/pkg/runtime/value/impl.Kind struct{Type string; Rule string; Reserved int; Base int}",
+		"method (*syntaxir.dev/sxir/pkg/runtime/value/impl.Kind) IsNodeType() bool",
 	} {
 		if !strings.Contains(want, line+"\n") {
 			t.Errorf("the interface lacks %q", line)
 		}
 	}
-	if !strings.Contains(want, "type zeroparse.dev/zp/pkg/runtime/value/impl.Data[N any] struct{Kind *zeroparse.dev/zp/pkg/runtime/value/impl.Kind; ") {
+	if !strings.Contains(want, "type syntaxir.dev/sxir/pkg/runtime/value/impl.Data[N any] struct{Kind *syntaxir.dev/sxir/pkg/runtime/value/impl.Kind; ") {
 		t.Errorf("the interface lacks the fields of valueimpl.Data")
 	}
 	dir := t.TempDir()

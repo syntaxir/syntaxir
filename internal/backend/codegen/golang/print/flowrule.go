@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
 )
 
 // Flat and framed rules of the Node and recognizer tables, as the Flow IR printer shapes them.

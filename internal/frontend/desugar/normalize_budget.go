@@ -1,8 +1,8 @@
 package desugar
 
 import (
-	"zeroparse.dev/zp/internal/cancel"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/cancel"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Copies use private destination storage, so cancellation never changes the

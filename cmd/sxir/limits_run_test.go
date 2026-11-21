@@ -1,0 +1,193 @@
+//go:build !sxir_budget_controls_reference
+
+package main
+
+import (
+	"errors"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"syntaxir.dev/sxir/pkg/editfuzz"
+	"syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+)
+
+const limitsGrammar = "@start\nrule main = [a-z]* $$"
+
+// wantLimit checks that err is the limit error of kind with the given message in the output of
+// the command.
+func wantLimit(t *testing.T, what string, err error, kind runtime.LimitKind, message string) {
+	t.Helper()
+	var le *runtime.LimitError
+	if !errors.As(err, &le) || le.Kind != kind {
+		t.Fatalf("%s: error %v, want a limit error of kind %d", what, err, kind)
+	}
+	if !strings.Contains(err.Error(), message) {
+		t.Errorf("%s: error %q does not contain %q", what, err, message)
+	}
+	var c exitCoder
+	if errors.As(err, &c) {
+		t.Errorf("%s: the error selects exit status %d, want the default 1", what, c.ExitCode())
+	}
+}
+
+// parse, trace, profile and explain apply -max-compute, -max-memory and -max-input to their parse: a
+// small budget or memory limit interrupts it, a short -max-input rejects the input, and unlimited and
+// zero run it.
+func TestDebugAndParseCommandsApplyLimits(t *testing.T) {
+	g := writeFile(t, "limits.sxir", limitsGrammar)
+	const input = "abcdefghijklmnopqrstuvwxyz"
+	for _, cmd := range []string{"parse", "trace", "profile", "explain"} {
+		t.Run(cmd, func(t *testing.T) {
+			args := func(extra ...string) []string {
+				return append([]string{cmd, "-g", g, "-i", input}, extra...)
+			}
+			for _, ok := range [][]string{nil, {"-max-compute", "0"}, {"-max-compute", "unlimited"}, {"-max-input", "unlimited"}, {"-max-input", "26"}, {"-max-compute", "1000", "-max-input", "100"}, {"-max-memory", "0"}, {"-max-memory", "unlimited"}, {"-max-memory", "100000000"}} {
+				if _, err := runCLI(t, "", args(ok...)...); err != nil {
+					t.Errorf("%v: %v", ok, err)
+				}
+			}
+			if cmd == "profile" {
+				// profile reports the result of the parse in its output, whatever it is, and succeeds.
+				out, err := runCLI(t, "", args("-max-compute", "5")...)
+				if err != nil || !strings.Contains(out, "result: parse compute limit exceeded: limit 5") {
+					t.Errorf("-max-compute 5: error %v\n%s", err, out)
+				}
+				out, err = runCLI(t, "", args("-max-memory", "5")...)
+				if err != nil || !strings.Contains(out, "result: parse memory limit exceeded: limit 5") {
+					t.Errorf("-max-memory 5: error %v\n%s", err, out)
+				}
+				out, err = runCLI(t, input, cmd, "-g", g, "-max-input", "3")
+				if err != nil || !strings.Contains(out, "result: parse input limit exceeded: limit 3, length 26") {
+					t.Errorf("-max-input 3: error %v\n%s", err, out)
+				}
+				return
+			}
+			_, err := runCLI(t, "", args("-max-compute", "5")...)
+			wantLimit(t, "-max-compute 5", err, runtime.LimitCompute, "parse compute limit exceeded: limit 5")
+			_, err = runCLI(t, "", args("-max-memory", "5")...)
+			wantLimit(t, "-max-memory 5", err, runtime.LimitMemory, "parse memory limit exceeded: limit 5")
+			_, err = runCLI(t, "", args("-max-input", "25")...)
+			wantLimit(t, "-max-input 25", err, runtime.LimitInput, "parse input limit exceeded: limit 25, length 26")
+			// The input comes from standard input without -i, and the limit applies to it too.
+			_, err = runCLI(t, input, cmd, "-g", g, "-max-input", "3")
+			wantLimit(t, "stdin", err, runtime.LimitInput, "limit 3, length 26")
+		})
+	}
+	// -unit bytes counts bytes.
+	_, err := runCLI(t, "", "parse", "-g", g, "-i", "abc", "-unit", "bytes", "-max-input", "2")
+	wantLimit(t, "bytes", err, runtime.LimitInput, "limit 2, length 3")
+	// -check and -stream apply the limits as well.
+	_, err = runCLI(t, "", "parse", "-g", g, "-i", input, "-recognize", "-max-input", "3")
+	wantLimit(t, "-recognize", err, runtime.LimitInput, "length 26")
+	st := writeFile(t, "stream.sxir", "@start\nrule main = line* #stream $$\nrule line = [a-z]+ \"\\n\"")
+	_, err = runCLI(t, "", "parse", "-g", st, "-i", "ab\ncd\nef\n", "-stream", "-max-input", "4")
+	wantLimit(t, "-stream", err, runtime.LimitInput, "parse input limit exceeded: limit 4")
+	if _, err = runCLI(t, "", "parse", "-g", st, "-i", "ab\ncd\n", "-stream", "-max-input", "6"); err != nil {
+		t.Errorf("a stream at the limit: %v", err)
+	}
+}
+
+// A malformed value is a usage error that names the flag.
+func TestCommandsRejectMalformedLimits(t *testing.T) {
+	g := writeFile(t, "limits.sxir", limitsGrammar)
+	for _, cmd := range []string{"parse", "trace", "profile", "explain"} {
+		_, err := runCLI(t, "", cmd, "-g", g, "-i", "a", "-max-compute", "lots")
+		if err == nil || !strings.Contains(err.Error(), "-max-compute") {
+			t.Errorf("%s: error %v", cmd, err)
+		}
+	}
+}
+
+// parse, trace and explain apply -max-depth: a shallow limit stops a nested input with the depth limit
+// error, and an unlimited depth runs on bytecode-iterative but is an option error elsewhere.
+func TestCommandsApplyDepthLimit(t *testing.T) {
+	g := writeFile(t, "nested.sxir", "@start\nrule main = x $$\nrule x = \"(\" x \")\" / \"a\"")
+	for _, cmd := range []string{"parse", "trace", "explain"} {
+		_, err := runCLI(t, "", cmd, "-g", g, "-i", "(((a)))", "-max-depth", "2")
+		wantLimit(t, cmd+" -max-depth 2", err, runtime.LimitDepth, "nesting too deep: more than 2 nested recursive rule calls")
+		if _, err := runCLI(t, "", cmd, "-g", g, "-i", "(((a)))", "-max-depth", "4"); err != nil {
+			t.Errorf("%s -max-depth 4: %v", cmd, err)
+		}
+		if _, err := runCLI(t, "", cmd, "-g", g, "-i", "(((a)))", "-backend", "bytecode-iterative", "-max-depth", "unlimited"); err != nil {
+			t.Errorf("%s unlimited depth on bytecode-iterative: %v", cmd, err)
+		}
+		if _, err := runCLI(t, "", cmd, "-g", g, "-i", "(a)", "-backend", "closure", "-max-depth", "unlimited"); err == nil || !strings.Contains(err.Error(), "unlimited depth") {
+			t.Errorf("%s unlimited depth on closure: %v", cmd, err)
+		}
+	}
+}
+
+func TestTestCommandAppliesLimits(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "grammar.sxir"), []byte(limitsGrammar), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	suite := filepath.Join(dir, "suite.json")
+	if err := os.WriteFile(suite, []byte(`{"version":1,"grammar":"grammar.sxir","cases":[{"name":"long","input":"abcdefghijklmnopqrstuvwxyz","expect":{"outcome":"accepted"}}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	run := func(args ...string) (string, error) {
+		var out strings.Builder
+		err := testCmd(append([]string{"-f", suite}, args...), &out)
+		return out.String(), err
+	}
+	if out, err := run("-max-compute", "unlimited", "-max-input", "26"); err != nil || !strings.Contains(out, "all fixtures passed") {
+		t.Fatalf("within the limits: %v\n%s", err, out)
+	}
+	// A limit error is the library error of the case, and the suite fails.
+	out, err := run("-max-input", "25")
+	if err == nil || !strings.Contains(out, "runtime error: parse input limit exceeded: limit 25, length 26") {
+		t.Errorf("-max-input: error %v\n%s", err, out)
+	}
+	out, err = run("-max-compute", "5")
+	if err == nil || !strings.Contains(out, "runtime error: parse compute limit exceeded: limit 5") {
+		t.Errorf("-max-compute: error %v\n%s", err, out)
+	}
+}
+
+func TestEditFuzzAppliesLimits(t *testing.T) {
+	g := writeFile(t, "limits.sxir", limitsGrammar)
+	base := []string{"edit-fuzz", "-g", g, "-backend", "closure", "-unit", "codepoints", "-sequences", "2", "-operations", "4"}
+	if out, err := runCLI(t, "", append(base, "-max-compute", "unlimited", "-max-input", "unlimited")...); err != nil || !strings.Contains(out, "ok closure/codepoints") {
+		t.Fatalf("unlimited: %v\n%s", err, out)
+	}
+	// A budget of one cannot parse any initial text of the sequences.
+	_, err := runCLI(t, "", append(base, "-max-compute", "1")...)
+	if err == nil || !strings.Contains(err.Error(), "parse compute limit exceeded") {
+		t.Errorf("-max-compute: error %v", err)
+	}
+	_, err = runCLI(t, "", append(base, "-max-input", "1")...)
+	if err == nil || !strings.Contains(err.Error(), "parse input limit exceeded") {
+		t.Errorf("-max-input: error %v", err)
+	}
+}
+
+// A saved sequence does not record the limits: -replay takes them from its own flags, and fuzzing flags that
+// the sequence already records are still refused.
+func TestEditFuzzReplayAppliesLimits(t *testing.T) {
+	dir := t.TempDir()
+	g := filepath.Join(dir, "g.sxir")
+	if err := os.WriteFile(g, []byte(limitsGrammar), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	seq := &editfuzz.Sequence{GrammarSHA256: editfuzz.GrammarHash([]byte(limitsGrammar)), Start: "main",
+		Backend: editfuzz.Closure, Unit: sxirinput.CodePoints, Initial: []byte("abc"), Operations: []editfuzz.Operation{{Kind: editfuzz.Checkpoint}}}
+	path, err := editfuzz.Save(dir, seq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out, err := runCLI(t, "", "edit-fuzz", "-g", g, "-replay", path, "-max-compute", "unlimited", "-max-input", "3"); err != nil || !strings.Contains(out, "ok "+path) {
+		t.Fatalf("at the limit: %v\n%s", err, out)
+	}
+	_, err = runCLI(t, "", "edit-fuzz", "-g", g, "-replay", path, "-max-input", "2")
+	if err == nil || !strings.Contains(err.Error(), "parse input limit exceeded: limit 2, length 3") {
+		t.Errorf("over the limit: %v", err)
+	}
+	_, err = runCLI(t, "", "edit-fuzz", "-g", g, "-replay", path, "-seed", "1")
+	if err == nil || !strings.Contains(err.Error(), "-replay does not take -seed") {
+		t.Errorf("-seed: %v", err)
+	}
+}

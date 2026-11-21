@@ -15,7 +15,7 @@ timed and counted the same way. The manager also owns the copies: a pass may cha
 copies a unit once per segment of transforms when its start must survive, and once per pass only for an observer that
 needs the state before each pass. Several backends, or several tables of one backend, share the steps whose input,
 configuration and body are the same, without changing what an observer sees. Several backends can be built in one
-compilation from the command line (`zp gen -lang go,ts`) and from the API (`compiler.Generate`). Printers take only
+compilation from the command line (`sxir gen -lang go,ts`) and from the API (`compiler.Generate`). Printers take only
 units of the Exec stage, and the stage-less compositions module of the libraries, and are named after the primitives
 they print; the run-time backends only consume the results, and the optimization settings reach every backend, the VM
 and the closures included. A pipeline prints as text; reading a text back is internal (tests and reproduction): the
@@ -83,7 +83,7 @@ The pass infrastructure has two models of a step and leaves the order of a compi
 - A public API for passes written outside the module. Passes and the text form stay internal.
 - Text parsers for Core IR and Code IR, a failure reproducer, optimization remarks, parallel per-function execution and a
   compile cache: follow-ups that this design must not block.
-- Changing generated output. Every migration step keeps `zp gen` output identical, and the dumps identical except for
+- Changing generated output. Every migration step keeps `sxir gen` output identical, and the dumps identical except for
   the changes of dump names and headers listed under Migration.
 - The switch of the VM to bytecode selected from the Flow stage. This record describes the VM pipeline before and after
   that switch; the switch itself is separate work.
@@ -477,7 +477,7 @@ context, whose counters are allocated on the first count.
 
 Sharing pays inside one backend: the Core IR of a table depends only on whether it builds values, so the Node table and
 its traced copy share elaboration and the Core passes in every Go build. Across backends it pays when several are built
-in one compilation: `zp gen -lang go,ts`, `compiler.Generate`, the tests and the benchmarks. The VM and the closure
+in one compilation: `sxir gen -lang go,ts`, `compiler.Generate`, the tests and the benchmarks. The VM and the closure
 backend are not built in one compilation today, since the engine builds each on first use, so they share nothing unless
 the engine changes; the `output` kind lets them be built together, as differential tests do.
 
@@ -513,9 +513,9 @@ check and the checks of slot parts for the typed door.
 **Grammar.** The text is line-oriented; indentation is two spaces per level and is not significant to the reader.
 
 ```ebnf
-text     = "zp-pipeline" SP version NL { header } "pipeline" SP kind SP "->" SP kind SP "{" NL { item } "}" NL .
+text     = "sxir-pipeline" SP version NL { header } "pipeline" SP kind SP "->" SP kind SP "{" NL { item } "}" NL .
 version  = digits "." digits .
-header   = word { SP key "=" value } NL .      (* zp, options, program, settings, debug, target *)
+header   = word { SP key "=" value } NL .      (* sxir, options, program, settings, debug, target *)
 item     = step NL | block .
 step     = pass [ "#" digits ] [ "!" ] [ "(" param { "," param } ")" ] [ "[" pattern { "," pattern } "]" ] .
 param    = flag "=" integer .
@@ -532,7 +532,7 @@ runs. The pattern list is informational and must equal the declared patterns.
 **Headers.** The headers carry every option of the build that is not a pass, so the driver can rebuild `ref` and the
 run from the text alone (with the grammar). Each option has one scope, and each scope one header word:
 
-- `zp` is the version of zp that printed the text. Library files come with that version.
+- `sxir` is the version of sxir that printed the text. Library files come with that version.
 - `options` holds the options of the program common to every target, which the check of the grammar reads: `start`,
   `source-info`, `default-value`, `left-recursion-bindings`.
 - `program` (run-time backends only) holds what makes a run-time program other than `options`: the remaining options of
@@ -558,14 +558,14 @@ escaped so that a module path or a library specifier round-trips. A run-time tex
 side of a run-time program makes, which the driver cannot make, so its reader lives in that package beside the
 derivation of the recognizer and the insertion program, for tests and the internal development tool.
 
-**Versions.** The reader rejects another major version and a newer minor version. A text printed by another zp version
+**Versions.** The reader rejects another major version and a newer minor version. A text printed by another sxir version
 is read with a warning, since its passes may behave differently; an unknown name is an error that names it.
 
 **Example.** The Go pipeline of a parser without streams, as `-print-pipeline` prints it (header values abbreviated):
 
 ```text
-zp-pipeline 1.0
-zp 0.9.0
+sxir-pipeline 1.0
+sxir 0.9.0
 options start= source-info=false default-value=false left-recursion-bindings=false
 settings profile=speed opt= no-opt=
 debug verify-each=false
@@ -711,7 +711,7 @@ events whose label names its branch and whose instance its selection names, and 
 shared step's events are replayed in each branch with that branch's label, so each target gets the dumps it would get
 alone. The options of the call hold only what the manager applies to the whole run.
 
-**Several targets from the command line.** `zp gen` accepts several languages: `-lang go,ts`, each at most once.
+**Several targets from the command line.** `sxir gen` accepts several languages: `-lang go,ts`, each at most once.
 
 - *Output layout.* With one language, `-o DIR` is the package directory. With several, `-o DIR` is a parent and each
   language writes to `DIR/<lang>`; `-go.o` and `-ts.o` give a language its own directory instead. The ownership rules
@@ -903,8 +903,8 @@ the Go runtime library, the engine state and the conformance bindings, from `go 
 the manager like the TypeScript library:
 
 ```text
-zp-pipeline 1.0
-zp 0.9.0
+sxir-pipeline 1.0
+sxir 0.9.0
 settings profile=speed opt= no-opt=
 debug verify-each=false
 pipeline library -> output {
@@ -927,7 +927,7 @@ share the `specialize` pass.
   printer that edits a function copies it first, so an edit of a documentation comment for one output file does not
   reach another file that prints the same composition. The `go generate` program writes the files of the output, and
   the generated files do not change.
-- A library text has the headers `zp`, `settings` and `debug` only, and its `pipeline` line starts at `library`. The
+- A library text has the headers `sxir`, `settings` and `debug` only, and its `pipeline` line starts at `library`. The
   reader selects the reference pipeline by that source kind. The library pipeline has no slots, so an edit that names a
   slot fails before any step, naming the slot. A program text given to the library route, and a library text given to
   `Compile`, fail before any step, naming the source kind.
@@ -1116,7 +1116,7 @@ its subject exists is proven by its negative control instead.
   `Compile`, fail before any step, naming the source kind.
 - A toy kind, a lowering to it and a transform on it compose typed and as text and run with dumps, `-verify-each`,
   statistics and bisection with no change to `internal/pass` or `internal/driver`.
-- `zp gen -lang go,ts` writes `DIR/go` and `DIR/ts` equal to two single-language runs; a qualified flag applies to one
+- `sxir gen -lang go,ts` writes `DIR/go` and `DIR/ts` equal to two single-language runs; a qualified flag applies to one
   language; an unsupported unqualified flag is an error naming the qualified form; a failing target writes nothing.
 - Each backend runs twice, with `GOMAXPROCS` 1 and N: identical outputs, dumps, events and statistics.
 - A run with no observers allocates nothing per step beyond the pass context.
@@ -1200,7 +1200,7 @@ pipeline.
 ## Limitations and Open Questions
 
 - The prototype does not cover the cancellation context, patterns, analysis queries, the semantics of the `debug`,
-  `target`, `program` and `zp` headers, `ProgramOf` and the run-time entry with its settings carrier, the command line
+  `target`, `program` and `sxir` headers, `ProgramOf` and the run-time entry with its settings carrier, the command line
   and API over several targets, the planning fallback, the printers on Exec-stage units, the Go library route, or the
   allocation bound. Their shapes are fixed here; their behavior is specified, not demonstrated.
 - A generation copies the Core module of each `Shared` entry once, for the rollback that the failure rule needs, where

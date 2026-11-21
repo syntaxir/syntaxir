@@ -15,16 +15,16 @@ function fail(message) {
   failures++;
 }
 
-// The manifest: zp.server.path names a program to run, so in an untrusted workspace VS Code must
+// The manifest: sxir.server.path names a program to run, so in an untrusted workspace VS Code must
 // ignore the workspace's value of it.
 const manifest = require(path.join(__dirname, '..', 'package.json'));
-const serverPath = manifest.contributes.configuration.properties['zp.server.path'];
+const serverPath = manifest.contributes.configuration.properties['sxir.server.path'];
 if (serverPath.scope !== 'machine-overridable') {
-  fail(`zp.server.path has scope ${serverPath.scope}, want machine-overridable`);
+  fail(`sxir.server.path has scope ${serverPath.scope}, want machine-overridable`);
 }
 const untrusted = (manifest.capabilities || {}).untrustedWorkspaces || {};
-if (untrusted.supported !== 'limited' || !(untrusted.restrictedConfigurations || []).includes('zp.server.path')) {
-  fail('capabilities.untrustedWorkspaces does not restrict zp.server.path: ' + JSON.stringify(untrusted));
+if (untrusted.supported !== 'limited' || !(untrusted.restrictedConfigurations || []).includes('sxir.server.path')) {
+  fail('capabilities.untrustedWorkspaces does not restrict sxir.server.path: ' + JSON.stringify(untrusted));
 }
 
 async function check(name, f) {
@@ -44,11 +44,11 @@ function empty(h) {
 async function main() {
   await check('failed start and retry', async () => {
     const h = loadExtension([plan({ startError: new Error('spawn ENOENT') })]);
-    h.settings['server.path'] = '/no/such/zp';
+    h.settings['server.path'] = '/no/such/sxir';
     await h.activate();
     empty(h);
     assert.equal(h.clients[0].calls.dispose, 1);
-    assert(h.events.some((e) => e.startsWith('error: ') && e.includes('/no/such/zp lsp')));
+    assert(h.events.some((e) => e.startsWith('error: ') && e.includes('/no/such/sxir lsp')));
     await h.restart();
     assert.equal(h.running.size, 1);
     await h.extension.deactivate();
@@ -157,10 +157,10 @@ async function main() {
     await Promise.all([activation, disabled]);
     empty(h);
     h.settings['server.enabled'] = true;
-    h.settings['server.path'] = '/new/zp';
+    h.settings['server.path'] = '/new/sxir';
     await h.change();
     assert.equal(h.running.size, 1);
-    assert.equal(h.clients.at(-1).command, '/new/zp');
+    assert.equal(h.clients.at(-1).command, '/new/sxir');
     const count = h.created;
     await h.change(false);
     assert.equal(h.created, count, 'unrelated settings do not restart');
@@ -182,15 +182,15 @@ async function main() {
     const first = plan({ stopGate: deferred() });
     const h = loadExtension([first]);
     await h.activate();
-    h.settings['server.path'] = '/old/zp';
+    h.settings['server.path'] = '/old/sxir';
     const a = h.change();
     await first.stopping.promise;
-    h.settings['server.path'] = '/latest/zp';
+    h.settings['server.path'] = '/latest/sxir';
     const b = h.change();
     first.stopGate.resolve();
     await Promise.all([a, b]);
     assert.equal(h.maxRunning, 1);
-    assert(h.clients.slice(1).every((c) => c.command === '/latest/zp'));
+    assert(h.clients.slice(1).every((c) => c.command === '/latest/sxir'));
     assert.equal(h.running.size, 1);
     await h.extension.deactivate();
     empty(h);

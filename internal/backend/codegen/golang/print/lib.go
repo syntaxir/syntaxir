@@ -16,10 +16,10 @@ import (
 	"strings"
 	"sync"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
 )
 
-// The Go library of generated parsers is the package zeroparse.dev/zp/pkg/runtime/libgo, whose exported
+// The Go library of generated parsers is the package syntaxir.dev/sxir/pkg/runtime/libgo, whose exported
 // names that are documented as for generated parsers the generated code reaches, together with the
 // runtime packages pkg/runtime, input, value and instrument, which declare the result types (Node,
 // Limits, SyntaxError, ...) that generated parsers share with the other parsers. A generated
@@ -29,7 +29,7 @@ import (
 
 // modulePath is the path of this module and libImportPath the import path of the library in it.
 const (
-	modulePath    = "zeroparse.dev/zp"
+	modulePath    = "syntaxir.dev/sxir"
 	libImportPath = modulePath + "/pkg/runtime/libgo"
 )
 
@@ -46,10 +46,10 @@ var (
 		"instrument": modulePath + "/pkg/runtime/instrument",
 	}
 	runtimeAliases = map[string]string{
-		"runtime":    "zpruntime",
-		"input":      "zpinput",
-		"value":      "zpvalue",
-		"instrument": "zpinstrument",
+		"runtime":    "sxirruntime",
+		"input":      "sxirinput",
+		"value":      "sxirvalue",
+		"instrument": "sxirinstrument",
 	}
 )
 
@@ -289,7 +289,7 @@ func copyLib(opts common.GenOptions, files []libFile) ([]common.GeneratedFile, e
 const (
 	witnessOnFile     = "features_witness.go"
 	witnessOffFile    = "features_nowitness.go"
-	witnessConstraint = "//go:build zp_feature_witness\n"
+	witnessConstraint = "//go:build sxir_feature_witness\n"
 )
 
 // embeddedLibDir is the directory of the copy of the library in a package generated with LibEmbed.

@@ -8,12 +8,12 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // TestGeneratedDepthBenchmarkWorkloads validates benchmarks without timing them.
-// ZP_DEPTH_BENCH_DIR preserves the standalone workloads for serialized,
+// SXIR_DEPTH_BENCH_DIR preserves the standalone workloads for serialized,
 // paired measurements; generation and compilation remain outside parse timing.
 func TestGeneratedDepthBenchmarkWorkloads(t *testing.T) {
 	t.Parallel()
@@ -24,7 +24,7 @@ func testGeneratedDepthBenchmarkWorkloads(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds standalone benchmark controls")
 	}
-	dir := os.Getenv("ZP_DEPTH_BENCH_DIR")
+	dir := os.Getenv("SXIR_DEPTH_BENCH_DIR")
 	if dir == "" {
 		dir = t.TempDir()
 	}

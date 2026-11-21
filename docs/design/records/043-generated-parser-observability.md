@@ -18,7 +18,7 @@ Generated Go and TypeScript runtimes specialize calls into direct generated meth
 
 The initial Go batch implementation is generation-time opt-in tracing for
 standalone generated Go Node parsers. Generation uses
-`Observability: true` in `codegen.Go` or `codegen.TypeScript`, or `zp gen -observability`; enabled
+`Observability: true` in `codegen.Go` or `codegen.TypeScript`, or `sxir gen -observability`; enabled
 parsers trace `Parse`, `ParseRule` and `Recognize`. Events cover actual plain,
 direct, general, memoized and left-recursive calls, plus first-character
 dispatch skips only where the generated call site can identify the target.
@@ -83,14 +83,14 @@ separate rule event. TypeScript profiling is described below.
 
 - Making generated parsers event-equivalent to engine backends or claiming portable timing equivalence between Go and JavaScript.
 - Adding stream tracing to generated parsers. Generated stream parsers are not available.
-- Changing memoization, first-character dispatch, rule evaluation order, parse results, or serialized `.zpc` format.
+- Changing memoization, first-character dispatch, rule evaluation order, parse results, or serialized `.sxirc` format.
 - Providing expression-level tracing or tracing action internals.
 
 ## Design
 
 ### Generation-Time Opt-In and Public API
 
-Generation-time opt-in keeps ordinary generated output free of observability fields, callbacks, clock reads, or trace branches. Go Node, typed batch, and Document parsers support `codegen.Go{Observability: true}` and `zp gen -observability`; TypeScript batch tracing and profiling support `codegen.TypeScript{Observability: true}` and the same flag. Generated Go profiling is available for Node, typed batch, and Document parsers.
+Generation-time opt-in keeps ordinary generated output free of observability fields, callbacks, clock reads, or trace branches. Go Node, typed batch, and Document parsers support `codegen.Go{Observability: true}` and `sxir gen -observability`; TypeScript batch tracing and profiling support `codegen.TypeScript{Observability: true}` and the same flag. Generated Go profiling is available for Node, typed batch, and Document parsers.
 
 Generated Go batch API:
 
@@ -143,7 +143,7 @@ Generated backends can skip different candidate calls due to first-character dis
 
 ### Filtering and Profiling
 
-`WithTraceFilter` / `traceRules` select rule names, and `WithTraceMaxDepth` / `traceMaxDepth` limit delivered events by depth. Filtering suppresses callback delivery only; it must not change parsing, dispatch or parent-depth numbering. Include calls nested within a selected rule, following engine `zp trace -rule` behavior. JSON/text formatting can be supplied as small generated-independent helpers or by adapting events in user code; generated parsers do not add CLI commands.
+`WithTraceFilter` / `traceRules` select rule names, and `WithTraceMaxDepth` / `traceMaxDepth` limit delivered events by depth. Filtering suppresses callback delivery only; it must not change parsing, dispatch or parent-depth numbering. Include calls nested within a selected rule, following engine `sxir trace -rule` behavior. JSON/text formatting can be supplied as small generated-independent helpers or by adapting events in user code; generated parsers do not add CLI commands.
 
 The generated Go `Profile` zero value is ready to use. Pass `WithProfile(&profile)` to accumulate measurements across calls, then call `profile.Snapshot()` for an owned snapshot. Snapshot rule rows and per-rule skip-reason rows are sorted by name/reason, so `json.Marshal(snapshot)` is deterministic. A nil profile disables collection. The profile sink is not safe for concurrent use; reentrant parses on the same goroutine keep independent per-invocation accounting.
 
@@ -258,7 +258,7 @@ Each parse owns trace stack, counters, event filter and clock state. Generated s
 
 ### Compatibility and Implementation Sequence
 
-Observability types are emitted only with the generation option. Existing generated source and no-option APIs retain their source behavior; observability-enabled output is a distinct generated source form, with no `.zpc` change. Tracing covers Go Node, typed Go, and Document calls, including recognition and typed direct/conversion paths, plus TypeScript Node and typed-result calls. Profiling covers Go Node, typed batch, and Document calls, plus TypeScript Node and typed-result batch calls. Go and TypeScript generated parsers keep their current position-unit defaults and result/error contracts.
+Observability types are emitted only with the generation option. Existing generated source and no-option APIs retain their source behavior; observability-enabled output is a distinct generated source form, with no `.sxirc` change. Tracing covers Go Node, typed Go, and Document calls, including recognition and typed direct/conversion paths, plus TypeScript Node and typed-result calls. Profiling covers Go Node, typed batch, and Document calls, plus TypeScript Node and typed-result batch calls. Go and TypeScript generated parsers keep their current position-unit defaults and result/error contracts.
 
 1. **Implemented:** generation-time opt-in and event sinks for standalone Go Node and typed Go batch parsing, covering actual rule calls, memo results, typed direct/conversion paths, recognition and representable first-character skips.
 2. **Implemented:** TypeScript batch events and typed-result tracing preserve exception identity and per-invocation isolation.
@@ -386,15 +386,15 @@ ordinary/observed package in a separate process, alternating their order for
 each fixture and unit:
 
 ```sh
-ZP_PROFILE_BENCH_DIR=/tmp/zp-profile-bench go test ./internal/backend/codegen/golang/print -run '^TestExportGeneratedGoProfileBenchmarks$' -count=1
-cd /tmp/zp-profile-bench/json/node/ordinary || exit 1
+SXIR_PROFILE_BENCH_DIR=/tmp/sxir-profile-bench go test ./internal/backend/codegen/golang/print -run '^TestExportGeneratedGoProfileBenchmarks$' -count=1
+cd /tmp/sxir-profile-bench/json/node/ordinary || exit 1
 go test -run '^$' -bench '^(Benchmark(Parse|ParseValue|Recognize|TraceParse)|BenchmarkProfile(Parse|Recognize|ParseValue))$' -benchmem -benchtime=150ms
 # Repeat from json/node/observed and the typed routes, then alternate order for xml and calc.
 ```
 
 The comparison with the prior trace-enabled generator used the same exporter
 with `gen.go`, `gen_observe.go`, `gen_types.go` and `pkg/runtime/libgo/trace.go` under
-`internal/engine/` overlaid from `90edba2`, and `ZP_PROFILE_BASE=1` to omit
+`internal/engine/` overlaid from `90edba2`, and `SXIR_PROFILE_BASE=1` to omit
 profile-specific benchmark references.
 
 ### Node Generation Cost
@@ -410,8 +410,8 @@ package benchmark in separate processes, alternating ordinary and observed
 order across repeated samples:
 
 ```sh
-ZP_TRACE_BENCH_DIR=/tmp/zp-trace-bench go test ./internal/backend/codegen/golang/print -run '^TestExportGeneratedTraceBenchmarks$' -count=1
-cd /tmp/zp-trace-bench/json/ordinary || exit 1
+SXIR_TRACE_BENCH_DIR=/tmp/sxir-trace-bench go test ./internal/backend/codegen/golang/print -run '^TestExportGeneratedTraceBenchmarks$' -count=1
+cd /tmp/sxir-trace-bench/json/ordinary || exit 1
 go test -run '^$' -bench '^(BenchmarkParse|BenchmarkRecognize|BenchmarkTrace)$' -benchmem -benchtime=200ms
 # Repeat from json/observed, then alternate order for xml and calc.
 ```
@@ -462,14 +462,14 @@ Export the controls, then alternate ordinary and observed processes across
 three pairs for each fixture:
 
 ```sh
-ZP_TS_TRACE_BENCH_DIR=/tmp/zp-ts-trace go test ./internal/backend/codegen/typescript/print -run '^TestExportGeneratedTSTraceBenchmarks$' -count=1
-cd /tmp/zp-ts-trace/json/typed/ordinary || exit 1
+SXIR_TS_TRACE_BENCH_DIR=/tmp/sxir-ts-trace go test ./internal/backend/codegen/typescript/print -run '^TestExportGeneratedTSTraceBenchmarks$' -count=1
+cd /tmp/sxir-ts-trace/json/typed/ordinary || exit 1
 node --expose-gc bench.mjs
 # Repeat from json/typed/observed, then alternate order for xml and calc.
 ```
 
 Each process warms every profile for 100 ms and measures it for 200 ms by
-default; `ZP_TRACE_WARM_MS` and `ZP_TRACE_BENCH_MS` override those durations.
+default; `SXIR_TRACE_WARM_MS` and `SXIR_TRACE_BENCH_MS` override those durations.
 
 ### TypeScript Profile Measurements
 
@@ -505,16 +505,16 @@ package in a separate Node process, alternating ordinary and observed order
 for three pairs:
 
 ```sh
-ZP_TS_TRACE_BENCH_DIR=/tmp/zp-ts-profile go test ./internal/backend/codegen/typescript/print -run '^TestExportGeneratedTSTraceBenchmarks$' -count=1
-cd /tmp/zp-ts-profile/json/node/ordinary || exit 1
+SXIR_TS_TRACE_BENCH_DIR=/tmp/sxir-ts-profile go test ./internal/backend/codegen/typescript/print -run '^TestExportGeneratedTSTraceBenchmarks$' -count=1
+cd /tmp/sxir-ts-profile/json/node/ordinary || exit 1
 node --expose-gc profile-bench.mjs
-cd /tmp/zp-ts-profile/json/node/observed || exit 1
-ZP_PROFILE_MODES=none,trace,profile node --expose-gc profile-bench.mjs
+cd /tmp/sxir-ts-profile/json/node/observed || exit 1
+SXIR_PROFILE_MODES=none,trace,profile node --expose-gc profile-bench.mjs
 ```
 
 Repeat for typed JSON, XML and calculator fixtures. The driver defaults to
-75 ms warmup and 150 ms timing; `ZP_PROFILE_WARM_MS` and
-`ZP_PROFILE_BENCH_MS` override these durations. The exporter is
+75 ms warmup and 150 ms timing; `SXIR_PROFILE_WARM_MS` and
+`SXIR_PROFILE_BENCH_MS` override these durations. The exporter is
 `TestExportGeneratedTSTraceBenchmarks`; the benchmark source is committed in `internal/backend/codegen/typescript/print/gents_profile_bench_test.go`. Exported
 sources and raw results are not repository artifacts.
 

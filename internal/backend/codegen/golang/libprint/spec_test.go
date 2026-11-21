@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/ir/code/exec/compose"
-	"zeroparse.dev/zp/internal/ir/code/exec/spectest"
+	"syntaxir.dev/sxir/internal/ir/code/exec/compose"
+	"syntaxir.dev/sxir/internal/ir/code/exec/spectest"
 )
 
 // specDir is the directory of the Exec IR specification, relative to this package.

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // fieldRangeSource makes lists and tuples in one rule (two, at offset 4) and reads them from the fields of the
@@ -64,7 +64,7 @@ func testGeneratedFieldRanges(t *testing.T) {
 		if !strings.Contains(string(code), "TParse(trules") {
 			t.Errorf("%s: the typed library does not build the values", c.Name)
 		}
-		if !strings.Contains(string(code), "zpr_") {
+		if !strings.Contains(string(code), "sxirr_") {
 			t.Errorf("%s: the structs keep no range of the lists and tuples that actions read", c.Name)
 		}
 	}
@@ -77,7 +77,7 @@ func testGeneratedFieldRanges(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(code), "TParse(trules") || strings.Contains(string(code), "zpr_") {
+	if !strings.Contains(string(code), "TParse(trules") || strings.Contains(string(code), "sxirr_") {
 		t.Errorf("a parser whose actions read no field keeps ranges, or does not run the typed library")
 	}
 	goBin := filepath.Join(runtime.GOROOT(), "bin", "go")

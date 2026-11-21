@@ -23,7 +23,7 @@ flat fallback.
 
 ## Reference Control
 
-Private build tag `zp_snapshot_child_chunks_reference` keeps flat child
+Private build tag `sxir_snapshot_child_chunks_reference` keeps flat child
 slices. Cached handles remain in both variants, so the control isolates child
 storage rather than descriptor caching.
 

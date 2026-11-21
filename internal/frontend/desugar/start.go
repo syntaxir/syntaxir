@@ -5,9 +5,9 @@ import (
 	"slices"
 	"strings"
 
-	"zeroparse.dev/zp/internal/cancel"
-	"zeroparse.dev/zp/internal/diagnostic"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/cancel"
+	"syntaxir.dev/sxir/internal/diagnostic"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // ResolveStarts reads the declaration attributes of rules and returns the

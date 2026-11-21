@@ -1,20 +1,20 @@
 # Debugging and Profiling Grammars
 
 This guide is about finding out what a grammar does with an input: which rules it calls where, why an input is
-rejected, and where the time of a parse goes. It covers three commands, `zp explain`, `zp trace` and
-`zp profile`, and the Go API behind them (`runtime.WithTrace`, `runtime.WithProfile`).
+rejected, and where the time of a parse goes. It covers three commands, `sxir explain`, `sxir trace` and
+`sxir profile`, and the Go API behind them (`runtime.WithTrace`, `runtime.WithProfile`).
 
 Contents:
 
 1. [The example grammar](#the-example-grammar)
-2. [Why does an input fail?](#why-does-an-input-fail) `zp explain`
-3. [What does the parser do?](#what-does-the-parser-do) `zp trace`
-4. [Why is a parse slow?](#why-is-a-parse-slow) `zp profile`
+2. [Why does an input fail?](#why-does-an-input-fail) `sxir explain`
+3. [What does the parser do?](#what-does-the-parser-do) `sxir trace`
+4. [Why is a parse slow?](#why-is-a-parse-slow) `sxir profile`
 5. [Reading the profile](#reading-the-profile)
 6. [From Go](#from-go)
 7. [Costs and limits](#costs-and-limits)
 
-The examples use the `zp` command; build it with `go build -o zp ./cmd/zp`. Every command below was run as shown,
+The examples use the `sxir` command; build it with `go build -o sxir ./cmd/sxir`. Every command below was run as shown,
 and its output is copied from the terminal (standard output and standard error together). Times in profiles will
 differ on your machine.
 
@@ -22,8 +22,8 @@ differ on your machine.
 
 A small configuration language with assignments, updates and calls:
 
-```zp
-// config.zp
+```sxir
+// config.sxir
 @start
 rule main = ws (stmt ws)* $$
 rule stmt = assign / update / call
@@ -60,11 +60,11 @@ log.rotate(7 size);
 
 A PEG parser backtracks, so a syntax error does not come from one place: it lists everything that was expected at the
 farthest position any alternative reached (see [error messages](error-messages.md#what-a-syntax-error-is)).
-When the list is long or surprising, `zp explain` tells you which rule calls contributed each item, and from where
+When the list is long or surprising, `sxir explain` tells you which rule calls contributed each item, and from where
 they were called:
 
 ```bash
-zp explain -g config.zp < bad.txt
+sxir explain -g config.sxir < bad.txt
 ```
 
 ```text
@@ -115,11 +115,11 @@ Some things to know:
 
 ## What Does the Parser Do?
 
-`zp trace` prints every rule call of a parse as an indented tree. A call whose nested calls are shown takes two
+`sxir trace` prints every rule call of a parse as an indented tree. A call whose nested calls are shown takes two
 lines, its start (`rule line:col`) and its end (`rule -> result`); a call without shown nested calls takes one:
 
 ```bash
-zp trace -g config.zp < small.txt
+sxir trace -g config.sxir < small.txt
 ```
 
 ```text
@@ -164,7 +164,7 @@ Other marks on a result:
 
   <!-- example: skip: the grammar is given only in the comment of the command -->
   ```bash
-  zp trace -g lr.zp -i '1+2'      # rule sum =  sum "+" n / n
+  sxir trace -g lr.sxir -i '1+2'      # rule sum =  sum "+" n / n
   ```
 
   ```text
@@ -188,7 +188,7 @@ Traces grow quickly, so narrow them down:
 - `-show-depth n` hides calls nested deeper than `n`:
 
   ```bash
-  zp trace -g config.zp -show-depth 2 < small.txt
+  sxir trace -g config.sxir -show-depth 2 < small.txt
   ```
 
   ```text
@@ -206,7 +206,7 @@ Traces grow quickly, so narrow them down:
   commas. With `-rule`, `-show-depth` counts from the rule's calls:
 
   ```bash
-  zp trace -g config.zp -rule stmt -show-depth 2 -i 'a.b.c(1);'
+  sxir trace -g config.sxir -rule stmt -show-depth 2 -i 'a.b.c(1);'
   ```
 
   ```text
@@ -225,7 +225,7 @@ Traces grow quickly, so narrow them down:
 - `-failures` adds, to each failed call, the farthest position it reached and what it expected there:
 
   ```bash
-  zp trace -g config.zp -rule args -failures < bad.txt
+  sxir trace -g config.sxir -rule args -failures < bad.txt
   ```
 
   ```text
@@ -233,7 +233,7 @@ Traces grow quickly, so narrow them down:
     value 2:12 -> matched 2:12-2:13 "7"
     ws 2:13 -> matched 2:13-2:14 " "
   args -> matched 2:12-2:13 "7"
-  zp: 2:14: syntax error: expected ")", ",", [ \t\n]
+  sxir: 2:14: syntax error: expected ")", ",", [ \t\n]
   ```
 
   (`args` matched, so there is no failure to show; the error comes after the trace.)
@@ -244,13 +244,13 @@ For tools, `-f json` prints one JSON object per event and line. Enter events hav
 looked at), `reusedElements` when nonzero, and, with `-failures`, `failure`:
 
 ```bash
-zp trace -g config.zp -f json -rule call -show-depth 1 -failures < bad.txt
+sxir trace -g config.sxir -f json -rule call -show-depth 1 -failures < bad.txt
 ```
 
 ```text
 {"event":"enter","rule":"call","depth":3,"pos":20,"line":2,"col":1}
 {"event":"exit","rule":"call","depth":3,"pos":20,"line":2,"col":1,"matched":false,"end":20,"endLine":2,"endCol":1,"evals":1,"examined":34,"failure":{"pos":33,"line":2,"col":14,"expected":["\")\"","\",\"","[ \\t\\n]"]}}
-zp: 2:14: syntax error: expected ")", ",", [ \t\n]
+sxir: 2:14: syntax error: expected ")", ",", [ \t\n]
 ```
 
 `trace` takes the flags of `parse` that select what is parsed (`-s`, `-i`, `-unit`, `-backend`) and exits with status
@@ -264,11 +264,11 @@ on each backend, and results never differ.
 
 ## Why Is a Parse Slow?
 
-`zp profile` parses the input once with tracing and prints the cost of each rule. On 900 statements (35 KB):
+`sxir profile` parses the input once with tracing and prints the cost of each rule. On 900 statements (35 KB):
 
 <!-- example: skip: the output has timings of this machine -->
 ```bash
-zp profile -g config.zp -n 5 < config.txt
+sxir profile -g config.sxir -n 5 < config.txt
 ```
 
 ```text
@@ -297,8 +297,8 @@ them (evaluating such a rule again only reads its input again), and every altern
 whole target, throwing away 17,101 and 7,801 positions of work (`wasted`). The fix is to read the target once and then
 choose:
 
-```zp
-// config_fast.zp (changed rules)
+```sxir
+// config_fast.sxir (changed rules)
 rule stmt = ident ws (assign / update / call)
 rule assign = "=" ws value ";"
 rule update = "+=" ws value ";"
@@ -307,7 +307,7 @@ rule call = "(" ws args? ws ")" ";"
 
 <!-- example: skip: the output has timings of this machine -->
 ```bash
-zp profile -g config_fast.zp -n 5 < config.txt
+sxir profile -g config_fast.sxir -n 5 < config.txt
 ```
 
 ```text
@@ -418,7 +418,7 @@ main failed: 1:7: syntax error: expected [0-9]
 1:7: syntax error: expected [0-9]
 ```
 
-A `TraceEvent`, the event type of the package `zeroparse.dev/zp/pkg/runtime/instrument` that generated parsers report too, has `Kind` (`TraceEnter` or `TraceExit`), `Rule`, `Level`, `Depth`, `Pos` and `Lookahead`; exit events
+A `TraceEvent`, the event type of the package `syntaxir.dev/sxir/pkg/runtime/instrument` that generated parsers report too, has `Kind` (`TraceEnter` or `TraceExit`), `Rule`, `Level`, `Depth`, `Pos` and `Lookahead`; exit events
 also have `Matched`, `End`, `Memo`, `Evals`, `ReusedElements` and `Examined`, and the methods `Text` (the input matched), `Failure`
 (the farthest failure recorded during the call, as a `*SyntaxError`, or nil) and `Recovered` (the errors `#recover`
 recovered from during the call, whose expectations `Failure` does not include). `LineCol` converts a position.
@@ -460,11 +460,11 @@ as the engine's.
 
 ### Generated Go Node and Typed Traces
 
-Generate a standalone Go parser with tracing hooks using `zp gen -observability`. Add `-types` to trace typed entry points too:
+Generate a standalone Go parser with tracing hooks using `sxir gen -observability`. Add `-types` to trace typed entry points too:
 
 ```bash
-zp gen -g pairs.zp -module example.com/pairs/pairsparser -observability -o pairsparser
-zp gen -g pairs.zp -module example.com/pairs/pairsparser -types -observability -o pairsparser
+sxir gen -g pairs.sxir -module example.com/pairs/pairsparser -observability -o pairsparser
+sxir gen -g pairs.sxir -module example.com/pairs/pairsparser -types -observability -o pairsparser
 ```
 
 A parser generated without `-observability` has no tracing: it returns an error for the trace and profile options
@@ -526,7 +526,7 @@ dispatch skips and calls that fail at their first character, as
 their profiles agree in the same way. After an edit, a Document parse of the
 engine can resume repetitions and reuse failed results, so the producers report
 different calls; the calls that both make with the same outcome still examine
-the same input. See [code generation](code-generation.md#the-zp-gen-command)
+the same input. See [code generation](code-generation.md#the-sxir-gen-command)
 for the generation option. Focused synthetic measurements cover Go Node and
 typed batch parsers. Typed no-callback runs added about 48 B/op with unchanged allocation
 counts; callback cost depends on parser path and workload, and the measured
@@ -579,7 +579,7 @@ counters, described below.
 Generate the Go Document with observability enabled:
 
 ```bash
-zp gen -g pairs.zp -module example.com/pairs/pairsparser -document -observability -o pairsparser
+sxir gen -g pairs.sxir -module example.com/pairs/pairsparser -document -observability -o pairsparser
 ```
 
 Constructor trace and profile options are defaults for later parses. They do
@@ -632,13 +632,13 @@ observer/profile state is released when a parse returns or panics.
 
 ### Generated TypeScript Traces
 
-Generate tracing hooks with `zp gen -lang ts -observability`; add `-types` to
+Generate tracing hooks with `sxir gen -lang ts -observability`; add `-types` to
 trace typed-result parsing and `-recognize` to trace recognition calls. Tracing
 is delivered through the per-call options APIs, not the positional-unit
 functions:
 
 ```bash
-zp gen -lang ts -g pairs.zp -observability -types -recognize -o pairs
+sxir gen -lang ts -g pairs.sxir -observability -types -recognize -o pairs
 ```
 
 ```ts
@@ -730,4 +730,4 @@ measurements are linked above.
 - **Streams forget lines.** A stream parse discards the input it has consumed, and with it the line structure:
   `LineCol` gives 0, 0 for a position that is no longer (or not yet) held, and a profile location that could not be
   converted prints as `position N`.
-- `zp explain` parses twice (once to find the errors, once traced), so it takes about as long as `trace`.
+- `sxir explain` parses twice (once to find the errors, once traced), so it takes about as long as `trace`.

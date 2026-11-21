@@ -1,6 +1,6 @@
 package parser
 
-// The generated parser of the grammar source, from the grammar of the language (zp.zp). It is
-// checked in, so that building ZeroParse needs no generation step; a test of spec/language fails
+// The generated parser of the grammar source, from the grammar of the language (sxir.sxir). It is
+// checked in, so that building SyntaxIR needs no generation step; a test of spec/language fails
 // when it is stale.
-//go:generate go run ../../../cmd/zp gen -g ../../../zp.zp -module zeroparse.dev/zp/internal/frontend/parser/zpparser -lib import -types -typed-only -limits -expectations -o zpparser
+//go:generate go run ../../../cmd/sxir gen -g ../../../sxir.sxir -module syntaxir.dev/sxir/internal/frontend/parser/sxirparser -lib import -types -typed-only -limits -expectations -o sxirparser

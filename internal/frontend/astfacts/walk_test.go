@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // The walk reaches the expression arguments of attributes and every part of an Operators Rule,

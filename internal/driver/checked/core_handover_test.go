@@ -3,11 +3,11 @@ package checked
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/closure"
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/frontend/elaborate"
-	"zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/internal/testing/compiletest"
+	"syntaxir.dev/sxir/internal/backend/closure"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/elaborate"
+	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/testing/compiletest"
 )
 
 // The Core IR that a program compiled at run time builds for its closures is handed to the Core

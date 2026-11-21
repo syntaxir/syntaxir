@@ -6,10 +6,10 @@ import (
 	"sync"
 	"testing"
 
-	"zeroparse.dev/zp/internal/testing/enginetest"
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/query"
-	"zeroparse.dev/zp/pkg/runtime/schema"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/query"
+	"syntaxir.dev/sxir/pkg/runtime/schema"
 )
 
 const queryShapeGrammar = `type Int = { Text string }
@@ -128,7 +128,7 @@ func TestStructuralQueryErrorSize(t *testing.T) {
 		src += "type " + n + " = { X E }\n"
 	}
 	src += "rule main E = e\nrule e E = n:[0-9] => Num{Text: text($n)}\n"
-	s := mustSchema(t, mustCompile(t, src, enginetest.WithSourceInfo()), zpruntime.WithAllSchemaRules())
+	s := mustSchema(t, mustCompile(t, src, enginetest.WithSourceInfo()), sxirruntime.WithAllSchemaRules())
 	p := query.Pattern{Category: "string"}
 	for range 16 {
 		p = query.Pattern{Fields: []query.FieldPattern{field("X", p)}}

@@ -1,6 +1,6 @@
 # Documentation Style
 
-How the ZeroParse documentation is organized and written. It applies to the tutorial, the guides, the cookbook and the
+How the SyntaxIR documentation is organized and written. It applies to the tutorial, the guides, the cookbook and the
 specification; design pages, design records and optimization records follow their own rules. Pages that break a rule that a test
 checks fail `cd site && go test ./...`; the rest is checked in review.
 
@@ -55,7 +55,7 @@ No page cites a line number: lines move with every edit. A reference to code in 
 a file or directory of the repository's code (the programs of `examples/` are written for readers and are not code in
 this sense), any name of a Go file of the repository, any path under `internal/`, a line of a source file and any
 identifier that matches an unexported Go declaration or an exported name that an internal package qualifies. The names
-of files that a reader creates or that `zp gen` writes (`main.go`, `parser.go`, `types/types.go`), the line numbers of
+of files that a reader creates or that `sxir gen` writes (`main.go`, `parser.go`, `types/types.go`), the line numbers of
 error-message examples, public API names and the names of Exec IR operations (`term.dropKids`), which the
 specification defines, are not references.
 
@@ -78,7 +78,7 @@ the title without a trailing qualifier.
   three letters (as, at, by, in, of, off, on, per, to, via, vs). Prepositions of four letters or more are capitalized
   (With, From, Into, Over, Through), and so is the adverb in "Up to Date". `TestHeadingTitleCase` enforces this for the
   tutorial, the guides, the cookbook, the specification, the project documents of `docs/` and the README.
-- Words in code spans stay as written (`zp gen`, `foldl`). Every part of a hyphenated word is capitalized
+- Words in code spans stay as written (`sxir gen`, `foldl`). Every part of a hyphenated word is capitalized
   (Built-In, Indentation-Based).
 - The title of a page names what the page is for. Tutorial titles name what the reader builds or learns, guide
   titles name the feature (a noun phrase), recipe titles start with a verb for the task, and specification titles name
@@ -91,7 +91,7 @@ the title without a trailing qualifier.
 
 ## Voice and Terms
 
-- **Tutorial.** Second person, imperative, present tense: "Create `calc.zp`." "Run it." No "we" and no "let us".
+- **Tutorial.** Second person, imperative, present tense: "Create `calc.sxir`." "Run it." No "we" and no "let us".
 - **Guide.** Second person for procedures. Declarative present tense for behavior. Do not hedge behavior that the
   specification defines; state it once and link to the specification. Keep advice (what to prefer) apart from the
   contract (what happens) in separate sentences or paragraphs.
@@ -103,8 +103,8 @@ the title without a trailing qualifier.
   Operators Rule, Value Action, Predicate Action, start rule, position unit, code point, node. Defined terms are
   capitalized as the specification capitalizes them. A new term lands in the glossary before it is used in a page.
   "Operators Rule" is the only name of that construct.
-- American English. Write "Go API", "TypeScript", "WebAssembly" and "`.zpc`". Say "input" for the text that a
-  parser reads and "grammar source" for a `.zp` file.
+- American English. Write "Go API", "TypeScript", "WebAssembly" and "`.sxirc`". Say "input" for the text that a
+  parser reads and "grammar source" for a `.sxir` file.
 - Write for the reader of the published page. Do not mention chats, requests, review, the order in which work was
   done, issue numbers or agents. A page does not describe how it differs from an earlier version; a migration is
   a section that tells the reader what to change, with the old and the new spelling.
@@ -119,13 +119,13 @@ the title without a trailing qualifier.
   "**Problem.**" paragraph, the solution with its files, Expected Output, How It Works, and Variations and Limits.
   `TestCookbookRecipes` enforces the paragraph and the order of the sections.
 - The first line of a code block that holds a file the reader should save is a comment with the file name
-  (`// main.go`, `// rules.zp`). The extraction rule of the cookbook relies on it.
+  (`// main.go`, `// rules.sxir`). The extraction rule of the cookbook relies on it.
 
 ## Examples
 
 Every example is run, and its output is pasted from that run. An example that a reader copies must work as printed.
 
-- Tag every fence. Grammars are `zp`, Go is `go`, TypeScript is `ts`, JSON is `json`, shell commands are `bash`
+- Tag every fence. Grammars are `sxir`, Go is `go`, TypeScript is `ts`, JSON is `json`, shell commands are `bash`
   (not `sh` or `console`), and the output of a program or a command is `text`. An untagged fence is a mistake.
   `TestCodeFenceLanguages` enforces this.
 - Draw a diagram as a `mermaid` fence when it has more than a handful of nodes, branches or labeled edges; the site
@@ -152,10 +152,10 @@ Every example is run, and its output is pasted from that run. An example that a 
 
 - Put a command and its output in separate blocks, the command first, with no `$` prompt, so a reader can copy the
   command. `TestNoCommandPrompts` enforces this.
-- Name the file a grammar is saved under in the first line of its block: `// pairs.zp`. A block whose first line is
-  `// pairs.zp (changed rules)` replaces the rules of that name in the file that the page saved before. A block with
+- Name the file a grammar is saved under in the first line of its block: `// pairs.sxir`. A block whose first line is
+  `// pairs.sxir (changed rules)` replaces the rules of that name in the file that the page saved before. A block with
   `@start` is a complete grammar. `TestDocumentationExamples` compiles every complete grammar and runs every command
-  block (lines that start with `zp`) against the output that follows it, in a directory per page, with the files of the
+  block (lines that start with `sxir`) against the output that follows it, in a directory per page, with the files of the
   page saved in the order of the page. It takes about 4 seconds. A file that is not a grammar is saved from a `cat NAME`
   block with the text block after it, or from a `cat > NAME <<'EOF'` block. In a shown output, a line of only `...`
   stands for any number of lines. A command may show its standard output alone.
@@ -168,7 +168,7 @@ Every example is run, and its output is pasted from that run. An example that a 
 - Write a complete `package main` program when the program is the point, and statement fragments otherwise, never half a
   function. Handle errors: `log.Fatal(err)` in programs, `return err` in fragments. Do not use `panic` and do not
   ignore errors.
-- Grammars are formatted with `zp fmt`. A rule body that spans lines is parenthesized, because a line break
+- Grammars are formatted with `sxir fmt`. A rule body that spans lines is parenthesized, because a line break
   before the action ends the rule. Types come first, then rules in the order a reader needs them. `main` is the start
   rule unless the page is about start rules.
 - State the unit of every position that is shown, or write it as `line:column`. Write ranges as `[start, end)`.

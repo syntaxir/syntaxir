@@ -3,7 +3,7 @@ package flow
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code"
 )
 
 // TestDialectVerifies checks that the declarations of the Flow dialect verify at the Flow stage, that

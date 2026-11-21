@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"zeroparse.dev/zp/internal/cancel"
-	"zeroparse.dev/zp/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/cancel"
+	"syntaxir.dev/sxir/internal/frontend/parser"
 )
 
 // TestAnalysisEntryPointsReportDuplicateRule checks that the entry points that analyze a grammar

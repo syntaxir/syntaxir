@@ -12,17 +12,17 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/enginetest"
-	"zeroparse.dev/zp/internal/testing/starttest"
-	"zeroparse.dev/zp/pkg/sample"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
+	"syntaxir.dev/sxir/internal/testing/starttest"
+	"syntaxir.dev/sxir/pkg/sample"
 )
 
 // exampleParsers compiles every grammar in examples/.
 func exampleParsers(t *testing.T) map[string]*engine.Parser {
 	t.Helper()
-	paths, err := filepath.Glob("../../examples/*/*.zp")
-	more, err2 := filepath.Glob("../../testdata/grammars/*/*.zp")
+	paths, err := filepath.Glob("../../examples/*/*.sxir")
+	more, err2 := filepath.Glob("../../testdata/grammars/*/*.sxir")
 	paths = append(paths, more...)
 	if err != nil || err2 != nil || len(paths) == 0 {
 		t.Fatalf("no example grammars: %v", err)
@@ -121,7 +121,7 @@ func TestExamplesCoverage(t *testing.T) {
 // TestJSONAgreesWithEncodingJSON is a differential test: the JSON grammar of testdata/grammars/json and
 // encoding/json must accept the same inputs.
 func TestJSONAgreesWithEncodingJSON(t *testing.T) {
-	p := exampleParsers(t)[filepath.Join("..", "..", "testdata", "grammars", "json", "json.zp")]
+	p := exampleParsers(t)[filepath.Join("..", "..", "testdata", "grammars", "json", "json.sxir")]
 	g, err := sample.New(engine.Reference(p), sample.WithSeed(1), sample.WithCoverage())
 	if err != nil {
 		t.Fatal(err)
@@ -148,7 +148,7 @@ func TestJSONAgreesWithEncodingJSON(t *testing.T) {
 
 func TestDeterminism(t *testing.T) {
 	ps := exampleParsers(t)
-	p := ps[filepath.Join("..", "..", "testdata", "grammars", "json", "json.zp")]
+	p := ps[filepath.Join("..", "..", "testdata", "grammars", "json", "json.sxir")]
 	gen := func(seed uint64) ([]string, []sample.Invalid) {
 		g, err := sample.New(engine.Reference(p), sample.WithSeed(seed), sample.WithCoverage())
 		if err != nil {

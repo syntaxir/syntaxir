@@ -13,8 +13,8 @@ import (
 	"strings"
 	"sync"
 
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/exec"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec"
 )
 
 // Config sets up the components of a model.

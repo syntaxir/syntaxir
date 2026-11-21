@@ -13,14 +13,14 @@ import (
 	"sync"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/backend/codegen/golang/print"
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/exec/ref"
-	"zeroparse.dev/zp/internal/ir/code/flow"
-	"zeroparse.dev/zp/internal/ir/core"
-	"zeroparse.dev/zp/internal/middleend/execlower"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
+	"syntaxir.dev/sxir/internal/ir/code/flow"
+	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/execlower"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // The conformance of the Go target to the Flow operations. Each call of a primitive operation that
@@ -373,8 +373,8 @@ import (
 	"strings"
 	"testing"
 
-	rt "zeroparse.dev/zp/pkg/runtime/libgo"
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
+	rt "syntaxir.dev/sxir/pkg/runtime/libgo"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 )
 
 func TestProbe(t *testing.T) {
@@ -388,7 +388,7 @@ func TestProbe(t *testing.T) {
 		Events []*rt.ConfEvent
 	}
 	var runs []run
-	opts := []ParseOption{rt.WithExpectations(), rt.WithLimits(zpruntime.Limits{Compute: 1 << 40})}
+	opts := []ParseOption{rt.WithExpectations(), rt.WithLimits(sxirruntime.Limits{Compute: 1 << 40})}
 	ordinary := []ParseOption{rt.WithExpectations()}
 	for _, in := range inputs {
 		for entry := range %d {

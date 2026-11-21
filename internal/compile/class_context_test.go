@@ -3,7 +3,7 @@ package compile
 import (
 	"testing"
 
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 func TestFirstTerminalFacts(t *testing.T) {

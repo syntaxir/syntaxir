@@ -8,11 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/exec"
-	"zeroparse.dev/zp/internal/ir/code/exec/conform"
-	"zeroparse.dev/zp/internal/ir/code/exec/ref"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec"
+	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
+	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // The dependency memo of left recursion of the node library under conformance: every ctx operation runs
@@ -83,7 +83,7 @@ func (m *ctxMachine) UseRegisters(regs map[string]any) { m.regs = regs }
 
 func (m *ctxMachine) Handle(name string) any {
 	if name == conform.OprNodeOp {
-		return new(zpvalue.Node)
+		return new(sxirvalue.Node)
 	}
 	panic("library binding: no handle " + name)
 }

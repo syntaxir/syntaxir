@@ -5,10 +5,10 @@ import (
 	"reflect"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/engine"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/query"
-	"zeroparse.dev/zp/pkg/runtime/schema"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/query"
+	"syntaxir.dev/sxir/pkg/runtime/schema"
 )
 
 func TestOutputSchemaListQueries(t *testing.T) {
@@ -62,7 +62,7 @@ rule main = "x" => Holder{Values: [][]Token{[]Token{Token{Text: "one"}}}}`, "x",
 				t.Fatal(err)
 			}
 			for _, backend := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
-				for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+				for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 					t.Run(backend.String()+"/"+unit.String(), func(t *testing.T) {
 						n, err := p.Parse(tc.input, engine.WithBackend(backend), engine.WithUnit(unit))
 						if err != nil {

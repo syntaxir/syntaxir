@@ -4,8 +4,8 @@ import (
 	"maps"
 	"slices"
 
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/core"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/core"
 )
 
 // Forms record where the lowering from Core IR wrote the forms that a Flow pass may replace, with

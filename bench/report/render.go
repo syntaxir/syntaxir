@@ -40,7 +40,7 @@ var procsSuffix = regexp.MustCompile(`-\d+$`)
 // current construct name.
 //
 // The compiled-grammar label is mapped only because the saved raw results predate the rename of the
-// compiled-grammar extension (the sub-benchmark name is the extension, now "zpc"). The next results capture
+// compiled-grammar extension (the sub-benchmark name is the extension, now "sxirc"). The next results capture
 // records the new name, and the second mapping is then removed.
 func savedLabel(name string) string {
 	name = strings.ReplaceAll(name, "/Arith_Pratt/", "/Arith_OperatorsRule/")

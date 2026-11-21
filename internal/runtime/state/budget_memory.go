@@ -3,10 +3,10 @@ package state
 import (
 	"unsafe"
 
-	"zeroparse.dev/zp/internal/runtime/limits"
-	"zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/value"
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	"syntaxir.dev/sxir/internal/runtime/limits"
+	"syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // Memory is counted in bytes of logical capacity: the element count of a buffer times the size of

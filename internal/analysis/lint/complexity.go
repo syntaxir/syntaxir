@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"zeroparse.dev/zp/internal/analysis/complexity"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/analysis/complexity"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // complexity runs the checks that come from the classification of the cost of the grammar g as

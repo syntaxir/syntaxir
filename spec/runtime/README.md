@@ -1,4 +1,4 @@
-# ZeroParse Parser and Runtime Specification
+# SyntaxIR Parser and Runtime Specification
 
 This specification defines what happens when a compiled grammar meets input: the
 start rule, positions, results, syntax errors, the node and value model,
@@ -34,11 +34,11 @@ Observing a parse, saving and generating parsers, describing their output, check
 | | Chapter | Defines |
 |--:|:--|:--|
 | 5 | [Tracing and Profiling](observability.md) | Rule tracing and profiling of the engine and of generated parsers |
-| 6 | [Compiled Grammars](compiled-grammars.md) | Saving and loading `.zpc` files, their modes and the operations each serves, versions and loading checks |
-| 7 | [Generated Parsers](generated-parsers.md) | `zp gen`: the Go and TypeScript parsers, their APIs and what each supports |
+| 6 | [Compiled Grammars](compiled-grammars.md) | Saving and loading `.sxirc` files, their modes and the operations each serves, versions and loading checks |
+| 7 | [Generated Parsers](generated-parsers.md) | `sxir gen`: the Go and TypeScript parsers, their APIs and what each supports |
 | 8 | [Output Schemas and Structural Queries](schemas-and-queries.md) | Describing the output of a grammar and searching result nodes (experimental) |
 | 9 | [Grammar Lint](lint.md) | The checks of the linter, severities and suppression directives |
-| 10 | [Fixture Suites and Edit Sequences](test-formats.md) | The JSON formats of `zp test` suites and `zp edit-fuzz` saved sequences |
+| 10 | [Fixture Suites and Edit Sequences](test-formats.md) | The JSON formats of `sxir test` suites and `sxir edit-fuzz` saved sequences |
 | 11 | [Input Generation](sampling.md) | Generating inputs that a grammar accepts, near-miss inputs that it rejects and coverage: the options and the `sample` package |
 | 12 | [Edit Fuzzing](edit-fuzzing.md) | Checking incremental parsing against fresh parses with generated edit sequences: the checks, failures and the `editfuzz` package |
 

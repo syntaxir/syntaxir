@@ -1,6 +1,6 @@
 # Reporting Errors
 
-Input is often wrong, and a parser is judged by what it says then. This lesson reads the error messages ZeroParse produces,
+Input is often wrong, and a parser is judged by what it says then. This lesson reads the error messages SyntaxIR produces,
 makes them friendlier and recovers from errors so that one run reports all of them.
 
 ## What You Will Build
@@ -11,31 +11,31 @@ A configuration parser that reports readable messages and keeps going after a ba
 
 <!-- example: use docs/tutorial/typed-trees.md -->
 <!-- example: use docs/tutorial/structured-input.md -->
-Complete [Building Typed Trees](typed-trees.md): this lesson uses `config.zp` and `example.conf` from it.
+Complete [Building Typed Trees](typed-trees.md): this lesson uses `config.sxir` and `example.conf` from it.
 
 ## Reading the Messages
 
-When the input does not match, ZeroParse reports the **farthest position** it reached and **what it expected there**. You have
+When the input does not match, SyntaxIR reports the **farthest position** it reached and **what it expected there**. You have
 already seen the format: `line:column: syntax error: expected a, b, c`, with names such as `end of input` first, then literals, then classes, and at most ten items. Errors in
-`config.zp`:
+`config.sxir`:
 
 ```bash
-printf 'host = "localhost"\nport == 8080\n' | zp parse -g config.zp -f sexpr
+printf 'host = "localhost"\nport == 8080\n' | sxir parse -g config.sxir -f sexpr
 ```
 
 ```text
-zp: 2:7: syntax error: expected "#", "\"", "false", "true", [ \t\r\n], [0-9]
+sxir: 2:7: syntax error: expected "#", "\"", "false", "true", [ \t\r\n], [0-9]
 ```
 
 Line 2, column 7 is the second `=`: after `port =` the grammar wants a value (or whitespace, or a comment). An
 unterminated string is reported at the end of the input:
 
 ```bash
-zp parse -g config.zp -f sexpr -i 'name = "oops'
+sxir parse -g config.sxir -f sexpr -i 'name = "oops'
 ```
 
 ```text
-zp: 1:13: syntax error: expected "\"", [^"]
+sxir: 1:13: syntax error: expected "\"", [^"]
 ```
 
 Two things to remember about these messages:
@@ -44,29 +44,29 @@ Two things to remember about these messages:
   always: a failed literal is reported at the place where the literal began. For the input `host = "localhost"` followed by the line `debug = tru`, the
   error is at 2:9, the `t` of `tru`, not at the end of the line.
 - The list is mechanical (it is built from the literals and classes that failed there). To give users something
-  friendlier, attach `@error(message="...")` to an expression. Replacing `value` in `config.zp` with
+  friendlier, attach `@error(message="...")` to an expression. Replacing `value` in `config.sxir` with
 
-  ```zp
+  ```sxir
   rule value Value = (number / string / bool) @error(message="expected a number, a string or true/false")
   ```
 
   turns the same errors into
 
   ```text
-  zp: 2:7: expected a number, a string or true/false
+  sxir: 2:7: expected a number, a string or true/false
   ```
 
-  (and `zp: 2:9: expected a number, a string or true/false` for `debug = tru`).
+  (and `sxir: 2:9: expected a number, a string or true/false` for `debug = tru`).
 
 ## Recovering From Errors
 
 A parser for an editor or a compiler should report every mistake in one pass and still return a tree.
 `#recover(skip=...)` on an expression says what to do when it fails: record the error, skip the input that `skip` matches
-and continue. Here a bad entry skips the rest of its line. Save as `robust.zp`, which is `config.zp` with the entry
+and continue. Here a bad entry skips the rest of its line. Save as `robust.sxir`, which is `config.sxir` with the entry
 wrapped in `#recover`, and with the message of the previous section on `value`:
 
-```zp
-// robust.zp
+```sxir
+// robust.sxir
 type Key = node[string]
 type Number = node[string]
 type String = node[string]
@@ -99,7 +99,7 @@ rule comment = "#" [^\n]*
 ```
 
 ```bash
-printf 'host = "localhost"\nport == 8080\ndebug = tru\n' | zp parse -g robust.zp -f sexpr
+printf 'host = "localhost"\nport == 8080\ndebug = tru\n' | sxir parse -g robust.sxir -f sexpr
 ```
 
 ```text
@@ -110,12 +110,12 @@ The tree contains the good entry and one placeholder per skipped entry (their fi
 standard error with exit status 1:
 
 ```text
-zp: 2:7: expected a number, a string or true/false
+sxir: 2:7: expected a number, a string or true/false
 3:9: expected a number, a string or true/false
 ```
 
 From Go, a recovered parse returns the tree together with an error of type `value.SyntaxErrors`, and a parse that could
-not recover returns a `*value.SyntaxError`. Tell them apart with `errors.As`, as this program, which reads `robust.zp`
+not recover returns a `*value.SyntaxError`. Tell them apart with `errors.As`, as this program, which reads `robust.sxir`
 from the same directory, does:
 
 ```go
@@ -127,16 +127,16 @@ import (
 	"fmt"
 	"log"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
-//go:embed robust.zp
+//go:embed robust.sxir
 var grammarSource string
 
 func main() {
-	p, err := compiler.Compile(grammar.FromString("grammar.zp", grammarSource), compiler.WithStart("main"))
+	p, err := compiler.Compile(grammar.FromString("grammar.sxir", grammarSource), compiler.WithStart("main"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -176,23 +176,23 @@ entry: host
 ```
 
 Mistakes in the *grammar* are reported before any input is parsed, also with a position. For example, this
-`bad.zp` has an undefined rule:
+`bad.sxir` has an undefined rule:
 
 <!-- example: error -->
-```zp
-// bad.zp
+```sxir
+// bad.sxir
 @start
 rule main = item
 ```
 
 ```text
-zp: bad.zp:3:13: undefined rule item
+sxir: bad.sxir:3:13: undefined rule item
 ```
 
-Asking for a start rule that does not exist with `zp parse -g config.zp -s nosuch -i a` fails the same way:
+Asking for a start rule that does not exist with `sxir parse -g config.sxir -s nosuch -i a` fails the same way:
 
 ```text
-zp: config.zp: rule nosuch is not defined
+sxir: config.sxir: rule nosuch is not defined
 ```
 
 ## Next Steps

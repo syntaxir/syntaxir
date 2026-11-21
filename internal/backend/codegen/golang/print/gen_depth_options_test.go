@@ -10,11 +10,11 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 // Differentially exercise every rule-call owner, including first-character
@@ -98,7 +98,7 @@ rule n Word = t:(("(" n ")" / "é") #recover(skip="?")) #atomic => Word{Text: te
 				}
 			}
 			harness := `package ` + pkg + `
-import("fmt";"strings";"sync";"testing";zprt "zeroparse.dev/zp/pkg/runtime/libgo")
+import("fmt";"strings";"sync";"testing";sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo")
 func TestLimitsAndReuse(t *testing.T) {
  rows:=[]struct{name,input string;unit PositionUnit;limit int;want,recWant string}{` + rows.String() + `}
  for repeat:=0;repeat<3;repeat++ {for _,c:=range rows {
@@ -115,7 +115,7 @@ func TestLimitsAndReuse(t *testing.T) {
   for _,unit:=range []PositionUnit{CodePoints,Bytes,PositionUnit(99)} {
    opts:=[]ParseOption{WithUnit(Bytes),WithUnit(unit),WithLimits(Limits{Depth: 20})}
    n,err:=Parse(c.input,opts...);wantEnd:=len([]rune(c.input));if unit==Bytes {wantEnd=len(c.input)}
-   if err!=nil || int(zprt.D(n).End)!=wantEnd {t.Fatalf("last unit option: %v",err)}
+   if err!=nil || int(sxirrt.D(n).End)!=wantEnd {t.Fatalf("last unit option: %v",err)}
    v,err:=ParseValue(c.input,opts...);if err!=nil || v.End!=wantEnd {t.Fatalf("typed last unit option: %v",err)}
   }
  }}
@@ -144,7 +144,7 @@ func TestConfiguration(t *testing.T) {
  if _,err:=Parse("?",WithLimits(Limits{Depth: 20}),bad);err==nil || !strings.Contains(err.Error(),"unlimited depth") {t.Fatal("last setting not applied")}
  if _,err:=Parse("?",WithLimits(Limits{Depth: uint64(int(^uint(0)>>1))}));err!=nil && strings.Contains(err.Error(),"unlimited depth") {t.Fatal("largest native int rejected")}
  called:=0
- option:=func(o *zprt.X_parseOptions){called++;o.X_limits.Depth=20;_,err:=Parse("?",WithLimits(Limits{Depth: 1}));_ = err}
+ option:=func(o *sxirrt.X_parseOptions){called++;o.X_limits.Depth=20;_,err:=Parse("?",WithLimits(Limits{Depth: 1}));_ = err}
  Parse("?",option);ParseValue("?",option);Recognize("?",option)
  if called!=3 {t.Fatal("options retained or evaluated more than once")}
  for _,invoke:=range []func(){func(){Parse("?",nil)},func(){ParseRule("missing","?",nil)},func(){ParseValue("?",nil)},func(){Recognize("?",nil)}} {

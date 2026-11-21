@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/backend/codegen/golang/print"
-	"zeroparse.dev/zp/internal/frontend/parser"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 func TestKeptUnits(t *testing.T) {
@@ -174,7 +174,7 @@ func TestTypedUnreachedRulesRunLikeTheFullOutput(t *testing.T) {
 }
 
 func testTypedUnreachedRulesRunLikeTheFullOutput(t *testing.T) {
-	jsonSrc, err := os.ReadFile("../../../../../testdata/grammars/json/json.zp")
+	jsonSrc, err := os.ReadFile("../../../../../testdata/grammars/json/json.sxir")
 	if err != nil {
 		t.Fatal(err)
 	}

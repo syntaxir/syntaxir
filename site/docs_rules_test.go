@@ -40,8 +40,8 @@ var (
 	autolinkRe     = regexp.MustCompile(`<([a-zA-Z][a-zA-Z0-9+.-]*:[^<>\s]+)>`)
 	htmlHrefRe     = regexp.MustCompile(`(?i)\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>` + "`" + `]+))`)
 	fenceOpenRe    = regexp.MustCompile("^\\s*(`{3,}|~{3,})")
-	githubBlobRe   = regexp.MustCompile(`(?i)^https://github\.com/zeroparse/zp/(?:blob|tree)/[^/]+/(.*)$`)
-	siteURLRe      = regexp.MustCompile(`(?i)^https?://zeroparse\.dev(/[^?#]*)?`)
+	githubBlobRe   = regexp.MustCompile(`(?i)^https://github\.com/syntaxir/syntaxir/(?:blob|tree)/[^/]+/(.*)$`)
+	siteURLRe      = regexp.MustCompile(`(?i)^https?://syntaxir\.dev(/[^?#]*)?`)
 	urlSchemeRe    = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9+.-]*:`)
 	opaqueSchemeRe = regexp.MustCompile(`(?i)^(?:mailto|tel|sms|data|javascript|urn):`)
 	listItemRe     = regexp.MustCompile(`^\s*(?:[-*+]|\d{1,9}[.)])(?:\s|$)`)
@@ -447,13 +447,13 @@ func TestLinkAllowed(t *testing.T) {
 	for _, c := range []struct{ rel, dest, want string }{
 		{"spec/a.md", "../docs/guide/x.md#y", "docs/guide/x.md"},
 		{"docs/guide/a.md", "/spec/language/types.md", "spec/language/types.md"},
-		{"docs/guide/a.md", "https://github.com/zeroparse/zp/blob/main/docs/guide/editor-support.md", "docs/guide/editor-support.md"},
+		{"docs/guide/a.md", "https://github.com/syntaxir/syntaxir/blob/main/docs/guide/editor-support.md", "docs/guide/editor-support.md"},
 		{"docs/guide/a.md", "b%20c.md", "docs/guide/b c.md"},
 		{"docs/guide/a.md", "../tutorial/", "docs/tutorial"},
 		{"docs/guide/a.md", "../cookbook", "docs/cookbook"},
-		{"docs/guide/a.md", "https://zeroparse.dev/docs/tutorial/getting-started/", "docs/tutorial/getting-started"},
-		{"spec/a.md", "https://zeroparse.dev/", "README.md"},
-		{"spec/a.md", "<../examples/x y.zp>", "examples/x y.zp"},
+		{"docs/guide/a.md", "https://syntaxir.dev/docs/tutorial/getting-started/", "docs/tutorial/getting-started"},
+		{"spec/a.md", "https://syntaxir.dev/", "README.md"},
+		{"spec/a.md", "<../examples/x y.sxir>", "examples/x y.sxir"},
 	} {
 		if got, ok := linkTarget(c.rel, c.dest); !ok || got != c.want {
 			t.Errorf("linkTarget(%q, %q) = %q, %v, want %q", c.rel, c.dest, got, ok, c.want)
@@ -472,7 +472,7 @@ func TestLinkAllowed(t *testing.T) {
 			t.Errorf("%q: want external and allowed", dest)
 		}
 	}
-	if _, ok := linkTarget("spec/a.md", "HTTPS://GITHUB.COM/zeroparse/zp/blob/main/zp.go"); !ok {
+	if _, ok := linkTarget("spec/a.md", "HTTPS://GITHUB.COM/syntaxir/syntaxir/blob/main/sxir.go"); !ok {
 		t.Error("an upper-case GitHub URL did not resolve to a repository path")
 	}
 }
@@ -491,8 +491,8 @@ func TestDirectoryAndSiteLinkKinds(t *testing.T) {
 		{"spec", kindSpec},
 		{"spec/types", kindSpec},
 		{"spec/language/syntax.md", kindSpec},
-		{"spec/language/testdata/x.zp", kindOther},
-		{"examples/x.zp", kindOther},
+		{"spec/language/testdata/x.sxir", kindOther},
+		{"examples/x.sxir", kindOther},
 		{"README.md", kindProject},
 		{"AGENTS.md", kindProject},
 		{"CONTRIBUTING.md", kindProject},
@@ -508,7 +508,7 @@ func TestDirectoryAndSiteLinkKinds(t *testing.T) {
 			t.Errorf("%s may link to a directory link of the tutorial", from)
 		}
 	}
-	rp, _ := linkTarget("spec/a.md", "https://github.com/zeroparse/zp/blob/main/zp.zp")
+	rp, _ := linkTarget("spec/a.md", "https://github.com/syntaxir/syntaxir/blob/main/sxir.sxir")
 	if linkAllowed(kindSpec, docKind(rp)) {
 		t.Error("the specification may link to a source file on GitHub")
 	}
@@ -517,7 +517,7 @@ func TestDirectoryAndSiteLinkKinds(t *testing.T) {
 func TestDocumentDestinations(t *testing.T) {
 	lines := []string{
 		"[a](x.md) and [b](<y z.md>) and [c](f(1).md \"title\") and [d]( spaced.md )",
-		"see <https://zeroparse.dev/docs/guide/> and <a href=\"../tutorial/x.md\">t</a> and <a href=bare.md>u</a>",
+		"see <https://syntaxir.dev/docs/guide/> and <a href=\"../tutorial/x.md\">t</a> and <a href=bare.md>u</a>",
 		"inline `[no](bad.md)` and ``[no](bad2.md) with ` inside`` then [yes](ok.md)",
 		"a stray ` backtick before [kept](stray.md) in a paragraph",
 		"",
@@ -564,7 +564,7 @@ func TestDocumentDestinations(t *testing.T) {
 	for _, d := range documentDestinations(doc) {
 		got = append(got, d.dest)
 	}
-	want := []string{"x.md", "y z.md", "f(1).md", "spaced.md", "https://zeroparse.dev/docs/guide/", "../tutorial/x.md", "bare.md", "ok.md", "stray.md", "after.md", "<r s.md>", "next-line.md", "end.md", "row1.md", "row2.md", "item1.md", "item2.md", "after-code.md", "foo:bar.md", "mailto:a@b.c", "https://example.com/x.md"}
+	want := []string{"x.md", "y z.md", "f(1).md", "spaced.md", "https://syntaxir.dev/docs/guide/", "../tutorial/x.md", "bare.md", "ok.md", "stray.md", "after.md", "<r s.md>", "next-line.md", "end.md", "row1.md", "row2.md", "item1.md", "item2.md", "after-code.md", "foo:bar.md", "mailto:a@b.c", "https://example.com/x.md"}
 	if strings.Join(got, "|") != strings.Join(want, "|") {
 		t.Errorf("destinations = %q, want %q", got, want)
 	}

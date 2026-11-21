@@ -1,6 +1,6 @@
 package core
 
-import "zeroparse.dev/zp/pkg/grammar/ast"
+import "syntaxir.dev/sxir/pkg/grammar/ast"
 
 // Number gives every node of the rules of m that has no ID one, in the order of the rules and of
 // Walk, after LastID, and sets LastID. The builder of a module numbers it once it is built; a node

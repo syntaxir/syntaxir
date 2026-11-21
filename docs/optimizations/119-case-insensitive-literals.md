@@ -33,7 +33,7 @@ general path.
 The grammar has twenty keywords as folded literals, or as class-form keywords for the
 comparison, with an identifier and whitespace rule:
 
-```zp
+```sxir
 rule main = item*
 rule item = kw / ident / ws
 rule kw = ("select"i / "from"i / "where"i / "group"i / "order"i / "having"i / "limit"i
@@ -68,7 +68,7 @@ measured; the cause of the speed difference was not isolated.
 
 ## Folded Literals in the Core First Set
 
-The grammar is `testdata/grammars/duckdb/duckdb.zp` with its 350 keyword rules, such as
+The grammar is `testdata/grammars/duckdb/duckdb.sxir` with its 350 keyword rules, such as
 `rule SELECT = [sS][eE][lL][eE][cC][tT] ![...]`, rewritten as `rule SELECT = "select"i ![...]`
 by a script (a regular expression over the rule lines). Both builds generate the typed Go
 parser (`-types -typed-only -lib import`) and the untyped recognizer (`-recognize`), and

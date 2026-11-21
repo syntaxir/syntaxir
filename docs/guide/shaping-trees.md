@@ -1,6 +1,6 @@
 # Shaping Trees
 
-A ZeroParse grammar does two jobs: it decides which input is valid, and it decides what **tree** you get back. This guide is
+A SyntaxIR grammar does two jobs: it decides which input is valid, and it decides what **tree** you get back. This guide is
 about the tree that every grammar produces without any extra work and how to shape it with captures, atomic (`#atomic`), discard (`-`) and
 hidden rules (`_name`). [Declaring Types](types.md) describes the typed nodes of a grammar, and
 [Actions](actions.md) shows how to replace the tree with a typed value built by [actions](../../spec/language/actions.md).
@@ -11,21 +11,21 @@ is on how and why to use each feature. For operator expressions (`foldl` chains
 versus Operators Rule Declaration Statements), see the companion guide [Operators Rule](operators-rule.md).
 
 Every grammar and output below was produced by running it. To follow along, put each grammar in the file named on its
-first line and run the command shown, using either the installed tool or `go run ./cmd/zp` from a checkout:
+first line and run the command shown, using either the installed tool or `go run ./cmd/sxir` from a checkout:
 
 ```bash
-go install zeroparse.dev/zp/cmd/zp@latest
+go install syntaxir.dev/sxir/cmd/sxir@latest
 ```
 
-`zp parse -g <grammar> -s <rule> -i '<input>' -f sexpr` parses the input with the start rule `<rule>` (default
+`sxir parse -g <grammar> -s <rule> -i '<input>' -f sexpr` parses the input with the start rule `<rule>` (default
 `main`), which must match the whole input, and prints the tree.
 
 ## Reading a Tree
 
 Start with the smallest grammar that has some structure:
 
-```zp
-// assign.zp
+```sxir
+// assign.sxir
 @start
 rule main = ^^ assign $$
 rule assign = name ws "=" ws value ";"
@@ -36,7 +36,7 @@ rule ws = " "*
 ```
 
 ```bash
-zp parse -g assign.zp -f sexpr -i 'ab = 12;'
+sxir parse -g assign.sxir -f sexpr -i 'ab = 12;'
 ```
 
 ```text
@@ -64,7 +64,7 @@ Source information adds the rule that produced each node and the names of the ca
 most programs do not need it; ask for it with `-source-info` (`compiler.WithSourceInfo()` in Go):
 
 ```bash
-zp parse -g assign.zp -f sexpr -source-info -i 'ab = 12;'
+sxir parse -g assign.sxir -f sexpr -source-info -i 'ab = 12;'
 ```
 
 ```text
@@ -76,15 +76,15 @@ a tuple that come from literals, like the `"="` above, are not.
 
 The default JSON format carries the same information and adds positions. Here is a rule with an optional element:
 
-```zp
-// optional.zp
+```sxir
+// optional.sxir
 @start
 rule main = name ("," name)?
 rule name = [a-z]+ #atomic
 ```
 
 ```bash
-zp parse -g optional.zp -i 'a'
+sxir parse -g optional.sxir -i 'a'
 ```
 
 ```text
@@ -134,8 +134,8 @@ Three consequences are worth knowing before you write any action.
 **One value per rule, and rule names.** A rule produces exactly one value. With source information, a node that a rule
 creates *in its own body* is labeled with the rule's name; a node that comes from another rule keeps that rule's label.
 
-```zp
-// cst.zp
+```sxir
+// cst.sxir
 @start(default)
 rule seq = "y" "z"
 @start
@@ -152,13 +152,13 @@ rule cap = k:"x" "y"
 ```
 
 ```bash
-zp parse -g cst.zp -s seq -f sexpr -source-info -i 'yz'
-zp parse -g cst.zp -s alt -f sexpr -source-info -i 'x'
-zp parse -g cst.zp -s alt -f sexpr -source-info -i 'yz'
-zp parse -g cst.zp -s same -f sexpr -source-info -i 'x'
-zp parse -g cst.zp -s rep -f sexpr -source-info -i 'xxx'
-zp parse -g cst.zp -s opt -f sexpr -source-info -i 'x'
-zp parse -g cst.zp -s cap -f sexpr -source-info -i 'xy'
+sxir parse -g cst.sxir -s seq -f sexpr -source-info -i 'yz'
+sxir parse -g cst.sxir -s alt -f sexpr -source-info -i 'x'
+sxir parse -g cst.sxir -s alt -f sexpr -source-info -i 'yz'
+sxir parse -g cst.sxir -s same -f sexpr -source-info -i 'x'
+sxir parse -g cst.sxir -s rep -f sexpr -source-info -i 'xxx'
+sxir parse -g cst.sxir -s opt -f sexpr -source-info -i 'x'
+sxir parse -g cst.sxir -s cap -f sexpr -source-info -i 'xy'
 ```
 
 ```text
@@ -190,8 +190,8 @@ start rule needs no `$$` for that. What it does need is to consume trailing whit
 tokens: a number is one node, not a list of digits. `-a` matches `a` and produces nothing. Use it for input the syntax
 needs but the tree does not:
 
-```zp
-// shape.zp
+```sxir
+// shape.sxir
 @start
 rule main = ^^ assign $$
 rule assign = name -ws -"=" -ws value -";"
@@ -202,7 +202,7 @@ rule ws = " "*
 ```
 
 ```bash
-zp parse -g shape.zp -f sexpr -source-info -i 'ab = 12;'
+sxir parse -g shape.sxir -f sexpr -source-info -i 'ab = 12;'
 ```
 
 ```text
@@ -220,8 +220,8 @@ A capture `label:a` gives the value of `a` a name that actions and predicates ca
 a capture does not change the value of the rule; it only names an element of it, which source information shows as
 `label:` before the element. A capture removes nothing from the tuple.
 
-```zp
-// capture.zp
+```sxir
+// capture.sxir
 @start(default)
 rule pair = k:name -ws -"=" -ws v:value -";"
 rule name = [a-z]+ #atomic
@@ -235,9 +235,9 @@ rule list2 = name (-"," n:name)*
 ```
 
 ```bash
-zp parse -g capture.zp -s pair -f sexpr -source-info -i 'ab = 12;'
-zp parse -g capture.zp -s list -f sexpr -source-info -i 'a,b,c'
-zp parse -g capture.zp -s list2 -f sexpr -source-info -i 'a,b,c'
+sxir parse -g capture.sxir -s pair -f sexpr -source-info -i 'ab = 12;'
+sxir parse -g capture.sxir -s list -f sexpr -source-info -i 'a,b,c'
+sxir parse -g capture.sxir -s list2 -f sexpr -source-info -i 'a,b,c'
 ```
 
 ```text
@@ -266,8 +266,8 @@ visible rule makes a node, so a call of it nests its elements one level deeper. 
 no node of its own: its elements are spliced into the sequence that calls it, as if its expression were written there as
 a group.
 
-```zp
-// hidden.zp
+```sxir
+// hidden.sxir
 @start(default)
 rule shown = "(" items ")"
 rule items = [a-z] ("," [a-z])*
@@ -277,8 +277,8 @@ rule _items = [a-z] ("," [a-z])*
 ```
 
 ```bash
-zp parse -g hidden.zp -s shown -f sexpr -source-info -i '(a,b,c)'
-zp parse -g hidden.zp -s hidden -f sexpr -source-info -i '(a,b,c)'
+sxir parse -g hidden.sxir -s shown -f sexpr -source-info -i '(a,b,c)'
+sxir parse -g hidden.sxir -s hidden -f sexpr -source-info -i '(a,b,c)'
 ```
 
 ```text
@@ -298,7 +298,7 @@ A start rule such as `main = ^^ expr $$` wraps the real result in a tuple. When 
 want instead:
 
 <!-- example: skip: a fragment that refers to rules shown elsewhere -->
-```zp
+```sxir
 @start
 rule main Expr = e:expr $$ => $e
 ```
@@ -316,7 +316,7 @@ Trees](walking-trees.md), and the node model is defined in [Nodes and Values](..
 
 ## Performance Guidelines
 
-ZeroParse builds values only where something can observe them. To reduce allocations, help the engine identify what your grammar does not need:
+SyntaxIR builds values only where something can observe them. To reduce allocations, help the engine identify what your grammar does not need:
 
 1. **Discard trivia inside captured expressions** with `-x`: `rest:(-ws -"," -ws v:value)*`. The engine cannot drop it
    automatically, because a captured value exposes its whole subtree.
@@ -337,7 +337,7 @@ Go's `runtime.MemStats`. The figure moves by about 2 MB between runs, so read it
 
 These choices matter most when a grammar captures many repeated values. Measure your own input and inspect the resulting tree to ensure that discarding text does not remove information your application needs.
 
-If you only need to know whether the input is valid, use `zp parse -recognize` (`Recognize`): it builds no
+If you only need to know whether the input is valid, use `sxir parse -recognize` (`Recognize`): it builds no
 values and skips the actions that no predicate needs.
 
 ## Troubleshooting

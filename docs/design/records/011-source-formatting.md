@@ -6,8 +6,8 @@
 
 ## Summary
 
-`zp fmt` formats ZeroParse source files like `gofmt`: it reads `.zp` files and prints them (or rewrites them with `-w`) in a canonical layout, keeping every comment.
-Conversion between ZeroParse source, JSON and compiled grammars moved to `zp convert`.
+`sxir fmt` formats SyntaxIR source files like `gofmt`: it reads `.sxir` files and prints them (or rewrites them with `-w`) in a canonical layout, keeping every comment.
+Conversion between SyntaxIR source, JSON and compiled grammars moved to `sxir convert`.
 
 Before this change the lexer discarded comments and `grammar.Format` printed only the AST, so formatting a file lost its comments.
 
@@ -34,7 +34,7 @@ Line breaks are recorded at:
 `StructType.OneLine` and `OperatorsRuleLevel.OneLine` record that a struct or level was written on one line; `Format` keeps such blocks on one line.
 
 All of these fields are tagged `json:"-"`, so `grammar.MarshalJSON` produces the same bytes as before, whether or not the grammar came from source with comments.
-The compiled grammar format (`.zpc`) does not store them either.
+The compiled grammar format (`.sxirc`) does not store them either.
 
 ### Attaching Comments
 

@@ -239,7 +239,7 @@ cond	236	"ch == 97"
 cond	237	"ch == 98"
 cond	238	"ch == 99 || ch == 67"
 cond	239	"ch == 99"
-grammar	lean,lean observable,controlled,lean boxed	"../../examples/calculator/calc.zp"
+grammar	lean,lean observable,controlled,lean boxed	"../../examples/calculator/calc.sxir"
 guard	1	10	1	0	0	"\"+\""	191
 guard	1	11	1	0	0	"\"-\""	193
 guard	1	13	1	0	0	"\"*\""	190
@@ -257,7 +257,7 @@ scope	1	19
 scope	1	2	
 scope	1	3	e
 scope	1	9	
-grammar	lean,lean observable,controlled,lean boxed	"../../examples/calculator/calc_lr.zp"
+grammar	lean,lean observable,controlled,lean boxed	"../../examples/calculator/calc_lr.sxir"
 guard	1	1	0	0	0	""	48
 guard	1	2	0	0	0	""	48
 guard	2	7	1	0	0	"\"+\""	191
@@ -278,7 +278,7 @@ guard	9	5	1	1	0	"\"(\""	188
 scan	11	2
 scan	11	7
 scan	13	0
-grammar	lean,lean boxed	"../../examples/minilang/minilang.zp"
+grammar	lean,lean boxed	"../../examples/minilang/minilang.sxir"
 guard	14	28	1	0	0	"\"==\""	209
 guard	14	29	1	0	0	"\"!=\""	181
 guard	14	30	1	0	0	"\"<=\""	208
@@ -349,7 +349,7 @@ scope	14	51	i
 scope	14	57	n
 scope	14	6	e
 scope	15	5	x
-grammar	lean observable,controlled	"../../examples/minilang/minilang.zp"
+grammar	lean observable,controlled	"../../examples/minilang/minilang.sxir"
 guard	14	28	1	0	0	"\"==\""	209
 guard	14	29	1	0	0	"\"!=\""	181
 guard	14	30	1	0	0	"\"<=\""	208
@@ -420,7 +420,7 @@ scope	14	51	i
 scope	14	57	n
 scope	14	6	e
 scope	15	5	x
-grammar	lean,lean observable,controlled,lean boxed	"../../examples/outline/outline.zp"
+grammar	lean,lean observable,controlled,lean boxed	"../../examples/outline/outline.sxir"
 guard	6	1	1	0	0	"\"\\n\""	145
 guard	6	2	0	0	0	""	48
 guard	9	1	1	0	0	"\"\\n\""	145
@@ -25770,7 +25770,7 @@ guard	0	5	1	0	0	"\"x\""	169
 grammar	lean,lean observable,controlled,lean boxed	"terminal constructor root"
 grammar	lean,lean observable,controlled,lean boxed	"terminal constructor value error"
 grammar	lean,lean observable,controlled,lean boxed	"terminal singleton union"
-grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/calclr.zp"
+grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/calclr.sxir"
 guard	1	1	0	0	0	""	48
 guard	1	2	0	0	0	""	48
 guard	2	7	1	0	0	"\"+\""	191
@@ -25791,7 +25791,7 @@ guard	9	5	1	1	0	"\"(\""	188
 scan	11	2
 scan	11	7
 scan	13	0
-grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/direct_backtrack.zp"
+grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/direct_backtrack.sxir"
 guard	1	2	0	0	0	""	48
 guard	1	43	0	0	0	""	48
 guard	1	46	1	0	0	"\">\""	210
@@ -25802,7 +25802,7 @@ guard	1	9	0	0	0	""	48
 scan	2	1
 scope	0	4	a
 scope	1	32	p
-grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/direct_errors.zp"
+grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/direct_errors.sxir"
 guard	0	5	1	0	0	"\"<\""	208
 guard	0	9	1	0	0	"\"<\""	208
 guard	1	10	1	0	0	"\"w\""	168
@@ -25818,13 +25818,13 @@ scan	4	2
 scan	5	1
 scope	0	4	t
 scope	1	25	w
-grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/direct_lists.zp"
+grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/direct_lists.sxir"
 scan	0	33
 scan	4	1
 scope	0	18	p
 scope	0	3	cells,m
 scope	0	6	c
-grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/direct_literals.zp"
+grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/direct_literals.sxir"
 guard	0	11	1	0	0	"\"abcd\""	236
 guard	0	12	1	0	0	"\"abc\""	236
 guard	0	16	1	0	0	"\"abcde\""	236
@@ -25833,19 +25833,19 @@ guard	0	3	1	0	0	"\"é\""	179
 guard	0	4	1	0	0	"\"ab\""	236
 guard	0	7	1	0	0	"\"→→\""	226
 guard	0	8	1	0	0	"\"→\""	226
-grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/direct_names.zp"
-grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/element_scope_optional.zp"
+grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/direct_names.sxir"
+grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/element_scope_optional.sxir"
 scope	0	3	y
-grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/element_scope_plain.zp"
+grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/element_scope_plain.sxir"
 scope	1	1	x
 scope	2	1	x
-grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/element_scope_recover.zp"
+grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/element_scope_recover.sxir"
 scope	1	2	y
 scope	2	2	y
-grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/errlist.zp"
-grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/errlist2.zp"
-grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/fields.zp"
-grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/mix.zp"
+grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/errlist.sxir"
+grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/errlist2.sxir"
+grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/fields.sxir"
+grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/mix.sxir"
 guard	1	1	0	0	0	""	48
 guard	1	2	0	0	0	""	48
 guard	3	1	0	0	0	""	48
@@ -25857,7 +25857,7 @@ scope	0	11	n
 scope	0	4	t
 scope	4	13	k
 scope	5	4	x
-grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/mixf.zp"
+grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/mixf.sxir"
 guard	1	1	0	0	0	""	48
 guard	1	2	0	0	0	""	48
 guard	3	1	0	0	0	""	48
@@ -25869,7 +25869,7 @@ scope	0	11	n
 scope	0	4	t
 scope	4	13	k
 scope	5	4	x
-grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/operators_rule1.zp"
+grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/operators_rule1.sxir"
 guard	1	21	1	0	0	"\"+\""	191
 guard	1	22	1	0	0	"\"-\""	193
 guard	1	25	1	0	0	"\"*\""	190
@@ -25887,7 +25887,7 @@ scope	1	29	a
 scope	1	3	e
 scope	1	34	x
 scope	1	41	
-grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/operators_rule1f.zp"
+grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/operators_rule1f.sxir"
 guard	1	21	1	0	0	"\"+\""	191
 guard	1	22	1	0	0	"\"-\""	193
 guard	1	25	1	0	0	"\"*\""	190
@@ -25905,39 +25905,39 @@ scope	1	29	a
 scope	1	3	e
 scope	1	34	x
 scope	1	41	
-grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/order.zp"
-grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/proj1.zp"
+grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/order.sxir"
+grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/proj1.sxir"
 scope	0	12	n
 scope	0	3	xs
 scope	0	6	n
-grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/proj2.zp"
+grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/proj2.sxir"
 scope	0	4	n
-grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/proj3.zp"
+grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/proj3.sxir"
 scope	0	4	n
-grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/proj4.zp"
+grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/proj4.sxir"
 guard	0	5	1	0	0	"\"a\""	236
 guard	0	7	1	0	0	"\"b\""	237
 scope	0	4	n
-grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/proj5.zp"
+grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/proj5.sxir"
 scope	0	6	n
-grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/proj6.zp"
+grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/proj6.sxir"
 scope	0	11	n
 scope	0	3	xs
-grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/proj7.zp"
+grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/proj7.sxir"
 scope	0	11	n
 scope	0	3	xs
-grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/spanname.zp"
-grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/splice_recursive_capture.zp"
-grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/splice_recursive_capture_action.zp"
-grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/splice_recursive_choice.zp"
+grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/spanname.sxir"
+grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/splice_recursive_capture.sxir"
+grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/splice_recursive_capture_action.sxir"
+grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/splice_recursive_choice.sxir"
 guard	1	1	1	0	0	"\"x\""	169
 guard	1	2	1	0	0	"\"(\""	188
-grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/splice_recursive_choice_in_seq.zp"
+grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/splice_recursive_choice_in_seq.sxir"
 guard	1	3	1	1	0	"\"(\""	188
 guard	1	4	1	0	0	"\"x\""	169
-grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/splice_recursive_optional.zp"
-grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/splice_recursive_repeat.zp"
-grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/unif.zp"
+grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/splice_recursive_optional.sxir"
+grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/splice_recursive_repeat.sxir"
+grammar	lean,lean observable,controlled,lean boxed	"testdata/typed/unif.sxir"
 scan	1	1
 scope	0	3	w
 grammar	lean,lean observable,controlled,lean boxed	"text equality"

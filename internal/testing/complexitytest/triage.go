@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"zeroparse.dev/zp/internal/analysis/complexity"
+	"syntaxir.dev/sxir/internal/analysis/complexity"
 )
 
 // A TriageGrammar is a bundled grammar whose causes are sorted into triage groups.
@@ -19,25 +19,25 @@ type TriageGrammar struct {
 // TriageGrammars are the grammars of testdata/grammars/ and examples/ that the classifier does not prove
 // Linear from their default start rules.
 var TriageGrammars = []TriageGrammar{
-	{"cel", "../../../testdata/grammars/cel/cel.zp"},
-	{"csv", "../../../testdata/grammars/csv/csv.zp"},
-	{"cue", "../../../testdata/grammars/cue/cue.zp"},
-	{"duckdb", "../../../testdata/grammars/duckdb/duckdb.zp"},
-	{"golang", "../../../testdata/grammars/golang/golang.zp"},
-	{"python", "../../../testdata/grammars/python/python.zp"},
-	{"typescript", "../../../testdata/grammars/typescript/typescript.zp"},
-	{"xml", "../../../testdata/grammars/xml/xml.zp"},
-	{"yaml", "../../../testdata/grammars/yaml/yaml.zp"},
-	{"minilang", "../../../examples/minilang/minilang.zp"},
-	{"outline", "../../../examples/outline/outline.zp"},
+	{"cel", "../../../testdata/grammars/cel/cel.sxir"},
+	{"csv", "../../../testdata/grammars/csv/csv.sxir"},
+	{"cue", "../../../testdata/grammars/cue/cue.sxir"},
+	{"duckdb", "../../../testdata/grammars/duckdb/duckdb.sxir"},
+	{"golang", "../../../testdata/grammars/golang/golang.sxir"},
+	{"python", "../../../testdata/grammars/python/python.sxir"},
+	{"typescript", "../../../testdata/grammars/typescript/typescript.sxir"},
+	{"xml", "../../../testdata/grammars/xml/xml.sxir"},
+	{"yaml", "../../../testdata/grammars/yaml/yaml.sxir"},
+	{"minilang", "../../../examples/minilang/minilang.sxir"},
+	{"outline", "../../../examples/outline/outline.sxir"},
 }
 
 // LinearGrammars are the bundled grammars that the classifier proves Linear; the triage tests
 // check that they stay so.
 var LinearGrammars = []TriageGrammar{
-	{"json", "../../../testdata/grammars/json/json.zp"},
-	{"calc", "../../../examples/calculator/calc.zp"},
-	{"calc_lr", "../../../examples/calculator/calc_lr.zp"},
+	{"json", "../../../testdata/grammars/json/json.sxir"},
+	{"calc", "../../../examples/calculator/calc.sxir"},
+	{"calc_lr", "../../../examples/calculator/calc_lr.sxir"},
 }
 
 // A TriageGroup is a set of causes of one grammar's classification with one shape, the input

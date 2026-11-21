@@ -1,4 +1,4 @@
-//go:build zp_long
+//go:build sxir_long
 
 package engine_test
 
@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/testing/mutanttest"
+	"syntaxir.dev/sxir/internal/testing/mutanttest"
 )
 
 // A storePolicyEdit replaces the only copy of old in the file (slash-separated, from the module root).

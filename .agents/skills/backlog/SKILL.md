@@ -1,6 +1,6 @@
 ---
 name: backlog
-description: Keep ZeroParse backlog issues and the Issue #1 work-status page current. Use when starting, finishing, pausing, reviewing or deciding on a backlog issue, filing a new one, or editing Issue #1.
+description: Keep SyntaxIR backlog issues and the Issue #1 work-status page current. Use when starting, finishing, pausing, reviewing or deciding on a backlog issue, filing a new one, or editing Issue #1.
 ---
 
 # Backlog
@@ -8,7 +8,7 @@ description: Keep ZeroParse backlog issues and the Issue #1 work-status page cur
 ## Model
 
 - The backlog is one GitHub issue per item, all in the public project
-  https://github.com/orgs/zeroparse/projects/2. Project fields: Status (Backlog, Ready,
+  https://github.com/orgs/syntaxir/projects/2. Project fields: Status (Backlog, Ready,
   In progress, Pending, In review, Done; Pending means started but not moving because it
   waits on another issue or a landing, or is paused on purpose), Start date, Target date, Tier (Core P0-P3, After the
   core), Category (Bug, Optimization, Feature, Improvement, Quality, Docs, Ready-made
@@ -22,8 +22,8 @@ description: Keep ZeroParse backlog issues and the Issue #1 work-status page cur
   status comment. The commit log is the full record of completed work.
 - An issue states the problem, decisions with links, remaining work and its acceptance
   criterion; trim landed history from it. Decisions and measurements live in comments.
-- Check current state with `gh issue view <n>`, `gh project field-list 2 --owner zeroparse`
-  and `gh project item-list 2 --owner zeroparse`.
+- Check current state with `gh issue view <n>`, `gh project field-list 2 --owner syntaxir`
+  and `gh project item-list 2 --owner syntaxir`.
 
 ## Categories
 

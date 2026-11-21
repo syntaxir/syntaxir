@@ -3,7 +3,7 @@ package vm
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/engine"
 )
 
 // TestCompiledModesMatchTheEngine checks that each mode is the engine's mode of the same name,

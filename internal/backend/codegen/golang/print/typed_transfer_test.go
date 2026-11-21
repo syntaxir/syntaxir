@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // transferBody is a struct whose fields of node, named node, join and list types actions read back; its
@@ -75,11 +75,11 @@ func sourceGrammarCase(t *testing.T) codegentest.Case {
 		}
 		return string(b)
 	}
-	c := codegentest.Case{Name: "source grammar", Src: read("zp.zp")}
-	for _, name := range []string{"testdata/grammars/json/json.zp", "testdata/grammars/csv/csv.zp", "testdata/grammars/xml/xml.zp"} {
+	c := codegentest.Case{Name: "source grammar", Src: read("sxir.sxir")}
+	for _, name := range []string{"testdata/grammars/json/json.sxir", "testdata/grammars/csv/csv.sxir", "testdata/grammars/xml/xml.sxir"} {
 		c.Inputs = append(c.Inputs, read(name))
 	}
-	lines := strings.Split(read("testdata/grammars/xml/xml.zp"), "\n")
+	lines := strings.Split(read("testdata/grammars/xml/xml.sxir"), "\n")
 	for i := 4; i < len(lines); i += 5 {
 		lines[i] += ")"
 	}

@@ -8,17 +8,17 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // The exporter keeps timing and generated artifacts outside the repository.
 // Run its standalone benchmarks serially with fixed toolchain and GC settings.
 func TestExportGeneratedTraceBenchmarks(t *testing.T) {
 	t.Parallel()
-	dir := os.Getenv("ZP_TRACE_BENCH_DIR")
+	dir := os.Getenv("SXIR_TRACE_BENCH_DIR")
 	if dir == "" {
-		t.Skip("set ZP_TRACE_BENCH_DIR to export standalone benchmarks")
+		t.Skip("set SXIR_TRACE_BENCH_DIR to export standalone benchmarks")
 	}
 	write := func(name string, data []byte) {
 		t.Helper()
@@ -32,9 +32,9 @@ func TestExportGeneratedTraceBenchmarks(t *testing.T) {
 	}
 	write("go.mod", []byte(codegentest.GoMod("tracebench")))
 	cases := []struct{ name, path, input string }{
-		{"json", "testdata/grammars/json/json.zp", "[" + strings.TrimSuffix(strings.Repeat(`{"name":"éclair","n":123,"ok":true},`, 64), ",") + "]"},
-		{"xml", "testdata/grammars/xml/xml.zp", "<root>" + strings.Repeat(`<item name="éclair">123</item>`, 64) + "</root>"},
-		{"calc", "examples/calculator/calc.zp", strings.TrimSuffix(strings.Repeat("1+2*3+", 32), "+")},
+		{"json", "testdata/grammars/json/json.sxir", "[" + strings.TrimSuffix(strings.Repeat(`{"name":"éclair","n":123,"ok":true},`, 64), ",") + "]"},
+		{"xml", "testdata/grammars/xml/xml.sxir", "<root>" + strings.Repeat(`<item name="éclair">123</item>`, 64) + "</root>"},
+		{"calc", "examples/calculator/calc.sxir", strings.TrimSuffix(strings.Repeat("1+2*3+", 32), "+")},
 	}
 	sizes := map[string]int{}
 	for _, c := range cases {
@@ -87,7 +87,7 @@ func BenchmarkTrace(b *testing.B){for _,mode:=range []string{"full","root","unkn
 var generatedTraceBenchmarkSource []byte
 
 func BenchmarkGeneratedObservabilityGeneration(b *testing.B) {
-	for _, fixture := range []struct{ name, path string }{{"json", "testdata/grammars/json/json.zp"}, {"xml", "testdata/grammars/xml/xml.zp"}, {"calc", "examples/calculator/calc.zp"}} {
+	for _, fixture := range []struct{ name, path string }{{"json", "testdata/grammars/json/json.sxir"}, {"xml", "testdata/grammars/xml/xml.sxir"}, {"calc", "examples/calculator/calc.sxir"}} {
 		source, err := os.ReadFile(filepath.Join("../../../../..", fixture.path))
 		if err != nil {
 			b.Fatal(err)

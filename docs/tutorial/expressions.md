@@ -1,7 +1,7 @@
 # Parsing Expressions
 
 Arithmetic is where PEG grammars usually get awkward: operator precedence and associativity normally require one rule
-per level. This lesson builds a calculator grammar with the two tools ZeroParse offers, an Operators Rule and left recursion.
+per level. This lesson builds a calculator grammar with the two tools SyntaxIR offers, an Operators Rule and left recursion.
 
 ## What You Will Build
 
@@ -13,10 +13,10 @@ Complete [Building Typed Trees](typed-trees.md). This lesson does not use the co
 
 ## An Operators Rule
 
-Start with an Operators Rule. Save as `calc.zp`:
+Start with an Operators Rule. Save as `calc.sxir`:
 
-```zp
-// calc.zp
+```sxir
+// calc.sxir
 type Number = node[string]
 type Binary = { Left Expr; Op node[string]; Right Expr }
 type Expr ~ Number | Binary
@@ -41,7 +41,7 @@ parts:
   the operator text.
 
 ```bash
-zp parse -g calc.zp -f sexpr -i '1+2-3'
+sxir parse -g calc.sxir -f sexpr -i '1+2-3'
 ```
 
 ```text
@@ -51,19 +51,19 @@ Binary{Left: Binary{Left: Number("1"), Op: "+", Right: Number("2")}, Op: "-", Ri
 `1+2-3` is `(1+2)-3`, as left associativity demands. But whitespace is not handled yet:
 
 ```bash
-zp parse -g calc.zp -f sexpr -i '1 + 2'
+sxir parse -g calc.sxir -f sexpr -i '1 + 2'
 ```
 
 ```text
-zp: 1:2: syntax error: expected end of input, "+", "-", [0-9]
+sxir: 1:2: syntax error: expected end of input, "+", "-", [0-9]
 ```
 
-Add a `skip` item, which ZeroParse inserts before every operand and operator, and fill out the language: more levels,
+Add a `skip` item, which SyntaxIR inserts before every operand and operator, and fill out the language: more levels,
 parentheses, a prefix operator and a right-associative one. **Levels declared earlier bind more loosely**, so the order
 of the `level` blocks is the precedence table, from loosest to tightest:
 
-```zp
-// calc.zp
+```sxir
+// calc.sxir
 type Number = node[string]
 type Binary = { Left Expr; Op node[string]; Right Expr }
 type Unary = { Op node[string]; X Expr }
@@ -87,7 +87,7 @@ rule ws = [ \t\r\n]*
 ```
 
 ```bash
-zp parse -g calc.zp -f sexpr -i '1+2*3'
+sxir parse -g calc.sxir -f sexpr -i '1+2*3'
 ```
 
 ```text
@@ -113,11 +113,11 @@ why the parenthesized operand writes `ws` before `")"` itself, and why `main` ha
 
 ### The Same Language With Left Recursion
 
-A rule that starts by calling itself is **left recursive**, and ZeroParse accepts it. Precedence then comes from having one
+A rule that starts by calling itself is **left recursive**, and SyntaxIR accepts it. Precedence then comes from having one
 rule per level, each defined in terms of the next tighter one:
 
-```zp
-// calc-lr.zp
+```sxir
+// calc-lr.sxir
 type Number = node[string]
 type Binary = { Left Expr; Op node[string]; Right Expr }
 type Expr ~ Number | Binary
@@ -138,7 +138,7 @@ rule ws = [ \t\r\n]*
 ```
 
 ```bash
-zp parse -g calc-lr.zp -f sexpr -i '1 + 2 * 3 - 4'
+sxir parse -g calc-lr.sxir -f sexpr -i '1 + 2 * 3 - 4'
 ```
 
 ```text
@@ -146,8 +146,8 @@ Binary{Left: Binary{Left: Number("1"), Op: "+", Right: Binary{Left: Number("2"),
 ```
 
 This produces the same trees as the Operators Rule version, with one rule per level instead of one line per level. Operators Rule
-expressions scale better as the language grows (the [Go](https://github.com/zeroparse/alpha-parsers/tree/main/golang/) and
-[Python](https://github.com/zeroparse/alpha-parsers/tree/main/python/) parsers use them for their full operator tables), and they support features such as
+expressions scale better as the language grows (the [Go](https://github.com/syntaxir/alpha-parsers/tree/main/golang/) and
+[Python](https://github.com/syntaxir/alpha-parsers/tree/main/python/) parsers use them for their full operator tables), and they support features such as
 level-restricted calls and mixed prefix, infix and postfix operators. The guide to
 [Operators Rule](../guide/operators-rule.md) compares the two approaches and covers every option;
 [examples/calculator](../../examples/calculator/) contains both versions of a complete calculator with an evaluator.

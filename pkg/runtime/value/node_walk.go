@@ -3,7 +3,7 @@ package value
 import (
 	"fmt"
 
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // WalkAction controls descent after a visit.
@@ -47,7 +47,7 @@ type WalkVisit struct {
 type CycleError struct{ Path []WalkEdge }
 
 func (e *CycleError) Error() string {
-	return fmt.Sprintf("zp: tree cycle at depth %d", len(e.Path)-1)
+	return fmt.Sprintf("sxir: tree cycle at depth %d", len(e.Path)-1)
 }
 
 type walkTask struct {
@@ -63,7 +63,7 @@ type walkTask struct {
 // The graph must not be mutated concurrently. Walk does not mutate or retain it.
 func Walk(root *Node, visit func(WalkVisit) (WalkAction, error)) error {
 	if visit == nil {
-		return fmt.Errorf("zp: nil walk callback")
+		return fmt.Errorf("sxir: nil walk callback")
 	}
 	var value any = root
 	if root == nil {
@@ -108,7 +108,7 @@ func Walk(root *Node, visit func(WalkVisit) (WalkAction, error)) error {
 			continue
 		case WalkContinue:
 		default:
-			return fmt.Errorf("zp: invalid walk action %d", action)
+			return fmt.Errorf("sxir: invalid walk action %d", action)
 		}
 		if identity == nil {
 			continue

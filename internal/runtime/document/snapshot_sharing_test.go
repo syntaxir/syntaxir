@@ -1,4 +1,4 @@
-//go:build !zp_snapshot_sharing_reference
+//go:build !sxir_snapshot_sharing_reference
 
 package document_test
 
@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/document"
-	. "zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/runtime/document"
+	. "syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/state"
 )
 
 func TestSnapshotSharedChildRunsAfterMiddleEdit(t *testing.T) {

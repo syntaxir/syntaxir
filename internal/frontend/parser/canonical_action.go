@@ -3,8 +3,8 @@ package parser
 import (
 	"slices"
 
-	"zeroparse.dev/zp/internal/frontend/parser/zpparser/types"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend/parser/sxirparser/types"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Value expressions.

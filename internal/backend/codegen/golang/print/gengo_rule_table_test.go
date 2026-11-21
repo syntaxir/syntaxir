@@ -4,7 +4,7 @@ import (
 	"math"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/golang/print"
+	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
 )
 
 func TestRuleTableLimits(t *testing.T) {

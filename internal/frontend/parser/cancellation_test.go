@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // neverDone is the Done channel of cancelOnCheck. It is not nil, because a parser does not poll a

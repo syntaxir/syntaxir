@@ -4,8 +4,8 @@ import (
 	"math"
 	"testing"
 
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/internal/testing/complexitytest"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/complexitytest"
 )
 
 // operatorsBoundMutation drops the bound of the Operators Rule loop from both parsers of the

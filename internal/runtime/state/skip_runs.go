@@ -4,9 +4,9 @@ import (
 	"sync/atomic"
 	"unsafe"
 
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/pkg/runtime/value"
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // Skip runs: the records of the walks of skip-run sites (middleend/corepass/sites.go; see "Skip Runs" in

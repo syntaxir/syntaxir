@@ -1,6 +1,6 @@
 package sample
 
-import "zeroparse.dev/zp/pkg/runtime"
+import "syntaxir.dev/sxir/pkg/runtime"
 
 // F is the part of *testing.F that Seed uses. (Taking an interface keeps the testing package out of
 // programs that import sample without seeding fuzz tests.)

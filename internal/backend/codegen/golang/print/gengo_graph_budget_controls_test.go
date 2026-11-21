@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 func TestGeneratedGoGraphBudget(t *testing.T) {
@@ -71,41 +71,41 @@ const generatedGoGraphTypedRuleCheck = `for _,name:=range []string{"main","rollb
 
 const generatedGoGraphConsumer = `package PACKAGE
 
-import zprt "zeroparse.dev/zp/pkg/runtime/libgo"
-import "zeroparse.dev/zp/pkg/runtime/value/impl"
+import sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
+import "syntaxir.dev/sxir/pkg/runtime/value/impl"
 import("context";"errors";"fmt";"reflect";"strings";"testing")
 const conversion = CONVERT
-func graphParser(limit uint64)*zprt.Parser{p:=&zprt.Parser{Control:zprt.X_newBudgetControl(nil,Limits{Compute:limit})};p.X_setGrammar(zpGrammar);return p}
-func graphFatal(f func())(err error){defer func(){if x:=recover();x!=nil{v,ok:=x.(zprt.X_fatal);if !ok{panic(x)};err=v.X_err}}();f();return nil}
+func graphParser(limit uint64)*sxirrt.Parser{p:=&sxirrt.Parser{Control:sxirrt.X_newBudgetControl(nil,Limits{Compute:limit})};p.X_setGrammar(sxirGrammar);return p}
+func graphFatal(f func())(err error){defer func(){if x:=recover();x!=nil{v,ok:=x.(sxirrt.X_fatal);if !ok{panic(x)};err=v.X_err}}();f();return nil}
 // The helpers below call the term compositions as lowered terms do: a field read through TermMember,
 // and a fold that reads the items and steps through them with TermItemAt.
-func nodeMember(p *zprt.Parser,x any,name string)any{v,f:=p.TermMember(&zprt.ActCtx{P:p},zprt.MemberField,x,name,name);if f!=nil{panic(f)};return v}
-func typedMember(tp *zprt.TParser,x any,name string)any{v,f:=tp.TermMember(&zprt.TActCtx{P:tp},zprt.MemberField,x,name,name);if f!=nil{panic(f)};return v}
-func nodeFold(p *zprt.Parser,fn string,right bool,acc,list any,step func(acc,item any)any)any{items,f:=p.TermItems(fn,list);if f!=nil{panic(f)};for i:=range items{p.Spend();acc=step(acc,p.TermItemAt(items,i,right))};return acc}
-func typedFold(tp *zprt.TParser,fn string,right bool,acc,list any,step func(acc,item any)any)any{items,f:=tp.TermItems(fn,list);if f!=nil{panic(f)};for i:=range items{tp.Spend();acc=step(acc,tp.TermItemAt(items,i,right))};return acc}
-func requireGraphLimit(t *testing.T,p *zprt.Parser,f func()){
+func nodeMember(p *sxirrt.Parser,x any,name string)any{v,f:=p.TermMember(&sxirrt.ActCtx{P:p},sxirrt.MemberField,x,name,name);if f!=nil{panic(f)};return v}
+func typedMember(tp *sxirrt.TParser,x any,name string)any{v,f:=tp.TermMember(&sxirrt.TActCtx{P:tp},sxirrt.MemberField,x,name,name);if f!=nil{panic(f)};return v}
+func nodeFold(p *sxirrt.Parser,fn string,right bool,acc,list any,step func(acc,item any)any)any{items,f:=p.TermItems(fn,list);if f!=nil{panic(f)};for i:=range items{p.Spend();acc=step(acc,p.TermItemAt(items,i,right))};return acc}
+func typedFold(tp *sxirrt.TParser,fn string,right bool,acc,list any,step func(acc,item any)any)any{items,f:=tp.TermItems(fn,list);if f!=nil{panic(f)};for i:=range items{tp.Spend();acc=step(acc,tp.TermItemAt(items,i,right))};return acc}
+func requireGraphLimit(t *testing.T,p *sxirrt.Parser,f func()){
  t.Helper();err:=graphFatal(f)
  if !errors.Is(err,ErrLimit){t.Fatal("operation escaped budget",err)}
 }
-func dataNode(d zprt.Data)*Node{n:=new(Node);*zprt.D(n)=d;return n}
+func dataNode(d sxirrt.Data)*Node{n:=new(Node);*sxirrt.D(n)=d;return n}
 func graphKids()([]*Node,[]any){
  nodes:=make([]*Node,300);values:=make([]any,300)
- for i:=range nodes{nodes[i]=dataNode(zprt.Data{Start:int32(i+3),End:int32(i+4),Text:"a"});values[i]=&zprt.TMatch{TNode:zprt.TNode[string]{Span:Span{Start:i+3,End:i+4},Value:"a"}}}
+ for i:=range nodes{nodes[i]=dataNode(sxirrt.Data{Start:int32(i+3),End:int32(i+4),Text:"a"});values[i]=&sxirrt.TMatch{TNode:sxirrt.TNode[string]{Span:Span{Start:i+3,End:i+4},Value:"a"}}}
  return nodes,values
 }
 func TestGraphFields(t *testing.T){
- nodes,_:=graphKids();fs:=make(valueimpl.Fields,300);tn:=&zprt.TSeq{Typ:"tuple",X_fields:make([]zprt.X_tfield,300)}
- for i:=range fs{name:=fmt.Sprintf("field%d",i);fs[i]=valueimpl.NodeField{Name:name,Value:i};tn.X_fields[i]=zprt.X_tfield{name,i}}
+ nodes,_:=graphKids();fs:=make(valueimpl.Fields,300);tn:=&sxirrt.TSeq{Typ:"tuple",X_fields:make([]sxirrt.X_tfield,300)}
+ for i:=range fs{name:=fmt.Sprintf("field%d",i);fs[i]=valueimpl.NodeField{Name:name,Value:i};tn.X_fields[i]=sxirrt.X_tfield{name,i}}
  for _,typed:=range []bool{false,true}{
-  p:=graphParser(32);tp:=&zprt.TParser{Parser:p};node:=dataNode(zprt.Data{Fields:fs})
+  p:=graphParser(32);tp:=&sxirrt.TParser{Parser:p};node:=dataNode(sxirrt.Data{Fields:fs})
   requireGraphLimit(t,p,func(){if typed{typedMember(tp,tn,"absent-field-with-distinct-length")}else{nodeMember(p,node,"absent-field-with-distinct-length")}})
-  p.Control=zprt.X_newBudgetControl(nil,Limits{Compute:100000})
+  p.Control=sxirrt.X_newBudgetControl(nil,Limits{Compute:100000})
   var got any;if typed{got=typedMember(tp,tn,"field299")}else{got=nodeMember(p,node,"field299")}
   if got!=299{t.Fatal("field read changed",got)}
-  p.Control=zprt.X_newBudgetControl(nil,Limits{Compute:32})
+  p.Control=sxirrt.X_newBudgetControl(nil,Limits{Compute:32})
   requireGraphLimit(t,p,func(){if typed{tp.X_setValueField(tn,"field299",nodes[0])}else{p.X_setValueField(&fs,"field299",nodes[0])}})
   if typed && tn.X_fields[299].X_val!=299 || !typed && fs[299].Value!=299{t.Fatal("failed setter changed value")}
-  p.Control=zprt.X_newBudgetControl(nil,Limits{Compute:100000})
+  p.Control=sxirrt.X_newBudgetControl(nil,Limits{Compute:100000})
   if typed{tp.X_setValueField(tn,"field299",nodes[0]);if len(tn.X_fields)!=300 || tn.X_fields[299].X_val!=nodes[0]{t.Fatal("typed replacement")};tn.X_fields[299].X_val=299}else{p.X_setValueField(&fs,"field299",nodes[0]);if len(fs)!=300 || fs[299].Value!=nodes[0]{t.Fatal("Node replacement")};fs[299].Value=299}
  }
 }
@@ -113,56 +113,56 @@ func TestGraphListsAndOwnership(t *testing.T){
  nodes,values:=graphKids()
  for _,typed:=range []bool{false,true}{
   for _,spanOnly:=range []bool{false,true}{
-   p:=graphParser(129);tp:=&zprt.TParser{Parser:p};var result any
-   requireGraphLimit(t,p,func(){if typed{c:=&zprt.TActCtx{P:tp};if spanOnly{result=c.X_listNode(values)}else{result=c.NewList(values)}}else{c:=&zprt.ActCtx{P:p};if spanOnly{result=c.X_listNode(nodes)}else{result=c.NewList(nodes)}}})
+   p:=graphParser(129);tp:=&sxirrt.TParser{Parser:p};var result any
+   requireGraphLimit(t,p,func(){if typed{c:=&sxirrt.TActCtx{P:tp};if spanOnly{result=c.X_listNode(values)}else{result=c.NewList(values)}}else{c:=&sxirrt.ActCtx{P:p};if spanOnly{result=c.X_listNode(nodes)}else{result=c.NewList(nodes)}}})
    if result!=nil{t.Fatal("partial list returned")}
-   p.Control=zprt.X_newBudgetControl(nil,Limits{Compute:100000})
-   if typed{n:=(&zprt.TActCtx{P:tp}).NewList(values).(*zprt.TSeq);if n.Start!=3 || n.End!=303 || len(n.Kids)!=300{t.Fatal("typed list spans")};n.Kids[0]=nil;if values[0]==nil{t.Fatal("typed list aliases source")}}else{n:=(&zprt.ActCtx{P:p}).NewList(nodes);if zprt.D(n).Start!=3 || zprt.D(n).End!=303 || len(zprt.D(n).Children)!=300{t.Fatal("Node list spans")};zprt.D(n).Children[0]=nil;if nodes[0]==nil{t.Fatal("Node list aliases source")}}
+   p.Control=sxirrt.X_newBudgetControl(nil,Limits{Compute:100000})
+   if typed{n:=(&sxirrt.TActCtx{P:tp}).NewList(values).(*sxirrt.TSeq);if n.Start!=3 || n.End!=303 || len(n.Kids)!=300{t.Fatal("typed list spans")};n.Kids[0]=nil;if values[0]==nil{t.Fatal("typed list aliases source")}}else{n:=(&sxirrt.ActCtx{P:p}).NewList(nodes);if sxirrt.D(n).Start!=3 || sxirrt.D(n).End!=303 || len(sxirrt.D(n).Children)!=300{t.Fatal("Node list spans")};sxirrt.D(n).Children[0]=nil;if nodes[0]==nil{t.Fatal("Node list aliases source")}}
   }
   // Taking the gathered values off charges nothing (values the parse builds are not an item of the
   // cost), so it runs to the end under a limit below the number of values.
-  p:=graphParser(129);tp:=&zprt.TParser{Parser:p}
+  p:=graphParser(129);tp:=&sxirrt.TParser{Parser:p}
   if typed{tp.KidStack=append([]any(nil),values...);got:=tp.Kids(0);if len(got)!=300{t.Fatal("typed kids")};got[0]=nil;if values[0]==nil{t.Fatal("typed children alias")}}else{p.KidStack=append([]*Node(nil),nodes...);got:=p.Kids(0);if len(got)!=300{t.Fatal("Node kids")};got[0]=nil;if nodes[0]==nil{t.Fatal("Node children alias")}}
   if used:=p.Control.X_budgetUsed();used!=0{t.Fatal("taking values off charged",used)}
  }
 }
 func TestGraphCaptureUndoAndCleanup(t *testing.T){
  for _,typed:=range []bool{false,true}{
-  p:=graphParser(32);tp:=&zprt.TParser{Parser:p}
-  n:=dataNode(zprt.Data{Text:"old"});changed:=dataNode(zprt.Data{Text:"new"});f:=&zprt.CaptureFrame{Vals:make([]*Node,300)};tf:=&zprt.TCaptureFrame{Vals:make([]any,300)}
-  for i:=0;i<300;i++{f.Vals[i]=changed;tf.Vals[i]=changed;p.Trail=append(p.Trail,zprt.X_undo{X_f:f,X_slot:i,X_old:n});tp.Trail=append(tp.Trail,zprt.X_tundo{X_f:tf,X_slot:i,X_old:n})}
+  p:=graphParser(32);tp:=&sxirrt.TParser{Parser:p}
+  n:=dataNode(sxirrt.Data{Text:"old"});changed:=dataNode(sxirrt.Data{Text:"new"});f:=&sxirrt.CaptureFrame{Vals:make([]*Node,300)};tf:=&sxirrt.TCaptureFrame{Vals:make([]any,300)}
+  for i:=0;i<300;i++{f.Vals[i]=changed;tf.Vals[i]=changed;p.Trail=append(p.Trail,sxirrt.X_undo{X_f:f,X_slot:i,X_old:n});tp.Trail=append(tp.Trail,sxirrt.X_tundo{X_f:tf,X_slot:i,X_old:n})}
   // Undoing the capture writes charges nothing (captures are not an item of the cost), so a reset
   // undoes all 300 under a limit below their number.
-  if typed{tp.Reset(zprt.Mark{});for _,v:=range tf.Vals{if v!=n{t.Fatal("typed undo retry")}};if len(tp.Trail)!=0{t.Fatal("typed trail retained")};if used:=p.Control.X_budgetUsed();used!=0{t.Fatal("typed undo charged",used)};tp.Trail=append(tp.Trail,zprt.X_tundo{X_f:tf,X_old:n});tp.Control=zprt.X_newBudgetControl(nil,Limits{Compute:1});tp.X_recycle();for _,v:=range tp.Trail[:cap(tp.Trail)]{if v.X_f!=nil || v.X_old!=nil{t.Fatal("typed cleanup blocked")}}}else{p.Reset(zprt.Mark{});for _,v:=range f.Vals{if v!=n{t.Fatal("Node undo retry")}};if len(p.Trail)!=0{t.Fatal("Node trail retained")};if used:=p.Control.X_budgetUsed();used!=0{t.Fatal("Node undo charged",used)};p.Trail=append(p.Trail,zprt.X_undo{X_f:f,X_old:n});p.Control=zprt.X_newBudgetControl(nil,Limits{Compute:1});p.X_release();for _,v:=range p.Trail[:cap(p.Trail)]{if v.X_f!=nil || v.X_old!=nil{t.Fatal("Node cleanup blocked")}}}
+  if typed{tp.Reset(sxirrt.Mark{});for _,v:=range tf.Vals{if v!=n{t.Fatal("typed undo retry")}};if len(tp.Trail)!=0{t.Fatal("typed trail retained")};if used:=p.Control.X_budgetUsed();used!=0{t.Fatal("typed undo charged",used)};tp.Trail=append(tp.Trail,sxirrt.X_tundo{X_f:tf,X_old:n});tp.Control=sxirrt.X_newBudgetControl(nil,Limits{Compute:1});tp.X_recycle();for _,v:=range tp.Trail[:cap(tp.Trail)]{if v.X_f!=nil || v.X_old!=nil{t.Fatal("typed cleanup blocked")}}}else{p.Reset(sxirrt.Mark{});for _,v:=range f.Vals{if v!=n{t.Fatal("Node undo retry")}};if len(p.Trail)!=0{t.Fatal("Node trail retained")};if used:=p.Control.X_budgetUsed();used!=0{t.Fatal("Node undo charged",used)};p.Trail=append(p.Trail,sxirrt.X_undo{X_f:f,X_old:n});p.Control=sxirrt.X_newBudgetControl(nil,Limits{Compute:1});p.X_release();for _,v:=range p.Trail[:cap(p.Trail)]{if v.X_f!=nil || v.X_old!=nil{t.Fatal("Node cleanup blocked")}}}
  }
 }
 func TestTypedFieldMaterialization(t *testing.T){
  bag:=&Bag{Items:make([]*Leaf,300),Nested:make([][]*Leaf,300)}
  for i:=range bag.Items{bag.Items[i]=&Leaf{Span:Span{Start:i+3,End:i+4},Text:"a"};bag.Nested[i]=[]*Leaf{bag.Items[i]}}
  for _,name:=range []string{"Items","Nested"}{
-  p:=graphParser(32);tp:=&zprt.TParser{Parser:p};var result any
+  p:=graphParser(32);tp:=&sxirrt.TParser{Parser:p};var result any
   requireGraphLimit(t,p,func(){result=typedMember(tp,bag,name)})
   if result!=nil{t.Fatal("partial field published")}
-  p.Control=zprt.X_newBudgetControl(nil,Limits{Compute:100000})
-  got:=typedMember(tp,bag,name).(*zprt.TSeq);ordinary,_:=bag.TField(name)
-  want:=ordinary.(*zprt.TSeq)
+  p.Control=sxirrt.X_newBudgetControl(nil,Limits{Compute:100000})
+  got:=typedMember(tp,bag,name).(*sxirrt.TSeq);ordinary,_:=bag.TField(name)
+  want:=ordinary.(*sxirrt.TSeq)
   if !reflect.DeepEqual(got,want) || got.Start!=3 || got.End!=303{t.Fatal("field materialization changed",name)}
   wantSteps:=uint64(2*len(bag.Items));if name=="Nested"{wantSteps+=uint64(2*len(bag.Nested))};if p.Control.X_budgetUsed()!=wantSteps{t.Fatal("list field spend omitted",name,p.Control.X_budgetUsed(),wantSteps)}
   if name=="Items"{got.Kids[0]=nil;if bag.Items[0]==nil{t.Fatal("field result aliases input")}}
  }
- p:=graphParser(32);tp:=&zprt.TParser{Parser:p};empty:=&Bag{Items:[]*Leaf{},Nested:nil}
- if got:=typedMember(tp,empty,"Items");got==nil || len(got.(*zprt.TSeq).Kids)!=0{t.Fatal("empty field changed")}
- if got:=typedMember(tp,empty,"Nested");got==nil || len(got.(*zprt.TSeq).Kids)!=0{t.Fatal("nil field is not the empty list")}
+ p:=graphParser(32);tp:=&sxirrt.TParser{Parser:p};empty:=&Bag{Items:[]*Leaf{},Nested:nil}
+ if got:=typedMember(tp,empty,"Items");got==nil || len(got.(*sxirrt.TSeq).Kids)!=0{t.Fatal("empty field changed")}
+ if got:=typedMember(tp,empty,"Nested");got==nil || len(got.(*sxirrt.TSeq).Kids)!=0{t.Fatal("nil field is not the empty list")}
 }
 func TestGraphFoldOrderAndBudget(t *testing.T){
  nodes,values:=graphKids()
  for _,typed:=range []bool{false,true}{for _,right:=range []bool{false,true}{
-  p:=graphParser(32);tp:=&zprt.TParser{Parser:p};visits:=0
+  p:=graphParser(32);tp:=&sxirrt.TParser{Parser:p};visits:=0
   f:=func(acc,item any)any{visits++;return item}
-  requireGraphLimit(t,p,func(){if typed{typedFold(tp,"foldl",right,nil,&zprt.TSeq{Typ:"list",Kids:values},f)}else{nodeFold(p,"foldl",right,nil,dataNode(zprt.Data{Kind:zprt.ListKind,Children:nodes}),f)}})
+  requireGraphLimit(t,p,func(){if typed{typedFold(tp,"foldl",right,nil,&sxirrt.TSeq{Typ:"list",Kids:values},f)}else{nodeFold(p,"foldl",right,nil,dataNode(sxirrt.Data{Kind:sxirrt.ListKind,Children:nodes}),f)}})
   if visits!=32{t.Fatal("fold advanced past budget",visits)}
-  p.Control=zprt.X_newBudgetControl(nil,Limits{Compute:100000});visits=0
-  var got any;if typed{got=typedFold(tp,"foldl",right,nil,&zprt.TSeq{Typ:"list",Kids:values},f)}else{got=nodeFold(p,"foldl",right,nil,dataNode(zprt.Data{Kind:zprt.ListKind,Children:nodes}),f)}
+  p.Control=sxirrt.X_newBudgetControl(nil,Limits{Compute:100000});visits=0
+  var got any;if typed{got=typedFold(tp,"foldl",right,nil,&sxirrt.TSeq{Typ:"list",Kids:values},f)}else{got=nodeFold(p,"foldl",right,nil,dataNode(sxirrt.Data{Kind:sxirrt.ListKind,Children:nodes}),f)}
   index:=299;if right{index=0};want:=any(nodes[index]);if typed{want=values[index]};if visits!=300 || got!=want{t.Fatal("fold order changed",visits)}
  }}
 }
@@ -191,8 +191,8 @@ func TestGraphCaptureAttachment(t *testing.T){
  for _,typed:=range []bool{false,true}{
   // Attaching captures charges nothing (captures are not an item of the cost), so it runs to the end
   // under a limit below the number of captures.
-  p:=graphParser(32);tp:=&zprt.TParser{Parser:p}
-  if typed{n:=tp.AttachCaptures(nil,names,values,3,303).(*zprt.TSeq);if len(n.X_fields)!=299 || n.X_fields[0].X_val!=values[299] || n.X_fields[1].X_name!=names[1]{t.Fatal("typed capture order/replacement")}}else{n:=p.AttachCaptures(nil,names,&zprt.CaptureFrame{Vals:nodes},3,303);if len(zprt.D(n).Fields)!=299 || zprt.D(n).Fields[0].Value!=nodes[299] || zprt.D(n).Fields[1].Name!=names[1]{t.Fatal("Node capture order/replacement")}}
+  p:=graphParser(32);tp:=&sxirrt.TParser{Parser:p}
+  if typed{n:=tp.AttachCaptures(nil,names,values,3,303).(*sxirrt.TSeq);if len(n.X_fields)!=299 || n.X_fields[0].X_val!=values[299] || n.X_fields[1].X_name!=names[1]{t.Fatal("typed capture order/replacement")}}else{n:=p.AttachCaptures(nil,names,&sxirrt.CaptureFrame{Vals:nodes},3,303);if len(sxirrt.D(n).Fields)!=299 || sxirrt.D(n).Fields[0].Value!=nodes[299] || sxirrt.D(n).Fields[1].Name!=names[1]{t.Fatal("Node capture order/replacement")}}
   if used:=p.Control.X_budgetUsed();used!=0{t.Fatal("attaching captures charged",used)}
  }
 }
@@ -204,13 +204,13 @@ func TestGraphOperatorsRuleSnapshots(t *testing.T){
   // frame.restore), so the selection uses the same units under a limit below their number.
   used:=map[uint64]uint64{}
   for _,limit:=range []uint64{129,430,100000}{
-   p:=graphParser(limit);tp:=&zprt.TParser{Parser:p};var bestNode zprt.X_operatorsRuleAttempt;var bestTyped zprt.X_toperatorsRuleAttempt
+   p:=graphParser(limit);tp:=&sxirrt.TParser{Parser:p};var bestNode sxirrt.X_operatorsRuleAttempt;var bestTyped sxirrt.X_toperatorsRuleAttempt
    err:=graphFatal(func(){if typed{
-    op:=&zprt.TOperatorsRuleOp{Kind:"prefix",Line:&zprt.TOperatorsRuleLine{Scope:names,M:func(p *zprt.TParser)(any,bool){for i,v:=range values{p.Frame.Vals[i]=v};p.Pos=1;return values[0],true}}}
-    bestTyped=tp.X_longest([]*zprt.TOperatorsRuleOp{op})
+    op:=&sxirrt.TOperatorsRuleOp{Kind:"prefix",Line:&sxirrt.TOperatorsRuleLine{Scope:names,M:func(p *sxirrt.TParser)(any,bool){for i,v:=range values{p.Frame.Vals[i]=v};p.Pos=1;return values[0],true}}}
+    bestTyped=tp.X_longest([]*sxirrt.TOperatorsRuleOp{op})
    }else{
-    op:=&zprt.OperatorsRuleOp{Kind:"prefix",Line:&zprt.OperatorsRuleLine{Scope:names,M:func(p *zprt.Parser)(*Node,bool){for i,v:=range nodes{p.Frame.Vals[i]=v};p.Pos=1;return nodes[0],true}}}
-    bestNode=p.X_longest([]*zprt.OperatorsRuleOp{op})
+    op:=&sxirrt.OperatorsRuleOp{Kind:"prefix",Line:&sxirrt.OperatorsRuleLine{Scope:names,M:func(p *sxirrt.Parser)(*Node,bool){for i,v:=range nodes{p.Frame.Vals[i]=v};p.Pos=1;return nodes[0],true}}}
+    bestNode=p.X_longest([]*sxirrt.OperatorsRuleOp{op})
    }})
    used[limit]=p.Control.X_budgetUsed();if used[limit]!=used[129]{t.Fatal("OperatorsRule snapshot charges depend on the limit",used)}
    if err!=nil || p.Pos!=0 || p.Frame!=nil || tp.Frame!=nil{t.Fatal("OperatorsRule selection changed state",err)}

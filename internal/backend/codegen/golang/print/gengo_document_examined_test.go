@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // The examined end, the evaluations and the reuse that a Document reports for a rule that fails
@@ -52,7 +52,7 @@ import (
 	"strings"
 	"testing"
 
-	zprt "zeroparse.dev/zp/pkg/runtime/libgo"; zpinstrument "zeroparse.dev/zp/pkg/runtime/instrument"
+	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"; sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
 )
 
 func TestExamined(t *testing.T) {
@@ -62,8 +62,8 @@ func TestExamined(t *testing.T) {
 	}
 	var out strings.Builder
 	for i := 0; i < 2; i++ {
-		_, _ = d.PARSE(zprt.WithTrace(func(e zpinstrument.TraceEvent) {
-			if e.Kind == zpinstrument.TraceExit {
+		_, _ = d.PARSE(sxirrt.WithTrace(func(e sxirinstrument.TraceEvent) {
+			if e.Kind == sxirinstrument.TraceExit {
 				fmt.Fprintf(&out, "exit %s pos=%d memo=%v evals=%d examined=%d\n", e.Rule, e.Pos, e.Memo, e.Evals, e.Examined)
 			}
 		}))

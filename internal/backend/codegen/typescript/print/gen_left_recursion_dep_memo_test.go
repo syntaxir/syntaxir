@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // depMemoTSCases returns the grammars of codegentest.DependencyMemoCases for seeds below seeds that

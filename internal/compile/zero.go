@@ -3,8 +3,8 @@ package compile
 import (
 	"strings"
 
-	"zeroparse.dev/zp/internal/frontend/check"
-	"zeroparse.dev/zp/internal/frontend/types"
+	"syntaxir.dev/sxir/internal/frontend/check"
+	"syntaxir.dev/sxir/internal/frontend/types"
 )
 
 // HasZero is Checker.HasZero.

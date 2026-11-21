@@ -13,7 +13,7 @@ type sourceMetadataSample struct{ Name, Source string }
 
 func sourceMetadataSamples(b *testing.B) []sourceMetadataSample {
 	b.Helper()
-	self, err := os.ReadFile("../../../zp.zp")
+	self, err := os.ReadFile("../../../sxir.sxir")
 	if err != nil {
 		b.Fatal(err)
 	}

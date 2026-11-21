@@ -6,8 +6,8 @@ evaluates them for many values of `x` and `y`.
 Parse the formula once into a typed tree, then evaluate the tree as often as you like. An Operators Rule gives the
 precedence and associativity in a table; the evaluator is a `switch` on the node type.
 
-```zp
-// calc.zp
+```sxir
+// calc.sxir
 type Num = node[string]
 type Name = node[string]
 type Bin = { Left Expr; Op node[string]; Right Expr }
@@ -49,12 +49,12 @@ import (
 	"math"
 	"strconv"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
-//go:embed calc.zp
+//go:embed calc.sxir
 var grammarSrc string
 
 // funcs are the functions an expression can call, with their number of arguments.
@@ -132,7 +132,7 @@ func eval(n *value.Node, vars map[string]float64) (float64, error) {
 }
 
 func main() {
-	p, err := compiler.Compile(grammar.FromString("grammar.zp", grammarSrc), compiler.WithStart("main"))
+	p, err := compiler.Compile(grammar.FromString("grammar.sxir", grammarSrc), compiler.WithStart("main"))
 	if err != nil {
 		log.Fatal(err)
 	}

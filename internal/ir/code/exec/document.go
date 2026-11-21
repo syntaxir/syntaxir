@@ -1,6 +1,6 @@
 package exec
 
-import "zeroparse.dev/zp/internal/ir/code"
+import "syntaxir.dev/sxir/internal/ir/code"
 
 // QMoved is the size of the value of the entry that the call moves: for each distinct node in it, one
 // and the number of its children and fields.

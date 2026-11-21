@@ -2,7 +2,7 @@
 //
 // Each language has a corpus of invalid inputs in testdata/recovery/<language>.txt: mutations of valid inputs
 // generated from the ready-made grammar (testdata/grammars/<language>), one JSON object per line. The
-// recovering variant of the grammar is testdata/recovery/<language>.zp. The test parses every corpus input with
+// recovering variant of the grammar is testdata/recovery/<language>.sxir. The test parses every corpus input with
 // the variant, computes the measures of docs/guide/recovery-quality.md and compares them with the table in that
 // guide; go test ./internal/testing/recoveryquality -update regenerates the corpora and the table.
 package recoveryquality_test
@@ -17,11 +17,11 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/internal/testing/enginetest"
-	"zeroparse.dev/zp/pkg/runtime/value"
-	"zeroparse.dev/zp/pkg/sample"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
+	"syntaxir.dev/sxir/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/sample"
 )
 
 var update = codegentest.UpdateGoldens // -update regenerates the corpora and the table; enginetest links codegentest, which defines the flag
@@ -67,7 +67,7 @@ func compile(t *testing.T, path string) *engine.Parser {
 // the first difference from the base.
 func generate(t *testing.T, name, grammar string, size int, opts []sample.Option) []testCase {
 	t.Helper()
-	g, err := sample.New(engine.Reference(compile(t, filepath.Join("../../../testdata/grammars", grammar, grammar+".zp"))), opts...)
+	g, err := sample.New(engine.Reference(compile(t, filepath.Join("../../../testdata/grammars", grammar, grammar+".sxir"))), opts...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +194,7 @@ func kind(c testCase) string { return strings.Fields(c.Mutation)[0] }
 
 func run(t *testing.T, name string) result {
 	t.Helper()
-	p := compile(t, filepath.Join("../../../testdata/recovery", name+".zp"))
+	p := compile(t, filepath.Join("../../../testdata/recovery", name+".sxir"))
 	r := result{name: name, kinds: map[string][2]int{}}
 	var skipped []float64
 	for _, c := range readCorpus(t, name) {

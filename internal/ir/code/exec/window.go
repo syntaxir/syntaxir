@@ -1,6 +1,6 @@
 package exec
 
-import "zeroparse.dev/zp/internal/ir/code"
+import "syntaxir.dev/sxir/internal/ir/code"
 
 // streamWindow adds to m the window of a stream parse and its host operations: the input buffer,
 // the memory of delivered elements, the delivery callbacks and cancellation at stream boundaries.

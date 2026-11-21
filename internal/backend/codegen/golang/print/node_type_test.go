@@ -9,11 +9,11 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
-// TestGeneratedNamedNodeTypes checks the Go types that zp gen -types gives named node types: a
+// TestGeneratedNamedNodeTypes checks the Go types that sxir gen -types gives named node types: a
 // defined type embedding TNode of the underlying value, which implements the unions it is a
 // member of.
 func TestGeneratedNamedNodeTypes(t *testing.T) {

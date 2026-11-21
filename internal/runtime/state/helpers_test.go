@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime"
 )
 
 // catchFatal runs f and returns the error of the Fatal panic it raises, or nil.

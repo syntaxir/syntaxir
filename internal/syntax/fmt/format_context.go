@@ -7,10 +7,10 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
-// Format converts g to ZeroParse source code.
+// Format converts g to SyntaxIR source code.
 //
 // Comments and line breaks recorded in the AST (see LineBreak) are kept, so
 // formatting parsed source preserves its comments. Struct field types and
@@ -19,7 +19,7 @@ import (
 // blank line between definitions and one item per line in blocks.
 func Format(g *ast.Grammar) string { return formatGrammar(g, nil) }
 
-// FormatType returns t in ZeroParse syntax.
+// FormatType returns t in SyntaxIR syntax.
 func FormatType(t ast.TypeExpr) string { return formatType(t, nil) }
 
 // FormatContext is Format with cooperative cancellation during AST traversal,

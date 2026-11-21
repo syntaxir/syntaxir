@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/exec/conform"
-	"zeroparse.dev/zp/internal/ir/code/exec/ref"
-	zpinstrument "zeroparse.dev/zp/pkg/runtime/instrument"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
+	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
+	sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
 )
 
 // The observation of the node library under conformance: every operation of the observation runs
@@ -35,11 +35,11 @@ func newObsMachine(cfg ref.Config) conform.Impl {
 }
 
 // deliver records an event of the trace as the model lists it.
-func (m *obsMachine) deliver(e zpinstrument.TraceEvent) {
+func (m *obsMachine) deliver(e sxirinstrument.TraceEvent) {
 	switch e.Kind {
-	case zpinstrument.TraceEnter:
+	case sxirinstrument.TraceEnter:
 		m.events = append(m.events, fmt.Sprintf("enter %s pos=%d level=%d depth=%d", e.Rule, e.Pos, e.Level, e.Depth))
-	case zpinstrument.TraceExit:
+	case sxirinstrument.TraceExit:
 		m.events = append(m.events, fmt.Sprintf("exit %s matched=%v end=%d examined=%d memo=%v depth=%d",
 			e.Rule, e.Matched, e.End, e.Examined, e.Memo, e.Depth))
 	}

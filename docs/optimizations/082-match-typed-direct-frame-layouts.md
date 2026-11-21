@@ -65,7 +65,7 @@ Generate the direct and same-generator reference workload fixtures and check
 parity:
 
 ```sh
-export ZP_TYPED_FRAME_LAYOUT_DIR=/tmp/zp-typed-frame-layouts
+export SXIR_TYPED_FRAME_LAYOUT_DIR=/tmp/sxir-typed-frame-layouts
 go test ./internal/backend/codegen/golang/print -run '^TestGeneratedTypedFrameLayoutWorkloads$' -count=1
 ```
 
@@ -74,8 +74,8 @@ Build the direct/general fixtures into separate binaries:
 ```sh
 for workload in lr operatorsRule; do
   for variant in direct general; do
-    fixture="$ZP_TYPED_FRAME_LAYOUT_DIR/$workload/$variant"
-    (cd "$fixture" && go test -c -o "$ZP_TYPED_FRAME_LAYOUT_DIR/$workload-$variant.test" .)
+    fixture="$SXIR_TYPED_FRAME_LAYOUT_DIR/$workload/$variant"
+    (cd "$fixture" && go test -c -o "$SXIR_TYPED_FRAME_LAYOUT_DIR/$workload-$variant.test" .)
   done
 done
 ```
@@ -84,17 +84,17 @@ Alternate five paired runs of `BenchmarkTypedLR` and `BenchmarkTypedOperatorsRul
 with `-test.run='^$' -test.benchtime=300ms -test.benchmem`, reversing
 direct/general order between pairs. The matching loop in
 [record 81](081-scoped-cuts-in-unfinished-typed-go-bodies.md) can be reused
-with `ZP_TYPED_FRAMED_CUT_DIR="$ZP_TYPED_FRAME_LAYOUT_DIR"`. The inputs
+with `SXIR_TYPED_FRAMED_CUT_DIR="$SXIR_TYPED_FRAME_LAYOUT_DIR"`. The inputs
 use the same `lrInput(n)` and `operatorsRuleInput(n)` workloads: n=1/128 means two/129
 LR groups and one/128 Operators Rule postfix groups after the base atom.
 
-To compare generation separately, keep `ZP_REFERENCE_FRAME_LAYOUTS` fixed
+To compare generation separately, keep `SXIR_REFERENCE_FRAME_LAYOUTS` fixed
 before each timed run:
 
 ```sh
-ZP_REFERENCE_FRAME_LAYOUTS=0 go test ./internal/backend/codegen/golang/print -run '^$' \
+SXIR_REFERENCE_FRAME_LAYOUTS=0 go test ./internal/backend/codegen/golang/print -run '^$' \
   -bench '^BenchmarkTypedFrameLayoutGeneration$' -benchtime=300ms -benchmem
-ZP_REFERENCE_FRAME_LAYOUTS=1 go test ./internal/backend/codegen/golang/print -run '^$' \
+SXIR_REFERENCE_FRAME_LAYOUTS=1 go test ./internal/backend/codegen/golang/print -run '^$' \
   -bench '^BenchmarkTypedFrameLayoutGeneration$' -benchtime=300ms -benchmem
 ```
 

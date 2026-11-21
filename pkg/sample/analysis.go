@@ -6,7 +6,7 @@ import (
 	"sort"
 	"unicode"
 
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // inf is the height or length of an expression that can never match.

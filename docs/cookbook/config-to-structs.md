@@ -5,8 +5,8 @@ booleans and arrays, and wants a Go struct. A wrong type or an unknown key shoul
 
 The grammar describes the syntax and keeps each kind of value as a type. Go turns the values into a struct.
 
-```zp
-// config.zp
+```sxir
+// config.sxir
 package config
 
 type Key = node[string]
@@ -47,14 +47,14 @@ import (
 	"strconv"
 	"strings"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
-	"zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
-//go:embed config.zp
+//go:embed config.sxir
 var grammarSrc string
 
 // Config is what the program wants from the file.
@@ -136,7 +136,7 @@ func Load(p runtime.Parser, src string) (Config, error) {
 }
 
 func main() {
-	p, err := compiler.Compile(grammar.FromString("grammar.zp", grammarSrc), compiler.WithStart("main"))
+	p, err := compiler.Compile(grammar.FromString("grammar.sxir", grammarSrc), compiler.WithStart("main"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -184,7 +184,7 @@ error: 2:9: syntax error: expected "#", "-", "[", "\"", "false", "true", [ \t\r\
 
 - The syntax error lists every token that could have come next. [Report an error with its source line and a
   caret](error-carets.md) shows how to replace it with a message such as `expected a value`.
-- To get typed Go values without writing the `Field` and `Elems` code, generate a parser with `zp gen -types`; see
+- To get typed Go values without writing the `Field` and `Elems` code, generate a parser with `sxir gen -types`; see
   [Ship a parser and keep it up to date](ship-a-parser.md).
 - Sections (`[server]`), a trailing comma rule or `key: value` lines are changes to `entry` and `main`. Keep every rule
   that skips white space in one place (`ws` here), so that the grammar says where white space may appear.

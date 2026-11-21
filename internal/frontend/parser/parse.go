@@ -7,9 +7,9 @@ import (
 	"sort"
 	"strings"
 
-	"zeroparse.dev/zp/internal/frontend/parser/sourceast"
-	"zeroparse.dev/zp/internal/frontend/parser/zpparser"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend/parser/sourceast"
+	"syntaxir.dev/sxir/internal/frontend/parser/sxirparser"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // sourceLimits are the limits of the source parser. The lexer rejects a source that nests deeper
@@ -17,11 +17,11 @@ import (
 // above what maxLevels allows, so that its recursion stays bounded on a source that the lexer
 // rejects. Compute is unlimited: the recovery of the grammar is linear, and a caller stops a long
 // parse with its context.
-var sourceLimits = zpparser.WithLimits(zpparser.Limits{Compute: zpparser.Unlimited})
+var sourceLimits = sxirparser.WithLimits(sxirparser.Limits{Compute: sxirparser.Unlimited})
 
-// Parse parses the ZeroParse source code src.
+// Parse parses the SyntaxIR source code src.
 //
-// The source is parsed by the parser generated from the grammar of ZeroParse
+// The source is parsed by the parser generated from the grammar of SyntaxIR
 // grammar files, and FromSourceTree builds the grammar AST from its typed
 // values. A rejected source returns an ErrorList: the lexical errors, then the
 // syntax errors and the errors of the checks that the grammar does not make,
@@ -29,7 +29,7 @@ var sourceLimits = zpparser.WithLimits(zpparser.Limits{Compute: zpparser.Unlimit
 func Parse(src string) (*ast.Grammar, error) {
 	lx := lexSource(src)
 	text, invalid := lx.withoutInvalidCharacters()
-	f, err := zpparser.ParseValue(text, zpparser.WithExpectations(), sourceLimits)
+	f, err := sxirparser.ParseValue(text, sxirparser.WithExpectations(), sourceLimits)
 	if err != nil {
 		errs, ok := lx.sourceErrorsOf(err)
 		if !ok {
@@ -63,7 +63,7 @@ func ParsePartialContext(ctx context.Context, src string) (*ast.Grammar, ErrorLi
 	}
 	lx := lexSource(src)
 	text, _ := lx.withoutInvalidCharacters()
-	f, err := zpparser.ParseValue(text, zpparser.WithExpectations(), sourceLimits, zpparser.WithContext(ctx))
+	f, err := sxirparser.ParseValue(text, sxirparser.WithExpectations(), sourceLimits, sxirparser.WithContext(ctx))
 	var errs []SourceError
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -113,11 +113,11 @@ func lexSource(src string) *lexed {
 // deep, and SourceErrors adds the lexical errors. Should the lexer not, the
 // source is reported as nesting too deep at its deepest opening delimiter.
 func (lx *lexed) sourceErrorsOf(err error) ([]SourceError, bool) {
-	var list zpparser.SyntaxErrors
-	var one *zpparser.SyntaxError
-	var limit *zpparser.LimitError
+	var list sxirparser.SyntaxErrors
+	var one *sxirparser.SyntaxError
+	var limit *sxirparser.LimitError
 	switch {
-	case errors.As(err, &limit) && limit.Kind == zpparser.LimitDepth:
+	case errors.As(err, &limit) && limit.Kind == sxirparser.LimitDepth:
 		for _, e := range lx.errs {
 			if e.Msg == msgNestingTooDeep {
 				return nil, true
@@ -177,7 +177,7 @@ func newMessages(lx *lexed) *messages {
 // after an operator where a line break ends a statement, is the mistake of a value that does not start on the line of
 // its operator. The errors of a spelling that is not the syntax of the language name what to
 // write.
-func (m *messages) message(e *zpparser.SyntaxError) string {
+func (m *messages) message(e *sxirparser.SyntaxError) string {
 	var msg string
 	if len(e.Messages) > 0 {
 		msg = e.Message()
@@ -188,7 +188,7 @@ func (m *messages) message(e *zpparser.SyntaxError) string {
 				covered[x] = true
 			}
 		}
-		kept := &zpparser.SyntaxError{}
+		kept := &sxirparser.SyntaxError{}
 		for _, x := range e.Expected {
 			if !trivia[x] && !covered[x] {
 				kept.Expected = append(kept.Expected, x)

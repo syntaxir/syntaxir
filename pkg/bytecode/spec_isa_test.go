@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/bytecode"
+	"syntaxir.dev/sxir/pkg/bytecode"
 )
 
 // TestSpecInstructionSetVersion checks that spec/bytecode/README.md states the instruction-set version the

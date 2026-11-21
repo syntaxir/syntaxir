@@ -6,13 +6,13 @@ import { test } from "node:test";
 
 const source = readFileSync(new URL("../static/playground/worker.js", import.meta.url), "utf8");
 const base = "https://site.test/playground/";
-const a = { wasm: "wasm/zp-0123456789abcdef.wasm", runtime: "runtime/wasm_exec-1111111111111111.js" };
-const b = { wasm: "wasm/zp-fedcba9876543210.wasm", runtime: "runtime/wasm_exec-2222222222222222.js" };
-const tiny = { wasm: "wasm/zp-3333333333333333.wasm", runtime: "runtime/wasm_exec-4444444444444444.js" };
+const a = { wasm: "wasm/sxir-0123456789abcdef.wasm", runtime: "runtime/wasm_exec-1111111111111111.js" };
+const b = { wasm: "wasm/sxir-fedcba9876543210.wasm", runtime: "runtime/wasm_exec-2222222222222222.js" };
+const tiny = { wasm: "wasm/sxir-3333333333333333.wasm", runtime: "runtime/wasm_exec-4444444444444444.js" };
 
 function worker(manifest, { ok = true } = {}) {
   const imported = [], fetched = [], messages = [];
-  const self = { zp: { version: () => '{"go":"test"}' }, postMessage: (m) => messages.push(m) };
+  const self = { sxir: { version: () => '{"go":"test"}' }, postMessage: (m) => messages.push(m) };
   const ctx = vm.createContext({ self, URL, JSON, Error, Uint8Array, Blob, Response, DecompressionStream,
     importScripts: (url) => imported.push(url),
     fetch: async (url, opts) => { fetched.push({ url, opts }); return { ok, status: ok ? 200 : 503, json: async () => manifest }; },
@@ -45,7 +45,7 @@ test("worker retains a preceding TinyGo binary in a Go-only build", async () => 
 });
 test("unhashed external WASM retains the explicit stable-runtime convention", async () => {
   const w = worker(null);
-  await w.init(base + "zp.wasm");
+  await w.init(base + "sxir.wasm");
   assert.deepEqual(w.imported, [base + "wasm_exec.js"]);
   assert.equal(w.fetched.length, 0);
 });
@@ -62,7 +62,7 @@ for (const [name, manifest, opts, error] of [
   });
 }
 
-const gz = { wasm: "wasm/zp-5555555555555555.wasm.gz", runtime: "runtime/wasm_exec-6666666666666666.js" };
+const gz = { wasm: "wasm/sxir-5555555555555555.wasm.gz", runtime: "runtime/wasm_exec-6666666666666666.js" };
 test("worker selects the runtime of a compressed binary", async () => {
   const w = worker({ version: 1, current: gz, previous: a });
   await w.init(base + gz.wasm);
@@ -74,7 +74,7 @@ test("worker decompresses a compressed binary it has to fetch itself", async () 
   const module = Uint8Array.from([0, 0x61, 0x73, 0x6d, 1, 0, 0, 0, 9]);
   const instantiated = [], messages = [];
   const ctx = vm.createContext({ URL, JSON, Error, Uint8Array, Blob, Response, DecompressionStream,
-    self: { zp: { version: () => '{"go":"test"}' }, postMessage: (m) => messages.push(m) },
+    self: { sxir: { version: () => '{"go":"test"}' }, postMessage: (m) => messages.push(m) },
     importScripts: () => {},
     fetch: async (url) => url.endsWith("assets.json")
       ? new Response(JSON.stringify({ version: 1, current: gz }))

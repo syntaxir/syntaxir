@@ -3,7 +3,7 @@ package ref
 import (
 	"fmt"
 
-	"zeroparse.dev/zp/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code"
 )
 
 // The reference model of the observation of a parse (component observe): the calls that obs.enter

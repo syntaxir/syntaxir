@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/backend/codegen/typescript/print"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 func runTypedTSFixture(t *testing.T, src, consumer string, opts common.GenOptions, keep string) {
@@ -232,7 +232,7 @@ for (const unit of [CodePoints, Bytes]) for (const size of [1, 8, 6000]) {
 check(stable(parseValue("xx").value).includes("Branch"), "small DAG value");
 `
 			keep := ""
-			if out := os.Getenv("ZP_TS_TYPED_DIR"); out != "" {
+			if out := os.Getenv("SXIR_TS_TYPED_DIR"); out != "" {
 				keep = filepath.Join(out, name)
 			}
 			runTypedTSFixture(t, codegentest.TSTypedDAGTypes+body, consumer, common.GenOptions{Recognize: true}, keep)
@@ -304,7 +304,7 @@ rule item Good = x:[a-zé😀]+ #atomic ";" => Good{Token: $x}`, "a;1;", strings
   else check(stable(r.value).includes('"type":"string"'), "string node value");
 }`
 			keep := ""
-			if dir := os.Getenv("ZP_TS_TYPED_DIR"); dir != "" {
+			if dir := os.Getenv("SXIR_TS_TYPED_DIR"); dir != "" {
 				keep = filepath.Join(dir, c.name)
 			}
 			runTypedTSFixture(t, c.src, consumer, common.GenOptions{Recognize: true}, keep)

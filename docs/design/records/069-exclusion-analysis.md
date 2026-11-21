@@ -407,12 +407,12 @@ cheap lookahead expression, or ends the parse.
 All numbers come from two committed tests in `internal/compile`:
 
 ```sh
-ZP_EXCLUSION_REPORT=1 go test -count=1 -run 'TestExclusionReport$' -v ./internal/compile
+SXIR_EXCLUSION_REPORT=1 go test -count=1 -run 'TestExclusionReport$' -v ./internal/compile
 go test -count=1 -run 'TestExclusionControls$' -v ./internal/compile
 ```
 
 `TestExclusionReport` classifies the bundled grammars, in the normal view that the compiler reads, under each setting of
-the test hooks; `ZP_EXCLUSION_ONLY` limits
+the test hooks; `SXIR_EXCLUSION_ONLY` limits
 it to a comma-separated list of grammar files. The settings are:
 
 - **base**: the classifier without the analysis;
@@ -575,7 +575,7 @@ In `internal/compile`:
   the complexity test support measures those claims on the input families of the family, so it fails when the analysis
   accepts a unit that costs more: it fails with a continuation lookahead taken as cheap instead of fresh, with trivia
   calls passed without the cheap condition, and with the nesting mark left out of the cheap condition.
-- `TestExclusionReport`: the measurements, behind `ZP_EXCLUSION_REPORT`.
+- `TestExclusionReport`: the measurements, behind `SXIR_EXCLUSION_REPORT`.
 
 The controls in the complexity test support for the fresh symbols are "Scanning lookahead of a later alternative" and
 "Scanning first alternative of a later lookahead", which `TestExclusionControls` classifies with each setting.

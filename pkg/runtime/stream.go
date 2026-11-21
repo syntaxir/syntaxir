@@ -4,7 +4,7 @@ import (
 	"errors"
 	"iter"
 
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // ErrStreamClosed is returned after an iterator is abandoned before termination.

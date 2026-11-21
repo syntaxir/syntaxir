@@ -4,7 +4,7 @@ import (
 	"testing"
 	"unsafe"
 
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // The parsers convert a *Node to a *valueimpl.Data[Node] and back; that needs Data to be the only

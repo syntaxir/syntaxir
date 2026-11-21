@@ -15,11 +15,11 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/instrument"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/instrument"
 )
 
 // observeProbeMain is the consumer of the generated packages with the prefix PREFIX: for each input and entry
@@ -34,10 +34,10 @@ import (
 	"os"
 	"strings"
 
-	zprt "zeroparse.dev/zp/pkg/runtime/libgo"; zpinstrument "zeroparse.dev/zp/pkg/runtime/instrument"
+	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"; sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
 IMPORTS)
 
-var entries = []struct{ parse, recognize func(string, ...zprt.ParseOption) error }{
+var entries = []struct{ parse, recognize func(string, ...sxirrt.ParseOption) error }{
 ENTRIES}
 
 func sum(v any) string {
@@ -45,11 +45,11 @@ func sum(v any) string {
 	return fmt.Sprintf("%x", sha256.Sum256(b))[:16]
 }
 
-func report(id, name string, run func(string, ...zprt.ParseOption) error, in string, detail bool) {
-	var events []zpinstrument.TraceEvent
-	err := run(in, zprt.WithTrace(func(e zpinstrument.TraceEvent) { events = append(events, e) }))
-	var prof zpinstrument.Profile
-	perr := run(in, zprt.WithProfile(&prof))
+func report(id, name string, run func(string, ...sxirrt.ParseOption) error, in string, detail bool) {
+	var events []sxirinstrument.TraceEvent
+	err := run(in, sxirrt.WithTrace(func(e sxirinstrument.TraceEvent) { events = append(events, e) }))
+	var prof sxirinstrument.Profile
+	perr := run(in, sxirrt.WithProfile(&prof))
 	snap := prof.Snapshot()
 	snap.Time = 0
 	for i := range snap.Rules {
@@ -89,10 +89,10 @@ func observeSources(pkg string, n int) string {
 	var imports, entries strings.Builder
 	for i := 0; i < n; i++ {
 		fmt.Fprintf(&imports, "\t%s%d \"obsprobe/%s%d\"\n", pkg, i, pkg, i)
-		fmt.Fprintf(&entries, `	{parse: func(in string, opts ...zprt.ParseOption) error {
+		fmt.Fprintf(&entries, `	{parse: func(in string, opts ...sxirrt.ParseOption) error {
 		_, err := %[1]s%[2]d.Parse(in, opts...)
 		return err
-	}, recognize: func(in string, opts ...zprt.ParseOption) error { return %[1]s%[2]d.Recognize(in, opts...) }},
+	}, recognize: func(in string, opts ...sxirrt.ParseOption) error { return %[1]s%[2]d.Recognize(in, opts...) }},
 `, pkg, i)
 	}
 	return strings.NewReplacer("IMPORTS", imports.String(), "ENTRIES", entries.String()).Replace(observeProbeMain)

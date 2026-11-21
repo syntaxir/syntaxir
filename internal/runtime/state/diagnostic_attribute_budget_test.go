@@ -1,4 +1,4 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package state
 
@@ -7,7 +7,7 @@ import (
 	"errors"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime"
 )
 
 func TestDiagnosticRenameAccountsForLargeExpectationSets(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 )
 
 func TestDiagnosticRenameAccountsForLargeExpectationSets(t *testing.T) {
@@ -12,7 +12,7 @@ func TestDiagnosticRenameAccountsForLargeExpectationSets(t *testing.T) {
 	for i := range ids {
 		ids[i] = ExpID(i + 1)
 	}
-	p := &Parser{Control: newBudgetControl(nil, zpruntime.Limits{Compute: 64})}
+	p := &Parser{Control: newBudgetControl(nil, sxirruntime.Limits{Compute: 64})}
 	var got error
 	func() {
 		defer func() {
@@ -26,7 +26,7 @@ func TestDiagnosticRenameAccountsForLargeExpectationSets(t *testing.T) {
 		}()
 		RenamedExpected(p, ids, 999)
 	}()
-	if !errors.Is(got, zpruntime.ErrLimit) {
+	if !errors.Is(got, sxirruntime.ErrLimit) {
 		t.Fatalf("rename compute limit = %v, want ErrLimit", got)
 	}
 	if p.Control.budgetUsed() != 64 {

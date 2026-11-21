@@ -14,8 +14,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // documentProbeMain is the consumer of the generated packages with the prefix PREFIX. For each input it creates a
@@ -32,20 +32,20 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 IMPORTS)
 
 type doc struct {
-	parse func() (*zpvalue.Node, error)
+	parse func() (*sxirvalue.Node, error)
 	edit  func(int, int, string) error
 	text  func() string
-	stats func() zpruntime.ParseStats
+	stats func() sxirruntime.ParseStats
 }
 
 type entry struct {
 	newDoc func(string) (*doc, error)
-	parse  func(string) (*zpvalue.Node, error)
+	parse  func(string) (*sxirvalue.Node, error)
 }
 
 var entries = []entry{
@@ -226,8 +226,8 @@ func runDocumentProbes(t *testing.T, cases []documentCase, start string, mutate 
 		if err != nil {
 			return nil, err
 		}
-		return &doc{func() (*zpvalue.Node, error) { return d.Parse() }, d.Edit, d.Text, d.Stats}, nil
-	}, parse: func(s string) (*zpvalue.Node, error) { return f%[1]d.Parse(s) }},
+		return &doc{func() (*sxirvalue.Node, error) { return d.Parse() }, d.Edit, d.Text, d.Stats}, nil
+	}, parse: func(s string) (*sxirvalue.Node, error) { return f%[1]d.Parse(s) }},
 `, i)
 	}
 	write("main.go", strings.NewReplacer("IMPORTS", imports.String(), "ENTRIES", entries.String()).Replace(documentProbeMain))

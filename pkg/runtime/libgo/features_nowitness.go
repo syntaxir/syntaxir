@@ -1,4 +1,4 @@
-//go:build !zp_feature_witness
+//go:build !sxir_feature_witness
 
 package libgo
 

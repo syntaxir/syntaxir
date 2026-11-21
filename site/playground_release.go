@@ -25,7 +25,7 @@ import (
 
 // Files of a playground release.
 const (
-	releaseWasmFile     = "zp.wasm.gz"    // the binary, gzip-compressed
+	releaseWasmFile     = "sxir.wasm.gz"  // the binary, gzip-compressed
 	releaseRuntimeFile  = "wasm_exec.js"  // the runtime support of the toolchain that built it
 	releaseManifestFile = "manifest.json" // how the release was built (releaseManifest)
 )
@@ -37,7 +37,7 @@ const wasmPinFile = "site/playground-wasm.json"
 type wasmPin struct {
 	Repository    string `json:"repository"`    // GitHub repository URL, https://github.com/<owner>/<name>
 	Tag           string `json:"tag"`           // release tag, playground-wasm-v<version>
-	WasmSHA256    string `json:"wasmSHA256"`    // SHA-256 of zp.wasm.gz
+	WasmSHA256    string `json:"wasmSHA256"`    // SHA-256 of sxir.wasm.gz
 	RuntimeSHA256 string `json:"runtimeSHA256"` // SHA-256 of wasm_exec.js
 }
 
@@ -156,7 +156,7 @@ func playgroundRelease(args []string) error {
 	out := fs.String("out", "", "directory to create for the release files")
 	tag := fs.String("tag", "", "release tag, playground-wasm-v<version>")
 	toolchain := fs.String("toolchain", "go", "toolchain that builds the binary (go)")
-	repository := fs.String("repository", "https://github.com/zeroparse/zp", "GitHub repository of the release")
+	repository := fs.String("repository", "https://github.com/syntaxir/syntaxir", "GitHub repository of the release")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -192,7 +192,7 @@ func playgroundRelease(args []string) error {
 	if err != nil {
 		return err
 	}
-	spec, _ := selectWasmBuild(*toolchain, "zp.wasm")
+	spec, _ := selectWasmBuild(*toolchain, "sxir.wasm")
 	m := releaseManifest{Version: 1, Toolchain: *toolchain, ToolchainVersion: strings.TrimSpace(string(version)),
 		BuildArgs: spec.args, Source: commit, Files: []releaseFile{
 			{Name: releaseWasmFile, Size: len(gz), SHA256: hashBytes(gz), Encoding: "gzip", ContentSize: len(raw), ContentSHA256: hashBytes(raw)},

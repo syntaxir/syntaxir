@@ -1,6 +1,6 @@
 # The Abstract Machine
 
-The abstract machine is what every runtime of ZeroParse hosts: the engine's backends and every generated parser. The
+The abstract machine is what every runtime of SyntaxIR hosts: the engine's backends and every generated parser. The
 Exec dialect of [Code IR](../code-ir/README.md) declares it: the features that a function can be specialized for, the
 abstract state of a parse, as state components and registers, and the handle types, in the declarations that
 [The Module](../code-ir/module.md) describes. The operations are in [Operations](operations.md) and

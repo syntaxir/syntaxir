@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// chdirModuleRoot makes the root of module zeroparse.dev/zp the working directory of the test,
+// chdirModuleRoot makes the root of module syntaxir.dev/sxir the working directory of the test,
 // so that it reads the repository's files by the paths they have there.
 func chdirModuleRoot(t *testing.T) {
 	t.Helper()
@@ -17,13 +17,13 @@ func chdirModuleRoot(t *testing.T) {
 	}
 	for {
 		data, err := os.ReadFile(filepath.Join(dir, "go.mod"))
-		if err == nil && strings.HasPrefix(string(data), "module zeroparse.dev/zp\n") {
+		if err == nil && strings.HasPrefix(string(data), "module syntaxir.dev/sxir\n") {
 			t.Chdir(dir)
 			return
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			t.Fatal("module zeroparse.dev/zp not found above the working directory")
+			t.Fatal("module syntaxir.dev/sxir not found above the working directory")
 		}
 		dir = parent
 	}

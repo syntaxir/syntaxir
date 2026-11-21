@@ -1,5 +1,5 @@
 # Options with which the ready-made parsers of the alpha-parsers repository are generated from the grammars in this
-# directory: <name> <zp gen options>. The size report of bench/report generates the parsers with them.
+# directory: <name> <sxir gen options>. The size report of bench/report generates the parsers with them.
 cel -types -typed-only -nodoc -lib import
 csv -types -recognize -limits -nodoc -lib import
 cue -types -typed-only -nodoc -lib import

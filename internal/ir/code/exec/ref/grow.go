@@ -3,8 +3,8 @@ package ref
 import (
 	"slices"
 
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/exec"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec"
 )
 
 // The reference model of the steps of a growth in a context (grow.next, grow.step) and of the end of a

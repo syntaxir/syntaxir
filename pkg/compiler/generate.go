@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"io"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/driver/generate"
-	"zeroparse.dev/zp/pkg/grammar"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/driver/generate"
+	"syntaxir.dev/sxir/pkg/grammar"
 )
 
 // File is a file of generated code. Path is relative to the directory of the generated package
@@ -34,11 +34,11 @@ type LibMode int
 // The library modes.
 const (
 	// LibEmbed writes a copy of the library next to the parser: the package internal/libgo in
-	// Go, which depends only on the runtime packages under zeroparse.dev/zp/pkg/runtime, and
+	// Go, which depends only on the runtime packages under syntaxir.dev/sxir/pkg/runtime, and
 	// lib.ts in TypeScript, which depends on nothing. It is the default. GenerateLibGo and
 	// GenerateTypeScriptLib refresh the copy without regenerating the parser.
 	LibEmbed LibMode = iota
-	// LibImport imports the library: zeroparse.dev/zp/pkg/runtime/libgo in Go, the module of
+	// LibImport imports the library: syntaxir.dev/sxir/pkg/runtime/libgo in Go, the module of
 	// TSConfig.LibModule in TypeScript.
 	LibImport
 )
@@ -127,7 +127,7 @@ type GoConfig struct {
 	// representation of the generator is written to PrintTo as text, for debugging the generator:
 	// elaborate and the names of the Core passes for the Core IR; flowlower, the names of the Flow
 	// passes and flow-finish for the Flow IR; execlower and the names of the Exec passes for the
-	// Exec IR; or all. "zp gen -h" lists the names. It needs PrintTo.
+	// Exec IR; or all. "sxir gen -h" lists the names. It needs PrintTo.
 	PrintAfter string
 	PrintTo    io.Writer
 }
@@ -187,7 +187,7 @@ type TSConfig struct {
 	// LibImport needs LibModule.
 	Lib LibMode
 	// LibModule is the module specifier from which a parser generated with LibImport
-	// imports its library, such as "@scope/zp-lib" or "../shared/lib.ts". The library
+	// imports its library, such as "@scope/sxir-lib" or "../shared/lib.ts". The library
 	// module is the lib.ts of GenerateTypeScriptLib (or of any parser generated with LibEmbed).
 	// It is an error with another mode.
 	LibModule string
@@ -225,7 +225,7 @@ type TSConfig struct {
 	// representation of the generator is written to PrintTo as text, for debugging the generator:
 	// elaborate and the names of the Core passes for the Core IR; flowlower, the names of the Flow
 	// passes and flow-finish for the Flow IR; execlower and the names of the Exec passes for the
-	// Exec IR; or all. "zp gen -h" lists the names. It needs PrintTo.
+	// Exec IR; or all. "sxir gen -h" lists the names. It needs PrintTo.
 	PrintAfter string
 	PrintTo    io.Writer
 }

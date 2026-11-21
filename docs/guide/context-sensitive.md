@@ -2,7 +2,7 @@
 
 A plain PEG describes what may follow what, but it cannot remember anything: it cannot check that a closing tag has the
 name of its opening tag, that a block is indented like its siblings, or that a here-document ends with the delimiter
-that started it. ZeroParse adds three tools for this: **captures that Predicate Actions can read**, **variables** that carry context
+that started it. SyntaxIR adds three tools for this: **captures that Predicate Actions can read**, **variables** that carry context
 down into the rules a rule calls, and **lookahead** that can look at the input without consuming it. This guide shows
 how they work and how to combine them, with complete grammars for matching tags, indentation-based blocks,
 here-documents and similar constructs.
@@ -20,8 +20,8 @@ Contents:
    [long brackets](#long-brackets), [limiting nesting](#limiting-nesting)
 4. [Pitfalls](#pitfalls)
 
-The examples use the `zp` command (`go build -o zp ./cmd/zp`). Commands are followed by their output, standard
-output and standard error together. A grammar block whose first line is `// name.zp` is a complete file to save under
+The examples use the `sxir` command (`go build -o sxir ./cmd/sxir`). Commands are followed by their output, standard
+output and standard error together. A grammar block whose first line is `// name.sxir` is a complete file to save under
 that name; a block marked `(changed rules)` replaces the rules of the same names in that file. Every command and its
 output below were run as shown, in this order.
 
@@ -38,8 +38,8 @@ read the captures `$label` made **earlier in the same rule**. Three consequences
 
 **Only `false` is false.** A predicate that evaluates to the integer `0` succeeds. Always write the comparison:
 
-```zp
-// truthy.zp
+```sxir
+// truthy.sxir
 rule zero = {0} "a"
 @start(default)
 rule lenonly = s:"x"* #atomic {len($s)} "a"
@@ -48,7 +48,7 @@ rule compared = s:"x"* #atomic {len($s) > 0} "a"
 ```
 
 ```bash
-zp parse -g truthy.zp -s lenonly -f sexpr -i 'a'
+sxir parse -g truthy.sxir -s lenonly -f sexpr -i 'a'
 ```
 
 ```text
@@ -58,26 +58,26 @@ zp parse -g truthy.zp -s lenonly -f sexpr -i 'a'
 `{ len($s) }` is the integer 0 here, and the rule matches anyway. The comparison fails as intended:
 
 ```bash
-zp parse -g truthy.zp -s compared -f sexpr -i 'a'
+sxir parse -g truthy.sxir -s compared -f sexpr -i 'a'
 ```
 
 ```text
-zp: 1:1: syntax error: expected "x"
+sxir: 1:1: syntax error: expected "x"
 ```
 
 **Compare text, not nodes.** `==` and `!=` compare two numbers, two strings or two booleans, and anything with `nil`.
 A node is not comparable, because two captures are different nodes even when they cover the same text, so comparing
 them is an error. Use `text(x)` (the matched text) or `len(x)`:
 
-```zp
-// identity.zp
+```sxir
+// identity.sxir
 @start(default)
 rule by_text = "<" a:name "></" b:name {text($a) == text($b)} ">"
 rule name = [a-z]+ #atomic
 ```
 
 ```bash
-zp parse -g identity.zp -f sexpr -i '<a></a>'
+sxir parse -g identity.sxir -f sexpr -i '<a></a>'
 ```
 
 ```text
@@ -85,29 +85,29 @@ zp parse -g identity.zp -f sexpr -i '<a></a>'
 ```
 
 ```bash
-zp parse -g identity.zp -i '<a></b>'
+sxir parse -g identity.sxir -i '<a></b>'
 ```
 
 ```text
-zp: 1:7: syntax error: expected [a-z]
+sxir: 1:7: syntax error: expected [a-z]
 ```
 
 A grammar that compares the nodes is rejected when it is compiled:
 
 <!-- example: error -->
-```zp
-// nodes.zp
+```sxir
+// nodes.sxir
 @start(default)
 rule by_node = "<" a:name "></" b:name {$a == $b} ">"
 rule name = [a-z]+ #atomic
 ```
 
 ```bash
-zp parse -g nodes.zp -i '<a></a>'
+sxir parse -g nodes.sxir -i '<a></a>'
 ```
 
 ```text
-zp: nodes.zp:3:44: invalid operands node[string] and node[string] for ==: nodes and other structured values cannot be compared; use text(x), or .Start and .End
+sxir: nodes.sxir:3:44: invalid operands node[string] and node[string] for ==: nodes and other structured values cannot be compared; use text(x), or .Start and .End
 ```
 
 The second command shows the third consequence: **a failed predicate says nothing**. The farthest-failure rule of the
@@ -120,19 +120,19 @@ misspelled variable name is not such an error: every variable must be declared w
 undeclared name when the grammar is compiled:
 
 <!-- example: error -->
-```zp
-// typo.zp
+```sxir
+// typo.sxir
 var indent int
 @start
 rule main = {indent := 0} "a" {idnent == 0}
 ```
 
 ```bash
-zp parse -g typo.zp -i 'a'
+sxir parse -g typo.sxir -i 'a'
 ```
 
 ```text
-zp: typo.zp:4:32: undefined variable idnent; declare it with var idnent at the top level
+sxir: typo.sxir:4:32: undefined variable idnent; declare it with var idnent at the top level
 ```
 
 If a predicate unexpectedly fails, check the values and conditions it compares.
@@ -150,7 +150,7 @@ blocks are compile-time errors, and Value Actions have no block form: they use t
 
 A variable is declared once at the top level of the grammar with its type and, optionally, its initial value:
 
-```zp
+```sxir
 var depth int = 0
 var mode string
 var seen = false
@@ -174,8 +174,8 @@ an environment that flows **down** the call tree.
 The following grammar has one start rule for each row. All the rules are pure predicates, so the commands use `-recognize`,
 which prints `ok` on success:
 
-```zp
-// lab.zp
+```sxir
+// lab.sxir
 // A callee reads the caller's variable.
 var x int
 var y int
@@ -211,7 +211,7 @@ rule peeked = &{p := 1} {p == 1}
 ```
 
 ```bash
-zp parse -g lab.zp -s inherit -recognize -i ''
+sxir parse -g lab.sxir -s inherit -recognize -i ''
 ```
 
 ```text
@@ -219,7 +219,7 @@ ok
 ```
 
 ```bash
-zp parse -g lab.zp -s shadow -recognize -i ''
+sxir parse -g lab.sxir -s shadow -recognize -i ''
 ```
 
 ```text
@@ -227,23 +227,15 @@ ok
 ```
 
 ```bash
-zp parse -g lab.zp -s hidden -recognize -i ''
+sxir parse -g lab.sxir -s hidden -recognize -i ''
 ```
 
 ```text
-zp: 1:1: syntax error
+sxir: 1:1: syntax error
 ```
 
 ```bash
-zp parse -g lab.zp -s undone -recognize -i 'ac'
-```
-
-```text
-ok
-```
-
-```bash
-zp parse -g lab.zp -s stays -recognize -i 'aa'
+sxir parse -g lab.sxir -s undone -recognize -i 'ac'
 ```
 
 ```text
@@ -251,7 +243,7 @@ ok
 ```
 
 ```bash
-zp parse -g lab.zp -s kept -recognize -i 'a'
+sxir parse -g lab.sxir -s stays -recognize -i 'aa'
 ```
 
 ```text
@@ -259,7 +251,15 @@ ok
 ```
 
 ```bash
-zp parse -g lab.zp -s peeked -recognize -i ''
+sxir parse -g lab.sxir -s kept -recognize -i 'a'
+```
+
+```text
+ok
+```
+
+```bash
+sxir parse -g lab.sxir -s peeked -recognize -i ''
 ```
 
 ```text
@@ -294,14 +294,14 @@ keyword, and `(&[ \t] .)*` a whitespace rule that never clutters error messages.
 **Captures and variable definitions made inside a positive lookahead stay in effect after it; only the input position
 is restored.** This lets a rule peek at something, bind it, and test it before consuming:
 
-```zp
-// peek.zp
+```sxir
+// peek.sxir
 @start
 rule main = &s:[a-z]+ {len($s) == 3} [a-z]+ $$
 ```
 
 ```bash
-zp parse -g peek.zp -recognize -i 'abc'
+sxir parse -g peek.sxir -recognize -i 'abc'
 ```
 
 ```text
@@ -309,11 +309,11 @@ ok
 ```
 
 ```bash
-zp parse -g peek.zp -recognize -i 'abcd'
+sxir parse -g peek.sxir -recognize -i 'abcd'
 ```
 
 ```text
-zp: 1:1: syntax error
+sxir: 1:1: syntax error
 ```
 
 The indentation recipe below uses exactly this to read the indentation of the *next* line without consuming it.
@@ -349,7 +349,7 @@ Three attributes matter here:
 
 A packrat parser caches the result of a rule at each input position, so that backtracking does not repeat work. A rule
 that reads variables does not depend on the position alone: the same rule at the same position can succeed with one
-`indent` and fail with another. ZeroParse therefore keys the cache by the position **and the values of the variables the rule
+`indent` and fail with another. SyntaxIR therefore keys the cache by the position **and the values of the variables the rule
 can read** in predicates and actions, including Operators Rule actions, directly or through the rules it calls (see the
 [specification](../../spec/language/predicates.md#interaction-with-memoization)). A cached result is reused only when
 those values are equal, so memoization never changes what a parse returns, only what it costs.
@@ -358,8 +358,8 @@ What this means when you write a grammar:
 
 - **Write it naturally.** A rule that reads variables can still be memoized: calls at the same position are kept separate only when the values they read differ. An ordered choice that re-parses a prefix can therefore reuse work when those values match:
 
-```zp
-// memo.zp
+```sxir
+// memo.sxir
 // Each level parses the nested group, fails at "x", and parses it again for "y". Without
 // memoization that is 2^n work for n levels; `group` reads `mode`.
 var mode int
@@ -370,7 +370,7 @@ rule group = "(" group ")" "x" {mode == 1} / "(" group ")" "y" {mode == 1} / "z"
 ```
 
 ```bash
-zp parse -g memo.zp -recognize -i "$(printf '(%.0s' {1..40})z$(printf ')y%.0s' {1..40})"
+sxir parse -g memo.sxir -recognize -i "$(printf '(%.0s' {1..40})z$(printf ')y%.0s' {1..40})"
 ```
 
 ```text
@@ -394,23 +394,23 @@ own grammar, see the [performance measurement method](../performance.md#how-to-m
 ### Matching Tags
 
 The closing tag must repeat the name of the opening tag. When both are in the same rule, capture the names and compare
-the text. That is how [alpha-parsers/xml](../../testdata/grammars/xml/xml.zp) does it (a rule `element`, with
+the text. That is how [alpha-parsers/xml](../../testdata/grammars/xml/xml.sxir) does it (a rule `element`, with
 `"<" n:name ... "</" e:name {text($e) == text($n)} @error(message="mismatched end tag")`):
 
 ```bash
-zp parse -g testdata/grammars/xml/xml.zp -f sexpr -i '<a><b>text</c></a>'
+sxir parse -g testdata/grammars/xml/xml.sxir -f sexpr -i '<a><b>text</c></a>'
 ```
 
 ```text
-zp: 1:14: mismatched end tag
+sxir: 1:14: mismatched end tag
 ```
 
 (Run from the repository root.) When the closing tag is parsed by **another rule**, because it is shared or because the
 content rule is complicated, the name must travel to it: define a variable after the opening tag. The nesting works by
 itself, because each `element` invocation defines its own `tag` and the definition disappears when it returns:
 
-```zp
-// tags.zp
+```sxir
+// tags.sxir
 package tags
 
 type Element = { Name node[string]; Children []Content }
@@ -433,7 +433,7 @@ rule name = [a-z]+ #atomic
 ```
 
 ```bash
-zp parse -g tags.zp -f sexpr -i '<a><b>x</b><c>y</c></a>'
+sxir parse -g tags.sxir -f sexpr -i '<a><b>x</b><c>y</c></a>'
 ```
 
 ```text
@@ -441,30 +441,30 @@ Element{Children: [Element{Children: ["x"], Name: "b"} Element{Children: ["y"], 
 ```
 
 ```bash
-zp parse -g tags.zp -i '<a><b>x</a></b>'
+sxir parse -g tags.sxir -i '<a><b>x</a></b>'
 ```
 
 ```text
-zp: 1:11: mismatched end tag
+sxir: 1:11: mismatched end tag
 ```
 
 The error is at the position after the offending name: the predicate is evaluated there, and the label is recorded at
 that position. An unclosed element fails in `content*`/`close_tag` the ordinary way:
 
 ```bash
-zp parse -g tags.zp -i '<a><a>x</a>'
+sxir parse -g tags.sxir -i '<a><a>x</a>'
 ```
 
 ```text
-zp: 1:12: syntax error: expected "<", "</", [^<]
+sxir: 1:12: syntax error: expected "<", "</", [^<]
 ```
 
 ### Indentation Blocks
 
-[examples/outline](../../examples/outline/outline.zp) parses an outline whose hierarchy is its indentation:
+[examples/outline](../../examples/outline/outline.sxir) parses an outline whose hierarchy is its indentation:
 
-```zp
-// outline.zp
+```sxir
+// outline.sxir
 package outline
 
 type Item = {
@@ -494,7 +494,7 @@ rule blank = [ \t]* "\n"
 ```
 
 ```bash
-zp parse -g outline.zp -f sexpr -i $'fruits\n  apple\n  citrus\n    lemon\nvegetables\n'
+sxir parse -g outline.sxir -f sexpr -i $'fruits\n  apple\n  citrus\n    lemon\nvegetables\n'
 ```
 
 ```text
@@ -520,19 +520,19 @@ The failure case is the instructive one. A line that is indented but matches no 
 `block`:
 
 ```bash
-zp parse -g outline.zp -i $'a\n    b\n  c\n'
+sxir parse -g outline.sxir -i $'a\n    b\n  c\n'
 ```
 
 ```text
-zp: 3:3: syntax error: expected " ", "\n", [ \t]
+sxir: 3:3: syntax error: expected " ", "\n", [ \t]
 ```
 
 That error is only the farthest point the parser reached, at the end of the indentation of `  c`, where the rules for
 more spaces and for a blank line were still trying; it says nothing about the problem. Label the predicate (a failed
 predicate records no expected item, so the label alone is recorded at that position):
 
-```zp
-// outline.zp (changed rules)
+```sxir
+// outline.sxir (changed rules)
 rule item Item = (
     s:spaces {len($s) == indent} @error(message="inconsistent indentation")
     text:line eol cs:children?
@@ -540,15 +540,15 @@ rule item Item = (
 ```
 
 ```bash
-zp parse -g outline.zp -i $'a\n    b\n  c\n'
+sxir parse -g outline.sxir -i $'a\n    b\n  c\n'
 ```
 
 ```text
-zp: 3:3: inconsistent indentation
+sxir: 3:3: inconsistent indentation
 ```
 
 ```bash
-zp parse -g outline.zp -f sexpr -i $'a\n b\n  c\n d\n'
+sxir parse -g outline.sxir -f sexpr -i $'a\n b\n  c\n d\n'
 ```
 
 ```text
@@ -558,7 +558,7 @@ zp parse -g outline.zp -f sexpr -i $'a\n b\n  c\n d\n'
 The label does not make valid input fail: at a normal block end, `item` fails at the same predicate, but that only
 records a candidate error, which matters only if the parse as a whole fails and this is its farthest failure.
 
-**The Python grammar.** [alpha-parsers/python](../../testdata/grammars/python/python.zp) uses the same idea at scale. It packs the
+**The Python grammar.** [alpha-parsers/python](../../testdata/grammars/python/python.sxir) uses the same idea at scale. It packs the
 indentation of the current block (its column, its column with tabs counted as one, which detects inconsistent use of
 tabs, and the number of enclosing blocks) into one variable, `ind`:
 
@@ -573,19 +573,19 @@ tabs, and the number of enclosing blocks) into one variable, `ind`:
   after the other, and `main` ends with its own message, `invalid syntax`.
 
 ```bash
-zp parse -g testdata/grammars/python/python.zp -f sexpr -i $'if x:\npass\n'
+sxir parse -g testdata/grammars/python/python.sxir -f sexpr -i $'if x:\npass\n'
 ```
 
 ```text
-zp: 2:1: expected an indented block
+sxir: 2:1: expected an indented block
 ```
 
 ```bash
-zp parse -g testdata/grammars/python/python.zp -i $'if x:\n    a = 1\n  b = 2\n'
+sxir parse -g testdata/grammars/python/python.sxir -i $'if x:\n    a = 1\n  b = 2\n'
 ```
 
 ```text
-zp: 3:3: invalid syntax
+sxir: 3:3: invalid syntax
 ```
 
 ### Newlines That Depend on Context
@@ -594,8 +594,8 @@ Python also joins lines inside brackets. The grammar keeps a boolean variable `n
 newline only while `nl` is true; every rule that opens a bracket defines `nl = true`. Because a variable is visible
 only below the rule that defines it, the flag turns off by itself when the bracket closes:
 
-```zp
-// nl.zp
+```sxir
+// nl.sxir
 // Statements end at a newline, except inside brackets, where a newline is whitespace.
 var nl bool
 
@@ -614,7 +614,7 @@ rule number = [0-9]+ #atomic
 ```
 
 ```bash
-zp parse -g nl.zp -recognize -i $'x = (1 +\n  2)\ny = 3\n'
+sxir parse -g nl.sxir -recognize -i $'x = (1 +\n  2)\ny = 3\n'
 ```
 
 ```text
@@ -622,11 +622,11 @@ ok
 ```
 
 ```bash
-zp parse -g nl.zp -i $'x = 1 +\n  2\n'
+sxir parse -g nl.sxir -i $'x = 1 +\n  2\n'
 ```
 
 ```text
-zp: 1:8: syntax error: expected "(", [ \t], [0-9], [a-z]
+sxir: 1:8: syntax error: expected "(", [ \t], [0-9], [a-z]
 ```
 
 In the first input the newline inside `( ... )` is whitespace; the one after `)` ends the statement. In the second there
@@ -640,8 +640,8 @@ or not defined).
 A here-document ends at a line that is exactly the delimiter given at the start. The delimiter is data from the input,
 so it needs a variable:
 
-```zp
-// heredoc.zp
+```sxir
+// heredoc.sxir
 package doc
 
 type Heredoc = { Tag node[string]; Lines []node[string] }
@@ -669,7 +669,7 @@ rule ws = [ \t\r\n]*
 ```
 
 ```bash
-zp parse -g heredoc.zp -f sexpr -i $'echo a\ncat <<END\nline EOF\nEOF\nEND\necho b\n'
+sxir parse -g heredoc.sxir -f sexpr -i $'echo a\ncat <<END\nline EOF\nEOF\nEND\necho b\n'
 ```
 
 ```text
@@ -689,19 +689,19 @@ single iteration of a repetition. The body of the repetition is a new scope, so 
 detected when the grammar is compiled:
 
 <!-- example: error -->
-```zp
-// scope_bad.zp
+```sxir
+// scope_bad.sxir
 @start
 rule main = t:word ("," w:word {text($w) != text($t)})* $$
 rule word = [a-z]+ #atomic
 ```
 
 ```bash
-zp parse -g scope_bad.zp -i 'a,b'
+sxir parse -g scope_bad.sxir -i 'a,b'
 ```
 
 ```text
-zp: scope_bad.zp:3:50: capture $t is not visible in a repetition element, which sees only its own captures; define a variable from it before the repetition
+sxir: scope_bad.sxir:3:50: capture $t is not visible in a repetition element, which sees only its own captures; define a variable from it before the repetition
 ```
 
 A variable crosses scopes (it is visible to everything below the rule that defines it, including repetition bodies),
@@ -710,11 +710,11 @@ which is what makes it the right carrier for "something from the beginning that 
 An unterminated document is reported where it ends:
 
 ```bash
-zp parse -g heredoc.zp -i $'cat <<EOF\nhello\n'
+sxir parse -g heredoc.sxir -i $'cat <<EOF\nhello\n'
 ```
 
 ```text
-zp: 3:1: unterminated here-document
+sxir: 3:1: unterminated here-document
 ```
 
 ### Long Brackets
@@ -723,8 +723,8 @@ Lua writes strings as `[[ ... ]]`, `[=[ ... ]=]`, `[==[ ... ]==]`: the closing b
 opening one, so that the text may contain shorter closers. The number is a variable, and the closing bracket is a rule
 that reads it:
 
-```zp
-// longstr.zp
+```sxir
+// longstr.sxir
 @start
 rule main = long_string $$
 var level int
@@ -734,7 +734,7 @@ rule long_close = "]" e:"="* #atomic "]" {len($e) == level}
 ```
 
 ```bash
-zp parse -g longstr.zp -f sexpr -i '[==[a]]b]=]c]==]'
+sxir parse -g longstr.sxir -f sexpr -i '[==[a]]b]=]c]==]'
 ```
 
 ```text
@@ -742,11 +742,11 @@ zp parse -g longstr.zp -f sexpr -i '[==[a]]b]=]c]==]'
 ```
 
 ```bash
-zp parse -g longstr.zp -i '[==[a]=]'
+sxir parse -g longstr.sxir -i '[==[a]=]'
 ```
 
 ```text
-zp: 1:9: unterminated long string
+sxir: 1:9: unterminated long string
 ```
 
 `!long_close` is a negative lookahead that calls a rule with captures: that is allowed, because the restriction on
@@ -758,8 +758,8 @@ captures in `!` is about the expression written inside it, and the captures of `
 A counter along the call chain checks a depth limit: every `group` defines a new `depth` from its caller's value, so
 siblings at the same level see the same value:
 
-```zp
-// depth.zp
+```sxir
+// depth.sxir
 // Parentheses nested at most three levels deep.
 var depth int
 
@@ -770,7 +770,7 @@ rule group = "(" {depth := depth + 1} {depth <= 3} @error(message="nested too de
 ```
 
 ```bash
-zp parse -g depth.zp -recognize -i '((()()))'
+sxir parse -g depth.sxir -recognize -i '((()()))'
 ```
 
 ```text
@@ -778,11 +778,11 @@ ok
 ```
 
 ```bash
-zp parse -g depth.zp -recognize -i '(((())))'
+sxir parse -g depth.sxir -recognize -i '(((())))'
 ```
 
 ```text
-zp: 1:5: nested too deeply
+sxir: 1:5: nested too deeply
 ```
 
 ## Pitfalls

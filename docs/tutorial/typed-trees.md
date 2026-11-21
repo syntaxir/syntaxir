@@ -6,7 +6,7 @@ reads them from Go.
 
 ## What You Will Build
 
-A `config.zp` grammar whose result is a `Config` with a list of `Entry` values, and a Go program that prints them.
+A `config.sxir` grammar whose result is a `Config` with a list of `Entry` values, and a Go program that prints them.
 
 ## Before You Start
 
@@ -15,11 +15,11 @@ Complete [Parsing Structured Input](structured-input.md): you need `example.conf
 
 ## Declaring Types and Actions
 
-A `Config` has a list of `Entry` values, each with a key and a typed value. In ZeroParse you declare these types in the
-grammar and construct them with actions. Save as `config.zp`:
+A `Config` has a list of `Entry` values, each with a key and a typed value. In SyntaxIR you declare these types in the
+grammar and construct them with actions. Save as `config.sxir`:
 
-```zp
-// config.zp
+```sxir
+// config.sxir
 package config
 
 type Key = node[string]
@@ -54,7 +54,7 @@ rule comment = "#" [^\n]*
 ```
 
 ```bash
-zp parse -g config.zp -f sexpr < example.conf
+sxir parse -g config.sxir -f sexpr < example.conf
 ```
 
 ```text
@@ -74,38 +74,38 @@ What is new:
   interface. `~` declares an alias, another name for a type; `=` defines a new struct type. Because `value` is declared as `Value`, the compiler checks that each alternative is one of the members.
 - `type Entry = { ... }` defines a **struct type**; fields are separated by newlines or semicolons. Field types can be
   lists (`[]Entry`), optional values (`*T`), or joins.
-- `rule name [Type] = expression` states the optional type of a rule. You can omit it and ZeroParse infers the type from the body, but
+- `rule name [Type] = expression` states the optional type of a rule. You can omit it and SyntaxIR infers the type from the body, but
   declaring the types of the rules that build your tree documents them and keeps mistakes close to where they happen.
 - `es:entry*` captures the whole list of entries. `$es` is a node, so `$es.Value` is its value, the list that
   `Config{Entries: $es.Value}` stores in the `Config` struct. Every node has the members `.Start`, `.End` and `.Value`.
 
-The compiler rejects ill-typed grammars with a position in the grammar file. In a copy of `config.zp`, swapping the
+The compiler rejects ill-typed grammars with a position in the grammar file. In a copy of `config.sxir`, swapping the
 arguments in the `entry` action:
 
-<!-- example: skip: a copy of config.zp with the arguments of the entry action swapped -->
+<!-- example: skip: a copy of config.sxir with the arguments of the entry action swapped -->
 ```bash
-zp parse -g bad-type.zp -f sexpr -i 'a=1'   # ... Entry{Key: $v, Value: $k}
+sxir parse -g bad-type.sxir -f sexpr -i 'a=1'   # ... Entry{Key: $v, Value: $k}
 ```
 
 ```text
-zp: bad-type.zp:22:60: cannot use Number | String | Bool as Key in field Key of Entry
-bad-type.zp:22:69: cannot use Key as Number | String | Bool in field Value of Entry
+sxir: bad-type.sxir:22:60: cannot use Number | String | Bool as Key in field Key of Entry
+bad-type.sxir:22:69: cannot use Key as Number | String | Bool in field Value of Entry
 ```
 
 and misspelling a field name:
 
-<!-- example: skip: a copy of config.zp with a field name misspelled -->
+<!-- example: skip: a copy of config.sxir with a field name misspelled -->
 ```bash
-zp parse -g bad-field.zp -f sexpr -i 'a=1'   # ... Entry{Key: $k, Valu: $v}
+sxir parse -g bad-field.sxir -f sexpr -i 'a=1'   # ... Entry{Key: $k, Valu: $v}
 ```
 
 ```text
-zp: bad-field.zp:22:69: Entry has no field Valu
+sxir: bad-field.sxir:22:69: Entry has no field Valu
 ```
 
 ### Using the Tree From Go
 
-The typed tree is what your program consumes. Put `config.zp` and an `example.conf` next to this `main.go`, which
+The typed tree is what your program consumes. Put `config.sxir` and an `example.conf` next to this `main.go`, which
 embeds the grammar and prints the entries:
 
 ```go
@@ -118,16 +118,16 @@ import (
 	"log"
 	"os"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
-//go:embed config.zp
+//go:embed config.sxir
 var grammarSource string
 
 func main() {
-	p, err := compiler.Compile(grammar.FromString("grammar.zp", grammarSource), compiler.WithStart("main"))
+	p, err := compiler.Compile(grammar.FromString("grammar.sxir", grammarSource), compiler.WithStart("main"))
 	if err != nil {
 		log.Fatal(err) // a mistake in the grammar
 	}

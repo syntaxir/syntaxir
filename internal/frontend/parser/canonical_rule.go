@@ -1,9 +1,9 @@
 package parser
 
 import (
-	"zeroparse.dev/zp/internal/frontend/parser/sourceast"
-	"zeroparse.dev/zp/internal/frontend/parser/zpparser/types"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend/parser/sourceast"
+	"syntaxir.dev/sxir/internal/frontend/parser/sxirparser/types"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Parser expressions. The nodes of the AST are built, and recorded for source

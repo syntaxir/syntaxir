@@ -3,8 +3,8 @@ package print
 import (
 	"fmt"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 func (g *Generator) tracePlainCall(r *common.Rule, name string) string {

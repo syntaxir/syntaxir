@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"slices"
 
-	"zeroparse.dev/zp/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code"
 )
 
 // VerifyModule checks a module of grammar code at the Flow stage: the invariants of Code IR

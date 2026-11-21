@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/driver/entry"
-	"zeroparse.dev/zp/internal/frontend/parser"
-	"zeroparse.dev/zp/internal/testing/starttest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/testing/starttest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // lintSource lints src (which must compile) from the rule main and returns the findings as
@@ -207,7 +207,7 @@ func TestNullableRepetition(t *testing.T) {
 		{name: "lookahead element", src: `rule main = (&"a")+ "a"`, want: []string{"1:13 warning nullable-repetition"}},
 		{name: "nullable rule", src: "rule main = ws*\nrule ws = [ ]*", want: []string{"1:13 warning nullable-repetition"}},
 		{name: "consuming element", src: `rule main = ("a" "b"?)*`},
-		// A line that is not at the end of the input must consume its line break: like csv.zp.
+		// A line that is not at the end of the input must consume its line break: like csv.sxir.
 		{name: "not nullable because of the end of input", src: "rule main = line* $$\nrule line = !$$ [^\\n]* (\"\\n\" / $$)"},
 		{name: "nullable at the end of input", src: "rule main = line* $$\nrule line = [^\\n]* (\"\\n\" / $$)",
 			want: []string{"1:13 warning nullable-repetition"}},
@@ -368,7 +368,7 @@ func TestDirectives(t *testing.T) {
 // TestExamples lints the example grammars. They have no findings: any finding is a false positive
 // (or a new mistake in an example).
 func TestExamples(t *testing.T) {
-	files, err := filepath.Glob("../../../examples/*/*.zp")
+	files, err := filepath.Glob("../../../examples/*/*.sxir")
 	if err != nil || len(files) == 0 {
 		t.Fatalf("no example grammars: %v", err)
 	}

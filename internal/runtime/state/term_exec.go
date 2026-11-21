@@ -7,10 +7,10 @@ import (
 	"strconv"
 	"strings"
 
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/internal/runtime/program"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
-	valueimpl "zeroparse.dev/zp/pkg/runtime/value/impl"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/internal/runtime/program"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
+	valueimpl "syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // The codes of the binary operators, as the compositions of terms take them, for generated parsers;
@@ -360,7 +360,7 @@ func (p *Parser) termPushItems(c *EvalCtx, fn string, v any) error {
 // and those of a list or a tuple. Any other value fails.
 //
 // Printed from Exec IR function items of internal/ir/code/exec/compose.
-func (p *Parser) termItems(fn string, v any) ([]*zpvalue.Node, error) {
+func (p *Parser) termItems(fn string, v any) ([]*sxirvalue.Node, error) {
 	items, ok := valItems(v)
 	if ok {
 		return items, nil
@@ -373,7 +373,7 @@ func (p *Parser) termItems(fn string, v any) ([]*zpvalue.Node, error) {
 // nothing; the loop charges the step (seq.step) before it, so that itemAt stays small enough for a target to inline.
 //
 // Printed from Exec IR function itemAt of internal/ir/code/exec/compose.
-func (p *Parser) termItemAt(items []*zpvalue.Node, i int, right bool) any {
+func (p *Parser) termItemAt(items []*sxirvalue.Node, i int, right bool) any {
 	if right {
 		return nodes.UnboxNode(items[len(items)-1-i])
 	}
@@ -457,7 +457,7 @@ func (p *Parser) termConvert(t *nodes.NodeTypeKinds, x any) (any, error) {
 // whether it had none before, and the first node gives n its range.
 //
 // Printed from Exec IR function cover of internal/ir/code/exec/compose.
-func (p *Parser) termCover(n *zpvalue.Node, v any, first bool) bool {
+func (p *Parser) termCover(n *sxirvalue.Node, v any, first bool) bool {
 	k, ok := nodeOf(v)
 	if !ok {
 		return first
@@ -480,7 +480,7 @@ func (p *Parser) termCover(n *zpvalue.Node, v any, first bool) bool {
 // rule if no field value is a node, and c records n.
 //
 // Printed from Exec IR function made of internal/ir/code/exec/compose.
-func (p *Parser) termMade(c *EvalCtx, n *zpvalue.Node, first bool) {
+func (p *Parser) termMade(c *EvalCtx, n *sxirvalue.Node, first bool) {
 	if first {
 		rs, re := c.Start, c.End
 		setSpan(n, rs, re)
@@ -494,7 +494,7 @@ func (p *Parser) termMade(c *EvalCtx, n *zpvalue.Node, first bool) {
 // struct that holds one covers it.
 //
 // Printed from Exec IR function hull of internal/ir/code/exec/compose.
-func (p *Parser) termHull(c *EvalCtx, tuple bool, kids []*zpvalue.Node) *zpvalue.Node {
+func (p *Parser) termHull(c *EvalCtx, tuple bool, kids []*sxirvalue.Node) *sxirvalue.Node {
 	var j int
 	n := p.NewNode(nodes.Data{Kind: seqKind(tuple), Children: kids})
 	rs, _ := c.Start, c.End
@@ -608,7 +608,7 @@ func (p *Parser) termConforms(t *program.FieldType, v any) bool {
 // node has a string, and a tuple node or a list node its elements as value.
 //
 // Printed from Exec IR function valueConforms of internal/ir/code/exec/compose.
-func (p *Parser) termValueConforms(t *program.FieldType, n *zpvalue.Node, shape int) bool {
+func (p *Parser) termValueConforms(t *program.FieldType, n *sxirvalue.Node, shape int) bool {
 	var i int
 	kt := int(t.Kind)
 	// A node of a type whose value is a string, a tuple or a list.
@@ -649,7 +649,7 @@ func (p *Parser) termValueConforms(t *program.FieldType, n *zpvalue.Node, shape 
 // of the list, charging a step for each element it examines; the type _ takes every element, and charges nothing.
 //
 // Printed from Exec IR function elemsConform of internal/ir/code/exec/compose.
-func (p *Parser) termElemsConform(t *program.FieldType, items []*zpvalue.Node) bool {
+func (p *Parser) termElemsConform(t *program.FieldType, items []*sxirvalue.Node) bool {
 	var j int
 	if int(t.Kind) == 95 {
 		return true
@@ -668,7 +668,7 @@ func (p *Parser) termElemsConform(t *program.FieldType, items []*zpvalue.Node) b
 // as many, and each of its own type, charging a step for each element it examines.
 //
 // Printed from Exec IR function tupleConform of internal/ir/code/exec/compose.
-func (p *Parser) termTupleConform(t *program.FieldType, items []*zpvalue.Node) bool {
+func (p *Parser) termTupleConform(t *program.FieldType, items []*sxirvalue.Node) bool {
 	var j int
 	count := len(items)
 	if count != len(t.Alts) {

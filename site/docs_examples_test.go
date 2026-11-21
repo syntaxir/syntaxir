@@ -20,11 +20,11 @@ import (
 // code. The conventions of the pages that the test relies on are in
 // docs/documentation-style.md ("Examples"):
 //
-//   - A zp block whose first line is `// name.zp` is a file to save under that name, and one whose
-//     first line is `// name.zp (changed rules)` replaces the rules of the same names in that
+//   - A sxir block whose first line is `// name.sxir` is a file to save under that name, and one whose
+//     first line is `// name.sxir (changed rules)` replaces the rules of the same names in that
 //     file. The files of a page live in one directory, in the order of the page.
-//   - A zp block that contains `@start` is a complete grammar and must compile.
-//   - A bash block of lines that start with `zp`, followed by a text block, is a command and
+//   - A sxir block that contains `@start` is a complete grammar and must compile.
+//   - A bash block of lines that start with `sxir`, followed by a text block, is a command and
 //     its output (standard output and standard error together, or the standard output alone). The command is run in the
 //     directory of the page; a path that the page does not create but the repository has is
 //     made available there.
@@ -43,11 +43,11 @@ import (
 // document.
 var (
 	exampleMarkerRe  = regexp.MustCompile(`^<!--\s*example:\s*(error|file\s+[A-Za-z0-9_][A-Za-z0-9_./-]*|skip:\s*\S.*?)\s*-->$`)
-	exampleFileRe    = regexp.MustCompile(`^//\s*([A-Za-z0-9_][A-Za-z0-9_./-]*\.zp)(\s+\(changed rules\))?\s*$`)
+	exampleFileRe    = regexp.MustCompile(`^//\s*([A-Za-z0-9_][A-Za-z0-9_./-]*\.sxir)(\s+\(changed rules\))?\s*$`)
 	exampleUseRe     = regexp.MustCompile(`^<!--\s*example:\s*use\s+(\S+\.md)\s*-->$`)
 	exampleCatRe     = regexp.MustCompile(`^cat\s+([A-Za-z0-9_][A-Za-z0-9_./-]*)$`)
 	exampleHereRe    = regexp.MustCompile(`^cat\s*>\s*([A-Za-z0-9_][A-Za-z0-9_./-]*)\s*<<\s*'?(\w+)'?$`)
-	exampleCommandRe = regexp.MustCompile(`^(printf '[^']*' \| )?zp [a-z]`)
+	exampleCommandRe = regexp.MustCompile(`^(printf '[^']*' \| )?sxir [a-z]`)
 	exampleDeclRe    = regexp.MustCompile(`^(rule|type|var|const)\s+([A-Za-z_][A-Za-z0-9_]*)`)
 )
 
@@ -169,17 +169,17 @@ func replaceRules(base, changed string) string {
 	return strings.Join(out, "\n") + "\n"
 }
 
-// zpBinary builds cmd/zp once, for all pages.
-var zpBinary = sync.OnceValues(func() (string, error) {
-	dir, err := os.MkdirTemp("", "zp-doc-examples-")
+// sxirBinary builds cmd/sxir once, for all pages.
+var sxirBinary = sync.OnceValues(func() (string, error) {
+	dir, err := os.MkdirTemp("", "sxir-doc-examples-")
 	if err != nil {
 		return "", err
 	}
-	bin := filepath.Join(dir, "zp")
-	cmd := exec.Command("go", "build", "-o", bin, "zeroparse.dev/zp/cmd/zp")
+	bin := filepath.Join(dir, "sxir")
+	cmd := exec.Command("go", "build", "-o", bin, "syntaxir.dev/sxir/cmd/sxir")
 	cmd.Dir = ".."
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return "", fmt.Errorf("go build ./cmd/zp: %v\n%s", err, out)
+		return "", fmt.Errorf("go build ./cmd/sxir: %v\n%s", err, out)
 	}
 	return bin, nil
 })
@@ -216,7 +216,7 @@ func exampleCommandPaths(dir, command string) error {
 	return nil
 }
 
-// runExampleCommand runs a command line in dir with the built zp first on the path and returns
+// runExampleCommand runs a command line in dir with the built sxir first on the path and returns
 // its standard output and standard error together, in the order written, or with withStderr
 // false its standard output alone.
 func runExampleCommand(bin, dir, command string, withStderr bool) (string, error) {
@@ -302,7 +302,7 @@ var deferredPages = map[string]string{}
 // exampleStats counts what TestDocumentationExamples did, for the log.
 type exampleStats struct{ Compiled, Rejected, Commands, Skipped int }
 
-// isCommandBlock reports whether every line of a bash block is a zp command.
+// isCommandBlock reports whether every line of a bash block is a sxir command.
 func isCommandBlock(body []string) bool {
 	for _, l := range body {
 		if !exampleCommandRe.MatchString(l) {
@@ -324,7 +324,7 @@ func fileOfBlock(blocks []exampleBlock, i int, files map[string]string) (name, t
 		return n, text, true
 	}
 	switch {
-	case b.Lang == "zp" && len(b.Body) > 0:
+	case b.Lang == "sxir" && len(b.Body) > 0:
 		m := exampleFileRe.FindStringSubmatch(b.Body[0])
 		if m == nil {
 			return "", "", false
@@ -409,7 +409,7 @@ func checkPageExamples(t *testing.T, bin, rel string, st *exampleStats) {
 			saveExampleFile(t, dir, name, text)
 		}
 		switch {
-		case b.Lang == "zp":
+		case b.Lang == "sxir":
 			if skip || !strings.Contains(text, "@start") && b.Marker != "error" {
 				if skip {
 					st.Skipped++
@@ -417,10 +417,10 @@ func checkPageExamples(t *testing.T, bin, rel string, st *exampleStats) {
 				continue
 			}
 			if name == "" {
-				name = fmt.Sprintf("block-%d.zp", b.Line)
+				name = fmt.Sprintf("block-%d.sxir", b.Line)
 				saveExampleFile(t, dir, name, text)
 			}
-			out, err := runExampleCommand(bin, dir, "zp compile -g '"+name+"' -o /dev/null", true)
+			out, err := runExampleCommand(bin, dir, "sxir compile -g '"+name+"' -o /dev/null", true)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -496,7 +496,7 @@ func exampleDocs(t *testing.T) []string {
 // TestDocumentationExamples compiles the complete grammars of the pages and runs their
 // single-command examples against the output that the pages show.
 func TestDocumentationExamples(t *testing.T) {
-	bin, err := zpBinary()
+	bin, err := sxirBinary()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -529,17 +529,17 @@ func TestExampleBlocks(t *testing.T) {
 		"text",
 		"<!-- example: error -->",
 		"",
-		"```zp",
-		"// a.zp",
+		"```sxir",
+		"// a.sxir",
 		"```",
 		"- item",
 		"",
 		"  ```bash",
-		"  zp fmt a.zp",
+		"  sxir fmt a.sxir",
 		"  ```",
 		"<!-- example: skip: prints times -->",
 		"```bash",
-		"zp profile",
+		"sxir profile",
 		"```",
 		"```text",
 		"x",
@@ -547,9 +547,9 @@ func TestExampleBlocks(t *testing.T) {
 	}, "\n"), "\n")
 	got := exampleBlocks(page)
 	want := []exampleBlock{
-		{"zp", []string{"// a.zp"}, 4, "error"},
-		{"bash", []string{"zp fmt a.zp"}, 9, ""},
-		{"bash", []string{"zp profile"}, 13, "skip: prints times"},
+		{"sxir", []string{"// a.sxir"}, 4, "error"},
+		{"bash", []string{"sxir fmt a.sxir"}, 9, ""},
+		{"bash", []string{"sxir profile"}, 13, "skip: prints times"},
 		{"text", []string{"x"}, 16, ""},
 	}
 	if len(got) != len(want) {

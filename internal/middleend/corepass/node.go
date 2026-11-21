@@ -3,7 +3,7 @@ package corepass
 import (
 	"fmt"
 
-	"zeroparse.dev/zp/internal/ir/core"
+	"syntaxir.dev/sxir/internal/ir/core"
 )
 
 // The queries below answer for any node of the module the facts were computed on, with the rule

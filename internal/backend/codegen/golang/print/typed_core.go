@@ -1,8 +1,8 @@
 package print
 
 import (
-	irbuild "zeroparse.dev/zp/internal/frontend/elaborate"
-	"zeroparse.dev/zp/internal/ir/core"
+	irbuild "syntaxir.dev/sxir/internal/frontend/elaborate"
+	"syntaxir.dev/sxir/internal/ir/core"
 )
 
 // TypedCore builds the Core IR of the typed Go rules and runs the pipeline of Core passes on it:

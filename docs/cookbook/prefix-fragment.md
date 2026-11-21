@@ -9,8 +9,8 @@ on the beginning of its input, does not require the rule to reach the end, and r
 closing delimiter in the rule, so that the consumed length includes it. A syntax error is local to the fragment, so the
 program adds the fragment's offset to report a position in the whole text.
 
-```zp
-// expr.zp
+```sxir
+// expr.sxir
 package expr
 
 type Num = node[string]
@@ -47,13 +47,13 @@ import (
 	"strconv"
 	"strings"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
-	"zeroparse.dev/zp/pkg/runtime/vm"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/runtime/vm"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
-//go:embed expr.zp
+//go:embed expr.sxir
 var grammarSrc string
 
 func eval(n *value.Node, vars map[string]float64) (float64, error) {
@@ -132,7 +132,7 @@ func render(p *vm.Parser, template string, vars map[string]float64) (string, err
 }
 
 func main() {
-	p, err := compiler.Compile(grammar.FromString("grammar.zp", grammarSrc), compiler.WithStart("fragment"))
+	p, err := compiler.Compile(grammar.FromString("grammar.sxir", grammarSrc), compiler.WithStart("fragment"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

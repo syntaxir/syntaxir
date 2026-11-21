@@ -1,4 +1,4 @@
-// Package core is the Core IR of ZeroParse: typed parsing expressions whose observable effects are
+// Package core is the Core IR of SyntaxIR: typed parsing expressions whose observable effects are
 // explicit, built once from a checked grammar (design 062). Optimizations are rewrites of Core IR
 // with stated preconditions, and each target lowers from it.
 //
@@ -14,7 +14,7 @@
 // (Type), and the handles of a cast (Cast.Check, Cast.Key) carry what only a backend needs.
 package core
 
-import "zeroparse.dev/zp/internal/cancel"
+import "syntaxir.dev/sxir/internal/cancel"
 
 // Module is a program variant in Core IR.
 type Module struct {

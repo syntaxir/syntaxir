@@ -3,8 +3,8 @@ package ref
 import (
 	"slices"
 
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/action"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/action"
 )
 
 // What terms make (action.Gathered and action.Made): the stack of the elements gathered for the lists and

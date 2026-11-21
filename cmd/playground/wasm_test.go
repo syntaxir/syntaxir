@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// TestWasmSmoke builds the playground for WebAssembly and the zp command, and runs
+// TestWasmSmoke builds the playground for WebAssembly and the sxir command, and runs
 // testdata/smoke.mjs in Node, which compares the WebAssembly API with the command on every example of
 // examples.txt. It is skipped when node is not installed and in -short mode.
 func TestWasmSmoke(t *testing.T) {
@@ -21,16 +21,16 @@ func TestWasmSmoke(t *testing.T) {
 	}
 	goTool := filepath.Join(goEnv(t, "GOROOT"), "bin", "go")
 	dir := t.TempDir()
-	wasm := filepath.Join(dir, "zp.wasm")
-	cli := filepath.Join(dir, "zp")
+	wasm := filepath.Join(dir, "sxir.wasm")
+	cli := filepath.Join(dir, "sxir")
 
 	build := exec.Command(goTool, "build", "-o", wasm, ".")
 	build.Env = append(os.Environ(), "GOOS=js", "GOARCH=wasm")
 	if out, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("building zp.wasm: %v\n%s", err, out)
+		t.Fatalf("building sxir.wasm: %v\n%s", err, out)
 	}
-	if out, err := exec.Command(goTool, "build", "-o", cli, "../zp").CombinedOutput(); err != nil {
-		t.Fatalf("building zp: %v\n%s", err, out)
+	if out, err := exec.Command(goTool, "build", "-o", cli, "../sxir").CombinedOutput(); err != nil {
+		t.Fatalf("building sxir: %v\n%s", err, out)
 	}
 	wasmExec := filepath.Join(goEnv(t, "GOROOT"), "lib", "wasm", "wasm_exec.js")
 	if _, err := os.Stat(wasmExec); err != nil {

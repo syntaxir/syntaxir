@@ -3,10 +3,10 @@ package complexitytest
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/internal/testing/linearity"
-	"zeroparse.dev/zp/pkg/runtime"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/linearity"
+	"syntaxir.dev/sxir/pkg/runtime"
 )
 
 // skipRunControls returns the E8 controls whose walks a parse without skip-run records repeats.

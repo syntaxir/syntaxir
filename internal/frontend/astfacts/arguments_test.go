@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 func TestExpressionArgsPollingOrderAndOwnership(t *testing.T) {

@@ -49,32 +49,32 @@ const TypeTupleValue untyped string = "(tuple)"
 func AllocSlice[T any](*Chunk[T], int) []T
 func Alloc[T any](*Chunk[T]) *T
 func AsTval(any) TVal
-func BaseNode(*zeroparse.dev/zp/pkg/runtime/value.Node) *zeroparse.dev/zp/pkg/runtime/value.Node
-func D(*zeroparse.dev/zp/pkg/runtime/value.Node) *Data
-func DocumentParseConverted[T any](*documentState, parseOptions, func(*zeroparse.dev/zp/pkg/runtime/value.Node, *BudgetControl, error) T) (T, error)
-func IterateNodes(*grammar, []ParseOption, func(func(*zeroparse.dev/zp/pkg/runtime/value.Node) error) error) (*zeroparse.dev/zp/pkg/runtime.StreamIterator, error)
+func BaseNode(*syntaxir.dev/sxir/pkg/runtime/value.Node) *syntaxir.dev/sxir/pkg/runtime/value.Node
+func D(*syntaxir.dev/sxir/pkg/runtime/value.Node) *Data
+func DocumentParseConverted[T any](*documentState, parseOptions, func(*syntaxir.dev/sxir/pkg/runtime/value.Node, *BudgetControl, error) T) (T, error)
+func IterateNodes(*grammar, []ParseOption, func(func(*syntaxir.dev/sxir/pkg/runtime/value.Node) error) error) (*syntaxir.dev/sxir/pkg/runtime.StreamIterator, error)
 func IterateStream[T any](*grammar, []ParseOption, func(func(T) error) error) (*StreamPull[T], error)
-func KindOf(string, string) *zeroparse.dev/zp/pkg/runtime/value/impl.Kind
+func KindOf(string, string) *syntaxir.dev/sxir/pkg/runtime/value/impl.Kind
 func MakeDocument(*Rule, string, []ParseOption) (*Document, error)
 func NewBudgetClass([]BudgetRange, bool) *BudgetClass
 func NewGrammar(int) *grammar
-func NewNode(zeroparse.dev/zp/pkg/runtime/value.NodeKind, int, int, string, []*zeroparse.dev/zp/pkg/runtime/value.Node, string, zeroparse.dev/zp/pkg/runtime/value/impl.Fields, any) *zeroparse.dev/zp/pkg/runtime/value.Node
+func NewNode(syntaxir.dev/sxir/pkg/runtime/value.NodeKind, int, int, string, []*syntaxir.dev/sxir/pkg/runtime/value.Node, string, syntaxir.dev/sxir/pkg/runtime/value/impl.Fields, any) *syntaxir.dev/sxir/pkg/runtime/value.Node
 func NewNodeTypeKinds(string) *nodeTypeKinds
 func NewRules[S interface{~struct{Name string; Value *Shaper; Flags uint8; Seen int32; Scope uint16; Vars uint16}}, E interface{~struct{Id int; Where string; NodeType string; OpNodeType string; Cycle int32}}]([]S, [][]string, []E) []*Rule
 func NewTError(int, int, string) *TError
 func NewTRules([]*Rule) []*TRule
-func RawField(*zeroparse.dev/zp/pkg/runtime/value.Node, string) any
+func RawField(*syntaxir.dev/sxir/pkg/runtime/value.Node, string) any
 func RenamedExpected(*Parser, []ExpID, ExpID) []ExpID
 func ResolveOptions(*grammar, []ParseOption) (parseOptions, error)
-func RunParse(*Rule, string, []ParseOption) (*zeroparse.dev/zp/pkg/runtime/value.Node, error)
-func RunParseConverted[T any](*Rule, string, parseOptions, func(*zeroparse.dev/zp/pkg/runtime/value.Node, *BudgetControl, error) T) (T, error)
-func RunParseResolved(*Rule, string, parseOptions) (*zeroparse.dev/zp/pkg/runtime/value.Node, error)
-func RunParseStream(*Rule, io.Reader, func(*zeroparse.dev/zp/pkg/runtime/value.Node) error, []ParseOption) error
-func RunParseStreamWithBudget(*Rule, io.Reader, func(*zeroparse.dev/zp/pkg/runtime/value.Node, *BudgetControl) error, []ParseOption) error
-func SetNodeElems(*zeroparse.dev/zp/pkg/runtime/value.Node, []*zeroparse.dev/zp/pkg/runtime/value.Node)
-func SetNodeField(*zeroparse.dev/zp/pkg/runtime/value.Node, string, any)
-func SetNodeStart(*zeroparse.dev/zp/pkg/runtime/value.Node, int)
-func SetNodeText(*zeroparse.dev/zp/pkg/runtime/value.Node, string)
+func RunParse(*Rule, string, []ParseOption) (*syntaxir.dev/sxir/pkg/runtime/value.Node, error)
+func RunParseConverted[T any](*Rule, string, parseOptions, func(*syntaxir.dev/sxir/pkg/runtime/value.Node, *BudgetControl, error) T) (T, error)
+func RunParseResolved(*Rule, string, parseOptions) (*syntaxir.dev/sxir/pkg/runtime/value.Node, error)
+func RunParseStream(*Rule, io.Reader, func(*syntaxir.dev/sxir/pkg/runtime/value.Node) error, []ParseOption) error
+func RunParseStreamWithBudget(*Rule, io.Reader, func(*syntaxir.dev/sxir/pkg/runtime/value.Node, *BudgetControl) error, []ParseOption) error
+func SetNodeElems(*syntaxir.dev/sxir/pkg/runtime/value.Node, []*syntaxir.dev/sxir/pkg/runtime/value.Node)
+func SetNodeField(*syntaxir.dev/sxir/pkg/runtime/value.Node, string, any)
+func SetNodeStart(*syntaxir.dev/sxir/pkg/runtime/value.Node, int)
+func SetNodeText(*syntaxir.dev/sxir/pkg/runtime/value.Node, string)
 func TAs[T any](any) T
 func TBack(*TPubHooks, any) any
 func TDeref[T any](*T) any
@@ -97,23 +97,23 @@ func TraceRule(*Rule) *Rule
 func TraceRules([]*Rule) []*Rule
 func TraceTRules([]*TRule) []*TRule
 func TypedDocumentParse[T any](*Document, *TRule, parseOptions, budgetControlSetter, func(any) T) (T, error)
-func UnboxNode(*zeroparse.dev/zp/pkg/runtime/value.Node) any
+func UnboxNode(*syntaxir.dev/sxir/pkg/runtime/value.Node) any
 func UnboxValue(any) any
 func WithContext(context.Context) ParseOption
-func WithDiagnosticCallback(func(*zeroparse.dev/zp/pkg/runtime/value.SyntaxError) error) ParseOption
+func WithDiagnosticCallback(func(*syntaxir.dev/sxir/pkg/runtime/value.SyntaxError) error) ParseOption
 func WithDiagnosticLimit(int) ParseOption
 func WithExpectations() ParseOption
-func WithLimits(zeroparse.dev/zp/pkg/runtime.Limits) ParseOption
-func WithProfile(*zeroparse.dev/zp/pkg/runtime/instrument.Profile) ParseOption
-func WithTrace(func(zeroparse.dev/zp/pkg/runtime/instrument.TraceEvent)) ParseOption
+func WithLimits(syntaxir.dev/sxir/pkg/runtime.Limits) ParseOption
+func WithProfile(*syntaxir.dev/sxir/pkg/runtime/instrument.Profile) ParseOption
+func WithTrace(func(syntaxir.dev/sxir/pkg/runtime/instrument.TraceEvent)) ParseOption
 func WithTraceFilter(...string) ParseOption
 func WithTraceMaxDepth(int) ParseOption
-func WithUnit(zeroparse.dev/zp/pkg/runtime/input.PositionUnit) ParseOption
+func WithUnit(syntaxir.dev/sxir/pkg/runtime/input.PositionUnit) ParseOption
 method (*ActCtx) Cap(int) any
-method (*ActCtx) NewList([]*zeroparse.dev/zp/pkg/runtime/value.Node) *zeroparse.dev/zp/pkg/runtime/value.Node
+method (*ActCtx) NewList([]*syntaxir.dev/sxir/pkg/runtime/value.Node) *syntaxir.dev/sxir/pkg/runtime/value.Node
 method (*ActCtx) TermCastFailed(any, *FieldType, int, int) any
-method (*ActCtx) TermSetField(*zeroparse.dev/zp/pkg/runtime/value.Node, string, any)
-method (*ActCtx) TermStruct(string, int) *zeroparse.dev/zp/pkg/runtime/value.Node
+method (*ActCtx) TermSetField(*syntaxir.dev/sxir/pkg/runtime/value.Node, string, any)
+method (*ActCtx) TermStruct(string, int) *syntaxir.dev/sxir/pkg/runtime/value.Node
 method (*ActCtx) Var(int) any
 method (*BudgetControl) Charge(uint64)
 method (*BudgetControl) ChargeDoc(uint64)
@@ -126,11 +126,11 @@ method (*Class) Has(rune) bool
 method (*Document) BeginParse() error
 method (*Document) Edit(int, int, string) error
 method (*Document) EndParse()
-method (*Document) Parse(...ParseOption) (*zeroparse.dev/zp/pkg/runtime/value.Node, error)
+method (*Document) Parse(...ParseOption) (*syntaxir.dev/sxir/pkg/runtime/value.Node, error)
 method (*Document) ResolveParseOptions([]ParseOption) (parseOptions, error)
-method (*Document) Stats() zeroparse.dev/zp/pkg/runtime.ParseStats
+method (*Document) Stats() syntaxir.dev/sxir/pkg/runtime.ParseStats
 method (*Document) Text() string
-method (*Parser) Anchor(bool, ExpID) (*zeroparse.dev/zp/pkg/runtime/value.Node, bool)
+method (*Parser) Anchor(bool, ExpID) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) AtEnd() bool
 method (*Parser) AtEndBatch() bool
 method (*Parser) AtEndBatchOrdinary() bool
@@ -142,58 +142,58 @@ method (*Parser) AtLineStart() bool
 method (*Parser) AtLineStartBatch() bool
 method (*Parser) AtLineStartBatchOrdinary() bool
 method (*Parser) AtLineStartOrdinary() bool
-method (*Parser) AttachCaptures(*zeroparse.dev/zp/pkg/runtime/value.Node, []string, *CaptureFrame, int, int) *zeroparse.dev/zp/pkg/runtime/value.Node
+method (*Parser) AttachCaptures(*syntaxir.dev/sxir/pkg/runtime/value.Node, []string, *CaptureFrame, int, int) *syntaxir.dev/sxir/pkg/runtime/value.Node
 method (*Parser) Bind(int, func(*ActCtx) (any, any)) bool
-method (*Parser) Call(*Rule, int) (*zeroparse.dev/zp/pkg/runtime/value.Node, bool)
+method (*Parser) Call(*Rule, int) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) ChargeKey(*Rule)
-method (*Parser) DiagnosticAttr(matcher, ExpID) (*zeroparse.dev/zp/pkg/runtime/value.Node, bool)
+method (*Parser) DiagnosticAttr(matcher, ExpID) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) DropKids(int)
-method (*Parser) ElemsAbove(int) []*zeroparse.dev/zp/pkg/runtime/value.Node
-method (*Parser) EmitStream(*zeroparse.dev/zp/pkg/runtime/value.Node, int)
+method (*Parser) ElemsAbove(int) []*syntaxir.dev/sxir/pkg/runtime/value.Node
+method (*Parser) EmitStream(*syntaxir.dev/sxir/pkg/runtime/value.Node, int)
 method (*Parser) Enter()
-method (*Parser) ErrorAttr(matcher, ExpID) (*zeroparse.dev/zp/pkg/runtime/value.Node, bool)
+method (*Parser) ErrorAttr(matcher, ExpID) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) ExaminedBegin() int
 method (*Parser) ExaminedEnd(int) int
 method (*Parser) Expect(int, ExpID)
 method (*Parser) ExpectOrdinary(int, ExpID)
-method (*Parser) Finish(*Rule, *CaptureFrame, *zeroparse.dev/zp/pkg/runtime/value.Node, int) *zeroparse.dev/zp/pkg/runtime/value.Node
+method (*Parser) Finish(*Rule, *CaptureFrame, *syntaxir.dev/sxir/pkg/runtime/value.Node, int) *syntaxir.dev/sxir/pkg/runtime/value.Node
 method (*Parser) FirstCall(*Rule) bool
-method (*Parser) InvokePlain(*Rule, int) (*zeroparse.dev/zp/pkg/runtime/value.Node, bool)
+method (*Parser) InvokePlain(*Rule, int) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) Isolate(int) ExpMark
 method (*Parser) Keep([]ExpID) []ExpID
-method (*Parser) Kids(int) []*zeroparse.dev/zp/pkg/runtime/value.Node
+method (*Parser) Kids(int) []*syntaxir.dev/sxir/pkg/runtime/value.Node
 method (*Parser) LiteralText(int, string) string
 method (*Parser) LookBegin(int)
 method (*Parser) LookEnd(bool)
-method (*Parser) MakeError(int, []ExpID) *zeroparse.dev/zp/pkg/runtime/value.SyntaxError
+method (*Parser) MakeError(int, []ExpID) *syntaxir.dev/sxir/pkg/runtime/value.SyntaxError
 method (*Parser) Mark() Mark
-method (*Parser) MatchAny(bool) (*zeroparse.dev/zp/pkg/runtime/value.Node, bool)
-method (*Parser) MatchAnyOrdinary(bool) (*zeroparse.dev/zp/pkg/runtime/value.Node, bool)
-method (*Parser) MatchLiteral([]rune, string, ExpID, bool) (*zeroparse.dev/zp/pkg/runtime/value.Node, bool)
-method (*Parser) MatchLiteralFold([]rune, ExpID, bool) (*zeroparse.dev/zp/pkg/runtime/value.Node, bool)
-method (*Parser) MatchLiteralFoldOrdinary([]rune, ExpID, bool) (*zeroparse.dev/zp/pkg/runtime/value.Node, bool)
-method (*Parser) MatchLiteralFoldTraced([]rune, ExpID, bool) (*zeroparse.dev/zp/pkg/runtime/value.Node, bool)
-method (*Parser) MatchLiteralOrdinary([]rune, string, ExpID, bool) (*zeroparse.dev/zp/pkg/runtime/value.Node, bool)
-method (*Parser) MatchLiteralTraced([]rune, string, ExpID, bool) (*zeroparse.dev/zp/pkg/runtime/value.Node, bool)
+method (*Parser) MatchAny(bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
+method (*Parser) MatchAnyOrdinary(bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
+method (*Parser) MatchLiteral([]rune, string, ExpID, bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
+method (*Parser) MatchLiteralFold([]rune, ExpID, bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
+method (*Parser) MatchLiteralFoldOrdinary([]rune, ExpID, bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
+method (*Parser) MatchLiteralFoldTraced([]rune, ExpID, bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
+method (*Parser) MatchLiteralOrdinary([]rune, string, ExpID, bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
+method (*Parser) MatchLiteralTraced([]rune, string, ExpID, bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) MergeExpected(int, []ExpID)
-method (*Parser) NewBranch(*zeroparse.dev/zp/pkg/runtime/value/impl.Kind, int, []*zeroparse.dev/zp/pkg/runtime/value.Node) *zeroparse.dev/zp/pkg/runtime/value.Node
-method (*Parser) NewBranchOrdinary(*zeroparse.dev/zp/pkg/runtime/value/impl.Kind, int, []*zeroparse.dev/zp/pkg/runtime/value.Node) *zeroparse.dev/zp/pkg/runtime/value.Node
-method (*Parser) NewErrorNode(int, *zeroparse.dev/zp/pkg/runtime/value.SyntaxError) *zeroparse.dev/zp/pkg/runtime/value.Node
+method (*Parser) NewBranch(*syntaxir.dev/sxir/pkg/runtime/value/impl.Kind, int, []*syntaxir.dev/sxir/pkg/runtime/value.Node) *syntaxir.dev/sxir/pkg/runtime/value.Node
+method (*Parser) NewBranchOrdinary(*syntaxir.dev/sxir/pkg/runtime/value/impl.Kind, int, []*syntaxir.dev/sxir/pkg/runtime/value.Node) *syntaxir.dev/sxir/pkg/runtime/value.Node
+method (*Parser) NewErrorNode(int, *syntaxir.dev/sxir/pkg/runtime/value.SyntaxError) *syntaxir.dev/sxir/pkg/runtime/value.Node
 method (*Parser) NewFrame(int) *CaptureFrame
-method (*Parser) NewNode(Data) *zeroparse.dev/zp/pkg/runtime/value.Node
-method (*Parser) NewNodeOrdinary(Data) *zeroparse.dev/zp/pkg/runtime/value.Node
-method (*Parser) NewTerminal(int, string) *zeroparse.dev/zp/pkg/runtime/value.Node
-method (*Parser) NewTerminalOrdinary(int, string) *zeroparse.dev/zp/pkg/runtime/value.Node
+method (*Parser) NewNode(Data) *syntaxir.dev/sxir/pkg/runtime/value.Node
+method (*Parser) NewNodeOrdinary(Data) *syntaxir.dev/sxir/pkg/runtime/value.Node
+method (*Parser) NewTerminal(int, string) *syntaxir.dev/sxir/pkg/runtime/value.Node
+method (*Parser) NewTerminalOrdinary(int, string) *syntaxir.dev/sxir/pkg/runtime/value.Node
 method (*Parser) NextOrdinary() (rune, int, bool)
-method (*Parser) Nodes(int) []*zeroparse.dev/zp/pkg/runtime/value.Node
-method (*Parser) OperatorsRuleParse(*Rule, int) (*zeroparse.dev/zp/pkg/runtime/value.Node, bool)
+method (*Parser) Nodes(int) []*syntaxir.dev/sxir/pkg/runtime/value.Node
+method (*Parser) OperatorsRuleParse(*Rule, int) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) Peek() (rune, int, bool)
 method (*Parser) PeekOrdinary() (rune, int, bool)
 method (*Parser) PeekTraced() (rune, int, bool)
 method (*Parser) Predicate(func(*ActCtx) (any, any)) bool
-method (*Parser) PushRecovered(*zeroparse.dev/zp/pkg/runtime/value.SyntaxError)
-method (*Parser) RecoverAttr(matcher, matcher, bool) (*zeroparse.dev/zp/pkg/runtime/value.Node, bool)
-method (*Parser) RecoveryErrorText(*zeroparse.dev/zp/pkg/runtime/value.SyntaxError) string
+method (*Parser) PushRecovered(*syntaxir.dev/sxir/pkg/runtime/value.SyntaxError)
+method (*Parser) RecoverAttr(matcher, matcher, bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
+method (*Parser) RecoveryErrorText(*syntaxir.dev/sxir/pkg/runtime/value.SyntaxError) string
 method (*Parser) RejectBudgetClass(rune, *BudgetClass) bool
 method (*Parser) Reset(Mark)
 method (*Parser) Restore(int, int)
@@ -201,18 +201,18 @@ method (*Parser) RunBegin(int, bool, bool)
 method (*Parser) RunHot(int) bool
 method (*Parser) RunWalked(int, int)
 method (*Parser) ScanEnd(int, int, int)
-method (*Parser) ScanKids(int, int, int, int) []*zeroparse.dev/zp/pkg/runtime/value.Node
+method (*Parser) ScanKids(int, int, int, int) []*syntaxir.dev/sxir/pkg/runtime/value.Node
 method (*Parser) ScanReach(int, int, int) int
-method (*Parser) ScopeValue(Shaper, *zeroparse.dev/zp/pkg/runtime/value.Node, int) *zeroparse.dev/zp/pkg/runtime/value.Node
-method (*Parser) SetCapture(int, *zeroparse.dev/zp/pkg/runtime/value.Node)
-method (*Parser) ShapeCapture(Shaper, *zeroparse.dev/zp/pkg/runtime/value.Node, int) *zeroparse.dev/zp/pkg/runtime/value.Node
-method (*Parser) ShapeSingle(Shaper, *zeroparse.dev/zp/pkg/runtime/value.Node, int) (*zeroparse.dev/zp/pkg/runtime/value.Node, bool)
-method (*Parser) Single(int, bool) (*zeroparse.dev/zp/pkg/runtime/value.Node, bool)
+method (*Parser) ScopeValue(Shaper, *syntaxir.dev/sxir/pkg/runtime/value.Node, int) *syntaxir.dev/sxir/pkg/runtime/value.Node
+method (*Parser) SetCapture(int, *syntaxir.dev/sxir/pkg/runtime/value.Node)
+method (*Parser) ShapeCapture(Shaper, *syntaxir.dev/sxir/pkg/runtime/value.Node, int) *syntaxir.dev/sxir/pkg/runtime/value.Node
+method (*Parser) ShapeSingle(Shaper, *syntaxir.dev/sxir/pkg/runtime/value.Node, int) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
+method (*Parser) Single(int, bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) SkipBegin(int)
 method (*Parser) SkipEnd()
 method (*Parser) SkipHit() bool
-method (*Parser) SkipKids() []*zeroparse.dev/zp/pkg/runtime/value.Node
-method (*Parser) SkipValue(*zeroparse.dev/zp/pkg/runtime/value.Node)
+method (*Parser) SkipKids() []*syntaxir.dev/sxir/pkg/runtime/value.Node
+method (*Parser) SkipValue(*syntaxir.dev/sxir/pkg/runtime/value.Node)
 method (*Parser) SkipVisit()
 method (*Parser) Spend()
 method (*Parser) SpendRead(uint64)
@@ -221,14 +221,14 @@ method (*Parser) StreamsIn(int, bool) bool
 method (*Parser) TermBinary(int, any, any) (any, any)
 method (*Parser) TermConforms(*FieldType, any) bool
 method (*Parser) TermConvert(*nodeTypeKinds, any) (any, any)
-method (*Parser) TermCover(*zeroparse.dev/zp/pkg/runtime/value.Node, any, bool) bool
+method (*Parser) TermCover(*syntaxir.dev/sxir/pkg/runtime/value.Node, any, bool) bool
 method (*Parser) TermFilterKeep(any) (bool, any)
-method (*Parser) TermHull(*ActCtx, bool, []*zeroparse.dev/zp/pkg/runtime/value.Node) *zeroparse.dev/zp/pkg/runtime/value.Node
-method (*Parser) TermItemAt([]*zeroparse.dev/zp/pkg/runtime/value.Node, int, bool) any
-method (*Parser) TermItems(string, any) ([]*zeroparse.dev/zp/pkg/runtime/value.Node, any)
+method (*Parser) TermHull(*ActCtx, bool, []*syntaxir.dev/sxir/pkg/runtime/value.Node) *syntaxir.dev/sxir/pkg/runtime/value.Node
+method (*Parser) TermItemAt([]*syntaxir.dev/sxir/pkg/runtime/value.Node, int, bool) any
+method (*Parser) TermItems(string, any) ([]*syntaxir.dev/sxir/pkg/runtime/value.Node, any)
 method (*Parser) TermLength(any) (any, any)
 method (*Parser) TermLogic(int, any) (bool, any)
-method (*Parser) TermMade(*ActCtx, *zeroparse.dev/zp/pkg/runtime/value.Node, bool)
+method (*Parser) TermMade(*ActCtx, *syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) TermMember(*ActCtx, int, any, string, string) (any, any)
 method (*Parser) TermNodeType(string) *nodeTypeKinds
 method (*Parser) TermPush(*ActCtx, string, any) any
@@ -356,21 +356,21 @@ method (*observation) Enter(string, int, int)
 method (*observation) Evaluated()
 method (*observation) Exit(bool, int, int)
 method (*observation) Skipped(string, int, int)
-method (*zeroparse.dev/zp/pkg/runtime/value/impl.Kind) IsNodeType() bool
-method (*zeroparse.dev/zp/pkg/runtime/value/impl.Kind) RuleName() string
-method (*zeroparse.dev/zp/pkg/runtime/value/impl.Kind) TypeName() string
+method (*syntaxir.dev/sxir/pkg/runtime/value/impl.Kind) IsNodeType() bool
+method (*syntaxir.dev/sxir/pkg/runtime/value/impl.Kind) RuleName() string
+method (*syntaxir.dev/sxir/pkg/runtime/value/impl.Kind) TypeName() string
 method (Span) Range() (int, int)
-method (zeroparse.dev/zp/pkg/runtime/value/impl.Fields) Get(string) (any, bool)
-method (zeroparse.dev/zp/pkg/runtime/value/impl.Fields) Sorted() zeroparse.dev/zp/pkg/runtime/value/impl.Fields
+method (syntaxir.dev/sxir/pkg/runtime/value/impl.Fields) Get(string) (any, bool)
+method (syntaxir.dev/sxir/pkg/runtime/value/impl.Fields) Sorted() syntaxir.dev/sxir/pkg/runtime/value/impl.Fields
 type ActCtx struct{P *Parser; Lhs any; Rhs any; Op any; Value any}
 type BudgetClass struct{}
 type BudgetControl struct{}
 type BudgetRange struct{Lo rune; Hi rune}
-type CaptureFrame struct{Vals []*zeroparse.dev/zp/pkg/runtime/value.Node}
+type CaptureFrame struct{Vals []*syntaxir.dev/sxir/pkg/runtime/value.Node}
 type Chunk[T any] struct{}
 type Class struct{ASCII [2]uint64; Wide []rune; Neg bool}
 type ClassStep struct{C *Class; ID ExpID}
-type Data = zeroparse.dev/zp/pkg/runtime/value/impl.Data[zeroparse.dev/zp/pkg/runtime/value.Node]
+type Data = syntaxir.dev/sxir/pkg/runtime/value/impl.Data[syntaxir.dev/sxir/pkg/runtime/value.Node]
 type Document struct{State *documentState}
 type DocumentSliceKey struct{First any; Length int; Capacity int}
 type Env struct{}
@@ -383,8 +383,8 @@ type OperatorsRule struct{Skip matcher; Operands []*OperatorsRuleLine; Prefix []
 type OperatorsRuleLine struct{Scope []string; M matcher; Action func(*ActCtx) (any, any); Value Shaper}
 type OperatorsRuleOp struct{Id int; Kind string; Assoc string; Level int; Line *OperatorsRuleLine}
 type ParseOption func(*parseOptions)
-type Parser struct{Control *BudgetControl; Observation *observation; Document *documentState; In []rune; Pos int; MaxDepth int; Depth int; Env *Env; Frame *CaptureFrame; Trail []undo; Cut bool; Silent int; Expectations bool; Recovered []recEntry; KidStack []*zeroparse.dev/zp/pkg/runtime/value.Node; Stream *streamInput}
-type Rule struct{Id int; Name string; Scope []string; Body func(*Parser, int) (*zeroparse.dev/zp/pkg/runtime/value.Node, bool); Action func(*ActCtx) (any, any); Value Shaper; NodeType string; OpNodeType string; Memo bool; Leader bool; Rec bool; Cycle int32; DocMemo bool; Positional bool; Seen int; OperatorsRule *OperatorsRule; Novalue bool; Splice bool; Where string; Vars []string}
+type Parser struct{Control *BudgetControl; Observation *observation; Document *documentState; In []rune; Pos int; MaxDepth int; Depth int; Env *Env; Frame *CaptureFrame; Trail []undo; Cut bool; Silent int; Expectations bool; Recovered []recEntry; KidStack []*syntaxir.dev/sxir/pkg/runtime/value.Node; Stream *streamInput}
+type Rule struct{Id int; Name string; Scope []string; Body func(*Parser, int) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool); Action func(*ActCtx) (any, any); Value Shaper; NodeType string; OpNodeType string; Memo bool; Leader bool; Rec bool; Cycle int32; DocMemo bool; Positional bool; Seen int; OperatorsRule *OperatorsRule; Novalue bool; Splice bool; Where string; Vars []string}
 type RuleExtra struct{Id int; Where string; NodeType string; OpNodeType string; Cycle int32}
 type RuleSpec struct{Name string; Value *Shaper; Flags uint8; Seen int32; Scope uint16; Vars uint16}
 type RunKey struct{Vars []int; Bind []int}
@@ -411,27 +411,27 @@ type TypedDocumentCloneBase struct{Control *BudgetControl; Values map[any]any; S
 type TypedDocumentCloneTask struct{Source any; Target any}
 type budgetControlSetter interface{SetBudgetControl(*BudgetControl)}
 type documentState struct{}
-type grammar struct{Starts []string; DefaultStart string; Descs []string; Expectations bool; StructFields map[string]*structFields; TypeKinds map[string]*zeroparse.dev/zp/pkg/runtime/value/impl.Kind; NodeTypes map[string]*nodeTypeKinds; SourceInfo bool; Observable bool; NoBudgetControls bool}
-type matcher = func(*Parser) (*zeroparse.dev/zp/pkg/runtime/value.Node, bool)
-type nodeTypeKinds [3]*zeroparse.dev/zp/pkg/runtime/value/impl.Kind
+type grammar struct{Starts []string; DefaultStart string; Descs []string; Expectations bool; StructFields map[string]*structFields; TypeKinds map[string]*syntaxir.dev/sxir/pkg/runtime/value/impl.Kind; NodeTypes map[string]*nodeTypeKinds; SourceInfo bool; Observable bool; NoBudgetControls bool}
+type matcher = func(*Parser) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
+type nodeTypeKinds [3]*syntaxir.dev/sxir/pkg/runtime/value/impl.Kind
 type observation struct{}
 type parseOptions struct{}
 type recEntry struct{}
 type singleMode uint8
-type streamInput struct{Emit func(*zeroparse.dev/zp/pkg/runtime/value.Node, *BudgetControl) error}
+type streamInput struct{Emit func(*syntaxir.dev/sxir/pkg/runtime/value.Node, *BudgetControl) error}
 type structFields struct{}
 type tmatcher = func(*TParser) (any, bool)
 type tundo struct{}
 type typedDocumentState struct{}
 type undo struct{}
-type zeroparse.dev/zp/pkg/runtime/value/impl.Data[N any] struct{Kind *zeroparse.dev/zp/pkg/runtime/value/impl.Kind; Start int32; End int32; Text string; Children []*N; Fields zeroparse.dev/zp/pkg/runtime/value/impl.Fields; Fresh bool; Terminal bool; Labeled bool; Mark uint32; Box any}
-type zeroparse.dev/zp/pkg/runtime/value/impl.Fields []zeroparse.dev/zp/pkg/runtime/value/impl.NodeField
-type zeroparse.dev/zp/pkg/runtime/value/impl.Kind struct{Type string; Rule string; Reserved int; Base int}
-type zeroparse.dev/zp/pkg/runtime/value/impl.NodeField struct{Name string; Value any}
+type syntaxir.dev/sxir/pkg/runtime/value/impl.Data[N any] struct{Kind *syntaxir.dev/sxir/pkg/runtime/value/impl.Kind; Start int32; End int32; Text string; Children []*N; Fields syntaxir.dev/sxir/pkg/runtime/value/impl.Fields; Fresh bool; Terminal bool; Labeled bool; Mark uint32; Box any}
+type syntaxir.dev/sxir/pkg/runtime/value/impl.Fields []syntaxir.dev/sxir/pkg/runtime/value/impl.NodeField
+type syntaxir.dev/sxir/pkg/runtime/value/impl.Kind struct{Type string; Rule string; Reserved int; Base int}
+type syntaxir.dev/sxir/pkg/runtime/value/impl.NodeField struct{Name string; Value any}
 var DocumentBusy error
 var EmptyFrame *CaptureFrame
 var EmptyTFrame *TCaptureFrame
-var ListKind *zeroparse.dev/zp/pkg/runtime/value/impl.Kind
-var MatchKind *zeroparse.dev/zp/pkg/runtime/value/impl.Kind
+var ListKind *syntaxir.dev/sxir/pkg/runtime/value/impl.Kind
+var MatchKind *syntaxir.dev/sxir/pkg/runtime/value/impl.Kind
 var RunHotSpan int
-var SeqKind *zeroparse.dev/zp/pkg/runtime/value/impl.Kind
+var SeqKind *syntaxir.dev/sxir/pkg/runtime/value/impl.Kind

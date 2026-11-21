@@ -1,11 +1,11 @@
-// Web Worker that runs zp.wasm, so that a long parse never freezes the page. The page sends
+// Web Worker that runs sxir.wasm, so that a long parse never freezes the page. The page sends
 // {type: "init", base, wasm, module?} once, then {id, method, req}; each call is answered with
 // {id, out} (the JSON response) or {id, error}.
 
 let ready = null;
 
 // wasmBytes returns the WebAssembly binary of a response, decompressing a gzip body (the site's
-// zp-<hash>.wasm.gz); it is the function of the same name in assets/zp-client.js, which a classic
+// sxir-<hash>.wasm.gz); it is the function of the same name in assets/sxir-client.js, which a classic
 // worker script cannot import.
 async function wasmBytes(resp) {
   const data = new Uint8Array(await resp.arrayBuffer());
@@ -16,7 +16,7 @@ async function wasmBytes(resp) {
 async function init(msg) {
   let runtime = msg.base + "wasm_exec.js";
   const wasmURL = new URL(msg.wasm);
-  if (/\/wasm\/zp-[0-9a-f]{16}\.wasm(\.gz)?$/.test(wasmURL.pathname)) {
+  if (/\/wasm\/sxir-[0-9a-f]{16}\.wasm(\.gz)?$/.test(wasmURL.pathname)) {
     const resp = await fetch(msg.base + "assets.json", { cache: "no-cache" });
     if (!resp.ok) throw new Error(`cannot load playground assets: ${resp.status}`);
     const manifest = await resp.json();
@@ -40,8 +40,8 @@ async function init(msg) {
   go.run(instance).then(() => {
     self.postMessage({ type: "exit" });
   });
-  if (!self.zp) throw new Error("zp.wasm did not start");
-  const v = JSON.parse(self.zp.version("{}"));
+  if (!self.sxir) throw new Error("sxir.wasm did not start");
+  const v = JSON.parse(self.sxir.version("{}"));
   self.postMessage({ type: "ready", version: v });
 }
 
@@ -56,7 +56,7 @@ self.onmessage = async (e) => {
   }
   try {
     await ready;
-    const out = self.zp[msg.method](JSON.stringify(msg.req ?? {}));
+    const out = self.sxir[msg.method](JSON.stringify(msg.req ?? {}));
     self.postMessage({ id: msg.id, out });
   } catch (err) {
     self.postMessage({ id: msg.id, error: String(err && err.message ? err.message : err) });

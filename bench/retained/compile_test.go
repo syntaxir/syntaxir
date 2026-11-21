@@ -4,7 +4,7 @@ import (
 	"runtime"
 	"testing"
 
-	"zeroparse.dev/zp/internal/testing/enginetest"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 )
 
 // BenchmarkCompileCorpus complements post-GC retained heap with compilation

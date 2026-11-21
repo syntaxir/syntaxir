@@ -5,9 +5,9 @@ import (
 	"reflect"
 	"testing"
 
-	. "zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	. "syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // compareSnapshotNode checks that Kind, Len and Value of a snapshot node answer as those of the node

@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"strconv"
 
-	"zeroparse.dev/zp/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code"
 )
 
 // Runtime is the component of the leaves of terms: the state of the target's runtime that a term reads

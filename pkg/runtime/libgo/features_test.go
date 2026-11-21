@@ -3,7 +3,7 @@ package libgo
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
 )
 
 // TestFeaturesMatchAnalysis checks that the library's features have the bits of the generator's

@@ -3,9 +3,9 @@ package lint
 import (
 	"testing"
 
-	"zeroparse.dev/zp/internal/driver/entry"
-	"zeroparse.dev/zp/internal/frontend/parser"
-	"zeroparse.dev/zp/internal/testing/starttest"
+	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/testing/starttest"
 )
 
 func TestMissingTokenDoesNotProveAChoiceShadowed(t *testing.T) {

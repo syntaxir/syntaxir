@@ -5,10 +5,10 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/driver"
-	"zeroparse.dev/zp/internal/pass"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/driver"
+	"syntaxir.dev/sxir/internal/pass"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // tsModes are the ways a TypeScript parser is generated, which take different routes.

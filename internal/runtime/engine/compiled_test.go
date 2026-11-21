@@ -13,14 +13,14 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	syntaxfmt "zeroparse.dev/zp/internal/syntax/fmt"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/bytecode"
-	"zeroparse.dev/zp/pkg/grammar/ast"
-	"zeroparse.dev/zp/pkg/runtime"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/bytecode"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/runtime"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // TestCompiledRoundTrip checks that a program loaded from a compiled grammar returns the same
@@ -150,7 +150,7 @@ func TestCompiledErrors(t *testing.T) {
 		data []byte
 		want string
 	}{
-		{"not compiled", []byte("rule main = x"), "not a compiled ZeroParse grammar"},
+		{"not compiled", []byte("rule main = x"), "not a compiled SyntaxIR grammar"},
 		{"too short", []byte(compiledMagic), "too short"},
 		{"version", version, "unsupported compiled grammar version 99"},
 		{"isa version", isa, fmt.Sprintf("unsupported instruction set version %d", bytecode.ISAVersion+1)},
@@ -384,7 +384,7 @@ func FuzzLoadProgram(f *testing.F) {
 
 // BenchmarkLoad compares compiling from source with loading a compiled grammar.
 func BenchmarkLoad(b *testing.B) {
-	src, err := os.ReadFile("../../../examples/minilang/minilang.zp")
+	src, err := os.ReadFile("../../../examples/minilang/minilang.sxir")
 	if err != nil {
 		b.Fatal(err)
 	}

@@ -1,4 +1,4 @@
-# Getting Started With ZeroParse
+# Getting Started With SyntaxIR
 
 This lesson takes you from an empty directory to a first grammar that you run on the command line and from a Go
 program. Every grammar, command and Go program in the tutorial is complete and was run to produce the output shown, so
@@ -11,47 +11,47 @@ A grammar that matches `hello world`, the tree it produces, and a Go program tha
 ## Before You Start
 
 You need Go 1.27 or later. No other dependencies are required. To try a grammar before installing anything, use the
-[playground](https://zeroparse.dev/playground/), which runs ZeroParse in your browser.
+[playground](https://syntaxir.dev/playground/), which runs SyntaxIR in your browser.
 
 ## Install
 
-ZeroParse has two parts: the Go library, and the `zp` command-line tool that runs, formats and compiles grammars. The
+SyntaxIR has two parts: the Go library, and the `sxir` command-line tool that runs, formats and compiles grammars. The
 command-line tool is the quickest way to experiment, so install it first.
 
 ```bash
-go install zeroparse.dev/zp/cmd/zp@latest    # command-line tool
+go install syntaxir.dev/sxir/cmd/sxir@latest    # command-line tool
 ```
 
-Running `zp` without arguments lists its commands, among them `parse`, `test`, `fmt`, `lint`, `gen` and `compile`. To use the library
+Running `sxir` without arguments lists its commands, among them `parse`, `test`, `fmt`, `lint`, `gen` and `compile`. To use the library
 from your own program, add it to your module:
 
 ```bash
-go get zeroparse.dev/zp                        # library
+go get syntaxir.dev/sxir                        # library
 ```
 
 Create a directory for the tutorial files:
 
 ```bash
-mkdir zp-tutorial && cd zp-tutorial
+mkdir sxir-tutorial && cd sxir-tutorial
 ```
 
 ## Your First Grammar
 
-A ZeroParse grammar is a set of **rules**. A rule has a name and a body that says what input it matches. Parsing starts at
-a **start rule**, a rule marked with `@start` on the line before it. Save this as `hello.zp`:
+A SyntaxIR grammar is a set of **rules**. A rule has a name and a body that says what input it matches. Parsing starts at
+a **start rule**, a rule marked with `@start` on the line before it. Save this as `hello.sxir`:
 
-```zp
-// hello.zp
+```sxir
+// hello.sxir
 @start
 rule main = "hello" " " "world"
 ```
 
 `main` matches the string literal `hello`, then a space, then `world`. Other rules, which later grammars add, are
-called from the start rule; a grammar with several start rules marks the one used by default `@start(default)`. Run it with `zp parse`, giving the grammar with
+called from the start rule; a grammar with several start rules marks the one used by default `@start(default)`. Run it with `sxir parse`, giving the grammar with
 `-g` and the input with `-i`:
 
 ```bash
-zp parse -g hello.zp -i 'hello world'
+sxir parse -g hello.sxir -i 'hello world'
 ```
 
 ```json
@@ -87,7 +87,7 @@ The JSON form is complete but long. `-f sexpr` prints the same tree as a compact
 of this tutorial uses:
 
 ```bash
-zp parse -g hello.zp -f sexpr -i 'hello world'
+sxir parse -g hello.sxir -f sexpr -i 'hello world'
 ```
 
 ```text
@@ -104,11 +104,11 @@ How to read it:
 | `nil` | an optional that did not match |
 | `Pair{Key: a, Value: b}` | a struct built by an action, with fields `Key` and `Value` |
 
-An S-expression shows only values, not positions. Rule and capture names are source information, which `zp parse` leaves
+An S-expression shows only values, not positions. Rule and capture names are source information, which `sxir parse` leaves
 out unless you ask for it with `-source-info`:
 
 ```bash
-zp parse -g hello.zp -f sexpr -source-info -i 'hello world'
+sxir parse -g hello.sxir -f sexpr -source-info -i 'hello world'
 ```
 
 ```text
@@ -122,11 +122,11 @@ The start rule must match the **whole input**. If it matches only a prefix, that
 that does not match at all. Both are reported with a position and what was expected there:
 
 ```bash
-zp parse -g hello.zp -f sexpr -i 'hello there'
+sxir parse -g hello.sxir -f sexpr -i 'hello there'
 ```
 
 ```text
-zp: 1:7: syntax error: expected "world"
+sxir: 1:7: syntax error: expected "world"
 ```
 
 The position is `line:column`, both 1-based. The command exits with status 1.
@@ -137,7 +137,7 @@ The same grammar from a Go program. Create a module and `main.go`:
 
 ```bash
 go mod init example.com/hello
-go get zeroparse.dev/zp
+go get syntaxir.dev/sxir
 ```
 
 ```go
@@ -148,15 +148,15 @@ import (
 	"fmt"
 	"log"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
 )
 
 const src = `@start
 rule main = "hello" " " "world"`
 
 func main() {
-	p, err := compiler.Compile(grammar.FromString("grammar.zp", src), compiler.WithStart("main"))
+	p, err := compiler.Compile(grammar.FromString("grammar.sxir", src), compiler.WithStart("main"))
 	if err != nil {
 		log.Fatal(err) // a mistake in the grammar
 	}
@@ -194,14 +194,14 @@ tuple 0 11
 1:7: syntax error: expected "world"
 ```
 
-- `compiler.Compile(grammar.FromString("grammar.zp", grammarSource), compiler.WithStart(startRule))` parses and type-checks the grammar and returns a `runtime.Parser`. It
+- `compiler.Compile(grammar.FromString("grammar.sxir", grammarSource), compiler.WithStart(startRule))` parses and type-checks the grammar and returns a `runtime.Parser`. It
   fails with an error that has the line and column in the grammar source if the grammar is wrong. Compile once and reuse
   the parser; it can be used from several goroutines.
 - `p.Parse(input)` returns a `*value.Node`. `Kind()` tells what the value is (here a tuple), `Start()` and `End()` give the
   range, `Text()` is the text of a string node, and `Elems()` iterates over the elements of a tuple or list. Nodes encode
   to JSON as shown.
 - When the input does not match, `Parse` returns a `*value.SyntaxError` from the package
-  `zeroparse.dev/zp/pkg/runtime/value` (see [Reporting Errors](errors.md)).
+  `syntaxir.dev/sxir/pkg/runtime/value` (see [Reporting Errors](errors.md)).
 
 ## Next Steps
 

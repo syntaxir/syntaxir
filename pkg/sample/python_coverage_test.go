@@ -5,9 +5,9 @@ import (
 	"slices"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/engine"
-	"zeroparse.dev/zp/internal/testing/enginetest"
-	"zeroparse.dev/zp/pkg/sample"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
+	"syntaxir.dev/sxir/pkg/sample"
 )
 
 // TestPythonCoverageFloor holds the coverage of the Python grammar, whose statements depend on
@@ -18,7 +18,7 @@ func TestPythonCoverageFloor(t *testing.T) {
 	if testing.Short() {
 		t.Skip("generates 50 Python inputs")
 	}
-	src, err := os.ReadFile("../../testdata/grammars/python/python.zp")
+	src, err := os.ReadFile("../../testdata/grammars/python/python.sxir")
 	if err != nil {
 		t.Fatal(err)
 	}

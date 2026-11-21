@@ -1,4 +1,4 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package engine
 
@@ -10,14 +10,14 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/pkg/runtime"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
-func actionBudgetParser(ctx context.Context, limits runtime.Limits, unit zpinput.PositionUnit) *state.Parser {
+func actionBudgetParser(ctx context.Context, limits runtime.Limits, unit sxirinput.PositionUnit) *state.Parser {
 	return &state.Parser{Input: state.Input{Unit: unit, Control: state.NewBudgetControl(ctx, limits)}}
 }
 
@@ -35,10 +35,10 @@ func TestBudgetActionStringHelperParity(t *testing.T) {
 	left := strings.Repeat("prefix-", 2048) + "a" + string([]byte{0xff})
 	right := strings.Repeat("prefix-", 2048) + "b" + string([]byte{0x00})
 
-	for _, unit := range []zpinput.PositionUnit{zpinput.Bytes, zpinput.CodePoints} {
+	for _, unit := range []sxirinput.PositionUnit{sxirinput.Bytes, sxirinput.CodePoints} {
 		p := actionBudgetParser(nil, runtime.Limits{Compute: 1 << 40}, unit)
 		wantLen := len(malformed)
-		if unit == zpinput.CodePoints {
+		if unit == sxirinput.CodePoints {
 			wantLen = utf8.RuneCountInString(malformed)
 		}
 		if got := p.ValueTextLen(malformed); got != wantLen {
@@ -72,19 +72,19 @@ func TestBudgetActionStringHelperParity(t *testing.T) {
 func TestBudgetActionStringHelpersChargeLongBudget(t *testing.T) {
 	t.Parallel()
 	long := strings.Repeat("a", 8192)
-	p := actionBudgetParser(nil, runtime.Limits{Compute: 256}, zpinput.CodePoints)
+	p := actionBudgetParser(nil, runtime.Limits{Compute: 256}, sxirinput.CodePoints)
 	if err := catchFatal(t, func() { p.CompareText(long+"x", long+"y") }); !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("long equal-prefix comparison error = %v, want ErrLimit", err)
 	}
 
-	p = actionBudgetParser(nil, runtime.Limits{Compute: 128}, zpinput.Bytes)
+	p = actionBudgetParser(nil, runtime.Limits{Compute: 128}, sxirinput.Bytes)
 	if err := catchFatal(t, func() {
 		_, _ = p.ValueBinary("+", long, long)
 	}); !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("long string concatenation error = %v, want ErrLimit", err)
 	}
 
-	p = actionBudgetParser(nil, runtime.Limits{Compute: 128}, zpinput.CodePoints)
+	p = actionBudgetParser(nil, runtime.Limits{Compute: 128}, sxirinput.CodePoints)
 	if err := catchFatal(t, func() { p.ValueTextLen(long) }); !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("long rune length error = %v, want ErrLimit", err)
 	}
@@ -107,7 +107,7 @@ func TestBudgetActionCollectionLoopsChargeElements(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := newPollingContext(1)
-			p := actionBudgetParser(ctx, runtime.Limits{}, zpinput.CodePoints)
+			p := actionBudgetParser(ctx, runtime.Limits{}, sxirinput.CodePoints)
 			var locals *state.Local
 			if tc.name == "local copy" {
 				for i := 0; i < size; i++ {
@@ -144,7 +144,7 @@ func TestBudgetActionBatchRoutesAndPoolRetry(t *testing.T) {
 rule items = [a-z] #atomic*`)
 			input := strings.Repeat("a", 1024)
 			for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-				for _, unit := range []zpinput.PositionUnit{zpinput.Bytes, zpinput.CodePoints} {
+				for _, unit := range []sxirinput.PositionUnit{sxirinput.Bytes, sxirinput.CodePoints} {
 					t.Run(fmt.Sprintf("%v/%v", backend, unit), func(t *testing.T) {
 						armed := false
 						n, err := prog.ParseWith("main", input, ParseOptions{Backend: backend, Unit: unit, Trace: func(e TraceEvent) {
@@ -181,7 +181,7 @@ func batchCancellationStopsPublication(t *testing.T, action string) {
 rule items = [a-z] #atomic*`)
 	input := strings.Repeat("a", 1024)
 	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		for _, unit := range []zpinput.PositionUnit{zpinput.Bytes, zpinput.CodePoints} {
+		for _, unit := range []sxirinput.PositionUnit{sxirinput.Bytes, sxirinput.CodePoints} {
 			t.Run(fmt.Sprintf("%v/%v", backend, unit), func(t *testing.T) {
 				armed := false
 				var attempt *state.BudgetControl
@@ -215,7 +215,7 @@ rule items = [a-z]* #atomic`)
 	input := strings.Repeat("a", 1024) + "!"
 
 	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		for _, unit := range []zpinput.PositionUnit{zpinput.Bytes, zpinput.CodePoints} {
+		for _, unit := range []sxirinput.PositionUnit{sxirinput.Bytes, sxirinput.CodePoints} {
 			t.Run(fmt.Sprintf("%v/%v", backend, unit), func(t *testing.T) {
 				armContext := func(e TraceEvent, armed *bool) {
 					if !*armed && e.Kind == TraceExit && e.Rule == "items" {

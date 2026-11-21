@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"testing"
 
-	"zeroparse.dev/zp/internal/ir/core"
+	"syntaxir.dev/sxir/internal/ir/core"
 )
 
 // The builders below make Core IR the way the tests of package core do.

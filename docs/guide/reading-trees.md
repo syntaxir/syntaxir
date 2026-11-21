@@ -6,9 +6,9 @@ without writing the recursion, and [Output Schemas and Structural Queries](outpu
 searches the output of a grammar. How a grammar shapes the tree is the subject of [Shaping Trees](shaping-trees.md);
 the exact node model is defined in [Nodes and Values](../../spec/runtime/nodes.md).
 
-The examples use the grammar `pairs.zp`:
+The examples use the grammar `pairs.sxir`:
 
-```zp
+```sxir
 type Pair = { Key node[string]; Value node[string] }
 
 @start
@@ -73,7 +73,7 @@ the matched text of any node, slice the input (a plain Go slice when you parse w
 ## Printing and JSON
 
 `node.String()`, which `fmt.Println` uses, renders the value of a node as an S-expression for tests and debugging, and
-`zp parse -f sexpr` prints it. A tuple is written in parentheses, a list in square brackets, a string in quotes, an
+`sxir parse -f sexpr` prints it. A tuple is written in parentheses, a list in square brackets, a string in quotes, an
 absent optional as `nil` and a struct as `Type{Field: value}`; positions are not written. A node of a named node type
 (`type Ident = node[string]`) keeps its type name before its brackets, as `Ident("x")`, while a plain `node[string]` is
 just `"x"`. A node also encodes with
@@ -94,13 +94,13 @@ fmt.Println(string(out))
 A node of a string, a tuple or a list is `{"start": S, "end": E, "value": V}`, where `V` is a string, an array for a
 tuple or a list, or `null` for an optional that did not match. A struct is `{"type": T, "start": S, "end": E, "fields": {...}}`, with the range of the rule that built it, and an `int`
 or a `bool` that an action returned is a bare JSON number or boolean. The keys of `fields` are sorted, so the output
-is deterministic. This is also what `zp parse` prints by default. Nodes cannot be decoded back from JSON; the JSON is
+is deterministic. This is also what `sxir parse` prints by default. Nodes cannot be decoded back from JSON; the JSON is
 for inspection and for exchanging results with other programs.
 
 Source information is opt-in. When the parser is compiled with `compiler.WithSourceInfo()` (the `-source-info` flag of
-`zp parse`), each node also records the rule that produced it and the captures of its tuple, and `Rule()`, `Field`
+`sxir parse`), each node also records the rule that produced it and the captures of its tuple, and `Rule()`, `Field`
 and `Fields` report them. The JSON gains the members `"rule"` and `"captures"`, and the S-expression gains `@rule`
-suffixes and `name:` labels. The grammar `kv.zp` is `rule main = k:key ":" v:num` with `key = [a-z]+ #atomic` and
+suffixes and `name:` labels. The grammar `kv.sxir` is `rule main = k:key ":" v:num` with `key = [a-z]+ #atomic` and
 `num = [0-9]+ #atomic`; for the input `a:1` the S-expression is `("a" ":" "1")` without source information and with it:
 
 ```text
@@ -110,7 +110,7 @@ suffixes and `name:` labels. The grammar `kv.zp` is `rule main = k:key ":" v:num
 The forms are defined in [Text Rendering and JSON Encoding](../../spec/runtime/nodes.md#text-rendering).
 
 Default values are also opt-in. A parser compiled with `compiler.WithDefaultValue()` (the `-default-value` flag of
-`zp parse`) drops the value actions and the declared rule types before it compiles the grammar, so every rule
+`sxir parse`) drops the value actions and the declared rule types before it compiles the grammar, so every rule
 returns the default node tree even when the grammar has actions. Predicates still run, and the rules whose values
 predicates read keep their actions. The exact rules are in [Default Values](../../spec/language/actions.md#default-values).
 
@@ -127,9 +127,9 @@ import (
 	"log"
 	"strings"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 const src = `type Bin = {
@@ -149,7 +149,7 @@ rule op = "+" / "-"
 rule ws = " "* `
 
 func main() {
-	p, err := compiler.Compile(grammar.FromString("grammar.zp", src), compiler.WithStart("sum"))
+	p, err := compiler.Compile(grammar.FromString("grammar.sxir", src), compiler.WithStart("sum"))
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -1,6 +1,6 @@
 package complexity
 
-import "zeroparse.dev/zp/internal/ir/core"
+import "syntaxir.dev/sxir/internal/ir/core"
 
 // The rules that drop an evaluation of the module (N3, N9, N11, N12) drop only one that the
 // grammar either never makes or makes again in a state in which it made it before, and only when

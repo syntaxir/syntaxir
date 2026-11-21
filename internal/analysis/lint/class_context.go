@@ -3,7 +3,7 @@ package lint
 import (
 	"slices"
 
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 func classAcceptsControlled(c *ast.CharClass, r rune, control *lintControl) bool {

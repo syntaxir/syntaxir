@@ -9,8 +9,8 @@ import (
 	"io/fs"
 	"strings"
 
-	syntaxfmt "zeroparse.dev/zp/internal/syntax/fmt"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // GenOptions configures code generation.
@@ -69,7 +69,7 @@ type GenOptions struct {
 	// it; Go generation ignores it.
 	TSLib fs.FS
 	// LibModule is the specifier from which TypeScript parsers import the library with LibImport,
-	// such as "@scope/zp-lib" or "../shared/lib.ts".
+	// such as "@scope/sxir-lib" or "../shared/lib.ts".
 	LibModule string
 	// MaxDepth is the generated default limit on nested recursive rule calls. Zero selects 100,000.
 	MaxDepth int
@@ -100,7 +100,7 @@ type GenOptions struct {
 	KeepComments bool
 	// FeatureWitness makes the generated Go parser check that every library feature a parse uses is in
 	// the parser's analysed FeatureSet (for tests). The parser builds only with the tag
-	// zp_feature_witness, which declares the check in the library, unless it carries its own copy of
+	// sxir_feature_witness, which declares the check in the library, unless it carries its own copy of
 	// the library (LibEmbed, LibOnly), whose check is then on in every build.
 	FeatureWitness bool
 	// DisableKeepNodes leaves the Node rule functions out of a typed-only parser that needs them

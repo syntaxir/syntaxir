@@ -11,17 +11,17 @@ generates itself.
 
 ## Before You Start
 
-Complete [Building Typed Trees](typed-trees.md): you need `config.zp`.
+Complete [Building Typed Trees](typed-trees.md): you need `config.sxir`.
 <!-- example: use docs/tutorial/typed-trees.md -->
 
 ## Why Did It Fail?
 
-`zp parse` reports the farthest failure and what was expected there. `zp explain` shows how the parser got there: the
+`sxir parse` reports the farthest failure and what was expected there. `sxir explain` shows how the parser got there: the
 calls that recorded an expectation at the failing position, innermost first, and the rules they were called from.
 Here `debug = tru` is missing the end of `true`:
 
 ```bash
-printf 'host = "localhost"\nport = 8080\ndebug = tru\n' | zp explain -g config.zp
+printf 'host = "localhost"\nport = 8080\ndebug = tru\n' | sxir explain -g config.sxir
 ```
 
 ```text
@@ -62,11 +62,11 @@ Every item of the expected list comes from one of these calls, so you can see wh
 
 ## What Does the Parser Do?
 
-`zp trace` prints the whole call tree of a parse: every rule call with its start position and whether it matched.
+`sxir trace` prints the whole call tree of a parse: every rule call with its start position and whether it matched.
 This is the trace for `a = 1`, including the failed attempt at a second entry at the end:
 
 ```bash
-zp trace -g config.zp -i 'a = 1'
+sxir trace -g config.sxir -i 'a = 1'
 ```
 
 ```text
@@ -99,12 +99,12 @@ main -> matched 1:1-1:6 "a = 1"
 
 ## Why Is It Slow?
 
-`zp profile` runs the parse and reports, for each rule, the calls, how many were evaluated and how many were answered
+`sxir profile` runs the parse and reports, for each rule, the calls, how many were evaluated and how many were answered
 from the memo, the input consumed, the input wasted by failed calls and the time spent in the rule itself. It ends with a
 short list of what to look at:
 
 ```bash
-zp profile -g config.zp -n 5 -i 'host = "localhost"
+sxir profile -g config.sxir -n 5 -i 'host = "localhost"
 port = 8080
 '
 ```
@@ -114,13 +114,13 @@ run several times at one position. The times depend on your machine, so they are
 
 ## Inputs From the Grammar
 
-`zp sample` generates inputs that the grammar accepts, from a seed, so that a run is repeatable. They show what the
+`sxir sample` generates inputs that the grammar accepts, from a seed, so that a run is repeatable. They show what the
 grammar really allows, and make a test or a fuzz corpus without writing inputs by hand. `-invalid` generates near-miss
 inputs that the grammar rejects:
 
 ```bash
-zp sample -g config.zp -n 4 -seed 1
-zp sample -g config.zp -n 3 -seed 1 -invalid
+sxir sample -g config.sxir -n 4 -seed 1
+sxir sample -g config.sxir -n 3 -seed 1 -invalid
 ```
 
 ```text
@@ -139,9 +139,9 @@ a `]`, which no entry starts with.
 
 ## In the Editor and the Browser
 
-`zp lsp` runs a language server for `.zp` files with diagnostics, formatting, navigation, hover, rename, completion
+`sxir lsp` runs a language server for `.sxir` files with diagnostics, formatting, navigation, hover, rename, completion
 and semantic highlighting; the [Editor Support](../guide/editor-support.md) guide shows how to set it up in VS Code, Neovim,
-Helix and Emacs. The [playground](https://zeroparse.dev/playground/) runs ZeroParse in the browser: write a grammar, type
+Helix and Emacs. The [playground](https://syntaxir.dev/playground/) runs SyntaxIR in the browser: write a grammar, type
 input and see the tree or the error immediately, and share the state through the address.
 
 ## Next Steps
@@ -149,5 +149,5 @@ input and see the tree or the error immediately, and share the state through the
 You have now covered the whole path from a first grammar to a shipped, tested and debugged parser. The guides in
 [Developing Grammars](../guide/README.md#developing-grammars) go deeper on each tool, and the
 [cookbook](../cookbook/README.md) solves concrete tasks. To keep practicing, extend the configuration language with
-`[section]` headers and lists of values, then read the grammar of [alpha-parsers/json](../../testdata/grammars/json/json.zp) to see how
+`[section]` headers and lists of values, then read the grammar of [alpha-parsers/json](../../testdata/grammars/json/json.sxir) to see how
 a larger grammar is organized.

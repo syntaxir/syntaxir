@@ -1,7 +1,7 @@
-# ZeroParse Exec Dialect Specification
+# SyntaxIR Exec Dialect Specification
 
 The Exec dialect is the executable form of a parse in [Code IR](../code-ir/README.md): it specifies the
-**abstract machine** that every ZeroParse runtime hosts, and the programs that drive it. It declares the abstract state
+**abstract machine** that every SyntaxIR runtime hosts, and the programs that drive it. It declares the abstract state
 of a parse and the operations that change it, each with a contract; a module at the Exec stage holds functions in
 structured code over those operations and over the operations of the Action dialect. Some functions are written once
 for every runtime, the compositions; the others are the rules of a grammar, converted from the
@@ -13,7 +13,7 @@ operations on the values of terms (the Action dialect), the compositions, the in
 beyond those of Code IR, the passes, the conversion from the Flow stage, and the printing to Go and TypeScript. The
 module, its functions and their text form are the base of [Code IR](../code-ir/README.md). It does not define how a
 target represents the state of a parse or implements an operation: an operation states what happens, not how. The Exec
-dialect is internal to the ZeroParse engine and written for engine maintainers and backend authors: it is not a public
+dialect is internal to the SyntaxIR engine and written for engine maintainers and backend authors: it is not a public
 API, and nothing here changes how a grammar behaves, which the [Grammar Language Specification](../language/README.md)
 and the [Parser and Runtime Specification](../runtime/README.md) define.
 

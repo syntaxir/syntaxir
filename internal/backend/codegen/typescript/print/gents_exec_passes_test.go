@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	tspass "zeroparse.dev/zp/internal/backend/codegen/typescript/pass"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	tspass "syntaxir.dev/sxir/internal/backend/codegen/typescript/pass"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // tsExecPassForms holds, for each TypeScript Exec pass that the corpus exercises, a text that only

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/frontend/parser/zpparser"
+	"syntaxir.dev/sxir/internal/frontend/parser/sxirparser"
 )
 
 // frontendSample is a grammar source of the frontend benchmark. A malformed sample has syntax errors,
@@ -38,16 +38,16 @@ func frontendSamples(tb testing.TB) []frontendSample {
 	samples := []frontendSample{
 		{name: "small", src: `rule main = [a-z]+ #atomic`},
 		{name: "comments", src: comments.String()},
-		{name: "zp", src: read("../../../zp.zp")},
+		{name: "sxir", src: read("../../../sxir.sxir")},
 	}
-	paths, err := filepath.Glob("../../../testdata/grammars/*/*.zp")
+	paths, err := filepath.Glob("../../../testdata/grammars/*/*.sxir")
 	if err != nil || len(paths) == 0 {
 		tb.Fatalf("no grammars in testdata/grammars: %v", err)
 	}
 	for _, p := range paths {
-		samples = append(samples, frontendSample{name: strings.TrimSuffix(filepath.Base(p), ".zp"), src: read(p)})
+		samples = append(samples, frontendSample{name: strings.TrimSuffix(filepath.Base(p), ".sxir"), src: read(p)})
 	}
-	lines := strings.SplitAfter(read("../../../testdata/grammars/golang/golang.zp"), "\n")
+	lines := strings.SplitAfter(read("../../../testdata/grammars/golang/golang.sxir"), "\n")
 	for i, rules := 0, 0; i < len(lines); i++ {
 		if strings.HasPrefix(lines[i], "rule ") {
 			if rules%10 == 0 {
@@ -70,10 +70,10 @@ var frontends = []struct {
 	{"manual", func(src string) (any, error) { return ParseReference(src) }},
 	{"manual-aa", func(src string) (any, error) { return ParseReference(src) }},
 	{"generated", parseGenerated},
-	{"generated-exp", func(src string) (any, error) { return parseGeneratedWith(src, zpparser.WithExpectations()) }},
+	{"generated-exp", func(src string) (any, error) { return parseGeneratedWith(src, sxirparser.WithExpectations()) }},
 	{"manual-partial", parsePartialManual},
 	{"generated-partial", func(src string) (any, error) { return parsePartialGenerated(src) }},
-	{"generated-partial-exp", func(src string) (any, error) { return parsePartialGenerated(src, zpparser.WithExpectations()) }},
+	{"generated-partial-exp", func(src string) (any, error) { return parsePartialGenerated(src, sxirparser.WithExpectations()) }},
 }
 
 // parsePartialManual is ParsePartialReference, with its errors as the error.
@@ -87,13 +87,13 @@ func parsePartialManual(src string) (any, error) {
 
 // parsePartialGenerated parses src as ParsePartial does with the generated parser: the syntax
 // errors of the parse, then the declarations that are complete and the errors of the checks.
-func parsePartialGenerated(src string, opts ...zpparser.ParseOption) (any, error) {
+func parsePartialGenerated(src string, opts ...sxirparser.ParseOption) (any, error) {
 	text, _ := WithoutInvalidCharacters(src)
-	f, err := zpparser.ParseValue(text, opts...)
+	f, err := sxirparser.ParseValue(text, opts...)
 	var errs ErrorList
 	if err != nil {
-		var list zpparser.SyntaxErrors
-		var one *zpparser.SyntaxError
+		var list sxirparser.SyntaxErrors
+		var one *sxirparser.SyntaxError
 		var out []SourceError
 		switch {
 		case errors.As(err, &list):
@@ -118,9 +118,9 @@ func parsePartialGenerated(src string, opts ...zpparser.ParseOption) (any, error
 // parseGenerated parses src by the generated parser and its adapter.
 func parseGenerated(src string) (any, error) { return parseGeneratedWith(src) }
 
-func parseGeneratedWith(src string, opts ...zpparser.ParseOption) (any, error) {
+func parseGeneratedWith(src string, opts ...sxirparser.ParseOption) (any, error) {
 	text, invalid := WithoutInvalidCharacters(src)
-	f, err := zpparser.ParseValue(text, opts...)
+	f, err := sxirparser.ParseValue(text, opts...)
 	if err != nil {
 		return nil, err
 	}

@@ -1,5 +1,5 @@
-// The VS Code extension for ZeroParse grammar files. It starts the language server, `zp lsp`, for
-// .zp files; the language definition and the TextMate grammar are declared in package.json.
+// The VS Code extension for SyntaxIR grammar files. It starts the language server, `sxir lsp`, for
+// .sxir files; the language definition and the TextMate grammar are declared in package.json.
 'use strict';
 
 const vscode = require('vscode');
@@ -10,7 +10,7 @@ const { LanguageClient, State, CloseAction } = require('vscode-languageclient/no
 // cleanup after the Node shutdown has retained responsibility for the process.
 // Keep ordinary crash recovery unchanged; a failed start must not auto-restart
 // while the extension is disposing it. check-client.js exercises the real API.
-class ZPLanguageClient extends LanguageClient {
+class SXIRLanguageClient extends LanguageClient {
   constructor(...args) {
     super(...args);
     this.shutdownPending = undefined;
@@ -75,29 +75,29 @@ async function start() {
   if (!active) {
     return;
   }
-  const config = vscode.workspace.getConfiguration('zp');
+  const config = vscode.workspace.getConfiguration('sxir');
   if (!config.get('server.enabled', true)) {
     return;
   }
-  const command = config.get('server.path') || 'zp';
+  const command = config.get('server.path') || 'sxir';
   // The extension owns the channel so dependency cleanup order cannot leave
   // a failed-start channel behind after the client has already become Stopped.
-  const output = vscode.window.createOutputChannel('ZeroParse Language Server', { log: true });
+  const output = vscode.window.createOutputChannel('SyntaxIR Language Server', { log: true });
   let c;
   const lintActions = createLintActions(vscode, config.get('server.experimentalLint', false),
     () => active && !!c && client === c && c.state === State.Running,
     (params) => c.sendRequest('codeAction/resolve', params));
   try {
-    c = new ZPLanguageClient(
-      'zp', // the prefix of the zp.trace.server setting
-      'ZeroParse Language Server',
+    c = new SXIRLanguageClient(
+      'sxir', // the prefix of the sxir.trace.server setting
+      'SyntaxIR Language Server',
       { command, args: ['lsp'] },
       {
         outputChannel: output,
         middleware: lintActions.middleware,
         documentSelector: [
-          { scheme: 'file', language: 'zp' },
-          { scheme: 'untitled', language: 'zp' },
+          { scheme: 'file', language: 'sxir' },
+          { scheme: 'untitled', language: 'sxir' },
         ],
       },
     );
@@ -118,9 +118,9 @@ async function start() {
     // channel, for one).
     const message = err instanceof Error ? err.message : String(err);
     vscode.window.showErrorMessage(
-      `ZeroParse: could not start the language server with "${command} lsp": ${message}. ` +
-        'Install zp with "go install zeroparse.dev/zp/cmd/zp@latest", ' +
-        'or set zp.server.path to the zp command.',
+      `SyntaxIR: could not start the language server with "${command} lsp": ${message}. ` +
+        'Install sxir with "go install syntaxir.dev/sxir/cmd/sxir@latest", ' +
+        'or set sxir.server.path to the sxir command.',
     );
     await stop();
   }
@@ -155,18 +155,18 @@ function restart() {
 async function activate(context) {
   active = true;
   context.subscriptions.push(
-    vscode.commands.registerCommand('zp.restartServer', restart),
-    vscode.commands.registerCommand('zp.showExplanation', (...args) => clientLintActions?.showExplanation(...args) || false),
-    vscode.commands.registerCommand('zp.applyLintSuppression', (...args) => clientLintActions?.applySuppression(...args) || false),
-    vscode.commands.registerCommand('zp.applyLintAction', (...args) => clientLintActions?.applyResolved(...args) || false),
-    vscode.commands.registerCommand('zp.applyLintFix', (...args) => clientLintActions?.applyFix(...args) || false),
+    vscode.commands.registerCommand('sxir.restartServer', restart),
+    vscode.commands.registerCommand('sxir.showExplanation', (...args) => clientLintActions?.showExplanation(...args) || false),
+    vscode.commands.registerCommand('sxir.applyLintSuppression', (...args) => clientLintActions?.applySuppression(...args) || false),
+    vscode.commands.registerCommand('sxir.applyLintAction', (...args) => clientLintActions?.applyResolved(...args) || false),
+    vscode.commands.registerCommand('sxir.applyLintFix', (...args) => clientLintActions?.applyFix(...args) || false),
     vscode.workspace.onDidCloseTextDocument((document) => clientLintActions?.closeDocument(document)),
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (active && e.affectsConfiguration('zp.server')) {
+      if (active && e.affectsConfiguration('sxir.server')) {
         // VS Code does not await event callbacks; handle their failures here.
         return restart().catch((err) => {
           const message = err instanceof Error ? err.message : String(err);
-          vscode.window.showErrorMessage(`ZeroParse: could not update the language server: ${message}`);
+          vscode.window.showErrorMessage(`SyntaxIR: could not update the language server: ${message}`);
         });
       }
     }),

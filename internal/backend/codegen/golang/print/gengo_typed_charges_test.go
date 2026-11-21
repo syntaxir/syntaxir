@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // typedChargeGrammars are grammars whose typed results convert a struct with a list of structs, a
@@ -41,10 +41,10 @@ import (
 	"strings"
 	"testing"
 
-	zprt "zeroparse.dev/zp/pkg/runtime/libgo"
+	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
 )
 
-var _ = zprt.TParse[any]
+var _ = sxirrt.TParse[any]
 
 func report(err error) string {
 	var le *LimitError
@@ -128,7 +128,7 @@ func TestGeneratedGoTypedParseChargesWhatParseCharges(t *testing.T) {
 			}
 			plain := "_, err := Parse(in, opts(l)...)"
 			if direct {
-				plain = "_, err := zprt.TParse(trules[0], in, opts(l), &tslabs{}, func(v any) any { return v })"
+				plain = "_, err := sxirrt.TParse(trules[0], in, opts(l), &tslabs{}, func(v any) any { return v })"
 			}
 			consumer := strings.NewReplacer("PKG", pkg, "INPUTS", inputs, "PLAIN", plain).Replace(typedChargeGoConsumer)
 			if err := os.WriteFile(filepath.Join(dir, pkg, "charges_test.go"), []byte(consumer), 0644); err != nil {

@@ -1,4 +1,4 @@
-//go:build zp_long
+//go:build sxir_long
 
 package engine
 
@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 // TestRunSitesCorpusMatchWithoutRecords checks that the grammars of testdata/grammars give, on their
@@ -21,7 +21,7 @@ func TestRunSitesCorpusMatchWithoutRecords(t *testing.T) {
 	defer func(n, m int) {
 		state.RunHotSpan, state.ScanHotSpan, state.SkipRecordsOff = n, m, false
 	}(state.RunHotSpan, state.ScanHotSpan)
-	grammars, _ := filepath.Glob("../../../testdata/grammars/*/*.zp")
+	grammars, _ := filepath.Glob("../../../testdata/grammars/*/*.sxir")
 	if len(grammars) == 0 {
 		t.Fatal("no corpus grammars")
 	}

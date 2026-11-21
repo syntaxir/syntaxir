@@ -3,7 +3,7 @@ package exec
 import (
 	"slices"
 
-	"zeroparse.dev/zp/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code"
 )
 
 // State components with which rules parse the input and report on it.

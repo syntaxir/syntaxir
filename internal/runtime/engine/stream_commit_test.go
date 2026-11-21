@@ -1,4 +1,4 @@
-//go:build !zp_budget_controls_reference
+//go:build !sxir_budget_controls_reference
 
 package engine
 
@@ -9,12 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/internal/runtime/state"
-	"zeroparse.dev/zp/pkg/runtime"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // TestStreamCommitFreezesDeliveredElements holds the delivery to its contract: an element is final
@@ -23,7 +23,7 @@ func TestStreamCommitFreezesDeliveredElements(t *testing.T) {
 	t.Parallel()
 	p := mustCompile(t, `rule main = ("a" "b")* #stream $$`)
 	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+		for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 			t.Run(backend.String()+"/"+unit.String(), func(t *testing.T) {
 				elements := 0
 				err := p.ParseStreamWith("main", strings.NewReader("ababab"), func(n *value.Node) error {
@@ -49,7 +49,7 @@ func TestStreamCommitForgetsTheDiagnosedCount(t *testing.T) {
 	p := mustCompile(t, `rule main = item+ #stream $$
 rule item = ("a" #recover(skip="x")) ("b" #recover(skip="y"))`)
 	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+		for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 			t.Run(backend.String()+"/"+unit.String(), func(t *testing.T) {
 				var events []string
 				err := p.ParseStreamWith("main", strings.NewReader("ayxy"), func(*value.Node) error {
@@ -92,7 +92,7 @@ func TestStreamCommitDiscardsBeforeItReleases(t *testing.T) {
 	t.Parallel()
 	// The discard before position 129 copies 127 units, and the scan of the frames takes two more.
 	// Without frame scratch the release charges nothing, so the same commit runs to its end.
-	p := &state.Parser{Input: state.Input{Unit: zpinput.Bytes, Eof: true, Bs: []byte(strings.Repeat("a", 256)), BaseLine: 1, BaseCol: 1, Lines: []int{0},
+	p := &state.Parser{Input: state.Input{Unit: sxirinput.Bytes, Eof: true, Bs: []byte(strings.Repeat("a", 256)), BaseLine: 1, BaseCol: 1, Lines: []int{0},
 		Control: state.NewBudgetControl(nil, runtime.Limits{Compute: 128})}, Memo: state.NewMemoTable(), FrameSlab: make([]state.Frame, 2)}
 	p.Frame = &p.FrameSlab[1]
 	got := catchStreamPanic(func() { p.Commit(130) })
@@ -165,7 +165,7 @@ func TestStreamCommitChargesItsDeclaredWork(t *testing.T) {
 	t.Run("the whole input is scanned for lines", func(t *testing.T) {
 		// The input is complete from its first byte, so the line table covers all 3000 bytes, past the
 		// 1501 that go; the compaction copies the 1499 that stay.
-		p := &state.Parser{Input: state.Input{Unit: zpinput.Bytes, Eof: true, Bs: []byte(strings.Repeat("a", 3000)), BaseLine: 1, BaseCol: 1, Control: budget()}, Memo: state.NewMemoTable()}
+		p := &state.Parser{Input: state.Input{Unit: sxirinput.Bytes, Eof: true, Bs: []byte(strings.Repeat("a", 3000)), BaseLine: 1, BaseCol: 1, Control: budget()}, Memo: state.NewMemoTable()}
 		p.Commit(1502)
 		if p.Base != 1501 || p.Control.Used != 3000+1499 {
 			t.Fatalf("base=%d used=%d", p.Base, p.Control.Used)

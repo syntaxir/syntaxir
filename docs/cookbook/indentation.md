@@ -6,8 +6,8 @@ that is indented inconsistently should be reported as that.
 PEG has no memory, so the grammar keeps the indentation of the current block in a variable and checks it with
 predicates.
 
-```zp
-// nested.zp
+```sxir
+// nested.sxir
 type Entry = {
     Key      node[string]
     Value    *node[string]
@@ -51,12 +51,12 @@ import (
 	"log"
 	"os"
 
-	"zeroparse.dev/zp/pkg/compiler"
-	"zeroparse.dev/zp/pkg/grammar"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
-//go:embed nested.zp
+//go:embed nested.sxir
 var grammarSrc string
 
 // toMap turns entries into nested maps: an entry with children becomes a map, any other a string.
@@ -77,7 +77,7 @@ func toMap(entries *value.Node) map[string]any {
 
 func main() {
 	log.SetFlags(0) // no time stamps in front of the errors
-	p, err := compiler.Compile(grammar.FromString("grammar.zp", grammarSrc), compiler.WithStart("main"))
+	p, err := compiler.Compile(grammar.FromString("grammar.sxir", grammarSrc), compiler.WithStart("main"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -169,7 +169,7 @@ go run . bad.yml
 - **Lists and other forms.** `- item` lines are one more alternative of `entry` at the same indentation.
 - **Cost.** A rule that reads a variable is cached per value of the variable, so keep the number of values small (a
   depth, not a position); see the guide below.
-- **Python and YAML.** Their grammars, [alpha-parsers/python](https://github.com/zeroparse/alpha-parsers/tree/main/python/) and [alpha-parsers/yaml](https://github.com/zeroparse/alpha-parsers/tree/main/yaml/),
+- **Python and YAML.** Their grammars, [alpha-parsers/python](https://github.com/syntaxir/alpha-parsers/tree/main/python/) and [alpha-parsers/yaml](https://github.com/syntaxir/alpha-parsers/tree/main/yaml/),
   use the same technique at a larger scale.
 
 See [Context-sensitive parsing](../guide/context-sensitive.md) for predicates, variables and lookahead, and

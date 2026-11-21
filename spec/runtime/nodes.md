@@ -53,7 +53,7 @@ that rule when the parser records [source information](#source-information).
 ### Source Information
 
 A parser compiled with **source information** (`compiler.WithSourceInfo()`,
-`zp parse -source-info`, or the option of `zp compile` and `zp gen`) records
+`sxir parse -source-info`, or the option of `sxir compile` and `sxir gen`) records
 two things that are otherwise not part of a result: the rule that produced each node
 that a rule without an action created in its own body, and where the captures of that
 node are. `Node.Rule`, `Node.Field` and `Node.Fields` on a node, the `rule` and
@@ -192,7 +192,7 @@ as `&name:value`. For example, `(k:["a"]@key ":" v:["1"]@num)@main` is a tuple
 produced by `main` whose first element is the list `["a"]` of `key`, captured as
 `k`, and whose last element is the list of `num`, captured as `v`.
 
-The command `zp parse -f sexpr` prints this form.
+The command `sxir parse -f sexpr` prints this form.
 
 ### JSON Encoding
 
@@ -212,7 +212,7 @@ with `path`, the indexes that lead from the node's tuple to the element that the
 capture labels (the first index is an element of the node's tuple, each further one an
 element of the tuple in the element before it), or to an object with `value` for a
 capture that is not an element. A tuple and a list encode the same way; the schema
-tells them apart (see [Output Schemas](schemas-and-queries.md)). `zp parse`
+tells them apart (see [Output Schemas](schemas-and-queries.md)). `sxir parse`
 prints this form by default.
 
 Nodes cannot be decoded from JSON; the encoding is for inspection and for

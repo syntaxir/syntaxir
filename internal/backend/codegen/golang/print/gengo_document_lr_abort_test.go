@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/codegen/common"
-	"zeroparse.dev/zp/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // TestGeneratedDocumentLeftRecursionAbortedGrowth is the generated Document
@@ -118,7 +118,7 @@ func matchesTyped(t *testing.T, d *Document, unit PositionUnit) {
 const generatedDocumentGrowthConsumer = `package fixture
 
 import (
-	zprt "zeroparse.dev/zp/pkg/runtime/libgo"; zpinstrument "zeroparse.dev/zp/pkg/runtime/instrument"
+	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"; sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
 	"context"
 	"encoding/json"
 	"errors"
@@ -187,8 +187,8 @@ func TestInterruptedGrowth(t *testing.T) {
 		for _, cause := range []string{"cancel", "panic"} {
 			grown := 0
 			_, err := interrupt(t, unit, func(cancel context.CancelFunc) []ParseOption {
-				return []ParseOption{zprt.WithTrace(func(e zpinstrument.TraceEvent) {
-					if e.Kind != zpinstrument.TraceExit || !e.Memo || !e.Matched || e.Rule == "main" {
+				return []ParseOption{sxirrt.WithTrace(func(e sxirinstrument.TraceEvent) {
+					if e.Kind != sxirinstrument.TraceExit || !e.Memo || !e.Matched || e.Rule == "main" {
 						return
 					}
 					if grown++; grown == 2 {

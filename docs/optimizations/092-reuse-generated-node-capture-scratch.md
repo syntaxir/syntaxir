@@ -43,7 +43,7 @@ those fixtures, optimized, reference and parent outputs match in 216 checked
 fingerprints. Full root and parser-module suites, generation freshness, vet and
 site tests and shipped/benchmark parser regeneration pass. The clean 131-case,
 three-sample full snapshot at
-[c85db9e](https://github.com/zeroparse/zp/commit/c85db9e5e6fa2d2b84e0327e5ba4ffbc4b010dc8)
+[c85db9e](https://github.com/syntaxir/syntaxir/commit/c85db9e5e6fa2d2b84e0327e5ba4ffbc4b010dc8)
 is recorded in [the full results](../benchmarks.md), without attributing it to
 this optimization.
 
@@ -147,14 +147,14 @@ sources remain unchanged.
 ## Reproduction
 
 The generated fixture test preserves optimized/reference parsers under
-`ZP_NODE_FRAME_DIR`; `ZP_NODE_FRAME_TYPESCRIPT` adds the TypeScript-grammar
+`SXIR_NODE_FRAME_DIR`; `SXIR_NODE_FRAME_TYPESCRIPT` adds the TypeScript-grammar
 workload. Run the focused checks and export fixtures with:
 
 ```sh
 go test ./runtime -run '^TestNodeFrameScratch' -count=1
 go test ./internal/backend/codegen/golang/print -run '^TestGeneratedNodeFrameScratch' -count=1
-ZP_NODE_FRAME_DIR=/tmp/zp-node-frame \
-  ZP_NODE_FRAME_TYPESCRIPT=1 \
+SXIR_NODE_FRAME_DIR=/tmp/sxir-node-frame \
+  SXIR_NODE_FRAME_TYPESCRIPT=1 \
   go test ./internal/backend/codegen/golang/print -run '^TestGeneratedNodeFrameScratchWorkloads$' -count=1
 ```
 

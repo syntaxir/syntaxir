@@ -4,7 +4,7 @@ import (
 	"slices"
 	"strings"
 
-	"zeroparse.dev/zp/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code"
 )
 
 // The capture frames (exec.Frames): the frame that captures write to, the slots of each frame, the

@@ -3,7 +3,7 @@ package document
 import (
 	"fmt"
 
-	"zeroparse.dev/zp/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 type DocumentChange struct {

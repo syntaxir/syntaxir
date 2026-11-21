@@ -1,8 +1,8 @@
 package compose
 
 import (
-	. "zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/exec"
+	. "syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec"
 )
 
 // addDocument adds the composition of the edits that the engine applies to a memo entry when a lookup

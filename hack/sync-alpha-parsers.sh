@@ -7,13 +7,13 @@
 #
 #	hack/sync-alpha-parsers.sh
 #
-# $ZP_ALPHA_PARSERS names the checkout (default: ../alpha-parsers); see test-alpha-parsers.sh.
+# $SXIR_ALPHA_PARSERS names the checkout (default: ../alpha-parsers); see test-alpha-parsers.sh.
 set -u
 . "$(dirname "$0")/alpha-parsers-common.sh" || exit 1
 alpha_setup
 for d in "$root"/testdata/grammars/*/; do
 	n=$(basename "$d")
-	for f in "$d"*.zp "$d"inspect.go; do
+	for f in "$d"*.sxir "$d"inspect.go; do
 		[ -f "$f" ] || continue
 		cp "$f" "$dir/$n/" || exit 1
 	done

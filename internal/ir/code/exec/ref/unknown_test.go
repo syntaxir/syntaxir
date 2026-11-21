@@ -3,7 +3,7 @@ package ref
 import (
 	"testing"
 
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Terms built by hand: the package cannot depend on a grammar parser.

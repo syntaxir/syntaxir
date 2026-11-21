@@ -11,11 +11,11 @@ import (
 	"testing"
 	"time"
 
-	"zeroparse.dev/zp/internal/frontend/astfacts"
-	"zeroparse.dev/zp/internal/frontend/parser"
-	syntaxfmt "zeroparse.dev/zp/internal/syntax/fmt"
-	"zeroparse.dev/zp/internal/testing/starttest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
+	"syntaxir.dev/sxir/internal/testing/starttest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // TestDecideAlt checks the comparison of the exclusion analysis on the first choice of rule main:
@@ -607,23 +607,23 @@ func exclusionStats(g *ast.Grammar, start string) (exclStats, error) {
 // TestExclusionReport prints, for the bundled grammars, the choices that the exclusion analysis
 // decides within k symbols, the classification with each setting of its hooks, the trivia rules,
 // and where the strict analysis stops for the units that stay not committing. It runs when
-// ZP_EXCLUSION_REPORT is set; ZP_EXCLUSION_ONLY replaces the list of grammar files, separated by
+// SXIR_EXCLUSION_REPORT is set; SXIR_EXCLUSION_ONLY replaces the list of grammar files, separated by
 // commas. The tables of record 069 come from its output.
 func TestExclusionReport(t *testing.T) {
-	if os.Getenv("ZP_EXCLUSION_REPORT") == "" {
-		t.Skip("ZP_EXCLUSION_REPORT is not set")
+	if os.Getenv("SXIR_EXCLUSION_REPORT") == "" {
+		t.Skip("SXIR_EXCLUSION_REPORT is not set")
 	}
 	files := []string{
-		"testdata/grammars/cel/cel.zp", "testdata/grammars/csv/csv.zp", "testdata/grammars/cue/cue.zp",
-		"testdata/grammars/duckdb/duckdb.zp", "testdata/grammars/golang/golang.zp",
-		"testdata/grammars/python/python.zp", "testdata/grammars/typescript/typescript.zp",
-		"testdata/grammars/xml/xml.zp", "testdata/grammars/yaml/yaml.zp", "examples/minilang/minilang.zp",
-		"examples/outline/outline.zp", "testdata/grammars/json/json.zp",
+		"testdata/grammars/cel/cel.sxir", "testdata/grammars/csv/csv.sxir", "testdata/grammars/cue/cue.sxir",
+		"testdata/grammars/duckdb/duckdb.sxir", "testdata/grammars/golang/golang.sxir",
+		"testdata/grammars/python/python.sxir", "testdata/grammars/typescript/typescript.sxir",
+		"testdata/grammars/xml/xml.sxir", "testdata/grammars/yaml/yaml.sxir", "examples/minilang/minilang.sxir",
+		"examples/outline/outline.sxir", "testdata/grammars/json/json.sxir",
 	}
 	for i := range files {
 		files[i] = "../../../" + files[i]
 	}
-	if only := os.Getenv("ZP_EXCLUSION_ONLY"); only != "" {
+	if only := os.Getenv("SXIR_EXCLUSION_ONLY"); only != "" {
 		files = strings.Split(only, ",")
 	}
 	settings := []struct {
@@ -649,7 +649,7 @@ func TestExclusionReport(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", f, err)
 		}
-		name := strings.TrimSuffix(filepath.Base(f), ".zp")
+		name := strings.TrimSuffix(filepath.Base(f), ".sxir")
 		st, err := exclusionStats(g, "")
 		if err != nil {
 			t.Fatalf("%s: %v", f, err)

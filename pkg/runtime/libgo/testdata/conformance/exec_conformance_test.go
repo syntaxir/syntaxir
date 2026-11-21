@@ -8,11 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/exec/conform"
-	"zeroparse.dev/zp/internal/ir/code/exec/ref"
-	zpruntime "zeroparse.dev/zp/pkg/runtime"
-	zpvalue "zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
+	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // The generated Go library is the first implementation of the parser VM's operations under
@@ -145,7 +145,7 @@ func recovery(p *Parser, lists recHandles, o *code.Op, args []any) ([]any, bool)
 	case "rec.mark":
 		return []any{int64(len(p.Recovered))}, true
 	case "rec.push":
-		p.PushRecovered(args[0].(*zpvalue.SyntaxError))
+		p.PushRecovered(args[0].(*sxirvalue.SyntaxError))
 		return nil, true
 	case "rec.truncate":
 		p.Recovered = p.Recovered[:args[0].(int64)]
@@ -183,9 +183,9 @@ func newRTMachine(cfg ref.Config, controlled, sparse, stream bool) conform.Impl 
 	if controlled {
 		limit := cfg.Limit
 		if limit == 0 {
-			limit = zpruntime.Unlimited
+			limit = sxirruntime.Unlimited
 		}
-		p.Control = newBudgetControl(nil, zpruntime.Limits{Compute: limit})
+		p.Control = newBudgetControl(nil, sxirruntime.Limits{Compute: limit})
 	}
 	if m.metered {
 		return meteredRT{m}
@@ -201,7 +201,7 @@ func (m *rtMachine) Datum(id int64) any { return ref.Value(id) }
 
 func (m *rtMachine) Rule(index int64) any { return m.env.rules[index] }
 
-func (m *rtMachine) Err(id int64) any { return &zpvalue.SyntaxError{Pos: int(id)} }
+func (m *rtMachine) Err(id int64) any { return &sxirvalue.SyntaxError{Pos: int(id)} }
 
 func (m *rtMachine) Recovered() []int64 { return recoveredIDs(m.p) }
 
@@ -224,7 +224,7 @@ func interrupted() {
 			panic(x)
 		}
 		// The nesting limit is a LimitError too, of its own kind.
-		if le, limit := f.err.(*zpruntime.LimitError); limit && le.Kind != zpruntime.LimitDepth {
+		if le, limit := f.err.(*sxirruntime.LimitError); limit && le.Kind != sxirruntime.LimitDepth {
 			panic(code.Interrupt{Reason: "limit"})
 		}
 		panic(code.Interrupt{Reason: "nesting"})
@@ -394,7 +394,7 @@ func recoveredErrors(arg any) recEntry {
 	case *errorList:
 		return a.e
 	}
-	return recEntry{err: &zpvalue.SyntaxError{}}
+	return recEntry{err: &sxirvalue.SyntaxError{}}
 }
 
 // typedMachine binds the memo operations of the typed library, with the Document records of a typed
@@ -414,9 +414,9 @@ func newTypedMachine(cfg ref.Config, controlled bool) conform.Impl {
 	if controlled {
 		limit := cfg.Limit
 		if limit == 0 {
-			limit = zpruntime.Unlimited
+			limit = sxirruntime.Unlimited
 		}
-		p.Control = newBudgetControl(nil, zpruntime.Limits{Compute: limit})
+		p.Control = newBudgetControl(nil, sxirruntime.Limits{Compute: limit})
 		return meteredTyped{m}
 	}
 	return m
@@ -430,7 +430,7 @@ func (m *typedMachine) Datum(id int64) any { return ref.Value(id) }
 
 func (m *typedMachine) Rule(index int64) any { return m.env.rules[index] }
 
-func (m *typedMachine) Err(id int64) any { return &zpvalue.SyntaxError{Pos: int(id)} }
+func (m *typedMachine) Err(id int64) any { return &sxirvalue.SyntaxError{Pos: int(id)} }
 
 func (m *typedMachine) Recovered() []int64 { return recoveredIDs(m.p.Parser) }
 

@@ -1,12 +1,12 @@
-# ZeroParse Grammar Language Specification
+# SyntaxIR Grammar Language Specification
 
-ZeroParse is a parser framework built around a grammar language that extends PEG
-(Parsing Expression Grammar); ZeroParse is not plain PEG. In addition to describing
-syntax, a ZeroParse grammar specifies how a typed abstract syntax tree is built, how
+SyntaxIR is a parser framework built around a grammar language that extends PEG
+(Parsing Expression Grammar); SyntaxIR is not plain PEG. In addition to describing
+syntax, a SyntaxIR grammar specifies how a typed abstract syntax tree is built, how
 context-sensitive constructs are recognized, and how the parser reports and
 recovers from syntax errors.
 
-This specification is the reference for the syntax and meaning of `.zp`
+This specification is the reference for the syntax and meaning of `.sxir`
 grammar files: their characters and tokens, types, rule expressions, actions,
 annotations and the checks that the compiler applies. How a grammar runs on
 input, and the results it produces, are defined by the

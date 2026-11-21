@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 
-	"zeroparse.dev/zp/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/engine"
 )
 
 // DefaultMaxAttempts is the number of candidate replays that Minimize tries when maxAttempts is zero.

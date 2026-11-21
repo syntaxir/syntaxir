@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	. "zeroparse.dev/zp/internal/ir/code"
+	. "syntaxir.dev/sxir/internal/ir/code"
 )
 
 // module declares a log component whose operations record calls, so that a test sees which

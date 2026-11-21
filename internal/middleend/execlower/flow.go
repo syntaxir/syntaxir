@@ -15,8 +15,8 @@ import (
 	"slices"
 	"strings"
 
-	"zeroparse.dev/zp/internal/ir/code"
-	"zeroparse.dev/zp/internal/ir/code/flow"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/flow"
 )
 
 // Component is the state component of the primitive operations: the state of the runtime that each

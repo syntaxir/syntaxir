@@ -11,9 +11,9 @@ import (
 	"testing"
 	"unicode"
 
-	"zeroparse.dev/zp/internal/frontend/parser"
-	"zeroparse.dev/zp/internal/frontend/parser/sourceast"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/frontend/parser/sourceast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // errorAt is an error of a frontend: its place in the source as a code point offset, and its message.
@@ -302,7 +302,7 @@ func (s *harmStats) report(t *testing.T, total int) {
 			t.Logf("max %d lines apart  %s", s.maxLines[l], l)
 		}
 	}
-	if only := os.Getenv("ZP_HARM_EXAMPLES"); only != "" {
+	if only := os.Getenv("SXIR_HARM_EXAMPLES"); only != "" {
 		for _, l := range labels {
 			if l == "first: same" || !strings.Contains(l, only) && only != "1" {
 				continue

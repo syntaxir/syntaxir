@@ -6,12 +6,12 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
-	"zeroparse.dev/zp/pkg/runtime/value/impl"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 func TestOperatorsRulePrefixPartCuts(t *testing.T) {
@@ -21,7 +21,7 @@ func TestOperatorsRulePrefixPartCuts(t *testing.T) {
 		for _, c := range codegentest.PrefixPartCutInputs {
 			t.Run(fmt.Sprintf("%s/memo=%t", c.Input, !disableMemo), func(t *testing.T) {
 				for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-					for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+					for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 						n, err := prog.ParseWith("main", c.Input, ParseOptions{Expectations: true, Backend: backend, Unit: unit})
 						if c.Kind == "" {
 							if n != nil || err == nil || !strings.Contains(err.Error(), "syntax error") {
@@ -82,7 +82,7 @@ func BenchmarkOperatorsRulePrefixPartCut(b *testing.B) {
 		{"operand", "ca"}, {"matched-cut", "c-za"}, {"competing-uncut-fallback", "f-x"},
 	} {
 		for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-			for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+			for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 				b.Run(fmt.Sprintf("%s/%s/unit=%d", c.name, backend, unit), func(b *testing.B) {
 					opts := ParseOptions{Expectations: true, Backend: backend, Unit: unit}
 					b.ReportAllocs()

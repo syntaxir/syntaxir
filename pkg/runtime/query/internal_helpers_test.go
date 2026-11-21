@@ -1,6 +1,6 @@
 package query
 
-import "zeroparse.dev/zp/pkg/runtime/schema"
+import "syntaxir.dev/sxir/pkg/runtime/schema"
 
 // validInMemoryOutputSchema is a minimal valid schema built in memory. Package schema's tests
 // have the same helper; this copy serves the query tests here.

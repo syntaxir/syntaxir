@@ -5,10 +5,10 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/testing/codegentest"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/instrument"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/instrument"
 )
 
 // nestedLeftRecursionEvals parses the input on every backend and returns the number of rule
@@ -118,7 +118,7 @@ rule f = [0-9] / "(" e ")"`,
 		memo, plain := mustCompile(t, src), mustCompile(t, src, compile.Options{DisableMemo: true})
 		for _, in := range inputs[gi] {
 			for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-				for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+				for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 					for _, missing := range []int{0, 12} {
 						for _, recognize := range []bool{false, true} {
 							o := ParseOptions{Backend: backend, Unit: unit, MissingTokens: missing, Recognize: recognize}
@@ -142,9 +142,9 @@ rule f = [0-9] / "(" e ")"`,
 func memberMemoDiffers(t *testing.T, c codegentest.Case, full bool) []string {
 	t.Helper()
 	memo, plain := mustCompile(t, c.Src), mustCompile(t, c.Src, compile.Options{DisableMemo: true})
-	units := []zpinput.PositionUnit{zpinput.CodePoints}
+	units := []sxirinput.PositionUnit{sxirinput.CodePoints}
 	if full {
-		units = append(units, zpinput.Bytes)
+		units = append(units, sxirinput.Bytes)
 	}
 	var diffs []string
 	for _, in := range c.Inputs {
@@ -215,7 +215,7 @@ func TestLeftRecursionMemberMemoRandom(t *testing.T) {
 }
 
 // recoveringMemberMemoSeeds is the number of seeds of TestLeftRecursionMemberMemoRandomRecovering;
-// the zp_long tier checks the seeds after them (see left_recursion_member_memo_long_test.go).
+// the sxir_long tier checks the seeds after them (see left_recursion_member_memo_long_test.go).
 const recoveringMemberMemoSeeds = 300
 
 // checkRecoveringMemberMemo compares the results with and without a memo of the random grammars of
@@ -248,7 +248,7 @@ func checkRecoveringMemberMemo(t *testing.T, from, to int64) {
 // TestLeftRecursionMemberMemoRandomRecovering compares the results with and without a memo of
 // random grammars whose items recover from errors and call an Operators Rule that is a member of a
 // cycle, so that members read leader results reused in one kind of context only. It checks the
-// first recoveringMemberMemoSeeds seeds; the zp_long tier checks the others.
+// first recoveringMemberMemoSeeds seeds; the sxir_long tier checks the others.
 func TestLeftRecursionMemberMemoRandomRecovering(t *testing.T) {
 	t.Parallel()
 	checkRecoveringMemberMemo(t, 0, recoveringMemberMemoSeeds)

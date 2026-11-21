@@ -3,7 +3,7 @@ package fmt
 import (
 	"testing"
 
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // A sequence of one item is a tuple of one element and a choice of one sequence is one element

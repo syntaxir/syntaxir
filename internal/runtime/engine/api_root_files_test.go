@@ -7,7 +7,7 @@ import (
 
 // TestModuleRootHoldsNoPackage checks that the root of the module holds no Go file: the module's
 // packages are its subdirectories (core, engine, codegen and the others), and a package at the root
-// would be imported as zeroparse.dev/zp beside them.
+// would be imported as syntaxir.dev/sxir beside them.
 func TestModuleRootHoldsNoPackage(t *testing.T) {
 	chdirModuleRoot(t)
 	files, err := filepath.Glob("*.go")

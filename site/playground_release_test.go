@@ -34,7 +34,7 @@ func TestCheckedInWasmPin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if pin.Repository != "https://github.com/zeroparse/zp" {
+	if pin.Repository != "https://github.com/syntaxir/syntaxir" {
 		t.Errorf("the playground release is pinned in %s", pin.Repository)
 	}
 	if got := pin.downloadURL(); got != pin.Repository+"/releases/download/"+pin.Tag+"/" {
@@ -43,19 +43,19 @@ func TestCheckedInWasmPin(t *testing.T) {
 }
 
 func TestWasmPinValidation(t *testing.T) {
-	good := wasmPin{Repository: "https://github.com/zeroparse/zp", Tag: "playground-wasm-v0.0.1", WasmSHA256: strings.Repeat("a", 64), RuntimeSHA256: strings.Repeat("b", 64)}
+	good := wasmPin{Repository: "https://github.com/syntaxir/syntaxir", Tag: "playground-wasm-v0.0.1", WasmSHA256: strings.Repeat("a", 64), RuntimeSHA256: strings.Repeat("b", 64)}
 	if err := good.validate(); err != nil {
 		t.Fatal(err)
 	}
 	for name, mutate := range map[string]func(*wasmPin){
 		"release tag":       func(p *wasmPin) { p.Tag = "v0.1.0" },
 		"tag suffix":        func(p *wasmPin) { p.Tag = "playground-wasm-v1/../x" },
-		"repository host":   func(p *wasmPin) { p.Repository = "https://example.com/zeroparse/zp" },
-		"repository path":   func(p *wasmPin) { p.Repository = "https://github.com/zeroparse/zp/releases" },
+		"repository host":   func(p *wasmPin) { p.Repository = "https://example.com/syntaxir/syntaxir" },
+		"repository path":   func(p *wasmPin) { p.Repository = "https://github.com/syntaxir/syntaxir/releases" },
 		"short digest":      func(p *wasmPin) { p.WasmSHA256 = "abc" },
 		"uppercase digest":  func(p *wasmPin) { p.RuntimeSHA256 = strings.Repeat("A", 64) },
 		"missing all":       func(p *wasmPin) { *p = wasmPin{} },
-		"http repository":   func(p *wasmPin) { p.Repository = "http://github.com/zeroparse/zp" },
+		"http repository":   func(p *wasmPin) { p.Repository = "http://github.com/syntaxir/syntaxir" },
 		"prerelease suffix": func(p *wasmPin) { p.Tag = "playground-wasm-v0.0.1-rc 1" },
 	} {
 		p := good
@@ -99,7 +99,7 @@ func releaseServer(t *testing.T, files map[string][]byte) *httptest.Server {
 
 func TestFetchReleasePair(t *testing.T) {
 	a := compressedAssets(t, "release")
-	pin := wasmPin{Repository: "https://github.com/zeroparse/zp", Tag: "playground-wasm-v0.0.1", WasmSHA256: hashBytes(a.wasm), RuntimeSHA256: hashBytes(a.runtime)}
+	pin := wasmPin{Repository: "https://github.com/syntaxir/syntaxir", Tag: "playground-wasm-v0.0.1", WasmSHA256: hashBytes(a.wasm), RuntimeSHA256: hashBytes(a.runtime)}
 	files := func() map[string][]byte {
 		return map[string][]byte{releaseWasmFile: a.wasm, releaseRuntimeFile: a.runtime}
 	}
@@ -153,12 +153,12 @@ func TestCheckWasm(t *testing.T) {
 		data []byte
 		ok   bool
 	}{
-		{"zp.wasm", module, true},
-		{"zp.wasm", gzipped(t, module), false},
-		{"zp.wasm.gz", gzipped(t, module), true},
-		{"zp.wasm.gz", module, false},
-		{"zp.wasm.gz", gzipped(t, []byte("text")), false},
-		{"zp.wasm.gz", gzipped(t, module)[:20], false}, // truncated: the checksum is missing
+		{"sxir.wasm", module, true},
+		{"sxir.wasm", gzipped(t, module), false},
+		{"sxir.wasm.gz", gzipped(t, module), true},
+		{"sxir.wasm.gz", module, false},
+		{"sxir.wasm.gz", gzipped(t, []byte("text")), false},
+		{"sxir.wasm.gz", gzipped(t, module)[:20], false}, // truncated: the checksum is missing
 	} {
 		if err := checkWasm(tc.name, tc.data); (err == nil) != tc.ok {
 			t.Errorf("%s (%d bytes): %v", tc.name, len(tc.data), err)

@@ -1,6 +1,6 @@
 package ref
 
-import "zeroparse.dev/zp/pkg/grammar/ast"
+import "syntaxir.dev/sxir/pkg/grammar/ast"
 
 // Unknown stands for a value that the caller of an evaluation does not know yet, such as a part of the
 // input that a generator has not produced. It enters an evaluation only through TermEnv.Captures and

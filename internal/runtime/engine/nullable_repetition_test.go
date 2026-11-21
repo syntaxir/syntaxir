@@ -5,10 +5,10 @@ import (
 	"strings"
 	"testing"
 
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/runtime/nodes"
-	zpinput "zeroparse.dev/zp/pkg/runtime/input"
-	"zeroparse.dev/zp/pkg/runtime/value"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 func TestNullableRepetitionMinimum(t *testing.T) {
@@ -35,7 +35,7 @@ func TestNullableRepetitionMinimum(t *testing.T) {
 								wantClosureRefused(t, err)
 								continue
 							}
-							for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+							for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 								opts := ParseOptions{Backend: backend, Unit: unit}
 								for _, recognize := range []bool{false, true} {
 									opts.Recognize = recognize
@@ -87,7 +87,7 @@ func TestNullableRepetitionAfterConsumption(t *testing.T) {
 			for _, bound := range []string{fmt.Sprintf("#repeat(%d)", tc.min), fmt.Sprintf("#repeat(%d, )", tc.min)} {
 				p := mustCompile(t, "rule main = ("+body+")"+bound+" #stream $$\nrule r = \"é\" / _")
 				for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-					for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+					for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 						opts := ParseOptions{Backend: backend, Unit: unit}
 						if _, err := p.ParseWith("main", tc.input, opts); (err == nil) != tc.ok {
 							t.Errorf("%s%s/%q %s/%s: %v", body, bound, tc.input, backend, unit, err)
@@ -110,7 +110,7 @@ func TestNullableRepetitionProjection(t *testing.T) {
 	for _, minimum := range []int{1, 2} {
 		p := mustCompile(t, fmt.Sprintf(`rule main = xs:(f:_) #repeat(%d, ) $$ => map($xs, (x) => x.$f)`, minimum))
 		for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-			for _, unit := range []zpinput.PositionUnit{zpinput.CodePoints, zpinput.Bytes} {
+			for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 				if n, err := p.ParseWith("main", "", ParseOptions{Backend: backend, Unit: unit}); (err == nil) != (minimum == 1) || err == nil && len(nodes.D(n).Children) != 1 {
 					t.Errorf("projected min=%d %s/%s: %v, %v", minimum, backend, unit, n, err)
 				}

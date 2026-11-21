@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"zeroparse.dev/zp/internal/frontend/parser/sourceast"
-	"zeroparse.dev/zp/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/frontend/parser/sourceast"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // SourceError is a syntax error of the canonical grammar: the code point

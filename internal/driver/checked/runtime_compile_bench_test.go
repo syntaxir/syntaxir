@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"zeroparse.dev/zp/internal/backend/vmlower"
-	"zeroparse.dev/zp/internal/compile"
-	"zeroparse.dev/zp/internal/testing/compiletest"
+	"syntaxir.dev/sxir/internal/backend/vmlower"
+	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/testing/compiletest"
 )
 
 // BenchmarkRuntimeBackendCompile measures what a program compiled at run time costs its backends
@@ -15,7 +15,7 @@ import (
 // Core IR of the closures (closureCore). Both build the Core IR and run the Core passes on it;
 // parsing and checking the grammar are out.
 func BenchmarkRuntimeBackendCompile(b *testing.B) {
-	files, err := filepath.Glob("../../../testdata/grammars/*/*.zp")
+	files, err := filepath.Glob("../../../testdata/grammars/*/*.sxir")
 	if err != nil || len(files) == 0 {
 		b.Fatalf("no bundled grammars: %v", err)
 	}
