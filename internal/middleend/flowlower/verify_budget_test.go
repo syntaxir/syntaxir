@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
@@ -107,7 +108,7 @@ func TestVerifyBudgetCharges(t *testing.T) {
 		m.Funcs = []*code.Func{{Name: "f",
 			Attrs: &flow.Attrs{Budget: true, Entered: entered, Fail: "fail", Start: "start", Result: "v", Ctx: "c", Vars: []string{"ok", "n"}},
 			Locals: []code.Param{code.P("ok", code.TBool), code.P("n", code.TInt), code.P("start", code.TInt),
-				code.P("v", code.THandle(flow.TValue)), code.P("c", code.THandle(flow.TCtx))},
+				code.P("v", code.THandle(prim.TValue)), code.P("c", code.THandle(prim.TCtx))},
 			Body: &code.Block{Label: "fail", Stmts: body}}}
 		return m
 	}

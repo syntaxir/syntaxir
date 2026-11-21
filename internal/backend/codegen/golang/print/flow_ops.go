@@ -8,6 +8,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/execlower"
@@ -32,7 +33,7 @@ func (p *flowPrinter) op(c *code.Call, args []string) string {
 		}
 		return "p.Spend()"
 	case flow.OpSilent:
-		s := c.Imm.(flow.Silence)
+		s := c.Imm.(prim.Silence)
 		if s.Delta > 0 {
 			if s.Site != 0 {
 				return fmt.Sprintf("p.Silent++\np.LookBegin(%d)", s.Site)
@@ -55,7 +56,7 @@ func (p *flowPrinter) op(c *code.Call, args []string) string {
 		}
 		return "p.Pos += " + args[0]
 	case flow.OpExpect:
-		x := c.Imm.(flow.Expectation)
+		x := c.Imm.(prim.Expectation)
 		if x.Message {
 			return fmt.Sprintf("p.%s(%s, MsgBit|%d)", p.expectHelper(), args[0], p.desc(x.Exp))
 		}
@@ -74,9 +75,9 @@ func (p *flowPrinter) op(c *code.Call, args []string) string {
 	case flow.OpStreamStart:
 		return "p.StreamStart()"
 	case flow.OpSkipBegin:
-		return fmt.Sprintf("p.SkipBegin(%d)", c.Imm.(flow.Site))
+		return fmt.Sprintf("p.SkipBegin(%d)", c.Imm.(prim.Site))
 	case flow.OpRunBegin:
-		w := c.Imm.(flow.RunWalk)
+		w := c.Imm.(prim.RunWalk)
 		return fmt.Sprintf("p.RunBegin(%d, %t, %t)", w.Site, w.Build, w.KeyEnv)
 	case flow.OpSkipVisit:
 		return "p.SkipVisit()"
@@ -86,15 +87,15 @@ func (p *flowPrinter) op(c *code.Call, args []string) string {
 		return "p.SkipEnd()"
 	case flow.OpRunWalked:
 		// A walk shorter than RunHotSpan changes nothing, so the call is left out.
-		return fmt.Sprintf("if p.Pos-%s >= RunHotSpan {\np.RunWalked(%d, %s)\n}", args[0], c.Imm.(flow.Site), args[0])
+		return fmt.Sprintf("if p.Pos-%s >= RunHotSpan {\np.RunWalked(%d, %s)\n}", args[0], c.Imm.(prim.Site), args[0])
 	case flow.OpScanEnd:
-		return fmt.Sprintf("p.ScanEnd(%d, %s, %s)", c.Imm.(flow.Site), args[0], args[1])
+		return fmt.Sprintf("p.ScanEnd(%d, %s, %s)", c.Imm.(prim.Site), args[0], args[1])
 	case flow.OpEmitStream:
 		return fmt.Sprintf("p.EmitStream(%s, p.Pos)", args[0])
 	case flow.OpDropKids:
 		return fmt.Sprintf("p.DropKids(%s)", args[0])
 	case flow.OpSetWhere:
-		return fmt.Sprintf("p.Where = %q", string(c.Imm.(flow.Chars)))
+		return fmt.Sprintf("p.Where = %q", string(c.Imm.(prim.Chars)))
 	case flow.OpDropCreated:
 		return fmt.Sprintf("p.DropCreated(%s.Cbase)", args[0])
 	case flow.OpUnfresh:
@@ -102,7 +103,7 @@ func (p *flowPrinter) op(c *code.Call, args []string) string {
 	case flow.OpReset:
 		return fmt.Sprintf("p.Reset(%s)", args[0])
 	case flow.OpSetCapture:
-		return fmt.Sprintf("p.%s(%d, %s)", g.helper("SetCapture"), c.Imm.(flow.Slot), args[0])
+		return fmt.Sprintf("p.%s(%d, %s)", g.helper("SetCapture"), c.Imm.(prim.Slot), args[0])
 	case flow.OpClearVals:
 		return fmt.Sprintf("clear(%s.Vals)", args[0])
 	case flow.OpDropTrail:
@@ -113,7 +114,7 @@ func (p *flowPrinter) op(c *code.Call, args []string) string {
 		return fmt.Sprintf("p.PushRecovered(%s)", args[0])
 	case flow.OpDeclareNames:
 		// Declared whatever the reachability.
-		n := c.Imm.(*flow.Names)
+		n := c.Imm.(*prim.Names)
 		p.scopeNames(n)
 		p.declare(n)
 		return ""
@@ -121,7 +122,7 @@ func (p *flowPrinter) op(c *code.Call, args []string) string {
 		// The alternative's expression begins with the call it skips, if any.
 		return strings.TrimSuffix(strings.TrimPrefix(g.traceSkip(g.Flow.M.Origin.Of(c.Imm.(core.Node))), "\n"), "\n")
 	case flow.OpSkippedCalls:
-		return p.skippedCalls(c.Imm.(flow.SkippedCalls))
+		return p.skippedCalls(c.Imm.(prim.SkippedCalls))
 	case flow.OpSetEnv:
 		return "p.Env = " + args[0]
 	case flow.OpSetFrame:
@@ -143,13 +144,13 @@ func (p *flowPrinter) op(c *code.Call, args []string) string {
 	case flow.OpSkipHit:
 		return "p.SkipHit()"
 	case flow.OpRunHot:
-		return fmt.Sprintf("p.RunHot(%d)", c.Imm.(flow.Site))
+		return fmt.Sprintf("p.RunHot(%d)", c.Imm.(prim.Site))
 	case flow.OpSkipKids:
 		return "p.SkipKids()"
 	case flow.OpScanReach:
-		return fmt.Sprintf("p.ScanReach(%d, %s, %s)", c.Imm.(flow.Site), args[0], args[1])
+		return fmt.Sprintf("p.ScanReach(%d, %s, %s)", c.Imm.(prim.Site), args[0], args[1])
 	case flow.OpScanKids:
-		return fmt.Sprintf("p.ScanKids(%d, %s, %s, %s)", c.Imm.(flow.Site), args[0], args[1], args[2])
+		return fmt.Sprintf("p.ScanKids(%d, %s, %s, %s)", c.Imm.(prim.Site), args[0], args[1], args[2])
 	case flow.OpHasLit:
 		return p.hasLit(c.Imm.(*core.Lit))
 	case flow.OpMatchLit:
@@ -178,7 +179,7 @@ func (p *flowPrinter) op(c *code.Call, args []string) string {
 		}
 		return fmt.Sprintf("!(%s && (%s)) && %s", args[1], chIdent.ReplaceAllString(cond, args[0]), depthLimit(guard.Depth))
 	case flow.OpCallRule:
-		x := c.Imm.(flow.RuleCall)
+		x := c.Imm.(prim.RuleCall)
 		return g.ruleCall(g.Flow.Rules[x.Rule], x.Level)
 	case flow.OpIsolate:
 		return "p.Isolate(p.Pos)"
@@ -187,30 +188,30 @@ func (p *flowPrinter) op(c *code.Call, args []string) string {
 	case flow.OpText:
 		return fmt.Sprintf("p.Text(%s, p.Pos)", args[0])
 	case flow.OpLiteralText:
-		return fmt.Sprintf("p.LiteralText(%s, %q)", args[0], string(c.Imm.(flow.Chars)))
+		return fmt.Sprintf("p.LiteralText(%s, %q)", args[0], string(c.Imm.(prim.Chars)))
 	case flow.OpStr:
-		return strconv.Quote(string(c.Imm.(flow.Chars)))
+		return strconv.Quote(string(c.Imm.(prim.Chars)))
 	case flow.OpNewMatch:
 		return fmt.Sprintf("p.%s(%s, p.Pos, %s, true)", g.helper("NewMatch"), args[0], args[1])
 	case flow.OpNewTerminalNode:
 		return fmt.Sprintf("p.%s(%s, %s)", g.helper("NewTerminal"), args[0], args[1])
 	case flow.OpNewBranchNode:
 		kind := "SeqKind"
-		if c.Imm.(flow.List) {
+		if c.Imm.(prim.List) {
 			kind = "ListKind"
 		}
 		return fmt.Sprintf("p.%s(%s, %s, %s)", g.helper("NewBranch"), kind, args[0], args[1])
 	case flow.OpNewNode:
 		typ := "tuple"
-		if c.Imm.(flow.List) {
+		if c.Imm.(prim.List) {
 			typ = valueimpl.TypeList
 		}
 		return fmt.Sprintf("p.%s(%q, %s, p.Pos, %s)", g.helper("NewNode"), typ, args[0], args[1])
 	case flow.OpNewVals:
 		if p.untyped() {
-			return fmt.Sprintf("p.Nodes(%d)[:0]", c.Imm.(flow.Room))
+			return fmt.Sprintf("p.Nodes(%d)[:0]", c.Imm.(prim.Room))
 		}
-		return fmt.Sprintf("p.NewVals(%d)[:0]", c.Imm.(flow.Room))
+		return fmt.Sprintf("p.NewVals(%d)[:0]", c.Imm.(prim.Room))
 	case flow.OpKids:
 		return fmt.Sprintf("p.Kids(%s)", args[0])
 	case flow.OpShapeSingle:
@@ -220,23 +221,23 @@ func (p *flowPrinter) op(c *code.Call, args []string) string {
 	case flow.OpScopeValue:
 		return fmt.Sprintf("p.ScopeValue(%s, %s, %s)", p.shaper(c.Imm.(core.Shape)), args[0], args[1])
 	case flow.OpAttachFrame:
-		names := p.scopeNames(c.Imm.(flow.Attach).Names)
+		names := p.scopeNames(c.Imm.(prim.Attach).Names)
 		if p.untyped() {
 			// The Node library's AttachCaptures takes the frame.
 			return fmt.Sprintf("p.AttachCaptures(%s, %s, %s, %s, p.Pos)", args[0], names, args[2], args[1])
 		}
 		return fmt.Sprintf("p.AttachCaptures(%s, %s, %s.Vals, %s, p.Pos)", args[0], names, args[2], args[1])
 	case flow.OpAttachCaptures:
-		names := p.scopeNames(c.Imm.(flow.Attach).Names)
+		names := p.scopeNames(c.Imm.(prim.Attach).Names)
 		return fmt.Sprintf("p.AttachCaptures(%s, %s, []any{%s}, %s, p.Pos)", args[0], names, strings.Join(args[2:], ", "), args[1])
 	case flow.OpMarkState:
 		return "p.Mark()"
 	case flow.OpMarkPos:
 		return args[0] + ".Pos"
 	case flow.OpNewFrame:
-		return fmt.Sprintf("p.NewFrame(len(%s))", p.scopeNames(c.Imm.(*flow.Names)))
+		return fmt.Sprintf("p.NewFrame(len(%s))", p.scopeNames(c.Imm.(*prim.Names)))
 	case flow.OpFrameVal:
-		return fmt.Sprintf("%s.Vals[%d]", args[0], c.Imm.(flow.Slot))
+		return fmt.Sprintf("%s.Vals[%d]", args[0], c.Imm.(prim.Slot))
 	case flow.OpKeep:
 		return fmt.Sprintf("p.Keep(%s)", args[0])
 	case flow.OpMakeError:
@@ -248,7 +249,7 @@ func (p *flowPrinter) op(c *code.Call, args []string) string {
 	case flow.OpFreshNode:
 		return fmt.Sprintf("TFreshNode(%s)", args[0])
 	case flow.OpConvertResult:
-		x := c.Imm.(flow.Conversion)
+		x := c.Imm.(prim.Conversion)
 		if x.Owned {
 			return fmt.Sprintf("p.TConvertResultOwned(trules[%d], %s, %s)", x.Rule, args[0], args[1])
 		}
@@ -256,7 +257,7 @@ func (p *flowPrinter) op(c *code.Call, args []string) string {
 	case flow.OpUseCtx:
 		return fmt.Sprintf("p.UseCtx(TActCtx{P: p, Start: %s, End: p.Pos, Cbase: len(p.Created)})", args[0])
 	case flow.OpEval:
-		x := c.Imm.(flow.Action)
+		x := c.Imm.(prim.Action)
 		defer p.caps(x.Names, args[1:])()
 		stmts, res := g.loweredStmts(x.Term, check.NewScope(), nil)
 		p.pre += stmts
@@ -271,7 +272,7 @@ func (p *flowPrinter) op(c *code.Call, args []string) string {
 // appendText returns the statement of flow.append, which assigns the list it appends to.
 func (p *flowPrinter) appendText(c *code.Call, args []string) string {
 	vals, x := args[0], args[1]
-	spread := bool(c.Imm.(flow.Spread))
+	spread := bool(c.Imm.(prim.Spread))
 	if spread && p.untyped() {
 		x = "D(" + x + ").Children..."
 	} else if spread {
@@ -356,7 +357,7 @@ func (p *flowPrinter) negate(c *code.Call, args []string) string {
 		}
 		return fmt.Sprintf("!p.%s(%s)", g.pickLogical("ClassesSkip"), g.classSteps(items))
 	case flow.OpPred:
-		x := c.Imm.(flow.Predicate)
+		x := c.Imm.(prim.Predicate)
 		if x.Frame {
 			// The term reads the current frame.
 			return fmt.Sprintf("!p.Predicate(func(c *%s) (any, any) { %s })", g.ctxType(), g.predicate(x.Node.Term, common.FrameScope(x.Names)))
@@ -364,7 +365,7 @@ func (p *flowPrinter) negate(c *code.Call, args []string) string {
 		defer p.caps(x.Names, args)()
 		return fmt.Sprintf("!p.Predicate(func(c *TActCtx) (any, any) { %s })", g.predicate(x.Node.Term, check.NewScope()))
 	case flow.OpBind:
-		x := c.Imm.(flow.Binding)
+		x := c.Imm.(prim.Binding)
 		b := p.term(x.Node).(*ast.Bind)
 		if x.Frame {
 			return fmt.Sprintf("!p.Bind(%d, func(c *%s) (any, any) { %s })", g.Prog.Vars.Index(b.Name), g.ctxType(), g.actionBody(x.Node.Term, common.FrameScope(x.Names), nil))

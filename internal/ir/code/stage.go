@@ -75,11 +75,13 @@ func EnterFlow(m *Module) At[Flow] { return enter[Flow](m) }
 func EnterExec(m *Module) At[Exec] { return enter[Exec](m) }
 
 // stageChecks holds, by stage, the invariants of a module at the stage beyond Verify, which the
-// dialect of the stage registers (RegisterStageCheck).
+// package that declares the functions of the stage registers (RegisterStageCheck).
 var stageChecks = map[string]func(*Module) error{}
 
 // RegisterStageCheck makes check part of the verifier of the kind of the stage S, after Verify. The
-// dialect package of the stage calls it once, from its init function; a second call panics.
+// package that declares the functions of the stage calls it once, from its init function: the Flow
+// dialect, and at the Exec stage the data of the primitives (exec/prim), which declares the
+// attributes of its functions. A second call panics.
 func RegisterStageCheck[S Stage](check func(*Module) error) {
 	name := stageName[S]()
 	if stageChecks[name] != nil {

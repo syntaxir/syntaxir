@@ -17,6 +17,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/ir/core"
@@ -729,7 +730,7 @@ func flowBound(in *ref.Input, o *code.Op, c *code.Call, e *flowEvent) int {
 func checkFlowCall(in *ref.Input, o *code.Op, c *code.Call, e *flowEvent, budget bool) []string {
 	var errs []string
 	fail := func(format string, args ...any) { errs = append(errs, fmt.Sprintf(format, args...)) }
-	if !slices.Contains(o.Writes, flow.Pos) && e.PosAfter != e.Pos {
+	if !slices.Contains(o.Writes, prim.Pos) && e.PosAfter != e.Pos {
 		fail("moved the position to %d without writing it", e.PosAfter)
 	}
 	self := int(e.UsedAfter-e.Used) - int(e.Nested)
@@ -881,7 +882,7 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 			return
 		}
 		want := 1
-		if bool(c.Imm.(flow.Spread)) {
+		if bool(c.Imm.(prim.Spread)) {
 			x, ok := valOf(e.Args[1])
 			if !ok {
 				return
@@ -1116,7 +1117,7 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 		}
 	},
 	flow.OpStr: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
-		if s, isStr := firstString(e); isStr && s != string(c.Imm.(flow.Chars)) {
+		if s, isStr := firstString(e); isStr && s != string(c.Imm.(prim.Chars)) {
 			fail("returned %q", s)
 		}
 	},
@@ -1197,7 +1198,7 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 		}
 	},
 	flow.OpSilent: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
-		if d := c.Imm.(flow.Silence).Delta; e.SilentAfter-e.Silent != d {
+		if d := c.Imm.(prim.Silence).Delta; e.SilentAfter-e.Silent != d {
 			fail("changed the silent depth by %d, not %d", e.SilentAfter-e.Silent, d)
 		}
 	},
@@ -1364,7 +1365,7 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 		}
 	},
 	flow.OpSetCapture: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
-		slot := int(c.Imm.(flow.Slot))
+		slot := int(c.Imm.(prim.Slot))
 		if slot >= len(e.Vals) || len(e.ValsAfter) != len(e.Vals) {
 			fail("the frame has %d slots before and %d after, for slot %d", len(e.Vals), len(e.ValsAfter), slot)
 			return
@@ -1379,7 +1380,7 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 		}
 	},
 	flow.OpFrameVal: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
-		slot := int(c.Imm.(flow.Slot))
+		slot := int(c.Imm.(prim.Slot))
 		if idOf(e.Args[0]) != e.Frame || slot >= len(e.Vals) {
 			return
 		}

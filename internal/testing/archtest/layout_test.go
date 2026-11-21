@@ -80,6 +80,8 @@ var layout = []place{
 	{pkg: "internal/ir/code/exec", target: "internal/ir/code/exec"},
 	{pkg: "internal/ir/code/exec/compose", target: "internal/ir/code/exec/compose"},
 	{pkg: "internal/ir/code/exec/conform", target: "internal/ir/code/exec/conform"},
+	// prim holds the data of grammar code that the Flow operations and their primitives share.
+	{pkg: "internal/ir/code/exec/prim", target: "internal/ir/code/exec/prim"},
 	{pkg: "internal/ir/code/exec/ref", target: "internal/ir/code/exec/ref"},
 	{pkg: "internal/ir/code/exec/spectest", target: "internal/ir/code/exec/spectest"},
 
@@ -288,12 +290,16 @@ func dialect(a, b string) string {
 			return "internal/ir/code imports no dialect"
 		}
 	case under(a, code+"/flow"):
-		if b != code && !under(b, "internal/ir/core") && !under(b, code+"/flow") {
-			return "within internal/ir, code/flow imports only code and ir/core"
+		if b != code && !under(b, "internal/ir/core") && !under(b, code+"/flow") && b != code+"/exec/prim" {
+			return "within internal/ir, code/flow imports only code, ir/core and code/exec/prim"
 		}
 	case under(a, code+"/action"):
 		if b != code && !under(b, code+"/action") {
 			return "within internal/ir, code/action imports only code"
+		}
+	case a == code+"/exec/prim":
+		if b != code && !under(b, "internal/ir/core") {
+			return "within internal/ir, code/exec/prim imports only code and ir/core"
 		}
 	case a == code+"/exec":
 		if b != code {
@@ -420,8 +426,13 @@ func layerImports(a, b layer) bool {
 	return reach(a)
 }
 
-// dialectOf returns the Code IR dialect of the package at the layout path t, or "".
+// dialectOf returns the Code IR dialect of the package at the layout path t, or "". code/exec/prim
+// is of no dialect: the immediates, registers and types it declares are those of the Flow operations
+// and of their primitives alike, so the packages of either stage import it.
 func dialectOf(t string) string {
+	if t == "internal/ir/code/exec/prim" {
+		return ""
+	}
 	for _, d := range []string{"flow", "action", "exec"} {
 		if under(t, "internal/ir/code/"+d) {
 			return d

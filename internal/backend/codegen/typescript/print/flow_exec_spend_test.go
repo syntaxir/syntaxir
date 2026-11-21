@@ -6,6 +6,7 @@ import (
 
 	tspass "syntaxir.dev/sxir/internal/backend/codegen/typescript/pass"
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/pass"
 )
@@ -46,7 +47,7 @@ func TestFlowExecStepRunFlag(t *testing.T) {
 // by returning the null value and true, and the function returns the null value and false after it.
 func framed(t *testing.T, name string, vars []code.Param, body ...code.Stmt) *code.Module {
 	t.Helper()
-	value := code.THandle(flow.TValue)
+	value := code.THandle(prim.TValue)
 	at := &flow.Attrs{Frame: true, Fail: "fail"}
 	for _, v := range vars {
 		at.Vars = append(at.Vars, v.Name)

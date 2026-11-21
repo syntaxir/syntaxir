@@ -11,6 +11,7 @@ import (
 	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
@@ -193,7 +194,7 @@ func TestRefused(t *testing.T) {
 			forms++
 		}
 		fn = lowerFlow(t, m, s, opts)
-		fn.Locals = append(fn.Locals, code.P("v", flow.CodeType(flow.TypeValue)))
+		fn.Locals = append(fn.Locals, code.P("v", prim.CodeType(prim.TypeValue)))
 		flow.AttrsOf(fn).Vars = append(flow.AttrsOf(fn).Vars, "v")
 		if !flowplan.Refused(fn) {
 			t.Errorf("%s holds a value and is not refused", s.Name)

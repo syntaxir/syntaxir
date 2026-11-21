@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	. "syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 )
 
 // storesFunc returns a function of the test module with the locals names, all ints, and the body.
@@ -131,5 +132,35 @@ func TestDeadStoresKeepNullOppositeSeveralPlaces(t *testing.T) {
 	}
 	if len(st.Removed) != 0 {
 		t.Error("the store with a place that stays is removed")
+	}
+}
+
+// TestRefusesFlat checks the check of a flat function: a reachable read of the entry position or
+// the action context refuses it, an unreachable one does not, and a variable refuses it only if it
+// holds a value.
+func TestRefusesFlat(t *testing.T) {
+	read := func(l string) Stmt { return &Set{Dst: []Place{{Name: "x"}}, Values: []Expr{L(l)}} }
+	exit := &Exit{Label: "fail"}
+	ints := []Param{P("x", TInt)}
+	for _, c := range []struct {
+		name string
+		body []Stmt
+		vars []Param
+		want bool
+	}{
+		{"no read", []Stmt{read("x")}, ints, false},
+		{"reads the start", []Stmt{read("s")}, ints, true},
+		{"reads the context", []Stmt{read("c")}, ints, true},
+		{"reads the start after an exit", []Stmt{exit, read("s")}, ints, false},
+		{"a variable of a value", []Stmt{read("x")}, []Param{P("v", THandle(prim.TValue))}, true},
+		{"a variable of a mark", []Stmt{read("x")}, []Param{P("m", THandle(prim.TMark))}, false},
+	} {
+		f := storesFunc(t, []string{"x", "s", "c"}, c.body...)
+		if got := RefusesFlat(f, "s", "c", c.vars); got != c.want {
+			t.Errorf("%s: RefusesFlat = %v, want %v", c.name, got, c.want)
+		}
+	}
+	if f := storesFunc(t, []string{"x", "s"}, read("s")); RefusesFlat(f, "", "", nil) {
+		t.Error("a function without entry variables is refused for a read of a local")
 	}
 }

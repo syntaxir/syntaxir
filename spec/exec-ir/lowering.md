@@ -23,7 +23,8 @@ The module at the Exec stage lists the Exec and Action dialects as the dialects 
 The primitive that stands for an operation of the Flow dialect is named `runtime.` followed by the operation's name
 without `flow.`, as `runtime.matchLit` stands for `flow.matchLit`; the correspondence is one to one. It is an operation
 of the kind primitive (printed `primitive op`) of the Exec dialect and the component `runtime`, and has the signature,
-contract, cost bound, laws, features and immediate operand of the Flow operation, of the same type; the state
+contract, cost bound, laws, features and immediate operand of the Flow operation, of the same type; an operation
+without a primitive, or whose immediate is of another type than its primitive's, is not converted. The state
 component of the Flow dialect is `runtime`, in the places where the Flow operation names it. The arguments of a call
 are those of the Flow call, in the same order, so that passes see the reads that the Flow dialect declares. A primitive
 has no reference model, because each target prints it in place, in its own form; the conformance of a target per
@@ -38,7 +39,11 @@ primitive is checked as [Printing](printing.md#conformance) describes.
 
 ## The Function
 
-The function keeps its name, its parameters, its locals, its attributes and its body. The body is a block labeled with
+The function keeps its name, its parameters, its locals and its body, and its attributes become the attributes of the
+Exec stage: each attribute of the Flow function except the record of the forms of the lowering, which the passes of the
+Flow stage consume before the conversion, so a function that still holds forms is not converted. The verifier of the
+Exec stage rejects a function whose attributes are of another stage, as it rejects an operation of the Flow dialect. The
+body is a block labeled with
 the function's failure label, so that an exit to that label leaves the body; the code that holds the printed body
 continues after success and after failure. The functions of the Flow dialect are described in
 [Functions](../flow-ir/functions.md).

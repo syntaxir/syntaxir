@@ -1,0 +1,255 @@
+package prim
+
+import (
+	"fmt"
+	"strconv"
+	"strings"
+
+	"syntaxir.dev/sxir/internal/ir/core"
+)
+
+// Immediate operands of the primitives, which their Flow operations have too.
+
+// Silence is the immediate of silent: the change Delta of the silent depth, and for a
+// lookahead (Site is not 0) its site and, at its end, whether its body matched.
+type Silence struct {
+	Delta int
+	Site  int
+	Ok    bool
+}
+
+// Site is the immediate of the operations of skip-run and scan sites: the site's number.
+type Site int
+
+// RunWalk is the immediate of runBegin: the run site, whether its iterations have values
+// (skipValue), which skipKids gathers in a list, and whether its records are keyed by the
+// values of the variables of the site's run key (program.RunKey), which the printed parser holds; a
+// site free of the environment (core.Repeat.RunEnvFree) is keyed by the position alone.
+type RunWalk struct {
+	Site          int
+	Build, KeyEnv bool
+}
+
+// Slot is the immediate of setCapture and frameVal: a capture slot of a frame.
+type Slot int
+
+// Expectation is the immediate of expect: the expectation, and whether it is the message of a
+// failed @error.
+type Expectation struct {
+	Exp     core.ExpID
+	Message bool
+}
+
+// SkippedCalls is the immediate of skippedCalls: the rules that the alternative a guard skips
+// calls before it fails at its first terminal, outermost first (core.GuardCalls), and the
+// expectation of that terminal, the guard's.
+type SkippedCalls struct {
+	Rules []int
+	Exp   core.ExpID
+}
+
+// Spread is the immediate of append: whether the children of a tuple node are appended
+// instead of the node.
+type Spread bool
+
+// RuleCall is the immediate of callRule: the rule and the Operators Rule level it is called
+// from.
+type RuleCall struct{ Rule, Level int }
+
+// Outline is the immediate of callOutline: the node that a function of its own lowers, the
+// slots of the capture scope of the current frame, and whether the call builds the node's value.
+type Outline struct {
+	Node  core.Node
+	Slots []core.Slot
+	Build bool
+}
+
+// Chars is the immediate of literalText, str and setWhere: a string.
+type Chars string
+
+// List is the immediate of newNode and newBranchNode: whether the node is a list.
+type List bool
+
+// Room is the immediate of newVals: the room of the new list.
+type Room int
+
+// Attach is the immediate of attachCaptures and attachFrame: the slot names of the scope,
+// and whether the captures are the values of a frame (attachFrame) instead of variables.
+type Attach struct {
+	Names *Names
+	Frame bool
+}
+
+// StateMark is the immediate of markState: which parts of the state besides the position the
+// code between the mark and its reset may change.
+type StateMark struct{ Env, Trail, Rec bool }
+
+// Conversion is the immediate of convertResult: the rule, and whether the fresh node of the
+// body is passed to convert in place.
+type Conversion struct {
+	Rule  int
+	Owned bool
+}
+
+// Capture names the captures of an action expression: the slot names of the scope whose variables
+// a call passes, or Frame when the expression reads the current frame and the call passes none.
+type Capture struct {
+	Names []string
+	Frame bool
+}
+
+// Predicate is the immediate of pred.
+type Predicate struct {
+	Node *core.Pred
+	Capture
+}
+
+// Binding is the immediate of bind.
+type Binding struct {
+	Node *core.BindNode
+	Capture
+}
+
+// Action is the immediate of eval: the action of the function's rule.
+type Action struct {
+	Term core.ActionExpr
+	Capture
+}
+
+// Names are the slot names of a capture scope, which printers declare once: the immediate of
+// declareNames and newFrame.
+type Names struct {
+	List []string
+	// Declared reports that a declareNames call declares them; otherwise their first use does.
+	Declared bool
+}
+
+// ImmString returns the immediate imm of a primitive, or of its Flow operation, as listings print it
+// (code.Op.FormatImm): its static data, without the addresses of the Core nodes it points to, so that
+// a listing of the same function is the same in every run.
+func ImmString(imm any) string {
+	switch x := imm.(type) {
+	case Silence:
+		s := fmt.Sprintf("%+d", x.Delta)
+		if x.Site != 0 {
+			s += fmt.Sprintf(" site %d", x.Site)
+		}
+		if x.Ok {
+			s += " ok"
+		}
+		return s
+	case Site:
+		return fmt.Sprintf("site %d", int(x))
+	case RunWalk:
+		return fmt.Sprintf("site %d build=%t key-env=%t", x.Site, x.Build, x.KeyEnv)
+	case Slot:
+		return fmt.Sprintf("slot %d", int(x))
+	case Expectation:
+		if x.Message {
+			return fmt.Sprintf("exp %d message", x.Exp)
+		}
+		return fmt.Sprintf("exp %d", x.Exp)
+	case SkippedCalls:
+		return fmt.Sprintf("rules %v exp %d", x.Rules, x.Exp)
+	case Spread:
+		if x {
+			return "spread"
+		}
+		return "one"
+	case RuleCall:
+		return fmt.Sprintf("rule %d level %d", x.Rule, x.Level)
+	case Outline:
+		s := fmt.Sprintf("%s slots %v", nodeKind(x.Node), core.SlotNames(x.Slots))
+		if x.Build {
+			s += " build"
+		}
+		return s
+	case Chars:
+		return strconv.Quote(string(x))
+	case List:
+		if x {
+			return "list"
+		}
+		return "tuple"
+	case Room:
+		return fmt.Sprintf("room %d", int(x))
+	case Attach:
+		s := names(x.Names)
+		if x.Frame {
+			s += " frame"
+		}
+		return s
+	case StateMark:
+		var parts []string
+		for _, p := range []struct {
+			on   bool
+			name string
+		}{{x.Env, "env"}, {x.Trail, "trail"}, {x.Rec, "rec"}} {
+			if p.on {
+				parts = append(parts, p.name)
+			}
+		}
+		return "state " + strings.Join(append([]string{"pos"}, parts...), " ")
+	case Conversion:
+		if x.Owned {
+			return fmt.Sprintf("rule %d owned", x.Rule)
+		}
+		return fmt.Sprintf("rule %d", x.Rule)
+	case Predicate:
+		return core.ActionExprString(x.Node.Term) + capture(x.Capture)
+	case Binding:
+		return x.Node.Var + " = " + core.ActionExprString(x.Node.Term) + capture(x.Capture)
+	case Action:
+		return core.ActionExprString(x.Term) + capture(x.Capture)
+	case *Names:
+		s := names(x)
+		if x.Declared {
+			s += " declared"
+		}
+		return s
+	case core.ExpID:
+		return fmt.Sprintf("exp %d", x)
+	case *core.Lit:
+		s := strconv.Quote(x.Text)
+		if x.Fold {
+			s += "i"
+		}
+		return s
+	case *core.Class:
+		return fmt.Sprintf("class exp %d", x.Exp)
+	case *core.First:
+		return fmt.Sprintf("guard exp %d depth %d", x.Exp, x.Depth)
+	case core.AnchorKind:
+		return [...]string{"begin input", "end input", "begin line", "end line"}[x]
+	case *core.Terminal:
+		return "terminal"
+	case *core.ClassRun:
+		return fmt.Sprintf("%d classes", len(x.Classes))
+	case core.Shape:
+		return fmt.Sprintf("%+v", x)
+	case core.Node:
+		return nodeKind(x)
+	}
+	return fmt.Sprintf("%T", imm)
+}
+
+// nodeKind names the kind of the Core node n.
+func nodeKind(n core.Node) string {
+	return strings.TrimPrefix(fmt.Sprintf("%T", n), "*core.")
+}
+
+func names(n *Names) string {
+	if n == nil {
+		return "[]"
+	}
+	return fmt.Sprint(n.List)
+}
+
+// capture prints the slots of a capture, and where it reads them from the current frame.
+func capture(c Capture) string {
+	s := fmt.Sprintf(" slots %v", c.Names)
+	if c.Frame {
+		s += " frame"
+	}
+	return s
+}

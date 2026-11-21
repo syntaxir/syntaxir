@@ -2,7 +2,7 @@ package print
 
 import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/internal/ir/code/flow"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 )
 
@@ -22,15 +22,15 @@ func (g *Generator) flowRecRule(r *common.Rule, spec *plandata.FuncSpec) *flatRu
 	g.Cur, g.Proj = r, g.Projections(r)
 	defer func() { g.Proj = nil }()
 	p := newFlowPrinter(g, false)
-	p.document = flow.AttrsOf(l.Func).Document
+	p.document = prim.AttrsOf(l.Func).Document
 	return g.execRecRule(p, l)
 }
 
 // untypedGoType returns the Go type of a variable of a Flow IR function printed for the Node
 // library, or false if the printer has no such type for it.
-func untypedGoType(t flow.Type) (string, bool) {
+func untypedGoType(t prim.Type) (string, bool) {
 	switch t {
-	case flow.TypeInt, flow.TypeBool, flow.TypeRune, flow.TypeMark, flow.TypeExpMark, flow.TypeExpIDs:
+	case prim.TypeInt, prim.TypeBool, prim.TypeRune, prim.TypeMark, prim.TypeExpMark, prim.TypeExpIDs:
 		return goType(t), true
 	}
 	return "", false

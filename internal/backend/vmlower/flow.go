@@ -7,6 +7,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	flowpkg "syntaxir.dev/sxir/internal/ir/code/flow"
 	ir "syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
@@ -72,7 +73,7 @@ func (c *compiler) flow(fn *code.Func, rule int) (*bytecode.Flow, error) {
 	if a.Rule == nil || a.Rule.ID != rule {
 		return nil, fmt.Errorf("the function is not the body of rule %d", rule)
 	}
-	s := &flowSel{c: c, f: &bytecode.Flow{}, regs: map[string]int{}, labels: map[string][]int{}, conts: map[string][]int{}, scopes: map[*flowpkg.Names]int{}}
+	s := &flowSel{c: c, f: &bytecode.Flow{}, regs: map[string]int{}, labels: map[string][]int{}, conts: map[string][]int{}, scopes: map[*prim.Names]int{}}
 	for _, p := range fn.Locals {
 		r := s.local(p.Name)
 		zero, err := zeroOf(p.Type)
@@ -151,11 +152,11 @@ type flowSel struct {
 	labels map[string][]int
 	conts  map[string][]int
 	// scopes holds the entry of the module's scope table of each scope of the function's frames.
-	scopes map[*flowpkg.Names]int
+	scopes map[*prim.Names]int
 }
 
 // scope returns the entry of the module's scope table that holds the names n, adding it on first use.
-func (s *flowSel) scope(n *flowpkg.Names) int {
+func (s *flowSel) scope(n *prim.Names) int {
 	if sc, ok := s.scopes[n]; ok {
 		return sc
 	}
@@ -329,9 +330,9 @@ func (s *flowSel) set(x *code.Set) error {
 	dst := make([]int, len(x.Dst))
 	for i, p := range x.Dst {
 		switch {
-		case p.Reg && p.Name == flowpkg.Pos:
+		case p.Reg && p.Name == prim.Pos:
 			dst[i] = posDst
-		case p.Reg && p.Name == flowpkg.Cut:
+		case p.Reg && p.Name == prim.Cut:
 			dst[i] = cutDst
 		case p.Reg:
 			return fmt.Errorf("an assignment to register %s has no bytecode Flow form", p.Name)
@@ -428,8 +429,8 @@ func (s *flowSel) expr(e code.Expr) (int, error) {
 	case *code.Reg:
 		op := bytecode.FlowPos
 		switch x.Name {
-		case flowpkg.Pos:
-		case flowpkg.Cut:
+		case prim.Pos:
+		case prim.Cut:
 			op = bytecode.FlowCut
 		default:
 			return 0, fmt.Errorf("register %s has no bytecode Flow form", x.Name)
@@ -560,7 +561,7 @@ func (s *flowSel) call(c *code.Call, dst []int) error {
 		}
 		s.emit(bytecode.FlowInstr{Op: bytecode.FlowGuard, Dst: dst, Args: a, Imm: of})
 	case flowpkg.OpExpect:
-		x := c.Imm.(flowpkg.Expectation)
+		x := c.Imm.(prim.Expectation)
 		a, err := args(c.Args)
 		if err != nil {
 			return err
@@ -573,7 +574,7 @@ func (s *flowSel) call(c *code.Call, dst []int) error {
 		}
 		s.emit(bytecode.FlowInstr{Op: bytecode.FlowUnfresh, Args: a})
 	case flowpkg.OpCallRule:
-		x := c.Imm.(flowpkg.RuleCall)
+		x := c.Imm.(prim.RuleCall)
 		if want, got := s.c.core.Rules[x.Rule].Name, s.c.ruleName(x.Rule); want != got {
 			return fmt.Errorf("rule %d is %s in the Core IR and %s in the module", x.Rule, want, got)
 		}
@@ -581,7 +582,7 @@ func (s *flowSel) call(c *code.Call, dst []int) error {
 	case flowpkg.OpStep:
 		s.emit(bytecode.FlowInstr{Op: bytecode.FlowStep})
 	case flowpkg.OpSilent:
-		x := c.Imm.(flowpkg.Silence)
+		x := c.Imm.(prim.Silence)
 		if x.Delta != 1 && x.Delta != -1 {
 			return fmt.Errorf("flow.silent by %d", x.Delta)
 		}
@@ -635,24 +636,24 @@ func (s *flowSel) call(c *code.Call, dst []int) error {
 		return s.op(bytecode.FlowNewTerminal, c, dst, nil)
 	case flowpkg.OpNewBranchNode:
 		op := bytecode.FlowNewSeq
-		if c.Imm.(flowpkg.List) {
+		if c.Imm.(prim.List) {
 			op = bytecode.FlowNewList
 		}
 		return s.op(op, c, dst, nil)
 	case flowpkg.OpNewVals:
-		return s.op(bytecode.FlowNewVals, c, dst, int(c.Imm.(flowpkg.Room)))
+		return s.op(bytecode.FlowNewVals, c, dst, int(c.Imm.(prim.Room)))
 	case flowpkg.OpAppend:
 		op := bytecode.FlowAppend
-		if c.Imm.(flowpkg.Spread) {
+		if c.Imm.(prim.Spread) {
 			op = bytecode.FlowSpread
 		}
 		return s.op(op, c, dst, nil)
 	case flowpkg.OpText:
 		return s.op(bytecode.FlowText, c, dst, nil)
 	case flowpkg.OpLiteralText:
-		return s.op(bytecode.FlowLiteralText, c, dst, int(s.c.str(string(c.Imm.(flowpkg.Chars)))))
+		return s.op(bytecode.FlowLiteralText, c, dst, int(s.c.str(string(c.Imm.(prim.Chars)))))
 	case flowpkg.OpStr:
-		return s.op(bytecode.FlowStr, c, dst, int(s.c.str(string(c.Imm.(flowpkg.Chars)))))
+		return s.op(bytecode.FlowStr, c, dst, int(s.c.str(string(c.Imm.(prim.Chars)))))
 	case flowpkg.OpKidsLen:
 		return s.op(bytecode.FlowKidsLen, c, dst, nil)
 	case flowpkg.OpKids:
@@ -668,28 +669,28 @@ func (s *flowSel) call(c *code.Call, dst []int) error {
 	case flowpkg.OpShapeCapture:
 		return s.op(bytecode.FlowShapeCapture, c, dst, shapeOf(c.Imm.(ir.Shape)))
 	case flowpkg.OpSetCapture:
-		return s.op(bytecode.FlowSetCapture, c, dst, int(c.Imm.(flowpkg.Slot)))
+		return s.op(bytecode.FlowSetCapture, c, dst, int(c.Imm.(prim.Slot)))
 	case flowpkg.OpMarkPos:
 		return s.op(bytecode.FlowMarkPos, c, dst, nil)
 	case flowpkg.OpFrame:
 		return s.op(bytecode.FlowFrame, c, dst, nil)
 	case flowpkg.OpNewFrame:
-		return s.op(bytecode.FlowNewFrame, c, dst, s.scope(c.Imm.(*flowpkg.Names)))
+		return s.op(bytecode.FlowNewFrame, c, dst, s.scope(c.Imm.(*prim.Names)))
 	case flowpkg.OpSetFrame:
 		return s.op(bytecode.FlowSetFrame, c, dst, nil)
 	case flowpkg.OpClearVals:
 		return s.op(bytecode.FlowClearVals, c, dst, nil)
 	case flowpkg.OpFrameVal:
-		return s.op(bytecode.FlowFrameVal, c, dst, int(c.Imm.(flowpkg.Slot)))
+		return s.op(bytecode.FlowFrameVal, c, dst, int(c.Imm.(prim.Slot)))
 	case flowpkg.OpAttachFrame:
-		return s.op(bytecode.FlowAttachFrame, c, dst, s.scope(c.Imm.(flowpkg.Attach).Names))
+		return s.op(bytecode.FlowAttachFrame, c, dst, s.scope(c.Imm.(prim.Attach).Names))
 	case flowpkg.OpRunHot:
-		return s.op(bytecode.FlowRunHot, c, dst, int(c.Imm.(flowpkg.Site)))
+		return s.op(bytecode.FlowRunHot, c, dst, int(c.Imm.(prim.Site)))
 	case flowpkg.OpRunBegin:
-		x := c.Imm.(flowpkg.RunWalk)
+		x := c.Imm.(prim.RunWalk)
 		return s.op(bytecode.FlowRunBegin, c, dst, bytecode.FlowRunWalkOf{Site: x.Site, Build: x.Build, KeyEnv: x.KeyEnv})
 	case flowpkg.OpRunWalked:
-		return s.op(bytecode.FlowRunWalked, c, dst, int(c.Imm.(flowpkg.Site)))
+		return s.op(bytecode.FlowRunWalked, c, dst, int(c.Imm.(prim.Site)))
 	case flowpkg.OpSkipVisit:
 		return s.op(bytecode.FlowSkipVisit, c, dst, nil)
 	case flowpkg.OpSkipHit:
@@ -701,13 +702,13 @@ func (s *flowSel) call(c *code.Call, dst []int) error {
 	case flowpkg.OpSkipKids:
 		return s.op(bytecode.FlowSkipKids, c, dst, nil)
 	case flowpkg.OpScanReach:
-		return s.op(bytecode.FlowScanReach, c, dst, int(c.Imm.(flowpkg.Site)))
+		return s.op(bytecode.FlowScanReach, c, dst, int(c.Imm.(prim.Site)))
 	case flowpkg.OpScanEnd:
-		return s.op(bytecode.FlowScanEnd, c, dst, int(c.Imm.(flowpkg.Site)))
+		return s.op(bytecode.FlowScanEnd, c, dst, int(c.Imm.(prim.Site)))
 	case flowpkg.OpScanKids:
-		return s.op(bytecode.FlowScanKids, c, dst, int(c.Imm.(flowpkg.Site)))
+		return s.op(bytecode.FlowScanKids, c, dst, int(c.Imm.(prim.Site)))
 	case flowpkg.OpPred:
-		x := c.Imm.(flowpkg.Predicate)
+		x := c.Imm.(prim.Predicate)
 		if !x.Frame {
 			return fmt.Errorf("a predicate whose captures are arguments has no bytecode Flow form")
 		}
@@ -717,7 +718,7 @@ func (s *flowSel) call(c *code.Call, dst []int) error {
 		}
 		return s.op(bytecode.FlowPred, c, dst, t)
 	case flowpkg.OpBind:
-		x := c.Imm.(flowpkg.Binding)
+		x := c.Imm.(prim.Binding)
 		if !x.Frame {
 			return fmt.Errorf("a binding whose captures are arguments has no bytecode Flow form")
 		}
@@ -730,7 +731,7 @@ func (s *flowSel) call(c *code.Call, dst []int) error {
 		// A walk of a skip-run site begins as the match code's SKIPREPEAT begins it: without values,
 		// keyed by the variables unless the site is free of them. A skip-run site and a run site
 		// share the numbering of the parser's walk records, so RUNBEGIN begins either.
-		site := int(c.Imm.(flowpkg.Site))
+		site := int(c.Imm.(prim.Site))
 		return s.op(bytecode.FlowRunBegin, c, dst, bytecode.FlowRunWalkOf{Site: site, KeyEnv: !s.c.in.Elab.EnvFree(site)})
 	case flowpkg.OpRecLen:
 		return s.op(bytecode.FlowRecLen, c, dst, nil)

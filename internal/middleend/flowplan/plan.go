@@ -219,21 +219,10 @@ func operators(cr *core.Rule, r *Rule, rule string, e *ast.OperatorsRule, add fu
 // Refused reports whether the table runs the framed fallback instead of the flat function f, which
 // the lowering of a flat plandata.FuncSpec wrote: a reachable statement of f reads its entry position or its
 // context, which a flat rule has no parameters for, or a variable of f holds a value, which a
-// value-free flat rule does not keep. Reachability is that of the printers (codepass.DeadStores). The
-// plan decides on f as the lowering writes it (Unit); a backend that prints a flat function in forms of
-// its own asserts that they keep the decision by asking it again.
+// value-free flat rule does not keep (codepass.RefusesFlat). The plan decides on f as the lowering
+// writes it (Unit); a backend that prints a flat function in forms of its own asserts that they keep
+// the decision by asking codepass.RefusesFlat again on the function at the Exec stage.
 func Refused(f *code.Func) bool {
 	a := flow.AttrsOf(f)
-	reads := codepass.DeadStores(f, nil, func(code.Expr) bool { return false }).Named
-	if a.Start != "" && reads[a.Start] || a.Ctx != "" && reads[a.Ctx] {
-		return true
-	}
-	for _, v := range flow.VarsOf(f) {
-		switch flow.TypeOf(v.Type) {
-		case flow.TypeInt, flow.TypeBool, flow.TypeRune, flow.TypeMark, flow.TypeExpMark, flow.TypeExpIDs:
-		default:
-			return true
-		}
-	}
-	return false
+	return codepass.RefusesFlat(f, a.Start, a.Ctx, flow.VarsOf(f))
 }

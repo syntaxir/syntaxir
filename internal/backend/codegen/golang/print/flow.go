@@ -7,7 +7,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/frontend/check"
-	"syntaxir.dev/sxir/internal/ir/code/flow"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/execlower"
 	"syntaxir.dev/sxir/internal/middleend/flowlower"
@@ -67,7 +67,7 @@ func (g *Generator) flowTypedRule(r *common.Rule) *flatRule {
 	g.Cur, g.Proj = r, g.Projections(r)
 	defer func() { g.Proj = nil }()
 	p := newFlowPrinter(g, false)
-	p.document = flow.AttrsOf(l.Func).Document
+	p.document = prim.AttrsOf(l.Func).Document
 	return g.execFlatRule(p, l)
 }
 
@@ -95,7 +95,7 @@ func (g *Generator) flowFrameBody(r *common.Rule, scope *check.Scope) string {
 // the matcher of its frame body, the framed function spec of the table's plan (flowplan.Plan): a rule
 // whose Core body is a framed body and whose action reads only captures of the frame. The library
 // owns depth, memo, frame, action and finish. With budget controls (Options.Budget) the method that
-// holds the body charges one step on entry (flow.Attrs.Entered) and the body charges one on each
+// holds the body charges one step on entry (prim.Attrs.Entered) and the body charges one on each
 // iteration of a repetition, plus the input spend of each Peek; the limits of a parse hold at these
 // charges.
 func (g *Generator) flowNodeFrameBody(r *common.Rule, spec *plandata.FuncSpec, scope *check.Scope) string {
@@ -171,7 +171,7 @@ func (g *Generator) flowOperatorsRule(r *common.Rule) *core.OperatorsRule {
 // has the signature of the Body field of the rule table (see bodyMethod).
 func (g *Generator) flowFramed(l *execlower.Lowered, slots []core.Slot, scope *check.Scope, comment string, ruleBody bool) string {
 	p := newFlowPrinter(g, true)
-	p.document = flow.AttrsOf(l.Func).Document
+	p.document = prim.AttrsOf(l.Func).Document
 	return g.execFramed(p, l, slots, scope, comment, ruleBody)
 }
 
@@ -185,22 +185,22 @@ func (g *Generator) planned(k plandata.Key) *execlower.Lowered {
 	return l
 }
 
-func goType(t flow.Type) string {
-	return [...]string{flow.TypeInt: "int", flow.TypeBool: "bool", flow.TypeRune: "rune", flow.TypeValue: "any",
-		flow.TypeEnv: "*Env", flow.TypeExpMark: "ExpMark", flow.TypeExpIDs: "[]ExpID", flow.TypeVals: "[]any",
-		flow.TypeCtx: "*TActCtx", flow.TypeMark: "Mark", flow.TypeFrame: "*TCaptureFrame", flow.TypeError: "*SyntaxError"}[t]
+func goType(t prim.Type) string {
+	return [...]string{prim.TypeInt: "int", prim.TypeBool: "bool", prim.TypeRune: "rune", prim.TypeValue: "any",
+		prim.TypeEnv: "*Env", prim.TypeExpMark: "ExpMark", prim.TypeExpIDs: "[]ExpID", prim.TypeVals: "[]any",
+		prim.TypeCtx: "*TActCtx", prim.TypeMark: "Mark", prim.TypeFrame: "*TCaptureFrame", prim.TypeError: "*SyntaxError"}[t]
 }
 
 // goType returns the Go type of a variable of the function printed: the types of the Node library
 // where the printer writes its code, otherwise those of the typed library.
-func (p *flowPrinter) goType(t flow.Type) string {
+func (p *flowPrinter) goType(t prim.Type) string {
 	if p.untyped() {
 		switch t {
-		case flow.TypeValue:
+		case prim.TypeValue:
 			return "*Node"
-		case flow.TypeVals:
+		case prim.TypeVals:
 			return "[]*Node"
-		case flow.TypeFrame:
+		case prim.TypeFrame:
 			return "*CaptureFrame"
 		}
 	}
@@ -212,23 +212,23 @@ func (p *flowPrinter) goType(t flow.Type) string {
 type flowPrinter struct {
 	g     *Generator
 	frame bool
-	// document reports that the function is lowered for Documents (flow.Attrs.Document): its in-place reads
+	// document reports that the function is lowered for Documents (prim.Attrs.Document): its in-place reads
 	// are guarded by p.Document == nil, so that a Document parse reads through the recording primitives.
 	document bool
 	b        strings.Builder
 	// names holds the package variables of the capture names of scopes, declared on first use
 	// unless a DeclareNames statement declares them.
-	names map[*flow.Names]string
+	names map[*prim.Names]string
 	// pre holds the statements the expression printed last needs before it: those of the term of an Eval.
 	pre string
 }
 
 func newFlowPrinter(g *Generator, frame bool) *flowPrinter {
-	return &flowPrinter{g: g, frame: frame, names: map[*flow.Names]string{}}
+	return &flowPrinter{g: g, frame: frame, names: map[*prim.Names]string{}}
 }
 
 // scopeNames returns the package variable of the capture names n, naming it on first use.
-func (p *flowPrinter) scopeNames(n *flow.Names) string {
+func (p *flowPrinter) scopeNames(n *prim.Names) string {
 	if name, ok := p.names[n]; ok {
 		return name
 	}
@@ -240,7 +240,7 @@ func (p *flowPrinter) scopeNames(n *flow.Names) string {
 	return name
 }
 
-func (p *flowPrinter) declare(n *flow.Names) {
+func (p *flowPrinter) declare(n *prim.Names) {
 	fmt.Fprintf(&p.g.Vars, "var %s = %s\n", p.names[n], goStrings(n.List))
 }
 

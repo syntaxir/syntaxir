@@ -31,6 +31,7 @@ import (
 	"strings"
 
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
@@ -132,8 +133,8 @@ func lowerFrameBody(m *core.Module, r *core.Rule, n core.Node, slots []core.Slot
 		}
 	})
 	if l.localCuts {
-		l.at.Cut = l.decl("cut", flow.TypeBool)
-		l.set(l.at.Cut, code.R(flow.Cut))
+		l.at.Cut = l.decl("cut", prim.TypeBool)
+		l.set(l.at.Cut, code.R(prim.Cut))
 		l.cut = l.at.Cut
 	}
 	v := l.node(n, newScope(slots), build, l.at.Fail)
@@ -245,20 +246,20 @@ func (l *lowerer) module(value code.Expr) (*code.Module, error) {
 	fn.Body = l.body
 	for _, e := range []struct {
 		name string
-		t    flow.Type
-	}{{at.Start, flow.TypeInt}, {at.Result, flow.TypeValue}, {at.Ctx, flow.TypeCtx}} {
+		t    prim.Type
+	}{{at.Start, prim.TypeInt}, {at.Result, prim.TypeValue}, {at.Ctx, prim.TypeCtx}} {
 		if e.name != "" {
-			fn.Locals = append(fn.Locals, code.P(e.name, flow.CodeType(e.t)))
+			fn.Locals = append(fn.Locals, code.P(e.name, prim.CodeType(e.t)))
 		}
 	}
 	if at.Frame {
-		t := code.THandle(flow.TValue)
+		t := code.THandle(prim.TValue)
 		fn.Results = []code.Type{t, code.TBool}
 		publish := func() []code.Stmt {
 			if at.Cut == "" {
 				return nil
 			}
-			return []code.Stmt{&code.Set{Dst: []code.Place{{Name: flow.Cut, Reg: true}}, Values: []code.Expr{code.L(at.Cut)}}}
+			return []code.Stmt{&code.Set{Dst: []code.Place{{Name: prim.Cut, Reg: true}}, Values: []code.Expr{code.L(at.Cut)}}}
 		}
 		if value == nil {
 			value = null()
@@ -319,19 +320,19 @@ func (l *lowerer) endLoop() {
 }
 
 // decl makes a variable of the type t, named with prefix and the counter.
-func (l *lowerer) decl(prefix string, t flow.Type) string {
+func (l *lowerer) decl(prefix string, t prim.Type) string {
 	l.n++
 	return l.local(fmt.Sprintf("%s%d", prefix, l.n), t)
 }
 
-func (l *lowerer) local(name string, t flow.Type) string {
-	l.fn.Locals = append(l.fn.Locals, code.P(name, flow.CodeType(t)))
+func (l *lowerer) local(name string, t prim.Type) string {
+	l.fn.Locals = append(l.fn.Locals, code.P(name, prim.CodeType(t)))
 	l.at.Vars = append(l.at.Vars, name)
 	return name
 }
 
 // shared returns the variable name shared by the whole function, making it at its first use.
-func (l *lowerer) shared(name string, t flow.Type) string {
+func (l *lowerer) shared(name string, t prim.Type) string {
 	l.forms.Events = append(l.forms.Events, &flow.Event{Name: name, Vars: len(l.at.Vars), Outer: l.outer()})
 	for _, v := range l.at.Vars {
 		if v == name {
@@ -346,10 +347,10 @@ func (l *lowerer) label() string {
 	return fmt.Sprintf("L%d", l.n)
 }
 
-// loopLabel returns the label of a new loop, which the lowering leaves unnamed (flow.UnnamedLabel).
+// loopLabel returns the label of a new loop, which the lowering leaves unnamed (prim.UnnamedLabel).
 func (l *lowerer) loopLabel() string {
 	l.anon++
-	return flow.UnnamedLabel(l.anon)
+	return prim.UnnamedLabel(l.anon)
 }
 
 // jump returns the statement that leaves the block or loop to.
@@ -360,7 +361,7 @@ func (l *lowerer) jump(to string) code.Stmt {
 	return &code.Exit{Label: to}
 }
 
-func (l *lowerer) ok() string { return l.shared("ok", flow.TypeBool) }
+func (l *lowerer) ok() string { return l.shared("ok", prim.TypeBool) }
 
 // exit leaves the block or loop to; the point after it is unreachable.
 func (l *lowerer) exit(to string) {
@@ -391,7 +392,7 @@ func (l *lowerer) set(dst string, x code.Expr) {
 
 // setPos, setEnv and setFrame assign x to the registers of the position, the environment and the frame.
 func (l *lowerer) setPos(x code.Expr) {
-	l.emit(&code.Set{Dst: []code.Place{{Name: flow.Pos, Reg: true}}, Values: []code.Expr{x}})
+	l.emit(&code.Set{Dst: []code.Place{{Name: prim.Pos, Reg: true}}, Values: []code.Expr{x}})
 }
 
 func (l *lowerer) setEnv(x code.Expr) { l.emit(do(flow.OpSetEnv, nil, x)) }
@@ -411,7 +412,7 @@ func (l *lowerer) step() {
 // capVar returns the variable of the slot of s, making it at its first use.
 func (l *lowerer) capVar(s *scope, slot int) string {
 	if s.vars[slot] == "" {
-		s.vars[slot] = l.decl("k", flow.TypeValue)
+		s.vars[slot] = l.decl("k", prim.TypeValue)
 	}
 	return s.vars[slot]
 }
@@ -435,9 +436,9 @@ func (m mark) at() code.Expr {
 // mark saves the state before n; with saves, also the capture slots of s that n may write.
 func (l *lowerer) mark(s *scope, n core.Node, saves bool) mark {
 	if l.frame {
-		m := mark{state: l.decl("x", flow.TypeMark)}
+		m := mark{state: l.decl("x", prim.TypeMark)}
 		eff := n.Attrs().Eff
-		st := flow.StateMark{Env: eff.Set&core.EffBind != 0, Rec: eff.Set&core.EffRecover != 0}
+		st := prim.StateMark{Env: eff.Set&core.EffBind != 0, Rec: eff.Set&core.EffRecover != 0}
 		core.Walk(n, func(n core.Node) {
 			if _, ok := n.(*core.Capture); ok {
 				st.Trail = true
@@ -446,22 +447,22 @@ func (l *lowerer) mark(s *scope, n core.Node, saves bool) mark {
 		l.set(m.state, call(flow.OpMarkState, st))
 		return m
 	}
-	m := mark{pos: l.decl("x", flow.TypeInt)}
+	m := mark{pos: l.decl("x", prim.TypeInt)}
 	if l.opts.Recovers {
-		m.rec = l.decl("x", flow.TypeInt)
+		m.rec = l.decl("x", prim.TypeInt)
 		l.emit(&code.Set{Dst: []code.Place{{Name: m.pos}, {Name: m.rec}}, Values: []code.Expr{pos(), call(flow.OpRecLen, nil)}})
 	} else {
 		l.set(m.pos, pos())
 	}
 	eff := n.Attrs().Eff
 	if eff.Set&core.EffBind != 0 {
-		m.env = l.decl("x", flow.TypeEnv)
+		m.env = l.decl("x", prim.TypeEnv)
 		l.set(m.env, call(flow.OpEnv, nil))
 	}
 	if saves {
 		for _, slot := range eff.Slots {
 			k := l.capVar(s, slot)
-			sv := l.decl("x", flow.TypeValue)
+			sv := l.decl("x", prim.TypeValue)
 			l.set(sv, use(k))
 			m.saves = append(m.saves, [2]string{k, sv})
 		}
@@ -494,7 +495,7 @@ func (l *lowerer) cutNode(n core.Node, s *scope, build bool, fail string) (code.
 		return l.node(n, s, build, fail), ""
 	}
 	prev := l.cut
-	cut := l.decl("cut", flow.TypeBool)
+	cut := l.decl("cut", prim.TypeBool)
 	l.set(cut, code.BoolC(false))
 	l.cut = cut
 	v := l.node(n, s, build, fail)
@@ -542,26 +543,26 @@ func (l *lowerer) node(n core.Node, s *scope, build bool, fail string) code.Expr
 			form.Guard = l.guardedChoice
 		}
 		l.forms.Classes = append(l.forms.Classes, form)
-		ch, size, ok := l.shared("ch", flow.TypeRune), l.shared("size", flow.TypeInt), l.ok()
+		ch, size, ok := l.shared("ch", prim.TypeRune), l.shared("size", prim.TypeInt), l.ok()
 		l.emit(peek(ch, size, ok))
 		l.failIf(nil, code.Bin("||", code.Not(use(ok)), code.Not(call(flow.OpInClass, n.Class, use(ch)))), fail,
-			do(flow.OpExpect, flow.Expectation{Exp: n.Class.Exp}, pos()))
+			do(flow.OpExpect, prim.Expectation{Exp: n.Class.Exp}, pos()))
 		v := l.single(size, build)
 		l.closeForm(form)
 		return v
 	case *core.Any:
-		size, ok := l.shared("size", flow.TypeInt), l.ok()
+		size, ok := l.shared("size", prim.TypeInt), l.ok()
 		l.emit(peek("", size, ok))
-		l.failIf(nil, code.Not(use(ok)), fail, do(flow.OpExpect, flow.Expectation{Exp: 0}, pos()))
+		l.failIf(nil, code.Not(use(ok)), fail, do(flow.OpExpect, prim.Expectation{Exp: 0}, pos()))
 		return l.single(size, build)
 	case *core.Call:
 		ok := l.ok()
-		rc := call(flow.OpCallRule, flow.RuleCall{Rule: n.Rule, Level: n.Level})
+		rc := call(flow.OpCallRule, prim.RuleCall{Rule: n.Rule, Level: n.Level})
 		if !build {
 			l.failIf(&code.Set{Dst: []code.Place{{}, {Name: ok}}, Values: []code.Expr{rc}}, code.Not(use(ok)), fail)
 			return null()
 		}
-		v := l.decl("v", flow.TypeValue)
+		v := l.decl("v", prim.TypeValue)
 		l.failIf(&code.Set{Dst: []code.Place{{Name: v}, {Name: ok}}, Values: []code.Expr{rc}}, code.Not(use(ok)), fail)
 		return use(v)
 	case *core.Seq:
@@ -584,7 +585,7 @@ func (l *lowerer) node(n core.Node, s *scope, build bool, fail string) code.Expr
 		m := l.mark(s, n.Body, true)
 		var v string
 		if build {
-			v = l.decl("v", flow.TypeValue)
+			v = l.decl("v", prim.TypeValue)
 		}
 		f, done := l.label(), l.label()
 		bd := l.open(done)
@@ -616,10 +617,10 @@ func (l *lowerer) node(n core.Node, s *scope, build bool, fail string) code.Expr
 		}
 		// The lookahead goes back to its start and discards the errors recovered inside it, and
 		// keeps its captures and bindings.
-		start := l.decl("x", flow.TypeInt)
+		start := l.decl("x", prim.TypeInt)
 		var rec string
 		if l.opts.Recovers && n.Body.Attrs().Eff.Set&core.EffRecover != 0 {
-			rec = l.decl("x", flow.TypeInt)
+			rec = l.decl("x", prim.TypeInt)
 			l.emit(&code.Set{Dst: []code.Place{{Name: start}, {Name: rec}}, Values: []code.Expr{pos(), call(flow.OpRecLen, nil)}})
 		} else {
 			l.set(start, pos())
@@ -631,7 +632,7 @@ func (l *lowerer) node(n core.Node, s *scope, build bool, fail string) code.Expr
 				l.emit(do(flow.OpRestore, nil, use(start), use(rec)))
 			}
 		}
-		l.emit(do(flow.OpSilent, flow.Silence{Delta: 1, Site: n.Site}))
+		l.emit(do(flow.OpSilent, prim.Silence{Delta: 1, Site: n.Site}))
 		f, done := l.label(), l.label()
 		bd := l.open(done)
 		bf := l.open(f)
@@ -639,12 +640,12 @@ func (l *lowerer) node(n core.Node, s *scope, build bool, fail string) code.Expr
 		l.cut = ""
 		l.node(n.Body, s, n.Body.Attrs().Want, f)
 		l.cut = prev
-		l.emit(do(flow.OpSilent, flow.Silence{Delta: -1, Site: n.Site, Ok: true}))
+		l.emit(do(flow.OpSilent, prim.Silence{Delta: -1, Site: n.Site, Ok: true}))
 		back()
 		if l.used[f] {
 			l.exit(done)
 			l.close(bf)
-			l.emit(do(flow.OpSilent, flow.Silence{Delta: -1, Site: n.Site}))
+			l.emit(do(flow.OpSilent, prim.Silence{Delta: -1, Site: n.Site}))
 			back()
 			l.exit(fail)
 			l.close(bd)
@@ -656,14 +657,14 @@ func (l *lowerer) node(n core.Node, s *scope, build bool, fail string) code.Expr
 	case *core.Text:
 		var start string
 		if build {
-			start = l.decl("x", flow.TypeInt)
+			start = l.decl("x", prim.TypeInt)
 			l.set(start, pos())
 		}
 		l.node(n.Body, s, false, fail)
 		if !build {
 			return null()
 		}
-		v := l.decl("v", flow.TypeValue)
+		v := l.decl("v", prim.TypeValue)
 		l.set(v, l.match(use(start), call(flow.OpText, nil, use(start))))
 		return use(v)
 	case *core.Drop:
@@ -678,7 +679,7 @@ func (l *lowerer) node(n core.Node, s *scope, build bool, fail string) code.Expr
 		if n.Project != "" {
 			v = l.projectRepeat(n.Body.(*core.Repeat), fail)
 		} else {
-			start := l.decl("x", flow.TypeInt)
+			start := l.decl("x", prim.TypeInt)
 			l.set(start, pos())
 			v = l.shapeOne(n.Body, l.node(n.Body, s, true, fail), use(start), true)
 		}
@@ -698,15 +699,15 @@ func (l *lowerer) node(n core.Node, s *scope, build bool, fail string) code.Expr
 		}
 		return null()
 	case *core.Anchor:
-		l.failIf(nil, code.Not(call(flow.OpAtAnchor, n.Kind)), fail, do(flow.OpExpect, flow.Expectation{Exp: anchorExps[n.Kind]}, pos()))
+		l.failIf(nil, code.Not(call(flow.OpAtAnchor, n.Kind)), fail, do(flow.OpExpect, prim.Expectation{Exp: anchorExps[n.Kind]}, pos()))
 		return null()
 	case *core.Pred:
 		c, args := l.termCaps(n.Term, s)
-		l.failIf(nil, code.Not(call(flow.OpPred, flow.Predicate{Node: n, Capture: c}, args...)), fail)
+		l.failIf(nil, code.Not(call(flow.OpPred, prim.Predicate{Node: n, Capture: c}, args...)), fail)
 		return null()
 	case *core.BindNode:
 		c, args := l.termCaps(n.Term, s)
-		l.failIf(nil, code.Not(call(flow.OpBind, flow.Binding{Node: n, Capture: c}, args...)), fail)
+		l.failIf(nil, code.Not(call(flow.OpBind, prim.Binding{Node: n, Capture: c}, args...)), fail)
 		return null()
 	case *core.Label:
 		return l.label_(n, s, build, fail)
@@ -722,7 +723,7 @@ func (l *lowerer) node(n core.Node, s *scope, build bool, fail string) code.Expr
 func (l *lowerer) lit(n *core.Lit, build bool, fail string) code.Expr {
 	var start string
 	if build {
-		start = l.decl("x", flow.TypeInt)
+		start = l.decl("x", prim.TypeInt)
 		l.set(start, pos())
 	}
 	ok := l.ok()
@@ -730,14 +731,14 @@ func (l *lowerer) lit(n *core.Lit, build bool, fail string) code.Expr {
 	if !build {
 		return null()
 	}
-	v := l.decl("v", flow.TypeValue)
-	var text code.Expr = call(flow.OpStr, flow.Chars(n.Text))
+	v := l.decl("v", prim.TypeValue)
+	var text code.Expr = call(flow.OpStr, prim.Chars(n.Text))
 	switch {
 	case n.Fold:
 		// The input matched may differ in case from the literal: the node holds the input.
 		text = call(flow.OpText, nil, use(start))
 	case strings.ContainsRune(n.Text, '�'):
-		text = call(flow.OpLiteralText, flow.Chars(n.Text), use(start))
+		text = call(flow.OpLiteralText, prim.Chars(n.Text), use(start))
 	}
 	l.set(v, l.match(use(start), text))
 	return use(v)
@@ -749,7 +750,7 @@ func (l *lowerer) single(size string, build bool) code.Expr {
 		l.emit(do(flow.OpAdvance, nil, use(size)))
 		return null()
 	}
-	start, v := l.decl("x", flow.TypeInt), l.decl("v", flow.TypeValue)
+	start, v := l.decl("x", prim.TypeInt), l.decl("v", prim.TypeValue)
 	l.set(start, pos())
 	l.emit(do(flow.OpAdvance, nil, use(size)))
 	l.set(v, l.match(use(start), call(flow.OpText, nil, use(start))))
@@ -759,9 +760,9 @@ func (l *lowerer) single(size string, build bool) code.Expr {
 func (l *lowerer) seq(n *core.Seq, s *scope, build bool, fail string) code.Expr {
 	var start, kids string
 	if build {
-		start, kids = l.decl("x", flow.TypeInt), l.decl("x", flow.TypeVals)
+		start, kids = l.decl("x", prim.TypeInt), l.decl("x", prim.TypeVals)
 		l.set(start, pos())
-		l.set(kids, call(flow.OpNewVals, flow.Room(n.Attrs().Shape.K)))
+		l.set(kids, call(flow.OpNewVals, prim.Room(n.Attrs().Shape.K)))
 	}
 	// The value is the tuple node of the elements, flattened through nested sequences.
 	var seq *flow.SeqForm
@@ -781,9 +782,9 @@ func (l *lowerer) seq(n *core.Seq, s *scope, build bool, fail string) code.Expr 
 		}
 		switch sh := it.Attrs().Shape; {
 		case sh.Elems:
-			l.emit(code.Assign(kids, call(flow.OpAppend, flow.Spread(true), use(kids), v)))
+			l.emit(code.Assign(kids, call(flow.OpAppend, prim.Spread(true), use(kids), v)))
 		case sh.K == 1:
-			l.emit(code.Assign(kids, call(flow.OpAppend, flow.Spread(false), use(kids), v)))
+			l.emit(code.Assign(kids, call(flow.OpAppend, prim.Spread(false), use(kids), v)))
 		}
 	}
 	if classes >= 2 {
@@ -792,7 +793,7 @@ func (l *lowerer) seq(n *core.Seq, s *scope, build bool, fail string) code.Expr 
 	if !build {
 		return null()
 	}
-	v := l.decl("v", flow.TypeValue)
+	v := l.decl("v", prim.TypeValue)
 	l.set(v, l.branch(false, use(start), use(kids)))
 	return use(v)
 }
@@ -823,7 +824,7 @@ func (l *lowerer) choice(n *core.Choice, s *scope, build bool, fail string) code
 	m := l.mark(s, n, true)
 	var v string
 	if build {
-		v = l.decl("v", flow.TypeValue)
+		v = l.decl("v", prim.TypeValue)
 	}
 	done := l.label()
 	// A choice with an alternative that begins with a class is a form: the guarded-classes pass may
@@ -852,7 +853,7 @@ func (l *lowerer) choice(n *core.Choice, s *scope, build bool, fail string) code
 			// examines it (spec/runtime/parsing.md#cost); without them one read serves all the guards.
 			if ch == "" || l.opts.Budget {
 				if ch == "" {
-					ch, more = l.decl("x", flow.TypeRune), l.decl("x", flow.TypeBool)
+					ch, more = l.decl("x", prim.TypeRune), l.decl("x", prim.TypeBool)
 				}
 				p := peek(ch, "", more)
 				if form != nil {
@@ -865,9 +866,9 @@ func (l *lowerer) choice(n *core.Choice, s *scope, build bool, fail string) code
 			}
 			skip := l.label()
 			bs = l.open(skip)
-			pre := []code.Stmt{do(flow.OpExpect, flow.Expectation{Exp: a.Guard.Exp}, pos())}
+			pre := []code.Stmt{do(flow.OpExpect, prim.Expectation{Exp: a.Guard.Exp}, pos())}
 			if len(skipped) > 0 {
-				pre = append(pre, do(flow.OpSkippedCalls, flow.SkippedCalls{Rules: skipped, Exp: a.Guard.Exp}))
+				pre = append(pre, do(flow.OpSkippedCalls, prim.SkippedCalls{Rules: skipped, Exp: a.Guard.Exp}))
 			}
 			if l.opts.Observe {
 				pre = append(pre, do(flow.OpObserveSkip, a.Body))
@@ -904,7 +905,7 @@ func (l *lowerer) shapeOne(n core.Node, x code.Expr, start code.Expr, capture bo
 	if sh.Mode == core.SinglePass && !sh.Elems {
 		return x
 	}
-	v := l.decl("v", flow.TypeValue)
+	v := l.decl("v", prim.TypeValue)
 	if capture {
 		l.set(v, call(flow.OpShapeCapture, sh, x, start))
 	} else {
@@ -916,18 +917,18 @@ func (l *lowerer) shapeOne(n core.Node, x code.Expr, start code.Expr, capture bo
 // not lowers a negative lookahead.
 func (l *lowerer) not(n *core.Look, s *scope, fail string) code.Expr {
 	m := l.mark(s, n.Body, true)
-	l.emit(do(flow.OpSilent, flow.Silence{Delta: 1, Site: n.Site}))
+	l.emit(do(flow.OpSilent, prim.Silence{Delta: 1, Site: n.Site}))
 	f := l.label()
 	bf := l.open(f)
 	prev := l.cut
 	l.cut = ""
 	l.node(n.Body, s, false, f)
 	l.cut = prev
-	l.emit(do(flow.OpSilent, flow.Silence{Delta: -1, Site: n.Site, Ok: true}))
+	l.emit(do(flow.OpSilent, prim.Silence{Delta: -1, Site: n.Site, Ok: true}))
 	l.reset(m)
 	l.exit(fail)
 	l.close(bf)
-	l.emit(do(flow.OpSilent, flow.Silence{Delta: -1, Site: n.Site}))
+	l.emit(do(flow.OpSilent, prim.Silence{Delta: -1, Site: n.Site}))
 	l.reset(m)
 	return null()
 }
@@ -950,11 +951,11 @@ func (l *lowerer) repeat(n *core.Repeat, s *scope, build bool, fail string) code
 	}
 	var start, base string
 	if build {
-		start, base = l.decl("x", flow.TypeInt), l.decl("x", flow.TypeInt)
+		start, base = l.decl("x", prim.TypeInt), l.decl("x", prim.TypeInt)
 		l.emit(&code.Set{Dst: []code.Place{{Name: start}, {Name: base}}, Values: []code.Expr{pos(), call(flow.OpKidsLen, nil)}})
 	}
 	run := l.runBegin(n, build, start)
-	count := l.decl("x", flow.TypeInt)
+	count := l.decl("x", prim.TypeInt)
 	l.set(count, num(0))
 	lp := l.newLoop(n.Max, func(lp *code.Loop) { run.visit(l, count, lp) })
 	m := l.mark(s, n.Body, !own)
@@ -965,13 +966,13 @@ func (l *lowerer) repeat(n *core.Repeat, s *scope, build bool, fail string) code
 	bf := l.open(f)
 	v, cut := l.cutNode(n.Body, es, build, f)
 	if build {
-		sv := l.decl("v", flow.TypeValue)
+		sv := l.decl("v", prim.TypeValue)
 		l.set(sv, call(flow.OpScopeValue, n.Body.Attrs().Shape, v, use(m.pos)))
 		v = use(sv)
 	}
 	if own && build {
-		attached := l.decl("v", flow.TypeValue)
-		l.set(attached, attach(v, use(m.pos), &flow.Names{List: core.SlotNames(es.slots)}, l.scopeVals(es)))
+		attached := l.decl("v", prim.TypeValue)
+		l.set(attached, attach(v, use(m.pos), &prim.Names{List: core.SlotNames(es.slots)}, l.scopeVals(es)))
 		v = use(attached)
 	}
 	l.emit(inc(count))
@@ -1005,7 +1006,7 @@ func (l *lowerer) repeat(n *core.Repeat, s *scope, build bool, fail string) code
 		run.end(l, nil)
 		return null()
 	}
-	list := l.decl("v", flow.TypeValue)
+	list := l.decl("v", prim.TypeValue)
 	run.end(l, func(hot bool) {
 		var kids code.Expr = call(flow.OpKids, nil, use(base))
 		if hot {
@@ -1033,13 +1034,13 @@ func (l *lowerer) runBegin(n *core.Repeat, build bool, start string) *runSite {
 	if n.Run == 0 || n.Project != "" {
 		return nil
 	}
-	r := &runSite{n: n, hot: l.decl("x", flow.TypeBool), start: start}
+	r := &runSite{n: n, hot: l.decl("x", prim.TypeBool), start: start}
 	if start == "" {
-		r.start = l.decl("x", flow.TypeInt)
+		r.start = l.decl("x", prim.TypeInt)
 		l.set(r.start, pos())
 	}
-	l.set(r.hot, call(flow.OpRunHot, flow.Site(n.Run)))
-	walk := flow.RunWalk{Site: n.Run, Build: build, KeyEnv: !n.RunEnvFree}
+	l.set(r.hot, call(flow.OpRunHot, prim.Site(n.Run)))
+	walk := prim.RunWalk{Site: n.Run, Build: build, KeyEnv: !n.RunEnvFree}
 	l.emit(&code.If{Cond: use(r.hot), Then: &code.Block{Stmts: []code.Stmt{do(flow.OpRunBegin, walk)}}})
 	return r
 }
@@ -1101,7 +1102,7 @@ func (r *runSite) end(l *lowerer, list func(hot bool)) {
 		l.emit(do(flow.OpSkipEnd, nil))
 	}
 	l.stack[len(l.stack)-1] = &b.Else.Stmts
-	l.emit(do(flow.OpRunWalked, flow.Site(r.n.Run), use(r.start)))
+	l.emit(do(flow.OpRunWalked, prim.Site(r.n.Run), use(r.start)))
 	if list != nil {
 		list(false)
 	}
@@ -1117,11 +1118,11 @@ func (l *lowerer) scanSiteRepeat(n *core.Repeat, s *scope, build bool, fail stri
 		panic("flow: a scan site has no maximum, no scope of its own and no projection")
 	}
 	site := n.ScanSite
-	start, count := l.decl("x", flow.TypeInt), l.decl("x", flow.TypeInt)
+	start, count := l.decl("x", prim.TypeInt), l.decl("x", prim.TypeInt)
 	var base string
 	if build {
 		site++
-		base = l.decl("x", flow.TypeInt)
+		base = l.decl("x", prim.TypeInt)
 		l.emit(&code.Set{Dst: []code.Place{{Name: start}, {Name: base}, {Name: count}}, Values: []code.Expr{pos(), call(flow.OpKidsLen, nil), num(0)}})
 	} else {
 		l.emit(&code.Set{Dst: []code.Place{{Name: start}, {Name: count}}, Values: []code.Expr{pos(), num(0)}})
@@ -1132,7 +1133,7 @@ func (l *lowerer) scanSiteRepeat(n *core.Repeat, s *scope, build bool, fail stri
 	bf := l.open(f)
 	v, cut := l.cutNode(n.Body, s, build, f)
 	if build {
-		sv := l.decl("v", flow.TypeValue)
+		sv := l.decl("v", prim.TypeValue)
 		l.set(sv, call(flow.OpScopeValue, n.Body.Attrs().Shape, v, m.at()))
 		l.emit(do(flow.OpPushKid, nil, use(sv)))
 	}
@@ -1166,8 +1167,8 @@ func (l *lowerer) scanSiteRepeat(n *core.Repeat, s *scope, build bool, fail stri
 	if !build {
 		return null()
 	}
-	list := l.decl("v", flow.TypeValue)
-	l.set(list, l.branch(true, use(start), call(flow.OpScanKids, flow.Site(site), use(start), use(base), use(count))))
+	list := l.decl("v", prim.TypeValue)
+	l.set(list, l.branch(true, use(start), call(flow.OpScanKids, prim.Site(site), use(start), use(base), use(count))))
 	return use(list)
 }
 
@@ -1175,7 +1176,7 @@ func (l *lowerer) scanSiteRepeat(n *core.Repeat, s *scope, build bool, fail stri
 // raised: at ScanHotSpan characters, the walk takes the count from ScanReach.
 func (l *lowerer) scanReach(site int, start, count string) {
 	l.emit(&code.If{Cond: code.Bin("==", use(count), num(flow.ScanHotSpan)), Then: &code.Block{Stmts: []code.Stmt{
-		&code.Set{Dst: []code.Place{{Name: count}}, Values: []code.Expr{call(flow.OpScanReach, flow.Site(site), use(start), use(count))}},
+		&code.Set{Dst: []code.Place{{Name: count}}, Values: []code.Expr{call(flow.OpScanReach, prim.Site(site), use(start), use(count))}},
 	}}})
 }
 
@@ -1183,7 +1184,7 @@ func (l *lowerer) scanReach(site int, start, count string) {
 // reached ScanHotSpan characters records itself or notes that it walked (ScanEnd).
 func (l *lowerer) scanEnd(site int, start, count string) {
 	l.emit(&code.If{Cond: code.Bin("<", num(flow.ScanHotSpan-1), use(count)), Then: &code.Block{Stmts: []code.Stmt{
-		do(flow.OpScanEnd, flow.Site(site), use(start), use(count)),
+		do(flow.OpScanEnd, prim.Site(site), use(start), use(count)),
 	}}})
 }
 
@@ -1194,8 +1195,8 @@ func (l *lowerer) skipRepeat(n *core.Repeat, s *scope, fail string) code.Expr {
 	if n.Max >= 0 || n.Scope != nil {
 		panic("flow: a skip-run site has no maximum and no scope of its own")
 	}
-	l.emit(do(flow.OpSkipBegin, flow.Site(n.Site)))
-	count := l.decl("x", flow.TypeInt)
+	l.emit(do(flow.OpSkipBegin, prim.Site(n.Site)))
+	count := l.decl("x", prim.TypeInt)
 	l.set(count, num(0))
 	lp := l.newLoop(-1, func(lp *code.Loop) {
 		hit := []code.Stmt{&code.If{Cond: call(flow.OpSkipHit, nil), Then: &code.Block{Stmts: []code.Stmt{l.jump(lp.Label)}}}}
@@ -1237,7 +1238,7 @@ func (l *lowerer) skipRepeat(n *core.Repeat, s *scope, fail string) code.Expr {
 func (l *lowerer) newLoop(max int, visit func(*code.Loop)) *code.Loop {
 	lp := &code.Loop{Label: l.loopLabel()}
 	if max >= 0 {
-		c := l.decl("x", flow.TypeInt)
+		c := l.decl("x", prim.TypeInt)
 		lp.Init = code.Assign(c, num(0))
 		lp.Cond = code.Lt(use(c), num(max))
 		lp.Post = inc(c)
@@ -1276,16 +1277,16 @@ func (l *lowerer) scopeVals(es *scope) []string {
 func (l *lowerer) scan(n *core.Scan, fail string) code.Expr {
 	var ch string
 	if n.Class != nil {
-		ch = l.shared("ch", flow.TypeRune)
+		ch = l.shared("ch", prim.TypeRune)
 	}
-	size, ok := l.shared("size", flow.TypeInt), l.ok()
+	size, ok := l.shared("size", prim.TypeInt), l.ok()
 	var start, count string
 	if n.Site != 0 {
-		start = l.decl("x", flow.TypeInt)
+		start = l.decl("x", prim.TypeInt)
 		l.set(start, pos())
 	}
 	if n.Max >= 0 || n.Min > 0 || n.Site != 0 {
-		count = l.decl("x", flow.TypeInt)
+		count = l.decl("x", prim.TypeInt)
 		l.set(count, num(0))
 	}
 	lp := &code.Loop{Label: l.loopLabel()}
@@ -1301,7 +1302,7 @@ func (l *lowerer) scan(n *core.Scan, fail string) code.Expr {
 		stop = code.Bin("||", stop, code.Not(call(flow.OpInClass, n.Class, use(ch))))
 		exp = n.Class.Exp
 	}
-	l.emit(&code.If{Cond: stop, Then: &code.Block{Stmts: []code.Stmt{do(flow.OpExpect, flow.Expectation{Exp: exp}, pos()), l.jump(lp.Label)}}})
+	l.emit(&code.If{Cond: stop, Then: &code.Block{Stmts: []code.Stmt{do(flow.OpExpect, prim.Expectation{Exp: exp}, pos()), l.jump(lp.Label)}}})
 	l.emit(do(flow.OpAdvance, nil, use(size)))
 	if count != "" {
 		l.emit(inc(count))
@@ -1323,7 +1324,7 @@ func (l *lowerer) scan(n *core.Scan, fail string) code.Expr {
 // elements.
 func (l *lowerer) projectRepeat(n *core.Repeat, fail string) code.Expr {
 	es := newScope(n.Scope)
-	start, base, count := l.decl("x", flow.TypeInt), l.decl("x", flow.TypeInt), l.decl("x", flow.TypeInt)
+	start, base, count := l.decl("x", prim.TypeInt), l.decl("x", prim.TypeInt), l.decl("x", prim.TypeInt)
 	l.emit(&code.Set{Dst: []code.Place{{Name: start}, {Name: base}, {Name: count}}, Values: []code.Expr{pos(), call(flow.OpKidsLen, nil), num(0)}})
 	lp := l.newLoop(n.Max, nil)
 	m := l.mark(es, n.Body, false)
@@ -1354,7 +1355,7 @@ func (l *lowerer) projectRepeat(n *core.Repeat, fail string) code.Expr {
 	if n.Min > 0 {
 		l.failIf(nil, code.Bin("<", use(count), num(n.Min)), fail, do(flow.OpDropKids, nil, use(base)))
 	}
-	v := l.decl("v", flow.TypeValue)
+	v := l.decl("v", prim.TypeValue)
 	l.set(v, l.branch(true, use(start), call(flow.OpKids, nil, use(base))))
 	return use(v)
 }
@@ -1362,8 +1363,8 @@ func (l *lowerer) projectRepeat(n *core.Repeat, fail string) code.Expr {
 // termCaps returns the captures of the scope s for a term of a predicate or a binding, with their
 // arguments (capArgs), making the variables of the slots it refers to. In a framed function, and
 // where the scope has no slots, the term reads the current frame and has no arguments.
-func (l *lowerer) termCaps(t core.ActionExpr, s *scope) (flow.Capture, []code.Expr) {
-	c := flow.Capture{Names: core.SlotNames(s.slots), Frame: true}
+func (l *lowerer) termCaps(t core.ActionExpr, s *scope) (prim.Capture, []code.Expr) {
+	c := prim.Capture{Names: core.SlotNames(s.slots), Frame: true}
 	if l.frame {
 		return c, nil
 	}
@@ -1402,7 +1403,7 @@ func capArgs(t core.ActionExpr, s *scope) []code.Expr {
 // label_ lowers @error and @diagnostic: the expectations recorded inside are isolated, so that
 // the label changes only those of a failed body.
 func (l *lowerer) label_(n *core.Label, s *scope, build bool, fail string) code.Expr {
-	mk, far, exps := l.decl("x", flow.TypeExpMark), l.decl("x", flow.TypeInt), l.decl("x", flow.TypeExpIDs)
+	mk, far, exps := l.decl("x", prim.TypeExpMark), l.decl("x", prim.TypeInt), l.decl("x", prim.TypeExpIDs)
 	l.set(mk, call(flow.OpIsolate, nil))
 	f, done := l.label(), l.label()
 	bd := l.open(done)
@@ -1418,7 +1419,7 @@ func (l *lowerer) label_(n *core.Label, s *scope, build bool, fail string) code.
 		if n.Diagnostic {
 			l.emit(do(flow.OpMergeRenamed, n.Exp, use(far), use(exps)))
 		} else {
-			l.emit(do(flow.OpExpect, flow.Expectation{Exp: n.Exp, Message: true}, use(far)))
+			l.emit(do(flow.OpExpect, prim.Expectation{Exp: n.Exp, Message: true}, use(far)))
 		}
 		l.exit(fail)
 		l.close(bd)
@@ -1435,7 +1436,7 @@ func (l *lowerer) finish(r *core.Rule, s *scope, body code.Expr) {
 	f := l.at
 	var owned code.Expr
 	if r.Finish.NodeType != "" && (r.Finish.Kind == core.FinishSplice || r.Finish.Kind == core.FinishScope) {
-		bv := l.shared("bv", flow.TypeValue)
+		bv := l.shared("bv", prim.TypeValue)
 		l.set(bv, call(flow.OpFreshNode, nil, body))
 		owned = use(bv)
 	}
@@ -1444,11 +1445,11 @@ func (l *lowerer) finish(r *core.Rule, s *scope, body code.Expr) {
 		l.set(f.Result, null())
 	case core.FinishAction:
 		l.scopeVals(s)
-		c := flow.Capture{Names: core.SlotNames(s.slots)}
+		c := prim.Capture{Names: core.SlotNames(s.slots)}
 		args := append([]code.Expr{use(f.Ctx)}, capArgs(r.Finish.Action, s)...)
 		l.set(f.Ctx, call(flow.OpUseCtx, nil, use(f.Start)))
-		l.emit(do(flow.OpSetWhere, flow.Chars(r.Where)))
-		l.set(f.Result, call(flow.OpEval, flow.Action{Term: r.Finish.Action, Capture: c}, args...))
+		l.emit(do(flow.OpSetWhere, prim.Chars(r.Where)))
+		l.set(f.Result, call(flow.OpEval, prim.Action{Term: r.Finish.Action, Capture: c}, args...))
 		switch r.Finish.Action.(type) {
 		case *core.New, *core.Convert:
 			// A struct made with the rule's range; structs made inside it are dropped.
@@ -1471,7 +1472,7 @@ func (l *lowerer) finish(r *core.Rule, s *scope, body code.Expr) {
 	case core.FinishScope:
 		l.set(f.Result, call(flow.OpScopeValue, r.Finish.Shape, body, use(f.Start)))
 		if len(s.slots) > 0 {
-			l.set(f.Result, attach(use(f.Result), use(f.Start), &flow.Names{List: core.SlotNames(s.slots)}, l.scopeVals(s)))
+			l.set(f.Result, attach(use(f.Result), use(f.Start), &prim.Names{List: core.SlotNames(s.slots)}, l.scopeVals(s)))
 		}
 		l.emit(do(flow.OpUnfresh, nil, use(f.Result)))
 	}
@@ -1480,7 +1481,7 @@ func (l *lowerer) finish(r *core.Rule, s *scope, body code.Expr) {
 		if owned != nil {
 			args = append(args, owned)
 		}
-		l.set(f.Result, call(flow.OpConvertResult, flow.Conversion{Rule: r.ID, Owned: owned != nil}, args...))
+		l.set(f.Result, call(flow.OpConvertResult, prim.Conversion{Rule: r.ID, Owned: owned != nil}, args...))
 	}
 }
 
@@ -1490,11 +1491,11 @@ func (l *lowerer) frameCapture(n *core.Capture, s *scope, build bool, fail strin
 	if n.Project != "" {
 		v = l.frameRepeat(n.Body.(*core.Repeat), s, true, fail)
 	} else {
-		start := l.decl("x", flow.TypeInt)
+		start := l.decl("x", prim.TypeInt)
 		l.set(start, pos())
 		v = l.shapeOne(n.Body, l.node(n.Body, s, true, fail), use(start), true)
 	}
-	l.emit(do(flow.OpSetCapture, flow.Slot(n.Slot), v))
+	l.emit(do(flow.OpSetCapture, prim.Slot(n.Slot), v))
 	if !build {
 		return null()
 	}
@@ -1509,15 +1510,15 @@ func (l *lowerer) frameRepeat(n *core.Repeat, s *scope, build bool, fail string)
 	own := n.Scope != nil
 	es := s
 	var start, base, frame, prev string
-	var names *flow.Names
+	var names *prim.Names
 	if build {
-		start, base = l.decl("x", flow.TypeInt), l.decl("x", flow.TypeInt)
+		start, base = l.decl("x", prim.TypeInt), l.decl("x", prim.TypeInt)
 		l.emit(&code.Set{Dst: []code.Place{{Name: start}, {Name: base}}, Values: []code.Expr{pos(), call(flow.OpKidsLen, nil)}})
 	}
 	if own {
 		es = newScope(n.Scope)
-		frame, prev = l.decl("x", flow.TypeFrame), l.decl("x", flow.TypeFrame)
-		names = &flow.Names{List: core.SlotNames(es.slots), Declared: true}
+		frame, prev = l.decl("x", prim.TypeFrame), l.decl("x", prim.TypeFrame)
+		names = &prim.Names{List: core.SlotNames(es.slots), Declared: true}
 		if field != "" {
 			l.set(frame, call(flow.OpNewFrame, names))
 		}
@@ -1527,7 +1528,7 @@ func (l *lowerer) frameRepeat(n *core.Repeat, s *scope, build bool, fail string)
 	if !stream {
 		run = l.runBegin(n, build && field == "", start)
 	}
-	count := l.decl("x", flow.TypeInt)
+	count := l.decl("x", prim.TypeInt)
 	l.set(count, num(0))
 	if stream {
 		l.emit(&code.If{Cond: call(flow.OpStreamOn, nil), Then: &code.Block{Stmts: []code.Stmt{do(flow.OpStreamStart, nil)}}})
@@ -1549,7 +1550,7 @@ func (l *lowerer) frameRepeat(n *core.Repeat, s *scope, build bool, fail string)
 	bf := l.open(f)
 	v, cut := l.cutNode(n.Body, es, build && field == "", f)
 	if build && field == "" {
-		sv := l.decl("v", flow.TypeValue)
+		sv := l.decl("v", prim.TypeValue)
 		l.set(sv, call(flow.OpScopeValue, n.Body.Attrs().Shape, v, m.at()))
 		v = use(sv)
 	}
@@ -1557,10 +1558,10 @@ func (l *lowerer) frameRepeat(n *core.Repeat, s *scope, build bool, fail string)
 		l.setFrame(use(prev))
 		if build {
 			if field != "" {
-				v = call(flow.OpFrameVal, flow.Slot(slotOf(es.slots, field)), use(frame))
+				v = call(flow.OpFrameVal, prim.Slot(slotOf(es.slots, field)), use(frame))
 			} else {
-				attached := l.decl("v", flow.TypeValue)
-				l.set(attached, call(flow.OpAttachFrame, flow.Attach{Names: names, Frame: true}, v, m.at(), use(frame)))
+				attached := l.decl("v", prim.TypeValue)
+				l.set(attached, call(flow.OpAttachFrame, prim.Attach{Names: names, Frame: true}, v, m.at(), use(frame)))
 				v = use(attached)
 			}
 		}
@@ -1617,7 +1618,7 @@ func (l *lowerer) frameRepeat(n *core.Repeat, s *scope, build bool, fail string)
 		run.end(l, nil)
 		return null()
 	}
-	list := l.decl("v", flow.TypeValue)
+	list := l.decl("v", prim.TypeValue)
 	run.end(l, func(hot bool) {
 		var kids code.Expr = call(flow.OpKids, nil, use(base))
 		if hot {
@@ -1644,12 +1645,12 @@ func slotOf(slots []core.Slot, name string) int {
 func (l *lowerer) recover(n *core.Recover, s *scope, build bool, fail string) code.Expr {
 	l.emit(&code.Comment{Text: "Recovery inlined under the runtime-owned frame."})
 	m := l.mark(s, n, true)
-	mk, far, exps := l.decl("x", flow.TypeExpMark), l.decl("x", flow.TypeInt), l.decl("x", flow.TypeExpIDs)
+	mk, far, exps := l.decl("x", prim.TypeExpMark), l.decl("x", prim.TypeInt), l.decl("x", prim.TypeExpIDs)
 	l.set(mk, call(flow.OpIsolate, nil))
 	f, done := l.label(), l.label()
 	var v string
 	if build {
-		v = l.decl("v", flow.TypeValue)
+		v = l.decl("v", prim.TypeValue)
 	}
 	bd := l.open(done)
 	bf := l.open(f)
@@ -1669,7 +1670,7 @@ func (l *lowerer) recover(n *core.Recover, s *scope, build bool, fail string) co
 		bs := l.open(skipFail)
 		l.node(n.Skip, s, false, skipFail)
 		l.failIf(nil, code.Bin("==", pos(), m.at()), skipFail)
-		err := l.decl("x", flow.TypeError)
+		err := l.decl("x", prim.TypeError)
 		l.set(err, call(flow.OpMakeError, nil, use(far), use(exps)))
 		l.emit(do(flow.OpAppendError, nil, use(err)))
 		if build {
@@ -1711,9 +1712,9 @@ func (l *lowerer) match(start, text code.Expr) code.Expr {
 // branch returns the node of the children kids from start, built for the runtime of the function.
 func (l *lowerer) branch(list bool, start, kids code.Expr) code.Expr {
 	if l.opts.Node {
-		return call(flow.OpNewBranchNode, flow.List(list), start, kids)
+		return call(flow.OpNewBranchNode, prim.List(list), start, kids)
 	}
-	return call(flow.OpNewNode, flow.List(list), start, kids)
+	return call(flow.OpNewNode, prim.List(list), start, kids)
 }
 
 // outlines reports whether the node n runs as a function of its own.
@@ -1738,24 +1739,24 @@ func noCaptures(n core.Node) bool {
 // outlined lowers the node n to a call of its function.
 func (l *lowerer) outlined(n core.Node, s *scope, build bool, fail string) code.Expr {
 	ok := l.ok()
-	rc := call(flow.OpCallOutline, flow.Outline{Node: n, Slots: s.slots, Build: build})
+	rc := call(flow.OpCallOutline, prim.Outline{Node: n, Slots: s.slots, Build: build})
 	if !build {
 		l.failIf(&code.Set{Dst: []code.Place{{}, {Name: ok}}, Values: []code.Expr{rc}}, code.Not(use(ok)), fail)
 		return null()
 	}
-	v := l.decl("v", flow.TypeValue)
+	v := l.decl("v", prim.TypeValue)
 	l.failIf(&code.Set{Dst: []code.Place{{Name: v}, {Name: ok}}, Values: []code.Expr{rc}}, code.Not(use(ok)), fail)
 	return use(v)
 }
 
 // attach returns x, matched from start, with the captures of the scope whose slots are names
 // attached: the values of the variables vals.
-func attach(x, start code.Expr, names *flow.Names, vals []string) code.Expr {
+func attach(x, start code.Expr, names *prim.Names, vals []string) code.Expr {
 	args := []code.Expr{x, start}
 	for _, v := range vals {
 		args = append(args, use(v))
 	}
-	return call(flow.OpAttachCaptures, flow.Attach{Names: names}, args...)
+	return call(flow.OpAttachCaptures, prim.Attach{Names: names}, args...)
 }
 
 // openForm begins a form of the node n in the current statement list, which leaves fail

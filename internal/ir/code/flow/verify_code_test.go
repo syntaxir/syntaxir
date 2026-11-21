@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/core"
 )
 
@@ -25,7 +26,7 @@ func TestVerifyModule(t *testing.T) {
 			f.attrs(a)
 		}
 		g := &code.Func{Name: "f", Attrs: a, Body: &code.Block{Label: a.Fail, Stmts: f.body}}
-		for _, e := range []code.Param{code.P(a.Start, i), code.P(a.Result, h(TValue)), code.P(a.Ctx, h(TCtx))} {
+		for _, e := range []code.Param{code.P(a.Start, i), code.P(a.Result, h(prim.TValue)), code.P(a.Ctx, h(prim.TCtx))} {
 			if e.Name != "" {
 				g.Locals = append(g.Locals, e)
 			}
@@ -46,7 +47,7 @@ func TestVerifyModule(t *testing.T) {
 	lit := (*core.Lit)(nil)
 	class := (*core.Class)(nil)
 	ok := code.P("ok", b)
-	peek := []code.Param{code.P("ch", h(TRune)), code.P("n", i), ok}
+	peek := []code.Param{code.P("ch", h(prim.TRune)), code.P("n", i), ok}
 	peekSet := func(okName string) code.Stmt {
 		return &code.Set{Dst: []code.Place{{Name: "ch"}, {Name: "n"}, {Name: okName}}, Values: []code.Expr{call(OpPeek, nil)}}
 	}
@@ -94,10 +95,10 @@ func TestVerifyModule(t *testing.T) {
 		{"continue of an outer loop", fn{body: []code.Stmt{loop("L2", nil, loop("L1", nil, &code.Continue{Label: "L2"}, &code.Break{Label: "L1"}), &code.Break{Label: "L2"})}},
 			"continue of a loop that is not the innermost one"},
 		{"peek without the ok variable", fn{vars: peek, body: []code.Stmt{peekSet("")}}, "peek without a variable"},
-		{"scan end without a site", fn{body: []code.Stmt{do(OpScanEnd, Site(0), code.Int(0), code.Int(0))}}, "flow.scanEnd site 0"},
-		{"skip-run begin without a site", fn{body: []code.Stmt{do(OpSkipBegin, Site(0))}}, "flow.skipBegin site 0"},
+		{"scan end without a site", fn{body: []code.Stmt{do(OpScanEnd, prim.Site(0), code.Int(0), code.Int(0))}}, "flow.scanEnd site 0"},
+		{"skip-run begin without a site", fn{body: []code.Stmt{do(OpSkipBegin, prim.Site(0))}}, "flow.skipBegin site 0"},
 		{"stream start in a typed function", fn{body: []code.Stmt{do(OpStreamStart, nil)}}, "flow.streamStart outside a framed Node function"},
-		{"frame release in a Node function", fn{attrs: setNode, vars: []code.Param{code.P("fr", h(TFrame))},
+		{"frame release in a Node function", fn{attrs: setNode, vars: []code.Param{code.P("fr", h(prim.TFrame))},
 			body: []code.Stmt{do(OpFreeFrame, nil, code.L("fr"))}}, "flow.freeFrame in a Node function"},
 		{"typed value in a Node function", fn{attrs: setNode, body: []code.Stmt{code.Assign("v", call(OpNewMatch, nil, code.L("start"), code.L("v")))}},
 			"typed match in a Node function"},
@@ -124,20 +125,20 @@ func TestVerifyModule(t *testing.T) {
 		{"continue outside its loop", fn{body: []code.Stmt{&code.Block{Label: "L2", Stmts: []code.Stmt{&code.Continue{Label: "L2"}}}}}, "names no enclosing loop"},
 		{"break and continue of an outer loop", fn{body: []code.Stmt{loop("L2", nil, loop("L1", nil,
 			&code.Break{Label: "L2"}, &code.Continue{Label: "L2"}, &code.Break{Label: "L1"}))}}, "not the innermost"},
-		{"undeclared variable", fn{body: []code.Stmt{&code.Set{Dst: []code.Place{{Name: Pos, Reg: true}}, Values: []code.Expr{code.L("x9")}}}}, "undeclared local x9"},
-		{"assignment arity", fn{body: []code.Stmt{&code.Set{Dst: []code.Place{{Name: Pos, Reg: true}, {}}, Values: []code.Expr{code.Int(1)}}}}, "set of 2 places from one value"},
+		{"undeclared variable", fn{body: []code.Stmt{&code.Set{Dst: []code.Place{{Name: prim.Pos, Reg: true}}, Values: []code.Expr{code.L("x9")}}}}, "undeclared local x9"},
+		{"assignment arity", fn{body: []code.Stmt{&code.Set{Dst: []code.Place{{Name: prim.Pos, Reg: true}, {}}, Values: []code.Expr{code.Int(1)}}}}, "set of 2 places from one value"},
 		{"label used twice", fn{body: []code.Stmt{&code.Block{Label: "L1"}, &code.Block{Label: "L1"}}}, "label L1 of more than one block or loop"},
 		// A local function has no value of its own: its value is the Result variable.
-		{"local function with a value", fn{body: []code.Stmt{&code.Return{Values: []code.Expr{code.Null(h(TValue)), code.BoolC(true)}}}}, "return of 2 values, want 0"},
-		{"typed node nested in a Node function", fn{attrs: setNode, vars: []code.Param{code.P("ks", h(TVals))}, body: []code.Stmt{
-			do(OpPushKid, nil, call(OpNewNode, List(false), code.L("start"), code.L("ks")))}}, "typed node in a Node function"},
-		{"Node branch nested in a typed function", fn{vars: []code.Param{code.P("ks", h(TVals))}, body: []code.Stmt{
-			code.Assign("v", call(OpScopeValue, core.Shape{}, call(OpNewBranchNode, List(false), code.L("start"), code.L("ks")), code.L("start")))}},
+		{"local function with a value", fn{body: []code.Stmt{&code.Return{Values: []code.Expr{code.Null(h(prim.TValue)), code.BoolC(true)}}}}, "return of 2 values, want 0"},
+		{"typed node nested in a Node function", fn{attrs: setNode, vars: []code.Param{code.P("ks", h(prim.TVals))}, body: []code.Stmt{
+			do(OpPushKid, nil, call(OpNewNode, prim.List(false), code.L("start"), code.L("ks")))}}, "typed node in a Node function"},
+		{"Node branch nested in a typed function", fn{vars: []code.Param{code.P("ks", h(prim.TVals))}, body: []code.Stmt{
+			code.Assign("v", call(OpScopeValue, core.Shape{}, call(OpNewBranchNode, prim.List(false), code.L("start"), code.L("ks")), code.L("start")))}},
 			"Node branch in a typed function"},
 		{"local capture values in a Node function", fn{attrs: setNode, body: []code.Stmt{
-			code.Assign("v", call(OpAttachCaptures, Attach{Names: &Names{}}, code.L("v"), code.L("start")))}},
+			code.Assign("v", call(OpAttachCaptures, prim.Attach{Names: &prim.Names{}}, code.L("v"), code.L("start")))}},
 			"typed capture values of local variables in a Node function"},
-		{"frame trail drop in a Node function", fn{attrs: setNode, vars: []code.Param{code.P("x1", h(TMark))},
+		{"frame trail drop in a Node function", fn{attrs: setNode, vars: []code.Param{code.P("x1", h(prim.TMark))},
 			body: []code.Stmt{do(OpDropTrail, nil, code.L("x1"))}}, "flow.dropTrail in a Node function"},
 		{"stream element in a local Node function", fn{attrs: setNode, body: []code.Stmt{do(OpEmitStream, nil, code.L("v"))}},
 			"flow.emitStream outside a framed Node function"},
@@ -168,7 +169,7 @@ func TestVerifyModule(t *testing.T) {
 	}
 	// An exit may leave a loop for a block that encloses it, which the printers write as a goto.
 	if err := VerifyModule(build(fn{vars: []code.Param{code.P("n", i)}, body: []code.Stmt{
-		&code.Block{Label: "L1", Stmts: []code.Stmt{&code.Set{Dst: []code.Place{{Name: Pos, Reg: true}}, Values: []code.Expr{code.Int(1)}}, &code.Exit{Label: "L1"}}},
+		&code.Block{Label: "L1", Stmts: []code.Stmt{&code.Set{Dst: []code.Place{{Name: prim.Pos, Reg: true}}, Values: []code.Expr{code.Int(1)}}, &code.Exit{Label: "L1"}}},
 		&code.Block{Label: "L3", Stmts: []code.Stmt{loop("L4", code.Lt(code.L("n"), code.Int(1)), &code.Exit{Label: "L3"})}},
 		&code.Exit{Label: "fail"},
 	}})); err != nil {

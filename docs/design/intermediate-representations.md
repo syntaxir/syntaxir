@@ -197,8 +197,9 @@ every runtime: the call protocol of a rule with memoization, left-recursion grow
 call, Documents and streams.
 
 `execlower`, a pass of Code IR, converts the Flow stage to the Exec stage completely: each call of a Flow operation
-becomes a call of the primitive that stands for it, with the same arguments and immediate operand, and the verifier at
-the Exec stage checks the postcondition that no Flow operation remains. Operations of the Action dialect are legal at both stages and
+becomes a call of the primitive that stands for it, with the same arguments and immediate operand, the Flow attributes
+of each function become its Exec-stage attributes, and the verifier at the Exec stage checks the postcondition that no
+Flow operation and no Flow attribute remains. Operations of the Action dialect are legal at both stages and
 are kept. The rules of a grammar enter the
 Exec stage only this way; the compositions are written in the Exec dialect directly.
 

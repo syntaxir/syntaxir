@@ -7,6 +7,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/pass"
 )
@@ -26,12 +27,12 @@ func markInIfFunc(t *testing.T, resetInIf bool) *code.Module {
 	do := func(name string, imm any, args ...code.Expr) code.Stmt {
 		return &code.Do{Call: &code.Call{Callee: name, Imm: imm, Args: args}}
 	}
-	cond := func() code.Expr { return code.Bin(">=", code.R(flow.Pos), code.Int(3)) }
+	cond := func() code.Expr { return code.Bin(">=", code.R(prim.Pos), code.Int(3)) }
 	reset := func() code.Stmt { return do(flow.OpReset, nil, code.L("x1")) }
 	then := []code.Stmt{
-		code.Assign("x1", &code.Call{Callee: flow.OpMarkState, Imm: flow.StateMark{Trail: true, Env: true}}),
-		&code.Set{Dst: []code.Place{{Name: flow.Pos, Reg: true}}, Values: []code.Expr{code.Int(7)}},
-		do(flow.OpSetCapture, flow.Slot(0), code.Null(code.THandle(flow.TValue))),
+		code.Assign("x1", &code.Call{Callee: flow.OpMarkState, Imm: prim.StateMark{Trail: true, Env: true}}),
+		&code.Set{Dst: []code.Place{{Name: prim.Pos, Reg: true}}, Values: []code.Expr{code.Int(7)}},
+		do(flow.OpSetCapture, prim.Slot(0), code.Null(code.THandle(prim.TValue))),
 	}
 	var body []code.Stmt
 	if resetInIf {
@@ -41,7 +42,7 @@ func markInIfFunc(t *testing.T, resetInIf bool) *code.Module {
 		body = append(body, &code.If{Cond: cond(), Then: &code.Block{Stmts: then}},
 			&code.If{Cond: cond(), Then: &code.Block{Stmts: []code.Stmt{reset()}}})
 	}
-	return framed(t, "markInIf", []code.Param{code.P("x1", code.THandle(flow.TMark))}, body...)
+	return framed(t, "markInIf", []code.Param{code.P("x1", code.THandle(prim.TMark))}, body...)
 }
 
 // TestFlowExecPrintsMarkInIfBody checks that the mark of a framed function that is set in the body of

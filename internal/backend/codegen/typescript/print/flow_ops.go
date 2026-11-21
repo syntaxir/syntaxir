@@ -9,6 +9,7 @@ import (
 	tspass "syntaxir.dev/sxir/internal/backend/codegen/typescript/pass"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/execlower"
@@ -38,9 +39,9 @@ type tsFlowPrinter struct {
 	labels map[string]string
 	// decls holds the constants the printed text names, which the caller declares if it keeps the text.
 	decls []tsDecl
-	names map[*flow.Names]string
+	names map[*prim.Names]string
 	// marks holds the marks of the whole parser state by local, with the parts they save.
-	marks map[string]flow.StateMark
+	marks map[string]prim.StateMark
 	// outlined holds the calls of the functions printed for the outlined nodes.
 	outlined map[*code.Call]string
 	// parts holds, for each mark local, the names that stand for its position, environment, trail
@@ -68,7 +69,7 @@ func (p *tsFlowPrinter) label(name string) string {
 		return n
 	}
 	n := "L" + strconv.Itoa(len(p.labels)+1)
-	if !flow.Unnamed(name) {
+	if !prim.Unnamed(name) {
 		n = "L_" + name
 	}
 	for _, other := range p.labels {
@@ -126,7 +127,7 @@ func (p *tsFlowPrinter) stmtOp(c *code.Call, args func() []string) {
 	case flow.OpStep:
 		p.write(tsSpend(1))
 	case flow.OpSilent:
-		s := c.Imm.(flow.Silence)
+		s := c.Imm.(prim.Silence)
 		if s.Delta > 0 {
 			p.write("p.silent++;\n")
 			if s.Site != 0 {
@@ -143,7 +144,7 @@ func (p *tsFlowPrinter) stmtOp(c *code.Call, args func() []string) {
 		p.write("p.pos += " + args()[0] + ";\n")
 	case flow.OpExpect:
 		p.read(c.Args...)
-		x := c.Imm.(flow.Expectation)
+		x := c.Imm.(prim.Expectation)
 		if x.Message {
 			p.write(fmt.Sprintf("p.expect(%s, msgBit | %d);\n", args()[0], p.desc(x.Exp)))
 		} else {
@@ -173,14 +174,14 @@ func (p *tsFlowPrinter) stmtOp(c *code.Call, args func() []string) {
 	case flow.OpAppend:
 		p.read(c.Args...)
 		a := args()
-		if c.Imm.(flow.Spread) {
+		if c.Imm.(prim.Spread) {
 			p.write(fmt.Sprintf("for (const k of (%s as Node).children) {\n  %s.push(k);\n}\n", a[1], a[0]))
 		} else {
 			p.write(fmt.Sprintf("%s.push(%s);\n", a[0], a[1]))
 		}
 	case flow.OpSetCapture:
 		p.read(c.Args...)
-		p.write(fmt.Sprintf("p.setCapture(%d, %s);\n", c.Imm.(flow.Slot), args()[0]))
+		p.write(fmt.Sprintf("p.setCapture(%d, %s);\n", c.Imm.(prim.Slot), args()[0]))
 	case flow.OpClearVals:
 		p.read(c.Args...)
 		p.write(args()[0] + ".fill(null);\n")
@@ -198,9 +199,9 @@ func (p *tsFlowPrinter) stmtOp(c *code.Call, args func() []string) {
 		p.readName(p.part(m, 2))
 		p.write(fmt.Sprintf("p.trail.length = %sTrail;\n", m))
 	case flow.OpSkipBegin:
-		p.write(fmt.Sprintf("p.skipBegin(%d);\n", c.Imm.(flow.Site)))
+		p.write(fmt.Sprintf("p.skipBegin(%d);\n", c.Imm.(prim.Site)))
 	case flow.OpRunBegin:
-		w := c.Imm.(flow.RunWalk)
+		w := c.Imm.(prim.RunWalk)
 		key := "null"
 		if w.KeyEnv {
 			key = p.g.runKeyName(w.Site)
@@ -213,10 +214,10 @@ func (p *tsFlowPrinter) stmtOp(c *code.Call, args func() []string) {
 	case flow.OpSkipEnd:
 		p.write("p.skipEnd();\n")
 	case flow.OpRunWalked:
-		p.write(fmt.Sprintf("p.runWalked(%d, %s);\n", c.Imm.(flow.Site), args()[0]))
+		p.write(fmt.Sprintf("p.runWalked(%d, %s);\n", c.Imm.(prim.Site), args()[0]))
 	case flow.OpScanEnd:
 		a := args()
-		p.write(fmt.Sprintf("p.scanEnd(%d, %s, %s);\n", c.Imm.(flow.Site), a[0], a[1]))
+		p.write(fmt.Sprintf("p.scanEnd(%d, %s, %s);\n", c.Imm.(prim.Site), a[0], a[1]))
 	case flow.OpObserveSkip:
 		if p.dead || p.dry {
 			return
@@ -244,15 +245,15 @@ func (p *tsFlowPrinter) expr(c *code.Call, args func() []string) string {
 	case flow.OpSkipHit:
 		return "p.skipHit()"
 	case flow.OpRunHot:
-		return fmt.Sprintf("p.runHot(%d)", c.Imm.(flow.Site))
+		return fmt.Sprintf("p.runHot(%d)", c.Imm.(prim.Site))
 	case flow.OpSkipKids:
 		return "p.skipKids()"
 	case flow.OpScanReach:
 		a := args()
-		return fmt.Sprintf("p.scanReach(%d, %s, %s)", c.Imm.(flow.Site), a[0], a[1])
+		return fmt.Sprintf("p.scanReach(%d, %s, %s)", c.Imm.(prim.Site), a[0], a[1])
 	case flow.OpScanKids:
 		a := args()
-		return fmt.Sprintf("p.scanKids(%d, %s, %s, %s)", c.Imm.(flow.Site), a[0], a[1], a[2])
+		return fmt.Sprintf("p.scanKids(%d, %s, %s, %s)", c.Imm.(prim.Site), a[0], a[1], a[2])
 	case flow.OpMatchLit:
 		lit := c.Imm.(*core.Lit)
 		if lit.Fold {
@@ -313,7 +314,7 @@ func (p *tsFlowPrinter) expr(c *code.Call, args func() []string) string {
 			return "p.atLineEnd()"
 		}
 	case flow.OpCallRule:
-		x := c.Imm.(flow.RuleCall)
+		x := c.Imm.(prim.RuleCall)
 		return p.call(g.Flow.Rules[x.Rule], x.Level)
 	case flow.OpIsolate:
 		return "p.isolate()"
@@ -332,13 +333,13 @@ func (p *tsFlowPrinter) expr(c *code.Call, args func() []string) string {
 		p.read(c.Args...)
 		return fmt.Sprintf("p.text(%s, p.pos)", args()[0])
 	case flow.OpStr:
-		return TsString(string(c.Imm.(flow.Chars)))
+		return TsString(string(c.Imm.(prim.Chars)))
 	case flow.OpNewTerminalNode:
 		a := args()
 		return p.counted(fmt.Sprintf("new Node(\"string\", \"\", %s, p.pos, %s, noNodes, noFields, true, true)", a[0], a[1]), "nodeBytes")
 	case flow.OpNewBranchNode:
 		kind := "tuple"
-		if c.Imm.(flow.List) {
+		if c.Imm.(prim.List) {
 			kind = "list"
 		}
 		a := args()
@@ -360,9 +361,9 @@ func (p *tsFlowPrinter) expr(c *code.Call, args func() []string) string {
 		panic(tsFlowUnsupported("captures attached from variables"))
 	case flow.OpAttachFrame:
 		a := args()
-		return fmt.Sprintf("p.attachCaptures(%s, %s, %s, %s, p.pos)", a[0], p.scopeNames(c.Imm.(flow.Attach).Names), a[2], a[1])
+		return fmt.Sprintf("p.attachCaptures(%s, %s, %s, %s, p.pos)", a[0], p.scopeNames(c.Imm.(prim.Attach).Names), a[2], a[1])
 	case flow.OpPred:
-		x := c.Imm.(flow.Predicate)
+		x := c.Imm.(prim.Predicate)
 		if !x.Frame {
 			panic(tsFlowUnsupported("a predicate that reads variables"))
 		}
@@ -372,7 +373,7 @@ func (p *tsFlowPrinter) expr(c *code.Call, args func() []string) string {
 		}
 		return fmt.Sprintf("p.predicate(%s)", p.g.predicateFunc(x.Node.Term, common.FrameScope(x.Names)))
 	case flow.OpBind:
-		x := c.Imm.(flow.Binding)
+		x := c.Imm.(prim.Binding)
 		if !x.Frame {
 			panic(tsFlowUnsupported("a bind that reads variables"))
 		}
@@ -394,9 +395,9 @@ func (p *tsFlowPrinter) expr(c *code.Call, args func() []string) string {
 		p.readName(p.part(m, 0))
 		return m + "Pos"
 	case flow.OpNewFrame:
-		return fmt.Sprintf("p.newFrame(%d)", len(c.Imm.(*flow.Names).List))
+		return fmt.Sprintf("p.newFrame(%d)", len(c.Imm.(*prim.Names).List))
 	case flow.OpFrameVal:
-		return fmt.Sprintf("%s[%d]!", args()[0], c.Imm.(flow.Slot))
+		return fmt.Sprintf("%s[%d]!", args()[0], c.Imm.(prim.Slot))
 	}
 	panic(tsFlowUnsupported("operation " + c.Callee))
 }
@@ -455,9 +456,9 @@ func (p *tsFlowPrinter) setText(s *code.Set, expr func(code.Expr) string, stmt b
 	if len(s.Dst) == 1 && name == flow.OpMarkState {
 		m := local(s.Dst[0])
 		if p.marks == nil {
-			p.marks = map[string]flow.StateMark{}
+			p.marks = map[string]prim.StateMark{}
 		}
-		p.marks[m] = c.Imm.(flow.StateMark)
+		p.marks[m] = c.Imm.(prim.StateMark)
 		srcs := [4]string{"p.pos", "p.env", "p.trail.length", "p.recovered.length"}
 		var parts []string
 		for i, src := range srcs {
@@ -544,7 +545,7 @@ func (p *tsFlowPrinter) setText(s *code.Set, expr func(code.Expr) string, stmt b
 
 // reg returns the TypeScript expression of the register name.
 func (p *tsFlowPrinter) reg(name string) string {
-	if name == execlower.Cut {
+	if name == prim.Cut {
 		return "p.cut"
 	}
 	return "p.pos"
@@ -623,7 +624,7 @@ func (p *tsFlowPrinter) outline(c *code.Call) string {
 	if call, ok := p.outlined[c]; ok {
 		return call
 	}
-	x := c.Imm.(flow.Outline)
+	x := c.Imm.(prim.Outline)
 	g := p.g
 	f, err := g.FlowPasses(lowerdata.Unit{Module: g.Flow.M, Opts: g.Flow.Opts, Funcs: []lowerdata.Func{{Form: lowerdata.Outline, Rule: g.Flow.M.Rules[g.Cur.ID], Name: g.Cur.Name, Body: x.Node, Slots: x.Slots, Build: x.Build}}})
 	if err != nil {

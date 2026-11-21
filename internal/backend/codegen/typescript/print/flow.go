@@ -9,6 +9,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/flowlower"
@@ -136,41 +137,41 @@ var (
 	tsMarkZero  = [4]string{"0", "null as Env | null", "0", "0"}
 )
 
-func tsFlowType(t flow.Type) string {
+func tsFlowType(t prim.Type) string {
 	switch t {
-	case flow.TypeInt, flow.TypeRune:
+	case prim.TypeInt, prim.TypeRune:
 		return "number"
-	case flow.TypeBool:
+	case prim.TypeBool:
 		return "boolean"
-	case flow.TypeValue:
+	case prim.TypeValue:
 		return "Node | null"
-	case flow.TypeVals:
+	case prim.TypeVals:
 		return "(Node | null)[]"
-	case flow.TypeFrame:
+	case prim.TypeFrame:
 		return "Frame"
-	case flow.TypeExpMark:
+	case prim.TypeExpMark:
 		return "number"
-	case flow.TypeExpIDs:
+	case prim.TypeExpIDs:
 		return "number[]"
-	case flow.TypeError:
+	case prim.TypeError:
 		return "SyntaxError | null"
 	}
 	panic(tsFlowUnsupported("variable of type " + t.String()))
 }
 
-func tsFlowZero(t flow.Type) string {
+func tsFlowZero(t prim.Type) string {
 	switch t {
-	case flow.TypeBool:
+	case prim.TypeBool:
 		return "false"
-	case flow.TypeValue:
+	case prim.TypeValue:
 		return "null"
-	case flow.TypeVals:
+	case prim.TypeVals:
 		return "[]"
-	case flow.TypeFrame:
+	case prim.TypeFrame:
 		return "emptyFrame"
-	case flow.TypeExpIDs:
+	case prim.TypeExpIDs:
 		return "noExp"
-	case flow.TypeError:
+	case prim.TypeError:
 		return "null"
 	}
 	return "0"
@@ -330,7 +331,7 @@ func tsShape(sh core.Shape) int {
 }
 
 // scopeNames returns the constant that holds the capture names n, declaring it on first use.
-func (p *tsFlowPrinter) scopeNames(n *flow.Names) string {
+func (p *tsFlowPrinter) scopeNames(n *prim.Names) string {
 	if p.dry {
 		return "scope"
 	}
@@ -339,7 +340,7 @@ func (p *tsFlowPrinter) scopeNames(n *flow.Names) string {
 	}
 	name := p.g.Name("scope")
 	if p.names == nil {
-		p.names = map[*flow.Names]string{}
+		p.names = map[*prim.Names]string{}
 	}
 	p.names[n] = name
 	p.decl(name, fmt.Sprintf("const %s: string[] = %s;\n", name, TsStrings(n.List)))

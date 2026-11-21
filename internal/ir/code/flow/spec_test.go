@@ -8,6 +8,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 )
 
 // The tests of this file hold the Flow IR specification (spec/flow-ir) current with this package:
@@ -96,12 +98,12 @@ func kindErrors(kind string, want, got []string) []string {
 type specKinds struct{ ops, types, regs []string }
 
 func currentKinds() specKinds {
-	k := specKinds{regs: []string{Pos, Cut}}
+	k := specKinds{regs: []string{prim.Pos, prim.Cut}}
 	for _, o := range Ops() {
 		k.ops = append(k.ops, o.Name)
 	}
-	for i := range typeNames {
-		k.types = append(k.types, Type(i).String())
+	for _, t := range prim.Types() {
+		k.types = append(k.types, t.String())
 	}
 	return k
 }

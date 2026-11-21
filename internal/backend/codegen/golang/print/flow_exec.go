@@ -9,10 +9,11 @@ import (
 
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	irc "syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/codepass"
 	"syntaxir.dev/sxir/internal/middleend/execlower"
-	"syntaxir.dev/sxir/internal/middleend/flowplan"
 )
 
 // Go rules printed from the Exec stage of Code IR.
@@ -148,7 +149,7 @@ func (p *flowPrinter) execTarget() *Target {
 func (p *flowPrinter) target() *Target {
 	return &Target{
 		Reg: func(name string) string {
-			return map[string]string{execlower.Pos: "p.Pos", execlower.Cut: "p.Cut"}[name]
+			return map[string]string{prim.Pos: "p.Pos", prim.Cut: "p.Cut"}[name]
 		},
 		Handle: func(name string) string { return name },
 		Op:     p.op,
@@ -200,12 +201,12 @@ func (g *Generator) execFlatRule(p *flowPrinter, l *execlower.Lowered) *flatRule
 	fn := l.Func
 	res := p.execBody(l)
 	st := res.Stores
-	a := flow.AttrsOf(fn)
+	a := prim.AttrsOf(fn)
 	read := func(v string) bool { return v != "" && st.Read[v] }
 	out := &flatRule{fail: res.Exited, succeed: res.End, binds: a.Binds, start: read(a.Start), ctx: read(a.Ctx)}
 	var unread []string
-	for _, v := range flow.VarsOf(fn) {
-		out.vars = append(out.vars, dvar{v.Name, goType(flow.TypeOf(v.Type))})
+	for _, v := range prim.VarsOf(fn) {
+		out.vars = append(out.vars, dvar{v.Name, goType(prim.TypeOf(v.Type))})
 		switch {
 		case st.Dead[v.Name]:
 			out.markVar(v.Name, true)
@@ -225,27 +226,27 @@ func (g *Generator) execFlatRule(p *flowPrinter, l *execlower.Lowered) *flatRule
 
 // execRecRule prints the lowered local function l of a rule of the Node library as a flat rule. The
 // plan has accepted the function as the lowering wrote it (flowplan.Unit); if the forms that the
-// Go passes chose make flowplan.Refused reject it, the generation fails with an internal error
+// Go passes chose make codepass.RefusesFlat reject it, the generation fails with an internal error
 // (Generator.FlowErr) and execRecRule returns nil. It counts only a rule it prints.
 func (g *Generator) execRecRule(p *flowPrinter, l *execlower.Lowered) *flatRule {
 	fn := l.Func
 	res := p.execPrint(l)
-	if flowplan.Refused(fn) {
+	if a := prim.AttrsOf(fn); codepass.RefusesFlat(fn, a.Start, a.Ctx, prim.VarsOf(fn)) {
 		if g.FlowErr == nil {
 			g.FlowErr = fmt.Errorf("internal error: the plan runs %s flat, but in the forms of the Go passes it reads its start or its context, or keeps a value", fn.Name)
 		}
 		return nil
 	}
 	st := res.Stores
-	vars := flow.VarsOf(fn)
+	vars := prim.VarsOf(fn)
 	p.execVars(l, &res)
 	p.execCount()
 	out := &flatRule{fail: res.Exited, succeed: res.End}
 	var unread []string
 	for _, v := range vars {
-		t, ok := untypedGoType(flow.TypeOf(v.Type))
+		t, ok := untypedGoType(prim.TypeOf(v.Type))
 		if !ok {
-			panic(fmt.Errorf("internal error: the flat rule %s has a variable %s of a type the Node library cannot name", fn.Name, v.Name)) // Refused holds
+			panic(fmt.Errorf("internal error: the flat rule %s has a variable %s of a type the Node library cannot name", fn.Name, v.Name)) // RefusesFlat holds
 		}
 		out.vars = append(out.vars, dvar{v.Name, t})
 		switch {
@@ -273,8 +274,8 @@ func (g *Generator) execFramed(p *flowPrinter, l *execlower.Lowered, slots []irc
 	var vars []dvar
 	dead, quiet := map[string]bool{}, map[string]bool{}
 	var unread []string
-	for _, v := range flow.VarsOf(fn) {
-		vars = append(vars, dvar{v.Name, p.goType(flow.TypeOf(v.Type))})
+	for _, v := range prim.VarsOf(fn) {
+		vars = append(vars, dvar{v.Name, p.goType(prim.TypeOf(v.Type))})
 		switch {
 		case st.Dead[v.Name]:
 			dead[v.Name] = true

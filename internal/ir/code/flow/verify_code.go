@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 )
 
 // VerifyModule checks a module of grammar code at the Flow stage: the invariants of Code IR
@@ -198,11 +199,11 @@ func (v *flowVerifier) call(c *code.Call) {
 	a := v.a
 	switch c.Callee {
 	case OpScanEnd, OpSkipBegin, OpRunHot, OpRunWalked:
-		if site, _ := c.Imm.(Site); site <= 0 {
+		if site, _ := c.Imm.(prim.Site); site <= 0 {
 			v.fail("%s site %d", c.Callee, site)
 		}
 	case OpRunBegin:
-		if w, _ := c.Imm.(RunWalk); w.Site <= 0 {
+		if w, _ := c.Imm.(prim.RunWalk); w.Site <= 0 {
 			v.fail("%s site %d", c.Callee, w.Site)
 		}
 	case OpStreamStart, OpEmitStream:

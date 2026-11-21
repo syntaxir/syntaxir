@@ -962,7 +962,12 @@ share the `specialize` pass.
 
 The analysis of dead stores, which the printers apply with their own purity, changes nothing, so it stays in the
 printers but moves out of the pass package of Code IR into an analysis package of the Exec stage that imports no pass
-code. The flags that the Go printer registers move to the package that declares the lowering that reads them, or to the
+code. The check whether a flat rule can run a lowered function, which reads no entry position or action context where
+the printers reach and keeps no value in a variable, sits beside the analysis of dead stores and moves with it: it reads
+only the function and the entry variables and variables it is given, so the plan decides with it on the Flow function
+and the Go printer asserts with it, on the Exec function in the forms of its passes, that the decision still holds,
+each with the attributes of its own stage. The flags that the Go printer registers move to the package that declares
+the lowering that reads them, or to the
 Go backend package that declares `print-go`, which declares them as parameters and gives their values to the printer as
 data.
 
@@ -1195,8 +1200,9 @@ the attributes of its nodes computed, since a kind's verifier checks the unit an
    to `Compile` with edits, or to `FlowTable` where they need only the table. The architecture tests land with the rules
    that hold at this step: the caller rule and the export rules.
 7. **Printers on Exec-stage units**, each change with identical output and dumps: the `prim` package; Exec-stage
-   attributes with the verifier's rule; the printers reading `prim` and the table unit; the lowering left in the
-   printers as steps, with the TypeScript library's specialization and the import ban of the print packages; then the
+   attributes with the verifier's rule, and the flat-function check beside the analysis of dead stores, which the plan
+   and the Go printer call each on its own stage; the printers reading `prim` and the table unit; the lowering left in
+   the printers as steps, with the TypeScript library's specialization and the import ban of the print packages; then the
    renames and the name rules, and the walk for Flow-stage units with its negative control.
 8. **The text form:** the printer, the reader and the resolver with the skeleton and kind checks, the headers with their
    reflection tests and per-target dumps, `-print-pipeline`, and the internal reader for tests and a development tool.

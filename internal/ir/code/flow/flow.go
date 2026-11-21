@@ -20,45 +20,6 @@
 // and a printer leaves out what is unreachable. VerifyModule checks the invariants of a function.
 package flow
 
-// Type is the type of a variable.
-type Type uint8
-
-const (
-	// TypeInt is a position, a count or a length.
-	TypeInt Type = iota
-	TypeBool
-	TypeRune
-	// TypeValue is a value of the runtime.
-	TypeValue
-	// TypeEnv is a variable environment.
-	TypeEnv
-	// TypeExpMark is a mark of the recorded expectations.
-	TypeExpMark
-	// TypeExpIDs is a list of expectations.
-	TypeExpIDs
-	// TypeVals is a list of values being gathered.
-	TypeVals
-	// TypeCtx is the context of an action.
-	TypeCtx
-	// TypeMark is a mark of the whole parser state (markState).
-	TypeMark
-	// TypeFrame is a capture frame of the runtime.
-	TypeFrame
-	// TypeError is a syntax error.
-	TypeError
-)
-
-var typeNames = [...]string{"int", "bool", "rune", "value", "env", "expmark", "expids", "vals", "ctx", "mark", "frame", "error"}
-
-func (t Type) String() string { return typeNames[t] }
-
 // ScanHotSpan is the number of characters that a walk of a scan site matches before it looks for the
 // record of its start (scanReach); the runtimes and the engine use the same number.
 const ScanHotSpan = 16
-
-// Names are the slot names of a capture scope, which printers declare once.
-type Names struct {
-	List []string
-	// Declared reports that a declareNames call declares them; otherwise their first use does.
-	Declared bool
-}

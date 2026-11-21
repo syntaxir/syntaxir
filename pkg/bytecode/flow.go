@@ -197,7 +197,7 @@ const (
 	// evaluation succeeded (flow.bind).
 	FlowBind
 	// FlowCut sets Dst[0] to the cut flag of the rule call the body runs in, as the match code's CUT
-	// sets it (the register flow.Cut).
+	// sets it (the register prim.Cut).
 	FlowCut
 	// FlowSetCut sets the cut flag of the rule call the body runs in to the bool Args[0].
 	FlowSetCut

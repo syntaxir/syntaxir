@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 )
 
@@ -15,13 +16,13 @@ import (
 func use(v string) code.Expr { return code.L(v) }
 
 // null is the null value.
-func null() code.Expr { return code.Null(code.THandle(flow.TValue)) }
+func null() code.Expr { return code.Null(code.THandle(prim.TValue)) }
 
 // num is the integer n.
 func num(n int) code.Expr { return code.Int(int64(n)) }
 
 // pos reads the position register.
-func pos() code.Expr { return code.R(flow.Pos) }
+func pos() code.Expr { return code.R(prim.Pos) }
 
 // call returns a call of the Flow operation name with the immediate imm and the arguments args.
 func call(name string, imm any, args ...code.Expr) *code.Call {

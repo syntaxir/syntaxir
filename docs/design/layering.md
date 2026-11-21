@@ -60,8 +60,10 @@ flowchart TD
   - The pass infrastructure imports no package of the module.
   - The IR packages (the Core IR package, and the Code IR base with everything below it) import only IR packages, the
     pass infrastructure, the cancellation package and the grammar AST (`pkg/grammar/ast`). Within them, the Code IR base
-    imports no dialect. The Flow dialect imports only the base and Core IR, to refer to immediates. The Action and Exec
-    dialects import only the base; the packages under the Exec dialect may also import the Exec and Action dialects.
+    imports no dialect. The Flow dialect imports only the base, Core IR and the data of the primitives (`exec/prim`),
+    whose types are the types of its immediates. The data of the primitives imports only the base and Core IR, and
+    belongs to no stage, so the packages of both stages import it. The Action and Exec dialects import only the base;
+    the other packages under the Exec dialect may also import the Exec and Action dialects.
   - Only the lowerings of the middle end, and the checks that span dialects, import several dialects at once.
   - The front end imports no middle end, backend, analysis or language server. The middle end imports no backend,
     analysis or language server. A backend imports no analysis or language server.

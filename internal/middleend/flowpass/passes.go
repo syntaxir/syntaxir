@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
@@ -151,7 +152,7 @@ func guardedClasses(fn *code.Func, a *flow.Attrs) {
 		if !c.Live() {
 			continue
 		}
-		size := newVar(fn, a, flow.TypeInt, c.Event)
+		size := newVar(fn, a, prim.TypeInt, c.Event)
 		sizes[c] = size
 		for _, p := range c.Peeks {
 			p.Dst[1] = code.Place{Name: size}
@@ -278,10 +279,10 @@ func inlineLiteral(st *code.If, max int) (*core.Lit, int) {
 
 // newVar makes a variable of the type t that the lowering would have made at the event at, had it
 // written the form a pass chose; Finish places it there.
-func newVar(fn *code.Func, a *flow.Attrs, t flow.Type, at *flow.Event) string {
+func newVar(fn *code.Func, a *flow.Attrs, t prim.Type, at *flow.Event) string {
 	a.Forms.N++
 	name := "x" + strconv.Itoa(a.Forms.N)
-	fn.Locals = append(fn.Locals, code.P(name, flow.CodeType(t)))
+	fn.Locals = append(fn.Locals, code.P(name, prim.CodeType(t)))
 	a.Vars = append(a.Vars, name)
 	if a.Forms.Placed == nil {
 		a.Forms.Placed = map[string]*flow.Event{}

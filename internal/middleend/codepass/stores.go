@@ -1,6 +1,9 @@
 package codepass
 
-import "syntaxir.dev/sxir/internal/ir/code"
+import (
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
+)
 
 // Stores is what DeadStores finds about the locals of a function: which are never read, so that a
 // backend does not declare them, and which assignments it leaves out.
@@ -235,4 +238,26 @@ func (s *stores) stmt(st code.Stmt, live bool) bool {
 		return live
 	}
 	return live
+}
+
+// RefusesFlat reports whether a flat rule cannot run the lowered function f, whose entry position and
+// action context are the locals start and ctx (empty where it has none) and whose variables are vars:
+// a statement of f that is reachable as the printers reach it (DeadStores) reads start or ctx, which
+// a flat rule has no parameters for, or a variable holds a value, which a value-free flat rule does
+// not keep. It reads only the function and the locals it is given, so it decides the same on the
+// function at the Flow stage, as the plan lowered it, and at the Exec stage, in the forms that the
+// passes of a target chose.
+func RefusesFlat(f *code.Func, start, ctx string, vars []code.Param) bool {
+	reads := DeadStores(f, nil, func(code.Expr) bool { return false }).Named
+	if start != "" && reads[start] || ctx != "" && reads[ctx] {
+		return true
+	}
+	for _, v := range vars {
+		switch prim.TypeOf(v.Type) {
+		case prim.TypeInt, prim.TypeBool, prim.TypeRune, prim.TypeMark, prim.TypeExpMark, prim.TypeExpIDs:
+		default:
+			return true
+		}
+	}
+	return false
 }

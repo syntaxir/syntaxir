@@ -5,7 +5,7 @@ import (
 	"io"
 
 	"syntaxir.dev/sxir/internal/ir/code"
-	"syntaxir.dev/sxir/internal/ir/code/flow"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/pass/pipe"
@@ -19,10 +19,10 @@ import (
 // the result as a Lowered (View), and the passes of a target take each function so (LoweredFuncs).
 
 // View returns the function i of the Exec module m, which the conversion made, as a lowered function:
-// with m and the variables of the function (flow.Attrs.Vars), which the conversion keeps.
+// with m and the variables of the function (prim.Attrs.Vars), which the conversion keeps.
 func View(m *code.Module, i int) *Lowered {
 	f := m.Funcs[i]
-	return &Lowered{Module: m, Func: f, Vars: flow.AttrsOf(f).Vars}
+	return &Lowered{Module: m, Func: f, Vars: prim.AttrsOf(f).Vars}
 }
 
 // LoweredIR is the kind of a lowered function, which the passes of a target take and return: its

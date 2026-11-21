@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
@@ -330,7 +331,7 @@ func TestLowerVerifies(t *testing.T) {
 	}
 	l := newLowerer()
 	l.at.Node = true
-	l.set(l.decl("v", flow.TypeValue), call(flow.OpNewMatch, nil, num(0), call(flow.OpStr, flow.Chars(""))))
+	l.set(l.decl("v", prim.TypeValue), call(flow.OpNewMatch, nil, num(0), call(flow.OpStr, prim.Chars(""))))
 	if g, err := verified(l.module(nil)); err == nil || g != nil || !strings.Contains(err.Error(), "typed match in a Node function") {
 		t.Errorf("module: got %v, %v", g, err)
 	}

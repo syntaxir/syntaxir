@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
@@ -55,7 +56,7 @@ func Expectations(tables ...*plandata.Table[code.Exec]) ([]string, error) {
 				}
 				switch FlowOp(e.Callee) {
 				case flow.OpExpect:
-					if x := e.Imm.(flow.Expectation); x.Message || int(x.Exp) >= len(core.FixedDescs) {
+					if x := e.Imm.(prim.Expectation); x.Message || int(x.Exp) >= len(core.FixedDescs) {
 						add(exps[x.Exp])
 					}
 				case flow.OpMergeRenamed:

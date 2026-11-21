@@ -6,6 +6,7 @@ import (
 
 	tspass "syntaxir.dev/sxir/internal/backend/codegen/typescript/pass"
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/middleend/codepass"
 	"syntaxir.dev/sxir/internal/middleend/execlower"
@@ -96,15 +97,15 @@ func (g *Generator) printTSFlowExec(f *code.Module) (string, []string, []tsDecl)
 			inner = "return null;\n"
 		}
 		if res.Exited {
-			body = fmt.Sprintf("%s: {\n%s%s}\nreturn undefined;\n", p.label(flow.AttrsOf(l.Func).Fail), indent(body), indent(inner))
+			body = fmt.Sprintf("%s: {\n%s%s}\nreturn undefined;\n", p.label(prim.AttrsOf(l.Func).Fail), indent(body), indent(inner))
 		} else {
 			body += inner
 		}
 	}
 	var decl []string
-	for _, v := range flow.VarsOf(fn) {
-		t := flow.TypeOf(v.Type)
-		if t == flow.TypeMark {
+	for _, v := range prim.VarsOf(fn) {
+		t := prim.TypeOf(v.Type)
+		if t == prim.TypeMark {
 			// A mark of the whole parser state is four variables, declared as far as they are read.
 			if ps := parts[v.Name]; ps != nil {
 				for i, part := range ps {

@@ -250,6 +250,7 @@ in [Package Layering](layering.md), and the public packages are described in [Th
 | `internal/ir/code/flow` | The Flow dialect: grammar-control operations with typed immediate operands, its invariants |
 | `internal/ir/code/action` | The Action dialect: operations that evaluate action expressions |
 | `internal/ir/code/exec` | The Exec dialect: operations of the abstract machine, with `compose` (compositions), `ref` (reference models), `conform` (conformance suite) and `spectest` (specification tests) below it |
+| `internal/ir/code/exec/prim` | The data of grammar code at the Exec stage: the primitives that the Flow operations become, the types of their immediates (which the Flow dialect declares its operations with), the registers, the handle types and the function attributes, with the check of the Exec stage |
 | `internal/frontend` | Drives the front end and returns the semantic model and Core IR; the facts are computed by the analyses of the Core passes, which the front end is handed (`internal/middleend/checkfacts`) and does not compute |
 | `internal/frontend/parser` | `.sxir` to grammar AST, with `sxirparser`, the parser generated from the grammar of the grammar language |
 | `internal/frontend/desugar` | Rewriting into a smaller language |
