@@ -48,21 +48,15 @@ func TestTermChargeGoldensDetectBrokenCharges(t *testing.T) {
 				hits[target].Add(int64(n))
 				return out
 			})
-			want := codegentest.ReadGolden(t, m.golden)
+			golden := termChargesGoldenFile(m.golden, "", "")
 			differ := map[string]int{}
-			for k, v := range got {
-				w, ok := want[k]
-				if !ok {
-					t.Fatalf("%s has no entry for %q", m.golden, k)
-				}
-				if w != v {
-					// The target is the last word of the key, with -recognize for the node parser's Recognize.
-					target := k[strings.LastIndex(k, " ")+1:]
-					target = strings.TrimSuffix(target, "-recognize")
-					differ[target]++
-					if differ[target] <= 3 {
-						t.Logf("%s: %s, golden %s", k, v, w)
-					}
+			for _, part := range golden.Differences(t, got) {
+				// The target is the last word of the part's name, with -recognize for the node parser's Recognize.
+				target := part[strings.LastIndex(part, " ")+1:]
+				target = strings.TrimSuffix(target, "-recognize")
+				differ[target]++
+				if differ[target] <= 3 {
+					t.Logf("%s differs from %s", part, m.golden)
 				}
 			}
 			// The mutant must apply to, and change the charges of, the node and the typed parser alike: a

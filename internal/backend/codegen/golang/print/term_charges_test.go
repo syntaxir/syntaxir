@@ -19,12 +19,20 @@ import (
 // termChargesGoldenFile returns the golden of the charges of the terms of the generator; what names it in
 // the header.
 func termChargesGoldenFile(path, what, unset string) codegentest.GoldenFile {
-	return codegentest.GoldenFile{Path: path, CaseOf: codegentest.GoldenCaseBefore,
+	return codegentest.GoldenFile{Path: path, CaseOf: codegentest.GoldenCaseBefore, Digests: true, Group: termChargeGroup,
 		Header: "# The charges of the generated term differential cases (" + what + ") on every target: the units the\n" +
 			"# engine's closure backend, bytecode VM and iterative VM, the node and the typed generated Go parsers and the\n" +
 			"# generated TypeScript parser charge for each input, and the outcome (ok, or the error) each reports. The targets\n" +
 			"# charge terms in their own ways today, so the columns differ; the golden freezes each, so that a change of a\n" +
-			"# term's charges on one target is a stated change. " + unset + "\n" + codegentest.GoldenRules}
+			"# term's charges on one target is a stated change. " + unset + "\n" + codegentest.GoldenRules + codegentest.GoldenDigestRules +
+			"# The part of a case is the target: the last word of the entry's key.\n"}
+}
+
+// termChargeGroup splits the key of an entry, "case | input target", into the case and the target, which
+// is the last word of the key (with -recognize for the node parser's Recognize).
+func termChargeGroup(key string) (caseName, target string) {
+	caseName = codegentest.GoldenCaseBefore(key)
+	return caseName, key[strings.LastIndex(key, " ")+1:]
 }
 
 // termChargeCases returns the term cases of the golden, which the compiler accepts.

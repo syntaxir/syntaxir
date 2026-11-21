@@ -302,7 +302,7 @@ const (
 )
 
 var budgetGoldenFile = codegentest.GoldenFile{
-	Path: budgetGolden, Header: budgetGoldenHeader, CaseOf: codegentest.GoldenCaseBefore, TotalNames: [2]string{"budget", "polls"},
+	Path: budgetGolden, Header: budgetGoldenHeader + codegentest.GoldenDigestRules, CaseOf: codegentest.GoldenCaseBefore, TotalNames: [2]string{"budget", "polls"}, Digests: true,
 	Totals: func(v string) (a, b uint64) {
 		f := strings.Fields(v)
 		a, _ = strconv.ParseUint(f[0], 10, 64)
@@ -360,10 +360,10 @@ func checkBudgetInvariantsIn(t *testing.T, golden codegentest.GoldenFile, group 
 const budgetOffGolden = "testdata/budget_off.golden"
 
 var budgetOffGoldenFile = codegentest.GoldenFile{
-	Path: budgetOffGolden, CaseOf: budgetGoldenFile.CaseOf, TotalNames: budgetGoldenFile.TotalNames, Totals: budgetGoldenFile.Totals,
+	Path: budgetOffGolden, CaseOf: budgetGoldenFile.CaseOf, TotalNames: budgetGoldenFile.TotalNames, Totals: budgetGoldenFile.Totals, Digests: true,
 	Header: "# Budget totals of the generated parsers with budget controls and without expectations: budget, context polls\n" +
 		"# and result of each input and entry. The charges of parses that do not record expectations are part of the\n" +
-		"# contract of the default mode.\n" + codegentest.GoldenRules,
+		"# contract of the default mode.\n" + codegentest.GoldenRules + codegentest.GoldenDigestRules,
 }
 
 // TestFlowNodeBudgetInvariantsWithoutExpectations checks the invariants and a golden for the parsers of the

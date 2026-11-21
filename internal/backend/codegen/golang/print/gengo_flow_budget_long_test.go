@@ -21,7 +21,6 @@ func TestFlowNodeBudgetMutants(t *testing.T) {
 		t.Skip("builds generated consumers")
 	}
 	cases := codegentest.GenCorpus(t)
-	golden := codegentest.ReadGolden(t, budgetGolden)
 	for _, m := range []struct {
 		name   string
 		mutate func([]byte) []byte
@@ -39,12 +38,7 @@ func TestFlowNodeBudgetMutants(t *testing.T) {
 			if mutated == 0 {
 				t.Fatal("the mutant changes no generated parser")
 			}
-			differ := 0
-			for k, v := range got {
-				if w, ok := golden[k]; !ok || w != v {
-					differ++
-				}
-			}
+			differ := len(budgetGoldenFile.Differences(t, got))
 			if len(problems)+differ == 0 {
 				t.Errorf("the mutant %q changes no report and breaks no invariant", m.name)
 			}

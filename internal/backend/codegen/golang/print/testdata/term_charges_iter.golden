@@ -5,643 +5,81 @@
 # term's charges on one target is a stated change. Some terms read a list field left unset.
 # A run checks every entry of its scope: an entry that is missing, stale or different fails. -update replaces the
 # entries of the scope, drops stale ones and logs a summary per case. Review the diff: it is a regression freeze.
-termchargesiter/term 0: map(list(1, 2, 3), (n) => n * 2) | aaaa engine-closure	44 ok
-termchargesiter/term 0: map(list(1, 2, 3), (n) => n * 2) | aaaa engine-iterative	44 ok
-termchargesiter/term 0: map(list(1, 2, 3), (n) => n * 2) | aaaa engine-vm	44 ok
-termchargesiter/term 0: map(list(1, 2, 3), (n) => n * 2) | aaaa go-node	51 ok
-termchargesiter/term 0: map(list(1, 2, 3), (n) => n * 2) | aaaa go-node-recognize	19 ok
-termchargesiter/term 0: map(list(1, 2, 3), (n) => n * 2) | aaaa go-typed	45 ok
-termchargesiter/term 0: map(list(1, 2, 3), (n) => n * 2) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 0: map(list(1, 2, 3), (n) => n * 2) | aaaa ts-node	69 ok
-termchargesiter/term 10: foldr("", list("a", "b", "c"), (a, s) => a + s) | aaaa engine-closure	41 ok
-termchargesiter/term 10: foldr("", list("a", "b", "c"), (a, s) => a + s) | aaaa engine-iterative	41 ok
-termchargesiter/term 10: foldr("", list("a", "b", "c"), (a, s) => a + s) | aaaa engine-vm	41 ok
-termchargesiter/term 10: foldr("", list("a", "b", "c"), (a, s) => a + s) | aaaa go-node	45 ok
-termchargesiter/term 10: foldr("", list("a", "b", "c"), (a, s) => a + s) | aaaa go-node-recognize	19 ok
-termchargesiter/term 10: foldr("", list("a", "b", "c"), (a, s) => a + s) | aaaa go-typed	41 ok
-termchargesiter/term 10: foldr("", list("a", "b", "c"), (a, s) => a + s) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 10: foldr("", list("a", "b", "c"), (a, s) => a + s) | aaaa ts-node	72 ok
-termchargesiter/term 11: foldr("", list($x, $y), (a, n) => a + text(n)) | aaaa engine-closure	33 ok
-termchargesiter/term 11: foldr("", list($x, $y), (a, n) => a + text(n)) | aaaa engine-iterative	33 ok
-termchargesiter/term 11: foldr("", list($x, $y), (a, n) => a + text(n)) | aaaa engine-vm	33 ok
-termchargesiter/term 11: foldr("", list($x, $y), (a, n) => a + text(n)) | aaaa go-node	34 ok
-termchargesiter/term 11: foldr("", list($x, $y), (a, n) => a + text(n)) | aaaa go-node-recognize	19 ok
-termchargesiter/term 11: foldr("", list($x, $y), (a, n) => a + text(n)) | aaaa go-typed	33 ok
-termchargesiter/term 11: foldr("", list($x, $y), (a, n) => a + text(n)) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 11: foldr("", list($x, $y), (a, n) => a + text(n)) | aaaa ts-node	60 ok
-termchargesiter/term 12: foldl(0, list(), (a, n) => a + n) | aaaa engine-closure	20 ok
-termchargesiter/term 12: foldl(0, list(), (a, n) => a + n) | aaaa engine-iterative	20 ok
-termchargesiter/term 12: foldl(0, list(), (a, n) => a + n) | aaaa engine-vm	20 ok
-termchargesiter/term 12: foldl(0, list(), (a, n) => a + n) | aaaa go-node	21 ok
-termchargesiter/term 12: foldl(0, list(), (a, n) => a + n) | aaaa go-node-recognize	19 ok
-termchargesiter/term 12: foldl(0, list(), (a, n) => a + n) | aaaa go-typed	20 ok
-termchargesiter/term 12: foldl(0, list(), (a, n) => a + n) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 12: foldl(0, list(), (a, n) => a + n) | aaaa ts-node	33 ok
-termchargesiter/term 13: foldr(7, list(), (a, n) => a + n) | aaaa engine-closure	20 ok
-termchargesiter/term 13: foldr(7, list(), (a, n) => a + n) | aaaa engine-iterative	20 ok
-termchargesiter/term 13: foldr(7, list(), (a, n) => a + n) | aaaa engine-vm	20 ok
-termchargesiter/term 13: foldr(7, list(), (a, n) => a + n) | aaaa go-node	21 ok
-termchargesiter/term 13: foldr(7, list(), (a, n) => a + n) | aaaa go-node-recognize	19 ok
-termchargesiter/term 13: foldr(7, list(), (a, n) => a + n) | aaaa go-typed	20 ok
-termchargesiter/term 13: foldr(7, list(), (a, n) => a + n) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 13: foldr(7, list(), (a, n) => a + n) | aaaa ts-node	33 ok
-termchargesiter/term 14: foldl(0, I{L: list(1, 2)}.L, (a, n) => a + n) | aaaa engine-closure	35 ok
-termchargesiter/term 14: foldl(0, I{L: list(1, 2)}.L, (a, n) => a + n) | aaaa engine-iterative	34 ok
-termchargesiter/term 14: foldl(0, I{L: list(1, 2)}.L, (a, n) => a + n) | aaaa engine-vm	34 ok
-termchargesiter/term 14: foldl(0, I{L: list(1, 2)}.L, (a, n) => a + n) | aaaa go-node	37 ok
-termchargesiter/term 14: foldl(0, I{L: list(1, 2)}.L, (a, n) => a + n) | aaaa go-node-recognize	19 ok
-termchargesiter/term 14: foldl(0, I{L: list(1, 2)}.L, (a, n) => a + n) | aaaa go-typed	37 ok
-termchargesiter/term 14: foldl(0, I{L: list(1, 2)}.L, (a, n) => a + n) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 14: foldl(0, I{L: list(1, 2)}.L, (a, n) => a + n) | aaaa ts-node	56 ok
-termchargesiter/term 15: foldl(0, list((1, 2), (3, 4)), (a, t) => a + t[1]) | aaaa engine-closure	46 ok
-termchargesiter/term 15: foldl(0, list((1, 2), (3, 4)), (a, t) => a + t[1]) | aaaa engine-iterative	46 ok
-termchargesiter/term 15: foldl(0, list((1, 2), (3, 4)), (a, t) => a + t[1]) | aaaa engine-vm	46 ok
-termchargesiter/term 15: foldl(0, list((1, 2), (3, 4)), (a, t) => a + t[1]) | aaaa go-node	53 ok
-termchargesiter/term 15: foldl(0, list((1, 2), (3, 4)), (a, t) => a + t[1]) | aaaa go-node-recognize	19 ok
-termchargesiter/term 15: foldl(0, list((1, 2), (3, 4)), (a, t) => a + t[1]) | aaaa go-typed	48 ok
-termchargesiter/term 15: foldl(0, list((1, 2), (3, 4)), (a, t) => a + t[1]) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 15: foldl(0, list((1, 2), (3, 4)), (a, t) => a + t[1]) | aaaa ts-node	77 ok
-termchargesiter/term 16: foldl(0, list(1, 0), (a, n) => a + 1 / n) | aaaa engine-closure	8 action in main: division by zero
-termchargesiter/term 16: foldl(0, list(1, 0), (a, n) => a + 1 / n) | aaaa engine-iterative	8 action in main: division by zero
-termchargesiter/term 16: foldl(0, list(1, 0), (a, n) => a + 1 / n) | aaaa engine-vm	8 action in main: division by zero
-termchargesiter/term 16: foldl(0, list(1, 0), (a, n) => a + 1 / n) | aaaa go-node	90 action in main: division by zero
-termchargesiter/term 16: foldl(0, list(1, 0), (a, n) => a + 1 / n) | aaaa go-node-recognize	19 ok
-termchargesiter/term 16: foldl(0, list(1, 0), (a, n) => a + 1 / n) | aaaa go-typed	88 action in main: division by zero
-termchargesiter/term 16: foldl(0, list(1, 0), (a, n) => a + 1 / n) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 16: foldl(0, list(1, 0), (a, n) => a + 1 / n) | aaaa ts-node	55 action in main: division by zero
-termchargesiter/term 17: foldr(0, list(0, 1), (a, n) => a + 1 / n) | aaaa engine-closure	8 action in main: division by zero
-termchargesiter/term 17: foldr(0, list(0, 1), (a, n) => a + 1 / n) | aaaa engine-iterative	8 action in main: division by zero
-termchargesiter/term 17: foldr(0, list(0, 1), (a, n) => a + 1 / n) | aaaa engine-vm	8 action in main: division by zero
-termchargesiter/term 17: foldr(0, list(0, 1), (a, n) => a + 1 / n) | aaaa go-node	90 action in main: division by zero
-termchargesiter/term 17: foldr(0, list(0, 1), (a, n) => a + 1 / n) | aaaa go-node-recognize	19 ok
-termchargesiter/term 17: foldr(0, list(0, 1), (a, n) => a + 1 / n) | aaaa go-typed	88 action in main: division by zero
-termchargesiter/term 17: foldr(0, list(0, 1), (a, n) => a + 1 / n) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 17: foldr(0, list(0, 1), (a, n) => a + 1 / n) | aaaa ts-node	55 action in main: division by zero
-termchargesiter/term 18: filter(list(1, 2, 3, 4), (n) => n % 2 == 0) | aaaa engine-closure	46 ok
-termchargesiter/term 18: filter(list(1, 2, 3, 4), (n) => n % 2 == 0) | aaaa engine-iterative	46 ok
-termchargesiter/term 18: filter(list(1, 2, 3, 4), (n) => n % 2 == 0) | aaaa engine-vm	46 ok
-termchargesiter/term 18: filter(list(1, 2, 3, 4), (n) => n % 2 == 0) | aaaa go-node	51 ok
-termchargesiter/term 18: filter(list(1, 2, 3, 4), (n) => n % 2 == 0) | aaaa go-node-recognize	19 ok
-termchargesiter/term 18: filter(list(1, 2, 3, 4), (n) => n % 2 == 0) | aaaa go-typed	47 ok
-termchargesiter/term 18: filter(list(1, 2, 3, 4), (n) => n % 2 == 0) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 18: filter(list(1, 2, 3, 4), (n) => n % 2 == 0) | aaaa ts-node	82 ok
-termchargesiter/term 19: filter(list(1, 2), (n) => false) | aaaa engine-closure	30 ok
-termchargesiter/term 19: filter(list(1, 2), (n) => false) | aaaa engine-iterative	30 ok
-termchargesiter/term 19: filter(list(1, 2), (n) => false) | aaaa engine-vm	30 ok
-termchargesiter/term 19: filter(list(1, 2), (n) => false) | aaaa go-node	33 ok
-termchargesiter/term 19: filter(list(1, 2), (n) => false) | aaaa go-node-recognize	19 ok
-termchargesiter/term 19: filter(list(1, 2), (n) => false) | aaaa go-typed	31 ok
-termchargesiter/term 19: filter(list(1, 2), (n) => false) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 19: filter(list(1, 2), (n) => false) | aaaa ts-node	46 ok
-termchargesiter/term 1: len(map(list(), (n) => n)) | aaaa engine-closure	20 ok
-termchargesiter/term 1: len(map(list(), (n) => n)) | aaaa engine-iterative	20 ok
-termchargesiter/term 1: len(map(list(), (n) => n)) | aaaa engine-vm	20 ok
-termchargesiter/term 1: len(map(list(), (n) => n)) | aaaa go-node	22 ok
-termchargesiter/term 1: len(map(list(), (n) => n)) | aaaa go-node-recognize	19 ok
-termchargesiter/term 1: len(map(list(), (n) => n)) | aaaa go-typed	21 ok
-termchargesiter/term 1: len(map(list(), (n) => n)) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 1: len(map(list(), (n) => n)) | aaaa ts-node	34 ok
-termchargesiter/term 20: len(filter(list(), (n) => true)) | aaaa engine-closure	20 ok
-termchargesiter/term 20: len(filter(list(), (n) => true)) | aaaa engine-iterative	20 ok
-termchargesiter/term 20: len(filter(list(), (n) => true)) | aaaa engine-vm	20 ok
-termchargesiter/term 20: len(filter(list(), (n) => true)) | aaaa go-node	22 ok
-termchargesiter/term 20: len(filter(list(), (n) => true)) | aaaa go-node-recognize	19 ok
-termchargesiter/term 20: len(filter(list(), (n) => true)) | aaaa go-typed	21 ok
-termchargesiter/term 20: len(filter(list(), (n) => true)) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 20: len(filter(list(), (n) => true)) | aaaa ts-node	33 ok
-termchargesiter/term 21: len(filter(list($x, $y), (n) => text(n) != "")) | aaaa engine-closure	36 ok
-termchargesiter/term 21: len(filter(list($x, $y), (n) => text(n) != "")) | aaaa engine-iterative	36 ok
-termchargesiter/term 21: len(filter(list($x, $y), (n) => text(n) != "")) | aaaa engine-vm	36 ok
-termchargesiter/term 21: len(filter(list($x, $y), (n) => text(n) != "")) | aaaa go-node	38 ok
-termchargesiter/term 21: len(filter(list($x, $y), (n) => text(n) != "")) | aaaa go-node-recognize	19 ok
-termchargesiter/term 21: len(filter(list($x, $y), (n) => text(n) != "")) | aaaa go-typed	37 ok
-termchargesiter/term 21: len(filter(list($x, $y), (n) => text(n) != "")) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 21: len(filter(list($x, $y), (n) => text(n) != "")) | aaaa ts-node	59 ok
-termchargesiter/term 22: filter(list("a", "", "b"), (s) => s != "") | aaaa engine-closure	41 ok
-termchargesiter/term 22: filter(list("a", "", "b"), (s) => s != "") | aaaa engine-iterative	41 ok
-termchargesiter/term 22: filter(list("a", "", "b"), (s) => s != "") | aaaa engine-vm	41 ok
-termchargesiter/term 22: filter(list("a", "", "b"), (s) => s != "") | aaaa go-node	45 ok
-termchargesiter/term 22: filter(list("a", "", "b"), (s) => s != "") | aaaa go-node-recognize	19 ok
-termchargesiter/term 22: filter(list("a", "", "b"), (s) => s != "") | aaaa go-typed	42 ok
-termchargesiter/term 22: filter(list("a", "", "b"), (s) => s != "") | aaaa go-typed-recognize	19 ok
-termchargesiter/term 22: filter(list("a", "", "b"), (s) => s != "") | aaaa ts-node	65 ok
-termchargesiter/term 23: filter(list(1, 0), (n) => 1 / n == 1) | aaaa engine-closure	8 action in main: division by zero
-termchargesiter/term 23: filter(list(1, 0), (n) => 1 / n == 1) | aaaa engine-iterative	8 action in main: division by zero
-termchargesiter/term 23: filter(list(1, 0), (n) => 1 / n == 1) | aaaa engine-vm	8 action in main: division by zero
-termchargesiter/term 23: filter(list(1, 0), (n) => 1 / n == 1) | aaaa go-node	90 action in main: division by zero
-termchargesiter/term 23: filter(list(1, 0), (n) => 1 / n == 1) | aaaa go-node-recognize	19 ok
-termchargesiter/term 23: filter(list(1, 0), (n) => 1 / n == 1) | aaaa go-typed	88 action in main: division by zero
-termchargesiter/term 23: filter(list(1, 0), (n) => 1 / n == 1) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 23: filter(list(1, 0), (n) => 1 / n == 1) | aaaa ts-node	53 action in main: division by zero
-termchargesiter/term 24: len(map(list(1, 2), (n) => len(map(list(n, n), (m) => m + 1)))) | aaaa engine-closure	68 ok
-termchargesiter/term 24: len(map(list(1, 2), (n) => len(map(list(n, n), (m) => m + 1)))) | aaaa engine-iterative	68 ok
-termchargesiter/term 24: len(map(list(1, 2), (n) => len(map(list(n, n), (m) => m + 1)))) | aaaa engine-vm	68 ok
-termchargesiter/term 24: len(map(list(1, 2), (n) => len(map(list(n, n), (m) => m + 1)))) | aaaa go-node	86 ok
-termchargesiter/term 24: len(map(list(1, 2), (n) => len(map(list(n, n), (m) => m + 1)))) | aaaa go-node-recognize	19 ok
-termchargesiter/term 24: len(map(list(1, 2), (n) => len(map(list(n, n), (m) => m + 1)))) | aaaa go-typed	73 ok
-termchargesiter/term 24: len(map(list(1, 2), (n) => len(map(list(n, n), (m) => m + 1)))) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 24: len(map(list(1, 2), (n) => len(map(list(n, n), (m) => m + 1)))) | aaaa ts-node	110 ok
-termchargesiter/term 25: foldl(0, map(list(1, 2, 3), (n) => n * n), (a, n) => a + n) | aaaa engine-closure	47 ok
-termchargesiter/term 25: foldl(0, map(list(1, 2, 3), (n) => n * n), (a, n) => a + n) | aaaa engine-iterative	47 ok
-termchargesiter/term 25: foldl(0, map(list(1, 2, 3), (n) => n * n), (a, n) => a + n) | aaaa engine-vm	47 ok
-termchargesiter/term 25: foldl(0, map(list(1, 2, 3), (n) => n * n), (a, n) => a + n) | aaaa go-node	55 ok
-termchargesiter/term 25: foldl(0, map(list(1, 2, 3), (n) => n * n), (a, n) => a + n) | aaaa go-node-recognize	19 ok
-termchargesiter/term 25: foldl(0, map(list(1, 2, 3), (n) => n * n), (a, n) => a + n) | aaaa go-typed	48 ok
-termchargesiter/term 25: foldl(0, map(list(1, 2, 3), (n) => n * n), (a, n) => a + n) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 25: foldl(0, map(list(1, 2, 3), (n) => n * n), (a, n) => a + n) | aaaa ts-node	83 ok
-termchargesiter/term 26: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) => a + m + n)) | aaaa engine-closure	56 ok
-termchargesiter/term 26: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) => a + m + n)) | aaaa engine-iterative	56 ok
-termchargesiter/term 26: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) => a + m + n)) | aaaa engine-vm	56 ok
-termchargesiter/term 26: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) => a + m + n)) | aaaa go-node	67 ok
-termchargesiter/term 26: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) => a + m + n)) | aaaa go-node-recognize	19 ok
-termchargesiter/term 26: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) => a + m + n)) | aaaa go-typed	59 ok
-termchargesiter/term 26: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) => a + m + n)) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 26: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) => a + m + n)) | aaaa ts-node	103 ok
-termchargesiter/term 27: foldl(0, map(list(1, 2), (n) => I{N: n}), (a, s) => a + s.N) | aaaa engine-closure	48 ok
-termchargesiter/term 27: foldl(0, map(list(1, 2), (n) => I{N: n}), (a, s) => a + s.N) | aaaa engine-iterative	46 ok
-termchargesiter/term 27: foldl(0, map(list(1, 2), (n) => I{N: n}), (a, s) => a + s.N) | aaaa engine-vm	46 ok
-termchargesiter/term 27: foldl(0, map(list(1, 2), (n) => I{N: n}), (a, s) => a + s.N) | aaaa go-node	50 ok
-termchargesiter/term 27: foldl(0, map(list(1, 2), (n) => I{N: n}), (a, s) => a + s.N) | aaaa go-node-recognize	19 ok
-termchargesiter/term 27: foldl(0, map(list(1, 2), (n) => I{N: n}), (a, s) => a + s.N) | aaaa go-typed	41 ok
-termchargesiter/term 27: foldl(0, map(list(1, 2), (n) => I{N: n}), (a, s) => a + s.N) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 27: foldl(0, map(list(1, 2), (n) => I{N: n}), (a, s) => a + s.N) | aaaa ts-node	73 ok
-termchargesiter/term 28: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => s.N) | aaaa engine-closure	51 ok
-termchargesiter/term 28: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => s.N) | aaaa engine-iterative	48 ok
-termchargesiter/term 28: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => s.N) | aaaa engine-vm	48 ok
-termchargesiter/term 28: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => s.N) | aaaa go-node	49 ok
-termchargesiter/term 28: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => s.N) | aaaa go-node-recognize	19 ok
-termchargesiter/term 28: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => s.N) | aaaa go-typed	43 ok
-termchargesiter/term 28: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => s.N) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 28: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => s.N) | aaaa ts-node	71 ok
-termchargesiter/term 29: len(concat(list(1), map(list(2, 3), (n) => n), concat(list(4), filter(list(5, 6), (n) => n > 5)))) | aaaa engine-closure	90 ok
-termchargesiter/term 29: len(concat(list(1), map(list(2, 3), (n) => n), concat(list(4), filter(list(5, 6), (n) => n > 5)))) | aaaa engine-iterative	90 ok
-termchargesiter/term 29: len(concat(list(1), map(list(2, 3), (n) => n), concat(list(4), filter(list(5, 6), (n) => n > 5)))) | aaaa engine-vm	90 ok
-termchargesiter/term 29: len(concat(list(1), map(list(2, 3), (n) => n), concat(list(4), filter(list(5, 6), (n) => n > 5)))) | aaaa go-node	106 ok
-termchargesiter/term 29: len(concat(list(1), map(list(2, 3), (n) => n), concat(list(4), filter(list(5, 6), (n) => n > 5)))) | aaaa go-node-recognize	19 ok
-termchargesiter/term 29: len(concat(list(1), map(list(2, 3), (n) => n), concat(list(4), filter(list(5, 6), (n) => n > 5)))) | aaaa go-typed	97 ok
-termchargesiter/term 29: len(concat(list(1), map(list(2, 3), (n) => n), concat(list(4), filter(list(5, 6), (n) => n > 5)))) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 29: len(concat(list(1), map(list(2, 3), (n) => n), concat(list(4), filter(list(5, 6), (n) => n > 5)))) | aaaa ts-node	132 ok
-termchargesiter/term 2: len(map(list($x, $y, $z), (n) => n)) | aaaa engine-closure	44 ok
-termchargesiter/term 2: len(map(list($x, $y, $z), (n) => n)) | aaaa engine-iterative	44 ok
-termchargesiter/term 2: len(map(list($x, $y, $z), (n) => n)) | aaaa engine-vm	44 ok
-termchargesiter/term 2: len(map(list($x, $y, $z), (n) => n)) | aaaa go-node	46 ok
-termchargesiter/term 2: len(map(list($x, $y, $z), (n) => n)) | aaaa go-node-recognize	19 ok
-termchargesiter/term 2: len(map(list($x, $y, $z), (n) => n)) | aaaa go-typed	45 ok
-termchargesiter/term 2: len(map(list($x, $y, $z), (n) => n)) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 2: len(map(list($x, $y, $z), (n) => n)) | aaaa ts-node	64 ok
-termchargesiter/term 30: concat(map(list(1, 2), (n) => n + 1), list(9)) | aaaa engine-closure	40 ok
-termchargesiter/term 30: concat(map(list(1, 2), (n) => n + 1), list(9)) | aaaa engine-iterative	40 ok
-termchargesiter/term 30: concat(map(list(1, 2), (n) => n + 1), list(9)) | aaaa engine-vm	40 ok
-termchargesiter/term 30: concat(map(list(1, 2), (n) => n + 1), list(9)) | aaaa go-node	46 ok
-termchargesiter/term 30: concat(map(list(1, 2), (n) => n + 1), list(9)) | aaaa go-node-recognize	19 ok
-termchargesiter/term 30: concat(map(list(1, 2), (n) => n + 1), list(9)) | aaaa go-typed	41 ok
-termchargesiter/term 30: concat(map(list(1, 2), (n) => n + 1), list(9)) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 30: concat(map(list(1, 2), (n) => n + 1), list(9)) | aaaa ts-node	63 ok
-termchargesiter/term 31: concat(list(1), map(list(1, 0), (n) => 1 / n)) | aaaa engine-closure	8 action in main: division by zero
-termchargesiter/term 31: concat(list(1), map(list(1, 0), (n) => 1 / n)) | aaaa engine-iterative	8 action in main: division by zero
-termchargesiter/term 31: concat(list(1), map(list(1, 0), (n) => 1 / n)) | aaaa engine-vm	8 action in main: division by zero
-termchargesiter/term 31: concat(list(1), map(list(1, 0), (n) => 1 / n)) | aaaa go-node	93 action in main: division by zero
-termchargesiter/term 31: concat(list(1), map(list(1, 0), (n) => 1 / n)) | aaaa go-node-recognize	19 ok
-termchargesiter/term 31: concat(list(1), map(list(1, 0), (n) => 1 / n)) | aaaa go-typed	89 action in main: division by zero
-termchargesiter/term 31: concat(list(1), map(list(1, 0), (n) => 1 / n)) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 31: concat(list(1), map(list(1, 0), (n) => 1 / n)) | aaaa ts-node	54 action in main: division by zero
-termchargesiter/term 32: len(map($rs, (e) => e.$w)) | aaaa engine-closure	27 ok
-termchargesiter/term 32: len(map($rs, (e) => e.$w)) | aaaa engine-iterative	24 ok
-termchargesiter/term 32: len(map($rs, (e) => e.$w)) | aaaa engine-vm	24 ok
-termchargesiter/term 32: len(map($rs, (e) => e.$w)) | aaaa go-node	25 ok
-termchargesiter/term 32: len(map($rs, (e) => e.$w)) | aaaa go-node-recognize	19 ok
-termchargesiter/term 32: len(map($rs, (e) => e.$w)) | aaaa go-typed	24 ok
-termchargesiter/term 32: len(map($rs, (e) => e.$w)) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 32: len(map($rs, (e) => e.$w)) | aaaa ts-node	36 ok
-termchargesiter/term 33: len(concat(list($x), map($rs, (e) => e.$w))) | aaaa engine-closure	35 ok
-termchargesiter/term 33: len(concat(list($x), map($rs, (e) => e.$w))) | aaaa engine-iterative	32 ok
-termchargesiter/term 33: len(concat(list($x), map($rs, (e) => e.$w))) | aaaa engine-vm	32 ok
-termchargesiter/term 33: len(concat(list($x), map($rs, (e) => e.$w))) | aaaa go-node	33 ok
-termchargesiter/term 33: len(concat(list($x), map($rs, (e) => e.$w))) | aaaa go-node-recognize	19 ok
-termchargesiter/term 33: len(concat(list($x), map($rs, (e) => e.$w))) | aaaa go-typed	32 ok
-termchargesiter/term 33: len(concat(list($x), map($rs, (e) => e.$w))) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 33: len(concat(list($x), map($rs, (e) => e.$w))) | aaaa ts-node	47 ok
-termchargesiter/term 34: len(map(list($x, $y), (n) => n)) == 2 | aaaa engine-closure	37 ok
-termchargesiter/term 34: len(map(list($x, $y), (n) => n)) == 2 | aaaa engine-iterative	37 ok
-termchargesiter/term 34: len(map(list($x, $y), (n) => n)) == 2 | aaaa engine-vm	37 ok
-termchargesiter/term 34: len(map(list($x, $y), (n) => n)) == 2 | aaaa go-node	39 ok
-termchargesiter/term 34: len(map(list($x, $y), (n) => n)) == 2 | aaaa go-node-recognize	38 ok
-termchargesiter/term 34: len(map(list($x, $y), (n) => n)) == 2 | aaaa go-typed	38 ok
-termchargesiter/term 34: len(map(list($x, $y), (n) => n)) == 2 | aaaa go-typed-recognize	38 ok
-termchargesiter/term 34: len(map(list($x, $y), (n) => n)) == 2 | aaaa ts-node	61 ok
-termchargesiter/term 34: len(map(list($x, $y), (n) => n)) == 2 | aaaab engine-closure	39 ok
-termchargesiter/term 34: len(map(list($x, $y), (n) => n)) == 2 | aaaab engine-iterative	39 ok
-termchargesiter/term 34: len(map(list($x, $y), (n) => n)) == 2 | aaaab engine-vm	39 ok
-termchargesiter/term 34: len(map(list($x, $y), (n) => n)) == 2 | aaaab go-node	41 ok
-termchargesiter/term 34: len(map(list($x, $y), (n) => n)) == 2 | aaaab go-node-recognize	40 ok
-termchargesiter/term 34: len(map(list($x, $y), (n) => n)) == 2 | aaaab go-typed	40 ok
-termchargesiter/term 34: len(map(list($x, $y), (n) => n)) == 2 | aaaab go-typed-recognize	40 ok
-termchargesiter/term 34: len(map(list($x, $y), (n) => n)) == 2 | aaaab ts-node	62 ok
-termchargesiter/term 35: len(map(list(1, 0), (n) => 1 / n)) == 2 | aaaa engine-closure	49 ok
-termchargesiter/term 35: len(map(list(1, 0), (n) => 1 / n)) == 2 | aaaa engine-iterative	49 ok
-termchargesiter/term 35: len(map(list(1, 0), (n) => 1 / n)) == 2 | aaaa engine-vm	49 ok
-termchargesiter/term 35: len(map(list(1, 0), (n) => 1 / n)) == 2 | aaaa go-node	53 ok
-termchargesiter/term 35: len(map(list(1, 0), (n) => 1 / n)) == 2 | aaaa go-node-recognize	52 ok
-termchargesiter/term 35: len(map(list(1, 0), (n) => 1 / n)) == 2 | aaaa go-typed	49 ok
-termchargesiter/term 35: len(map(list(1, 0), (n) => 1 / n)) == 2 | aaaa go-typed-recognize	52 ok
-termchargesiter/term 35: len(map(list(1, 0), (n) => 1 / n)) == 2 | aaaa ts-node	56 ok
-termchargesiter/term 35: len(map(list(1, 0), (n) => 1 / n)) == 2 | aaaab engine-closure	51 1:5: syntax error
-termchargesiter/term 35: len(map(list(1, 0), (n) => 1 / n)) == 2 | aaaab engine-iterative	51 1:5: syntax error
-termchargesiter/term 35: len(map(list(1, 0), (n) => 1 / n)) == 2 | aaaab engine-vm	51 1:5: syntax error
-termchargesiter/term 35: len(map(list(1, 0), (n) => 1 / n)) == 2 | aaaab go-node	66 1:5: syntax error: expected end of input, \"a\
-termchargesiter/term 35: len(map(list(1, 0), (n) => 1 / n)) == 2 | aaaab go-node-recognize	66 1:5: syntax error: expected end of input, \"a\
-termchargesiter/term 35: len(map(list(1, 0), (n) => 1 / n)) == 2 | aaaab go-typed	63 1:5: syntax error: expected end of input, \"a\
-termchargesiter/term 35: len(map(list(1, 0), (n) => 1 / n)) == 2 | aaaab go-typed-recognize	66 1:5: syntax error: expected end of input, \"a\
-termchargesiter/term 35: len(map(list(1, 0), (n) => 1 / n)) == 2 | aaaab ts-node	122 1:5: syntax error: expected end of input, \"a\
-termchargesiter/term 36: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5 | aaaa engine-closure	44 ok
-termchargesiter/term 36: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5 | aaaa engine-iterative	44 ok
-termchargesiter/term 36: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5 | aaaa engine-vm	44 ok
-termchargesiter/term 36: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5 | aaaa go-node	49 ok
-termchargesiter/term 36: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5 | aaaa go-node-recognize	48 ok
-termchargesiter/term 36: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5 | aaaa go-typed	45 ok
-termchargesiter/term 36: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5 | aaaa go-typed-recognize	48 ok
-termchargesiter/term 36: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5 | aaaa ts-node	82 ok
-termchargesiter/term 36: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5 | aaaab engine-closure	46 ok
-termchargesiter/term 36: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5 | aaaab engine-iterative	46 ok
-termchargesiter/term 36: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5 | aaaab engine-vm	46 ok
-termchargesiter/term 36: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5 | aaaab go-node	51 ok
-termchargesiter/term 36: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5 | aaaab go-node-recognize	50 ok
-termchargesiter/term 36: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5 | aaaab go-typed	47 ok
-termchargesiter/term 36: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5 | aaaab go-typed-recognize	50 ok
-termchargesiter/term 36: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5 | aaaab ts-node	83 ok
-termchargesiter/term 37: map(list(1, 2, 3), (n) => n * 2) | 😀😀😀😀 engine-closure	68 ok
-termchargesiter/term 37: map(list(1, 2, 3), (n) => n * 2) | 😀😀😀😀 engine-iterative	68 ok
-termchargesiter/term 37: map(list(1, 2, 3), (n) => n * 2) | 😀😀😀😀 engine-vm	68 ok
-termchargesiter/term 37: map(list(1, 2, 3), (n) => n * 2) | 😀😀😀😀 go-node	75 ok
-termchargesiter/term 37: map(list(1, 2, 3), (n) => n * 2) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 37: map(list(1, 2, 3), (n) => n * 2) | 😀😀😀😀 go-typed	69 ok
-termchargesiter/term 37: map(list(1, 2, 3), (n) => n * 2) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 37: map(list(1, 2, 3), (n) => n * 2) | 😀😀😀😀 ts-node	78 ok
-termchargesiter/term 38: len(map(list(), (n) => n)) | 😀😀😀😀 engine-closure	44 ok
-termchargesiter/term 38: len(map(list(), (n) => n)) | 😀😀😀😀 engine-iterative	44 ok
-termchargesiter/term 38: len(map(list(), (n) => n)) | 😀😀😀😀 engine-vm	44 ok
-termchargesiter/term 38: len(map(list(), (n) => n)) | 😀😀😀😀 go-node	46 ok
-termchargesiter/term 38: len(map(list(), (n) => n)) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 38: len(map(list(), (n) => n)) | 😀😀😀😀 go-typed	45 ok
-termchargesiter/term 38: len(map(list(), (n) => n)) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 38: len(map(list(), (n) => n)) | 😀😀😀😀 ts-node	43 ok
-termchargesiter/term 39: len(map(list($x, $y, $z), (n) => n)) | 😀😀😀😀 engine-closure	68 ok
-termchargesiter/term 39: len(map(list($x, $y, $z), (n) => n)) | 😀😀😀😀 engine-iterative	68 ok
-termchargesiter/term 39: len(map(list($x, $y, $z), (n) => n)) | 😀😀😀😀 engine-vm	68 ok
-termchargesiter/term 39: len(map(list($x, $y, $z), (n) => n)) | 😀😀😀😀 go-node	70 ok
-termchargesiter/term 39: len(map(list($x, $y, $z), (n) => n)) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 39: len(map(list($x, $y, $z), (n) => n)) | 😀😀😀😀 go-typed	69 ok
-termchargesiter/term 39: len(map(list($x, $y, $z), (n) => n)) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 39: len(map(list($x, $y, $z), (n) => n)) | 😀😀😀😀 ts-node	73 ok
-termchargesiter/term 3: map(list($x, $y), (n) => text(n)) | aaaa engine-closure	36 ok
-termchargesiter/term 3: map(list($x, $y), (n) => text(n)) | aaaa engine-iterative	36 ok
-termchargesiter/term 3: map(list($x, $y), (n) => text(n)) | aaaa engine-vm	36 ok
-termchargesiter/term 3: map(list($x, $y), (n) => text(n)) | aaaa go-node	39 ok
-termchargesiter/term 3: map(list($x, $y), (n) => text(n)) | aaaa go-node-recognize	19 ok
-termchargesiter/term 3: map(list($x, $y), (n) => text(n)) | aaaa go-typed	37 ok
-termchargesiter/term 3: map(list($x, $y), (n) => text(n)) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 3: map(list($x, $y), (n) => text(n)) | aaaa ts-node	55 ok
-termchargesiter/term 40: map(list($x, $y), (n) => text(n)) | 😀😀😀😀 engine-closure	60 ok
-termchargesiter/term 40: map(list($x, $y), (n) => text(n)) | 😀😀😀😀 engine-iterative	60 ok
-termchargesiter/term 40: map(list($x, $y), (n) => text(n)) | 😀😀😀😀 engine-vm	60 ok
-termchargesiter/term 40: map(list($x, $y), (n) => text(n)) | 😀😀😀😀 go-node	63 ok
-termchargesiter/term 40: map(list($x, $y), (n) => text(n)) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 40: map(list($x, $y), (n) => text(n)) | 😀😀😀😀 go-typed	61 ok
-termchargesiter/term 40: map(list($x, $y), (n) => text(n)) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 40: map(list($x, $y), (n) => text(n)) | 😀😀😀😀 ts-node	64 ok
-termchargesiter/term 41: len(map(I{}.L, (n) => n)) | 😀😀😀😀 engine-closure	51 ok
-termchargesiter/term 41: len(map(I{}.L, (n) => n)) | 😀😀😀😀 engine-iterative	50 ok
-termchargesiter/term 41: len(map(I{}.L, (n) => n)) | 😀😀😀😀 engine-vm	50 ok
-termchargesiter/term 41: len(map(I{}.L, (n) => n)) | 😀😀😀😀 go-node	47 ok
-termchargesiter/term 41: len(map(I{}.L, (n) => n)) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 41: len(map(I{}.L, (n) => n)) | 😀😀😀😀 go-typed	46 ok
-termchargesiter/term 41: len(map(I{}.L, (n) => n)) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 41: len(map(I{}.L, (n) => n)) | 😀😀😀😀 ts-node	44 ok
-termchargesiter/term 42: map(list(list(1), list(2, 3), list()), (l) => len(l)) | 😀😀😀😀 engine-closure	80 ok
-termchargesiter/term 42: map(list(list(1), list(2, 3), list()), (l) => len(l)) | 😀😀😀😀 engine-iterative	80 ok
-termchargesiter/term 42: map(list(list(1), list(2, 3), list()), (l) => len(l)) | 😀😀😀😀 engine-vm	80 ok
-termchargesiter/term 42: map(list(list(1), list(2, 3), list()), (l) => len(l)) | 😀😀😀😀 go-node	90 ok
-termchargesiter/term 42: map(list(list(1), list(2, 3), list()), (l) => len(l)) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 42: map(list(list(1), list(2, 3), list()), (l) => len(l)) | 😀😀😀😀 go-typed	84 ok
-termchargesiter/term 42: map(list(list(1), list(2, 3), list()), (l) => len(l)) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 42: map(list(list(1), list(2, 3), list()), (l) => len(l)) | 😀😀😀😀 ts-node	93 ok
-termchargesiter/term 43: map(list(2, 1, 0), (n) => 6 / n) | 😀😀😀😀 engine-closure	32 action in main: division by zero
-termchargesiter/term 43: map(list(2, 1, 0), (n) => 6 / n) | 😀😀😀😀 engine-iterative	32 action in main: division by zero
-termchargesiter/term 43: map(list(2, 1, 0), (n) => 6 / n) | 😀😀😀😀 engine-vm	32 action in main: division by zero
-termchargesiter/term 43: map(list(2, 1, 0), (n) => 6 / n) | 😀😀😀😀 go-node	122 action in main: division by zero
-termchargesiter/term 43: map(list(2, 1, 0), (n) => 6 / n) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 43: map(list(2, 1, 0), (n) => 6 / n) | 😀😀😀😀 go-typed	117 action in main: division by zero
-termchargesiter/term 43: map(list(2, 1, 0), (n) => 6 / n) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 43: map(list(2, 1, 0), (n) => 6 / n) | 😀😀😀😀 ts-node	69 action in main: division by zero
-termchargesiter/term 44: foldl(0, list(1, 2, 3), (a, n) => a * 10 + n) | 😀😀😀😀 engine-closure	59 ok
-termchargesiter/term 44: foldl(0, list(1, 2, 3), (a, n) => a * 10 + n) | 😀😀😀😀 engine-iterative	59 ok
-termchargesiter/term 44: foldl(0, list(1, 2, 3), (a, n) => a * 10 + n) | 😀😀😀😀 engine-vm	59 ok
-termchargesiter/term 44: foldl(0, list(1, 2, 3), (a, n) => a * 10 + n) | 😀😀😀😀 go-node	63 ok
-termchargesiter/term 44: foldl(0, list(1, 2, 3), (a, n) => a * 10 + n) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 44: foldl(0, list(1, 2, 3), (a, n) => a * 10 + n) | 😀😀😀😀 go-typed	59 ok
-termchargesiter/term 44: foldl(0, list(1, 2, 3), (a, n) => a * 10 + n) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 44: foldl(0, list(1, 2, 3), (a, n) => a * 10 + n) | 😀😀😀😀 ts-node	75 ok
-termchargesiter/term 45: foldr(0, list(1, 2, 3), (a, n) => a * 10 + n) | 😀😀😀😀 engine-closure	59 ok
-termchargesiter/term 45: foldr(0, list(1, 2, 3), (a, n) => a * 10 + n) | 😀😀😀😀 engine-iterative	59 ok
-termchargesiter/term 45: foldr(0, list(1, 2, 3), (a, n) => a * 10 + n) | 😀😀😀😀 engine-vm	59 ok
-termchargesiter/term 45: foldr(0, list(1, 2, 3), (a, n) => a * 10 + n) | 😀😀😀😀 go-node	63 ok
-termchargesiter/term 45: foldr(0, list(1, 2, 3), (a, n) => a * 10 + n) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 45: foldr(0, list(1, 2, 3), (a, n) => a * 10 + n) | 😀😀😀😀 go-typed	59 ok
-termchargesiter/term 45: foldr(0, list(1, 2, 3), (a, n) => a * 10 + n) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 45: foldr(0, list(1, 2, 3), (a, n) => a * 10 + n) | 😀😀😀😀 ts-node	75 ok
-termchargesiter/term 46: foldl("", list("a", "b", "c"), (a, s) => a + s) | 😀😀😀😀 engine-closure	65 ok
-termchargesiter/term 46: foldl("", list("a", "b", "c"), (a, s) => a + s) | 😀😀😀😀 engine-iterative	65 ok
-termchargesiter/term 46: foldl("", list("a", "b", "c"), (a, s) => a + s) | 😀😀😀😀 engine-vm	65 ok
-termchargesiter/term 46: foldl("", list("a", "b", "c"), (a, s) => a + s) | 😀😀😀😀 go-node	69 ok
-termchargesiter/term 46: foldl("", list("a", "b", "c"), (a, s) => a + s) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 46: foldl("", list("a", "b", "c"), (a, s) => a + s) | 😀😀😀😀 go-typed	65 ok
-termchargesiter/term 46: foldl("", list("a", "b", "c"), (a, s) => a + s) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 46: foldl("", list("a", "b", "c"), (a, s) => a + s) | 😀😀😀😀 ts-node	81 ok
-termchargesiter/term 47: foldr("", list("a", "b", "c"), (a, s) => a + s) | 😀😀😀😀 engine-closure	65 ok
-termchargesiter/term 47: foldr("", list("a", "b", "c"), (a, s) => a + s) | 😀😀😀😀 engine-iterative	65 ok
-termchargesiter/term 47: foldr("", list("a", "b", "c"), (a, s) => a + s) | 😀😀😀😀 engine-vm	65 ok
-termchargesiter/term 47: foldr("", list("a", "b", "c"), (a, s) => a + s) | 😀😀😀😀 go-node	69 ok
-termchargesiter/term 47: foldr("", list("a", "b", "c"), (a, s) => a + s) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 47: foldr("", list("a", "b", "c"), (a, s) => a + s) | 😀😀😀😀 go-typed	65 ok
-termchargesiter/term 47: foldr("", list("a", "b", "c"), (a, s) => a + s) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 47: foldr("", list("a", "b", "c"), (a, s) => a + s) | 😀😀😀😀 ts-node	81 ok
-termchargesiter/term 48: foldr("", list($x, $y), (a, n) => a + text(n)) | 😀😀😀😀 engine-closure	66 ok
-termchargesiter/term 48: foldr("", list($x, $y), (a, n) => a + text(n)) | 😀😀😀😀 engine-iterative	66 ok
-termchargesiter/term 48: foldr("", list($x, $y), (a, n) => a + text(n)) | 😀😀😀😀 engine-vm	66 ok
-termchargesiter/term 48: foldr("", list($x, $y), (a, n) => a + text(n)) | 😀😀😀😀 go-node	67 ok
-termchargesiter/term 48: foldr("", list($x, $y), (a, n) => a + text(n)) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 48: foldr("", list($x, $y), (a, n) => a + text(n)) | 😀😀😀😀 go-typed	66 ok
-termchargesiter/term 48: foldr("", list($x, $y), (a, n) => a + text(n)) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 48: foldr("", list($x, $y), (a, n) => a + text(n)) | 😀😀😀😀 ts-node	72 ok
-termchargesiter/term 49: foldl(0, list(), (a, n) => a + n) | 😀😀😀😀 engine-closure	44 ok
-termchargesiter/term 49: foldl(0, list(), (a, n) => a + n) | 😀😀😀😀 engine-iterative	44 ok
-termchargesiter/term 49: foldl(0, list(), (a, n) => a + n) | 😀😀😀😀 engine-vm	44 ok
-termchargesiter/term 49: foldl(0, list(), (a, n) => a + n) | 😀😀😀😀 go-node	45 ok
-termchargesiter/term 49: foldl(0, list(), (a, n) => a + n) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 49: foldl(0, list(), (a, n) => a + n) | 😀😀😀😀 go-typed	44 ok
-termchargesiter/term 49: foldl(0, list(), (a, n) => a + n) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 49: foldl(0, list(), (a, n) => a + n) | 😀😀😀😀 ts-node	42 ok
-termchargesiter/term 4: len(map(I{}.L, (n) => n)) | aaaa engine-closure	27 ok
-termchargesiter/term 4: len(map(I{}.L, (n) => n)) | aaaa engine-iterative	26 ok
-termchargesiter/term 4: len(map(I{}.L, (n) => n)) | aaaa engine-vm	26 ok
-termchargesiter/term 4: len(map(I{}.L, (n) => n)) | aaaa go-node	23 ok
-termchargesiter/term 4: len(map(I{}.L, (n) => n)) | aaaa go-node-recognize	19 ok
-termchargesiter/term 4: len(map(I{}.L, (n) => n)) | aaaa go-typed	22 ok
-termchargesiter/term 4: len(map(I{}.L, (n) => n)) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 4: len(map(I{}.L, (n) => n)) | aaaa ts-node	35 ok
-termchargesiter/term 50: foldr(7, list(), (a, n) => a + n) | 😀😀😀😀 engine-closure	44 ok
-termchargesiter/term 50: foldr(7, list(), (a, n) => a + n) | 😀😀😀😀 engine-iterative	44 ok
-termchargesiter/term 50: foldr(7, list(), (a, n) => a + n) | 😀😀😀😀 engine-vm	44 ok
-termchargesiter/term 50: foldr(7, list(), (a, n) => a + n) | 😀😀😀😀 go-node	45 ok
-termchargesiter/term 50: foldr(7, list(), (a, n) => a + n) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 50: foldr(7, list(), (a, n) => a + n) | 😀😀😀😀 go-typed	44 ok
-termchargesiter/term 50: foldr(7, list(), (a, n) => a + n) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 50: foldr(7, list(), (a, n) => a + n) | 😀😀😀😀 ts-node	42 ok
-termchargesiter/term 51: foldl(0, I{L: list(1, 2)}.L, (a, n) => a + n) | 😀😀😀😀 engine-closure	59 ok
-termchargesiter/term 51: foldl(0, I{L: list(1, 2)}.L, (a, n) => a + n) | 😀😀😀😀 engine-iterative	58 ok
-termchargesiter/term 51: foldl(0, I{L: list(1, 2)}.L, (a, n) => a + n) | 😀😀😀😀 engine-vm	58 ok
-termchargesiter/term 51: foldl(0, I{L: list(1, 2)}.L, (a, n) => a + n) | 😀😀😀😀 go-node	61 ok
-termchargesiter/term 51: foldl(0, I{L: list(1, 2)}.L, (a, n) => a + n) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 51: foldl(0, I{L: list(1, 2)}.L, (a, n) => a + n) | 😀😀😀😀 go-typed	61 ok
-termchargesiter/term 51: foldl(0, I{L: list(1, 2)}.L, (a, n) => a + n) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 51: foldl(0, I{L: list(1, 2)}.L, (a, n) => a + n) | 😀😀😀😀 ts-node	65 ok
-termchargesiter/term 52: foldl(0, list((1, 2), (3, 4)), (a, t) => a + t[1]) | 😀😀😀😀 engine-closure	70 ok
-termchargesiter/term 52: foldl(0, list((1, 2), (3, 4)), (a, t) => a + t[1]) | 😀😀😀😀 engine-iterative	70 ok
-termchargesiter/term 52: foldl(0, list((1, 2), (3, 4)), (a, t) => a + t[1]) | 😀😀😀😀 engine-vm	70 ok
-termchargesiter/term 52: foldl(0, list((1, 2), (3, 4)), (a, t) => a + t[1]) | 😀😀😀😀 go-node	77 ok
-termchargesiter/term 52: foldl(0, list((1, 2), (3, 4)), (a, t) => a + t[1]) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 52: foldl(0, list((1, 2), (3, 4)), (a, t) => a + t[1]) | 😀😀😀😀 go-typed	72 ok
-termchargesiter/term 52: foldl(0, list((1, 2), (3, 4)), (a, t) => a + t[1]) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 52: foldl(0, list((1, 2), (3, 4)), (a, t) => a + t[1]) | 😀😀😀😀 ts-node	86 ok
-termchargesiter/term 53: foldl(0, list(1, 0), (a, n) => a + 1 / n) | 😀😀😀😀 engine-closure	32 action in main: division by zero
-termchargesiter/term 53: foldl(0, list(1, 0), (a, n) => a + 1 / n) | 😀😀😀😀 engine-iterative	32 action in main: division by zero
-termchargesiter/term 53: foldl(0, list(1, 0), (a, n) => a + 1 / n) | 😀😀😀😀 engine-vm	32 action in main: division by zero
-termchargesiter/term 53: foldl(0, list(1, 0), (a, n) => a + 1 / n) | 😀😀😀😀 go-node	114 action in main: division by zero
-termchargesiter/term 53: foldl(0, list(1, 0), (a, n) => a + 1 / n) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 53: foldl(0, list(1, 0), (a, n) => a + 1 / n) | 😀😀😀😀 go-typed	112 action in main: division by zero
-termchargesiter/term 53: foldl(0, list(1, 0), (a, n) => a + 1 / n) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 53: foldl(0, list(1, 0), (a, n) => a + 1 / n) | 😀😀😀😀 ts-node	64 action in main: division by zero
-termchargesiter/term 54: foldr(0, list(0, 1), (a, n) => a + 1 / n) | 😀😀😀😀 engine-closure	32 action in main: division by zero
-termchargesiter/term 54: foldr(0, list(0, 1), (a, n) => a + 1 / n) | 😀😀😀😀 engine-iterative	32 action in main: division by zero
-termchargesiter/term 54: foldr(0, list(0, 1), (a, n) => a + 1 / n) | 😀😀😀😀 engine-vm	32 action in main: division by zero
-termchargesiter/term 54: foldr(0, list(0, 1), (a, n) => a + 1 / n) | 😀😀😀😀 go-node	114 action in main: division by zero
-termchargesiter/term 54: foldr(0, list(0, 1), (a, n) => a + 1 / n) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 54: foldr(0, list(0, 1), (a, n) => a + 1 / n) | 😀😀😀😀 go-typed	112 action in main: division by zero
-termchargesiter/term 54: foldr(0, list(0, 1), (a, n) => a + 1 / n) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 54: foldr(0, list(0, 1), (a, n) => a + 1 / n) | 😀😀😀😀 ts-node	64 action in main: division by zero
-termchargesiter/term 55: filter(list(1, 2, 3, 4), (n) => n % 2 == 0) | 😀😀😀😀 engine-closure	70 ok
-termchargesiter/term 55: filter(list(1, 2, 3, 4), (n) => n % 2 == 0) | 😀😀😀😀 engine-iterative	70 ok
-termchargesiter/term 55: filter(list(1, 2, 3, 4), (n) => n % 2 == 0) | 😀😀😀😀 engine-vm	70 ok
-termchargesiter/term 55: filter(list(1, 2, 3, 4), (n) => n % 2 == 0) | 😀😀😀😀 go-node	75 ok
-termchargesiter/term 55: filter(list(1, 2, 3, 4), (n) => n % 2 == 0) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 55: filter(list(1, 2, 3, 4), (n) => n % 2 == 0) | 😀😀😀😀 go-typed	71 ok
-termchargesiter/term 55: filter(list(1, 2, 3, 4), (n) => n % 2 == 0) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 55: filter(list(1, 2, 3, 4), (n) => n % 2 == 0) | 😀😀😀😀 ts-node	91 ok
-termchargesiter/term 56: filter(list(1, 2), (n) => false) | 😀😀😀😀 engine-closure	54 ok
-termchargesiter/term 56: filter(list(1, 2), (n) => false) | 😀😀😀😀 engine-iterative	54 ok
-termchargesiter/term 56: filter(list(1, 2), (n) => false) | 😀😀😀😀 engine-vm	54 ok
-termchargesiter/term 56: filter(list(1, 2), (n) => false) | 😀😀😀😀 go-node	57 ok
-termchargesiter/term 56: filter(list(1, 2), (n) => false) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 56: filter(list(1, 2), (n) => false) | 😀😀😀😀 go-typed	55 ok
-termchargesiter/term 56: filter(list(1, 2), (n) => false) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 56: filter(list(1, 2), (n) => false) | 😀😀😀😀 ts-node	55 ok
-termchargesiter/term 57: len(filter(list(), (n) => true)) | 😀😀😀😀 engine-closure	44 ok
-termchargesiter/term 57: len(filter(list(), (n) => true)) | 😀😀😀😀 engine-iterative	44 ok
-termchargesiter/term 57: len(filter(list(), (n) => true)) | 😀😀😀😀 engine-vm	44 ok
-termchargesiter/term 57: len(filter(list(), (n) => true)) | 😀😀😀😀 go-node	46 ok
-termchargesiter/term 57: len(filter(list(), (n) => true)) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 57: len(filter(list(), (n) => true)) | 😀😀😀😀 go-typed	45 ok
-termchargesiter/term 57: len(filter(list(), (n) => true)) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 57: len(filter(list(), (n) => true)) | 😀😀😀😀 ts-node	42 ok
-termchargesiter/term 58: len(filter(list($x, $y), (n) => text(n) != "")) | 😀😀😀😀 engine-closure	60 ok
-termchargesiter/term 58: len(filter(list($x, $y), (n) => text(n) != "")) | 😀😀😀😀 engine-iterative	60 ok
-termchargesiter/term 58: len(filter(list($x, $y), (n) => text(n) != "")) | 😀😀😀😀 engine-vm	60 ok
-termchargesiter/term 58: len(filter(list($x, $y), (n) => text(n) != "")) | 😀😀😀😀 go-node	62 ok
-termchargesiter/term 58: len(filter(list($x, $y), (n) => text(n) != "")) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 58: len(filter(list($x, $y), (n) => text(n) != "")) | 😀😀😀😀 go-typed	61 ok
-termchargesiter/term 58: len(filter(list($x, $y), (n) => text(n) != "")) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 58: len(filter(list($x, $y), (n) => text(n) != "")) | 😀😀😀😀 ts-node	68 ok
-termchargesiter/term 59: filter(list("a", "", "b"), (s) => s != "") | 😀😀😀😀 engine-closure	65 ok
-termchargesiter/term 59: filter(list("a", "", "b"), (s) => s != "") | 😀😀😀😀 engine-iterative	65 ok
-termchargesiter/term 59: filter(list("a", "", "b"), (s) => s != "") | 😀😀😀😀 engine-vm	65 ok
-termchargesiter/term 59: filter(list("a", "", "b"), (s) => s != "") | 😀😀😀😀 go-node	69 ok
-termchargesiter/term 59: filter(list("a", "", "b"), (s) => s != "") | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 59: filter(list("a", "", "b"), (s) => s != "") | 😀😀😀😀 go-typed	66 ok
-termchargesiter/term 59: filter(list("a", "", "b"), (s) => s != "") | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 59: filter(list("a", "", "b"), (s) => s != "") | 😀😀😀😀 ts-node	74 ok
-termchargesiter/term 5: map(list(list(1), list(2, 3), list()), (l) => len(l)) | aaaa engine-closure	56 ok
-termchargesiter/term 5: map(list(list(1), list(2, 3), list()), (l) => len(l)) | aaaa engine-iterative	56 ok
-termchargesiter/term 5: map(list(list(1), list(2, 3), list()), (l) => len(l)) | aaaa engine-vm	56 ok
-termchargesiter/term 5: map(list(list(1), list(2, 3), list()), (l) => len(l)) | aaaa go-node	66 ok
-termchargesiter/term 5: map(list(list(1), list(2, 3), list()), (l) => len(l)) | aaaa go-node-recognize	19 ok
-termchargesiter/term 5: map(list(list(1), list(2, 3), list()), (l) => len(l)) | aaaa go-typed	60 ok
-termchargesiter/term 5: map(list(list(1), list(2, 3), list()), (l) => len(l)) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 5: map(list(list(1), list(2, 3), list()), (l) => len(l)) | aaaa ts-node	84 ok
-termchargesiter/term 60: filter(list(1, 0), (n) => 1 / n == 1) | 😀😀😀😀 engine-closure	32 action in main: division by zero
-termchargesiter/term 60: filter(list(1, 0), (n) => 1 / n == 1) | 😀😀😀😀 engine-iterative	32 action in main: division by zero
-termchargesiter/term 60: filter(list(1, 0), (n) => 1 / n == 1) | 😀😀😀😀 engine-vm	32 action in main: division by zero
-termchargesiter/term 60: filter(list(1, 0), (n) => 1 / n == 1) | 😀😀😀😀 go-node	114 action in main: division by zero
-termchargesiter/term 60: filter(list(1, 0), (n) => 1 / n == 1) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 60: filter(list(1, 0), (n) => 1 / n == 1) | 😀😀😀😀 go-typed	112 action in main: division by zero
-termchargesiter/term 60: filter(list(1, 0), (n) => 1 / n == 1) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 60: filter(list(1, 0), (n) => 1 / n == 1) | 😀😀😀😀 ts-node	62 action in main: division by zero
-termchargesiter/term 61: len(map(list(1, 2), (n) => len(map(list(n, n), (m) => m + 1)))) | 😀😀😀😀 engine-closure	92 ok
-termchargesiter/term 61: len(map(list(1, 2), (n) => len(map(list(n, n), (m) => m + 1)))) | 😀😀😀😀 engine-iterative	92 ok
-termchargesiter/term 61: len(map(list(1, 2), (n) => len(map(list(n, n), (m) => m + 1)))) | 😀😀😀😀 engine-vm	92 ok
-termchargesiter/term 61: len(map(list(1, 2), (n) => len(map(list(n, n), (m) => m + 1)))) | 😀😀😀😀 go-node	110 ok
-termchargesiter/term 61: len(map(list(1, 2), (n) => len(map(list(n, n), (m) => m + 1)))) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 61: len(map(list(1, 2), (n) => len(map(list(n, n), (m) => m + 1)))) | 😀😀😀😀 go-typed	97 ok
-termchargesiter/term 61: len(map(list(1, 2), (n) => len(map(list(n, n), (m) => m + 1)))) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 61: len(map(list(1, 2), (n) => len(map(list(n, n), (m) => m + 1)))) | 😀😀😀😀 ts-node	119 ok
-termchargesiter/term 62: foldl(0, map(list(1, 2, 3), (n) => n * n), (a, n) => a + n) | 😀😀😀😀 engine-closure	71 ok
-termchargesiter/term 62: foldl(0, map(list(1, 2, 3), (n) => n * n), (a, n) => a + n) | 😀😀😀😀 engine-iterative	71 ok
-termchargesiter/term 62: foldl(0, map(list(1, 2, 3), (n) => n * n), (a, n) => a + n) | 😀😀😀😀 engine-vm	71 ok
-termchargesiter/term 62: foldl(0, map(list(1, 2, 3), (n) => n * n), (a, n) => a + n) | 😀😀😀😀 go-node	79 ok
-termchargesiter/term 62: foldl(0, map(list(1, 2, 3), (n) => n * n), (a, n) => a + n) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 62: foldl(0, map(list(1, 2, 3), (n) => n * n), (a, n) => a + n) | 😀😀😀😀 go-typed	72 ok
-termchargesiter/term 62: foldl(0, map(list(1, 2, 3), (n) => n * n), (a, n) => a + n) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 62: foldl(0, map(list(1, 2, 3), (n) => n * n), (a, n) => a + n) | 😀😀😀😀 ts-node	92 ok
-termchargesiter/term 63: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) => a + m + n)) | 😀😀😀😀 engine-closure	80 ok
-termchargesiter/term 63: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) => a + m + n)) | 😀😀😀😀 engine-iterative	80 ok
-termchargesiter/term 63: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) => a + m + n)) | 😀😀😀😀 engine-vm	80 ok
-termchargesiter/term 63: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) => a + m + n)) | 😀😀😀😀 go-node	91 ok
-termchargesiter/term 63: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) => a + m + n)) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 63: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) => a + m + n)) | 😀😀😀😀 go-typed	83 ok
-termchargesiter/term 63: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) => a + m + n)) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 63: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) => a + m + n)) | 😀😀😀😀 ts-node	112 ok
-termchargesiter/term 64: foldl(0, map(list(1, 2), (n) => I{N: n}), (a, s) => a + s.N) | 😀😀😀😀 engine-closure	72 ok
-termchargesiter/term 64: foldl(0, map(list(1, 2), (n) => I{N: n}), (a, s) => a + s.N) | 😀😀😀😀 engine-iterative	70 ok
-termchargesiter/term 64: foldl(0, map(list(1, 2), (n) => I{N: n}), (a, s) => a + s.N) | 😀😀😀😀 engine-vm	70 ok
-termchargesiter/term 64: foldl(0, map(list(1, 2), (n) => I{N: n}), (a, s) => a + s.N) | 😀😀😀😀 go-node	74 ok
-termchargesiter/term 64: foldl(0, map(list(1, 2), (n) => I{N: n}), (a, s) => a + s.N) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 64: foldl(0, map(list(1, 2), (n) => I{N: n}), (a, s) => a + s.N) | 😀😀😀😀 go-typed	65 ok
-termchargesiter/term 64: foldl(0, map(list(1, 2), (n) => I{N: n}), (a, s) => a + s.N) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 64: foldl(0, map(list(1, 2), (n) => I{N: n}), (a, s) => a + s.N) | 😀😀😀😀 ts-node	82 ok
-termchargesiter/term 65: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => s.N) | 😀😀😀😀 engine-closure	75 ok
-termchargesiter/term 65: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => s.N) | 😀😀😀😀 engine-iterative	72 ok
-termchargesiter/term 65: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => s.N) | 😀😀😀😀 engine-vm	72 ok
-termchargesiter/term 65: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => s.N) | 😀😀😀😀 go-node	73 ok
-termchargesiter/term 65: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => s.N) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 65: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => s.N) | 😀😀😀😀 go-typed	67 ok
-termchargesiter/term 65: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => s.N) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 65: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => s.N) | 😀😀😀😀 ts-node	80 ok
-termchargesiter/term 66: len(concat(list(1), map(list(2, 3), (n) => n), concat(list(4), filter(list(5, 6), (n) => n > 5)))) | 😀😀😀😀 engine-closure	114 ok
-termchargesiter/term 66: len(concat(list(1), map(list(2, 3), (n) => n), concat(list(4), filter(list(5, 6), (n) => n > 5)))) | 😀😀😀😀 engine-iterative	114 ok
-termchargesiter/term 66: len(concat(list(1), map(list(2, 3), (n) => n), concat(list(4), filter(list(5, 6), (n) => n > 5)))) | 😀😀😀😀 engine-vm	114 ok
-termchargesiter/term 66: len(concat(list(1), map(list(2, 3), (n) => n), concat(list(4), filter(list(5, 6), (n) => n > 5)))) | 😀😀😀😀 go-node	130 ok
-termchargesiter/term 66: len(concat(list(1), map(list(2, 3), (n) => n), concat(list(4), filter(list(5, 6), (n) => n > 5)))) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 66: len(concat(list(1), map(list(2, 3), (n) => n), concat(list(4), filter(list(5, 6), (n) => n > 5)))) | 😀😀😀😀 go-typed	121 ok
-termchargesiter/term 66: len(concat(list(1), map(list(2, 3), (n) => n), concat(list(4), filter(list(5, 6), (n) => n > 5)))) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 66: len(concat(list(1), map(list(2, 3), (n) => n), concat(list(4), filter(list(5, 6), (n) => n > 5)))) | 😀😀😀😀 ts-node	141 ok
-termchargesiter/term 67: concat(map(list(1, 2), (n) => n + 1), list(9)) | 😀😀😀😀 engine-closure	64 ok
-termchargesiter/term 67: concat(map(list(1, 2), (n) => n + 1), list(9)) | 😀😀😀😀 engine-iterative	64 ok
-termchargesiter/term 67: concat(map(list(1, 2), (n) => n + 1), list(9)) | 😀😀😀😀 engine-vm	64 ok
-termchargesiter/term 67: concat(map(list(1, 2), (n) => n + 1), list(9)) | 😀😀😀😀 go-node	70 ok
-termchargesiter/term 67: concat(map(list(1, 2), (n) => n + 1), list(9)) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 67: concat(map(list(1, 2), (n) => n + 1), list(9)) | 😀😀😀😀 go-typed	65 ok
-termchargesiter/term 67: concat(map(list(1, 2), (n) => n + 1), list(9)) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 67: concat(map(list(1, 2), (n) => n + 1), list(9)) | 😀😀😀😀 ts-node	72 ok
-termchargesiter/term 68: concat(list(1), map(list(1, 0), (n) => 1 / n)) | 😀😀😀😀 engine-closure	32 action in main: division by zero
-termchargesiter/term 68: concat(list(1), map(list(1, 0), (n) => 1 / n)) | 😀😀😀😀 engine-iterative	32 action in main: division by zero
-termchargesiter/term 68: concat(list(1), map(list(1, 0), (n) => 1 / n)) | 😀😀😀😀 engine-vm	32 action in main: division by zero
-termchargesiter/term 68: concat(list(1), map(list(1, 0), (n) => 1 / n)) | 😀😀😀😀 go-node	117 action in main: division by zero
-termchargesiter/term 68: concat(list(1), map(list(1, 0), (n) => 1 / n)) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 68: concat(list(1), map(list(1, 0), (n) => 1 / n)) | 😀😀😀😀 go-typed	113 action in main: division by zero
-termchargesiter/term 68: concat(list(1), map(list(1, 0), (n) => 1 / n)) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 68: concat(list(1), map(list(1, 0), (n) => 1 / n)) | 😀😀😀😀 ts-node	63 action in main: division by zero
-termchargesiter/term 69: len(map($rs, (e) => e.$w)) | 😀😀😀😀 engine-closure	51 ok
-termchargesiter/term 69: len(map($rs, (e) => e.$w)) | 😀😀😀😀 engine-iterative	48 ok
-termchargesiter/term 69: len(map($rs, (e) => e.$w)) | 😀😀😀😀 engine-vm	48 ok
-termchargesiter/term 69: len(map($rs, (e) => e.$w)) | 😀😀😀😀 go-node	49 ok
-termchargesiter/term 69: len(map($rs, (e) => e.$w)) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 69: len(map($rs, (e) => e.$w)) | 😀😀😀😀 go-typed	48 ok
-termchargesiter/term 69: len(map($rs, (e) => e.$w)) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 69: len(map($rs, (e) => e.$w)) | 😀😀😀😀 ts-node	45 ok
-termchargesiter/term 6: map(list(2, 1, 0), (n) => 6 / n) | aaaa engine-closure	8 action in main: division by zero
-termchargesiter/term 6: map(list(2, 1, 0), (n) => 6 / n) | aaaa engine-iterative	8 action in main: division by zero
-termchargesiter/term 6: map(list(2, 1, 0), (n) => 6 / n) | aaaa engine-vm	8 action in main: division by zero
-termchargesiter/term 6: map(list(2, 1, 0), (n) => 6 / n) | aaaa go-node	98 action in main: division by zero
-termchargesiter/term 6: map(list(2, 1, 0), (n) => 6 / n) | aaaa go-node-recognize	19 ok
-termchargesiter/term 6: map(list(2, 1, 0), (n) => 6 / n) | aaaa go-typed	93 action in main: division by zero
-termchargesiter/term 6: map(list(2, 1, 0), (n) => 6 / n) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 6: map(list(2, 1, 0), (n) => 6 / n) | aaaa ts-node	60 action in main: division by zero
-termchargesiter/term 70: len(concat(list($x), map($rs, (e) => e.$w))) | 😀😀😀😀 engine-closure	59 ok
-termchargesiter/term 70: len(concat(list($x), map($rs, (e) => e.$w))) | 😀😀😀😀 engine-iterative	56 ok
-termchargesiter/term 70: len(concat(list($x), map($rs, (e) => e.$w))) | 😀😀😀😀 engine-vm	56 ok
-termchargesiter/term 70: len(concat(list($x), map($rs, (e) => e.$w))) | 😀😀😀😀 go-node	57 ok
-termchargesiter/term 70: len(concat(list($x), map($rs, (e) => e.$w))) | 😀😀😀😀 go-node-recognize	43 ok
-termchargesiter/term 70: len(concat(list($x), map($rs, (e) => e.$w))) | 😀😀😀😀 go-typed	56 ok
-termchargesiter/term 70: len(concat(list($x), map($rs, (e) => e.$w))) | 😀😀😀😀 go-typed-recognize	43 ok
-termchargesiter/term 70: len(concat(list($x), map($rs, (e) => e.$w))) | 😀😀😀😀 ts-node	56 ok
-termchargesiter/term 71: len(map(list($x, $y), (n) => n)) == 2 | 😀😀😀😀 engine-closure	61 ok
-termchargesiter/term 71: len(map(list($x, $y), (n) => n)) == 2 | 😀😀😀😀 engine-iterative	61 ok
-termchargesiter/term 71: len(map(list($x, $y), (n) => n)) == 2 | 😀😀😀😀 engine-vm	61 ok
-termchargesiter/term 71: len(map(list($x, $y), (n) => n)) == 2 | 😀😀😀😀 go-node	63 ok
-termchargesiter/term 71: len(map(list($x, $y), (n) => n)) == 2 | 😀😀😀😀 go-node-recognize	62 ok
-termchargesiter/term 71: len(map(list($x, $y), (n) => n)) == 2 | 😀😀😀😀 go-typed	62 ok
-termchargesiter/term 71: len(map(list($x, $y), (n) => n)) == 2 | 😀😀😀😀 go-typed-recognize	62 ok
-termchargesiter/term 71: len(map(list($x, $y), (n) => n)) == 2 | 😀😀😀😀 ts-node	70 ok
-termchargesiter/term 71: len(map(list($x, $y), (n) => n)) == 2 | 😀😀😀😀b engine-closure	63 ok
-termchargesiter/term 71: len(map(list($x, $y), (n) => n)) == 2 | 😀😀😀😀b engine-iterative	63 ok
-termchargesiter/term 71: len(map(list($x, $y), (n) => n)) == 2 | 😀😀😀😀b engine-vm	63 ok
-termchargesiter/term 71: len(map(list($x, $y), (n) => n)) == 2 | 😀😀😀😀b go-node	65 ok
-termchargesiter/term 71: len(map(list($x, $y), (n) => n)) == 2 | 😀😀😀😀b go-node-recognize	64 ok
-termchargesiter/term 71: len(map(list($x, $y), (n) => n)) == 2 | 😀😀😀😀b go-typed	64 ok
-termchargesiter/term 71: len(map(list($x, $y), (n) => n)) == 2 | 😀😀😀😀b go-typed-recognize	64 ok
-termchargesiter/term 71: len(map(list($x, $y), (n) => n)) == 2 | 😀😀😀😀b ts-node	70 ok
-termchargesiter/term 72: len(map(list(1, 0), (n) => 1 / n)) == 2 | 😀😀😀😀 engine-closure	73 ok
-termchargesiter/term 72: len(map(list(1, 0), (n) => 1 / n)) == 2 | 😀😀😀😀 engine-iterative	73 ok
-termchargesiter/term 72: len(map(list(1, 0), (n) => 1 / n)) == 2 | 😀😀😀😀 engine-vm	73 ok
-termchargesiter/term 72: len(map(list(1, 0), (n) => 1 / n)) == 2 | 😀😀😀😀 go-node	77 ok
-termchargesiter/term 72: len(map(list(1, 0), (n) => 1 / n)) == 2 | 😀😀😀😀 go-node-recognize	76 ok
-termchargesiter/term 72: len(map(list(1, 0), (n) => 1 / n)) == 2 | 😀😀😀😀 go-typed	73 ok
-termchargesiter/term 72: len(map(list(1, 0), (n) => 1 / n)) == 2 | 😀😀😀😀 go-typed-recognize	76 ok
-termchargesiter/term 72: len(map(list(1, 0), (n) => 1 / n)) == 2 | 😀😀😀😀 ts-node	65 ok
-termchargesiter/term 72: len(map(list(1, 0), (n) => 1 / n)) == 2 | 😀😀😀😀b engine-closure	75 1:5: syntax error
-termchargesiter/term 72: len(map(list(1, 0), (n) => 1 / n)) == 2 | 😀😀😀😀b engine-iterative	75 1:5: syntax error
-termchargesiter/term 72: len(map(list(1, 0), (n) => 1 / n)) == 2 | 😀😀😀😀b engine-vm	75 1:5: syntax error
-termchargesiter/term 72: len(map(list(1, 0), (n) => 1 / n)) == 2 | 😀😀😀😀b go-node	90 1:5: syntax error: expected end of input, \"😀\
-termchargesiter/term 72: len(map(list(1, 0), (n) => 1 / n)) == 2 | 😀😀😀😀b go-node-recognize	90 1:5: syntax error: expected end of input, \"😀\
-termchargesiter/term 72: len(map(list(1, 0), (n) => 1 / n)) == 2 | 😀😀😀😀b go-typed	87 1:5: syntax error: expected end of input, \"😀\
-termchargesiter/term 72: len(map(list(1, 0), (n) => 1 / n)) == 2 | 😀😀😀😀b go-typed-recognize	90 1:5: syntax error: expected end of input, \"😀\
-termchargesiter/term 72: len(map(list(1, 0), (n) => 1 / n)) == 2 | 😀😀😀😀b ts-node	131 1:5: syntax error: expected end of input, \"😀\
-termchargesiter/term 73: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5 | 😀😀😀😀 engine-closure	68 ok
-termchargesiter/term 73: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5 | 😀😀😀😀 engine-iterative	68 ok
-termchargesiter/term 73: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5 | 😀😀😀😀 engine-vm	68 ok
-termchargesiter/term 73: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5 | 😀😀😀😀 go-node	73 ok
-termchargesiter/term 73: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5 | 😀😀😀😀 go-node-recognize	72 ok
-termchargesiter/term 73: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5 | 😀😀😀😀 go-typed	69 ok
-termchargesiter/term 73: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5 | 😀😀😀😀 go-typed-recognize	72 ok
-termchargesiter/term 73: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5 | 😀😀😀😀 ts-node	91 ok
-termchargesiter/term 73: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5 | 😀😀😀😀b engine-closure	70 ok
-termchargesiter/term 73: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5 | 😀😀😀😀b engine-iterative	70 ok
-termchargesiter/term 73: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5 | 😀😀😀😀b engine-vm	70 ok
-termchargesiter/term 73: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5 | 😀😀😀😀b go-node	75 ok
-termchargesiter/term 73: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5 | 😀😀😀😀b go-node-recognize	74 ok
-termchargesiter/term 73: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5 | 😀😀😀😀b go-typed	71 ok
-termchargesiter/term 73: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5 | 😀😀😀😀b go-typed-recognize	74 ok
-termchargesiter/term 73: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5 | 😀😀😀😀b ts-node	91 ok
-termchargesiter/term 7: foldl(0, list(1, 2, 3), (a, n) => a * 10 + n) | aaaa engine-closure	35 ok
-termchargesiter/term 7: foldl(0, list(1, 2, 3), (a, n) => a * 10 + n) | aaaa engine-iterative	35 ok
-termchargesiter/term 7: foldl(0, list(1, 2, 3), (a, n) => a * 10 + n) | aaaa engine-vm	35 ok
-termchargesiter/term 7: foldl(0, list(1, 2, 3), (a, n) => a * 10 + n) | aaaa go-node	39 ok
-termchargesiter/term 7: foldl(0, list(1, 2, 3), (a, n) => a * 10 + n) | aaaa go-node-recognize	19 ok
-termchargesiter/term 7: foldl(0, list(1, 2, 3), (a, n) => a * 10 + n) | aaaa go-typed	35 ok
-termchargesiter/term 7: foldl(0, list(1, 2, 3), (a, n) => a * 10 + n) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 7: foldl(0, list(1, 2, 3), (a, n) => a * 10 + n) | aaaa ts-node	66 ok
-termchargesiter/term 8: foldr(0, list(1, 2, 3), (a, n) => a * 10 + n) | aaaa engine-closure	35 ok
-termchargesiter/term 8: foldr(0, list(1, 2, 3), (a, n) => a * 10 + n) | aaaa engine-iterative	35 ok
-termchargesiter/term 8: foldr(0, list(1, 2, 3), (a, n) => a * 10 + n) | aaaa engine-vm	35 ok
-termchargesiter/term 8: foldr(0, list(1, 2, 3), (a, n) => a * 10 + n) | aaaa go-node	39 ok
-termchargesiter/term 8: foldr(0, list(1, 2, 3), (a, n) => a * 10 + n) | aaaa go-node-recognize	19 ok
-termchargesiter/term 8: foldr(0, list(1, 2, 3), (a, n) => a * 10 + n) | aaaa go-typed	35 ok
-termchargesiter/term 8: foldr(0, list(1, 2, 3), (a, n) => a * 10 + n) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 8: foldr(0, list(1, 2, 3), (a, n) => a * 10 + n) | aaaa ts-node	66 ok
-termchargesiter/term 9: foldl("", list("a", "b", "c"), (a, s) => a + s) | aaaa engine-closure	41 ok
-termchargesiter/term 9: foldl("", list("a", "b", "c"), (a, s) => a + s) | aaaa engine-iterative	41 ok
-termchargesiter/term 9: foldl("", list("a", "b", "c"), (a, s) => a + s) | aaaa engine-vm	41 ok
-termchargesiter/term 9: foldl("", list("a", "b", "c"), (a, s) => a + s) | aaaa go-node	45 ok
-termchargesiter/term 9: foldl("", list("a", "b", "c"), (a, s) => a + s) | aaaa go-node-recognize	19 ok
-termchargesiter/term 9: foldl("", list("a", "b", "c"), (a, s) => a + s) | aaaa go-typed	41 ok
-termchargesiter/term 9: foldl("", list("a", "b", "c"), (a, s) => a + s) | aaaa go-typed-recognize	19 ok
-termchargesiter/term 9: foldl("", list("a", "b", "c"), (a, s) => a + s) | aaaa ts-node	72 ok
+# One line for each case, then for each part of it: the number of entries, the first 10 hex digits of the SHA-256 of
+# the sorted "key<TAB>value" lines of those entries and, for a golden of totals, the sums of the two totals. A
+# failing run prints the actual entries of the part whose number or digest differs.
+# The part of a case is the target: the last word of the entry's key.
+termchargesiter/term 0: map(list(1, 2, 3), (n) => n * 2)	engine-closure=1:4bd449859d:0:0	engine-iterative=1:b4a308ffa4:0:0	engine-vm=1:26cdfdbc4c:0:0	go-node=1:bf7d689fd4:0:0	go-node-recognize=1:de3efe4562:0:0	go-typed=1:d5af65586d:0:0	go-typed-recognize=1:1ed06ef1be:0:0	ts-node=1:2e79009146:0:0
+termchargesiter/term 10: foldr("", list("a", "b", "c"), (a, s) => a + s)	engine-closure=1:26aa0835a4:0:0	engine-iterative=1:25a5887a64:0:0	engine-vm=1:ff2e905949:0:0	go-node=1:855c81af97:0:0	go-node-recognize=1:9641e182df:0:0	go-typed=1:df258d026d:0:0	go-typed-recognize=1:cd3f777187:0:0	ts-node=1:e776e5583b:0:0
+termchargesiter/term 11: foldr("", list($x, $y), (a, n) => a + text(n))	engine-closure=1:53689b8c6d:0:0	engine-iterative=1:288fa46143:0:0	engine-vm=1:b877477407:0:0	go-node=1:ee1d25c5fd:0:0	go-node-recognize=1:ea6621938f:0:0	go-typed=1:e9be09187a:0:0	go-typed-recognize=1:9256b107a8:0:0	ts-node=1:8b7bdcf077:0:0
+termchargesiter/term 12: foldl(0, list(), (a, n) => a + n)	engine-closure=1:208b7a2b86:0:0	engine-iterative=1:cf26ddd8c3:0:0	engine-vm=1:33d313b079:0:0	go-node=1:584baef8ae:0:0	go-node-recognize=1:267d10da02:0:0	go-typed=1:496f13c620:0:0	go-typed-recognize=1:aa6f2b3a26:0:0	ts-node=1:8f1067f8bf:0:0
+termchargesiter/term 13: foldr(7, list(), (a, n) => a + n)	engine-closure=1:38e235c37e:0:0	engine-iterative=1:ca3ca3edc8:0:0	engine-vm=1:e5a9a4dfd3:0:0	go-node=1:462252ae59:0:0	go-node-recognize=1:eed100dc7c:0:0	go-typed=1:8715390989:0:0	go-typed-recognize=1:4855347cd4:0:0	ts-node=1:3ad2fbc4d6:0:0
+termchargesiter/term 14: foldl(0, I{L: list(1, 2)}.L, (a, n) => a + n)	engine-closure=1:048b86cbf1:0:0	engine-iterative=1:d583b9a9e5:0:0	engine-vm=1:c28a13a07c:0:0	go-node=1:a9e36c19f7:0:0	go-node-recognize=1:d4d101be01:0:0	go-typed=1:01108ab97a:0:0	go-typed-recognize=1:3ed3157076:0:0	ts-node=1:5d6622dac7:0:0
+termchargesiter/term 15: foldl(0, list((1, 2), (3, 4)), (a, t) => a + t[1])	engine-closure=1:6b167ac883:0:0	engine-iterative=1:b49fd1a432:0:0	engine-vm=1:36dc94f531:0:0	go-node=1:a37d7bcf6f:0:0	go-node-recognize=1:54decab858:0:0	go-typed=1:44b505f0cc:0:0	go-typed-recognize=1:b01f0a9835:0:0	ts-node=1:04e62b6c50:0:0
+termchargesiter/term 16: foldl(0, list(1, 0), (a, n) => a + 1 / n)	engine-closure=1:7235ae5ede:0:0	engine-iterative=1:c2dea1dc61:0:0	engine-vm=1:94aeac8534:0:0	go-node=1:966a75ee0d:0:0	go-node-recognize=1:b366126535:0:0	go-typed=1:7a65bae2be:0:0	go-typed-recognize=1:18e1fdd721:0:0	ts-node=1:dafa44fb88:0:0
+termchargesiter/term 17: foldr(0, list(0, 1), (a, n) => a + 1 / n)	engine-closure=1:cddae7242d:0:0	engine-iterative=1:6f9b5fb2cb:0:0	engine-vm=1:14a8ea712f:0:0	go-node=1:c425332fa5:0:0	go-node-recognize=1:c5f1bbd9fc:0:0	go-typed=1:2e5d62ccfc:0:0	go-typed-recognize=1:41ce94904a:0:0	ts-node=1:7711a38aea:0:0
+termchargesiter/term 18: filter(list(1, 2, 3, 4), (n) => n % 2 == 0)	engine-closure=1:58445bd2e4:0:0	engine-iterative=1:0ea46bbb34:0:0	engine-vm=1:c4a7286e53:0:0	go-node=1:c803196481:0:0	go-node-recognize=1:a889b1bada:0:0	go-typed=1:01640fdcb3:0:0	go-typed-recognize=1:cefc0a6797:0:0	ts-node=1:3aa70d4db3:0:0
+termchargesiter/term 19: filter(list(1, 2), (n) => false)	engine-closure=1:e6709ab377:0:0	engine-iterative=1:9bd7b0ddf4:0:0	engine-vm=1:01e88e6871:0:0	go-node=1:6d25419b7e:0:0	go-node-recognize=1:2791373bbf:0:0	go-typed=1:f34f226d5a:0:0	go-typed-recognize=1:0546b57e8a:0:0	ts-node=1:85bc46d01e:0:0
+termchargesiter/term 1: len(map(list(), (n) => n))	engine-closure=1:521261dedd:0:0	engine-iterative=1:299aa937b9:0:0	engine-vm=1:10c7c27917:0:0	go-node=1:ef9826dbe4:0:0	go-node-recognize=1:db16656d7b:0:0	go-typed=1:63d8f1d20a:0:0	go-typed-recognize=1:680f4a6056:0:0	ts-node=1:8cd93bb768:0:0
+termchargesiter/term 20: len(filter(list(), (n) => true))	engine-closure=1:0f77dc73b5:0:0	engine-iterative=1:6a16ea05c3:0:0	engine-vm=1:7eb381bca1:0:0	go-node=1:2fb7936a43:0:0	go-node-recognize=1:670ea75166:0:0	go-typed=1:0a51ce2691:0:0	go-typed-recognize=1:462ea4fb1e:0:0	ts-node=1:9bcf61a5cd:0:0
+termchargesiter/term 21: len(filter(list($x, $y), (n) => text(n) != ""))	engine-closure=1:5aa5b9bf99:0:0	engine-iterative=1:0c3a8650fa:0:0	engine-vm=1:99166b7557:0:0	go-node=1:3e8f382983:0:0	go-node-recognize=1:f5555ae299:0:0	go-typed=1:b77eafebee:0:0	go-typed-recognize=1:c5d7759166:0:0	ts-node=1:44fc9decd2:0:0
+termchargesiter/term 22: filter(list("a", "", "b"), (s) => s != "")	engine-closure=1:c12f207e61:0:0	engine-iterative=1:c4ec848e1c:0:0	engine-vm=1:2b90725c0c:0:0	go-node=1:5e51682417:0:0	go-node-recognize=1:e9a09ba07b:0:0	go-typed=1:3d567c6925:0:0	go-typed-recognize=1:c08cbec95e:0:0	ts-node=1:d50c86038e:0:0
+termchargesiter/term 23: filter(list(1, 0), (n) => 1 / n == 1)	engine-closure=1:a39255fd1e:0:0	engine-iterative=1:e7c6b7947f:0:0	engine-vm=1:91cce97039:0:0	go-node=1:8c83570db4:0:0	go-node-recognize=1:47462119f2:0:0	go-typed=1:b8dbae6985:0:0	go-typed-recognize=1:8915d09eee:0:0	ts-node=1:f33d784a14:0:0
+termchargesiter/term 24: len(map(list(1, 2), (n) => len(map(list(n, n), (m) => m + 1))))	engine-closure=1:c5ef131675:0:0	engine-iterative=1:b9f1a89966:0:0	engine-vm=1:0cf01e3391:0:0	go-node=1:df69869dcc:0:0	go-node-recognize=1:53d023166c:0:0	go-typed=1:1ca542aa67:0:0	go-typed-recognize=1:0414baf505:0:0	ts-node=1:f07e04f961:0:0
+termchargesiter/term 25: foldl(0, map(list(1, 2, 3), (n) => n * n), (a, n) => a + n)	engine-closure=1:7ab476c441:0:0	engine-iterative=1:27280cca37:0:0	engine-vm=1:252f208990:0:0	go-node=1:d54591ed5e:0:0	go-node-recognize=1:e4282f1629:0:0	go-typed=1:927b27b00b:0:0	go-typed-recognize=1:498665e1e5:0:0	ts-node=1:33fb9dc286:0:0
+termchargesiter/term 26: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) => a + m + n))	engine-closure=1:75f9869c52:0:0	engine-iterative=1:f9116ea3fe:0:0	engine-vm=1:afca80fe82:0:0	go-node=1:52bdf6f58f:0:0	go-node-recognize=1:74d13bee89:0:0	go-typed=1:ec43abbf74:0:0	go-typed-recognize=1:7fef315129:0:0	ts-node=1:0a216072e0:0:0
+termchargesiter/term 27: foldl(0, map(list(1, 2), (n) => I{N: n}), (a, s) => a + s.N)	engine-closure=1:71563b5df7:0:0	engine-iterative=1:96a42f5b3b:0:0	engine-vm=1:af5acad4fe:0:0	go-node=1:c36dfac3f6:0:0	go-node-recognize=1:79b05ada1c:0:0	go-typed=1:56ade9fbf4:0:0	go-typed-recognize=1:627299b393:0:0	ts-node=1:91a3183fa3:0:0
+termchargesiter/term 28: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => s.N)	engine-closure=1:303d21d35d:0:0	engine-iterative=1:c325965d46:0:0	engine-vm=1:f66deb5656:0:0	go-node=1:c4c0ae197d:0:0	go-node-recognize=1:06dc3adbbd:0:0	go-typed=1:994a591435:0:0	go-typed-recognize=1:8a93cdc7a2:0:0	ts-node=1:13b27eec1b:0:0
+termchargesiter/term 29: len(concat(list(1), map(list(2, 3), (n) => n), concat(list(4), filter(list(5, 6), (n) => n > 5))))	engine-closure=1:3ec54e99da:0:0	engine-iterative=1:93a7ff495d:0:0	engine-vm=1:ec5989fee5:0:0	go-node=1:39f645de7b:0:0	go-node-recognize=1:7109211fe5:0:0	go-typed=1:6042a10d97:0:0	go-typed-recognize=1:59a817672b:0:0	ts-node=1:14b5bdc137:0:0
+termchargesiter/term 2: len(map(list($x, $y, $z), (n) => n))	engine-closure=1:636bb62552:0:0	engine-iterative=1:a9b0c775ee:0:0	engine-vm=1:f3b0c0ee48:0:0	go-node=1:37c688e837:0:0	go-node-recognize=1:3b43aaf441:0:0	go-typed=1:e1c6064a33:0:0	go-typed-recognize=1:d1820ed8bc:0:0	ts-node=1:fd59bc4b75:0:0
+termchargesiter/term 30: concat(map(list(1, 2), (n) => n + 1), list(9))	engine-closure=1:dda3ccb0a1:0:0	engine-iterative=1:7b4f8b34e5:0:0	engine-vm=1:445008ac54:0:0	go-node=1:388db58a22:0:0	go-node-recognize=1:fc7ffa38fa:0:0	go-typed=1:7d7a0b788a:0:0	go-typed-recognize=1:3c2f911f59:0:0	ts-node=1:27ae8036c4:0:0
+termchargesiter/term 31: concat(list(1), map(list(1, 0), (n) => 1 / n))	engine-closure=1:8e5bf7ea89:0:0	engine-iterative=1:ddd801092c:0:0	engine-vm=1:29e2c0c39f:0:0	go-node=1:d5bdb824f3:0:0	go-node-recognize=1:9e885aa244:0:0	go-typed=1:a1d28ec79b:0:0	go-typed-recognize=1:50cc74e61d:0:0	ts-node=1:bd14e6bd4f:0:0
+termchargesiter/term 32: len(map($rs, (e) => e.$w))	engine-closure=1:465d8b9e86:0:0	engine-iterative=1:cad209658b:0:0	engine-vm=1:3b99606e30:0:0	go-node=1:cb289288be:0:0	go-node-recognize=1:95bdb1f6cc:0:0	go-typed=1:6d1f6edebf:0:0	go-typed-recognize=1:822e89311c:0:0	ts-node=1:f8dd184bdd:0:0
+termchargesiter/term 33: len(concat(list($x), map($rs, (e) => e.$w)))	engine-closure=1:347b7e47e9:0:0	engine-iterative=1:62f9c94b91:0:0	engine-vm=1:3a1939f14d:0:0	go-node=1:f358848cd1:0:0	go-node-recognize=1:1e18c383e9:0:0	go-typed=1:a36138b26a:0:0	go-typed-recognize=1:bfd88bf9d6:0:0	ts-node=1:cc8ada461b:0:0
+termchargesiter/term 34: len(map(list($x, $y), (n) => n)) == 2	engine-closure=2:735b1d67f4:0:0	engine-iterative=2:08ac4bf093:0:0	engine-vm=2:ca5591a4ed:0:0	go-node=2:a987639f28:0:0	go-node-recognize=2:0eaaecd06a:0:0	go-typed=2:d10d8c3778:0:0	go-typed-recognize=2:825c3e1a3f:0:0	ts-node=2:184c4a8a29:0:0
+termchargesiter/term 35: len(map(list(1, 0), (n) => 1 / n)) == 2	engine-closure=2:270766aa46:0:0	engine-iterative=2:58fba89d87:0:0	engine-vm=2:e96948bff8:0:0	go-node=2:70283135c4:0:0	go-node-recognize=2:f0e908ad3f:0:0	go-typed=2:cedf94be22:0:0	go-typed-recognize=2:cc9edcfcd8:0:0	ts-node=2:edf3127c6a:0:0
+termchargesiter/term 36: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5	engine-closure=2:39f1781ec3:0:0	engine-iterative=2:8bed57c565:0:0	engine-vm=2:9def407a0d:0:0	go-node=2:0a42154171:0:0	go-node-recognize=2:7ffbe5636b:0:0	go-typed=2:1f3fce14b0:0:0	go-typed-recognize=2:e142debe3e:0:0	ts-node=2:e146f29aed:0:0
+termchargesiter/term 37: map(list(1, 2, 3), (n) => n * 2)	engine-closure=1:2069b0a402:0:0	engine-iterative=1:50cc816aba:0:0	engine-vm=1:fbf14c51ca:0:0	go-node=1:c8cecb4384:0:0	go-node-recognize=1:02a428f2db:0:0	go-typed=1:f5680a58ff:0:0	go-typed-recognize=1:26f390e0ef:0:0	ts-node=1:36bb71ff81:0:0
+termchargesiter/term 38: len(map(list(), (n) => n))	engine-closure=1:f3c148ac32:0:0	engine-iterative=1:3113d2ac24:0:0	engine-vm=1:4e0e81fb35:0:0	go-node=1:c4b315cf7a:0:0	go-node-recognize=1:1cfa87905e:0:0	go-typed=1:511a6d96b5:0:0	go-typed-recognize=1:27e2e8d65f:0:0	ts-node=1:cbbd21a6a4:0:0
+termchargesiter/term 39: len(map(list($x, $y, $z), (n) => n))	engine-closure=1:50dd6403b0:0:0	engine-iterative=1:9018c96b18:0:0	engine-vm=1:c41f5f4436:0:0	go-node=1:b80fc19ade:0:0	go-node-recognize=1:6838c55d69:0:0	go-typed=1:1e9388dd57:0:0	go-typed-recognize=1:e2a22c27ad:0:0	ts-node=1:983b6ee52a:0:0
+termchargesiter/term 3: map(list($x, $y), (n) => text(n))	engine-closure=1:272033801d:0:0	engine-iterative=1:99d02650dc:0:0	engine-vm=1:f6cd4f6c4b:0:0	go-node=1:36947e0b7a:0:0	go-node-recognize=1:713caf96c7:0:0	go-typed=1:1feb2c5d23:0:0	go-typed-recognize=1:68a828566e:0:0	ts-node=1:e5aeb775d5:0:0
+termchargesiter/term 40: map(list($x, $y), (n) => text(n))	engine-closure=1:9e0e723a72:0:0	engine-iterative=1:fc190d465d:0:0	engine-vm=1:7457bc8514:0:0	go-node=1:b30afca399:0:0	go-node-recognize=1:49ec24d2c6:0:0	go-typed=1:33ad3338b0:0:0	go-typed-recognize=1:07bf2d596f:0:0	ts-node=1:d020fef668:0:0
+termchargesiter/term 41: len(map(I{}.L, (n) => n))	engine-closure=1:40e08e2f9c:0:0	engine-iterative=1:c221b11b0f:0:0	engine-vm=1:4977bf575b:0:0	go-node=1:ca1c807f51:0:0	go-node-recognize=1:346a56d5e9:0:0	go-typed=1:60aac49124:0:0	go-typed-recognize=1:4da9a530a0:0:0	ts-node=1:178827fab7:0:0
+termchargesiter/term 42: map(list(list(1), list(2, 3), list()), (l) => len(l))	engine-closure=1:bdf1d2f205:0:0	engine-iterative=1:750133e7c5:0:0	engine-vm=1:2e7c284e72:0:0	go-node=1:92448c8914:0:0	go-node-recognize=1:4f1c11851e:0:0	go-typed=1:a9c3866523:0:0	go-typed-recognize=1:776877ab4b:0:0	ts-node=1:d9f46b5074:0:0
+termchargesiter/term 43: map(list(2, 1, 0), (n) => 6 / n)	engine-closure=1:1da4e3ba58:0:0	engine-iterative=1:1546d4fe79:0:0	engine-vm=1:8700309390:0:0	go-node=1:5227023c2a:0:0	go-node-recognize=1:7ba8803298:0:0	go-typed=1:b6ca434679:0:0	go-typed-recognize=1:eca62595ad:0:0	ts-node=1:06a75a9fde:0:0
+termchargesiter/term 44: foldl(0, list(1, 2, 3), (a, n) => a * 10 + n)	engine-closure=1:1541d1c17e:0:0	engine-iterative=1:b182045d6a:0:0	engine-vm=1:f7cd383086:0:0	go-node=1:e2ed6a7814:0:0	go-node-recognize=1:45a6a1b97e:0:0	go-typed=1:fd40c32396:0:0	go-typed-recognize=1:83771cb50e:0:0	ts-node=1:9a59b29dde:0:0
+termchargesiter/term 45: foldr(0, list(1, 2, 3), (a, n) => a * 10 + n)	engine-closure=1:d38d2409be:0:0	engine-iterative=1:65548b1406:0:0	engine-vm=1:75a18b238c:0:0	go-node=1:fb49b74967:0:0	go-node-recognize=1:62f637b1dd:0:0	go-typed=1:17921b9be6:0:0	go-typed-recognize=1:b5ddbc9c53:0:0	ts-node=1:5c1607ca18:0:0
+termchargesiter/term 46: foldl("", list("a", "b", "c"), (a, s) => a + s)	engine-closure=1:965b0ab130:0:0	engine-iterative=1:fc0cc3640a:0:0	engine-vm=1:30a7857956:0:0	go-node=1:cbb6360cb7:0:0	go-node-recognize=1:f141b76dde:0:0	go-typed=1:c0bfdba84e:0:0	go-typed-recognize=1:2964782b4b:0:0	ts-node=1:d8aa44459e:0:0
+termchargesiter/term 47: foldr("", list("a", "b", "c"), (a, s) => a + s)	engine-closure=1:4140f42a55:0:0	engine-iterative=1:f61cf3ce9f:0:0	engine-vm=1:19c1ac2f1c:0:0	go-node=1:d965ab294a:0:0	go-node-recognize=1:2194300f2c:0:0	go-typed=1:d4619f4bda:0:0	go-typed-recognize=1:a648e08e8b:0:0	ts-node=1:3e8a8f577a:0:0
+termchargesiter/term 48: foldr("", list($x, $y), (a, n) => a + text(n))	engine-closure=1:158d47c35f:0:0	engine-iterative=1:e6e5ff57bc:0:0	engine-vm=1:f9c62e16f7:0:0	go-node=1:6ecbe11f8b:0:0	go-node-recognize=1:7775c8a67e:0:0	go-typed=1:73e830419e:0:0	go-typed-recognize=1:c6816cb9f6:0:0	ts-node=1:109cd7f127:0:0
+termchargesiter/term 49: foldl(0, list(), (a, n) => a + n)	engine-closure=1:a8c0096edd:0:0	engine-iterative=1:36f802ad73:0:0	engine-vm=1:30e9f0b0f7:0:0	go-node=1:3e690a22a1:0:0	go-node-recognize=1:475271c301:0:0	go-typed=1:af50455446:0:0	go-typed-recognize=1:68657bd9cb:0:0	ts-node=1:78c7d3b52d:0:0
+termchargesiter/term 4: len(map(I{}.L, (n) => n))	engine-closure=1:071fc8c025:0:0	engine-iterative=1:7ffabfe088:0:0	engine-vm=1:53a7ce2b76:0:0	go-node=1:f35cd976a2:0:0	go-node-recognize=1:37a0000105:0:0	go-typed=1:ffdf970e02:0:0	go-typed-recognize=1:b70789febd:0:0	ts-node=1:ecac4ebbfe:0:0
+termchargesiter/term 50: foldr(7, list(), (a, n) => a + n)	engine-closure=1:f4e343881e:0:0	engine-iterative=1:7a41b4c3a1:0:0	engine-vm=1:fc6a09b017:0:0	go-node=1:ff194ffb8e:0:0	go-node-recognize=1:850fcb13c4:0:0	go-typed=1:d31a6cf6d3:0:0	go-typed-recognize=1:0cb0a97502:0:0	ts-node=1:1e4ba5d1fa:0:0
+termchargesiter/term 51: foldl(0, I{L: list(1, 2)}.L, (a, n) => a + n)	engine-closure=1:d5352f19df:0:0	engine-iterative=1:26d0ee509b:0:0	engine-vm=1:4268a0b240:0:0	go-node=1:47dcccdf81:0:0	go-node-recognize=1:c6184bb786:0:0	go-typed=1:82c6336f1b:0:0	go-typed-recognize=1:b9764eeda8:0:0	ts-node=1:6e0d47ffd3:0:0
+termchargesiter/term 52: foldl(0, list((1, 2), (3, 4)), (a, t) => a + t[1])	engine-closure=1:1ac25506ab:0:0	engine-iterative=1:aaee90d260:0:0	engine-vm=1:4988e0785a:0:0	go-node=1:d778dcdb37:0:0	go-node-recognize=1:3933034830:0:0	go-typed=1:b5fc7922ed:0:0	go-typed-recognize=1:291ed7a0ae:0:0	ts-node=1:102ffd913c:0:0
+termchargesiter/term 53: foldl(0, list(1, 0), (a, n) => a + 1 / n)	engine-closure=1:1c72d35ec5:0:0	engine-iterative=1:64daa8d451:0:0	engine-vm=1:73a69822bf:0:0	go-node=1:5c51db2d07:0:0	go-node-recognize=1:b8f0766636:0:0	go-typed=1:700ecaa7cf:0:0	go-typed-recognize=1:fadf80f313:0:0	ts-node=1:0bab07cac2:0:0
+termchargesiter/term 54: foldr(0, list(0, 1), (a, n) => a + 1 / n)	engine-closure=1:e424b9571b:0:0	engine-iterative=1:458c30465d:0:0	engine-vm=1:7d2575bd9b:0:0	go-node=1:3614ec5b63:0:0	go-node-recognize=1:6aa6801946:0:0	go-typed=1:d24134b2e4:0:0	go-typed-recognize=1:f92e446508:0:0	ts-node=1:499fd0a593:0:0
+termchargesiter/term 55: filter(list(1, 2, 3, 4), (n) => n % 2 == 0)	engine-closure=1:38f1408567:0:0	engine-iterative=1:c2c207dcd2:0:0	engine-vm=1:5c72720006:0:0	go-node=1:6af9bf354e:0:0	go-node-recognize=1:075b4197d9:0:0	go-typed=1:e94e997171:0:0	go-typed-recognize=1:aa0e89e631:0:0	ts-node=1:02f96b1255:0:0
+termchargesiter/term 56: filter(list(1, 2), (n) => false)	engine-closure=1:34c4bfd3e8:0:0	engine-iterative=1:fb530a8630:0:0	engine-vm=1:42d9d3c285:0:0	go-node=1:6b73501a14:0:0	go-node-recognize=1:58d3d49fad:0:0	go-typed=1:91ecbd37eb:0:0	go-typed-recognize=1:8f990e27a3:0:0	ts-node=1:baed03ce3f:0:0
+termchargesiter/term 57: len(filter(list(), (n) => true))	engine-closure=1:0fa6486cab:0:0	engine-iterative=1:79bf694df4:0:0	engine-vm=1:713c923f8c:0:0	go-node=1:838b1790e4:0:0	go-node-recognize=1:b538a1a179:0:0	go-typed=1:6236847699:0:0	go-typed-recognize=1:e0a597b824:0:0	ts-node=1:8ff5ea65f0:0:0
+termchargesiter/term 58: len(filter(list($x, $y), (n) => text(n) != ""))	engine-closure=1:1603fa5b9f:0:0	engine-iterative=1:4acade5c4f:0:0	engine-vm=1:9b6e7ac751:0:0	go-node=1:dff6895286:0:0	go-node-recognize=1:50130e5c67:0:0	go-typed=1:fcffdc4e3c:0:0	go-typed-recognize=1:344f0a9720:0:0	ts-node=1:19f4bbd1ed:0:0
+termchargesiter/term 59: filter(list("a", "", "b"), (s) => s != "")	engine-closure=1:6d9a7161bb:0:0	engine-iterative=1:b5aa8d1da8:0:0	engine-vm=1:9e881e47e2:0:0	go-node=1:e699ab705e:0:0	go-node-recognize=1:fbdf3bd6de:0:0	go-typed=1:2f8b701d18:0:0	go-typed-recognize=1:f5f4238f84:0:0	ts-node=1:3e82a80a78:0:0
+termchargesiter/term 5: map(list(list(1), list(2, 3), list()), (l) => len(l))	engine-closure=1:9041a35254:0:0	engine-iterative=1:037df767f4:0:0	engine-vm=1:a8942f72e4:0:0	go-node=1:b1e83d099c:0:0	go-node-recognize=1:0f8a35718f:0:0	go-typed=1:0417b07f08:0:0	go-typed-recognize=1:0bb6b1754d:0:0	ts-node=1:7613fa2056:0:0
+termchargesiter/term 60: filter(list(1, 0), (n) => 1 / n == 1)	engine-closure=1:6fcb936b59:0:0	engine-iterative=1:b8f6d2f23d:0:0	engine-vm=1:a3074b5e1c:0:0	go-node=1:4d81207f4b:0:0	go-node-recognize=1:0b6ff232c5:0:0	go-typed=1:c4a204414c:0:0	go-typed-recognize=1:8ff59fa7ae:0:0	ts-node=1:91a154a1ac:0:0
+termchargesiter/term 61: len(map(list(1, 2), (n) => len(map(list(n, n), (m) => m + 1))))	engine-closure=1:778675faed:0:0	engine-iterative=1:15de807cfc:0:0	engine-vm=1:80d15491c0:0:0	go-node=1:6dfd5cf231:0:0	go-node-recognize=1:215ff61174:0:0	go-typed=1:480c9cf8b0:0:0	go-typed-recognize=1:e1d980a21c:0:0	ts-node=1:d0a7882a90:0:0
+termchargesiter/term 62: foldl(0, map(list(1, 2, 3), (n) => n * n), (a, n) => a + n)	engine-closure=1:4d212f32b6:0:0	engine-iterative=1:e76c6af87a:0:0	engine-vm=1:4ff0a8c959:0:0	go-node=1:7d8a5fa1ea:0:0	go-node-recognize=1:fe8e5027b6:0:0	go-typed=1:a0b5640a2a:0:0	go-typed-recognize=1:957dbb6ac3:0:0	ts-node=1:699a70e21e:0:0
+termchargesiter/term 63: map(list(1, 2), (n) => foldl(n, list(10, 20), (a, m) => a + m + n))	engine-closure=1:e3f5779053:0:0	engine-iterative=1:b56c1daa49:0:0	engine-vm=1:43564c2af7:0:0	go-node=1:4356bdead7:0:0	go-node-recognize=1:a21e151539:0:0	go-typed=1:97e21b23c7:0:0	go-typed-recognize=1:3448c76f5c:0:0	ts-node=1:3c80dde221:0:0
+termchargesiter/term 64: foldl(0, map(list(1, 2), (n) => I{N: n}), (a, s) => a + s.N)	engine-closure=1:b7d6a5169d:0:0	engine-iterative=1:1352d01894:0:0	engine-vm=1:3ac087bd52:0:0	go-node=1:433f77ed6b:0:0	go-node-recognize=1:f70508c772:0:0	go-typed=1:035dddf2a5:0:0	go-typed-recognize=1:a96eb0ab46:0:0	ts-node=1:452333b1a2:0:0
+termchargesiter/term 65: map(filter(list(I{N: 1}, I{}), (s) => s.N > 0), (s) => s.N)	engine-closure=1:8bb146ae33:0:0	engine-iterative=1:bb30e6a516:0:0	engine-vm=1:d45eaed746:0:0	go-node=1:2edd66c57a:0:0	go-node-recognize=1:fc3b80b4bb:0:0	go-typed=1:8d9a7db9cc:0:0	go-typed-recognize=1:5a4de81ddd:0:0	ts-node=1:57b2b3ed49:0:0
+termchargesiter/term 66: len(concat(list(1), map(list(2, 3), (n) => n), concat(list(4), filter(list(5, 6), (n) => n > 5))))	engine-closure=1:6f583fd4e7:0:0	engine-iterative=1:fdda9a3f33:0:0	engine-vm=1:39fd806816:0:0	go-node=1:c5d3afaa08:0:0	go-node-recognize=1:65fb211946:0:0	go-typed=1:16776f93a4:0:0	go-typed-recognize=1:5555db3bb9:0:0	ts-node=1:d8130f29bd:0:0
+termchargesiter/term 67: concat(map(list(1, 2), (n) => n + 1), list(9))	engine-closure=1:e4f82da96e:0:0	engine-iterative=1:a77de8a792:0:0	engine-vm=1:874f2202e2:0:0	go-node=1:9242af3d9c:0:0	go-node-recognize=1:7c411c6581:0:0	go-typed=1:d1b6414378:0:0	go-typed-recognize=1:32a0c70645:0:0	ts-node=1:866e6a2893:0:0
+termchargesiter/term 68: concat(list(1), map(list(1, 0), (n) => 1 / n))	engine-closure=1:7d097744d7:0:0	engine-iterative=1:0a811600d0:0:0	engine-vm=1:b71b07d50a:0:0	go-node=1:28f3cc8972:0:0	go-node-recognize=1:271fc03fd9:0:0	go-typed=1:1a9ea8cda5:0:0	go-typed-recognize=1:b55a442263:0:0	ts-node=1:85be6b71a0:0:0
+termchargesiter/term 69: len(map($rs, (e) => e.$w))	engine-closure=1:0fbb7f2972:0:0	engine-iterative=1:390157f543:0:0	engine-vm=1:fc01d64b27:0:0	go-node=1:aba7827e73:0:0	go-node-recognize=1:de4bc15f5e:0:0	go-typed=1:26cc4fd3db:0:0	go-typed-recognize=1:bc16c01538:0:0	ts-node=1:aa37dbef78:0:0
+termchargesiter/term 6: map(list(2, 1, 0), (n) => 6 / n)	engine-closure=1:24368ae656:0:0	engine-iterative=1:9781a6d60f:0:0	engine-vm=1:16ed0d27e3:0:0	go-node=1:864ecb4407:0:0	go-node-recognize=1:4be3b8ed6f:0:0	go-typed=1:30efd4be7e:0:0	go-typed-recognize=1:3ff7bfe542:0:0	ts-node=1:3e1da6e266:0:0
+termchargesiter/term 70: len(concat(list($x), map($rs, (e) => e.$w)))	engine-closure=1:4bf67c58bd:0:0	engine-iterative=1:315ae800e8:0:0	engine-vm=1:3815e44fc0:0:0	go-node=1:d753874e9c:0:0	go-node-recognize=1:64a0bef7dc:0:0	go-typed=1:800f865200:0:0	go-typed-recognize=1:180f78cc34:0:0	ts-node=1:01c868dc3e:0:0
+termchargesiter/term 71: len(map(list($x, $y), (n) => n)) == 2	engine-closure=2:6883cd44c1:0:0	engine-iterative=2:9962592ca3:0:0	engine-vm=2:5b730ce9aa:0:0	go-node=2:8f986126e4:0:0	go-node-recognize=2:5fd394a936:0:0	go-typed=2:912d86c942:0:0	go-typed-recognize=2:4333453e00:0:0	ts-node=2:7bae7c2457:0:0
+termchargesiter/term 72: len(map(list(1, 0), (n) => 1 / n)) == 2	engine-closure=2:1e44525451:0:0	engine-iterative=2:3beac788b4:0:0	engine-vm=2:14a0ea6b72:0:0	go-node=2:12c03b3d5e:0:0	go-node-recognize=2:02dd6cfc32:0:0	go-typed=2:9970c64b8c:0:0	go-typed-recognize=2:4dd51399bb:0:0	ts-node=2:b10e3757cc:0:0
+termchargesiter/term 73: foldl(0, filter(list(1, 2, 3), (n) => n > 1), (a, n) => a + n) == 5	engine-closure=2:4407d482ed:0:0	engine-iterative=2:c10f9387f0:0:0	engine-vm=2:e333a421f9:0:0	go-node=2:4fab4e1e71:0:0	go-node-recognize=2:32386d1739:0:0	go-typed=2:6717f23ab6:0:0	go-typed-recognize=2:1e08476fcc:0:0	ts-node=2:6c7520165e:0:0
+termchargesiter/term 7: foldl(0, list(1, 2, 3), (a, n) => a * 10 + n)	engine-closure=1:084d977844:0:0	engine-iterative=1:7710f2bc0b:0:0	engine-vm=1:77e2a7bc34:0:0	go-node=1:2068b2834b:0:0	go-node-recognize=1:ab3627b570:0:0	go-typed=1:86f1763ee6:0:0	go-typed-recognize=1:8e7fcb6b14:0:0	ts-node=1:6a40afc206:0:0
+termchargesiter/term 8: foldr(0, list(1, 2, 3), (a, n) => a * 10 + n)	engine-closure=1:49a36ca073:0:0	engine-iterative=1:f608824c00:0:0	engine-vm=1:af35c8bc64:0:0	go-node=1:34aa45f247:0:0	go-node-recognize=1:dbad6ce420:0:0	go-typed=1:9ef0d5eff0:0:0	go-typed-recognize=1:c227029e02:0:0	ts-node=1:36630f3637:0:0
+termchargesiter/term 9: foldl("", list("a", "b", "c"), (a, s) => a + s)	engine-closure=1:ea0eabe47c:0:0	engine-iterative=1:781b3b7b71:0:0	engine-vm=1:0c81c193d7:0:0	go-node=1:4a11db6e00:0:0	go-node-recognize=1:c0831b0598:0:0	go-typed=1:49a84b438c:0:0	go-typed-recognize=1:58833a0579:0:0	ts-node=1:f4361bbb18:0:0
