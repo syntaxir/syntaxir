@@ -89,13 +89,17 @@ func TestRecoveryMutantsFail(t *testing.T) {
 			{"a growth step keeps the errors of the step before",
 				[]printedEdit{{"\t\t\t\tp.growAdopt(&g, v, p.recSince(rec))\n\t\t\t\tp.Recovered = p.Recovered[:rec]\n", "\t\t\t\tp.growAdopt(&g, v, p.recSince(rec))\n"}},
 				"^TestMissingTokensLeftRecursion$", []string{"."}},
+			// The growth in a context drops the errors of each step after GrowStep took them as a parameter.
+			{"a growth that grew keeps the errors of the step before",
+				[]printedEdit{{"\t\t\t\tp.GrowStep(&g, v, ok, p.recSince(rec))\n\t\t\t\tp.Recovered = p.Recovered[:rec]\n", "\t\t\t\tp.GrowStep(&g, v, ok, p.recSince(rec))\n"}},
+				"^TestLeftRecursionDependencyMemoUnexamined$", []string{"."}},
 		})
 		runPrintedMutants(t, "internal/runtime/state/runtime.go", []printedMutant{
 			{"a growth step of the VM keeps the errors of the step before",
 				[]printedEdit{{"\t\tp.growAdopt(g, v, p.recSince(g.Rec))\n\t\tp.Recovered = p.Recovered[:g.Rec]\n", "\t\tp.growAdopt(g, v, p.recSince(g.Rec))\n"}},
 				"^TestBudgetDiagnosticRecoveredLists$", []string{"zeroparse.dev/zp/internal/runtime/vm"}},
-			{"a growth that grew keeps the errors of the step before",
-				[]printedEdit{{"\tp.Pos = g.start\n\tp.Recovered = p.Recovered[:g.Rec]\n\treturn true", "\tp.Pos = g.start\n\treturn true"}},
+			{"a growth step of the VM in a context keeps the errors of the step before",
+				[]printedEdit{{"\tp.GrowStep(g, v, ok, errs)\n\tp.Recovered = p.Recovered[:g.Rec]\n", "\tp.GrowStep(g, v, ok, errs)\n"}},
 				"^TestLeftRecursionDependencyMemoUnexamined$", []string{"."}},
 		})
 		runPrintedMutants(t, "internal/runtime/state/missing_token.go", []printedMutant{
