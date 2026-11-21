@@ -443,6 +443,20 @@ ordering and the required passes, is internal test support, outside the public A
 | `exectest` | Test support for the Exec stage, which calls passes and printers. |
 | `codegentest`, `compiletest`, `enginetest`, `factstest`, `starttest`, `complexitytest`, `recoveryquality` | Repository test support, one package per kind of test. The tree names them and gives no further role. |
 
+### Package Name Collisions
+
+Package names may repeat across paths. The criterion is that no file imports two packages of the same name without an
+alias. Renaming a package to avoid a repeated name needs the owner's approval. The accepted repeated names are:
+
+- `types`: the generated parser types under `internal/bench/parsers/*/types` and `internal/frontend/types`, and
+  `internal/frontend/parser/sxirparser/types`.
+- `pass`: `internal/pass`, `internal/backend/codegen/golang/pass` and `internal/backend/codegen/typescript/pass`.
+- `lint`: `internal/analysis/lint` and `pkg/lint`.
+- `vm`: `internal/runtime/vm` and `pkg/runtime/vm`.
+- `gen` and `schema`: the public packages and their internal counterparts.
+
+The import-graph test (`internal/testing/archtest`) enforces the criterion over every tracked Go file outside testdata.
+
 ## Alternatives Considered
 
 - **Keep three representations, with Flow and Exec as separate IRs.** Each representation needs its own structure,
