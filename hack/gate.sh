@@ -21,7 +21,7 @@
 #           for a release; it replaces the affected-package test steps that engine and full plan.
 #
 # The gate runs what the change can affect and nothing more: the generate step only when the affected computation
-# reports a generator, a generator input or a generated file, alpha-parsers only when it reports a codegen or runtime
+# reports a generator, a generator input or a generated file, alpha-parsers only when it reports the generator, a grammar or a runtime
 # library, the site steps only when docs/, spec/, site/ or README.md changed since REV. vet and build always run. A
 # step that is left out is planned and recorded as "NAME skipped (REASON)", never silently. Every condition fails
 # closed: when the affected packages or the changed files cannot be computed, the step runs, and the test steps then
@@ -221,7 +221,7 @@ if want engine || want all; then
 	if aff_has_marker alpha; then
 		step alpha-parsers 'hack/test-alpha-parsers.sh' hack/test-alpha-parsers.sh beside
 	else
-		skipstep alpha-parsers "no codegen or runtime library is affected since $base"
+		skipstep alpha-parsers "neither the generator, a grammar nor a runtime library is affected since $base"
 	fi
 	if aff_has_pkg internal/runtime/engine internal/runtime/state internal/runtime/document; then
 		step reference-tags 'hack/test-reference-tags.sh (tags 4 at a time)' hack/test-reference-tags.sh beside

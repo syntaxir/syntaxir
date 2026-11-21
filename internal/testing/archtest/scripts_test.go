@@ -402,6 +402,7 @@ func TestAffectedTestsDeletedPackages(t *testing.T) {
 	write(t, filepath.Join(w, "codegen", "c.go"), "package codegen\n", 0o644)
 	write(t, filepath.Join(w, "user", "u.go"), "package user\n\nimport _ \""+mod+"/codegen\"\n", 0o644)
 	write(t, filepath.Join(w, "dep", "d.go"), "package dep\n\nimport _ \""+mod+"/pkg/runtime/libgo\"\n", 0o644)
+	write(t, filepath.Join(w, "cmd", "sxir", "main.go"), "package main\n\nfunc main() {}\n", 0o644)
 	mustRun(t, w, env, "git", "init", "-q", "-b", "main")
 	mustRun(t, w, env, "git", "add", ".")
 	mustRun(t, w, env, "git", "commit", "-q", "-m", "Seed")
@@ -437,6 +438,72 @@ func TestAffectedTestsDeletedPackages(t *testing.T) {
 	write(t, filepath.Join(w, "go.mod"), "module "+mod+"\n\ngo 1.21\nbogus\n", 0o644)
 	if out, err := runIn(t, w, env, "sh", filepath.Join(w, "hack", "affected-tests.sh"), base, "HEAD"); err == nil {
 		t.Errorf("a failing go list succeeded with %q", out)
+	}
+}
+
+// TestAffectedTestsGeneratorDependencies runs hack/affected-tests.sh in a scratch module whose generator, cmd/sxir,
+// imports a middle-end package. A change of a non-test file of that package, or of a file it embeds, changes what
+// the generator prints, so it affects go generate and alpha-parsers ("# generate" and "# alpha") although no path rule
+// names the package; a change of its tests or of a package the generator does not import affects neither, and a
+// module without the generator fails the script instead of printing neither.
+func TestAffectedTestsGeneratorDependencies(t *testing.T) {
+	needTools(t)
+	for _, tool := range []string{"go", "python3"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			t.Skipf("%s is not installed", tool)
+		}
+	}
+	b, err := os.ReadFile(filepath.Join("..", "..", "..", "hack", "affected-tests.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := t.TempDir()
+	env := append(scriptEnv(t, t.TempDir()), "GOFLAGS=-mod=mod", "GOWORK=off", "GOTOOLCHAIN=local")
+	const mod = "syntaxir.dev/sxir"
+	write(t, filepath.Join(w, "hack", "affected-tests.sh"), string(b), 0o755)
+	write(t, filepath.Join(w, "go.mod"), "module "+mod+"\n\ngo 1.21\n", 0o644)
+	write(t, filepath.Join(w, "cmd", "sxir", "main.go"), "package main\n\nimport _ \""+mod+"/internal/middleend/flowlower\"\n\nfunc main() {}\n", 0o644)
+	write(t, filepath.Join(w, "internal", "middleend", "flowlower", "l.go"), "package flowlower\n\nimport _ \"embed\"\n\n//go:embed t.txt\nvar T string\n", 0o644)
+	write(t, filepath.Join(w, "internal", "middleend", "flowlower", "t.txt"), "t\n", 0o644)
+	write(t, filepath.Join(w, "internal", "middleend", "flowlower", "l_test.go"), "package flowlower\n", 0o644)
+	write(t, filepath.Join(w, "internal", "lsp", "sxirls", "s.go"), "package sxirls\n", 0o644)
+	mustRun(t, w, env, "git", "init", "-q", "-b", "main")
+	mustRun(t, w, env, "git", "add", ".")
+	mustRun(t, w, env, "git", "commit", "-q", "-m", "Seed")
+	base := strings.TrimSpace(mustRun(t, w, env, "git", "rev-parse", "HEAD"))
+	for _, c := range []struct {
+		dir, file string
+		markers   bool
+	}{
+		{"internal/middleend/flowlower", "l.go", true},
+		{"internal/middleend/flowlower", "t.txt", true},
+		{"cmd/sxir", "main.go", true},
+		{"internal/middleend/flowlower", "l_test.go", false},
+		{"internal/lsp/sxirls", "s.go", false},
+	} {
+		mustRun(t, w, env, "git", "checkout", "-q", "--detach", base)
+		f := filepath.Join(w, c.dir, c.file)
+		old, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		write(t, f, string(old)+"\n// changed\n", 0o644)
+		if strings.HasSuffix(c.file, ".txt") {
+			write(t, f, "changed\n", 0o644)
+		}
+		mustRun(t, w, env, "git", "commit", "-q", "-a", "-m", c.dir+"/"+c.file)
+		out := mustRun(t, w, env, "sh", filepath.Join(w, "hack", "affected-tests.sh"), base, "HEAD")
+		gen, alpha := strings.Contains(out, "\n# generate\n"), strings.Contains(out, "\n# alpha\n")
+		if gen != c.markers || alpha != c.markers {
+			t.Errorf("a change of %s/%s: generate %v, alpha %v, want %v:\n%s", c.dir, c.file, gen, alpha, c.markers, out)
+		}
+	}
+
+	mustRun(t, w, env, "git", "checkout", "-q", "--detach", base)
+	mustRun(t, w, env, "git", "rm", "-q", "-r", "cmd")
+	mustRun(t, w, env, "git", "commit", "-q", "-m", "Delete the generator")
+	if out, err := runIn(t, w, env, "sh", filepath.Join(w, "hack", "affected-tests.sh"), base, "HEAD"); err == nil {
+		t.Errorf("a module without cmd/sxir succeeded with %q", out)
 	}
 }
 

@@ -13,6 +13,9 @@
 #     it through a copy or a replace directive that the import graph does not show.
 # A change of go.mod, go.work, go.sum or this script selects every package and both of the following lines. The output ends with the lines
 # "# generate" and "# alpha" when `go generate ./internal/backend/... ./bench ./internal/frontend/parser ./spec/language` or hack/test-alpha-parsers.sh is affected.
+# Both run the generator, cmd/sxir: a change of a non-test Go file of cmd/sxir or of a package it depends on, or of a
+# file such a package embeds, affects both, besides the paths that the rules below name (the grammars, the generate
+# targets and their inputs).
 set -eu
 why=0
 [ "${1:-}" = -why ] && { why=1; shift; }
@@ -62,6 +65,9 @@ def add(p, f, up=False):
     sel.setdefault(p, f)
     if up: prop.add(p)
 allp = False; gen = False; alpha = False
+sxir = pk.get(mod + "/cmd/sxir")
+if sxir is None: sys.exit("affected-tests: no package cmd/sxir, the generator")
+gdeps = set(sxir.get("Deps") or []) | {mod + "/cmd/sxir"}
 for f in files:
     if f in ("go.mod", "go.work", "go.sum", "hack/affected-tests.sh"):
         allp = True; gen = True; alpha = True; sel.update({p: f for p in pk}); continue
@@ -79,9 +85,11 @@ for f in files:
             if k == 1: continue
             for p, t in text.items():
                 if a in t: add(p, f)
+    if (own in gdeps and f.endswith((".go", ".s")) and not f.endswith("_test.go")) or any(p in gdeps for p in embed.get(f, ())):
+        gen = True; alpha = True
     if f.startswith(HEAVY_TRIG):
         for h in HEAVY: add(mod + ("/" + h if h else ""), f, True)
-    if f.startswith(("pkg/compiler/", "pkg/runtime/", "bench/", "spec/language/", "internal/backend/codegen/common/", "internal/compile/", "internal/runtime/engine/", "internal/frontend/parser/", "internal/ir/", "testdata/grammars/", "internal/bench/")):
+    if f.startswith(("pkg/compiler/", "pkg/runtime/", "bench/", "spec/language/", "internal/backend/", "internal/compile/", "internal/runtime/engine/", "internal/frontend/parser/", "internal/ir/", "testdata/grammars/", "internal/bench/")):
         gen = True
     if f.startswith(("testdata/grammars/", "internal/backend/codegen/common/", "internal/compile/", "internal/runtime/engine/", "internal/frontend/parser/", "pkg/compiler/", "pkg/runtime/", "internal/ir/")):
         alpha = True
