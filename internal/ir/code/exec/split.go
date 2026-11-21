@@ -67,7 +67,7 @@ the parse runs in the missing-token mode and the rule or a rule it calls can ins
 	m.AddOp(&code.Op{Name: "missing.mark", Component: Rec, Results: []code.Type{code.TInt},
 		Reads: []string{Rec}, Features: miss,
 		Contract: `Returns a mark of the missing-token record, for missing.reset.`})
-	m.AddOp(&code.Op{Name: "missing.reset", Component: Rec, Params: []code.Param{code.P("mark", code.TInt)},
+	m.AddOp(&code.Op{Name: "missing.reset", NoReturn: true, Component: Rec, Params: []code.Param{code.P("mark", code.TInt)},
 		Writes: []string{Rec}, Features: miss, Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QTokens}}},
 		Contract: `Removes the tokens inserted after mark, in the missing-token mode; does nothing outside it.`,
 		Requires: `mark is a result of missing.mark at or before every later mark that is still in use.`})

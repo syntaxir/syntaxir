@@ -301,7 +301,7 @@ call. Otherwise the null result.`,
 		Requires: `c is in a context.`})
 	m.AddOp(&code.Op{Name: "ctx.push", Component: Growth, Params: []code.Param{ctxArg}, Writes: []string{Growth},
 		Contract: `Starts recording the dependencies of the evaluation of the call, if it is in a context.`})
-	m.AddOp(&code.Op{Name: "ctx.pop", Component: Growth, Params: []code.Param{ctxArg}, Results: []code.Type{code.TInt},
+	m.AddOp(&code.Op{Name: "ctx.pop", NoReturn: true, Component: Growth, Params: []code.Param{ctxArg}, Results: []code.Type{code.TInt},
 		Reads: []string{Growth}, Writes: []string{Growth}, Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QDeps}}},
 		Contract: `Ends recording the dependencies of the evaluation and returns where its result goes:
 ctx.storeMemo for the memo (it read no seed, made no observation and its context's leaders all have

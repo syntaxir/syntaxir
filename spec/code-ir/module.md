@@ -49,7 +49,7 @@ An operation is a transition of the abstract state. Its declaration has the foll
 | Signature | Its parameters, each with a name and a type, and its result types, any number |
 | Reads, writes | The components and registers it reads and writes. It writes only its own component and registers, except a transitional operation (see [Operation Kinds](#operation-kinds)), which declares every component it changes, so that a pass sees each state it changes |
 | Features | The features it exists in. None means every build |
-| No return | It may end the parse instead of returning: an interruption, such as an exhausted budget |
+| No return | It may end the parse instead of returning: an interruption, such as an exhausted budget. An operation that declares a cost has it, because a charge ends the parse when the budget runs out (see [Costs](#costs)) |
 | Contract | What every implementation does, observable through its results, the state afterwards, the statistics it counts and what it charges |
 | Requires | The precondition that its callers guarantee. Behavior outside it is unspecified: implementations may differ on states that no function reaches, and conformance never exercises them |
 | Cost | The bound on the units that one call charges the budget (below) |

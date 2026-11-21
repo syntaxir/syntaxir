@@ -140,6 +140,8 @@ operation of constant work charges nothing, because the call or the step around 
 builds, gathers, takes off, drops and attaches captures to charge nothing ([Cost](../runtime/parsing.md#cost)); the value
 of a recovered error charges a unit and its message. An operation whose Go form is a
 [composition](../exec-ir/compositions.md) is bounded by what that composition charges.
+An operation with a cost is declared No return ([Operations](../code-ir/module.md#operations)), since a charge ends
+the parse when the budget runs out; the verifier rejects one that is not.
 
 | Quantity | Measures |
 |:--|:--|

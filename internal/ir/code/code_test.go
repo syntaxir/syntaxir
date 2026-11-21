@@ -14,11 +14,10 @@ func testModule() *Module {
 	tok := m.AddHandle("Token", "counter", "A token of the counter.")
 	m.AddOp(&Op{Name: "counter.next", Component: "counter", Results: []Type{TInt, tok},
 		Reads: []string{"counter"}, Writes: []string{"counter"},
-		Contract: "Returns the count before the call and a token, and adds one.",
-		Cost:     Cost{Const: 1}})
+		Contract: "Returns the count before the call and a token, and adds one."})
 	m.AddOp(&Op{Name: "counter.charge", Component: "counter", Params: []Param{P("n", TU64)},
-		Features: []string{"budget"}, NoReturn: true, Contract: "Charges n.",
-		Cost: Cost{Terms: []CostTerm{{Coef: 1, Quantity: "n"}}}})
+		Features: []string{"budget"}, NoReturn: true, Contract: "Charges one and n.",
+		Cost: Cost{Const: 1, Terms: []CostTerm{{Coef: 1, Quantity: "n"}}}})
 	return m
 }
 
@@ -43,8 +42,8 @@ func TestBuildVerifyAndPrint(t *testing.T) {
 	}
 	got := String(m)
 	for _, want := range []string{
-		"op counter.next() (int, Token)\n  component counter\n  reads counter\n  writes counter\n  cost <= 1\n",
-		"  noreturn\n  cost <= 0 + 1*n\n",
+		"op counter.next() (int, Token)\n  component counter\n  reads counter\n  writes counter\n",
+		"  noreturn\n  cost <= 1 + 1*n\n",
 		"func count(limit int) int [budget] {\n  let sum = 0\n  loop each {\n    let n, tok = counter.next()\n" +
 			"    if (n >= limit) {\n      break each\n    }\n    sum = (sum + n)\n    counter.charge(u64(1))\n" +
 			"    $pos = ($pos + 1)\n  }\n  return sum\n}\n",
@@ -71,6 +70,13 @@ func TestVerifyRejects(t *testing.T) {
 		{"no contract", func(m *Module) {
 			m.AddOp(&Op{Name: "counter.y", Component: "counter"})
 		}, "no contract"},
+		{"constant cost without NoReturn", func(m *Module) {
+			m.AddOp(&Op{Name: "counter.y", Component: "counter", Contract: "Charges one.", Cost: Cost{Const: 1}})
+		}, "op counter.y: declares a cost, which may end the parse, but not NoReturn"},
+		{"cost term without NoReturn", func(m *Module) {
+			m.AddOp(&Op{Name: "counter.y", Component: "counter", Params: []Param{P("n", TU64)}, Contract: "Charges n.",
+				Cost: Cost{Terms: []CostTerm{{Coef: 1, Quantity: "n"}}}})
+		}, "op counter.y: declares a cost, which may end the parse, but not NoReturn"},
 		{"application of a handle that is not callable", func(m *Module) {
 			m.AddFunc("f", []Param{P("t", THandle("Token"))}, nil, nil, func(b *Builder) { b.Do("counter.charge", U64(1)); b.Let("x", Ap(L("t"), Int(1))) })
 		}, "application of a value of type Token, which is not a callable handle"},

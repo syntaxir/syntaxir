@@ -148,7 +148,7 @@ host's value equality.`)
 	}
 
 	docOnly := code.P("docOnly", code.TBool)
-	m.AddOp(&code.Op{Name: "memo.lookup", Component: Memo, Params: with(key, docOnly), Results: []code.Type{entry, code.TBool},
+	m.AddOp(&code.Op{Name: "memo.lookup", NoReturn: true, Component: Memo, Params: with(key, docOnly), Results: []code.Type{entry, code.TBool},
 		Reads: []string{Memo}, Cost: scan,
 		Contract: `Returns the entry stored under the key, if one is there and not replaced, and true;
 otherwise false and an entry that must not be used. Two keys are equal when their rules, positions

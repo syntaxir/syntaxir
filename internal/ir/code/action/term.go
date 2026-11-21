@@ -66,7 +66,7 @@ unit for each element it copies.`,
 		Writes: []string{Gathered}, NoReturn: true, Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QDropped}}},
 		Contract: `Drops the elements gathered after the mark, and charges one unit for each.`,
 		Requires: `mark came from term.kids and is at most the number of the elements gathered.`})
-	m.AddOp(&code.Op{Name: "term.elemsAbove", Component: Gathered, Params: []code.Param{code.P("mark", code.TInt)}, Results: []code.Type{items},
+	m.AddOp(&code.Op{Name: "term.elemsAbove", NoReturn: true, Component: Gathered, Params: []code.Param{code.P("mark", code.TInt)}, Results: []code.Type{items},
 		Reads: []string{Gathered}, Writes: []string{Gathered}, Cost: code.Cost{Terms: []code.CostTerm{{Coef: 2, Quantity: QDropped}}},
 		Contract: `Takes the elements gathered after the mark off the elements gathered and returns them in order, for a
 list or a tuple to take over. It charges two units for each: one for copying it and one for taking it off, as

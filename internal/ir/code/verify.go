@@ -202,6 +202,11 @@ func (v *verifier) op(o *Op) {
 	if o.Cost.Const < 0 {
 		v.errorf("%s: negative cost", where)
 	}
+	// A charge of the budget ends the parse when the budget runs out, so an operation that declares
+	// one may end the parse.
+	if (o.Cost.Const != 0 || len(o.Cost.Terms) != 0) && !o.NoReturn {
+		v.errorf("%s: declares a cost, which may end the parse, but not NoReturn", where)
+	}
 }
 
 // scope is a lexical scope of locals, with the labels of the enclosing blocks and loops.
