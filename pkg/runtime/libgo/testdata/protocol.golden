@@ -1,4 +1,4 @@
-protocol 24
+protocol 25
 const BaseString untyped int = 0
 const ExpFar ExpID = 536870912
 const IdAny ExpID = 0
@@ -35,6 +35,7 @@ const RuleNovalue uint8 = 4
 const RulePositional uint8 = 64
 const RuleRec uint8 = 32
 const RuleSplice uint8 = 16
+const RunHotSpan untyped int = 64
 const TerminalChoice uint16 = 3
 const TerminalClass uint16 = 0
 const TerminalGuard uint16 = 6
@@ -433,5 +434,4 @@ var EmptyFrame *CaptureFrame
 var EmptyTFrame *TCaptureFrame
 var ListKind *syntaxir.dev/sxir/pkg/runtime/value/impl.Kind
 var MatchKind *syntaxir.dev/sxir/pkg/runtime/value/impl.Kind
-var RunHotSpan int
 var SeqKind *syntaxir.dev/sxir/pkg/runtime/value/impl.Kind

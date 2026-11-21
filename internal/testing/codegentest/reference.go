@@ -157,7 +157,14 @@ func GeneratedParsersCorpus(t *testing.T, goBin string, cases []Case, opts commo
 // requires some.
 func GeneratedParsersMismatches(t *testing.T, goBin string, cases []Case, opts common.GenOptions, mutate func([]byte) []byte) []string {
 	t.Helper()
-	got, want := GeneratedParsersOutputs(t, goBin, cases, opts, mutate)
+	return GeneratedParsersMismatchesWithLib(t, goBin, LibCopy(), cases, opts, mutate)
+}
+
+// GeneratedParsersMismatchesWithLib is GeneratedParsersMismatches with the parsers built against
+// the copy of the library in the module directory lib (LibCopyWith, LibRunHotSpan).
+func GeneratedParsersMismatchesWithLib(t *testing.T, goBin, lib string, cases []Case, opts common.GenOptions, mutate func([]byte) []byte) []string {
+	t.Helper()
+	got, want := generatedParsersOutputs(t, goBin, lib, cases, opts, mutate, false)
 	return outputMismatches(cases, got, want)
 }
 
@@ -166,7 +173,7 @@ func GeneratedParsersMismatches(t *testing.T, goBin string, cases []Case, opts c
 // with comments and the limit controls of the fixtures.
 func GeneratedParsersEmbedCorpus(t *testing.T, goBin string, cases []Case, opts common.GenOptions) {
 	t.Helper()
-	got, want := generatedParsersOutputs(t, goBin, cases, opts, nil, true)
+	got, want := generatedParsersOutputs(t, goBin, LibCopy(), cases, opts, nil, true)
 	for _, m := range outputMismatches(cases, got, want) {
 		t.Error(m)
 	}
@@ -196,12 +203,13 @@ func outputMismatches(cases []Case, got, want []string) []string {
 // error.
 func GeneratedParsersOutputs(t *testing.T, goBin string, cases []Case, opts common.GenOptions, mutate func([]byte) []byte) (got, want []string) {
 	t.Helper()
-	return generatedParsersOutputs(t, goBin, cases, opts, mutate, false)
+	return generatedParsersOutputs(t, goBin, LibCopy(), cases, opts, mutate, false)
 }
 
 // generatedParsersOutputs is GeneratedParsersOutputs, with packages that carry their own copy of
-// the library if embed is set.
-func generatedParsersOutputs(t *testing.T, goBin string, cases []Case, opts common.GenOptions, mutate func([]byte) []byte, embed bool) (got, want []string) {
+// the library if embed is set, and otherwise import the copy of the library in the module
+// directory lib.
+func generatedParsersOutputs(t *testing.T, goBin, lib string, cases []Case, opts common.GenOptions, mutate func([]byte) []byte, embed bool) (got, want []string) {
 	t.Helper()
 	dir := t.TempDir()
 	write := func(name, content string) {
@@ -211,7 +219,7 @@ func generatedParsersOutputs(t *testing.T, goBin string, cases []Case, opts comm
 			t.Fatal(err)
 		}
 	}
-	write("go.mod", GoMod("codegentest"))
+	write("go.mod", GoModAt("codegentest", lib))
 	var imports, parsers, recognizers, viewers strings.Builder
 	var inputs [][]string
 	for i, c := range cases {
@@ -339,6 +347,13 @@ func GeneratedTypesCorpus(t *testing.T, goBin string, cases []Case, reference co
 // route) are changed with mutate when it is not nil, so that a negative control can require some.
 func GeneratedTypesMismatches(t *testing.T, goBin string, cases []Case, reference common.GenOptions, mutate func([]byte) []byte, requiredTyped ...int) []string {
 	t.Helper()
+	return GeneratedTypesMismatchesWithLib(t, goBin, LibCopy(), cases, reference, mutate, requiredTyped...)
+}
+
+// GeneratedTypesMismatchesWithLib is GeneratedTypesMismatches with the parsers built against the
+// copy of the library in the module directory lib (LibCopyWith, LibRunHotSpan).
+func GeneratedTypesMismatchesWithLib(t *testing.T, goBin, lib string, cases []Case, reference common.GenOptions, mutate func([]byte) []byte, requiredTyped ...int) []string {
+	t.Helper()
 	var mismatches []string
 	fail := func(format string, args ...any) { mismatches = append(mismatches, fmt.Sprintf(format, args...)) }
 	dir := t.TempDir()
@@ -349,7 +364,7 @@ func GeneratedTypesMismatches(t *testing.T, goBin string, cases []Case, referenc
 			t.Fatal(err)
 		}
 	}
-	write("go.mod", GoMod("codegentest"))
+	write("go.mod", GoModAt("codegentest", lib))
 	var imports, parsers, converters strings.Builder
 	var inputs [][]string
 	var wantErr []string

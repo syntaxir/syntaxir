@@ -2,6 +2,7 @@ package codegentest
 
 import (
 	"bytes"
+	"fmt"
 	goast "go/ast"
 	goparser "go/parser"
 	"go/scanner"
@@ -207,6 +208,31 @@ func LibCopyWith(t testing.TB, patch func(name, src string) string, extra map[st
 	dir := t.TempDir()
 	writeLibCopy(dir, patch, extra)
 	return dir
+}
+
+// LibRunHotSpan returns a copy of the library like LibCopy whose run sites turn hot at span instead
+// of at the constant RunHotSpan of the charge model, for the tests that run the hot path of
+// generated parsers on short inputs. It changes the model, so only results, not charges, may be
+// compared with those of the library.
+func LibRunHotSpan(t testing.TB, span int) string {
+	t.Helper()
+	return LibCopyWith(t, RunHotSpanPatch(t, span), nil)
+}
+
+// RunHotSpanPatch returns the patch of the library source (LibCopyWith) that makes its run sites
+// turn hot at span. It fails the test if the library does not declare the constant as the patch
+// expects.
+func RunHotSpanPatch(t testing.TB, span int) func(name, src string) string {
+	return func(name, src string) string {
+		if name != "skip_runs.go" {
+			return src
+		}
+		const decl = "const RunHotSpan = 64\n"
+		if !strings.Contains(src, decl) {
+			t.Fatalf("libgo/skip_runs.go declares no %q", decl)
+		}
+		return strings.Replace(src, decl, fmt.Sprintf("const RunHotSpan = %d\n", span), 1)
+	}
 }
 
 // copiedPackages are the directories of the packages that generated code imports, relative to the

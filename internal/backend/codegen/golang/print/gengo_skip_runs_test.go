@@ -94,7 +94,11 @@ func generatedDocumentEdits(t *testing.T, goBin string, grammars []struct{ Name,
 			t.Fatal(err)
 		}
 	}
-	write("go.mod", codegentest.GoMod("skipdoc"))
+	lib := codegentest.LibCopy()
+	if hotSpan > 0 {
+		lib = codegentest.LibRunHotSpan(t, hotSpan)
+	}
+	write("go.mod", codegentest.GoModAt("skipdoc", lib))
 	var imports, checks strings.Builder
 	n := 0
 	for _, c := range grammars {
@@ -103,9 +107,6 @@ func generatedDocumentEdits(t *testing.T, goBin string, grammars []struct{ Name,
 			t.Fatalf("%s: %v", c.Name, err)
 		}
 		codegentest.GeneratePackageIn(t, dir, "skipdoc", fmt.Sprintf("g%d", n), g, common.GenOptions{Start: "main", Types: true, Document: true})
-		if hotSpan > 0 {
-			write(fmt.Sprintf("g%d/span.go", n), fmt.Sprintf("package g%d\n\nimport rt %q\n\nfunc init() { rt.RunHotSpan = %d }\n", n, "syntaxir.dev/sxir/pkg/runtime/libgo", hotSpan))
-		}
 		fmt.Fprintf(&imports, "\tg%d \"skipdoc/g%d\"\n", n, n)
 		fmt.Fprintf(&checks, `	{%q, %q, func(text string, edits func(string) (int, int, string, bool)) string {
 		d, err := g%[3]d.NewDocument(text)

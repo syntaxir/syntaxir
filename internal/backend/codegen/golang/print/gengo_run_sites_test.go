@@ -1,7 +1,6 @@
 package print_test
 
 import (
-	"bytes"
 	"fmt"
 	"math"
 	"math/rand"
@@ -16,18 +15,6 @@ import (
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
-// runSpanAt returns a mutation of a generated parser that imports the library which makes the run
-// sites of the program turn hot at span instead of the threshold of the library.
-func runSpanAt(t *testing.T, span int) func([]byte) []byte {
-	return func(code []byte) []byte {
-		const lib = "rt \"syntaxir.dev/sxir/pkg/runtime/libgo\""
-		if !bytes.Contains(code, []byte(lib)) {
-			t.Fatalf("the generated parser does not import the library as rt")
-		}
-		return append(code, fmt.Sprintf("\nfunc init() { rt.RunHotSpan = %d }\n", span)...)
-	}
-}
-
 // TestRunSitesGeneratedMatchEngine checks that generated parsers, whose run sites record and reuse
 // their walks, give the engine's results on the run-site grammars: values, syntax errors with their
 // expectations and recovered errors, from the Node, Document and typed entry points. Short inputs
@@ -41,13 +28,14 @@ func TestRunSitesGeneratedMatchEngine(t *testing.T) {
 func testRunSitesGeneratedMatchEngine(t *testing.T) {
 	goBin := skipRunsGoBin(t)
 	short, long := codegentest.RunSiteCases(40, false), codegentest.RunSiteCases(4, true)
-	for _, m := range codegentest.GeneratedParsersMismatches(t, goBin, short, common.GenOptions{}, runSpanAt(t, 1)) {
+	lib := codegentest.LibRunHotSpan(t, 1)
+	for _, m := range codegentest.GeneratedParsersMismatchesWithLib(t, goBin, lib, short, common.GenOptions{}, nil) {
 		t.Error(m)
 	}
-	for _, m := range codegentest.GeneratedParsersMismatches(t, goBin, short, common.GenOptions{Document: true}, runSpanAt(t, 1)) {
+	for _, m := range codegentest.GeneratedParsersMismatchesWithLib(t, goBin, lib, short, common.GenOptions{Document: true}, nil) {
 		t.Error("Document: " + m)
 	}
-	for _, m := range codegentest.GeneratedTypesMismatches(t, goBin, short, common.GenOptions{}, runSpanAt(t, 1)) {
+	for _, m := range codegentest.GeneratedTypesMismatchesWithLib(t, goBin, lib, short, common.GenOptions{}, nil) {
 		t.Error(m)
 	}
 	codegentest.GeneratedParsersCorpus(t, goBin, long, common.GenOptions{})
@@ -148,7 +136,7 @@ func runSiteRuns(t *testing.T, goBin string, sources []string, inputs [][]string
 		t.Fatalf("no mutation %s", mutation)
 	}
 	if hotSpan > 0 {
-		patches = append(patches[:len(patches):len(patches)], [2]string{"var RunHotSpan = 64\n", "var RunHotSpan = " + strconv.Itoa(hotSpan) + "\n"})
+		patches = append(patches[:len(patches):len(patches)], [2]string{"const RunHotSpan = 64\n", "const RunHotSpan = " + strconv.Itoa(hotSpan) + "\n"})
 	}
 	var imports, entries strings.Builder
 	for i, src := range sources {

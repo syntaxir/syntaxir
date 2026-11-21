@@ -292,11 +292,12 @@ type skipWalk struct {
 func (p *Parser) walk() *skipWalk { return &p.skips[p.skipN-1] }
 
 // RunHotSpan is the length of input that a walk of a run site may walk again, below the furthest
-// point that the walks before it reached, before the site turns hot: the engine's. A walk shorter
-// than that neither turns a site hot nor can walk that far again, so generated code passes only the
-// longer ones to RunWalked. It is a variable only as a hook for tests, which lower it to run the hot
-// path on short inputs; nothing else writes it.
-var RunHotSpan = 64
+// point that the walks before it reached, before the site turns hot: the engine's, a constant of
+// the charge model ("Run Sites" in spec/runtime/parsing.md). A walk shorter than that neither turns
+// a site hot nor can walk that far again, so generated code passes only the longer ones to
+// RunWalked. Tests that run the hot path on short inputs build their parsers against a copy of the
+// library with a lower value.
+const RunHotSpan = 64
 
 // runCold is the state of a run site (and lookahead state) before it keeps records: the furthest
 // position that its walks passed, among the walks that RunWalked was told of. A site turns hot when
