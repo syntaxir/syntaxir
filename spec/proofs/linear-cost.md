@@ -8405,8 +8405,10 @@ constant number of steps for each unit and each memoized rule, $x$ examines
 at most a constant amount of the input. The claim rests on the hypothesis
 of *Steps that begin anew* on kept steps and is not shown for an $x$ in a
 later step, with a seed that is not empty, of a growth of another leader
-that the step nests at $p$, when that step is not kept and its result is
-not empty (*Open parts of the kept steps*).
+that the step nests at $p$, when that step is not kept, its result is
+not empty, and it has at most $c_w$ characters or the unit that fails
+around $x$ decides the continuation with which the step ends (*Open parts
+of the kept steps*).
 
 *Proof.* By induction, first on the number of leaders that do not grow at $p$
 around $x$, then on the number of evaluations that the step makes after $x$
@@ -8499,9 +8501,25 @@ one of them.
     $s$ after one that does, the second remaining case of that claim, which is
     not shown; and when it is not kept, its result
     need not be empty: it can end in an alternative that the first step did not
-    reach, and that case is not shown here. In the other two the result of the
-    first step is empty; the step with the empty seed then ends with a result that
-    includes $s$, through a left call of $R$ that reads the empty seed and is
+    reach. Then $t$ goes on after $U'$ with a continuation $Q'$ of $U'$ that
+    consumes the input from $p$ to the end of the result of $t$, which is not
+    empty, so the character at $p$ is among the first characters of $Q'$,
+    after the calls that $U'$ and $Q'$ share, which end at $p$ as above when
+    $x$ follows them; a shared call that holds $x$ is handled by the
+    induction, as below. Condition 2 compares $U'$ with $Q'$ as above, so when
+    their first characters are disjoint after those calls, $U'$ cannot
+    consume that character and $x$ examines only the slot at $p$, and when no
+    scanning source remains in $U'$ after them, $x$ examines only what Lemma 1
+    bounds. When the words of $U'$ exclude $Q'$, $U'$ matches its word $w$
+    at $p$ only where $Q'$ ends at or before the end of $w$, since a path of
+    $Q'$ past that end on the same input would not be excluded, and
+    elsewhere $U'$ fails within its word, after examining at most the word
+    and the character after it; so $x$ examines more only in a step $t$
+    whose result has at most $c_w$ characters. That case,
+    and a $U'$ that decides $Q'$, are not shown here. In the other two the
+    result of the first step is empty; the step with the empty seed then ends
+    with a result that includes $s$, through a left call of $R$ that reads the
+    empty seed and is
     followed, before it consumes input, by a read of $s$. Since the result of
     the first step is empty, the continuation of $U'$ in $t$ reaches the end of
     the body of $R$ without consuming input, and goes on through every call of
@@ -9126,8 +9144,10 @@ claims of this lemma that rest on them hold apart from them:
    stops;
 3. in *Failures at the position of the growth*, an evaluation in a later
    step, with a seed that is not empty, of a growth of another leader that
-   the step nests at $p$, when that step is not kept and its result is not
-   empty.
+   the step nests at $p$, when that step is not kept, its result is not
+   empty, and the unit that fails around the evaluation either decides the
+   continuation with which the step ends or is committing for it by its
+   words, the result of the step then having at most $c_w$ characters.
 
 The first two bear on every claim that applies *Steps that begin anew*:
 *Growths inside a step*, which takes the hypothesis on kept steps as a
@@ -13621,7 +13641,9 @@ theorem covers such a parse.
    bound of *Failures at the position of the growth* is not shown for an
    evaluation in a later step of a growth of another leader that the step
    nests, with a seed that is not empty, when that step is not kept and its
-   result is not empty; and it rests, through *Growths inside a step* and
+   result, which is not empty, has at most $c_w$ characters or the unit
+   that fails around the evaluation decides the continuation with which the
+   step ends; and it rests, through *Growths inside a step* and
    *Results that do not include the seed*, on the hypothesis of *Steps that
    begin anew* on kept steps, which is not shown, for a leader with a
    scanning source, in the units that *Later steps that abandon their reads
