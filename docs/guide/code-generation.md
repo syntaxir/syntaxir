@@ -203,7 +203,7 @@ sxir gen -lib only -o <directory> [-lang go|ts]
 | `-optimize` | `speed` | The optimization profile (see [Optimizations](#optimizations)). `speed`, `memory` or `size`; any other name is an error that lists the valid ones |
 | `-opt` | none | Optimizations to give a value after the profile is applied and before `-no-opt`, separated by commas, as `name` or `name=count`: a name alone turns on an optimization that the profile leaves off (`-opt ts-literal-sharing`), a count sets an integer one (`-opt class-tables=3`), and `0` turns one off. An unknown name, a count that is not a number, or a value that the optimization does not take is an error, and so is a required step (`elaborate`, `flowlower`, `flow-finish`, `execlower`), which always runs |
 | `-no-opt` | none | Optimizations to turn off after the profile is applied, separated by commas (names in [Optimizations](#optimizations)). A name that is unknown or a required step is an error; a known name that does not apply to the parser being generated does nothing |
-| `-print-after` | none | Write the intermediate representation that the generator builds to standard error, as text, after the named steps and passes, separated by commas: the steps `elaborate`, `flowlower`, `flow-finish` and `execlower`, a pass name, or `all` (see [Optimizations](#optimizations)); a pass that does not apply to the parser prints nothing (see [Debugging the generator](#debugging-the-generator)) |
+| `-print-after` | none | Write the intermediate representation that the generator builds to standard error, as text, after the named steps and passes, separated by commas: the steps `elaborate`, `plan`, `flowlower`, `flow-finish` and `execlower`, a pass name, or `all`, which selects every step but `plan` (see [Optimizations](#optimizations)); a pass that does not apply to the parser prints nothing (see [Debugging the generator](#debugging-the-generator)) |
 | `-print-before` | none | Write the intermediate representation that the named passes receive to standard error, before each of their runs, as `-print-after` writes it: pass names separated by commas, or `all`. The required steps are not passes to print before; their input is the dump after the step before them |
 | `-print-changed` | off | Write the intermediate representation to standard error after each pass that changed it, and, before the first such dump of a unit, the unit that the pass received |
 | `-verify-each` | off | Verify the intermediate representation after every pass and step, so that an internal error names the first pass that broke it |
@@ -369,7 +369,12 @@ generation that writes the output prints. Each dump starts with one header line 
 `-- after <step> [<table>] --`, where `<table>` is `typed` for the typed rules, and `rules` or `recRules` for the
 untyped and recognizer tables; a pass that runs on one function at a time names the function too,
 `-- after <pass> [<table>/<function>] --`. `-print-after elaborate` shows the Core IR of each rule table as built, with the attributes of its nodes, and
-each Core pass prints it under its own name. `-print-after flowlower` shows the next form: the module of each table that
+each Core pass prints it under its own name. `-print-after plan` shows the plan of a Go parser's program, under
+`-- after plan [program] --`: the entry points, then for each table every rule by ID with the route of a call of it
+(`call=slot` through the rule table, `call=wrapper` through the rule's own function) and the ways the entry points reach
+it (`reach=slot`, `reach=wrapper`, both, or `reach=none` for a rule whose body the parser leaves out). The plan is
+written only when `plan` is named, since `all` selects the forms of the intermediate representation; a TypeScript
+parser has no plan to print yet. `-print-after flowlower` shows the next form: the module of each table that
 the parser is printed from, each function as a listing of Code IR at the Flow stage, as lowered from the Core IR.
 `flow-finish` prints the same form after the Flow stage ends, and `execlower` prints the form after that, a listing of
 Code IR at the Exec stage; the Flow and Exec passes print each function they run on under their own names. A listing writes the statements and the calls of the operations of the stage in the notation of the Code IR text form, with the immediate operand of a call in brackets before its arguments.

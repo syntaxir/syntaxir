@@ -2,6 +2,9 @@ package plandata
 
 import (
 	"fmt"
+	"io"
+	"strconv"
+	"strings"
 
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/pass/pipe"
@@ -51,25 +54,88 @@ type Program struct {
 	Roots []Entry
 	// Reach holds every reachable entry.
 	Reach map[Entry]bool
-	// Wrappers holds, by table and rule ID, whether a call of the rule enters its wrapper rather than
-	// its slot.
-	Wrappers map[string][]bool
+	// Tables holds the routes of the calls of the rules of each table, in the order of the tables of
+	// the program.
+	Tables []Routes
+}
+
+// Routes are the routes of the calls of the rules of one table.
+type Routes struct {
+	Table string
+	// Names holds the name of each rule by rule ID, and Wrappers whether a call of the rule enters
+	// its wrapper rather than its slot.
+	Names    []string
+	Wrappers []bool
 }
 
 // Wrapper reports whether a call of the rule of the table enters the rule's wrapper rather than its
 // slot. A table that the plan does not hold has no wrappers.
 func (p *Program) Wrapper(table string, rule int) bool {
-	w := p.Wrappers[table]
-	return rule < len(w) && w[rule]
+	for _, t := range p.Tables {
+		if t.Table == table {
+			return rule < len(t.Wrappers) && t.Wrappers[rule]
+		}
+	}
+	return false
 }
 
-// CoresIR is the kind of the input of the planning of a program, and ProgramIR that of its plan. A
-// plan has no dump of its own: the plans and the tables it leads to are dumped as they are lowered.
+// CoresIR is the kind of the input of the planning of a program, and ProgramIR that of its plan. The
+// input has no dump: its Core IR is dumped as it is built and changed, and the plan shows its entry
+// points and routes. The plan is dumped as printProgram writes it.
 var (
 	CoresIR = pipe.RegisterIR(&pipe.IR[*Cores]{Name: "cores", Verify: verifyCores})
 	// ProgramIR is the kind of the plan of a program.
-	ProgramIR = pipe.RegisterIR(&pipe.IR[*Program]{Name: "plan", Verify: verifyProgram})
+	ProgramIR = pipe.RegisterIR(&pipe.IR[*Program]{Name: "plan", Verify: verifyProgram, Print: printProgram})
 )
+
+// printProgram writes the plan p: its entry points, then each table and each rule of it by ID, with
+// the route of a call of the rule and the ways the plan reaches it.
+//
+//	roots rules.main recRules.main trules.main/wrapper
+//	table rules
+//	  rule 0 main call=slot reach=slot
+//	  rule 1 ws call=wrapper reach=wrapper
+//	  rule 2 unused call=slot reach=none
+func printProgram(w io.Writer, p *Program) {
+	io.WriteString(w, "roots")
+	for _, e := range p.Roots {
+		fmt.Fprintf(w, " %s.%s", e.Table, p.name(e.Table, e.ID))
+		if e.Wrapper {
+			io.WriteString(w, "/wrapper")
+		}
+	}
+	io.WriteString(w, "\n")
+	for _, t := range p.Tables {
+		fmt.Fprintf(w, "table %s\n", t.Table)
+		for id, name := range t.Names {
+			call := "slot"
+			if t.Wrappers[id] {
+				call = "wrapper"
+			}
+			var reach []string
+			if p.Reach[Entry{Table: t.Table, ID: id}] {
+				reach = append(reach, "slot")
+			}
+			if p.Reach[Entry{Table: t.Table, ID: id, Wrapper: true}] {
+				reach = append(reach, "wrapper")
+			}
+			if reach == nil {
+				reach = []string{"none"}
+			}
+			fmt.Fprintf(w, "  rule %d %s call=%s reach=%s\n", id, name, call, strings.Join(reach, ","))
+		}
+	}
+}
+
+// name returns the name of the rule of the table, or its ID if the plan has no such rule.
+func (p *Program) name(table string, rule int) string {
+	for _, t := range p.Tables {
+		if t.Table == table && rule < len(t.Names) {
+			return t.Names[rule]
+		}
+	}
+	return strconv.Itoa(rule)
+}
 
 // verifyCores checks that every table has the call facts of each of its rules and that every entry
 // point names a rule of a table.

@@ -172,8 +172,11 @@ The table unit `Table[S]`, in a data package of the planning code (`internal/mid
 the table's Core module, the origin map and the module to the printer, so no printer needs a lowering, the plan or the
 driver to get them. The origin map is recorded by `elaborate` in the Core module, keyed by the stable IDs of Core nodes,
 so it travels with every Core unit, a shared one included, and survives copies. Kind names are not dump names: a dump is
-named after the pass instance that produced it, and the kinds without a printer (`program`, `table`, `cores`, `plan`,
-`planned`, `tables@exec`, the backend inputs and `output`) add no dumps.
+named after the pass instance that produced it, and the kinds without a printer (`program`, `table`, `cores`,
+`planned`, `tables@exec`, the backend inputs and `output`) add no dumps. `plan` prints the entry points, and the route
+and the reach of each rule of each table; it is dumped only when `-print-after` names it, not under `all`, so the dumps
+of the IR forms stay as they are. `cores` has no printer because its Core IR is dumped as it is built and changed, and
+the plan shows its entry points and routes.
 
 Every backend ends in the one kind `output`, so the branches of a `Fork` have one result type whatever the backends
 build. `Output` is an interface implemented by the result of each backend; a caller that needs the concrete result

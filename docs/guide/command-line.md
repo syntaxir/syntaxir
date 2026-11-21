@@ -271,7 +271,8 @@ turns named optimizations off. None of them changes what the generated parser re
 [Optimizations](code-generation.md#optimizations). A required step (`elaborate`, `flowlower`, `flow-finish`,
 `execlower`) always runs, and naming one in `-opt` or `-no-opt` is an error.
 The debugging flags write to standard error and change no generated file: `-print-after <pass>[,<pass>]` writes the
-Core IR or Code IR at the Flow or Exec stage after the named steps and passes, `-print-before <pass>[,<pass>]` before
+Core IR, Code IR at the Flow or Exec stage, or the plan of a Go parser (`plan`) after the named steps and passes,
+`-print-before <pass>[,<pass>]` before
 the named passes, `-print-changed` after each pass that changed it, `-verify-each` verifies it after every pass, and
 `-stats` and `-time-passes` write the statistics and the times of the passes after the build.
 `-opt-bisect-limit <n>` runs only the first `n` runs of optional passes and writes each decision, to find the pass that

@@ -349,8 +349,10 @@ unchanged, and the pipeline reports a pass that changed it, because the analyses
 diagnosis ask for this; it costs compile time and changes no output.
 
 A run can also **dump** the module as text after a step or after a pass. The `-print-after` flag of the gen command
-takes the names of steps and passes, and `all` for every step and pass, and prints to standard error. The required steps
-are `elaborate`, `flowlower`, `flow-finish` and `execlower`; each dump is named after the step that produced it. A dump of
+takes the names of steps and passes, and `all` for every step and pass but `plan`, and prints to standard error. The
+required steps are `elaborate`, `plan`, `flowlower`, `flow-finish` and `execlower`; each dump is named after the step that
+produced it. `plan` dumps the plan of a Go parser's program (the entry points, and the route and reach of each rule) only
+when it is named, since it is not a form of the module that the passes change. A dump of
 the Flow or Exec stage prints each function as a listing of Code IR. A pass that did not apply prints nothing, which is
 itself information: the dump is the way to see why an optimization did not happen for a parser.
 

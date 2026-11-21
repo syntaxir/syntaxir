@@ -1,6 +1,8 @@
 package flowplan_test
 
 import (
+	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -73,10 +75,50 @@ func TestPlanProgramReachesThroughTheRoutes(t *testing.T) {
 		}
 	}
 	if !p.Wrapper("rules", byName["a"]) || p.Wrapper("rules", byName["b"]) {
-		t.Errorf("routes %v, want only a through its wrapper", p.Wrappers)
+		t.Errorf("routes %v, want only a through its wrapper", p.Tables)
 	}
 	bad := &plandata.Cores{Tables: []plandata.CoreTable{{Name: "rules", M: m}}, Roots: []plandata.Entry{main}}
 	if _, err := (&driver.Driver{}).Plan(bad); err == nil || !strings.Contains(err.Error(), "call facts") {
 		t.Errorf("a table without call facts: %v, want an error that says so", err)
+	}
+}
+
+// The plan is dumped only when -print-after names it, not under all, with its entry points, and each
+// rule's route and reach.
+func TestPlanIsDumpedOnlyByName(t *testing.T) {
+	t.Parallel()
+	prog := compiletest.Program(t, "rule main = a\nrule a = \"a\"\nrule unused = \"u\"\n", compile.Options{})
+	m, err := elaborate.CoreProjecting(prog, false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	byName := map[string]int{}
+	for _, r := range m.Rules {
+		byName[r.Name] = r.ID
+	}
+	tab := plandata.CoreTable{Name: "rules", M: m, Rules: make([]plandata.CallRule, len(m.Rules))}
+	tab.Rules[byName["a"]].Plain = true
+	c := &plandata.Cores{Tables: []plandata.CoreTable{tab}, Roots: []plandata.Entry{{Table: "rules", ID: byName["main"]}}}
+	var all, named bytes.Buffer
+	if _, err := (&driver.Driver{PrintAfter: []string{driver.PrintAll}, Output: &all}).Plan(c); err != nil {
+		t.Fatal(err)
+	}
+	if all.Len() != 0 {
+		t.Errorf("-print-after all dumps the plan:\n%s", all.String())
+	}
+	if _, err := (&driver.Driver{PrintAfter: []string{flowplan.PlanName}, Output: &named}).Plan(c); err != nil {
+		t.Fatal(err)
+	}
+	for _, line := range []string{
+		"-- after plan [program] --",
+		"roots rules.main",
+		"table rules",
+		fmt.Sprintf("rule %d main call=slot reach=slot", byName["main"]),
+		fmt.Sprintf("rule %d a call=wrapper reach=wrapper", byName["a"]),
+		fmt.Sprintf("rule %d unused call=slot reach=none", byName["unused"]),
+	} {
+		if !strings.Contains(named.String(), line+"\n") {
+			t.Errorf("the dump lacks %q:\n%s", line, named.String())
+		}
 	}
 }

@@ -1,6 +1,8 @@
 package flowplan
 
 import (
+	"slices"
+
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/pass"
@@ -28,15 +30,23 @@ var Planning = pipe.New(pipe.Def[*plandata.Cores, *plandata.Program]{
 // PlanProgram plans the program c: the route of a call of each rule (CallsWrapper) and the rules that
 // the entry points of c reach through those routes (Reach).
 func PlanProgram(c *plandata.Cores) *plandata.Program {
-	p := &plandata.Program{Roots: c.Roots, Wrappers: map[string][]bool{}}
-	for _, t := range c.Tables {
-		w := make([]bool, len(t.Rules))
-		for id, r := range t.Rules {
-			w[id] = CallsWrapper(t, r)
+	// An entry point that the program enters in several ways (a typed start rule that several entry
+	// points run) is one root of the plan.
+	p := &plandata.Program{}
+	for _, e := range c.Roots {
+		if !slices.Contains(p.Roots, e) {
+			p.Roots = append(p.Roots, e)
 		}
-		p.Wrappers[t.Name] = w
 	}
-	p.Reach = Reach(c, p, c.Roots)
+	for _, t := range c.Tables {
+		r := plandata.Routes{Table: t.Name, Names: make([]string, len(t.Rules)), Wrappers: make([]bool, len(t.Rules))}
+		for id, cr := range t.Rules {
+			r.Names[id] = t.M.Rules[id].Name
+			r.Wrappers[id] = CallsWrapper(t, cr)
+		}
+		p.Tables = append(p.Tables, r)
+	}
+	p.Reach = Reach(c, p, p.Roots)
 	return p
 }
 

@@ -108,9 +108,13 @@ type Hooks struct {
 func (d *Driver) Settings() pass.Settings { return d.Opt }
 
 // prints reports whether the unit is dumped after the runs of the step or pass named name: of every
-// instance of it, as its dumps name them.
+// instance of it, as its dumps name them. The plan of the program (flowplan.PlanName) is dumped only
+// when PrintAfter names it: it is not an IR that a pass changes, so PrintAll leaves it out.
 func (d *Driver) prints(name string) bool {
-	return d.Output != nil && name != "" && (slices.Contains(d.PrintAfter, name) || slices.Contains(d.PrintAfter, PrintAll))
+	if d.Output == nil || name == "" {
+		return false
+	}
+	return slices.Contains(d.PrintAfter, name) || name != flowplan.PlanName && slices.Contains(d.PrintAfter, PrintAll)
 }
 
 // printsBefore reports whether the unit is dumped before the runs of the pass named name, of every
@@ -412,10 +416,10 @@ func pipeError(err error, required ...string) error {
 	return fmt.Errorf("internal error: %w", err)
 }
 
-// Plan runs the step that plans the program c (flowplan.Planning) and returns its plan. The plan
-// has no dump; a failure is an internal error.
+// Plan runs the step that plans the program c (flowplan.Planning) and returns its plan, which is
+// dumped, labeled "program", only if PrintAfter names the step. A failure is an internal error.
 func (d *Driver) Plan(c *plandata.Cores) (*plandata.Program, error) {
-	p, err := pipe.Execute(context.Background(), d.pipeRun("", true), pipe.Of(flowplan.Planning), c)
+	p, err := pipe.Execute(context.Background(), d.pipeRun("program", true), pipe.Of(flowplan.Planning), c)
 	if err != nil {
 		return nil, pipeError(err)
 	}

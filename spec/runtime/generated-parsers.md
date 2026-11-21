@@ -136,10 +136,11 @@ count.
   take, a count that is not a decimal number, an empty item and a name given twice in `-opt` are errors, and generation fails before it writes a file.
 - **Backends and languages.** An optimization that concerns only one backend or language, such as the slabs of
   typed Go values, has no effect on another, and naming it is not an error.
-- **`-print-after`** takes the steps `elaborate` (the Core IR of each rule table as built), `flowlower` (each function as
+- **`-print-after`** takes the steps `elaborate` (the Core IR of each rule table as built), `plan` (for Go, the entry
+  points of the program, and the route of a call of each rule and how the entry points reach it), `flowlower` (each function as
   the Code IR listing at the Flow stage, as lowered from Core IR), `flow-finish` (the same listing after the Flow stage of
   a function ends), and `execlower` (each function as the Code IR listing at the Exec stage, as converted from the Flow
-  stage), the name of any pass, or `all`.
+  stage), the name of any pass, or `all`, which selects every step and pass except `plan`.
   A pass that does not apply to the parser prints nothing. An unknown name is an error that lists the
   valid ones.
 - **Debugging output.** What the debugging flags write is not part of this contract: its form, the pass names and

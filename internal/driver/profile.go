@@ -21,6 +21,7 @@ import (
 	"syntaxir.dev/sxir/internal/middleend/execlower"
 	"syntaxir.dev/sxir/internal/middleend/flowlower"
 	"syntaxir.dev/sxir/internal/middleend/flowpass"
+	"syntaxir.dev/sxir/internal/middleend/flowplan"
 	"syntaxir.dev/sxir/internal/pass"
 )
 
@@ -201,12 +202,12 @@ func CheckOptimizable(names ...string) error {
 }
 
 // PrintNames returns the names of the steps and passes that select what to print after, in the order
-// they run: elaborate, the Core passes, flowlower, the Flow passes, flow-finish, execlower, the
+// they run: elaborate, the Core passes, plan, flowlower, the Flow passes, flow-finish, execlower, the
 // Exec passes and those of the registered targets (golang/pass, typescript/pass), and "all".
 func PrintNames() []string {
 	out := []string{Elaborate}
 	out = append(out, corepass.Names()...)
-	out = append(out, flowlower.Name)
+	out = append(out, flowplan.PlanName, flowlower.Name)
 	out = append(out, flowpass.Names()...)
 	out = append(out, flowpass.FinishName, execlower.Name)
 	out = append(out, codepass.Names()...)
