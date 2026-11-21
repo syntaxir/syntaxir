@@ -536,7 +536,9 @@ parsers provide an opt-in `Document` with `NewDocument`, `Text`, `Edit`, `Parse`
 neither `EditBatch`, `Version`, `Unit`, `Snapshot`, `CacheStats`, `ResetHistory`
 nor change notifications, and their `Stats` has only `Evaluated` and `Reused`.
 Generated TypeScript parsers provide an opt-in `Document` with `createDocument`,
-`text`, `bytes`, `edit`, `parse`, `stats` and, with typed values, `parseValue`. It
+`text`, `bytes`, `edit`, `parse`, `stats` and, with typed values, `parseValue`.
+`text` and `bytes` return the current text as `doc.Text()` defines it, in
+`CodePoints` with each invalid UTF-8 byte replaced with U+FFFD. It
 reuses the memoized results of earlier parses as the generated Go `Document`
 does, and its `stats` has only `evaluated` and `reused`. See
 [Generated Parsers](generated-parsers.md#incremental-documents).

@@ -1591,20 +1591,28 @@ export class DocumentBase {
     this.expectations = resolved.expectations;
   }
 
-  /** text returns the current text. Invalid UTF-8 bytes are U+FFFD in CodePoints, and in Bytes the surrogates U+DC80-U+DCFF, as in the text of nodes. */
+  /**
+   * text returns the current text. In Bytes it holds the exact bytes, its invalid UTF-8 bytes as the
+   * surrogates U+DC80-U+DCFF, as in the text of nodes; in CodePoints each invalid UTF-8 byte of the
+   * initial text and of every replacement has been replaced by U+FFFD (normalizeCodePoints).
+   */
   text(): string {
     return documentText(this.input, this.unit);
   }
 
-  /** bytes returns a copy of the current text as UTF-8 bytes, invalid bytes included. */
+  /**
+   * bytes returns a copy of the current text as UTF-8 bytes: in Bytes the exact bytes, invalid bytes
+   * included, and in CodePoints the normalized text, which is valid UTF-8.
+   */
   bytes(): Uint8Array {
     return this.input.slice();
   }
 
   /**
    * edit replaces [start,end), in the position unit of the Document, with replacement: a string as
-   * its UTF-8 encoding (lone surrogates as U+FFFD), bytes as they are. For an invalid range or, in
-   * Bytes, a position inside a character, it returns an error and changes nothing.
+   * its UTF-8 encoding (lone surrogates as U+FFFD), bytes as they are in Bytes and with each invalid
+   * UTF-8 byte replaced by U+FFFD in CodePoints. For an invalid range or, in Bytes, a position inside
+   * a character, it returns an error and changes nothing.
    */
   edit(start: number, end: number, replacement: string | Uint8Array): Error | null {
     if (this.parsing) return new Error(documentBusyMessage);
@@ -1613,37 +1621,29 @@ export class DocumentBase {
     if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || end < start || end > length) {
       return new Error(`invalid range [${start},${end}) for text of length ${length}`);
     }
-    let startByte = start;
-    let endByte = end;
+    let r = typeof replacement === "string" ? encodeUTF8(replacement) : replacement;
+    let startByte: number;
+    let endByte: number;
+    let ed: DocumentEdit;
     if (this.unit === Bytes) {
       for (const pos of [start, end]) {
         if (!documentByteBoundary(b, pos)) return new Error(`position ${pos} is not at a character boundary`);
       }
+      startByte = start;
+      endByte = end;
+      // The replacement can complete an incomplete UTF-8 sequence before start, turning invalid
+      // bytes, each a separate character, into one character. Such a sequence has at most 3 bytes,
+      // each one position, so results that examined them are not kept.
+      let reuse = start;
+      for (let i = 0; i < 3 && i < start && lastRuneInvalid(b, start - i); i++) reuse--;
+      ed = { start: reuse, end, delta: r.length - (end - start) };
     } else {
+      // The text is valid UTF-8 and so is the normalized replacement, so no sequence joins across
+      // the ends of the edit: the characters around it decode as before.
+      r = normalizeCodePoints(r);
       startByte = documentByteOffset(b, start);
       endByte = documentByteOffset(b, end);
-    }
-    const r = typeof replacement === "string" ? encodeUTF8(replacement) : replacement;
-    // The replacement can complete an incomplete UTF-8 sequence before start, turning invalid bytes,
-    // each a separate character, into one character. Such a sequence has at most 3 bytes, each one
-    // position in either unit, so results that examined them are not kept.
-    let reuse = start;
-    for (let i = 0; i < 3 && i < startByte && lastRuneInvalid(b, startByte - i); i++) reuse--;
-    const ed: DocumentEdit = { start: reuse, end, delta: r.length - (endByte - startByte) };
-    if (this.unit !== Bytes) {
-      // The replacement can also end with the start of a sequence that the continuation bytes after
-      // end, each a separate character, complete. Past those, the characters are the same.
-      let endX = endByte;
-      while (endX < b.length && endX - endByte < 3 && (b[endX]! & 0xc0) === 0x80) endX++;
-      ed.end = end + endX - endByte;
-      const reuseByte = startByte - (start - reuse);
-      const before = b.subarray(reuseByte, startByte);
-      const after = b.subarray(endByte, endX);
-      const window = new Uint8Array(before.length + r.length + after.length);
-      window.set(before, 0);
-      window.set(r, before.length);
-      window.set(after, before.length + r.length);
-      ed.delta = documentRuneCount(window) - (ed.end - reuse);
+      ed = { start, end, delta: documentRuneCount(r) - (end - start) };
     }
     const out = new Uint8Array(b.length - (endByte - startByte) + r.length);
     out.set(b.subarray(0, startByte), 0);
@@ -1706,7 +1706,32 @@ export function createDocumentBase<D>(g: Grammar, input: string | Uint8Array, op
     return null;
   }, e => e);
   if (error !== null) return { document: null, error };
-  return { document: make(bytes, defaults, o), error: null };
+  return { document: make(o.unit === Bytes ? bytes : normalizeCodePoints(bytes), defaults, o), error: null };
+}
+
+// normalizeCodePoints returns b with each byte that is not part of a valid UTF-8 encoding replaced by
+// U+FFFD, the text of b in CodePoints, where each such byte decodes as one replacement character
+// (decodeRune). It returns b itself when b is valid UTF-8.
+function normalizeCodePoints(b: Uint8Array): Uint8Array {
+  let invalid = 0;
+  for (let i = 0; i < b.length; i += decodedSize) {
+    if (decodeRune(b, i, b.length) === 0xfffd && decodedSize === 1) invalid++;
+  }
+  if (invalid === 0) return b;
+  // An invalid byte becomes the 3 bytes of U+FFFD.
+  const out = new Uint8Array(b.length + 2 * invalid);
+  let j = 0;
+  for (let i = 0; i < b.length; i += decodedSize) {
+    if (decodeRune(b, i, b.length) === 0xfffd && decodedSize === 1) {
+      out[j++] = 0xef;
+      out[j++] = 0xbf;
+      out[j++] = 0xbd;
+    } else {
+      out.set(b.subarray(i, i + decodedSize), j);
+      j += decodedSize;
+    }
+  }
+  return out;
 }
 
 // documentText returns the text of the UTF-8 bytes b: invalid bytes are U+FFFD in CodePoints and the

@@ -89,6 +89,16 @@ func documentByteStarts(text string) []int {
 	return append(out, len(text))
 }
 
+// normalizeCodePoints returns s with each byte that is not part of a valid UTF-8 encoding replaced by
+// U+FFFD, the text that a CodePoints Document holds for s.
+func normalizeCodePoints(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		b.WriteRune(r)
+	}
+	return b.String()
+}
+
 // documentInside reports whether the byte offset k is inside a valid character of text.
 func documentInside(text string, k int) bool {
 	for start := k - 1; start >= max(0, k-utf8.UTFMax+1); start-- {
@@ -101,7 +111,8 @@ func documentInside(text string, k int) bool {
 }
 
 // TestTSDocumentMatchesFreshParse edits generated TypeScript Documents at random, in both units and
-// with replacements that join invalid UTF-8 bytes into characters, and requires each parse to return
+// with replacements that are invalid UTF-8: in Bytes they join with their neighbors into characters,
+// and in CodePoints the Document normalizes them, one U+FFFD per invalid byte. It requires each parse to return
 // what the engine returns for a parse of the whole text, each typed parse what parseValue returns, and
 // the text to be the edited one. Rejected edits change nothing. The Documents must reuse results:
 // over the script they evaluate fewer rules than a new Document of each text does, and a parse with
@@ -175,6 +186,10 @@ func TestTSDocumentMatchesFreshParse(t *testing.T) {
 					}
 				}
 				ed.B64 = base64.StdEncoding.EncodeToString([]byte(repl))
+				if !bytes {
+					// In CodePoints the Document holds the replacement normalized.
+					repl = normalizeCodePoints(repl)
+				}
 				if !ed.Bad {
 					old := text
 					text = documentApply(text, ed.Start, ed.End, repl, bytes)

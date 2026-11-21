@@ -78,9 +78,11 @@ result = doc!.parse();
 `createDocument(input, options)` copies the input and reads the options once; they become the defaults of
 every `parse`, and `document` is null when they are invalid. `edit(start, end, replacement)` follows the Go
 contract and returns an `Error` or null; a string replacement is encoded as UTF-8, with lone surrogates as
-U+FFFD, and a `Uint8Array` replacement is taken as it is, so edits can join invalid bytes into characters.
-`text()` returns the text as the nodes hold it, and `bytes()` returns a copy of the exact input, invalid bytes
-included. `parse(options?)` returns the `ParseResult` of `parse`, and with `-types` the Document also has
+U+FFFD. In `Bytes` a `Uint8Array` replacement is taken as it is, so edits can join invalid bytes into
+characters; in `CodePoints` each invalid UTF-8 byte of the input and of every replacement is replaced by
+U+FFFD, as in the Go `Document`. `text()` returns the text as the nodes hold it, and `bytes()` returns a copy of
+the current text as UTF-8: the exact bytes in `Bytes`, invalid bytes included, and the normalized text in
+`CodePoints`. `parse(options?)` returns the `ParseResult` of `parse`, and with `-types` the Document also has
 `parseValue(options?)`. An invocation cannot change the unit or the expectations, and a `parse` or `edit` made
 from a trace callback of a parse returns an error. Like the Go `Document`, it keeps the memoized results that
 the edits leave valid and reuses them in the next `parse`; `stats()` returns `{ evaluated, reused }` for the
