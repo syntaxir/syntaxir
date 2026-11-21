@@ -1096,7 +1096,7 @@ op grow.adopt(g Grow, value Value, errs Errs)
   requires:
     // g is the innermost growth, grow.ctx(g) is false and grow.longer(g, true) holds.
 
-transitional op grow.next(g Grow) bool
+op grow.next(g Grow) bool
   component growth
   reads growth
   writes growth, pos, silent
@@ -1107,7 +1107,7 @@ transitional op grow.next(g Grow) bool
     // steps that the memoized steps and jumps of the context give, and starts recording what the step it
     // reports depends on.
   requires:
-    // grow.ctx(g) holds.
+    // grow.ctx(g) holds, g is the innermost growth, and the step that the last call reported has been received by grow.step.
 
 transitional op grow.step(g Grow, value Value, ok bool)
   component growth
@@ -1122,7 +1122,7 @@ transitional op grow.step(g Grow, value Value, ok bool)
     // holds the errors it recovered as the list that rec.since returns for that mark; a step that failed
     // holds none.
   requires:
-    // grow.ctx(g) holds.
+    // grow.ctx(g) holds, and the last call of grow.next(g) returned true and its step has not been received yet; the calls that the body made have ended.
 
 transitional op grow.end(g Grow) CtxResult
   component growth
@@ -1133,7 +1133,11 @@ transitional op grow.end(g Grow) CtxResult
   contract:
     // Ends the growth g and returns its last seed: the position moves to its end, and its recovered
     // errors replace the entries recorded since the growth began. Outside the missing-token mode they are
-    // recorded as rec.add does, at no cost; in that mode as missing.replay does.
+    // recorded as rec.add does, at no cost; in that mode as missing.replay does. The result is the last
+    // seed of the growth, in a context or not: the one that grow.adopt or grow.step adopted last, or the failed
+    // seed if none was; it may be that same result or a copy of it, which is not specified, as no operation changes a result.
+  requires:
+    // g is the innermost growth, and no step that grow.next reported is pending.
 
 op obs.memoHit()
   component observe

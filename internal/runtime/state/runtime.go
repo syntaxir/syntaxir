@@ -613,10 +613,21 @@ func (p *Parser) GrowNext(g *GrowState) bool {
 	gp := g.gp
 	for {
 		id := p.Gamma[g.gi].id
+		if ContextMemoMutation == CtxNoStepMemo {
+			p.pushFrame(g.start, g.gp)
+			g.savedHW, g.savedLW = p.Hw, p.lw
+			p.Hw, p.lw = g.start, g.start
+			g.exp = p.Isolate(g.start)
+			return true
+		}
 		if j := p.findJump(g, gp, id); j != nil {
 			p.seedRead(gp)
-			p.replayDeps(g.start, gp, g.present, j.deps)
-			p.MergeExpected(j.far, j.exp)
+			if ContextMemoMutation != CtxNoJumpReplayDeps {
+				p.replayDeps(g.start, gp, g.present, j.deps)
+			}
+			if ContextMemoMutation != CtxNoJumpMergeExp {
+				p.MergeExpected(j.far, j.exp)
+			}
 			p.touch(j.examined)
 			p.lw = Min2(p.lw, j.from)
 			p.setSeed(g, j.end, j.id)
@@ -625,8 +636,12 @@ func (p *Parser) GrowNext(g *GrowState) bool {
 		h := ctxHeadKey{kind: ctxStep, id: int32(g.Key.Rule), min: int32(g.Key.Min), ms: g.Key.MissingSilent, present: g.present}
 		if s := p.ctxFind(g.start, gp, h, nil); s != nil && p.reusable(s.silent) {
 			p.seedRead(gp)
-			p.replayDeps(g.start, gp, g.present, s.deps)
-			p.MergeExpected(s.far, s.exp)
+			if ContextMemoMutation != CtxNoStepReplayDeps {
+				p.replayDeps(g.start, gp, g.present, s.deps)
+			}
+			if ContextMemoMutation != CtxNoStepMergeExp {
+				p.MergeExpected(s.far, s.exp)
+			}
 			p.touch(s.examined)
 			p.lw = Min2(p.lw, s.from)
 			if !p.advance(g, s.e, s.id, runStep{seed: id, far: s.far, exp: s.exp, examined: s.examined, from: s.from, silent: s.silent, deps: s.deps}) {

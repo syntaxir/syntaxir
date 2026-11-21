@@ -229,7 +229,7 @@ func GoOprBindings() (string, error) {
 var ctxBindingOps = []string{
 	"ctx.enter", "ctx.found", "ctx.ok", "ctx.value", "ctx.end", "ctx.errs", "ctx.far", "ctx.expected",
 	"ctx.allows", "ctx.active", "ctx.lookup", "ctx.push", "ctx.pop", "ctx.storeMemo", "ctx.storeCtx", "memo.setPresent",
-	"ctx.keep", "ctx.done", "grow.begin", "grow.ctx", "grow.longer", "grow.adopt",
+	"ctx.keep", "ctx.done", "grow.begin", "grow.ctx", "grow.longer", "grow.adopt", "grow.next", "grow.step", "grow.end",
 }
 
 // engineCtxBindingsFile is the file of the engine's conformance bindings of the dependency memo,
@@ -238,14 +238,21 @@ const engineCtxBindingsFile = "../../../../runtime/state/ctx_bind_exec_test.go"
 
 // printEngineCtxBindings returns the Go test file of the conformance bindings of the dependency memo for
 // package state of the engine.
+//
+// The engine's grow.end is not here: its printed call names the rule of the enclosing composition, which
+// the operation does not take, so the suite binds it by hand (ctxMachine.growEnd).
 func printEngineCtxBindings() (string, error) {
-	return bindingFile("state", ctxBindingOps, engineTarget(), "confCtxBindings")
+	ops := slices.DeleteFunc(slices.Clone(ctxBindingOps), func(n string) bool { return n == "grow.end" })
+	return bindingFile("state", ops, engineTarget(), "confCtxBindings")
 }
 
 // GoCtxBindings returns the Go test file of the conformance bindings of the dependency memo for
 // package libgo, for the node library's Parser.
 func GoCtxBindings() (string, error) {
-	return bindingFile("libgo", ctxBindingOps, goTarget(goSpec{fn: "expect", name: "Expect"}), "confCtxBindings")
+	// The library's growEnd returns the result by value, where the operation's result is the handle of
+	// a result, so the suite binds grow.end by hand (ctxMachine.growEnd).
+	ops := slices.DeleteFunc(slices.Clone(ctxBindingOps), func(n string) bool { return n == "grow.end" })
+	return bindingFile("libgo", ops, goTarget(goSpec{fn: "expect", name: "Expect"}), "confCtxBindings")
 }
 
 // frameBindingOps are the frame operations that conformance cases cover.

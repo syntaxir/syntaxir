@@ -217,6 +217,18 @@ func (p *Parser) ctxKeep(c *CtxState, r *Rule, pos, min int, kv KeyVals, e *Memo
 	}
 }
 
+// leaderEntry returns the entry that the keep of a leader's result in a context stores: a copy of the result
+// that GrowEnd made (Parser.grown), as a result does not change.
+func (p *Parser) leaderEntry() *MemoEntry {
+	e := p.grown
+	p.grown = nil
+	if ContextMemoMutation == CtxKeepInPlace {
+		return e
+	}
+	cp := *e
+	return &cp
+}
+
 // growEnd ends the growth g of leader r and returns its last result, which CallEnd stores.
 func (p *Parser) growEnd(r *Rule, g *GrowState) ctxHit {
 	p.GrowEnd(r, g)

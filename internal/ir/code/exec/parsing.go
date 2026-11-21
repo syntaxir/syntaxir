@@ -356,13 +356,13 @@ errors errs that it recovered, as the seed of g with a new identity, charging on
 the tokens that the step inserted. The seed it replaces is no longer a valid result. The position then
 returns to the start of the growth.`,
 		Requires: `g is the innermost growth, grow.ctx(g) is false and grow.longer(g, true) holds.`})
-	add(&code.Op{Name: "grow.next", Component: Growth, Params: []code.Param{code.P("g", grow)}, Results: []code.Type{code.TBool},
+	m.AddOp(&code.Op{Name: "grow.next", Component: Growth, Params: []code.Param{code.P("g", grow)}, Results: []code.Type{code.TBool},
 		Reads: []string{Growth}, Writes: append([]string{Growth}, regs...), NoReturn: true,
 		Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QSteps}, {Coef: 1, Quantity: QTable}, {Coef: 1, Quantity: QDeps}, {Coef: 1, Quantity: QMerge}, {Coef: 1, Quantity: QRun}}},
 		Contract: `Reports whether the body must be evaluated for the next step of the growth g. It first takes the
 steps that the memoized steps and jumps of the context give, and starts recording what the step it
 reports depends on.`,
-		Requires: `grow.ctx(g) holds.`})
+		Requires: `grow.ctx(g) holds, g is the innermost growth, and the step that the last call reported has been received by grow.step.`})
 	add(&code.Op{Name: "grow.step", Component: Growth, Params: []code.Param{code.P("g", grow), code.P("value", value),
 		code.P("ok", code.TBool)}, Reads: []string{Growth}, Writes: append([]string{Growth, Rec}, regs...), NoReturn: true,
 		Cost: code.Cost{Const: 66, Terms: []code.CostTerm{{Coef: 1, Quantity: QMerge}, {Coef: 1, Quantity: QSegs}, {Coef: 2, Quantity: QDeps}, {Coef: 1, Quantity: QTable}, {Coef: 1, Quantity: QRun}}},
@@ -371,12 +371,15 @@ charging one unit, and returns to the start of the growth if the match grew, dro
 the mark that the growth took when it began, and otherwise ends the growth. A step that succeeded
 holds the errors it recovered as the list that rec.since returns for that mark; a step that failed
 holds none.`,
-		Requires: `grow.ctx(g) holds.`})
+		Requires: `grow.ctx(g) holds, and the last call of grow.next(g) returned true and its step has not been received yet; the calls that the body made have ended.`})
 	add(&code.Op{Name: "grow.end", Component: Growth, Params: []code.Param{code.P("g", grow)}, Results: []code.Type{res},
 		Reads: []string{Growth}, Writes: append([]string{Growth, Rec}, regs...), NoReturn: true, Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QRun}, {Coef: 1, Quantity: QErrs}}},
 		Contract: `Ends the growth g and returns its last seed: the position moves to its end, and its recovered
 errors replace the entries recorded since the growth began. Outside the missing-token mode they are
-recorded as rec.add does, at no cost; in that mode as missing.replay does.`})
+recorded as rec.add does, at no cost; in that mode as missing.replay does. The result is the last
+seed of the growth, in a context or not: the one that grow.adopt or grow.step adopted last, or the failed
+seed if none was; it may be that same result or a copy of it, which is not specified, as no operation changes a result.`,
+		Requires: `g is the innermost growth, and no step that grow.next reported is pending.`})
 
 	m.AddOp(&code.Op{Name: "obs.memoHit", Component: Obs, Writes: []string{Obs}, Features: []string{Observe},
 		Contract: `Counts a reuse of a memo entry in the observation, if the parse is observed.`})

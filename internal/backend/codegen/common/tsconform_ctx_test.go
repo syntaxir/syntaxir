@@ -3,6 +3,7 @@ package common_test
 import (
 	"fmt"
 	"math/rand/v2"
+	"slices"
 	"strings"
 	"testing"
 
@@ -17,7 +18,9 @@ import (
 // operation's ok, not from its value.
 
 func tsCtxSuite(controlled bool) conform.Suite {
-	s := conform.Suite{Name: fmt.Sprint("typescript ctx (controlled=", controlled, ")"), Ops: append(append([]string{}, tsconformtest.CtxOps...), budgetOps(controlled)...)}
+	// The steps of a growth in a context are not run on the library yet.
+	ops := slices.DeleteFunc(slices.Clone(tsconformtest.CtxOps), func(n string) bool { return slices.Contains(conform.CtxGrowStepOps, n) })
+	s := conform.Suite{Name: fmt.Sprint("typescript ctx (controlled=", controlled, ")"), Ops: append(ops, budgetOps(controlled)...)}
 	s.Exact = []string{"grow.begin", "grow.adopt"}
 	return s
 }
@@ -59,6 +62,10 @@ func TestTypeScriptConformanceCtxDetectsMutants(t *testing.T) {
 		{name: "a lookup answers for another rule", sig: "ctxLookup(c: CtxCall", old: "headKey(ctxCallKind, rule, min, c.present)", new: "headKey(ctxCallKind, 0, min, c.present)"},
 		{name: "an adopted seed keeps its identity", sig: "growAdopt(g: GrowState", old: "rec.id = this.nextSeedID();", new: ""},
 		{name: "an adopted seed does not return to the start", sig: "growAdopt(g: GrowState", old: "this.pos = g.start;", new: ""},
+		{name: "a jump replays no dependencies", sig: "growNext(g: GrowState", old: "this.replayDeps(g.start, g.gp, g.present, j.deps);", new: ""},
+		{name: "a jump merges no expectations", sig: "growNext(g: GrowState", old: "this.mergeKept(j.far, j.exp);", new: ""},
+		{name: "a memoized step replays no dependencies", sig: "growNext(g: GrowState", old: "this.replayDeps(g.start, g.gp, g.present, s.deps);", new: ""},
+		{name: "a memoized step merges no expectations", sig: "growNext(g: GrowState", old: "this.mergeKept(s.far, s.exp);", new: ""},
 		{name: "a growth begins without its unit", sig: "growBegin(r: Rule", old: "this.spend();", new: "", charges: true},
 		{name: "an adopted seed costs nothing", sig: "growAdopt(g: GrowState", old: "this.spend();", new: "", charges: true},
 	}

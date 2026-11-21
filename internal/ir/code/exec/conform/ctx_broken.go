@@ -53,6 +53,35 @@ func CtxBrokenOps() []OprBroken {
 	add("grow.adopt drops the errors", "grow.adopt", func(call func(string, ...any) []any, a []any) []any {
 		return call("grow.adopt", a[0], a[1], nil)
 	})
+	add("grow.next always evaluates the body", "grow.next", func(call func(string, ...any) []any, a []any) []any {
+		call("grow.next", a...)
+		return []any{true}
+	})
+	add("grow.next never evaluates the body", "grow.next", func(call func(string, ...any) []any, a []any) []any {
+		call("grow.next", a...)
+		return []any{false}
+	})
+	add("grow.step takes every step as matched", "grow.step", func(call func(string, ...any) []any, a []any) []any {
+		return call("grow.step", a[0], a[1], true)
+	})
+	add("grow.step takes every step as failed", "grow.step", func(call func(string, ...any) []any, a []any) []any {
+		return call("grow.step", a[0], a[1], false)
+	})
+	add("grow.step drops the value", "grow.step", func(call func(string, ...any) []any, a []any) []any {
+		return call("grow.step", a[0], nil, a[2])
+	})
+	// grow.end returns the growth's last seed: one that answers with the result of an earlier growth ends at
+	// another position and has another value.
+	var lastEnd any
+	add("grow.end answers with the result of an earlier growth", "grow.end", func(call func(string, ...any) []any, a []any) []any {
+		out := call("grow.end", a...)
+		if lastEnd != nil {
+			out[0] = lastEnd
+		}
+		lastEnd = out[0]
+		return out
+	})
+	ignore("grow.step")
 	ignore("grow.adopt")
 	ignore("ctx.keep")
 	ignore("ctx.done")

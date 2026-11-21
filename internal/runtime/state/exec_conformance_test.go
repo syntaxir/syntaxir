@@ -168,7 +168,10 @@ func (m *engineMachine) Call(o *code.Op, args []any) (res []any) {
 	case "rec.since":
 		return []any{m.handle(p.recSince(int(args[0].(int64))))}
 	case "rec.add":
-		p.recAdd(args[0].(*errorList).e)
+		// The null handle is a list of no errors (ctx.errs): there is nothing to record.
+		if l, _ := args[0].(*errorList); l != nil {
+			p.recAdd(l.e)
+		}
 		return nil
 	case "rec.none":
 		// The null handle is a list of no errors (ctx.errs).

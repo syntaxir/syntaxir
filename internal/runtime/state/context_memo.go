@@ -68,6 +68,12 @@ const (
 	CtxStoreInserts               // rules that insert tokens keep their results in contexts too
 	CtxConstWide                  // all present sets of leaders without bits have one identity
 	CtxNoReplayLookup             // a reused result of a lookup passes no dependencies to the enclosing call
+	CtxNoStepMemo                 // a growth in a context takes no memoized step or jump and evaluates the body
+	CtxKeepInPlace                // the keep of a leader's result changes the result that grow.end returned
+	CtxNoJumpReplayDeps           // a jump passes on none of the dependencies of its steps
+	CtxNoJumpMergeExp             // a jump passes on none of the expectations of its steps
+	CtxNoStepReplayDeps           // a memoized step passes on none of its dependencies
+	CtxNoStepMergeExp             // a memoized step passes on none of its expectations
 )
 
 // growRec is a growth in progress: the leader's key, its current seed and the seed's identity.

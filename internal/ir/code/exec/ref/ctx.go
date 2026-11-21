@@ -127,6 +127,16 @@ type GrowState struct {
 	gi, gp int
 	start  int64
 	serial uint64
+	// rec is the number of entries of the recovered-error list when the growth began: the mark that its
+	// steps and its end cut the list back to. present is the present set of the context of a growth in one.
+	rec     int64
+	present uint64
+	// done is set when a step did not grow the seed, evaluating while a step is between grow.next and
+	// grow.step, with the number of frames after the step's frame began, and the isolation of its
+	// expectations.
+	done, evaluating bool
+	frame            int
+	exp              *ExpMark
 }
 
 // failSeed is the identity of every failed seed of grow.begin. The identities of the seeds that
@@ -142,6 +152,7 @@ type ctxFrame struct {
 
 type ctxHead struct {
 	look    bool
+	step    bool
 	id, min int64
 	present uint64
 }
@@ -149,7 +160,9 @@ type ctxHead struct {
 // ctxSlot is a result of a head under the values of the dependencies of its set: the result of a call
 // with its key, or the outcome of a lookahead.
 type ctxSlot struct {
-	res     *CtxResult
+	res *CtxResult
+	// id is the identity of a step's result as a seed.
+	id      uint64
 	key     int64
 	outcome uint64
 	deps    []ctxSDep
@@ -165,6 +178,9 @@ type ctxTable struct {
 	pos   int64
 	depth int
 	heads map[ctxHead][]*ctxSet
+	// canon holds the results of the steps of the growths in the table by growth, end and success,
+	// with the identity that equal results share (grow.go).
+	canon map[canonKey]canonRec
 }
 
 type lookRec struct {
@@ -188,8 +204,12 @@ type ctxModel struct {
 	tableUnits, depUnits, presentUnits int64
 	// keyCost is Model.keyCost: what comparing the key of a result inspects.
 	keyCost func(int64) int64
-	// serials counts the growths begun, seeds the seeds that grow.adopt adopted.
+	// serials counts the growths begun, seeds the seeds that grow.adopt adopted and the steps of a growth in a context made.
 	serials, seeds uint64
+	// grown is the last result of the growth that ended last, of the rule grownRule, which the call of its
+	// leader keeps.
+	grown     *CtxResult
+	grownRule int64
 }
 
 func (m *Model) ctxRule(r RuleRef) CtxRule {
@@ -536,13 +556,19 @@ func (m *Model) allowsCtx(o *code.Op, args []any) bool {
 		c := args[0].(*CtxState)
 		return c.pushed && c.popped < 0 && len(s.frames) == c.frame
 	case "ctx.keep":
-		// The result of a leader is final only when its growth ends, and grow.end keeps it; the model has no
-		// growth end, so it keeps the result of no leader.
-		c := args[0].(*CtxState)
-		return c.popped == CtxStoreCtx && !c.done && !m.ctxRule(args[1].(RuleRef)).Leader
+		// The result of a leader is final only when its growth ends, and the keep that follows grow.end keeps
+		// the last result of the growth.
+		c, r := args[0].(*CtxState), args[1].(RuleRef)
+		if m.ctxRule(r).Leader && (s.grown == nil || s.grownRule != r.Index) {
+			return false
+		}
+		return c.popped == CtxStoreCtx && !c.done
 	case "ctx.done":
 		c := args[0].(*CtxState)
 		return c.popped >= 0 && !c.done
+	case "grow.next", "grow.step", "grow.end":
+		allowed, _ := m.allowsGrow(o, args)
+		return allowed
 	case CtxGrowOp, "grow.begin":
 		r := args[0].(RuleRef)
 		cr, pos := m.ctxRule(r), m.pos()
@@ -591,15 +617,17 @@ func (m *Model) callCtx(o *code.Op, args []any) ([]any, bool) {
 		r := args[0].(RuleRef)
 		pos, cr := m.pos(), m.ctxRule(r)
 		s.serials++
-		g := &GrowState{gi: len(s.growths), gp: s.gammaAt(pos, cr.Cycle), start: pos, serial: s.serials}
+		g := &GrowState{gi: len(s.growths), gp: s.gammaAt(pos, cr.Cycle), start: pos, serial: s.serials, rec: int64(len(m.rec))}
 		s.growths = append(s.growths, growthRec{pos: pos, cycle: cr.Cycle, key: growKey{r.Index, args[1].(int64)},
 			bit: m.leaderBit(r), idx: m.leaderIndex(r), id: failSeed, serial: g.serial,
 			seed: &CtxResult{end: pos, examined: pos, from: pos}})
 		if g.gp < g.gi {
 			// The growth names the present set of its context, its own leader included.
-			s.present(g.gp)
+			g.present = s.present(g.gp)
 		}
 		return []any{g}, true
+	case "grow.next", "grow.step", "grow.end":
+		return m.callGrow(o, args)
 	case "grow.ctx":
 		g := args[0].(*GrowState)
 		return []any{g.gp < g.gi}, true
@@ -758,6 +786,17 @@ func (m *Model) callCtx(o *code.Op, args []any) ([]any, bool) {
 		return nil, true
 	case "ctx.keep":
 		c, r := args[0].(*CtxState), args[1].(RuleRef)
+		if m.ctxRule(r).Leader {
+			// The result of a leader is a copy of the last result of its growth, with the expectations the call
+			// kept: a result does not change.
+			res := new(CtxResult)
+			*res = *s.grown
+			res.far, res.kept = args[10].(int64), args[11].(*ExpKept)
+			s.grown = nil
+			s.store(args[2].(int64), c.gp, ctxHead{id: r.Index, min: args[3].(int64), present: c.present}, c.sd,
+				&ctxSlot{res: res, key: args[4].(int64)})
+			return nil, true
+		}
 		res := &CtxResult{ok: args[5].(bool), end: args[6].(int64), silent: args[7].(bool), value: args[8], errs: args[9],
 			far: args[10].(int64), kept: args[11].(*ExpKept), examined: m.doc.examined, from: m.doc.low}
 		s.store(args[2].(int64), c.gp, ctxHead{id: r.Index, min: args[3].(int64), present: c.present}, c.sd,
@@ -805,13 +844,13 @@ func (m *Model) ctxPop(c *CtxState) int64 {
 // clone returns a copy of s that operations change apart from s.
 func (s *ctxModel) clone() ctxModel {
 	c := ctxModel{growths: slices.Clone(s.growths), looks: slices.Clone(s.looks), guard: slices.Clone(s.guard), keyCost: s.keyCost,
-		wide: maps.Clone(s.wide), serials: s.serials, seeds: s.seeds}
+		wide: maps.Clone(s.wide), serials: s.serials, seeds: s.seeds, grown: s.grown, grownRule: s.grownRule}
 	for _, f := range s.frames {
 		f.deps = slices.Clone(f.deps)
 		c.frames = append(c.frames, f)
 	}
 	for _, t := range s.tables {
-		u := &ctxTable{pos: t.pos, depth: t.depth, heads: map[ctxHead][]*ctxSet{}}
+		u := &ctxTable{pos: t.pos, depth: t.depth, heads: map[ctxHead][]*ctxSet{}, canon: maps.Clone(t.canon)}
 		for h, sets := range t.heads {
 			for _, set := range sets {
 				x := &ctxSet{seeds: set.seeds, obs: set.obs, vals: map[string][]*ctxSlot{}}

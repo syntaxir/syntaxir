@@ -271,9 +271,9 @@ func (p *Parser) CallEnd(r *Rule, st *CallState, v *zpvalue.Node, ok bool) (*zpv
 			}
 		}
 	} else if store == storeCtx {
-		e := p.grown
+		var e *MemoEntry
 		if r.Leader {
-			p.grown = nil
+			e = p.leaderEntry()
 		} else {
 			e = new(MemoEntry)
 			*e = MemoEntry{Node: v, Ok: ok, End: p.Pos, Examined: p.Hw, From: p.lw, silent: p.Silent > 0, Gen: p.Gen, Vgen: p.Gen, Positional: r.Positional, Errs: p.recSince(rec)}

@@ -141,9 +141,9 @@ func (p *Parser) confMemoSetPresent(e *MemoEntry, c CtxState) CtxState {
 // confCtxKeep runs ctx.keep for the conformance suite.
 // Printed from Exec IR function confCtxKeep of internal/ir/code/exec/compose.
 func (p *Parser) confCtxKeep(c CtxState, r *Rule, pos int, min int, key KeyVals, ok bool, end int, silent bool, value *zpvalue.Node, errs RecEntry, far int, k []ExpID) CtxState {
-	e := p.grown
+	var e *MemoEntry
 	if r.Leader {
-		p.grown = nil
+		e = p.leaderEntry()
 	} else {
 		e = new(MemoEntry)
 		*e = MemoEntry{Node: value, Ok: ok, End: end, Examined: p.Hw, From: p.lw, silent: silent, Gen: p.Gen, Vgen: p.Gen, Positional: r.Positional, Errs: errs}
@@ -193,6 +193,21 @@ func (p *Parser) confGrowAdopt(g GrowState, value *zpvalue.Node, errs RecEntry) 
 	return g
 }
 
+// confGrowNext runs grow.next for the conformance suite.
+// Printed from Exec IR function confGrowNext of internal/ir/code/exec/compose.
+func (p *Parser) confGrowNext(g GrowState) (bool, GrowState) {
+	var r bool
+	r = p.GrowNext(&g)
+	return r, g
+}
+
+// confGrowStep runs grow.step for the conformance suite.
+// Printed from Exec IR function confGrowStep of internal/ir/code/exec/compose.
+func (p *Parser) confGrowStep(g GrowState, value *zpvalue.Node, ok bool) GrowState {
+	p.GrowStep(&g, value, ok)
+	return g
+}
+
 // confCtxBindings returns the bindings of p by the name of the operation.
 func confCtxBindings(p *Parser) map[string]any {
 	return map[string]any{
@@ -218,5 +233,7 @@ func confCtxBindings(p *Parser) map[string]any {
 		"grow.ctx":        p.confGrowCtx,
 		"grow.longer":     p.confGrowLonger,
 		"grow.adopt":      p.confGrowAdopt,
+		"grow.next":       p.confGrowNext,
+		"grow.step":       p.confGrowStep,
 	}
 }

@@ -686,9 +686,9 @@ p.LastKept = p.Arena[off:len(p.Arena):len(p.Arena)]
 			return fmt.Sprintf("%s.Examined, %[1]s.From, %[1]s.Positional = %s, p.lw, false", a[0], a[2]), true
 		case "ctx.keep":
 			// c, r, pos, min, key, ok, end, silent, value, errs, far, kept
-			return fmt.Sprintf(`e := p.grown
+			return fmt.Sprintf(`var e *MemoEntry
 if r.Leader {
-p.grown = nil
+e = p.leaderEntry()
 } else {
 e = new(MemoEntry)
 *e = MemoEntry{Node: %s, Ok: %s, End: %s, Examined: p.Hw, From: p.lw, silent: %s, Gen: p.Gen, Vgen: p.Gen, Positional: r.Positional, Errs: %s}

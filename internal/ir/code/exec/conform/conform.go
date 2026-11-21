@@ -371,13 +371,16 @@ func (p *pair) Call(o *code.Op, args []any) []any {
 	if !p.model.Allows(o, refArgs) {
 		panic(mismatch("the case breaks the precondition of " + o.Name))
 	}
-	bound := int64(o.Cost.Const)
-	for _, t := range o.Cost.Terms {
-		bound += int64(t.Coef) * p.model.Quantity(t.Quantity, o, refArgs)
-	}
 	meter, metered := p.impl.(Metered)
+	var bound int64
 	var before uint64
 	if metered {
+		// Only a suite that controls charges needs the bound, so the model declares the quantities of the
+		// operations that such a suite runs.
+		bound = int64(o.Cost.Const)
+		for _, t := range o.Cost.Terms {
+			bound += int64(t.Coef) * p.model.Quantity(t.Quantity, o, refArgs)
+		}
 		before = meter.Used()
 	}
 	want := call(p.model, o, refArgs)
