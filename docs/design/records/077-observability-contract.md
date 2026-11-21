@@ -113,12 +113,16 @@ left out must be caught by the reference) and by an independent review of its ru
 of the claim: the frontend and the value of user actions are outside it; predicates the evaluator cannot run exclude a
 grammar and are named in the test.
 
-Status: the oracle is not yet in the repository. Its left-recursion part is specified after review of the evaluator's
-growth rules; the perturbation and high-water parts apply to all grammars.
+Status: the reference evaluator is in `internal/testing/examinedref`. It evaluates the matching core of the language,
+including left recursion by the growth rules above, and the examined ends it computes are checked by hand on
+representative grammars. Its comparison with the engine over the generated corpus is not yet a passing check: it finds
+examined ends that differ from the reference, which this record does not yet decide. Grammars outside the core
+(predicates, variables, actions with effects, recovery, cuts, binding levels, Operators Rules) are not covered, and
+perturbation and the stream high-water mark are not yet implemented.
 
 ## Limitations and Open Work
 
-- **Partially Implemented:** the examined-end oracle above is not in the repository. Until it lands, the exactness of the
-  examined end rests on the agreement tests in Testing.
+- **Partially Implemented:** the oracle covers the matching core only, and its perturbation and stream parts are not yet written.
+  Until they are, the exactness of the examined end rests on the agreement tests in Testing.
 - The specification's limitations list the remaining differences between the backends, such as first-character skips
   of calls that fail on the next character.
