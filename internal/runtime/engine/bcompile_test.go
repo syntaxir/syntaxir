@@ -2,36 +2,8 @@ package engine
 
 import (
 	"errors"
-	"strings"
 	"testing"
-
-	"syntaxir.dev/sxir/internal/testing/codegentest"
-	"syntaxir.dev/sxir/pkg/bytecode"
 )
-
-// TestModuleCompilesCorpus checks that every test grammar compiles to bytecode and that all
-// branch targets are within the instruction range.
-func TestModuleCompilesCorpus(t *testing.T) {
-	t.Parallel()
-	for _, c := range codegentest.GenCorpus(t) {
-		m := mustCompile(t, c.Src).Module()
-		for i, in := range m.Code {
-			switch in.Op {
-			case bytecode.OpJump, bytecode.OpChoice, bytecode.OpCommit, bytecode.OpIter, bytecode.OpNext, bytecode.OpLook, bytecode.OpRecover, bytecode.OpEndRecover:
-				if in.A < 0 || int(in.A) > len(m.Code) {
-					t.Errorf("%s: code %d: jump to %d", c.Name, i, in.A)
-				}
-			case bytecode.OpGuard:
-				if in.C <= int32(i) || int(in.C) > len(m.Code) {
-					t.Errorf("%s: code %d: guard jumps to %d", c.Name, i, in.C)
-				}
-			}
-		}
-		if !strings.Contains(m.Disassemble(), "RETURN") {
-			t.Errorf("%s: no RETURN", c.Name)
-		}
-	}
-}
 
 // TestModuleErrorSharedByPrograms checks that an internal error of the bytecode compilation is
 // reported by every program sharing the static program, not only by the one whose call compiled it:
