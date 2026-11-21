@@ -3487,6 +3487,22 @@ result that does not include the seed: the second step and steps whose
 results have at most $c_w$ characters, which the hypothesis of *Steps that
 begin anew* on kept steps leaves out.
 
+The units that the claim leaves aside reduce to fewer cases. Let $H$ be the
+innermost growth at $q$ other than $G$ that $\sigma'$ nests and that holds
+$U$, and let its leader $T$ be another leader than $R$. When $U$ is not a
+step of $H$, it lies inside a step of $H$, in the body of $T$ or of a rule
+of the cycle that is not a leader, and condition 2 checks it. In a rule
+that is not a leader, or when it examines the input before $\rho$, the
+grammar fails condition 2 outside cases (1) and (2), whose steps are
+bounded as above. In the body of $T$, when $U$ reaches $\rho$ before it
+examines the input, it succeeds in the first step of $G$ along a path
+$P_1$ that goes on after the failed calls of $R$; when $P_1$ then evaluates
+something other than a left call of a leader first, or reaches the end of
+$U$ without consuming input, the grammar fails condition 2 outside case
+(3), whose steps are bounded as above. Not shown are a $U$ that is a step of
+$H$, dropped or kept, a path $P_1$ that goes on through a left call of a
+leader, and a growth $H$ of $R$ at another binding level.
+
 *Proof.* Every read of the seed in $\sigma'$ is a call of $R$ at $q$ that
 returns the seed, a success. Only those reads answer otherwise in
 $\sigma'$ than in the first step $\sigma_1$ of $G$, where they fail.
@@ -3706,7 +3722,54 @@ arise.
 
 In case (3), $e' \le q + |w| \le q + c_w$. The results of the kept
 steps after the first are each longer than the one before and not empty, so
-at most $c_w$ of them end at or before $q + c_w$. $\square$
+at most $c_w$ of them end at or before $q + c_w$.
+
+For the units left aside, let $c$ be the call of $T$ that starts $H$. The
+evaluations above $U$ on the path are not abandoned, so each lies, outside
+lookaheads, in the match of the one above it, and the result of $c$ lies in
+the match of $\sigma'$. Let $U$ lie inside a step $h$ of $H$ and not be a
+step of $H$; since $H$ is the innermost such growth, $U$ lies in the body of
+$T$ or of a rule of the cycle that is not a leader, evaluated by $h$ at $q$
+without a call that starts another growth. Every call of $R$ at $q$ inside
+$\sigma'$ reads the seed and evaluates no body, so $\rho$ is made in the
+body of a rule other than $R$: a call of a leader in the body of another
+rule, a scanning source, which $U$ and $T$ contain. The cycle has the two
+leaders $R$ and $T$, so condition 5 lets no lookahead in its bodies make a
+left call, and $U$, which reaches $\rho$ at $q$ without consuming input, is
+no lookahead: it fails after $\rho$ succeeded, and condition 2 checks it.
+After $U$ is abandoned, $\sigma'$ goes on from $q$ through the ends of the
+enclosing expressions, the end of $h$ and what follows it, in the growth of
+$T$ and after $c$, to $e' > e_s \ge q$; this is the continuation $Q$ of
+$U$ that condition 2 compares, a later alternative of its choice or what
+follows an option, a repetition or a lookahead, whose first characters
+include those of what follows it where it can match nothing, through the
+end of a rule body and every call of the rule, the reads of the seed of
+$T$ included ([Conditions for Linear
+Cost](../runtime/parsing.md#conditions-for-linear-cost)). So $Q$ consumes
+the character at $q$ first, as above, whether or not the part of it inside
+$h$ consumes any input. The comparison above and the bounds of cases (1)
+and (2) use of $U$ only that it lies on the path from $\sigma'$ to $\rho$,
+is made at $q$ in both steps, fails after $\rho$ and is compared with $Q$,
+whose match lies in that of $\sigma'$; so they apply. A $U$ in a rule
+that is not a leader is checked on all its paths: its path through $\rho$,
+a left call of the leader $R$, goes on at its start, since the cycle has
+more than one leader. A $U$ in the body of $T$ that examines the input
+before $\rho$ is checked as an alternative that is not growing. A $U$ in
+the body of $T$ that reaches $\rho$ before it examines the input is a
+growing unit of $T$, which contains a scanning source; $U$ is made in
+$\sigma_1$ at $q$ and answers otherwise there, so it succeeds along a path
+$P_1$, on which the call that stands where $\rho$ stands fails, as every
+call of $R$ at $q$ in $\sigma_1$ does. When $P_1$ goes on from there with
+something other than a left call of a leader, calls of rules of the cycle
+that are not leaders standing for the paths of their bodies, or reaches the
+end of $U$ without consuming input, it is a path on which $U$ goes on at
+its start after a path through its left call fails and that examines the
+input before a left call of $T$, so condition 2 requires it to be committing
+against the later alternatives at its own start, and the argument above
+for a growing unit of $R$, with $T$ in place of $R$ and $Q$ as here, makes
+the grammar fail condition 2 outside case (3). Where $P_1$ goes on through
+a left call of $T$, which can read a seed of $H$ that is not empty, or of a
+third leader, the check is not shown to follow it. $\square$
 
 The claim needs the finite reading for every decision, not only for the
 form of `!K`: without it the comparison would follow the path $P$ through
@@ -9039,10 +9102,13 @@ than a bounded scan, which the conditions do not check. $\square$
 claims of this lemma that rest on them hold apart from them:
 
 1. the hypothesis of *Steps that begin anew* on kept steps for a leader that
-   contains a scanning source, in the units that *Later steps that abandon
-   their reads of the seed* leaves aside: an abandoned unit that is a
-   dropped step of another growth or lies in a growth of another leader at
-   the position. The kept steps that its cases
+   contains a scanning source, in the parts of the units that *Later steps
+   that abandon their reads of the seed* leaves aside that it does not
+   reduce: an abandoned unit that is a step, dropped or kept, of another
+   growth at the position, a unit in the body of another leader $T$ whose
+   path in the first step goes on, after the failed reads, through a left
+   call of a leader, and a unit in a growth of the leader at another binding
+   level. The kept steps that its cases
    (1) and (3) leave, the second step and steps whose results have at most
    $c_w$ characters, the hypothesis leaves out, and the claims that take it
    allow them, apart from the second remaining case of *Steps that begin
@@ -13559,7 +13625,10 @@ theorem covers such a parse.
    *Results that do not include the seed*, on the hypothesis of *Steps that
    begin anew* on kept steps, which is not shown, for a leader with a
    scanning source, in the units that *Later steps that abandon their reads
-   of the seed* leaves aside (step 1); the second step and steps whose
+   of the seed* leaves aside and does not reduce (step 1): a step of another
+   growth at the position, a unit of another leader whose path in the first
+   step goes on through a left call of a leader, and a unit in a growth of
+   the leader at another binding level; the second step and steps whose
    results have at
    most $c_w$ characters, which its cases (1) and (3) leave, the hypothesis
    leaves out. No claim takes the hypothesis for a leader without one,
@@ -13624,7 +13693,7 @@ theorem covers such a parse.
    a result of more than $c_w$ characters, has a result that includes the
    growing result, which *Later steps that abandon their reads of the seed*
    gives only for a leader that contains a scanning source, outside the
-   units that it leaves aside (step 1); its cases (1) and
+   units that it leaves aside and does not reduce (step 1); its cases (1) and
    (3) leave only the second step and steps whose results have at most
    $c_w$ characters, which the hypothesis leaves out; for a
    leader without one the hypothesis can fail,
