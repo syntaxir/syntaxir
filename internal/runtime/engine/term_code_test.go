@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/runtime/vm"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/bytecode"
@@ -31,6 +32,20 @@ func cloneTerms(ts []bytecode.Term) []bytecode.Term {
 	return out
 }
 
+// corpusProgram compiles a corpus grammar, or reports false for a grammar that does not compile or
+// that generated parsers refuse (#missing); enginetest.CorpusProgram, which this package cannot import.
+func corpusProgram(c codegentest.Case) (*Program, bool) {
+	g, err := parseTest(c.Src)
+	if err != nil {
+		return nil, false
+	}
+	prog, err := Compile(g, compile.Options{})
+	if err != nil || prog.HasMissing {
+		return nil, false
+	}
+	return prog, true
+}
+
 // TestTermCodeRoundTrip checks, for every grammar of the corpus and of testdata/grammars, that the
 // term code of its module survives a module file: the term code that a loaded program holds equals
 // the compiled program's, and loading the term code and exporting it again gives it back. A
@@ -43,8 +58,8 @@ func TestTermCodeRoundTrip(t *testing.T) {
 		pools [6]bool
 		err   string
 	}
-	results := mapParallel(len(cases), func(i int) (r result) {
-		prog, ok := coreCorpusProgram(t, cases[i])
+	results := codegentest.MapParallel(len(cases), func(i int) (r result) {
+		prog, ok := corpusProgram(cases[i])
 		if !ok {
 			return
 		}
