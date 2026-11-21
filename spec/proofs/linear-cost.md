@@ -3831,10 +3831,16 @@ dropped steps, but a dropped step that holds $T$ in a part that it evaluates
 at the position of its growth is not excluded. Third, each kept step of a
 growth on that path after the one that holds $T$ must match its result
 through a read of its seed that succeeds outside every lookahead, or a call
-whose result includes one, and a step that reads it only inside a lookahead,
-or only in an alternative that it abandons, is not excluded (the two
-witnesses after *Nesting at one end*), apart from what *Later steps that
-abandon their reads of the seed* excludes.
+whose result includes one. The leader of such a growth contains a scanning
+source, since a step of it holds $T$, so *Later steps that abandon their
+reads of the seed* shows this for each such step apart from the second step
+of the growth, the steps whose results have at most $c_w$ characters, where
+$c_w$ is the length of the longest literal of the grammar, and the units
+that it leaves aside and does not reduce (part 1 of *Open parts of the kept
+steps*): a step, dropped or kept, of another growth at the position, a unit
+in the body of another leader whose path in the first step goes on through
+a left call of a leader, and a unit in a growth of the same leader at
+another binding level. Those steps and units are not shown to be excluded.
 The claims above leave out the links between which the parser leaves or
 starts a growth step at the position, and so do not use this case.
 
@@ -13598,7 +13604,9 @@ theorem covers such a parse.
    dropped step of a growth on the path between them holds the inner one after
    a read of its seed, nor that each later kept step of such a growth matches
    its result through a read of its seed that succeeds outside every
-   lookahead, or a call whose result includes one. Third, the
+   lookahead, or a call whose result includes one, which *Later steps that
+   abandon their reads of the seed* shows apart from the same steps and
+   units as above. Third, the
    memoized links that the comparison leaves out: in a Document parse, a link
    whose comparison meets an entry of an earlier parse that answers a call in
    a context of growths, or a call whose corresponding call in the later
