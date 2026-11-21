@@ -43,7 +43,7 @@ func TestTwinBodies(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", path, err)
 		}
-		m, err := elaborate.CoreFrom(prog, nil)
+		m, err := elaborate.CoreFrom(prog, false)
 		if err != nil {
 			t.Fatalf("%s: %v", path, err)
 		}
@@ -78,7 +78,7 @@ func TestTwinMemoPolicy(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", path, err)
 		}
-		m, err := elaborate.CoreFrom(prog, nil)
+		m, err := elaborate.CoreFrom(prog, false)
 		if err != nil {
 			t.Fatalf("%s: %v", path, err)
 		}

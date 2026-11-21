@@ -43,11 +43,11 @@ type Options struct {
 	Laws []Law
 }
 
-// Source is what a view is built from: an untyped Core IR module (build.Structural), the
-// grammar expression each of its nodes is built from, and the facts of the module.
+// Source is what a view is built from: an untyped Core IR module (build.Structural) built with
+// its origin map, which gives the grammar expression each of its nodes is built from, and the
+// facts of the module.
 type Source struct {
 	Module *core.Module
-	Origin map[core.Node]ast.Expr
 	Facts  *corepass.Facts
 }
 
@@ -55,10 +55,9 @@ type Source struct {
 // with the same IDs, with their bodies rewritten. A node that no rule changes is shared with the
 // module; a node that a rule builds is new.
 type View struct {
+	// Module shares the origin map of the source (core.Module.Origin): it gives the expression of
+	// the grammar each shared node is built from. A node the view builds has no ID, so it has none.
 	Module *core.Module
-	// Origin is the origin map of the source: the expression of the grammar each shared node is
-	// built from. A node the view builds has none.
-	Origin map[core.Node]ast.Expr
 	// Text gives, for a node that the view builds, the source text of the expressions that it
 	// stands for, so that messages quote the grammar as it is written.
 	Text map[core.Node]string
@@ -79,7 +78,7 @@ type View struct {
 func Build(src *Source, opts Options, control *cancel.Control) *View {
 	m := *src.Module
 	m.Rules = make([]*core.Rule, len(src.Module.Rules))
-	v := &View{Module: &m, Origin: src.Origin, Text: map[core.Node]string{}, Applied: map[Law]int{},
+	v := &View{Module: &m, Text: map[core.Node]string{}, Applied: map[Law]int{},
 		replaces: map[core.Node]core.Node{}, chains: attrChains(src), at: map[core.Node]core.Node{}}
 	b := &builder{src: src, opts: opts, control: control, view: v, orig: map[core.Node]bool{},
 		values: valueReaders(src.Module)}
@@ -100,12 +99,19 @@ func Build(src *Source, opts Options, control *cancel.Control) *View {
 	return v
 }
 
+// origin returns the grammar expression that the node n of the view is built from, if n is a
+// node of the source.
+func (v *View) origin(n core.Node) (ast.Expr, bool) {
+	e := v.Module.Origin.Of(n)
+	return e, e != nil
+}
+
 // textOf returns the source text that the node n of the view stands for.
 func (v *View) textOf(n core.Node) string {
 	if t, ok := v.Text[n]; ok {
 		return t
 	}
-	if e, ok := v.Origin[n]; ok {
+	if e, ok := v.origin(n); ok {
 		return fmt.FormatExpr(e)
 	}
 	if e, err := v.expr(n); err == nil {

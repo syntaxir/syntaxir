@@ -154,7 +154,7 @@ func ruleFeatures(r *Rule) Feature {
 // reachedRules returns the rules of p, value-free twins included, that a parse can enter from the
 // start rules of p and the start rule named start.
 func reachedRules(p *Program, start string) ([]*Rule, error) {
-	m, err := irbuild.CoreFrom(p.Elab, nil)
+	m, err := irbuild.CoreFrom(p.Elab, false)
 	if err != nil {
 		return nil, fmt.Errorf("feature analysis: %w", err)
 	}

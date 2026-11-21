@@ -24,7 +24,7 @@ rule d = "d"
 	if prog.HasMissing {
 		t.Fatal("does not compile")
 	}
-	m, err := elaborate.CoreFrom(prog, nil)
+	m, err := elaborate.CoreFrom(prog, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +82,7 @@ var k int = 2
 rule main P = p:pair xs:(-"," q:pair)* => P{N: $p.N + len($xs) * k, S: $p.S}
 rule pair P = n:[0-9]+ s:[a-z] => P{N: len($n), S: text($s)}
 `)
-	m, err := elaborate.CoreFrom(prog, nil)
+	m, err := elaborate.CoreFrom(prog, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,7 +150,7 @@ rule main = x:item* #stream $$
 rule item = "a" ";" #missing / inner / "c" ":" @error(message="colon") #missing
 rule inner = "b"* #stream
 `)
-	m, err := elaborate.CoreFrom(prog, nil)
+	m, err := elaborate.CoreFrom(prog, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,7 +185,7 @@ func TestCoreBuildStreamUnderNestedCaptures(t *testing.T) {
 rule main = x:(y:"a"* #stream) inner $$
 rule inner = u:(v:"b"* #stream)
 `)
-	m, err := elaborate.CoreFrom(prog, nil)
+	m, err := elaborate.CoreFrom(prog, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,12 +211,10 @@ func TestScanKeepsTheOriginThroughStream(t *testing.T) {
 rule main = inner $$
 rule inner = [a-z]* #stream
 `)
-	built := map[core.Node]ast.Expr{}
-	m, err := elaborate.CoreFrom(prog, built)
+	m, err := elaborate.CoreFrom(prog, true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	origin := elaborate.OriginByID(built)
 	for _, r := range m.Rules {
 		r.Want = false
 		core.Walk(r.Body, func(n core.Node) { n.Attrs().Want = false })
@@ -227,19 +225,18 @@ rule inner = [a-z]* #stream
 	if !ok {
 		t.Fatalf("inner after scans: %T, want *core.Scan", m.Rules[1].Body)
 	}
-	if _, ok := origin.Of(s).(*ast.Repeat); !ok {
-		t.Errorf("origin of the scan: %T, want *ast.Repeat", origin.Of(s))
+	if _, ok := m.Origin.Of(s).(*ast.Repeat); !ok {
+		t.Errorf("origin of the scan: %T, want *ast.Repeat", m.Origin.Of(s))
 	}
 }
 
 // TestCoreBuildNumbersEveryNode checks that the builder gives every node of the module an ID of
-// its own, and that the origin by ID agrees with the origin by node.
+// its own, and that the origin map of the module holds the IDs of its nodes only.
 func TestCoreBuildNumbersEveryNode(t *testing.T) {
 	prog := coreProgram(t, `@start
 rule main = (a:"x" / [0-9]+ b:main)* $$
 `)
-	built := map[core.Node]ast.Expr{}
-	m, err := elaborate.CoreFrom(prog, built)
+	m, err := elaborate.CoreFrom(prog, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -256,10 +253,17 @@ rule main = (a:"x" / [0-9]+ b:main)* $$
 			seen[id] = n
 		})
 	}
-	origin := elaborate.OriginByID(built)
-	for n, e := range built {
-		if n.Attrs().ID != 0 && origin.Of(n) != e {
-			t.Errorf("origin of %T by ID differs", n)
+	if len(m.Origin) == 0 {
+		t.Fatal("the module has no origin map")
+	}
+	for id, e := range m.Origin {
+		n, ok := seen[id]
+		if !ok || e == nil {
+			t.Errorf("origin map holds ID %d, which no node of the module has, or no expression", id)
+			continue
+		}
+		if m.Origin.Of(n) != e {
+			t.Errorf("origin of %T differs from the map", n)
 		}
 	}
 }
@@ -274,7 +278,7 @@ rule e = #operators {
     level product { infix left "*" }
 }
 `)
-	m, err := elaborate.CoreFrom(prog, nil)
+	m, err := elaborate.CoreFrom(prog, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -303,7 +307,7 @@ func TestCoreBuildMemberField(t *testing.T) {
 	prog := coreProgram(t, `rule main = x:item* => concat(map($x, (e) => e.$v), map($x, (e) => e.Start))
 rule item = v:"a"
 `)
-	m, err := elaborate.CoreFrom(prog, nil)
+	m, err := elaborate.CoreFrom(prog, false)
 	if err != nil {
 		t.Fatal(err)
 	}

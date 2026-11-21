@@ -51,7 +51,7 @@ func structuralInputFacts(t *testing.T, path string) int {
 		if err != nil {
 			continue
 		}
-		typed, err := elaborate.CoreFrom(prog, nil)
+		typed, err := elaborate.CoreFrom(prog, false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -61,7 +61,7 @@ func structuralInputFacts(t *testing.T, path string) int {
 		}
 		defs, _ := desugar.UniqueRules(canon.Grammar, nil)
 		in := compile.StructuralInput(canon.Grammar, defs, canon.Starts)
-		untyped, err := elaborate.Structural(in, nil)
+		untyped, err := elaborate.Structural(in, false)
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}

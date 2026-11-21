@@ -22,7 +22,7 @@ import (
 // has a flat function that Refused rejects, so the test refuses by the hook.)
 func TestPlanTakesTheFallbackOfARefusedFunction(t *testing.T) {
 	prog := compiletest.Program(t, "rule main = a b !.\nrule a = \"a\"+\nrule b = [b]*\n", compile.Options{Recognition: compile.Recognize})
-	m, err := elaborate.CoreProjecting(prog, nil, false)
+	m, err := elaborate.CoreProjecting(prog, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +87,7 @@ func TestPlanTakesTheFallbackOfARefusedFunction(t *testing.T) {
 // flat.
 func TestPlanRefusesByItsPredicate(t *testing.T) {
 	prog := compiletest.Program(t, "rule main = a b !.\nrule a = \"a\"+\nrule b = [b]*\n", compile.Options{Recognition: compile.Recognize})
-	m, err := elaborate.CoreProjecting(prog, nil, false)
+	m, err := elaborate.CoreProjecting(prog, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}

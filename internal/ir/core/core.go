@@ -47,6 +47,10 @@ type Module struct {
 	Control *cancel.Control
 	// LastID is the greatest node ID of the module (Number, NewID).
 	LastID NodeID
+	// Origin is the origin map of the module: the grammar expression that each node was built from,
+	// by node ID, which elaborate records when asked; nil if it was not. It is read only after the
+	// build, so copies of the module share it (Clone).
+	Origin Origin
 }
 
 // Type is a checked type: a handle that the engine makes and the backends read. Core compares

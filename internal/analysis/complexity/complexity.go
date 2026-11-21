@@ -190,7 +190,7 @@ func prepareTypedClassifier(g *ast.Grammar, start string, control *cancel.Contro
 	// The facts are those the check took, of the module of the same rules: they are not computed
 	// again.
 	rules := typed.Rules
-	rf := sourceFacts(&Source{Module: typed.Module, Origin: typed.Origin, Facts: typed.Facts}, rules, control)
+	rf := sourceFacts(&Source{Module: typed.Module, Facts: typed.Facts}, rules, control)
 	k := newViewClassifier(typed.Grammar, rules, rf, start, control)
 	k.types = typed.Types
 	return k, names

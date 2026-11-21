@@ -48,15 +48,14 @@ func TestBindingErrorsMatchCompile(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			origin := map[core.Node]ast.Expr{}
-			m, err := elaborate.CoreFrom(prog, origin)
+			m, err := elaborate.CoreFrom(prog, true)
 			if err != nil {
 				t.Fatal(err)
 			}
 			f := corepass.Compute(m, nil)
 			var got []string
 			for _, e := range f.Errors(m, true) {
-				p := origin[e.Node].(*ast.Predicate).Action.(*ast.Bind).Diagnostic()
+				p := m.Origin.Of(e.Node).(*ast.Predicate).Action.(*ast.Bind).Diagnostic()
 				got = append(got, fmt.Sprintf("%d:%d: %s", p.Line, p.Col, e.Msg))
 			}
 			if len(want) > 0 {

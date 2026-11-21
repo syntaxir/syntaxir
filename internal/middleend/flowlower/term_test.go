@@ -42,7 +42,7 @@ func TestTermDumpGolden(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			m, err := irbuild.CoreFrom(prog, nil)
+			m, err := irbuild.CoreFrom(prog, false)
 			if err != nil {
 				t.Fatal(err)
 			}

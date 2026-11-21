@@ -41,7 +41,7 @@ rule expr = #operators {
 func plan(t *testing.T, src string, rec compile.Recognition, live func(int) bool) (*core.Module, []*compile.Rule, *flowplan.Table) {
 	t.Helper()
 	prog := compiletest.Program(t, src, compile.Options{Recognition: rec})
-	m, err := elaborate.CoreProjecting(prog, nil, rec == compile.BuildValues)
+	m, err := elaborate.CoreProjecting(prog, false, rec == compile.BuildValues)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -265,7 +265,7 @@ func lowerFlow(t *testing.T, m *core.Module, s *flowplan.FuncSpec, opts flowlowe
 // the plan, pass by pass, as the driver's manager numbers them.
 func TestPlanDecidesBeforeThePasses(t *testing.T) {
 	prog := compiletest.Program(t, grammar, compile.Options{Recognition: compile.Recognize})
-	m, err := elaborate.CoreProjecting(prog, nil, false)
+	m, err := elaborate.CoreProjecting(prog, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -323,7 +323,7 @@ func TestPlanDecidesBeforeThePasses(t *testing.T) {
 func TestPlanTyped(t *testing.T) {
 	const src = grammar + "rule sum = (l:sum \"+\" r:num => $l) / num\n"
 	prog := compiletest.Program(t, src, compile.Options{Recognition: compile.BuildValues})
-	m, err := elaborate.CoreFrom(prog, nil)
+	m, err := elaborate.CoreFrom(prog, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -382,7 +382,7 @@ func TestPlanTyped(t *testing.T) {
 func TestPlanStream(t *testing.T) {
 	const src = "rule main = ws is:item* #stream $$ => $is\nrule ws = [ ]*\nrule item = n:[0-9]+ ws => $n\n"
 	prog := compiletest.Program(t, src, compile.Options{Recognition: compile.BuildValues})
-	m, err := elaborate.CoreProjecting(prog, nil, true)
+	m, err := elaborate.CoreProjecting(prog, false, true)
 	if err != nil {
 		t.Fatal(err)
 	}

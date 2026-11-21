@@ -58,7 +58,7 @@ func (v *View) expr(n core.Node) (ast.Expr, error) {
 
 // expr returns the grammar expression of the node n of the view.
 func (v *writer) expr(n core.Node) (ast.Expr, error) {
-	if e, ok := v.Origin[n]; ok {
+	if e, ok := v.origin(n); ok {
 		return e, nil
 	}
 	e, err := v.built(n)
@@ -79,7 +79,7 @@ func (v *writer) built(n core.Node) (ast.Expr, error) {
 		return v.chainExpr(n, l)
 	}
 	if s, ok := v.replaces[n]; ok {
-		if e, ok := v.Origin[s]; ok {
+		if e, ok := v.origin(s); ok {
 			r, err := v.withParts(n, e)
 			if err != nil {
 				return nil, err
@@ -115,7 +115,7 @@ func (v *writer) built(n core.Node) (ast.Expr, error) {
 
 // place gives the expression e, which the writer built, the position of the module node at.
 func (v *writer) place(e ast.Expr, at core.Node) {
-	if o, ok := v.Origin[at].(interface{ Source() *ast.SourceInfo }); ok && o.Source() != nil {
+	if o, ok := v.Module.Origin.Of(at).(interface{ Source() *ast.SourceInfo }); ok && o.Source() != nil {
 		if d, ok := e.(interface{ Source() *ast.SourceInfo }); ok {
 			*d.Source() = ast.SourceInfo{Pos: o.Source().Diagnostic()}
 		}
@@ -269,7 +269,7 @@ func (v *View) BuiltTexts() []string {
 					inner[p] = true
 				}
 			}
-			if _, ok := v.Origin[n]; ok {
+			if _, ok := v.origin(n); ok {
 				return
 			}
 			spelling := ""
@@ -311,7 +311,7 @@ func attrChains(src *Source) map[core.Node]chainLink {
 	links := map[core.Node]chainLink{}
 	for _, r := range src.Module.Rules {
 		core.Walk(r.Body, func(n core.Node) {
-			e, ok := src.Origin[n].(*ast.Attributed)
+			e, ok := src.Module.Origin.Of(n).(*ast.Attributed)
 			if !ok || len(e.Attrs) < 2 {
 				return
 			}

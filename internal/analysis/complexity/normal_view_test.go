@@ -73,7 +73,7 @@ func testView(t *testing.T, src string, opts Options) (*View, []*ast.RuleDef, []
 	if err != nil {
 		t.Fatal(err)
 	}
-	v := Build(&Source{Module: cs.Module, Origin: cs.Origin, Facts: cs.Facts}, opts, nil)
+	v := Build(&Source{Module: cs.Module, Facts: cs.Facts}, opts, nil)
 	rules, text, err := v.GrammarText(cs.Rules)
 	if err != nil {
 		t.Fatal(err)

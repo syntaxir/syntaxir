@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"zeroparse.dev/zp/internal/backend/codegen/golang/print"
-	irbuild "zeroparse.dev/zp/internal/frontend/elaborate"
 	"zeroparse.dev/zp/internal/ir/code"
 	"zeroparse.dev/zp/internal/ir/code/flow"
 	"zeroparse.dev/zp/internal/ir/core"
@@ -120,7 +119,7 @@ func (rec *flowRecord) record(g *print.Generator, m *code.Module) {
 	if a == nil || a.Forms == nil || a.Rule == nil || g.Flow == nil {
 		return
 	}
-	origin := g.Flow.Origin
+	origin := g.Flow.M.Origin
 	rec.mu.Lock()
 	defer rec.mu.Unlock()
 	if rec.by == nil {
@@ -190,7 +189,7 @@ func leadingClass(n core.Node) core.Node {
 
 // altOriginIn returns the expression of the alternative i of the choice x under origin, as
 // coreGenCase.altOrigin does.
-func altOriginIn(origin irbuild.Origin, x *core.Choice, i int) (ast.Expr, bool) {
+func altOriginIn(origin core.Origin, x *core.Choice, i int) (ast.Expr, bool) {
 	if ce, ok := origin.Of(x).(*ast.Choice); ok && len(ce.Alts) == len(x.Alts) {
 		return ce.Alts[i], true
 	}

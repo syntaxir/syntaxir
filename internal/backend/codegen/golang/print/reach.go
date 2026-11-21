@@ -165,7 +165,7 @@ func (g *Generator) finishReach(prog, rec *common.Program) error {
 			if table == "trules" && len(g.typedRoots) == 0 {
 				continue
 			}
-			m, err := irbuild.CoreFrom(pr.Elab, nil)
+			m, err := irbuild.CoreFrom(pr.Elab, false)
 			if err != nil {
 				return err
 			}

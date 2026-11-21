@@ -9,7 +9,6 @@ import (
 	"zeroparse.dev/zp/internal/middleend/corepass"
 	"zeroparse.dev/zp/internal/testing/compiletest"
 	"zeroparse.dev/zp/internal/testing/factstest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
 )
 
 // TestFactsGolden computes the facts of every corpus grammar on its Core IR module, with the
@@ -28,8 +27,7 @@ func TestFactsGolden(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			origin := map[core.Node]ast.Expr{}
-			m, err := elaborate.CoreFrom(prog, origin)
+			m, err := elaborate.CoreFrom(prog, true)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -37,7 +35,7 @@ func TestFactsGolden(t *testing.T) {
 				r.Policy = core.Policy{}
 			}
 			f := corepass.Compute(m, nil)
-			factstest.Golden(t, path, factstest.Render(factstest.CoreRules(m, f, origin)))
+			factstest.Golden(t, path, factstest.Render(factstest.CoreRules(m, f)))
 		})
 	}
 }

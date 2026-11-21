@@ -326,12 +326,11 @@ func closureExprNode(t *testing.T, prog *compile.Program, e ast.Expr) ir.Node {
 
 func closureExprCore(t *testing.T, prog *compile.Program, e ast.Expr) (*ir.Module, ir.Node) {
 	t.Helper()
-	built := map[ir.Node]ast.Expr{}
-	m, err := irbuild.CoreFrom(prog, built)
+	m, err := irbuild.CoreFrom(prog, true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	origin := irbuild.OriginByID(built)
+	origin := m.Origin
 	ir.Analyze(m)
 	if m, _, err = corepass.Run(m, corepass.RunOptions{}); err != nil {
 		t.Fatal(err)

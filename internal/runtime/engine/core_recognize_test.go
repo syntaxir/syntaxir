@@ -10,7 +10,6 @@ import (
 	"zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/middleend/corepass"
 	"zeroparse.dev/zp/internal/testing/codegentest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
 )
 
 // coreRecognizeCase builds the Core IR of the recognizer of the parser generated with Recognize,
@@ -23,8 +22,7 @@ func coreRecognizeCase(name, mode string, g *print.Generator) (*coreGenCase, err
 	}
 	c := &coreGenCase{name: name, mode: mode, table: "recRules", golden: recognizerGolden, gen: g}
 	c.rules = append(append([]*common.Rule(nil), rec.RuleList...), rec.Twins...)
-	origin := map[core.Node]ast.Expr{}
-	m, err := irbuild.CoreFrom(rec.Elab, origin)
+	m, err := irbuild.CoreFrom(rec.Elab, true)
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +32,7 @@ func coreRecognizeCase(name, mode string, g *print.Generator) (*coreGenCase, err
 			c.passErrs = append(c.passErrs, fmt.Sprintf("after %s: %v", pass, err))
 		}
 	}
-	c.origin = irbuild.OriginByID(origin)
+	c.origin = m.Origin
 	if m, _, err = corepass.Run(m, corepass.RunOptions{Settings: g.Opt(), Dump: check}); err != nil {
 		return nil, err
 	}

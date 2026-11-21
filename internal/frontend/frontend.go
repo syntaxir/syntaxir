@@ -26,10 +26,8 @@ import (
 type Result struct {
 	// Program is the compiled program: rules, flags and types.
 	Program *compile.Program
-	// Module is the Core IR of the program.
+	// Module is the Core IR of the program, with its origin map (core.Module.Origin).
 	Module *core.Module
-	// Origin maps the nodes of Module to the expressions they were built from.
-	Origin map[core.Node]ast.Expr
 	// Facts are the grammar facts of Module, which Analyses holds.
 	Facts *corepass.Facts
 	// Analyses is the manager of the analyses of Module, which the tools read them through.
@@ -59,11 +57,10 @@ func Run(g *ast.Grammar, opts compile.Options, control *cancel.Control) (*Result
 // FromProgram builds the Result of a program that was compiled already, for a caller that keeps
 // the program for its own use and must not compile the grammar twice.
 func FromProgram(prog *compile.Program, control *cancel.Control) (*Result, error) {
-	origin := map[core.Node]ast.Expr{}
-	m, err := elaborate.CoreFrom(prog, origin)
+	m, err := elaborate.CoreFrom(prog, true)
 	if err != nil {
 		return nil, err
 	}
 	am := corepass.NewAnalyses(control)
-	return &Result{Program: prog, Module: m, Origin: origin, Facts: corepass.FactsOf(am, m), Analyses: am}, nil
+	return &Result{Program: prog, Module: m, Facts: corepass.FactsOf(am, m), Analyses: am}, nil
 }

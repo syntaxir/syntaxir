@@ -81,7 +81,7 @@ func moduleFacts(t *testing.T, path string) (*core.Module, *corepass.Facts) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m, err := elaborate.CoreFrom(prog, nil)
+	m, err := elaborate.CoreFrom(prog, false)
 	if err != nil {
 		t.Fatal(err)
 	}

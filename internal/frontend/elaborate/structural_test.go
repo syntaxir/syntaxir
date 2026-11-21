@@ -68,12 +68,12 @@ func TestStructuralFacts(t *testing.T) {
 				if err != nil {
 					continue
 				}
-				typed, err := elaborate.CoreFrom(prog, nil)
+				typed, err := elaborate.CoreFrom(prog, false)
 				if err != nil {
 					t.Fatal(err)
 				}
 				n := len(prog.RuleList) // the typed module has the twins after them
-				untyped, err := elaborate.Structural(structuralInput(prog), nil)
+				untyped, err := elaborate.Structural(structuralInput(prog), false)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -121,7 +121,7 @@ func TestStructuralFactsNegative(t *testing.T) {
 		t.Fatal(err)
 	}
 	in := structuralInput(prog)
-	m, err := elaborate.Structural(in, nil)
+	m, err := elaborate.Structural(in, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,7 +130,7 @@ func TestStructuralFactsNegative(t *testing.T) {
 		t.Fatal("rule a is not left-recursive")
 	}
 	in.Rules[0].Body = &ast.Literal{Value: "x"}
-	m2, err := elaborate.Structural(in, nil)
+	m2, err := elaborate.Structural(in, false)
 	if err != nil {
 		t.Fatal(err)
 	}

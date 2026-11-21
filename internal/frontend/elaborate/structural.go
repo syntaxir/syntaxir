@@ -11,8 +11,9 @@ import (
 // captures and the variable reads of its rules, with no types, shapes, twins or rule flags. Every
 // rule builds its value, no repetition projects, and a cast checks nothing. The facts of the
 // module (internal/middleend/corepass) read this structure only, so they are those of the typed module
-// of the same rules. If origin is not nil, it records the expression each node is built from.
-func Structural(in *Input, origin map[core.Node]ast.Expr) (*core.Module, error) {
+// of the same rules. If origin, the module records the expression each node is built from
+// (core.Module.Origin).
+func Structural(in *Input, origin bool) (*core.Module, error) {
 	return coreModule(structural{in}, origin, false, nil)
 }
 

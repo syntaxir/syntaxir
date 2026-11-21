@@ -16,7 +16,6 @@ import (
 	"zeroparse.dev/zp/internal/compile"
 	"zeroparse.dev/zp/internal/driver"
 	"zeroparse.dev/zp/internal/driver/checked"
-	irbuild "zeroparse.dev/zp/internal/frontend/elaborate"
 	"zeroparse.dev/zp/internal/ir/core"
 	syntaxfmt "zeroparse.dev/zp/internal/syntax/fmt"
 	"zeroparse.dev/zp/internal/testing/codegentest"
@@ -50,7 +49,7 @@ type coreGenCase struct {
 	golden *decisionsGolden
 	gen    *print.Generator
 	m      *core.Module
-	origin irbuild.Origin
+	origin core.Origin
 	// rules holds the rules of the program by ID, value-free twins included.
 	rules []*common.Rule
 	// passErrs holds the violations Verify found after a pass.
@@ -124,11 +123,10 @@ func coreTypedCase(name, mode string, gen *print.Generator, breaks func(c *coreG
 	c.flow = flowRecordOf(gen).decisions(c.table, gen)
 	c.rules = typedRules(gen)
 	d := driverOf(gen)
-	origin := map[core.Node]ast.Expr{}
 	d.CoreHook = func(pass string, m *core.Module) {
 		// The module is built, and so the origin known, before the first pass.
 		if c.origin == nil {
-			c.origin = irbuild.OriginByID(origin)
+			c.origin = m.Origin
 		}
 		if breaks != nil {
 			breaks(c, pass, m)
@@ -139,11 +137,11 @@ func coreTypedCase(name, mode string, gen *print.Generator, breaks func(c *coreG
 		}
 	}
 	defer func() { d.CoreHook = nil }()
-	m, err := gen.TypedCore(origin)
+	m, err := gen.TypedCore()
 	if err != nil {
 		return nil, err
 	}
-	c.m, c.origin = m, irbuild.OriginByID(origin)
+	c.m, c.origin = m, m.Origin
 	return c, nil
 }
 
@@ -176,7 +174,7 @@ func coreGenerations(t *testing.T, mode coreGenMode) []coreGenerated1 {
 			if !ok {
 				return
 			}
-			if m, err := gen.TypedCore(map[core.Node]ast.Expr{}); err != nil || len(m.Rules) == 0 {
+			if m, err := gen.TypedCore(); err != nil || len(m.Rules) == 0 {
 				return
 			}
 			gens[i] = gen

@@ -48,7 +48,7 @@ func RuleVariables(g *ast.Grammar, rules []*ast.RuleDef) map[string][]string {
 			ordered = append(ordered, rd)
 		}
 	}
-	m, err := elaborate.Structural(compile.StructuralInput(canon.Grammar, ordered, nil), nil)
+	m, err := elaborate.Structural(compile.StructuralInput(canon.Grammar, ordered, nil), false)
 	if err != nil {
 		panic(err)
 	}

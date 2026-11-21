@@ -20,7 +20,7 @@ func TestNullableRepetitionFacts(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		m, err := elaborate.Structural(compile.StructuralInput(g, g.Rules(), nil), nil)
+		m, err := elaborate.Structural(compile.StructuralInput(g, g.Rules(), nil), false)
 		if err != nil {
 			t.Fatal(err)
 		}

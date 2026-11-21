@@ -39,9 +39,9 @@ import (
 
 // CoreFrom builds the Core IR of the program: its rules and then its value-free twins, each at
 // the position of its ID. Shapes are those of the value model (internal/compile/value_shape.go);
-// Analyze has not run. If origin is not nil, it records the expression each node is built from
-// (the innermost one, for nodes built from a chain of expressions).
-func CoreFrom(prog Program, origin map[core.Node]ast.Expr) (*core.Module, error) {
+// Analyze has not run. If origin, the module records the expression each node is built from (the
+// innermost one, for nodes built from a chain of expressions) in its origin map (core.Module.Origin).
+func CoreFrom(prog Program, origin bool) (*core.Module, error) {
 	return CoreProjecting(prog, origin, true)
 }
 
@@ -50,23 +50,26 @@ func CoreFrom(prog Program, origin map[core.Node]ast.Expr) (*core.Module, error)
 // follow.
 // A cancellation unwinds as cancel.Cancellation.
 func CoreControlled(prog Program, control *cancel.Control) (*core.Module, error) {
-	return coreModule(prog, nil, true, control)
+	return coreModule(prog, false, true, control)
 }
 
 // CoreProjecting is CoreFrom; if project is false, no repetition gathers the values of a
 // capture (Rule.Projections is ignored), the shape of the values the recognizer's table
 // writes its actions for (the Go generator's projections).
-func CoreProjecting(prog Program, origin map[core.Node]ast.Expr, project bool) (*core.Module, error) {
+func CoreProjecting(prog Program, origin, project bool) (*core.Module, error) {
 	return coreModule(prog, origin, project, nil)
 }
 
-// coreModule builds the module of prog under control (nil for none). A program without a checker
-// (see Structural) builds an untyped module.
-func coreModule(prog Program, origin map[core.Node]ast.Expr, project bool, control *cancel.Control) (*core.Module, error) {
+// coreModule builds the module of prog under control (nil for none), with its origin map if origin.
+// A program without a checker (see Structural) builds an untyped module.
+func coreModule(prog Program, origin, project bool, control *cancel.Control) (*core.Module, error) {
 	in := prog.CoreInput()
 	all := in.Rules
-	b := &coreBuilder{prog: prog, in: in, chk: prog.Checker(), m: &core.Module{Rules: make([]*core.Rule, len(all))}, origin: origin,
+	b := &coreBuilder{prog: prog, in: in, chk: prog.Checker(), m: &core.Module{Rules: make([]*core.Rule, len(all))},
 		exps: map[string]core.ExpID{}, classes: map[string]*core.Class{}}
+	if origin {
+		b.origin = map[core.Node]ast.Expr{}
+	}
 	b.noProject = !project
 	b.m.Control = control
 	if b.chk != nil {
@@ -111,33 +114,15 @@ func coreModule(prog Program, origin map[core.Node]ast.Expr, project bool, contr
 	}
 	core.CallGraph(b.m)
 	core.Number(b.m)
-	return b.m, nil
-}
-
-// Origin maps the IDs of the nodes of a module (core.Attrs.ID) to the expressions they were built
-// from. It holds across the passes of the module, which keep the IDs of the nodes they keep and give
-// a node that takes the place of another the ID of the node it replaces.
-type Origin map[core.NodeID]ast.Expr
-
-// OriginByID returns the origin that origin, a map that CoreFrom or CoreProjecting filled while
-// they built a module, records by node ID. A node that the module does not hold has no ID and
-// is left out.
-func OriginByID(origin map[core.Node]ast.Expr) Origin {
-	out := make(Origin, len(origin))
-	for n, e := range origin {
-		if id := n.Attrs().ID; id != 0 {
-			out[id] = e
+	if b.origin != nil {
+		b.m.Origin = make(core.Origin, len(b.origin))
+		for n, e := range b.origin {
+			if id := n.Attrs().ID; id != 0 { // a node that the module does not hold has none
+				b.m.Origin[id] = e
+			}
 		}
 	}
-	return out
-}
-
-// Of returns the expression the node n was built from, or nil.
-func (o Origin) Of(n core.Node) ast.Expr {
-	if n == nil || n.Attrs().ID == 0 {
-		return nil
-	}
-	return o[n.Attrs().ID]
+	return b.m, nil
 }
 
 type coreBuilder struct {
@@ -152,7 +137,8 @@ type coreBuilder struct {
 	proj map[string]string
 	// final is the action whose value is the result of the rule or line being built.
 	final ast.ActionExpr
-	// origin, if not nil, records the expression each node is built from.
+	// origin, if not nil, records the expression each node is built from, until the nodes have
+	// their IDs (Module.Origin).
 	origin map[core.Node]ast.Expr
 	// rec holds the checked types of the program, nil if it has none.
 	rec *check.ValueRecord

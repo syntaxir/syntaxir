@@ -33,10 +33,9 @@ type Structural struct {
 	// the order of the rules of Module.
 	Canonical *compile.Canonical
 	Rules     []*ast.RuleDef
-	// Module is nil if the grammar has an error that keeps it from being built.
-	Module *core.Module
-	// Origin maps the nodes of Module to the expressions they were built from.
-	Origin   map[core.Node]ast.Expr
+	// Module is nil if the grammar has an error that keeps it from being built. Its origin map
+	// (core.Module.Origin) gives the expression each node was built from.
+	Module   *core.Module
 	Analyses *pass.AnalysisManager[*core.Module]
 	// failure is why Module is nil: an error or the value of a panic.
 	failure any
@@ -55,7 +54,7 @@ func CheckStructural(g *ast.Grammar, opts compile.Options, flags []compile.RuleF
 	}
 	var facts *compile.RuleFacts
 	if s.Module != nil {
-		facts = ruleFacts(s.Module, s.Facts(), s.Origin, s.Rules)
+		facts = ruleFacts(s.Module, s.Facts(), s.Rules)
 	} else {
 		// The module cannot be built from a grammar with an error that the compiler reports, such
 		// as a malformed attribute. The rules then take no facts, so that the compiler still
@@ -74,19 +73,19 @@ func CheckStructural(g *ast.Grammar, opts compile.Options, flags []compile.RuleF
 		}
 		panic(s.failure)
 	}
-	prog.SetSites(sites(s.Module, prog, s.Origin, control))
+	prog.SetSites(sites(s.Module, prog, control))
 	return prog, s, nil
 }
 
 // Typed is what the complexity classifier reads of a checked grammar: the grammar as the compiler
 // canonicalized it, its default start rule, its unique rules with the untyped Core IR module they
-// were elaborated into and the facts of that module, and the value types of its terms.
+// were elaborated into, with its origin map (core.Module.Origin), and the facts of that module, and the
+// value types of its terms.
 type Typed struct {
 	Grammar      *ast.Grammar
 	DefaultStart string
 	Rules        []*ast.RuleDef
 	Module       *core.Module
-	Origin       map[core.Node]ast.Expr
 	Facts        *corepass.Facts
 	Types        *check.ValueRecord
 }
@@ -100,7 +99,7 @@ func CheckTyped(g *ast.Grammar, names desugar.InlineNames, control *cancel.Contr
 		return nil, err
 	}
 	return &Typed{Grammar: prog.Grammar, DefaultStart: prog.DefaultStartRule, Rules: st.Rules,
-		Module: st.Module, Origin: st.Origin, Facts: st.Facts(), Types: prog.ValueRecord()}, nil
+		Module: st.Module, Facts: st.Facts(), Types: prog.ValueRecord()}, nil
 }
 
 // buildStructural canonicalizes g and builds the untyped Core IR module of its unique rules. A
@@ -113,7 +112,7 @@ func buildStructural(g *ast.Grammar, opts compile.Options, names desugar.InlineN
 		return nil, err
 	}
 	defs, _ := desugar.UniqueRules(canon.Grammar, control)
-	s := &Structural{Canonical: canon, Rules: defs, Origin: map[core.Node]ast.Expr{}, Analyses: corepass.NewAnalyses(control)}
+	s := &Structural{Canonical: canon, Rules: defs, Analyses: corepass.NewAnalyses(control)}
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -123,7 +122,7 @@ func buildStructural(g *ast.Grammar, opts compile.Options, names desugar.InlineN
 				s.Module, s.failure = nil, r
 			}
 		}()
-		m, err := elaborate.Structural(elaborate.StructuralInput(canon.Grammar, defs, canon.Starts), s.Origin)
+		m, err := elaborate.Structural(elaborate.StructuralInput(canon.Grammar, defs, canon.Starts), true)
 		if err != nil {
 			s.failure = err
 			return
@@ -135,7 +134,7 @@ func buildStructural(g *ast.Grammar, opts compile.Options, names desugar.InlineN
 
 // ruleFacts returns the facts that the compiler reads, of the module m of the rules defs, whose
 // facts are f.
-func ruleFacts(m *core.Module, f *corepass.Facts, origin map[core.Node]ast.Expr, defs []*ast.RuleDef) *compile.RuleFacts {
+func ruleFacts(m *core.Module, f *corepass.Facts, defs []*ast.RuleDef) *compile.RuleFacts {
 	out := &compile.RuleFacts{Rules: make([]compile.RuleFact, len(defs))}
 	for i := range defs {
 		r := &f.Rules[i]
@@ -154,7 +153,7 @@ func ruleFacts(m *core.Module, f *corepass.Facts, origin map[core.Node]ast.Expr,
 		out.Rules[i] = rf
 	}
 	for _, e := range f.BindingErrors(m) {
-		pos := origin[e.Node].(*ast.Predicate).Action.(*ast.Bind).Diagnostic()
+		pos := m.Origin.Of(e.Node).(*ast.Predicate).Action.(*ast.Bind).Diagnostic()
 		out.BindingErrors = append(out.BindingErrors, &diagnostic.Error{Pos: pos, Msg: e.Msg})
 	}
 	return out
@@ -162,7 +161,7 @@ func ruleFacts(m *core.Module, f *corepass.Facts, origin map[core.Node]ast.Expr,
 
 // sites numbers the sites of the module m of prog's rules with the rule flags of prog, keyed by
 // the repetitions of the grammar that the module's repetitions were built from.
-func sites(m *core.Module, prog *compile.Program, origin map[core.Node]ast.Expr, control *cancel.Control) compile.Sites {
+func sites(m *core.Module, prog *compile.Program, control *cancel.Control) compile.Sites {
 	rules := make([]corepass.SiteRule, len(prog.RuleList))
 	for i, r := range prog.RuleList {
 		rules[i] = corepass.SiteRule{LeftRec: r.Leader || r.Member, Vars: r.Vars, Declared: compile.DeclaredBeyondScan(r.Def)}
@@ -171,7 +170,7 @@ func sites(m *core.Module, prog *compile.Program, origin map[core.Node]ast.Expr,
 	key := func(in map[*core.Repeat]int) map[*ast.Repeat]int {
 		out := make(map[*ast.Repeat]int, len(in))
 		for n, site := range in {
-			out[origin[n].(*ast.Repeat)] = site
+			out[m.Origin.Of(n).(*ast.Repeat)] = site
 		}
 		return out
 	}

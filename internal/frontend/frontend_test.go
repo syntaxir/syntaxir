@@ -41,7 +41,7 @@ func TestRunMatchesCompile(t *testing.T) {
 				if err != nil {
 					continue // the grammar does not compile with this variant
 				}
-				want, err := elaborate.CoreFrom(prog, nil)
+				want, err := elaborate.CoreFrom(prog, false)
 				if err != nil {
 					t.Fatal(err)
 				}

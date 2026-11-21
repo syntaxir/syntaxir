@@ -311,9 +311,9 @@ func lineDiff(want, got string) string {
 }
 
 // CoreRules returns the facts that internal/middleend/corepass computed for the rules of a module that
-// are not value-free twins, in the form Render writes. origin maps the module's nodes to the
-// expressions they were built from, which name the choices of the alternatives.
-func CoreRules(m *core.Module, f *corepass.Facts, origin map[core.Node]ast.Expr) []Rule {
+// are not value-free twins, in the form Render writes. The module is built with its origin map
+// (core.Module.Origin), whose expressions name the choices of the alternatives.
+func CoreRules(m *core.Module, f *corepass.Facts) []Rule {
 	twin := map[int]bool{}
 	for _, r := range m.Rules {
 		if r.Twin != nil {
@@ -343,7 +343,7 @@ func CoreRules(m *core.Module, f *corepass.Facts, origin map[core.Node]ast.Expr)
 			if !ok {
 				return
 			}
-			pos := origin[c].(*ast.Choice).Diagnostic()
+			pos := m.Origin.Of(c).(*ast.Choice).Diagnostic()
 			for i, alt := range c.Alts {
 				rule.Alts = append(rule.Alts, Alt{Line: pos.Line, Col: pos.Col, Index: i, First: terminal(alt.Body)})
 			}

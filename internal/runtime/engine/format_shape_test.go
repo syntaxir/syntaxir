@@ -57,7 +57,7 @@ func TestFormatKeepsShapeOfViewRoundTrip(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			v := complexity.Build(&complexity.Source{Module: cs.Module, Origin: cs.Origin, Facts: cs.Facts}, complexity.Options{}, nil)
+			v := complexity.Build(&complexity.Source{Module: cs.Module, Facts: cs.Facts}, complexity.Options{}, nil)
 			rules, err := v.Grammar(cs.Rules)
 			if err != nil {
 				t.Fatal(err)

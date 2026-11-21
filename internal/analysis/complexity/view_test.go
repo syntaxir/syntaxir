@@ -2,6 +2,7 @@ package complexity_test
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -57,7 +58,7 @@ func sourceOf(t *testing.T, src string) *complexity.CostSource {
 }
 
 func viewSource(cs *complexity.CostSource) *complexity.Source {
-	return &complexity.Source{Module: cs.Module, Origin: cs.Origin, Facts: cs.Facts}
+	return &complexity.Source{Module: cs.Module, Facts: cs.Facts}
 }
 
 // formatRules formats the body of each rule, one rule per line.
@@ -77,7 +78,7 @@ func innerAttrNodes(cs *complexity.CostSource) map[core.Node]bool {
 	inner := map[core.Node]bool{}
 	for _, r := range cs.Module.Rules {
 		core.Walk(r.Body, func(n core.Node) {
-			e, ok := cs.Origin[n].(*ast.Attributed)
+			e, ok := cs.Module.Origin.Of(n).(*ast.Attributed)
 			if !ok || len(e.Attrs) < 2 {
 				return
 			}
@@ -130,7 +131,7 @@ func TestViewOrigins(t *testing.T) {
 			inner := innerAttrNodes(cs)
 			for _, r := range cs.Module.Rules {
 				core.Walk(r.Body, func(n core.Node) {
-					if _, ok := cs.Origin[n]; !ok && !inner[n] {
+					if cs.Module.Origin.Of(n) == nil && !inner[n] {
 						missing[fmt.Sprintf("%T", n)]++
 					}
 				})
@@ -155,12 +156,16 @@ func TestViewOrigins(t *testing.T) {
 func TestViewGrammarNeedsOrigins(t *testing.T) {
 	cs := sourceOf(t, "rule main = \"a\" \"b\"*\n")
 	v := complexity.Build(viewSource(cs), complexity.Options{Laws: []complexity.Law{}}, nil)
-	for n := range v.Origin {
-		switch n.(type) {
-		case *core.Seq, *core.Lit:
-			delete(v.Origin, n)
-		}
+	origin := maps.Clone(v.Module.Origin)
+	for _, r := range v.Module.Rules {
+		core.Walk(r.Body, func(n core.Node) {
+			switch n.(type) {
+			case *core.Seq, *core.Lit:
+				delete(origin, n.Attrs().ID)
+			}
+		})
 	}
+	v.Module.Origin = origin
 	if _, err := v.Grammar(cs.Rules); err == nil {
 		t.Fatal("Grammar wrote a literal that it has no origin of")
 	}

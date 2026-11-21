@@ -7,7 +7,6 @@ import (
 
 	"zeroparse.dev/zp/internal/backend/codegen/common"
 	"zeroparse.dev/zp/internal/frontend/check"
-	irbuild "zeroparse.dev/zp/internal/frontend/elaborate"
 	"zeroparse.dev/zp/internal/ir/code/flow"
 	"zeroparse.dev/zp/internal/ir/core"
 	"zeroparse.dev/zp/internal/middleend/execlower"
@@ -35,12 +34,11 @@ import (
 
 // startFlow builds the Core IR of the typed rules for printing them from Flow IR.
 func (g *Generator) startFlow() error {
-	origin := map[core.Node]ast.Expr{}
-	m, err := g.TypedCore(origin)
+	m, err := g.TypedCore()
 	if err != nil {
 		return err
 	}
-	g.Flow = &common.FlowState{TableIR: &flowplan.TableIR{M: m, Origin: irbuild.OriginByID(origin), Opts: g.FlowOptions(m)},
+	g.Flow = &common.FlowState{TableIR: &flowplan.TableIR{M: m, Opts: g.FlowOptions(m)},
 		Rules: append(append([]*common.Rule(nil), g.Prog.RuleList...), g.Prog.Twins...)}
 	return nil
 }
@@ -339,7 +337,7 @@ func (p *flowPrinter) shaper(sh core.Shape) string {
 
 // term returns the term of the grammar predicate that the node n is built from.
 func (p *flowPrinter) term(n core.Node) ast.ActionExpr {
-	e, ok := p.g.Flow.Origin.Of(n).(*ast.Predicate)
+	e, ok := p.g.Flow.M.Origin.Of(n).(*ast.Predicate)
 	if !ok {
 		panic(fmt.Sprintf("flow printer: no grammar predicate for %T", n))
 	}

@@ -69,7 +69,7 @@ func checkCoreBuild(t *testing.T, c codegentest.Case) bool {
 	if !ok {
 		return false
 	}
-	m, err := irbuild.CoreFrom(prog.Static(), nil)
+	m, err := irbuild.CoreFrom(prog.Static(), false)
 	if err != nil {
 		t.Errorf("%s: %v", c.Name, err)
 		return false

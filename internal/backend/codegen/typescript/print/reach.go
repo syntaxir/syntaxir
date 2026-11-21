@@ -33,7 +33,7 @@ type tsLive struct {
 // enter rules through their constants (callsPlain).
 func reachableRules(prog, rec *common.Program, start *common.Rule, document bool) (*tsLive, error) {
 	return reachFrom(prog, rec, start, document, func(table string, p *common.Program) (*core.Module, error) {
-		return irbuild.CoreFrom(p.Elab, nil)
+		return irbuild.CoreFrom(p.Elab, false)
 	})
 }
 

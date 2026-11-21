@@ -29,12 +29,12 @@ func (s *Structural) errors(opts compile.Options, names desugar.InlineNames) dia
 	if s == nil || s.Module == nil {
 		return nil
 	}
-	m, origin, defs := s.Module, s.Origin, s.Rules
+	m, defs := s.Module, s.Rules
 	f := s.Facts()
 	var out diagnostic.ErrorList
 	for _, e := range f.Errors(m, !opts.LeftRecursionBindings) {
 		var pos ast.Pos
-		switch x := origin[e.Node].(type) {
+		switch x := m.Origin.Of(e.Node).(type) {
 		case *ast.Predicate:
 			pos = x.Action.(*ast.Bind).Diagnostic()
 		case *ast.Attributed:

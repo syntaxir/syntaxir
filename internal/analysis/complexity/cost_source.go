@@ -12,15 +12,14 @@ import (
 )
 
 // CostSource is what the cost view of a grammar is built from: the rules that the complexity
-// classifier reads, their untyped Core IR module, the expression each node of the module is built
-// from, and the facts of the module. Rule i of Rules is rule i of Module.
+// classifier reads, their untyped Core IR module with its origin map, which gives the expression
+// each node of the module is built from, and the facts of the module. Rule i of Rules is rule i of Module.
 type CostSource struct {
 	// Grammar is the grammar with inline actions lowered and attributes normalized.
 	Grammar *ast.Grammar
 	// Rules are the unique rules of Grammar.
 	Rules  []*ast.RuleDef
 	Module *core.Module
-	Origin map[core.Node]ast.Expr
 	Facts  *corepass.Facts
 }
 
@@ -34,7 +33,7 @@ func NewCostSource(g *ast.Grammar, control *cancel.Control) (*CostSource, error)
 	if err != nil {
 		return nil, err
 	}
-	return &CostSource{Grammar: g, Rules: rules, Module: src.Module, Origin: src.Origin, Facts: src.Facts}, nil
+	return &CostSource{Grammar: g, Rules: rules, Module: src.Module, Facts: src.Facts}, nil
 }
 
 // classifierRules returns g with inline actions lowered and attributes normalized, and its unique
@@ -70,7 +69,7 @@ func NormalView(g *ast.Grammar, matching bool, control *cancel.Control) (*ast.Gr
 	if err != nil {
 		return nil, err
 	}
-	v := Build(&Source{Module: cs.Module, Origin: cs.Origin, Facts: cs.Facts},
+	v := Build(&Source{Module: cs.Module, Facts: cs.Facts},
 		Options{Labels: matching, Inline: matching}, control)
 	rules, err := v.Grammar(cs.Rules)
 	if err != nil {
@@ -100,10 +99,9 @@ func costSource(g *ast.Grammar, rules []*ast.RuleDef, control *cancel.Control) (
 			starts = append(starts, rd.Name)
 		}
 	}
-	origin := map[core.Node]ast.Expr{}
-	m, err := elaborate.Structural(elaborate.StructuralInput(g, rules, starts), origin)
+	m, err := elaborate.Structural(elaborate.StructuralInput(g, rules, starts), true)
 	if err != nil {
 		return nil, err
 	}
-	return &Source{Module: m, Origin: origin, Facts: corepass.FactsOf(corepass.NewAnalyses(control), m)}, nil
+	return &Source{Module: m, Facts: corepass.FactsOf(corepass.NewAnalyses(control), m)}, nil
 }

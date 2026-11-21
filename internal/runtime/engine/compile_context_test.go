@@ -130,7 +130,7 @@ func TestCompileContextPhaseCancellation(t *testing.T) {
 			case "core-build":
 				_, _ = corebuild.CoreControlled(p.Static(), control)
 			case "core-analysis", "core-passes", "core-pass-guards", "core-pass-scans", "core-verify":
-				m, err := corebuild.CoreFrom(p.Static(), nil)
+				m, err := corebuild.CoreFrom(p.Static(), false)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -210,7 +210,7 @@ func TestCompileContextOrdinaryParity(t *testing.T) {
 // takes the rule facts and the site numbers.
 func structuralModule(t *testing.T, g *ast.Grammar) *ir.Module {
 	t.Helper()
-	m, err := corebuild.Structural(compile.StructuralInput(g, g.Rules(), nil), nil)
+	m, err := corebuild.Structural(compile.StructuralInput(g, g.Rules(), nil), false)
 	if err != nil {
 		t.Fatal(err)
 	}

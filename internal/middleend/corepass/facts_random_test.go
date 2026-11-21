@@ -14,7 +14,6 @@ import (
 	"zeroparse.dev/zp/internal/middleend/corepass"
 	"zeroparse.dev/zp/internal/testing/compiletest"
 	"zeroparse.dev/zp/internal/testing/factstest"
-	"zeroparse.dev/zp/pkg/grammar/ast"
 )
 
 // TestFactsRandom checks the rule facts on random grammars: left recursion through options,
@@ -43,8 +42,7 @@ func TestFactsRandom(t *testing.T) {
 			continue // a binding before a left call, a type error
 		}
 		compiled++
-		origin := map[core.Node]ast.Expr{}
-		m, err := elaborate.CoreFrom(prog, origin)
+		m, err := elaborate.CoreFrom(prog, true)
 		if err != nil {
 			t.Fatalf("seed %d: %v\n%s", seed, err, src)
 		}
@@ -57,14 +55,13 @@ func TestFactsRandom(t *testing.T) {
 			t.Fatal(err)
 		}
 		defs, _ := desugar.UniqueRules(canon.Grammar, nil)
-		sorigin := map[core.Node]ast.Expr{}
-		sm, err := elaborate.Structural(compile.StructuralInput(canon.Grammar, defs, canon.Starts), sorigin)
+		sm, err := elaborate.Structural(compile.StructuralInput(canon.Grammar, defs, canon.Starts), true)
 		if err != nil {
 			t.Fatalf("seed %d: %v\n%s", seed, err, src)
 		}
 		structural := corepass.Compute(sm, nil)
-		want := factstest.Render(factstest.CoreRules(m, typed, origin))
-		if got := factstest.Render(factstest.CoreRules(sm, structural, sorigin)); got != want {
+		want := factstest.Render(factstest.CoreRules(m, typed))
+		if got := factstest.Render(factstest.CoreRules(sm, structural)); got != want {
 			t.Fatalf("seed %d: facts differ\n%s\ntyped:\n%s\nuntyped:\n%s", seed, src, want, got)
 		}
 		if err := checkProgramFlags(prog, structural); err != nil {

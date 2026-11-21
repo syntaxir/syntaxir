@@ -370,7 +370,7 @@ func TestCoreScans(t *testing.T) {
 		t.Fatal("does not compile")
 	}
 	g := &print.Generator{Prog: checked.Of(prog.Static()).Generator(), Table: "trules", Runner: &driver.Driver{}}
-	m, err := g.TypedCore(nil)
+	m, err := g.TypedCore()
 	if err != nil {
 		t.Fatal(err)
 	}

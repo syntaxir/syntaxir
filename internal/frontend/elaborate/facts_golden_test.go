@@ -26,7 +26,7 @@ func TestCoreFactsGolden(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", path, err)
 		}
-		m, err := elaborate.CoreFrom(prog, nil)
+		m, err := elaborate.CoreFrom(prog, false)
 		if err != nil {
 			t.Fatalf("%s: %v", path, err)
 		}
@@ -69,7 +69,7 @@ func TestRecoverAndMissingNullability(t *testing.T) {
 		{`rule a = ("x" #missing #recover(skip="y")) "z"`, false, true},
 		{`rule a = "(" #missing a "x" / "y"`, false, true},
 	} {
-		m, err := elaborate.CoreFrom(compiletest.Program(t, tc.src, compile.Options{}), nil)
+		m, err := elaborate.CoreFrom(compiletest.Program(t, tc.src, compile.Options{}), false)
 		if err != nil {
 			t.Fatal(err)
 		}
