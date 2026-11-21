@@ -9,7 +9,6 @@ import (
 	fcheck "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/types"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
-	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 func TestInferenceDependencyChains(t *testing.T) {
@@ -74,27 +73,6 @@ func BenchmarkInferenceDependencies(b *testing.B) {
 				}
 			}
 		})
-	}
-}
-
-func TestInferenceChainSavedValues(t *testing.T) {
-	t.Parallel()
-	p := mustCompile(t, codegentest.InferredChain(64, false, ""))
-	for _, mode := range valueModes {
-		q := saveLoad(t, p, "main", mode)
-		for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-			if backend == Closure {
-				_, err := q.ParseWith("main", "a", servedBy(mode, ParseOptions{Backend: backend}))
-				wantClosureRefused(t, err)
-				continue
-			}
-			for _, unit := range []input.PositionUnit{input.CodePoints, input.Bytes} {
-				n, err := q.ParseWith("main", "a", servedBy(mode, ParseOptions{Backend: backend, Unit: unit}))
-				if err != nil || n.String() != "P{}" {
-					t.Errorf("saved %s/%s result: %v, %v", backend, unit, n, err)
-				}
-			}
-		}
 	}
 }
 

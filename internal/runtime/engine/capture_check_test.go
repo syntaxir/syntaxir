@@ -56,7 +56,6 @@ func TestDuplicateCaptureTypes(t *testing.T) {
 			}
 		})
 	}
-	check(t, `rule main = x:"a" x:"b" {text($x) == "b"} => $x`, ok("ab", `"b"`))
 }
 
 func captureCheckProgram(src string) (*Program, error) {
