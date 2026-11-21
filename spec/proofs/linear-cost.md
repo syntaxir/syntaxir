@@ -3488,7 +3488,8 @@ at most $c_w$ characters, where $c_w$ is the length of the longest
 literal of the grammar. So, outside case (4) and the units that the claim
 leaves aside, at most $c_w + 1$ kept steps of $G$ after the first have a
 result that does not include the seed: the second step and steps whose
-results have at most $c_w$ characters.
+results have at most $c_w$ characters, which the hypothesis of *Steps that
+begin anew* on kept steps leaves out.
 
 *Proof.* Every read of the seed in $\sigma'$ is a call of $R$ at $q$ that
 returns the seed, a success. Only those reads answer otherwise in
@@ -8435,7 +8436,10 @@ one of them.
     step, its result is empty, and if $t$ is the step with the empty seed, it is
     not kept and its result is empty too, the seed being the empty result of
     the first step. A later step $t$ with a seed that is not empty is not kept,
-    by the hypothesis of *Steps that begin anew* on kept steps, but its result
+    by the hypothesis of *Steps that begin anew* on kept steps, unless it is
+    one that the hypothesis leaves out, whose result then does not include
+    $s$ after one that does, the second remaining case of that claim, which is
+    not shown; and when it is not kept, its result
     need not be empty: it can end in an alternative that the first step did not
     reach, and that case is not shown here. In the other two the result of the
     first step is empty; the step with the empty seed then ends with a result that
@@ -8763,15 +8767,21 @@ growth of a leader $R$ at $p$, and let its reads be **plain**: no lookahead
 evaluated at $p$ in its steps, or in the steps of the growths that they nest
 at $p$, reads the growing result of the leader of the step that it is in, and
 no cut in a body evaluated at $p$ is passed after such a read or after a call
-whose result includes one. Let every step of the growth after the first that
-is kept, with a result longer than its seed, have a result that includes the
-growing result: *Later steps that abandon their reads of the
-seed* derives this from condition 2 for a leader that contains a scanning
-source, outside the cases that it leaves open or aside (*Open parts of the
-kept steps*). For a leader without one it can fail, and no claim of this
-lemma takes it there (*Leaders without a scanning source*). Let $\bar{r}$
-be the first result of the growth that is not empty, the result of its first
-or second step. Then
+whose result includes one. Let every step after the second that is kept,
+of the growth and of each growth that its steps nest at $p$, with a result
+longer than its seed and than $c_w$ characters, have a result that includes
+the growing result, where $c_w$ is the length of the longest literal of the
+grammar: *Later steps that abandon their reads
+of the seed* derives this from condition 2 for a leader that contains a
+scanning source, outside the cases that it leaves open or aside (*Open parts
+of the kept steps*). The kept steps that this leaves out, the second and those
+whose results have at most $c_w$ characters, are among the first $c_w + 2$
+steps, since the results of the kept steps are each longer than the one
+before. For a leader without a scanning source the hypothesis can fail, and
+no claim of this lemma takes it there (*Leaders without a scanning
+source*). Let $\bar{r}$ be the result of the first step after the second
+whose result has more than $c_w$ characters, a step among the first
+$c_w + 3$; a growth with no such step takes at most $c_w + 3$ steps. Then
 every result of the growth after $\bar{r}$ begins with the result before it, so
 every result from $\bar{r}$ on includes $\bar{r}$. A growth of another leader $T$ that
 a step of $R$ nests at $p$ either has only results, from its first result that
@@ -8780,21 +8790,26 @@ that includes it, and then the growth and its result are fixed by the
 **outcomes at $p$** of its reads of that growing result: for each place of
 a read in the bodies, which of the units that start at $p$ and hold the read
 is the innermost one that fails. These are a constant number of
-combinations. In the remaining case, a growth of $T$ with a result that is
-not empty and does not include the growing result of $R$ before a result that
-does, a later step of $T$ fails after a left call that read its seed in a
-unit that matched in the first step without it, and goes on with a
-continuation of that unit that holds the read; condition 2 excludes this when
-that unit lies in the body of $T$ or of a rule of the cycle that is not a
-leader, apart from the cases that *Open parts of the kept steps* lists.
+combinations. The remaining cases are two. In the first, a growth of $T$
+with a result that is not empty and does not include the growing result of
+$R$ before a result that does, a later step of $T$ fails after a left call
+that read its seed in a unit that matched in the first step without it, and
+goes on with a continuation of that unit that holds the read; condition 2
+excludes this when that unit lies in the body of $T$ or of a rule of the
+cycle that is not a leader, apart from the cases that *Open parts of the
+kept steps* lists. In the second, a growth of $T$ with a result that
+includes the growing result of $R$ before a result that does not, a kept
+step of $T$ that the hypothesis leaves out drops its seed, and this case
+is not shown.
 
 *Proof.* By induction on the number of leaders that do not grow at $p$, the
 claim for $T$ first. In a step of $R$, the evaluations at $p$ read the same
 input and values in every step, and only the reads of the growing result of
 $R$ return something else: in the first step they fail, and once a result
 that is not empty is the growing result, they succeed and the path goes on
-after $p$. Positions do not decrease, and outside a lookahead nothing that
-follows a call goes back to the position where the call started, other than a
+after $p$. The claim for $T$ is taken outside its remaining cases.
+Positions do not decrease, and outside a lookahead nothing that follows a
+call goes back to the position where the call started, other than a
 failure that goes back to a choice, an option or a repetition, as a failure of
 the call itself would; the bindings made after that point are undone
 ([Variables](../language/predicates.md#variables)), and no cut is passed
@@ -8806,8 +8821,11 @@ through a read either succeeds with a result that begins with the growing
 result, or fails, or behaves as where the read fails. If the step ends with a
 result that does not begin with the growing result, that result does not
 include the growing result, since a read that it passes through starts at $p$
-and would begin the match with the growing result; so by the hypothesis on kept steps the step is not
-kept, and the growth ends with the result before it. The step need not take
+and would begin the match with the growing result. The step comes after the
+second, and if it were kept its result would be longer than $\bar{r}$, so
+more than $c_w$ characters long; so by the hypothesis on kept steps the step
+is not kept, and the growth ends with the result before it. The step need
+not take
 the choices of the first step at $p$: a path through a read that succeeds can
 fail after the choice that the read's alternative belongs to has taken that
 alternative, where the first step, its read failing, went on in a later
@@ -8817,10 +8835,14 @@ does in `E = (E [x]* / "") "x" / "x" F` with `F = E ";"`, where the first
 alternative fails after `[x]*` and `"x" F` follows. The results from $\bar{r}$ on
 each begin with the one before, so they include $\bar{r}$. For $T$, the same
 argument applies to its steps, with the reads of the growing result of $R$ in
-the role of the first step's failing reads: if the first result of $T$ that is
-not empty passes through a read that succeeds, every later one begins with it
-and includes it. Let no result of $T$ include the growing result of $R$. A
-read is a left call, so what comes before it on its path consumes nothing and
+the role of the first step's failing reads. A kept step of $T$ that the
+hypothesis does not leave out has a result that includes its seed, so when the
+seed includes the growing result of $R$, the result does too; only a kept
+step that the hypothesis leaves out can drop it, the second remaining
+case. So if the first result of $T$ that is not empty includes the growing
+result of $R$, every later one does outside that case. Let no result of $T$
+include the growing result of $R$. A read is a left call, so what comes
+before it on its path consumes nothing and
 binds no value from a growing result, since $R$ is not the only leader of its
 cycle (*Values bound from a growing result*); every read in the growth
 returns the same growing result, ending at $e > p$, and what follows it
@@ -8844,8 +8866,8 @@ combination. This holds whether a step of $T$ goes on, after a unit that
 fails after a read that succeeds, in an alternative that it does not reach
 where the read fails, or not.
 
-In the remaining case, the first result of $T$ that is not empty does not
-include the growing result of $R$ and a later one does. Let $\tau$ be the
+In the first remaining case, the first result of $T$ that is not empty does
+not include the growing result of $R$ and a later one does. Let $\tau$ be the
 first step of $T$ whose result includes it. Its path at $p$ goes through a
 read at a place that the path of the first step of $T$ does not reach: there
 a read fails with the same innermost unit as in $\tau$, and one whose units
@@ -8935,9 +8957,11 @@ $R$ at $p$. Then:
    memoized rule, or Lemma 10, for a rule that is not memoized.
 
 The hypothesis of *Steps that begin anew* on kept steps can fail for $G$: in
-`E = (E "x"? / "") "x" / "x" "x" "y"` on `xxy`, the second step reads the
-seed `x`, takes `"x"?`, fails on `"x"` against `y`, and is kept with the
-result `xxy` of the last alternative, which the first step did not reach.
+`E = (E "x"? / "") "x" / "x" "x" "x" "y"` on `xxxy`, with $c_w = 1$, the
+second step reads the seed `x` and ends with `xxx`, and the third reads the
+seed `xxx`, passes over `"x"?`, fails on `"x"` against `y`, and is kept with
+the result `xxxy` of the last alternative, which the first step did not
+reach.
 No claim of this lemma takes that hypothesis for $G$.
 
 *Proof.* Let $F$ be another rule of the cycle of $R$. $F$ reaches $R$, and on
@@ -9023,15 +9047,18 @@ claims of this lemma that rest on them hold apart from them:
    contains a scanning source, in the cases that *Later steps that abandon
    their reads of the seed* leaves open or aside: its case (4), and an
    abandoned unit that is a dropped step of another growth or lies in a
-   growth of another leader at the position; and, in its cases (1) and (3),
-   for the at most $c_w + 1$ kept steps of a growth that it leaves, the
-   second step and steps whose results have at most $c_w$ characters,
-   which the claims that take the hypothesis are not shown to allow;
+   growth of another leader at the position. The kept steps that its cases
+   (1) and (3) leave, the second step and steps whose results have at most
+   $c_w$ characters, the hypothesis leaves out, and the claims that take it
+   allow them, apart from the second remaining case of *Steps that begin
+   anew*: a growth of another leader $T$ that a step nests, in which such a
+   step of $T$ drops a seed that includes the growing result of the leader
+   of the step;
 2. the claim of *Steps that begin anew* for a growth of another leader $T$
-   that a step nests, in its remaining case, a result of $T$ that is not
-   empty and does not include the growing result before one that does, when
-   the unit that fails after its left call of $T$ read the seed lies in the
-   body of a third leader whose growth a step of $T$ nests, or is committing
+   that a step nests, in its first remaining case, a result of $T$ that is
+   not empty and does not include the growing result before one that does,
+   when the unit that fails after its left call of $T$ read the seed lies in
+   the body of a third leader whose growth a step of $T$ nests, or is committing
    against the continuation that holds the read only through its words or,
    in a rule of the cycle that is not a leader, through a shared call that
    reads the growing result of $T$ or at which the removal of shared calls
@@ -9073,11 +9100,12 @@ growth of $R$ in the context took from it ([Evaluations of
 Rules](../runtime/parsing.md#evaluations-of-rules)), and the growth of $S$ is
 in progress, so the context keeps it; a run of steps that read only the result
 of $R$ is taken at once. By *Steps that begin anew* for the growth of $S$,
-applied to the growth of $R$ that its step nests, apart from its case that
-is not shown (part 2 of *Open parts of the kept steps*), that growth either includes
-the growing result of $S$ in all its results from the first that is not
-empty, or includes it in none of its results. In the first
-case the results that include the growing result of $S$ end at $e$ or after
+applied to the growth of $R$ that its step nests, apart from its remaining
+cases that are not shown (parts 1 and 2 of *Open parts of the kept steps*),
+that growth either includes the growing result of $S$ in all its results
+from the first that is not empty, or includes it in none of its results. In
+the first case the results that include the growing result of $S$ end at
+$e$ or after
 it and each is longer than the one before, so there are at most one more of
 them than the length by which the last passes $e$, one step ends the growth,
 and a first result that is empty, which includes no growing result that is not
@@ -9153,7 +9181,7 @@ them to the input that the growth of $S$ consumes, to the constant number of
 steps of *Results that do not include the seed*, or to a scanning source. A
 growth of the first kind that the parse takes again in full, because it did not
 find the growing results equal, is a growth of the second or the third kind:
-by *Steps that begin anew*, apart from its case that is not shown, every
+by *Steps that begin anew*, apart from its cases that are not shown, every
 growth of $R$ that a step of $S$ nests either
 includes the growing result of $S$ in all its results from the first that is
 not empty, or in none of them. So it is
@@ -13536,16 +13564,18 @@ theorem covers such a parse.
    *Results that do not include the seed*, on the hypothesis of *Steps that
    begin anew* on kept steps, which is not shown, for a leader with a
    scanning source, in the cases that *Later steps that abandon their reads
-   of the seed* leaves open or aside (step 1): its case (4), and the second
-   step and steps whose results have at most $c_w$ characters, which
-   its cases (1) and (3) leave,
-   and which no claim takes for a leader without one, whose growths nest
-   with no other (*Leaders without a scanning source*), and on the claim of
-   *Steps that begin
-   anew* for a nested growth of another leader, which is not shown for a
-   growth with a result that is not empty and does not include the growing
-   result before one that does, when the unit that fails after its left
-   call read the seed lies in the body of a third leader whose growth the
+   of the seed* leaves open or aside (step 1): its case (4) and the units
+   that it leaves aside; the second step and steps whose results have at
+   most $c_w$ characters, which its cases (1) and (3) leave, the hypothesis
+   leaves out. No claim takes the hypothesis for a leader without one,
+   whose growths nest with no other (*Leaders without a scanning source*).
+   It also rests on the claim of *Steps that begin anew* for a nested growth
+   of another leader, which is not shown for a growth in which a step that
+   the hypothesis leaves out drops a seed that includes the growing result,
+   and for a growth with a result that is not empty and does not include
+   the growing result before one that does, when the unit that fails after
+   its left call read the seed lies in the body of a third leader whose
+   growth the
    nested one nests, or is committing against the continuation that holds
    the read only through its words or, outside the bodies of leaders,
    through a shared call that reads the growing result or at which the
@@ -13595,20 +13625,23 @@ theorem covers such a parse.
    shows that these bounds hold in every parse, whatever it answers in a
    context (*Reuse in a context*). These bounds hold apart from the parts
    that *Open parts of the kept steps* lists, which remain open: they take
-   as a hypothesis that every kept step of a growth after the first has a
-   result that includes the growing result, which *Later steps that abandon
-   their reads of the seed* gives only for a leader that contains a
-   scanning source, outside its case (4) and the units that it leaves aside
-   and apart from the second step and steps whose results have at most
-   $c_w$ characters, which its cases (1) and (3) leave (step 1); for a
+   as a hypothesis that every kept step of a growth after the second, with
+   a result of more than $c_w$ characters, has a result that includes the
+   growing result, which *Later steps that abandon their reads of the seed*
+   gives only for a leader that contains a scanning source, outside its
+   case (4) and the units that it leaves aside (step 1); its cases (1) and
+   (3) leave only the second step and steps whose results have at most
+   $c_w$ characters, which the hypothesis leaves out; for a
    leader without one the hypothesis can fail,
    but its growths nest with no other, its steps that drop the seed number
    a constant and each costs a constant beyond the evaluations that Lemmas
    3, 10 and 13 count, and no claim takes the hypothesis for it (*Leaders
    without a scanning source*); and
    *Steps that begin anew* is not shown for a nested growth of another
-   leader with a result that is not empty and does not include the growing
-   result before one that does, when the unit that fails after its left
+   leader in which a step that the hypothesis leaves out drops a seed that
+   includes the growing result, nor for one with a result that is not empty
+   and does not include the growing result before one that does, when the
+   unit that fails after its left
    call read the seed lies in the body of a third leader whose growth the
    nested one nests, or is committing against the continuation that holds
    the read only through its words or, outside the bodies of leaders,
