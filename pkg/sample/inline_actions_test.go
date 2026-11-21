@@ -40,10 +40,11 @@ func TestCoverageReportsInlineActionsAsWritten(t *testing.T) {
 				t.Errorf("%d rules and %d alternatives, want %d and %d: %s", c.Rules, c.Alternatives, tc.rules, tc.alts, c.Report())
 			}
 			if len(c.MissedRules) != tc.rules {
-				t.Errorf("missed rules %q, want %d", c.MissedRules, tc.rules)
+				t.Errorf("missed rules %q, want %d", missedRuleNames(c), tc.rules)
 			}
 			seen := map[string]bool{}
-			for _, r := range c.MissedRules {
+			for _, m := range c.MissedRules {
+				r := m.Rule
 				if seen[r] {
 					t.Errorf("rule %s is reported twice", r)
 				}

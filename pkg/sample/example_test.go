@@ -60,8 +60,8 @@ func ExampleGenerator_Coverage() {
 	// Output:
 	// "h=\"\"" ["in=true, i=true"]
 	// rules 4/4 (100%), alternatives 2/4 (50%)
-	// missed value: choice 0: [0-9]+ #atomic
-	// missed value: choice 3: "false"
+	// missed value: choice 0: [0-9]+ #atomic (not tried; shortest input 3 bytes)
+	// missed value: choice 3: "false" (not tried; shortest input 7 bytes)
 }
 
 func ExampleGenerator_GenerateInvalid() {

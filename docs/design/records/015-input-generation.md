@@ -216,6 +216,29 @@ mode found 2 inputs for that grammar where plain generation found 10, because ev
 to the dead one. The threshold is a trade-off: at four failures, targets of the Python grammar that are reachable but
 rarely found were settled too early, and coverage fell from 90% to 88% of its alternatives.
 
+### Explaining What Was Missed
+
+A coverage report that only lists the missed targets leaves the user to guess whether the grammar is wrong (a dead
+alternative), the generator cannot evaluate something (a predicate over action results), or the search merely did not
+get there (the length bound, too few inputs). Each missed target therefore carries what the generator knows about it.
+Its counts are kept per target from the attempts that *tried* it, that is whose search generated it at some point, and
+that gave no accepted input that exercises it: attempts that backtracked out of it and found an input without it,
+candidates that the parser rejected, and searches that failed, out of budget or not. The cuts of those attempts are
+added to the target by rule; the report names the three rules with the most. Attributing a cut to the targets in the
+derivation at the moment of the cut would be more precise, but costs work on every cut, of which there are thousands
+in an attempt on the larger grammars; attributing the attempt's cuts once, when the attempt ends, costs
+work per attempt only.
+
+Each missed target also gets the length of the shortest input that exercises it, from the structure of the grammar
+alone (lookaheads, predicates and the order of choices left out, so a lower bound). It is the shortest text around a
+call of the target's rule, computed once for all rules by Dijkstra's algorithm over the call graph, plus the shortest
+match of the rule's body that exercises the target directly. Every derivation through the target has an innermost
+call of its rule whose body exercises it, so the sum is exact for that abstraction. A target that no attempt tried and
+whose shortest input is beyond `WithMaxLen` is kept away by the length bound, not by the grammar.
+
+The explanation is part of each missed item rather than a separate list keyed by names, so that a consumer of the
+JSON report finds it where it reads the miss.
+
 ### Invalid Inputs
 
 `Invalid` takes a valid input and applies one mutation at rune boundaries: deleting one rune or a span of up to eight,

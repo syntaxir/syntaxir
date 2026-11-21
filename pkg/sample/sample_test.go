@@ -678,12 +678,21 @@ rule z = "z" _|_ / "zz"`)
 		t.Fatal(err)
 	}
 	c = g.Coverage()
-	if !slices.Equal(c.MissedRules, []string{"main", "x", "y", "z"}) || len(c.MissedAlternatives) != 3 {
+	if !slices.Equal(missedRuleNames(c), []string{"main", "x", "y", "z"}) || len(c.MissedAlternatives) != 3 {
 		t.Errorf("got %+v", c)
 	}
 	if a := c.MissedAlternatives[2]; a.Rule != "z" || a.Kind != "choice" || a.Index != 1 || a.Expr != `"zz"` {
 		t.Errorf("got %+v", a)
 	}
+}
+
+// missedRules returns the names of the missed rules.
+func missedRuleNames(c sample.Coverage) []string {
+	var names []string
+	for _, m := range c.MissedRules {
+		names = append(names, m.Rule)
+	}
+	return names
 }
 
 // fakeF records what Seed does with a *testing.F.

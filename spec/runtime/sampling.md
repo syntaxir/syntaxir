@@ -130,20 +130,46 @@ guaranteed to equal it.
 |:--|:--|
 | `Rules`, `RulesCovered` | The number of rules that the start rule can reach and that can match, and the number of them that an accepted input exercised |
 | `Alternatives`, `AlternativesCovered` | The same for the alternatives of ordered choices and the operands and operators of Operators Rules of those rules. It leaves out alternatives that can never match, that occur only inside an expression that can never match, or that are in the tail of an Operators Rule that no reachable entry or prefix operator permits |
-| `MissedRules` | The names of the rules that were not exercised |
-| `MissedAlternatives` | The alternatives that were not exercised: each a `sample.Alternative` with the `Rule`, the `Kind` (`choice`, `operand` or `operator`), the `Index` of the alternative in its choice or of the operand or operator in its Operators Rule, counting the operators of all levels, and the `Expr` in grammar syntax. `Alternative.String()` is `rule: kind index: expr` |
+| `MissedRules` | The rules that were not exercised: each a `sample.MissedRule` with the `Rule` and the `Why` |
+| `MissedAlternatives` | The alternatives that were not exercised: each a `sample.MissedAlternative` with the `Alternative` and the `Why`. A `sample.Alternative` has the `Rule`, the `Kind` (`choice`, `operand` or `operator`), the `Index` of the alternative in its choice or of the operand or operator in its Operators Rule, counting the operators of all levels, and the `Expr` in grammar syntax. `Alternative.String()` is `rule: kind index: expr` |
 | `Unreachable` | The rules that generation cannot exercise from the start rule: rules that are not called, or that are called only inside negative lookaheads, the skip of `#recover`, expressions that can never match or blocked operator parts of an Operators Rule |
 | `Impossible` | The rules that the start rule calls outside negative lookaheads and `#recover` but that can never match, such as a rule that ends in `_|_` to report an error |
 
-`Unreachable` and `Impossible` are not counted in `Rules`. The members have the JSON names `rules`, `rulesCovered`,
-`alternatives`, `alternativesCovered`, `missedRules`, `missedAlternatives`, `unreachable` and `impossible`, and the
-members of an alternative `rule`, `kind`, `index` and `expr`; an empty list is omitted.
+`Unreachable` and `Impossible` are not counted in `Rules`.
+
+A `sample.Why` tells what the generator knows about why no accepted input exercised a target. An attempt **tried** a
+target if its search generated the target at some point; the counts are of the attempts that tried the target and gave
+no accepted input that exercises it.
+
+| Member | Meaning |
+|:--|:--|
+| `Bypassed` | The attempts that found an accepted input without the target: the search left every way through it that it tried |
+| `Rejected` | The candidates that the parser rejected |
+| `Failed` | The searches that ended without a candidate |
+| `Exhausted` | The failed searches that used up their budget |
+| `Cuts` | The rules whose checks and predicates cut the most ways in those attempts, at most three, each a `sample.RuleCuts` (see [Statistics](#statistics)), in the order of `Generator.Cuts()` |
+| `MinLen` | The length in bytes of the shortest input that exercises the target as far as the structure of the grammar tells, leaving out lookaheads, predicates and the order of choices: a lower bound |
+
+No attempt means that no search took the target: the generator preferred other options, or the bounds kept it away,
+as when `MinLen` is beyond `WithMaxLen`. Attempts with many cuts name the checks and predicates that stopped them, and
+rejected candidates point at what the generator cannot evaluate, such as an earlier alternative of a choice that
+matches the same text; attempts that only bypassed it, with cuts, point at the checks that ruled out the ways through
+it. The counts are kept with and without `WithCoverage`.
+
+The members have the JSON names `rules`, `rulesCovered`, `alternatives`, `alternativesCovered`, `missedRules`,
+`missedAlternatives`, `unreachable` and `impossible`; the members of a missed rule `rule`, those of a missed
+alternative `rule`, `kind`, `index` and `expr`, and in both the members of `Why`: `bypassed`, `rejected`, `failed`,
+`exhausted`, `cuts` and `minLen`. An empty list is omitted.
 
 `Coverage.String()` is `rules a/b (p%), alternatives a/b (p%)`, where a percentage is rounded to a whole number and is
 100% when the total is 0. `Coverage.Report()` is that line followed by a line for each missed rule (`missed rule:
 name`), for each missed alternative (`missed ` followed by `rule: kind index: expr`), and for the unreachable rules
-(`unreachable: names`) and the impossible rules (`never match: names`) when there are any. An inline action is
-shown as written in the grammar and not as the anonymous rule that implements it.
+(`unreachable: names`) and the impossible rules (`never match: names`) when there are any. A missed line ends with
+`Why.String()` in parentheses: `not tried`, or `tried in n attempts:` followed by the counts that are not zero among
+`b accepted without it`, `r rejected by the parser`, `e out of budget` and `w without a way to finish` (the failed
+searches within their budget), and by `; most cuts in rule (c by checks, p by predicates)` for the rules of `Cuts`;
+then `; shortest input n bytes`. An inline action is shown as written in the grammar and not as the anonymous rule
+that implements it.
 
 ### Statistics
 
@@ -160,8 +186,8 @@ shown as written in the grammar and not as the anonymous rule that implements it
 | `PredicateCuts` | Ways that the search abandoned because a predicate would certainly fail |
 
 `Generator.Cuts()` splits the cuts by rule: a `sample.RuleCuts` has the `Rule`, the number of `Checks` and the number of
-`Predicates`, for each rule that has any, the rules with the most cuts first and rules with the same number in the
-order of their names. A check belongs to the rule whose body holds the lookahead, choice, optional expression,
+`Predicates` (JSON names `rule`, `checks` and `predicates`), for each rule that has any, the rules with the most cuts
+first and rules with the same number in the order of their names. A check belongs to the rule whose body holds the lookahead, choice, optional expression,
 repetition or `$$` that installed it, even when the text that decides it comes from another rule.
 
 ### Seeding Fuzz Tests
@@ -182,9 +208,9 @@ grammar is an error, as is an unknown value of `-f`.
   stays on one line, and `strconv.Unquote` reads it back. With `-coverage`, the report of `Coverage.Report()` goes to
   the standard error.
 - With `-f json`, the command prints one document with the members `start`, `seed`, `inputs` (or `invalid`, a list of
-  objects with `input`, `base`, `mutation` and `error`, with `-invalid`), `coverage` (with `-coverage`) and `stats`,
-  which has the members of `Stats` in camel case and the list of `Generator.Cuts()` as the member ruleCuts, with the members
-  `rule`, `checks` and `predicates`. Empty lists are omitted.
+  objects with `input`, `base`, `mutation` and `error`, with `-invalid`), `coverage` (with `-coverage`, the JSON form
+  of `Coverage`) and `stats`, which has the members of `Stats` in camel case and the list of `Generator.Cuts()` as the
+  member ruleCuts, with the members `rule`, `checks` and `predicates`. Empty lists are omitted.
 - If the generator finds fewer inputs than `-n` but at least one, the command prints them, says
   `sxir sample: found only N distinct inputs` on the standard error and succeeds. If it finds none it fails with the
   error of the generator; with `-coverage` the report, and with `-coverage` and `-f json` the document, are still printed.
@@ -207,5 +233,5 @@ loaded from a compiled grammar. It is part of the Go API and the `sxir` command 
 ## Conformance
 
 The tests of the `sample` package establish that every generated input parses, that the same seed gives the same inputs,
-the options and their limits, the coverage counts on grammars with known coverage, and the predicates and the Operators
-Rules that the generator has to evaluate. The tests of the command establish its output.
+the options and their limits, the coverage counts on grammars with known coverage, the explanations of missed targets,
+and the predicates and the Operators Rules that the generator has to evaluate. The tests of the command establish its output.

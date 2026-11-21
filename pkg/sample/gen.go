@@ -78,9 +78,9 @@ type gen struct {
 	rng     *pcg
 	covered bitset // targets exercised by accepted inputs
 	settled bitset // targets that coverage mode no longer pursues: covered or hopeless
-	// rejected counts, for each target, the failed attempts that tried it while it was not exercised
-	// yet: searches that ended without a candidate, and candidates that the parser rejected.
-	rejected []int
+	// log records, for each target, what became of the failed attempts that tried it while it was
+	// not exercised yet.
+	log []targetLog
 
 	// The state of one attempt. Every function that changes it restores it before returning, so that a
 	// failed option leaves no trace.
@@ -108,6 +108,9 @@ type gen struct {
 	// counts the same since resetRecent.
 	checkCuts, predicateCuts int
 	cuts, recent             []ruleCuts
+	// attemptCuts counts the same for the current attempt, for the rules in cutRules.
+	attemptCuts []ruleCuts
+	cutRules    []int
 
 	scratch     []byte
 	result      string
@@ -115,20 +118,22 @@ type gen struct {
 }
 
 func newGen(in *info, cfg *config) *gen {
-	return &gen{
-		in:       in,
-		cfg:      cfg,
-		m:        matcher{in: in},
-		rng:      newPCG(cfg.seed, 0x9e3779b97f4a7c15),
-		covered:  newBitset(len(in.targets)),
-		rejected: make([]int, len(in.targets)),
-		tent:     newBitset(len(in.targets)),
-		triedB:   newBitset(len(in.targets)),
-		settled:  newBitset(len(in.targets)),
-		active:   make([]int, len(in.order)),
-		cuts:     make([]ruleCuts, len(in.order)),
-		recent:   make([]ruleCuts, len(in.order)),
+	g := &gen{
+		in:          in,
+		cfg:         cfg,
+		m:           matcher{in: in},
+		rng:         newPCG(cfg.seed, 0x9e3779b97f4a7c15),
+		covered:     newBitset(len(in.targets)),
+		log:         make([]targetLog, len(in.targets)),
+		attemptCuts: make([]ruleCuts, len(in.order)),
+		tent:        newBitset(len(in.targets)),
+		triedB:      newBitset(len(in.targets)),
+		settled:     newBitset(len(in.targets)),
+		active:      make([]int, len(in.order)),
+		cuts:        make([]ruleCuts, len(in.order)),
+		recent:      make([]ruleCuts, len(in.order)),
 	}
+	return g
 }
 
 // attempt runs one search for a candidate input. It returns the candidate and the targets it
@@ -147,6 +152,10 @@ func (g *gen) attempt() (string, []int, bool) {
 		g.triedB.clear(t)
 	}
 	g.tried = g.tried[:0]
+	for _, r := range g.cutRules {
+		g.attemptCuts[r] = ruleCuts{}
+	}
+	g.cutRules = g.cutRules[:0]
 	ok := g.genRef(&ast.Ref{Name: g.in.start.def.Name}, func(val) bool { return g.finish() }, false)
 	return g.result, g.resultTrail, ok
 }
@@ -197,29 +206,75 @@ func (g *gen) untouched(t int) bool { return !g.covered.has(t) && !g.tent.has(t)
 func (g *gen) wanted(t int) bool { return g.untouched(t) && !g.settled.has(t) }
 
 // accepted records the targets of an accepted input.
+// It also records the attempt against the targets that it tried but that the input does not exercise.
 func (g *gen) accepted(trail []int) {
 	for _, t := range trail {
 		g.covered.set(t)
 		g.settled.set(t)
 	}
+	for _, t := range g.tried {
+		if !g.covered.has(t) {
+			g.record(t, bypassed)
+		}
+	}
 }
 
-// failed records a failed attempt (a search without a candidate, or a candidate the parser rejected)
-// against the targets it tried while they were not exercised yet. A target that keeps failing is
-// settled: coverage mode no longer prefers it, nor options that reach it.
-func (g *gen) failed() {
+// targetLog records what became of the attempts that tried a target while it was not exercised yet
+// and did not give an accepted input that exercises it (see Why).
+type targetLog struct {
+	bypassed, rejected, failed, exhausted int
+	// cuts counts the cuts of those attempts by the rule whose body holds the check or predicate.
+	cuts map[int]ruleCuts
+}
+
+// outcome is what became of an attempt for a target that it tried.
+type outcome int
+
+const (
+	bypassed          outcome = iota // the parser accepted an input without the target
+	rejectedCandidate                // the parser rejected the candidate
+	noWay                            // the search ended without a candidate, within its budget
+	outOfBudget                      // the search used up its budget
+)
+
+// failed records a failed attempt against the targets it tried while they were not exercised yet. A
+// target that keeps failing is settled: coverage mode no longer prefers it, nor options that reach it.
+func (g *gen) failed(o outcome) {
 	for _, t := range g.tried {
-		g.rejected[t]++
-		if g.rejected[t] >= hopeless {
+		g.record(t, o)
+		if l := &g.log[t]; l.rejected+l.failed >= hopeless {
 			g.settled.set(t)
 		}
+	}
+}
+
+// record adds the outcome of the current attempt, and its cuts, to the log of the target.
+func (g *gen) record(t int, o outcome) {
+	l := &g.log[t]
+	switch o {
+	case bypassed:
+		l.bypassed++
+	case rejectedCandidate:
+		l.rejected++
+	case outOfBudget:
+		l.exhausted++
+		l.failed++
+	default:
+		l.failed++
+	}
+	if len(g.cutRules) > 0 && l.cuts == nil {
+		l.cuts = map[int]ruleCuts{}
+	}
+	for _, r := range g.cutRules {
+		c, a := l.cuts[r], g.attemptCuts[r]
+		l.cuts[r] = ruleCuts{checks: c.checks + a.checks, predicates: c.predicates + a.predicates}
 	}
 }
 
 // mark records that the current attempt exercises the target, and returns a mark for unmark.
 func (g *gen) mark(t int) int {
 	n := len(g.trail)
-	if g.cfg.coverage && !g.covered.has(t) && !g.triedB.has(t) {
+	if !g.covered.has(t) && !g.triedB.has(t) {
 		g.triedB.set(t)
 		g.tried = append(g.tried, t)
 	}
@@ -294,6 +349,7 @@ func (g *gen) cutCheck(rule int) {
 	if rule >= 0 {
 		g.cuts[rule].checks++
 		g.recent[rule].checks++
+		g.attemptCut(rule).checks++
 	}
 }
 
@@ -303,7 +359,17 @@ func (g *gen) cutPredicate() {
 	if g.rule >= 0 {
 		g.cuts[g.rule].predicates++
 		g.recent[g.rule].predicates++
+		g.attemptCut(g.rule).predicates++
 	}
+}
+
+// attemptCut returns the cuts of the rule in the current attempt.
+func (g *gen) attemptCut(rule int) *ruleCuts {
+	c := &g.attemptCuts[rule]
+	if *c == (ruleCuts{}) {
+		g.cutRules = append(g.cutRules, rule)
+	}
+	return c
 }
 
 // addOperatorsRuleCheck installs a longest-selection check with its own immutable scope snapshot.

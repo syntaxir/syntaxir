@@ -41,7 +41,7 @@ func TestPythonCoverageFloor(t *testing.T) {
 		t.Errorf("rules %d/%d, alternatives %d/%d; want at least 110 rules and 100 alternatives", c.RulesCovered, c.Rules, c.AlternativesCovered, c.Alternatives)
 	}
 	for _, r := range []string{"first_stmts", "stmts", "stmt", "simple_stmts", "block"} {
-		if slices.Contains(c.MissedRules, r) {
+		if slices.Contains(missedRuleNames(c), r) {
 			t.Errorf("no input exercised rule %s", r)
 		}
 	}

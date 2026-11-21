@@ -25,7 +25,8 @@
 // described in docs/design/records/015-input-generation.md.
 //
 // With WithCoverage, the generator prefers rules and alternatives that no accepted input has exercised
-// yet, and Coverage reports those that remain. Invalid generates near-miss invalid inputs: single
+// yet, and Coverage reports those that remain, each with what became of the attempts that tried it
+// (Why). Invalid generates near-miss invalid inputs: single
 // mutations of valid inputs that the parser rejects. Seed adds generated inputs to the seed corpus of a
 // fuzz test.
 package sample
@@ -148,9 +149,9 @@ type Stats struct {
 // Generator.Cuts). A check belongs to the rule whose body holds the lookahead, choice, optional,
 // repetition or $$ that installed it.
 type RuleCuts struct {
-	Rule       string
-	Checks     int
-	Predicates int
+	Rule       string `json:"rule"`
+	Checks     int    `json:"checks"`
+	Predicates int    `json:"predicates"`
 }
 
 // New returns a generator of inputs for p, starting at p's start rule. The parser must be compiled from
@@ -205,14 +206,16 @@ func (g *Generator) Next() (string, error) {
 			g.stats.Failed++
 			if g.g.exhausted() {
 				g.stats.Exhausted++
+				g.g.failed(outOfBudget)
+			} else {
+				g.g.failed(noWay)
 			}
-			g.g.failed()
 			continue
 		}
 		g.stats.Candidates++
 		if _, err := g.p.Parse(s); err != nil {
 			g.stats.Rejected++
-			g.g.failed()
+			g.g.failed(rejectedCandidate)
 			continue
 		}
 		g.g.accepted(trail)
@@ -226,14 +229,7 @@ func (g *Generator) Next() (string, error) {
 func noInput(attempts int, before, after Stats, cuts []RuleCuts) error {
 	failed, exhausted := after.Failed-before.Failed, after.Exhausted-before.Exhausted
 	var most strings.Builder
-	for i, c := range cuts[:min(len(cuts), 3)] {
-		if i == 0 {
-			most.WriteString("; most cuts in ")
-		} else {
-			most.WriteString(", ")
-		}
-		fmt.Fprintf(&most, "%s (%d by checks, %d by predicates)", c.Rule, c.Checks, c.Predicates)
-	}
+	writeCuts(&most, cuts[:min(len(cuts), maxCuts)])
 	return fmt.Errorf("%w in %s: %s rejected by the parser, %s out of budget, %s without a way to finish (%s cut by checks, %d by predicates%s)",
 		ErrNoInput, count(attempts, "attempt", "attempts"),
 		count(after.Rejected-before.Rejected, "candidate", "candidates"),
@@ -249,16 +245,25 @@ func (g *Generator) ruleCuts(counts []ruleCuts) []RuleCuts {
 	var out []RuleCuts
 	for i, c := range counts {
 		if c.checks+c.predicates > 0 {
-			out = append(out, RuleCuts{Rule: g.names.Rule(g.in.order[i].def.Name), Checks: c.checks, Predicates: c.predicates})
+			out = append(out, g.ruleCut(i, c))
 		}
 	}
+	sortCuts(out)
+	return out
+}
+
+func (g *Generator) ruleCut(rule int, c ruleCuts) RuleCuts {
+	return RuleCuts{Rule: g.names.Rule(g.in.order[rule].def.Name), Checks: c.checks, Predicates: c.predicates}
+}
+
+// sortCuts sorts the rules with the most cuts first, ties in rule name order.
+func sortCuts(out []RuleCuts) {
 	slices.SortFunc(out, func(a, b RuleCuts) int {
 		if n := cmp.Compare(b.Checks+b.Predicates, a.Checks+a.Predicates); n != 0 {
 			return n
 		}
 		return strings.Compare(a.Rule, b.Rule)
 	})
-	return out
 }
 
 func count(n int, one, many string) string {
@@ -327,9 +332,10 @@ type Coverage struct {
 	// expression that can never match, or in OperatorsRule tails that no reachable entry or prefix RHS permits.
 	Alternatives        int `json:"alternatives"`
 	AlternativesCovered int `json:"alternativesCovered"`
-	// MissedRules and MissedAlternatives list what was not exercised.
-	MissedRules        []string      `json:"missedRules,omitempty"`
-	MissedAlternatives []Alternative `json:"missedAlternatives,omitempty"`
+	// MissedRules and MissedAlternatives list what was not exercised, each with what the generator
+	// knows about why.
+	MissedRules        []MissedRule        `json:"missedRules,omitempty"`
+	MissedAlternatives []MissedAlternative `json:"missedAlternatives,omitempty"`
 	// Unreachable lists the rules that generation cannot exercise from the start rule: rules that are
 	// not called, or called only inside negative lookaheads (!keyword), the skip of #recover, or
 	// expressions that can never match or blocked Operators Rule operator parts. Impossible lists the rules
@@ -356,6 +362,92 @@ func (a Alternative) String() string {
 	return fmt.Sprintf("%s: %s %d: %s", a.Rule, a.Kind, a.Index, a.Expr)
 }
 
+// MissedRule is a rule that no accepted input exercised.
+type MissedRule struct {
+	Rule string `json:"rule"`
+	Why
+}
+
+// MissedAlternative is an alternative, operand or operator that no accepted input exercised.
+type MissedAlternative struct {
+	Alternative
+	Why
+}
+
+// Why tells what the generator knows about why no accepted input exercised a target.
+//
+// The counts are of the attempts that tried the target, that is whose search generated it at some
+// point, and that gave no accepted input that exercises it. Rejected, Failed and Exhausted have the
+// meanings of the members of Stats with the same names. No attempt means that no search took the
+// target: other options were preferred, or the bounds of the options kept the search away from it.
+type Why struct {
+	// Bypassed counts the attempts that left the target behind and found an accepted input without
+	// it: the search backtracked out of every way through it that it tried.
+	Bypassed  int `json:"bypassed"`
+	Rejected  int `json:"rejected"`  // candidates that the parser rejected
+	Failed    int `json:"failed"`    // searches that ended without a candidate
+	Exhausted int `json:"exhausted"` // the failed searches that used up their budget
+	// Cuts lists the rules whose checks and predicates cut the most ways in those attempts, at most
+	// three, the rules with the most cuts first (ties in rule name order).
+	Cuts []RuleCuts `json:"cuts,omitempty"`
+	// MinLen is the length in bytes of the shortest input that exercises the target as far as the
+	// structure of the grammar tells, leaving out lookaheads, predicates and the order of choices: a
+	// lower bound. A MinLen beyond WithMaxLen means that the length bound steers the search away.
+	MinLen int `json:"minLen"`
+}
+
+// String describes the explanation on one line.
+func (w Why) String() string {
+	var b strings.Builder
+	if w.Bypassed+w.Rejected+w.Failed == 0 {
+		b.WriteString("not tried")
+	} else {
+		fmt.Fprintf(&b, "tried in %s:", count(w.Bypassed+w.Rejected+w.Failed, "attempt", "attempts"))
+		sep := " "
+		for _, part := range []struct {
+			n    int
+			what string
+		}{{w.Bypassed, "accepted without it"}, {w.Rejected, "rejected by the parser"},
+			{w.Exhausted, "out of budget"}, {w.Failed - w.Exhausted, "without a way to finish"}} {
+			if part.n > 0 {
+				fmt.Fprintf(&b, "%s%d %s", sep, part.n, part.what)
+				sep = ", "
+			}
+		}
+		writeCuts(&b, w.Cuts)
+	}
+	fmt.Fprintf(&b, "; shortest input %s", count(w.MinLen, "byte", "bytes"))
+	return b.String()
+}
+
+// writeCuts appends the rules with the most cuts.
+func writeCuts(b *strings.Builder, cuts []RuleCuts) {
+	for i, c := range cuts {
+		if i == 0 {
+			b.WriteString("; most cuts in ")
+		} else {
+			b.WriteString(", ")
+		}
+		fmt.Fprintf(b, "%s (%d by checks, %d by predicates)", c.Rule, c.Checks, c.Predicates)
+	}
+}
+
+// maxCuts is the number of rules that Why.Cuts and the error of Next list at most.
+const maxCuts = 3
+
+// why explains why the target was not exercised; minLen is the length of the shortest input that
+// exercises it.
+func (g *Generator) why(t, minLen int) Why {
+	l := &g.g.log[t]
+	w := Why{Bypassed: l.bypassed, Rejected: l.rejected, Failed: l.failed, Exhausted: l.exhausted, MinLen: minLen}
+	for r, c := range l.cuts {
+		w.Cuts = append(w.Cuts, g.ruleCut(r, c))
+	}
+	sortCuts(w.Cuts)
+	w.Cuts = w.Cuts[:min(len(w.Cuts), maxCuts)]
+	return w
+}
+
 // Coverage returns the coverage of the inputs accepted so far.
 func (g *Generator) Coverage() Coverage {
 	in := g.in
@@ -369,6 +461,7 @@ func (g *Generator) Coverage() Coverage {
 		}
 	}
 	kinds := map[int]string{targetAlt: "choice", targetOperand: "operand", targetOperator: "operator"}
+	minLens := in.minLens()
 	for i, t := range in.targets {
 		ri := in.rules[t.rule]
 		if !in.reachable[ri.index] || ri.height >= inf || !t.possible {
@@ -380,7 +473,7 @@ func (g *Generator) Coverage() Coverage {
 			if hit {
 				c.RulesCovered++
 			} else {
-				c.MissedRules = append(c.MissedRules, g.names.Rule(t.rule))
+				c.MissedRules = append(c.MissedRules, MissedRule{Rule: g.names.Rule(t.rule), Why: g.why(i, minLens[i])})
 			}
 			continue
 		}
@@ -388,8 +481,8 @@ func (g *Generator) Coverage() Coverage {
 		if hit {
 			c.AlternativesCovered++
 		} else {
-			c.MissedAlternatives = append(c.MissedAlternatives,
-				Alternative{Rule: g.names.Rule(t.rule), Kind: kinds[t.kind], Index: t.index, Expr: g.names.Expr(syntaxfmt.FormatExpr(t.expr))})
+			a := Alternative{Rule: g.names.Rule(t.rule), Kind: kinds[t.kind], Index: t.index, Expr: g.names.Expr(syntaxfmt.FormatExpr(t.expr))}
+			c.MissedAlternatives = append(c.MissedAlternatives, MissedAlternative{Alternative: a, Why: g.why(i, minLens[i])})
 		}
 	}
 	return c
@@ -407,10 +500,10 @@ func (c Coverage) Report() string {
 	var b strings.Builder
 	b.WriteString(c.String() + "\n")
 	for _, r := range c.MissedRules {
-		fmt.Fprintf(&b, "missed rule: %s\n", r)
+		fmt.Fprintf(&b, "missed rule: %s (%s)\n", r.Rule, r.Why)
 	}
 	for _, a := range c.MissedAlternatives {
-		fmt.Fprintf(&b, "missed %s\n", a)
+		fmt.Fprintf(&b, "missed %s (%s)\n", a.Alternative, a.Why)
 	}
 	if len(c.Unreachable) > 0 {
 		fmt.Fprintf(&b, "unreachable: %s\n", strings.Join(c.Unreachable, ", "))

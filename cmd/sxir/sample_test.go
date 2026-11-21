@@ -122,7 +122,7 @@ rule number = [0-9]+ #atomic`)
 	if _, err := runCLI(t, "", "sample", "-g", g, "-n", "1", "-coverage"); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(stderr.String(), "rules ") || !strings.Contains(stderr.String(), "missed") {
+	if !strings.HasPrefix(stderr.String(), "rules ") || !strings.Contains(stderr.String(), `missed item: choice 2: "true" (`) {
 		t.Errorf("stderr: %q", stderr)
 	}
 	out, err := runCLI(t, "", "sample", "-g", g, "-n", "10", "-coverage", "-f", "json")
@@ -139,6 +139,15 @@ rule number = [0-9]+ #atomic`)
 		c.Alternatives != 4 || c.AlternativesCovered != 2 || len(c.MissedAlternatives) != 2 ||
 		c.MissedAlternatives[0].Expr != `"true"` || c.MissedAlternatives[1].Expr != `"false"` {
 		t.Errorf("got %s", out)
+	}
+	// Each missed alternative says why: the ordered choice of item cut every way through it.
+	for _, m := range c.MissedAlternatives {
+		if w := m.Why; w.Bypassed+w.Rejected+w.Failed == 0 || len(w.Cuts) == 0 || w.Cuts[0].Rule != "item" || w.MinLen != len(m.Expr)-2 {
+			t.Errorf("missed %+v", m)
+		}
+	}
+	if !strings.Contains(out, `"minLen": 4`) || !strings.Contains(out, `"cuts": [`) {
+		t.Errorf("no explanation in %s", out)
 	}
 	// The candidates are the accepted inputs, duplicates included, and the rejected ones.
 	if st := doc.Stats; st.Candidates < 10 || st.Candidates != 10+st.Duplicates+st.Rejected {

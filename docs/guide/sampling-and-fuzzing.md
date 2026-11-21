@@ -193,13 +193,21 @@ sxir sample -g items.sxir -n 5 -coverage
 "05,e"
 "12,ed"
 rules 4/4 (100%), alternatives 2/4 (50%)
-missed item: choice 2: "true"
-missed item: choice 3: "false"
+missed item: choice 2: "true" (tried in 5 attempts: 5 accepted without it; most cuts in item (50 by checks, 0 by predicates); shortest input 4 bytes)
+missed item: choice 3: "false" (tried in 5 attempts: 5 accepted without it; most cuts in item (50 by checks, 0 by predicates); shortest input 5 bytes)
 ```
 
 No input exercises `"true"` or `"false"`, however many you ask for: `word` comes first in the ordered choice and
 matches `true` itself, so the parser never reaches the later alternatives. A missed alternative is often a bug of this
 kind; here the fix is to try the keywords first: `rule item =  ("true" / "false") ![a-z] / word / number `.
+
+Each missed line says why, in parentheses. The generator tried both alternatives in all five attempts, and each time
+the check of `item` that an earlier alternative must not match there (`word` matches `t`) cut the way, so the attempt
+found an input without them. The explanation counts the attempts that tried the target and gave no input that
+exercises it: those that found an input without it, candidates that the parser rejected, and searches that ran out of
+budget or found no way to finish; it names the rules whose checks and predicates cut the most ways in those attempts.
+`not tried` means that no search took the target. The shortest input length comes from the structure of the grammar
+alone (it leaves out lookaheads and predicates): when it is beyond `-max-len`, the length bound keeps the search away.
 
 The report counts the rules that the start rule reaches, the alternatives of ordered choices, and the operands and
 operator parts declared in Operators Rules. It lists separately, and does not count:
@@ -235,14 +243,14 @@ sxir sample -g testdata/grammars/python/python.sxir -n 50 -seed 1 -coverage > /d
 
 ```text
 rules 122/336 (36%), alternatives 113/471 (24%)
-missed rule: stmt_sep
-missed rule: indented_block
-missed rule: clause_sep
+missed rule: stmt_sep (tried in 5 attempts: 3 accepted without it, 2 without a way to finish; most cuts in stmt_sep (0 by checks, 4661 by predicates), ws (4084 by checks, 156 by predicates), num_end (590 by checks, 0 by predicates); shortest input 2 bytes)
+missed rule: indented_block (tried in 1 attempt: 1 without a way to finish; most cuts in ws (2573 by checks, 59 by predicates), paren_named (0 by checks, 1661 by predicates), num_end (57 by checks, 0 by predicates); shortest input 5 bytes)
 ...
 unreachable: keyword
 ```
 
-More inputs reach more (200 inputs cover 46% of the rules), but such a grammar is better tested with real inputs: the
+The predicates of `stmt_sep` cut thousands of ways: they are the indentation comparisons. More inputs reach more
+(200 inputs cover 46% of the rules), but such a grammar is better tested with real inputs: the
 tests of the ready-made parsers use the specifications and the reference implementations of their languages.
 
 With `-f json`, the report is the `coverage` member of the document. Coverage is measured on the way the generator
@@ -336,11 +344,13 @@ fmt.Print(g.Coverage().Report())              // what the two inputs exercised
 
 ```text
 rules 4/4 (100%), alternatives 2/4 (50%)
-missed value: choice 0: [0-9]+ #atomic
-missed value: choice 3: "false"
+missed value: choice 0: [0-9]+ #atomic (not tried; shortest input 3 bytes)
+missed value: choice 3: "false" (not tried; shortest input 7 bytes)
 ```
 
-`Coverage` returns the numbers and lists as a struct (`Rules`, `RulesCovered`, `MissedAlternatives`, ...), and
+`Coverage` returns the numbers and lists as a struct (`Rules`, `RulesCovered`, `MissedAlternatives`, ...), where
+each missed rule and alternative carries its explanation as a `sample.Why` (`Bypassed`, `Rejected`, `Failed`,
+`Exhausted`, `Cuts`, `MinLen`), and
 `Stats` counts candidates, rejected candidates, failed searches and those of them that ran out of budget,
 duplicates, and the ways the search abandoned because a check (a lookahead, the order of a choice, `$$`) or a predicate
 showed that the parser would not match them. `Cuts` splits those cuts by rule as `[]sample.RuleCuts`, the rules
@@ -661,7 +671,8 @@ lower coverage. In practice:
   (`WithBudget`) or, for long repetitions, `WithMaxRepeat`; if they are merely rare, raise `WithAttempts`.
 - **Few distinct inputs**: the language may be small (`"a" / "b"` has two inputs). `Generate` stops after
   `WithAttempts` (100) inputs in a row that it already returned.
-- **Missed alternatives** that should be reachable: an earlier alternative of the choice may match their text (as with
-  `word` and `"true"` above), or reaching them may need many predicates to hold at once. More inputs or other seeds
-  help with the latter.
+- **Missed alternatives** that should be reachable: read the explanation of each. Cuts by the checks of the choice
+  mean that an earlier alternative may match their text (as with `word` and `"true"` above); many cuts by predicates
+  mean that reaching them needs many predicates to hold at once, where more inputs or other seeds help; `not tried`
+  with a shortest input beyond `-max-len` asks for a larger `-max-len`.
 - **Inputs are not uniform** over the language and not minimized: they are test data, not a statistical sample.
