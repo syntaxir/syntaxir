@@ -32,8 +32,9 @@ type Rule struct {
 	// inserted; NullableIns, when token insertion is enabled.
 	Nullable, NullableIns bool
 	// NullableAtEnd reports that the rule can succeed without consuming input when the input is at
-	// its end (see nullableAt in end.go). CanMatch reports that the rule can succeed at all.
-	NullableAtEnd, CanMatch bool
+	// its end, and NullableBeforeEnd, at a position before its end (see nullableAt in end.go).
+	// CanMatch reports that the rule can succeed at all.
+	NullableAtEnd, NullableBeforeEnd, CanMatch bool
 	// Succeeds reports a rule that is proven never to fail: one off every left-recursion cycle
 	// whose body always succeeds.
 	Succeeds bool

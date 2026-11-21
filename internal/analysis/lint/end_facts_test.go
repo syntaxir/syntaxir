@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/frontend"
-	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/testing/factstest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -43,9 +42,9 @@ var endFactsGrammars = []string{
 	"rule main = x:\"a\" !x:$$",
 }
 
-// TestEndFactsMatchTheAnalysis checks the Core facts NullableAtEnd and CanMatch, of each rule and
-// of its body, against the lint analysis they replace: the nullable[end] and canMatch sets of the
-// analysis and its nullableAt and mayMatch on the rule's expression.
+// TestEndFactsMatchTheAnalysis checks the Core facts NullableAtEnd, NullableBeforeEnd and CanMatch,
+// of each rule and of its body, against the lint analysis they replace: the nullable and canMatch
+// sets of the analysis and its nullableAt and mayMatch on the rule's expression.
 func TestEndFactsMatchTheAnalysis(t *testing.T) {
 	t.Parallel()
 	var srcs []string
@@ -64,16 +63,13 @@ func TestEndFactsMatchTheAnalysis(t *testing.T) {
 		if err != nil {
 			continue
 		}
-		// The analysis reads the grammar with its inline actions lowered, as lint does.
-		g, _, err := desugar.LowerInlineActions(parsed)
-		if err != nil {
-			continue
-		}
-		res := checkedOrNil(g)
+		res := checkedOrNil(parsed)
 		if res == nil {
 			continue
 		}
 		compared++
+		// The analysis reads the grammar that the front end checked, as lint does.
+		g := res.Grammar()
 		an := newAnalysis(g)
 		for _, r := range res.Module.Rules {
 			if r == nil || r.Twin != nil {
@@ -87,11 +83,17 @@ func TestEndFactsMatchTheAnalysis(t *testing.T) {
 			if want := an.nullable[1][r.Name]; f.NullableAtEnd != want {
 				t.Errorf("%q rule %s: NullableAtEnd=%v, analysis nullable[end]=%v", src, r.Name, f.NullableAtEnd, want)
 			}
+			if want := an.nullable[0][r.Name]; f.NullableBeforeEnd != want {
+				t.Errorf("%q rule %s: NullableBeforeEnd=%v, analysis nullable[before end]=%v", src, r.Name, f.NullableBeforeEnd, want)
+			}
 			if want := an.canMatch[r.Name]; f.CanMatch != want {
 				t.Errorf("%q rule %s: CanMatch=%v, analysis canMatch=%v", src, r.Name, f.CanMatch, want)
 			}
 			if got, want := res.Facts.NullableAtEnd(r.Body), an.nullableAt(rd.Expr, true); got != want {
 				t.Errorf("%q rule %s: body NullableAtEnd=%v, analysis nullableAt=%v", src, r.Name, got, want)
+			}
+			if got, want := res.Facts.NullableBeforeEnd(r.Body), an.nullableAt(rd.Expr, false); got != want {
+				t.Errorf("%q rule %s: body NullableBeforeEnd=%v, analysis nullableAt=%v", src, r.Name, got, want)
 			}
 			if got, want := res.Facts.MayMatch(r.Body), an.mayMatch(rd.Expr); got != want {
 				t.Errorf("%q rule %s: body MayMatch=%v, analysis mayMatch=%v", src, r.Name, got, want)

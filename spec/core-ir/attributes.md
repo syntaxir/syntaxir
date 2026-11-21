@@ -52,6 +52,7 @@ first terminals and the effects are computed, since both depend on those policie
 |:--|:--|
 | Nullable, NullableIns | Those of the rule's body |
 | NullableAtEnd | The rule can succeed without consuming input when the input is at its end (below) |
+| NullableBeforeEnd | The rule can succeed without consuming input at a position before the end of the input (below) |
 | CanMatch | The rule can succeed at all (below) |
 | Rec | The rule is on a cycle of calls: a component of the call graph with several rules, or a rule that calls itself. Calls in lookaheads, recovery skips and Operators Rule lines count |
 | Succeeds | The rule is off every left-recursion cycle and its body always succeeds (below) |
@@ -72,6 +73,11 @@ there if its body can succeed there without consuming input, and a negative one 
 there. A call takes the fact of its rule, and the other nodes that can succeed without consuming input at any position
 (an option, a predicate, a cut, `Succeed`, a beginning-of-input or line anchor) do so at the end too, and the nodes that
 contain a sequence, choice, repetition, operators rule or wrapper take the same rule as elsewhere.
+
+`NullableBeforeEnd` is the same least fixed point at a position before the end of the input. There the end-of-input
+anchor fails; `.`, a character class and a nonempty literal are not nullable, as anywhere; a positive lookahead is
+nullable whatever its body; and a negative one is nullable if its body does not certainly succeed there. A call takes
+the `NullableBeforeEnd` fact of its rule there, as it takes the `NullableAtEnd` fact at the end.
 
 `CanMatch` is the least fixed point over the rules of whether the body can succeed at all. A `FailNode` cannot. A negative
 lookahead can unless its body always succeeds. A `Missing` literal and a `Recover` can, since their error recovery

@@ -18,6 +18,10 @@ func (f *Facts) Succeeds(n core.Node) bool { return f.c.alwaysSucceeds(n) }
 // (see Rule.NullableAtEnd).
 func (f *Facts) NullableAtEnd(n core.Node) bool { return f.c.nullableAt(n, true) }
 
+// NullableBeforeEnd reports that n can succeed without consuming input at a position before the end
+// of the input (see Rule.NullableBeforeEnd).
+func (f *Facts) NullableBeforeEnd(n core.Node) bool { return f.c.nullableAt(n, false) }
+
 // MayMatch reports that n can succeed (see Rule.CanMatch).
 func (f *Facts) MayMatch(n core.Node) bool { return f.c.mayMatch(n) }
 

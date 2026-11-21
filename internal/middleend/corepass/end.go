@@ -11,10 +11,12 @@ import (
 // over-approximations (nullability, matching) and under-approximations (success, failure) in the
 // same sense as the other facts, and are the least fixed points over the rules.
 
-// nullableEnd computes the NullableAtEnd facts of the rules.
+// nullableEnd computes the NullableAtEnd and NullableBeforeEnd facts of the rules.
 func (c *computer) nullableEnd() {
 	c.fixRules(func(id int) bool { return c.nullableAt(c.m.Rules[id].Body, true) },
 		func(id int) *bool { return &c.rules[id].NullableAtEnd })
+	c.fixRules(func(id int) bool { return c.nullableAt(c.m.Rules[id].Body, false) },
+		func(id int) *bool { return &c.rules[id].NullableBeforeEnd })
 }
 
 // canMatch computes the CanMatch facts of the rules.
@@ -75,7 +77,10 @@ func (c *computer) nullableAt(n core.Node, end bool) bool {
 	case *core.Repeat:
 		return n.Min == 0 || n.Min == 1 && c.nullableAt(n.Body, end)
 	case *core.Call:
-		return c.rules[c.canon[n.Rule]].NullableAtEnd
+		if end {
+			return c.rules[c.canon[n.Rule]].NullableAtEnd
+		}
+		return c.rules[c.canon[n.Rule]].NullableBeforeEnd
 	case *core.OperatorsRule:
 		for _, l := range n.Operands {
 			if c.nullableAt(l.Body, end) {
