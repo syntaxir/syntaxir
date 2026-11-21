@@ -500,6 +500,35 @@ func TestSharedCallThroughRulesThatReadVariables(t *testing.T) {
 	}
 }
 
+// TestSharedCallThroughOneRuleThatReadsVariables pins the same rule when the unit and the
+// continuation call one rule C that reads v, the unit under a discard, which keeps the rewrite
+// from left-factoring the two calls of C. C is not shared, since it reads v, and the call of Y
+// that both reach through it is shared only when Y is memoized at its calls or calls no rule. Y
+// called only from C is not memoized, and it calls ws, so the classifier looks through it to the
+// repetition "a"+, after which the unit and the continuation go on alike through ws, and nothing
+// that both begin with is left to remove: the unit is not committing. With a second call of Y,
+// which memoizes it, or with a Y that calls no rule, Y is shared.
+func TestSharedCallThroughOneRuleThatReadsVariables(t *testing.T) {
+	t.Parallel()
+	const head = "var v int\n@start\nrule main = k:K { v := len($k) } \"[\" (-C \"!\" / C ws \"y\") / P\n" +
+		"rule K = \"+\"*\nrule P = (\" \" \" \")* ws \"?\"\nrule ws = [ ]*\nrule C = Y { v >= 0 } ws \"x\"\n"
+	for _, tc := range []struct {
+		name, src string
+		class     ComplexityClass
+	}{
+		{"Y not memoized", head + "rule Y = \"a\"+ (ws \";\")?\n", ClassUnknown},
+		{"Y memoized by a second call", head + "rule Y = \"a\"+ (ws \";\")?\nrule Q = Y \"q\"\n", ClassLinearEnv},
+		{"Y calls no rule", head + "rule Y = \"a\"+ (\" \"* \";\")?\n", ClassLinearEnv},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := classifySource(t, tc.src)
+			if c.Class != tc.class {
+				t.Errorf("class %v, want %v\ncauses %v\nreasons %v", c.Class, tc.class, c.Causes, c.Reasons)
+			}
+		})
+	}
+}
+
 // TestComplexityReasonsOutrankPolynomialCauses checks that a reason for the class unknown outranks
 // polynomial causes: each grammar has causes of degree 2 and reasons whose places multiply the
 // cost, which TestSlopeGateGrowth measures as cubic on every backend. The class is unknown, the
