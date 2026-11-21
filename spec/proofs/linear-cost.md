@@ -39,7 +39,8 @@ parse that walks one of these is covered with that repetition among the
 sources without records, and so with the open parts of the count of Lemma 4
 for it.
 
-Lemmas 1, 3, 7, 8, 9, 11 and 14 are proved, Lemma 16 given the theorems of
+Lemmas 1, 3, 7, 8, 9 and 14 are proved, Lemma 11 apart from *Values of
+variables* (step 5 of [Open Steps](#open-steps)), Lemma 16 given the theorems of
 the [Memoization](memoization.md) and [Documents](documents.md) proofs, and
 Lemmas 2 and 10 apart from the tries of an Operators Rule outside its activations (step 3 of
 [Open Steps](#open-steps)). Lemmas 13 and 15 are proved
@@ -11624,34 +11625,249 @@ excluded: a value of a variable has size up to $L$ whatever the match, and a
 capture in a positive lookahead holds input outside it, so for them the bound
 holds only with $n$. $\square$
 
-*Values of variables.* Call a sequence of evaluations of bindings a
-**chain** when each evaluation after the first reads a value built, through
-captures, rule values and the reads of variables, from the value that the
-one before it binds. Let each binding occur at most a constant number $b$ of
-times in every chain. Then $L$ is at most a constant times $\hat{n}$.
+*Values of variables.* $L$ is at most a constant times $\hat{n}$.
 
-*Proof.* Every value that a binding binds is built from literals, values of
-matches, and the values of variables that its term reads, which earlier
-evaluations of bindings, or the initial values, gave. Follow the
-values of variables back through the bindings that built them: by the
-assumption, a chain of such evaluations is no longer than $b$ times the
-number of bindings of the grammar. By *Top sizes*, with the
-values of variables that a term reads added to its operands, a binding binds
-a value of top size at most a constant times $\hat{n}$ plus a constant
-times the top sizes of the values of variables that it reads, since a match
-consumes at most $n$ and a capture in a positive lookahead at most the rest
-of the input. Induction along the chains gives a bound of a constant times
-$\hat{n}$. $\square$
+The bound cannot come from counting the bindings that a value passes
+through. Call a sequence of evaluations of bindings a **chain** when each
+evaluation after the first reads a value built, through captures, rule values
+and the reads of variables, from the value that the one before it binds. One
+binding can occur in a chain any number of times. In
 
-The assumption is what conditions 1 and 4 state together: condition 1 for a
-binding whose value can reach a later evaluation of the same binding through
-the bindings that its rule keeps in effect, and condition 4 for a value that
-reaches the caller through the value of the rule and a read of a variable.
-That these are the only ways in which the value reaches a later evaluation
-of the binding is step 5 of [Open Steps](#open-steps). The theorem does not use
-the bound on $L$: its cost carries the factor $L + 1$, and
-[Classification](../runtime/parsing.md#classification) derives from the
-bound that the second class costs at most a constant times $K \cdot n^2$.
+```zp
+var x string
+rule main = r $$
+rule r = ("(" c:r ")" {x := $c} => x) / ("a" => "a")
+```
+
+the value of `r` is the value that its binding bound, so on $k$ opening
+parentheses, `a` and $k$ closing ones the $k$ evaluations of the binding form
+one chain, each reading, through `$c`, the value that the evaluation one level
+down bound. Conditions 1 and 4 hold, and the class is linear given an
+environment bound: the value of the binding reaches no later evaluation of it
+while `r` runs, and it leaves `r` only through the value of `r`, which nothing
+copies, so the value does not grow. What the proof bounds is the number of
+copies that a value passes through.
+
+*Proof.* Values reused from what a parse keeps are the values that
+evaluations would build. By the [memoization
+proof](memoization.md#theorem-memoization-never-changes-the-result) a lookup
+gives the value that an evaluation of the call would build; a walk that reuses
+a run-site record lists the values that the walk evaluating the iterations
+would list ([Lemma 1 of Run Sites](run-sites.md#lemma-1-exactness)), and one
+that reuses a skip run leaves the result around it with the outcome and range
+that evaluating the iterations gives ([Lemma 1 of Skip
+Runs](skip-runs.md#lemma-1-exactness)); and a parse of a Document returns
+what a parse of its text from scratch does, its entries and records giving
+what the evaluations of that parse would build ([Documents
+theorem](documents.md#theorem-document-parses-equal-fresh-parses)). So take
+every call to evaluate its rule and every walk to evaluate its iterations, in
+a parse from scratch. A step of a growth after the first reads the value of the
+step before it through the calls of its leader at the position, which
+[Left Recursion](../language/parser-expressions.md#left-recursion) has succeed
+with the current result, the value of that step: take that step as the
+evaluation of the first such call, nested in it, as it would be in a parse that
+did not grow but called the rule again. It sees the values that such an
+evaluation would of the variables that the cycle reads: a growth sees those in
+effect where it started, and no binding of such a variable runs in the bodies of
+the cycle before a call into the cycle made before consuming input, as Left
+Recursion requires; a variable that the cycle does not read moves nothing into
+it. A binding made in it ends with it, as one made in a called rule ends with the
+call. A
+call at the position in a later step is a call of the leader as the one it
+stands for is, a call on a recursion with every rule of the cycle, so the
+conditions measure the value it passes on as they measure the value of such a
+call. The evaluations of rules then form a tree, each nested in the evaluation
+that called it. A variable holds an `int`, a `bool` or a
+`string`, so $L$ is the size of a string.
+
+*Building copies.* Of the [copying
+operations](../runtime/parsing.md#conditions-for-linear-cost), call `+` with an
+operand that is not an `int`, `concat`, `map` and `filter` the **building
+copies**: they build a string or a list from the strings or the elements of
+their operands. `len` of a string and the comparison of two strings build an
+`int` or a Boolean, and `list` a list with one element for each argument.
+Every other operation, as listed
+in the proof of *Top sizes*, builds a value whose top size is at most a constant
+of the grammar, or passes a component on unchanged. So every component of a
+value is a **leaf**, a literal, an `int`, a Boolean, nil, a zero value, the
+initial value of a variable, a node or its text, the list of a repetition, or a
+value of constant top size that an operation other than a building copy builds,
+or it is the result of an evaluation of a building copy. A leaf has top size at
+most a constant times $\hat{n}$: a node and its text cover a range of the input,
+inside a positive lookahead or not, and a repetition has at most $\hat{n}$
+iterations. The result of a building copy has top size at most $r$ times the
+largest top size of the operands that it copies, with $r$ the largest number of
+operands of a `+` or a `concat` of the grammar, at least 1, since `map` and
+`filter` give at most the elements of their list.
+
+A **copy chain** is a sequence of evaluations of building copies, each after
+the first copying the result of the one before it as an operand. By induction
+on the order of evaluation, a component has top size at most $r^h$ times the
+bound of the leaves, with $h$ the length of the longest copy chain that ends in
+the evaluation that built it, 0 for a leaf. It remains to bound the length of
+the copy chains by a constant $D$, which gives $L$ at most $r^D$ times a
+constant times $\hat{n}$.
+
+*Moves.* Between the evaluation that builds a result of a copy chain and the
+one that copies it, the result moves unchanged: inside the evaluation of a
+term, as an element or a member of a value built around it; into the value of
+an evaluation of a rule, which the evaluation that called it reads through a
+capture or passes on; through a binding and the reads of its variable; and,
+inside one evaluation of an Operators Rule, from the value of a part to a
+later application of an operator part, which reads it as `$lhs` or `$rhs`, and
+to the whole-rule action, which reads the value of the last part as
+`$value`. No binding reads `$lhs`, `$rhs` or `$value`, which are defined only
+in the value actions of the parts and in the whole-rule action, so what they
+carry moves on only through the value of a part or the value of the
+evaluation. A
+binding made in an evaluation $A$ of a rule is seen only by the reads in $A$
+and in the evaluations nested in $A$ that start after it, while it is in
+effect: backtracking undoes it, it ends with $A$, since bindings in a called
+rule are not visible to its caller, and it ends with a negative lookahead
+around it, after which nothing made inside the lookahead is seen. So a value
+built in $A$, or in an evaluation nested in it, reaches an evaluation that is
+not nested in $A$ only through the value of $A$. The **route** between two
+evaluations of a copy chain is the sequence of the evaluations of rules through
+which its results move from the one to the other. Each move stays in one
+evaluation or goes between an evaluation and one nested in it, so a move out
+of the evaluations nested in an
+evaluation of the route goes to an evaluation that it is nested in, and the
+evaluation of the route nested in the fewest others, its **top**, has all the
+others nested in it.
+
+*Reads.* Condition 1 follows a graph with an edge from each variable to the
+**variables of the term** of each of its bindings: the variables that the term
+of the binding reads, and those that the rules of the captures it reads read,
+directly or through their callees. If the evaluation of a term reads a value
+built from the value of a call $C$, or from a value that a binding of a variable
+$y$ bound, then the variables that the rule of $C$ reads, or $y$, lie in
+the variables of the term or are reached from them in the graph, and for a
+term that reads `$lhs`, `$rhs` or `$value`, in the variables that the rule of
+the term reads or reached from them. By induction on the order of evaluation:
+the value enters the evaluation of the term through a capture, whose rule reads
+every variable that the evaluations nested in its call read; through a read of
+a variable $z$, whose value a binding of $z$ built from what its own term read;
+or through `$lhs`, `$rhs` or `$value`, whose value the actions of the parts of
+the same evaluation of the rule built from their captures and the variables
+they read, all of which the rule reads. A binding does not read `$lhs`, `$rhs`
+or `$value`.
+
+*Feedback.* Let $\kappa$ and $\kappa'$ be two evaluations of one building copy
+$o$ of a rule $R$ on a copy chain, $\kappa$ before $\kappa'$, in two
+evaluations of the term of $o$, which lie in evaluations $E$ and $E'$ of $R$,
+and let $T$ be the top of the route between them. Then $E$ and $E'$ are
+nested in two calls $C$ and $G$ of $T$, $C$ before $G$; the route passes a
+binding evaluated in $T$; and the rule of $G$ does not reach the rule of $T$.
+Moreover, no binding is evaluated twice in $T$ on the route between two
+evaluations of a copy chain whose top is $T$.
+
+*Proof.* Suppose first that $E$ is nested in $E'$ and $E \ne E'$. The route
+does not pass above $E'$, since it would leave $E'$ through its value, after
+which $\kappa'$ cannot lie in $E'$; so $T = E'$, and $E$ is nested in a call $C$
+of $E'$ whose rule reaches $R$, while $R$ calls it, so $C$ is a call on a
+recursion with $R$. The first building copy on the route after the results
+leave $C$, $\kappa'$ at the latest, is in $E'$ or nested in it, and it copies a
+value that includes the value of $C$ as condition 4 measures it: through
+captures, members and elements; through `$lhs` and `$rhs`, which count as
+values of a call on a recursion themselves; through `$value`, which counts as
+one since the value of $C$ enters the value of a part through a capture of the
+part; and through reads of variables, each binding measured in the rule that
+makes it. Condition 4 excludes such a copy. So $E$ is not nested in $E'$ unless
+$E = E'$.
+
+A result enters an evaluation nested in $T$, or a later iteration of a
+repetition in $T$, only through a binding of $T$ in effect there, which holds
+the result unchanged, a string, and it enters a later application of an
+operator part in $T$ through such a binding or through `$lhs` or `$rhs`. The
+route does not pass `$lhs` or `$rhs` in $T$. If it did, then by *Moves* the
+result would move on only through values of parts, `$lhs`, `$rhs`, `$value`
+and the value of $T$, which the route does not leave, so $\kappa'$ would lie in
+the action of a part of $T$, not in the whole-rule action, which $T$ evaluates
+once, after its last part, since $\kappa$ and $\kappa'$ lie in two evaluations
+of the term of $o$ and $E$ is not nested in $E'$. The first building copy on
+the route after the read of `$lhs`
+or `$rhs`, $\kappa'$ at the latest, would then lie in the action of a part of
+$T$ too, since after the whole-rule action the result moves only into the
+value of $T$, and copy a value that includes `$lhs` or `$rhs`, which condition
+4 excludes as it excludes a copy of the value of a call on a recursion.
+Let $b$ be the last binding evaluated in $T$ before the route enters the
+evaluation of the term of $\kappa'$, or the call $G$ of $T$ in which it is
+nested. Its variable has no finite values, since it holds the result of a copy,
+which is not a literal. And $b$ reads its variable's own earlier value through
+a chain of bindings, captures and rule values, as condition 1 puts it: its term
+reads a value built from the result of $\kappa$, which lies in a
+binding of $T$ whose term holds $o$ when $T = E$, and otherwise comes up through
+the call $C$ of $T$ in which $E$ is nested, whose rule reaches $R$ and so reads
+every variable that $R$ reads; and $\kappa'$ reads a value built from the value
+of $b$, so by *Reads* the variable of $b$ is reached in the graph from a
+variable that $R$ reads, and from the term of $b$. So condition 1 requires that
+the value of $b$ reach no later evaluation of $b$, which it decides from the
+place of $b$ in $T$. Then neither $\kappa'$ nor a call of $T$ that it is
+nested in lies in a later iteration of a repetition, or a later application of
+an operator part, around $b$ with no negative lookahead between, which
+condition 1 counts as reaching a later evaluation. Two evaluations of one term
+in one evaluation of a rule
+lie in different iterations of a repetition, or applications of an operator
+part, around the term, and the binding that carries the result from the one to
+the other lies in that repetition or operator part; so $\kappa'$ is not in $T$
+itself, but nested in a call $G$ of $T$ at any depth of a later element, a
+negative lookahead included, of a sequence around $b$ inside the nearest
+negative lookahead around $b$, which condition 1 counts as reaching a later
+evaluation when its rule reaches the rule of $T$; so the rule of $G$ does not
+reach the rule of $T$. Since the rule
+of $G$ reaches $R$, $T \ne E$, and $T \ne E'$, since $E$ is not nested in $E'$.
+So $E$ is nested in a call $C$ of $T$, which ends before $G$ starts, since the
+route leaves $E$ through its value before $\kappa'$.
+
+The last claim: if a binding $b$ were evaluated twice in $T$ on such a route,
+its second evaluation would read a value built from the value of its first, so
+$b$ would read its variable's own earlier value by *Reads*, and the second would
+lie in a later iteration of a repetition or a later application of an operator
+part around $b$ with no negative lookahead between, which condition 1 counts as
+reaching a later evaluation. $\square$
+
+Now fix a copy chain and a building copy $o$. The evaluations of $o$ on the
+chain inside one evaluation of its term are at most a constant $\lambda$: they
+lie in the lambdas of the term, and a lambda over a list that is not bounded
+passes no result of $o$ from one of its evaluations to a later one, since by
+condition 4 it copies neither a fold accumulator nor a part of one, nor a value
+from outside it beyond a constant, while a lambda over a bounded list runs a
+constant number of times by Lemma 7. Call two consecutive evaluations of $o$ on
+the chain in different evaluations of its term a **pair**, and a run of
+consecutive pairs a **stretch**, whose top is the top of the route from its
+first evaluation to its last.
+
+Let $\beta$ be the largest number of bindings in a rule body, and let $N_k$
+bound the pairs of a stretch whose top is an evaluation of a rule in a
+strongly connected component of the call graph of height at most $k$, the
+components that call no other having height 0. In a stretch with top $T$, by
+*Feedback* each pair whose top is $T$ passes a binding evaluated in $T$ after
+those of the pairs before it, and no binding twice, so at most $\beta$ pairs
+have top $T$. The others form the stretches between them. A stretch after a
+pair with top $T$, up to the next, lies in the call $G$ of that pair, whose rule
+does not reach the rule of $T$, so its top is an evaluation of a rule in a lower
+component: at most $\beta N_{k-1}$ pairs in all. The stretch before the first
+pair with top $T$ lies in the call $C_0$ of $T$ in which the stretch starts. Its
+top $T_1$ has, in the same way, a first stretch in a call $C_1$ of $T_1$, with a
+top $T_2$, and so on, each nested in the one before. With $T_0 = T$, the
+$T_i$ are evaluations of distinct rules: if $T_i$ and $T_j$, $i < j$, were
+evaluations of one rule $U$, then $T_j$, nested in $C_i$, would make $C_i$ a call
+on a recursion with $U$, and the first pair with top $T_i$, whose route leaves
+$C_i$ into $T_i$, would copy a value that includes the value of $C_i$, against
+condition 4 as in the proof of *Feedback*. Each $T_i$ has at most $\beta$ pairs
+with top $T_i$ and $\beta$ stretches after them in lower components, so
+
+$$N_k \le |\text{rules}| \cdot \beta \cdot (1 + N_{k-1}), \qquad N_{-1} = 0.$$
+
+The evaluations of $o$ on the chain are then at most $\lambda (N_H + 1)$, with
+$H$ the largest height, and a copy chain has at most
+$D = Q \lambda (N_H + 1)$ evaluations, with $Q$ the number of building copies
+of the grammar. $\square$
+
+The theorem does not use the bound on $L$: its cost carries the factor
+$L + 1$, and [Classification](../runtime/parsing.md#classification) derives
+from the bound that the second class costs at most a constant times
+$K \cdot n^2$.
 
 ## Lemma 13 (Bounded Scans)
 
@@ -12677,11 +12893,13 @@ names a term or condition of the specification and the lemmas that use it.
   calls, in a cycle with more than one leader: Lemma 5, *Plain reads*.
 - Condition 1 (Variables), with the bindings that bind a value that the input
   determines, which give the class Linear given an environment bound: Lemma 3
-  through $K$, and *Values of variables* in Lemma 11. The variables with
+  through $K$, and *Values of variables* in Lemma 11, which step 5 of
+  [Open Steps](#open-steps) leaves open. The variables with
   finite values and the guards of bindings: Lemma 8.
 - Condition 4 (Copies), with the copying operations, string values and nodes
-  for `len`, bounded lists, calls on a recursion, fold accumulators, values
-  from outside a lambda, values of variables, captures in a positive
+  for `len`, bounded lists, calls on a recursion, `$lhs`, `$rhs` and
+  `$value` of an Operators Rule, fold accumulators, values from outside a
+  lambda, values of variables, captures in a positive
   lookahead and the elements that a lambda copies: Lemmas 6, 7 and 11. The
   step matrix of a fold: Lemma 7, after its proof. Own values and size
   degrees: Lemma 7, *Size degrees*, with Lemmas 6 and 11. Values whose size
@@ -13166,19 +13384,20 @@ theorem covers such a parse.
    the pair lies in one step of the innermost growth that contains it, and
    the count charges it to the earlier activation as it does the first kind
    of *Repeats inside a family*.
-5. **Chains of bindings in Lemma 11.** The bound $L = O(n)$ that
+5. **Values of variables in Lemma 11.** *Values of variables* in Lemma 11
+   argues the bound $L = O(n)$ that
    [Classification](../runtime/parsing.md#classification) states, which the
-   theorem does not use. *Values of variables* in Lemma 11 proves it given
-   that each binding occurs a bounded number of times in every chain. The
-   step must show that conditions 1 and 4 ensure this: that a value reaches
-   a later evaluation of the same binding only through a sequence that holds
-   the binding, at any depth of expressions that keep its bindings, and a
-   call that can reach its rule again, at any depth of a later element, a
-   negative lookahead included, or a repetition around the binding,
-   which condition 1 checks, or through the value of a rule passed to a
-   caller and read there through a variable, which condition 4 checks; and
-   that a chain that takes neither repeats each binding a bounded number of
-   times, as `s = a:A {x := $a} A` does when `A` binds `x`.
+   theorem does not use. It does not bound the number of times that a binding
+   occurs in a chain of bindings, which no condition bounds: in
+   `r = ("(" c:r ")" {x := $c} => x) / ("a" => "a")` one binding occurs in one
+   chain once for each level of the recursion. It bounds instead the building
+   copies that a value passes through: a copy whose result reaches a later
+   evaluation of the same copy passes a binding that reads its variable's own
+   earlier value, which condition 1 confines, or copies the value of a call on
+   a recursion, or `$lhs`, `$rhs` or `$value` of an Operators Rule, which
+   condition 4 excludes. The step must confirm that *Moves* lists every route
+   by which a value reaches a later evaluation, so that *Feedback* covers
+   them all.
 6. **What a Document parse moves in Lemma 12.** The bound of Lemma 12 is in
    terms of $W$, $B$, $G$ and $Q$, which depend on the history of the Document.
    *Over a sequence of parses* removes the total retained size $W$: over the

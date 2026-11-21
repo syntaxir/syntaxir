@@ -2415,8 +2415,10 @@ places where that is not shown. In the class Linear both are at most the bound
 below. L is the largest size
 of a variable's value that a copying operation copies or that a memo lookup
 or the lookup of a run-site record compares; it is zero when no variable holds a string. Under the conditions, a
-variable's value is built from literals, captures and other variables without
-feeding back into itself, so L is at most proportional to n, and the cost of
+variable's value is built from literals, captures and other variables through a
+number of joins and other copies that the grammar bounds, though it can pass
+through one binding many times without being copied, so L is at most
+proportional to n, and the cost of
 the second class is at most proportional to K · n². A caller that needs a cost
 proportional to n needs the class Linear.
 

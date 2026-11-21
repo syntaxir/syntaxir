@@ -323,6 +323,18 @@ rule expr string = #operators { operand a:"a" => text($a); level additive { infi
 rule main = e:expr $$ => $e
 rule expr string = #operators { operand a:"a" => text($a); level additive { infix left "+" => $lhs + $rhs } }
 `, ClassPoly, 2, -1},
+	// The same doubling of a list: on "a" and k times "+a" the minimum compute is 2216, 33016 and
+	// 524616 for k = 8, 12 and 16.
+	{"operators", "operand list joined twice", `@start
+rule main = e:expr $$ => len($e)
+rule expr []string = #operators { operand a:"a" => list(text($a)); level additive { infix left "+" => concat($lhs, $lhs) } }
+`, ClassExp, -1, -1},
+	// Joining both operand lists copies the left one at each operator: the minimum compute is
+	// 6266, 22516, 85016 and 330016 for 50, 100, 200 and 400 operators.
+	{"operators", "operand lists joined once", `@start
+rule main = e:expr $$ => len($e)
+rule expr []string = #operators { operand a:"a" => list(text($a)); level additive { infix left "+" => concat($lhs, $rhs) } }
+`, ClassPoly, 2, -1},
 	// The whole-rule action reads the folded value through $value, which holds the value of the
 	// call of the parenthesized operand: joining it twice doubles the value at each level of
 	// parentheses. On k parentheses around "a" the minimum compute is 141, 1165 and 16589 for
@@ -418,6 +430,8 @@ var classifierSoundnessMutants = []struct {
 		"operators/operand values joined once",
 		"operators/folded value joined twice",
 		"operators/folded value joined once",
+		"operators/operand list joined twice",
+		"operators/operand lists joined once",
 	}, ClassLinear},
 	{"operandValues", []string{"operators/operand value joined twice into a variable"}, ClassLinearEnv},
 	// Either rule alone rejects the dropped result behind a predicate: without both, condition 5
