@@ -428,9 +428,11 @@ position. A walk shorter than RunHotSpan changes nothing. Noting the end of a wa
 hot is free (spec/runtime/parsing.md#run-sites).`,
 		Requires: "start is at most the position."}), "the site (Site)", immOf[Site]())
 	withImm(op(&code.Op{Name: OpScanEnd, Params: []code.Param{P("start", i), P("count", i)}, Reads: pos, Writes: []string{State},
+		NoReturn: true, Cost: code.Cost{Const: 1},
 		Contract: `Ends a walk of the value-free scan site that began at start and matched count characters, at least
-ScanHotSpan: unless the walk took the rest from a record, it records itself at a hot site, or notes that it
-walked at a site that is not hot.`}), "the site (Site)", immOf[Site]())
+ScanHotSpan: unless the walk took the rest from a record, it records itself at a hot site, which charges a
+unit for the record, or notes that it walked at a site that is not hot, which is free
+(spec/runtime/parsing.md#scan-sites).`}), "the site (Site)", immOf[Site]())
 	op(&code.Op{Name: OpEmitStream, Params: []code.Param{P("x", value)}, Reads: pos, Writes: []string{State}, NoReturn: true, Cost: per(QStream),
 		Contract: "Delivers the committed element x (nil for a value-free repetition) to the callback of a stream parse, which has consumed the input up to the position."})
 	withImm(op(&code.Op{Name: OpAppend, Params: []code.Param{P("vals", vals), P("x", value)}, Results: []code.Type{vals},
@@ -490,15 +492,20 @@ may share its elements with the lists and records of other walks. Taking the val
 unit for each element of the record that it copies (spec/runtime/parsing.md#run-sites).`,
 		Requires: "the walk in progress was begun with Build."})
 	withImm(op(&code.Op{Name: OpScanReach, Params: []code.Param{P("start", i), P("count", i)}, Results: []code.Type{i}, Reads: pos, Writes: []string{State, Pos},
+		NoReturn: true, Cost: code.Cost{Const: 2},
 		Contract: `For a walk of the scan site that began at start and has matched ScanHotSpan characters, count of
 them: at a hot site with a record of start it moves the position to the recorded end and returns the
-recorded count; otherwise it returns count.`}), "the site (Site)", immOf[Site]())
+recorded count; otherwise it returns count. At a hot site it charges a unit for the lookup and one more for
+the record that it finds; at a site that is not hot it charges nothing (spec/runtime/parsing.md#scan-sites).`}), "the site (Site)", immOf[Site]())
 	withImm(op(&code.Op{Name: OpScanKids, Params: []code.Param{P("start", i), P("base", i), P("count", i)}, Results: []code.Type{vals}, Reads: pos, Writes: []string{State},
+		NoReturn: true, Cost: code.Cost{Const: 1},
 		Contract: `Returns the elements of a walk of the scan site that began at start, gathered on the stack from
 base, which matched count characters: for a walk that reached ScanHotSpan characters it ends the walk as
 flow.scanEnd does, and the result is the elements of the record that the walk took, if it took one (the
-stack is dropped to base), or the gathered elements, which the record that it makes shares. It charges
-nothing: the values that the parse gathers are not an item of the cost (spec/runtime/parsing.md#cost).`}), "the site (Site)", immOf[Site]())
+stack is dropped to base), or the gathered elements, which the record that it makes shares. It charges a
+unit for the record that it makes, as flow.scanEnd does (spec/runtime/parsing.md#scan-sites), and nothing
+for the elements: the values that the parse gathers are not an item of the cost
+(spec/runtime/parsing.md#cost).`}), "the site (Site)", immOf[Site]())
 	withImm(op(&code.Op{Name: OpHasLit, Results: []code.Type{b}, Reads: pos, Writes: []string{State}, NoReturn: true, Cost: per(QLit),
 		Contract: `Reports that the input at the position begins with the literal, read in place without recording
 anything; false where the input cannot be read in place. With budget controls a match charges a unit per
