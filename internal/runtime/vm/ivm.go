@@ -276,6 +276,15 @@ func (f *flowFrame) next(mc *ivmMachine, vm *Program, res iresult) (iframe, ires
 	return nil, iresult{v: v, ok: ok}, true
 }
 
+// lineFrame returns the frame that runs the line or skip of an Operators Rule whose code is the
+// entry i of Program.lines: its Flow body if it has one, otherwise its match code.
+func (mc *ivmMachine) lineFrame(vm *Program, i int) iframe {
+	if c := vm.lines[i]; c.flow != nil {
+		return mc.flowFrame(nil, c.flow)
+	}
+	return blockFrame(mc, vm.lines[i].entry)
+}
+
 func blockFrame(mc *ivmMachine, entry int) *bodyFrame {
 	return mc.bodyFrame(entry, nil, 0, true)
 }
@@ -484,7 +493,7 @@ func (f *skipFrame) next(mc *ivmMachine, vm *Program, res iresult) (iframe, ires
 	if !f.started {
 		f.started = true
 		f.m = p.TriviaBegin()
-		return blockFrame(mc, f.pr.SkipEntry), iresult{}, false
+		return mc.lineFrame(vm, f.pr.SkipEntry), iresult{}, false
 	}
 	p.TriviaEnd(f.m, res.ok)
 	return nil, iresult{ok: true}, true
@@ -511,7 +520,7 @@ func (f *longestFrame) next(mc *ivmMachine, vm *Program, res iresult) (iframe, i
 		mc.attempt = f.st.Best // passed through the parser to keep iresult small
 		return nil, iresult{}, true
 	}
-	return blockFrame(mc, l.Entry), iresult{}, false
+	return mc.lineFrame(vm, l.Entry), iresult{}, false
 }
 
 // nudFrame is the beginning of an expression, between the steps of the split form.
@@ -568,7 +577,7 @@ func (f *nudFrame) next(mc *ivmMachine, vm *Program, res iresult) (iframe, iresu
 				return nil, iresult{}, true
 			}
 			f.state = nOperandDone
-			return blockFrame(mc, l.Entry), iresult{}, false
+			return mc.lineFrame(vm, l.Entry), iresult{}, false
 		case nOperandDone:
 			v, ok, done := p.NudOperand(f.r, &f.st, res.v, res.ok)
 			if done {

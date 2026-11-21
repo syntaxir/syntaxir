@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -15,6 +14,7 @@ import (
 	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/pkg/bytecode"
@@ -95,8 +95,8 @@ func jsonFlowPrograms(t *testing.T, mutate func(*bytecode.Flow)) (*Program, *Pro
 
 // flowPrograms returns the grammar of the file path compiled as usual, and the same grammar whose VM
 // runs from Flow IR each rule that pick accepts and whose body in the planned Node table
-// (checked.Source.FlowTable) uses only the operations of bytecode Flow bodies so far; n is the number
-// of such rules. A rule without one keeps its match code. mutate, if not nil, changes the body of each
+// (checked.Source.FlowTable) uses only the operations of bytecode Flow bodies so far, and so the skip
+// and the lines of its Operators Rule; n is the number of such rule bodies. A rule without one keeps its match code. mutate, if not nil, changes the body of each
 // selected rule before it is installed.
 func flowPrograms(t *testing.T, path string, pick func(rule string) bool, mutate func(rule string, f *bytecode.Flow)) (old, flows *Program, n int) {
 	t.Helper()
@@ -124,16 +124,16 @@ func flowProgramsOf(t testing.TB, src string, pick func(rule string) bool, mutat
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, id := range slices.Sorted(maps.Keys(ft.Bodies)) {
-		name := ft.IR.M.Rules[id].Name
+	for k, m := range ft.Funcs {
+		name := ft.IR.M.Rules[k.Rule].Name
 		if !pick(name) {
 			continue
 		}
-		if _, err := vmlower.SelectFlows(bc, vmlower.Input{Run: cp.Runtime(), Elab: cp}, ft.IR.M, ft.Plan, map[int]*code.Module{id: ft.Bodies[id]}); err != nil {
+		if _, err := vmlower.SelectFlows(bc, vmlower.Input{Run: cp.Runtime(), Elab: cp}, ft.IR.M, ft.Plan, map[plandata.Key]*code.Module{k: m}); err != nil {
 			continue // an operation without a bytecode Flow form yet
 		}
-		if mutate != nil {
-			mutate(name, bc.Flows[id])
+		if mutate != nil && k.Use == plandata.RuleBody {
+			mutate(name, bc.Flows[k.Rule])
 		}
 	}
 	return old, New(flowSource{Source: old.src, m: bc}), len(bc.Flows)
@@ -362,6 +362,39 @@ func TestFlowBodiesTestdataGrammars(t *testing.T) {
 	}
 	if total == 0 {
 		t.Fatal("no rule of the testdata grammars has a Flow body")
+	}
+}
+
+// TestFlowBodyOperatorsLines requires every skip and line of the Operators Rules of the testdata
+// grammars that have them to get a Flow body, which TestFlowBodiesTestdataGrammars then runs in
+// place of its match code in both models.
+func TestFlowBodyOperatorsLines(t *testing.T) {
+	for _, g := range []string{"cel", "golang", "python"} {
+		t.Run(g, func(t *testing.T) {
+			_, flows, _ := flowPrograms(t, "../../../testdata/grammars/"+g+"/"+g+".sxir", func(string) bool { return true }, nil)
+			m := flows.Module()
+			lines := 0
+			for i, p := range m.OperatorsRules {
+				if p.Skip >= 0 && p.SkipFlow == nil {
+					t.Errorf("the skip of Operators Rule %d has no Flow body", i)
+				}
+				for j, l := range p.Operands {
+					if l.Flow == nil {
+						t.Errorf("operand line %d of Operators Rule %d has no Flow body", j, i)
+					}
+					lines++
+				}
+				for _, o := range slices.Concat(p.Prefix, p.InfixPostfix) {
+					if o.Line.Flow == nil {
+						t.Errorf("operator %d of Operators Rule %d has no Flow body", o.ID, i)
+					}
+					lines++
+				}
+			}
+			if lines == 0 {
+				t.Fatal("the grammar has no Operators Rule line")
+			}
+		})
 	}
 }
 

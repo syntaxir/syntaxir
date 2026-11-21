@@ -168,7 +168,9 @@ type RuleInfo struct {
 
 // OperatorsRuleInfo is an entry of the Operators Rule table.
 type OperatorsRuleInfo struct {
-	Skip         int // start of the skip code (-1 if none)
+	Skip int // start of the skip code (-1 if none)
+	// SkipFlow is the Flow body of the skip, which runs in place of its code, or nil.
+	SkipFlow     *Flow
 	Operands     []LineInfo
 	Prefix       []OperatorInfo
 	InfixPostfix []OperatorInfo // infix and postfix operators
@@ -180,6 +182,11 @@ type LineInfo struct {
 	Scope  []int
 	Action int // action expression of the action (index of Actions, -1 if none)
 	IsSeq  bool
+	// Flow is the Flow body of the line, which runs in place of its code, or nil. It returns the value
+	// of the line's expression, which Shape makes the value of the line as SCOPEVALUE and
+	// SHAPESINGLE do: the scope value of an operand line, and the single of an operator line.
+	Flow  *Flow
+	Shape FlowShapeOf
 }
 
 // OperatorInfo is an Operators Rule operator.

@@ -18,10 +18,10 @@ type FlowTable struct {
 	IR *plandata.TableIR
 	// Plan is the plan of the table with the decisions of its lowering taken.
 	Plan *plandata.Plan
-	// Bodies maps the ID of each rule whose body the plan holds to a module of the function the table
-	// runs for it alone (code.Module.FuncUnit), after the Flow passes: the rule's flat function or its
-	// framed body, as the plan decides.
-	Bodies map[int]*code.Module
+	// Funcs maps the key of each function of the plan to a module of the function alone
+	// (code.Module.FuncUnit), after the Flow passes: the body of a rule, the rule's flat function or
+	// its framed body as the plan decides, and the skip and the lines of an Operators Rule.
+	Funcs map[plandata.Key]*code.Module
 }
 
 // FlowTable builds the Node table of the program the way the generated Go parser with budget
@@ -44,11 +44,9 @@ func (s *Source) FlowTable() (*FlowTable, error) {
 	if err != nil {
 		return nil, fmt.Errorf("table rules: %w", err)
 	}
-	ft := &FlowTable{IR: t, Plan: lt.Plan, Bodies: map[int]*code.Module{}}
-	for _, r := range rules {
-		if i, ok := lt.Index(plandata.Key{Use: plandata.RuleBody, Rule: r.ID}); ok {
-			ft.Bodies[r.ID] = lt.Module.Module().FuncUnit(i)
-		}
+	ft := &FlowTable{IR: t, Plan: lt.Plan, Funcs: map[plandata.Key]*code.Module{}}
+	for i, f := range lt.Plan.Funcs {
+		ft.Funcs[f.Key] = lt.Module.Module().FuncUnit(i)
 	}
 	return ft, nil
 }

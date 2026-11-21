@@ -116,19 +116,34 @@ func lines(p *OperatorsRuleInfo, f func(entry int)) {
 	}
 }
 
-// newCallGraph returns the graph of validateRec. A block is a run of instructions that begins at
-// an entry (of a rule, an Operators Rule line or skip), at a target, or after an instruction that
-// does not fall through, so that control enters it only at its first instruction. A block leads to
-// the blocks its instructions may go to, to the next block if its last instruction falls through,
-// to the rules it calls and, for OPERATORS_RULE, to the blocks of the lines and skip. A rule leads
-// to the block of its entry and to the rules that the CALL instructions of its Flow body call,
-// since the body runs in place of the match code. Entering a block may run any of its
-// instructions, so the graph leads from a rule to a rule whenever a run of the one may call the
-// other.
+// flowLines calls f with the Flow body of the skip and of each operand and operator line of p, nil
+// for one that has none.
+func flowLines(p *OperatorsRuleInfo, f func(*Flow)) {
+	f(p.SkipFlow)
+	for i := range p.Operands {
+		f(p.Operands[i].Flow)
+	}
+	for i := range p.Prefix {
+		f(p.Prefix[i].Line.Flow)
+	}
+	for i := range p.InfixPostfix {
+		f(p.InfixPostfix[i].Line.Flow)
+	}
+}
+
+// newCallGraph returns the graph of validateRec. A block is a run of instructions that begins at an
+// entry (of a rule, an Operators Rule line or skip), at a target, or after an instruction that does
+// not fall through, so that control enters it only at its first instruction. A block leads to the
+// blocks its instructions may go to, to the next block if its last instruction falls through, to
+// the rules it calls and, for OPERATORS_RULE, to the blocks of the lines and skip. A rule leads to
+// the block of its entry and to the rules that the CALL instructions of its Flow body and of the
+// Flow bodies of its Operators Rule's lines and skip call, since they run in place of the match
+// code. Entering a block may run any of its instructions, so the graph leads from a rule to a rule
+// whenever a run of the one may call the other.
 //
 // The graph takes two buffers of sc, whose size follows the blocks and the edges, not the
-// instructions: a bit set of the instructions that begin a block, and one buffer for the
-// rank of the bit set, the graph and the scratch space of components.
+// instructions: a bit set of the instructions that begin a block, and one buffer for the rank of
+// the bit set, the graph and the scratch space of components.
 func newCallGraph(m *Module, sc *recScratch) callGraph {
 	n := len(m.Code)
 	words := (n + 63) / 64
@@ -144,14 +159,22 @@ func newCallGraph(m *Module, sc *recScratch) callGraph {
 	for i := range m.Rules {
 		mark(m.Rules[i].Entry)
 	}
-	// flowCalls calls f with the rule of each CALL instruction of the Flow body of rule i.
+	// flowCalls calls f with the rule of each call of the Flow bodies of rule i: its own, and those of
+	// the lines and the skip of its Operators Rule.
 	flowCalls := func(i int, f func(rule int)) {
-		if fl := m.Flows[i]; fl != nil {
+		calls := func(fl *Flow) {
+			if fl == nil {
+				return
+			}
 			for _, in := range fl.Code {
 				if c, ok := in.Imm.(FlowCallOf); ok && (in.Op == FlowCall || in.Op == FlowCallJump) {
 					f(c.Rule)
 				}
 			}
+		}
+		calls(m.Flows[i])
+		if o := m.Rules[i].OperatorsRule; o >= 0 && o < len(m.OperatorsRules) {
+			flowLines(&m.OperatorsRules[o], calls)
 		}
 	}
 	for i := range m.OperatorsRules {

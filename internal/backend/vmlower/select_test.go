@@ -2,6 +2,7 @@ package vmlower_test
 
 import (
 	"bytes"
+	"cmp"
 	"maps"
 	"path/filepath"
 	"reflect"
@@ -9,19 +10,21 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/vmlower"
+	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/pkg/bytecode"
 )
 
-// selectGrammar compiles the grammar at path from scratch and selects the body of each of its rules
-// that has one, one rule at a time; it returns the module file body, the module's strings and the
+// selectGrammar compiles the grammar at path from scratch and selects each function of its table,
+// one at a time, in the order of the keys; it returns the module file body, the module's strings and the
 // matches of each pattern summed over the rules.
 func selectGrammar(t *testing.T, path string) (file []byte, strs []string, counts []vmlower.PatternCount) {
 	t.Helper()
 	prog := grammarProgram(t, path)
 	ft, bc := flowTable(t, prog)
-	for _, id := range slices.Sorted(maps.Keys(ft.Bodies)) {
-		got, err := vmlower.SelectFlows(bc, vmlower.Input{Run: prog.Runtime(), Elab: prog}, ft.IR.M, ft.Plan, map[int]*code.Module{id: ft.Bodies[id]})
+	for _, k := range sortedKeys(ft) {
+		got, err := vmlower.SelectFlows(bc, vmlower.Input{Run: prog.Runtime(), Elab: prog}, ft.IR.M, ft.Plan, map[plandata.Key]*code.Module{k: ft.Funcs[k]})
 		if err != nil {
 			continue // an operation without a bytecode Flow form yet
 		}
@@ -39,6 +42,13 @@ func selectGrammar(t *testing.T, path string) (file []byte, strs []string, count
 	w := &bytecode.Encoder{Strs: map[string]int{}}
 	w.WriteModule(bc)
 	return w.Body.Bytes(), bc.Strings, counts
+}
+
+// sortedKeys returns the keys of the functions of the table in the order of use, rule and line.
+func sortedKeys(ft *checked.FlowTable) []plandata.Key {
+	return slices.SortedFunc(maps.Keys(ft.Funcs), func(a, b plandata.Key) int {
+		return cmp.Or(cmp.Compare(a.Use, b.Use), cmp.Compare(a.Rule, b.Rule), cmp.Compare(a.Line, b.Line))
+	})
 }
 
 // TestSelectionIsDeterministic selects the bodies of the testdata grammars twice, each time from a
@@ -74,8 +84,8 @@ func TestSuperinstructionsAreSelected(t *testing.T) {
 	for _, path := range paths {
 		prog := grammarProgram(t, path)
 		ft, bc := flowTable(t, prog)
-		for _, id := range slices.Sorted(maps.Keys(ft.Bodies)) {
-			counts, err := vmlower.SelectFlows(bc, vmlower.Input{Run: prog.Runtime(), Elab: prog}, ft.IR.M, ft.Plan, map[int]*code.Module{id: ft.Bodies[id]})
+		for _, k := range sortedKeys(ft) {
+			counts, err := vmlower.SelectFlows(bc, vmlower.Input{Run: prog.Runtime(), Elab: prog}, ft.IR.M, ft.Plan, map[plandata.Key]*code.Module{k: ft.Funcs[k]})
 			if err != nil {
 				continue
 			}

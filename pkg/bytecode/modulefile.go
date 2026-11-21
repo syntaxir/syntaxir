@@ -33,6 +33,18 @@ func (w *Encoder) line(l *LineInfo) {
 	w.ints(l.Scope)
 	w.Int(l.Action)
 	w.Bool(l.IsSeq)
+	w.optFlow(l.Flow)
+	if l.Flow != nil {
+		w.flowImm(FlowImmShape, l.Shape)
+	}
+}
+
+// optFlow writes whether there is a Flow body f, and f if there is.
+func (w *Encoder) optFlow(f *Flow) {
+	w.Bool(f != nil)
+	if f != nil {
+		w.flow(f)
+	}
 }
 
 // WriteModule writes m.
@@ -92,6 +104,7 @@ func (w *Encoder) WriteModule(m *Module) {
 	w.Uint(len(m.OperatorsRules))
 	for _, p := range m.OperatorsRules {
 		w.Int(p.Skip)
+		w.optFlow(p.SkipFlow)
 		w.Uint(len(p.Operands))
 		for i := range p.Operands {
 			w.line(&p.Operands[i])
@@ -408,7 +421,19 @@ func (r *Decoder) code() []Instr {
 }
 
 func (r *Decoder) line() LineInfo {
-	return LineInfo{Entry: int(r.int32()), Scope: r.ints(), Action: int(r.int32()), IsSeq: r.Bool()}
+	l := LineInfo{Entry: int(r.int32()), Scope: r.ints(), Action: int(r.int32()), IsSeq: r.Bool()}
+	if l.Flow = r.optFlow(); l.Flow != nil {
+		l.Shape, _ = r.flowImm(FlowImmShape).(FlowShapeOf)
+	}
+	return l
+}
+
+// optFlow reads whether there is a Flow body, and the body if there is.
+func (r *Decoder) optFlow() *Flow {
+	if !r.Bool() || r.Err != nil {
+		return nil
+	}
+	return r.flow()
 }
 
 // ReadModule reads a module.
@@ -465,6 +490,7 @@ func (r *Decoder) ReadModule() *Module {
 	m.OperatorsRules = sized[OperatorsRuleInfo](r, n, 1)
 	for i := 0; i < n && r.Err == nil; i++ {
 		p := OperatorsRuleInfo{Skip: int(r.int32())}
+		p.SkipFlow = r.optFlow()
 		k := r.Count()
 		for j := 0; j < k && r.Err == nil; j++ {
 			p.Operands = append(p.Operands, r.line())
@@ -1138,21 +1164,45 @@ func validateFlows(m *Module) error {
 		if rule < 0 || rule >= len(m.Rules) {
 			return fmt.Errorf("flow body of rule %d out of range", rule)
 		}
-		if err := validateFlow(m, rule, f); err != nil {
+		if err := validateFlow(m, len(m.Rules[rule].Scope), f); err != nil {
 			return fmt.Errorf("flow body of rule %s: %w", m.Strings[m.Rules[rule].Name], err)
+		}
+	}
+	// A line runs in the frame of its scope, and a skip in a frame without slots.
+	for i, p := range m.OperatorsRules {
+		if p.SkipFlow != nil {
+			if err := validateFlow(m, 0, p.SkipFlow); err != nil {
+				return fmt.Errorf("flow body of the skip of Operators Rule %d: %w", i, err)
+			}
+		}
+		lines := slices.Clone(p.Operands)
+		for _, o := range slices.Concat(p.Prefix, p.InfixPostfix) {
+			lines = append(lines, o.Line)
+		}
+		for j, l := range lines {
+			if l.Flow == nil {
+				continue
+			}
+			if err := validateFlow(m, len(l.Scope), l.Flow); err != nil {
+				return fmt.Errorf("flow body of line %d of Operators Rule %d: %w", j, i, err)
+			}
+			if err := validateFlowImm(m, 0, FlowImmShape, l.Shape); err != nil {
+				return fmt.Errorf("line %d of Operators Rule %d: %w", j, i, err)
+			}
 		}
 	}
 	return nil
 }
 
-func validateFlow(m *Module, rule int, f *Flow) error {
+// validateFlow checks the Flow body f, which runs in a frame of the number of slots slots.
+func validateFlow(m *Module, slots int, f *Flow) error {
 	if f == nil || f.Regs < 0 {
 		return fmt.Errorf("invalid frame")
 	}
 	if n := len(f.Code); n == 0 || f.Code[n-1].Op != FlowJump && f.Code[n-1].Op != FlowReturn {
 		return fmt.Errorf("the body does not end with JUMP or RETURN")
 	}
-	slots := len(m.Rules[rule].Scope) // the number of slots of the largest frame the body may run with
+	// slots becomes the number of slots of the largest frame the body may run with.
 	for _, in := range f.Code {
 		if sc, ok := in.Imm.(int); ok && in.Op == FlowNewFrame && sc >= 0 && sc < len(m.Scopes) {
 			slots = max(slots, len(m.Scopes[sc]))

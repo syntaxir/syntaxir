@@ -16,7 +16,7 @@ import (
 // flowBody returns the body of rule r run from its Flow form f (bytecode.Flow) with the recursive
 // model: the same entry and result as the match code's body, with the operations of f in place of
 // the instructions, and each call of a rule a host call, as the match code's calls are.
-func flowBody(vm *Program, r *state.Rule, f *bytecode.Flow) func(p *state.Parser, min int) (*value.Node, bool) {
+func flowBody(vm *Program, f *bytecode.Flow) func(p *state.Parser, min int) (*value.Node, bool) {
 	return func(p *state.Parser, min int) (*value.Node, bool) {
 		regs := &machineOf(p).regs
 		mark := regs.mark()

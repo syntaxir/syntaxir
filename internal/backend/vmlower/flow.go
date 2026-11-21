@@ -1,6 +1,7 @@
 package vmlower
 
 import (
+	"cmp"
 	"fmt"
 	"maps"
 	"slices"
@@ -31,43 +32,117 @@ func CoreOf(p elaborate.Program) (*ir.Module, error) {
 	return m, nil
 }
 
-// SelectFlows sets the Flow bodies of the rules of flows (rule ID to the Flow module of the rule's
-// body in the planned Node table, checked.Source.FlowTable) in bc, a module that Compile emitted from
-// prog. m is the Core IR of the table and plan its plan: a body runs in the rule frame of the VM,
-// whose slots must be the capture layout that the plan gave the rule (plandata.Plan.CheckLayout).
-// A rule whose Flow function uses an operation that the bytecode Flow bodies do not yet have is an
-// error, and the module keeps no body of that rule and no action expression of its predicates. The action expression of a
-// predicate of a body is added to the module's action table, after the action expressions of the match code.
+// SelectFlows sets in bc, a module that Compile emitted from prog, the Flow bodies of the functions
+// of funcs (the Flow module of each planned function of the Node table by its key,
+// checked.FlowTable.Funcs): the body of a rule, and the skip and the lines of an Operators Rule. m is
+// the Core IR of the table and plan its plan: a rule body runs in the rule frame of the VM, whose
+// slots must be the capture layout that the plan gave the rule (plandata.Plan.CheckLayout), a line in
+// the frame of the line's scope, whose slots must be those of the planned function, and a skip in
+// the frame it is run in, without slots of its own. A function that uses an operation that the
+// bytecode Flow bodies do not have is an error, and the module keeps no body of it and no action
+// expression of its predicates. The action expression of a predicate of a body is added to the
+// module's action table, after the action expressions of the match code. The functions are selected
+// in the order of their keys.
 //
 // It returns the number of matches of each pattern of the selection table (countsOf), which depends
 // only on the bodies.
-func SelectFlows(bc *bytecode.Module, in Input, m *ir.Module, plan *plandata.Plan, flows map[int]*code.Module) ([]PatternCount, error) {
+func SelectFlows(bc *bytecode.Module, in Input, m *ir.Module, plan *plandata.Plan, funcs map[plandata.Key]*code.Module) ([]PatternCount, error) {
 	c := &compiler{in: in, core: m, m: bc, strs: map[string]int{}, counts: map[string]int{}}
 	for i, s := range bc.Strings {
 		if _, ok := c.strs[s]; !ok {
 			c.strs[s] = i
 		}
 	}
-	for _, rule := range slices.Sorted(maps.Keys(flows)) {
-		fn := flowpkg.FuncOf(flows[rule])
-		if rule < 0 || rule >= len(bc.Rules) {
-			return nil, fmt.Errorf("rule %s: no rule %d in the module", fn.Name, rule)
+	keys := slices.SortedFunc(maps.Keys(funcs), func(a, b plandata.Key) int {
+		return cmp.Or(cmp.Compare(a.Use, b.Use), cmp.Compare(a.Rule, b.Rule), cmp.Compare(a.Line, b.Line))
+	})
+	for _, k := range keys {
+		fn := flowpkg.FuncOf(funcs[k])
+		if k.Rule < 0 || k.Rule >= len(bc.Rules) {
+			return nil, fmt.Errorf("%s: no rule %d in the module", fn.Name, k.Rule)
 		}
-		if err := plan.CheckLayout(rule, fn.Name, c.strNames(bc.Rules[rule].Scope)); err != nil {
-			return nil, err
+		// set stores the body, once it is selected, where the module holds the function's code.
+		var set func(f *bytecode.Flow)
+		switch k.Use {
+		case plandata.RuleBody:
+			if err := plan.CheckLayout(k.Rule, fn.Name, c.strNames(bc.Rules[k.Rule].Scope)); err != nil {
+				return nil, err
+			}
+			set = func(f *bytecode.Flow) {
+				if bc.Flows == nil {
+					bc.Flows = map[int]*bytecode.Flow{}
+				}
+				bc.Flows[k.Rule] = f
+			}
+		case plandata.OperatorsSkip, plandata.OperatorsLine:
+			var err error
+			if set, err = c.operatorsLine(k, fn.Name, plan); err != nil {
+				return nil, err
+			}
+		default:
+			return nil, fmt.Errorf("%s: a function of use %d has no bytecode Flow body", fn.Name, k.Use)
 		}
 		actionExprs := len(bc.Actions)
-		f, err := c.flow(fn, rule)
+		f, err := c.flow(fn, k.Rule)
 		if err != nil {
 			bc.Actions = bc.Actions[:actionExprs] // the action expressions of the predicates of the body
-			return nil, fmt.Errorf("rule %s: %w", fn.Name, err)
+			return nil, fmt.Errorf("%s: %w", fn.Name, err)
 		}
-		if bc.Flows == nil {
-			bc.Flows = map[int]*bytecode.Flow{}
-		}
-		bc.Flows[rule] = f
+		set(f)
 	}
 	return countsOf(c.counts), nil
+}
+
+// operatorsLine returns the function that sets the Flow body of the skip or line k of the Operators
+// Rule of its rule, named name, in the module, with the shape of the line's value from the Core IR.
+// A line's frame has the slots of the line's scope, which must be the slots of the planned function;
+// a skip has none.
+func (c *compiler) operatorsLine(k plandata.Key, name string, plan *plandata.Plan) (func(*bytecode.Flow), error) {
+	o := c.m.Rules[k.Rule].OperatorsRule
+	co, ok := c.core.Rules[k.Rule].Body.(*ir.OperatorsRule)
+	if o < 0 || !ok {
+		return nil, fmt.Errorf("%s: rule %d has no Operators Rule", name, k.Rule)
+	}
+	spec, ok := plan.Func(k)
+	if !ok {
+		return nil, fmt.Errorf("%s: the plan has no function of the key %+v", name, k)
+	}
+	slots := make([]string, len(spec.Slots))
+	for i, sl := range spec.Slots {
+		slots[i] = sl.Name
+	}
+	pr := &c.m.OperatorsRules[o]
+	if k.Use == plandata.OperatorsSkip {
+		if len(slots) != 0 {
+			return nil, fmt.Errorf("%s: the skip has slots %v", name, slots)
+		}
+		return func(f *bytecode.Flow) { pr.SkipFlow = f }, nil
+	}
+	var line *bytecode.LineInfo
+	var shape ir.Shape
+	if k.Line < len(pr.Operands) {
+		if k.Line >= len(co.Operands) {
+			return nil, fmt.Errorf("%s: no operand line %d in the Core IR", name, k.Line)
+		}
+		line, shape = &pr.Operands[k.Line], co.Operands[k.Line].Shape
+	} else {
+		id := k.Line - len(pr.Operands)
+		for _, ops := range [][]bytecode.OperatorInfo{pr.Prefix, pr.InfixPostfix} {
+			for i := range ops {
+				if ops[i].ID == id {
+					line = &ops[i].Line
+				}
+			}
+		}
+		if line == nil || id >= len(co.Ops) {
+			return nil, fmt.Errorf("%s: no operator %d", name, id)
+		}
+		shape = co.Ops[id].Line.Shape
+	}
+	if got := c.strNames(line.Scope); !slices.Equal(got, slots) && (len(got) != 0 || len(slots) != 0) {
+		return nil, fmt.Errorf("internal error: the frame of %s has slots %v, not the planned %v", name, got, slots)
+	}
+	return func(f *bytecode.Flow) { line.Flow, line.Shape = f, shapeOf(shape) }, nil
 }
 
 // flow returns the Flow body of the function fn, the flow form of rule index rule.

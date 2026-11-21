@@ -45,6 +45,31 @@ type Program struct {
 	// flows holds, by rule ID, the Flow body that the rule runs in place of its match code
 	// (Module.Flows), nil for a rule that runs its match code.
 	flows []*bytecode.Flow
+	// lines holds the code of each line and skip of the Operators Rules, which the iterative model
+	// runs: state.OperatorsRuleLine.Entry and state.OperatorsRule.SkipEntry index it.
+	lines []lineCode
+}
+
+// lineCode is the code of a line or a skip of an Operators Rule: its Flow body, or else the entry of
+// its match code.
+type lineCode struct {
+	entry int
+	flow  *bytecode.Flow
+}
+
+// addLine adds the code of a line or skip to vm.lines and returns its index.
+func (vm *Program) addLine(entry int, f *bytecode.Flow) int {
+	vm.lines = append(vm.lines, lineCode{entry: entry, flow: f})
+	return len(vm.lines) - 1
+}
+
+// lineMatcher returns a matcher that runs the line or skip code c with the recursive model.
+func (vm *Program) lineMatcher(c lineCode) state.Matcher {
+	if c.flow == nil {
+		return vm.block(c.entry)
+	}
+	body := flowBody(vm, c.flow)
+	return func(p *state.Parser) (*value.Node, bool) { return body(p, 0) }
 }
 
 // vmRunSite is a repetition that a Document can resume (state/resume.go): the REPEAT at ip, whose ITER
@@ -117,7 +142,7 @@ func (vm *Program) NumSeen() int { return vm.nseen }
 // Flow body of a rule that has one.
 func execBody(vm *Program, r *state.Rule, entry int) func(p *state.Parser, min int) (*value.Node, bool) {
 	if f := vm.flows[r.ID]; f != nil {
-		return flowBody(vm, r, f)
+		return flowBody(vm, f)
 	}
 	return func(p *state.Parser, min int) (*value.Node, bool) {
 		v, ok, _ := machineOf(p).exec(vm, entry, r, min)
@@ -268,12 +293,28 @@ func (vm *Program) block(entry int) state.Matcher {
 }
 
 func (vm *Program) line(l *bytecode.LineInfo, operator bool) *state.OperatorsRuleLine {
-	// The code pushes the line's value already: the value of an operand line's scope, or the
-	// operator's value, which is the node of its tuple if IsSeq (its captures are attached to it).
-	pl := &state.OperatorsRuleLine{Scope: vm.scope(l.Scope), M: vm.block(l.Entry), Entry: l.Entry, Single: program.SinglePass,
-		Value: func(_ *state.Parser, v *value.Node, _ int) *value.Node { return v }}
-	if operator && l.IsSeq {
-		pl.Single, pl.Shape = program.SingleTuple, program.Shaper{Elems: true}
+	c := lineCode{entry: l.Entry, flow: l.Flow}
+	pl := &state.OperatorsRuleLine{Scope: vm.scope(l.Scope), M: vm.lineMatcher(c), Entry: vm.addLine(l.Entry, l.Flow)}
+	switch {
+	case l.Flow != nil:
+		// The body returns the value of the line's expression, which the shape of the line makes the
+		// value of the line: the scope value of an operand line, the single of an operator line.
+		x := l.Shape
+		pl.Single, pl.Shape = program.SingleMode(x.Mode), flowShaper(x)
+		if x.Tuple {
+			pl.Value = func(p *state.Parser, v *value.Node, start int) *value.Node { return flowShapeTuple(p, x, v, start) }
+		} else {
+			sh := flowShaper(x)
+			pl.Value = func(_ *state.Parser, v *value.Node, _ int) *value.Node { return sh.One(v) }
+		}
+	default:
+		// The code pushes the line's value already: the value of an operand line's scope, or the
+		// operator's value, which is the node of its tuple if IsSeq (its captures are attached to it).
+		pl.Single = program.SinglePass
+		pl.Value = func(_ *state.Parser, v *value.Node, _ int) *value.Node { return v }
+		if operator && l.IsSeq {
+			pl.Single, pl.Shape = program.SingleTuple, program.Shaper{Elems: true}
+		}
 	}
 	if l.Action >= 0 {
 		pl.Act = vm.actionExprs[l.Action].Eval
@@ -282,9 +323,10 @@ func (vm *Program) line(l *bytecode.LineInfo, operator bool) *state.OperatorsRul
 }
 
 func (vm *Program) operatorsRule(pi *bytecode.OperatorsRuleInfo) *state.OperatorsRule {
-	pr := &state.OperatorsRule{SkipEntry: pi.Skip}
-	if pi.Skip >= 0 {
-		pr.Skip = vm.block(pi.Skip)
+	pr := &state.OperatorsRule{SkipEntry: -1}
+	if pi.Skip >= 0 || pi.SkipFlow != nil {
+		pr.SkipEntry = vm.addLine(pi.Skip, pi.SkipFlow)
+		pr.Skip = vm.lineMatcher(vm.lines[pr.SkipEntry])
 	}
 	for i := range pi.Operands {
 		pr.Operands = append(pr.Operands, vm.line(&pi.Operands[i], false))

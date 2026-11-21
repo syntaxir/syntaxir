@@ -14,6 +14,7 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/middleend/flowpass"
+	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/pass/pipe"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
@@ -88,7 +89,7 @@ func TestFlowTableFollowsGoNodeTable(t *testing.T) {
 			}
 			flat, framed := 0, 0
 			for id, isFlat := range routes {
-				m, ok := ft.Bodies[id]
+				m, ok := ft.Funcs[plandata.Key{Use: plandata.RuleBody, Rule: id}]
 				if !ok {
 					t.Errorf("rule %d: printed from Flow IR in Go, no body in the VM's table", id)
 					continue

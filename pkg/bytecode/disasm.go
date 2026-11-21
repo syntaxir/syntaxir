@@ -117,12 +117,33 @@ func (m *Module) Disassemble() string {
 		if rule >= 0 && rule < len(m.Rules) {
 			name = m.Strings[m.Rules[rule].Name]
 		}
-		fmt.Fprintf(&b, "flow %s regs=%d:\n", name, f.Regs)
-		for pc, in := range f.Code {
-			fmt.Fprintf(&b, "  %4d  %-10s %s\n", pc, in.Op, m.flowOperands(&in, str))
+		m.disassembleFlow(&b, name, f, str)
+	}
+	for i := range m.OperatorsRules {
+		p := &m.OperatorsRules[i]
+		if p.SkipFlow != nil {
+			m.disassembleFlow(&b, fmt.Sprintf("operatorsRule%d.skip", i), p.SkipFlow, str)
+		}
+		for j := range p.Operands {
+			if l := &p.Operands[j]; l.Flow != nil {
+				m.disassembleFlow(&b, fmt.Sprintf("operatorsRule%d.operand%d %s", i, j, m.flowImm(FlowImmShape, l.Shape, str)), l.Flow, str)
+			}
+		}
+		for _, o := range slices.Concat(p.Prefix, p.InfixPostfix) {
+			if o.Line.Flow != nil {
+				m.disassembleFlow(&b, fmt.Sprintf("operatorsRule%d.op%d %s", i, o.ID, m.flowImm(FlowImmShape, o.Line.Shape, str)), o.Line.Flow, str)
+			}
 		}
 	}
 	return b.String()
+}
+
+// disassembleFlow writes the Flow body f under the name name.
+func (m *Module) disassembleFlow(b *strings.Builder, name string, f *Flow, str func(int) string) {
+	fmt.Fprintf(b, "flow %s regs=%d:\n", name, f.Regs)
+	for pc, in := range f.Code {
+		fmt.Fprintf(b, "  %4d  %-10s %s\n", pc, in.Op, m.flowOperands(&in, str))
+	}
 }
 
 // skipRunSite reports whether site is a skip-run site: one that a SKIPREPEAT of the match code walks.

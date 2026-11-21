@@ -1,7 +1,6 @@
 package vmlower_test
 
 import (
-	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -13,6 +12,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 	"syntaxir.dev/sxir/pkg/bytecode"
@@ -54,9 +54,22 @@ func ruleID(t *testing.T, ft *checked.FlowTable, name string) int {
 	return -1
 }
 
+// ruleIDs returns the IDs of the rules whose bodies the table holds, in increasing order.
+func ruleIDs(ft *checked.FlowTable) []int {
+	var ids []int
+	for k := range ft.Funcs {
+		if k.Use == plandata.RuleBody {
+			ids = append(ids, k.Rule)
+		}
+	}
+	slices.Sort(ids)
+	return ids
+}
+
 // selectRule selects the body of the rule id of the table into bc.
 func selectRule(prog *frontend.Result, ft *checked.FlowTable, bc *bytecode.Module, id int) error {
-	_, err := vmlower.SelectFlows(bc, vmlower.Input{Run: prog.Runtime(), Elab: prog}, ft.IR.M, ft.Plan, map[int]*code.Module{id: ft.Bodies[id]})
+	k := plandata.Key{Use: plandata.RuleBody, Rule: id}
+	_, err := vmlower.SelectFlows(bc, vmlower.Input{Run: prog.Runtime(), Elab: prog}, ft.IR.M, ft.Plan, map[plandata.Key]*code.Module{k: ft.Funcs[k]})
 	return err
 }
 
@@ -82,7 +95,7 @@ func TestSelectJSONRulesCount(t *testing.T) {
 	prog := grammarProgram(t, "../../../testdata/grammars/json/json.sxir")
 	ft, _ := flowTable(t, prog)
 	ok := 0
-	for _, id := range slices.Sorted(maps.Keys(ft.Bodies)) {
+	for _, id := range ruleIDs(ft) {
 		_, bc := flowTable(t, prog)
 		if err := selectRule(prog, ft, bc, id); err != nil {
 			t.Logf("%s: %v", ft.IR.M.Rules[id].Name, err)
@@ -90,7 +103,7 @@ func TestSelectJSONRulesCount(t *testing.T) {
 		}
 		ok++
 	}
-	t.Logf("selected %d of %d rule bodies", ok, len(ft.Bodies))
+	t.Logf("selected %d of %d rule bodies", ok, len(ruleIDs(ft)))
 }
 
 // TestSelectFlowsChecksTheLayout checks that a body is selected only into a rule frame whose slots
@@ -120,8 +133,9 @@ func TestSelectedFlowsSurviveTheFileForm(t *testing.T) {
 	for _, path := range paths {
 		prog := grammarProgram(t, path)
 		ft, bc := flowTable(t, prog)
-		for _, id := range slices.Sorted(maps.Keys(ft.Bodies)) {
-			_ = selectRule(prog, ft, bc, id) // a rule it fails for keeps no body
+		for k, m := range ft.Funcs {
+			// A function it fails for keeps no body.
+			_, _ = vmlower.SelectFlows(bc, vmlower.Input{Run: prog.Runtime(), Elab: prog}, ft.IR.M, ft.Plan, map[plandata.Key]*code.Module{k: m})
 		}
 		total += len(bc.Flows)
 		if err := program.ValidateModule(bc); err != nil {
