@@ -171,12 +171,16 @@ rule S = S "w" / R "z" / "c" Bs
 rule Bs = "b" Bs / ""
 rule R = (R #cut "b" / S "y" / "c") / S "x"
 `, ClassUnknown, -1, -1}, // s4d
+	// Declaration-order leaders make x a leader of the cycle with r, which the classifier does not
+	// analyze yet. The class falls back to Unknown (sound) instead of Polynomial 2. Restore ClassPoly
+	// and the early restart detection with #314 (Classifier: keep ClassPoly and early restarts when
+	// declaration-order leaders add a leader to a cycle).
 	{"shared calls", "a shared call of a cycle rule lies in the growths of the unit, not of the continuation", `@start
 rule top = item* $$
 rule item = x "!" / r "?" / "."
 rule x = r "a"
 rule r = r "c" / x "d" / "e"
-`, ClassPoly, 2, -1}, // w2: the spec does not share r (it is reached through x); no super-linear input is known
+`, ClassUnknown, -1, -1}, // w2: the spec does not share r (it is reached through x); no super-linear input is known
 	// The call S after "c" lies after leaving the body of S, outside the growth of S that the
 	// unit sees, so it is not shared and the alternative is not committing. Without the record of
 	// the bodies a path has left, the grammar is classified linear.
