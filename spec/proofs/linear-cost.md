@@ -3838,7 +3838,14 @@ Second, $T$ must follow a read of the seed in
 each dropped step of a growth on the path from $X$ to $T$, and that path lies
 inside growths: the claim allows the kept growth steps on it and those
 dropped steps, but a dropped step that holds $T$ in a part that it evaluates
-at the position of its growth is not excluded. Third, each kept step of a
+at the position of its growth is not excluded. Nor does that part simply
+repeat the first step of the growth, which would leave a call of a rule that
+the parse memoizes, made after the position, to be answered from the memo:
+for a leader $R$ and a choice `R? X / X'` at the position, the first step
+takes `R? X` when `X` matches there, while a dropped step, whose `R?` reads
+the seed, takes `X'` when `X` fails at the end of the seed, so it goes on at
+the position, on a path with no read that succeeds, with what the first step
+did not evaluate. Third, each kept step of a
 growth on that path after the one that holds $T$ must match its result
 through a read of its seed that succeeds outside every lookahead, or a call
 whose result includes one. The leader of such a growth contains a scanning
