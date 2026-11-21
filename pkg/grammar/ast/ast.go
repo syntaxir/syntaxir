@@ -863,8 +863,6 @@ type CaptureRef struct {
 	Name       string `json:"name"`
 	// Param marks a reference to a lambda parameter, which is written without $.
 	Param bool `json:"param,omitempty"`
-	// Pragma distinguishes behavioral # directives from @ attributes.
-	Pragma bool `json:"pragma,omitempty"`
 }
 
 // VarRef is a reference name to a variable in a predicate.
