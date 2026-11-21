@@ -24,7 +24,8 @@ _ = stats
 
 `Edit(start, end, replacement)` replaces the half-open range in the unit selected at construction. It rejects
 invalid ranges and positions inside a UTF-8 character in `Bytes` mode without changing the text. `Text()` returns
-the exact current input. Construction options become defaults for later `Parse` calls; per-call options can change
+the current text: the exact bytes in `Bytes`, and in `CodePoints` the text with each invalid UTF-8 byte of the
+initial text and of every replacement replaced by U+FFFD, as in the engine's `Document`. Construction options become defaults for later `Parse` calls; per-call options can change
 depth, context and compute limits, but cannot change the unit. An interruption during execution discards memo history so a
 later call can retry. `Document` is single-goroutine, and results can share nodes with later parses. Call
 `tree.Clone()` if an earlier tree must remain detached from the Document. It copies Node graphs, including Node

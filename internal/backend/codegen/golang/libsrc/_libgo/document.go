@@ -2,6 +2,7 @@ package libgo
 
 import (
 	"fmt"
+	"strings"
 	"unicode/utf8"
 
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
@@ -63,12 +64,16 @@ func MakeDocument(root *Rule, text string, opts []ParseOption) (d *Document, err
 	}
 	o.control.Check()
 	o.control, o.prepared = nil, false
+	if o.unit == sxirinput.CodePoints {
+		text = normalizeCodePoints(text)
+	}
 	state := newDocumentState(root, text, o.unit)
 	state.expectations = o.expectations
 	return &Document{State: state, defaults: o}, nil
 }
 
-// Text returns the current exact input, including invalid UTF-8 bytes.
+// Text returns the current text. In Bytes it holds the exact bytes, including invalid UTF-8; in
+// CodePoints each invalid UTF-8 byte has been replaced by U+FFFD (normalizeCodePoints).
 func (d *Document) Text() string { return d.State.text }
 
 // Edit replaces [start,end) in the Document's position unit.
@@ -160,8 +165,8 @@ func (d *documentState) edit(start, end int, replacement string) error {
 type documentEdit struct{ start, end, delta int }
 
 // editReuse applies an edit to the text and the memo (memo.splice) and returns it as the memo sees
-// it: from before start when the edit can change how the input before start decodes, to after end
-// when it can change how the input after end decodes.
+// it: from before start when, in Bytes, the replacement can complete an incomplete UTF-8 sequence
+// before start. In CodePoints the replacement is normalized (normalizeCodePoints) first.
 func (d *documentState) editReuse(start, end int, replacement string) (ed documentEdit, err error) {
 	length := len(d.text)
 	if d.unit != sxirinput.Bytes {
@@ -170,7 +175,6 @@ func (d *documentState) editReuse(start, end int, replacement string) (ed docume
 	if start < 0 || end < start || end > length {
 		return documentEdit{}, fmt.Errorf("invalid range [%d,%d) for text of length %d", start, end, length)
 	}
-	startByte, endByte := start, end
 	if d.unit == sxirinput.Bytes {
 		if err := documentByteBoundary(d.text, start); err != nil {
 			return documentEdit{}, err
@@ -178,38 +182,27 @@ func (d *documentState) editReuse(start, end int, replacement string) (ed docume
 		if err := documentByteBoundary(d.text, end); err != nil {
 			return documentEdit{}, err
 		}
+		// The replacement can complete an incomplete UTF-8 sequence before start,
+		// turning invalid bytes, each a separate character, into one character.
+		// Such a sequence has at most UTFMax-1 bytes, each one position, so
+		// results that examined them are not retained.
+		reuse := start
+		for i := 0; i < utf8.UTFMax-1 && i < start; i++ {
+			if r, size := utf8.DecodeLastRuneInString(d.text[:start-i]); r != utf8.RuneError || size != 1 {
+				break
+			}
+			reuse--
+		}
+		ed = documentEdit{start: reuse, end: end, delta: len(replacement) - (end - start)}
+		d.text = d.text[:start] + replacement + d.text[end:]
 	} else {
-		startByte = documentByteOffset(d.text, start)
-		endByte = documentByteOffset(d.text, end)
+		// The text is valid UTF-8 and so is the normalized replacement, so no
+		// sequence joins across the ends of the edit: the characters around it
+		// decode as before.
+		replacement = normalizeCodePoints(replacement)
+		ed = documentEdit{start: start, end: end, delta: utf8.RuneCountInString(replacement) - (end - start)}
+		d.text = d.text[:documentByteOffset(d.text, start)] + replacement + d.text[documentByteOffset(d.text, end):]
 	}
-	// The replacement can complete an incomplete UTF-8 sequence before start,
-	// turning invalid bytes, each a separate character, into one character.
-	// Such a sequence has at most UTFMax-1 bytes, each one position in either
-	// unit, so results that examined them are not retained.
-	reuse := start
-	for i := 0; i < utf8.UTFMax-1 && i < startByte; i++ {
-		if r, size := utf8.DecodeLastRuneInString(d.text[:startByte-i]); r != utf8.RuneError || size != 1 {
-			break
-		}
-		reuse--
-	}
-	ed = documentEdit{start: reuse, end: end, delta: len(replacement) - (endByte - startByte)}
-	if d.unit != sxirinput.Bytes {
-		// The replacement can also end with the start of a sequence that the continuation bytes after
-		// end, each a separate character, complete. Past those, the characters are the same.
-		endX := endByte
-		for endX < len(d.text) && endX-endByte < utf8.UTFMax-1 && !utf8.RuneStart(d.text[endX]) {
-			endX++
-		}
-		ed.end = end + endX - endByte
-		reuseByte := startByte - (start - reuse)
-		window := d.text[reuseByte:startByte] + replacement + d.text[endByte:endX]
-		ed.delta = utf8.RuneCountInString(window) - (ed.end - reuse)
-	}
-
-	// Build the replacement before changing either text or memo. Invalid UTF-8
-	// bytes are preserved, and a replacement may complete an existing prefix.
-	d.text = d.text[:startByte] + replacement + d.text[endByte:]
 	d.pending++
 	d.epoch++
 	if d.pending > pendingEditLimit {
@@ -441,6 +434,21 @@ func (p *Parser) moveShared(n *sxirvalue.Node, shift int32) *sxirvalue.Node {
 		}
 	}
 	return c
+}
+
+// normalizeCodePoints returns s with each byte that is not part of a valid UTF-8 encoding replaced by
+// U+FFFD, the text of s in CodePoints, where each such byte decodes as one replacement character. It
+// returns s itself when s is valid UTF-8.
+func normalizeCodePoints(s string) string {
+	if utf8.ValidString(s) {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s) + 2*len(s)/3)
+	for _, r := range s {
+		b.WriteRune(r)
+	}
+	return b.String()
 }
 
 func documentByteOffset(text string, index int) int {

@@ -25,7 +25,7 @@ the document is created; see [Positions](parsing.md#positions).
 | Operation | Behavior |
 |:--|:--|
 | `p.NewDocument(text, opts...)` | Returns a document holding `text`. `WithUnit` fixes the position unit (also the unit of edits) and `WithExpectations` fixes whether syntax errors [record expectations](parsing.md#recording-expectations) (a later `Parse` or `Snapshot` that asks for the other mode is an error); `WithContext` and `WithLimits` set defaults for initialization and later parses. It fails for an unknown start rule and when initialization is interrupted. Nothing is parsed |
-| `doc.Text()` | The current text |
+| `doc.Text()` | The current text. In `Bytes` it holds the exact bytes of the initial text and the replacements; in `CodePoints` each invalid UTF-8 byte of them is replaced with U+FFFD |
 | `doc.Unit()` | The fixed position unit |
 | `doc.Version()` | A comparable opaque token identifying the current text revision. A new document starts at sequence 1. Parsing does not advance the version. The token does not retain the document, the text or parse caches |
 
@@ -43,7 +43,8 @@ normalizes the input, and the inspected input is charged.
 `doc.Edit(start, end, text)` replaces `[start, end)` with `text`, in the
 document's unit. `start == end` inserts and an empty `text` deletes. It returns
 an error if the range is outside the text and, in `Bytes`, if `start` or `end`
-lies inside a character. It does not parse. A successful `Edit` advances the
+lies inside a character. In `CodePoints`, invalid UTF-8 in `text` is
+normalized, one replacement character per invalid byte. It does not parse. A successful `Edit` advances the
 version once, including an edit that changes nothing. A failed edit changes
 nothing.
 
@@ -77,7 +78,9 @@ prefix and continuation bytes into a valid character; the next parse
 invalidates results that depended on the earlier decoding, including a prefix
 completed by an insertion at the end of the text. In `CodePoints`, invalid bytes
 have already been replaced with U+FFFD, and editing the normalized text does not
-reassemble the original bytes.
+reassemble the original bytes: an invalid byte is one replacement character
+whether it stands alone or belongs to an incomplete or ill-formed sequence, so a
+replacement never joins with the text around it.
 
 `Edit` and `EditBatch` are outside parse compute limits.
 

@@ -10,9 +10,10 @@ import (
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
-// An edit can complete an incomplete UTF-8 sequence that ends before it. The
-// invalid bytes were separate characters, so results that examined them must
-// not be reused.
+// In Bytes, an edit can complete an incomplete UTF-8 sequence that ends before
+// it. The invalid bytes were separate characters, so results that examined them
+// must not be reused. In CodePoints the same bytes are normalized to U+FFFD and
+// the edits do not join them; each parse must still equal a parse of the text.
 func TestGeneratedDocumentCompletesUTF8Prefix(t *testing.T) {
 	t.Parallel()
 	codegentest.EachMode(t, testGeneratedDocumentCompletesUTF8Prefix)
