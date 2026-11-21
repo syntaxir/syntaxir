@@ -1,4 +1,4 @@
-package engine
+package print_test
 
 import (
 	"os"
@@ -26,7 +26,7 @@ import (
 // the Node table under budget controls: the VM's target (flowpass.Bytecode) prints none of the
 // forms. Rules the printer prunes have no Go route and are not compared.
 func TestFlowTableFollowsGoNodeTable(t *testing.T) {
-	paths, err := filepath.Glob("../../../testdata/grammars/*/*.sxir")
+	paths, err := filepath.Glob("../../../../../testdata/grammars/*/*.sxir")
 	if err != nil || len(paths) == 0 {
 		t.Fatalf("no grammars: %v", err)
 	}
@@ -76,7 +76,7 @@ func TestFlowTableFollowsGoNodeTable(t *testing.T) {
 				},
 			}
 			opts := common.GenOptions{Package: "p", Module: "example.com/p", LimitControls: true, NoOpt: []string{flowpass.PassInlineLiterals}}
-			if _, err := print.GenerateParser(g, checked.GeneratorCompiler(compileForGenerator), codegentest.Passes(opts), codegentest.WithLib(opts), hooks); err != nil {
+			if _, err := print.GenerateParser(g, codegentest.Compile, codegentest.Passes(opts), codegentest.WithLib(opts), hooks); err != nil {
 				t.Fatal(err)
 			}
 			if gen == nil || len(routes) == 0 {

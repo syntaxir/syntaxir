@@ -1,4 +1,4 @@
-package engine
+package print_test
 
 import (
 	"slices"
@@ -8,11 +8,13 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
 	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/driver/checked"
+	"syntaxir.dev/sxir/internal/driver/entry"
 	irbuild "syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/flowlower"
 	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 )
 
 // coreBreak is a negative control: a pass broken on purpose, which the comparison with the frozen
@@ -365,11 +367,11 @@ func TestCoreScans(t *testing.T) {
 	t.Parallel()
 	src := `rule main = [a-z]* "-"#repeat(2) .#repeat(1, 3) x:[0-9]* $$ => $x
 `
-	prog, ok := coreCorpusProgram(t, codegentest.Case{Src: src})
+	prog, ok := enginetest.CorpusProgram(t, codegentest.Case{Src: src})
 	if !ok {
 		t.Fatal("does not compile")
 	}
-	g := &print.Generator{Prog: checked.Of(prog.Static()).Generator(), Table: "trules", Runner: &driver.Driver{}}
+	g := &print.Generator{Prog: checked.Of(entry.Checked(prog)).Generator(), Table: "trules", Runner: &driver.Driver{}}
 	m, err := g.TypedCore()
 	if err != nil {
 		t.Fatal(err)

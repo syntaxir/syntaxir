@@ -157,7 +157,7 @@ more times: the closure evaluator in `closure/eval.go`, bytecode expression code
     and a mutant that drops one `Step` fails.
   - The generated text of the checked-in parsers is frozen by `alpha-parsers/testdata/output_manifest.txt`.
   - Guards: the decisions of the Core passes over the corpus (`Terminal`s, guards, class runs, scans, scopes, and
-    the forms of terms) are frozen in `testdata/decisions/typed` and `testdata/decisions/recognizer`,
+    the forms of terms) are frozen in `internal/backend/codegen/golang/print/testdata/decisions/typed` and `.../recognizer`,
     and negative controls break each pass and require the comparison to notice. Soundness is a property, checked
     with the engine as the oracle: over the positions of the corpus inputs, the engine never matches an alternative
     at a character that its guard rejects (`TestCoreGuardsAreSound`), and a mutant that narrows the guards fails.

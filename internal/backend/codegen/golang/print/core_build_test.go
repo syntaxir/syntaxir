@@ -1,32 +1,16 @@
-package engine
+package print_test
 
 import (
-	"runtime"
 	"slices"
-	"sync"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/driver/entry"
 	irbuild "syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 )
-
-// coreCorpusProgram compiles a corpus grammar for the Core IR tests, or reports false for a
-// grammar that does not compile or that generated parsers refuse (#missing).
-func coreCorpusProgram(t *testing.T, c codegentest.Case) (*Program, bool) {
-	t.Helper()
-	g, err := parseTest(c.Src)
-	if err != nil {
-		return nil, false
-	}
-	prog, err := Compile(g, compile.Options{})
-	if err != nil || prog.HasMissing {
-		return nil, false
-	}
-	return prog, true
-}
 
 // TestCoreBuildCorpus builds, analyzes and verifies the Core IR of every grammar of the corpus
 // and of testdata/grammars, and checks that the scope of every rule is the frame layout the
@@ -35,7 +19,7 @@ func TestCoreBuildCorpus(t *testing.T) {
 	t.Parallel()
 	cases := codegentest.CorpusWithParsers(t)
 	built := 0
-	for _, ok := range mapParallel(len(cases), func(i int) bool { return checkCoreBuild(t, cases[i]) }) {
+	for _, ok := range codegentest.MapParallel(len(cases), func(i int) bool { return checkCoreBuild(t, cases[i]) }) {
 		if ok {
 			built++
 		}
@@ -45,31 +29,14 @@ func TestCoreBuildCorpus(t *testing.T) {
 	}
 }
 
-// mapParallel returns f(0), ..., f(n-1), computed on at most GOMAXPROCS goroutines. f must not call
-// t.Fatal, t.FailNow or t.Skip, which are for the goroutine of the test.
-func mapParallel[T any](n int, f func(i int) T) []T {
-	out := make([]T, n)
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, runtime.GOMAXPROCS(0))
-	for i := range n {
-		sem <- struct{}{}
-		wg.Go(func() {
-			defer func() { <-sem }()
-			out[i] = f(i)
-		})
-	}
-	wg.Wait()
-	return out
-}
-
 // checkCoreBuild builds, analyzes and verifies the Core IR of the grammar c and compares its scopes
 // with the generated Node rules. It reports whether it built the grammar.
 func checkCoreBuild(t *testing.T, c codegentest.Case) bool {
-	prog, ok := coreCorpusProgram(t, c)
+	prog, ok := enginetest.CorpusProgram(t, c)
 	if !ok {
 		return false
 	}
-	m, err := irbuild.CoreFrom(prog.Static(), false)
+	m, err := irbuild.CoreFrom(entry.Checked(prog), false)
 	if err != nil {
 		t.Errorf("%s: %v", c.Name, err)
 		return false

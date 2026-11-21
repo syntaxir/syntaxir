@@ -1,4 +1,4 @@
-package engine
+package print_test
 
 import (
 	"fmt"
@@ -10,7 +10,9 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/driver/entry"
 	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/runtime/engine"
 	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
@@ -86,7 +88,7 @@ func guardProbeInputs(inputs []string) []string {
 // guardProbes returns the guarded alternatives of the cases (Core IR of one grammar, in several
 // forms) with the source of the grammar extended by one rule for each distinct alternative, and the
 // number of alternatives that do not compile alone.
-func guardProbes(t *testing.T, src string, cases []*coreGenCase) (*Program, []guardProbe, int) {
+func guardProbes(t *testing.T, src string, cases []*coreGenCase) (*engine.Program, []guardProbe, int) {
 	t.Helper()
 	type alt struct {
 		text  string
@@ -116,7 +118,7 @@ func guardProbes(t *testing.T, src string, cases []*coreGenCase) (*Program, []gu
 			})
 		}
 	}
-	build := func(idx []int) (*Program, error) {
+	build := func(idx []int) (*engine.Program, error) {
 		var b strings.Builder
 		b.WriteString(src + "\n")
 		for _, i := range idx {
@@ -126,7 +128,7 @@ func guardProbes(t *testing.T, src string, cases []*coreGenCase) (*Program, []gu
 		if err != nil {
 			return nil, err
 		}
-		return Compile(g, compile.Options{})
+		return entry.Compile(g, compile.Options{})
 	}
 	var idx []int
 	for i := range alts {
@@ -160,7 +162,7 @@ func guardProbes(t *testing.T, src string, cases []*coreGenCase) (*Program, []gu
 // guardViolations returns the positions at which the engine matches a probe whose guard, as narrowed
 // by narrow (nil for none), rejects the character there, and the number of positions checked with the
 // engine (those the guard rejects: where it accepts, it cannot be unsound).
-func guardViolations(prog *Program, probes []guardProbe, inputs []string, narrow func(*core.First) (rune, bool)) (bad []string, checked int) {
+func guardViolations(prog *engine.Program, probes []guardProbe, inputs []string, narrow func(*core.First) (rune, bool)) (bad []string, checked int) {
 	for _, in := range inputs {
 		ch, size := utf8.DecodeRuneInString(in)
 		if size == 0 {

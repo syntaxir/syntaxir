@@ -1,4 +1,4 @@
-package engine
+package print_test
 
 import (
 	"fmt"
@@ -70,7 +70,7 @@ func TestCoreRecognizerDecisionsFrozen(t *testing.T) {
 	t.Parallel()
 	recognizerGolden.freeze(t, recognizerGenModes, func(t *testing.T, mode coreGenMode) []*coreGenCase {
 		corpus := recognizerCorpus(t)
-		built := mapParallel(len(corpus), func(i int) *coreGenCase {
+		built := codegentest.MapParallel(len(corpus), func(i int) *coreGenCase {
 			gc := corpus[i]
 			gen, ok := coreGenerate(gc.Src, mode.opts)
 			if !ok {
