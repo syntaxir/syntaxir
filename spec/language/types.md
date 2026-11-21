@@ -336,6 +336,21 @@ preserves that type's identity. A constructor accepts aliases of struct types an
 the underlying struct type. This also applies to joins normalized to a single
 type, such as `T | T`.
 
+A value of a join is told apart by its type: a struct value or a node of a
+named node type by its name, and a node of an unnamed node type by the kind of
+its value, a string, a tuple or a list. So two unnamed node types written in
+one join MUST NOT admit nodes of the same kind, where `node[string]` admits
+strings, a tuple type tuples, a list type lists, an optional type the kinds of
+its element, a join the kinds of its members, and `node[_]` every kind.
+`node[[]A] | node[[]B]` is the error "a list node is both a node[[]A] and a
+node[[]B], so a value of the join node[[]A] | node[[]B] cannot tell which member
+it is; give one of them a named node type", and so is
+`node[string] | node[_]`, whose members both admit strings; write `node[_]`
+for it. The rule applies to the join as written, after normalization, so
+`node[_] | node[_]` is `node[_]` and is accepted. `A | node[[]A] |
+node[(node[string], A)] | node[string]` and `A | node[_]`, with `A` a struct
+type, are accepted.
+
 ## Assignability
 
 A value of type `V` is assignable to a location of type `T` (a struct field, the

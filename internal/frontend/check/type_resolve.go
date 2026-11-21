@@ -60,7 +60,9 @@ func (k *TypeResolver) Resolve(t ast.TypeExpr) Ty {
 		for i, x := range t.Types {
 			ts[i] = k.Resolve(x)
 		}
-		return Vjoin(ts...)
+		j := Vjoin(ts...)
+		k.checkNodeMembers(t, j)
+		return j
 	case *ast.TupleType:
 		elems := make([]Ty, len(t.Types))
 		for i, x := range t.Types {
@@ -99,6 +101,34 @@ func (k *TypeResolver) Resolve(t ast.TypeExpr) Ty {
 		return m
 	}
 	return TyAny
+}
+
+// checkNodeMembers reports a written join j whose value could not tell which of two unnamed node
+// members it is: a value of a join is told apart by its struct or node type name, or, for an
+// unnamed node type, by the kind of its node (types.NodeKinds), so two such members must have no
+// kind in common.
+func (k *TypeResolver) checkNodeMembers(t *ast.JoinType, j Ty) {
+	if o, ok := j.(OptTy); ok {
+		j = o.Elem
+	}
+	u, ok := j.(JoinTy)
+	if !ok {
+		return
+	}
+	first := map[string]NodeTy{}
+	for _, a := range u.Alts {
+		n, ok := a.(NodeTy)
+		if !ok || n.Name != "" {
+			continue
+		}
+		for _, kind := range types.NodeKinds(n) {
+			if m, ok := first[kind]; ok {
+				k.errorf(t.Diagnostic(), "a %s node is both a %s and a %s, so a value of the join %s cannot tell which member it is; give one of them a named node type", kind, m, n, u)
+				return
+			}
+			first[kind] = n
+		}
+	}
 }
 
 // vmeet returns the greatest lower bound a & b of two declared types: the type of the values of

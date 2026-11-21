@@ -46,7 +46,7 @@ func TestTopBottomTypes(t *testing.T) {
 		"type T = { A _ | node[string] }\nrule main = \"a\" => T{A: 1}",
 		"type T = { A _|_ | node[string] }\nrule main = x:\"a\" => T{A: $x}",
 		"type T = { A node[string] & _ }\nrule main = x:\"a\" => T{A: $x}\nrule other = x:\"a\" => T{A: $x}.A",
-		"type T = { A _ }\nrule main = x:\"a\" => T{A: $x}.A.(node[string] | node[_])",
+		"type T = { A _ }\nrule main = x:\"a\" => T{A: $x}.A.(node[string] | node[[]node[string]])",
 		"type B ~ _|_\nrule main = \"a\"", // an alias is not a location
 		// []_|_ is the list type whose only value is the empty list, and *_|_ is nil. Every list type
 		// has the empty list, so lists meet in []_|_ at least.
@@ -57,9 +57,9 @@ func TestTopBottomTypes(t *testing.T) {
 		"type T = { A []_|_ | []node[string] }\nrule main = x:\"a\"* => T{A: $x.Value}",
 		"type T = { A []node[string] }\nrule main = x:(\"a\"* / (_|_)*) => T{A: $x.Value}",
 		// Meets look inside lists: []Seq is assignable to both.
-		"type T = { A [](node[string] | node[_]) & [](node[_] | node[_]) }\nrule main = x:(\"a\" \"b\")* => T{A: $x.Value}",
+		"type T = { A [](node[string] | node[(node[string], node[string])]) & [](node[_] | node[_]) }\nrule main = x:(\"a\" \"b\")* => T{A: $x.Value}",
 		"type T = { A *node[string] & *node[_] }\nrule main = \"a\" => T{A: nil}",
-		"type T = { A *[](node[string] | node[_]) & [](node[_] | node[_]) }\nrule main = x:(\"a\" \"b\")* => T{A: $x.Value}",
+		"type T = { A *[](node[string] | node[(node[string], node[string])]) & [](node[_] | node[_]) }\nrule main = x:(\"a\" \"b\")* => T{A: $x.Value}",
 		"type T = { A ([]node[string] | int) & []node[_] }\nrule main = x:\"a\"* => T{A: $x.Value}",
 	} {
 		g, err := parseTest(src)

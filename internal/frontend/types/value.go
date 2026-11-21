@@ -5,6 +5,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // This file holds the types of the value model, in which a rule produces an ordinary typed value
@@ -30,6 +32,51 @@ func (t TupleTy) String() string {
 		return "(" + parts[0] + ",)"
 	}
 	return "(" + strings.Join(parts, ", ") + ")"
+}
+
+// NodeKinds returns the run-time node types (valueimpl.TypeString, valueimpl.TypeTuple and valueimpl.TypeList)
+// that a node of the unnamed node type t can have, in that order: the kinds of its value. A node
+// of node[_] has any kind. A node holds a string, a tuple or a list, so node[int] has no kind and
+// no node. A named node type is told apart by its name, and t.Name is not read.
+func NodeKinds(t NodeTy) []string {
+	var string_, tuple, list bool
+	var visit func(v Ty)
+	visit = func(v Ty) {
+		switch v := v.(type) {
+		case BasicTy:
+			switch v {
+			case TyString:
+				string_ = true
+			case TyTop, TyAny:
+				string_, tuple, list = true, true, true
+			}
+		case TupleTy:
+			tuple = true
+		case ListTy:
+			list = true
+		case OptTy:
+			visit(v.Elem)
+		case JoinTy:
+			for _, a := range v.Alts {
+				visit(a)
+			}
+		case RuleTy:
+			// The value of a rule is known only when the rules are typed.
+			string_, tuple, list = true, true, true
+		}
+	}
+	visit(t.Value)
+	var kinds []string
+	if string_ {
+		kinds = append(kinds, valueimpl.TypeString)
+	}
+	if tuple {
+		kinds = append(kinds, valueimpl.TypeTuple)
+	}
+	if list {
+		kinds = append(kinds, valueimpl.TypeList)
+	}
+	return kinds
 }
 
 // CapIndex locates a capture in the value of a node. In a path, the first index is an element of
