@@ -1,0 +1,1071 @@
+# bench/grammars/terms/heavy.sxir as written
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: 
+cause 15:65 in line: self-growing value polynomial degree=2: the cost can grow as n^2: a + e at 15:65 in rule line copies the fold accumulator a
+# bench/grammars/terms/heavy.sxir every rule a start
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: 
+cause 15:65 in line: self-growing value polynomial degree=2: the cost can grow as n^2: a + e at 15:65 in rule line copies the fold accumulator a
+# bench/grammars/terms/pred.sxir as written
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# bench/grammars/terms/pred.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# examples/calculator/calc_lr.sxir as written
+class linear degree=0 witnessed=0 combinations=1
+memoized: expr primary term unary
+# examples/calculator/calc_lr.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=1
+memoized: expr primary term unary
+# examples/calculator/calc.sxir as written
+class linear degree=0 witnessed=0 combinations=1
+memoized: expr
+# examples/calculator/calc.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=1
+memoized: expr
+# examples/minilang/minilang.sxir as written
+class unknown degree=0 witnessed=2 combinations=1
+memoized: args block expr ident if name operation stmts
+cause 101:11 in ws: restarted repetition polynomial degree=2: the cost can grow as n^2: after the operator part at 77:17 in rule operation fails, the operator parts that the enclosing operator parts of operation try again evaluate the repetition ([ \t\r\n] / "//" [^\n]*)* at 101:11 in rule ws again at each level; this repeats in the recursion of rule operation
+reason 0:0 in stmt: other unknown degree=0: the base of the #recover at rule stmt is not committing against the skip expression [^;{}\n]+ ";"?, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 45:43 in if: other unknown degree=0: the option at 45:43 in rule if is not committing against what follows the option else?, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 67:25 in operation: other unknown degree=0: the operator part at 67:25 in rule operation is not committing against the operator parts that the enclosing operator parts of operation try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 68:24 in operation: other unknown degree=0: the operator part at 68:24 in rule operation is not committing against the operator parts that the enclosing operator parts of operation try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 69:24 in operation: other unknown degree=0: the operator part at 69:24 in rule operation is not committing against the operator parts that the enclosing operator parts of operation try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 70:24 in operation: other unknown degree=0: the operator part at 70:24 in rule operation is not committing against the operator parts that the enclosing operator parts of operation try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 71:24 in operation: other unknown degree=0: the operator part at 71:24 in rule operation is not committing against the operator parts that the enclosing operator parts of operation try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 72:24 in operation: other unknown degree=0: the operator part at 72:24 in rule operation is not committing against the operator parts that the enclosing operator parts of operation try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 75:17 in operation: other unknown degree=0: the operator part at 75:17 in rule operation is not committing against the operator parts that the enclosing operator parts of operation try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 76:17 in operation: other unknown degree=0: the operator part at 76:17 in rule operation is not committing against the operator parts that the enclosing operator parts of operation try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+# examples/minilang/minilang.sxir every rule a start
+class unknown degree=0 witnessed=2 combinations=1
+memoized: args block expr ident if name operation stmts
+cause 101:11 in ws: restarted repetition polynomial degree=2: the cost can grow as n^2: after the operator part at 77:17 in rule operation fails, the operator parts that the enclosing operator parts of operation try again evaluate the repetition ([ \t\r\n] / "//" [^\n]*)* at 101:11 in rule ws again at each level; this repeats in the recursion of rule operation
+reason 0:0 in stmt: other unknown degree=0: the base of the #recover at rule stmt is not committing against the skip expression [^;{}\n]+ ";"?, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 45:43 in if: other unknown degree=0: the option at 45:43 in rule if is not committing against what follows the option else?, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 67:25 in operation: other unknown degree=0: the operator part at 67:25 in rule operation is not committing against the operator parts that the enclosing operator parts of operation try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 68:24 in operation: other unknown degree=0: the operator part at 68:24 in rule operation is not committing against the operator parts that the enclosing operator parts of operation try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 69:24 in operation: other unknown degree=0: the operator part at 69:24 in rule operation is not committing against the operator parts that the enclosing operator parts of operation try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 70:24 in operation: other unknown degree=0: the operator part at 70:24 in rule operation is not committing against the operator parts that the enclosing operator parts of operation try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 71:24 in operation: other unknown degree=0: the operator part at 71:24 in rule operation is not committing against the operator parts that the enclosing operator parts of operation try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 72:24 in operation: other unknown degree=0: the operator part at 72:24 in rule operation is not committing against the operator parts that the enclosing operator parts of operation try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 75:17 in operation: other unknown degree=0: the operator part at 75:17 in rule operation is not committing against the operator parts that the enclosing operator parts of operation try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 76:17 in operation: other unknown degree=0: the operator part at 76:17 in rule operation is not committing against the operator parts that the enclosing operator parts of operation try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+# examples/outline/outline.sxir as written
+class unknown degree=0 witnessed=3 combinations=1
+memoized: block
+cause 36:14 in blank: restarted repetition polynomial degree=2: the cost can grow as n^2: after an iteration of the repetition at 22:18 in rule block fails, what follows the repetition blank* can start again inside the input that the repetition [ \t]* at 36:14 in rule blank examined; this repeats in the repetition (blank* i:item)+ at 22:17 in rule block
+cause 36:14 in blank: restarted repetition polynomial degree=3: the cost can grow as n^3: after an iteration of the repetition at 31:19 in rule children fails, what follows the repetition blank* can start again inside the input that the repetition [ \t]* at 36:14 in rule blank examined; it is evaluated again inside the lookahead at 31:17 in rule children; this repeats in the recursion of rule children
+reason 22:17 in block: other unknown degree=0: an iteration of the repetition at 22:17 in rule block is not committing against what follows the repetition (blank* i:item)+, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 26:51 in item: other unknown degree=0: the option at 26:51 in rule item is not committing against what follows the option children?, and units that are not committing are nested in it without bound through a recursion of rule calls
+env 31:56 in children: diverging binding linear given an environment bound degree=0: the binding indent := len($s) at 31:56 in rule children binds a value that the input determines
+# examples/outline/outline.sxir every rule a start
+class unknown degree=0 witnessed=3 combinations=1
+memoized: block
+cause 36:14 in blank: restarted repetition polynomial degree=2: the cost can grow as n^2: after an iteration of the repetition at 22:18 in rule block fails, what follows the repetition blank* can start again inside the input that the repetition [ \t]* at 36:14 in rule blank examined; this repeats in the repetition (blank* i:item)+ at 22:17 in rule block
+cause 36:14 in blank: restarted repetition polynomial degree=3: the cost can grow as n^3: after an iteration of the repetition at 31:19 in rule children fails, what follows the repetition blank* can start again inside the input that the repetition [ \t]* at 36:14 in rule blank examined; it is evaluated again inside the lookahead at 31:17 in rule children; this repeats in the recursion of rule children
+reason 22:17 in block: other unknown degree=0: an iteration of the repetition at 22:17 in rule block is not committing against what follows the repetition (blank* i:item)+, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 26:51 in item: other unknown degree=0: the option at 26:51 in rule item is not committing against what follows the option children?, and units that are not committing are nested in it without bound through a recursion of rule calls
+env 31:56 in children: diverging binding linear given an environment bound degree=0: the binding indent := len($s) at 31:56 in rule children binds a value that the input determines
+# internal/backend/codegen/golang/print/testdata/routes/lr_calls_ops.sxir as written
+error: 3:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/backend/codegen/golang/print/testdata/routes/lr_calls_ops.sxir every rule a start
+class unknown degree=0 witnessed=2 combinations=1
+memoized: lst ops path
+cause 4:48 in lst: self-growing value polynomial degree=2: the cost can grow as n^2: $l + ";" + text($o) at 4:48 in the inline action in rule lst copies $l, which holds a call on a recursion with the inline action in rule lst
+cause 5:30 in ops: regrowth polynomial degree=2: the cost can grow as n^2: the operators that the Operators Rule applies at 5:30 in rule ops is evaluated in each step of the growth of the left-recursive rule lst, at the position where it grows
+cause 7:45 in ops: self-growing value polynomial degree=2: the cost can grow as n^2: "[" + text($s) + "]" at 7:45 in rule ops copies $s, which holds a call on a recursion with rule ops
+cause 9:42 in ops: self-growing value polynomial degree=2: the cost can grow as n^2: $lhs + "+" + $rhs at 9:42 in rule ops copies $lhs, which holds a call on a recursion with rule ops
+cause 11:53 in path: self-growing value polynomial degree=2: the cost can grow as n^2: $l + "." + text($n) at 11:53 in the inline action in rule path copies $l, which holds a call on a recursion with the inline action in rule path
+cause 11:70 in path: regrowth polynomial degree=2: the cost can grow as n^2: the repetition [a-z]+ at 11:70 in the inline action in rule path is evaluated in each step of the growth of the left-recursive rule path, at the position where it grows
+reason 7:13 in ops: other unknown degree=0: the operand at 7:13 in rule ops is not committing against the later operand p:path at 8:13 in rule ops, and units that are not committing are nested in it without bound through a recursion of rule calls
+# internal/backend/codegen/golang/print/testdata/routes/lr_inline.sxir as written
+error: 3:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/backend/codegen/golang/print/testdata/routes/lr_inline.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=1
+memoized: a b c
+# internal/backend/codegen/golang/print/testdata/routes/lr_looks.sxir as written
+error: 2:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/backend/codegen/golang/print/testdata/routes/lr_looks.sxir every rule a start
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: e
+cause 3:84 in e: self-growing value polynomial degree=2: the cost can grow as n^2: $l + text($c) at 3:84 in the inline action in rule e copies $l, which holds a call on a recursion with the inline action in rule e
+# internal/backend/codegen/golang/print/testdata/routes/lr_recover_rep.sxir as written
+error: 2:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/backend/codegen/golang/print/testdata/routes/lr_recover_rep.sxir every rule a start
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: e
+cause 3:70 in e: self-growing value polynomial degree=2: the cost can grow as n^2: $l + "," at 3:70 in the inline action in rule e copies $l, which holds a call on a recursion with the inline action in rule e
+cause 3:82 in e: regrowth polynomial degree=2: the cost can grow as n^2: the repetition [0-9]+ at 3:82 in the inline action in rule e is evaluated in each step of the growth of the left-recursive rule e, at the position where it grows
+# internal/backend/codegen/golang/print/testdata/routes/lr_recover.sxir as written
+error: 2:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/backend/codegen/golang/print/testdata/routes/lr_recover.sxir every rule a start
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: e
+cause 3:59 in e: self-growing value polynomial degree=2: the cost can grow as n^2: $l + "+" at 3:59 in the inline action in rule e copies $l, which holds a call on a recursion with the inline action in rule e
+cause 4:19 in t: restarted repetition polynomial degree=2: the cost can grow as n^2: after the base of the #recover at the inline action in rule e fails, the skip expression [^+]* can start again inside the input that the repetition [0-9]+ at 4:19 in rule t examined; this repeats in the recursion of the inline action in rule e
+cause 4:19 in t: regrowth polynomial degree=2: the cost can grow as n^2: the repetition [0-9]+ at 4:19 in rule t is evaluated in each step of the growth of the left-recursive rule e, at the position where it grows
+# internal/backend/codegen/golang/print/testdata/routes/ops_lines.sxir as written
+error: 3:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/backend/codegen/golang/print/testdata/routes/ops_lines.sxir every rule a start
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: ops
+cause 6:67 in ops: self-growing value polynomial degree=2: the cost can grow as n^2: "(" + $e + ")" at 6:67 in rule ops copies $e, which holds a call on a recursion with rule ops
+cause 8:72 in ops: self-growing value polynomial degree=2: the cost can grow as n^2: $lhs + "*" + $rhs at 8:72 in rule ops copies $lhs, which holds a call on a recursion with rule ops
+cause 9:47 in ops: self-growing value polynomial degree=2: the cost can grow as n^2: $lhs + "^" + $rhs at 9:47 in rule ops copies $lhs, which holds a call on a recursion with rule ops
+# internal/backend/codegen/golang/print/testdata/routes/ops_recover.sxir as written
+error: 2:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/backend/codegen/golang/print/testdata/routes/ops_recover.sxir every rule a start
+class unknown degree=0 witnessed=3 combinations=1
+memoized: ops
+cause 4:10 in ops: other polynomial degree=2: the cost can grow as n^2: after the operand at 5:13 in rule ops fails, the later operand "(" e:ops ")" at 6:13 in rule ops can start again inside the input that the skip expression (" " / "#" [^#]* #recover(skip=[^ ]*))* at 4:10 in rule ops examined; this repeats in the recursion of rule ops
+cause 4:21 in ops: restarted repetition polynomial degree=3: the cost can grow as n^3: after the base of the #recover at rule ops fails, the skip expression [^ ]* can start again inside the input that the repetition [^#]* at 4:21 in rule ops examined; it is evaluated again inside an iteration of the repetition at 4:10 in rule ops; this repeats in the Operators Rule at 3:30 in rule ops
+cause 6:39 in ops: self-growing value polynomial degree=2: the cost can grow as n^2: "(" + $e + ")" at 6:39 in rule ops copies $e, which holds a call on a recursion with rule ops
+cause 7:71 in ops: self-growing value polynomial degree=2: the cost can grow as n^2: $lhs + "o" + $rhs at 7:71 in rule ops copies $lhs, which holds a call on a recursion with rule ops
+cause 8:31 in ops: self-growing value polynomial degree=2: the cost can grow as n^2: "~" + $rhs at 8:31 in rule ops copies $rhs, which holds a call on a recursion with rule ops
+reason 7:24 in ops: other unknown degree=0: the operator part at 7:24 in rule ops is not committing against the operator parts that the enclosing operator parts of ops try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 8:20 in ops: other unknown degree=0: the operator part at 8:20 in rule ops is not committing against the operand d:[0-9]+ #recover(skip=[a-z]*) at 5:13 in rule ops, and units that are not committing are nested in it without bound through a recursion of rule calls
+# internal/backend/codegen/golang/print/testdata/routes/recover_nested.sxir as written
+error: 2:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/backend/codegen/golang/print/testdata/routes/recover_nested.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# internal/backend/codegen/golang/print/testdata/routes/scopes.sxir as written
+error: 4:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/backend/codegen/golang/print/testdata/routes/scopes.sxir every rule a start
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: lr
+cause 5:76 in lr: self-growing value polynomial degree=2: the cost can grow as n^2: $l.A + text($x) at 5:76 in the inline action in rule lr copies $l, which holds a call on a recursion with the inline action in rule lr
+cause 5:116 in lr: regrowth polynomial degree=2: the cost can grow as n^2: the repetition (b:[0-9])* at 5:116 in the inline action in rule lr is evaluated in each step of the growth of the left-recursive rule lr, at the position where it grows
+# internal/testing/codegentest/testdata/typed/calclr.sxir as written
+error: 20:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/testing/codegentest/testdata/typed/calclr.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=1
+memoized: expr primary term unary
+# internal/testing/codegentest/testdata/typed/direct_backtrack.sxir as written
+error: 10:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/testing/codegentest/testdata/typed/direct_backtrack.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=3
+memoized: 
+# internal/testing/codegentest/testdata/typed/direct_errors.sxir as written
+error: 7:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/testing/codegentest/testdata/typed/direct_errors.sxir every rule a start
+class unknown degree=0 witnessed=0 combinations=1
+memoized: tag
+reason 7:21 in main: other unknown degree=0: an iteration of the repetition at 7:21 in rule main contains the copying operation text($a) == text($b) at 9:54 in rule tag and is not committing against what follows the repetition (t:tag ";" / t:tag ".")*
+# internal/testing/codegentest/testdata/typed/direct_lists.sxir as written
+error: 8:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/testing/codegentest/testdata/typed/direct_lists.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=1
+memoized: pair
+# internal/testing/codegentest/testdata/typed/direct_literals.sxir as written
+error: 5:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/testing/codegentest/testdata/typed/direct_literals.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# internal/testing/codegentest/testdata/typed/direct_names.sxir as written
+error: 6:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/testing/codegentest/testdata/typed/direct_names.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=2
+memoized: 
+# internal/testing/codegentest/testdata/typed/element_scope_optional.sxir as written
+error: 4:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/testing/codegentest/testdata/typed/element_scope_optional.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# internal/testing/codegentest/testdata/typed/element_scope_plain.sxir as written
+error: 4:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/testing/codegentest/testdata/typed/element_scope_plain.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# internal/testing/codegentest/testdata/typed/element_scope_recover.sxir as written
+error: 5:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/testing/codegentest/testdata/typed/element_scope_recover.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# internal/testing/codegentest/testdata/typed/errlist.sxir as written
+error: 2:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/testing/codegentest/testdata/typed/errlist.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# internal/testing/codegentest/testdata/typed/errlist2.sxir as written
+error: 1:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/testing/codegentest/testdata/typed/errlist2.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# internal/testing/codegentest/testdata/typed/fields.sxir as written
+error: 4:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/testing/codegentest/testdata/typed/fields.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# internal/testing/codegentest/testdata/typed/mix.sxir as written
+error: 8:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/testing/codegentest/testdata/typed/mix.sxir every rule a start
+class unknown degree=0 witnessed=2 combinations=1
+memoized: item
+cause 12:174 in item1: self-growing value polynomial degree=2: the cost can grow as n^2: text($nm) + "/" + text($s) at 12:174 in rule item1 copies $s, which holds a call on a recursion with rule item1
+reason 11:16 in item: other unknown degree=0: the alternative at 11:16 in rule item is not committing against the later alternative bad at 11:32 in rule item, and units that are not committing are nested in it without bound through a recursion of rule calls
+# internal/testing/codegentest/testdata/typed/mixf.sxir as written
+error: 8:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/testing/codegentest/testdata/typed/mixf.sxir every rule a start
+class unknown degree=0 witnessed=2 combinations=1
+memoized: item
+cause 12:174 in item1: self-growing value polynomial degree=2: the cost can grow as n^2: text($nm) + "/" + text($s) at 12:174 in rule item1 copies $s, which holds a call on a recursion with rule item1
+reason 11:16 in item: other unknown degree=0: the alternative at 11:16 in rule item is not committing against the later alternative bad at 11:32 in rule item, and units that are not committing are nested in it without bound through a recursion of rule calls
+# internal/testing/codegentest/testdata/typed/operators_rule1.sxir as written
+error: 6:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/testing/codegentest/testdata/typed/operators_rule1.sxir every rule a start
+class unknown degree=0 witnessed=0 combinations=1
+memoized: expr
+reason 12:24 in expr: other unknown degree=0: the operator part at 12:24 in rule expr is not committing against the operator parts that the enclosing operator parts of expr try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 13:24 in expr: other unknown degree=0: the operator part at 13:24 in rule expr is not committing against the operator parts that the enclosing operator parts of expr try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 17:17 in expr: other unknown degree=0: the operator part at 17:17 in rule expr is not committing against the operator parts that the enclosing operator parts of expr try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 19:25 in expr: other unknown degree=0: the operator part at 19:25 in rule expr is not committing against the operator parts that the enclosing operator parts of expr try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+# internal/testing/codegentest/testdata/typed/operators_rule1f.sxir as written
+error: 6:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/testing/codegentest/testdata/typed/operators_rule1f.sxir every rule a start
+class unknown degree=0 witnessed=0 combinations=1
+memoized: expr
+reason 12:24 in expr: other unknown degree=0: the operator part at 12:24 in rule expr is not committing against the operator parts that the enclosing operator parts of expr try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 13:24 in expr: other unknown degree=0: the operator part at 13:24 in rule expr is not committing against the operator parts that the enclosing operator parts of expr try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 17:17 in expr: other unknown degree=0: the operator part at 17:17 in rule expr is not committing against the operator parts that the enclosing operator parts of expr try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 19:25 in expr: other unknown degree=0: the operator part at 19:25 in rule expr is not committing against the operator parts that the enclosing operator parts of expr try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+# internal/testing/codegentest/testdata/typed/order.sxir as written
+error: 2:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/testing/codegentest/testdata/typed/order.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# internal/testing/codegentest/testdata/typed/proj1.sxir as written
+error: 3:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/testing/codegentest/testdata/typed/proj1.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# internal/testing/codegentest/testdata/typed/proj2.sxir as written
+error: 2:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/testing/codegentest/testdata/typed/proj2.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# internal/testing/codegentest/testdata/typed/proj3.sxir as written
+error: 2:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/testing/codegentest/testdata/typed/proj3.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# internal/testing/codegentest/testdata/typed/proj4.sxir as written
+error: 2:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/testing/codegentest/testdata/typed/proj4.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# internal/testing/codegentest/testdata/typed/proj5.sxir as written
+error: 3:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/testing/codegentest/testdata/typed/proj5.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# internal/testing/codegentest/testdata/typed/proj6.sxir as written
+error: 2:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/testing/codegentest/testdata/typed/proj6.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# internal/testing/codegentest/testdata/typed/proj7.sxir as written
+error: 2:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/testing/codegentest/testdata/typed/proj7.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# internal/testing/codegentest/testdata/typed/spanname.sxir as written
+error: 3:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/testing/codegentest/testdata/typed/spanname.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# internal/testing/codegentest/testdata/typed/splice_recursive_capture_action.sxir as written
+error: 2:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/testing/codegentest/testdata/typed/splice_recursive_capture_action.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=1
+memoized: _t
+# internal/testing/codegentest/testdata/typed/splice_recursive_capture.sxir as written
+error: 1:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/testing/codegentest/testdata/typed/splice_recursive_capture.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=1
+memoized: _t
+# internal/testing/codegentest/testdata/typed/splice_recursive_choice_in_seq.sxir as written
+error: 1:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/testing/codegentest/testdata/typed/splice_recursive_choice_in_seq.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=1
+memoized: _t
+# internal/testing/codegentest/testdata/typed/splice_recursive_choice.sxir as written
+error: 1:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/testing/codegentest/testdata/typed/splice_recursive_choice.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=1
+memoized: _t
+# internal/testing/codegentest/testdata/typed/splice_recursive_optional.sxir as written
+error: 1:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/testing/codegentest/testdata/typed/splice_recursive_optional.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=1
+memoized: _t
+# internal/testing/codegentest/testdata/typed/splice_recursive_repeat.sxir as written
+error: 1:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/testing/codegentest/testdata/typed/splice_recursive_repeat.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=1
+memoized: _t
+# internal/testing/codegentest/testdata/typed/unif.sxir as written
+error: 3:1: the grammar has no start rule: mark each rule where parsing may begin with @start
+# internal/testing/codegentest/testdata/typed/unif.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# spec/language/testdata/comment-boundaries.sxir as written
+class unknown degree=0 witnessed=2 combinations=1
+memoized: after_boundary block_comment block_flush block_line comment horizontal line_comment line_flush line_group next_token remaining space
+cause 82:62 in line_group: self-growing value polynomial degree=2: the cost can grow as n^2: s + x.$c.Text at 82:62 in rule line_group copies the fold accumulator s
+cause 86:78 in block_comment: self-growing value polynomial degree=2: the cost can grow as n^2: s + text(x.$line) + x.$body.Text at 86:78 in rule block_comment copies the fold accumulator s
+cause 88:99 in block_line: self-growing value polynomial degree=2: the cost can grow as n^2: s + x.$c.Text at 88:99 in rule block_line copies the fold accumulator s
+cause 90:85 in nested_piece: self-growing value polynomial degree=2: the cost can grow as n^2: "/*" + $c.Text + "*/" at 90:85 in rule nested_piece copies $c, which holds a call on a recursion with rule nested_piece
+reason 62:34 in remaining: other unknown degree=0: the alternative at 62:34 in rule remaining is not committing against the later alternative next_boundary at 62:47 in rule remaining, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 64:16 in scope_tail: other unknown degree=0: an iteration of the repetition at 64:16 in rule scope_tail is not committing against what follows the repetition (c:comment -space*)*, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 67:22 in next_boundary: other unknown degree=0: an iteration of the repetition at 67:22 in rule next_boundary is not committing against what follows the repetition (c:detached_group -space*)*, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 67:56 in next_boundary: other unknown degree=0: the alternative at 67:56 in rule next_boundary is not committing against the later alternative empty_comment at 67:72 in rule next_boundary, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 88:34 in block_line: other unknown degree=0: an iteration of the repetition at 88:34 in rule block_line is not committing against what follows the repetition (c:block_piece)*, and units that are not committing are nested in it without bound through a recursion of rule calls
+# spec/language/testdata/comment-boundaries.sxir every rule a start
+class unknown degree=0 witnessed=2 combinations=1
+memoized: after_boundary block_comment block_flush block_line comment horizontal line_comment line_flush line_group next_token remaining space
+cause 82:62 in line_group: self-growing value polynomial degree=2: the cost can grow as n^2: s + x.$c.Text at 82:62 in rule line_group copies the fold accumulator s
+cause 86:78 in block_comment: self-growing value polynomial degree=2: the cost can grow as n^2: s + text(x.$line) + x.$body.Text at 86:78 in rule block_comment copies the fold accumulator s
+cause 88:99 in block_line: self-growing value polynomial degree=2: the cost can grow as n^2: s + x.$c.Text at 88:99 in rule block_line copies the fold accumulator s
+cause 90:85 in nested_piece: self-growing value polynomial degree=2: the cost can grow as n^2: "/*" + $c.Text + "*/" at 90:85 in rule nested_piece copies $c, which holds a call on a recursion with rule nested_piece
+reason 62:34 in remaining: other unknown degree=0: the alternative at 62:34 in rule remaining is not committing against the later alternative next_boundary at 62:47 in rule remaining, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 64:16 in scope_tail: other unknown degree=0: an iteration of the repetition at 64:16 in rule scope_tail is not committing against what follows the repetition (c:comment -space*)*, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 67:22 in next_boundary: other unknown degree=0: an iteration of the repetition at 67:22 in rule next_boundary is not committing against what follows the repetition (c:detached_group -space*)*, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 67:56 in next_boundary: other unknown degree=0: the alternative at 67:56 in rule next_boundary is not committing against the later alternative empty_comment at 67:72 in rule next_boundary, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 88:34 in block_line: other unknown degree=0: an iteration of the repetition at 88:34 in rule block_line is not committing against what follows the repetition (c:block_piece)*, and units that are not committing are nested in it without bound through a recursion of rule calls
+# testdata/grammars/cel/cel.sxir as written
+class unknown degree=0 witnessed=3 combinations=1
+memoized: args bytes_esc call double elem entry expr field ident int member message name sign str_esc string
+cause 142:26 in int_plain: restarted repetition polynomial degree=3: the cost can grow as n^3: after the alternative at 92:71 in rule primary fails, the later alternative double at 92:83 in rule primary can start again inside the input that the repetition [0-9]+ at 142:26 in rule int_plain examined; it is evaluated again inside the alternative at 92:61 in rule primary; this repeats in the recursion of rule primary
+cause 144:33 in double: restarted repetition polynomial degree=2: the cost can grow as n^2: after the alternative at 92:131 in rule primary fails, the later alternative message at 92:140 in rule primary can start again inside the input that the repetition [0-9]+ at 144:33 in rule double examined; this repeats in the recursion of rule primary
+cause 144:33 in double: restarted repetition polynomial degree=2: the cost can grow as n^2: after the alternative at 92:174 in rule primary fails, the later alternative int at 92:183 in rule primary can start again inside the input that the repetition [0-9]+ at 144:33 in rule double examined; this repeats in the recursion of rule primary
+cause 144:33 in double: restarted repetition polynomial degree=3: the cost can grow as n^3: after the alternative at 92:83 in rule primary fails, the later alternative uint at 92:92 in rule primary can start again inside the input that the repetition [0-9]+ at 144:33 in rule double examined; it is evaluated again inside the alternative at 92:61 in rule primary; this repeats in the recursion of rule primary
+cause 146:28 in uint: restarted repetition polynomial degree=3: the cost can grow as n^3: after the alternative at 92:92 in rule primary fails, the later alternative int at 92:99 in rule primary can start again inside the input that the repetition [0-9a-fA-F]+ at 146:28 in rule uint examined; it is evaluated again inside the alternative at 92:61 in rule primary; this repeats in the recursion of rule primary
+cause 155:26 in raw_body: restarted repetition polynomial degree=2: the cost can grow as n^2: after the alternative at 92:106 in rule primary fails, the later alternative &"." v:(double / message / call / ident) at 92:123 in rule primary can start again inside the input that the repetition (!"\"\"\"" .)* at 155:26 in rule raw_body examined; this repeats in the recursion of rule primary
+cause 155:26 in raw_body: restarted repetition polynomial degree=2: the cost can grow as n^2: after the alternative at 92:19 in rule primary fails, the later alternative message at 92:30 in rule primary can start again inside the input that the repetition (!"\"\"\"" .)* at 155:26 in rule raw_body examined; this repeats in the recursion of rule primary
+cause 181:88 in name_plain: restarted repetition polynomial degree=2: the cost can grow as n^2: after the operator part at 79:17 in rule member fails, the operator part "." ws f:name_plain ws "(" ws as:args... at 80:17 in rule member can start again inside the input that the repetition [A-Za-z0-9_]* at 181:88 in rule name_plain examined; this repeats in the recursion of rule member
+cause 192:11 in ws: restarted repetition polynomial degree=3: the cost can grow as n^3: after an iteration of the repetition at 123:27 in rule message fails, what follows the repetition [A-Za-z0-9_]* (ws "." ws [A-Za-z_] [A... can start again inside the input that the repetition [ \t\r\n\u{c}]* ("//" [^\n]* [ \t\r\n... at 192:11 in rule ws examined; it is evaluated again inside the lookahead at 123:5 in rule message; this repeats in the recursion of rule message
+cause 192:11 in ws: lookahead scan polynomial degree=3: the cost can grow as n^3: after the lookahead at 103:33 in rule ident_only fails, what follows the lookahead !(ws "(") can start again inside the input that the repetition [ \t\r\n\u{c}]* ("//" [^\n]* [ \t\r\n... at 192:11 in rule ws examined; it is evaluated again inside the alternative at 92:40 in rule primary; this repeats in the recursion of rule primary
+reason 54:25 in expr: other unknown degree=0: the operator part at 54:25 in rule expr is not committing against the operator parts that the enclosing operator parts of expr try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 55:27 in expr: other unknown degree=0: the operator part at 55:27 in rule expr is not committing against the operator parts that the enclosing operator parts of expr try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 56:24 in expr: other unknown degree=0: the operator part at 56:24 in rule expr is not committing against the operator parts that the enclosing operator parts of expr try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 57:24 in expr: other unknown degree=0: the operator part at 57:24 in rule expr is not committing against the operator parts that the enclosing operator parts of expr try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 58:24 in expr: other unknown degree=0: the operator part at 58:24 in rule expr is not committing against the operator parts that the enclosing operator parts of expr try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 59:24 in expr: other unknown degree=0: the operator part at 59:24 in rule expr is not committing against the operator parts that the enclosing operator parts of expr try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 66:19 in unary: other unknown degree=0: the alternative at 66:19 in rule unary is not committing against the later alternative neg_unary at 66:40 in rule unary, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 80:17 in member: other unknown degree=0: the operator part at 80:17 in rule member is not committing against the operator part "." ws q:"?"? ws f:name at 79:17 in rule member, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 81:17 in member: other unknown degree=0: the operator part at 81:17 in rule member is not committing against what follows the Operators Rule, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 92:5 in primary: other unknown degree=0: the alternative at 92:5 in rule primary is not committing against the later alternative &[0-9] v:(int_plain / double / uint /... at 92:61 in rule primary, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 92:30 in primary: other unknown degree=0: the alternative at 92:30 in rule primary is not committing against the later alternative ident_only at 92:40 in rule primary, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 92:123 in primary: other unknown degree=0: the alternative at 92:123 in rule primary is not committing against the later alternative &"-" v:(double / int) at 92:166 in rule primary, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 92:140 in primary: other unknown degree=0: the alternative at 92:140 in rule primary is not committing against the later alternative call at 92:150 in rule primary, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 92:150 in primary: other unknown degree=0: the alternative at 92:150 in rule primary is not committing against the later alternative ident at 92:157 in rule primary, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 108:31 in list: other unknown degree=0: the option at 108:31 in rule list is not committing against what follows the option elems?, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 109:30 in elems: other unknown degree=0: an iteration of the repetition at 109:30 in rule elems is not committing against what follows the repetition (-ws -"," -ws x:elem)*, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 113:29 in map: other unknown degree=0: the option at 113:29 in rule map is not committing against what follows the option entries?, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 114:33 in entries: other unknown degree=0: an iteration of the repetition at 114:33 in rule entries is not committing against what follows the repetition (-ws -"," -ws x:entry)*, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 127:32 in fields: other unknown degree=0: an iteration of the repetition at 127:32 in rule fields is not committing against what follows the repetition (-ws -"," -ws x:field)*, and units that are not committing are nested in it without bound through a recursion of rule calls
+# testdata/grammars/cel/cel.sxir every rule a start
+class unknown degree=0 witnessed=3 combinations=1
+memoized: args bytes_esc call double elem entry expr field ident int member message name sign str_esc string
+cause 142:26 in int_plain: restarted repetition polynomial degree=3: the cost can grow as n^3: after the alternative at 92:71 in rule primary fails, the later alternative double at 92:83 in rule primary can start again inside the input that the repetition [0-9]+ at 142:26 in rule int_plain examined; it is evaluated again inside the alternative at 92:61 in rule primary; this repeats in the recursion of rule primary
+cause 144:33 in double: restarted repetition polynomial degree=2: the cost can grow as n^2: after the alternative at 92:131 in rule primary fails, the later alternative message at 92:140 in rule primary can start again inside the input that the repetition [0-9]+ at 144:33 in rule double examined; this repeats in the recursion of rule primary
+cause 144:33 in double: restarted repetition polynomial degree=2: the cost can grow as n^2: after the alternative at 92:174 in rule primary fails, the later alternative int at 92:183 in rule primary can start again inside the input that the repetition [0-9]+ at 144:33 in rule double examined; this repeats in the recursion of rule primary
+cause 144:33 in double: restarted repetition polynomial degree=3: the cost can grow as n^3: after the alternative at 92:83 in rule primary fails, the later alternative uint at 92:92 in rule primary can start again inside the input that the repetition [0-9]+ at 144:33 in rule double examined; it is evaluated again inside the alternative at 92:61 in rule primary; this repeats in the recursion of rule primary
+cause 146:28 in uint: restarted repetition polynomial degree=3: the cost can grow as n^3: after the alternative at 92:92 in rule primary fails, the later alternative int at 92:99 in rule primary can start again inside the input that the repetition [0-9a-fA-F]+ at 146:28 in rule uint examined; it is evaluated again inside the alternative at 92:61 in rule primary; this repeats in the recursion of rule primary
+cause 155:26 in raw_body: restarted repetition polynomial degree=2: the cost can grow as n^2: after the alternative at 92:106 in rule primary fails, the later alternative &"." v:(double / message / call / ident) at 92:123 in rule primary can start again inside the input that the repetition (!"\"\"\"" .)* at 155:26 in rule raw_body examined; this repeats in the recursion of rule primary
+cause 155:26 in raw_body: restarted repetition polynomial degree=2: the cost can grow as n^2: after the alternative at 92:19 in rule primary fails, the later alternative message at 92:30 in rule primary can start again inside the input that the repetition (!"\"\"\"" .)* at 155:26 in rule raw_body examined; this repeats in the recursion of rule primary
+cause 181:88 in name_plain: restarted repetition polynomial degree=2: the cost can grow as n^2: after the operator part at 79:17 in rule member fails, the operator part "." ws f:name_plain ws "(" ws as:args... at 80:17 in rule member can start again inside the input that the repetition [A-Za-z0-9_]* at 181:88 in rule name_plain examined; this repeats in the recursion of rule member
+cause 192:11 in ws: restarted repetition polynomial degree=3: the cost can grow as n^3: after an iteration of the repetition at 123:27 in rule message fails, what follows the repetition [A-Za-z0-9_]* (ws "." ws [A-Za-z_] [A... can start again inside the input that the repetition [ \t\r\n\u{c}]* ("//" [^\n]* [ \t\r\n... at 192:11 in rule ws examined; it is evaluated again inside the lookahead at 123:5 in rule message; this repeats in the recursion of rule message
+cause 192:11 in ws: lookahead scan polynomial degree=3: the cost can grow as n^3: after the lookahead at 103:33 in rule ident_only fails, what follows the lookahead !(ws "(") can start again inside the input that the repetition [ \t\r\n\u{c}]* ("//" [^\n]* [ \t\r\n... at 192:11 in rule ws examined; it is evaluated again inside the alternative at 92:40 in rule primary; this repeats in the recursion of rule primary
+reason 54:25 in expr: other unknown degree=0: the operator part at 54:25 in rule expr is not committing against the operator parts that the enclosing operator parts of expr try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 55:27 in expr: other unknown degree=0: the operator part at 55:27 in rule expr is not committing against the operator parts that the enclosing operator parts of expr try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 56:24 in expr: other unknown degree=0: the operator part at 56:24 in rule expr is not committing against the operator parts that the enclosing operator parts of expr try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 57:24 in expr: other unknown degree=0: the operator part at 57:24 in rule expr is not committing against the operator parts that the enclosing operator parts of expr try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 58:24 in expr: other unknown degree=0: the operator part at 58:24 in rule expr is not committing against the operator parts that the enclosing operator parts of expr try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 59:24 in expr: other unknown degree=0: the operator part at 59:24 in rule expr is not committing against the operator parts that the enclosing operator parts of expr try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 66:19 in unary: other unknown degree=0: the alternative at 66:19 in rule unary is not committing against the later alternative neg_unary at 66:40 in rule unary, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 80:17 in member: other unknown degree=0: the operator part at 80:17 in rule member is not committing against the operator part "." ws q:"?"? ws f:name at 79:17 in rule member, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 81:17 in member: other unknown degree=0: the operator part at 81:17 in rule member is not committing against what follows the Operators Rule, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 92:5 in primary: other unknown degree=0: the alternative at 92:5 in rule primary is not committing against the later alternative &[0-9] v:(int_plain / double / uint /... at 92:61 in rule primary, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 92:30 in primary: other unknown degree=0: the alternative at 92:30 in rule primary is not committing against the later alternative ident_only at 92:40 in rule primary, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 92:123 in primary: other unknown degree=0: the alternative at 92:123 in rule primary is not committing against the later alternative &"-" v:(double / int) at 92:166 in rule primary, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 92:140 in primary: other unknown degree=0: the alternative at 92:140 in rule primary is not committing against the later alternative call at 92:150 in rule primary, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 92:150 in primary: other unknown degree=0: the alternative at 92:150 in rule primary is not committing against the later alternative ident at 92:157 in rule primary, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 108:31 in list: other unknown degree=0: the option at 108:31 in rule list is not committing against what follows the option elems?, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 109:30 in elems: other unknown degree=0: an iteration of the repetition at 109:30 in rule elems is not committing against what follows the repetition (-ws -"," -ws x:elem)*, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 113:29 in map: other unknown degree=0: the option at 113:29 in rule map is not committing against what follows the option entries?, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 114:33 in entries: other unknown degree=0: an iteration of the repetition at 114:33 in rule entries is not committing against what follows the repetition (-ws -"," -ws x:entry)*, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 127:32 in fields: other unknown degree=0: an iteration of the repetition at 127:32 in rule fields is not committing against what follows the repetition (-ws -"," -ws x:field)*, and units that are not committing are nested in it without bound through a recursion of rule calls
+# testdata/grammars/csv/csv.sxir as written
+class polynomial degree=3 witnessed=0 combinations=1
+memoized: 
+cause 29:10 in field: restarted repetition polynomial degree=3: the cost can grow as n^3: after the alternative at 29:5 in rule field fails, the later alternative [^,"\r\n]* ("\r" &[^\n] [^,"\r\n]*)* at 30:7 in rule field can start again inside the input that the repetition [^"]* ("\"\"" [^"]*)* at 29:10 in rule field examined; it is evaluated again inside an iteration of the repetition at 21:26 in rule record; this repeats in the repetition record* at 16:34 in rule main
+# testdata/grammars/csv/csv.sxir every rule a start
+class polynomial degree=3 witnessed=0 combinations=1
+memoized: 
+cause 29:10 in field: restarted repetition polynomial degree=3: the cost can grow as n^3: after the alternative at 29:5 in rule field fails, the later alternative [^,"\r\n]* ("\r" &[^\n] [^,"\r\n]*)* at 30:7 in rule field can start again inside the input that the repetition [^"]* ("\"\"" [^"]*)* at 29:10 in rule field examined; it is evaluated again inside an iteration of the repetition at 21:26 in rule record; this repeats in the repetition record* at 16:34 in rule main
+# testdata/grammars/cue/cue.sxir as written sha256 b5b85d48e0419c5a3a64178eee0493d4084d70d247f7abc464f1e8274f387141
+# testdata/grammars/cue/cue.sxir every rule a start sha256 2d5c7550283226d33d9ee018aaf86cb9e2156f84116b70e127ccee2188fe1a95
+# testdata/grammars/duckdb/duckdb.sxir as written sha256 3b361f6a3b85ef1e22b0216b089d95280c61f1541389f1117b31f26e5370dfc2
+# testdata/grammars/duckdb/duckdb.sxir every rule a start sha256 43c5791735c4badef47ba23d293a5c0ccf9ce3b6b20f376cfe4be784861fc091
+# testdata/grammars/golang/golang.sxir as written sha256 9ed4f6c3562658028196cebd5c3a73ec076ba299c46663be3eac13899d8e0af1
+# testdata/grammars/golang/golang.sxir every rule a start sha256 2e5165a71851ffb74ee0197715b2868090bd52f4bc7035b6b52bf74a4441e337
+# testdata/grammars/json/json.sxir as written
+class linear degree=0 witnessed=0 combinations=1
+memoized: member string value
+# testdata/grammars/json/json.sxir every rule a start
+class linear degree=0 witnessed=0 combinations=1
+memoized: member string value
+# testdata/grammars/python/python.sxir as written sha256 5ec6c5b17a23d3b0d5a16b2741a32aca7d5e7797b5d21c0bdc76534016204fd7
+# testdata/grammars/python/python.sxir every rule a start sha256 ea54d6f605e009733badb1bc79405b246d6e964bcde2fc719cdbce09107b88f8
+# testdata/grammars/typescript/typescript.sxir as written sha256 26122d28a134cc031365b24dded88a723bf38db31d0ffd76b2f90d311265cb30
+# testdata/grammars/typescript/typescript.sxir every rule a start sha256 71b8a36a9b07ca8cfcd40b1ee56124e2dcfba1bd138169c47bdd22fd26e87345
+# testdata/grammars/xml/xml.sxir as written
+class unknown degree=0 witnessed=2 combinations=1
+memoized: att_value choice comment cp element entity_value eq external_id misc_list nmtoken pi pubid_literal reference sequence system_id system_literal
+cause 246:5 in name: restarted repetition polynomial degree=2: the cost can grow as n^2: after an iteration of the repetition at 165:29 in rule attlist_decl fails, what follows the repetition (-s d:att_def)* can start again inside the input that the repetition [a-zA-Z0-9_:.\-·À-ÖØ-öø-ͽͿ-\u... at 246:5 in rule name examined; this repeats in the repetition (-ws d:decl)* at 121:22 in rule int_subset
+cause 246:5 in name: restarted repetition polynomial degree=2: the cost can grow as n^2: after an iteration of the repetition at 210:19 in rule element fails, what follows the repetition (-s a:attribute)* can start again inside the input that the repetition [a-zA-Z0-9_:.\-·À-ÖØ-öø-ͽͿ-\u... at 246:5 in rule name examined; this repeats in the recursion of rule element
+cause 246:5 in name: restarted repetition polynomial degree=2: the cost can grow as n^2: after the option at 189:59 in rule ge_decl fails, what follows the option (s "NDATA" s nd:name)? can start again inside the input that the repetition [a-zA-Z0-9_:.\-·À-ÖØ-öø-ͽͿ-\u... at 246:5 in rule name examined; this repeats in the repetition (-ws d:decl)* at 121:22 in rule int_subset
+cause 253:10 in s: restarted repetition polynomial degree=2: the cost can grow as n^2: after the option at 203:62 in rule public_notation fails, what follows the option (s l:system_literal)? can start again inside the input that the repetition [ \t\r\n]+ at 253:10 in rule s examined; this repeats in the repetition (-ws d:decl)* at 121:22 in rule int_subset
+reason 75:19 in main: other unknown degree=0: the option at 75:19 in rule main contains the repetition [ \t\r\n]* at 254:11 in rule ws and is not committing against what follows the option xml_decl?
+reason 79:21 in misc_list: other unknown degree=0: an iteration of the repetition at 79:21 in rule misc_list contains the repetition ([.-\u{d7ff} -,\n\t\r\u{e000}-�𐀀... at 100:30 in rule comment_text and is not committing against what follows the repetition (-ws m:misc)*
+reason 84:30 in xml_decl: other unknown degree=0: the option at 84:30 in rule xml_decl contains the repetition [ \t\r\n]+ at 253:10 in rule s and is not committing against what follows the option encoding_decl?
+reason 84:48 in xml_decl: other unknown degree=0: the option at 84:48 in rule xml_decl contains the repetition [ \t\r\n]+ at 253:10 in rule s and is not committing against what follows the option sd_decl?
+reason 115:26 in doctype: other unknown degree=0: the option at 115:26 in rule doctype contains the repetition [ \t\r\n]+ at 253:10 in rule s and is not committing against what follows the option (s x:external_id)?
+reason 142:61 in content_spec: other unknown degree=0: the alternative at 142:61 in rule content_spec is not committing against the later alternative sequence at 142:70 in rule content_spec, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 152:14 in choice: other unknown degree=0: the evaluations of the call of cp at 152:14 in rule choice can nest without a bound and end at one position, through a unit that evaluates calls alike with a continuation, which the classifier found only after it relied on the call
+reason 157:36 in cp: other unknown degree=0: the alternative at 157:36 in rule cp is not committing against the later alternative sequence at 157:45 in rule cp, and units that are not committing are nested in it without bound through a recursion of rule calls
+# testdata/grammars/xml/xml.sxir every rule a start
+class unknown degree=0 witnessed=2 combinations=1
+memoized: att_value choice comment cp element entity_value eq external_id misc_list nmtoken pi pubid_literal reference sequence system_id system_literal
+cause 246:5 in name: restarted repetition polynomial degree=2: the cost can grow as n^2: after an iteration of the repetition at 165:29 in rule attlist_decl fails, what follows the repetition (-s d:att_def)* can start again inside the input that the repetition [a-zA-Z0-9_:.\-·À-ÖØ-öø-ͽͿ-\u... at 246:5 in rule name examined; this repeats in the repetition (-ws d:decl)* at 121:22 in rule int_subset
+cause 246:5 in name: restarted repetition polynomial degree=2: the cost can grow as n^2: after an iteration of the repetition at 210:19 in rule element fails, what follows the repetition (-s a:attribute)* can start again inside the input that the repetition [a-zA-Z0-9_:.\-·À-ÖØ-öø-ͽͿ-\u... at 246:5 in rule name examined; this repeats in the recursion of rule element
+cause 246:5 in name: restarted repetition polynomial degree=2: the cost can grow as n^2: after the option at 189:59 in rule ge_decl fails, what follows the option (s "NDATA" s nd:name)? can start again inside the input that the repetition [a-zA-Z0-9_:.\-·À-ÖØ-öø-ͽͿ-\u... at 246:5 in rule name examined; this repeats in the repetition (-ws d:decl)* at 121:22 in rule int_subset
+cause 253:10 in s: restarted repetition polynomial degree=2: the cost can grow as n^2: after the option at 203:62 in rule public_notation fails, what follows the option (s l:system_literal)? can start again inside the input that the repetition [ \t\r\n]+ at 253:10 in rule s examined; this repeats in the repetition (-ws d:decl)* at 121:22 in rule int_subset
+reason 75:19 in main: other unknown degree=0: the option at 75:19 in rule main contains the repetition [ \t\r\n]* at 254:11 in rule ws and is not committing against what follows the option xml_decl?
+reason 79:21 in misc_list: other unknown degree=0: an iteration of the repetition at 79:21 in rule misc_list contains the repetition ([.-\u{d7ff} -,\n\t\r\u{e000}-�𐀀... at 100:30 in rule comment_text and is not committing against what follows the repetition (-ws m:misc)*
+reason 84:30 in xml_decl: other unknown degree=0: the option at 84:30 in rule xml_decl contains the repetition [ \t\r\n]+ at 253:10 in rule s and is not committing against what follows the option encoding_decl?
+reason 84:48 in xml_decl: other unknown degree=0: the option at 84:48 in rule xml_decl contains the repetition [ \t\r\n]+ at 253:10 in rule s and is not committing against what follows the option sd_decl?
+reason 115:26 in doctype: other unknown degree=0: the option at 115:26 in rule doctype contains the repetition [ \t\r\n]+ at 253:10 in rule s and is not committing against what follows the option (s x:external_id)?
+reason 142:61 in content_spec: other unknown degree=0: the alternative at 142:61 in rule content_spec is not committing against the later alternative sequence at 142:70 in rule content_spec, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 152:14 in choice: other unknown degree=0: the evaluations of the call of cp at 152:14 in rule choice can nest without a bound and end at one position, through a unit that evaluates calls alike with a continuation, which the classifier found only after it relied on the call
+reason 157:36 in cp: other unknown degree=0: the alternative at 157:36 in rule cp is not committing against the later alternative sequence at 157:45 in rule cp, and units that are not committing are nested in it without bound through a recursion of rule calls
+# testdata/grammars/yaml/yaml.sxir as written sha256 34eaa3eca70d478b617b025b449248337d193014a03758b820f28bbe378cbdf1
+# testdata/grammars/yaml/yaml.sxir every rule a start sha256 b2aed4282cec3dd27b6b3ebfca1d4f24df6a6e240b030d604f5d021e4b893ae9
+# sxir.sxir as written sha256 4716cb78f4175bb0e09440ed04b293d6e80be1fd773f2b7e8016a18c0304f9ea
+# sxir.sxir every rule a start sha256 264a38cdc9ff926e76930e83fdecac4731fb29de98f21664713dc0aadf8f4a01
+# control E0 repetition after backtracking, safe
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# control E1 repetition after backtracking
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: 
+cause 2:10 in a: restarted repetition polynomial degree=2: the cost can grow as n^2: after the alternative at 1:14 in rule main fails, the later alternative "a" at 1:18 in rule main can start again inside the input that the repetition "a"* at 2:10 in rule a examined; this repeats in the repetition (a / "a")* at 1:13 in rule main
+# control E7 nested scans, degree 3
+class polynomial degree=3 witnessed=0 combinations=1
+memoized: 
+cause 3:10 in b: restarted repetition polynomial degree=3: the cost can grow as n^3: after the alternative at 2:11 in rule a fails, the later alternative "a" at 2:15 in rule a can start again inside the input that the repetition "a"* at 3:10 in rule b examined; it is evaluated again inside the alternative at 1:14 in rule main; this repeats in the repetition (a / "a")* at 1:13 in rule main
+# control E9 lookahead over scans
+class unknown degree=0 witnessed=2 combinations=1
+memoized: 
+cause 2:13 in rest: lookahead scan polynomial degree=2: the cost can grow as n^2: after the lookahead at 1:18 in rule main fails, what follows the lookahead !rest can start again inside the input that the repetition "a"* at 2:13 in rule rest examined; this repeats in the repetition ("a" !rest)* at 1:13 in rule main
+reason 1:13 in main: other unknown degree=0: an iteration of the repetition at 1:13 in rule main contains the repetition "a"* at 2:13 in rule rest and is not committing against what follows the repetition ("a" !rest)*
+# control Copy of a capture in a lookahead
+class unknown degree=0 witnessed=0 combinations=1
+memoized: w
+reason 2:40 in a: other unknown degree=0: text($x) + "!" at 2:40 in rule a copies a value that can hold a capture in a positive lookahead, which the input that the match consumes does not bound
+# control Copy of a lookahead capture that a rule returns
+class unknown degree=0 witnessed=0 combinations=1
+memoized: w
+reason 2:40 in a: other unknown degree=0: text($y) + "!" at 2:40 in rule a copies a value that can hold a capture in a positive lookahead, which the input that the match consumes does not bound
+# control Copy of the text of a lookahead capture that a rule returns
+class unknown degree=0 witnessed=0 combinations=1
+memoized: w
+reason 2:35 in a: other unknown degree=0: "!" + $y at 2:35 in rule a copies a value that can hold a capture in a positive lookahead, which the input that the match consumes does not bound
+# control Copies of lookahead captures in the elements of a map
+class unknown degree=0 witnessed=0 combinations=1
+memoized: w
+reason 2:55 in b: other unknown degree=0: text(e.$y) + "!" at 2:55 in rule b copies a value that can hold a capture in a positive lookahead, which the input that the match consumes does not bound
+# control Fold copying a capture from outside its lambda
+class unknown degree=0 witnessed=0 combinations=1
+memoized: 
+reason 2:69 in b: other unknown degree=0: text($x) + "!" at 2:69 in rule b copies, for each element, a value from outside its lambda that is not bounded by a constant
+# control Copy of an element of a list that map builds
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# control Copy of a member of the value of a recursive call
+class linear degree=0 witnessed=0 combinations=1
+memoized: e
+# control Copies of members of the elements of a list of recursive calls
+class linear degree=0 witnessed=0 combinations=1
+memoized: e
+# control Copies of members of the elements of a list of recursive calls for each element
+class unknown degree=0 witnessed=0 combinations=1
+memoized: e
+reason 2:54 in e: other unknown degree=0: map($zs, (q) => text(q.$y) + "!") at 2:54 in rule e copies, for each element, a value from outside its lambda that is not bounded by a constant
+# control Copies of the elements of a list that map builds from a capture
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: 
+cause 2:44 in b: self-growing value polynomial degree=2: the cost can grow as n^2: e + "!" at 2:44 in rule b copies elements whose sizes add up to more than the input
+# control Text of a capture in a lookahead, safe
+class linear degree=0 witnessed=0 combinations=1
+memoized: w
+# control E8 recovery skips
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# control E8 recovery skips of two characters
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# control E8 nested recovery skips
+class linear degree=0 witnessed=0 combinations=1
+memoized: s
+# control E8 recovery skips in alternating regions
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# control E6 right recursion, safe
+class linear degree=0 witnessed=0 combinations=1
+memoized: e
+# control E6 left recursion restarted
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: e
+cause 1:14 in main: regrowth polynomial degree=2: the cost can grow as n^2: after the alternative at 1:14 in rule main fails, the later alternative "x" at 1:22 in rule main can start again inside the input that the growth of the left-recursive rule e at a new position at 1:14 in rule main examined; this repeats in the repetition (e "q" / "x")* at 1:13 in rule main
+# control LR rebinding after the left call, growing value
+class linear given an environment bound degree=0 witnessed=0 combinations=1
+memoized: e
+env 3:17 in e: diverging binding linear given an environment bound degree=0: the binding s := s + s at 3:17 in rule e binds a value that the input determines
+env 3:24 in e: diverging binding linear given an environment bound degree=0: s + s at 3:24 in rule e copies the value of a variable
+env 3:36 in e: diverging binding linear given an environment bound degree=0: len(s) at 3:36 in rule e copies the value of a variable
+# control LR rebinding after the left call, counter
+class linear given an environment bound degree=0 witnessed=0 combinations=1
+memoized: e
+env 3:17 in e: diverging binding linear given an environment bound degree=0: the binding k := k + 1 at 3:17 in rule e binds a value that the input determines
+# control E10 Operators Rule restarted
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: 
+cause 2:21 in e: regrowth polynomial degree=2: the cost can grow as n^2: after the alternative at 1:14 in rule main fails, the later alternative "x" at 1:22 in rule main can start again inside the input that the operators that the Operators Rule applies at 2:21 in rule e examined; this repeats in the repetition (e "q" / "x")* at 1:13 in rule main
+# control Operators Rule skip shared with the follow, safe
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# control Operators Rule skip shared, restarted
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: 
+cause 2:21 in e: regrowth polynomial degree=2: the cost can grow as n^2: after the alternative at 1:14 in rule main fails, the later alternative ws "x" at 1:22 in rule main can start again inside the input that the operators that the Operators Rule applies at 2:21 in rule e examined; this repeats in the repetition (e "q" / ws "x")* at 1:13 in rule main
+# control Operators Rule skip that must consume input, optional
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: 
+cause 3:10 in e: other polynomial degree=2: the cost can grow as n^2: after the operator part at 5:21 in rule e fails, what follows the Operators Rule can start again inside the input that the skip expression " "+ at 3:10 in rule e examined; this repeats in the repetition (e "(")* at 1:13 in rule main
+# control Scan shared by the alternatives of nested rules
+class linear degree=0 witnessed=0 combinations=1
+memoized: a
+# control Memoized scan shared through the end of a recursion
+class linear degree=0 witnessed=0 combinations=1
+memoized: e ws
+# control Scan shared through the end of a recursion
+class linear degree=0 witnessed=0 combinations=1
+memoized: e
+# control Scan shared through the ends of rules around a recursion
+class linear degree=0 witnessed=0 combinations=1
+memoized: e
+# control Scan shared after a literal through the end of a recursion
+class linear degree=0 witnessed=0 combinations=1
+memoized: e
+# control Scan shared after a memoized call through the end of a recursion
+class linear degree=0 witnessed=0 combinations=1
+memoized: e m
+# control Memoized scan shared after a literal through the end of a recursion
+class linear degree=0 witnessed=0 combinations=1
+memoized: e ws
+# control Scan restarted at the end of nested alternatives
+class linear degree=0 witnessed=0 combinations=1
+memoized: e
+# control Scan of a rule that calls a rule restarted at the end of nested alternatives
+class unknown degree=0 witnessed=0 combinations=1
+memoized: e
+reason 2:15 in e: other unknown degree=0: the alternative at 2:15 in rule e is not committing against the later alternative e at 2:25 in rule e, and units that are not committing are nested in it without bound through a recursion of rule calls
+# control Scan restarted through a looked-through call
+class linear degree=0 witnessed=0 combinations=1
+memoized: m
+# control Scan restarted by a later operand
+class unknown degree=0 witnessed=0 combinations=1
+memoized: e
+reason 3:13 in e: other unknown degree=0: the operand at 3:13 in rule e is not committing against the later operand "(" e at 4:13 in rule e, and units that are not committing are nested in it without bound through a recursion of rule calls
+# control Scan restarted by the next operator application
+class unknown degree=0 witnessed=0 combinations=1
+memoized: 
+reason 4:21 in e: other unknown degree=0: the operator part at 4:21 in rule e contains the repetition [\[]* at 7:10 in rule R and is not committing against the operator part "[" at 5:17 in rule e
+# control Scan after the seed of nested growths
+class linear degree=0 witnessed=0 combinations=1
+memoized: e
+# control Operators Rule skip shared by nested prefix operators
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# control Operators Rule part shared by nested right operands
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# control Operators Rule part shared by nested operands
+class linear degree=0 witnessed=0 combinations=1
+memoized: x
+# control Operators Rule part shared by operands nested through a rule
+class linear degree=0 witnessed=0 combinations=1
+memoized: x
+# control Operators Rule parts shared by operands of two nested Operators Rules
+class linear degree=0 witnessed=0 combinations=1
+memoized: x
+# control Operators Rule part shared by operator parts that nest
+class unknown degree=0 witnessed=2 combinations=1
+memoized: x
+cause 7:11 in ws: restarted repetition polynomial degree=2: the cost can grow as n^2: after the operator part at 5:21 in rule x fails, what follows the Operators Rule can start again inside the input that the repetition [ ]* at 7:11 in rule ws examined; this repeats in the recursion of rule x
+reason 4:21 in x: other unknown degree=0: the operator part at 4:21 in rule x is not committing against what follows the Operators Rule, and units that are not committing are nested in it without bound through a recursion of rule calls
+# control Operators Rule memoized part shared by nested operands
+class linear degree=0 witnessed=0 combinations=1
+memoized: ws x
+# control Operators Rule memoized skip shared by nested prefix operators
+class linear degree=0 witnessed=0 combinations=1
+memoized: ws
+# control Operators Rule skip after nested prefix operators that no operator follows
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# control Operators Rule infix part retried by nested right operands and prefix operators
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# control Operators Rule postfix part retried by nested right operands
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# control Operators Rule postfix part that scans, retried by nested right operands
+class unknown degree=0 witnessed=0 combinations=1
+memoized: 
+reason 4:27 in e: other unknown degree=0: the operator part at 4:27 in rule e is not committing against the operator parts that the enclosing operator parts of e try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 5:23 in e: other unknown degree=0: the operator part at 5:23 in rule e contains the repetition "ab"* at 5:27 in rule e and is not committing against the operator parts that the enclosing operator parts of e try again
+# control Operators Rule call part retried by nested prefix operators
+class unknown degree=0 witnessed=2 combinations=1
+memoized: expr
+cause 35:48 in args: restarted repetition polynomial degree=2: the cost can grow as n^2: after the operator part at 31:17 in rule expr fails, the operator parts that the enclosing operator parts of expr try again evaluate the repetition (-ws "," x:level(expr, assignment))* at 35:48 in rule args again at each level; this repeats in the recursion of rule expr
+reason 20:30 in expr: other unknown degree=0: the operator part at 20:30 in rule expr is not committing against the operator parts that the enclosing operator parts of expr try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 21:36 in expr: other unknown degree=0: the operator part at 21:36 in rule expr is not committing against the operator part "==" / "!=" at 23:33 in rule expr, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 22:37 in expr: other unknown degree=0: the operator part at 22:37 in rule expr is not committing against the operator parts that the enclosing operator parts of expr try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 23:33 in expr: other unknown degree=0: the operator part at 23:33 in rule expr is not committing against the operator parts that the enclosing operator parts of expr try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 24:33 in expr: other unknown degree=0: the operator part at 24:33 in rule expr is not committing against the operator parts that the enclosing operator parts of expr try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 25:39 in expr: other unknown degree=0: the operator part at 25:39 in rule expr is not committing against the operator part "**" at 27:31 in rule expr, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 27:31 in expr: other unknown degree=0: the operator part at 27:31 in rule expr is not committing against the operator parts that the enclosing operator parts of expr try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 29:17 in expr: other unknown degree=0: the operator part at 29:17 in rule expr is not committing against the operator parts that the enclosing operator parts of expr try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 30:17 in expr: other unknown degree=0: the operator part at 30:17 in rule expr is not committing against the operator parts that the enclosing operator parts of expr try again, and units that are not committing are nested in it without bound through a recursion of rule calls
+# control Operators Rule part shared by left operands
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# control Keyword excluded by a negative lookahead, safe
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# control Keyword lookahead reading a variable
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: 
+cause 3:13 in s: restarted repetition polynomial degree=2: the cost can grow as n^2: after the alternative at 3:10 in rule s fails, the later alternative id at 3:34 in rule s can start again inside the input that the repetition (" " / "let")* at 3:13 in rule s examined; this repeats in the repetition (s / " ")* at 2:13 in rule main
+# control Keyword lookahead with a nested lookahead
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: 
+cause 2:13 in s: restarted repetition polynomial degree=2: the cost can grow as n^2: after the alternative at 2:10 in rule s fails, the later alternative id at 2:34 in rule s can start again inside the input that the repetition (" " / "let")* at 2:13 in rule s examined; this repeats in the repetition (s / " ")* at 1:13 in rule main
+# control Keyword lookahead under a level restriction
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: 
+cause 2:13 in s: restarted repetition polynomial degree=2: the cost can grow as n^2: after the alternative at 2:10 in rule s fails, the later alternative id at 2:34 in rule s can start again inside the input that the repetition (" " / "let")* at 2:13 in rule s examined; this repeats in the repetition (s / " ")* at 1:13 in rule main
+cause 7:23 in ops: regrowth polynomial degree=2: the cost can grow as n^2: after the lookahead at 5:11 in rule id fails, what follows the lookahead !key can start again inside the input that the operators that the Operators Rule applies at 7:23 in rule ops examined; this repeats in the repetition (s / " ")* at 1:13 in rule main
+# control Keyword lookahead with a shorter earlier keyword
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: 
+cause 2:13 in s: restarted repetition polynomial degree=2: the cost can grow as n^2: after the alternative at 2:10 in rule s fails, the later alternative id at 2:34 in rule s can start again inside the input that the repetition (" " / "let")* at 2:13 in rule s examined; this repeats in the repetition (s / " ")* at 1:13 in rule main
+# control Keyword lookahead with a wider character set
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: 
+cause 2:13 in s: restarted repetition polynomial degree=2: the cost can grow as n^2: after the alternative at 2:10 in rule s fails, the later alternative id at 2:27 in rule s can start again inside the input that the repetition [a-z ]* at 2:13 in rule s examined; this repeats in the repetition (s / " ")* at 1:13 in rule main
+# control Operator part excluded by the text it consumes, safe
+class linear degree=0 witnessed=0 combinations=1
+memoized: e
+# control Literal excluded by the text it shares, safe
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# control Literal lookahead that the text does not match
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: 
+cause 2:15 in s: restarted repetition polynomial degree=2: the cost can grow as n^2: after the alternative at 2:10 in rule s fails, the later alternative "=" !"y" "=" at 2:34 in rule s can start again inside the input that the repetition (" " / "=")* at 2:15 in rule s examined; this repeats in the repetition (s / " ")* at 1:13 in rule main
+# control Literal lookahead longer than the text
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: 
+cause 2:15 in s: restarted repetition polynomial degree=2: the cost can grow as n^2: after the alternative at 2:10 in rule s fails, the later alternative "=" !"==" "=" at 2:34 in rule s can start again inside the input that the repetition (" " / "=")* at 2:15 in rule s examined; this repeats in the repetition (s / " ")* at 1:13 in rule main
+# control Literal longer than the text
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: 
+cause 2:16 in s: restarted repetition polynomial degree=2: the cost can grow as n^2: after the alternative at 2:10 in rule s fails, the later alternative "lett" [a-z]* at 2:30 in rule s can start again inside the input that the repetition [a-z ]* at 2:16 in rule s examined; this repeats in the repetition (s / " ")* at 1:13 in rule main
+# control E2 cycle members behind a leader, safe
+class linear degree=0 witnessed=0 combinations=1
+memoized: c
+# control E2 non-leader cycle members
+class linear degree=0 witnessed=0 combinations=1
+memoized: a
+# control E2 cycle member called outside its growth
+class linear degree=0 witnessed=0 combinations=1
+memoized: a s
+# control E3 environments, safe
+class linear given an environment bound degree=0 witnessed=0 combinations=3
+memoized: r
+env 3:69 in r: diverging binding linear given an environment bound degree=0: len(v) at 3:69 in rule r copies the value of a variable
+# control E3 diverging environments
+class exponential degree=0 witnessed=0 combinations=1
+memoized: r
+cause 3:15 in r: diverging binding exponential degree=0: the cost can grow exponentially: the binding v := v + "0" at 3:15 in rule r reads the earlier value of v, and the call r at 3:29 in rule r evaluates the binding again with the value it binds
+cause 3:46 in r: diverging binding exponential degree=0: the cost can grow exponentially: the binding v := v + "1" at 3:46 in rule r reads the earlier value of v, and the call r at 3:60 in rule r evaluates the binding again with the value it binds
+env 3:15 in r: diverging binding linear given an environment bound degree=0: the binding v := v + "0" at 3:15 in rule r binds a value that the input determines
+env 3:22 in r: diverging binding linear given an environment bound degree=0: v + "0" at 3:22 in rule r copies the value of a variable
+env 3:46 in r: diverging binding linear given an environment bound degree=0: the binding v := v + "1" at 3:46 in rule r binds a value that the input determines
+env 3:53 in r: diverging binding linear given an environment bound degree=0: v + "1" at 3:53 in rule r copies the value of a variable
+env 3:77 in r: diverging binding linear given an environment bound degree=0: len(v) at 3:77 in rule r copies the value of a variable
+# control E4 self-growing variable
+class exponential degree=0 witnessed=0 combinations=1
+memoized: r
+cause 3:15 in r: self-growing value exponential degree=0: the cost can grow exponentially: the binding s := s + s at 3:15 in rule r reads the earlier value of s, and the call r at 3:27 in rule r evaluates the binding again with the value it binds
+env 3:15 in r: diverging binding linear given an environment bound degree=0: the binding s := s + s at 3:15 in rule r binds a value that the input determines
+env 3:22 in r: diverging binding linear given an environment bound degree=0: s + s at 3:22 in rule r copies the value of a variable
+env 3:32 in r: diverging binding linear given an environment bound degree=0: len(s) at 3:32 in rule r copies the value of a variable
+growing 3:15 in r: s = s := s + s
+# control E4 self-growing variable in a repetition inside a negative lookahead
+class exponential degree=0 witnessed=0 combinations=1
+memoized: 
+cause 2:21 in main: self-growing value exponential degree=0: the cost can grow exponentially: the binding s := s + s at 2:21 in rule main reads the earlier value of s, and the repetition around it evaluates the binding again with the value it binds
+env 2:21 in main: diverging binding linear given an environment bound degree=0: the binding s := s + s at 2:21 in rule main binds a value that the input determines
+env 2:28 in main: diverging binding linear given an environment bound degree=0: s + s at 2:28 in rule main copies the value of a variable
+env 2:36 in main: diverging binding linear given an environment bound degree=0: len(s) at 2:36 in rule main copies the value of a variable
+# control E5 self-growing fold
+class exponential degree=0 witnessed=0 combinations=1
+memoized: 
+cause 1:24 in main: self-growing value exponential degree=0: the cost can grow exponentially: len(foldl("a", $xs, (acc, x) => acc +... at 1:24 in rule main copies the fold accumulator acc 2 times
+cause 1:28 in main: self-growing value exponential degree=0: the cost can grow exponentially: the value of the lambda of foldl("a", $xs, (acc, x) => acc + acc) at 1:28 in rule main can hold its accumulator acc more than once, which can double it on each step
+cause 1:60 in main: self-growing value exponential degree=0: the cost can grow exponentially: acc + acc at 1:60 in rule main copies the fold accumulator acc 2 times
+# control Memoized scan restarted by a repetition
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: a
+cause 2:10 in a: restarted repetition polynomial degree=2: the cost can grow as n^2: after the alternative at 1:14 in rule main fails, the later alternative . at 1:30 in rule main can start again inside the input that the repetition x+ at 2:10 in rule a examined; this repeats in the repetition (a "y" / "q" a / .)* at 1:13 in rule main
+# control Memoized scan restarted through a memoized recursion
+class unknown degree=0 witnessed=0 combinations=1
+memoized: a t
+reason 2:10 in t: other unknown degree=0: the alternative at 2:10 in rule t is not committing against the later alternative . t at 2:20 in rule t, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 2:20 in t: other unknown degree=0: the alternative at 2:20 in rule t is not committing against the later alternative "" at 2:26 in rule t, and units that are not committing are nested in it without bound through a recursion of rule calls
+# control Growing unit restarted by the next step
+class unknown degree=0 witnessed=0 combinations=1
+memoized: a
+reason 2:10 in a: other unknown degree=0: the alternative at 2:10 in rule a is not committing against the later growing alternative a sp at 2:27 in rule a, and units that are not committing are nested in it without bound through a recursion of rule calls
+# control Growing unit restarted by the next step through a member
+class unknown degree=0 witnessed=0 combinations=1
+memoized: a
+reason 2:10 in a: other unknown degree=0: the alternative at 2:10 in rule a is not committing against the later growing alternative c sp at 2:27 in rule a, and units that are not committing are nested in it without bound through a recursion of rule calls
+# control Growing unit restarted by the next step after a shared literal
+class unknown degree=0 witnessed=0 combinations=1
+memoized: a
+reason 2:10 in a: other unknown degree=0: the alternative at 2:10 in rule a is not committing against the later growing alternative c "+" at 2:28 in rule a, and units that are not committing are nested in it without bound through a recursion of rule calls
+# control Growing unit restarted after a growth that a member starts
+class unknown degree=0 witnessed=0 combinations=1
+memoized: main
+reason 1:13 in main: other unknown degree=0: a step of the growth of main at 1:13 in rule main can fail after the repetition [^!]* at 1:19 in rule main and is not committing against what follows the call c at 1:35 in rule main
+reason 1:13 in main: other unknown degree=0: the alternative at 1:13 in rule main is not committing against what follows the call c at 1:35 in rule main, and units that are not committing are nested in it without bound through a recursion of rule calls
+# control Growing unit restarted after a growth that a member starts, to the end
+class unknown degree=0 witnessed=0 combinations=1
+memoized: a
+reason 2:10 in a: other unknown degree=0: a step of the growth of a at 2:10 in rule a can fail after the repetition [^!]* at 2:16 in rule a and is not committing against what follows the call c at 2:32 in rule a
+reason 2:10 in a: other unknown degree=0: the alternative at 2:10 in rule a is not committing against what follows the call c at 2:32 in rule a, and units that are not committing are nested in it without bound through a recursion of rule calls
+# control Growth restarting a scan at a fixed position
+class unknown degree=0 witnessed=2 combinations=1
+memoized: c
+cause 2:14 in c: restarted repetition polynomial degree=2: the cost can grow as n^2: after the alternative at 2:10 in rule c fails, the later alternative a at 2:27 in rule c can start again inside the input that the repetition [a-z]* at 2:14 in rule c examined; this repeats in the recursion of rule c
+reason 2:27 in c: other unknown degree=0: the alternative at 2:27 in rule c is not committing against the later alternative "(" [a-z]* "?" at 2:31 in rule c, and units that are not committing are nested in it without bound through a recursion of rule calls
+# control Start rule called from its own body inside a bounded repetition
+class linear degree=0 witnessed=0 combinations=1
+memoized: main t
+# control Start rule on a cycle of rules called from one place
+class linear degree=0 witnessed=0 combinations=1
+memoized: main t
+# control Scan restarted inside a rule called from one place
+class unknown degree=0 witnessed=2 combinations=1
+memoized: c
+cause 3:10 in b: restarted repetition polynomial degree=2: the cost can grow as n^2: after the alternative at 2:14 in rule main fails, the later alternative "(" at 2:27 in rule main can start again inside the input that the repetition ("(" c ")!" / "(")* at 3:10 in rule b examined; this repeats in the repetition ("(" b ")!" / "(")+ at 2:13 in rule main
+reason 2:13 in main: other unknown degree=0: an iteration of the repetition at 2:13 in rule main contains the repetition ("(" c ")!" / "(")* at 3:10 in rule b and is not committing against what follows the repetition ("(" b ")!" / "(")+
+# control Scan restarted from two callers
+class unknown degree=0 witnessed=2 combinations=1
+memoized: b c
+cause 3:10 in b: restarted repetition polynomial degree=2: the cost can grow as n^2: after the alternative at 2:14 in rule main fails, the later alternative "(" at 2:40 in rule main can start again inside the input that the repetition ("(" c ")!" / "(")* at 3:10 in rule b examined; this repeats in the repetition ("(" b ")!" / "(" b ")?" / "(")+ at 2:13 in rule main
+reason 2:13 in main: other unknown degree=0: an iteration of the repetition at 2:13 in rule main contains the repetition ("(" c ")!" / "(")* at 3:10 in rule b and is not committing against what follows the repetition ("(" b ")!" / "(" b ")?" / "(")+
+# control Memoized call shared after a literal
+class linear degree=0 witnessed=0 combinations=1
+memoized: x y
+# control Tail copied along a right recursion
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: i r s
+cause 2:31 in s: self-growing value polynomial degree=2: the cost can grow as n^2: concat(list("q"), $t) at 2:31 in rule s copies $t, which holds a call on a recursion with rule s
+cause 4:34 in m: self-growing value polynomial degree=2: the cost can grow as n^2: concat(list($e), $t) at 4:34 in rule m copies $t, which holds a call on a recursion with rule m
+# control Fold over a bounded list
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# control Bounded map copying a value from outside
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# control Bounded elements inside a map that is not bounded
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# control Bounded fold inside a map that is not bounded
+class unknown degree=0 witnessed=0 combinations=1
+memoized: 
+reason 1:99 in main: other unknown degree=0: acc + text($a) at 1:99 in rule main copies, for each element, a value from outside its lambda that is not bounded by a constant
+# control Fold duplicating and joining elements
+class exponential degree=0 witnessed=0 combinations=1
+memoized: 
+cause 1:30 in main: self-growing value exponential degree=0: the cost can grow exponentially: the value of the lambda of foldl(list(text($a)), $b, (acc, y) =>... at 1:30 in rule main can hold its accumulator acc more than once, which can double it on each step
+cause 1:82 in main: self-growing value polynomial degree=2: the cost can grow as n^2: map(acc, (e) => list(e, e)) at 1:82 in rule main copies the fold accumulator acc
+cause 1:121 in main: self-growing value polynomial degree=2: the cost can grow as n^2: concat(s, l) at 1:121 in rule main copies the fold accumulator acc
+reason 1:68 in main: other unknown degree=0: the steps of foldl(list(), map(acc, (e) => list(e,... at 1:68 in rule main build values from a value whose size the classifier does not bound
+reason 1:121 in main: other unknown degree=0: concat(s, l) at 1:121 in rule main copies, for each element, a value whose size the classifier does not bound
+# control Fold padding and joining elements
+class exponential degree=0 witnessed=0 combinations=1
+memoized: 
+cause 1:30 in main: self-growing value exponential degree=0: the cost can grow exponentially: the value of the lambda of foldl(list(text($a)), $b, (acc, y) =>... at 1:30 in rule main can hold its accumulator acc more than once, which can double it on each step
+cause 1:82 in main: self-growing value polynomial degree=2: the cost can grow as n^2: map(acc, (e) => list(e, "x")) at 1:82 in rule main copies the fold accumulator acc
+cause 1:123 in main: self-growing value polynomial degree=2: the cost can grow as n^2: concat(s, l) at 1:123 in rule main copies the fold accumulator acc
+reason 1:68 in main: other unknown degree=0: the steps of foldl(list(), map(acc, (e) => list(e,... at 1:68 in rule main build values from a value whose size the classifier does not bound
+reason 1:123 in main: other unknown degree=0: concat(s, l) at 1:123 in rule main copies, for each element, a value whose size the classifier does not bound
+# control Fold joining elements once
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: 
+cause 1:82 in main: self-growing value polynomial degree=2: the cost can grow as n^2: map(acc, (e) => list(e)) at 1:82 in rule main copies the fold accumulator acc
+cause 1:118 in main: self-growing value polynomial degree=2: the cost can grow as n^2: concat(s, l) at 1:118 in rule main copies elements whose sizes add up to more than the input
+cause 1:118 in main: self-growing value polynomial degree=2: the cost can grow as n^2: concat(s, l) at 1:118 in rule main copies the fold accumulator acc
+# control Fold adding an outside value
+class unknown degree=0 witnessed=3 combinations=1
+memoized: 
+cause 1:37 in main: self-growing value polynomial degree=3: the cost can grow as n^3: the steps of foldl(text($a), $b, (acc, y) => acc +... at 1:37 in rule main build values that grow with the steps, the input and its accumulator acc
+cause 1:73 in main: self-growing value polynomial degree=2: the cost can grow as n^2: acc + text($c) at 1:73 in rule main copies the fold accumulator acc
+reason 1:73 in main: other unknown degree=0: acc + text($c) at 1:73 in rule main copies, for each element, a value from outside its lambda that is not bounded by a constant
+# control Fold measuring its first element for every element
+class polynomial degree=3 witnessed=0 combinations=1
+memoized: 
+cause 1:30 in main: self-growing value polynomial degree=3: the cost can grow as n^3: the steps of foldl(concat(list(text($a)), map($a, ... at 1:30 in rule main build values that grow with the steps, the input and its accumulator acc
+cause 1:101 in main: self-growing value polynomial degree=2: the cost can grow as n^2: filter(acc, (e) => len(acc[0]) > 0) at 1:101 in rule main copies the fold accumulator acc
+cause 1:120 in main: self-growing value polynomial degree=2: the cost can grow as n^2: len(acc[0]) at 1:120 in rule main copies the fold accumulator acc
+# control Fold inside a map over the same list
+class polynomial degree=3 witnessed=0 combinations=1
+memoized: 
+cause 1:64 in main: self-growing value polynomial degree=2: the cost can grow as n^2: s + text(l) at 1:64 in rule main copies elements whose sizes add up to more than the input
+cause 1:64 in main: self-growing value polynomial degree=3: the cost can grow as n^3: s + text(l) at 1:64 in rule main copies the fold accumulator s
+# control Fold over a capture in a lookahead of each element
+class unknown degree=0 witnessed=3 combinations=1
+memoized: 
+cause 1:77 in main: self-growing value polynomial degree=2: the cost can grow as n^2: s + text(l) at 1:77 in rule main copies elements whose sizes add up to more than the input
+cause 1:77 in main: self-growing value polynomial degree=3: the cost can grow as n^3: s + text(l) at 1:77 in rule main copies the fold accumulator s
+cause 2:17 in item: lookahead scan polynomial degree=2: the cost can grow as n^2: after the lookahead at 2:13 in rule item fails, what follows the lookahead &c:"x"* can start again inside the input that the repetition "x"* at 2:17 in rule item examined; this repeats in the repetition item* at 1:19 in rule main
+reason 1:77 in main: other unknown degree=0: s + text(l) at 1:77 in rule main copies a value that can hold a capture in a positive lookahead, which the input that the match consumes does not bound
+# control Fold extending every element
+class polynomial degree=3 witnessed=0 combinations=1
+memoized: 
+cause 1:30 in main: self-growing value polynomial degree=3: the cost can grow as n^3: the steps of foldl(map($a, (z) => text(z)), $b, (a... at 1:30 in rule main build values that grow with the steps, the input and its accumulator acc
+cause 1:77 in main: self-growing value polynomial degree=2: the cost can grow as n^2: map(acc, (e) => e + "x") at 1:77 in rule main copies the fold accumulator acc
+cause 1:95 in main: self-growing value polynomial degree=2: the cost can grow as n^2: e + "x" at 1:95 in rule main copies the fold accumulator acc
+cause 1:95 in main: self-growing value polynomial degree=3: the cost can grow as n^3: e + "x" at 1:95 in rule main copies elements whose sizes add up to more than the input
+# control Fold adding a quadratic value of a rule
+class unknown degree=0 witnessed=4 combinations=1
+memoized: 
+cause 1:28 in main: self-growing value polynomial degree=4: the cost can grow as n^4: the steps of foldl("", $b, (acc, y) => acc + $c) at 1:28 in rule main build values that grow with the steps, the input and its accumulator acc
+cause 1:58 in main: self-growing value polynomial degree=2: the cost can grow as n^2: acc + $c at 1:58 in rule main copies the fold accumulator acc
+cause 2:21 in sq: self-growing value polynomial degree=3: the cost can grow as n^3: the steps of foldl("", $a, (s, z) => s + text($a)) at 2:21 in rule sq build values that grow with the steps, the input and its accumulator s
+cause 2:47 in sq: self-growing value polynomial degree=2: the cost can grow as n^2: s + text($a) at 2:47 in rule sq copies the fold accumulator s
+reason 1:58 in main: other unknown degree=0: acc + $c at 1:58 in rule main copies, for each element, a value from outside its lambda that is not bounded by a constant
+reason 2:47 in sq: other unknown degree=0: s + text($a) at 2:47 in rule sq copies, for each element, a value from outside its lambda that is not bounded by a constant
+# control Map copying elements that add up to more than the input
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: 
+cause 1:62 in main: self-growing value polynomial degree=2: the cost can grow as n^2: y + "x" at 1:62 in rule main copies elements whose sizes add up to more than the input
+# control Fold from a quadratic initial value
+class polynomial degree=3 witnessed=0 combinations=1
+memoized: 
+cause 1:30 in main: self-growing value polynomial degree=3: the cost can grow as n^3: the steps of foldl(map($a, (z) => text($a)), $b, (... at 1:30 in rule main build values that grow with the steps, the input and its accumulator acc
+cause 1:78 in main: self-growing value polynomial degree=2: the cost can grow as n^2: filter(acc, (e) => len(e) > 0) at 1:78 in rule main copies the fold accumulator acc
+cause 1:97 in main: self-growing value polynomial degree=2: the cost can grow as n^2: len(e) at 1:97 in rule main copies the fold accumulator acc
+cause 1:97 in main: self-growing value polynomial degree=3: the cost can grow as n^3: len(e) at 1:97 in rule main copies elements whose sizes add up to more than the input
+# control Fold holding a recursive value twice
+class exponential degree=0 witnessed=0 combinations=1
+memoized: a e
+cause 2:95 in e: self-growing value polynomial degree=2: the cost can grow as n^2: acc + text(i.$o) + i.$r + i.$r at 2:95 in rule e copies the fold accumulator acc
+cause 2:95 in e: self-growing value exponential degree=0: the cost can grow exponentially: acc + text(i.$o) + i.$r + i.$r at 2:95 in rule e copies $r 2 times into the value of rule e, and $r holds a call on a recursion whose value holds the value of rule e, so the value can double on each level of the recursion
+reason 2:42 in e: other unknown degree=0: the steps of foldl($l, $rest, (acc, i) => acc + te... at 2:42 in rule e build values from a value whose size the classifier does not bound
+# control Fold holding twice a value that does not hold the recursion
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: a e
+cause 2:95 in e: self-growing value polynomial degree=2: the cost can grow as n^2: acc + text(i.$o) + i.$r + i.$r at 2:95 in rule e copies the fold accumulator acc
+# control Predicate copying a recursive value twice
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: l
+cause 2:31 in l: self-growing value polynomial degree=2: the cost can grow as n^2: len($x + $x) at 2:31 in the inline action in rule l copies $x, which holds a call on a recursion with the inline action in rule l 2 times
+cause 2:38 in l: self-growing value polynomial degree=2: the cost can grow as n^2: $x + $x at 2:38 in the inline action in rule l copies $x, which holds a call on a recursion with the inline action in rule l 2 times
+cause 2:56 in l: self-growing value polynomial degree=2: the cost can grow as n^2: $x + "y" at 2:56 in the inline action in rule l copies $x, which holds a call on a recursion with the inline action in rule l
+# control Map copying elements of their own text
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# control Bounded fold doubling an element it keeps
+class exponential degree=0 witnessed=0 combinations=1
+memoized: 
+cause 1:42 in main: self-growing value exponential degree=0: the cost can grow exponentially: the value of the lambda of foldl(list(text($a)), $b, (acc, y) =>... at 1:42 in rule main can hold its accumulator acc more than once, which can double it on each step
+cause 1:80 in main: self-growing value polynomial degree=2: the cost can grow as n^2: concat(list(acc[0] + acc[0]), acc) at 1:80 in rule main copies the fold accumulator acc
+cause 1:99 in main: self-growing value exponential degree=0: the cost can grow exponentially: acc[0] + acc[0] at 1:99 in rule main copies the fold accumulator acc 2 times
+# control Bounded fold building a doubled element
+class exponential degree=0 witnessed=0 combinations=1
+memoized: 
+cause 1:42 in main: self-growing value exponential degree=0: the cost can grow exponentially: the value of the lambda of foldl(list(text($a)), $b, (acc, y) =>... at 1:42 in rule main can hold its accumulator acc more than once, which can double it on each step
+cause 1:92 in main: self-growing value exponential degree=0: the cost can grow exponentially: acc[0] + acc[0] at 1:92 in rule main copies the fold accumulator acc 2 times
+# control Bounded fold doubling each element
+class exponential degree=0 witnessed=0 combinations=1
+memoized: 
+cause 1:42 in main: self-growing value exponential degree=0: the cost can grow exponentially: the value of the lambda of foldl(list(text($a)), $b, (acc, y) =>... at 1:42 in rule main can hold its accumulator acc more than once, which can double it on each step
+cause 1:80 in main: self-growing value polynomial degree=2: the cost can grow as n^2: map(acc, (e) => e + e) at 1:80 in rule main copies the fold accumulator acc
+cause 1:98 in main: self-growing value exponential degree=0: the cost can grow exponentially: e + e at 1:98 in rule main copies the fold accumulator acc 2 times
+reason 1:98 in main: other unknown degree=0: e + e at 1:98 in rule main copies, for each element, a value whose size the classifier does not bound
+# control Counter bound before a call after consumed input
+class exponential degree=0 witnessed=0 combinations=1
+memoized: r
+cause 3:15 in r: diverging binding exponential degree=0: the cost can grow exponentially: the binding v := v + 1 at 3:15 in rule r reads the earlier value of v, and the call r at 3:27 in rule r evaluates the binding again with the value it binds
+env 3:15 in r: diverging binding linear given an environment bound degree=0: the binding v := v + 1 at 3:15 in rule r binds a value that the input determines
+# control Counter guarded before a call after consumed input
+class linear degree=0 witnessed=0 combinations=4
+memoized: r
+# control Context flags set after a choice of values
+class linear degree=0 witnessed=0 combinations=8
+memoized: r
+# control Counter guarded after a call after consumed input
+class exponential degree=0 witnessed=0 combinations=1
+memoized: r
+cause 3:15 in r: diverging binding exponential degree=0: the cost can grow exponentially: the binding v := v + 1 at 3:15 in rule r reads the earlier value of v, and the call r at 3:27 in rule r evaluates the binding again with the value it binds
+env 3:15 in r: diverging binding linear given an environment bound degree=0: the binding v := v + 1 at 3:15 in rule r binds a value that the input determines
+# control Counter adding the length of a spliced tuple
+class exponential degree=0 witnessed=0 combinations=1
+memoized: r
+cause 3:29 in r: diverging binding exponential degree=0: the cost can grow exponentially: the binding v := v + len($x) / 3 at 3:29 in rule r reads the earlier value of v, and the call r at 3:51 in rule r evaluates the binding again with the value it binds
+env 3:29 in r: diverging binding linear given an environment bound degree=0: the binding v := v + len($x) / 3 at 3:29 in rule r binds a value that the input determines
+# control Counter adding a spliced tuple length below its step
+class linear degree=0 witnessed=0 combinations=1
+memoized: r
+# control Seven flag bits
+class linear degree=0 witnessed=0 combinations=128
+memoized: r
+# control Seven bound Booleans and an unbound one
+class linear degree=0 witnessed=0 combinations=128
+memoized: r
+# control Counter with 130 values
+class linear degree=0 witnessed=0 combinations=130
+memoized: r
+# control Two counters with 144 combinations
+class linear degree=0 witnessed=0 combinations=144
+memoized: r
+# control Counter guarded after its binding
+class linear degree=0 witnessed=0 combinations=130
+memoized: r
+# control Scanning lookahead of a later alternative
+class unknown degree=0 witnessed=0 combinations=1
+memoized: e
+reason 1:14 in main: other unknown degree=0: the alternative at 1:14 in rule main is not committing against the later alternative "a" at 1:18 in rule main, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 2:10 in e: other unknown degree=0: the alternative at 2:10 in rule e is not committing against the later alternative !s "b" at 2:22 in rule e, and units that are not committing are nested in it without bound through a recursion of rule calls
+# control Scanning first alternative of a later lookahead
+class unknown degree=0 witnessed=0 combinations=1
+memoized: e
+reason 1:14 in main: other unknown degree=0: the alternative at 1:14 in rule main is not committing against the later alternative "a" at 1:18 in rule main, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 2:10 in e: other unknown degree=0: the alternative at 2:10 in rule e is not committing against the later alternative !(s / "a") "b" at 2:22 in rule e, and units that are not committing are nested in it without bound through a recursion of rule calls
+# control Number tokens over one digit scan
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# control String tokens over one quoted scan
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# control Whitespace before two tokens
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# control Scan at the end of a nest
+class linear degree=0 witnessed=0 combinations=1
+memoized: e
+# control Scan whose alphabet holds its opener
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: 
+cause 2:14 in t: restarted repetition polynomial degree=2: the cost can grow as n^2: after the alternative at 2:10 in rule t fails, the later alternative "<" at 2:26 in rule t can start again inside the input that the repetition [^>]* at 2:14 in rule t examined; this repeats in the repetition t* at 1:13 in rule main
+# control Memoized scan that each position starts
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: t
+cause 3:10 in d: restarted repetition polynomial degree=2: the cost can grow as n^2: after the alternative at 1:14 in rule main fails, the later alternative . at 1:30 in rule main can start again inside the input that the repetition [0-9]+ at 3:10 in rule d examined; this repeats in the repetition (t "y" / t "z" / .)* at 1:13 in rule main
+# control Scan after a repetition that a cut stops
+class unknown degree=0 witnessed=2 combinations=1
+memoized: 
+cause 3:10 in s: restarted repetition polynomial degree=2: the cost can grow as n^2: after the option at 1:16 in rule main fails, what follows the option (s "z")? can start again inside the input that the repetition [a]+ at 3:10 in rule s examined; this repeats in the repetition (t (s "z")? "a")* at 1:13 in rule main
+reason 1:13 in main: other unknown degree=0: an iteration of the repetition at 1:13 in rule main contains the repetition [a]+ at 3:10 in rule s and is not committing against what follows the repetition (t (s "z")? "a")*
+# control Scan after a lookahead that a cut passes
+class unknown degree=0 witnessed=2 combinations=1
+memoized: 
+cause 2:10 in s: restarted repetition polynomial degree=2: the cost can grow as n^2: after the option at 1:36 in rule main fails, what follows the option (s "z")? can start again inside the input that the repetition [a]+ at 2:10 in rule s examined; this repeats in the repetition (!("aa" #cut $$ / "a") (s "z")? "a")* at 1:13 in rule main
+reason 1:13 in main: other unknown degree=0: an iteration of the repetition at 1:13 in rule main contains the repetition [a]+ at 2:10 in rule s and is not committing against what follows the repetition (!("aa" #cut $$ / "a") (s "z")? "a")*
+# control Scan after a repetition of a rule with a cut
+class unknown degree=0 witnessed=2 combinations=1
+memoized: 
+cause 4:10 in s: restarted repetition polynomial degree=2: the cost can grow as n^2: after the option at 1:16 in rule main fails, what follows the option (s "z")? can start again inside the input that the repetition [a]+ at 4:10 in rule s examined; this repeats in the repetition (t (s "z")? "a")* at 1:13 in rule main
+reason 1:13 in main: other unknown degree=0: an iteration of the repetition at 1:13 in rule main contains the repetition [a]+ at 4:10 in rule s and is not committing against what follows the repetition (t (s "z")? "a")*
+# control Scan after a repetition of a left call
+class unknown degree=0 witnessed=2 combinations=1
+memoized: r
+cause 2:10 in r: regrowth polynomial degree=2: the cost can grow as n^2: the repetition t* at 2:10 in rule r is evaluated in each step of the growth of the left-recursive rule r, at the position where it grows
+cause 5:10 in s: regrowth polynomial degree=2: the cost can grow as n^2: the repetition [b]* at 5:10 in rule s is evaluated in each step of the growth of the left-recursive rule r, at the position where it grows
+reason 1:14 in main: other unknown degree=0: the alternative at 1:14 in rule main is not committing against the later alternative "b" at 1:18 in rule main, and units that are not committing are nested in it without bound through a recursion of rule calls
+reason 2:10 in r: other unknown degree=0: a step of the growth at 2:10 in rule r contains the repetition t* at 2:10 in rule r, and its body reaches left calls of its cycle through expressions that the classifier does not follow, which the classifier does not analyze
+reason 2:10 in r: other unknown degree=0: an iteration of the repetition at 2:10 in rule r contains the growth of the left-recursive rule t at a new position at 2:10 in rule r, and an iteration of the repetition begins with a left call, which the classifier does not analyze
+reason 2:10 in r: other unknown degree=0: the alternative at 2:10 in rule r is not committing against the later alternative "b" at 2:17 in rule r, and units that are not committing are nested in it without bound through a recursion of rule calls
+# control Dropped growth step that scans
+class unknown degree=0 witnessed=0 combinations=1
+memoized: S
+reason 2:10 in S: other unknown degree=0: a step of the growth of S at 2:10 in rule S can fail after the repetition [a-z]* at 3:20 in rule T and is not committing against what follows the call S at 1:14 in rule main
+# control Dropped growth step without a scan
+class linear degree=0 witnessed=0 combinations=1
+memoized: S
+# control Scan behind a recovery with many starts
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: 
+cause 2:11 in sp: restarted repetition polynomial degree=2: the cost can grow as n^2: after the alternative at 1:14 in rule main fails, the later alternative [ab] at 1:50 in rule main can start again inside the input that the repetition [ ]* at 2:11 in rule sp examined; this repeats in the repetition ("q" #recover(skip=[ab]+) sp "!" / [a... at 1:13 in rule main
+# control Scan behind an Operators Rule with many starts
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: 
+cause 2:21 in e: regrowth polynomial degree=2: the cost can grow as n^2: after the alternative at 1:14 in rule main fails, the later alternative [\-x] at 1:25 in rule main can start again inside the input that the operators that the Operators Rule applies at 2:21 in rule e examined; this repeats in the repetition (e sp "!" / [\-x])* at 1:13 in rule main
+# control Scan behind a prefix with many starts
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: 
+cause 3:11 in sp: restarted repetition polynomial degree=2: the cost can grow as n^2: after the alternative at 1:14 in rule main fails, the later alternative [ab] at 1:25 in rule main can start again inside the input that the repetition [ ]* at 3:11 in rule sp examined; this repeats in the repetition (w sp "!" / [ab])* at 1:13 in rule main
+# control Comments in blanks before a failed lookahead
+class linear degree=0 witnessed=0 combinations=1
+memoized: p ws
+# control Comments that are not closed after tokens
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: ws
+cause 4:15 in c: restarted repetition polynomial degree=2: the cost can grow as n^2: after an iteration of the repetition at 3:11 in rule ws fails, what follows the repetition (" " / c)* can start again inside the input that the repetition (!"*/" .)* at 4:15 in rule c examined; this repeats in the repetition (ws t)* at 1:13 in rule main
+# control Comments whose opener is a token
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: e ws
+cause 3:11 in ws: restarted repetition polynomial degree=2: the cost can grow as n^2: after the alternative at 2:15 in rule e fails, the later alternative "" at 2:24 in rule e can start again inside the input that the repetition [ ]* (c [ ]*)* at 3:11 in rule ws examined; this repeats in the recursion of rule e
+# control Rewrite: scan once, not per alternative
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# control Rewrite: check once after the scan
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# control Recovery skip walked in a called rule
+class polynomial degree=2 witnessed=0 combinations=1
+memoized: 
+cause 0:0 in x: recovery skip polynomial degree=2: the cost can grow as n^2: after the alternative at 1:14 in rule main fails, the later alternative "a" at 1:18 in rule main can start again inside the input that the skip expression s of #recover at rule x examined; this repeats in the repetition (x / "a")* at 1:13 in rule main
+# control Rewrite: call the left-recursive rule once
+class linear degree=0 witnessed=0 combinations=1
+memoized: e
+# control Rewrite: call the Operators Rule once
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
+# control Rewrite: carry the count in the value
+class linear degree=0 witnessed=0 combinations=1
+memoized: r
+# control Rewrite: fold a counter
+class linear degree=0 witnessed=0 combinations=1
+memoized: 
