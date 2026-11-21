@@ -18,6 +18,6 @@
 // A Replay answers the calls in the order of the trace: when the library differs at call k, the
 // harness stops at k and never reaches the calls after it.
 //
-// The operations whose case needs the full model of ctx.keep are pending the model of left-recursion
-// growth: Pending lists them, and the runner reports them as pending, not as passed.
+// A family may list operations whose cases the library does not run yet (Family.Pending): the runner
+// reports those cases as pending, not as passed. No family lists one now.
 package tsconformtest

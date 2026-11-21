@@ -525,8 +525,8 @@ var tsTarget = &Target{
 		case "memo.setPresent":
 			return fmt.Sprintf("%s.present |= %s.present", a[0], a[1])
 		case "ctx.keep":
-			return fmt.Sprintf("this.ctxKeep(%s, %s.id, %s, %s, %s, newCtxResult(%s, %s, %s, %s, %s, %s, this.examinedNow()))",
-				a[0], a[1], a[2], a[3], a[4], a[8], a[6], a[7], a[9], a[10], a[11])
+			return fmt.Sprintf("this.ctxKeep(%s, %s.id, %s, %s, %s, newCtxResult(%s, %s, %s, %s, %s, %s, %s, this.examinedNow()))",
+				a[0], a[1], a[2], a[3], a[4], a[8], a[5], a[6], a[7], a[9], a[10], a[11])
 		case "grow.begin":
 			return fmt.Sprintf("this.growBegin(%s, %s)", a[0], a[1])
 		case "grow.ctx":
@@ -538,7 +538,7 @@ var tsTarget = &Target{
 		case "grow.next":
 			return "this.growNext(" + a[0] + ")"
 		case "grow.step":
-			return fmt.Sprintf("this.growStep(%s, %s)", a[0], a[1])
+			return fmt.Sprintf("this.growStep(%s, %s, %s)", a[0], a[1], a[2])
 		case "grow.end":
 			return "this.growEnd(" + a[0] + ")"
 		}

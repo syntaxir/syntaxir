@@ -13,8 +13,8 @@ import (
 )
 
 // The dependency memo of left recursion and the growths of the conformance suite on the TypeScript
-// library. A case that calls ctx.keep is pending: the complete model of ctx.keep is not settled (#203),
-// so the runner counts it and does not run it on the library.
+// library, with the cases that keep a result: the library takes the success of a kept result from the
+// operation's ok, not from its value.
 
 func tsCtxSuite(controlled bool) conform.Suite {
 	s := conform.Suite{Name: fmt.Sprint("typescript ctx (controlled=", controlled, ")"), Ops: append(append([]string{}, tsconformtest.CtxOps...), budgetOps(controlled)...)}
@@ -49,14 +49,16 @@ func TestTypeScriptConformanceCtx(t *testing.T) {
 func TestTypeScriptConformanceCtxDetectsMutants(t *testing.T) {
 	mutanttest.SkipUnlessChanged(t, mutanttest.Pipeline...)
 	node := codegentest.RequireNode(t)
-	// Not here: the mutants that nothing but a kept result shows, such as a seed that keeps its identity
-	// when it is adopted and a lookup of the context that charges nothing for the dependencies it
-	// replays. A case that keeps a result calls ctx.keep, which is pending (#203).
+	// Not here: a lookup that replays no dependencies into the enclosing call. The cases do not keep a result
+	// whose lookup is inside another pushed call, so nothing shows it (checked: the suite does not notice it).
 	mutants := []tsMutant{
 		{name: "a result answers a call in any context", sig: "memoAllows(c: CtxCall", old: "(c.present & ~present) === 0", new: "true"},
 		{name: "a result that read a seed goes to the memo", sig: "ctxPop(c: CtxCall", old: "if (d.kind !== depShadow) {", new: "if (false) {"},
 		{name: "a leader reading its seed notes nothing", sig: "ctxEnter(c: CtxCall", old: "this.noteSeedRead(i);", new: ""},
 		{name: "a step of the same end is longer", sig: "growLonger(g: GrowState", old: "this.pos > best.end", new: "this.pos >= best.end"},
+		{name: "a kept result is stored without its dependencies", sig: "ctxKeep(c: CtxCall", old: "this.stored(this.popped)", new: "this.stored(noDeps)"},
+		{name: "a lookup answers for another rule", sig: "ctxLookup(c: CtxCall", old: "headKey(ctxCallKind, rule, min, c.present)", new: "headKey(ctxCallKind, 0, min, c.present)"},
+		{name: "an adopted seed keeps its identity", sig: "growAdopt(g: GrowState", old: "rec.id = this.nextSeedID();", new: ""},
 		{name: "an adopted seed does not return to the start", sig: "growAdopt(g: GrowState", old: "this.pos = g.start;", new: ""},
 		{name: "a growth begins without its unit", sig: "growBegin(r: Rule", old: "this.spend();", new: "", charges: true},
 		{name: "an adopted seed costs nothing", sig: "growAdopt(g: GrowState", old: "this.spend();", new: "", charges: true},
@@ -85,13 +87,13 @@ func TestTypeScriptConformanceCtxDetectsMutants(t *testing.T) {
 // the suite runs that code, so a change of it must fail.
 func TestTypeScriptConformanceCtxPrintedDetectsMutants(t *testing.T) {
 	mutanttest.SkipUnlessChanged(t, mutanttest.Pipeline...)
-	// Not here: a lookup of another rule, which only a kept result shows (ctx.keep is pending, #203),
-	// and an entry for a rule of no cycle, which no case tells from the entry that the library makes of
+	// Not here: an entry for a rule of no cycle, which no case tells from the entry that the library makes of
 	// it (checked: the suite does not notice it).
 	mutants := []tsPrintedMutant{
 		{name: "a call answers in any context", method: "op_ctx_allows", old: "memoAllows(p0, p1.present)", new: "true"},
 		{name: "a done does nothing", method: "op_ctx_done", old: "this.ctxDone(p0);", new: ""},
 		{name: "a push does nothing", method: "op_ctx_push", old: "this.ctxPush(p0);", new: ""},
+		{name: "a kept result takes its success from its value", method: "op_ctx_keep", old: "newCtxResult(p8, p5,", new: "newCtxResult(p8, p8 !== undefined,"},
 		{name: "an end is the success", method: "op_ctx_ok", old: "p0!.ok", new: "true"},
 		{name: "a growth begins in another state", method: "op_grow_begin", old: "this.growBegin(p0, p1)", new: "this.growBegin(p0, !p1)"},
 		{name: "a step of the same end is longer", method: "op_grow_longer", old: "this.growLonger(p0, p1)", new: "!this.growLonger(p0, p1)"},

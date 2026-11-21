@@ -372,7 +372,7 @@ class CtxM extends ExpM {
 
   // seed is the seed that a conformance operation installs.
   seed(ok: boolean, end: number): p.CtxResult {
-    return p.newCtxResult(ok ? (null as unknown as p.R) : undefined, end, false, p.noErrs, 0, p.noExp, end);
+    return p.newCtxResult(ok ? (null as unknown as p.R) : undefined, ok, end, false, p.noErrs, 0, p.noExp, end);
   }
 
   call(op: string, a: any[]): any[] {

@@ -8,16 +8,11 @@ import (
 // conform.CtxSuiteOps without the operations of a Document parse.
 var CtxOps = conform.CtxSuiteOps()
 
-// CtxPending are the operations whose cases wait for the complete model of ctx.keep (#203): the
-// runner does not run a case that calls one on the library; it counts it as pending.
-var CtxPending = []string{"ctx.keep"}
-
 // Ctx is the family of the dependency memo of left recursion and of the growths.
 func Ctx(controlled bool) Family {
 	return Family{
 		Name:       "ctx",
 		Controlled: controlled,
-		Pending:    CtxPending,
 		Record:     func(r *Recorder) conform.Impl { return ctxRecorder{expRecorder{execRecorder{r}}} },
 		Replay: func(p *Replay) conform.Impl {
 			if controlled {

@@ -2536,8 +2536,8 @@ export interface CtxResult {
   silent: boolean;
 }
 
-export function newCtxResult(node: R, end: number, silent: boolean, errs: Errs, far: number, expected: number[], examined: number): CtxResult {
-  return { node, errs, expected, end, far, examined, ok: node !== undefined, silent };
+export function newCtxResult(node: R, ok: boolean, end: number, silent: boolean, errs: Errs, far: number, expected: number[], examined: number): CtxResult {
+  return { node, errs, expected, end, far, examined, ok, silent };
 }
 
 // CtxCall is the context of a memoized call of a rule of a cycle (Parser.ctxEnter): the index in
@@ -4114,7 +4114,7 @@ export class Parser {
           break;
         }
         const v = this.invoke(r, min);
-        this.growStep(g, v);
+        this.growStep(g, v, v !== undefined);
       }
     } else {
       {
@@ -4720,7 +4720,7 @@ export class Parser {
     const gp = this.gammaAt(start, r.cycle);
     const g: GrowState = { rule: r.id, min, start, rec: this.recovered.length, gi, gp, ctx: false, present: 0, done: false, savedExamined: 0, exp: 0, run: [] };
     this.alloc(objectBytes(7) + objectBytes(8));
-    this.gamma.push({ rule: r.id, min, pos: start, cycle: r.cycle, bit: r.leaderBit, idx: r.leaderIndex, seed: newCtxResult(undefined, start, false, noErrs, 0, noExp, this.examinedNow()), id: failSeed });
+    this.gamma.push({ rule: r.id, min, pos: start, cycle: r.cycle, bit: r.leaderBit, idx: r.leaderIndex, seed: newCtxResult(undefined, false, start, false, noErrs, 0, noExp, this.examinedNow()), id: failSeed });
     if (gp < gi) {
       // The present set of the steps includes the leader's own growth.
       g.present = this.presentOf(gp);
@@ -4788,15 +4788,14 @@ export class Parser {
     const rec = this.gamma[g.gi]!;
     this.spend();
     this.alloc(objectBytes(8));
-    rec.seed = newCtxResult(v, this.pos, false, errs, 0, noExp, this.examinedNow());
+    rec.seed = newCtxResult(v, true, this.pos, false, errs, 0, noExp, this.examinedNow());
     rec.id = this.nextSeedID();
     this.pos = g.start;
   }
 
   // growStep receives the result of a step of a growth in a context and adopts it as the seed if the
   // match grew.
-  growStep(g: GrowState, v: R): void {
-    const ok = v !== undefined;
+  growStep(g: GrowState, v: R, ok: boolean): void {
     const id = this.gamma[g.gi]!.id;
     const ds = this.popFrame().deps;
     const far = this.unisolate(g.exp);
@@ -4807,7 +4806,7 @@ export class Parser {
       this.docExamined = Math.max(g.savedExamined, this.docExamined);
     }
     this.alloc(objectBytes(8));
-    let res = newCtxResult(v, ok ? this.pos : g.start, this.silent > 0, ok ? this.recSince(g.rec) : noErrs, 0, noExp, examined);
+    let res = newCtxResult(v, ok, ok ? this.pos : g.start, this.silent > 0, ok ? this.recSince(g.rec) : noErrs, 0, noExp, examined);
     const c = this.canonicalSeed(g, res);
     res = c.e;
     const sd = this.stored(ds);
