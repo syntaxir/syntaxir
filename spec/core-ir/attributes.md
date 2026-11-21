@@ -51,6 +51,8 @@ first terminals and the effects are computed, since both depend on those policie
 | Fact | Meaning |
 |:--|:--|
 | Nullable, NullableIns | Those of the rule's body |
+| NullableAtEnd | The rule can succeed without consuming input when the input is at its end (below) |
+| CanMatch | The rule can succeed at all (below) |
 | Rec | The rule is on a cycle of calls: a component of the call graph with several rules, or a rule that calls itself. Calls in lookaheads, recovery skips and Operators Rule lines count |
 | Succeeds | The rule is off every left-recursion cycle and its body always succeeds (below) |
 | Left calls | The rules the body may call before it consumes input (below) |
@@ -62,6 +64,18 @@ first terminals and the effects are computed, since both depend on those policie
 | Variables | The variables that the action expressions of the rule or of a rule it calls read |
 | Memo, Transient | Every rule but a leader may be memoized. Ordinary parses do not memoize a transient rule: one that calls no rule, or that is called at fewer than two places, unless it is a start rule on a cycle of rules that are each called at one place, which a parse can enter without a call. Incremental parses memoize it |
 | Missing | The rule has a `Missing` node, or a rule it calls is Missing |
+
+`NullableAtEnd` is the least fixed point over the rules of the nullability of the body at the end of the input: a node
+can succeed there without consuming input. The end of the input is the position after the last character. An end-of-input
+anchor `$$` succeeds only there; `.`, a character class and a nonempty literal fail there; a positive lookahead succeeds
+there if its body can succeed there without consuming input, and a negative one if its body does not certainly succeed
+there. A call takes the fact of its rule, and the other nodes that can succeed without consuming input at any position
+(an option, a predicate, a cut, `Succeed`, a beginning-of-input or line anchor) do so at the end too, and the nodes that
+contain a sequence, choice, repetition, operators rule or wrapper take the same rule as elsewhere.
+
+`CanMatch` is the least fixed point over the rules of whether the body can succeed at all. A `FailNode` cannot. A negative
+lookahead can unless its body always succeeds. A `Missing` literal and a `Recover` can, since their error recovery
+succeeds. A call takes the fact of its rule, and every other node can unless its parts cannot.
 
 A node always succeeds when it cannot fail at any position, given the rules proven to succeed: an empty literal,
 `Succeed` and `Cut` do; a call does if its rule does; a sequence if every item does; a choice if an alternative does and

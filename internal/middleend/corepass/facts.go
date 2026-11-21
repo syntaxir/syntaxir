@@ -31,6 +31,9 @@ type Rule struct {
 	// Nullable reports that the rule can succeed without consuming input when no token is
 	// inserted; NullableIns, when token insertion is enabled.
 	Nullable, NullableIns bool
+	// NullableAtEnd reports that the rule can succeed without consuming input when the input is at
+	// its end (see nullableAt in end.go). CanMatch reports that the rule can succeed at all.
+	NullableAtEnd, CanMatch bool
 	// Succeeds reports a rule that is proven never to fail: one off every left-recursion cycle
 	// whose body always succeeds.
 	Succeeds bool
@@ -85,6 +88,8 @@ func Compute(m *core.Module, control *cancel.Control) *Facts {
 		at := m.Rules[id].Body.Attrs()
 		c.rules[id].Nullable, c.rules[id].NullableIns = at.Nullable, at.NullableIns
 	}
+	c.nullableEnd()
+	c.canMatch()
 	c.leftRecursion(true)
 	c.leftRecursion(false)
 	c.positional()

@@ -14,6 +14,13 @@ import (
 // not failures.
 func (f *Facts) Succeeds(n core.Node) bool { return f.c.alwaysSucceeds(n) }
 
+// NullableAtEnd reports that n can succeed without consuming input when the input is at its end
+// (see Rule.NullableAtEnd).
+func (f *Facts) NullableAtEnd(n core.Node) bool { return f.c.nullableAt(n, true) }
+
+// MayMatch reports that n can succeed (see Rule.CanMatch).
+func (f *Facts) MayMatch(n core.Node) bool { return f.c.mayMatch(n) }
+
 // Fails reports a proof that n cannot succeed.
 func (f *Facts) Fails(n core.Node) bool { return f.c.alwaysFails(n) }
 
