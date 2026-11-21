@@ -3,6 +3,7 @@ package state
 import (
 	"fmt"
 	"math/rand/v2"
+	"maps"
 	"reflect"
 	"slices"
 	"strings"
@@ -68,6 +69,9 @@ func newOprMachine(cfg ref.Config) conform.Impl {
 		if r.Skip {
 			trivia := make([]ref.OprExpr, len(r.Trivia))
 			for k, e := range r.Trivia {
+				if len(e.Captures) > 0 {
+					panic("engine binding: the trivia of an Operators Rule sets no captures")
+				}
 				trivia[k].Eval = e
 			}
 			or.Skip = m.scripted(trivia)
@@ -75,7 +79,10 @@ func newOprMachine(cfg ref.Config) conform.Impl {
 		m.oprRules = append(m.oprRules, &Rule{OperatorsRule: or})
 	}
 	m.zeroMark = &markBox{}
-	m.binder = conform.Binder{Methods: confOprBindings(m.p), Conv: oprConv{m}}
+	// The frame operations that the cases call run through the engine's frame bindings.
+	methods := confOprBindings(m.p)
+	maps.Copy(methods, confFrameBindings(m.p))
+	m.binder = conform.Binder{Methods: methods, Conv: oprConv{m}}
 	return m
 }
 
@@ -89,8 +96,8 @@ func (m *oprMachine) scripted(script []ref.OprExpr) Matcher {
 			e = script[min(evals, len(script)-1)]
 		}
 		evals++
-		if len(e.Captures) > 0 || len(e.Missing) > 0 || e.Touch > 0 {
-			panic("engine binding: the scripts of the Operators Rules set no captures, insert no tokens and examine no input")
+		if len(e.Missing) > 0 || e.Touch > 0 {
+			panic("engine binding: the scripts of the Operators Rules insert no tokens and examine no input")
 		}
 		start := p.Pos
 		if e.Charge > 0 {
@@ -98,6 +105,10 @@ func (m *oprMachine) scripted(script []ref.OprExpr) Matcher {
 		}
 		for _, id := range e.Errs {
 			m.engineMachine.Call(oprOps.Op("rec.push"), []any{m.Err(id)})
+		}
+		// A capture of the line is a write to a slot of the current frame, as the grammar code's is.
+		for _, k := range e.Captures {
+			m.binder.Call(oprOps.Op("frame.set"), []any{k, nodes.Ptr(nodes.Data{Fresh: true})})
 		}
 		if e.Cut {
 			p.Cut = true
@@ -136,7 +147,14 @@ func (m *oprMachine) Handle(name string) any {
 }
 
 func (m *oprMachine) Call(o *code.Op, args []any) []any {
-	if strings.HasPrefix(o.Name, "opr") {
+	if o.Name == ref.FrameSlotOp {
+		// An empty slot is the null value, which has one identity.
+		if v := args[0].(*Frame).Vals[args[1].(int64)]; v != nil {
+			return []any{v}
+		}
+		return []any{nil}
+	}
+	if strings.HasPrefix(o.Name, "opr") || strings.HasPrefix(o.Name, "frame.") {
 		if pos, ok := m.regs[exec.Pos].(int64); ok {
 			m.p.Pos = int(pos)
 		}

@@ -76,8 +76,15 @@ var OprOps = slices.Concat(OprDescriptorOps, OprMatchOps, OprRecordOps)
 // the environments they pass: the implementation provides them besides OprOps.
 var OprSupportOps = []string{"rec.push", "rec.since", "env.bind", "env.scope"}
 
-// OprSuiteOps returns OprOps and OprSupportOps, the operations a suite of the family provides.
-func OprSuiteOps() []string { return append(slices.Clone(OprOps), OprSupportOps...) }
+// OprFrameOps are the operations of the capture frames that the cases of OprMatchOps call: a line
+// sets its captures in the current frame, and a case opens and uses frames, reads their slots and
+// undoes their writes.
+var OprFrameOps = []string{"frame.open", "frame.use", "frame.current", "frame.slots", "frame.mark", "frame.markTrail",
+	"frame.undo", ref.FrameSlotOp}
+
+// OprSuiteOps returns OprOps, OprSupportOps and OprFrameOps, the operations a suite of the family
+// provides.
+func OprSuiteOps() []string { return slices.Concat(OprOps, OprSupportOps, OprFrameOps) }
 
 // OprModule returns the declarations of Module with the operations that make the handles of the
 // cases of the Operators Rule family.
@@ -93,6 +100,11 @@ func OprModule() *code.Module {
 	for rec, h := range oprRecordHandle {
 		test(OprRecordOp(rec), h)
 	}
+	m.AddOp(&code.Op{Name: ref.FrameSlotOp, Component: exec.Frames, Reads: []string{exec.Frames},
+		Params:   []code.Param{code.P("f", code.THandle(exec.Frame)), code.P("slot", code.TInt)},
+		Results:  []code.Type{code.THandle(exec.Value)},
+		Contract: `Returns the value in the slot of f, the null value for an empty slot.`,
+		Requires: `slot is a slot of f.`})
 	return m
 }
 
@@ -107,14 +119,20 @@ func OprConfig() ref.Config {
 	x := func(ok bool, n int64, cut bool, errs ...int64) ref.OprExpr {
 		return ref.OprExpr{Eval: ref.Eval{OK: ok, Len: n, Errs: errs}, Cut: cut}
 	}
+	// captures is an evaluation that sets the captures of the slots.
+	captures := func(ok bool, n int64, slots ...int64) ref.OprExpr {
+		return ref.OprExpr{Eval: ref.Eval{OK: ok, Len: n, Captures: slots}}
+	}
 	return ref.Config{
 		Vars: []int64{1, 2, 3},
 		Oprs: []ref.OprRule{
 			{Prefix: []ref.OprOp{op("prefix", "left", 9, 1, x(true, 2, false)), op("prefix", "left", 8, 0)},
 				Led: []ref.OprOp{op("infix", "left", 1, 0, x(true, 1, false), x(false, 2, true), x(true, 3, true, 6), x(false, 0, false)),
-					op("infix", "left", 2, 2), op("infix", "right", 3, 1, x(true, 0, true)),
+					op("infix", "left", 2, 2, captures(true, 1, 0, 1), captures(false, 2, 1), captures(true, 1)),
+					op("infix", "right", 3, 1, x(true, 0, true)),
 					op("postfix", "left", 4, 0, x(false, 1, false, 7), x(true, 4, false)), op("infix", "none", 5, 3)},
-				Operands: []ref.OprLineSpec{{Scope: 0, Expr: []ref.OprExpr{x(true, 3, false), x(false, 1, true)}}, {Scope: 2}}, Skip: true,
+				Operands: []ref.OprLineSpec{{Scope: 0, Expr: []ref.OprExpr{x(true, 3, false), x(false, 1, true)}},
+					{Scope: 2, Expr: []ref.OprExpr{captures(true, 2, 1)}}}, Skip: true,
 				Trivia: []ref.Eval{{OK: true, Len: 2}, {OK: false, Len: 1}, {OK: true}, {OK: true, Len: 1, Errs: []int64{9}}}},
 			{Led: []ref.OprOp{op("infix", "right", 1, 0), op("postfix", "none", 2, 1)}, Operands: []ref.OprLineSpec{{Scope: 1}}},
 			{},
@@ -268,7 +286,7 @@ func OprCases() []Case {
 		b.Assert(code.Not(b.LetN([]string{"v9", "ok9"}, code.C("opr.match", ol))[1]), "and then fails")
 		b.Assert(code.R(exec.Cut), "after a cut")
 		b.SetReg(exec.Pos, i(3))
-		ol1 := code.C("opr.operand", r, i(1))
+		ol1 := code.C("opr.operand", rule(1), i(0))
 		b.Assert(code.Not(b.LetN([]string{"v10", "ok10"}, code.C("opr.match", ol1))[1]), "a line without a script fails")
 		o2 := b.Let("o2", code.C("opr.at", led, i(2)))
 		b.SetReg(exec.Pos, i(8))
@@ -276,6 +294,35 @@ func OprCases() []Case {
 		a := b.Let("a", code.C("opr.attempt", o2, code.C(OprFrameOp), v, i(8), code.R(exec.Cut), code.C("rec.since", i(0))))
 		b.Assert(eq(code.C("opr.end", a), i(8)), "a match of an empty line ends where it started")
 		b.Assert(code.C("opr.cut", a), "with its cut")
+	})
+	add("opr_match_captures", func(b *code.Builder) {
+		r := b.Let("r", rule(0))
+		l1 := b.Let("l1", code.C("opr.line", code.C("opr.at", code.C("opr.led", r), i(1))))
+		ol := b.Let("ol", code.C("opr.operand", r, i(1)))
+		f := b.Let("f", code.C("frame.open", code.C("opr.scope", l1)))
+		b.Do("frame.use", f)
+		b.SetReg(exec.Pos, i(2))
+		m := b.Let("m", code.C("frame.mark"))
+		b.Assert(b.LetN([]string{"v1", "ok1"}, code.C("opr.match", l1))[1], "a line that captures matches")
+		c0 := b.Let("c0", code.C(ref.FrameSlotOp, f, i(0)))
+		c1 := b.Let("c1", code.C(ref.FrameSlotOp, f, i(1)))
+		b.Assert(code.Not(eq(c0, c1)), "each capture is a value of its own")
+		b.Assert(code.Not(b.LetN([]string{"v2", "ok2"}, code.C("opr.match", l1))[1]), "a failure that captures")
+		b.Assert(code.Not(eq(code.C(ref.FrameSlotOp, f, i(1)), c1)), "sets the slot again")
+		b.Assert(eq(code.C(ref.FrameSlotOp, f, i(0)), c0), "and leaves the other")
+		b.Do("frame.undo", code.C("frame.markTrail", m))
+		b.Let("e0", code.C(ref.FrameSlotOp, f, i(0)))
+		b.Let("e1", code.C(ref.FrameSlotOp, f, i(1)))
+		b.SetReg(exec.Pos, i(2))
+		b.Assert(b.LetN([]string{"v3", "ok3"}, code.C("opr.match", l1))[1], "a match that captures nothing")
+		e2 := b.Let("e2", code.C(ref.FrameSlotOp, f, i(1)))
+		g := b.Let("g", code.C("frame.open", code.C("opr.scope", ol)))
+		b.Do("frame.use", g)
+		b.SetReg(exec.Pos, i(4))
+		b.Assert(b.LetN([]string{"v4", "ok4"}, code.C("opr.match", ol))[1], "an operand line captures")
+		b.Assert(eq(code.R(exec.Pos), i(6)), "and moves the position")
+		b.Let("d1", code.C(ref.FrameSlotOp, g, i(1)))
+		b.Assert(eq(code.C(ref.FrameSlotOp, f, i(1)), e2), "into the current frame only")
 	})
 	add("opr_flags", func(b *code.Builder) {
 		b.Do("opr.setCutFailed", code.BoolC(true))
@@ -415,6 +462,14 @@ func RandomOpr(name string, rng *rand.Rand, opNames []string, n int, cfg ref.Con
 				call(OprRecordOp(rec), nil, nil)
 			}
 		}
+		// A frame for the captures of the lines, as wide as the widest line, whose slots the case reads
+		// after each match.
+		var captures oprEntry
+		if slices.Contains(opNames, "opr.match") {
+			call("frame.open", []any{int64(3)}, []code.Expr{code.Int(3)})
+			captures = pool[exec.Frame][len(pool[exec.Frame])-1]
+			call("frame.use", []any{captures.h}, []code.Expr{captures.expr})
+		}
 		for k := range 2 {
 			e := rng.Int64N(20)
 			call("rec.push", []any{&ref.Err{ID: e}}, []code.Expr{code.C(ErrOp, code.Int(e))})
@@ -480,6 +535,11 @@ func RandomOpr(name string, rng *rand.Rand, opNames []string, n int, cfg ref.Con
 				b.SetReg(exec.Cut, code.BoolC(cut))
 			}
 			call(o.Name, args, exprs)
+			if o.Name == "opr.match" {
+				for k := range int64(3) {
+					call(ref.FrameSlotOp, []any{captures.h, k}, []code.Expr{captures.expr, code.Int(k)})
+				}
+			}
 		}
 	})
 	return Case{Module: m, Func: f, Config: cfg}

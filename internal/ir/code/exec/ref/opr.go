@@ -32,7 +32,9 @@ type OprLineSpec struct {
 
 // OprExpr is what one evaluation of the expression of a line does: what an evaluation of a body does
 // (Eval), and whether the expression passes a cut, which sets the cut register whether or not it
-// matches. A line that matches makes a value no other evaluation made.
+// matches. The captures it sets are slots of the current frame, each set as frame.set sets it, to a
+// value no other evaluation made, after the errors and before the position moves. A line that matches
+// makes a value no other evaluation made.
 type OprExpr struct {
 	Eval
 	Cut bool
@@ -44,7 +46,7 @@ type OprRule struct {
 	// Operands are the operand lines.
 	Operands []OprLineSpec
 	// Skip is whether the rule skips trivia between its operands and operators, and Trivia the script
-	// of its trivia expression (opr.skip), which leaves the cut register as it is.
+	// of its trivia expression (opr.skip), which leaves the cut register as it is and sets no captures.
 	Skip   bool
 	Trivia []Eval
 }
@@ -178,7 +180,16 @@ func (m *Model) allowsOpr(o *code.Op, args []any) bool {
 	case "opr.skip":
 		return m.oprRuleOK(args[0]) && m.cfg.Oprs[args[0].(RuleRef).Index].Skip
 	case "opr.match":
-		return args[0] != nil
+		// The captures of the next evaluation are slots of the current frame.
+		l := args[0].(*OprLine)
+		e := scriptAt(l.script, l.evals)
+		cur := m.frm.current
+		for _, k := range e.Captures {
+			if !liveFrame(cur) || k < 0 || k >= int64(len(cur.vals)) {
+				return false
+			}
+		}
+		return l != nil
 	case "opr.operand":
 		return m.oprRuleOK(args[0]) && args[1].(int64) >= 0 && args[1].(int64) < int64(len(m.cfg.Oprs[args[0].(RuleRef).Index].Operands))
 	case "opr.at":
@@ -273,13 +284,18 @@ func (m *Model) callOpr(o *code.Op, args []any) ([]any, bool) {
 		r := m.oprRule(i)
 		e := scriptAt(m.cfg.Oprs[i].Trivia, r.trivia)
 		r.trivia++
-		m.perform(e, m.regs["pos"].(int64))
+		m.perform(e, m.regs["pos"].(int64), nil)
 		return []any{e.OK}, true
 	case "opr.match":
 		l := args[0].(*OprLine)
 		e := scriptAt(l.script, l.evals)
 		l.evals++
-		m.perform(e.Eval, m.regs["pos"].(int64))
+		start := m.regs["pos"].(int64)
+		m.perform(e.Eval, start, func() {
+			for _, k := range e.Captures {
+				m.frameSet(k, &Opaque{kind: "a capture"})
+			}
+		})
 		if e.Cut {
 			m.regs[exec.Cut] = true
 		}

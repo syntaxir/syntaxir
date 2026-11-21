@@ -45,6 +45,7 @@ interface OprExprSpec {
   len: number;
   charge: number;
   errs?: number[];
+  captures?: number[] | null;
   cut?: boolean;
 }
 interface EvalSpec {
@@ -587,6 +588,8 @@ class OprM extends Exec {
       const start = P.pos;
       if (e.charge > 0 && this.ctl !== null) this.ctl.charge(e.charge);
       for (const id of e.errs ?? []) P.recovered.push(err(id));
+      // A capture of the line is a write to a slot of the current frame, as the grammar code's is.
+      for (const c of e.captures ?? []) this.call("frame.set", [c, new p.Node(p.typeTupleValue, "", 0, 0, "", [], p.noFields, false, false)]);
       if (e.cut) P.cut = true;
       P.pos = start + e.len;
       if (!e.ok) return undefined;
@@ -605,6 +608,7 @@ class OprM extends Exec {
 
   call(op: string, a: any[]): any[] {
     if (op === "test.frame" || op === "test.mark") return [{}];
+    if (op === "test.slot") return [(a[0] as p.Frame)[a[1]] ?? null];
     return super.call(op, a);
   }
 }

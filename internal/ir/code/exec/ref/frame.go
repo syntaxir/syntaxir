@@ -95,6 +95,14 @@ func (m *Model) allowsFrame(o *code.Op, args []any) bool {
 	return true
 }
 
+// frameSet sets the slot of the current frame to v and records the write in the trail.
+func (m *Model) frameSet(slot int64, v any) {
+	s := &m.frm
+	s.savedOf = nil
+	s.trail = append(s.trail, frameUndo{f: s.current, slot: slot, old: s.current.vals[slot]})
+	s.current.vals[slot] = v
+}
+
 // callFrame runs a frame operation, and reports false for any other.
 func (m *Model) callFrame(o *code.Op, args []any) ([]any, bool) {
 	s := &m.frm
@@ -139,10 +147,7 @@ func (m *Model) callFrame(o *code.Op, args []any) ([]any, bool) {
 		}
 		return []any{&Frame{vals: make([]any, n)}}, true
 	case "frame.set":
-		s.savedOf = nil
-		slot := args[0].(int64)
-		s.trail = append(s.trail, frameUndo{f: s.current, slot: slot, old: s.current.vals[slot]})
-		s.current.vals[slot] = args[1]
+		m.frameSet(args[0].(int64), args[1])
 		return nil, true
 	case "frame.close":
 		s.savedOf = nil

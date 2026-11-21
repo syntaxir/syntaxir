@@ -194,7 +194,7 @@ func (m *Model) evaluate(index, level int64, count bool) (any, bool) {
 			panic(code.Interrupt{Reason: "nesting"})
 		}
 	}
-	m.perform(e, start)
+	m.perform(e, start, nil)
 	if rec {
 		m.depth--
 	}
@@ -205,9 +205,10 @@ func (m *Model) evaluate(index, level int64, count bool) (any, bool) {
 }
 
 // perform does what the evaluation e that starts at start does, after the nesting level of its rule:
-// it charges, records errors, inserts missing tokens, extends the examined input and moves the
-// position. The model does not keep captures; an implementation's frame does.
-func (m *Model) perform(e Eval, start int64) {
+// it charges, records errors, inserts missing tokens, extends the examined input, sets the captures
+// with capture, if it is not nil, and moves the position. Without capture the model does not keep the
+// captures: the frame of a rule's body is the implementation's own.
+func (m *Model) perform(e Eval, start int64, capture func()) {
 	// The suite adds what the implementation charged to the model's units after the call.
 	if m.Exceeds(e.Charge) {
 		panic(code.Interrupt{Reason: "limit"})
@@ -222,6 +223,9 @@ func (m *Model) perform(e Eval, start int64) {
 	}
 	if e.Touch > 0 && m.cfg.Document {
 		m.doc.examined = max(m.doc.examined, start+e.Touch)
+	}
+	if capture != nil {
+		capture()
 	}
 	m.regs["pos"] = start + e.Len
 }

@@ -107,6 +107,12 @@ func OprMatchBrokenOps() []OprBroken {
 		call("opr.match", a...)
 		return call("opr.match", a...)
 	})
+	add("opr.match drops its captures", "opr.match", func(call func(string, ...any) []any, a []any) []any {
+		n := call("frame.markTrail", call("frame.mark")[0])[0]
+		r := call("opr.match", a...)
+		call("frame.undo", n)
+		return r
+	})
 	add("opr.match makes no value", "opr.match", func(call func(string, ...any) []any, a []any) []any {
 		return []any{nil, call("opr.match", a...)[1]}
 	})

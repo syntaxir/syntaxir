@@ -84,11 +84,12 @@ type OprLine struct {
 
 // OprExpr is one evaluation of the grammar code of an Operators Rule (ref.OprExpr).
 type OprExpr struct {
-	OK     bool    `json:"ok"`
-	Len    int64   `json:"len"`
-	Charge uint64  `json:"charge"`
-	Errs   []int64 `json:"errs"`
-	Cut    bool    `json:"cut"`
+	OK       bool    `json:"ok"`
+	Len      int64   `json:"len"`
+	Charge   uint64  `json:"charge"`
+	Errs     []int64 `json:"errs"`
+	Captures []int64 `json:"captures"`
+	Cut      bool    `json:"cut"`
 }
 
 // OprRule is an Operators Rule: its operators, its operand lines, whether it skips trivia and the script of its
@@ -101,13 +102,13 @@ type OprRule struct {
 	Trivia   []OprExpr `json:"trivia"`
 }
 
-// scriptEntry returns the evaluation e as the bindings read it. They run neither captures nor missing tokens
-// nor Documents, so a script that has any is not one the bindings can run.
+// scriptEntry returns the evaluation e as the bindings read it. They run neither missing tokens nor Documents,
+// so a script that has any is not one the bindings can run.
 func scriptEntry(e ref.Eval, cut bool) OprExpr {
-	if len(e.Captures) > 0 || len(e.Missing) > 0 || e.Touch > 0 {
-		panic("tsconformtest: the scripts of the Operators Rules set no captures, insert no tokens and examine no input")
+	if len(e.Missing) > 0 || e.Touch > 0 {
+		panic("tsconformtest: the scripts of the Operators Rules insert no tokens and examine no input")
 	}
-	return OprExpr{OK: e.OK, Len: e.Len, Charge: e.Charge, Errs: e.Errs, Cut: cut}
+	return OprExpr{OK: e.OK, Len: e.Len, Charge: e.Charge, Errs: e.Errs, Captures: e.Captures, Cut: cut}
 }
 
 func oprLine(s ref.OprLineSpec) OprLine {
@@ -133,6 +134,9 @@ func oprRules(rs []ref.OprRule) []OprRule {
 			rule.Operands = append(rule.Operands, oprLine(s))
 		}
 		for _, e := range r.Trivia {
+			if len(e.Captures) > 0 {
+				panic("tsconformtest: the trivia of an Operators Rule sets no captures")
+			}
 			rule.Trivia = append(rule.Trivia, scriptEntry(e, false))
 		}
 		out = append(out, rule)

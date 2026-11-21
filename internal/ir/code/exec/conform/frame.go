@@ -44,14 +44,10 @@ func FrameSuiteOps(missing bool) []string {
 	return slices.DeleteFunc(all, func(n string) bool { return slices.Contains(FrameMissingOps, n) })
 }
 
-// FrameModule returns the declarations of OprModule with the conformance operations of the family.
+// FrameModule returns the declarations of OprModule, which has ref.FrameSlotOp, with the other
+// conformance operation of the family.
 func FrameModule() *code.Module {
 	m := OprModule()
-	m.AddOp(&code.Op{Name: ref.FrameSlotOp, Component: exec.Frames, Reads: []string{exec.Frames},
-		Params:   []code.Param{code.P("f", code.THandle(exec.Frame)), code.P("slot", code.TInt)},
-		Results:  []code.Type{code.THandle(exec.Value)},
-		Contract: `Returns the value in the slot of f, the null value for an empty slot.`,
-		Requires: `slot is a slot of f.`})
 	m.AddOp(&code.Op{Name: ref.FrameMissingOp, Component: exec.Rec, Writes: []string{exec.Rec},
 		Params:   []code.Param{code.P("n", code.TInt)},
 		Contract: `Makes n the mark of the missing-token record, as if it held n inserted tokens.`,
