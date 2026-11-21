@@ -1,0 +1,392 @@
+package vmlower
+
+import (
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
+	flowpkg "syntaxir.dev/sxir/internal/ir/code/flow"
+	ir "syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/pkg/bytecode"
+)
+
+// The selection of the instructions of a Flow function is a table of local patterns over its
+// Flow-stage operations (patterns). A pattern of one operation selects the instruction of that
+// operation wherever the operation is called. A pattern of a sequence of statements, a
+// superinstruction, selects one instruction for operations that test a match and leave a block when
+// it fails: the match code fused the same tests into its instructions, and a Flow body that spells
+// them out runs one dispatch for each.
+//
+// The table is applied in a fixed order: at each statement of a block, in order, the patterns of
+// statements that match it are compared, and the one that covers the most operations wins, then the
+// one that saves the most instructions, then the one declared first. A statement that no such pattern
+// matches is selected by its kind, and the operations it calls by their patterns of one operation.
+// The selection counts the matches of each pattern (Counts).
+
+// pattern is an entry of the selection table: a pattern of one operation (Op), or of a sequence of
+// statements (Stmts).
+type pattern struct {
+	Name string
+	// Op is the operation of a pattern of one operation, and Sel selects its instruction for the call
+	// c, with the results in dst (nil for none).
+	Op  string
+	Sel func(s *flowSel, c *code.Call, dst []int) error
+	// Stmts matches the statements at the start of list: it returns the number of statements it
+	// covers, 0 if it does not match, and the function that emits their instruction.
+	Stmts func(s *flowSel, list []code.Stmt) (n int, emit func() error)
+	// Ops is the number of Flow operations a pattern of statements covers, and Saved the number of
+	// instructions it saves over selecting them one by one.
+	Ops, Saved int
+}
+
+// PatternCount is the number of matches of a pattern of the selection table in a module.
+type PatternCount struct {
+	Pattern string
+	Matches int
+}
+
+// statementPatterns are the superinstructions, in the order that breaks ties.
+var statementPatterns = []pattern{
+	{Name: "matchClass", Ops: 3, Saved: 11, Stmts: matchClass},
+	{Name: "guardJump", Ops: 2, Saved: 3, Stmts: guardJump},
+	{Name: "guardLitJump", Ops: 2, Saved: 3, Stmts: guardLitJump},
+	{Name: "assertJump", Ops: 2, Saved: 3, Stmts: assertJump},
+	{Name: "matchLitJump", Ops: 1, Saved: 1, Stmts: func(s *flowSel, list []code.Stmt) (int, func() error) {
+		return testedJump(s, list, flowpkg.OpMatchLit, bytecode.FlowMatchLitJump, func(c *code.Call) (any, error) { return s.litOf(c.Imm.(*ir.Lit)), nil })
+	}},
+	{Name: "callJump", Ops: 1, Saved: 1, Stmts: func(s *flowSel, list []code.Stmt) (int, func() error) {
+		return testedJump(s, list, flowpkg.OpCallRule, bytecode.FlowCallJump, func(c *code.Call) (any, error) { return s.ruleCallOf(c) })
+	}},
+}
+
+// jumpOf returns the label that the jump statement st leaves to, and whether it continues the loop
+// of the label rather than leaving it; ok is false if st is no jump.
+func jumpOf(st code.Stmt) (label string, cont, ok bool) {
+	switch x := st.(type) {
+	case *code.Exit:
+		return x.Label, false, true
+	case *code.Break:
+		return x.Label, false, true
+	case *code.Continue:
+		return x.Label, true, true
+	}
+	return "", false, false
+}
+
+// onlyJump returns the jump that the block b consists of: one jump statement, and no label.
+func onlyJump(b *code.Block) (label string, cont, ok bool) {
+	if b == nil || b.Label != "" || len(b.Stmts) != 1 {
+		return "", false, false
+	}
+	return jumpOf(b.Stmts[0])
+}
+
+// expectJump returns the expectation of the block b that records an expectation at the position
+// and then jumps: `flow.expect(E, $pos); exit L`.
+func expectJump(b *code.Block) (exp *code.Call, label string, cont, ok bool) {
+	if b == nil || b.Label != "" || len(b.Stmts) != 2 {
+		return nil, "", false, false
+	}
+	do, isDo := b.Stmts[0].(*code.Do)
+	if !isDo || do.Call.Callee != flowpkg.OpExpect || len(do.Call.Args) != 1 || !isReg(do.Call.Args[0], prim.Pos) {
+		return nil, "", false, false
+	}
+	label, cont, ok = jumpOf(b.Stmts[1])
+	return do.Call, label, cont, ok
+}
+
+func isReg(e code.Expr, name string) bool {
+	r, ok := e.(*code.Reg)
+	return ok && r.Name == name
+}
+
+// isLocal reports whether e reads the local name.
+func isLocal(e code.Expr, name string) bool {
+	l, ok := e.(*code.Local)
+	return ok && l.Name == name
+}
+
+// not returns the operand of the negation e, or nil if e is none.
+func not(e code.Expr) code.Expr {
+	if u, ok := e.(*code.Unary); ok && u.Op == "!" {
+		return u.X
+	}
+	return nil
+}
+
+// callOf returns the call of the operation op that e is, or nil.
+func callOf(e code.Expr, op string) *code.Call {
+	if c, ok := e.(*code.Call); ok && c.Callee == op {
+		return c
+	}
+	return nil
+}
+
+// place returns the register of the place p of a local or of a discarded value (-1), and false for a
+// register place.
+func (s *flowSel) place(p code.Place) (int, bool) {
+	switch {
+	case p.Reg:
+		return 0, false
+	case p.Name == "":
+		return -1, true
+	}
+	r, ok := s.regs[p.Name]
+	return r, ok
+}
+
+// matchClass matches the test of one character of a class:
+//
+//	ch, size, ok = flow.peek()
+//	if !ok || !flow.inClass(C, ch) { flow.expect(E, $pos); exit L }
+func matchClass(s *flowSel, list []code.Stmt) (int, func() error) {
+	if len(list) < 2 {
+		return 0, nil
+	}
+	peek, ok := list[0].(*code.Set)
+	if !ok || len(peek.Dst) != 3 || len(peek.Values) != 1 || callOf(peek.Values[0], flowpkg.OpPeek) == nil {
+		return 0, nil
+	}
+	test, ok := list[1].(*code.If)
+	if !ok || test.Init != nil || test.Else != nil {
+		return 0, nil
+	}
+	or, ok := test.Cond.(*code.Binary)
+	if !ok || or.Op != "||" || !isLocal(not(or.X), peek.Dst[2].Name) {
+		return 0, nil
+	}
+	in := callOf(not(or.Y), flowpkg.OpInClass)
+	if in == nil || len(in.Args) != 1 || !isLocal(in.Args[0], peek.Dst[0].Name) || peek.Dst[0].Name == "" || peek.Dst[2].Name == "" {
+		return 0, nil
+	}
+	exp, label, cont, ok := expectJump(test.Then)
+	if !ok {
+		return 0, nil
+	}
+	dst := make([]int, 3)
+	for i, p := range peek.Dst {
+		if dst[i], ok = s.place(p); !ok {
+			return 0, nil
+		}
+	}
+	return 2, func() error {
+		imm := bytecode.FlowClassTestOf{Class: int(s.c.class(in.Imm.(*ir.Class))), Expect: s.expectOf(exp)}
+		s.jumpTo(s.emit(bytecode.FlowInstr{Op: bytecode.FlowMatchClass, Dst: dst, Imm: imm}), label, cont)
+		return nil
+	}
+}
+
+// guardJump matches a failed guard that leaves:
+//
+//	if flow.guardFails(G, ch, ok) { flow.expect(E, $pos); exit L }
+func guardJump(s *flowSel, list []code.Stmt) (int, func() error) {
+	test, ok := list[0].(*code.If)
+	if !ok || test.Init != nil || test.Else != nil {
+		return 0, nil
+	}
+	g := callOf(test.Cond, flowpkg.OpGuardFails)
+	if g == nil || len(g.Args) != 2 {
+		return 0, nil
+	}
+	exp, label, cont, ok := expectJump(test.Then)
+	if !ok {
+		return 0, nil
+	}
+	return 1, func() error {
+		args, err := s.args(g.Args)
+		if err != nil {
+			return err
+		}
+		guard, err := s.guardOf(g.Imm.(*ir.First))
+		if err != nil {
+			return err
+		}
+		imm := bytecode.FlowGuardTestOf{Guard: guard, Expect: s.expectOf(exp)}
+		s.jumpTo(s.emit(bytecode.FlowInstr{Op: bytecode.FlowGuardJump, Args: args, Imm: imm}), label, cont)
+		return nil
+	}
+}
+
+// guardLitJump matches a failed guard of a literal that leaves:
+//
+//	if flow.guardLitFails(G) { flow.expect(E, $pos); exit L }
+func guardLitJump(s *flowSel, list []code.Stmt) (int, func() error) {
+	test, ok := list[0].(*code.If)
+	if !ok || test.Init != nil || test.Else != nil {
+		return 0, nil
+	}
+	g := callOf(test.Cond, flowpkg.OpGuardLitFails)
+	if g == nil || len(g.Args) != 0 {
+		return 0, nil
+	}
+	exp, label, cont, ok := expectJump(test.Then)
+	if !ok {
+		return 0, nil
+	}
+	return 1, func() error {
+		guard, err := litGuardOf(g.Imm.(*ir.First))
+		if err != nil {
+			return err
+		}
+		imm := bytecode.FlowLitGuardTestOf{Guard: guard, Expect: s.expectOf(exp)}
+		s.jumpTo(s.emit(bytecode.FlowInstr{Op: bytecode.FlowGuardLitJump, Imm: imm}), label, cont)
+		return nil
+	}
+}
+
+// assertJump matches an anchor the position is not at, which leaves:
+//
+//	if !flow.atAnchor(K) { flow.expect(E, $pos); exit L }
+func assertJump(s *flowSel, list []code.Stmt) (int, func() error) {
+	test, ok := list[0].(*code.If)
+	if !ok || test.Init != nil || test.Else != nil {
+		return 0, nil
+	}
+	a := callOf(not(test.Cond), flowpkg.OpAtAnchor)
+	if a == nil {
+		return 0, nil
+	}
+	exp, label, cont, ok := expectJump(test.Then)
+	if !ok {
+		return 0, nil
+	}
+	return 1, func() error {
+		imm := bytecode.FlowAnchorTestOf{Anchor: int(a.Imm.(ir.AnchorKind)), Expect: s.expectOf(exp)}
+		s.jumpTo(s.emit(bytecode.FlowInstr{Op: bytecode.FlowAssertJump, Imm: imm}), label, cont)
+		return nil
+	}
+}
+
+// testedJump matches the operation op, of two results the second of which is whether it matched, that
+// leaves when it does not match:
+//
+//	if v, ok = op(); !ok { exit L }
+//
+// and selects the instruction jump with the immediate imm of the call.
+func testedJump(s *flowSel, list []code.Stmt, op string, jump bytecode.FlowOp, imm func(*code.Call) (any, error)) (int, func() error) {
+	test, ok := list[0].(*code.If)
+	if !ok || test.Init == nil || test.Else != nil || len(test.Init.Dst) != 2 || len(test.Init.Values) != 1 {
+		return 0, nil
+	}
+	c := callOf(test.Init.Values[0], op)
+	if c == nil || len(c.Args) != 0 || test.Init.Dst[1].Name == "" || !isLocal(not(test.Cond), test.Init.Dst[1].Name) {
+		return 0, nil
+	}
+	label, cont, ok := onlyJump(test.Then)
+	if !ok {
+		return 0, nil
+	}
+	dst := make([]int, 2)
+	for i, p := range test.Init.Dst {
+		if dst[i], ok = s.place(p); !ok {
+			return 0, nil
+		}
+	}
+	return 1, func() error {
+		x, err := imm(c)
+		if err != nil {
+			return err
+		}
+		s.jumpTo(s.emit(bytecode.FlowInstr{Op: jump, Dst: dst, Imm: x}), label, cont)
+		return nil
+	}
+}
+
+// jumpTo makes the instruction at j, which has a target, jump to the end of the block or loop label,
+// or to the next iteration of the loop label if cont.
+func (s *flowSel) jumpTo(j int, label string, cont bool) {
+	if cont {
+		s.conts[label] = append(s.conts[label], j)
+	} else {
+		s.labels[label] = append(s.labels[label], j)
+	}
+}
+
+// stmts emits the statements of list, each by the pattern of statements that wins at it or by its
+// kind. The temporaries of a statement are free again after it.
+func (s *flowSel) stmts(list []code.Stmt) error {
+	for i := 0; i < len(list); {
+		next := s.next
+		best, n, emit := -1, 0, func() error { return nil }
+		for k := range statementPatterns {
+			p := &statementPatterns[k]
+			if m, e := p.Stmts(s, list[i:]); m > 0 && (best < 0 || beats(p, &statementPatterns[best])) {
+				best, n, emit = k, m, e
+			}
+		}
+		var err error
+		if best >= 0 {
+			s.c.counts[statementPatterns[best].Name]++
+			err = emit()
+			i += n
+		} else {
+			err = s.stmt(list[i])
+			i++
+		}
+		s.next = next
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// beats reports whether the pattern p wins over q, which is declared before it: it covers more
+// operations, or as many and saves more instructions.
+func beats(p, q *pattern) bool {
+	return p.Ops > q.Ops || p.Ops == q.Ops && p.Saved > q.Saved
+}
+
+// branch emits code that continues at the jumps it returns when the boolean e is when, and at the
+// next instruction otherwise. A negation, || and && become jumps, not values.
+func (s *flowSel) branch(e code.Expr, when bool) ([]int, error) {
+	if x := not(e); x != nil {
+		return s.branch(x, !when)
+	}
+	if b, ok := e.(*code.Binary); ok && (b.Op == "||" || b.Op == "&&") {
+		// The value of the left operand that decides the value of the operator: true for ||.
+		decides := b.Op == "||"
+		if when == decides {
+			left, err := s.branch(b.X, when)
+			if err != nil {
+				return nil, err
+			}
+			right, err := s.branch(b.Y, when)
+			return append(left, right...), err
+		}
+		past, err := s.branch(b.X, decides) // the value is decided, and it is not when
+		if err != nil {
+			return nil, err
+		}
+		jumps, err := s.branch(b.Y, when)
+		s.patch(past, len(s.f.Code))
+		return jumps, err
+	}
+	r, err := s.expr(e)
+	if err != nil {
+		return nil, err
+	}
+	op := bytecode.FlowJumpFalse
+	if when {
+		op = bytecode.FlowJumpTrue
+	}
+	return []int{s.emit(bytecode.FlowInstr{Op: op, Args: []int{r}})}, nil
+}
+
+// patch sets the target of the instructions at jumps to t.
+func (s *flowSel) patch(jumps []int, t int) {
+	for _, j := range jumps {
+		s.f.Code[j].Target = t
+	}
+}
+
+// countsOf returns the number of matches of each pattern of the selection table in counts: the patterns
+// of statements, then those of one operation, each in the order of the table.
+func countsOf(counts map[string]int) []PatternCount {
+	out := make([]PatternCount, 0, len(statementPatterns)+len(opPatterns))
+	for _, p := range statementPatterns {
+		out = append(out, PatternCount{p.Name, counts[p.Name]})
+	}
+	for _, p := range opPatterns {
+		out = append(out, PatternCount{p.Name, counts[p.Name]})
+	}
+	return out
+}

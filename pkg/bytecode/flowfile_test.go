@@ -97,6 +97,15 @@ func flowModule() *bytecode.Module {
 		{Op: bytecode.FlowNewErrorNode, Dst: []int{0}, Args: []int{1, 7}},
 		{Op: bytecode.FlowRecLen, Dst: []int{1}},
 		{Op: bytecode.FlowRestore, Args: []int{1, 1}},
+		{Op: bytecode.FlowJumpTrue, Args: []int{2}, Target: 17},
+		{Op: bytecode.FlowMatchClass, Dst: []int{5, -1, 6}, Target: 17, Imm: bytecode.FlowClassTestOf{Class: 0, Expect: bytecode.FlowExpectOf{Exp: 2}}},
+		{Op: bytecode.FlowGuardJump, Args: []int{5, 6}, Target: 17, Imm: bytecode.FlowGuardTestOf{
+			Guard: bytecode.FlowGuardOf{Class: 0, Depth: 1}, Expect: bytecode.FlowExpectOf{Exp: bytecode.FixedExps, Message: true}}},
+		{Op: bytecode.FlowGuardLitJump, Target: 17, Imm: bytecode.FlowLitGuardTestOf{
+			Guard: bytecode.FlowLitGuardOf{Rune: 'x', Depth: 1}, Expect: bytecode.FlowExpectOf{Exp: bytecode.FixedExps, Message: true}}},
+		{Op: bytecode.FlowAssertJump, Target: 17, Imm: bytecode.FlowAnchorTestOf{Anchor: 2, Expect: bytecode.FlowExpectOf{Exp: 3}}},
+		{Op: bytecode.FlowMatchLitJump, Dst: []int{0, 2}, Target: 17, Imm: bytecode.FlowLitOf{Str: 1, Exp: bytecode.FixedExps + 1}},
+		{Op: bytecode.FlowCallJump, Dst: []int{0, 7}, Target: 17, Imm: bytecode.FlowCallOf{Rule: 0, Level: 1}},
 		{Op: bytecode.FlowReturn, Args: []int{0, 3}},
 	}}
 	return &bytecode.Module{

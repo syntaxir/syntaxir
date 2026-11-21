@@ -129,7 +129,7 @@ func flowProgramsOf(t testing.TB, src string, pick func(rule string) bool, mutat
 		if !pick(name) {
 			continue
 		}
-		if err := vmlower.SelectFlows(bc, vmlower.Input{Run: cp.Runtime(), Elab: cp}, ft.IR.M, ft.Plan, map[int]*code.Module{id: ft.Bodies[id]}); err != nil {
+		if _, err := vmlower.SelectFlows(bc, vmlower.Input{Run: cp.Runtime(), Elab: cp}, ft.IR.M, ft.Plan, map[int]*code.Module{id: ft.Bodies[id]}); err != nil {
 			continue // an operation without a bytecode Flow form yet
 		}
 		if mutate != nil {
@@ -143,7 +143,7 @@ func flowProgramsOf(t testing.TB, src string, pick func(rule string) bool, mutat
 // than the one the body calls.
 func mutateCall(f *bytecode.Flow) {
 	for i := range f.Code {
-		if in := &f.Code[i]; in.Op == bytecode.FlowCall {
+		if in := &f.Code[i]; in.Op == bytecode.FlowCall || in.Op == bytecode.FlowCallJump {
 			in.Imm = bytecode.FlowCallOf{Rule: jsonNull, Level: in.Imm.(bytecode.FlowCallOf).Level}
 			return
 		}
@@ -236,8 +236,8 @@ func TestFlowBodyDifferentialDetectsMutations(t *testing.T) {
 	old, called := jsonFlowPrograms(t, mutateCall)
 	_, peeked := jsonFlowPrograms(t, func(f *bytecode.Flow) {
 		for i := range f.Code {
-			if in := &f.Code[i]; in.Op == bytecode.FlowJump || in.Op == bytecode.FlowJumpFalse {
-				in.Target++
+			if sh, _ := f.Code[i].Op.Shape(); sh.Target {
+				f.Code[i].Target++
 			}
 		}
 		peek := bytecode.FlowInstr{Op: bytecode.FlowPeek, Dst: []int{-1, -1, -1}}

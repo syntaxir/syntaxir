@@ -228,6 +228,34 @@ func (w *Encoder) flowImm(k FlowImm, v any) {
 		w.Int(x.Delta)
 		w.Int(x.Site)
 		w.Bool(x.Ok)
+	case FlowImmClassTest:
+		x, ok := v.(FlowClassTestOf)
+		if !ok {
+			bad()
+		}
+		w.flowImm(FlowImmClass, x.Class)
+		w.flowImm(FlowImmExpect, x.Expect)
+	case FlowImmGuardTest:
+		x, ok := v.(FlowGuardTestOf)
+		if !ok {
+			bad()
+		}
+		w.flowImm(FlowImmGuard, x.Guard)
+		w.flowImm(FlowImmExpect, x.Expect)
+	case FlowImmLitGuardTest:
+		x, ok := v.(FlowLitGuardTestOf)
+		if !ok {
+			bad()
+		}
+		w.flowImm(FlowImmLitGuard, x.Guard)
+		w.flowImm(FlowImmExpect, x.Expect)
+	case FlowImmAnchorTest:
+		x, ok := v.(FlowAnchorTestOf)
+		if !ok {
+			bad()
+		}
+		w.flowImm(FlowImmAnchor, x.Anchor)
+		w.flowImm(FlowImmExpect, x.Expect)
 	case FlowImmRunWalk:
 		x, ok := v.(FlowRunWalkOf)
 		if !ok {
@@ -551,6 +579,22 @@ func (r *Decoder) flowImm(k FlowImm) any {
 		return FlowLitOf{Str: int(r.int32()), Exp: int(r.int32()), Fold: r.Bool()}
 	case FlowImmSilence:
 		return FlowSilenceOf{Delta: int(r.int32()), Site: int(r.int32()), Ok: r.Bool()}
+	case FlowImmClassTest:
+		x := FlowClassTestOf{Class: r.flowImm(FlowImmClass).(int)}
+		x.Expect = r.flowImm(FlowImmExpect).(FlowExpectOf)
+		return x
+	case FlowImmGuardTest:
+		x := FlowGuardTestOf{Guard: r.flowImm(FlowImmGuard).(FlowGuardOf)}
+		x.Expect = r.flowImm(FlowImmExpect).(FlowExpectOf)
+		return x
+	case FlowImmLitGuardTest:
+		x := FlowLitGuardTestOf{Guard: r.flowImm(FlowImmLitGuard).(FlowLitGuardOf)}
+		x.Expect = r.flowImm(FlowImmExpect).(FlowExpectOf)
+		return x
+	case FlowImmAnchorTest:
+		x := FlowAnchorTestOf{Anchor: r.flowImm(FlowImmAnchor).(int)}
+		x.Expect = r.flowImm(FlowImmExpect).(FlowExpectOf)
+		return x
 	case FlowImmRunWalk:
 		return FlowRunWalkOf{Site: int(r.int32()), Build: r.Bool(), KeyEnv: r.Bool()}
 	case FlowImmBind:
@@ -1258,6 +1302,42 @@ func validateFlowImm(m *Module, slots int, k FlowImm, v any) error {
 		if x, ok = v.(int); ok && (x < 1 || x > len(m.Code)) {
 			return fmt.Errorf("invalid run site %d", x)
 		}
+	case FlowImmClassTest:
+		var x FlowClassTestOf
+		if x, ok = v.(FlowClassTestOf); !ok {
+			break
+		}
+		if err := validateFlowImm(m, slots, FlowImmClass, x.Class); err != nil {
+			return err
+		}
+		return validateFlowImm(m, slots, FlowImmExpect, x.Expect)
+	case FlowImmGuardTest:
+		var x FlowGuardTestOf
+		if x, ok = v.(FlowGuardTestOf); !ok {
+			break
+		}
+		if err := validateFlowImm(m, slots, FlowImmGuard, x.Guard); err != nil {
+			return err
+		}
+		return validateFlowImm(m, slots, FlowImmExpect, x.Expect)
+	case FlowImmLitGuardTest:
+		var x FlowLitGuardTestOf
+		if x, ok = v.(FlowLitGuardTestOf); !ok {
+			break
+		}
+		if err := validateFlowImm(m, slots, FlowImmLitGuard, x.Guard); err != nil {
+			return err
+		}
+		return validateFlowImm(m, slots, FlowImmExpect, x.Expect)
+	case FlowImmAnchorTest:
+		var x FlowAnchorTestOf
+		if x, ok = v.(FlowAnchorTestOf); !ok {
+			break
+		}
+		if err := validateFlowImm(m, slots, FlowImmAnchor, x.Anchor); err != nil {
+			return err
+		}
+		return validateFlowImm(m, slots, FlowImmExpect, x.Expect)
 	case FlowImmRunWalk:
 		var x FlowRunWalkOf
 		if x, ok = v.(FlowRunWalkOf); !ok {

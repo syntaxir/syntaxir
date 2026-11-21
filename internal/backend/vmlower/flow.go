@@ -38,8 +38,11 @@ func CoreOf(p elaborate.Program) (*ir.Module, error) {
 // A rule whose Flow function uses an operation that the bytecode Flow bodies do not yet have is an
 // error, and the module keeps no body of that rule and no action expression of its predicates. The action expression of a
 // predicate of a body is added to the module's action table, after the action expressions of the match code.
-func SelectFlows(bc *bytecode.Module, in Input, m *ir.Module, plan *plandata.Plan, flows map[int]*code.Module) error {
-	c := &compiler{in: in, core: m, m: bc, strs: map[string]int{}}
+//
+// It returns the number of matches of each pattern of the selection table (countsOf), which depends
+// only on the bodies.
+func SelectFlows(bc *bytecode.Module, in Input, m *ir.Module, plan *plandata.Plan, flows map[int]*code.Module) ([]PatternCount, error) {
+	c := &compiler{in: in, core: m, m: bc, strs: map[string]int{}, counts: map[string]int{}}
 	for i, s := range bc.Strings {
 		if _, ok := c.strs[s]; !ok {
 			c.strs[s] = i
@@ -48,23 +51,23 @@ func SelectFlows(bc *bytecode.Module, in Input, m *ir.Module, plan *plandata.Pla
 	for _, rule := range slices.Sorted(maps.Keys(flows)) {
 		fn := flowpkg.FuncOf(flows[rule])
 		if rule < 0 || rule >= len(bc.Rules) {
-			return fmt.Errorf("rule %s: no rule %d in the module", fn.Name, rule)
+			return nil, fmt.Errorf("rule %s: no rule %d in the module", fn.Name, rule)
 		}
 		if err := plan.CheckLayout(rule, fn.Name, c.strNames(bc.Rules[rule].Scope)); err != nil {
-			return err
+			return nil, err
 		}
 		actionExprs := len(bc.Actions)
 		f, err := c.flow(fn, rule)
 		if err != nil {
 			bc.Actions = bc.Actions[:actionExprs] // the action expressions of the predicates of the body
-			return fmt.Errorf("rule %s: %w", fn.Name, err)
+			return nil, fmt.Errorf("rule %s: %w", fn.Name, err)
 		}
 		if bc.Flows == nil {
 			bc.Flows = map[int]*bytecode.Flow{}
 		}
 		bc.Flows[rule] = f
 	}
-	return nil
+	return countsOf(c.counts), nil
 }
 
 // flow returns the Flow body of the function fn, the flow form of rule index rule.
@@ -98,10 +101,8 @@ func (c *compiler) flow(fn *code.Func, rule int) (*bytecode.Flow, error) {
 		}
 		s.emit(bytecode.FlowInstr{Op: bytecode.FlowPos, Dst: []int{r}})
 	}
-	for _, st := range fn.Body.Stmts {
-		if err := s.stmt(st); err != nil {
-			return nil, err
-		}
+	if err := s.stmts(fn.Body.Stmts); err != nil {
+		return nil, err
 	}
 	if a.Frame {
 		// A framed function returns its value and true, or the null value and false, by its own
@@ -235,10 +236,8 @@ func (s *flowSel) block(b *code.Block) error {
 	if b == nil {
 		return nil
 	}
-	for _, st := range b.Stmts {
-		if err := s.stmt(st); err != nil {
-			return err
-		}
+	if err := s.stmts(b.Stmts); err != nil {
+		return err
 	}
 	if b.Label != "" {
 		end := len(s.f.Code)
@@ -295,20 +294,22 @@ func (s *flowSel) stmt(st code.Stmt) error {
 				return err
 			}
 		}
-		cond, err := s.expr(x.Cond)
+		// The temporaries of the condition are dead once it has jumped.
+		next := s.next
+		jf, err := s.branch(x.Cond, false)
 		if err != nil {
 			return err
 		}
-		jf := s.emit(bytecode.FlowInstr{Op: bytecode.FlowJumpFalse, Args: []int{cond}})
+		s.next = next
 		if err := s.block(x.Then); err != nil {
 			return err
 		}
 		if x.Else == nil {
-			s.f.Code[jf].Target = len(s.f.Code)
+			s.patch(jf, len(s.f.Code))
 			return nil
 		}
 		jend := s.emit(bytecode.FlowInstr{Op: bytecode.FlowJump})
-		s.f.Code[jf].Target = len(s.f.Code)
+		s.patch(jf, len(s.f.Code))
 		if err := s.block(x.Else); err != nil {
 			return err
 		}
@@ -335,13 +336,14 @@ func (s *flowSel) loop(x *code.Loop) error {
 		}
 	}
 	top := len(s.f.Code)
-	jf := -1
+	var jf []int
 	if x.Cond != nil {
-		cond, err := s.expr(x.Cond)
-		if err != nil {
+		next := s.next
+		var err error
+		if jf, err = s.branch(x.Cond, false); err != nil {
 			return err
 		}
-		jf = s.emit(bytecode.FlowInstr{Op: bytecode.FlowJumpFalse, Args: []int{cond}})
+		s.next = next
 	}
 	if err := s.block(x.Body); err != nil {
 		return err
@@ -354,9 +356,7 @@ func (s *flowSel) loop(x *code.Loop) error {
 	}
 	s.emit(bytecode.FlowInstr{Op: bytecode.FlowJump, Target: top})
 	end := len(s.f.Code)
-	if jf >= 0 {
-		s.f.Code[jf].Target = end
-	}
+	s.patch(jf, end)
 	for _, j := range s.conts[x.Label] {
 		s.f.Code[j].Target = post
 	}
@@ -568,240 +568,25 @@ func (s *flowSel) call(c *code.Call, dst []int) error {
 			return fmt.Errorf("an operation that assigns a register has no bytecode Flow form")
 		}
 	}
-	args := func(es []code.Expr) ([]int, error) {
-		out := make([]int, len(es))
-		for i, e := range es {
-			r, err := s.expr(e)
-			if err != nil {
-				return nil, err
-			}
-			out[i] = r
-		}
-		return out, nil
+	i, ok := opIndex[c.Callee]
+	if !ok {
+		return fmt.Errorf("operation %s has no bytecode Flow form", c.Callee)
 	}
-	switch c.Callee {
-	case flowpkg.OpMarkState:
-		s.emit(bytecode.FlowInstr{Op: bytecode.FlowMark, Dst: dst})
-	case flowpkg.OpReset:
-		a, err := args(c.Args)
+	s.c.counts[c.Callee]++
+	return opPatterns[i].Sel(s, c, dst)
+}
+
+// args evaluates the expressions es and returns the registers of their values.
+func (s *flowSel) args(es []code.Expr) ([]int, error) {
+	out := make([]int, len(es))
+	for i, e := range es {
+		r, err := s.expr(e)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		s.emit(bytecode.FlowInstr{Op: bytecode.FlowReset, Args: a[:1]})
-	case flowpkg.OpPeek:
-		if len(dst) != 3 {
-			return fmt.Errorf("flow.peek with %d results", len(dst))
-		}
-		s.emit(bytecode.FlowInstr{Op: bytecode.FlowPeek, Dst: dst})
-	case flowpkg.OpGuardFails:
-		g := c.Imm.(*ir.First)
-		a, err := args(c.Args)
-		if err != nil {
-			return err
-		}
-		if g.Lit {
-			return fmt.Errorf("flow.guardFails with the guard of a literal")
-		}
-		of := bytecode.FlowGuardOf{Class: int(s.c.class(g.Class)), Depth: g.Depth}
-		s.emit(bytecode.FlowInstr{Op: bytecode.FlowGuard, Dst: dst, Args: a, Imm: of})
-	case flowpkg.OpGuardLitFails:
-		g := c.Imm.(*ir.First)
-		if !g.Lit {
-			return fmt.Errorf("flow.guardLitFails with the guard of a class")
-		}
-		s.emit(bytecode.FlowInstr{Op: bytecode.FlowGuardLit, Dst: dst, Imm: bytecode.FlowLitGuardOf{Rune: g.Rune, Fold: g.Fold, Depth: g.Depth}})
-	case flowpkg.OpExpect:
-		x := c.Imm.(prim.Expectation)
-		a, err := args(c.Args)
-		if err != nil {
-			return err
-		}
-		s.emit(bytecode.FlowInstr{Op: bytecode.FlowExpect, Args: a[:1], Imm: bytecode.FlowExpectOf{Exp: s.expID(x.Exp), Message: x.Message}})
-	case flowpkg.OpUnfresh:
-		a, err := args(c.Args)
-		if err != nil {
-			return err
-		}
-		s.emit(bytecode.FlowInstr{Op: bytecode.FlowUnfresh, Args: a})
-	case flowpkg.OpCallRule:
-		x := c.Imm.(prim.RuleCall)
-		if want, got := s.c.core.Rules[x.Rule].Name, s.c.ruleName(x.Rule); want != got {
-			return fmt.Errorf("rule %d is %s in the Core IR and %s in the module", x.Rule, want, got)
-		}
-		s.emit(bytecode.FlowInstr{Op: bytecode.FlowCall, Dst: dst, Imm: bytecode.FlowCallOf{Rule: x.Rule, Level: x.Level}})
-	case flowpkg.OpStep:
-		s.emit(bytecode.FlowInstr{Op: bytecode.FlowStep})
-	case flowpkg.OpSilent:
-		x := c.Imm.(prim.Silence)
-		if x.Delta != 1 && x.Delta != -1 {
-			return fmt.Errorf("flow.silent by %d", x.Delta)
-		}
-		// The match code names a lookahead by the index of its instruction, so the sites of Flow
-		// bodies follow the instructions, where no instruction can take them.
-		site := -1
-		if x.Site != 0 {
-			site = len(s.c.m.Code) + x.Site
-		}
-		s.emit(bytecode.FlowInstr{Op: bytecode.FlowSilent, Imm: bytecode.FlowSilenceOf{Delta: x.Delta, Site: site, Ok: x.Delta == -1 && x.Ok}})
-	case flowpkg.OpAdvance:
-		a, err := args(c.Args)
-		if err != nil {
-			return err
-		}
-		s.emit(bytecode.FlowInstr{Op: bytecode.FlowAdvance, Args: a})
-	case flowpkg.OpInClass:
-		a, err := args(c.Args)
-		if err != nil {
-			return err
-		}
-		s.emit(bytecode.FlowInstr{Op: bytecode.FlowInClass, Dst: dst, Args: a, Imm: int(s.c.class(c.Imm.(*ir.Class)))})
-	case flowpkg.OpAtAnchor:
-		s.emit(bytecode.FlowInstr{Op: bytecode.FlowAtAnchor, Dst: dst, Imm: int(c.Imm.(ir.AnchorKind))})
-	case flowpkg.OpMatchLit:
-		lit := c.Imm.(*ir.Lit)
-		of := bytecode.FlowLitOf{Fold: lit.Fold}
-		// The operands are interned as the match code interns them: the text, then the expectation.
-		if lit.Fold {
-			of.Str = int(s.c.str(foldedRunes(lit.Text)))
-		} else {
-			of.Str = int(s.c.str(lit.Text))
-		}
-		of.Exp = int(program.NumFixedDescs) + int(s.c.litDesc(lit))
-		s.emit(bytecode.FlowInstr{Op: bytecode.FlowMatchLit, Dst: dst, Imm: of})
-	case flowpkg.OpIsolate:
-		s.emit(bytecode.FlowInstr{Op: bytecode.FlowIsolate, Dst: dst})
-	case flowpkg.OpUnisolate:
-		a, err := args(c.Args)
-		if err != nil {
-			return err
-		}
-		s.emit(bytecode.FlowInstr{Op: bytecode.FlowUnisolate, Dst: dst, Args: a})
-	case flowpkg.OpMergeExpected:
-		a, err := args(c.Args)
-		if err != nil {
-			return err
-		}
-		s.emit(bytecode.FlowInstr{Op: bytecode.FlowMergeExpected, Args: a})
-	case flowpkg.OpNewTerminalNode:
-		return s.op(bytecode.FlowNewTerminal, c, dst, nil)
-	case flowpkg.OpNewBranchNode:
-		op := bytecode.FlowNewSeq
-		if c.Imm.(prim.List) {
-			op = bytecode.FlowNewList
-		}
-		return s.op(op, c, dst, nil)
-	case flowpkg.OpNewVals:
-		return s.op(bytecode.FlowNewVals, c, dst, int(c.Imm.(prim.Room)))
-	case flowpkg.OpAppend:
-		op := bytecode.FlowAppend
-		if c.Imm.(prim.Spread) {
-			op = bytecode.FlowSpread
-		}
-		return s.op(op, c, dst, nil)
-	case flowpkg.OpText:
-		return s.op(bytecode.FlowText, c, dst, nil)
-	case flowpkg.OpLiteralText:
-		return s.op(bytecode.FlowLiteralText, c, dst, int(s.c.str(string(c.Imm.(prim.Chars)))))
-	case flowpkg.OpStr:
-		return s.op(bytecode.FlowStr, c, dst, int(s.c.str(string(c.Imm.(prim.Chars)))))
-	case flowpkg.OpKidsLen:
-		return s.op(bytecode.FlowKidsLen, c, dst, nil)
-	case flowpkg.OpKids:
-		return s.op(bytecode.FlowKids, c, dst, nil)
-	case flowpkg.OpDropKids:
-		return s.op(bytecode.FlowDropKids, c, dst, nil)
-	case flowpkg.OpPushKid:
-		return s.op(bytecode.FlowPushKid, c, dst, nil)
-	case flowpkg.OpShapeSingle:
-		return s.op(bytecode.FlowShapeSingle, c, dst, shapeOf(c.Imm.(ir.Shape)))
-	case flowpkg.OpScopeValue:
-		return s.op(bytecode.FlowScopeValue, c, dst, shapeOf(c.Imm.(ir.Shape)))
-	case flowpkg.OpShapeCapture:
-		return s.op(bytecode.FlowShapeCapture, c, dst, shapeOf(c.Imm.(ir.Shape)))
-	case flowpkg.OpSetCapture:
-		return s.op(bytecode.FlowSetCapture, c, dst, int(c.Imm.(prim.Slot)))
-	case flowpkg.OpMarkPos:
-		return s.op(bytecode.FlowMarkPos, c, dst, nil)
-	case flowpkg.OpFrame:
-		return s.op(bytecode.FlowFrame, c, dst, nil)
-	case flowpkg.OpNewFrame:
-		return s.op(bytecode.FlowNewFrame, c, dst, s.scope(c.Imm.(*prim.Names)))
-	case flowpkg.OpSetFrame:
-		return s.op(bytecode.FlowSetFrame, c, dst, nil)
-	case flowpkg.OpClearVals:
-		return s.op(bytecode.FlowClearVals, c, dst, nil)
-	case flowpkg.OpFrameVal:
-		return s.op(bytecode.FlowFrameVal, c, dst, int(c.Imm.(prim.Slot)))
-	case flowpkg.OpAttachFrame:
-		return s.op(bytecode.FlowAttachFrame, c, dst, s.scope(c.Imm.(prim.Attach).Names))
-	case flowpkg.OpRunHot:
-		return s.op(bytecode.FlowRunHot, c, dst, int(c.Imm.(prim.Site)))
-	case flowpkg.OpRunBegin:
-		x := c.Imm.(prim.RunWalk)
-		return s.op(bytecode.FlowRunBegin, c, dst, bytecode.FlowRunWalkOf{Site: x.Site, Build: x.Build, KeyEnv: x.KeyEnv})
-	case flowpkg.OpRunWalked:
-		return s.op(bytecode.FlowRunWalked, c, dst, int(c.Imm.(prim.Site)))
-	case flowpkg.OpSkipVisit:
-		return s.op(bytecode.FlowSkipVisit, c, dst, nil)
-	case flowpkg.OpSkipHit:
-		return s.op(bytecode.FlowSkipHit, c, dst, nil)
-	case flowpkg.OpSkipValue:
-		return s.op(bytecode.FlowSkipValue, c, dst, nil)
-	case flowpkg.OpSkipEnd:
-		return s.op(bytecode.FlowSkipEnd, c, dst, nil)
-	case flowpkg.OpSkipKids:
-		return s.op(bytecode.FlowSkipKids, c, dst, nil)
-	case flowpkg.OpScanReach:
-		return s.op(bytecode.FlowScanReach, c, dst, int(c.Imm.(prim.Site)))
-	case flowpkg.OpScanEnd:
-		return s.op(bytecode.FlowScanEnd, c, dst, int(c.Imm.(prim.Site)))
-	case flowpkg.OpScanKids:
-		return s.op(bytecode.FlowScanKids, c, dst, int(c.Imm.(prim.Site)))
-	case flowpkg.OpPred:
-		x := c.Imm.(prim.Predicate)
-		if !x.Frame {
-			return fmt.Errorf("a predicate whose captures are arguments has no bytecode Flow form")
-		}
-		t, err := s.actionExpr(x.Node.Action, x.Names)
-		if err != nil {
-			return err
-		}
-		return s.op(bytecode.FlowPred, c, dst, t)
-	case flowpkg.OpBind:
-		x := c.Imm.(prim.Binding)
-		if !x.Frame {
-			return fmt.Errorf("a binding whose captures are arguments has no bytecode Flow form")
-		}
-		t, err := s.actionExpr(x.Node.Action, x.Names)
-		if err != nil {
-			return err
-		}
-		return s.op(bytecode.FlowBind, c, dst, bytecode.FlowBindOf{Var: s.c.in.Run.Vars.Index(x.Node.Var), Action: t})
-	case flowpkg.OpSkipBegin:
-		// A walk of a skip-run site begins as the match code's SKIPREPEAT begins it: without values,
-		// keyed by the variables unless the site is free of them. A skip-run site and a run site
-		// share the numbering of the parser's walk records, so RUNBEGIN begins either.
-		site := int(c.Imm.(prim.Site))
-		return s.op(bytecode.FlowRunBegin, c, dst, bytecode.FlowRunWalkOf{Site: site, KeyEnv: !s.c.in.Elab.EnvFree(site)})
-	case flowpkg.OpRecLen:
-		return s.op(bytecode.FlowRecLen, c, dst, nil)
-	case flowpkg.OpRestore:
-		return s.op(bytecode.FlowRestore, c, dst, nil)
-	case flowpkg.OpKeep:
-		return s.op(bytecode.FlowKeep, c, dst, nil)
-	case flowpkg.OpMakeError:
-		return s.op(bytecode.FlowMakeError, c, dst, nil)
-	case flowpkg.OpAppendError:
-		return s.op(bytecode.FlowAppendError, c, dst, nil)
-	case flowpkg.OpNewErrorNode:
-		return s.op(bytecode.FlowNewErrorNode, c, dst, nil)
-	case flowpkg.OpDeclareNames:
-		// It does nothing to the state: the names are those of the frame's scope.
-		return nil
-	default:
-		return fmt.Errorf("operation %s has no bytecode Flow form yet", c.Callee)
+		out[i] = r
 	}
-	return nil
+	return out, nil
 }
 
 // op emits the instruction of operation op for the call c, whose arguments are its registers, with

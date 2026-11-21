@@ -362,9 +362,9 @@ immediate. A body writes each register before it reads it: on every path from it
 that reads a register as an argument, some instruction names that register as a destination, where an instruction
 continues at the next one unless it is `JUMP` or `RETURN`, and also at its target if it has one. A frame of registers
 therefore starts without values, so a runtime need not clear it, and a body starts by writing the zero value of each
-variable that some path reads before any other write. The control of the function, its blocks, exits and conditionals, becomes jumps: in a local function an exit
-to the failure label returns failure, and running to the end of the body returns the result variable and success; a
-framed function returns by its own returns. A framed body runs in the frame of captures that the rule's entry makes, with
+variable that some path reads before any other write. The control of the function, its blocks, exits and conditionals,
+becomes jumps: in a local function an exit to the failure label returns failure, and running to the end of the body
+returns the result variable and success; a framed function returns by its own returns. A framed body runs in the frame of captures that the rule's entry makes, with
 a slot for each name of the rule's scope, and the rule's completion attaches them; the scope of the rule is the capture
 layout of its function, and a module whose Flow body would run in a frame of other slots is not built. The frame
 registers of a body hold capture frames: the current frame, which `SETCAPTURE` writes, and the frames of repetition
@@ -373,7 +373,10 @@ nothing to the state. A capture slot of an immediate is below the number of slot
 with, the rule's or one that its `NEWFRAME` makes; a slot past the frame it indexes when the body runs fails the parse.
 
 Each operation has a code, the code a module file stores, and fixed numbers of destination registers (D) and argument
-registers (A); `JUMP` and `JUMPFALSE` also have a target.
+registers (A); `JUMP`, `JUMPFALSE` and the instructions from `JUMPTRUE` on also have a target. The instructions from
+`MATCHCLASS` on are superinstructions: each does in one instruction what a sequence of the instructions before it does,
+a test of the input that leaves the block when it fails, as the match code's `CLASS`, `GUARD`, `ASSERT`, `STR` and
+`CALL` test and fail in one instruction.
 
 | Code | Instruction | D | A | Behavior |
 |:--|:--|:--|:--|:--|
@@ -453,11 +456,19 @@ registers (A); `JUMP` and `JUMPFALSE` also have a target.
 | 73 | `RECLEN` | 1 | 0 | `flow.recLen`: the number of recovered errors. |
 | 74 | `RESTORE` | 0 | 2 | `flow.restore`: the position is the integer first argument, and the recovered errors after the first integer second argument are dropped. |
 | 75 | `GUARDLIT` | 1 | 0 | `flow.guardLitFails` for the guard of a literal of the immediate: the first character of the literal, whether it is case-folded, and the depth of calls the guard adds. It compares the character with the input at the position as the literal does, in bytes up to the first byte that differs. |
+| 76 | `JUMPTRUE` | 0 | 1 | Continue at the target when the boolean argument is true. |
+| 77 | `MATCHCLASS` | 3 | 0 | `PEEK` into the destinations; if there is no character or it is not in the class of the immediate, `EXPECT` of the immediate's expectation at the position and continue at the target. |
+| 78 | `GUARDJUMP` | 0 | 2 | `GUARD` of the guard of the immediate for the arguments; if it fails, `EXPECT` of the immediate's expectation at the position and continue at the target. |
+| 79 | `GUARDLITJUMP` | 0 | 0 | `GUARDLIT` of the guard of the immediate; if it fails, `EXPECT` of the immediate's expectation at the position and continue at the target. |
+| 80 | `ASSERTJUMP` | 0 | 0 | `ATANCHOR` of the anchor of the immediate; if the position is not at it, `EXPECT` of the immediate's expectation at the position and continue at the target. |
+| 81 | `MATCHLITJUMP` | 2 | 0 | `MATCHLIT` of the literal of the immediate into the destinations; continue at the target if it did not match. |
+| 82 | `CALLJUMP` | 2 | 0 | `CALL` of the rule of the immediate into the destinations; continue at the target if the call failed. In the iterative model it suspends the body as `CALL` does. |
 
 A destination of -1 discards the value.
 
 An instruction named after an operation of the [Flow dialect](../flow-ir/operations.md) does what the operation does
-and charges what its cost bound names, and no more; the other instructions charge nothing. A Flow body therefore charges
+and charges what its cost bound names, and no more; a superinstruction charges what the instructions it stands for
+charge; the other instructions charge nothing. A Flow body therefore charges
 what its Flow function charges.
 
 A Flow body charges what the match code of its rule charges, and the code generated from the same Flow function charges
@@ -505,7 +516,7 @@ The module is laid out in the following order. A *list* is a count (unsigned) fo
 12. Wide-integer table: a list of signed integers.
 13. Action table: a list of action expressions. An action expression is the sizes of its four register files (unsigned: values, integers, sequences, strings); its constants, a list of (kind as 1 byte: 0 nil, 1 int, 2 string, 3 bool; signed integer: the int, the string index, or 0 or 1); its names, a list of string indices; its member reads, a list of (member kind, name, field); its node types, a list of string indices; its casts, a list of (type text, line, column), the type text -1 for a cast that checks nothing; its struct literals, a list of (type name, number of fields); and its code, a list of instructions. Between the register sizes and the constants, a byte whose bits 0 to 5 mark the pools that are not empty (constants, names, member reads, node types, casts, struct literals) precedes them; only those pools are written, and a marked pool is not empty. An instruction is its opcode (1 byte), a byte whose bits 0 to 3 mark the operands D, `A`, `B` and `C` that are not zero, and those operands; a marked operand is not zero.
 14. Run key table: a list of (run site, list of string indices of the key's variables, list of string indices of the variables it binds), by increasing run site. Each list is sorted by name.
-15. Flow bodies ([Flow Bodies](#flow-bodies)): a list of (rule table index, number of registers (unsigned), list of instructions), by increasing rule index. An instruction is its operation (1 byte: its code), then its destination registers, its argument registers, its target and its immediate, each only if the operation has it and in the numbers the operation fixes. An immediate is, by operation: for `CONST` a kind (1 byte: 0 nil, 1 int, 3 bool, as for action expression constants) and a signed integer (0 for nil, the int, or 0 or 1); for `GUARD` (class index, depth); for `GUARDLIT` (character, case-folded (boolean), depth); for `EXPECT` (expectation, message (boolean)), the expectation 0 to 4 one of the fixed expectations (any character, beginning of input, end of input, beginning of line, end of line) and 5 + i the string i of the string table; for `CALL` (rule table index, binding level); for `INCLASS` the class index; for `ATANCHOR` the anchor; for `MATCHLIT` (string index of the literal, for a case-insensitive literal its text with ASCII letters lowercased, expectation as for `EXPECT`, case-insensitive (boolean)); for `SILENT` (change of depth, site, matched (boolean)); for `NEWVALS` the count; for `LITERALTEXT` and `STR` the string index; for `SETCAPTURE` and `FRAMEVAL` the slot; for `NEWFRAME` and `ATTACHFRAME` the scope table index; for `RUNHOT`, `RUNWALKED`, `SCANREACH`, `SCANEND` and `SCANKIDS` the site, numbered as the match code numbers its run and scan sites; for `RUNBEGIN` (site, values (boolean), keyed by the variables (boolean)); for `PRED` the action table index; for `BIND` (variable table index, action table index); for `SHAPESINGLE`, `SHAPECAPTURE` and `SCOPEVALUE` the shape (elements (boolean), shared (boolean), tuple (boolean), number of valued elements, single mode: 0 no value, 1 the element, 2 the tuple node).
+15. Flow bodies ([Flow Bodies](#flow-bodies)): a list of (rule table index, number of registers (unsigned), list of instructions), by increasing rule index. An instruction is its operation (1 byte: its code), then its destination registers, its argument registers, its target and its immediate, each only if the operation has it and in the numbers the operation fixes. An immediate is, by operation: for `CONST` a kind (1 byte: 0 nil, 1 int, 3 bool, as for action expression constants) and a signed integer (0 for nil, the int, or 0 or 1); for `GUARD` (class index, depth); for `GUARDLIT` (character, case-folded (boolean), depth); for `EXPECT` (expectation, message (boolean)), the expectation 0 to 4 one of the fixed expectations (any character, beginning of input, end of input, beginning of line, end of line) and 5 + i the string i of the string table; for `CALL` (rule table index, binding level); for `INCLASS` the class index; for `ATANCHOR` the anchor; for `MATCHLIT` (string index of the literal, for a case-insensitive literal its text with ASCII letters lowercased, expectation as for `EXPECT`, case-insensitive (boolean)); for `SILENT` (change of depth, site, matched (boolean)); for `NEWVALS` the count; for `LITERALTEXT` and `STR` the string index; for `SETCAPTURE` and `FRAMEVAL` the slot; for `NEWFRAME` and `ATTACHFRAME` the scope table index; for `RUNHOT`, `RUNWALKED`, `SCANREACH`, `SCANEND` and `SCANKIDS` the site, numbered as the match code numbers its run and scan sites; for `RUNBEGIN` (site, values (boolean), keyed by the variables (boolean)); for `PRED` the action table index; for `BIND` (variable table index, action table index); for `MATCHCLASS` the class index and then the expectation as for `EXPECT`; for `GUARDJUMP` the guard as for `GUARD` and then the expectation; for `GUARDLITJUMP` the guard as for `GUARDLIT` and then the expectation; for `ASSERTJUMP` the anchor and then the expectation; for `MATCHLITJUMP` the immediate of `MATCHLIT`; for `CALLJUMP` the immediate of `CALL`; for `SHAPESINGLE`, `SHAPECAPTURE` and `SCOPEVALUE` the shape (elements (boolean), shared (boolean), tuple (boolean), number of valued elements, single mode: 0 no value, 1 the element, 2 the tuple node).
 
 ### Load-Time Validation
 

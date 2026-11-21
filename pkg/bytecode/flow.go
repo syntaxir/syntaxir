@@ -222,6 +222,35 @@ const (
 	// as the literal compares it (state.Parser.MatchChar), and the nesting limit allows the guard's
 	// depth (flow.guardLitFails).
 	FlowGuardLit
+
+	// The superinstructions: each does what a sequence of the instructions above does, the sequence
+	// that the bytecode lowering selects it for, in one dispatch. Each tests a match and, when it
+	// fails, continues at Target, as the match code's fused instructions did.
+
+	// FlowJumpTrue continues at Target when the bool Args[0] is true.
+	FlowJumpTrue
+	// FlowMatchClass reads the character at the position as FlowPeek does, into Dst[0], Dst[1] and
+	// Dst[2]; if there is none or it is not in the class of the immediate FlowClassTestOf, it records
+	// the immediate's expectation at the position, as FlowExpect does, and continues at Target.
+	FlowMatchClass
+	// FlowGuardJump tests the guard of the immediate FlowGuardTestOf as FlowGuard does, for the
+	// character Args[0] and the peek's ok Args[1]; if it fails, it records the immediate's expectation
+	// at the position and continues at Target.
+	FlowGuardJump
+	// FlowGuardLitJump tests the guard of a literal of the immediate FlowLitGuardTestOf as
+	// FlowGuardLit does; if it fails, it records the immediate's expectation at the position and
+	// continues at Target.
+	FlowGuardLitJump
+	// FlowAssertJump tests the anchor of the immediate FlowAnchorTestOf as FlowAtAnchor does; if the
+	// position is not at it, it records the immediate's expectation at the position and continues at
+	// Target.
+	FlowAssertJump
+	// FlowMatchLitJump matches the literal of the immediate FlowLitOf as FlowMatchLit does, with its
+	// results in Dst[0] and Dst[1], and continues at Target if it does not match.
+	FlowMatchLitJump
+	// FlowCallJump calls the rule of the immediate FlowCallOf as FlowCall does, with its results in
+	// Dst[0] and Dst[1], and continues at Target if the call fails.
+	FlowCallJump
 )
 
 // FlowImm is the kind of immediate of an operation.
@@ -271,6 +300,14 @@ const (
 	FlowImmBind
 	// FlowImmLitGuard is a FlowLitGuardOf.
 	FlowImmLitGuard
+	// FlowImmClassTest is a FlowClassTestOf.
+	FlowImmClassTest
+	// FlowImmGuardTest is a FlowGuardTestOf.
+	FlowImmGuardTest
+	// FlowImmLitGuardTest is a FlowLitGuardTestOf.
+	FlowImmLitGuardTest
+	// FlowImmAnchorTest is a FlowAnchorTestOf.
+	FlowImmAnchorTest
 )
 
 // FlowShape is what the instructions of an operation hold: the number of destination and argument
@@ -362,6 +399,13 @@ var FlowShapes = [...]FlowShape{
 	FlowRecLen:        {Name: "RECLEN", Dst: 1},
 	FlowRestore:       {Name: "RESTORE", Args: 2},
 	FlowGuardLit:      {Name: "GUARDLIT", Dst: 1, Imm: FlowImmLitGuard},
+	FlowJumpTrue:      {Name: "JUMPTRUE", Args: 1, Target: true},
+	FlowMatchClass:    {Name: "MATCHCLASS", Dst: 3, Target: true, Imm: FlowImmClassTest},
+	FlowGuardJump:     {Name: "GUARDJUMP", Args: 2, Target: true, Imm: FlowImmGuardTest},
+	FlowGuardLitJump:  {Name: "GUARDLITJUMP", Target: true, Imm: FlowImmLitGuardTest},
+	FlowAssertJump:    {Name: "ASSERTJUMP", Target: true, Imm: FlowImmAnchorTest},
+	FlowMatchLitJump:  {Name: "MATCHLITJUMP", Dst: 2, Target: true, Imm: FlowImmLit},
+	FlowCallJump:      {Name: "CALLJUMP", Dst: 2, Target: true, Imm: FlowImmCall},
 }
 
 // Shape returns the shape of o; ok is false for an operation that does not exist.
@@ -413,7 +457,7 @@ type FlowExpectOf struct {
 	Message bool
 }
 
-// FlowLitOf is the immediate of FlowMatchLit: the literal (an index of Module.Strings; for a
+// FlowLitOf is the immediate of FlowMatchLit and FlowMatchLitJump: the literal (an index of Module.Strings; for a
 // case-insensitive literal, Fold, its text with each ASCII letter lowercased) and the expectation it
 // records on failure, as FlowExpectOf.Exp counts it.
 type FlowLitOf struct {
@@ -455,7 +499,35 @@ type FlowBindOf struct {
 	Var, Action int
 }
 
-// FlowCallOf is the immediate of FlowCall: the rule's index and the binding level it is called at.
+// FlowClassTestOf is the immediate of FlowMatchClass: the class, an index of Module.Classes, and the
+// expectation recorded when the character is not in it.
+type FlowClassTestOf struct {
+	Class  int
+	Expect FlowExpectOf
+}
+
+// FlowGuardTestOf is the immediate of FlowGuardJump: the guard and the expectation recorded when it
+// fails.
+type FlowGuardTestOf struct {
+	Guard  FlowGuardOf
+	Expect FlowExpectOf
+}
+
+// FlowLitGuardTestOf is the immediate of FlowGuardLitJump: the guard of a literal and the
+// expectation recorded when it fails.
+type FlowLitGuardTestOf struct {
+	Guard  FlowLitGuardOf
+	Expect FlowExpectOf
+}
+
+// FlowAnchorTestOf is the immediate of FlowAssertJump: the anchor, as the immediate of FlowAtAnchor,
+// and the expectation recorded when the position is not at it.
+type FlowAnchorTestOf struct {
+	Anchor int
+	Expect FlowExpectOf
+}
+
+// FlowCallOf is the immediate of FlowCall and FlowCallJump: the rule's index and the binding level it is called at.
 type FlowCallOf struct{ Rule, Level int }
 
 // FixedExps is the number of fixed expectations at the start of the parser's expectation table (any

@@ -112,16 +112,21 @@ type flowRun struct {
 	ok   bool
 }
 
-// call returns the immediate of the CALL that fr is suspended at.
+// call returns the immediate of the CALL or CALLJUMP that fr is suspended at.
 func (fr *flowRun) call() bytecode.FlowCallOf {
 	return fr.f.Code[fr.pc].Imm.(bytecode.FlowCallOf)
 }
 
-// resume stores the result of the CALL that fr is suspended at and continues after it.
+// resume stores the result of the CALL or CALLJUMP that fr is suspended at and continues after it,
+// or at the target of a CALLJUMP whose call failed.
 func (fr *flowRun) resume(v *value.Node, ok bool) {
 	in := &fr.f.Code[fr.pc]
 	fr.set(in.Dst[0], v)
 	fr.set(in.Dst[1], ok)
+	if !ok && in.Op == bytecode.FlowCallJump {
+		fr.pc = in.Target
+		return
+	}
 	fr.pc++
 }
 
@@ -160,6 +165,45 @@ func (vm *Program) runFlow(p *state.Parser, fr *flowRun) (call bool) {
 			if !regs[in.Args[0]].(bool) {
 				pc = in.Target
 			}
+		case bytecode.FlowJumpTrue:
+			if regs[in.Args[0]].(bool) {
+				pc = in.Target
+			}
+		case bytecode.FlowMatchClass:
+			x := in.Imm.(bytecode.FlowClassTestOf)
+			ch, size, ok := p.Peek()
+			fr.set(in.Dst[0], ch)
+			fr.set(in.Dst[1], size)
+			fr.set(in.Dst[2], ok)
+			if !ok || !vm.has(p, int32(x.Class), ch) {
+				expect(p, x.Expect)
+				pc = in.Target
+			}
+		case bytecode.FlowGuardJump:
+			x := in.Imm.(bytecode.FlowGuardTestOf)
+			if vm.guardFails(p, x.Guard, regs[in.Args[0]].(rune), regs[in.Args[1]].(bool)) {
+				expect(p, x.Expect)
+				pc = in.Target
+			}
+		case bytecode.FlowGuardLitJump:
+			x := in.Imm.(bytecode.FlowLitGuardTestOf)
+			if litGuardFails(p, x.Guard) {
+				expect(p, x.Expect)
+				pc = in.Target
+			}
+		case bytecode.FlowAssertJump:
+			x := in.Imm.(bytecode.FlowAnchorTestOf)
+			if !atAnchor(p, x.Anchor) {
+				expect(p, x.Expect)
+				pc = in.Target
+			}
+		case bytecode.FlowMatchLitJump:
+			ok := vm.flowMatchLit(p, in.Imm.(bytecode.FlowLitOf))
+			fr.set(in.Dst[0], nil)
+			fr.set(in.Dst[1], ok)
+			if !ok {
+				pc = in.Target
+			}
 		case bytecode.FlowReturn:
 			fr.v, fr.ok = asNode(regs[in.Args[0]]), regs[in.Args[1]].(bool)
 			fr.pc = len(f.Code)
@@ -174,22 +218,12 @@ func (vm *Program) runFlow(p *state.Parser, fr *flowRun) (call bool) {
 			fr.set(in.Dst[1], size)
 			fr.set(in.Dst[2], ok)
 		case bytecode.FlowGuard:
-			g := in.Imm.(bytecode.FlowGuardOf)
-			ch, ok := regs[in.Args[0]].(rune), regs[in.Args[1]].(bool)
-			hit := ok && vm.has(p, int32(g.Class), ch)
-			fr.set(in.Dst[0], !hit && p.Depth+g.Depth <= p.MaxDepth)
+			fr.set(in.Dst[0], vm.guardFails(p, in.Imm.(bytecode.FlowGuardOf), regs[in.Args[0]].(rune), regs[in.Args[1]].(bool)))
 		case bytecode.FlowGuardLit:
-			g := in.Imm.(bytecode.FlowLitGuardOf)
-			_, hit := p.MatchChar(g.Rune, g.Fold)
-			fr.set(in.Dst[0], !hit && p.Depth+g.Depth <= p.MaxDepth)
+			fr.set(in.Dst[0], litGuardFails(p, in.Imm.(bytecode.FlowLitGuardOf)))
 		case bytecode.FlowExpect:
-			x := in.Imm.(bytecode.FlowExpectOf)
-			id := state.ExpID(x.Exp)
-			if x.Message {
-				id |= state.MsgBit
-			}
-			p.Expect(regs[in.Args[0]].(int), id)
-		case bytecode.FlowCall:
+			p.Expect(regs[in.Args[0]].(int), expID(in.Imm.(bytecode.FlowExpectOf)))
+		case bytecode.FlowCall, bytecode.FlowCallJump:
 			fr.pc = pc - 1
 			return true
 		case bytecode.FlowUnfresh:
@@ -225,36 +259,10 @@ func (vm *Program) runFlow(p *state.Parser, fr *flowRun) (call bool) {
 		case bytecode.FlowInClass:
 			fr.set(in.Dst[0], vm.has(p, int32(in.Imm.(int)), regs[in.Args[0]].(rune)))
 		case bytecode.FlowAtAnchor:
-			// As the match code's ASSERT.
-			var at bool
-			switch in.Imm.(int) {
-			case 0:
-				at = p.AtInputStart()
-			case 1:
-				at = p.AtEOF()
-			case 2:
-				at = p.AtLineStart()
-			default:
-				at = p.AtLineEnd()
-			}
-			fr.set(in.Dst[0], at)
+			fr.set(in.Dst[0], atAnchor(p, in.Imm.(int)))
 		case bytecode.FlowMatchLit:
-			// As the match code's STR and STR_FOLD, except that a failure leaves the position where it
-			// was, as flow.matchLit does.
-			x := in.Imm.(bytecode.FlowLitOf)
-			start := p.Pos
-			var ok bool
-			if x.Fold {
-				ok = p.MatchLiteralFold(vm.runes[x.Str])
-			} else {
-				ok = p.MatchLiteral(vm.runes[x.Str], vm.bytes[x.Str])
-			}
-			if !ok {
-				p.Expect(start, state.ExpID(x.Exp))
-				p.Pos = start
-			}
 			fr.set(in.Dst[0], nil)
-			fr.set(in.Dst[1], ok)
+			fr.set(in.Dst[1], vm.flowMatchLit(p, in.Imm.(bytecode.FlowLitOf)))
 		case bytecode.FlowIsolate:
 			fr.set(in.Dst[0], p.Isolate(p.Pos))
 		case bytecode.FlowUnisolate:
@@ -409,6 +417,63 @@ func (vm *Program) runFlow(p *state.Parser, fr *flowRun) (call bool) {
 	}
 	// A loaded body ends with JUMP or RETURN (bytecode.ValidateModule), so it never gets here.
 	panic("internal error: vm: a Flow body ran past its end")
+}
+
+// expID returns the parser's ID of the expectation x.
+func expID(x bytecode.FlowExpectOf) state.ExpID {
+	id := state.ExpID(x.Exp)
+	if x.Message {
+		id |= state.MsgBit
+	}
+	return id
+}
+
+// expect records the expectation x at the position (flow.expect).
+func expect(p *state.Parser, x bytecode.FlowExpectOf) { p.Expect(p.Pos, expID(x)) }
+
+// guardFails reports whether the guard g of a class fails for the character ch, read if ok
+// (flow.guardFails): the character is not in the class and the alternative would not nest too deep.
+func (vm *Program) guardFails(p *state.Parser, g bytecode.FlowGuardOf, ch rune, ok bool) bool {
+	hit := ok && vm.has(p, int32(g.Class), ch)
+	return !hit && p.Depth+g.Depth <= p.MaxDepth
+}
+
+// litGuardFails reports whether the guard g of a literal fails (flow.guardLitFails): the input at the
+// position does not begin with the literal's first character, compared as the literal compares it
+// (state.Parser.MatchChar), and the alternative would not nest too deep.
+func litGuardFails(p *state.Parser, g bytecode.FlowLitGuardOf) bool {
+	_, hit := p.MatchChar(g.Rune, g.Fold)
+	return !hit && p.Depth+g.Depth <= p.MaxDepth
+}
+
+// atAnchor reports whether the position is at the anchor of an immediate (flow.atAnchor).
+func atAnchor(p *state.Parser, anchor int) bool {
+	switch anchor {
+	case 0:
+		return p.AtInputStart()
+	case 1:
+		return p.AtEOF()
+	case 2:
+		return p.AtLineStart()
+	}
+	return p.AtLineEnd()
+}
+
+// flowMatchLit matches the literal of x at the position and reports whether it matched (flow.matchLit):
+// a failure records the literal's expectation and leaves the position where it was.
+func (vm *Program) flowMatchLit(p *state.Parser, x bytecode.FlowLitOf) bool {
+	start := p.Pos
+	var ok bool
+	if x.Fold {
+		ok = p.MatchLiteralFold(vm.runes[x.Str])
+	} else {
+		ok = p.MatchLiteral(vm.runes[x.Str], vm.bytes[x.Str])
+	}
+	if !ok {
+		p.Expect(start, state.ExpID(x.Exp))
+		p.Pos = start
+	}
+	return ok
 }
 
 // flowSlot returns the capture slot of the frame f that an instruction names, and fails the parse

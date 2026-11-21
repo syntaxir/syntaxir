@@ -77,6 +77,8 @@ type compiler struct {
 	// scope holds the capture slots of the frame the code being emitted writes.
 	scope []ir.Slot
 	err   error
+	// counts holds the number of matches of each pattern of the Flow selection table, by name.
+	counts map[string]int
 }
 
 // actionSite is an action expression of the module: the Core IR action expression, the slots of the frame it reads, and the

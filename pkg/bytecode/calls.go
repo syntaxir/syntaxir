@@ -148,7 +148,7 @@ func newCallGraph(m *Module, sc *recScratch) callGraph {
 	flowCalls := func(i int, f func(rule int)) {
 		if fl := m.Flows[i]; fl != nil {
 			for _, in := range fl.Code {
-				if c, ok := in.Imm.(FlowCallOf); ok && in.Op == FlowCall {
+				if c, ok := in.Imm.(FlowCallOf); ok && (in.Op == FlowCall || in.Op == FlowCallJump) {
 					f(c.Rule)
 				}
 			}

@@ -150,27 +150,36 @@ func (m *Module) flowOperands(in *FlowInstr, str func(int) string) string {
 	for _, a := range in.Args {
 		parts = append(parts, reg(a))
 	}
-	if s, _ := in.Op.Shape(); s.Target {
+	sh, _ := in.Op.Shape()
+	if sh.Target {
 		parts = append(parts, fmt.Sprintf("-> %d", in.Target))
 	}
-	switch x := in.Imm.(type) {
+	if imm := m.flowImm(sh.Imm, in.Imm, str); imm != "" {
+		parts = append(parts, imm)
+	} else if in.Op == FlowConst {
+		parts = append(parts, "nil")
+	}
+	return strings.Join(parts, " ")
+}
+
+// flowImm renders the immediate v of the kind k, or "" for none.
+func (m *Module) flowImm(k FlowImm, v any, str func(int) string) string {
+	var parts []string
+	switch x := v.(type) {
 	case nil:
-		if in.Op == FlowConst {
-			parts = append(parts, "nil")
-		}
 	case int:
-		switch s, _ := in.Op.Shape(); {
-		case s.Imm == FlowImmClass && x >= 0 && x < len(m.Classes):
+		switch {
+		case k == FlowImmClass && x >= 0 && x < len(m.Classes):
 			parts = append(parts, str(m.Classes[x].Expectation))
-		case s.Imm == FlowImmStr && x >= 0 && x < len(m.Strings):
+		case k == FlowImmStr && x >= 0 && x < len(m.Strings):
 			parts = append(parts, strconv.Quote(m.Strings[x]))
-		case s.Imm == FlowImmSlot:
+		case k == FlowImmSlot:
 			parts = append(parts, fmt.Sprintf("slot=%d", x))
-		case s.Imm == FlowImmRunSite, s.Imm == FlowImmScanSite:
+		case k == FlowImmRunSite, k == FlowImmScanSite:
 			parts = append(parts, fmt.Sprintf("site=%d", x))
-		case s.Imm == FlowImmAction:
+		case k == FlowImmAction:
 			parts = append(parts, fmt.Sprintf("action=%d", x))
-		case s.Imm == FlowImmScope && x >= 0 && x < len(m.Scopes):
+		case k == FlowImmScope && x >= 0 && x < len(m.Scopes):
 			ns := make([]string, len(m.Scopes[x]))
 			for i, id := range m.Scopes[x] {
 				ns[i] = m.Strings[id]
@@ -232,6 +241,14 @@ func (m *Module) flowOperands(in *FlowInstr, str func(int) string) string {
 		parts = append(parts, fmt.Sprintf("elems=%t shared=%t tuple=%t k=%d mode=%d", x.Elems, x.Shared, x.Tuple, x.K, x.Mode))
 	case FlowSilenceOf:
 		parts = append(parts, fmt.Sprintf("delta=%d site=%d ok=%t", x.Delta, x.Site, x.Ok))
+	case FlowClassTestOf:
+		parts = append(parts, m.flowImm(FlowImmClass, x.Class, str), m.flowImm(FlowImmExpect, x.Expect, str))
+	case FlowGuardTestOf:
+		parts = append(parts, m.flowImm(FlowImmGuard, x.Guard, str), m.flowImm(FlowImmExpect, x.Expect, str))
+	case FlowLitGuardTestOf:
+		parts = append(parts, m.flowImm(FlowImmLitGuard, x.Guard, str), m.flowImm(FlowImmExpect, x.Expect, str))
+	case FlowAnchorTestOf:
+		parts = append(parts, m.flowImm(FlowImmAnchor, x.Anchor, str), m.flowImm(FlowImmExpect, x.Expect, str))
 	default:
 		parts = append(parts, fmt.Sprintf("%#v", x))
 	}
