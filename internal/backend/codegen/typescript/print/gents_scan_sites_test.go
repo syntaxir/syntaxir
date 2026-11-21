@@ -2,7 +2,6 @@ package print_test
 
 import (
 	"math"
-	"os/exec"
 	"strings"
 	"testing"
 
@@ -18,10 +17,7 @@ func TestScanSitesTSMatchEngine(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
+	node := codegentest.RequireNode(t)
 	codegentest.TSParsersCorpus(t, node, codegentest.ScanSiteCases(40), common.GenOptions{})
 }
 
@@ -34,10 +30,7 @@ func TestScanSitesTSLinear(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
+	node := codegentest.RequireNode(t)
 	sources := []string{
 		"rule main = e $$\nrule e = \"(\" (e ws \"x\" / e) / \".\"\nrule ws = c:[ ]*",
 		"rule main = e \" \" ws $$\nrule e = \"(\" e? (ws \")\")?\nrule ws = [ ]* #atomic",

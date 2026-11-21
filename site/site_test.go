@@ -400,11 +400,15 @@ func TestBuild(t *testing.T) {
 var inlineRe = regexp.MustCompile(`\sstyle="|<style[\s>]|<script>|<script [^>]*>[^<]|\son[a-z]+="`)
 
 // TestJavaScript runs the tests of the site's JavaScript modules in testdata/*_test.mjs with Node. It
-// is skipped when node is not installed.
+// fails when node is not installed, and is skipped with SKIP_NODE=1, as the Go tests of the root module
+// that need node do (internal/testing/tooltest; this module cannot import it).
 func TestJavaScript(t *testing.T) {
 	node, err := exec.LookPath("node")
 	if err != nil {
-		t.Skip("node is not installed")
+		if os.Getenv("SKIP_NODE") == "1" {
+			t.Skip("node not found, and SKIP_NODE=1")
+		}
+		t.Fatalf("node not found: %v (install it, or set SKIP_NODE=1 to skip the tests that need Node or tsc)", err)
 	}
 	tests, err := filepath.Glob(filepath.Join("testdata", "*_test.mjs"))
 	if err != nil || len(tests) == 0 {

@@ -201,12 +201,11 @@ if(isMainThread){
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("depth workload controls: %v\n%s", err, out)
 	}
-	if node, err := exec.LookPath("node"); err == nil {
-		cmd := exec.Command(node, "bench.mjs", "--verify")
-		cmd.Dir = filepath.Join(dir, "ts")
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("TypeScript depth workload controls: %v\n%s", err, out)
-		}
+	node := codegentest.RequireNode(t)
+	cmd = exec.Command(node, "bench.mjs", "--verify")
+	cmd.Dir = filepath.Join(dir, "ts")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("TypeScript depth workload controls: %v\n%s", err, out)
 	}
 	// Preserve a small manifest for measurements and source-size comparisons.
 	manifest := fmt.Sprintf("Generated depth workload controls\nRoutes: direct and conversion Go Node/Recognize/Value; TypeScript legacy/options Node/Recognize\nInputs: small 8 parentheses, large 1024 repeated small inputs, deep 8192 parentheses\nOptions: default, zero, equivalent 100000, override 600000\nGenerated defaults remain 100000.\nGo direct source bytes: %d\nGo conversion source bytes: %d\nTypeScript source bytes: %d\n", goSizes["direct"], goSizes["convert"], len(code))

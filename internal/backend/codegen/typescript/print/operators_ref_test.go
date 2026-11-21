@@ -85,10 +85,7 @@ func TestTSOperatorsRuleMatchesReference(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
+	node := codegentest.RequireNode(t)
 	g, err := parseTest(tsOperatorsGrammar)
 	if err != nil {
 		t.Fatal(err)

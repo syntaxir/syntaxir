@@ -70,10 +70,7 @@ func TestGeneratedTSInvalidUTF8Literals(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			node, err := exec.LookPath("node")
-			if err != nil {
-				t.Skip("node not found")
-			}
+			node := codegentest.RequireNode(t)
 			cmd := exec.Command(node, "main.ts")
 			cmd.Dir = dir
 			var stderr bytes.Buffer
@@ -82,12 +79,11 @@ func TestGeneratedTSInvalidUTF8Literals(t *testing.T) {
 			if err != nil || string(out) != want.String() {
 				t.Fatalf("generated TS: %v\n%s\ngot %s\nwant %s", err, stderr.String(), out, want.String())
 			}
-			if tsc, err := exec.LookPath("tsc"); err == nil {
-				cmd := exec.Command(tsc, "--strict", "--target", "ES2022", "--module", "esnext", "--noEmit", "--skipLibCheck", "parser.ts")
-				cmd.Dir = dir
-				if out, err := cmd.CombinedOutput(); err != nil {
-					t.Fatalf("strict tsc: %v\n%s", err, out)
-				}
+			tsc := codegentest.RequireTSC(t)
+			cmd = exec.Command(tsc, "--strict", "--target", "ES2022", "--module", "esnext", "--noEmit", "--skipLibCheck", "parser.ts")
+			cmd.Dir = dir
+			if out, err := cmd.CombinedOutput(); err != nil {
+				t.Fatalf("strict tsc: %v\n%s", err, out)
 			}
 		})
 	}

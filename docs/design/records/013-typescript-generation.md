@@ -128,7 +128,7 @@ of 40, the test compares 40,128 results; that run is too slow to keep, but it pa
 
 It also type-checks all generated modules with `tsc --strict` plus `--noUnusedLocals`, `--noUnusedParameters`,
 `--noUncheckedIndexedAccess`, `--exactOptionalPropertyTypes`, `--erasableSyntaxOnly` and others, at `--target es2020`.
-The test is skipped without `node`, and the type check without `tsc`.
+The test fails without `node` or `tsc`, naming the missing tool; `SKIP_NODE=1` skips it.
 
 ### Alternatives Considered
 

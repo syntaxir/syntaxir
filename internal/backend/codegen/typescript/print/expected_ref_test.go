@@ -21,10 +21,7 @@ func TestTSKeepAndMergeMatchReference(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
+	node := codegentest.RequireNode(t)
 	g, err := parseTest(`rule main = "a"*`)
 	if err != nil {
 		t.Fatal(err)

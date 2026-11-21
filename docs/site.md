@@ -264,14 +264,14 @@ ZeroSite's Markdown math chapter, `spec/markdown-math.md`. To upgrade KaTeX, upd
 
 | Test | What it checks |
 |:--|:--|
-| `go test ./cmd/playground` | The API natively (it has no build tags), and `TestWasmSmoke`: it builds `sxir.wasm` and the `sxir` command, and runs [`cmd/playground/testdata/smoke.mjs`](../cmd/playground/testdata/smoke.mjs) in Node, which compares every example of [`cmd/playground/examples.txt`](../cmd/playground/examples.txt) with the command: JSON, S-expression, errors, `-recognize`, every backend, byte positions, `sxir fmt` and `sxir gen -types`. It is skipped when `node` is not installed and in `-short` mode |
+| `go test ./cmd/playground` | The API natively (it has no build tags), and `TestWasmSmoke`: it builds `sxir.wasm` and the `sxir` command, and runs [`cmd/playground/testdata/smoke.mjs`](../cmd/playground/testdata/smoke.mjs) in Node, which compares every example of [`cmd/playground/examples.txt`](../cmd/playground/examples.txt) with the command: JSON, S-expression, errors, `-recognize`, every backend, byte positions, `sxir fmt` and `sxir gen -types`. It fails when `node` is not installed (`SKIP_NODE=1` skips it) and is skipped in `-short` mode |
 | `cd site && go test ./...` | Builds the whole site and checks that every Markdown file of `docs/` and `spec/` became a page, that the generated pages and the search index are complete, that no page needs inline scripts or styles, and that every internal link and anchor resolves. It compiles the playground's binary from source (`-wasm-source=build`), so it
 needs no network; the download and verification of a release, and the 25 MiB limit, are tested separately. It also enforces the documentation rules of the
 [style sheet](documentation-style.md): the directions in which pages may link (`TestDocumentLinkDirections`) and the
 capitalization of headings (`TestHeadingTitleCase`), and the tags and prompts of code blocks (`TestCodeFenceLanguages`,
 `TestNoCommandPrompts`), and runs the examples of the tutorial, the guides, the cookbook and the README
 (`TestDocumentationExamples`: it compiles every complete grammar and compares every command with its shown output). Run it with `-count=1`, because the result of a run that read
-unchanged Go files is cached even when the Markdown changed. `TestJavaScript` runs the tests of the page scripts in `site/testdata/*_test.mjs` with `node --test` (skipped without Node) |
+unchanged Go files is cached even when the Markdown changed. `TestJavaScript` runs the tests of the page scripts in `site/testdata/*_test.mjs` with `node --test` (fails without Node; `SKIP_NODE=1` skips it) |
 
 The site is a separate Go module, so `go test ./...` at the root does not run its tests.
 The playground state tests execute the actual application with a controlled DOM, client and timers. They check

@@ -370,9 +370,7 @@ func TestChargeAgreementGenerated(t *testing.T) {
 			}
 		})
 		t.Run(s.name+"/typescript", func(t *testing.T) {
-			if _, err := exec.LookPath("node"); err != nil {
-				t.Skip("node not found")
-			}
+			codegentest.RequireNode(t)
 			t.Parallel()
 			for k, c := range cases {
 				t.Run(c.name, func(t *testing.T) {
@@ -473,9 +471,7 @@ func checkVariantsGenerated(t *testing.T, what string, vs []unitVariant) {
 			check(t, "generated Go typed "+s.name, generatedGoCharges(t, cases, refs, s.noOpt, true))
 		})
 		t.Run(s.name+"/typescript", func(t *testing.T) {
-			if _, err := exec.LookPath("node"); err != nil {
-				t.Skip("node not found")
-			}
+			codegentest.RequireNode(t)
 			t.Parallel()
 			for k, v := range vs {
 				t.Run(v.name, func(t *testing.T) {

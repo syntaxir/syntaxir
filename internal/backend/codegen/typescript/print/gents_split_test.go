@@ -50,14 +50,8 @@ func TestGeneratedTSSplitFiles(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs tsc and node")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
-	tsc, err := exec.LookPath("tsc")
-	if err != nil {
-		t.Skip("tsc not found")
-	}
+	node := codegentest.RequireNode(t)
+	tsc := codegentest.RequireTSC(t)
 	const src = `type Pair = { Key string; Values []int }
 rule main Pair = k:key "=" vs:num+ => Pair{Key: $k, Values: $vs.Value}
 rule key string = t:([a-z]+) #atomic => text($t)
@@ -208,14 +202,8 @@ func runTSSplit(t *testing.T, src string, opts common.GenOptions, consumer strin
 	if testing.Short() {
 		t.Skip("runs tsc and node")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
-	tsc, err := exec.LookPath("tsc")
-	if err != nil {
-		t.Skip("tsc not found")
-	}
+	node := codegentest.RequireNode(t)
+	tsc := codegentest.RequireTSC(t)
 	g, err := parseTest(src)
 	if err != nil {
 		t.Fatal(err)

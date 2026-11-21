@@ -22,10 +22,7 @@ func TestSkipRunsTSMatchEngine(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
+	node := codegentest.RequireNode(t)
 	codegentest.TSParsersCorpus(t, node, codegentest.SkipRunCases(60), common.GenOptions{})
 }
 
@@ -152,10 +149,7 @@ func TestSkipRunsTSLinear(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
+	node := codegentest.RequireNode(t)
 	var sources []string
 	var inputs [][]string
 	sizes := []int{200, 400, 800}

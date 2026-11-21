@@ -19,10 +19,7 @@ func TestGeneratedTSHiddenRulesAreNotEntryPoints(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs node")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
+	node := codegentest.RequireNode(t)
 	g, err := parseTest(`rule main = _a (x:"b" => $x) _c
 rule _a = "a"
 rule _c = "c"`)

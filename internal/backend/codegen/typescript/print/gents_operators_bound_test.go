@@ -2,9 +2,9 @@ package print_test
 
 import (
 	"math"
-	"os/exec"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/complexitytest"
 )
 
@@ -17,10 +17,7 @@ func TestOperatorsRefusedPartTSLinear(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
+	node := codegentest.RequireNode(t)
 	sizes := []int{100, 200, 400}
 	var in []string
 	for _, n := range sizes {

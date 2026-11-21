@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -182,9 +181,8 @@ func testActionGeneratedTargets(t *testing.T) {
 	goBin := filepath.Join(runtime.GOROOT(), "bin", "go")
 	cases := list(true)
 	codegentest.GeneratedParsersCorpus(t, goBin, cases, common.GenOptions{})
-	if node, err := exec.LookPath("node"); err == nil {
-		codegentest.TSParsersCorpus(t, node, cases, common.GenOptions{})
-	}
+	node := codegentest.RequireNode(t)
+	codegentest.TSParsersCorpus(t, node, cases, common.GenOptions{})
 	// A typed parser reads a field that a constructor leaves out as the zero value of its Type, like the
 	// others, so the typed comparison reads unset fields too.
 	codegentest.GeneratedTypesCorpus(t, goBin, list(true), common.GenOptions{ConvertTypes: true}, 0)
@@ -211,9 +209,8 @@ func testActionFixedGeneratedTargets(t *testing.T) {
 	}
 	goBin := filepath.Join(runtime.GOROOT(), "bin", "go")
 	codegentest.GeneratedParsersCorpus(t, goBin, cases, common.GenOptions{})
-	if node, err := exec.LookPath("node"); err == nil {
-		codegentest.TSParsersCorpus(t, node, cases, common.GenOptions{})
-	}
+	node := codegentest.RequireNode(t)
+	codegentest.TSParsersCorpus(t, node, cases, common.GenOptions{})
 	codegentest.GeneratedTypesCorpus(t, goBin, cases, common.GenOptions{ConvertTypes: true}, 0)
 }
 
@@ -272,10 +269,7 @@ func testActionDifferentialDetectsBrokenTargets(t *testing.T) {
 			t.Errorf("Go: %s: no generated action expression notices", m.name)
 		}
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		return
-	}
+	node := codegentest.RequireNode(t)
 	for _, m := range []struct{ name, from, to string }{
 		{"lowered: plus becomes minus", `c.p.actionBinary(0,`, `c.p.actionBinary(1,`},
 		{"lowered: times becomes plus", `c.p.actionBinary(2,`, `c.p.actionBinary(0,`},
@@ -397,10 +391,7 @@ func testActionConstructorsDetectBrokenTargets(t *testing.T) {
 		}, 0)
 		check("typed Go", m, hits, got)
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		return
-	}
+	node := codegentest.RequireNode(t)
 	for _, m := range []mutant{
 		{"control: unchanged", `c.p.actionHull(c, `, `c.p.actionHull(c, `},
 		{"a tuple becomes a list", `c.p.actionHull(c, true, `, `c.p.actionHull(c, false, `},
@@ -519,10 +510,7 @@ func testActionIterationsDetectBrokenTargets(t *testing.T) {
 		got := codegentest.GeneratedTypesMismatches(t, goBin, list, common.GenOptions{ConvertTypes: true}, mutateGo(m, &hits), 0)
 		check("typed Go", m, hits, got)
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		return
-	}
+	node := codegentest.RequireNode(t)
 	for _, m := range []mutant{
 		{"control: unchanged", `c.p.actionItemAt(`, `c.p.actionItemAt(`},
 		{"the folds take the elements from the first", `c.p.actionItemAt(`, `((it: readonly (Node | null)[], i: number, _r: boolean) => c.p.actionItemAt(it, i, false))(`},
@@ -628,10 +616,7 @@ func testActionLoweringOptionsDetectBrokenTargets(t *testing.T) {
 			return codegentest.GeneratedTypesMismatches(t, goBin, fieldCompared, common.GenOptions{ConvertTypes: true}, goBytes(mutate), len(fieldCompared))
 		})
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		return
-	}
+	node := codegentest.RequireNode(t)
 	const tsForce, tsForced = `if (c.p.control === null) {`, `if (false) {`
 	// TypeScript names an operator by its code: 5 is ==, 6 is !=; 0 is && and 1 is || for logic.
 	for _, m := range []mutant{

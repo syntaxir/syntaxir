@@ -23,14 +23,8 @@ func runTypedTSFixtureWithLib(t *testing.T, src, consumer string, opts common.Ge
 	if testing.Short() {
 		t.Skip("runs generated TypeScript consumers")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
-	tsc, err := exec.LookPath("tsc")
-	if err != nil {
-		t.Skip("tsc not found")
-	}
+	node := codegentest.RequireNode(t)
+	tsc := codegentest.RequireTSC(t)
 	g, err := parseTest(src)
 	if err != nil {
 		t.Fatal(err)

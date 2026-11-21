@@ -200,7 +200,7 @@ example is about to become visible.
 - `cmd/playground/api_test.go` tests the API natively.
 - `TestWasmSmoke` builds `sxir.wasm` and the `sxir` command and runs `cmd/playground/testdata/smoke.mjs` in Node. For every
   example of `cmd/playground/examples.txt` it compares the JSON, the S-expression, the errors, recognition, every backend,
-  byte positions, `fmt` and `gen -types` with the command. It is skipped without Node and in `-short` mode.
+  byte positions, `fmt` and `gen -types` with the command. It fails without Node (`SKIP_NODE=1` skips it) and is skipped in `-short` mode.
 - `site/site_test.go` builds the whole site and checks that every document became a page, that the landing page,
   the reference and the search index are complete, that no page needs inline code, and that no link is broken.
 - `site/testdata/state_ordering_test.mjs` executes the actual playground and landing scripts with deferred encoding,

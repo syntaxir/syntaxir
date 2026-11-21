@@ -21,10 +21,7 @@ func TestGeneratedTSDepthOptions(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
+	node := codegentest.RequireNode(t)
 	fixtures := []codegentest.Case{
 		{Name: "ordinary", Src: `rule main = trigger n
 rule trigger = v1:_ => list($v1)
@@ -148,11 +145,10 @@ let depthErrors=0;
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("TypeScript depth options: %v\n%s", err, out)
 	}
-	if tsc, err := exec.LookPath("tsc"); err == nil {
-		cmd := exec.Command(tsc, "--noEmit", "--strict", "--target", "ES2020", "--module", "ESNext", "--skipLibCheck", "g0.ts", "g1.ts", "g2.ts", "g3.ts", "g4.ts")
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("TypeScript depth API types: %v\n%s", err, out)
-		}
+	tsc := codegentest.RequireTSC(t)
+	cmd = exec.Command(tsc, "--noEmit", "--strict", "--target", "ES2020", "--module", "ESNext", "--skipLibCheck", "g0.ts", "g1.ts", "g2.ts", "g3.ts", "g4.ts")
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("TypeScript depth API types: %v\n%s", err, out)
 	}
 }

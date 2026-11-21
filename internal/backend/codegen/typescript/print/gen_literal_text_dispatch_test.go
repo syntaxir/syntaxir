@@ -18,10 +18,7 @@ import (
 
 func TestLiteralTextPredicateDispatchTSDisabledParity(t *testing.T) {
 	t.Parallel()
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
+	node := codegentest.RequireNode(t)
 	const source = `rule main = w:[^!]* #atomic {text($w) == "" || text($w) == "a" || text($w) == "b" || text($w) == "é" || text($w) == "😀" || text($w) == "a"} $$`
 	g, err := parseTest(source)
 	if err != nil {
@@ -48,14 +45,11 @@ func TestLiteralTextPredicateDispatchTSDisabledParity(t *testing.T) {
 	if regexp.MustCompile(`switch \(ts\d+\)`).Match(reference) {
 		t.Fatal("TypeScript without text-dispatch still dispatches")
 	}
-	if tsc, err := exec.LookPath("tsc"); err == nil {
-		cmd := exec.Command(tsc, "--noEmit", "--strict", "--target", "ES2022", "--module", "NodeNext", "--moduleResolution", "NodeNext", "optimized.ts", "reference.ts")
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("strict TypeScript check: %v\n%s", err, out)
-		}
-	} else {
-		t.Log("tsc not found; strict TypeScript check skipped")
+	tsc := codegentest.RequireTSC(t)
+	cmd := exec.Command(tsc, "--noEmit", "--strict", "--target", "ES2022", "--module", "NodeNext", "--moduleResolution", "NodeNext", "optimized.ts", "reference.ts")
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("strict TypeScript check: %v\n%s", err, out)
 	}
 	inputs := []struct {
 		Key   string `json:"key"`
@@ -107,7 +101,7 @@ process.stdout.write(JSON.stringify(out));
 	if err := os.WriteFile(path, []byte(script), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command(node, path)
+	cmd = exec.Command(node, path)
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	if err != nil {

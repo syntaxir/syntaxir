@@ -107,10 +107,7 @@ func runTS(t *testing.T, cases []tsRunCase, probe string) [][]string {
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
+	node := codegentest.RequireNode(t)
 	dir := t.TempDir()
 	write := func(name string, content []byte) {
 		if err := os.WriteFile(filepath.Join(dir, name), content, 0o644); err != nil {

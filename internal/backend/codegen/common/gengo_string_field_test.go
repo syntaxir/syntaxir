@@ -1,7 +1,6 @@
 package common_test
 
 import (
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -114,7 +113,6 @@ func testGeneratedStringFieldReads(t *testing.T) {
 	goBin := filepath.Join(runtime.GOROOT(), "bin", "go")
 	codegentest.GeneratedParsersCorpus(t, goBin, cases, common.GenOptions{})
 	codegentest.GeneratedTypesCorpus(t, goBin, cases, common.GenOptions{ConvertTypes: true}, direct)
-	if node, err := exec.LookPath("node"); err == nil {
-		codegentest.TSParsersCorpus(t, node, cases, common.GenOptions{})
-	}
+	node := codegentest.RequireNode(t)
+	codegentest.TSParsersCorpus(t, node, cases, common.GenOptions{})
 }

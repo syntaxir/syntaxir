@@ -5,15 +5,14 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // TestMemoIndex runs the TypeScript library's memo table against a plain map, and checks that the
 // budget of a lookup in a long chain does not depend on the length of the chain.
 func TestMemoIndex(t *testing.T) {
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
+	node := tooltest.RequireNode(t)
 	source, err := os.ReadFile(filepath.Join(libDir, tsLibFileName))
 	if err != nil {
 		t.Fatal(err)

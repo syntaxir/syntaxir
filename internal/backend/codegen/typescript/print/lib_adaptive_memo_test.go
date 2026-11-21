@@ -5,15 +5,14 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // TestAdaptiveMemoCounters exercises the TypeScript library's counter arithmetic
 // directly while reusing its Parser implementation from the same module.
 func TestAdaptiveMemoCounters(t *testing.T) {
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
+	node := tooltest.RequireNode(t)
 	// go test runs in the package directory, from which libDir leads to the library; the path does
 	// not depend on how the test binary was built (-trimpath rewrites source file names).
 	source, err := os.ReadFile(filepath.Join(libDir, tsLibFileName))

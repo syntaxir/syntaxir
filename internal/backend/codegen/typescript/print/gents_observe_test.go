@@ -17,14 +17,8 @@ func TestGeneratedTSTrace(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs standalone TypeScript trace consumers")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
-	tsc, err := exec.LookPath("tsc")
-	if err != nil {
-		t.Skip("tsc not found")
-	}
+	node := codegentest.RequireNode(t)
+	tsc := codegentest.RequireTSC(t)
 	fixtures := []struct{ name, grammar, input, checks string }{
 		{"plain", `type W = { Text string }
 rule main W = t:(part) #atomic => W{Text: text($t)}

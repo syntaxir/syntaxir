@@ -1,7 +1,6 @@
 package common_test
 
 import (
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -31,10 +30,7 @@ func testOperatorsRuleNamedNodeTypeGenerated(t *testing.T) {
 		codegentest.GeneratedTypesCorpus(t, goBin, cases, common.GenOptions{ConvertTypes: true}, len(cases))
 	})
 	t.Run("typescript", func(t *testing.T) {
-		node, err := exec.LookPath("node")
-		if err != nil {
-			t.Skip("node not found")
-		}
+		node := codegentest.RequireNode(t)
 		codegentest.TSParsersCorpus(t, node, cases, common.GenOptions{})
 		codegentest.TSParsersCorpus(t, node, cases, common.GenOptions{SourceInfo: true})
 	})

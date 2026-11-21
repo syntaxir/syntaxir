@@ -33,14 +33,8 @@ func testGeneratedTSTypedReplay(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated Go/TypeScript conversion references")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
-	tsc, err := exec.LookPath("tsc")
-	if err != nil {
-		t.Skip("tsc not found")
-	}
+	node := codegentest.RequireNode(t)
+	tsc := codegentest.RequireTSC(t)
 	cases := append([]codegentest.Case(nil), codegentest.AliasCases...)
 	cases = append(cases, codegentest.Case{Name: "typed", Src: codegentest.TypedGrammar, Inputs: []string{"f(1,x)!?;[3];zz", "f(1,(;g();", "f(a);", ""}})
 	for _, c := range codegentest.GenCorpus(t) {

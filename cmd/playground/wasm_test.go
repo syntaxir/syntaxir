@@ -6,19 +6,18 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // TestWasmSmoke builds the playground for WebAssembly and the sxir command, and runs
 // testdata/smoke.mjs in Node, which compares the WebAssembly API with the command on every example of
-// examples.txt. It is skipped when node is not installed and in -short mode.
+// examples.txt. It fails when node is not installed (SKIP_NODE=1 skips it) and is skipped in -short mode.
 func TestWasmSmoke(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds WebAssembly; skipped in -short mode")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node is not installed")
-	}
+	node := codegentest.RequireNode(t)
 	goTool := filepath.Join(goEnv(t, "GOROOT"), "bin", "go")
 	dir := t.TempDir()
 	wasm := filepath.Join(dir, "sxir.wasm")

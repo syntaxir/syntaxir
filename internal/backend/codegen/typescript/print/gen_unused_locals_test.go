@@ -66,10 +66,7 @@ func TestGeneratedTSNoUnusedLocals(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs tsc")
 	}
-	tsc, err := exec.LookPath("tsc")
-	if err != nil {
-		t.Skip("tsc not found")
-	}
+	tsc := codegentest.RequireTSC(t)
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"type": "module"}`+"\n"), 0o644); err != nil {
 		t.Fatal(err)

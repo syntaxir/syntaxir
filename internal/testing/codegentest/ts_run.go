@@ -21,6 +21,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
@@ -225,10 +226,7 @@ func runTSGrammarScript(t *testing.T, g *ast.Grammar, script string, opts common
 	if testing.Short() {
 		t.Skip("runs generated code")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
+	node := RequireNode(t)
 	code, err := bundle(g, opts)
 	if err != nil {
 		t.Fatal(err)
@@ -260,20 +258,21 @@ func TSParsersCorpus(t *testing.T, node string, cases []Case, opts common.GenOpt
 	}
 }
 
-// RequireNode returns the Node executable, or skips the test when there is none, unless the
-// environment variable REQUIRE_NODE is 1 (the toolchain check of the CI workflows sets it), when
-// the missing executable fails the test: a comparison with the generated TypeScript must not pass
-// by not running.
+// NodeOptedOut reports whether the environment variable SKIP_NODE is 1: the one way to run the tests
+// without Node and tsc, which RequireNode and RequireTSC then skip instead of failing. A test whose
+// other parts do not need them may use it to keep those parts. See tooltest.
+func NodeOptedOut() bool { return tooltest.OptedOut() }
+
+// RequireNode returns the Node executable, failing the test when there is none (tooltest.RequireNode).
 func RequireNode(t *testing.T) string {
 	t.Helper()
-	node, err := exec.LookPath("node")
-	if err != nil {
-		if os.Getenv("REQUIRE_NODE") == "1" {
-			t.Fatalf("node not found, and REQUIRE_NODE=1: %v", err)
-		}
-		t.Skip("node not found")
-	}
-	return node
+	return tooltest.RequireNode(t)
+}
+
+// RequireTSC returns the TypeScript compiler executable, with the rule of RequireNode.
+func RequireTSC(t *testing.T) string {
+	t.Helper()
+	return tooltest.RequireTSC(t)
 }
 
 // TSParsersMismatches is TSParsersCorpus but it returns a description of every result that differs
@@ -335,11 +334,9 @@ func TSParsersMismatches(t *testing.T, node string, cases []Case, opts common.Ge
 	data, _ := json.Marshal(inputs)
 	write("inputs.json", string(data))
 
-	tsc, tscErr := exec.LookPath("tsc")
-	switch {
-	case mutate != nil:
-		// A mutated parser is compared, not type-checked.
-	case tscErr == nil:
+	// A mutated parser is compared, not type-checked.
+	if mutate == nil {
+		tsc := RequireTSC(t)
 		// The strictest checks there are, so that the code compiles in any project; ES2020 is the
 		// oldest target it supports (bigint).
 		args := append([]string{"--noEmit", "--target", "es2020", "--lib", "es2020", "--strict",
@@ -351,8 +348,6 @@ func TSParsersMismatches(t *testing.T, node string, cases []Case, opts common.Ge
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Errorf("tsc: %v\n%s", err, out)
 		}
-	default:
-		t.Log("tsc not found: not type-checking the generated code")
 	}
 
 	cmd := exec.Command(node, "harness.mjs", "inputs.json", "out.jsonl")

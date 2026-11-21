@@ -1,7 +1,6 @@
 package common_test
 
 import (
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -23,9 +22,6 @@ func testGeneratedConstructedFieldChecks(t *testing.T) {
 	cases := codegentest.FieldCheckCases()
 	codegentest.GeneratedParsersCorpus(t, goBin, cases, common.GenOptions{})
 	codegentest.GeneratedTypesCorpus(t, goBin, cases, common.GenOptions{ConvertTypes: true})
-	if node, err := exec.LookPath("node"); err == nil {
-		codegentest.TSParsersCorpus(t, node, cases, common.GenOptions{})
-	} else {
-		t.Error("Node is required for field-check parity")
-	}
+	node := codegentest.RequireNode(t)
+	codegentest.TSParsersCorpus(t, node, cases, common.GenOptions{})
 }

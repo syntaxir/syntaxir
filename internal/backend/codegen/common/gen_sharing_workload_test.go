@@ -32,7 +32,7 @@ func testGeneratedSharingWorkloads(t *testing.T) {
 	if dir == "" {
 		dir = t.TempDir()
 	}
-	node, _ := exec.LookPath("node")
+	node := codegentest.RequireNode(t)
 	for _, lang := range []string{"json", "typescript"} {
 		t.Run(lang, func(t *testing.T) {
 			if lang == "typescript" {
@@ -101,19 +101,17 @@ func testGeneratedSharingWorkloads(t *testing.T) {
 						t.Fatal(err)
 					}
 				}
-				if node != "" {
-					cmd := exec.Command(node, "measure.mjs", "--check")
-					cmd.Dir = path
-					out, err := cmd.CombinedOutput()
-					if err != nil {
-						t.Fatalf("%s TypeScript: %v\n%s", mode, err, out)
-					}
-					if mode == "default" {
-						wantTS = string(out)
-					}
-					if len(out) == 0 || string(out) != wantTS {
-						t.Fatalf("%s TypeScript output differs", mode)
-					}
+				cmd = exec.Command(node, "measure.mjs", "--check")
+				cmd.Dir = path
+				out, err = cmd.CombinedOutput()
+				if err != nil {
+					t.Fatalf("%s TypeScript: %v\n%s", mode, err, out)
+				}
+				if mode == "default" {
+					wantTS = string(out)
+				}
+				if len(out) == 0 || string(out) != wantTS {
+					t.Fatalf("%s TypeScript output differs", mode)
 				}
 				t.Logf("%s: Go=%d bytes TS=%d bytes", mode, len(code), len(ts))
 			}

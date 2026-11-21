@@ -290,13 +290,12 @@ func TestLimitErrorAgreement(t *testing.T) {
 				"bytecode-iterative": engineLimitReports(t, c, BytecodeIterative),
 			}
 			reports["generated Go"], reports["generated Go typed"] = generatedGoLimitReports(t, c, runtime)
-			// Without Node.js only the TypeScript part is skipped: the engine and generated Go are compared
+			// With SKIP_NODE=1 only the TypeScript part is skipped: the engine and generated Go are compared
 			// on every run.
 			var ts []string
-			if _, err := exec.LookPath("node"); err == nil {
+			if !codegentest.NodeOptedOut() {
+				codegentest.RequireNode(t)
 				ts = generatedTSLimitReports(t, c, nil)
-			} else {
-				t.Log("node not found: generated TypeScript is not compared")
 			}
 			if os.Getenv("SXIR_LIMIT_AGREEMENT_DUMP") != "" {
 				for l := uint64(1); l <= c.max; l++ {

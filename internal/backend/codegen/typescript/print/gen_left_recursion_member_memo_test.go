@@ -22,10 +22,7 @@ func TestGeneratedTSLeftRecursionMemberMemoLinear(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated code")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
+	node := codegentest.RequireNode(t)
 	g, err := parseTest(`@start
 rule main = a $$
 rule a = c "+" / "n"
@@ -74,9 +71,6 @@ func TestGeneratedTSLeftRecursionMemberMemoStale(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
+	node := codegentest.RequireNode(t)
 	codegentest.TSParsersCorpus(t, node, append(codegentest.LeftRecursionMemberCases(), codegentest.LeftRecursionMemberSeedCases()...), common.GenOptions{})
 }

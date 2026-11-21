@@ -277,7 +277,7 @@ The behavior of package `engine` is tested from outside it, by the tests of pack
 `internal/backend/codegen/golang/print/gengo_pool_lifecycle_test.go` checks generated Node and typed parser cleanup after oversized
 inputs, retained results, and error/retry reuse in both position units.
 
-The TypeScript generator's test needs Node.js 22.18 or later (`node`) and, for its type check, `tsc`; it is skipped when they are missing.
+The TypeScript generator's test needs Node.js 22.18 or later (`node`) and, for its type check, `tsc`; a test that needs one of them fails when it is missing, naming it, so that a comparison with the generated TypeScript cannot pass by not running. `SKIP_NODE=1` skips those tests instead, for a machine without Node.js or `tsc`.
 The generated TypeScript has the same two forms, chosen by `-no-limits`. A TypeScript test that needs the form without limit controls (the plain output, no charge, no control option) generates with `NoLimitControls`; a test that passes a control option (`signal`, `limits.compute`) takes the default, the controlled form. `TestGeneratedTSParsersMatchEngine` compares both forms with the engine, and `gents_budget_forms_test.go` checks that the plain form has no charge, no control option and no cancellation export, and that the controlled form accepts the options.
 TypeScript is printed from the same Flow stage as Go (`internal/backend/codegen/typescript/print/flow.go`, `internal/backend/codegen/typescript/print/outline.go`); `TestGeneratedTSPrintsLeanRulesFromFlow` and the frozen decision goldens cover what is chosen, and a rule that the Flow stage does not print fails generation.
 

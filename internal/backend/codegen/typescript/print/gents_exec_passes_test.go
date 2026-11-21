@@ -2,7 +2,6 @@ package print_test
 
 import (
 	"maps"
-	"os/exec"
 	"slices"
 	"strings"
 	"testing"
@@ -61,10 +60,7 @@ func TestTSExecPassesKeepResultsAndSpends(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
+	node := codegentest.RequireNode(t)
 	off := []string{tspass.PassSpendRuns, tspass.PassMergedRecords, tspass.PassTestedInits}
 	cases := codegentest.Representative(codegentest.GenCorpus(t))
 	codegentest.TSParsersCorpus(t, node, cases, common.GenOptions{NoOpt: off})

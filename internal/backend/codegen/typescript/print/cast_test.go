@@ -1,7 +1,6 @@
 package print_test
 
 import (
-	"os/exec"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
@@ -10,10 +9,7 @@ import (
 
 func TestCastGeneratedTypeScriptParity(t *testing.T) {
 	t.Parallel()
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
+	node := codegentest.RequireNode(t)
 	codegentest.TSParsersCorpus(t, node, codegentest.CastCases(), common.GenOptions{})
 	codegentest.TSParsersCorpus(t, node, codegentest.CastCases(), common.GenOptions{SourceInfo: true})
 }

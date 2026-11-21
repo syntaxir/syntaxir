@@ -46,10 +46,7 @@ func TestGeneratedTSLeftRecursionDependencyMemo(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
+	node := codegentest.RequireNode(t)
 	codegentest.TSParsersCorpus(t, node, depMemoTSCases(t, 60), common.GenOptions{})
 	codegentest.TSParsersCorpus(t, node, depMemoTSCases(t, 20), common.GenOptions{SourceInfo: true})
 }
@@ -66,10 +63,7 @@ func TestGeneratedTSLeftRecursionDependencyMemoLinear(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
+	node := codegentest.RequireNode(t)
 	dir := t.TempDir()
 	write := func(name string, content []byte) {
 		if err := os.WriteFile(filepath.Join(dir, name), content, 0o644); err != nil {

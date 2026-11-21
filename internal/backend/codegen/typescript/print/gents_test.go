@@ -3,7 +3,6 @@ package print_test
 import (
 	"encoding/json"
 	"os"
-	"os/exec"
 	"strings"
 	"testing"
 
@@ -27,10 +26,7 @@ func TestGeneratedTSParsersMatchEngine(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated code")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
+	node := codegentest.RequireNode(t)
 	cases := codegentest.Representative(codegentest.GenCorpus(t))
 	// Exactly at and just beyond the nesting limit, as in TestGeneratedParsersMatchEngine; the
 	// harness gives the parser a stack large enough to reach it.

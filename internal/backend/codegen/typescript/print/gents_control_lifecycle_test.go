@@ -15,14 +15,8 @@ func runGeneratedTSControlGCTest(t *testing.T, consumer string, hooks string) {
 	if testing.Short() {
 		t.Skip("runs generated TypeScript reachability consumers")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
-	tsc, err := exec.LookPath("tsc")
-	if err != nil {
-		t.Skip("tsc not found")
-	}
+	node := codegentest.RequireNode(t)
+	tsc := codegentest.RequireTSC(t)
 	g, err := parseTest(`type Text = { Text string }
 
 rule main Text = t:([a]* #atomic) => Text{Text: text($t)}`)

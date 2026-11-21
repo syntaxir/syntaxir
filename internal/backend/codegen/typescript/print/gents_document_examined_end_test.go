@@ -144,10 +144,7 @@ func TestTSDocumentExaminedEnds(t *testing.T) {
 	// The whole library (used-features off): the test code builds rules that the parser of this grammar
 	// does not have.
 	opts := common.GenOptions{Start: "main", Document: true, NoOpt: []string{common.UsedFeatures}}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
+	node := codegentest.RequireNode(t)
 	// run runs the test code on the library that mutate changes, and returns what it prints and
 	// whether it succeeded.
 	run := func(mutate func(string) string) (string, bool) {

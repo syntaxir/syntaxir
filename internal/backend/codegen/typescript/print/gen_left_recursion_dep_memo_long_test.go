@@ -3,7 +3,6 @@
 package print_test
 
 import (
-	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -63,10 +62,7 @@ func TestGeneratedTSLeftRecursionDependencyMemoControls(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
+	node := codegentest.RequireNode(t)
 	cases := depMemoTSCases(t, 120)
 	opts := common.GenOptions{SourceInfo: true}
 	// The parsers are generated once; each mutation of their library runs as a parallel subtest.

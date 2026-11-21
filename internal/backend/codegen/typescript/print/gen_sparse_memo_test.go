@@ -47,10 +47,7 @@ func TestGeneratedTSSparseMemoControls(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
+	node := codegentest.RequireNode(t)
 	src, err := os.ReadFile("../../../../../testdata/grammars/typescript/typescript.sxir")
 	if err != nil {
 		t.Fatal(err)
@@ -82,19 +79,16 @@ func TestGeneratedTSSparseMemoControls(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		if tsc, err := exec.LookPath("tsc"); err == nil {
-			cmd := exec.Command(tsc, "--noEmit", "--target", "es2020", "--lib", "es2020", "--strict",
-				"--noUnusedLocals", "--noUnusedParameters", "--noImplicitReturns", "--noFallthroughCasesInSwitch",
-				"--noImplicitOverride", "--exactOptionalPropertyTypes", "--noUncheckedIndexedAccess",
-				"--noPropertyAccessFromIndexSignature", "--erasableSyntaxOnly", "--verbatimModuleSyntax", "parser.ts")
-			cmd.Dir = path
-			if output, err := cmd.CombinedOutput(); err != nil {
-				t.Fatalf("%s strict TypeScript control: %v\n%s", name, err, output)
-			}
-		} else {
-			t.Log("tsc not found: not type-checking the generated code")
+		tsc := codegentest.RequireTSC(t)
+		cmd := exec.Command(tsc, "--noEmit", "--target", "es2020", "--lib", "es2020", "--strict",
+			"--noUnusedLocals", "--noUnusedParameters", "--noImplicitReturns", "--noFallthroughCasesInSwitch",
+			"--noImplicitOverride", "--exactOptionalPropertyTypes", "--noUncheckedIndexedAccess",
+			"--noPropertyAccessFromIndexSignature", "--erasableSyntaxOnly", "--verbatimModuleSyntax", "parser.ts")
+		cmd.Dir = path
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("%s strict TypeScript control: %v\n%s", name, err, output)
 		}
-		cmd := exec.Command(node, "test.mjs")
+		cmd = exec.Command(node, "test.mjs")
 		cmd.Dir = path
 		output, err := cmd.CombinedOutput()
 		if err != nil {

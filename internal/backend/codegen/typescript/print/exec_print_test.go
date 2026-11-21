@@ -12,6 +12,7 @@ import (
 
 	ir "syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/testing/exectest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 var testTarget = &Target{
@@ -85,31 +86,25 @@ func TestPrintedFunctionsRun(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs Node")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Fatal("Node is required for the TypeScript printer tests")
-	}
+	node := tooltest.RequireNode(t)
 	m := exectest.Build()
 	src := program(t, m)
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "main.ts"), []byte(src), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if tsc, err := exec.LookPath("tsc"); err == nil {
-		cmd := exec.Command(tsc, "--noEmit", "--target", "es2020", "--lib", "es2020", "--strict",
-			"--noUnusedLocals", "--noUnusedParameters", "--noImplicitReturns", "--allowUnreachableCode", "false",
-			"--allowUnusedLabels", "false", "--erasableSyntaxOnly", "main.ts")
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Errorf("tsc: %v\n%s\n%s", err, out, numbered(src))
-		}
-	} else {
-		t.Log("tsc not found: not type-checking the printed code")
+	tsc := tooltest.RequireTSC(t)
+	cmd := exec.Command(tsc, "--noEmit", "--target", "es2020", "--lib", "es2020", "--strict",
+		"--noUnusedLocals", "--noUnusedParameters", "--noImplicitReturns", "--allowUnreachableCode", "false",
+		"--allowUnusedLabels", "false", "--erasableSyntaxOnly", "main.ts")
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Errorf("tsc: %v\n%s\n%s", err, out, numbered(src))
 	}
 	// A printed loop that does not end as the interpreter's does must fail, not hang.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, node, "main.ts")
+	cmd = exec.CommandContext(ctx, node, "main.ts")
 	cmd.Dir = dir
 	got, err := cmd.Output()
 	if err != nil {

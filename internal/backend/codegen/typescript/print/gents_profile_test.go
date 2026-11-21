@@ -17,14 +17,8 @@ func TestGeneratedTSProfile(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs standalone TypeScript profile consumers")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
-	tsc, err := exec.LookPath("tsc")
-	if err != nil {
-		t.Skip("tsc not found")
-	}
+	node := codegentest.RequireNode(t)
+	tsc := codegentest.RequireTSC(t)
 	dir := t.TempDir()
 	write := func(name, data string) {
 		t.Helper()

@@ -5,6 +5,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // unitsScript compares chargeUnits(n) with n charges of one unit on controls of budget.ts, from every
@@ -50,10 +52,7 @@ process.exit(bad ? 1 : 0);
 // (the unit that does not fit, after the units that do), the same polls, and an abort that the first
 // poll observes. Its time grows with the polls, not with n.
 func TestChargeUnitsIsOneUnitCharges(t *testing.T) {
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
+	node := tooltest.RequireNode(t)
 	src, err := FS.ReadFile("budget.ts")
 	if err != nil {
 		t.Fatal(err)

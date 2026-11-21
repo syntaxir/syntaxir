@@ -1,5 +1,7 @@
 #!/bin/sh
 # Fail fast when a CI job is not running the exact runtime its test harness expects.
+# REQUIRE_NODE and REQUIRE_TSC pin the versions here only: the Go tests need node and tsc whatever
+# these variables say, and fail when one is missing unless SKIP_NODE=1 (internal/testing/codegentest).
 set -eu
 
 require_version() {

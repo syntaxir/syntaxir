@@ -21,10 +21,7 @@ func TestGeneratedTSRecursiveSpliceTypesKeepTheTree(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs node")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
+	node := codegentest.RequireNode(t)
 	cases := codegentest.SpliceTypeCases(t)
 	dir := t.TempDir()
 	var imports, list strings.Builder

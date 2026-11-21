@@ -15,10 +15,7 @@ func TestGeneratedTSActionTracking(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated code")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
+	node := codegentest.RequireNode(t)
 	g, err := parseTest(codegentest.NilActionStream)
 	if err != nil {
 		t.Fatal(err)
@@ -80,10 +77,7 @@ func TestGeneratedTSEnvironmentBindings(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated code")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node not found")
-	}
+	node := codegentest.RequireNode(t)
 	g, err := parseTest(codegentest.BoundStream)
 	if err != nil {
 		t.Fatal(err)
