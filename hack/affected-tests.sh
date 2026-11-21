@@ -12,7 +12,7 @@
 #     of generated parsers, of core or of the generator test helpers changed, because those programs reach
 #     it through a copy or a replace directive that the import graph does not show.
 # A change of go.mod, go.work, go.sum or this script selects every package and both of the following lines. The output ends with the lines
-# "# generate" and "# alpha" when `go generate ./internal/backend/... ./bench ./internal/frontend/parser ./spec/language` or hack/test-alpha-parsers.sh is affected.
+# "# generate" and "# alpha" when `go generate ./internal/backend/... ./internal/runtime/state/sharedsrc ./bench ./internal/frontend/parser ./spec/language` or hack/test-alpha-parsers.sh is affected.
 # Both run the generator, cmd/sxir: a change of a non-test Go file of cmd/sxir or of a package it depends on, or of a
 # file such a package embeds, affects both, besides the paths that the rules below name (the grammars, the generate
 # targets and their inputs).
