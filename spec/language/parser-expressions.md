@@ -477,12 +477,10 @@ is not kept per combination of variable values.
 
 In an indirect left recursion, one rule of the cycle is grown in this way, and
 the others are evaluated again in each iteration. The grown rules are the
-leaders, fixed by the grammar: until every cycle of left calls passes through a
-leader, the rule declared first on a cycle that passes through none becomes one
-(see [Rule Facts](../core-ir/attributes.md#rule-facts)). Concretely: while some
-cycle of left calls passes through no leader, the rule declared first among all
-the rules on such cycles becomes a leader. The choice depends on the declaration
-order only. A rule that is not
+leaders, fixed by the grammar: while some cycle of left calls passes through no
+leader, the rule declared first among all the rules on such cycles becomes a
+leader (see [Rule Facts](../core-ir/attributes.md#rule-facts)). Given the graph
+of left calls, the leaders depend on declaration order only. A rule that is not
 left-recursive is evaluated once.
 
 Static analysis considers calls that may run before consuming input, including

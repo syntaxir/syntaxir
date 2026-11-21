@@ -38,10 +38,10 @@ The proof cites the following, and no other rule about growth.
   Cost](../runtime/parsing.md#conditions-for-linear-cost):
   a left call is a call of a rule of a cycle, in the body of a rule of the same
   cycle, that can run before the body consumes input. The rules that grow are
-  the leaders, fixed by the grammar: until every cycle of left calls passes
-  through a leader, the rule declared first among the rules on a cycle that
-  passes through none becomes one; the choice depends on the declaration order
-  only, so the leaders are fixed by the grammar.
+  the leaders, fixed by the grammar: while some cycle of left calls passes
+  through no leader, the rule declared first among the rules on such cycles
+  becomes a leader. Given the graph of left calls, the leaders depend on
+  declaration order only.
 - **(G4) Termination.** [Termination](../runtime/parsing.md#termination): a
   call of a leader where it grows reads its current result; a repetition stops
   at the first iteration that consumes no input; a recovery applies only when
