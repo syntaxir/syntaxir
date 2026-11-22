@@ -25,11 +25,13 @@ import (
 // pipePath is the pass manager, whose Execute runs a pipeline.
 const pipePath = modulePath + "/internal/pass/pipe"
 
-// A sourcePackage is a package of the module: its import path and its non-test files.
+// A sourcePackage is a package of the module: its import path and its non-test files, with their
+// names (fileNames[i] is the base name of files[i]).
 type sourcePackage struct {
-	path  string
-	name  string
-	files []*ast.File
+	path      string
+	name      string
+	files     []*ast.File
+	fileNames []string
 }
 
 // loadSources parses the non-test Go files of the packages under root, whose import paths start
@@ -72,6 +74,7 @@ func loadSources(root, module string) (map[string]*sourcePackage, error) {
 			pkgs[ip] = sp
 		}
 		sp.files = append(sp.files, f)
+		sp.fileNames = append(sp.fileNames, filepath.Base(p))
 		return nil
 	})
 	return pkgs, err
