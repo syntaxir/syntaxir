@@ -77,6 +77,13 @@ flowchart TD
     driver. It uses the compiler only through what the driver gives it (`internal/driver/tooling`: tokens, partial
     parses, formatting, compilation, the checked front-end result, lint findings and their rewrites) and the grammar AST
     that those results are made of; it imports no layer below the driver.
+  - The tools that work on a grammar without running parses of their own link no part of the runtime that runs parses
+    (the engine, the VM and the Document): the linter, the sampler, the language server with the driver's tooling and
+    the checked program, and the entry of the generators (`internal/driver/generate`). The sampler runs the parses of
+    the parser it is given through the parser interface, and reads the grammar behind that parser through a lookup that
+    the engine registers in the parser state when it is linked. `pkg/compiler` links the runtime, because it makes
+    parsers on the VM beside the generated source that it makes through the generator entry. The grammar errors that
+    every tool reports are in `pkg/grammar`, so that reporting them links no compiler.
   - Only the commands and the repository test support import the language server packages. Of the non-test packages,
     only those inside the repository test support import the test support.
 

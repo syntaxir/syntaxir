@@ -224,7 +224,7 @@ in [Package Layering](layering.md), and the public packages are described in [Th
 | `cmd/sxir` | The command line; reaches every feature through the driver |
 | `cmd/playground` | The WebAssembly side of the playground |
 | `pkg/compiler` | Makes executable artifacts from a grammar: parsers on the VM, reference parsers, compiled files, host-language parsers, the output schema, the optimization setting |
-| `pkg/grammar` | Grammar sources, their loading, formatting and conversion between grammar syntax and JSON |
+| `pkg/grammar` | Grammar sources, their loading, formatting and conversion between grammar syntax and JSON; the errors of a grammar that does not load or does not check |
 | `pkg/grammar/ast` | The grammar AST: its nodes, its JSON form, validation and the comments and layout attached to it |
 | `pkg/lint` | Checks, findings and suggested rewrites; the complexity classification |
 | `pkg/sample` | Generation of accepted inputs |
@@ -239,8 +239,8 @@ in [Package Layering](layering.md), and the public packages are described in [Th
 | `pkg/runtime/instrument` | Trace events, filters, depth and profiles |
 | `pkg/runtime/vm` | Loading a compiled file into a parser, and the parser and Document of the VM |
 | `pkg/runtime/libgo` | The support library of generated Go parsers |
-| `internal/driver` | Assembles and drives the compiler pipeline; the table of optimization profiles; the body of `pkg/compiler` and `cmd/sxir`. `entry` is the compile entry, and `checked` the compiler side of a compiled program, which the runtime reaches only through an interface of the parser state; `tooling` is what the language server uses of the compiler, its only way to reach it |
-| `internal/driver/generate` | Generates Go and TypeScript parser source from grammar syntax trees; `pkg/compiler` generates through it |
+| `internal/driver` | Assembles and drives the compiler pipeline; the table of optimization profiles; the body of `pkg/compiler` and `cmd/sxir`. `entry` is the compile entry, and `checked` the compiler side of a compiled program, which the runtime reaches only through an interface of the parser state; `tooling` is what the language server uses of the compiler, its only way to reach it, on the checked program without the runtime |
+| `internal/driver/generate` | Generates Go and TypeScript parser source from grammar syntax trees, without linking the runtime; `pkg/compiler` generates through it |
 | `internal/diagnostic` | Positioned static errors |
 | `internal/cancel` | Cancellation of static work |
 | `internal/cliflag` | Flag names of backends and position units |
