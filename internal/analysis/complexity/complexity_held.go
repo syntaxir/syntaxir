@@ -100,7 +100,7 @@ func (k *classifier) heldCalls(t ast.ActionExpr, tc actionCtx, mode sizeMode) []
 		if p, ok := tc.params[t.Name]; ok && (t.Param || tc.lambda) {
 			var out []sizeKey
 			for _, e := range p.elems {
-				out = append(out, k.heldExprCalls(k.nodeOf(e), tc, mode)...)
+				out = append(out, k.heldExprCalls(e, tc, mode)...)
 			}
 			return out
 		}
@@ -121,7 +121,7 @@ func (k *classifier) heldCalls(t ast.ActionExpr, tc actionCtx, mode sizeMode) []
 		}
 		var out []sizeKey
 		for _, e := range exprs {
-			out = append(out, k.heldExprCalls(k.nodeOf(e), tc, mode)...)
+			out = append(out, k.heldExprCalls(e, tc, mode)...)
 		}
 		return out
 	case *ast.Binary:
@@ -165,7 +165,7 @@ func (k *classifier) heldLambdaCtx(call *ast.Call, lam *ast.Lambda, tc actionCtx
 	for n, p := range tc.params {
 		params[n] = p
 	}
-	var elems []ast.Expr
+	var elems []core.Node
 	if len(call.Args) > 1 {
 		elems = k.elemExprs(call.Args[1], tc)
 	}

@@ -514,7 +514,7 @@ func (k *classifier) ruleLooksIn(r *ast.RuleDef, mode sizeMode) bool {
 	case r.Action != nil:
 		return k.sizeOf(r.Action, tc, mode).look
 	default:
-		return k.exprSize(r.Expr, tc, mode, r.Name).look
+		return k.exprSize(k.ruleBody(r.Name), tc, mode, r.Name).look
 	}
 }
 

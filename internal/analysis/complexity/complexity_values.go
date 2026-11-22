@@ -50,8 +50,8 @@ type param struct {
 	// lambda, for an element of a list that is not bounded.
 	shape growthShape
 	sum   int
-	// elems are the expressions whose values are the elements of the list, when they are known.
-	elems []ast.Expr
+	// elems are the nodes whose values are the elements of the list, when they are known.
+	elems []core.Node
 	// look is set when the list can be a capture made in a positive lookahead, so that its
 	// elements hold input that the match does not consume.
 	look bool
@@ -396,7 +396,7 @@ func (k *classifier) lambdaCtx(call *ast.Call, i int, lam *ast.Lambda, tc action
 	// that is not bounded are distinct parts of it, each seen once; the elements of a bounded list
 	// are seen again whenever an enclosing lambda repeats.
 	var elem content
-	var elems []ast.Expr
+	var elems []core.Node
 	if listArg != nil {
 		if bounded {
 			elem = k.sizeOf(&ast.FieldAccess{X: listArg}, tc, textSize)
@@ -482,9 +482,9 @@ func (k *classifier) lambdaCtx(call *ast.Call, i int, lam *ast.Lambda, tc action
 
 // ownExprs reports whether the value of a match of each of exprs, captured in rule, is own (see
 // complexity_sizes.go).
-func (k *classifier) ownExprs(exprs []ast.Expr, rule string) bool {
+func (k *classifier) ownExprs(exprs []core.Node, rule string) bool {
 	for _, e := range exprs {
-		if !k.ownExpr(k.nodeOf(e), rule, k.ownRules()) {
+		if !k.ownExpr(e, rule, k.ownRules()) {
 			return false
 		}
 	}
@@ -611,7 +611,7 @@ func (k *classifier) sizeOf(t ast.ActionExpr, tc actionCtx, mode sizeMode) conte
 			c.outer = tc.repeat
 			return c
 		}
-		exprs := k.captures[tc.rule][t.Name]
+		exprs := k.captured(tc.rule, t.Name)
 		if len(exprs) == 0 {
 			c.unbounded = true
 		}
@@ -770,7 +770,7 @@ func (k *classifier) sizeOfAny(t ast.ActionExpr, tc actionCtx) content {
 					return
 				}
 				// A value from outside the lambda counts as outer only when it is not bounded.
-				exprs := k.captures[tc.rule][x.Name]
+				exprs := k.captured(tc.rule, x.Name)
 				if len(exprs) == 0 {
 					outer = true
 					c.look = c.look || k.lookCaptures(tc.rule)[x.Name]
@@ -791,10 +791,10 @@ func (k *classifier) sizeOfAny(t ast.ActionExpr, tc actionCtx) content {
 	return c
 }
 
-// actionExprs returns the captured expressions whose values t can be: a capture, a member $y of
-// such a value, which is the value of a capture y inside it, or an element of a list whose
-// elements are known. param reports a value that comes from a lambda parameter.
-func (k *classifier) actionExprs(t ast.ActionExpr, tc actionCtx) (exprs []ast.Expr, param, ok bool) {
+// actionExprs returns the captured nodes whose values t can be: a capture, a member $y of such a
+// value, which is the value of a capture y inside it, or an element of a list whose elements are
+// known. param reports a value that comes from a lambda parameter.
+func (k *classifier) actionExprs(t ast.ActionExpr, tc actionCtx) (exprs []core.Node, param, ok bool) {
 	switch t := t.(type) {
 	case *ast.ActionGroup:
 		return k.actionExprs(t.Action, tc)
@@ -802,7 +802,7 @@ func (k *classifier) actionExprs(t ast.ActionExpr, tc actionCtx) (exprs []ast.Ex
 		if p, isParam := tc.params[t.Name]; isParam && (t.Param || tc.lambda) {
 			return p.elems, true, p.elems != nil && !p.acc
 		}
-		exprs := k.captures[tc.rule][t.Name]
+		exprs := k.captured(tc.rule, t.Name)
 		return exprs, false, len(exprs) > 0
 	case *ast.FieldAccess:
 		if !strings.HasPrefix(t.Name, "$") {
@@ -814,28 +814,34 @@ func (k *classifier) actionExprs(t ast.ActionExpr, tc actionCtx) (exprs []ast.Ex
 		}
 		name := strings.TrimPrefix(t.Name, "$")
 		for _, e := range inner {
-			// The node of a call of a rule without an action holds the captures of its body.
-			if r, isRef := unwrapValue(e).(*ast.Ref); isRef {
-				if d := k.byName[r.Name]; d != nil && d.Action == nil && !isOperators(d.Expr) {
-					e = d.Expr
-				}
-			}
 			found := false
-			astfacts.WalkExpr(e, func(x ast.Expr) {
-				if cp, isCap := x.(*ast.Capture); isCap && cp.Name == name {
-					exprs = append(exprs, cp.Expr)
+			walkNodes(k.capturesOf(e), func(x core.Node) {
+				if cp, isCap := x.(*core.Capture); isCap && cp.Name == name {
+					exprs = append(exprs, cp.Body)
 					found = true
 				}
 			})
 			if !found {
-				// The value can be one that the expression does not build itself, such as the
-				// value of a rule that it calls.
+				// The value can be one that the node does not build itself, such as the value
+				// of a rule that it calls.
 				return nil, false, false
 			}
 		}
 		return exprs, param, true
 	}
 	return nil, false, false
+}
+
+// capturesOf returns the node whose captures the value of the captured node n holds: the body of
+// the rule that n calls when the rule has no action and is not an Operators Rule, since the node
+// of such a call holds the captures of its body, and n itself otherwise.
+func (k *classifier) capturesOf(n core.Node) core.Node {
+	if name, isCall := k.calledRule(unwrapValue(n)); isCall {
+		if d := k.byName[name]; d != nil && d.Action == nil && !isOperators(d.Expr) {
+			return k.ruleBody(name)
+		}
+	}
+	return n
 }
 
 // inLook reports whether the value of t can be captured in a positive lookahead, or be a part of
@@ -861,15 +867,10 @@ func (k *classifier) inLook(t ast.ActionExpr, tc actionCtx) bool {
 		name := strings.TrimPrefix(t.Name, "$")
 		found := false
 		for _, e := range inner {
-			if r, isRef := unwrapValue(e).(*ast.Ref); isRef {
-				if d := k.byName[r.Name]; d != nil && d.Action == nil && !isOperators(d.Expr) {
-					e = d.Expr
-				}
-			}
-			astfacts.WalkExpr(e, func(x ast.Expr) {
-				if and, isAnd := x.(*ast.And); isAnd {
-					astfacts.WalkExpr(and.Expr, func(y ast.Expr) {
-						if cp, isCap := y.(*ast.Capture); isCap && cp.Name == name {
+			walkNodes(k.capturesOf(e), func(x core.Node) {
+				if look, isLook := x.(*core.Look); isLook && !look.Neg {
+					walkNodes(look.Body, func(y core.Node) {
+						if cp, isCap := y.(*core.Capture); isCap && cp.Name == name {
 							found = true
 						}
 					})
@@ -881,105 +882,103 @@ func (k *classifier) inLook(t ast.ActionExpr, tc actionCtx) bool {
 	return k.sizeOf(t, tc, listSize).look
 }
 
-// elemExprs returns the expressions whose values are the elements of the list t, or nil when
-// they are not known: t is the value of repetitions.
-func (k *classifier) elemExprs(t ast.ActionExpr, tc actionCtx) []ast.Expr {
+// elemExprs returns the nodes whose values are the elements of the list t, or nil when they are
+// not known: t is the value of repetitions.
+func (k *classifier) elemExprs(t ast.ActionExpr, tc actionCtx) []core.Node {
 	exprs, _, ok := k.actionExprs(t, tc)
 	if !ok {
 		return nil
 	}
-	var out []ast.Expr
+	var out []core.Node
 	for _, e := range exprs {
 		e = unwrapValue(e)
-		if o, isOpt := e.(*ast.Optional); isOpt {
-			e = unwrapValue(o.Expr)
+		if o, isOpt := e.(*core.Opt); isOpt {
+			e = unwrapValue(o.Body)
 		}
-		r, isRep := e.(*ast.Repeat)
+		r, isRep := e.(*core.Repeat)
 		if !isRep {
 			return nil
 		}
-		out = append(out, r.Expr)
+		out = append(out, r.Body)
 	}
 	return out
 }
 
-// unwrapValue removes the groups, captures, discards and atomic expressions around e, which do not
-// change its value.
-func unwrapValue(e ast.Expr) ast.Expr {
+// unwrapValue removes the captures and atomic expressions around n, which do not change its value.
+func unwrapValue(n core.Node) core.Node {
 	for {
-		switch x := e.(type) {
-		case *ast.Group:
-			e = x.Expr
-		case *ast.Capture:
-			e = x.Expr
-		case *ast.Atomic:
-			e = x.Expr
+		switch x := n.(type) {
+		case *core.Capture:
+			n = x.Body
+		case *core.Text:
+			n = x.Body
 		default:
-			return e
+			return n
 		}
 	}
 }
 
-// exprSize describes what the size of the value of the captured expression e, measured in mode,
-// can depend on. name names the capture in witnesses.
-func (k *classifier) exprSize(e ast.Expr, tc actionCtx, mode sizeMode, name string) content {
-	switch x := e.(type) {
-	case *ast.Group:
-		return k.exprSize(x.Expr, tc, mode, name)
-	case *ast.Capture:
-		return k.exprSize(x.Expr, tc, mode, name)
-	case *ast.Discard:
-		return k.exprSize(x.Expr, tc, mode, name)
-	case *ast.Atomic:
-		return k.exprSize(x.Expr, tc, mode, name)
-	case *ast.Optional:
-		return k.exprSize(x.Expr, tc, mode, name)
-	case *ast.Choice:
+// exprSize describes what the size of the value of the captured node n, measured in mode, can
+// depend on. name names the capture in witnesses.
+func (k *classifier) exprSize(n core.Node, tc actionCtx, mode sizeMode, name string) content {
+	switch x := n.(type) {
+	case *core.Capture:
+		return k.exprSize(x.Body, tc, mode, name)
+	case *core.Drop:
+		return k.exprSize(x.Body, tc, mode, name)
+	case *core.Text:
+		return k.exprSize(x.Body, tc, mode, name)
+	case *core.Opt:
+		return k.exprSize(x.Body, tc, mode, name)
+	case *core.Choice:
 		var c content
 		for _, alt := range x.Alts {
-			c.add(k.exprSize(alt, tc, mode, name))
+			c.add(k.exprSize(alt.Body, tc, mode, name))
 		}
 		return c
-	case *ast.Repeat:
+	case *core.Repeat:
 		if mode == listSize {
 			// A list with one element for each iteration.
 			return content{unbounded: x.Max < 0}
 		}
-	case *ast.Ref:
-		if k.byName[x.Name] == nil {
-			return content{}
-		}
-		// A rule that consumes little can return a capture in a lookahead, which is as large as
-		// the input after it: its value is bounded only when its consumption is and it holds no
-		// such capture.
-		look := k.looks(x.Name, mode)
-		c := content{unbounded: !k.bounded(e) || look, look: look}
-		if k.onRecursion(tc.rule, x.Name) && k.includes(x.Name, mode) {
-			c.rec = map[string]int{name: 1}
-			if k.feeds(x.Name, mode, tc.rule) {
-				c.held = map[string]int{name: 1}
-			}
-		}
-		// The value of a call holds what the variables that its rule reads hold.
-		for _, v := range k.vars[x.Name] {
-			d := k.varSize(v, actionCtx{rule: x.Name}, mode)
-			d.vars, d.unbounded = false, false
-			c.add(d)
-		}
-		return c
+		return k.deepSize(n, tc, name)
 	}
-	return k.deepSize(e, tc, name)
+	callee, isCall := k.calledRule(n)
+	if !isCall {
+		return k.deepSize(n, tc, name)
+	}
+	if k.byName[callee] == nil {
+		return content{}
+	}
+	// A rule that consumes little can return a capture in a lookahead, which is as large as the
+	// input after it: its value is bounded only when its consumption is and it holds no such
+	// capture.
+	look := k.looks(callee, mode)
+	c := content{unbounded: !k.boundedOf(n) || look, look: look}
+	if k.onRecursion(tc.rule, callee) && k.includes(callee, mode) {
+		c.rec = map[string]int{name: 1}
+		if k.feeds(callee, mode, tc.rule) {
+			c.held = map[string]int{name: 1}
+		}
+	}
+	// The value of a call holds what the variables that its rule reads hold.
+	for _, v := range k.vars[callee] {
+		d := k.varSize(v, actionCtx{rule: callee}, mode)
+		d.vars, d.unbounded = false, false
+		c.add(d)
+	}
+	return c
 }
 
-// deepSize describes the size of the value of e without looking at how it is built: it can hold
-// anything that e matches or calls.
-func (k *classifier) deepSize(e ast.Expr, tc actionCtx, name string) content {
+// deepSize describes the size of the value of n without looking at how it is built: it can hold
+// anything that n matches or calls.
+func (k *classifier) deepSize(n core.Node, tc actionCtx, name string) content {
 	k.lookedRules()
-	look := k.exprLooks(k.nodeOf(e), tc.rule)
-	c := content{unbounded: !k.bounded(e) || look, look: look}
+	look := k.exprLooks(n, tc.rule)
+	c := content{unbounded: !k.boundedOf(n) || look, look: look}
 	found := false
-	astfacts.WalkExpr(e, func(x ast.Expr) {
-		if r, ok := x.(*ast.Ref); ok && k.byName[r.Name] != nil && k.onRecursion(tc.rule, r.Name) {
+	walkNodes(n, func(x core.Node) {
+		if callee, ok := k.calledRule(x); ok && k.byName[callee] != nil && k.onRecursion(tc.rule, callee) {
 			found = true
 		}
 	})
@@ -1019,7 +1018,7 @@ func (k *classifier) includes(rule string, mode sizeMode) bool {
 		v = len(k.sizeOf(r.Action, tc, mode).rec) > 0
 	default:
 		// The value of a rule without an action is the value of its expression.
-		v = len(k.exprSize(r.Expr, tc, mode, rule).rec) > 0
+		v = len(k.exprSize(k.ruleBody(rule), tc, mode, rule).rec) > 0
 	}
 	k.includesMemo[key] = v
 	return v
@@ -1065,7 +1064,7 @@ func (k *classifier) foldedValue(ops *ast.OperatorsRule, rule string, mode sizeM
 		if o.Action != nil && !o.DefaultAction {
 			parts.add(k.sizeOf(o.Action, tc, mode))
 		} else {
-			parts.add(k.exprSize(o.Expr, tc, mode, name))
+			parts.add(k.exprSize(k.nodeOf(o.Expr), tc, mode, name))
 		}
 	}
 	for _, l := range ops.Levels {
@@ -1214,10 +1213,10 @@ func times(n int) string {
 // that the rules called in the captures it reads read.
 func (k *classifier) actionVars(t ast.ActionExpr, rule string) map[string]bool {
 	out := map[string]bool{}
-	ruleVars := func(e ast.Expr) {
-		astfacts.WalkExpr(e, func(x ast.Expr) {
-			if r, ok := x.(*ast.Ref); ok {
-				for _, v := range k.vars[r.Name] {
+	ruleVars := func(n core.Node) {
+		walkNodes(n, func(x core.Node) {
+			if callee, ok := k.calledRule(x); ok {
+				for _, v := range k.vars[callee] {
 					out[v] = true
 				}
 			}
@@ -1229,7 +1228,7 @@ func (k *classifier) actionVars(t ast.ActionExpr, rule string) map[string]bool {
 			out[x.Name] = true
 		case *ast.CaptureRef:
 			if !x.Param {
-				for _, e := range k.captures[rule][x.Name] {
+				for _, e := range k.captured(rule, x.Name) {
 					ruleVars(e)
 				}
 			}
@@ -1299,57 +1298,62 @@ func (k *classifier) reaches(b *binding, strict bool) (string, bool) {
 		frames = frames[b.c.strictFrom:]
 	}
 	for _, f := range frames {
-		for _, later := range f.seq.Items[f.index+1:] {
+		for _, later := range k.nodeOf(f.seq).(*core.Seq).Items[f.index+1:] {
 			if r := k.reachingCall(later, b.rule, strict); r != nil {
-				return "the call " + r.Name + " at " + at(b.rule, exprPos(r)), true
+				callee, _ := k.calledRule(r)
+				return "the call " + callee + " at " + at(b.rule, exprPos(k.exprOf(r))), true
 			}
 		}
 	}
 	return "", false
 }
 
-// reachingCall returns a call in e that can reach rule again.
-func (k *classifier) reachingCall(e ast.Expr, rule string, strict bool) *ast.Ref {
-	var found *ast.Ref
-	var visit func(e ast.Expr)
-	visit = func(e ast.Expr) {
-		if found != nil || e == nil {
+// reachingCall returns a call in n that can reach rule again.
+func (k *classifier) reachingCall(n core.Node, rule string, strict bool) core.Node {
+	var found core.Node
+	reaching := func(x core.Node) bool {
+		callee, ok := k.calledRule(x)
+		return ok && k.byName[callee] != nil && k.reachable(callee)[rule]
+	}
+	var visit func(n core.Node)
+	visit = func(n core.Node) {
+		if found != nil || n == nil {
 			return
 		}
-		switch x := e.(type) {
-		case *ast.Ref:
-			if k.byName[x.Name] != nil && k.reachable(x.Name)[rule] {
-				found = x
+		if _, isCall := k.calledRule(n); isCall {
+			if reaching(n) {
+				found = n
 			}
-		case *ast.Group:
-			visit(x.Expr)
-		case *ast.Optional:
-			visit(x.Expr)
-		case *ast.Capture:
-			visit(x.Expr)
-		case *ast.Discard:
-			visit(x.Expr)
-		case *ast.Atomic:
-			visit(x.Expr)
-		case *ast.Seq:
+			return
+		}
+		switch x := n.(type) {
+		case *core.Opt:
+			visit(x.Body)
+		case *core.Capture:
+			visit(x.Body)
+		case *core.Drop:
+			visit(x.Body)
+		case *core.Text:
+			visit(x.Body)
+		case *core.Seq:
 			for _, it := range x.Items {
 				visit(it)
 			}
-		case *ast.Choice:
+		case *core.Choice:
 			for _, alt := range x.Alts {
-				visit(alt)
+				visit(alt.Body)
 			}
 		default:
 			if !strict {
-				astfacts.WalkExpr(e, func(y ast.Expr) {
-					if r, ok := y.(*ast.Ref); ok && found == nil && k.byName[r.Name] != nil && k.reachable(r.Name)[rule] {
-						found = r
+				walkNodes(n, func(y core.Node) {
+					if found == nil && reaching(y) {
+						found = y
 					}
 				})
 			}
 		}
 	}
-	visit(e)
+	visit(n)
 	return found
 }
 
@@ -1443,7 +1447,7 @@ func (k *classifier) canHoldNonEmpty(b *binding) bool {
 	}
 	before := func(frames []seqFrame) bool {
 		for _, f := range frames {
-			for _, it := range f.seq.Items[:f.index] {
+			for _, it := range k.nodeOf(f.seq).(*core.Seq).Items[:f.index] {
 				if k.bindsNonEmpty(it, v) {
 					return true
 				}
@@ -1462,12 +1466,13 @@ func (k *classifier) canHoldNonEmpty(b *binding) bool {
 	return false
 }
 
-// bindsNonEmpty reports whether e has a binding of v to a value that can be non-empty.
-func (k *classifier) bindsNonEmpty(e ast.Expr, v string) bool {
+// bindsNonEmpty reports whether n has a binding of v to a value that can be non-empty.
+func (k *classifier) bindsNonEmpty(n core.Node, v string) bool {
 	found := false
-	astfacts.WalkExpr(e, func(x ast.Expr) {
-		if p, ok := x.(*ast.Predicate); ok {
-			astfacts.WalkAction(p.Action, func(t ast.ActionExpr) {
+	walkNodes(n, func(x core.Node) {
+		switch x.(type) {
+		case *core.Pred, *core.BindNode:
+			astfacts.WalkAction(k.predicateAction(x), func(t ast.ActionExpr) {
 				if bd, ok := t.(*ast.Bind); ok && bd.Name == v && k.canBeNonEmpty(bd.Value, v) {
 					found = true
 				}
