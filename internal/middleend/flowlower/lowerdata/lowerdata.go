@@ -61,8 +61,10 @@ type LogicalGuards uint8
 const (
 	// GuardsExact keeps a guard when skipping the alternative can leave the state that evaluating
 	// it leaves: when core.GuardCalls describes the calls of the alternative, whose effects the skip
-	// makes (flow.skippedCalls), and, in a lowering for Documents (Document), none of them is a call
-	// of a rule that a Document memoizes. Every other guard is left out, and the alternative is tried.
+	// makes (flow.skippedCalls). Every other guard is left out, and the alternative is tried. In a
+	// lowering for Documents (Document) a Document parse does not take a guard whose skip passes over
+	// a call of a rule that it memoizes (flow.inDocument), with or without logical units; the other
+	// parses that run the same functions take it.
 	GuardsExact LogicalGuards = iota
 	// GuardsEvent keeps only the guards whose skip makes no call, so that every call is counted
 	// where it happens: the reference of the tests of GuardsExact.

@@ -21,6 +21,7 @@ const (
 	OpAdvance         = "runtime.advance"
 	OpExpect          = "runtime.expect"
 	OpSkippedCalls    = "runtime.skippedCalls"
+	OpInDocument      = "runtime.inDocument"
 	OpObserveSkip     = "runtime.observeSkip"
 	OpRestore         = "runtime.restore"
 	OpMergeExpected   = "runtime.mergeExpected"
@@ -118,6 +119,7 @@ var imms = map[string]reflect.Type{
 	OpAdvance:         nil,
 	OpExpect:          reflect.TypeFor[Expectation](),
 	OpSkippedCalls:    reflect.TypeFor[SkippedCalls](),
+	OpInDocument:      nil,
 	OpObserveSkip:     reflect.TypeFor[core.Node](),
 	OpRestore:         nil,
 	OpMergeExpected:   nil,

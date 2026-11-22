@@ -30,6 +30,7 @@ import (
 //     branch whose alternative records the read (matchLit);
 //   - the operations of the runs that a Document parse resumes are in Node functions lowered for
 //     Documents only, and a run starts at a positive site;
+//   - flow.inDocument is in functions lowered for Documents only;
 //   - a function lowered with budget controls (Attrs.Budget) charges a step before it consumes input
 //     and in each iteration of a loop without a counter (verifyCharges).
 func VerifyModule(m *code.Module) error {
@@ -214,6 +215,10 @@ func (v *flowVerifier) call(c *code.Call) {
 		}
 		if r, ok := c.Imm.(prim.Resume); c.Callee == OpResumeStart && (!ok || r.Site <= 0) {
 			v.fail("%s site %d", c.Callee, r.Site)
+		}
+	case OpInDocument:
+		if !a.Document {
+			v.fail("%s outside a function lowered for Documents", c.Callee)
 		}
 	case OpStreamStart, OpEmitStream:
 		if !a.Node || !a.Frame {

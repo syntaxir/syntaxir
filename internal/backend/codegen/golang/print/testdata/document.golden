@@ -4,19 +4,19 @@
 # A run checks every entry of its scope: an entry that is missing, stale or different fails. -update replaces the
 # entries of the scope, drops stale ones and logs a summary per case. Review the diff: it is a regression freeze.
 corpus/0/../../examples/calculator/calc.sxir	3414ab9a12e43d589c3a855a
-corpus/0/../../examples/calculator/calc_lr.sxir	a1cad168faaca85361e77c00
-corpus/0/../../examples/minilang/minilang.sxir	d94948a7aa1f285b57669634
+corpus/0/../../examples/calculator/calc_lr.sxir	2bf687ad7933a6760debbff8
+corpus/0/../../examples/minilang/minilang.sxir	66846d71dc4aed2209709e4d
 corpus/0/../../examples/outline/outline.sxir	ac2b4410d93427e9ee495bfa
 corpus/0/LR cut inside optional	43f49a844240c6c683f943f0
 corpus/0/Operators Rule explicit default action	db095dc3b41fa8a7d57c8e5c
 corpus/0/Operators Rule operand with a cut in the recovered body	85144bc177c1982c04d0a47b
 corpus/0/Operators Rule operand with recovery	957100adde4557334b14d1f2
 corpus/0/Operators Rule operator action on scalar operands	3523fb50d886e0a0024f83aa
-corpus/0/OperatorsRule prefix-part cuts	bd662d4660b7c95780224a5b
-corpus/0/a cast binding in an Operators Rule operand	7411556d7ec15589f18b06ee
+corpus/0/OperatorsRule prefix-part cuts	e7bd490131b152c5216e128b
+corpus/0/a cast binding in an Operators Rule operand	ad4956901b53fee1a2aeeabb
 corpus/0/a failed action leaves nothing it gathered	0caba926c288d08700be3629
-corpus/0/a failed cast in a binding backtracks	d7c4b0acbe03d38e4c359319
-corpus/0/action environments	f044bc38326a08475bc0a499
+corpus/0/a failed cast in a binding backtracks	c9e2343770075abd45b1339b
+corpus/0/action environments	453b54f0e77e1b6e4f8779a6
 corpus/0/alias constructors	6a24c16ab7e7fa56afe12caa
 corpus/0/alias singleton unions	307f05f95f60a451bf71e74a
 corpus/0/alias terminal	4103c6040af4ed997227c531
@@ -42,7 +42,7 @@ corpus/0/binding choice rollback	eed1bc7396a40bf3f20372c4
 corpus/0/binding negative lookahead rollback	9111ad726e4ad90ef0971750
 corpus/0/binding positive lookahead effects	abd5f12b386a00bcbd262199
 corpus/0/binding rule scope	5497bf32b794e3bdee61b646
-corpus/0/bindings of a cast value	a762764ab924c41e48d3d304
+corpus/0/bindings of a cast value	d2b090611581fc66c76bdfbc
 corpus/0/case-insensitive literal alternatives	9ac846e8164b825dcbb40b23
 corpus/0/class lookahead	24e8666e2c1754d3207afb44
 corpus/0/cut and lookahead	6360166cf34164ba8c986c1e
@@ -54,7 +54,7 @@ corpus/0/cut in recovery skip	3cf0d46aba4b37992ae0e630
 corpus/0/cut in the skip of a recovery	e49409eed7ec5243c33b5574
 corpus/0/cut inside a positive lookahead	b4265a70964109148f0eeabc
 corpus/0/cut with captures and a projected repetition	cfc45d85f96ba8b054800f76
-corpus/0/cuts in every scope	b6aa80d112694891e7518f28
+corpus/0/cuts in every scope	72b458915ef61690ad9cdb0e
 corpus/0/declared variable initial values	7e17616234f0b92546661534
 corpus/0/declared variables are part of the memo key	40274707a6401aabf3381d0e
 corpus/0/diagnostic attr	76c636cadd4464ec9eeef68b
@@ -69,14 +69,14 @@ corpus/0/error node as a capture value	79f08e395a53520d024ddb46
 corpus/0/error node in a capture group	1b43cac263691080b080c0e1
 corpus/0/error node in a projected repetition	a6c80be17de390279e4a8500
 corpus/0/fold and lists	ebe7dd9d1da61ca29643d8cd
-corpus/0/framed choice of rules	994fd4b58efd2bfa71d6e44b
-corpus/0/guarded repetition of rules	4e3bcaea94c8e951fb886cc4
+corpus/0/framed choice of rules	60863a205799117380b26337
+corpus/0/guarded repetition of rules	cbaded893fad92f0e0b9fc46
 corpus/0/hidden leader behind an optional prefix	55d37732f59a34d7c6439025
 corpus/0/hidden rule: captured call	4fda5cc03dd2072586dd929d
 corpus/0/hidden rule: choice	06970c3709613a5f55f5c5c1
-corpus/0/hidden rule: cut	a3dcfa8610033ed02179fa2e
+corpus/0/hidden rule: cut	8df2a027c474329d8946e5b9
 corpus/0/hidden rule: hidden captures	e59047bf95724b334adc2a37
-corpus/0/hidden rule: in a choice	25a9850ac0eebc97bd4397d6
+corpus/0/hidden rule: in a choice	9df9835c2def8248c479e530
 corpus/0/hidden rule: in a repetition body	24396595dea6d9220f2339ef
 corpus/0/hidden rule: left recursion	bcd11e691aef23d35dde7cea
 corpus/0/hidden rule: lookahead in body	5a2f2779f83e775d52498d49
@@ -92,15 +92,15 @@ corpus/0/hidden rule: sequence	0afc9e7f84cb7e4fb87b98bd
 corpus/0/hidden rule: used twice	9c8f6f648171b6a0c9ac3ecb
 corpus/0/hidden rule: whole body	cf004cbdc70357eea6e877a5
 corpus/0/ignorecase group	400d00bcb75fea782711a6eb
-corpus/0/incremental	c2159bd1155bf4e070d199c5
+corpus/0/incremental	6d583244802c16a0da0b6654
 corpus/0/indent	3ef85115b652671d4aa103a7
 corpus/0/indirect leader cycle	76599ea110bfa5ada75a0644
 corpus/0/initial values key the memo like bound ones	aef000bc9ce43bce283f3fe2
 corpus/0/inline action: action error	89efdce40be29c389e19091e
 corpus/0/inline action: captures of the enclosing rule after	115ddb4fb325ba321dcbdcfa
 corpus/0/inline action: choice	a2cbc48dd17bd089a165a630
-corpus/0/inline action: choice of inline actions	4bd17617c67146bc2680321e
-corpus/0/inline action: cut	7e269724a89ecb588ff4d9cc
+corpus/0/inline action: choice of inline actions	4640e1848a9beb3fc88dcd8e
+corpus/0/inline action: cut	7a5a35870cf50a8df65f2e43
 corpus/0/inline action: default action	8717eeddfd70227ca438f49a
 corpus/0/inline action: left recursion	bf9ad92799938ef533566f4f
 corpus/0/inline action: nested	6d5ca04805a2f46c69817634
@@ -127,8 +127,8 @@ corpus/0/leader wrapped in a recovery	f8064fca1ab07d3d188807bc
 corpus/0/left recursion	77a1bd9ed7a3656d65a5457a
 corpus/0/left recursion in recovery skip	17df87413e7a1a5bc82b3f61
 corpus/0/len of nodes and strings	78163ff0f0be6831dbdbcdab
-corpus/0/line choice of rules	5958381b878646f7922eccc7
-corpus/0/line choice with captures and skip	c1a5022f904d4a51bcad625a
+corpus/0/line choice of rules	41e075db30e8c57963ec4840
+corpus/0/line choice with captures and skip	145a61657d5ffebdb89e8e03
 corpus/0/line start	05dbbad66d6c8c8a8a456da2
 corpus/0/line start in a leader	5512972715ce7df95106647a
 corpus/0/line start in a member	0bae2484d83ab3df91bc827c
@@ -159,7 +159,7 @@ corpus/0/nested recoveries	a9e0247d800ce8c87100a22b
 corpus/0/nil OperatorsRule action	cb4cc4232934d395f1b16be0
 corpus/0/nil allocating action	02a6fac82a2ec6c8d92452a4
 corpus/0/node/direct_expectations	aaa12cff4819cef0151f4c48
-corpus/0/node/direct_memo_action	53ee8c2c82c663c706bd27f1
+corpus/0/node/direct_memo_action	c4e69a23142c6101bfca1815
 corpus/0/node/direct_nested_frames	365bd8308d0b4862293a8255
 corpus/0/none-chain: below a left infix	631ea8c508b71ef033966890
 corpus/0/none-chain: below a prefix and a postfix	3bed13113a4cad7506f9dcae
@@ -210,9 +210,9 @@ corpus/0/terminal constructor predicate error	5e26bc80f6e48520e53868ad
 corpus/0/terminal constructor root	fbdccdae5c944ccc4eb21fdd
 corpus/0/terminal constructor value error	82dd5e82b84efdd81a73ae4a
 corpus/0/terminal singleton union	4103c6040af4ed997227c531
-corpus/0/testdata/typed/calclr.sxir	03486a6fc8b013ec8439c674
+corpus/0/testdata/typed/calclr.sxir	00a5a84d90fe5ffa220c0724
 corpus/0/testdata/typed/direct_backtrack.sxir	b0d08a4153c17421f137b0b2
-corpus/0/testdata/typed/direct_errors.sxir	d0b3b51cf12137b7f80572db
+corpus/0/testdata/typed/direct_errors.sxir	6daa3e6aff61f69e96b7c988
 corpus/0/testdata/typed/direct_lists.sxir	2c6103178622a3f7a42cbba3
 corpus/0/testdata/typed/direct_literals.sxir	2b3ed8ed7d16175428c937a4
 corpus/0/testdata/typed/direct_names.sxir	3f9cf7cad40a8f517954a84b
@@ -222,8 +222,8 @@ corpus/0/testdata/typed/element_scope_recover.sxir	afb15b7c39c16694eacf6e50
 corpus/0/testdata/typed/errlist.sxir	97a38cde9a658fc678608e48
 corpus/0/testdata/typed/errlist2.sxir	9242e35400934613cdd0df1f
 corpus/0/testdata/typed/fields.sxir	91d6e39fc94bfa26c9fbe1c1
-corpus/0/testdata/typed/mix.sxir	7d37452700baa1127a583658
-corpus/0/testdata/typed/mixf.sxir	17a1ece8b0ba4cd2c198384b
+corpus/0/testdata/typed/mix.sxir	953c4f0ae5902e4095e1ea57
+corpus/0/testdata/typed/mixf.sxir	c4c0c09389c8b952468412bc
 corpus/0/testdata/typed/operators_rule1.sxir	6cc6ff2443edb6430742cea2
 corpus/0/testdata/typed/operators_rule1f.sxir	6bc26be7eabe20c7837a77bd
 corpus/0/testdata/typed/order.sxir	61e2f234ca3dec4deff850c0
@@ -238,11 +238,11 @@ corpus/0/testdata/typed/spanname.sxir	8cca6a2a76dcd783d286a3ad
 corpus/0/testdata/typed/splice_recursive_capture.sxir	5b94705370ac16f38724f432
 corpus/0/testdata/typed/splice_recursive_capture_action.sxir	781f79271ef2528918ce4aad
 corpus/0/testdata/typed/splice_recursive_choice.sxir	3a0ed66ede43fc205345379d
-corpus/0/testdata/typed/splice_recursive_choice_in_seq.sxir	3cdd70598b1cb3c90d3b6d1c
+corpus/0/testdata/typed/splice_recursive_choice_in_seq.sxir	8a75dc0c2353790285e3c6b6
 corpus/0/testdata/typed/splice_recursive_optional.sxir	80d0f74ae3edb9b320d2114f
 corpus/0/testdata/typed/splice_recursive_repeat.sxir	d46c5285ff014bd9a2de06b1
 corpus/0/testdata/typed/unif.sxir	5bc1c92733e542c0a1364eb0
-corpus/0/top-level cut in a called rule	9901ed26008209bd5a74580b
+corpus/0/top-level cut in a called rule	44ef8e9b5d29c7c373564e99
 corpus/0/transitive action variables	c35aa3119327e3b272d43461
 corpus/0/tuple literal in struct fields	155298136a11f8d168501cf2
 corpus/0/tuple literal of declared tuple type	b7d7250e33ff25f7f31cdcbe
@@ -258,7 +258,7 @@ corpus/0/typed/LR_framed_cuts	605d86cd00f4add7b8294b33
 corpus/0/typed/LR_hidden	d61c666502f538f3898fa5dd
 corpus/0/typed/LR_indirect	aabf509d59cb4c3ab40b3d13
 corpus/0/typed/LR_lookahead_memo	f54f03b266d252d50bbbf90e
-corpus/0/typed/LR_no_improvement	2e54d72f52cbcb91bedf9d06
+corpus/0/typed/LR_no_improvement	d5d54cf790d7308d7e20d9b5
 corpus/0/typed/LR_nullable_seed	e7885b2a49f4c34c88588a83
 corpus/0/typed/LR_positional_action	dffcb26da0371de7706c7b76
 corpus/0/typed/LR_projected_repeat	01c4b3e6b60f42e2bb5f69ed
@@ -282,7 +282,7 @@ corpus/0/typed/OperatorsRule_nullable_parts	536cb9f9c0735fbe421fbaf9
 corpus/0/typed/OperatorsRule_positional_actions	1424bdfaf3cd5906948b74fd
 corpus/0/typed/OperatorsRule_recovery	43d911b58d8ae261dcc1715a
 corpus/0/typed/OperatorsRule_unreachable_capture	76d5b8dfc161e491fbf281bf
-corpus/0/typed/direct_cut_callee	d0fa50e7a86f8f396870d495
+corpus/0/typed/direct_cut_callee	00873a21aea8682c8f567738
 corpus/0/typed/direct_cut_captured_lookahead	7d55124d5288efeaf657f36e
 corpus/0/typed/direct_cut_choice	c06cca5f2ab87ea594fac896
 corpus/0/typed/direct_cut_error	9d2d2a107daee32bc7e27220
@@ -324,14 +324,14 @@ corpus/0/typed/recovery_dead_skip	b2a71aab026bd7c6913fa909
 corpus/0/typed/recovery_error_inside	3e602374ec82e47128e6bd87
 corpus/0/typed/recovery_error_outside	2fe8c1186eecdb2289f921bb
 corpus/0/typed/recovery_failed_skip_rollback	4058b4782e31e409b1bea2a9
-corpus/0/typed/recovery_list_errors	39d0b16a0d5571fd65b51835
+corpus/0/typed/recovery_list_errors	c478f9f94cc85437747d5141
 corpus/0/typed/recovery_lookahead	f60b862605ea6ac75df4185f
 corpus/0/typed/recovery_lr	296f4e570a4961583d2ef95f
 corpus/0/typed/recovery_negative_lookahead	a48ef380c54730f8e16bd5c8
 corpus/0/typed/recovery_nested	955365481403663b5dda3042
 corpus/0/typed/recovery_operatorsRule	164b287a523150987d20e10c
 corpus/0/typed/recovery_optional_repetition	573fda0ffa8680d8e12fbd7a
-corpus/0/typed/recovery_typed_corpus	307ca592b8ab22641e6819b5
+corpus/0/typed/recovery_typed_corpus	63a11804a5c195614fb723d4
 corpus/0/typed/recovery_zero_progress	ba5e273be54c05f5079e3412
 corpus/0/unicode scalar boundaries	1224c2b209a75f4416e0aa39
 corpus/0/unreachable LR alias tail	fa02d7e8de6658d05ec9e02c
@@ -351,7 +351,7 @@ corpus/0/wide any scan 9223372036854775807	d350560b5fc3034b1bea6b08
 corpus/0/wide class scan 2147483648	f378b8c12c17215a4363224e
 corpus/0/wide class scan 4294967296	f378b8c12c17215a4363224e
 corpus/0/wide class scan 9223372036854775807	f378b8c12c17215a4363224e
-corpus/0/wide expectation scopes	b046f83c28f8e4e8b3e8f275
+corpus/0/wide expectation scopes	0f55077e376e6764d54d354b
 corpus/0/wide maximum 2147483648	1331a34f091c8460c624cd77
 corpus/0/wide maximum 4294967296	1331a34f091c8460c624cd77
 corpus/0/wide maximum 9223372036854775807	1331a34f091c8460c624cd77
@@ -368,19 +368,19 @@ corpus/0/wide unbounded minimum 2147483648	dc22f98e217c2a4badad7964
 corpus/0/wide unbounded minimum 4294967296	dc22f98e217c2a4badad7964
 corpus/0/wide unbounded minimum 9223372036854775807	dc22f98e217c2a4badad7964
 corpus/1/../../examples/calculator/calc.sxir	3414ab9a12e43d589c3a855a
-corpus/1/../../examples/calculator/calc_lr.sxir	a1cad168faaca85361e77c00
-corpus/1/../../examples/minilang/minilang.sxir	d94948a7aa1f285b57669634
+corpus/1/../../examples/calculator/calc_lr.sxir	2bf687ad7933a6760debbff8
+corpus/1/../../examples/minilang/minilang.sxir	66846d71dc4aed2209709e4d
 corpus/1/../../examples/outline/outline.sxir	ac2b4410d93427e9ee495bfa
 corpus/1/LR cut inside optional	43f49a844240c6c683f943f0
 corpus/1/Operators Rule explicit default action	db095dc3b41fa8a7d57c8e5c
 corpus/1/Operators Rule operand with a cut in the recovered body	85144bc177c1982c04d0a47b
 corpus/1/Operators Rule operand with recovery	957100adde4557334b14d1f2
 corpus/1/Operators Rule operator action on scalar operands	3523fb50d886e0a0024f83aa
-corpus/1/OperatorsRule prefix-part cuts	bd662d4660b7c95780224a5b
-corpus/1/a cast binding in an Operators Rule operand	7411556d7ec15589f18b06ee
+corpus/1/OperatorsRule prefix-part cuts	e7bd490131b152c5216e128b
+corpus/1/a cast binding in an Operators Rule operand	ad4956901b53fee1a2aeeabb
 corpus/1/a failed action leaves nothing it gathered	0caba926c288d08700be3629
-corpus/1/a failed cast in a binding backtracks	d7c4b0acbe03d38e4c359319
-corpus/1/action environments	acf6f23ab187f786b4dbe644
+corpus/1/a failed cast in a binding backtracks	c9e2343770075abd45b1339b
+corpus/1/action environments	98b92a84988f2c16d3a3afec
 corpus/1/alias constructors	6a24c16ab7e7fa56afe12caa
 corpus/1/alias singleton unions	307f05f95f60a451bf71e74a
 corpus/1/alias terminal	4103c6040af4ed997227c531
@@ -406,7 +406,7 @@ corpus/1/binding choice rollback	eed1bc7396a40bf3f20372c4
 corpus/1/binding negative lookahead rollback	9111ad726e4ad90ef0971750
 corpus/1/binding positive lookahead effects	abd5f12b386a00bcbd262199
 corpus/1/binding rule scope	5497bf32b794e3bdee61b646
-corpus/1/bindings of a cast value	a762764ab924c41e48d3d304
+corpus/1/bindings of a cast value	d2b090611581fc66c76bdfbc
 corpus/1/case-insensitive literal alternatives	9ac846e8164b825dcbb40b23
 corpus/1/class lookahead	24e8666e2c1754d3207afb44
 corpus/1/cut and lookahead	6360166cf34164ba8c986c1e
@@ -418,7 +418,7 @@ corpus/1/cut in recovery skip	3cf0d46aba4b37992ae0e630
 corpus/1/cut in the skip of a recovery	e49409eed7ec5243c33b5574
 corpus/1/cut inside a positive lookahead	b4265a70964109148f0eeabc
 corpus/1/cut with captures and a projected repetition	cfc45d85f96ba8b054800f76
-corpus/1/cuts in every scope	b6aa80d112694891e7518f28
+corpus/1/cuts in every scope	72b458915ef61690ad9cdb0e
 corpus/1/declared variable initial values	7e17616234f0b92546661534
 corpus/1/declared variables are part of the memo key	40274707a6401aabf3381d0e
 corpus/1/diagnostic attr	76c636cadd4464ec9eeef68b
@@ -433,14 +433,14 @@ corpus/1/error node as a capture value	79f08e395a53520d024ddb46
 corpus/1/error node in a capture group	1b43cac263691080b080c0e1
 corpus/1/error node in a projected repetition	a6c80be17de390279e4a8500
 corpus/1/fold and lists	ebe7dd9d1da61ca29643d8cd
-corpus/1/framed choice of rules	994fd4b58efd2bfa71d6e44b
-corpus/1/guarded repetition of rules	4e3bcaea94c8e951fb886cc4
+corpus/1/framed choice of rules	60863a205799117380b26337
+corpus/1/guarded repetition of rules	cbaded893fad92f0e0b9fc46
 corpus/1/hidden leader behind an optional prefix	55d37732f59a34d7c6439025
 corpus/1/hidden rule: captured call	4fda5cc03dd2072586dd929d
 corpus/1/hidden rule: choice	06970c3709613a5f55f5c5c1
-corpus/1/hidden rule: cut	a3dcfa8610033ed02179fa2e
+corpus/1/hidden rule: cut	8df2a027c474329d8946e5b9
 corpus/1/hidden rule: hidden captures	e59047bf95724b334adc2a37
-corpus/1/hidden rule: in a choice	25a9850ac0eebc97bd4397d6
+corpus/1/hidden rule: in a choice	9df9835c2def8248c479e530
 corpus/1/hidden rule: in a repetition body	24396595dea6d9220f2339ef
 corpus/1/hidden rule: left recursion	bcd11e691aef23d35dde7cea
 corpus/1/hidden rule: lookahead in body	5a2f2779f83e775d52498d49
@@ -456,15 +456,15 @@ corpus/1/hidden rule: sequence	0afc9e7f84cb7e4fb87b98bd
 corpus/1/hidden rule: used twice	9c8f6f648171b6a0c9ac3ecb
 corpus/1/hidden rule: whole body	cf004cbdc70357eea6e877a5
 corpus/1/ignorecase group	400d00bcb75fea782711a6eb
-corpus/1/incremental	c2159bd1155bf4e070d199c5
+corpus/1/incremental	6d583244802c16a0da0b6654
 corpus/1/indent	3ef85115b652671d4aa103a7
 corpus/1/indirect leader cycle	76599ea110bfa5ada75a0644
 corpus/1/initial values key the memo like bound ones	aef000bc9ce43bce283f3fe2
 corpus/1/inline action: action error	89efdce40be29c389e19091e
 corpus/1/inline action: captures of the enclosing rule after	115ddb4fb325ba321dcbdcfa
 corpus/1/inline action: choice	a2cbc48dd17bd089a165a630
-corpus/1/inline action: choice of inline actions	4bd17617c67146bc2680321e
-corpus/1/inline action: cut	7e269724a89ecb588ff4d9cc
+corpus/1/inline action: choice of inline actions	4640e1848a9beb3fc88dcd8e
+corpus/1/inline action: cut	7a5a35870cf50a8df65f2e43
 corpus/1/inline action: default action	8717eeddfd70227ca438f49a
 corpus/1/inline action: left recursion	bf9ad92799938ef533566f4f
 corpus/1/inline action: nested	6d5ca04805a2f46c69817634
@@ -491,8 +491,8 @@ corpus/1/leader wrapped in a recovery	f8064fca1ab07d3d188807bc
 corpus/1/left recursion	77a1bd9ed7a3656d65a5457a
 corpus/1/left recursion in recovery skip	17df87413e7a1a5bc82b3f61
 corpus/1/len of nodes and strings	78163ff0f0be6831dbdbcdab
-corpus/1/line choice of rules	5958381b878646f7922eccc7
-corpus/1/line choice with captures and skip	c1a5022f904d4a51bcad625a
+corpus/1/line choice of rules	41e075db30e8c57963ec4840
+corpus/1/line choice with captures and skip	145a61657d5ffebdb89e8e03
 corpus/1/line start	05dbbad66d6c8c8a8a456da2
 corpus/1/line start in a leader	5512972715ce7df95106647a
 corpus/1/line start in a member	0bae2484d83ab3df91bc827c
@@ -523,7 +523,7 @@ corpus/1/nested recoveries	a9e0247d800ce8c87100a22b
 corpus/1/nil OperatorsRule action	cb4cc4232934d395f1b16be0
 corpus/1/nil allocating action	02a6fac82a2ec6c8d92452a4
 corpus/1/node/direct_expectations	aaa12cff4819cef0151f4c48
-corpus/1/node/direct_memo_action	53ee8c2c82c663c706bd27f1
+corpus/1/node/direct_memo_action	c4e69a23142c6101bfca1815
 corpus/1/node/direct_nested_frames	365bd8308d0b4862293a8255
 corpus/1/none-chain: below a left infix	631ea8c508b71ef033966890
 corpus/1/none-chain: below a prefix and a postfix	3bed13113a4cad7506f9dcae
@@ -574,9 +574,9 @@ corpus/1/terminal constructor predicate error	5e26bc80f6e48520e53868ad
 corpus/1/terminal constructor root	fbdccdae5c944ccc4eb21fdd
 corpus/1/terminal constructor value error	82dd5e82b84efdd81a73ae4a
 corpus/1/terminal singleton union	4103c6040af4ed997227c531
-corpus/1/testdata/typed/calclr.sxir	03486a6fc8b013ec8439c674
+corpus/1/testdata/typed/calclr.sxir	00a5a84d90fe5ffa220c0724
 corpus/1/testdata/typed/direct_backtrack.sxir	b0d08a4153c17421f137b0b2
-corpus/1/testdata/typed/direct_errors.sxir	d0b3b51cf12137b7f80572db
+corpus/1/testdata/typed/direct_errors.sxir	6daa3e6aff61f69e96b7c988
 corpus/1/testdata/typed/direct_lists.sxir	2c6103178622a3f7a42cbba3
 corpus/1/testdata/typed/direct_literals.sxir	2b3ed8ed7d16175428c937a4
 corpus/1/testdata/typed/direct_names.sxir	3f9cf7cad40a8f517954a84b
@@ -586,8 +586,8 @@ corpus/1/testdata/typed/element_scope_recover.sxir	afb15b7c39c16694eacf6e50
 corpus/1/testdata/typed/errlist.sxir	97a38cde9a658fc678608e48
 corpus/1/testdata/typed/errlist2.sxir	9242e35400934613cdd0df1f
 corpus/1/testdata/typed/fields.sxir	91d6e39fc94bfa26c9fbe1c1
-corpus/1/testdata/typed/mix.sxir	7d37452700baa1127a583658
-corpus/1/testdata/typed/mixf.sxir	17a1ece8b0ba4cd2c198384b
+corpus/1/testdata/typed/mix.sxir	953c4f0ae5902e4095e1ea57
+corpus/1/testdata/typed/mixf.sxir	c4c0c09389c8b952468412bc
 corpus/1/testdata/typed/operators_rule1.sxir	6cc6ff2443edb6430742cea2
 corpus/1/testdata/typed/operators_rule1f.sxir	6bc26be7eabe20c7837a77bd
 corpus/1/testdata/typed/order.sxir	61e2f234ca3dec4deff850c0
@@ -602,11 +602,11 @@ corpus/1/testdata/typed/spanname.sxir	8cca6a2a76dcd783d286a3ad
 corpus/1/testdata/typed/splice_recursive_capture.sxir	5b94705370ac16f38724f432
 corpus/1/testdata/typed/splice_recursive_capture_action.sxir	781f79271ef2528918ce4aad
 corpus/1/testdata/typed/splice_recursive_choice.sxir	3a0ed66ede43fc205345379d
-corpus/1/testdata/typed/splice_recursive_choice_in_seq.sxir	3cdd70598b1cb3c90d3b6d1c
+corpus/1/testdata/typed/splice_recursive_choice_in_seq.sxir	8a75dc0c2353790285e3c6b6
 corpus/1/testdata/typed/splice_recursive_optional.sxir	80d0f74ae3edb9b320d2114f
 corpus/1/testdata/typed/splice_recursive_repeat.sxir	d46c5285ff014bd9a2de06b1
 corpus/1/testdata/typed/unif.sxir	5bc1c92733e542c0a1364eb0
-corpus/1/top-level cut in a called rule	9901ed26008209bd5a74580b
+corpus/1/top-level cut in a called rule	44ef8e9b5d29c7c373564e99
 corpus/1/transitive action variables	c35aa3119327e3b272d43461
 corpus/1/tuple literal in struct fields	155298136a11f8d168501cf2
 corpus/1/tuple literal of declared tuple type	b7d7250e33ff25f7f31cdcbe
@@ -622,7 +622,7 @@ corpus/1/typed/LR_framed_cuts	605d86cd00f4add7b8294b33
 corpus/1/typed/LR_hidden	d61c666502f538f3898fa5dd
 corpus/1/typed/LR_indirect	aabf509d59cb4c3ab40b3d13
 corpus/1/typed/LR_lookahead_memo	f54f03b266d252d50bbbf90e
-corpus/1/typed/LR_no_improvement	2e54d72f52cbcb91bedf9d06
+corpus/1/typed/LR_no_improvement	d5d54cf790d7308d7e20d9b5
 corpus/1/typed/LR_nullable_seed	e7885b2a49f4c34c88588a83
 corpus/1/typed/LR_positional_action	dffcb26da0371de7706c7b76
 corpus/1/typed/LR_projected_repeat	01c4b3e6b60f42e2bb5f69ed
@@ -646,7 +646,7 @@ corpus/1/typed/OperatorsRule_nullable_parts	536cb9f9c0735fbe421fbaf9
 corpus/1/typed/OperatorsRule_positional_actions	1424bdfaf3cd5906948b74fd
 corpus/1/typed/OperatorsRule_recovery	43d911b58d8ae261dcc1715a
 corpus/1/typed/OperatorsRule_unreachable_capture	76d5b8dfc161e491fbf281bf
-corpus/1/typed/direct_cut_callee	d0fa50e7a86f8f396870d495
+corpus/1/typed/direct_cut_callee	00873a21aea8682c8f567738
 corpus/1/typed/direct_cut_captured_lookahead	7d55124d5288efeaf657f36e
 corpus/1/typed/direct_cut_choice	c06cca5f2ab87ea594fac896
 corpus/1/typed/direct_cut_error	9d2d2a107daee32bc7e27220
@@ -688,14 +688,14 @@ corpus/1/typed/recovery_dead_skip	b2a71aab026bd7c6913fa909
 corpus/1/typed/recovery_error_inside	3e602374ec82e47128e6bd87
 corpus/1/typed/recovery_error_outside	2fe8c1186eecdb2289f921bb
 corpus/1/typed/recovery_failed_skip_rollback	4058b4782e31e409b1bea2a9
-corpus/1/typed/recovery_list_errors	39d0b16a0d5571fd65b51835
+corpus/1/typed/recovery_list_errors	c478f9f94cc85437747d5141
 corpus/1/typed/recovery_lookahead	f60b862605ea6ac75df4185f
 corpus/1/typed/recovery_lr	296f4e570a4961583d2ef95f
 corpus/1/typed/recovery_negative_lookahead	a48ef380c54730f8e16bd5c8
 corpus/1/typed/recovery_nested	955365481403663b5dda3042
 corpus/1/typed/recovery_operatorsRule	164b287a523150987d20e10c
 corpus/1/typed/recovery_optional_repetition	573fda0ffa8680d8e12fbd7a
-corpus/1/typed/recovery_typed_corpus	307ca592b8ab22641e6819b5
+corpus/1/typed/recovery_typed_corpus	63a11804a5c195614fb723d4
 corpus/1/typed/recovery_zero_progress	ba5e273be54c05f5079e3412
 corpus/1/unicode scalar boundaries	1224c2b209a75f4416e0aa39
 corpus/1/unreachable LR alias tail	fa02d7e8de6658d05ec9e02c
@@ -715,7 +715,7 @@ corpus/1/wide any scan 9223372036854775807	d350560b5fc3034b1bea6b08
 corpus/1/wide class scan 2147483648	f378b8c12c17215a4363224e
 corpus/1/wide class scan 4294967296	f378b8c12c17215a4363224e
 corpus/1/wide class scan 9223372036854775807	f378b8c12c17215a4363224e
-corpus/1/wide expectation scopes	b046f83c28f8e4e8b3e8f275
+corpus/1/wide expectation scopes	0f55077e376e6764d54d354b
 corpus/1/wide maximum 2147483648	1331a34f091c8460c624cd77
 corpus/1/wide maximum 4294967296	1331a34f091c8460c624cd77
 corpus/1/wide maximum 9223372036854775807	1331a34f091c8460c624cd77
@@ -731,23 +731,23 @@ corpus/1/wide scan minimum 9223372036854775807	3cdcb63140a6418b6190f5c4
 corpus/1/wide unbounded minimum 2147483648	dc22f98e217c2a4badad7964
 corpus/1/wide unbounded minimum 4294967296	dc22f98e217c2a4badad7964
 corpus/1/wide unbounded minimum 9223372036854775807	dc22f98e217c2a4badad7964
-grammars/0/cel	1db67b96c3f1210917670c4b
+grammars/0/cel	5d2da573527d49ebd5db0228
 grammars/0/csv	783759e61a8e6ee45d0d1516
-grammars/0/cue	d66fd23210dfbfcec9102412
-grammars/0/duckdb	95b2180f61e4ec98b7145950
-grammars/0/golang	2acc903fd60e898ab7b9a8a3
-grammars/0/json	291821d937575e0d69f1a40d
-grammars/0/python	23a927d68791481d6897edcb
-grammars/0/typescript	231a6dbcd75a7b5180760b7a
-grammars/0/xml	bace603bae944ad2b9df3b0f
-grammars/0/yaml	b1e32f98b4f3190c2e196ffb
-grammars/1/cel	1db67b96c3f1210917670c4b
+grammars/0/cue	acb8837aa52e76d7cb933f83
+grammars/0/duckdb	dda570316d843d24b0b3cf3e
+grammars/0/golang	709bdacfa3467d6daa1621ba
+grammars/0/json	6e207994414aebee12b252ee
+grammars/0/python	5f74e1709aa7da9b978dada3
+grammars/0/typescript	aa7bd39fd079f3ca2c81bba9
+grammars/0/xml	be9017e64d65823bee09cee0
+grammars/0/yaml	a026079a4511adc16c356d98
+grammars/1/cel	5d2da573527d49ebd5db0228
 grammars/1/csv	783759e61a8e6ee45d0d1516
-grammars/1/cue	f7b8930376b1e33a159bdf94
-grammars/1/duckdb	208d27b28ccb1e34ad74db82
-grammars/1/golang	4271c2e520fd54308f2297a1
-grammars/1/json	291821d937575e0d69f1a40d
-grammars/1/python	9b1755bfa431b0328013f5b7
-grammars/1/typescript	3a60785f28f435661661e9cd
-grammars/1/xml	bace603bae944ad2b9df3b0f
-grammars/1/yaml	3fe20bc2df50f9d69d7fa29d
+grammars/1/cue	9b145d5954a089c5503b4f52
+grammars/1/duckdb	59acde571b6648ae5ec12143
+grammars/1/golang	3b284fa73265adca4456886e
+grammars/1/json	6e207994414aebee12b252ee
+grammars/1/python	7f4e5501550c9eff80bef75c
+grammars/1/typescript	82c49d1097caf274053d0aaa
+grammars/1/xml	be9017e64d65823bee09cee0
+grammars/1/yaml	f6aec6fc66d46d01762f9aa3

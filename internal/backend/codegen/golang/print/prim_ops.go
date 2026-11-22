@@ -160,6 +160,8 @@ func (p *primPrinter) op(c *code.Call, args []string) string {
 		return fmt.Sprintf("p.ScanKids(%d, %s, %s, %s)", c.Imm.(prim.Site), args[0], args[1], args[2])
 	case prim.OpResumeOn:
 		return "p.ResumeOn()"
+	case prim.OpInDocument:
+		return "(p.Document != nil)" // parenthesized: a guard negates it
 	case prim.OpResumeStart:
 		x := c.Imm.(prim.Resume)
 		return fmt.Sprintf("p.ResumeStart(%d, %d, %d, %t)", x.Site, x.Min, x.Max, x.Shiftable)

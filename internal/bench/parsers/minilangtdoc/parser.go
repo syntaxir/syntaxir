@@ -2075,7 +2075,7 @@ func e8(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	x2 = p.Mark()
 	x3 = p.Isolate(p.Pos)
 	x9 = p.Mark()
-	if !p.HasChar(108, false) && p.Depth <= p.MaxDepth {
+	if !(p.Document != nil) && (!p.HasChar(108, false) && p.Depth <= p.MaxDepth) {
 		p.Expect(p.Pos, 7)
 		goto L12
 	}
@@ -2087,7 +2087,7 @@ func e8(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 L13:
 	p.Reset(x9)
 L12:
-	if !p.HasChar(102, false) && p.Depth+1 <= p.MaxDepth {
+	if !(p.Document != nil) && (!p.HasChar(102, false) && p.Depth+1 <= p.MaxDepth) {
 		p.Expect(p.Pos, 8)
 		goto L15
 	}
@@ -2099,7 +2099,7 @@ L12:
 L16:
 	p.Reset(x9)
 L15:
-	if !p.HasChar(105, false) && p.Depth+1 <= p.MaxDepth {
+	if !(p.Document != nil) && (!p.HasChar(105, false) && p.Depth+1 <= p.MaxDepth) {
 		p.Expect(p.Pos, 9)
 		goto L18
 	}
@@ -2111,7 +2111,7 @@ L15:
 L19:
 	p.Reset(x9)
 L18:
-	if !p.HasChar(119, false) && p.Depth+1 <= p.MaxDepth {
+	if !(p.Document != nil) && (!p.HasChar(119, false) && p.Depth+1 <= p.MaxDepth) {
 		p.Expect(p.Pos, 10)
 		goto L21
 	}
@@ -2123,7 +2123,7 @@ L18:
 L22:
 	p.Reset(x9)
 L21:
-	if !p.HasChar(114, false) && p.Depth <= p.MaxDepth {
+	if !(p.Document != nil) && (!p.HasChar(114, false) && p.Depth <= p.MaxDepth) {
 		p.Expect(p.Pos, 11)
 		goto L24
 	}
@@ -2135,7 +2135,7 @@ L21:
 L25:
 	p.Reset(x9)
 L24:
-	if !p.HasChar(123, false) && p.Depth+1 <= p.MaxDepth {
+	if !(p.Document != nil) && (!p.HasChar(123, false) && p.Depth+1 <= p.MaxDepth) {
 		p.Expect(p.Pos, 5)
 		goto L27
 	}
@@ -2373,7 +2373,7 @@ func e13(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		goto fail
 	}
 	x2 = p.Mark()
-	if !p.HasChar(105, false) && p.Depth+1 <= p.MaxDepth {
+	if !(p.Document != nil) && (!p.HasChar(105, false) && p.Depth+1 <= p.MaxDepth) {
 		p.Expect(p.Pos, 9)
 		goto L5
 	}
@@ -2385,7 +2385,7 @@ func e13(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 L6:
 	p.Reset(x2)
 L5:
-	if !p.HasChar(123, false) && p.Depth+1 <= p.MaxDepth {
+	if !(p.Document != nil) && (!p.HasChar(123, false) && p.Depth+1 <= p.MaxDepth) {
 		p.Expect(p.Pos, 5)
 		goto L8
 	}
@@ -4283,7 +4283,7 @@ func e99(p *rt.TParser, _ int) (any, bool) {
 	x2 = p.Mark()
 	x3 = p.Isolate(p.Pos)
 	x9 = p.Mark()
-	if !p.HasChar(108, false) && p.Depth <= p.MaxDepth {
+	if !(p.Document != nil) && (!p.HasChar(108, false) && p.Depth <= p.MaxDepth) {
 		p.Expect(p.Pos, 7)
 		goto L12
 	}
@@ -4295,7 +4295,7 @@ func e99(p *rt.TParser, _ int) (any, bool) {
 L13:
 	p.Reset(x9)
 L12:
-	if !p.HasChar(102, false) && p.Depth+1 <= p.MaxDepth {
+	if !(p.Document != nil) && (!p.HasChar(102, false) && p.Depth+1 <= p.MaxDepth) {
 		p.Expect(p.Pos, 8)
 		goto L15
 	}
@@ -4307,7 +4307,7 @@ L12:
 L16:
 	p.Reset(x9)
 L15:
-	if !p.HasChar(105, false) && p.Depth+1 <= p.MaxDepth {
+	if !(p.Document != nil) && (!p.HasChar(105, false) && p.Depth+1 <= p.MaxDepth) {
 		p.Expect(p.Pos, 9)
 		goto L18
 	}
@@ -4319,7 +4319,7 @@ L15:
 L19:
 	p.Reset(x9)
 L18:
-	if !p.HasChar(119, false) && p.Depth+1 <= p.MaxDepth {
+	if !(p.Document != nil) && (!p.HasChar(119, false) && p.Depth+1 <= p.MaxDepth) {
 		p.Expect(p.Pos, 10)
 		goto L21
 	}
@@ -4331,7 +4331,7 @@ L18:
 L22:
 	p.Reset(x9)
 L21:
-	if !p.HasChar(114, false) && p.Depth <= p.MaxDepth {
+	if !(p.Document != nil) && (!p.HasChar(114, false) && p.Depth <= p.MaxDepth) {
 		p.Expect(p.Pos, 11)
 		goto L24
 	}
@@ -4343,7 +4343,7 @@ L21:
 L25:
 	p.Reset(x9)
 L24:
-	if !p.HasChar(123, false) && p.Depth+1 <= p.MaxDepth {
+	if !(p.Document != nil) && (!p.HasChar(123, false) && p.Depth+1 <= p.MaxDepth) {
 		p.Expect(p.Pos, 5)
 		goto L27
 	}
@@ -4899,7 +4899,7 @@ func i7(p *rt.TParser) (any, bool) {
 		goto fail
 	}
 	x3, x4 = p.Pos, len(p.Recovered)
-	if !p.HasChar(105, false) && p.Depth+1 <= p.MaxDepth {
+	if !(p.Document != nil) && (!p.HasChar(105, false) && p.Depth+1 <= p.MaxDepth) {
 		p.Expect(p.Pos, 9)
 		goto L7
 	}
@@ -4911,7 +4911,7 @@ func i7(p *rt.TParser) (any, bool) {
 L8:
 	p.Restore(x3, x4)
 L7:
-	if !p.HasChar(123, false) && p.Depth+1 <= p.MaxDepth {
+	if !(p.Document != nil) && (!p.HasChar(123, false) && p.Depth+1 <= p.MaxDepth) {
 		p.Expect(p.Pos, 5)
 		goto L10
 	}

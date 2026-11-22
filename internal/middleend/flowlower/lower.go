@@ -807,38 +807,37 @@ func leadingClass(n core.Node) *core.ClassNode {
 	return c
 }
 
-// guard reports whether the alternative a keeps its guard, and the rules whose calls its skip
-// makes under logical units (lowerdata.Options.Guards).
+// guard reports whether the alternative a keeps its guard, the rules whose calls its skip makes under
+// logical units (lowerdata.Options.Guards), and whether only a parse that is not a Document's takes
+// the guard (outside).
 //
-// In a lowering for Documents (lowerdata.Options.Document) the rule holds with or without logical
-// units: a Document's statistics and the entries that later parses reuse are observable, so a guard
-// is kept only when the calls that its skip passes over are known and none of them is of a rule
-// that a Document memoizes (docMemoized); under logical units the skip counts their units.
-func (l *lowerer) guard(a *core.Alt) (bool, []int) {
+// In a lowering for Documents (lowerdata.Options.Document) a Document parse does not take a guard
+// whose skip passes over a call of a rule that it memoizes (docMemoized), with or without logical
+// units: the guard is kept for the other parses that run the same functions, which skip as the
+// lowering without Documents does, and a Document parse evaluates the alternative (flow.inDocument).
+func (l *lowerer) guard(a *core.Alt) (keep bool, calls []int, outside bool) {
 	if a.Guard == nil || l.opts.Logical && l.opts.Guards == lowerdata.GuardsKeep {
-		return a.Guard != nil, nil
+		return a.Guard != nil, nil, false
 	}
 	if !l.opts.Logical && !l.opts.Document {
-		return true, nil
+		return true, nil, false
 	}
 	calls, ok := core.GuardCalls(l.m, a.Body)
 	if !ok || len(calls) > 0 && l.opts.Logical && l.opts.Guards == lowerdata.GuardsEvent {
-		return false, nil
+		return false, nil, false
 	}
-	if l.opts.Document && docMemoized(l.m, calls) {
-		return false, nil
-	}
+	outside = l.opts.Document && docMemoized(l.m, calls)
 	if !l.opts.Logical {
-		return true, nil
+		calls = nil
 	}
-	return true, calls
+	return true, calls, outside
 }
 
 // docMemoized reports whether a Document parse memoizes one of the rules: every rule that an
 // ordinary parse memoizes, and the transient rules that only Documents memoize. A skip cannot make
 // the effects of such a call in a Document, where the memo records how far each entry examined the
-// input and what later parses reuse (spec/runtime/documents.md#reuse), so the guard is left out and the
-// alternative is evaluated, as the engine refuses the skip.
+// input and what later parses reuse (spec/runtime/documents.md#reuse), so a Document parse evaluates
+// the alternative, as the engine refuses the skip there.
 func docMemoized(m *core.Module, calls []int) bool {
 	for _, k := range calls {
 		if m.Rules[k].Policy.Memo {
@@ -874,7 +873,7 @@ func (l *lowerer) choice(n *core.Choice, s *scope, build bool, fail string) code
 		}
 		var bs *code.Block
 		var guarded *core.ClassNode
-		guard, skipped := l.guard(a)
+		guard, skipped, outside := l.guard(a)
 		if guard {
 			// The alternative is skipped when the next character cannot begin it, and the guard examines
 			// what the alternative would examine there. The guard of a literal compares the literal's first
@@ -904,11 +903,17 @@ func (l *lowerer) choice(n *core.Choice, s *scope, build bool, fail string) code
 			if l.opts.Observe {
 				pre = append(pre, do(flow.OpObserveSkip, a.Body))
 			}
+			var fails code.Expr
 			if a.Guard.Lit {
-				l.failIf(nil, call(flow.OpGuardLitFails, a.Guard), skip, pre...)
+				fails = call(flow.OpGuardLitFails, a.Guard)
 			} else {
-				l.failIf(nil, call(flow.OpGuardFails, a.Guard, use(ch), use(more)), skip, pre...)
+				fails = call(flow.OpGuardFails, a.Guard, use(ch), use(more))
 			}
+			if outside {
+				// A Document parse evaluates the alternative without the guard (docMemoized).
+				fails = code.And(code.Not(call(flow.OpInDocument, nil)), fails)
+			}
+			l.failIf(nil, fails, skip, pre...)
 		}
 		f := l.label()
 		bf := l.open(f)
