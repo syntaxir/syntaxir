@@ -225,6 +225,8 @@ func (m *Module) flowImm(k FlowImm, v any, str func(int) string) string {
 		if m.skipRunSite(x.Site) {
 			parts = append(parts, "skip-run") // flow.skipBegin: the walk of a SKIPREPEAT's site
 		}
+	case FlowResumeOf:
+		parts = append(parts, fmt.Sprintf("resume=%d min=%d max=%d shiftable=%t", x.Site, x.Min, x.Max, x.Shiftable))
 	case FlowBindOf:
 		parts = append(parts, fmt.Sprintf("var=%d action=%d", x.Var, x.Action))
 	case FlowGuardOf:

@@ -3,7 +3,6 @@ package print_test
 import (
 	"os"
 	"path/filepath"
-	"slices"
 	"sync"
 	"testing"
 
@@ -17,15 +16,24 @@ import (
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/pass/pipe"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // TestFlowTableFollowsGoNodeTable checks that the Node table the bytecode VM runs from Flow IR
-// (checked.Source.FlowTable) is the one the generated Go parser with budget controls runs: for every
-// rule body that the Go printer prints from Flow IR in its Node table, the VM's table holds a body of
-// the same route (flat or framed) whose Flow IR after the Flow passes is the text the printer lowered.
-// The parser is generated without inline-literals, the one Flow pass of the Go target that applies to
-// the Node table under budget controls: the VM's target (flowpass.Bytecode) prints none of the
-// forms. Rules the printer prunes have no Go route and are not compared.
+// (checked.Source.FlowTable) is the one the generated Go parser with budget controls and Documents
+// runs. It pairs the functions of the two tables by name, which the plan of a table gives each
+// function from its key (a rule's body, its stream body, a skip or line of an Operators Rule, or a
+// node the lowering outlines), and compares each pair in full: the text of the function after the
+// Flow passes, which holds its operations, locals, blocks and immediates, and its route (flat or
+// framed). Every function that the Go generator lowers in its Node table must be in the VM's table,
+// and every rule that the Go parser prints from Flow IR must take the same route in both. A function
+// of the VM's table may be missing from the Go table for one of two reasons, which the test checks:
+// the Go generator prunes the rules that no entry point of the parser reaches, so it lowers no
+// function of such a rule, and it plans a stream body only for the start rule of ParseStream, where
+// the VM, whose one module serves every start rule, plans one for each rule with a #stream
+// repetition. The parser is generated without inline-literals, the one Flow pass of the Go target
+// that applies to the Node table under budget controls: the VM's target (flowpass.Bytecode) prints
+// none of the forms.
 func TestFlowTableFollowsGoNodeTable(t *testing.T) {
 	paths, err := filepath.Glob("../../../../../testdata/grammars/*/*.sxir")
 	if err != nil || len(paths) == 0 {
@@ -42,74 +50,119 @@ func TestFlowTableFollowsGoNodeTable(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			var mu sync.Mutex
-			texts := map[int][]string{} // the Flow functions of each rule that the Node table lowered
-			routes := map[int]bool{}    // the rules the Node table prints, true for the flat route
-			var gen *print.Generator
-			hooks := &print.Hooks{
-				Generator: func(x *print.Generator) {
-					d := driverOf(x)
-					d.FlowPipeline = func(table string) pipe.Pipeline[flowpass.Unit, flowpass.Unit] {
-						if table != "rules" {
-							return flowpass.Pipeline()
-						}
-						return recordFlow(func(m *code.Module) {
-							if a := flow.AttrsOf(flow.FuncOf(m)); a != nil && a.Rule != nil {
-								mu.Lock()
-								texts[a.Rule.ID] = append(texts[a.Rule.ID], code.FuncStringIn(m, flow.FuncOf(m)))
-								mu.Unlock()
-							}
-						})
-					}
-					if x.Table == "rules" {
-						gen = x
-					}
-				},
-				LeanRoute: func(table string, r *common.Rule) {
-					if table == "rules" {
-						routes[r.ID] = true
-					}
-				},
-				FramedRoute: func(table string, r *common.Rule) {
-					if table == "rules" {
-						routes[r.ID] = false
-					}
-				},
-			}
-			opts := common.GenOptions{Package: "p", Module: "example.com/p", NoOpt: []string{flowpass.PassInlineLiterals}}
-			if _, err := print.GenerateParser(g, codegentest.Compile, codegentest.Passes(opts), codegentest.WithLib(opts), hooks); err != nil {
-				t.Fatal(err)
-			}
-			if gen == nil || len(routes) == 0 {
+			printed, gen, lowered := goNodeTable(t, g)
+			if gen == nil || len(printed) == 0 || len(lowered) == 0 {
 				t.Fatal("the Node table prints no rule from Flow IR")
 			}
 			ft, err := checked.Of(gen.Prog.Elab.(*frontend.Result)).FlowTable()
 			if err != nil {
 				t.Fatal(err)
 			}
-			flat, framed := 0, 0
-			for id, isFlat := range routes {
+			goRules := map[int]bool{} // the rules of which the Go generator lowered a function
+			for _, f := range lowered {
+				goRules[f.rule] = true
+			}
+			vm := map[string]bool{}
+			compared, absent := 0, 0
+			for k, m := range ft.Funcs {
+				fn := flow.FuncOf(m)
+				vm[fn.Name] = true
+				got := loweredFunc{rule: k.Rule, text: code.FuncStringIn(m, fn), flat: !flow.AttrsOf(fn).Frame}
+				want, ok := lowered[fn.Name]
+				switch {
+				case ok && want != got:
+					t.Errorf("%s: the VM's function (flat %v) differs from the one Go lowered (flat %v):\nVM:\n%s\nGo:\n%s", fn.Name, got.flat, want.flat, got.text, want.text)
+				case ok:
+					compared++
+				case !goRules[k.Rule] || k.Use == plandata.StreamBody:
+					absent++ // a pruned rule, or a stream body of a rule that is not the start of ParseStream
+				default:
+					t.Errorf("%s (%+v): in the VM's table, not in the Go table, whose rule %d Go lowers", fn.Name, k, k.Rule)
+				}
+			}
+			for name := range lowered {
+				if !vm[name] {
+					t.Errorf("%s: the Go table runs it, the VM's table lacks it", name)
+				}
+			}
+			for id, printedFlat := range printed {
 				m, ok := ft.Funcs[plandata.Key{Use: plandata.RuleBody, Rule: id}]
 				if !ok {
 					t.Errorf("rule %d: printed from Flow IR in Go, no body in the VM's table", id)
 					continue
 				}
-				fn := flow.FuncOf(m)
-				if got := !flow.AttrsOf(fn).Frame; got != isFlat {
-					t.Errorf("rule %s: flat %v in the VM's table, %v in Go", fn.Name, got, isFlat)
-				}
-				if text := code.FuncStringIn(m, fn); !slices.Contains(texts[id], text) {
-					t.Errorf("rule %s: the VM's function is none of the %d that Go lowered:\n%s", fn.Name, len(texts[id]), text)
-				}
-				if isFlat {
-					flat++
-				} else {
-					framed++
+				if fn := flow.FuncOf(m); flow.AttrsOf(fn).Frame == printedFlat {
+					t.Errorf("rule %s: the VM runs the flat function %v, Go prints the flat function %v", fn.Name, !printedFlat, printedFlat)
 				}
 			}
-			t.Logf("%d flat and %d framed rule bodies agree", flat, framed)
+			t.Logf("%d functions agree; %d of the VM's table are not in the Go table", compared, absent)
 		})
 	}
+}
+
+// loweredFunc is a Flow function as text, the rule it belongs to, and whether it is a flat function
+// (not flow.Attrs.Frame).
+type loweredFunc struct {
+	rule int
+	text string
+	flat bool
+}
+
+// goNodeTable generates the Go parser of g with budget controls and Documents, and returns the
+// route of each rule the Node table prints from Flow IR (true for the flat route), the generator of
+// the Node table, and the Flow functions that the Node table lowered, by name. A name lowered twice
+// with different functions fails the test.
+func goNodeTable(t *testing.T, g *ast.Grammar) (routes map[int]bool, gen *print.Generator, funcs map[string]loweredFunc) {
+	t.Helper()
+	var mu sync.Mutex
+	var conflict []string
+	funcs = map[string]loweredFunc{} // the Flow functions that the Node table lowered
+	routes = map[int]bool{}          // the rules the Node table prints, true for the flat route
+	hooks := &print.Hooks{
+		Generator: func(x *print.Generator) {
+			d := driverOf(x)
+			d.FlowPipeline = func(table string) pipe.Pipeline[flowpass.Unit, flowpass.Unit] {
+				if table != "rules" {
+					return flowpass.Pipeline()
+				}
+				return recordFlow(func(m *code.Module) {
+					fn := flow.FuncOf(m)
+					a := flow.AttrsOf(fn)
+					f := loweredFunc{rule: -1, text: code.FuncStringIn(m, fn), flat: !a.Frame}
+					if a.Rule != nil {
+						f.rule = a.Rule.ID
+					}
+					mu.Lock()
+					defer mu.Unlock()
+					if old, ok := funcs[fn.Name]; ok && old != f {
+						conflict = append(conflict, fn.Name)
+					}
+					funcs[fn.Name] = f
+				})
+			}
+			if x.Table == "rules" {
+				gen = x
+			}
+		},
+		LeanRoute: func(table string, r *common.Rule) {
+			if table == "rules" {
+				routes[r.ID] = true
+			}
+		},
+		FramedRoute: func(table string, r *common.Rule) {
+			if table == "rules" {
+				routes[r.ID] = false
+			}
+		},
+	}
+	opts := common.GenOptions{Package: "p", Module: "example.com/p", Document: true, NoOpt: []string{flowpass.PassInlineLiterals}}
+	if _, err := print.GenerateParser(g, codegentest.Compile, codegentest.Passes(opts), codegentest.WithLib(opts), hooks); err != nil {
+		t.Fatal(err)
+	}
+	if len(conflict) > 0 {
+		t.Fatalf("the Go generator lowered different functions under the names %v", conflict)
+	}
+	return routes, gen, funcs
 }
 
 // recordFlow returns the Flow pipeline with codegentest.RecordFlowPass last, which calls record with

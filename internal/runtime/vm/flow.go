@@ -424,6 +424,26 @@ func (vm *Program) runFlow(p *state.Parser, fr *flowRun) (call bool) {
 			}
 		case bytecode.FlowEmitStream:
 			p.EmitStream(asNode(regs[in.Args[0]]), p.Pos)
+		case bytecode.FlowResumeOn:
+			fr.set(in.Dst[0], p.Runs != nil && p.Silent == 0)
+		case bytecode.FlowResumeStart:
+			// A run lives until its repetition ends, which may be after nested calls that start runs
+			// of their own, so each has its own state.
+			x, r := in.Imm.(bytecode.FlowResumeOf), &state.RunState{}
+			p.RunStart(r, x.Site, x.Min, x.Max, x.Shiftable)
+			fr.set(in.Dst[0], r)
+		case bytecode.FlowResumeMore:
+			fr.set(in.Dst[0], p.RunMore(regs[in.Args[0]].(*state.RunState)))
+		case bytecode.FlowResumeNext:
+			v, ok := p.RunNext(regs[in.Args[0]].(*state.RunState))
+			fr.set(in.Dst[0], v)
+			fr.set(in.Dst[1], ok)
+		case bytecode.FlowResumeBegin:
+			p.RunBegin(regs[in.Args[0]].(*state.RunState))
+		case bytecode.FlowResumeEnd:
+			p.RunEnd(regs[in.Args[0]].(*state.RunState), regs[in.Args[1]].(bool), asNode(regs[in.Args[2]]))
+		case bytecode.FlowResumeFinish:
+			p.RunFinish(regs[in.Args[0]].(*state.RunState))
 		default:
 			panic(fmt.Sprintf("internal error: vm: flow operation %d", in.Op))
 		}

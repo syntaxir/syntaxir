@@ -109,6 +109,13 @@ func flowModule() *bytecode.Module {
 		{Op: bytecode.FlowStreamOn, Dst: []int{2}, Imm: 1},
 		{Op: bytecode.FlowStreamStart},
 		{Op: bytecode.FlowEmitStream, Args: []int{0}},
+		{Op: bytecode.FlowResumeOn, Dst: []int{2}},
+		{Op: bytecode.FlowResumeStart, Dst: []int{4}, Imm: bytecode.FlowResumeOf{Site: 3, Min: 1, Max: -1, Shiftable: true}},
+		{Op: bytecode.FlowResumeMore, Dst: []int{2}, Args: []int{4}},
+		{Op: bytecode.FlowResumeNext, Dst: []int{0, 2}, Args: []int{4}},
+		{Op: bytecode.FlowResumeBegin, Args: []int{4}},
+		{Op: bytecode.FlowResumeEnd, Args: []int{4, 2, 0}},
+		{Op: bytecode.FlowResumeFinish, Args: []int{4}},
 		{Op: bytecode.FlowReturn, Args: []int{0, 3}},
 	}}
 	return &bytecode.Module{
@@ -247,7 +254,7 @@ func TestStreamBodyEncoding(t *testing.T) {
 		}, "stream body of rule b: the body does not end with JUMP or RETURN"},
 		{"streamed rule", func(m *bytecode.Module) {
 			m.Streams = map[int]*bytecode.Flow{1: m.Flows[1]}
-			m.Flows[1].Code[len(m.Flows[1].Code)-4].Imm = 2
+			m.Flows[1].Code[87].Imm = 2 // STREAMON
 		}, "rule 2 out of range"},
 	} {
 		m := flowModule()
@@ -352,6 +359,16 @@ func TestFlowBodyValidation(t *testing.T) {
 		{"bind variable", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[71].Imm = bytecode.FlowBindOf{Var: 1} }, "variable 1 out of range"},
 		{"bind action expression", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[71].Imm = bytecode.FlowBindOf{Action: -1} }, "action -1 out of range"},
 		{"bind kind", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[71].Imm = 0 }, "invalid immediate"},
+		{"resumed repetition", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[91].Imm = bytecode.FlowResumeOf{Max: -1} }, "invalid resumed repetition 0"},
+		{"resumed least count", func(m *bytecode.Module, f *bytecode.Flow) {
+			f.Code[91].Imm = bytecode.FlowResumeOf{Site: 1, Min: -1, Max: -1}
+		}, "invalid resumed repetition 1 with -1"},
+		{"resumed most count", func(m *bytecode.Module, f *bytecode.Flow) {
+			f.Code[91].Imm = bytecode.FlowResumeOf{Site: 1, Min: 2, Max: 1}
+		}, "invalid resumed repetition 1 with 2 to 1"},
+		{"resumed unbounded below -1", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[91].Imm = bytecode.FlowResumeOf{Site: 1, Max: -2} }, "invalid resumed repetition 1 with 0 to -2"},
+		{"resumed kind", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[91].Imm = 1 }, "invalid immediate"},
+		{"immediate of a resumed step", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[92].Imm = 1 }, "invalid immediate"},
 		{"unmarked cycle", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[14].Imm = bytecode.FlowCallOf{Rule: 1} }, "rule b is on a cycle of calls but is not marked recursive"},
 	} {
 		m := flowModule()
@@ -434,6 +451,10 @@ func TestFlowBodyDisassembly(t *testing.T) {
 		"    87  STREAMON   r2 = b\n",
 		"    88  STREAMSTART \n",
 		"    89  EMITSTREAM r0\n",
+		"    90  RESUMEON   r2 =\n",
+		"    91  RESUMESTART r4 = resume=3 min=1 max=-1 shiftable=true\n",
+		"    93  RESUMENEXT r0,r2 = r4\n",
+		"    95  RESUMEEND  r4 r2 r0\n",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("disassembly has no %q:\n%s", want, got)

@@ -228,6 +228,28 @@ func init() {
 			x := c.Imm.(prim.RunWalk)
 			return s.op(bytecode.FlowRunBegin, c, dst, bytecode.FlowRunWalkOf{Site: x.Site, Build: x.Build, KeyEnv: x.KeyEnv})
 		}},
+		{Op: flowpkg.OpResumeOn, Sel: func(s *flowSel, c *code.Call, dst []int) error {
+			return s.op(bytecode.FlowResumeOn, c, dst, nil)
+		}},
+		{Op: flowpkg.OpResumeStart, Sel: func(s *flowSel, c *code.Call, dst []int) error {
+			x := c.Imm.(prim.Resume)
+			return s.op(bytecode.FlowResumeStart, c, dst, bytecode.FlowResumeOf{Site: x.Site, Min: x.Min, Max: x.Max, Shiftable: x.Shiftable})
+		}},
+		{Op: flowpkg.OpResumeMore, Sel: func(s *flowSel, c *code.Call, dst []int) error {
+			return s.op(bytecode.FlowResumeMore, c, dst, nil)
+		}},
+		{Op: flowpkg.OpResumeNext, Sel: func(s *flowSel, c *code.Call, dst []int) error {
+			return s.op(bytecode.FlowResumeNext, c, dst, nil)
+		}},
+		{Op: flowpkg.OpResumeBegin, Sel: func(s *flowSel, c *code.Call, dst []int) error {
+			return s.op(bytecode.FlowResumeBegin, c, dst, nil)
+		}},
+		{Op: flowpkg.OpResumeEnd, Sel: func(s *flowSel, c *code.Call, dst []int) error {
+			return s.op(bytecode.FlowResumeEnd, c, dst, nil)
+		}},
+		{Op: flowpkg.OpResumeFinish, Sel: func(s *flowSel, c *code.Call, dst []int) error {
+			return s.op(bytecode.FlowResumeFinish, c, dst, nil)
+		}},
 		{Op: flowpkg.OpRunWalked, Sel: func(s *flowSel, c *code.Call, dst []int) error {
 			return s.op(bytecode.FlowRunWalked, c, dst, int(c.Imm.(prim.Site)))
 		}},

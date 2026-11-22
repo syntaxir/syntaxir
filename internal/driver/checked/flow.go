@@ -40,6 +40,7 @@ func (s *Source) FlowTable() (*FlowTable, error) {
 	if err != nil {
 		return nil, fmt.Errorf("internal error: Core IR: %w", err)
 	}
+	t.Opts.Document, t.Opts.Resume = true, true // one module serves Document parses, which resume runs
 	rules := append(append([]*check.Rule(nil), p.RuleList...), p.Twins...)
 	planned := planRules(rules)
 	plan := flowplan.Plan(t, planned, nil)

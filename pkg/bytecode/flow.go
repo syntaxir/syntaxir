@@ -265,6 +265,31 @@ const (
 	// callback of the stream parse, which has consumed the input up to the position, and commits it
 	// (flow.emitStream).
 	FlowEmitStream
+
+	// The operations of a repetition whose run a Document parse resumes.
+
+	// FlowResumeOn sets Dst[0] to whether the repetitions resume their runs: the parse is a Document's,
+	// outside lookaheads and the evaluation of a skip expression (flow.resumeOn).
+	FlowResumeOn
+	// FlowResumeStart starts the run of the repetition of the immediate FlowResumeOf at the position,
+	// with the record of the run that it takes over, and sets Dst[0] to the run (flow.resumeStart).
+	FlowResumeStart
+	// FlowResumeMore sets Dst[0] to whether the run Args[0] may take another element: no reused
+	// element ended it, and it has fewer than its maximum (flow.resumeMore).
+	FlowResumeMore
+	// FlowResumeNext reuses the next element of the run Args[0] that its record holds, replaying what
+	// evaluating it did, and sets Dst[0] to its value and Dst[1] to true; Dst[1] is false when the
+	// repetition evaluates its element instead. A reuse polls the budget controls without charging
+	// (flow.resumeNext).
+	FlowResumeNext
+	// FlowResumeBegin starts evaluating an element of the run Args[0], after the charge of its
+	// iteration (flow.resumeBegin).
+	FlowResumeBegin
+	// FlowResumeEnd ends evaluating the element of the run Args[0] with the success of the bool
+	// Args[1] and the value Args[2], and records the element if it matched (flow.resumeEnd).
+	FlowResumeEnd
+	// FlowResumeFinish records the run Args[0] of a repetition that matched (flow.resumeFinish).
+	FlowResumeFinish
 )
 
 // FlowImm is the kind of immediate of an operation.
@@ -324,6 +349,8 @@ const (
 	FlowImmAnchorTest
 	// FlowImmRule is a rule: an int index of Module.Rules.
 	FlowImmRule
+	// FlowImmResume is a FlowResumeOf.
+	FlowImmResume
 )
 
 // FlowShape is what the instructions of an operation hold: the number of destination and argument
@@ -425,6 +452,13 @@ var FlowShapes = [...]FlowShape{
 	FlowStreamOn:      {Name: "STREAMON", Dst: 1, Imm: FlowImmRule},
 	FlowStreamStart:   {Name: "STREAMSTART"},
 	FlowEmitStream:    {Name: "EMITSTREAM", Args: 1},
+	FlowResumeOn:      {Name: "RESUMEON", Dst: 1},
+	FlowResumeStart:   {Name: "RESUMESTART", Dst: 1, Imm: FlowImmResume},
+	FlowResumeMore:    {Name: "RESUMEMORE", Dst: 1, Args: 1},
+	FlowResumeNext:    {Name: "RESUMENEXT", Dst: 2, Args: 1},
+	FlowResumeBegin:   {Name: "RESUMEBEGIN", Args: 1},
+	FlowResumeEnd:     {Name: "RESUMEEND", Args: 3},
+	FlowResumeFinish:  {Name: "RESUMEFINISH", Args: 1},
 }
 
 // Shape returns the shape of o; ok is false for an operation that does not exist.
@@ -510,6 +544,15 @@ type FlowShapeOf struct {
 type FlowRunWalkOf struct {
 	Site          int
 	Build, KeyEnv bool
+}
+
+// FlowResumeOf is the immediate of FlowResumeStart: the repetition, numbered from 1 among those of
+// the grammar that a Document parse resumes, the least and the most elements of the repetition (Max
+// -1 for no bound), and whether the values of its elements hold no position, so that a run may reuse
+// old elements that an edit moved.
+type FlowResumeOf struct {
+	Site, Min, Max int
+	Shiftable      bool
 }
 
 // FlowBindOf is the immediate of FlowBind: the variable, an index of Module.Vars, and its action expression, an

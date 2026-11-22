@@ -284,6 +284,15 @@ func (w *Encoder) flowImm(k FlowImm, v any) {
 		w.Int(x.Site)
 		w.Bool(x.Build)
 		w.Bool(x.KeyEnv)
+	case FlowImmResume:
+		x, ok := v.(FlowResumeOf)
+		if !ok {
+			bad()
+		}
+		w.Int(x.Site)
+		w.Int(x.Min)
+		w.Int(x.Max)
+		w.Bool(x.Shiftable)
 	case FlowImmBind:
 		x, ok := v.(FlowBindOf)
 		if !ok {
@@ -639,6 +648,8 @@ func (r *Decoder) flowImm(k FlowImm) any {
 		return x
 	case FlowImmRunWalk:
 		return FlowRunWalkOf{Site: int(r.int32()), Build: r.Bool(), KeyEnv: r.Bool()}
+	case FlowImmResume:
+		return FlowResumeOf{Site: int(r.int32()), Min: r.Int(), Max: r.Int(), Shiftable: r.Bool()}
 	case FlowImmBind:
 		return FlowBindOf{Var: int(r.int32()), Action: int(r.int32())}
 	case FlowImmCount, FlowImmStr, FlowImmSlot, FlowImmScope, FlowImmRunSite, FlowImmScanSite, FlowImmAction, FlowImmRule:
@@ -1424,6 +1435,14 @@ func validateFlowImm(m *Module, slots int, k FlowImm, v any) error {
 		}
 		if x.KeyEnv && !slices.ContainsFunc(m.RunKeys, func(k RunKeyInfo) bool { return k.Site == x.Site }) {
 			return fmt.Errorf("run site %d is keyed by the variables but has no run key", x.Site)
+		}
+	case FlowImmResume:
+		var x FlowResumeOf
+		if x, ok = v.(FlowResumeOf); !ok {
+			break
+		}
+		if x.Site < 1 || x.Min < 0 || x.Max < -1 || x.Max >= 0 && x.Max < x.Min {
+			return fmt.Errorf("invalid resumed repetition %d with %d to %d elements", x.Site, x.Min, x.Max)
 		}
 	case FlowImmScanSite:
 		var x int
