@@ -30,6 +30,7 @@ import (
 //	  within ts-library {
 //	    specialize!
 //	  }
+//	  ts-printable!
 //	  print-ts!
 //	}
 //
@@ -38,8 +39,9 @@ import (
 // its tables are planned from (cores), which plan! plans. planned-tables splits the plan into the
 // planned tables and joins them at the Exec stage. ts-library! sets the library of the tables to the
 // compositions that the TypeScript library replaces, requested for the features of the parser, which
-// specialize! specializes, and print-ts prints the parser of the target and its library from them,
-// numbering the expectation table as it prints the rules.
+// specialize! specializes, ts-printable! checks that the TypeScript printer prints every function of
+// the tables (tsbackend.Printability), and print-ts prints the parser of the target and its library from
+// them, numbering the expectation table as it prints the rules.
 //
 // The TypeScript library alone (common.LibOnly) compiles no program; its pipeline starts at the
 // library, specialized for every feature (tsbackend.LibrarySource):
@@ -88,7 +90,7 @@ func tsPipeline(c *compilation) (assembled, error) {
 		pipe.Then(pipe.Each(tsTables, coreConfig()), pipe.Of(flowplan.Planning)),
 		pipe.Each(plannedTables, lowering(tsbackend.FlowTarget, tspass.Pipeline)),
 		pipe.Then3(pipe.Of(tsbackend.Library), pipe.Within(tsbackend.LibraryLens, pipe.Of(codepass.Specialization)),
-			pipe.Of(tsbackend.Printing)))
+			pipe.Then(pipe.Of(tsbackend.Printability), pipe.Of(tsbackend.Printing))))
 	return assembled{pipeline: p, steps: []string{Elaborate, "each ts-tables", tsbackend.Printing.Name()}}, nil
 }
 

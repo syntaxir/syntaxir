@@ -25,9 +25,11 @@ import (
 // names with break or continue. A rule that the plan has no function for, or that the printer does not
 // cover, fails the generation.
 
-// tsUnprintable is the panic value of the printer for a construct it does not print; the
-// generation then fails.
-type tsUnprintable string
+// admitted panics with the construct what that the printer does not print: the analysis ts-printable
+// (typescript.Printability) admitted a function that has it, which is an internal error.
+func admitted(what string) {
+	panic("tsgen: the analysis admitted " + what)
+}
 
 // startTSTable starts printing the rules of the table being generated from its table at the Exec stage
 // among the tables of the compilation. It reports whether the table was lowered; if not, the
@@ -59,23 +61,23 @@ func (g *Generator) ruleBodyCall(r *common.Rule, scope *check.Scope) (call strin
 	if !ok {
 		return "", false
 	}
-	return g.funcCall(l, g.Core().Rules[r.ID].Scope, scope, common.Describe(r.BodyExpr()), true)
+	return g.funcCall(l, g.Core().Rules[r.ID].Scope, scope, common.Describe(r.BodyExpr()), true), true
+}
+
+// noFunction records that the table being printed has no function of what, which the plan of a table
+// holds for every rule it prints, and so fails the generation with an internal error, unless an error
+// is recorded already (the table was not lowered).
+func (g *Generator) noFunction(what string) {
+	if g.PrintErr == nil {
+		g.PrintErr = fmt.Errorf("internal error: the table %s has no function of %s", g.IRTable(), what)
+	}
 }
 
 // funcCall prints the lowered function l, whose capture scope has the slots if it is framed, as a
-// function of its own and returns the call expression that runs it, or false if the printer does not
-// print l. On success it sets scope to the capture scope of a framed l. The comment describes the
-// function. The function of a rule body (ruleBody) charges the unit of the body's evaluation first,
-// as Method does.
-func (g *Generator) funcCall(l *execdata.Lowered, slots []core.Slot, scope *check.Scope, comment string, ruleBody bool) (call string, ok bool) {
-	defer func() {
-		if e := recover(); e != nil {
-			if _, unsupported := e.(tsUnprintable); !unsupported {
-				panic(e)
-			}
-			call, ok = "", false
-		}
-	}()
+// function of its own and returns the call expression that runs it, and sets scope to the capture
+// scope of a framed l. The comment describes the function. The function of a rule body (ruleBody)
+// charges the unit of the body's evaluation first, as Method does.
+func (g *Generator) funcCall(l *execdata.Lowered, slots []core.Slot, scope *check.Scope, comment string, ruleBody bool) string {
 	frame := prim.AttrsOf(l.Func).Frame
 	var body string
 	var vars []string
@@ -108,7 +110,7 @@ func (g *Generator) funcCall(l *execdata.Lowered, slots []core.Slot, scope *chec
 		}
 		fmt.Fprintf(&g.Methods, "// %s\nfunction %s(%s: Parser): R {\n%s}\n\n", comment, name, param, b.String())
 	}
-	return name + "(p)", true
+	return name + "(p)"
 }
 
 var (
@@ -137,7 +139,8 @@ func tsPrimType(t prim.Type) string {
 	case prim.TypeRun:
 		return "RunState"
 	}
-	panic(tsUnprintable("variable of type " + t.String()))
+	admitted("a variable of the type " + t.String())
+	return ""
 }
 
 func tsPrimZero(t prim.Type) string {
@@ -336,7 +339,7 @@ func (p *tsPrimPrinter) scopeNames(n *prim.Names) string {
 func (p *tsPrimPrinter) grammarAction(n core.Node) ast.ActionExpr {
 	e, ok := p.g.Core().Origin.Of(n).(*ast.Predicate)
 	if !ok {
-		panic(tsUnprintable(fmt.Sprintf("no grammar predicate for %T", n)))
+		panic(fmt.Sprintf("tsgen: no grammar predicate for %T", n))
 	}
 	return e.Action
 }
@@ -356,5 +359,5 @@ func (g *Generator) lineFunc(k plandata.Key, l *core.OpLine, scope *check.Scope)
 	prev := g.Proj
 	g.Proj = nil // the actions of the lines use no projections of the rule
 	defer func() { g.Proj = prev }()
-	return g.funcCall(x, l.Scope, scope, g.Cur.Name+" (OperatorsRule line)", false)
+	return g.funcCall(x, l.Scope, scope, g.Cur.Name+" (OperatorsRule line)", false), true
 }

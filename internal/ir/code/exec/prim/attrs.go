@@ -89,8 +89,44 @@ func verifyFuncs(m *code.Module) error {
 		if _, ok := fn.Attrs.(*Attrs); !ok {
 			return fmt.Errorf("%s: attributes of the type %T at the Exec stage, not %T", fn.Name, fn.Attrs, (*Attrs)(nil))
 		}
+		if err := verifyMarks(fn); err != nil {
+			return fmt.Errorf("%s: %w", fn.Name, err)
+		}
 	}
 	return nil
+}
+
+// verifyMarks checks the marks of the whole parser state in the function fn of grammar code: in the
+// order of the code, each reset, trail drop and position read of a mark takes a local that a markState
+// set before it, and a trail drop a mark that saves the trail.
+func verifyMarks(fn *code.Func) error {
+	marks := map[string]StateMark{}
+	var err error
+	code.Walk(fn.Body, func(s code.Stmt) {
+		if set, ok := s.(*code.Set); ok && len(set.Dst) == 1 && len(set.Values) == 1 && !set.Dst[0].Reg {
+			if c, ok := set.Values[0].(*code.Call); ok && c.Callee == OpMarkState {
+				marks[set.Dst[0].Name], _ = c.Imm.(StateMark)
+			}
+		}
+	}, func(e code.Expr) {
+		c, ok := e.(*code.Call)
+		if !ok || err != nil || (c.Callee != OpReset && c.Callee != OpDropTrail && c.Callee != OpMarkPos) {
+			return
+		}
+		l, ok := c.Args[0].(*code.Local)
+		if !ok {
+			err = fmt.Errorf("%s of a mark that is not a local", c.Callee)
+			return
+		}
+		m, ok := marks[l.Name]
+		switch {
+		case !ok:
+			err = fmt.Errorf("%s of the mark %s before a markState sets it", c.Callee, l.Name)
+		case c.Callee == OpDropTrail && !m.Trail:
+			err = fmt.Errorf("%s of the mark %s, which does not save the trail", c.Callee, l.Name)
+		}
+	})
+	return err
 }
 
 func init() { code.RegisterStageCheck[code.Exec](verifyFuncs) }

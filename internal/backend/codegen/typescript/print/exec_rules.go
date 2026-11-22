@@ -81,7 +81,7 @@ func (g *Generator) printTSFunc(l *execdata.Lowered) (string, []string, []tsDecl
 	res := Body(l.Module, l.Func, p.bodyTarget(), st)
 	for _, v := range []string{a.Start, a.Ctx} {
 		if v != "" && (st.Read[v] || p.next[v]) {
-			panic(tsUnprintable("the start or the context of a value-free rule"))
+			admitted("a read of the start or the context of the rule")
 		}
 	}
 	body := res.Text

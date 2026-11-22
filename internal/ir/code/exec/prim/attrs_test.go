@@ -37,3 +37,37 @@ func TestVerifyModuleChecksTheAttributes(t *testing.T) {
 		t.Errorf("attributes of another type: %v", err)
 	}
 }
+
+// TestVerifyMarksChecksTheMarks checks the marks of the whole parser state in the check of the Exec
+// stage: a reset, a trail drop and a position read of a mark set before them verify, and each of them
+// fails on a mark that is not a local or that no markState set before it, and a trail drop on a mark
+// that does not save the trail.
+func TestVerifyMarksChecksTheMarks(t *testing.T) {
+	m := &code.Local{Name: "m"}
+	mark := func(st StateMark) code.Stmt {
+		return &code.Set{Dst: []code.Place{{Name: "m"}}, Values: []code.Expr{&code.Call{Callee: OpMarkState, Imm: st}}}
+	}
+	use := func(op string, arg code.Expr) code.Stmt {
+		return &code.Set{Dst: []code.Place{{}}, Values: []code.Expr{&code.Call{Callee: op, Args: []code.Expr{arg}}}}
+	}
+	fn := func(stmts ...code.Stmt) *code.Func {
+		return &code.Func{Name: "f", Body: &code.Block{Stmts: stmts}, Attrs: &Attrs{}}
+	}
+	ok := fn(mark(StateMark{Trail: true}), use(OpMarkPos, m), use(OpReset, m), use(OpDropTrail, m))
+	if err := verifyMarks(ok); err != nil {
+		t.Errorf("marks set before their uses: %v", err)
+	}
+	for _, c := range []struct {
+		f    *code.Func
+		want string
+	}{
+		{fn(use(OpReset, m)), "runtime.reset of the mark m before a markState sets it"},
+		{fn(use(OpMarkPos, m), mark(StateMark{})), "runtime.markPos of the mark m before a markState sets it"},
+		{fn(mark(StateMark{}), use(OpReset, code.BoolC(false))), "runtime.reset of a mark that is not a local"},
+		{fn(mark(StateMark{Env: true}), use(OpDropTrail, m)), "runtime.dropTrail of the mark m, which does not save the trail"},
+	} {
+		if err := verifyMarks(c.f); err == nil || err.Error() != c.want {
+			t.Errorf("verifyMarks = %v, want %q", err, c.want)
+		}
+	}
+}

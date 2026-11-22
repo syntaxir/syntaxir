@@ -635,7 +635,7 @@ included, so it cannot be decided per table. `planned-tables` splits the plan in
 the Exec stage, into `tables@exec`, which `print-go` and `print-ts` take; the join numbers the expectation table across
 the Node and recognizer tables, which is likewise not a fact of one table. `table-config` derives the features of a table (budget controls, observation,
 Document, traced) from its unit. A TypeScript target is a second branch of the same fork with `target=ts`, the split
-`ts-tables`, the target passes `ts-spend-runs ts-merged-records ts-tested-inits` and `print-ts!`.
+`ts-tables`, the target passes `ts-spend-runs ts-merged-records ts-tested-inits`, `ts-printable!` and `print-ts!`.
 
 ### The Driver
 
@@ -771,8 +771,8 @@ that wants different settings per language makes two calls.
 
 **Planning.** `plan` decides everything that a printer decides before or while printing: the functions of each table
 and their forms, the reachable rules and the route of each call, the frame layouts of the typed table from the Core
-rules' scopes, and for TypeScript the same routes with a printability analysis that replaces the refusals its printer
-raises, failing with the same message. A planned table holds only functions that its target prints: a typed-only Go
+rules' scopes, and for TypeScript the same routes. The plan keeps every TypeScript function printable, and the
+analysis step `ts-printable`, right before `print-ts`, checks it on the Exec-stage tables (amended, see step 5). A planned table holds only functions that its target prints: a typed-only Go
 parser, which prints the Node rule bodies only for the frame layouts they fix, plans no lines of the Node table's
 Operators Rules, so its dumps show no such lines either. The refusal of flat functions is an analysis of the Flow
 stage that `flowlower` runs on each flat function right after writing it, before any Flow pass: a refused function is
@@ -1227,7 +1227,16 @@ the attributes of its nodes computed, since a kind's verifier checks the unit an
    once, like the Go tables, with its outlined nodes chosen by the table's configuration, so its
    `-print-after` dumps show one run over the table instead of one run per function. The printability analysis lands
    with step 7, where the printers read the primitives that the TypeScript backend declares: built on those
-   declarations, it needs no second list of the printed operations. Until then the printer's refusals stay.
+   declarations, it needs no second list of the printed operations. (Amended at step 7: no grammar reaches a refusal
+   of the TypeScript printer. A capture read from variables exists only in a flat function, which the plan gives no
+   predicate and no value, and the other refused constructs come from the typed table, the Go-only forms of the Flow
+   passes or streaming, none of which a TypeScript target has. So the analysis is the required step `ts-printable` on
+   `tables@exec` right before `print-ts`: every function of grammar code calls only primitives of the set that the
+   TypeScript backend declares, reads the captures of the frame in its predicates and binds, reads neither its start nor
+   its action's context, and has variables only of the types the printer declares. A table without these properties is
+   an internal error; the printer's refusals become panics of an admitted construct, and a test ties the printer's
+   dispatch to the declared set in both directions. The facts that hold for every target, that a mark is set before it
+   is reset, read or has its trail dropped, join the verifier of the Exec stage.)
 6. **The driver assembles the Go and TypeScript pipelines.** The printers become passes in the backend packages; the
    driver's stage API, the pass and lowering entry points of the code generators and the hooks go, and their users move
    to `Compile` with edits, or to `FlowTable` where they need only the table. The architecture tests land with the rules

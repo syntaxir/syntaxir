@@ -192,7 +192,7 @@ func (p *tsPrimPrinter) stmtOp(c *code.Call, args func() []string) {
 	case prim.OpDropTrail:
 		m := p.markLocal(c)
 		if !p.marks[m].Trail {
-			panic(tsUnprintable("a mark without a trail dropped"))
+			panic("tsgen: the verifier admitted a mark without a trail dropped")
 		}
 		p.readName(p.part(m, 2))
 		p.write(fmt.Sprintf("p.trail.length = %sTrail;\n", m))
@@ -230,7 +230,7 @@ func (p *tsPrimPrinter) stmtOp(c *code.Call, args func() []string) {
 		trace := p.g.traceSkipped(p.g.Core().Origin.Of(c.Imm.(core.Node)))
 		p.b.WriteString(strings.TrimLeft(trace, " "))
 	default:
-		panic(tsUnprintable("operation " + c.Callee))
+		admitted("the operation " + c.Callee)
 	}
 }
 
@@ -361,15 +361,13 @@ func (p *tsPrimPrinter) expr(c *code.Call, args func() []string) string {
 	case prim.OpScopeValue:
 		a := args()
 		return fmt.Sprintf("p.scopeValue(%d, %s, %s)", tsShape(c.Imm.(core.Shape)), a[0], a[1])
-	case prim.OpAttachCaptures:
-		panic(tsUnprintable("captures attached from variables"))
 	case prim.OpAttachFrame:
 		a := args()
 		return fmt.Sprintf("p.attachCaptures(%s, %s, %s, %s, p.pos)", a[0], p.scopeNames(c.Imm.(prim.Attach).Names), a[2], a[1])
 	case prim.OpPred:
 		x := c.Imm.(prim.Predicate)
 		if !x.Frame {
-			panic(tsUnprintable("a predicate that reads variables"))
+			admitted("a predicate that reads variables")
 		}
 		// The action expression reads the current frame.
 		if p.dry {
@@ -379,11 +377,11 @@ func (p *tsPrimPrinter) expr(c *code.Call, args func() []string) string {
 	case prim.OpBind:
 		x := c.Imm.(prim.Binding)
 		if !x.Frame {
-			panic(tsUnprintable("a bind that reads variables"))
+			admitted("a bind that reads variables")
 		}
 		b, ok := p.grammarAction(x.Node).(*ast.Bind)
 		if !ok {
-			panic(tsUnprintable("a bind without a grammar bind"))
+			panic("tsgen: a bind without a grammar bind")
 		}
 		if p.dry {
 			return "p.bind(a)"
@@ -403,14 +401,15 @@ func (p *tsPrimPrinter) expr(c *code.Call, args func() []string) string {
 	case prim.OpFrameVal:
 		return fmt.Sprintf("%s[%d]!", args()[0], c.Imm.(prim.Slot))
 	}
-	panic(tsUnprintable("operation " + c.Callee))
+	admitted("the operation " + c.Callee)
+	return ""
 }
 
 // markLocal returns the local of the mark that the call c takes as its argument.
 func (p *tsPrimPrinter) markLocal(c *code.Call) string {
 	l, ok := c.Args[0].(*code.Local)
 	if !ok {
-		panic(tsUnprintable("a mark that is not a variable"))
+		panic("tsgen: the verifier admitted a mark that is not a variable")
 	}
 	return l.Name
 }
@@ -517,7 +516,7 @@ func (p *tsPrimPrinter) setText(s *code.Set, expr func(code.Expr) string, stmt b
 		return ""
 	}
 	if len(s.Dst) != 1 {
-		panic(tsUnprintable("an assignment of a call with several results"))
+		admitted("an assignment of the several results of " + name)
 	}
 	var parts []string
 	switch d := s.Dst[0]; {
@@ -603,7 +602,7 @@ func (p *tsPrimPrinter) peek(s *code.Set) {
 func (p *tsPrimPrinter) reset(m string) string {
 	st, ok := p.marks[m]
 	if !ok {
-		panic(tsUnprintable("a reset of a mark that is not set"))
+		panic("tsgen: the verifier admitted a reset of a mark that is not set")
 	}
 	p.readName(p.part(m, 0))
 	if !st.Env && !st.Trail && !st.Rec {
@@ -638,10 +637,7 @@ func (p *tsPrimPrinter) outline(c *code.Call) string {
 	if !ok {
 		panic(fmt.Errorf("internal error: the table %s has no function of the outlined node of rule %s", g.Table, g.Cur.Name))
 	}
-	call, ok := g.funcCall(l, x.Slots, check.NewScope(), g.Cur.Name+" (outlined)", false)
-	if !ok {
-		panic(tsUnprintable("an outlined node"))
-	}
+	call := g.funcCall(l, x.Slots, check.NewScope(), g.Cur.Name+" (outlined)", false)
 	if p.outlined == nil {
 		p.outlined = map[*code.Call]string{}
 	}

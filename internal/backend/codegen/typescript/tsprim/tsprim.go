@@ -29,3 +29,49 @@ func TwoResults(name string) bool {
 	}
 	return false
 }
+
+// printed holds the primitives that the TypeScript printer prints: the primitives of the Exec stage
+// that a TypeScript table calls and the operations of the TypeScript passes. The others come from
+// the typed table, from the forms of the Flow passes that only Go prints, or from streaming, which
+// TypeScript does not generate. The analysis ts-printable rejects a table that calls another; the
+// printer's tests tie its dispatch to this set in both directions.
+var printed = map[string]bool{
+	// Effects.
+	prim.OpStep: true, prim.OpSilent: true, prim.OpAdvance: true, prim.OpExpect: true, prim.OpRestore: true,
+	prim.OpMergeExpected: true, prim.OpMergeRenamed: true, prim.OpAppendError: true, prim.OpPushKid: true,
+	prim.OpDropKids: true, prim.OpAppend: true, prim.OpSetCapture: true, prim.OpClearVals: true,
+	prim.OpFreeFrame: true, prim.OpDeclareNames: true, prim.OpReset: true, prim.OpDropTrail: true,
+	prim.OpSkipBegin: true, prim.OpRunBegin: true, prim.OpSkipVisit: true, prim.OpSkipValue: true,
+	prim.OpSkipEnd: true, prim.OpRunWalked: true, prim.OpScanEnd: true, prim.OpResumeBegin: true,
+	prim.OpResumeEnd: true, prim.OpResumeFinish: true, prim.OpObserveSkip: true, prim.OpSetEnv: true,
+	prim.OpSetFrame: true,
+	// Values.
+	prim.OpEnv: true, prim.OpFrame: true, prim.OpRecLen: true, prim.OpKidsLen: true, prim.OpSkipHit: true,
+	prim.OpRunHot: true, prim.OpSkipKids: true, prim.OpScanReach: true, prim.OpScanKids: true,
+	prim.OpResumeOn: true, prim.OpResumeStart: true, prim.OpResumeMore: true, prim.OpResumeNext: true,
+	prim.OpPeek: true, prim.OpMatchLit: true, prim.OpGuardFails: true, prim.OpGuardLitFails: true,
+	prim.OpInClass: true, prim.OpAtAnchor: true, prim.OpCallRule: true, prim.OpCallOutline: true,
+	prim.OpIsolate: true, prim.OpUnisolate: true, prim.OpKeep: true, prim.OpMakeError: true,
+	prim.OpNewErrorNode: true, prim.OpText: true, prim.OpLiteralText: true, prim.OpStr: true,
+	prim.OpNewTerminalNode: true, prim.OpNewBranchNode: true, prim.OpNewVals: true, prim.OpKids: true,
+	prim.OpShapeSingle: true, prim.OpShapeCapture: true, prim.OpScopeValue: true, prim.OpAttachFrame: true,
+	prim.OpMarkState: true, prim.OpMarkPos: true, prim.OpNewFrame: true, prim.OpFrameVal: true,
+	prim.OpPred: true, prim.OpBind: true,
+	// The operations of the TypeScript passes.
+	SpendOp: true, MergeOp: true, FailedOp: true,
+}
+
+// Printed reports whether the TypeScript printer prints a call of the primitive name.
+func Printed(name string) bool { return printed[name] }
+
+// declared holds the types of the variables that the TypeScript printer declares: a mark of the whole
+// parser state is four variables, the others one each. An environment or the context of a typed
+// action is never a variable of a TypeScript function.
+var declared = map[prim.Type]bool{
+	prim.TypeInt: true, prim.TypeBool: true, prim.TypeRune: true, prim.TypeValue: true, prim.TypeExpMark: true,
+	prim.TypeExpIDs: true, prim.TypeVals: true, prim.TypeMark: true, prim.TypeFrame: true, prim.TypeError: true,
+	prim.TypeRun: true,
+}
+
+// Declared reports whether the TypeScript printer declares a variable of the type t.
+func Declared(t prim.Type) bool { return declared[t] }

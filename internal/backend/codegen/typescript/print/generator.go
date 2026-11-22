@@ -440,8 +440,8 @@ func (g *Generator) rules() {
 			if call, ok := g.ruleBodyCall(r, s); ok {
 				bodies[r] = call
 			} else {
-				g.Unprintable("rule " + r.Name + " of table " + g.Table)
-				bodies[r] = "null" // the generation fails with the error g.Unprintable records
+				g.noFunction("the body of rule " + r.Name)
+				bodies[r] = "null" // the generation fails with the error g.noFunction records
 			}
 			g.Proj = nil
 		}
@@ -630,7 +630,7 @@ func (g *Generator) operatorsRule(r *common.Rule, e *ast.OperatorsRule) {
 		}
 		m, ok := g.lineFunc(plandata.Key{Use: plandata.OperatorsSkip, Rule: r.ID}, skip, check.NewScope())
 		if !ok {
-			g.Unprintable("the skip of an Operators Rule of rule " + r.Name)
+			g.noFunction("the skip of the Operators Rule " + r.Name)
 			m = "null"
 		}
 		fmt.Fprintf(&b, "  skip: %s,\n", g.fn(m))
@@ -677,7 +677,7 @@ func (g *Generator) operatorsRuleLine(e ast.Expr, action ast.ActionExpr, operato
 	s := check.NewScope()
 	m, ok := g.lineFunc(k, l, s)
 	if !ok {
-		g.Unprintable("a line of an Operators Rule of rule " + g.Cur.Name)
+		g.noFunction(fmt.Sprintf("the line %d of the Operators Rule %s", k.Line, g.Cur.Name))
 		m = "null"
 	}
 	m = g.fn(m)

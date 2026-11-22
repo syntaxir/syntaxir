@@ -239,8 +239,12 @@ them too, so every backend lowers the same rules. It holds:
   as an Operators Rule. A backend verifies the rows it emits against it: the Go generator the scopes of its rule
   table, and the VM the scope of each rule whose body it runs from Flow IR, whose framed body runs in that frame.
 
-For TypeScript the plan also holds a printability analysis, which rejects a grammar that the printer cannot print
-before anything is printed.
+For TypeScript the plan gives every table only functions that the printer prints: a capture read from variables exists
+only in a flat function, which the plan gives no predicate and no value, and TypeScript has none of the typed table,
+the Go-only forms of the Flow passes or streaming, which make the primitives it does not print. The required analysis
+step `ts-printable`, right before `print-ts`, checks this on the Exec-stage tables against the primitives and variable
+types that the TypeScript backend declares, and fails with an internal error otherwise; the printer prints only what
+it admitted.
 
 ## The Flow Passes
 
@@ -326,7 +330,7 @@ small.
 
 The TypeScript library of a parser is specialized for the parser's features inside the TypeScript pipeline: after the
 tables are lowered, the required step `ts-library` requests the compositions that the library replaces for the features
-that the used-features analysis of the plan finds, `within ts-library { specialize! }` makes the copies, and `print-ts`
+that the used-features analysis of the plan finds, `within ts-library { specialize! }` makes the copies, and, after `ts-printable`, `print-ts`
 prints them into the parser's library. The library alone (`-lib only`) has no grammar: its pipeline starts at the
 library, with every feature requested, and runs `specialize` and `print-ts-lib`. Instruction selection in `vmlower` is a table of local patterns
 of the same kind: it is deterministic and counts the matches of each pattern.
