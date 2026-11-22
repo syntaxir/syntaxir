@@ -315,11 +315,12 @@ observable consequences, and no others.
   limit](#limits) succeeds can depend on memoization.
 - **Traces and evaluation counts can differ between backends.** Which calls a
   parse evaluates and which it answers from the memo is part of the cost. The
-  rules above leave implementations a choice, such as whether examined ranges
-  keep the results of left-recursion contexts apart ([Evaluations of
-  Rules](#evaluations-of-rules)), so the calls in a trace and the evaluations
-  that a profile counts can differ between the engine and generated parsers.
-  The value, the positions, the recovered errors and the syntax error do not.
+  rules above leave implementations a choice of the alternatives that they
+  skip without evaluating them ([Evaluations of Rules](#evaluations-of-rules)),
+  so the calls in a trace and the evaluations that a profile counts can differ
+  between the engine and generated parsers. The value, the positions, the
+  recovered errors, the syntax error, the [compute units](#compute-units) and
+  what the memo holds do not.
 
 ## Time and Memory
 
@@ -358,7 +359,8 @@ copying the texts that cross the pieces of an edited Document until it joins
 the pieces; a parse that takes no such text does not do that work. A [stream](streaming.md) discards input, so in a
 stream `text` costs the length of its result. Comparing two strings examines
 no more than the shorter one, so it costs at most the length of the shorter
-operand, plus a constant.
+operand, plus a constant; its [compute units](#compute-units) are exactly the
+length in bytes of the shorter operand.
 
 Outside a [Document](documents.md), and apart from the exceptions below, time is
 proportional to cost, including the time to list the recovered errors of a
@@ -370,84 +372,95 @@ input, because each memo entry, node and value is built by cost that is counted,
 and the list of recovered errors is at most a constant times the input. A parse
 with missing-token insertion is an exception to both, as below: the specification
 gives no bound of the number of its errors by the input or the cost.
-The cost of a parse is measured in compute units, which
-differ between backends, and the budget of
-[compute limits](#cancellation-and-compute-limits) caps it. Each backend that
-counts compute units, the engine's closure backend and bytecode machines as
-well as Go parsers generated with limit controls, charges at least one unit for
-each call, each character that a terminal matches or rejects, each iteration
-that it evaluates, each operator applied and each value that an action builds,
-and at most a constant of the grammar and the backend for each of them, besides
-the units that it charges for the input as a whole before the parse. An
-iteration of a repetition (`*`, `+` and `#repeat`) charges exactly one unit, on
-every backend, before its element is evaluated: each evaluation of the element
-counts, the last one included, which fails or consumes no input, and nothing
-else does. A repetition that stops at its maximum evaluates no further element
-and charges no further unit, and an option is no repetition and charges
-nothing. A call of a rule charges exactly one unit, on every backend, the
-entry of a parse into its start rule included, and each evaluation of a rule
-body one more, each step of a growing left-recursive rule included; a call that
-the memo or a growing seed answers evaluates no body. A call of a rule that an
-ordinary parse memoizes ([Evaluations of Rules](#evaluations-of-rules)) also
-pays for the lookup of its memo key: one unit for each variable that the rule
-reads and one for each byte of the UTF-8 encoding of each string value that
-such a variable holds, whatever the memo holds and whether or not the call
-looks the key up, which a first call whose memoization is deferred does not.
-Deferring memoization, looking a key up, comparing keys and storing a result
-charge nothing else. A walk that
-takes the rest of a walk from a record of a [skip run](#skip-runs), a
-[run site](#run-sites) or a [scan site](#scan-sites) neither evaluates nor
-charges the iterations and characters that it skips, and the lookup that
-finds the record ends the walk without an iteration. Likewise, a repetition of
-a [Document](documents.md) parse that resumes a recorded run
-([Runs](documents.md#reuse-model)) neither evaluates nor charges the elements
-that it reuses, and finding them charges no iteration. Growing the storage of a
-parse charges no unit: the memo table and the record of the rules called at
-each position grow to the positions and rules of calls that are counted, and
-growing them by doubling, or by pages of positions, copies and clears at most a
-constant times their final size. A [cut](../language/parser-expressions.md#cut)
-charges no unit either: the choices, repetitions and lookaheads it passes on
-its way to the one it marks are open in the body of the rule that holds it,
-at most a constant of the grammar. A parser generated without
-limit controls counts no units.
+The [compute limit](#cancellation-and-compute-limits) caps the [compute
+units](#compute-units) of a parse, which count its logical events: a fixed
+set of events that bound the cost.
 
-The values that the parse builds rather than an action, the terminals,
-sequences, tuples and lists of the grammar's expressions and the nodes that
-wrap captured values, are not an item of the cost and charge nothing; neither
-do gathering the values of a repetition or a sequence, taking them off into
-their list, dropping them, or attaching captures as fields. Each is a constant
-of the grammar for the evaluation, iteration or examined input that is
-counted where it is built. The suffix copies of a run site are the exception:
-a list keeps its elements contiguous, so a walk that takes a record copies the
-record's elements behind its own, and these copies are not bounded by the other
-items. They are an item of the cost, and a walk charges a unit for each
-element it copies; the copies are at most the iterations that taking the record
-spares.
+### Compute Units
 
-Converting the result of a parse into the typed values that the `ParseValue` or
-`parseValue` of a generated parser returns charges nothing either: the
-conversion visits each value of the result at most once for each type it
-converts it to, a constant of the grammar for each value the parse built. It
-still observes cancellation and the memory limit.
+A parser with limit controls counts **compute units** at the **logical
+events** below: the events that the language defines and that an input can
+multiply. The **total** of a parse is the sum of its events when it runs to
+its end with no limit. For one grammar, its options and one input, the total
+is the same on every backend and at every optimization setting, and the
+options that observe a parse ([tracing, profiles and trace
+selection](observability.md)), the recording of expectations and the
+conversion of the result to typed values do not change it. A parser generated
+without limit controls counts no units.
 
-Some values are built by the runtime rather than by an action, and each backend
-charges them as follows:
+| Event | Units |
+|:--|:--|
+| A call of a rule: every call, one that the memo or a growing seed answers included, a call of a value-free twin, the entry of the parse into its start rule and each step of a growing left-recursive rule | 1 |
+| The key of a call of a rule that an ordinary parse memoizes ([Evaluations of Rules](#evaluations-of-rules)), whether or not the call looks it up, and the key of a walk of a [run site](#run-sites) keyed by variables | 1 for each variable of the key, and 1 for each byte of the UTF-8 encoding of each string value among them |
+| The input that a terminal advances over: a literal, a character class or `.`, inside a lookahead and inside an alternative that later fails too | 1 for each position unit it advances over |
+| A value that an action, a predicate or a binding builds | 1 for each element of a list and each byte of a string that it builds |
+| A comparison of two strings by an action, a predicate, a binding or a key | The length in bytes of the shorter operand |
+| A built-in function that visits the elements of a list (`map`, `filter`, `foldl` and `foldr`) | 1 for each element it visits |
+| A suffix copy of a [run site](#run-sites) | 1 for each element it copies |
+| A syntax error built: by a recovery, by missing-token insertion, or as the error of a failed parse | 1 |
+| An entry of recovered errors taken where a result is stored (below) | 1 |
+| A text value in a [stream](streaming.md) (`text` of a node) | 1 for each position unit of its result |
 
-- **Syntax errors.** A syntax error that a recovery builds is charged:
-  - one unit for each expectation that it is given;
-  - the steps of sorting their descriptions;
-  - the steps of finding its line in a table of line starts.
+A terminal that fails advances over nothing and counts nothing, and examining
+input without advancing counts nothing. Input that the parse advances over
+again after backtracking counts again, each time a terminal advances over it.
+A walk of a [skip run](#skip-runs), a [run site](#run-sites) or a [scan
+site](#scan-sites) that takes the rest of the walk from a record neither
+performs nor counts the iterations and the input that it skips. Likewise, a
+repetition of a [Document](documents.md) parse that resumes a recorded run
+([Runs](documents.md#reuse-model)) neither performs nor counts the elements
+that it reuses. The key of a
+walk of a run site is counted once, when the walk starts, if the element of the
+site binds no variable of the key, so that the key keeps its values for the
+whole walk; otherwise it is counted at each lookup of the walk.
 
-  The first such error of a parse of a whole input also charges one unit for
-  each code point of the input, which builds that table. The table is built
-  lazily, so a parse without errors does not charge for it. A
-  [stream](streaming.md) finds the line from its own record of line starts.
-- **Error messages.** The message of a recovered error that a value holds is
-  charged as a value of its size: one unit, one for each byte of its text and
-  one for each of its parts. The value is an error node of the Node runtime or
-  the value of the error in a typed parse.
+Every other piece of work is at most a constant of the grammar for each event,
+so it counts nothing:
 
-Compute units also count work that the cost does not, and the budget caps it too.
+- the evaluations of rule bodies, which follow calls and steps of growths;
+- the iterations of repetitions: each iteration but the last advances the
+  position, by a terminal or a call, or ends the walk by taking a record, and
+  the last one happens once each time the repetition is entered;
+- the operators of an Operators Rule, tried and applied at most a constant of
+  the grammar times for each operand;
+- the retries of alternatives, the entries of lookaheads, cuts and `#atomic`
+  frames;
+- the lookups and records of skip runs, run sites and scan sites, other than
+  the key of a walk;
+- finding and keeping the results of left-recursion contexts and the steps of
+  growths, with their dependencies, and comparing growing results, outcomes
+  and examined ranges;
+- the values that the parse builds rather than an action: terminals,
+  sequences, tuples and lists of the grammar's expressions, the nodes that wrap
+  captured values and the values of recovered errors, with their messages;
+  gathering the values of a repetition or a sequence, taking them off into
+  their list, dropping them and attaching captures as fields;
+- the conversion of the result of a parse into the typed values that the
+  `ParseValue` or `parseValue` of a generated parser returns;
+- growing the storage of a parse;
+- recording, merging and keeping expectations;
+- the scalar operations of actions (arithmetic, Boolean and member operations
+  and literals) and `text` outside a stream, whose result denotes a range of
+  the input;
+- preparing the input (validating UTF-8, indexing code points, encoding it for
+  a TypeScript host), which is linear in the input once and which the
+  [`Input` limit](#default-limits) bounds;
+- the lines and columns of errors, which the parse does not resolve: they are
+  resolved when the caller reads an error, outside the parse;
+- observing a parse, and the work of the caller's callbacks;
+- reading the input of a stream, delivering its elements and listing the
+  errors of the outcome.
+
+Whether a call evaluates its rule or the memo answers it changes the total: an
+evaluation counts the events of the body, and a call that the memo answers
+counts only the call and its key. The total is therefore that of the plain
+evaluation of the grammar together with the store policy of the memo, which
+[Evaluations of Rules](#evaluations-of-rules) states exactly and which every
+backend follows. A parser that skips an alternative or a call without
+evaluating it counts the events that the evaluation would have counted, and
+leaves the memo as the evaluation would have left it (see the end of
+[Evaluations of Rules](#evaluations-of-rules)).
+
 In a parse that recovers errors, a memo entry, a result of a growth or an
 attempt of an Operators Rule shares the list of the errors recovered in it, and
 a call that reuses the result records that list as one entry. On every
@@ -459,33 +472,32 @@ error or a list of entries, and a list never changes once made:
   is stored, the entries recorded since its evaluation began are taken as its
   list: none give an empty list, one is taken as it is, an error or a list, and
   two or more become a new list that takes their place in the sequence; taking
-  them charges one unit for each entry taken;
+  them counts one unit for each entry taken;
 - a call that reuses such a result records its list as one entry, and an
   empty list not at all, and a growth that ends puts the list of its result in
   place of the entries recorded since it began in the same way; neither
-  charges a unit for the list;
+  counts a unit for the list;
 - backtracking drops the entries recorded after the point that it returns to,
   a [stream](streaming.md) forgets the entries whose errors it has delivered,
-  and listing the errors of the outcome charges no unit.
+  and listing the errors of the outcome counts no unit.
 
-These charges add up to at most a constant times the cost
+The entries taken add up to at most a constant times the cost
 ([linear cost proof](../proofs/linear-cost.md#lemma-14-shared-recovered-errors)),
 except in a parse with missing-token insertion, which records the errors of
-every reused result one by one. A store under a key
-that a long chain of memo entries holds walks the chain, which cost does not
-count; that matters only where K grows with the input, and has not been
-measured.
+every reused result one by one; the syntax errors that it builds are events,
+which bound them.
 
-A parse of a Document also does work that the cost does not count: it applies pending
-edits to the memo entries it finds, moves or copies the values it reuses, and works through
-what the Document retains from earlier parses. Its time includes that work, so it is not
-proportional to its cost, but no `Compute` limit counts it (the generated TypeScript runtime
-still counts it under an explicit limit until it leaves that work out);
-[Work of a Document Parse](documents.md#work-of-a-document-parse) bounds what each
-of its operations does, and the
-[linear cost proof](../proofs/linear-cost.md#corollary-compute-of-a-document-parse)
-states the bound of their sum. The [memory limit](#memory-limit) caps the storage a parse
-takes into use in bytes.
+The first parse of a [Document](documents.md) has the total of a parse of its
+text from scratch. A later parse counts the events it performs: a result that
+it reuses from an earlier parse counts as a call, and its key if the rule is
+memoized, and a result that it evaluates again counts its evaluation. What a
+later parse reuses is therefore part of its total, and [Documents](documents.md)
+states it. The work of the Document itself, applying pending edits to the memo
+entries a parse finds, moving or copying the values it reuses and working through what
+the Document retains from earlier parses, is not an event;
+[Work of a Document Parse](documents.md#work-of-a-document-parse) bounds it.
+The [memory limit](#memory-limit) caps the storage a parse takes into use in
+bytes.
 
 ### Termination
 
@@ -544,17 +556,20 @@ whatever its binding level, the values of its variables and its lookahead
 state, and the same holds of the evaluations of its twin: every later one
 stores its result, in the state, inside a lookahead or a `skip` or outside
 them, in which it is made. Which first evaluations leave no result is exact
-and the same on every backend, because the [cost](#cost) counts the
-evaluations of rule bodies. In an ordinary parse, neither a stream nor a parse
-of a [Document](documents.md), each memoized rule, and its twin separately,
+and the same on every backend, because the [compute units](#compute-units) of
+a parse depend on which calls the memo answers. In an ordinary parse, neither a
+stream nor a parse of a [Document](documents.md), each memoized rule, and its
+twin separately,
 counts its calls, and among them its repeated calls: those at a position where
 it was called before in the parse. A call at a position where the rule was
 not called before evaluates the body and leaves no result, until the repeated
 calls exceed a sixteenth of the calls, rounded down, the current call
 included; from then on every evaluation of the rule stores its result, the
 first at a position included. A call that makes the count of calls
-2<sup>31</sup> halves both counts, rounding down. A stream stores the
-result of every evaluation. The
+2<sup>31</sup> halves both counts, rounding down. A parse that is
+[observed](observability.md) is ordinary in this sense when it is neither a
+stream nor a parse of a Document, so observing a parse does not change which
+results it stores. A stream stores the result of every evaluation. The
 result stays in the memo for the rest of the parse, except that a
 [stream](streaming.md) drops the results at positions before an element that
 it has delivered, where the parse makes no later call.
@@ -604,12 +619,9 @@ exceptions are these.
   context; a call outside every context does not look at the leaders.
   Otherwise it reuses a result computed in a context of the same growths only
   if every growing result that it read is equal to the one there now and every
-  such lookahead has the same outcome. Where the parse records the input that
-  evaluations examine, equal growing results and equal outcomes also need
-  equal examined ranges: in every parse of the engine, whose traces report the
-  range, and in a [Document](documents.md) parse or an
-  [observed](observability.md) parse of a generated Go or TypeScript parser;
-  a generated parser in any other parse compares no range. A
+  such lookahead has the same outcome. Equal growing results and equal
+  outcomes also need equal examined ranges, in every parse and on every
+  backend. A
   result that read a growing result is kept only until the first growth of
   its context ends, and never enters the memo of a later parse.
   A lookahead counts as observed by its outcome only if nothing else of it
@@ -635,11 +647,11 @@ exceptions are these.
   present set and combination of the growing results that it reads,
   directly or through the lookaheads that it observes and those that they
   observe in turn, and of the outcomes of those lookaheads, apart from the
-  first call of the variant at the position, which may leave no result, as
-  outside every context. Two growing results
-  count as one there only where the parse
-  finds them equal: it may compare results by their structure only up to a
-  bound, and takes results that it has not found equal as different. A kept
+  first call of the variant at the position, which leaves no result exactly
+  where such a call outside every context would: the call marks the position
+  as seen for the rule, and counts its calls, before it enters the context. Two growing results
+  count as one there only where the parse finds them equal, by the
+  comparison of the next paragraph, which is the same on every backend. A kept
   result records at most one growing result for each leader and binding level
   of the cycle and one outcome for each lookahead in the bodies of the rules
   of the cycle, so finding and keeping it costs a constant of the grammar
@@ -654,6 +666,45 @@ exceptions are these.
   lookups inside one. In a parse with
   missing-token insertion this holds only of rules and leaders that do not
   contain `#missing`, directly or through the rules they call.
+
+  A step of a growth of a leader at a position and binding level that
+  succeeds without recovering an error is compared with the result recorded
+  there for the leader, the level and the end of the step, if there is one.
+  If the two are equal, the result of the step is the recorded result, the
+  same growing result; otherwise the result of the step becomes the result
+  recorded for its end. A step that fails or recovers an error is equal to no
+  other result. Two results with the same end are equal when they have the
+  same examined range and their values are equal, which the comparison
+  decides by visiting pairs of values depth first:
+
+  - two values that are one value, built once and held by both results, are
+    equal, and the comparison does not look inside them;
+  - nil, ints, strings and bools are equal when `==` finds them equal, and a
+    box that holds another value is equal only to itself;
+  - a node, a list, a tuple or a struct is a composite, and two composites
+    are equal when they have the same kind and type (the type and rule of a
+    node, a list, a tuple, or the type of a struct), the same range, the same
+    string if they are string nodes, the same answers to whether a terminal
+    made them and whether their captures are output, the same number of
+    elements and the same number of fields, and then their elements are equal in order and their
+    fields, in order, have the same names and equal values.
+
+  Each pair of composites that the comparison visits counts toward a cap of
+  64 pairs: a comparison that would visit a 65th pair finds the results
+  different. The cap is part of the rule, so every backend reuses the same
+  results and counts the same [compute units](#compute-units); finding
+  results equal counts none. A result that the cap takes as different only
+  evaluates again what the parse could have reused. It does not change the
+  value, the positions, the errors or termination, because a test that
+  claims equality only of equal results is an instance of the memo of the
+  [memoization proof](../proofs/memoization.md#setting), and a growth stops
+  by its ends, not by the identities of its results. Nor does it change the
+  form of the linear bound: the [linear cost
+  proof](../proofs/linear-cost.md#lemma-5-growth) bounds the evaluations of
+  growths in every parse, whatever it finds equal: a growth that the parse
+  takes again in full, because it did not find the growing results equal, is
+  bounded as the growths of the lemma's second and third kinds, so the cap
+  changes only the constant of the bound.
 
 Every other result of a rule of a left-recursion cycle is memoized like that of
 any rule. Calls at a later position finish their own growth, outside the
@@ -695,7 +746,16 @@ which would fail there, and record only the expectation of the terminal. The
 skip records that expectation too, though it need not where recording it
 could not change the expectations that the parse reports, as inside a
 lookahead or the `skip` of an Operators Rule, whose failures are not reported,
-before the farthest failure, or in a parse that does not record expectations. A lookahead, an option, a
+before the farthest failure, or in a parse that does not record expectations.
+With limit controls, a skip leaves the [compute units](#compute-units) and the
+memo as the evaluation that it skips would leave them, or the parser
+evaluates the alternative. The skip counts each call on the way, outermost
+first, and the key of each call of a rule that the parse memoizes; for such a
+call it marks the position as seen and counts the call as the
+evaluation would. The first call that the memo answers ends the skip, with the
+expectations of its entry. On the way back, the skip stores the failure of each
+call that the evaluation would store, innermost first, with the expectation of
+the terminal and whether the call is inside a lookahead or a `skip`. A lookahead, an option, a
 repetition, a choice, a predicate or an expression with an `@` attribute or
 the pragma `#recover` or `#stream` is not on the way: an alternative that
 begins with `&([a-z]*) "q"` is evaluated where the next character is not `q`,
@@ -703,7 +763,8 @@ and its lookahead consumes input inside it. The pragmas `#ignorecase` and
 `#missing` annotate a literal, which stays a terminal: a case-insensitive
 literal and a literal that may insert its text. Parsers need not skip the same
 alternatives, so they can differ in the calls that they make
-([Observability](observability.md)) but not in the outcome of any evaluation.
+([Observability](observability.md)) but not in the outcome of any evaluation,
+the compute units of a parse or what its memo holds.
 
 ### Growths of Left Recursion
 
