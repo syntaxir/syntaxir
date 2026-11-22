@@ -7,12 +7,13 @@ import (
 )
 
 // frontEndTools are the packages that work on a grammar without running a parse of their own, and
-// so link no part of the runtime that runs parses: the linter, the sampler (which runs the parses
-// of the parser it is given through runtime.Parser, and reads its grammar through
-// state.ParserSource), the language server with what the driver gives it, the checked program, and
-// the entry of the generators. The generators of package compiler share that package with the
+// so link no part of the runtime that runs parses: the linter, the complexity classifier, the
+// sampler (which runs the parses of the parser it is given through runtime.Parser, and reads its
+// grammar through state.ParserSource), the language server with what the driver gives it, the
+// checked program, and the entry of the generators. The generators of package compiler share that package with the
 // parsers it makes on the VM, so their engine-free entry is internal/driver/generate.
 var frontEndTools = []string{
+	"internal/analysis/complexity",
 	"internal/driver/checked",
 	"internal/driver/generate",
 	"internal/driver/tooling",
