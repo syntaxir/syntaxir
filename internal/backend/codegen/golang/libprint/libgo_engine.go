@@ -238,7 +238,7 @@ func engineTarget() *print.Target {
 	handles := map[string]string{
 		exec.Rule: "*Rule", exec.Value: "*sxirvalue.Node", exec.Entry: "*MemoEntry", exec.Values: "KeyVals", exec.Errs: "RecEntry",
 		exec.Mark: "ExpMark", exec.Set: "[]ExpID", exec.Kept: "[]ExpID", exec.ExpID: "ExpID",
-		exec.Ctx: "CtxState", exec.Res: "ctxHit", exec.Grow: "GrowState", exec.CallState: "*CallState",
+		exec.Ctx: "CtxState", exec.Res: "*MemoEntry", exec.Grow: "GrowState", exec.CallState: "*CallState",
 		exec.Frame: "*Frame", exec.Backtrack: "Mark", exec.Scope: "*Env", exec.Operators: "[]*OperatorsRuleOp",
 		exec.Operator: "*OperatorsRuleOp", exec.Line: "*OperatorsRuleLine", exec.Attempt: "OperatorsRuleAttempt",
 		action.Seq: "[]*sxirvalue.Node", exec.Datum: "any", exec.LongestState: "*LongestState", exec.NudState: "*NudState", exec.ExprState: "*ExprState", exec.EditLog: "[]DocEdit", exec.Run: "*RunState",
@@ -480,10 +480,9 @@ func engineTarget() *print.Target {
 			return "p.missingMark()"
 		case "missing.reset":
 			return fmt.Sprintf("if p.Missing != nil {\np.ResetMissing(%s)\n}", a[0])
-		case "missing.replay":
+		case "missing.replay", "missing.replayResult":
+			// A memo entry and a context result are both entries in the engine.
 			return fmt.Sprintf("p.ReplayMissing(p.MissingSeedEvents(%s), %[1]s.Errs)", a[0])
-		case "missing.replayResult":
-			return fmt.Sprintf("p.ReplayMissing(p.MissingSeedEvents(%s.e), %[1]s.e.Errs)", a[0])
 		case "exp.isolate":
 			return "p.Isolate(" + a[0] + ")"
 		case "exp.unisolate":
@@ -575,23 +574,23 @@ func engineTarget() *print.Target {
 			// The binding level of a call is named min: the low end is lowered without the builtin.
 			return fmt.Sprintf("p.Hw = max(%s, p.Hw)\np.lw = Min2(%s, p.lw)", a[0], a[1])
 		case "ctx.found":
-			return a[0] + ".e != nil"
+			return a[0] + " != nil"
 		case "ctx.ok":
-			return a[0] + ".e.Ok"
+			return a[0] + ".Ok"
 		case "ctx.value":
-			return a[0] + ".e.Node"
+			return a[0] + ".Node"
 		case "ctx.end":
-			return a[0] + ".e.End"
+			return a[0] + ".End"
 		case "ctx.errs":
-			return a[0] + ".e.Errs"
+			return a[0] + ".Errs"
 		case "ctx.far":
-			return a[0] + ".e.Far"
+			return a[0] + ".Far"
 		case "ctx.expected":
-			return a[0] + ".e.Expected"
+			return a[0] + ".Expected"
 		case "ctx.examined":
-			return a[0] + ".e.Examined"
+			return a[0] + ".Examined"
 		case "ctx.before":
-			return a[0] + ".e.From < " + a[1]
+			return a[0] + ".From < " + a[1]
 		case "ctx.allows":
 			return fmt.Sprintf("(!%s.ctx || p.ctxAllows(&%[1]s, %s))", a[0], a[1])
 		case "ctx.active":
@@ -666,7 +665,7 @@ func engineTarget() *print.Target {
 			cs, seed := dst[0], dst[1]
 			s := ""
 			if define {
-				s = fmt.Sprintf("var %s CtxState\nvar %s ctxHit\n", cs, seed)
+				s = fmt.Sprintf("var %s CtxState\nvar %s *MemoEntry\n", cs, seed)
 			}
 			return s + fmt.Sprintf("if %[1]s.Cycle != 0 && len(p.gamma) != 0 {\n%[2]s = p.ctxEnter(&%[3]s, %[1]s, %[4]s)\n}", a[0], seed, cs, a[1]), true
 		case "env.key":

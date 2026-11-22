@@ -151,26 +151,26 @@ func (p *Parser) CallBegin(r *Rule, min int, st *CallState) (*sxirvalue.Node, bo
 		env.Env = p.memoEnv(r)
 	}
 	var c CtxState
-	var seed ctxHit
+	var seed *MemoEntry
 	if r.Cycle != 0 && len(p.gamma) != 0 {
 		seed = p.ctxEnter(&c, r, min)
 	}
-	if seed.e != nil {
-		p.touch(seed.e.Examined)
-		if seed.e.From < start {
+	if seed != nil {
+		p.touch(seed.Examined)
+		if seed.From < start {
 			p.lw = Min2(p.lw, start+-1)
 		}
 		p.Stats.Reused++
-		if !seed.e.Ok {
+		if !seed.Ok {
 			return nil, false, true
 		}
-		p.Pos = seed.e.End
+		p.Pos = seed.End
 		if p.Missing != nil {
-			p.ReplayMissing(p.MissingSeedEvents(seed.e), seed.e.Errs)
+			p.ReplayMissing(p.MissingSeedEvents(seed), seed.Errs)
 		} else {
-			p.recAdd(seed.e.Errs)
+			p.recAdd(seed.Errs)
 		}
-		return seed.e.Node, true, true
+		return seed.Node, true, true
 	}
 	e, found := p.MemoGet(MemoKey{Rule: r.ID, Pos: start, Min: min, Env: env.Env, MissingSilent: env.Missing, DocOnly: p.docOnlyMemo(r)})
 	if found && e.Vgen != p.Gen && !p.AdvanceEntry(e, p.Edits[:p.Gen]) {
@@ -199,23 +199,23 @@ func (p *Parser) CallBegin(r *Rule, min int, st *CallState) (*sxirvalue.Node, bo
 	}
 	if c.ctx {
 		held := p.ctxLookup(&c, r, min, env)
-		if held.e != nil {
-			p.touch(held.e.Examined)
-			if held.e.From < start {
+		if held != nil {
+			p.touch(held.Examined)
+			if held.From < start {
 				p.lw = Min2(p.lw, start+-1)
 			}
 			p.Stats.Reused++
-			p.MergeExpected(held.e.Far, held.e.Expected)
-			if !held.e.Ok {
+			p.MergeExpected(held.Far, held.Expected)
+			if !held.Ok {
 				return nil, false, true
 			}
-			p.Pos = held.e.End
+			p.Pos = held.End
 			if p.Missing != nil {
-				p.ReplayMissing(p.MissingSeedEvents(held.e), held.e.Errs)
+				p.ReplayMissing(p.MissingSeedEvents(held), held.Errs)
 			} else {
-				p.recAdd(held.e.Errs)
+				p.recAdd(held.Errs)
 			}
-			return held.e.Node, true, true
+			return held.Node, true, true
 		}
 	}
 	rec := len(p.Recovered)
@@ -314,7 +314,7 @@ func (p *Parser) grow(r *Rule, min int) (*sxirvalue.Node, bool) {
 		g := p.GrowBegin(p.GrowKey(r, min), r)
 		if g.ctx {
 			for {
-				if p.growMemoStep(&g).e != nil {
+				if p.growMemoStep(&g) != nil {
 					break
 				}
 				p.growIsolate(&g)
@@ -348,12 +348,12 @@ func (p *Parser) grow(r *Rule, min int) (*sxirvalue.Node, bool) {
 			p.ResetMissing(mm)
 		}
 		if p.Missing != nil {
-			p.ReplayMissing(p.MissingSeedEvents(best.e), best.e.Errs)
+			p.ReplayMissing(p.MissingSeedEvents(best), best.Errs)
 		} else {
-			p.recAdd(best.e.Errs)
+			p.recAdd(best.Errs)
 		}
-		bv = best.e.Node
-		bok = best.e.Ok
+		bv = best.Node
+		bok = best.Ok
 	}
 	return bv, bok
 }

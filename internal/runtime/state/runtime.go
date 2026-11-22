@@ -610,9 +610,9 @@ func (g *GrowState) growKey() growKey {
 // memoized steps, replaying their dependencies and merging their expectations, and adopts each step
 // that grew. It returns the first memoized step that did not grow, or no result when the table keeps
 // no step from the seed.
-func (p *Parser) growMemoStep(g *GrowState) ctxHit {
+func (p *Parser) growMemoStep(g *GrowState) *MemoEntry {
 	if p.tune.MemoMut == CtxNoStepMemo {
-		return ctxHit{}
+		return nil
 	}
 	gp := g.gp
 	for {
@@ -635,7 +635,7 @@ func (p *Parser) growMemoStep(g *GrowState) ctxHit {
 		h := ctxHeadKey{kind: ctxStep, id: int32(g.Key.Rule), min: int32(g.Key.Min), ms: g.Key.MissingSilent, present: g.present}
 		s := p.ctxFind(g.start, gp, h, nil)
 		if s == nil || !p.reusable(s.silent) {
-			return ctxHit{}
+			return nil
 		}
 		if p.tune.MemoMut != CtxNoStepSeedRead {
 			p.seedRead(gp)
@@ -648,8 +648,8 @@ func (p *Parser) growMemoStep(g *GrowState) ctxHit {
 		}
 		p.touch(s.examined)
 		p.lw = Min2(p.lw, s.from)
-		if !p.growGrew(g, ctxHit{e: s.e}) {
-			return ctxHit{e: s.e}
+		if !p.growGrew(g, s.e) {
+			return s.e
 		}
 		p.adoptGrownStep(g, s.e, s.id, runStep{seed: id, far: s.far, exp: s.exp, examined: s.examined, from: s.from, silent: s.silent, deps: s.deps})
 	}
@@ -694,7 +694,7 @@ func (p *Parser) growAdopt(g *GrowState, v *value.Node, errs RecEntry) {
 // the body's result and the errors errs that it recovered if it succeeded, keeps the result in the
 // table of the context and returns it. It does not change the recovered errors: the printed growth
 // lists the errors of the step with recSince and drops them after the step.
-func (p *Parser) growKeepStep(g *GrowState, v *value.Node, ok bool, errs RecEntry) ctxHit {
+func (p *Parser) growKeepStep(g *GrowState, v *value.Node, ok bool, errs RecEntry) *MemoEntry {
 	id := p.gamma[g.gi].id
 	_, ds := p.popFrame()
 	far, inner := p.Unisolate(g.exp)
@@ -716,18 +716,18 @@ func (p *Parser) growKeepStep(g *GrowState, v *value.Node, ok bool, errs RecEntr
 	p.mergeDeps(ds)
 	g.pendID = rid
 	g.pendStep = runStep{seed: id, far: far, exp: exp, examined: examined, from: from, silent: p.Silent > 0, deps: sd}
-	return ctxHit{e: res}
+	return res
 }
 
 // growGrew reports whether the step s of a growth in a context matched more than the seed.
-func (p *Parser) growGrew(g *GrowState, s ctxHit) bool {
-	return s.e.Ok && (!g.Best.Ok || s.e.End > g.Best.End)
+func (p *Parser) growGrew(g *GrowState, s *MemoEntry) bool {
+	return s.Ok && (!g.Best.Ok || s.End > g.Best.End)
 }
 
 // growAdoptStep adopts the step s of a growth in a context that grew, which growKeepStep returned
 // last, as the seed.
-func (p *Parser) growAdoptStep(g *GrowState, s ctxHit) {
-	p.adoptGrownStep(g, s.e, g.pendID, g.pendStep)
+func (p *Parser) growAdoptStep(g *GrowState, s *MemoEntry) {
+	p.adoptGrownStep(g, s, g.pendID, g.pendStep)
 }
 
 // adoptGrownStep adopts the step e of a growth in a context that grew, with identity id and what it
@@ -935,7 +935,7 @@ func (p *Parser) GrowNextVM(g *GrowState) bool {
 	if !g.ctx {
 		return true
 	}
-	if p.growMemoStep(g).e != nil {
+	if p.growMemoStep(g) != nil {
 		g.done = true
 		return false
 	}

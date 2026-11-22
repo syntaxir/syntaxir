@@ -73,7 +73,7 @@ func newCtxMachine(cfg ref.Config, controlled bool) conform.Impl {
 
 // growEnd runs grow.end. The printed engine call names the rule of the enclosing composition, which the
 // operation does not take, so the suite finds the rule of the growth.
-func (m *ctxMachine) growEnd(g GrowState) (ctxHit, GrowState) {
+func (m *ctxMachine) growEnd(g GrowState) (*MemoEntry, GrowState) {
 	r := m.ctxRules[m.p.gamma[g.gi].key.Rule]
 	return m.p.growEnd(r, &g), g
 }
@@ -188,8 +188,8 @@ func (c ctxConv) FromImpl(v reflect.Value) (any, bool) {
 		return &ctxBox{x}, true
 	case GrowState:
 		return &growBox{x}, true
-	case ctxHit:
-		if x.e == nil {
+	case *MemoEntry:
+		if x == nil {
 			return nil, true
 		}
 	case []ExpID:

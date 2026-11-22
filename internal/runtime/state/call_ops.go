@@ -141,33 +141,26 @@ const (
 	storeCtx
 )
 
-// ctxHit is a result that the context of a call holds for it: the seed of the call's rule growing
-// at the position, or a result kept in the table of the context, or the last result of a growth. e
-// is nil for none.
-type ctxHit struct {
-	e *MemoEntry
-}
-
 // ctxEnter begins the memoized call of rule r, a rule of a left-recursive cycle, at binding level
 // min at the position, in a parse where leaders grow: it fills c and returns the seed of r if r is
 // a leader that grows here, recording the read of the seed.
-func (p *Parser) ctxEnter(c *CtxState, r *Rule, min int) ctxHit {
+func (p *Parser) ctxEnter(c *CtxState, r *Rule, min int) *MemoEntry {
 	gp := p.gammaAt(p.Pos, int32(r.Cycle))
 	c.gp = gp
 	if gp == len(p.gamma) {
-		return ctxHit{}
+		return nil
 	}
 	if r.Leader {
 		// A leader that grows here reads its seed, whatever its variable values.
 		if i := p.gammaFind(gp, growKey{rule: int32(r.ID), min: int32(min), ms: p.Missing != nil && r.Missing && p.Silent > 0}); i >= 0 {
 			p.noteSeedRead(i)
-			return ctxHit{e: p.gamma[i].seed}
+			return p.gamma[i].seed
 		}
 	}
 	c.ctx = true
 	c.present = p.present(gp)
 	c.framed = !p.strictCtx() && !p.inserts(r) && p.recordsIn(c.present)
-	return ctxHit{}
+	return nil
 }
 
 // ctxAllows reports whether the call in a context with the state c may reuse the memo entry e:
@@ -180,20 +173,20 @@ func (p *Parser) ctxAllows(c *CtxState, e *MemoEntry) bool {
 // ctxLookup returns the result kept in the context of the call of rule r at binding level min with
 // the key values kv at the position, which the call may reuse, and records what it depends on for
 // the enclosing call; otherwise none.
-func (p *Parser) ctxLookup(c *CtxState, r *Rule, min int, kv KeyVals) ctxHit {
+func (p *Parser) ctxLookup(c *CtxState, r *Rule, min int, kv KeyVals) *MemoEntry {
 	if !c.framed {
-		return ctxHit{}
+		return nil
 	}
 	h := ctxHeadKey{kind: ctxCall, id: int32(r.ID), min: int32(min), ms: kv.Missing, present: c.present}
 	s := p.ctxFind(p.Pos, c.gp, h, kv.Env)
 	if s == nil || !p.reusable(s.e.silent) {
-		return ctxHit{}
+		return nil
 	}
 	p.seedRead(c.gp)
 	if p.tune.MemoMut != CtxNoReplayLookup {
 		p.replayDeps(p.Pos, c.gp, c.present, s.deps)
 	}
-	return ctxHit{e: s.e}
+	return s.e
 }
 
 // ctxPop ends recording the dependencies of the evaluation of a call in a context and returns
@@ -238,7 +231,7 @@ func (p *Parser) leaderEntry() *MemoEntry {
 }
 
 // growEnd ends the growth g of leader r and returns its last result, which CallEnd stores.
-func (p *Parser) growEnd(r *Rule, g *GrowState) ctxHit {
+func (p *Parser) growEnd(r *Rule, g *GrowState) *MemoEntry {
 	p.GrowEnd(r, g)
-	return ctxHit{e: p.grown}
+	return p.grown
 }

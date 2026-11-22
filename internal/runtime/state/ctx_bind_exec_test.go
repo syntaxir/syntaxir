@@ -6,9 +6,9 @@ import sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 
 // confCtxEnter runs ctx.enter for the conformance suite.
 // Printed from Exec IR function confCtxEnter of internal/ir/code/exec/compose.
-func (p *Parser) confCtxEnter(r *Rule, min int) (CtxState, ctxHit) {
+func (p *Parser) confCtxEnter(r *Rule, min int) (CtxState, *MemoEntry) {
 	var r0 CtxState
-	var r1 ctxHit
+	var r1 *MemoEntry
 	if r.Cycle != 0 && len(p.gamma) != 0 {
 		r1 = p.ctxEnter(&r0, r, min)
 	}
@@ -17,57 +17,57 @@ func (p *Parser) confCtxEnter(r *Rule, min int) (CtxState, ctxHit) {
 
 // confCtxFound runs ctx.found for the conformance suite.
 // Printed from Exec IR function confCtxFound of internal/ir/code/exec/compose.
-func (p *Parser) confCtxFound(s ctxHit) bool {
+func (p *Parser) confCtxFound(s *MemoEntry) bool {
 	var r bool
-	r = s.e != nil
+	r = s != nil
 	return r
 }
 
 // confCtxOk runs ctx.ok for the conformance suite.
 // Printed from Exec IR function confCtxOk of internal/ir/code/exec/compose.
-func (p *Parser) confCtxOk(s ctxHit) bool {
+func (p *Parser) confCtxOk(s *MemoEntry) bool {
 	var r bool
-	r = s.e.Ok
+	r = s.Ok
 	return r
 }
 
 // confCtxValue runs ctx.value for the conformance suite.
 // Printed from Exec IR function confCtxValue of internal/ir/code/exec/compose.
-func (p *Parser) confCtxValue(s ctxHit) *sxirvalue.Node {
+func (p *Parser) confCtxValue(s *MemoEntry) *sxirvalue.Node {
 	var r *sxirvalue.Node
-	r = s.e.Node
+	r = s.Node
 	return r
 }
 
 // confCtxEnd runs ctx.end for the conformance suite.
 // Printed from Exec IR function confCtxEnd of internal/ir/code/exec/compose.
-func (p *Parser) confCtxEnd(s ctxHit) int {
+func (p *Parser) confCtxEnd(s *MemoEntry) int {
 	var r int
-	r = s.e.End
+	r = s.End
 	return r
 }
 
 // confCtxErrs runs ctx.errs for the conformance suite.
 // Printed from Exec IR function confCtxErrs of internal/ir/code/exec/compose.
-func (p *Parser) confCtxErrs(s ctxHit) RecEntry {
+func (p *Parser) confCtxErrs(s *MemoEntry) RecEntry {
 	var r RecEntry
-	r = s.e.Errs
+	r = s.Errs
 	return r
 }
 
 // confCtxFar runs ctx.far for the conformance suite.
 // Printed from Exec IR function confCtxFar of internal/ir/code/exec/compose.
-func (p *Parser) confCtxFar(s ctxHit) int {
+func (p *Parser) confCtxFar(s *MemoEntry) int {
 	var r int
-	r = s.e.Far
+	r = s.Far
 	return r
 }
 
 // confCtxExpected runs ctx.expected for the conformance suite.
 // Printed from Exec IR function confCtxExpected of internal/ir/code/exec/compose.
-func (p *Parser) confCtxExpected(s ctxHit) []ExpID {
+func (p *Parser) confCtxExpected(s *MemoEntry) []ExpID {
 	var r []ExpID
-	r = s.e.Expected
+	r = s.Expected
 	return r
 }
 
@@ -89,8 +89,8 @@ func (p *Parser) confCtxActive(c CtxState) (bool, CtxState) {
 
 // confCtxLookup runs ctx.lookup for the conformance suite.
 // Printed from Exec IR function confCtxLookup of internal/ir/code/exec/compose.
-func (p *Parser) confCtxLookup(c CtxState, r *Rule, min int, key KeyVals) (ctxHit, CtxState) {
-	var res ctxHit
+func (p *Parser) confCtxLookup(c CtxState, r *Rule, min int, key KeyVals) (*MemoEntry, CtxState) {
+	var res *MemoEntry
 	res = p.ctxLookup(&c, r, min, key)
 	return res, c
 }
@@ -195,8 +195,8 @@ func (p *Parser) confGrowAdopt(g GrowState, value *sxirvalue.Node, errs RecEntry
 
 // confGrowMemoStep runs grow.memoStep for the conformance suite.
 // Printed from Exec IR function confGrowMemoStep of internal/ir/code/exec/compose.
-func (p *Parser) confGrowMemoStep(g GrowState) (ctxHit, GrowState) {
-	var r ctxHit
+func (p *Parser) confGrowMemoStep(g GrowState) (*MemoEntry, GrowState) {
+	var r *MemoEntry
 	r = p.growMemoStep(&g)
 	return r, g
 }
@@ -210,15 +210,15 @@ func (p *Parser) confGrowIsolate(g GrowState) GrowState {
 
 // confGrowKeepStep runs grow.keepStep for the conformance suite.
 // Printed from Exec IR function confGrowKeepStep of internal/ir/code/exec/compose.
-func (p *Parser) confGrowKeepStep(g GrowState, value *sxirvalue.Node, ok bool, errs RecEntry) (ctxHit, GrowState) {
-	var r ctxHit
+func (p *Parser) confGrowKeepStep(g GrowState, value *sxirvalue.Node, ok bool, errs RecEntry) (*MemoEntry, GrowState) {
+	var r *MemoEntry
 	r = p.growKeepStep(&g, value, ok, errs)
 	return r, g
 }
 
 // confGrowGrew runs grow.grew for the conformance suite.
 // Printed from Exec IR function confGrowGrew of internal/ir/code/exec/compose.
-func (p *Parser) confGrowGrew(g GrowState, s ctxHit) (bool, GrowState) {
+func (p *Parser) confGrowGrew(g GrowState, s *MemoEntry) (bool, GrowState) {
 	var r bool
 	r = p.growGrew(&g, s)
 	return r, g
@@ -226,7 +226,7 @@ func (p *Parser) confGrowGrew(g GrowState, s ctxHit) (bool, GrowState) {
 
 // confGrowAdoptStep runs grow.adoptStep for the conformance suite.
 // Printed from Exec IR function confGrowAdoptStep of internal/ir/code/exec/compose.
-func (p *Parser) confGrowAdoptStep(g GrowState, s ctxHit) GrowState {
+func (p *Parser) confGrowAdoptStep(g GrowState, s *MemoEntry) GrowState {
 	p.growAdoptStep(&g, s)
 	return g
 }
