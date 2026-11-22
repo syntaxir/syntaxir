@@ -1,5 +1,3 @@
-//go:build !sxir_budget_controls_reference
-
 package engine
 
 import "syntaxir.dev/sxir/pkg/bytecode"
