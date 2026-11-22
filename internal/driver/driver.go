@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -83,7 +84,72 @@ type Driver struct {
 	// watch holds what the observers of the driver collect over the stages it runs; pipeRun makes
 	// it on first use.
 	watch *watch
+	// groups, if not nil, keeps what the observers write of each table apart until flush writes it
+	// (Compile).
+	groups *groups
 }
+
+// groups holds what the observers of a compilation write of each table: the dumps of one table are
+// written together, those of the program first, then those of each table in the order of its first
+// dump, so that a table's dumps follow it from its Core IR to the Exec stage although the stages of
+// every table run before the next stage of any.
+type groups struct {
+	order  []string // the tables in the order of their first write
+	tables map[string]*bytes.Buffer
+}
+
+// out returns the writer of what the observers write of the table: Output, or the group of the
+// table in a compilation.
+func (d *Driver) out(table string) io.Writer {
+	g := d.groups
+	if g == nil {
+		return d.Output
+	}
+	b := g.tables[table]
+	if b == nil {
+		if g.tables == nil {
+			g.tables = map[string]*bytes.Buffer{}
+		}
+		b = &bytes.Buffer{}
+		g.tables[table] = b
+		g.order = append(g.order, table)
+	}
+	return b
+}
+
+// flush writes to Output what the observers wrote of each table, the program's first, and forgets it.
+func (d *Driver) flush() error {
+	g := d.groups
+	if g == nil || d.Output == nil {
+		return nil
+	}
+	var err error
+	write := func(b *bytes.Buffer) {
+		if _, werr := d.Output.Write(b.Bytes()); werr != nil && err == nil {
+			err = werr
+		}
+	}
+	if b := g.tables[programLabel]; b != nil {
+		write(b)
+	}
+	for _, t := range g.order {
+		if t != programLabel {
+			write(g.tables[t])
+		}
+	}
+	d.drop()
+	return err
+}
+
+// drop forgets what the observers wrote of each table.
+func (d *Driver) drop() {
+	if d.groups != nil {
+		*d.groups = groups{}
+	}
+}
+
+// programLabel labels the dumps of the steps that run on the whole program.
+const programLabel = "program"
 
 // Hooks are the test hooks of the pipelines, which replace or observe a stage (generate.Hooks). A
 // pass of a pipeline of a hook that is no registered optimization declares that it is a test pass
@@ -127,15 +193,15 @@ func (d *Driver) printsBefore(name string) bool {
 // the first step of the pipeline.
 const Elaborate = "elaborate"
 
-// programIR is the kind of the build of the Core IR of a table, which elaborate runs.
-var programIR = pipe.RegisterIR(&pipe.IR[func() (*core.Module, error)]{Name: "program"})
+// tableIR is the kind table: the build of the Core IR of one table of a program, which elaborate runs.
+var tableIR = pipe.RegisterIR(&pipe.IR[func() (*core.Module, error)]{Name: "table"})
 
 // elaborating is the step Elaborate: it runs the build of the Core IR module that it is given and
 // computes the attributes of its nodes (core.Analyze), so that the module it returns is a Core module
 // with its attributes, as the Core passes and the Core verifier read it.
 var elaborating = pipe.New(pipe.Def[func() (*core.Module, error), *core.Module]{
 	Decl: pipe.Decl{Name: Elaborate, Required: true, Obligation: "The module is the elaborated program in Core IR, with its attributes."},
-	In:   programIR, Out: corepass.IR,
+	In:   tableIR, Out: corepass.IR,
 	Run: func(_ *pipe.Ctx[func() (*core.Module, error)], build func() (*core.Module, error)) (*core.Module, pass.PreservedSet, error) {
 		m, err := build()
 		if err != nil {
@@ -159,7 +225,7 @@ func (d *Driver) Core(table string, build func() (*core.Module, error)) (*core.M
 	if d.CorePipeline != nil {
 		p = d.CorePipeline(table)
 	}
-	m, err := execute(d, d.pipeRun(table, true), pipe.Then(pipe.Of(elaborating), p), build)
+	m, err := execute(context.Background(), d, d.pipeRun(table, true), pipe.Then(pipe.Of(elaborating), p), build)
 	if err != nil {
 		return nil, pipeError(err, Elaborate)
 	}
@@ -173,37 +239,45 @@ func (d *Driver) pipeRun(table string, stop bool) *pipe.Run {
 	if d.numbering == nil {
 		d.numbering = &pipe.Numbering{}
 	}
+	r := &pipe.Run{Settings: d.Opt, VerifyEach: d.VerifyEach, Stop: stop, Numbering: d.numbering}
+	r.Observers = d.observers(table)
+	return r
+}
+
+// observers returns the observers of the debugging settings and the hooks of the driver for a stage
+// that runs on the units of table, or on those of every table, labeled as their events are, for ""
+// (Compile).
+func (d *Driver) observers(table string) []pipe.Observer {
 	if d.watch == nil {
 		d.watch = &watch{}
 	}
-	r := &pipe.Run{Settings: d.Opt, VerifyEach: d.VerifyEach, Stop: stop, Numbering: d.numbering}
+	var obs []pipe.Observer
 	if o := (pipeObserver{d: d, table: table}); o.Needs() != (pipe.Needs{}) {
-		r.Observers = []pipe.Observer{o}
+		obs = append(obs, o)
 	}
 	if d.Output != nil && d.Stats {
 		if d.watch.stats == nil {
 			d.watch.stats = pipe.NewStats()
 		}
-		r.Observers = append(r.Observers, d.watch.stats)
+		obs = append(obs, d.watch.stats)
 	}
 	if d.Output != nil && d.TimePasses {
-		r.Observers = append(r.Observers, (*timer)(d.watch))
+		obs = append(obs, (*timer)(d.watch))
 	}
 	if d.OptBisectLimit != nil {
-		r.Observers = append(r.Observers, bisector{d: d, table: table})
+		obs = append(obs, bisector{d: d, table: table})
 	}
-	r.Observers = append(r.Observers, d.Observers...)
-	return r
+	return append(obs, d.Observers...)
 }
 
 // execute runs the pipeline p on in with r (pipe.Execute) and adds the time it took to the total of
 // the times that Report writes.
-func execute[I, O any](d *Driver, r *pipe.Run, p pipe.Pipeline[I, O], in I) (O, error) {
+func execute[I, O any](ctx context.Context, d *Driver, r *pipe.Run, p pipe.Pipeline[I, O], in I) (O, error) {
 	if d.Output == nil || !d.TimePasses {
-		return pipe.Execute(context.Background(), r, p, in)
+		return pipe.Execute(ctx, r, p, in)
 	}
 	start := time.Now()
-	out, err := pipe.Execute(context.Background(), r, p, in)
+	out, err := pipe.Execute(ctx, r, p, in)
 	d.watch.total += time.Since(start)
 	return out, err
 }
@@ -242,12 +316,14 @@ func (o pipeObserver) After(e pipe.Event, r *pipe.Result) {
 	if e.Step.Pattern || !r.Ran {
 		return
 	}
-	l := qualified(e.Label.Backend, pass.Label{Table: o.table, Func: e.Label.Func}.String())
+	table := tableOf(o.table, e)
+	l := qualified(e.Label.Backend, pass.Label{Table: table, Func: e.Label.Func}.String())
+	w := o.d.out(table)
 	before := !e.Step.Required && o.d.printsBefore(e.Step.Name) && o.d.watch.input != nil
 	if before {
 		// Also before a run that failed, whose input is what to look at.
-		fmt.Fprintf(o.d.Output, "-- before %s [%s] --\n", e.Step.Instance, l)
-		o.d.watch.input(o.d.Output)
+		fmt.Fprintf(w, "-- before %s [%s] --\n", e.Step.Instance, l)
+		o.d.watch.input(w)
 	}
 	if r.Err != nil {
 		return
@@ -258,6 +334,7 @@ func (o pipeObserver) After(e pipe.Event, r *pipe.Result) {
 	if r.Print == nil {
 		return
 	}
+	out := w
 	changed := o.d.PrintChanged && e.Step.In == e.Step.Out && r.TextChanged
 	if changed {
 		w := o.d.watch
@@ -266,15 +343,28 @@ func (o pipeObserver) After(e pipe.Event, r *pipe.Result) {
 			w.printed = map[string]bool{}
 		}
 		if !w.printed[unit] && w.input != nil && !before {
-			fmt.Fprintf(o.d.Output, "-- before %s [%s] --\n", e.Step.Instance, l)
-			w.input(o.d.Output)
+			fmt.Fprintf(out, "-- before %s [%s] --\n", e.Step.Instance, l)
+			w.input(out)
 		}
 		w.printed[unit] = true
 	}
 	if changed || o.d.prints(e.Step.Name) {
-		fmt.Fprintf(o.d.Output, "-- after %s [%s] --\n", e.Step.Instance, l)
-		r.Print(o.d.Output)
+		fmt.Fprintf(out, "-- after %s [%s] --\n", e.Step.Instance, l)
+		r.Print(out)
 	}
+}
+
+// tableOf returns the table of the unit of the event e of a stage that runs on the units of table, or,
+// for a compilation, whose stages run on every table (table ""), the table of the event, or
+// programLabel for a step of the whole program.
+func tableOf(table string, e pipe.Event) string {
+	if table != "" {
+		return table
+	}
+	if e.Label.Table != "" {
+		return e.Label.Table
+	}
+	return programLabel
 }
 
 // bisector is the observer of OptBisectLimit: it vetoes the runs of optional passes and the
@@ -296,8 +386,9 @@ func (b bisector) Before(e pipe.Event, _ func(io.Writer)) bool {
 		if run {
 			verdict = "run"
 		}
-		l := qualified(e.Label.Backend, pass.Label{Table: b.table, Func: e.Label.Func}.String())
-		fmt.Fprintf(b.d.Output, "opt-bisect: %d %s %s [%s]\n", e.Seq, verdict, e.Step.Instance, l)
+		table := tableOf(b.table, e)
+		l := qualified(e.Label.Backend, pass.Label{Table: table, Func: e.Label.Func}.String())
+		fmt.Fprintf(b.d.out(table), "opt-bisect: %d %s %s [%s]\n", e.Seq, verdict, e.Step.Instance, l)
 	}
 	return run
 }
@@ -468,7 +559,7 @@ func (d *Driver) Plan(c *plandata.Cores) (*plandata.Program, error) {
 // generation that fails with it; the optional passes after it do not run.
 func (d *Driver) LowerTable(table string, p plandata.Planned, observe bool, flowTarget flowpass.Target, target TargetPipeline) (*plandata.Table[code.Exec], error) {
 	s := pipe.Then3(pipe.Of(flowlower.Lowering), d.flowPasses(table, observe, flowTarget), d.execPasses(table, observe, target))
-	t, err := execute(d, d.pipeRun(table, false), s, p)
+	t, err := execute(context.Background(), d, d.pipeRun(table, false), s, p)
 	if err != nil {
 		return t, pipeError(err, flowlower.Name, execlower.Name)
 	}
@@ -480,7 +571,7 @@ func (d *Driver) LowerTable(table string, p plandata.Planned, observe bool, flow
 // the steps of LowerTable before execlower, with the same dumps and failures.
 func (d *Driver) LowerFlowTable(table string, p plandata.Planned, observe bool, target flowpass.Target) (*plandata.Table[code.Flow], error) {
 	s := pipe.Then(pipe.Of(flowlower.Lowering), d.flowPasses(table, observe, target))
-	t, err := execute(d, d.pipeRun(table, false), s, p)
+	t, err := execute(context.Background(), d, d.pipeRun(table, false), s, p)
 	if err != nil {
 		return t, pipeError(err, flowlower.Name)
 	}
@@ -543,7 +634,7 @@ func (d *Driver) Exec(table string, m *code.Module, target TargetPipeline, obser
 	if err != nil {
 		return nil, err
 	}
-	x, err := execute(d, d.pipeRun(table, false), d.execPasses(table, observe, target), t)
+	x, err := execute(context.Background(), d, d.pipeRun(table, false), d.execPasses(table, observe, target), t)
 	if err != nil {
 		err = pipeError(err, execlower.Name)
 	}

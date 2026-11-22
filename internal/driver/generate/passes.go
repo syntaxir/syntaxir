@@ -1,11 +1,9 @@
 package generate
 
 import (
-	"fmt"
 	"io"
 	"maps"
 	"slices"
-	"strings"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/driver"
@@ -24,18 +22,11 @@ func Settings(o common.GenOptions) (pass.Settings, error) {
 
 // resolve returns the settings of Settings, after it validated o.Debug.
 func resolve(o common.GenOptions) (pass.Settings, error) {
-	s, err := driver.Profile(o.Optimize)
-	if err != nil {
+	if _, err := driver.Profile(o.Optimize); err != nil {
 		return pass.Settings{}, err
 	}
-	if err := driver.CheckPrintAfter(o.Debug.PrintAfter); err != nil {
+	if err := driver.CheckDebug(o.Debug); err != nil {
 		return pass.Settings{}, err
-	} else if err := driver.CheckPrintBefore(o.Debug.PrintBefore); err != nil {
-		return pass.Settings{}, err
-	} else if l := o.Debug.OptBisectLimit; l != nil && *l < 0 {
-		return pass.Settings{}, fmt.Errorf("the bisection limit %d is negative", *l)
-	} else if o.Debug.Writes() && o.Debug.Output == nil {
-		return pass.Settings{}, fmt.Errorf("the debugging settings need an Output writer")
 	}
 	if err := driver.CheckOptimizable(slices.Sorted(maps.Keys(o.Opt))...); err != nil {
 		return pass.Settings{}, err
@@ -43,18 +34,7 @@ func resolve(o common.GenOptions) (pass.Settings, error) {
 	if err := driver.CheckOptimizable(o.NoOpt...); err != nil {
 		return pass.Settings{}, err
 	}
-	given := map[string]string{}
-	for _, n := range slices.Sorted(maps.Keys(o.Opt)) {
-		name := strings.TrimSpace(n)
-		if prev, dup := given[name]; dup {
-			return pass.Settings{}, fmt.Errorf("optimization %s is given twice in Opt (%q and %q)", name, prev, n)
-		}
-		given[name] = n
-		if s, err = s.With(name, o.Opt[n]); err != nil {
-			return pass.Settings{}, err
-		}
-	}
-	return s.Without(o.NoOpt...)
+	return driver.GenSettings(o)
 }
 
 // Hooks are the test hooks of the pipelines of a generation (driver.Hooks). The settings, the dumps, the

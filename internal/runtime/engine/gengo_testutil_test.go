@@ -3,7 +3,7 @@ package engine
 import (
 	"testing"
 
-	"syntaxir.dev/sxir/internal/driver/checked"
+	"syntaxir.dev/sxir/internal/driver"
 	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
@@ -12,7 +12,7 @@ import (
 
 // The tests of this package compile the grammars that they generate parsers for with the engine.
 func init() {
-	codegentest.Compile = checked.GeneratorCompiler(compileForGenerator)
+	codegentest.Compile = driver.GeneratorCompiler(compileForGenerator)
 	codegentest.Reference = referenceProgram
 }
 

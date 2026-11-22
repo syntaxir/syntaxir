@@ -298,12 +298,13 @@ func TestLayerGraph(t *testing.T) {
 	// One package of each layer.
 	rep := map[layer]string{
 		layerCmd: "cmd/sxir", layerPublic: "pkg/lint", layerLSP: "internal/lsp/sxirls", layerDriver: "internal/driver",
-		layerAnalysis: "internal/analysis/lint", layerBackend: "internal/backend/codegen/common", layerMiddle: "internal/middleend/flowlower",
-		layerFront: "internal/frontend/desugar", layerIR: "internal/ir/core", layerPass: "internal/pass",
+		layerAnalysis: "internal/analysis/lint", layerBackend: "internal/backend/codegen/common", layerResult: "internal/driver/result",
+		layerMiddle: "internal/middleend/flowlower",
+		layerFront:  "internal/frontend/desugar", layerIR: "internal/ir/core", layerPass: "internal/pass",
 		layerGrammar: "pkg/grammar/ast", layerUtil: "internal/diagnostic", layerTesting: "internal/testing/starttest",
 		layerOutside: "bench/report", layerRuntime: "pkg/runtime/query",
 	}
-	below := []layer{layerDriver, layerAnalysis, layerBackend, layerMiddle, layerFront, layerIR, layerPass, layerGrammar}
+	below := []layer{layerDriver, layerAnalysis, layerBackend, layerResult, layerMiddle, layerFront, layerIR, layerPass, layerGrammar}
 	allowed := map[layer][]layer{
 		layerCmd:      append([]layer{layerPublic, layerLSP}, below...),
 		layerPublic:   below,
@@ -311,9 +312,10 @@ func TestLayerGraph(t *testing.T) {
 		layerDriver:   below[1:],
 		layerAnalysis: below[2:],
 		layerBackend:  below[3:],
-		layerMiddle:   below[4:],
-		layerFront:    below[5:],
-		layerIR:       below[6:],
+		layerResult:   {layerPass},
+		layerMiddle:   below[5:],
+		layerFront:    below[6:],
+		layerIR:       below[7:],
 		layerPass:     nil,
 		layerGrammar:  nil,
 		layerUtil:     {layerGrammar},

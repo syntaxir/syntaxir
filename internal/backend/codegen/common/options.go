@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"strings"
 
+	"syntaxir.dev/sxir/internal/driver/result"
 	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -227,12 +228,9 @@ func (m LibMode) String() string {
 	return fmt.Sprintf("LibMode(%d)", int(m))
 }
 
-// GeneratedFile is a file of generated code. Path is relative to the directory of the generated
-// package and uses slashes.
-type GeneratedFile struct {
-	Path    string
-	Content []byte
-}
+// GeneratedFile is a file of generated code (result.File). Path is relative to the directory of the
+// generated package and uses slashes.
+type GeneratedFile = result.File
 
 // Describe returns the source form of the expression e for messages, or "" when it spans lines
 // or is longer than 100 bytes.

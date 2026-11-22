@@ -240,6 +240,16 @@ func (s Settings) Without(names ...string) (Settings, error) {
 	return out, nil
 }
 
+// Equal reports whether s and t give every registered optimization the same value.
+func (s Settings) Equal(t Settings) bool {
+	for _, n := range Names() {
+		if s.Value(n) != t.Value(n) {
+			return false
+		}
+	}
+	return true
+}
+
 func (s Settings) clone() Settings {
 	out := Settings{over: make(map[string]int, len(s.over)+1)}
 	for k, v := range s.over {

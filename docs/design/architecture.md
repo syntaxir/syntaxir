@@ -239,7 +239,7 @@ in [Package Layering](layering.md), and the public packages are described in [Th
 | `pkg/runtime/instrument` | Trace events, filters, depth and profiles |
 | `pkg/runtime/vm` | Loading a compiled file into a parser, and the parser and Document of the VM |
 | `pkg/runtime/libgo` | The support library of generated Go parsers |
-| `internal/driver` | Assembles and drives the compiler pipeline; the table of optimization profiles; the body of `pkg/compiler` and `cmd/sxir`. `entry` is the compile entry, and `checked` the compiler side of a compiled program, which the runtime reaches only through an interface of the parser state; `tooling` is what the language server uses of the compiler, its only way to reach it, on the checked program without the runtime |
+| `internal/driver` | Assembles and drives the compiler pipeline; the table of optimization profiles; the body of `pkg/compiler` and `cmd/sxir`. `entry` is the compile entry, and `checked` the compiler side of a compiled program, which the runtime reaches only through an interface of the parser state; `tooling` is what the language server uses of the compiler, its only way to reach it, on the checked program without the runtime; `result` holds the outputs of a compilation, which the backends build and the callers of the driver read |
 | `internal/driver/generate` | Generates Go and TypeScript parser source from grammar syntax trees, without linking the runtime; `pkg/compiler` generates through it |
 | `internal/diagnostic` | Positioned static errors |
 | `internal/cancel` | Cancellation of static work |

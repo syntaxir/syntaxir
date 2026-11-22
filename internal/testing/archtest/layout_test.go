@@ -113,6 +113,8 @@ var layout = []place{
 	// Driver: the optimization profiles and the driving of the pipelines. The flags are registered
 	// beside each part of the pipeline, in the registry of internal/pass.
 	{pkg: "internal/driver", target: "internal/driver"},
+	// The results of a compilation, which the backends build and the driver's callers read.
+	{pkg: "internal/driver/result", target: "internal/driver/result"},
 	// The compile entry, and the compiler side of a compiled program that the runtime reaches
 	// through state.Source.
 	{pkg: "internal/driver/entry", target: "internal/driver/entry"},
@@ -321,6 +323,7 @@ const (
 	layerPublic   layer = "public tool API"
 	layerLSP      layer = "lsp"
 	layerDriver   layer = "driver"
+	layerResult   layer = "driver results"
 	layerAnalysis layer = "analysis"
 	layerBackend  layer = "back end"
 	layerMiddle   layer = "middle end"
@@ -346,6 +349,8 @@ func layerOf(t string) layer {
 		return layerPublic
 	case under(t, "internal/lsp"):
 		return layerLSP
+	case t == "internal/driver/result":
+		return layerResult
 	case under(t, "internal/driver"):
 		return layerDriver
 	case under(t, "internal/analysis"):
@@ -378,7 +383,8 @@ var layerArrows = map[layer][]layer{
 	layerLSP:      {layerDriver},
 	layerDriver:   {layerAnalysis},
 	layerAnalysis: {layerBackend},
-	layerBackend:  {layerMiddle, layerIR},
+	layerBackend:  {layerResult, layerMiddle, layerIR},
+	layerResult:   {layerPass},
 	layerMiddle:   {layerFront, layerIR},
 	layerFront:    {layerIR, layerGrammar},
 	layerIR:       {layerPass, layerGrammar},

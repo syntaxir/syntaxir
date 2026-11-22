@@ -134,7 +134,7 @@ func TestProfile(t *testing.T) {
 			}
 		}
 	}
-	if err := Check(); err == nil || !strings.Contains(err.Error(), "not a registered flag") {
+	if err := CheckRegistry(); err == nil || !strings.Contains(err.Error(), "not a registered flag") {
 		t.Errorf("Check without the generators: %v", err)
 	}
 }

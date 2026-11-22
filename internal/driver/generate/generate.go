@@ -11,7 +11,7 @@ import (
 	goprint "syntaxir.dev/sxir/internal/backend/codegen/golang/print"
 	tslib "syntaxir.dev/sxir/internal/backend/codegen/typescript/lib"
 	tsprint "syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
-	"syntaxir.dev/sxir/internal/driver/checked"
+	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/frontend"
 	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
@@ -34,8 +34,8 @@ func TypeScript(g *ast.Grammar, o common.GenOptions) ([]common.GeneratedFile, er
 }
 
 // compileForGenerator is the common.Compiler that the generators compile grammars with: it gives
-// them the views (checked.Source.Generator) of the programs that checkForGenerator checks.
-var compileForGenerator = checked.GeneratorCompiler(checkForGenerator)
+// them the views (driver.View) of the programs that checkForGenerator checks.
+var compileForGenerator = driver.GeneratorCompiler(checkForGenerator)
 
 // checkForGenerator checks g to its semantic model and sites, which is all a generator reads, and checks
 // the recognizer of the program (as the engine's Program.Recognizer makes it) on first use. No

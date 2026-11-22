@@ -187,7 +187,7 @@ func TestRegistryOfTheGenerators(t *testing.T) {
 	if got := pass.Names(); !slices.Equal(got, want) {
 		t.Errorf("the registry lists\n%v\nwant\n%v", got, want)
 	}
-	if err := driver.Check(); err != nil {
+	if err := driver.CheckRegistry(); err != nil {
 		t.Error(err)
 	}
 	mem, err := driver.Profile("memory")

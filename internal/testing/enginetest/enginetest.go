@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/driver/checked"
+	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/driver/entry"
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/check"
@@ -140,8 +140,8 @@ func Reference(t *testing.T, src string, opts check.Options) codegentest.Referen
 }
 
 // CompileForGenerator compiles grammars for the generators with the engine, and gives them the views
-// of the programs (checked.Source.Generator), as the compileForGenerator of package codegen does.
-var CompileForGenerator = checked.GeneratorCompiler(compileForGenerator)
+// of the programs (driver.View), as the compileForGenerator of package codegen does.
+var CompileForGenerator = driver.GeneratorCompiler(compileForGenerator)
 
 // compileForGenerator compiles g with the engine and returns its checked program and a function that
 // returns that of its recognizer.

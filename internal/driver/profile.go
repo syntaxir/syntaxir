@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/middleend/codepass"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/middleend/execlower"
@@ -103,10 +104,10 @@ func checkProfiles(defs []profileDef, flags []pass.Flag) error {
 	return nil
 }
 
-// Check reports a registry that breaks the rules that only the driver knows: a flag with the name of
+// CheckRegistry reports a registry that breaks the rules that only the driver knows: a flag with the name of
 // a step that -print-after selects, and a profile that is not valid over the registered flags. A
 // program checks it once all the parts it links have registered their flags.
-func Check() error {
+func CheckRegistry() error {
 	flags := pass.Flags()
 	if err := checkStepNames(flags); err != nil {
 		return err
@@ -297,6 +298,22 @@ func CheckPrintBefore(names []string) error {
 		default:
 			return fmt.Errorf("unknown pass %q to print before (valid: %s)", n, strings.Join(valid, ", "))
 		}
+	}
+	return nil
+}
+
+// CheckDebug reports what is wrong with the debugging settings d: a name that PrintAfter lists that is
+// not a step or a pass (CheckPrintAfter), one that PrintBefore lists that is not a pass
+// (CheckPrintBefore), a negative bisection limit, or settings that write something without an Output.
+func CheckDebug(d common.Debug) error {
+	if err := CheckPrintAfter(d.PrintAfter); err != nil {
+		return err
+	} else if err := CheckPrintBefore(d.PrintBefore); err != nil {
+		return err
+	} else if l := d.OptBisectLimit; l != nil && *l < 0 {
+		return fmt.Errorf("the bisection limit %d is negative", *l)
+	} else if d.Writes() && d.Output == nil {
+		return fmt.Errorf("the debugging settings need an Output writer")
 	}
 	return nil
 }
