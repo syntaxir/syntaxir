@@ -130,14 +130,6 @@ func coreClassChars(c *core.Class) charset {
 	return s
 }
 
-func classChars(c *ast.CharClass) charset {
-	s := normalizeRanges(c.Ranges)
-	if c.Negated {
-		return s.complement()
-	}
-	return s
-}
-
 // nullable reports whether e can succeed without consuming input when token insertion is enabled
 // (nullableOf of its node).
 func (k *classifier) nullable(e ast.Expr) bool { return k.nullableOf(k.nodeOf(e)) }

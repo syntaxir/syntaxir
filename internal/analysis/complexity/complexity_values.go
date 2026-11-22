@@ -1266,7 +1266,7 @@ func (k *classifier) reaches(b *binding, strict bool) (string, bool) {
 		for _, later := range f.seq.Items[f.index+1:] {
 			if r := k.reachingCall(later, b.rule, strict); r != nil {
 				callee, _ := k.calledRule(r)
-				return "the call " + callee + " at " + at(b.rule, exprPos(k.exprOf(r))), true
+				return "the call " + callee + " at " + at(b.rule, k.posOf(r)), true
 			}
 		}
 	}

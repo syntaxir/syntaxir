@@ -131,16 +131,14 @@ func (k *classifier) sourceIn(n core.Node) *source {
 		}
 	})
 	if found == nil {
-		e := k.exprOf(n)
-		found = &source{pos: exprPos(e), what: k.show(e)}
+		found = &source{pos: k.posOf(n), what: k.showOf(n)}
 	}
 	return found
 }
 
 // walkedAt returns the source that the walk recorded at the node n, or nil.
 func (k *classifier) walkedAt(n core.Node) *source {
-	e := k.exprOf(n)
-	pos := exprPos(e)
+	pos := k.posOf(n)
 	for _, r := range k.rules {
 		for _, s := range k.walked[r.Name] {
 			if s.pos == pos && (s.scan == nil || s.scan == n) {

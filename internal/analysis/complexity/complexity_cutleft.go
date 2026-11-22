@@ -87,7 +87,7 @@ func (k *classifier) cutLeftScan(rule string, n core.Node, s cutLeftState) (star
 		return k.cutLeftLookahead(rule, n, s)
 	case *core.Cut:
 		if s.left {
-			pos := exprPos(k.exprOf(n))
+			pos := k.posOf(n)
 			k.reason(rule, pos, "the #cut at %s is passed after a left call in a cycle with more than one leader, which the classifier does not analyze", at(rule, pos))
 		}
 		return s.start, false
@@ -116,8 +116,7 @@ func (k *classifier) cutLeftRecovery(rule string, body, skip core.Node, s cutLef
 // such lookahead nested in it.
 func (k *classifier) cutLeftLookahead(rule string, n *core.Look, s cutLeftState) (start, found bool) {
 	if _, found = k.cutLeftScan(rule, n.Body, s); found {
-		e := k.exprOf(n)
-		k.reason(rule, exprPos(e), "the lookahead %s at %s can make a left call in a cycle with more than one leader, which the classifier does not analyze", k.show(e), at(rule, exprPos(e)))
+		k.reason(rule, k.posOf(n), "the lookahead %s at %s can make a left call in a cycle with more than one leader, which the classifier does not analyze", k.showOf(n), at(rule, k.posOf(n)))
 	}
 	return s.start, found
 }
@@ -128,8 +127,8 @@ func (k *classifier) cutLeftLookahead(rule string, n *core.Look, s cutLeftState)
 func (k *classifier) cutLeftOperators(rule string, n *core.OperatorsRule, s cutLeftState) (start, found bool) {
 	if n.Skip != nil {
 		if _, found = k.cutLeftScan(rule, n.Skip.Body, cutLeftState{start: s.start}); found {
-			skip := k.exprOf(n.Skip.Body)
-			k.reason(rule, exprPos(skip), "the skip %s of the Operators Rule at %s can make a left call in a cycle with more than one leader, which the classifier does not analyze", k.show(skip), at(rule, exprPos(k.exprOf(n))))
+			skip := n.Skip.Body
+			k.reason(rule, k.posOf(skip), "the skip %s of the Operators Rule at %s can make a left call in a cycle with more than one leader, which the classifier does not analyze", k.showOf(skip), at(rule, k.posOf(n)))
 		}
 	}
 	return s.start && k.nullableOf(n), found

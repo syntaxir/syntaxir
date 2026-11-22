@@ -162,8 +162,8 @@ func (k *classifier) againOf(n *core.Repeat) *core.Repeat {
 	a := k.again[n]
 	if a == nil {
 		a = &core.Repeat{Body: n.Body, Min: 0, Max: -1}
-		e := k.exprOf(n).(*ast.Repeat)
-		built(k, &ast.Repeat{SourceInfo: e.SourceInfo, Expr: e.Expr, Min: 0, Max: -1}, core.Node(a))
+		e := k.spelling(n).(*ast.Repeat)
+		k.spell(a, &ast.Repeat{SourceInfo: e.SourceInfo, Expr: e.Expr, Min: 0, Max: -1})
 		k.again[n] = a
 	}
 	if k.srcNodes[n] {
@@ -1367,7 +1367,7 @@ func (k *classifier) skipItem(pr *core.OperatorsRule) core.Node {
 		return skip
 	}
 	opt := &core.Opt{Body: skip}
-	built(k, &ast.Optional{Expr: k.exprOf(skip)}, core.Node(opt))
+	k.spell(opt, &ast.Optional{Expr: k.spelling(skip)})
 	return opt
 }
 

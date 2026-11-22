@@ -77,7 +77,7 @@ func boundedScans(t *testing.T, src string) map[string]bool {
 	out := map[string]bool{}
 	for _, r := range scans {
 		if !k.srcNodes[r] {
-			text := syntaxfmt.FormatExpr(k.exprOf(r))
+			text := syntaxfmt.FormatExpr(k.spelling(r))
 			out[text] = true
 			if k.srcNodes[k.again[r]] {
 				t.Errorf("the later iterations of %s stay a scanning source", text)
@@ -207,7 +207,7 @@ func TestScanRuns(t *testing.T) {
 			}
 			found := false
 			for r, d := range k.scanRun {
-				if text := syntaxfmt.FormatExpr(k.exprOf(r)); text == name || c.rep != "" && strings.Contains(text, name) {
+				if text := syntaxfmt.FormatExpr(k.spelling(r)); text == name || c.rep != "" && strings.Contains(text, name) {
 					found = true
 					if d != c.want {
 						t.Errorf("run %d, want %d", d, c.want)

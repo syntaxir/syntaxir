@@ -66,19 +66,55 @@ func (k *classifier) succeedsOf(n core.Node) bool { return k.facts.source.Facts.
 // (corepass.Facts.LooseCut).
 func (k *classifier) looseCutOf(n core.Node) bool { return k.facts.source.Facts.LooseCut(n) }
 
-// posOf returns the position of the node n: that of the grammar expression it stands for.
-func (k *classifier) posOf(n core.Node) ast.Pos { return exprPos(k.exprOf(n)) }
+// posOf returns the position of the node n for messages: that of its spelling.
+func (k *classifier) posOf(n core.Node) ast.Pos { return exprPos(k.spelling(n)) }
 
-// showOf returns the text of the node n for messages: that of the grammar expression it stands for.
-func (k *classifier) showOf(n core.Node) string { return k.show(k.exprOf(n)) }
+// showOf returns the text of the node n for messages: the source text that a node the view builds
+// stands for, or else its spelling.
+func (k *classifier) showOf(n core.Node) string {
+	if t, ok := k.view.Text[n]; ok {
+		return abbreviate(t)
+	}
+	return abbreviate(syntaxfmt.FormatExpr(k.spelling(n)))
+}
 
-// predicateOf returns the predicate that the node n of a predicate or a binding stands for, whose
-// action expression the walk of action expressions reads (walkAction).
-func (k *classifier) predicateOf(n core.Node) *ast.Predicate { return k.exprOf(n).(*ast.Predicate) }
+// spelling returns the grammar expression that spells the node n in messages, where it gives its
+// text and its position: the expression of the grammar that a node of the module is built from,
+// the expression of the attributes up to a node of an attribute below the outermost
+// (chainLink.innerExpr), the expression that the view writes for a node it builds (View.expr),
+// and the one the classifier gives a node that it builds (classifier.spelled).
+func (k *classifier) spelling(n core.Node) ast.Expr {
+	if e, ok := k.spelled[n]; ok {
+		return e
+	}
+	if e, ok := k.view.origin(n); ok {
+		return e
+	}
+	if l, ok := k.view.chains[n]; ok {
+		return l.innerExpr()
+	}
+	e, err := k.view.expr(n)
+	if err != nil {
+		// Every node the view builds has a spelling; an error is a defect of the view.
+		panic("complexity: cost view: " + err.Error())
+	}
+	k.spell(n, e)
+	return e
+}
+
+// spell records e as the spelling of the node n (spelling).
+func (k *classifier) spell(n core.Node, e ast.Expr) {
+	if k.spelled == nil {
+		k.spelled = map[core.Node]ast.Expr{}
+	}
+	k.spelled[n] = e
+}
 
 // bindOf returns the binding that the binding node n is built from, whose position and text the
 // messages about it give.
-func (k *classifier) bindOf(n *core.BindNode) *ast.Bind { return k.predicateOf(n).Action.(*ast.Bind) }
+func (k *classifier) bindOf(n *core.BindNode) *ast.Bind {
+	return k.spelling(n).(*ast.Predicate).Action.(*ast.Bind)
+}
 
 // actionOrigin returns the action expression of the grammar that t is built from
 // (core.Origin.OfActionExpr), or nil for one that the classifier builds.

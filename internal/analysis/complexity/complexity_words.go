@@ -4,7 +4,6 @@ import (
 	"slices"
 
 	"syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // --- Exclusion by the leading text of a unit ---
@@ -146,7 +145,7 @@ func (k *classifier) oneChar(n core.Node) (charset, bool) {
 	if _, ok := n.(*core.ClassNode); !ok {
 		return nil, false
 	}
-	return classChars(k.exprOf(n).(*ast.CharClass)), true
+	return coreClassChars(n.(*core.ClassNode).Class), true
 }
 
 // plainRuleCall reports whether c calls a rule of the grammar without a level restriction, and the

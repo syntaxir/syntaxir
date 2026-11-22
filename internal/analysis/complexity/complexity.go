@@ -283,12 +283,13 @@ func prepareClassifierWith(g *ast.Grammar, start string, control *cancel.Control
 // stays decided by rules: the left-recursion cycles and their leaders, the memoized rules, the
 // variables that key the memo, and the run sites.
 func newViewClassifier(g *ast.Grammar, rules []*ast.RuleDef, rf *ruleFacts, start string, control *cancel.Control) *classifier {
-	w, err := Build(rf.source, Options{}, control).written(rules)
+	v := Build(rf.source, Options{}, control)
+	w, err := v.written(rules)
 	if err != nil {
 		// Every node the view builds has a grammar spelling; an error is a defect of the view.
 		panic("compile: cost view: " + err.Error())
 	}
-	k := newClassifierOf(g, w.rules, rules, nodeMap{nodes: w.nodes, exprs: w.exprs}, rf, start, control)
+	k := newClassifierOf(g, w.rules, rules, v, nodeMap{nodes: w.nodes, exprs: w.exprs}, rf, start, control)
 	k.viewText = w.text
 	return k
 }
@@ -424,17 +425,24 @@ type classifier struct {
 	exprs map[core.Node]ast.Expr
 	// ruleIDs numbers the rules by name, as the rules of the module are numbered.
 	ruleIDs map[string]int
+	// view is the cost view whose rules the classifier reads, or a view of the module of the rules
+	// that changes none of them; it spells the nodes in messages (spelling).
+	view *View
+	// spelled gives the spelling of each node that the classifier builds, and caches that of each
+	// node that the view builds (spelling).
+	spelled map[core.Node]ast.Expr
 }
 
 func newClassifier(g *ast.Grammar, rules []*ast.RuleDef, rf *ruleFacts, start string, control *cancel.Control) *classifier {
-	return newClassifierOf(g, rules, rules, originNodes(rf.source.Module), rf, start, control)
+	m := rf.source.Module
+	return newClassifierOf(g, rules, rules, &View{Module: m, chains: attrChains(m)}, originNodes(m), rf, start, control)
 }
 
 // newClassifierOf returns a classifier of the bodies of rules, which are those of base or a view
 // of them, whose expressions stand for the Core IR nodes that nm gives (classifier.nodes). The
 // rule facts rf of base stand for the grammar: its analysis, its variables, its memoization and
 // its nullable rules.
-func newClassifierOf(g *ast.Grammar, rules, base []*ast.RuleDef, nm nodeMap, rf *ruleFacts, start string, control *cancel.Control) *classifier {
+func newClassifierOf(g *ast.Grammar, rules, base []*ast.RuleDef, view *View, nm nodeMap, rf *ruleFacts, start string, control *cancel.Control) *classifier {
 	k := &classifier{control: control, g: g, rules: rules, start: start, byName: map[string]*ast.RuleDef{},
 		calls: map[string][]string{}, scc: map[string]int{}, recursive: map[string]bool{}, memo: map[string]bool{},
 		varType: map[string]string{}, nullRule: rf.nullable, firstRule: map[string]charset{},
@@ -449,6 +457,7 @@ func newClassifierOf(g *ast.Grammar, rules, base []*ast.RuleDef, nm nodeMap, rf 
 		k.ruleIDs[r.Name] = i
 	}
 	k.nodes, k.exprs = nm.nodes, nm.exprs
+	k.view = view
 	k.an, k.facts = rf.an, rf
 	k.vars = rf.vars
 	k.memo, k.members = maps.Clone(rf.memo), rf.members

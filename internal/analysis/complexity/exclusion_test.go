@@ -210,7 +210,7 @@ func TestCollapseTrivia(t *testing.T) {
 		t.Fatal(err)
 	}
 	x := newExcl(k, true, 3)
-	ws, ws2, lit := k.nodeOf(k.callOf("ws")), k.nodeOf(k.callOf("ws2")), core.Node(k.literalRest([]rune("x"), false))
+	ws, ws2, lit := core.Node(k.callOf("ws")), core.Node(k.callOf("ws2")), core.Node(k.literalRest([]rune("x"), false))
 	p := []sym{{symMatch, ws, 0}, {symSkip, nil, 0}, {symMatch, ws, 1}, {symNot, lit, 1}, {symMatch, ws, 2},
 		{symMatch, ws2, 2}, {symMatch, ws, 3}, {symMatch, lit, 3}, {symMatch, ws, 4}}
 	if got, want := fmtPath(k, x.collapseTrivia(p, 0)), fmtPath(k, []sym{p[0], p[1], p[3], p[5], p[6], p[7], p[8]}); got != want {
@@ -235,7 +235,7 @@ func TestCollapseTriviaBinding(t *testing.T) {
 		t.Fatal(err)
 	}
 	x := newExcl(k, true, 3)
-	wv, ws := k.nodeOf(k.callOf("wv")), k.nodeOf(k.callOf("ws"))
+	wv, ws := core.Node(k.callOf("wv")), core.Node(k.callOf("ws"))
 	for _, c := range []struct {
 		name string
 		p    []sym
@@ -733,13 +733,13 @@ func fmtPath(k *classifier, p []sym) string {
 		case symUp:
 			b = append(b, "UP")
 		case symNot:
-			b = append(b, "!"+syntaxfmt.FormatExpr(k.exprOf(s.n)))
+			b = append(b, "!"+syntaxfmt.FormatExpr(k.spelling(s.n)))
 		case symAnd:
-			b = append(b, "&"+syntaxfmt.FormatExpr(k.exprOf(s.n)))
+			b = append(b, "&"+syntaxfmt.FormatExpr(k.spelling(s.n)))
 		case symSkip:
 			b = append(b, "_")
 		default:
-			b = append(b, syntaxfmt.FormatExpr(k.exprOf(s.n)))
+			b = append(b, syntaxfmt.FormatExpr(k.spelling(s.n)))
 		}
 	}
 	return strings.Join(b, " ")

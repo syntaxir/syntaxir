@@ -76,19 +76,11 @@ func (k *classifier) exprOf(n core.Node) ast.Expr {
 	return e
 }
 
-// built records that the expression e, which the classifier builds, stands for the node n, and n
-// for e, and returns e.
-func built[E ast.Expr](k *classifier, e E, n core.Node) E {
-	if k.nodes == nil {
-		k.nodes, k.exprs = map[ast.Expr]core.Node{}, map[core.Node]ast.Expr{}
-	}
-	k.nodes[e], k.exprs[n] = n, e
-	return e
-}
-
-// callOf returns a reference to rule, which stands for a call of the rule.
-func (k *classifier) callOf(rule string) *ast.Ref {
-	return built(k, &ast.Ref{Name: rule}, core.Node(&core.Call{Rule: k.ruleIDs[rule]}))
+// callOf returns a call of rule.
+func (k *classifier) callOf(rule string) *core.Call {
+	n := &core.Call{Rule: k.ruleIDs[rule]}
+	k.spell(n, &ast.Ref{Name: rule})
+	return n
 }
 
 // rightOperand returns the node that stands for a right operand of an operator part of the
@@ -98,7 +90,7 @@ func (k *classifier) callOf(rule string) *ast.Ref {
 // so it stands for what the right operand of any operator part parses.
 func (k *classifier) rightOperand(rule string) *core.Nest {
 	n := &core.Nest{Rule: k.ruleIDs[rule], Body: k.nodeOf(k.operators(rule))}
-	built(k, &ast.Ref{Name: rule, Level: rhsLevel}, core.Node(n))
+	k.spell(n, &ast.Ref{Name: rule, Level: rhsLevel})
 	return n
 }
 
@@ -119,11 +111,11 @@ func (k *classifier) prefixOf(s *core.Seq, cut int) *core.Seq {
 	items := s.Items[:cut:cut]
 	exprs := make([]ast.Expr, cut)
 	for i, it := range items {
-		exprs[i] = k.exprOf(it)
+		exprs[i] = k.spelling(it)
 	}
-	e := k.exprOf(s).(*ast.Seq)
+	e := k.spelling(s).(*ast.Seq)
 	n := &core.Seq{Items: items}
-	built(k, &ast.Seq{SourceInfo: e.SourceInfo, Items: exprs}, core.Node(n))
+	k.spell(n, &ast.Seq{SourceInfo: e.SourceInfo, Items: exprs})
 	return n
 }
 
@@ -147,7 +139,7 @@ func (k *classifier) leftCalls(e ast.Expr) []string {
 func (k *classifier) literalRest(rest []rune, fold bool) *core.Lit {
 	text := string(rest)
 	n := &core.Lit{Text: text, Fold: fold}
-	built(k, &ast.Literal{Value: text, IgnoreCase: fold}, core.Node(n))
+	k.spell(n, &ast.Literal{Value: text, IgnoreCase: fold})
 	return n
 }
 
