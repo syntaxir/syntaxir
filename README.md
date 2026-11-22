@@ -2,8 +2,8 @@
 
 <h1>
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="site/static/assets/logo-white.svg">
-  <img src="site/static/assets/logo-black.svg" alt="SyntaxIR" height="60">
+  <source media="(prefers-color-scheme: dark)" srcset="site/static/assets/brand/syntaxir-lockup-horizontal-dark.svg">
+  <img src="site/static/assets/brand/syntaxir-lockup-horizontal.svg" alt="SyntaxIR" height="60">
 </picture>
 </h1>
 

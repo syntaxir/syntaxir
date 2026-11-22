@@ -57,7 +57,7 @@ The build output (`site/dist`) is not committed.
 
 Nothing is copied by hand, so the site cannot drift from the repository: rebuilding it picks up every change.
 
-The pages need no external resources (no CDN, fonts or analytics), have light and dark themes (following the system
+The pages need no external resources (no CDN, no fonts from elsewhere and no analytics), have light and dark themes (following the system
 until the switch in the header is used), and work on phone screens.
 
 ## The Playground Release
@@ -307,13 +307,24 @@ decoding excludes compression/encoding, browser DOM, worker and WebAssembly cost
   remain available through the Optimizations index and search, not the sidebar.
 - **An example** for the playground is a line in [`cmd/playground/examples.txt`](../cmd/playground/examples.txt): a name, a
   grammar, an input and a description. The smoke test then checks it too.
-- **Icons.** `site/static/assets/favicon.svg` is the icon browsers show, light or dark with the color scheme. Search
-  engines and phone bookmarks take raster icons from the site root: `favicon.ico` (16, 32 and 48 px) and
-  `apple-touch-icon.png` (180 px, with a margin for the rounded corners). Both draw the dark-scheme colors of the mark
-  on `#0a0a0a`: `favicon.ico` the three rows of `favicon.svg`, `apple-touch-icon.png` the full four-row mark. They are
-  rendered with `rsvg-convert` and ImageMagick `magick`; render them again when the mark changes. The header of every
-  page draws the horizontal lockup of `assets/logo-black.svg` inline, with the wordmark in the text color and the
-  accent in `--brand-accent`.
+- **Brand assets.** `site/static/assets/brand/` holds the official SVG files of the
+  [brand](https://github.com/syntaxir/.github/tree/main/brand), copied unmodified under their own names: the
+  horizontal lockup that the header shows (`syntaxir-lockup-horizontal.svg`, and `-dark.svg` for the dark scheme), the
+  mark that the footer shows (`syntaxir-icon.svg`, `-dark.svg`) and `favicon.svg`, the icon browsers show, light or
+  dark with the color scheme. `favicon.ico` at the site root (16, 32 and 48 px) is the brand's too. When the brand
+  changes, copy the new files again; never edit them. `apple-touch-icon.png` (180 px, with a margin for the rounded
+  corners) draws the full four-row mark in its dark-scheme colors on `#0a0a0a`; it is rendered with `rsvg-convert` and
+  ImageMagick `magick`, so render it again when the mark changes.
+- **Fonts.** The pages use Space Grotesk for headings, Plus Jakarta Sans for text, Noto Sans JP for Japanese and
+  JetBrains Mono for code, all under the SIL Open Font License. The site serves them itself from
+  `site/static/assets/fonts/`, with each family's licence next to its files; `hack/site-fonts.sh` downloads them
+  from Google Fonts and writes `fonts.css`, which loads them. Each file covers a Unicode range, and a browser
+  downloads a file only when a page uses a character in it.
+- **Design tokens.** Every color, font and radius is a custom property on `:root` at the top of
+  `site/static/assets/site.css`, with a light and a dark value chosen by `light-dark()`. The dark values apply when the
+  system prefers a dark scheme, unless the theme switch in the header chose one (`data-theme` on `<html>`). Text colors
+  meet WCAG AA contrast (4.5:1) on the page and surface backgrounds in both schemes; the brand's target spectrum
+  colors are for lines and marks only.
 - **Templates, styles and scripts** are in `site/templates/` and `site/static/`. They are plain HTML, CSS and JavaScript
   modules; there is no build step and no npm dependency.
   The client-side code highlighter is in `site/static/assets/highlight.js`; fenced code language aliases are mapped in
