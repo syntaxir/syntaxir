@@ -727,7 +727,7 @@ func (x excl) disjoint(a, b ast.Expr) bool {
 // litStep compares two literals at one position. When one is a prefix of the other it returns the
 // rest of the longer one, on the side of a (restA) or of b; excl reports that they cannot both
 // match.
-func litStep(a, b *ast.Literal) (restA, restB *ast.Literal, excl, ok bool) {
+func (x excl) litStep(a, b *ast.Literal) (restA, restB *ast.Literal, excl, ok bool) {
 	if a.Value == "" || b.Value == "" {
 		return nil, nil, false, false
 	}
@@ -749,9 +749,9 @@ func litStep(a, b *ast.Literal) (restA, restB *ast.Literal, excl, ok bool) {
 	}
 	switch {
 	case len(av) < len(bv):
-		return nil, &ast.Literal{Value: string(bv[n:]), IgnoreCase: b.IgnoreCase}, false, true
+		return nil, x.k.literalRest(bv[n:], b.IgnoreCase), false, true
 	case len(bv) < len(av):
-		return &ast.Literal{Value: string(av[n:]), IgnoreCase: a.IgnoreCase}, nil, false, true
+		return x.k.literalRest(av[n:], a.IgnoreCase), nil, false, true
 	}
 	return nil, nil, false, true
 }
@@ -759,7 +759,7 @@ func litStep(a, b *ast.Literal) (restA, restB *ast.Literal, excl, ok bool) {
 // litInChar reports whether a literal and a symbol that matches one character from a class, or
 // any character, both match the first character of the literal wherever the literal matches. It
 // returns the rest of the literal, or nil when the literal has one character.
-func litInChar(l, c ast.Expr) (rest *ast.Literal, ok bool) {
+func (x excl) litInChar(l, c ast.Expr) (rest *ast.Literal, ok bool) {
 	lit, isLit := l.(*ast.Literal)
 	if !isLit || lit.Value == "" {
 		return nil, false
@@ -777,7 +777,7 @@ func litInChar(l, c ast.Expr) (rest *ast.Literal, ok bool) {
 	if len(rs) == 1 {
 		return nil, true
 	}
-	return &ast.Literal{Value: string(rs[1:]), IgnoreCase: lit.IgnoreCase}, true
+	return x.k.literalRest(rs[1:], lit.IgnoreCase), true
 }
 
 func foldASCII(r rune) rune {
@@ -1017,7 +1017,7 @@ func (x excl) excludes(s exclState) (ok bool, item, n int) {
 		la, aLit := a.e.(*ast.Literal)
 		lb, bLit := b.e.(*ast.Literal)
 		if aLit && bLit {
-			ra, rb, excl, ok := litStep(la, lb)
+			ra, rb, excl, ok := x.litStep(la, lb)
 			if !ok {
 				return x.no("lit-fold", a, &b)
 			}
@@ -1054,7 +1054,7 @@ func (x excl) excludes(s exclState) (ok bool, item, n int) {
 			continue
 		}
 		// A literal and a class that contains its first character both consume that character.
-		if rest, ok := litInChar(a.e, b.e); ok {
+		if rest, ok := x.litInChar(a.e, b.e); ok {
 			if s.steps+1 >= x.maxK {
 				return x.no("char-bound", a, &b)
 			}
@@ -1066,7 +1066,7 @@ func (x excl) excludes(s exclState) (ok bool, item, n int) {
 			s.j, s.steps = s.j+1, s.steps+1
 			continue
 		}
-		if rest, ok := litInChar(b.e, a.e); ok {
+		if rest, ok := x.litInChar(b.e, a.e); ok {
 			if s.steps+1 >= x.maxK {
 				return x.no("char-bound", a, &b)
 			}
@@ -1327,7 +1327,7 @@ func (x excl) matchesExact(q []sym, j int, kp []ast.Expr, depth int) (end int, o
 		la, aLit := a.(*ast.Literal)
 		lb, bLit := b.(*ast.Literal)
 		if aLit && bLit {
-			ra, rb, excl, ok := litStep(la, lb)
+			ra, rb, excl, ok := x.litStep(la, lb)
 			if !ok || excl {
 				return 0, false
 			}
@@ -1352,7 +1352,7 @@ func (x excl) matchesExact(q []sym, j int, kp []ast.Expr, depth int) (end int, o
 			}
 		}
 		// A literal of q matches a class of the body that contains its first character.
-		if rest, ok := litInChar(a, b); ok {
+		if rest, ok := x.litInChar(a, b); ok {
 			if rest != nil {
 				q = replaced(q, j, sym{symMatch, rest, q[j].item})
 			} else {

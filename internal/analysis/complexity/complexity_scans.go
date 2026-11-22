@@ -454,7 +454,7 @@ func (k *classifier) sure(e ast.Expr) charset {
 				continue
 			}
 			for _, later := range e.Items[i+1:] {
-				if !k.an.AlwaysSucceeds(later) {
+				if !k.succeeds(later) {
 					return nil
 				}
 			}

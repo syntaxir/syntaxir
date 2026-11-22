@@ -498,7 +498,7 @@ func (k *classifier) cutCommits(alt ast.Expr) bool {
 		if _, ok := it.(*ast.Cut); ok {
 			return true
 		}
-		if !k.an.AlwaysSucceeds(it) {
+		if !k.succeeds(it) {
 			return false
 		}
 	}
@@ -1899,7 +1899,7 @@ func (k *classifier) memberStarts(rule string, after *cont, cycle int) (paths []
 	ok = true
 	budget := leadBudget
 	inCycle := func(e ast.Expr) bool {
-		for _, n := range k.an.LeftCalls(e, nil) {
+		for _, n := range k.leftCalls(e) {
 			if k.an.Cyclic[n] && k.an.Cycle[n] == cycle {
 				return true
 			}

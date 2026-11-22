@@ -84,9 +84,9 @@ func classifierHelperAnswers(t *testing.T, name, src string) string {
 		astfacts.WalkExpr(r.Expr, func(e ast.Expr) {
 			pos := exprPos(e)
 			fmt.Fprintf(&b, "%s #%d %T %d:%d: null=%s an=%s succ=%s bounded=%s first=%s left=%s\n",
-				r.Name, i, e, pos.Line, pos.Col, bitsOf(k.nullable(e)), bitsOf(k.an.isNullable(e)),
-				bitsOf(k.an.AlwaysSucceeds(e)), bitsOf(k.bounded(e)), charsText(k.first(e)),
-				strings.Join(k.an.LeftCalls(e, nil), ","))
+				r.Name, i, e, pos.Line, pos.Col, bitsOf(k.nullable(e)), bitsOf(k.facts.source.Facts.Nullable(k.nodeOf(e))),
+				bitsOf(k.succeeds(e)), bitsOf(k.bounded(e)), charsText(k.first(e)),
+				strings.Join(k.leftCalls(e), ","))
 			i++
 		})
 	}

@@ -286,8 +286,8 @@ func newViewClassifier(g *ast.Grammar, rules []*ast.RuleDef, rf *ruleFacts, star
 		// Every node the view builds has a grammar spelling; an error is a defect of the view.
 		panic("compile: cost view: " + err.Error())
 	}
-	k := newClassifierOf(g, w.rules, rules, rf, start, control)
-	k.viewText, k.nodes = w.text, w.nodes
+	k := newClassifierOf(g, w.rules, rules, w.nodes, rf, start, control)
+	k.viewText = w.text
 	return k
 }
 
@@ -429,13 +429,14 @@ type classifier struct {
 }
 
 func newClassifier(g *ast.Grammar, rules []*ast.RuleDef, rf *ruleFacts, start string, control *cancel.Control) *classifier {
-	return newClassifierOf(g, rules, rules, rf, start, control)
+	return newClassifierOf(g, rules, rules, originNodes(rf.source.Module), rf, start, control)
 }
 
 // newClassifierOf returns a classifier of the bodies of rules, which are those of base or a view
-// of them. The rule facts rf of base stand for the grammar: its analysis, its variables, its
-// memoization and its nullable rules.
-func newClassifierOf(g *ast.Grammar, rules, base []*ast.RuleDef, rf *ruleFacts, start string, control *cancel.Control) *classifier {
+// of them, whose expressions stand for the Core IR nodes that nodes gives (classifier.nodes). The
+// rule facts rf of base stand for the grammar: its analysis, its variables, its memoization and
+// its nullable rules.
+func newClassifierOf(g *ast.Grammar, rules, base []*ast.RuleDef, nodes map[ast.Expr]core.Node, rf *ruleFacts, start string, control *cancel.Control) *classifier {
 	k := &classifier{control: control, g: g, rules: rules, start: start, byName: map[string]*ast.RuleDef{},
 		calls: map[string][]string{}, scc: map[string]int{}, recursive: map[string]bool{}, memo: map[string]bool{},
 		varType: map[string]string{}, nullRule: rf.nullable, firstRule: map[string]charset{},
@@ -449,10 +450,7 @@ func newClassifierOf(g *ast.Grammar, rules, base []*ast.RuleDef, rf *ruleFacts, 
 		k.byName[r.Name] = r
 		k.ruleIDs[r.Name] = i
 	}
-	if slices.Equal(base, rules) {
-		// The rules are those of the module: each expression stands for the node built from it.
-		k.nodes = originNodes(rf.source.Module)
-	}
+	k.nodes = nodes
 	k.an, k.facts = rf.an, rf
 	k.vars = rf.vars
 	k.memo, k.members = maps.Clone(rf.memo), rf.members

@@ -27,7 +27,7 @@ func (k *classifier) runSite(e *ast.Repeat) bool {
 		// The runtime marks the run sites of the grammar, not of the view: a repetition of the view
 		// is one only if it is a run site of the grammar.
 		if k.baseRuns == nil {
-			k.baseRuns = newClassifierOf(k.g, k.base, k.base, k.facts, k.start, k.control)
+			k.baseRuns = newClassifier(k.g, k.base, k.facts, k.start, k.control)
 			k.baseRepeats = map[*ast.Repeat]bool{}
 			for _, r := range k.base {
 				astfacts.WalkExpr(r.Expr, func(x ast.Expr) {

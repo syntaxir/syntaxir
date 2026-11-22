@@ -77,3 +77,27 @@ func (k *classifier) prefixOf(s *ast.Seq, prefix []ast.Expr) *ast.Seq {
 	}
 	return built(k, &ast.Seq{SourceInfo: s.SourceInfo, Items: prefix}, core.Node(&core.Seq{Items: items}))
 }
+
+// succeeds reports a proof that the expression e cannot fail (corepass.Facts.Succeeds).
+func (k *classifier) succeeds(e ast.Expr) bool {
+	return k.facts.source.Facts.Succeeds(k.nodeOf(e))
+}
+
+// leftCalls returns the rules that the expression e may call before it consumes input, in the
+// order of e, a rule called at several such places listed at each (corepass.Facts.LeftCalls).
+func (k *classifier) leftCalls(e ast.Expr) []string {
+	ids := k.facts.source.Facts.LeftCalls(k.nodeOf(e), false)
+	names := make([]string, len(ids))
+	for i, id := range ids {
+		names[i] = k.rules[id].Name
+	}
+	return names
+}
+
+// literalRest returns a literal of the characters rest, the rest of a literal after a prefix the
+// exclusion analysis compared, which stands for the literal node of them. The runes give valid
+// UTF-8, the text of the node as the front end builds it.
+func (k *classifier) literalRest(rest []rune, ignoreCase bool) *ast.Literal {
+	text := string(rest)
+	return built(k, &ast.Literal{Value: text, IgnoreCase: ignoreCase}, core.Node(&core.Lit{Text: text, Fold: ignoreCase}))
+}

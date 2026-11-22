@@ -121,71 +121,11 @@ func classChars(c *ast.CharClass) charset {
 	return s
 }
 
-// nullable reports whether e can succeed without consuming input when token insertion is enabled,
-// as the nullable rules (nullRule) are: a literal with #missing can be inserted, a repetition is
-// nullable when its minimum is 0, or 1 with a nullable element (the first iteration that consumes
-// nothing ends the repetition and counts once, so a larger minimum needs input), and a #recover is
-// nullable as its body (the skip runs only when the body fails, and an empty skip does not
-// recover).
+// nullable reports whether e can succeed without consuming input when token insertion is enabled:
+// the nullability of its node with insertion (corepass.Facts.NullableIns), as the nullable rules
+// (nullRule) are.
 func (k *classifier) nullable(e ast.Expr) bool {
-	k.control.Poll()
-	switch e := e.(type) {
-	case nil:
-		return true
-	case *ast.Ref:
-		if e.Level == rhsLevel {
-			return k.operandsNullable(e.Name)
-		}
-		return k.nullRule[e.Name]
-	case *ast.Literal:
-		return e.Value == ""
-	case *ast.CharClass, *ast.Any, *ast.Bottom:
-		return false
-	case *ast.Seq:
-		for _, it := range e.Items {
-			if !k.nullable(it) {
-				return false
-			}
-		}
-		return true
-	case *ast.Choice:
-		for _, alt := range e.Alts {
-			if k.nullable(alt) {
-				return true
-			}
-		}
-		return false
-	case *ast.Repeat:
-		return e.Min == 0 || e.Min == 1 && k.nullable(e.Expr)
-	case *ast.Group:
-		return k.nullable(e.Expr)
-	case *ast.Capture:
-		return k.nullable(e.Expr)
-	case *ast.Discard:
-		return k.nullable(e.Expr)
-	case *ast.Atomic:
-		return k.nullable(e.Expr)
-	case *ast.Stream:
-		return k.nullable(e.Expr)
-	case *ast.InlineAction:
-		return k.nullable(e.Expr)
-	case *ast.Recovery:
-		return k.nullable(e.Expr)
-	case *ast.Attributed:
-		if astfacts.HasPragma(e, "missing") {
-			return true
-		}
-		return k.nullable(e.Expr)
-	case *ast.OperatorsRule:
-		for _, o := range e.Operands {
-			if k.nullable(o.Expr) {
-				return true
-			}
-		}
-		return false
-	}
-	// Optional, lookaheads, predicates, anchors, cuts and the top expression.
-	return true
+	return k.facts.source.Facts.NullableIns(k.nodeOf(e))
 }
 
 // first returns the first characters of e: the characters that an evaluation of e can examine

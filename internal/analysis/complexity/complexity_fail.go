@@ -65,7 +65,7 @@ func (k *classifier) failsAfterSource(e ast.Expr) bool {
 			}
 			if k.containsSource(it) {
 				for _, later := range x.Items[i+1:] {
-					if !k.an.AlwaysSucceeds(later) {
+					if !k.succeeds(later) {
 						return true
 					}
 				}
@@ -85,7 +85,7 @@ func (k *classifier) failsAfterSource(e ast.Expr) bool {
 		}
 		// A repetition ends at its first empty iteration, so one with a minimum above one can
 		// fail after an iteration ran a source even when its expression always succeeds.
-		return k.failsAfterSource(x.Expr) || x.Min > 1 && k.containsSource(x.Expr) && !k.an.AlwaysSucceeds(x)
+		return k.failsAfterSource(x.Expr) || x.Min > 1 && k.containsSource(x.Expr) && !k.succeeds(x)
 	case *ast.Optional:
 		return false
 	case *ast.And:

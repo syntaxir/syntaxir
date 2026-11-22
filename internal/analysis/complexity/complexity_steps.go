@@ -102,7 +102,7 @@ func (k *classifier) tailFailsAfterSource(t *cont) *source {
 			continue
 		}
 		for _, later := range items[i+1:] {
-			if !k.an.AlwaysSucceeds(later) {
+			if !k.succeeds(later) {
 				return k.sourceIn(it)
 			}
 		}
