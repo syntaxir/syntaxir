@@ -2,6 +2,7 @@ package state
 
 import (
 	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
@@ -159,14 +160,12 @@ func (g *growRec) at() int { return g.key.Pos }
 // (Rule.LeaderBit).
 func (g *growRec) leaderBit() presentSet { return g.bit }
 
-// presentWide tags the present set of a context with a leader that has no bit (Rule.LeaderBit): the
-// identity that intern gives the set, which no word of bits equals. A memo entry holds a word of
-// bits (MemoEntry.Present), so a result in such a context goes to the table of the context even if
-// it read no seed (ctxPop), and no entry answers a call there (ctxAllows).
-const presentWide presentSet = 1 << 63
+// maxLeaderBits is the number of leaders of a cycle that have a bit in present sets (Rule.LeaderBit).
+const maxLeaderBits = program.MaxLeaderBits
 
 // presentSet is a present set: the bits of the leaders of a context (Rule.LeaderBit), or presentWide
-// and an identity. The Go library's sets have 32 bits.
+// and an identity. The engine holds it in a word of 64 bits, as Rule.LeaderBit and MemoEntry.Present
+// do; the values are those of the Go library's sets of 32 bits.
 type presentSet = uint64
 
 // missingBit is the missing-silent bit of a key (MemoKey.MissingSilent): the key of a seed of a

@@ -1,6 +1,7 @@
 package state_test
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"regexp"
@@ -19,15 +20,24 @@ import (
 
 // contextStoreGrowth parses the shape at the two codegentest.ContextStoreSizes on the backend and
 // returns the evaluations of B at its busiest position and of all rules, at each size. The parses
-// have no compute limit: a context that the store cannot index exceeds the default one.
-func contextStoreGrowth(t *testing.T, prog *engine.Program, s codegentest.DependencyMemoShape, o engine.ParseOptions) (b, all [2]int) {
+// have no compute limit, as a context that the store cannot index exceeds the default one, unless
+// limited: then they stop at codegentest.ContextStoreBudgetPerUnit for each unit of the input, and
+// stopped reports that one did.
+func contextStoreGrowth(t *testing.T, prog *engine.Program, s codegentest.DependencyMemoShape, o engine.ParseOptions, limited bool) (b, all [2]int, stopped bool) {
 	t.Helper()
 	for i, m := range codegentest.ContextStoreSizes {
 		var pr instrument.Profile
 		o.Profiles = []*instrument.Profile{&pr}
+		input := s.Input(m)
 		o.Limits = runtime.Limits{Compute: runtime.Unlimited}
+		if limited {
+			o.Limits.Compute = codegentest.ContextStoreBudgetPerUnit * uint64(len(input))
+		}
 		// With missing-token insertion, the parse reports the insertion as an error.
-		if r, err := prog.ParseWith("", s.Input(m), o); err != nil && (r == nil || o.MissingTokens == 0) {
+		if r, err := prog.ParseWith("", input, o); err != nil && (r == nil || o.MissingTokens == 0) {
+			if le := (*runtime.LimitError)(nil); limited && errors.As(err, &le) && le.Kind == runtime.LimitCompute {
+				return b, all, true
+			}
 			t.Fatalf("%s %s m=%d: %v", s.Name, o.Backend, m, err)
 		}
 		ps := pr.Snapshot()
@@ -38,14 +48,19 @@ func contextStoreGrowth(t *testing.T, prog *engine.Program, s codegentest.Depend
 			}
 		}
 	}
-	return b, all
+	return b, all, false
 }
 
 // contextStoreBounded reports, for the shape on the backend, whether B is evaluated at its busiest
 // position as often for the larger input as for the smaller, and the parse evaluates at most
-// codegentest.ContextStoreGrowth times the calls.
-func contextStoreBounded(t *testing.T, prog *engine.Program, s codegentest.DependencyMemoShape, o engine.ParseOptions) (string, bool) {
-	b, all := contextStoreGrowth(t, prog, s, o)
+// codegentest.ContextStoreGrowth times the calls. A limited parse that stops at its limit is not
+// bounded (contextStoreGrowth).
+func contextStoreBounded(t *testing.T, prog *engine.Program, s codegentest.DependencyMemoShape, o engine.ParseOptions, limited bool) (string, bool) {
+	b, all, stopped := contextStoreGrowth(t, prog, s, o, limited)
+	if stopped {
+		return fmt.Sprintf("%s %s: a parse exceeded %d units of compute for each unit of the input",
+			s.Name, o.Backend, codegentest.ContextStoreBudgetPerUnit), false
+	}
 	msg := fmt.Sprintf("%s %s: B evaluated at most %v times at a position, %v evaluations in all, at m=%v",
 		s.Name, o.Backend, b, all, codegentest.ContextStoreSizes)
 	return msg, b[0] > 0 && b[0] == b[1] && all[1] <= all[0]*codegentest.ContextStoreGrowth
@@ -53,13 +68,14 @@ func contextStoreBounded(t *testing.T, prog *engine.Program, s codegentest.Depen
 
 // TestContextStoreBounds checks on every backend that a context with more dependencies or more
 // leaders than the fixed-size keys of the context store hold still has its results reused: the
-// evaluations of a rule at one position do not grow with the input.
+// evaluations of a rule at one position do not grow with the input. The parses run under the limit
+// of the controls (TestContextStoreBoundsControls), which they must not reach.
 func TestContextStoreBounds(t *testing.T) {
 	t.Parallel()
 	for _, s := range codegentest.ContextStoreShapes {
 		prog := enginetest.MustCompile(t, "@start\nrule main = "+s.Rules, check.Options{SourceInfo: true})
 		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
-			if msg, ok := contextStoreBounded(t, prog, s, engine.ParseOptions{Backend: b}); !ok {
+			if msg, ok := contextStoreBounded(t, prog, s, engine.ParseOptions{Backend: b}, true); !ok {
 				t.Error(msg)
 			}
 		}
@@ -67,7 +83,8 @@ func TestContextStoreBounds(t *testing.T) {
 }
 
 // TestContextStoreBoundsControls checks that TestContextStoreBounds detects a context store that
-// drops what its fixed-size keys cannot hold.
+// drops what its fixed-size keys cannot hold. The broken stores may make the parses exponential, so
+// they run under a compute limit.
 func TestContextStoreBoundsControls(t *testing.T) {
 	for _, c := range []struct {
 		mutation int
@@ -84,7 +101,7 @@ func TestContextStoreBoundsControls(t *testing.T) {
 		}
 		prog := enginetest.MustCompile(t, "@start\nrule main = "+s.Rules, check.Options{SourceInfo: true})
 		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
-			if msg, ok := contextStoreBounded(t, prog, s, engine.ParseOptions{Backend: b, Tune: state.Tuning{MemoMut: c.mutation}}); ok {
+			if msg, ok := contextStoreBounded(t, prog, s, engine.ParseOptions{Backend: b, Tune: state.Tuning{MemoMut: c.mutation}}, true); ok {
 				t.Errorf("mutation %d not detected: %s", c.mutation, msg)
 			}
 		}
@@ -101,7 +118,7 @@ var missingChain = codegentest.DependencyMemoShape{Name: "missing-token insertio
 func TestContextStoreMissingInsertion(t *testing.T) {
 	t.Parallel()
 	prog := enginetest.MustCompile(t, "@start\nrule main = "+missingChain.Rules, check.Options{SourceInfo: true})
-	if msg, ok := contextStoreBounded(t, prog, missingChain, engine.ParseOptions{Backend: engine.Closure, MissingTokens: 1}); !ok {
+	if msg, ok := contextStoreBounded(t, prog, missingChain, engine.ParseOptions{Backend: engine.Closure, MissingTokens: 1}, false); !ok {
 		t.Error(msg)
 	}
 }
@@ -110,7 +127,7 @@ func TestContextStoreMissingInsertion(t *testing.T) {
 // parse with insertion that keeps no result in a context.
 func TestContextStoreMissingInsertionControl(t *testing.T) {
 	prog := enginetest.MustCompile(t, "@start\nrule main = "+missingChain.Rules, check.Options{SourceInfo: true})
-	if msg, ok := contextStoreBounded(t, prog, missingChain, engine.ParseOptions{Backend: engine.Closure, MissingTokens: 1, Tune: state.Tuning{MemoMut: state.CtxStrictMissing}}); ok {
+	if msg, ok := contextStoreBounded(t, prog, missingChain, engine.ParseOptions{Backend: engine.Closure, MissingTokens: 1, Tune: state.Tuning{MemoMut: state.CtxStrictMissing}}, false); ok {
 		t.Errorf("CtxStrictMissing not detected: %s", msg)
 	}
 }

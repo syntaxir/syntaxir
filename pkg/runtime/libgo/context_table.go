@@ -282,6 +282,13 @@ func (p *Parser) gammaFind(gp int, k growKey) int {
 	return -1
 }
 
+// presentWide tags the present set of a context with a leader that has no bit, one of index
+// maxLeaderBits or more in its cycle: the identity that intern gives the set, which no set of bits
+// has, as their bits are below maxLeaderBits. A memo entry holds a set of bits, so a result in such a
+// context goes to the table of the context even if it read no seed (ctxPop), and no memo entry
+// answers a call there.
+const presentWide presentSet = 1 << maxLeaderBits
+
 // present returns the present set of the context gamma[gp:]: the bits of its leaders, or the
 // identity of the set if a leader has no bit (presentWide).
 func (p *Parser) present(gp int) presentSet {

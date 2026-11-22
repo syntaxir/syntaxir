@@ -12,6 +12,7 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code/exec"
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
 	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
+	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
@@ -52,12 +53,10 @@ func newCtxMachine(cfg ref.Config, controlled bool) conform.Impl {
 		r := &Rule{}
 		r.ID, r.Cycle, r.Leader = i, int(cr.Cycle), cr.Leader
 		if cr.Leader && cr.Cycle != 0 {
-			// The model gives a bit to the leaders that the generated parsers do (ref.CtxLeaderBits).
+			// The leaders have the bits that the compiler gives them, so that the model, whose
+			// leaders from ref.CtxLeaderBits on have none, checks that width too.
 			k := leaders[cr.Cycle]
-			r.LeaderIndex = k
-			if k < ref.CtxLeaderBits {
-				r.LeaderBit = 1 << k
-			}
+			r.LeaderIndex, r.LeaderBit = k, program.LeaderBitOf(k)
 			leaders[cr.Cycle]++
 		}
 		m.ctxRules = append(m.ctxRules, r)

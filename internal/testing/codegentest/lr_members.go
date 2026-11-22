@@ -362,15 +362,15 @@ rule L = T "!" / &T S "q" "q"`,
 	r.Inputs = append(r.Inputs, "baabcac")
 	cases = append(cases, r)
 	// A context with more dependencies than the context store holds inline, and more leaders than
-	// a word of present bits holds in generated parsers.
+	// have a bit in present sets.
 	cases = append(cases, Case{
 		Name:   "seven dependencies and 33 leaders",
 		Src:    "@start\nrule main = " + ContextChain(32, 7, false),
 		Inputs: []string{"axy", "aaxx", "aaaxxx", "axq", "aaxzx", "a", ""},
 	})
-	// More leaders than a word of present bits holds in the engine too, whose present sets of them are
-	// interned: rings of 66 leaders that the evaluation without memos finishes, which the chains
-	// above, with their nested leaders, do not.
+	// More leaders than a word of 64 bits holds, whose present sets are interned from two words of
+	// bits: rings of 66 leaders that the evaluation without memos finishes, which the chains above,
+	// with their nested leaders, do not.
 	for i, alt := range []string{`R%i "x" / &"y" R%n / "a"`, `R%i "x" / "a" R%n? / R%n "b"`} {
 		cases = append(cases, Case{
 			Name:   fmt.Sprintf("ring of 66 leaders %d", i+1),

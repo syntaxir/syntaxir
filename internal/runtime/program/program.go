@@ -157,9 +157,11 @@ func NumberSeen(lists ...[]*Rule) int {
 	return n
 }
 
-// MaxLeaderBits is the number of leaders of a cycle that have a bit (Rule.LeaderBit). The engine
-// keeps the last bit of a word to tell the identity of a larger set from a word of bits.
-const MaxLeaderBits = 63
+// MaxLeaderBits is the number of leaders of a cycle that have a bit (Rule.LeaderBit): the width of
+// present sets, the same on every backend, so that every backend memoizes the same results and
+// charges the same units. It fits the 32-bit operations of JavaScript with the sign bit left
+// clear, and the bit above the set's bits tags the identity of a set with more leaders.
+const MaxLeaderBits = 31
 
 // LeaderBitOf returns the bit of the leader numbered k in its cycle, 0 past MaxLeaderBits.
 func LeaderBitOf(k int) uint64 {

@@ -29,11 +29,10 @@ result of an evaluation:
 - **What a result depends on.** A call records the seeds it read, each by its identity, a number that the growth
   step that produced the seed gives it; for each lookahead whose evaluation read a seed and that leaves nothing
   after it but its outcome, that outcome and its examined range, in place of those seeds; and the present set, the
-  leaders that grew at the position, one bit each for the leaders of a cycle that a word holds (63 in the engine, 31
-  in generated parsers), or, where a leader has no bit, a number that the parser gives the set's words of bits. A
-  positive lookahead whose expression makes a capture or binds a variable outside the rules it calls, or that
-  matches after recovering from an error, leaves more than its outcome, so the seeds it read count as read by the
-  call.
+  leaders that grew at the position, one bit each for the first 31 leaders of a cycle on every backend, or, where a
+  leader has no bit, a number that the parser gives the set's words of bits. A positive lookahead whose expression
+  makes a capture or binds a variable outside the rules it calls, or that matches after recovering from an error,
+  leaves more than its outcome, so the seeds it read count as read by the call.
 - **Where a result goes.** A result that read no seed and observed no lookahead goes to the memo with its present
   set, and answers a call in any context whose leaders it includes. Any other result goes to the table of its
   context, which lasts while the first growth of the context lasts, and answers a call in a context with the same

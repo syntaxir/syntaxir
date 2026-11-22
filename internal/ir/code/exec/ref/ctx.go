@@ -25,7 +25,7 @@ type CtxRule struct {
 }
 
 // CtxLeaderBits is the number of leaders of a cycle that have a bit in a word of bits of present
-// sets, those of the generated parsers. A context with another leader has as its present set an
+// sets, the same on every backend. A context with another leader has as its present set an
 // identity that names the set of its leaders (presentWide): a memo entry holds a word of bits, so
 // no entry answers a call in such a context and every result there goes to the table of the
 // context. A binding gives the same leaders a bit.
@@ -33,7 +33,7 @@ const CtxLeaderBits = 31
 
 // presentWide tags the present set of a context with a leader that has no bit: no word of bits has
 // it.
-const presentWide uint64 = 1 << 63
+const presentWide uint64 = 1 << CtxLeaderBits
 
 // The values of ctx.pop.
 const (

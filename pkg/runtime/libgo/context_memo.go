@@ -43,18 +43,14 @@ import (
 // The examined input of a result is the Document examined range [from, examined) (Parser.docLow,
 // Parser.docExamined); outside a Document parse it is not tracked and is 0.
 
-// maxLeaderBits is the number of leaders of a cycle that have a bit in present sets. A context holds
-// leaders of one cycle only, so the bits are given for each cycle. The present set of a context
-// with any other leader is the identity that intern gives its words of bits, tagged presentWide.
+// maxLeaderBits is the number of leaders of a cycle that have a bit in present sets, the same on
+// every backend (program.MaxLeaderBits in the engine). A context holds leaders of one cycle only, so
+// the bits are given for each cycle. The present set of a context with any other leader is the
+// identity that intern gives its words of bits, tagged presentWide.
 const maxLeaderBits = 31
 
-// presentWide tags the identity of a present set that does not fit in a word of bits, which no word
-// of bits equals. A memo entry holds a word of bits, so a result in such a context goes to the table
-// of the context even if it read no seed (ctxPop), and no entry answers a call there (memoAllows).
-const presentWide presentSet = 1 << 31
-
 // presentSet is a present set: the bits of the leaders of a context, or presentWide and an
-// identity. The engine's sets have a word of 64 bits, by Rule.LeaderBit.
+// identity. The engine holds the same sets in words of 64 bits (Rule.LeaderBit).
 type presentSet = uint32
 
 // missingBit is the missing-silent bit of a key in the engine's parses with missing-token insertion
