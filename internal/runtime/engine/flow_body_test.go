@@ -133,13 +133,13 @@ func flowProgramsOf(t testing.TB, src string, pick func(rule string) bool, mutat
 
 // flowReference returns the tree and the error of the closure backend for input, the reference of
 // the Flow bodies, which share no code with it. It returns the spend of the closure backend too,
-// unless the backends of grammar do not yet charge the same units (knownChargeDivergences): then the
-// spend is that of the recursive VM on prog, which pins the charges of a Flow body to those of the
+// unless the bytecode backend does not yet charge the units of the closure backend on grammar
+// (knownChargeDivergences): then the spend is that of the recursive VM on prog, which pins the charges of a Flow body to those of the
 // bodies that the compiler selects.
 func flowReference(t *testing.T, prog *Program, grammar, input string) (string, string, uint64) {
 	t.Helper()
 	tree, msg, used := parseChargedWith(t, prog, input, Closure)
-	if knownChargeDivergences[grammar+"|*"] {
+	if knownChargeDivergences[grammar+"|bytecode"] {
 		_, _, used = parseCharged(t, prog, input)
 	}
 	return tree, msg, used

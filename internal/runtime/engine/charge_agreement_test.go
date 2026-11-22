@@ -220,7 +220,7 @@ func TestChargeAgreementEngine(t *testing.T) {
 // every divergence is only logged, so that a run lists them all.
 func reportChargeDivergence(t *testing.T, name, backend, msg string) {
 	t.Helper()
-	if os.Getenv("SXIR_CHARGE_INVENTORY") != "" || knownChargeDivergences[name+"|"+backend] || knownChargeDivergences[name+"|*"] {
+	if os.Getenv("SXIR_CHARGE_INVENTORY") != "" || knownChargeDivergences[name+"|"+backend] {
 		t.Logf("DIVERGENCE %s: %s: %s", name, backend, msg)
 		return
 	}
