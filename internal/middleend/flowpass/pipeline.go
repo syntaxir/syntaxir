@@ -34,7 +34,7 @@ var ObserveFeature = pipe.NewFeature("observe", strconv.FormatBool, strconv.Pars
 var TargetFeature = pipe.NewFeature("flow-target", Target.String, ParseTarget)
 
 // FuncAttrs gives the attributes of the function of a unit of one function (flow.Attrs), which record
-// how it was lowered (Attrs.Budget, Node, Document, Traced, Frame) and so where a pass applies; nil
+// how it was lowered (Attrs.Node, Document, Traced, Frame) and so where a pass applies; nil
 // for a function without them. It reads them from the function, and the passes that change the
 // function keep them current, as the function's own content.
 var FuncAttrs = pass.NewAnalysisKey("flow-func-attrs", func(u Unit, _ *pass.AnalysisManager[Unit]) (*flow.Attrs, error) {

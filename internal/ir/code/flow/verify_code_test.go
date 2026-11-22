@@ -66,10 +66,9 @@ func TestVerifyModule(t *testing.T) {
 			Else: &code.Block{Stmts: []code.Stmt{matchLit()}}}}
 	}
 	setNode := func(a *Attrs) { a.Node = true }
-	budget := func(a *Attrs) { a.Budget = true }
 	document := func(a *Attrs) { a.Document = true }
 
-	valid := fn{attrs: budget, vars: []code.Param{ok}, body: []code.Stmt{
+	valid := fn{vars: []code.Param{ok}, body: []code.Stmt{
 		do(OpStep, nil),
 		matchLit(),
 		exitIfNot(code.L("ok")),
@@ -111,14 +110,6 @@ func TestVerifyModule(t *testing.T) {
 			"part of a larger condition"},
 		{"in-place read without the recording alternative", fn{attrs: document, body: []code.Stmt{
 			&code.If{Cond: call(OpHasLit, lit), Then: &code.Block{}}}}, "without the recording primitive"},
-		{"consumption before a charge", fn{attrs: budget, vars: []code.Param{ok}, body: []code.Stmt{matchLit()}},
-			"spend: an expression consumes input before a charge"},
-		{"advance before a charge", fn{attrs: budget, body: []code.Stmt{do(OpAdvance, nil, code.Int(1))}}, "spend: an advance before a charge"},
-		{"iteration without a charge", fn{attrs: budget, vars: []code.Param{ok}, body: []code.Stmt{loop("L1", code.L("ok"), code.Assign("ok", code.BoolC(false)))}},
-			"spend: loop L1 ends an iteration without charging"},
-		{"continue without a charge", fn{attrs: budget, vars: []code.Param{ok}, body: []code.Stmt{
-			loop("L1", nil, &code.If{Cond: code.L("ok"), Then: &code.Block{Stmts: []code.Stmt{&code.Continue{Label: "L1"}}}}, do(OpStep, nil), &code.Break{Label: "L1"})}},
-			"spend: loop L1 continues without charging"},
 		// The cases of the verifier of the Flow structs that preceded the Flow dialect: those of the
 		// structure are the base's checks now (code.Verify), which VerifyModule runs first.
 		{"exit to a block that does not enclose it", fn{body: []code.Stmt{&code.Block{Label: "L1"}, &code.Exit{Label: "L1"}}}, "names no enclosing block"},

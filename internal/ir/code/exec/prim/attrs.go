@@ -34,18 +34,12 @@ type Attrs struct {
 	// Node reports a function that builds the values of the Node runtime (newTerminalNode,
 	// newBranchNode) and none of the typed runtime.
 	Node bool
-	// Budget reports a function lowered with budget controls, which charges the budget explicitly.
-	Budget bool
 	// Document reports a function lowered for a build with Documents: every in-place read has the
 	// recording read as its alternative.
 	Document bool
 	// Traced reports a function of the traced copies that an observed parse runs, every read of which
 	// records how far the parse examined the input.
 	Traced bool
-	// Entered reports a function lowered with budget controls whose entry the printed method charges:
-	// the method that holds the function begins with one charge, and the function charges nothing for
-	// its entry.
-	Entered bool
 }
 
 // AttrsOf returns the Exec-stage attributes of f, or nil.

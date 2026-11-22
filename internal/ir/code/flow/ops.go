@@ -13,19 +13,17 @@ import (
 //
 // Grammar code at the Flow stage is a module of Code IR whose functions call the operations that this
 // file declares: matching the input, backtracking to a mark, recording expectations, calling rules,
-// building values, evaluating action expressions and charging the budget. The structure (blocks,
+// building values, evaluating action expressions and counting compute units. The structure (blocks,
 // loops, branches, exits, assignments and the arithmetic of conditions) is the base's. Each operation
 // has a contract, a cost bound, the features it exists in, laws that passes may use, and an
 // immediate operand of a declared Go type that holds its static data (a literal, a class, a rule);
 // its dynamic operands are arguments. execlower (internal/middleend/execlower) converts each call
 // into the operation's reference expansion at the Exec stage.
 //
-// The cost bound of an operation bounds its work. A charge that a contract names is that of a
-// function lowered with budget controls (Attrs.Budget). A function lowered with logical units
-// (lowerdata.Options.Logical) counts compute units instead: each operation counts the logical events
-// that it makes (spec/runtime/parsing.md#compute-units), such as the input a terminal advances over,
-// a call with its key, a syntax error built or a suffix copy, and nothing else, whatever it charges
-// under budget controls.
+// The cost bound of an operation bounds its work. A function lowered with logical units
+// (lowerdata.Options.Logical) counts compute units: each operation counts the logical events that it
+// makes (spec/runtime/parsing.md#compute-units), such as the input a terminal advances over, a call
+// with its key, a syntax error built or a suffix copy, and nothing else.
 
 // Dialect is the name of the Flow dialect, the Dialect of its operations.
 const Dialect = "flow"
@@ -263,11 +261,9 @@ func Ops() []*code.Op {
 		return o
 	}
 
-	// Budget and input.
+	// Steps and input.
 	op(&code.Op{Name: OpStep, Writes: []string{State}, NoReturn: true, Cost: unit,
-		Contract: `In a function with budget controls (Attrs.Budget), charges one step of budget and ends the parse
-when the budget is exhausted. In a function lowered with logical units it counts nothing: the step of an
-iteration is no event (spec/runtime/parsing.md#compute-units), and it checks the counter of the units, which a
+		Contract: `The step of an iteration. It counts nothing: the step of an iteration is no event (spec/runtime/parsing.md#compute-units), and it checks the counter of the units, which a
 target whose counter checks itself at each event it counts may leave out. It is the step of the loop whose
 body holds it, once per iteration, and an iteration that goes on to the next step has advanced the position, so
 each step of a loop finds the position past the one of the loop's last step; a target that runs code it did not
@@ -282,8 +278,7 @@ a seed stores its outcome with its dependencies in the context's table, and char
 ctx.keep does (spec/exec-ir/operations.md).`}), "the change of the depth and the lookahead (Silence)", immOf[prim.Silence]())
 	op(&code.Op{Name: OpPeek, Results: []code.Type{runeT, i, b}, Reads: pos, Writes: []string{State}, NoReturn: true, Cost: plus(unit, QStream),
 		Contract: `Returns the code point at the position, its size and whether there is one, without consuming it.
-The read charges one unit in a function with budget controls (spec/runtime/parsing.md#cost), and in a stream
-parse what loading the input costs; in a Document parse it records how far the parse examined the input. It
+In a stream parse the read costs what loading the input costs; in a Document parse it records how far the parse examined the input. It
 counts no compute unit: examining input without advancing is no event (spec/runtime/parsing.md#compute-units).`})
 	op(&code.Op{Name: OpAdvance, Params: []code.Param{P("n", i)}, Reads: pos, Writes: []string{prim.Pos},
 		Contract: "Moves the position forward by n. In a function lowered with logical units it counts n units, the input that a terminal advances over (spec/runtime/parsing.md#compute-units).", Requires: "n code units of input follow the position."})
@@ -294,7 +289,7 @@ counts no compute unit: examining input without advancing is no event (spec/runt
 		Contract: "Reports to the observation of the parse that the guard of a choice skips the alternative."}),
 		"the alternative (core.Node)", immOf[core.Node]())
 	withImm(op(&code.Op{Name: OpSkippedCalls, Writes: []string{State}, NoReturn: true,
-		Contract: "Makes the effects of the calls that the alternative a guard skips would make under logical compute units, as the evaluation of the alternative makes them: one unit for each call and the units of the key of each memoized rule, the seen mark and policy counts of each memoized call, and the failure entry that a call stores when its memoization is not deferred, with the expectation of the terminal. A call that a stored entry answers ends the calls, as it ends the evaluation. It checks the counter. It charges no budget: only a lowering with logical units, which count in place of the budget, makes the call."}),
+		Contract: "Makes the effects of the calls that the alternative a guard skips would make under logical compute units, as the evaluation of the alternative makes them: one unit for each call and the units of the key of each memoized rule, the seen mark and policy counts of each memoized call, and the failure entry that a call stores when its memoization is not deferred, with the expectation of the terminal. A call that a stored entry answers ends the calls, as it ends the evaluation. It checks the counter. Only a lowering with logical units makes the call."}),
 		"the calls (SkippedCalls)", immOf[prim.SkippedCalls]())
 	op(&code.Op{Name: OpInDocument, Results: []code.Type{b}, Laws: []string{pure},
 		Contract: "Reports that the parse is a Document's. A guard whose skip passes over a call of a rule that a Document memoizes skips only outside Documents: a Document parse evaluates the alternative, where the memo records how far each entry examined the input and what later parses reuse (spec/runtime/documents.md#reuse). It counts no event and charges nothing."})
@@ -443,11 +438,11 @@ takes over, as the composition runStart does.`,
 		Contract: `Reuses the next element of the run r that the record it took over holds, as the composition runNext
 does: it replays what evaluating the element did (the position, the examined input, the expectations and the
 statistics) and returns its value and true, for the caller to keep. It returns false when the repetition
-evaluates its next element instead. A reused element charges no unit: the call polls the budget controls,
-which may end the parse, and is the charge of the iteration that keeps the element.`,
+evaluates its next element instead. A reused element counts no unit (spec/runtime/parsing.md#compute-units): the
+call checks the limits, which may end the parse, in place of the step of the iteration that keeps the element.`,
 		Requires: "flow.resumeMore of r holds."})
 	op(&code.Op{Name: OpResumeBegin, Params: []code.Param{P("r", run)}, Reads: pos, Writes: []string{State},
-		Contract: `Starts evaluating an element of the run r, after the charge of its iteration: its examined input and its
+		Contract: `Starts evaluating an element of the run r, after the step of its iteration: its examined input and its
 expectations are recorded apart from those of the enclosing call (runBegin).`})
 	op(&code.Op{Name: OpResumeEnd, Params: []code.Param{P("r", run), P("ok", b), P("x", value)}, Reads: pos, Writes: []string{State},
 		Contract: `Ends evaluating the element of the run r that flow.resumeBegin started, with its success ok and its
@@ -458,23 +453,21 @@ those of the enclosing call, and records the element if it matched (runEnd).`})
 fails drops its run without a call.`})
 	withImm(op(&code.Op{Name: OpHasLit, Results: []code.Type{b}, Reads: pos, Writes: []string{State}, NoReturn: true, Cost: per(QLit),
 		Contract: `Reports that the input at the position begins with the literal, read in place without recording
-anything; false where the input cannot be read in place. With budget controls a match charges a unit per
-code point.`, Laws: []string{"implies flow.matchLit: where it holds, flow.matchLit of the literal matches."}}),
+anything; false where the input cannot be read in place.`, Laws: []string{"implies flow.matchLit: where it holds, flow.matchLit of the literal matches."}}),
 		"the literal (*core.Lit)", immOf[*core.Lit]())
 	withImm(op(&code.Op{Name: OpMatchLit, Results: []code.Type{value, b}, Reads: pos, Writes: []string{State, prim.Pos}, NoReturn: true, Cost: plus(per(QLit), QMerge),
 		Contract: `Matches the literal at the position and moves past it, recording its expectation on failure as the
 composition expect does. Its results are its value (not used) and whether it matched; on failure the position
-is unchanged. With budget controls it charges a unit for each code point it matches or rejects
-(spec/runtime/parsing.md#cost) and what recording the expectation charges. It counts the position units it
+is unchanged. It counts the position units it
 advances over, none on failure (spec/runtime/parsing.md#compute-units).`}),
 		"the literal (*core.Lit)", immOf[*core.Lit]())
 	withImm(op(&code.Op{Name: OpMatchClass, Results: []code.Type{b}, Reads: pos, Writes: []string{State, prim.Pos}, NoReturn: true, Cost: plus(unit, QMerge),
 		Contract: "Matches one character of the class through its membership table and moves past it, recording the class's expectation on failure as the composition expect does; reports whether it matched. It counts the position units of the character it advances over, none on failure (spec/runtime/parsing.md#compute-units)."}),
 		"the class (*core.Class)", immOf[*core.Class]())
 	withImm(op(&code.Op{Name: OpInClass, NoReturn: true, Params: []code.Param{P("ch", runeT)}, Results: []code.Type{b}, Cost: per(QRanges),
-		Contract: "Reports whether the code point ch is in the class. With budget controls it charges at most a unit for each range of the class that it compares, a constant of the grammar for the character examined (spec/runtime/parsing.md#cost). It counts no compute unit: the test examines a character without advancing.", Laws: []string{pure}}), "the class (*core.Class)", immOf[*core.Class]())
+		Contract: "Reports whether the code point ch is in the class. It counts no compute unit: the test examines a character without advancing.", Laws: []string{pure}}), "the class (*core.Class)", immOf[*core.Class]())
 	withImm(op(&code.Op{Name: OpGuardFails, NoReturn: true, Params: []code.Param{P("ch", runeT), P("more", b)}, Results: []code.Type{b}, Cost: per(QRanges),
-		Contract: "Reports that the guard of a class skips its alternative: the character that more (there is one) and ch describe is not in the class, and the nesting limit allows the guard's depth of calls. With budget controls, testing the character against the class charges a unit for each range it tests (spec/runtime/parsing.md#cost). A guard counts no compute unit: it examines the next character without advancing, which is no event (spec/runtime/parsing.md#compute-units).",
+		Contract: "Reports that the guard of a class skips its alternative: the character that more (there is one) and ch describe is not in the class, and the nesting limit allows the guard's depth of calls. A guard counts no compute unit: it examines the next character without advancing, which is no event (spec/runtime/parsing.md#compute-units).",
 		Laws:     []string{pure}}), "the guard (*core.First)", immOf[*core.First]())
 	withImm(op(&code.Op{Name: OpGuardLitFails, Results: []code.Type{b}, Reads: pos, Writes: []string{State}, NoReturn: true, Cost: plus(unit, QStream),
 		Contract: `Reports that the guard of a literal skips its alternative: the input at the position does not begin with
@@ -482,14 +475,13 @@ the literal's first character, and the nesting limit allows the guard's depth of
 as the literal does and examines what the literal would: in code points the character at the position; in bytes
 the UTF-8 encoding of the character byte by byte, up to the first byte that differs, or the end of the input,
 except U+FFFD, which also matches one invalid byte and so decodes the character; a folded character matches an
-ASCII letter in either case. It reads no further input than it examines. The read charges one unit in a function
-with budget controls, and decoding what flow.peek charges for it (spec/runtime/parsing.md#cost); in a stream
-parse what loading the input charges; in a Document parse it records how far the parse examined the input. A
+ASCII letter in either case. It reads no further input than it examines. In a stream parse the read costs what
+loading the input costs; in a Document parse it records how far the parse examined the input. A
 guard counts no compute unit: it examines the next character without advancing, which is no event
 (spec/runtime/parsing.md#compute-units).`}),
 		"the guard (*core.First)", immOf[*core.First]())
 	withImm(op(&code.Op{Name: OpAtAnchor, NoReturn: true, Results: []code.Type{b}, Reads: pos, Cost: unit,
-		Contract: "Reports whether the position is at the anchor. With budget controls, reading the character at the position for the end of a line charges a unit (spec/runtime/parsing.md#cost). It counts no compute unit: it examines input without advancing.", Laws: []string{pure}}), "the anchor (core.AnchorKind)", immOf[core.AnchorKind]())
+		Contract: "Reports whether the position is at the anchor. It counts no compute unit: it examines input without advancing.", Laws: []string{pure}}), "the anchor (core.AnchorKind)", immOf[core.AnchorKind]())
 	withImm(op(&code.Op{Name: OpSkipTerminal, Results: []code.Type{b}, Reads: pos, Writes: []string{State, prim.Pos}, NoReturn: true, Cost: per(QTerminal),
 		Contract: "Runs the terminal region as one program from the position and reports whether it matched; on a match the position moves past it. It counts the position units that each of its terminals advances over, again after the program backtracks (spec/runtime/parsing.md#compute-units)."}),
 		"the terminal region (*core.Terminal)", immOf[*core.Terminal]())
@@ -503,9 +495,8 @@ over, those before a class that fails included (spec/runtime/parsing.md#compute-
 		Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QBody}, {Coef: 1, Quantity: QCall}}},
 		Contract: `Calls the rule from the Operators Rule level through the composition call
 (spec/exec-ir/compositions.md#calls). Its results are the rule's value and whether it matched; on a match the
-position is the end of the rule's match, on failure it is unchanged. With budget controls the body charges the
-unit of the call; under logical units the call counts its unit and the key of a memoized rule, as the composition
-call does (spec/runtime/parsing.md#compute-units).`}),
+position is the end of the rule's match, on failure it is unchanged. Under logical units the call counts its unit
+and the key of a memoized rule, as the composition call does (spec/runtime/parsing.md#compute-units).`}),
 		"the rule and the level (RuleCall)", immOf[prim.RuleCall]())
 	withImm(op(&code.Op{Name: OpCallOutline, Results: []code.Type{value, b}, Reads: all, Writes: all, NoReturn: true, Cost: per(QBody),
 		Contract: "Runs the node, which a function of its own lowers, under the current frame. Its results are the value of the node, built if Build, and whether it matched."}),
@@ -617,9 +608,6 @@ type Attrs struct {
 	// newBranchNode). A function builds the values of one runtime: a Node function has no typed value
 	// operation, and a typed function has no Node one (VerifyModule).
 	Node bool
-	// Budget reports a function lowered with budget controls; VerifyModule then checks the charging
-	// of the budget.
-	Budget bool
 	// Document reports a function lowered for a build with Documents; VerifyModule then checks that
 	// every in-place read has the recording operation as its alternative.
 	Document bool
@@ -627,11 +615,6 @@ type Attrs struct {
 	// input in it records how far the parse examined, so VerifyModule rejects each operation that reads
 	// in place (hasLit, matchClass, skipTerminal, skipClasses), with or without a recording alternative.
 	Traced bool
-	// Entered reports a function lowered with budget controls, whose entry the generator charges: the
-	// method that holds the function begins with one Spend, for the body of a rule, of a frame and of a
-	// line or the skip of an Operators Rule alike. The function charges nothing for its entry and the
-	// verifier takes the entry as its first charge.
-	Entered bool
 	// Forms record the forms of the lowering that a Flow pass may replace, until flowpass.Finishing
 	// removes them.
 	Forms *Forms

@@ -44,7 +44,7 @@ flowchart TD
 | Question it answers | What does this rule mean? | How does a parser control it? | What must the abstract machine do, and how is that composed? |
 | Operations | A tree of grammar-level expressions, each carrying facts | Flow and Action dialects: matching, mark and restore, expectations, captures, calls under a policy, charges, recovery, action evaluation | Exec and Action dialects: operations of the abstract machine and the compositions over them |
 | Optimized by | Rewrites that are valid for any backend | Control-level decisions with stated obligations | Behavior-preserving passes: specializing a function for the features of a build, removing what cannot run, legalizing for a language |
-| Knows about | Input consumed, expectations, captures, failure | Parser state, control flow, the features of a build (budget, Document, tracing) | The abstract state of the parser (memo table, budget, ...) and the contract of each operation |
+| Knows about | Input consumed, expectations, captures, failure | Parser state, control flow, the features of a build (limit controls, Document, tracing) | The abstract state of the parser (memo table, budget, ...) and the contract of each operation |
 
 Core IR is independent of the mode, of the target and of the layout of parser state. Code IR at the Flow stage is
 independent of how a target stores state or implements an operation, and so is the Exec stage.
@@ -157,7 +157,7 @@ consumes or expects.
 
 Code IR at the Flow stage holds the body of each rule variant as operations of grammar control with structured
 control: variables for positions and results, labeled blocks and loops, and the operations of the Flow dialect
-(matching, mark and restore for backtracking, expectations, captures, rule calls under a policy, charging for budgets,
+(matching, mark and restore for backtracking, expectations, captures, rule calls under a policy, counting compute units,
 recovery), with action expressions as operations of the Action dialect. It holds no host-language text. Its control is structured and
 nested: labeled blocks and loops are regions inside the operation that owns them, and the form that is printed and
 verified keeps that nesting. A pass that needs a graph view asks the analysis manager for one.
@@ -167,7 +167,7 @@ construct it does not support rather than guess. The shape is then chosen by the
 control-level decision: call specialization, inlining, dispatch, the form of a match, removal of saves that no failure
 path reads, merging and threading of failure paths, canonicalization, sharing slots between locals, and outlining. Each pass declares an obligation, the property it preserves, and the features under which it applies, and the
 Flow verifier checks the result, right after `flowlower`, again where the pipeline leaves the Flow stage, and after
-every pass with `-verify-each`: structure, variables, one runtime per function, the budget invariants, recorded reads
+every pass with `-verify-each`: structure, variables, one runtime per function, recorded reads
 under a Document and no in-place reads in a traced parse. The passes, their order and their obligations are listed in
 [the pass pipeline](pass-pipeline.md#the-flow-passes).
 

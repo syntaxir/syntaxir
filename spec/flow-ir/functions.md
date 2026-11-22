@@ -1,8 +1,8 @@
 # Functions
 
 A function at the Flow stage is a function of [Code IR](../code-ir/functions.md) that is the body of one rule variant: a
-rule, or a part of its body that runs as a function of its own, lowered for one combination of the options below (Node,
-Budget and Document). The base's parts, its name, parameters, locals and body, are those of Code IR: its variables are
+rule, or a part of its body that runs as a function of its own, lowered for one combination of the options below (Node
+and Document). The base's parts, its name, parameters, locals and body, are those of Code IR: its variables are
 the locals of the function, and its body is the base's structured control. The Flow dialect adds the following parts as
 attributes of the function.
 
@@ -19,9 +19,7 @@ attributes of the function.
 | Value | The value with which a framed function succeeds; none where it cannot succeed |
 | Cut | The cut flag of the outermost scope of a framed function, a variable, which it reads from the register of the cut flag on entry |
 | Node | The function builds the values of the node runtime, and none of the typed runtime |
-| Budget | The function is lowered with budget controls, and charges the budget as [Invariants](invariants.md#budget) requires |
 | Document | The function is lowered for a build with Documents, and reads input in place only as [Invariants](invariants.md#documents) allows |
-| Entered | The function is lowered with budget controls and its entry is charged by the code that holds it: the function charges nothing for its entry and starts charged |
 
 ## Local and Framed Functions
 

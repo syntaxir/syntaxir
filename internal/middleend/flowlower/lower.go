@@ -88,9 +88,7 @@ func FramedBody(n core.Node) bool {
 
 // LowerFrame lowers the body n with the capture scope slots, building its value if build, to the
 // framed function name of the rule r: the body of a left-recursion leader or of a rule that
-// recovers, or a line of an Operators Rule of r. Analyze must have run on m. With
-// lowerdata.Options.Budget the function does not charge its entry: the method that calls it does
-// (flow.Attrs.Entered).
+// recovers, or a line of an Operators Rule of r. Analyze must have run on m.
 func LowerFrame(m *core.Module, r *core.Rule, n core.Node, slots []core.Slot, build bool, name string, opts lowerdata.Options) (*code.Module, error) {
 	return verified(lowerFunc(m, lowerdata.Func{Form: lowerdata.Frame, Rule: r, Name: name, Body: n, Slots: slots, Build: build}, opts))
 }
@@ -122,8 +120,8 @@ func lowerFrameBody(m *core.Module, r *core.Rule, n core.Node, slots []core.Slot
 	if !FramedBody(n) {
 		return nil, fmt.Errorf("a body of rule %s is not lowered to a framed function", r.Name)
 	}
-	l := newLowerer(m, opts, name, &flow.Attrs{Rule: r, Frame: true, Node: opts.Node, Budget: opts.Budget, Document: opts.Document,
-		Traced: opts.Traced, Entered: opts.Budget, Binds: n.Attrs().Eff.Set&core.EffBind != 0})
+	l := newLowerer(m, opts, name, &flow.Attrs{Rule: r, Frame: true, Node: opts.Node, Document: opts.Document,
+		Traced: opts.Traced, Binds: n.Attrs().Eff.Set&core.EffBind != 0})
 	l.frame = true
 	l.stream = stream
 	l.top = n
@@ -157,10 +155,8 @@ func lowerFlat(m *core.Module, r *core.Rule, name string, opts lowerdata.Options
 	}
 	l := newLowerer(m, opts, name, &flow.Attrs{Rule: r, Start: "start", Result: "v", Ctx: "c",
 		Node:     opts.Node,
-		Budget:   opts.Budget,
 		Document: opts.Document,
 		Traced:   opts.Traced,
-		Entered:  opts.Budget, // the method that calls the function charges the step of entering the rule
 		Binds:    r.Body.Attrs().Eff.Set&core.EffBind != 0})
 	core.Walk(r.Body, func(n core.Node) {
 		if _, ok := n.(*core.Cut); ok {
@@ -399,12 +395,10 @@ func (l *lowerer) setEnv(x code.Expr) { l.emit(do(flow.OpSetEnv, nil, x)) }
 
 func (l *lowerer) setFrame(x code.Expr) { l.emit(do(flow.OpSetFrame, nil, x)) }
 
-// step charges one budget step. A rule charges one on entering, which the method that holds the lowered
-// function does (Attrs.Entered), and the lowered function charges one on each iteration of a repetition.
-// No other point of straight-line code charges: between two charges only the straight-line code of one
-// rule body runs, whose length is bounded by the size of the grammar, so the steps still bound the spend.
+// step emits the step of an iteration of a repetition under logical units (lowerdata.Options.Logical),
+// which counts nothing and checks the counter of the units (flow.step).
 func (l *lowerer) step() {
-	if l.opts.Budget || l.opts.Logical {
+	if l.opts.Logical {
 		l.emit(do(flow.OpStep, nil))
 	}
 }
@@ -846,10 +840,9 @@ func (l *lowerer) choice(n *core.Choice, s *scope, build bool, fail string) code
 			// The alternative is skipped when the next character cannot begin it, and the guard examines
 			// what the alternative would examine there. The guard of a literal compares the literal's first
 			// character as the literal does (flow.guardLitFails), reading no further than the first byte
-			// that differs. The guard of a class decodes the character: with budget controls each such
-			// guard reads it again, as the guard of each alternative is a terminal that examines it
-			// (spec/runtime/parsing.md#cost); without them one read serves all of them.
-			if !a.Guard.Lit && (ch == "" || l.opts.Budget) {
+			// that differs. The guard of a class decodes the character, and one read serves the guards
+			// of all of them.
+			if !a.Guard.Lit && ch == "" {
 				if ch == "" {
 					ch, more = l.decl("x", prim.TypeRune), l.decl("x", prim.TypeBool)
 				}

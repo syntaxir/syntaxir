@@ -98,7 +98,7 @@ func observeSkips(b *code.Block) int {
 // typedOptions returns the options of lowering the typed rules of the Core IR m with the generator g,
 // as the typed table of its parser has them.
 func typedOptions(g *print.Generator, m *core.Module) lowerdata.Options {
-	o := lowerdata.Options{Budget: !g.NoBudget, Logical: g.Logical, Guards: lowerdata.GuardsExact, Recovers: flowlower.Recovers(m), Observe: g.Observability, Document: g.RecordsExamined(), Traced: g.Traced}
+	o := lowerdata.Options{Logical: g.Logical, Guards: lowerdata.GuardsExact, Recovers: flowlower.Recovers(m), Observe: g.Observability, Document: g.RecordsExamined(), Traced: g.Traced}
 	o.Guarded = flowplan.Guarded(m, o)
 	return o
 }

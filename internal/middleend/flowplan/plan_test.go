@@ -78,7 +78,7 @@ func tableIR(t *testing.T, src string, rec check.Recognition) (*plandata.TableIR
 		t.Fatal(err)
 	}
 	rules := append(append([]*check.Rule(nil), prog.RuleList...), prog.Twins...)
-	opts := lowerdata.Options{Budget: true, Recovers: flowlower.Recovers(m), Node: true}
+	opts := lowerdata.Options{Logical: true, Recovers: flowlower.Recovers(m), Node: true}
 	opts.Guarded = flowplan.Guarded(m, opts)
 	return &plandata.TableIR{M: m, Opts: opts}, rules
 }
@@ -174,7 +174,7 @@ func TestPlanLive(t *testing.T) {
 // reachable point is refused.
 func TestRefused(t *testing.T) {
 	m, _, p := plan(t, grammar, check.Recognize, nil)
-	opts := lowerdata.Options{Budget: true, Recovers: flowlower.Recovers(m), Node: true}
+	opts := lowerdata.Options{Logical: true, Recovers: flowlower.Recovers(m), Node: true}
 	n, starts := 0, 0
 	for _, s := range p.Funcs {
 		if s.Form != lowerdata.Flat {
@@ -244,7 +244,7 @@ func TestRefusedBeforeTheForms(t *testing.T) {
 		}
 		for _, rec := range []check.Recognition{check.Recognize, check.BuildValues} {
 			m, _, p := plan(t, string(src), rec, nil)
-			opts := lowerdata.Options{Budget: true, Recovers: flowlower.Recovers(m), Node: true}
+			opts := lowerdata.Options{Logical: true, Recovers: flowlower.Recovers(m), Node: true}
 			for _, s := range p.Funcs {
 				if s.Form != lowerdata.Flat {
 					continue
@@ -305,7 +305,7 @@ func TestPlanDecidesBeforeThePasses(t *testing.T) {
 	if m, _, err = corepass.Run(m, corepass.RunOptions{}); err != nil {
 		t.Fatal(err)
 	}
-	ir := &plandata.TableIR{M: m, Opts: lowerdata.Options{Budget: true, Recovers: flowlower.Recovers(m), Node: true}}
+	ir := &plandata.TableIR{M: m, Opts: lowerdata.Options{Logical: true, Recovers: flowlower.Recovers(m), Node: true}}
 	p := flowplan.Plan(ir, planRules(append(append([]*check.Rule(nil), prog.RuleList...), prog.Twins...)), nil)
 	var seen, planned []string
 	pl := codegentest.RecordingFlow(true, func(_ pipe.Label, m *code.Module) {
@@ -364,7 +364,7 @@ func TestPlanTyped(t *testing.T) {
 		t.Fatal(err)
 	}
 	rules := append(append([]*check.Rule(nil), prog.RuleList...), prog.Twins...)
-	ir := &plandata.TableIR{M: m, Opts: lowerdata.Options{Budget: true, Recovers: flowlower.Recovers(m)}}
+	ir := &plandata.TableIR{M: m, Opts: lowerdata.Options{Logical: true, Recovers: flowlower.Recovers(m)}}
 	byName := map[string]*check.Rule{}
 	for _, r := range rules {
 		if byName[r.Name] == nil {
@@ -423,7 +423,7 @@ func TestPlanStream(t *testing.T) {
 		t.Fatal(err)
 	}
 	rules := planRules(append(append([]*check.Rule(nil), prog.RuleList...), prog.Twins...))
-	ir := &plandata.TableIR{M: m, Opts: lowerdata.Options{Budget: true, Recovers: flowlower.Recovers(m), Node: true}}
+	ir := &plandata.TableIR{M: m, Opts: lowerdata.Options{Logical: true, Recovers: flowlower.Recovers(m), Node: true}}
 	p := flowplan.Plan(ir, rules, nil)
 	if !flowplan.Stream(p, ir, rules[0]) {
 		t.Fatal("no stream body planned")
@@ -445,7 +445,7 @@ func TestPlanStream(t *testing.T) {
 	if text := code.FuncStringIn(f, flow.FuncOf(f)); !strings.Contains(text, flow.OpEmitStream+"(") {
 		t.Errorf("the stream body delivers no element:\n%s", text)
 	}
-	rec := &plandata.TableIR{M: m, Opts: lowerdata.Options{Budget: true}}
+	rec := &plandata.TableIR{M: m, Opts: lowerdata.Options{Logical: true}}
 	if flowplan.Stream(flowplan.Plan(rec, rules, nil), rec, rules[0]) {
 		t.Error("a stream body is planned for a table of other than Node values")
 	}

@@ -20,11 +20,8 @@ import (
 // literals, methods and field type variables, and the Exec IR of the rules printed from it.
 type Generator struct {
 	Observability bool
-	// NoBudget leaves the step charges out of Go output generated without budget controls, where
-	// no control exists to charge: the statements, and the closures that only held one.
-	NoBudget bool
-	// Logical counts logical compute units in the form without budget charges (the ordinary form, or
-	// a Document's), which a parser with limit controls does: loops keep their step,
+	// Logical counts logical compute units in every form (the ordinary form, or a Document's), which
+	// a parser with limit controls does: loops keep their step,
 	// which the printer prints as a check of the counter.
 	Logical bool
 	// Ordinary prints the bodies in their ordinary form (no budget controls and no Documents): the

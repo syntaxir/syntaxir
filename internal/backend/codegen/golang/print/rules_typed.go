@@ -185,10 +185,7 @@ type primPrinter struct {
 	// document reports that the function is lowered for Documents (prim.Attrs.Document): its in-place reads
 	// are guarded by p.Document == nil, so that a Document parse reads through the recording primitives.
 	document bool
-	// budget reports that the function is lowered with budget controls (prim.Attrs.Budget), so its
-	// in-place reads charge the budget.
-	budget bool
-	b      strings.Builder
+	b        strings.Builder
 	// names holds the package variables of the capture names of scopes, declared on first use
 	// unless a DeclareNames statement declares them.
 	names map[*prim.Names]string
@@ -200,7 +197,7 @@ type primPrinter struct {
 // lowering options of l, which its attributes hold.
 func newPrimPrinter(g *Generator, frame bool, l *execdata.Lowered) *primPrinter {
 	a := prim.AttrsOf(l.Func)
-	return &primPrinter{g: g, frame: frame, document: a.Document, budget: a.Budget, names: map[*prim.Names]string{}}
+	return &primPrinter{g: g, frame: frame, document: a.Document, names: map[*prim.Names]string{}}
 }
 
 // scopeNames returns the package variable of the capture names n, naming it on first use.

@@ -54,9 +54,8 @@ type TableConfig struct {
 	// Values selects the Node table, whose Core IR gathers the values of projected repetitions as its
 	// actions read them; false selects the recognizer, whose actions read no projections.
 	Values bool
-	// Budget charges the budget controls of a parse (lowerdata.Options.Budget).
-	Budget bool
-	// Logical keeps the step of each loop iteration without budget controls (lowerdata.Options.Logical).
+	// Logical keeps the step of each loop iteration, as the check of the counter of logical compute
+	// units (lowerdata.Options.Logical).
 	Logical bool
 	// Guards selects what the guards of choices do under Logical (lowerdata.Options.Guards).
 	Guards lowerdata.LogicalGuards

@@ -421,7 +421,8 @@ one that a context method's panic unwinds, leaves neither the Core IR nor the fa
 so the next parse that needs the family builds it. Any other panic of the Core IR or closure build is an
 internal error that the family reports from then on; the build's duration is part of the first-use cost
 that [Performance and Results](#performance-and-results) measures. In the budget-controlled program, entering a `Nest` charges at least one step, as a call does, so the
-budget invariants of the [Flow IR specification](../../../spec/flow-ir/invariants.md#budget) hold.
+budget invariants of the Flow IR specification hold (since replaced by [logical compute
+units](../../../spec/runtime/parsing.md#compute-units), which fix where a parse counts).
 
 The family is independent of the other variants, which gives this matrix:
 
@@ -858,7 +859,8 @@ Each enabled pass records its measured effect in the [optimization catalog](../.
    lowering ships and every backend has the Core passes. The stages are ordered so that a release can be
    cut after any completed stage.
 8. **Budget counts.** Charge placement may change the budget counts of generated artifacts under the progress
-   invariants of the [Flow IR specification](../../../spec/flow-ir/invariants.md#budget), as the runtime specification makes counts implementation-specific; tests that
+   invariants of the Flow IR specification (since replaced by [logical compute
+   units](../../../spec/runtime/parsing.md#compute-units)), as the runtime specification makes counts implementation-specific; tests that
    pin counts are updated. The step counts of generated parsers do not include the terms of actions and the
    fields of typed constructors, and the closure backend and the bytecode VMs charge them differently.
 9. **Overlap within a stage.** The old and the new path run side by side behind a private switch only

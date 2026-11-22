@@ -5,7 +5,7 @@ state of a parse with structured control. A function at the Flow stage of [Code 
 hold the saved state of backtracking points, the values of captures, intermediate values and flags, a body of the
 base's structured control (labeled blocks and loops, branches, exits and assignments), and other steps that are calls of
 the operations of the dialect, which match terminals, record expectations, call rules, build values, evaluate action expressions and
-charge the budget. Action expressions are calls of the operations of the Action dialect (see
+count compute units. Action expressions are calls of the operations of the Action dialect (see
 [Values](../exec-ir/values.md)), which are legal at the Flow stage too. A function holds no text of a target language,
 so a backend has little to decide.
 

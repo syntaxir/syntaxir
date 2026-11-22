@@ -259,7 +259,7 @@ func TestPassesTarget(t *testing.T) {
 }
 
 // The passes respect the function: a parse that reports its rules has no terminal programs, a
-// function with budget controls charges every read and keeps its classes, and a traced copy reads
+// function lowered for Documents records every read and keeps its classes, and a traced copy reads
 // every literal through the operation that records it.
 func TestPassesFunction(t *testing.T) {
 	for _, c := range []struct {
@@ -270,7 +270,7 @@ func TestPassesFunction(t *testing.T) {
 	}{
 		{"observed", lowerdata.Options{Observe: true}, testEnv{Observe: true, Target: all},
 			[]string{PassGuardedClasses, PassClassRuns, PassClassTables, PassInlineLiterals}},
-		{"budget", lowerdata.Options{Budget: true}, testEnv{Target: all}, []string{PassInlineLiterals}},
+		{"document", lowerdata.Options{Document: true}, testEnv{Target: all}, []string{PassInlineLiterals}},
 		{"traced", lowerdata.Options{Traced: true, Observe: true}, testEnv{Observe: true, Target: all}, nil},
 		{"node", lowerdata.Options{Node: true}, testEnv{Target: all}, []string{PassGuardedClasses, PassInlineLiterals}},
 	} {

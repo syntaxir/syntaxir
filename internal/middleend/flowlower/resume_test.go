@@ -16,7 +16,7 @@ var resumeOps = []string{flow.OpResumeOn, flow.OpResumeStart, flow.OpResumeMore,
 	flow.OpResumeBegin, flow.OpResumeEnd, flow.OpResumeFinish}
 
 // resumeOptions are the options of a lowering that resumes runs.
-var resumeOptions = lowerdata.Options{Budget: true, Document: true, Node: true, Resume: true}
+var resumeOptions = lowerdata.Options{Logical: true, Document: true, Node: true, Resume: true}
 
 // resumable returns a repetition of the literal "ab" that a Document can resume, as the builder
 // numbers it (core.Repeat.Resume).
@@ -90,21 +90,20 @@ func TestLowerResume(t *testing.T) {
 			if strings.Contains(got, flow.OpScanReach+"(") && !strings.Contains(got, "!x") {
 				t.Errorf("a resuming walk is a walk of the scan site in\n%s", got)
 			}
-			// The iteration that keeps a reused element charges no step: the call of flow.resumeNext polls in its
-			// place. Without the call, the verifier rejects the iteration of a loop without a counter.
+			// The iteration that keeps a reused element takes no step: the call of flow.resumeNext checks the
+			// limits in its place, and the iteration continues.
 			if strings.Contains(got, "loop loop.1 init") {
 				return
 			}
-			dropResumeNext(flow.FuncOf(f).Body)
-			if err := flow.VerifyModule(f); err == nil || !strings.Contains(err.Error(), "without charging") {
-				t.Errorf("verifying the function without its resumeNext: got %v, want a charge error", err)
+			if kept, ok := keepsWithoutStep(flow.FuncOf(f).Body); !kept || !ok {
+				t.Errorf("the iteration that keeps a reused element: found %v, continues without a step %v, in\n%s", kept, ok, got)
 			}
 		})
 	}
 	off := map[string]lowerdata.Options{
-		"without Resume":   {Budget: true, Document: true, Node: true},
-		"without Document": {Budget: true, Node: true, Resume: true},
-		"typed":            {Budget: true, Document: true, Resume: true},
+		"without Resume":   {Logical: true, Document: true, Node: true},
+		"without Document": {Logical: true, Node: true, Resume: true},
+		"typed":            {Logical: true, Document: true, Resume: true},
 	}
 	for name, opts := range off {
 		t.Run(name, func(t *testing.T) {
@@ -180,29 +179,52 @@ func TestVerifyResume(t *testing.T) {
 	}
 }
 
-// dropResumeNext removes the statements that call flow.resumeNext from the block b and the blocks in it.
-func dropResumeNext(b *code.Block) {
+// keepsWithoutStep finds, in the block b and the blocks in it, the iteration that keeps an element
+// that flow.resumeNext reused: the branch on the second result of the call, right after it. It
+// reports whether it found one and whether each such branch continues the loop without a step.
+func keepsWithoutStep(b *code.Block) (found, ok bool) {
 	if b == nil {
-		return
+		return false, true
 	}
-	out := b.Stmts[:0]
-	for _, s := range b.Stmts {
+	ok = true
+	for i, s := range b.Stmts {
+		var inner []*code.Block
 		switch s := s.(type) {
 		case *code.Set:
-			if len(s.Values) == 1 {
-				if c, ok := s.Values[0].(*code.Call); ok && c.Callee == flow.OpResumeNext {
-					continue
+			if len(s.Values) != 1 || len(s.Dst) != 2 || i+1 == len(b.Stmts) {
+				continue
+			}
+			if c, isCall := s.Values[0].(*code.Call); !isCall || c.Callee != flow.OpResumeNext {
+				continue
+			}
+			br, isIf := b.Stmts[i+1].(*code.If)
+			if !isIf {
+				continue
+			}
+			if l, isLocal := br.Cond.(*code.Local); !isLocal || l.Name != s.Dst[1].Name {
+				continue
+			}
+			found = true
+			stmts := br.Then.Stmts
+			_, cont := stmts[len(stmts)-1].(*code.Continue)
+			stepped := false
+			for _, t := range stmts {
+				if d, isDo := t.(*code.Do); isDo && d.Call.Callee == flow.OpStep {
+					stepped = true
 				}
 			}
+			ok = ok && cont && !stepped
 		case *code.Block:
-			dropResumeNext(s)
+			inner = []*code.Block{s}
 		case *code.If:
-			dropResumeNext(s.Then)
-			dropResumeNext(s.Else)
+			inner = []*code.Block{s.Then, s.Else}
 		case *code.Loop:
-			dropResumeNext(s.Body)
+			inner = []*code.Block{s.Body}
 		}
-		out = append(out, s)
+		for _, in := range inner {
+			f, k := keepsWithoutStep(in)
+			found, ok = found || f, ok && k
+		}
 	}
-	b.Stmts = out
+	return found, ok
 }

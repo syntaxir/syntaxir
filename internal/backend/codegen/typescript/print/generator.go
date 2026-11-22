@@ -84,7 +84,7 @@ func newGenerator(prog *common.Program, opts common.GenOptions, live *tsLive) *G
 	// Limit controls count logical compute units (spec/runtime/parsing.md, Compute Units) in every
 	// form of the functions, a Document's included: no form charges a budget.
 	tsg.limits = !opts.NoLimitControls
-	tsg.NoBudget, tsg.Logical = true, tsg.limits
+	tsg.Logical = tsg.limits
 	tsg.optionsType = "ParseOptions"
 	if opts.NoLimitControls {
 		tsg.optionsType = "PlainParseOptions"

@@ -85,7 +85,7 @@ func r() {
   v = null(value)
 }
 `},
-		{"repetition with work and recovery", &core.Repeat{Min: 1, Max: -1, Body: &core.Lit{Text: "a"}}, lowerdata.Options{Budget: true, Recovers: true}, `
+		{"repetition with work and recovery", &core.Repeat{Min: 1, Max: -1, Body: &core.Lit{Text: "a"}}, lowerdata.Options{Logical: true, Recovers: true}, `
 func r() {
   var x1 int
   var x2 int

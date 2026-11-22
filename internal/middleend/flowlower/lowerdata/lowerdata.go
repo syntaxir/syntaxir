@@ -76,11 +76,8 @@ const (
 
 // Options selects the forms the lowering writes.
 type Options struct {
-	// Budget charges one compute unit on each loop iteration and for each character a Peek reads;
-	// the method that holds a rule's body charges its entry.
-	Budget bool
-	// Logical emits the step of each loop iteration without Budget, as the check of a counter of
-	// logical compute units (design record 076); nothing else charges.
+	// Logical emits the step of each loop iteration, as the check of a counter of logical compute
+	// units (design record 076); nothing else charges.
 	Logical bool
 	// Guards selects what the guards of choices do under Logical, which the pass dispatch reads to
 	// choose the guards that the lowering keeps (Guarded).

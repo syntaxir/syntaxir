@@ -17,7 +17,7 @@ The immediate prints as the operation's declaration formats it, without the addr
 to, so that the listing of a function is the same in every run. The registers print with a `$`, as `$pos`. A `return`
 prints its values, and `null(` the type `)` is the null handle of a type.
 
-The listing below is the function of the rule `"a" / "b"`, lowered for a recognizer with no budget controls, no Document
+The listing below is the function of the rule `"a" / "b"`, lowered for a recognizer with no limit controls, no Document
 and no recovery.
 
 ```text

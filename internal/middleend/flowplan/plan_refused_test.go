@@ -39,7 +39,7 @@ func TestPlanTakesTheFallbackOfARefusedFunction(t *testing.T) {
 		rules = append(rules, &plandata.Rule{ID: r.ID, Name: r.Name, Body: r.Def.Expr, Action: r.Action, Plain: r.Plain, Lean: r.Lean, Novalue: r.Novalue, Leader: r.Leader})
 		byName[r.Name] = r.ID
 	}
-	ir := &plandata.TableIR{M: m, Opts: lowerdata.Options{Budget: true, Recovers: flowlower.Recovers(m), Node: true}}
+	ir := &plandata.TableIR{M: m, Opts: lowerdata.Options{Logical: true, Recovers: flowlower.Recovers(m), Node: true}}
 	all := flowplan.Plan(ir, rules, nil)
 	for _, name := range []string{"main", "a", "b"} {
 		if s, ok := all.Func(plandata.Key{Rule: byName[name]}); !ok || s.Form != lowerdata.Flat || s.Fallback == nil {
@@ -101,7 +101,7 @@ func TestPlanRefusesByItsPredicate(t *testing.T) {
 	for _, r := range append(append([]*check.Rule(nil), prog.RuleList...), prog.Twins...) {
 		rules = append(rules, &plandata.Rule{ID: r.ID, Name: r.Name, Body: r.Def.Expr, Action: r.Action, Plain: r.Plain, Lean: r.Lean, Novalue: r.Novalue, Leader: r.Leader})
 	}
-	ir := &plandata.TableIR{M: m, Opts: lowerdata.Options{Budget: true, Recovers: flowlower.Recovers(m), Node: true}}
+	ir := &plandata.TableIR{M: m, Opts: lowerdata.Options{Logical: true, Recovers: flowlower.Recovers(m), Node: true}}
 	u := flowplan.Unit(flowplan.Plan(ir, rules, nil), ir, nil)
 	decide := u.Refuse
 	reads := 0

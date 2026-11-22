@@ -1,10 +1,10 @@
 # Passes
 
 A pass transforms a well-formed function into a function that does the same: for every state of a parse, running the
-result consumes the same input, records the same expectations, builds the same values, calls the same rules, charges
-the same budget and ends the same way as running the original. A pass relies only on the meaning of the statements and
-expressions of this specification and on the way the function was lowered (local or framed, with or without budget
-controls or a Document), never on how a target prints it.
+result consumes the same input, records the same expectations, builds the same values, calls the same rules, counts
+the same compute units and ends the same way as running the original. A pass relies only on the meaning of the statements and
+expressions of this specification and on the way the function was lowered (local or framed, with or without logical
+units or a Document), never on how a target prints it.
 
 ## Passes in the Pipeline
 
@@ -27,11 +27,11 @@ function is converted to the Exec stage or printed.
 ## Forms
 
 The lowering writes each construct in one form. The first passes of the stage replace the form of a construct with
-another that consumes the same input, records the same expectations and charges the same budget, where the target
+another that consumes the same input, records the same expectations and counts the same compute units, where the target
 prints the other form and the function allows it: a terminal region matched as one program, a class that consumes the
 character that the guard of its alternative read, consecutive classes matched as one, a class matched through a
-membership table, and a literal compared in place before it is matched. A form that skips charging or recording what a
-read examines applies only to a function lowered without budget controls, a Document or the records of a traced parse.
+membership table, and a literal compared in place before it is matched. A form that skips recording what a
+read examines applies only to a function lowered without a Document or the records of a traced parse.
 
 ## Canonicalization
 

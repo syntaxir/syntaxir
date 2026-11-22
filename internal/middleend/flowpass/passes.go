@@ -24,9 +24,9 @@ const (
 	PassInlineLiterals = "inline-literals"
 )
 
-// ordinary reports a function printed in the ordinary form: without budget controls, Documents or
-// the records of a traced parse, each of which charges or records the input a read examines.
-func ordinary(a *flow.Attrs) bool { return !a.Budget && !a.Document && !a.Traced }
+// ordinary reports a function printed in the ordinary form: without Documents or the records of a
+// traced parse, each of which records the input a read examines.
+func ordinary(a *flow.Attrs) bool { return !a.Document && !a.Traced }
 
 // leanTyped reports a function of typed rules printed in the ordinary form.
 func leanTyped(a *flow.Attrs) bool { return !a.Node && ordinary(a) }

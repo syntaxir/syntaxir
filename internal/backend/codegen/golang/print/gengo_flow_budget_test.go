@@ -18,10 +18,9 @@ import (
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
-// The Node and recognizer tables of a parser with limit controls are printed from Flow IR. Outside
-// Documents and streams they count the compute units of spec/runtime/parsing.md, whose totals the
-// specification makes the same on every backend; Documents and streams still charge the budget
-// steps of the Flow IR (flow.Attrs.Budget, verified by flow.VerifyModule). These tests build each parser, run it under limits and a polling context, check the
+// The Node and recognizer tables of a parser with limit controls are printed from Flow IR, and count
+// the compute units of spec/runtime/parsing.md, whose totals the specification makes the same on every
+// backend. These tests build each parser, run it under limits and a polling context, check the
 // invariants that every build must keep (limits fail with a well-formed error at the counter they limit,
 // the least successful limit succeeds, the context is polled at the library's cadence) and freeze the
 // totals in testdata/budget.golden, so that a change of the charges shows up as a reviewed diff.
@@ -332,9 +331,8 @@ var budgetGoldenFile = codegentest.GoldenFile{
 // on about a third of the corpus reports and the generated charge is between 0.33 and 1.37 times the
 // engine's), and the charges depend on the backend and artifact by contract (spec/runtime/parsing.md).
 //
-// The bounded spend of the rule bodies is proved on the IR itself: flow.VerifyModule rejects a function lowered
-// with budget controls that consumes input or iterates a loop without charging (see TestVerifyBudgetCharges),
-// and every function of this corpus is verified when generated.
+// Every function of this corpus is verified when generated (flow.VerifyModule). No IR check places or bounds a
+// charge: the units are the logical events of spec/runtime/parsing.md#compute-units, which the operations count.
 func TestFlowNodeBudgetInvariants(t *testing.T) {
 	t.Parallel()
 	codegentest.NeedsBudgetControls(t)

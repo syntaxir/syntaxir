@@ -33,7 +33,7 @@ A pass is a value, not just a function. It declares:
   **optional** pass has a flag of the same name, which turns it off. A **required** pass, such as a lowering, has a
   name and no flag: it runs whenever the pipeline reaches it, and no flag or profile turns it off;
 - the passes it must **follow**, for passes that share no data and that an analysis would not order;
-- when it **applies**: a set of features (budget controls, Documents, tracing and the like). Core IR has no mode, so a
+- when it **applies**: a set of features (limit controls, Documents, tracing and the like). Core IR has no mode, so a
   Core pass that applies to every build declares no feature. A pass that does not apply never runs, whatever its flag
   says;
 - its **obligation**, one sentence that says what it preserves: for a rewrite, the input consumed, the expectations
@@ -128,7 +128,7 @@ declarations.
 - **`flowlower`** lowers Core IR to Code IR at the Flow stage, in one uniform shape that the Flow passes then refine.
 - **Flow passes** make the control-level decisions, listed below. Their applicability is where the features matter: a
   rewrite is sound for a parser only if the parser does not observe what the rewrite removes. A match form that skips
-  charging input applies only when no budget and no Document is in effect, and a form that hides rule entries applies
+  recording input applies only when no Document is in effect, and a form that hides rule entries applies
   only when the parser is not traced.
 - **`vmlower`**, for the VM, selects bytecode instructions from the Flow stage, and the pipeline ends there.
 - **`execlower`**, for host code generation, converts the Flow stage to the Exec stage completely.
@@ -169,19 +169,19 @@ starts from every entry point of the program, and the expectation table is numbe
 are the program's. It decides everything that a printer would otherwise decide before or while printing: the functions
 of each table and their forms, the reachable rules and the route of each call, the expectation table and the frame
 layouts. The printers of Go and TypeScript take their tables from this plan, and the bytecode VM plans the Node table it
-runs from Flow IR the same way, so that every backend runs the same functions and their budget spends can be compared
+runs from Flow IR the same way, so that every backend runs the same functions and their compute units can be compared
 per input.
 
 The Core IR of a Node or recognizer table and the options its functions are lowered with are built by the steps of the
 pipeline that every backend shares: `elaborate` elaborates the program with or without the projected values of the
 Node table, the Core passes run on it, and the configuration of the table sets the lowering options from what the
-parser charges and records (budget controls or logical compute units, observation, Documents, traced bodies). The VM
+parser charges and records (logical compute units, observation, Documents, traced bodies). The VM
 builds the Node table of a parse with logical compute units, keeping only the guards whose skip makes no call, at the
 default optimizations and runs the driver's Flow passes for a target of its own, the bytecode target of the Flow passes,
 so its functions are those of a generated Go parser with logical compute units in the forms the VM runs.
 The bytecode target declares what the VM prints beyond the forms of every backend: none of the forms of the Flow passes.
-The forms of typed rules do not apply to the Node table, guarded classes apply only to functions without budget
-controls, and the VM has no instruction that compares a literal in place, so it matches each literal as the lowering
+The forms of typed rules do not apply to the Node table, guarded classes apply only to functions outside
+Documents and traced parses, and the VM has no instruction that compares a literal in place, so it matches each literal as the lowering
 wrote it. Each form counts what it replaces, so the VM's functions count what the Go parser's do.
 
 The functions of a planned table are lowered into one module, in the order of the plan, by one run of `flowlower`; the
@@ -257,7 +257,7 @@ preserves, and the analyses it needs and keeps. The table is in the order the pi
 | 1 | call-specialize | The result, memo records, expectations and events of a call stay the same; under observation the call is kept | Core facts (Plain, Memo, Leader), call graph |
 | 2 | inline | The same nodes, values, memo entries and errors at the same positions | Call graph, size |
 | 3 | dispatch (program) | Skipping a guarded alternative leaves the state that evaluating it leaves, and records the same expectations | Core guards, the calls a skip passes over, memo policy |
-| 4 | match-form | The same input consumed and the same expectations recorded; the charging invariants hold | Features (Budget, Document, Traced) |
+| 4 | match-form | The same input consumed, the same expectations recorded and the same compute units counted | Features (Document, Traced) |
 | 5 | save-elide | No save that no failure path reads | Core effects, liveness |
 | 6 | fail-merge/thread | The same behavior on every reachable path | Reachability |
 | 7 | canonicalize | The same behavior; each pattern keeps the behavior of the operations it rewrites | None beyond the operations it matches |
@@ -297,7 +297,7 @@ the form that is printed and verified is the structured one. The Flow verifier r
 `PerFunc` segment of the Flow passes verifies each of its functions where it ends, before `flow-finish`, if an optional
 pass ran on it; and with `-verify-each` after every Flow pass. Outside `-verify-each`, the required steps after that
 segment, `flow-finish` among them, are not verified again. The verifier checks the structure, the variables, one runtime
-per function, the budget invariants, recorded reads under a Document, and that a traced parse does not read in place.
+per function, recorded reads under a Document, and that a traced parse does not read in place.
 
 ## Dialect-Independent Passes of Code IR
 
@@ -402,7 +402,7 @@ with one flag set differently is a valid setting, and a name that no flag has is
 
 Each stage has a verifier: for Core IR, the checks listed in
 [What the Verifier Guarantees](intermediate-representations.md#what-the-verifier-guarantees); for the Flow stage, the
-structure, the variables, one runtime per function, the budget invariants, recorded reads under a Document and no
+structure, the variables, one runtime per function, recorded reads under a Document and no
 in-place reads in a traced parse; for the Exec stage, among its checks, that no Flow operation remains. The verifier of
 a lowering's output stage is its postcondition, and it always runs right after the lowering, so an error names the
 lowering. The other runs of the verifiers are where the pipeline leaves a stage. That tells a user that a transform

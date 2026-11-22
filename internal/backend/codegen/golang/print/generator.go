@@ -123,7 +123,7 @@ func NoNodeRules(o common.GenOptions) bool {
 func newGenerator(p *Parser) *Generator {
 	o := p.Opts
 	nodes := NoNodeRules(o)
-	g := &Generator{typedOnly: nodes, keepTableRules: nodes, Document: o.Document, NoBudget: true, Ordinary: !o.Document, Prog: p.Prog, Table: "rules"}
+	g := &Generator{typedOnly: nodes, keepTableRules: nodes, Document: o.Document, Ordinary: !o.Document, Prog: p.Prog, Table: "rules"}
 	g.Logical = o.LogicalUnits()
 	if o.Stream {
 		g.streamStart = p.Start
