@@ -87,3 +87,31 @@ func TestSuperinstructionsAreSelected(t *testing.T) {
 	}
 	t.Logf("matches: %v", matches)
 }
+
+// TestValuesAreSelectedIntoLocals requires the selection to write each value that a local takes into
+// the local's register: no instruction of the bodies of the testdata grammars writes a register that
+// the next instruction only copies elsewhere, with no other instruction of the body reading it.
+func TestValuesAreSelectedIntoLocals(t *testing.T) {
+	paths, err := filepath.Glob("../../../testdata/grammars/*/*.sxir")
+	if err != nil || len(paths) == 0 {
+		t.Fatalf("no grammars: %v", err)
+	}
+	for _, path := range paths {
+		_, bc, _ := compileGrammar(t, grammarProgram(t, path))
+		for rule, f := range bc.Flows {
+			reads := map[int]int{} // the number of instructions that read each register
+			for _, in := range f.Code {
+				for _, a := range in.Args {
+					reads[a]++
+				}
+			}
+			for i := 1; i < len(f.Code); i++ {
+				prev, in := f.Code[i-1], f.Code[i]
+				if in.Op == bytecode.FlowMove && len(prev.Dst) == 1 && prev.Dst[0] == in.Args[0] && reads[in.Args[0]] == 1 {
+					t.Errorf("%s: rule %s: %v at %d writes r%d only for the MOVE after it", path, bc.Strings[bc.Rules[rule].Name], prev.Op, i-1, in.Args[0])
+					break
+				}
+			}
+		}
+	}
+}

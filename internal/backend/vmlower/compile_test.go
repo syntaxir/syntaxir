@@ -26,48 +26,41 @@ actions:
 main.action:
   action 0 `
 	main := `flow main regs=13:
-     0  POS        r11 =
-     1  MOVE       r1 = r11
-     2  CALLJUMP   r3,r2 = -> 39 key level=0
-     3  SETCAPTURE r3 slot=0
-     4  MATCHLITJUMP _,r2 = -> 39 "=" "\"=\""
-     5  POS        r11 =
-     6  MOVE       r4 = r11
-     7  POS        r11 =
-     8  MOVE       r5 = r11
-     9  CONST      r11 = 0
-    10  MOVE       r8 = r11
-    11  CONST      r0 = -1
-    12  STEP       r0 = r0
-    13  MATCHCLASS r6,r7,r2 = -> 19 "[0-9]" "[0-9]"
-    14  ADVANCE    r7
-    15  CONST      r11 = 1
-    16  ADD        r12 = r8 r11
-    17  MOVE       r8 = r12
-    18  JUMP       -> 12
-    19  CONST      r11 = 1
-    20  LT         r12 = r8 r11
-    21  JUMPFALSE  r12 -> 23
-    22  JUMP       -> 39
-    23  TEXT       r12 = r5
-    24  NEWTERMINAL r11 = r5 r12
-    25  MOVE       r9 = r11
-    26  SETCAPTURE r9 slot=1
-    27  MARK       r11 =
-    28  MOVE       r10 = r11
-    29  GUARDLITJUMP -> 33 ';' depth=0 "\";\""
-    30  MATCHLITJUMP _,r2 = -> 32 ";" "\";\""
-    31  JUMP       -> 36
-    32  RESET      r10
-    33  JUMP       -> 36
-    34  RESET      r10
-    35  JUMP       -> 39
-    36  CONST      r11 = nil
-    37  CONST      r12 = true
-    38  RETURN     r11 r12
-    39  CONST      r11 = nil
-    40  CONST      r12 = false
-    41  RETURN     r11 r12
+     0  POS        r1 =
+     1  CALLJUMP   r3,r2 = -> 32 key level=0
+     2  SETCAPTURE r3 slot=0
+     3  MATCHLITJUMP _,r2 = -> 32 "=" "\"=\""
+     4  POS        r4 =
+     5  POS        r5 =
+     6  CONST      r8 = 0
+     7  CONST      r0 = -1
+     8  STEP       r0 = r0
+     9  MATCHCLASS r6,r7,r2 = -> 14 "[0-9]" "[0-9]"
+    10  ADVANCE    r7
+    11  CONST      r11 = 1
+    12  ADD        r8 = r8 r11
+    13  JUMP       -> 8
+    14  CONST      r11 = 1
+    15  LT         r12 = r8 r11
+    16  JUMPFALSE  r12 -> 18
+    17  JUMP       -> 32
+    18  TEXT       r11 = r5
+    19  NEWTERMINAL r9 = r5 r11
+    20  SETCAPTURE r9 slot=1
+    21  MARK       r10 =
+    22  GUARDLITJUMP -> 26 ';' depth=0 "\";\""
+    23  MATCHLITJUMP _,r2 = -> 25 ";" "\";\""
+    24  JUMP       -> 29
+    25  RESET      r10
+    26  JUMP       -> 29
+    27  RESET      r10
+    28  JUMP       -> 32
+    29  CONST      r11 = nil
+    30  CONST      r12 = true
+    31  RETURN     r11 r12
+    32  CONST      r11 = nil
+    33  CONST      r12 = false
+    34  RETURN     r11 r12
 flow key regs=13:
 `
 	// The action code is the engine's translation of the action's Core IR, which the action tests pin.

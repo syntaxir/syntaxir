@@ -182,6 +182,7 @@ func (c *compiler) flow(fn *code.Func, rule int) (*bytecode.Flow, error) {
 		if len(s.labels) > 0 || len(s.conts) > 0 {
 			return nil, fmt.Errorf("an exit to a block that does not enclose it")
 		}
+		coalesceCopies(s.f)
 		return s.f, s.zeroLocals(zeros)
 	}
 	// The body of a local function is the block of the fail label: running to its end succeeds with
@@ -205,6 +206,7 @@ func (c *compiler) flow(fn *code.Func, rule int) (*bytecode.Flow, error) {
 	if len(s.labels) > 0 || len(s.conts) > 0 {
 		return nil, fmt.Errorf("an exit to a block that does not enclose it")
 	}
+	coalesceCopies(s.f)
 	return s.f, s.zeroLocals(zeros)
 }
 
@@ -480,24 +482,69 @@ func (s *flowSel) set(x *code.Set) error {
 			dst[i] = r
 		}
 	}
-	if len(x.Values) == 1 && len(dst) > 1 {
+	if len(x.Values) == 1 {
 		return s.assign(dst, x.Values[0])
 	}
 	if len(x.Values) != len(dst) {
 		return fmt.Errorf("assignment of %d values to %d places", len(x.Values), len(dst))
 	}
+	// A value goes straight into the register of its local unless a later value reads the local,
+	// which must see the value before the assignment. The position and the cut flag are set after
+	// every value, since a value may read them.
 	tmp := make([]int, len(x.Values))
 	for i, v := range x.Values {
+		if d := dst[i]; d >= 0 && !slices.ContainsFunc(x.Values[i+1:], func(e code.Expr) bool { return reads(e, x.Dst[i].Name) }) {
+			if err := s.exprTo(v, d); err != nil {
+				return err
+			}
+			tmp[i] = d
+			continue
+		}
 		r, err := s.expr(v)
 		if err != nil {
 			return err
 		}
+		if l, ok := v.(*code.Local); ok && slices.ContainsFunc(x.Dst, func(p code.Place) bool { return !p.Reg && p.Name == l.Name }) {
+			// The local is assigned by this statement too, which must not change the value read.
+			t := s.reg()
+			s.emit(bytecode.FlowInstr{Op: bytecode.FlowMove, Dst: []int{t}, Args: []int{r}})
+			r = t
+		}
 		tmp[i] = r
 	}
 	for i, d := range dst {
-		s.store(d, tmp[i])
+		if d != tmp[i] {
+			s.store(d, tmp[i])
+		}
 	}
 	return nil
+}
+
+// reads reports whether the expression e reads the local name.
+func reads(e code.Expr, name string) bool {
+	switch x := e.(type) {
+	case *code.Local:
+		return x.Name == name
+	case *code.Unary:
+		return reads(x.X, name)
+	case *code.Binary:
+		return reads(x.X, name) || reads(x.Y, name)
+	case *code.Convert:
+		return reads(x.X, name)
+	case *code.Call:
+		return x.Fn != nil && reads(x.Fn, name) || slices.ContainsFunc(x.Args, func(a code.Expr) bool { return reads(a, name) })
+	}
+	return false
+}
+
+// readsReg reports whether the expression e reads a local whose register is r.
+func (s *flowSel) readsReg(e code.Expr, r int) bool {
+	for name, reg := range s.regs {
+		if reg == r && reads(e, name) {
+			return true
+		}
+	}
+	return false
 }
 
 // posDst and cutDst are the destinations of an assignment to the position register and to the cut
@@ -529,6 +576,9 @@ func (s *flowSel) assign(dst []int, e code.Expr) error {
 	if len(dst) != 1 {
 		return fmt.Errorf("an expression of one value assigned to %d places", len(dst))
 	}
+	if dst[0] >= 0 {
+		return s.exprTo(e, dst[0])
+	}
 	r, err := s.expr(e)
 	if err != nil {
 		return err
@@ -537,7 +587,48 @@ func (s *flowSel) assign(dst []int, e code.Expr) error {
 	return nil
 }
 
-// expr evaluates e and returns the register that holds its value.
+// exprTo evaluates e into the register d of a local. The instruction that makes the value writes d
+// itself, after it has read its arguments, so no copy follows it; only the operators || and &&,
+// whose value is written before the right operand is read, go through a temporary.
+func (s *flowSel) exprTo(e code.Expr, d int) error {
+	switch x := e.(type) {
+	case *code.Local:
+		r, ok := s.regs[x.Name]
+		if !ok {
+			return fmt.Errorf("read of undeclared local %s", x.Name)
+		}
+		if r != d {
+			s.emit(bytecode.FlowInstr{Op: bytecode.FlowMove, Dst: []int{d}, Args: []int{r}})
+		}
+		return nil
+	case *code.Const, *code.Reg:
+		_, err := s.value(e, d)
+		return err
+	case *code.Unary:
+		_, err := s.value(e, d)
+		return err
+	case *code.Call:
+		// The selection of a call may write its results before its last instruction reads the
+		// arguments, so a call that reads d goes through a temporary.
+		if !s.readsReg(x, d) {
+			return s.call(x, []int{d})
+		}
+	case *code.Binary:
+		if x.Op != "||" && x.Op != "&&" {
+			_, err := s.binaryTo(x, d)
+			return err
+		}
+	}
+	r, err := s.expr(e)
+	if err != nil {
+		return err
+	}
+	s.store(d, r)
+	return nil
+}
+
+// expr evaluates e and returns the register that holds its value: the register of a local it reads,
+// or a temporary.
 func (s *flowSel) expr(e code.Expr) (int, error) {
 	switch x := e.(type) {
 	case *code.Local:
@@ -546,6 +637,22 @@ func (s *flowSel) expr(e code.Expr) (int, error) {
 			return 0, fmt.Errorf("read of undeclared local %s", x.Name)
 		}
 		return r, nil
+	case *code.Call:
+		r := s.reg()
+		if err := s.call(x, []int{r}); err != nil {
+			return 0, err
+		}
+		return r, nil
+	case *code.Binary:
+		return s.binaryTo(x, -1)
+	}
+	return s.value(e, -1)
+}
+
+// value evaluates the constant, register or negation e into the register d, or into a temporary if d
+// is -1, and returns that register.
+func (s *flowSel) value(e code.Expr, d int) (int, error) {
+	switch x := e.(type) {
 	case *code.Const:
 		var v any
 		switch val := x.Value.(type) {
@@ -557,9 +664,9 @@ func (s *flowSel) expr(e code.Expr) (int, error) {
 		default:
 			return 0, fmt.Errorf("constant %v of type %s has no bytecode Flow form", val, x.Type)
 		}
-		r := s.reg()
-		s.emit(bytecode.FlowInstr{Op: bytecode.FlowConst, Dst: []int{r}, Imm: v})
-		return r, nil
+		d = s.dst(d)
+		s.emit(bytecode.FlowInstr{Op: bytecode.FlowConst, Dst: []int{d}, Imm: v})
+		return d, nil
 	case *code.Reg:
 		op := bytecode.FlowPos
 		switch x.Name {
@@ -569,9 +676,9 @@ func (s *flowSel) expr(e code.Expr) (int, error) {
 		default:
 			return 0, fmt.Errorf("register %s has no bytecode Flow form", x.Name)
 		}
-		r := s.reg()
-		s.emit(bytecode.FlowInstr{Op: op, Dst: []int{r}})
-		return r, nil
+		d = s.dst(d)
+		s.emit(bytecode.FlowInstr{Op: op, Dst: []int{d}})
+		return d, nil
 	case *code.Unary:
 		if x.Op != "!" {
 			return 0, fmt.Errorf("unary %s has no bytecode Flow form", x.Op)
@@ -580,19 +687,19 @@ func (s *flowSel) expr(e code.Expr) (int, error) {
 		if err != nil {
 			return 0, err
 		}
-		r := s.reg()
-		s.emit(bytecode.FlowInstr{Op: bytecode.FlowNot, Dst: []int{r}, Args: []int{a}})
-		return r, nil
-	case *code.Call:
-		r := s.reg()
-		if err := s.call(x, []int{r}); err != nil {
-			return 0, err
-		}
-		return r, nil
-	case *code.Binary:
-		return s.binary(x)
+		d = s.dst(d)
+		s.emit(bytecode.FlowInstr{Op: bytecode.FlowNot, Dst: []int{d}, Args: []int{a}})
+		return d, nil
 	}
 	return 0, fmt.Errorf("expression %T has no bytecode Flow form", e)
+}
+
+// dst returns d, or a temporary if d is -1.
+func (s *flowSel) dst(d int) int {
+	if d < 0 {
+		return s.reg()
+	}
+	return d
 }
 
 // binaryOps holds the instruction of each binary operator, and whether it takes its operands swapped.
@@ -606,9 +713,10 @@ var binaryOps = map[string]struct {
 	">": {bytecode.FlowLt, true}, ">=": {bytecode.FlowLe, true},
 }
 
-// binary evaluates x and returns the register of its value. || and && evaluate their right operand
-// only when the left one does not decide the value.
-func (s *flowSel) binary(x *code.Binary) (int, error) {
+// binaryTo evaluates x into the register d, or into a temporary if d is -1, and returns that
+// register. || and && evaluate their right operand only when the left one does not decide the value;
+// their value is always a temporary, which they write before the right operand is read.
+func (s *flowSel) binaryTo(x *code.Binary, d int) (int, error) {
 	if x.Op == "||" || x.Op == "&&" {
 		l, err := s.expr(x.X)
 		if err != nil {
@@ -645,9 +753,9 @@ func (s *flowSel) binary(x *code.Binary) (int, error) {
 	if b.swap {
 		l, y = y, l
 	}
-	r := s.reg()
-	s.emit(bytecode.FlowInstr{Op: b.op, Dst: []int{r}, Args: []int{l, y}})
-	return r, nil
+	d = s.dst(d)
+	s.emit(bytecode.FlowInstr{Op: b.op, Dst: []int{d}, Args: []int{l, y}})
+	return d, nil
 }
 
 // call emits the operation c with its results in dst (nil for none). Each operation selected
