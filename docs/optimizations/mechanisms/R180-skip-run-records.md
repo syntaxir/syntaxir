@@ -32,8 +32,9 @@ runtimes to never record or to store records early.
 
 Evidence record: [132](../132-records-of-recovery-skip-walks.md).
 
-Source owners: [the site analysis](../../../internal/middleend/corepass/sites.go), [the engine
-operations](../../../internal/runtime/state/skip_runs.go), [the generated Go runtime](../../../pkg/runtime/libgo/skip_runs.go),
+Source owners: [the site analysis](../../../internal/middleend/corepass/sites.go), [the skip-walk core shared by the
+engine and the generated Go runtime](../../../pkg/runtime/libgo/skip_walks.go), [the engine
+hooks](../../../internal/runtime/state/skip_runs_engine.go),
 [the Flow IR operations](../../../internal/ir/code/flow/flow.go) and [their lowering](../../../internal/middleend/flowlower/lower.go),
 [the TypeScript runtime](../../../internal/backend/codegen/typescript/lib/lib.ts).
 
