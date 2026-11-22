@@ -41,6 +41,7 @@ func TestOptimizationDisabledTSParity(t *testing.T) {
 	}{
 		{"guards", []string{"guards"}, nil},
 		{"scans", []string{"scans"}, nil},
+		{"outline", []string{"outline"}, nil},
 		{"text-dispatch", []string{"text-dispatch"}, nil},
 		{"method-sharing", []string{"method-sharing"}, nil},
 		{"sparse-memo", []string{"sparse-memo"}, nil},

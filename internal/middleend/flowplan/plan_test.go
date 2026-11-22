@@ -503,7 +503,7 @@ func TestLowerTableOutlines(t *testing.T) {
 			body := ir.M.Rules[item.ID].Body
 			under := map[core.Node]bool{}
 			core.Walk(body, func(n core.Node) { under[n] = n != body && flowlower.Outlinable(n) })
-			ir.Opts.Outline = func(n core.Node) bool { return under[n] }
+			ir.Opts.Outlined = under
 		}
 		p := flowplan.Plan(ir, planRules(rules), nil)
 		tbl, err := pipe.Execute(context.Background(), &pipe.Run{Stop: true}, pipe.Of(flowlower.Lowering), flowplan.Unit(p, ir, nil))

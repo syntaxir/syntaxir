@@ -172,13 +172,71 @@ func parseReach(s string) (map[Entry]bool, error) {
 }
 
 // CoresIR is the kind of the input of the planning of a program, and ProgramIR that of its plan. The
-// input has no dump: its Core IR is dumped as it is built and changed, and the plan shows its entry
-// points and routes. The plan is dumped as printProgram writes it.
+// Core IR of the input is dumped as it is built and changed; the input itself is dumped as printCores
+// writes it, with the nodes that its tables outline, and the plan as printProgram writes it, with its
+// entry points and routes.
 var (
-	CoresIR = pipe.RegisterIR(&pipe.IR[*Cores]{Name: "cores", Verify: verifyCores})
+	CoresIR = pipe.RegisterIR(&pipe.IR[*Cores]{Name: "cores", Verify: verifyCores, Print: printCores})
 	// ProgramIR is the kind of the plan of a program.
 	ProgramIR = pipe.RegisterIR(&pipe.IR[*Program]{Name: "plan", Verify: verifyProgram, Print: printProgram})
 )
+
+// printCores writes the input c of the planning: each unit with its table and, by rule, the nodes of
+// the table that run as functions of their own (lowerdata.Options.Outlined), in the order of the rule's
+// body. A node is written as its path, the indices of the children from the body of the rule (the
+// lines of an Operators Rule are its children), and the first line of its form as core.Print writes it.
+//
+//	unit rules table=rules
+//	  rule 2 item
+//	    outline 0.3 choice
+//	unit recRules table=recRules
+func printCores(w io.Writer, c *Cores) {
+	for _, u := range c.Units {
+		fmt.Fprintf(w, "unit %s table=%s\n", u.Label, u.Table)
+		if len(u.IR.Opts.Outlined) == 0 {
+			continue
+		}
+		m := u.IR.M
+		for id, r := range m.Rules {
+			if r == nil {
+				continue
+			}
+			var lines []string
+			var walk func(n core.Node, path string)
+			walk = func(n core.Node, path string) {
+				if u.IR.Opts.Outlined[n] {
+					head, _, _ := strings.Cut(strings.TrimSpace(core.PrintNode(m, n, false)), "\n")
+					lines = append(lines, fmt.Sprintf("    outline %s %s\n", path, head))
+				}
+				var kids []core.Node
+				if o, ok := n.(*core.OperatorsRule); ok {
+					for _, l := range o.Lines() {
+						kids = append(kids, l.Body)
+					}
+				} else {
+					kids = core.Children(n)
+				}
+				for i, k := range kids {
+					if k == nil {
+						continue
+					}
+					p := strconv.Itoa(i)
+					if path != "" {
+						p = path + "." + p
+					}
+					walk(k, p)
+				}
+			}
+			walk(r.Body, "")
+			if lines != nil {
+				fmt.Fprintf(w, "  rule %d %s\n", id, r.Name)
+				for _, l := range lines {
+					io.WriteString(w, l)
+				}
+			}
+		}
+	}
+}
 
 // printProgram writes the plan p: its entry points, then each table and each rule of it by ID, with
 // the route of a call of the rule and the ways the plan reaches it.

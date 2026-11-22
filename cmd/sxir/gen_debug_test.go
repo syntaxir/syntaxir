@@ -116,13 +116,15 @@ func TestGenDebug(t *testing.T) {
 			// Under a bisection limit the generator generates once: limit 0 skips every optional run
 			// and a limit past the last runs them all, which the flag and the field report alike. A
 			// skipped pass decides none of its patterns, so the two report different numbers of runs.
+			// The decisions of the program come before those of the tables, so the first run need not
+			// be the first line.
 			zero, n := 0, 1<<20
 			_, none0 := gen(lang, "-opt-bisect-limit", "0")
 			_, all := gen(lang, "-opt-bisect-limit", "1048576")
-			if !strings.HasPrefix(none0, "opt-bisect: 1 skip ") || strings.Contains(none0, " run ") {
+			if !strings.Contains("\n"+none0, "\nopt-bisect: 1 skip ") || strings.Contains(none0, " run ") {
 				t.Errorf("-opt-bisect-limit 0 wrote:\n%.500s", none0)
 			}
-			if !strings.HasPrefix(all, "opt-bisect: 1 run ") || strings.Contains(all, " skip ") {
+			if !strings.Contains("\n"+all, "\nopt-bisect: 1 run ") || strings.Contains(all, " skip ") {
 				t.Errorf("-opt-bisect-limit %d wrote:\n%.500s", n, all)
 			}
 			if got := api(lang, compiler.Debug{OptBisectLimit: &zero}); got != none0 {

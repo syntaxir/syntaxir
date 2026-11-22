@@ -266,7 +266,7 @@ rule id = [a-z]+ ";"
 // flowOtherTargets are the operations that the Go printer never prints, with the reason; the test
 // checks that none of its cases prints them.
 var flowOtherTargets = map[string]string{
-	flow.OpCallOutline: "only the TypeScript generator outlines nodes (lowerdata.Options.Outline)",
+	flow.OpCallOutline: "only the TypeScript generator outlines nodes (lowerdata.Options.Outlined)",
 }
 
 // flowExactCharges are the operations whose charges equal their cost bound.

@@ -103,8 +103,9 @@ type Options struct {
 	// Traced lowers the traced copy of a rule that an observed parse runs (flow.Attrs.Traced): every read of the
 	// input records how far the parse examined, and the Flow verifier rejects a read in place in the function.
 	Traced bool
-	// Outline, if not nil, selects the nodes of a framed function that run as functions of their own: the
-	// function calls them (CallOutline) under its frame and lowers them with flowlower.LowerOutline. A node it selects
-	// must be flowlower.Outlinable; the lowering keeps every node in a function lowered with Observe.
-	Outline func(core.Node) bool
+	// Outlined holds the nodes of the framed functions that run as functions of their own, which the
+	// pass outline chooses (flowplan.Outlining): a function calls them (CallOutline) under its frame and
+	// lowers them with flowlower.LowerOutline. A node it holds must be flowlower.Outlinable; the lowering
+	// keeps every node in a function lowered with Observe. Empty, no node is outlined.
+	Outlined map[core.Node]bool
 }

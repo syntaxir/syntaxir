@@ -1847,8 +1847,8 @@ func (l *lowerer) branch(list bool, start, kids code.Expr) code.Expr {
 
 // outlines reports whether the node n runs as a function of its own.
 func (l *lowerer) outlines(n core.Node) bool {
-	return l.opts.Outline != nil && n != l.top && !l.opts.Observe && l.streaming == nil &&
-		l.opts.Outline(n) && (l.frame || noCaptures(n))
+	return l.opts.Outlined[n] && n != l.top && !l.opts.Observe && l.streaming == nil &&
+		(l.frame || noCaptures(n))
 }
 
 // noCaptures reports whether the node n neither sets nor reads captures, so that a function of its own

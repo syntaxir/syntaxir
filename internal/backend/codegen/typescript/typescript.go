@@ -114,7 +114,7 @@ func (t *Target) Cores(mods []*core.Module) (*plandata.Cores, error) {
 		all := append(append([]*common.Rule(nil), pr.RuleList...), pr.Twins...)
 		ct := plandata.CoreTable{Name: table, M: mods[i], Slots: o.Document}
 		// A parser with Documents resumes the runs of its repetitions (lowerdata.Options.Resume).
-		cfg := plandata.TableConfig{Values: pr == prog, Budget: !o.NoLimitControls, Observe: o.Observability, Document: o.Document, Resume: o.Document, Outline: true}
+		cfg := plandata.TableConfig{Values: pr == prog, Budget: !o.NoLimitControls, Observe: o.Observability, Document: o.Document, Resume: o.Document}
 		u := plandata.Unit{Label: table, Table: table, Rules: make([]*plandata.Rule, len(all)), Prune: true, IR: flowplan.TableOf(mods[i], cfg)}
 		for j, r := range all {
 			_, operatorsRule := r.Def.Expr.(*ast.OperatorsRule)

@@ -1,8 +1,13 @@
 package flowplan
 
 import (
+	"slices"
+
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/flowlower"
+	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
+	"syntaxir.dev/sxir/internal/pass"
+	"syntaxir.dev/sxir/internal/pass/pipe"
 )
 
 // Outlining.
@@ -10,13 +15,58 @@ import (
 // A framed function that is printed in one piece grows with the grammar: a rule of many alternatives or a
 // body that nests the same few matchers many times prints as thousands of lines that no other rule can
 // share, and a function that large is neither compact nor fast for the JavaScript engine to compile. A
-// table whose configuration outlines (plandata.TableConfig.Outline) therefore runs some of its nodes as
-// functions of their own (flow.CallOutline), which the TypeScript printer shares wherever their printed
-// text is equal once the constants it names are replaced by their declarations.
+// backend whose runtime wants small functions, the TypeScript one, therefore runs the pass outline
+// (Outlining) before it plans the program: the Node and recognizer tables then run some of their nodes
+// as functions of their own (flow.CallOutline), which the TypeScript printer shares wherever their
+// printed text is equal once the constants it names are replaced by their declarations.
 //
 // The nodes are chosen by the structure of the Core IR: a node whose structure occurs in more than one
 // place of the module (outlineDuplicate), and a node that is large (outlineLarge) so that no function
 // grows beyond a bound.
+
+// PassOutline is the name of the pass outline (Outlining), and of the flag that turns it off.
+const PassOutline = "outline"
+
+// CounterOutlined is the counter of outline: the nodes that it outlined.
+const CounterOutlined = "outlined"
+
+func init() {
+	pass.Register(pass.Flag{Name: PassOutline, Kind: pass.KindCorePass, Default: 1,
+		Doc: "large and repeated parts of a rule run as functions of their own (TypeScript)"})
+}
+
+// Outlining is the pass outline: it chooses the nodes of each Node and recognizer table of the
+// program (lowerdata.Options.Node) that run as functions of their own (outlineNodes), and sets them
+// as the outlined nodes of the lowering options of the table (lowerdata.Options.Outlined). The units
+// that share a table keep sharing it. The tables it is given are unchanged.
+var Outlining = pipe.New(pipe.Def[*plandata.Cores, *plandata.Cores]{
+	Decl: pipe.Decl{Name: PassOutline, Counters: []string{CounterOutlined},
+		Obligation: "Every outlined node is a framed body that runs as a function of its own as it runs in place."},
+	In: plandata.CoresIR, Out: plandata.CoresIR,
+	Run: func(x *pipe.Ctx[*plandata.Cores], c *plandata.Cores) (*plandata.Cores, pass.PreservedSet, error) {
+		out := *c
+		out.Units = slices.Clone(c.Units)
+		tables := map[*plandata.TableIR]*plandata.TableIR{}
+		for i, u := range out.Units {
+			if !u.IR.Opts.Node {
+				continue
+			}
+			ir, ok := tables[u.IR]
+			if !ok {
+				ir = u.IR
+				if chosen := outlineNodes(u.IR.M, u.IR.Values); len(chosen) > 0 {
+					outlined := *u.IR
+					outlined.Opts.Outlined = chosen
+					ir = &outlined
+					x.Count(CounterOutlined, len(chosen))
+				}
+				tables[u.IR] = ir
+			}
+			out.Units[i].IR = ir
+		}
+		return &out, pass.PreserveNone(), nil
+	},
+})
 
 const (
 	// outlineLarge is the number of Core nodes from which a node runs as a function of its own.

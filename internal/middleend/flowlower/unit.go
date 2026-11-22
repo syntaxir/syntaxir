@@ -144,7 +144,7 @@ func lowerTable(p plandata.Planned) (*plandata.Table[code.Flow], error) {
 // returns the functions it added, each with the Core rule of the function that calls it, keyed with
 // the use plandata.Outlined and named after that function.
 func lowerOutlined(plan *plandata.Plan, ir *plandata.TableIR, m *code.Module) ([]*plandata.FuncSpec, error) {
-	if ir.Opts.Outline == nil {
+	if len(ir.Opts.Outlined) == 0 {
 		return nil, nil
 	}
 	type call struct {

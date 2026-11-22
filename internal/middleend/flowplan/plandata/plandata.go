@@ -70,16 +70,14 @@ type TableConfig struct {
 	Resume bool
 	// Traced selects the traced bodies.
 	Traced bool
-	// Outline runs the large and the repeated nodes of the framed functions as functions of their own
-	// (lowerdata.Options.Outline), for a runtime whose functions should stay small: the TypeScript
-	// parser's.
-	Outline bool
 }
 
 // TableIR is the Core IR of a Node or recognizer table after its Core passes, and the options that
 // every function of the table is lowered with.
 type TableIR struct {
 	// M is built with its origin map (core.Module.Origin), which the passes keep.
-	M    *core.Module
-	Opts lowerdata.Options
+	M *core.Module
+	// Values says that the actions of M build values (TableConfig.Values).
+	Values bool
+	Opts   lowerdata.Options
 }

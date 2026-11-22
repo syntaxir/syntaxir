@@ -1226,7 +1226,9 @@ the attributes of its nodes computed, since a kind's verifier checks the unit an
    printing.
 5. **TypeScript:** routes in the plan; the printer calls no pipeline. The TypeScript table is planned and lowered
    once, like the Go tables, with its outlined nodes chosen by the table's configuration, so its
-   `-print-after` dumps show one run over the table instead of one run per function. The printability analysis lands
+   `-print-after` dumps show one run over the table instead of one run per function. (Amended: the optional pass
+   `outline`, right before `plan`, chooses the outlined nodes in place of the table's configuration, so the choice is
+   a named step of the pipeline text that `-no-opt outline` turns off.) The printability analysis lands
    with step 7, where the printers read the primitives that the TypeScript backend declares: built on those
    declarations, it needs no second list of the printed operations. (Amended at step 7: no grammar reaches a refusal
    of the TypeScript printer. A capture read from variables exists only in a flat function, which the plan gives no

@@ -262,7 +262,15 @@ preserves, and the analyses it needs and keeps. The table is in the order the pi
 | 7 | canonicalize | The same behavior; each pattern keeps the behavior of the operations it rewrites | None beyond the operations it matches |
 | 8 | charge | The same total charge; every loop iteration charges, input is charged before it is examined, and no charge moves or merges across a write to the observation or to the stream window, a callback of the caller, or a commit | Charge flow |
 | 9 | slots | Locals share a slot only when their types are equal and their live ranges do not overlap | Liveness |
-| 10 | outline (module) | The same behavior; enabled by the size profile | Structural hashes |
+| 10 | outline (program) | The same behavior | Structure and size of the Core nodes |
+
+Outline is the one of them that runs before the Flow stage. It chooses, from the Core IR of each Node and recognizer
+table after the Core passes, the nodes that run as functions of their own: a large node, the large parts of one, and,
+in a table that builds values, a structure that occurs more than once where it would not already be shared. It runs on
+the tables of the program right before `plan`, so each table's choice is made once, and the lowering of every part of a
+table reads it from the table's lowering options. The TypeScript pipeline runs it, on by default, since its runtime
+wants small functions and its printer shares outlined functions whose text is equal; `-no-opt outline` lowers every
+node in place. The Go pipeline does not run it.
 
 Save-elide narrows each mark to the parts that a failure path reads. A mark that no failure path reads at all is a dead
 store, and save-elide removes it through dead-store removal, so dead state has one mechanism.

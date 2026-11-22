@@ -34,8 +34,8 @@ rule word = [a-z]+ ("-" [a-z]+)*`
 	}
 }
 
-// Large and repeated parts of a rule run as functions of their own, and the parser still parses as the
-// engine does.
+// Large and repeated parts of a rule run as functions of their own, which the pass outline chooses;
+// with the pass off, no part does.
 func TestGeneratedTSOutlinesLargeAndRepeatedNodes(t *testing.T) {
 	t.Parallel()
 	src, _ := codegentest.OutlineKeywords()
@@ -43,18 +43,27 @@ func TestGeneratedTSOutlinesLargeAndRepeatedNodes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	files, err := codegentest.GenerateTS(g, common.GenOptions{Start: "main", Recognize: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	var parser string
-	for _, f := range files {
-		if strings.HasSuffix(f.Path, "parser.ts") {
-			parser = string(f.Content)
+	for _, off := range []bool{false, true} {
+		o := common.GenOptions{Start: "main", Recognize: true}
+		if off {
+			o.NoOpt = []string{"outline"}
 		}
-	}
-	if !strings.Contains(parser, "kw (outlined)") {
-		t.Errorf("no node of rule kw runs as a function of its own")
+		files, err := codegentest.GenerateTS(g, o)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var parser string
+		for _, f := range files {
+			if strings.HasSuffix(f.Path, "parser.ts") {
+				parser = string(f.Content)
+			}
+		}
+		if got := strings.Contains(parser, "kw (outlined)"); got == off {
+			t.Errorf("outline off %v: a node of rule kw runs as a function of its own: %v", off, got)
+		}
+		if off && strings.Contains(parser, "(outlined)") {
+			t.Errorf("outline off: a node runs as a function of its own")
+		}
 	}
 }
 

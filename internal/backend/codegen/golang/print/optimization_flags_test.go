@@ -64,6 +64,7 @@ var optimizationTests = map[string]string{
 	"guards":                 "",
 	"guarded-classes":        "TestGuardedClassDisabledParity",
 	"scans":                  "",
+	"outline":                "TestOptimizationDisabledTSParity (typescript/print)",
 	"class-runs":             "",
 	"class-tables":           "",
 	"inline-literals":        "",
@@ -175,7 +176,7 @@ func TestOutputChangingFlagChecks(t *testing.T) {
 // and the profiles over it are valid, and the profiles resolve to the values they declare.
 func TestRegistryOfTheGenerators(t *testing.T) {
 	want := []string{
-		"guards", "scans",
+		"guards", "outline", "scans",
 		"field-compare", "text-dispatch",
 		"class-runs", "class-tables", "guarded-classes", "inline-literals", "terminals",
 		"ts-merged-records", "ts-spend-runs", "ts-tested-inits",

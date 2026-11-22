@@ -325,6 +325,7 @@ table changes output yet:
 | Name | Kind | Default | What it does and what it costs |
 | --- | --- | --- | --- |
 | `guards` | pass | on | Skip an alternative when the next character cannot start it. One read of the next character per choice against the attempts of alternatives that cannot match, and a little more code per choice |
+| `outline` | pass | on | Large and repeated parts of a rule run as functions of their own (TypeScript). Smaller functions that the JavaScript engine compiles faster, and equal parts share one function, against a call per outlined part |
 | `scans` | pass | on | A value-free repetition of a class or of any character runs as a scan. A loop against the general repetition |
 | `field-compare` | lowering | on | Typed Go compares fields in the actions and predicates of typed rules without boxing string fields. Fewer allocations, no cost |
 | `text-dispatch` | lowering | on | A predicate that compares the text of a capture with literals tests them at once when the parse runs without limit controls. One test of the literals against a chain of comparisons, and the text is computed once |
@@ -383,7 +384,10 @@ each Core pass prints it under its own name. `-print-after plan` shows the plan 
 `-- after plan [program] --`, before the dumps of the tables: the entry points, then for each table every rule by ID with the route of a call of it
 (`call=slot` through the rule table, `call=wrapper` through the rule's own function) and the ways the entry points reach
 it (`reach=slot`, `reach=wrapper`, both, or `reach=none` for a rule whose body the parser leaves out). The plan is
-written only when `plan` is named, since `all` selects the forms of the intermediate representation. `-print-after flowlower` shows the next form: the module of each table that
+written only when `plan` is named, since `all` selects the forms of the intermediate representation. In a TypeScript
+parser, `-print-after outline` shows, under `-- after outline [program] --`, each table and, by rule, the nodes that run
+as functions of their own: the path of each, the indices of the children from the body of the rule, and the first line
+of its Core IR. `-print-after flowlower` shows the next form: the module of each table that
 the parser is printed from, each function as a listing of Code IR at the Flow stage, as lowered from the Core IR.
 `flow-finish` prints the same form after the Flow stage ends, and `execlower` prints the form after that, a listing of
 Code IR at the Exec stage; the Flow and Exec passes print each function they run on under their own names. A listing writes the statements and the calls of the operations of the stage in the notation of the Code IR text form, with the immediate operand of a call in brackets before its arguments.

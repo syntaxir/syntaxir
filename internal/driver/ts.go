@@ -22,6 +22,7 @@ import (
 //	  each ts-tables {
 //	    core-config { ... }
 //	  }
+//	  outline
 //	  plan!
 //	  each planned-tables {
 //	    with table-config { flowlower! ... }
@@ -36,7 +37,8 @@ import (
 //
 // ts-tables splits the compilation into the tables that the TypeScript parser has: the Node table
 // and, with Recognize, the recognizer (tsbackend.Target.Sources). Its join gives what the program and
-// its tables are planned from (cores), which plan! plans. planned-tables splits the plan into the
+// its tables are planned from (cores). The pass outline chooses the nodes of the tables that run as
+// functions of their own (flowplan.Outlining), and plan! plans them. planned-tables splits the plan into the
 // planned tables and joins them at the Exec stage. ts-library! sets the library of the tables to the
 // compositions that the TypeScript library replaces, requested for the features of the parser, which
 // specialize! specializes, ts-printable! checks that the TypeScript printer prints every function of
@@ -87,7 +89,7 @@ func tsPipeline(c *compilation) (assembled, error) {
 		return assembled{}, err
 	}
 	p := pipe.Then3(
-		pipe.Then(pipe.Each(tsTables, coreConfig()), pipe.Of(flowplan.Planning)),
+		pipe.Then3(pipe.Each(tsTables, coreConfig()), pipe.Of(flowplan.Outlining), pipe.Of(flowplan.Planning)),
 		pipe.Each(plannedTables, lowering(tsbackend.FlowTarget, tspass.Pipeline)),
 		pipe.Then3(pipe.Of(tsbackend.Library), pipe.Within(tsbackend.LibraryLens, pipe.Of(codepass.Specialization)),
 			pipe.Then(pipe.Of(tsbackend.Printability), pipe.Of(tsbackend.Printing))))
