@@ -123,9 +123,7 @@ func (k *classifier) prefixOf(s *ast.Seq, prefix []ast.Expr) *ast.Seq {
 }
 
 // succeeds reports a proof that the expression e cannot fail (corepass.Facts.Succeeds).
-func (k *classifier) succeeds(e ast.Expr) bool {
-	return k.facts.source.Facts.Succeeds(k.nodeOf(e))
-}
+func (k *classifier) succeeds(e ast.Expr) bool { return k.succeedsOf(k.nodeOf(e)) }
 
 // leftCalls returns the rules that the expression e may call before it consumes input, in the
 // order of e, a rule called at several such places listed at each (corepass.Facts.LeftCalls).
@@ -148,6 +146,4 @@ func (k *classifier) literalRest(rest []rune, ignoreCase bool) *ast.Literal {
 
 // looseCut reports whether e has a cut that commits the choice, option or repetition around it
 // (corepass.Facts.LooseCut).
-func (k *classifier) looseCut(e ast.Expr) bool {
-	return k.facts.source.Facts.LooseCut(k.nodeOf(e))
-}
+func (k *classifier) looseCut(e ast.Expr) bool { return k.looseCutOf(k.nodeOf(e)) }

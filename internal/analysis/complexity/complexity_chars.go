@@ -139,13 +139,8 @@ func classChars(c *ast.CharClass) charset {
 }
 
 // nullable reports whether e can succeed without consuming input when token insertion is enabled
-// (nullableNode of its node).
-func (k *classifier) nullable(e ast.Expr) bool { return k.nullableNode(k.nodeOf(e)) }
-
-// nullableNode reports whether n can succeed without consuming input when token insertion is
-// enabled: the nullability of n with insertion (corepass.Facts.NullableIns), as the nullable rules
-// (nullRule) are.
-func (k *classifier) nullableNode(n core.Node) bool { return k.facts.source.Facts.NullableIns(n) }
+// (nullableOf of its node).
+func (k *classifier) nullable(e ast.Expr) bool { return k.nullableOf(k.nodeOf(e)) }
 
 // first returns the first characters of e (firstOf of its node).
 func (k *classifier) first(e ast.Expr) charset { return k.firstOf(k.nodeOf(e)) }
@@ -194,7 +189,7 @@ func (k *classifier) firstOf(n core.Node) charset {
 		var s charset
 		for _, it := range n.Items {
 			s = s.union(k.firstOf(it))
-			if !k.nullableNode(it) {
+			if !k.nullableOf(it) {
 				break
 			}
 		}
