@@ -285,6 +285,14 @@ func (vm *Program) runFlow(p *state.Parser, fr *flowRun) (call bool) {
 			fr.v, fr.ok = asNode(regs[in.Args[0]]), regs[in.Args[1]].(bool)
 			fr.pc = len(f.Code)
 			return false
+		case bytecode.FlowReturnOk:
+			fr.v, fr.ok = asNode(regs[in.Args[0]]), true
+			fr.pc = len(f.Code)
+			return false
+		case bytecode.FlowReturnFail:
+			fr.v, fr.ok = nil, false
+			fr.pc = len(f.Code)
+			return false
 		case bytecode.FlowMark:
 			fr.set(in.Dst[0], p.Mark())
 		case bytecode.FlowReset:

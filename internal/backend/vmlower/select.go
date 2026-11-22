@@ -56,6 +56,42 @@ var statementPatterns = []pattern{
 	}},
 	{Name: "scanReachAt", Ops: 1, Saved: 3, Stmts: scanReachAt},
 	{Name: "scanEndAt", Ops: 1, Saved: 3, Stmts: scanEndAt},
+	{Name: "returnOk", Ops: 0, Saved: 1, Stmts: returnOk},
+	{Name: "returnFail", Ops: 0, Saved: 2, Stmts: returnFail},
+}
+
+// returnOk matches the return of a value with success, `return v, true`: RETURNOK of v.
+func returnOk(s *flowSel, list []code.Stmt) (int, func() error) {
+	r, ok := list[0].(*code.Return)
+	if !ok || len(r.Values) != 2 || !isConst(r.Values[1], true) {
+		return 0, nil
+	}
+	return 1, func() error {
+		v, err := s.expr(r.Values[0])
+		if err != nil {
+			return err
+		}
+		s.emit(bytecode.FlowInstr{Op: bytecode.FlowReturnOk, Args: []int{v}})
+		return nil
+	}
+}
+
+// returnFail matches the return of failure, `return nil, false`: RETURNFAIL.
+func returnFail(s *flowSel, list []code.Stmt) (int, func() error) {
+	r, ok := list[0].(*code.Return)
+	if !ok || len(r.Values) != 2 || !isConst(r.Values[0], nil) || !isConst(r.Values[1], false) {
+		return 0, nil
+	}
+	return 1, func() error {
+		s.emit(bytecode.FlowInstr{Op: bytecode.FlowReturnFail})
+		return nil
+	}
+}
+
+// isConst reports whether e is the constant v.
+func isConst(e code.Expr, v any) bool {
+	c, ok := e.(*code.Const)
+	return ok && c.Value == v
 }
 
 // jumpOf returns the label that the jump statement st leaves to, and whether it continues the loop

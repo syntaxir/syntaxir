@@ -307,6 +307,12 @@ const (
 	// scan hot span of the parse, and does nothing otherwise: the lowering's test
 	// `if flow.ScanHotSpan-1 < count { flow.scanEnd(...) }`, with the span of the parse.
 	FlowScanEndAt
+	// FlowReturnOk returns the value Args[0] with success, as FlowReturn does with a true second
+	// argument.
+	FlowReturnOk
+	// FlowReturnFail returns failure with the null value, as FlowReturn does with the null value and
+	// false.
+	FlowReturnFail
 )
 
 // FlowImm is the kind of immediate of an operation.
@@ -479,6 +485,8 @@ var FlowShapes = [...]FlowShape{
 	FlowMergeRenamed:  {Name: "MERGERENAMED", Args: 2, Imm: FlowImmExpect},
 	FlowScanReachAt:   {Name: "SCANREACHAT", Dst: 1, Args: 2, Imm: FlowImmScanSite},
 	FlowScanEndAt:     {Name: "SCANENDAT", Args: 2, Imm: FlowImmScanSite},
+	FlowReturnOk:      {Name: "RETURNOK", Args: 1},
+	FlowReturnFail:    {Name: "RETURNFAIL"},
 }
 
 // Shape returns the shape of o; ok is false for an operation that does not exist.
@@ -487,6 +495,16 @@ func (o FlowOp) Shape() (s FlowShape, ok bool) {
 		return FlowShape{}, false
 	}
 	return FlowShapes[o], true
+}
+
+// Ends reports whether an instruction of o never continues at the next instruction: a JUMP or a
+// return.
+func (o FlowOp) Ends() bool {
+	switch o {
+	case FlowJump, FlowReturn, FlowReturnOk, FlowReturnFail:
+		return true
+	}
+	return false
 }
 
 func (o FlowOp) String() string {

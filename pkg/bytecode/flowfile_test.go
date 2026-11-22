@@ -267,7 +267,7 @@ func TestStreamBodyEncoding(t *testing.T) {
 			f := *m.Flows[1]
 			f.Code = f.Code[:17]
 			m.Streams = map[int]*bytecode.Flow{1: &f}
-		}, "stream body of rule b: the body does not end with JUMP or RETURN"},
+		}, "stream body of rule b: the body does not end with JUMP or a return"},
 		{"streamed rule", func(m *bytecode.Module) {
 			m.Streams = map[int]*bytecode.Flow{1: m.Flows[1]}
 			m.Flows[1].Code[87].Imm = 2 // STREAMON
@@ -303,8 +303,8 @@ func TestFlowBodyValidation(t *testing.T) {
 		{"target of no jump", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[15].Target = 1 }, "invalid jump"},
 		{"arguments", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[18].Args = f.Code[18].Args[:1] }, "RETURN at 18 with 0 destinations and 1 arguments"},
 		{"operation", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[15].Op = 0x7f }, "invalid flow operation"},
-		{"end", func(m *bytecode.Module, f *bytecode.Flow) { f.Code = f.Code[:17] }, "does not end with JUMP or RETURN"},
-		{"empty", func(m *bytecode.Module, f *bytecode.Flow) { f.Code = nil }, "does not end with JUMP or RETURN"},
+		{"end", func(m *bytecode.Module, f *bytecode.Flow) { f.Code = f.Code[:17] }, "does not end with JUMP or a return"},
+		{"empty", func(m *bytecode.Module, f *bytecode.Flow) { f.Code = nil }, "does not end with JUMP or a return"},
 		{"constant", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[0].Imm = "s" }, "invalid immediate"},
 		{"immediate of no kind", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[15].Imm = 1 }, "invalid immediate"},
 		{"guard kind", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[7].Imm = bytecode.FlowCallOf{} }, "invalid immediate"},

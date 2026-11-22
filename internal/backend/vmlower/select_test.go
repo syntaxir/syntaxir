@@ -68,6 +68,7 @@ func TestSuperinstructionsAreSelected(t *testing.T) {
 		"assertJump":   bytecode.FlowAssertJump,
 		"matchLitJump": bytecode.FlowMatchLitJump, "callJump": bytecode.FlowCallJump,
 		"scanReachAt": bytecode.FlowScanReachAt, "scanEndAt": bytecode.FlowScanEndAt,
+		"returnOk": bytecode.FlowReturnOk, "returnFail": bytecode.FlowReturnFail,
 	} {
 		if matches[pattern] == 0 || !ops[op] {
 			t.Errorf("pattern %s matched %d times and %v is in no body", pattern, matches[pattern], op)
@@ -148,7 +149,7 @@ func TestJumpsAreThreaded(t *testing.T) {
 				if sh, _ := in.Op.Shape(); sh.Target {
 					work = append(work, in.Target)
 				}
-				if in.Op != bytecode.FlowJump && in.Op != bytecode.FlowReturn {
+				if !in.Op.Ends() {
 					work = append(work, i+1)
 				}
 			}

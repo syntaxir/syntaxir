@@ -54,7 +54,7 @@ func (f *Flow) Unassigned() []int {
 				out[d/64] |= 1 << (d % 64)
 			}
 		}
-		if ins.Op != FlowJump && ins.Op != FlowReturn && pc+1 < n {
+		if !ins.Op.Ends() && pc+1 < n {
 			flow(pc + 1)
 		}
 		if s, _ := ins.Op.Shape(); s.Target {

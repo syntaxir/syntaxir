@@ -27,9 +27,9 @@ main.action:
   action 0 `
 	main := `flow main regs=13:
      0  POS        r1 =
-     1  CALLJUMP   r3,r2 = -> 28 key level=0
+     1  CALLJUMP   r3,r2 = -> 27 key level=0
      2  SETCAPTURE r3 slot=0
-     3  MATCHLITJUMP _,r2 = -> 28 "=" "\"=\""
+     3  MATCHLITJUMP _,r2 = -> 27 "=" "\"=\""
      4  POS        r4 =
      5  POS        r5 =
      6  CONST      r8 = 0
@@ -42,7 +42,7 @@ main.action:
     13  JUMP       -> 8
     14  CONST      r11 = 1
     15  LT         r12 = r8 r11
-    16  JUMPTRUE   r12 -> 28
+    16  JUMPTRUE   r12 -> 27
     17  TEXT       r11 = r5
     18  NEWTERMINAL r9 = r5 r11
     19  SETCAPTURE r9 slot=1
@@ -52,11 +52,8 @@ main.action:
     23  JUMP       -> 25
     24  RESET      r10
     25  CONST      r11 = nil
-    26  CONST      r12 = true
-    27  RETURN     r11 r12
-    28  CONST      r11 = nil
-    29  CONST      r12 = false
-    30  RETURN     r11 r12
+    26  RETURNOK   r11
+    27  RETURNFAIL 
 flow key regs=13:
 `
 	// The action code is the engine's translation of the action's Core IR, which the action tests pin.

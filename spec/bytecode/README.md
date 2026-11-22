@@ -302,7 +302,8 @@ writes: the position at that step increases from one pass to the next, and the i
 bounded when it reuses an element of a run: it passes through a `RESUMENEXT` whose success the next instruction, a
 `JUMPFALSE`, tests to leave the cycle, and no `RESUMESTART` is on the cycle, so that the cycle repeats at most once for
 each element of a run that it does not start again. The cycles are those of the instructions, each continuing at the
-next one unless it is `JUMP` or `RETURN` and at its target if it has one, whatever the registers hold. A runtime
+next one unless it is `JUMP` or a return (`RETURN`, `RETURNOK` or `RETURNFAIL`) and at its target if it has one,
+whatever the registers hold. A runtime
 rejects a module with any other cycle when it loads it, so that a run of each body of a loaded module ends
 ([Load-Time Validation](#load-time-validation)).
 
@@ -310,7 +311,7 @@ A Flow body has a frame of registers, which hold the variables of the function, 
 its variable. An instruction has an operation, destination registers, argument registers, a jump target and an
 immediate. A body writes each register before it reads it: on every path from its first instruction to an instruction
 that reads a register as an argument, some instruction names that register as a destination, where an instruction
-continues at the next one unless it is `JUMP` or `RETURN`, and also at its target if it has one. A frame of registers
+continues at the next one unless it is `JUMP` or a return (`RETURN`, `RETURNOK` or `RETURNFAIL`), and also at its target if it has one. A frame of registers
 therefore starts without values, so a runtime need not clear it, and a body starts by writing the zero value of each
 variable that some path reads before any other write. The control of the function, its blocks, exits and conditionals,
 becomes jumps: in a local function an exit to the failure label returns failure, and running to the end of the body
@@ -324,8 +325,8 @@ with, the rule's or one that its `NEWFRAME` makes; a slot past the frame it inde
 
 Each operation has a code, the code a module file stores, and fixed numbers of destination registers (D) and argument
 registers (A); `JUMP`, `JUMPFALSE` and the instructions from `JUMPTRUE` to `CALLJUMP` also have a target. The
-instructions from `MATCHCLASS` to `CALLJUMP` are superinstructions: each does in one instruction what a sequence of the instructions before it does,
-a test of the input that leaves the block when it fails.
+instructions from `MATCHCLASS` to `CALLJUMP` and from `RETURNOK` on are superinstructions: each does in one instruction what a sequence of
+other instructions does, a test of the input that leaves the block when it fails or a return of a constant success.
 
 | Code | Instruction | D | A | Behavior |
 |:--|:--|:--|:--|:--|
@@ -425,6 +426,8 @@ a test of the input that leaves the block when it fails.
 | 93 | `MERGERENAMED` | 0 | 2 | `flow.mergeRenamed` of the expectations of the second argument at the position of the first, each that is no message renamed to the expectation of the immediate (`@diagnostic`). |
 | 94 | `SCANREACHAT` | 1 | 2 | When the integer second argument, the count of a walk of the scan site of the immediate that began at the integer first argument, is the scan hot span of the parse, `SCANREACH`; otherwise the destination is the count. It stands for the test `count == ScanHotSpan` around `flow.scanReach`, with the span of the parse, which is `ScanHotSpan` (16) but in tests that lower it. |
 | 95 | `SCANENDAT` | 0 | 2 | When the integer second argument, the count of a value-free walk of the scan site of the immediate that began at the integer first argument, is at least the scan hot span of the parse, `SCANEND`; otherwise nothing. It stands for the test `ScanHotSpan-1 < count` around `flow.scanEnd`. |
+| 96 | `RETURNOK` | 0 | 1 | `RETURN` of the argument with success: what `CONST` of true into a register and `RETURN` of the argument and that register do. |
+| 97 | `RETURNFAIL` | 0 | 0 | `RETURN` of failure: what `CONST` of the null value and of false into two registers and `RETURN` of them do. |
 
 A destination of -1 discards the value.
 
@@ -492,7 +495,7 @@ On load, a runtime checks the following and rejects the file if any check fails:
 - A named node type has no fields, and its underlying node type is a type text, parsed as the type of a cast is, of the form `node[T]`.
 - Action code satisfies the checks of [Action Code](#action-code).
 - The line and column of a cast are not negative. The type text of a cast parses as a field type naming only declared types, `error`, `node[T]`, tuple types `(T, ...)`, `int`, `string`, `bool` and `nil`. These type texts are resolved types, which contain no `&` or `_|_`, and no `_` other than the argument of `node[_]`.
-- Every Flow body, a stream body among them, belongs to a rule of the rule table, or to a skip or a line of the Operators Rule table, and ends with `JUMP` or `RETURN`. Each of its instructions has a known operation with the registers, target and immediate the operation fixes; every register is within the frame (a destination may be -1), every target is an instruction of the body, no reachable instruction may read a register before the body writes it, no instruction may restore a state saved before an `EMITSTREAM` that has run since ([Flow Bodies](#flow-bodies)), every cycle of the instructions passes through a `STEP` whose register no other instruction of the cycle writes, or reuses the elements of a run it does not start ([Flow Bodies](#flow-bodies)), and the classes, expectations and rules of the immediates are in range (the character of a guard of a literal is a Unicode scalar value, not an upper-case ASCII letter when case-folded), with depths and binding levels not negative; a literal is a string of the string table, an anchor is 0 to 3, a lookahead enters (1) or leaves (-1) with a site not below -1, and only on leaving says whether it matched, a scope is an entry of the scope table, and a capture slot is not negative and below the number of names of the scope of its rule or line (none for a skip) or of a scope of a `NEWFRAME` of the body, a run site is from 1 to the number of instructions of the module's Flow bodies, and a scan site from 1 to three times that number plus two, a resumed repetition of `RESUMESTART` is numbered from 1 with a least count not negative and a most count of -1 or not below the least, and an action expression or a variable is an entry of the action expression or variable table.
+- Every Flow body, a stream body among them, belongs to a rule of the rule table, or to a skip or a line of the Operators Rule table, and ends with `JUMP` or a return. Each of its instructions has a known operation with the registers, target and immediate the operation fixes; every register is within the frame (a destination may be -1), every target is an instruction of the body, no reachable instruction may read a register before the body writes it, no instruction may restore a state saved before an `EMITSTREAM` that has run since ([Flow Bodies](#flow-bodies)), every cycle of the instructions passes through a `STEP` whose register no other instruction of the cycle writes, or reuses the elements of a run it does not start ([Flow Bodies](#flow-bodies)), and the classes, expectations and rules of the immediates are in range (the character of a guard of a literal is a Unicode scalar value, not an upper-case ASCII letter when case-folded), with depths and binding levels not negative; a literal is a string of the string table, an anchor is 0 to 3, a lookahead enters (1) or leaves (-1) with a site not below -1, and only on leaving says whether it matched, a scope is an entry of the scope table, and a capture slot is not negative and below the number of names of the scope of its rule or line (none for a skip) or of a scope of a `NEWFRAME` of the body, a run site is from 1 to the number of instructions of the module's Flow bodies, and a scan site from 1 to three times that number plus two, a resumed repetition of `RESUMESTART` is numbered from 1 with a least count not negative and a most count of -1 or not below the least, and an action expression or a variable is an entry of the action expression or variable table.
 - Every rule on a cycle of calls is marked recursive (`Rec`), so that every unbounded nesting of calls counts against the nesting limit. The cycles are those of a graph that over-approximates the calls a run can make: a rule leads to the rules that the `CALL` and `CALLJUMP` instructions of its Flow body, of its stream body and of the Flow bodies of the lines and skip of its Operators Rule call. A rule is on a cycle when the graph leads from the rule back to it. A rule may be marked without being on a cycle.
 
 A runtime does not verify that registers hold what an instruction reads, and it trusts the mode as it trusts the module's types: it checks that the mode byte names a mode, not that the module is the one a compiler writes for that mode. A file whose mode does not match its module MAY return wrong results without an error, such as no value from a parse. Runtime errors caused by invalid code are reported as parse errors. A run of a Flow body ends ([Flow Bodies](#flow-bodies)), but the termination of action code is not guaranteed, so load files only from trusted sources.

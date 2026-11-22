@@ -21,13 +21,13 @@ import "slices"
 // connected set of instructions, which lies in one component at each level of the check and passes
 // through none of the instructions that bound it, so it lies in a component with none.
 //
-// An instruction continues at the next one unless it is JUMP or RETURN, and at its target if its
-// operation has one (FlowShape.Target). The operations, registers and targets must be in range.
+// An instruction continues at the next one unless it is JUMP or a return (FlowOp.Ends), and at its
+// target if its operation has one (FlowShape.Target). The operations, registers and targets must be in range.
 func (f *Flow) UnboundedCycle() (pc int, ok bool) {
 	n := len(f.Code)
 	succ := func(pc int, emit func(int)) {
 		in := &f.Code[pc]
-		if in.Op != FlowJump && in.Op != FlowReturn && pc+1 < n {
+		if !in.Op.Ends() && pc+1 < n {
 			emit(pc + 1)
 		}
 		if s, _ := in.Op.Shape(); s.Target {

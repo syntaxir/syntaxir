@@ -91,7 +91,7 @@ func (f *Flow) RestoreAcrossCommit() (pc int, ok bool) {
 				}
 			}
 		}
-		if in.Op != FlowJump && in.Op != FlowReturn && pc+1 < n {
+		if !in.Op.Ends() && pc+1 < n {
 			flow(pc + 1)
 		}
 		if s, _ := in.Op.Shape(); s.Target {

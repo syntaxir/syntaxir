@@ -176,7 +176,7 @@ func (c *compiler) flow(fn *code.Func, rule int) (*bytecode.Flow, error) {
 	if a.Frame {
 		// A framed function returns its value and true, or the null value and false, by its own
 		// returns; it runs in the rule frame that the VM's rule sets up, which owns its finish.
-		if n := len(s.f.Code); n == 0 || s.f.Code[n-1].Op != bytecode.FlowReturn {
+		if n := len(s.f.Code); n == 0 || !s.f.Code[n-1].Op.Ends() || s.f.Code[n-1].Op == bytecode.FlowJump {
 			return nil, fmt.Errorf("the framed function does not end with a return")
 		}
 		if len(s.labels) > 0 || len(s.conts) > 0 {
@@ -188,18 +188,16 @@ func (c *compiler) flow(fn *code.Func, rule int) (*bytecode.Flow, error) {
 	}
 	// The body of a local function is the block of the fail label: running to its end succeeds with
 	// the result, and an exit to the label fails. Both returns are emitted after the body.
-	res, ok := s.regs[a.Result]
-	if !ok {
+	if _, ok := s.regs[a.Result]; !ok {
 		return nil, fmt.Errorf("the result %q is not a local", a.Result)
 	}
-	yes := s.reg()
-	s.emit(bytecode.FlowInstr{Op: bytecode.FlowConst, Dst: []int{yes}, Imm: true})
-	s.emit(bytecode.FlowInstr{Op: bytecode.FlowReturn, Args: []int{res, yes}})
+	if err := s.stmts([]code.Stmt{&code.Return{Values: []code.Expr{&code.Local{Name: a.Result}, code.BoolC(true)}}}); err != nil {
+		return nil, err
+	}
 	failAt := len(s.f.Code)
-	nothing, no := s.reg(), s.reg()
-	s.emit(bytecode.FlowInstr{Op: bytecode.FlowConst, Dst: []int{nothing}})
-	s.emit(bytecode.FlowInstr{Op: bytecode.FlowConst, Dst: []int{no}, Imm: false})
-	s.emit(bytecode.FlowInstr{Op: bytecode.FlowReturn, Args: []int{nothing, no}})
+	if err := s.stmts([]code.Stmt{&code.Return{Values: []code.Expr{&code.Const{}, code.BoolC(false)}}}); err != nil {
+		return nil, err
+	}
 	for _, j := range s.labels[a.Fail] {
 		s.f.Code[j].Target = failAt
 	}

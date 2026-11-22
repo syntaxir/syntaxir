@@ -132,7 +132,7 @@ func successors(code []bytecode.FlowInstr, i int) []int {
 	if sh, _ := in.Op.Shape(); sh.Target {
 		next = append(next, in.Target)
 	}
-	if in.Op != bytecode.FlowJump && in.Op != bytecode.FlowReturn {
+	if !in.Op.Ends() {
 		next = append(next, i+1)
 	}
 	return next
@@ -165,11 +165,12 @@ func compact(f *bytecode.Flow, keep []bool) {
 
 // threadJumps rewrites the jumps of the body f once it is selected: a jump to a JUMP goes to where
 // that JUMP goes, a conditional jump over a JUMP jumps on the opposite condition to where that JUMP
-// goes, and the instructions that no path reaches and the JUMPs to the next instruction are
-// removed. The control of a Flow function becomes jumps block by block, so an exit from nested blocks
-// jumps to the end of each block in turn, and a block that ends in a jump leaves a jump to the next
-// instruction behind it; a run of the body then takes one jump where the selection wrote a chain. It
-// changes no path's operations, only the jumps a path takes.
+// goes, a JUMP to a RETURNFAIL returns failure itself, and the instructions that no path reaches and
+// the JUMPs to the next instruction are removed. The control of a Flow function becomes jumps block
+// by block, so an exit from nested blocks jumps to the end of each block in turn, and a block that
+// ends in a jump leaves a jump to the next instruction behind it; a run of the body then takes one
+// jump where the selection wrote a chain. It changes no path's operations, only the jumps a path
+// takes.
 func threadJumps(f *bytecode.Flow) {
 	code := f.Code
 	final := func(t int) int {
@@ -203,6 +204,12 @@ func threadJumps(f *bytecode.Flow) {
 		if op, ok := opposite[in.Op]; ok && in.Target == i+2 && j.Op == bytecode.FlowJump && !targets[i+1] && !skipped[i] {
 			in.Op, in.Target = op, j.Target
 			skipped[i+1] = true
+		}
+	}
+	for i := range code {
+		if in := &code[i]; in.Op == bytecode.FlowJump && !skipped[i] && code[in.Target].Op == bytecode.FlowReturnFail {
+			// A JUMP to a RETURNFAIL, which reads no register, returns failure itself.
+			*in = bytecode.FlowInstr{Op: bytecode.FlowReturnFail}
 		}
 	}
 	keep := make([]bool, len(code)) // first whether a path reaches the instruction

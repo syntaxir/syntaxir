@@ -1049,8 +1049,8 @@ func validateFlow(m *Module, slots int, f *Flow) error {
 	if f == nil || f.Regs < 0 {
 		return fmt.Errorf("invalid frame")
 	}
-	if n := len(f.Code); n == 0 || f.Code[n-1].Op != FlowJump && f.Code[n-1].Op != FlowReturn {
-		return fmt.Errorf("the body does not end with JUMP or RETURN")
+	if n := len(f.Code); n == 0 || !f.Code[n-1].Op.Ends() {
+		return fmt.Errorf("the body does not end with JUMP or a return")
 	}
 	// slots becomes the number of slots of the largest frame the body may run with.
 	for _, in := range f.Code {
