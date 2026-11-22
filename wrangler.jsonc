@@ -13,5 +13,8 @@
     "html_handling": "auto-trailing-slash",
     // The site emits no 404.html page, so a missing path gets Cloudflare's plain 404 response.
     "not_found_handling": "none"
-  }
+  },
+  // Enables `wrangler preview`, which uploads a build as a named Preview of this Worker without
+  // deploying it; the command requires this block. Empty: Previews use the settings above.
+  "previews": {}
 }
