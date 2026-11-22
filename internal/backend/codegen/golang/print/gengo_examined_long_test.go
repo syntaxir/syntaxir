@@ -57,7 +57,7 @@ var examinedMutants = []examinedMutant{
 	// needs its record is a recognizer's (the grammar reduced from random cycle grammar 210).
 	{name: "a growth step taken from the context records nothing", file: "context_grow.go", copies: 1, old: "\t\tp.touchRange(s.examined, s.from)\n", new: "\t\t_ = s\n",
 		entries: []string{"recognize"}},
-	{name: "a skip record reused records nothing", file: "skip_runs.go", copies: 1, old: "p.touchRange(r.examined, r.from)", new: "p.touchRange(0, r.from)",
+	{name: "a skip record reused records nothing", file: "skip_walks.go", copies: 1, old: "p.touchRange(r.examined, r.from)", new: "p.touchRange(0, r.from)",
 		entries: []string{"parse"}},
 	{name: "a lookahead drops what it examined", file: "context_table.go", copies: 1, old: "p.setExamRange(max(l.examined, examined), min(l.from, from))",
 		new:     "p.setExamRange(l.examined, min(l.from, from))",

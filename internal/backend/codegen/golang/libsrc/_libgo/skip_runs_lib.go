@@ -4,7 +4,7 @@ import sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 
 // The parts of the skip runs that only the library has: its element types (a Node parse collects
 // nodes, a typed one any values), the examined range of a Document parse, and the entry points of
-// generated parsers. The shared skip-run mechanisms (skip_runs.go, skip_records.go, skip_vals.go) call
+// generated parsers. The shared skip-run mechanisms (skip_walks.go, skip_records.go, skip_vals.go) call
 // the hooks below, which the engine's file of the same name implements for its own state.
 
 // RunHotSpan is the length of input that a walk of a run site may walk again, below the furthest point

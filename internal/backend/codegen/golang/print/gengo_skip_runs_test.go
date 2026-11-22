@@ -226,7 +226,7 @@ var skipRunMutations = map[string][][2]string{
 // results of the parses of the nested inputs with the nested recovery grammar of the skip-run tests.
 func skipRunSpends(t *testing.T, goBin string, controls []complexitytest.Control, sizes []int, nested []string, mutation string) (spends [][]uint64, results []string) {
 	t.Helper()
-	return libSpends(t, goBin, controls, sizes, nested, "skip_runs.go", skipRunMutations[mutation])
+	return libSpends(t, goBin, controls, sizes, nested, "skip_walks.go", skipRunMutations[mutation])
 }
 
 // libSpends is skipRunSpends with the embedded library file libgo/file changed by the

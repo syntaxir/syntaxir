@@ -2,7 +2,7 @@ package libgo
 
 import "unsafe"
 
-// The records of the walks of skip-run sites (skip_runs.go; see "Skip Runs" in spec/runtime/parsing.md
+// The records of the walks of skip-run sites (skip_walks.go; see "Skip Runs" in spec/runtime/parsing.md
 // and the proofs in spec/proofs/skip-runs.md). The slot of a position in the table of a site is fresh,
 // visited or recorded; a record holds what the rest of a walk from its position did.
 

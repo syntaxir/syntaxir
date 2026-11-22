@@ -31,6 +31,7 @@ var Files = []string{
 	"action_value.go",
 	"skip_records.go",
 	"skip_vals.go",
+	"skip_walks.go",
 	"trace_record.go",
 	"value_spend.go",
 }

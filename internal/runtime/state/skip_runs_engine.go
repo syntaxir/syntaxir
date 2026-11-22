@@ -11,7 +11,7 @@ import (
 // The parts of the skip runs that only the engine has: its element types (the engine's nodes), its
 // budget and its tuning (the mutants of Tuning.SkipMut, the gate of the skip runs, and the hot span),
 // the examined range of a parse, which it always tracks, and the entry points of its walks. The shared
-// skip-run mechanisms (skip_runs.go, skip_records.go, skip_vals.go) call the hooks below, which the
+// skip-run mechanisms (skip_walks.go, skip_records.go, skip_vals.go) call the hooks below, which the
 // library's file of the same name implements for its own state.
 
 // The mutants of Tuning.SkipMut, under the names the engine's tests and tuning use. They are the shared

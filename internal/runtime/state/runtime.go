@@ -196,11 +196,11 @@ type Parser struct {
 	keptSeedResults []keptSeedResult
 	Resumed         int // elements reused by ResumeRepeat (for tests)
 	// skipTables holds the skip-run records of each site, at 2*site outside lookaheads and
-	// 2*site+1 inside them, and skip is the walk in progress (skip_runs.go).
+	// 2*site+1 inside them, and skip is the walk in progress (skip_walks.go).
 	skipTables []*skipSlots
 	skips      []skipWalk
 	skipN      int
-	// runCold holds what the walks of each run site did before the site turned hot (skip_runs.go).
+	// runCold holds what the walks of each run site did before the site turned hot (skip_walks.go).
 	runCold []runCold
 	// scan is the walk of a scan site of a Flow body that has reached ScanHotSpan characters
 	// (scan_sites.go).

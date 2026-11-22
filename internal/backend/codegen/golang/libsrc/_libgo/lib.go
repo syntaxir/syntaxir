@@ -988,7 +988,7 @@ type Parser struct {
 			Node
 	// skipTables are the records of the walks of skip-run and run sites, indexed by 2*site, plus 1
 	// in a lookahead; skips[:skipN] are the walks in progress, the innermost last, and runCold the
-	// state of the run sites that are not hot, indexed as skipTables (skip_runs.go). skipBytes counts
+	// state of the run sites that are not hot, indexed as skipTables (skip_walks.go). skipBytes counts
 	// the bytes of the elements and errors that records hold, for the memory limit.
 	skipTables []*skipSlots
 	skips      []skipWalk
