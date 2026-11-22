@@ -6,6 +6,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
@@ -93,11 +94,13 @@ func nodeMemberFixture(controlled bool) (*ActCtx, map[string]any) {
 // memberStruct is a struct of the typed library, as a generated struct type is: it holds every field of
 // its type, each set or at its zero value.
 type memberStruct struct {
-	Span
+	sxirinput.Span
 	name   string
 	fields map[string]any
 }
 
+func (v *memberStruct) TSpan() (int, int)              { return v.Start, v.End }
+func (v *memberStruct) TSetSpan(start, end int)        { v.Start, v.End = start, end }
 func (v *memberStruct) TName() string                  { return v.name }
 func (v *memberStruct) TText() (string, bool)          { return "", false }
 func (v *memberStruct) TKids() []any                   { return nil }
@@ -146,7 +149,7 @@ func typedMemberFixture(controlled bool) (*TActCtx, map[string]any) {
 		return &memberStruct{name: "S", fields: map[string]any{"A": a, "B": b, "L": &TSeq{Typ: TypeListValue},
 			"T": &TSeq{Typ: TypeTupleValue, Kids: []any{0, ""}}, "In": &memberStruct{name: "Inner", fields: map[string]any{"N": 0}}}}
 	}
-	node := &TSeq{Typ: "tuple", Span: Span{2, 5}}
+	node := &TSeq{Typ: "tuple", Span: sxirinput.Span{Start: 2, End: 5}}
 	node.set("y", 7)
 	return c, map[string]any{
 		conform.MemberNil:   nil,

@@ -5,6 +5,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
@@ -74,7 +75,9 @@ func nodeCastValue(c *ActCtx, v conform.CastValue) any {
 
 // typedCastValue builds a value of the table in the typed library.
 func typedCastValue(v conform.CastValue) any {
-	text := func() *TMatch { return &TMatch{TNode: TNode[string]{Span: Span{2, 4}, Value: "xyz"}} }
+	text := func() *TMatch {
+		return &TMatch{TNode: TNode[string]{Span: sxirinput.Span{Start: 2, End: 4}, Value: "xyz"}}
+	}
 	elems := func() []any {
 		var out []any
 		for _, e := range v.Elems {
@@ -94,9 +97,9 @@ func typedCastValue(v conform.CastValue) any {
 	case "text":
 		return text()
 	case "tuple":
-		return &TSeq{Typ: "tuple", Span: Span{2, 5}, Kids: []any{text(), text()}}
+		return &TSeq{Typ: "tuple", Span: sxirinput.Span{Start: 2, End: 5}, Kids: []any{text(), text()}}
 	case "rep":
-		return &TSeq{Typ: "list", Span: Span{2, 5}, Kids: []any{text(), text()}}
+		return &TSeq{Typ: "list", Span: sxirinput.Span{Start: 2, End: 5}, Kids: []any{text(), text()}}
 	case "err":
 		return NewTError(2, 4, "x")
 	case "struct":

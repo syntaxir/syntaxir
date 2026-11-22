@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
@@ -29,7 +30,7 @@ func TestValueStructTable(t *testing.T) {
 			t.Errorf("controlled=%v: %v", controlled, err)
 		}
 		tc, tvals := typedBuiltinFixture(controlled)
-		tvals[conform.StructLate] = &TMatch{TNode: TNode[string]{Span: Span{7, 9}, Value: "q"}}
+		tvals[conform.StructLate] = &TMatch{TNode: TNode[string]{Span: sxirinput.Span{Start: 7, End: 9}, Value: "q"}}
 		tc.Start, tc.End = conform.StructRuleStart, conform.StructRuleEnd
 		if err := conform.RunStructs("typed", func(fields []string) string {
 			var fs []any

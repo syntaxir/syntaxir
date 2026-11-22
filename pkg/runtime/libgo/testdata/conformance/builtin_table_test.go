@@ -52,7 +52,7 @@ func typedBuiltinFixture(controlled bool) (*TActCtx, map[string]any) {
 		p.Control = newBudgetControl(context.Background(), sxirruntime.Limits{Compute: 1 << 62})
 	}
 	c := &TActCtx{P: &TParser{Parser: p}}
-	text := &TMatch{TNode: TNode[string]{Span: Span{2, 4}, Value: "xyz"}}
+	text := &TMatch{TNode: TNode[string]{Span: sxirinput.Span{Start: 2, End: 4}, Value: "xyz"}}
 	return c, map[string]any{
 		conform.BuiltinTyped:  &TMatch{TNode: text.TNode, Nt: builtinOtherNt},
 		conform.BuiltinBox:    1,
@@ -61,7 +61,7 @@ func typedBuiltinFixture(controlled bool) (*TActCtx, map[string]any) {
 		conform.BuiltinString: "ab",
 		conform.BuiltinBool:   true,
 		conform.BuiltinText:   text,
-		conform.BuiltinNode:   &TSeq{Typ: "tuple", Span: Span{2, 5}, Kids: []any{text, text}},
+		conform.BuiltinNode:   &TSeq{Typ: "tuple", Span: sxirinput.Span{Start: 2, End: 5}, Kids: []any{text, text}},
 		conform.BuiltinPair:   &TSeq{Typ: TypeListValue, Kids: []any{1, 2}},
 		conform.MemberList:    &TSeq{Typ: TypeListValue},
 		conform.BuiltinFunc:   func(x any) any { return x },
