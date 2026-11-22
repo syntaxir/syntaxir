@@ -292,12 +292,6 @@ func (p *Parser) ctxDone(c *ctxCallState) {
 	}
 }
 
-// pushFrame starts recording the dependencies of an evaluation at pos, in the context of the
-// growths gamma[gp:] there.
-func (p *Parser) pushFrame(pos, gp int) {
-	p.frames = append(p.frames, depFrame{pos: pos, gp: gp, depth: len(p.gamma), base: len(p.deps)})
-}
-
 // LookBegin starts a lookahead of the given site (lookBegin). In a context at the current position, the
 // lookahead records what it reads, so that a result that depends on it records its outcome
 // instead of the seeds it read (LookEnd). Where no frame records dependencies, a lookahead records
@@ -454,57 +448,6 @@ func (p *Parser) growEnd(g *growState) ctxResult {
 	return best
 }
 
-// nodesEqual reports whether two trees are equal, comparing at most *budget pairs of distinct nodes
-// (false beyond: two results that are not shown equal get different identities, which costs only
-// reuse).
-func (p *Parser) nodesEqual(a, b *sxirvalue.Node, budget *int) bool {
-	if a == b {
-		return true
-	}
-	if a == nil || b == nil {
-		return false
-	}
-	if *budget--; *budget < 0 {
-		return false
-	}
-	p.Spend()
-	if D(a).Kind != D(b).Kind || D(a).Start != D(b).Start || D(a).End != D(b).End || D(a).Text != D(b).Text || D(a).Fresh != D(b).Fresh || D(a).Terminal != D(b).Terminal || D(a).Labeled != D(b).Labeled || D(a).Box != nil || D(b).Box != nil ||
-		len(D(a).Children) != len(D(b).Children) || len(D(a).Fields) != len(D(b).Fields) {
-		return false
-	}
-	for i := range D(a).Children {
-		if !p.nodesEqual(D(a).Children[i], D(b).Children[i], budget) {
-			return false
-		}
-	}
-	for i := range D(a).Fields {
-		fa, fb := &D(a).Fields[i], &D(b).Fields[i]
-		if fa.Name != fb.Name {
-			return false
-		}
-		na, aok := fa.Value.(*sxirvalue.Node)
-		nb, bok := fb.Value.(*sxirvalue.Node)
-		switch {
-		case aok && bok:
-			if !p.nodesEqual(na, nb, budget) {
-				return false
-			}
-		case aok || bok:
-			return false
-		default:
-			switch fa.Value.(type) {
-			case nil, int, string, bool:
-			default:
-				return false
-			}
-			if fa.Value != fb.Value {
-				return false
-			}
-		}
-	}
-	return true
-}
-
 // valuesEqual reports whether two typed values are equal, comparing at most *budget values of
 // composite kinds (false beyond, and for kinds it does not compare: functions, channels, maps and
 // unsafe pointers).
@@ -570,3 +513,9 @@ func (p *Parser) valuesEqual(a, b reflect.Value, budget *int) bool {
 	}
 	return false
 }
+
+// samePositionBasis reports whether the positions of the nodes a and b account for the same edits
+// of a Document: always, since a Document moves a reused value before a result can hold it
+// (documentMove), so that every node of a result holds positions of the current text. Mark is the
+// number of a move there, which says nothing about positions.
+func (*Parser) samePositionBasis(_, _ *sxirvalue.Node) bool { return true }

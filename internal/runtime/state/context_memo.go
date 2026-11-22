@@ -144,7 +144,7 @@ func (p *Parser) rangeKept() bool { return !p.ContextMemoUnexamined }
 // sameResult reports whether two results are equal, comparing at most *budget pairs of nodes
 // (nodesEqual).
 func (p *Parser) sameResult(a, b *MemoEntry, budget *int) bool {
-	return nodesEqual(p, a.Node, b.Node, budget)
+	return p.nodesEqual(a.Node, b.Node, budget)
 }
 
 // gkey returns the key of the growth's leader.
@@ -173,12 +173,6 @@ type missingBit = bool
 // dependencies, so that their results are kept.
 func (p *Parser) recordsIn(present presentSet) bool {
 	return !p.ContextMemoOff && (p.tune.MemoMut != CtxNarrowPresent || present&presentWide == 0)
-}
-
-// pushFrame starts recording the dependencies of an evaluation at pos, in the context of the
-// growths gamma[gp:] there.
-func (p *Parser) pushFrame(pos, gp int) {
-	p.frames = append(p.frames, depFrame{pos: pos, gp: gp, depth: len(p.gamma), base: len(p.deps)})
 }
 
 // seedRead counts a read of the seed of a growth, or a reuse of a result that depends on seeds, of
@@ -219,55 +213,7 @@ func (p *Parser) examRange() (examined, from int) { return p.Hw, p.lw }
 // setExamRange sets the examined range of the current evaluation.
 func (p *Parser) setExamRange(examined, from int) { p.Hw, p.lw = examined, from }
 
-// nodesEqual reports whether two trees are equal, comparing at most *budget pairs of distinct nodes
-// (false beyond: two results that are not shown equal get different identities, which costs only
-// reuse).
-func nodesEqual(p *Parser, a, b *value.Node, budget *int) bool {
-	if a == b {
-		return true
-	}
-	if a == nil || b == nil {
-		return false
-	}
-	if *budget--; *budget < 0 {
-		return false
-	}
-	p.Spend()
-	da, db := nodes.D(a), nodes.D(b)
-	if da.Kind != db.Kind || da.Start != db.Start || da.End != db.End || da.Terminal != db.Terminal ||
-		da.Labeled != db.Labeled || da.Mark != db.Mark || da.Box != nil || db.Box != nil ||
-		len(da.Children) != len(db.Children) || len(da.Fields) != len(db.Fields) || da.Text != db.Text {
-		return false
-	}
-	for i := range da.Children {
-		if !nodesEqual(p, da.Children[i], db.Children[i], budget) {
-			return false
-		}
-	}
-	for i := range da.Fields {
-		fa, fb := &da.Fields[i], &db.Fields[i]
-		if fa.Name != fb.Name {
-			return false
-		}
-		na, aok := fa.Value.(*value.Node)
-		nb, bok := fb.Value.(*value.Node)
-		switch {
-		case aok && bok:
-			if !nodesEqual(p, na, nb, budget) {
-				return false
-			}
-		case aok || bok:
-			return false
-		default:
-			switch fa.Value.(type) {
-			case nil, int, string, bool:
-			default:
-				return false
-			}
-			if fa.Value != fb.Value {
-				return false
-			}
-		}
-	}
-	return true
-}
+// samePositionBasis reports whether the positions of the nodes a and b account for the same edits
+// of a Document (Data.Mark), so that equal positions are the same positions: the engine moves the
+// nodes of a reused result lazily (MoveTree), and a node holds the positions of the text of its Mark.
+func (p *Parser) samePositionBasis(a, b *value.Node) bool { return nodes.D(a).Mark == nodes.D(b).Mark }

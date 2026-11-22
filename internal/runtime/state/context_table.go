@@ -2,7 +2,11 @@
 
 package state
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
+)
 
 // The tables of the dependency memo of left recursion: the dependencies that evaluations in a
 // context record, the context tables that keep their results by the values of those dependencies,
@@ -122,6 +126,12 @@ const (
 	internPresent = iota
 	internOutcome
 )
+
+// pushFrame starts recording the dependencies of an evaluation at pos, in the context of the
+// growths gamma[gp:] there.
+func (p *Parser) pushFrame(pos, gp int) {
+	p.frames = append(p.frames, depFrame{pos: pos, gp: gp, depth: len(p.gamma), base: len(p.deps)})
+}
 
 // popFrame ends the innermost frame and returns its dependencies, valid until the next push.
 func (p *Parser) popFrame() (depFrame, []dep) {
@@ -775,6 +785,61 @@ func (p *Parser) canonicalSeed(pos, gp int, g growKey, e *ctxRes) (*ctxRes, uint
 	}
 	t.canon[ck] = canonRec{e: e, id: id}
 	return e, id
+}
+
+// nodesEqual reports whether two trees are equal, comparing at most *budget pairs of distinct nodes
+// (false beyond: two results that are not shown equal get different identities, which costs only
+// reuse). Trees are equal by their values: kinds, positions, text, the terminal and labeled flags,
+// children and fields; a box node equals only itself. Positions compare only on the same basis
+// (samePositionBasis). Fresh, which says who may modify a node, is no part of its value.
+func (p *Parser) nodesEqual(a, b *sxirvalue.Node, budget *int) bool {
+	if a == b {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	if *budget--; *budget < 0 {
+		return false
+	}
+	p.Spend()
+	da, db := D(a), D(b)
+	if da.Kind != db.Kind || da.Start != db.Start || da.End != db.End || da.Text != db.Text ||
+		da.Terminal != db.Terminal || da.Labeled != db.Labeled || da.Box != nil || db.Box != nil ||
+		len(da.Children) != len(db.Children) || len(da.Fields) != len(db.Fields) || !p.samePositionBasis(a, b) {
+		return false
+	}
+	for i := range da.Children {
+		if !p.nodesEqual(da.Children[i], db.Children[i], budget) {
+			return false
+		}
+	}
+	for i := range da.Fields {
+		fa, fb := &da.Fields[i], &db.Fields[i]
+		if fa.Name != fb.Name {
+			return false
+		}
+		na, aok := fa.Value.(*sxirvalue.Node)
+		nb, bok := fb.Value.(*sxirvalue.Node)
+		switch {
+		case aok && bok:
+			if !p.nodesEqual(na, nb, budget) {
+				return false
+			}
+		case aok || bok:
+			return false
+		default:
+			switch fa.Value.(type) {
+			case nil, int, string, bool:
+			default:
+				return false
+			}
+			if fa.Value != fb.Value {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // lookRec is a lookahead in progress: what its end restores (lookMark), its site (-1 for one that
