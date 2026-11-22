@@ -11,14 +11,14 @@ import (
 	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
-// ConfEvent is a call of a primitive operation. K identifies the call in the generated code; Used
-// counts the units of budget charged, and Nested those charged by the probed calls inside the call. No
-// parser charges budget any more: the logical compute units are not attributed to the operations, and the
-// bench package checks them against a reference that counts each event.
+// ConfEvent is a call of a primitive operation. K identifies the call in the generated code; Counting
+// reports that the parse counts logical compute units, Used the units counted so far and Nested those
+// counted by the probed calls inside the call.
 type ConfEvent struct {
 	// ArgFrameSet reports that a frame argument has a value set in one of its slots.
 	ArgFrameSet         bool
 	K                   int
+	Counting            bool
 	Pos, PosAfter       int
 	Used, UsedAfter     uint64
 	Nested              uint64
@@ -58,7 +58,10 @@ type ConfEvent struct {
 	Results               []any
 	Done                  bool
 	Parent                int
+	// Up is the index in ConfEvents of the call in progress around the call, -1 for none.
+	Up                    int
 	p                     any
+	idx                   int
 	first                 any
 	argFrame              any
 }
@@ -85,6 +88,7 @@ var (
 // confSnap is the state of the parser that a probe records around a call.
 type confSnap struct {
 	pos        int
+	counting   bool
 	used       uint64
 	kids, rec  int
 	silent     int
@@ -132,6 +136,7 @@ func confState(p any) (s confSnap) {
 	default:
 		panic(fmt.Sprintf("probe: parser %T", p))
 	}
+	s.counting, s.used = q.units.on, q.Units
 	if q.Stream != nil && q.Stream.Emit != nil {
 		s.streaming = true
 		if confEmitting != q.Stream {
@@ -153,14 +158,14 @@ func confState(p any) (s confSnap) {
 
 // ConfPre begins the call k on the parser p and returns p.
 func ConfPre[P any](p P, k int) P {
-	e := &ConfEvent{K: k, Args: map[int]any{}, p: p, Parent: -1}
+	e := &ConfEvent{K: k, Args: map[int]any{}, p: p, Parent: -1, Up: -1, idx: len(ConfEvents)}
 	s := confState(p)
-	e.Pos, e.Used, e.Kids, e.Rec, e.Silent = s.pos, s.used, s.kids, s.rec, s.silent
+	e.Pos, e.Counting, e.Used, e.Kids, e.Rec, e.Silent = s.pos, s.counting, s.used, s.kids, s.rec, s.silent
 	e.Far, e.Exps, e.Frame, e.Env, e.Vals = s.far, s.exps, s.frame, s.env, s.vals
 	e.Created = s.created
 	e.Trail, e.Streaming, e.Depth, e.Emits, e.EmitLast, e.MemKept, e.MemUsed = s.trail, s.streaming, s.depth, s.emits, s.emitLast, s.memKept, s.memUsed
 	if n := len(confStack); n > 0 {
-		e.Parent = confStack[n-1].K
+		e.Parent, e.Up = confStack[n-1].K, confStack[n-1].idx
 	}
 	ConfEvents = append(ConfEvents, e)
 	confStack = append(confStack, e)

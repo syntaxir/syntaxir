@@ -2111,8 +2111,7 @@ L40:
 	if p.Pos == x2.Pos {
 		goto L34
 	}
-	x41 = p.MakeError(x4, x5)
-	p.Units++
+	x41 = p.MakeErrorLogical(x4, x5)
 	p.PushRecovered(x41)
 	v8 = p.NewErrorNode(x2.Pos, x41)
 	goto L7
@@ -4356,8 +4355,7 @@ L40:
 	if p.Pos == x2.Pos {
 		goto L34
 	}
-	x41 = p.MakeError(x4, x5)
-	p.Units++
+	x41 = p.MakeErrorLogical(x4, x5)
 	p.PushRecovered(x41)
 	v8 = rt.NewTError(x2.Pos, p.Pos, x41.Error())
 	goto L7
@@ -7084,4 +7082,4 @@ fail:
 
 const _ = types.SXIRSchema_384796197f10dab5
 
-const _ = rt.Protocol32
+const _ = rt.Protocol33

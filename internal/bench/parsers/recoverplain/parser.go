@@ -339,8 +339,7 @@ L5:
 	if p.Pos == x1.Pos {
 		goto L15
 	}
-	x19 = p.MakeError(x3, x4)
-	p.Units++
+	x19 = p.MakeErrorLogical(x3, x4)
 	p.PushRecovered(x19)
 	v7 = p.NewErrorNode(x1.Pos, x19)
 	goto L6
@@ -637,8 +636,7 @@ L5:
 	if p.Pos == x1.Pos {
 		goto L15
 	}
-	x19 = p.MakeError(x3, x4)
-	p.Units++
+	x19 = p.MakeErrorLogical(x3, x4)
 	p.PushRecovered(x19)
 	v7 = rt.NewTError(x1.Pos, p.Pos, x19.Error())
 	goto L6
@@ -881,4 +879,4 @@ func s4(p *rt.TParser) (any, bool) {
 
 const _ = types.SXIRSchema_1c8d4a14d8862fa8
 
-const _ = rt.Protocol32
+const _ = rt.Protocol33

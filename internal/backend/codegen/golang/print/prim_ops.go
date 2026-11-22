@@ -113,10 +113,6 @@ func (p *primPrinter) op(c *code.Call, args []string) string {
 	case prim.OpFreeFrame:
 		return fmt.Sprintf("p.FreeFrame(%s)", args[0])
 	case prim.OpAppendError:
-		if g.Logical {
-			// The syntax error that a recovery built is an event of one compute unit.
-			return fmt.Sprintf("p.Units++\np.PushRecovered(%s)", args[0])
-		}
 		return fmt.Sprintf("p.PushRecovered(%s)", args[0])
 	case prim.OpDeclareNames:
 		// Declared whatever the reachability.
@@ -253,7 +249,9 @@ func (p *primPrinter) op(c *code.Call, args []string) string {
 	case prim.OpKeep:
 		return fmt.Sprintf("p.Keep(%s)", args[0])
 	case prim.OpMakeError:
-		return fmt.Sprintf("p.MakeError(%s, %s)", args[0], args[1])
+		// Under logical units the syntax error that a recovery builds is an event of one compute unit,
+		// which the operation that builds it counts (flow.makeError).
+		return fmt.Sprintf("p.%s(%s, %s)", g.pickLogical("MakeError"), args[0], args[1])
 	case prim.OpErrorValue:
 		return fmt.Sprintf("NewTError(%s, p.Pos, %s.Error())", args[0], args[1])
 	case prim.OpNewErrorNode:

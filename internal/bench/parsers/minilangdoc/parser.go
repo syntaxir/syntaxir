@@ -840,8 +840,7 @@ L40:
 	if p.Pos == x2.Pos {
 		goto L34
 	}
-	x41 = p.MakeError(x4, x5)
-	p.Units++
+	x41 = p.MakeErrorLogical(x4, x5)
 	p.PushRecovered(x41)
 	v8 = p.NewErrorNode(x2.Pos, x41)
 	goto L7
@@ -2920,4 +2919,4 @@ fail:
 	return nil, false
 }
 
-const _ = rt.Protocol32
+const _ = rt.Protocol33

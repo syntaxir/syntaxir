@@ -190,8 +190,8 @@ Every Flow operation states its contract, its cost, the features it needs and it
 declared type that holds its static data (a literal, a class, a rule), while its dynamic operands are arguments. At the
 Exec stage each Flow operation is a **primitive** that each target prints in place. The conformance of a target is
 checked for each Flow operation: probes around every printed primitive call check that the position moves as the
-contract says, that the cost stays within its bound and, for reads of the input, that the result agrees with a model of
-the input. A backend that implements a Flow operation natively, as the VM does, is held to the same contract.
+contract says, that it counts the compute units that the specification's event table assigns to its events and, for
+reads of the input, that the result agrees with a model of the input. A backend that implements a Flow operation natively, as the VM does, is held to the same contract.
 
 ## The Exec Stage
 

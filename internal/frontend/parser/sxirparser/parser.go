@@ -2928,8 +2928,7 @@ L17:
 	if p.Pos == x13.Pos {
 		goto L21
 	}
-	x22 = p.MakeError(x15, x16)
-	p.Units++
+	x22 = p.MakeErrorLogical(x15, x16)
 	p.PushRecovered(x22)
 	v19 = rt.NewTError(x13.Pos, p.Pos, x22.Error())
 	goto L18
@@ -3025,8 +3024,7 @@ L8:
 	if p.Pos == x4.Pos {
 		goto L29
 	}
-	x30 = p.MakeError(x6, x7)
-	p.Units++
+	x30 = p.MakeErrorLogical(x6, x7)
 	p.PushRecovered(x30)
 	v10 = rt.NewTError(x4.Pos, p.Pos, x30.Error())
 	goto L9
@@ -3098,8 +3096,7 @@ L9:
 	if p.Pos == x5.Pos {
 		goto L18
 	}
-	x19 = p.MakeError(x7, x8)
-	p.Units++
+	x19 = p.MakeErrorLogical(x7, x8)
 	p.PushRecovered(x19)
 	v11 = rt.NewTError(x5.Pos, p.Pos, x19.Error())
 	goto L10
@@ -3239,8 +3236,7 @@ L20:
 	if p.Pos == x16.Pos {
 		goto L29
 	}
-	x30 = p.MakeError(x18, x19)
-	p.Units++
+	x30 = p.MakeErrorLogical(x18, x19)
 	p.PushRecovered(x30)
 	v22 = rt.NewTError(x16.Pos, p.Pos, x30.Error())
 	goto L21
@@ -3316,8 +3312,7 @@ L10:
 	if p.Pos == x6.Pos {
 		goto L14
 	}
-	x15 = p.MakeError(x8, x9)
-	p.Units++
+	x15 = p.MakeErrorLogical(x8, x9)
 	p.PushRecovered(x15)
 	v12 = rt.NewTError(x6.Pos, p.Pos, x15.Error())
 	goto L11
@@ -3486,8 +3481,7 @@ L10:
 	if p.Pos == x6.Pos {
 		goto L29
 	}
-	x30 = p.MakeError(x8, x9)
-	p.Units++
+	x30 = p.MakeErrorLogical(x8, x9)
 	p.PushRecovered(x30)
 	v12 = rt.NewTError(x6.Pos, p.Pos, x30.Error())
 	goto L11
@@ -3592,8 +3586,7 @@ L10:
 	if p.Pos == x6.Pos {
 		goto L29
 	}
-	x30 = p.MakeError(x8, x9)
-	p.Units++
+	x30 = p.MakeErrorLogical(x8, x9)
 	p.PushRecovered(x30)
 	v12 = rt.NewTError(x6.Pos, p.Pos, x30.Error())
 	goto L11
@@ -3669,8 +3662,7 @@ L10:
 	if p.Pos == x6.Pos {
 		goto L14
 	}
-	x15 = p.MakeError(x8, x9)
-	p.Units++
+	x15 = p.MakeErrorLogical(x8, x9)
 	p.PushRecovered(x15)
 	v12 = rt.NewTError(x6.Pos, p.Pos, x15.Error())
 	goto L11
@@ -3731,8 +3723,7 @@ L5:
 	if p.Pos == x1.Pos {
 		goto L20
 	}
-	x21 = p.MakeError(x3, x4)
-	p.Units++
+	x21 = p.MakeErrorLogical(x3, x4)
 	p.PushRecovered(x21)
 	v7 = rt.NewTError(x1.Pos, p.Pos, x21.Error())
 	goto L6
@@ -28225,4 +28216,4 @@ fail:
 
 const _ = types.SXIRSchema_eab920e581fbb899
 
-const _ = rt.Protocol32
+const _ = rt.Protocol33

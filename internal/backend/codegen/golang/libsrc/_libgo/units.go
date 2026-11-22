@@ -560,6 +560,15 @@ func (p *TParser) skipTerminalAltL(t *TerminalProgram, pc, size int) bool {
 	return p.skipTerminalL(t, pc+4)
 }
 
+// MakeErrorLogical is MakeError that counts the syntax error it builds for a recovery, an event of one
+// compute unit (flow.makeError).
+//
+// MakeErrorLogical is for generated parsers; not a stable API.
+func (p *Parser) MakeErrorLogical(pos int, expected []ExpID) *sxirvalue.SyntaxError {
+	p.Units++
+	return p.MakeError(pos, expected)
+}
+
 // ActionHullLogical is ActionHull that counts one unit for each element of the list or tuple it builds.
 //
 // ActionHullLogical is for generated parsers; not a stable API.

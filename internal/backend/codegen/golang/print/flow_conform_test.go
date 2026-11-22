@@ -3,7 +3,6 @@ package print_test
 import (
 	"encoding/json"
 	"fmt"
-	"math/bits"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -28,15 +27,14 @@ import (
 
 // The conformance of the Go target to the Flow operations. Each call of a primitive operation that
 // the Go printer prints is wrapped in a probe (testdata/flowconform/probe.go, added to a copy of
-// the library) that records the parser state around it: the position, the units of budget charged,
-// the height of the stack of gathered values, the recovered errors and the silent depth, with the
-// arguments and results that the checks read. The generated parsers of flowConformCases run on their
-// inputs, and every recorded call is checked against its operation's declaration:
+// the library) that records the parser state around it: the position, the logical compute units
+// counted, the height of the stack of gathered values, the recovered errors and the silent depth, with
+// the arguments and results that the checks read. The generated parsers of flowConformCases run on
+// their inputs, and every recorded call is checked against its operation's declaration:
 //
 //   - an operation that does not write the position leaves it unchanged;
-//   - the units it charges itself, those of the probed calls inside it aside, stay within its cost
-//     bound (ops.go), the quantities taken from its immediate; the operations of flowExactCharges
-//     charge exactly their bound;
+//   - the units it counts itself, those of the probed calls inside it aside, are those that the
+//     event table of the specification assigns to its events (flowUnits);
 //   - the check of its case (flowConformChecks) holds: the reads of the input agree with the input
 //     model (ref.Input), and the operations on the stack, the recovered errors, the marks and the
 //     silent depth change the state as their contracts say.
@@ -284,9 +282,6 @@ var flowOtherTargets = map[string]string{
 	flow.OpCallOutline: "only the TypeScript generator outlines nodes (lowerdata.Options.Outlined)",
 }
 
-// flowExactCharges are the operations whose charges equal their cost bound.
-var flowExactCharges = []string{flow.OpStep}
-
 // flowProbe wraps the calls of primitive operations in probes and records what each one calls.
 type flowProbe struct {
 	mu    sync.Mutex
@@ -451,6 +446,8 @@ type flowEvent struct {
 	MemUsedAfter        uint64
 	K                   int
 	Pos, PosAfter       int
+	Counting            bool
+	Up                  int
 	Used, UsedAfter     uint64
 	Nested              uint64
 	Kids, KidsAfter     int
@@ -614,6 +611,7 @@ func TestProbe(t *testing.T) {
 		for _, r := range runs {
 			in := ref.NewInput(r.Input)
 			var isolated []flowEvent
+			flowBodyUnits(r.Events)
 			for _, e := range r.Events {
 				if e.K < 0 {
 					continue
@@ -641,7 +639,7 @@ func TestProbe(t *testing.T) {
 						isolated = isolated[:n-1]
 					}
 				}
-				for _, msg := range checkFlowCall(in, flowOps()[name], call, &e, c.noLimits) {
+				for _, msg := range checkFlowCall(in, flowOps()[name], call, &e) {
 					msgs = append(msgs, fmt.Sprintf("%s %q: %s at %d: %s", c.name, r.Input, name, e.Pos, msg))
 				}
 			}
@@ -672,125 +670,73 @@ func TestFlowOperationsConform(t *testing.T) {
 	}
 }
 
-// flowConformExps bounds the expectations of the grammars of flowConformCases, which bounds the
-// entries that recording one expectation compares at the farthest failure.
-const flowConformExps = 16
-
-// flowConformKeyVars is the most variables that key the records of a run site of flowConformCases.
-const flowConformKeyVars = 1
-
-// flowUnbounded is the value of a quantity that the bound does not check.
-const flowUnbounded = 1 << 30
-
-// flowBound returns the cost bound of the recorded call e of the operation o, the call c on the input
-// in, with the values of its quantities:
-//
-//   - lit, classes: of the immediate;
-//   - body: none for the rules and outlined nodes that a call runs, whose bodies are probed calls of
-//     their own, and for the action code of a predicate, binding or action, which the probes do not
-//     wrap, any (action_charges_test.go checks the charges of action expressions);
-//   - terminal: any, checked by the case of flow.skipTerminal;
-//   - merge: each expectation that the call records or is passed, at most once more for each entry
-//     recorded at the farthest failure that it compares;
-//   - call: the constant of the first-call record (seen.first of the Exec stage), the growth of the
-//     memo's slots up to the position and the expectations that the memo keeps and merges;
-//   - vals: the length of the list that the call returns;
-//   - error: each expectation, the steps of sorting them and finding the line, and the input once;
-//   - error_text: the bytes of the message and one for each of its parts;
-//   - ranges: of the immediate;
-//   - stream: four for each code point of the input and a constant;
-//   - text: the length of the result;
-//   - key: hashing, comparing and binding the values of the variables of a run key
-//     (flowConformKeyVars), each at most the input and a constant;
-//   - records, walk_vals: one for each position of the input;
-//   - made: the values that the context of the action made, which the probe records with it;
-//   - deps, table: any, as the stores in the context tables are not recorded.
-func flowBound(in *ref.Input, o *code.Op, c *code.Call, e *flowEvent) int {
-	exps := 1
-	for _, i := range []int{0, 1} {
-		if n, ok := listLen(e.Args[i]); ok {
-			exps = n
+// flowBodyUnits gives the units that the body of a rule, a frame, a line or an outlined node counts
+// itself, outside the probed calls in it, to the call that runs the body: the probe of the body
+// (K -1) only keeps its units apart from the calls' own. A rule function counts the unit of its call as
+// it starts, which is the event of the call (flow.callRule) that runs it.
+func flowBodyUnits(events []flowEvent) {
+	for _, e := range events {
+		if e.K >= 0 || !e.Done || e.Up < 0 {
+			continue
 		}
+		events[e.Up].Nested -= e.UsedAfter - e.Used - e.Nested
 	}
-	n := o.Cost.Const
-	for _, t := range o.Cost.Terms {
-		q := 0
-		switch t.Quantity {
-		case flow.QLit:
-			q = len([]rune(c.Imm.(*core.Lit).Text))
-		case flow.QClasses:
-			q = len(c.Imm.(*core.ClassRun).Classes)
-		case flow.QTerminal:
-			q = flowUnbounded
-		case flow.QBody:
-			if o.Name != flow.OpCallRule && o.Name != flow.OpCallOutline {
-				q = flowUnbounded
-			}
-		case flow.QMerge:
-			q = exps * (1 + flowConformExps)
-		case flow.QCall:
-			q = 66 + 2*(e.Pos+1) + 2*(1+flowConformExps)*flowConformExps
-		case flow.QVals:
-			q, _ = listLen(firstResult(e))
-		case flow.QError:
-			q = exps*(2+2*bits.Len(uint(exps))) + in.Len() + bits.Len(uint(in.Len())) + 1
-		case flow.QRanges:
-			switch x := c.Imm.(type) {
-			case *core.Class:
-				q = len(x.Ranges)
-			case *core.First:
-				if !x.Lit {
-					q = len(x.Class.Ranges)
-				}
-			}
-		case flow.QStream:
-			q = 4*(in.Len()+1) + 64
-		case flow.QText:
-			if start, ok := argInt(e, 0); ok {
-				q = e.Pos - start
-			}
-		case flow.QErrorText:
-			if msg, ok := e.Args[1].(string); ok {
-				q = len(msg) + strings.Count(msg, ", ") + 4
-			}
-		case flow.QKey:
-			// The variables of the key of a run site of flowConformCases hold values no longer than the
-			// input; hashing, comparing and binding each charges at most its bytes and a constant.
-			q = 3 * flowConformKeyVars * (in.Len() + 8)
-		case flow.QRecords:
-			q = in.Len() + 1
-		case flow.QWalkVals:
-			q = in.Len() + 1
-		case flow.QMade:
-			if made, ok := e.Args[0].(string); ok {
-				var base int
-				fmt.Sscanf(made, "ctx:%d:made:%d", &base, &q)
-			}
-		case flow.QDeps, flow.QTable:
-			q = flowUnbounded
-		default:
-			panic("flow conformance: no value of the quantity " + t.Quantity)
-		}
-		n += t.Coef * q
-	}
-	return n
 }
 
-// checkFlowCall returns what the recorded call e of the operation o, the call c, breaks. budget is
-// false for a parser that counts logical compute units, which charges no budget: its calls are held
-// to the bounds, which zero meets, but not to the exact charges of flowExactCharges. The bench
-// package checks the logical units against a reference that counts each event.
-func checkFlowCall(in *ref.Input, o *code.Op, c *code.Call, e *flowEvent, budget bool) []string {
+// flowUnbounded is the most units of a range that the check does not bound.
+const flowUnbounded = 1 << 30
+
+// flowUnits returns the range of the logical compute units that the recorded call e of the operation
+// o counts itself, the probed calls inside it aside, as the event table of spec/runtime/parsing.md
+// (Compute Units) assigns them to the operation's events. A parser that counts no units counts none.
+// The range is one value where the recorded state determines the events:
+//
+//   - a terminal (flow.advance, flow.matchLit, flow.matchClass, flow.skipTerminal and
+//     flow.skipClasses) counts the position units it advances over, none when it fails;
+//   - flow.makeError counts the syntax error that it builds for a recovery, one unit;
+//   - every other operation makes no event and counts nothing.
+//
+// The events of the other operations depend on state that the probe does not record, so their range
+// holds only what the record bounds:
+//
+//   - flow.callRule counts the call, at least one unit, then the key of a memoized rule, the steps
+//     of a growing left-recursive rule and the entries of recovered errors that it takes;
+//   - flow.skippedCalls counts at least the first call of the skipped alternative;
+//   - flow.runBegin counts the key of a walk when the walk starts, and flow.skipKids the elements of a
+//     record's suffix that it copies and the key at each lookup;
+//   - flow.pred, flow.bind and flow.eval run action code that the probes do not wrap, whose events
+//     action_charges_test.go checks.
+func flowUnits(o *code.Op, e *flowEvent) (lo, hi int) {
+	if !e.Counting {
+		return 0, 0
+	}
+	switch o.Name {
+	case flow.OpAdvance, flow.OpMatchLit, flow.OpMatchClass, flow.OpSkipTerminal, flow.OpSkipClasses:
+		n := e.PosAfter - e.Pos
+		return n, n
+	case flow.OpMakeError:
+		return 1, 1
+	case flow.OpCallRule, flow.OpSkippedCalls:
+		return 1, flowUnbounded
+	case flow.OpRunBegin, flow.OpSkipKids, flow.OpPred, flow.OpBind, flow.OpEval:
+		return 0, flowUnbounded
+	}
+	return 0, 0
+}
+
+// checkFlowCall returns what the recorded call e of the operation o, the call c, breaks.
+func checkFlowCall(in *ref.Input, o *code.Op, c *code.Call, e *flowEvent) []string {
 	var errs []string
 	fail := func(format string, args ...any) { errs = append(errs, fmt.Sprintf(format, args...)) }
 	if !slices.Contains(o.Writes, prim.Pos) && e.PosAfter != e.Pos {
 		fail("moved the position to %d without writing it", e.PosAfter)
 	}
 	self := int(e.UsedAfter-e.Used) - int(e.Nested)
-	if bound := flowBound(in, o, c, e); self > bound {
-		fail("charged %d units, more than its bound %d", self, bound)
-	} else if budget && slices.Contains(flowExactCharges, o.Name) && self != bound {
-		fail("charged %d units, not its bound %d", self, bound)
+	switch lo, hi := flowUnits(o, e); {
+	case lo == hi && self != lo:
+		fail("counted %d compute units, not %d", self, lo)
+	case self < lo || self > hi:
+		fail("counted %d compute units, outside %d to %d", self, lo, hi)
 	}
 	if check := flowConformChecks[o.Name]; check != nil {
 		check(in, c, e, fail)

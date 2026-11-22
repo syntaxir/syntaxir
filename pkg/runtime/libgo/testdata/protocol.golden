@@ -1,4 +1,4 @@
-protocol 32
+protocol 33
 const BaseString untyped int = 0
 const ExpFar ExpID = 536870912
 const IdAny ExpID = 0
@@ -175,6 +175,7 @@ method (*Parser) LiteralText(int, string) string
 method (*Parser) LookBegin(int)
 method (*Parser) LookEnd(bool)
 method (*Parser) MakeError(int, []ExpID) *syntaxir.dev/sxir/pkg/runtime/value.SyntaxError
+method (*Parser) MakeErrorLogical(int, []ExpID) *syntaxir.dev/sxir/pkg/runtime/value.SyntaxError
 method (*Parser) Mark() Mark
 method (*Parser) MatchAny(bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) MatchAnyLogical(bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
