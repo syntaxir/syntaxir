@@ -21,9 +21,8 @@ type actionCtx struct {
 	c      wctx
 	pred   *ast.Predicate // the predicate that holds the action expression, or nil for an action
 	action bool
-	holder ast.Expr // the inline action that holds the action expression, or nil
-	// value reports an action expression whose value the value of the rule holds: an action of the rule, or an
-	// inline action that is its value, and the parts of such an action expression that its value holds.
+	// value reports an action expression whose value the value of the rule holds: an action of the rule, and
+	// the parts of such an action expression that its value holds.
 	value  bool
 	params map[string]param // the parameters of the enclosing lambdas
 	lambda bool             // inside a lambda
@@ -1196,10 +1195,7 @@ func (k *classifier) copied(t ast.ActionExpr, pos ast.Pos, tc actionCtx, all con
 		if tc.pred != nil {
 			k.srcExprs[tc.pred] = true
 		}
-		if tc.holder != nil {
-			k.srcExprs[tc.holder] = true
-		}
-		if tc.pred == nil && tc.holder == nil {
+		if tc.pred == nil {
 			k.actionSource[tc.rule] = true
 		}
 	}

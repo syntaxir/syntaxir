@@ -360,11 +360,6 @@ func (k *classifier) walk(e ast.Expr, c wctx) {
 		k.walk(e.Expr, c)
 	case *ast.Stream:
 		k.walk(e.Expr, c)
-	case *ast.InlineAction:
-		k.walk(e.Expr, c)
-		if e.Action != nil {
-			k.walkAction(e.Action, actionCtx{rule: c.rule, c: c, action: true, holder: e, value: k.ruleValue(c.rule, e)})
-		}
 	case *ast.Predicate:
 		k.walkAction(e.Action, actionCtx{rule: c.rule, c: c, pred: e})
 	case *ast.OperatorsRule:

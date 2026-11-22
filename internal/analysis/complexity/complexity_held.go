@@ -11,34 +11,6 @@ import "syntaxir.dev/sxir/pkg/grammar/ast"
 // `concat`, `filter`, `map` or a fold, measured as the copying operations measure their operands:
 // the characters of a string or the elements of a list.
 
-// ruleValue reports whether the value of the inline action a in rule is the value of the rule: the
-// rule has no action, and a is its expression or an alternative of it, through groups.
-func (k *classifier) ruleValue(rule string, a *ast.InlineAction) bool {
-	r := k.byName[rule]
-	if r == nil || r.Action != nil || isOperators(r.Expr) {
-		return false
-	}
-	var visit func(e ast.Expr) bool
-	visit = func(e ast.Expr) bool {
-		switch x := e.(type) {
-		case *ast.Group:
-			return visit(x.Expr)
-		case *ast.Atomic:
-			return visit(x.Expr)
-		case *ast.Choice:
-			for _, alt := range x.Alts {
-				if visit(alt) {
-					return true
-				}
-			}
-		case *ast.InlineAction:
-			return x == a
-		}
-		return false
-	}
-	return visit(r.Expr)
-}
-
 // feeds reports whether the value of callee, measured in mode, holds the value of rule, directly
 // or through the values of other rules that it holds, so that a value of rule that holds the value
 // of a call of callee holds its own value of the level inside it. A call of rule itself does.
