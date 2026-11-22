@@ -96,14 +96,15 @@ func bundleTS(files []common.GeneratedFile) []byte {
 
 // TSHarness runs the generated TypeScript parsers g<i>.ts on the inputs in inputs.json and writes
 // one JSON line per input, unit and form of the input (bytes, and a string when the input is valid
-// UTF-8) to out.jsonl. It parses in a worker thread with a large stack, so that nesting reaches the
+// UTF-8) to out.jsonl. Given a third argument "units", each line also has the compute units of the
+// node parse and of the typed parse of the input, "N/M", with "-" for M when g<i>.ts has no typed parse. It parses in a worker thread with a large stack, so that nesting reaches the
 // limit of 100,000 rule calls (Node's default stack holds far fewer).
 const TSHarness = `import { Worker, isMainThread, workerData } from "node:worker_threads";
 import { closeSync, openSync, readFileSync, writeSync } from "node:fs";
 
 if (isMainThread) {
   const w = new Worker(new URL(import.meta.url), {
-    workerData: { inputs: process.argv[2], out: process.argv[3] },
+    workerData: { inputs: process.argv[2], out: process.argv[3], units: process.argv[4] === "units" },
     resourceLimits: { stackSizeMb: 1024 },
   });
   w.on("error", (e) => {
@@ -138,13 +139,21 @@ if (isMainThread) {
           forms.push(Buffer.from(bytes).toString("utf8"));
         }
         for (const x of forms) {
-          const r = m.parse(x, unit);
+          // With units, the parses report their compute units: the node parse and the typed parse,
+          // "-" for a parser generated without types.
+          const used = { units: 0 }, usedValue = { units: 0 };
+          const r = workerData.units ? m.parseWithOptions(x, { unit, computeReport: used }) : m.parse(x, unit);
+          const typed = workerData.units && typeof m.parseValueWithOptions === "function";
+          if (typed) {
+            m.parseValueWithOptions(x, { unit, computeReport: usedValue });
+          }
           const rec = m.recognize(x, unit);
           writeSync(out, JSON.stringify({
             node: m.marshal(r.node),
             err: r.error === null ? null : r.error.message,
             str: r.node === null ? "" : bytesOf(r.node.toString()),
             rec: rec === null ? "<nil>" : rec.message,
+            units: workerData.units ? used.units + "/" + (typed ? usedValue.units : "-") : "",
           }) + "\n");
         }
       }
@@ -265,6 +274,25 @@ func TSParsersCorpus(t *testing.T, node string, cases []Case, opts common.GenOpt
 // negative control passes a mutation and requires some.
 func TSParsersMismatches(t *testing.T, node string, cases []Case, opts common.GenOptions, mutate func(string) string) []string {
 	t.Helper()
+	return tsParsersMismatches(t, node, cases, opts, mutate, false)
+}
+
+// TSParsersUnitsMismatches is TSParsersMismatches that also compares the compute units of each parse
+// with the engine's: the parsers are generated with types (opts.Types), and the node parse and the
+// typed parse of each input, in each unit and form, must each count the units of the engine's parse.
+// A grammar that declares a type TypeScript reserves (print.TsReservedTypes) has no typed TypeScript
+// parser, so only its node parse is compared. The parsers must be generated with limit controls.
+func TSParsersUnitsMismatches(t *testing.T, node string, cases []Case, opts common.GenOptions, mutate func(string) string) []string {
+	t.Helper()
+	if opts.Document || opts.NoLimitControls {
+		t.Fatal("the units of generated parsers are compared on parses from scratch with limit controls")
+	}
+	opts.Types = true
+	return tsParsersMismatches(t, node, cases, opts, mutate, true)
+}
+
+func tsParsersMismatches(t *testing.T, node string, cases []Case, opts common.GenOptions, mutate func(string) string, units bool) []string {
+	t.Helper()
 	dir := t.TempDir()
 	write := func(name, content string) {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
@@ -277,7 +305,7 @@ func TSParsersMismatches(t *testing.T, node string, cases []Case, opts common.Ge
 		B64   string `json:"b64"`
 		Valid bool   `json:"valid"`
 	}
-	type want struct{ out, str, rec string }
+	type want struct{ out, str, rec, units string }
 	var inputs [][]input
 	var wants []want
 	var files []string
@@ -287,28 +315,66 @@ func TSParsersMismatches(t *testing.T, node string, cases []Case, opts common.Ge
 			t.Fatalf("%s: %v", c.Name, err)
 		}
 		opts.Start, opts.Recognize = "main", true
-		code, err := GenerateTSBundle(g, opts)
-		if err != nil {
-			t.Fatalf("%s: %v", c.Name, err)
-		}
 		name := fmt.Sprintf("g%d.ts", i)
-		if mutate != nil {
-			code = []byte(mutate(string(code)))
+		typed := opts.Types && !slices.ContainsFunc(g.Types(), func(d ast.TypeDecl) bool { return slices.Contains(print.TsReservedTypes, d.DeclName()) })
+		if typed {
+			// The types of a grammar share no scope with the library in the generated files,
+			// but would in a bundle (a grammar type R and the library's R): the files are
+			// written as generated, into a directory of their own, and g<i>.ts re-exports the
+			// parser.
+			gen, err := GenerateTS(g, opts)
+			if err != nil {
+				t.Fatalf("%s: %v", c.Name, err)
+			}
+			pkg := fmt.Sprintf("g%d", i)
+			if err := os.Mkdir(filepath.Join(dir, pkg), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			for _, f := range gen {
+				code := string(f.Content)
+				if mutate != nil {
+					code = mutate(code)
+				}
+				write(pkg+"/"+f.Path, code)
+				files = append(files, pkg+"/"+f.Path)
+			}
+			write(name, "export * from \"./"+pkg+"/parser.ts\";\n")
+		} else {
+			o := opts
+			o.Types = typed
+			code, err := GenerateTSBundle(g, o)
+			if err != nil {
+				t.Fatalf("%s: %v", c.Name, err)
+			}
+			if mutate != nil {
+				code = []byte(mutate(string(code)))
+			}
+			write(name, string(code))
+			files = append(files, name)
 		}
-		write(name, string(code))
-		files = append(files, name)
 		var in []input
 		// The generated code projects (internal/frontend/check/project.go), and records source information as asked.
 		prog := refProgram(t, c.Src, check.Options{NoProjections: true, SourceInfo: opts.SourceInfo})
 		for _, s := range c.Inputs {
 			in = append(in, input{base64.StdEncoding.EncodeToString([]byte(s)), utf8.ValidString(s)})
 			for _, bytes := range []bool{false, true} {
-				n, err := prog(s, bytes, false)
+				var used uint64
+				report := (*uint64)(nil)
+				if units {
+					report = &used
+				}
+				n, err := prog(s, bytes, false, report)
 				w := want{out: DeepResultJSON(t, n, err)}
+				if units {
+					w.units = fmt.Sprintf("%d/%d", used, used)
+					if !typed {
+						w.units = fmt.Sprintf("%d/-", used)
+					}
+				}
 				if n != nil {
 					w.str = n.String()
 				}
-				_, err = prog(s, bytes, true)
+				_, err = prog(s, bytes, true, nil)
 				w.rec = fmt.Sprint(err)
 				wants = append(wants, w)
 			}
@@ -327,6 +393,10 @@ func TSParsersMismatches(t *testing.T, node string, cases []Case, opts common.Ge
 			"--noUnusedLocals", "--noUnusedParameters", "--noImplicitReturns", "--noFallthroughCasesInSwitch",
 			"--noImplicitOverride", "--exactOptionalPropertyTypes", "--noUncheckedIndexedAccess",
 			"--noPropertyAccessFromIndexSignature", "--erasableSyntaxOnly", "--verbatimModuleSyntax"}, files...)
+		if opts.Types {
+			// The generated files import each other by their names (./lib.ts).
+			args = append(args, "--allowImportingTsExtensions")
+		}
 		cmd := exec.Command(tsc, args...)
 		cmd.Dir = dir
 		if out, err := cmd.CombinedOutput(); err != nil {
@@ -334,7 +404,11 @@ func TSParsersMismatches(t *testing.T, node string, cases []Case, opts common.Ge
 		}
 	}
 
-	cmd := exec.Command(node, "harness.mjs", "inputs.json", "out.jsonl")
+	args := []string{"harness.mjs", "inputs.json", "out.jsonl"}
+	if units {
+		args = append(args, "units")
+	}
+	cmd := exec.Command(node, args...)
 	cmd.Dir = dir
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("node: %v\n%s", err, out)
@@ -360,10 +434,11 @@ func TSParsersMismatches(t *testing.T, node string, cases []Case, opts common.Ge
 						t.Fatalf("got %d results, want more: %v", k, err)
 					}
 					var got struct {
-						Node string
-						Err  *string
-						Str  string
-						Rec  string
+						Node  string
+						Err   *string
+						Str   string
+						Rec   string
+						Units string
 					}
 					if err := json.Unmarshal([]byte(line), &got); err != nil {
 						t.Fatalf("%v: %s", err, line)
@@ -393,6 +468,9 @@ func TSParsersMismatches(t *testing.T, node string, cases []Case, opts common.Ge
 					}
 					if got.Rec != wants[w].rec {
 						mismatches = append(mismatches, fmt.Sprintf("%s (%v, %s): input %q: recognize\n generated %s\n engine    %s", c.Name, unit, form, in, got.Rec, wants[w].rec))
+					}
+					if got.Units != wants[w].units {
+						mismatches = append(mismatches, fmt.Sprintf("%s (%v, %s): input %q: units (node/typed)\n generated %s\n engine    %s", c.Name, unit, form, in, got.Units, wants[w].units))
 					}
 				}
 				w++

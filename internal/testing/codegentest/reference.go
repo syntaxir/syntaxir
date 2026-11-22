@@ -19,8 +19,9 @@ import (
 
 // ReferenceParse parses input with a program compiled for Reference: with positions in bytes if
 // bytes is set, otherwise in code points, and as a recognition (no tree) if recognize is set. It
-// returns the tree and the error.
-type ReferenceParse func(input string, bytes, recognize bool) (*value.Node, error)
+// returns the tree and the error, and stores the compute units of the parse in *units when units is
+// not nil.
+type ReferenceParse func(input string, bytes, recognize bool, units *uint64) (*value.Node, error)
 
 // Reference compiles src with opts for the comparisons of generated parsers with the engine and
 // returns the parse function of its rule main. The test package sets it, as it sets Compile: this
@@ -164,7 +165,7 @@ func GeneratedParsersMismatches(t *testing.T, goBin string, cases []Case, opts c
 // the copy of the library in the module directory lib (LibCopyWith, LibRunHotSpan).
 func GeneratedParsersMismatchesWithLib(t *testing.T, goBin, lib string, cases []Case, opts common.GenOptions, mutate func([]byte) []byte) []string {
 	t.Helper()
-	got, want := generatedParsersOutputs(t, goBin, lib, cases, opts, mutate, false)
+	got, want := generatedParsersOutputs(t, goBin, lib, cases, opts, mutate, false, false)
 	return outputMismatches(cases, got, want)
 }
 
@@ -173,7 +174,7 @@ func GeneratedParsersMismatchesWithLib(t *testing.T, goBin, lib string, cases []
 // with comments and the limit controls of the fixtures.
 func GeneratedParsersEmbedCorpus(t *testing.T, goBin string, cases []Case, opts common.GenOptions) {
 	t.Helper()
-	got, want := generatedParsersOutputs(t, goBin, LibCopy(), cases, opts, nil, true)
+	got, want := generatedParsersOutputs(t, goBin, LibCopy(), cases, opts, nil, true, false)
 	for _, m := range outputMismatches(cases, got, want) {
 		t.Error(m)
 	}
@@ -203,13 +204,29 @@ func outputMismatches(cases []Case, got, want []string) []string {
 // error.
 func GeneratedParsersOutputs(t *testing.T, goBin string, cases []Case, opts common.GenOptions, mutate func([]byte) []byte) (got, want []string) {
 	t.Helper()
-	return generatedParsersOutputs(t, goBin, LibCopy(), cases, opts, mutate, false)
+	return generatedParsersOutputs(t, goBin, LibCopy(), cases, opts, mutate, false, false)
+}
+
+// GeneratedParsersUnitsMismatches is GeneratedParsersMismatches that also compares the compute units of
+// each parse with the engine's: the parsers are generated with types (opts.Types), and the node parse
+// (Parse) and the typed parse (ParseValue) of each input must each count the units of the engine's
+// parse. The parsers must be generated with limit controls, which the option of the report needs
+// (NeedsBudgetControls); opts.Document is not supported.
+func GeneratedParsersUnitsMismatches(t *testing.T, goBin string, cases []Case, opts common.GenOptions, mutate func([]byte) []byte) []string {
+	t.Helper()
+	if opts.Document || opts.NoLimitControls {
+		t.Fatal("the units of generated parsers are compared on parses from scratch with limit controls")
+	}
+	opts.Types = true
+	got, want := generatedParsersOutputs(t, goBin, LibCopy(), cases, opts, mutate, false, true)
+	return outputMismatches(cases, got, want)
 }
 
 // generatedParsersOutputs is GeneratedParsersOutputs, with packages that carry their own copy of
 // the library if embed is set, and otherwise import the copy of the library in the module
-// directory lib.
-func generatedParsersOutputs(t *testing.T, goBin, lib string, cases []Case, opts common.GenOptions, mutate func([]byte) []byte, embed bool) (got, want []string) {
+// directory lib. With units, each line ends with the compute units of the node parse and of the typed
+// parse, "units: N/M", which the engine's line gives as those of its parse (GeneratedParsersUnitsMismatches).
+func generatedParsersOutputs(t *testing.T, goBin, lib string, cases []Case, opts common.GenOptions, mutate func([]byte) []byte, embed, units bool) (got, want []string) {
 	t.Helper()
 	dir := t.TempDir()
 	write := func(name, content string) {
@@ -220,7 +237,7 @@ func generatedParsersOutputs(t *testing.T, goBin, lib string, cases []Case, opts
 		}
 	}
 	write("go.mod", GoModAt("codegentest", lib))
-	var imports, parsers, recognizers, viewers strings.Builder
+	var imports, parsers, recognizers, viewers, counters strings.Builder
 	var inputs [][]string
 	for i, c := range cases {
 		g, err := compiletest.Parse(c.Src)
@@ -235,6 +252,23 @@ func generatedParsersOutputs(t *testing.T, goBin, lib string, cases []Case, opts
 			o := opts
 			o.Lib, o.Module, o.KeepComments = common.LibEmbed, "codegentest/"+o.Package, true
 			o.NoLimitControls = !FixtureBudgetControls(t) && opts.NoLimitControls
+			files, err := Generate(t, g, o)
+			if err != nil {
+				t.Fatalf("%s: %v", c.Name, err)
+			}
+			for _, f := range files {
+				content := f.Content
+				if mutate != nil && f.Path == "parser.go" {
+					content = mutate(content)
+				}
+				write(o.Package+"/"+f.Path, string(content))
+			}
+		} else if opts.Types {
+			// The types package stays apart, as generated (GeneratePackage): joined into the parser
+			// package, a grammar type named like a name of that package (Node, Span) would not compile.
+			o := opts
+			o.Lib, o.Module, o.KeepComments = common.LibImport, "codegentest/"+o.Package, true
+			o.NoLimitControls = !FixtureBudgetControls(t)
 			files, err := Generate(t, g, o)
 			if err != nil {
 				t.Fatalf("%s: %v", c.Name, err)
@@ -264,18 +298,36 @@ func generatedParsersOutputs(t *testing.T, goBin, lib string, cases []Case, opts
 			fmt.Fprintf(&parsers, "\tfunc(s string, b bool) (any, error) { u := g%d.CodePoints; if b { u = g%d.Bytes }; n, err := g%d.Parse(s, g%[3]d.WithUnit(u)); return n, err },\n", i, i, i)
 		}
 		fmt.Fprintf(&recognizers, "\tfunc(s string, b bool) error { u := g%d.CodePoints; if b { u = g%d.Bytes }; return g%d.Recognize(s, g%[3]d.WithUnit(u)) },\n", i, i, i)
+		if units {
+			// The units of the node parse and of the typed parse of the input.
+			fmt.Fprintf(&counters, "\tfunc(s string, b bool) string { u := g%d.CodePoints; if b { u = g%d.Bytes }; var n, v uint64; g%d.Parse(s, g%[3]d.WithUnit(u), sxirruntime.WithComputeReport(&n)); g%[3]d.ParseValue(s, g%[3]d.WithUnit(u), sxirruntime.WithComputeReport(&v)); return fmt.Sprintf(\" units: %%d/%%d\", n, v) },\n", i, i, i)
+		} else {
+			counters.WriteString("\tfunc(string, bool) string { return \"\" },\n")
+		}
 		fmt.Fprintf(&viewers, "\tfunc(n any) string { return %s },\n", strings.ReplaceAll(NodeViewsSource, "PKG", fmt.Sprintf("g%d", i)))
 		inputs = append(inputs, c.Inputs)
 		// The generated code projects (internal/frontend/check/project.go), and records source information as asked.
 		prog := refProgram(t, c.Src, check.Options{NoProjections: true, SourceInfo: opts.SourceInfo})
 		for _, in := range c.Inputs {
 			for _, bytes := range []bool{false, true} {
-				n, err := prog(in, bytes, false)
+				var used uint64
+				report := (*uint64)(nil)
+				if units {
+					report = &used
+				}
+				n, err := prog(in, bytes, false, report)
 				out := ResultJSON(n, err) + " views: " + strconv.Quote(NodeViews(n))
-				_, err = prog(in, bytes, true)
-				want = append(want, out+" recognize: "+strconv.Quote(fmt.Sprint(err)))
+				_, err = prog(in, bytes, true, nil)
+				out += " recognize: " + strconv.Quote(fmt.Sprint(err))
+				if units {
+					out += fmt.Sprintf(" units: %d/%d", used, used)
+				}
+				want = append(want, out)
 			}
 		}
+	}
+	if units {
+		imports.WriteString("\tsxirruntime \"syntaxir.dev/sxir/pkg/runtime\"\n")
 	}
 	write("main.go", `package main
 
@@ -296,6 +348,9 @@ var recognizers = []func(string, bool) error{
 var viewers = []func(any) string{
 `+viewers.String()+`}
 
+var counters = []func(string, bool) string{
+`+counters.String()+`}
+
 func main() {
 	var inputs [][][]byte
 	data, _ := os.ReadFile(os.Args[1])
@@ -310,7 +365,7 @@ func main() {
 					out["err"] = err.Error()
 				}
 				b, _ := json.Marshal(out)
-				fmt.Println(string(b) + " views: " + strconv.Quote(viewers[i](n)) + " recognize: " + strconv.Quote(fmt.Sprint(recognizers[i](s, bytes))))
+				fmt.Println(string(b) + " views: " + strconv.Quote(viewers[i](n)) + " recognize: " + strconv.Quote(fmt.Sprint(recognizers[i](s, bytes))) + counters[i](s, bytes))
 			}
 		}
 	}
@@ -401,7 +456,7 @@ func GeneratedTypesMismatchesWithLib(t *testing.T, goBin, lib string, cases []Ca
 		inputs = append(inputs, c.Inputs)
 		prog := refProgram(t, c.Src, check.Options{SourceInfo: true})
 		for _, in := range c.Inputs {
-			n, err := prog(in, false, false)
+			n, err := prog(in, false, false, nil)
 			wantErr = append(wantErr, fmt.Sprint(err))
 			accepted = append(accepted, n != nil)
 			var val any

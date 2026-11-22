@@ -19,11 +19,11 @@ func init() {
 func referenceProgram(t *testing.T, src string, opts checkpkg.Options) codegentest.ReferenceParse {
 	t.Helper()
 	prog := compileBare(t, src, opts)
-	return func(input string, bytes, recognize bool) (*value.Node, error) {
+	return func(input string, bytes, recognize bool, units *uint64) (*value.Node, error) {
 		unit := sxirinput.CodePoints
 		if bytes {
 			unit = sxirinput.Bytes
 		}
-		return prog.ParseWith("main", input, ParseOptions{Unit: unit, Recognize: recognize})
+		return prog.ParseWith("main", input, ParseOptions{Unit: unit, Recognize: recognize, ComputeReport: units})
 	}
 }

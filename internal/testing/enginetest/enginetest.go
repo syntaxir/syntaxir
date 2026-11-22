@@ -130,12 +130,12 @@ func CompileMessage(t testing.TB, src string, opts ...check.Options) string {
 func Reference(t *testing.T, src string, opts check.Options) codegentest.ReferenceParse {
 	t.Helper()
 	prog := CompileBare(t, src, opts)
-	return func(input string, bytes, recognize bool) (*value.Node, error) {
+	return func(input string, bytes, recognize bool, units *uint64) (*value.Node, error) {
 		unit := sxirinput.CodePoints
 		if bytes {
 			unit = sxirinput.Bytes
 		}
-		return prog.ParseWith("main", input, engine.ParseOptions{Unit: unit, Recognize: recognize, Expectations: true})
+		return prog.ParseWith("main", input, engine.ParseOptions{Unit: unit, Recognize: recognize, Expectations: true, ComputeReport: units})
 	}
 }
 
