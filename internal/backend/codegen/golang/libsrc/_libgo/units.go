@@ -123,9 +123,6 @@ func (p *Parser) PollUnits() {
 		p.UnitsCheck = math.MaxUint64
 		return
 	}
-	if p.units.out != nil {
-		*p.units.out = p.Units
-	}
 	if p.units.observes() && p.Units >= p.units.obsAt {
 		p.observeUnits()
 	}
@@ -147,6 +144,16 @@ func (p *Parser) poll() {
 	}
 }
 
+// reportUnits stores the units the parse counted in its report (WithComputeReport). Each driver
+// defers it right after startUnits, so that every end of the parse reports, as the contract of the
+// report requires: a success, a syntax error, a stop by a limit or a context, and an error that an
+// action raises, which leaves the parse without its end check.
+func (p *Parser) reportUnits() {
+	if p.units.out != nil {
+		*p.units.out = p.Units
+	}
+}
+
 // endUnits makes the check at the end of a parse, which counts the syntax error it builds if failed:
 // it observes the context and the memory count whatever the interval, then compares the count.
 func (p *Parser) endUnits(failed bool) {
@@ -155,9 +162,6 @@ func (p *Parser) endUnits(failed bool) {
 	}
 	if failed {
 		p.Units++
-	}
-	if p.units.out != nil {
-		*p.units.out = p.Units
 	}
 	p.observeUnits()
 	p.unitsExceeded()
@@ -187,9 +191,6 @@ func (p *Parser) unitsDemand(n int) {
 // were last observed, as a stream does around the delivery of an element and before a read of its
 // reader, and starts the interval to the next observation again.
 func (p *Parser) unitsObserve() {
-	if p.units.out != nil {
-		*p.units.out = p.Units
-	}
 	p.observeUnits()
 	p.setUnitsCheck()
 }

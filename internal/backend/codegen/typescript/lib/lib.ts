@@ -3087,6 +3087,7 @@ export class Parser {
     this.control = control;
     if (control !== null) {
       control.held = () => this.heldBytes();
+      control.counted = () => this.units;
       this.unitsCheck = control.unitsCheck();
     }
     this.unit = unit;

@@ -771,6 +771,7 @@ func parseResolvedSpend(r *Rule, input string, o parseOptions) (n *sxirvalue.Nod
 	p.memo.sparse = p.memo.stride > 64 && p.n > 1024
 	p.Control.Check()
 	p.startUnits(o)
+	defer p.reportUnits()
 	v, ok := p.Call(r.forParse(p), 0)
 	p.Control.Check()
 	p.endUnits(!ok || p.Pos != p.n)

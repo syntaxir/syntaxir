@@ -33,10 +33,10 @@ function run(events, budget, raiseAt, oneByOne) {
       if (oneByOne) for (let i = 0; i < n; i++) count(1); else count(n);
     }
     c.end(units);
-    return { units, err: "", used: c.used };
+    return { units, err: "" };
   } catch (x) {
     const e = x.err;
-    return { units, err: e.kind + " " + e.limit + " " + e.used + " " + e.requested, used: c.used };
+    return { units, err: e.kind + " " + e.limit + " " + e.used + " " + e.requested };
   }
 }
 let raisedAt = -1;
@@ -49,7 +49,7 @@ for (const shape of shapes) {
   for (const budget of [0, 1, 255, 256, 257, 1000, total - 1, total, total + 1]) {
     const got = run(events, budget, -1, false), want = run(events, budget, -1, true);
     if (budget === 0 || budget >= total) {
-      if (got.err !== "" || got.used !== total) { bad++; console.log("shape", shape, "budget", budget, "ends", JSON.stringify(got)); }
+      if (got.err !== "" || got.units !== total) { bad++; console.log("shape", shape, "budget", budget, "ends", JSON.stringify(got)); }
       continue;
     }
     // Counting by events interrupts at the event that crosses the limit, one unit by one at the unit.

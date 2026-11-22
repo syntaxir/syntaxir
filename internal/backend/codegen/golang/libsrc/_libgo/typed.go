@@ -710,6 +710,7 @@ func (p *TParser) run(r *TRule, input string, o parseOptions, ext any) (v any, e
 	}()
 	var ok bool
 	p.startUnits(o)
+	defer p.reportUnits()
 	if r.Entry != nil {
 		v, ok = r.Entry(p)
 	} else {

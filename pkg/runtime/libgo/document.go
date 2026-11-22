@@ -624,6 +624,7 @@ func DocumentParseConverted[T any](d *documentState, o parseOptions, convert fun
 	}()
 	p.Control.Check()
 	p.startUnits(o)
+	defer p.reportUnits()
 	v, ok := p.Call(d.root.forParse(p), 0)
 	p.Control.Check()
 	p.endUnits(!ok || p.Pos != p.n)

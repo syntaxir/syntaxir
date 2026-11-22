@@ -161,6 +161,7 @@ func RunParseStreamWithBudget(r *Rule, reader io.Reader, emit func(*sxirvalue.No
 	p.Expectations = o.expectations
 	p.setControl(o.control)
 	p.startUnits(o)
+	defer p.reportUnits()
 	if p.units.on && p.units.observes() {
 		reader = &unitsReader{reader: reader, p: p}
 	}

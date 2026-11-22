@@ -88,12 +88,16 @@ export class BudgetControl {
   private obsAt = unitsCheckInterval;
   // steps counts the steps since the last observation (step).
   private steps = 0;
-  /** The units that the parse had counted at its last check, which its report gives. */
-  used = 0;
   /** The bytes of storage the parse has taken into use at the sites that allocate it (Parser.alloc). */
   mem = 0;
   /** held returns the bytes the parser's working stacks hold now; the count takes its largest value at a check. */
   held: (() => number) | null = null;
+  /**
+   * counted returns the units the parser has counted now, which the report of the invocation gives
+   * when it ends: also when an error of an action ends the parse before its end check (end). It is
+   * null until a parser takes the control, and an invocation without one reports zero.
+   */
+  counted: (() => number) | null = null;
   private heldPeak = 0;
 
   constructor(o: ResolvedParseOptions) {
@@ -179,7 +183,6 @@ export class BudgetControl {
   // counted since the last observation, and ends the parse if the count exceeds the limit; it returns
   // the next unitsCheck. Cancellation wins over the memory limit, and both over the compute limit.
   poll(units: number): number {
-    this.used = units;
     if (this.observes() && units >= this.obsAt) this.observe(units);
     this.exceeded(units);
     return this.unitsCheck();
@@ -198,7 +201,6 @@ export class BudgetControl {
   // end is the check at the end of a parse that counted units: it observes the signal and the memory
   // count whatever the interval, then compares the count with the limit.
   end(units: number): void {
-    this.used = units;
     this.observe(units);
     this.exceeded(units);
   }
@@ -250,6 +252,6 @@ export function withBudgetControl<T>(o: ResolvedParseOptions, body: (control: Bu
     // Teardown must neither count nor consult caller getters.
     control?.release();
     o.signal = null;
-    if (o.report !== null) o.report.units = control === null ? 0 : control.used;
+    if (o.report !== null) o.report.units = control?.counted?.() ?? 0;
   }
 }
