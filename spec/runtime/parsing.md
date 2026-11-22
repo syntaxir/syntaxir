@@ -961,7 +961,9 @@ Besides what a record of a skip-run site holds, it holds
   list a walk returns and the records of its positions share one sequence of
   elements, which later lists hold as a suffix; a list that is made from its
   own elements and a recorded suffix copies the suffix, except where the
-  sequence has room before the suffix that no record uses. The elements of a
+  sequence has room before the suffix that no record uses. A walk that takes
+  a record before its first iteration has no elements of its own, and its
+  list is the recorded suffix, shared without a copy. The elements of a
   record are final: no later step of the parse changes them. A rule and its
   [value-free twin](#evaluations-of-rules) walk the same sites, and a walk
   whose iterations have values takes no record that a walk without values
@@ -1551,7 +1553,7 @@ The conditions below use these action expressions.
     operand evaluate a scanning source only inside calls that are memoized at
     the call and read no variable or calls of scan-only rules (below). The
     enclosing levels then repeat a constant cost at each level, besides the
-    walks that record the scan sites of those rules, since they do not parse
+    walks that record the sites of those rules, since they do not parse
     the right operand of a refused part again
     ([Expressions That Repeat Cost](#expressions-that-repeat-cost)). An
     Operators Rule without an infix or a postfix operator part tries nothing
@@ -1648,11 +1650,20 @@ The conditions below use these action expressions.
   an operand of an Operators Rule that nests, unless the rule is a **scan-only
   rule**: it reads no variable, calls no rule, contains no `#recover`, Operators Rule or
   `#stream`, and each of its scanning sources is a
-  [scan site](#scan-sites). Evaluating such a call again at a position costs
-  at most a constant once the walks of its sites from there are recorded,
-  which takes at most three walks from each position in each mode, inside or
-  outside lookaheads and with or without a value: two that turn the site hot
-  and one that records. A call nests at one end when
+  [scan site](#scan-sites) or a [run site](#run-sites) free of the
+  environment with a minimum of 0 whose expression has no repetition without
+  an upper bound. Evaluating such a call again at a position costs at most a
+  constant once the walks of its sites from there are recorded. For a scan
+  site that takes at most three walks from each position in each mode,
+  inside or outside lookaheads and with or without a value: two that turn the
+  site hot and one that records. For a run site it takes at most five walks
+  from each position inside lookaheads and five outside: two that turn the
+  site hot, one that marks the position visited, and one that records for
+  each kind of walk, with or without values. A later walk from the position
+  then takes the record of the position before its first iteration, and so
+  copies no recorded elements behind its own; with a higher minimum, a walk
+  that builds values would take a record after its first iterations and copy
+  the rest of the list. A call nests at one end when
   the evaluations of its caller can nest through it without a bound, each in
   the call of the one around it, with all of those calls ending where the
   innermost one ends. A call `t` of a rule `Y` from a rule `Z` of its

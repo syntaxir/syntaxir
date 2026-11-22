@@ -1,6 +1,6 @@
 # Linear Cost
 
-Arata Furukawa · Last revised 2026-11-17
+Arata Furukawa · Last revised 2026-11-22
 
 This proof shows that the [Conditions for Linear Cost](../runtime/parsing.md#conditions-for-linear-cost)
 bound the [cost](../runtime/parsing.md#cost) of every parse whose records
@@ -1423,7 +1423,8 @@ $E$ the number of evaluations of the expression. Then:
    a constant, apart from the right operand that it evaluates, from the body
    evaluations of those calls, of which Lemma 3 allows at most three at a
    position for each variant, and from the walks that record the scan sites of
-   the scan-only rules, at most three from each position in each mode (Lemma 6
+   the scan-only rules, at most three from each position in each mode for a
+   scan site and five in each lookahead state for a run site (Lemmas 6 and 7
    of the [Run Sites](run-sites.md) proof).
 
 *Proof.* 1. A level that succeeds and is no top level is the right operand of
@@ -3009,15 +3010,28 @@ scan-only rule ([Conditions for Linear
 Cost](../runtime/parsing.md#conditions-for-linear-cost)) that is not memoized
 at its calls, in a parse with the records of scan sites, and let every link
 evaluate $r$ at one position $p$, as in the claim above, but without its bound
-on the parser between them. Then the activations of the links are at most a
-constant beyond $T$ for each link. By [Lemma 6 of the Run Sites
-proof](run-sites.md#lemma-6-walks-again-from-one-start), all but a constant
-number of the evaluations of $r$ at $p$ make each walk of a scan site either in
-fewer than $T + 1$ iterations or by taking a record after its first $T$
-iterations, so each of them makes at most $w(T + 1)$ activations and two steps
-for each record, a constant, which is charged to the call that the link
-evaluates and Lemma 2 counts; each of the others makes the activations of the first evaluation at
-$p$ again, with the excess of Lemma 5 of that proof, and there are a constant
+on the parser between them. Such a parse keeps the records of run sites too:
+both are kept in every parse but one with missing-token insertion, and neither
+for a repetition that a Document resumes ([Scope](run-sites.md#scope)). Then
+the activations of the links are at most a constant beyond $T$ and
+$c_{\mathrm{hot}}$ for each link. Each repetition without an upper bound in $r$
+is a scan site or a run site free of the environment with no minimum, whose
+element calls no rule and repeats nothing without a bound. By [Lemma 6 of the
+Run Sites proof](run-sites.md#lemma-6-walks-again-from-one-start), all but a
+constant number of the evaluations of $r$ at $p$ make each walk of a scan site
+either in fewer than $T + 1$ iterations or by taking a record after its first
+$T$ iterations, and by [Lemma 7](run-sites.md#lemma-7-run-site-walks-again-from-one-start),
+which rests on [Lemma 1](run-sites.md#lemma-1-exactness) and (R2), make each
+walk of a run site either in at most $c_{\mathrm{hot}}$ iterations or by taking
+the record of its start before its first iteration, without a suffix copy. So
+each of them makes at most $w(\max(T, c_{\mathrm{hot}}) + 1)$ activations, a
+constant number for each iteration of a run site, and a constant number of
+steps for each record, which (R3) bounds for a run site: a constant, which is
+charged to the call that the link evaluates and Lemma 2 counts; each of the
+others makes the activations of the first evaluation at $p$ again, with the
+excess of Lemma 5 of that proof for the walks of scan sites and that of (R3)
+and the suffix copies for those of run sites
+([Lemma 8](run-sites.md#lemma-8-scan-only-rules)), and there are a constant
 number of them at each position. So the links through the calls of $r$ at one
 position restart a constant number of activations each, plus a constant number
 of whole evaluations at that position, which is what the claim above gives for
@@ -6157,9 +6171,10 @@ the kind as in *Heads in a parse that keeps records*:
 These claims keep the hypotheses, the cases that they leave unshown and
 the open points that they state without records. *Calls of scan-only
 rules* is a claim about a parse that keeps the records of scan sites and
-rests on Lemmas 5 and 6 of the Run Sites proof and on no claim of this
-lemma; a scan-only rule holds no source but scan sites, so no other
-record is kept inside it. *Seed reads* proves nothing. Neither is shown
+rests on Lemmas 1 and 5 to 8 of the Run Sites proof and on (R2) and (R3),
+and on no claim of this lemma; a scan-only rule calls no rule and holds no
+source but its scan sites and run sites, so no other record is kept inside
+it. *Seed reads* proves nothing. Neither is shown
 here.
 
 *Proof.* The claims are about the activations $\alpha_1, \alpha_2,
@@ -13699,7 +13714,7 @@ names a term or condition of the specification and the lemmas that use it.
   of Lemma 4.
 - Condition 2 (Repeated scans), with a unit that can fail after a source, the
   continuations, committing units, shared calls, calls that nest at one end,
-  scan-only rules (with Lemma 6 of the Run Sites proof), Operators Rules that nest, words that exclude a continuation and
+  scan-only rules (with Lemmas 6 to 8 of the Run Sites proof), Operators Rules that nest, words that exclude a continuation and
   alternatives that can fail only after a `#cut`: Lemma 4, its failure after a source, the cases of
   committing and its claims on links.
   The operator parts that the enclosing levels of an Operators Rule that nests

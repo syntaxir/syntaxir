@@ -23,8 +23,9 @@ Two changes close this.
   these records exact, and [Lemma 6](../../spec/proofs/run-sites.md#lemma-6-walks-again-from-one-start) bounds the
   walks again from one start. The cost
   classifier treats a call of a **scan-only rule** (one that reads no variable, calls no rule, has no `#recover`,
-  Operators Rule or `#stream`, and whose every unbounded repetition is a scan site with no copying operation around
-  it) as a call whose rescans the records answer, and accepts such grammars as linear
+  Operators Rule or `#stream`, and whose every unbounded repetition is a scan site, or a run site free of the
+  environment with no minimum whose element repeats nothing without a bound, with no copying operation around it) as
+  a call whose rescans the records answer, and accepts such grammars as linear
   ([linear-cost proof](../../spec/proofs/linear-cost.md)).
 - **Generated parsers keep the same records.** The Core IR marks a scan site on its repetition, and the Flow IR lowers
   it to a counted loop that, at the hot span of 16 characters, looks up the record of its start, and at the end either
@@ -143,5 +144,7 @@ Adopted on every target, always on, with the single counted loop described above
   generated code; the variant above removes the count entirely and still does not gain, so this one was not built.
 
 Not covered: repetitions of several characters or of single-character literals (`"x"*`, `(" " / "!")*`), which are
-not scan sites; the skip and leaf scans of an Operators Rule, which measure linear but which the classifier does not
+not scan sites; where such a repetition is a run site free of the environment with no minimum, its own records make
+the rule scan-only ([Lemma 7](../../spec/proofs/run-sites.md#lemma-7-run-site-walks-again-from-one-start)), and the
+classifier accepts the calculator of the README with `rule ws = " "*` as linear; the skip and leaf scans of an Operators Rule, which measure linear but which the classifier does not
 exempt; five of the 25 grammars, which measure linear but which the classifier leaves unknown.
