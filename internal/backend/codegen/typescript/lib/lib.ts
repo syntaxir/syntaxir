@@ -5580,6 +5580,9 @@ export class Parser {
 
   // --- Terminals ---
 
+  // matchLiteral matches the literal at the position. A literal that fails leaves the position where
+  // it was, also after matching a part of its text (flow.matchLit); so do matchLiteralFold and
+  // matchReplacementLiteral.
   matchLiteral(lit: Lit, desc: number, build: boolean): R {
     this.spend();
     const start = this.pos;
@@ -5599,6 +5602,7 @@ export class Parser {
       for (const r of lit.cps) {
         this.control?.charge(1);
         if (this.pos >= this.n || this.cps[this.pos] !== r) {
+          this.pos = start;
           this.expect(start, desc);
           return undefined;
         }
@@ -5621,6 +5625,7 @@ export class Parser {
     for (const want of lit.cps) {
       const size = this.matchChar(want, true);
       if (size < 0) {
+        this.pos = start;
         this.expect(start, desc);
         return undefined;
       }
@@ -5652,6 +5657,7 @@ export class Parser {
     for (const want of lit.cps) {
       const size = this.matchChar(want, false);
       if (size < 0) {
+        this.pos = start;
         this.expect(start, desc);
         return undefined;
       }
