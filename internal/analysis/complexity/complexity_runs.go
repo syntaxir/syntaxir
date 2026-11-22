@@ -1,10 +1,8 @@
 package complexity
 
 import (
-	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
-	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Run sites in the classifier (see Run Sites in spec/runtime/parsing.md).
@@ -15,9 +13,6 @@ import (
 // marking is off in the classification until the proofs of the bounds exist, so the classes do not
 // move; the tests and measurements switch it on.
 var runSitesOn = false
-
-// runSite reports whether the repetition e is a run site (runSiteOf of its node).
-func (k *classifier) runSite(e *ast.Repeat) bool { return k.runSiteOf(k.repeatOf(e)) }
 
 // runSiteOf reports whether the repetition n is a run site that the compiler numbers. The sites
 // are those of the grammar, not of its view: a node of the view is one only if the view shares it
@@ -31,15 +26,11 @@ func (k *classifier) runSiteOf(n *core.Repeat) bool {
 // reads, and the rules declared beyond a scan.
 func (k *classifier) compilerSites() *corepass.Sites {
 	if k.numbered == nil {
-		defs := k.base
-		if defs == nil {
-			defs = k.rules
-		}
 		m := k.facts.source.Module
 		rules := make([]corepass.SiteRule, len(m.Rules))
-		for i, d := range defs {
-			rules[i] = corepass.SiteRule{LeftRec: k.an.Cyclic[d.Name], Vars: k.vars[d.Name],
-				Declared: desugar.DeclaredBeyondScan(d)}
+		for i, r := range m.Rules {
+			rules[i] = corepass.SiteRule{LeftRec: k.an.Cyclic[r.Name], Vars: k.vars[r.Name],
+				Declared: k.facts.declared[r.Name]}
 		}
 		k.numbered = corepass.ComputeSites(m, rules, k.control)
 	}

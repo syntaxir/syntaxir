@@ -96,15 +96,14 @@ func (k *classifier) triviaWhy(name string) string {
 		}
 	})
 	for _, n := range slices.Sorted(maps.Keys(k.reachable(name))) {
-		d := k.byName[n]
-		if d.Action != nil {
+		if k.ruleAction(n) != nil {
 			note("action", n)
 		}
 		if k.an.Cyclic[n] {
 			note("left recursion", n)
 		}
 		walkNodes(k.ruleBody(n), func(x core.Node) {
-			// The lowering of inline actions has made them rules with actions (d.Action).
+			// The lowering of inline actions has made them rules with actions (ruleAction).
 			switch x := x.(type) {
 			case *core.Label, *core.Recover, *core.Missing, *core.Stream, *core.OperatorsRule:
 				note("attributed, recovery, stream or Operators Rule", n)

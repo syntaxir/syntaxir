@@ -244,27 +244,8 @@ func (k *classifier) operatorsStart(o *core.OperatorsRule) charset {
 }
 
 func (k *classifier) operandsNullable(rule string) bool {
-	pr := k.operators(rule)
-	return pr == nil || k.nullable(pr)
-}
-
-// operators returns the Operators Rule that is the body of rule, or nil.
-func (k *classifier) operators(rule string) *ast.OperatorsRule {
-	if r := k.byName[rule]; r != nil {
-		pr, _ := ast.RuleOperators(ungroup(r.Expr))
-		return pr
-	}
-	return nil
-}
-
-func ungroup(e ast.Expr) ast.Expr {
-	for {
-		g, ok := e.(*ast.Group)
-		if !ok {
-			return e
-		}
-		e = g.Expr
-	}
+	pr := k.operatorsOf(rule)
+	return pr == nil || k.nullableOf(pr)
 }
 
 // computeFirst computes the first characters of every rule as a fixed point.

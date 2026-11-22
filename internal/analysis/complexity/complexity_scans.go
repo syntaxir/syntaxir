@@ -5,7 +5,6 @@ import (
 	"unicode/utf8"
 
 	"syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Bounded scans (see "Conditions for Linear Cost" in spec/runtime/parsing.md and Lemma 13 of
@@ -600,16 +599,6 @@ func (k *classifier) computeBoundedScans() {
 			}
 		}
 	}
-}
-
-// repeatOf returns the repetition node that the repetition e stands for.
-func (k *classifier) repeatOf(e *ast.Repeat) *core.Repeat {
-	n := k.nodeOf(e)
-	rep, ok := n.(*core.Repeat)
-	if !ok {
-		panic(fmt.Sprintf("complexity: repetition %s stands for %T", k.show(e), n))
-	}
-	return rep
 }
 
 // firstBound reports whether a constant bounds the positions from which the evaluations of rep

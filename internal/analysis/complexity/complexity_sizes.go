@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Size degrees of values. The bounds on folds and lambdas take the size of a value from the
@@ -100,7 +99,7 @@ func (k *classifier) outsideShape(t core.ActionExpr, tc actionCtx) growthShape {
 func (k *classifier) captureShape(rule, name string) growthShape {
 	exprs := k.captured(rule, name)
 	if len(exprs) == 0 {
-		if r := k.byName[rule]; r != nil && isOperators(r.Expr) {
+		if r := k.byName[rule]; r != nil && isOperators(r.Body) {
 			return k.ruleShape(rule)
 		}
 		return unknownShape
@@ -242,10 +241,10 @@ func (k *classifier) ruleShape(name string) growthShape {
 
 // levelShape bounds the value of a call of r, with the values of the calls of the rules whose
 // shapes are being computed left out.
-func (k *classifier) levelShape(r *ast.RuleDef) growthShape {
-	if isOperators(r.Expr) {
+func (k *classifier) levelShape(r *core.Rule) growthShape {
+	if isOperators(r.Body) {
 		out := growthShape{S: lin{}, N: lin{}}
-		for _, l := range valueLines(k.nodeOf(r.Expr).(*core.OperatorsRule)) {
+		for _, l := range valueLines(r.Body.(*core.OperatorsRule)) {
 			if l.Action != nil {
 				out = out.join(k.valueShape(l.Action, actionCtx{rule: r.Name}))
 			} else {
@@ -275,8 +274,8 @@ func (k *classifier) recOnce(rules []string) bool {
 			}
 		}
 		var actionExprs []core.ActionExpr
-		if isOperators(r.Expr) {
-			for _, l := range valueLines(k.nodeOf(r.Expr).(*core.OperatorsRule)) {
+		if isOperators(r.Body) {
+			for _, l := range valueLines(r.Body.(*core.OperatorsRule)) {
 				actionExprs = append(actionExprs, l.Action)
 			}
 		} else {
@@ -363,10 +362,10 @@ func (k *classifier) ownRules() map[string]bool {
 }
 
 // ownRule reports whether the value of r is own when the rules in own are.
-func (k *classifier) ownRule(r *ast.RuleDef, own map[string]bool) bool {
+func (k *classifier) ownRule(r *core.Rule, own map[string]bool) bool {
 	k.control.Poll()
-	if isOperators(r.Expr) {
-		for _, l := range valueLines(k.nodeOf(r.Expr).(*core.OperatorsRule)) {
+	if isOperators(r.Body) {
+		for _, l := range valueLines(r.Body.(*core.OperatorsRule)) {
 			if !k.ownExpr(l.Body, r.Name, own) || l.Action != nil && !k.ownAction(l.Action, r.Name, own) {
 				return false
 			}
@@ -488,10 +487,10 @@ func (k *classifier) looks(rule string, mode sizeMode) bool {
 
 // ruleLooksIn reports whether the size of the value of r, measured in mode, can come from a
 // capture in a positive lookahead, when the sizes in k.sizes.looks can.
-func (k *classifier) ruleLooksIn(r *ast.RuleDef, mode sizeMode) bool {
+func (k *classifier) ruleLooksIn(r *core.Rule, mode sizeMode) bool {
 	tc := actionCtx{rule: r.Name}
 	switch {
-	case isOperators(r.Expr):
+	case isOperators(r.Body):
 		return k.ruleLooks(r)
 	case k.ruleAction(r.Name) != nil:
 		return k.sizeOf(k.ruleAction(r.Name), tc, mode).look
@@ -502,10 +501,10 @@ func (k *classifier) ruleLooksIn(r *ast.RuleDef, mode sizeMode) bool {
 
 // ruleLooks reports whether the value of r can hold a capture in a positive lookahead, when the
 // rules in lookedRules can.
-func (k *classifier) ruleLooks(r *ast.RuleDef) bool {
+func (k *classifier) ruleLooks(r *core.Rule) bool {
 	k.control.Poll()
-	if isOperators(r.Expr) {
-		for _, l := range valueLines(k.nodeOf(r.Expr).(*core.OperatorsRule)) {
+	if isOperators(r.Body) {
+		for _, l := range valueLines(r.Body.(*core.OperatorsRule)) {
 			if k.exprLooks(l.Body, r.Name) || l.Action != nil && k.actionLooks(l.Action, r.Name) {
 				return true
 			}
@@ -753,7 +752,7 @@ func (w *ownWalk) captureRef(name string, param bool, lam *ownLam) {
 		w.ok = w.ok && k.ownExpr(e, w.rule, w.own)
 	}
 	if len(exprs) == 0 {
-		if r := k.byName[w.rule]; r == nil || !isOperators(r.Expr) {
+		if r := k.byName[w.rule]; r == nil || !isOperators(r.Body) {
 			w.ok = false
 			return
 		}

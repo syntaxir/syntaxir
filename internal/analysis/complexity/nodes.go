@@ -12,7 +12,7 @@ import (
 
 // ruleBody returns the node of the body of the rule name.
 func (k *classifier) ruleBody(name string) core.Node {
-	return k.nodeOf(k.byName[name].Expr)
+	return k.byName[name].Body
 }
 
 // walkNodes calls f for n and the nodes inside it in preorder, as core.Walk does, and the bodies

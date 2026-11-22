@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/ir/core"
 	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
@@ -76,13 +75,8 @@ func TestDecideAlt(t *testing.T) {
 		}
 		k.computeBounded()
 		k.computeFirst()
-		var ch *ast.Choice
-		astfacts.WalkExpr(k.byName["main"].Expr, func(x ast.Expr) {
-			if y, ok := x.(*ast.Choice); ok && ch == nil {
-				ch = y
-			}
-		})
-		d := k.decideAlt(k.nodeOf(ch).(*core.Choice), 0, 3)
+		ch := firstNode[*core.Choice](k.byName["main"].Body, nil)
+		d := k.decideAlt(ch, 0, 3)
 		if d.decided != c.decided || d.decided && (d.k != c.k || d.prefix != c.prefix) {
 			t.Errorf("%s: decided %v k %d prefix %d, want %v k %d prefix %d", c.name, d.decided, d.k, d.prefix, c.decided, c.k, c.prefix)
 		}
@@ -129,17 +123,12 @@ func TestDecideAltTrivia(t *testing.T) {
 			}
 			k.computeBounded()
 			k.computeFirst()
-			var ch *ast.Choice
-			astfacts.WalkExpr(k.byName["main"].Expr, func(x ast.Expr) {
-				if y, ok := x.(*ast.Choice); ok && ch == nil {
-					ch = y
-				}
-			})
+			ch := firstNode[*core.Choice](k.byName["main"].Body, nil)
 			want := c.off
 			if on {
 				want = c.on
 			}
-			if d := k.decideAlt(k.nodeOf(ch).(*core.Choice), 0, 3); d.decided != want {
+			if d := k.decideAlt(ch, 0, 3); d.decided != want {
 				t.Errorf("%s: trivia %v: decided %v (k %d), want %v", c.name, on, d.decided, d.k, want)
 			}
 		}
@@ -181,16 +170,16 @@ func TestTriviaCheap(t *testing.T) {
 		}
 		k.classify()
 		// cheap reads the occurrence of the call, so take the call in main.
-		var call *ast.Ref
-		astfacts.WalkExpr(k.byName["main"].Expr, func(e ast.Expr) {
-			if r, ok := e.(*ast.Ref); ok && r.Name == "ws2" {
-				call = r
+		var call *core.Call
+		core.Walk(k.byName["main"].Body, func(n core.Node) {
+			if c, ok := n.(*core.Call); ok && k.rules[c.Rule].Name == "ws2" {
+				call = c
 			}
 		})
 		if call == nil {
 			t.Fatal("no call of ws2 in main")
 		}
-		if got := newExcl(k, true, 3).cheap(k.nodeOf(call)); got != on {
+		if got := newExcl(k, true, 3).cheap(call); got != on {
 			t.Errorf("memo %v: cheap %v", on, got)
 		}
 	}
@@ -362,13 +351,8 @@ func TestDecideAltVariables(t *testing.T) {
 		}
 		k.computeBounded()
 		k.computeFirst()
-		var ch *ast.Choice
-		astfacts.WalkExpr(k.byName["main"].Expr, func(x ast.Expr) {
-			if y, ok := x.(*ast.Choice); ok && ch == nil {
-				ch = y
-			}
-		})
-		d := k.decideAlt(k.nodeOf(ch).(*core.Choice), 0, 3)
+		ch := firstNode[*core.Choice](k.byName["main"].Body, nil)
+		d := k.decideAlt(ch, 0, 3)
 		if d.decided != c.decided || d.decided && (d.k != c.k || d.prefix != c.prefix) {
 			t.Errorf("%s: decided %v k %d prefix %d, want %v k %d prefix %d", c.name, d.decided, d.k, d.prefix, c.decided, c.k, c.prefix)
 		}
@@ -591,8 +575,8 @@ func exclusionStats(g *ast.Grammar, start string) (exclStats, error) {
 		if !k.reach[r.Name] {
 			continue
 		}
-		astfacts.WalkExpr(r.Expr, func(e ast.Expr) {
-			ch, ok := e.(*ast.Choice)
+		core.Walk(r.Body, func(n core.Node) {
+			ch, ok := n.(*core.Choice)
 			if !ok || len(ch.Alts) < 2 {
 				return
 			}
@@ -600,7 +584,7 @@ func exclusionStats(g *ast.Grammar, start string) (exclStats, error) {
 			worst := 0
 			for i := range ch.Alts[:len(ch.Alts)-1] {
 				st.alts++
-				d := k.decideAlt(k.nodeOf(ch).(*core.Choice), i, most)
+				d := k.decideAlt(ch, i, most)
 				if !d.decided {
 					worst = most + 1
 					continue
@@ -1113,9 +1097,9 @@ func TestExclusionBudget(t *testing.T) {
 		}
 		k.computeBounded()
 		k.computeFirst()
-		ch := ungroup(ungroup(k.byName["main"].Expr).(*ast.Seq).Items[0]).(*ast.Choice)
+		ch := k.byName["main"].Body.(*core.Seq).Items[0].(*core.Choice)
 		start := time.Now()
-		d := k.decideAlt(k.nodeOf(ch).(*core.Choice), 0, 5)
+		d := k.decideAlt(ch, 0, 5)
 		if d.decided != c.decided || (k.exclOverBudget > 0) != c.exceeded {
 			t.Errorf("n %d: decided %v, over budget %d", c.n, d.decided, k.exclOverBudget)
 		}

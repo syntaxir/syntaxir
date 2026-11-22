@@ -6,7 +6,6 @@ import (
 	"unicode/utf8"
 
 	"syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Region rules (see "Conditions for Linear Cost" in spec/runtime/parsing.md and Lemma 15 of
@@ -87,8 +86,7 @@ func hasTrivia(regions map[string]bool) bool {
 // rule.
 func (k *classifier) regionFree(name string) bool {
 	for n := range k.reachable(name) {
-		d := k.byName[n]
-		if d.Action != nil || k.an.Cyclic[n] || len(k.vars[n]) > 0 {
+		if k.ruleAction(n) != nil || k.an.Cyclic[n] || len(k.vars[n]) > 0 {
 			return false
 		}
 		free := true
@@ -578,7 +576,7 @@ func (k *classifier) regionGuards(regions map[string]bool, names []string, outer
 	g.entry[k.start] = g.none()
 	for g.changed = true; g.changed; {
 		g.changed = false
-		g.each(func(r *ast.RuleDef) {
+		g.each(func(r *core.Rule) {
 			if out := g.walk(g.k.ruleBody(r.Name), g.entry[r.Name], nil).and(g.exit[r.Name]); !slices.Equal(out, g.exit[r.Name]) {
 				g.exit[r.Name] = out
 				g.changed = true
@@ -586,7 +584,7 @@ func (k *classifier) regionGuards(regions map[string]bool, names []string, outer
 		})
 	}
 	g.checking = true
-	g.each(func(r *ast.RuleDef) {
+	g.each(func(r *core.Rule) {
 		g.rule = r.Name
 		g.walk(g.k.ruleBody(r.Name), g.entry[r.Name], nil)
 	})
@@ -594,7 +592,7 @@ func (k *classifier) regionGuards(regions map[string]bool, names []string, outer
 }
 
 // each calls f on the outer rules that are not regions, in the order of the grammar.
-func (g *guardPass) each(f func(*ast.RuleDef)) {
+func (g *guardPass) each(f func(*core.Rule)) {
 	for _, r := range g.k.rules {
 		if _, ok := g.regions[r.Name]; g.outer[r.Name] && !ok {
 			g.k.control.Poll()

@@ -2,6 +2,7 @@ package complexity
 
 import (
 	"syntaxir.dev/sxir/internal/cancel"
+	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -22,6 +23,9 @@ type ruleFacts struct {
 	// nullable are the rules that can succeed without consuming input when token insertion is
 	// enabled.
 	nullable map[string]bool
+	// declared are the rules whose declarations keep them from being pure scan rules
+	// (desugar.DeclaredBeyondScan): declarations stay with the grammar, not its module.
+	declared map[string]bool
 	// source is the untyped Core IR module of the rules that the facts are of, which the cost view
 	// is built from.
 	source *Source
@@ -32,7 +36,7 @@ func sourceFacts(src *Source, rules []*ast.RuleDef, control *cancel.Control) *ru
 	f := src.Facts
 	an := newRuleAnalysis(control)
 	rf := &ruleFacts{source: src, an: an, memo: map[string]bool{}, members: map[string]bool{}, vars: map[string][]string{},
-		nullable: map[string]bool{}}
+		nullable: map[string]bool{}, declared: map[string]bool{}}
 	set := func(m map[string]bool, name string, v bool) {
 		if v {
 			m[name] = true
@@ -47,6 +51,7 @@ func sourceFacts(src *Source, rules []*ast.RuleDef, control *cancel.Control) *ru
 		set(an.Cyclic, name, r.Cyclic())
 		set(an.Positional, name, r.Positional)
 		set(rf.nullable, name, r.NullableIns)
+		set(rf.declared, name, desugar.DeclaredBeyondScan(rd))
 		if r.Cyclic() {
 			an.Cycle[name] = r.Cycle
 		}

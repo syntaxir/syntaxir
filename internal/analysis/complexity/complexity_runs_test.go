@@ -59,14 +59,11 @@ func TestRunSitesMatchClassifier(t *testing.T) {
 			t.Fatalf("%s: %v", name, err)
 		}
 		runSitesOn = true
-		k, _, err := prepareClassifier(g, "", nil)
-		if err != nil {
-			t.Fatalf("%s: %v", name, err)
-		}
 		// The run sites are those of the grammar, which the classifier of a view asks the
 		// classifier of the grammar about (runSiteOf).
-		if k.base != nil {
-			k = newClassifier(k.g, k.base, k.facts, k.start, k.control)
+		k, _, err := prepareBaseClassifier(g, "", nil)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
 		}
 		classifier := 0
 		for _, r := range k.rules {

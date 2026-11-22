@@ -79,14 +79,19 @@ func classifierHelperAnswers(t *testing.T, name, src string) string {
 	}
 	fmt.Fprintf(&b, "nullable: %s\n", set(k.an.Nullable))
 	fmt.Fprintf(&b, "succeeding: %s\n", set(k.an.Succeeding))
-	for _, r := range k.rules {
+	w := writtenOf(t, k)
+	for _, r := range w.rules {
 		i := 0
 		astfacts.WalkExpr(r.Expr, func(e ast.Expr) {
-			pos := exprPos(e)
+			pos, n := exprPos(e), w.nodes[e]
+			var left []string
+			for _, id := range k.facts.source.Facts.LeftCalls(n, false) {
+				left = append(left, k.rules[id].Name)
+			}
 			fmt.Fprintf(&b, "%s #%d %T %d:%d: null=%s an=%s succ=%s bounded=%s first=%s left=%s\n",
-				r.Name, i, e, pos.Line, pos.Col, bitsOf(k.nullable(e)), bitsOf(k.facts.source.Facts.Nullable(k.nodeOf(e))),
-				bitsOf(k.succeeds(e)), bitsOf(k.bounded(e)), charsText(k.first(e)),
-				strings.Join(k.leftCalls(e), ","))
+				r.Name, i, e, pos.Line, pos.Col, bitsOf(k.nullableOf(n)), bitsOf(k.facts.source.Facts.Nullable(n)),
+				bitsOf(k.succeedsOf(n)), bitsOf(k.boundedOf(n)), charsText(k.firstOf(n)),
+				strings.Join(left, ","))
 			i++
 		})
 	}

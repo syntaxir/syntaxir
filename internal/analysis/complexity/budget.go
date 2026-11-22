@@ -3,8 +3,7 @@ package complexity
 import (
 	"math"
 
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
-	"syntaxir.dev/sxir/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/ir/core"
 )
 
 // Budget is the bound on the compute units of a parse that the classifier derives for a grammar
@@ -75,12 +74,13 @@ func (k *classifier) deriveBudget(c *Complexity) *Budget {
 		if !k.reach[r.Name] {
 			continue
 		}
-		astfacts.WalkExpr(r.Expr, func(e ast.Expr) {
-			if ref, ok := e.(*ast.Ref); ok && k.byName[ref.Name] != nil {
-				if sites[ref.Name] == nil {
-					sites[ref.Name] = map[string]uint64{}
+		core.Walk(r.Body, func(n core.Node) {
+			if c, ok := n.(*core.Call); ok {
+				callee := k.rules[c.Rule].Name
+				if sites[callee] == nil {
+					sites[callee] = map[string]uint64{}
 				}
-				sites[ref.Name][r.Name]++
+				sites[callee][r.Name]++
 			}
 		})
 	}
@@ -149,7 +149,7 @@ func (k *classifier) deriveBudget(c *Complexity) *Budget {
 // that a capture, a predicate or an action builds. The events inside a repetition happen once
 // for each iteration, and the iterations cover each position budgetCover times (Lemma 4), so
 // they count budgetCover times, once more for each enclosing repetition.
-func (k *classifier) bodyEvents(r *ast.RuleDef) uint64 {
+func (k *classifier) bodyEvents(r *core.Rule) uint64 {
 	var total uint64
 	sat := func(a, b uint64) uint64 {
 		if a > math.MaxUint64-b {
@@ -157,38 +157,36 @@ func (k *classifier) bodyEvents(r *ast.RuleDef) uint64 {
 		}
 		return a + b
 	}
-	var node func(e ast.Expr) uint64
-	node = func(e ast.Expr) uint64 {
-		switch x := e.(type) {
-		case *ast.Ref:
-			if k.byName[x.Name] == nil {
-				return 0
+	var node func(n core.Node) uint64
+	node = func(n core.Node) uint64 {
+		switch x := n.(type) {
+		case *core.Call:
+			name := k.rules[x.Rule].Name
+			units := uint64(1)
+			if k.memo[name] {
+				units += uint64(len(k.vars[name]))
 			}
-			n := uint64(1)
-			if k.memo[x.Name] {
-				n += uint64(len(k.vars[x.Name]))
-			}
-			return n
-		case *ast.Literal:
-			return uint64(len(x.Value)) + 1
-		case *ast.CharClass, *ast.Any:
+			return units
+		case *core.Lit:
+			return uint64(len(x.Text)) + 1
+		case *core.ClassNode, *core.Any:
 			return budgetClassWidth + 1
-		case *ast.Recovery, *ast.Capture, *ast.Predicate, *ast.InlineAction:
+		case *core.Capture, *core.Pred, *core.BindNode:
 			return 1
 		}
 		return 0
 	}
-	astfacts.WalkExpr(r.Expr, func(e ast.Expr) {
-		total = sat(total, node(e))
-		if rep, ok := e.(*ast.Repeat); ok && !(rep.Max == 1) {
+	core.Walk(r.Body, func(n core.Node) {
+		total = sat(total, node(n))
+		if rep, ok := n.(*core.Repeat); ok && !(rep.Max == 1) {
 			var inner uint64
-			astfacts.WalkExpr(rep.Expr, func(y ast.Expr) { inner = sat(inner, node(y)) })
+			core.Walk(rep.Body, func(y core.Node) { inner = sat(inner, node(y)) })
 			for range budgetCover - 1 {
 				total = sat(total, inner)
 			}
 		}
 	})
-	if r.Action != nil {
+	if k.ruleAction(r.Name) != nil {
 		total = sat(total, 1)
 	}
 	return total

@@ -174,7 +174,7 @@ func (k *classifier) againOf(n *core.Repeat) *core.Repeat {
 
 // walkRule walks the body and the action of a reachable rule, collecting call sites, scanning
 // sources, units, bindings and copying operations.
-func (k *classifier) walkRule(r *ast.RuleDef) {
+func (k *classifier) walkRule(r *core.Rule) {
 	c := wctx{rule: r.Name, cont: &cont{end: endRule, rule: r.Name}, mayStart: true, mustStart: true}
 	k.walk(k.ruleBody(r.Name), c)
 	if a := k.ruleAction(r.Name); a != nil {
@@ -1346,12 +1346,15 @@ func (k *classifier) operatorsBody(rule string) *core.OperatorsRule {
 }
 
 // operatorsOf returns the Operators Rule that is the body of rule, alone or under attributes, or
-// nil (operators).
+// nil.
 func (k *classifier) operatorsOf(rule string) *core.OperatorsRule {
-	if pr := k.operators(rule); pr != nil {
-		return k.nodeOf(pr).(*core.OperatorsRule)
+	r := k.byName[rule]
+	if r == nil {
+		return nil
 	}
-	return nil
+	body, _, _ := attributes(r.Body)
+	pr, _ := body.(*core.OperatorsRule)
+	return pr
 }
 
 // skipItem is the skip of pr as an item of a path. The rule evaluates its skip before each operand

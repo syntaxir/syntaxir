@@ -809,7 +809,7 @@ func (k *classifier) actionExprs(t core.ActionExpr, tc actionCtx) (exprs []core.
 // of such a call holds the captures of its body, and n itself otherwise.
 func (k *classifier) capturesOf(n core.Node) core.Node {
 	if name, isCall := k.calledRule(unwrapValue(n)); isCall {
-		if d := k.byName[name]; d != nil && d.Action == nil && !isOperators(d.Expr) {
+		if d := k.byName[name]; d != nil && k.ruleAction(name) == nil && !isOperators(d.Body) {
 			return k.ruleBody(name)
 		}
 	}
@@ -983,7 +983,7 @@ func (k *classifier) includes(rule string, mode sizeMode) bool {
 	v := true
 	tc := actionCtx{rule: rule}
 	switch {
-	case isOperators(r.Expr):
+	case isOperators(r.Body):
 	case k.ruleAction(rule) != nil:
 		v = len(k.sizeOf(k.ruleAction(rule), tc, mode).rec) > 0
 	default:
@@ -1013,12 +1013,12 @@ func (k *classifier) operandValue(rule, name string, mode sizeMode) (c content, 
 		return content{}, false
 	}
 	r := k.byName[rule]
-	if r == nil || !isOperators(r.Expr) {
+	if r == nil || !isOperators(r.Body) {
 		return content{}, false
 	}
 	n := "$" + name
 	if name == "value" {
-		return k.foldedValue(k.nodeOf(r.Expr).(*core.OperatorsRule), rule, mode, n), true
+		return k.foldedValue(r.Body.(*core.OperatorsRule), rule, mode, n), true
 	}
 	return content{unbounded: true, rec: map[string]int{n: 1}, held: map[string]int{n: 1}}, true
 }
@@ -1066,8 +1066,9 @@ func hasOtherThanOperands(counts map[string]int) bool {
 	return false
 }
 
-func isOperators(e ast.Expr) bool {
-	_, ok := e.(*ast.OperatorsRule)
+// isOperators reports whether the body n of a rule is an Operators Rule.
+func isOperators(n core.Node) bool {
+	_, ok := n.(*core.OperatorsRule)
 	return ok
 }
 

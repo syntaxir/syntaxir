@@ -5,7 +5,6 @@ import (
 	"slices"
 	"unicode/utf8"
 
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -515,7 +514,7 @@ func (k *classifier) valueLen(n core.Node, seen map[string]bool) (int, bool) {
 		if a := k.ruleAction(name); a != nil {
 			return k.actionLen(a, name, seen)
 		}
-		if isOperators(r.Expr) {
+		if isOperators(r.Body) {
 			return 0, false
 		}
 		return k.valueLen(k.ruleBody(name), seen)
@@ -599,7 +598,7 @@ func (k *classifier) isSeqOf(n core.Node) bool {
 
 // spliceBody returns the body of the rule name if it is a splice rule (check.Checker.SpliceBody).
 func (k *classifier) spliceBody(name string) (core.Node, bool) {
-	if rd := k.byName[name]; rd != nil && astfacts.SpliceRule(rd) {
+	if r := k.byName[name]; r != nil && r.Policy.Splice {
 		return k.ruleBody(name), true
 	}
 	return nil, false
@@ -688,7 +687,7 @@ func textLen(n core.Node, k *classifier, seen map[string]bool) (int, bool) {
 	}
 	if name, ok := k.calledRule(n); ok {
 		r := k.byName[name]
-		if r == nil || seen[name] || k.recursive[name] || isOperators(r.Expr) {
+		if r == nil || seen[name] || k.recursive[name] || isOperators(r.Body) {
 			return 0, false
 		}
 		seen[name] = true

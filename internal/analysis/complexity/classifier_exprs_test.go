@@ -28,10 +28,11 @@ func TestClassifierExprRoundTrip(t *testing.T) {
 			continue
 		}
 		k.classify()
-		for _, r := range k.rules {
+		w := writtenOf(t, k)
+		for _, r := range w.rules {
 			astfacts.WalkExpr(r.Expr, func(e ast.Expr) {
-				if back := k.exprOf(k.nodeOf(e)); back != e {
-					t.Errorf("%s: rule %s: the node of %T %s stands for %T %s", path, r.Name, e, k.show(e), back, k.show(back))
+				if back := w.exprs[w.nodes[e]]; back != e {
+					t.Errorf("%s: rule %s: the node of %T %s stands for %T %s", path, r.Name, e, w.show(e), back, w.show(back))
 				}
 			})
 		}

@@ -28,17 +28,18 @@ func TestClassifierNodeBridge(t *testing.T) {
 			continue
 		}
 		k.classify()
-		for _, r := range k.rules {
+		w := writtenOf(t, k)
+		for _, r := range w.rules {
 			astfacts.WalkExpr(r.Expr, func(e ast.Expr) {
-				if _, ok := k.nodes[e]; !ok {
-					t.Errorf("%s: rule %s: no node for %T %s", path, r.Name, e, k.show(e))
+				if _, ok := w.nodes[e]; !ok {
+					t.Errorf("%s: rule %s: no node for %T %s", path, r.Name, e, w.show(e))
 				}
 			})
-			core.Walk(k.nodeOf(r.Expr), func(n core.Node) {
-				if e, ok := k.exprs[n]; !ok {
+			core.Walk(w.nodes[r.Expr], func(n core.Node) {
+				if e, ok := w.exprs[n]; !ok {
 					t.Errorf("%s: rule %s: no expression for %T", path, r.Name, n)
-				} else if k.nodes[e] != n {
-					t.Errorf("%s: rule %s: the expression %s of a %T stands for a %T", path, r.Name, k.show(e), n, k.nodes[e])
+				} else if w.nodes[e] != n {
+					t.Errorf("%s: rule %s: the expression %s of a %T stands for a %T", path, r.Name, w.show(e), n, w.nodes[e])
 				}
 			})
 		}

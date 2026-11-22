@@ -6,12 +6,10 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/cancel"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/ir/core"
 	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/internal/testing/starttest"
-	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // TestRunFlow checks the algebra of the transfer functions of the run length: a bound stays a bound
@@ -231,18 +229,18 @@ func TestLooseCutInSkip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var recovery ast.Expr
+	var recovery *core.Recover
 	for _, r := range k.rules {
-		astfacts.WalkExpr(r.Expr, func(e ast.Expr) {
-			if skipOf(e) != nil {
-				recovery = e
+		core.Walk(r.Body, func(n core.Node) {
+			if rec, ok := n.(*core.Recover); ok && rec.Skip != nil {
+				recovery = rec
 			}
 		})
 	}
 	if recovery == nil {
 		t.Fatal("no recovery")
 	}
-	if !k.looseCut(recovery) {
+	if !k.looseCutOf(recovery) {
 		t.Error("a cut in the skip does not commit the choice around the recovery")
 	}
 }

@@ -1,8 +1,6 @@
 package complexity
 
 import (
-	"fmt"
-
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 )
@@ -69,18 +67,8 @@ func (k *classifier) scanOnlyRule(name string) bool {
 // module of the grammar, not in its view. The rules of the grammar are numbered as those of its
 // module.
 func (k *classifier) writtenBody(name string) (core.Node, bool) {
-	rules := k.base
-	if rules == nil {
-		rules = k.rules
+	if _, ok := k.byName[name]; !ok {
+		return nil, false
 	}
-	for i, rd := range rules {
-		if rd.Name == name {
-			r := k.facts.source.Module.Rules[i]
-			if r.Name != name {
-				panic(fmt.Sprintf("complexity: rule %d of the module is %s, not %s", i, r.Name, name))
-			}
-			return r.Body, true
-		}
-	}
-	return nil, false
+	return k.facts.source.Module.Rules[k.ruleIDs[name]].Body, true
 }

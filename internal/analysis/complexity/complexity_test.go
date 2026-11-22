@@ -10,11 +10,9 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/testing/starttest"
-	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // complexityMemoSources are grammars with the shapes that decide memoization: left-recursion
@@ -841,9 +839,8 @@ func TestSplicedLen(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			c := k.byName["main"].Expr.(*ast.Seq).Items[0].(*ast.Capture)
-			seq := check.UngroupExpr(c.Expr).(*ast.Seq)
-			got, ok := k.splicedLen(k.nodeOf(seq).(*core.Seq), map[string]bool{})
+			c := k.byName["main"].Body.(*core.Seq).Items[0].(*core.Capture)
+			got, ok := k.splicedLen(c.Body.(*core.Seq), map[string]bool{})
 			if ok != tc.bounded || got != tc.want {
 				t.Errorf("splicedLen = %d, %v; want %d, %v", got, ok, tc.want, tc.bounded)
 			}

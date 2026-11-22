@@ -60,8 +60,8 @@ func (k *classifier) heldBy(x sizeKey) []sizeKey {
 	tc := actionCtx{rule: x.rule}
 	switch {
 	case r == nil:
-	case isOperators(r.Expr):
-		for _, l := range valueLines(k.nodeOf(r.Expr).(*core.OperatorsRule)) {
+	case isOperators(r.Body):
+		for _, l := range valueLines(r.Body.(*core.OperatorsRule)) {
 			if l.Action != nil {
 				out = append(out, k.heldCalls(l.Action, tc, x.mode)...)
 			}
@@ -87,7 +87,7 @@ func (k *classifier) heldCalls(t core.ActionExpr, tc actionCtx, mode sizeMode) [
 			return out
 		}
 		exprs := k.captured(tc.rule, name)
-		if len(exprs) == 0 && isOperators(k.byName[tc.rule].Expr) {
+		if len(exprs) == 0 && isOperators(k.byName[tc.rule].Body) {
 			// An operand of an Operators Rule is a value of the rule itself.
 			return []sizeKey{{tc.rule, mode}}
 		}

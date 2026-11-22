@@ -89,7 +89,7 @@ func (k *classifier) callOf(rule string) *core.Call {
 // whose body is the Operators Rule (core.Nest). The classifier tells no level of operators apart,
 // so it stands for what the right operand of any operator part parses.
 func (k *classifier) rightOperand(rule string) *core.Nest {
-	n := &core.Nest{Rule: k.ruleIDs[rule], Body: k.nodeOf(k.operators(rule))}
+	n := &core.Nest{Rule: k.ruleIDs[rule], Body: k.operatorsOf(rule)}
 	k.spell(n, &ast.Ref{Name: rule, Level: rhsLevel})
 	return n
 }

@@ -289,7 +289,7 @@ func newViewClassifier(g *ast.Grammar, rules []*ast.RuleDef, rf *ruleFacts, star
 		// Every node the view builds has a grammar spelling; an error is a defect of the view.
 		panic("compile: cost view: " + err.Error())
 	}
-	k := newClassifierOf(g, w.rules, rules, v, nodeMap{nodes: w.nodes, exprs: w.exprs}, rf, start, control)
+	k := newClassifierOf(g, v, nodeMap{nodes: w.nodes, exprs: w.exprs}, rf, start, control)
 	k.viewText = w.text
 	return k
 }
@@ -325,12 +325,14 @@ const rhsLevel = "\x00right operand"
 type classifier struct {
 	control *cancel.Control
 	g       *ast.Grammar
-	rules   []*ast.RuleDef
-	byName  map[string]*ast.RuleDef
-	start   string
-	an      *ruleAnalysis
-	facts   *ruleFacts         // the rule facts of the grammar, of which an is part
-	types   *check.ValueRecord // the value types of the action expressions, or nil if they are unknown
+	// rules are the rules of the view, numbered as those of the module of the grammar; byName
+	// gives them by name.
+	rules  []*core.Rule
+	byName map[string]*core.Rule
+	start  string
+	an     *ruleAnalysis
+	facts  *ruleFacts         // the rule facts of the grammar, of which an is part
+	types  *check.ValueRecord // the value types of the action expressions, or nil if they are unknown
 	// combinations is the product of the sizes of the value sets of the variables with finite
 	// values, which checkValues computes.
 	combinations int
@@ -413,8 +415,6 @@ type classifier struct {
 
 	causes, reasons, env []ComplexityCause
 
-	// base are the rules of the grammar when rules is a view of them, or nil.
-	base []*ast.RuleDef
 	// viewText gives the text of the grammar that an expression of the view stands for.
 	viewText map[ast.Expr]string
 	// nodes gives, for each expression of rules, the Core IR node that it stands for: a node of
@@ -435,15 +435,16 @@ type classifier struct {
 
 func newClassifier(g *ast.Grammar, rules []*ast.RuleDef, rf *ruleFacts, start string, control *cancel.Control) *classifier {
 	m := rf.source.Module
-	return newClassifierOf(g, rules, rules, &View{Module: m, chains: attrChains(m)}, originNodes(m), rf, start, control)
+	return newClassifierOf(g, &View{Module: m, chains: attrChains(m)}, originNodes(m), rf, start, control)
 }
 
-// newClassifierOf returns a classifier of the bodies of rules, which are those of base or a view
-// of them, whose expressions stand for the Core IR nodes that nm gives (classifier.nodes). The
-// rule facts rf of base stand for the grammar: its analysis, its variables, its memoization and
-// its nullable rules.
-func newClassifierOf(g *ast.Grammar, rules, base []*ast.RuleDef, view *View, nm nodeMap, rf *ruleFacts, start string, control *cancel.Control) *classifier {
-	k := &classifier{control: control, g: g, rules: rules, start: start, byName: map[string]*ast.RuleDef{},
+// newClassifierOf returns a classifier of the rules of view, the cost view of the module of the
+// grammar or a view that changes none of its rules, whose grammar expressions stand for the Core IR
+// nodes that nm gives (classifier.nodes). The rule facts rf of the module stand for the grammar:
+// its analysis, its variables, its memoization and its nullable rules.
+func newClassifierOf(g *ast.Grammar, view *View, nm nodeMap, rf *ruleFacts, start string, control *cancel.Control) *classifier {
+	rules := view.Module.Rules
+	k := &classifier{control: control, g: g, rules: rules, start: start, byName: map[string]*core.Rule{},
 		calls: map[string][]string{}, scc: map[string]int{}, recursive: map[string]bool{}, memo: map[string]bool{},
 		varType: map[string]string{}, nullRule: rf.nullable, firstRule: map[string]charset{},
 		boundedRule: map[string]bool{}, reachFrom: map[string]map[string]bool{}, local: map[string]*source{}, walked: map[string][]*source{},
@@ -461,9 +462,6 @@ func newClassifierOf(g *ast.Grammar, rules, base []*ast.RuleDef, view *View, nm 
 	k.an, k.facts = rf.an, rf
 	k.vars = rf.vars
 	k.memo, k.members = maps.Clone(rf.memo), rf.members
-	if len(base) != len(rules) || !slices.Equal(base, rules) {
-		k.base = base
-	}
 	k.outside = map[core.Node]bool{}
 	for _, r := range rules {
 		k.calls[r.Name] = k.callsOf(k.ruleBody(r.Name))
