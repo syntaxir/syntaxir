@@ -38,9 +38,9 @@ import (
 	"slices"
 	"strings"
 
-	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
-	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/state"
 	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/pkg/runtime"
 )
@@ -158,15 +158,22 @@ type RuleCuts struct {
 // the grammar source by package compiler: a parser loaded from a compiled grammar has no grammar AST and
 // cannot be sampled.
 func New(p runtime.Parser, opts ...Option) (*Generator, error) {
-	ep := engine.Of(p)
-	if ep == nil {
+	var (
+		src   state.Source
+		start string
+		ok    bool
+	)
+	if state.ParserSource != nil {
+		src, start, ok = state.ParserSource(p)
+	}
+	if !ok {
 		return nil, errors.New("sample: the parser is not a parser of package compiler or vm")
 	}
-	g := entry.Grammar(ep.Program())
-	if g == nil {
+	cs, _ := src.(*checked.Source)
+	if cs == nil {
 		return nil, errors.New("sample: the parser has no grammar AST")
 	}
-	start := ep.Start()
+	g := cs.Grammar()
 	// The sampler works on the rules the parser runs, where an inline action is an anonymous rule.
 	g, names, err := desugar.LowerInlineActions(g)
 	if err != nil {

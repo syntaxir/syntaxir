@@ -5,7 +5,16 @@ import (
 
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/bytecode"
+	"syntaxir.dev/sxir/pkg/runtime"
 )
+
+// ParserSource returns the Source of the program that p runs and the start rule of p: the Source is
+// nil for a program loaded from a compiled grammar, and ok is false for a parser that the engine
+// does not run, such as a generated one. The engine sets it when it is initialized, so that the
+// tools that read the grammar of a parser (the sampler) reach it without linking the engine:
+// a parser that the engine runs exists only in a program that links the engine. It is nil in a
+// program that does not, where every parser is one that the engine does not run.
+var ParserSource func(p runtime.Parser) (src Source, start string, ok bool)
 
 // A Source is the compiler side of a program compiled from a grammar: what the parses of the
 // program build from the grammar on first use, and what the compiler knows about its rules. The
