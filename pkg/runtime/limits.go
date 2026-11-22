@@ -13,10 +13,11 @@ const Unlimited = math.MaxUint64
 // Limits bounds one parse invocation. A zero limit selects the default of that limit, and
 // Unlimited disables it.
 //
-// Compute bounds the cumulative cost of the parse: every input unit inspected, every rule call
-// and loop iteration, and every unit of value construction adds to one counter, so a bound on it
-// bounds scanning, recursion and value building alike. The default grows with the length of the
-// input.
+// Compute bounds the compute units of the parse, which count its logical events in one counter:
+// rule calls, the input that terminals advance over, and the values built or compared in proportion
+// to their size (spec/runtime/parsing.md, Compute Units), so a bound on it bounds scanning,
+// recursion and value building alike. The count is the same on every backend. The default grows
+// with the length of the input.
 //
 // Memory bounds the bytes of storage the parser holds for the parse, counted when the parser
 // takes it into use and returned when it lets it go at a point it controls (a stream's commit, a

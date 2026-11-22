@@ -1,6 +1,6 @@
 # 033. Cancellable Parses and Budgets
 
-- **Status**: Implemented
+- **Status**: Implemented; what the compute limit counts is superseded by [076](076-logical-compute-units.md)
 - **Author**: @ornew
 - **Date**: 2026-10-11
 
@@ -201,6 +201,11 @@ are implemented with the measured costs summarized under Performance and
 Results; further generated-Go optimization is a separate follow-up.
 
 ### What the Limits Count
+
+[Record 076](076-logical-compute-units.md) replaces this section: compute units are now counted at logical events
+(calls, memo keys, advanced input, values, string comparisons, list operations, suffix copies and syntax errors), the same count
+on every backend, position unit and optimization setting, and the rest of the work charges nothing. The text below
+records the per-operation charging this record introduced.
 
 The budget is one counter, cumulative per invocation and never rolled back on
 backtracking, failed lookahead, recovery, LR growth, or repeated spending. Zero

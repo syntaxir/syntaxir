@@ -41,10 +41,11 @@ case node != nil:
 }
 ```
 
-`Compute` counts inspected input elements and backend execution steps in one counter, one unit each; it is neither a
-time nor a memory limit, and backtracking never refunds it. Scanning input, such as a repeated character class,
-charges it in proportion to the elements examined, so one limit bounds the cost of large input, rule calls and
-values that grow. The memory a parse allocates, long values included, is at most proportional to the budget it
+`Compute` counts the [compute units](../../spec/runtime/parsing.md#compute-units) of a parse in one counter: its
+logical events, such as rule calls, the input that terminals advance over and the values built or compared, in
+proportion to their size. The count is the same on every backend and optimization setting; it is neither a time
+nor a memory limit, and backtracking never refunds it. Input read again after backtracking counts again, so one
+limit bounds the cost of large input, rule calls and values that grow. The memory a parse allocates, long values included, is at most proportional to the budget it
 spends plus the input, so a smaller budget also bounds memory; [`Memory`](#bounding-memory) bounds it in bytes
 without cutting the time a parse may take. An interruption is fatal to the parse and `#recover` cannot consume it,
 so a batch parse returns no partial result. Cancellation is cooperative: a parser cannot preempt a blocked reader or

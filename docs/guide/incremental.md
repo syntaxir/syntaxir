@@ -112,11 +112,12 @@ The example assumes `doc` and the `sxir` import are already in scope. The insert
 
 Piece-backed storage is internal to `Document`; batch parsing and streaming keep
 their contiguous input paths. `Document.Text()` and `Node.Text()` keep their
-existing meanings. CodePoints initialization decodes and normalizes input, so
-that inspected input is charged. For Bytes, a large immutable input may be kept
-as an original string-backed piece without scanning or copying it; zero
-construction spend is valid when no elements were inspected. Parsing still
-charges scans, literal comparisons and text materialization across pieces.
+existing meanings. CodePoints initialization decodes and normalizes input; like
+any preparation of the input it counts no compute units. For Bytes, a large
+immutable input may be kept as an original string-backed piece without scanning
+or copying it. A parse across pieces counts the same
+[compute units](../../spec/runtime/parsing.md#compute-units) as on contiguous
+input.
 
 A pre-execution option error or cancellation leaves existing reusable caches and
 the last `Stats` intact. Once parse execution starts, an interruption clears

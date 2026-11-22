@@ -179,15 +179,15 @@ resets for every call and remain independent during concurrent parsing. The
 same options work with named rules, recognition, direct typed parsing, and
 Node-to-typed conversion.
 
-`Compute` counts cumulative spend in one counter, one unit each: inspected
-input elements, including input preparation, repeated scans and text
-extraction, and execution and per-element spend in rule calls, loop iterations,
-actions, memo lookup, graph/list construction, capture rollback, diagnostics
-and typed conversion. A loop that only scans input, such as a repeated
-character class, charges for every element it reads, so `Compute` bounds it.
-Counts depend on the generated
-artifact and position unit; a compute limit is not a character count, memory cap, or
-elapsed-time limit. Backtracking never refunds spend. `Depth` bounds nesting
+`Compute` counts the [compute units](../../spec/runtime/parsing.md#compute-units)
+of a parse in one counter: its logical events, such as rule calls, the input
+that terminals advance over, and the values that actions build or compare, in
+proportion to their size. A loop that only scans input, such as a repeated
+character class, counts every unit it advances over, so `Compute` bounds it.
+Input preparation, reads of a stream and typed conversion count nothing. The
+count is the same as the engine's and the generated TypeScript parser's for the
+same grammar, options and input; a compute limit is not a character count,
+memory cap, or elapsed-time limit. Backtracking never refunds spend. `Depth` bounds nesting
 independently of the other limits and needs no control.
 
 Use `errors.Is(err, context.Canceled)` or `context.DeadlineExceeded` for

@@ -131,8 +131,9 @@ bound on a Document's footprint across edits. Neither is expressible today.
 
 Each measure is a counter with a cap, and each states what its cap guarantees.
 
-**Compute** (today's `Budget`). Cost units, charged as [record 033](033-cancellable-parses-and-budgets.md) defines:
-execution steps, inspected input elements, and value construction in proportion to its size. It is cumulative per
+**Compute** (today's `Budget`). Cost units, charged at the logical events that [record 076](076-logical-compute-units.md)
+defines (it replaces the per-operation charges of [record 033](033-cancellable-parses-and-budgets.md)): calls, advanced
+input, and values built or compared in proportion to their size. It is cumulative per
 invocation and never refunded. Guarantee: the parse performs at most `Compute` units of work. Because every allocation
 is charged, it also bounds allocation by k · `Compute` with the k of [the table above](#why-compute-does-not-suffice).
 Its slow path also observes cancellation and, with a finite memory cap, checks memory.

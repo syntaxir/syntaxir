@@ -262,8 +262,8 @@ planned to reach them.
   - Generated parsers carry the compute limit and cancellation unless generated with `-no-limits`;
     carrying them costs 1.30–1.47× on generated Go `Parse` (JSON and XML), and the three engine backends take <!-- fig:engine-controls -->1.45–1.79×<!-- /fig --> with
     a context or limits active ([Performance](performance.md)).
-  - One limit, `Compute`, bounds the input a parse inspects, its rule calls and loop iterations, and the values it
-    builds.
+  - One limit, `Compute`, bounds the input a parse advances over, its rule calls, and the values it builds and
+    compares; it counts these logical events identically on every backend.
   - The budget counts are deterministic for a given artifact, input and options. Context cancellation is
     as timely as the caller's clock, and a blocked reader or callback cannot be interrupted.
   - The input-length and memory caps are off by default; a whole parse of 27 MiB of CSV peaked at about 1.0 GB. Set
