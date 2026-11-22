@@ -208,18 +208,16 @@ paragraphs remain unchanged. When layout is present, changing those normalized
 strings alone does not rewrite the emitted comment; update the raw layout tokens
 or reparse the source to resynchronize it.
 
-This increment preserves raw layout at selected Action Expression operand
+That increment preserved raw layout at selected Action Expression operand
 boundaries, including unary operands and confirmed lambda expressions, and
-before constructor field names. The 15 fixtures cover selected function
-arguments, constructor fields and values, binary and binding right-hand
-sides, unary prefixes and operands, lambda expressions, repeated identical
-comments, multiline groups and calls, idempotence, cloning and JSON omission.
-For example, formatting
-`rule main = "x" => int(/* argument */ "1")` now keeps the comment inside the
-call; previously it moved before the rule. Type expressions, rule headers,
-member markers, closing delimiters and other source forms remain outside this
-increment's coverage. The broader ownership and formatter migration remains
-incomplete.
+before constructor field names. For example, formatting
+`rule main = "x" => int(/* argument */ "1")` keeps the comment inside the
+call; before it, the comment moved before the rule. Later increments extended
+raw layout to the elements of lists, types, rule expressions, member markers,
+closing delimiters and declaration headers, so every comment of a parsed
+source is kept as exactly one raw token. [Comment Grouping and
+Ownership](../../../spec/language/grammar-files.md#comment-grouping-and-ownership)
+lists the places that keep them.
 
 Direct grammar JSON preserves normalized source metadata. The current `.sxirc`
 AST-bearing codec does not encode source positions or comments; loading or
@@ -250,8 +248,8 @@ construct these nodes directly. The first interior-boundary formatter increment
 stores raw comment tokens in `SourceLayout` for selected Action Expression
 operand boundaries and constructor field names. It preserves normalized
 ownership and the JSON contract while keeping comments at their parsed physical
-boundary; its scope and remaining formatter work are described under
-[JSON and Formatting](#json-and-formatting).
+boundary; its scope is described under [JSON and
+Formatting](#json-and-formatting).
 The canonical `sxir.sxir` parser builds ownership for the package clause, type
 declarations, rule declarations, struct fields, operators skip/operand/level/
 operator lines and constructor field initializers. A statement cannot see the
@@ -300,6 +298,13 @@ with the hand-written parser's AST. The raw formatter state (`SourceInfo.Layout`
 and the line breaks of statements) is replayed from the tokens of the source at
 the tokens where the hand-written parser records it, and the parity tests
 compare it too, so formatting gives the same output with either frontend.
+The tokens are those of the lexer that both frontends share. The generated
+frontend needs that lexer anyway, for the lexical errors, the blanking of
+characters that start no token, the nesting limit and the wording of syntax
+errors.
+The canonical tree therefore carries the comment tokens (`File.Comments`) and
+the comment-bearing gaps that ownership needs, but no second token stream for
+the layout.
 
 ## Alternatives Considered
 
@@ -316,6 +321,11 @@ compare it too, so formatting gives the same output with either frontend.
   adapters can lose the association.
 - **Flatten JSON fields:** rejected in favor of an explicit nested `source`
   object.
+- **A token view in the canonical tree for the layout replay:** rejected.
+  Building the layout from the tree's tokens while the errors and checks of the
+  same parse read the lexer's would join two tokenizations of one source, and
+  moving all of them into the grammar would scan every source again only to
+  replace a lexer that the hand-written frontend keeps.
 
 ## Testing
 
