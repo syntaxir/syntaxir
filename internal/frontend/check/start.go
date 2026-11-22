@@ -1,9 +1,12 @@
 package check
 
-// CheckStart reports why name cannot begin a parse of m: it is empty and there is no default
-// start rule, it is hidden, it is not defined, or it is not a start rule (CheckStartName).
+import "syntaxir.dev/sxir/internal/runtime/program"
+
+// CheckStart reports why name cannot begin a parse of m, with the check that every entry to a parse
+// makes (program.CheckStartName): it is empty and there is no default start rule, it is hidden, it
+// is not defined, or it is not a start rule.
 func (m *Model) CheckStart(name string) error {
-	return CheckStartName(m.StartRules, m.DefaultStartRule, m.definesRule, name)
+	return program.CheckStartName(m.StartRules, m.DefaultStartRule, m.definesRule, name)
 }
 
 // StartRule returns the start rule name selects.

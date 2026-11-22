@@ -5,7 +5,6 @@ import (
 
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
-	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 	valueimpl "syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
@@ -81,11 +80,4 @@ func (m *Model) ResolveStart(name string) string {
 		return m.DefaultStartRule
 	}
 	return name
-}
-
-// CheckStartName reports why name cannot begin a parse of a grammar with the start rules starts,
-// the default start rule def and the rules that defined reports. It is the check that every entry
-// to a parse makes, and that the classification of a grammar makes of its start rule.
-func CheckStartName(starts []string, def string, defined func(string) bool, name string) error {
-	return program.CheckStartName(starts, def, defined, name)
 }
