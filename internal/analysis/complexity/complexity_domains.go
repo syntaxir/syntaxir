@@ -607,7 +607,7 @@ func (k *classifier) isSeqOf(n core.Node) bool {
 	}
 }
 
-// spliceBody returns the body of the rule name if it is a splice rule (Program.SpliceBody).
+// spliceBody returns the body of the rule name if it is a splice rule (check.Checker.SpliceBody).
 func (k *classifier) spliceBody(name string) (core.Node, bool) {
 	if rd := k.byName[name]; rd != nil && astfacts.SpliceRule(rd) {
 		return k.ruleBody(name), true
