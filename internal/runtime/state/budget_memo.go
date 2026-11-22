@@ -153,9 +153,7 @@ func (p *Parser) MemoGet(k MemoKey) (*MemoEntry, bool) {
 	link := p.unlinkLagged(k.Pos, &t.Slots[i], scan)
 	for e := t.Slots[i]; e != nil && e != *link; e = e.Next {
 		if e.Rule == int32(k.Rule) && e.Min == int32(k.Min) && e.missingSilent == k.MissingSilent && p.keyMatches(e.Env, k.Env, ident) {
-			if p.Control.DefaultCompute {
-				e.Seen = p.Gen // an explicit limit counts every comparison, and needs no stamp
-			}
+			e.Seen = p.Gen
 			return e, true
 		}
 	}
@@ -171,7 +169,7 @@ func (p *Parser) MemoGet(k MemoKey) (*MemoEntry, bool) {
 	_, x := ix.probe(h, func(x *MemoEntry) bool {
 		return x.Rule == int32(k.Rule) && x.Min == int32(k.Min) && x.missingSilent == k.MissingSilent && keysEqual(x.Env, k.Env)
 	})
-	if x != nil && p.Control.DefaultCompute {
+	if x != nil {
 		x.Seen = p.Gen
 	}
 	return x, x != nil

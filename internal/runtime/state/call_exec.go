@@ -79,8 +79,8 @@ func (p *Parser) FirstCall(r *Rule) bool {
 	return p.Memo.first(p.Pos, s)
 }
 
-// callDoc is engineCall for a parse that reads a Document. Under the default limit, what a
-// parse from scratch does not do is Document work and leaves the count against the limit: the memo
+// callDoc is engineCall for a parse that reads a Document. What a parse from scratch does not do is
+// Document work and no Compute limit counts it: the memo
 // protocol (its deferral, the begin and the end of the call) of a rule that a parse from scratch does
 // not memoize.
 //

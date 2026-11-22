@@ -229,15 +229,20 @@ func reportChargeDivergence(t *testing.T, name, backend, msg string) {
 }
 
 // documentCharges returns, for the backend b, the units that the first parse of a Document of in
-// reserves under explicit limits.
+// counts under explicit limits.
 func documentCharges(t *testing.T, prog *Program, b Backend, unit input.PositionUnit, in string) uint64 {
 	t.Helper()
 	run := func(in string, limit uint64) string {
-		d, err := prog.NewDocumentWith("", in, ParseOptions{Backend: b, Unit: unit, Limits: sxirruntime.Limits{Compute: limit}})
+		// The limit applies to the parse, not to the construction of the Document, whose preparation of
+		// the text is charged apart and may cost more than the parse counts now that the work of the
+		// Document counts under no limit.
+		d, err := prog.NewDocumentWith("", in, ParseOptions{Backend: b, Unit: unit})
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = d.Parse()
+		o := d.ParseDefaults()
+		o.Limits = sxirruntime.Limits{Compute: limit}
+		_, err = d.ParseWith(o)
 		return limitReportOf(err)
 	}
 	return chargeTotal(run, in)

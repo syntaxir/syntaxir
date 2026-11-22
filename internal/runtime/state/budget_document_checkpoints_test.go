@@ -3,6 +3,7 @@
 package state_test
 
 import (
+	"context"
 	"errors"
 	"reflect"
 	"slices"
@@ -17,13 +18,24 @@ import (
 	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
+// interruptAt makes the k-th reservation of c the one that observes a canceled context, so that the
+// units that the work of a Document reserves can still be told apart by where an interruption
+// leaves it, although no Compute limit counts them: the work keeps advancing the poll counter.
+func interruptAt(c *state.BudgetControl, k uint64) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	c.Ctx = ctx
+	c.SinceCheck = state.BudgetCheckInterval - k
+}
+
 func TestBudgetDocumentMemoReplayAtomicReservation(t *testing.T) {
 	t.Parallel()
 	edits := []state.DocEdit{{Start: 0, End: 1, Delta: 2}, {Start: 0, End: 1, Delta: 3}, {Start: 0, End: 1, Delta: 4}}
 	before := state.MemoEntry{Pos: 10, End: 12, From: 10, Examined: 13, Far: 12}
 	e := before
-	p := statetest.NewBudgetParser(runtime.Limits{Compute: 2})
-	if err := statetest.CatchFatal(t, func() { p.AdvanceEntry(&e, edits) }); !errors.Is(err, runtime.ErrLimit) {
+	p := statetest.NewBudgetParser(runtime.Limits{Compute: 1 << 40})
+	interruptAt(p.Control, 3) // the third edit is the one that observes the cancellation
+	if err := statetest.CatchFatal(t, func() { p.AdvanceEntry(&e, edits) }); !errors.Is(err, context.Canceled) {
 		t.Fatalf("interruption = %v", err)
 	}
 	if !reflect.DeepEqual(e, before) {
@@ -79,9 +91,10 @@ func TestBudgetDocumentRunPublicationCopyIsProvisional(t *testing.T) {
 	mid[0].Start = 900
 	r := state.RunState{Key: state.RunKey{Site: 1}, Old: old, K: 128, J: -1, Mid: mid, Count: 129}
 	retained := &state.RunRecord{Elems: old}
-	p := statetest.NewBudgetParser(runtime.Limits{Compute: 128})
+	p := statetest.NewBudgetParser(runtime.Limits{Compute: 1 << 40})
+	interruptAt(p.Control, 129) // the copy of the 129th element observes the cancellation
 	p.Runs = map[state.RunKey]*state.RunRecord{r.Key: retained}
-	if err := statetest.CatchFatal(t, func() { p.FinishRun(&r) }); !errors.Is(err, runtime.ErrLimit) {
+	if err := statetest.CatchFatal(t, func() { p.FinishRun(&r) }); !errors.Is(err, context.Canceled) {
 		t.Fatalf("copy interruption = %v", err)
 	}
 	if p.Runs[r.Key] != retained || len(retained.Elems) != 128 || retained.Elems[127].Start != 127 {
@@ -217,10 +230,12 @@ func TestBudgetDocumentStaleMemoCallReplayIsBounded(t *testing.T) {
 	p.Memo.Put(state.MemoKey{Rule: 1, Pos: 19}, e)
 	e.Pos = 10 // A shifted slot can retain older value coordinates until replay.
 	before := *e
-	p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 2}) // The lookup is free; only two of three edits fit.
-	if err := statetest.CatchFatal(t, func() { p.CallBegin(r, 0, &state.CallState{}) }); !errors.Is(err, runtime.ErrLimit) {
+	p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 1 << 40}) // The lookup is free; only two of three edits are applied.
+	interruptAt(p.Control, 3)
+	if err := statetest.CatchFatal(t, func() { p.CallBegin(r, 0, &state.CallState{}) }); !errors.Is(err, context.Canceled) {
 		t.Fatalf("stale hit interruption = %v", err)
 	}
+	before.Seen = p.Gen // the lookup that finds the entry stamps it as found in this parse, before the replay
 	if !reflect.DeepEqual(*e, before) {
 		t.Fatal("stale hit published partial replay")
 	}

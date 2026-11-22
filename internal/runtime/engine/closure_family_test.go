@@ -106,10 +106,10 @@ func TestClosureFamilyCharges(t *testing.T) {
 		stream    bool
 		want      map[string]uint64
 	}{
-		{"plain calls", "rule main = item* $$\nrule item = \"a\"", compile.Options{}, "aaaa", false, map[string]uint64{"document": 34, "document+trace": 36, "parse": 32, "parse+trace": 34, "prefix": 31, "prefix+trace": 33, "recognize": 32, "recognize+trace": 34}},
-		{"plain calls, no memo", "rule main = item* $$\nrule item = \"a\"", compile.Options{DisableMemo: true}, "aaaa", false, map[string]uint64{"document": 30, "document+trace": 32, "parse": 32, "parse+trace": 34, "prefix": 31, "prefix+trace": 33, "recognize": 32, "recognize+trace": 34}},
+		{"plain calls", "rule main = item* $$\nrule item = \"a\"", compile.Options{}, "aaaa", false, map[string]uint64{"document": 25, "document+trace": 27, "parse": 32, "parse+trace": 34, "prefix": 31, "prefix+trace": 33, "recognize": 32, "recognize+trace": 34}},
+		{"plain calls, no memo", "rule main = item* $$\nrule item = \"a\"", compile.Options{DisableMemo: true}, "aaaa", false, map[string]uint64{"document": 25, "document+trace": 27, "parse": 32, "parse+trace": 34, "prefix": 31, "prefix+trace": 33, "recognize": 32, "recognize+trace": 34}},
 		{"recursion", "rule main = e $$\nrule e = \"(\" e \")\" / x\nrule x = \"x\"", compile.Options{DisableMemo: true}, "((x))", false, map[string]uint64{"document": 20, "document+trace": 24, "parse": 30, "parse+trace": 34, "prefix": 29, "prefix+trace": 33, "recognize": 30, "recognize+trace": 34}},
-		{"captures", "rule main = item* $$\nrule item = x:\"a\" {len(text($x)) == 1}", compile.Options{}, "aaa", false, map[string]uint64{"document": 30, "document+trace": 32, "parse": 29, "parse+trace": 31, "prefix": 28, "prefix+trace": 30, "recognize": 29, "recognize+trace": 31}},
+		{"captures", "rule main = item* $$\nrule item = x:\"a\" {len(text($x)) == 1}", compile.Options{}, "aaa", false, map[string]uint64{"document": 24, "document+trace": 26, "parse": 29, "parse+trace": 31, "prefix": 28, "prefix+trace": 30, "recognize": 29, "recognize+trace": 31}},
 		{"stream", codegentest.Records, compile.Options{}, "#records\na=1\nbc=22\n", true, stream},
 	}
 	for _, c := range cases {

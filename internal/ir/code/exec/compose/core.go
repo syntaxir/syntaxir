@@ -123,8 +123,8 @@ func Build() *Module {
 		}
 	}
 	// docOpen and docClose bracket the memo protocol of a rule that only a Document parse memoizes, in the
-	// node and typed runtimes, as work that only a Document does: a parse under the default limit
-	// leaves what the bracketed code charges out of the count against it. A parse from scratch does not
+	// node and typed runtimes, as work that only a Document does: no Compute limit counts what the bracketed
+	// code charges. A parse from scratch does not
 	// memoize such a rule, so its protocol has no counterpart that the Document parse could be held to;
 	// the protocol of every other rule counts, except the work of moving an entry and its value after
 	// an edit, which opens its own region. The body of the rule is outside the brackets. A node
@@ -595,8 +595,8 @@ and otherwise saves in st what the end of the call needs.`
 	callEnd.Doc = `callEnd ends the memoized call of rule r whose state its begin saved in st with the value v
 and success ok of its body, or of the growth of a leader: it records the result where its
 dependencies send it, and restores the state from before the call.`
-	// docWork runs body as work that only a Document parse does: a parse under the default limit
-	// leaves what body charges out of the count against it, if on holds and the parse reads a Document
+	// docWork runs body as work that only a Document parse does: no Compute limit counts what body
+	// charges, if on holds and the parse reads a Document
 	// (a test of one field, so that a parse from scratch pays almost nothing for the region). Other
 	// forms run body as it is. The region ends before the rule body runs.
 	// ret2 returns the result of the call c of a function.
@@ -661,8 +661,8 @@ dependencies send it, and restores the state from before the call.`
 memoization is deferred, and otherwise between the begin and the end of the split call protocol,
 growing the seed of a left-recursion leader. A parse that reads a Document makes the call of
 engineCallDoc instead, which is decided by one test of a field that the parse sets once.`
-	engineCallDoc.Doc = `engineCallDoc is engineCall for a parse that reads a Document. Under the default limit, what a
-parse from scratch does not do is Document work and leaves the count against the limit: the memo
+	engineCallDoc.Doc = `engineCallDoc is engineCall for a parse that reads a Document. What a parse from scratch does not do is
+Document work and no Compute limit counts it: the memo
 protocol (its deferral, the begin and the end of the call) of a rule that a parse from scratch does
 not memoize.`
 

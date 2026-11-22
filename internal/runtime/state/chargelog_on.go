@@ -37,7 +37,7 @@ func logCharge(c *BudgetControl, n uint64) {
 		}
 	}
 	where := strings.Join(b, " < ")
-	if doc && c.DefaultCompute {
+	if doc {
 		where = "doc " + where
 	}
 	ChargeLog(n, where)

@@ -81,6 +81,15 @@ func TestBudgetDocumentDiagnosticPublication(t *testing.T) {
 					defer func() { caught = recover() }()
 					result, err = d.ParseWith(o)
 				}()
+				if mode == "budget" {
+					// The copy of the diagnostics is work of the Document that no Compute limit counts: a
+					// limit that leaves 64 units after the exit of main, for a copy of 2048, does not
+					// interrupt it. Interruptions of the copy are those of the context, in the other modes.
+					if caught != nil || errors.Is(err, runtime.ErrLimit) || observed == nil || d.Stats().Evaluated != 0 {
+						t.Fatalf("budget: the copy of the diagnostics was stopped by the limit: error=%v panic=%v", err, caught)
+					}
+					return
+				}
 				if result != nil || observed == nil || d.Stats().Evaluated != 0 {
 					t.Fatalf("warm interrupted publication: result=%v observed=%v stats=%+v", result, observed, d.Stats())
 				}

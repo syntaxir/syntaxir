@@ -155,11 +155,6 @@ func (d *Document) parseWithCapture(o state.ParseOptions, capture func(*state.Pa
 	if !state.BudgetControlsEnabled && c != nil {
 		return nil, state.ErrNoControls
 	}
-	if c != nil && o.Limits.Compute == 0 && lim.Compute != 0 {
-		// The default limit counts what a parse from scratch counts; the work that only a Document
-		// does is left out of it (BudgetControl.ChargeDoc).
-		c.DefaultCompute = true
-	}
 	c.Check()
 	if lim.Memory != 0 && d.retainedBytes() > lim.Memory {
 		// The caches alone pass the limit: drop them and parse from scratch, rather than fail

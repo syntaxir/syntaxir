@@ -29,12 +29,11 @@ type BudgetControl struct {
 	// position the parser has demanded from the stream (Demand).
 	Adaptive bool
 
-	// DefaultCompute is set when the Compute limit is the default of the entry point. Under it the
-	// limit counts only the work that a parse from scratch counts: the units reserved for work that
-	// only a Document does (ChargeDoc, FreeBegin) are also added to Doc and to the limit, so they
-	// leave room for the counted work. An explicit limit counts all units, and Doc stays zero.
-	DefaultCompute bool
-	// Doc is the part of Used that only a Document parse reserves, under a default limit.
+	// Doc is the part of Used that only a Document parse reserves: its work on pending edits, entries,
+	// reused values and runs is not an event, so it is no part of the count against any Compute
+	// limit, the default or an explicit one (ChargeDoc, FreeBegin). Those units still advance
+	// SinceCheck, so that the polls for cancellation and memory keep their cadence inside Document
+	// work: a poll is a check, not a charge.
 	Doc uint64
 	// freeing is set between FreeBegin and FreeEnd; freed holds the limit that FreeBegin lifted.
 	freeing  bool
@@ -205,27 +204,30 @@ func (c *BudgetControl) ChargeUnits(n uint64) {
 // noFree is the mark that FreeBegin returns when it opens no region.
 const noFree = ^uint64(0)
 
-// ChargeDoc reserves n units of work that only a Document parse does, as Charge does, and under a
-// default limit leaves them out of the count against it: the limit rises by n first, so the units
-// leave the room that counted work has. Under an explicit limit it is Charge. It is safe on a nil
-// receiver.
+// ChargeDoc reserves n units of work that only a Document parse does, as Charge does, and leaves
+// them out of the count against the limit, whichever limit it is: the limit rises by n first, so the
+// units leave the room that counted work has. An unlimited control has no limit to raise. The units
+// are in Used and advance SinceCheck, so cancellation and memory are polled as for any work, and are
+// in Doc, which LimitError leaves out. It is safe on a nil receiver.
 func (c *BudgetControl) ChargeDoc(n uint64) {
 	if c == nil {
 		return
 	}
-	if c.DefaultCompute && !c.freeing {
+	if !c.freeing {
 		c.Doc += n
-		c.Limits.Compute = limits.SaturatingAdd(c.Limits.Compute, n)
+		if c.Limits.Compute != 0 {
+			c.Limits.Compute = limits.SaturatingAdd(c.Limits.Compute, n)
+		}
 	}
 	c.Charge(n)
 }
 
 // FreeBegin opens a region in which every reservation is work that only a Document parse does, as
 // ChargeDoc reserves it, and returns the mark for FreeEnd. The region ends the work it covers before
-// any counted work starts. Under a default limit it lifts the limit until FreeEnd; otherwise, or in
-// a region, it opens none and returns noFree. It is safe on a nil receiver.
+// any counted work starts. It lifts the limit until FreeEnd; in a region it opens none and returns
+// noFree. It is safe on a nil receiver.
 func (c *BudgetControl) FreeBegin() uint64 {
-	if c == nil || !c.DefaultCompute || c.freeing {
+	if c == nil || c.freeing {
 		return noFree
 	}
 	c.freeing, c.freed, c.Limits.Compute = true, c.Limits.Compute, 0
@@ -235,14 +237,17 @@ func (c *BudgetControl) FreeBegin() uint64 {
 
 // FreeEnd ends the region that FreeBegin opened (mark is what it returned, noFree if it opened none):
 // the units reserved since the region began, or resumed after FreeHold, are Document units, and the
-// limit is what it was plus them.
+// limit is what it was plus them, or none if it was none.
 func (c *BudgetControl) FreeEnd(mark uint64) {
 	if mark == noFree || !c.freeing {
 		return
 	}
 	n := c.Used - c.freeMark
 	c.Doc += n
-	c.Limits.Compute, c.freeing = limits.SaturatingAdd(c.freed, n), false
+	c.Limits.Compute, c.freeing = c.freed, false
+	if c.freed != 0 {
+		c.Limits.Compute = limits.SaturatingAdd(c.freed, n)
+	}
 }
 
 // FreeHold ends the open region for work that counts, and reports whether there was one; FreeResume

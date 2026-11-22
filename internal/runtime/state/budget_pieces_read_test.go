@@ -10,7 +10,7 @@ import (
 	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
-// Decoding at a position of a Document's pieces counts against the default limit what decoding there
+// Decoding at a position of a Document's pieces counts against the limit what decoding there
 // in a flat input counts: one unit for a byte that is a character by itself, and one more for each
 // byte available to a character that is not. The other bytes the pieces read for a decoding are work
 // of the piece representation, and only they are Document units.
@@ -20,7 +20,7 @@ func TestPieceDecodeCountsWhatAFlatDecodeCounts(t *testing.T) {
 	}
 	text := strings.Repeat("abé€\U0001F600\n", 800)
 	control := func() *BudgetControl {
-		return &BudgetControl{Limits: runtime.Limits{Compute: 1 << 40}, DefaultCompute: true}
+		return &BudgetControl{Limits: runtime.Limits{Compute: 1 << 40}}
 	}
 	flat := NewTextInput(text, input.Bytes, false)
 	flat.Control = control()

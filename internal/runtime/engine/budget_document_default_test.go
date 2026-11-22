@@ -261,10 +261,11 @@ func minimalLimit(t *testing.T, run func(limit uint64) error) uint64 {
 	return hi
 }
 
-// An explicit limit counts all the work of a Document parse, the part that only a Document does too:
-// the first parse of a Document needs a larger limit than a parse of its text from scratch, and a
-// limit one unit short of what it needs stops it with that limit in the error.
-func TestBudgetDocumentExplicitLimitCountsDocumentWork(t *testing.T) {
+// An explicit limit counts no work that only a Document does, as the default limit does not: the first
+// parse of a Document needs a limit no larger than a parse of its text from scratch, which also counts
+// the preparation of the text that a Document makes when it is created, and a limit one unit short of
+// what it needs stops it with that limit in the error.
+func TestBudgetDocumentExplicitLimitLeavesDocumentWorkOut(t *testing.T) {
 	t.Parallel()
 	prog := mustCompile(t, docLines)
 	text := strings.Repeat("ab cd\n", 2000)
@@ -288,8 +289,8 @@ func TestBudgetDocumentExplicitLimitCountsDocumentWork(t *testing.T) {
 				return err
 			}
 			fresh, doc := minimalLimit(t, parseFn), minimalLimit(t, docParse)
-			if doc <= fresh {
-				t.Fatalf("a document needs a limit of %d units for its first parse, a parse from scratch %d: an explicit limit leaves Document work out", doc, fresh)
+			if doc > fresh {
+				t.Fatalf("a document needs a limit of %d units for its first parse, a parse from scratch %d: an explicit limit counts Document work", doc, fresh)
 			}
 			if got := limitOf(t, docParse(doc-1)); got != doc-1 {
 				t.Fatalf("limit %d reported as %d", doc-1, got)

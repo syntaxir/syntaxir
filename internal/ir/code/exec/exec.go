@@ -278,10 +278,10 @@ charges nothing.`})
 	m.AddOp(&code.Op{Name: "budget.freeBegin", Component: Bud, Params: []code.Param{code.P("on", code.TBool)}, Results: []code.Type{code.TU64},
 		Reads: []string{Bud}, Writes: []string{Bud}, Features: []string{Budget, Document},
 		Contract: `Opens a region of Document work when on is true, and returns the mark that budget.freeEnd takes.
-The units that the region charges are work that only a Document parse does: a parse under the default
-Compute limit leaves them out of the count against it, and a parse under an explicit limit counts them
-as any other. The region must end before any work that a parse from scratch counts starts, and a region
-does not nest. When on is false, or the parse has no default limit, it opens no region and charges nothing.`})
+The units that the region charges are work that only a Document parse does: no Compute limit, the default
+or an explicit one, counts them, and they are no event of the parse. They still advance the polls for
+cancellation and memory. The region must end before any work that a parse from scratch counts starts, and a
+region does not nest. When on is false, it opens no region and charges nothing.`})
 	m.AddOp(&code.Op{Name: "budget.freeEnd", Component: Bud, Params: []code.Param{code.P("mark", code.TU64)},
 		Reads: []string{Bud}, Writes: []string{Bud}, Features: []string{Budget, Document}, NoReturn: true,
 		Contract: `Ends the region that budget.freeBegin opened with mark, if it opened one. It charges nothing.`})

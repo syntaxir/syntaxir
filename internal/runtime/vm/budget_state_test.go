@@ -3,6 +3,7 @@
 package vm
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"reflect"
@@ -212,15 +213,25 @@ func TestBudgetResetAndVMRestoreChargeNothing(t *testing.T) {
 	}
 }
 
+// interruptAt makes the k-th reservation of c the one that observes a canceled context: the work of a
+// Document counts under no Compute limit, but it keeps advancing the poll counter.
+func interruptAt(c *state.BudgetControl, k uint64) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	c.Ctx = ctx
+	c.SinceCheck = state.BudgetCheckInterval - k
+}
+
 func TestBudgetDocumentRunStateClearReservation(t *testing.T) {
 	marker := value.Ptr(value.Data{Text: "retained"})
 	r := &state.RunState{Old: []state.RunElem{{V: marker}}, Mid: make([]state.RunElem, 129), Post: []state.RunElem{{V: marker}}}
 	for i := range r.Mid {
 		r.Mid[i].V = marker
 	}
-	p := stateBudgetParser(runtime.Limits{Compute: 128})
+	p := stateBudgetParser(runtime.Limits{Compute: 1 << 40})
+	interruptAt(p.Control, 129) // the 129th element observes the cancellation
 	mc := machineOf(p)
-	if err := catchFatal(t, func() { mc.freeRunState(r) }); !errors.Is(err, runtime.ErrLimit) {
+	if err := catchFatal(t, func() { mc.freeRunState(r) }); !errors.Is(err, context.Canceled) {
 		t.Fatalf("clear interruption = %v", err)
 	}
 	if len(mc.freeRuns) != 0 || r.Old != nil || r.Mid[128].V != marker || r.Post[0].V != marker || value.D(marker).Text != "retained" {
