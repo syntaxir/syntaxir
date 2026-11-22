@@ -2775,11 +2775,14 @@ error.
   ([Work of a Document Parse](documents.md#work-of-a-document-parse)). The
   work that a sized event covers is not done when the check after it stops
   the parse, although its units are counted.
-- **Observing the context.** A check observes the context when at least 256
-  units have been counted since it was last observed; the latency of a
-  cancellation is therefore at most 256 + K + B units. When a check finds both
-  an error of the context and an exceeded limit, the error of the context
-  wins. An observation that finds no error starts the interval again.
+- **Observing the context.** A check observes the context, and then the
+  memory count of a finite [memory limit](#memory-limit), when at least 256
+  units have been counted since they were last observed, and the check at the
+  end of the parse observes both; the latency of a cancellation is therefore
+  at most 256 + K + B units. At every check the context comes first, then the
+  memory count, then the compute limit, so when a check finds an error of the
+  context and an exceeded limit, the error of the context wins. An observation
+  that finds no error starts the interval again.
 - **Deliveries keep their place.** No check is moved or merged across the
   delivery of a stream element or of recovered errors to a callback, any
   other callback of the caller, or the commit of an element, and every
@@ -2979,14 +2982,21 @@ unit and the generated artifact, and for a given artifact, input and options
 they are the same on every run, whatever an earlier parse left in a reused
 parser.
 
-A finite `Memory` makes a parse controlled, and the control then polls every
-256 compute units even without a context. At a poll, the context is
-consulted first, then the memory count, then the compute counter; the context
-and the memory count are checked again at the end of the parse. A count above `Memory` fails the parse with a `LimitError` of kind
+A finite `Memory` makes a parse controlled, and its checks
+([Checks and Interruptions](#checks-and-interruptions)) then observe even
+without a context. A check observes the context and then the memory count
+once at least 256 compute units have been counted since the previous
+observation, and the check at the end of the parse observes both whatever
+the units since; an observation that finds neither exceeded starts the
+interval again. At every check the context comes first, then the memory
+count, then the compute limit: a check that finds the context ended and the
+memory exceeded reports the context, and one that finds the memory and the
+compute limit exceeded reports the memory. A count above `Memory` fails the parse with a `LimitError` of kind
 `LimitMemory`, message `parse memory limit exceeded: limit N, used M`, whose
 `Limit` is `Memory`, `Used` the count, and `Requested` zero: memory is checked
-at polls, not reserved before an allocation, so the count can pass `Memory` by
-what the parse allocates between two polls. A parse whose final count is at
+at observations, not reserved before an allocation, so the count can pass
+`Memory` by what the parse allocates between two observations, which are at
+most 256 + K + B compute units apart. A parse whose final count is at
 most `Memory` succeeds.
 
 A `Document` parse counts the caches the Document retains from earlier parses
