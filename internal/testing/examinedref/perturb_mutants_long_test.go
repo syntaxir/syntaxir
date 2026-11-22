@@ -156,7 +156,7 @@ func TestEngineExaminedMutants(t *testing.T) {
 				}
 			}
 			for _, b := range m.backends {
-				line := regexp.MustCompile(`_long_test\.go:\d+: ` + regexp.QuoteMeta(b) + ` (bytes|code-points)[ :]`)
+				line := regexp.MustCompile(`_test\.go:\d+: ` + regexp.QuoteMeta(b) + ` (bytes|code-points)[ :]`)
 				if !line.Match(out) {
 					t.Errorf("no failure on %s:\n%s", b, outputTail(out))
 				}

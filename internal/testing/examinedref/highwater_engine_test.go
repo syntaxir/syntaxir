@@ -1,5 +1,3 @@
-//go:build sxir_long
-
 package examinedref_test
 
 import (
@@ -26,19 +24,18 @@ func TestEngineStreamHighWater(t *testing.T) {
 			for _, u := range perturbUnits {
 				parses, ended := 0, 0
 				for _, p := range progs {
-					if !p.stream {
+					if !p.stream || p.missing {
 						continue
 					}
 					for _, in := range p.inputs {
 						r := examinedref.NewCountingReader(in)
 						var tr []examinedref.Event
 						var reads []examinedref.Read
-						o := engine.ParseOptions{Expectations: true, Backend: b, Unit: u.unit}
-						o.Trace = func(e engine.TraceEvent) {
+						trace := engine.WithTrace(func(e engine.TraceEvent) {
 							tr = append(tr, traceEventOf(e))
 							reads = append(reads, examinedref.Read{Delivered: r.Delivered, EOF: r.EOF})
-						}
-						_ = p.prog.ParseStreamWith("main", r, func(*value.Node) error { return nil }, o)
+						})
+						_ = p.parser.OnBackend(b).ParseStream(r, func(*value.Node) error { return nil }, engine.WithExpectations(), engine.WithUnit(u.unit), trace)
 						parses++
 						if r.EOF {
 							ended++

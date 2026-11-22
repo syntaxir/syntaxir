@@ -1,5 +1,3 @@
-//go:build sxir_long
-
 package examinedref_test
 
 import (
@@ -15,10 +13,10 @@ import (
 	"syntaxir.dev/sxir/pkg/runtime/instrument"
 )
 
-// The perturbation and high-water tests run every producer on the same cases: the representative cases of
-// the generated corpus, which have every construct of the language (Operators Rules, predicates,
-// variables, recovery and the rest, which the reference evaluator does not cover), the checked-in csv
-// grammar, and streamShapes.
+// The perturbation and high-water tests run every producer on the same cases. The default tier runs the
+// shapes of the examined-end tests (codegentest.ExaminedShapes) and streamShapes; the long tier adds the
+// corpus of the reference comparison (TestExaminedOracle): the representative cases of the generated
+// corpus, which have every construct of the language, and the checked-in csv grammar with its inputs.
 
 // perturbMaxUnits bounds the inputs that the perturbation tests perturb: an input of n units has up to n
 // change points, each parsed again with the whole trace kept, so the cost grows with the square of n. The
@@ -52,11 +50,18 @@ rule main = {n := 0} item* #stream $$
 rule item = "a" {n := n + 1} / "b" {n > 0}`, Inputs: []string{"ab", "b", "aab", "abb"}},
 }
 
-// perturbCases returns the cases of the perturbation and high-water tests.
+// perturbCases returns the cases of the perturbation and high-water tests of the tier (perturbFullCorpus).
 func perturbCases(t *testing.T) []codegentest.Case {
 	t.Helper()
-	cases := append([]codegentest.Case(nil), codegentest.Representative(codegentest.GenCorpus(t))...)
+	var cases []codegentest.Case
+	if perturbFullCorpus {
+		cases = append(cases, codegentest.Representative(codegentest.GenCorpus(t))...)
+	}
+	cases = append(cases, codegentest.ExaminedShapes()...)
 	cases = append(cases, streamShapes...)
+	if !perturbFullCorpus {
+		return cases
+	}
 	dir := filepath.Join("..", "..", "..", "testdata", "grammars", "csv")
 	src, err := os.ReadFile(filepath.Join(dir, "csv.sxir"))
 	if err != nil {
@@ -75,6 +80,19 @@ func perturbCases(t *testing.T) []codegentest.Case {
 		csv.Inputs = append(csv.Inputs, string(in))
 	}
 	return append(cases, csv)
+}
+
+// generatedCases are the cases of perturbCases that generated parsers run: generated parsers do not
+// insert tokens, and refuse the grammars that would.
+func generatedCases(t *testing.T) []codegentest.Case {
+	t.Helper()
+	var out []codegentest.Case
+	for _, c := range perturbCases(t) {
+		if !strings.Contains(c.Src, "#missing") {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 // perturbUnits are the position units of the tests, with the names their messages use.
@@ -97,12 +115,6 @@ func traceEventOf(e engine.TraceEvent) examinedref.Event {
 	return examinedref.Event{Kind: k, Rule: e.Rule, Level: e.Level, Depth: e.Depth, Pos: e.Pos, Lookahead: e.Lookahead,
 		Matched: e.Matched, End: e.End, Memo: e.Memo, Evals: e.Evals, ReusedElements: e.ReusedElements,
 		Examined: e.Examined, SkipReason: string(e.SkipReason)}
-}
-
-// hasStreamStart reports whether the start rule of prog has a #stream repetition, which ParseStream needs.
-func hasStreamStart(prog *engine.Program) bool {
-	err := prog.ParseStreamWith("main", strings.NewReader(""), nil, engine.ParseOptions{})
-	return err == nil || !strings.Contains(err.Error(), "has no #stream repetition")
 }
 
 // reportPerturb reports msgs as errors with prefix, the first limit of them, and their number.

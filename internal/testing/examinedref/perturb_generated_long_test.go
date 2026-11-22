@@ -174,7 +174,7 @@ type perturbProbeReport struct {
 func TestGeneratedPerturbationAndHighWater(t *testing.T) {
 	t.Parallel()
 	codegentest.EachMode(t, func(t *testing.T) {
-		cases := perturbCases(t)
+		cases := generatedCases(t)
 		reports := runPerturbProbes(t, cases)
 		totals := map[string]*examinedref.Report{}
 		streamed, ended := 0, 0

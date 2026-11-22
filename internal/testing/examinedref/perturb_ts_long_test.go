@@ -100,7 +100,7 @@ var tsPerturbEntries = []string{"parse", "recognize", "document", "edit"}
 func TestTSPerturbation(t *testing.T) {
 	t.Parallel()
 	node := tooltest.RequireNode(t)
-	cases := perturbCases(t)
+	cases := generatedCases(t)
 	dir := t.TempDir()
 	write := func(name string, content []byte) {
 		if err := os.WriteFile(filepath.Join(dir, name), content, 0o644); err != nil {
