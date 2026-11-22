@@ -1,14 +1,17 @@
 package check
 
 import (
+	"syntaxir.dev/sxir/internal/frontend/desugar"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
+	valueimpl "syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // Model is the semantic model of a checked grammar: the grammar the checker read, its type
-// declarations, its variables and its start rules. The compiler's program embeds it and adds the
-// rules with their static facts; a program loaded from a compiled grammar has a model without a
-// grammar.
+// declarations, its variables and its start rules, and the rules with their static facts, its
+// expectation table and the kinds of its types. A program loaded from a compiled grammar has a
+// model without a grammar.
 type Model struct {
 	Grammar *ast.Grammar
 	// Source is the grammar as written when Grammar is its lowering (inline actions replaced by
@@ -22,6 +25,41 @@ type Model struct {
 	// (desugar.ResolveStarts).
 	StartRules       []string
 	DefaultStartRule string
+
+	// The rest is the rule table with the static facts of the rules, which the compilation of the
+	// grammar fills in.
+	HasMissing    bool // immutable syntax metadata; bytecode/generation are unsupported
+	RuleList      []*Rule
+	DescTable     []string  // expectation table (starting with fixedDescs)
+	Twins         []*Rule   // value-free twins (Rule.Twin); ids start at len(RuleList)
+	NSeen         int       // number of rules with Rule.Seen set
+	Typed         *TypeInfo // types found by the type checker (nil if it did not run)
+	NoProjections bool
+	// RecordsSourceInfo reports that nodes record source information (Options.SourceInfo).
+	RecordsSourceInfo bool
+	// MakesDefaultValue reports that value actions and declared rule types were dropped
+	// (Options.DefaultValue).
+	MakesDefaultValue bool
+	// InlineNames are the hidden rules that the inline actions of the grammar as written were
+	// lowered to, with the inline actions they stand for; empty if it has none.
+	InlineNames desugar.InlineNames
+	ByName      map[string]*Rule
+	// Opts are the options the program was compiled with. The engine builds further programs from the
+	// same grammar later (the controlled closure graph and the recognizer) and derives their options
+	// from these, so that none is lost (engine.Program.lazyOptions).
+	Opts Options
+
+	// TypeKinds holds the node kinds of the grammar's types (the TypeKind of the compiled program), made from
+	// the checker's (Checker.Kinds).
+	TypeKinds map[string]*valueimpl.Kind
+	// NodeKinds holds the kinds of the grammar's named node types, also under the names of the
+	// aliases of them.
+	NodeKinds map[string]*nodes.NodeTypeKinds
+	// InsertionFlags are the rule flags of the parses with missing-token insertion enabled, in
+	// which left recursion through an insertion forms cycles of its own (RuleFact.CycleIns), when
+	// they differ from the flags of the rules; nil otherwise. Such parses run a program built with
+	// them.
+	InsertionFlags []RuleFlags
 }
 
 // NewModel returns a model of the grammar g, whose lowering of source it is (nil if g is the

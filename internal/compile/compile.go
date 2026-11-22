@@ -10,7 +10,6 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 	"syntaxir.dev/sxir/pkg/runtime/value/impl"
@@ -24,45 +23,13 @@ type Program struct {
 	// Model is the semantic model of the grammar: the grammar, its types, variables and start
 	// rules. Check always sets it.
 	*check.Model
-	HasMissing bool // immutable syntax metadata; bytecode/generation are unsupported
 	// chk checks the types of the program (Checker), made on first use.
-	chk           *check.Checker
-	checkerOnce   sync.Once
-	RuleList      []*check.Rule
-	DescTable     []string        // expectation table (starting with fixedDescs)
-	Twins         []*check.Rule   // value-free twins (Rule.Twin); ids start at len(RuleList)
-	NSeen         int             // number of rules with Rule.Seen set
-	Typed         *check.TypeInfo // types found by the type checker (nil if it did not run)
-	NoProjections bool
-	// RecordsSourceInfo reports that nodes record source information (Options.SourceInfo).
-	RecordsSourceInfo bool
-	// MakesDefaultValue reports that value actions and declared rule types were dropped
-	// (Options.DefaultValue).
-	MakesDefaultValue bool
-	// InlineNames are the hidden rules that the inline actions of the grammar as written were
-	// lowered to, with the inline actions they stand for; empty if it has none.
-	InlineNames desugar.InlineNames
-	ByName      map[string]*check.Rule
-	// Opts are the options the program was compiled with. The engine builds further programs from the
-	// same grammar later (the controlled closure graph and the recognizer) and derives their options
-	// from these, so that none is lost (engine.Program.lazyOptions).
-	Opts check.Options
-
-	// typeKinds holds the node kinds of the grammar's types (TypeKind), made with the program from
-	// the checker's (check.Checker.Kinds).
-	typeKinds map[string]*valueimpl.Kind
-	// NodeKinds holds the kinds of the grammar's named node types, also under the names of the
-	// aliases of them.
-	NodeKinds map[string]*nodes.NodeTypeKinds
+	chk         *check.Checker
+	checkerOnce sync.Once
 	// sites numbers the skip-run, run and scan sites of the program's repetitions (SetSites).
 	sites check.Sites
 	// NumSkipSites, NumRunSites and NumScanSites count the sites (Sites).
 	NumSkipSites, NumRunSites, NumScanSites int
-	// InsertionFlags are the rule flags of the parses with missing-token insertion enabled, in
-	// which left recursion through an insertion forms cycles of its own (RuleFact.CycleIns), when
-	// they differ from the flags of the rules; nil otherwise. Such parses run a program built with
-	// them.
-	InsertionFlags []check.RuleFlags
 	// runtime is the run-time program (Runtime), made once under runtimeOnce.
 	runtimeOnce sync.Once
 	runtime     *program.Program
@@ -275,8 +242,9 @@ func Canonicalize(g *ast.Grammar, opts check.Options, names desugar.InlineNames,
 // other rule facts. The site numbers are set afterwards (SetSites).
 func CheckCanonical(canon *Canonical, opts check.Options, flags []check.RuleFlags, names desugar.InlineNames, facts *check.RuleFacts, control *cancel.Control) (*Program, error) {
 	g, source, starts, defaultStart, startErrors := canon.Grammar, canon.Source, canon.Starts, canon.DefaultStart, canon.StartErrors
-	prog := &Program{Model: check.NewModel(g, source), ByName: map[string]*check.Rule{},
-		DescTable: append([]string(nil), core.FixedDescs...)}
+	m := check.NewModel(g, source)
+	m.ByName, m.DescTable = map[string]*check.Rule{}, append([]string(nil), core.FixedDescs...)
+	prog := &Program{Model: m}
 	c := &Compiler{Control: control, Prog: prog, opts: opts}
 	if control != nil {
 		prog.Checker().SetShapeControl(control)
@@ -390,7 +358,7 @@ func CheckCanonical(canon *Canonical, opts check.Options, flags []check.RuleFlag
 	prog.NSeen = NumberSeen(prog.RuleList, prog.Twins)
 	NumberLeaders(prog.RuleList)
 	kinds := prog.Checker().Kinds(control.Poll)
-	prog.typeKinds, prog.NodeKinds = kinds.Types, kinds.Nodes
+	prog.TypeKinds, prog.NodeKinds = kinds.Types, kinds.Nodes
 	for _, rs := range [][]*check.Rule{prog.RuleList, prog.Twins} {
 		control.Poll()
 		for _, r := range rs {
@@ -671,7 +639,7 @@ func (c *Compiler) checkStream(body ast.Expr) bool {
 
 // TypeKind returns the kind of nodes of the grammar's type typ without a rule.
 func (prog *Program) TypeKind(typ string) *valueimpl.Kind {
-	if k := prog.typeKinds[typ]; k != nil {
+	if k := prog.TypeKinds[typ]; k != nil {
 		return k
 	}
 	return valueimpl.KindOf(typ, "")
@@ -680,5 +648,7 @@ func (prog *Program) TypeKind(typ string) *valueimpl.Kind {
 // NewProgram returns a program of the grammar g with no rules or types yet, for the tests that fill
 // in a program of their own.
 func NewProgram(g *ast.Grammar) *Program {
-	return &Program{Model: check.NewModel(g, nil), ByName: map[string]*check.Rule{}}
+	m := check.NewModel(g, nil)
+	m.ByName = map[string]*check.Rule{}
+	return &Program{Model: m}
 }

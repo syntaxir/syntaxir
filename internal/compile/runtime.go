@@ -26,7 +26,7 @@ func (p *Program) newRuntime() *program.Program {
 		RecordsSourceInfo: p.RecordsSourceInfo,
 		MakesDefaultValue: p.MakesDefaultValue,
 		Types:             map[string]*program.Type{},
-		TypeKinds:         p.typeKinds,
+		TypeKinds:         p.TypeKinds,
 		NodeKinds:         p.NodeKinds,
 		NumSkipSites:      p.NumSkipSites,
 		NumRunSites:       p.NumRunSites,
