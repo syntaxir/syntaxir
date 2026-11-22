@@ -12,7 +12,7 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	irc "syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/codepass"
-	"syntaxir.dev/sxir/internal/middleend/execlower"
+	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 )
 
 // Go rules printed from the Exec stage of Code IR.
@@ -26,7 +26,7 @@ import (
 
 // execBody prints the body of the lowered function l with the flow printer p, for a function that is
 // printed whatever its body: it checks the variables (execVars) and counts the function (execCount).
-func (p *flowPrinter) execBody(l *execlower.Lowered) BodyResult {
+func (p *flowPrinter) execBody(l *execdata.Lowered) BodyResult {
 	res := p.execPrint(l)
 	p.execVars(l, &res)
 	p.execCount()
@@ -34,14 +34,14 @@ func (p *flowPrinter) execBody(l *execlower.Lowered) BodyResult {
 }
 
 // execPrint prints the body of the lowered function l with the flow printer p.
-func (p *flowPrinter) execPrint(l *execlower.Lowered) BodyResult {
+func (p *flowPrinter) execPrint(l *execdata.Lowered) BodyResult {
 	return Body(l.Module, l.Func, p.execTarget(), l.Vars)
 }
 
 // execVars checks the variables of the printed body res of the lowered function l: a variable that
 // the body names but that is not declared is an internal error (Generator.FlowErr). Hooks.FlowVarsMutant and Hooks.FlowVarsMutantUses instead leave variables
 // undeclared, without the check.
-func (p *flowPrinter) execVars(l *execlower.Lowered, res *BodyResult) {
+func (p *flowPrinter) execVars(l *execdata.Lowered, res *BodyResult) {
 	if p.g.hooks.FlowVarsMutant {
 		// The locals that the body names stay undeclared.
 		for _, v := range l.Vars {
@@ -197,7 +197,7 @@ func goPrec(text string) int {
 }
 
 // execFlatRule prints the lowered local function l as a flat rule (flowTypedRule).
-func (g *Generator) execFlatRule(p *flowPrinter, l *execlower.Lowered) *flatRule {
+func (g *Generator) execFlatRule(p *flowPrinter, l *execdata.Lowered) *flatRule {
 	fn := l.Func
 	res := p.execBody(l)
 	st := res.Stores
@@ -228,7 +228,7 @@ func (g *Generator) execFlatRule(p *flowPrinter, l *execlower.Lowered) *flatRule
 // plan has accepted the function as the lowering wrote it (flowplan.Unit); if the forms that the
 // Go passes chose make codepass.RefusesFlat reject it, the generation fails with an internal error
 // (Generator.FlowErr) and execRecRule returns nil. It counts only a rule it prints.
-func (g *Generator) execRecRule(p *flowPrinter, l *execlower.Lowered) *flatRule {
+func (g *Generator) execRecRule(p *flowPrinter, l *execdata.Lowered) *flatRule {
 	fn := l.Func
 	res := p.execPrint(l)
 	if a := prim.AttrsOf(fn); codepass.RefusesFlat(fn, a.Start, a.Ctx, prim.VarsOf(fn)) {
@@ -267,7 +267,7 @@ func (g *Generator) execRecRule(p *flowPrinter, l *execlower.Lowered) *flatRule 
 }
 
 // execFramed prints the lowered framed function l as flowFramed does.
-func (g *Generator) execFramed(p *flowPrinter, l *execlower.Lowered, slots []irc.Slot, scope *check.Scope, comment string, ruleBody bool) string {
+func (g *Generator) execFramed(p *flowPrinter, l *execdata.Lowered, slots []irc.Slot, scope *check.Scope, comment string, ruleBody bool) string {
 	fn := l.Func
 	res := p.execBody(l)
 	st := res.Stores

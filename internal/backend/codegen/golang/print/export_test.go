@@ -2,7 +2,7 @@ package print
 
 import (
 	"syntaxir.dev/sxir/internal/middleend/codepass"
-	"syntaxir.dev/sxir/internal/middleend/execlower"
+	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 )
 
 // The tests of package gogen_test compile grammars with the engine, which imports packages that
@@ -27,7 +27,7 @@ func ExecVarsError(text string, dead ...string) error {
 	for _, v := range dead {
 		res.Stores.Dead[v] = true
 	}
-	(&flowPrinter{g: g}).execVars(&execlower.Lowered{}, res)
+	(&flowPrinter{g: g}).execVars(&execdata.Lowered{}, res)
 	return g.FlowErr
 }
 

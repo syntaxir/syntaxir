@@ -19,6 +19,7 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
+	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 )
 
 // Stage is the name of the Exec stage of Code IR, and Dialect the name of its dialect.
@@ -43,56 +44,6 @@ func FlowOp(name string) string {
 	return flow.Dialect + "." + strings.TrimPrefix(name, primPrefix)
 }
 
-// Lowered is a function of grammar code at the Exec stage.
-type Lowered struct {
-	// Module declares the registers, handle types and operations that Func calls, and holds Func.
-	Module *code.Module
-	Func   *code.Func
-	// Vars are the locals of Func that are variables of the lowered function (prim.Attrs.Vars); the
-	// other locals are its entry variables, which the caller declares.
-	Vars []string
-}
-
-// Clone returns a copy of l that a pass may change without changing l: a copy of its module
-// (code.Module.Clone) with the copy of its function.
-func (l *Lowered) Clone() *Lowered {
-	m := l.Module.Clone()
-	out := &Lowered{Module: m, Func: l.Func, Vars: slices.Clone(l.Vars)}
-	if i := slices.Index(l.Module.Funcs, l.Func); i >= 0 {
-		out.Func = m.Funcs[i]
-	}
-	return out
-}
-
-// WithModule returns l with m, a module that passes made from l.Module, in place of its module: its
-// function is the function of m at the place of l.Func in l.Module, which must have its name and
-// keep the variables (Keeps). l is not changed. A module without that function, or whose function
-// lost a variable, is an error.
-func (l *Lowered) WithModule(m *code.Module) (*Lowered, error) {
-	if i := slices.Index(l.Module.Funcs, l.Func); i >= 0 && i < len(m.Funcs) && m.Funcs[i].Name == l.Func.Name {
-		out := &Lowered{Module: m, Func: m.Funcs[i], Vars: l.Vars}
-		if err := out.Keeps(); err != nil {
-			return nil, err
-		}
-		return out, nil
-	}
-	return nil, fmt.Errorf("an Exec pass replaced or removed the function %s", l.Func.Name)
-}
-
-// Keeps reports an error if the module of l no longer holds l.Func, or l.Func no longer declares a
-// local of l.Vars: what the printers print, so what every pass on a lowered function keeps.
-func (l *Lowered) Keeps() error {
-	if !slices.Contains(l.Module.Funcs, l.Func) {
-		return fmt.Errorf("an Exec pass replaced or removed the function %s", l.Func.Name)
-	}
-	for _, v := range l.Vars {
-		if !slices.ContainsFunc(l.Func.Locals, func(p code.Param) bool { return p.Name == v }) {
-			return fmt.Errorf("an Exec pass removed the local %s of the function %s", v, l.Func.Name)
-		}
-	}
-	return nil
-}
-
 // Lower converts the module m from the Flow stage to the Exec stage. The functions of m move to the
 // result with their Exec-stage attributes, and the result declares the registers and handle types of
 // m and the primitive of each Flow operation; m is not used after. The result is verified (Verify),
@@ -100,21 +51,12 @@ func (l *Lowered) Keeps() error {
 func Lower(m *code.Module) (*code.Module, error) {
 	out, err := lower(m)
 	if err == nil {
-		err = Verify(out)
+		err = execdata.Verify(out)
 	}
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
-}
-
-// Verify checks a module that the conversion made with the verifier of the Exec stage
-// (prim.VerifyModule). A module it rejects is an error of the conversion, which names the module.
-func Verify(m *code.Module) error {
-	if err := prim.VerifyModule(m); err != nil {
-		return fmt.Errorf("lower %s: %w", m.Name, err)
-	}
-	return nil
 }
 
 // lower is Lower without the verification of the result.

@@ -6,7 +6,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec"
-	"syntaxir.dev/sxir/internal/middleend/execlower"
+	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/pass/pipe"
 )
@@ -20,15 +20,15 @@ var ColdPaths = map[string]string{"expect": "expectSlow"}
 
 // Library is the pipeline of the Go Exec passes of the library's compositions. Its passes run on a
 // specialized composition with the module that declares it; the rule bodies' pipeline is Pipeline.
-var Library = pipe.Seq(execlower.LoweredIR, pipe.New(pipe.Def[*execlower.Lowered, *execlower.Lowered]{
+var Library = pipe.Seq(execdata.LoweredIR, pipe.New(pipe.Def[*execdata.Lowered, *execdata.Lowered]{
 	Decl: pipe.Decl{
 		Name:     PassColdPath,
 		Required: true,
 		Obligation: "The guard returns when the function returns before its first effect, and otherwise calls the cold function " +
 			"with the parameters, which runs the rest of the function: the pair does what the function does.",
 	},
-	In: execlower.LoweredIR, Out: execlower.LoweredIR,
-	Run: func(_ *pipe.Ctx[*execlower.Lowered], l *execlower.Lowered) (*execlower.Lowered, pass.PreservedSet, error) {
+	In: execdata.LoweredIR, Out: execdata.LoweredIR,
+	Run: func(_ *pipe.Ctx[*execdata.Lowered], l *execdata.Lowered) (*execdata.Lowered, pass.PreservedSet, error) {
 		cold, ok := ColdPaths[l.Func.Name]
 		if !ok || slices.Contains(l.Func.Features, exec.Budget) {
 			return l, pass.PreserveAll(), nil
@@ -45,7 +45,7 @@ var Library = pipe.Seq(execlower.LoweredIR, pipe.New(pipe.Def[*execlower.Lowered
 // at once, into the guard function, which calls the function cold with the guard function's parameters,
 // and cold, which runs the rest of the body and is kept out of its callers (code.Func.NoInline) so that
 // the guard stays small enough to inline. cold is added to the module after the other functions.
-func splitColdPath(l *execlower.Lowered, cold string) (*execlower.Lowered, error) {
+func splitColdPath(l *execdata.Lowered, cold string) (*execdata.Lowered, error) {
 	f := l.Func
 	n := 0
 	for n < len(f.Body.Stmts) && isGuard(f.Body.Stmts[n]) {

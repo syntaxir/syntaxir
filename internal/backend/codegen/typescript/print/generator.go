@@ -18,6 +18,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/types"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	rprogram "syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -293,7 +294,7 @@ type Generator struct {
 	// functions the printer prints; nil if its Core IR or its lowering failed (FlowErr).
 	table *plandata.Table[code.Exec]
 	// tables are the tables of the compilation at the Exec stage that the printer prints.
-	tables   *common.Tables
+	tables   *execdata.Tables
 	reachErr error
 	// printed holds, for each table, the rules that the printed code of each rule calls (by ID).
 	printed map[string]map[int][]int

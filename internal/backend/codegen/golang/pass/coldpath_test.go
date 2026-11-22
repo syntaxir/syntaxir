@@ -7,7 +7,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec"
-	"syntaxir.dev/sxir/internal/middleend/execlower"
+	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 	"syntaxir.dev/sxir/internal/pass/pipe"
 )
 
@@ -22,9 +22,9 @@ func coldModule(name string, features []string, body func(b *code.Builder)) (*co
 	return m, f
 }
 
-func runCold(t *testing.T, m *code.Module, f *code.Func) (*execlower.Lowered, error) {
+func runCold(t *testing.T, m *code.Module, f *code.Func) (*execdata.Lowered, error) {
 	t.Helper()
-	return pipe.Execute(context.Background(), &pipe.Run{VerifyEach: true}, Library, &execlower.Lowered{Module: m, Func: f})
+	return pipe.Execute(context.Background(), &pipe.Run{VerifyEach: true}, Library, &execdata.Lowered{Module: m, Func: f})
 }
 
 func TestColdPathSplitsTheGuard(t *testing.T) {

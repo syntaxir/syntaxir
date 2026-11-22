@@ -93,6 +93,7 @@ var layout = []place{
 	// lower splits into Flow to Exec (internal/middleend/execlower) and action-expression
 	// lowering (internal/middleend/flowlower).
 	{pkg: "internal/middleend/execlower", target: "internal/middleend/execlower"},
+	{pkg: "internal/middleend/execlower/execdata", target: "internal/middleend/execlower/execdata"},
 	{pkg: "internal/middleend/codepass", target: "internal/middleend/codepass"},
 
 	// Back end.

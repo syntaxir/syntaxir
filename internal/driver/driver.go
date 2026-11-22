@@ -14,7 +14,7 @@ import (
 	tspass "syntaxir.dev/sxir/internal/backend/codegen/typescript/pass"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
-	"syntaxir.dev/sxir/internal/middleend/execlower"
+	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 	"syntaxir.dev/sxir/internal/middleend/flowplan"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/pass/pipe"
@@ -416,7 +416,7 @@ func qualified(backend, instance string) string {
 
 // targetPipeline is the pipeline of the Exec passes of one target (golang/pass, typescript/pass), which
 // run on a lowered function after the Exec passes that every target runs (lowering).
-type targetPipeline = pipe.Pipeline[*execlower.Lowered, *execlower.Lowered]
+type targetPipeline = pipe.Pipeline[*execdata.Lowered, *execdata.Lowered]
 
 // targets holds the Exec passes of the targets, which -print-after names (PrintNames).
-var targets = [][]*pipe.Pass[*execlower.Lowered, *execlower.Lowered]{gopass.Passes, tspass.Passes}
+var targets = [][]*pipe.Pass[*execdata.Lowered, *execdata.Lowered]{gopass.Passes, tspass.Passes}

@@ -8,7 +8,7 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/middleend/codepass"
-	"syntaxir.dev/sxir/internal/middleend/execlower"
+	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 )
 
 // Rules printed from the Exec stage of Code IR.
@@ -23,7 +23,7 @@ import (
 
 // printTSFlowExec prints the function l of the table, lowered to the Exec stage with the TypeScript
 // passes (lowerTable), and returns its body, its variable declarations and the declarations it needs.
-func (g *Generator) printTSFlowExec(l *execlower.Lowered) (string, []string, []tsDecl) {
+func (g *Generator) printTSFlowExec(l *execdata.Lowered) (string, []string, []tsDecl) {
 	a := prim.AttrsOf(l.Func)
 	g.ExecFuncs++
 	vars := map[string]bool{}

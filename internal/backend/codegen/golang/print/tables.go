@@ -9,6 +9,7 @@ import (
 	"syntaxir.dev/sxir/internal/driver/result"
 	irbuild "syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 	"syntaxir.dev/sxir/internal/middleend/flowlower"
 	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
 	"syntaxir.dev/sxir/internal/middleend/flowpass"
@@ -336,10 +337,10 @@ func (d *Decision) tableIR(s tableSpec, m *core.Module) *plandata.TableIR {
 
 // Printing is the step print-go: it prints the files of the Go parser of the target of the pipeline
 // (common.TargetFeature) from its tables at the Exec stage.
-var Printing = pipe.New(pipe.Def[*common.Tables, result.Output]{
+var Printing = pipe.New(pipe.Def[*execdata.Tables, result.Output]{
 	Decl: pipe.Decl{Name: "print-go", Required: true, Obligation: "The files are the Go parser of the tables.", Features: []pipe.FeatureID{common.TargetFeature.ID()}},
-	In:   common.TablesIR, Out: result.IR,
-	Run: func(c *pipe.Ctx[*common.Tables], t *common.Tables) (result.Output, pass.PreservedSet, error) {
+	In:   execdata.TablesIR, Out: result.IR,
+	Run: func(c *pipe.Ctx[*execdata.Tables], t *execdata.Tables) (result.Output, pass.PreservedSet, error) {
 		target, ok := pipe.Feature(c, common.TargetFeature).(*GoTarget)
 		if !ok {
 			return nil, pass.PreserveNone(), fmt.Errorf("internal error: print-go runs for the target %s", pipe.Feature(c, common.TargetFeature).Backend())

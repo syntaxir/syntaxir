@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"fmt"
 	"slices"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
@@ -11,6 +12,7 @@ import (
 	"syntaxir.dev/sxir/internal/middleend/codepass"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/middleend/execlower"
+	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 	"syntaxir.dev/sxir/internal/middleend/flowlower"
 	"syntaxir.dev/sxir/internal/middleend/flowpass"
 	"syntaxir.dev/sxir/internal/middleend/flowplan"
@@ -72,8 +74,8 @@ var tableConfig = pipe.RegisterDerive(plandata.PlannedIR, &pipe.Derive[plandata.
 // function of the module, pass by pass (pipe.PerFunc), and flow-finish ends each function, also after a
 // failed pass. The conversion execlower converts the module to the Exec stage, which its
 // postcondition verifies; the Exec passes that every target runs and then those of target run on each
-// function, the latter as a lowered function (execlower.LoweredFuncs), which keeps what the printers
-// print: the function in its module with its variables (execlower.Lowered.Keeps). Every pass keeps the
+// function, the latter as a lowered function (execdata.LoweredFuncs), which keeps what the printers
+// print: the function in its module with its variables (execdata.Lowered.Keeps). Every pass keeps the
 // functions of the plan in the module, which the lenses of the module check (plandata.Table.With).
 //
 // The plan and the Core module of the planned table stay the caller's: flowlower only reads them, and
@@ -82,7 +84,7 @@ var tableConfig = pipe.RegisterDerive(plandata.PlannedIR, &pipe.Derive[plandata.
 func lowering(flowTarget flowpass.Target, target targetPipeline) pipe.Pipeline[plandata.Planned, *plandata.Table[code.Exec]] {
 	exec := pipe.Then(pipe.Of(execlower.Lowering), pipe.Within(plandata.ExecModule, pipe.Then(
 		pipe.PerFunc(code.ExecFuncs, pipe.Slot(ExecSlot, pipe.Seq(code.ExecStage, codepass.Passes...))),
-		pipe.PerFunc(execlower.LoweredFuncs, pipe.Slot(TargetSlot, target)))))
+		pipe.PerFunc(execdata.LoweredFuncs, pipe.Slot(TargetSlot, target)))))
 	return pipe.WithDerived(tableConfig, pipe.Then3(pipe.Of(flowlower.Lowering), flowStage(flowTarget), exec))
 }
 
@@ -100,10 +102,10 @@ func flowStage(flowTarget flowpass.Target) pipe.Pipeline[*plandata.Table[code.Fl
 // plannedTables is the split planned-tables of every backend that plans the program: it splits the
 // plan into the planned tables of the program (plandata.Program.Units), labeled as their units, and
 // joins them, at the Exec stage, into tables@exec, numbering the expectation table from the Node and
-// recognizer tables with every rule (common.JoinTables). A table that the plan prunes has a part of
+// recognizer tables with every rule (joinTables). A table that the plan prunes has a part of
 // the functions it leaves out, labeled with flowplan.UnreachableSuffix, which only the numbering
 // reads.
-var plannedTables = pipe.RegisterSplit(plandata.ProgramIR, plandata.PlannedIR, plandata.ExecTable, common.TablesIR, &pipe.Split[*plandata.Program, plandata.Planned, *plandata.Table[code.Exec], *common.Tables]{
+var plannedTables = pipe.RegisterSplit(plandata.ProgramIR, plandata.PlannedIR, plandata.ExecTable, execdata.TablesIR, &pipe.Split[*plandata.Program, plandata.Planned, *plandata.Table[code.Exec], *execdata.Tables]{
 	Name: "planned-tables", Labels: plannedLabels(goprint.TableLabels, tsprint.TableLabels),
 	Parts: func(p *plandata.Program) ([]plandata.Planned, []string, error) {
 		units, labels := make([]plandata.Planned, len(p.Units)), make([]string, len(p.Units))
@@ -112,7 +114,7 @@ var plannedTables = pipe.RegisterSplit(plandata.ProgramIR, plandata.PlannedIR, p
 		}
 		return units, labels, nil
 	},
-	Join: common.JoinTables,
+	Join: joinTables,
 })
 
 // plannedLabels returns the labels of the planned tables of the backends whose tables are labeled
@@ -134,4 +136,27 @@ func plannedLabels(labels ...[]string) []string {
 		}
 	}
 	return out
+}
+
+// joinTables returns the tables at the Exec stage of the program planned as p, given the table
+// of each unit of p at the Exec stage, in the order of p.Units: the tables that the parser runs, and
+// the expectation table numbered from the numbered tables (execlower.NumberedExpectations), after the
+// fixed expectations. The unreachable parts of the numbered tables, which only the numbering reads,
+// are left out.
+func joinTables(p *plandata.Program, tables []*plandata.Table[code.Exec]) (*execdata.Tables, error) {
+	if len(tables) != len(p.Units) {
+		return nil, fmt.Errorf("internal error: %d tables are lowered for the %d planned tables", len(tables), len(p.Units))
+	}
+	descs, err := execlower.NumberedExpectations(p, tables)
+	if err != nil {
+		return nil, err
+	}
+	t := &execdata.Tables{Plan: p, Descs: descs[len(core.FixedDescs):]}
+	for i, u := range p.Units {
+		if u.Printed {
+			t.Names = append(t.Names, u.Label)
+			t.Tables = append(t.Tables, tables[i])
+		}
+	}
+	return t, nil
 }

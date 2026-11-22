@@ -7,6 +7,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/driver/result"
 	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 	"syntaxir.dev/sxir/internal/middleend/flowpass"
 	"syntaxir.dev/sxir/internal/middleend/flowplan"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
@@ -116,11 +117,11 @@ func (t *TSTarget) Cores(mods []*core.Module) (*plandata.Cores, error) {
 // (plandata.ReachFeature) and the printed code enters other rules than it reaches, the step returns
 // the reach of the printed code (common.Replan) instead of the files, unless a bisection limit is
 // set (common.Debug.OptBisectLimit), under which one run numbers the runs of the optional passes.
-var Printing = pipe.New(pipe.Def[*common.Tables, result.Output]{
+var Printing = pipe.New(pipe.Def[*execdata.Tables, result.Output]{
 	Decl: pipe.Decl{Name: "print-ts", Required: true, Obligation: "The files are the TypeScript parser of the tables.",
 		Features: []pipe.FeatureID{common.TargetFeature.ID(), plandata.ReachFeature.ID()}},
-	In: common.TablesIR, Out: result.IR,
-	Run: func(c *pipe.Ctx[*common.Tables], t *common.Tables) (result.Output, pass.PreservedSet, error) {
+	In: execdata.TablesIR, Out: result.IR,
+	Run: func(c *pipe.Ctx[*execdata.Tables], t *execdata.Tables) (result.Output, pass.PreservedSet, error) {
 		target, ok := pipe.Feature(c, common.TargetFeature).(*TSTarget)
 		if !ok {
 			return nil, pass.PreserveNone(), fmt.Errorf("internal error: print-ts runs for the target %s", pipe.Feature(c, common.TargetFeature).Backend())
@@ -136,7 +137,7 @@ var Printing = pipe.New(pipe.Def[*common.Tables, result.Output]{
 // print prints the parser of the target from its tables t at the Exec stage, or returns the reach of
 // the printed code (common.Replan) if it differs from that of the plan, unless the compilation gave
 // the plan its reach (given) or a bisection limit is set.
-func (t *TSTarget) print(tables *common.Tables, given bool) (result.Output, error) {
+func (t *TSTarget) print(tables *execdata.Tables, given bool) (result.Output, error) {
 	rec, err := t.rec()
 	if err != nil {
 		return nil, err

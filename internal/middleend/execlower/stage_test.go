@@ -9,6 +9,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
+	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/pass/pipe"
 )
@@ -28,7 +29,7 @@ func TestLoweringStep(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if l := View(u.Module.Module(), 0); l.Func != fn || !slices.Equal(l.Vars, []string{"ok"}) || !slices.Contains(l.Module.Funcs, fn) || l.Module.Stage != Stage {
+	if l := execdata.View(u.Module.Module(), 0); l.Func != fn || !slices.Equal(l.Vars, []string{"ok"}) || !slices.Contains(l.Module.Funcs, fn) || l.Module.Stage != Stage {
 		t.Errorf("lowered = %+v", l)
 	}
 	// A call of an operation that the Flow module does not declare is not legal after the conversion.
@@ -53,7 +54,7 @@ func flowTable(t *testing.T, m *code.Module) *plandata.Table[code.Flow] {
 }
 
 // lowered returns a lowered function with the variable ok.
-func lowered(t *testing.T) *Lowered {
+func lowered(t *testing.T) *execdata.Lowered {
 	t.Helper()
 	m := flowModule()
 	m.Funcs[0].Attrs = &flow.Attrs{Vars: []string{"ok"}}
@@ -61,7 +62,7 @@ func lowered(t *testing.T) *Lowered {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return View(x, 0)
+	return execdata.View(x, 0)
 }
 
 // TestLoweredCopies checks that a copy of a lowered function holds the copy of its function, that
@@ -73,7 +74,7 @@ func TestLoweredCopies(t *testing.T) {
 	if c.Module == l.Module || c.Func == l.Func || !slices.Contains(c.Module.Funcs, c.Func) || c.Func.Name != "f" {
 		t.Fatalf("copy %+v", c)
 	}
-	if err := LoweredIR.Verify(c); err != nil {
+	if err := execdata.LoweredIR.Verify(c); err != nil {
 		t.Fatal(err)
 	}
 	m := l.Module.Clone()
@@ -92,10 +93,10 @@ func TestLoweredCopies(t *testing.T) {
 		t.Errorf("a function without the variable: %v", err)
 	}
 	c.Module.Funcs = append([]*code.Func{{Name: "g", Body: &code.Block{}}}, c.Module.Funcs[1:]...)
-	if err := LoweredIR.Verify(c); err == nil || !strings.Contains(err.Error(), "replaced or removed the function f") {
+	if err := execdata.LoweredIR.Verify(c); err == nil || !strings.Contains(err.Error(), "replaced or removed the function f") {
 		t.Errorf("the verifier of a module without the function: %v", err)
 	}
-	if err := LoweredIR.Verify(l); err != nil || len(l.Func.Locals) == 0 {
+	if err := execdata.LoweredIR.Verify(l); err != nil || len(l.Func.Locals) == 0 {
 		t.Errorf("changing the copies changed the function: %v", err)
 	}
 }

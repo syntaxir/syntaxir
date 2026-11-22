@@ -5,13 +5,13 @@
 package pass
 
 import (
-	"syntaxir.dev/sxir/internal/middleend/execlower"
+	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 	"syntaxir.dev/sxir/internal/pass/pipe"
 )
 
 // Passes are the Go Exec passes, in the order they run on a lowered function with its module. There
 // is none yet.
-var Passes []*pipe.Pass[*execlower.Lowered, *execlower.Lowered]
+var Passes []*pipe.Pass[*execdata.Lowered, *execdata.Lowered]
 
 // Pipeline is the pipeline of the Go Exec passes.
-var Pipeline = pipe.Seq(execlower.LoweredIR, Passes...)
+var Pipeline = pipe.Seq(execdata.LoweredIR, Passes...)

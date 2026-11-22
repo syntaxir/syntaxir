@@ -16,6 +16,7 @@ import (
 	"syntaxir.dev/sxir/internal/middleend/codepass"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/middleend/execlower"
+	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 	"syntaxir.dev/sxir/internal/middleend/flowlower"
 	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
 	"syntaxir.dev/sxir/internal/middleend/flowpass"
@@ -312,8 +313,8 @@ func planned(u lowerdata.Unit) plandata.Planned {
 
 // execFunc runs the pipeline of the planned table of framed(), labeled label, to the Exec stage as r
 // says, with the target passes target and the parser's observability observe, and returns its
-// function (execlower.View).
-func execFunc(t *testing.T, r testRun, label string, target targetPipeline, observe bool) (*execlower.Lowered, error) {
+// function (execdata.View).
+func execFunc(t *testing.T, r testRun, label string, target targetPipeline, observe bool) (*execdata.Lowered, error) {
 	t.Helper()
 	p := planned(framed())
 	p.IR.Opts.Observe = observe
@@ -321,7 +322,7 @@ func execFunc(t *testing.T, r testRun, label string, target targetPipeline, obse
 	if x == nil {
 		return nil, err
 	}
-	return execlower.View(x.Module.Module(), 0), err
+	return execdata.View(x.Module.Module(), 0), err
 }
 
 // comments counts the comments that testFlowPass added to the function of m.
@@ -628,7 +629,7 @@ var (
 )
 
 // noTarget is the pipeline of a target without Exec passes of its own.
-var noTarget = pipe.Seq(execlower.LoweredIR)
+var noTarget = pipe.Seq(execdata.LoweredIR)
 
 // An Exec pass runs when its flag is on and a flag turns it off; the dumps show each function of the
 // module as lowered under "execlower" and after each selected pass, and a pass that breaks the module is
@@ -690,10 +691,10 @@ var (
 			return u, pass.PreserveAll(), errBroken
 		},
 	})
-	testTargetFail = pipe.New(pipe.Def[*execlower.Lowered, *execlower.Lowered]{
+	testTargetFail = pipe.New(pipe.Def[*execdata.Lowered, *execdata.Lowered]{
 		Decl: pipe.Decl{Name: "test-target-fail", Test: true, Obligation: "none: it fails"},
-		In:   execlower.LoweredIR, Out: execlower.LoweredIR,
-		Run: func(_ *pipe.Ctx[*execlower.Lowered], l *execlower.Lowered) (*execlower.Lowered, pass.PreservedSet, error) {
+		In:   execdata.LoweredIR, Out: execdata.LoweredIR,
+		Run: func(_ *pipe.Ctx[*execdata.Lowered], l *execdata.Lowered) (*execdata.Lowered, pass.PreservedSet, error) {
 			wreck(l.Func)
 			return l, pass.PreserveAll(), errBroken
 		},
@@ -706,7 +707,7 @@ var (
 // pass left it, and it keeps what the printers print (Lowered.Keeps). This holds without VerifyEach,
 // which copies before every pass anyway.
 func TestDriverExecFailureKeepsTheLoweredFunction(t *testing.T) {
-	printed := func(l *execlower.Lowered) string { return code.FuncStringIn(l.Module, l.Func) }
+	printed := func(l *execdata.Lowered) string { return code.FuncStringIn(l.Module, l.Func) }
 	whole, err := execFunc(t, testRun{}, "typed", noTarget, false)
 	if err != nil {
 		t.Fatal(err)
@@ -722,7 +723,7 @@ func TestDriverExecFailureKeepsTheLoweredFunction(t *testing.T) {
 		failed string
 	}{
 		{"a pass that every target runs", testRun{edits: []pipe.Edit{execPasses(testExecFail)}}, noTarget, testExecFail.Name()},
-		{"a pass of the target", testRun{}, pipe.Seq(execlower.LoweredIR, testTargetFail), testTargetFail.Name()},
+		{"a pass of the target", testRun{}, pipe.Seq(execdata.LoweredIR, testTargetFail), testTargetFail.Name()},
 	} {
 		l, err := execFunc(t, c.r, "typed", c.target, false)
 		if !errors.Is(err, errBroken) || !strings.HasPrefix(err.Error(), "internal error: "+c.failed+" [typed/r]: ") {

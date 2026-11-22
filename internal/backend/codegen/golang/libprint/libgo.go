@@ -13,7 +13,7 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code/exec"
 	"syntaxir.dev/sxir/internal/ir/code/exec/compose"
 	"syntaxir.dev/sxir/internal/middleend/codepass"
-	"syntaxir.dev/sxir/internal/middleend/execlower"
+	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 	"syntaxir.dev/sxir/internal/pass/pipe"
 )
 
@@ -232,7 +232,7 @@ func goFuncs(m *code.Module, s goSpec) ([]*code.Func, error) {
 	}
 	with := *m
 	with.Funcs = append(slices.Clone(m.Funcs), f)
-	l, err := pipe.Execute(context.Background(), &pipe.Run{}, gopass.Library, &execlower.Lowered{Module: &with, Func: f})
+	l, err := pipe.Execute(context.Background(), &pipe.Run{}, gopass.Library, &execdata.Lowered{Module: &with, Func: f})
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", s.fn, err)
 	}

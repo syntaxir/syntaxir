@@ -10,7 +10,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/internal/middleend/execlower"
+	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	rprogram "syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -55,7 +55,7 @@ func (g *Generator) flowRule(r *common.Rule, scope *check.Scope) (call string, o
 	if g.table == nil {
 		return "", false
 	}
-	l, ok := execlower.Func(g.table, plandata.Key{Use: plandata.RuleBody, Rule: r.ID})
+	l, ok := execdata.Func(g.table, plandata.Key{Use: plandata.RuleBody, Rule: r.ID})
 	if !ok {
 		return "", false
 	}
@@ -67,7 +67,7 @@ func (g *Generator) flowRule(r *common.Rule, scope *check.Scope) (call string, o
 // print l. On success it sets scope to the capture scope of a framed l. The comment describes the
 // function. The function of a rule body (ruleBody) charges the unit of the body's evaluation first,
 // as Method does.
-func (g *Generator) flowFunc(l *execlower.Lowered, slots []core.Slot, scope *check.Scope, comment string, ruleBody bool) (call string, ok bool) {
+func (g *Generator) flowFunc(l *execdata.Lowered, slots []core.Slot, scope *check.Scope, comment string, ruleBody bool) (call string, ok bool) {
 	defer func() {
 		if e := recover(); e != nil {
 			if _, unsupported := e.(tsFlowUnsupported); !unsupported {
@@ -349,7 +349,7 @@ func (g *Generator) flowLine(k plandata.Key, l *core.OpLine, scope *check.Scope)
 	if g.table == nil || l == nil {
 		return "", false
 	}
-	x, ok := execlower.Func(g.table, k)
+	x, ok := execdata.Func(g.table, k)
 	if !ok {
 		return "", false
 	}

@@ -10,6 +10,7 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 )
 
 // TestEveryFlowOperationHasItsPrimitive is the specification test of the primitives (design record
@@ -108,7 +109,7 @@ func TestLowerConvertsTheAttributes(t *testing.T) {
 			t.Errorf("the attribute %s is %v, want %v", name, ov.Field(i), iv.FieldByName(name))
 		}
 	}
-	if l := View(x, 0); !slices.Equal(l.Vars, in.Vars) {
+	if l := execdata.View(x, 0); !slices.Equal(l.Vars, in.Vars) {
 		t.Errorf("the lowered function has the variables %v, want %v", l.Vars, in.Vars)
 	}
 }
@@ -136,10 +137,10 @@ func TestExecVerifierRejectsFlowAttributes(t *testing.T) {
 	if err := code.ExecStage.Verify(code.At[code.Exec]{}.With(l.Module)); err == nil || !strings.Contains(err.Error(), want) {
 		t.Errorf("the kind of the Exec stage: %v", err)
 	}
-	if err := Verify(l.Module); err == nil || !strings.Contains(err.Error(), want) {
+	if err := execdata.Verify(l.Module); err == nil || !strings.Contains(err.Error(), want) {
 		t.Errorf("the postcondition of the conversion: %v", err)
 	}
-	if err := LoweredIR.Verify(l); err == nil || !strings.Contains(err.Error(), want) {
+	if err := execdata.LoweredIR.Verify(l); err == nil || !strings.Contains(err.Error(), want) {
 		t.Errorf("the kind of a lowered function: %v", err)
 	}
 }

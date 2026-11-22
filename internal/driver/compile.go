@@ -15,7 +15,7 @@ import (
 	"syntaxir.dev/sxir/internal/driver/result"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
-	"syntaxir.dev/sxir/internal/middleend/execlower"
+	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/pass/pipe"
@@ -66,7 +66,7 @@ var (
 	CoreSlot   = pipe.NewSlot("core-passes", corepass.IR)
 	FlowSlot   = pipe.NewSlot("flow-passes", code.FlowStage)
 	ExecSlot   = pipe.NewSlot("exec-passes", code.ExecStage)
-	TargetSlot = pipe.NewSlot("target-passes", execlower.LoweredIR)
+	TargetSlot = pipe.NewSlot("target-passes", execdata.LoweredIR)
 )
 
 // Compile runs one pipeline for the targets under one manager. On an error it returns no output and

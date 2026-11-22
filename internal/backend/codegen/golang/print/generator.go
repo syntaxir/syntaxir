@@ -18,6 +18,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/types"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/pass"
@@ -94,7 +95,7 @@ type Hooks struct {
 // printTables prints the files of the Go parser d from its tables t at the Exec stage, with the
 // settings of the compilation and the hooks h of a test, and returns them with the generator that
 // printed them.
-func printTables(d *Decision, settings pass.Settings, t *common.Tables, h Hooks) (files []common.GeneratedFile, genGo *Generator, err error) {
+func printTables(d *Decision, settings pass.Settings, t *execdata.Tables, h Hooks) (files []common.GeneratedFile, genGo *Generator, err error) {
 	opts, prog, rec, start := d.Opts, d.Prog, d.Rec, d.Start
 	info, err := loadLib(opts)
 	if err != nil {
@@ -415,7 +416,7 @@ type Generator struct {
 	recoveryProg        map[*common.Program]bool // whether a program can recover from errors
 	tableErr            error                    // the rule table does not fit the form of the library's RuleSpec
 	hooks               Hooks                    // the zero value changes nothing
-	tables              *common.Tables           // the tables being printed, at the Exec stage
+	tables              *execdata.Tables         // the tables being printed, at the Exec stage
 	// chunksInLib is set when the typed values take their storage from the library (Chunk).
 	chunksInLib    bool
 	ruleTypesDone  bool // the types of the rule table entries are written

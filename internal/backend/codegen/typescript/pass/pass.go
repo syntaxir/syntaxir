@@ -8,6 +8,7 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/middleend/execlower"
+	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/pass/pipe"
 )
@@ -35,36 +36,36 @@ type Failed struct{ Flag string }
 
 // Passes are the TypeScript Exec passes, in the order they run on a lowered function with its module;
 // they change the function only.
-var Passes = []*pipe.Pass[*execlower.Lowered, *execlower.Lowered]{
-	pipe.New(pipe.Def[*execlower.Lowered, *execlower.Lowered]{
+var Passes = []*pipe.Pass[*execdata.Lowered, *execdata.Lowered]{
+	pipe.New(pipe.Def[*execdata.Lowered, *execdata.Lowered]{
 		Decl: pipe.Decl{
 			Name:       PassSpendRuns,
 			Obligation: "One spend of n units charges what the n charges in a row it replaces charge, in the same place.",
 		},
-		In: execlower.LoweredIR, Out: execlower.LoweredIR,
-		Run: func(_ *pipe.Ctx[*execlower.Lowered], l *execlower.Lowered) (*execlower.Lowered, pass.PreservedSet, error) {
+		In: execdata.LoweredIR, Out: execdata.LoweredIR,
+		Run: func(_ *pipe.Ctx[*execdata.Lowered], l *execdata.Lowered) (*execdata.Lowered, pass.PreservedSet, error) {
 			spendRuns(l)
 			return l, pass.PreserveNone(), nil
 		},
 	}),
-	pipe.New(pipe.Def[*execlower.Lowered, *execlower.Lowered]{
+	pipe.New(pipe.Def[*execdata.Lowered, *execdata.Lowered]{
 		Decl: pipe.Decl{
 			Name:       PassMergedRecords,
 			Obligation: "unisolateMerge ends the expectation record and merges its expectations into the enclosing record, as the end and the merge it replaces do.",
 		},
-		In: execlower.LoweredIR, Out: execlower.LoweredIR,
-		Run: func(_ *pipe.Ctx[*execlower.Lowered], l *execlower.Lowered) (*execlower.Lowered, pass.PreservedSet, error) {
+		In: execdata.LoweredIR, Out: execdata.LoweredIR,
+		Run: func(_ *pipe.Ctx[*execdata.Lowered], l *execdata.Lowered) (*execdata.Lowered, pass.PreservedSet, error) {
 			mergedRecords(l)
 			return l, pass.PreserveNone(), nil
 		},
 	}),
-	pipe.New(pipe.Def[*execlower.Lowered, *execlower.Lowered]{
+	pipe.New(pipe.Def[*execdata.Lowered, *execdata.Lowered]{
 		Decl: pipe.Decl{
 			Name:       PassTestedInits,
 			Obligation: "The condition reports that the call of the If's Init failed, as the negation of the bool the Init sets does.",
 		},
-		In: execlower.LoweredIR, Out: execlower.LoweredIR,
-		Run: func(_ *pipe.Ctx[*execlower.Lowered], l *execlower.Lowered) (*execlower.Lowered, pass.PreservedSet, error) {
+		In: execdata.LoweredIR, Out: execdata.LoweredIR,
+		Run: func(_ *pipe.Ctx[*execdata.Lowered], l *execdata.Lowered) (*execdata.Lowered, pass.PreservedSet, error) {
 			testedInits(l)
 			return l, pass.PreserveNone(), nil
 		},
@@ -72,7 +73,7 @@ var Passes = []*pipe.Pass[*execlower.Lowered, *execlower.Lowered]{
 }
 
 // Pipeline is the pipeline of the TypeScript Exec passes.
-var Pipeline = pipe.Seq(execlower.LoweredIR, Passes...)
+var Pipeline = pipe.Seq(execdata.LoweredIR, Passes...)
 
 func init() {
 	pass.Register(
@@ -83,14 +84,14 @@ func init() {
 }
 
 // addOp declares the primitive operation o of the target in the module of l.
-func addOp(l *execlower.Lowered, o *code.Op) {
+func addOp(l *execdata.Lowered, o *code.Op) {
 	o.Component, o.Dialect, o.Kind = prim.Component, execlower.Dialect, code.OpPrimitive
 	l.Module.AddOp(o)
 }
 
 // rewrite replaces each statement list of the function of l, at any depth, with what f makes of it,
 // inner lists first.
-func rewrite(l *execlower.Lowered, f func([]code.Stmt) []code.Stmt) {
+func rewrite(l *execdata.Lowered, f func([]code.Stmt) []code.Stmt) {
 	var block func(ss []code.Stmt) []code.Stmt
 	block = func(ss []code.Stmt) []code.Stmt {
 		for _, s := range ss {
@@ -112,7 +113,7 @@ func rewrite(l *execlower.Lowered, f func([]code.Stmt) []code.Stmt) {
 }
 
 // spendRuns replaces each run of charges with one call of SpendOp.
-func spendRuns(l *execlower.Lowered) {
+func spendRuns(l *execdata.Lowered) {
 	addOp(l, &code.Op{Name: SpendOp, Writes: []string{prim.Component}, NoReturn: true,
 		Imm: "the number of charges", Contract: "Charges a step as many times as Imm says."})
 	rewrite(l, func(ss []code.Stmt) []code.Stmt {
@@ -135,7 +136,7 @@ func spendRuns(l *execlower.Lowered) {
 
 // mergedRecords replaces each end of an expectation record that a merge of its expectations follows
 // with one call of MergeOp.
-func mergedRecords(l *execlower.Lowered) {
+func mergedRecords(l *execdata.Lowered) {
 	addOp(l, &code.Op{Name: MergeOp, Params: []code.Param{code.P("m", code.THandle(prim.TExpMark))},
 		Reads: []string{prim.Component}, Writes: []string{prim.Component}, NoReturn: true,
 		Contract: "Ends the expectation record m and merges its expectations into the enclosing record."})
@@ -157,7 +158,7 @@ func mergedRecords(l *execlower.Lowered) {
 
 // testedInits replaces the condition of each If that tests the call of its Init with a call of
 // FailedOp, so that nothing else reads the bool the Init sets.
-func testedInits(l *execlower.Lowered) {
+func testedInits(l *execdata.Lowered) {
 	addOp(l, &code.Op{Name: FailedOp, Results: []code.Type{code.TBool}, Reads: []string{prim.Component},
 		Imm: "the bool the Init sets", Contract: "Reports that the call of the Init of the If failed: that the bool it sets is false."})
 	rewrite(l, func(ss []code.Stmt) []code.Stmt {

@@ -9,7 +9,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/internal/middleend/execlower"
+	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 	"syntaxir.dev/sxir/internal/middleend/flowlower"
 	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
@@ -158,7 +158,7 @@ func (g *Generator) flowOperatorsRule(r *common.Rule) *core.OperatorsRule {
 // flowFramed prints the framed function f, whose capture scope has the slots, as a matcher method
 // with the comment, as finishFrameBody does, and sets scope to its capture scope. A rule body (ruleBody)
 // has the signature of the Body field of the rule table (see bodyMethod).
-func (g *Generator) flowFramed(l *execlower.Lowered, slots []core.Slot, scope *check.Scope, comment string, ruleBody bool) string {
+func (g *Generator) flowFramed(l *execdata.Lowered, slots []core.Slot, scope *check.Scope, comment string, ruleBody bool) string {
 	p := newFlowPrinter(g, true)
 	p.document = prim.AttrsOf(l.Func).Document
 	return g.execFramed(p, l, slots, scope, comment, ruleBody)
@@ -166,8 +166,8 @@ func (g *Generator) flowFramed(l *execlower.Lowered, slots []core.Slot, scope *c
 
 // planned returns the function of the use k in the module of the table, which the compilation lowered: the
 // plan holds it, since the printer asks only for the functions of the plan.
-func (g *Generator) planned(k plandata.Key) *execlower.Lowered {
-	l, ok := execlower.Func(g.table, k)
+func (g *Generator) planned(k plandata.Key) *execdata.Lowered {
+	l, ok := execdata.Func(g.table, k)
 	if !ok {
 		panic(fmt.Errorf("internal error: the plan of table %s has no function %+v", g.Table, k))
 	}

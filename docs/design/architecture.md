@@ -1,3 +1,4 @@
+| `internal/middleend/execlower/execdata` | The data that the conversion to the Exec stage gives, without pass code: the lowered function, its kind and the view of a module as lowered functions, the verifier of the Exec module, and the tables of a target at the Exec stage that the printers take |
 # Architecture
 
 > [!WARNING]

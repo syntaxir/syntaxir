@@ -11,7 +11,7 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/internal/middleend/execlower"
+	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	rprogram "syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -631,9 +631,9 @@ func (p *tsFlowPrinter) outline(c *code.Call) string {
 	x := c.Imm.(prim.Outline)
 	g := p.g
 	k, ok := g.table.Plan.Outlined(x.Node, x.Slots, x.Build)
-	var l *execlower.Lowered
+	var l *execdata.Lowered
 	if ok {
-		l, ok = execlower.Func(g.table, k)
+		l, ok = execdata.Func(g.table, k)
 	}
 	if !ok {
 		panic(fmt.Errorf("internal error: the table %s has no function of the outlined node of rule %s", g.Table, g.Cur.Name))

@@ -12,6 +12,7 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/middleend/codepass"
 	"syntaxir.dev/sxir/internal/middleend/execlower"
+	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 	"syntaxir.dev/sxir/internal/middleend/flowpass"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/pass"
@@ -34,12 +35,12 @@ func (g *Generator) printModule(t *testing.T, f *code.Module) (string, []string,
 		t.Fatal(err)
 	}
 	exec := pipe.Then(pipe.Of(execlower.Lowering), pipe.Within(plandata.ExecModule,
-		pipe.WithConst(flowpass.ObserveFeature, false, pipe.Then(codepass.Pipeline(), pipe.PerFunc(execlower.LoweredFuncs, tspass.Pipeline)))))
+		pipe.WithConst(flowpass.ObserveFeature, false, pipe.Then(codepass.Pipeline(), pipe.PerFunc(execdata.LoweredFuncs, tspass.Pipeline)))))
 	x, err := pipe.Execute(context.Background(), &pipe.Run{Settings: g.Opt()}, exec, in)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return g.printTSFlowExec(execlower.View(x.Module.Module(), 0))
+	return g.printTSFlowExec(execdata.View(x.Module.Module(), 0))
 }
 
 // markInIfFunc returns a framed function whose mark of the parser state is set in the body of an If
