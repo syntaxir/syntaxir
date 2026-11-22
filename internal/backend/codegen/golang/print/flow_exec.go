@@ -10,7 +10,6 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
-	"syntaxir.dev/sxir/internal/ir/code/flow"
 	irc "syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/codepass"
 	"syntaxir.dev/sxir/internal/middleend/execlower"
@@ -155,12 +154,12 @@ func (p *flowPrinter) target() *Target {
 		Handle: func(name string) string { return name },
 		Op:     p.op,
 		Stmt: func(c *code.Call, args []string, dst []string, _ bool) (string, bool) {
-			switch execlower.FlowOp(c.Callee) {
-			case flow.OpPeek:
+			switch c.Callee {
+			case prim.OpPeek:
 				return strings.TrimSuffix(p.peekText(dst[0], dst[1], dst[2]), "\n"), true
-			case flow.OpAppend:
+			case prim.OpAppend:
 				return p.appendText(c, args), true
-			case flow.OpEval:
+			case prim.OpEval:
 				v := p.op(c, args)
 				pre := p.pre
 				p.pre = ""
@@ -175,8 +174,8 @@ func (p *flowPrinter) target() *Target {
 		Negate: func(c *code.Call, args []string) (string, bool) { return p.negate(c, args), true },
 		Prec:   goPrec,
 		Pure: func(c *code.Call) bool {
-			switch execlower.FlowOp(c.Callee) {
-			case flow.OpStr, flow.OpMarkPos, flow.OpEnv, flow.OpFrame:
+			switch c.Callee {
+			case prim.OpStr, prim.OpMarkPos, prim.OpEnv, prim.OpFrame:
 				return true
 			}
 			return false

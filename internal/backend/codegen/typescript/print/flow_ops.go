@@ -10,7 +10,6 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
-	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/execlower"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
@@ -18,9 +17,9 @@ import (
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
-// The TypeScript forms of the primitive operations of grammar code at the Exec stage. Each primitive
-// stands for a Flow operation (execlower.FlowOp), whose name selects its form; the immediate holds
-// its static data and the arguments its operands.
+// The TypeScript forms of the primitive operations of grammar code at the Exec stage. The name of a
+// primitive (package prim) selects its form; the immediate holds its static data and the arguments
+// its operands.
 
 // tsFlowPrinter prints the primitives of a function of grammar code at the Exec stage.
 type tsFlowPrinter struct {
@@ -109,9 +108,9 @@ func (p *tsFlowPrinter) isRead(name string) bool {
 // tsFlowPure reports whether evaluating the call c of a primitive has no effect, so that an
 // assignment of it to nothing read is left out.
 func tsFlowPure(c *code.Call) bool {
-	switch execlower.FlowOp(c.Callee) {
-	case flow.OpEnv, flow.OpFrame, flow.OpRecLen, flow.OpKidsLen, flow.OpNewVals, flow.OpStr, flow.OpMarkPos,
-		flow.OpFrameVal, flow.OpInClass, flow.OpGuardFails, flow.OpResumeOn, flow.OpResumeMore:
+	switch c.Callee {
+	case prim.OpEnv, prim.OpFrame, prim.OpRecLen, prim.OpKidsLen, prim.OpNewVals, prim.OpStr, prim.OpMarkPos,
+		prim.OpFrameVal, prim.OpInClass, prim.OpGuardFails, prim.OpResumeOn, prim.OpResumeMore:
 		return true
 	}
 	return false
@@ -122,10 +121,10 @@ func tsPure(x code.Expr) bool { return Pure(x, tsFlowPure) }
 
 // stmtOp writes the call c of a primitive without results, whose printed arguments args returns.
 func (p *tsFlowPrinter) stmtOp(c *code.Call, args func() []string) {
-	switch execlower.FlowOp(c.Callee) {
-	case flow.OpStep:
+	switch c.Callee {
+	case prim.OpStep:
 		p.write(tsSpend(1))
-	case flow.OpSilent:
+	case prim.OpSilent:
 		s := c.Imm.(prim.Silence)
 		if s.Delta > 0 {
 			p.write("p.silent++;\n")
@@ -138,10 +137,10 @@ func (p *tsFlowPrinter) stmtOp(c *code.Call, args func() []string) {
 			}
 			p.write("p.silent--;\n")
 		}
-	case flow.OpAdvance:
+	case prim.OpAdvance:
 		p.read(c.Args...)
 		p.write("p.pos += " + args()[0] + ";\n")
-	case flow.OpExpect:
+	case prim.OpExpect:
 		p.read(c.Args...)
 		x := c.Imm.(prim.Expectation)
 		if x.Message {
@@ -149,28 +148,28 @@ func (p *tsFlowPrinter) stmtOp(c *code.Call, args func() []string) {
 		} else {
 			p.write(fmt.Sprintf("p.expect(%s, %s);\n", args()[0], p.exp(x.Exp)))
 		}
-	case flow.OpRestore:
+	case prim.OpRestore:
 		p.read(c.Args...)
 		a := args()
 		p.write(fmt.Sprintf("p.pos = %s;\np.recovered.length = %s;\n", a[0], a[1]))
-	case flow.OpMergeExpected:
+	case prim.OpMergeExpected:
 		p.read(c.Args...)
 		a := args()
 		p.write(fmt.Sprintf("p.mergeKept(%s, %s);\n", a[0], a[1]))
-	case flow.OpMergeRenamed:
+	case prim.OpMergeRenamed:
 		p.read(c.Args...)
 		a := args()
 		p.write(fmt.Sprintf("p.mergeKept(%s, p.renameExpected(%s, %d));\n", a[0], a[1], p.desc(c.Imm.(core.ExpID))))
-	case flow.OpAppendError:
+	case prim.OpAppendError:
 		p.read(c.Args...)
 		p.write(fmt.Sprintf("p.recovered.push(%s!);\n", args()[0]))
-	case flow.OpPushKid:
+	case prim.OpPushKid:
 		p.read(c.Args...)
 		p.write(fmt.Sprintf("p.kidStack.push(%s);\n", args()[0]))
-	case flow.OpDropKids:
+	case prim.OpDropKids:
 		p.read(c.Args...)
 		p.write(fmt.Sprintf("p.dropKids(%s);\n", args()[0]))
-	case flow.OpAppend:
+	case prim.OpAppend:
 		p.read(c.Args...)
 		a := args()
 		if c.Imm.(prim.Spread) {
@@ -178,53 +177,53 @@ func (p *tsFlowPrinter) stmtOp(c *code.Call, args func() []string) {
 		} else {
 			p.write(fmt.Sprintf("%s.push(%s);\n", a[0], a[1]))
 		}
-	case flow.OpSetCapture:
+	case prim.OpSetCapture:
 		p.read(c.Args...)
 		p.write(fmt.Sprintf("p.setCapture(%d, %s);\n", c.Imm.(prim.Slot), args()[0]))
-	case flow.OpClearVals:
+	case prim.OpClearVals:
 		p.read(c.Args...)
 		p.write(args()[0] + ".fill(null);\n")
-	case flow.OpFreeFrame:
+	case prim.OpFreeFrame:
 		// Frames are not pooled.
-	case flow.OpDeclareNames:
+	case prim.OpDeclareNames:
 		// The names are declared where they are first used.
-	case flow.OpReset:
+	case prim.OpReset:
 		p.write(p.reset(p.markLocal(c)))
-	case flow.OpDropTrail:
+	case prim.OpDropTrail:
 		m := p.markLocal(c)
 		if !p.marks[m].Trail {
 			panic(tsFlowUnsupported("a mark without a trail dropped"))
 		}
 		p.readName(p.part(m, 2))
 		p.write(fmt.Sprintf("p.trail.length = %sTrail;\n", m))
-	case flow.OpSkipBegin:
+	case prim.OpSkipBegin:
 		p.write(fmt.Sprintf("p.skipBegin(%d);\n", c.Imm.(prim.Site)))
-	case flow.OpRunBegin:
+	case prim.OpRunBegin:
 		w := c.Imm.(prim.RunWalk)
 		key := "null"
 		if w.KeyEnv {
 			key = p.g.runKeyName(w.Site)
 		}
 		p.write(fmt.Sprintf("p.runBegin(%d, %t, %s);\n", w.Site, w.Build, key))
-	case flow.OpSkipVisit:
+	case prim.OpSkipVisit:
 		p.write("p.skipVisit();\n")
-	case flow.OpSkipValue:
+	case prim.OpSkipValue:
 		p.write(fmt.Sprintf("p.skipValue(%s);\n", args()[0]))
-	case flow.OpSkipEnd:
+	case prim.OpSkipEnd:
 		p.write("p.skipEnd();\n")
-	case flow.OpRunWalked:
+	case prim.OpRunWalked:
 		p.write(fmt.Sprintf("p.runWalked(%d, %s);\n", c.Imm.(prim.Site), args()[0]))
-	case flow.OpScanEnd:
+	case prim.OpScanEnd:
 		a := args()
 		p.write(fmt.Sprintf("p.scanEnd(%d, %s, %s);\n", c.Imm.(prim.Site), a[0], a[1]))
-	case flow.OpResumeBegin:
+	case prim.OpResumeBegin:
 		p.write(fmt.Sprintf("p.resumeBegin(%s);\n", args()[0]))
-	case flow.OpResumeEnd:
+	case prim.OpResumeEnd:
 		a := args()
 		p.write(fmt.Sprintf("p.resumeEnd(%s, %s, %s);\n", a[0], a[1], a[2]))
-	case flow.OpResumeFinish:
+	case prim.OpResumeFinish:
 		p.write(fmt.Sprintf("p.resumeFinish(%s);\n", args()[0]))
-	case flow.OpObserveSkip:
+	case prim.OpObserveSkip:
 		if p.dead || p.dry {
 			return
 		}
@@ -239,37 +238,37 @@ func (p *tsFlowPrinter) stmtOp(c *code.Call, args func() []string) {
 // arguments args returns.
 func (p *tsFlowPrinter) expr(c *code.Call, args func() []string) string {
 	g := p.g
-	switch execlower.FlowOp(c.Callee) {
-	case flow.OpEnv:
+	switch c.Callee {
+	case prim.OpEnv:
 		return "p.env"
-	case flow.OpFrame:
+	case prim.OpFrame:
 		return "p.frame"
-	case flow.OpRecLen:
+	case prim.OpRecLen:
 		return "p.recovered.length"
-	case flow.OpKidsLen:
+	case prim.OpKidsLen:
 		return "p.kidStack.length"
-	case flow.OpSkipHit:
+	case prim.OpSkipHit:
 		return "p.skipHit()"
-	case flow.OpRunHot:
+	case prim.OpRunHot:
 		return fmt.Sprintf("p.runHot(%d)", c.Imm.(prim.Site))
-	case flow.OpSkipKids:
+	case prim.OpSkipKids:
 		return "p.skipKids()"
-	case flow.OpScanReach:
+	case prim.OpScanReach:
 		a := args()
 		return fmt.Sprintf("p.scanReach(%d, %s, %s)", c.Imm.(prim.Site), a[0], a[1])
-	case flow.OpScanKids:
+	case prim.OpScanKids:
 		a := args()
 		return fmt.Sprintf("p.scanKids(%d, %s, %s, %s)", c.Imm.(prim.Site), a[0], a[1], a[2])
-	case flow.OpResumeOn:
+	case prim.OpResumeOn:
 		return "p.resumeOn()"
-	case flow.OpResumeStart:
+	case prim.OpResumeStart:
 		x := c.Imm.(prim.Resume)
 		return fmt.Sprintf("p.resumeStart(%d, %d, %d, %t)", x.Site, x.Min, x.Max, x.Shiftable)
-	case flow.OpResumeMore:
+	case prim.OpResumeMore:
 		return fmt.Sprintf("p.resumeMore(%s)", args()[0])
-	case flow.OpResumeNext:
+	case prim.OpResumeNext:
 		return fmt.Sprintf("p.resumeNext(%s)", args()[0])
-	case flow.OpMatchLit:
+	case prim.OpMatchLit:
 		lit := c.Imm.(*core.Lit)
 		if lit.Fold {
 			folded := string(common.FoldedRunes([]rune(lit.Text)))
@@ -297,17 +296,17 @@ func (p *tsFlowPrinter) expr(c *code.Call, args func() []string) string {
 			desc = p.desc(lit.Exp)
 		}
 		return fmt.Sprintf("p.matchLiteral(%s, %d, false)", v, desc)
-	case flow.OpGuardFails:
+	case prim.OpGuardFails:
 		guard := c.Imm.(*core.First)
 		a := args()
 		ch, more := a[0], a[1]
 		return fmt.Sprintf("!(%s && (%s)) && %s", more, tsClassIn(guard.Class, ch), tsDepthLimit(guard.Depth))
-	case flow.OpGuardLitFails:
+	case prim.OpGuardLitFails:
 		guard := c.Imm.(*core.First)
 		return fmt.Sprintf("p.matchChar(%d, %t) < 0 && %s", guard.Rune, guard.Fold, tsDepthLimit(guard.Depth))
-	case flow.OpInClass:
+	case prim.OpInClass:
 		return tsClassIn(c.Imm.(*core.Class), args()[0])
-	case flow.OpAtAnchor:
+	case prim.OpAtAnchor:
 		switch c.Imm.(core.AnchorKind) {
 		case core.BeginInput:
 			return "p.pos === 0"
@@ -318,56 +317,56 @@ func (p *tsFlowPrinter) expr(c *code.Call, args func() []string) string {
 		default:
 			return "p.atLineEnd()"
 		}
-	case flow.OpCallRule:
+	case prim.OpCallRule:
 		x := c.Imm.(prim.RuleCall)
 		return p.call(g.Flow.Rules[x.Rule], x.Level)
-	case flow.OpIsolate:
+	case prim.OpIsolate:
 		return "p.isolate()"
-	case flow.OpKeep:
+	case prim.OpKeep:
 		// The expectations are a copy of the record already.
 		return args()[0]
-	case flow.OpMakeError:
+	case prim.OpMakeError:
 		a := args()
 		return fmt.Sprintf("p.recoveredError(%s, %s)", a[0], a[1])
-	case flow.OpNewErrorNode:
+	case prim.OpNewErrorNode:
 		a := args()
 		return p.counted(fmt.Sprintf("new Node(\"error\", \"\", %s, p.pos, \"\", noNodes, [{ name: \"message\", value: %s!.message }], true, true)", a[0], a[1]), "nodeBytes + arrayBytes(1) + objectBytes(2)")
-	case flow.OpText, flow.OpLiteralText:
+	case prim.OpText, prim.OpLiteralText:
 		// A literal's text is the input it matched: where the literal holds the replacement character,
 		// that stands for invalid input.
 		p.read(c.Args...)
 		return fmt.Sprintf("p.text(%s, p.pos)", args()[0])
-	case flow.OpStr:
+	case prim.OpStr:
 		return TsString(string(c.Imm.(prim.Chars)))
-	case flow.OpNewTerminalNode:
+	case prim.OpNewTerminalNode:
 		a := args()
 		return p.counted(fmt.Sprintf("new Node(\"string\", \"\", %s, p.pos, %s, noNodes, noFields, true, true)", a[0], a[1]), "nodeBytes")
-	case flow.OpNewBranchNode:
+	case prim.OpNewBranchNode:
 		kind := "tuple"
 		if c.Imm.(prim.List) {
 			kind = "list"
 		}
 		a := args()
 		return p.counted(fmt.Sprintf("new Node(\"%s\", \"\", %s, p.pos, \"\", %s, noFields, true, false)", kind, a[0], a[1]), "nodeBytes")
-	case flow.OpNewVals:
+	case prim.OpNewVals:
 		return "[]"
-	case flow.OpKids:
+	case prim.OpKids:
 		return fmt.Sprintf("p.kids(%s)", args()[0])
-	case flow.OpShapeSingle:
+	case prim.OpShapeSingle:
 		a := args()
 		return fmt.Sprintf("p.shapeSingle(%d, %s, %s)", tsShape(c.Imm.(core.Shape)), a[0], a[1])
-	case flow.OpShapeCapture:
+	case prim.OpShapeCapture:
 		a := args()
 		return fmt.Sprintf("p.shapeCapture(%d, %s, %s)", tsShape(c.Imm.(core.Shape)), a[0], a[1])
-	case flow.OpScopeValue:
+	case prim.OpScopeValue:
 		a := args()
 		return fmt.Sprintf("p.scopeValue(%d, %s, %s)", tsShape(c.Imm.(core.Shape)), a[0], a[1])
-	case flow.OpAttachCaptures:
+	case prim.OpAttachCaptures:
 		panic(tsFlowUnsupported("captures attached from variables"))
-	case flow.OpAttachFrame:
+	case prim.OpAttachFrame:
 		a := args()
 		return fmt.Sprintf("p.attachCaptures(%s, %s, %s, %s, p.pos)", a[0], p.scopeNames(c.Imm.(prim.Attach).Names), a[2], a[1])
-	case flow.OpPred:
+	case prim.OpPred:
 		x := c.Imm.(prim.Predicate)
 		if !x.Frame {
 			panic(tsFlowUnsupported("a predicate that reads variables"))
@@ -377,7 +376,7 @@ func (p *tsFlowPrinter) expr(c *code.Call, args func() []string) string {
 			return "p.predicate(a)"
 		}
 		return fmt.Sprintf("p.predicate(%s)", p.g.predicateFunc(x.Node.Action, common.FrameScope(x.Names)))
-	case flow.OpBind:
+	case prim.OpBind:
 		x := c.Imm.(prim.Binding)
 		if !x.Frame {
 			panic(tsFlowUnsupported("a bind that reads variables"))
@@ -393,15 +392,15 @@ func (p *tsFlowPrinter) expr(c *code.Call, args func() []string) string {
 		name := p.g.Name("a")
 		p.decl(name, p.g.actionFunc(name, x.Node.Action, common.FrameScope(x.Names), nil))
 		return fmt.Sprintf("p.bind(%d, %s)", p.g.Prog.Vars.Index(b.Name), name)
-	case flow.OpCallOutline:
+	case prim.OpCallOutline:
 		return p.outline(c)
-	case flow.OpMarkPos:
+	case prim.OpMarkPos:
 		m := p.markLocal(c)
 		p.readName(p.part(m, 0))
 		return m + "Pos"
-	case flow.OpNewFrame:
+	case prim.OpNewFrame:
 		return fmt.Sprintf("p.newFrame(%d)", len(c.Imm.(*prim.Names).List))
-	case flow.OpFrameVal:
+	case prim.OpFrameVal:
 		return fmt.Sprintf("%s[%d]!", args()[0], c.Imm.(prim.Slot))
 	}
 	panic(tsFlowUnsupported("operation " + c.Callee))
@@ -424,7 +423,7 @@ func (p *tsFlowPrinter) set(s *code.Set, expr func(code.Expr) string) {
 	if len(s.Dst) == 1 {
 		// The expectations are a copy already, so keeping them leaves the variable as it is.
 		c := s.Values[0].(*code.Call)
-		if execlower.FlowOp(c.Callee) == flow.OpKeep && !s.Dst[0].Reg {
+		if c.Callee == prim.OpKeep && !s.Dst[0].Reg {
 			if l, ok := c.Args[0].(*code.Local); ok && l.Name == s.Dst[0].Name {
 				return
 			}
@@ -443,7 +442,7 @@ func (p *tsFlowPrinter) setText(s *code.Set, expr func(code.Expr) string, stmt b
 		end = ";\n"
 	}
 	c := s.Values[0].(*code.Call)
-	name := execlower.FlowOp(c.Callee)
+	name := c.Callee
 	used := false
 	for _, d := range s.Dst {
 		if d.Reg || d.Name == "" {
@@ -458,7 +457,7 @@ func (p *tsFlowPrinter) setText(s *code.Set, expr func(code.Expr) string, stmt b
 		}
 		return d.Name
 	}
-	if len(s.Dst) == 1 && name == flow.OpMarkState {
+	if len(s.Dst) == 1 && name == prim.OpMarkState {
 		m := local(s.Dst[0])
 		if p.marks == nil {
 			p.marks = map[string]prim.StateMark{}
@@ -476,11 +475,11 @@ func (p *tsFlowPrinter) setText(s *code.Set, expr func(code.Expr) string, stmt b
 		}
 		return strings.Join(parts, stmtSep(stmt)) + end
 	}
-	if len(s.Dst) == 2 && name == flow.OpShapeSingle {
+	if len(s.Dst) == 2 && name == prim.OpShapeSingle {
 		// The second result, whether the value is a single element, is not used.
 		return p.setText(&code.Set{Dst: s.Dst[:1], Values: s.Values}, expr, stmt)
 	}
-	if len(s.Dst) == 2 && name == flow.OpUnisolate {
+	if len(s.Dst) == 2 && name == prim.OpUnisolate {
 		// The farthest failure of the record, and a copy of its expectations in p.isoIds.
 		p.read(c.Args...)
 		far, ids := local(s.Dst[0]), local(s.Dst[1])

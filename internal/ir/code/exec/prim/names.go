@@ -214,5 +214,11 @@ func ImmType(name string) (reflect.Type, bool) {
 	return t, ok
 }
 
+// IsOp reports whether name is the name of a primitive.
+func IsOp(name string) bool {
+	_, ok := imms[name]
+	return ok
+}
+
 // OpNames returns the names of the primitives, sorted.
 func OpNames() []string { return slices.Sorted(maps.Keys(imms)) }

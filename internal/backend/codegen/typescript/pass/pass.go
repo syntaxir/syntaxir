@@ -7,7 +7,6 @@ package pass
 import (
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
-	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/middleend/execlower"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/pass/pipe"
@@ -180,7 +179,7 @@ func testedFlag(s *code.If) (string, bool) {
 		return "", false
 	}
 	c, ok := s.Init.Values[0].(*code.Call)
-	if !ok || !TwoResults(execlower.FlowOp(c.Callee)) {
+	if !ok || !TwoResults(c.Callee) {
 		return "", false
 	}
 	flag := s.Init.Dst[1]
@@ -197,7 +196,7 @@ func testedFlag(s *code.If) (string, bool) {
 // step reports whether s charges a step.
 func step(s code.Stmt) bool {
 	d, ok := s.(*code.Do)
-	return ok && execlower.FlowOp(d.Call.Callee) == flow.OpStep
+	return ok && d.Call.Callee == prim.OpStep
 }
 
 // mergedRecord reports whether a and b end an expectation record and merge its expectations into the
@@ -208,11 +207,11 @@ func mergedRecord(a, b code.Stmt) (*code.Call, bool) {
 		return nil, false
 	}
 	c, ok := set.Values[0].(*code.Call)
-	if !ok || execlower.FlowOp(c.Callee) != flow.OpUnisolate {
+	if !ok || c.Callee != prim.OpUnisolate {
 		return nil, false
 	}
 	do, ok := b.(*code.Do)
-	if !ok || execlower.FlowOp(do.Call.Callee) != flow.OpMergeExpected {
+	if !ok || do.Call.Callee != prim.OpMergeExpected {
 		return nil, false
 	}
 	far, ids := set.Dst[0], set.Dst[1]
@@ -224,11 +223,11 @@ func mergedRecord(a, b code.Stmt) (*code.Call, bool) {
 	return c, true
 }
 
-// TwoResults reports whether a call of the Flow operation name has two results, the value and whether
-// it matched, which an assignment tests.
+// TwoResults reports whether a call of the primitive name has two results, the value and whether it
+// matched, which an assignment tests.
 func TwoResults(name string) bool {
 	switch name {
-	case flow.OpMatchLit, flow.OpCallRule, flow.OpCallOutline, flow.OpResumeNext:
+	case prim.OpMatchLit, prim.OpCallRule, prim.OpCallOutline, prim.OpResumeNext:
 		return true
 	}
 	return false

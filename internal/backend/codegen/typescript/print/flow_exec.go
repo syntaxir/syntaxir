@@ -7,7 +7,6 @@ import (
 	tspass "syntaxir.dev/sxir/internal/backend/codegen/typescript/pass"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
-	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/middleend/codepass"
 	"syntaxir.dev/sxir/internal/middleend/execlower"
 )
@@ -140,7 +139,7 @@ func (p *tsFlowPrinter) bodyTarget() *BodyTarget {
 			return nil, false
 		}
 		c, ok := s.Values[0].(*code.Call)
-		return c, ok && execlower.FlowOp(c.Callee) != ""
+		return c, ok && prim.IsOp(c.Callee)
 	}
 	return &BodyTarget{
 		Reg:   p.reg,
@@ -160,14 +159,14 @@ func (p *tsFlowPrinter) bodyTarget() *BodyTarget {
 					p.write(fmt.Sprintf("p.unisolateMerge(%s);\n", args()[0]))
 				})
 			}
-			switch execlower.FlowOp(c.Callee) {
-			case flow.OpSetEnv, flow.OpSetFrame:
+			switch c.Callee {
+			case prim.OpSetEnv, prim.OpSetFrame:
 				// The assignment of a register that holds a handle.
 				if dead {
 					return ""
 				}
 				reg := "p.env"
-				if execlower.FlowOp(c.Callee) == flow.OpSetFrame {
+				if c.Callee == prim.OpSetFrame {
 					reg = "p.frame"
 				}
 				return reg + " = " + args()[0] + ";\n"
@@ -179,10 +178,10 @@ func (p *tsFlowPrinter) bodyTarget() *BodyTarget {
 			if !ok {
 				return "", false
 			}
-			switch execlower.FlowOp(c.Callee) {
-			case flow.OpPeek:
+			switch c.Callee {
+			case prim.OpPeek:
 				return at(dead, func() { p.peek(s) }), true
-			case flow.OpAppend:
+			case prim.OpAppend:
 				return at(dead, func() {
 					p.stmtOp(c, func() []string { return []string{expr(c.Args[0]), expr(c.Args[1])} })
 				}), true
