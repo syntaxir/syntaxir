@@ -38,7 +38,7 @@ type minimizer struct {
 
 func minimize(p *engine.Parser, seq *Sequence, maxAttempts int) (*Sequence, *Mismatch, int, error) {
 	var m *Mismatch
-	if err := replay(p, seq); !errors.As(err, &m) {
+	if _, err := replay(p, seq); !errors.As(err, &m) {
 		if err == nil {
 			return nil, nil, 0, errors.New("the sequence does not fail")
 		}
@@ -62,7 +62,7 @@ func (z *minimizer) try(c *Sequence) bool {
 	}
 	z.attempts++
 	var m *Mismatch
-	if err := replay(z.p, c); !errors.As(err, &m) || m.Fingerprint() != z.fingerprint {
+	if _, err := replay(z.p, c); !errors.As(err, &m) || m.Fingerprint() != z.fingerprint {
 		return false
 	}
 	z.best, z.mismatch = c, m

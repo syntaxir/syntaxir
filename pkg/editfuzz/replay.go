@@ -111,15 +111,50 @@ func (e *InvalidError) Error() string {
 
 func (e *InvalidError) Unwrap() error { return e.Err }
 
+// Checks counts the checks of a run, each of which compares a Document's result with a fresh parse of its
+// text: at the initial text of each sequence and at each checkpoint.
+type Checks struct {
+	// Compared is the number of checks at which both parses completed and their results were compared.
+	Compared int
+	// Skipped is the number of checks that compared nothing because the Document's parse or the fresh
+	// parse exhausted the compute limit.
+	Skipped int
+}
+
+// A NothingComparedError reports a run whose every check exhausted the compute limit: the run compared no
+// Document result with a fresh parse, so it says nothing about the Documents.
+type NothingComparedError struct {
+	// Skipped is the number of checks, all of which exhausted the compute limit.
+	Skipped int
+}
+
+func (e *NothingComparedError) Error() string {
+	return fmt.Sprintf("no check compared a Document with a fresh parse: all %d exhausted the compute limit", e.Skipped)
+}
+
+// nothingCompared returns a *NothingComparedError if c compared nothing and skipped some check, and nil
+// otherwise.
+func (c Checks) nothingCompared() error {
+	if c.Compared == 0 && c.Skipped > 0 {
+		return &NothingComparedError{Skipped: c.Skipped}
+	}
+	return nil
+}
+
 // Replay applies seq to a Document of the grammar source src and compares results at the initial text and
-// at each checkpoint. It returns nil if all of them match, a *Mismatch for the first that does not, and an
-// *InvalidError if the sequence cannot be applied.
+// at each checkpoint. It returns nil if all of them match, a *Mismatch for the first that does not, an
+// *InvalidError if the sequence cannot be applied, and a *NothingComparedError if every check exhausted
+// the compute limit of seq.Limits.
 func Replay(src []byte, seq *Sequence) error {
 	p, err := compileFor(src, seq)
 	if err != nil {
 		return err
 	}
-	return replay(p, seq)
+	c, err := replay(p, seq)
+	if err != nil {
+		return err
+	}
+	return c.nothingCompared()
 }
 
 // compile compiles the grammar source src, in grammar syntax, to a parser that starts at the rule
@@ -171,24 +206,26 @@ type replayer struct {
 	opts       []engine.ParseOption
 	doc        *engine.Document
 	undo, redo []step
+	checks     Checks
 }
 
-func replay(p *engine.Parser, seq *Sequence) error {
+// replay applies seq and returns the checks that it made.
+func replay(p *engine.Parser, seq *Sequence) (Checks, error) {
 	r, err := start(p, seq)
 	if err != nil {
-		return err
+		return Checks{}, err
 	}
 	for i, op := range seq.Operations {
 		if err := r.applyAt(op, i); err != nil {
-			return err
+			return r.checks, err
 		}
 		if op.Kind == Checkpoint {
 			if m := r.check(i); m != nil {
-				return m
+				return r.checks, m
 			}
 		}
 	}
-	return nil
+	return r.checks, nil
 }
 
 // start creates the Document of seq's initial text and checks it.
@@ -383,8 +420,10 @@ func (r *replayer) check(event int) *Mismatch {
 	// A Document reuses earlier work and spends less budget than a fresh parse, so an exhausted
 	// budget on either side says nothing about the results: only parses that both complete compare.
 	if budgetExhausted(docErr) || budgetExhausted(freshErr) {
+		r.checks.Skipped++
 		return nil
 	}
+	r.checks.Compared++
 	if corruptDocumentResult != nil {
 		expand(doc)
 		corruptDocumentResult(text, doc)

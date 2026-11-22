@@ -112,7 +112,7 @@ func TestEditsMatchFreshParses(t *testing.T) {
 	for _, b := range backends {
 		for _, u := range units {
 			t.Run(b.name+"/"+u.name, func(t *testing.T) {
-				err := editfuzz.Fuzz(grammar, editfuzz.Options{
+				_, err := editfuzz.Fuzz(grammar, editfuzz.Options{
 					Start: "main", Backend: b.backend, Unit: u.unit, Seed: 1, Corpus: texts,
 					Sequences:    200,
 					SaveFailures: "testdata/editfuzz", // a failing sequence becomes a file to commit
@@ -204,6 +204,9 @@ from run to run.
 - `Fuzz` runs `Sequences` sequences of `Operations` operations each, from a seed. The initial texts are the files of the
   corpus, so the edits split, join and break lines of real input; without a corpus, they are inputs generated from the
   grammar. A fixed seed makes the run repeatable for a given release, but the seed is not the reproducer.
+- `Fuzz` also returns the `editfuzz.Checks` it made. A check whose Document parse or fresh parse exhausts the compute
+  limit of `Options.Limits` compares nothing and counts as skipped; a run that skips every check fails with an
+  `*editfuzz.NothingComparedError`, since it says nothing about the Documents.
 - A failure is a `*editfuzz.Failure`. With `SaveFailures`, the sequence is written as a JSON file that records the
   exact text and replacements in base64, and the hash of the grammar; with `Minimize`, a shorter sequence that fails the
   same way is saved next to it. Commit that file in `testdata/editfuzz`, and `TestSavedSequences` replays it from then

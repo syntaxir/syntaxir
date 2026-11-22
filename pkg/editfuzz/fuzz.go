@@ -91,10 +91,14 @@ func (f *Failure) Error() string {
 
 func (f *Failure) Unwrap() error { return f.Err }
 
-// Fuzz runs generated edit sequences on Documents of the grammar source src. It returns nil if every
-// checkpoint matched a fresh parse and a *Failure for the first sequence that did not, after saving it to
-// opts.SaveFailures if set. Other errors report an unusable grammar, options or failure directory.
-func Fuzz(src []byte, opts Options) error {
+// Fuzz runs generated edit sequences on Documents of the grammar source src and returns the checks that
+// they made. It returns a nil error if every check matched a fresh parse, and a *Failure for the first
+// sequence that did not, after saving it to opts.SaveFailures if set. A check whose Document parse or fresh
+// parse exhausts the compute limit compares nothing and is counted as skipped; if every check of the
+// run was skipped, the error is a *NothingComparedError. Other errors report an unusable grammar, options
+// or failure directory.
+func Fuzz(src []byte, opts Options) (Checks, error) {
+	var total Checks
 	if opts.Backend == "" {
 		opts.Backend = Closure
 	}
@@ -105,14 +109,14 @@ func Fuzz(src []byte, opts Options) error {
 		opts.Operations = DefaultOperations
 	}
 	if _, err := backendName(opts.Backend); err != nil {
-		return err
+		return total, err
 	}
 	if _, err := unitName(opts.Unit); err != nil {
-		return err
+		return total, err
 	}
 	p, err := compile(src, opts.Start)
 	if err != nil {
-		return err
+		return total, err
 	}
 	texts := opts.Corpus
 	if len(texts) == 0 {
@@ -127,7 +131,9 @@ func Fuzz(src []byte, opts Options) error {
 	for range opts.Sequences {
 		seq := &Sequence{GrammarSHA256: GrammarHash(src), Start: p.Start(), Backend: opts.Backend, Unit: opts.Unit, Limits: opts.Limits,
 			Seed: opts.Seed, Initial: initial(rng, texts)}
-		err := run(p, seq, &generator{rng: rng, texts: texts}, opts.Operations)
+		c, err := run(p, seq, &generator{rng: rng, texts: texts}, opts.Operations)
+		total.Compared += c.Compared
+		total.Skipped += c.Skipped
 		if sequenceDone != nil {
 			sequenceDone(seq)
 		}
@@ -135,24 +141,24 @@ func Fuzz(src []byte, opts Options) error {
 			f := &Failure{Err: err, Sequence: seq}
 			if opts.SaveFailures != "" {
 				if f.Path, err = Save(opts.SaveFailures, seq); err != nil {
-					return fmt.Errorf("%w\nsaving the sequence: %v", f, err)
+					return total, fmt.Errorf("%w\nsaving the sequence: %v", f, err)
 				}
 			}
 			var m *Mismatch
 			if opts.Minimize && errors.As(f.Err, &m) {
 				if f.Minimized, _, _, err = minimize(p, seq, cmp.Or(max(opts.MaxAttempts, 0), DefaultMaxAttempts)); err != nil {
-					return fmt.Errorf("%w\nminimizing the sequence: %v", f, err)
+					return total, fmt.Errorf("%w\nminimizing the sequence: %v", f, err)
 				}
 				if opts.SaveFailures != "" {
 					if f.MinimizedPath, err = Save(opts.SaveFailures, f.Minimized); err != nil {
-						return fmt.Errorf("%w\nsaving the minimized sequence: %v", f, err)
+						return total, fmt.Errorf("%w\nsaving the minimized sequence: %v", f, err)
 					}
 				}
 			}
-			return f
+			return total, f
 		}
 	}
-	return nil
+	return total, total.nothingCompared()
 }
 
 // largeText is the size that joined initial texts reach.
@@ -174,26 +180,26 @@ func initial(rng *rand.Rand, texts [][]byte) []byte {
 // sequenceDone lets tests observe the generated sequences.
 var sequenceDone func(*Sequence)
 
-// run applies n generated operations to a Document of seq's initial text, appending them to seq, and
-// stops at the first failure.
-func run(p *engine.Parser, seq *Sequence, g *generator, n int) error {
+// run applies n generated operations to a Document of seq's initial text, appending them to seq, stops at
+// the first failure and returns the checks that it made.
+func run(p *engine.Parser, seq *Sequence, g *generator, n int) (Checks, error) {
 	r, err := start(p, seq)
 	if err != nil {
-		return err
+		return Checks{}, err
 	}
 	for i := range n {
 		op := g.next(r, i == n-1)
 		seq.Operations = append(seq.Operations, op)
 		if err := r.applyAt(op, i); err != nil {
-			return err
+			return r.checks, err
 		}
 		if op.Kind == Checkpoint {
 			if m := r.check(i); m != nil {
-				return m
+				return r.checks, m
 			}
 		}
 	}
-	return nil
+	return r.checks, nil
 }
 
 type generator struct {

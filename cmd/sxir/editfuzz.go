@@ -94,12 +94,17 @@ func editFuzzCmd(args []string, stdout io.Writer) error {
 	}
 	for _, b := range bs {
 		for _, u := range us {
-			err := editfuzz.Fuzz(src, editfuzz.Options{Start: *start, Backend: b, Unit: u, Seed: *seed, Corpus: texts,
+			c, err := editfuzz.Fuzz(src, editfuzz.Options{Start: *start, Backend: b, Unit: u, Seed: *seed, Corpus: texts,
 				Limits: lim.limits(), Sequences: *sequences, Operations: *operations, SaveFailures: *save, Minimize: *minimize, MaxAttempts: *maxAttempts})
+			var none *editfuzz.NothingComparedError
+			if errors.As(err, &none) {
+				return fmt.Errorf("%s (seed %d): %s/%s: %w; raise -max-compute", *grammarPath, *seed, b, u, err)
+			}
 			if err != nil {
 				return fmt.Errorf("%s (seed %d): %w", *grammarPath, *seed, err)
 			}
-			fmt.Fprintf(stdout, "ok %s/%s: %d sequences\n", b, u, cmp.Or(*sequences, editfuzz.DefaultSequences))
+			fmt.Fprintf(stdout, "ok %s/%s: %d sequences, %d checks compared, %d skipped at the compute limit\n",
+				b, u, cmp.Or(*sequences, editfuzz.DefaultSequences), c.Compared, c.Skipped)
 		}
 	}
 	return nil

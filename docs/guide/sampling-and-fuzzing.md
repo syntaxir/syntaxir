@@ -496,13 +496,16 @@ sxir edit-fuzz -g examples/calculator/calc.sxir -seed 1
 ```
 
 ```text
-ok closure/codepoints: 100 sequences
-ok closure/bytes: 100 sequences
-ok bytecode/codepoints: 100 sequences
-ok bytecode/bytes: 100 sequences
-ok bytecode-iterative/codepoints: 100 sequences
-ok bytecode-iterative/bytes: 100 sequences
+ok closure/codepoints: 100 sequences, 998 checks compared, 0 skipped at the compute limit
+ok closure/bytes: 100 sequences, 998 checks compared, 0 skipped at the compute limit
+ok bytecode/codepoints: 100 sequences, 998 checks compared, 0 skipped at the compute limit
+ok bytecode/bytes: 100 sequences, 998 checks compared, 0 skipped at the compute limit
+ok bytecode-iterative/codepoints: 100 sequences, 998 checks compared, 0 skipped at the compute limit
+ok bytecode-iterative/bytes: 100 sequences, 998 checks compared, 0 skipped at the compute limit
 ```
+
+Each line counts the sequences run and the checks made, one at the initial text of each sequence and one at each
+checkpoint.
 
 The initial texts are the empty text and inputs generated from the grammar (see
 [sampling inputs](sampling-and-fuzzing.md)), or the files given with `-corpus` (a file, or a directory read in name
@@ -530,7 +533,9 @@ saved to failures/editfuzz-0be4ccb60eadff90.json
 minimized to 4 operations in failures/editfuzz-9d0bcab55578f1b5.json
 ```
 
-`edit-fuzz` also takes `-max-compute`, `-max-memory`, `-max-input` and `-max-depth` (see [cancellation-and-limits.md](cancellation-and-limits.md)). A saved sequence does not record them, so pass them again to `-replay`.
+`edit-fuzz` also takes `-max-compute`, `-max-memory`, `-max-input` and `-max-depth` (see [cancellation-and-limits.md](cancellation-and-limits.md)). A saved sequence does not record them, so pass them again to `-replay`. A check at which the
+`Document` parse or the fresh parse exhausts the compute limit compares nothing and counts as skipped in the `ok` line;
+a run, or a replay, that skips every check fails with an error that names the compute limit.
 
 Replaying the minimized sequence fails the same way:
 

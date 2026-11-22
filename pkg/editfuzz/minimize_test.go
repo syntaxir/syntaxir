@@ -100,7 +100,7 @@ func TestFuzzMinimizes(t *testing.T) {
 	}
 	dir := t.TempDir()
 	src := []byte(testGrammars[2])
-	err := Fuzz(src, Options{Start: "main", Seed: 1, SaveFailures: dir, Minimize: true})
+	_, err := Fuzz(src, Options{Start: "main", Seed: 1, SaveFailures: dir, Minimize: true})
 	var f *Failure
 	if !errors.As(err, &f) || f.Path == "" || f.MinimizedPath == "" || f.Path == f.MinimizedPath ||
 		len(f.Minimized.Operations) >= len(f.Sequence.Operations) || !strings.Contains(err.Error(), "minimized to") {

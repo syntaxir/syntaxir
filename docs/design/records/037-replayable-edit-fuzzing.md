@@ -39,8 +39,10 @@ Package [`editfuzz`](../../../pkg/editfuzz) and `sxir edit-fuzz` implement this 
 rules:
 
 - The API is `editfuzz.Fuzz(src, Options)`, `Replay(src, *Sequence)`, `Minimize(src, *Sequence, maxAttempts)`,
-  `Save` and `Load`. `Fuzz` returns a `*Failure` holding the sequence, its saved path and the minimized sequence;
-  `Replay` returns a `*Mismatch` or an `*InvalidError`. `Options` also has `Sequences`, `Minimize` and
+  `Save` and `Load`. `Fuzz` returns the `Checks` it made, compared and skipped, and a `*Failure` holding the
+  sequence, its saved path and the minimized sequence; `Replay` returns a `*Mismatch` or an `*InvalidError`. Both
+  return a `*NothingComparedError` when every check exhausted the compute limit (amended 2026-11-22: a run that
+  compared nothing used to succeed). `Options` also has `Sequences`, `Minimize` and
   `MaxAttempts`, which the CLI exposes as `-sequences`, `-minimize` and `-max-attempts`.
 - Units are written `codepoints` and `bytes`, and backends `closure`, `bytecode` and `bytecode-iterative`, the names
   of the other `sxir` commands. `-backend` and `-unit` take comma-separated lists and default to all of them.

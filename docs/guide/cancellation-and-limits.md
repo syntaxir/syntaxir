@@ -155,7 +155,8 @@ sxir parse -g grammar.sxir -max-compute unlimited -max-input 1048576 -i "$input"
 A parse that reaches a limit prints the `*runtime.LimitError` message and exits with status 1. `sxir test` reports it as
 the runtime error of the case. A saved `edit-fuzz` sequence does not record the limits, so `edit-fuzz -replay` takes
 `-max-compute`, `-max-memory`, `-max-input` and `-max-depth` again. A `Document` reuses earlier work and spends less than a fresh parse, so `edit-fuzz`
-compares nothing at a check where either parse exhausts its budget.
+compares nothing at a check where either parse exhausts its budget. Its `ok` lines count the checks compared and the
+checks skipped this way, and a run that skips every check fails with an error that names the compute limit.
 
 ## Related Topics
 

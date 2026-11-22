@@ -151,12 +151,14 @@ func TestTestCommandAppliesLimits(t *testing.T) {
 func TestEditFuzzAppliesLimits(t *testing.T) {
 	g := writeFile(t, "limits.sxir", limitsGrammar)
 	base := []string{"edit-fuzz", "-g", g, "-backend", "closure", "-unit", "codepoints", "-sequences", "2", "-operations", "4"}
-	if out, err := runCLI(t, "", append(base, "-max-compute", "unlimited", "-max-input", "unlimited")...); err != nil || !strings.Contains(out, "ok closure/codepoints") {
+	out, err := runCLI(t, "", append(base, "-max-compute", "unlimited", "-max-input", "unlimited")...)
+	if err != nil {
 		t.Fatalf("unlimited: %v\n%s", err, out)
 	}
-	// A budget of one cannot parse any initial text of the sequences.
-	_, err := runCLI(t, "", append(base, "-max-compute", "1")...)
-	if err == nil || !strings.Contains(err.Error(), "parse compute limit exceeded") {
+	checkOK(t, out, 2, "closure/codepoints")
+	// A budget of one cannot parse any text of the sequences, so the run compares nothing and fails.
+	_, err = runCLI(t, "", append(base, "-max-compute", "1")...)
+	if err == nil || !strings.Contains(err.Error(), "compute limit") {
 		t.Errorf("-max-compute: error %v", err)
 	}
 	_, err = runCLI(t, "", append(base, "-max-input", "1")...)

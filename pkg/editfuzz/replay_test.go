@@ -278,7 +278,7 @@ func TestGrammarSyntaxErrors(t *testing.T) {
 		t.Errorf("Replay: %T %v, want an InvalidError wrapping grammar.SyntaxErrors", err, err)
 	}
 	errs = nil
-	if err := Fuzz([]byte(src), Options{Backend: Closure, Unit: input.CodePoints}); !errors.As(err, &errs) || len(errs) == 0 {
+	if _, err := Fuzz([]byte(src), Options{Backend: Closure, Unit: input.CodePoints}); !errors.As(err, &errs) || len(errs) == 0 {
 		t.Errorf("Fuzz: %T %v, want grammar.SyntaxErrors", err, err)
 	}
 }
@@ -419,7 +419,7 @@ func TestGrammarCheckErrors(t *testing.T) {
 		t.Errorf("Replay: %T %v, want an InvalidError wrapping grammar.CheckErrors", err, err)
 	}
 	errs = nil
-	if err := Fuzz([]byte(src), Options{Backend: Closure, Unit: input.CodePoints}); !errors.As(err, &errs) || len(errs) != 1 {
+	if _, err := Fuzz([]byte(src), Options{Backend: Closure, Unit: input.CodePoints}); !errors.As(err, &errs) || len(errs) != 1 {
 		t.Errorf("Fuzz: %T %v, want grammar.CheckErrors", err, err)
 	}
 }

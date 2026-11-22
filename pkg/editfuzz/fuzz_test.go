@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
@@ -23,7 +24,8 @@ func generated(t *testing.T, src string, opts Options) (seqs []string, err error
 		seqs = append(seqs, string(data))
 	}
 	defer func() { sequenceDone = nil }()
-	return seqs, Fuzz([]byte(src), opts)
+	_, err = Fuzz([]byte(src), opts)
+	return seqs, err
 }
 
 func TestFuzzIsDeterministic(t *testing.T) {
@@ -77,7 +79,7 @@ func TestFuzzGrammars(t *testing.T) {
 					t.Run(fmt.Sprintf("grammar%d/%v/%v/corpus%d", gi, b, u, ci), func(t *testing.T) {
 						t.Parallel()
 						opts := Options{Start: "main", Backend: b, Unit: u, Seed: uint64(gi), Sequences: sequences, Corpus: corpus}
-						if err := Fuzz([]byte(src), opts); err != nil {
+						if _, err := Fuzz([]byte(src), opts); err != nil {
 							t.Errorf("grammar %d %v %v: %v", gi, b, u, err)
 						}
 					})
@@ -125,7 +127,7 @@ func TestFuzzSavesFailures(t *testing.T) {
 	for _, u := range units {
 		dir := filepath.Join(t.TempDir(), "failures")
 		src := []byte(testGrammars[2])
-		err := Fuzz(src, Options{Start: "main", Backend: BytecodeIterative, Unit: u, Seed: 1, SaveFailures: dir})
+		_, err := Fuzz(src, Options{Start: "main", Backend: BytecodeIterative, Unit: u, Seed: 1, SaveFailures: dir})
 		var f *Failure
 		var m *Mismatch
 		if !errors.As(err, &f) || !errors.As(err, &m) || f.Path == "" || !strings.Contains(err.Error(), f.Path) {
@@ -164,18 +166,18 @@ func TestFuzzErrors(t *testing.T) {
 		{testGrammars[0], Options{Start: "main", Backend: Backend("nosuch")}, "unknown backend"},
 		{testGrammars[0], Options{Start: "main", Unit: input.PositionUnit(7)}, "unknown unit"},
 	} {
-		if err := Fuzz([]byte(tc.src), tc.opts); err == nil || !strings.Contains(err.Error(), tc.want) {
+		if _, err := Fuzz([]byte(tc.src), tc.opts); err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("%+v: got %v", tc.opts, err)
 		}
 	}
 	// An empty start rule selects the default start rule.
-	if err := Fuzz([]byte(testGrammars[0]), Options{}); err != nil {
+	if _, err := Fuzz([]byte(testGrammars[0]), Options{}); err != nil {
 		t.Errorf("default start rule: %v", err)
 	}
 	// Without a failure directory, the message holds the sequence.
 	defer func() { corruptDocumentResult = nil }()
 	corruptDocumentResult = func(text string, tree map[string]any) { tree["error"] = errorTree(errors.New("injected")) }
-	err := Fuzz([]byte(testGrammars[0]), Options{Start: "main", Minimize: true})
+	_, err := Fuzz([]byte(testGrammars[0]), Options{Start: "main", Minimize: true})
 	var f *Failure
 	if !errors.As(err, &f) || f.Path != "" || f.Minimized == nil || !strings.Contains(err.Error(), "\nsequence: {\"version\":1,") ||
 		!strings.Contains(err.Error(), "\nminimized to 0 operations: {") {
@@ -211,5 +213,41 @@ func TestSaveNeverReplaces(t *testing.T) {
 	entries, _ := os.ReadDir(dir)
 	if len(entries) != 1 {
 		t.Fatalf("%d files left", len(entries))
+	}
+}
+
+// TestFuzzCountsChecks checks that Fuzz counts a compared check at the initial text of each sequence and at
+// each of its checkpoints when no parse exhausts the compute limit.
+func TestFuzzCountsChecks(t *testing.T) {
+	var want int
+	sequenceDone = func(seq *Sequence) {
+		want++
+		for _, op := range seq.Operations {
+			if op.Kind == Checkpoint {
+				want++
+			}
+		}
+	}
+	defer func() { sequenceDone = nil }()
+	c, err := Fuzz([]byte(testGrammars[1]), Options{Start: "main", Seed: 5, Sequences: 6, Operations: 20,
+		Limits: runtime.Limits{Compute: runtime.Unlimited}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want <= 6 || c != (Checks{Compared: want}) {
+		t.Errorf("checks %+v, want %d compared and none skipped", c, want)
+	}
+}
+
+// TestNothingCompared checks the error of a run whose every check exhausted the compute limit.
+func TestNothingCompared(t *testing.T) {
+	if err := (Checks{Skipped: 3}).nothingCompared(); err == nil ||
+		err.Error() != "no check compared a Document with a fresh parse: all 3 exhausted the compute limit" {
+		t.Errorf("all skipped: %v", err)
+	}
+	for _, c := range []Checks{{}, {Compared: 1, Skipped: 3}, {Compared: 2}} {
+		if err := c.nothingCompared(); err != nil {
+			t.Errorf("%+v: %v", c, err)
+		}
 	}
 }

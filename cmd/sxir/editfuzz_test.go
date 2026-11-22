@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,11 +22,8 @@ func TestEditFuzz(t *testing.T) {
 	if err := run([]string{"edit-fuzz", "-g", g, "-sequences", "3", "-operations", "8"}, nil, &out); err != nil {
 		t.Fatal(err)
 	}
-	want := "ok closure/codepoints: 3 sequences\nok closure/bytes: 3 sequences\nok bytecode/codepoints: 3 sequences\n" +
-		"ok bytecode/bytes: 3 sequences\nok bytecode-iterative/codepoints: 3 sequences\nok bytecode-iterative/bytes: 3 sequences\n"
-	if out.String() != want {
-		t.Fatalf("got:\n%s", out.String())
-	}
+	checkOK(t, out.String(), 3, "closure/codepoints", "closure/bytes", "bytecode/codepoints", "bytecode/bytes",
+		"bytecode-iterative/codepoints", "bytecode-iterative/bytes")
 
 	corpus := filepath.Join(dir, "corpus")
 	os.Mkdir(corpus, 0o755)
@@ -38,12 +36,29 @@ func TestEditFuzz(t *testing.T) {
 	if err := run([]string{"edit-fuzz", "-g", g, "-backend", "bytecode-iterative", "-unit", "bytes", "-corpus", corpus, "-seed", "4"}, nil, &out); err != nil {
 		t.Fatal(err)
 	}
-	if out.String() != "ok bytecode-iterative/bytes: 100 sequences\n" {
-		t.Fatalf("got:\n%s", out.String())
-	}
+	checkOK(t, out.String(), 100, "bytecode-iterative/bytes")
 	texts, err := readCorpus(corpus)
 	if err != nil || len(texts) != 3 || string(texts[0]) != "é!" || string(texts[1]) != "x\xff" || string(texts[2]) != "é!" {
 		t.Fatalf("corpus %q, %v", texts, err)
+	}
+}
+
+// checkOK checks that out holds the line of a successful run for each of the backend/unit pairs, in order,
+// each with the number of sequences and at least two compared checks for each sequence, at its initial text
+// and at its last operation, which is a checkpoint, and no check skipped at the compute limit.
+func checkOK(t *testing.T, out string, sequences int, pairs ...string) {
+	t.Helper()
+	lines := strings.Split(strings.TrimSuffix(out, "\n"), "\n")
+	if len(lines) != len(pairs) {
+		t.Fatalf("got:\n%s", out)
+	}
+	for i, pair := range pairs {
+		var compared int
+		if _, err := fmt.Sscanf(lines[i], "ok "+pair+": %d sequences, %d checks compared, 0 skipped at the compute limit", new(int), &compared); err != nil ||
+			!strings.HasPrefix(lines[i], fmt.Sprintf("ok %s: %d sequences, ", pair, sequences)) ||
+			!strings.HasSuffix(lines[i], " checks compared, 0 skipped at the compute limit") || compared < 2*sequences {
+			t.Errorf("line %d: %q, want %s with %d sequences and at least %d compared checks", i, lines[i], pair, sequences, 2*sequences)
+		}
 	}
 }
 
