@@ -7,7 +7,6 @@ import (
 	"unicode/utf8"
 
 	"syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	rprogram "syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -30,10 +29,6 @@ import (
 // minTerminalTable is the smallest run of guarded alternatives at the start of a choice for
 // which the library builds a dispatch table instead of testing the guards in turn.
 const minTerminalTable = 4
-
-// minTerminalLeaves is the smallest number of literals and classes for which a terminal
-// expression with a choice is lowered to a program (corepass.MinTerminalLeaves).
-const minTerminalLeaves = corepass.MinTerminalLeaves
 
 // terminalLeaves returns the number of literals and classes of e, and whether e is a terminal
 // expression containing a choice. It returns ok false for any other expression.
@@ -77,15 +72,12 @@ func terminalLeaves(e ast.Expr) (leaves int, choice, ok bool) {
 	return 0, false, false
 }
 
-// terminalTable returns the package variable that holds e lowered to a TerminalProgram, if e is
-// a value-free terminal expression worth lowering in a lean typed parser, declaring it on first
-// use.
+// terminalTable returns the package variable that holds e lowered to a TerminalProgram, declaring it
+// on first use: e is the expression of a terminal region, which the passes chose (Core IR's
+// TerminalRegions and the Flow form of the region). It returns false if e is no terminal
+// expression or its program does not fit the operands of the program.
 func (g *Generator) terminalTable(e ast.Expr) (string, bool) {
-	if !g.leanTyped() || g.Observability || !g.Opt().On("terminals") {
-		return "", false
-	}
-	leaves, choice, ok := terminalLeaves(e)
-	if !ok || !choice || leaves < minTerminalLeaves {
+	if _, _, ok := terminalLeaves(e); !ok {
 		return "", false
 	}
 	t := &terminalProgram{g: g, classes: map[string]int{}, literals: map[string]int{}}
