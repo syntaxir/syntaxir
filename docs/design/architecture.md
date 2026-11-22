@@ -262,7 +262,7 @@ in [Package Layering](layering.md), and the public packages are described in [Th
 | `internal/frontend/elaborate` | Semantic model to Core IR |
 | `internal/frontend/schemaexport` | Export of the output schema |
 | `internal/middleend/corepass` | Core rewrites and the analyses of facts |
-| `internal/middleend/checkfacts` | The facts of the Core analyses in the types of the checker, which the front end reads when it checks a grammar; the generators never reach it |
+| `internal/middleend/checkfacts` | The one mapping of the facts of the Core analyses to the front end: the checker's rule facts and site numbers, keyed by the grammar's rules and repetitions, with their errors at positions in the grammar; the Core passes read and produce Core IR only |
 | `internal/middleend/flowplan` | The plan of the functions of a rule table: their forms, fallbacks and frame layouts |
 | `internal/middleend/flowplan/plandata` | The data of planning, without pass code: a table's configuration and Core IR, its plan, and the table unit that carries the plan and the module of the table through its pipeline |
 | `internal/middleend/flowlower` | Core IR to Code IR at the Flow stage |

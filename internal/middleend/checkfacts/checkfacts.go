@@ -1,8 +1,11 @@
-// Package checkfacts gives the checker of the front end the rule facts that it reads, in its own
-// types: the facts are the Core analyses of corepass, which the analysis manager of the structural
-// module holds, and the front end, which does not import the middle end, asks for them through
-// frontend.FactSource. The package is apart from corepass so that the generators, which import
-// corepass, do not reach the checked program.
+// Package checkfacts gives the checker of the front end the rule facts and the site numbers that it
+// reads, in its own types: the facts are the Core analyses of corepass, which the analysis manager
+// of the structural module holds, and the front end, which does not import the middle end, asks for
+// them through frontend.FactSource. The package is the one place that maps the Core facts to the
+// front end: to the checker's rule facts and site numbers (check.RuleFacts, check.Sites), to the
+// rules and repetitions of the grammar through the origin map of the module, and to positions in
+// the grammar for their errors. The Core passes read and produce Core IR only; they reach no
+// package of the front end.
 package checkfacts
 
 import (
@@ -23,7 +26,7 @@ import (
 // that the check reads are the Core analyses of corepass, which the front end does not compute.
 type Source struct{}
 
-// RuleFacts returns the facts that the compiler reads of the module m of the rules defs, with the
+// RuleFacts returns the facts that the checker reads of the module m of the rules defs, with the
 // binding errors, from the facts that am holds of m.
 func (Source) RuleFacts(am *pass.AnalysisManager[*core.Module], m *core.Module, defs []*ast.RuleDef) *check.RuleFacts {
 	f := corepass.FactsOf(am, m)

@@ -1,14 +1,14 @@
-// Package frontend turns a grammar into its checked form: the compiled program with its types
-// and rule flags, the site numbers of its repetitions and its run-time program, and for the tools
+// Package frontend turns a grammar into its checked form: the semantic model with its types and
+// rule flags, the site numbers of its repetitions and its run-time program, and for the tools
 // the Core IR module built from it with the manager of the analyses of the module, through which
 // they read the facts that the middle end computes on it. The check reads the rule facts and the
 // site numbers of the structural module from a FactSource that the caller hands it. It is the one
 // place that answers what a grammar means; the backends and the tools that analyze a grammar
 // (lint, the language server) read its Result.
 //
-// Run reports the errors the compiler finds. The compiler's Check makes the program; the program
-// and the type model still live in the compiler, so the front end imports it until they move to
-// packages of their own.
+// Run reports the errors that the canonicalization and the checker find. The semantic model and
+// its checker are package check; this package canonicalizes the grammar, checks it into a model,
+// and adds the site numbers and the run-time program.
 package frontend
 
 import (
@@ -25,7 +25,7 @@ import (
 // A fact error of the untyped module that the compiler does not report is added to its errors
 // by mergeErrors.
 
-// Result is the checked form of a grammar: the compiled program with the site numbers of its
+// Result is the checked form of a grammar: the semantic model with the site numbers of its
 // repetitions and its run-time program. It is the program that the Core IR builder reads
 // (elaborate.Program). The tools that analyze a grammar also read the Core IR module of a Result of
 // Run or WithModule; the backends build their own from a Result of Check.

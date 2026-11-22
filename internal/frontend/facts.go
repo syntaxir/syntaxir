@@ -12,10 +12,10 @@ import (
 )
 
 // A FactSource computes the rule facts of the structural module of a grammar for the front end,
-// which reads them and computes none itself: the facts are the Core analyses of the middle end
-// (checkfacts.Source), held by the analysis manager of the module.
+// which reads them and computes none itself: the facts are the Core analyses of the middle end,
+// held by the analysis manager of the module, in the checker's types (checkfacts.Source).
 type FactSource interface {
-	// RuleFacts returns the rule facts that the compiler reads of the module m of the rules defs,
+	// RuleFacts returns the rule facts that the checker reads of the module m of the rules defs,
 	// with the binding errors, from the facts that am holds of m.
 	RuleFacts(am *pass.AnalysisManager[*core.Module], m *core.Module, defs []*ast.RuleDef) *check.RuleFacts
 	// Errors returns the structural errors of the module m of the rules defs, in the order of the
@@ -26,7 +26,7 @@ type FactSource interface {
 }
 
 // Check checks g into its semantic model (check.CheckCanonical) with the rule facts and the site
-// numbers of the untyped Core IR module of its rules, which facts computes: the compiler takes
+// numbers of the untyped Core IR module of its rules, which facts computes: the checker takes
 // every rule fact from the Core facts. names receives the hidden rules that the lowering of inline
 // actions generates. If flags is not nil, the rules take the flags of a compiled grammar
 // (check.Model.Flags), and the sites are numbered with them. A non-nil control polls for
