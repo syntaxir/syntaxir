@@ -17,7 +17,7 @@ SyntaxIR is pre-release, and much of that aim is still ahead. Each part is paire
 | Selectable optimization profiles | Three profiles for generated Go, `speed`, `memory` and `size`, over named optimization flags ([Optimizations](guide/code-generation.md#optimizations)); none for TypeScript | A TypeScript profile |
 | Every use | Trees, typed values, recognition, recovery, `Document` and streaming, with per-target gaps ([What One Grammar Gives You](#what-one-grammar-gives-you)) | Editor support for the languages you define |
 | The best measured speed in each | Slower than Go's hand-written parsers on every comparable workload so far: <!-- fig:typed-vs-std-short -->1.1–5.4×<!-- /fig --> for typed values, <!-- fig:tree-vs-std-short -->1.6–6.8×<!-- /fig --> for trees ([Measured Today](#measured-today)) | Match, then beat them, and show it in a public cross-tool benchmark with every loss published ([Commitments and Targets](#commitments-and-targets)) |
-| Safe by default | A nesting cap and compute limits, on by default (`-no-limits` opts out) | Compute limits on by default, in generated parsers too; optional input-length and memory caps |
+| Safe by default | A nesting cap and compute limits, on by default (`-no-limits` opts out); optional input-length and memory caps | Performance figures measured with the limits on; a compute budget refined per grammar |
 
 **Best fit today:** a Go program, alone or with a TypeScript front end, that parses its own DSL, configuration, query
 or policy language and wants typed values, declared recovery and incremental reparsing from one grammar. The reason to
@@ -132,14 +132,14 @@ in the tree, on every backend. `#missing` inserts an absent literal in whole-inp
 ([Recovering From Errors](guide/recovery.md)). Recovery is not automatic: when no `#recover` rule covers an error,
 the parse fails with no tree.
 
-**Resource use is stated, and bounding it is the caller's choice today.** SyntaxIR does not promise linear time.
+**Resource use is stated and bounded by default.** SyntaxIR does not promise linear time.
 Memoization bounds how often a rule body runs at one position. The specification states which constructs repeat cost,
 the classes of growth a grammar can have (linear, polynomial, exponential) with example grammars, and sufficient
 conditions for linear cost ([Time and Memory](../spec/runtime/parsing.md#time-and-memory)). Nesting depth is capped by
-default. Compute limits are on by default in generated parsers, and `-no-limits` opts out ([Cancellation and Compute Limits](../spec/runtime/parsing.md#cancellation-and-compute-limits)).
-For a given artifact, input and options, a compute limit stops a parse at the same point on every run. Context
-cancellation follows the caller's clock. Limits on by default are a committed goal (see
-[Commitments and Targets](#commitments-and-targets)).
+default. Every parse also has a compute limit by default, in the engine and in generated parsers, and `-no-limits`
+generates a parser without it ([Default Limits](../spec/runtime/parsing.md#default-limits)). Optional caps bound the
+length of the input and the storage a parse takes into use. For a given artifact, input and options, a compute limit
+stops a parse at the same point on every run. Context cancellation follows the caller's clock.
 
 **One compilation, aimed at every target.** A grammar is checked and compiled once. Generated TypeScript prints the
 matching code of every rule from the Flow IR, and generated Go prints part of its code from it; the engine backends
@@ -233,15 +233,11 @@ These are goals, not results.
   comparable workload while it still returns positioned trees or typed values, and then go below it. The current
   standard-library baselines are a minimum bar for this goal, not the fastest Go parsers; the JSON comparison moves to a
   `jsontext` baseline once it is measured.
-- **Compute limits on by default.** Every parse gets a budget proportional to the input length (c·n). At first, c
-  is one fixed, large constant, calibrated on the repository grammars and ready-made parsers so that ordinary
-  grammars stay well below it, and `sxir lint -classify` reports grammars outside the specification's sufficient
-  conditions for linear cost. An unlimited parse has to be requested explicitly. `sxir gen`
-  generates parsers with limit controls by default (`-no-limits` opts out), and published
-  performance figures are measured with the limits on. A complexity classifier, which is research, can later refine c per grammar. The
-  overhead of the limits is to shrink alongside, but the default does not wait for it.
-- **One place for production limits.** Optional caps on input length and on estimated memory (memo entries and
-  result trees) fail with the same kind of error as the compute limit.
+- **Measure with the limits on.** Every parse already gets a compute budget proportional to the input length (c·n),
+  where c is one fixed, large constant, and `sxir lint -classify` reports grammars outside the specification's
+  sufficient conditions for linear cost. Published performance figures are to be measured with the limits on, and the
+  overhead of the limits is to shrink until that costs little. A complexity classifier, which is research, can later
+  refine c per grammar.
 - **Choose the trade-off.** Optimization profiles for speed, memory and size, each a named set of optimization flags,
   so a program can choose the smallest parser or the fastest one
   ([design record 063](design/records/063-configurable-optimization-pass-pipeline.md)). They are available for
@@ -261,19 +257,17 @@ planned to reach them.
   bytecode) may change between versions with no compatibility shims. The ready-made parser modules cannot be fetched
   with `go get` from another module ([Ready-Made Parsers](guide/ready-made-parsers.md)). SyntaxIR and the Go code it
   generates require Go 1.27.1 ([Go Versions](releasing.md#go-versions)).
-- **Not safe by default for untrusted input yet.** The nesting cap is on by default; nothing else is. Default budget
-  limits and optional input-length and memory caps are committed goals
-  ([Commitments and Targets](#commitments-and-targets)).
-  - Compute limits and cancellation are on by default. Generated parsers carry them unless generated with `-no-limits`,
-    which costs 1.30–1.47× on generated Go `Parse` (JSON and XML), and the three engine backends take <!-- fig:engine-controls -->1.45–1.79×<!-- /fig --> with
+- **Bounded by default, at a cost.** Every parse has a nesting cap and a compute limit by default, of
+  `max(2^20, 1024·n)` units for an input of n units ([Default Limits](../spec/runtime/parsing.md#default-limits)).
+  - Generated parsers carry the compute limit and cancellation unless generated with `-no-limits`;
+    carrying them costs 1.30–1.47× on generated Go `Parse` (JSON and XML), and the three engine backends take <!-- fig:engine-controls -->1.45–1.79×<!-- /fig --> with
     a context or limits active ([Performance](performance.md)).
   - One limit, `Compute`, bounds the input a parse inspects, its rule calls and loop iterations, and the values it
     builds.
   - The budget counts are deterministic for a given artifact, input and options. Context cancellation is
     as timely as the caller's clock, and a blocked reader or callback cannot be interrupted.
-  - There is no memory or input-size limit; a whole parse of 27 MiB of CSV peaked at about 1.0 GB. Compute limits do not
-    bound memory.
-  - `sxir parse` has no flag for compute limits.
+  - The input-length and memory caps are off by default; a whole parse of 27 MiB of CSV peaked at about 1.0 GB. Set
+    `Input` or `Memory`, or the `-max-input` and `-max-memory` flags of the commands that run a parse, to bound them.
 - **No linear-time guarantee.** Some grammars take quadratic, cubic or exponential time. `sxir lint -classify` proves
   linear cost only for grammars that meet the
   [sufficient conditions](../spec/runtime/parsing.md#conditions-for-linear-cost), and estimates the growth of the
@@ -330,7 +324,7 @@ tables describe documented behavior; they are not benchmarks.
 
 | Tool | Targets | Go and browser from one grammar | From Go without cgo | Stated worst case | Built-in resource controls | Editor tooling from the grammar |
 |:--|:--|:--|:--|:--|:--|:--|
-| SyntaxIR (pre-release) | Two languages: Go (engine and generated) and TypeScript (generated); bytecode run by the Go VMs | Yes (generated TypeScript; no `Document` or streaming) | Yes | No polynomial bound for every grammar; classes of growth specified | Depth cap (default on); compute limits and cancellation (on by default, `-no-limits` opts out); no memory limit | None for your language; language server for `.sxir` sources |
+| SyntaxIR (pre-release) | Two languages: Go (engine and generated) and TypeScript (generated); bytecode run by the Go VMs | Yes (generated TypeScript; no `Document` or streaming) | Yes | No polynomial bound for every grammar; classes of growth specified | Depth cap (default on); compute limits and cancellation (on by default, `-no-limits` opts out); optional memory and input-length caps | None for your language; language server for `.sxir` sources |
 | tree-sitter 0.27.1 | C runtime with bindings (Go, Rust, Node, Wasm and others) | Yes (Go binding and `web-tree-sitter`) | No (Go bindings use cgo) | Not documented | Progress callback for cancellation | Highlight, injection and tag queries |
 | gotreesitter 0.56.0 | Go, WebAssembly | Yes (Wasm runtime) | Yes | Not documented | Deterministic compute limits (iterations, stack depth, nodes), on by default with thresholds derived from the input; per-parse memory budget (on by default) and a process-heap ceiling; timeout; cancellation flag | tree-sitter queries, highlighting, tags; UTF-16 coordinates |
 | Lezer 1.4.11 | JavaScript | No Go runtime | Not applicable | Not documented | Step-wise `PartialParse.advance()` and `stopAt`; the caller bounds time | CodeMirror highlighting and folding |
@@ -352,7 +346,7 @@ stack, which is why SyntaxIR caps the depth of nested recursive rule calls by de
 (context classes), participle (your structs) and gotreesitter (typed query matches) cover parts of it. A parser for
 Go and for the browser from one grammar: ANTLR, tree-sitter and gotreesitter. Recovery: tree-sitter, Lezer and ANTLR
 recover automatically, while SyntaxIR's is declared. Incremental reparsing in pure Go: gotreesitter and gpeg. Bounded
-cost: gotreesitter (on by default) and SyntaxIR (opt-in today). SyntaxIR's case is that one grammar covers all of these for a
+cost: gotreesitter and SyntaxIR, both on by default. SyntaxIR's case is that one grammar covers all of these for a
 language you own, with stdlib-only Go and dependency-free TypeScript. It is not a claim of being better at any
 one of them.
 
