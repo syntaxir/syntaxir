@@ -1,52 +1,521 @@
-<section class="hero">
-  <div class="hero-text">
-    <svg class="hero-mark" viewBox="5.39 4.8 45.22 39.17" aria-hidden="true"><path d="M5.39 4.80 L14.61 4.80 L10.00 12.79 Z" fill="#F0533A"/><path d="M16.00 5.60 L20.61 13.59 L11.39 13.59 Z" fill="#F7891E"/><path d="M17.39 4.80 L26.61 4.80 L22.00 12.79 Z" fill="#F2B800"/><path d="M28.00 5.60 L32.61 13.59 L23.39 13.59 Z" fill="#38B26A"/><path d="M29.39 4.80 L38.61 4.80 L34.00 12.79 Z" fill="#0FA3B5"/><path d="M40.00 5.60 L44.61 13.59 L35.39 13.59 Z" fill="#2F6BFF"/><path d="M41.39 4.80 L50.61 4.80 L46.00 12.79 Z" fill="#D14BC4"/><path d="M11.39 15.19 L20.61 15.19 L16.00 23.18 Z" class="brand-accent"/><path d="M22.00 15.99 L26.61 23.98 L17.39 23.98 Z" class="brand-accent" fill-opacity="0.70"/><path d="M23.39 15.19 L32.61 15.19 L28.00 23.18 Z" class="brand-accent"/><path d="M34.00 15.99 L38.61 23.98 L29.39 23.98 Z" class="brand-accent" fill-opacity="0.70"/><path d="M35.39 15.19 L44.61 15.19 L40.00 23.18 Z" class="brand-accent"/><path d="M17.39 25.58 L26.61 25.58 L22.00 33.58 Z" class="brand-accent"/><path d="M28.00 26.38 L32.61 34.38 L23.39 34.38 Z" class="brand-accent" fill-opacity="0.70"/><path d="M29.39 25.58 L38.61 25.58 L34.00 33.58 Z" class="brand-accent"/><path d="M23.39 35.98 L32.61 35.98 L28.00 43.97 Z" fill="currentColor"/></svg>
-    <h1 class="tagline">{{range $i, $p := .Phrases}}{{if $i}} {{end}}<span>{{$p}}</span>{{end}}</h1>
-    {{range .Intro}}<div class="intro">{{.}}</div>{{end}}
-    <p class="cta">
-      <a class="button primary" href="docs/tutorial/getting-started/">Get started</a>
-      <a class="button" href="{{.Playground}}">Open the playground</a>
-    </p>
-  </div>
-  <div class="live" id="live" data-grammar="{{.Example}}" data-input="{{.ExampleIn}}">
-    <div class="live-head">
-      <span class="live-title">Try it: <code>calc.sxir</code></span>
-      <a class="live-open" id="live-open" href="{{.Playground}}">Edit in the playground →</a>
+<section class="lp-hero" id="hero" aria-labelledby="hero-title">
+  <div class="lp-wrap">
+    <div class="lp-hero-grid">
+      <h1 id="hero-title" class="lp-tagline">{{range $i, $p := .Phrases}}{{if $i}} {{end}}<span>{{$p}}</span>{{end}}</h1>
+      <div class="lp-hero-text">
+        <p class="lp-lead">{{.Description}}</p>
+        <p class="lp-cta">
+          <a class="button primary" href="docs/tutorial/getting-started/">Get Started</a>
+          <a class="button" href="playground/">Open Playground</a>
+          <a class="lp-text-link" href="spec/">Read the spec</a>
+        </p>
+      </div>
     </div>
-    <pre class="live-grammar"><code class="language-sxir">{{.Example}}</code></pre>
-    <label class="live-input-label" for="live-input">Input</label>
-    <input id="live-input" class="live-input" value="{{.ExampleIn}}" spellcheck="false" autocomplete="off">
-    <div class="live-output-label">Tree <span id="live-status" class="live-status">loading the parser…</span></div>
-    <pre class="live-output" id="live-output" aria-live="polite"></pre>
+
+    <figure class="lp-figure lp-arch" id="arch">
+      <figcaption class="lp-figure-head">
+        <span>How one grammar becomes every parser. Select a target to see its output below.</span>
+        <span class="lp-arch-status" id="arch-status" aria-live="polite">Showing every target</span>
+      </figcaption>
+      <div class="lp-diagram">
+        <svg class="lp-wide" viewBox="0 0 960 320" role="img" aria-label="One grammar, a .sxir file, enters the SyntaxIR core, which checks its cost and safety, optimizes it through a multi-stage IR into typed, incremental and streaming parsers, and provides a full toolchain: a language server, lint, trace, profile and fuzzing. It compiles to generated Go, generated TypeScript, the bytecode VM and WebAssembly in the browser; more targets are on the roadmap.">
+          <defs>
+            <marker id="arch-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-fill-ink" d="M 0 1 L 10 5 L 0 9 z"/></marker>
+          </defs>
+          <rect class="d-box" x="12" y="106" width="144" height="108" rx="10"/>
+          <g transform="translate(70 122)"><path class="d-icon-ink" d="M4 2 H18 L24 8 V26 H4 Z"/><path class="d-icon-ink" d="M18 2 V8 H24"/><line class="d-icon-accent" x1="8" y1="14" x2="19" y2="14"/><line class="d-icon-muted" x1="8" y1="19" x2="16" y2="19"/></g>
+          <text class="d-title" x="84" y="176" text-anchor="middle">1 Grammar</text>
+          <text class="d-code" x="84" y="196" text-anchor="middle">.sxir</text>
+          <line class="d-arrow" x1="156" y1="160" x2="222" y2="160" marker-end="url(#arch-arrow)"/>
+
+          <rect class="d-core" x="234" y="28" width="376" height="264" rx="14"/>
+          <image class="only-light" href="assets/brand/syntaxir-lockup-horizontal.svg" x="334" y="42" width="176" height="33"/>
+          <image class="only-dark" href="assets/brand/syntaxir-lockup-horizontal-dark.svg" x="334" y="42" width="176" height="33"/>
+          <rect class="d-panel" x="258" y="88" width="328" height="54" rx="8"/>
+          <g transform="translate(274 102)"><path class="d-icon s-green" d="M12 2 L21 5.5 V12.5 C21 18 17 22 12 24 C7 22 3 18 3 12.5 V5.5 Z"/><path class="d-icon s-green" d="M8.5 12.5 L11 15 L16 9.5"/></g>
+          <text class="d-label-strong" x="312" y="112">Safety Checks</text>
+          <text class="d-label" x="312" y="130">Cost analysis &amp; compute limits</text>
+          <rect class="d-panel d-panel-accent" x="258" y="154" width="328" height="54" rx="8"/>
+          <g transform="translate(274 168)"><polygon class="d-icon-accent" points="12,3 22,8.5 12,14 2,8.5"/><polyline class="d-icon-accent" points="2,13.5 12,19 22,13.5"/><polyline class="d-icon-accent" points="2,18.5 12,24 22,18.5"/></g>
+          <text class="d-label-strong" x="312" y="178">Multi-Stage IR Optimizer</text>
+          <text class="d-label" x="312" y="196">Typed AST, incremental &amp; streaming</text>
+          <rect class="d-panel" x="258" y="220" width="328" height="54" rx="8"/>
+          <g transform="translate(274 234)"><rect class="d-icon s-blue" x="2" y="3" width="20" height="18" rx="3"/><polyline class="d-icon s-blue" points="7,9 11,12 7,15"/><line class="d-icon s-blue" x1="13" y1="15" x2="17" y2="15"/></g>
+          <text class="d-label-strong" x="312" y="244">Full Language Toolchain</text>
+          <text class="d-label" x="312" y="262">LSP, lint, trace, profile &amp; fuzz</text>
+
+          <path class="d-path p-go s-blue" d="M 610 160 C 662 160, 668 48, 720 48"/>
+          <path class="d-path p-ts s-teal" d="M 610 160 C 662 160, 668 104, 720 104"/>
+          <path class="d-path p-vm s-green" d="M 610 160 L 720 160"/>
+          <path class="d-path p-wasm s-orange" d="M 610 160 C 662 160, 668 216, 720 216"/>
+          <path class="d-path p-any s-magenta d-dashed" d="M 610 160 C 662 160, 668 272, 720 272"/>
+
+          <g class="d-target" data-target="go"><rect class="d-target-box s-blue" x="726" y="26" width="222" height="44" rx="8"/><g transform="translate(740 38)"><polyline class="d-icon s-blue" points="6,3 1,10 6,17"/><polyline class="d-icon s-blue" points="14,3 19,10 14,17"/></g><text class="d-target-name" x="772" y="53">Go</text><text class="d-label" x="934" y="52" text-anchor="end">Generated</text></g>
+          <g class="d-target" data-target="ts"><rect class="d-target-box s-teal" x="726" y="82" width="222" height="44" rx="8"/><g transform="translate(740 96)"><rect class="d-icon s-teal" x="1" y="0" width="18" height="16" rx="2.5"/><line class="d-icon s-teal" x1="1" y1="5" x2="19" y2="5"/></g><text class="d-target-name" x="772" y="109">TypeScript</text><text class="d-label" x="934" y="108" text-anchor="end">Generated</text></g>
+          <g class="d-target" data-target="vm"><rect class="d-target-box s-green" x="726" y="138" width="222" height="44" rx="8"/><g transform="translate(740 150)"><rect class="d-icon s-green" x="4" y="4" width="12" height="12" rx="2"/><path class="d-icon s-green" d="M10 0 V4 M10 16 V20 M0 10 H4 M16 10 H20"/></g><text class="d-target-name" x="772" y="165">Bytecode VM</text><text class="d-code" x="934" y="164" text-anchor="end">.sxirc</text></g>
+          <g class="d-target" data-target="wasm"><rect class="d-target-box s-orange" x="726" y="194" width="222" height="44" rx="8"/><g transform="translate(740 206)"><polygon class="d-icon s-orange" points="10,1 19,6 19,14 10,19 1,14 1,6"/><circle class="d-dot s-orange" cx="10" cy="10" r="2.5"/></g><text class="d-target-name" x="772" y="221">WebAssembly</text><text class="d-label" x="934" y="220" text-anchor="end">Browser</text></g>
+          <g class="d-target" data-target="any"><rect class="d-target-box s-magenta d-dashed" x="726" y="250" width="222" height="44" rx="8"/><g transform="translate(740 262)"><path class="d-icon s-magenta" d="M10 3 V17 M3 10 H17"/></g><text class="d-target-name" x="772" y="277">Any Target</text><text class="d-label" x="934" y="276" text-anchor="end">Roadmap</text></g>
+        </svg>
+
+        <svg class="lp-narrow" viewBox="0 0 360 716" role="img" aria-label="One grammar, a .sxir file, enters the SyntaxIR core, which checks its cost and safety, optimizes it through a multi-stage IR into typed, incremental and streaming parsers, and provides a full toolchain: a language server, lint, trace, profile and fuzzing. It compiles to generated Go, generated TypeScript, the bytecode VM and WebAssembly in the browser; more targets are on the roadmap.">
+          <defs>
+            <marker id="arch-arrow-n" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-fill-ink" d="M 0 1 L 10 5 L 0 9 z"/></marker>
+          </defs>
+          <rect class="d-box" x="100" y="8" width="160" height="84" rx="10"/>
+          <g transform="translate(166 16)"><path class="d-icon-ink" d="M4 2 H18 L24 8 V26 H4 Z"/><path class="d-icon-ink" d="M18 2 V8 H24"/><line class="d-icon-accent" x1="8" y1="14" x2="19" y2="14"/><line class="d-icon-muted" x1="8" y1="19" x2="16" y2="19"/></g>
+          <text class="d-title" x="180" y="66" text-anchor="middle">1 Grammar</text>
+          <text class="d-code" x="180" y="84" text-anchor="middle">.sxir</text>
+          <line class="d-arrow" x1="180" y1="92" x2="180" y2="118" marker-end="url(#arch-arrow-n)"/>
+
+          <rect class="d-core" x="8" y="124" width="344" height="300" rx="14"/>
+          <image class="only-light" href="assets/brand/syntaxir-lockup-horizontal.svg" x="100" y="136" width="160" height="30"/>
+          <image class="only-dark" href="assets/brand/syntaxir-lockup-horizontal-dark.svg" x="100" y="136" width="160" height="30"/>
+          <rect class="d-panel" x="22" y="180" width="316" height="64" rx="8"/>
+          <g transform="translate(36 199)"><path class="d-icon s-green" d="M12 2 L21 5.5 V12.5 C21 18 17 22 12 24 C7 22 3 18 3 12.5 V5.5 Z"/><path class="d-icon s-green" d="M8.5 12.5 L11 15 L16 9.5"/></g>
+          <text class="d-label-strong" x="72" y="207">Safety Checks</text>
+          <text class="d-label" x="72" y="227">Cost analysis &amp; compute limits</text>
+          <rect class="d-panel d-panel-accent" x="22" y="262" width="316" height="64" rx="8"/>
+          <g transform="translate(36 281)"><polygon class="d-icon-accent" points="12,3 22,8.5 12,14 2,8.5"/><polyline class="d-icon-accent" points="2,13.5 12,19 22,13.5"/><polyline class="d-icon-accent" points="2,18.5 12,24 22,18.5"/></g>
+          <text class="d-label-strong" x="72" y="289">Multi-Stage IR Optimizer</text>
+          <text class="d-label" x="72" y="309">Typed AST, incremental &amp; streaming</text>
+          <rect class="d-panel" x="22" y="344" width="316" height="64" rx="8"/>
+          <g transform="translate(36 363)"><rect class="d-icon s-blue" x="2" y="3" width="20" height="18" rx="3"/><polyline class="d-icon s-blue" points="7,9 11,12 7,15"/><line class="d-icon s-blue" x1="13" y1="15" x2="17" y2="15"/></g>
+          <text class="d-label-strong" x="72" y="371">Full Language Toolchain</text>
+          <text class="d-label" x="72" y="391">LSP, lint, trace, profile &amp; fuzz</text>
+
+          <path class="d-path p-go s-blue" d="M 78 424 V 470 H 96"/>
+          <path class="d-path p-ts s-teal" d="M 66 424 V 524 H 96"/>
+          <path class="d-path p-vm s-green" d="M 54 424 V 578 H 96"/>
+          <path class="d-path p-wasm s-orange" d="M 42 424 V 632 H 96"/>
+          <path class="d-path p-any s-magenta d-dashed" d="M 30 424 V 686 H 96"/>
+
+          <g class="d-target" data-target="go"><rect class="d-target-box s-blue" x="96" y="448" width="256" height="44" rx="8"/><g transform="translate(108 460)"><polyline class="d-icon s-blue" points="6,3 1,10 6,17"/><polyline class="d-icon s-blue" points="14,3 19,10 14,17"/></g><text class="d-target-name" x="140" y="475">Go</text><text class="d-label" x="340" y="474" text-anchor="end">Generated</text></g>
+          <g class="d-target" data-target="ts"><rect class="d-target-box s-teal" x="96" y="502" width="256" height="44" rx="8"/><g transform="translate(108 516)"><rect class="d-icon s-teal" x="1" y="0" width="18" height="16" rx="2.5"/><line class="d-icon s-teal" x1="1" y1="5" x2="19" y2="5"/></g><text class="d-target-name" x="140" y="529">TypeScript</text><text class="d-label" x="340" y="528" text-anchor="end">Generated</text></g>
+          <g class="d-target" data-target="vm"><rect class="d-target-box s-green" x="96" y="556" width="256" height="44" rx="8"/><g transform="translate(108 568)"><rect class="d-icon s-green" x="4" y="4" width="12" height="12" rx="2"/><path class="d-icon s-green" d="M10 0 V4 M10 16 V20 M0 10 H4 M16 10 H20"/></g><text class="d-target-name" x="140" y="583">Bytecode VM</text><text class="d-code" x="340" y="582" text-anchor="end">.sxirc</text></g>
+          <g class="d-target" data-target="wasm"><rect class="d-target-box s-orange" x="96" y="610" width="256" height="44" rx="8"/><g transform="translate(108 622)"><polygon class="d-icon s-orange" points="10,1 19,6 19,14 10,19 1,14 1,6"/><circle class="d-dot s-orange" cx="10" cy="10" r="2.5"/></g><text class="d-target-name" x="140" y="637">WebAssembly</text><text class="d-label" x="340" y="636" text-anchor="end">Browser</text></g>
+          <g class="d-target" data-target="any"><rect class="d-target-box s-magenta d-dashed" x="96" y="664" width="256" height="44" rx="8"/><g transform="translate(108 676)"><path class="d-icon s-magenta" d="M10 3 V17 M3 10 H17"/></g><text class="d-target-name" x="140" y="691">Any Target</text><text class="d-label" x="340" y="690" text-anchor="end">Roadmap</text></g>
+        </svg>
+      </div>
+    </figure>
   </div>
 </section>
 
-<section class="snippets">
-{{.Snippets}}
-</section>
-
-<section class="features" id="why-syntaxir" aria-labelledby="why-syntaxir-title">
-  <h2 id="why-syntaxir-title">Why SyntaxIR</h2>
-  <div class="feature-grid">
-    {{range .Features}}<div class="feature">
-      <h3>{{.Title}}</h3>
-      <p>{{.Body}}</p>
+<section class="lp-section lp-alt" id="live-demo" aria-labelledby="live-title">
+  <div class="lp-wrap">
+    <div class="lp-section-head lp-split-head">
+      <div>
+        <h2 id="live-title">Same tree, same errors, every runtime.</h2>
+        <p>Edit the expression: the real SyntaxIR engine, compiled to WebAssembly, parses it in your browser. The other tabs show what the same grammar becomes in Go, in TypeScript, on the bytecode VM and with the <code>sxir</code> command.</p>
+      </div>
+      <a class="lp-text-link lp-accent-link" id="live-open" href="playground/">Open in full Playground</a>
     </div>
-    {{end}}
+
+    <div class="workbench" id="workbench" data-grammar="{{.Grammar}}">
+      <div class="wb-grammar">
+        <div class="wb-bar"><span class="wb-file">calc.sxir</span><span>Typed grammar</span></div>
+        <pre><code class="language-sxir">{{.Grammar}}</code></pre>
+      </div>
+      <div class="wb-out">
+        <div class="wb-tabs" role="tablist" aria-label="Output">
+          <button type="button" role="tab" id="tab-live" aria-controls="panel-live" aria-selected="true">Live AST</button>
+          <button type="button" role="tab" id="tab-go" aria-controls="panel-go" aria-selected="false" tabindex="-1">Go</button>
+          <button type="button" role="tab" id="tab-ts" aria-controls="panel-ts" aria-selected="false" tabindex="-1">TypeScript</button>
+          <button type="button" role="tab" id="tab-vm" aria-controls="panel-vm" aria-selected="false" tabindex="-1">Bytecode VM</button>
+          <button type="button" role="tab" id="tab-cli" aria-controls="panel-cli" aria-selected="false" tabindex="-1">sxir CLI</button>
+        </div>
+
+        <div class="wb-panel wb-live" id="panel-live" role="tabpanel" aria-labelledby="tab-live">
+          <div class="wb-input-head">
+            <label for="live-input">Input expression</label>
+            <div class="wb-presets" role="group" aria-label="Example inputs">
+              <button type="button" class="wb-preset-code" data-preset="{{.Input}}">{{.Input}}</button>
+              <button type="button" data-preset="(10 - 3) * 4 ^ 2 ^ 3">right-assoc ^</button>
+              <button type="button" class="wb-preset-error" data-preset="1 + * 2">syntax error</button>
+            </div>
+          </div>
+          <input id="live-input" class="wb-input" value="{{.Input}}" spellcheck="false" autocomplete="off" autocapitalize="off">
+          <div class="wb-output-head">
+            <span>Output</span>
+            <span class="wb-badge" id="live-badge">Waiting for the parser</span>
+          </div>
+          <pre class="wb-output" id="live-output" aria-live="polite"></pre>
+          <div class="wb-fallback" id="live-fallback" hidden>
+            <p>The live parser could not be loaded in this browser.</p>
+            <p><button type="button" class="button small" id="live-retry">Try again</button> <a href="playground/">Open the playground</a></p>
+          </div>
+          <dl class="wb-stats">
+            <div><dt>AST nodes</dt><dd id="live-nodes">–</dd></div>
+            <div><dt>Tree depth</dt><dd id="live-depth">–</dd></div>
+            <div><dt>Parse time <span class="wb-median">(median of 5)</span></dt><dd id="live-time">–</dd></div>
+          </dl>
+        </div>
+
+        <div class="wb-panel" id="panel-go" role="tabpanel" aria-labelledby="tab-go" hidden>
+          <pre><code class="language-bash">sxir gen -g calc.sxir -module example.com/app/calc -types -document -o calc</code></pre>
+          <pre><code class="language-go">import "example.com/app/calc"
+
+expr, err := calc.ParseValue("1 + 2 * 3 ^ 2") // a types.Expr, with positions
+
+// A Document reparses only what an edit touched.
+doc, err := calc.NewDocument(text)
+err = doc.Edit(10, 12, "42")
+expr, err = doc.ParseValue()</code></pre>
+        </div>
+
+        <div class="wb-panel" id="panel-ts" role="tabpanel" aria-labelledby="tab-ts" hidden>
+          <pre><code class="language-bash">sxir gen -lang ts -g calc.sxir -types -o calc</code></pre>
+          <pre><code class="language-ts">import { parseValue } from "./calc/parser.ts";
+
+const { value, error } = parseValue("1 + 2 * 3 ^ 2");
+if (error) showDiagnostic(error);
+else renderTree(value); // Bin | Num, with positions</code></pre>
+        </div>
+
+        <div class="wb-panel" id="panel-vm" role="tabpanel" aria-labelledby="tab-vm" hidden>
+          <pre><code class="language-bash">sxir compile -g calc.sxir -o calc.sxirc</code></pre>
+          <pre><code class="language-go">import "syntaxir.dev/sxir/pkg/runtime/vm"
+
+data, err := os.ReadFile("calc.sxirc")
+p, err := vm.LoadParser(data) // no grammar to parse or check at run time
+node, err := p.Parse("1 + 2 * 3 ^ 2")</code></pre>
+        </div>
+
+        <div class="wb-panel" id="panel-cli" role="tabpanel" aria-labelledby="tab-cli" hidden>
+          <pre><code class="language-bash"># Likely mistakes, and the cost class of the grammar
+sxir lint -g calc.sxir
+sxir lint -classify -g calc.sxir
+
+# Every rule call, and the cost per rule
+sxir trace -g calc.sxir -i '1 + 2'
+sxir profile -g calc.sxir &lt; corpus.txt
+
+# Inputs the grammar accepts, and edits checked against fresh parses
+sxir sample -g calc.sxir -n 20 -coverage
+sxir edit-fuzz -g calc.sxir -minimize -save-failures out
+
+# A language server for .sxir files
+sxir lsp</code></pre>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
-<section class="readme prose">
-{{.Sections}}
+<section class="lp-section" id="use-cases" aria-labelledby="use-cases-title">
+  <div class="lp-wrap">
+    <div class="lp-section-head">
+      <h2 id="use-cases-title">Where SyntaxIR fits</h2>
+      <p>Five workloads where hand-written parsers or single-target generators break down.</p>
+    </div>
+    <div class="lp-cases">
+      <article class="lp-case lp-case-third">
+        <figure class="lp-case-figure">
+          <svg viewBox="0 0 320 96" role="img" aria-label="One grammar, query.sxir, fans out to a Go API with typed values, a TypeScript user interface with the same errors and the VM with the same tree.">
+            <rect class="d-box" x="2" y="28" width="76" height="40" rx="5"/>
+            <text class="d-label-strong d-small" x="40" y="52" text-anchor="middle">query.sxir</text>
+            <path class="d-line s-blue" d="M 78 48 C 106 48, 108 18, 138 18"/>
+            <path class="d-line s-teal" d="M 78 48 L 138 48"/>
+            <path class="d-line s-green" d="M 78 48 C 106 48, 108 78, 138 78"/>
+            <rect class="d-chip s-blue" x="142" y="6" width="174" height="24" rx="4"/>
+            <text class="d-label-strong d-small" x="152" y="22">API (Go) · Typed values</text>
+            <rect class="d-chip s-teal" x="142" y="36" width="174" height="24" rx="4"/>
+            <text class="d-label-strong d-small" x="152" y="52">UI (TS) · Same errors</text>
+            <rect class="d-chip s-green" x="142" y="66" width="174" height="24" rx="4"/>
+            <text class="d-label-strong d-small" x="152" y="82">VM · Same tree</text>
+          </svg>
+        </figure>
+        <h3>Shared DSLs across runtimes</h3>
+        <p>Ship a filter, query or policy language to Go services and TypeScript front ends from one grammar. Conformance tests hold every backend to the same trees and errors.</p>
+      </article>
+
+      <article class="lp-case lp-case-third">
+        <figure class="lp-case-figure">
+          <svg viewBox="0 0 320 96" role="img" aria-label="A syntax tree in which only the edited node is parsed again and every untouched subtree is reused: an edit and reparse of 100,000 lines takes about 1 to 2 milliseconds.">
+            <path class="d-line-soft" d="M94 18 L44 48 M94 18 L144 48 M44 48 L26 78 M44 48 L62 78 M144 48 L126 78 M144 48 L162 78"/>
+            <line class="d-line d-stroke-accent" x1="94" y1="18" x2="94" y2="48"/>
+            <circle class="d-node-root" cx="94" cy="18" r="8"/>
+            <circle class="d-fill-accent" cx="94" cy="48" r="8"/>
+            <circle class="d-node-reused" cx="44" cy="48" r="7"/>
+            <circle class="d-node-reused" cx="26" cy="78" r="6"/>
+            <circle class="d-node-reused" cx="62" cy="78" r="6"/>
+            <circle class="d-node-reused" cx="144" cy="48" r="7"/>
+            <circle class="d-node-reused" cx="126" cy="78" r="6"/>
+            <circle class="d-node-reused" cx="162" cy="78" r="6"/>
+            <circle class="d-fill-accent" cx="186" cy="24" r="5"/>
+            <text class="d-label-strong d-small" x="198" y="28">1 edited node</text>
+            <circle class="d-node-reused" cx="186" cy="48" r="5"/>
+            <text class="d-label d-small" x="198" y="52">Reused subtrees</text>
+            <text class="d-stat" x="181" y="82">1–2 ms / 100k lines</text>
+          </svg>
+        </figure>
+        <h3>Keystroke-speed editors</h3>
+        <p>A <code>Document</code> reuses every rule result an edit did not touch: an edit and reparse of 100,000 lines takes about 1–2 ms. Declared recovery keeps a tree for unfinished code.</p>
+      </article>
+
+      <article class="lp-case lp-case-third">
+        <figure class="lp-case-figure">
+          <svg viewBox="0 0 320 96" role="img" aria-label="Cost against input size: a super-linear parse would grow without bound, but the compute limit stops it; a grammar that the cost analysis proves linear stays below the limit.">
+            <path class="d-line-soft" d="M18 82 H188 M18 12 V82"/>
+            <path class="d-line s-red d-dashed" d="M 18 80 Q 92 78, 112 40"/>
+            <path class="d-line-soft d-dashed" d="M 112 40 Q 120 26, 126 14"/>
+            <line class="d-line s-orange d-dashed" x1="18" y1="40" x2="188" y2="40"/>
+            <path class="d-line s-red" d="M107 35 L117 45 M117 35 L107 45"/>
+            <line class="d-line-bold s-green" x1="18" y1="80" x2="184" y2="56"/>
+            <line class="d-line s-red d-dashed" x1="196" y1="18" x2="210" y2="18"/>
+            <text class="d-label d-small" x="216" y="22">Super-linear</text>
+            <line class="d-line s-orange d-dashed" x1="196" y1="42" x2="210" y2="42"/>
+            <text class="d-label d-small" x="216" y="46">Compute limit</text>
+            <line class="d-line-bold s-green" x1="196" y1="66" x2="210" y2="66"/>
+            <text class="d-label d-small" x="216" y="70">Proved linear</text>
+          </svg>
+        </figure>
+        <h3>Safe parsing for untrusted input</h3>
+        <p>Cost analysis proves linear time for grammars that meet its conditions and flags super-linear rules before you ship. Compute and nesting limits, on by default, stop hostile input.</p>
+      </article>
+
+      <article class="lp-case lp-case-half">
+        <figure class="lp-case-figure lp-switch">
+          <svg class="lp-wide" viewBox="0 0 460 96" role="img" aria-label="Source code with indentation, operator precedence and a syntax error becomes a typed tree: context and indentation for languages such as Python and YAML, the operators rule with precedence and left recursion, and a tree that survives errors through declared recovery.">
+            <rect class="d-box" x="2" y="10" width="166" height="76" rx="6"/>
+            <text class="d-code d-fill-accent" x="14" y="30">def</text>
+            <text class="d-code d-fill-ink" x="40" y="30">calc(x):</text>
+            <line class="d-line s-orange d-dotted" x1="20" y1="38" x2="20" y2="76"/>
+            <text class="d-code d-fill-ink" x="28" y="52">return x * 2 ^ 3</text>
+            <text class="d-code d-fill-error" x="28" y="72">x + *  # recovers</text>
+            <line class="d-arrow" x1="176" y1="48" x2="206" y2="48"/>
+            <polygon class="d-fill-ink" points="206,44 214,48 206,52"/>
+            <rect class="d-chip s-orange" x="222" y="8" width="234" height="24" rx="4"/>
+            <text class="d-label-strong d-small" x="234" y="24">Context &amp; indentation (Python, YAML)</text>
+            <rect class="d-chip d-stroke-accent" x="222" y="36" width="234" height="24" rx="4"/>
+            <text class="d-label-strong d-small" x="234" y="52">#operators precedence &amp; left recursion</text>
+            <rect class="d-chip s-green" x="222" y="64" width="234" height="24" rx="4"/>
+            <text class="d-label-strong d-small" x="234" y="80">A tree through errors with #recover</text>
+          </svg>
+          <svg class="lp-narrow" viewBox="0 0 320 180" role="img" aria-label="Source code with indentation, operator precedence and a syntax error becomes a typed tree: context and indentation for languages such as Python and YAML, the operators rule with precedence and left recursion, and a tree that survives errors through declared recovery.">
+            <rect class="d-box" x="2" y="2" width="316" height="72" rx="6"/>
+            <text class="d-code d-fill-accent" x="14" y="22">def</text>
+            <text class="d-code d-fill-ink" x="40" y="22">calc(x):</text>
+            <line class="d-line s-orange d-dotted" x1="20" y1="30" x2="20" y2="66"/>
+            <text class="d-code d-fill-ink" x="28" y="44">return x * 2 ^ 3</text>
+            <text class="d-code d-fill-error" x="28" y="64">x + *  # recovers</text>
+            <line class="d-arrow" x1="160" y1="76" x2="160" y2="88"/>
+            <polygon class="d-fill-ink" points="156,88 160,96 164,88"/>
+            <rect class="d-chip s-orange" x="2" y="100" width="316" height="24" rx="4"/>
+            <text class="d-label-strong d-small" x="14" y="116">Context &amp; indentation (Python, YAML)</text>
+            <rect class="d-chip d-stroke-accent" x="2" y="128" width="316" height="24" rx="4"/>
+            <text class="d-label-strong d-small" x="14" y="144">#operators precedence &amp; left recursion</text>
+            <rect class="d-chip s-green" x="2" y="156" width="316" height="22" rx="4"/>
+            <text class="d-label-strong d-small" x="14" y="171">A tree through errors with #recover</text>
+          </svg>
+        </figure>
+        <h3>Develop real programming languages</h3>
+        <p>Express indentation-sensitive blocks, whole operator precedence tables and left recursion directly. The ready-made parsers for Go 1.27, Python 3.14, TypeScript 5.9 and DuckDB SQL are written this way.</p>
+      </article>
+
+      <article class="lp-case lp-case-half">
+        <figure class="lp-case-figure lp-switch">
+          <svg class="lp-wide" viewBox="0 0 460 96" role="img" aria-label="Chunks from a reader flow through a #stream repetition, which delivers typed records one at a time while holding memory for one element, not for the whole input.">
+            <rect class="d-box" x="2" y="30" width="52" height="36" rx="5"/>
+            <text class="d-label" x="28" y="52" text-anchor="middle">chunk</text>
+            <rect class="d-box" x="62" y="30" width="52" height="36" rx="5"/>
+            <text class="d-label" x="88" y="52" text-anchor="middle">chunk</text>
+            <line class="d-arrow" x1="120" y1="48" x2="150" y2="48"/>
+            <polygon class="d-fill-ink" points="150,44 158,48 150,52"/>
+            <rect class="d-core" x="164" y="20" width="132" height="56" rx="8"/>
+            <text class="d-title d-fill-accent" x="230" y="45" text-anchor="middle">#stream</text>
+            <text class="d-label d-small" x="230" y="63" text-anchor="middle">One element in memory</text>
+            <line class="d-line s-teal" x1="296" y1="48" x2="316" y2="48"/>
+            <polygon class="d-dot s-teal" points="316,44 324,48 316,52"/>
+            <rect class="d-chip s-teal" x="330" y="14" width="126" height="28" rx="5"/>
+            <text class="d-label-strong d-small" x="393" y="32" text-anchor="middle">Typed record 1</text>
+            <rect class="d-chip s-teal" x="330" y="54" width="126" height="28" rx="5"/>
+            <text class="d-label-strong d-small" x="393" y="72" text-anchor="middle">Typed record 2</text>
+          </svg>
+          <svg class="lp-narrow" viewBox="0 0 320 172" role="img" aria-label="Chunks from a reader flow through a #stream repetition, which delivers typed records one at a time while holding memory for one element, not for the whole input.">
+            <rect class="d-box" x="94" y="2" width="62" height="32" rx="5"/>
+            <text class="d-label" x="125" y="22" text-anchor="middle">chunk</text>
+            <rect class="d-box" x="164" y="2" width="62" height="32" rx="5"/>
+            <text class="d-label" x="195" y="22" text-anchor="middle">chunk</text>
+            <line class="d-arrow" x1="160" y1="36" x2="160" y2="48"/>
+            <polygon class="d-fill-ink" points="156,48 160,56 164,48"/>
+            <rect class="d-core" x="70" y="60" width="180" height="52" rx="8"/>
+            <text class="d-title d-fill-accent" x="160" y="83" text-anchor="middle">#stream</text>
+            <text class="d-label d-small" x="160" y="102" text-anchor="middle">One element in memory</text>
+            <line class="d-line s-teal" x1="160" y1="112" x2="160" y2="124"/>
+            <polygon class="d-dot s-teal" points="156,124 160,132 164,124"/>
+            <rect class="d-chip s-teal" x="18" y="138" width="136" height="30" rx="5"/>
+            <text class="d-label-strong d-small" x="86" y="157" text-anchor="middle">Typed record 1</text>
+            <rect class="d-chip s-teal" x="166" y="138" width="136" height="30" rx="5"/>
+            <text class="d-label-strong d-small" x="234" y="157" text-anchor="middle">Typed record 2</text>
+          </svg>
+        </figure>
+        <h3>Stream large logs and datasets</h3>
+        <p>Parse CSV, NDJSON or structured logs record by record as bytes arrive from an <code>io.Reader</code>. Memory follows the size of one record, not of the input.</p>
+      </article>
+    </div>
+  </div>
 </section>
 
-<section class="doc-cards" aria-labelledby="docs-title">
-  <h2 id="docs-title">Documentation</h2>
-  <div class="card-grid">
-    {{range .Docs}}<a class="card" href="{{.URL}}">
-      <h3>{{.Title}}</h3>
-      <p>{{.Text}}</p>
-    </a>
-    {{end}}
+<section class="lp-section lp-alt" id="llm-workflow" aria-labelledby="llm-title">
+  <div class="lp-wrap">
+    <div class="lp-section-head lp-two-col">
+      <h2 id="llm-title">Let LLMs write the grammar. Let SyntaxIR check it.</h2>
+      <p>A hand-written parser from an LLM hides backtracking bugs and drifts between languages. A grammar is short enough to review, and SyntaxIR checks it automatically: the checks feed their diagnostics back until the grammar passes.</p>
+    </div>
+    <figure class="lp-figure">
+      <div class="lp-diagram">
+        <svg class="lp-wide" viewBox="0 0 960 236" role="img" aria-label="A human describes the language in natural language with example inputs. An LLM agent writes the typed .sxir grammar. The SyntaxIR gate runs sxir lint, the cost classification of lint -classify, sxir sample and sxir edit-fuzz, and sends positioned diagnostics back to the agent on a lint or cost failure. Once it passes, the grammar becomes parsers for Go, TypeScript, the VM and WebAssembly, with compute and depth limits on and the same tree on every backend.">
+          <defs>
+            <marker id="wf-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-fill-ink" d="M 0 1 L 10 5 L 0 9 z"/></marker>
+            <marker id="wf-loop" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-dot s-red" d="M 0 1 L 10 5 L 0 9 z"/></marker>
+            <marker id="wf-pass" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-dot s-green" d="M 0 1 L 10 5 L 0 9 z"/></marker>
+          </defs>
+          <path class="d-line-bold s-red d-dashed" d="M 555 86 C 555 24, 315 24, 315 84" marker-end="url(#wf-loop)"/>
+          <rect class="d-pill s-red" x="342" y="18" width="186" height="24" rx="12"/>
+          <text class="d-label-strong d-small" x="435" y="34" text-anchor="middle">Fix on lint or cost failure</text>
+          <rect class="d-panel" x="8" y="92" width="166" height="104" rx="8"/>
+          <text class="d-title" x="91" y="128" text-anchor="middle">Human</text>
+          <text class="d-label" x="91" y="152" text-anchor="middle">Describes the language</text>
+          <text class="d-label" x="91" y="170" text-anchor="middle">with example inputs</text>
+          <line class="d-arrow" x1="174" y1="144" x2="220" y2="144" marker-end="url(#wf-arrow)"/>
+          <rect class="d-panel d-panel-accent" x="228" y="92" width="174" height="104" rx="8"/>
+          <text class="d-title" x="315" y="128" text-anchor="middle">LLM Agent</text>
+          <text class="d-label" x="315" y="152" text-anchor="middle">Writes the typed .sxir</text>
+          <text class="d-label" x="315" y="170" text-anchor="middle">Fixes it from diagnostics</text>
+          <line class="d-arrow" x1="402" y1="144" x2="448" y2="144" marker-end="url(#wf-arrow)"/>
+          <rect class="d-core" x="456" y="86" width="204" height="116" rx="10"/>
+          <text class="d-title d-fill-accent" x="558" y="118" text-anchor="middle">SyntaxIR Gate</text>
+          <text class="d-code d-fill-ink" x="558" y="142" text-anchor="middle">sxir lint · lint -classify</text>
+          <text class="d-code d-fill-ink" x="558" y="162" text-anchor="middle">sxir sample · edit-fuzz</text>
+          <text class="d-label" x="558" y="186" text-anchor="middle">Positioned diagnostics</text>
+          <line class="d-line-bold s-green" x1="660" y1="144" x2="724" y2="144" marker-end="url(#wf-pass)"/>
+          <text class="d-label-strong d-small" x="690" y="134" text-anchor="middle">PASS</text>
+          <rect class="d-panel d-stroke-green" x="734" y="78" width="218" height="132" rx="8"/>
+          <text class="d-title" x="843" y="108" text-anchor="middle">Parsers</text>
+          <line class="d-line-soft" x1="754" y1="120" x2="932" y2="120"/>
+          <text class="d-label-strong" x="843" y="142" text-anchor="middle">Go · TypeScript · VM · WASM</text>
+          <text class="d-label" x="843" y="166" text-anchor="middle">Compute &amp; depth limits on</text>
+          <text class="d-label" x="843" y="186" text-anchor="middle">Same tree on every backend</text>
+        </svg>
+        <svg class="lp-narrow" viewBox="0 0 360 500" role="img" aria-label="A human describes the language in natural language with example inputs. An LLM agent writes the typed .sxir grammar. The SyntaxIR gate runs sxir lint, the cost classification of lint -classify, sxir sample and sxir edit-fuzz, and sends positioned diagnostics back to the agent on a lint or cost failure. Once it passes, the grammar becomes parsers for Go, TypeScript, the VM and WebAssembly, with compute and depth limits on and the same tree on every backend.">
+          <defs>
+            <marker id="wf-arrow-n" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-fill-ink" d="M 0 1 L 10 5 L 0 9 z"/></marker>
+            <marker id="wf-loop-n" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-dot s-red" d="M 0 1 L 10 5 L 0 9 z"/></marker>
+            <marker id="wf-pass-n" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-dot s-green" d="M 0 1 L 10 5 L 0 9 z"/></marker>
+          </defs>
+          <rect class="d-panel" x="24" y="6" width="240" height="74" rx="8"/>
+          <text class="d-title" x="144" y="34" text-anchor="middle">Human</text>
+          <text class="d-label" x="144" y="58" text-anchor="middle">Describes the language with inputs</text>
+          <line class="d-arrow" x1="144" y1="80" x2="144" y2="102" marker-end="url(#wf-arrow-n)"/>
+          <rect class="d-panel d-panel-accent" x="24" y="108" width="240" height="84" rx="8"/>
+          <text class="d-title" x="144" y="136" text-anchor="middle">LLM Agent</text>
+          <text class="d-label" x="144" y="160" text-anchor="middle">Writes the typed .sxir</text>
+          <text class="d-label" x="144" y="178" text-anchor="middle">Fixes it from diagnostics</text>
+          <line class="d-arrow" x1="144" y1="192" x2="144" y2="214" marker-end="url(#wf-arrow-n)"/>
+          <rect class="d-core" x="24" y="220" width="240" height="120" rx="10"/>
+          <text class="d-title d-fill-accent" x="144" y="250" text-anchor="middle">SyntaxIR Gate</text>
+          <text class="d-code d-fill-ink" x="144" y="276" text-anchor="middle">sxir lint · lint -classify</text>
+          <text class="d-code d-fill-ink" x="144" y="296" text-anchor="middle">sxir sample · edit-fuzz</text>
+          <text class="d-label" x="144" y="322" text-anchor="middle">Positioned diagnostics</text>
+          <path class="d-line-bold s-red d-dashed" d="M 264 280 C 318 280, 318 150, 270 150" marker-end="url(#wf-loop-n)"/>
+          <text class="d-label-strong d-small" transform="translate(336 215) rotate(90)" text-anchor="middle">Fix on lint or cost failure</text>
+          <line class="d-line-bold s-green" x1="144" y1="340" x2="144" y2="372" marker-end="url(#wf-pass-n)"/>
+          <text class="d-label-strong d-small" x="156" y="362">PASS</text>
+          <rect class="d-panel d-stroke-green" x="24" y="380" width="240" height="114" rx="8"/>
+          <text class="d-title" x="144" y="408" text-anchor="middle">Parsers</text>
+          <line class="d-line-soft" x1="44" y1="418" x2="244" y2="418"/>
+          <text class="d-label-strong" x="144" y="440" text-anchor="middle">Go · TypeScript · VM · WASM</text>
+          <text class="d-label" x="144" y="462" text-anchor="middle">Compute &amp; depth limits on</text>
+          <text class="d-label" x="144" y="482" text-anchor="middle">Same tree on every backend</text>
+        </svg>
+      </div>
+      <figcaption class="lp-caption">People describe the language, the LLM writes the grammar, and SyntaxIR checks it before any parser ships.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="lp-section" id="comparison" aria-labelledby="comparison-title">
+  <div class="lp-wrap">
+    <div class="lp-section-head">
+      <h2 id="comparison-title">Trade-offs, compared honestly</h2>
+      <p>Choose the tool that matches your runtime constraints.</p>
+    </div>
+    <table class="lp-table">
+      <thead>
+        <tr><th scope="col">Tool</th><th scope="col">Runtime</th><th scope="col">Typed AST</th><th scope="col">Incremental</th><th scope="col">Cost bounds</th><th scope="col">Best fit</th></tr>
+      </thead>
+      <tbody>
+        <tr class="lp-table-self">
+          <th scope="row">SyntaxIR</th>
+          <td data-label="Runtime">Go (engine and generated), TypeScript (generated); no cgo</td>
+          <td data-label="Typed AST">Go structs, TypeScript interfaces</td>
+          <td data-label="Incremental">Engine <code>Document</code>; a subset in generated Go</td>
+          <td data-label="Cost bounds">Cost analysis; compute and depth limits on by default</td>
+          <td data-label="Best fit">DSLs shared by Go and TypeScript, typed values, bounded parsing</td>
+        </tr>
+        <tr>
+          <th scope="row">Tree-sitter</th>
+          <td data-label="Runtime">C runtime with bindings (Go through cgo, Wasm)</td>
+          <td data-label="Typed AST">Dynamic nodes</td>
+          <td data-label="Incremental">Yes, any grammar</td>
+          <td data-label="Cost bounds">Cancellation callback</td>
+          <td data-label="Best fit">Editor highlighting and its grammar ecosystem</td>
+        </tr>
+        <tr>
+          <th scope="row">ANTLR 4</th>
+          <td data-label="Runtime">Ten targets; the tool needs Java</td>
+          <td data-label="Typed AST">Generated context classes</td>
+          <td data-label="Incremental">No</td>
+          <td data-label="Cost bounds">Not documented</td>
+          <td data-label="Best fit">Many target languages, a large grammar library</td>
+        </tr>
+        <tr>
+          <th scope="row">Participle / pigeon</th>
+          <td data-label="Runtime">Go only</td>
+          <td data-label="Typed AST">Your Go structs / <code>any</code></td>
+          <td data-label="Incremental">No</td>
+          <td data-label="Cost bounds">pigeon: an expression count limit</td>
+          <td data-label="Best fit">Small Go-only configuration or CLI parsers</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="lp-note">Checked on 2026-10-29 against tree-sitter 0.27.1, ANTLR 4.13.2, participle 2.1.4 and pigeon 1.3.0. <a href="docs/why-syntaxir/#how-syntaxir-compares">The full comparison</a> covers more tools, with sources.</p>
+
+    <div class="lp-ready" id="ready-made">
+      <div>
+        <h3>Ten ready-made parsers</h3>
+        <p>Written in SyntaxIR, generated into Go, and checked against conformance suites and reference implementations. <a href="docs/guide/ready-made-parsers/">Use them</a>.</p>
+      </div>
+      <ul class="lp-langs">
+        <li>Go 1.27</li>
+        <li>Python 3.14</li>
+        <li>TypeScript 5.9 &amp; TSX</li>
+        <li>DuckDB 1.5.6 SQL</li>
+        <li>YAML 1.2.2</li>
+        <li>JSON (RFC 8259)</li>
+        <li>XML 1.0</li>
+        <li>CSV (RFC 4180)</li>
+        <li>CEL</li>
+        <li>CUE</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="lp-section lp-next" id="docs-nav" aria-labelledby="next-title">
+  <div class="lp-wrap">
+    <div class="lp-section-head lp-split-head">
+      <div>
+        <h2 id="next-title">Start building with SyntaxIR</h2>
+        <p>Jump into the playground, the step-by-step tutorial or the specification.</p>
+      </div>
+      <a class="button primary" href="playground/">Launch Playground</a>
+    </div>
+    <ul class="lp-next-links">
+      <li><a href="docs/tutorial/getting-started/"><h3>Tutorial</h3><p>Ten lessons from a first grammar to a tested, shipped parser.</p></a></li>
+      <li><a href="docs/guide/"><h3>Guides &amp; Cookbook</h3><p>Trees, errors and recovery, incremental parsing, streaming, code generation and profiling.</p></a></li>
+      <li><a href="spec/"><h3>Specifications</h3><p>The grammar language, the runtime, the IRs, the bytecode and the proofs.</p></a></li>
+      <li><a href="docs/guide/ready-made-parsers/"><h3>Ready-Made Parsers</h3><p>Parsers for Go, Python, TypeScript, SQL, YAML and more, checked against their languages.</p></a></li>
+    </ul>
   </div>
 </section>

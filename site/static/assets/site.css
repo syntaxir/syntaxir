@@ -130,7 +130,6 @@ h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.02em; }
   margin-right: 8px;
 }
 .brand img { display: block; height: 28px; width: auto; }
-.hero-mark .brand-accent { fill: var(--accent); }
 .brand:hover { text-decoration: none; }
 
 .topnav { display: flex; gap: 4px; }
@@ -486,72 +485,6 @@ pre.decl { font-size: 13.5px; }
   .footer-brand { grid-column: 1 / -1; }
 }
 
-/* Landing */
-
-.landing-main { width: 100%; max-width: 1180px; margin: 0 auto; padding: 0 24px 48px; }
-.hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
-  gap: 40px;
-  align-items: center;
-  padding: 56px 0 32px;
-}
-.tagline { font-size: clamp(2.2rem, 4.6vw, 3.4rem); line-height: 1.04; margin: 0 0 16px; letter-spacing: -0.03em; font-weight: 800; font-style: italic; text-transform: uppercase; }
-/* Each sentence of the tagline is a unit, so a narrow screen breaks between sentences; a sentence wider than the
-   column still wraps inside its box. */
-.tagline span { display: inline-block; }
-.hero-mark { display: block; height: clamp(56px, 8vw, 88px); width: auto; margin: 0 0 24px; }
-.intro p { color: var(--ink-muted); font-size: 1.05rem; margin: 0 0 16px; }
-.cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
-
-.live {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-  box-shadow: var(--shadow);
-  padding: 14px;
-  min-width: 0;
-}
-.live-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 14px; margin-bottom: 8px; flex-wrap: wrap; }
-.live-title { font-weight: 600; }
-.live-grammar { margin: 0 0 10px; max-height: 260px; overflow: auto; font-size: 12.5px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; line-height: 1.45; }
-.live-input-label, .live-output-label { display: block; font-size: 12px; font-weight: 600; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.05em; margin: 4px 0; }
-.live-input {
-  width: 100%;
-  height: 38px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 0 10px;
-  font: 15px var(--font-mono);
-  background: var(--bg);
-  color: var(--ink);
-}
-.live-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
-.live-status { font-weight: 400; text-transform: none; letter-spacing: 0; margin-left: 6px; }
-.live-status.ok { color: var(--ok); }
-.live-status.error { color: var(--error); }
-.live-output { margin: 0; min-height: 64px; max-height: 200px; overflow: auto; white-space: pre-wrap; word-break: break-word; font-size: 12.5px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; }
-
-.snippets { max-width: 860px; margin: 0 auto; }
-.snippets pre { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; overflow-x: auto; font-size: 14px; position: relative; }
-.snippets blockquote { border-left: 4px solid var(--accent); background: var(--accent-soft); margin: 16px 0; padding: 8px 16px; border-radius: 0; }
-.snippets .callout-title { font-weight: 700; margin: 4px 0; }
-
-.features h2, .doc-cards h2 { font-size: 1.8rem; text-align: center; margin: 56px 0 24px; }
-.feature-grid, .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
-.feature, .card {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 18px 20px;
-  background: var(--surface);
-}
-.feature h3, .card h3 { margin: 0 0 6px; font-size: 1.05rem; }
-.feature p, .card p { margin: 0; color: var(--ink-muted); font-size: 15px; }
-.feature code { font-size: 0.85em; }
-.card { color: var(--ink); transition: border-color 0.15s, transform 0.15s; }
-.card:hover { border-color: var(--accent); text-decoration: none; }
-.readme { max-width: 860px; margin: 24px auto 0; }
-
 /* Small screens */
 
 @media (max-width: 1180px) {
@@ -589,8 +522,6 @@ pre.decl { font-size: 13.5px; }
   .sidebar .mobile-links { display: block; }
   .doc-main { padding: 24px 16px 48px; }
   .prose .anchor { display: none; }
-  .hero { grid-template-columns: minmax(0, 1fr); padding-top: 32px; gap: 24px; }
-  .landing-main { padding: 0 16px 40px; }
   .search { margin-left: auto; }
   .search input { width: 140px; }
   .search-key { display: none; }

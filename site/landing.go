@@ -12,45 +12,27 @@ import (
 	"github.com/yuin/goldmark/ast"
 )
 
-// The landing page is assembled from README.md, so that the pitch on the site and in the repository
-// cannot drift apart: the tagline and the introduction come from the top of the README, the feature
-// cards from the list under "Why SyntaxIR", and the live example from its first sxir code block and the
-// -i input of its first bash block. The sections after that are rendered as they are, except the
-// documentation table, which the site replaces with its own navigation.
+// The landing page is site/templates/landing.html. It shares two things with README.md, so that the
+// site and the repository make the same promise with the same example: the tagline (the bold or
+// emphasized line under the README's title) and the grammar of the live example (the README's first
+// sxir code block, with the -i input of its first bash block as the example's default input). The
+// example runs on the playground's WebAssembly build of the engine (site/static/assets/landing.js).
+
+// landingDescription is the lead of the landing page and its meta description.
+const landingDescription = "Write one typed grammar. SyntaxIR compiles it through a multi-stage IR into generated Go and " +
+	"TypeScript, a bytecode VM or WebAssembly in the browser, with cost analysis, compute limits and a full " +
+	"language toolchain."
 
 // landingData is the data of the landing template.
 type landingData struct {
 	Tagline     string
-	Phrases     []string // the sentences of the tagline, each kept on one line where it fits
-	Description string   // text of the first introduction paragraph, for the page description
-	Intro       []template.HTML
-	Features    []feature
-	Example     string // grammar of the live example
-	ExampleIn   string // its input
-	Snippets    template.HTML
-	Sections    template.HTML
-	Docs        []docCard
-	Playground  string
-	GettingInfo string
+	Phrases     []string // the phrases of the tagline, each kept on one line
+	Description string
+	Grammar     string // grammar of the live example
+	Input       string // its default input
 }
 
-type feature struct {
-	Title string
-	Body  template.HTML
-}
-
-type docCard struct {
-	Title, Text, URL string
-}
-
-var (
-	strongRe = regexp.MustCompile(`(?s)^<p><strong>(.*?)</strong>\s*(.*?)</p>\s*$`)
-	liRe     = regexp.MustCompile(`(?s)^<li>(.*)</li>\s*$`)
-	inputRe  = regexp.MustCompile(`-i '([^']*)'`)
-)
-
-// skippedSections are README sections that the landing page replaces.
-var skippedSections = map[string]bool{"Why SyntaxIR": true, "Documentation": true}
+var inputRe = regexp.MustCompile(`-i '([^']*)'`)
 
 func (s *Site) renderLanding() error {
 	p := s.bySrc["README.md"]
@@ -59,59 +41,38 @@ func (s *Site) renderLanding() error {
 		return err
 	}
 	m := s.parseMarkdown(p, src)
-	var d landingData
-	var snippets, sections strings.Builder
-	section := ""
+	d := landingData{Description: landingDescription}
 	for n := m.doc.FirstChild(); n != nil; n = n.NextSibling() {
 		if h, ok := n.(*ast.Heading); ok && h.Level == 2 {
-			section = m.text(h)
+			break // the tagline and the example come before the first section
 		}
-		switch {
-		case section == "":
-			s.landingIntro(&d, m, n, &snippets)
-		case section == "Why SyntaxIR":
-			if l, ok := n.(*ast.List); ok {
-				for it := l.FirstChild(); it != nil; it = it.NextSibling() {
-					li := liRe.FindStringSubmatch(m.render(it))
-					if li == nil {
-						continue
-					}
-					body := strings.TrimSpace(li[1])
-					if !strings.HasPrefix(body, "<p>") {
-						body = "<p>" + body + "</p>"
-					}
-					f := strongRe.FindStringSubmatch(body)
-					if f == nil {
-						return fmt.Errorf("README.md: a feature under Why SyntaxIR does not start with bold text: %.80s", body)
-					}
-					d.Features = append(d.Features, feature{Title: strings.TrimSuffix(f[1], "."), Body: template.HTML(f[2])})
+		switch n := n.(type) {
+		case *ast.Paragraph:
+			if d.Tagline == "" && n.ChildCount() == 1 && (n.FirstChild().Kind() == ast.KindEmphasis) {
+				d.Tagline = m.text(n)
+			}
+		case *ast.FencedCodeBlock:
+			var code strings.Builder
+			for i := 0; i < n.Lines().Len(); i++ {
+				seg := n.Lines().At(i)
+				code.Write(seg.Value(m.src))
+			}
+			switch string(n.Language(m.src)) {
+			case "sxir":
+				if d.Grammar == "" {
+					d.Grammar = code.String()
+				}
+			case "bash":
+				if mm := inputRe.FindStringSubmatch(code.String()); mm != nil && d.Input == "" {
+					d.Input = mm[1]
 				}
 			}
-		case !skippedSections[section]:
-			sections.WriteString(m.render(n))
 		}
 	}
-	if d.Tagline == "" || len(d.Features) == 0 || d.Example == "" || d.ExampleIn == "" {
-		return fmt.Errorf("README.md: could not find the tagline, the features under Why SyntaxIR, an sxir code block or a bash block with -i '...' for the landing page")
+	if d.Tagline == "" || d.Grammar == "" || d.Input == "" {
+		return fmt.Errorf("README.md: before its first section, the landing page needs the tagline (a bold line), an sxir code block and a bash block with -i '...'")
 	}
 	d.Phrases = taglinePhrases(d.Tagline)
-	d.Snippets = template.HTML(snippets.String())
-	d.Sections = template.HTML(sections.String())
-	d.Playground = "playground/"
-	for _, c := range []struct{ url, text string }{
-		{"docs/tutorial/getting-started/", "From a first grammar to typed trees and operator precedence, step by step."},
-		{"docs/guide/", "Task-oriented guides to trees, expressions, errors, context, runtimes and code generation."},
-		{"spec/", "The normative definition of the SyntaxIR grammar language."},
-		{"reference/", "The Go API and the command-line tool, generated from the source."},
-		{"examples/", "Small grammars that show the features: a calculator, an outline and a small language."},
-		{"docs/design/records/", "The decisions behind SyntaxIR and their rationale."},
-	} {
-		q := s.page(c.url)
-		if q == nil {
-			return fmt.Errorf("landing page: no page at %s", c.url)
-		}
-		d.Docs = append(d.Docs, docCard{Title: q.Title, Text: c.text, URL: c.url})
-	}
 
 	tmpl, err := template.ParseFS(templateFS, "templates/landing.html")
 	if err != nil {
@@ -124,59 +85,24 @@ func (s *Site) renderLanding() error {
 	p.Title = "SyntaxIR: " + d.Tagline
 	p.Description = d.Description
 	p.Body = template.HTML(b.String())
+	p.Styles = []string{"assets/landing.css"}
 	p.Scripts = []string{"assets/landing.js"}
 	return nil
 }
 
-// landingIntro handles the nodes before the first section of the README: the title, the tagline, the
-// badges, the quick links, the introduction and the code samples.
-func (s *Site) landingIntro(d *landingData, m *markdown, n ast.Node, snippets *strings.Builder) {
-	src := m.src
-	switch n := n.(type) {
-	case *ast.Paragraph:
-		html := m.render(n)
-		switch {
-		case n.ChildCount() == 1 && n.FirstChild().Kind() == ast.KindEmphasis && d.Tagline == "":
-			d.Tagline = m.text(n)
-		case strings.Contains(html, "<img"), strings.Contains(html, " · "):
-			// Badges and quick links: the site has its own navigation.
-		default:
-			if d.Description == "" {
-				d.Description = m.text(n)
-			}
-			d.Intro = append(d.Intro, template.HTML(html))
-		}
-	case *ast.FencedCodeBlock:
-		lang := string(n.Language(src))
-		var code strings.Builder
-		for i := 0; i < n.Lines().Len(); i++ {
-			seg := n.Lines().At(i)
-			code.Write(seg.Value(src))
-		}
-		switch {
-		case lang == "sxir" && d.Example == "":
-			d.Example = code.String()
-		case lang == "bash" && d.ExampleIn == "":
-			if mm := inputRe.FindStringSubmatch(code.String()); mm != nil {
-				d.ExampleIn = mm[1]
-			}
-			snippets.WriteString(m.render(n))
-		default:
-			snippets.WriteString(m.render(n))
-		}
-	case *ast.Blockquote:
-		snippets.WriteString(m.render(n))
-	}
-}
-
-// taglinePhrases splits a tagline after each sentence, so that "One Grammar. Every Parser." breaks
-// between its sentences rather than inside one.
+// taglinePhrases splits a tagline after each comma or sentence, so that "One Grammar, Every Parser."
+// breaks between its two phrases rather than inside one.
 func taglinePhrases(t string) []string {
 	var out []string
-	for _, f := range strings.SplitAfter(t, ". ") {
-		if f = strings.TrimSpace(f); f != "" {
-			out = append(out, f)
+	start := 0
+	for i := 0; i < len(t); i++ {
+		if (t[i] == ',' || t[i] == '.') && i+1 < len(t) && t[i+1] == ' ' {
+			out = append(out, strings.TrimSpace(t[start:i+1]))
+			start = i + 1
 		}
+	}
+	if rest := strings.TrimSpace(t[start:]); rest != "" {
+		out = append(out, rest)
 	}
 	return out
 }

@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import vm from "node:vm";
 import { test } from "node:test";
 import { decodeState } from "../static/assets/state.js";
+import { BELOW_RESOLUTION, liveView, tabOfTarget, targetOfTab, targetLabel } from "../static/assets/landing-view.js";
 import { Element, playground } from "./playground_harness.mjs";
 
 const base = { g: 'rule main = "a"\nrule alt = "b"', i: "a" };
@@ -221,14 +222,16 @@ test("encoding and decoding failures settle without stale writes", async () => {
 });
 
 async function landing(encode) {
-  const elements = new Map(["live", "live-input", "live-output", "live-status", "live-open"].map((id) => [id, new Element()]));
-  elements.get("live").dataset = { grammar: base.g };
+  const ids = ["workbench", "live-input", "live-output", "live-badge", "live-fallback", "live-retry", "live-open", "live-nodes", "live-depth", "live-time"];
+  const elements = new Map(ids.map((id) => [id, new Element()]));
+  elements.get("workbench").dataset = { grammar: base.g };
   elements.get("live-input").value = "initial";
   elements.get("live-open").href = "/playground/";
   const warnings = [];
   const context = vm.createContext({
-    document: { getElementById: (id) => elements.get(id) }, window: {},
-    SXIRClient: class { async call() { return { sexpr: "", nodes: 0, micros: 0 }; } },
+    document: { getElementById: (id) => elements.get(id), querySelectorAll: () => [] }, window: {},
+    SXIRClient: class { async call() { return { compile: { ok: true }, matched: true, sexpr: "", nodes: 0, depth: 0, micros: 0 }; } },
+    BELOW_RESOLUTION, liveView, tabOfTarget, targetOfTab, targetLabel,
     siteRoot: () => "/", encodeState: encode,
     console: { ...console, warn: (...args) => warnings.push(args) },
     setTimeout: () => 1, clearTimeout() {},

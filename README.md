@@ -7,7 +7,7 @@
 </picture>
 </h1>
 
-**One Grammar. Every Parser.**
+**One Grammar, Every Parser.**
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENCE) [![Go Reference](https://pkg.go.dev/badge/syntaxir.dev/sxir/pkg/compiler.svg)](https://pkg.go.dev/syntaxir.dev/sxir/pkg/compiler) [![Go](https://img.shields.io/badge/go-1.27.1+-00ADD8?logo=go&logoColor=white)](go.mod)
 

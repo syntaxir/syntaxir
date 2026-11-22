@@ -55,7 +55,7 @@ for (const code of document.querySelectorAll("pre > code")) {
   const text = code.textContent;
   if (lang === "json") code.innerHTML = highlightJSON(text);
   else if (lang) code.innerHTML = highlight(text, lang);
-  if (pre.closest(".pg, .live")) continue;
+  if (pre.closest(".pg, .workbench")) continue;
   const actions = document.createElement("div");
   actions.className = "code-actions";
   if (lang === "sxir" && /^\s*(?:operators\s+)?rule\s/m.test(text)) {
