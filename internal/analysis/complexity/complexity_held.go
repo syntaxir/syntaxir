@@ -1,6 +1,9 @@
 package complexity
 
-import "syntaxir.dev/sxir/pkg/grammar/ast"
+import (
+	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+)
 
 // Values that hold one another. The size of a value that copies the value of a call on a
 // recursion with its rule adds up over the levels of the recursion (condition 4 of
@@ -79,7 +82,7 @@ func (k *classifier) heldBy(x sizeKey) []sizeKey {
 	case r.Action != nil && !r.DefaultAction:
 		out = k.heldCalls(r.Action, tc, x.mode)
 	default:
-		out = k.heldExprCalls(r.Expr, tc, x.mode)
+		out = k.heldExprCalls(k.ruleBody(x.rule), tc, x.mode)
 	}
 	k.heldMemo[x] = out
 	return out
@@ -97,11 +100,11 @@ func (k *classifier) heldCalls(t ast.ActionExpr, tc actionCtx, mode sizeMode) []
 		if p, ok := tc.params[t.Name]; ok && (t.Param || tc.lambda) {
 			var out []sizeKey
 			for _, e := range p.elems {
-				out = append(out, k.heldExprCalls(e, tc, mode)...)
+				out = append(out, k.heldExprCalls(k.nodeOf(e), tc, mode)...)
 			}
 			return out
 		}
-		exprs := k.captures[tc.rule][t.Name]
+		exprs := k.captured(tc.rule, t.Name)
 		if len(exprs) == 0 && isOperators(k.byName[tc.rule].Expr) {
 			// An operand of an Operators Rule is a value of the rule itself.
 			return []sizeKey{{tc.rule, mode}}
@@ -118,7 +121,7 @@ func (k *classifier) heldCalls(t ast.ActionExpr, tc actionCtx, mode sizeMode) []
 		}
 		var out []sizeKey
 		for _, e := range exprs {
-			out = append(out, k.heldExprCalls(e, tc, mode)...)
+			out = append(out, k.heldExprCalls(k.nodeOf(e), tc, mode)...)
 		}
 		return out
 	case *ast.Binary:
@@ -178,33 +181,26 @@ func (k *classifier) heldLambdaCtx(call *ast.Call, lam *ast.Lambda, tc actionCtx
 }
 
 // heldExprCalls returns the values of calls on a recursion with the rule of tc that the value of a
-// match of e, measured in mode, holds: a call passes its value on through choices, options and
-// groups, and an inline action holds what its action holds. The node of a sequence holds the text
-// of the input that it matches, which does not grow with the values of its calls.
-func (k *classifier) heldExprCalls(e ast.Expr, tc actionCtx, mode sizeMode) []sizeKey {
-	switch x := e.(type) {
-	case *ast.Group:
-		return k.heldExprCalls(x.Expr, tc, mode)
-	case *ast.Capture:
-		return k.heldExprCalls(x.Expr, tc, mode)
-	case *ast.Atomic:
-		return k.heldExprCalls(x.Expr, tc, mode)
-	case *ast.Optional:
-		return k.heldExprCalls(x.Expr, tc, mode)
-	case *ast.Choice:
+// match of n, measured in mode, holds: a call passes its value on through choices and options. The
+// node of a sequence holds the text of the input that it matches, which does not grow with the
+// values of its calls.
+func (k *classifier) heldExprCalls(n core.Node, tc actionCtx, mode sizeMode) []sizeKey {
+	switch x := n.(type) {
+	case *core.Capture:
+		return k.heldExprCalls(x.Body, tc, mode)
+	case *core.Text:
+		return k.heldExprCalls(x.Body, tc, mode)
+	case *core.Opt:
+		return k.heldExprCalls(x.Body, tc, mode)
+	case *core.Choice:
 		var out []sizeKey
 		for _, alt := range x.Alts {
-			out = append(out, k.heldExprCalls(alt, tc, mode)...)
+			out = append(out, k.heldExprCalls(alt.Body, tc, mode)...)
 		}
 		return out
-	case *ast.InlineAction:
-		if x.Action != nil && !x.DefaultAction {
-			return k.heldCalls(x.Action, actionCtx{rule: tc.rule}, mode)
-		}
-	case *ast.Ref:
-		if k.byName[x.Name] != nil && k.onRecursion(tc.rule, x.Name) {
-			return []sizeKey{{x.Name, mode}}
-		}
+	}
+	if name, ok := k.calledRule(n); ok && k.byName[name] != nil && k.onRecursion(tc.rule, name) {
+		return []sizeKey{{name, mode}}
 	}
 	return nil
 }
