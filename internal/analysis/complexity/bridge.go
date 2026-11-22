@@ -92,21 +92,25 @@ func (k *classifier) callOf(rule string) *ast.Ref {
 }
 
 // rightOperand returns the expression that stands for a right operand of an operator part of the
-// Operators Rule of rule: the call of the rule that parses it. The classifier tells no level of
-// operators apart, so the call applies every operator (core.Call.Level 0): it parses what the
-// right operand of any operator part parses.
+// Operators Rule of rule. The runtime parses it with the loop of the Operators Rule at a new
+// position, in the scope of a call but without the memo: the node is the inlined call of the rule
+// whose body is the Operators Rule (core.Nest). The classifier tells no level of operators apart,
+// so it stands for what the right operand of any operator part parses.
 func (k *classifier) rightOperand(rule string) *ast.Ref {
-	n := &core.Call{Rule: k.ruleIDs[rule]}
-	if k.operandCalls == nil {
-		k.operandCalls = map[*core.Call]bool{}
-	}
-	k.operandCalls[n] = true
+	n := &core.Nest{Rule: k.ruleIDs[rule], Body: k.nodeOf(k.operators(rule))}
 	return built(k, &ast.Ref{Name: rule, Level: rhsLevel}, core.Node(n))
 }
 
-// isRightOperand reports whether the call n stands for the right operand of an operator part
-// (rightOperand), which the classifier reads apart from a call of the rule.
-func (k *classifier) isRightOperand(n *core.Call) bool { return k.operandCalls[n] }
+// isRightOperand reports whether the node n stands for a right operand of an operator part: an
+// inlined call whose body is the loop of an Operators Rule (rightOperand).
+func isRightOperand(n core.Node) bool {
+	nest, ok := n.(*core.Nest)
+	if !ok {
+		return false
+	}
+	_, ok = nest.Body.(*core.OperatorsRule)
+	return ok
+}
 
 // prefixOf returns the sequence of the first items prefix of the sequence s, which stands for the
 // sequence of their nodes.

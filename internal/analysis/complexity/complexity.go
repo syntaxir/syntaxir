@@ -429,8 +429,6 @@ type classifier struct {
 	// each such node the expression back (exprOf).
 	nodes map[ast.Expr]core.Node
 	exprs map[core.Node]ast.Expr
-	// operandCalls holds the calls that stand for right operands (rightOperand).
-	operandCalls map[*core.Call]bool
 	// ruleIDs numbers the rules by name, as the rules of the module are numbered.
 	ruleIDs map[string]int
 }
