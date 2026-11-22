@@ -34,16 +34,15 @@ func TestBudgetDocumentMemoReplayAtomicReservation(t *testing.T) {
 	before := state.MemoEntry{Pos: 10, End: 12, From: 10, Examined: 13, Far: 12}
 	e := before
 	p := statetest.NewBudgetParser(runtime.Limits{Compute: 1 << 40})
-	interruptAt(p.Control, 3) // the third edit is the one that observes the cancellation
-	if err := statetest.CatchFatal(t, func() { p.AdvanceEntry(&e, edits) }); !errors.Is(err, context.Canceled) {
-		t.Fatalf("interruption = %v", err)
+	interruptAt(p.Control, 3) // a poll within three units would observe the cancellation
+	// Replaying edits on an entry is no event: it counts nothing and reaches no poll.
+	if err := statetest.CatchFatal(t, func() { p.AdvanceEntry(&e, edits) }); err != nil {
+		t.Fatalf("replay under a canceled context = %v", err)
 	}
-	if !reflect.DeepEqual(e, before) {
-		t.Fatal("interrupted replay published partial memo state")
+	if p.Control.Used != 0 {
+		t.Fatalf("edit replay counted %d units", p.Control.Used)
 	}
-	if p.Control.Used != 2 {
-		t.Fatal("edit replay charged unexpected spend")
-	}
+	e = before
 	p = statetest.NewBudgetParser(runtime.Limits{Compute: 3})
 	want := before
 	if !state.AdvanceEntry(&want, edits) || !p.AdvanceEntry(&e, edits) || !reflect.DeepEqual(e, want) {
@@ -145,9 +144,10 @@ func TestBudgetDocumentGrowthCopyReservation(t *testing.T) {
 		values[i] = nodes.Ptr(nodes.Data{Start: int32(i)})
 	}
 	before := append([]*value.Node(nil), values...)
+	// Growing storage is no event: it counts nothing under a limit below the values it copies.
 	p := statetest.NewBudgetParser(runtime.Limits{Compute: 128})
-	if err := statetest.CatchFatal(t, func() { state.GrowSpend(p, values, 1) }); !errors.Is(err, runtime.ErrLimit) {
-		t.Fatalf("growth interruption = %v", err)
+	if err := statetest.CatchFatal(t, func() { state.GrowSpend(p, values, 1) }); err != nil || p.Control.Used != 0 {
+		t.Fatalf("growth = %v, counted %d units", err, p.Control.Used)
 	}
 	if !reflect.DeepEqual(values, before) {
 		t.Fatal("growth changed source references")
@@ -222,17 +222,20 @@ func TestBudgetDocumentStaleMemoCallReplayIsBounded(t *testing.T) {
 	p.Memo.Put(state.MemoKey{Rule: 1, Pos: 19}, e)
 	e.Pos = 10 // A shifted slot can retain older value coordinates until replay.
 	before := *e
-	p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 1 << 40}) // The lookup is free; only two of three edits are applied.
+	// The replay of the three edits is no event, and the call composition counts the call before
+	// CallBegin (CallCharge), so the hit counts nothing here and reaches no poll.
+	p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 1 << 40})
 	interruptAt(p.Control, 3)
-	if err := statetest.CatchFatal(t, func() { p.CallBegin(r, 0, &state.CallState{}) }); !errors.Is(err, context.Canceled) {
-		t.Fatalf("stale hit interruption = %v", err)
+	var ok, hit bool
+	if err := statetest.CatchFatal(t, func() { _, ok, hit = p.CallBegin(r, 0, &state.CallState{}) }); err != nil || p.Control.Used != 0 {
+		t.Fatalf("stale hit under a canceled context = %v, counted %d units", err, p.Control.Used)
 	}
-	before.Seen = p.Gen // the lookup that finds the entry stamps it as found in this parse, before the replay
-	if !reflect.DeepEqual(*e, before) {
-		t.Fatal("stale hit published partial replay")
+	if !ok || !hit || p.Pos != 21 || e.Vgen != 3 || e.Gen != 3 {
+		t.Fatalf("stale hit: ok=%v hit=%v pos=%d entry=%+v", ok, hit, p.Pos, e)
 	}
-	p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 3})
-	_, ok, hit := p.CallBegin(r, 0, &state.CallState{})
+	*e, p.Pos = before, 19
+	p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 1})
+	_, ok, hit = p.CallBegin(r, 0, &state.CallState{})
 	if !ok || !hit || p.Pos != 21 || e.Vgen != 3 || e.Gen != 3 {
 		t.Fatalf("completed stale hit: ok=%v hit=%v pos=%d entry=%+v", ok, hit, p.Pos, e)
 	}

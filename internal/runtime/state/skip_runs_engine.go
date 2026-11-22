@@ -136,9 +136,23 @@ func (p *Parser) hashWalkKey(vals []any) uint64 { return p.hashMemoKey(0, 0, fal
 // runKeyOf returns the key of the run site, which is keyed by the variables.
 func (p *Parser) runKeyOf(site int) *runKeySlots { return p.Prog.runKeySlots(site) }
 
-// suffixCopied counts the units of a copy of n elements of a record's suffix. The engine counts no
-// logical units: its budget charges the copy (copySpend).
-func (p *Parser) suffixCopied(int) {}
+// suffixCopied counts the units of a copy of n elements of a record's suffix under limit controls:
+// a suffix copy is an event of one unit for each element, counted before the copy
+// (spec/runtime/parsing.md#run-sites). copySpend counts nothing in the engine.
+func (p *Parser) suffixCopied(n int) {
+	if p.controlled() {
+		p.Control.Charge(uint64(n))
+	}
+}
+
+// countsWalkKeys reports whether the parse counts the keys of its walks: under limit controls.
+func (p *Parser) countsWalkKeys() bool { return p.controlled() }
+
+// countWalkKey counts the n units of a walk's key (walkKeyUnits).
+func (p *Parser) countWalkKey(n uint64) { p.Control.Charge(n) }
+
+// skipStep is a step of the bookkeeping of a walk, which is no event: it counts nothing.
+func (p *Parser) skipStep() {}
 
 // SkipBegin starts a walk of the site at the current position. keyEnv reports that the records of the
 // site are keyed by the variables (skipWalk.key).

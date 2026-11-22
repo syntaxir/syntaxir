@@ -120,19 +120,16 @@ func (p *Parser) Kids(base int) []*value.Node {
 }
 
 // ElemsAbove is action.elemsAbove (spec/exec-ir/values.md): it returns the elements that an action expression
-// gathered above base as Kids does and, under budget controls, reserves two units for each element,
-// one for copying it and one for taking it off, in one reservation before it moves any.
+// gathered above base as Kids does. Taking them off is no event; the list or the tuple that takes
+// them over counts its elements (hull).
 func (p *Parser) ElemsAbove(base int) []*value.Node {
-	if n := len(p.KidStack) - base; n > 0 {
-		p.spendValue(2 * n)
-	}
 	return p.Kids(base)
 }
 
-// DropKids discards p.KidStack[base:] and charges a unit for each element, as action.dropKids does
-// (spec/exec-ir/values.md).
+// DropKids discards p.KidStack[base:], as action.dropKids does (spec/exec-ir/values.md). Dropping
+// them is no event.
 func (p *Parser) DropKids(base int) {
-	clearSpend(p, p.KidStack[base:])
+	clear(p.KidStack[base:])
 	p.KidStack = p.KidStack[:base]
 }
 
@@ -211,13 +208,12 @@ func (p *Parser) NewFrame(n int) *Frame {
 func (p *Parser) ResetStreamFrames() {
 	keep := 0
 	for i := range p.FrameSlab {
-		p.Spend()
 		if &p.FrameSlab[i] == p.Frame {
 			keep = i + 1
 			break
 		}
 	}
-	clearSpend(p, p.FrameSlab[keep:])
+	clear(p.FrameSlab[keep:])
 	p.FrameSlab = p.FrameSlab[:keep]
 }
 

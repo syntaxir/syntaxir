@@ -55,12 +55,10 @@ func (p *Parser) ScanHot(site int) bool {
 
 // ScanLookup returns the record of the walk of the hot site that began at start, if there is one.
 func (p *Parser) ScanLookup(site, start int) (skipRecord, bool) {
-	p.Spend()
 	rec := p.scanSlots(site).get(start, nil)
 	if rec.state != skipRecorded {
 		return rec, false
 	}
-	p.Spend()
 	if p.tune.SkipMut != 0 {
 		p.mutateSkipRecord(&rec, start)
 	}
@@ -88,7 +86,6 @@ func (p *Parser) ScanStore(site, start, examined, count int, kids []*value.Node)
 	if p.tune.SkipMut == SkipNeverRecord || !(p.Eof || examined <= p.Loaded()) {
 		return
 	}
-	p.Spend()
 	i := 2 * site
 	s := p.scanSlots(site)
 	if s == nil {
@@ -161,8 +158,8 @@ type flowScan struct {
 
 // ScanReach is flow.scanReach: for a walk of the scan site that began at start and has matched
 // ScanHotSpan characters, count of them, at a hot site with a record of start it moves to the
-// recorded end and returns the recorded count; otherwise it returns count. It charges what the match
-// code charges at the same point (ScanLookup).
+// recorded end and returns the recorded count; otherwise it returns count. The lookup counts nothing,
+// and the iterations and the input that a record skips are not counted.
 func (p *Parser) ScanReach(site, start, count int) int {
 	w := &p.scan
 	*w = flowScan{hot: p.ScanHot(site), hw0: p.Hw}
@@ -188,7 +185,7 @@ func (p *Parser) ScanEnd(site, start, count int) {
 // gathered on the stack from base, which matched count characters. A walk of ScanHotSpan characters
 // or more ends as FinishScanList ends it: the elements are those of the record it took, if it took
 // one, which drops the gathered ones; otherwise the gathered ones, which it records at a hot site.
-// Taking the gathered elements off charges as Kids does.
+// Taking the gathered elements off counts nothing, as Kids does.
 func (p *Parser) ScanKids(site, start, base, count int) []*value.Node {
 	if count < p.tune.ScanHotSpan() {
 		return p.Kids(base)

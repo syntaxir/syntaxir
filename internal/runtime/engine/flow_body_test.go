@@ -237,18 +237,26 @@ func TestFlowBodyJSONValueFileForm(t *testing.T) {
 }
 
 // TestFlowBodyDifferentialDetectsMutations checks that the differential harness sees a changed Flow body:
-// a call of the value rule's body to a different rule changes the trees of the corpus, and an extra read
-// of the input at the start of the body, which changes no result, changes the spends.
+// a call of the value rule's body to a different rule changes the trees of the corpus, and an extra
+// advance over the character at the start of the body, which the body then resets, changes no result
+// but counts the input it moves over, so it changes the spends. (A read alone is no event.)
 func TestFlowBodyDifferentialDetectsMutations(t *testing.T) {
 	old, called := jsonFlowPrograms(t, mutateCall)
 	_, peeked := jsonFlowPrograms(t, func(f *bytecode.Flow) {
+		mark, width := f.Regs, f.Regs+1
+		f.Regs += 2
+		spike := []bytecode.FlowInstr{
+			{Op: bytecode.FlowMark, Dst: []int{mark}},
+			{Op: bytecode.FlowPeek, Dst: []int{-1, width, -1}},
+			{Op: bytecode.FlowAdvance, Args: []int{width}},
+			{Op: bytecode.FlowReset, Args: []int{mark}},
+		}
 		for i := range f.Code {
 			if sh, _ := f.Code[i].Op.Shape(); sh.Target {
-				f.Code[i].Target++
+				f.Code[i].Target += len(spike)
 			}
 		}
-		peek := bytecode.FlowInstr{Op: bytecode.FlowPeek, Dst: []int{-1, -1, -1}}
-		f.Code = append([]bytecode.FlowInstr{peek}, f.Code...)
+		f.Code = append(spike, f.Code...)
 	})
 	trees, spends := false, false
 	for _, in := range jsonDifferentialInputs {
@@ -257,7 +265,7 @@ func TestFlowBodyDifferentialDetectsMutations(t *testing.T) {
 		pt, pe, pu := parseCharged(t, peeked, in)
 		trees = trees || ot != ct
 		if pt != ot || pe != oe {
-			t.Errorf("input %q: an extra read changed the result: %s %s, want %s %s", in, pt, pe, ot, oe)
+			t.Errorf("input %q: an extra advance that the body resets changed the result: %s %s, want %s %s", in, pt, pe, ot, oe)
 		}
 		spends = spends || pu != ou
 	}
@@ -265,7 +273,7 @@ func TestFlowBodyDifferentialDetectsMutations(t *testing.T) {
 		t.Error("a changed call in the Flow body changed no tree of the corpus: the Flow body does not run")
 	}
 	if !spends && state.BudgetControlsEnabled { // a build without budget controls charges nothing
-		t.Error("an extra read in the Flow body changed no spend of the corpus: the harness does not compare charges")
+		t.Error("an extra advance in the Flow body changed no spend of the corpus: the harness does not compare charges")
 	}
 }
 

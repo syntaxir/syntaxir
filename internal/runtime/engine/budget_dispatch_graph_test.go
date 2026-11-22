@@ -3,6 +3,7 @@
 package engine
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -17,6 +18,8 @@ import (
 // control admission even when the Document reuses an earlier result.
 func TestBudgetDocumentAlternatesDispatchGraphs(t *testing.T) {
 	t.Parallel()
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
 	for _, source := range []string{
 		`rule main = item+ $$
 
@@ -53,10 +56,12 @@ rule expr = #operators {
 				if err != nil || codegentest.ResultJSON(got, nil) != codegentest.ResultJSON(fresh, err) {
 					t.Fatalf("iteration %d: cached/fresh mismatch: %v", i, err)
 				}
-				// A cached tree must not bypass admission on the other dispatch graph.
-				blocked, err := d.ParseWith(ParseOptions{Unit: unit, Limits: runtime.Limits{Compute: 1}})
-				if blocked != nil || !errors.Is(err, runtime.ErrLimit) {
-					t.Fatalf("iteration %d: cached result bypassed budget: %v", i, err)
+				// A cached tree must not bypass admission on the other dispatch graph: a cancelled
+				// context stops it. A compute limit of one unit need not, as a parse that reuses the whole
+				// result counts only the entry into its start rule.
+				blocked, err := d.ParseWith(ParseOptions{Unit: unit, Context: cancelled})
+				if blocked != nil || !errors.Is(err, context.Canceled) {
+					t.Fatalf("iteration %d: cached result bypassed admission: %v", i, err)
 				}
 				if err := d.Edit(0, 1, "a"); err != nil {
 					t.Fatal(err)

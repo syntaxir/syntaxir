@@ -64,19 +64,20 @@ func TestBudgetDiagnosticBatchFailureAndTraceAccessor(t *testing.T) {
 									t.Fatalf("unexpected diagnostic fixture exp=%d", len(state.TraceExpectations(e)))
 								}
 								armed, c, at = true, state.TraceParser(e).Control, state.TraceParser(e).Control.Used
+								// The limit leaves no room: the accessor and the descriptions and
+								// sort of the error count nothing, so the parse stops at its next unit,
+								// the error it builds or the recovery that the accessor variant makes.
 								if accessor {
 									if cancel {
 										c.Ctx = statetest.NewPollingContext(1)
 										c.SinceCheck = 0
 									} else {
-										c.Limits.Compute = at + 1
+										c.Limits.Compute = at
 									}
 									_ = e.Failure()
 									accessorReturned = true
 								} else {
-									// More than every possible merge collision and descriptor visit;
-									// long-string sorting must perform the eventual interruption.
-									c.Limits.Compute = at + 4096
+									c.Limits.Compute = at
 								}
 							}
 						}})
@@ -84,11 +85,11 @@ func TestBudgetDiagnosticBatchFailureAndTraceAccessor(t *testing.T) {
 						if cancel {
 							want = context.Canceled
 						}
-						if !armed || n != nil || !errors.Is(err, want) || accessorReturned || fallback != 0 || observed == nil || observed.Scratch != nil || observed.Control != nil {
+						if !armed || n != nil || !errors.Is(err, want) || accessor != accessorReturned || fallback != 0 || observed == nil || observed.Scratch != nil || observed.Control != nil {
 							t.Fatalf("%v/%v recognize=%t accessor=%t cancel=%t: armed=%t node=%t err=%v returned=%t fallback=%d", b, u, recognize, accessor, cancel, armed, n != nil, err, accessorReturned, fallback)
 						}
-						if !accessor && c.Used <= at+16*17 {
-							t.Fatal("budget exhausted before diagnostic sorting")
+						if !accessor && c.Used != at+1 {
+							t.Fatalf("the failed parse counted %d units after main, want the one of its error", c.Used-at)
 						}
 						n, err = active.ParseWith("main", "x", engine.ParseOptions{Expectations: true, Backend: b, Unit: u, Recognize: recognize})
 						if accessor {
@@ -134,7 +135,14 @@ rule bad = "a" @error(message=` + strconv.Quote(message) + `)`
 					}
 					if !armed && e.Kind == engine.TraceExit && e.Rule == "bad" {
 						armed = true
-						state.TraceParser(e).Control.Limits.Compute = state.TraceParser(e).Control.Used + 256
+						// The skip advances over one unit of input; a parse then counts one unit for
+						// the error it builds, which this limit leaves no room for, and its message
+						// counts nothing. Recognition builds no error, so it goes on to the fallback.
+						room := uint64(1)
+						if recognize {
+							room = 256
+						}
+						state.TraceParser(e).Control.Limits.Compute = state.TraceParser(e).Control.Used + room
 					}
 				}})
 				if !armed || n != nil || observed.Scratch != nil || observed.Control != nil {
@@ -157,7 +165,8 @@ rule bad = "a" @error(message=` + strconv.Quote(message) + `)`
 						}
 						if !armed && e.Kind == engine.TraceExit && e.Rule == "bad" {
 							armed = true
-							// The post-callback check succeeds; the message copy polls next.
+							// The post-callback check succeeds; the check before the next event, the
+							// entry of the fallback, observes the cancellation.
 							state.TraceParser(e).Control.Ctx = statetest.NewPollingContext(2)
 							state.TraceParser(e).Control.SinceCheck = 0
 						}

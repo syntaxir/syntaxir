@@ -19,7 +19,6 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
 	"syntaxir.dev/sxir/internal/runtime/engine"
-	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/mutanttest"
 	"syntaxir.dev/sxir/internal/testing/tooltest"
@@ -128,9 +127,11 @@ func TestActionEngineBackends(t *testing.T) {
 				for _, unit := range []input.PositionUnit{input.CodePoints, input.Bytes} {
 					var want string
 					for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
+						// The units the parse counted, reported at its end, also when an action fails it: the
+						// call of a rule counts after the trace reports its entry, which may be the last event.
 						var used uint64
 						n, err := prog.ParseWith("main", in, engine.ParseOptions{Backend: b, Unit: unit, Limits: sxirruntime.Limits{Compute: 1 << 50},
-							Trace: func(e engine.TraceEvent) { used = state.TraceParser(e).Control.Used }})
+							ComputeReport: &used})
 						got := codegentest.ResultJSON(n, err)
 						if used == 0 {
 							t.Errorf("%s: backend %d reports no charges", c.Name, b)

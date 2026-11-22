@@ -27,7 +27,6 @@ func (in *Input) controlledSnapshotText(start, end int) string {
 	for off := 0; off < len(candidate.Source); {
 		candidate.Offsets[i] = int32(off)
 		_, size := utf8.DecodeRuneInString(candidate.Source[off:])
-		in.spendRead(uint64(size))
 		off += size
 		i++
 	}

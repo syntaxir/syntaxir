@@ -89,30 +89,27 @@ func TestStreamCommitBoundsTheErrorScratch(t *testing.T) {
 	}
 }
 
-// TestStreamCommitDiscardsBeforeItReleases pins the first two steps of a commit: when the budget
-// runs out in the release, the input is already gone and the frames are not.
-func TestStreamCommitDiscardsBeforeItReleases(t *testing.T) {
+// TestStreamCommitDiscardsAndReleasesUnderAnyLimit holds the first two steps of a commit to the
+// compute units: the discard and the release are no events, so a commit counts no unit and a limit
+// that the parse has reached does not stop it before it has discarded the input and released the
+// frames.
+func TestStreamCommitDiscardsAndReleasesUnderAnyLimit(t *testing.T) {
 	t.Parallel()
-	// The discard before position 129 copies 127 units, and the scan of the frames takes two more.
-	// Without frame scratch the release charges nothing, so the same commit runs to its end.
 	p := &state.Parser{Input: state.Input{Unit: sxirinput.Bytes, Eof: true, Bs: []byte(strings.Repeat("a", 256)), BaseLine: 1, BaseCol: 1, Lines: []int{0},
-		Control: state.NewBudgetControl(nil, runtime.Limits{Compute: 128})}, Memo: state.NewMemoTable(), FrameSlab: make([]state.Frame, 2)}
+		Control: state.NewBudgetControl(nil, runtime.Limits{Compute: 1})}, Memo: state.NewMemoTable(), FrameSlab: make([]state.Frame, 3)}
 	p.Frame = &p.FrameSlab[1]
 	got := statetest.CatchPanic(func() { p.Commit(130) })
-	if !state.StreamFrameScratch {
-		if got != nil || p.Base != 129 || p.Control.Used != 127 {
-			t.Fatalf("interruption=%v base=%d used=%d", got, p.Base, p.Control.Used)
-		}
-		return
-	}
-	if _, ok := got.(state.Fatal); !ok || p.Base != 129 || len(p.FrameSlab) != 2 || p.Control.Used != 128 {
+	// The frame in use is the second of the scratch, so the release keeps it and the one before it. The
+	// reference build keeps no frame scratch, which the release leaves alone.
+	if got != nil || p.Base != 129 || state.StreamFrameScratch && len(p.FrameSlab) != 2 || p.Control.Used != 0 {
 		t.Fatalf("interruption=%v base=%d frames=%d used=%d", got, p.Base, len(p.FrameSlab), p.Control.Used)
 	}
 }
 
-// TestStreamCommitPrunesBeforeItSettles pins the last two steps of a commit: when the budget runs
-// out in the pruning, the recovered errors are not settled yet.
-func TestStreamCommitPrunesBeforeItSettles(t *testing.T) {
+// TestStreamCommitPrunesAndSettlesUnderAnyLimit holds the last two steps of a commit to the compute
+// units: the pruning and the settling of the recovered errors are no events, so a limit that the
+// parse has reached does not stop the commit before it has settled the errors.
+func TestStreamCommitPrunesAndSettlesUnderAnyLimit(t *testing.T) {
 	t.Parallel()
 	first := &value.SyntaxError{Pos: 1}
 	memo := state.NewMemoTable()
@@ -120,9 +117,10 @@ func TestStreamCommitPrunesBeforeItSettles(t *testing.T) {
 	p := &state.Parser{Input: state.Input{Base: 1023, Control: state.NewBudgetControl(nil, runtime.Limits{Compute: 1})}, Memo: memo, Recovered: []state.RecEntry{state.ErrEntry(first)}}
 	p.DiagnosticTail.Limit = 1
 	p.SetDiagnosed(1)
+	p.Control.Used = 1
 	got := statetest.CatchPanic(func() { p.Commit(1024) })
-	if _, ok := got.(state.Fatal); !ok || len(p.Recovered) != 1 || p.Recovered[0] != state.ErrEntry(first) || p.Diagnosed() != 1 || memo.Base != 0 {
-		t.Fatalf("interruption=%v recovered=%v diagnosed=%d floor=%d", got, p.Recovered, p.Diagnosed(), memo.Base)
+	if got != nil || len(p.Recovered) != 0 || p.Diagnosed() != 0 || memo.Base == 0 || p.Control.Used != 1 {
+		t.Fatalf("interruption=%v recovered=%v diagnosed=%d floor=%d used=%d", got, p.Recovered, p.Diagnosed(), memo.Base, p.Control.Used)
 	}
 }
 
@@ -147,22 +145,30 @@ rule item = "ab" #recover(skip=[^a]+)`)
 	}
 }
 
-// TestStreamCommitChargesItsDeclaredWork measures the operations whose work depends on more than the
-// size of their argument, at the bounds that they declare in internal/ir/code/exec.
-func TestStreamCommitChargesItsDeclaredWork(t *testing.T) {
+// TestStreamCommitCountsNoUnits holds the operations of a commit whose work depends on more than the
+// size of their argument to the compute units: none of them is an event, so each counts nothing, and
+// each still does its work.
+func TestStreamCommitCountsNoUnits(t *testing.T) {
 	t.Parallel()
 	budget := func() *state.BudgetControl { return state.NewBudgetControl(nil, runtime.Limits{Compute: 1 << 20}) }
 	t.Run("the frames are scanned and cleared", func(t *testing.T) {
 		// The frame in use lies outside the scratch, so the scan finds nothing and the clear visits
-		// every frame again: two units for each of the four.
-		p := &state.Parser{Input: state.Input{Control: budget()}, Memo: state.NewMemoTable(), FrameSlab: make([]state.Frame, 4), Frame: &state.Frame{}}
-		p.Commit(1)
-		want := uint64(8)
-		if !state.StreamFrameScratch {
-			want = 0
+		// every frame.
+		slab := make([]state.Frame, 4)
+		for i := range slab {
+			slab[i].Vals = make([]*value.Node, 1)
 		}
-		if p.Control.Used != want {
-			t.Fatalf("used=%d, want %d", p.Control.Used, want)
+		p := &state.Parser{Input: state.Input{Control: budget()}, Memo: state.NewMemoTable(), FrameSlab: slab, Frame: &state.Frame{}}
+		p.Commit(1)
+		if p.Control.Used != 0 {
+			t.Fatalf("used=%d, want 0", p.Control.Used)
+		}
+		if state.StreamFrameScratch {
+			for i := range slab {
+				if slab[i].Vals != nil {
+					t.Fatalf("frame %d of the scratch was not cleared", i)
+				}
+			}
 		}
 	})
 	t.Run("the whole input is scanned for lines", func(t *testing.T) {
@@ -170,16 +176,17 @@ func TestStreamCommitChargesItsDeclaredWork(t *testing.T) {
 		// 1501 that go; the compaction copies the 1499 that stay.
 		p := &state.Parser{Input: state.Input{Unit: sxirinput.Bytes, Eof: true, Bs: []byte(strings.Repeat("a", 3000)), BaseLine: 1, BaseCol: 1, Control: budget()}, Memo: state.NewMemoTable()}
 		p.Commit(1502)
-		if p.Base != 1501 || p.Control.Used != 3000+1499 {
+		if p.Base != 1501 || p.Control.Used != 0 {
 			t.Fatalf("base=%d used=%d", p.Base, p.Control.Used)
 		}
 	})
 	t.Run("the scratch of the errors is cleared", func(t *testing.T) {
 		p := &state.Parser{Input: state.Input{Control: budget()}, Memo: state.NewMemoTable(), Recovered: make([]state.RecEntry, 1, 16)}
+		p.Recovered[0] = state.ErrEntry(&value.SyntaxError{Pos: 1})
 		p.DiagnosticTail.Limit = 1
 		p.Commit(1)
-		if p.Control.Used != 16 {
-			t.Fatalf("used=%d", p.Control.Used)
+		if p.Control.Used != 0 || len(p.Recovered) != 0 || p.Recovered[:1][0] != (state.RecEntry{}) {
+			t.Fatalf("used=%d recovered=%v", p.Control.Used, p.Recovered[:1])
 		}
 	})
 }

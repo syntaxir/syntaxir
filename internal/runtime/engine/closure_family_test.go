@@ -144,13 +144,11 @@ func TestClosureFamiliesLeaveModuleUnchanged(t *testing.T) {
 			}
 			before := ir.Print(m, true)
 			for _, f := range []state.Family{state.Inlined, state.CallPreserving} {
-				for _, plainDispatch := range []bool{true, false} {
-					if _, err := closure.Build(sp.Runtime(), sp.Checker(), m, plainDispatch, f); err != nil {
-						t.Fatal(err)
-					}
-					if after := ir.Print(m, true); after != before {
-						t.Fatalf("family %d, plainDispatch %t: the build changed the module:\n%s\nbefore:\n%s", f, plainDispatch, after, before)
-					}
+				if _, err := closure.Build(sp.Runtime(), sp.Checker(), m, f); err != nil {
+					t.Fatal(err)
+				}
+				if after := ir.Print(m, true); after != before {
+					t.Fatalf("family %d: the build changed the module:\n%s\nbefore:\n%s", f, after, before)
 				}
 			}
 		})
@@ -173,7 +171,7 @@ func TestClosureFamiliesBuildConcurrently(t *testing.T) {
 			errs := make([]error, 4)
 			for i := range errs {
 				wg.Go(func() {
-					_, errs[i] = closure.Build(sp.Runtime(), sp.Checker(), m, i%2 == 0, state.Family(i/2))
+					_, errs[i] = closure.Build(sp.Runtime(), sp.Checker(), m, state.Family(i/2))
 				})
 			}
 			wg.Wait()
@@ -484,6 +482,6 @@ func TestClosureCoreBuildPanicIsAnError(t *testing.T) {
 // panickingFamily is a Source whose builds of closure families panic.
 type panickingFamily struct{ Source }
 
-func (panickingFamily) Family(any, state.Family, bool) ([]*state.Rule, error) {
+func (panickingFamily) Family(any, state.Family) ([]*state.Rule, error) {
 	panic("build failed")
 }

@@ -80,6 +80,10 @@ type Suite struct {
 	// Exact are the operations whose charges must equal their cost bound, not stay within it: in a
 	// metered implementation, the model's quantities state the work to the unit.
 	Exact []string
+	// Free are the operations that count no unit in a metered implementation: under logical compute
+	// units (spec/runtime/parsing.md#compute-units) they are no event, and the compositions count the
+	// events around them.
+	Free []string
 }
 
 // ValuesOp is the operation that conformance cases use to make a Values handle from an identifier.
@@ -406,6 +410,9 @@ func (p *pair) Call(o *code.Op, args []any) []any {
 		used := meter.Used() - before
 		if used > uint64(bound) {
 			panic(mismatch(fmt.Sprintf("charged %d units, more than the bound %s = %d", used, o.Cost, bound)))
+		}
+		if charges && used != 0 && slices.Contains(p.suite.Free, o.Name) {
+			panic(mismatch(fmt.Sprintf("charged %d units, but the operation is no event and counts none", used)))
 		}
 		if charges && used != uint64(bound) && slices.Contains(p.suite.Exact, o.Name) {
 			panic(mismatch(fmt.Sprintf("charged %d units, not the exact cost %s = %d", used, o.Cost, bound)))

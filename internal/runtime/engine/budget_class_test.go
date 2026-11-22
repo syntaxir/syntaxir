@@ -7,6 +7,7 @@ import (
 	"errors"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/runtime/nodes"
@@ -50,16 +51,20 @@ func budgetClassBudgetOptions(backend Backend, unit sxirinput.PositionUnit, allo
 				if observed != nil {
 					*observed = state.TraceParser(e)
 				}
-				state.TraceParser(e).Control.Limits.Compute = state.TraceParser(e).Control.Used + allowance
+				// The call of main counts its unit after the event of its entry.
+				state.TraceParser(e).Control.Limits.Compute = state.TraceParser(e).Control.Used + 1 + allowance
 			}
 		},
 	}
 }
 
+// requireClassBudgetLimit leaves no room after the entry of main: the membership of a class is no
+// event, so the parse stops at the next counted one (the input that a hit advances over, or the syntax
+// error or recovered entry of a miss), within the overshoot of a coarse check.
 func requireClassBudgetLimit(t *testing.T, p *Program, input string, backend Backend, unit sxirinput.PositionUnit) *state.Parser {
 	t.Helper()
 	var observed *state.Parser
-	n, err := p.ParseWith("main", input, budgetClassBudgetOptions(backend, unit, 32, &observed))
+	n, err := p.ParseWith("main", input, budgetClassBudgetOptions(backend, unit, 0, &observed))
 	if n != nil || !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("%v/%v input %q: node=%v err type=%T, want fatal compute limit error", backend, unit, input, n, err)
 	}
@@ -67,13 +72,13 @@ func requireClassBudgetLimit(t *testing.T, p *Program, input string, backend Bac
 	if !errors.As(err, &limit) || limit.Kind != runtime.LimitCompute {
 		t.Fatalf("%v/%v input %q: error=%T %v, want spend LimitError", backend, unit, input, err, err)
 	}
-	if limit.Requested != 1 || limit.Used != limit.Limit {
-		t.Fatalf("range reservation=%+v, want one rejected step at the limit", limit)
+	if limit.Requested != 0 || limit.Used <= limit.Limit || limit.Used > limit.Limit+2*4096 {
+		t.Fatalf("limit=%+v, want used in (limit, limit+K+B] and nothing requested", limit)
 	}
 	return observed
 }
 
-func TestBudgetClassLargeNonASCIIRangesAreCharged(t *testing.T) {
+func TestBudgetClassLargeNonASCIIRangesStopAtTheNextUnit(t *testing.T) {
 	t.Parallel()
 	ranges := budgetClassRanges(budgetClassRangeCount)
 	late := string(ranges[len(ranges)-1].Lo)
@@ -94,8 +99,8 @@ func TestBudgetClassLargeNonASCIIRangesAreCharged(t *testing.T) {
 					t.Fatalf("unlimited positive miss: node=%v err=%v", n, err)
 				}
 
-				// The entry trace leaves room for rule/dispatch and one input probe.
-				// A class with many ranges must exhaust the remainder in membership.
+				// The membership of a class with many ranges counts no unit; the limit stops the parse
+				// at the event that follows it.
 				requireClassBudgetLimit(t, positive, late, backend, unit)
 				requireClassBudgetLimit(t, positive, gap, backend, unit)
 				requireClassBudgetLimit(t, negative, gap, backend, unit)
@@ -107,8 +112,10 @@ func TestBudgetClassLargeNonASCIIRangesAreCharged(t *testing.T) {
 func TestBudgetClassRangeCancellationAndPoolRetry(t *testing.T) {
 	t.Parallel()
 	ranges := budgetClassRanges(budgetClassRangeCount)
-	input := string(ranges[len(ranges)-1].Lo)
-	p := classMembershipProgram(t, &ast.CharClass{Ranges: ranges})
+	// Membership counts no unit, so the parse scans enough characters to count past a check interval.
+	const count = int(state.BudgetCheckInterval) + 64
+	input := strings.Repeat(string(ranges[len(ranges)-1].Lo), count)
+	p := classMembershipProgram(t, &ast.Repeat{Expr: &ast.CharClass{Ranges: ranges}, Min: 1, Max: -1})
 
 	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
 		for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
@@ -126,7 +133,7 @@ func TestBudgetClassRangeCancellationAndPoolRetry(t *testing.T) {
 							observed, control = state.TraceParser(e), state.TraceParser(e).Control
 							startSteps = control.Used
 							// Trace emit polls once after this callback; cancel at the next
-							// 256-step checkpoint, inside the deliberately long range scan.
+							// check, which the input that the scan advances over reaches.
 							control.Ctx = statetest.NewPollingContext(2)
 						} else if e.Kind == TraceExit {
 							exits++
@@ -135,10 +142,10 @@ func TestBudgetClassRangeCancellationAndPoolRetry(t *testing.T) {
 				}
 				n, err := p.ParseWith("main", input, opts)
 				if n != nil || !errors.Is(err, context.Canceled) {
-					t.Fatalf("node=%v err=%v, want cancellation during class membership", n, err)
+					t.Fatalf("node=%v err=%v, want cancellation during the class scan", n, err)
 				}
 				if observed == nil || control == nil || control.Used-startSteps < 128 {
-					t.Fatalf("cancellation occurred before a substantial range scan: parser observed=%v steps=%v", observed != nil, control)
+					t.Fatalf("cancellation occurred before a substantial scan: parser observed=%v steps=%v", observed != nil, control)
 				}
 				if exits != 0 {
 					t.Fatalf("trace exits after fatal interruption=%d, want 0", exits)
@@ -146,8 +153,8 @@ func TestBudgetClassRangeCancellationAndPoolRetry(t *testing.T) {
 				if observed.Scratch != nil || observed.Control != nil {
 					t.Fatalf("parser retained spend state after interruption: scratch=%v control=%v", observed.Scratch, observed.Control)
 				}
-				if n := budgetClassNode(t, p, input, ParseOptions{Backend: backend, Unit: unit}); nodes.D(n).Text != input {
-					t.Fatalf("retry text=%q, want %q", nodes.D(n).Text, input)
+				if n := budgetClassNode(t, p, input, ParseOptions{Backend: backend, Unit: unit}); len(nodes.D(n).Children) != count {
+					t.Fatalf("retry elements=%d, want %d", len(nodes.D(n).Children), count)
 				}
 			})
 		}
@@ -218,7 +225,9 @@ func TestBudgetClassFastPathParity(t *testing.T) {
 }
 
 // Optimized guards can skip the expression matcher; value-free scans bypass
-// per-element expression dispatch. Their membership spend must still be bounded.
+// per-element expression dispatch. Their membership counts no unit, so a limit stops them at the next
+// event, and a scan is interrupted by the checks that the input it advances over reaches, while a guard
+// over one character reaches none.
 func TestBudgetClassOptimizedRoutes(t *testing.T) {
 	t.Parallel()
 	ranges := budgetClassRanges(budgetClassRangeCount)
@@ -233,15 +242,16 @@ func TestBudgetClassOptimizedRoutes(t *testing.T) {
 		expr  ast.Expr
 		input string
 		op    bytecode.FlowOp
+		scans bool
 	}{
-		{"guard-hit", &ast.Choice{Alts: []ast.Expr{class, &ast.Literal{Value: gap}}}, late, bytecode.FlowGuardJump},
-		{"guard-miss-fallback", &ast.Choice{Alts: []ast.Expr{class, &ast.Literal{Value: gap}}}, gap, bytecode.FlowGuardJump},
+		{"guard-hit", &ast.Choice{Alts: []ast.Expr{class, &ast.Literal{Value: gap}}}, late, bytecode.FlowGuardJump, false},
+		{"guard-miss-fallback", &ast.Choice{Alts: []ast.Expr{class, &ast.Literal{Value: gap}}}, gap, bytecode.FlowGuardJump, false},
 		// A repetition in a rule that calls no rule is a scan site; with the call of e it is a plain
 		// repetition of the class.
-		{"scan", calling(&ast.Atomic{Expr: &ast.Repeat{Expr: class, Min: 1, Max: -1}}), late, bytecode.FlowMatchClass},
-		{"negated-scan", calling(&ast.Atomic{Expr: &ast.Repeat{Expr: &ast.CharClass{Ranges: ranges, Negated: true}, Min: 1, Max: -1}}), gap, bytecode.FlowMatchClass},
-		{"scan-site", &ast.Atomic{Expr: &ast.Repeat{Expr: class, Min: 1, Max: -1}}, late, bytecode.FlowScanReachAt},
-		{"negated-scan-site", &ast.Atomic{Expr: &ast.Repeat{Expr: &ast.CharClass{Ranges: ranges, Negated: true}, Min: 1, Max: -1}}, gap, bytecode.FlowScanReachAt},
+		{"scan", calling(&ast.Atomic{Expr: &ast.Repeat{Expr: class, Min: 1, Max: -1}}), late, bytecode.FlowMatchClass, true},
+		{"negated-scan", calling(&ast.Atomic{Expr: &ast.Repeat{Expr: &ast.CharClass{Ranges: ranges, Negated: true}, Min: 1, Max: -1}}), gap, bytecode.FlowMatchClass, true},
+		{"scan-site", &ast.Atomic{Expr: &ast.Repeat{Expr: class, Min: 1, Max: -1}}, late, bytecode.FlowScanReachAt, true},
+		{"negated-scan-site", &ast.Atomic{Expr: &ast.Repeat{Expr: &ast.CharClass{Ranges: ranges, Negated: true}, Min: 1, Max: -1}}, gap, bytecode.FlowScanReachAt, true},
 	}
 	if strconv.IntSize == 64 {
 		// Construct a source-sized bound without a constant-to-int overflow on 32bit.
@@ -251,8 +261,9 @@ func TestBudgetClassOptimizedRoutes(t *testing.T) {
 			expr  ast.Expr
 			input string
 			op    bytecode.FlowOp
+			scans bool
 		}{
-			"wide-scan", &ast.Atomic{Expr: &ast.Repeat{Expr: class, Min: 1, Max: int(wide)}}, late, bytecode.FlowMatchClass,
+			"wide-scan", &ast.Atomic{Expr: &ast.Repeat{Expr: class, Min: 1, Max: int(wide)}}, late, bytecode.FlowMatchClass, true,
 		})
 	}
 	for _, tc := range cases {
@@ -278,9 +289,13 @@ func TestBudgetClassOptimizedRoutes(t *testing.T) {
 						}
 						budgetClassNode(t, program, tc.input, servedBy(program.mode, ParseOptions{Backend: backend, Unit: unit}))
 						requireClassBudgetLimit(t, program, tc.input, backend, unit)
+						polled := tc.input
+						if tc.scans {
+							polled = strings.Repeat(tc.input, 2*int(state.BudgetCheckInterval))
+						}
 						var c *state.BudgetControl
 						var start uint64
-						n, err := program.ParseWith("main", tc.input, ParseOptions{
+						n, err := program.ParseWith("main", polled, ParseOptions{
 							Backend: backend, Unit: unit, Limits: runtime.Limits{Compute: 1 << 30},
 							Trace: func(e TraceEvent) {
 								if e.Kind == TraceEnter && e.Rule == "main" {
@@ -290,8 +305,14 @@ func TestBudgetClassOptimizedRoutes(t *testing.T) {
 								}
 							},
 						})
-						if n != nil || !errors.Is(err, context.Canceled) || c == nil || c.Used-start < 128 {
-							t.Fatalf("%v/%v: cancellation did not interrupt optimized membership: node=%v error type=%T", backend, unit, n, err)
+						// The event of the exit of main observes the context too, so a guard over one
+						// character is cancelled there, before it has counted a check interval; a scan is
+						// cancelled by the check of the counts of the input it advances over, before its end.
+						if n != nil || !errors.Is(err, context.Canceled) || c == nil {
+							t.Fatalf("%v/%v: cancellation did not interrupt the parse: node=%v error type=%T", backend, unit, n, err)
+						}
+						if counted := c.Used - start; !tc.scans && counted >= state.BudgetCheckInterval || tc.scans && (counted < 128 || counted >= 2*state.BudgetCheckInterval) {
+							t.Fatalf("%v/%v: cancelled after %d units, want a guard before a check interval and a scan within its input", backend, unit, counted)
 						}
 						budgetClassNode(t, program, tc.input, servedBy(program.mode, ParseOptions{Backend: backend, Unit: unit}))
 					}

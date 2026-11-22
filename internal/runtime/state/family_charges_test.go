@@ -9,7 +9,6 @@ import (
 
 	"syntaxir.dev/sxir/internal/driver/entry"
 	"syntaxir.dev/sxir/internal/runtime/engine"
-	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
@@ -77,18 +76,19 @@ func familyCharges(t *testing.T, prog *engine.Program, b engine.Backend, input s
 	return out
 }
 
-// TestClosureFamilyCharges pins the budget charge (the least compute limit) of every kind of
-// closure parse, traced and untraced. A call charges the same units on the plain path and through
-// Parser.Call (spec/runtime/parsing.md#cost), so each family charges the cost of the parse, and the
-// numbers are those of the bytecode machines (TestVMFamilyCharges) except for the work that only a
-// Document does. A traced parse charges more, for merging the expectations of the traced calls. A stream parse of the default build also charges for walking and clearing the capture
-// frames it keeps for reuse at each commit, which the reference build of stream frames drops
-// instead, so the stream numbers are those of the build.
+// TestClosureFamilyCharges pins the compute units (the least compute limit) of every kind of
+// closure parse, traced and untraced. A call counts the same units on the plain path and through
+// Parser.Call, and the work that only a Document, a trace or a stream commit does is no event
+// (spec/runtime/parsing.md#compute-units), so every family of a grammar and input counts the same
+// units, in either build of the stream frames.
 func TestClosureFamilyCharges(t *testing.T) {
 	t.Parallel()
-	stream := map[string]uint64{"stream": 126, "stream+trace": 130}
-	if !state.StreamFrameScratch {
-		stream = map[string]uint64{"stream": 122, "stream+trace": 126}
+	every := func(units uint64) map[string]uint64 {
+		out := map[string]uint64{}
+		for _, k := range []string{"document", "parse", "prefix", "recognize"} {
+			out[k], out[k+"+trace"] = units, units
+		}
+		return out
 	}
 	cases := []struct {
 		name, src string
@@ -97,11 +97,11 @@ func TestClosureFamilyCharges(t *testing.T) {
 		stream    bool
 		want      map[string]uint64
 	}{
-		{"plain calls", "rule main = item* $$\nrule item = \"a\"", entry.Options{}, "aaaa", false, map[string]uint64{"document": 24, "document+trace": 26, "parse": 32, "parse+trace": 34, "prefix": 31, "prefix+trace": 33, "recognize": 32, "recognize+trace": 34}},
-		{"plain calls, no memo", "rule main = item* $$\nrule item = \"a\"", entry.Options{DisableMemo: true}, "aaaa", false, map[string]uint64{"document": 24, "document+trace": 26, "parse": 32, "parse+trace": 34, "prefix": 31, "prefix+trace": 33, "recognize": 32, "recognize+trace": 34}},
-		{"recursion", "rule main = e $$\nrule e = \"(\" e \")\" / x\nrule x = \"x\"", entry.Options{DisableMemo: true}, "((x))", false, map[string]uint64{"document": 20, "document+trace": 24, "parse": 30, "parse+trace": 34, "prefix": 29, "prefix+trace": 33, "recognize": 30, "recognize+trace": 34}},
-		{"captures", "rule main = item* $$\nrule item = x:\"a\" {len(text($x)) == 1}", entry.Options{}, "aaa", false, map[string]uint64{"document": 23, "document+trace": 25, "parse": 29, "parse+trace": 31, "prefix": 28, "prefix+trace": 30, "recognize": 29, "recognize+trace": 31}},
-		{"stream", codegentest.Records, entry.Options{}, "#records\na=1\nbc=22\n", true, stream},
+		{"plain calls", "rule main = item* $$\nrule item = \"a\"", entry.Options{}, "aaaa", false, every(10)},
+		{"plain calls, no memo", "rule main = item* $$\nrule item = \"a\"", entry.Options{DisableMemo: true}, "aaaa", false, every(10)},
+		{"recursion", "rule main = e $$\nrule e = \"(\" e \")\" / x\nrule x = \"x\"", entry.Options{DisableMemo: true}, "((x))", false, every(10)},
+		{"captures", "rule main = item* $$\nrule item = x:\"a\" {len(text($x)) == 1}", entry.Options{}, "aaa", false, every(8)},
+		{"stream", codegentest.Records, entry.Options{}, "#records\na=1\nbc=22\n", true, map[string]uint64{"stream": 24, "stream+trace": 24}},
 	}
 	for _, c := range cases {
 		prog := enginetest.MustCompile(t, c.src, c.opts)

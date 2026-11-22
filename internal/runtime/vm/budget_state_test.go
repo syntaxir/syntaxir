@@ -3,6 +3,7 @@
 package vm
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
@@ -25,12 +26,9 @@ import (
 func TestBudgetStateOperatorsRuleFrameSnapshotAndRestoration(t *testing.T) {
 	for _, iterative := range []bool{false, true} {
 		for _, limit := range []uint64{128, 449, 10000} {
-			// The recursive form charges the operator it tries before the copies under test.
-			compute, operator := limit, uint64(0)
-			if !iterative {
-				compute, operator = compute+1, 1
-			}
-			p := stateBudgetParser(runtime.Limits{Compute: compute})
+			// Neither form counts the operator it tries: an operator is no event
+			// (spec/runtime/parsing.md#compute-units).
+			p := stateBudgetParser(runtime.Limits{Compute: limit})
 			retained := value.Ptr(value.Data{Text: "retained", Fields: valueimpl.Fields{{Name: "keep", Value: "unchanged"}}})
 			before, _ := json.Marshal(retained)
 			op := &state.OperatorsRuleOp{Kind: ast.Prefix, Line: &state.OperatorsRuleLine{Scope: &program.Scope{Names: make([]string, 320)}}}
@@ -61,8 +59,8 @@ func TestBudgetStateOperatorsRuleFrameSnapshotAndRestoration(t *testing.T) {
 			if p.Pos != 0 || len(p.Trail) != 0 || outer.Vals[0] != old {
 				t.Fatalf("iterative=%t limit=%d: the try left position %d, %d trail entries and the outer capture %v, want 0, none and the old value", iterative, limit, p.Pos, len(p.Trail), outer.Vals[0])
 			}
-			if p.Control.Used != operator {
-				t.Fatalf("iterative=%t limit=%d: snapshot and restore used %d units, want %d (the operator)", iterative, limit, p.Control.Used, operator)
+			if p.Control.Used != 0 {
+				t.Fatalf("iterative=%t limit=%d: snapshot and restore used %d units, want none", iterative, limit, p.Control.Used)
 			}
 			after, _ := json.Marshal(retained)
 			if string(before) != string(after) {
@@ -122,10 +120,21 @@ func TestBudgetResetAndVMRestoreChargeNothing(t *testing.T) {
 	}
 }
 
-// Letting go of a finished run is work of the Document: a Flow body holds its run (RESUMESTART's
-// state) only in a register, which the machine that a Document keeps between parses clears
-// (Machine.Keep). It charges nothing, so no limit interrupts it, and it releases the reference to
-// the run without changing the run's lists or their pointees.
+// interruptAt makes the k-th reservation of c the one that observes a canceled context: the work of a
+// Document counts under no Compute limit, but it keeps advancing the poll counter.
+func interruptAt(c *state.BudgetControl, k uint64) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	c.Ctx = ctx
+	c.SinceCheck = state.BudgetCheckInterval - k
+}
+
+// TestBudgetDocumentRunStateClearCountsNothing checks that letting go of a finished run, work of the
+// Document, counts no unit and observes no context, since it is no event
+// (spec/runtime/parsing.md#compute-units). A Flow body holds its run (RESUMESTART's state) only in a
+// register, which the machine that a Document keeps between parses clears (Machine.Keep): under a
+// limit of one unit and a canceled context that the next reservation would observe, the clear
+// completes and releases the reference to the run without changing the run's lists or their pointees.
 func TestBudgetDocumentRunStateClearCountsNothing(t *testing.T) {
 	marker := value.Ptr(value.Data{Text: "retained"})
 	r := &state.RunState{Old: []state.RunElem{{V: marker}}, Mid: make([]state.RunElem, 129), Post: []state.RunElem{{V: marker}}}
@@ -133,6 +142,7 @@ func TestBudgetDocumentRunStateClearCountsNothing(t *testing.T) {
 		r.Mid[i].V = marker
 	}
 	p := stateBudgetParser(runtime.Limits{Compute: 1})
+	interruptAt(p.Control, 1)
 	mc := machineOf(p)
 	at := mc.regs.mark()
 	mc.regs.push(1)[0] = r // the register file of a body that finished the run
@@ -147,6 +157,6 @@ func TestBudgetDocumentRunStateClearCountsNothing(t *testing.T) {
 		}
 	}
 	if p.Control.Used != 0 || held || r.Mid[128].V != marker || r.Post[0].V != marker || value.D(marker).Text != "retained" {
-		t.Fatalf("clear charged %d units, kept the run %t or changed its lists", p.Control.Used, held)
+		t.Fatalf("clear used %d units, kept the run %t or changed its lists", p.Control.Used, held)
 	}
 }

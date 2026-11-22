@@ -1,7 +1,5 @@
 package engine
 
-import "syntaxir.dev/sxir/pkg/bytecode"
-
 // knownChargeDivergences lists the pairs of charge case and backend that diverge from the closure
 // backend today, as "case|backend" ("case|*" for every backend), and as "case|table" the cases
 // whose closure units differ from chargeTableUnits. The backends do not yet charge the
@@ -144,34 +142,4 @@ var knownChargeDivergences = map[string]bool{
 	"text action|generated Go typed optimizations off":           true,
 	"text action|generated TypeScript default":                   true,
 	"text action|generated TypeScript optimizations off":         true,
-}
-
-// knownGuardReadDivergence reports whether the units vm that the bytecode VM charged for a parse
-// of a grammar whose module is m may differ from the units closure that the closure backend charged
-// by the one divergence of the reads of a choice's first-character guards: the closure backend
-// charges one read for the guards of a choice together (state.ChoiceRead), and the VM one for each
-// guard it tests (GUARD, GUARDLIT and their jumps), so the VM charges more than the closure for a
-// choice whose second guard or a later one is tested. It holds when a Flow body of m tests two
-// guards or more and the VM charged more units than the closure backend, never fewer.
-// TestKnownGuardReadDivergence pins the divergence on its smallest grammars.
-//
-// Owner: #310, whose contract counts a guard no unit on every backend; the change that makes the
-// backends charge that removes this entry and its pins.
-func knownGuardReadDivergence(m *bytecode.Module, closure, vm uint64) bool {
-	if vm <= closure {
-		return false
-	}
-	for _, f := range m.Flows {
-		guards := 0
-		for _, in := range f.Code {
-			switch in.Op {
-			case bytecode.FlowGuard, bytecode.FlowGuardLit, bytecode.FlowGuardJump, bytecode.FlowGuardLitJump:
-				guards++
-			}
-		}
-		if guards >= 2 {
-			return true
-		}
-	}
-	return false
 }

@@ -15,10 +15,10 @@ import (
 // closureExprMatcher returns the closure that the closure backend builds for the expression e of
 // the program prog, from the program's Core IR after the closure pipeline. The expression must be
 // one that a node of Core IR is built from.
-func closureExprMatcher(t *testing.T, prog *frontend.Result, e ast.Expr, plainDispatch bool) state.Matcher {
+func closureExprMatcher(t *testing.T, prog *frontend.Result, e ast.Expr) state.Matcher {
 	t.Helper()
 	m, found := closureExprCore(t, prog, e)
-	f, err := closure.Matcher(prog.Runtime(), prog.Checker(), m, found, nil, plainDispatch)
+	f, err := closure.Matcher(prog.Runtime(), prog.Checker(), m, found, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

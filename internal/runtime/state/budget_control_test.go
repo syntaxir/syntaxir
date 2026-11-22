@@ -46,33 +46,38 @@ func TestBudgetControlExactLimitsAndOverflow(t *testing.T) {
 	if !errors.Is(err, runtime.ErrLimit) || !errors.As(err, &limitErr) {
 		t.Fatalf("limit+1 error = %v, want a LimitError matching ErrLimit", err)
 	}
-	if limitErr.Kind != runtime.LimitCompute || limitErr.Limit != 8 || limitErr.Used != 8 || limitErr.Requested != 1 {
+	// The units of a charge are counted before the check: Used is the counter past the limit, and
+	// nothing is requested (spec/runtime/parsing.md#checks-and-interruptions).
+	if limitErr.Kind != runtime.LimitCompute || limitErr.Limit != 8 || limitErr.Used != 9 || limitErr.Requested != 0 {
 		t.Fatalf("error = %#v", limitErr)
 	}
 
-	c = state.NewBudgetControl(nil, runtime.Limits{Compute: math.MaxUint64})
-	c.Charge(math.MaxUint64 - 1)
+	// A count that would overflow saturates, which still exceeds every limit below the maximum.
+	c = state.NewBudgetControl(nil, runtime.Limits{Compute: math.MaxUint64 - 1})
+	c.Charge(math.MaxUint64 - 2)
 	if err := statetest.CatchFatal(t, func() { c.Charge(2) }); err == nil {
-		t.Fatal("overflowing reservation unexpectedly succeeded")
+		t.Fatal("overflowing charge unexpectedly succeeded")
 	}
-	if c.Used != math.MaxUint64-1 {
-		t.Fatalf("failed reservation changed the counter to %d", c.Used)
+	if c.Used != math.MaxUint64 {
+		t.Fatalf("overflowing charge left the counter at %d, want it saturated", c.Used)
 	}
 }
 
-func TestBudgetControlFailedReservationLeavesCounter(t *testing.T) {
+// TestBudgetControlExceedingChargeKeepsItsUnits checks that a charge past the limit is counted, never
+// taken back: Used is the counter with the charge, and Requested is zero.
+func TestBudgetControlExceedingChargeKeepsItsUnits(t *testing.T) {
 	t.Parallel()
 	c := state.NewBudgetControl(nil, runtime.Limits{Compute: 6})
 	c.Charge(2)
 	var got *runtime.LimitError
 	if !errors.As(statetest.CatchFatal(t, func() { c.Charge(5) }), &got) {
-		t.Fatal("reservation over the limit did not fail with LimitError")
+		t.Fatal("charge over the limit did not fail with LimitError")
 	}
-	if got.Kind != runtime.LimitCompute || got.Used != 2 || got.Requested != 5 {
+	if got.Kind != runtime.LimitCompute || got.Limit != 6 || got.Used != 7 || got.Requested != 0 {
 		t.Fatalf("error = %#v", got)
 	}
-	if c.Used != 2 {
-		t.Fatalf("failed reservation changed the counter to %d", c.Used)
+	if c.Used != 7 {
+		t.Fatalf("the charge left the counter at %d, want 7", c.Used)
 	}
 }
 
@@ -95,7 +100,12 @@ func TestBudgetControlCancellationAndCause(t *testing.T) {
 	ctx, cancel := context.WithCancelCause(context.Background())
 	cancel(cause)
 	c := state.NewBudgetControl(ctx, runtime.Limits{Compute: 1})
-	got := statetest.CatchFatal(t, func() { c.Charge(2) })
+	// A check observes the context only once BudgetCheckInterval units have been counted since the
+	// last observation; one that observes it and finds the limit exceeded too reports the context.
+	if got := statetest.CatchFatal(t, func() { state.NewBudgetControl(ctx, runtime.Limits{Compute: 1}).Charge(2) }); !errors.Is(got, runtime.ErrLimit) {
+		t.Fatalf("error before an observation = %v, want the compute limit", got)
+	}
+	got := statetest.CatchFatal(t, func() { c.Charge(state.BudgetCheckInterval) })
 	if !errors.Is(got, context.Canceled) {
 		t.Fatalf("error = %v, want context.Canceled", got)
 	}

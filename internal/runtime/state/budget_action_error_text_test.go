@@ -22,34 +22,27 @@ import (
 func TestBudgetActionErrorTextReservationsAndOwnership(t *testing.T) {
 	t.Parallel()
 	for _, parts := range [][]string{{""}, {"", "", ""}, {"a", "", "λ\xff"}, {strings.Repeat("n", 8192)}} {
+		// The text of an error is no event: it counts nothing, so it is made under a limit of one unit.
 		want := strings.Join(parts, "")
-		steps := uint64(len(want) + 2*len(parts))
-		p := diagnosticParser(runtime.Limits{Compute: steps})
+		p := diagnosticParser(runtime.Limits{Compute: 1})
 		retained := p.ActionError(parts...)
-		if retained.Error() != want || p.Control.Used != steps {
-			t.Fatalf("builder parity/spend: %q %d", retained, p.Control.Used)
-		}
-		p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: steps - 1})
-		var partial error
-		if err := statetest.CatchFatal(t, func() { partial = p.ActionError(parts...) }); !errors.Is(err, runtime.ErrLimit) || partial != nil {
-			t.Fatalf("one-short formatting: fatal=%v partial=%v", err, partial)
+		if retained.Error() != want || p.Control.Used != 0 {
+			t.Fatalf("builder parity/units: %q %d", retained, p.Control.Used)
 		}
 		p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 100})
 		if got := p.ActionError("retry").Error(); got != "retry" || retained.Error() != want {
 			t.Fatal("retry changed owned text")
 		}
 	}
-	// The second 128-byte write is rejected atomically.
-	p := diagnosticParser(runtime.Limits{Compute: 130})
-	err := statetest.CatchFatal(t, func() { _ = p.ActionError(strings.Repeat("x", 512)) })
-	var limit *runtime.LimitError
-	if !errors.As(err, &limit) || limit.Kind != runtime.LimitCompute || limit.Used != 130 || limit.Requested != 128 || p.Control.Used != 130 {
-		t.Fatalf("chunk reservation: %v", err)
+	// A long text counts nothing either, and makes no check: a canceled context does not stop it.
+	p := diagnosticParser(runtime.Limits{Compute: 1})
+	if err := statetest.CatchFatal(t, func() { _ = p.ActionError(strings.Repeat("x", 512)) }); err != nil || p.Control.Used != 0 {
+		t.Fatalf("long text: err=%v units=%d", err, p.Control.Used)
 	}
 	for _, parts := range [][]string{make([]string, 320), {strings.Repeat("x", 1024)}} {
 		p.Control = state.NewBudgetControl(statetest.NewPollingContext(1), runtime.Limits{})
-		if err := statetest.CatchFatal(t, func() { _ = p.ActionError(parts...) }); !errors.Is(err, context.Canceled) {
-			t.Fatalf("fragment/copy cancellation: %v", err)
+		if err := statetest.CatchFatal(t, func() { _ = p.ActionError(parts...) }); err != nil {
+			t.Fatalf("text under a canceled context: %v", err)
 		}
 	}
 }
@@ -59,18 +52,16 @@ func TestBudgetActionErrorFinalPrefixIsFlatAndBounded(t *testing.T) {
 	cause := state.ActionTextError("division by zero")
 	where := strings.Repeat("rule", 512)
 	want := "action in " + where + ": " + cause.Error()
-	p := diagnosticParser(runtime.Limits{Compute: uint64(len(want) + 8)})
+	// The wrapped text counts nothing: the action error ends the parse under a limit of one unit, and
+	// under a canceled context, which the wrapping of owned text does not check.
+	p := diagnosticParser(runtime.Limits{Compute: 1})
 	err := statetest.CatchFatal(t, func() { p.FailAction(where, cause) })
-	if err.Error() != want || errors.Unwrap(err) != nil || errors.Is(err, cause) || p.Control.Used != uint64(len(want)+8) {
+	if err.Error() != want || errors.Unwrap(err) != nil || errors.Is(err, cause) || p.Control.Used != 0 {
 		t.Fatalf("final error contract: %v", err)
 	}
-	p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: uint64(len(want) + 7)})
-	if err := statetest.CatchFatal(t, func() { p.FailAction(where, cause) }); !errors.Is(err, runtime.ErrLimit) {
-		t.Fatalf("one-short wrapper: %v", err)
-	}
 	p.Control = state.NewBudgetControl(statetest.NewPollingContext(1), runtime.Limits{})
-	if err := statetest.CatchFatal(t, func() { p.FailAction(where, cause) }); !errors.Is(err, context.Canceled) {
-		t.Fatalf("wrapper cancellation: %v", err)
+	if err := statetest.CatchFatal(t, func() { p.FailAction(where, cause) }); err.Error() != want {
+		t.Fatalf("wrapper under a canceled context: %v", err)
 	}
 }
 
@@ -144,10 +135,11 @@ func TestBudgetActionErrorProducersAreEager(t *testing.T) {
 			if native.Error() != owned.Error() {
 				t.Fatalf("native %q differs from controlled %q", native, owned)
 			}
+			// The text is made eagerly and counts nothing, so it is made under a limit of one unit.
 			p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 1})
-			var partial error
-			if err := statetest.CatchFatal(t, func() { partial = tc.make(p) }); !errors.Is(err, runtime.ErrLimit) || partial != nil {
-				t.Fatalf("leaf was not eager: fatal=%v partial=%v", err, partial)
+			var again error
+			if err := statetest.CatchFatal(t, func() { again = tc.make(p) }); err != nil || again == nil || again.Error() != owned.Error() || p.Control.Used != 0 {
+				t.Fatalf("leaf under a limit of one unit: fatal=%v text=%v", err, again)
 			}
 		})
 	}

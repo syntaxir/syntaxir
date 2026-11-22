@@ -131,6 +131,19 @@ type skipWalk struct {
 	vals  skipVals
 }
 
+// walkKeyUnits returns the units of a walk's key with the values vals: one for each variable, and one
+// for each byte of the UTF-8 encoding of each string value among them
+// (spec/runtime/parsing.md#compute-units).
+func walkKeyUnits(vals []any) uint64 {
+	n := uint64(len(vals))
+	for _, v := range vals {
+		if s, ok := v.(string); ok {
+			n += uint64(len(s))
+		}
+	}
+	return n
+}
+
 // walk returns the walk in use, the innermost one in progress.
 func (p *Parser) walk() *skipWalk { return &p.skips[p.skipN-1] }
 
@@ -153,6 +166,11 @@ func (p *Parser) skipBegin(site int, build, keyEnv bool) {
 	w.key = nil
 	if keyEnv {
 		w.key = p.runKeyOf(site)
+		if len(w.key.bind) == 0 && !p.skipMut(skipIgnoreEnv) && p.countsWalkKeys() {
+			// The element binds no variable of the key, so the key keeps its values for the whole
+			// walk: it is counted once, when the walk starts (spec/runtime/parsing.md#compute-units).
+			p.countWalkKey(walkKeyUnits(p.envSlotValues(w.key.vars)))
+		}
 	}
 	i := p.runIndex(site)
 	w.table, w.slots = i, nil
@@ -176,8 +194,8 @@ func (p *Parser) skipTable() *skipSlots {
 }
 
 // walkKey returns the key of the walk at the current position: the values of the variables of the key
-// and their hash for a site keyed by them, none otherwise. Reading the values and hashing them charge
-// as for a memo key (hashMemoKey).
+// and their hash for a site keyed by them, none otherwise. Reading and hashing the values are no event
+// (hashWalkKey may charge budget steps); skipBegin or SkipHit counts the key (countWalkKey).
 func (p *Parser) walkKey() walkKey {
 	k := p.walk().key
 	if k == nil || p.skipMut(skipIgnoreEnv) {
@@ -223,12 +241,18 @@ func (p *Parser) SkipHit() bool {
 		return false
 	}
 	p.skipClose()
-	p.Spend()
-	r := p.getSkip(w.slots, p.Pos, p.walkKey())
+	p.skipStep()
+	k := p.walkKey()
+	if w.key != nil && len(w.key.bind) > 0 && p.countsWalkKeys() {
+		// The element binds variables of the key, whose values may differ at each position: the key
+		// is counted at each lookup (spec/runtime/parsing.md#compute-units).
+		p.countWalkKey(walkKeyUnits(k.vals))
+	}
+	r := p.getSkip(w.slots, p.Pos, k)
 	if r.state != skipRecorded || w.build && !r.list && !p.skipMut(skipAnyList) {
 		return false
 	}
-	p.Spend()
+	p.skipStep()
 	p.mutateSkipRecord(&r, p.Pos)
 	p.touchRange(r.examined, r.from)
 	p.MergeExpected(r.far, r.exp)
@@ -388,7 +412,7 @@ func mergeExp(a, b []ExpID) []ExpID {
 
 // skipPut stores the record r of the position pos in the slots of the walk.
 func (p *Parser) skipPut(pos int, k walkKey, r skipRecord) {
-	p.Spend()
+	p.skipStep()
 	p.putSkip(p.skipTable(), pos, k, r)
 }
 

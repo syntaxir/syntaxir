@@ -114,15 +114,15 @@ rule ` + longRule + ` = a:"a" => A{N: 1 / (len($a) - 1)}`,
 								}
 								if !armed && e.Kind == TraceEnter && e.Rule == probe.start {
 									armed = true
+									// Public smoke coverage for fatal propagation. Formatting an action error is
+									// no event, so the limit leaves no room and stops the parse at the next event,
+									// and the cancellation is observed by the check after this callback. The call
+									// of the start rule counts its unit after the event of its entry.
 									if mode == "budget" {
-										// Public smoke coverage for fatal propagation. Exact formatter-phase
-										// exhaustion is covered by focused builder whiteboxes.
-										state.TraceParser(e).Control.Limits.Compute = state.TraceParser(e).Control.Used + 256
+										state.TraceParser(e).Control.Limits.Compute = state.TraceParser(e).Control.Used + 1
 									} else {
-										poll := statetest.NewPollingContext(2)
+										poll := statetest.NewPollingContext(1)
 										state.TraceParser(e).Control.Ctx = poll
-										state.TraceParser(e).Control.SinceCheck = 0
-										state.TraceParser(e).Control.SinceCheck = 0
 									}
 								}
 							}

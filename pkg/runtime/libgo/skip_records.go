@@ -99,8 +99,8 @@ func (s *skipSlots) marked(pos int) bool {
 }
 
 // getSkip returns the slot of pos for walks that start with the key k; a fresh slot is the zero
-// record. Comparing the values of the key charges as comparing those of a memo key does. p may be
-// nil for a site not keyed by the variables.
+// record. Comparing the values of the key is no event: the walk counts its key (countWalkKey). p may
+// be nil for a site not keyed by the variables.
 func (p *Parser) getSkip(s *skipSlots, pos int, k walkKey) skipRecord {
 	if !s.marked(pos) {
 		return skipRecord{}
@@ -108,7 +108,7 @@ func (p *Parser) getSkip(s *skipSlots, pos int, k walkKey) skipRecord {
 	sk := skipKey{pos, k.h}
 	if p != nil && p.skipMut(skipScanKeys) {
 		for range s.recs {
-			p.Spend()
+			p.skipStep()
 		}
 	}
 	if r, ok := s.recs[sk]; ok {

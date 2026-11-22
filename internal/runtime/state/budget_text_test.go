@@ -36,8 +36,9 @@ func TestBudgetInputTextNativeParityAndDetachedResult(t *testing.T) {
 		if got != want {
 			t.Fatalf("Bytes length %d text mismatch", n)
 		}
-		if in.Control.Used != uint64(n) {
-			t.Fatalf("Bytes length %d spent=%d, want %d", n, in.Control.Used, n)
+		// Reading the text of the input is no event: it counts nothing.
+		if in.Control.Used != 0 {
+			t.Fatalf("Bytes length %d spent=%d, want 0", n, in.Control.Used)
 		}
 		if n > 0 {
 			source[start] ^= 0xff
@@ -74,8 +75,8 @@ func TestBudgetInputTextNativeParityAndDetachedResult(t *testing.T) {
 		if got != want {
 			t.Fatalf("CodePoints length %d text = %q, want %q", n, got, want)
 		}
-		if in.Control.Used != uint64(4*n) {
-			t.Fatalf("CodePoints length %d spent=%d, want %d", n, in.Control.Used, 4*n)
+		if in.Control.Used != 0 {
+			t.Fatalf("CodePoints length %d spent=%d, want 0", n, in.Control.Used)
 		}
 		if n > 0 {
 			runes[start] = 'z'
@@ -91,10 +92,11 @@ func TestBudgetInputTextChunkInterruptionLeavesSourceAndRetries(t *testing.T) {
 	byteSource := []byte(strings.Repeat("a", 4097))
 	byteBefore := append([]byte(nil), byteSource...)
 	byteInput := fallbackTextInput(input.Bytes, 0, byteSource, nil, state.NewBudgetControl(nil, runtime.Limits{Compute: 4096}))
-	if err := statetest.CatchFatal(t, func() { _ = byteInput.Text(0, len(byteSource)) }); !errors.Is(err, runtime.ErrLimit) {
-		t.Fatalf("Bytes second-chunk error = %v, want ErrLimit", err)
+	// The copy counts nothing, so a limit below its length does not stop it.
+	if err := statetest.CatchFatal(t, func() { _ = byteInput.Text(0, len(byteSource)) }); err != nil {
+		t.Fatalf("Bytes copy error = %v, want none", err)
 	}
-	if !reflect.DeepEqual(byteSource, byteBefore) || byteInput.Control.Used != 4096 {
+	if !reflect.DeepEqual(byteSource, byteBefore) || byteInput.Control.Used != 0 {
 		t.Fatalf("Bytes failed copy mutated source or charged unexpected spend: counter=%d", byteInput.Control.Used)
 	}
 	byteInput.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 10_000})
@@ -108,11 +110,11 @@ func TestBudgetInputTextChunkInterruptionLeavesSourceAndRetries(t *testing.T) {
 	}
 	runeBefore := append([]rune(nil), runeSource...)
 	runeInput := fallbackTextInput(input.CodePoints, 0, nil, runeSource, state.NewBudgetControl(nil, runtime.Limits{Compute: 257}))
-	if err := statetest.CatchFatal(t, func() { _ = runeInput.Text(0, len(runeSource)) }); !errors.Is(err, runtime.ErrLimit) {
-		t.Fatalf("CodePoints encoding-chunk error = %v, want ErrLimit", err)
+	if err := statetest.CatchFatal(t, func() { _ = runeInput.Text(0, len(runeSource)) }); err != nil {
+		t.Fatalf("CodePoints encoding error = %v, want none", err)
 	}
-	if !reflect.DeepEqual(runeSource, runeBefore) || runeInput.Control.Used != 256 {
-		t.Fatalf("CodePoints failure mutated source or budget counter=%d, want one completed chunk", runeInput.Control.Used)
+	if !reflect.DeepEqual(runeSource, runeBefore) || runeInput.Control.Used != 0 {
+		t.Fatalf("CodePoints encoding mutated source or counted %d units, want none", runeInput.Control.Used)
 	}
 	runeInput.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 10_000})
 	if got, want := runeInput.Text(0, len(runeSource)), string(runeSource); got != want {
@@ -124,11 +126,12 @@ func TestBudgetInputTextPollingCancellationAtCopyAndEncoding(t *testing.T) {
 	t.Parallel()
 	bytes := []byte(strings.Repeat("b", 8192))
 	byteInput := fallbackTextInput(input.Bytes, 0, bytes, nil, state.NewBudgetControl(statetest.NewPollingContext(2), runtime.Limits{}))
-	if err := statetest.CatchFatal(t, func() { _ = byteInput.Text(0, len(bytes)) }); !errors.Is(err, context.Canceled) {
-		t.Fatalf("Bytes cancellation = %v, want context.Canceled", err)
+	// The copy counts nothing and makes no check, so it does not observe the context.
+	if err := statetest.CatchFatal(t, func() { _ = byteInput.Text(0, len(bytes)) }); err != nil {
+		t.Fatalf("Bytes copy = %v, want no interruption", err)
 	}
-	if byteInput.Control.Used != 4096 {
-		t.Fatalf("Bytes cancellation counter=%d, want one completed chunk", byteInput.Control.Used)
+	if byteInput.Control.Used != 0 {
+		t.Fatalf("Bytes copy counter=%d, want 0", byteInput.Control.Used)
 	}
 
 	runes := make([]rune, 512)
@@ -136,11 +139,11 @@ func TestBudgetInputTextPollingCancellationAtCopyAndEncoding(t *testing.T) {
 		runes[i] = '語'
 	}
 	runeInput := fallbackTextInput(input.CodePoints, 0, nil, runes, state.NewBudgetControl(statetest.NewPollingContext(3), runtime.Limits{}))
-	if err := statetest.CatchFatal(t, func() { _ = runeInput.Text(0, len(runes)) }); !errors.Is(err, context.Canceled) {
-		t.Fatalf("CodePoints cancellation = %v, want context.Canceled", err)
+	if err := statetest.CatchFatal(t, func() { _ = runeInput.Text(0, len(runes)) }); err != nil {
+		t.Fatalf("CodePoints encoding = %v, want no interruption", err)
 	}
-	if runeInput.Control.Used == 0 {
-		t.Fatal("CodePoints cancellation did not occur after controlled spend began")
+	if runeInput.Control.Used != 0 {
+		t.Fatalf("CodePoints encoding counter=%d, want 0", runeInput.Control.Used)
 	}
 }
 
@@ -193,12 +196,16 @@ func TestBudgetTraceTextInterruptionRetriesPooledParser(t *testing.T) {
 						if unit == input.Bytes {
 							state.TraceParser(e).SrcOK = false
 						}
-						state.TraceParser(e).Control.Limits.Compute = state.TraceParser(e).Control.Used
+						// The text counts nothing; the check after the trace function observes the
+						// context that it canceled.
+						ctx, cancel := context.WithCancel(context.Background())
+						cancel()
+						state.TraceParser(e).Control.Ctx = ctx
 						_ = e.Text()
 					}
 				},
 			})
-			if !armed || node != nil || !errors.Is(err, runtime.ErrLimit) {
+			if !armed || node != nil || !errors.Is(err, context.Canceled) {
 				t.Fatalf("%v/%v trace Text interruption: armed=%t node=%v err=%v", backend, unit, armed, node, err)
 			}
 			if observed == nil || observed.Scratch != nil || observed.Control != nil {

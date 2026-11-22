@@ -48,8 +48,12 @@ type actionReg struct {
 // Compile compiles the Core IR action expression t, which reads the frame of env.Scope: it lowers t to Exec IR
 // and translates the function into the instructions of a state.ActionProgram. An error is an internal
 // error: an action expression that the front end does not build, or a lowering this translation does not know.
+//
+// The action expression counts logical compute units (spec/runtime/parsing.md#compute-units): the elements that
+// map, filter and the folds visit (seq.step), and the values that the plain evaluation builds and
+// the lowering does not (units.add, units.items, units.since), but no step of its own evaluation.
 func Compile(t ir.ActionExpr, env Env) (*state.ActionProgram, error) {
-	l, err := flowlower.Action(t, flowlower.ActionOptions{Proj: env.Proj})
+	l, err := flowlower.Action(t, flowlower.ActionOptions{Unbounded: true, Visits: true, Proj: env.Proj})
 	if err != nil {
 		return nil, err
 	}
@@ -130,13 +134,12 @@ func (c *actionCompiler) emit(in state.ActionInstr) int {
 	code := c.prog.Code
 	k := len(code)
 	switch {
-	case in.Op == state.TCover && in.Dst == in.C && k >= 2 && code[k-2].Op == state.TStep && code[k-1].Op == state.TSetField &&
-		code[k-1].A == in.A && code[k-1].B == in.B:
-		// A field of a struct literal: its step, the field and the cover of its value, in one
-		// instruction. No jump goes to the field or the cover, which follow the step at once.
-		code[k-2] = state.ActionInstr{Op: state.TField, Dst: in.Dst, A: in.A, B: in.B, C: code[k-1].C}
-		c.prog.Code = code[:k-1]
-		return k - 2
+	case in.Op == state.TCover && in.Dst == in.C && k >= 1 && code[k-1].Op == state.TSetField &&
+		code[k-1].A == in.A && code[k-1].B == in.B && !c.jumpsTo(int32(k)):
+		// A field of a struct literal: the field and the cover of its value, in one instruction. No
+		// jump goes to the cover, which follows the field at once.
+		code[k-1] = state.ActionInstr{Op: state.TField, Dst: in.Dst, A: in.A, B: in.B, C: code[k-1].C}
+		return k - 1
 	case in.Op == state.TRet && k >= 1 && code[k-1].Op == state.TMoveA && code[k-1].Dst == in.A && !c.jumpsTo(int32(k)):
 		// The return of a register moved into another just before: return the source.
 		code[k-1] = state.ActionInstr{Op: state.TRet, A: code[k-1].A}
@@ -635,6 +638,28 @@ func (c *actionCompiler) effect(e *code.Call) error {
 	switch e.Callee {
 	case "seq.step":
 		c.emit(state.ActionInstr{Op: state.TStep})
+	case "units.add":
+		n, err := intImm(e, 0)
+		if err != nil {
+			return err
+		}
+		c.emit(state.ActionInstr{Op: state.TUnits, A: n})
+	case "units.items":
+		k, err := intImm(e, 1)
+		if err != nil {
+			return err
+		}
+		rs, err := c.args(e, 0)
+		if err != nil {
+			return err
+		}
+		c.emit(state.ActionInstr{Op: state.TUnitsOf, A: rs[0], B: k})
+	case "units.since":
+		rs, err := c.args(e, 0)
+		if err != nil {
+			return err
+		}
+		c.emit(state.ActionInstr{Op: state.TUnitsSince, A: rs[0]})
 	case action.OpActionKeep:
 		rs, err := c.args(e, 0, 1)
 		if err != nil {

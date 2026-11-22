@@ -151,14 +151,6 @@ func (in *Input) decodePieces(i int) (r rune, size, examined int, ok bool) {
 		buf[j] = byte(b)
 	}
 	b := buf[:available]
-	// What a flat input charges counts: Decode has charged its unit for the first byte, and the
-	// decoding of a character that does not fit in it reads the available bytes. The bytes that
-	// the pieces read beyond those are work of the piece representation.
-	if b[0] < utf8.RuneSelf {
-		in.spendReadDoc(uint64(available - 1))
-	} else {
-		in.spendRead(uint64(available))
-	}
 	r, size = utf8.DecodeRune(b)
 	if r == utf8.RuneError && size == 1 {
 		return r, size, i + invalidLen(b), true
@@ -171,7 +163,6 @@ func (p *Parser) matchLiteralPieces(rs []rune, bs []byte) bool {
 	if p.Unit == input.Bytes {
 		n = len(bs)
 		for k < n {
-			p.spendRead(1)
 			b, ok := p.Pieces.At(p.Pos + k)
 			if !ok || byte(b) != bs[k] {
 				break
@@ -181,7 +172,6 @@ func (p *Parser) matchLiteralPieces(rs []rune, bs []byte) bool {
 	} else {
 		n = len(rs)
 		for k < n {
-			p.spendRead(1)
 			r, ok := p.Pieces.At(p.Pos + k)
 			if !ok || r != rs[k] {
 				break

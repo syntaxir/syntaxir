@@ -33,7 +33,7 @@ func (p *Parser) streamRelease() {
 // do not survive indefinitely in a small stream.
 func (p *Parser) streamDropRecords(pos int) {
 	if StreamUndoCleanup {
-		clearSpend(p, p.Trail[:cap(p.Trail)])
+		clear(p.Trail[:cap(p.Trail)])
 	}
 	if StreamStackCleanup && p.Backend != nil {
 		p.Backend.ClearInactive()
@@ -52,7 +52,7 @@ func (p *Parser) streamDropRecords(pos int) {
 // prefix; speculative element marks are no longer active after emission.
 func (p *Parser) streamSettleErrors() {
 	if p.Tr == nil && cap(p.Recovered) <= streamRecoveryScratchMax {
-		clearSpend(p, p.Recovered[:cap(p.Recovered)])
+		clear(p.Recovered[:cap(p.Recovered)])
 		p.Recovered = p.Recovered[:0]
 	} else {
 		p.Recovered = nil

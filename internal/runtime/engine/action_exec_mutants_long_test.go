@@ -30,7 +30,7 @@ func TestActionMutantsFail(t *testing.T) {
 				"^TestBindingFailure$", []string{"."}},
 			{"a predicate keeps the nodes its action expression created",
 				[]printedEdit{{predicateEnd, "\treturn state.ValKind(v) != 3 || v.(bool)\n"}},
-				"^TestActionChargesCreatedNodes$", []string{"."}},
+				"^TestPredicateForgetsWhatItsActionExpressionMade$", []string{"."}},
 		}
 	}
 	t.Run("closure", func(t *testing.T) { runPrintedMutants(t, "internal/backend/closure/action_exec.go", common()) })
@@ -38,6 +38,6 @@ func TestActionMutantsFail(t *testing.T) {
 		const drop = "\t\tif len(p.Created) > created {\n\t\t\tp.DropCreated(created)\n\t\t}\n\t\treturn false\n\t}\n" + predicateEnd
 		runPrintedMutants(t, "internal/runtime/vm/action_exec.go", append(common(), printedMutant{"a failed predicate keeps what its action expression gathered",
 			[]printedEdit{{"\t\tp.DropKids(kids)\n" + drop, "\t\t_ = kids\n" + drop}},
-			"^TestActionChargesGatheredValues$", []string{"."}}))
+			"^TestPredicateForgetsWhatItsActionExpressionMade$", []string{"."}}))
 	})
 }

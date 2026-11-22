@@ -392,17 +392,7 @@ func (vm *Program) has(p *state.Parser, a int32, ch rune) bool {
 	if uint32(ch) < 128 {
 		return vm.ascii[a][ch>>6]&(1<<(ch&63)) != 0
 	}
-	cl := &vm.m.Classes[a]
-	if !state.BudgetControlsEnabled || p.Control == nil || len(cl.Ranges) <= 4 {
-		return cl.Has(ch)
-	}
-	for k := 0; k < len(cl.Ranges); k += 2 {
-		p.Spend()
-		if cl.Ranges[k] <= ch && ch <= cl.Ranges[k+1] {
-			return !cl.Negated
-		}
-	}
-	return cl.Negated
+	return vm.m.Classes[a].Has(ch)
 }
 
 // --- Actions ---

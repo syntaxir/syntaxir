@@ -390,10 +390,9 @@ func (c oprConv) FromImpl(v reflect.Value) (any, bool) {
 	return nil, false
 }
 
-// oprExact are the operations of the family whose charges the controlled suite holds to their exact
-// cost: one unit for each token that opr.attemptMissing copies or opr.replay records again, and for each
-// error that opr.replay copies.
-var oprExact = []string{"opr.attemptMissing", "opr.replay"}
+// oprFree are the operations of the family that count no compute unit: copying the tokens of an
+// attempt and recording again those of a reused one are no events (spec/runtime/parsing.md#compute-units).
+var oprFree = []string{"opr.attemptMissing", "opr.replay"}
 
 // oprSuiteOps are the operations of the family that the engine binds, with those of the missing-token mode,
 // and the budget's if controlled.
@@ -412,7 +411,7 @@ func oprSuite() conform.Suite {
 
 // oprControlledSuite is oprSuite in a parse that controls charges.
 func oprControlledSuite() conform.Suite {
-	return conform.Suite{Name: "engine opr (controlled)", Ops: oprSuiteOps(true), Exact: exactCharges(oprExact),
+	return conform.Suite{Name: "engine opr (controlled)", Ops: oprSuiteOps(true), Free: exactCharges(oprFree),
 		New: func(c ref.Config) conform.Impl { return newOprMachineControlled(c, true) }}
 }
 
@@ -501,7 +500,7 @@ func TestEngineOprChargesArePinned(t *testing.T) {
 	if !BudgetControlsEnabled {
 		t.Skip("the build controls no charges")
 	}
-	for _, op := range oprExact {
+	for _, op := range oprFree {
 		for _, change := range []string{"charges nothing", "charges one more"} {
 			t.Run(op+" "+change, func(t *testing.T) {
 				s := oprControlledSuite()
@@ -520,8 +519,9 @@ func TestEngineOprChargesArePinned(t *testing.T) {
 					}
 					return meteredBrokenOpr{brokenOpr{m, op, edit}}
 				}
-				if fails, _ := oprConformanceFailures(s, 60, 250); len(fails) == 0 {
-					t.Fatal("no case detected the changed charge")
+				// The operations count nothing, so the variant that charges nothing is the engine itself.
+				if fails, _ := oprConformanceFailures(s, 60, 250); (change == "charges nothing") != (len(fails) == 0) {
+					t.Fatalf("%s: %d failures", change, len(fails))
 				}
 			})
 		}

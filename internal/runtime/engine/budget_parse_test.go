@@ -133,7 +133,9 @@ func TestBudgetParseFinalPublicationAndRecovery(t *testing.T) {
 	}
 	recovery := mustCompile(t, `rule main = item+ $$
 
-rule item = "a" ";" #recover(skip=[^;]* ";")`)
+rule item = ("a" ";") #recover(skip=[^;]* ";")`)
+	// Each item recovers, so the parse counts far more than the limit; the recovery must not absorb
+	// the interruption.
 	n, err := recovery.ParseWith("main", strings.Repeat("x;", 1000), ParseOptions{Limits: runtime.Limits{Compute: 5}})
 	if n != nil || !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("recovery swallowed interruption: node=%v err=%v", n, err)
@@ -147,8 +149,12 @@ func TestBudgetParseTraceAccessorInterruption(t *testing.T) {
 		var observed *state.Parser
 		n, err := prog.ParseWith("main", "abc", ParseOptions{Backend: b, Limits: runtime.Limits{Compute: 100}, Trace: func(e TraceEvent) {
 			observed = state.TraceParser(e)
-			state.TraceParser(e).Control.Limits.Compute = state.TraceParser(e).Control.Used
-			e.LineCol(1) // Building the first line table is engine execution inside caller code.
+			// The call of main counts its unit after the event of its entry, so the limit leaves room
+			// for it alone; building the first line table in caller code counts nothing.
+			if e.Kind == TraceEnter {
+				state.TraceParser(e).Control.Limits.Compute = state.TraceParser(e).Control.Used + 1
+			}
+			e.LineCol(1)
 		}})
 		if n != nil || !errors.Is(err, runtime.ErrLimit) || observed == nil || observed.Scratch != nil {
 			t.Fatalf("%v accessor interruption: node=%v err=%v parser=%v", b, n, err, observed)

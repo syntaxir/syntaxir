@@ -13,12 +13,13 @@ import (
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
-// streamScanGrammar has a record whose cost grows with the cube of its length. The bound of the repetition in mid
-// keeps it from being a run site, whose records would make it linear.
+// streamScanGrammar has a record whose cost grows with the cube of its length. The bounds of the
+// repetitions in mid keep them from being a run site or a scan site, whose records would let a walk
+// skip the input that an earlier walk advanced over, which counts nothing.
 const streamScanGrammar = `rule main = ^^ header items:record* #stream $$
 rule header = "#records\n"
 rule record = ^ ([a-z] &mid)* "\n"
-rule mid = ([a-z] &[a-z]*) #repeat(0, 1000000)`
+rule mid = ([a-z] &([a-z] #repeat(0, 1000000))) #repeat(0, 1000000)`
 
 // The default budget of a stream follows the furthest position the parser demands, which does not
 // depend on how the reader chunks the input: the same input gives the same result, and the same

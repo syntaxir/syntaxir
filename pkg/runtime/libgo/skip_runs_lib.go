@@ -134,6 +134,15 @@ func (p *Parser) suffixCopied(n int) {
 	}
 }
 
+// countsWalkKeys reports whether the parse counts the keys of its walks: under logical units.
+func (p *Parser) countsWalkKeys() bool { return p.units.on }
+
+// countWalkKey counts the n units of a walk's key (walkKeyUnits) and checks the counter.
+func (p *Parser) countWalkKey(n uint64) { p.unitsSized(int(n)) }
+
+// skipStep charges a step of the bookkeeping of a walk to the budget; it is no logical event.
+func (p *Parser) skipStep() { p.Spend() }
+
 // SkipBegin starts a walk of the skip-run site at the current position.
 func (p *Parser) SkipBegin(site int) { p.skipBegin(site, false, false) }
 

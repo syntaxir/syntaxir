@@ -3,8 +3,8 @@
 package state_test
 
 import (
-	"errors"
 	"fmt"
+	"slices"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/runtime/nodes"
@@ -63,7 +63,10 @@ func TestBudgetValueFieldAndEnvironmentWalks(t *testing.T) {
 		fn   func(*state.Parser)
 	}{
 		{"get", func(p *state.Parser) { p.ValueField(fields, "absent") }},
-		{"set", func(p *state.Parser) { p.SetValueField(&fields, "absent", 42) }},
+		{"set", func(p *state.Parser) {
+			copied := slices.Clone(fields)
+			p.SetValueField(&copied, "absent", 42)
+		}},
 		{"type fields", func(p *state.Parser) { p.HasValueField(st, "absent") }},
 		{"environment", func(p *state.Parser) {
 			for range 300 {
@@ -75,11 +78,12 @@ func TestBudgetValueFieldAndEnvironmentWalks(t *testing.T) {
 			p := &state.Parser{}
 			p.SetVars(values)
 			p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 128})
-			if err := statetest.CatchFatal(t, func() { run.fn(p) }); !errors.Is(err, runtime.ErrLimit) {
-				t.Fatalf("walk interruption = %v", err)
+			// A field or environment walk is no event: it counts nothing however long it is.
+			if err := statetest.CatchFatal(t, func() { run.fn(p) }); err != nil || p.Control.Used != 0 {
+				t.Fatalf("walk = %v, counted %d units", err, p.Control.Used)
 			}
 			if len(fields) != 300 || fields[299].Value != 299 {
-				t.Fatal("interrupted field walk modified existing values")
+				t.Fatal("field walk modified existing values")
 			}
 		})
 	}
@@ -93,8 +97,13 @@ func TestBudgetValueTrackingCleanupAfterInterruption(t *testing.T) {
 		p.Created[i] = retained
 	}
 	p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 128})
-	if err := statetest.CatchFatal(t, func() { p.DropCreated(1) }); !errors.Is(err, runtime.ErrLimit) {
-		t.Fatalf("tracking cleanup interruption = %v", err)
+	// Dropping tracked values is no event: it counts nothing under a limit below its length.
+	if err := statetest.CatchFatal(t, func() { p.DropCreated(1) }); err != nil || p.Control.Used != 0 || len(p.Created) != 1 {
+		t.Fatalf("tracking cleanup = %v, counted %d units, kept %d values", err, p.Control.Used, len(p.Created))
+	}
+	p.Created = p.Created[:cap(p.Created)]
+	for i := range p.Created {
+		p.Created[i] = retained
 	}
 	// The interruption boundary must disable controls before mandatory cleanup.
 	p.ReleaseScratch()

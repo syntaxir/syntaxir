@@ -200,7 +200,7 @@ func (prog *Program) buildFamilyRules(fam *closureFamily, f state.Family, c *sta
 		}
 	}()
 	if err == nil {
-		fam.rules, err = prog.src.Family(m, f, prog.plainDispatch)
+		fam.rules, err = prog.src.Family(m, f)
 	}
 	returned = true
 	fam.err = err

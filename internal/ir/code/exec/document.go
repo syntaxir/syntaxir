@@ -29,7 +29,8 @@ const Runs = "runs"
 
 // documentMove adds to m the host operation that moves the value of a memo entry that an edit of a
 // Document moved (memo.splice). The positions in a value lie outside the parser VM's state, so the
-// operation is checked against the charges of the target that implements it, not against a model.
+// operation is checked against the work that the target which implements it charges under the budget
+// feature, not against a model.
 func documentMove(m *code.Module) {
 	entry := code.THandle(Entry)
 	m.AddOp(&code.Op{Name: "doc.move", Component: Memo, Params: []code.Param{code.P("e", entry)},
@@ -43,10 +44,10 @@ the nodes of earlier results moves them in place, where each node records how ma
 positions account for. Returns false, changing nothing, when the target cannot move the value (a
 value of the host that is not made of nodes and of basic values); the call that finds e then evaluates
 the rule again. Returns true for an entry that no edit moved.
-The cost has two parts. Each pass over the value charges, for each distinct node it visits, one unit
+The cost has two parts. Each pass over the value costs, for each distinct node it visits, one step
 and one for each child and field. A target that copies checks the value and then copies it, in two
-passes, and a refusal charges no more than the check of the nodes it reached. A target that moves in
-place makes one pass, charges a second unit for each reference to an empty node, which it copies,
+passes, and a refusal costs no more than the check of the nodes it reached. A target that moves in
+place makes one pass, costs a second step for each reference to an empty node, which it copies,
 and for each copy it forgets at the end, and replays the edits since the generation of a node that
 another result moved, once for each generation.`})
 }

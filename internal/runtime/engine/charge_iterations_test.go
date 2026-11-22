@@ -13,9 +13,9 @@ import (
 // iterationVariant is a grammar with a repetition and the same grammar with the repetition written
 // out for one input: the elements it evaluates there in sequence, the last one as a negative
 // lookahead when it fails. On that input both examine the same input, call the same rules and build
-// values that charge nothing, so their cost (Cost in spec/runtime/parsing.md) differs only by the
-// iterations of the repetition: one unit for each evaluation of its element, the last failing one
-// included, and none for an option.
+// values that count nothing. An iteration of a repetition is no event
+// (spec/runtime/parsing.md#compute-units), so both count the same units; iterations records the
+// evaluations of the element, the last failing one included, that the count leaves out.
 type iterationVariant struct {
 	name, grammar, unrolled, input string
 	iterations                     uint64
@@ -37,10 +37,10 @@ var iterationVariants = []iterationVariant{
 	{"unmatched option", `rule main = ("a" "b")? "!"`, `rule main = !("a" "b") "!"`, "a!", 0},
 }
 
-// TestIterationsChargeOneUnitEach checks that each backend of the engine charges one unit for each
-// evaluation of the element of a repetition and nothing else for it: the units of a grammar with a
-// repetition exceed those of the repetition written out by its iterations.
-func TestIterationsChargeOneUnitEach(t *testing.T) {
+// TestIterationsCountNoUnit checks that each backend of the engine counts nothing for the evaluations of
+// the element of a repetition: a grammar with a repetition counts the units of the repetition written
+// out, whatever its iterations.
+func TestIterationsCountNoUnit(t *testing.T) {
 	t.Parallel()
 	codegentest.NeedsBudgetControls(t)
 	for _, c := range iterationVariants {
@@ -53,8 +53,8 @@ func TestIterationsChargeOneUnitEach(t *testing.T) {
 						break // (the written-out grammar may have no Flow body)
 					}
 					got, base := chargeTotal(b.run, c.input), chargeTotal(unrolled[i].run, c.input)
-					if got != base+c.iterations {
-						t.Errorf("%s: %q: %d units for\n%s\nand %d for\n%s\nwant %d more for its iterations", b.name, c.input, got, c.grammar, base, c.unrolled, c.iterations)
+					if got != base {
+						t.Errorf("%s: %q: %d units for\n%s\nand %d for\n%s\nwant the same, whatever its %d iterations", b.name, c.input, got, c.grammar, base, c.unrolled, c.iterations)
 					}
 				}
 			})

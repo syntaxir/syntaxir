@@ -85,9 +85,10 @@ func budgetGuardedChoiceSnapshot(n *value.Node) *value.Node {
 	return &copy
 }
 
-// A guarded choice is straight-line code: skipping its alternatives charges nothing, and the one
-// peek that reads the input is its only charge. The size of the grammar bounds the skips between two
-// charges, as it bounds the straight-line code of a generated rule.
+// A guarded choice is straight-line code: skipping its alternatives counts nothing, and so does the
+// peek that reads the input, since reading input is no event; only the input a match advances over
+// counts. The size of the grammar bounds the skips between two counts, as it bounds the
+// straight-line code of a generated rule.
 // The choice is checked where it builds no value (under a lookahead) and where it builds the value
 // of its rule, whose alternatives are wrapped to give single values.
 func TestBudgetGuardedChoiceSilentSkipLoopBudgetAndCancellation(t *testing.T) {
@@ -104,7 +105,7 @@ func TestBudgetGuardedChoiceSilentSkipLoopBudgetAndCancellation(t *testing.T) {
 			if n.Attrs().Want != build {
 				t.Fatalf("the choice builds a value: %v, want %v", n.Attrs().Want, build)
 			}
-			budgetGuardedChoiceSilentSkip(t, prog, closureExprMatcher(t, entry.Checked(prog), choice, false))
+			budgetGuardedChoiceSilentSkip(t, prog, closureExprMatcher(t, entry.Checked(prog), choice))
 		})
 	}
 }
@@ -117,8 +118,8 @@ func budgetGuardedChoiceSilentSkip(t *testing.T, prog *engine.Program, m state.M
 			p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 1})
 			p.Silent = 1
 			p.MaxDepth = budgetGuardedChoiceAlternatives + 1
-			if n, ok := m(p); n != nil || ok || p.Control.Used != 1 {
-				t.Fatalf("direct silent choice node=%v ok=%v spent=%d, want one charged peek and no charge for %d skipped alternatives", n, ok, p.Control.Used, budgetGuardedChoiceAlternatives)
+			if n, ok := m(p); n != nil || ok || p.Control.Used != 0 {
+				t.Fatalf("direct silent choice node=%v ok=%v spent=%d, want no unit for the peek and the %d skipped alternatives", n, ok, p.Control.Used, budgetGuardedChoiceAlternatives)
 			}
 		})
 
@@ -128,7 +129,7 @@ func budgetGuardedChoiceSilentSkip(t *testing.T, prog *engine.Program, m state.M
 			p.Control = state.NewBudgetControl(ctx, runtime.Limits{})
 			p.Silent = 1
 			p.MaxDepth = budgetGuardedChoiceAlternatives + 1
-			if err := statetest.CatchFatal(t, func() { _, _ = m(p) }); err != nil || p.Control.Used != 1 {
+			if err := statetest.CatchFatal(t, func() { _, _ = m(p) }); err != nil || p.Control.Used != 0 {
 				t.Fatalf("direct silent choice err=%v steps=%d, want no poll between the charges of straight-line code", err, p.Control.Used)
 			}
 		})
@@ -138,7 +139,7 @@ func budgetGuardedChoiceSilentSkip(t *testing.T, prog *engine.Program, m state.M
 func TestBudgetGuardedChoiceExactSkipBudget(t *testing.T) {
 	t.Parallel()
 	prog, choice := budgetGuardedChoiceProgram(t)
-	m := closureExprMatcher(t, entry.Checked(prog), choice, false)
+	m := closureExprMatcher(t, entry.Checked(prog), choice)
 	for _, unit := range []input.PositionUnit{input.Bytes, input.CodePoints} {
 		for _, text := range []string{"z", ""} {
 			for _, silent := range []bool{true, false} {
@@ -155,8 +156,8 @@ func TestBudgetGuardedChoiceExactSkipBudget(t *testing.T) {
 					if n, ok := m(p); n != nil || ok {
 						t.Fatalf("rejected choice returned %v, %v", n, ok)
 					}
-					// The peek is the choice's only charge, whatever the number of alternatives skipped.
-					if p.Control.Used != 1 || len(p.Exp) != 0 || p.Pos != 0 {
+					// A rejected choice counts nothing, whatever the number of alternatives skipped.
+					if p.Control.Used != 0 || len(p.Exp) != 0 || p.Pos != 0 {
 						t.Fatalf("choice state spent=%d expectations=%v pos=%d", p.Control.Used, p.Exp, p.Pos)
 					}
 				})
@@ -171,13 +172,13 @@ func TestBudgetGuardedChoicePassingMatcherCharge(t *testing.T) {
 		for _, skip := range []bool{false, true} {
 			t.Run(unit.String()+"/skip="+strconv.FormatBool(skip), func(t *testing.T) {
 				alts := []ast.Expr{&ast.Literal{Value: "z"}}
-				steps := uint64(2) // one peek and the literal probe, one unit each; a skipped alternative is free
+				steps := uint64(1) // the one input unit the literal advances over; the peek and a skipped alternative count nothing
 				if skip {
 					alts = append([]ast.Expr{&ast.Literal{Value: "x"}}, alts...)
 				}
 				choice := &ast.Choice{Alts: alts}
 				prog := compileExprProgram(t, &ast.Not{Expr: choice})
-				m := closureExprMatcher(t, entry.Checked(prog), choice, false)
+				m := closureExprMatcher(t, entry.Checked(prog), choice)
 				p := state.NewParser(prog.Shared(), "z", unit, false)
 				p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: steps})
 				p.Silent = 1

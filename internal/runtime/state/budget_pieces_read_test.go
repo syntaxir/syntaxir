@@ -10,10 +10,9 @@ import (
 	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
-// Decoding at a position of a Document's pieces counts against the limit what decoding there
-// in a flat input counts: one unit for a byte that is a character by itself, and one more for each
-// byte available to a character that is not. The other bytes the pieces read for a decoding are work
-// of the piece representation, and only they are Document units.
+// Decoding at a position of a Document's pieces counts what decoding there in a flat input counts:
+// nothing, as reading the input is no event (spec/runtime/parsing.md#compute-units); the parse counts
+// the input it advances over. The bytes the pieces read are no Document units either.
 func TestPieceDecodeCountsWhatAFlatDecodeCounts(t *testing.T) {
 	if !DocumentPieceInput {
 		t.Skip("piece input is off in this build")
@@ -36,10 +35,7 @@ func TestPieceDecodeCountsWhatAFlatDecodeCounts(t *testing.T) {
 		flatCounted := (flat.Control.Used - fu) - (flat.Control.Doc - fd)
 		pieceCounted := (pieces.Control.Used - pu) - (pieces.Control.Doc - pd)
 		read := uint64(min(4, len(text)-i))
-		want, doc := uint64(1), read-1
-		if text[i] >= 0x80 {
-			want, doc = 1+read, 0
-		}
+		want, doc := uint64(0), uint64(0)
 		if pieceCounted != flatCounted || flatCounted != want {
 			t.Fatalf("at %d: the pieces count %d units, the flat input %d, want %d", i, pieceCounted, flatCounted, want)
 		}

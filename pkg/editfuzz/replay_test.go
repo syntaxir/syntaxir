@@ -423,3 +423,18 @@ func TestGrammarCheckErrors(t *testing.T) {
 		t.Errorf("Fuzz: %T %v, want grammar.CheckErrors", err, err)
 	}
 }
+
+// TestReplayComparesNothingAtComputeLimitOne checks that a replay whose every check exhausts the compute
+// limit fails with a *NothingComparedError instead of passing: preparing a Document is free, so the
+// sequence applies, but no parse completes in one unit.
+func TestReplayComparesNothingAtComputeLimitOne(t *testing.T) {
+	src := testGrammars[1]
+	for _, b := range backends {
+		seq := sequence(src, b, input.CodePoints, "let a=1+2;", edit(0, 0, "let b=3;"), checkpoint)
+		seq.Limits = runtime.Limits{Compute: 1}
+		var none *NothingComparedError
+		if err := Replay([]byte(src), seq); !errors.As(err, &none) || none.Skipped != 2 {
+			t.Errorf("%v: %v, want a *NothingComparedError for 2 checks", b, err)
+		}
+	}
+}

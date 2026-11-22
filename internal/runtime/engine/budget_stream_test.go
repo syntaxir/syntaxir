@@ -338,39 +338,34 @@ func TestBudgetStreamCompactionChunks(t *testing.T) {
 		}
 		want := append([]int(nil), source...)
 		n := copy(want, want[shift:])
-		c := state.NewBudgetControl(nil, runtime.Limits{Compute: uint64(n)})
-		if got := state.CopyStreamPrefix(c, source, source[shift:]); got != n || !reflect.DeepEqual(source, want) || c.Used != uint64(n) {
+		if got := state.CopyStreamPrefix(source, source[shift:]); got != n || !reflect.DeepEqual(source, want) {
 			t.Fatalf("shift=%d result differs", shift)
 		}
 	}
+	// Compacting the input of a stream is no event: it takes no control and counts nothing, so a
+	// compaction of any length completes.
 	v := make([]int, 258)
 	for i := range v {
 		v[i] = i
 	}
-	c := state.NewBudgetControl(nil, runtime.Limits{Compute: 128})
-	got := statetest.CatchPanic(func() { state.CopyStreamPrefix(c, v, v[1:]) })
-	f, ok := got.(state.Fatal)
-	if !ok || !errors.Is(f.Err, runtime.ErrLimit) || c.Used != 128 || v[128] != 128 {
-		t.Fatalf("copy interruption=%v steps=%d", got, c.Used)
+	if got := state.CopyStreamPrefix(v, v[1:]); got != 257 || v[128] != 129 || v[256] != 257 {
+		t.Fatalf("overlapping compaction=%d, v[128]=%d", got, v[128])
 	}
 }
 
 func TestBudgetStreamCommitReservations(t *testing.T) {
 	t.Parallel()
-	// The frame scan and suffix clear are separately counted; neither touches
-	// a Node already delivered to the caller.
+	// The frame scan and suffix clear of a commit are no event: they count nothing, so they complete
+	// under a limit of one unit, and neither touches a Node already delivered to the caller.
 	node := nodes.Ptr(nodes.Data{Text: "delivered"})
 	p := &state.Parser{Input: state.Input{Control: state.NewBudgetControl(nil, runtime.Limits{Compute: 1})}, FrameSlab: make([]state.Frame, 258)}
 	p.Frame = &p.FrameSlab[0]
 	p.FrameSlab[1].Vals = []*value.Node{node}
-	got := statetest.CatchPanic(func() { p.ResetStreamFrames() })
-	if _, ok := got.(state.Fatal); !ok || len(p.FrameSlab) != 258 || p.FrameSlab[1].Vals[0] != node || nodes.D(node).Text != "delivered" {
-		t.Fatalf("frame interruption=%v", got)
+	if got := statetest.CatchPanic(func() { p.ResetStreamFrames() }); got != nil {
+		t.Fatalf("frame reset=%v", got)
 	}
-	p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 258})
-	p.ResetStreamFrames()
-	if len(p.FrameSlab) != 1 || p.Control.Used != 258 || nodes.D(node).Text != "delivered" {
-		t.Fatal("frame retry changed ownership or count")
+	if len(p.FrameSlab) != 1 || p.Control.Used != 0 || nodes.D(node).Text != "delivered" {
+		t.Fatal("frame reset changed ownership or counted")
 	}
 
 	for _, all := range []bool{false, true} {
@@ -388,12 +383,13 @@ func TestBudgetStreamCommitReservations(t *testing.T) {
 			if all {
 				pos = 260
 			}
-			got := statetest.CatchPanic(func() { p.PruneStreamMemo(pos) })
-			if _, ok := got.(state.Fatal); !ok || a.Node != nil || b.Node != node || memo.Base != 0 || growing.Node != node {
-				t.Fatalf("memo partial prune=%v", got)
+			// Pruning is no event: it counts nothing, so it completes under a limit of two units.
+			if got := statetest.CatchPanic(func() { p.PruneStreamMemo(pos) }); got != nil {
+				t.Fatalf("memo prune=%v", got)
 			}
-			// An interrupted stream has no continuation guarantee: check a new
-			// table for complete prune parity, instead of retrying partial links.
+			if a.Node != nil || b.Node != nil || memo.Base != pos || growing.Node != node || p.Control.Used != 0 {
+				t.Fatalf("memo prune retired a=%v b=%v, base %d, used %d", a.Node, b.Node, memo.Base, p.Control.Used)
+			}
 			fresh := state.NewMemoTable()
 			fresh.Slots = make([]*state.MemoEntry, 260)
 			seed := fresh.Alloc()
@@ -416,88 +412,58 @@ func TestBudgetStreamCommitReservations(t *testing.T) {
 	}
 }
 
+// TestBudgetStreamCommitAfterDelivery holds the commit after a delivered element to the compute
+// units: it counts none, so a limit with room for one more unit lets it run to its end, at the end of
+// the element, and stops the parse at the first event that exceeds the limit after it.
 func TestBudgetStreamCommitAfterDelivery(t *testing.T) {
 	t.Parallel()
 	prog := mustCompile(t, codegentest.Records)
 	budgetStreamVariants(t, func(t *testing.T, o ParseOptions) {
 		o.Limits.Compute = 1 << 20
 		var saved TraceEvent
+		armed, checked := false, false
+		end := 0
 		o.Trace = func(e TraceEvent) {
 			if state.TraceParser(saved) == nil {
 				saved = e
+			}
+			if armed && !checked && e.Kind == TraceEnter && e.Rule == "record" {
+				// The call of the next record counted the one unit of room, after the commit.
+				checked = true
+				p := state.TraceParser(e)
+				if p.Memo.Base != end || p.Base != end-1 || cap(p.Trail) != 129 || len(p.Trail) != 0 {
+					t.Errorf("after the commit: memo floor=%d base=%d trail=%d/%d, want floor %d and base %d", p.Memo.Base, p.Base, len(p.Trail), cap(p.Trail), end, end-1)
+				}
+				if state.StreamFrameScratch {
+					for i := range p.FrameSlab {
+						if &p.FrameSlab[i] == p.Frame && i+1 != len(p.FrameSlab) {
+							t.Errorf("the commit kept %d frames after the one in use", len(p.FrameSlab)-i-1)
+						}
+					}
+				}
 			}
 		}
 		var node *value.Node
 		var before string
 		count := 0
 		var controller *state.BudgetControl
-		last := 0
 		err := prog.ParseStreamWith("main", strings.NewReader("#records\na=1\nbc=22\n"), func(n *value.Node) error {
 			count++
 			node = n
 			before = codegentest.ResultJSON(n, nil)
 			p := state.TraceParser(saved)
 			controller = p.Control
-			// Force the normal inactive-capacity clear at the next commit.
+			// Give the next commit a trail to release and a window to prune.
 			p.Trail = make([]state.Undo, 0, 129)
 			p.Memo.Base = p.Pos - 1024
-			// The charges of the commit, in order and as requested: the line starts it scans
-			// and the input it compacts, then, with the frame scratch, the frames it scans for
-			// the one in use and those after it that it clears, then, with the undo cleanup, the
-			// trail capacity it clears. The reference builds of the stream mechanisms lack one
-			// of the last two, so the commit ends at another charge there.
-			var charges []int
-			charge := func(n, chunk int) {
-				for ; n > 0; n -= chunk {
-					charges = append(charges, min(n, chunk))
-				}
-			}
-			copyCount := 0
-			if removed := p.Pos - 1 - p.Base; removed > 0 && 2*removed >= len(p.In)+len(p.Bs) {
-				copyCount = len(p.In) + len(p.Bs) - removed
-			}
-			lineSteps := 0
-			if copyCount > 0 {
-				if p.Eof && p.Base == 0 {
-					if p.Lines == nil {
-						lineSteps = p.Loaded()
-					}
-				} else {
-					lineSteps = min(p.Pos-1, p.Loaded()) - p.Base
-				}
-			}
-			charge(lineSteps, 1)
-			charge(copyCount, 128)
-			if state.StreamFrameScratch {
-				keep := 0
-				for i := range p.FrameSlab {
-					charge(1, 1)
-					if &p.FrameSlab[i] == p.Frame {
-						keep = i + 1
-						break
-					}
-				}
-				charge(len(p.FrameSlab)-keep, 128)
-			}
-			if state.StreamUndoCleanup {
-				charge(cap(p.Trail), 128)
-			}
-			if len(charges) == 0 {
-				t.Fatal("the commit charges nothing")
-			}
-			// The limit lets every charge but the last through, so the commit is interrupted at
-			// its end, after it has released what the element held.
-			last = charges[len(charges)-1]
-			total := 0
-			for _, n := range charges {
-				total += n
-			}
-			controller.Limits.Compute = controller.Used + uint64(total-last)
+			end = p.Pos
+			controller.Limits.Compute = controller.Used + 1
+			armed = true
 			return nil
 		}, o)
 		var we *runtime.LimitError
-		if !errors.As(err, &we) || we.Kind != runtime.LimitCompute || we.Requested != uint64(last) || we.Used != controller.Limits.Compute || count != 1 {
-			t.Fatalf("normal commit interruption error=%v emits=%d", err, count)
+		if !errors.As(err, &we) || we.Kind != runtime.LimitCompute || we.Requested != 0 || we.Used <= we.Limit || we.Used > we.Limit+2*4096 || count != 1 || !checked {
+			t.Fatalf("commit then interruption error=%v emits=%d checked=%t", err, count, checked)
 		}
 		statetest.AssertTraceParserDetached(t, state.TraceParser(saved), false)
 		if node == nil || codegentest.ResultJSON(node, nil) != before {

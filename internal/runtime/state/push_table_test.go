@@ -35,8 +35,11 @@ func TestEngineValuePushTable(t *testing.T) {
 			conform.BuiltinPair:   c.ListNode([]*value.Node{one, two}),
 			conform.BuiltinFunc:   builtinFunc{},
 		}
-		// The budget-controls reference build charges nothing, so its units are not checked.
-		err := conform.RunPushes("engine", controlled && BudgetControlsEnabled, func(call, v string) (string, int, int) {
+		// The engine's pushItems counts no unit: the code of an action counts the elements that
+		// concat builds itself (UNITSOF, units.items), which TestEngineLogicalUnitsActions checks. So the
+		// table's units, which a target whose pushItems counts them charges, are not checked here, and
+		// under limit controls the composition must count nothing.
+		err := conform.RunPushes("engine", false, func(call, v string) (string, int, int) {
 			base := len(p.KidStack)
 			var before uint64
 			if controlled {
@@ -48,10 +51,12 @@ func TestEngineValuePushTable(t *testing.T) {
 			} else {
 				err = p.actionPushItems(c, conform.PushFn(call), vals[v])
 			}
-			units := 0
 			if controlled {
-				units = int(p.Control.Used - before)
+				if units := p.Control.Used - before; units != 0 {
+					t.Errorf("%s(%s): counted %d units, want 0", call, v, units)
+				}
 			}
+			units := 0
 			pushed := slices.Clone(p.KidStack[base:])
 			p.DropKids(base)
 			if err != nil {

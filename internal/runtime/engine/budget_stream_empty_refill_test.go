@@ -4,6 +4,7 @@ package engine
 
 import (
 	"errors"
+	"io"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/testing/statetest"
@@ -11,7 +12,10 @@ import (
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
-func TestBudgetStreamEmptyRefillBudget(t *testing.T) {
+// Reading the input is no event, so the refills of a reader that returns no data count no compute
+// unit and a limit does not stop them; the reader of the stream does, after the empty reads it allows
+// (io.ErrNoProgress).
+func TestBudgetStreamEmptyRefillsCountNoUnits(t *testing.T) {
 	t.Parallel()
 	prog := mustCompile(t, `rule main = row* #stream $$
 
@@ -21,8 +25,7 @@ rule row = .+ #atomic`)
 		o.Limits = runtime.Limits{Compute: 64}
 		emits := 0
 		err := prog.ParseStreamWith("main", reader, func(*value.Node) error { emits++; return nil }, o)
-		var limit *runtime.LimitError
-		if !errors.As(err, &limit) || limit.Kind != runtime.LimitCompute || limit.Used != 64 || limit.Requested != 1 || reader.Calls == 0 || reader.Calls > 64 || emits != 0 {
+		if !errors.Is(err, io.ErrNoProgress) || errors.Is(err, runtime.ErrLimit) || reader.Calls != 100 || emits != 0 {
 			t.Fatalf("error=%v calls=%d emits=%d", err, reader.Calls, emits)
 		}
 	})

@@ -178,7 +178,6 @@ func (mc *ivmMachine) callChild(r *state.Rule, min int) iframe {
 // and returns the frame that runs its body.
 func (mc *ivmMachine) plainCallFrame(r *state.Rule, min int) iframe {
 	p := mc.p
-	p.Spend()
 	if f := mc.ruleFlow(r); f != nil {
 		ff := mc.flowFrame(r, f)
 		ff.call = true

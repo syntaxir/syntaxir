@@ -43,8 +43,8 @@ const (
 const (
 	// QSet is the number of expectations of the set that the call takes.
 	QSet = "set"
-	// QMerge is the units that the compositions over the expectation record (keep, mergeKept,
-	// mergeExpected, and the calls of expect they make) charge for the sets that the call keeps or
+	// QMerge is the work that the compositions over the expectation record (keep, mergeKept,
+	// mergeExpected, and the calls of expect they make) do for the sets that the call keeps or
 	// merges.
 	QMerge = "merge"
 	// QDeps is the number of dependencies that the call passes to the enclosing evaluation or stores:
@@ -66,9 +66,9 @@ const (
 	// the last step that read another seed): one, one for each jump recorded before from its seed,
 	// and the expectations of its set when its farthest position is that of the steps after it.
 	QRun = "run"
-	// QBody is the units that the evaluation of a rule's body that the call runs, and of the rule's
-	// action, charge, as the operations they call declare them; for an operation of the Operators Rule,
-	// those of the trivia expression, or of the expression or the action of a line, that it runs.
+	// QBody is the work of the evaluation of a rule's body that the call runs, and of the rule's
+	// action, as the operations they call declare it; for an operation of the Operators Rule, that
+	// of the trivia expression, or of the expression or the action of a line, that it runs.
 	QBody = "body"
 	// QSteps is the number of memoized steps and jumps that the call takes.
 	QSteps = "steps"
@@ -127,7 +127,7 @@ that read a seed), or the last result of a growth.`)
 	call := []code.Param{code.P("r", rule), code.P("min", code.TInt)}
 
 	body := code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QBody}}}
-	// Making the rule's value from its captures charges nothing (spec/runtime/parsing.md#cost).
+	// Making the rule's value from its captures costs nothing (spec/runtime/parsing.md#compute-units).
 	invoke := code.Cost{Const: 1, Terms: []code.CostTerm{{Coef: 1, Quantity: QBody}}}
 	m.AddOp(&code.Op{Name: "call.tracked", Component: Call, Results: []code.Type{code.TBool}, Reads: []string{Call}, Writes: []string{Call},
 		Features: []string{Document},
@@ -162,8 +162,8 @@ in the order of their indexes (rule.id).`})
 		Contract: `Runs the rule's body at the binding level min in a frame of its own and makes the rule's
 value; on failure the position is unspecified. The evaluation counts in the statistics of a Document
 parse, and that of a rule on a cycle of calls takes a nesting level while it runs. The unit of the call
-is charged before the nesting level is taken, so that a call that both the budget and the nesting
-limit stop stops on the budget.`})
+is charged or counted before the nesting level is taken, so that a call that both the compute limit
+and the nesting limit stop stops on the compute limit.`})
 	m.AddOp(&code.Op{Name: "rule.invokePlain", Component: Rules, Params: call, Results: result, Writes: append([]string{Rules}, regs...),
 		NoReturn: true, Cost: code.Cost{Const: 1, Terms: append(slices.Clone(body.Terms), code.CostTerm{Coef: 1, Quantity: QTokens})},
 		Contract: `Runs the plain body of a rule without captures and returns its result, at the start
@@ -234,8 +234,8 @@ this.`,
 		Reads: []string{Exp}, Writes: []string{Exp}, NoReturn: true, Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QSet}}},
 		Requires: `s has at least one expectation, and exp.setAt may read each of them.`,
 		Contract: `Copies the expectations of s, in order, into a set that outlives the record, makes it the set
-that exp.copy made last and returns it. The copy is charged as the target charges copies of values,
-and the memory it takes as the target accounts it.`})
+that exp.copy made last and returns it. The copy costs what the target's copies of values cost, and
+the memory it takes is accounted as the target accounts it.`})
 
 	entryArg := []code.Param{code.P("e", entry)}
 	m.AddOp(&code.Op{Name: "memo.far", Component: Memo, Params: entryArg, Results: []code.Type{code.TInt}, Reads: []string{Memo},
@@ -327,7 +327,7 @@ ended, and the examined end of a Document parse.`,
 	m.AddOp(&code.Op{Name: "grow.begin", Component: Growth, Params: call, Results: []code.Type{grow},
 		Reads: []string{Growth, Rules, Pos}, Writes: []string{Growth}, NoReturn: true, Cost: code.Cost{Const: 1, Terms: []code.CostTerm{{Coef: 1, Quantity: QPresent}}},
 		Contract: `Starts the growth of the leader at the binding level min at the position from a failure,
-charging one unit, and present for naming the present set of its context when it is in one: the growth
+at a cost of one step, and present for naming the present set of its context when it is in one: the growth
 becomes the innermost, with a failed seed that ends at the position. Every failed seed has the same
 identity, and every seed that grow.adopt or grow.adoptStep adopts has a new one. The growth is in a context
 when other leaders of its cycle grow at the position.`,
@@ -347,7 +347,7 @@ than the seed: it succeeded, and the seed failed or ends before the position.`,
 	m.AddOp(&code.Op{Name: "grow.adopt", Component: Growth, Params: []code.Param{code.P("g", grow), code.P("value", value),
 		code.P("errs", errs)}, Reads: []string{Growth, Rec}, Writes: []string{Growth, Pos}, NoReturn: true, Cost: code.Cost{Const: 1},
 		Contract: `Adopts the successful step of the growth g that ends at the position, with its value and the
-errors errs that it recovered, as the seed of g with a new identity, charging one unit. In the missing-token mode the seed also holds
+errors errs that it recovered, as the seed of g with a new identity, at a cost of one step. In the missing-token mode the seed also holds
 the tokens that the step inserted. The seed it replaces is no longer a valid result. The position then
 returns to the start of the growth.`,
 		Requires: `g is the innermost growth, grow.ctx(g) is false and grow.longer(g, true) holds.`})
@@ -395,7 +395,7 @@ failed or ends before s.`,
 	m.AddOp(&code.Op{Name: "grow.adoptStep", Component: Growth, Params: []code.Param{growArg, code.P("s", res)},
 		Reads: []string{Growth}, Writes: []string{Growth, Pos}, NoReturn: true,
 		Cost: code.Cost{Const: 1, Terms: []code.CostTerm{{Coef: 1, Quantity: QRun}}},
-		Contract: `Adopts the step s of the growth g as its seed, with the identity of s, charging one unit, and
+		Contract: `Adopts the step s of the growth g as its seed, with the identity of s, at a cost of one step, and
 returns the position to the start of the growth.`,
 		Requires: `grow.grew(g, s) holds, and s is the step that grow.keepStep returned last for g.`})
 	m.AddOp(&code.Op{Name: "grow.end", Component: Growth, Params: []code.Param{code.P("g", grow)}, Results: []code.Type{res},

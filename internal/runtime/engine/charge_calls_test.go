@@ -11,27 +11,27 @@ import (
 )
 
 // callVariant is a grammar with rule calls and a reference grammar that, on one input, examines the
-// same input, makes the same iterations and builds values that charge nothing, so that their cost
-// (Cost in spec/runtime/parsing.md) differs only by the calls the grammar makes more: one unit for
-// each call, one for each evaluation of a body, and for each call of a rule that a parse from scratch
-// memoizes, one unit for each variable the rule reads and one for each byte of the string values
-// among them. Deferring the memoization of a first call and storing a result charge nothing.
+// same input, makes the same iterations and builds values that count nothing, so that their compute
+// units (spec/runtime/parsing.md#compute-units) differ only by the calls the grammar makes more: one
+// unit for each call, and for each call of a rule that a parse from scratch memoizes, one unit for
+// each variable the rule reads and one for each byte of the string values among them. Evaluating a
+// body, deferring the memoization of a first call and storing a result count nothing.
 type callVariant struct {
 	name, grammar, reference, input string
 	calls                           uint64
 }
 
 var callVariants = []callVariant{
-	// item is called once and memoized nowhere: a call and a body.
-	{"plain call", "rule main = item \"!\"\nrule item = \"a\" \"b\"", `rule main = "a" "b" "!"`, "ab!", 2},
-	{"failing plain call", "rule main = !item \"c\"\nrule item = \"a\" \"b\"", `rule main = !("a" "b") "c"`, "c", 2},
-	{"call of a rule with captures", "rule main = item \"!\"\nrule item = x:\"a\" \"b\"", `rule main = x:"a" "b" "!"`, "ab!", 2},
-	// item is memoized, and its first call at a position is not: a call and a body all the same.
+	// item is called once and memoized nowhere: a call.
+	{"plain call", "rule main = item \"!\"\nrule item = \"a\" \"b\"", `rule main = "a" "b" "!"`, "ab!", 1},
+	{"failing plain call", "rule main = !item \"c\"\nrule item = \"a\" \"b\"", `rule main = !("a" "b") "c"`, "c", 1},
+	{"call of a rule with captures", "rule main = item \"!\"\nrule item = x:\"a\" \"b\"", `rule main = x:"a" "b" "!"`, "ab!", 1},
+	// item is memoized, and its first call at a position is not: a call all the same.
 	{"deferred call", "rule main = item \"!\" / \"?\" item \"?\"\nrule item = a \"b\"\nrule a = \"a\"",
-		"rule main = a \"b\" \"!\" / \"?\" item \"?\"\nrule item = a \"b\"\nrule a = \"a\"", "ab!", 2},
-	// The key of item holds s, which is three bytes long.
+		"rule main = a \"b\" \"!\" / \"?\" item \"?\"\nrule item = a \"b\"\nrule a = \"a\"", "ab!", 1},
+	// The key of item holds s, which is three bytes long: the call, the variable and its three bytes.
 	{"deferred call with a string key", "var s string = \"xyz\"\nrule main = item \"!\" / \"?\" item \"?\"\nrule item = a { s == \"xyz\" } \"b\"\nrule a = \"a\"",
-		"var s string = \"xyz\"\nrule main = a { s == \"xyz\" } \"b\" \"!\" / \"?\" item \"?\"\nrule item = a { s == \"xyz\" } \"b\"\nrule a = \"a\"", "ab!", 6},
+		"var s string = \"xyz\"\nrule main = a { s == \"xyz\" } \"b\" \"!\" / \"?\" item \"?\"\nrule item = a { s == \"xyz\" } \"b\"\nrule a = \"a\"", "ab!", 5},
 	// The third call reuses the result that the second stored in the same lookahead context: a call,
 	// and the lookup of its key.
 	{"reused result", "rule main = &item &item &item \"ab!\"\nrule item = a \"b\"\nrule a = \"a\"",
@@ -59,7 +59,8 @@ func TestCallsChargeTheirUnits(t *testing.T) {
 						break // (the reference grammar may have no Flow body)
 					}
 					got, base := chargeTotal(b.run, c.input), chargeTotal(reference[i].run, c.input)
-					if got != base+c.calls {
+					want := base + c.calls
+					if got != want {
 						t.Errorf("%s: %q: %d units, %d more than the reference, want %d more for its calls\n%s\nreference:\n%s", b.name, c.input, got, int64(got)-int64(base), c.calls, c.grammar, c.reference)
 					}
 				}

@@ -13,8 +13,13 @@ retain ordinary matching. A rejected alternative records the expectation its
 first terminal would have produced. The next character is examined, so a
 Document edit can invalidate the result. Depth-limit behavior also constrains
 skipped calls. The VMs encode guards in `GUARD` instructions; generated parsers
-emit equivalent tests. Alternatives that pass still execute in their original
-order.
+emit equivalent tests. A guard examines the next character without advancing, so
+it counts no compute unit. A skip must leave the compute units as the
+evaluation would, so under limit controls an alternative whose evaluation calls
+rules before its first terminal is skipped only where the skip can count those
+calls: the closure backend counts them for unmemoized rules, and the Flow
+bodies of the VMs keep only the guards whose skip makes no call. Alternatives
+that pass still execute in their original order.
 
 A case-insensitive literal (`"x"i`, or a literal under `#ignorecase`) is guarded by
 both cases of its first ASCII letter in the VMs and in the generated Go and TypeScript

@@ -36,41 +36,44 @@ func leastBudget(t *testing.T, prog *Program, input string, o ParseOptions) uint
 	return hi
 }
 
-// Each repetition, scan, rule call and Operators Rule level charges the budget on every backend:
-// one more element costs exactly the units below, so a lost charge changes the step.
+// One more element of each repetition, scan, rule call and Operators Rule counts exactly the compute
+// units of its events (spec/runtime/parsing.md#compute-units): the input it advances over, its calls
+// and the values its actions build, so a lost or an extra count changes the step. The iterations, the
+// lines of an operator level that fail and the lookups of its operators count nothing. Every backend counts the same.
 func TestBudgetCoarseChargesPerIteration(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name, src     string
 		input         func(k int) string
-		parse, recogn [3]uint64 // closure, bytecode, iterative
+		parse, recogn uint64
 	}{
 		{"repeat", `rule main = ("a" "b")* $$`, func(k int) string { return strings.Repeat("ab", k) },
-			[3]uint64{7, 7, 7}, [3]uint64{7, 7, 7}},
+			2, 2},
 		{"scan", `rule main = [a-z]* $$`, func(k int) string { return strings.Repeat("a", k) },
-			[3]uint64{4, 4, 4}, [3]uint64{4, 4, 4}},
+			1, 1},
 		{"call", "rule main = item* $$\nrule item = \"a\"", func(k int) string { return strings.Repeat("a", k) },
-			[3]uint64{6, 6, 6}, [3]uint64{6, 6, 6}},
+			2, 2},
 		{"capture call", "rule main = item* $$\nrule item = x:\"a\" {len(text($x)) == 1}", func(k int) string { return strings.Repeat("a", k) },
-			[3]uint64{7, 7, 7}, [3]uint64{7, 7, 7}},
+			2, 2},
 		{"projected", "type L = { N int }\nrule main = xs:(-\",\" r:x)* $$ => L{N: len(map($xs, (e) => e.$r))}\nrule x = [a-z] #atomic",
-			func(k int) string { return strings.Repeat(",a", k) }, [3]uint64{12, 11, 11}, [3]uint64{9, 9, 9}},
+			func(k int) string { return strings.Repeat(",a", k) }, 5, 3},
 		{"prefix", "rule main = expr $$\nrule expr = #operators {\n    operand \"a\"\n    level {\n        infix left \"+\"\n    }\n    level {\n        prefix \"-\"\n    }\n}",
-			func(k int) string { return strings.Repeat("-", k) + "a" }, [3]uint64{7, 7, 7}, [3]uint64{7, 7, 7}},
+			func(k int) string { return strings.Repeat("-", k) + "a" }, 1, 1},
 		{"infix", "rule main = expr $$\nrule expr = #operators {\n    operand \"a\"\n    level {\n        infix left \"+\"\n    }\n}",
-			func(k int) string { return "a" + strings.Repeat("+a", k) }, [3]uint64{10, 10, 10}, [3]uint64{10, 10, 10}},
-		// Three lines in one level: the longest match charges all of them at every operator position.
+			func(k int) string { return "a" + strings.Repeat("+a", k) }, 3, 3},
+		// Three lines in one level: the longest match tries all of them at every operator position, and
+		// the lines that fail count nothing.
 		{"infix, three lines", "rule main = expr $$\nrule expr = #operators {\n    operand \"a\"\n    level {\n        infix left \"+\"\n        infix left \"-\"\n        infix left \"*\"\n    }\n}",
-			func(k int) string { return "a" + strings.Repeat("+a", k) }, [3]uint64{21, 21, 21}, [3]uint64{21, 21, 21}},
+			func(k int) string { return "a" + strings.Repeat("+a", k) }, 3, 3},
 	}
 	for _, c := range cases {
 		prog := mustCompile(t, c.src)
-		for bi, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
+		for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
 			for _, recognize := range []bool{false, true} {
 				o := ParseOptions{Expectations: true, Backend: backend, Recognize: recognize}
-				want := c.parse[bi]
+				want := c.parse
 				if recognize {
-					want = c.recogn[bi]
+					want = c.recogn
 				}
 				for k := 8; k <= 10; k++ {
 					if step := leastBudget(t, prog, c.input(k+1), o) - leastBudget(t, prog, c.input(k), o); step != want {

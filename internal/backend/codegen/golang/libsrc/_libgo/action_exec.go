@@ -421,8 +421,8 @@ func (p *Parser) ActionItems(fn string, v any) ([]*sxirvalue.Node, any) {
 }
 
 // ActionItemAt returns the element that a built-in function iterating over items (map, filter, foldl, foldr) passes to
-// its function at step i, with a box opened: element i, or element i from the end if right (foldr). It charges
-// nothing; the loop charges the step (seq.step) before it, so that itemAt stays small enough for a target to inline.
+// its function at step i, with a box opened: element i, or element i from the end if right (foldr). It costs
+// nothing; the loop takes the step (seq.step) before it, so that itemAt stays small enough for a target to inline.
 // ActionItemAt is for generated parsers; not a stable API.
 //
 // Printed from Exec IR function itemAt of internal/ir/code/exec/compose.
@@ -550,7 +550,7 @@ func (p *Parser) ActionMade(c *ActCtx, n *sxirvalue.Node, first bool) {
 
 // ActionHull makes the tuple value, if tuple, or the list value of the elements kids in c, which it takes over, and
 // gives it its range: the one that covers the ranges that the elements add (seq.span), and the empty range at the start
-// of the rule if none adds one. It charges a step for each element. The value model does not show the range of a list or a tuple, but a
+// of the rule if none adds one. It takes a step (seq.step) for each element, which counts no compute unit. The value model does not show the range of a list or a tuple, but a
 // struct that holds one covers it.
 // ActionHull is for generated parsers; not a stable API.
 //
@@ -580,7 +580,7 @@ func (p *Parser) ActionHull(c *ActCtx, tuple bool, kids []*sxirvalue.Node) *sxir
 	return n
 }
 
-// ActionConforms returns whether v is a value of the type t of a cast in the value model, charging a step for each
+// ActionConforms returns whether v is a value of the type t of a cast in the value model, taking a step (seq.step) for each
 // element of a list or a tuple it examines. A box counts as the value it holds. node[T] is a node whose value is of type T
 // (node[_] any node with a value), and error an error value; a list or tuple type takes a list value or a tuple value,
 // not the node of a repetition or a sequence.
@@ -708,7 +708,7 @@ func (p *Parser) actionValueConforms(t *FieldType, n *sxirvalue.Node, shape int)
 }
 
 // actionElemsConform returns whether every element of items, the elements of a list, is of the element type t
-// of the list, charging a step for each element it examines; the type _ takes every element, and charges nothing.
+// of the list, taking a step (seq.step) for each element it examines; the type _ takes every element, and takes none.
 //
 // Printed from Exec IR function elemsConform of internal/ir/code/exec/compose.
 func (p *Parser) actionElemsConform(t *FieldType, items []*sxirvalue.Node) bool {
@@ -727,7 +727,7 @@ func (p *Parser) actionElemsConform(t *FieldType, items []*sxirvalue.Node) bool 
 }
 
 // actionTupleConform returns whether the elements items of a tuple are of the element types of the tuple type t:
-// as many, and each of its own type, charging a step for each element it examines.
+// as many, and each of its own type, taking a step (seq.step) for each element it examines.
 //
 // Printed from Exec IR function tupleConform of internal/ir/code/exec/compose.
 func (p *Parser) actionTupleConform(t *FieldType, items []*sxirvalue.Node) bool {
@@ -998,8 +998,8 @@ func (p *TParser) ActionItems(fn string, v any) ([]any, any) {
 }
 
 // ActionItemAt returns the element that a built-in function iterating over items (map, filter, foldl, foldr) passes to
-// its function at step i, with a box opened: element i, or element i from the end if right (foldr). It charges
-// nothing; the loop charges the step (seq.step) before it, so that itemAt stays small enough for a target to inline.
+// its function at step i, with a box opened: element i, or element i from the end if right (foldr). It costs
+// nothing; the loop takes the step (seq.step) before it, so that itemAt stays small enough for a target to inline.
 // ActionItemAt is for generated parsers; not a stable API.
 //
 // Printed from Exec IR function itemAt of internal/ir/code/exec/compose.
@@ -1127,7 +1127,7 @@ func (p *TParser) ActionMade(c *TActCtx, n TVal, first bool) {
 
 // ActionHull makes the tuple value, if tuple, or the list value of the elements kids in c, which it takes over, and
 // gives it its range: the one that covers the ranges that the elements add (seq.span), and the empty range at the start
-// of the rule if none adds one. It charges a step for each element. The value model does not show the range of a list or a tuple, but a
+// of the rule if none adds one. It takes a step (seq.step) for each element, which counts no compute unit. The value model does not show the range of a list or a tuple, but a
 // struct that holds one covers it.
 // ActionHull is for generated parsers; not a stable API.
 //
@@ -1157,7 +1157,7 @@ func (p *TParser) ActionHull(c *TActCtx, tuple bool, kids []any) TVal {
 	return n
 }
 
-// ActionConforms returns whether v is a value of the type t of a cast in the value model, charging a step for each
+// ActionConforms returns whether v is a value of the type t of a cast in the value model, taking a step (seq.step) for each
 // element of a list or a tuple it examines. A box counts as the value it holds. node[T] is a node whose value is of type T
 // (node[_] any node with a value), and error an error value; a list or tuple type takes a list value or a tuple value,
 // not the node of a repetition or a sequence.
@@ -1285,7 +1285,7 @@ func (p *TParser) actionValueConforms(t *FieldType, n TVal, shape int) bool {
 }
 
 // actionElemsConform returns whether every element of items, the elements of a list, is of the element type t
-// of the list, charging a step for each element it examines; the type _ takes every element, and charges nothing.
+// of the list, taking a step (seq.step) for each element it examines; the type _ takes every element, and takes none.
 //
 // Printed from Exec IR function elemsConform of internal/ir/code/exec/compose.
 func (p *TParser) actionElemsConform(t *FieldType, items []any) bool {
@@ -1304,7 +1304,7 @@ func (p *TParser) actionElemsConform(t *FieldType, items []any) bool {
 }
 
 // actionTupleConform returns whether the elements items of a tuple are of the element types of the tuple type t:
-// as many, and each of its own type, charging a step for each element it examines.
+// as many, and each of its own type, taking a step (seq.step) for each element it examines.
 //
 // Printed from Exec IR function tupleConform of internal/ir/code/exec/compose.
 func (p *TParser) actionTupleConform(t *FieldType, items []any) bool {

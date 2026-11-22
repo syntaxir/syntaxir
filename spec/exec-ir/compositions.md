@@ -132,18 +132,18 @@ The operators, member reads and built-in functions of action expressions over th
 | `func push(c Act, fn Name, v Datum) Fail` | Pushes v as the next element of the list or the tuple that the built-in function or literal fn makes in c: nil, a node, a list, a tuple or a struct as it is, and an int, a string or a bool as val.box makes it. Any other value, such as a function, fails and pushes nothing. |
 | `func pushItems(c Act, fn Name, v Datum) Fail` | Pushes the elements of v, an argument of the built-in function fn that concatenates lists, as the next elements of the list that fn makes in c: none for nil, and those of a list or a tuple as they are. Any other value fails and pushes nothing. |
 | `func items(fn Name, v Datum) (Seq, Fail)` | Returns the elements of v, an argument of the built-in function fn that takes a list: none for nil, and those of a list or a tuple. Any other value fails. |
-| `func itemAt(items Seq, i int, right bool) Datum` | Returns the element that a built-in function iterating over items (map, filter, foldl, foldr) passes to its function at step i, with a box opened: element i, or element i from the end if right (foldr). It charges nothing; the iteration charges one step (`seq.step`) per element before it. |
+| `func itemAt(items Seq, i int, right bool) Datum` | Returns the element that a built-in function iterating over items (map, filter, foldl, foldr) passes to its function at step i, with a box opened: element i, or element i from the end if right (foldr). It costs nothing; the iteration takes one step (`seq.step`) per element before it. |
 | `func filterKeep(v Datum) (bool, Fail)` | Returns whether filter keeps an element for which its function returned v. A v that is not a bool fails. |
 | `func length(x Datum) (Datum, Fail)` | The built-in function len: the length of a string in the position unit, of the range of a string node, and the number of elements of a list, a tuple or another node; nil has length 0. Any other value fails. |
 | `func text(x Datum) (Str, Fail)` | The built-in function text: a string itself, the text that a string node or an error holds, the input of the range of any other node, and the empty string for nil. Any other value fails. |
 | `func convert(t NodeType, x Datum) (Datum, Fail)` | The conversion `T{x}` to the named node type t: a string, tuple or list node, of a named node type or not, becomes a node of t. Any other value fails. |
 | `func cover(n Obj, v Datum, first bool) bool` | Widens the range of the struct n, which an action expression is making, to cover the range of the field value v if v is a node, a list, a tuple or a struct, and returns whether n still has no node among its field values: first is whether it had none before, and the first node gives n its range. |
 | `func made(c Act, n Obj, first bool)` | Finishes the struct n that c made of field values that cover has gone over: n takes the range of the rule if no field value is a node, and c records n. |
-| `func hull(c Act, tuple bool, kids Seq) Obj` | Makes the tuple value, if tuple, or the list value of the elements kids in c, which it takes over, and gives it its range: the one that covers the ranges that the elements add (seq.span), and the empty range at the start of the rule if none adds one. It charges a step for each element. The value model does not show the range of a list or a tuple, but a struct that holds one covers it. |
-| `func conforms(t FType, v Datum) bool` | Returns whether v is of the type t of a cast (see [Cast Types](values.md#cast-types)), a box counting as the value it holds. A list type takes a list value and a tuple type a tuple value, not the node of a repetition or a sequence; a node of a type takes a node whose value is of its element type. It charges a step for each element of a list or a tuple that it examines. |
+| `func hull(c Act, tuple bool, kids Seq) Obj` | Makes the tuple value, if tuple, or the list value of the elements kids in c, which it takes over, and gives it its range: the one that covers the ranges that the elements add (seq.span), and the empty range at the start of the rule if none adds one. It takes a step (`seq.step`) for each element, which counts no compute unit. The value model does not show the range of a list or a tuple, but a struct that holds one covers it. |
+| `func conforms(t FType, v Datum) bool` | Returns whether v is of the type t of a cast (see [Cast Types](values.md#cast-types)), a box counting as the value it holds. A list type takes a list value and a tuple type a tuple value, not the node of a repetition or a sequence; a node of a type takes a node whose value is of its element type. It takes a step (`seq.step`) for each element of a list or a tuple that it examines. |
 | `func valueConforms(t FType, n Obj, shape int) bool` | Returns whether the value of the node n, whose shape is shape, is of the type t: a string node has a string, and a tuple node or a list node its elements as value. |
-| `func elemsConform(t FType, items Seq) bool` | Returns whether every element of items, the elements of a list, is of the element type t of the list, charging a step for each element it examines; the type top takes every element and charges nothing. |
-| `func tupleConform(t FType, items Seq) bool` | Returns whether the elements items of a tuple are of the element types of the tuple type t: as many, and each of its own type, charging a step for each element it examines. |
+| `func elemsConform(t FType, items Seq) bool` | Returns whether every element of items, the elements of a list, is of the element type t of the list, taking a step (`seq.step`) for each element it examines; the type top takes every element and takes none. |
+| `func tupleConform(t FType, items Seq) bool` | Returns whether the elements items of a tuple are of the element types of the tuple type t: as many, and each of its own type, taking a step (`seq.step`) for each element it examines. |
 | `func predicate(t Action) bool` | Applies the action expression of a predicate to the context that `action.ctx` makes. It fails on the boolean false and on an action expression that fails, and holds on every other value. The value of an action expression is never a function. |
 | `func bind(slot int, t Action) bool` | Binds the value of the action expression of a binding to the variable in slot. An action expression that fails fails the binding and binds nothing. The compiler has checked that the value fits the variable. The value of an action expression is never a function. |
 
@@ -163,51 +163,51 @@ row includes what its backends print into packages of their own.
 | firstCall | `[]` | `[]` | `[]` | `[]` |
 | call | `[budget, document, observe, units]` | `[budget, document, observe, typed, units]` |  | `[budget]` |
 | callMemo |  | `[document, observe, typed, units]` |  |  |
-| grow | `[units]` | `[typed, units]` | `[missing]` | `[]` |
+| grow | `[units]` | `[typed, units]` | `[missing, units]` | `[]` |
 | observed | `[document, observe]` | `[document, observe, typed]` |  |  |
 | observedPlain | `[document, observe]` | `[document, observe]` |  |  |
 | unmemoized | `[]` |  |  | `[]` |
 | memoized | `[budget, document, observe, units]` |  |  | `[budget, document, observe]` `[document, observe]` |
 | document | `[budget, document, units]` |  |  | `[document]` |
 | typedDocument |  | `[budget, document, observe, typed, units]` |  |  |
-| callBegin |  |  | `[budget, document, missing]` |  |
-| callEnd |  |  | `[budget, document, missing]` |  |
-| engineCallDoc |  |  | `[budget, document, missing]` |  |
-| engineCall |  |  | `[budget, document, missing]` |  |
+| callBegin |  |  | `[document, missing, units]` |  |
+| callEnd |  |  | `[document, missing, units]` |  |
+| engineCallDoc |  |  | `[document, missing, units]` |  |
+| engineCall |  |  | `[document, missing, units]` |  |
 | body | `[budget, document, units]` |  |  |  |
 | tracked | `[document, observe]` |  |  |  |
 | streamCommit | `[stream]` |  | `[stream]` |  |
 | streamEmit | `[stream, units]` |  | `[stream]` |  |
 | streamsIn | `[stream]` |  | `[stream]` |  |
-| expect | `[budget]` `[]` |  | `[budget]` | `[budget]` |
+| expect | `[budget]` `[]` |  | `[units]` | `[budget]` |
 | mergeKept |  |  |  | `[budget]` |
-| mergeExpected | `[budget]` |  | `[budget]` | `[budget]` |
-| keep | `[budget]` |  | `[budget]` | `[budget]` |
+| mergeExpected | `[budget]` |  | `[units]` | `[budget]` |
+| keep | `[budget]` |  | `[units]` | `[budget]` |
 | reset | `[]` | `[]` | `[missing]` | `[]` |
 | skipTrivia | `[]` | `[]` | `[missing]` | `[]` |
-| longest | `[budget, units]` | `[budget, units]` | `[budget, missing]` | `[budget]` |
-| operatorsParse | `[budget, units]` |  | `[budget, missing]` | `[budget]` |
-| operatorsExpr | `[budget, units]` |  | `[budget, missing]` | `[budget]` |
-| operatorsNud | `[budget, units]` |  | `[budget, missing]` | `[budget]` |
+| longest | `[budget, units]` | `[budget, units]` | `[missing, units]` | `[budget]` |
+| operatorsParse | `[budget, units]` |  | `[missing, units]` | `[budget]` |
+| operatorsExpr | `[budget, units]` |  | `[missing, units]` | `[budget]` |
+| operatorsNud | `[budget, units]` |  | `[missing, units]` | `[budget]` |
 | operatorsParseTyped |  | `[budget, typed, units]` |  |  |
 | operatorsExprTyped |  | `[budget, typed, units]` |  |  |
 | operatorsNudTyped |  | `[budget, typed, units]` |  |  |
-| triviaBegin |  |  | `[budget, missing]` |  |
-| triviaEnd |  |  | `[budget, missing]` |  |
-| longestBegin |  |  | `[budget, missing]` |  |
-| longestNext |  |  | `[budget, missing]` |  |
-| longestStep |  |  | `[budget, missing]` |  |
-| nudBegin |  |  | `[budget, missing]` |  |
-| nudPrefix |  |  | `[budget, missing]` |  |
-| nudRhs |  |  | `[budget, missing]` |  |
-| nudNext |  |  | `[budget, missing]` |  |
-| nudOperand |  |  | `[budget, missing]` |  |
-| exprBegin |  |  | `[budget, missing]` |  |
-| exprStart |  |  | `[budget, missing]` |  |
-| exprLoop |  |  | `[budget, missing]` |  |
-| exprLed |  |  | `[budget, missing]` |  |
-| exprRhs |  |  | `[budget, missing]` |  |
-| memoAdvance | `[budget, document]` `[document]` | `[budget, document]` `[document]` | `[budget, document]` `[document]` | `[budget, document]` `[document]` |
+| triviaBegin |  |  | `[missing, units]` |  |
+| triviaEnd |  |  | `[missing, units]` |  |
+| longestBegin |  |  | `[missing, units]` |  |
+| longestNext |  |  | `[missing, units]` |  |
+| longestStep |  |  | `[missing, units]` |  |
+| nudBegin |  |  | `[missing, units]` |  |
+| nudPrefix |  |  | `[missing, units]` |  |
+| nudRhs |  |  | `[missing, units]` |  |
+| nudNext |  |  | `[missing, units]` |  |
+| nudOperand |  |  | `[missing, units]` |  |
+| exprBegin |  |  | `[missing, units]` |  |
+| exprStart |  |  | `[missing, units]` |  |
+| exprLoop |  |  | `[missing, units]` |  |
+| exprLed |  |  | `[missing, units]` |  |
+| exprRhs |  |  | `[missing, units]` |  |
+| memoAdvance | `[budget, document]` `[document]` | `[budget, document]` `[document]` | `[document, units]` `[document]` | `[budget, document]` `[document]` |
 | runStart | `[budget, document]` |  | `[budget, document]` | `[budget, document]` |
 | runMore | `[budget, document]` |  | `[budget, document]` | `[budget, document]` |
 | runReuse | `[budget, document]` |  | `[budget, document]` | `[budget, document]` |

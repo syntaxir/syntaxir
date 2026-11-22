@@ -14,9 +14,10 @@ import sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 // first test, of memo.seed, is a guard that no production path reaches: the seed of a growth lives within one parse,
 // when no edit is pending, and a lookup applies edits only to an entry of an earlier parse.
 //
-// Printed from Exec IR function memoAdvance of internal/ir/code/exec/compose, specialized for document, budget.
+// Printed from Exec IR function memoAdvance of internal/ir/code/exec/compose, specialized for document, units.
 func (p *Parser) AdvanceEntry(e *MemoEntry, log []DocEdit) bool {
 	var fm uint64
+	_ = fm
 	var i int
 	if e.Growing {
 		return false
@@ -24,18 +25,15 @@ func (p *Parser) AdvanceEntry(e *MemoEntry, log []DocEdit) bool {
 	if len(log)-int(e.Vgen) > 128 {
 		return false
 	}
-	fm = p.FreeBegin(true)
 	from := e.From
 	examined := e.Examined
 	shift := 0
 	shifted := e.shifted
 	for i = int(e.Vgen); i < len(log); i++ {
-		p.Spend()
 		if examined <= log[i].Start {
 			continue
 		}
 		if !(from >= log[i].End && !e.Positional && e.Errs.None()) {
-			p.FreeEnd(fm)
 			return false
 		}
 		delta := log[i].Delta
@@ -51,7 +49,6 @@ func (p *Parser) AdvanceEntry(e *MemoEntry, log []DocEdit) bool {
 	e.shift += int32(shift)
 	e.shifted = shifted
 	e.Vgen = uint32(len(log))
-	p.FreeEnd(fm)
 	return true
 }
 

@@ -10,6 +10,7 @@ import (
 
 // actionOpNames names each instruction of action code as the specification's table does.
 var actionOpNames = map[string]ActionOp{
+	"UNITS": TUnits, "UNITSOF": TUnitsOf, "UNITSSINCE": TUnitsSince,
 	"NOP": TNop, "CONST": TConst, "INT": TIntK, "MOVEA": TMoveA, "MOVEN": TMoveN, "MOVES": TMoveS,
 	"MOVET": TMoveT, "CAP": TCap, "LOCAL": TLocal, "VAR": TVar, "UNBOX": TUnbox, "FROMB": TFromB,
 	"FROMT": TFromT, "NOT": TNot, "LT": TLt, "ADD": TAdd, "EQN": TEqN, "ISNIL": TIsNil,

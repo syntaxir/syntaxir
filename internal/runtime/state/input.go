@@ -122,6 +122,9 @@ type Input struct {
 	BaseCol  int
 	Reader   *bufio.Reader // nil if the whole input has been read
 	Eof      bool
+	// Stream is set when the input is read from a stream, where the text of a node is an event
+	// (RangeText).
+	Stream bool
 
 	// ReaderCall distinguishes buffered reader execution from VM execution.
 	ReaderCall   bool
@@ -188,7 +191,6 @@ func (in *Input) buildOffs() {
 	for i := 0; i < len(in.Src); {
 		offs = append(offs, int32(i))
 		_, size := utf8.DecodeRuneInString(in.Src[i:])
-		in.spendRead(uint64(size))
 		i += size
 	}
 	in.Offs = append(offs, int32(len(in.Src)))
@@ -394,7 +396,7 @@ func NewStreamParser(prog *SharedProgram, r io.Reader, unit input.PositionUnit) 
 }
 
 func NewControlledStreamParser(prog *SharedProgram, r io.Reader, unit input.PositionUnit, control *BudgetControl) *Parser {
-	p := &Parser{Prog: prog, Input: Input{Unit: unit, Control: control, BaseLine: 1, BaseCol: 1}, Memo: NewMemoTable(), MaxDepth: DefaultMaxDepth}
+	p := &Parser{Prog: prog, Input: Input{Unit: unit, Control: control, BaseLine: 1, BaseCol: 1, Stream: true}, Memo: NewMemoTable(), MaxDepth: DefaultMaxDepth}
 	if BudgetControlsEnabled && control != nil {
 		r = &StreamReaderObserver{Reader: r, Result: &p.readerResult, Control: control}
 	}
@@ -449,8 +451,7 @@ func (in *Input) fill(n int) bool {
 
 func (in *Input) read() {
 	if BudgetControlsEnabled && in.Control != nil {
-		in.Control.Check()
-		in.Control.Charge(1) // reading and staging one byte or code point
+		in.Control.Check() // reading the input is no event: it counts no unit
 	}
 	var err error
 	var b byte
@@ -482,13 +483,6 @@ func (in *Input) read() {
 // Decode returns the character at position i, its size (in units), and the end of the examined
 // range.
 func (in *Input) Decode(i int) (r rune, size, examined int, ok bool) {
-	in.spendRead(1)
-	return in.decodeRest(i)
-}
-
-// decodeRest is Decode without the unit that reading the character charges: what decoding a
-// character of several bytes charges on top of it.
-func (in *Input) decodeRest(i int) (r rune, size, examined int, ok bool) {
 	if i < in.Base {
 		return 0, 0, i + 1, false
 	}
@@ -514,7 +508,6 @@ func (in *Input) decodeRest(i int) (r rune, size, examined int, ok bool) {
 		in.fill(in.Loaded() + 1)
 		b = in.Bs[i-in.Base:]
 	}
-	in.spendRead(uint64(min(utf8.UTFMax, len(b))))
 	r, size = utf8.DecodeRune(b)
 	if r == utf8.RuneError && size == 1 {
 		return r, size, i + invalidLen(b), true
@@ -536,13 +529,6 @@ func invalidLen(b []byte) int {
 
 // byteAt returns the byte at position i when the unit is Bytes.
 func (in *Input) byteAt(i int) (byte, bool) {
-	in.spendRead(1)
-	return in.byteRest(i)
-}
-
-// byteRest is byteAt without its charge, for a comparison that charges the read of a character
-// once (Parser.MatchChar).
-func (in *Input) byteRest(i int) (byte, bool) {
 	if i < in.Base || !in.Fill(i+1) {
 		return 0, false
 	}
@@ -612,7 +598,6 @@ func (in *Input) decodeSource() {
 		for i := 0; i < len(s); {
 			offs = append(offs, i)
 			_, size := utf8.DecodeRuneInString(s[i:])
-			in.spendRead(uint64(size))
 			i += size
 		}
 		in.dec, in.decWide, in.decoded = s, append(offs, len(s)), true
@@ -622,7 +607,6 @@ func (in *Input) decodeSource() {
 	for i := 0; i < len(s); {
 		offs = append(offs, int32(i))
 		_, size := utf8.DecodeRuneInString(s[i:])
-		in.spendRead(uint64(size))
 		i += size
 	}
 	// An interrupted decoding leaves the input untouched, so the next text retries it.
@@ -666,7 +650,6 @@ func (in *Input) lineCol(pos int) (int, int) {
 	sl := in.streamLines
 	sl.scanned = max(sl.scanned, in.Base)
 	for ; sl.scanned < pos; sl.scanned++ {
-		in.spendRead(1)
 		var nl bool
 		if in.Unit == input.Bytes {
 			nl = in.Bs[sl.scanned-in.Base] == '\n'
@@ -700,14 +683,12 @@ func (in *Input) buildLines() {
 		for _, p := range in.Pieces.Parts {
 			if in.Unit == input.Bytes {
 				for i := 0; i < len(p.Text); i++ {
-					in.spendRead(1)
 					if p.Text[i] == '\n' {
 						in.Lines = append(in.Lines, p.start+i+1)
 					}
 				}
 			} else {
 				for i, r := range p.Runes {
-					in.spendRead(1)
 					if r == '\n' {
 						in.Lines = append(in.Lines, p.start+i+1)
 					}
@@ -719,7 +700,6 @@ func (in *Input) buildLines() {
 	}
 	if in.Unit == input.Bytes {
 		for i := range in.Bs {
-			in.spendRead(1)
 			b := in.Bs[i]
 			if b == '\n' {
 				in.Lines = append(in.Lines, i+1)
@@ -729,7 +709,6 @@ func (in *Input) buildLines() {
 		return
 	}
 	for i := range in.In {
-		in.spendRead(1)
 		r := in.In[i]
 		if r == '\n' {
 			in.Lines = append(in.Lines, i+1)
@@ -753,9 +732,9 @@ func (in *Input) Discard(keep int) {
 		sl.starts = sl.starts[:copy(sl.starts, sl.starts[k:])]
 	}
 	if in.Unit == input.Bytes {
-		in.Bs = in.Bs[:CopyStreamPrefix(in.Control, in.Bs, in.Bs[n:])]
+		in.Bs = in.Bs[:CopyStreamPrefix(in.Bs, in.Bs[n:])]
 	} else {
-		in.In = in.In[:CopyStreamPrefix(in.Control, in.In, in.In[n:])]
+		in.In = in.In[:CopyStreamPrefix(in.In, in.In[n:])]
 	}
 	in.Base = keep
 	if StreamTextSnapshots && in.StreamText.End <= keep {
@@ -770,8 +749,19 @@ func (p *Parser) Peek() (rune, int, bool) {
 	return r, size, ok
 }
 
-// MatchLiteral advances past the string lit if it matches at the current position.
+// MatchLiteral advances past the string lit if it matches at the current position, and counts the
+// input it advanced over (countUnits). A literal that does not match counts nothing.
 func (p *Parser) MatchLiteral(rs []rune, bs []byte) bool {
+	start := p.Pos
+	if !p.advanceLiteral(rs, bs) {
+		return false
+	}
+	p.countUnits(p.Pos - start)
+	return true
+}
+
+// advanceLiteral is MatchLiteral without the count.
+func (p *Parser) advanceLiteral(rs []rune, bs []byte) bool {
 	if DocumentPieceInput && p.Pieces != nil {
 		return p.matchLiteralPieces(rs, bs)
 	}
@@ -783,7 +773,6 @@ func (p *Parser) MatchLiteral(rs []rune, bs []byte) bool {
 			in := p.Bs[p.Pos-p.Base:]
 			n = len(bs)
 			for k < n {
-				p.spendRead(1)
 				if k >= len(in) || in[k] != bs[k] {
 					break
 				}
@@ -793,7 +782,6 @@ func (p *Parser) MatchLiteral(rs []rune, bs []byte) bool {
 			in := p.In[p.Pos-p.Base:]
 			n = len(rs)
 			for k < n {
-				p.spendRead(1)
 				if k >= len(in) || in[k] != rs[k] {
 					break
 				}
@@ -829,7 +817,6 @@ func (p *Parser) MatchLiteral(rs []rune, bs []byte) bool {
 		return true
 	}
 	for _, r := range rs {
-		p.spendRead(1)
 		p.touch(p.Pos + 1)
 		if p.Pos < p.Base || !p.Fill(p.Pos+1) || p.In[p.Pos-p.Base] != r {
 			return false
@@ -841,32 +828,25 @@ func (p *Parser) MatchLiteral(rs []rune, bs []byte) bool {
 
 // MatchLiteralFold advances past a case-insensitive literal if the input matches it. rs are the
 // folded runes of the literal (foldedRunes). It compares them one at a time as MatchChar does, so
-// that only ASCII letters ignore case and a mismatch examines what the plain literal's would.
+// that only ASCII letters ignore case and a mismatch examines what the plain literal's would. A
+// literal that matches counts the input it advanced over (countUnits).
 func (p *Parser) MatchLiteralFold(rs []rune) bool {
+	start := p.Pos
 	for _, want := range rs {
-		p.spendRead(1)
 		size, ok := p.MatchChar(want, true)
 		if !ok {
 			return false
 		}
 		p.Pos += size
 	}
+	p.countUnits(p.Pos - start)
 	return true
 }
 
-// LiteralHasReplacement bounds the grammar-side scan after a byte mismatch.
-// Only visited literal runes consume steps; they do not inspect input.
+// LiteralHasReplacement reports whether the literal holds the replacement character, which a byte
+// mismatch must then retry by decoding. It scans the literal, a constant of the grammar.
 func (p *Parser) LiteralHasReplacement(rs []rune) bool {
-	if !BudgetControlsEnabled || p.Control == nil {
-		return slices.Contains(rs, utf8.RuneError)
-	}
-	for _, r := range rs {
-		p.Spend()
-		if r == utf8.RuneError {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(rs, utf8.RuneError)
 }
 
 // LiteralText preserves matched input bytes when replacement decoding accepts
@@ -893,7 +873,6 @@ func (p *Parser) matchLiteralRunes(rs []rune) bool {
 }
 
 func (p *Parser) AtEOF() bool {
-	p.spendRead(1)
 	p.touch(p.Pos + 1)
 	return !p.Fill(p.Pos + 1)
 }

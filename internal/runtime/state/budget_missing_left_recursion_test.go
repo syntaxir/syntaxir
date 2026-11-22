@@ -61,11 +61,11 @@ rule g = ";" / "x" #recover(skip=[b]+)`
 	}
 	type usage struct{ compute, memory uint64 }
 	want := map[run]usage{
-		{engine.Closure, false, 10, false}:         {156, 80532},
-		{engine.Closure, true, 10, false}:          {122, 45676},
-		{engine.Closure, false, 0, true}:           {165, 82084},
-		{engine.Bytecode, false, 0, true}:          {177, 98468},
-		{engine.BytecodeIterative, false, 0, true}: {177, 100004},
+		{engine.Closure, false, 10, false}:         {43, 80532},
+		{engine.Closure, true, 10, false}:          {43, 45676},
+		{engine.Closure, false, 0, true}:           {43, 82084},
+		{engine.Bytecode, false, 0, true}:          {43, 98468},
+		{engine.BytecodeIterative, false, 0, true}: {43, 100004},
 	}
 	for r, w := range want {
 		p := prog
@@ -89,7 +89,8 @@ rule g = ";" / "x" #recover(skip=[b]+)`
 // TestBudgetCallEndChargesErrorsAfterExpectations pins where a limit interrupts the end of a
 // memoized call: the call keeps its expectations (Keep) before it copies its recovered errors into
 // its entry, so a limit that the copy reaches leaves the expectations kept and no entry stored.
-// The total does not depend on the order; the point of the interruption does.
+// The total does not depend on the order; the point of the interruption does. The call counts its
+// three entries at once, so every limit below three interrupts it there.
 func TestBudgetCallEndChargesErrorsAfterExpectations(t *testing.T) {
 	t.Parallel()
 	end := func(limit uint64) (err error, kept, stored bool) {
@@ -124,9 +125,9 @@ func TestBudgetCallEndChargesErrorsAfterExpectations(t *testing.T) {
 			t.Fatalf("limit %d: the entry was stored before the expectations were kept", limit)
 		}
 	}
-	// Each of the three errors that the call copies is charged after Keep and before the store, and
-	// so is a limit that interrupts the call between them.
-	if keptOnly < 3 {
-		t.Fatalf("%d limits interrupt the call after it keeps its expectations and before it stores its entry, want at least 3", keptOnly)
+	// The three entries that the call takes are counted after Keep and before the store, so each
+	// limit below three, 1 and 2, interrupts the call between them.
+	if keptOnly != 2 {
+		t.Fatalf("%d limits interrupt the call after it keeps its expectations and before it stores its entry, want 2", keptOnly)
 	}
 }

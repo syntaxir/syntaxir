@@ -4,8 +4,6 @@ package state_test
 
 import (
 	"bufio"
-	"context"
-	"errors"
 	"strconv"
 	"strings"
 	"testing"
@@ -29,25 +27,16 @@ func TestBudgetLiteralReplacementMismatchBudget(t *testing.T) {
 			if streaming {
 				p.Reader = bufio.NewReader(strings.NewReader(""))
 			}
-			err := statetest.CatchFatal(t, func() { p.MatchLiteral([]rune(literal), []byte(literal)) })
-			var limit *runtime.LimitError
-			if !errors.As(err, &limit) || limit.Kind != runtime.LimitCompute || limit.Used != 32 || limit.Requested != 1 {
-				t.Fatalf("streaming=%v replacement=%v error=%v, want one-step reservation at limit", streaming, suffix != "", err)
+			// A literal that does not match advances over nothing and counts nothing
+			// (spec/runtime/parsing.md#compute-units): the scan of the literal for the replacement
+			// character and the inspection of the first byte are no events.
+			var matched bool
+			err := statetest.CatchFatal(t, func() { matched = p.MatchLiteral([]rune(literal), []byte(literal)) })
+			if err != nil || matched {
+				t.Fatalf("streaming=%v replacement=%v error=%v matched=%v, want a mismatch", streaming, suffix != "", err, matched)
 			}
-			if c.Used != 32 || p.Pos != 0 {
-				t.Fatalf("streaming=%v spent=%d pos=%d, want spend only up to the limit and the initial byte mismatch", streaming, c.Used, p.Pos)
-			}
-			// With a limit that is not reached, the total is the scan of the literal for the replacement
-			// character (one unit per rune of the literal) and the inspection of the first byte: peek and
-			// mismatch, a few units, never a unit per byte compared.
-			c = state.NewBudgetControl(nil, runtime.Limits{Compute: 1 << 20})
-			p = &state.Parser{Input: state.Input{Unit: input.Bytes, Bs: []byte("b"), Eof: !streaming, Control: c}}
-			if streaming {
-				p.Reader = bufio.NewReader(strings.NewReader(""))
-			}
-			scan := uint64(len([]rune(literal)))
-			if p.MatchLiteral([]rune(literal), []byte(literal)) || p.Pos != 0 || c.Used < scan+1 || c.Used > scan+3 {
-				t.Fatalf("streaming=%v replacement=%v spent=%d pos=%d, want a scan of %d and the first byte only", streaming, suffix != "", c.Used, p.Pos, scan)
+			if c.Used != 0 || p.Pos != 0 {
+				t.Fatalf("streaming=%v spent=%d pos=%d, want nothing counted and the initial byte mismatch", streaming, c.Used, p.Pos)
 			}
 		}
 	}
@@ -63,10 +52,12 @@ func TestBudgetLiteralReplacementPublicLookahead(t *testing.T) {
 			if _, err := prog.ParseWith("main", "b", opts); err != nil {
 				t.Fatalf("baseline %v/%v: %v", backend, recognize, err)
 			}
+			// The literal of the lookahead fails and counts nothing, so the parse fits a limit far
+			// below the literal's length.
 			opts.Limits = runtime.Limits{Compute: 256}
 			n, err := prog.ParseWith("main", "b", opts)
-			if n != nil || !errors.Is(err, runtime.ErrLimit) {
-				t.Fatalf("%v/recognize=%v node=%v error=%v, want fatal lookahead interruption", backend, recognize, n, err)
+			if (n == nil) != recognize || err != nil {
+				t.Fatalf("%v/recognize=%v node=%v error=%v, want the parse to fit the limit", backend, recognize, n, err)
 			}
 			opts.Limits = runtime.Limits{Compute: 1 << 20}
 			if _, err := prog.ParseWith("main", "b", opts); err != nil {
@@ -91,16 +82,16 @@ func TestBudgetLiteralReplacementSentinelBoundaries(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			c := state.NewBudgetControl(nil, runtime.Limits{Compute: tc.visits})
 			p := &state.Parser{Input: state.Input{Control: c}}
+			// The scan is no event: it counts nothing, whatever the limit.
 			got := p.LiteralHasReplacement([]rune(tc.literal))
-			if got != tc.found || c.Used != tc.visits {
-				t.Fatalf("found=%v spent=%d, want %v/%d", got, c.Used, tc.found, tc.visits)
+			if got != tc.found || c.Used != 0 {
+				t.Fatalf("found=%v spent=%d, want %v/0 (%d visits)", got, c.Used, tc.found, tc.visits)
 			}
 			if tc.visits > 1 {
 				c = state.NewBudgetControl(nil, runtime.Limits{Compute: tc.visits - 1})
 				p.Control = c
 				err := statetest.CatchFatal(t, func() { p.LiteralHasReplacement([]rune(tc.literal)) })
-				var limit *runtime.LimitError
-				if !errors.As(err, &limit) || limit.Kind != runtime.LimitCompute || limit.Used != tc.visits-1 || limit.Requested != 1 || c.Used != tc.visits-1 {
+				if err != nil || c.Used != 0 {
 					t.Fatalf("one-short error=%v spent=%d", err, c.Used)
 				}
 			}
@@ -118,7 +109,8 @@ func TestBudgetLiteralReplacementSentinelCancellation(t *testing.T) {
 	c := state.NewBudgetControl(ctx, runtime.Limits{Compute: 1 << 20})
 	p := &state.Parser{Input: state.Input{Control: c}}
 	err := statetest.CatchFatal(t, func() { p.LiteralHasReplacement([]rune(strings.Repeat("a", 4096) + string(utf8.RuneError))) })
-	if !errors.Is(err, context.Canceled) || c.Used != state.BudgetCheckInterval-1 {
-		t.Fatalf("error=%v spent=%d, want cancellation before first 256-unit poll reservation", err, c.Used)
+	// The scan counts nothing, so it reaches no poll and does not observe the context.
+	if err != nil || c.Used != 0 {
+		t.Fatalf("error=%v spent=%d, want neither", err, c.Used)
 	}
 }

@@ -29,8 +29,10 @@ const QDropped = "dropped"
 // which declares the handles Datum, Fail and Act and the component Made (addValue), the register Pos and the
 // component Host (memoizedCall and addParsing). An action expression is lowered from Core IR to a function of Exec IR that each
 // target holds in its own form; the type Action, whose application the verifier checks, is how Exec IR names
-// that form without writing the function in the module. Applying an action expression charges nothing itself: what an action expression
-// charges is what the operations of its code charge.
+// that form without writing the function in the module. Applying an action expression costs nothing itself: the work of an action
+// expression is that of the operations of its code. A target that bounds the work (the budget feature)
+// charges it; a parse that counts compute units counts only the units operations of the expression's
+// action (spec/runtime/parsing.md#compute-units).
 func addActionCode(m *code.Module) {
 	datum, fail := code.THandle(Datum), code.THandle(Fail)
 	act := code.THandle(Act)
@@ -64,13 +66,14 @@ unit for each element it copies.`,
 		Contract: `Returns the number of the elements gathered, which action.dropKids takes as a mark.`})
 	m.AddOp(&code.Op{Name: "action.dropKids", Component: Gathered, Params: []code.Param{code.P("mark", code.TInt)},
 		Writes: []string{Gathered}, NoReturn: true, Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QDropped}}},
-		Contract: `Drops the elements gathered after the mark, and charges one unit for each.`,
+		Contract: `Drops the elements gathered after the mark, at a cost of one step for each.`,
 		Requires: `mark came from action.kids and is at most the number of the elements gathered.`})
 	m.AddOp(&code.Op{Name: "action.elemsAbove", NoReturn: true, Component: Gathered, Params: []code.Param{code.P("mark", code.TInt)}, Results: []code.Type{items},
 		Reads: []string{Gathered}, Writes: []string{Gathered}, Cost: code.Cost{Terms: []code.CostTerm{{Coef: 2, Quantity: QDropped}}},
 		Contract: `Takes the elements gathered after the mark off the elements gathered and returns them in order, for a
-list or a tuple to take over. It charges two units for each: one for copying it and one for taking it off, as
-action.dropKids charges for dropping it, in one reservation before it moves any.`,
+list or a tuple to take over. It costs two steps for each: one for copying it and one for taking it off, as
+action.dropKids costs for dropping it, which a target that bounds the work charges in one reservation before
+it moves any.`,
 		Requires: `mark came from action.kids and is at most the number of the elements gathered.`})
 	m.AddOp(&code.Op{Name: "action.keep", Component: Gathered, Params: []code.Param{code.P("items", items), code.P("i", code.TInt)},
 		Writes: []string{Gathered}, NoReturn: true,
@@ -94,6 +97,6 @@ range of the rule if the action recorded it, and what an action expression or an
 		Contract: `Returns the number of the values made, which action.dropCreated takes as a mark.`})
 	m.AddOp(&code.Op{Name: "action.dropCreated", Component: Made, Params: []code.Param{code.P("mark", code.TInt)},
 		Writes: []string{Made}, NoReturn: true, Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QDropped}}},
-		Contract: `Forgets the values made after the mark, without changing them, and charges one unit for each.`,
+		Contract: `Forgets the values made after the mark, without changing them, at a cost of one step for each.`,
 		Requires: `mark came from action.created and is at most the number of the values made.`})
 }

@@ -13,7 +13,11 @@ import (
 	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
-func TestBudgetStreamDiscardAndStackClear(t *testing.T) {
+// TestBudgetStreamDiscardAndStackClearCountNothing checks that discarding the input of a stream and
+// clearing the inactive capacity of its stores at a commit count no unit, since they are no event
+// (spec/runtime/parsing.md#compute-units): under a limit below their work they complete, and the
+// clear leaves the live values and their pointees as they were.
+func TestBudgetStreamDiscardAndStackClearCountNothing(t *testing.T) {
 	for _, u := range []input.PositionUnit{input.Bytes, input.CodePoints} {
 		t.Run(u.String(), func(t *testing.T) {
 			in := state.Input{Unit: u, Eof: true, BaseLine: 1, BaseCol: 1, Lines: []int{0}, Control: state.NewBudgetControl(nil, runtime.Limits{Compute: 128})}
@@ -23,13 +27,13 @@ func TestBudgetStreamDiscardAndStackClear(t *testing.T) {
 				in.In = []rune(strings.Repeat("a", 258))
 			}
 			got := catchStreamPanic(func() { in.Discard(129) })
-			if _, ok := got.(state.Fatal); !ok || in.Base != 0 || in.Control.Used != 128 {
+			if got != nil || in.Base != 129 || in.Control.Used != 0 {
 				t.Fatalf("discard interruption=%v base=%d steps=%d", got, in.Base, in.Control.Used)
 			}
 		})
 	}
 	t.Run("trail", func(t *testing.T) {
-		// The commit interrupts the cleanup of the trail, which its reference build leaves out.
+		// The commit clears the trail, which its reference build leaves out.
 		if !state.StreamUndoCleanup {
 			t.Skip("the build does not clear the inactive capacity of the trail")
 		}
@@ -37,8 +41,8 @@ func TestBudgetStreamDiscardAndStackClear(t *testing.T) {
 		p := &state.Parser{Input: state.Input{Unit: input.Bytes, Eof: true, Bs: []byte(strings.Repeat("a", 3000)), BaseLine: 1, BaseCol: 1, Lines: []int{0}, Control: state.NewBudgetControl(nil, runtime.Limits{Compute: 953 + 128})}, Memo: state.NewMemoTable()}
 		p.Trail = make([]state.Undo, 0, 129)
 		got := catchStreamPanic(func() { p.Commit(2048) })
-		if _, ok := got.(state.Fatal); !ok || p.Base != 2047 || p.Memo.Base != 0 || nodes.D(node).Text != "owned" {
-			t.Fatalf("commit trail interruption=%v base=%d pruned=%d", got, p.Base, p.Memo.Base)
+		if got != nil || p.Base != 2047 || p.Memo.Base != 2048 || p.Control.Used != 0 || nodes.D(node).Text != "owned" {
+			t.Fatalf("commit trail interruption=%v base=%d pruned=%d used=%d", got, p.Base, p.Memo.Base, p.Control.Used)
 		}
 	})
 }

@@ -145,7 +145,7 @@ func DeclareLeaves(m *code.Module) {
 	op(&code.Op{Name: OpActionTextEqual, ImmType: immTypes[OpActionTextEqual], Params: []code.Param{code.P("l", str), code.P("r", str)}, Results: []code.Type{code.TBool},
 		Reads: reads, Writes: reads, Contract: "Returns whether the strings l and r are equal, comparing them as == compares two strings."})
 	op(&code.Op{Name: OpActionSpend, ImmType: immTypes[OpActionSpend], Reads: reads, Writes: reads, NoReturn: true, Cost: code.Cost{Const: 1},
-		Contract: "Charges one step of the budget for a subexpression, under budget controls."})
+		Contract: "Charges one step of the budget for a subexpression in a target that bounds the work (the budget feature); it is no event of the compute units."})
 	op(&code.Op{Name: OpActionFromStr, ImmType: immTypes[OpActionFromStr], Params: []code.Param{code.P("s", str)}, Results: []code.Type{datum},
 		Contract: "Returns the string s as a value."})
 	obj, seq := code.THandle(Obj), code.THandle(Seq)
@@ -157,7 +157,7 @@ func DeclareLeaves(m *code.Module) {
 		Imm:      "the name of the field (a string)",
 		Contract: "Sets the field in Imm of the struct n, which an action expression is making, to v. A target that bounds the work charges for the fields it scans and the bytes of the names it compares."})
 	op(&code.Op{Name: OpActionCopyList, ImmType: immTypes[OpActionCopyList], Params: []code.Param{code.P("items", seq)}, Results: []code.Type{datum}, Reads: reads, Writes: reads,
-		Contract: "Returns a new list value of the elements items, which items returned, as they are, charging for copying them under budget controls."})
+		Contract: "Returns a new list value of the elements items, which items returned, as they are; a target that bounds the work charges for copying them."})
 	m.AddHandle(Operand, Runtime, "An operand of a comparison: a value, or a string field read without making a value of it.")
 	operand := code.THandle(Operand)
 	op(&code.Op{Name: OpActionFieldOperand, ImmType: immTypes[OpActionFieldOperand], Params: []code.Param{code.P("x", datum)}, Results: []code.Type{operand, failT}, Reads: reads, Writes: reads,

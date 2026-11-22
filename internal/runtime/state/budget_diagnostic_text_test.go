@@ -3,8 +3,6 @@
 package state
 
 import (
-	"context"
-	"errors"
 	"reflect"
 	"slices"
 	"strconv"
@@ -29,19 +27,13 @@ func TestBudgetDiagnosticRecoveryTextMatchesNative(t *testing.T) {
 	}
 	for i, e := range cases {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			// The text of an error is no event: it counts nothing, so it is made under a limit of one
+			// unit, as the native text.
 			want := e.Error()
-			parts := e.Messages
-			if len(parts) == 0 {
-				parts, _ = e.ExpectedInMessage()
-			}
-			steps := uint64(len(want) + 2*len(parts))
-			p := diagnosticParser(runtime.Limits{Compute: steps})
-			if got := p.RecoveryErrorText(e); got != want || p.Control.Used != steps {
-				t.Fatalf("controlled text=%q, steps=%d; native=%q, steps=%d", got, p.Control.Used, want, steps)
-			}
-			p = diagnosticParser(runtime.Limits{Compute: steps - 1})
-			if err := catchFatal(t, func() { _ = p.RecoveryErrorText(e) }); !errors.Is(err, runtime.ErrLimit) {
-				t.Fatalf("one-short recovery formatting: %v", err)
+			p := diagnosticParser(runtime.Limits{Compute: 1})
+			var got string
+			if err := catchFatal(t, func() { got = p.RecoveryErrorText(e) }); err != nil || got != want || p.Control.Used != 0 {
+				t.Fatalf("controlled text=%q, units=%d, err=%v; native=%q", got, p.Control.Used, err, want)
 			}
 		})
 	}
@@ -53,10 +45,11 @@ func TestBudgetDiagnosticRecoveryTextCancellationAndOwnership(t *testing.T) {
 		before := append([]string(nil), e.Messages...)
 		p := diagnosticParser(runtime.Limits{Compute: 1 << 50})
 		retained := p.RecoveryErrorText(e)
+		// Making the text counts nothing and makes no check, so a canceled context does not stop it.
 		p.Control = NewBudgetControl(newPollingContext(1), runtime.Limits{})
 		var got string
-		if err := catchFatal(t, func() { got = p.RecoveryErrorText(e) }); !errors.Is(err, context.Canceled) || got != "" {
-			t.Fatalf("format cancellation: err=%v partial=%q", err, got)
+		if err := catchFatal(t, func() { got = p.RecoveryErrorText(e) }); err != nil || got != e.Error() {
+			t.Fatalf("format under a canceled context: err=%v text=%q", err, got)
 		}
 		p.Control = NewBudgetControl(nil, runtime.Limits{Compute: 1 << 50})
 		if retry := p.RecoveryErrorText(&value.SyntaxError{Line: 1, Col: 2, Messages: []string{"other"}}); retry != "1:2: other" {
@@ -64,21 +57,6 @@ func TestBudgetDiagnosticRecoveryTextCancellationAndOwnership(t *testing.T) {
 		}
 		if retained != e.Error() || !reflect.DeepEqual(e.Messages, before) || e.Expected[0] != "ignored" {
 			t.Fatal("formatter retry mutated retained diagnostic or string")
-		}
-	}
-}
-
-func TestBudgetDiagnosticSizeOverflow(t *testing.T) {
-	maxInt := int(^uint(0) >> 1)
-	for _, pair := range [][2]int{{0, 0}, {2, 3}, {maxInt - 1, 1}, {maxInt, 0}} {
-		if got := checkedDiagnosticSize(pair[0], pair[1]); got != pair[0]+pair[1] {
-			t.Fatalf("valid diagnostic size=%d", got)
-		}
-	}
-	for _, pair := range [][2]int{{-1, 0}, {0, -1}, {maxInt, 1}, {maxInt - 1, 2}} {
-		err := catchFatal(t, func() { _ = checkedDiagnosticSize(pair[0], pair[1]) })
-		if err == nil || !strings.Contains(err.Error(), "diagnostic text exceeds") {
-			t.Fatalf("invalid diagnostic size %v: %v", pair, err)
 		}
 	}
 }
@@ -97,14 +75,14 @@ func TestBudgetDiagnosticSortParityAndMoves(t *testing.T) {
 			t.Fatalf("sort length%d differs from native", n)
 		}
 	}
-	// Empty-string comparisons consume no byte spend, so these budgets/cancellation
-	// isolate movement rather than failing in the comparator.
-	p := diagnosticParser(runtime.Limits{Compute: 128})
-	if err := catchFatal(t, func() { p.sortExpected(make([]string, 320)) }); !errors.Is(err, runtime.ErrLimit) || p.Control.Used != 128 {
-		t.Fatalf("sort moves: err=%v steps=%d", err, p.Control.Used)
+	// Sorting the expectations of an error is no event: it counts nothing and makes no check, so it
+	// completes under a limit of one unit and under a canceled context.
+	p := diagnosticParser(runtime.Limits{Compute: 1})
+	if err := catchFatal(t, func() { p.sortExpected(make([]string, 320)) }); err != nil || p.Control.Used != 0 {
+		t.Fatalf("sort moves: err=%v units=%d", err, p.Control.Used)
 	}
 	p.Control = NewBudgetControl(newPollingContext(1), runtime.Limits{})
-	if err := catchFatal(t, func() { p.sortExpected(make([]string, 320)) }); !errors.Is(err, context.Canceled) {
-		t.Fatalf("sort move cancellation: %v", err)
+	if err := catchFatal(t, func() { p.sortExpected(make([]string, 320)) }); err != nil {
+		t.Fatalf("sort under a canceled context: %v", err)
 	}
 }

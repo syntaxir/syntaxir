@@ -423,7 +423,8 @@ so it counts nothing:
   the last one happens once each time the repetition is entered;
 - the operators of an Operators Rule, tried and applied at most a constant of
   the grammar times for each operand;
-- the retries of alternatives, the entries of lookaheads, cuts and `#atomic`
+- the retries of alternatives, the tests of the next character by which a
+  parser skips an alternative, the entries of lookaheads, cuts and `#atomic`
   frames;
 - the lookups and records of skip runs, run sites and scan sites, other than
   the key of a walk;
@@ -749,7 +750,8 @@ lookahead or the `skip` of an Operators Rule, whose failures are not reported,
 before the farthest failure, or in a parse that does not record expectations.
 With limit controls, a skip leaves the [compute units](#compute-units) and the
 memo as the evaluation that it skips would leave them, or the parser
-evaluates the alternative. The skip counts each call on the way, outermost
+evaluates the alternative. The test of the next character is no event: it
+examines input without advancing, so a guard counts nothing of its own. The skip counts each call on the way, outermost
 first, and the key of each call of a rule that the parse memoizes; for such a
 call it marks the position as seen and counts the call as the
 evaluation would. The first call that the memo answers ends the skip, with the
@@ -913,16 +915,11 @@ them examined. A [stream](streaming.md) drops the slots of the positions
 before the input it commits. A parse with missing-token insertion keeps no
 slots.
 
-A walk under [compute limits](#cancellation-and-compute-limits) charges these
-units in addition to those of its iterations; marking a slot is free:
-
-- in a recording walk, 1 for the lookup before each iteration from the
-  minimum on;
-- 1 more when the slot is recorded, and the charges of recording its
-  expectations, as for a memoized result;
-- for each iteration of a recording walk, the charges of keeping its
-  expectations and of recording them in the enclosing result;
-- 1 for each record stored.
+A walk counts the [compute units](#compute-units) of the events of its
+iterations and nothing for the site: looking up a slot, marking it, recording
+it with its expectations, keeping the expectations of an iteration and storing
+or taking a record count no unit, and a walk that takes a record counts none
+for the iterations and the input that it skips.
 
 Per site and lookahead state, the element of a site is evaluated at each
 position at most once while its slot is fresh and once more before it is
@@ -1069,8 +1066,8 @@ lookahead, a run site that the document can resume is resumed as before.
 
 Parsers generated as Go or TypeScript source keep the records of run sites as
 this section describes, with the same threshold for turning a site hot, the
-same keys and the same charges for looking up and storing records, taking a
-record over and moving and copying the elements of lists. A generated
+same keys and the same compute units for looking up and storing records,
+taking a record over and moving and copying the elements of lists. A generated
 [Document](documents.md) resumes no run: each walk of a run site in its parse
 walks as in a parse of the text alone, with the input it examines tracked as
 for a memoized call. A generated stream drops the records of the positions
@@ -1135,8 +1132,9 @@ the test of the next character fails there as it did when the walk was
 recorded, and gives the same expectation. Otherwise the walk goes on, and when
 it ends it makes the record. A record holds no expectation and no failure: the
 only ones a walk produces are those of that last test, which every walk makes.
-The lookup costs one step, the slot of a record that it finds one more, the
-record that a walk makes one, and the skipped characters nothing. A site has one
+The lookup, the record that it finds and the record that a walk makes count no
+[compute units](#compute-units), nor do the characters that a walk skips by
+taking a record, which it does not advance over. A site has one
 table of records for the walks inside lookaheads and the walks outside them:
 a lookahead silences only the expectations, which the walk does not put in the
 record, so both make the same record. (Whether a site is hot is kept apart for
@@ -1158,13 +1156,14 @@ sites last for one parse. A parse with missing-token insertion keeps no records
 of scan sites.
 
 A parse with scan sites gives the result of a parse without them, with the same
-expectations and examined ranges. The steps a parse charges exceed those of a
-parse without scan sites by at most two steps for each walk that reached
-`T` characters. A walk that starts at another position than a recorded start
-inside the same run does not reuse the record, and costs its own length.
+expectations and examined ranges. It counts at most the compute units of a
+parse without scan sites, since the records count none and a walk that takes
+one counts none for the characters it skips. A walk that starts at another
+position than a recorded start inside the same run does not reuse the record,
+and costs its own length.
 
 Parsers generated as Go or TypeScript source keep the records of scan sites as
-this section describes, with the same `T` and the same charges; they keep no
+this section describes, with the same `T` and the same compute units; they keep no
 records of run sites.
 
 ### Classes of Growth

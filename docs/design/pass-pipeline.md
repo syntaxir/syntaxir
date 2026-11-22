@@ -175,13 +175,14 @@ per input.
 The Core IR of a Node or recognizer table and the options its functions are lowered with are built by the steps of the
 pipeline that every backend shares: `elaborate` elaborates the program with or without the projected values of the
 Node table, the Core passes run on it, and the configuration of the table sets the lowering options from what the
-parser charges and records (budget controls, observation, Documents, traced bodies). The VM builds the Node table of a parse with budget
-controls at the default optimizations and runs the driver's Flow passes for a target of its own, the bytecode target of
-the Flow passes, so its functions are those of the generated Go parser with budget controls in the forms the VM runs.
+parser charges and records (budget controls or logical compute units, observation, Documents, traced bodies). The VM
+builds the Node table of a parse with logical compute units, keeping only the guards whose skip makes no call, at the
+default optimizations and runs the driver's Flow passes for a target of its own, the bytecode target of the Flow passes,
+so its functions are those of a generated Go parser with logical compute units in the forms the VM runs.
 The bytecode target declares what the VM prints beyond the forms of every backend: none of the forms of the Flow passes.
 The forms of typed rules do not apply to the Node table, guarded classes apply only to functions without budget
 controls, and the VM has no instruction that compares a literal in place, so it matches each literal as the lowering
-wrote it. Each form charges what it replaces, so the VM's functions charge what the Go parser's do.
+wrote it. Each form counts what it replaces, so the VM's functions count what the Go parser's do.
 
 The functions of a planned table are lowered into one module, in the order of the plan, by one run of `flowlower`; the
 Flow passes, `execlower` and the Exec passes then run on that module, each pass on every function in turn before the

@@ -32,19 +32,12 @@ func ClassAccept(e *ast.CharClass) func(*state.Parser, rune) bool {
 			ascii[r>>6] |= 1 << (r & 63)
 		}
 	}
-	return func(p *state.Parser, r rune) bool {
+	// Testing a character examines input without advancing, which counts nothing; the terminal that
+	// matches counts the input it advances over.
+	return func(_ *state.Parser, r rune) bool {
 		if uint32(r) < 128 {
 			return ascii[r>>6]&(1<<(r&63)) != 0
 		}
-		if !state.BudgetControlsEnabled || p.Control == nil {
-			return slow(r)
-		}
-		for _, rg := range ranges {
-			p.Spend()
-			if rg.Lo <= r && r <= rg.Hi {
-				return !neg
-			}
-		}
-		return neg
+		return slow(r)
 	}
 }

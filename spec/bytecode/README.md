@@ -148,7 +148,7 @@ A growth that begins where another growth of its cycle is in progress reuses, in
 
 The value of the rule is built from the body value v and the start position:
 
-- **With an action:** evaluate the action with the captures of the scope. For a rule with an Operators Rule, evaluate it with the Operators Rule local `$value`, the folded value v, as well; it is the only local, so `LOCAL` charges one step to find it. If the result is a node newly created by the action, its range becomes the range of the rule. An `int`, `string` or `bool` result becomes a value node with the range of the rule.
+- **With an action:** evaluate the action with the captures of the scope. For a rule with an Operators Rule, evaluate it with the Operators Rule local `$value`, the folded value v, as well. If the result is a node newly created by the action, its range becomes the range of the rule. An `int`, `string` or `bool` result becomes a value node with the range of the rule.
 - **Otherwise:** if the rule table gives a value shape, v becomes the value that `SCOPEVALUE` makes of v and the start position with that shape. Then, if the scope has captures, attach them. If v is fresh, give it the rule name if it has none, and clear its fresh mark.
 
 When the rule's node type is a named node type, the value built above is then converted to the named node type, whose underlying node type the type table gives, as `convert` converts it ([Action Code](#action-code)); a value that is not a string, tuple or list node fails the parse with `cannot convert <value type> to <type> in result of rule <name>`.
@@ -163,7 +163,7 @@ The algorithm is the same as `operatorsRuleParse` in the closure backend; see th
 - **Longest match:** for each candidate operator, save the state, run the line's Flow body in a new frame, and on success record the end position, the value, the frame, the environment, whether a cut was passed, and the recovered errors; then restore the state (writing the recorded captures back into the frame). A prefix or postfix candidate that succeeds without consuming input is treated as not matching. Select the candidate that advanced farthest; on a tie, select the one declared first. Also record whether some candidate failed after passing a cut, including an empty prefix/postfix match rejected as a candidate. A successful selected candidate takes precedence over this aggregate failure; each candidate's cut scope is isolated.
 - **Head:** after skip, try the longest match among the prefix operators. If none matches and some candidate failed after passing a cut, the whole expression fails without trying operands. Otherwise, if one matches, apply it and parse the right operand at the operator's level. If the right operand fails, fail if a cut was passed; otherwise backtrack and try the operands. Operands are tried in declaration order; if an operand fails after passing a cut, the whole expression fails.
 - **Tail:** after skip, try the longest match among the infix and postfix operators. If there is no candidate, stop (or fail, if a candidate failed after a cut). Each loop keeps a bound, the tightest level that may follow the start or the last applied operator. It starts as the level of the prefix operator that began the expression, or unbounded if an operand began it; an infix application sets it to the operator's level (level - 1 for a right-associative operator), and a postfix application makes it unbounded. If the operator's level is less than or equal to `min` or greater than the bound, or the operator is non-associative and a non-associative operator of the same level was just applied, backtrack and stop. A postfix operator is applied immediately. For an infix operator, parse the right operand at the operator's level (level - 1 for a right-associative operator); if that fails, fail if a cut was passed, and otherwise backtrack and stop. The bound is what keeps a non-associative operator from chaining in the right operand of a looser operator: `a | a < a < a` ends after `a | a < a`, because the loop of the right operand of `|` stops at the second `<` and the loop of `|` does not accept an operator tighter than `|`.
-- **Values:** if the operator has an action, evaluate it with the Operators Rule locals `$rhs` (except for a postfix operator), `$lhs` (except for a prefix operator) and `$op` (a string node of the operator part's text); `LOCAL` looks a name up by walking them in that order, and charges a step for each local it reaches, the one it finds included. Otherwise build a tuple node whose children are `[op, rhs]`, `[lhs, op]` or `[lhs, op, rhs]` according to the operator kind, whose `operator` field is the operator's index, and which carries the rule name. The value of an operand is its action's result if it has an action; otherwise its captures are attached and, if it is fresh, it is given the rule name. When the rule's node type is a named node type and the rule has no action, the value of every operator (the action's result, or the tuple node, which is then built with that type) is converted to it as `convert` converts it, with the failure `cannot convert <value type> to <type> in result of rule <name>`; the value of an operand is not converted, and the rule's result as a whole is not converted.
+- **Values:** if the operator has an action, evaluate it with the Operators Rule locals `$rhs` (except for a postfix operator), `$lhs` (except for a prefix operator) and `$op` (a string node of the operator part's text); `LOCAL` looks a name up by walking them in that order. Otherwise build a tuple node whose children are `[op, rhs]`, `[lhs, op]` or `[lhs, op, rhs]` according to the operator kind, whose `operator` field is the operator's index, and which carries the rule name. The value of an operand is its action's result if it has an action; otherwise its captures are attached and, if it is fresh, it is given the rule name. When the rule's node type is a named node type and the rule has no action, the value of every operator (the action's result, or the tuple node, which is then built with that type) is converted to it as `convert` converts it, with the failure `cannot convert <value type> to <type> in result of rule <name>`; the value of an operand is not converted, and the rule's result as a whole is not converted.
 
 ## Execution Models
 
@@ -197,7 +197,7 @@ each pool operand. Lambdas are evaluated in place, so no value of an action expr
 | 2 | `INT` | n[D] = A. |
 | 3–6 | `MOVEA`, `MOVEN`, `MOVES`, `MOVET` | D = A in the values, integers, sequences or strings. |
 | 7 | `CAP` | a[D] = the value of capture slot A of the frame, with a box opened. |
-| 8 | `LOCAL` | a[D] = the Operators Rule local that name A names (`$lhs`, `$rhs`, `$op` or `$value`), with a box opened, charging a step for each local it passes; the evaluation fails if there is none. |
+| 8 | `LOCAL` | a[D] = the Operators Rule local that name A names (`$lhs`, `$rhs`, `$op` or `$value`), with a box opened; the evaluation fails if there is none. |
 | 9 | `VAR` | a[D] = variable A. |
 | 10 | `UNBOX` | a[D] = a[A] with a box opened. |
 | 11 | `FROMB` | a[D] = the boolean n[A]. |
@@ -219,14 +219,14 @@ each pool operand. Lambdas are evaluated in place, so no value of an action expr
 | 29 | `PUSH` | `push`(name B, a[A]). |
 | 30 | `PUSHALL` | `pushItems`(name B, a[A]). |
 | 31 | `ABOVE` | s[D] = the elements gathered above n[A], taken off (`action.elemsAbove`). |
-| 32 | `HULL` | a[D] = `hull`(B = 1, s[A]). |
+| 32 | `HULL` | a[D] = `hull`(B = 1, s[A]), counting one compute unit for each element of the list or tuple it builds. |
 | 33 | `ITEMS` | s[D] = `items`(name B, a[A]). |
 | 34 | `ITEMAT` | a[D] = `itemAt`(s[A], n[B], C = 1). |
 | 35 | `SEQLEN` | n[D] = the number of elements of s[A]. |
-| 36 | `STEP` | Charge one step (`seq.step`). |
+| 36 | `STEP` | Count one compute unit: the element that `map`, `filter` or a fold visits (`seq.step`). |
 | 37 | `KEEP` | Gather element n[B] of s[A]. |
 | 38 | `FILTER` | n[D] = `filterKeep`(a[A]). |
-| 39 | `COPY` | a[D] = a new list value of the elements s[A]. |
+| 39 | `COPY` | a[D] = a new list value of the elements s[A], counting two compute units for each element: the element that `map` visits and the one it builds. |
 | 40 | `STRUCT` | a[D] = a new struct of struct literal A, with as many unset fields as it has. |
 | 41 | `SETFIELD` | Set field name C of the struct a[A] to a[B]. |
 | 42 | `COVER` | n[D] = `cover`(a[A], a[B], n[C] ≠ 0). |
@@ -235,7 +235,10 @@ each pool operand. Lambdas are evaluated in place, so no value of an action expr
 | 45 | `JUMPF` | Continue at instruction D if n[A] is 0. |
 | 46 | `RET` | End the evaluation with the value a[A]. |
 | 47 | `RETERR` | End the evaluation with the failure a[A]. |
-| 48 | `FIELD` | Charge one step, set field name C of the struct a[A] to a[B], and n[D] = `cover`(a[A], a[B], n[D] ≠ 0): `STEP`, `SETFIELD` and `COVER` with D = C in one instruction. |
+| 48 | `FIELD` | Set field name C of the struct a[A] to a[B], and n[D] = `cover`(a[A], a[B], n[D] ≠ 0): `SETFIELD` and `COVER` with D = C in one instruction. |
+| 49 | `UNITS` | Count A compute units (`units.add`); A is not negative. |
+| 50 | `UNITSOF` | Count B compute units for each element of the list or tuple a[A], none if a[A] is neither (`units.items`); B is not negative. |
+| 51 | `UNITSSINCE` | Count one compute unit for each element gathered above n[A] (`units.since`). |
 
 The pools of an action expression hold its constants (nil, an int, a string or a bool), its names (the names of built-in functions,
 Operators Rule locals and struct fields), its member reads (the [member kind](../exec-ir/values.md#member-kinds), the
@@ -255,7 +258,7 @@ past it. A runtime does not check that registers hold what an instruction reads.
 ## Flow Bodies
 
 A rule has a Flow body: the code of the [Flow function](../flow-ir/functions.md) that runs the rule's body in the
-Node table of the code generated with budget controls, as a flat list of instructions. The function is local, a whole
+Node table of the code lowered with logical compute units, as a flat list of instructions. The function is local, a whole
 rule whose captures are variables, or framed, whose captures are slots of the rule's frame. In both models
 ([Execution Models](#execution-models)) the rule's entry, its call and its completion ([Rule Calls](#rule-calls)) are
 those of the rule table, and the body returns the rule's value and success, or failure. A `CALL` calls its rule with a
@@ -353,7 +356,7 @@ a test of the input that leaves the block when it fails.
 | 39 | `KIDSLEN` | 1 | 0 | `flow.kidsLen`. |
 | 40 | `KIDS` | 1 | 1 | `flow.kids` above the integer argument. |
 | 41 | `DROPKIDS` | 0 | 1 | `flow.dropKids` to the integer argument. |
-| 42 | `PUSHKID` | 0 | 1 | `flow.pushKid` of the argument, as the body of a rule frame pushes it, without a charge. |
+| 42 | `PUSHKID` | 0 | 1 | `flow.pushKid` of the argument, as the body of a rule frame pushes it, counting nothing. |
 | 43 | `SHAPESINGLE` | 2 | 2 | `flow.shapeSingle` of the shape of the immediate for the value of the first argument matched from the integer second: the value and whether there is one. |
 | 44 | `SCOPEVALUE` | 1 | 2 | `flow.scopeValue` of the shape of the immediate for the value of the first argument matched from the integer second. |
 | 45 | `SETCAPTURE` | 0 | 1 | `flow.setCapture` of the slot of the immediate in the current frame to the argument, recorded on the capture trail. |
@@ -400,7 +403,7 @@ a test of the input that leaves the block when it fails.
 | 86 | `RESUMEON` | 1 | 0 | `flow.resumeOn`: whether the repetitions resume their runs: the parse is a Document's, outside lookaheads and the evaluation of a skip expression. |
 | 87 | `RESUMESTART` | 1 | 0 | `flow.resumeStart`: starts the run of the repetition of the immediate at the position, with the record of the run that it takes over ([Reuse Model](../runtime/documents.md#reuse-model)); the destination is the run. |
 | 88 | `RESUMEMORE` | 1 | 1 | `flow.resumeMore`: whether the run of the argument may take another element. |
-| 89 | `RESUMENEXT` | 2 | 1 | `flow.resumeNext`: reuses the next element of the run of the argument that its record holds, replaying what evaluating it did; the destinations are its value and true, or the null value and false when the repetition evaluates its element instead. A reuse charges no unit and polls the budget controls. |
+| 89 | `RESUMENEXT` | 2 | 1 | `flow.resumeNext`: reuses the next element of the run of the argument that its record holds, replaying what evaluating it did; the destinations are its value and true, or the null value and false when the repetition evaluates its element instead. A reuse counts no unit and polls the budget controls. |
 | 90 | `RESUMEBEGIN` | 0 | 1 | `flow.resumeBegin`: starts evaluating an element of the run of the argument. |
 | 91 | `RESUMEEND` | 0 | 3 | `flow.resumeEnd`: ends evaluating the element of the run of the first argument, with the success of the boolean second and the value of the third, and records the element if it matched. |
 | 92 | `RESUMEFINISH` | 0 | 1 | `flow.resumeFinish`: records the run of the argument of a repetition that matched. |
@@ -411,13 +414,17 @@ a test of the input that leaves the block when it fails.
 A destination of -1 discards the value.
 
 An instruction named after an operation of the [Flow dialect](../flow-ir/operations.md) does what the operation does
-and charges what its cost bound names, and no more; a superinstruction charges what the instructions it stands for
-charge; the other instructions charge nothing. A Flow body therefore charges
-what its Flow function charges.
+and counts the [compute units](../runtime/parsing.md#compute-units) that its contract names for a function lowered with
+logical units, and no more; a superinstruction counts what the instructions it stands for count; the other
+instructions count nothing. Its cost bound bounds its work. A Flow body therefore counts what its Flow function counts.
 
-The code generated from the same Flow function charges what a Flow body charges: compute is counted in the units of
-[Cancellation and Compute Limits](../runtime/parsing.md#cancellation-and-compute-limits), which are the same on every
-backend, so a parse spends the same units whichever of them runs a rule.
+The code generated from the same Flow function counts what a Flow body counts: the units are the logical events of
+[Compute Units](../runtime/parsing.md#compute-units), which are the same on every backend, so the total of a parse is
+the same whichever of them runs a rule. They are the calls, the keys of memoized rules, the input that terminals
+advance over, the values that actions build, the syntax errors built and the other events of that section, each where
+it happens; peeking, guards, iterations, backtracking and the values that the parse itself builds, gathers, takes off
+and drops count nothing. The Flow bodies keep only the guards whose skip makes no call: an alternative whose evaluation
+calls rules before its first terminal is tried, whether or not the parse has limit controls.
 
 ## Error Messages
 
@@ -433,7 +440,7 @@ A compiled grammar uses container version 8. It stores one execution-only compil
 | Magic | `SXC\x00` (4 bytes) |
 | Version | 1 byte: 8. A loader refuses any other value. |
 | Mode | 1 byte: 0 parse, 1 recognize, 2 document. The module serves the operations of this mode only. A parse-mode or document-mode module is the module of the grammar; a recognize-mode module is the module of its recognizer. A loader refuses any other value. |
-| Instruction-set version | Unsigned integer for this module: 38. Every module uses this version, whatever instructions it contains; a runtime rejects a module of another version and asks for the grammar to be compiled again. |
+| Instruction-set version | Unsigned integer for this module: 39. Every module uses this version, whatever instructions it contains; a runtime rejects a module of another version and asks for the grammar to be compiled again. |
 | String table | Count, then each string (byte length and UTF-8 bytes), all unsigned. The module's string table is a prefix of this table. |
 | Start rule | String index, unsigned: the start rule the saved parser uses. It is a start rule of the module, or the empty string for the module's default start rule. |
 | Module | See below |

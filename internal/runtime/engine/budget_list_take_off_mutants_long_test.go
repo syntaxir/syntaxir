@@ -5,8 +5,8 @@ package engine_test
 import "testing"
 
 // TestRepetitionListTakeOffMutants is the negative control of the tests that the lists the parse builds
-// charge nothing: a closure backend whose Parser.Kids charges the take-off of a repetition's elements, and
-// bytecode backends whose flow.kids charges it where a repetition ends with its list, fail
+// count nothing: a closure backend whose Parser.Kids counts units for the take-off of a repetition's
+// elements, and bytecode backends whose flow.kids counts them where a repetition ends with its list, fail
 // TestRuntimeValuesChargeNothing, and a hot run site that charges the take-off of its walk's list fails
 // TestRunSiteListChargesNothing.
 func TestRepetitionListTakeOffMutants(t *testing.T) {
@@ -14,23 +14,23 @@ func TestRepetitionListTakeOffMutants(t *testing.T) {
 	const tests = "TestRuntimeValuesChargeNothing/repetition"
 	t.Run("closure", func(t *testing.T) {
 		runPrintedMutants(t, "internal/runtime/state/alloc.go", []printedMutant{{"Kids charges the take-off",
-			[]printedEdit{{"\tks := p.Nodes(n)\n\tcopy(ks, p.KidStack[base:])", "\tks := p.Nodes(n)\n\tp.spendValue(2 * n)\n\tcopy(ks, p.KidStack[base:])"}},
+			[]printedEdit{{"\tks := p.Nodes(n)\n\tcopy(ks, p.KidStack[base:])", "\tks := p.Nodes(n)\n\tp.countUnits(2 * n)\n\tcopy(ks, p.KidStack[base:])"}},
 			tests, []string{"."}}})
 	})
 	t.Run("vm", func(t *testing.T) {
 		runPrintedMutants(t, "internal/runtime/vm/flow.go", []printedMutant{{"a repetition's list charges the take-off",
-			[]printedEdit{{"\t\tcase bytecode.FlowKids:\n", "\t\tcase bytecode.FlowKids:\n\t\t\tp.SpendValue(2 * (len(p.KidStack) - regs[in.Args[0]].(int)))\n"}},
+			[]printedEdit{{"\t\tcase bytecode.FlowKids:\n", "\t\tcase bytecode.FlowKids:\n\t\t\tp.SpendN(uint64(2 * (len(p.KidStack) - regs[in.Args[0]].(int))))\n"}},
 			tests, []string{"."}}})
 	})
 	t.Run("run site", func(t *testing.T) {
 		const tests = "TestRunSiteListChargesNothing"
 		runPrintedMutants(t, "internal/runtime/state/skip_runs_engine.go", []printedMutant{
 			{"a run site charges the take-off of its list",
-				[]printedEdit{{"func (p *Parser) SkipKids() []*value.Node {\n\tp.skipEnd()\n", "func (p *Parser) SkipKids() []*value.Node {\n\tp.spendValue(2 * len(p.walk().vals.vals))\n\tp.skipEnd()\n"}}, tests, []string{"."}},
+				[]printedEdit{{"func (p *Parser) SkipKids() []*value.Node {\n\tp.skipEnd()\n", "func (p *Parser) SkipKids() []*value.Node {\n\tp.countUnits(2 * len(p.walk().vals.vals))\n\tp.skipEnd()\n"}}, tests, []string{"."}},
 		})
 		runPrintedMutants(t, "internal/runtime/state/skip_vals.go", []printedMutant{
 			{"a run site charges placing its values in its records",
-				[]printedEdit{{"place := func(dst []T) { copy(dst, vals) }", "place := func(dst []T) { copySpend(p, dst, vals) }"}}, tests, []string{"."}},
+				[]printedEdit{{"place := func(dst []T) { copy(dst, vals) }", "place := func(dst []T) { p.suffixCopied(len(vals)); copy(dst, vals) }"}}, tests, []string{"."}},
 		})
 	})
 }

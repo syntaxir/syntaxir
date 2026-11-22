@@ -7,7 +7,6 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/runtime/engine"
-	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/runtime"
 )
@@ -21,27 +20,30 @@ import (
 // forgets without charging leaves out (see TestGeneratedActionChargeMutants).
 //
 // typedParse is the same for the parse entry of a typed parser (ParseValue), whose Created and KidStack hold
-// typed values and cost less to forget than nodes; its recognize entry runs the node parser's code. engine is
-// the same for the engine, in every backend and entry. The three differ today, since every target charges
-// the values of an action expression in its own way; they are pinned apart so that a change in any is a stated change.
+// typed values and cost less to forget than nodes; its recognize entry runs the node parser's code. units is
+// the same in logical compute units (spec/runtime/parsing.md#compute-units), which every backend that counts
+// them counts alike, the engine's in every entry among them: a list element of an action value counts one
+// unit, and forgetting counts nothing, nor do the nodes created before an action expression fails. The budget
+// columns differ, since every budget target charges the values of an action expression in its own way; they are
+// pinned apart so that a change in any is a stated change.
 var actionChargePairs = []struct {
 	name, one, two string
 	delta          int64
 	typedParse     int64
-	engine         int64
+	units          int64
 }{
 	{"a predicate forgets the nodes its action expression created",
-		actionPredicate(`list(T{N: 1})`), actionPredicate(`list(T{N: 1}, T{N: 2})`), 7, 5, 6},
+		actionPredicate(`list(T{N: 1})`), actionPredicate(`list(T{N: 1}, T{N: 2})`), 7, 5, 1},
 	{"a binding forgets the nodes its action expression created",
-		actionBinding(`len(list(T{N: 1}))`), actionBinding(`len(list(T{N: 1}, T{N: 2}))`), 7, 5, 6},
+		actionBinding(`len(list(T{N: 1}))`), actionBinding(`len(list(T{N: 1}, T{N: 2}))`), 7, 5, 1},
 	{"a failed predicate forgets the values its action expression gathered",
-		actionFailedPredicate(`concat(list(1), list(10 / (1 - len($x))))`), actionFailedPredicate(`concat(list(1, 2), list(10 / (1 - len($x))))`), 3, 2, 2},
+		actionFailedPredicate(`concat(list(1), list(10 / (1 - len($x))))`), actionFailedPredicate(`concat(list(1, 2), list(10 / (1 - len($x))))`), 3, 2, 1},
 	{"a failed binding forgets the values its action expression gathered",
-		actionFailedBinding(`concat(list(1), list(10 / (1 - len($x))))`), actionFailedBinding(`concat(list(1, 2), list(10 / (1 - len($x))))`), 3, 2, 2},
+		actionFailedBinding(`concat(list(1), list(10 / (1 - len($x))))`), actionFailedBinding(`concat(list(1, 2), list(10 / (1 - len($x))))`), 3, 2, 1},
 	{"a failed predicate forgets the nodes its action expression created",
-		actionFailedPredicate(`list(T{N: 1}, 10 / (1 - len($x)))`), actionFailedPredicate(`list(T{N: 1}, T{N: 2}, 10 / (1 - len($x)))`), 3, 1, 2},
+		actionFailedPredicate(`list(T{N: 1}, 10 / (1 - len($x)))`), actionFailedPredicate(`list(T{N: 1}, T{N: 2}, 10 / (1 - len($x)))`), 3, 1, 0},
 	{"a failed binding forgets the nodes its action expression created",
-		actionFailedBinding(`list(T{N: 1}, 10 / (1 - len($x)))`), actionFailedBinding(`list(T{N: 1}, T{N: 2}, 10 / (1 - len($x)))`), 3, 1, 2},
+		actionFailedBinding(`list(T{N: 1}, 10 / (1 - len($x)))`), actionFailedBinding(`list(T{N: 1}, T{N: 2}, 10 / (1 - len($x)))`), 3, 1, 0},
 }
 
 func actionPredicate(actionExpr string) string {
@@ -158,15 +160,16 @@ func TestGeneratedTypedActionChargesPerValue(t *testing.T) {
 	}
 }
 
-// TestEngineActionChargesPerValue pins the same deltas for the engine, whose closure backend and bytecode VMs
-// charge alike here, with and without building the result.
+// TestEngineActionChargesPerValue holds the engine's closure backend and bytecode VMs to the deltas of
+// actionChargePairs in logical units, with and without building the result. The units of a parse are those its
+// compute report gives.
 func TestEngineActionChargesPerValue(t *testing.T) {
 	t.Parallel()
 	used := func(src string, b engine.Backend, recognize bool) int64 {
 		prog := compileBare(t, src)
 		var n uint64
 		_, err := prog.ParseWith("main", "a", engine.ParseOptions{Backend: b, Recognize: recognize, Limits: runtime.Limits{Compute: 1 << 50},
-			Trace: func(e engine.TraceEvent) { n = state.TraceParser(e).Control.Used }})
+			ComputeReport: &n})
 		if err != nil {
 			t.Fatalf("%s: %v", src, err)
 		}
@@ -175,8 +178,8 @@ func TestEngineActionChargesPerValue(t *testing.T) {
 	for _, p := range actionChargePairs {
 		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 			for _, recognize := range []bool{false, true} {
-				if got := used(p.two, b, recognize) - used(p.one, b, recognize); got != p.engine {
-					t.Errorf("%s (backend %d, recognize %v): one more value costs %d units, want %d", p.name, b, recognize, got, p.engine)
+				if got := used(p.two, b, recognize) - used(p.one, b, recognize); got != p.units {
+					t.Errorf("%s (backend %d, recognize %v): one more value costs %d units, want %d", p.name, b, recognize, got, p.units)
 				}
 			}
 		}

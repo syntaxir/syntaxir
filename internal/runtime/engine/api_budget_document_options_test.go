@@ -140,7 +140,7 @@ rule inner = "(" inner ")" / "a"`, "main")
 			if _, err := doc(runtime.Limits{Input: 5}).Parse(engine.WithLimits(runtime.Limits{Depth: 20})); kind(err) != runtime.LimitInput {
 				t.Fatalf("a call Depth dropped the default Input: %v", err)
 			}
-			d := doc(runtime.Limits{Compute: 20, Input: 5}) // enough to construct, too little to parse
+			d := doc(runtime.Limits{Compute: 5, Input: 5}) // construction counts nothing; too little to parse
 			if _, err := d.Parse(engine.WithLimits(runtime.Limits{Input: runtime.Unlimited, Depth: 20})); kind(err) != runtime.LimitCompute {
 				t.Fatalf("a call Input dropped the default Compute: %v", err)
 			}

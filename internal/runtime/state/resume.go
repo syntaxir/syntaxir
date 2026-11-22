@@ -174,8 +174,9 @@ func (p *Parser) readSeedIn(r *RunState) bool {
 }
 
 // ResumeRepeat runs the repetition rs (see compiler.repeat) in a Document parse, resuming its run
-// from the previous parse when it can (the compositions of run_exec.go). An iteration that evaluates
-// the element charges its unit, as in any repetition; the elements that the run reuses charge none.
+// from the previous parse when it can (the compositions of run_exec.go). An iteration is no event
+// (spec/runtime/parsing.md#compute-units): what an evaluated element matches and builds counts, and
+// the elements that the run reuses count nothing.
 func (p *Parser) ResumeRepeat(rs *RunSite) (*value.Node, bool) {
 	start := p.Pos
 	var r RunState
@@ -191,7 +192,6 @@ func (p *Parser) ResumeRepeat(rs *RunSite) (*value.Node, bool) {
 			}
 			continue
 		}
-		p.Spend()
 		m0 := p.Mark()
 		prevCut, prevFrame := p.Cut, p.Frame
 		p.Cut = false

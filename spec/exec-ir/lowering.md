@@ -86,12 +86,12 @@ An equality or inequality of two calls of `text` compares the two strings with `
 value of either.
 
 A tuple literal and a call of `list` take the mark of the elements gathered (the component `gathered`) with `action.kids`, push the
-value of each element with `push`, charging a step for it with `seq.step` before, take the elements gathered above the
+value of each element with `push`, taking a step for it with `seq.step` before, take the elements gathered above the
 mark with `action.elemsAbove` and make the tuple or list value of them with `hull`. A call of `concat` pushes the
-elements of each argument with `pushItems`, charging a step for the argument; when every argument is a call of `list`
+elements of each argument with `pushItems`, taking a step for the argument; when every argument is a call of `list`
 or such a call of `concat`, the elements of the arguments are pushed as `list` pushes them, without making the lists
 of the arguments; a call of `map` among them pushes its elements as `map` pushes them, below. A struct literal evaluates its field values in the order written. A target whose structs are made of
-their fields makes an empty struct with `action.struct` and, for each field in that order, charges a step with
+their fields makes an empty struct with `action.struct` and, for each field in that order, takes a step with
 `seq.step`, sets the field with `action.setField` and widens the range of the struct with `cover`; `made` then records
 the struct. A target with a constructor for each struct type calls it once, with `action.new` followed by the number
 of fields that the type declares, passing the values in the order the type declares the fields and nil for a field
@@ -100,7 +100,7 @@ gives the fields in another order.
 
 A built-in function that takes a function (`map`, `filter`, `foldl` and `foldr`) evaluates its arguments other than
 the lambda in the order written, reads the elements of its list argument with `items`, which fails for a value that
-is not a list, a tuple or nil, and loops over them. Each step of the loop charges a step with `seq.step`, takes the
+is not a list, a tuple or nil, and loops over them. Each step of the loop takes a step with `seq.step`, takes the
 element with `itemAt` and evaluates the body of the lambda in place, with its parameters bound to locals of the loop;
 a parameter is read with `val.unbox`, since it may hold a box. `map` takes the mark of the elements gathered with
 `action.kids` after its list argument, pushes the value of the body for each element with `push` and makes the list
@@ -112,7 +112,8 @@ capture whose elements the target keeps as the captures `f` of the elements, mak
 `x` as they are with `action.copyList`; when it is an argument of a `concat` whose arguments are pushed as they are
 made, its elements are pushed with `pushItems`, as those of an argument of `concat`.
 
-A target that does not bound the work leaves out the calls of `seq.step`. A target that charges a step for each subexpression of an action expression under budget controls lowers it with a call
+A target that does not bound the work leaves out the calls of `seq.step`, except, when it counts compute units, those
+of the elements that a loop of `map`, `filter` or a fold visits: each visit is an event of one unit. A target that charges a step for each subexpression of an action expression under budget controls lowers it with a call
 of `action.spend` at the start of each subexpression, before its operands; it also calls `action.spend` once for each tuple
 literal and each call of `list`, including those whose elements a `concat` pushes, after the values of the elements
 and before the first `push`, once for each argument of a `concat` whose arguments are not pushed as `list`
@@ -139,11 +140,11 @@ immediate operand of the type that the table names:
 | `action.castError` | the cast | Returns the failure of the cast of the value it is given. |
 | `action.textEqual` | none | Returns whether two strings are equal, as `==` compares them. |
 | `action.fromStr` | none | Returns a string as a value. |
-| `action.spend` | none | Charges one step of the budget, under budget controls. |
+| `action.spend` | none | Charges one step of the budget in a target that bounds the work (the budget feature); it is no event of the compute units. |
 | `action.struct` | the struct literal | Returns a new struct of the type of the literal with no field set and an empty range. |
 | `action.setField` | the name of the field | Sets the field of a struct that the action expression is making to a value. |
 | `action.fromObj` | none | Returns a struct, list value or tuple value as a value. |
-| `action.copyList` | none | Returns a new list value of the elements that `items` returned, as they are, charging for copying them under budget controls. |
+| `action.copyList` | none | Returns a new list value of the elements that `items` returned, as they are; a target that bounds the work charges for copying them. |
 | `action.new`*N* | the struct literal | Returns the struct that the constructor of its type makes of the values of its N declared fields. |
 | `action.fieldOperand` | the name of the member | Reads the field of a value as `member` does and returns it as an operand of `action.compare`, with the failure of the read; a string field stays a string. |
 | `action.operand` | none | Returns a value as an operand of `action.compare`. |

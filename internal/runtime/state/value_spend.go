@@ -17,13 +17,6 @@ import (
 // spendValueChunk is the number of elements of a value that one charge covers.
 const spendValueChunk = 128
 
-// spendValue spends n units of value work.
-func (p *Parser) spendValue(n int) {
-	if p.controlled() {
-		p.Control.Charge(uint64(n))
-	}
-}
-
 // chargeValues spends n units of value work in chunks, so that a limit or cancellation is seen
 // between them.
 func (p *Parser) chargeValues(n int) {

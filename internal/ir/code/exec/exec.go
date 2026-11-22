@@ -144,8 +144,9 @@ host's value equality.`)
 	rule := m.AddHandle(Rule, Rules, "A rule's descriptor.")
 	result := []code.Param{code.P("silent", code.TBool), code.P("value", value), code.P("errs", errs)}
 	key := []code.Param{code.P("rule", code.TInt), code.P("pos", code.TInt), code.P("level", code.TInt), code.P("key", values)}
-	// Looking a key up and storing an entry charge nothing: the call pays for the lookup of its key
-	// (budget.chargeKey). A lookup in a Document pays for the edits it applies to the entry it finds.
+	// Looking a key up and storing an entry cost nothing: the call charges or counts its key
+	// (budget.chargeKey, units.key). A lookup in a Document costs the edits it applies to the entry it
+	// finds.
 	scan := code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QPending}}}
 	with := func(ps []code.Param, more ...code.Param) []code.Param {
 		return append(append([]code.Param(nil), ps...), more...)
@@ -219,9 +220,9 @@ examined input starts at or after end, that is not pinned and has no recovered e
 it is found at its position plus delta, and its end and its examined input move with it, and its
 value moves when it is reused (doc.move). Every other entry is removed. The handles of all entries from
 before the edit are no longer valid: a target may copy the entries it keeps. What a target records with
-an entry besides these moves with it as that record says (memo.setExpected). The operation charges
+an entry besides these moves with it as that record says (memo.setExpected). The operation costs
 nothing: a target may apply the edit to an entry when it next finds the entry instead of at once, so
-that memo.lookup pays for it, one unit for each edit applied. Lookups then see what they would have
+that memo.lookup does that work, one step for each edit applied. Lookups then see what they would have
 seen had the edit applied at once.`,
 		Requires: `0 <= start <= end, and start <= end + delta.`})
 	for _, a := range []struct {
@@ -250,7 +251,7 @@ both counts are halved (rounding down); a repeated call then grows the repeat co
 repeats exceed the calls divided by 16 (rounding down), the rule becomes eager for the rest of the
 parse. The policy decides how
 many rule bodies run, which the statistics report, so every target follows it exactly. The record
-charges nothing: deferring memoization changes no unit that a call charges.`,
+costs nothing, and deferring memoization changes no unit that a call charges or counts.`,
 		Requires: `0 <= rule < the number of rules the component was created with; pos >= 0.`})
 
 	m.AddOp(&code.Op{Name: "seen.defers", Component: Seen, Results: []code.Type{code.TBool}, Reads: []string{Seen},
@@ -328,9 +329,10 @@ ends with a nesting interruption.`})
 // addRecovery adds the operations of the recovered-error list. The list is a sequence of entries,
 // each an error that rec.push recorded or a list that rec.add recorded or rec.since put in place of
 // the entries after its mark. A list is immutable and shared: rec.since makes one of the entries
-// after its mark, charging one unit for each, and rec.add records one as one entry, which costs
-// nothing, so a list of any length is replayed for a constant. Recording an error charges nothing,
-// because making it is what the parse pays for. The errors of a list keep the positions they were
+// after its mark, at a cost of one step for each, which a parse that counts compute units counts as
+// the entries taken (rec.entries), and rec.add records one as one entry, which costs nothing, so a
+// list of any length is replayed for a constant. Recording an error costs nothing, because making it
+// is the event that the parse counts. The errors of a list keep the positions they were
 // made at: no list moves, since an entry of a Document that holds recovered errors does not move
 // after an edit (memo.advance). It stays if it examined only input before the edit, and otherwise
 // stops being valid.
@@ -362,7 +364,7 @@ errs; an empty list records nothing.`})
 	m.AddOp(&code.Op{Name: "stream.settleErrors", Component: Rec, Writes: []string{Rec}, Features: []string{Stream},
 		NoReturn: true, Cost: code.Cost{Const: 16},
 		Contract: `Forgets the recovered errors, which were delivered and collected, and counts none as delivered.
-It charges one unit for each slot it clears of the scratch it keeps for the next element, which holds at
+It costs one step for each slot it clears of the scratch it keeps for the next element, which holds at
 most 16; a larger list is released without clearing it.`,
 		Requires: `The parse retains the tail (stream.tail), and no call holds a mark of the list.`})
 }
@@ -393,5 +395,5 @@ that env.scope returned earlier do not change.`,
 		Reads: []string{Env},
 		Contract: `Returns the values of the variables the rule reads, as its memo key. Two keys are equal when
 they have the same length and the host's value equality holds for each pair of their values. Taking
-the key charges nothing: the call paid for it (budget.chargeKey).`})
+the key costs nothing: the call charged or counted it (budget.chargeKey, units.key).`})
 }

@@ -6,7 +6,8 @@ import "syntaxir.dev/sxir/internal/ir/code"
 // the memory of delivered elements, the delivery callbacks and cancellation at stream boundaries.
 // Stream commitment composes them with memo.prune. Each has a contract and a cost bound but no
 // reference model: its effect lies outside the parser VM's state or is not observable in the
-// parse result, so it is checked against the charges of the target that implements it.
+// parse result, so it is checked against the work that the target which implements it charges under
+// the budget feature.
 func streamWindow(m *code.Module, value code.Type) {
 	m.AddComponent(Win, `The window of a stream parse: the input read and kept, the callback that receives the
 elements of the #stream repetition, the recovered errors delivered so far, and the memory that the

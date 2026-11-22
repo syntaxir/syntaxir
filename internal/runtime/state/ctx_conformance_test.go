@@ -201,8 +201,9 @@ func (c ctxConv) FromImpl(v reflect.Value) (any, bool) {
 	return nil, false
 }
 
-// ctxExact are the operations of the growth whose charges the model states to the unit.
-var ctxExact = []string{"grow.begin", "grow.adopt"}
+// ctxFree are the operations of the growth that count no compute unit: the composition counts each
+// step it evaluates (spec/runtime/parsing.md#compute-units).
+var ctxFree = []string{"grow.begin", "grow.adopt"}
 
 // ctxSuites are the suites of the engine's dependency memo, with and without charge controls.
 func ctxSuites() []conform.Suite {
@@ -215,10 +216,10 @@ func ctxSuites() []conform.Suite {
 			names = append(names, engineBudgetOps...)
 		}
 		suites = append(suites, conform.Suite{
-			Name:  fmt.Sprintf("engine ctx (controlled=%v)", controlled),
-			Ops:   names,
-			New:   func(c ref.Config) conform.Impl { return newCtxMachine(c, controlled) },
-			Exact: exactCharges(ctxExact),
+			Name: fmt.Sprintf("engine ctx (controlled=%v)", controlled),
+			Ops:  names,
+			New:  func(c ref.Config) conform.Impl { return newCtxMachine(c, controlled) },
+			Free: exactCharges(ctxFree),
 		})
 	}
 	return suites
@@ -361,15 +362,16 @@ func TestEngineCtxConformanceDetectsCharges(t *testing.T) {
 	if !BudgetControlsEnabled {
 		t.Skip("the mutants change charges, and the reference build charges nothing")
 	}
-	for _, op := range ctxExact {
+	for _, op := range ctxFree {
 		for _, more := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%s more=%v", op, more), func(t *testing.T) {
 				s := ctxSuites()[1]
 				s.New = func(c ref.Config) conform.Impl {
 					return chargedCtx{newCtxMachine(c, true).(meteredCtx), op, more}
 				}
-				if fails, _ := ctxConformanceFailures(s, 60, 250); len(fails) == 0 {
-					t.Fatal("no case detected the charges")
+				// The operations count nothing, so the variant that charges nothing is the engine itself.
+				if fails, _ := ctxConformanceFailures(s, 60, 250); more == (len(fails) == 0) {
+					t.Fatalf("more=%v: %d failures", more, len(fails))
 				}
 			})
 		}

@@ -31,13 +31,12 @@ func Core(m *ir.Module) (*ir.Module, error) {
 
 // Build builds the closure backend's form of the run-time program prog from its Core IR m (Core),
 // and returns the rules of the family f that the parser runs, by ID; c resolves the types of the
-// action expressions (actionlower.Env). plainDispatch leaves out the
-// budget charge of the loop iterations. Build only reads m, so the families of a program can be
+// action expressions (actionlower.Env). Build only reads m, so the families of a program can be
 // built from the same module, at different times. A failure is an internal error: the program
 // compiled, so its action expressions build. The build runs when a parse first needs the family, outside the
 // compilation, so no control interrupts it.
-func Build(prog *program.Program, c *check.Checker, m *ir.Module, plainDispatch bool, f state.Family) ([]*state.Rule, error) {
-	b, err := newBuilder(prog, c, m, plainDispatch)
+func Build(prog *program.Program, c *check.Checker, m *ir.Module, f state.Family) ([]*state.Rule, error) {
+	b, err := newBuilder(prog, c, m)
 	if err != nil {
 		return nil, err
 	}
@@ -78,8 +77,8 @@ func Build(prog *program.Program, c *check.Checker, m *ir.Module, plainDispatch 
 
 // newBuilder returns the builder of the closure form of the module m of the run-time program prog,
 // whose types c resolves.
-func newBuilder(prog *program.Program, c *check.Checker, m *ir.Module, plainDispatch bool) (*Builder, error) {
-	b := &Builder{prog: prog, checker: c, m: m, plainDispatch: plainDispatch, accepts: map[*ir.Class]func(*state.Parser, rune) bool{}}
+func newBuilder(prog *program.Program, c *check.Checker, m *ir.Module) (*Builder, error) {
+	b := &Builder{prog: prog, checker: c, m: m, accepts: map[*ir.Class]func(*state.Parser, rune) bool{}}
 	b.static = append(append([]*program.Rule(nil), prog.RuleList...), prog.Twins...)
 	ids := make(map[string]state.ExpID, len(prog.DescTable))
 	for i, d := range prog.DescTable {
@@ -100,8 +99,8 @@ func newBuilder(prog *program.Program, c *check.Checker, m *ir.Module, plainDisp
 // Matcher returns the matcher of the node n, in the capture scope scope, of the Core IR module m
 // of the run-time program prog, whose types c resolves, in the inlined family. It is for the tests
 // of package engine, which check single closures.
-func Matcher(prog *program.Program, c *check.Checker, m *ir.Module, n ir.Node, scope []ir.Slot, plainDispatch bool) (state.Matcher, error) {
-	b, err := newBuilder(prog, c, m, plainDispatch)
+func Matcher(prog *program.Program, c *check.Checker, m *ir.Module, n ir.Node, scope []ir.Slot) (state.Matcher, error) {
+	b, err := newBuilder(prog, c, m)
 	if err != nil {
 		return nil, err
 	}

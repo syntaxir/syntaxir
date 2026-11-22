@@ -209,8 +209,8 @@ func (c attributedContext) Err() error {
 }
 
 // Family builds the closures of the family f from the Core IR core (closure.Build).
-func (s *Source) Family(core any, f state.Family, plainDispatch bool) ([]*state.Rule, error) {
-	return closure.Build(s.prog.Runtime(), s.prog.Checker(), core.(*ir.Module), plainDispatch, f)
+func (s *Source) Family(core any, f state.Family) ([]*state.Rule, error) {
+	return closure.Build(s.prog.Runtime(), s.prog.Checker(), core.(*ir.Module), f)
 }
 
 // Recognizer compiles the grammar again as a program that builds no tree, with the rule flags of

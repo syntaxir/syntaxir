@@ -29,8 +29,8 @@ func TestActionDeclareKeepsTheFile(t *testing.T) {
 	}
 }
 
-// TestActionEmitFuses checks the instructions the action expression compiler fuses as it emits them: a step, the
-// field of a struct and the cover of its value become FIELD, and a move just before a return
+// TestActionEmitFuses checks the instructions the action expression compiler fuses as it emits them: the field of a
+// struct and the cover of its value become FIELD, which counts no unit (a step before them stays), and a move just before a return
 // becomes the return of its source unless a jump goes to the return, whose other paths need the
 // move.
 func TestActionEmitFuses(t *testing.T) {
@@ -48,14 +48,14 @@ func TestActionEmitFuses(t *testing.T) {
 		code []state.ActionInstr
 		want []state.ActionInstr
 	}{
-		{"field", []state.ActionInstr{step, set, {Op: state.TCover, A: 1, Dst: 3, C: 3}},
+		{"field", []state.ActionInstr{set, {Op: state.TCover, A: 1, Dst: 3, C: 3}},
 			[]state.ActionInstr{{Op: state.TField, Dst: 3, A: 1, C: 2}}},
 		{"cover into another register", []state.ActionInstr{step, set, {Op: state.TCover, A: 1, Dst: 3, C: 4}},
 			[]state.ActionInstr{step, set, {Op: state.TCover, A: 1, Dst: 3, C: 4}}},
 		{"cover of another value", []state.ActionInstr{step, set, {Op: state.TCover, A: 1, B: 5, Dst: 3, C: 3}},
 			[]state.ActionInstr{step, set, {Op: state.TCover, A: 1, B: 5, Dst: 3, C: 3}}},
-		{"field without a step", []state.ActionInstr{set, {Op: state.TCover, A: 1, Dst: 3, C: 3}},
-			[]state.ActionInstr{set, {Op: state.TCover, A: 1, Dst: 3, C: 3}}},
+		{"field after a step", []state.ActionInstr{step, set, {Op: state.TCover, A: 1, Dst: 3, C: 3}},
+			[]state.ActionInstr{step, {Op: state.TField, Dst: 3, A: 1, C: 2}}},
 		{"moved return", []state.ActionInstr{{Op: state.TCap, Dst: 1}, {Op: state.TMoveA, Dst: 2, A: 1}, {Op: state.TRet, A: 2}},
 			[]state.ActionInstr{{Op: state.TCap, Dst: 1}, {Op: state.TRet, A: 1}}},
 		{"return of another register", []state.ActionInstr{{Op: state.TMoveA, Dst: 2, A: 1}, {Op: state.TRet, A: 3}},

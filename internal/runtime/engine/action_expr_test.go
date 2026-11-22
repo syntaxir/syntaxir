@@ -117,9 +117,9 @@ func minimumCompute(t *testing.T, p *engine.Parser, input string, b engine.Backe
 	return hi
 }
 
-// TestActionChargesCreatedNodes checks that a predicate charges for forgetting each node its action expression
-// created: one more node costs the five units of building it and gathering it, and the unit of
-// forgetting it.
+// TestActionChargesCreatedNodes checks what one more node that a predicate's action expression creates counts: the
+// one unit of the element of the list it builds. Building the struct, gathering it and forgetting it
+// when the predicate ends are no event (spec/runtime/parsing.md#compute-units).
 func TestActionChargesCreatedNodes(t *testing.T) {
 	if !state.BudgetControlsEnabled {
 		t.Skip("budget controls are unavailable in the reference build")
@@ -138,18 +138,17 @@ func TestActionChargesCreatedNodes(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if d := minimumCompute(t, p2, "a", be.b) - minimumCompute(t, p1, "a", be.b); d != 6 {
-				t.Errorf("one more node costs %d units, want 6", d)
+			if d := minimumCompute(t, p2, "a", be.b) - minimumCompute(t, p1, "a", be.b); d != 1 {
+				t.Errorf("one more node costs %d units, want 1", d)
 			}
 		})
 	}
 }
 
-// TestActionChargesGatheredValues checks that a predicate whose action expression fails forgets each element its
-// action expression gathered: a concat gathers the elements of its lists in place, so one more element of its
-// first list, before the second fails, costs the unit of gathering it and the unit of forgetting
-// it. Grammar code builds no node from what an action expression gathers, so the charge is where a value that
-// stayed behind would show.
+// TestActionChargesGatheredValues checks what one more element counts in an action expression that fails after
+// gathering it: a concat gathers the elements of its lists in place, so one more element of its
+// first list, before the second fails, counts the one unit of the element its list builds; gathering
+// it and forgetting it when the action expression fails are no event.
 func TestActionChargesGatheredValues(t *testing.T) {
 	if !state.BudgetControlsEnabled {
 		t.Skip("budget controls are unavailable in the reference build")
@@ -167,17 +166,17 @@ func TestActionChargesGatheredValues(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if d := minimumCompute(t, p2, "a", be.b) - minimumCompute(t, p1, "a", be.b); d != 2 {
-				t.Errorf("one more gathered element costs %d units, want 2", d)
+			if d := minimumCompute(t, p2, "a", be.b) - minimumCompute(t, p1, "a", be.b); d != 1 {
+				t.Errorf("one more gathered element costs %d units, want 1", d)
 			}
 		})
 	}
 }
 
-// TestActionChargesOperatorsLocals checks that reading an Operators Rule local charges one unit for
-// each local the lookup passes: an infix action holds $rhs, $lhs and $op, in the order the lookup
-// walks them, so finding $op passes two locals more than finding $rhs. Neither "rhs" nor "lhs" has
-// the length of "op", so passing them compares no text, which has charges of its own.
+// TestActionChargesOperatorsLocals checks that reading an Operators Rule local counts nothing: an infix
+// action holds $rhs, $lhs and $op, in the order the lookup walks them, so finding $op passes two
+// locals more than finding $rhs, and the lookup is no event. Neither "rhs" nor "lhs" has the length
+// of "op", so passing them compares no text, which would count.
 func TestActionChargesOperatorsLocals(t *testing.T) {
 	if !state.BudgetControlsEnabled {
 		t.Skip("budget controls are unavailable in the reference build")
@@ -201,8 +200,8 @@ rule e = #operators {
 				}
 				cost[local] = minimumCompute(t, p, "a+b", be.b)
 			}
-			if d := cost["$op"] - cost["$rhs"]; d != 2 {
-				t.Errorf("$op costs %d units more than $rhs, want 2", d)
+			if d := cost["$op"] - cost["$rhs"]; d != 0 {
+				t.Errorf("$op costs %d units more than $rhs, want 0", d)
 			}
 		})
 	}

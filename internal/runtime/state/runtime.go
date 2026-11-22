@@ -450,11 +450,7 @@ func (p *Parser) EnvValues(slots []int) []any {
 		return noVals[:len(slots):len(slots)]
 	}
 	vals := make([]any, len(slots))
-	controlled := BudgetControlsEnabled && p.Control != nil
 	for i, slot := range slots {
-		if controlled {
-			p.Spend()
-		}
 		if slot >= 0 {
 			vals[i] = p.VarValue(slot)
 		}
@@ -490,27 +486,6 @@ func (p *Parser) keyValues(slots []int) []any {
 // Memoizes reports whether the results of rule r are memoized.
 func (p *Parser) Memoizes(r *Rule) bool {
 	return r.Leader || p.memoized(r)
-}
-
-// replayEntry applies a reused result as the call that it records would have: its examined
-// input, expectations and recovered errors, and its end.
-func (p *Parser) replayEntry(e *MemoEntry) {
-	p.touch(e.Examined)
-	p.lw = Min2(p.lw, e.From)
-	p.Stats.Reused++
-	p.MergeExpected(e.Far, e.Expected)
-	if e.shifted {
-		p.moveResult(e)
-	}
-	if !e.Ok {
-		return
-	}
-	p.Pos = e.End
-	if p.Missing == nil {
-		p.recAdd(e.Errs)
-	} else {
-		p.ReplayMissing(p.MissingSeedEvents(e), e.Errs)
-	}
 }
 
 // entry returns a new entry: from the memo table's slabs, or, for an entry made in a context, which
@@ -576,9 +551,6 @@ type GrowState struct {
 // repeatedly, and the result at the point where the match stops growing is adopted.
 func (p *Parser) GrowBegin(key MemoKey, r *Rule) GrowState {
 	cycle := r.Cycle
-	// One compute unit before each evaluation of the body, the seed's included; it is charged before
-	// the memo changes, so that a parse stopped by the budget publishes nothing.
-	p.Spend()
 	g := GrowState{Key: key, start: p.Pos, Rec: len(p.Recovered), missing: p.missingMark(), gi: len(p.gamma)}
 	gp := p.gammaAt(key.Pos, int32(cycle))
 	g.gp = gp
@@ -610,7 +582,6 @@ func (p *Parser) growLonger(g *GrowState, ok bool) bool {
 // errors errs that it recovered, as its seed, and returns to the start of the growth. The caller drops
 // the errors and the missing tokens after the growth's marks.
 func (p *Parser) growAdopt(g *GrowState, v *value.Node, errs RecEntry) {
-	p.Spend()
 	old := g.Best
 	g.Best = p.entry(g.inCtx)
 	if !g.inCtx {
@@ -691,12 +662,14 @@ func (p *Parser) GrowEnd(r *Rule, g *GrowState) (*value.Node, bool) {
 
 // GrowNextVM reports whether the iterative VM's growth evaluates the body for its next step. In a
 // context it first takes the steps that the table gives, as the printed growth does, and begins the
-// evaluation of the step.
+// evaluation of the step. Each step it evaluates counts one unit; a step that the table gives counts
+// none (spec/runtime/parsing.md#compute-units).
 func (p *Parser) GrowNextVM(g *GrowState) bool {
 	if g.done {
 		return false
 	}
 	if !g.ctx {
+		p.Spend()
 		return true
 	}
 	if p.growMemoStep(g) != nil {
@@ -704,6 +677,7 @@ func (p *Parser) GrowNextVM(g *GrowState) bool {
 		return false
 	}
 	p.growIsolate(g)
+	p.Spend()
 	return true
 }
 
@@ -716,6 +690,7 @@ func (p *Parser) GrowStepVM(g *GrowState, v *value.Node, ok bool) {
 			g.done = true
 			return
 		}
+		p.takeEntries(g.Rec)
 		p.growAdopt(g, v, p.recSince(g.Rec))
 		p.Recovered = p.Recovered[:g.Rec]
 		if p.Missing != nil {
@@ -725,6 +700,7 @@ func (p *Parser) GrowStepVM(g *GrowState, v *value.Node, ok bool) {
 	}
 	var errs RecEntry
 	if ok {
+		p.takeEntries(g.Rec)
 		errs = p.recSince(g.Rec)
 	}
 	s := p.growKeepStep(g, v, ok, errs)
@@ -765,7 +741,6 @@ func (p *Parser) invoke(r *Rule, min int) (*value.Node, bool) {
 // InvokeBegin and InvokeEnd inlined, minus the capture frame (the body never writes one, so the
 // caller's stays current), and with the failure handling of call.
 func (p *Parser) InvokePlain(r *Rule, min int) (*value.Node, bool) {
-	p.Spend()
 	start, rec, trail, missing := p.Pos, len(p.Recovered), len(p.Trail), p.missingMark()
 	prevEnv, prevCut := p.Env, p.Cut
 	p.Cut = false
@@ -803,7 +778,6 @@ type InvokeState struct {
 }
 
 func (p *Parser) InvokeBegin(r *Rule) InvokeState {
-	p.Spend()
 	st := InvokeState{f: p.NewFrame(len(r.Scope.Names)), prevFrame: p.Frame, PrevEnv: p.Env, PrevCut: p.Cut, Trail: len(p.Trail), Start: p.Pos}
 	p.Frame, p.Cut = st.f, false
 	if r.Rec {
@@ -952,14 +926,24 @@ func Min2(a, b int) int {
 	return b
 }
 
+// SyntaxError builds the syntax error of a failed parse, an event of one unit
+// (spec/runtime/parsing.md#compute-units), which it counts and checks before it builds it.
 func (p *Parser) SyntaxError() *value.SyntaxError {
+	p.Spend()
 	return p.MakeError(p.Farthest, p.Exp[p.ExpBase:])
+}
+
+// RecoveryError builds the syntax error of a recovery or of a missing-token insertion at pos with
+// the expectations expected, an event of one unit (spec/runtime/parsing.md#compute-units), which it
+// counts and checks before it builds it.
+func (p *Parser) RecoveryError(pos int, expected []ExpID) *value.SyntaxError {
+	p.Spend()
+	return p.MakeError(pos, expected)
 }
 
 func (p *Parser) MakeError(pos int, expected []ExpID) *value.SyntaxError {
 	e := &value.SyntaxError{Pos: pos}
 	for _, x := range expected {
-		p.Spend()
 		if x == ExpFar {
 			continue
 		}

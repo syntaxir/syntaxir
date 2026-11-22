@@ -43,7 +43,10 @@ func streamRefillObserver(reader io.Reader, control *state.BudgetControl) (*stat
 	return &state.StreamReaderObserver{Reader: reader, Result: &readErr, Control: control}, &readErr
 }
 
-func TestStreamReaderObserverChargesEachUnderlyingRead(t *testing.T) {
+// TestStreamReaderObserverCountsNoUnitForUnderlyingReads checks that a read of the caller's reader is
+// no event (spec/runtime/parsing.md#compute-units): it counts nothing, so a limit below the number
+// of reads does not stop them.
+func TestStreamReaderObserverCountsNoUnitForUnderlyingReads(t *testing.T) {
 	t.Parallel()
 	reader := &streamRefillScript{results: []streamRefillResult{{data: []byte("a")}, {data: []byte("b")}}}
 	control := state.NewBudgetControl(nil, runtime.Limits{Compute: 2})
@@ -54,8 +57,8 @@ func TestStreamReaderObserverChargesEachUnderlyingRead(t *testing.T) {
 		if err != nil || n != 1 || dst[0] != want {
 			t.Fatalf("read %d = %d,%q,%v; want one byte %q", i, n, dst[:n], err, want)
 		}
-		if control.Used != uint64(i+1) {
-			t.Fatalf("after read %d spent=%d; want %d", i, control.Used, i+1)
+		if control.Used != 0 {
+			t.Fatalf("after read %d spent=%d; want 0", i, control.Used)
 		}
 	}
 	if reader.reads != 2 {
@@ -66,14 +69,15 @@ func TestStreamReaderObserverChargesEachUnderlyingRead(t *testing.T) {
 func TestStreamReaderObserverBoundsBufioRetries(t *testing.T) {
 	t.Parallel()
 	t.Run("empty retries", func(t *testing.T) {
-		reader := &streamRefillScript{results: []streamRefillResult{{}, {}, {}, {}}}
+		// The reads count nothing: bufio's own bound on empty reads ends the retries.
+		reader := &streamRefillScript{results: make([]streamRefillResult, 200)}
 		control := state.NewBudgetControl(nil, runtime.Limits{Compute: 3})
 		observer, _ := streamRefillObserver(reader, control)
 		buffered := bufio.NewReader(observer)
-		limitErr := statetest.CatchFatal(t, func() { _, _ = buffered.ReadByte() })
-		var limit *runtime.LimitError
-		if !errors.As(limitErr, &limit) || limit.Kind != runtime.LimitCompute || limit.Used != 3 || limit.Requested != 1 || reader.reads != 3 {
-			t.Fatalf("error=%v reads=%d spent=%d", limitErr, reader.reads, control.Used)
+		var readErr error
+		limitErr := statetest.CatchFatal(t, func() { _, readErr = buffered.ReadByte() })
+		if limitErr != nil || !errors.Is(readErr, io.ErrNoProgress) || reader.reads != 100 || control.Used != 0 {
+			t.Fatalf("error=%v readErr=%v reads=%d spent=%d", limitErr, readErr, reader.reads, control.Used)
 		}
 	})
 	for _, max := range []uint64{1, 2} {
@@ -86,22 +90,20 @@ func TestStreamReaderObserverBoundsBufioRetries(t *testing.T) {
 			var size int
 			var readErr error
 			limitErr := statetest.CatchFatal(t, func() { r, size, readErr = buffered.ReadRune() })
-			if max == 1 {
-				var limit *runtime.LimitError
-				if !errors.As(limitErr, &limit) || limit.Kind != runtime.LimitCompute || limit.Used != 1 || limit.Requested != 1 || reader.reads != 1 || size != 0 {
-					t.Fatalf("error=%v reads=%d rune=%q size=%d", limitErr, reader.reads, r, size)
-				}
-			} else if limitErr != nil || readErr != nil || r != 'é' || size != 2 || reader.reads != 2 {
+			// Reading the rune counts nothing under either limit.
+			if limitErr != nil || readErr != nil || r != 'é' || size != 2 || reader.reads != 2 {
 				t.Fatalf("error=%v readErr=%v rune=%q size=%d reads=%d", limitErr, readErr, r, size, reader.reads)
 			}
-			if control.Used != max {
-				t.Fatalf("spent=%d, want %d", control.Used, max)
+			if control.Used != 0 {
+				t.Fatalf("spent=%d, want 0", control.Used)
 			}
 		})
 	}
 }
 
-func TestStreamReaderObserverOneShortFailsBeforeCallerRead(t *testing.T) {
+// TestStreamReaderObserverReadsPastALimitOfOne checks that a refill after the first read is not
+// stopped by a limit of one unit: reads count nothing.
+func TestStreamReaderObserverReadsPastALimitOfOne(t *testing.T) {
 	t.Parallel()
 	reader := &streamRefillScript{results: []streamRefillResult{{data: []byte("a")}, {data: []byte("b")}}}
 	control := state.NewBudgetControl(nil, runtime.Limits{Compute: 1})
@@ -112,11 +114,11 @@ func TestStreamReaderObserverOneShortFailsBeforeCallerRead(t *testing.T) {
 	}
 	var second [1]byte
 	limitErr := statetest.CatchFatal(t, func() { _, _ = observer.Read(second[:]) })
-	if !errors.Is(limitErr, runtime.ErrLimit) {
-		t.Fatalf("second read error=%v, want ErrLimit", limitErr)
+	if limitErr != nil || second[0] != 'b' {
+		t.Fatalf("second read error=%v byte %q, want b", limitErr, second[0])
 	}
-	if reader.reads != 1 || control.Used != 1 {
-		t.Fatalf("after rejected refill reads=%d spent=%d", reader.reads, control.Used)
+	if reader.reads != 2 || control.Used != 0 {
+		t.Fatalf("after the refill reads=%d spent=%d", reader.reads, control.Used)
 	}
 }
 
@@ -156,7 +158,7 @@ func TestStreamReaderObserverCancellationAndReadErrorPrecedence(t *testing.T) {
 			} else if fatalErr != returned {
 				t.Fatalf("error=%v, want exact reader error %v", fatalErr, returned)
 			}
-			if reader.reads != 1 || control.Used != 1 || *result != returned {
+			if reader.reads != 1 || control.Used != 0 || *result != returned {
 				t.Fatalf("reads=%d steps=%d recorded=%v", reader.reads, control.Used, *result)
 			}
 		})

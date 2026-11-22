@@ -480,6 +480,10 @@ func engineActionError() string {
 // printed arguments, or reports false for another operation.
 func engineValueOp(callee string, a []string) (string, bool) {
 	switch callee {
+	case "seq.step":
+		// A step over the elements of a list that an action expression makes or checks is no event: the elements
+		// it builds are counted by the units operations of the action (units.since, units.items).
+		return "p.stepElem()", true
 	case "val.kind":
 		return "valKind(" + a[0] + ")", true
 	case "val.unbox":
@@ -509,9 +513,10 @@ func engineValueOp(callee string, a []string) (string, bool) {
 	case "node.hasText":
 		return "nodes.D(" + a[0] + ").Terminal", true
 	case "node.heldText":
-		return fmt.Sprintf("nodes.D(%[1]s).Text, nodes.D(%[1]s).Terminal", a[0]), true
+		// The text of a node in a stream is an event (Parser.HeldText, Parser.RangeText).
+		return "p.HeldText(" + a[0] + ")", true
 	case "node.rangeText":
-		return fmt.Sprintf("p.Text(int(nodes.D(%[1]s).Start), int(nodes.D(%[1]s).End))", a[0]), true
+		return fmt.Sprintf("p.RangeText(int(nodes.D(%[1]s).Start), int(nodes.D(%[1]s).End))", a[0]), true
 	case "node.width":
 		return fmt.Sprintf("any(int(nodes.D(%[1]s).End - nodes.D(%[1]s).Start))", a[0]), true
 	case "node.count":

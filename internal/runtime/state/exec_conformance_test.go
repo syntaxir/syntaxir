@@ -273,17 +273,18 @@ var (
 	// engineEnvOps are the operations of the variable environment, with the memo operations that keys
 	// of the environment reach.
 	engineEnvOps = []string{"env.lookup", "env.bind", "env.scope", "env.restore", "env.key", "memo.lookup", "memo.store"}
-	// engineEnvExact are the environment operations whose charges equal their declared cost.
-	engineEnvExact = []string{"env.lookup", "env.bind", "env.key"}
-	// recoveryOps are the operations of the recovered errors, and recoveryExact those whose charges
-	// equal their declared cost.
-	recoveryOps   = []string{"rec.mark", "rec.push", "rec.truncate", "rec.since", "rec.add", "rec.none", "stream.settleErrors"}
-	recoveryExact = []string{"rec.mark", "rec.push", "rec.truncate", "rec.since", "rec.add", "rec.none"}
+	// engineEnvFree are the environment operations that count no compute unit: the key of a call is
+	// counted where the call counts it (units.key).
+	engineEnvFree = []string{"env.lookup", "env.bind", "env.key"}
+	// recoveryOps are the operations of the recovered errors, and recoveryFree those that count no
+	// compute unit: the entries a stored result takes are counted where it is stored (rec.entries).
+	recoveryOps  = []string{"rec.mark", "rec.push", "rec.truncate", "rec.since", "rec.add", "rec.none", "stream.settleErrors"}
+	recoveryFree = []string{"rec.mark", "rec.push", "rec.truncate", "rec.since", "rec.add", "rec.none", "stream.settleErrors"}
 )
 
-// exactCharges returns ops, the operations whose charges a suite holds to their declared cost, or none
-// in the budget-controls reference build, which charges nothing; its charges still stay within the
-// bounds.
+// exactCharges returns ops, the operations whose charges a suite holds to their declared cost or to
+// none, or none in the budget-controls reference build, which charges nothing; its charges still stay
+// within the bounds.
 func exactCharges(ops []string) []string {
 	if !BudgetControlsEnabled {
 		return nil
@@ -302,6 +303,7 @@ func engineSuites() []conform.Suite {
 			suites = append(suites, conform.Suite{
 				Name: fmt.Sprintf("engine (controlled=%v, sparse seen=%v)", controlled, sparse),
 				Ops:  ops,
+				Free: exactCharges(engineMemoOps),
 				New:  func(c ref.Config) conform.Impl { return newEngineMachine(c, controlled, sparse) },
 			})
 		}
@@ -312,10 +314,10 @@ func engineSuites() []conform.Suite {
 			ops = append(ops, engineBudgetOps...)
 		}
 		suites = append(suites, conform.Suite{
-			Name:  fmt.Sprintf("engine recovered errors (controlled=%v)", controlled),
-			Ops:   ops,
-			Exact: exactCharges(recoveryExact),
-			New:   func(c ref.Config) conform.Impl { return newEngineMachine(c, controlled, false) },
+			Name: fmt.Sprintf("engine recovered errors (controlled=%v)", controlled),
+			Ops:  ops,
+			Free: exactCharges(recoveryFree),
+			New:  func(c ref.Config) conform.Impl { return newEngineMachine(c, controlled, false) },
 		})
 	}
 	for _, controlled := range []bool{false, true} {
@@ -326,6 +328,7 @@ func engineSuites() []conform.Suite {
 		suites = append(suites, conform.Suite{
 			Name:      fmt.Sprintf("engine Document memo (controlled=%v)", controlled),
 			Ops:       ops,
+			Free:      exactCharges(engineDocOps),
 			New:       func(c ref.Config) conform.Impl { return newEngineMachine(c, controlled, false) },
 			LazyEdits: true,
 		})
@@ -334,10 +337,10 @@ func engineSuites() []conform.Suite {
 			ops = append(ops, engineBudgetOps...)
 		}
 		suites = append(suites, conform.Suite{
-			Name:  fmt.Sprintf("engine environment (controlled=%v)", controlled),
-			Ops:   ops,
-			Exact: exactCharges(engineEnvExact),
-			New:   func(c ref.Config) conform.Impl { return newEngineMachine(c, controlled, false) },
+			Name: fmt.Sprintf("engine environment (controlled=%v)", controlled),
+			Ops:  ops,
+			Free: exactCharges(engineEnvFree),
+			New:  func(c ref.Config) conform.Impl { return newEngineMachine(c, controlled, false) },
 		})
 	}
 	return suites
@@ -389,20 +392,62 @@ func TestEngineExecConformance(t *testing.T) {
 	}
 }
 
-// TestSettlingChargesTheSlotsItClears measures stream.settleErrors, whose declared cost is the bound of
-// a representation: it charges the slots of the scratch it keeps, and nothing for a list it releases.
-func TestSettlingChargesTheSlotsItClears(t *testing.T) {
+// TestSettlingKeepsASmallScratch measures stream.settleErrors, whose declared cost is the bound of a
+// representation: it keeps a scratch of at most streamRecoveryScratchMax slots, cleared so that it
+// holds no error, and releases a larger list. Clearing the scratch and releasing a list are no
+// events, so it counts nothing either way.
+func TestSettlingKeepsASmallScratch(t *testing.T) {
 	if !BudgetControlsEnabled {
-		t.Skip("the reference build charges nothing")
+		t.Skip("the reference build counts nothing")
 	}
-	for _, c := range []struct{ errs, charged int }{{0, 0}, {16, 16}, {17, 0}} {
+	for _, slots := range []int{0, streamRecoveryScratchMax, streamRecoveryScratchMax + 1} {
 		m := newEngineMachine(ref.Config{}, true, false).(meteredEngine)
-		m.p.Recovered = make([]RecEntry, c.errs)
+		m.p.Recovered = make([]RecEntry, slots)
+		for i := range m.p.Recovered {
+			m.p.Recovered[i] = ErrEntry(&value.SyntaxError{Pos: i})
+		}
 		before := m.Used()
 		m.p.streamSettleErrors()
-		if got := int(m.Used() - before); got != c.charged {
-			t.Errorf("settling a list of %d slots charged %d units, want %d", c.errs, got, c.charged)
+		if got := m.Used() - before; got != 0 {
+			t.Errorf("settling a list of %d slots counted %d units", slots, got)
 		}
+		kept := slots <= streamRecoveryScratchMax
+		if len(m.p.Recovered) != 0 || kept != (m.p.Recovered != nil) || kept && cap(m.p.Recovered) != slots {
+			t.Errorf("settling a list of %d slots left len %d cap %d nil=%v, want the scratch kept=%v", slots,
+				len(m.p.Recovered), cap(m.p.Recovered), m.p.Recovered == nil, kept)
+			continue
+		}
+		for i, e := range m.p.Recovered[:cap(m.p.Recovered)] {
+			if e != (RecEntry{}) {
+				t.Errorf("settling a list of %d slots left slot %d holding an error", slots, i)
+			}
+		}
+	}
+}
+
+// TestRecSinceSharesTheListsItTakes holds rec.since to its representation: the errors after a mark
+// become one shared list of the entries after it, a list that an earlier call made staying one entry
+// of the new list, whatever the number of its errors, so that a list of any length is taken for the
+// number of its entries. Taking them counts nothing itself: the call protocol counts the entries
+// taken (rec.entries) before it calls rec.since (spec/runtime/parsing.md#compute-units).
+func TestRecSinceSharesTheListsItTakes(t *testing.T) {
+	if !BudgetControlsEnabled {
+		t.Skip("the reference build counts nothing")
+	}
+	m := newEngineMachine(ref.Config{}, true, false).(meteredEngine)
+	for i := range 3 {
+		m.p.Recovered = append(m.p.Recovered, ErrEntry(&value.SyntaxError{Pos: i}))
+	}
+	before := m.Used()
+	inner := m.p.recSince(0)
+	if got := m.Used() - before; got != 0 || inner.list == nil || inner.list.n != 3 || len(inner.list.entries) != 3 {
+		t.Fatalf("taking 3 errors counted %d units and made %+v", got, inner.list)
+	}
+	m.p.Recovered = append(m.p.Recovered, ErrEntry(&value.SyntaxError{Pos: 3}))
+	before = m.Used()
+	outer := m.p.recSince(0)
+	if got := m.Used() - before; got != 0 || outer.list == nil || outer.list.n != 4 || len(outer.list.entries) != 2 || outer.list.entries[0] != inner {
+		t.Fatalf("taking a list of 3 errors and one more error counted %d units and made %+v, want the 2 entries", got, outer.list)
 	}
 }
 
@@ -474,7 +519,7 @@ func TestEngineExecConformanceDetectsBrokenEngine(t *testing.T) {
 			return nil
 		}},
 		// A lookup that applies each pending edit twice over: within the results, beyond the bound.
-		"lookup charges each edit twice": {op: "memo.lookup", document: true, controlled: true, want: "more than the bound", call: func(m *engineMachine, args []any) []any {
+		"lookup charges each edit twice": {op: "memo.lookup", document: true, controlled: true, want: "no event", call: func(m *engineMachine, args []any) []any {
 			e, found := m.p.MemoGet(m.key(args))
 			if found && e.Vgen != m.p.Gen {
 				for range m.p.Gen - e.Vgen {
@@ -504,6 +549,10 @@ func TestEngineExecConformanceDetectsBrokenEngine(t *testing.T) {
 			}}
 			if b.controlled {
 				s.Ops = append(slices.Clone(memoOps), engineBudgetOps...)
+				if b.document {
+					// A lookup applies the pending edits as Document work, which counts no unit.
+					s.Free = engineDocOps
+				}
 			}
 			fails, _ := engineConformanceFailures(s, 200, 150)
 			if len(fails) == 0 {

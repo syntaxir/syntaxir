@@ -19,16 +19,16 @@ const copyScaleHead = "@start\nrule main = E \"c\" L \"z\"\nrule E = \"(\" W / [
 // lookahead's decision relies on, and holds the classifier to the measurement: a grammar whose
 // cost grows faster than linearly is not classified linear. The cost is the least compute limit
 // under which the parse ends, which is deterministic. On (^n bc (^n bq the first alternative of
-// W goes on at each of the n levels of the nesting and copies the text of L, about n characters,
-// so the cost grows as n^2. Without the stop at the copy (the mutant) each grammar is classified
-// linear, and the test fails. The reference build has no compute limit, so it checks the classes
-// alone.
+// W goes on at each of the n levels of the nesting, and at each its predicate compares the text
+// of a capture of L about n characters long, so the cost grows as n^2. Without the stop at the
+// copy (the mutant) each grammar is classified linear, and the test fails. The reference build
+// has no compute limit, so it checks the classes alone.
 func TestCopyStopsScale(t *testing.T) {
 	defer complexity.SetCopyStops(true)()
 	input := func(n int) string { return strings.Repeat("(", n) + "bc" + strings.Repeat("(", n) + "bq" }
 	for _, c := range []struct{ name, w, rules string }{
-		{"predicate", `!(L "c" L "z") E "c" x:L {len(text($x)) >= 0} "z" / L`, ""},
-		{"predicate in a called rule", `!(L "c" L "z") E "c" M "z" / L`, "rule M = x:L {len(text($x)) >= 0}\n"},
+		{"predicate", `!(L "c" L "z") E "c" x:L {text($x) == text($x)} "z" / L`, ""},
+		{"predicate in a called rule", `!(L "c" L "z") E "c" M "z" / L`, "rule M = x:L {text($x) == text($x)}\n"},
 	} {
 		src := copyScaleHead + "rule W = " + c.w + "\n" + c.rules
 		g, err := enginetest.ParseGrammar(src)

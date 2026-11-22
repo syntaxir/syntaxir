@@ -10,9 +10,11 @@ import (
 )
 
 // TestTraceFirstCharacterDispatch records executed calls, not synthetic calls
-// for rejected alternatives. Every backend guards every alternative, the final
-// one included, so no backend enters tail when its first character cannot
-// match. Profiling reflects that actual work.
+// for rejected alternatives. The closure backend guards every alternative, the
+// final one included, so it does not enter tail when its first character cannot
+// match. The bytecode machines keep only the guards whose skip makes no call
+// (lowerdata.GuardsEvent), so they try the alternative that calls tail and
+// enter it. Profiling reflects that actual work.
 func TestTraceFirstCharacterDispatch(t *testing.T) {
 	t.Parallel()
 	prog := mustCompile(t, `rule main = "a" / tail
@@ -74,7 +76,7 @@ rule tail = "b"`)
 						t.Fatalf("untraced backend result: got %s, want %s", result, wantResult)
 					}
 
-					enteredTail := tc.input == "b"
+					enteredTail := tc.input == "b" || backend != Closure && tc.input != "a"
 					want := []event{enter("main", 1)}
 					if enteredTail {
 						want = append(want, enter("tail", 2), exit("tail", 2, tc.matched))

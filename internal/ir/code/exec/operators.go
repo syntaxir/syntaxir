@@ -84,7 +84,7 @@ null attempt is no match.`)
 		Writes: []string{Frames},
 		Contract: `Undoes the writes of the trail after its first trail writes, in reverse order, and drops them:
 every slot they wrote has the value it had before. Captures are not an item of the cost, so undoing
-them charges nothing: each write was made by a step that was counted.`,
+them costs nothing: each write was made by a step that was counted.`,
 		Requires: `trail is at most the length of the trail.`})
 	m.AddOp(&code.Op{Name: "frame.current", Component: Frames, Results: []code.Type{frame}, Reads: []string{Frames},
 		Contract: `Returns the frame that captures write to.`})
@@ -93,7 +93,7 @@ them charges nothing: each write was made by a step that was counted.`,
 	m.AddOp(&code.Op{Name: "frame.open", Component: Frames, Params: []code.Param{code.P("n", code.TInt)}, Results: []code.Type{frame},
 		Writes: []string{Frames},
 		Contract: `Returns a new frame of n empty slots, which lives until the parse ends. A frame of no slots is
-never written, so it may be shared. Opening it charges nothing: n is a constant of the grammar for the
+never written, so it may be shared. Opening it costs nothing: n is a constant of the grammar for the
 call that opens it.`})
 	m.AddOp(&code.Op{Name: "frame.set", Component: Frames, Params: []code.Param{code.P("slot", code.TInt), code.P("v", value)},
 		Reads: []string{Frames}, Writes: []string{Frames},
@@ -107,10 +107,10 @@ reuse it, and one without a pool of frames does nothing.`,
 	m.AddOp(&code.Op{Name: "frame.slots", Component: Frames, Params: f, Results: []code.Type{code.TInt},
 		Contract: `Returns the number of slots of f.`})
 	m.AddOp(&code.Op{Name: "frame.save", Component: Frames, Params: f, Reads: []string{Frames}, Writes: []string{Frames},
-		Contract: `Copies the slots of f aside. The copy charges nothing: the slots are a constant of the grammar
+		Contract: `Copies the slots of f aside. The copy costs nothing: the slots are a constant of the grammar
 for the operator whose try saves them.`})
 	m.AddOp(&code.Op{Name: "frame.restore", Component: Frames, Params: f, Reads: []string{Frames}, Writes: []string{Frames},
-		Contract: `Copies the slots that the last frame.save set aside back into f, which charges nothing, as
+		Contract: `Copies the slots that the last frame.save set aside back into f, which costs nothing, as
 frame.save does not.`,
 		Requires: `The last frame.save copied the slots of f, and nothing parsed since.`})
 
@@ -190,7 +190,7 @@ variable environment, the cut flag cut and the recovered errors errs.`})
 		Reads: []string{Env, Pos, Rec}, Features: []string{Missing}, NoReturn: true,
 		Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QTokens}}},
 		Contract: `Is opr.attempt in a parse that can insert missing tokens: the match also holds a copy of the tokens
-inserted after mark, none outside the missing-token mode. It charges one unit for each token it copies.`,
+inserted after mark, none outside the missing-token mode. It costs one step for each token it copies.`,
 		Requires: `mark is a result of missing.mark at or before every later mark that is still in use.`})
 	m.AddOp(&code.Op{Name: "opr.replay", Component: Rec, Params: a, Reads: []string{Opr}, Writes: []string{Rec}, Features: []string{Missing}, NoReturn: true,
 		Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QTokens}, {Coef: 1, Quantity: QErrs}}},

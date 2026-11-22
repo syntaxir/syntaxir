@@ -37,7 +37,6 @@ func (p *Parser) ResetMissing(mark int) {
 	}
 	s := p.Missing
 	for _, event := range s.Path[mark:] {
-		p.Spend()
 		delete(s.installed, event.Site)
 	}
 	clear(s.Path[mark:])
@@ -49,7 +48,7 @@ func (p *Parser) MissingEvents(mark int) []MissingTokenEvent {
 	if p.Missing == nil {
 		return nil
 	}
-	return appendSpend(p, []MissingTokenEvent(nil), p.Missing.Path[mark:])
+	return append([]MissingTokenEvent(nil), p.Missing.Path[mark:]...)
 }
 
 func (p *Parser) InsertMissing(event MissingTokenEvent) bool {
@@ -114,7 +113,6 @@ func (p *Parser) ReplayMissing(events []MissingTokenEvent, errs RecEntry) {
 func (p *Parser) restoreMissing(events []MissingTokenEvent, errs RecEntry, charge bool) {
 	var duplicate map[*value.SyntaxError]bool
 	for _, event := range events {
-		p.Spend()
 		if p.Missing.installed[event.Site] {
 			if duplicate == nil {
 				duplicate = make(map[*value.SyntaxError]bool)
@@ -130,7 +128,6 @@ func (p *Parser) restoreMissing(events []MissingTokenEvent, errs RecEntry, charg
 	}
 	// The errors are recorded one by one, without those of the repeated insertions.
 	for _, err := range errs.AppendErrors(nil) {
-		p.Spend()
 		if !duplicate[err] {
 			p.PushRecovered(err)
 		}
@@ -171,7 +168,7 @@ func MissingLiteral(literal Matcher, site int, expected string, build bool) Matc
 		if p.Missing.label != 0 {
 			exp = []ExpID{p.Missing.label}
 		}
-		e := p.MakeError(m0.Pos, exp)
+		e := p.RecoveryError(m0.Pos, exp)
 		p.InsertMissing(MissingTokenEvent{key, e})
 		p.PushRecovered(e)
 		if !build {

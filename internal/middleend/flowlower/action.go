@@ -498,7 +498,7 @@ func (l *actionLowerer) check(b *code.Builder, c *code.Call) {
 }
 
 // sequence makes the tuple value, if tuple, or the list value of vals, the values of the elements that
-// the literal or the built-in function fn gives: it pushes each, charging a step for it, and the hull
+// the literal or the built-in function fn gives: it pushes each, taking a step (seq.step) for it, and the hull
 // takes them over.
 func (l *actionLowerer) sequence(b *code.Builder, tuple bool, fn string, vals []code.Expr) code.Expr {
 	base := b.Let(l.local("tm"), code.C(action.OpActionKids))
@@ -506,8 +506,8 @@ func (l *actionLowerer) sequence(b *code.Builder, tuple bool, fn string, vals []
 	return l.hull(b, tuple, base)
 }
 
-// pushes pushes vals as elements of the list or the tuple that fn makes, charging a step for each.
-// Under Steps, a step is charged before them, as the target's evaluation of action expressions charges one for
+// pushes pushes vals as elements of the list or the tuple that fn makes, taking a step (seq.step) for
+// each. Under Steps, a step is taken before them, as the target's evaluation of action expressions takes one for
 // gathering them.
 func (l *actionLowerer) pushes(b *code.Builder, fn string, vals []code.Expr) {
 	if l.steps {

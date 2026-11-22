@@ -302,7 +302,8 @@ func TestBudgetDocumentExplicitLimitLeavesDocumentWorkOut(t *testing.T) {
 // runawayTimeout bounds the time a parse of a runaway grammar may take. It only guards against a
 // hang: a parse that the default limit does not stop runs for hours, while a stopped one takes a few
 // seconds alone and up to minutes when the whole long tier shares the machine. That the default limit
-// stopped the parse is checked by its units (le.Used <= le.Limit), not by the time.
+// stopped the parse is checked by its units (le.Used within the overshoot of a check above le.Limit),
+// not by the time.
 const runawayTimeout = 5 * time.Minute
 
 // A grammar whose cost is far above the default limit stays stopped on a Document, also when the
@@ -354,8 +355,9 @@ func TestBudgetDocumentRunawayStoppedByDefaultWithPendingEdits(t *testing.T) {
 					t.Fatalf("default limit %d, want %d", got, limit)
 				}
 				var le *runtime.LimitError
-				if errors.As(err, &le) && le.Used > le.Limit {
-					t.Fatalf("stopped at %d units used under a limit of %d", le.Used, le.Limit)
+				// A counter above the limit stops the parse at the check of the units that crossed it.
+				if errors.As(err, &le) && (le.Used <= le.Limit || le.Used > le.Limit+2*4096) {
+					t.Fatalf("stopped at %d units used under a limit of %d, want used in (limit, limit+K+B]", le.Used, le.Limit)
 				}
 			})
 		}

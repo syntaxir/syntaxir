@@ -14,7 +14,7 @@ import (
 //	runStart(r, ...)
 //	for runMore(r) {
 //		if v, ok := runNext(r); ok { keep v; continue }
-//		charge the iteration; runBegin(r); evaluate the element; runEnd(r, ok, v)
+//		runBegin(r); evaluate the element; runEnd(r, ok, v)
 //		stop as a repetition does
 //	}
 //	if the repetition matched { runFinish(r) }

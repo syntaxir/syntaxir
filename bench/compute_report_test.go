@@ -277,7 +277,11 @@ func TestComputeReportDocumentManyEdits(t *testing.T) {
 			}},
 		}
 	}
-	for name, d := range newDocs() {
+	// reparse parses a fresh Document of text, edits it 300 times and parses it again with o, so that
+	// every check is of the same reparse: a parse of a Document that has not changed since its last
+	// parse reuses its result and counts only the call of the start rule.
+	reparse := func(name string, o ...sxirruntime.ParseOption) error {
+		d := newDocs()[name]
 		if err := d.parse(); err != nil {
 			t.Fatal(name, err)
 		}
@@ -286,19 +290,22 @@ func TestComputeReportDocumentManyEdits(t *testing.T) {
 				t.Fatal(name, i, err)
 			}
 		}
+		return d.parse(o...)
+	}
+	for name := range newDocs() {
 		var n uint64
-		if err := d.parse(sxirruntime.WithComputeReport(&n)); err != nil {
+		if err := reparse(name, sxirruntime.WithComputeReport(&n)); err != nil {
 			t.Fatal(name, err)
 		}
-		if n == 0 {
-			t.Fatalf("%s: no units reported", name)
+		if n < 2 {
+			t.Fatalf("%s: %d units reported", name, n)
 		}
 		t.Logf("%s: %d units after 300 edits", name, n)
-		if err := d.parse(sxirruntime.WithLimits(sxirruntime.Limits{Compute: n})); err != nil {
+		if err := reparse(name, sxirruntime.WithLimits(sxirruntime.Limits{Compute: n})); err != nil {
 			t.Errorf("%s: a reparse is rejected at its report %d: %v", name, n, err)
 		}
 		var m uint64
-		err := d.parse(sxirruntime.WithComputeReport(&m), sxirruntime.WithLimits(sxirruntime.Limits{Compute: 1}))
+		err := reparse(name, sxirruntime.WithComputeReport(&m), sxirruntime.WithLimits(sxirruntime.Limits{Compute: 1}))
 		var le *sxirruntime.LimitError
 		if !errors.As(err, &le) || le.Kind != sxirruntime.LimitCompute {
 			t.Fatalf("%s: not stopped by a Compute limit of 1: %v", name, err)

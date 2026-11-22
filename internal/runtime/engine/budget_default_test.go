@@ -14,10 +14,10 @@ import (
 
 // scanGrammar scans the rest of the input from every position of a scan from every position, so its
 // cost grows with the cube of the input length: far above the default budget of a short input. The
-// bound of the repetition in mid keeps it from being a run site, whose records would make it
-// linear.
+// bounds of the repetitions in mid keep them from being a run site or a scan site, whose records
+// would let a walk skip the input that an earlier walk advanced over, which counts nothing.
 const scanGrammar = `rule main = (. &mid)* $$
-rule mid = (. &.*) #repeat(0, 1000000)`
+rule mid = (. &(. #repeat(0, 1000000))) #repeat(0, 1000000)`
 
 func limitOf(t *testing.T, err error) uint64 {
 	t.Helper()

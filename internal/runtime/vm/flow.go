@@ -267,7 +267,9 @@ func (vm *Program) runFlow(p *state.Parser, fr *flowRun) (call bool) {
 		case bytecode.FlowLe:
 			fr.set(in.Dst[0], flowInt(regs[in.Args[0]]) <= flowInt(regs[in.Args[1]]))
 		case bytecode.FlowStep:
-			p.Spend()
+			// The step of a loop iteration is no event (spec/runtime/parsing.md#compute-units). It
+			// would check the counter, and the counter of the machine checks itself at each event it
+			// counts, so the step does nothing.
 		case bytecode.FlowSilent:
 			// Enters or leaves a lookahead that records no expectations (flow.silent).
 			x := in.Imm.(bytecode.FlowSilenceOf)
@@ -279,7 +281,7 @@ func (vm *Program) runFlow(p *state.Parser, fr *flowRun) (call bool) {
 				p.Silent--
 			}
 		case bytecode.FlowAdvance:
-			p.Pos += regs[in.Args[0]].(int)
+			p.Advance(regs[in.Args[0]].(int))
 		case bytecode.FlowInClass:
 			fr.set(in.Dst[0], vm.has(p, int32(in.Imm.(int)), regs[in.Args[0]].(rune)))
 		case bytecode.FlowAtAnchor:
@@ -437,7 +439,7 @@ func (vm *Program) runFlow(p *state.Parser, fr *flowRun) (call bool) {
 			fr.set(in.Dst[0], p.Keep(exps))
 		case bytecode.FlowMakeError:
 			exps, _ := regs[in.Args[1]].([]state.ExpID)
-			fr.set(in.Dst[0], p.MakeError(regs[in.Args[0]].(int), exps))
+			fr.set(in.Dst[0], p.RecoveryError(regs[in.Args[0]].(int), exps))
 		case bytecode.FlowAppendError:
 			p.PushRecovered(regs[in.Args[0]].(*value.SyntaxError))
 		case bytecode.FlowNewErrorNode:

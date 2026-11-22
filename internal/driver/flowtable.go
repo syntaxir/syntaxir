@@ -9,6 +9,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/middleend/flowlower"
+	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
 	"syntaxir.dev/sxir/internal/middleend/flowpass"
 	"syntaxir.dev/sxir/internal/middleend/flowplan"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
@@ -16,9 +17,9 @@ import (
 )
 
 // FlowTable builds the Node table of the program p at the Flow stage for the Flow route of the bytecode
-// VM, the way the generated Go parser with budget controls builds its Node table, so that the VM runs
-// the same functions: the same Core IR and lowering options (plandata.TableConfig with values and
-// budget controls), lowered for Document parses, which resume runs; the same plan with its decisions
+// VM, the way a generated Go parser that counts logical compute units builds its Node table, so that
+// the VM runs the same functions: the same Core IR and lowering options (plandata.TableConfig with
+// values and logical units), lowered for Document parses, which resume runs; the same plan with its decisions
 // (flowplan.Plan, flowplan.Unit), with every rule and the stream body of each rule that has a #stream
 // repetition (flowplan.Stream), since any such rule may start a stream parse; and the parts of the
 // pipeline of a table that every backend runs, the Core part and, on the planned table, flowlower and
@@ -28,8 +29,12 @@ import (
 //
 // A failure of elaborate or flowlower is returned as the *pass.StepError that names it; any other
 // failure is an internal error.
+//
+// Its guards are those whose skip makes no call (lowerdata.GuardsEvent): the VM does not make the
+// effects of skipped calls (flow.skippedCalls), so it tries an alternative whose evaluation calls
+// rules, and every call counts where it happens.
 func FlowTable(ctx context.Context, p *frontend.Result) (*plandata.Table[code.Flow], error) {
-	cfg := plandata.TableConfig{Values: true, Budget: true}
+	cfg := plandata.TableConfig{Values: true, Logical: true, Guards: lowerdata.GuardsEvent}
 	errOf := func(err error) error { return assembled{steps: []string{Elaborate, flowlower.Name}}.error(err) }
 	m, err := pipe.Execute(ctx, &pipe.Run{Stop: true}, corePart(), common.TableSource{Build: flowplan.TableBuild(p, cfg)})
 	if err != nil {

@@ -325,9 +325,9 @@ op memo.splice(start int, end int, delta int)
     // it is found at its position plus delta, and its end and its examined input move with it, and its
     // value moves when it is reused (doc.move). Every other entry is removed. The handles of all entries from
     // before the edit are no longer valid: a target may copy the entries it keeps. What a target records with
-    // an entry besides these moves with it as that record says (memo.setExpected). The operation charges
+    // an entry besides these moves with it as that record says (memo.setExpected). The operation costs
     // nothing: a target may apply the edit to an entry when it next finds the entry instead of at once, so
-    // that memo.lookup pays for it, one unit for each edit applied. Lookups then see what they would have
+    // that memo.lookup does that work, one step for each edit applied. Lookups then see what they would have
     // seen had the edit applied at once.
   requires:
     // 0 <= start <= end, and start <= end + delta.
@@ -381,7 +381,7 @@ op seen.first(rule int, pos int) bool
     // repeats exceed the calls divided by 16 (rounding down), the rule becomes eager for the rest of the
     // parse. The policy decides how
     // many rule bodies run, which the statistics report, so every target follows it exactly. The record
-    // charges nothing: deferring memoization changes no unit that a call charges.
+    // costs nothing, and deferring memoization changes no unit that a call charges or counts.
   requires:
     // 0 <= rule < the number of rules the component was created with; pos >= 0.
 
@@ -576,7 +576,7 @@ op env.key(r Rule) Values
   contract:
     // Returns the values of the variables the rule reads, as its memo key. Two keys are equal when
     // they have the same length and the host's value equality holds for each pair of their values. Taking
-    // the key charges nothing: the call paid for it (budget.chargeKey).
+    // the key costs nothing: the call charged or counted it (budget.chargeKey, units.key).
 
 op rec.mark() int
   component recovered
@@ -650,7 +650,7 @@ op stream.settleErrors()
   cost <= 16
   contract:
     // Forgets the recovered errors, which were delivered and collected, and counts none as delivered.
-    // It charges one unit for each slot it clears of the scratch it keeps for the next element, which holds at
+    // It costs one step for each slot it clears of the scratch it keeps for the next element, which holds at
     // most 16; a larger list is released without clearing it.
   requires:
     // The parse retains the tail (stream.tail), and no call holds a mark of the list.
@@ -747,8 +747,8 @@ op rule.invoke(r Rule, min int) (Value, bool)
     // Runs the rule's body at the binding level min in a frame of its own and makes the rule's
     // value; on failure the position is unspecified. The evaluation counts in the statistics of a Document
     // parse, and that of a rule on a cycle of calls takes a nesting level while it runs. The unit of the call
-    // is charged before the nesting level is taken, so that a call that both the budget and the nesting
-    // limit stop stops on the budget.
+    // is charged or counted before the nesting level is taken, so that a call that both the compute limit
+    // and the nesting limit stop stops on the compute limit.
 
 op rule.invokePlain(r Rule, min int) (Value, bool)
   component rules
@@ -918,8 +918,8 @@ op exp.copy(s ExpSet) ExpKept
   cost <= 0 + 1*set
   contract:
     // Copies the expectations of s, in order, into a set that outlives the record, makes it the set
-    // that exp.copy made last and returns it. The copy is charged as the target charges copies of values,
-    // and the memory it takes as the target accounts it.
+    // that exp.copy made last and returns it. The copy costs what the target's copies of values cost, and
+    // the memory it takes is accounted as the target accounts it.
   requires:
     // s has at least one expectation, and exp.setAt may read each of them.
 
@@ -1127,7 +1127,7 @@ op grow.begin(r Rule, min int) Grow
   cost <= 1 + 1*present
   contract:
     // Starts the growth of the leader at the binding level min at the position from a failure,
-    // charging one unit, and present for naming the present set of its context when it is in one: the growth
+    // at a cost of one step, and present for naming the present set of its context when it is in one: the growth
     // becomes the innermost, with a failed seed that ends at the position. Every failed seed has the same
     // identity, and every seed that grow.adopt or grow.adoptStep adopts has a new one. The growth is in a context
     // when other leaders of its cycle grow at the position.
@@ -1164,7 +1164,7 @@ op grow.adopt(g Grow, value Value, errs Errs)
   cost <= 1
   contract:
     // Adopts the successful step of the growth g that ends at the position, with its value and the
-    // errors errs that it recovered, as the seed of g with a new identity, charging one unit. In the missing-token mode the seed also holds
+    // errors errs that it recovered, as the seed of g with a new identity, at a cost of one step. In the missing-token mode the seed also holds
     // the tokens that the step inserted. The seed it replaces is no longer a valid result. The position then
     // returns to the start of the growth.
   requires:
@@ -1239,7 +1239,7 @@ op grow.adoptStep(g Grow, s CtxResult)
   noreturn
   cost <= 1 + 1*run
   contract:
-    // Adopts the step s of the growth g as its seed, with the identity of s, charging one unit, and
+    // Adopts the step s of the growth g as its seed, with the identity of s, at a cost of one step, and
     // returns the position to the start of the growth.
   requires:
     // grow.grew(g, s) holds, and s is the step that grow.keepStep returned last for g.
@@ -1545,10 +1545,10 @@ host op doc.move(e Entry) bool
     // positions account for. Returns false, changing nothing, when the target cannot move the value (a
     // value of the host that is not made of nodes and of basic values); the call that finds e then evaluates
     // the rule again. Returns true for an entry that no edit moved.
-    // The cost has two parts. Each pass over the value charges, for each distinct node it visits, one unit
+    // The cost has two parts. Each pass over the value costs, for each distinct node it visits, one step
     // and one for each child and field. A target that copies checks the value and then copies it, in two
-    // passes, and a refusal charges no more than the check of the nodes it reached. A target that moves in
-    // place makes one pass, charges a second unit for each reference to an empty node, which it copies,
+    // passes, and a refusal costs no more than the check of the nodes it reached. A target that moves in
+    // place makes one pass, costs a second step for each reference to an empty node, which it copies,
     // and for each copy it forgets at the end, and replays the edits since the generation of a node that
     // another result moved, once for each generation.
 
@@ -2369,7 +2369,7 @@ op frame.undo(trail int)
   contract:
     // Undoes the writes of the trail after its first trail writes, in reverse order, and drops them:
     // every slot they wrote has the value it had before. Captures are not an item of the cost, so undoing
-    // them charges nothing: each write was made by a step that was counted.
+    // them costs nothing: each write was made by a step that was counted.
   requires:
     // trail is at most the length of the trail.
 
@@ -2393,7 +2393,7 @@ op frame.open(n int) Frame
   cost <= 0
   contract:
     // Returns a new frame of n empty slots, which lives until the parse ends. A frame of no slots is
-    // never written, so it may be shared. Opening it charges nothing: n is a constant of the grammar for the
+    // never written, so it may be shared. Opening it costs nothing: n is a constant of the grammar for the
     // call that opens it.
 
 op frame.set(slot int, v Value)
@@ -2429,7 +2429,7 @@ op frame.save(f Frame)
   writes frames
   cost <= 0
   contract:
-    // Copies the slots of f aside. The copy charges nothing: the slots are a constant of the grammar
+    // Copies the slots of f aside. The copy costs nothing: the slots are a constant of the grammar
     // for the operator whose try saves them.
 
 op frame.restore(f Frame)
@@ -2438,7 +2438,7 @@ op frame.restore(f Frame)
   writes frames
   cost <= 0
   contract:
-    // Copies the slots that the last frame.save set aside back into f, which charges nothing, as
+    // Copies the slots that the last frame.save set aside back into f, which costs nothing, as
     // frame.save does not.
   requires:
     // The last frame.save copied the slots of f, and nothing parsed since.
@@ -2610,7 +2610,7 @@ op opr.attemptMissing(op Operator, f Frame, v Value, start int, cut bool, errs E
   cost <= 0 + 1*tokens
   contract:
     // Is opr.attempt in a parse that can insert missing tokens: the match also holds a copy of the tokens
-    // inserted after mark, none outside the missing-token mode. It charges one unit for each token it copies.
+    // inserted after mark, none outside the missing-token mode. It costs one step for each token it copies.
   requires:
     // mark is a result of missing.mark at or before every later mark that is still in use.
 
@@ -3185,7 +3185,9 @@ host op str.add(l Datum, r Datum) Datum
   noreturn
   cost <= 1 + 4*value_bytes
   contract:
-    // Returns the concatenation of l and r. A target that bounds the work charges for the bytes it reads and copies.
+    // Returns the concatenation of l and r. A parse that counts compute units counts the bytes of the result
+    // (spec/runtime/parsing.md#compute-units); a target that otherwise bounds the work charges for the bytes it reads and
+    // copies.
   requires:
     // l and r are strings.
 
@@ -3195,8 +3197,8 @@ host op str.cmp(l Datum, r Datum) int
   cost <= 1 + 4*value_bytes
   contract:
     // Returns -1 if l is less than r, 0 if they are equal and 1 if l is greater, comparing by code point: the
-    // order of the bytes of UTF-8 and not of the code units of UTF-16. A target that bounds the work charges for the bytes it
-    // compares.
+    // order of the bytes of UTF-8 and not of the code units of UTF-16. A parse that counts compute units counts the length
+    // in bytes of the shorter operand; a target that otherwise bounds the work charges for the bytes it compares.
   requires:
     // l and r are strings.
 
@@ -3205,7 +3207,8 @@ host op str.eq(l Datum, r Datum) bool
   noreturn
   cost <= 1 + 4*value_bytes
   contract:
-    // Reports whether l and r are the same string. A target that bounds the work charges for the bytes it compares.
+    // Reports whether l and r are the same string. A parse that counts compute units counts the length in bytes
+    // of the shorter operand; a target that otherwise bounds the work charges for the bytes it compares.
   requires:
     // l and r are strings.
 
@@ -3335,8 +3338,9 @@ host op node.rangeText(n Obj) Str
   noreturn
   cost <= 1 + 1*value_bytes
   contract:
-    // Returns the input of the range of n. A target that bounds the work may charge for the read of the
-    // input, and for the bytes it copies out of a stream.
+    // Returns the input of the range of n. In a stream, a parse that counts compute units counts one unit for
+    // each position unit of the result; a target that otherwise bounds the work may charge for the read of the input, and
+    // for the bytes it copies out of a stream.
 
 host op str.len(x Datum) Datum
   component value
@@ -3428,7 +3432,7 @@ op action.dropCreated(mark int)
   noreturn
   cost <= 0 + 1*dropped
   contract:
-    // Forgets the values made after the mark, without changing them, and charges one unit for each.
+    // Forgets the values made after the mark, without changing them, at a cost of one step for each.
   requires:
     // mark came from action.created and is at most the number of the values made.
 
@@ -3465,7 +3469,7 @@ op action.dropKids(mark int)
   noreturn
   cost <= 0 + 1*dropped
   contract:
-    // Drops the elements gathered after the mark, and charges one unit for each.
+    // Drops the elements gathered after the mark, at a cost of one step for each.
   requires:
     // mark came from action.kids and is at most the number of the elements gathered.
 
@@ -3477,8 +3481,9 @@ op action.elemsAbove(mark int) Seq
   cost <= 0 + 2*dropped
   contract:
     // Takes the elements gathered after the mark off the elements gathered and returns them in order, for a
-    // list or a tuple to take over. It charges two units for each: one for copying it and one for taking it off, as
-    // action.dropKids charges for dropping it, in one reservation before it moves any.
+    // list or a tuple to take over. It costs two steps for each: one for copying it and one for taking it off, as
+    // action.dropKids costs for dropping it, which a target that bounds the work charges in one reservation before
+    // it moves any.
   requires:
     // mark came from action.kids and is at most the number of the elements gathered.
 
@@ -3580,9 +3585,12 @@ host op seq.step()
   noreturn
   cost <= 1
   contract:
-    // Charges the step of one element of a list or a tuple: an element that is examined against its type,
-    // walked by a built-in function or made by a constructor. A target that bounds the work charges one unit; a target
-    // that does not charges nothing.
+    // Takes the step of one element of a list or a tuple: an element that is examined against its type,
+    // walked by a built-in function or made by a constructor. A target that bounds the work (the budget feature) charges
+    // one unit for it; a target that does not charges nothing. In a parse that counts compute units, the step of an
+    // element that map, filter or a fold visits is an event of one unit, which the lowering of an action expression keeps for each visit
+    // (flowlower.ActionOptions.Visits); the steps of the functions over values (hull and the checks of conformance) are no
+    // event and count nothing.
 
 host op units.add(n int)
   component value

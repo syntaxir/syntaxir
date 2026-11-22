@@ -260,12 +260,19 @@ func TestBudgetStateProjectedFrameClear(t *testing.T) {
 	}
 	rep := &ir.Repeat{Min: 0, Max: 1, Body: &ir.Seq{Items: items}, Scope: slots, Project: "f0"}
 	empty := frontend.NewResult(check.NewModel(nil, nil), check.Sites{})
-	m, err := closure.Matcher(empty.Runtime(), empty.Checker(), &ir.Module{}, &ir.Capture{Name: "fs", Body: rep, Project: "f0"}, []ir.Slot{{Name: "fs"}}, false)
+	m, err := closure.Matcher(empty.Runtime(), empty.Checker(), &ir.Module{}, &ir.Capture{Name: "fs", Body: rep, Project: "f0"}, []ir.Slot{{Name: "fs"}})
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Clearing the frame of the projected captures is no event, nor are the values of the empty
+	// texts, so the parse ends under a limit below the number of captures.
 	p := statetest.NewBudgetParser(runtime.Limits{Compute: 64})
-	if err := statetest.CatchFatal(t, func() { m(p) }); !errors.Is(err, runtime.ErrLimit) || len(p.Trail) != 0 {
-		t.Fatalf("projected clear err=%v capture writes=%d", err, len(p.Trail))
+	control := p.Control
+	p.Input = state.NewTextInput("", input.Bytes, false)
+	p.Control = control
+	p.Frame = p.NewFrame(1)
+	// Each capture writes once, the count captures and fs in the caller's frame; the clear writes none.
+	if err := statetest.CatchFatal(t, func() { m(p) }); err != nil || p.Control.Used != 0 || len(p.Trail) != count+1 {
+		t.Fatalf("projected clear err=%v units=%d capture writes=%d", err, p.Control.Used, len(p.Trail))
 	}
 }

@@ -4,7 +4,6 @@ package state
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"testing"
 
@@ -15,19 +14,20 @@ import (
 func TestFragmentCursorFallbackInterruption(t *testing.T) {
 	source := strings.Repeat("😀\xff", 1000) + "tail"
 	in := NewTextInput(source, input.CodePoints, false)
-	// Endpoint conversion itself must cooperate even after matching succeeded.
+	// Endpoint conversion is no event: it counts nothing and reaches no poll, so neither a limit
+	// below its length nor a canceled context interrupts it, and it retains no index.
 	in.Control = NewBudgetControl(nil, runtime.Limits{Compute: 8})
-	if err := catchFatal(t, func() { in.PrefixByteOffset(source, 2000) }); !errors.Is(err, runtime.ErrLimit) {
-		t.Fatalf("fallback compute limit: %v", err)
+	if err := catchFatal(t, func() { in.PrefixByteOffset(source, 2000) }); err != nil || in.Control.Used != 0 {
+		t.Fatalf("conversion under a compute limit: %v, counted %d units", err, in.Control.Used)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	in.Control = NewBudgetControl(ctx, runtime.Limits{})
 	cancel()
-	if err := catchFatal(t, func() { in.PrefixByteOffset(source, 2000) }); !errors.Is(err, context.Canceled) {
-		t.Fatalf("fallback cancellation: %v", err)
+	if err := catchFatal(t, func() { in.PrefixByteOffset(source, 2000) }); err != nil {
+		t.Fatalf("conversion under a canceled context: %v", err)
 	}
 	if in.Src != source || in.Offs != nil {
-		t.Fatal("interruption changed source or retained an index")
+		t.Fatal("conversion changed source or retained an index")
 	}
 	in.Control = nil
 	if got := in.PrefixByteOffset(source, 2000); got != 5000 {

@@ -283,11 +283,13 @@ var siteCost = map[string][]string{
 	"TParser.valueFieldControlled": {action.QFieldsRead},
 }
 
-// chargedElsewhere are the operations whose declared cost comes from the charges of a target other
-// than the generated Go library, which charges nothing for them.
-var chargedElsewhere = map[string]string{
-	"stream.release":     "the engine charges one unit for each capture frame it scans or clears",
-	"stream.dropRecords": "the engine charges one unit for each slot of inactive capacity it clears",
+// uncountedWork are the operations whose declared cost bounds work that neither the generated Go
+// library nor the engine counts: committing a stream is no event of the compute units
+// (spec/runtime/parsing.md#compute-units), so the work stays within its bound without reaching a charge
+// (the engine's TestStreamCommitCountsNoUnits).
+var uncountedWork = map[string]string{
+	"stream.release":     "one step for each capture frame scanned or cleared",
+	"stream.dropRecords": "one step for each slot of inactive capacity cleared",
 }
 
 // documentWork are the operations whose charges are Document work: they reserve the units of the
@@ -370,7 +372,7 @@ func TestHostCostsMatchCharges(t *testing.T) {
 			declared[term.Quantity] = true
 		}
 		if len(sites) == 0 {
-			if len(declared) != 0 && chargedElsewhere[op.Name] == "" {
+			if len(declared) != 0 && uncountedWork[op.Name] == "" {
 				t.Errorf("%s declares cost %s but reaches no charge", op.Name, op.Cost)
 			}
 			continue

@@ -26,8 +26,9 @@ func TestBudgetTextFallbackBudgetCore(t *testing.T) {
 		if u == sxirinput.CodePoints {
 			end = len(in.In)
 		}
-		if err := statetest.CatchFatal(t, func() { _ = in.Text(0, end) }); !errors.Is(err, runtime.ErrLimit) {
-			t.Fatalf("%v materialization error=%v, want compute limit", u, err)
+		// Reading the text of the input is no event: a limit of one unit does not stop it.
+		if err := statetest.CatchFatal(t, func() { _ = in.Text(0, end) }); err != nil || in.Control.Used != 0 {
+			t.Fatalf("%v materialization error=%v, counted %d units, want neither", u, err, in.Control.Used)
 		}
 	}
 }
@@ -97,21 +98,12 @@ rule piece = .*`
 						if !armed || observed == nil || observed.Scratch != nil || observed.Control != nil {
 							t.Fatalf("%v/%v trace=%t recognition=%t cancel=%t: trace/cleanup failed", b, u, traceText, recognize, cancel)
 						}
-						// A parse that builds the text of each matched character decodes the
-						// input at the first of them, before the hook arms: every parse that
-						// builds nodes, and a recognition inside the capture of the predicate,
-						// whose value it needs. Later texts are substrings of the decoded input
-						// that charge nothing, so only cancellation, which the rest of the parse
-						// still polls, interrupts such a parse; the text of the trace hook in a
-						// recognition is the first text and is interrupted while decoding.
-						decodedEarly := !cancel && (!recognize || !traceText)
-						if u == sxirinput.CodePoints && !decodedEarly {
-							target := runtime.ErrLimit
-							if cancel {
-								target = context.Canceled
-							}
-							if n != nil || !errors.Is(err, target) {
-								t.Fatalf("%v/%v trace=%t recognition=%t cancel=%t: n=%v err=%v want %v", b, u, traceText, recognize, cancel, n, err, target)
+						// Decoding the input and building texts from it are no events, so the
+						// tightened limit stops no parse; the cancellation, which the check after
+						// the trace function observes, stops every parse that sets it.
+						if cancel {
+							if n != nil || !errors.Is(err, context.Canceled) {
+								t.Fatalf("%v/%v trace=%t recognition=%t cancel=%t: n=%v err=%v want %v", b, u, traceText, recognize, cancel, n, err, context.Canceled)
 							}
 						} else if err != nil || (!recognize && n == nil) {
 							t.Fatalf("source substring %v: n=%v err=%v", b, n, err)
@@ -140,16 +132,16 @@ func TestBudgetTextStepBudgetAndLazyOffsets(t *testing.T) {
 			end = len(in.Bs)
 			in.Control.Limits.Compute = 1
 		}
-		err := statetest.CatchFatal(t, func() { _ = in.Text(0, end) })
-		var limit *runtime.LimitError
-		if !errors.As(err, &limit) || limit.Kind != runtime.LimitCompute {
-			t.Fatalf("%v step error=%v", u, err)
+		// The text counts nothing, whatever the limit.
+		if err := statetest.CatchFatal(t, func() { _ = in.Text(0, end) }); err != nil || in.Control.Used != 0 {
+			t.Fatalf("%v step error=%v, counted %d units", u, err, in.Control.Used)
 		}
 	}
+	// Building the offsets of a source string is no event either.
 	source := "aé😀z"
 	in := state.Input{Unit: sxirinput.CodePoints, Src: source, SrcOK: true, In: []rune(source), Control: state.NewBudgetControl(nil, runtime.Limits{Compute: 1})}
-	if err := statetest.CatchFatal(t, func() { _ = in.Text(1, 3) }); !errors.Is(err, runtime.ErrLimit) || in.Offs != nil {
-		t.Fatalf("lazy offsets error=%v offsets=%v", err, in.Offs)
+	if got := in.Text(1, 3); got != "é😀" || in.Control.Used != 0 {
+		t.Fatalf("lazy offsets text=%q, counted %d units", got, in.Control.Used)
 	}
 	in.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 100})
 	if got := in.Text(1, 3); got != "é😀" {

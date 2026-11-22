@@ -344,7 +344,9 @@ const QErrParts = "error_parts"
 // A value is nil, an int, a string, a bool, or a structured value (a node, list, tuple or struct)
 // that the primitives accept only where they say so. An int is 64 bits wide with wraparound. A
 // primitive is pure unless its contract says it charges: the string primitives read their operands,
-// and val.fail makes a text, which a target that bounds the work does piece by piece.
+// and val.fail makes a text, which a target that bounds the work does piece by piece. A target that
+// bounds the work is one with the budget feature; a parse that counts compute units counts the events
+// of a primitive that the units operations of the action name, and nothing for the rest of its work.
 func addValue(m *code.Module) {
 	m.AddComponent(Val, `The operations on the values of action expressions. They read and write no state.`)
 	datum := code.THandle(Datum)
@@ -412,15 +414,18 @@ assembles the text piece by piece, charging for each piece.`,
 		pure(o)
 	}
 	str(&code.Op{Name: "str.add", Params: []code.Param{l, r}, Results: []code.Type{datum},
-		Contract: `Returns the concatenation of l and r. A target that bounds the work charges for the bytes it reads and copies.`,
+		Contract: `Returns the concatenation of l and r. A parse that counts compute units counts the bytes of the result
+(spec/runtime/parsing.md#compute-units); a target that otherwise bounds the work charges for the bytes it reads and
+copies.`,
 		Requires: `l and r are strings.`})
 	str(&code.Op{Name: "str.cmp", Params: []code.Param{l, r}, Results: []code.Type{code.TInt},
 		Contract: `Returns -1 if l is less than r, 0 if they are equal and 1 if l is greater, comparing by code point: the
-order of the bytes of UTF-8 and not of the code units of UTF-16. A target that bounds the work charges for the bytes it
-compares.`,
+order of the bytes of UTF-8 and not of the code units of UTF-16. A parse that counts compute units counts the length
+in bytes of the shorter operand; a target that otherwise bounds the work charges for the bytes it compares.`,
 		Requires: `l and r are strings.`})
 	str(&code.Op{Name: "str.eq", Params: []code.Param{l, r}, Results: []code.Type{code.TBool},
-		Contract: `Reports whether l and r are the same string. A target that bounds the work charges for the bytes it compares.`,
+		Contract: `Reports whether l and r are the same string. A parse that counts compute units counts the length in bytes
+of the shorter operand; a target that otherwise bounds the work charges for the bytes it compares.`,
 		Requires: `l and r are strings.`})
 	pure(&code.Op{Name: "seq.items", Params: []code.Param{x}, Results: []code.Type{code.THandle(Seq), code.TBool},
 		Contract: `Returns the elements of x and true if x is nil (no elements), a list or a tuple, and false otherwise.`,
@@ -479,8 +484,9 @@ bounds the work charges for the box it makes.`,
 text is meaningful only for a string node.`})
 	pure(&code.Op{Name: "node.rangeText", Params: []code.Param{n}, Results: []code.Type{code.THandle(Str)},
 		Kind: code.OpHost, NoReturn: true, Cost: code.Cost{Const: 1, Terms: []code.CostTerm{{Coef: 1, Quantity: QValueBytes}}},
-		Contract: `Returns the input of the range of n. A target that bounds the work may charge for the read of the
-input, and for the bytes it copies out of a stream.`})
+		Contract: `Returns the input of the range of n. In a stream, a parse that counts compute units counts one unit for
+each position unit of the result; a target that otherwise bounds the work may charge for the read of the input, and
+for the bytes it copies out of a stream.`})
 	pure(&code.Op{Name: "str.len", Params: []code.Param{x}, Results: []code.Type{datum},
 		Kind: code.OpHost, NoReturn: true, Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QValueBytes}}},
 		Contract: `Returns the length of the string x in the position unit as an int. A target that bounds the work and
@@ -547,9 +553,12 @@ ShapeListValue or ShapeStruct, which a value of a node type has by its base.`,
 		Contract: `Returns the elements of the list value or the tuple value n, and the children of any other node.`,
 		Laws:     []string{"pure: equal arguments give equal results"}})
 	pure(&code.Op{Name: "seq.step", Kind: code.OpHost, NoReturn: true, Cost: code.Cost{Const: 1},
-		Contract: `Charges the step of one element of a list or a tuple: an element that is examined against its type,
-walked by a built-in function or made by a constructor. A target that bounds the work charges one unit; a target
-that does not charges nothing.`})
+		Contract: `Takes the step of one element of a list or a tuple: an element that is examined against its type,
+walked by a built-in function or made by a constructor. A target that bounds the work (the budget feature) charges
+one unit for it; a target that does not charges nothing. In a parse that counts compute units, the step of an
+element that map, filter or a fold visits is an event of one unit, which the lowering of an action expression keeps for each visit
+(flowlower.ActionOptions.Visits); the steps of the functions over values (hull and the checks of conformance) are no
+event and count nothing.`})
 	// Logical compute units (design record 076): the lists that a fused concat does
 	// not build.
 	pure(&code.Op{Name: "units.add", Kind: code.OpHost, NoReturn: true, Params: []code.Param{code.P("n", code.TInt)},

@@ -226,8 +226,8 @@ and those of a list or a tuple. Any other value fails.`
 		b.Return(C("seq.at", L("items"), L("i")))
 	})
 	itemAt.Doc = `itemAt returns the element that a built-in function iterating over items (map, filter, foldl, foldr) passes to
-its function at step i, with a box opened: element i, or element i from the end if right (foldr). It charges
-nothing; the loop charges the step (seq.step) before it, so that itemAt stays small enough for a target to inline.`
+its function at step i, with a box opened: element i, or element i from the end if right (foldr). It costs
+nothing; the loop takes the step (seq.step) before it, so that itemAt stays small enough for a target to inline.`
 
 	filterKeep := m.AddFunc("filterKeep", []Param{P("v", datum)}, []Type{TBool, failT}, nil, func(b *Builder) {
 		b.If(Bin("!=", kind(L("v")), k(action.KindBool)), func(b *Builder) {
@@ -338,7 +338,7 @@ rule if no field value is a node, and c records n.`
 	})
 	hull.Doc = `hull makes the tuple value, if tuple, or the list value of the elements kids in c, which it takes over, and
 gives it its range: the one that covers the ranges that the elements add (seq.span), and the empty range at the start
-of the rule if none adds one. It charges a step for each element. The value model does not show the range of a list or a tuple, but a
+of the rule if none adds one. It takes a step (seq.step) for each element, which counts no compute unit. The value model does not show the range of a list or a tuple, but a
 struct that holds one covers it.`
 
 	// The cast: the check of a value against a type, over the accessors of the type (ftype.*) and the
@@ -367,7 +367,7 @@ struct that holds one covers it.`
 		b.Return(BoolC(true))
 	})
 	elems.Doc = `elemsConform returns whether every element of items, the elements of a list, is of the element type t
-of the list, charging a step for each element it examines; the type _ takes every element, and charges nothing.`
+of the list, taking a step (seq.step) for each element it examines; the type _ takes every element, and takes none.`
 	tuple := m.AddFunc("tupleConform", []Param{P("t", ftype), P("items", seqT)}, []Type{TBool}, nil, func(b *Builder) {
 		b.Let("count", C("seq.len", L("items")))
 		b.If(Bin("!=", L("count"), C("ftype.count", t)), func(b *Builder) { b.Return(BoolC(false)) })
@@ -379,7 +379,7 @@ of the list, charging a step for each element it examines; the type _ takes ever
 		b.Return(BoolC(true))
 	})
 	tuple.Doc = `tupleConform returns whether the elements items of a tuple are of the element types of the tuple type t:
-as many, and each of its own type, charging a step for each element it examines.`
+as many, and each of its own type, taking a step (seq.step) for each element it examines.`
 	valueConforms := m.AddFunc("valueConforms", []Param{P("t", ftype), P("n", THandle(action.Obj)), P("shape", TInt)}, []Type{TBool}, nil, func(b *Builder) {
 		kt := b.Let("kt", C("ftype.kind", t))
 		isKind := func(c int) Expr { return Eq(kt, k(c)) }
@@ -452,7 +452,7 @@ node has a string, and a tuple node or a list node its elements as value.`
 		b.If(isKind(action.FtNodeOf), func(b *Builder) { b.Return(C("valueConforms", C("ftype.elem", t), n, shape)) })
 		b.Return(BoolC(false))
 	})
-	conforms.Doc = `conforms returns whether v is a value of the type t of a cast in the value model, charging a step for each
+	conforms.Doc = `conforms returns whether v is a value of the type t of a cast in the value model, taking a step (seq.step) for each
 element of a list or a tuple it examines. A box counts as the value it holds. node[T] is a node whose value is of type T
 (node[_] any node with a value), and error an error value; a list or tuple type takes a list value or a tuple value,
 not the node of a repetition or a sequence.`

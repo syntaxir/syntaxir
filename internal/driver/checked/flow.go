@@ -21,11 +21,12 @@ type FlowTable struct {
 	Funcs map[plandata.Key]*code.Module
 }
 
-// FlowTable builds the Node table of the program the way the generated Go parser with budget
-// controls builds its Node table, so that the VM runs the same functions (driver.FlowTable): the same
-// Core IR and lowering options, the same plan with its decisions and the stream body of each rule that
-// has a #stream repetition, and the Core and Flow parts of the pipeline of the table at the default
-// optimizations, for the VM's target (flowpass.Bytecode).
+// FlowTable builds the Node table of the program the way a generated Go parser that counts logical
+// compute units builds its Node table, so that the VM runs the same functions (driver.FlowTable): the
+// same Core IR and lowering options, the same plan with its decisions and the stream body of each rule
+// that has a #stream repetition, and the Core and Flow parts of the pipeline of the table at the
+// default optimizations, for the VM's target (flowpass.Bytecode), with the guards whose skip makes no
+// call.
 func (s *Source) FlowTable() (*FlowTable, error) {
 	lt, err := driver.FlowTable(context.Background(), s.prog)
 	if err != nil {

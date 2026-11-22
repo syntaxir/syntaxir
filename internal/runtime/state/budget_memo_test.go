@@ -30,15 +30,16 @@ func TestBudgetMemoEnvValuesDeepLookup(t *testing.T) {
 	if len(vals) != 2 || vals[0] != count-1 || vals[1] != nil {
 		t.Fatalf("envValues = %#v, want [%d nil]", vals, count-1)
 	}
-	// Each variable costs a key unit; a declared one also costs a unit for every node on its path.
-	if want := uint64(1 + 3 + 1); p.Control.Used != want {
-		t.Fatalf("lookups used %d steps, want %d", p.Control.Used, want)
+	// Looking up the values of a key is no event: the call counts the key (ChargeKey), whatever the
+	// depth of the environment.
+	if p.Control.Used != 0 {
+		t.Fatalf("lookups used %d steps, want 0", p.Control.Used)
 	}
 
 	limited := statetest.MemoParser(count)
 	limited.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 3})
-	if err := statetest.CatchFatal(t, func() { limited.EnvValues([]int{0}) }); !errors.Is(err, runtime.ErrLimit) {
-		t.Fatalf("deep envValues error = %v, want ErrLimit", err)
+	if err := statetest.CatchFatal(t, func() { limited.EnvValues([]int{0}) }); err != nil || limited.Control.Used != 0 {
+		t.Fatalf("deep envValues error = %v, counted %d units, want neither", err, limited.Control.Used)
 	}
 
 	// The nil-environment key remains a shared all-nil slice and resolves missing variables.
@@ -52,15 +53,15 @@ func TestBudgetMemoEnvValuesDeepLookup(t *testing.T) {
 func TestBudgetMemoBindPreservesSnapshotsOnInterruption(t *testing.T) {
 	t.Parallel()
 	const count = 48 // two levels: an inner node and a leaf on every path
-	// A rebind costs a unit for the old value and one for each node it copies.
+	// A rebind is no event: it counts nothing, copies the path and leaves the saved snapshot intact.
 	p := statetest.MemoParser(count)
 	p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 2})
 	before := p.Env
-	if err := statetest.CatchFatal(t, func() { p.Bind(0, "replacement") }); !errors.Is(err, runtime.ErrLimit) {
-		t.Fatalf("replacement error = %v, want ErrLimit", err)
+	if err := statetest.CatchFatal(t, func() { p.Bind(0, "replacement") }); err != nil || p.Control.Used != 0 {
+		t.Fatalf("replacement error = %v, counted %d units, want neither", err, p.Control.Used)
 	}
-	if p.Env != before {
-		t.Fatal("interrupted bind published a partial environment")
+	if p.Env == before || p.Env.Get(0, p.EnvDepth()) != "replacement" {
+		t.Fatal("the bind did not publish the new environment")
 	}
 	for i := 0; i < count; i++ {
 		if got := before.Get(i, p.EnvDepth()); got != i {
@@ -211,12 +212,16 @@ func TestBudgetMemoBindCopyAndCancellation(t *testing.T) {
 	searchSteps := probe.Control.Used
 	p := statetest.MemoParser(320)
 	root = p.Env
-	p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: searchSteps + 2})
-	if err := statetest.CatchFatal(t, func() { p.Bind(0, 999) }); !errors.Is(err, runtime.ErrLimit) {
-		t.Fatalf("path-copy error=%v", err)
+	// Neither the lookup nor the copy of the path counts a unit.
+	if searchSteps != 0 {
+		t.Fatalf("an equal binding counted %d units", searchSteps)
 	}
-	if p.Env != root || p.Control.Used != searchSteps+2 {
-		t.Fatal("interrupted path was published or the lookup did not complete")
+	p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: searchSteps + 2})
+	if err := statetest.CatchFatal(t, func() { p.Bind(0, 999) }); err != nil || p.Control.Used != 0 {
+		t.Fatalf("path-copy error=%v, counted %d units", err, p.Control.Used)
+	}
+	if p.Env == root {
+		t.Fatal("the bind did not publish the copied path")
 	}
 	p.Control = nil
 	p.Bind(0, 999)
@@ -230,13 +235,12 @@ func TestBudgetMemoBindCopyAndCancellation(t *testing.T) {
 		p := statetest.MemoParser(320)
 		root := p.Env
 		p.Control = state.NewBudgetControl(statetest.NewPollingContext(1), runtime.Limits{})
-		p.Control.Charge(state.BudgetCheckInterval - 2) // the next units reach the poll
-		if err := statetest.CatchFatal(t, func() { run(p) }); !errors.Is(err, context.Canceled) {
-			t.Fatalf("environment cancellation=%v", err)
+		p.Control.Charge(state.BudgetCheckInterval - 2) // a count of two more units would reach the poll
+		// The environment operations count nothing, so they reach no poll and observe no context.
+		if err := statetest.CatchFatal(t, func() { run(p) }); err != nil || p.Control.Used != state.BudgetCheckInterval-2 {
+			t.Fatalf("environment operation=%v, counted %d units", err, p.Control.Used-(state.BudgetCheckInterval-2))
 		}
-		if p.Env != root {
-			t.Fatal("cancellation changed current environment")
-		}
+		_ = root
 	}
 }
 

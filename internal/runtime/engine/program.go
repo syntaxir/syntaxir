@@ -26,9 +26,6 @@ type Program struct {
 	// src is the compiler side of a program compiled from a grammar, nil for a program loaded from
 	// a compiled grammar, which only the bytecode backends run.
 	src Source
-	// plainDispatch leaves out the budget charge of the loop iterations in the closure families
-	// (Source.Family): the metered program that runs the parses under budget controls charges them.
-	plainDispatch bool
 	// families holds the rules of each closure family (state.Inlined, state.CallPreserving), built
 	// on first use from core.
 	families [2]closureFamily
@@ -78,7 +75,7 @@ func New(src Source) *Program {
 // newProgram returns the program that runs the run-time program rt; src is the compiler side of a
 // program compiled from a grammar (Source), or nil for a program loaded from a compiled grammar.
 func newProgram(rt *program.Program, src Source) *Program {
-	prog := &Program{src: src, plainDispatch: true}
+	prog := &Program{src: src}
 	if src != nil {
 		prog.core = newClosureCore(src)
 	}

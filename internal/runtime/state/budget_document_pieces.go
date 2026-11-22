@@ -34,7 +34,6 @@ func NewControlledDocumentInput(text string, unit input.PositionUnit, c *BudgetC
 		}
 		offset := 0
 		for i, r := range in.In {
-			in.spendRead(1)
 			if piece.LargeOffs != nil {
 				piece.LargeOffs[i] = offset
 			} else {
@@ -53,8 +52,10 @@ func NewControlledDocumentInput(text string, unit input.PositionUnit, c *BudgetC
 	return in
 }
 
-// Text across immutable pieces copies or flattens as documentPieces.Text
-// does, charging each bounded step; an interrupted step publishes nothing.
+// Text across immutable pieces copies or flattens as documentPieces.Text does. Building the text is
+// no event (spec/runtime/parsing.md#compute-units), so each bounded step is Document work
+// (ChargeDoc): it counts against no limit and keeps the polls for cancellation and memory; an
+// interrupted step publishes nothing.
 func (in *Input) controlledPieceText(start, end int) string {
 	d := in.Pieces
 	if start == end {
@@ -65,7 +66,7 @@ func (in *Input) controlledPieceText(start, end int) string {
 		if piece := d.Parts[i]; end <= piece.start+piece.length(d.unit) {
 			return piece.Substring(off, off+end-start, d.unit)
 		}
-		return d.crossingText(i, start, end, in.Control.Charge)
+		return d.crossingText(i, start, end, in.Control.ChargeDoc)
 	}
-	return d.fullText(start, end, in.Control.Charge)
+	return d.fullText(start, end, in.Control.ChargeDoc)
 }

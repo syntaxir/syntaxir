@@ -350,12 +350,14 @@ func TestBudgetSetupRecognizerPhaseChecks(t *testing.T) {
 
 // Input preparation can fail before a parser is published to tracing. Exercise
 // its spent budget directly; API fixtures above verify the outer panic boundary.
-func TestBudgetSetupInputPreparationPanicIdentity(t *testing.T) {
+// Preparing the input of a parse is no event (the Input limit bounds it), so it counts no unit and
+// observes no context: a context whose first observation panics does not stop it.
+func TestBudgetSetupInputPreparationCountsNoUnits(t *testing.T) {
 	t.Parallel()
 	for _, unit := range []input.PositionUnit{input.Bytes, input.CodePoints} {
 		t.Run(unit.String(), func(t *testing.T) {
 			token := &statetest.ContextPanicToken{Phase: "input materialization"}
-			ctx := statetest.NewContextErrPanic(token, 2)
+			ctx := statetest.NewContextErrPanic(token, 1)
 			c := state.NewBudgetControl(ctx, runtime.Limits{})
 			ctx.Control, ctx.Armed = c, true
 			completed := false
@@ -363,12 +365,8 @@ func TestBudgetSetupInputPreparationPanicIdentity(t *testing.T) {
 				_ = state.NewControlledTextInput(strings.Repeat("a", 8192), unit, true, nil, c)
 				completed = true
 			})
-			attributed, ok := got.(state.ContextPanic)
-			if !ok || attributed.Value != token || completed {
-				t.Fatalf("panic=%#v completed=%t", got, completed)
-			}
-			if unit == input.CodePoints && c.Used == 0 {
-				t.Fatal("CodePoints fixture did not enter preparation loop")
+			if got != nil || !completed || ctx.Calls != 0 || c.Used != 0 {
+				t.Fatalf("panic=%#v completed=%t observations=%d counted=%d", got, completed, ctx.Calls, c.Used)
 			}
 		})
 	}

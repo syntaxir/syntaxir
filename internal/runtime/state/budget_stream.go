@@ -14,8 +14,7 @@ type StreamReaderObserver struct {
 }
 
 func (r *StreamReaderObserver) Read(dst []byte) (int, error) {
-	r.Control.Check()
-	r.Control.Charge(1) // one step per underlying reader attempt, including empty refills
+	r.Control.Check() // a read of the caller's reader is no event: it counts no unit
 	n, err := r.Reader.Read(dst)
 	*r.Result = err
 	r.Control.checkAfterReader(err)
@@ -38,64 +37,18 @@ func (c *BudgetControl) checkAfterReader(returned error) {
 	c.SinceCheck = 0
 }
 
-// CopyStreamPrefix compacts to an earlier address in the same slice. Forward
-// chunks are safe for this leftward overlap; it is not a general memmove helper.
-func CopyStreamPrefix[T any](c *BudgetControl, dst, src []T) int {
-	n := min(len(dst), len(src))
-	if !BudgetControlsEnabled || c == nil {
-		return copy(dst, src)
-	}
-	for off := 0; off < n; {
-		k := min(spendValueChunk, n-off)
-		c.Charge(uint64(k))
-		copy(dst[off:off+k], src[off:off+k])
-		off += k
-	}
-	return n
-}
+// CopyStreamPrefix compacts src to dst, an earlier address in the same slice, and returns the number
+// of elements copied. Compacting the input of a stream is no event: it counts nothing.
+func CopyStreamPrefix[T any](dst, src []T) int { return copy(dst, src) }
 
-// Pruning is normal execution steps. A partial prune belongs to an interrupted
-// invocation and is discarded, while emitted Nodes keep independent ownership.
+// PruneStreamMemo drops the memo entries before pos, which a stream has committed, and settles what
+// the memo holds under controls (releaseAtPrune). Pruning is no event: it counts nothing.
 func (p *Parser) PruneStreamMemo(pos int) {
-	t := p.Memo
-	if !BudgetControlsEnabled || p.Control == nil {
-		t.Prune(pos)
+	if pos <= p.Memo.Base {
 		return
 	}
-	k := pos - t.Base
-	if k <= 0 {
-		return
+	p.Memo.Prune(pos)
+	if p.controlled() {
+		p.releaseAtPrune(pos)
 	}
-	for _, head := range t.Slots[:min(k, len(t.Slots))] {
-		p.Spend()
-		for e := head; e != nil; {
-			p.Spend()
-			next := e.Next
-			if !e.Growing {
-				t.Retire(e)
-			}
-			e = next
-		}
-	}
-	// The slots of the pruned positions are returned; the entries go to the free list, whose
-	// reuse is not charged again.
-	t.MemBytes -= min(t.MemBytes, uint64(min(k, len(t.Slots)))*memoSlotBytes)
-	if k >= len(t.Slots) {
-		clearSpend(p, t.Slots)
-		t.Slots = t.Slots[:0]
-	} else {
-		n := CopyStreamPrefix(p.Control, t.Slots, t.Slots[k:])
-		clearSpend(p, t.Slots[n:])
-		t.Slots = t.Slots[:n]
-	}
-	// The indexes of pruned positions go with their entries, as in MemoTable.Prune: one unit for
-	// each index that the table holds, a count that does not depend on the order of the walk.
-	for at := range t.Index {
-		p.Spend()
-		if at < pos {
-			t.dropIndex(at)
-		}
-	}
-	t.Base = pos
-	p.releaseAtPrune(pos)
 }

@@ -92,8 +92,10 @@ func TestAdvanceEntryMatchesItsContract(t *testing.T) {
 		if got := p.AdvanceEntry(&budget, log); got != ok || !reflect.DeepEqual(budget, want) {
 			t.Fatalf("seed %d: budget form: %v %+v, want %v %+v, log %v", seed, got, budget, ok, want, log)
 		}
-		if p.Control.Used != charged {
-			t.Fatalf("seed %d: charged %d, want %d", seed, p.Control.Used, charged)
+		// Applying the edits is work of the Document, no event, and the composition under compute units
+		// counts none of it, not even for the polls.
+		if p.Control.Used != 0 {
+			t.Fatalf("seed %d: charged %d for %d edits, want none", seed, p.Control.Used, charged)
 		}
 	}
 	if valid == 0 || invalid == 0 {
@@ -126,12 +128,12 @@ func TestMemoLookupChargesItsPendingEdits(t *testing.T) {
 		for range 3 {
 			edit(p, 20, 21, 0)
 		}
-		// One unit for each pending edit; the call paid for the key (ChargeKey).
+		// Applying the pending edits counts nothing; the call counts the key (ChargeKey).
 		if got := spent(p, func() {
 			if !lookup(p, k) {
 				t.Fatal("the entry examined only input before the edits")
 			}
-		}); got != 3 {
+		}); got != 0 {
 			t.Fatalf("first lookup charged %d", got)
 		}
 		if got := spent(p, func() { lookup(p, k) }); got != 0 {
@@ -151,7 +153,7 @@ func TestMemoLookupChargesItsPendingEdits(t *testing.T) {
 				if lookup(p, k) {
 					t.Fatal("the last edit lies in the examined input")
 				}
-			}); got != 3 {
+			}); got != 0 {
 				t.Fatalf("lookup charged %d", got)
 			}
 		}
@@ -163,23 +165,23 @@ func TestMemoLookupChargesItsPendingEdits(t *testing.T) {
 		store(p, live, 10, 11)
 		edit(p, 11, 11, 0)
 		// The newer entry heads the chain: the scan for the held entry passes it, and a lookup of a live
-		// entry behind a held one passes the held one in the same way. Only the edits count.
+		// entry behind a held one passes the held one in the same way. Nothing counts.
 		if got := spent(p, func() {
 			if lookup(p, held) {
 				t.Fatal("the edit lies in the examined input")
 			}
-		}); got != 1 {
+		}); got != 0 {
 			t.Fatalf("lookup of the held entry charged %d", got)
 		}
 		behind := MemoKey{Rule: 3, Pos: 10}
 		store(p, behind, 10, 11)
 		edit(p, 11, 11, 0)
-		// The live entry is second now, and the held one third: only the two pending edits count.
+		// The live entry is second now, and the held one third: nothing counts.
 		if got := spent(p, func() {
 			if !lookup(p, live) {
 				t.Fatal("the entry examined only input before the edits")
 			}
-		}); got != 2 {
+		}); got != 0 {
 			t.Fatalf("lookup of the live entry charged %d", got)
 		}
 	})
@@ -205,8 +207,8 @@ func TestMemoLookupChargesItsPendingEdits(t *testing.T) {
 			}
 			var found bool
 			got := spent(p, func() { found = lookup(p, k) })
-			// One unit for each pending edit applied.
-			want, wantFound := uint64(lag), true
+			// Applying the pending edits counts nothing.
+			want, wantFound := uint64(0), true
 			if lag > limit {
 				want, wantFound = 0, false
 			}
@@ -312,20 +314,19 @@ func TestMemoStoreChargesNoSlotGrowth(t *testing.T) {
 }
 
 // TestMemoChargesMatchTheModel runs random stores, edits and lookups on the engine's lazy memo and on
-// the model of a lazy memo, and compares what each lookup and store charges with the bound of its
-// declared cost, which the model computes: nothing for a store, and the edits a lookup applies
-// (exec.QPending) for a lookup. The
-// declared cost is a bound, since a lookup stops at the entry it finds and an entry that fails an edit
-// stops there; the charge is equal to it where the model is exact:
+// the model of a lazy memo. Neither a store nor a lookup is an event of the compute units, so each
+// counts nothing; the test compares the work of each lookup, the pending edits it walks, with the bound
+// of its declared cost, which the model computes (exec.QPending). The declared cost is a bound, since a
+// lookup stops at the entry it finds and an entry that fails an edit stops there; the work is equal to
+// it where the model is exact:
 //
-//   - a lookup of a key that no entry holds, live or dropped, and a store of such a key, pass every entry
-//     of the position;
-//   - a lookup of the entry at the end of its chain applies every pending edit when the entry stays valid,
+//   - a lookup of a key that no entry holds, live or dropped, walks no edit, and the model counts none;
+//   - a lookup of the entry at the end of its chain walks every pending edit when the entry stays valid,
 //     and the one pending edit that drops it when it has one;
 //
 // except that the model keeps the edits an entry accounts for as of its last store or lookup, while a
 // memo applies an edit at once to the entries at the positions the edit replaces and the one after
-// them (memo.splice). For these the model counts the edits since, which the engine does not charge, so
+// them (memo.splice). For these the model counts the edits since, which the memo does not walk again, so
 // the declaration is a bound for them by design.
 func TestMemoChargesMatchTheModel(t *testing.T) {
 	t.Parallel()
@@ -406,27 +407,37 @@ func TestMemoChargesMatchTheModel(t *testing.T) {
 				if modelFound := model.Call(lookupOp, args)[1].(bool); found != modelFound {
 					t.Fatalf("seed %d: a lookup at %d found %v, the model %v", seed, pos, found, modelFound)
 				}
+				// A lookup counts nothing: the call counts its key, and applying the edits is Document work.
+				if got != 0 {
+					t.Fatalf("seed %d: a lookup at %d charged %d, want none", seed, pos, got)
+				}
+				// work is the number of pending edits the lookup walked: every one for an entry it keeps.
+				var work uint64
+				if found && at >= 0 {
+					work = uint64(p.Gen - vgen)
+				}
 				switch {
-				case got > want:
-					t.Fatalf("seed %d: a lookup at %d charged %d, more than the model counts, %d", seed, pos, got, want)
+				case work > want:
+					t.Fatalf("seed %d: a lookup at %d walked %d edits, more than the model counts, %d", seed, pos, work, want)
 				case at < 0:
-					if got != want {
-						t.Fatalf("seed %d: a lookup at %d of an absent key charged %d, the model counts %d", seed, pos, got, want)
+					if want != 0 {
+						t.Fatalf("seed %d: a lookup at %d of an absent key walked no edit, the model counts %d", seed, pos, want)
 					}
 					absent++
 				case at != len(es)-1:
 				case decided[es[at]]:
-					if got < want {
+					if work < want {
 						overstated++
 					}
 				case found:
-					if got != want {
-						t.Fatalf("seed %d: a lookup at %d of a valid entry charged %d, the model counts %d", seed, pos, got, want)
+					if work != want {
+						t.Fatalf("seed %d: a lookup at %d of a valid entry walked %d edits, the model counts %d", seed, pos, work, want)
 					}
 					valid++
 				case p.Gen-vgen == 1:
-					if got != want {
-						t.Fatalf("seed %d: a lookup at %d of a dropped entry charged %d, the model counts %d", seed, pos, got, want)
+					// The one pending edit drops the entry.
+					if want != 1 {
+						t.Fatalf("seed %d: a lookup at %d of a dropped entry walked its one edit, the model counts %d", seed, pos, want)
 					}
 					held++
 				}
@@ -755,15 +766,17 @@ func TestRunOperationsChargeNoEvent(t *testing.T) {
 			t.Fatalf("a short run charged %d or was recorded", got)
 		}
 	})
-	t.Run("a resumed run charges only the iteration it evaluates", func(t *testing.T) {
+	// An iteration is no event (spec/runtime/parsing.md#compute-units): the element evaluated here
+	// matches no input and builds nothing, so the resumed run counts nothing at all.
+	t.Run("a resumed run counts nothing for its reuse and its iterations", func(t *testing.T) {
 		p := docParser()
 		p.Runs[RunKey{Site: 1}] = &RunRecord{Elems: oldRun(1000, nil)}
 		evaluated := 0
 		rs := &RunSite{Id: 1, Min: 0, Max: -1, Build: true, M: func(p *Parser) (*value.Node, bool) { evaluated++; return nil, false },
 			Value: func(_ *Parser, v *value.Node, _ int) *value.Node { return v }}
 		var ok bool
-		if got := events(p, func() { _, ok = p.ResumeRepeat(rs) }); got != 1 || !ok || evaluated != 1 || p.Pos != 2000 {
-			t.Fatalf("charged %d (ok %v, %d evaluated, at %d); want the one iteration that failed", got, ok, evaluated, p.Pos)
+		if got := events(p, func() { _, ok = p.ResumeRepeat(rs) }); got != 0 || !ok || evaluated != 1 || p.Pos != 2000 {
+			t.Fatalf("charged %d (ok %v, %d evaluated, at %d); want none", got, ok, evaluated, p.Pos)
 		}
 	})
 }

@@ -28,9 +28,8 @@ type Source interface {
 	// for none): a context that ends returns a BuildCancelled with its error, and a panic of a
 	// method of ctx unwinds as ContextPanic.
 	Core(ctx context.Context) (any, error)
-	// Family builds the rules of the closure family f from core, by ID; plainDispatch leaves out
-	// the budget charge of the loop iterations.
-	Family(core any, f Family, plainDispatch bool) ([]*Rule, error)
+	// Family builds the rules of the closure family f from core, by ID.
+	Family(core any, f Family) ([]*Rule, error)
 	// Recognizer compiles the grammar again as a program that builds no tree, and Insertion with
 	// the rule flags of missing-token insertion (program.Program.InsertionCycles).
 	Recognizer() (Source, error)

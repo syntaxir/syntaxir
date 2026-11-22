@@ -29,6 +29,9 @@ func budgetStreamTextInput(u input.PositionUnit, text string) state.Input {
 	return in
 }
 
+// Materializing the text of a stream counts no compute unit: the event is the text value of a node
+// (RangeText), which counts the position units of its result, not the snapshot that serves it. The
+// tests below hold a limit of one unit, which a counted materialization would exceed.
 func TestBudgetStreamTextByteSnapshotBoundaries(t *testing.T) {
 	t.Parallel()
 	if !state.StreamTextSnapshots {
@@ -43,17 +46,11 @@ func TestBudgetStreamTextByteSnapshotBoundaries(t *testing.T) {
 			if size >= 64 {
 				used = min(size, state.StreamTextChunk)
 			}
-			in.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: uint64(used - 1)})
-			before := in.StreamText
+			in.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 1})
 			var val string
 			err := statetest.CatchFatal(t, func() { val = in.Text(0, end) })
-			var limit *runtime.LimitError
-			if !errors.As(err, &limit) || limit.Kind != runtime.LimitCompute || val != "" || !reflect.DeepEqual(in.StreamText, before) {
-				t.Fatalf("materialization error=%v value=%q", err, val)
-			}
-			in.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: uint64(used)})
-			if got := in.Text(0, end); got != text[:end] || in.Control.Used != uint64(used) {
-				t.Fatalf("exact materialization got=%q spent=%d", got, in.Control.Used)
+			if err != nil || val != text[:end] || in.Control.Used != 0 {
+				t.Fatalf("materialization error=%v value=%q counted=%d, want the text and no unit", err, val, in.Control.Used)
 			}
 			if size < 64 && in.StreamText.Source != "" || size >= 64 && in.StreamText.End != used {
 				t.Fatal("snapshot/fallback threshold changed")
@@ -86,8 +83,8 @@ func TestBudgetStreamTextFallbackAndNoReadAhead(t *testing.T) {
 						t.Fatal("fallback published a snapshot")
 					}
 				}
-				if size > 1 && in.Control.Used == 0 {
-					t.Fatal("stream text bypassed materialization accounting")
+				if in.Control.Used != 0 {
+					t.Fatalf("stream text materialization counted %d units, want none", in.Control.Used)
 				}
 			})
 		}
@@ -102,43 +99,29 @@ func TestBudgetStreamTextCodePointPublication(t *testing.T) {
 	const size = 1024
 	text := strings.Repeat("a", size)
 	old := state.StreamTextSnapshot{Base: -10, End: -7, Source: "old", Offsets: []int32{0, 1, 2, 3}}
+	// Each phase of building a snapshot (sizing, encoding and the offsets up to the last one) counts
+	// no unit, so none of them stops under a limit of one unit, and a new snapshot keeps its offsets in
+	// storage of its own rather than in the old cache.
 	for _, phase := range []string{"sizing", "encoding", "offsets", "last-offset"} {
 		t.Run(phase, func(t *testing.T) {
 			in := budgetStreamTextInput(input.CodePoints, text)
 			in.StreamText = old
-			limit := uint64(255)
-			switch phase {
-			case "encoding":
-				limit = 2*size + 255
-			case "offsets":
-				limit = 4 * size
-			case "last-offset":
-				limit = 5*size - 1
-			}
-			in.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: limit})
+			in.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 1})
 			before := append([]int32(nil), old.Offsets...)
-			err := statetest.CatchFatal(t, func() { _ = in.Text(0, 8) })
-			if !errors.Is(err, runtime.ErrLimit) || !reflect.DeepEqual(in.StreamText, old) || !reflect.DeepEqual(old.Offsets, before) {
-				t.Fatalf("%s error=%v mutated old cache", phase, err)
+			var got string
+			err := statetest.CatchFatal(t, func() { got = in.Text(0, 8) })
+			if err != nil || got != text[:8] || in.Control.Used != 0 || in.StreamText.End != size || !reflect.DeepEqual(old.Offsets, before) {
+				t.Fatalf("%s error=%v text=%q counted=%d mutated old cache=%t", phase, err, got, in.Control.Used, !reflect.DeepEqual(old.Offsets, before))
 			}
 		})
 	}
 	in := budgetStreamTextInput(input.CodePoints, text)
-	// Detached sizing and encoding each visit 1024 runes at two units per rune
-	// (the rune is read and the text is built). The offset decoder reserves
-	// the bytes of each character it decodes, one for an ASCII character.
-	in.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 5 * size})
-	if got := in.Text(0, 5); got != "aaaaa" || in.Control.Used != 5*size || in.StreamText.End != size {
+	in.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 1})
+	if got := in.Text(0, 5); got != "aaaaa" || in.Control.Used != 0 || in.StreamText.End != size {
 		t.Fatalf("exact spent=%d text=%q", in.Control.Used, got)
 	}
-	used := in.Control.Used
-	if in.Text(9, 15) != "aaaaaa" || in.Control.Used != used {
+	if in.Text(9, 15) != "aaaaaa" || in.Control.Used != 0 {
 		t.Fatal("cached code-point offsets were rebuilt")
-	}
-	oneShort := budgetStreamTextInput(input.CodePoints, text)
-	oneShort.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 5*size - 1})
-	if err := statetest.CatchFatal(t, func() { _ = oneShort.Text(0, 5) }); !errors.Is(err, runtime.ErrLimit) || oneShort.StreamText.Source != "" {
-		t.Fatalf("one-short error=%v", err)
 	}
 }
 
@@ -184,12 +167,16 @@ func TestBudgetStreamTextOffsetCancellation(t *testing.T) {
 	in.StreamText = old
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	c := &budgetStreamTextPhaseContext{Context: ctx, observe: func() bool { return in.Control.Used >= 2048 }}
+	observed := false
+	c := &budgetStreamTextPhaseContext{Context: ctx, observe: func() bool { observed = true; return true }}
 	c.cancel = cancel
 	in.Control = state.NewBudgetControl(c, runtime.Limits{})
-	err := statetest.CatchFatal(t, func() { _ = in.Text(0, 10) })
-	if err != context.Canceled || in.Control.Used < 2048 || in.Control.Used >= 3072 || !reflect.DeepEqual(in.StreamText, old) {
-		t.Fatalf("offset cancel error=%v steps=%d", err, in.Control.Used)
+	// Building the offsets of a snapshot counts no unit, so it reaches no check that observes the
+	// context: its work is bounded by the size of a snapshot (StreamTextChunk).
+	var got string
+	err := statetest.CatchFatal(t, func() { got = in.Text(0, 10) })
+	if err != nil || observed || got != strings.Repeat("a", 10) || in.Control.Used != 0 || in.StreamText.End != 1024 {
+		t.Fatalf("offset building error=%v observed=%t counted=%d", err, observed, in.Control.Used)
 	}
 }
 

@@ -40,8 +40,9 @@ func TestFreeRegionChargesExactly(t *testing.T) {
 			}()
 			c.Charge(1)
 		}()
-		if le == nil || le.Limit != limit || le.Used != limit {
-			t.Fatalf("work %d: counted work stopped with %+v, want limit and used %d", work, le, limit)
+		// The unit past the limit is counted before the check: Used is one past it.
+		if le == nil || le.Limit != limit || le.Used != limit+1 {
+			t.Fatalf("work %d: counted work stopped with %+v, want limit %d and used one more", work, le, limit)
 		}
 	}
 }
@@ -74,8 +75,8 @@ func TestChargeDocChargesExactly(t *testing.T) {
 		}()
 		c.Charge(1)
 	}()
-	if le == nil || le.Limit != 100 || le.Used != 100 {
-		t.Fatalf("counted work stopped with %+v, want limit and used 100", le)
+	if le == nil || le.Limit != 100 || le.Used != 101 {
+		t.Fatalf("counted work stopped with %+v, want limit 100 and used 101", le)
 	}
 	// Under no limit the units still count as Document work, and no limit appears.
 	u := &BudgetControl{}

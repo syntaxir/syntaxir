@@ -2,6 +2,7 @@ package state
 
 import (
 	"testing"
+	"time"
 
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -212,7 +213,32 @@ func TestOperatorsLoop(t *testing.T) {
 		for _, form := range oprForms {
 			t.Run(c.name+"/"+form.name, func(t *testing.T) {
 				p := oprParser()
-				if ok := form.expr(p, oprRule(c.rule(c.text)), c.min); ok != c.ok || p.Pos != c.end {
+				// An iteration of the loop is no event of the compute units, so no limit stops a loop
+				// that does not end; the test waits for it a bounded time instead.
+				type outcome struct {
+					ok    bool
+					fault any
+				}
+				done := make(chan outcome, 1)
+				go func() {
+					defer func() {
+						if x := recover(); x != nil {
+							done <- outcome{fault: x}
+						}
+					}()
+					done <- outcome{ok: form.expr(p, oprRule(c.rule(c.text)), c.min)}
+				}()
+				var ok bool
+				select {
+				case o := <-done:
+					if o.fault != nil {
+						t.Fatalf("the loop panicked: %v", o.fault)
+					}
+					ok = o.ok
+				case <-time.After(30 * time.Second):
+					t.Fatal("the loop did not end")
+				}
+				if ok != c.ok || p.Pos != c.end {
 					t.Fatalf("ok=%t pos=%d, want ok=%t pos=%d", ok, p.Pos, c.ok, c.end)
 				}
 				if p.Depth != 0 {

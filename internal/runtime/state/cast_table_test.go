@@ -99,8 +99,9 @@ func TestEngineValueCastTable(t *testing.T) {
 			}
 			panic("no value " + v.Kind)
 		}
-		// The budget-controls reference build charges nothing, so its units are not checked.
-		err := conform.RunCasts("engine", controlled && BudgetControlsEnabled, func(typ *conform.CastType, v conform.CastValue) (bool, int) {
+		// A cast is no logical event, so the engine counts no unit for it. The table's steps, which a
+		// target whose cast charges them checks, are not checked here, and the cast must count nothing.
+		err := conform.RunCasts("engine", false, func(typ *conform.CastType, v conform.CastValue) (bool, int) {
 			val := build(v)
 			var before uint64
 			if controlled {
@@ -108,7 +109,9 @@ func TestEngineValueCastTable(t *testing.T) {
 			}
 			ok := p.FieldConforms(engineFieldType(typ), val)
 			if controlled {
-				return ok, int(p.Control.Used - before)
+				if units := p.Control.Used - before; units != 0 {
+					t.Errorf("%+v is of kind %q: counted %d units, want 0", v, typ.Kind, units)
+				}
 			}
 			return ok, 0
 		})

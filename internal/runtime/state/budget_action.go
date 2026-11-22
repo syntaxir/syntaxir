@@ -21,22 +21,9 @@ func (p *Parser) ActionError(parts ...string) error {
 	return ActionTextError(p.actionErrorText(parts...))
 }
 
-// actionErrorText reserves each fragment visit, including empty fragments, and
-// each bounded byte copy before writing. The local builder owns the final text.
-func (p *Parser) actionErrorText(parts ...string) string {
-	size := 0
-	for _, part := range parts {
-		p.Spend()
-		size = checkedDiagnosticSize(size, len(part))
-	}
-	var out strings.Builder
-	out.Grow(size)
-	for _, part := range parts {
-		p.Spend()
-		p.writeDiagnosticText(&out, part)
-	}
-	return out.String()
-}
+// actionErrorText joins the fragments of an engine-owned error text. Making the text of an error
+// counts nothing (spec/runtime/parsing.md#compute-units).
+func (p *Parser) actionErrorText(parts ...string) string { return strings.Join(parts, "") }
 
 func (p *Parser) ActionIndexError(index, length int) error {
 	return p.ActionError("$", strconv.Itoa(index), " is out of range (", strconv.Itoa(length), " elements)")

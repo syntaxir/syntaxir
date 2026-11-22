@@ -10,8 +10,9 @@ import (
 
 // The tables of the dependency memo of left recursion: the dependencies that evaluations in a
 // context record, the context tables that keep their results by the values of those dependencies,
-// and the lookup of a result there. The engine and the generated parsers share them; context_memo.go
-// in each package describes the memo and holds the rest of it.
+// and the lookup of a result there. The engine and the generated parsers share them;
+// context_memo.go in each package describes the memo and holds the rest of it. Each step of their
+// work calls spendMemo, which each package provides.
 
 // failSeed is the identity of the failure that every growth starts from.
 const failSeed uint64 = 1
@@ -151,7 +152,7 @@ func (p *Parser) addDep(d dep) {
 			return
 		}
 	}
-	p.Spend()
+	p.spendMemo()
 	p.deps = append(p.deps, d)
 }
 
@@ -375,7 +376,7 @@ const (
 func (p *Parser) presentWide(gp int) presentSet {
 	var w []uint64
 	for i := gp; i < len(p.gamma); i++ {
-		p.Spend()
+		p.spendMemo()
 		k := int(p.gamma[i].idx)
 		for len(w) <= k/64 {
 			w = append(w, 0)
@@ -400,7 +401,7 @@ func (p *Parser) presentWide(gp int) presentSet {
 // (the end of growth). The numbers stay below 2^31, as more keys would not fit in memory, so a tag
 // above them leaves them intact in a present set of either width. Like the chunks of the allocators,
 // an entry is charged to the memory used when it is made (useMem) and is not given back when it is
-// forgotten: the charge is bounded by the compute unit each entry spends.
+// forgotten: the charge is bounded by the compute units of the calls whose growths make the keys.
 func (p *Parser) intern(key []byte, tag uint64) uint64 {
 	if v, ok := p.interned[string(key)]; ok {
 		return v
@@ -408,7 +409,7 @@ func (p *Parser) intern(key []byte, tag uint64) uint64 {
 	if p.interned == nil {
 		p.interned = map[string]uint64{}
 	}
-	p.Spend()
+	p.spendMemo()
 	p.internSeq++
 	v := tag | p.internSeq
 	p.interned[string(key)] = v
@@ -425,7 +426,7 @@ func (p *Parser) stored(ds []dep) ([]sdep, bool) {
 	out := make([]sdep, 0, len(ds))
 	ctx := false
 	for _, d := range ds {
-		p.Spend()
+		p.spendMemo()
 		switch d.kind {
 		case depSeed, depShadow:
 			k := p.gamma[d.idx].gkey()
@@ -582,14 +583,14 @@ func (p *Parser) ctxFindSet(pos, gp int, h ctxHeadKey, env []any) (*ctxSlot, *ct
 	if t == nil {
 		return nil, nil
 	}
-	p.Spend()
+	p.spendMemo()
 	sets := t.heads[h]
 	if sets == nil {
 		return nil, nil
 	}
 next:
 	for _, s := range *sets {
-		p.Spend()
+		p.spendMemo()
 		var k valsKey
 		var rest []byte
 		for _, g := range s.seeds {
@@ -611,7 +612,7 @@ next:
 			rest = k.add(v, rest)
 		}
 		for x := s.first(k, rest); x != nil; x = x.next {
-			p.Spend()
+			p.spendMemo()
 			if env == nil && x.env == nil || p.memoKeyEqual(x.env, env) {
 				return x, s
 			}
@@ -660,7 +661,7 @@ func (p *Parser) ctxStore(pos, gp int, h ctxHeadKey, ds []sdep, slot *ctxSlot) {
 		}
 	}
 	t := p.table(pos, gp, true)
-	p.Spend()
+	p.spendMemo()
 	sets := t.heads[h]
 	if sets == nil {
 		sets = new([]*ctxSet)
@@ -669,7 +670,7 @@ func (p *Parser) ctxStore(pos, gp int, h ctxHeadKey, ds []sdep, slot *ctxSlot) {
 	}
 	var set *ctxSet
 	for _, s := range *sets {
-		p.Spend()
+		p.spendMemo()
 		if equalGrowKeys(s.seeds, seeds) && equalSites(s.obs, obs) {
 			set = s
 			break
@@ -684,7 +685,7 @@ func (p *Parser) ctxStore(pos, gp int, h ctxHeadKey, ds []sdep, slot *ctxSlot) {
 	t.bytes += ctxSlotBytes + uint64(len(ds))*sdepBytes + uint64(len(slot.env))*anyBytes + uint64(len(slot.exp))*expIDBytes
 	link := set.first(k, rest)
 	for x := link; x != nil; x = x.next {
-		p.Spend()
+		p.spendMemo()
 		if x.env == nil && slot.env == nil || p.memoKeyEqual(x.env, slot.env) {
 			// Replace the result in place: the other kind of context (inside or outside a lookahead)
 			// evaluated it again.
@@ -770,7 +771,7 @@ func (p *Parser) canonicalSeed(pos, gp int, g growKey, e *ctxRes) (*ctxRes, uint
 		t.canon = map[canonKey]canonRec{}
 	}
 	ck := canonKey{g: g, end: e.resultEnd()}
-	p.Spend()
+	p.spendMemo()
 	if c, ok := t.canon[ck]; ok {
 		if p.ctxMut(ctxMutNoCanonical) {
 			return c.e, c.id
@@ -802,7 +803,7 @@ func (p *Parser) nodesEqual(a, b *sxirvalue.Node, budget *int) bool {
 	if *budget--; *budget < 0 {
 		return false
 	}
-	p.Spend()
+	p.spendMemo()
 	da, db := D(a), D(b)
 	if da.Kind != db.Kind || da.Start != db.Start || da.End != db.End || da.Text != db.Text ||
 		da.Terminal != db.Terminal || da.Labeled != db.Labeled || da.Box != nil || db.Box != nil ||

@@ -18,9 +18,6 @@ type Builder struct {
 	// checker resolves the types of the action expressions (actionlower.Env).
 	checker *check.Checker
 	m       *ir.Module
-	// plainDispatch leaves out the budget charge of the loop iterations; without it the builder
-	// builds the metered closure graph.
-	plainDispatch bool
 	// family is the rule set being built, which decides how the call sites call plain rules.
 	family state.Family
 	// static holds the static rules of the program, by ID: the rules and then their twins.
@@ -51,10 +48,6 @@ func (b *Builder) rule(id int) *state.Rule {
 	}
 	return b.rules[id]
 }
-
-// charges reports whether the loops charge the budget for each iteration. A rule call charges in
-// state.Parser.Call and InvokePlain, whichever graph runs it.
-func (b *Builder) charges() bool { return state.BudgetControlsEnabled && !b.plainDispatch }
 
 // ruleBody completes the rule sr, whose Core IR is cr, with its body m.
 func (b *Builder) ruleBody(sr *program.Rule, cr *ir.Rule, m state.Matcher) error {
@@ -231,6 +224,13 @@ func (b *Builder) choice(alts []*ir.Alt, ms []state.Matcher, build bool) state.M
 			ms[i] = singleMatcher(alt.Body.Attrs().Shape, ms[i])
 		}
 		guards[i] = b.guard(alt.Guard)
+		if alt.Guard != nil {
+			ids, ok := ir.GuardCalls(b.m, alt.Body)
+			guards[i].exact = ok
+			for _, id := range ids {
+				guards[i].calls = append(guards[i].calls, b.rule(id))
+			}
+		}
 		guarded = guarded || guards[i].admits != nil
 	}
 	if guarded {
@@ -239,7 +239,7 @@ func (b *Builder) choice(alts []*ir.Alt, ms []state.Matcher, build bool) state.M
 			var read state.ChoiceRead
 			for i, m := range ms {
 				if g := &guards[i]; g.admits != nil && p.Missing == nil {
-					if !g.admits(p, &read) && p.Depth+g.depth <= p.MaxDepth {
+					if !g.admits(p, &read) && p.Depth+g.depth <= p.MaxDepth && p.SkipGuarded(g.calls, g.exact) {
 						p.Expect(p.Pos, g.desc) // what the alternative would record
 						continue
 					}
@@ -288,6 +288,11 @@ type firstGuard struct {
 	admits func(*state.Parser, *state.ChoiceRead) bool
 	desc   state.ExpID
 	depth  int
+	// calls are the calls that the evaluation of the alternative makes before it fails at its first
+	// terminal, outermost first, and exact whether they are known (ir.GuardCalls): a skip under
+	// limit controls makes their effects (state.Parser.SkipGuarded).
+	calls []*state.Rule
+	exact bool
 }
 
 // guard returns the test of the next character that the alternative guarded by f needs. The guard
@@ -299,13 +304,13 @@ func (b *Builder) guard(f *ir.First) firstGuard {
 		return firstGuard{}
 	case f.Lit:
 		r0, fold := f.Rune, f.Fold
-		return firstGuard{func(p *state.Parser, read *state.ChoiceRead) bool { return read.Literal(p, r0, fold) }, b.desc(f.Exp), f.Depth}
+		return firstGuard{admits: func(p *state.Parser, read *state.ChoiceRead) bool { return read.Literal(p, r0, fold) }, desc: b.desc(f.Exp), depth: f.Depth}
 	}
 	accept := b.accept(f.Class)
-	return firstGuard{func(p *state.Parser, read *state.ChoiceRead) bool {
+	return firstGuard{admits: func(p *state.Parser, read *state.ChoiceRead) bool {
 		ch, ok := read.Char(p)
 		return ok && accept(p, ch)
-	}, b.desc(f.Exp), f.Depth}
+	}, desc: b.desc(f.Exp), depth: f.Depth}
 }
 
 func (b *Builder) optional(body ir.Node, m state.Matcher, build bool) state.Matcher {
@@ -447,7 +452,7 @@ func single(build bool, desc state.ExpID, accept func(*state.Parser, rune) bool)
 			return nil, false
 		}
 		start := p.Pos
-		p.Pos += size
+		p.Advance(size)
 		if !build {
 			return nil, true
 		}
@@ -464,22 +469,18 @@ func (b *Builder) scanRepeat(n *ir.Scan) state.Matcher {
 		accept, desc = b.accept(n.Class), b.desc(n.Class.Exp)
 	}
 	min, max, scan := n.Min, n.Max, n.Site
-	charge := b.charges()
 	if scan != 0 && max < 0 {
-		return b.scanSite(accept, desc, min, charge, scan)
+		return b.scanSite(accept, desc, min, scan)
 	}
 	return func(p *state.Parser) (*value.Node, bool) {
 		count := 0
 		for max < 0 || count < max {
-			if charge {
-				p.Spend()
-			}
 			ch, size, ok := p.Peek()
 			if !ok || !accept(p, ch) {
 				p.Expect(p.Pos, desc)
 				break
 			}
-			p.Pos += size
+			p.Advance(size)
 			count++
 		}
 		return nil, count >= min
@@ -489,20 +490,17 @@ func (b *Builder) scanRepeat(n *ir.Scan) state.Matcher {
 // scanSite is ScanRepeat for the scan site scan (state/scan_sites.go): a walk that reaches its
 // ScanHotSpan-th character looks for the record of its start, if the site is hot, and otherwise
 // reports itself to the cold state of the site.
-func (b *Builder) scanSite(accept func(*state.Parser, rune) bool, desc state.ExpID, min int, charge bool, site int) state.Matcher {
+func (b *Builder) scanSite(accept func(*state.Parser, rune) bool, desc state.ExpID, min int, site int) state.Matcher {
 	return func(p *state.Parser) (*value.Node, bool) {
 		start, span := p.Pos, p.Tuning().ScanHotSpan()
 		count := 0
 		for count < span {
-			if charge {
-				p.Spend()
-			}
 			ch, size, ok := p.Peek()
 			if !ok || !accept(p, ch) {
 				p.Expect(p.Pos, desc)
 				return nil, count >= min
 			}
-			p.Pos += size
+			p.Advance(size)
 			count++
 		}
 		hot, hit := p.ScanHot(site), false
@@ -516,15 +514,12 @@ func (b *Builder) scanSite(accept func(*state.Parser, rune) bool, desc state.Exp
 			}
 		}
 		for {
-			if charge {
-				p.Spend()
-			}
 			ch, size, ok := p.Peek()
 			if !ok || !accept(p, ch) {
 				p.Expect(p.Pos, desc)
 				break
 			}
-			p.Pos += size
+			p.Advance(size)
 			count++
 		}
 		p.FinishScan(site, start, count, hot, hit, hw0)
@@ -534,7 +529,7 @@ func (b *Builder) scanSite(accept func(*state.Parser, rune) bool, desc state.Exp
 
 // scanSiteList is Repeat for the scan site scan whose walks build a list of the elements (see
 // scanSite). The element is a single character, matched by m, so it captures nothing and cuts nothing.
-func (b *Builder) scanSiteList(m state.Matcher, elemValue func(*state.Parser, *value.Node, int) *value.Node, rs *state.RunSite, min int, charge, build bool, site int) state.Matcher {
+func (b *Builder) scanSiteList(m state.Matcher, elemValue func(*state.Parser, *value.Node, int) *value.Node, rs *state.RunSite, min int, build bool, site int) state.Matcher {
 	return func(p *state.Parser) (*value.Node, bool) {
 		if rs != nil && p.Runs != nil && p.Silent == 0 {
 			return p.ResumeRepeat(rs)
@@ -558,9 +553,6 @@ func (b *Builder) scanSiteList(m state.Matcher, elemValue func(*state.Parser, *v
 						count = rec.Count()
 					}
 				}
-			}
-			if charge {
-				p.Spend()
 			}
 			m0 := p.Mark()
 			v, ok := m(p)
@@ -599,7 +591,6 @@ func (b *Builder) scanSiteList(m state.Matcher, elemValue func(*state.Parser, *v
 // SkipRepeat is Repeat for the skip-run site skip, value-free and without a scope, whose walks
 // record the rest of them from each position and reuse the records (state/skip_runs.go).
 func (b *Builder) skipRepeat(min int, m state.Matcher, skip int) state.Matcher {
-	charge := b.charges()
 	keyEnv := !b.prog.EnvFree(skip)
 	return func(p *state.Parser) (*value.Node, bool) {
 		p.SkipBegin(skip, keyEnv)
@@ -607,9 +598,6 @@ func (b *Builder) skipRepeat(min int, m state.Matcher, skip int) state.Matcher {
 		for {
 			if count >= min && p.SkipHit() {
 				break
-			}
-			if charge {
-				p.Spend()
 			}
 			p.SkipVisit()
 			m0 := p.Mark()
@@ -637,7 +625,6 @@ func (b *Builder) skipRepeat(min int, m state.Matcher, skip int) state.Matcher {
 // iterations have a scope of their own where they capture; build says whether they have values,
 // which the walk gathers in a list.
 func (b *Builder) runRepeat(min int, m state.Matcher, elemValue func(*state.Parser, *value.Node, int) *value.Node, elemScope *program.Scope, ownScope, build bool, run int) state.Matcher {
-	charge := b.charges()
 	keyEnv := !b.prog.EnvFree(run)
 	return func(p *state.Parser) (*value.Node, bool) {
 		start := p.Pos
@@ -650,9 +637,6 @@ func (b *Builder) runRepeat(min int, m state.Matcher, elemValue func(*state.Pars
 		for {
 			if count >= min && p.SkipHit() {
 				break
-			}
-			if charge {
-				p.Spend()
 			}
 			p.SkipVisit()
 			m0 := p.Mark()
@@ -712,10 +696,9 @@ func (b *Builder) repeat(n *ir.Repeat, m state.Matcher, elemScope *program.Scope
 	if site != 0 {
 		rs = &state.RunSite{Id: site, M: m, Scope: elemScope, OwnScope: ownScope, Build: build, Min: min, Max: max, Shiftable: shiftable, Value: elemValue}
 	}
-	charge := b.charges()
 	inID, inRec := in.ID, in.Rec
 	if scan != 0 && !stream && !ownScope && max < 0 && run == 0 {
-		return b.scanSiteList(m, elemValue, rs, min, charge, build, scan)
+		return b.scanSiteList(m, elemValue, rs, min, build, scan)
 	}
 	return func(p *state.Parser) (*value.Node, bool) {
 		if rs != nil && p.Runs != nil && p.Silent == 0 {
@@ -731,9 +714,6 @@ func (b *Builder) repeat(n *ir.Repeat, m state.Matcher, elemScope *program.Scope
 		}
 		count := 0
 		for n := 0; max < 0 || n < max; n++ {
-			if charge {
-				p.Spend()
-			}
 			m0 := p.Mark()
 			prevCut, prevFrame := p.Cut, p.Frame
 			p.Cut = false
@@ -793,17 +773,13 @@ func (b *Builder) repeat(n *ir.Repeat, m state.Matcher, elemScope *program.Scope
 // ProjectRepeat gathers the values of a capture of the elements, which share one capture frame:
 // nothing refers to an element's frame once its value is taken.
 func (b *Builder) projectRepeat(min, max int, m state.Matcher, slot, n int) state.Matcher {
-	charge := b.charges()
 	return func(p *state.Parser) (*value.Node, bool) {
 		start := p.Pos
 		base := len(p.KidStack)
 		f := p.NewFrame(n)
 		count := 0
 		for i := 0; max < 0 || i < max; i++ {
-			if charge {
-				p.Spend()
-			}
-			state.ClearSpend(p, f.Vals)
+			clear(f.Vals)
 			m0 := p.Mark()
 			prevCut, prevFrame := p.Cut, p.Frame
 			p.Cut, p.Frame = false, f
@@ -882,7 +858,7 @@ func recoverAttr(m, skip state.Matcher, build bool) state.Matcher {
 			p.MergeExpected(far, expected)
 			return nil, false
 		}
-		e := p.MakeError(far, expected)
+		e := p.RecoveryError(far, expected)
 		p.PushRecovered(e)
 		if !build {
 			return nil, true

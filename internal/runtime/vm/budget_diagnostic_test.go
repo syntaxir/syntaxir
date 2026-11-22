@@ -133,7 +133,7 @@ func TestBudgetDiagnosticRecoveredLists(t *testing.T) {
 					op := &state.OperatorsRuleOp{Kind: ast.Prefix, Line: &state.OperatorsRuleLine{Scope: &program.Scope{}}}
 					var best state.OperatorsRuleAttempt
 					if name == "OperatorsRule snapshot" {
-						steps++ // the operator that the match tries
+						// The operator that the match tries counts nothing (spec/runtime/parsing.md#compute-units).
 						op.Line.M = func(p *state.Parser) (*value.Node, bool) {
 							p.Pos = 1
 							pushRecords()

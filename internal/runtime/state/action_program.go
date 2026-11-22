@@ -86,14 +86,14 @@ const (
 	TPush     // fallible: push(names[b], a[a])
 	TPushAll  // fallible: pushItems(names[b], a[a])
 	TAbove    // s[dst] = the elements gathered above n[a], taken off
-	THull     // a[dst] = hull(b != 0, s[a])
+	THull     // a[dst] = hull(b != 0, s[a]), counting a unit for each element
 	TItems    // fallible: s[dst] = items(names[b], a[a])
 	TItemAt   // a[dst] = itemAt(s[a], n[b], c != 0)
 	TSeqLen   // n[dst] = len(s[a])
-	TStep     // charge the step of an element
+	TStep     // count the unit of an element that map, filter or a fold visits (seq.step)
 	TKeep     // keep element n[b] of s[a]
 	TFilter   // fallible: n[dst] = filterKeep(a[a])
-	TCopy     // a[dst] = a new list of the elements s[a]
+	TCopy     // a[dst] = a new list of the elements s[a], counting two units for each element
 	TStruct   // a[dst] = a new struct structs[a]
 	TSetField // set field names[c] of the struct a[a] to a[b]
 	TCover    // n[dst] = cover(a[a], a[b], n[c])
@@ -104,7 +104,12 @@ const (
 	TRet    // return a[a]
 	TRetErr // return the failure a[a]
 	// Fused.
-	TField // step; set field names[c] of the struct a[a] to a[b]; n[dst] = cover(a[a], a[b], n[dst])
+	TField // set field names[c] of the struct a[a] to a[b]; n[dst] = cover(a[a], a[b], n[dst])
+	// Logical compute units of the values that the plain evaluation of the action expression builds and its
+	// lowering does not (spec/runtime/parsing.md#compute-units).
+	TUnits      // count a units (units.add)
+	TUnitsOf    // count b units for each element of the list or tuple a[a] (units.items)
+	TUnitsSince // count a unit for each element gathered above n[a] (units.since)
 )
 
 type ActionInstr struct {

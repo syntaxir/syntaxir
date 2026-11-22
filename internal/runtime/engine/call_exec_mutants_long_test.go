@@ -59,10 +59,14 @@ func TestCallProtocolMutantsFail(t *testing.T) {
 
 // TestExpectationRecordMutantsFail is the negative control of the tests of the engine's expectation
 // record, which is printed from Exec IR into the same file as the call protocol. The conformance cases
-// bind the record's operations, not the compositions printed from them, so these mutants are what binds
-// the printed code. Two edits are left out because they change nothing: without expectations a record
-// holds at most the placeholder and its filter stays empty, so a merge past the farthest position that
-// keeps the record or the filter leaves the state that resetting them gives.
+// bind the record's operations, not the compositions printed from them, so these mutants are what
+// binds the printed code. Two edits are left out because they change nothing: without expectations a
+// record holds at most the placeholder and its filter stays empty, so a merge past the farthest
+// position that keeps the record or the filter leaves the state that resetting them gives. The filter
+// only spares the scan of the record: an expectation that scans it whatever the filter says, or a
+// filter kept past the farthest failure, records what the filter would, and since neither the scan, a
+// merge nor the comparison with the set kept last is an event of the compute units
+// (spec/runtime/parsing.md#compute-units), those edits change no result and no count either.
 func TestExpectationRecordMutantsFail(t *testing.T) {
 	const (
 		dropped   = "if p.Silent > 0 || pos < p.Farthest {\n\t\treturn"
@@ -90,8 +94,6 @@ func TestExpectationRecordMutantsFail(t *testing.T) {
 			[]printedEdit{{"\t\tp.Farthest = pos\n\t\tp.Exp = p.Exp[:p.ExpBase]\n", "\t\tp.Exp = p.Exp[:p.ExpBase]\n"}}, merge, here},
 		{"an expectation past the farthest failure keeps the entries",
 			[]printedEdit{{reset, "\n\t\tp.ExpBits = 0\n"}}, merge, here},
-		{"an expectation past the farthest failure keeps the filter",
-			[]printedEdit{{reset, "\n\t\tp.Exp = p.Exp[:p.ExpBase]\n"}}, filter, here},
 		{"a record without expectations has no placeholder",
 			[]printedEdit{{off, "\tif !p.Expectations {\n\t\treturn\n\t}\n"}}, unrec, here},
 		{"a record without expectations grows a placeholder for each",
@@ -101,18 +103,10 @@ func TestExpectationRecordMutantsFail(t *testing.T) {
 		{"a repeated expectation joins the record",
 			[]printedEdit{{"\t\t\tif p.Exp[p.ExpBase+i] == id {\n\t\t\t\treturn\n\t\t\t}\n", "\t\t\t_ = i\n"}}, scan, here},
 		{"the scan reads the enclosing record",
-			[]printedEdit{{"for i = 0; i < (len(p.Exp) - p.ExpBase); i++ {\n\t\t\tp.Spend()\n\t\t\tif p.Exp[p.ExpBase+i] == id {",
-				"for i = 0; i < len(p.Exp); i++ {\n\t\t\tp.Spend()\n\t\t\tif p.Exp[i] == id {"}}, filter, here},
-		{"the scan charges nothing",
-			[]printedEdit{{"i++ {\n\t\t\tp.Spend()\n\t\t\tif p.Exp[p.ExpBase+i]", "i++ {\n\t\t\tif p.Exp[p.ExpBase+i]"}}, scan, here},
-		{"every expectation scans the record",
-			[]printedEdit{{"\tif p.ExpBits&expBit(id) != 0 {\n", "\tif true {\n"}}, merge, here},
+			[]printedEdit{{"for i = 0; i < (len(p.Exp) - p.ExpBase); i++ {\n\t\t\tif p.Exp[p.ExpBase+i] == id {",
+				"for i = 0; i < len(p.Exp); i++ {\n\t\t\tif p.Exp[i] == id {"}}, filter, here},
 		{"an added expectation stays out of the filter",
 			[]printedEdit{{"\tp.ExpBits |= expBit(id)\n", ""}}, filter, here},
-		{"a merge charges nothing for the expectations it records",
-			[]printedEdit{{"\t\t\tp.Spend()\n\t\t\tp.Expect(far, s[i])\n", "\t\t\tp.Expect(far, s[i])\n"}}, merge, here},
-		{"a merge without expectations charges nothing",
-			[]printedEdit{{"\t\t\tp.Spend()\n\t\t\t" + mergeOff, "\t\t\t" + mergeOff}}, noExp, here},
 		{"a merge without expectations ignores a lookahead",
 			[]printedEdit{{mergeOff, "if !(far < p.Farthest) {"}}, noExp, here},
 		{"a merge without expectations ignores the farthest failure",
@@ -129,8 +123,6 @@ func TestExpectationRecordMutantsFail(t *testing.T) {
 			[]printedEdit{{"\tif len(last) != n {\n", "\tif len(last) < n {\n"}}, chunks, here},
 		{"a set of the same length reuses the last",
 			[]printedEdit{{"\t\tif last[i] != s[i] {\n\t\t\tgoto copy\n\t\t}\n", "\t\t_ = last[i]\n"}}, kept, here},
-		{"comparing with the set kept last charges nothing",
-			[]printedEdit{{"i < n; i++ {\n\t\tp.Spend()\n\t\tif last[i]", "i < n; i++ {\n\t\tif last[i]"}}, kept, here},
 		{"an equal set is copied",
 			[]printedEdit{{"\treturn last\ncopy:\n", "\tgoto copy\ncopy:\n"}}, kept, here},
 		{"a chunk charges no memory",
@@ -289,16 +281,11 @@ func TestOperatorsLoopMutantsFail(t *testing.T) {
 			{{"Longest", "p.Pos > best.End", "p.Pos >= best.End"}},
 			{{"LongestStep", "p.Pos > st.Best.End", "p.Pos >= st.Best.End"}},
 		}},
-		{"^TestBudgetCoarseChargesPerIteration$", ".", [][]funcEdit{
-			{{"operatorsRuleNud", "\t\tp.Spend()\n", ""}},
-			{{"NudNext", "\tp.Spend()\n", ""}},
-			{{"LongestBegin", "\tp.SpendN(uint64(len(l)))\n", ""}},
-			// One unit for the whole match instead of one per line.
-			{{"Longest", "\tp.SpendN(uint64(len(l)))\n", "\tif len(l) > 0 {\n\t\tp.Spend()\n\t}\n"}},
-			{{"LongestBegin", "\tp.SpendN(uint64(len(l)))\n", "\tif len(l) > 0 {\n\t\tp.Spend()\n\t}\n"}},
-		}},
+		// The iterations of the loop and the lines of a level count nothing (spec/runtime/parsing.md#compute-units);
+		// what an operator line counts is the entries of the errors it recovered, which the best line takes.
 		{"^TestBudgetDiagnosticRecoveredLists$", "syntaxir.dev/sxir/internal/runtime/vm", [][]funcEdit{
-			{{"Longest", "\tp.SpendN(uint64(len(l)))\n", ""}},
+			{{"Longest", "\t\t\t\tp.SpendN(uint64(len(p.Recovered) - m0.Recovered))\n", ""}},
+			{{"LongestStep", "\t\t\tp.SpendN(uint64(len(p.Recovered) - st.M0.Recovered))\n", ""}},
 		}},
 		{"^TestBudgetResetRestoresRepeatedCaptureWritesInReverse$", "syntaxir.dev/sxir/internal/runtime/state", [][]funcEdit{
 			{{"Reset", "\tp.Trail = p.Trail[:m.Trail]\n", ""}},
@@ -403,7 +390,7 @@ func TestOperatorsLoopMutantsFail(t *testing.T) {
 // so these mutants are what binds them. Each must fail the test named for it; the two backends'
 // calls of the commit are held to their position too.
 //
-// Four edits change nothing that a parse can show, and are left out:
+// Seven edits change nothing that a parse can show, and are left out:
 //   - Moving the first checkpoint of EmitStream after the report, or dropping the checkpoint before
 //     each diagnostic in reportError: nothing changes state between the two, and the checkpoint
 //     after each diagnostic covers the next one, so each stands in for the other at the same state,
@@ -418,6 +405,11 @@ func TestOperatorsLoopMutantsFail(t *testing.T) {
 //     and reads only the capacity of the scratch, which the reset keeps, so the charges, the memory
 //     counts and what stays referenced end the same, and an interruption between them leaves state
 //     that nothing reads (the proof's Lemma 5).
+//   - Releasing before the discard, or settling the recovered errors before the pruning: the steps of
+//     a commit count no compute units and observe nothing, so no interruption falls between them, and
+//     each changes state that the other does not read.
+//   - Clearing the scratch of the errors with clear rather than clearSpend: clearing counts no compute
+//     unit, so the two do the same.
 func TestStreamCommitMutantsFail(t *testing.T) {
 	const (
 		check   = "\tif BudgetControlsEnabled {\n\t\tp.Control.Check()\n\t}\n"
@@ -433,14 +425,14 @@ func TestStreamCommitMutantsFail(t *testing.T) {
 		after    = "^TestBudgetStreamCommitAfterDelivery$"
 		order    = "^TestStreamDiagnosticCallbackReportsAllElementRecoveriesBeforeEmit$"
 		storage  = "^TestStreamStorageCommitReferences$"
-		stack    = "^TestBudgetStreamDiscardAndStackClear$"
+		stack    = "^TestBudgetStreamDiscardAndStackClearCountNothing$"
 		slide    = "^TestStreamCommitWindow$"
 		records  = "^TestStreamCommitDropsRecordsBeforeItsPosition$"
 		lefts    = "^TestStreamOutsideLeftRecursion$"
 		start    = "^TestStreamStartRuleNeedsNoCount$"
 		scratch  = "^TestStreamDiagnosticTailCommitScratchOwnership$"
 		bounds   = "^TestStreamCommitBoundsTheErrorScratch$"
-		charges  = "^TestStreamCommitChargesItsDeclaredWork$"
+		charges  = "^TestStreamCommitCountsNoUnits$"
 		ends     = "^TestStreamDiagnosticCallbackEndsTheEmission$"
 	)
 	here, vm, inCore := []string{"."}, []string{"syntaxir.dev/sxir/internal/runtime/vm"}, []string{"syntaxir.dev/sxir/internal/runtime/state"}
@@ -481,9 +473,6 @@ func TestStreamCommitMutantsFail(t *testing.T) {
 			[]printedEdit{{"p.Discard(pos - 1)", "p.Discard(pos - 2)"}}, stack, vm},
 		{"what the elements held is not released",
 			[]printedEdit{{"\tp.streamRelease()\n", ""}}, storage, vm},
-		{"the release runs before the discard",
-			[]printedEdit{{"\tp.Discard(pos - 1)\n\tp.streamRelease()\n", "\tp.streamRelease()\n\tp.Discard(pos - 1)\n"}},
-			"^TestStreamCommitDiscardsBeforeItReleases$", inCore},
 		{"a whole window does not prune", []printedEdit{{window, "pos-p.Memo.Base > 1024"}}, slide, inCore},
 		{"less than a window prunes", []printedEdit{{window, "pos-p.Memo.Base >= 1023"}}, slide, inCore},
 		{"the window ignores the floor", []printedEdit{{window, "pos >= 1024"}}, slide, inCore},
@@ -497,8 +486,6 @@ func TestStreamCommitMutantsFail(t *testing.T) {
 			[]printedEdit{{"if p.DiagnosticTail.Limit > 0 {", "if true {"}}, "^TestStreamElementRecovery$", here},
 		{"the commit never settles errors",
 			[]printedEdit{{"if p.DiagnosticTail.Limit > 0 {", "if false {"}}, scratch, inCore},
-		{"the errors settle before the pruning",
-			[]printedEdit{{prune + settle, settle + prune}}, "^TestStreamCommitPrunesBeforeItSettles$", inCore},
 		{"a parse without a callback streams",
 			[]printedEdit{{"(p.Emit != nil) && p.StreamID == id", "p.StreamID == id"}}, "^TestRunSitesMatchParsesWithoutRecords$", inCore},
 		{"every rule streams", []printedEdit{{"(p.Emit != nil) && p.StreamID == id", "(p.Emit != nil)"}}, start, here},
@@ -512,27 +499,25 @@ func TestStreamCommitMutantsFail(t *testing.T) {
 			[]printedEdit{{"if err := p.ReportRecovered(); err != nil {\n\t\tpanic(Fatal{Err: err})\n\t}", "_ = p.ReportRecovered()"}},
 			"^TestStreamDiagnosticCallbackWithoutElementReceiverStopsBeforeLaterRead$", inCore},
 		{"the trail stays", []printedEdit{{"\tp.Trail = p.Trail[:0]\n", ""}}, storage, vm},
-		{"the frames stay", []printedEdit{{"\tif StreamFrameScratch {\n\t\tp.ResetStreamFrames()\n\t}\n", ""}}, charges, inCore},
+		{"the frames stay", []printedEdit{{"\tif StreamFrameScratch {\n\t\tp.ResetStreamFrames()\n\t}\n", ""}}, "^TestStreamCommitDiscardsAndReleasesUnderAnyLimit$", inCore},
 		{"the chunks stay", []printedEdit{{"\tp.splitChunks()\n", ""}}, "^TestParseStreamMemoryIsBounded$", here},
 		{"the inactive trail stays",
-			[]printedEdit{{"\tif StreamUndoCleanup {\n\t\tclearSpend(p, p.Trail[:cap(p.Trail)])\n\t}\n", ""}}, storage, vm},
+			[]printedEdit{{"\tif StreamUndoCleanup {\n\t\tclear(p.Trail[:cap(p.Trail)])\n\t}\n", ""}}, storage, vm},
 		{"the inactive stack stays",
 			[]printedEdit{{"\tif StreamStackCleanup && p.Backend != nil {\n\t\tp.Backend.ClearInactive()\n\t}\n", ""}}, storage, vm},
 		{"the skip records stay", []printedEdit{{"\tp.pruneSkipRecords(pos)\n", ""}}, records, inCore},
 		{"a traced parse reuses the scratch", []printedEdit{{reuse, "if cap(p.Recovered) <= streamRecoveryScratchMax {"}}, scratch, inCore},
 		{"a large scratch is kept", []printedEdit{{reuse, "if p.Tr == nil {"}}, bounds, inCore},
 		{"the scratch is never reused", []printedEdit{{reuse, "if false {"}}, scratch, inCore},
-		{"the scratch of the errors is cleared free of charge",
-			[]printedEdit{{"\t\tclearSpend(p, p.Recovered[:cap(p.Recovered)])\n", "\t\tclear(p.Recovered[:cap(p.Recovered)])\n"}}, charges, inCore},
 		{"a panic of the diagnostic callback is the parser's",
 			[]printedEdit{{"\t\tp.EmitCall = true\n", ""}}, "^TestStreamDiagnosticCallbackPanicIsTheCallers$", inCore},
 		{"the mark of the diagnostic callback stays",
 			[]printedEdit{{"\t\tp.EmitCall = false\n", ""}}, "^TestStreamDiagnosticCallbackMarkEndsWithIt$", inCore},
 		{"cancellation in the last diagnostic is not observed",
 			[]printedEdit{{"\t\tp.DiagnosticTail.Add(original)\n\t}\n\tif BudgetControlsEnabled {\n\t\tp.Control.Check()\n\t}\n", "\t\tp.DiagnosticTail.Add(original)\n\t}\n"}}, ends, inCore},
-		{"the frames are scanned for free",
+		{"the frames are dropped without clearing",
 			[]printedEdit{{"\tif StreamFrameScratch {\n\t\tp.ResetStreamFrames()\n\t}\n", "\tif StreamFrameScratch {\n\t\tp.FrameSlab = p.FrameSlab[:0]\n\t}\n"}}, charges, inCore},
-		{"the settled errors stay in the scratch", []printedEdit{{"\t\tclearSpend(p, p.Recovered[:cap(p.Recovered)])\n", ""}}, scratch, inCore},
+		{"the settled errors stay in the scratch", []printedEdit{{"\t\tclear(p.Recovered[:cap(p.Recovered)])\n", ""}}, scratch, inCore},
 		{"the settled errors stay recorded", []printedEdit{{"\t\tp.Recovered = p.Recovered[:0]\n", ""}}, scratch, inCore},
 		{"the settled errors of a large scratch stay", []printedEdit{{"\t\tp.Recovered = nil\n", ""}}, scratch, inCore},
 		{"the count of reported errors stays", []printedEdit{{"\tp.diagnosed, p.diagnosedSkip, p.diagnosedList = 0, 0, nil\n", ""}}, "^TestStreamCommitForgetsTheDiagnosedCount$", inCore},
@@ -647,9 +632,6 @@ func TestDocumentReuseMutantsFail(t *testing.T) {
 		{"plain: shifted not stored", form(plain, "\te.shifted = shifted\n", ""), "^TestAdvanceEntryMatchesItsContract$", []string{"syntaxir.dev/sxir/internal/runtime/state"}},
 		{"plain: vgen not stored", form(plain, "\te.Vgen = uint32(len(log))\n", ""), "^TestAdvanceEntryMatchesItsContract$", []string{"syntaxir.dev/sxir/internal/runtime/state"}},
 		{"plain: partial publish", form(plain, "\t\tif !(from >= log[i].End", "\t\te.Vgen = uint32(i)\n\t\tif !(from >= log[i].End"), "^TestAdvanceEntryMatchesItsContract$", []string{"syntaxir.dev/sxir/internal/runtime/state"}},
-		{"budget: no charge", form(budgeted, "\t\tp.Spend()\n", ""), "^TestAdvanceEntryMatchesItsContract$", []string{"syntaxir.dev/sxir/internal/runtime/state"}},
-		{"budget: double charge", form(budgeted, "\t\tp.Spend()\n", "\t\tp.Spend()\n\t\tp.Spend()\n"), "^TestAdvanceEntryMatchesItsContract$", []string{"syntaxir.dev/sxir/internal/runtime/state"}},
-		{"budget: charge after decision", form(budgeted, "\t\tp.Spend()\n\t\tif examined <= log[i].Start {\n\t\t\tcontinue\n\t\t}\n", "\t\tif examined <= log[i].Start {\n\t\t\tcontinue\n\t\t}\n\t\tp.Spend()\n"), "^TestAdvanceEntryMatchesItsContract$", []string{"syntaxir.dev/sxir/internal/runtime/state"}},
 	})
 	runPrintedMutants(t, "internal/runtime/state/document_ops.go", []printedMutant{
 		{"edit not logged", []printedEdit{{"edits = append(edits, ed)\n\tt.Splice", "t.Splice"}}, "^TestBudgetDocumentReuseCancellationAndFreshRetry$", []string{"syntaxir.dev/sxir/internal/runtime/document"}},

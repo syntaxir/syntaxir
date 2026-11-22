@@ -34,9 +34,9 @@ const engineClosureActionFile = "../../../closure/action_exec.go"
 const engineVMActionFile = "../../../../runtime/vm/action_exec.go"
 
 // engineOn are the features of the engine's specializations: it keeps the bookkeeping of the
-// examined input in every parse, has the missing-token mode and charges a budget. Its observation
-// (tracing) is a tracked path of its own.
-var engineOn = []string{exec.Document, exec.Missing, exec.Budget}
+// examined input in every parse, has the missing-token mode and counts logical compute units. Its
+// observation (tracing) is a tracked path of its own.
+var engineOn = []string{exec.Document, exec.Missing, exec.Units}
 
 // engineSpecs are the functions of the engine that the compositions replace.
 var engineSpecs = []goSpec{
@@ -45,18 +45,18 @@ var engineSpecs = []goSpec{
 	{fn: "engineCallDoc", on: engineOn, name: "callDoc"},
 	{fn: "callBegin", on: engineOn, name: "CallBegin"},
 	{fn: "callEnd", on: engineOn, name: "CallEnd"},
-	{fn: "grow", on: []string{exec.Missing}, name: "grow"},
+	{fn: "grow", on: []string{exec.Missing, exec.Units}, name: "grow"},
 	// The engine's backends record the examined input where they read it, so its expectations are
 	// specialized without the Document's touch of the unit at the expectation.
-	{fn: "expect", on: []string{exec.Budget}, name: "Expect"},
-	{fn: "mergeExpected", on: []string{exec.Budget}, name: "MergeExpected"},
-	{fn: "keep", on: []string{exec.Budget}, name: "Keep"},
+	{fn: "expect", on: []string{exec.Units}, name: "Expect"},
+	{fn: "mergeExpected", on: []string{exec.Units}, name: "MergeExpected"},
+	{fn: "keep", on: []string{exec.Units}, name: "Keep"},
 }
 
 // engineOperatorSpecs are the functions of the Operators Rule loop of the engine: the recursive forms
 // of the closure backend and the bytecode VM, and the split forms of the iterative VM.
 var engineOperatorSpecs = func() []goSpec {
-	on := []string{exec.Budget, exec.Missing}
+	on := []string{exec.Units, exec.Missing}
 	specs := []goSpec{
 		{fn: "operatorsParse", on: on, name: "OperatorsRuleParse"},
 		{fn: "operatorsExpr", on: on, name: "operatorsRuleExpr"},
@@ -87,7 +87,7 @@ var engineStreamSpecs = []goSpec{
 // engineDocumentSpecs are the functions of the edits of a Document in the engine: the form a parse
 // runs, which charges the edits it applies, and the form an edit runs, which has no parse to charge.
 var engineDocumentSpecs = []goSpec{
-	{fn: "memoAdvance", on: []string{exec.Document, exec.Budget}, name: "AdvanceEntry"},
+	{fn: "memoAdvance", on: []string{exec.Document, exec.Units}, name: "AdvanceEntry"},
 	{fn: "memoAdvance", on: []string{exec.Document}, name: "AdvanceEntry", plain: true},
 	{fn: "runStart", on: runOn, name: "RunStart"},
 	{fn: "runMore", on: runOn, name: "RunMore"},
@@ -417,6 +417,23 @@ func engineTarget() *print.Target {
 			return "p.ChargeKey(" + a[0] + ")"
 		case "budget.poll":
 			return "p.Poll()"
+		case "units.count":
+			// The engine checks each count as it makes it (BudgetControl.Charge), which a parse may: a
+			// check after it (units.check) then has nothing left to compare.
+			if k, ok := c.Args[0].(*code.Const); ok && k.Value == uint64(1) {
+				return "p.Spend()"
+			}
+			return "p.SpendN(" + a[0] + ")"
+		case "units.check":
+			return "p.CheckUnits()"
+		case "units.key":
+			return "p.ChargeKey(" + a[0] + ")"
+		case "rec.entries":
+			return "len(p.Recovered) - " + a[0]
+		case "rule.cyclic":
+			// Every count of the engine is checked (units.count), so every call is treated as one that
+			// checks.
+			return "true"
 		case "doc.active":
 			return "p.MemoAll"
 		case "budget.freeBegin":

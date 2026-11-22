@@ -6,7 +6,7 @@ package state
 func (p *Parser) rawValueEqual(l, r any) bool {
 	if s, ok := l.(string); ok {
 		t, ok := r.(string)
-		return ok && len(s) == len(t) && p.compareText(s, t) == 0
+		return ok && s == t
 	}
 	return l == r
 }
@@ -104,7 +104,6 @@ func (p *Parser) memoKeyEqual(l, r []any) bool {
 		return false
 	}
 	for i, v := range l {
-		p.Spend()
 		if !p.rawValueEqual(v, r[i]) {
 			return false
 		}
@@ -112,16 +111,11 @@ func (p *Parser) memoKeyEqual(l, r []any) bool {
 	return true
 }
 
-// bindControlled is Bind under budget controls. It charges one unit for the lookup of the old
-// value and one for each node that a rebind copies, which are the levels+1 nodes on the path to
-// the slot; comparing the values is charged by rawValueEqual.
+// bindControlled is Bind under budget controls, which counts the memory of the levels+1 nodes that a
+// rebind copies on the path to the slot. A binding is no event: it counts no compute unit.
 func (p *Parser) bindControlled(slot int, val any) {
-	p.Spend()
 	if p.rawValueEqual(p.Env.Get(slot, p.envLevels), val) {
 		return
-	}
-	for l := 0; l <= p.envLevels; l++ {
-		p.Spend()
 	}
 	// Saved environments are immutable; only publish a completed path.
 	p.Env = p.Env.Set(slot, p.envLevels, val)
@@ -175,18 +169,10 @@ func (p *Parser) MemoGet(k MemoKey) (*MemoEntry, bool) {
 	return x, x != nil
 }
 
-// hashMemoKey hashes the key of a record of a skip run for the index of its records. The
-// hash costs one step plus one per variable of the key, and the bytes of string values as a
-// value comparison would, so a lookup through the index costs the size of the key, not the
-// number of records.
+// hashMemoKey hashes the key of a record of a skip run for the index of its records. Hashing is
+// no event: the walk counts the key of the site (walkKeyUnits).
 func (p *Parser) hashMemoKey(rule, min int32, silent bool, env []any) uint64 {
-	h, bytes := memoKeyHash(rule, min, silent, env)
-	for range 1 + len(env) {
-		p.Spend()
-	}
-	if bytes > 0 {
-		p.spendValue(bytes)
-	}
+	h, _ := memoKeyHash(rule, min, silent, env)
 	return h
 }
 
@@ -291,9 +277,9 @@ func (p *Parser) MemoPut(k MemoKey, e *MemoEntry) *MemoEntry {
 	return e
 }
 
-// ChargeKey charges the lookup of the memo key of a call of r, a rule that a parse from scratch
-// memoizes (budget.chargeKey): one unit for each variable r reads and one for each byte of each string
-// value among them, whether or not the call looks the key up.
+// ChargeKey counts the key of a call of r, a rule that a parse from scratch memoizes, a sized event
+// (budget.chargeKey): one unit for each variable r reads and one for each byte of each string value
+// among them, whether or not the call looks the key up.
 func (p *Parser) ChargeKey(r *Rule) {
 	if len(r.VarSlots) == 0 || !BudgetControlsEnabled || p.Control == nil {
 		return

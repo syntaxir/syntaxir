@@ -190,7 +190,9 @@ func TestRunSitesReuseRecords(t *testing.T) {
 	if !state.BudgetControlsEnabled {
 		t.Skip("budget controls are unavailable in the reference build")
 	}
-	in := strings.Repeat("x", 400) + "z"
+	// Long enough that the quadratic parse without records exceeds the budget under compute units,
+	// which count the input and the calls of each restarted scan, and not its iterations.
+	in := strings.Repeat("x", 1000) + "z"
 	for _, g := range codegentest.RunSiteGrammars[:2] {
 		prog := enginetest.MustCompile(t, g.Src)
 		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
@@ -469,7 +471,10 @@ rule w = ("x" { k > 0 })*`, strings.Repeat("xy", 1000), 1, []mutant{{state.SkipS
 			t.Fatal(err)
 		}
 		for _, m := range append([]mutant{{}}, c.mutants...) {
-			mutated := m != mutant{}
+			// A walk that scans the keys of the records it passes does work that no event counts
+			// (spec/runtime/parsing.md#compute-units): compute units cannot see it, so the parse fits
+			// the budget, as the engine's does.
+			mutated := m != mutant{} && m.mutation != state.SkipScanKeys
 			o := func(b engine.Backend) engine.ParseOptions {
 				return engine.ParseOptions{Backend: b, Limits: sxirruntime.Limits{Compute: 150 * uint64(len(c.input))},
 					Tune: state.Tuning{RunHot: c.span, SkipMut: m.mutation, SkipOff: m.off}}

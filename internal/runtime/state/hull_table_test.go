@@ -34,8 +34,10 @@ func TestEngineValueHullTable(t *testing.T) {
 			conform.BuiltinNode:   p.NewNode(nodes.Data{Kind: valueimpl.SeqKind, Start: 2, End: 5, Children: []*value.Node{text, text}}),
 			conform.StructLate:    p.NewNode(nodes.Data{Kind: valueimpl.MatchKind, Terminal: true, Text: "q", Start: 7, End: 9}),
 		}
-		// The budget-controls reference build charges nothing, so its units are not checked.
-		err := conform.RunHulls("engine", controlled && BudgetControlsEnabled, func(kind string, elems []string) (string, int) {
+		// The engine's actionHull counts no unit: the code of an action counts the elements of a hull
+		// itself (HULL), which the action charge goldens check. So the table's steps, which a target whose
+		// hull charges them checks, are not checked here, and the composition must count nothing.
+		err := conform.RunHulls("engine", false, func(kind string, elems []string) (string, int) {
 			var kids []*value.Node
 			for _, e := range elems {
 				n, err := element(c, kind, vals[e])
@@ -57,7 +59,9 @@ func TestEngineValueHullTable(t *testing.T) {
 			}
 			p.actionHull(c, kind == "tuple", nodes.D(n).Children)
 			if controlled {
-				return rng, int(p.Control.Used - before)
+				if units := p.Control.Used - before; units != 0 {
+					t.Errorf("%s(%v): counted %d units, want 0", kind, elems, units)
+				}
 			}
 			return rng, 0
 		})

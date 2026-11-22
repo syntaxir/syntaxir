@@ -402,14 +402,15 @@ func chargeTotalsOf(t *testing.T, out string, inputs int) [2][]uint64 {
 	return totals
 }
 
-// TestIterationsChargeOneUnitEachGenerated is TestIterationsChargeOneUnitEach for generated Go
-// parsers (Parse and typed ParseValue) and TypeScript parsers, with the default optimizations and
-// with every optimization off.
-func TestIterationsChargeOneUnitEachGenerated(t *testing.T) {
+// TestIterationsCountNoUnitGenerated is TestIterationsCountNoUnit for generated Go parsers (Parse and
+// typed ParseValue) and TypeScript parsers, with the default optimizations and with every
+// optimization off: an iteration is no event, so each variant counts what its written-out grammar
+// counts.
+func TestIterationsCountNoUnitGenerated(t *testing.T) {
 	t.Parallel()
 	var vs []unitVariant
 	for _, v := range iterationVariants {
-		vs = append(vs, unitVariant{v.name, v.grammar, v.unrolled, v.input, v.iterations})
+		vs = append(vs, unitVariant{v.name, v.grammar, v.unrolled, v.input, 0})
 	}
 	checkVariantsGenerated(t, "its iterations", vs)
 }

@@ -81,13 +81,19 @@ func TestBudgetActionStringHelpersChargeLongBudget(t *testing.T) {
 		t.Fatalf("long string concatenation error = %v, want ErrLimit", err)
 	}
 
+	// The length of a string is a scalar operation, no event: it counts nothing.
 	p = statetest.ActionBudgetParser(nil, runtime.Limits{Compute: 128}, sxirinput.CodePoints)
-	if err := statetest.CatchFatal(t, func() { p.ValueTextLen(long) }); !errors.Is(err, runtime.ErrLimit) {
-		t.Fatalf("long rune length error = %v, want ErrLimit", err)
+	var n int
+	if err := statetest.CatchFatal(t, func() { n = p.ValueTextLen(long) }); err != nil || n != len(long) || p.Control.Used != 0 {
+		t.Fatalf("long rune length = %d, error = %v, counted %d, want %d, no error and no unit", n, err, p.Control.Used, len(long))
 	}
 }
 
-func TestBudgetActionCollectionLoopsChargeElements(t *testing.T) {
+// The helpers that make a list or keep the locals of an action are no events: the units of the
+// elements of a list that an action builds are counted by the units operations of the action, and
+// the locals are a constant of the grammar. With a context that a poll would find cancelled, each
+// completes without counting a unit.
+func TestBudgetActionCollectionHelpersCountNoUnits(t *testing.T) {
 	t.Parallel()
 	const size = 2048
 	items := actionBudgetNodes(size)
@@ -117,8 +123,8 @@ func TestBudgetActionCollectionLoopsChargeElements(t *testing.T) {
 			if returned != nil {
 				t.Fatalf("operation returned ordinary error: %v", returned)
 			}
-			if !errors.Is(fatalErr, context.Canceled) {
-				t.Fatalf("operation panic error = %v, want context.Canceled", fatalErr)
+			if fatalErr != nil || p.Control.Used != 0 {
+				t.Fatalf("operation panic error = %v, counted %d, want no poll and no unit", fatalErr, p.Control.Used)
 			}
 		})
 	}

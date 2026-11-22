@@ -18,6 +18,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/instrument"
 )
@@ -336,6 +337,11 @@ func observationMismatches(t *testing.T, cases []codegentest.Case, start string,
 	reports := detailReports(t, lines)
 	var out []string
 	events, checked := 0, 0
+	// The engine parses without limit controls, under which a guard skips an alternative whatever
+	// calls the skip leaves out, as the guards of the generated parsers do in either form: a parse
+	// under limit controls counts exact units, so it evaluates an alternative whose skip would leave
+	// out a memoized call (state.Parser.SkipGuarded), and its memo hits differ.
+	limits := sxirruntime.Limits{Compute: sxirruntime.Unlimited, Memory: sxirruntime.Unlimited}
 	for i, c := range cases {
 		prog := mustCompile(t, c.Src)
 		for j := 0; j < detail[i] && j < len(c.Inputs); j++ {
@@ -348,7 +354,7 @@ func observationMismatches(t *testing.T, cases []codegentest.Case, start string,
 				checked++
 				events += len(r.events)
 				var eng []engine.TraceEvent
-				o := engine.ParseOptions{Expectations: true, Backend: engine.Closure, Unit: input.CodePoints, Recognize: entry == "recognize"}
+				o := engine.ParseOptions{Expectations: true, Backend: engine.Closure, Unit: input.CodePoints, Recognize: entry == "recognize", Limits: limits}
 				o.Trace = func(e engine.TraceEvent) { eng = append(eng, e) }
 				prog.ParseWith(start, c.Inputs[j], o)
 				if _, msg := callsAgree(eng, r.events, c.Inputs[j], input.CodePoints); msg != "" {

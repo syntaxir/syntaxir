@@ -6,8 +6,8 @@
 // A Module declares the parser VM. Its abstract state is a set of Components (the memo table, the
 // budget, ...) and Registers (scalar state such as the position). An Op is an operation of the
 // parser VM: a transition of the abstract state with a signature, a behavior contract, the
-// precondition that its callers guarantee, the components it reads and writes, a bound on what it
-// charges the budget, and the features it belongs to. An Op states what happens, not how: each
+// precondition that its callers guarantee, the components it reads and writes, a bound on its work,
+// and the features it belongs to. An Op states what happens, not how: each
 // target implements it in its own language, and the conformance suite checks the implementation
 // against the contract. Handles are opaque values that operations return and take, such as a memo
 // entry.
@@ -168,7 +168,7 @@ type Op struct {
 	// Requires is the precondition that callers guarantee; behavior outside it is unspecified, and
 	// the conformance suite does not generate it.
 	Requires string
-	// Cost bounds the units an implementation charges the budget per call.
+	// Cost bounds the work of one call (Cost).
 	Cost Cost
 	// Laws are facts about the operation that passes may use.
 	Laws []string
@@ -200,7 +200,7 @@ const (
 	// OpHost is an operation with a contract and a cost bound but no reference model, because its
 	// effect lies outside the abstract machine's state or is not observable in the parse result:
 	// input buffers, memory the parse lets go of, callbacks and cancellation. It has no conformance
-	// cases; the bound is checked against the target's charges.
+	// cases; the bound is checked against the work that the target charges under the budget feature.
 	OpHost
 	// OpPrimitive is a leaf of grammar code that each target prints in place, in its own form: it
 	// has a contract and a cost bound, and the conformance and printed tests bind it per target.
@@ -211,11 +211,15 @@ var opKindNames = [...]string{"op", "host op", "primitive op"}
 
 func (k OpKind) String() string { return opKindNames[k] }
 
-// Cost bounds the units of budget that one call of an operation charges: at most Const plus, for
-// each term, Coef times the value of its Quantity. A quantity is an abstract measure of the state
-// before the call, such as the number of entries at a position, which the reference model of the
-// component computes. Charges themselves are the implementation's: they are deterministic for a
-// given target and within the bound (design 065, decision 9).
+// Cost bounds the work of one call of an operation, in steps: at most Const plus, for each term, Coef
+// times the value of its Quantity. A quantity is an abstract measure of the state before the call,
+// such as the number of entries at a position, which the reference model of the component computes.
+// A target with the budget feature charges its budget for that work: its charges are its own,
+// deterministic for a given target and within the bound (design 065, decision 9). Work is not a
+// compute unit (spec/runtime/parsing.md#compute-units): a parse that counts compute units counts the
+// events that the compositions count and those that an operation's contract says it counts, and
+// nothing for the rest of the work, which the bound keeps within a constant of the grammar for each
+// event.
 type Cost struct {
 	Const int
 	Terms []CostTerm
@@ -411,9 +415,9 @@ type Convert struct {
 // immediate operand of an operation that declares one (Op.Imm).
 //
 // A Call with Fn applies the value of Fn, an expression of a callable handle type (HandleType.Callable),
-// to Args, and has Callee and Imm empty. It is not an operation: it declares no contract and charges
-// nothing itself, so that what an application charges and what it may end the parse with are those of
-// the code of the value. It reads and writes what that code does, which is a function of the
+// to Args, and has Callee and Imm empty. It is not an operation: it declares no contract and does no
+// work itself, so that the work of an application, what it counts and what it may end the parse with
+// are those of the code of the value. It reads and writes what that code does, which is a function of the
 // module's parser state only through the operations the code calls.
 type Call struct {
 	Callee string

@@ -49,6 +49,36 @@ func (p *Parser) docOnlyMemo(r *Rule) bool {
 	return p.MemoAll && r.Memo && r.Transient && !r.Leader && !(p.Missing != nil && r.Missing)
 }
 
+// SkipGuarded reports whether a choice may skip an alternative whose guard rejects the next
+// character, and counts the units of the skip. calls are the calls that the evaluation of the
+// alternative makes before it fails at its first terminal, outermost first, and exact reports
+// whether they are known (core.GuardCalls). Under limit controls and in a Document parse (MemoAll),
+// a skip must leave the memo, and under limit controls the compute units, as the evaluation leaves
+// them (spec/runtime/parsing.md#evaluations-of-rules), so that neither depends on whether a skip
+// happened, nor a Document's memo and statistics on its limits. A skip whose calls are known and
+// none of whose rules the parse memoizes is allowed, and under limit controls counts one unit for
+// each call, which is all that those calls count before the terminal fails; any other skip is
+// refused, and the alternative is evaluated. Outside Documents, without limit controls, every skip
+// is allowed.
+func (p *Parser) SkipGuarded(calls []*Rule, exact bool) bool {
+	controlled := BudgetControlsEnabled && p.Control != nil
+	if !controlled && !p.MemoAll {
+		return true
+	}
+	if !exact {
+		return false
+	}
+	for _, r := range calls {
+		if r.Leader || p.memoized(r) {
+			return false
+		}
+	}
+	if controlled && len(calls) > 0 {
+		p.Control.Charge(uint64(len(calls)))
+	}
+	return true
+}
+
 // CallCharge charges a call of r as Call does: one unit, and the lookup of its memo key (ChargeKey)
 // for a rule that a parse from scratch memoizes, whether or not this call looks it up.
 func (p *Parser) CallCharge(r *Rule) {

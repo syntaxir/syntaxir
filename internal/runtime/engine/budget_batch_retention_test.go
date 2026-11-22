@@ -210,7 +210,8 @@ func TestBudgetBatchTraceInterruptionDetachesParser(t *testing.T) {
 								case "cancel":
 									cancel()
 								case "steps":
-									state.TraceParser(e).Control.Limits.Compute = state.TraceParser(e).Control.Used
+									// The call of main counts its unit after the event of its entry.
+									state.TraceParser(e).Control.Limits.Compute = state.TraceParser(e).Control.Used + 1
 								case "context-panic":
 									panicCtx.Armed = true
 								}

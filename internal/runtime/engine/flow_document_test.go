@@ -18,8 +18,7 @@ import (
 // TestFlowBodyDocumentRuns checks that a Document parse on the bytecode VM resumes the repetition runs
 // of the previous parse from the Flow bodies' run operations (RESUMESTART and the rest) as the closure
 // backend resumes them: after each edit of a sequence, the value, the error, the number of resumed
-// elements and the units that the parse charges are the closure backend's, but for the units of the
-// guard reads of a choice (knownGuardReadDivergence).
+// elements and the units that the parse counts are the closure backend's.
 func TestFlowBodyDocumentRuns(t *testing.T) {
 	codegentest.NeedsBudgetControls(t)
 	var lines strings.Builder
@@ -82,7 +81,7 @@ rule ws = [ ]*`, strings.Repeat(strings.Repeat(" ", 40)+"a", 20), []string{" ", 
 						v, err := d.Parse()
 						got[i], stats[i] = dump(t, v, err), d.Stats()
 					}
-					units := used[1] == used[0] || knownGuardReadDivergence(m, used[0], used[1])
+					units := used[1] == used[0]
 					if got[1] != got[0] || stats[1].ResumedElements != stats[0].ResumedElements || !units {
 						t.Errorf("%s, round %d, edit [%d, %d) %q:\n closure %s resumed %d units %d\n Flow    %s resumed %d units %d",
 							b, round, start, end, ins, got[0], stats[0].ResumedElements, used[0], got[1], stats[1].ResumedElements, used[1])

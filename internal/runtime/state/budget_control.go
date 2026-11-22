@@ -10,18 +10,17 @@ import (
 	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
-// BudgetCheckInterval is the spend between two observations of cancellation.
+// BudgetCheckInterval is the number of compute units between two observations of cancellation.
 const BudgetCheckInterval = uint64(256)
 
-// BudgetControl is private state for a single parser invocation. Callers must
-// split long operations into bounded reservations so cancellation can be
-// observed between chunks.
+// BudgetControl is private state for a single parser invocation: the counter of its compute units,
+// which it checks against the limit and between which it observes the context and the memory limit.
 type BudgetControl struct {
 	Ctx    context.Context
 	Limits runtime.Limits
 
-	// Used is the spend reserved so far; SinceCheck is the part of it since the
-	// last observation of cancellation.
+	// Used is the count of compute units so far; SinceCheck is the part of it since the last
+	// observation of cancellation.
 	Used       uint64
 	SinceCheck uint64
 
@@ -130,8 +129,10 @@ func contextErr(ctx context.Context) error {
 	return ctx.Err()
 }
 
-// Check observes cancellation, then the memory limit, at an explicit engine checkpoint. It is safe
-// on a nil receiver.
+// Check observes cancellation, then the memory limit, whatever the units counted since they were
+// last observed, as the check at the end of a parse and the engine's explicit checkpoints do. An
+// observation that finds neither starts the interval of Charge's polls again. It is safe on a nil
+// receiver.
 func (c *BudgetControl) Check() {
 	if c == nil {
 		return
@@ -140,68 +141,29 @@ func (c *BudgetControl) Check() {
 		if err := contextErr(c.Ctx); err != nil {
 			panic(Fatal{Err: err})
 		}
-		c.SinceCheck = 0
 	}
 	if c.Limits.Memory != 0 {
 		c.checkMemory()
 	}
+	c.SinceCheck = 0
 }
 
-// Charge atomically reserves n compute units. Cancellation wins when it is
-// observed at a poll or when the reservation would fail. A failed reservation
-// leaves the counter unchanged. It is safe on a nil receiver.
+// Charge counts n compute units: the units of logical events that have happened, or of a sized
+// event whose size is known and whose work follows (spec/runtime/parsing.md#compute-units). It is a
+// check (spec/runtime/parsing.md#checks-and-interruptions): it then compares the counter with the
+// limit, and observes the context once BudgetCheckInterval units have been counted since it was
+// last observed. A counter above the limit stops the parse with a LimitError whose Used is the
+// counter, which may exceed the limit by the units of this charge; the units are never taken back.
+// It is safe on a nil receiver.
 func (c *BudgetControl) Charge(n uint64) {
 	if c == nil {
 		return
 	}
-
 	logCharge(c, n)
-	exceeded := limits.ExceedsLimit(c.Used, n, c.Limits.Compute)
-	poll := limits.ReachesInterval(c.SinceCheck, n, BudgetCheckInterval)
-	if poll || exceeded {
-		c.chargeSlow(n, poll, exceeded)
-		return
-	}
 	c.Used = limits.SaturatingAdd(c.Used, n)
 	c.SinceCheck = limits.SaturatingAdd(c.SinceCheck, n)
-}
-
-// ChargeUnits reserves n compute units one at a time, as n calls of Charge(1) do: the same units,
-// the same polls and the same failure, in a time that grows with the polls the units reach, not with
-// n. The units between two polls are reserved at once; a run that does not fit fails at the unit that
-// does not: Used is the limit and Requested one. It is safe on a nil receiver.
-func (c *BudgetControl) ChargeUnits(n uint64) {
-	if c == nil {
-		return
-	}
-	if !limits.ExceedsLimit(c.Used, n, c.Limits.Compute) && !limits.ReachesInterval(c.SinceCheck, n, BudgetCheckInterval) {
-		logCharge(c, n)
-		c.Used = limits.SaturatingAdd(c.Used, n)
-		c.SinceCheck = limits.SaturatingAdd(c.SinceCheck, n)
-		return
-	}
-	fit := n
-	if c.Limits.Compute != 0 {
-		fit = min(n, c.Limits.Compute-min(c.Used, c.Limits.Compute))
-	}
-	if fit > 0 {
-		logCharge(c, fit)
-	}
-	for left := fit; left > 0; {
-		// k units reach the next poll: k-1 before it, then the unit that polls.
-		k := BudgetCheckInterval - c.SinceCheck
-		if left < k {
-			c.Used = limits.SaturatingAdd(c.Used, left)
-			c.SinceCheck += left
-			break
-		}
-		c.Used = limits.SaturatingAdd(c.Used, k-1)
-		c.SinceCheck += k - 1
-		c.chargeSlow(1, true, false)
-		left -= k
-	}
-	if fit < n {
-		c.Charge(1)
+	if c.SinceCheck >= BudgetCheckInterval || c.Limits.Compute != 0 && c.Used > c.Limits.Compute {
+		c.chargeSlow()
 	}
 }
 
@@ -271,28 +233,22 @@ func (c *BudgetControl) FreeResume(held bool) {
 	}
 }
 
-// chargeSlow is Charge on a poll boundary or a failed reservation, kept out of line so that the
-// reservation every step makes stays small. It checks cancellation first, so that an already
-// canceled invocation wins over a simultaneously exhausted budget, then, at a poll, the memory
-// limit.
-func (c *BudgetControl) chargeSlow(n uint64, poll, exceeded bool) {
-	if c.Ctx != nil {
-		if err := contextErr(c.Ctx); err != nil {
-			panic(Fatal{Err: err})
-		}
+// chargeSlow is the check of Charge when the counter has reached a poll or exceeds the limit, kept
+// out of line so that the counting every event makes stays small. At a poll, once
+// BudgetCheckInterval units have been counted since the last observation, it observes the context
+// and then the memory limit; it compares the compute limit last, so that a canceled invocation or an
+// exceeded memory limit that the check observes wins over an exceeded compute limit
+// (spec/runtime/parsing.md#checks-and-interruptions).
+func (c *BudgetControl) chargeSlow() {
+	if c.SinceCheck >= BudgetCheckInterval {
+		c.Check()
 	}
-	if poll && c.Limits.Memory != 0 {
-		c.checkMemory()
-	}
-	if exceeded {
+	if c.Limits.Compute != 0 && c.Used > c.Limits.Compute {
 		panic(Fatal{Err: &runtime.LimitError{
 			Kind: runtime.LimitCompute, Limit: c.Limits.Compute - c.Doc,
-			Used: c.Used - c.Doc, Requested: n, Hotspot: c.hotspot(),
+			Used: c.Used - c.Doc, Hotspot: c.hotspot(),
 		}})
 	}
-	// Not exceeded, so the reservation reached a poll boundary.
-	c.Used = limits.SaturatingAdd(c.Used, n)
-	c.SinceCheck = 0
 }
 
 // hotspot returns the hotspot of the profile that records the parse the control belongs to, or the

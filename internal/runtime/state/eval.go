@@ -44,7 +44,6 @@ func (p *Parser) ActionResult(ctx *EvalCtx, act Evaluator, where string) *value.
 	n, ok := v.(*value.Node)
 	if err == nil && n != nil {
 		for _, c := range p.Created[ctx.Cbase:] {
-			p.Spend()
 			if c == n {
 				nodes.D(n).Start, nodes.D(n).End = int32(ctx.Start), int32(ctx.End)
 				break
@@ -72,7 +71,7 @@ func (p *Parser) ActionResult(ctx *EvalCtx, act Evaluator, where string) *value.
 
 // DropCreated releases tracking references without changing the created values.
 func (p *Parser) DropCreated(base int) {
-	clearSpend(p, p.Created[base:])
+	clear(p.Created[base:])
 	p.Created = p.Created[:base]
 }
 
@@ -155,7 +154,6 @@ func (c *EvalCtx) zeroFrom(d string) (any, string, error) {
 			var err error
 			e, d, err = c.zeroFrom(d)
 			if err == nil {
-				p.Spend()
 				err = c.Push("tuple", e)
 			}
 			if err != nil {
@@ -183,7 +181,6 @@ func (c *EvalCtx) NewStruct(typ string, names []string, vals []any) (*value.Node
 	n := c.P.NewNode(nodes.Data{Kind: c.P.Prog.TypeKind(typ), Fields: c.P.fields(len(names))})
 	first := true
 	for i, name := range names {
-		c.P.Spend()
 		v := vals[i]
 		c.P.SetValueField(&nodes.D(n).Fields, name, v)
 		first = c.P.actionCover(n, v, first)
@@ -194,7 +191,7 @@ func (c *EvalCtx) NewStruct(typ string, names []string, vals []any) (*value.Node
 
 func (c *EvalCtx) NewList(items []*value.Node) *value.Node {
 	kids := c.P.Nodes(len(items))
-	copySpend(c.P, kids, items)
+	copy(kids, items)
 	return c.ListNode(kids)
 }
 
@@ -232,7 +229,6 @@ func (c *EvalCtx) Keep() *EvalCtx {
 	k := *c
 	var head *Local
 	for l, link := c.Locals, &head; l != nil; l = l.Next {
-		c.P.Spend()
 		*link = &Local{Name: l.Name, Val: l.Val}
 		link = &(*link).Next
 	}

@@ -9,7 +9,7 @@ import sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 // growing the seed of a left-recursion leader. A parse that reads a Document makes the call of
 // engineCallDoc instead, which is decided by one test of a field that the parse sets once.
 //
-// Printed from Exec IR function engineCall of internal/ir/code/exec/compose, specialized for document, missing, budget.
+// Printed from Exec IR function engineCall of internal/ir/code/exec/compose, specialized for document, missing, units.
 func (p *Parser) Call(r *Rule, min int) (*sxirvalue.Node, bool) {
 	var v *sxirvalue.Node
 	var ok bool
@@ -25,6 +25,9 @@ func (p *Parser) Call(r *Rule, min int) (*sxirvalue.Node, bool) {
 		return v, ok
 	}
 	p.Spend()
+	if true {
+		p.CheckUnits()
+	}
 	if r.Leader || p.memoized(r) && !p.docOnlyMemo(r) {
 		p.ChargeKey(r)
 	}
@@ -84,7 +87,7 @@ func (p *Parser) FirstCall(r *Rule) bool {
 // protocol (its deferral, the begin and the end of the call) of a rule that a parse from scratch does
 // not memoize.
 //
-// Printed from Exec IR function engineCallDoc of internal/ir/code/exec/compose, specialized for document, missing, budget.
+// Printed from Exec IR function engineCallDoc of internal/ir/code/exec/compose, specialized for document, missing, units.
 func (p *Parser) callDoc(r *Rule, min int) (*sxirvalue.Node, bool) {
 	var v *sxirvalue.Node
 	var ok bool
@@ -97,6 +100,9 @@ func (p *Parser) callDoc(r *Rule, min int) (*sxirvalue.Node, bool) {
 		return v, ok
 	}
 	p.Spend()
+	if true {
+		p.CheckUnits()
+	}
 	if r.Leader || p.memoized(r) && !p.docOnlyMemo(r) {
 		p.ChargeKey(r)
 	}
@@ -143,7 +149,7 @@ func (p *Parser) callDoc(r *Rule, min int) (*sxirvalue.Node, bool) {
 // bookkeeping of the input each call examines: it returns hit set with a result that the call reuses,
 // and otherwise saves in st what the end of the call needs.
 //
-// Printed from Exec IR function callBegin of internal/ir/code/exec/compose, specialized for document, missing, budget.
+// Printed from Exec IR function callBegin of internal/ir/code/exec/compose, specialized for document, missing, units.
 func (p *Parser) CallBegin(r *Rule, min int, st *CallState) (*sxirvalue.Node, bool, bool) {
 	start := p.Pos
 	env := KeyVals{Missing: p.Missing != nil && r.Missing && p.Silent > 0}
@@ -235,7 +241,7 @@ func (p *Parser) CallBegin(r *Rule, min int, st *CallState) (*sxirvalue.Node, bo
 // and success ok of its body, or of the growth of a leader: it records the result where its
 // dependencies send it, and restores the state from before the call.
 //
-// Printed from Exec IR function callEnd of internal/ir/code/exec/compose, specialized for document, missing, budget.
+// Printed from Exec IR function callEnd of internal/ir/code/exec/compose, specialized for document, missing, units.
 func (p *Parser) CallEnd(r *Rule, st *CallState, v *sxirvalue.Node, ok bool) (*sxirvalue.Node, bool) {
 	start := st.start
 	min := st.min
@@ -258,6 +264,10 @@ func (p *Parser) CallEnd(r *Rule, st *CallState, v *sxirvalue.Node, ok bool) (*s
 		store = p.ctxPop(&c)
 	}
 	if store == storeMemo {
+		if (len(p.Recovered) - rec) > 0 {
+			p.SpendN(uint64(len(p.Recovered) - rec))
+			p.CheckUnits()
+		}
 		var entry *MemoEntry
 		if r.Leader {
 			entry, p.grown = p.grown, nil
@@ -275,6 +285,10 @@ func (p *Parser) CallEnd(r *Rule, st *CallState, v *sxirvalue.Node, ok bool) (*s
 			}
 		}
 	} else if store == storeCtx {
+		if (len(p.Recovered) - rec) > 0 {
+			p.SpendN(uint64(len(p.Recovered) - rec))
+			p.CheckUnits()
+		}
 		var e *MemoEntry
 		if r.Leader {
 			e = p.leaderEntry()
@@ -304,7 +318,7 @@ func (p *Parser) CallEnd(r *Rule, st *CallState, v *sxirvalue.Node, ok bool) (*s
 // recovered, and the entries they made are dropped from the record after it; the growth ends with the errors
 // of its last result in place of the entries recorded since it began.
 //
-// Printed from Exec IR function grow of internal/ir/code/exec/compose, specialized for missing.
+// Printed from Exec IR function grow of internal/ir/code/exec/compose, specialized for missing, units.
 func (p *Parser) grow(r *Rule, min int) (*sxirvalue.Node, bool) {
 	var bv *sxirvalue.Node
 	var bok bool
@@ -318,9 +332,15 @@ func (p *Parser) grow(r *Rule, min int) (*sxirvalue.Node, bool) {
 					break
 				}
 				p.growIsolate(&g)
+				p.Spend()
+				p.CheckUnits()
 				v, ok := p.invoke(r, min)
 				if !ok {
 					p.Recovered = p.Recovered[:rec]
+				}
+				if (len(p.Recovered) - rec) > 0 {
+					p.SpendN(uint64(len(p.Recovered) - rec))
+					p.CheckUnits()
 				}
 				s := p.growKeepStep(&g, v, ok, p.recSince(rec))
 				p.Recovered = p.Recovered[:rec]
@@ -331,9 +351,15 @@ func (p *Parser) grow(r *Rule, min int) (*sxirvalue.Node, bool) {
 			}
 		} else {
 			for {
+				p.Spend()
+				p.CheckUnits()
 				v, ok := p.invoke(r, min)
 				if !p.growLonger(&g, ok) {
 					break
+				}
+				if (len(p.Recovered) - rec) > 0 {
+					p.SpendN(uint64(len(p.Recovered) - rec))
+					p.CheckUnits()
 				}
 				p.growAdopt(&g, v, p.recSince(rec))
 				p.Recovered = p.Recovered[:rec]
@@ -363,7 +389,7 @@ func (p *Parser) grow(r *Rule, min int) (*sxirvalue.Node, bool) {
 // examined input: the read that failed at pos recorded what it examined. It is for parser code and not a
 // stable API.
 //
-// Printed from Exec IR function expect of internal/ir/code/exec/compose, specialized for budget.
+// Printed from Exec IR function expect of internal/ir/code/exec/compose, specialized for units.
 func (p *Parser) Expect(pos int, id ExpID) {
 	var i int
 	if p.Silent > 0 || pos < p.Farthest {
@@ -382,7 +408,6 @@ func (p *Parser) Expect(pos int, id ExpID) {
 	}
 	if p.ExpBits&expBit(id) != 0 {
 		for i = 0; i < (len(p.Exp) - p.ExpBase); i++ {
-			p.Spend()
 			if p.Exp[p.ExpBase+i] == id {
 				return
 			}
@@ -397,17 +422,15 @@ func (p *Parser) Expect(pos int, id ExpID) {
 // record. s may alias the stack above the current record: writes only happen below the read position. It
 // is for parser code and not a stable API.
 //
-// Printed from Exec IR function mergeExpected of internal/ir/code/exec/compose, specialized for budget.
+// Printed from Exec IR function mergeExpected of internal/ir/code/exec/compose, specialized for units.
 func (p *Parser) MergeExpected(far int, s []ExpID) {
 	var i int
 	if p.Expectations {
 		for i = 0; i < len(s); i++ {
-			p.Spend()
 			p.Expect(far, s[i])
 		}
 	} else {
 		for i = 0; i < len(s); i++ {
-			p.Spend()
 			if !(p.Silent > 0 || far < p.Farthest) {
 				if far > p.Farthest {
 					p.Farthest = far
@@ -427,7 +450,7 @@ func (p *Parser) MergeExpected(far int, s []ExpID) {
 // entries in the same order, and otherwise a copy, which becomes the set kept last. It is for parser
 // code and not a stable API.
 //
-// Printed from Exec IR function keep of internal/ir/code/exec/compose, specialized for budget.
+// Printed from Exec IR function keep of internal/ir/code/exec/compose, specialized for units.
 func (p *Parser) Keep(s []ExpID) []ExpID {
 	var i int
 	n := len(s)
@@ -439,7 +462,6 @@ func (p *Parser) Keep(s []ExpID) []ExpID {
 		goto copy
 	}
 	for i = 0; i < n; i++ {
-		p.Spend()
 		if last[i] != s[i] {
 			goto copy
 		}

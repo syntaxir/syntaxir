@@ -152,6 +152,7 @@ func (t *ActionProgram) run(c *EvalCtx, a []any, n []int, s [][]*value.Node, ts 
 		case TAbove:
 			s[in.Dst] = p.ElemsAbove(n[in.A])
 		case THull:
+			p.countUnits(len(s[in.A]))
 			a[in.Dst] = p.actionHull(c, in.B != 0, s[in.A])
 		case TItems:
 			if s[in.Dst], err = p.actionItems(t.Names[in.B], a[in.A]); err != nil {
@@ -172,6 +173,8 @@ func (t *ActionProgram) run(c *EvalCtx, a []any, n []int, s [][]*value.Node, ts 
 			}
 			n[in.Dst] = b2i(b)
 		case TCopy:
+			// The elements that map visits and those of the list that it builds.
+			p.countUnits(2 * len(s[in.A]))
 			a[in.Dst] = c.NewList(s[in.A])
 		case TStruct:
 			st := &t.Structs[in.A]
@@ -179,7 +182,6 @@ func (t *ActionProgram) run(c *EvalCtx, a []any, n []int, s [][]*value.Node, ts 
 		case TSetField:
 			p.SetValueField(&nodes.D(a[in.A].(*value.Node)).Fields, t.Names[in.C], a[in.B])
 		case TField:
-			p.Spend()
 			x := a[in.A].(*value.Node)
 			p.SetValueField(&nodes.D(x).Fields, t.Names[in.C], a[in.B])
 			n[in.Dst] = b2i(p.actionCover(x, a[in.B], n[in.Dst] != 0))
@@ -197,6 +199,14 @@ func (t *ActionProgram) run(c *EvalCtx, a []any, n []int, s [][]*value.Node, ts 
 			return a[in.A], nil
 		case TRetErr:
 			return nil, a[in.A].(error)
+		case TUnits:
+			p.countUnits(int(in.A))
+		case TUnitsOf:
+			if items, ok := valItems(a[in.A]); ok {
+				p.countUnits(int(in.B) * len(items))
+			}
+		case TUnitsSince:
+			p.countUnits(len(p.KidStack) - n[in.A])
 		default:
 			panic("core: action instruction " + string(rune('0'+in.Op)))
 		}
@@ -204,12 +214,9 @@ func (t *ActionProgram) run(c *EvalCtx, a []any, n []int, s [][]*value.Node, ts 
 }
 
 // local returns the value of the Operators Rule local name ($lhs, $rhs, $op or $value), with a box
-// opened, and false if c has none of that name. Under budget controls it charges one unit for each
-// local it passes, the one it finds included; the names are the compiler's, so comparing them is
-// part of that step.
+// opened, and false if c has none of that name. Reading a local is no event: it counts nothing.
 func (c *EvalCtx) local(name string) (any, bool) {
 	for l := c.Locals; l != nil; l = l.Next {
-		c.P.Spend()
 		if l.Name == name {
 			return nodes.UnboxValue(l.Val), true
 		}

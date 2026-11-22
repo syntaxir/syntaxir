@@ -108,7 +108,7 @@ func TestScanSitesReuseRecords(t *testing.T) {
 		t.Skip("budget controls are unavailable in the reference build")
 	}
 	prog := enginetest.MustCompile(t, scanSiteGrammars[2].Src)
-	in := strings.Repeat("(", 400) + strings.Repeat(" ", 400)
+	in := strings.Repeat("(", 1000) + strings.Repeat(" ", 1000)
 	o := engine.ParseOptions{Backend: engine.Closure, Limits: runtime.Limits{Compute: 200_000}}
 	if _, err := prog.ParseWith("main", in, o); err != nil {
 		t.Errorf("the parse with records: %v", err)
@@ -190,7 +190,7 @@ func TestScanSitesNegativeControls(t *testing.T) {
 		t.Skip("budget controls are unavailable in the reference build")
 	}
 	prog := enginetest.MustCompile(t, scanSiteGrammars[2].Src)
-	in := strings.Repeat("(", 400) + strings.Repeat(" ", 400)
+	in := strings.Repeat("(", 1000) + strings.Repeat(" ", 1000)
 	for _, m := range []struct {
 		name string
 		mut  int
@@ -446,12 +446,11 @@ func TestScanSitesInConcurrentParses(t *testing.T) {
 	wg.Wait()
 }
 
-// TestScanSitesChargeIsPinned pins the steps that parses of scanSpanProbe charge with and without
-// scan sites, the same on each backend, for a run of spaces as long as the hot span and one four characters
-// longer. The charge of a hit walk is one step for the lookup, one more for the slot of a record it
-// finds, one for a record it stores, and none for the characters the record skips (see "Scan Sites"
-// in spec/runtime/parsing.md); each of the units, and the characters that are charged, change these
-// numbers (the mutations that drop the slot or the store change them).
+// TestScanSitesChargeIsPinned pins the units that parses of scanSpanProbe count with and without
+// scan sites, for a run of spaces as long as the hot span and one four characters longer. The
+// lookups and records of a scan site count nothing, nor does the input a record skips (see "Compute
+// Units" in spec/runtime/parsing.md), so the parse with a record counts less than the one without;
+// counting any of them changes these numbers, which are the same on every backend.
 func TestScanSitesChargeIsPinned(t *testing.T) {
 	if !state.BudgetControlsEnabled {
 		t.Skip("budget controls are unavailable in the reference build")
@@ -461,13 +460,9 @@ func TestScanSitesChargeIsPinned(t *testing.T) {
 	}
 	prog, plain := enginetest.MustCompile(t, scanSpanProbe), compileWithoutScanSites(t, scanSpanProbe)
 	type steps struct{ scan, plain uint64 }
-	want := map[engine.Backend]map[int]steps{
-		engine.Closure:           {16: {265, 259}, 20: {297, 307}},
-		engine.Bytecode:          {16: {265, 259}, 20: {297, 307}},
-		engine.BytecodeIterative: {16: {265, 259}, 20: {297, 307}},
-	}
-	for b, byLen := range want {
-		for n, w := range byLen {
+	want := map[int]steps{16: {92, 92}, 20: {104, 112}}
+	for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
+		for n, w := range want {
 			in := strings.Repeat(" ", n) + "e"
 			if got := (steps{scanSteps(t, prog, in, b, state.Tuning{}), scanSteps(t, plain, in, b, state.Tuning{})}); got != w {
 				t.Errorf("%s, run of %d: charged %d steps with scan sites and %d without, want %d and %d", b, n, got.scan, got.plain, w.scan, w.plain)

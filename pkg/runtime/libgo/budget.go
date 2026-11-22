@@ -469,6 +469,19 @@ func (p *Parser) spendReadOrdinary(uint64) {}
 // has a BudgetControl.
 func (p *Parser) controlled() bool { return usedFeatures&featureBudget != 0 && p.Control != nil }
 
+// spendValue spends n units of value work. It is the member of the shared mechanisms
+// (value_spend.go) that charges the work on values done in chunks; the engine provides its own.
+func (p *Parser) spendValue(n int) {
+	if p.controlled() {
+		p.Control.Charge(uint64(n))
+	}
+}
+
+// spendMemo spends a step of the work of the dependency memo of left recursion. It is the member of
+// the shared mechanisms (context_table.go) that charges that work under budget controls; the engine
+// provides its own.
+func (p *Parser) spendMemo() { p.Spend() }
+
 // abortParse ends the parse with the error err.
 func abortParse(err error) { panic(fatal{err: err}) }
 

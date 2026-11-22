@@ -62,7 +62,7 @@ func TestEngineValueStructTable(t *testing.T) {
 
 // TestEngineValueStructTableActionCode runs the struct table on action code: the code the action expression compiler
 // emits for a struct literal, with FIELD for each field, makes the struct the table wants, and FIELD
-// charges what STEP, SETFIELD and COVER, which it fuses, charge.
+// charges what SETFIELD and COVER, which it fuses, charge: nothing, as setting a field is no event.
 func TestEngineValueStructTableActionCode(t *testing.T) {
 	cp := compiletest.Program(t, "type S = { F0 int\n F1 int }\n@start\nrule main = \"a\"\n", check.Options{})
 	for _, controlled := range []bool{false, true} {
@@ -80,7 +80,7 @@ func TestEngineValueStructTableActionCode(t *testing.T) {
 				if fused {
 					tp.Code = append(tp.Code, ActionInstr{Op: TField, A: 0, B: v, C: name})
 				} else {
-					tp.Code = append(tp.Code, ActionInstr{Op: TStep}, ActionInstr{Op: TSetField, A: 0, B: v, C: name}, ActionInstr{Op: TCover, A: 0, B: v})
+					tp.Code = append(tp.Code, ActionInstr{Op: TSetField, A: 0, B: v, C: name}, ActionInstr{Op: TCover, A: 0, B: v})
 				}
 			}
 			tp.Code = append(tp.Code, ActionInstr{Op: TMade, B: 0}, ActionInstr{Op: TRet})

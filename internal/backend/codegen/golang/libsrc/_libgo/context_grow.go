@@ -4,8 +4,9 @@ import "slices"
 
 // The steps of the growth of a left-recursion leader in a context, where another leader of its
 // cycle grows at the same position: the steps are memoized in the table of the context, with the
-// jumps over runs of steps that read no other seed. The engine and the generated parsers share them;
-// each package begins, adopts outside a context and ends a growth itself (growth is its state).
+// jumps over runs of steps that read no other seed. The engine and the generated parsers share
+// them; each package begins, adopts outside a context and ends a growth itself (growth is its
+// state). Each step of their work calls spendMemo (context_table.go).
 
 // growMemoStep takes the steps of a growth in a context that its table gives, from the jumps and the
 // memoized steps, replaying their dependencies and merging their expectations, and adopts each step
@@ -137,7 +138,7 @@ func (p *Parser) adoptGrownStep(g *growth, s *ctxRes, id uint64, st runStep) {
 	} else {
 		p.recordJumps(g)
 	}
-	p.Spend()
+	p.spendMemo()
 	p.setSeed(g, s, id)
 	p.Pos = g.start
 }
@@ -156,7 +157,7 @@ func (p *Parser) recordJumps(g *growth) {
 	acc := jumpRec{end: cur.seed, id: cur.id, far: -1, examined: g.start, from: g.start}
 	for i := len(g.run) - 1; i >= 0; i-- {
 		s := &g.run[i]
-		p.Spend()
+		p.spendMemo()
 		switch {
 		case s.far > acc.far:
 			acc.far, acc.exp = s.far, s.exp
@@ -183,7 +184,7 @@ func (p *Parser) jumpShadowed(js []jumpRec, j *jumpRec) bool {
 next:
 	for i := range js {
 		e := &js[i]
-		p.Spend()
+		p.spendMemo()
 		if e.silent && !j.silent {
 			continue
 		}
@@ -203,12 +204,12 @@ func (p *Parser) findJump(g *growth, id uint64) *jumpRec {
 	if t == nil || t.jumps == nil {
 		return nil
 	}
-	p.Spend()
+	p.spendMemo()
 	js := t.jumps[jumpKey{g: g.growKey(), present: g.present, seed: id}]
 next:
 	for i := range js {
 		j := &js[i]
-		p.Spend()
+		p.spendMemo()
 		if j.silent && p.Silent == 0 {
 			continue
 		}
@@ -249,7 +250,7 @@ func (p *Parser) unionExpected(a, b []ExpID) []ExpID {
 	}
 	out := append([]ExpID(nil), a...)
 	for _, x := range b {
-		p.Spend()
+		p.spendMemo()
 		if !slices.Contains(out, x) {
 			out = append(out, x)
 		}

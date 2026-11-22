@@ -5,6 +5,7 @@ package engine
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strconv"
 	"strings"
 	"testing"
@@ -165,24 +166,32 @@ func TestBudgetContextErrPanicIdentityAtPublicationAndFailedReservation(t *testi
 			statetest.AssertReleased(t, observed)
 		})
 
-		t.Run(budgetContextVariantName(base)+"/failed reservation", func(t *testing.T) {
-			token := &statetest.ContextPanicToken{Phase: "failed reservation"}
+		// A counter above the limit stops the parse at once: the check that finds it observes the
+		// context only at a poll, so the context is not observed again after the callback postcheck.
+		t.Run(budgetContextVariantName(base)+"/exceeded limit", func(t *testing.T) {
+			token := &statetest.ContextPanicToken{Phase: "exceeded limit"}
 			ctx := statetest.NewContextErrPanic(token, 2)
 			var observed *state.Parser
 			var node *value.Node
 			var returnedErr error
+			var limit uint64
 			got := statetest.CatchPanic(func() {
 				node, returnedErr = prog.ParseWith("main", "a", ParseOptions{Backend: backend, Unit: base.Unit, Recognize: base.Recognize, Context: ctx, Limits: sxirruntime.Limits{Compute: 1 << 20}, Trace: func(e TraceEvent) {
 					if e.Kind == TraceEnter && e.Rule == "main" {
 						observed = state.TraceParser(e)
 						ctx.Control = state.TraceParser(e).Control
 						ctx.Armed = true
-						ctx.Control.Limits.Compute = ctx.Control.Used
+						// The call of main counts its unit after the event of its entry.
+						limit = ctx.Control.Used + 1
+						ctx.Control.Limits.Compute = limit
 					}
 				}})
 			})
-			if got != token || node != nil || returnedErr != nil || ctx.Calls != 2 || ctx.Control == nil || ctx.AtPanic != ctx.Control.Used || ctx.AtPanic != ctx.Control.Limits.Compute {
-				t.Fatalf("panic=%#v node=%v error=%v Err calls=%d control=%v, want context panic on rejected reservation", got, node, returnedErr, ctx.Calls, ctx.Control)
+			// The unit of the input that "a" advances over is counted, and the counter above the
+			// limit stops the parse.
+			var le *sxirruntime.LimitError
+			if got != nil || node != nil || !errors.As(returnedErr, &le) || le.Limit != limit || le.Used != limit+1 || le.Requested != 0 || ctx.Calls != 1 {
+				t.Fatalf("panic=%#v node=%v error=%v Err calls=%d limit=%d, want the limit error and no observation of the context", got, node, returnedErr, ctx.Calls, limit)
 			}
 			statetest.AssertReleased(t, observed)
 		})
@@ -224,8 +233,10 @@ func TestBudgetContextErrPanicIdentityAtCountedBudgetAndRetry(t *testing.T) {
 					if got != token || node != nil || returnedErr != nil {
 						t.Fatalf("panic=%#v node=%v error=%v, want exact panic during spent budget", got, node, returnedErr)
 					}
-					if ctx.Calls != 2 || ctx.Since != state.BudgetCheckInterval-1 || ctx.AtPanic < state.BudgetCheckInterval-1 {
-						t.Fatalf("Err calls=%d steps=%d since check=%d, want callback postcheck then next counted-budget poll", ctx.Calls, ctx.AtPanic, ctx.Since)
+					// The literal counts the input it advances over at once, so the poll it reaches observes
+					// every unit counted since the callback postcheck.
+					if ctx.Calls != 2 || ctx.Since < state.BudgetCheckInterval || ctx.Since > uint64(len(literal))+1 || ctx.AtPanic < ctx.Since {
+						t.Fatalf("Err calls=%d units=%d since check=%d, want callback postcheck then next counted-budget poll", ctx.Calls, ctx.AtPanic, ctx.Since)
 					}
 					statetest.AssertReleased(t, observed)
 
@@ -281,8 +292,8 @@ func TestBudgetContextErrPanicIdentityLoadedASTOmittedProgram(t *testing.T) {
 				if got != token || node != nil || returnedErr != nil || ctx.Calls != 2 {
 					t.Fatalf("panic=%#v node=%v error=%v Err calls=%d, want exact loaded-VM panic", got, node, returnedErr, ctx.Calls)
 				}
-				if ctx.Since != state.BudgetCheckInterval-1 || ctx.AtPanic < state.BudgetCheckInterval-1 {
-					t.Fatalf("steps at panic=%d since check=%d, want counted-spend polling boundary", ctx.AtPanic, ctx.Since)
+				if ctx.Since < state.BudgetCheckInterval || ctx.Since > uint64(len(literal))+1 || ctx.AtPanic < ctx.Since {
+					t.Fatalf("units at panic=%d since check=%d, want counted-spend polling boundary", ctx.AtPanic, ctx.Since)
 				}
 				statetest.AssertReleased(t, observed)
 

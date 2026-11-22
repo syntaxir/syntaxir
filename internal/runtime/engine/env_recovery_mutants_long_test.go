@@ -5,21 +5,15 @@ package engine_test
 import "testing"
 
 // TestEnvironmentMutantsFail is the negative control of the conformance of the engine's variable
-// environment: each mutant breaks one part of env.bind, env.lookup or env.key.
+// environment: each mutant breaks one part of env.bind, env.lookup or env.key. A binding is no event
+// of the compute units, so the controlled bind has no charge left to break.
 func TestEnvironmentMutantsFail(t *testing.T) {
 	const conformance = "^TestEngineExecConformance$"
 	core := []string{"syntaxir.dev/sxir/internal/runtime/state"}
 	t.Run("bind", func(t *testing.T) {
 		const equal = "\tif p.rawValueEqual(p.Env.Get(slot, p.envLevels), val) {\n\t\treturn\n\t}\n"
-		const rebind = "\tfor l := 0; l <= p.envLevels; l++ {\n\t\tp.Spend()\n\t}\n\t// Saved"
 		runPrintedMutants(t, "internal/runtime/state/budget_memo.go", []printedMutant{
 			{"an equal binding makes a new environment", []printedEdit{{equal, ""}}, conformance, core},
-			{"a binding does not charge the lookup of the old value",
-				[]printedEdit{{"func (p *Parser) bindControlled(slot int, val any) {\n\tp.Spend()\n", "func (p *Parser) bindControlled(slot int, val any) {\n"}},
-				conformance, core},
-			{"a rebind does not charge the nodes it copies", []printedEdit{{rebind, "\t// Saved"}}, conformance, core},
-			{"a rebind charges one node too many",
-				[]printedEdit{{rebind, "\tfor l := 0; l <= p.envLevels+1; l++ {\n\t\tp.Spend()\n\t}\n\t// Saved"}}, conformance, core},
 			{"a rebind binds nothing", []printedEdit{{"\tp.Env = p.Env.Set(slot, p.envLevels, val)\n\tp.chargeValueBytes", "\tp.chargeValueBytes"}},
 				conformance, core},
 		})
@@ -42,18 +36,18 @@ func TestEnvironmentMutantsFail(t *testing.T) {
 // and the tests named for it must fail.
 func TestRecoveryMutantsFail(t *testing.T) {
 	const conformance = "^TestEngineExecConformance$"
-	const charges = "^TestSettlingChargesTheSlotsItClears$"
+	const scratch = "^TestSettlingKeepsASmallScratch$"
 	core := []string{"syntaxir.dev/sxir/internal/runtime/state"}
 	t.Run("settle", func(t *testing.T) {
 		const keep = "if p.Tr == nil && cap(p.Recovered) <= streamRecoveryScratchMax {"
 		runPrintedMutants(t, "internal/runtime/state/stream_ops.go", []printedMutant{
 			{"settling keeps the errors",
 				[]printedEdit{{"\t\tp.Recovered = p.Recovered[:0]\n\t} else {", "\t} else {"}}, conformance, core},
-			{"settling clears a list beyond the scratch", []printedEdit{{keep, "if p.Tr == nil {"}}, conformance, core},
+			{"settling clears a list beyond the scratch", []printedEdit{{keep, "if p.Tr == nil {"}}, scratch, core},
 			{"settling releases a list of one slot too many",
-				[]printedEdit{{keep, "if p.Tr == nil && cap(p.Recovered) < streamRecoveryScratchMax {"}}, charges, core},
-			{"settling clears without charging",
-				[]printedEdit{{"clearSpend(p, p.Recovered[:cap(p.Recovered)])", "clear(p.Recovered[:cap(p.Recovered)])"}}, charges, core},
+				[]printedEdit{{keep, "if p.Tr == nil && cap(p.Recovered) < streamRecoveryScratchMax {"}}, scratch, core},
+			{"settling leaves the errors in the slots of the scratch",
+				[]printedEdit{{"\t\tclear(p.Recovered[:cap(p.Recovered)])\n", ""}}, scratch, core},
 			{"settling leaves the errors counted as delivered",
 				[]printedEdit{{"\tp.diagnosed, p.diagnosedSkip, p.diagnosedList = 0, 0, nil\n\tif BudgetControlsEnabled && p.Control != nil {\n\t\t// With a diagnostic",
 					"\tif BudgetControlsEnabled && p.Control != nil {\n\t\t// With a diagnostic"}},
@@ -70,7 +64,7 @@ func TestRecoveryMutantsFail(t *testing.T) {
 				[]printedEdit{
 					{"entries: appendSpend(p, make([]recEntry, 0, len(after)), after),", "entries: flatEntries(p, after),"},
 					{"// countRecErrors returns", "func flatEntries(p *Parser, after []RecEntry) []RecEntry {\n\tvar out []RecEntry\n\tfor _, e := range appendRecErrors(nil, after) {\n\t\tp.spendValue(1)\n\t\tout = append(out, RecEntry{err: e})\n\t}\n\treturn out\n}\n\n// countRecErrors returns"},
-				}, conformance, core},
+				}, "^TestRecSinceSharesTheListsItTakes$", core},
 			// The control of the bound on unrolling: wrapping the one entry after a mark changes no
 			// error and no charge, and only the bound fails.
 			{"since wraps the one entry after its mark",

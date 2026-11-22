@@ -165,11 +165,15 @@ type chargeCase struct {
 }
 
 // chargeCases are small grammars that each exercise a kind of charge: matching, repetition,
-// choice, cut, gathered values, actions, Operators Rules, left recursion, recovery and lookahead.
+// choice, guards that skip alternatives, cut, gathered values, actions, Operators Rules, left recursion,
+// recovery and lookahead.
 var chargeCases = []chargeCase{
 	{"literal", "rule main = \"abcd\"+", []string{"abcdabcd", "abcdab", "x", ""}},
 	{"class repetition", "rule main = [a-z]*", []string{"abc", "", "abc1"}},
 	{"class sequence", "rule main = [a-z]#repeat(5,) / [a-z] [a-z] [a-z]", []string{"abc", "abcdefg", "ab"}},
+	{"bounded scans", "rule main = w \"-\" w $$\nrule w = [a-z]#repeat(2,4) .#repeat(0,2) #atomic", []string{"abc-de", "abcdefg-ab", "a-b", "ab-"}},
+	{"guard skips", "rule main = (\"p\" [0-9] / \"q\" / \"r\" \"!\" / [s-u]+ / [0-9])* $$", []string{"p1qr!st9", "qqx", "r", ""}},
+	{"guard skips through calls", "rule main = (kw / a / b / c / d)* $$\nrule kw = \"if\" / \"do\"\nrule a = \"x\" [0-9]\nrule b = \"y\"\nrule c = \"z\" \"!\"\nrule d = [0-9]+", []string{"dox1yz!12if", "yyw", "z", ""}},
 	{"choice of sequences", "rule main = \"a\" \"b\" $$ / \"a\" \"c\" $$", []string{"ab", "ac", "ad"}},
 	{"cut in repetition", "rule main = ([a-z] #cut [,])+ / [a-z,]*", []string{"a,b,c", "a,b,c,", "a,bc"}},
 	{"repeat or class", "rule main = [a-z]#repeat(5,) / [a-z]*", []string{"abc", "abcdefgh", "abc1"}},

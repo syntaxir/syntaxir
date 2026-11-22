@@ -119,7 +119,9 @@ func actionStateSuite(ops []string, controlled bool) conform.Suite {
 	}
 	s := conform.Suite{Name: name, Ops: ops, New: func(c ref.Config) conform.Impl { return newActionStateMachine(c, controlled) }}
 	if controlled {
-		s.Exact = []string{"act.pushAll", "action.dropKids", "action.elemsAbove", "action.keep", "action.dropCreated"}
+		// Gathering and dropping the values of an action are no events: the action counts the elements
+		// it builds (units.items, units.since).
+		s.Free = []string{"act.pushAll", "action.dropKids", "action.elemsAbove", "action.keep", "action.dropCreated"}
 	}
 	return s
 }
@@ -191,32 +193,30 @@ func (b brokenActionState) Call(o *code.Op, args []any) []any {
 	return b.edit(func(op string, a ...any) []any { return b.actionStateMachine.Call(mod.Op(op), a) }, args)
 }
 
-// brokenActionStateCharge is the metered engine whose op charges nothing, or half of what it charges if half
-// is set: action.elemsAbove charging for the copy and not for taking the elements off.
+// brokenActionStateCharge is the metered engine whose op, which is no event, counts a unit, or two if
+// twice is set: a drop or copy charged as the budget charged it before compute units were logical.
 type brokenActionStateCharge struct {
 	meteredActionState
-	op   string
-	half bool
+	op    string
+	twice bool
 }
 
 func (b brokenActionStateCharge) Call(o *code.Op, args []any) []any {
 	if o.Name != b.op {
 		return b.meteredActionState.Call(o, args)
 	}
-	used := b.p.Control.Used
 	defer func() {
-		if b.half {
-			b.p.Control.Used = used + (b.p.Control.Used-used)/2
-		} else {
-			b.p.Control.Used = used
+		b.p.Spend()
+		if b.twice {
+			b.p.Spend()
 		}
 	}()
 	return b.meteredActionState.Call(o, args)
 }
 
 // TestEngineActionStateConformanceDetectsBrokenEngine is the negative control: the engine with one operation
-// broken, as a wrong line of its printed code would break it, or with a drop or copy that charges nothing,
-// fails the suite.
+// broken, as a wrong line of its printed code would break it, or with a drop or copy that counts units,
+// which no event makes, fails the suite.
 func TestEngineActionStateConformanceDetectsBrokenEngine(t *testing.T) {
 	for _, fam := range actionStateFamilies {
 		for _, br := range fam.broken() {
@@ -231,15 +231,15 @@ func TestEngineActionStateConformanceDetectsBrokenEngine(t *testing.T) {
 			})
 		}
 		for _, br := range []struct {
-			op   string
-			half bool
+			op    string
+			twice bool
 		}{{"act.pushAll", false}, {"action.dropKids", false}, {"action.elemsAbove", false}, {"action.elemsAbove", true}, {"action.dropCreated", false}} {
 			if !slices.Contains(fam.ops, br.op) {
 				continue
 			}
-			name := br.op + " charges nothing"
-			if br.half {
-				name = br.op + " charges only the copy"
+			name := br.op + " counts a unit"
+			if br.twice {
+				name = br.op + " counts two units"
 			}
 			t.Run(name, func(t *testing.T) {
 				if !BudgetControlsEnabled {
@@ -247,7 +247,7 @@ func TestEngineActionStateConformanceDetectsBrokenEngine(t *testing.T) {
 				}
 				s := actionStateSuite(fam.ops, true)
 				s.New = func(c ref.Config) conform.Impl {
-					return brokenActionStateCharge{newActionStateMachine(c, true).(meteredActionState), br.op, br.half}
+					return brokenActionStateCharge{newActionStateMachine(c, true).(meteredActionState), br.op, br.twice}
 				}
 				if fails, _ := actionStateConformanceFailures(fam, s, 30, 120); len(fails) == 0 {
 					t.Fatal("no case detected the broken engine")

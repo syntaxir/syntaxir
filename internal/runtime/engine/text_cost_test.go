@@ -102,15 +102,13 @@ func TestTextDecodesInvalidInputOnce(t *testing.T) {
 	c := state.NewBudgetControl(nil, runtime.Limits{Compute: 1 << 30})
 	in := state.NewControlledTextInput(source, input.CodePoints, false, nil, c)
 
-	// The decoding is interruptible and leaves nothing behind.
-	c.Limits.Compute = c.Used + 100
-	if err := statetest.CatchFatal(t, func() { _ = in.Text(0, 2000) }); !errors.Is(err, runtime.ErrLimit) {
-		t.Fatalf("decoding interruption: %v", err)
+	// Decoding the input is no event: it counts no unit, so a limit with no room does not stop it.
+	c.Limits.Compute = c.Used
+	var got string
+	if err := statetest.CatchFatal(t, func() { got = in.Text(0, 2000) }); err != nil || got != want || c.Used != c.Limits.Compute {
+		t.Fatalf("decoding with no room: error %v, counted %d", err, c.Used-c.Limits.Compute)
 	}
 	c.Limits.Compute = 1 << 30
-	if got := in.Text(0, 2000); got != want {
-		t.Fatal("text after an interrupted decoding differs")
-	}
 	used := c.Used
 	if got := in.Text(1, 1999); got != want[len("é"):len(want)-len("�")] {
 		t.Fatal("decoded substring differs")
