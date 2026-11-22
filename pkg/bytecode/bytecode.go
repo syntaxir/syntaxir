@@ -198,4 +198,4 @@ const (
 // ISAVersion is the instruction set of the value model, the only one supported. Earlier
 // versions built the previous syntax trees, so their files are not loaded and need to be
 // compiled again.
-const ISAVersion = 39
+const ISAVersion = 40

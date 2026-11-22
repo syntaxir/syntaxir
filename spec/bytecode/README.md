@@ -462,7 +462,7 @@ A compiled grammar uses container version 8. It stores one execution-only compil
 | Magic | `SXC\x00` (4 bytes) |
 | Version | 1 byte: 8. A loader refuses any other value. |
 | Mode | 1 byte: 0 parse, 1 recognize, 2 document. The module serves the operations of this mode only. A parse-mode or document-mode module is the module of the grammar; a recognize-mode module is the module of its recognizer. A loader refuses any other value. |
-| Instruction-set version | Unsigned integer for this module: 39. Every module uses this version, whatever instructions it contains; a runtime rejects a module of another version and asks for the grammar to be compiled again. |
+| Instruction-set version | Unsigned integer for this module: 40. Every module uses this version, whatever instructions it contains; a runtime rejects a module of another version and asks for the grammar to be compiled again. |
 | String table | Count, then each string (byte length and UTF-8 bytes), all unsigned. The module's string table is a prefix of this table. |
 | Start rule | String index, unsigned: the start rule the saved parser uses. It is a start rule of the module, or the empty string for the module's default start rule. |
 | Module | See below |
