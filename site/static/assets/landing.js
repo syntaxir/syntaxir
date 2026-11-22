@@ -1,10 +1,9 @@
-// The landing page: the output tabs of the workbench, their link with the targets of the architecture
-// diagram, and the live example, which parses the input with the README's grammar on the playground's
-// WebAssembly build of the engine.
+// The landing page: the output tabs of the workbench, and the live example, which parses the input with
+// the README's grammar on the playground's WebAssembly build of the engine.
 
 import { SXIRClient, siteRoot } from "./sxir-client.js";
 import { encodeState } from "./state.js";
-import { BELOW_RESOLUTION, liveView, tabOfTarget, targetOfTab, targetLabel } from "./landing-view.js";
+import { BELOW_RESOLUTION, liveView } from "./landing-view.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -12,7 +11,7 @@ const $ = (id) => document.getElementById(id);
 const tabs = [...document.querySelectorAll('.wb-tabs [role="tab"]')];
 const tabName = (tab) => tab.id.replace(/^tab-/, "");
 
-function selectTab(name, { focus = false, fromDiagram = false } = {}) {
+function selectTab(name, { focus = false } = {}) {
   for (const tab of tabs) {
     const on = tabName(tab) === name;
     tab.setAttribute("aria-selected", String(on));
@@ -20,7 +19,6 @@ function selectTab(name, { focus = false, fromDiagram = false } = {}) {
     $(tab.getAttribute("aria-controls")).hidden = !on;
     if (on && focus) tab.focus();
   }
-  if (!fromDiagram) highlightTarget(targetOfTab(name));
   if (name === "live") startLive();
 }
 
@@ -34,29 +32,6 @@ for (const tab of tabs) {
     selectTab(tabName(tabs[(next + tabs.length) % tabs.length]), { focus: true });
   });
 }
-
-// The architecture diagram: a target highlights its path, and its output tab when it has one. The
-// diagram is an image to assistive technology; keyboard users reach the same outputs through the tabs.
-const arch = $("arch");
-const archStatus = $("arch-status");
-
-function highlightTarget(target) {
-  if (!arch) return;
-  arch.classList.toggle("has-target", target != null);
-  for (const el of arch.querySelectorAll("[data-target]")) el.classList.toggle("is-on", el.dataset.target === target);
-  for (const el of arch.querySelectorAll(".d-path")) el.classList.toggle("is-on", target != null && el.classList.contains("p-" + target));
-  archStatus.textContent = targetLabel(target);
-}
-
-arch?.addEventListener("click", (e) => {
-  const el = e.target.closest("[data-target]");
-  if (!el) return;
-  const target = el.dataset.target;
-  const already = el.classList.contains("is-on");
-  highlightTarget(already ? null : target);
-  const tab = tabOfTarget(target);
-  if (!already && tab) selectTab(tab, { fromDiagram: true });
-});
 
 // The live example. The parser (about 2 MB compressed) loads only when the example is about to be
 // seen or is used.

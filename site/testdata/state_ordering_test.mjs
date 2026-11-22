@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import vm from "node:vm";
 import { test } from "node:test";
 import { decodeState } from "../static/assets/state.js";
-import { BELOW_RESOLUTION, liveView, tabOfTarget, targetOfTab, targetLabel } from "../static/assets/landing-view.js";
+import { BELOW_RESOLUTION, liveView } from "../static/assets/landing-view.js";
 import { Element, playground } from "./playground_harness.mjs";
 
 const base = { g: 'rule main = "a"\nrule alt = "b"', i: "a" };
@@ -231,7 +231,7 @@ async function landing(encode) {
   const context = vm.createContext({
     document: { getElementById: (id) => elements.get(id), querySelectorAll: () => [] }, window: {},
     SXIRClient: class { async call() { return { compile: { ok: true }, matched: true, sexpr: "", nodes: 0, depth: 0, micros: 0 }; } },
-    BELOW_RESOLUTION, liveView, tabOfTarget, targetOfTab, targetLabel,
+    BELOW_RESOLUTION, liveView,
     siteRoot: () => "/", encodeState: encode,
     console: { ...console, warn: (...args) => warnings.push(args) },
     setTimeout: () => 1, clearTimeout() {},

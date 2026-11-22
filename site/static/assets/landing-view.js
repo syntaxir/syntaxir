@@ -1,6 +1,5 @@
-// What the live example of the landing page shows for a parse response of sxir.wasm, and how the
-// targets of the architecture diagram map to the output tabs. It has no dependencies, so that it can be
-// tested in Node (testdata/landing_view_test.mjs).
+// What the live example of the landing page shows for a parse response of sxir.wasm. It has no
+// dependencies, so that it can be tested in Node (testdata/landing_view_test.mjs).
 
 import { fmtTime } from "../playground/status.js";
 
@@ -32,23 +31,4 @@ export function liveView(res) {
     depth: String(res.depth ?? 0),
     time,
   };
-}
-
-// The output tab of each target of the diagram; "any" (the roadmap) has none, and the WebAssembly
-// target is the live example, which runs the engine compiled to WebAssembly.
-const TAB_OF_TARGET = { go: "go", ts: "ts", vm: "vm", wasm: "live" };
-const TARGET_OF_TAB = { go: "go", ts: "ts", vm: "vm", live: "wasm" };
-
-export function tabOfTarget(target) {
-  return TAB_OF_TARGET[target] ?? null;
-}
-
-export function targetOfTab(tab) {
-  return TARGET_OF_TAB[tab] ?? null;
-}
-
-// targetLabel is the status line of the diagram for a selected target (null: every target).
-export function targetLabel(target) {
-  const names = { go: "Go, generated", ts: "TypeScript, generated", vm: "the bytecode VM", wasm: "WebAssembly in the browser", any: "more targets, on the roadmap" };
-  return target ? `Showing ${names[target]}` : "Showing every target";
 }

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { BELOW_RESOLUTION, liveView, tabOfTarget, targetOfTab, targetLabel } from "../static/assets/landing-view.js";
+import { BELOW_RESOLUTION, liveView } from "../static/assets/landing-view.js";
 
 const ok = { compile: { ok: true, diagnostics: [] } };
 
@@ -27,14 +27,6 @@ test("a recovered tree is marked", () => {
   assert.equal(liveView({ ...ok, matched: true, recovered: true, sexpr: "x", nodes: 1, depth: 1, micros: 2 }).badge.text, "Recovered");
 });
 
-test("targets and tabs map both ways; the roadmap has no tab", () => {
-  for (const t of ["go", "ts", "vm", "wasm"]) assert.equal(targetOfTab(tabOfTarget(t)), t);
-  assert.equal(tabOfTarget("wasm"), "live");
-  assert.equal(tabOfTarget("any"), null);
-  assert.equal(targetOfTab("cli"), null);
-  assert.equal(targetLabel(null), "Showing every target");
-  assert.equal(targetLabel("any"), "Showing more targets, on the roadmap");
-});
 
 test("a parse faster than the browser's clock says so instead of 0 µs", () => {
   assert.equal(liveView({ ...ok, matched: true, sexpr: "x", nodes: 1, depth: 1, micros: 0, runs: 5 }).time, BELOW_RESOLUTION);
