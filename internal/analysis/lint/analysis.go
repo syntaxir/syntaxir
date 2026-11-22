@@ -879,54 +879,6 @@ func walkExprControlled(e ast.Expr, f func(ast.Expr), control *lintControl) {
 	}
 }
 
-// walkActionExpr visits the value expression and its subexpressions in preorder.
-func walkActionExpr(t ast.ActionExpr, f func(ast.ActionExpr)) {
-	if t == nil {
-		return
-	}
-	f(t)
-	switch t := t.(type) {
-	case *ast.ActionGroup:
-		walkActionExpr(t.Action, f)
-	case *ast.Block:
-		for _, stmt := range t.Statements {
-			walkActionExpr(stmt, f)
-		}
-	case *ast.FieldAccess:
-		walkActionExpr(t.X, f)
-	case *ast.Constructor:
-		for _, fi := range t.Fields {
-			walkActionExpr(fi.Value, f)
-		}
-		for _, x := range t.Args {
-			walkActionExpr(x, f)
-		}
-	case *ast.ListConstructor:
-		for _, item := range t.Items {
-			walkActionExpr(item, f)
-		}
-	case *ast.TupleLit:
-		for _, x := range t.Elems {
-			walkActionExpr(x, f)
-		}
-	case *ast.Call:
-		for _, a := range t.Args {
-			walkActionExpr(a, f)
-		}
-	case *ast.Lambda:
-		walkActionExpr(t.Body, f)
-	case *ast.Binary:
-		walkActionExpr(t.L, f)
-		walkActionExpr(t.R, f)
-	case *ast.Unary:
-		walkActionExpr(t.X, f)
-	case *ast.Cast:
-		walkActionExpr(t.X, f)
-	case *ast.Bind:
-		walkActionExpr(t.Value, f)
-	}
-}
-
 // calls returns the rules that e calls, in order of appearance.
 func calls(e ast.Expr) []string {
 	return callsControlled(e, nil)
