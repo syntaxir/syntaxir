@@ -512,7 +512,7 @@ func TestStreamCommitMutantsFail(t *testing.T) {
 			[]printedEdit{{"if err := p.ReportRecovered(); err != nil {\n\t\tpanic(Fatal{Err: err})\n\t}", "_ = p.ReportRecovered()"}},
 			"^TestStreamDiagnosticCallbackWithoutElementReceiverStopsBeforeLaterRead$", inCore},
 		{"the trail stays", []printedEdit{{"\tp.Trail = p.Trail[:0]\n", ""}}, storage, vm},
-		{"the frames stay", []printedEdit{{"\tif StreamFrameScratch {\n\t\tp.ResetStreamFrames()\n\t}\n", ""}}, after, here},
+		{"the frames stay", []printedEdit{{"\tif StreamFrameScratch {\n\t\tp.ResetStreamFrames()\n\t}\n", ""}}, charges, inCore},
 		{"the chunks stay", []printedEdit{{"\tp.splitChunks()\n", ""}}, "^TestParseStreamMemoryIsBounded$", here},
 		{"the inactive trail stays",
 			[]printedEdit{{"\tif StreamUndoCleanup {\n\t\tclearSpend(p, p.Trail[:cap(p.Trail)])\n\t}\n", ""}}, storage, vm},
