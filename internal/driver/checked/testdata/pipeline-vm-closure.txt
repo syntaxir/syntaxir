@@ -1,0 +1,65 @@
+sxir-pipeline 1.0
+sxir (devel)
+options start= source-info=false default-value=false left-recursion-bindings=false
+program role=parser recognition=build-values disable-memo=false no-projections=false eager-attribute-copies=false
+settings profile=speed opt= no-opt=
+debug verify-each=false print-after= print-changed=false stats=false time-passes=false print-before= print-pipeline=false
+target vm typed-only=false recognize-only=false no-limits=false logical-variant= expectations=false observability=false document=false stream=false module= package= lib=embed lib-module= max-depth=0 types=false recognize=false omit-package-doc=false convert-types=false keep-nodes=false keep-unreachable=false keep-comments=false feature-witness=false disable-keep-nodes=false
+target closure typed-only=false recognize-only=false no-limits=false logical-variant= expectations=false observability=false document=false stream=false module= package= lib=embed lib-module= max-depth=0 types=false recognize=false omit-package-doc=false convert-types=false keep-nodes=false keep-unreachable=false keep-comments=false feature-witness=false disable-keep-nodes=false
+pipeline program -> []output {
+  fork {
+    branch vm {
+      with target=vm {
+        with reach=none {
+          each vm-tables {
+            shared core-config {
+              elaborate!
+              slot core-passes {
+                guards
+                scans
+              }
+            }
+          }
+          plan!
+          each vm-planned-tables {
+            with table-config {
+              flowlower!
+              within module@flow {
+                with flow-target= {
+                  func funcs@flow {
+                    slot flow-passes {
+                      terminals
+                      guarded-classes
+                      class-runs
+                      class-tables
+                      inline-literals
+                      canonicalize[fold-constants,fold-branches,drop-after-exit,drop-unused-labels,splice-blocks]
+                    }
+                  }
+                }
+                flow-finish!
+              }
+            }
+          }
+          vmlower!
+        }
+      }
+    }
+    branch closure {
+      with target=closure {
+        with reach=none {
+          each closure-tables {
+            shared core-config {
+              elaborate!
+              slot core-passes {
+                guards
+                scans
+              }
+            }
+          }
+          closure-core!
+        }
+      }
+    }
+  }
+}

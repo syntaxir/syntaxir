@@ -27,14 +27,15 @@ func Describe(p *driver.Program, x driver.Options, targets ...driver.Target) (st
 	if err != nil {
 		return "", err
 	}
-	d.Header = headerLines(targets)
+	d.Header = HeaderLines(targets)
 	return d.String(), nil
 }
 
-// headerLines returns the header lines of a generation of the targets: the version of sxir, then
-// each word of Header in order, the words of the whole call from the options of the first target,
-// and one target line per target, in order, labeled with its backend.
-func headerLines(targets []driver.Target) []pipe.Line {
+// HeaderLines returns the header lines of a build of the targets: the version of sxir, then each
+// word of Header in order, the words of the whole call from the options of the first target, and
+// one target line per target, in order, labeled with its backend. The text of a run-time program
+// adds its program line (checked.Describe).
+func HeaderLines(targets []driver.Target) []pipe.Line {
 	lines := []pipe.Line{{Word: "sxir", Label: common.Version()}}
 	for _, w := range Header.Words {
 		if w.Word != "target" {
@@ -136,8 +137,9 @@ type Build struct {
 // text of the Go library, whose pipeline starts at the library and which gives no target, one line
 // of each of its words (libraryWords). A word that the scheme does not know, a word other than
 // target given twice, a word that the text does not take, a key that its word does not have and a
-// missing key are errors. The pipeline is
-// checked when the build runs, against the pipeline assembled for its options.
+// missing key are errors; so is a program line, which only the text of a run-time program has
+// (checked.Read). The pipeline is checked when the build runs, against the pipeline assembled for
+// its options.
 func Read(text string) (*Build, error) {
 	d, err := pipe.Parse(text)
 	if err != nil {
@@ -171,6 +173,8 @@ func Read(text string) (*Build, error) {
 		case "target":
 			targets = append(targets, l)
 			continue
+		case "program":
+			return nil, fmt.Errorf("pipeline text: the text builds a run-time program, which only the compiler side of a run-time program reads back (checked.Read)")
 		}
 		if err := Header.Read(l, &call); err != nil {
 			return nil, fmt.Errorf("pipeline text: %w", err)
