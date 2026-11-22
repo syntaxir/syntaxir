@@ -56,10 +56,6 @@ var layout = []place{
 	{pkg: "internal/frontend/parser/sxirparser/...", target: "internal/frontend/parser/sxirparser", generated: true},
 	{pkg: "internal/frontend/desugar", target: "internal/frontend/desugar"},
 	{pkg: "internal/syntax/fmt", target: "internal/syntax/fmt"},
-	// compile splits into the semantic model (internal/frontend/check and types), Core
-	// construction (internal/frontend/elaborate), rule facts and site numbers
-	// (internal/middleend/corepass) and the run-time program (internal/runtime/program).
-	{pkg: "internal/compile", target: "internal/frontend/check"},
 	{pkg: "internal/frontend/check", target: "internal/frontend/check"},
 	{pkg: "internal/frontend/types", target: "internal/frontend/types"},
 	{pkg: "internal/frontend/astfacts", target: "internal/frontend/astfacts"},

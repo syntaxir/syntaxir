@@ -10,7 +10,7 @@ import (
 const vmlowerPackage = modulePath + "/internal/backend/vmlower"
 
 // TestVMLowerReadsNoCompiler checks, in every build, that the bytecode lowering does not reach the
-// compiler (internal/compile), directly or through another package. The lowering reads the run-time
+// checked program of the compiler (internal/frontend), directly or through another package. The lowering reads the run-time
 // program and the Core IR source of a checked grammar (vmlower.Input), so it stays free of the
 // compiler and its edge cannot come back by way of an import.
 func TestVMLowerReadsNoCompiler(t *testing.T) {

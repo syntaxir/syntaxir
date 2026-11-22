@@ -7,9 +7,10 @@ import (
 	"testing"
 )
 
-// checkedProgramPackage holds the checked program of the compiler (compile.Program): the grammar
-// AST, the semantic model and the rule facts that the generators and analyses read.
-const checkedProgramPackage = modulePath + "/internal/compile"
+// checkedProgramPackage holds the checked program of the compiler (frontend.Result): the semantic
+// model of a checked grammar with its site numbers and run-time program, which the drivers hand
+// the generators, the backends and the runtime only as the views and inputs they read.
+const checkedProgramPackage = modulePath + "/internal/frontend"
 
 // TestRuntimeReadsNoCheckedProgram checks, in every build, that no package of the internal runtime
 // (internal/runtime/** and internal/runtime/engine, the run-time entries) reaches the checked program of the
@@ -37,10 +38,9 @@ func TestRuntimeReadsNoCheckedProgram(t *testing.T) {
 	}
 }
 
-// modelReaders are the packages outside the compiler that read the checked grammar through its
+// modelReaders are the packages outside the front end that read the checked grammar through its
 // semantic model (check.Model), its checker and the facts of its Core IR, not through the checked
-// program. Only the drivers (internal/driver/checked) and the bytecode compiler
-// (internal/backend/vmlower) are to keep reading it; the list grows as the other readers move.
+// program, which only the drivers read.
 var modelReaders = []string{
 	"internal/backend/actionlower",
 	"internal/backend/closure",
@@ -64,7 +64,7 @@ func TestModelReadersReadNoCheckedProgram(t *testing.T) {
 }
 
 // generatorReaders are the generator packages that read a checked grammar only through the view of
-// package common (common.Program), which internal/driver/checked builds.
+// package common (common.Program), which internal/driver/checked builds from the checked program.
 var generatorReaders = []string{
 	"internal/backend/codegen/common",
 	"internal/backend/codegen/golang/print",
@@ -82,11 +82,11 @@ func TestGeneratorsReadNoCheckedProgram(t *testing.T) {
 }
 
 // TestGeneratorsReadNoCheckedProgramControl checks that the check fires for a generator that
-// imports internal/middleend/checkfacts, which hands the front end the rule facts in the types of
-// the checked program: the facts reach the generators through corepass, never through checkfacts.
+// imports internal/driver/checked, which builds the generators' view from the checked program: the
+// generators take the view it builds, never the package that builds it.
 func TestGeneratorsReadNoCheckedProgramControl(t *testing.T) {
 	g := loadAll(t)[0].clone()
-	from, via := modulePath+"/internal/backend/codegen/golang/print", modulePath+"/internal/middleend/checkfacts"
+	from, via := modulePath+"/internal/backend/codegen/golang/print", modulePath+"/internal/driver/checked"
 	if _, ok := g.pkgs[via]; !ok {
 		t.Fatalf("no package %s", via)
 	}
