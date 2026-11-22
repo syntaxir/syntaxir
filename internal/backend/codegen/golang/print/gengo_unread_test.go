@@ -42,7 +42,7 @@ rule leaf Leaf = d:[0-9]+ => Leaf{N: len($d)}
 	if err != nil {
 		t.Fatal(err)
 	}
-	files, err := codegentest.Generate(t, g, common.GenOptions{Package: "p", Start: "main", Lib: common.LibImport, Types: true, Module: "example.com/p"})
+	files, err := codegentest.Generate(t, g, common.GenOptions{Package: "p", Start: "main", Lib: common.LibImport, Types: true, Module: "example.com/p", NoLimitControls: true})
 	if err != nil {
 		t.Fatal(err)
 	}
