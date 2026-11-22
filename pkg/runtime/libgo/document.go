@@ -136,16 +136,23 @@ func (d *documentState) resetHistory() {
 	d.memo, d.typedMemo, d.runs, d.edits, d.moves = memoTable{}, nil, nil, nil, 0
 }
 
-// historyBytes returns the bytes that a Node parse under a memory limit counts for the history the
-// Document keeps beside its memo table: the run records and the edit log.
-func (d *documentState) historyBytes() uint64 {
-	return saturatingAdd(runBytes(d.runs), editLogBytes(d.edits))
+// retainedBytes returns the bytes that a parse of either form under a memory limit starts its count
+// at: everything the Document keeps from earlier parses, each once. If they alone pass the limit,
+// the parse resets the whole history first (resetHistory).
+func (d *documentState) retainedBytes() uint64 {
+	return saturatingAdd(d.memo.chargedBytes(), d.historyBytes())
 }
 
-// editLogBytes returns the bytes of the edit log edits, which the Node and the typed memo share: a
-// parse of either form counts them once (documentState.historyBytes, TypedDocumentParse).
-func editLogBytes(edits []documentEdit) uint64 {
-	return uint64(cap(edits)) * uint64(unsafe.Sizeof(documentEdit{}))
+// historyBytes returns what the Document keeps beside the memo table of Node parses: the run
+// records, the estimate of the typed memo's slots and entries, and the edit log, which both memos
+// share. A Node parse reads its memo table whole as it counts (attachMemory), so the count of its
+// control starts at these bytes; a typed parse starts at all of retainedBytes.
+func (d *documentState) historyBytes() uint64 {
+	n := saturatingAdd(runBytes(d.runs), uint64(cap(d.edits))*uint64(unsafe.Sizeof(documentEdit{})))
+	if t, ok := d.typedMemo.(interface{ retainedBytes() uint64 }); ok {
+		n = saturatingAdd(n, t.retainedBytes())
+	}
+	return n
 }
 
 // CacheStats returns a point-in-time estimate of the memo and the repetition runs that the Document
@@ -568,9 +575,9 @@ func DocumentParseConverted[T any](d *documentState, o parseOptions, convert fun
 		return res, fmt.Errorf("document start rule is missing")
 	}
 	o = prepareText(o, d.text)
-	if o.control != nil && o.control.limits.Memory != 0 && saturatingAdd(d.memo.chargedBytes(), d.historyBytes()) > o.control.limits.Memory {
-		// The retained memo, runs and edit log alone exceed the limit: the parse starts without them,
-		// as after ResetHistory.
+	if o.control != nil && o.control.limits.Memory != 0 && d.retainedBytes() > o.control.limits.Memory {
+		// What the Document retains alone exceeds the limit: the parse starts without it, as after
+		// ResetHistory.
 		d.resetHistory()
 	}
 	p := &Parser{unit: d.unit, MaxDepth: o.maxDepth, Control: o.control}
