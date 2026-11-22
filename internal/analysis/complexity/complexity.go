@@ -9,7 +9,6 @@ import (
 
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/frontend"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/ir/core"
@@ -458,7 +457,7 @@ func newClassifierOf(g *ast.Grammar, rules, base []*ast.RuleDef, nm nodeMap, rf 
 	}
 	k.outside = map[*ast.Ref]bool{}
 	for _, r := range rules {
-		k.calls[r.Name] = astfacts.AllCallsControlled(r.Expr, nil, control)
+		k.calls[r.Name] = k.callsOf(k.ruleBody(r.Name))
 	}
 	for i, comp := range tarjan(rf.source.Module.Rules, k.calls, control) {
 		for _, n := range comp {
@@ -535,6 +534,19 @@ func (k *classifier) memoAtOf(n core.Node) bool { return k.memoAt(k.exprOf(n).(*
 
 // shareableOf is shareable of the call n, a call or a right operand (calledRule).
 func (k *classifier) shareableOf(n core.Node) bool { return k.shareable(k.exprOf(n).(*ast.Ref)) }
+
+// callsOf returns the rules that n calls, in the order of n, a rule called at several places listed
+// at each.
+func (k *classifier) callsOf(n core.Node) []string {
+	var calls []string
+	walkNodes(n, func(x core.Node) {
+		k.control.Poll()
+		if rule, ok := k.calledRule(x); ok {
+			calls = append(calls, rule)
+		}
+	})
+	return calls
+}
 
 // plainCall returns the rule that n calls when n is a call that names no level of an Operators
 // Rule.
