@@ -224,7 +224,7 @@ func siteName(f *types.Func) string {
 	return f.Name()
 }
 
-// siteCost attributes each charge site that a transitional or host operation reaches to the quantities of
+// siteCost attributes each charge site that a host operation reaches to the quantities of
 // its cost declaration that account for it; "" stands for the constant. An operation that reaches a
 // site declares one of the site's quantities. A site that is not listed fails the test, so that a
 // new charge in the library is attributed when it is added.
@@ -337,18 +337,17 @@ func TestEditFormsCallNothing(t *testing.T) {
 // the action expression charge goldens (TestActionChargesMember) hold what the operation charges.
 var makesValues = map[string]bool{"node.zero": true}
 
-// TestTransitionalAndHostCostsMatchCharges checks the cost declarations of the transitional and host
-// operations against the Go library that implements them, through its static calls (calls through interfaces
-// and function values are not followed, so the cost of a host callback such as the delivery of an
-// element is not audited: it is the host's): an operation that reaches a charge of the budget may end
+// TestHostCostsMatchCharges checks the cost declarations of the host operations against the Go
+// library that implements them, through its static calls (calls through interfaces and function
+// values are not followed, so the cost of a host callback such as the delivery of an element is not
+// audited: it is the host's): an operation that reaches a charge of the budget may end
 // the parse (NoReturn) and declares a cost with a quantity for every charge site it reaches
 // (siteCost), and one that reaches none declares no cost. It does not measure the bounds: a
-// transitional or host operation has no reference model to compute its quantities.
-func TestTransitionalAndHostCostsMatchCharges(t *testing.T) {
+// host operation has no reference model to compute its quantities.
+func TestHostCostsMatchCharges(t *testing.T) {
 	pkg, callees, charges := libCalls(t)
 	for _, op := range compose.Build().Ops {
-		if op.Kind != code.OpTransitional && op.Kind != code.OpHost || makesValues[op.Name] ||
-			documentWork[op.Name] != "" {
+		if op.Kind != code.OpHost || makesValues[op.Name] || documentWork[op.Name] != "" {
 			continue
 		}
 		found := false
@@ -359,9 +358,7 @@ func TestTransitionalAndHostCostsMatchCharges(t *testing.T) {
 			fns = append(fns, f...)
 		}
 		if !found {
-			if op.Kind == code.OpHost {
-				t.Errorf("host operation %s has no Go form to audit", op.Name)
-			}
+			t.Errorf("host operation %s has no Go form to audit", op.Name)
 			continue
 		}
 		sites := chargeSites(pkg, callees, charges, fns)

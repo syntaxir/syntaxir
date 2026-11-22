@@ -81,7 +81,7 @@ The tables of [Operations](operations.md), [Values](values.md) and [Compositions
 operation and function on one line, the header line of its listing, with the parts that the listing writes on lines
 of their own moved onto it.
 
-- An operation: its kind (`op`, `host op`, `primitive op` or `transitional op`), its name, its parameters and its results, then its features in brackets, if it has any, and
+- An operation: its kind (`op`, `host op` or `primitive op`), its name, its parameters and its results, then its features in brackets, if it has any, and
   `noreturn`, if it may end the parse, as in `op budget.charge(n u64) [budget] noreturn`. The table gives the state it
   reads and writes, its cost bound and its contract in columns of their own.
 - A function: `func`, its name, its parameters, its results and its features in brackets, as in

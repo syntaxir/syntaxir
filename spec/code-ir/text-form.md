@@ -24,7 +24,7 @@ handle Entry of memo
   // A memo entry: the result of a rule call with its outcome and end.
 ```
 
-An operation prints its kind (`op`, `host op` or `transitional op`), its name, its parameters and its results, and
+An operation prints its kind (`op`, `host op` or `primitive op`), its name, its parameters and its results, and
 then, one level deeper, its component, the components and registers it reads and writes, its features, `noreturn` if
 it may end the parse, its cost bound after `cost <=` (see [Costs](module.md#costs)), its contract, its precondition
 and each law.

@@ -13,9 +13,9 @@ its printing rules rely on these guarantees. The invariants that a dialect adds 
 - A register holds a scalar: `bool`, `int` or a sized integer, never a handle.
 - A handle type belongs to a declared component.
 - An operation belongs to a declared component. Each component and register it reads or writes is declared, and each
-  feature it names is declared. It writes only its own component and registers, except a transitional operation,
+  feature it names is declared. It writes only its own component and registers, except a primitive operation,
   which may write every component it changes.
-- An operation has a contract. It is not both a host and a transitional operation.
+- An operation has a contract.
 - An operation of a module of a stage belongs to a dialect legal at the stage (see [Dialects and Stages](module.md#dialects-and-stages)).
 - Each term of its cost bound has a positive coefficient and a quantity, and its constant part is not negative (see
   [Costs](module.md#costs)).

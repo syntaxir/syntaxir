@@ -18,7 +18,7 @@ type Applier interface {
 }
 
 // RegisterMachine is a Machine whose operations read and write the registers they declare, as
-// target implementations of transitional operations do (rule.invoke moves the position): Run hands
+// target implementations of the operations that run grammar code do (rule.invoke moves the position): Run hands
 // it the registers of the run, by name, before it runs the function.
 type RegisterMachine interface {
 	Machine

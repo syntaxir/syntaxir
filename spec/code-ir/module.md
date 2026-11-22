@@ -47,7 +47,7 @@ An operation is a transition of the abstract state. Its declaration has the foll
 | Name | The operation's name, unique in the module. By convention it is the component's short name, a dot and a verb |
 | Component | The state component the operation belongs to |
 | Signature | Its parameters, each with a name and a type, and its result types, any number |
-| Reads, writes | The components and registers it reads and writes. It writes only its own component and registers, except a transitional operation (see [Operation Kinds](#operation-kinds)), which declares every component it changes, so that a pass sees each state it changes |
+| Reads, writes | The components and registers it reads and writes. It writes only its own component and registers, except a primitive operation (see [Operation Kinds](#operation-kinds)), which declares every component it changes, so that a pass sees each state it changes |
 | Features | The features it exists in. None means every build |
 | No return | It may end the parse instead of returning: an interruption, such as an exhausted budget. An operation that declares a cost has it, because a charge ends the parse when the budget runs out (see [Costs](#costs)) |
 | Contract | What every implementation does, observable through its results, the state afterwards, the statistics it counts and what it charges |
@@ -59,7 +59,7 @@ An operation is a transition of the abstract state. Its declaration has the foll
 
 ## Operation Kinds
 
-An operation is of one of four kinds.
+An operation is of one of three kinds.
 
 - An **operation** (modeled) has a reference model of its component, and a conformance suite compares every
   implementation with the model: its results, the state afterwards and its charges against the bound.
@@ -70,10 +70,6 @@ An operation is of one of four kinds.
   contract and a cost bound; the conformance and printed tests bind it per target. A conversion from the Flow stage to
   the Exec stage makes the primitive that stands for each operation of the Flow dialect (see
   [Lowering From the Flow Stage](../exec-ir/lowering.md)).
-- A **transitional operation** stands for a function of a runtime, with its current behavior, until its mechanism is
-  written as a composition of operations of the first kind. It has no conformance cases. An operation is not both a
-  host and a transitional operation. Only the operations that the Exec dialect lists as transitional are of this kind:
-  the Flow and Action dialects have none.
 
 An operation never runs grammar code and never chooses between outcomes of the parse: reusing or recomputing a
 result, growing or stopping, which error or expectation survives. Those choices are made in functions, which read

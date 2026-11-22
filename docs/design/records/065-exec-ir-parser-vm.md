@@ -169,9 +169,9 @@ parser VM and the program that drives them. Its packages are `internal/ir/code` 
 [Record 062](062-backend-independent-optimization-ir.md) keeps runtime algorithms out of Core IR and Flow IR: Flow IR
 calls them as runtime services (`CallRule`, `Isolate`, `MergeExpected`, `StreamStart`) and rejected a third level
 without passes of its own. Exec IR keeps that boundary for Flow IR and gives those services a home with passes of
-their own: a Flow IR primitive lowers into a call of a transitional operation that holds the primitive
-([Lowering From Flow IR](../../../spec/exec-ir/lowering.md)), and a mechanism moves from such an operation into a
-composition, where its algorithm is written once, as it migrates. The [specification](../../../spec/exec-ir/README.md)
+their own: a Flow IR primitive lowers into a call of a primitive operation of Exec IR
+([Lowering From Flow IR](../../../spec/exec-ir/lowering.md)), and a runtime mechanism is a composition, where its
+algorithm is written once, over operations with contracts. The [specification](../../../spec/exec-ir/README.md)
 owns what the levels contain; the [intermediate representations](../intermediate-representations.md) page
 explains how they fit together.
 
@@ -246,12 +246,12 @@ a re-derivation of an algorithm.
 specification declare every operation with its contract, state, cost bound and kind. This section keeps, for each
 group, what the design shares across targets, what a target chooses and how the group is checked; costs follow
 [Cost Contracts](#cost-contracts). An operation is one of three kinds: an operation with a reference model and
-conformance cases, a host operation whose effect lies outside the parser VM's state, and a transitional
-operation that stands for a runtime function until its mechanism is a composition. A group is under
+conformance cases, a host operation whose effect lies outside the parser VM's state, and a primitive operation,
+a leaf of grammar code that each target prints in place. A group is under
 conformance only where the specification declares its operations of the first kind.
 
 **Input.** Reading the input is not an operation of Exec IR. Peeking, matching and advancing are primitives of
-Flow IR, which lower to transitional operations that each target implements over its own input
+Flow IR, which lower to primitive operations that each target implements over its own input
 representation, and the examined bound of a Document is kept by the operations of the call bookkeeping. *Shared*:
 the meaning of positions in both units, by the runtime specification. *Target*: decoding, buffers, fast paths
 for ASCII or decoded code points, literal matching by machine word.
@@ -521,8 +521,8 @@ statistics), left-recursion growth, rule completion, Document calls, the expecta
 loop, stream delivery and commitment points and parse entry. The specification lists them with the feature sets
 that each runtime prints.
 
-A rule body lowered from Flow IR calls the same operations through the transitional operations that hold its
-primitives. A composition that must suspend while a rule body runs, as the iterative VM needs, is also written as a begin, step and end split over a
+A rule body lowered from Flow IR calls the same operations through the primitive operations that its
+primitives lower to. A composition that must suspend while a rule body runs, as the iterative VM needs, is also written as a begin, step and end split over a
 small state record, from the same builder functions as the whole composition: the generated runtimes print the
 whole call, the engine the split forms.
 
@@ -567,7 +567,7 @@ A bound is a constant plus a sum of terms, each a positive coefficient times an 
 model of the component defines ([Costs](../../../spec/code-ir/module.md#costs) lists them). A bound is the worst
 case over the representations a target may choose: deferred memoization is bounded both by the regions a sparse
 record allocates and by the size of a dense record of calls in position order. An operation that copies a set or a
-list declares the copy in its bound. A transitional or host operation that charges declares a bound too, with no
+list declares the copy in its bound. A host operation that charges declares a bound too, with no
 reference model to measure it against; a test instead follows the static calls of the Go runtime from each such
 operation and requires a quantity of its bound for every charge it can reach, so that a charge added to the
 runtime is accounted for when it is added. The operations that run grammar code bound what it charges by the
@@ -726,7 +726,8 @@ Each stage is accepted by the gates of [Testing](#testing) and [Performance Acce
 before the next begins, and a release can be cut after any completed stage. Mechanisms not yet migrated are reached
 through **transitional operations**: an existing hand-written runtime function declared as an operation with its
 current behavior and no conformance cases, removed by the stage that migrates its mechanism. They let grammar code
-move to Exec IR at once while mechanisms move one at a time.
+move to Exec IR at once while mechanisms move one at a time. The last of them, the grammar operations of the
+Operators Rule, were bound to their models on generated Go, and the kind was removed.
 
 1. **Foundation.** Exec IR, builders, the verifier, the listing and the interpreter; the declarations of the pilot's
    operations, the reference models of their components and the conformance harness, with the generated Go runtime
@@ -826,7 +827,8 @@ move to Exec IR at once while mechanisms move one at a time.
    `MergeExpected` and `Keep` into the same file, specialized for budget controls. They are specialized without the
    Document's touch of the unit at an expectation, because the engine's backends record the examined input where
    they read it. `Isolate` and `Unisolate` stay hand-written, as in the generated runtimes, and the record's
-   operations are transitional and have no conformance cases, so tests of the printed code are what binds them.
+   operations had no conformance cases yet, so tests of the printed code were what bound them; the operations have
+   since gained a reference model and conformance cases.
    Results, `Stats` and budget counts do not change. Mutating the printed file shows what the tests pin: a long test
    builds 30 mutants through `-overlay`, each dropping one guard, reset, charge or copy of the three functions, and
    each fails a named test. Two more edits are equivalent and left out: without expectations a record holds at most
@@ -1052,13 +1054,15 @@ move to Exec IR at once while mechanisms move one at a time.
 
 The migration is complete when every mechanism of the parser VM runs on one composition or a declared operation:
 a change to a mechanism's policy is an edit of a composition, or of the contract of an operation that each target
-implements. That definition does not make each operation's implementation shared, and it holds today.
+implements. That definition does not make each operation's implementation shared, and it holds today: every
+operation has a reference model and conformance cases, or is a host operation or a primitive, and no transitional
+operation remains.
 
-These stay transitional, each declared with its contract and cost bound and implemented by hand on each target:
+These are implemented by hand on each target, each declared with its contract and cost bound:
 
-- the operations of the call protocol, Documents, the stream window and the split call protocol
-  that have no reference model, whose charges a static test follows instead (left-recursion growth, missing tokens, Documents and the stream window); printed
-  tests bind what they do;
+- the host operations, whose effect lies outside the parser VM's state (the stream window, the runs and edits of
+  Documents, the memory a parse lets go of, the helpers that action expressions call), and whose charges a static
+  test follows instead of a reference model; printed tests bind what they do;
 - the primitives of grammar code, which reach each runtime's helpers through the lowering of Flow IR, among them the
   sites that make a recovered error;
 - the conformance of the `call` operations and the missing-token mode, which only the engine has, on the engine
@@ -1197,8 +1201,8 @@ instantiations share a GC shape, and does not help TypeScript or the engine.
   coarse.
 - **Contracts are incomplete.** An implementation can pass the suite and still differ in a way no case observes. The
   reference models, mutation controls and differential tests together cover it; each implementation bug adds a case.
-- **Transitional operations linger.** They are listed in [Completion](#completion) and the work that migrates a
-  mechanism removes its transitional operations.
+- **Transitional operations linger.** They stood for runtime functions while their mechanisms migrated; the work
+  that migrated each mechanism removed them, and [Completion](#completion) records that none remains.
 - **A shared bug reaches every target.** One composition means one bug everywhere. The engine as oracle until the last
   stage, golden files, fixtures and negative controls are the guards.
 - **Budget counts.** Charge coalescing and new operation implementations could change counts; counts stay pinned per

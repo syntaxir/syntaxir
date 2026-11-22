@@ -35,8 +35,7 @@ func TestActionLeavesWriteOwnComponent(t *testing.T) {
 	}
 }
 
-// TestActionLeavesArePrimitives checks that the Action dialect declares no transitional operation, and that
-// the leaves of action expressions are primitive operations of the Action dialect whose immediate operands are
+// TestActionLeavesArePrimitives checks that the leaves of action expressions are primitive operations of the Action dialect whose immediate operands are
 // typed.
 func TestActionLeavesArePrimitives(t *testing.T) {
 	m, err := actionModule()
@@ -44,9 +43,6 @@ func TestActionLeavesArePrimitives(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, o := range m.Ops {
-		if o.Dialect == action.Dialect && o.Kind == code.OpTransitional {
-			t.Errorf("%s is a transitional operation", o.Name)
-		}
 		if o.Component != action.Runtime {
 			continue
 		}

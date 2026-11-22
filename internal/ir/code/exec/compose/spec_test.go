@@ -63,10 +63,7 @@ func features(fs []string) string {
 // bound, as the columns of its row.
 func opEntry(o *code.Op) string {
 	kind := "op"
-	switch {
-	case o.Kind == code.OpTransitional:
-		kind = "transitional op"
-	case o.Kind == code.OpHost:
+	if o.Kind == code.OpHost {
 		kind = "host op"
 	}
 	decl := fmt.Sprintf("%s %s(%s)%s%s", kind, o.Name, params(o.Params), results(o.Results), features(o.Features))
@@ -109,7 +106,7 @@ func sectionErrors(m *code.Module, spec map[string][]spectest.Table) []string {
 			first := map[string]string{} // component to the first operation of the section that has it
 			var order []string
 			for _, r := range tb.Rows {
-				if !strings.HasPrefix(r[0], "op ") && !strings.HasPrefix(r[0], "host op ") && !strings.HasPrefix(r[0], "transitional op ") {
+				if !strings.HasPrefix(r[0], "op ") && !strings.HasPrefix(r[0], "host op ") {
 					continue
 				}
 				name := declName(r[0])
@@ -150,7 +147,7 @@ func moduleErrors(m *code.Module, spec map[string][]spectest.Table) []string {
 	for _, r := range spectest.Column(spec, "Declaration") {
 		d := r[0]
 		switch {
-		case strings.HasPrefix(d, "op "), strings.HasPrefix(d, "host op "), strings.HasPrefix(d, "transitional op "):
+		case strings.HasPrefix(d, "op "), strings.HasPrefix(d, "host op "):
 			if len(r) < 3 {
 				errs = append(errs, "operation row without state and cost: "+d)
 				continue

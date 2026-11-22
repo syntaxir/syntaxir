@@ -154,9 +154,9 @@ type Op struct {
 	Variadic bool
 	Results  []Type
 	// Reads and Writes are the components and registers the operation reads and writes. An operation
-	// may write only its own component and registers; a transitional or primitive one, which stands
-	// for the work of several components of the runtime, may write theirs too, so that passes see
-	// every state it changes.
+	// may write only its own component and registers; a primitive one, which stands for the work of
+	// several components of the runtime, may write theirs too, so that passes see every state it
+	// changes.
 	Reads, Writes []string
 	// Features are the features the operation exists in; a function may call it only if it is
 	// specialized for all of them. Empty means every build.
@@ -205,12 +205,9 @@ const (
 	// OpPrimitive is a leaf of grammar code that each target prints in place, in its own form: it
 	// has a contract and a cost bound, and the conformance and printed tests bind it per target.
 	OpPrimitive
-	// OpTransitional is an operation that stands for an existing runtime function with its current
-	// behavior and no conformance cases, until its mechanism migrates.
-	OpTransitional
 )
 
-var opKindNames = [...]string{"op", "host op", "primitive op", "transitional op"}
+var opKindNames = [...]string{"op", "host op", "primitive op"}
 
 func (k OpKind) String() string { return opKindNames[k] }
 

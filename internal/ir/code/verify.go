@@ -11,7 +11,7 @@ import (
 //
 //   - declarations: names are unique; handle types, operations and their reads and writes name
 //     declared components, registers, handle types and features; an operation writes only its own
-//     component and registers (a transitional or primitive one may write others); cost terms have
+//     component and registers (a primitive one may write others); cost terms have
 //     a positive coefficient and a quantity; a module of a stage declares only operations of the
 //     dialects legal at it;
 //   - functions: every expression has a type and every operator, call, assignment and return
@@ -173,7 +173,7 @@ func (v *verifier) op(o *Op) {
 		case m.register(s) != nil:
 		case m.component(s) == nil:
 			v.errorf("%s: writes undeclared state %s", where, s)
-		case s != o.Component && o.Kind != OpTransitional && o.Kind != OpPrimitive:
+		case s != o.Component && o.Kind != OpPrimitive:
 			v.errorf("%s: writes component %s, which is not its own (%s)", where, s, o.Component)
 		}
 	}
@@ -182,10 +182,10 @@ func (v *verifier) op(o *Op) {
 			v.errorf("%s: undeclared feature %s", where, f)
 		}
 	}
-	if o.Contract == "" && o.Kind != OpTransitional {
+	if o.Contract == "" {
 		v.errorf("%s: no contract", where)
 	}
-	if o.Kind > OpTransitional {
+	if o.Kind > OpPrimitive {
 		v.errorf("%s: invalid kind %d", where, o.Kind)
 	}
 	if m.Stage != "" && !slices.Contains(m.Dialects, o.Dialect) {
