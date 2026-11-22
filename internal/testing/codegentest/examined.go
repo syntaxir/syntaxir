@@ -1,10 +1,12 @@
 package codegentest
 
+import "strings"
+
 // ExaminedShapes are the shapes on which every producer's examined ends are checked against the
 // independent reference (package examinedref), besides the generated corpus: growths of left
 // recursion, Operators Rules, recovery, token insertion, predicates and variables, values of actions,
-// #ignorecase, inline actions, input that is not valid UTF-8 and the bytes that literals and anchors
-// examine. Each mutant of the reference must fail one of them.
+// #ignorecase, inline actions, input that is not valid UTF-8, the bytes that literals and anchors
+// examine, and walks of hot scan sites. Each mutant of the reference must fail one of them.
 func ExaminedShapes() []Case {
 	const ops = "rule e = #operators {\n skip \" \"*\n operand [0-9]+ #atomic\n operand \"(\" e \" \"* \")\"\n" +
 		" level add { infix left \"+\" / \"-\" }\n level cmp { infix none \"<\" }\n level neg { prefix \"-\" }\n" +
@@ -89,5 +91,20 @@ func ExaminedShapes() []Case {
 			Inputs: []string{"a;b;", "a;a;", "b;", ""}},
 		{Name: "literal choices in bytes", Src: "rule main = atom* $$\nrule atom = \"-x\" / \"a\" / \"é\"",
 			Inputs: []string{"¬", "\xc2", "a¬", "é", "-x"}},
+		// The lookaheads walk ws from starts one and two characters after the start of a run, below the
+		// end of the walks before them, so its scan site turns hot inside lookaheads, where a Document
+		// parse keeps scan sites (outside them a Document resumes its runs instead), and a walk of
+		// scanHotSpan characters or more measures what the rest of it examines for its record. The runs
+		// are longer than the span, and their last characters are multibyte or cut by the end of the
+		// input.
+		{Name: "walks of a hot scan site in lookaheads",
+			Src: "rule main = (!(ws \"a\") !(\" \" ws \"a\") !(\"  \" ws \"a\") ws [bc])* $$\nrule ws = [ é]*",
+			Inputs: []string{
+				strings.Repeat(" ", 20) + "c" + strings.Repeat(" ", 20) + "b",
+				strings.Repeat(" ", 18) + "éé" + "c" + strings.Repeat(" ", 19) + "é" + "b",
+				strings.Repeat(" ", 20) + "c" + strings.Repeat(" ", 20) + "\xc3",
+				strings.Repeat(" ", 20) + "b" + strings.Repeat(" ", 17) + "\xe2\x82",
+				strings.Repeat(" ", 20) + "c" + strings.Repeat(" ", 20) + "a",
+			}},
 	}
 }

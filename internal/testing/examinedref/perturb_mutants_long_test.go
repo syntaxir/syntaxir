@@ -80,6 +80,9 @@ var producerMutants = []producerMutant{
 		goLib: &producerEdit{mutantGoLib, "\tif p.track && end > p.docExamined {\n\t\tp.docExamined = end\n",
 			"\tif p.track && end+1 > p.docExamined {\n\t\tp.docExamined = end + 1\n"},
 		tests: []string{"TestGeneratedPerturbationAndHighWater"}, catchers: []string{"TestGeneratedPerturbationAndHighWater"}},
+	{name: "a hot generated scan walk drops what the rest of it examined (examined end too small)",
+		goLib: &producerEdit{"pkg/runtime/libgo/scan_sites.go", "\tp.docExamined = max(p.scanWalk.savedExamined, x)\n", "\tp.docExamined = p.scanWalk.savedExamined\n"},
+		tests: []string{"TestGeneratedPerturbationAndHighWater"}, catchers: []string{"TestGeneratedPerturbationAndHighWater"}},
 	// The generated TypeScript parsers, whose library records the examined ends of their own. They have no
 	// stream, so the comparison with the reference (part 1 of the oracle) is what shows an examined end
 	// that is too large.
