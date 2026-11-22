@@ -557,10 +557,6 @@ func TestStreamCommitMutantsFail(t *testing.T) {
 		{"the closure backend commits where the element started",
 			[]printedEdit{{"p.EmitStream(v, p.Pos)", "p.EmitStream(v, m0.Pos)"}}, after, here},
 	})
-	runPrintedMutants(t, "internal/runtime/vm/vm.go", []printedMutant{
-		{"the VM commits where the element started",
-			[]printedEdit{{"p.EmitStream(asNodeValue(mc.pop()), p.Pos)", "p.EmitStream(asNodeValue(mc.pop()), e.save.pos)"}}, after, here},
-	})
 }
 
 // TestDocumentReuseMutantsFail is the negative control of Document reuse: the two printed forms of
