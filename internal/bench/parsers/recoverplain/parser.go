@@ -137,17 +137,13 @@ type tslabs struct {
 func (a *tslabs) SetBudgetControl(c *rt.BudgetControl) { a.control = c }
 
 func (a *tslabs) spend() {
-	if a.control == nil {
+	if a.control == nil || !a.result {
 		return
 	}
-	if a.result {
-		a.steps++
-		if a.steps%256 == 0 {
-			a.control.Check()
-		}
-		return
+	a.steps++
+	if a.steps%256 == 0 {
+		a.control.Check()
 	}
-	a.control.Charge(1)
 }
 
 func (a *tslabs) MemoryBytes() uint64 { return a.tl0Chunk.MemoryBytes() }
@@ -226,7 +222,6 @@ func init() {
 	rules[0].Body = e2
 	sxirGrammar.Starts = []string{"doc"}
 	sxirGrammar.DefaultStart = "doc"
-	sxirGrammar.Logical = true
 	trules = rt.NewTRules(rules)
 	defer tinit()
 	trules[0].Entry = s0
@@ -263,7 +258,7 @@ func e2(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	v10 = p.NewBranchOrdinary(rt.ListKind, x3, p.Kids(x4))
 	x2 = append(x2, v10)
 	if !p.AtEndBatchOrdinary() {
-		p.ExpectOrdinary(p.Pos, rt.IdEndInput)
+		p.Expect(p.Pos, rt.IdEndInput)
 		goto fail
 	}
 	v11 = p.NewBranchOrdinary(rt.SeqKind, x1, x2)
@@ -321,7 +316,7 @@ L5:
 		x17 = p.Mark()
 		ch, size, ok = p.NextOrdinary()
 		if !ok || (ch == 59) {
-			p.ExpectOrdinary(p.Pos, 6)
+			p.Expect(p.Pos, 6)
 			goto L18
 		}
 		p.Pos += size
@@ -420,7 +415,7 @@ func e8(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		x4 = p.Mark()
 		ch, size, ok = p.NextOrdinary()
 		if !ok || !(ch >= 97 && ch <= 122) {
-			p.ExpectOrdinary(p.Pos, 8)
+			p.Expect(p.Pos, 8)
 			goto L5
 		}
 		x6 = p.Pos
@@ -619,7 +614,7 @@ L5:
 		x17 = p.Mark()
 		ch, size, ok = p.NextOrdinary()
 		if !ok || (ch == 59) {
-			p.ExpectOrdinary(p.Pos, 6)
+			p.Expect(p.Pos, 6)
 			goto L18
 		}
 		p.Pos += size
@@ -645,7 +640,7 @@ L5:
 	x19 = p.MakeError(x3, x4)
 	p.Units++
 	p.PushRecovered(x19)
-	v7 = rt.NewTError(x1.Pos, p.Pos, p.RecoveryErrorText(x19))
+	v7 = rt.NewTError(x1.Pos, p.Pos, x19.Error())
 	goto L6
 L15:
 	p.Reset(x1)
@@ -690,7 +685,7 @@ func s0(p *rt.TParser) (any, bool) {
 	v11 = p.NewNodeOrdinary("list", x3, p.Pos, p.Kids(x4))
 	x2 = append(x2, v11)
 	if !p.AtEndBatchOrdinary() {
-		p.ExpectOrdinary(p.Pos, rt.IdEndInput)
+		p.Expect(p.Pos, rt.IdEndInput)
 		goto fail
 	}
 	v12 = p.NewNodeOrdinary("tuple", x1, p.Pos, x2)
@@ -792,7 +787,7 @@ func s3(p *rt.TParser) (any, bool) {
 		x4, x5 = p.Pos, len(p.Recovered)
 		ch, size, ok = p.NextOrdinary()
 		if !ok || !(ch >= 97 && ch <= 122) {
-			p.ExpectOrdinary(p.Pos, 8)
+			p.Expect(p.Pos, 8)
 			goto L6
 		}
 		x7 = p.Pos

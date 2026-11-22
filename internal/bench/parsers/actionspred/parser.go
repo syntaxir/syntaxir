@@ -101,17 +101,13 @@ type tslabs struct {
 func (a *tslabs) SetBudgetControl(c *rt.BudgetControl) { a.control = c }
 
 func (a *tslabs) spend() {
-	if a.control == nil {
+	if a.control == nil || !a.result {
 		return
 	}
-	if a.result {
-		a.steps++
-		if a.steps%256 == 0 {
-			a.control.Check()
-		}
-		return
+	a.steps++
+	if a.steps%256 == 0 {
+		a.control.Check()
 	}
-	a.control.Charge(1)
 }
 
 func (a *tslabs) MemoryBytes() uint64 {
@@ -238,8 +234,6 @@ func init() {
 	recRules[1].Body = e12
 	sxirGrammar.Starts = []string{"main"}
 	sxirGrammar.DefaultStart = "main"
-	sxirGrammar.Logical = true
-	sxirRecGrammar.Logical = true
 	sxirRecGrammar.Share(sxirGrammar)
 	trules = rt.NewTRules(rules)
 	defer tinit()
@@ -273,7 +267,7 @@ func e2(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	v9 = p.NewBranchOrdinary(rt.ListKind, x2, p.Kids(x3))
 	p.SetCapture(0, v9)
 	if !p.AtEndBatchOrdinary() {
-		p.ExpectOrdinary(p.Pos, rt.IdEndInput)
+		p.Expect(p.Pos, rt.IdEndInput)
 		goto fail
 	}
 	return nil, true
@@ -434,7 +428,7 @@ func e7(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		x6 = p.Mark()
 		ch, size, ok = p.NextOrdinary()
 		if !ok || !(ch >= 97 && ch <= 122) {
-			p.ExpectOrdinary(p.Pos, 7)
+			p.Expect(p.Pos, 7)
 			goto L7
 		}
 		x8 = p.Pos
@@ -511,7 +505,7 @@ func e11(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		break
 	}
 	if !p.AtEndBatchOrdinary() {
-		p.ExpectOrdinary(p.Pos, rt.IdEndInput)
+		p.Expect(p.Pos, rt.IdEndInput)
 		goto fail
 	}
 	v = nil
@@ -714,7 +708,7 @@ func i0(p *rt.TParser) (any, bool) {
 	v10 = p.NewNodeOrdinary("list", x3, p.Pos, p.Kids(x4))
 	k1 = v10
 	if !p.AtEndBatchOrdinary() {
-		p.ExpectOrdinary(p.Pos, rt.IdEndInput)
+		p.Expect(p.Pos, rt.IdEndInput)
 		goto fail
 	}
 	c = p.UseCtx(rt.TActCtx{P: p, Start: start, End: p.Pos, Cbase: len(p.Created)})
@@ -916,7 +910,7 @@ func s2(p *rt.TParser) (any, bool) {
 		x6 = p.Pos
 		ch, size, ok = p.NextOrdinary()
 		if !ok || !(ch >= 97 && ch <= 122) {
-			p.ExpectOrdinary(p.Pos, 7)
+			p.Expect(p.Pos, 7)
 			goto L7
 		}
 		x8 = p.Pos
@@ -960,6 +954,6 @@ fail:
 	return nil, false
 }
 
-const _ = types.SXIRSchema_d056f3cd588db125
+const _ = types.SXIRSchema_149c7cd6ed8192ea
 
 const _ = rt.Protocol32

@@ -70,7 +70,7 @@ func newTypedRuleMachine(cfg ref.Config, controlled bool) conform.Impl {
 
 type meteredTypedRule struct{ *typedRuleMachine }
 
-func (m meteredTypedRule) Used() uint64 { return m.p.Control.budgetUsed() }
+func (m meteredTypedRule) Used() uint64 { return m.p.Units }
 
 func (m *typedRuleMachine) Rule(index int64) any { return m.trules[index] }
 
@@ -311,13 +311,13 @@ func TestExecConformanceTypedRuleDetectsBrokenLib(t *testing.T) {
 func TestExecConformanceTypedRuleDetectsCharges(t *testing.T) {
 	variants := map[string]func(m *typedRuleMachine, args []any) []any{
 		"rule.seen charges a unit": func(m *typedRuleMachine, args []any) []any {
-			m.tp.Spend()
+			m.tp.unitsSized(1)
 			return []any{int64(m.tp.confRuleSeen(args[0].(*TRule)))}
 		},
 		"rule.run charges a unit": func(m *typedRuleMachine, args []any) []any {
 			p := m.tp
 			p.Pos = int(m.regs[exec.Pos].(int64))
-			p.Spend()
+			p.unitsSized(1)
 			v, ok := p.confRuleRun(args[0].(*typedInvocation).run)
 			m.regs[exec.Pos] = int64(p.Pos)
 			return []any{v, ok}
@@ -344,7 +344,7 @@ func TestExecConformanceTypedRuleDetectsCharges(t *testing.T) {
 
 type meteredBrokenTypedRule struct{ brokenTypedRule }
 
-func (m meteredBrokenTypedRule) Used() uint64 { return m.p.Control.budgetUsed() }
+func (m meteredBrokenTypedRule) Used() uint64 { return m.p.Units }
 
 // brokenTypedRule is the typed library with one operation of the rules replaced.
 type brokenTypedRule struct {

@@ -59,8 +59,6 @@ func MakeDocument(root *Rule, text string, opts []sxirruntime.ParseOption) (d *D
 	o.control.attachMemory(p)
 	if o.unit == sxirinput.CodePoints {
 		p.setSource(text)
-	} else if o.control != nil {
-		p.SpendRead(uint64(len(text)))
 	}
 	o.control.Check()
 	o.control, o.prepared = nil, false
@@ -351,7 +349,6 @@ func (p *Parser) documentMove(e *memoEntry) bool {
 		return true
 	}
 	// Moving the value is work of the Document that a parse from scratch does not do.
-	defer p.Control.FreeEnd(p.Control.FreeBegin(true))
 	n, ok := p.moveCopy(e.node, e.shift)
 	if !ok {
 		return false
@@ -397,7 +394,6 @@ func (p *Parser) movable(n *sxirvalue.Node, mark uint32) (movable, shared bool) 
 		return true, true
 	}
 	D(n).Mark = mark
-	p.spendValue(1 + len(D(n).Children) + len(D(n).Fields))
 	if !basicValue(D(n).Box) {
 		return false, false
 	}
@@ -439,7 +435,6 @@ func (p *Parser) moveNode(n *sxirvalue.Node, shift int32) *sxirvalue.Node {
 		return nil
 	}
 	c := p.NewNode(*D(n))
-	p.spendValue(len(D(n).Children) + len(D(n).Fields))
 	D(c).Start += shift
 	D(c).End += shift
 	if D(n).Children != nil {
@@ -471,7 +466,6 @@ func (p *Parser) moveShared(n *sxirvalue.Node, shift int32) *sxirvalue.Node {
 	}
 	c := p.NewNode(*D(n))
 	p.moved[n] = c
-	p.spendValue(len(D(n).Children) + len(D(n).Fields))
 	D(c).Start += shift
 	D(c).End += shift
 	if D(n).Children != nil {
@@ -559,7 +553,6 @@ func DocumentParseConverted[T any](d *documentState, o parseOptions, convert fun
 		return res, fmt.Errorf("document start rule is missing")
 	}
 	o = prepareText(o, d.text)
-	defer o.reportSpent()
 	if o.control != nil && o.control.limits.Memory != 0 && saturatingAdd(d.memo.chargedBytes(), runBytes(d.runs)) > o.control.limits.Memory {
 		// The retained memo and runs alone exceed the limit: the parse starts without them.
 		d.dropMemo()
@@ -567,7 +560,7 @@ func DocumentParseConverted[T any](d *documentState, o parseOptions, convert fun
 	p := &Parser{unit: d.unit, MaxDepth: o.maxDepth, Control: o.control}
 	p.setGrammar(d.root.g)
 	p.Expectations = o.expectations
-	p.Observation = o.control.observe(newObservation(&o.observe, &p.Silent, &d.stats.Resumed))
+	p.Observation = newObservation(&o.observe, &p.Silent, &d.stats.Resumed)
 	defer p.releaseObservation()
 	if d.unit == sxirinput.Bytes {
 		p.bs, p.n = d.text, len(d.text)
@@ -625,6 +618,11 @@ func DocumentParseConverted[T any](d *documentState, o parseOptions, convert fun
 		err = p.MakeError(p.farthest, p.exp[p.expBase:])
 	}
 	err = publishDocumentError(p, err)
+	if p.units.on {
+		// The copy is work of the Document that counts no unit: the context and the memory count are
+		// observed after it, before the conversion, as the engine checks after its copy.
+		p.unitsObserve()
+	}
 	res = convert(n, o.control, err)
 	p.Control.Check()
 	return res, err
@@ -634,14 +632,11 @@ func DocumentParseConverted[T any](d *documentState, o parseOptions, convert fun
 // entries. Strings are immutable, but the error objects and slice containers
 // must not be shared with a later invocation.
 func publishDocumentError(p *Parser, err error) error {
-	// The copy is work that only a Document parse does.
-	defer p.Control.FreeEnd(p.Control.FreeBegin(true))
 	switch e := err.(type) {
 	case sxirvalue.SyntaxErrors:
 		if e == nil {
 			return e
 		}
-		p.spendValue(len(e))
 		out := make(sxirvalue.SyntaxErrors, len(e))
 		for i, item := range e {
 			out[i] = cloneDocumentError(p, item)
@@ -653,19 +648,16 @@ func publishDocumentError(p *Parser, err error) error {
 }
 
 func cloneDocumentError(p *Parser, e *sxirvalue.SyntaxError) *sxirvalue.SyntaxError {
-	p.Spend()
 	if e == nil {
 		return nil
 	}
 	out := new(sxirvalue.SyntaxError)
 	*out = *e
 	if e.Expected != nil {
-		p.spendValue(len(e.Expected))
 		out.Expected = make([]string, len(e.Expected))
 		copySpend(p, out.Expected, e.Expected)
 	}
 	if e.Messages != nil {
-		p.spendValue(len(e.Messages))
 		out.Messages = make([]string, len(e.Messages))
 		copySpend(p, out.Messages, e.Messages)
 	}

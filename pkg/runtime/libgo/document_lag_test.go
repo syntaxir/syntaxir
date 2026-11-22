@@ -2,8 +2,6 @@ package libgo
 
 import (
 	"testing"
-
-	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 )
 
 // A lookup treats an entry that lags behind more than pendingEditLimit edits as a miss (advanceEntry), and
@@ -18,7 +16,7 @@ func TestEntriesBeyondTheEditLimitAreMisses(t *testing.T) {
 	for i := range log {
 		log[i] = documentEdit{start: 50, end: 50}
 	}
-	p := &Parser{edits: log, gen: epoch, Control: newBudgetControl(nil, sxirruntime.Limits{Compute: sxirruntime.Unlimited})}
+	p := &Parser{edits: log, gen: epoch}
 	for i, s := range seen {
 		e := p.memo.alloc()
 		e.from, e.examined, e.vgen = 3, 3, s

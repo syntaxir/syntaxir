@@ -408,17 +408,13 @@ type tslabs struct {
 func (a *tslabs) SetBudgetControl(c *rt.BudgetControl) { a.control = c }
 
 func (a *tslabs) spend() {
-	if a.control == nil {
+	if a.control == nil || !a.result {
 		return
 	}
-	if a.result {
-		a.steps++
-		if a.steps%256 == 0 {
-			a.control.Check()
-		}
-		return
+	a.steps++
+	if a.steps%256 == 0 {
+		a.control.Check()
 	}
-	a.control.Charge(1)
 }
 
 func (a *tslabs) MemoryBytes() uint64 {
@@ -479,127 +475,96 @@ func (c *typedDocumentClone) Finish() {
 			out := task.Target.(*types.ArrayLit)
 			_ = out
 			_ = v
-			c.Step(1)
 			out.Elems = c.list0(v.Elems)
 		case *types.Assign:
 			out := task.Target.(*types.Assign)
 			_ = out
 			_ = v
-			c.Step(1)
 			out.Target = c.toTypeExpr(v.Target)
-			c.Step(1)
 			out.Value = c.toTypeExpr(v.Value)
 		case *types.Binary:
 			out := task.Target.(*types.Binary)
 			_ = out
 			_ = v
-			c.Step(1)
 			out.Left = c.toTypeExpr(v.Left)
-			c.Step(1)
 			out.Op = c.cv0(v.Op)
-			c.Step(1)
 			out.Right = c.toTypeExpr(v.Right)
 		case *types.Block:
 			out := task.Target.(*types.Block)
 			_ = out
 			_ = v
-			c.Step(1)
 			out.Body = c.list1(v.Body)
 		case *types.Call:
 			out := task.Target.(*types.Call)
 			_ = out
 			_ = v
-			c.Step(1)
 			out.Fn = c.toTypeExpr(v.Fn)
-			c.Step(1)
 			out.Args = c.list0(v.Args)
 		case *types.Cond:
 			out := task.Target.(*types.Cond)
 			_ = out
 			_ = v
-			c.Step(1)
 			out.Cond = c.toTypeExpr(v.Cond)
-			c.Step(1)
 			out.Then = c.toTypeExpr(v.Then)
-			c.Step(1)
 			out.Else = c.toTypeExpr(v.Else)
 		case *types.ExprStmt:
 			out := task.Target.(*types.ExprStmt)
 			_ = out
 			_ = v
-			c.Step(1)
 			out.X = c.toTypeExpr(v.X)
 		case *types.Func:
 			out := task.Target.(*types.Func)
 			_ = out
 			_ = v
-			c.Step(1)
 			out.Name = c.cv1(v.Name)
-			c.Step(1)
 			out.Params = c.list2(v.Params)
-			c.Step(1)
 			out.Body = c.toTypeBlock(v.Body)
 		case *types.If:
 			out := task.Target.(*types.If)
 			_ = out
 			_ = v
-			c.Step(1)
 			out.Cond = c.toTypeExpr(v.Cond)
-			c.Step(1)
 			out.Then = c.toTypeBlock(v.Then)
-			c.Step(1)
 			out.Else = c.toTypeIfOrBlock(v.Else)
 		case *types.Index:
 			out := task.Target.(*types.Index)
 			_ = out
 			_ = v
-			c.Step(1)
 			out.X = c.toTypeExpr(v.X)
-			c.Step(1)
 			out.Index = c.toTypeExpr(v.Index)
 		case *types.Let:
 			out := task.Target.(*types.Let)
 			_ = out
 			_ = v
-			c.Step(1)
 			out.Name = c.cv1(v.Name)
-			c.Step(1)
 			out.Value = c.toTypeExpr(v.Value)
 		case *types.Member:
 			out := task.Target.(*types.Member)
 			_ = out
 			_ = v
-			c.Step(1)
 			out.X = c.toTypeExpr(v.X)
-			c.Step(1)
 			out.Name = c.cv1(v.Name)
 		case *types.Program:
 			out := task.Target.(*types.Program)
 			_ = out
 			_ = v
-			c.Step(1)
 			out.Body = c.list1(v.Body)
 		case *types.Return:
 			out := task.Target.(*types.Return)
 			_ = out
 			_ = v
-			c.Step(1)
 			out.Value = c.toTypeExpr(v.Value)
 		case *types.Unary:
 			out := task.Target.(*types.Unary)
 			_ = out
 			_ = v
-			c.Step(1)
 			out.Op = c.cv0(v.Op)
-			c.Step(1)
 			out.X = c.toTypeExpr(v.X)
 		case *types.While:
 			out := task.Target.(*types.While)
 			_ = out
 			_ = v
-			c.Step(1)
 			out.Cond = c.toTypeExpr(v.Cond)
-			c.Step(1)
 			out.Body = c.toTypeBlock(v.Body)
 
 		default:
@@ -631,7 +596,6 @@ func (c *typedDocumentClone) Release() {
 
 }
 func typedDocumentClonePointer[T any](c *typedDocumentClone, v *T) *T {
-	c.Step(1)
 	if v == nil {
 		return nil
 	}
@@ -644,7 +608,6 @@ func typedDocumentClonePointer[T any](c *typedDocumentClone, v *T) *T {
 	return out
 }
 func (c *typedDocumentClone) toMatch(v *types.TNode[string]) *types.TNode[string] {
-	c.Step(1)
 	if v == nil {
 		return nil
 	}
@@ -660,7 +623,6 @@ func (c *typedDocumentClone) toMatch(v *types.TNode[string]) *types.TNode[string
 	return out
 }
 func (c *typedDocumentClone) toError(v *types.Error) *types.Error {
-	c.Step(1)
 	if v == nil {
 		return nil
 	}
@@ -676,7 +638,6 @@ func (c *typedDocumentClone) toError(v *types.Error) *types.Error {
 	return out
 }
 func (c *typedDocumentClone) toTypeArrayLit(v *types.ArrayLit) *types.ArrayLit {
-	c.Step(1)
 	if v == nil {
 		return nil
 	}
@@ -693,7 +654,6 @@ func (c *typedDocumentClone) toTypeArrayLit(v *types.ArrayLit) *types.ArrayLit {
 	return out
 }
 func (c *typedDocumentClone) toTypeAssign(v *types.Assign) *types.Assign {
-	c.Step(1)
 	if v == nil {
 		return nil
 	}
@@ -710,7 +670,6 @@ func (c *typedDocumentClone) toTypeAssign(v *types.Assign) *types.Assign {
 	return out
 }
 func (c *typedDocumentClone) toTypeBinary(v *types.Binary) *types.Binary {
-	c.Step(1)
 	if v == nil {
 		return nil
 	}
@@ -727,7 +686,6 @@ func (c *typedDocumentClone) toTypeBinary(v *types.Binary) *types.Binary {
 	return out
 }
 func (c *typedDocumentClone) toTypeBlock(v *types.Block) *types.Block {
-	c.Step(1)
 	if v == nil {
 		return nil
 	}
@@ -744,7 +702,6 @@ func (c *typedDocumentClone) toTypeBlock(v *types.Block) *types.Block {
 	return out
 }
 func (c *typedDocumentClone) toTypeCall(v *types.Call) *types.Call {
-	c.Step(1)
 	if v == nil {
 		return nil
 	}
@@ -761,7 +718,6 @@ func (c *typedDocumentClone) toTypeCall(v *types.Call) *types.Call {
 	return out
 }
 func (c *typedDocumentClone) toTypeCond(v *types.Cond) *types.Cond {
-	c.Step(1)
 	if v == nil {
 		return nil
 	}
@@ -778,7 +734,6 @@ func (c *typedDocumentClone) toTypeCond(v *types.Cond) *types.Cond {
 	return out
 }
 func (c *typedDocumentClone) toTypeExprStmt(v *types.ExprStmt) *types.ExprStmt {
-	c.Step(1)
 	if v == nil {
 		return nil
 	}
@@ -795,7 +750,6 @@ func (c *typedDocumentClone) toTypeExprStmt(v *types.ExprStmt) *types.ExprStmt {
 	return out
 }
 func (c *typedDocumentClone) toTypeFunc(v *types.Func) *types.Func {
-	c.Step(1)
 	if v == nil {
 		return nil
 	}
@@ -812,7 +766,6 @@ func (c *typedDocumentClone) toTypeFunc(v *types.Func) *types.Func {
 	return out
 }
 func (c *typedDocumentClone) toTypeIf(v *types.If) *types.If {
-	c.Step(1)
 	if v == nil {
 		return nil
 	}
@@ -829,7 +782,6 @@ func (c *typedDocumentClone) toTypeIf(v *types.If) *types.If {
 	return out
 }
 func (c *typedDocumentClone) toTypeIndex(v *types.Index) *types.Index {
-	c.Step(1)
 	if v == nil {
 		return nil
 	}
@@ -846,7 +798,6 @@ func (c *typedDocumentClone) toTypeIndex(v *types.Index) *types.Index {
 	return out
 }
 func (c *typedDocumentClone) toTypeLet(v *types.Let) *types.Let {
-	c.Step(1)
 	if v == nil {
 		return nil
 	}
@@ -863,7 +814,6 @@ func (c *typedDocumentClone) toTypeLet(v *types.Let) *types.Let {
 	return out
 }
 func (c *typedDocumentClone) toTypeMember(v *types.Member) *types.Member {
-	c.Step(1)
 	if v == nil {
 		return nil
 	}
@@ -880,7 +830,6 @@ func (c *typedDocumentClone) toTypeMember(v *types.Member) *types.Member {
 	return out
 }
 func (c *typedDocumentClone) toTypeProgram(v *types.Program) *types.Program {
-	c.Step(1)
 	if v == nil {
 		return nil
 	}
@@ -897,7 +846,6 @@ func (c *typedDocumentClone) toTypeProgram(v *types.Program) *types.Program {
 	return out
 }
 func (c *typedDocumentClone) toTypeReturn(v *types.Return) *types.Return {
-	c.Step(1)
 	if v == nil {
 		return nil
 	}
@@ -914,7 +862,6 @@ func (c *typedDocumentClone) toTypeReturn(v *types.Return) *types.Return {
 	return out
 }
 func (c *typedDocumentClone) toTypeUnary(v *types.Unary) *types.Unary {
-	c.Step(1)
 	if v == nil {
 		return nil
 	}
@@ -931,7 +878,6 @@ func (c *typedDocumentClone) toTypeUnary(v *types.Unary) *types.Unary {
 	return out
 }
 func (c *typedDocumentClone) toTypeWhile(v *types.While) *types.While {
-	c.Step(1)
 	if v == nil {
 		return nil
 	}
@@ -948,7 +894,6 @@ func (c *typedDocumentClone) toTypeWhile(v *types.While) *types.While {
 	return out
 }
 func (c *typedDocumentClone) toTypeExpr(v types.Expr) types.Expr {
-	c.Step(1)
 	switch v := v.(type) {
 	case *types.Error:
 		return c.toError(v)
@@ -978,7 +923,6 @@ func (c *typedDocumentClone) toTypeExpr(v types.Expr) types.Expr {
 	return nil
 }
 func (c *typedDocumentClone) toTypeStmt(v types.Stmt) types.Stmt {
-	c.Step(1)
 	switch v := v.(type) {
 	case *types.Error:
 		return c.toError(v)
@@ -1002,7 +946,6 @@ func (c *typedDocumentClone) toTypeStmt(v types.Stmt) types.Stmt {
 	return nil
 }
 func (c *typedDocumentClone) toTypeIfOrBlock(v types.IfOrBlock) types.IfOrBlock {
-	c.Step(1)
 	switch v := v.(type) {
 	case *types.Error:
 		return c.toError(v)
@@ -1014,7 +957,6 @@ func (c *typedDocumentClone) toTypeIfOrBlock(v types.IfOrBlock) types.IfOrBlock 
 	return nil
 }
 func (c *typedDocumentClone) toOpen(v any) any {
-	c.Step(1)
 	switch v := v.(type) {
 	case *types.TNode[string]:
 		return c.toMatch(v)
@@ -1068,7 +1010,6 @@ func (c *typedDocumentClone) toOpen(v any) any {
 	return v
 }
 func (c *typedDocumentClone) toNode(v *types.TNode[any]) *types.TNode[any] {
-	c.Step(1)
 	if v == nil {
 		return nil
 	}
@@ -1085,7 +1026,6 @@ func (c *typedDocumentClone) toNode(v *types.TNode[any]) *types.TNode[any] {
 	return out
 }
 func (c *typedDocumentClone) toElems(v []any) []any {
-	c.Step(uint64(len(v)))
 	out := make([]any, len(v))
 	for i, x := range v {
 		out[i] = c.toOpen(x)
@@ -1093,7 +1033,6 @@ func (c *typedDocumentClone) toElems(v []any) []any {
 	return out
 }
 func (c *typedDocumentClone) cv0(v *types.TNode[string]) *types.TNode[string] {
-	c.Step(1)
 	if v == nil {
 		return nil
 	}
@@ -1106,7 +1045,6 @@ func (c *typedDocumentClone) cv0(v *types.TNode[string]) *types.TNode[string] {
 	return out
 }
 func (c *typedDocumentClone) cv1(v *types.Ident) *types.Ident {
-	c.Step(1)
 	if v == nil {
 		return nil
 	}
@@ -1121,7 +1059,6 @@ func (c *typedDocumentClone) cv1(v *types.Ident) *types.Ident {
 	return out
 }
 func (c *typedDocumentClone) cv2(v *types.Number) *types.Number {
-	c.Step(1)
 	if v == nil {
 		return nil
 	}
@@ -1136,7 +1073,6 @@ func (c *typedDocumentClone) cv2(v *types.Number) *types.Number {
 	return out
 }
 func (c *typedDocumentClone) cv3(v *types.String) *types.String {
-	c.Step(1)
 	if v == nil {
 		return nil
 	}
@@ -1151,7 +1087,6 @@ func (c *typedDocumentClone) cv3(v *types.String) *types.String {
 	return out
 }
 func (c *typedDocumentClone) cv4(v *types.Bool) *types.Bool {
-	c.Step(1)
 	if v == nil {
 		return nil
 	}
@@ -1166,7 +1101,6 @@ func (c *typedDocumentClone) cv4(v *types.Bool) *types.Bool {
 	return out
 }
 func (c *typedDocumentClone) list0(v []types.Expr) []types.Expr {
-	c.Step(1)
 	if v == nil {
 		return nil
 	}
@@ -1179,7 +1113,6 @@ func (c *typedDocumentClone) list0(v []types.Expr) []types.Expr {
 			return old.([]types.Expr)
 		}
 	}
-	c.Step(uint64(len(v)))
 	out := rt.AllocSlice(&c.list0Chunk, len(v))
 	if key.First != nil {
 		if c.Slices == nil {
@@ -1193,7 +1126,6 @@ func (c *typedDocumentClone) list0(v []types.Expr) []types.Expr {
 	return out
 }
 func (c *typedDocumentClone) list1(v []types.Stmt) []types.Stmt {
-	c.Step(1)
 	if v == nil {
 		return nil
 	}
@@ -1206,7 +1138,6 @@ func (c *typedDocumentClone) list1(v []types.Stmt) []types.Stmt {
 			return old.([]types.Stmt)
 		}
 	}
-	c.Step(uint64(len(v)))
 	out := rt.AllocSlice(&c.list1Chunk, len(v))
 	if key.First != nil {
 		if c.Slices == nil {
@@ -1220,7 +1151,6 @@ func (c *typedDocumentClone) list1(v []types.Stmt) []types.Stmt {
 	return out
 }
 func (c *typedDocumentClone) list2(v []*types.Ident) []*types.Ident {
-	c.Step(1)
 	if v == nil {
 		return nil
 	}
@@ -1233,7 +1163,6 @@ func (c *typedDocumentClone) list2(v []*types.Ident) []*types.Ident {
 			return old.([]*types.Ident)
 		}
 	}
-	c.Step(uint64(len(v)))
 	out := rt.AllocSlice(&c.list2Chunk, len(v))
 	if key.First != nil {
 		if c.Slices == nil {
@@ -1557,7 +1486,7 @@ func init() {
 		if tf3 != nil {
 			return nil, tf3
 		}
-		tk4 := c.P.ElemsAbove(tm2)
+		tk4 := c.P.Kids(tm2)
 		tn5 := c.P.ActionHullLogical(c, false, tk4)
 		tf6 := any(tn5)
 		tf7 := c.Cap(2)
@@ -1585,7 +1514,7 @@ func init() {
 		if tf3 != nil {
 			return nil, tf3
 		}
-		tk4 := c.P.ElemsAbove(tm1)
+		tk4 := c.P.Kids(tm1)
 		tn5 := c.P.ActionHullLogical(c, false, tk4)
 		return any(tn5), nil
 	}
@@ -1619,7 +1548,7 @@ func init() {
 				if tf2 != nil {
 					return nil, tf2
 				}
-				tk3 := c.P.ElemsAbove(tm1)
+				tk3 := c.P.Kids(tm1)
 				tn4 := c.P.ActionHullLogical(c, false, tk3)
 				tf5 := any(tn4)
 				tn6 := c.ActionStruct("ArrayLit", 1)
@@ -1739,7 +1668,7 @@ func init() {
 				if tf3 != nil {
 					return nil, tf3
 				}
-				tk4 := c.P.ElemsAbove(tm2)
+				tk4 := c.P.Kids(tm2)
 				tn5 := c.P.ActionHullLogical(c, false, tk4)
 				tf6 := any(tn5)
 				tn7 := c.ActionStruct("Call", 2)
@@ -1790,7 +1719,7 @@ func init() {
 		if tf3 != nil {
 			return nil, tf3
 		}
-		tk4 := c.P.ElemsAbove(tm1)
+		tk4 := c.P.Kids(tm1)
 		tn5 := c.P.ActionHullLogical(c, false, tk4)
 		return any(tn5), nil
 	}
@@ -1854,7 +1783,6 @@ func init() {
 	sxirGrammar.NodeTypes["String"] = rt.NewNodeTypeKinds("String")
 	sxirGrammar.Starts = []string{"main"}
 	sxirGrammar.DefaultStart = "main"
-	sxirGrammar.Logical = true
 	trules = rt.NewTRules(rules)
 	defer tinit()
 	trules[0].Entry = u0
@@ -1876,7 +1804,7 @@ func init() {
 				if tf2 != nil {
 					return nil, tf2
 				}
-				tk3 := c.P.ElemsAbove(tm1)
+				tk3 := c.P.Kids(tm1)
 				tn4 := c.P.ActionHullLogical(c, false, tk3)
 				tv5 := tmk_ArrayLit(c, true, any(tn4))
 				return tv5, nil
@@ -1916,7 +1844,7 @@ func init() {
 				if tf2 != nil {
 					return nil, tf2
 				}
-				tk3 := c.P.ElemsAbove(tm1)
+				tk3 := c.P.Kids(tm1)
 				tn4 := c.P.ActionHullLogical(c, false, tk3)
 				tv5 := tmk_Call(c, true, (c.Lhs), any(tn4))
 				return tv5, nil
@@ -4431,7 +4359,7 @@ L40:
 	x41 = p.MakeError(x4, x5)
 	p.Units++
 	p.PushRecovered(x41)
-	v8 = rt.NewTError(x2.Pos, p.Pos, p.RecoveryErrorText(x41))
+	v8 = rt.NewTError(x2.Pos, p.Pos, x41.Error())
 	goto L7
 L34:
 	p.Reset(x2)
@@ -5154,7 +5082,7 @@ L10:
 			if tf2 != nil {
 				c.ActionRaise(tf2)
 			}
-			tk3 := c.P.ElemsAbove(tm1)
+			tk3 := c.P.Kids(tm1)
 			tn4 := c.P.ActionHullLogical(c, false, tk3)
 			tv5 := tmk_Func(c, true, k1, any(tn4), k12)
 			tr38 = tv5
@@ -5242,7 +5170,7 @@ func i11(p *rt.TParser) (any, bool) {
 			if tf3 != nil {
 				c.ActionRaise(tf3)
 			}
-			tk4 := c.P.ElemsAbove(tm1)
+			tk4 := c.P.Kids(tm1)
 			tn5 := c.P.ActionHullLogical(c, false, tk4)
 			tr39 = any(tn5)
 		}
@@ -6021,7 +5949,7 @@ func i15(p *rt.TParser) (any, bool) {
 			if tf3 != nil {
 				c.ActionRaise(tf3)
 			}
-			tk4 := c.P.ElemsAbove(tm1)
+			tk4 := c.P.Kids(tm1)
 			tn5 := c.P.ActionHullLogical(c, false, tk4)
 			tr42 = any(tn5)
 		}
@@ -7154,6 +7082,6 @@ fail:
 	return nil, false
 }
 
-const _ = types.SXIRSchema_d662883fd94b8273
+const _ = types.SXIRSchema_384796197f10dab5
 
 const _ = rt.Protocol32

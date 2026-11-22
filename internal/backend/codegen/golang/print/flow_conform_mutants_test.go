@@ -53,7 +53,7 @@ var flowConformMutants = []flowConformMutant{
 		from: "p.expBase, p.farthest, p.expBits = m.base, m.far, m.bits", to: "p.expBase, p.farthest, p.expBits = m.base, m.far+1, m.bits",
 		cases: []string{"recover", "bind"}},
 	{name: "a merge at the wrong position", op: flow.OpMergeExpected, file: "call_exec.go",
-		from: "p.Spend()\n\t\t\tp.Expect(far, s[i])", to: "p.Spend()\n\t\t\tp.Expect(far+1, s[i])",
+		from: "for i = 0; i < len(s); i++ {\n\t\t\tp.Expect(far, s[i])", to: "for i = 0; i < len(s); i++ {\n\t\t\tp.Expect(far+1, s[i])",
 		cases: []string{"recover", "bind"}},
 	{name: "a kept set that loses its last expectation", op: flow.OpKeep, file: "call_exec.go",
 		from: "p.lastKept = p.arena[off:len(p.arena):len(p.arena)]", to: "p.lastKept = p.arena[off : len(p.arena)-1 : len(p.arena)-1]",

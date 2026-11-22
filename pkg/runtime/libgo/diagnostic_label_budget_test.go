@@ -1,35 +1,32 @@
 package libgo
 
 import (
-	"errors"
 	"testing"
 
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 )
 
-func TestDiagnosticRenameAccountsForLargeExpectationSets(t *testing.T) {
+// The rename of an expectation set to a label is no event of logical units: a set far larger than the
+// compute limit is renamed whole without counting a unit or stopping the parse.
+func TestDiagnosticRenameOfLargeExpectationSetsCountsNoUnits(t *testing.T) {
 	ids := make([]ExpID, 512)
 	for i := range ids {
 		ids[i] = ExpID(i + 1)
 	}
-	p := &Parser{Control: newBudgetControl(nil, sxirruntime.Limits{Compute: 64})}
-	var got error
-	func() {
-		defer func() {
-			if v := recover(); v != nil {
-				f, ok := v.(fatal)
-				if !ok {
-					panic(v)
-				}
-				got = f.err
-			}
-		}()
-		RenamedExpected(p, ids, 999)
-	}()
-	if !errors.Is(got, sxirruntime.ErrLimit) {
-		t.Fatalf("rename compute limit = %v, want ErrLimit", got)
+	ids[7] |= MsgBit
+	p := &Parser{}
+	p.startUnits(prepareOptions(parseOptions{controls: true, limits: sxirruntime.Limits{Compute: 64}}, 0, false))
+	got := RenamedExpected(p, ids, 999)
+	if p.Units != 0 {
+		t.Fatalf("rename counted %d units, want none", p.Units)
 	}
-	if p.Control.budgetUsed() != 64 {
-		t.Fatalf("rename steps = %d, want 64", p.Control.budgetUsed())
+	for i, id := range got {
+		want := ExpID(999)
+		if i == 7 {
+			want = ExpID(8) | MsgBit
+		}
+		if id != want {
+			t.Fatalf("entry %d = %d, want %d", i, id, want)
+		}
 	}
 }

@@ -184,7 +184,7 @@ func (p *TParser) skipTerminalSeq(t *TerminalProgram, pc, end int) bool {
 
 // skipTerminalChoice matches the choice at pc. The character is read at the first guarded
 // alternative, as by the generated code, and each guard that does not admit it records its
-// expectation at the position of the choice. Where ExpectOrdinary records nothing there (in
+// expectation at the position of the choice. Where Expect records nothing there (in
 // a lookahead, or behind the farthest position, which only grows), skipping an alternative
 // has no effect, and a choice with a dispatch table runs only the alternatives of its run
 // whose guards admit the character.
@@ -214,7 +214,7 @@ func (p *TParser) skipTerminalChoice(t *TerminalProgram, pc int) bool {
 				peeked = true
 			}
 			if !more || !t.Classes[code[k+2]].Has(ch) {
-				p.ExpectOrdinary(start, ExpID(code[k+3]))
+				p.Expect(start, ExpID(code[k+3]))
 				continue
 			}
 			if p.skipTerminalAlt(t, k, size) {

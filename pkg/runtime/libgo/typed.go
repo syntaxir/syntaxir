@@ -231,18 +231,6 @@ func TPubError(v any) *TErrorValue {
 // SetBudgetControl is for generated parsers; not a stable API.
 type budgetControlSetter interface{ SetBudgetControl(*BudgetControl) }
 
-// tfieldSpender is implemented by struct values that read a field while spending budget.
-//
-// TFieldSpend is for generated parsers; not a stable API.
-type tfieldSpender interface {
-	TFieldSpend(*TParser, string) (any, bool)
-}
-
-// stepCharger charges steps to a budget control.
-//
-// Step is for generated parsers; not a stable API.
-type stepCharger interface{ Step(uint64) }
-
 // TVal is a node value of the typed library: a value of a struct type, *TMatch,
 // *TError or *TSeq.
 //
@@ -386,7 +374,6 @@ func (p *TParser) nodeValue(n TVal) any {
 	if t, ok := n.(*TSeq); ok && t.Typ == "list" {
 		typ = TypeListValue
 	}
-	p.Spend()
 	v := p.NewNode(typ, s, e, n.TKids())
 	v.fresh = false
 	return v
@@ -670,7 +657,6 @@ func TParse[T any](r *TRule, input string, opts []sxirruntime.ParseOption, ext a
 func TParseResolved[T any](r *TRule, input string, o parseOptions, ext any, conv func(any) T) (res T, err error) {
 	defer recoverParse(&res, &err)
 	o = prepareText(o, input)
-	defer o.reportSpent()
 	p, _ := tpool.Get().(*TParser)
 	if p == nil {
 		p = &TParser{Parser: &Parser{}}
@@ -678,7 +664,7 @@ func TParseResolved[T any](r *TRule, input string, o parseOptions, ext any, conv
 	defer func() { p.recycle(); tpool.Put(p) }()
 	p.Control = o.control
 	o.control.attachTypedMemory(p, ext)
-	p.Observation = o.control.observe(newObservation(&o.observe, &p.Silent, nil))
+	p.Observation = newObservation(&o.observe, &p.Silent, nil)
 	if o.control != nil {
 		if target, ok := ext.(budgetControlSetter); ok {
 			target.SetBudgetControl(o.control)
@@ -978,17 +964,6 @@ func (p *TParser) Kids(base int) []any {
 	return ks
 }
 
-// ElemsAbove is Parser.ElemsAbove in a typed parse: action.elemsAbove, which charges two units for each
-// element in one reservation before it moves any.
-func (p *TParser) ElemsAbove(base int) []any {
-	if usedFeatures&featureBudget != 0 && p.Control != nil {
-		if n := len(p.KidStack) - base; n > 0 {
-			p.Control.Charge(2 * uint64(n))
-		}
-	}
-	return p.Kids(base)
-}
-
 func (p *TParser) DropKids(base int) {
 	clear(p.KidStack[base:])
 	p.KidStack = p.KidStack[:base]
@@ -1068,8 +1043,8 @@ func (p *TParser) memoIndexAt(i int) memoIndex[tmemoEntry] {
 // tentryHash is keyHash for the key of e.
 func tentryHash(e *tmemoEntry) uint64 { return keyHash(e.rule, e.min, e.env) }
 
-// memoGetControlled is memoGet under budget controls. As in Parser.memoGetControlled, the lookup
-// charges nothing: the call paid for the lookup of its key (ChargeKey).
+// memoGetControlled is memoGet under a memory limit. As in Parser.memoGetControlled, the lookup
+// charges nothing: the call paid for the lookup of its key (keySize).
 func (p *TParser) memoGetControlled(rule, pos, min int, key []any, ident bool) *tmemoEntry {
 	// ident is set for a rule that only a Document parse memoizes: the lookup compares keys by identity and
 	// walks docOnlyScan entries (see there).
@@ -1202,7 +1177,7 @@ func (p *TParser) joinStored(x, e *tmemoEntry) *tmemoEntry {
 	return e
 }
 
-// memoPutControlled is memoPut under budget controls. As in Parser.memoPutControlled, the store
+// memoPutControlled is memoPut under a memory limit. As in Parser.memoPutControlled, the store
 // charges nothing, and its walk unlinks the entries that lag behind (unlinkLagged).
 func (p *TParser) memoPutControlled(rule, pos, min int, key []any, ident bool, e *tmemoEntry) *tmemoEntry {
 	i := p.memoGap.slot(pos)
@@ -1695,7 +1670,7 @@ func (p *TParser) MatchLiteralFold(rs []rune, desc ExpID, build bool) (any, bool
 	return p.NewMatch(start, p.Pos, p.Text(start, p.Pos), true), true
 }
 
-// MatchLiteralOrdinary is MatchLiteral in an ordinary parse (parser.ExpectOrdinary).
+// MatchLiteralOrdinary is MatchLiteral in an ordinary parse.
 func (p *TParser) MatchLiteralOrdinary(rs []rune, text string, desc ExpID, build bool) (any, bool) {
 	start := p.Pos
 	if _, ok := p.Parser.MatchLiteralOrdinary(rs, text, desc, false); !ok {
@@ -1707,11 +1682,11 @@ func (p *TParser) MatchLiteralOrdinary(rs []rune, text string, desc ExpID, build
 	return p.NewMatchOrdinary(start, p.Pos, p.LiteralText(start, text), true), true
 }
 
-// MatchAnyOrdinary is MatchAny in an ordinary parse (parser.ExpectOrdinary).
+// MatchAnyOrdinary is MatchAny in an ordinary parse.
 func (p *TParser) MatchAnyOrdinary(build bool) (any, bool) {
 	_, size, ok := p.PeekOrdinary()
 	if !ok {
-		p.ExpectOrdinary(p.Pos, IdAny)
+		p.Expect(p.Pos, IdAny)
 		return nil, false
 	}
 	return p.Single(size, build)
@@ -1795,7 +1770,7 @@ func (p *TParser) RecoverAttr(m, skip tmatcher, build bool) (any, bool) {
 	if !build {
 		return nil, true
 	}
-	return &TError{TErrorValue{Span: sxirinput.Span{Start: m0.Pos, End: p.Pos}, Message: p.RecoveryErrorText(e)}, true}, true
+	return &TError{TErrorValue{Span: sxirinput.Span{Start: m0.Pos, End: p.Pos}, Message: e.Error()}, true}, true
 }
 
 // --- Actions and predicates ---
@@ -1840,7 +1815,6 @@ func (c *TActCtx) Finish(v any) any {
 	t := AsTval(v)
 	if t != nil {
 		for _, x := range c.P.Created[c.Cbase:] {
-			c.P.Spend()
 			if x == t {
 				t.TSetSpan(c.Start, c.End)
 				break
@@ -1924,9 +1898,8 @@ func (c *TActCtx) NewList(items []any) any {
 // the value model does not show, covers the elements that are nodes.
 func (c *TActCtx) listNode(kids []any) TVal { return c.P.ActionHull(c, false, kids) }
 
-// newSeq is the operation val.seq, which charges one unit for the value that the action expression makes.
+// newSeq is the operation val.seq: the value that the action expression makes.
 func (c *TActCtx) newSeq(tuple bool, kids []any) TVal {
-	c.P.Spend()
 	typ := TypeListValue
 	if tuple {
 		typ = TypeTupleValue
@@ -1949,7 +1922,6 @@ type tstrFields interface {
 //
 // ActionFieldOperand is for generated parsers; not a stable API.
 func (c *TActCtx) ActionFieldOperand(x any, name string) (TOperand, any) {
-	// A string field of a struct costs no steps to read under budget controls either: see TFieldSpend.
 	if n, ok := x.(tstrFields); ok {
 		if s, ok := n.TStrField(name); ok {
 			return TOperand{Str: s, IsStr: true}, nil
@@ -2135,23 +2107,7 @@ func (p *TParser) convertOperator(r *TRule, v any) any {
 // PushKid gathers v. It charges nothing: the values that the parse gathers are not an item of the cost.
 func (p *TParser) PushKid(v any) { p.KidStack = append(p.KidStack, v) }
 func (p *TParser) setValueField(n *TSeq, name string, v any) {
-	if usedFeatures&featureBudget != 0 && p.Control != nil {
-		p.setValueFieldControlled(n, name, v)
-		return
-	}
 	n.set(name, v)
-}
-
-func (p *TParser) setValueFieldControlled(n *TSeq, name string, v any) {
-	for i := range n.fields {
-		p.Spend()
-		if p.rawValueEqual(n.fields[i].name, name) {
-			n.fields[i].val = v
-			return
-		}
-	}
-	// Adding the field is constant work, which the step that sets it has paid.
-	n.fields = append(n.fields, tfield{name, v})
 }
 
 // undoCaptures is frame.undo, which charges nothing: captures are not an item of the cost.
@@ -2163,27 +2119,7 @@ func (p *TParser) undoCaptures(from int) {
 }
 
 func (p *TParser) valueField(n TVal, name string) (any, bool) {
-	if usedFeatures&featureBudget != 0 && p.Control != nil {
-		return p.valueFieldControlled(n, name)
-	}
 	return n.TField(name)
-}
-
-func (p *TParser) valueFieldControlled(n TVal, name string) (any, bool) {
-	t, transient := n.(*TSeq)
-	if !transient {
-		if controlled, ok := n.(tfieldSpender); ok {
-			return controlled.TFieldSpend(p, name)
-		}
-		return n.TField(name)
-	}
-	for _, field := range t.fields {
-		p.Spend()
-		if p.rawValueEqual(field.name, name) {
-			return field.val, true
-		}
-	}
-	return nil, true
 }
 
 // ListField materializes a typed struct's list field during an action read.
@@ -2192,7 +2128,6 @@ func (p *TParser) ListField(kids []any) any {
 	n := &TSeq{Typ: TypeListValue, Kids: kids}
 	first := true
 	for _, it := range kids {
-		p.Spend()
 		t := AsTval(it)
 		if t == nil {
 			continue

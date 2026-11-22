@@ -50,7 +50,7 @@ func (g *Generator) lowered(t irc.ActionExpr, s *check.Scope, locals map[string]
 	if t == nil {
 		panic(fmt.Errorf("rule %s: an action expression without Core IR", g.Cur.Name))
 	}
-	l, err := flowlower.Action(t, flowlower.ActionOptions{Result: result, StructCall: g.Table == "trules", Unbounded: g.NoBudget, Visits: g.Logical, Proj: g.Proj,
+	l, err := flowlower.Action(t, flowlower.ActionOptions{Result: result, StructCall: g.Table == "trules", Unbounded: true, Visits: g.Logical, Proj: g.Proj,
 		FieldCompare: g.Table == "trules" && g.params.FieldCompare, TextDispatch: dispatch})
 	if err != nil {
 		panic(fmt.Errorf("rule %s: %w", g.Cur.Name, err))
@@ -153,7 +153,7 @@ func (g *Generator) actionTarget(s *check.Scope, locals map[string]string) *Targ
 			case "action.kids":
 				return "len(c.P.KidStack)"
 			case action.OpActionElemsAbove:
-				return "c.P.ElemsAbove(" + a[0] + ")"
+				return "c.P.Kids(" + a[0] + ")"
 			case "units.add":
 				return "c.P.UnitsSized(" + a[0] + ")"
 			case "units.items":
@@ -161,10 +161,8 @@ func (g *Generator) actionTarget(s *check.Scope, locals map[string]string) *Targ
 			case "units.since":
 				return "c.P.UnitsSized(len(c.P.KidStack) - " + a[0] + ")"
 			case "seq.step":
-				if g.Logical {
-					return "c.P.Units++"
-				}
-				return "c.P.Spend()"
+				// Only the visits of logical units step (ActionOptions.Visits): each is one unit.
+				return "c.P.Units++"
 			case "seq.len":
 				return "len(" + a[0] + ")"
 			case "val.unbox":

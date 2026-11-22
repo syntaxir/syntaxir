@@ -57,7 +57,6 @@ func IterateNodes(*grammar, []syntaxir.dev/sxir/pkg/runtime.ParseOption, func(fu
 func IterateStream[T any](*grammar, []syntaxir.dev/sxir/pkg/runtime.ParseOption, func(func(T) error) error) (*StreamPull[T], error)
 func KindOf(string, string) *syntaxir.dev/sxir/pkg/runtime/value/impl.Kind
 func MakeDocument(*Rule, string, []syntaxir.dev/sxir/pkg/runtime.ParseOption) (*Document, error)
-func NewBudgetClass([]BudgetRange, bool) *BudgetClass
 func NewGrammar(int) *grammar
 func NewNode(syntaxir.dev/sxir/pkg/runtime/value.NodeKind, int, int, string, []*syntaxir.dev/sxir/pkg/runtime/value.Node, string, syntaxir.dev/sxir/pkg/runtime/value/impl.Fields, any) *syntaxir.dev/sxir/pkg/runtime/value.Node
 func NewNodeTypeKinds(string) *nodeTypeKinds
@@ -108,13 +107,7 @@ method (*ActCtx) Cap(int) any
 method (*ActCtx) NewList([]*syntaxir.dev/sxir/pkg/runtime/value.Node) *syntaxir.dev/sxir/pkg/runtime/value.Node
 method (*ActCtx) NewListLogical([]*syntaxir.dev/sxir/pkg/runtime/value.Node) *syntaxir.dev/sxir/pkg/runtime/value.Node
 method (*ActCtx) Var(int) any
-method (*BudgetControl) Charge(uint64)
-method (*BudgetControl) ChargeDoc(uint64)
 method (*BudgetControl) Check()
-method (*BudgetControl) FreeBegin(bool) uint64
-method (*BudgetControl) FreeEnd(uint64)
-method (*BudgetControl) Poll()
-method (*BudgetControl) Take(uint64) bool
 method (*Chunk) MemoryBytes() uint64
 method (*Class) Has(rune) bool
 method (*Document) BeginParse() error
@@ -160,17 +153,14 @@ method (*Parser) AtLineStartOrdinary() bool
 method (*Parser) AttachCaptures(*syntaxir.dev/sxir/pkg/runtime/value.Node, []string, *CaptureFrame, int, int) *syntaxir.dev/sxir/pkg/runtime/value.Node
 method (*Parser) Bind(int, func(*ActCtx) (any, any)) bool
 method (*Parser) Call(*Rule, int) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
-method (*Parser) ChargeKey(*Rule)
 method (*Parser) DiagnosticAttr(matcher, ExpID) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) DropKids(int)
-method (*Parser) ElemsAbove(int) []*syntaxir.dev/sxir/pkg/runtime/value.Node
 method (*Parser) EmitStream(*syntaxir.dev/sxir/pkg/runtime/value.Node, int)
 method (*Parser) Enter()
 method (*Parser) ErrorAttr(matcher, ExpID) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) ExaminedBegin() int
 method (*Parser) ExaminedEnd(int) int
 method (*Parser) Expect(int, ExpID)
-method (*Parser) ExpectOrdinary(int, ExpID)
 method (*Parser) Finish(*Rule, *CaptureFrame, *syntaxir.dev/sxir/pkg/runtime/value.Node, int) *syntaxir.dev/sxir/pkg/runtime/value.Node
 method (*Parser) FirstCall(*Rule) bool
 method (*Parser) HasChar(rune, bool) bool
@@ -218,8 +208,6 @@ method (*Parser) PollUnits()
 method (*Parser) Predicate(func(*ActCtx) (any, any)) bool
 method (*Parser) PushRecovered(*syntaxir.dev/sxir/pkg/runtime/value.SyntaxError)
 method (*Parser) RecoverAttr(matcher, matcher, bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
-method (*Parser) RecoveryErrorText(*syntaxir.dev/sxir/pkg/runtime/value.SyntaxError) string
-method (*Parser) RejectBudgetClass(rune, *BudgetClass) bool
 method (*Parser) Reset(Mark)
 method (*Parser) Restore(int, int)
 method (*Parser) ResumeBegin(*RunState)
@@ -250,7 +238,6 @@ method (*Parser) SkipUnits(uint64)
 method (*Parser) SkipValue(*syntaxir.dev/sxir/pkg/runtime/value.Node)
 method (*Parser) SkipVisit()
 method (*Parser) Spend()
-method (*Parser) SpendRead(uint64)
 method (*Parser) StreamStart()
 method (*Parser) StreamsIn(int, bool) bool
 method (*Parser) Text(int, int) string
@@ -324,7 +311,6 @@ method (*TParser) DocumentCall(*TRule, int, func(*TParser) (any, bool)) (any, bo
 method (*TParser) DropCreated(int)
 method (*TParser) DropKids(int)
 method (*TParser) DropTrail(int)
-method (*TParser) ElemsAbove(int) []any
 method (*TParser) ErrorAttr(tmatcher, ExpID) (any, bool)
 method (*TParser) Finish(*TRule, *TCaptureFrame, any, int) any
 method (*TParser) FreeFrame(*TCaptureFrame)
@@ -378,7 +364,6 @@ method (*TerminalProgram) Prepare() *TerminalProgram
 method (*TypedDocumentCloneBase) Begin(*BudgetControl)
 method (*TypedDocumentCloneBase) ReleaseBase()
 method (*TypedDocumentCloneBase) Remember(any, any)
-method (*TypedDocumentCloneBase) Step(uint64)
 method (*grammar) DeclareStruct(string, ...string)
 method (*grammar) SetRules([]*Rule, int)
 method (*grammar) SetRunKey(int, []int, []int)
@@ -396,9 +381,7 @@ method (*syntaxir.dev/sxir/pkg/runtime/value/impl.Kind) TypeName() string
 method (syntaxir.dev/sxir/pkg/runtime/value/impl.Fields) Get(string) (any, bool)
 method (syntaxir.dev/sxir/pkg/runtime/value/impl.Fields) Sorted() syntaxir.dev/sxir/pkg/runtime/value/impl.Fields
 type ActCtx struct{P *Parser; Lhs any; Rhs any; Op any; Value any}
-type BudgetClass struct{}
 type BudgetControl struct{}
-type BudgetRange struct{Lo rune; Hi rune}
 type CaptureFrame struct{Vals []*syntaxir.dev/sxir/pkg/runtime/value.Node}
 type Chunk[T any] struct{}
 type Class struct{ASCII [2]uint64; Wide []rune; Neg bool}
@@ -442,7 +425,7 @@ type TypedDocumentCloneBase struct{Control *BudgetControl; Values map[any]any; S
 type TypedDocumentCloneTask struct{Source any; Target any}
 type budgetControlSetter interface{SetBudgetControl(*BudgetControl)}
 type documentState struct{}
-type grammar struct{Starts []string; DefaultStart string; Descs []string; Expectations bool; StructFields map[string]*structFields; TypeKinds map[string]*syntaxir.dev/sxir/pkg/runtime/value/impl.Kind; NodeTypes map[string]*nodeTypeKinds; SourceInfo bool; Observable bool; NoBudgetControls bool; Logical bool}
+type grammar struct{Starts []string; DefaultStart string; Descs []string; Expectations bool; StructFields map[string]*structFields; TypeKinds map[string]*syntaxir.dev/sxir/pkg/runtime/value/impl.Kind; NodeTypes map[string]*nodeTypeKinds; SourceInfo bool; Observable bool; NoBudgetControls bool}
 type matcher = func(*Parser) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 type nodeTypeKinds [3]*syntaxir.dev/sxir/pkg/runtime/value/impl.Kind
 type observation struct{}

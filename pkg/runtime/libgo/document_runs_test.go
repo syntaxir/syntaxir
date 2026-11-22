@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"strings"
 	"testing"
 
@@ -218,17 +217,11 @@ func (c *countingContext) Err() error {
 	return nil
 }
 
-// A resumed run charges no unit, but each reused element is a step at which the parse observes its
+// A resumed run counts no unit, but each reused element is a step at which the parse observes its
 // context (budget.poll): a cancellation ends a parse that only reuses the prefix of a long run, within
-// an interval of elements, and not only at the checks at the start and the end of the parse. A parse
-// with logical units, whose counter the reused elements do not advance, observes it the same way.
+// an interval of elements, and not only at the checks at the start and the end of the parse, although
+// the reused elements do not advance the counter.
 func TestDocumentResumedRunObservesCancellation(t *testing.T) {
-	for _, logical := range []bool{false, true} {
-		t.Run(fmt.Sprintf("logical=%v", logical), func(t *testing.T) { testDocumentResumedRunObservesCancellation(t, logical) })
-	}
-}
-
-func testDocumentResumedRunObservesCancellation(t *testing.T, logical bool) {
 	// The preparation of the input observes the context too: count only the observations of the
 	// parse of main.
 	var ctx *countingContext
@@ -247,7 +240,7 @@ func testDocumentResumedRunObservesCancellation(t *testing.T, logical bool) {
 	}
 	// A parse that reuses the prefix polls the context about once each interval of reused elements.
 	ctx = &countingContext{Context: context.Background()}
-	o := parseOptions{unit: sxirinput.CodePoints, maxDepth: defaultMaxDepth, context: ctx, logical: logical}
+	o := parseOptions{unit: sxirinput.CodePoints, maxDepth: defaultMaxDepth, context: ctx, controls: true}
 	if _, err := d.parse(o); err != nil {
 		t.Fatal(err)
 	}

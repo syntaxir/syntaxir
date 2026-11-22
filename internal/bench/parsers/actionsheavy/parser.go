@@ -109,17 +109,13 @@ type tslabs struct {
 func (a *tslabs) SetBudgetControl(c *rt.BudgetControl) { a.control = c }
 
 func (a *tslabs) spend() {
-	if a.control == nil {
+	if a.control == nil || !a.result {
 		return
 	}
-	if a.result {
-		a.steps++
-		if a.steps%256 == 0 {
-			a.control.Check()
-		}
-		return
+	a.steps++
+	if a.steps%256 == 0 {
+		a.control.Check()
 	}
-	a.control.Charge(1)
 }
 
 func (a *tslabs) MemoryBytes() uint64 {
@@ -258,7 +254,7 @@ func init() {
 				return nil, tf11
 			}
 		}
-		tk12 := c.P.ElemsAbove(tm2)
+		tk12 := c.P.Kids(tm2)
 		tn13 := c.P.ActionHullLogical(c, false, tk12)
 		ti14, tf14 := c.P.ActionItems("foldl", any(tn13))
 		if tf14 != nil {
@@ -304,7 +300,7 @@ func init() {
 				return nil, tf31
 			}
 		}
-		tk32 := c.P.ElemsAbove(tm22)
+		tk32 := c.P.Kids(tm22)
 		tn33 := c.P.ActionHullLogical(c, false, tk32)
 		tm34 := len(c.P.KidStack)
 		ti35, tf35 := c.P.ActionItems("filter", any(tn33))
@@ -328,7 +324,7 @@ func init() {
 				c.P.KidStack = append(c.P.KidStack, ti35[tj36])
 			}
 		}
-		tk42 := c.P.ElemsAbove(tm34)
+		tk42 := c.P.Kids(tm34)
 		tn43 := c.P.ActionHullLogical(c, false, tk42)
 		tv44, tf44 := c.P.ActionLength(any(tn43))
 		if tf44 != nil {
@@ -357,7 +353,7 @@ func init() {
 				return nil, tf53
 			}
 		}
-		tk54 := c.P.ElemsAbove(tm45)
+		tk54 := c.P.Kids(tm45)
 		tn55 := c.P.ActionHullLogical(c, false, tk54)
 		ti56, tf56 := c.P.ActionItems("foldl", any(tn55))
 		if tf56 != nil {
@@ -403,7 +399,7 @@ func init() {
 				return nil, tf73
 			}
 		}
-		tk74 := c.P.ElemsAbove(tm64)
+		tk74 := c.P.Kids(tm64)
 		tn75 := c.P.ActionHullLogical(c, false, tk74)
 		ti76, tf76 := c.P.ActionItems("foldl", any(tn75))
 		if tf76 != nil {
@@ -451,8 +447,6 @@ func init() {
 	recRules[0].Body = e11
 	sxirGrammar.Starts = []string{"main"}
 	sxirGrammar.DefaultStart = "main"
-	sxirGrammar.Logical = true
-	sxirRecGrammar.Logical = true
 	sxirRecGrammar.Share(sxirGrammar)
 	trules = rt.NewTRules(rules)
 	defer tinit()
@@ -486,7 +480,7 @@ func e2(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	v9 = p.NewBranchOrdinary(rt.ListKind, x2, p.Kids(x3))
 	p.SetCapture(0, v9)
 	if !p.AtEndBatchOrdinary() {
-		p.ExpectOrdinary(p.Pos, rt.IdEndInput)
+		p.Expect(p.Pos, rt.IdEndInput)
 		goto fail
 	}
 	return nil, true
@@ -587,7 +581,7 @@ func e7(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		x7 = p.Mark()
 		ch, size, ok = p.NextOrdinary()
 		if !ok || !(ch >= 97 && ch <= 122) {
-			p.ExpectOrdinary(p.Pos, 7)
+			p.Expect(p.Pos, 7)
 			goto L8
 		}
 		x9 = p.Pos
@@ -648,7 +642,7 @@ func e11(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		break
 	}
 	if !p.AtEndBatchOrdinary() {
-		p.ExpectOrdinary(p.Pos, rt.IdEndInput)
+		p.Expect(p.Pos, rt.IdEndInput)
 		goto fail
 	}
 	v = nil
@@ -741,7 +735,7 @@ func q2(p *rt.Parser) (*sxirvalue.Node, bool) {
 		}
 		ch, size, ok = p.NextOrdinary()
 		if !ok || !(ch >= 97 && ch <= 122) {
-			p.ExpectOrdinary(p.Pos, 7)
+			p.Expect(p.Pos, 7)
 			break
 		}
 		p.Pos += size
@@ -811,7 +805,7 @@ func i0(p *rt.TParser) (any, bool) {
 	v10 = p.NewNodeOrdinary("list", x3, p.Pos, p.Kids(x4))
 	k1 = v10
 	if !p.AtEndBatchOrdinary() {
-		p.ExpectOrdinary(p.Pos, rt.IdEndInput)
+		p.Expect(p.Pos, rt.IdEndInput)
 		goto fail
 	}
 	c = p.UseCtx(rt.TActCtx{P: p, Start: start, End: p.Pos, Cbase: len(p.Created)})
@@ -952,7 +946,7 @@ func i1(p *rt.TParser) (any, bool) {
 					c.ActionRaise(tf11)
 				}
 			}
-			tk12 := c.P.ElemsAbove(tm2)
+			tk12 := c.P.Kids(tm2)
 			tn13 := c.P.ActionHullLogical(c, false, tk12)
 			ti14, tf14 := c.P.ActionItems("foldl", any(tn13))
 			if tf14 != nil {
@@ -998,7 +992,7 @@ func i1(p *rt.TParser) (any, bool) {
 					c.ActionRaise(tf31)
 				}
 			}
-			tk32 := c.P.ElemsAbove(tm22)
+			tk32 := c.P.Kids(tm22)
 			tn33 := c.P.ActionHullLogical(c, false, tk32)
 			tm34 := len(c.P.KidStack)
 			ti35, tf35 := c.P.ActionItems("filter", any(tn33))
@@ -1022,7 +1016,7 @@ func i1(p *rt.TParser) (any, bool) {
 					c.P.KidStack = append(c.P.KidStack, ti35[tj36])
 				}
 			}
-			tk42 := c.P.ElemsAbove(tm34)
+			tk42 := c.P.Kids(tm34)
 			tn43 := c.P.ActionHullLogical(c, false, tk42)
 			tv44, tf44 := c.P.ActionLength(any(tn43))
 			if tf44 != nil {
@@ -1051,7 +1045,7 @@ func i1(p *rt.TParser) (any, bool) {
 					c.ActionRaise(tf53)
 				}
 			}
-			tk54 := c.P.ElemsAbove(tm45)
+			tk54 := c.P.Kids(tm45)
 			tn55 := c.P.ActionHullLogical(c, false, tk54)
 			ti56, tf56 := c.P.ActionItems("foldl", any(tn55))
 			if tf56 != nil {
@@ -1097,7 +1091,7 @@ func i1(p *rt.TParser) (any, bool) {
 					c.ActionRaise(tf73)
 				}
 			}
-			tk74 := c.P.ElemsAbove(tm64)
+			tk74 := c.P.Kids(tm64)
 			tn75 := c.P.ActionHullLogical(c, false, tk74)
 			ti76, tf76 := c.P.ActionItems("foldl", any(tn75))
 			if tf76 != nil {
@@ -1158,7 +1152,7 @@ func i2(p *rt.TParser) (any, bool) {
 		x8 = p.Pos
 		ch, size, ok = p.NextOrdinary()
 		if !ok || !(ch >= 97 && ch <= 122) {
-			p.ExpectOrdinary(p.Pos, 7)
+			p.Expect(p.Pos, 7)
 			goto L9
 		}
 		x10 = p.Pos
@@ -1203,6 +1197,6 @@ fail:
 	return nil, false
 }
 
-const _ = types.SXIRSchema_6ec40af3da5ba489
+const _ = types.SXIRSchema_eccf6ac590fb833e
 
 const _ = rt.Protocol32

@@ -60,7 +60,7 @@ func newRuleMachine(cfg ref.Config, controlled bool) conform.Impl {
 
 type meteredRule struct{ *ruleMachine }
 
-func (m meteredRule) Used() uint64 { return m.p.Control.budgetUsed() }
+func (m meteredRule) Used() uint64 { return m.p.Units }
 
 // scriptRules gives the rules of cfg.RuleVars the properties of cfg.RuleSpecs, and bodies that run eval.
 func scriptRules(rules []*Rule, cfg ref.Config, eval func(index int64, p *Parser, min int) (*sxirvalue.Node, bool)) {
@@ -293,11 +293,11 @@ func TestExecConformanceRuleDetectsBrokenLib(t *testing.T) {
 func TestExecConformanceRuleDetectsCharges(t *testing.T) {
 	variants := map[string]func(m *ruleMachine, args []any) []any{
 		"rule.seen charges a unit": func(m *ruleMachine, args []any) []any {
-			m.p.Spend()
+			m.p.unitsSized(1)
 			return []any{int64(m.p.confRuleSeen(args[0].(*Rule)))}
 		},
 		"seen.defers charges a unit": func(m *ruleMachine, args []any) []any {
-			m.p.Spend()
+			m.p.unitsSized(1)
 			return []any{m.p.confSeenDefers()}
 		},
 	}
@@ -322,7 +322,7 @@ func TestExecConformanceRuleDetectsCharges(t *testing.T) {
 
 type meteredBrokenRule struct{ brokenRule }
 
-func (m meteredBrokenRule) Used() uint64 { return m.p.Control.budgetUsed() }
+func (m meteredBrokenRule) Used() uint64 { return m.p.Units }
 
 // brokenRule is the library with one operation of the rules replaced.
 type brokenRule struct {

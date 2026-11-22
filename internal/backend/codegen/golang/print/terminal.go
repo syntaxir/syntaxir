@@ -22,7 +22,7 @@ import (
 // calls as straight-line code would: it consumes the same input and
 // records the same expectations at the same positions. Where it departs from the order of that
 // code it does so only where the departure is unobservable: a guard that admits the next
-// character also matches the class that begins its alternative, and where ExpectOrdinary records
+// character also matches the class that begins its alternative, and where Expect records
 // nothing at the position of a choice, alternatives whose guards do not admit the character are
 // passed over without testing them (pkg/runtime/libgo/terminal.go).
 
@@ -95,12 +95,11 @@ func (g *Generator) terminalTable(e ast.Expr) (string, bool) {
 	}
 	body += "}"
 	key := "term" + body
-	if name := g.budgetClassNames[key]; name != "" {
+	if name := g.varNames[key]; name != "" {
 		return name, true
 	}
 	name := g.Name("term")
-	g.budgetClassNames[key] = name
-	g.budgetClassKeys = append(g.budgetClassKeys, key)
+	g.varNames[key] = name
 	// The program is static data; Prepare builds its dispatch tables at initialization.
 	fmt.Fprintf(&g.Vars, "var %sData = TerminalProgram%s\nvar %[1]s = %[1]sData.Prepare()\n", name, body)
 	return name, true

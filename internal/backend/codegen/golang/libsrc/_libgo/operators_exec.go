@@ -8,7 +8,7 @@ import sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 // min. Each level of its recursion (the operand of a prefix operator, the right operand of an infix
 // operator) counts against the nesting limit, like the entry of a recursive rule.
 //
-// Printed from Exec IR function operatorsParse of internal/ir/code/exec/compose, specialized for budget, units.
+// Printed from Exec IR function operatorsParse of internal/ir/code/exec/compose, specialized for units.
 func (p *Parser) OperatorsRuleParse(r *Rule, min int) (*sxirvalue.Node, bool) {
 	p.Depth++
 	if p.Depth > p.MaxDepth {
@@ -26,7 +26,7 @@ func (p *Parser) OperatorsRuleParse(r *Rule, min int) (*sxirvalue.Node, bool) {
 // An operator that binds tighter than the last one applied, or than the prefix operator of the start,
 // ends the loop: its right operand refused it, so it cannot apply to the operator as a whole.
 //
-// Printed from Exec IR function operatorsExpr of internal/ir/code/exec/compose, specialized for budget, units.
+// Printed from Exec IR function operatorsExpr of internal/ir/code/exec/compose, specialized for units.
 func (p *Parser) operatorsRuleExpr(r *Rule, min int) (*sxirvalue.Node, bool) {
 	guard := -1
 	if p.afterEmpty {
@@ -117,7 +117,7 @@ func (p *Parser) operatorsRuleExpr(r *Rule, min int) (*sxirvalue.Node, bool) {
 // longest prefix operator to its operand, or else the first operand line that matches. A failure after
 // a cut fails the expression.
 //
-// Printed from Exec IR function operatorsNud of internal/ir/code/exec/compose, specialized for budget, units.
+// Printed from Exec IR function operatorsNud of internal/ir/code/exec/compose, specialized for units.
 func (p *Parser) operatorsRuleNud(r *Rule) (*sxirvalue.Node, bool) {
 	var i int
 	p.skipTrivia(r)
@@ -143,7 +143,6 @@ func (p *Parser) operatorsRuleNud(r *Rule) (*sxirvalue.Node, bool) {
 		return nil, false
 	}
 	for i = 0; i < len(r.OperatorsRule.Operands); i++ {
-		p.Spend()
 		if p.Units > p.UnitsCheck {
 			p.PollUnits()
 		}
@@ -174,14 +173,13 @@ func (p *Parser) operatorsRuleNud(r *Rule) (*sxirvalue.Node, bool) {
 // parser's cutFailed field (p.cutFailed in Go, this.cutFailed in TypeScript). The parse is left at the
 // position, with the captures of each candidate in its frame.
 //
-// Printed from Exec IR function longest of internal/ir/code/exec/compose, specialized for budget, units.
+// Printed from Exec IR function longest of internal/ir/code/exec/compose, specialized for units.
 func (p *Parser) longest(l []*OperatorsRuleOp) operatorsRuleAttempt {
 	var best operatorsRuleAttempt
 	var cutFailed bool
 	var i int
 	m0 := p.Mark()
 	start := m0.Pos
-	p.Control.Take(uint64(len(l)))
 	for i = 0; i < len(l); i++ {
 		if p.Units > p.UnitsCheck {
 			p.PollUnits()
@@ -257,7 +255,7 @@ func (p *Parser) Reset(m Mark) {
 // min. Each level of its recursion (the operand of a prefix operator, the right operand of an infix
 // operator) counts against the nesting limit, like the entry of a recursive rule.
 //
-// Printed from Exec IR function operatorsParseTyped of internal/ir/code/exec/compose, specialized for budget, typed, units.
+// Printed from Exec IR function operatorsParseTyped of internal/ir/code/exec/compose, specialized for typed, units.
 func (p *TParser) OperatorsRuleParse(r *TRule, min int) (any, bool) {
 	p.Depth++
 	if p.Depth > p.MaxDepth {
@@ -275,7 +273,7 @@ func (p *TParser) OperatorsRuleParse(r *TRule, min int) (any, bool) {
 // An operator that binds tighter than the last one applied, or than the prefix operator of the start,
 // ends the loop: its right operand refused it, so it cannot apply to the operator as a whole.
 //
-// Printed from Exec IR function operatorsExprTyped of internal/ir/code/exec/compose, specialized for budget, typed, units.
+// Printed from Exec IR function operatorsExprTyped of internal/ir/code/exec/compose, specialized for typed, units.
 func (p *TParser) operatorsRuleExpr(r *TRule, min int) (any, bool) {
 	guard := -1
 	if p.afterEmpty {
@@ -367,7 +365,7 @@ func (p *TParser) operatorsRuleExpr(r *TRule, min int) (any, bool) {
 // a cut fails the expression. Besides its value it returns where the value starts: a value that is not a node has no
 // span of its own.
 //
-// Printed from Exec IR function operatorsNudTyped of internal/ir/code/exec/compose, specialized for budget, typed, units.
+// Printed from Exec IR function operatorsNudTyped of internal/ir/code/exec/compose, specialized for typed, units.
 func (p *TParser) operatorsRuleNud(r *TRule) (any, int, bool) {
 	var i int
 	p.skipTrivia(r)
@@ -394,7 +392,6 @@ func (p *TParser) operatorsRuleNud(r *TRule) (any, int, bool) {
 		return nil, 0, false
 	}
 	for i = 0; i < len(r.OperatorsRule.Operands); i++ {
-		p.Spend()
 		if p.Units > p.UnitsCheck {
 			p.PollUnits()
 		}
@@ -425,14 +422,13 @@ func (p *TParser) operatorsRuleNud(r *TRule) (any, int, bool) {
 // parser's cutFailed field (p.cutFailed in Go, this.cutFailed in TypeScript). The parse is left at the
 // position, with the captures of each candidate in its frame.
 //
-// Printed from Exec IR function longest of internal/ir/code/exec/compose, specialized for budget, units.
+// Printed from Exec IR function longest of internal/ir/code/exec/compose, specialized for units.
 func (p *TParser) longest(l []*TOperatorsRuleOp) toperatorsRuleAttempt {
 	var best toperatorsRuleAttempt
 	var cutFailed bool
 	var i int
 	m0 := p.Mark()
 	start := m0.Pos
-	p.Control.Take(uint64(len(l)))
 	for i = 0; i < len(l); i++ {
 		if p.Units > p.UnitsCheck {
 			p.PollUnits()

@@ -43,7 +43,7 @@ Recording an expectation, keeping a set and merging a set at a position.
 
 | Declaration | Meaning |
 |:--|:--|
-| `func expect(pos int, id ExpID) [budget]` | Records that id was expected at pos: an expectation before the farthest failure or in a lookahead is dropped, one past it starts the record anew, and one at it joins the entries. It records no examined input: the read that failed at pos recorded what it examined. The generated Go runtime also prints it for an ordinary parse, one without limit controls and outside a Document, as the specialization with every feature off, for the branch of a generated rule body that runs in such parses and leaves out the budget charges and the Document's record of the examined input; there the target splits the recording from the early return for a silent position or one before the farthest failure, so that the early return inlines into the generated code. |
+| `func expect(pos int, id ExpID) [budget]` | Records that id was expected at pos: an expectation before the farthest failure or in a lookahead is dropped, one past it starts the record anew, and one at it joins the entries. It records no examined input: the read that failed at pos recorded what it examined. The generated Go runtime prints one form for every parse, and splits the recording from the early return for a silent position or one before the farthest failure, so that the early return inlines into the generated code. |
 | `func mergeKept(far int, k ExpKept) [budget]` | Records the expectations that a memo entry kept at far, as expect does for each of them. |
 | `func mergeExpected(far int, s ExpSet) [budget]` | Records the expectations of s at far, as expect does for each of them, so that the expectations of a call that a memo entry or a finished isolation kept become those of the enclosing record. s may alias the stack above the current record: writes only happen below the read position. |
 | `func keep(s ExpSet) ExpKept [budget]` | Returns the expectations of s as a set that outlives the record, for a memo entry, a context or a recovery to keep: the empty set for none, the set kept last when it has the same entries in the same order, and otherwise a copy, which becomes the set kept last. |
@@ -161,37 +161,37 @@ row includes what its backends print into packages of their own.
 | Composition | Generated Go, nodes | Generated Go, typed values | The engine | TypeScript |
 |:--|:--|:--|:--|:--|
 | firstCall | `[]` | `[]` | `[]` | `[]` |
-| call | `[budget, document, observe, units]` | `[budget, document, observe, typed, units]` |  | `[budget]` |
+| call | `[document, observe, units]` | `[document, observe, typed, units]` |  | `[budget]` |
 | callMemo |  | `[document, observe, typed, units]` |  |  |
 | grow | `[units]` | `[typed, units]` | `[missing, units]` | `[]` |
 | observed | `[document, observe]` | `[document, observe, typed]` |  |  |
 | observedPlain | `[document, observe]` | `[document, observe]` |  |  |
 | unmemoized | `[]` |  |  | `[]` |
-| memoized | `[budget, document, observe, units]` |  |  | `[budget, document, observe]` `[document, observe]` |
-| document | `[budget, document, units]` |  |  | `[document]` |
-| typedDocument |  | `[budget, document, observe, typed, units]` |  |  |
+| memoized | `[document, observe, units]` |  |  | `[budget, document, observe]` `[document, observe]` |
+| document | `[document, units]` |  |  | `[document]` |
+| typedDocument |  | `[document, observe, typed, units]` |  |  |
 | callBegin |  |  | `[document, missing, units]` |  |
 | callEnd |  |  | `[document, missing, units]` |  |
 | engineCallDoc |  |  | `[document, missing, units]` |  |
 | engineCall |  |  | `[document, missing, units]` |  |
-| body | `[budget, document, units]` |  |  |  |
+| body | `[document, units]` |  |  |  |
 | tracked | `[document, observe]` |  |  |  |
 | streamCommit | `[stream]` |  | `[stream]` |  |
 | streamEmit | `[stream, units]` |  | `[stream]` |  |
 | streamsIn | `[stream]` |  | `[stream]` |  |
-| expect | `[budget]` `[]` |  | `[units]` | `[budget]` |
+| expect | `[units]` |  | `[units]` | `[budget]` |
 | mergeKept |  |  |  | `[budget]` |
-| mergeExpected | `[budget]` |  | `[units]` | `[budget]` |
-| keep | `[budget]` |  | `[units]` | `[budget]` |
+| mergeExpected | `[units]` |  | `[units]` | `[budget]` |
+| keep | `[units]` |  | `[units]` | `[budget]` |
 | reset | `[]` | `[]` | `[missing]` | `[]` |
 | skipTrivia | `[]` | `[]` | `[missing]` | `[]` |
-| longest | `[budget, units]` | `[budget, units]` | `[missing, units]` | `[budget]` |
-| operatorsParse | `[budget, units]` |  | `[missing, units]` | `[budget]` |
-| operatorsExpr | `[budget, units]` |  | `[missing, units]` | `[budget]` |
-| operatorsNud | `[budget, units]` |  | `[missing, units]` | `[budget]` |
-| operatorsParseTyped |  | `[budget, typed, units]` |  |  |
-| operatorsExprTyped |  | `[budget, typed, units]` |  |  |
-| operatorsNudTyped |  | `[budget, typed, units]` |  |  |
+| longest | `[units]` | `[units]` | `[missing, units]` | `[budget]` |
+| operatorsParse | `[units]` |  | `[missing, units]` | `[budget]` |
+| operatorsExpr | `[units]` |  | `[missing, units]` | `[budget]` |
+| operatorsNud | `[units]` |  | `[missing, units]` | `[budget]` |
+| operatorsParseTyped |  | `[typed, units]` |  |  |
+| operatorsExprTyped |  | `[typed, units]` |  |  |
+| operatorsNudTyped |  | `[typed, units]` |  |  |
 | triviaBegin |  |  | `[missing, units]` |  |
 | triviaEnd |  |  | `[missing, units]` |  |
 | longestBegin |  |  | `[missing, units]` |  |
@@ -207,17 +207,17 @@ row includes what its backends print into packages of their own.
 | exprLoop |  |  | `[missing, units]` |  |
 | exprLed |  |  | `[missing, units]` |  |
 | exprRhs |  |  | `[missing, units]` |  |
-| memoAdvance | `[budget, document]` `[document]` | `[budget, document]` `[document]` | `[document, units]` `[document]` | `[budget, document]` `[document]` |
-| runStart | `[budget, document]` |  | `[budget, document]` | `[budget, document]` |
-| runMore | `[budget, document]` |  | `[budget, document]` | `[budget, document]` |
-| runReuse | `[budget, document]` |  | `[budget, document]` | `[budget, document]` |
-| runPrefix | `[budget, document]` |  | `[budget, document]` | `[budget, document]` |
-| runResync | `[budget, document]` |  | `[budget, document]` | `[budget, document]` |
-| runTail | `[budget, document]` |  | `[budget, document]` | `[budget, document]` |
-| runNext | `[budget, document]` |  | `[budget, document]` | `[budget, document]` |
-| runBegin | `[budget, document]` |  | `[budget, document]` | `[budget, document]` |
-| runEnd | `[budget, document]` |  | `[budget, document]` | `[budget, document]` |
-| runFinish | `[budget, document]` |  | `[budget, document]` | `[budget, document]` |
+| memoAdvance | `[document, units]` `[document]` | `[document, units]` `[document]` | `[document, units]` `[document]` | `[budget, document]` `[document]` |
+| runStart | `[document, units]` |  | `[budget, document]` | `[budget, document]` |
+| runMore | `[document, units]` |  | `[budget, document]` | `[budget, document]` |
+| runReuse | `[document, units]` |  | `[budget, document]` | `[budget, document]` |
+| runPrefix | `[document, units]` |  | `[budget, document]` | `[budget, document]` |
+| runResync | `[document, units]` |  | `[budget, document]` | `[budget, document]` |
+| runTail | `[document, units]` |  | `[budget, document]` | `[budget, document]` |
+| runNext | `[document, units]` |  | `[budget, document]` | `[budget, document]` |
+| runBegin | `[document, units]` |  | `[budget, document]` | `[budget, document]` |
+| runEnd | `[document, units]` |  | `[budget, document]` | `[budget, document]` |
+| runFinish | `[document, units]` |  | `[budget, document]` | `[budget, document]` |
 | equal | `[]` | `[]` | `[]` | `[]` |
 | index | `[]` | `[]` | `[]` | `[]` |
 | binary | `[]` | `[]` | `[]` | `[]` |

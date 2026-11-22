@@ -1,7 +1,6 @@
 package libgo
 
 import (
-	"context"
 	"math"
 	"testing"
 
@@ -9,7 +8,6 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code/action"
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
 	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
-	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
@@ -102,12 +100,16 @@ var (
 	typedValues = goValues{typedParser.ActionBinary, typedParser.ActionUnary, typedParser.ActionLogic, true}
 )
 
-// controlledValues binds the compositions of a parser that runs under budget controls, whose string
-// operations take the bounded paths.
+// controlledValues binds the compositions of a parser that runs under limit controls with a memory
+// limit, whose string operations count their units and take the paths that count the memory of the
+// values they make.
 func controlledValues() (node, typed goValues) {
-	control := newBudgetControl(context.Background(), sxirruntime.Limits{Compute: 1 << 62})
-	p := &Parser{Control: control}
-	tp := &TParser{Parser: &Parser{Control: control}}
+	p, tpp := &Parser{}, &Parser{}
+	conformMemory(p)
+	conformMemory(tpp)
+	conformUnits(p, 0)
+	conformUnits(tpp, 0)
+	tp := &TParser{Parser: tpp}
 	return goValues{p.ActionBinary, p.ActionUnary, p.ActionLogic, false}, goValues{tp.ActionBinary, tp.ActionUnary, tp.ActionLogic, true}
 }
 
@@ -238,15 +240,15 @@ func TestValueBoxedStringCharges(t *testing.T) {
 	newSide := func(controlled bool) *Parser {
 		p := &Parser{}
 		if controlled {
-			p.Control = newBudgetControl(context.Background(), sxirruntime.Limits{Compute: 1 << 62})
+			conformUnits(p, 0)
 		}
 		return p
 	}
 	used := func(p *Parser) uint64 {
-		if p.Control == nil {
+		if !p.units.on {
 			return 0
 		}
-		return uint64(p.Control.budgetUsed())
+		return uint64(p.Units)
 	}
 	sides := []struct {
 		name       string
@@ -307,15 +309,15 @@ func TestValueCompareStrings(t *testing.T) {
 	newSide := func(controlled bool) *TParser {
 		p := &Parser{}
 		if controlled {
-			p.Control = newBudgetControl(context.Background(), sxirruntime.Limits{Compute: 1 << 62})
+			conformUnits(p, 0)
 		}
 		return &TParser{Parser: p}
 	}
 	used := func(tp *TParser) uint64 {
-		if tp.Control == nil {
+		if !tp.units.on {
 			return 0
 		}
-		return uint64(tp.Control.budgetUsed())
+		return uint64(tp.Units)
 	}
 	for _, controlled := range []bool{false, true} {
 		fast, composed := newSide(controlled), newSide(controlled)

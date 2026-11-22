@@ -26,7 +26,6 @@ func (c *ActCtx) fxPush(fn string, v any) { fxRaise(c.P.ActionPush(c, fn, v)) }
 func (c *ActCtx) fxList(args ...any) any {
 	base := len(c.P.KidStack)
 	for _, a := range args {
-		c.P.Spend()
 		c.fxPush("list", a)
 	}
 	return c.listNode(c.P.Kids(base))
@@ -35,7 +34,6 @@ func (c *ActCtx) fxList(args ...any) any {
 func (c *ActCtx) fxTuple(args ...any) any {
 	base := len(c.P.KidStack)
 	for _, a := range args {
-		c.P.Spend()
 		c.fxPush("tuple", a)
 	}
 	return c.P.ActionHull(c, true, c.P.Kids(base))
@@ -45,7 +43,6 @@ func (c *ActCtx) fxStruct(typ string, kv ...any) any {
 	n := c.ActionStruct(typ, len(kv)/2)
 	first := true
 	for i := 0; i < len(kv); i += 2 {
-		c.P.Spend()
 		v := kv[i+1]
 		c.ActionSetField(n, kv[i].(string), v)
 		first = c.P.ActionCover(n, v, first)
@@ -66,7 +63,6 @@ func (c *ActCtx) fxPushItems(v any) { fxRaise(c.P.ActionPushItems(c, "concat", v
 func (c *ActCtx) fxFold(fn string, right bool, acc, list any, f func(acc, item any) any) any {
 	items := c.fxItems(fn, list)
 	for i := range items {
-		c.P.Spend()
 		acc = f(acc, c.P.ActionItemAt(items, i, right))
 	}
 	return acc
@@ -76,7 +72,6 @@ func (c *ActCtx) fxMap(list any, f func(item any) any) any {
 	base := len(c.P.KidStack)
 	items := c.fxItems("map", list)
 	for i := range items {
-		c.P.Spend()
 		c.fxPush("map", f(c.P.ActionItemAt(items, i, false)))
 	}
 	return c.listNode(c.P.Kids(base))
@@ -86,7 +81,6 @@ func (c *ActCtx) fxFilter(list any, f func(item any) any) any {
 	base := len(c.P.KidStack)
 	items := c.fxItems("filter", list)
 	for i := range items {
-		c.P.Spend()
 		if fxValue(c.P.ActionFilterKeep(f(c.P.ActionItemAt(items, i, false)))) {
 			c.P.KidStack = append(c.P.KidStack, items[i])
 		}
@@ -99,7 +93,6 @@ func (c *TActCtx) fxPush(fn string, v any) { fxRaise(c.P.ActionPush(c, fn, v)) }
 func (c *TActCtx) fxTuple(args ...any) any {
 	base := len(c.P.KidStack)
 	for _, a := range args {
-		c.P.Spend()
 		c.fxPush("tuple", a)
 	}
 	return c.P.ActionHull(c, true, c.P.Kids(base))
@@ -117,7 +110,6 @@ func (c *TActCtx) fxPushItems(v any) { fxRaise(c.P.ActionPushItems(c, "concat", 
 func (c *TActCtx) fxFold(fn string, right bool, acc, list any, f func(acc, item any) any) any {
 	items := c.fxItems(fn, list)
 	for i := range items {
-		c.P.Spend()
 		acc = f(acc, c.P.ActionItemAt(items, i, right))
 	}
 	return acc
@@ -127,7 +119,6 @@ func (c *TActCtx) fxMap(list any, f func(item any) any) any {
 	base := len(c.P.KidStack)
 	items := c.fxItems("map", list)
 	for i := range items {
-		c.P.Spend()
 		c.fxPush("map", f(c.P.ActionItemAt(items, i, false)))
 	}
 	return c.listNode(c.P.Kids(base))
@@ -137,7 +128,6 @@ func (c *TActCtx) fxFilter(list any, f func(item any) any) any {
 	base := len(c.P.KidStack)
 	items := c.fxItems("filter", list)
 	for i := range items {
-		c.P.Spend()
 		if fxValue(c.P.ActionFilterKeep(f(c.P.ActionItemAt(items, i, false)))) {
 			c.P.KidStack = append(c.P.KidStack, items[i])
 		}

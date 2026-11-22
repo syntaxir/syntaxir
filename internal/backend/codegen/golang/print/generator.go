@@ -123,8 +123,7 @@ func NoNodeRules(o common.GenOptions) bool {
 func newGenerator(p *Parser) *Generator {
 	o := p.Opts
 	nodes := NoNodeRules(o)
-	g := &Generator{typedOnly: nodes, keepTableRules: nodes, Document: o.Document, NoBudget: o.NoLimitControls || o.LogicalUnits(),
-		Ordinary: (o.NoLimitControls || o.LogicalUnits()) && !o.Document, Prog: p.Prog, Table: "rules"}
+	g := &Generator{typedOnly: nodes, keepTableRules: nodes, Document: o.Document, NoBudget: true, Ordinary: !o.Document, Prog: p.Prog, Table: "rules"}
 	g.Logical = o.LogicalUnits()
 	if o.Stream {
 		g.streamStart = p.Start
@@ -247,12 +246,6 @@ func printTables(p *Parser, params Params, t *execdata.Tables, h Hooks) (files [
 	}
 	if opts.NoLimitControls {
 		genGo.Init.WriteString("\tsxirGrammar.NoBudgetControls = true\n")
-	}
-	if opts.LogicalUnits() {
-		genGo.Init.WriteString("\tsxirGrammar.Logical = true\n")
-		if opts.Recognize {
-			genGo.Init.WriteString("\tsxirRecGrammar.Logical = true\n")
-		}
 	}
 	if prog.Run.RecordsSourceInfo {
 		genGo.Init.WriteString("\tsxirGrammar.SourceInfo = true\n")
@@ -469,14 +462,15 @@ type Generator struct {
 	// params are the parameters of the printing (Params), whose common part is common.Generator.Params.
 	params              Params
 	directTypedDocument bool
-	budgetClassNames    map[string]string
-	budgetClassKeys     []string
-	shaperNames         map[string]string
-	shaperKeys          []string
-	recoveryProg        map[*common.Program]bool // whether a program can recover from errors
-	tableErr            error                    // the rule table does not fit the form of the library's RuleSpec
-	hooks               Hooks                    // the zero value changes nothing
-	tables              *execdata.Tables         // the tables being printed, at the Exec stage
+	// varNames names the package variables that hold the tables of the parser (classes, class steps,
+	// terminal programs) by their content, so that each is declared once.
+	varNames     map[string]string
+	shaperNames  map[string]string
+	shaperKeys   []string
+	recoveryProg map[*common.Program]bool // whether a program can recover from errors
+	tableErr     error                    // the rule table does not fit the form of the library's RuleSpec
+	hooks        Hooks                    // the zero value changes nothing
+	tables       *execdata.Tables         // the tables being printed, at the Exec stage
 	// chunksInLib is set when the typed values take their storage from the library (Chunk).
 	chunksInLib    bool
 	ruleTypesDone  bool // the types of the rule table entries are written
@@ -1020,7 +1014,7 @@ func (g *Generator) typedCall(r *common.Rule, body string, s *check.Scope, d *fl
 		}
 	}
 	// plain writes the method name that runs the body as invokePlain does; with call it also
-	// charges the unit of the call, which a call site that calls it directly pays through it.
+	// counts the unit of the call, which a call site that calls it directly counts through it.
 	plain := func(name string, call bool) {
 		if d != nil {
 			g.flatMethod(r, d, name, "called as by invokePlain", true, call)
@@ -1048,7 +1042,7 @@ func (g *Generator) typedCall(r *common.Rule, body string, s *check.Scope, d *fl
 				name = g.traceCallWrapper(r, name, false)
 			}
 			ds := g.ruleFunc("ds", r.ID)
-			fmt.Fprintf(m, "func %s(p *TParser) (any, bool) {\n if p.TypedDocument != nil { return p.DocumentCall(trules[%d], 0, %s) }\n%s return %[3]s(p)\n}\n", name, r.ID, ds, g.step("p"))
+			fmt.Fprintf(m, "func %s(p *TParser) (any, bool) {\n if p.TypedDocument != nil { return p.DocumentCall(trules[%d], 0, %s) }\n return %[3]s(p)\n}\n", name, r.ID, ds)
 			plain(ds, false)
 			return
 		}
@@ -1080,9 +1074,6 @@ func (g *Generator) typedCall(r *common.Rule, body string, s *check.Scope, d *fl
 	// its key, whether or not its memoization is deferred (budget.chargeKey).
 	memo := r.Memo && !r.Transient
 	m.WriteString(g.callUnit("\tp", r))
-	if memo && !g.NoBudget {
-		fmt.Fprintf(m, "\tp.ChargeKey(rules[%d])\n", r.ID)
-	}
 	if memo && g.Logical && len(r.Vars) > 0 {
 		fmt.Fprintf(m, "\tp.KeyUnits(rules[%d])\n", r.ID)
 	}
@@ -1214,14 +1205,6 @@ func (g *Generator) recv() string    { return g.pick("Parser", "TParser") }
 func (g *Generator) valType() string { return g.pick("*Node", "any") }
 func (g *Generator) ctxType() string { return g.pick("ActCtx", "TActCtx") }
 
-// step returns the statement that charges one step to the budget control of recv, if there is one.
-func (g *Generator) step(recv string) string {
-	if g.NoBudget {
-		return ""
-	}
-	return recv + ".Spend()\n"
-}
-
 func (g *Generator) frameVar() string { return g.pick("EmptyFrame", "EmptyTFrame") }
 func (g *Generator) rt() string       { return g.pick("rt", "trt") }
 
@@ -1242,7 +1225,7 @@ func (g *Generator) Method(comment, body string) string {
 	if comment != "" {
 		fmt.Fprintf(&g.Methods, "// %s\n", comment)
 	}
-	fmt.Fprintf(&g.Methods, "func %s(p *%s) (%s, bool) {\n%s%s}\n\n", name, g.recv(), g.valType(), g.step("p"), body)
+	fmt.Fprintf(&g.Methods, "func %s(p *%s) (%s, bool) {\n%s}\n\n", name, g.recv(), g.valType(), body)
 	return name
 }
 
@@ -1257,7 +1240,7 @@ func (g *Generator) bodyMethod(comment, body string) string {
 	if comment != "" {
 		fmt.Fprintf(&g.Methods, "// %s\n", comment)
 	}
-	fmt.Fprintf(&g.Methods, "func %s(p *%s, _ int) (%s, bool) {\n%s%s}\n\n", name, g.recv(), g.valType(), g.step("p"), body)
+	fmt.Fprintf(&g.Methods, "func %s(p *%s, _ int) (%s, bool) {\n%s}\n\n", name, g.recv(), g.valType(), body)
 	return name
 }
 
@@ -1474,32 +1457,6 @@ func (g *Generator) ruleCall(r *common.Rule, min int) string {
 	return fmt.Sprintf("p.Call(%s[%d], %d)", g.tableVar(), r.ID, min)
 }
 
-// ControlledClassReject preserves the compact inactive condition while bounded
-// membership uses immutable generated range tables. TS keeps its own runtime.
-func (g *Generator) ControlledClassReject(e *ast.CharClass) string {
-	ordinary := classReject(e)
-	if g.NoBudget || len(e.Ranges) <= 4 {
-		// Without budget controls the class is tested without a control, so it has no range table.
-		return ordinary
-	}
-	key := fmt.Sprintf("%v%#v", e.Negated, e.Ranges)
-	if g.budgetClassNames == nil {
-		g.budgetClassNames = map[string]string{}
-	}
-	name := g.budgetClassNames[key]
-	if name == "" {
-		name = g.Name("budgetClass")
-		g.budgetClassNames[key] = name
-		g.budgetClassKeys = append(g.budgetClassKeys, key)
-		fmt.Fprintf(&g.Vars, "var %s = NewBudgetClass([]BudgetRange{", name)
-		for _, r := range e.Ranges {
-			fmt.Fprintf(&g.Vars, "{Lo: %d, Hi: %d},", r.Lo, r.Hi)
-		}
-		fmt.Fprintf(&g.Vars, "}, %v)\n", e.Negated)
-	}
-	return fmt.Sprintf("((p.Control != nil && p.RejectBudgetClass(ch, %s)) || (p.Control == nil && (%s)))", name, ordinary)
-}
-
 // atEnd and atLineStart name the library methods that test the anchors; a parser without
 // ParseStream uses the forms that need not consider a stream, which inline.
 func (g *Generator) atEnd() string {
@@ -1548,15 +1505,14 @@ func (g *Generator) leanTyped() bool {
 // declaring it on first use.
 func (g *Generator) classTable(e *ast.CharClass) string {
 	key := fmt.Sprintf("cls%v%#v", e.Negated, e.Ranges)
-	if g.budgetClassNames == nil {
-		g.budgetClassNames = map[string]string{}
+	if g.varNames == nil {
+		g.varNames = map[string]string{}
 	}
-	if name := g.budgetClassNames[key]; name != "" {
+	if name := g.varNames[key]; name != "" {
 		return name
 	}
 	name := g.Name("cls")
-	g.budgetClassNames[key] = name
-	g.budgetClassKeys = append(g.budgetClassKeys, key)
+	g.varNames[key] = name
 	ascii, wideRunes := classBits(e)
 	var wide []string
 	for _, r := range wideRunes {
@@ -1583,12 +1539,11 @@ func (g *Generator) classSteps(items []ast.Expr) string {
 	}
 	body := strings.Join(steps, ", ")
 	key := "steps" + body
-	if name := g.budgetClassNames[key]; name != "" {
+	if name := g.varNames[key]; name != "" {
 		return name
 	}
 	name := g.Name("steps")
-	g.budgetClassNames[key] = name
-	g.budgetClassKeys = append(g.budgetClassKeys, key)
+	g.varNames[key] = name
 	fmt.Fprintf(&g.Vars, "var %s = []ClassStep{%s}\n", name, body)
 	return name
 }

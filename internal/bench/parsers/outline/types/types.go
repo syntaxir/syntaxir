@@ -77,28 +77,6 @@ func (v *Item) TField(name string) (any, bool) {
 	return nil, false
 }
 
-func (v *Item) TFieldSpend(p *rt.TParser, name string) (any, bool) {
-	switch name {
-	case "Text":
-		return rt.TBack(SXIRHooks, v.Text), true
-	case "Children":
-		if v.Children == nil {
-			return nil, false
-		}
-		return func() any {
-			if v.Children == nil {
-				return nil
-			}
-			kids := make([]any, len(v.Children))
-			for i, x := range v.Children {
-				kids[i] = rt.TPtr(x)
-			}
-			return p.ListField(kids)
-		}(), true
-	}
-	return nil, false
-}
-
 func (v *Item) TZeroField(c *rt.TActCtx, name string) (any, bool) {
 	switch name {
 	case "Children":
@@ -107,7 +85,7 @@ func (v *Item) TZeroField(c *rt.TActCtx, name string) (any, bool) {
 	return nil, false
 }
 
-// SXIRSchema_76489818d528063f ties the parser package to this package: the parser refers to it once, so a
+// SXIRSchema_a3280f9c5ffc67cf ties the parser package to this package: the parser refers to it once, so a
 // parser and a types package generated from different schemas do not compile together.
 // It is for generated parsers; not a stable API.
-const SXIRSchema_76489818d528063f = 0
+const SXIRSchema_a3280f9c5ffc67cf = 0

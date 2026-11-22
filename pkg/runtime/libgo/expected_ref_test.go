@@ -114,9 +114,9 @@ func (p *Parser) refEqualExpected(a, b []ExpID) bool {
 }
 
 // TestKeepMatchesReference keeps random sets through the printed composition and through the
-// hand-written form it replaced, with and without budget controls, and checks after each call the
-// set returned, whether it is the set kept last, the arena (its length and the chunk it fills), the
-// memory accounted for its chunks and the units charged. The sets repeat often and some are longer
+// hand-written form it replaced, with and without a memory limit, and checks after each call the
+// set returned, whether it is the set kept last, the arena (its length and the chunk it fills) and the
+// memory accounted for its chunks. The sets repeat often and some are longer
 // than a chunk of the arena and than a chunk of a charged copy.
 func TestKeepMatchesReference(t *testing.T) {
 	for _, controlled := range []bool{false, true} {
@@ -125,7 +125,7 @@ func TestKeepMatchesReference(t *testing.T) {
 			newP := func() *Parser {
 				p := &Parser{}
 				if controlled {
-					p.Control = newBudgetControl(nil, sxirruntime.Limits{Compute: 1 << 40})
+					p.Control = newBudgetControl(sxirruntime.Limits{Memory: 1 << 40})
 				}
 				return p
 			}
@@ -159,9 +159,6 @@ func TestKeepMatchesReference(t *testing.T) {
 				same := slices.Equal(ka, kb) && (ka == nil) == (kb == nil) && lastA == lastB &&
 					slices.Equal(a.lastKept, b.lastKept) && len(a.arena) == len(b.arena) && cap(a.arena) == cap(b.arena) &&
 					a.memUsed == b.memUsed
-				if controlled {
-					same = same && a.Control.budgetUsed() == b.Control.budgetUsed()
-				}
 				if !same {
 					t.Fatalf("controlled %v round %d step %d keeping %d entries: last %v/%v arena %d,%d/%d,%d memUsed %d/%d",
 						controlled, round, step, len(ids), lastA, lastB, len(a.arena), cap(a.arena), len(b.arena), cap(b.arena), a.memUsed, b.memUsed)
@@ -173,10 +170,9 @@ func TestKeepMatchesReference(t *testing.T) {
 
 // TestExpectRecordMatchesReference runs random sequences of the operations on an expectation record
 // through the printed compositions and through the hand-written forms they replaced, in parses that
-// record expectations and parses that do not, with and without budget controls, and checks that
-// the record (the farthest position, the entries and, where it is consulted, the filter of the
-// entries), the examined end of a Document parse and the units charged are the same after every
-// operation.
+// record expectations and parses that do not, with and without a memory limit, and checks that the
+// record (the farthest position, the entries and, where it is consulted, the filter of the entries)
+// and the examined end of a Document parse are the same after every operation.
 func TestExpectRecordMatchesReference(t *testing.T) {
 	for _, recording := range []bool{false, true} {
 		for _, controlled := range []bool{false, true} {
@@ -189,7 +185,7 @@ func TestExpectRecordMatchesReference(t *testing.T) {
 							p.Document, p.track = &documentState{}, true
 						}
 						if controlled {
-							p.Control = newBudgetControl(nil, sxirruntime.Limits{Compute: 1 << 40})
+							p.Control = newBudgetControl(sxirruntime.Limits{Memory: 1 << 40})
 						}
 						return p
 					}
@@ -212,9 +208,6 @@ func TestExpectRecordMatchesReference(t *testing.T) {
 							// The current record has the same entries but for repeats of the placeholder.
 							ra, rb := slices.Compact(slices.Clone(a.exp[a.expBase:])), slices.Compact(slices.Clone(b.exp[b.expBase:]))
 							same = same && slices.Equal(ra, rb)
-						}
-						if controlled {
-							same = same && a.Control.budgetUsed() == b.Control.budgetUsed()
 						}
 						if !same {
 							t.Fatalf("recording %v controlled %v document %v round %d step %d after %s: far %d/%d base %d/%d exp %v/%v silent %d/%d docExamined %d/%d",
@@ -244,12 +237,12 @@ func TestExpectRecordMatchesReference(t *testing.T) {
 							b.refExpect(pos, id)
 							check(step, "Expect")
 						case 3, 4:
-							if controlled || !recording && !ordinary {
-								continue // an ordinary parse has no budget controls
+							if !recording && !ordinary {
+								continue
 							}
-							a.ExpectOrdinary(pos, id)
+							a.Expect(pos, id)
 							b.refExpectOrdinary(pos, id)
-							check(step, "ExpectOrdinary")
+							check(step, "Expect against the Ordinary form")
 						case 5:
 							if len(stack) < 4 {
 								stack = append(stack, frame{a.Isolate(pos), b.Isolate(pos)})
@@ -305,7 +298,7 @@ func TestNonRecordingRecordHoldsOnePlaceholder(t *testing.T) {
 		for round := 0; round < 400; round++ {
 			p := &Parser{}
 			if controlled {
-				p.Control = newBudgetControl(nil, sxirruntime.Limits{Compute: 1 << 40})
+				p.Control = newBudgetControl(sxirruntime.Limits{Memory: 1 << 40})
 			}
 			var marks []ExpMark
 			for step := 0; step < 80; step++ {
@@ -317,9 +310,7 @@ func TestNonRecordingRecordHoldsOnePlaceholder(t *testing.T) {
 				case 1:
 					p.Expect(pos, id)
 				case 2:
-					if !controlled {
-						p.ExpectOrdinary(pos, id)
-					}
+					p.Expect(pos, id)
 				case 3:
 					p.MergeExpected(pos, []ExpID{id, ExpFar})
 				case 4:

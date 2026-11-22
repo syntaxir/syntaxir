@@ -120,7 +120,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 		return text
 	}
 	text := roundTrip(o)
-	for _, want := range []string{" lib=only ", "settings profile=", " logical-units=true ", "debug verify-each=true opt-bisect-limit=2 "} {
+	for _, want := range []string{" lib=only ", "settings profile=", " no-limits=true ", "debug verify-each=true opt-bisect-limit=2 "} {
 		if !strings.Contains(text, want) {
 			t.Errorf("the header text has no %q:\n%s", want, text)
 		}

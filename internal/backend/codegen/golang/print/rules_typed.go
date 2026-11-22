@@ -71,10 +71,7 @@ func (g *Generator) frameBody(r *common.Rule, scope *check.Scope) string {
 // nodeFrameBody prints the body of the rule r of the Node or recognizer table from Exec IR as
 // the matcher of its frame body, the framed function spec of the table's plan (flowplan.Plan): a rule
 // whose Core body is a framed body and whose action reads only captures of the frame. The library
-// owns depth, memo, frame, action and finish. With budget controls (Options.Budget) the method that
-// holds the body charges one step on entry (prim.Attrs.Entered) and the body charges one on each
-// iteration of a repetition, plus the input spend of each Peek; the limits of a parse hold at these
-// charges.
+// owns depth, memo, frame, action and finish.
 func (g *Generator) nodeFrameBody(r *common.Rule, spec *plandata.FuncSpec, scope *check.Scope) string {
 	l := g.planned(spec.Key)
 	if !prim.AttrsOf(l.Func).Node {
@@ -107,9 +104,7 @@ func (g *Generator) streamBodyFunc(r *common.Rule, scope *check.Scope) string {
 // In the typed table every line is printed from Exec IR, as in the Node and recognizer tables (a line with
 // recovery builds its error node with NewErrorNode there). Nothing needs a check. The lines of an Operators
 // Rule have no projected repetitions (ruleProjections gives none for one), so Core IR and the tables agree
-// on the shape of every capture, and the checker lets an action name only captures of its line. With budget
-// controls (Options.Budget) the method that holds the function charges its entry and the function charges
-// each iteration of a repetition, as the lowering makes them explicit.
+// on the shape of every capture, and the checker lets an action name only captures of its line.
 func (g *Generator) operatorsRuleBody(k plandata.Key, scope *check.Scope, build bool) string {
 	spec, ok := g.plan.Func(k)
 	if !ok {
@@ -271,15 +266,8 @@ func (p *primPrinter) peekText(ch, size, ok string) string {
 	if p.document {
 		guard = "p.Document == nil && " + guard
 	}
-	// The inlined read charges its input spend and leaves a Document's examined range to Peek.
-	spend := "p.Control.Take(1)\n"
-	if p.document {
-		spend = "p.SpendRead(1)\n"
-	}
-	if !p.budget {
-		spend = ""
-	}
-	return fmt.Sprintf("if %s {\n%s%s, %s, %s = p.In[p.Pos], 1, true\n} else {\n%[3]s, %[4]s, %[5]s = p.Peek()\n}\n", guard, spend, ch, size, ok)
+	// The inlined read leaves a Document's examined range to Peek.
+	return fmt.Sprintf("if %s {\n%s, %s, %s = p.In[p.Pos], 1, true\n} else {\n%[2]s, %[3]s, %[4]s = p.Peek()\n}\n", guard, ch, size, ok)
 }
 
 // fixedExpNames names the expectations of the library that every parser has, by ID.
@@ -308,7 +296,7 @@ func grammarClass(c *core.Class) *ast.CharClass {
 
 // reject returns the condition under which the code point in the variable ch is not in the class.
 func (p *primPrinter) reject(c *core.Class, ch string) string {
-	cond := p.g.ControlledClassReject(grammarClass(c))
+	cond := classReject(grammarClass(c))
 	if ch != "ch" {
 		cond = chIdent.ReplaceAllString(cond, ch)
 	}

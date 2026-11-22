@@ -13,12 +13,16 @@ import (
 
 func TestValuePushTable(t *testing.T) {
 	for _, controlled := range []bool{false, true} {
+		// The library's pushItems counts no unit: the code of an action counts the elements that concat
+		// builds itself (UNITSOF, units.items), which the action charge goldens check. So the table's units,
+		// which a target whose pushItems counts them charges, are not checked here, and under limit
+		// controls the library must count nothing.
 		c, vals := nodeBuiltinFixture(controlled)
-		if err := conform.RunPushes("node", controlled, func(call, value string) (string, int, int) {
+		if err := conform.RunPushes("node", false, func(call, value string) (string, int, int) {
 			base := len(c.P.KidStack)
 			var before uint64
 			if controlled {
-				before = c.P.Control.budgetUsed()
+				before = c.P.Units
 			}
 			got := memberRead(func() any {
 				if call == conform.CallPush {
@@ -28,10 +32,10 @@ func TestValuePushTable(t *testing.T) {
 				}
 				return nil
 			}, memberCanon)
-			units := 0
-			if controlled {
-				units = int(c.P.Control.budgetUsed() - before)
+			if units := c.P.Units - before; controlled && units != 0 {
+				t.Errorf("node: %s(%s): counted %d units, want 0", call, value, units)
 			}
+			units := 0
 			pushed := slices.Clone(c.P.KidStack[base:])
 			c.P.DropKids(base)
 			if got == "nil" {
@@ -50,11 +54,11 @@ func TestValuePushTable(t *testing.T) {
 			t.Errorf("controlled=%v: %v", controlled, err)
 		}
 		tc, tvals := typedBuiltinFixture(controlled)
-		if err := conform.RunPushes("typed", controlled, func(call, value string) (string, int, int) {
+		if err := conform.RunPushes("typed", false, func(call, value string) (string, int, int) {
 			base := len(tc.P.KidStack)
 			var before uint64
 			if controlled {
-				before = tc.P.Control.budgetUsed()
+				before = tc.P.Units
 			}
 			got := memberRead(func() any {
 				if call == conform.CallPush {
@@ -64,10 +68,10 @@ func TestValuePushTable(t *testing.T) {
 				}
 				return nil
 			}, tmemberCanon)
-			units := 0
-			if controlled {
-				units = int(tc.P.Control.budgetUsed() - before)
+			if units := tc.P.Units - before; controlled && units != 0 {
+				t.Errorf("typed: %s(%s): counted %d units, want 0", call, value, units)
 			}
+			units := 0
 			pushed := slices.Clone(tc.P.KidStack[base:])
 			tc.P.DropKids(base)
 			if got == "nil" {

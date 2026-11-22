@@ -349,7 +349,6 @@ func (g *growState) growKey() growKey { return growKey{rule: g.rule, min: g.min}
 func (p *Parser) growBegin(r *Rule, min int) growState {
 	p.use(featureLeftRecursion)
 	// One compute unit before each evaluation of the body, the seed's included.
-	p.Spend()
 	g := growState{rule: int32(r.Id), min: int32(min), start: p.Pos, gi: len(p.gamma)}
 	g.gp = p.gammaAt(p.Pos, r.Cycle)
 	// The record is written in place: a growth is pushed for every call of a leader that misses.
@@ -387,7 +386,6 @@ func (p *Parser) growLonger(g *growState, ok bool) bool {
 // with the errors errs that it recovered, as its seed, and returns to the start of the growth. The
 // caller drops the errors after the growth's mark.
 func (p *Parser) growAdopt(g *growState, node *sxirvalue.Node, val any, errs recEntry) {
-	p.Spend()
 	p.gamma[g.gi].inl = ctxResult{node: node, val: val, ok: true, end: p.Pos, examined: p.examinedNow(), from: p.fromNow(), errs: errs}
 	p.gamma[g.gi].id = p.nextSeedID()
 	p.Pos = g.start
@@ -473,7 +471,6 @@ func (p *Parser) valuesEqual(a, b reflect.Value, budget *int) bool {
 	if *budget--; *budget < 0 {
 		return false
 	}
-	p.Spend()
 	switch a.Kind() {
 	case reflect.Pointer:
 		if a.Pointer() == b.Pointer() {

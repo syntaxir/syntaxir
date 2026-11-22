@@ -1,7 +1,6 @@
 package libgo
 
 import (
-	"context"
 	"fmt"
 	"math/rand"
 	"strings"
@@ -41,7 +40,7 @@ func TestMemoIndexMatchesChain(t *testing.T) {
 			rng := rand.New(rand.NewSource(1))
 			p := &Parser{}
 			if k.budgeted {
-				p.Control = newBudgetControl(nil, sxirruntime.Limits{Compute: 1 << 40})
+				p.Control = newBudgetControl(sxirruntime.Limits{Memory: 1 << 40})
 			}
 			tp := &TParser{Parser: p}
 			var table *memoTable = &p.memo
@@ -151,43 +150,30 @@ func TestMemoIndexStreamPrune(t *testing.T) {
 
 // TestDocOnlyLookupComparesByIdentity checks the lookup of a rule that only a Document parse memoizes: a
 // key whose string has the same bytes in other memory is a miss, and a key with the same memory is a
-// hit. The lookup of any other rule finds the equal string. No lookup charges a unit, whatever the
-// length of the string: the call pays for its key (ChargeKey).
+// hit. The lookup of any other rule finds the equal string.
 func TestDocOnlyLookupComparesByIdentity(t *testing.T) {
 	big := strings.Repeat("x", 1<<16)
 	clone := strings.Clone(big)
-	newParser := func() *Parser {
-		p := &Parser{}
-		p.Control = newBudgetControl(context.Background(), sxirruntime.Limits{Compute: 1 << 40})
-		return p
-	}
-	cost := func(p *Parser, f func()) uint64 {
-		before := p.Control.budgetUsed()
-		f()
-		return p.Control.budgetUsed() - before
-	}
-	p := newParser()
+	p := &Parser{Control: newBudgetControl(sxirruntime.Limits{Memory: 1 << 40})}
 	e := p.memo.alloc()
 	p.memoPutControlled(1, 0, 0, []any{big}, true, e)
-	var got *memoEntry
-	if c := cost(p, func() { got = p.memoGetControlled(1, 0, 0, []any{big}, true) }); got != e || c != 0 {
-		t.Errorf("the same memory: entry %v at %d units, want the entry at no unit", got == e, c)
+	if got := p.memoGetControlled(1, 0, 0, []any{big}, true); got != e {
+		t.Errorf("the same memory: entry %v, want the entry", got == e)
 	}
-	// The lookup of any other rule charges nothing either, for a string of any length as for a value
-	// that is not a string.
-	hit := func(key any) uint64 {
-		q := newParser()
-		q.memoPutControlled(1, 0, 0, []any{key}, false, q.memo.alloc())
-		return cost(q, func() { q.memoGetControlled(1, 0, 0, []any{key}, false) })
+	// The lookup of any other rule finds the key, for a string of any length as for a value that is
+	// not a string.
+	for _, key := range []any{int64(7), "x", big} {
+		q := &Parser{Control: newBudgetControl(sxirruntime.Limits{Memory: 1 << 40})}
+		x := q.memo.alloc()
+		q.memoPutControlled(1, 0, 0, []any{key}, false, x)
+		if got := q.memoGetControlled(1, 0, 0, []any{key}, false); got != x {
+			t.Errorf("key %T: entry %v, want the entry", key, got == x)
+		}
 	}
-	intCost, smallCost, bigCost := hit(int64(7)), hit("x"), hit(big)
-	if bigCost != 0 || smallCost != 0 || intCost != 0 {
-		t.Errorf("the same memory costs %d units for %d bytes, %d for one byte, %d for an integer; want none", bigCost, len(big), smallCost, intCost)
+	if got := p.memoGetControlled(1, 0, 0, []any{clone}, true); got != nil {
+		t.Errorf("equal bytes in other memory: found %v, want a miss", got != nil)
 	}
-	if c := cost(p, func() { got = p.memoGetControlled(1, 0, 0, []any{clone}, true) }); got != nil || c != 0 {
-		t.Errorf("equal bytes in other memory: found %v at %d units, want a miss at no unit", got != nil, c)
-	}
-	if c := cost(p, func() { got = p.memoGetControlled(1, 0, 0, []any{clone}, false) }); got != e || c != 0 {
-		t.Errorf("a rule a fresh parse memoizes: found %v at %d units, want the entry at no unit", got == e, c)
+	if got := p.memoGetControlled(1, 0, 0, []any{clone}, false); got != e {
+		t.Errorf("a rule a fresh parse memoizes: found %v, want the entry", got == e)
 	}
 }

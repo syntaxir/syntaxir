@@ -117,7 +117,7 @@ func init() {
 		if tf3 != nil {
 			return nil, tf3
 		}
-		tk4 := c.P.ElemsAbove(tm1)
+		tk4 := c.P.Kids(tm1)
 		tn5 := c.P.ActionHullLogical(c, false, tk4)
 		tf6 := any(tn5)
 		tn7 := c.ActionStruct("Record", 1)
@@ -136,7 +136,6 @@ func init() {
 	sxirGrammar.NodeTypes["Field"] = rt.NewNodeTypeKinds("Field")
 	sxirGrammar.Starts = []string{"main"}
 	sxirGrammar.DefaultStart = "main"
-	sxirGrammar.Logical = true
 }
 
 func e3(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {

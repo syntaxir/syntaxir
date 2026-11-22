@@ -262,13 +262,11 @@ func (d *Decision) Cores(mods []*core.Module) *plandata.Cores {
 func (d *Decision) tableIR(s tableSpec, m *core.Module) *plandata.TableIR {
 	o := d.Opts
 	examined := o.Document || s.traced
-	// Logical units count no budget controls in the code: they count the logical units instead.
-	budget := !o.NoLimitControls && !o.LogicalUnits()
 	if s.table == "trules" {
 		// Node is false: a function lowered with the options of one runtime is never printed for the other.
-		return &plandata.TableIR{M: m, Values: true, Opts: lowerdata.Options{Budget: budget, Logical: o.LogicalUnits(), Guards: d.guards, Recovers: flowlower.Recovers(m), Observe: s.traced, Document: examined, Traced: s.traced}}
+		return &plandata.TableIR{M: m, Values: true, Opts: lowerdata.Options{Logical: o.LogicalUnits(), Guards: d.guards, Recovers: flowlower.Recovers(m), Observe: s.traced, Document: examined, Traced: s.traced}}
 	}
-	return flowplan.TableOf(m, plandata.TableConfig{Values: s.table != "recRules", Budget: budget, Logical: o.LogicalUnits(), Guards: d.guards, Observe: s.traced, Document: examined,
+	return flowplan.TableOf(m, plandata.TableConfig{Values: s.table != "recRules", Logical: o.LogicalUnits(), Guards: d.guards, Observe: s.traced, Document: examined,
 		// A parser with Documents resumes the runs of its repetitions; an observed parse records the
 		// examined input (Document) but keeps no runs (lowerdata.Options.Resume).
 		Resume: o.Document, Traced: s.traced})

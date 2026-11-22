@@ -49,22 +49,18 @@ type goSpec struct {
 var goSpecs = []goSpec{
 	// Parser.Call hands observed and Document parses to the tracked path, so it neither observes nor
 	// reads a Document itself beyond that test.
-	{fn: "call", on: []string{exec.Document, exec.Observe, exec.Budget, exec.Units}, name: "Call"},
+	{fn: "call", on: []string{exec.Document, exec.Observe, exec.Units}, name: "Call"},
 	// The deferral of memoization: the node library's is the one that generated parsers call, also for
 	// the typed library's rules; the typed library's compositions call their own, of a typed rule.
 	{fn: "firstCall", name: "FirstCall"},
 	{fn: "firstCall", typed: true, name: "firstCall"},
 	{fn: "grow", on: []string{exec.Units}, name: "grow"},
-	// The expectation record: the form of a parse with limit controls or a Document, and the form of
-	// an ordinary parse with its slow path.
-	{fn: "expect", on: []string{exec.Budget}, name: "Expect"},
-	{fn: "expect", name: "ExpectOrdinary", cold: "expectOrdinarySlow", doc: `expect is the form of an ordinary parse: one without limit controls and outside a Document.
-The generated rule bodies have a branch for such parses that calls the Ordinary forms of the runtime
-helpers, which leave out the budget charges and the Document's record of the examined input. It is for generated
-parsers and not a stable API.`},
-	{fn: "mergeExpected", on: []string{exec.Budget}, name: "MergeExpected"},
-	{fn: "keep", on: []string{exec.Budget}, name: "Keep"},
-	{fn: "call", typed: true, on: []string{exec.Document, exec.Observe, exec.Typed, exec.Budget, exec.Units}, name: "callBody"},
+	// The expectation record, whose guard inlines into the generated code: no form of a parse counts a
+	// unit for it.
+	{fn: "expect", on: []string{exec.Units}, name: "Expect", cold: "expectSlow"},
+	{fn: "mergeExpected", on: []string{exec.Units}, name: "MergeExpected"},
+	{fn: "keep", on: []string{exec.Units}, name: "Keep"},
+	{fn: "call", typed: true, on: []string{exec.Document, exec.Observe, exec.Typed, exec.Units}, name: "callBody"},
 	{fn: "callMemo", typed: true, on: []string{exec.Document, exec.Observe, exec.Typed, exec.Units}, name: "CallMemo"},
 	{fn: "grow", typed: true, on: []string{exec.Typed, exec.Units}, name: "grow"},
 	// The observed calls and plain invocations of both libraries, which their callers take in an
@@ -75,19 +71,19 @@ parsers and not a stable API.`},
 	{fn: "observedPlain", typed: true, on: []string{exec.Document, exec.Observe}, name: "invokePlainObserved"},
 	// The tracked path of the node library: the rule call of a Document parse, the unmemoized and
 	// memoized calls, the call without observation, and the entry of the path.
-	{fn: "document", on: []string{exec.Document, exec.Budget, exec.Units}, name: "callDocument"},
+	{fn: "document", on: []string{exec.Document, exec.Units}, name: "callDocument"},
 	{fn: "unmemoized", name: "callUnmemoized"},
-	{fn: "memoized", on: []string{exec.Document, exec.Observe, exec.Budget, exec.Units}, name: "callMemo"},
-	{fn: "body", on: []string{exec.Document, exec.Budget, exec.Units}, name: "callBody"},
+	{fn: "memoized", on: []string{exec.Document, exec.Observe, exec.Units}, name: "callMemo"},
+	{fn: "body", on: []string{exec.Document, exec.Units}, name: "callBody"},
 	{fn: "tracked", on: []string{exec.Document, exec.Observe}, name: "callTracked"},
 	// The rule call of a Document parse in the typed library.
-	{fn: "typedDocument", typed: true, on: []string{exec.Document, exec.Observe, exec.Typed, exec.Budget, exec.Units}, name: "DocumentCall"},
+	{fn: "typedDocument", typed: true, on: []string{exec.Document, exec.Observe, exec.Typed, exec.Units}, name: "DocumentCall"},
 	// The edits of a Document that a lookup applies to the memo entry it finds, in both libraries: the
-	// form a parse runs, which charges the edits it applies, and the form an edit runs, which has no
-	// parse to charge.
-	{fn: "memoAdvance", on: []string{exec.Document, exec.Budget}, name: "advanceEntry"},
+	// form a parse runs and the form an edit runs, which has no parse. Applying an edit is no event, so
+	// the two do the same work.
+	{fn: "memoAdvance", on: []string{exec.Document, exec.Units}, name: "advanceEntry"},
 	{fn: "memoAdvance", on: []string{exec.Document}, name: "advanceEntry", plain: true},
-	{fn: "memoAdvance", typed: true, on: []string{exec.Document, exec.Budget}, name: "advanceEntry"},
+	{fn: "memoAdvance", typed: true, on: []string{exec.Document, exec.Units}, name: "advanceEntry"},
 	{fn: "memoAdvance", typed: true, on: []string{exec.Document}, name: "advanceTEntry", plain: true},
 	// The repetition runs of a Document parse in the node library, which generated rule bodies run
 	// through ResumeStart, ResumeMore, ResumeNext, ResumeBegin, ResumeEnd and ResumeFinish, the forms of
@@ -109,9 +105,9 @@ parsers and not a stable API.`},
 	{fn: "bind", typed: true, name: "Bind"},
 }
 
-// goRunOn are the features of the node library's forms of the repetition runs of a Document, which
-// are the engine's (runOn).
-var goRunOn = []string{exec.Document, exec.Budget}
+// goRunOn are the features of the node library's forms of the repetition runs of a Document: a
+// parse with limit controls counts logical units, and polls them on work that counts none.
+var goRunOn = []string{exec.Document, exec.Units}
 
 // goStreamSpecs are the functions of the stream mechanism that the compositions replace, in the
 // node library (the typed library has no streams).
@@ -124,16 +120,16 @@ var goStreamSpecs = []goSpec{
 // goOperatorSpecs are the functions of the Operators Rule loop that the compositions replace, in the
 // node and the typed library.
 var goOperatorSpecs = []goSpec{
-	{fn: "operatorsParse", on: []string{exec.Budget, exec.Units}, name: "OperatorsRuleParse"},
-	{fn: "operatorsExpr", on: []string{exec.Budget, exec.Units}, name: "operatorsRuleExpr"},
-	{fn: "operatorsNud", on: []string{exec.Budget, exec.Units}, name: "operatorsRuleNud"},
-	{fn: "longest", on: []string{exec.Budget, exec.Units}, name: "longest"},
+	{fn: "operatorsParse", on: []string{exec.Units}, name: "OperatorsRuleParse"},
+	{fn: "operatorsExpr", on: []string{exec.Units}, name: "operatorsRuleExpr"},
+	{fn: "operatorsNud", on: []string{exec.Units}, name: "operatorsRuleNud"},
+	{fn: "longest", on: []string{exec.Units}, name: "longest"},
 	{fn: "skipTrivia", name: "skipTrivia"},
 	{fn: "reset", name: "Reset"},
-	{fn: "operatorsParseTyped", typed: true, on: []string{exec.Budget, exec.Typed, exec.Units}, name: "OperatorsRuleParse"},
-	{fn: "operatorsExprTyped", typed: true, on: []string{exec.Budget, exec.Typed, exec.Units}, name: "operatorsRuleExpr"},
-	{fn: "operatorsNudTyped", typed: true, on: []string{exec.Budget, exec.Typed, exec.Units}, name: "operatorsRuleNud"},
-	{fn: "longest", typed: true, on: []string{exec.Budget, exec.Units}, name: "longest"},
+	{fn: "operatorsParseTyped", typed: true, on: []string{exec.Typed, exec.Units}, name: "OperatorsRuleParse"},
+	{fn: "operatorsExprTyped", typed: true, on: []string{exec.Typed, exec.Units}, name: "operatorsRuleExpr"},
+	{fn: "operatorsNudTyped", typed: true, on: []string{exec.Typed, exec.Units}, name: "operatorsRuleNud"},
+	{fn: "longest", typed: true, on: []string{exec.Units}, name: "longest"},
 	{fn: "skipTrivia", typed: true, name: "skipTrivia"},
 	{fn: "reset", typed: true, name: "Reset"},
 }
@@ -276,8 +272,7 @@ func goTarget(s goSpec) *print.Target {
 	}
 	libGoActionNames(names)
 	entryType, valueField, alloc := "memoEntry", "node", "p.memo.alloc()"
-	// spender is the parser that the generic copies of values charge.
-	attemptType, spender := "operatorsRuleAttempt", "p"
+	attemptType := "operatorsRuleAttempt"
 	// created is the field of the nodes that action expressions and actions create.
 	created := "created"
 	rule := func(r string) string { return r }
@@ -299,7 +294,7 @@ func goTarget(s goSpec) *print.Target {
 		}
 		libGoActionNames(names)
 		entryType, valueField, alloc = "tmemoEntry", "val", "p.memoSlab.one()"
-		attemptType, spender, created = "toperatorsRuleAttempt", "p.Parser", "Created"
+		attemptType, created = "toperatorsRuleAttempt", "Created"
 		rule = func(r string) string { return r + ".Rule" }
 		step = func(v string) string { return "nil, " + v }
 	}
@@ -377,13 +372,13 @@ func goTarget(s goSpec) *print.Target {
 		case "action.created":
 			return "len(p." + created + ")"
 		case "action.dropCreated":
-			return fmt.Sprintf("clearSpend(%s, p.%s[%s:])\np.%[2]s = p.%[2]s[:%[3]s]", spender, created, a[0])
+			return fmt.Sprintf("clear(p.%s[%s:])\np.%[1]s = p.%[1]s[:%[2]s]", created, a[0])
 		case "action.kids":
 			return "len(p.KidStack)"
 		case "action.dropKids":
-			return fmt.Sprintf("clearSpend(%s, p.KidStack[%s:])\np.KidStack = p.KidStack[:%[2]s]", spender, a[0])
+			return fmt.Sprintf("clear(p.KidStack[%s:])\np.KidStack = p.KidStack[:%[1]s]", a[0])
 		case "action.elemsAbove":
-			return "p.ElemsAbove(" + a[0] + ")"
+			return "p.Kids(" + a[0] + ")"
 		case "action.keep":
 			return fmt.Sprintf("p.KidStack = append(p.KidStack, %s[%s])", a[0], a[1])
 		case "opr.led":
@@ -441,13 +436,6 @@ func goTarget(s goSpec) *print.Target {
 			return "p.afterEmpty = " + a[0]
 		case "opr.afterEmpty":
 			return "p.afterEmpty"
-		case "budget.charge":
-			// Spend is the charge of one unit, small enough to inline.
-			if k, ok := c.Args[0].(*code.Const); ok && k.Value == uint64(1) {
-				return "p.Spend()"
-			}
-			// A charge of n is n one-unit reservations (Take).
-			return "p.Control.Take(" + a[0] + ")"
 		case "units.count":
 			if k, ok := c.Args[0].(*code.Const); ok && k.Value == uint64(1) {
 				return "p.Units++"
@@ -461,12 +449,6 @@ func goTarget(s goSpec) *print.Target {
 			return a[0] + ".Rec"
 		case "rec.entries":
 			return "len(p.Recovered) - " + a[0]
-		case "budget.chargeKey":
-			return "p.ChargeKey(" + rule(a[0]) + ")"
-		case "budget.freeBegin":
-			return "p.Control.FreeBegin(" + a[0] + ")"
-		case "budget.freeEnd":
-			return "p.Control.FreeEnd(" + a[0] + ")"
 		case "seen.defers":
 			// Set once at the start of a parse: a stream or a Document parse memoizes on the first call.
 			return "p.deferMemo"

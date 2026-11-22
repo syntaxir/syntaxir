@@ -84,26 +84,6 @@ func (v *Doc) TField(name string) (any, bool) {
 	return nil, false
 }
 
-func (v *Doc) TFieldSpend(p *rt.TParser, name string) (any, bool) {
-	switch name {
-	case "Lines":
-		if v.Lines == nil {
-			return nil, false
-		}
-		return func() any {
-			if v.Lines == nil {
-				return nil
-			}
-			kids := make([]any, len(v.Lines))
-			for i, x := range v.Lines {
-				kids[i] = rt.TPtr(x)
-			}
-			return p.ListField(kids)
-		}(), true
-	}
-	return nil, false
-}
-
 func (v *Doc) TZeroField(c *rt.TActCtx, name string) (any, bool) {
 	switch name {
 	case "Lines":
@@ -144,29 +124,13 @@ func (v *Line) TStrField(name string) (string, bool) {
 	return "", false
 }
 
-func (v *Line) TFieldSpend(p *rt.TParser, name string) (any, bool) {
-	switch name {
-	case "N":
-		return any(v.N), true
-	case "Total":
-		return any(v.Total), true
-	case "Long":
-		return any(v.Long), true
-	case "Longest":
-		return any(v.Longest), true
-	case "Wide":
-		return any(v.Wide), true
-	}
-	return nil, false
-}
-
 func (v *Line) TZeroField(c *rt.TActCtx, name string) (any, bool) {
 	switch name {
 	}
 	return nil, false
 }
 
-// SXIRSchema_6ec40af3da5ba489 ties the parser package to this package: the parser refers to it once, so a
+// SXIRSchema_eccf6ac590fb833e ties the parser package to this package: the parser refers to it once, so a
 // parser and a types package generated from different schemas do not compile together.
 // It is for generated parsers; not a stable API.
-const SXIRSchema_6ec40af3da5ba489 = 0
+const SXIRSchema_eccf6ac590fb833e = 0

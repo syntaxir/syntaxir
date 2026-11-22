@@ -2,7 +2,6 @@ package print_test
 
 import (
 	"fmt"
-	"regexp"
 	"runtime"
 	"slices"
 	"sort"
@@ -230,13 +229,9 @@ func opLines(o *core.OperatorsRule, e *ast.OperatorsRule) ([]*core.OpLine, []ast
 	return o.Lines(), exprs, actions
 }
 
-// budgetClassName matches the name of a budget class table, whose number is the generator's to assign.
-var budgetClassName = regexp.MustCompile(`budgetClass[0-9]+`)
-
 // guardString is the guard of a Core alternative as a Go condition: the condition on the
-// next character and the expectation. The numbers of budget class tables are left out: they depend on
-// the order in which the generator met the classes, and the ranges of the condition name the class.
-func guardString(g *print.Generator, m *core.Module, f *core.First) (string, string) {
+// next character and the expectation.
+func guardString(m *core.Module, f *core.First) (string, string) {
 	if f.Lit {
 		if f.Fold {
 			return fmt.Sprintf("ch == %d || ch == %d", f.Rune, f.Rune-('a'-'A')), m.Exps[f.Exp]
@@ -247,8 +242,7 @@ func guardString(g *print.Generator, m *core.Module, f *core.First) (string, str
 	for _, r := range f.Class.Ranges {
 		e.Ranges = append(e.Ranges, ast.CharRange{Lo: r.Lo, Hi: r.Hi})
 	}
-	cond := print.NegateCondition(g.ControlledClassReject(e))
-	return budgetClassName.ReplaceAllString(cond, "budgetClass"), m.Exps[f.Exp]
+	return print.NegateCondition(print.ClassReject(e)), m.Exps[f.Exp]
 }
 
 // coreDecisionCounts counts the decisions compared.
@@ -268,7 +262,6 @@ type coreDecisionCounts struct {
 //   - the scans;
 //   - the scopes of repetition elements and Operators Rule lines.
 func coreDecisionLines(c *coreGenCase, n *coreDecisionCounts) (lines, problems []string) {
-	g := c.g()
 	for _, cr := range c.m.Rules {
 		r := c.rules[cr.ID]
 		_, idx := typedDecisionsWalk(r)
@@ -323,7 +316,7 @@ func coreDecisionLines(c *coreGenCase, n *coreDecisionCounts) (lines, problems [
 						add("guard", ei, "\t0\t0\t%d\t%q\t%q", typedDecisionsBit(guarded), "", "")
 						continue
 					}
-					cond, desc := guardString(g, c.m, a.Guard)
+					cond, desc := guardString(c.m, a.Guard)
 					add("guard", ei, "\t1\t%d\t%d\t%q\t%q", a.Guard.Depth, typedDecisionsBit(guarded), desc, cond)
 					n.guards++
 					if guarded {

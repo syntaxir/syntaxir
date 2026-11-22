@@ -8,6 +8,7 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"maps"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -17,16 +18,20 @@ import (
 
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/action"
-	"syntaxir.dev/sxir/internal/ir/code/exec"
 	"syntaxir.dev/sxir/internal/ir/code/exec/compose"
 )
 
-// chargeRoots are the methods of the budget control that reserve compute units.
-var chargeRoots = []string{"Charge", "Take", "takeSlow", "chargeStep", "chargeSlow"}
+// checkRoots are the methods of the parser that check the counter of logical compute units
+// (spec/runtime/parsing.md#compute-units) or observe cancellation and the memory limit: each may end
+// the parse. A function that adds to the counter (Parser.Units) counts units, and checks the counter
+// or leaves the check to its caller.
+var checkRoots = []string{"PollUnits", "observeUnits", "unitsExceeded"}
 
 // libCalls type-checks the Go library and returns its static call graph (calls through
-// interfaces and function values are not edges) and the functions that reach a charge.
-func libCalls(t *testing.T) (*types.Package, map[*types.Func][]*types.Func, map[*types.Func]bool) {
+// interfaces and function values are not edges), the functions that add to the counter themselves
+// (counts), the functions that reach one of them (counting), and the functions that reach a count or
+// a method of checkRoots (stopping).
+func libCalls(t *testing.T) (pkg *types.Package, callees map[*types.Func][]*types.Func, counts, counting, stopping map[*types.Func]bool) {
 	t.Helper()
 	bp, err := build.Default.ImportDir(filepath.Join("..", "..", "..", "..", "..", "pkg", "runtime", "libgo"), 0)
 	if err != nil {
@@ -43,11 +48,12 @@ func libCalls(t *testing.T) (*types.Package, map[*types.Func][]*types.Func, map[
 	}
 	info := &types.Info{Uses: map[*ast.Ident]types.Object{}, Defs: map[*ast.Ident]types.Object{}}
 	conf := types.Config{Importer: importer.ForCompiler(fset, "source", nil)}
-	pkg, err := conf.Check("syntaxir.dev/sxir/pkg/runtime/libgo", fset, files, info)
+	pkg, err = conf.Check("syntaxir.dev/sxir/pkg/runtime/libgo", fset, files, info)
 	if err != nil {
 		t.Fatal(err)
 	}
-	callees := map[*types.Func][]*types.Func{}
+	callees = map[*types.Func][]*types.Func{}
+	counts = map[*types.Func]bool{}
 	for _, f := range files {
 		for _, d := range f.Decls {
 			fd, ok := d.(*ast.FuncDecl)
@@ -56,6 +62,22 @@ func libCalls(t *testing.T) (*types.Package, map[*types.Func][]*types.Func, map[
 			}
 			caller := info.Defs[fd.Name].(*types.Func)
 			ast.Inspect(fd.Body, func(n ast.Node) bool {
+				var lhs []ast.Expr
+				switch s := n.(type) {
+				case *ast.AssignStmt:
+					if s.Tok == token.ADD_ASSIGN {
+						lhs = s.Lhs
+					}
+				case *ast.IncDecStmt:
+					if s.Tok == token.INC {
+						lhs = []ast.Expr{s.X}
+					}
+				}
+				for _, l := range lhs {
+					if sel, ok := l.(*ast.SelectorExpr); ok && sel.Sel.Name == "Units" {
+						counts[caller] = true
+					}
+				}
 				call, ok := n.(*ast.CallExpr)
 				if !ok {
 					return true
@@ -84,28 +106,38 @@ func libCalls(t *testing.T) (*types.Package, map[*types.Func][]*types.Func, map[
 			})
 		}
 	}
-	charges := map[*types.Func]bool{}
-	control := pkg.Scope().Lookup("BudgetControl").Type()
-	for _, name := range chargeRoots {
-		obj, _, _ := types.LookupFieldOrMethod(types.NewPointer(control), true, pkg, name)
-		charges[obj.(*types.Func)] = true
+	roots := maps.Clone(counts)
+	parserType := pkg.Scope().Lookup("Parser").Type()
+	for _, name := range checkRoots {
+		obj, _, _ := types.LookupFieldOrMethod(types.NewPointer(parserType), true, pkg, name)
+		f, ok := obj.(*types.Func)
+		if !ok {
+			t.Fatalf("the Go library has no method Parser.%s", name)
+		}
+		roots[f] = true
 	}
+	return pkg, callees, counts, reaching(callees, counts), reaching(callees, roots)
+}
+
+// reaching returns the functions that reach one of roots through callees, roots among them.
+func reaching(callees map[*types.Func][]*types.Func, roots map[*types.Func]bool) map[*types.Func]bool {
+	reach := maps.Clone(roots)
 	for changed := true; changed; {
 		changed = false
 		for caller, cs := range callees {
-			if charges[caller] {
+			if reach[caller] {
 				continue
 			}
 			for _, c := range cs {
-				if charges[c] {
-					charges[caller] = true
+				if reach[c] {
+					reach[caller] = true
 					changed = true
 					break
 				}
 			}
 		}
 	}
-	return pkg, callees, charges
+	return reach
 }
 
 // goCallee matches the calls in the Go form of an operation: a method of the parser (p.X), of one
@@ -129,16 +161,22 @@ func opCallees(t *testing.T, pkg *types.Package, op *code.Op, typed bool) (form 
 	func() {
 		defer func() {
 			if recover() != nil {
-				form = ""
+				form, ok = "", false
 			}
 		}()
+		// An empty statement or value form is a form that does nothing.
 		if s, done := tg.Stmt(c, args, dst, true); done {
-			form = s
+			form, ok = s, true
+			return
+		}
+		if s, done := goValueOp(op.Name, args, typed); done {
+			form, ok = s, true
 			return
 		}
 		form = tg.Op(c, args)
+		ok = form != ""
 	}()
-	if form == "" {
+	if !ok {
 		return "", nil, false
 	}
 	recv := "Parser"
@@ -172,28 +210,28 @@ func opCallees(t *testing.T, pkg *types.Package, op *code.Op, typed bool) (form 
 	return form, fns, true
 }
 
-// chargeWrappers are the functions of the library that only pass charges on to the budget control.
-var chargeWrappers = []string{"Spend", "SpendRead", "spendValue", "appendSpend", "copySpend", "clearSpend"}
+// countWrappers are the functions of the library that count the units of an event that their caller
+// makes, and check the counter.
+var countWrappers = []string{"unitsSized", "SkipUnits", "valueUnits", "UnitsSized"}
 
-// formSite stands for a charge that the Go form of an operation makes itself, through a wrapper.
+// formSite stands for a count that the Go form of an operation makes itself, through a wrapper.
 const formSite = "the form"
 
-// chargeSites returns the charge sites reachable from fns: the functions that call a wrapper or a
-// method of chargeRoots, with formSite when fns holds a wrapper.
-func chargeSites(pkg *types.Package, callees map[*types.Func][]*types.Func, charges map[*types.Func]bool, fns []*types.Func) map[string]bool {
-	leaf := map[string]bool{}
-	for _, n := range append(append([]string{}, chargeWrappers...), chargeRoots...) {
-		leaf[n] = true
-	}
-	isLeaf := func(f *types.Func) bool { return leaf[f.Name()] && f.Pkg() == pkg }
+// countSites returns the count sites reachable from fns: the functions that call a wrapper or add to
+// the counter themselves, with formSite when fns holds a wrapper.
+func countSites(pkg *types.Package, callees map[*types.Func][]*types.Func, counts, counting map[*types.Func]bool, fns []*types.Func) map[string]bool {
+	isLeaf := func(f *types.Func) bool { return slices.Contains(countWrappers, f.Name()) && f.Pkg() == pkg }
 	sites := map[string]bool{}
 	seen := map[*types.Func]bool{}
 	var walk func(f *types.Func)
 	walk = func(f *types.Func) {
-		if seen[f] || !charges[f] {
+		if seen[f] || !counting[f] {
 			return
 		}
 		seen[f] = true
+		if counts[f] {
+			sites[siteName(f)] = true
+		}
 		for _, c := range callees[f] {
 			if isLeaf(c) {
 				sites[siteName(f)] = true
@@ -224,84 +262,28 @@ func siteName(f *types.Func) string {
 	return f.Name()
 }
 
-// siteCost attributes each charge site that a host operation reaches to the quantities of
-// its cost declaration that account for it; "" stands for the constant. An operation that reaches a
-// site declares one of the site's quantities. A site that is not listed fails the test, so that a
-// new charge in the library is attributed when it is added.
+// siteCost attributes each count site that a host operation reaches to the quantities of its cost
+// declaration that account for it; "" stands for the constant, and nil for any declared cost. An
+// operation that reaches a site declares one of the site's quantities. A site that is not listed fails
+// the test, so that a new count in the library is attributed when it is added, and so does a listed
+// site that no operation reaches.
 var siteCost = map[string][]string{
-	formSite: nil, // any declared cost
-	// The variable environment.
-	"Parser.controlledEnvValues": {exec.QVars},
-	// Recovered errors and expectations.
-	"Parser.recSince":      {exec.QSegs},
-	"Parser.recSinceSlow":  {exec.QSegs},
-	"Parser.Expect":        {exec.QMerge},
-	"Parser.MergeExpected": {exec.QMerge},
-	"Parser.Keep":          {exec.QMerge},
-	// Left-recursion contexts and growths.
-	"Parser.addDep":                {exec.QDeps, ""}, // "": ctx.enter adds one, the seed it reads
-	"Parser.stored":                {exec.QDeps},
-	"Parser.ctxFindSet":            {exec.QTable},
-	"Parser.ctxStore":              {exec.QTable},
-	"Parser.findJump":              {exec.QTable},
-	"Parser.memoKeyEqual":          {exec.QTable},
-	"Parser.compareTextControlled": {exec.QTable, action.QValueBytes},
-	"Parser.recordJumps":           {exec.QRun},
-	"Parser.jumpShadowed":          {exec.QRun},
-	"Parser.unionExpected":         {exec.QRun},
-	"Parser.growBegin":             {""},
-	"Parser.presentWide":           {exec.QPresent},
-	"Parser.intern":                {exec.QPresent},
-	"Parser.growAdopt":             {""},
-	"Parser.adoptGrownStep":        {exec.QSteps, ""},
-	"Parser.canonicalSeed":         {""},
-	"Parser.nodesEqual":            {""},
-	"Parser.valuesEqual":           {""},
-	// The moves of the values of memo entries after Document edits, and the box that val.box makes:
-	// one unit for each node made.
-	"Parser.NewNode":    {exec.QMoved, ""},
-	"Parser.movable":    {exec.QMoved},
-	"Parser.moveNode":   {exec.QMoved},
-	"Parser.moveShared": {exec.QMoved},
-	// The stream window.
-	"Parser.streamDiscard": {exec.QStreamScan},
-	"Parser.streamLineCol": {exec.QStreamScan},
-
-	// The values of action expressions: the bytes of a string operation, and the fragments of the text of a failure.
-	"Parser.strAdd":  {action.QValueBytes},
-	"Parser.unitLen": {action.QValueBytes},
-	// The text of a range of a stream, which node.text reads.
-	"Parser.streamText":          {action.QValueBytes},
-	"Parser.streamCopy":          {action.QValueBytes},
-	"Parser.detachedText":        {action.QValueBytes},
-	"Parser.decodeSource":        {action.QValueBytes},
-	"Parser.actionErrorText":     {action.QErrParts},
-	"Parser.writeDiagnosticText": {action.QErrParts},
-
-	// The reads of fields.
-	"Parser.valueFieldControlled":  {action.QFieldsRead},
-	"TParser.valueFieldControlled": {action.QFieldsRead},
+	// The sized events of values: the bytes that a string concatenation makes or a comparison covers, and the text of a range of
+	// a stream, which node.rangeText reads.
+	"Parser.strAdd":      {action.QValueBytes},
+	"Parser.compareText": {action.QValueBytes},
+	"Parser.TextEqual":   {action.QValueBytes},
+	"Parser.rangeText":   {action.QValueBytes},
 }
 
-// uncountedWork are the operations whose declared cost bounds work that neither the generated Go
-// library nor the engine counts: committing a stream is no event of the compute units
-// (spec/runtime/parsing.md#compute-units), so the work stays within its bound without reaching a charge
-// (the engine's TestStreamCommitCountsNoUnits).
-var uncountedWork = map[string]string{
-	"stream.release":     "one step for each capture frame scanned or cleared",
-	"stream.dropRecords": "one step for each slot of inactive capacity cleared",
-}
-
-// documentWork are the operations whose charges are Document work: they reserve the units of the
-// value they move in a free region (FreeBegin, FreeEnd), which counts no unit of the parse, as the
-// engine's form does (TestRunOperationsChargeNoEvent). They declare no cost.
-var documentWork = map[string]string{
-	"run.take": "moves the value of a reused element of a run (moveRunValue)",
-}
+// unitsOps are the operations that count the logical compute units their contracts name, of the
+// values that the plain evaluation of an action expression builds and the lowering does not: the units
+// are their effect, not the work of the operation, so they declare no cost.
+var unitsOps = map[string]bool{"units.add": true, "units.items": true, "units.since": true}
 
 // editForms are the operations that the engine and both libraries read and write while they apply an
-// edit to a memo entry that a lookup finds (memoAdvance). They declare no cost: memoAdvance charges for
-// the edit, as TestMemoLookupChargesItsPendingEdits and the conformance suites of the Document memo
+// edit to a memo entry that a lookup finds (memoAdvance). They declare no cost: the edit is the work of
+// memoAdvance, as TestMemoLookupChargesItsPendingEdits and the conformance suites of the Document memo
 // measure.
 var editForms = []string{"memo.seed", "memo.from", "memo.pinned", "memo.shifted", "memo.applied", "memo.advance",
 	"edit.count", "edit.start", "edit.end", "edit.delta"}
@@ -333,23 +315,20 @@ func TestEditFormsCallNothing(t *testing.T) {
 	}
 }
 
-// makesValues are the host operations that make a value of an action expression with the constructors that action expressions call
-// (List, Tuple, NewStruct). The static calls of a constructor reach the charges of all its uses, the field
-// writes and failures that the operation never makes among them, so the audit cannot attribute them;
-// the action expression charge goldens (TestActionChargesMember) hold what the operation charges.
-var makesValues = map[string]bool{"node.zero": true}
-
-// TestHostCostsMatchCharges checks the cost declarations of the host operations against the Go
-// library that implements them, through its static calls (calls through interfaces and function
-// values are not followed, so the cost of a host callback such as the delivery of an element is not
-// audited: it is the host's): an operation that reaches a charge of the budget may end
-// the parse (NoReturn) and declares a cost with a quantity for every charge site it reaches
-// (siteCost), and one that reaches none declares no cost. It does not measure the bounds: a
-// host operation has no reference model to compute its quantities.
+// TestHostCostsMatchCharges checks the cost declarations of the host operations against the logical
+// compute units (spec/runtime/parsing.md#compute-units) that the Go library counts for them, through
+// its static calls (calls through interfaces and function values are not followed, so the units of a
+// host callback such as the delivery of an element are not audited: they are the host's): an
+// operation that reaches a count or a check of the counter may end the parse (NoReturn), and one that
+// reaches a count declares a cost with a quantity for every count site it reaches (siteCost), but for
+// unitsOps. A cost bounds the work of an operation, of which the units count only the logical events,
+// so an operation may declare a cost and reach no count. It does not measure the bounds: a host
+// operation has no reference model to compute its quantities.
 func TestHostCostsMatchCharges(t *testing.T) {
-	pkg, callees, charges := libCalls(t)
+	pkg, callees, counts, counting, stopping := libCalls(t)
+	reached := map[string]bool{}
 	for _, op := range compose.Build().Ops {
-		if op.Kind != code.OpHost || makesValues[op.Name] || documentWork[op.Name] != "" {
+		if op.Kind != code.OpHost {
 			continue
 		}
 		found := false
@@ -363,7 +342,13 @@ func TestHostCostsMatchCharges(t *testing.T) {
 			t.Errorf("host operation %s has no Go form to audit", op.Name)
 			continue
 		}
-		sites := chargeSites(pkg, callees, charges, fns)
+		if slices.ContainsFunc(fns, func(f *types.Func) bool { return stopping[f] }) && !op.NoReturn {
+			t.Errorf("%s reaches a count or a check of the counter but is not NoReturn", op.Name)
+		}
+		sites := countSites(pkg, callees, counts, counting, fns)
+		if len(sites) == 0 || unitsOps[op.Name] {
+			continue
+		}
 		declared := map[string]bool{}
 		if op.Cost.Const != 0 {
 			declared[""] = true
@@ -371,17 +356,8 @@ func TestHostCostsMatchCharges(t *testing.T) {
 		for _, term := range op.Cost.Terms {
 			declared[term.Quantity] = true
 		}
-		if len(sites) == 0 {
-			if len(declared) != 0 && uncountedWork[op.Name] == "" {
-				t.Errorf("%s declares cost %s but reaches no charge", op.Name, op.Cost)
-			}
-			continue
-		}
-		if !op.NoReturn {
-			t.Errorf("%s reaches a charge but is not NoReturn", op.Name)
-		}
 		if len(declared) == 0 {
-			t.Errorf("%s reaches a charge but declares no cost", op.Name)
+			t.Errorf("%s reaches a count but declares no cost", op.Name)
 			continue
 		}
 		var names []string
@@ -390,17 +366,23 @@ func TestHostCostsMatchCharges(t *testing.T) {
 		}
 		sort.Strings(names)
 		for _, s := range names {
+			reached[s] = true
 			qs, ok := siteCost[s]
 			if !ok {
-				t.Errorf("%s reaches the charge site %s, which siteCost does not attribute", op.Name, s)
+				t.Errorf("%s reaches the count site %s, which siteCost does not attribute", op.Name, s)
 				continue
 			}
 			if qs == nil {
 				continue
 			}
 			if !slices.ContainsFunc(qs, func(q string) bool { return declared[q] }) {
-				t.Errorf("%s reaches the charge site %s but its cost %s has none of %q", op.Name, s, op.Cost, qs)
+				t.Errorf("%s reaches the count site %s but its cost %s has none of %q", op.Name, s, op.Cost, qs)
 			}
+		}
+	}
+	for s := range siteCost {
+		if !reached[s] {
+			t.Errorf("siteCost attributes %s, which no host operation reaches", s)
 		}
 	}
 }

@@ -28,36 +28,43 @@ func TestDefaultBudget(t *testing.T) {
 	}
 }
 
-// A zero budget resolves per unit of input when the parser has controls; Unlimited leaves no control, and
-// a stream starts at the floor and follows what the parser demands.
+// A zero budget resolves per unit of input when the parser has controls; Unlimited leaves no limit, and
+// a stream starts at the floor and follows what the parser demands. The counter of the parse holds the
+// compute limit; only a memory limit makes a control.
 func TestPrepareOptionsDefault(t *testing.T) {
 	o := prepareOptions(parseOptions{controls: true}, 5000, false)
-	if o.control == nil || o.control.limits.Compute != 5000*1024 {
-		t.Fatalf("default: %+v", o.control)
+	if o.unitsLimit != 5000*1024 || o.control != nil {
+		t.Fatalf("default: limit %d, control %+v", o.unitsLimit, o.control)
 	}
 	o = prepareOptions(parseOptions{controls: true, limits: sxirruntime.Limits{Compute: sxirruntime.Unlimited}}, 5000, false)
-	if o.control != nil {
-		t.Fatal("Unlimited made a control")
+	if o.unitsLimit != 0 || o.control != nil {
+		t.Fatalf("Unlimited: limit %d, control %+v", o.unitsLimit, o.control)
 	}
 	o = prepareOptions(parseOptions{limits: sxirruntime.Limits{Compute: sxirruntime.Unlimited}}, 5000, false)
-	if o.control != nil {
-		t.Fatal("Unlimited without controls made a control")
+	if o.unitsLimit != 0 || o.control != nil {
+		t.Fatalf("Unlimited without controls: limit %d, control %+v", o.unitsLimit, o.control)
 	}
 	o = prepareOptions(parseOptions{}, 5000, false)
-	if o.control != nil {
-		t.Fatal("a parser without controls got a default")
+	if o.unitsLimit != 0 || o.control != nil {
+		t.Fatalf("a parser without controls got a default: limit %d, control %+v", o.unitsLimit, o.control)
 	}
 	o = prepareOptions(parseOptions{controls: true, limits: sxirruntime.Limits{Compute: 9}}, 5000, false)
-	if o.control == nil || o.control.limits.Compute != 9 {
-		t.Fatalf("explicit: %+v", o.control)
+	if o.unitsLimit != 9 || o.control != nil {
+		t.Fatalf("explicit: limit %d, control %+v", o.unitsLimit, o.control)
+	}
+	o = prepareOptions(parseOptions{controls: true, limits: sxirruntime.Limits{Memory: 7}}, 5000, false)
+	if o.control == nil || o.control.limits.Memory != 7 {
+		t.Fatalf("memory: %+v", o.control)
 	}
 	o = prepareOptions(parseOptions{controls: true}, 0, true)
-	if o.control == nil || o.control.limits.Compute != 1<<20 || !o.control.adaptive {
-		t.Fatalf("stream: %+v", o.control)
+	if o.unitsLimit != 1<<20 || !o.unitsAdaptive {
+		t.Fatalf("stream: limit %d, adaptive %t", o.unitsLimit, o.unitsAdaptive)
 	}
-	o.control.demand(3 << 20)
-	if o.control.limits.Compute != 3<<30 {
-		t.Fatalf("grown: %d", o.control.limits.Compute)
+	p := &Parser{}
+	p.startUnits(o)
+	p.unitsDemand(3 << 20)
+	if p.units.limit != 3<<30 {
+		t.Fatalf("grown: %d", p.units.limit)
 	}
 }
 

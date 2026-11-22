@@ -73,7 +73,6 @@ func init() {
 	rules[0].Body = e2
 	sxirGrammar.Starts = []string{"main"}
 	sxirGrammar.DefaultStart = "main"
-	sxirGrammar.Logical = true
 }
 
 func e2(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
@@ -89,7 +88,7 @@ func e2(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		x4 = p.Mark()
 		x6 = p.Mark()
 		if !p.HasCharOrdinary(91, false) && p.Depth <= p.MaxDepth {
-			p.ExpectOrdinary(p.Pos, 5)
+			p.Expect(p.Pos, 5)
 			p.SkipUnits(1)
 			goto L9
 		}
@@ -103,7 +102,7 @@ func e2(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	L9:
 		_, size, ok = p.NextOrdinary()
 		if !ok {
-			p.ExpectOrdinary(p.Pos, rt.IdAny)
+			p.Expect(p.Pos, rt.IdAny)
 			goto L12
 		}
 		x13 = p.Pos
@@ -156,7 +155,7 @@ func e7(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		x9 = p.Mark()
 		x11 = p.Mark()
 		if !p.HasCharOrdinary(92, false) && p.Depth <= p.MaxDepth {
-			p.ExpectOrdinary(p.Pos, 6)
+			p.Expect(p.Pos, 6)
 			goto L14
 		}
 		x16 = p.Pos
@@ -172,7 +171,7 @@ func e7(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		x17 = append(x17, v19)
 		_, size, ok = p.NextOrdinary()
 		if !ok {
-			p.ExpectOrdinary(p.Pos, rt.IdAny)
+			p.Expect(p.Pos, rt.IdAny)
 			goto L15
 		}
 		x20 = p.Pos
@@ -189,7 +188,7 @@ func e7(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	L14:
 		x24, x35, x25 = p.NextOrdinary()
 		if !(x25 && (!(x24 == 93 || x24 == 92 || x24 == 10))) && p.Depth <= p.MaxDepth {
-			p.ExpectOrdinary(p.Pos, 7)
+			p.Expect(p.Pos, 7)
 			goto L26
 		}
 		x28 = p.Pos

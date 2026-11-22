@@ -186,7 +186,7 @@ func newRTMachine(cfg ref.Config, controlled, sparse, stream bool) conform.Impl 
 		if limit == 0 {
 			limit = sxirruntime.Unlimited
 		}
-		p.Control = newBudgetControl(nil, sxirruntime.Limits{Compute: limit})
+		conformUnits(p, limit)
 	}
 	if m.metered {
 		return meteredRT{m}
@@ -196,7 +196,22 @@ func newRTMachine(cfg ref.Config, controlled, sparse, stream bool) conform.Impl 
 
 type meteredRT struct{ *rtMachine }
 
-func (m meteredRT) Used() uint64 { return m.p.Control.budgetUsed() }
+// conformUnits starts the logical compute units of p for a controlled suite, with the compute limit
+// (none for 0 or Unlimited): the count is the units that Used reports.
+func conformUnits(p *Parser, limit uint64) {
+	if limit == sxirruntime.Unlimited {
+		limit = 0
+	}
+	p.startUnits(parseOptions{controls: true, unitsLimit: limit})
+}
+
+// conformMemory gives p a memory limit that no case reaches, before conformUnits starts its units, so
+// that the operations take the paths that count the memory of what they make.
+func conformMemory(p *Parser) {
+	p.Control = newBudgetControl(sxirruntime.Limits{Memory: math.MaxInt64})
+}
+
+func (m meteredRT) Used() uint64 { return m.p.Units }
 
 func (m *rtMachine) Datum(id int64) any { return ref.Value(id) }
 
@@ -305,10 +320,10 @@ func (m *rtMachine) Call(o *code.Op, args []any) (res []any) {
 	case "seen.first":
 		return []any{p.confSeenFirst(i(0), i(1))}
 	case "budget.charge":
-		p.Control.Charge(args[0].(uint64))
+		p.unitsSized(int(args[0].(uint64)))
 		return nil
 	case "budget.used":
-		return []any{p.Control.budgetUsed()}
+		return []any{p.Units}
 	}
 	panic("library binding: no operation " + o.Name)
 }
@@ -356,12 +371,14 @@ var (
 	// rtEnvOps are the operations of the variable environment, with the memo operations that keys of
 	// the environment reach.
 	rtEnvOps = []string{"env.lookup", "env.bind", "env.scope", "env.restore", "env.key", "memo.lookup", "memo.store"}
-	// rtEnvExact are the environment operations whose charges equal their declared cost.
-	rtEnvExact = []string{"env.lookup", "env.bind", "env.key"}
+	// rtEnvFree are the environment operations that count no compute unit: the key of a call is counted
+	// where the call counts it (KeyUnits).
+	rtEnvFree = []string{"env.lookup", "env.bind", "env.key"}
 	// rtRecoveryOps are the operations of the recovered errors that the library implements as specified,
-	// and rtRecoveryExact those whose charges equal their declared cost.
-	rtRecoveryOps   = []string{"rec.mark", "rec.push", "rec.truncate", "rec.since", "rec.add", "rec.none", "stream.settleErrors"}
-	rtRecoveryExact = []string{"rec.mark", "rec.push", "rec.truncate", "rec.since", "rec.add", "rec.none"}
+	// and rtRecoveryFree those that count no compute unit: the entries a stored result takes are counted
+	// where it is stored.
+	rtRecoveryOps  = []string{"rec.mark", "rec.push", "rec.truncate", "rec.since", "rec.add", "rec.none", "stream.settleErrors"}
+	rtRecoveryFree = []string{"rec.mark", "rec.push", "rec.truncate", "rec.since", "rec.add", "rec.none", "stream.settleErrors"}
 )
 
 func rtSuites() []conform.Suite {
@@ -378,12 +395,15 @@ func rtSuites() []conform.Suite {
 				case "document":
 					ops = append(slices.DeleteFunc(ops, func(o string) bool { return o == "seen.first" }), rtDocOps...)
 				}
+				// The operations of the memo are no events: a call counts its key where it is made.
+				free := slices.Clone(ops)
 				if controlled {
 					ops = append(ops, rtBudgetOps...)
 				}
 				suites = append(suites, conform.Suite{
 					Name: fmt.Sprintf("generated Go library (controlled=%v, sparse seen=%v, %s)", controlled, sparse, mode),
 					Ops:  ops,
+					Free: free,
 					New:  func(c ref.Config) conform.Impl { return newRTMachine(c, controlled, sparse, mode == "stream") },
 					// The library applies an edit to most entries when a lookup finds them (advanceEntry).
 					LazyEdits: mode == "document",
@@ -399,12 +419,14 @@ func rtSuites() []conform.Suite {
 	for _, controlled := range []bool{false, true} {
 		ops := []string{"memo.lookup", "memo.store", "memo.ok", "memo.end", "memo.silent"}
 		ops = append(ops, rtDocOps...)
+		free := slices.Clone(ops)
 		if controlled {
 			ops = append(ops, rtBudgetOps...)
 		}
 		suites = append(suites, conform.Suite{
 			Name:      fmt.Sprintf("generated Go typed library (controlled=%v)", controlled),
 			Ops:       ops,
+			Free:      free,
 			LazyEdits: true,
 			New:       func(c ref.Config) conform.Impl { return newTypedMachine(c, controlled) },
 		})
@@ -413,30 +435,30 @@ func rtSuites() []conform.Suite {
 			ops = append(ops, rtBudgetOps...)
 		}
 		suites = append(suites, conform.Suite{
-			Name:  fmt.Sprintf("generated Go library recovered errors (controlled=%v)", controlled),
-			Ops:   ops,
-			Exact: rtRecoveryExact,
-			New:   func(c ref.Config) conform.Impl { return newRTMachine(c, controlled, false, false) },
+			Name: fmt.Sprintf("generated Go library recovered errors (controlled=%v)", controlled),
+			Ops:  ops,
+			Free: rtRecoveryFree,
+			New:  func(c ref.Config) conform.Impl { return newRTMachine(c, controlled, false, false) },
 		}, conform.Suite{
-			Name:  fmt.Sprintf("generated Go typed library recovered errors (controlled=%v)", controlled),
-			Ops:   ops,
-			Exact: rtRecoveryExact,
-			New:   func(c ref.Config) conform.Impl { return newTypedMachine(c, controlled) },
+			Name: fmt.Sprintf("generated Go typed library recovered errors (controlled=%v)", controlled),
+			Ops:  ops,
+			Free: rtRecoveryFree,
+			New:  func(c ref.Config) conform.Impl { return newTypedMachine(c, controlled) },
 		})
 		ops = slices.Clone(rtEnvOps)
 		if controlled {
 			ops = append(ops, rtBudgetOps...)
 		}
 		suites = append(suites, conform.Suite{
-			Name:  fmt.Sprintf("generated Go library environment (controlled=%v)", controlled),
-			Ops:   ops,
-			Exact: rtEnvExact,
-			New:   func(c ref.Config) conform.Impl { return newRTMachine(c, controlled, false, false) },
+			Name: fmt.Sprintf("generated Go library environment (controlled=%v)", controlled),
+			Ops:  ops,
+			Free: rtEnvFree,
+			New:  func(c ref.Config) conform.Impl { return newRTMachine(c, controlled, false, false) },
 		}, conform.Suite{
-			Name:  fmt.Sprintf("generated Go typed library environment (controlled=%v)", controlled),
-			Ops:   ops,
-			Exact: rtEnvExact,
-			New:   func(c ref.Config) conform.Impl { return newTypedMachine(c, controlled) },
+			Name: fmt.Sprintf("generated Go typed library environment (controlled=%v)", controlled),
+			Ops:  ops,
+			Free: rtEnvFree,
+			New:  func(c ref.Config) conform.Impl { return newTypedMachine(c, controlled) },
 		})
 	}
 	return suites
@@ -474,7 +496,7 @@ func newTypedMachine(cfg ref.Config, controlled bool) conform.Impl {
 		if limit == 0 {
 			limit = sxirruntime.Unlimited
 		}
-		p.Control = newBudgetControl(nil, sxirruntime.Limits{Compute: limit})
+		conformUnits(p.Parser, limit)
 		return meteredTyped{m}
 	}
 	return m
@@ -482,7 +504,7 @@ func newTypedMachine(cfg ref.Config, controlled bool) conform.Impl {
 
 type meteredTyped struct{ *typedMachine }
 
-func (m meteredTyped) Used() uint64 { return m.p.Control.budgetUsed() }
+func (m meteredTyped) Used() uint64 { return m.p.Units }
 
 func (m *typedMachine) Datum(id int64) any { return ref.Value(id) }
 
@@ -556,10 +578,10 @@ func (m *typedMachine) Call(o *code.Op, args []any) (res []any) {
 		m.edit(documentEdit{i(0), i(1), i(2)})
 		return nil
 	case "budget.charge":
-		p.Control.Charge(args[0].(uint64))
+		p.unitsSized(int(args[0].(uint64)))
 		return nil
 	case "budget.used":
-		return []any{p.Control.budgetUsed()}
+		return []any{p.Units}
 	}
 	panic("typed library binding: no operation " + o.Name)
 }
@@ -635,22 +657,38 @@ func TestExecConformance(t *testing.T) {
 	}
 }
 
-// TestExecConformanceDetectsBrokenLib is the negative control: deliberately broken variants of
-// the library's operations must fail conformance.
-// TestSettlingChargesTheSlotsItClears measures stream.settleErrors, whose declared cost is the bound of
-// a representation: it charges the slots of the scratch it keeps, and nothing for a list it releases.
-func TestSettlingChargesTheSlotsItClears(t *testing.T) {
-	for _, c := range []struct{ errs, charged int }{{0, 0}, {16, 16}, {17, 0}} {
+// TestSettlingKeepsASmallScratch measures stream.settleErrors, whose declared cost is the bound of a
+// representation: it keeps a scratch of at most streamRecoveryScratchMax slots, cleared so that it
+// holds no error, and releases a larger list. Clearing the scratch and releasing a list are no
+// events, so it counts nothing either way.
+func TestSettlingKeepsASmallScratch(t *testing.T) {
+	for _, slots := range []int{0, streamRecoveryScratchMax, streamRecoveryScratchMax + 1} {
 		m := newRTMachine(ref.Config{}, true, false, true).(meteredRT)
-		m.p.Recovered = make([]recEntry, c.errs)
+		m.p.Recovered = make([]recEntry, slots)
+		for i := range m.p.Recovered {
+			m.p.Recovered[i] = recEntry{err: &sxirvalue.SyntaxError{Pos: i}}
+		}
 		before := m.Used()
 		m.p.streamSettleErrors()
-		if got := int(m.Used() - before); got != c.charged {
-			t.Errorf("settling a list of %d slots charged %d units, want %d", c.errs, got, c.charged)
+		if got := m.Used() - before; got != 0 {
+			t.Errorf("settling a list of %d slots counted %d units", slots, got)
+		}
+		kept := slots <= streamRecoveryScratchMax
+		if len(m.p.Recovered) != 0 || kept != (m.p.Recovered != nil) || kept && cap(m.p.Recovered) != slots {
+			t.Errorf("settling a list of %d slots left len %d cap %d nil=%v, want the scratch kept=%v", slots,
+				len(m.p.Recovered), cap(m.p.Recovered), m.p.Recovered == nil, kept)
+			continue
+		}
+		for i, e := range m.p.Recovered[:cap(m.p.Recovered)] {
+			if e != (recEntry{}) {
+				t.Errorf("settling a list of %d slots left slot %d holding an error", slots, i)
+			}
 		}
 	}
 }
 
+// TestExecConformanceDetectsBrokenLib is the negative control: deliberately broken variants of
+// the library's operations must fail conformance.
 func TestExecConformanceDetectsBrokenLib(t *testing.T) {
 	type broken struct {
 		op         string
@@ -662,13 +700,13 @@ func TestExecConformanceDetectsBrokenLib(t *testing.T) {
 		document bool
 		// want is a part of the failure message that names the reason, when the variant has one.
 		want string
-		// ops and exact replace the operations of the suite, and name those it holds to their cost.
-		ops, exact []string
+		// ops and free replace the operations of the suite, and name those that count no unit.
+		ops, free []string
 	}
-	binding := func(m *rtMachine, args []any, charge int) {
+	binding := func(m *rtMachine, args []any, units int) {
 		slot := int(args[0].(int64))
-		for range charge {
-			m.p.Spend()
+		for range units {
+			m.p.unitsSized(1)
 		}
 		m.p.Env = m.p.Env.set(slot, m.p.envDepth, args[1])
 	}
@@ -684,21 +722,20 @@ func TestExecConformanceDetectsBrokenLib(t *testing.T) {
 			return nil
 		}},
 		"a binding binds nothing": {op: "env.bind", ops: rtEnvOps, call: func(m *rtMachine, args []any) []any { return nil }},
-		"a binding charges nothing": {op: "env.bind", ops: rtEnvOps, exact: rtEnvExact, controlled: true, want: "not the exact cost", call: func(m *rtMachine, args []any) []any {
-			c := m.p.Control
-			m.p.Control = nil
-			defer func() { m.p.Control = c }()
+		"a binding counts a unit": {op: "env.bind", ops: rtEnvOps, free: rtEnvFree, controlled: true, want: "no event", call: func(m *rtMachine, args []any) []any {
+			m.p.unitsSized(1)
 			m.p.bind(int(args[0].(int64)), args[1])
 			return nil
 		}},
-		"a lookup charges nothing": {op: "env.lookup", ops: rtEnvOps, exact: rtEnvExact, controlled: true, want: "not the exact cost", call: func(m *rtMachine, args []any) []any {
+		"a lookup counts a unit": {op: "env.lookup", ops: rtEnvOps, free: rtEnvFree, controlled: true, want: "no event", call: func(m *rtMachine, args []any) []any {
+			m.p.unitsSized(1)
 			return []any{m.p.Env.get(int(args[0].(int64)), m.p.envDepth)}
 		}},
 		"a lookup reads another slot": {op: "env.lookup", ops: rtEnvOps, call: func(m *rtMachine, args []any) []any {
 			return []any{m.p.variable(0)}
 		}},
-		"a key charges one unit for the call": {op: "env.key", ops: rtEnvOps, exact: rtEnvExact, controlled: true, call: func(m *rtMachine, args []any) []any {
-			m.p.Spend()
+		"a key counts a unit for the call": {op: "env.key", ops: rtEnvOps, free: rtEnvFree, controlled: true, want: "more than the bound", call: func(m *rtMachine, args []any) []any {
+			m.p.unitsSized(1)
 			return envValues(m, m.p.memoEnv(args[0].(*Rule)))
 		}},
 		"a key leaves out its first variable": {op: "env.key", ops: rtEnvOps, call: func(m *rtMachine, args []any) []any {
@@ -724,14 +761,16 @@ func TestExecConformanceDetectsBrokenLib(t *testing.T) {
 			}
 			return []any{m.lists.handle(recEntry{list: l})}
 		}},
-		"since copies the errors of the lists": {op: "rec.since", ops: rtRecoveryOps, exact: rtRecoveryExact, controlled: true, want: "more than the bound", call: func(m *rtMachine, args []any) []any {
+		// A since that copies the errors of the lists and counts a unit for each, as the budget charged the
+		// copy: within the bound, but it is no event.
+		"since copies the errors of the lists": {op: "rec.since", ops: rtRecoveryOps, free: rtRecoveryFree, controlled: true, want: "no event", call: func(m *rtMachine, args []any) []any {
 			mark := int(args[0].(int64))
 			if len(m.p.Recovered)-mark < 2 {
 				return []any{m.lists.handle(m.p.recSince(mark))}
 			}
 			l := &errList{}
 			for _, e := range appendRecErrors(nil, m.p.Recovered[mark:]) {
-				m.p.spendValue(1)
+				m.p.unitsSized(1)
 				l.entries = append(l.entries, recEntry{err: e})
 				l.n++
 			}
@@ -745,7 +784,6 @@ func TestExecConformanceDetectsBrokenLib(t *testing.T) {
 			if len(m.p.Recovered)-mark != 1 {
 				return []any{m.lists.handle(m.p.recSince(mark))}
 			}
-			m.p.spendValue(1)
 			l := &errList{entries: []recEntry{m.p.Recovered[mark]}, n: m.p.Recovered[mark].len()}
 			m.p.Recovered[mark] = recEntry{list: l}
 			return []any{m.lists.handle(recEntry{list: l})}
@@ -757,8 +795,11 @@ func TestExecConformanceDetectsBrokenLib(t *testing.T) {
 			return nil
 		}},
 		"settling keeps the errors": {op: "stream.settleErrors", ops: rtRecoveryOps, call: func(m *rtMachine, args []any) []any { return nil }},
-		"settling clears a list beyond the scratch": {op: "stream.settleErrors", ops: rtRecoveryOps, controlled: true, want: "more than the bound", call: func(m *rtMachine, args []any) []any {
-			clearSpend(m.p, m.p.Recovered[:cap(m.p.Recovered)])
+		// Settling that clears a list beyond the scratch and counts a unit for each slot, as the budget
+		// charged the clear: within the bound, but it is no event.
+		"settling clears a list beyond the scratch": {op: "stream.settleErrors", ops: rtRecoveryOps, free: rtRecoveryFree, controlled: true, want: "no event", call: func(m *rtMachine, args []any) []any {
+			m.p.unitsSized(cap(m.p.Recovered))
+			clear(m.p.Recovered[:cap(m.p.Recovered)])
 			m.p.Recovered = m.p.Recovered[:0]
 			return nil
 		}},
@@ -805,10 +846,10 @@ func TestExecConformanceDetectsBrokenLib(t *testing.T) {
 		"prune frees nothing": {op: "memo.prune", stream: true, want: "result 0: model 4, implementation 0", call: func(m *rtMachine, args []any) []any {
 			return nil
 		}},
-		// A prune that charges one unit more than the entries it removes: beyond the bound.
+		// A prune that counts one unit more than the entries it removes: beyond the bound.
 		"prune charges beyond its bound": {op: "memo.prune", stream: true, controlled: true, want: "more than the bound", call: func(m *rtMachine, args []any) []any {
 			m.p.pruneStreamMemo(int(args[0].(int64)))
-			m.p.Spend()
+			m.p.unitsSized(1)
 			return nil
 		}},
 		// A store before the floor that lands on the floor's slot instead of being dropped: a lookup
@@ -881,12 +922,12 @@ func TestExecConformanceDetectsBrokenLib(t *testing.T) {
 			m.p.memo.splice([]documentEdit{{int(args[0].(int64)), int(args[1].(int64)), int(args[2].(int64))}})
 			return nil
 		}},
-		// A lookup that charges each entry it passes twice: within the results, beyond the bound.
-		"lookup charges twice": {op: "memo.lookup", controlled: true, call: func(m *rtMachine, args []any) []any {
+		// A lookup that counts two units for each entry it passes: within the results, beyond the bound.
+		"lookup charges twice": {op: "memo.lookup", controlled: true, want: "more than the bound", call: func(m *rtMachine, args []any) []any {
 			if i := m.p.memo.slot(int(args[1].(int64))); i < len(m.p.memo.slots) {
 				for e := m.p.memo.slots[i]; e != nil; e = e.next {
-					m.p.Spend()
-					m.p.Spend()
+					m.p.unitsSized(1)
+					m.p.unitsSized(1)
 				}
 			}
 			e := m.p.memoGet(int(args[0].(int64)), int(args[1].(int64)), int(args[2].(int64)), m.vals[args[3].(int64)], false)
@@ -915,7 +956,7 @@ func TestExecConformanceDetectsBrokenLib(t *testing.T) {
 					ops = append(slices.Clone(ops), rtBudgetOps...)
 				}
 			}
-			s := conform.Suite{Name: "broken: " + name, Ops: ops, Exact: b.exact, LazyEdits: slices.Contains(ops, "memo.splice"), New: func(c ref.Config) conform.Impl {
+			s := conform.Suite{Name: "broken: " + name, Ops: ops, Free: b.free, LazyEdits: slices.Contains(ops, "memo.splice"), New: func(c ref.Config) conform.Impl {
 				if b.controlled {
 					return meteredBrokenRT{brokenRT{newRTMachine(c, true, false, b.stream).(meteredRT).rtMachine, b.op, b.call}}
 				}
@@ -953,7 +994,7 @@ func (b brokenRT) Call(o *code.Op, args []any) []any {
 
 type meteredBrokenRT struct{ brokenRT }
 
-func (m meteredBrokenRT) Used() uint64 { return m.p.Control.budgetUsed() }
+func (m meteredBrokenRT) Used() uint64 { return m.p.Units }
 
 // TestExecConformanceDetectsBrokenTypedLib is the negative control of the typed library's
 // Document operations: a splice that moves the entries with recovered errors, and one that moves

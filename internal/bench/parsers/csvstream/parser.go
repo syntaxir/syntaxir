@@ -125,7 +125,7 @@ func init() {
 		if tf3 != nil {
 			return nil, tf3
 		}
-		tk4 := c.P.ElemsAbove(tm1)
+		tk4 := c.P.Kids(tm1)
 		tn5 := c.P.ActionHullLogical(c, false, tk4)
 		tf6 := any(tn5)
 		tn7 := c.ActionStruct("Record", 1)
@@ -146,7 +146,6 @@ func init() {
 	sxirGrammar.NodeTypes["Field"] = rt.NewNodeTypeKinds("Field")
 	sxirGrammar.Starts = []string{"main"}
 	sxirGrammar.DefaultStart = "main"
-	sxirGrammar.Logical = true
 }
 
 func e3(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
@@ -191,7 +190,7 @@ L5:
 	p.SetCapture(0, v14)
 	x2 = append(x2, v14)
 	if !p.AtEndOrdinary() {
-		p.ExpectOrdinary(p.Pos, rt.IdEndInput)
+		p.Expect(p.Pos, rt.IdEndInput)
 		goto fail
 	}
 	v15 = p.NewBranchOrdinary(rt.SeqKind, x1, x2)
@@ -210,7 +209,7 @@ func e6(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	p.Silent++
 	p.LookBegin(1)
 	if !p.AtEndOrdinary() {
-		p.ExpectOrdinary(p.Pos, rt.IdEndInput)
+		p.Expect(p.Pos, rt.IdEndInput)
 		goto L2
 	}
 	p.LookEnd(true)
@@ -275,7 +274,7 @@ func e10(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	x1 = p.Pos
 	x2 = p.Mark()
 	if !p.HasCharOrdinary(34, false) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 7)
+		p.Expect(p.Pos, 7)
 		goto L4
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 34 {
@@ -292,7 +291,7 @@ func e10(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		}
 		ch, size, ok = p.NextOrdinary()
 		if !ok || (ch == 34) {
-			p.ExpectOrdinary(p.Pos, 8)
+			p.Expect(p.Pos, 8)
 			break
 		}
 		p.Pos += size
@@ -335,7 +334,7 @@ func e10(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 			}
 			ch, size, ok = p.NextOrdinary()
 			if !ok || (ch == 34) {
-				p.ExpectOrdinary(p.Pos, 8)
+				p.Expect(p.Pos, 8)
 				break
 			}
 			p.Pos += size
@@ -381,7 +380,7 @@ L4:
 		}
 		ch, size, ok = p.NextOrdinary()
 		if !ok || (ch == 44 || ch == 34 || ch == 13 || ch == 10) {
-			p.ExpectOrdinary(p.Pos, 10)
+			p.Expect(p.Pos, 10)
 			break
 		}
 		p.Pos += size
@@ -421,7 +420,7 @@ L4:
 		p.LookBegin(2)
 		ch, size, ok = p.NextOrdinary()
 		if !ok || (ch == 10) {
-			p.ExpectOrdinary(p.Pos, 12)
+			p.Expect(p.Pos, 12)
 			goto L24
 		}
 		p.Pos += size
@@ -444,7 +443,7 @@ L4:
 			}
 			ch, size, ok = p.NextOrdinary()
 			if !ok || (ch == 44 || ch == 34 || ch == 13 || ch == 10) {
-				p.ExpectOrdinary(p.Pos, 10)
+				p.Expect(p.Pos, 10)
 				break
 			}
 			p.Pos += size
@@ -503,7 +502,7 @@ func r4(p *rt.Parser) (*sxirvalue.Node, bool) {
 	start = p.Pos
 	x1 = p.Pos
 	if !p.HasCharOrdinary(13, false) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 13)
+		p.Expect(p.Pos, 13)
 		goto L3
 	}
 	if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 13 && p.In[p.Pos+1] == 10 {
@@ -517,7 +516,7 @@ L4:
 	p.Pos = x1
 L3:
 	if !p.HasCharOrdinary(10, false) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 14)
+		p.Expect(p.Pos, 14)
 		goto L5
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 10 {
@@ -542,7 +541,7 @@ L9:
 	p.Pos = x8
 L10:
 	if !p.AtEndOrdinary() {
-		p.ExpectOrdinary(p.Pos, rt.IdEndInput)
+		p.Expect(p.Pos, rt.IdEndInput)
 		goto L7
 	}
 	goto L2
@@ -609,7 +608,7 @@ L5:
 	p.SetCapture(0, v14)
 	x2 = append(x2, v14)
 	if !p.AtEndOrdinary() {
-		p.ExpectOrdinary(p.Pos, rt.IdEndInput)
+		p.Expect(p.Pos, rt.IdEndInput)
 		goto fail
 	}
 	v15 = p.NewBranchOrdinary(rt.SeqKind, x1, x2)

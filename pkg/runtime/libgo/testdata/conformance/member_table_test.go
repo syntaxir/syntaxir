@@ -1,11 +1,9 @@
 package libgo
 
 import (
-	"context"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
-	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 	"syntaxir.dev/sxir/pkg/runtime/value/impl"
@@ -76,7 +74,7 @@ func nodeMemberFixture(controlled bool) (*ActCtx, map[string]any) {
 	}
 	p := &Parser{g: g}
 	if controlled {
-		p.Control = newBudgetControl(context.Background(), sxirruntime.Limits{Compute: 1 << 62})
+		conformUnits(p, 0)
 	}
 	c := &ActCtx{P: p}
 	node := nodeOfData(&Data{Kind: SeqKind, Start: 2, End: 5})
@@ -142,7 +140,7 @@ func tmemberCanon(x any) string {
 func typedMemberFixture(controlled bool) (*TActCtx, map[string]any) {
 	p := &Parser{}
 	if controlled {
-		p.Control = newBudgetControl(context.Background(), sxirruntime.Limits{Compute: 1 << 62})
+		conformUnits(p, 0)
 	}
 	c := &TActCtx{P: &TParser{Parser: p}}
 	s := func(a int, b string) *memberStruct {

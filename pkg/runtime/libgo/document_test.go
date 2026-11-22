@@ -198,7 +198,7 @@ func TestDocumentDiagnosticPublicationBudget(t *testing.T) {
 		return nodeOfData(&Data{Kind: valueimpl.ErrorKind, End: 1}), true
 	}
 	d := testDocumentState(r, "x", sxirinput.CodePoints)
-	normal := parseOptions{maxDepth: defaultMaxDepth}
+	normal := parseOptions{maxDepth: defaultMaxDepth, controls: true}
 	if _, err := d.parse(normal); err == nil {
 		t.Fatal("missing recovered diagnostic")
 	}
@@ -244,7 +244,7 @@ func TestDocumentDiagnosticPublicationCancellation(t *testing.T) {
 		return nodeOfData(&Data{Kind: valueimpl.ErrorKind, End: 1}), true
 	}
 	d := testDocumentState(r, "x", sxirinput.CodePoints)
-	normal := parseOptions{maxDepth: defaultMaxDepth}
+	normal := parseOptions{maxDepth: defaultMaxDepth, controls: true}
 	if _, err := d.parse(normal); err == nil {
 		t.Fatal("missing recovered diagnostic")
 	}
@@ -279,15 +279,28 @@ func testDocumentState(root *Rule, text string, unit sxirinput.PositionUnit) *do
 	return newDocumentState(root, text, unit)
 }
 
-// TestDocumentLimitInsideCallThenParseEqualsFresh interrupts a Document parse by its work budget at
-// every point of an edited parse, inside the rule calls included, and checks that the next parse of
+// TestDocumentLimitInsideCallThenParseEqualsFresh interrupts a Document parse by its compute limit at
+// every event of an edited parse, inside the rule calls included, and checks that the next parse of
 // the Document gives what a parse of a fresh Document gives.
 func TestDocumentLimitInsideCallThenParseEqualsFresh(t *testing.T) {
 	text := "aaaaaaaa"
 	edited := text[:4] + "a" + text[4:]
-	o := parseOptions{maxDepth: defaultMaxDepth}
+	o := parseOptions{maxDepth: defaultMaxDepth, controls: true}
+	// The rules count a unit at each evaluation, as a generated parser counts its events, so that a
+	// limit stops the parse inside a call.
+	rules := func() *Rule {
+		main, item := documentTestRules()
+		for _, r := range []*Rule{main, item} {
+			body := r.Body
+			r.Body = func(p *Parser, min int) (*sxirvalue.Node, bool) {
+				p.unitsSized(1)
+				return body(p, min)
+			}
+		}
+		return main
+	}
 	fresh := func() *sxirvalue.Node {
-		main, _ := documentTestRules()
+		main := rules()
 		n, err := testDocumentState(main, edited, sxirinput.CodePoints).parse(o)
 		if err != nil {
 			t.Fatal(err)
@@ -297,7 +310,7 @@ func TestDocumentLimitInsideCallThenParseEqualsFresh(t *testing.T) {
 	want := documentNodeString(fresh())
 	interrupted := 0
 	for budget := uint64(1); ; budget++ {
-		main, _ := documentTestRules()
+		main := rules()
 		d := testDocumentState(main, text, sxirinput.CodePoints)
 		if _, err := d.parse(o); err != nil {
 			t.Fatal(err)
@@ -411,39 +424,33 @@ func TestDocumentMoveMarksRestartWithAnEmptyMemo(t *testing.T) {
 	}
 }
 
-// TestDocumentMoveChargesTheCheckAndTheCopy checks the units that a move charges: for each distinct
-// node of the value, one and one for each child and field, in the check and again in the copy, and
-// the check alone in a refusal.
-func TestDocumentMoveChargesTheCheckAndTheCopy(t *testing.T) {
+// TestDocumentMoveMovesOrRefuses checks that a move copies a value of nodes and basic values, and
+// refuses one that holds a host value, leaving the entry unmoved.
+func TestDocumentMoveMovesOrRefuses(t *testing.T) {
 	leaf := func(box any) *sxirvalue.Node {
 		return nodeOfData(&Data{Kind: valueimpl.MatchKind, Start: 1, End: 2, Box: box})
 	}
-	// The size of a root of three children, two distinct leaves of which one is held twice, and a field:
-	// 5 for the root and 1 for each leaf.
+	// A root of three children, two distinct leaves of which one is held twice, and a field.
 	build := func(box any) *sxirvalue.Node {
 		a, b := leaf(nil), leaf(box)
 		return nodeOfData(&Data{Kind: valueimpl.ListKind, Start: 1, End: 2, Children: []*sxirvalue.Node{a, b, a}, Fields: valueimpl.Fields{{Name: "x", Value: "v"}}})
 	}
-	const size = 5 + 2
 	for _, c := range []struct {
 		name string
 		box  any
-		want uint64
 	}{
-		{"moved", nil, 2 * size},
-		// The check charges the root, then the first leaf, then refuses at the second.
-		{"refused", []int{1}, 5 + 1 + 1},
+		{"moved", nil},
+		{"refused", []int{1}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			p := &Parser{Document: &documentState{}, Control: newBudgetControl(nil, sxirruntime.Limits{Compute: sxirruntime.Unlimited})}
+			p := &Parser{Document: &documentState{}}
 			e := &memoEntry{node: build(c.box), shift: 1}
-			before := p.Control.budgetUsed()
 			moved := p.documentMove(e)
 			if moved != (c.box == nil) {
 				t.Fatalf("moved = %v", moved)
 			}
-			if used := p.Control.budgetUsed() - before; used != c.want {
-				t.Fatalf("charged %d units, want %d", used, c.want)
+			if moved != (e.shift == 0) {
+				t.Fatalf("moved = %v, shift %d", moved, e.shift)
 			}
 		})
 	}

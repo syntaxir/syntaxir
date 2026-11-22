@@ -25,19 +25,27 @@ func (c *pollCounter) Err() error {
 	return nil
 }
 
-func TestBudgetControlExistsForContextWithoutLimits(t *testing.T) {
-	if c := newBudgetControl(context.Background(), sxirruntime.Limits{}); c != nil {
-		t.Fatal("a context that cannot be canceled and no limit made a control")
+// A control holds a memory limit alone; a context, cancelable or not, and a compute limit go to the
+// counter of the parse. A cancelable context without limits is observed by the checks of the counter
+// at the interval: a parse that counts units sees the cancellation within an interval of its
+// observation, though no limit is ever reached.
+func TestUnitsObserveContextWithoutLimits(t *testing.T) {
+	if c := newBudgetControl(sxirruntime.Limits{}); c != nil {
+		t.Fatal("no limit made a control")
 	}
-	if c := newBudgetControl(nil, sxirruntime.Limits{}); c != nil {
-		t.Fatal("no context and no limit made a control")
+	if c := newBudgetControl(sxirruntime.Limits{Compute: 1 << 20}); c != nil {
+		t.Fatal("a compute limit made a control")
 	}
 	ctx := &pollCounter{Context: context.Background(), done: make(chan struct{}), cancelAt: 3}
-	c := newBudgetControl(ctx, sxirruntime.Limits{})
-	if c == nil {
-		t.Fatal("a cancelable context without limits made no control")
+	o := prepareOptions(parseOptions{controls: true, context: ctx, limits: sxirruntime.Limits{Compute: sxirruntime.Unlimited}}, 0, false)
+	if o.control != nil {
+		t.Fatal("a context made a control")
 	}
-	// Cancellation is observed by the charges of the parse alone: no limit is ever reached.
+	p := &Parser{}
+	p.startUnits(o)
+	if !p.units.observes() {
+		t.Fatal("the counter does not observe a cancelable context")
+	}
 	var err error
 	func() {
 		defer func() {
@@ -50,37 +58,35 @@ func TestBudgetControlExistsForContextWithoutLimits(t *testing.T) {
 			}
 		}()
 		for range 100 * budgetCheckInterval {
-			c.chargeStep()
+			p.unitsSized(1)
 		}
 	}()
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("cancellation not observed without limits: %v after %d polls", err, ctx.polls)
 	}
-	if used := c.budgetUsed(); used > 3*budgetCheckInterval {
-		t.Fatalf("cancellation observed late: %d units used", used)
+	if p.Units > 3*budgetCheckInterval {
+		t.Fatalf("cancellation observed late: %d units counted", p.Units)
 	}
 }
 
-func TestBudgetControlWithoutContextDoesNotPoll(t *testing.T) {
-	c := newBudgetControl(nil, sxirruntime.Limits{Compute: 1 << 20})
-	if c == nil {
-		t.Fatal("a limit made no control")
-	}
-	for range 1 << 19 {
-		c.chargeStep()
-	}
-	if c.sinceCheck != 0 || c.ctx != nil {
-		t.Fatalf("a control without context polls: %+v", c)
+// A counter with neither a context nor a memory limit observes nothing: its first check is at the
+// compute limit, where it stops the parse with the units counted.
+func TestUnitsWithoutContextDoNotPoll(t *testing.T) {
+	o := prepareOptions(parseOptions{controls: true, limits: sxirruntime.Limits{Compute: 1 << 20}}, 0, false)
+	p := &Parser{}
+	p.startUnits(o)
+	if p.units.observes() || p.UnitsCheck != 1<<20 {
+		t.Fatalf("a counter without context polls: check at %d", p.UnitsCheck)
 	}
 	var err error
 	func() {
 		defer func() { err = recover().(fatal).err }()
-		for range 1 << 20 {
-			c.chargeStep()
+		for range 1<<20 + 1 {
+			p.unitsSized(1)
 		}
 	}()
 	var le *sxirruntime.LimitError
-	if !errors.As(err, &le) || le.Used != 1<<20 {
+	if !errors.As(err, &le) || le.Kind != sxirruntime.LimitCompute || le.Used != 1<<20+1 || le.Requested != 0 {
 		t.Fatalf("limit: %v", err)
 	}
 }

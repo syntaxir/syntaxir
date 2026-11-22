@@ -29,12 +29,6 @@ type TypedDocumentCloneTask struct{ Source, Target any }
 
 func (c *TypedDocumentCloneBase) Begin(control *BudgetControl) { c.Control = control }
 
-func (c *TypedDocumentCloneBase) Step(n uint64) {
-	if c.Control != nil {
-		c.Control.ChargeDoc(n)
-	}
-}
-
 func (c *TypedDocumentCloneBase) Remember(from, to any) {
 	if c.Values == nil {
 		c.Values = make(map[any]any)
@@ -61,7 +55,6 @@ func TypedDocumentParse[T any](d *Document, root *TRule, o parseOptions, a budge
 		return res, fmt.Errorf("document parse cannot change expectations")
 	}
 	o = prepareText(o, d.State.text)
-	defer o.reportSpent()
 	cache, ok := d.State.typedMemo.(*typedDocumentState)
 	if ok && o.control != nil && o.control.limits.Memory != 0 && cache.retainedBytes() > o.control.limits.Memory {
 		// The retained memo alone exceeds the limit: the parse starts without it.
@@ -86,7 +79,7 @@ func TypedDocumentParse[T any](d *Document, root *TRule, o parseOptions, a budge
 		o.control.attachTypedMemory(p, a)
 		o.control.retained = cache.retainedBytes()
 	}
-	p.Observation = o.control.observe(newObservation(&o.observe, &p.Silent, &d.State.stats.Resumed))
+	p.Observation = newObservation(&o.observe, &p.Silent, &d.State.stats.Resumed)
 	defer p.releaseObservation()
 	// Do not recycle p: memo values and expectations may refer into its arenas.
 	a.SetBudgetControl(o.control)
@@ -109,36 +102,31 @@ func TypedDocumentParse[T any](d *Document, root *TRule, o parseOptions, a budge
 	if v != nil {
 		res = publish(v)
 	}
-	err = typedDocumentError(parseErr, o.control)
+	err = typedDocumentError(parseErr)
 	cache.slots, cache.memoGap = p.memoSlots, p.memoGap
 	completed = true
 	return res, err
 }
 
-// typedDocumentError copies the diagnostics of err, charging c. Diagnostics are private memo data
+// typedDocumentError copies the diagnostics of err. Diagnostics are private memo data
 // too; publishing their original pointers or Expected/Messages slices would let caller mutation
 // alter a later parse.
-func typedDocumentError(err error, control *BudgetControl) error {
+func typedDocumentError(err error) error {
 	clone := func(e *sxirvalue.SyntaxError) *sxirvalue.SyntaxError {
-		control.Charge(1)
 		if e == nil {
 			return nil
 		}
 		out := new(sxirvalue.SyntaxError)
 		*out = *e
 		if e.Expected != nil {
-			control.Charge(uint64(len(e.Expected)))
 			out.Expected = make([]string, len(e.Expected))
 			for i, s := range e.Expected {
-				control.Charge(1)
 				out.Expected[i] = s
 			}
 		}
 		if e.Messages != nil {
-			control.Charge(uint64(len(e.Messages)))
 			out.Messages = make([]string, len(e.Messages))
 			for i, s := range e.Messages {
-				control.Charge(1)
 				out.Messages[i] = s
 			}
 		}
@@ -148,7 +136,6 @@ func typedDocumentError(err error, control *BudgetControl) error {
 	case *sxirvalue.SyntaxError:
 		return clone(e)
 	case sxirvalue.SyntaxErrors:
-		control.Charge(uint64(len(e)))
 		out := make(sxirvalue.SyntaxErrors, len(e))
 		for i, item := range e {
 			out[i] = clone(item)

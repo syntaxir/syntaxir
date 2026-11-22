@@ -5,7 +5,6 @@ import (
 	"slices"
 
 	"syntaxir.dev/sxir/internal/ir/code"
-	"syntaxir.dev/sxir/internal/ir/code/exec"
 	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/pass/pipe"
@@ -14,8 +13,8 @@ import (
 // PassColdPath is the name of the pass that splits the cold path of a function from its guard.
 const PassColdPath = "go-cold-path"
 
-// ColdPaths names, for the compositions whose form without budget charges the Go library prints as
-// a guard that inlines into the generated code, the function that holds the rest of the composition.
+// ColdPaths names, for the compositions that the Go library prints as a guard that inlines into the
+// generated code, the function that holds the rest of the composition.
 var ColdPaths = map[string]string{"expect": "expectSlow"}
 
 // Library is the pipeline of the Go Exec passes of the library's compositions. Its passes run on a
@@ -30,7 +29,7 @@ var Library = pipe.Seq(execdata.LoweredIR, pipe.New(pipe.Def[*execdata.Lowered, 
 	In: execdata.LoweredIR, Out: execdata.LoweredIR,
 	Run: func(_ *pipe.Ctx[*execdata.Lowered], l *execdata.Lowered) (*execdata.Lowered, pass.PreservedSet, error) {
 		cold, ok := ColdPaths[l.Func.Name]
-		if !ok || slices.Contains(l.Func.Features, exec.Budget) {
+		if !ok {
 			return l, pass.PreserveAll(), nil
 		}
 		out, err := splitColdPath(l, cold)

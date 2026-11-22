@@ -9,15 +9,14 @@ import (
 )
 
 // Logical compute units (spec/runtime/parsing.md, Compute Units): the form of the functions under
-// limit controls. It is the form of the functions without budget charges (the
-// ordinary form, or a Document's) with a counter that each logical event adds to, and checks of the
-// counter on cycles.
+// limit controls. It is the form of the functions without limit controls (the ordinary form, or a
+// Document's) with a counter that each logical event adds to, and checks of the counter on cycles.
 
 // callUnit returns the statements that count the unit of a call of r at its entry, and check the
 // counter if r is on a cycle of the call graph.
 func (g *Generator) callUnit(recv string, r *common.Rule) string {
 	if !g.Logical {
-		return g.step(recv)
+		return ""
 	}
 	s := recv + ".Units++\n"
 	if r == nil || r.Rec {

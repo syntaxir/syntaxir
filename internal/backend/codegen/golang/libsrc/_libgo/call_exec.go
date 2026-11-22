@@ -20,17 +20,13 @@ const minRecordedRun = 16
 // parses first hands a Document parse to its tracked path (typedDocument for typed values), and for
 // nodes an observed parse too (tracked).
 //
-// Printed from Exec IR function call of internal/ir/code/exec/compose, specialized for document, observe, budget, units.
+// Printed from Exec IR function call of internal/ir/code/exec/compose, specialized for document, observe, units.
 func (p *Parser) Call(r *Rule, min int) (*sxirvalue.Node, bool) {
 	var v *sxirvalue.Node
 	var ok bool
 	if (p.Observation != nil) || (p.Document != nil) {
 		v, ok = p.callTracked(r, min)
 		return v, ok
-	}
-	p.Spend()
-	if r.Leader || r.Memo && !(r.DocMemo && !r.Memo && !r.Leader) {
-		p.ChargeKey(r)
 	}
 	p.Units++
 	if r.Rec {
@@ -251,55 +247,21 @@ func (p *Parser) grow(r *Rule, min int) (*sxirvalue.Node, bool) {
 // examined input: the read that failed at pos recorded what it examined. It is for parser code and not a
 // stable API.
 //
-// Printed from Exec IR function expect of internal/ir/code/exec/compose, specialized for budget.
+// Printed from Exec IR function expect of internal/ir/code/exec/compose, specialized for units.
 func (p *Parser) Expect(pos int, id ExpID) {
-	var i int
 	if p.Silent > 0 || pos < p.farthest {
 		return
 	}
-	if pos > p.farthest {
-		p.farthest = pos
-		p.exp = p.exp[:p.expBase]
-		p.expBits = 0
-	}
-	if !p.Expectations {
-		if len(p.exp) == p.expBase {
-			p.exp = append(p.exp, ExpFar)
-		}
-		return
-	}
-	if p.expBits&(uint64(1)<<(uint32(id)*0x9e3779b1>>26)) != 0 {
-		for i = 0; i < (len(p.exp) - p.expBase); i++ {
-			p.Spend()
-			if p.exp[p.expBase+i] == id {
-				return
-			}
-		}
-	}
-	p.expBits |= uint64(1) << (uint32(id) * 0x9e3779b1 >> 26)
-	p.exp = append(p.exp, id)
+	p.expectSlow(pos, id)
 }
 
-// ExpectOrdinary is the form of an ordinary parse: one without limit controls and outside a Document.
-// The generated rule bodies have a branch for such parses that calls the Ordinary forms of the runtime
-// helpers, which leave out the budget charges and the Document's record of the examined input. It is for generated
-// parsers and not a stable API.
-//
-// Printed from Exec IR function expect of internal/ir/code/exec/compose.
-func (p *Parser) ExpectOrdinary(pos int, id ExpID) {
-	if p.Silent > 0 || pos < p.farthest {
-		return
-	}
-	p.expectOrdinarySlow(pos, id)
-}
-
-// expectOrdinarySlow runs what expect does once its guards have not returned. The Go target splits it from expect
+// expectSlow runs what expect does once its guards have not returned. The Go target splits it from expect
 // (the pass go-cold-path) so that the guards inline into the generated code.
 //
-// Printed from the part that the pass go-cold-path splits off Exec IR function expect of internal/ir/code/exec/compose.
+// Printed from the part that the pass go-cold-path splits off Exec IR function expect of internal/ir/code/exec/compose, specialized for units.
 //
 //go:noinline
-func (p *Parser) expectOrdinarySlow(pos int, id ExpID) {
+func (p *Parser) expectSlow(pos int, id ExpID) {
 	var i int
 	if pos > p.farthest {
 		p.farthest = pos
@@ -328,17 +290,15 @@ func (p *Parser) expectOrdinarySlow(pos int, id ExpID) {
 // record. s may alias the stack above the current record: writes only happen below the read position. It
 // is for parser code and not a stable API.
 //
-// Printed from Exec IR function mergeExpected of internal/ir/code/exec/compose, specialized for budget.
+// Printed from Exec IR function mergeExpected of internal/ir/code/exec/compose, specialized for units.
 func (p *Parser) MergeExpected(far int, s []ExpID) {
 	var i int
 	if p.Expectations {
 		for i = 0; i < len(s); i++ {
-			p.Spend()
 			p.Expect(far, s[i])
 		}
 	} else {
 		for i = 0; i < len(s); i++ {
-			p.Spend()
 			if !(p.Silent > 0 || far < p.farthest) {
 				if far > p.farthest {
 					p.farthest = far
@@ -358,7 +318,7 @@ func (p *Parser) MergeExpected(far int, s []ExpID) {
 // entries in the same order, and otherwise a copy, which becomes the set kept last. It is for parser
 // code and not a stable API.
 //
-// Printed from Exec IR function keep of internal/ir/code/exec/compose, specialized for budget.
+// Printed from Exec IR function keep of internal/ir/code/exec/compose, specialized for units.
 func (p *Parser) Keep(s []ExpID) []ExpID {
 	var i int
 	n := len(s)
@@ -370,7 +330,6 @@ func (p *Parser) Keep(s []ExpID) []ExpID {
 		goto copy
 	}
 	for i = 0; i < n; i++ {
-		p.Spend()
 		if last[i] != s[i] {
 			goto copy
 		}
@@ -395,17 +354,13 @@ copy:
 // parses first hands a Document parse to its tracked path (typedDocument for typed values), and for
 // nodes an observed parse too (tracked).
 //
-// Printed from Exec IR function call of internal/ir/code/exec/compose, specialized for document, observe, typed, budget, units.
+// Printed from Exec IR function call of internal/ir/code/exec/compose, specialized for document, observe, typed, units.
 func (p *TParser) callBody(r *TRule, min int) (any, bool) {
 	var v any
 	var ok bool
 	if p.Document != nil {
 		v, ok = p.DocumentCall(r, min, nil)
 		return v, ok
-	}
-	p.Spend()
-	if r.Leader || r.Memo && !(r.DocMemo && !r.Memo && !r.Leader) {
-		p.ChargeKey(r.Rule)
 	}
 	p.Units++
 	if r.Rec {
@@ -779,7 +734,7 @@ func (p *TParser) invokePlainObserved(r *TRule, min int) (any, bool) {
 // the call ends, an interruption included, so that a parse after it starts from the state it would
 // start from otherwise.
 //
-// Printed from Exec IR function document of internal/ir/code/exec/compose, specialized for document, budget, units.
+// Printed from Exec IR function document of internal/ir/code/exec/compose, specialized for document, units.
 func (p *Parser) callDocument(r *Rule, min int) (*sxirvalue.Node, bool) {
 	oldExamined, oldLow := p.docExamined, p.docLow
 	p.docExamined, p.docLow = p.Pos, p.Pos
@@ -823,16 +778,13 @@ func (p *Parser) callUnmemoized(r *Rule, min int) (*sxirvalue.Node, bool) {
 // memoization is no longer deferred, with the observation of a reuse and, in a Document parse, the
 // bookkeeping of how far each call examined the input.
 //
-// Printed from Exec IR function memoized of internal/ir/code/exec/compose, specialized for document, observe, budget, units.
+// Printed from Exec IR function memoized of internal/ir/code/exec/compose, specialized for document, observe, units.
 func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 	var v *sxirvalue.Node
 	var ok bool
 	var fm uint64
+	_ = fm
 	start := p.Pos
-	fm = uint64(18446744073709551615)
-	if (p.Document != nil) && (r.DocMemo && !r.Memo && !r.Leader) {
-		fm = p.Control.FreeBegin(true)
-	}
 	env := p.memoEnv(r)
 	var c ctxCallState
 	var seed *ctxResult
@@ -851,16 +803,10 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 			}
 		}
 		if !seed.ok {
-			if !(fm == uint64(18446744073709551615)) {
-				p.Control.FreeEnd(fm)
-			}
 			return nil, false
 		}
 		p.Pos = seed.end
 		p.recAdd(seed.errs)
-		if !(fm == uint64(18446744073709551615)) {
-			p.Control.FreeEnd(fm)
-		}
 		return seed.node, true
 	}
 	e := p.memoGet(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader))
@@ -881,16 +827,10 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 		}
 		p.MergeExpected(e.far, e.expected)
 		if !e.ok {
-			if !(fm == uint64(18446744073709551615)) {
-				p.Control.FreeEnd(fm)
-			}
 			return nil, false
 		}
 		p.Pos = e.end
 		p.recAdd(e.errs)
-		if !(fm == uint64(18446744073709551615)) {
-			p.Control.FreeEnd(fm)
-		}
 		return e.node, true
 	}
 	if c.ctx {
@@ -908,25 +848,16 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 			}
 			p.MergeExpected(held.far, held.expected)
 			if !held.ok {
-				if !(fm == uint64(18446744073709551615)) {
-					p.Control.FreeEnd(fm)
-				}
 				return nil, false
 			}
 			p.Pos = held.end
 			p.recAdd(held.errs)
-			if !(fm == uint64(18446744073709551615)) {
-				p.Control.FreeEnd(fm)
-			}
 			return held.node, true
 		}
 	}
 	rec := len(p.Recovered)
 	p.ctxPush(&c)
 	m := p.Isolate(start)
-	if !(fm == uint64(18446744073709551615)) {
-		p.Control.FreeEnd(fm)
-	}
 	if r.Leader {
 		v, ok = p.grow(r, min)
 	} else {
@@ -934,10 +865,6 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 		if !ok {
 			p.Recovered = p.Recovered[:rec]
 		}
-	}
-	fm = uint64(18446744073709551615)
-	if (p.Document != nil) && (r.DocMemo && !r.Memo && !r.Leader) {
-		fm = p.Control.FreeBegin(true)
 	}
 	far, inner := p.Unisolate(m)
 	kept := p.Keep(inner)
@@ -984,9 +911,6 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 	if !ok {
 		p.Pos = start
 	}
-	if !(fm == uint64(18446744073709551615)) {
-		p.Control.FreeEnd(fm)
-	}
 	return v, ok
 }
 
@@ -994,12 +918,8 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 // parse, and otherwise the unmemoized call while the rule's memoization is deferred and the memoized
 // call after.
 //
-// Printed from Exec IR function body of internal/ir/code/exec/compose, specialized for document, budget, units.
+// Printed from Exec IR function body of internal/ir/code/exec/compose, specialized for document, units.
 func (p *Parser) callBody(r *Rule, min int) (*sxirvalue.Node, bool) {
-	p.Spend()
-	if r.Leader || r.Memo && !(r.DocMemo && !r.Memo && !r.Leader) {
-		p.ChargeKey(r)
-	}
 	p.Units++
 	if r.Rec {
 		if p.Units > p.UnitsCheck {
@@ -1039,15 +959,12 @@ func (p *Parser) callTracked(r *Rule, min int) (*sxirvalue.Node, bool) {
 // memoize, and otherwise through the memo, with the Document record of each entry kept beside it. As
 // in document, the enclosing call's examined input is restored however the call ends.
 //
-// Printed from Exec IR function typedDocument of internal/ir/code/exec/compose, specialized for document, observe, typed, budget, units.
+// Printed from Exec IR function typedDocument of internal/ir/code/exec/compose, specialized for document, observe, typed, units.
 func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)) (any, bool) {
 	var v any
 	var ok bool
 	var fm uint64
-	p.Spend()
-	if r.Leader || r.Memo && !(r.DocMemo && !r.Memo && !r.Leader) {
-		p.ChargeKey(r.Rule)
-	}
+	_ = fm
 	p.Units++
 	if r.Rec {
 		if p.Units > p.UnitsCheck {
@@ -1080,10 +997,6 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 		}
 		return v, ok
 	}
-	fm = uint64(18446744073709551615)
-	if r.DocMemo && !r.Memo && !r.Leader {
-		fm = p.Control.FreeBegin(true)
-	}
 	env := p.memoEnv(r.Rule)
 	var c ctxCallState
 	var seed *ctxResult
@@ -1098,16 +1011,10 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 		}
 		p.Document.stats.Reused++
 		if !seed.ok {
-			if !(fm == uint64(18446744073709551615)) {
-				p.Control.FreeEnd(fm)
-			}
 			return nil, false
 		}
 		p.Pos = seed.end
 		p.recAdd(seed.errs)
-		if !(fm == uint64(18446744073709551615)) {
-			p.Control.FreeEnd(fm)
-		}
 		return seed.val, true
 	}
 	e := p.memoGet(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader))
@@ -1124,16 +1031,10 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 		p.Document.stats.Reused++
 		p.MergeExpected(e.far, e.expected)
 		if !e.ok {
-			if !(fm == uint64(18446744073709551615)) {
-				p.Control.FreeEnd(fm)
-			}
 			return nil, false
 		}
 		p.Pos = e.end
 		p.recAdd(e.errs)
-		if !(fm == uint64(18446744073709551615)) {
-			p.Control.FreeEnd(fm)
-		}
 		return e.val, true
 	}
 	if c.ctx {
@@ -1147,25 +1048,16 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 			p.Document.stats.Reused++
 			p.MergeExpected(held.far, held.expected)
 			if !held.ok {
-				if !(fm == uint64(18446744073709551615)) {
-					p.Control.FreeEnd(fm)
-				}
 				return nil, false
 			}
 			p.Pos = held.end
 			p.recAdd(held.errs)
-			if !(fm == uint64(18446744073709551615)) {
-				p.Control.FreeEnd(fm)
-			}
 			return held.val, true
 		}
 	}
 	rec := len(p.Recovered)
 	p.ctxPush(&c)
 	m := p.Isolate(start)
-	if !(fm == uint64(18446744073709551615)) {
-		p.Control.FreeEnd(fm)
-	}
 	if r.Leader {
 		v, ok = p.grow(r, min)
 	} else {
@@ -1178,10 +1070,6 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 		if !ok {
 			p.Recovered = p.Recovered[:rec]
 		}
-	}
-	fm = uint64(18446744073709551615)
-	if r.DocMemo && !r.Memo && !r.Leader {
-		fm = p.Control.FreeBegin(true)
 	}
 	far, inner := p.Unisolate(m)
 	kept := p.Keep(inner)
@@ -1222,9 +1110,6 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 	if !ok {
 		p.Pos = start
 	}
-	if !(fm == uint64(18446744073709551615)) {
-		p.Control.FreeEnd(fm)
-	}
 	return v, ok
 }
 
@@ -1238,9 +1123,10 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 // first test, of memo.seed, is a guard that no production path reaches: the seed of a growth lives within one parse,
 // when no edit is pending, and a lookup applies edits only to an entry of an earlier parse.
 //
-// Printed from Exec IR function memoAdvance of internal/ir/code/exec/compose, specialized for document, budget.
+// Printed from Exec IR function memoAdvance of internal/ir/code/exec/compose, specialized for document, units.
 func (p *Parser) advanceEntry(e *memoEntry, log []documentEdit) bool {
 	var fm uint64
+	_ = fm
 	var i int
 	if false {
 		return false
@@ -1248,18 +1134,15 @@ func (p *Parser) advanceEntry(e *memoEntry, log []documentEdit) bool {
 	if len(log)-int(e.vgen) > 128 {
 		return false
 	}
-	fm = p.Control.FreeBegin(true)
 	from := e.from
 	examined := e.examined
 	shift := 0
 	shifted := (e.shift != 0)
 	for i = int(e.vgen); i < len(log); i++ {
-		p.Spend()
 		if examined <= log[i].start {
 			continue
 		}
 		if !(from >= log[i].end && !e.pinned && e.errs.none()) {
-			p.Control.FreeEnd(fm)
 			return false
 		}
 		delta := log[i].delta
@@ -1273,7 +1156,6 @@ func (p *Parser) advanceEntry(e *memoEntry, log []documentEdit) bool {
 	e.far += shift
 	e.shift += int32(shift)
 	e.vgen = uint32(len(log))
-	p.Control.FreeEnd(fm)
 	return true
 }
 
@@ -1333,9 +1215,10 @@ func advanceEntry(e *memoEntry, log []documentEdit) bool {
 // first test, of memo.seed, is a guard that no production path reaches: the seed of a growth lives within one parse,
 // when no edit is pending, and a lookup applies edits only to an entry of an earlier parse.
 //
-// Printed from Exec IR function memoAdvance of internal/ir/code/exec/compose, specialized for document, budget.
+// Printed from Exec IR function memoAdvance of internal/ir/code/exec/compose, specialized for document, units.
 func (p *TParser) advanceEntry(e *tmemoEntry, log []documentEdit) bool {
 	var fm uint64
+	_ = fm
 	var i int
 	if false {
 		return false
@@ -1343,18 +1226,15 @@ func (p *TParser) advanceEntry(e *tmemoEntry, log []documentEdit) bool {
 	if len(log)-int(e.vgen) > 128 {
 		return false
 	}
-	fm = p.Control.FreeBegin(true)
 	from := e.from
 	examined := e.examined
 	shift := 0
 	shifted := (e.shift != 0)
 	for i = int(e.vgen); i < len(log); i++ {
-		p.Spend()
 		if examined <= log[i].start {
 			continue
 		}
 		if !(from >= log[i].end && !e.pinned && e.errs.none()) {
-			p.Control.FreeEnd(fm)
 			return false
 		}
 		delta := log[i].delta
@@ -1368,7 +1248,6 @@ func (p *TParser) advanceEntry(e *tmemoEntry, log []documentEdit) bool {
 	e.far += shift
 	e.shift += int32(shift)
 	e.vgen = uint32(len(log))
-	p.Control.FreeEnd(fm)
 	return true
 }
 
@@ -1426,7 +1305,7 @@ func advanceTEntry(e *tmemoEntry, log []documentEdit) bool {
 // whether the values of the elements hold no position, so that the run may reuse old elements that the
 // edit moved.
 //
-// Printed from Exec IR function runStart of internal/ir/code/exec/compose, specialized for document, budget.
+// Printed from Exec IR function runStart of internal/ir/code/exec/compose, specialized for document, units.
 func (p *Parser) runStart(r *RunState, site int, min int, max int, shiftable bool) {
 	var at int
 	p.runInit(r, site, min, max, shiftable)
@@ -1455,7 +1334,7 @@ func (p *Parser) runStart(r *RunState, site int, min int, max int, shiftable boo
 // ResumeMore reports whether the run r may take another element: no reused element ended it, and it has
 // fewer than its maximum.
 //
-// Printed from Exec IR function runMore of internal/ir/code/exec/compose, specialized for document, budget.
+// Printed from Exec IR function runMore of internal/ir/code/exec/compose, specialized for document, units.
 func (p *Parser) ResumeMore(r *RunState) bool {
 	return !r.Done && (r.Max < 0 || r.Count < r.Max)
 }
@@ -1464,9 +1343,10 @@ func (p *Parser) ResumeMore(r *RunState) bool {
 // Document had had gen edits: it replays what evaluating the element did (the examined input, the
 // expectations, the position and the statistics) and returns its value, for the caller to keep.
 //
-// Printed from Exec IR function runReuse of internal/ir/code/exec/compose, specialized for document, budget.
+// Printed from Exec IR function runReuse of internal/ir/code/exec/compose, specialized for document, units.
 func (p *Parser) runReuse(r *RunState, i int, shift int, gen int) *sxirvalue.Node {
 	var fm uint64
+	_ = fm
 	p.poll()
 	v := p.runTake(r, i, shift)
 	p.documentTouch(r.old[i].examined)
@@ -1474,9 +1354,7 @@ func (p *Parser) runReuse(r *RunState, i int, shift int, gen int) *sxirvalue.Nod
 	k := r.old[i].exp
 	far := r.old[i].far
 	if len(k) > 0 && far >= p.farthest {
-		fm = p.Control.FreeBegin(true)
 		p.MergeExpected(far, k)
-		p.Control.FreeEnd(fm)
 	}
 	p.Pos = r.old[i].end
 	p.Document.stats.Reused++
@@ -1492,7 +1370,7 @@ func (p *Parser) runReuse(r *RunState, i int, shift int, gen int) *sxirvalue.Nod
 // the old run, after an element that ended the run, or at once when the old run is the one that the edit
 // moved here.
 //
-// Printed from Exec IR function runPrefix of internal/ir/code/exec/compose, specialized for document, budget.
+// Printed from Exec IR function runPrefix of internal/ir/code/exec/compose, specialized for document, units.
 func (p *Parser) runPrefix(r *RunState) (*sxirvalue.Node, bool) {
 	if r.Moved || r.Done || r.K >= len(r.old) {
 		return nil, false
@@ -1510,7 +1388,7 @@ func (p *Parser) runPrefix(r *RunState) (*sxirvalue.Node, bool) {
 // only input after the edit; their values move with the edit only if the run is shiftable. runTail then
 // reuses them.
 //
-// Printed from Exec IR function runResync of internal/ir/code/exec/compose, specialized for document, budget.
+// Printed from Exec IR function runResync of internal/ir/code/exec/compose, specialized for document, units.
 func (p *Parser) runResync(r *RunState) bool {
 	var q int
 	n := len(r.old)
@@ -1552,7 +1430,7 @@ func (p *Parser) runResync(r *RunState) bool {
 // the edit, and returns its value and true; it returns false at the end of the old run or when the run may
 // take no more elements.
 //
-// Printed from Exec IR function runTail of internal/ir/code/exec/compose, specialized for document, budget.
+// Printed from Exec IR function runTail of internal/ir/code/exec/compose, specialized for document, units.
 func (p *Parser) runTail(r *RunState) (*sxirvalue.Node, bool) {
 	i := r.J + r.T
 	if r.J < 0 || i >= len(r.old) {
@@ -1571,7 +1449,7 @@ func (p *Parser) runTail(r *RunState) (*sxirvalue.Node, bool) {
 // run after the edit (runResync), the old elements after it (runTail). It returns false when the
 // repetition evaluates its next element instead.
 //
-// Printed from Exec IR function runNext of internal/ir/code/exec/compose, specialized for document, budget.
+// Printed from Exec IR function runNext of internal/ir/code/exec/compose, specialized for document, units.
 func (p *Parser) ResumeNext(r *RunState) (*sxirvalue.Node, bool) {
 	if !r.Prefixed {
 		pv, pok := p.runPrefix(r)
@@ -1590,7 +1468,7 @@ func (p *Parser) ResumeNext(r *RunState) (*sxirvalue.Node, bool) {
 // ResumeBegin starts evaluating an element of the run r: its examined input and its expectations are recorded
 // apart from those of the enclosing call, so that the run can record them with the element.
 //
-// Printed from Exec IR function runBegin of internal/ir/code/exec/compose, specialized for document, budget.
+// Printed from Exec IR function runBegin of internal/ir/code/exec/compose, specialized for document, units.
 func (p *Parser) ResumeBegin(r *RunState) {
 	r.ElemStart = p.Pos
 	oe, ol := p.docExamined, p.docLow
@@ -1605,11 +1483,11 @@ func (p *Parser) ResumeBegin(r *RunState) {
 // its state if it failed: it adds the element's examined input and expectations to those of the enclosing
 // call, and records the element if it matched.
 //
-// Printed from Exec IR function runEnd of internal/ir/code/exec/compose, specialized for document, budget.
+// Printed from Exec IR function runEnd of internal/ir/code/exec/compose, specialized for document, units.
 func (p *Parser) ResumeEnd(r *RunState, ok bool, v *sxirvalue.Node) {
 	var fm uint64
+	_ = fm
 	var kept []ExpID
-	fm = p.Control.FreeBegin(true)
 	far, inner := p.Unisolate(r.Mark)
 	if ok {
 		kept = p.Keep(inner)
@@ -1625,14 +1503,13 @@ func (p *Parser) ResumeEnd(r *RunState, ok bool, v *sxirvalue.Node) {
 		r.Count = r.Count + 1
 		p.runAdd(r, r.J >= 0, r.ElemStart, p.Pos, from, examined, far, kept, v)
 	}
-	p.Control.FreeEnd(fm)
 }
 
 // runFinish records the run r of a repetition that matched, for the rest of this parse and the next one,
 // unless it has fewer elements than the least a Document records, a recovered error remains, or a call in it
 // read the current result of a growth.
 //
-// Printed from Exec IR function runFinish of internal/ir/code/exec/compose, specialized for document, budget.
+// Printed from Exec IR function runFinish of internal/ir/code/exec/compose, specialized for document, units.
 func (p *Parser) runFinish(r *RunState) {
 	if r.Count < minRecordedRun || !p.runClean(r) {
 		return
@@ -1650,13 +1527,13 @@ func (p *Parser) Predicate(t func(*ActCtx) (any, any)) bool {
 	ctx := p.useCtx(ActCtx{P: p, f: p.Frame, start: p.Pos, end: p.Pos, cbase: len(p.created)})
 	v, f := t(ctx)
 	if f != nil {
-		clearSpend(p, p.KidStack[kids:])
+		clear(p.KidStack[kids:])
 		p.KidStack = p.KidStack[:kids]
-		clearSpend(p, p.created[created:])
+		clear(p.created[created:])
 		p.created = p.created[:created]
 		return false
 	}
-	clearSpend(p, p.created[created:])
+	clear(p.created[created:])
 	p.created = p.created[:created]
 	return valKind(v) != 3 || v.(bool)
 }
@@ -1672,13 +1549,13 @@ func (p *Parser) Bind(slot int, t func(*ActCtx) (any, any)) bool {
 	ctx := p.useCtx(ActCtx{P: p, f: p.Frame, start: p.Pos, end: p.Pos, cbase: len(p.created)})
 	v, f := t(ctx)
 	if f != nil {
-		clearSpend(p, p.KidStack[kids:])
+		clear(p.KidStack[kids:])
 		p.KidStack = p.KidStack[:kids]
-		clearSpend(p, p.created[created:])
+		clear(p.created[created:])
 		p.created = p.created[:created]
 		return false
 	}
-	clearSpend(p, p.created[created:])
+	clear(p.created[created:])
 	p.created = p.created[:created]
 	p.bind(slot, v)
 	return true
@@ -1694,13 +1571,13 @@ func (p *TParser) Predicate(t func(*TActCtx) (any, any)) bool {
 	ctx := p.UseCtx(TActCtx{P: p, F: p.Frame, Start: p.Pos, End: p.Pos, Cbase: len(p.Created)})
 	v, f := t(ctx)
 	if f != nil {
-		clearSpend(p.Parser, p.KidStack[kids:])
+		clear(p.KidStack[kids:])
 		p.KidStack = p.KidStack[:kids]
-		clearSpend(p.Parser, p.Created[created:])
+		clear(p.Created[created:])
 		p.Created = p.Created[:created]
 		return false
 	}
-	clearSpend(p.Parser, p.Created[created:])
+	clear(p.Created[created:])
 	p.Created = p.Created[:created]
 	return valKind(v) != 3 || v.(bool)
 }
@@ -1716,13 +1593,13 @@ func (p *TParser) Bind(slot int, t func(*TActCtx) (any, any)) bool {
 	ctx := p.UseCtx(TActCtx{P: p, F: p.Frame, Start: p.Pos, End: p.Pos, Cbase: len(p.Created)})
 	v, f := t(ctx)
 	if f != nil {
-		clearSpend(p.Parser, p.KidStack[kids:])
+		clear(p.KidStack[kids:])
 		p.KidStack = p.KidStack[:kids]
-		clearSpend(p.Parser, p.Created[created:])
+		clear(p.Created[created:])
 		p.Created = p.Created[:created]
 		return false
 	}
-	clearSpend(p.Parser, p.Created[created:])
+	clear(p.Created[created:])
 	p.Created = p.Created[:created]
 	p.bind(slot, v)
 	return true

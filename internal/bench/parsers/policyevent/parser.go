@@ -137,17 +137,13 @@ type tslabs struct {
 func (a *tslabs) SetBudgetControl(c *rt.BudgetControl) { a.control = c }
 
 func (a *tslabs) spend() {
-	if a.control == nil {
+	if a.control == nil || !a.result {
 		return
 	}
-	if a.result {
-		a.steps++
-		if a.steps%256 == 0 {
-			a.control.Check()
-		}
-		return
+	a.steps++
+	if a.steps%256 == 0 {
+		a.control.Check()
 	}
-	a.control.Charge(1)
 }
 
 func (a *tslabs) MemoryBytes() uint64 { return a.tl0Chunk.MemoryBytes() }
@@ -228,7 +224,6 @@ func init() {
 	rules[3].Body = e11
 	sxirGrammar.Starts = []string{"doc"}
 	sxirGrammar.DefaultStart = "doc"
-	sxirGrammar.Logical = true
 	trules = rt.NewTRules(rules)
 	defer tinit()
 	trules[0].Entry = s0
@@ -278,7 +273,7 @@ func e2(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	v16 = p.NewBranchOrdinary(rt.ListKind, x3, p.Kids(x4))
 	x2 = append(x2, v16)
 	if !p.AtEndBatchOrdinary() {
-		p.ExpectOrdinary(p.Pos, rt.IdEndInput)
+		p.Expect(p.Pos, rt.IdEndInput)
 		goto fail
 	}
 	v17 = p.NewBranchOrdinary(rt.SeqKind, x1, x2)
@@ -316,7 +311,7 @@ func e6(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 L4:
 	p.Reset(x1)
 	if !p.HasCharOrdinary(99, false) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 6)
+		p.Expect(p.Pos, 6)
 		goto L12
 	}
 	x14 = p.Pos
@@ -368,7 +363,7 @@ func e9(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 L4:
 	p.Reset(x1)
 	if !p.HasCharOrdinary(98, false) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 8)
+		p.Expect(p.Pos, 8)
 		goto L12
 	}
 	x14 = p.Pos
@@ -431,7 +426,7 @@ func e12(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		x4 = p.Mark()
 		ch, size, ok = p.NextOrdinary()
 		if !ok || !(ch >= 97 && ch <= 122) {
-			p.ExpectOrdinary(p.Pos, 10)
+			p.Expect(p.Pos, 10)
 			goto L5
 		}
 		x6 = p.Pos
@@ -551,7 +546,7 @@ func s0(p *rt.TParser) (any, bool) {
 	v16 = p.NewNodeOrdinary("list", x3, p.Pos, p.Kids(x4))
 	x2 = append(x2, v16)
 	if !p.AtEndBatchOrdinary() {
-		p.ExpectOrdinary(p.Pos, rt.IdEndInput)
+		p.Expect(p.Pos, rt.IdEndInput)
 		goto fail
 	}
 	v17 = p.NewNodeOrdinary("tuple", x1, p.Pos, x2)
@@ -595,7 +590,7 @@ func s1(p *rt.TParser) (any, bool) {
 L4:
 	p.Pos = x1
 	if !p.HasCharOrdinary(99, false) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 6)
+		p.Expect(p.Pos, 6)
 		goto L12
 	}
 	x14 = p.Pos
@@ -653,7 +648,7 @@ func s2(p *rt.TParser) (any, bool) {
 L4:
 	p.Pos = x1
 	if !p.HasCharOrdinary(98, false) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 8)
+		p.Expect(p.Pos, 8)
 		goto L12
 	}
 	x14 = p.Pos
@@ -737,7 +732,7 @@ func s4(p *rt.TParser) (any, bool) {
 		x4 = p.Pos
 		ch, size, ok = p.NextOrdinary()
 		if !ok || !(ch >= 97 && ch <= 122) {
-			p.ExpectOrdinary(p.Pos, 10)
+			p.Expect(p.Pos, 10)
 			goto L5
 		}
 		x6 = p.Pos

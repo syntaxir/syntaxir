@@ -406,7 +406,9 @@ func goValueOp(callee string, a []string, typed bool) (string, bool) {
 		}
 		return "D(" + a[0] + ").Children", true
 	case "seq.step":
-		return "p.Spend()", true
+		// A step over the elements of a list that an action expression makes or checks is no event,
+		// as in the engine: the elements it builds are counted by the units operations of the action.
+		return "", true
 	case "units.add":
 		return "p.UnitsSized(" + a[0] + ")", true
 	case "units.items":

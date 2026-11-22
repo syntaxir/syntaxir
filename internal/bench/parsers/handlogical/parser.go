@@ -107,7 +107,7 @@ func init() {
 		if tf3 != nil {
 			return nil, tf3
 		}
-		tk4 := c.P.ElemsAbove(tm1)
+		tk4 := c.P.Kids(tm1)
 		tn5 := c.P.ActionHullLogical(c, false, tk4)
 		tm6 := len(c.P.KidStack)
 		ti7, tf7 := c.P.ActionItems("filter", any(tn5))
@@ -135,13 +135,12 @@ func init() {
 				c.P.KidStack = append(c.P.KidStack, ti7[tj8])
 			}
 		}
-		tk15 := c.P.ElemsAbove(tm6)
+		tk15 := c.P.Kids(tm6)
 		tn16 := c.P.ActionHullLogical(c, false, tk15)
 		return any(tn16), nil
 	}
 	sxirGrammar.Starts = []string{"tag", "nums"}
 	sxirGrammar.DefaultStart = "tag"
-	sxirGrammar.Logical = true
 }
 
 func e4(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
@@ -215,7 +214,7 @@ func e6(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		x4 = p.Mark()
 		ch, size, ok = p.NextOrdinary()
 		if !ok || !(ch >= 97 && ch <= 122) {
-			p.ExpectOrdinary(p.Pos, 8)
+			p.Expect(p.Pos, 8)
 			goto L5
 		}
 		x6 = p.Pos
@@ -317,7 +316,7 @@ func e12(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		x4 = p.Mark()
 		ch, size, ok = p.NextOrdinary()
 		if !ok || !(ch >= 48 && ch <= 57) {
-			p.ExpectOrdinary(p.Pos, 12)
+			p.Expect(p.Pos, 12)
 			goto L5
 		}
 		x6 = p.Pos

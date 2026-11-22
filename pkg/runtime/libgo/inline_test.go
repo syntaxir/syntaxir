@@ -15,7 +15,6 @@ import (
 // if the compiler can inline them; the test fails when a change to the library or core makes one of them
 // too costly to inline. Each entry is as the compiler names it.
 var hotInline = []string{
-	"(*BudgetControl).refill", // inside the library: a stream's default budget refills whenever the parser reads further
 	"(*Parser).AtEndBatch",
 	"(*Parser).AtEndBatchOrdinary",
 	"(*Parser).AtEndOrdinary",
@@ -23,7 +22,7 @@ var hotInline = []string{
 	"(*Parser).AtLineStartBatchOrdinary",
 	"(*Parser).DropKids",
 	"(*Parser).Enter",
-	"(*Parser).ExpectOrdinary",
+	"(*Parser).Expect",
 	"(*Parser).LiteralText",
 	"(*Parser).Mark",
 	"(*Parser).NewBranchOrdinary",
@@ -34,7 +33,6 @@ var hotInline = []string{
 	"(*Parser).Restore",
 	"(*Parser).SetCapture",
 	"(*Parser).Spend",
-	"(*Parser).spendReadOrdinary",
 	"(*Node).End",
 	"(*Node).Rule",
 	"(*Node).Start",

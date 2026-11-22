@@ -95,29 +95,6 @@ func (a *frameScratch) rewind(m frameScratchMark) {
 	a.frameN, a.slotCI, a.slotOff = m.frameN, m.slotCI, m.slotOff
 }
 
-// streamReader charges one step per caller Read and reports a non-EOF error
-// from that Read ahead of cancellation observed after it.
-type streamReader struct {
-	reader  io.Reader
-	control *BudgetControl
-}
-
-func (r *streamReader) Read(dst []byte) (int, error) {
-	r.control.Check()
-	r.control.Charge(1)
-	n, err := r.reader.Read(dst)
-	if r.control.ctx != nil {
-		if cerr := contextErr(r.control.ctx); cerr != nil {
-			if err != nil && err != io.EOF {
-				cerr = err
-			}
-			r.control.interrupted = true
-			panic(fatal{err: cerr})
-		}
-	}
-	return n, err
-}
-
 // unitsReader is the reader of a stream whose parse counts logical compute units and observes a
 // context or a memory limit. A read of the caller's reader is no event: it counts no unit. Before the
 // read it observes the context, then the memory count; after it, the context again, where an error
@@ -179,19 +156,15 @@ func RunParseStreamWithBudget(r *Rule, reader io.Reader, emit func(*sxirvalue.No
 	var n *sxirvalue.Node
 	defer recoverParse(&n, &err)
 	o = prepareOptions(o, 0, true)
-	defer o.reportSpent()
 	p := &Parser{unit: o.unit, MaxDepth: o.maxDepth}
 	p.setGrammar(r.g)
 	p.Expectations = o.expectations
 	p.Control = o.control
 	p.startUnits(o)
-	switch {
-	case p.units.on && p.units.observes():
+	if p.units.on && p.units.observes() {
 		reader = &unitsReader{reader: reader, p: p}
-	case !p.units.on && o.control != nil:
-		reader = &streamReader{reader: reader, control: o.control}
 	}
-	p.Observation = o.control.observe(newObservation(&o.observe, &p.Silent, nil))
+	p.Observation = newObservation(&o.observe, &p.Silent, nil)
 	if usedFeatures&featureObserve != 0 && p.Observation != nil {
 		defer p.releaseObservation()
 	}
@@ -338,7 +311,7 @@ func (p *Parser) streamSettleErrors() {
 	// are no longer active. Memo entries hold their errors as immutable
 	// lists (recEntry), so clearing the record does not touch them.
 	if cap(p.Recovered) <= streamRecoveryScratchMax {
-		clearSpend(p, p.Recovered[:cap(p.Recovered)])
+		clear(p.Recovered[:cap(p.Recovered)])
 		p.Recovered = p.Recovered[:0]
 	} else {
 		p.Recovered = nil
@@ -437,7 +410,6 @@ func (t *streamDiagnosticTail) result(p *Parser) error {
 	}
 	ordered := t.errors
 	if t.head != 0 {
-		p.Control.Charge(uint64(len(t.errors)))
 		ordered = append(append(make(sxirvalue.SyntaxErrors, 0, len(t.errors)), t.errors[t.head:]...), t.errors[:t.head]...)
 	}
 	p.Control.Check()
@@ -546,10 +518,8 @@ func (p *Parser) streamDiscard(keep int) {
 	k, _ := slices.BinarySearch(s.nlStarts, keep+1)
 	s.nlStarts = s.nlStarts[:copy(s.nlStarts, s.nlStarts[k:])]
 	if p.unit == sxirinput.Bytes {
-		p.SpendRead(uint64(len(s.bs) - n))
 		s.bs = s.bs[:copy(s.bs, s.bs[n:])]
 	} else {
-		p.SpendRead(uint64(len(s.in) - n))
 		s.in = s.in[:copy(s.in, s.in[n:])]
 	}
 	s.base = keep
@@ -565,7 +535,6 @@ func (p *Parser) pruneStreamMemo(pos int) {
 	}
 	for _, head := range t.slots[:min(k, len(t.slots))] {
 		for e := head; e != nil; {
-			p.Spend()
 			next := e.next
 			*e = memoEntry{next: t.free}
 			t.free = e
@@ -607,11 +576,7 @@ func (s *streamInput) loaded() int {
 // it is available. Once the required amount has been read, it reads only what
 // is already buffered and does not wait for more.
 func (p *Parser) streamFill(n int) bool {
-	if p.units.on {
-		p.unitsDemand(n)
-	} else {
-		p.Control.demand(n)
-	}
+	p.unitsDemand(n)
 	ok := p.streamFillTo(n)
 	if max := p.Stream.maxInput; max > 0 && n > max && p.Stream.loaded() > max {
 		// The outcome does not depend on how the reader chunks the stream: the parser needed the
@@ -639,7 +604,6 @@ func (p *Parser) streamFillTo(n int) bool {
 
 func (p *Parser) streamRead() {
 	p.Control.Check()
-	p.Spend()
 	s := p.Stream
 	var err error
 	if p.unit == sxirinput.Bytes {
@@ -663,7 +627,6 @@ func (p *Parser) streamRead() {
 // streamPeek is peek on a stream. A complete character never waits for more
 // input; an incomplete UTF-8 prefix waits for more bytes or the end of input.
 func (p *Parser) streamPeek() (rune, int, bool) {
-	p.SpendRead(1)
 	s := p.Stream
 	if p.Pos < s.base || !p.streamFill(p.Pos+1) {
 		return 0, 0, false
@@ -679,7 +642,6 @@ func (p *Parser) streamPeek() (rune, int, bool) {
 		p.streamFillTo(s.loaded() + 1)
 		b = s.bs[p.Pos-s.base:]
 	}
-	p.SpendRead(uint64(min(utf8.UTFMax, len(b))))
 	r, size := utf8.DecodeRune(b)
 	return r, size, true
 }
@@ -727,7 +689,6 @@ func (p *Parser) MatchLiteralTraced(rs []rune, text string, desc ExpID, build bo
 		}
 	} else {
 		for _, r := range rs {
-			p.SpendRead(1)
 			if p.Pos < s.base || !p.streamFill(p.Pos+1) || s.in[p.Pos-s.base] != r {
 				p.documentTouch(p.Pos + 1)
 				p.Pos = start
@@ -794,7 +755,6 @@ func (p *Parser) AtLineEndTraced() bool {
 	if p.Stream == nil {
 		return p.AtLineEnd()
 	}
-	p.SpendRead(1)
 	p.documentTouch(p.Pos + 1)
 	return p.lineEnd()
 }
@@ -813,7 +773,6 @@ func decodedEndBytes(b []byte, pos, size int) int {
 
 // streamByte returns the byte at position i (Bytes).
 func (p *Parser) streamByte(i int) (byte, bool) {
-	p.SpendRead(1)
 	s := p.Stream
 	if i < s.base || !p.streamFill(i+1) {
 		return 0, false
@@ -836,7 +795,6 @@ func (p *Parser) streamMatchLiteral(rs []rune, text string, desc ExpID, build bo
 		}
 	} else {
 		for _, r := range rs {
-			p.SpendRead(1)
 			if p.Pos < s.base || !p.streamFill(p.Pos+1) || s.in[p.Pos-s.base] != r {
 				p.Pos = start
 				p.Expect(start, desc)
@@ -865,7 +823,6 @@ func (p *Parser) streamAtLineStart() bool {
 }
 
 func (p *Parser) streamAtEnd() bool {
-	p.SpendRead(1)
 	return !p.streamFill(p.Pos + 1)
 }
 
@@ -928,9 +885,6 @@ func (p *Parser) streamText(start, end int) string {
 	}
 	i := 0
 	for off := range snap.source {
-		if i&127 == 0 {
-			p.SpendRead(uint64(min(128, snap.end-snap.base-i)))
-		}
 		snap.offsets[i] = int32(off)
 		i++
 	}
@@ -944,14 +898,8 @@ func (p *Parser) streamCopy(start, end int) string {
 	s := p.Stream
 	start, end = start-s.base, end-s.base
 	if p.unit == sxirinput.Bytes {
-		if usedFeatures&featureBudget != 0 && p.Control != nil {
-			p.Control.Charge(uint64(end - start))
-		}
 		p.chargeValueBytes(end - start)
 		return string(s.bs[start:end])
-	}
-	if usedFeatures&featureBudget != 0 && p.Control != nil {
-		p.Control.Charge(2 * uint64(end-start))
 	}
 	text := string(s.in[start:end])
 	p.chargeValueBytes(len(text))
@@ -967,7 +915,6 @@ func (p *Parser) streamLineCol(pos int) (int, int) {
 		if s.lines == nil {
 			s.lines = []int{0}
 			for i := range s.loaded() {
-				p.SpendRead(1)
 				if p.unit == sxirinput.Bytes && s.bs[i] == '\n' || p.unit == sxirinput.CodePoints && s.in[i] == '\n' {
 					s.lines = append(s.lines, i+1)
 				}
@@ -989,7 +936,6 @@ func (p *Parser) streamLineCol(pos int) (int, int) {
 	pos = max(min(pos, s.loaded()), s.base)
 	s.nlScanned = max(s.nlScanned, s.base)
 	for ; s.nlScanned < pos; s.nlScanned++ {
-		p.SpendRead(1)
 		var nl bool
 		if p.unit == sxirinput.Bytes {
 			nl = s.bs[s.nlScanned-s.base] == '\n'

@@ -60,7 +60,7 @@ func newFrameMachine(cfg ref.Config, typed, controlled bool) conform.Impl {
 		m.binder = conform.Binder{Methods: confFrameBindings(x.p), Conv: frameConv{}}
 	}
 	if controlled {
-		m.used = func() uint64 { return m.p.Control.budgetUsed() }
+		m.used = func() uint64 { return m.p.Units }
 		return meteredFrame{m}
 	}
 	return m

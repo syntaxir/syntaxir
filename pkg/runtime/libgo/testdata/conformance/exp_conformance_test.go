@@ -41,7 +41,7 @@ type setHandle struct{ s []ExpID }
 
 type meteredExp struct{ *expMachine }
 
-func (m meteredExp) Used() uint64 { return m.p.Control.budgetUsed() }
+func (m meteredExp) Used() uint64 { return m.p.Units }
 
 func newExpMachine(cfg ref.Config, controlled bool) conform.Impl {
 	var rm *rtMachine
@@ -176,7 +176,7 @@ type texpMachine struct {
 
 type meteredTExp struct{ *texpMachine }
 
-func (m meteredTExp) Used() uint64 { return m.p.Control.budgetUsed() }
+func (m meteredTExp) Used() uint64 { return m.p.Units }
 
 func newTExpMachine(cfg ref.Config, controlled bool) conform.Impl {
 	var tm *typedMachine
@@ -375,7 +375,7 @@ type brokenExpCharge struct {
 func (b brokenExpCharge) Call(o *code.Op, args []any) []any {
 	res := b.meteredExp.Call(o, args)
 	if o.Name == b.op {
-		b.p.Control.Charge(1)
+		b.p.unitsSized(1)
 	}
 	return res
 }
@@ -388,7 +388,7 @@ type brokenTExpCharge struct {
 func (b brokenTExpCharge) Call(o *code.Op, args []any) []any {
 	res := b.meteredTExp.Call(o, args)
 	if o.Name == b.op {
-		b.p.Control.Charge(1)
+		b.p.unitsSized(1)
 	}
 	return res
 }

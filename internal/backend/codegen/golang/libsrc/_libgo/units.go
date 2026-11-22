@@ -55,7 +55,7 @@ func SetMemoReport(out *string) { memoReport.Store(out) }
 
 // startUnits starts the counter of a parse with the options o.
 func (p *Parser) startUnits(o parseOptions) {
-	if !o.logical {
+	if !o.controls {
 		p.units = unitsState{}
 		p.UnitsCheck = math.MaxUint64
 		return
@@ -135,14 +135,10 @@ func (p *Parser) PollUnits() {
 	p.setUnitsCheck()
 }
 
-// poll is a step of work that counts no unit (budget.poll), such as a reused element of a run: under
-// logical units, which such work does not advance, it observes the context and the memory count after
-// each budgetCheckInterval of these steps; under budget controls the control polls.
+// poll is a step of work that counts no unit (budget.poll), such as a reused element of a run, which
+// does not advance the count: it observes the context and the memory count after each
+// budgetCheckInterval of these steps.
 func (p *Parser) poll() {
-	if !p.units.on {
-		p.Control.Poll()
-		return
-	}
 	if !p.units.observes() {
 		return
 	}
@@ -262,7 +258,7 @@ func (p *Parser) SkipCalls(exp ExpID, rules ...*Rule) {
 // context, and outside Documents: a Document's guards skip no call of a rule that it memoizes.
 func (p *Parser) skipCalls(rules []*Rule, exp ExpID) {
 	if len(rules) == 0 {
-		p.ExpectOrdinary(p.Pos, exp)
+		p.Expect(p.Pos, exp)
 		return
 	}
 	r := rules[0]
@@ -312,7 +308,7 @@ func (p *TParser) SkipCalls(exp ExpID, rules ...*Rule) {
 // make the calls.
 func (p *TParser) skipCalls(rules []*Rule, exp ExpID) {
 	if len(rules) == 0 {
-		p.ExpectOrdinary(p.Pos, exp)
+		p.Expect(p.Pos, exp)
 		return
 	}
 	r := rules[0]
@@ -540,7 +536,7 @@ func (p *TParser) skipTerminalChoiceL(t *TerminalProgram, pc int) bool {
 				peeked = true
 			}
 			if !more || !t.Classes[code[k+2]].Has(ch) {
-				p.ExpectOrdinary(start, ExpID(code[k+3]))
+				p.Expect(start, ExpID(code[k+3]))
 				continue
 			}
 			if p.skipTerminalAltL(t, k, size) {

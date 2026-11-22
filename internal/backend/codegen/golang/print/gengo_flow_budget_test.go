@@ -63,10 +63,6 @@ func (c *countCtx) Value(key any) any                 { return nil }
 var probes = []struct{ parse, recognize probe }{
 PROBES}
 
-// units is whether the parsers count logical compute units, which they do with limit controls outside
-// Documents and streams; the others reserve budget.
-const units = UNITS
-
 // unitsOvershoot bounds how far past the limit a parser that counts units goes before a check stops
 // it: K + B of spec/runtime/parsing.md (Checks and Interruptions), with K = 4096 for the grammars of
 // these tests, whose largest single event is far smaller.
@@ -74,10 +70,8 @@ const unitsOvershoot = 4096 + 4096
 
 // shape returns what is wrong with err as the error of a run limited to compute units, "" if nothing. A
 // compute limit error has the type LimitError of the generated package, found by reflection because every
-// package has a copy of the library; its kind must be the compute limit. A parser that counts units
-// reports the count of the check that stopped it, past the limit by at most unitsOvershoot, and requests
-// nothing; one that reserves budget reports the reservation that failed, which must have gone past the
-// limit.
+// package has a copy of the library; its kind must be the compute limit. The parser reports the count of
+// the check that stopped it, past the limit by at most unitsOvershoot, and requests nothing.
 func shape(err error, spend uint64) string {
 	if err == nil || !strings.Contains(err.Error(), "limit exceeded") {
 		return "" // not limited: the run failed or succeeded on its own
@@ -89,13 +83,7 @@ func shape(err error, spend uint64) string {
 		}
 		v = v.Elem()
 		kind, limit, used, req := v.FieldByName("Kind").Uint(), v.FieldByName("Limit").Uint(), v.FieldByName("Used").Uint(), v.FieldByName("Requested").Uint()
-		malformed := kind != 0 || limit != spend
-		if units {
-			malformed = malformed || used <= limit || used-limit > unitsOvershoot || req != 0
-		} else {
-			malformed = malformed || used > limit || used+req <= limit || req == 0
-		}
-		if malformed {
+		if kind != 0 || limit != spend || used <= limit || used-limit > unitsOvershoot || req != 0 {
 			return fmt.Sprintf("malformed compute limit error: kind %d limit %d used %d requested %d", kind, limit, used, req)
 		}
 		return ""
@@ -259,7 +247,6 @@ func runBudgetProbesWith(t *testing.T, rt string, cases []codegentest.Case, star
 		inputs = append(inputs, c.Inputs)
 	}
 	main := strings.Replace(budgetProbeSources("f", len(cases)), "IMPORTS", "", 1)
-	main = strings.Replace(main, "UNITS", strconv.FormatBool(!opts.Document && !opts.Stream), 1)
 	write("main.go", strings.ReplaceAll(main, ".Parse(s, opts...)", "."+parse+"(s, opts...)"))
 	data, _ := json.Marshal(inputs)
 	write("inputs.json", string(data))

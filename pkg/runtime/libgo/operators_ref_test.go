@@ -358,7 +358,7 @@ func TestOperatorsRuleMatchesReference(t *testing.T) {
 				tr.log = nil
 				p := &Parser{MaxDepth: 12}
 				if controlled {
-					p.Control = newBudgetControl(nil, sxirruntime.Limits{Compute: 1 << 40})
+					p.Control = newBudgetControl(sxirruntime.Limits{Memory: 1 << 40})
 				}
 				var v *sxirvalue.Node
 				var ok bool
@@ -375,10 +375,6 @@ func TestOperatorsRuleMatchesReference(t *testing.T) {
 					}()
 					v, ok = parseFn(p)
 				}()
-				spent := uint64(0)
-				if controlled {
-					spent = p.Control.budgetUsed()
-				}
 				env := -1
 				for i, e := range tr.envs {
 					if p.Env == e {
@@ -389,8 +385,8 @@ func TestOperatorsRuleMatchesReference(t *testing.T) {
 				for _, e := range p.recoveredErrors() {
 					errs = append(errs, e.Pos)
 				}
-				return fmt.Sprintf("v=%s ok=%v fatal=%q pos=%d errs=%v env=%d trail=%d frame=%v cut=%v depth=%d spent=%d log=%v",
-					oprShow(UnboxNode(v)), ok, fatalMsg, p.Pos, errs, env, len(p.Trail), p.Frame != nil, p.Cut, p.Depth, spent, tr.log)
+				return fmt.Sprintf("v=%s ok=%v fatal=%q pos=%d errs=%v env=%d trail=%d frame=%v cut=%v depth=%d log=%v",
+					oprShow(UnboxNode(v)), ok, fatalMsg, p.Pos, errs, env, len(p.Trail), p.Frame != nil, p.Cut, p.Depth, tr.log)
 			}
 			got := run(func(p *Parser) (*sxirvalue.Node, bool) { return p.OperatorsRuleParse(r, min) })
 			want := run(func(p *Parser) (*sxirvalue.Node, bool) { return p.refOperatorsRuleParse(r, min) })

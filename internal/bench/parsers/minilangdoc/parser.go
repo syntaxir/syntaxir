@@ -291,7 +291,7 @@ func init() {
 		if tf3 != nil {
 			return nil, tf3
 		}
-		tk4 := c.P.ElemsAbove(tm2)
+		tk4 := c.P.Kids(tm2)
 		tn5 := c.P.ActionHullLogical(c, false, tk4)
 		tf6 := any(tn5)
 		tf7 := c.Cap(2)
@@ -319,7 +319,7 @@ func init() {
 		if tf3 != nil {
 			return nil, tf3
 		}
-		tk4 := c.P.ElemsAbove(tm1)
+		tk4 := c.P.Kids(tm1)
 		tn5 := c.P.ActionHullLogical(c, false, tk4)
 		return any(tn5), nil
 	}
@@ -353,7 +353,7 @@ func init() {
 				if tf2 != nil {
 					return nil, tf2
 				}
-				tk3 := c.P.ElemsAbove(tm1)
+				tk3 := c.P.Kids(tm1)
 				tn4 := c.P.ActionHullLogical(c, false, tk3)
 				tf5 := any(tn4)
 				tn6 := c.ActionStruct("ArrayLit", 1)
@@ -473,7 +473,7 @@ func init() {
 				if tf3 != nil {
 					return nil, tf3
 				}
-				tk4 := c.P.ElemsAbove(tm2)
+				tk4 := c.P.Kids(tm2)
 				tn5 := c.P.ActionHullLogical(c, false, tk4)
 				tf6 := any(tn5)
 				tn7 := c.ActionStruct("Call", 2)
@@ -524,7 +524,7 @@ func init() {
 		if tf3 != nil {
 			return nil, tf3
 		}
-		tk4 := c.P.ElemsAbove(tm1)
+		tk4 := c.P.Kids(tm1)
 		tn5 := c.P.ActionHullLogical(c, false, tk4)
 		return any(tn5), nil
 	}
@@ -588,7 +588,6 @@ func init() {
 	sxirGrammar.NodeTypes["String"] = rt.NewNodeTypeKinds("String")
 	sxirGrammar.Starts = []string{"main"}
 	sxirGrammar.DefaultStart = "main"
-	sxirGrammar.Logical = true
 }
 
 func e1(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {

@@ -86,18 +86,6 @@ func (v *Binary) TField(name string) (any, bool) {
 	return nil, false
 }
 
-func (v *Binary) TFieldSpend(p *rt.TParser, name string) (any, bool) {
-	switch name {
-	case "Left":
-		return rt.TBack(SXIRHooks, v.Left), true
-	case "Op":
-		return rt.TBack(SXIRHooks, v.Op), true
-	case "Right":
-		return rt.TBack(SXIRHooks, v.Right), true
-	}
-	return nil, false
-}
-
 func (v *Binary) TZeroField(c *rt.TActCtx, name string) (any, bool) {
 	switch name {
 	}
@@ -113,16 +101,6 @@ func (v *Unary) TStruct() bool           { return true }
 func (v *Unary) TFresh() bool            { return false }
 func (v *Unary) TSetFresh(bool)          {}
 func (v *Unary) TField(name string) (any, bool) {
-	switch name {
-	case "Op":
-		return rt.TBack(SXIRHooks, v.Op), true
-	case "X":
-		return rt.TBack(SXIRHooks, v.X), true
-	}
-	return nil, false
-}
-
-func (v *Unary) TFieldSpend(p *rt.TParser, name string) (any, bool) {
 	switch name {
 	case "Op":
 		return rt.TBack(SXIRHooks, v.Op), true
@@ -160,7 +138,7 @@ func tb0(v *Number) any {
 // is no named node type. It is for generated parsers.
 var SXIRNodeTypes [2]uint16
 
-// SXIRSchema_c64e72272c66f4eb ties the parser package to this package: the parser refers to it once, so a
+// SXIRSchema_b280c0c28ec75dda ties the parser package to this package: the parser refers to it once, so a
 // parser and a types package generated from different schemas do not compile together.
 // It is for generated parsers; not a stable API.
-const SXIRSchema_c64e72272c66f4eb = 0
+const SXIRSchema_b280c0c28ec75dda = 0

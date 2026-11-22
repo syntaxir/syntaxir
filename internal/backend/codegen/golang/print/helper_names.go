@@ -4,8 +4,8 @@ package print
 // a parser without budget controls and Documents calls instead (the library writes them by hand).
 func ordinaryHelperName(name string) bool {
 	switch name {
-	case "NewNode", "NewTerminal", "NewBranch", "NewMatch", "Expect", "Peek", "HasChar", "MatchLiteral", "MatchLiteralFold", "MatchAny",
-		"AtEnd", "AtLineStart", "AtEndBatch", "AtLineStartBatch", "AtLineEnd", "SpendRead":
+	case "NewNode", "NewTerminal", "NewBranch", "NewMatch", "Peek", "HasChar", "MatchLiteral", "MatchLiteralFold", "MatchAny",
+		"AtEnd", "AtLineStart", "AtEndBatch", "AtLineStartBatch", "AtLineEnd":
 		return true
 	}
 	return false

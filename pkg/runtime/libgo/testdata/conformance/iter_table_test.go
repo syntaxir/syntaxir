@@ -27,29 +27,33 @@ func iterCall(call string, v any, fold func(fn string, right bool, acc, list any
 
 func TestValueIterTable(t *testing.T) {
 	for _, controlled := range []bool{false, true} {
+		// A step of an iteration of the library is no logical event: the code of an action counts each
+		// element that map, filter or a fold visits itself (flowlower.ActionOptions.Visits), which the action
+		// charge goldens check. So the table's steps, which a target whose iteration charges them checks, are
+		// not checked here, and under limit controls the library must count nothing.
 		c, vals := nodeBuiltinFixture(controlled)
-		if err := conform.RunIters("node", controlled, func(call, value string) (string, int) {
+		if err := conform.RunIters("node", false, func(call, value string) (string, int) {
 			var before uint64
 			if controlled {
-				before = c.P.Control.budgetUsed()
+				before = c.P.Units
 			}
 			got := memberRead(func() any { return iterCall(call, vals[value], c.fxFold, c.fxMap, c.fxFilter) }, memberCanon)
-			if controlled {
-				return got, int(c.P.Control.budgetUsed() - before)
+			if units := c.P.Units - before; controlled && units != 0 {
+				t.Errorf("node: %s(%s): counted %d units, want 0", call, value, units)
 			}
 			return got, 0
 		}); err != nil {
 			t.Errorf("controlled=%v: %v", controlled, err)
 		}
 		tc, tvals := typedBuiltinFixture(controlled)
-		if err := conform.RunIters("typed", controlled, func(call, value string) (string, int) {
+		if err := conform.RunIters("typed", false, func(call, value string) (string, int) {
 			var before uint64
 			if controlled {
-				before = tc.P.Control.budgetUsed()
+				before = tc.P.Units
 			}
 			got := memberRead(func() any { return iterCall(call, tvals[value], tc.fxFold, tc.fxMap, tc.fxFilter) }, tmemberCanon)
-			if controlled {
-				return got, int(tc.P.Control.budgetUsed() - before)
+			if units := tc.P.Units - before; controlled && units != 0 {
+				t.Errorf("typed: %s(%s): counted %d units, want 0", call, value, units)
 			}
 			return got, 0
 		}); err != nil {

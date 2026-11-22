@@ -14,7 +14,7 @@ import (
 // coldModule returns a module with the function f named name, which returns early when pos is
 // negative and otherwise sets the local n and calls the operation o.
 func coldModule(name string, features []string, body func(b *code.Builder)) (*code.Module, *code.Func) {
-	m := code.NewModule("t", exec.Budget)
+	m := code.NewModule("t", exec.Units)
 	m.AddComponent("c", "")
 	m.AddOp(&code.Op{Name: "o", Component: "c", Params: []code.Param{code.P("n", code.TInt)}, Contract: "Does nothing.", Kind: code.OpPrimitive})
 	f := m.AddFunc(name, []code.Param{code.P("pos", code.TInt)}, nil, features, body)
@@ -64,11 +64,13 @@ func TestColdPathSplitsTheGuard(t *testing.T) {
 }
 
 func TestColdPathLeavesOtherForms(t *testing.T) {
-	// A function that is not listed, and the form of a listed one with the budget, stay as they are.
+	// A function that is not listed stays as it is; every form of a listed one is split, the form that
+	// counts compute units among them, since no form charges inside the record.
 	for _, c := range []struct {
 		name     string
 		features []string
-	}{{"other", nil}, {"expect", []string{exec.Budget}}} {
+		split    bool
+	}{{"other", nil, false}, {"expect", []string{exec.Units}, true}} {
 		m, f := coldModule(c.name, c.features, func(b *code.Builder) {
 			b.If(code.Lt(code.L("pos"), code.Int(0)), func(b *code.Builder) { b.Return() })
 			b.Do("o", code.L("pos"))
@@ -77,8 +79,8 @@ func TestColdPathLeavesOtherForms(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(l.Module.Funcs) != 1 || len(l.Func.Body.Stmts) != 2 {
-			t.Errorf("%s %v was split", c.name, c.features)
+		if split := len(l.Module.Funcs) != 1 || len(l.Func.Body.Stmts) != 2; split != c.split {
+			t.Errorf("%s %v: split %v, want %v", c.name, c.features, split, c.split)
 		}
 	}
 }

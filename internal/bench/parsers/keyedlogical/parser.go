@@ -276,17 +276,13 @@ type tslabs struct {
 func (a *tslabs) SetBudgetControl(c *rt.BudgetControl) { a.control = c }
 
 func (a *tslabs) spend() {
-	if a.control == nil {
+	if a.control == nil || !a.result {
 		return
 	}
-	if a.result {
-		a.steps++
-		if a.steps%256 == 0 {
-			a.control.Check()
-		}
-		return
+	a.steps++
+	if a.steps%256 == 0 {
+		a.control.Check()
 	}
-	a.control.Charge(1)
 }
 
 func (a *tslabs) MemoryBytes() uint64 {
@@ -386,7 +382,6 @@ func init() {
 	rules[4].Body = e15
 	sxirGrammar.Starts = []string{"doc"}
 	sxirGrammar.DefaultStart = "doc"
-	sxirGrammar.Logical = true
 	sxirGrammar.SetVars([]string{"k"}, []any{""})
 	sxirGrammar.SetRunKey(1, []int{0}, nil)
 	trules = rt.NewTRules(rules)
@@ -424,7 +419,7 @@ func e2(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	v10 = p.NewBranchOrdinary(rt.ListKind, x3, p.Kids(x4))
 	x2 = append(x2, v10)
 	if !p.AtEndBatchOrdinary() {
-		p.ExpectOrdinary(p.Pos, rt.IdEndInput)
+		p.Expect(p.Pos, rt.IdEndInput)
 		goto fail
 	}
 	v11 = p.NewBranchOrdinary(rt.SeqKind, x1, x2)
@@ -552,7 +547,7 @@ func e10(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	var ok bool
 	x1 = p.Mark()
 	if !p.HasCharOrdinary(97, false) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 8)
+		p.Expect(p.Pos, 8)
 		p.SkipCall(rules[4], 8)
 		goto L4
 	}
@@ -579,7 +574,7 @@ L5:
 	p.Reset(x1)
 L4:
 	if !p.HasCharOrdinary(99, false) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 10)
+		p.Expect(p.Pos, 10)
 		goto L13
 	}
 	x15 = p.Pos
@@ -610,7 +605,7 @@ func e13(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	var ok bool
 	x1 = p.Mark()
 	if !p.HasCharOrdinary(97, false) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 8)
+		p.Expect(p.Pos, 8)
 		p.SkipCall(rules[4], 8)
 		goto L4
 	}
@@ -637,7 +632,7 @@ L5:
 	p.Reset(x1)
 L4:
 	if !p.HasCharOrdinary(98, false) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 12)
+		p.Expect(p.Pos, 12)
 		goto L13
 	}
 	x15 = p.Pos
@@ -710,7 +705,7 @@ func e16(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		x4 = p.Mark()
 		ch, size, ok = p.NextOrdinary()
 		if !ok || !(ch >= 97 && ch <= 122) {
-			p.ExpectOrdinary(p.Pos, 13)
+			p.Expect(p.Pos, 13)
 			goto L5
 		}
 		x6 = p.Pos
@@ -752,7 +747,7 @@ func e17(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		x4 = p.Mark()
 		ch, size, ok = p.NextOrdinary()
 		if !ok || !(ch >= 97 && ch <= 122) {
-			p.ExpectOrdinary(p.Pos, 13)
+			p.Expect(p.Pos, 13)
 			goto L5
 		}
 		x6 = p.Pos
@@ -875,7 +870,7 @@ func s0(p *rt.TParser) (any, bool) {
 	v10 = p.NewNodeOrdinary("list", x3, p.Pos, p.Kids(x4))
 	x2 = append(x2, v10)
 	if !p.AtEndBatchOrdinary() {
-		p.ExpectOrdinary(p.Pos, rt.IdEndInput)
+		p.Expect(p.Pos, rt.IdEndInput)
 		goto fail
 	}
 	v11 = p.NewNodeOrdinary("tuple", x1, p.Pos, x2)
@@ -1029,7 +1024,7 @@ func s2(p *rt.TParser) (any, bool) {
 	start = p.Pos
 	x1 = p.Pos
 	if !p.HasCharOrdinary(97, false) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 8)
+		p.Expect(p.Pos, 8)
 		p.SkipCall(rules[4], 8)
 		goto L4
 	}
@@ -1056,7 +1051,7 @@ L5:
 	p.Pos = x1
 L4:
 	if !p.HasCharOrdinary(99, false) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 10)
+		p.Expect(p.Pos, 10)
 		goto L13
 	}
 	x15 = p.Pos
@@ -1093,7 +1088,7 @@ func s3(p *rt.TParser) (any, bool) {
 	start = p.Pos
 	x1 = p.Pos
 	if !p.HasCharOrdinary(97, false) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 8)
+		p.Expect(p.Pos, 8)
 		p.SkipCall(rules[4], 8)
 		goto L4
 	}
@@ -1120,7 +1115,7 @@ L5:
 	p.Pos = x1
 L4:
 	if !p.HasCharOrdinary(98, false) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 12)
+		p.Expect(p.Pos, 12)
 		goto L13
 	}
 	x15 = p.Pos
@@ -1215,7 +1210,7 @@ func s5(p *rt.TParser) (any, bool) {
 		x4 = p.Pos
 		ch, size, ok = p.NextOrdinary()
 		if !ok || !(ch >= 97 && ch <= 122) {
-			p.ExpectOrdinary(p.Pos, 13)
+			p.Expect(p.Pos, 13)
 			goto L5
 		}
 		x6 = p.Pos
@@ -1263,7 +1258,7 @@ func s6(p *rt.TParser) (any, bool) {
 		x4 = p.Pos
 		ch, size, ok = p.NextOrdinary()
 		if !ok || !(ch >= 97 && ch <= 122) {
-			p.ExpectOrdinary(p.Pos, 13)
+			p.Expect(p.Pos, 13)
 			goto L5
 		}
 		x6 = p.Pos

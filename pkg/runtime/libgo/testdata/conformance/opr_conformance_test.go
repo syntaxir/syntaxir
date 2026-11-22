@@ -203,7 +203,7 @@ func newOprMachine(cfg ref.Config, typed, controlled bool) conform.Impl {
 	}
 	m.binder = conform.Binder{Methods: methods, Conv: oprConv{m}}
 	if controlled {
-		m.used = func() uint64 { return m.p.Control.budgetUsed() }
+		m.used = func() uint64 { return m.p.Units }
 		return meteredOpr{m}
 	}
 	return m

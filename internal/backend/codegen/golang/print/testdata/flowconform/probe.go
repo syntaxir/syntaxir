@@ -12,7 +12,9 @@ import (
 )
 
 // ConfEvent is a call of a primitive operation. K identifies the call in the generated code; Used
-// counts the units of budget charged, and Nested those charged by the probed calls inside the call.
+// counts the units of budget charged, and Nested those charged by the probed calls inside the call. No
+// parser charges budget any more: the logical compute units are not attributed to the operations, and the
+// bench package checks them against a reference that counts each event.
 type ConfEvent struct {
 	// ArgFrameSet reports that a frame argument has a value set in one of its slots.
 	ArgFrameSet         bool
@@ -129,11 +131,6 @@ func confState(p any) (s confSnap) {
 		}
 	default:
 		panic(fmt.Sprintf("probe: parser %T", p))
-	}
-	if q.Control != nil {
-		// The units that count against the limit: the work that only a Document does is not counted
-		// under its default limit (BudgetControl.doc).
-		s.used = q.Control.budgetUsed() - q.Control.doc
 	}
 	if q.Stream != nil && q.Stream.Emit != nil {
 		s.streaming = true

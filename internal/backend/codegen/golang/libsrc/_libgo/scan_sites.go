@@ -78,7 +78,6 @@ func (p *Parser) ScanReach(site, start, count int) int {
 	if !w.hot {
 		return count
 	}
-	p.Spend()
 	var rec scanRecord
 	ok := false
 	if site < len(p.scanTables) {
@@ -91,7 +90,6 @@ func (p *Parser) ScanReach(site, start, count int) int {
 		}
 		return count
 	}
-	p.Spend()
 	w.hit, w.rec = true, rec
 	p.Pos = rec.end
 	p.documentTouch(rec.examined)
@@ -177,7 +175,6 @@ func (p *TParser) ScanKids(site, start, base, count int) []any {
 
 // scanStore records the walk of the site that began at start, charging one step.
 func (p *Parser) scanStore(site, start int, rec scanRecord) {
-	p.Spend()
 	if site >= len(p.scanTables) {
 		p.scanTables = append(p.scanTables, make([]map[int]scanRecord, site+1-len(p.scanTables))...)
 	}

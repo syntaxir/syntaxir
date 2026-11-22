@@ -15,10 +15,14 @@ import (
 
 func TestValueHullTable(t *testing.T) {
 	for _, controlled := range []bool{false, true} {
+		// The library's ActionHull counts no unit: the code of an action counts the elements of a hull
+		// itself (HULL), which the action charge goldens check. So the table's steps, which a target whose
+		// hull charges them checks, are not checked here, and under limit controls the library must count
+		// nothing.
 		c, vals := nodeBuiltinFixture(controlled)
 		vals[conform.StructLate] = nodeOfData(&Data{Kind: MatchKind, Terminal: true, Text: "q", Start: 7, End: 9})
 		c.start, c.end = conform.StructRuleStart, conform.StructRuleEnd
-		if err := conform.RunHulls("node", controlled, func(kind string, elems []string) (string, int) {
+		if err := conform.RunHulls("node", false, func(kind string, elems []string) (string, int) {
 			var n *sxirvalue.Node
 			if kind == "tuple" {
 				var args []any
@@ -38,11 +42,11 @@ func TestValueHullTable(t *testing.T) {
 			rng := fmt.Sprintf("%d-%d", D(n).Start, D(n).End)
 			var before uint64
 			if controlled {
-				before = c.P.Control.budgetUsed()
+				before = c.P.Units
 			}
 			c.P.ActionHull(c, kind == "tuple", D(n).Children)
-			if controlled {
-				return rng, int(c.P.Control.budgetUsed() - before)
+			if units := c.P.Units - before; controlled && units != 0 {
+				t.Errorf("node: %s(%v): counted %d units, want 0", kind, elems, units)
 			}
 			return rng, 0
 		}); err != nil {
@@ -51,7 +55,7 @@ func TestValueHullTable(t *testing.T) {
 		tc, tvals := typedBuiltinFixture(controlled)
 		tvals[conform.StructLate] = &TMatch{TNode: TNode[string]{Span: sxirinput.Span{Start: 7, End: 9}, Value: "q"}}
 		tc.Start, tc.End = conform.StructRuleStart, conform.StructRuleEnd
-		if err := conform.RunHulls("typed", controlled, func(kind string, elems []string) (string, int) {
+		if err := conform.RunHulls("typed", false, func(kind string, elems []string) (string, int) {
 			var args []any
 			for _, e := range elems {
 				args = append(args, tvals[e])
@@ -65,11 +69,11 @@ func TestValueHullTable(t *testing.T) {
 			rng := fmt.Sprintf("%d-%d", n.Start, n.End)
 			var before uint64
 			if controlled {
-				before = tc.P.Control.budgetUsed()
+				before = tc.P.Units
 			}
 			tc.P.ActionHull(tc, kind == "tuple", n.Kids)
-			if controlled {
-				return rng, int(tc.P.Control.budgetUsed() - before)
+			if units := tc.P.Units - before; controlled && units != 0 {
+				t.Errorf("typed: %s(%v): counted %d units, want 0", kind, elems, units)
 			}
 			return rng, 0
 		}); err != nil {

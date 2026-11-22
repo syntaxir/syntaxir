@@ -98,17 +98,13 @@ type tslabs struct {
 func (a *tslabs) SetBudgetControl(c *rt.BudgetControl) { a.control = c }
 
 func (a *tslabs) spend() {
-	if a.control == nil {
+	if a.control == nil || !a.result {
 		return
 	}
-	if a.result {
-		a.steps++
-		if a.steps%256 == 0 {
-			a.control.Check()
-		}
-		return
+	a.steps++
+	if a.steps%256 == 0 {
+		a.control.Check()
 	}
-	a.control.Charge(1)
 }
 
 func (a *tslabs) MemoryBytes() uint64 { return a.tItem.MemoryBytes() + a.tl0Chunk.MemoryBytes() }
@@ -237,7 +233,7 @@ func init() {
 		if tf3 != nil {
 			return nil, tf3
 		}
-		tk4 := c.P.ElemsAbove(tm2)
+		tk4 := c.P.Kids(tm2)
 		tn5 := c.P.ActionHullLogical(c, false, tk4)
 		tf6 := any(tn5)
 		tn7 := c.ActionStruct("Item", 2)
@@ -263,8 +259,6 @@ func init() {
 	recRules[3].Body = e19
 	sxirGrammar.Starts = []string{"main"}
 	sxirGrammar.DefaultStart = "main"
-	sxirGrammar.Logical = true
-	sxirRecGrammar.Logical = true
 	sxirGrammar.SetVars([]string{"indent"}, []any{0})
 	sxirGrammar.SetRunKey(1, []int{0}, nil)
 	sxirRecGrammar.Share(sxirGrammar)
@@ -304,7 +298,7 @@ func e1(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		break
 	}
 	if !p.AtEndBatchOrdinary() {
-		p.ExpectOrdinary(p.Pos, rt.IdEndInput)
+		p.Expect(p.Pos, rt.IdEndInput)
 		goto fail
 	}
 	return nil, true
@@ -581,7 +575,7 @@ func e8(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		}
 		ch, size, ok = p.NextOrdinary()
 		if !ok || (ch == 10) {
-			p.ExpectOrdinary(p.Pos, 6)
+			p.Expect(p.Pos, 6)
 			break
 		}
 		p.Pos += size
@@ -652,7 +646,7 @@ func r8(p *rt.Parser) (*sxirvalue.Node, bool) {
 		}
 		ch, size, ok = p.NextOrdinary()
 		if !ok || !(ch == 32 || ch == 9) {
-			p.ExpectOrdinary(p.Pos, 8)
+			p.Expect(p.Pos, 8)
 			break
 		}
 		p.Pos += size
@@ -686,7 +680,7 @@ func r9(p *rt.Parser) (*sxirvalue.Node, bool) {
 	start = p.Pos
 	x1 = p.Pos
 	if !p.HasCharOrdinary(10, false) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 7)
+		p.Expect(p.Pos, 7)
 		goto L3
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 10 {
@@ -700,7 +694,7 @@ L4:
 	p.Pos = x1
 L3:
 	if !p.AtEndBatchOrdinary() {
-		p.ExpectOrdinary(p.Pos, rt.IdEndInput)
+		p.Expect(p.Pos, rt.IdEndInput)
 		goto L5
 	}
 	goto L2
@@ -743,7 +737,7 @@ func e15(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		break
 	}
 	if !p.AtEndBatchOrdinary() {
-		p.ExpectOrdinary(p.Pos, rt.IdEndInput)
+		p.Expect(p.Pos, rt.IdEndInput)
 		goto fail
 	}
 	return nil, true
@@ -1001,7 +995,7 @@ func q5(p *rt.Parser) (*sxirvalue.Node, bool) {
 		}
 		ch, size, ok = p.NextOrdinary()
 		if !ok || (ch == 10) {
-			p.ExpectOrdinary(p.Pos, 6)
+			p.Expect(p.Pos, 6)
 			break
 		}
 		p.Pos += size
@@ -1032,7 +1026,7 @@ func q6(p *rt.Parser) (*sxirvalue.Node, bool) {
 	start = p.Pos
 	x1 = p.Pos
 	if !p.HasCharOrdinary(10, false) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 7)
+		p.Expect(p.Pos, 7)
 		goto L3
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 10 {
@@ -1046,7 +1040,7 @@ L4:
 	p.Pos = x1
 L3:
 	if !p.AtEndBatchOrdinary() {
-		p.ExpectOrdinary(p.Pos, rt.IdEndInput)
+		p.Expect(p.Pos, rt.IdEndInput)
 		goto L5
 	}
 	goto L2
@@ -1076,7 +1070,7 @@ func q7(p *rt.Parser) (*sxirvalue.Node, bool) {
 		}
 		ch, size, ok = p.NextOrdinary()
 		if !ok || !(ch == 32 || ch == 9) {
-			p.ExpectOrdinary(p.Pos, 8)
+			p.Expect(p.Pos, 8)
 			break
 		}
 		p.Pos += size
@@ -1149,7 +1143,7 @@ func i0(p *rt.TParser) (any, bool) {
 		break
 	}
 	if !p.AtEndBatchOrdinary() {
-		p.ExpectOrdinary(p.Pos, rt.IdEndInput)
+		p.Expect(p.Pos, rt.IdEndInput)
 		goto fail
 	}
 	c = p.UseCtx(rt.TActCtx{P: p, Start: start, End: p.Pos, Cbase: len(p.Created)})
@@ -1344,7 +1338,7 @@ L12:
 			if tf2 != nil {
 				c.ActionRaise(tf2)
 			}
-			tk3 := c.P.ElemsAbove(tm1)
+			tk3 := c.P.Kids(tm1)
 			tn4 := c.P.ActionHullLogical(c, false, tk3)
 			tv5 := tmk_Item(c, true, k4, any(tn4))
 			tr16 = tv5
@@ -1543,7 +1537,7 @@ func s5(p *rt.TParser) (any, bool) {
 		}
 		ch, size, ok = p.NextOrdinary()
 		if !ok || (ch == 10) {
-			p.ExpectOrdinary(p.Pos, 6)
+			p.Expect(p.Pos, 6)
 			break
 		}
 		p.Pos += size
@@ -1585,7 +1579,7 @@ func s8(p *rt.TParser) (any, bool) {
 		}
 		ch, size, ok = p.NextOrdinary()
 		if !ok || !(ch == 32 || ch == 9) {
-			p.ExpectOrdinary(p.Pos, 8)
+			p.Expect(p.Pos, 8)
 			break
 		}
 		p.Pos += size
@@ -1619,7 +1613,7 @@ func s9(p *rt.TParser) (any, bool) {
 	start = p.Pos
 	x1 = p.Pos
 	if !p.HasCharOrdinary(10, false) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 7)
+		p.Expect(p.Pos, 7)
 		goto L3
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 10 {
@@ -1633,7 +1627,7 @@ L4:
 	p.Pos = x1
 L3:
 	if !p.AtEndBatchOrdinary() {
-		p.ExpectOrdinary(p.Pos, rt.IdEndInput)
+		p.Expect(p.Pos, rt.IdEndInput)
 		goto L5
 	}
 	goto L2
@@ -1648,6 +1642,6 @@ fail:
 	return nil, false
 }
 
-const _ = types.SXIRSchema_76489818d528063f
+const _ = types.SXIRSchema_a3280f9c5ffc67cf
 
 const _ = rt.Protocol32

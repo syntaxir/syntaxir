@@ -564,7 +564,6 @@ func (p *Parser) ActionHull(c *ActCtx, tuple bool, kids []*sxirvalue.Node) *sxir
 	first := true
 	count := len(kids)
 	for j = 0; j < count; j++ {
-		p.Spend()
 		es, ee, has := elemSpan(kids[j])
 		if has {
 			if first || es < lo {
@@ -718,7 +717,6 @@ func (p *Parser) actionElemsConform(t *FieldType, items []*sxirvalue.Node) bool 
 	}
 	count := len(items)
 	for j = 0; j < count; j++ {
-		p.Spend()
 		if !p.ActionConforms(t, UnboxNode(items[j])) {
 			return false
 		}
@@ -737,7 +735,6 @@ func (p *Parser) actionTupleConform(t *FieldType, items []*sxirvalue.Node) bool 
 		return false
 	}
 	for j = 0; j < count; j++ {
-		p.Spend()
 		if !p.ActionConforms(t.Alts[j], UnboxNode(items[j])) {
 			return false
 		}
@@ -1141,7 +1138,6 @@ func (p *TParser) ActionHull(c *TActCtx, tuple bool, kids []any) TVal {
 	first := true
 	count := len(kids)
 	for j = 0; j < count; j++ {
-		p.Spend()
 		es, ee, has := c.elemSpan(kids[j])
 		if has {
 			if first || es < lo {
@@ -1295,7 +1291,6 @@ func (p *TParser) actionElemsConform(t *FieldType, items []any) bool {
 	}
 	count := len(items)
 	for j = 0; j < count; j++ {
-		p.Spend()
 		if !p.ActionConforms(t, items[j]) {
 			return false
 		}
@@ -1314,7 +1309,6 @@ func (p *TParser) actionTupleConform(t *FieldType, items []any) bool {
 		return false
 	}
 	for j = 0; j < count; j++ {
-		p.Spend()
 		if !p.ActionConforms(t.Alts[j], items[j]) {
 			return false
 		}

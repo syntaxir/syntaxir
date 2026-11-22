@@ -12,7 +12,7 @@ import (
 // library keeps a struct's lists and tuples as Go slices and tuple structs, which have no range, so a struct
 // of a parser that runs the typed library keeps the ranges of the lists and tuples of each field that some
 // action reads in an unexported field next to it (sxirr_Field), written where the constructor converts the
-// value (tmk_) and read back where the field is read (TField, TFieldSpend). A field holds
+// value (tmk_) and read back where the field is read (TField). A field holds
 //
 //   - no range unless it is read and its type is a list or a tuple (rangeNone);
 //   - the one range of its list or tuple if no element is a list or a tuple (rangeOne);
@@ -111,9 +111,9 @@ func (t *TypedGen) hasRanges(name string) bool {
 }
 
 // readField returns the Go expression that reads the field name of type x of the struct v (a Go expression
-// of the struct), as a value of the typed library: back, or backSpend if spend, and with the ranges that the
-// struct keeps for it if it keeps any.
-func (t *TypedGen) readField(name string, x types.Ty, v string, spend bool) string {
+// of the struct), as a value of the typed library: back, with the ranges that the struct keeps for it if it
+// keeps any.
+func (t *TypedGen) readField(name string, x types.Ty, v string) string {
 	expr := "v." + t.fieldGo(name)
 	var cursor string
 	switch t.rangeKind(name, x) {
@@ -122,35 +122,21 @@ func (t *TypedGen) readField(name string, x types.Ty, v string, spend bool) stri
 	case rangeAll:
 		cursor = fmt.Sprintf("All: v.%s", t.rangeField(name))
 	default:
-		if spend {
-			return t.backSpend(x, expr)
-		}
 		return t.back(x, expr)
 	}
-	return fmt.Sprintf("func() any { zc := &sxirRangeCursor{%s}; return %s }()", cursor, t.backRanged(x, expr, "zc", spend))
+	return fmt.Sprintf("func() any { zc := &sxirRangeCursor{%s}; return %s }()", cursor, t.backRanged(x, expr, "zc"))
 }
 
-// backRanged is back (backSpend if spend) for a list or a tuple whose range, and the range of each list and
+// backRanged is back for a list or a tuple whose range, and the range of each list and
 // tuple in it, the cursor cur (a Go expression of type *sxirRangeCursor) hands out, a list or tuple before its
 // elements.
-func (t *TypedGen) backRanged(x types.Ty, v, cur string, spend bool) string {
+func (t *TypedGen) backRanged(x types.Ty, v, cur string) string {
 	switch x := x.(type) {
 	case types.ListTy:
-		step, elem := "", ""
-		if spend {
-			step = strings.ReplaceAll(t.G.step("p"), "\n", "; ")
-		}
-		elem = t.backRanged(x.Elem, "x", cur, spend)
-		done := "sxirListAt(kids, sp)"
-		if spend {
-			done = "sxirListFieldAt(p, kids, sp)"
-		}
-		return fmt.Sprintf("func() any { if %[1]s == nil { return nil }; sp := %[2]s.Next(); kids := make([]any, len(%[1]s)); for i, x := range %[1]s { %[3]skids[i] = %[4]s }; return %[5]s }()", v, cur, step, elem, done)
+		elem := t.backRanged(x.Elem, "x", cur)
+		return fmt.Sprintf("func() any { if %[1]s == nil { return nil }; sp := %[2]s.Next(); kids := make([]any, len(%[1]s)); for i, x := range %[1]s { kids[i] = %[3]s }; return sxirListAt(kids, sp) }()", v, cur, elem)
 	case types.TupleTy:
 		return t.backRangedHelper(x) + "(" + v + ", " + cur + ")"
-	}
-	if spend {
-		return t.backSpend(x, v)
 	}
 	return t.back(x, v)
 }
@@ -169,7 +155,7 @@ func (t *TypedGen) rangedHelper(b *strings.Builder, h vhelper) {
 		if i > 0 {
 			b.WriteString(", ")
 		}
-		b.WriteString(t.backRanged(e, fmt.Sprintf("v.E%d", i), "zc", false))
+		b.WriteString(t.backRanged(e, fmt.Sprintf("v.E%d", i), "zc"))
 	}
 	b.WriteString("}}\n}\n\n")
 }
@@ -279,13 +265,6 @@ func (c *sxirRangeCursor) Next() sxirinput.Span {
 // sxirListAt returns the list value of kids with the range r that the list had where it was made.
 func sxirListAt(kids []any, r sxirinput.Span) any {
 	return &rt.TSeq{Typ: rt.TypeListValue, Kids: kids, Span: r}
-}
-
-// sxirListFieldAt is sxirListAt that charges a step for each element (TParser.ListField).
-func sxirListFieldAt(p *rt.TParser, kids []any, r sxirinput.Span) any {
-	n := p.ListField(kids).(*rt.TSeq)
-	n.Span = r
-	return n
 }
 
 `)

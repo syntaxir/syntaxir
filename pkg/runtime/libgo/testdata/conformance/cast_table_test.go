@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
-	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 	"syntaxir.dev/sxir/pkg/runtime/value/impl"
@@ -121,34 +120,37 @@ func TestValueCastTable(t *testing.T) {
 		p := &Parser{g: g}
 		tp := &Parser{}
 		if controlled {
-			p.Control = newBudgetControl(t.Context(), sxirruntime.Limits{Compute: 1 << 62})
-			tp.Control = newBudgetControl(t.Context(), sxirruntime.Limits{Compute: 1 << 62})
+			conformUnits(p, 0)
+			conformUnits(tp, 0)
 		}
 		c := &ActCtx{P: p}
-		if err := conform.RunCasts("node", controlled, func(typ *conform.CastType, v conform.CastValue) (bool, int) {
+		// A cast is no logical event, so the library counts no unit for it. The table's steps, which a
+		// target whose cast charges them checks, are not checked here, and under limit controls the cast
+		// must count nothing.
+		if err := conform.RunCasts("node", false, func(typ *conform.CastType, v conform.CastValue) (bool, int) {
 			val := nodeCastValue(c, v)
 			var before uint64
 			if controlled {
-				before = p.Control.budgetUsed()
+				before = p.Units
 			}
 			ok := p.ActionConforms(castFieldType(typ), val)
-			if controlled {
-				return ok, int(p.Control.budgetUsed() - before)
+			if units := p.Units - before; controlled && units != 0 {
+				t.Errorf("node: %+v is of kind %q: counted %d units, want 0", v, typ.Kind, units)
 			}
 			return ok, 0
 		}); err != nil {
 			t.Errorf("controlled=%v: %v", controlled, err)
 		}
 		tparser := &TParser{Parser: tp}
-		if err := conform.RunCasts("typed", controlled, func(typ *conform.CastType, v conform.CastValue) (bool, int) {
+		if err := conform.RunCasts("typed", false, func(typ *conform.CastType, v conform.CastValue) (bool, int) {
 			val := typedCastValue(v)
 			var before uint64
 			if controlled {
-				before = tp.Control.budgetUsed()
+				before = tp.Units
 			}
 			ok := tparser.ActionConforms(castFieldType(typ), val)
-			if controlled {
-				return ok, int(tp.Control.budgetUsed() - before)
+			if units := tp.Units - before; controlled && units != 0 {
+				t.Errorf("typed: %+v is of kind %q: counted %d units, want 0", v, typ.Kind, units)
 			}
 			return ok, 0
 		}); err != nil {

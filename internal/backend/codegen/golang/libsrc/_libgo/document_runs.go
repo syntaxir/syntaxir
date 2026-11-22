@@ -148,7 +148,6 @@ func (p *Parser) moveRunValue(v *sxirvalue.Node, shift int32) *sxirvalue.Node {
 	if v == nil {
 		return nil
 	}
-	defer p.Control.FreeEnd(p.Control.FreeBegin(true))
 	n, ok := p.moveCopy(v, shift)
 	if !ok {
 		// The values of the node runtime are nodes and basic values, which always move.

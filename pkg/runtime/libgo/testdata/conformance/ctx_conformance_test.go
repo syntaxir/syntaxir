@@ -37,7 +37,7 @@ type growBox struct{ g growState }
 
 type meteredCtx struct{ *ctxMachine }
 
-func (m meteredCtx) Used() uint64 { return m.p.Control.budgetUsed() }
+func (m meteredCtx) Used() uint64 { return m.p.Units }
 
 func newCtxMachine(cfg ref.Config, controlled bool) conform.Impl {
 	var em *expMachine
@@ -97,10 +97,9 @@ func (m *ctxMachine) Call(o *code.Op, args []any) []any {
 		p.Silent = int(silent)
 	}
 	if strings.HasPrefix(o.Name, "test.") && o.Name != conform.OprNodeOp && slices.Contains(conform.CtxTestOps, o.Name) {
-		// The conformance operations charge nothing.
-		control := p.Control
-		p.Control = nil
-		defer func() { p.Control = control }()
+		// The conformance operations count no unit.
+		units := p.Units
+		defer func() { p.Units = units }()
 		m.testOp(o.Name, args)
 		return nil
 	}
@@ -201,8 +200,9 @@ func (c ctxConv) FromImpl(v reflect.Value) (any, bool) {
 	return nil, false
 }
 
-// ctxExact are the operations of the growth whose charges the model states to the unit.
-var ctxExact = []string{"grow.begin", "grow.adopt"}
+// ctxFree are the operations of the growth that count no compute unit: the composition counts each
+// step it evaluates (spec/runtime/parsing.md#compute-units).
+var ctxFree = []string{"grow.begin", "grow.adopt"}
 
 // ctxSuites are the suites of the library's dependency memo, with and without charge controls.
 func ctxSuites() []conform.Suite {
@@ -215,10 +215,10 @@ func ctxSuites() []conform.Suite {
 			names = append(names, rtBudgetOps...)
 		}
 		suites = append(suites, conform.Suite{
-			Name:  fmt.Sprintf("runtime ctx (controlled=%v)", controlled),
-			Ops:   names,
-			New:   func(c ref.Config) conform.Impl { return newCtxMachine(c, controlled) },
-			Exact: ctxExact,
+			Name: fmt.Sprintf("runtime ctx (controlled=%v)", controlled),
+			Ops:  names,
+			New:  func(c ref.Config) conform.Impl { return newCtxMachine(c, controlled) },
+			Free: ctxFree,
 		})
 	}
 	return suites
@@ -294,8 +294,8 @@ func TestExecConformanceCtxDetectsBrokenLib(t *testing.T) {
 	}
 }
 
-// chargedCtx is the library with charge controls whose operation op charges one unit less or more than
-// it does.
+// chargedCtx is the library with limit controls whose operation op counts no unit while it runs, or one
+// unit more than it does.
 type chargedCtx struct {
 	meteredCtx
 	op   string
@@ -308,27 +308,30 @@ func (c chargedCtx) Call(o *code.Op, args []any) []any {
 	}
 	p := c.p
 	if c.more {
-		defer p.Spend()
+		defer p.unitsSized(1)
 	} else {
-		control := p.Control
-		p.Control = nil
-		defer func() { p.Control = control }()
+		on := p.units.on
+		p.units.on = false
+		defer func() { p.units.on = on }()
 	}
 	return c.meteredCtx.Call(o, args)
 }
 
-// TestExecConformanceCtxDetectsCharges is the negative control of the charges of the growth: the
-// library with grow.begin or grow.adopt charging no unit, or one more, fails the controlled suite.
+// TestExecConformanceCtxDetectsCharges is the negative control of the units of the growth: the library
+// with grow.begin or grow.adopt counting a unit fails the controlled suite, and the one that counts none
+// while they run passes it.
 func TestExecConformanceCtxDetectsCharges(t *testing.T) {
-	for _, op := range ctxExact {
+	for _, op := range ctxFree {
 		for _, more := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%s more=%v", op, more), func(t *testing.T) {
 				s := ctxSuites()[1]
 				s.New = func(c ref.Config) conform.Impl {
 					return chargedCtx{newCtxMachine(c, true).(meteredCtx), op, more}
 				}
-				if fails, _ := ctxConformanceFailures(s, 60, 250); len(fails) == 0 {
-					t.Fatal("no case detected the charges")
+				// The operations count nothing, so the variant that counts nothing while they run is the
+				// library itself.
+				if fails, _ := ctxConformanceFailures(s, 60, 250); more == (len(fails) == 0) {
+					t.Fatalf("more=%v: %d failures", more, len(fails))
 				}
 			})
 		}

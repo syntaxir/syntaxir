@@ -21,7 +21,7 @@ import (
 //     the stacks and chunks it would take from a pooled parser empty, so the count does not depend
 //     on what the parser was used for before.
 //
-// The check runs at the compute polls of the control and at its explicit checkpoints, so the count
+// The check runs at the observations of the units counter and at the explicit checkpoints, so the count
 // can pass the limit by what one poll interval allocates. Storage dropped by backtracking is never
 // returned; a stream returns what its commits let go of, except what memo entries and skip
 // records may still hold, which it returns or recounts when it prunes the memo: the nodes, text and

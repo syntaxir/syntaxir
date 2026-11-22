@@ -1,11 +1,9 @@
 package libgo
 
 import (
-	"context"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
-	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 	"syntaxir.dev/sxir/pkg/runtime/value/impl"
@@ -24,7 +22,7 @@ func nodeBuiltinFixture(controlled bool) (*ActCtx, map[string]any) {
 	}
 	p := &Parser{g: g, unit: sxirinput.Bytes, bs: conform.BuiltinInput}
 	if controlled {
-		p.Control = newBudgetControl(context.Background(), sxirruntime.Limits{Compute: 1 << 62})
+		conformUnits(p, 0)
 	}
 	c := &ActCtx{P: p}
 	text := nodeOfData(&Data{Kind: MatchKind, Terminal: true, Text: "xyz", Start: 2, End: 4})
@@ -49,7 +47,7 @@ func nodeBuiltinFixture(controlled bool) (*ActCtx, map[string]any) {
 func typedBuiltinFixture(controlled bool) (*TActCtx, map[string]any) {
 	p := &Parser{unit: sxirinput.Bytes, bs: conform.BuiltinInput}
 	if controlled {
-		p.Control = newBudgetControl(context.Background(), sxirruntime.Limits{Compute: 1 << 62})
+		conformUnits(p, 0)
 	}
 	c := &TActCtx{P: &TParser{Parser: p}}
 	text := &TMatch{TNode: TNode[string]{Span: sxirinput.Span{Start: 2, End: 4}, Value: "xyz"}}

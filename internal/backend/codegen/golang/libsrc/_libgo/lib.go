@@ -339,8 +339,6 @@ type grammar struct {
 	// NoBudgetControls reports that the parser was generated without limit controls, so that a parse
 	// asking for them fails.
 	NoBudgetControls bool
-	// Logical reports a parser generated with logical compute units (units.go).
-	Logical bool
 	// MaxDepth is the default maximum nesting of recursive rule calls.
 	maxDepth int
 	// features are the features the generator found for the parser, with featureWitnessed, when the
@@ -535,12 +533,10 @@ type parseOptions struct {
 	expectations bool
 	// maxInput is the resolved Input limit of a stream, in units; zero sets no bound.
 	maxInput int
-	// controls is set when the parser was generated with limit controls, which alone can apply the
-	// default budget.
-	controls bool
-	// logical selects logical compute units (units.go): the resolved compute limit and the context
-	// go to the parser's counter, not to the control.
-	logical    bool
+	// controls is set when the parser was generated with limit controls, which count logical compute
+	// units (units.go): the resolved compute limit and the context go to the parser's counter, and
+	// the control holds the memory limit.
+	controls   bool
 	unitsLimit uint64
 	// unitsAdaptive is set for a stream under its default compute limit, which rises with the
 	// furthest position the parse demands.
@@ -586,7 +582,7 @@ func ResolveOptions(g *grammar, opts []sxirruntime.ParseOption) (parseOptions, e
 // resolveEntryOptions is ResolveOptions for the entry points of a stream if streaming is set, which
 // alone accept the diagnostic options.
 func resolveEntryOptions(g *grammar, opts []sxirruntime.ParseOption, streaming bool) (parseOptions, error) {
-	o := parseOptions{controls: !g.NoBudgetControls, logical: g.Logical, streaming: streaming}
+	o := parseOptions{controls: !g.NoBudgetControls, streaming: streaming}
 	if len(opts) == 0 {
 		o.maxDepth = g.maxDepth
 		return o, nil
@@ -663,8 +659,9 @@ func (o *parseOptions) validateDiagnostics() error {
 // prepareOptions is called after fixed option and rule-name validation. n is the length of the
 // input in units of the position unit; a stream, whose length is not known, passes stream instead.
 // A zero Compute selects the default budget of n (or the floor, growing with the input read, for a
-// stream) in a parser generated with limit controls, and Unlimited disables the budget.
-// The resolved state can be shared with a result converter without new counters.
+// stream) in a parser generated with limit controls, and Unlimited disables the budget. The counter
+// of the parse holds the compute limit and the context (startUnits); the control holds the memory
+// limit only. The resolved state can be shared with a result converter without new counters.
 func prepareOptions(o parseOptions, n uint64, stream bool) parseOptions {
 	if !o.prepared {
 		o.prepared = true
@@ -673,7 +670,6 @@ func prepareOptions(o parseOptions, n uint64, stream bool) parseOptions {
 		if l.Input != 0 && l.Input != sxirruntime.Unlimited && l.Input <= math.MaxInt {
 			o.maxInput = int(l.Input)
 		}
-		l.Input = 0 // checked on entry, or by the stream; it needs no control
 		if l.Memory == sxirruntime.Unlimited {
 			l.Memory = 0 // the default of Memory is Unlimited
 		}
@@ -685,47 +681,17 @@ func prepareOptions(o parseOptions, n uint64, stream bool) parseOptions {
 		case l.Compute == 0 && o.controls:
 			l.Compute = defaultBudget(n)
 		}
-		ctx := o.context
-		if o.logical {
-			// The counter of the parse holds the compute limit, which a stream under its default
-			// raises with each demand (unitsDemand), and the context; the control holds the memory
-			// limit only.
-			o.unitsLimit, o.unitsAdaptive, o.unitsCtx = l.Compute, adaptive, o.context
-			l.Compute, ctx, adaptive = 0, nil, false
-		}
-		if ctx != nil || l != (sxirruntime.Limits{}) {
-			o.control = newBudgetControl(ctx, l)
-			if o.control != nil {
-				o.control.adaptive = adaptive
-			}
-		}
-		if o.control == nil && o.computeOut != nil && !o.logical {
-			// The parse only counts its units: a control with no bound.
-			o.control = newCountingControl(nil, sxirruntime.Limits{})
-		}
+		o.unitsLimit, o.unitsAdaptive, o.unitsCtx = l.Compute, adaptive, o.context
+		o.control = newBudgetControl(l)
 	}
 	o.control.Check()
-	if o.logical && o.unitsCtx != nil {
-		// The context of a parse with logical units is the counter's; it is observed here as the
-		// control observes its own, before the parse changes anything.
+	if o.unitsCtx != nil {
+		// The context is observed here, before the parse changes anything.
 		if err := contextErr(o.unitsCtx); err != nil {
 			panic(fatal{err: err})
 		}
 	}
 	return o
-}
-
-// reportSpent stores in the report of o, if it has one, the units that its control has reserved. A
-// parse with logical units reports through its counter instead (unitsState.out).
-func (o parseOptions) reportSpent() {
-	if o.computeOut == nil || o.logical {
-		return
-	}
-	if o.control == nil {
-		*o.computeOut = 0
-		return
-	}
-	*o.computeOut = o.control.budgetUsed() - o.control.doc // what a Compute limit counts, as LimitError.Used does
 }
 
 // prepareText is prepareOptions for the input text of a batch parse or a Document. It rejects a text
@@ -784,7 +750,6 @@ func RunParseResolved(r *Rule, input string, o parseOptions) (n *sxirvalue.Node,
 // from an ordinary nil result without inspecting caller-owned error values.
 func parseResolvedSpend(r *Rule, input string, o parseOptions) (n *sxirvalue.Node, err error) {
 	o = prepareText(o, input)
-	defer o.reportSpent()
 	p, _ := ppool.Get().(*Parser)
 	if p == nil {
 		p = &Parser{}
@@ -794,7 +759,7 @@ func parseResolvedSpend(r *Rule, input string, o parseOptions) (n *sxirvalue.Nod
 	p.Expectations = o.expectations
 	p.Control = o.control
 	o.control.attachMemory(p)
-	p.Observation = o.control.observe(newObservation(&o.observe, &p.Silent, nil))
+	p.Observation = newObservation(&o.observe, &p.Silent, nil)
 	p.setTracking()
 	p.setDeferMemo()
 	p.MaxDepth = o.maxDepth
@@ -1307,10 +1272,6 @@ func (p *Parser) envValues(slots []int) []any {
 	if len(slots) > 0 {
 		p.use(featureVars)
 	}
-	if usedFeatures&featureBudget != 0 && p.Control != nil {
-		return p.controlledEnvValues(slots)
-	}
-
 	if len(slots) == 0 {
 		return nil
 	}
@@ -1337,7 +1298,7 @@ func (p *Parser) memoEnv(r *Rule) []any {
 	return p.keyValues(r.varSlots)
 }
 
-// keyValues is envValues for a memo key, without charges: the call paid for its key (ChargeKey).
+// keyValues is envValues for a memo key, without charges: the call paid for its key (keySize).
 func (p *Parser) keyValues(slots []int) []any {
 	if len(slots) > 0 {
 		p.use(featureVars)
@@ -1390,7 +1351,6 @@ const (
 // NewNode returns a copy of v allocated from the node slab, charging a unit for a value that an action expression
 // or a Document makes. A slab stays alive while any of its nodes is referenced.
 func (p *Parser) NewNode(v Data) *sxirvalue.Node {
-	p.Spend()
 	return p.buildNode(v)
 }
 
@@ -1410,7 +1370,7 @@ func (p *Parser) buildNode(v Data) *sxirvalue.Node {
 	return n
 }
 
-// NewNodeOrdinary is NewNode in an ordinary parse (ExpectOrdinary).
+// NewNodeOrdinary is NewNode in an ordinary parse.
 func (p *Parser) NewNodeOrdinary(v Data) *sxirvalue.Node {
 	if len(p.nodeSlab) == 0 {
 		p.nodeSlab = make([]sxirvalue.Node, nodeChunk)
@@ -1430,7 +1390,7 @@ func (p *Parser) NewTerminal(start int, text string) *sxirvalue.Node {
 	return p.NewTerminalOrdinary(start, text)
 }
 
-// NewTerminalOrdinary is NewTerminal in an ordinary parse (ExpectOrdinary).
+// NewTerminalOrdinary is NewTerminal in an ordinary parse.
 func (p *Parser) NewTerminalOrdinary(start int, text string) *sxirvalue.Node {
 	if len(p.nodeSlab) == 0 {
 		p.nodeSlab = make([]sxirvalue.Node, nodeChunk)
@@ -1451,7 +1411,7 @@ func (p *Parser) NewBranch(kind *valueimpl.Kind, start int, children []*sxirvalu
 	return p.NewBranchOrdinary(kind, start, children)
 }
 
-// NewBranchOrdinary is NewBranch in an ordinary parse (ExpectOrdinary).
+// NewBranchOrdinary is NewBranch in an ordinary parse.
 func (p *Parser) NewBranchOrdinary(kind *valueimpl.Kind, start int, children []*sxirvalue.Node) *sxirvalue.Node {
 	if len(p.nodeSlab) == 0 {
 		p.nodeSlab = make([]sxirvalue.Node, nodeChunk)
@@ -1509,18 +1469,6 @@ func (p *Parser) Kids(base int) []*sxirvalue.Node {
 	clear(p.KidStack[base:])
 	p.KidStack = p.KidStack[:base]
 	return ks
-}
-
-// ElemsAbove is action.elemsAbove (spec/exec-ir/values.md): it returns the elements that an action expression gathered
-// above base as Kids does and, under budget controls, reserves two units for each element, one for
-// copying it and one for taking it off, in one reservation before it moves any.
-func (p *Parser) ElemsAbove(base int) []*sxirvalue.Node {
-	if usedFeatures&featureBudget != 0 && p.Control != nil {
-		if n := len(p.KidStack) - base; n > 0 {
-			p.Control.Charge(2 * uint64(n))
-		}
-	}
-	return p.Kids(base)
 }
 
 // DropKids pops p.KidStack[base:].
@@ -1731,24 +1679,17 @@ func (e *Env) setLeaf(i int, v any) *Env {
 // environments. Binding the value it has already is a no-op.
 func (p *Parser) bind(slot int, val any) {
 	p.use(featureVars)
-	if usedFeatures&featureBudget != 0 && p.Control != nil {
-		p.bindControlled(slot, val)
-		return
-	}
 	// Variables are checked scalar values; an equal binding has no effect.
 	if p.Env.get(slot, p.envDepth) == val {
 		return
 	}
 	p.Env = p.Env.set(slot, p.envDepth, val)
+	// The rebind copies the levels+1 nodes on the path to the slot.
+	p.chargeValueBytes(int(uint64(p.envDepth+1) * envNodeBytes))
 }
 
 // variable returns the value of the variable in slot i.
 func (p *Parser) variable(slot int) any {
-	if usedFeatures&featureBudget != 0 && p.Control != nil {
-		for l := 0; l <= p.envDepth; l++ {
-			p.Spend()
-		}
-	}
 	return p.Env.get(slot, p.envDepth)
 }
 
@@ -1774,10 +1715,6 @@ var offsLimit = 1<<31 - 1
 // setSource decodes the input s into code points and, if s is valid UTF-8, records the offset
 // table for token text, all in one pass (a U+FFFD that decodes from three bytes is valid).
 func (p *Parser) setSource(s string) {
-	if usedFeatures&featureBudget != 0 && p.Control != nil {
-		p.setControlledSource(s)
-		return
-	}
 	n := utf8.RuneCountInString(s)
 	// The buffers of a parser used before are reused (the typed library keeps parsers).
 	if cap(p.In) >= n {
@@ -1830,11 +1767,7 @@ func (p *Parser) setSource(s string) {
 func (p *Parser) decodeSource() {
 	s := p.src
 	if s == "" {
-		if usedFeatures&featureBudget != 0 && p.Control != nil {
-			s = p.detachedText(0, p.n)
-		} else {
-			s = string(p.In[:p.n])
-		}
+		s = p.detachedText(0, p.n)
 	}
 	wide := len(s) > offsLimit
 	var offs []int32
@@ -1845,23 +1778,13 @@ func (p *Parser) decodeSource() {
 		offs = make([]int32, 0, p.n+1)
 	}
 	for off := 0; off < len(s); {
-		if usedFeatures&featureBudget != 0 && p.Control != nil {
-			p.Control.Charge(uint64(min(spendValueChunk, len(s)-off)))
+		_, size := utf8.DecodeRuneInString(s[off:])
+		if wide {
+			woffs = append(woffs, off)
+		} else {
+			offs = append(offs, int32(off))
 		}
-		end := min(off+spendValueChunk, len(s))
-		for off < end {
-			_, size := utf8.DecodeRuneInString(s[off:])
-			if wide {
-				woffs = append(woffs, off)
-			} else {
-				offs = append(offs, int32(off))
-			}
-			off += size
-		}
-		// The last character may end past the chunk; charge the rest, so the table costs its bytes.
-		if usedFeatures&featureBudget != 0 && p.Control != nil && off > end {
-			p.Control.Charge(uint64(off - end))
-		}
+		off += size
 	}
 	// An interrupted decoding leaves the parser untouched, so the next text retries it.
 	if wide {
@@ -1876,7 +1799,6 @@ func (p *Parser) Peek() (rune, int, bool) {
 	if p.Stream != nil {
 		return p.streamPeek()
 	}
-	p.SpendRead(1)
 	if p.Pos >= p.n {
 		p.documentTouch(p.Pos + 1)
 		return 0, 0, false
@@ -1886,7 +1808,6 @@ func (p *Parser) Peek() (rune, int, bool) {
 			p.documentTouch(p.Pos + 1)
 			return rune(c), 1, true
 		}
-		p.SpendRead(uint64(min(utf8.UTFMax, p.n-p.Pos)))
 		r, size := utf8.DecodeRuneInString(p.bs[p.Pos:])
 		if p.track {
 			p.documentTouch(decodedEnd(p.bs[p.Pos:], p.Pos, size))
@@ -1907,7 +1828,7 @@ func (p *Parser) NextOrdinary() (r rune, size int, ok bool) {
 	return
 }
 
-// PeekOrdinary is peek in an ordinary parse (ExpectOrdinary).
+// PeekOrdinary is peek in an ordinary parse.
 func (p *Parser) PeekOrdinary() (rune, int, bool) {
 	if p.Stream != nil {
 		return p.streamPeek()
@@ -1943,7 +1864,7 @@ func (p *Parser) HasCharTraced(want rune, fold bool) bool {
 	return ok
 }
 
-// HasCharOrdinary is HasChar in an ordinary parse (ExpectOrdinary), with the common case, a
+// HasCharOrdinary is HasChar in an ordinary parse, with the common case, a
 // code-point input, written so that the compiler inlines it.
 //
 // HasCharOrdinary is for generated parsers; not a stable API.
@@ -1952,7 +1873,7 @@ func (p *Parser) HasCharOrdinary(want rune, fold bool) bool {
 		r := p.In[p.Pos]
 		return r == want || fold && foldASCIIRune(r) == want
 	}
-	_, _, ok := p.compareChar(want, fold, false)
+	_, _, ok := p.compareChar(want, fold)
 	return ok
 }
 
@@ -1965,12 +1886,9 @@ func (p *Parser) HasCharOrdinary(want rune, fold bool) bool {
 // decoding tells, so it decodes the character. With fold, want is folded (foldASCIIRune) and an
 // ASCII letter of the input matches it in either case.
 //
-// It records the input it examined, as Peek does, and consumes nothing. It charges a unit for
-// reading the character, as Peek does, and what decoding charges when it decodes; comparing bytes
-// charges nothing more.
+// It records the input it examined, as Peek does, and consumes nothing.
 func (p *Parser) MatchChar(want rune, fold bool) (int, bool) {
-	p.SpendRead(1)
-	size, end, ok := p.compareChar(want, fold, true)
+	size, end, ok := p.compareChar(want, fold)
 	if p.Stream == nil {
 		p.documentTouch(end)
 	}
@@ -1980,24 +1898,22 @@ func (p *Parser) MatchChar(want rune, fold bool) (int, bool) {
 // MatchCharTraced is MatchChar in a traced rule body, which records the examined end of a stream
 // read too.
 func (p *Parser) MatchCharTraced(want rune, fold bool) (int, bool) {
-	p.SpendRead(1)
-	size, end, ok := p.compareChar(want, fold, true)
+	size, end, ok := p.compareChar(want, fold)
 	p.documentTouch(end)
 	return size, ok
 }
 
-// matchCharOrdinary is MatchChar in an ordinary parse, which charges and records nothing.
+// matchCharOrdinary is MatchChar in an ordinary parse, which records nothing.
 func (p *Parser) matchCharOrdinary(want rune, fold bool) (int, bool) {
-	size, _, ok := p.compareChar(want, fold, false)
+	size, _, ok := p.compareChar(want, fold)
 	return size, ok
 }
 
-// compareChar is MatchChar without the unit of the read and without recording: it returns the size
-// of the character if it matches, and the end of the input that the comparison examined. With
-// spend, decoding charges what Peek charges for it.
-func (p *Parser) compareChar(want rune, fold, spend bool) (size, end int, ok bool) {
+// compareChar is MatchChar without recording: it returns the size of the character if it matches,
+// and the end of the input that the comparison examined.
+func (p *Parser) compareChar(want rune, fold bool) (size, end int, ok bool) {
 	if p.unit != sxirinput.Bytes || want == utf8.RuneError {
-		got, size, end, ok := p.decodeChar(spend)
+		got, size, end, ok := p.decodeChar()
 		if !ok || got != want && !(fold && foldASCIIRune(got) == want) {
 			return 0, end, false
 		}
@@ -2014,11 +1930,9 @@ func (p *Parser) compareChar(want rune, fold, spend bool) (size, end int, ok boo
 	return n, p.Pos + n, true
 }
 
-// decodeChar decodes the character at the position, as Peek does without the unit of the read and
-// without recording: it returns the character, its size, the end of the input that decoding
-// examined and whether there is one. With spend it charges what Peek charges for decoding a
-// character of several bytes.
-func (p *Parser) decodeChar(spend bool) (r rune, size, end int, ok bool) {
+// decodeChar decodes the character at the position, as Peek does without recording: it returns the
+// character, its size, the end of the input that decoding examined and whether there is one.
+func (p *Parser) decodeChar() (r rune, size, end int, ok bool) {
 	if s := p.Stream; s != nil {
 		if p.Pos < s.base || !p.streamFill(p.Pos+1) {
 			return 0, 0, p.Pos + 1, false
@@ -2034,9 +1948,6 @@ func (p *Parser) decodeChar(spend bool) (r rune, size, end int, ok bool) {
 			p.streamFillTo(s.loaded() + 1)
 			b = s.bs[p.Pos-s.base:]
 		}
-		if spend {
-			p.SpendRead(uint64(min(utf8.UTFMax, len(b))))
-		}
 		r, size := utf8.DecodeRune(b)
 		return r, size, decodedEndBytes(b, p.Pos, size), true
 	}
@@ -2048,9 +1959,6 @@ func (p *Parser) decodeChar(spend bool) (r rune, size, end int, ok bool) {
 	}
 	if c := p.bs[p.Pos]; c < utf8.RuneSelf {
 		return rune(c), 1, p.Pos + 1, true
-	}
-	if spend {
-		p.SpendRead(uint64(min(utf8.UTFMax, p.n-p.Pos)))
 	}
 	r, size = utf8.DecodeRuneInString(p.bs[p.Pos:])
 	return r, size, decodedEnd(p.bs[p.Pos:], p.Pos, size), true
@@ -2072,17 +1980,6 @@ func (p *Parser) inputByte(i int) (byte, bool) {
 }
 
 func (p *Parser) unitLen(s string) int {
-	if usedFeatures&featureBudget != 0 && p.Control != nil && p.unit != sxirinput.Bytes {
-		count := 0
-		for off := 0; off < len(s); {
-			p.spendValue(min(utf8.UTFMax, len(s)-off))
-			_, size := utf8.DecodeRuneInString(s[off:])
-			off += size
-			count++
-		}
-		return count
-	}
-
 	if p.unit == sxirinput.Bytes {
 		return len(s)
 	}
@@ -2142,18 +2039,12 @@ func (p *Parser) Text(start, end int) string {
 	if p.wide != nil {
 		return p.src[p.wide[start]:p.wide[end]]
 	}
-	if usedFeatures&featureBudget != 0 && p.Control != nil {
-		return p.detachedText(start, end)
-	}
-	return string(p.In[start:end])
+	return p.detachedText(start, end)
 }
 
 type fatal struct{ err error }
 
 func (p *Parser) MakeError(pos int, expected []ExpID) *sxirvalue.SyntaxError {
-	if usedFeatures&featureBudget != 0 && p.Control != nil {
-		return p.makeControlledError(pos, expected)
-	}
 	e := &sxirvalue.SyntaxError{Pos: pos}
 	for _, x := range expected {
 		if x == ExpFar {
@@ -2166,6 +2057,7 @@ func (p *Parser) MakeError(pos int, expected []ExpID) *sxirvalue.SyntaxError {
 		}
 	}
 	sortExpectedEntries(e.Expected)
+	p.chargeError(e)
 	if p.Stream != nil {
 		e.Line, e.Col = p.streamLineCol(pos)
 		return e
@@ -2183,6 +2075,7 @@ func (p *Parser) MakeError(pos int, expected []ExpID) *sxirvalue.SyntaxError {
 	pos = min(pos, p.n)
 	i := sort.SearchInts(p.lines, pos+1)
 	e.Line, e.Col = i, pos-p.lines[i-1]+1
+	p.Control.Check()
 	return e
 }
 
@@ -2533,7 +2426,6 @@ func (p *Parser) MatchLiteral(rs []rune, text string, desc ExpID, build bool) (*
 		p.Pos += len(text)
 	} else {
 		for _, r := range rs {
-			p.SpendRead(1)
 			if p.Pos >= p.n || p.In[p.Pos] != r {
 				p.documentTouch(p.Pos + 1)
 				p.Expect(start, desc)
@@ -2570,13 +2462,13 @@ func (p *Parser) MatchLiteralFold(rs []rune, desc ExpID, build bool) (*sxirvalue
 	return p.buildNode(Data{Kind: valueimpl.MatchKind, Start: int32(start), End: int32(p.Pos), Text: p.Text(start, p.Pos), Terminal: true, Fresh: true}), true
 }
 
-// MatchLiteralFoldOrdinary is MatchLiteralFold in an ordinary parse (ExpectOrdinary).
+// MatchLiteralFoldOrdinary is MatchLiteralFold in an ordinary parse.
 func (p *Parser) MatchLiteralFoldOrdinary(rs []rune, desc ExpID, build bool) (*sxirvalue.Node, bool) {
 	start := p.Pos
 	for _, want := range rs {
 		size, ok := p.matchCharOrdinary(want, true)
 		if !ok {
-			p.ExpectOrdinary(start, desc)
+			p.Expect(start, desc)
 			return nil, false
 		}
 		p.Pos += size
@@ -2617,7 +2509,7 @@ func (p *Parser) matchReplacementLiteral(rs []rune, text string, desc ExpID, bui
 	return p.buildNode(Data{Kind: valueimpl.MatchKind, Start: int32(start), End: int32(p.Pos), Text: p.LiteralText(start, text), Terminal: true, Fresh: true}), true
 }
 
-// MatchLiteralOrdinary is MatchLiteral in an ordinary parse (ExpectOrdinary).
+// MatchLiteralOrdinary is MatchLiteral in an ordinary parse.
 func (p *Parser) MatchLiteralOrdinary(rs []rune, text string, desc ExpID, build bool) (*sxirvalue.Node, bool) {
 	if p.Stream != nil {
 		return p.streamMatchLiteral(rs, text, desc, build)
@@ -2631,7 +2523,7 @@ func (p *Parser) MatchLiteralOrdinary(rs []rune, text string, desc ExpID, build 
 	} else {
 		for _, r := range rs {
 			if p.Pos >= p.n || p.In[p.Pos] != r {
-				p.ExpectOrdinary(start, desc)
+				p.Expect(start, desc)
 				return nil, false
 			}
 			p.Pos++
@@ -2643,11 +2535,11 @@ func (p *Parser) MatchLiteralOrdinary(rs []rune, text string, desc ExpID, build 
 	return p.NewNodeOrdinary(Data{Kind: valueimpl.MatchKind, Start: int32(start), End: int32(p.Pos), Text: p.LiteralText(start, text), Terminal: true, Fresh: true}), true
 }
 
-// MatchAnyOrdinary is MatchAny in an ordinary parse (ExpectOrdinary).
+// MatchAnyOrdinary is MatchAny in an ordinary parse.
 func (p *Parser) MatchAnyOrdinary(build bool) (*sxirvalue.Node, bool) {
 	_, size, ok := p.PeekOrdinary()
 	if !ok {
-		p.ExpectOrdinary(p.Pos, IdAny)
+		p.Expect(p.Pos, IdAny)
 		return nil, false
 	}
 	return p.Single(size, build)
@@ -2694,7 +2586,7 @@ func (p *Parser) AtLineStart() bool {
 	return p.In[p.Pos-1] == '\n'
 }
 
-// AtLineStartOrdinary is AtLineStart in an ordinary parse (ExpectOrdinary).
+// AtLineStartOrdinary is AtLineStart in an ordinary parse.
 func (p *Parser) AtLineStartOrdinary() bool {
 	if p.Stream != nil {
 		return p.streamAtLineStart()
@@ -2708,10 +2600,10 @@ func (p *Parser) AtLineStartOrdinary() bool {
 	return p.In[p.Pos-1] == '\n'
 }
 
-// AtLineEndOrdinary is AtLineEnd in an ordinary parse (ExpectOrdinary).
+// AtLineEndOrdinary is AtLineEnd in an ordinary parse.
 func (p *Parser) AtLineEndOrdinary() bool { return p.lineEnd() }
 
-// AtEndOrdinary is AtEnd in an ordinary parse (ExpectOrdinary).
+// AtEndOrdinary is AtEnd in an ordinary parse.
 func (p *Parser) AtEndOrdinary() bool {
 	if p.Stream != nil {
 		return p.streamAtEnd()
@@ -2721,9 +2613,8 @@ func (p *Parser) AtEndOrdinary() bool {
 
 // AtLineEnd reports whether a line ends at the position (`$`): the input ends there or a line feed or
 // a carriage return follows. It examines the slot at the position alone (spec/runtime/documents.md,
-// Slots) and charges a unit for reading it.
+// Slots).
 func (p *Parser) AtLineEnd() bool {
-	p.SpendRead(1)
 	if p.Stream == nil {
 		p.documentTouch(p.Pos + 1)
 	}
@@ -2737,7 +2628,7 @@ func (p *Parser) lineEnd() bool {
 		b, ok := p.inputByte(p.Pos)
 		return !ok || b == '\n' || b == '\r'
 	}
-	ch, _, _, ok := p.decodeChar(false)
+	ch, _, _, ok := p.decodeChar()
 	return !ok || ch == '\n' || ch == '\r'
 }
 
@@ -2756,7 +2647,7 @@ func (p *Parser) AtEndBatch() bool {
 	return p.Pos == p.n
 }
 
-// AtEndBatchOrdinary is AtEndBatch in an ordinary parse (ExpectOrdinary).
+// AtEndBatchOrdinary is AtEndBatch in an ordinary parse.
 func (p *Parser) AtEndBatchOrdinary() bool {
 	return p.Pos == p.n
 }
@@ -2772,7 +2663,7 @@ func (p *Parser) AtLineStartBatch() bool {
 	return p.In[p.Pos-1] == '\n'
 }
 
-// AtLineStartBatchOrdinary is AtLineStartBatch in an ordinary parse (ExpectOrdinary).
+// AtLineStartBatchOrdinary is AtLineStartBatch in an ordinary parse.
 func (p *Parser) AtLineStartBatchOrdinary() bool {
 	if p.Pos == 0 {
 		return true
@@ -2820,10 +2711,9 @@ func (p *Parser) DiagnosticAttr(m matcher, name ExpID) (*sxirvalue.Node, bool) {
 
 // RenamedExpected is for generated parsers; not a stable API.
 func RenamedExpected(p *Parser, expected []ExpID, name ExpID) []ExpID {
-	// The isolated record is no longer in the active expectation stack. Charge
-	// each conversion and reuse its storage before MergeExpected appends to it.
+	// The isolated record is no longer in the active expectation stack: reuse its
+	// storage before MergeExpected appends to it. The rename is no event of logical units.
 	for i, id := range expected {
-		p.Spend()
 		if id&MsgBit == 0 {
 			expected[i] = name
 		}
@@ -2863,7 +2753,7 @@ func (p *Parser) RecoverAttr(m, skip matcher, build bool) (*sxirvalue.Node, bool
 //
 // NewErrorNode is for generated parsers; not a stable API.
 func (p *Parser) NewErrorNode(start int, e *sxirvalue.SyntaxError) *sxirvalue.Node {
-	return p.NewNode(Data{Kind: valueimpl.ErrorKind, Start: int32(start), End: int32(p.Pos), Fields: valueimpl.Fields{{Name: "message", Value: p.RecoveryErrorText(e)}}, Fresh: true, Terminal: true})
+	return p.NewNode(Data{Kind: valueimpl.ErrorKind, Start: int32(start), End: int32(p.Pos), Fields: valueimpl.Fields{{Name: "message", Value: e.Error()}}, Fresh: true, Terminal: true})
 }
 
 // --- Actions and predicates ---
@@ -2907,7 +2797,6 @@ func (c *ActCtx) result(action func(*ActCtx) (any, any), where string) (n *sxirv
 		return c.P.NewNode(Data{Kind: valueimpl.BoxKind, Box: v, Start: int32(c.start), End: int32(c.end)})
 	}
 	for _, x := range c.P.created[c.cbase:] {
-		c.P.Spend()
 		if x == n {
 			D(n).Start, D(n).End = int32(c.start), int32(c.end)
 			break
@@ -3033,19 +2922,18 @@ func (c *ActCtx) zeroValue(d string) (any, string) {
 	case 'b':
 		return false, d[1:]
 	case 'l':
-		return c.listNode(c.P.ElemsAbove(len(c.P.KidStack))), d[1:]
+		return c.listNode(c.P.Kids(len(c.P.KidStack))), d[1:]
 	case '(':
 		base := len(c.P.KidStack)
 		d = d[1:]
 		for d != "" && d[0] != ')' {
 			var e any
 			e, d = c.zeroValue(d)
-			c.P.Spend()
 			if f := c.P.ActionPush(c, "tuple", e); f != nil {
 				panic("runtime: a zero value is not a tuple element") // zero values are never functions
 			}
 		}
-		return c.P.ActionHull(c, true, c.P.ElemsAbove(base)), strings.TrimPrefix(d, ")")
+		return c.P.ActionHull(c, true, c.P.Kids(base)), strings.TrimPrefix(d, ")")
 	case '{':
 		// The zero value of a struct type is a struct with no field set, whose fields read as their own
 		// zero values, so that making it costs the same whatever the type holds.

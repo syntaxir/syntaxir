@@ -30,7 +30,7 @@ func TestLimitErrorAgreementMutants(t *testing.T) {
 			if strings.Count(src, takeOff) != 1 {
 				t.Fatal("the take-off of a list is not in lib.go")
 			}
-			return strings.Replace(src, takeOff, "\tp.Control.Charge(uint64(len(p.KidStack) - base))\n"+takeOff, 1)
+			return strings.Replace(src, takeOff, "\tp.unitsSized(len(p.KidStack) - base)\n"+takeOff, 1)
 		}, nil)
 		var c limitAgreementCase
 		for _, x := range limitAgreementCases {

@@ -110,26 +110,6 @@ func (v *Array) TField(name string) (any, bool) {
 	return nil, false
 }
 
-func (v *Array) TFieldSpend(p *rt.TParser, name string) (any, bool) {
-	switch name {
-	case "Elements":
-		if v.Elements == nil {
-			return nil, false
-		}
-		return func() any {
-			if v.Elements == nil {
-				return nil
-			}
-			kids := make([]any, len(v.Elements))
-			for i, x := range v.Elements {
-				kids[i] = rt.TBack(SXIRHooks, x)
-			}
-			return p.ListField(kids)
-		}(), true
-	}
-	return nil, false
-}
-
 func (v *Array) TZeroField(c *rt.TActCtx, name string) (any, bool) {
 	switch name {
 	case "Elements":
@@ -147,16 +127,6 @@ func (v *Member) TStruct() bool           { return true }
 func (v *Member) TFresh() bool            { return false }
 func (v *Member) TSetFresh(bool)          {}
 func (v *Member) TField(name string) (any, bool) {
-	switch name {
-	case "Key":
-		return tb0(v.Key), true
-	case "Value":
-		return rt.TBack(SXIRHooks, v.Value), true
-	}
-	return nil, false
-}
-
-func (v *Member) TFieldSpend(p *rt.TParser, name string) (any, bool) {
 	switch name {
 	case "Key":
 		return tb0(v.Key), true
@@ -195,26 +165,6 @@ func (v *Object) TField(name string) (any, bool) {
 				kids[i] = rt.TPtr(x)
 			}
 			return rt.TListOf(kids)
-		}(), true
-	}
-	return nil, false
-}
-
-func (v *Object) TFieldSpend(p *rt.TParser, name string) (any, bool) {
-	switch name {
-	case "Members":
-		if v.Members == nil {
-			return nil, false
-		}
-		return func() any {
-			if v.Members == nil {
-				return nil
-			}
-			kids := make([]any, len(v.Members))
-			for i, x := range v.Members {
-				kids[i] = rt.TPtr(x)
-			}
-			return p.ListField(kids)
 		}(), true
 	}
 	return nil, false
@@ -277,7 +227,7 @@ func tb3(v *Number) any {
 // is no named node type. It is for generated parsers.
 var SXIRNodeTypes [5]uint16
 
-// SXIRSchema_154a89c58b1cf47c ties the parser package to this package: the parser refers to it once, so a
+// SXIRSchema_295688d8137b3fd4 ties the parser package to this package: the parser refers to it once, so a
 // parser and a types package generated from different schemas do not compile together.
 // It is for generated parsers; not a stable API.
-const SXIRSchema_154a89c58b1cf47c = 0
+const SXIRSchema_295688d8137b3fd4 = 0

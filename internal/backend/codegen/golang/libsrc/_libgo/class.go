@@ -63,13 +63,13 @@ func (p *TParser) classSkip(c *Class, id ExpID) bool {
 				p.Pos++
 				return true
 			}
-			p.ExpectOrdinary(p.Pos, id)
+			p.Expect(p.Pos, id)
 			return false
 		}
 	}
 	ch, size, ok := p.NextOrdinary()
 	if !ok || !c.Has(ch) {
-		p.ExpectOrdinary(p.Pos, id)
+		p.Expect(p.Pos, id)
 		return false
 	}
 	p.Pos += size

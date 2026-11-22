@@ -179,17 +179,13 @@ type tslabs struct {
 func (a *tslabs) SetBudgetControl(c *rt.BudgetControl) { a.control = c }
 
 func (a *tslabs) spend() {
-	if a.control == nil {
+	if a.control == nil || !a.result {
 		return
 	}
-	if a.result {
-		a.steps++
-		if a.steps%256 == 0 {
-			a.control.Check()
-		}
-		return
+	a.steps++
+	if a.steps%256 == 0 {
+		a.control.Check()
 	}
-	a.control.Charge(1)
 }
 
 func (a *tslabs) MemoryBytes() uint64 {
@@ -323,7 +319,7 @@ func init() {
 		if tf2 != nil {
 			return nil, tf2
 		}
-		tk3 := c.P.ElemsAbove(tm1)
+		tk3 := c.P.Kids(tm1)
 		tn4 := c.P.ActionHullLogical(c, false, tk3)
 		tf5 := any(tn4)
 		tn6 := c.ActionStruct("Object", 1)
@@ -346,7 +342,7 @@ func init() {
 		if tf3 != nil {
 			return nil, tf3
 		}
-		tk4 := c.P.ElemsAbove(tm1)
+		tk4 := c.P.Kids(tm1)
 		tn5 := c.P.ActionHullLogical(c, false, tk4)
 		return any(tn5), nil
 	}
@@ -370,7 +366,7 @@ func init() {
 		if tf2 != nil {
 			return nil, tf2
 		}
-		tk3 := c.P.ElemsAbove(tm1)
+		tk3 := c.P.Kids(tm1)
 		tn4 := c.P.ActionHullLogical(c, false, tk3)
 		tf5 := any(tn4)
 		tn6 := c.ActionStruct("Array", 1)
@@ -393,7 +389,7 @@ func init() {
 		if tf3 != nil {
 			return nil, tf3
 		}
-		tk4 := c.P.ElemsAbove(tm1)
+		tk4 := c.P.Kids(tm1)
 		tn5 := c.P.ActionHullLogical(c, false, tk4)
 		return any(tn5), nil
 	}
@@ -413,7 +409,6 @@ func init() {
 	sxirGrammar.NodeTypes["String"] = rt.NewNodeTypeKinds("String")
 	sxirGrammar.Starts = []string{"main"}
 	sxirGrammar.DefaultStart = "main"
-	sxirGrammar.Logical = true
 	trules = rt.NewTRules(rules)
 	defer tinit()
 	trules[0].Entry = u0
@@ -433,7 +428,7 @@ func e1(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		goto fail
 	}
 	if !p.AtEndBatchOrdinary() {
-		p.ExpectOrdinary(p.Pos, rt.IdEndInput)
+		p.Expect(p.Pos, rt.IdEndInput)
 		goto fail
 	}
 	return nil, true
@@ -447,7 +442,7 @@ func e2(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	var ok bool
 	x1 = p.Mark()
 	if !p.HasCharOrdinary(123, false) && p.Depth+1 <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 5)
+		p.Expect(p.Pos, 5)
 		goto L4
 	}
 	if v6, ok = p.Call(rules[2], 0); !ok {
@@ -459,7 +454,7 @@ L5:
 	p.Reset(x1)
 L4:
 	if !p.HasCharOrdinary(91, false) && p.Depth+1 <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 6)
+		p.Expect(p.Pos, 6)
 		goto L7
 	}
 	if v9, ok = p.Call(rules[5], 0); !ok {
@@ -471,7 +466,7 @@ L8:
 	p.Reset(x1)
 L7:
 	if !p.HasCharOrdinary(34, false) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 7)
+		p.Expect(p.Pos, 7)
 		goto L10
 	}
 	if v12, ok = p.Call(rules[7], 0); !ok {
@@ -497,7 +492,7 @@ L13:
 L15:
 	p.Reset(x1)
 	if !p.HasCharOrdinary(110, false) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 8)
+		p.Expect(p.Pos, 8)
 		goto L17
 	}
 	if v19, ok = r16(p); !ok {
@@ -782,7 +777,7 @@ func e18(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 			}
 			ch, size, ok = p.NextOrdinary()
 			if !ok || (ch == 34 || ch == 92 || ch >= 0 && ch <= 31) {
-				p.ExpectOrdinary(p.Pos, 13)
+				p.Expect(p.Pos, 13)
 				break
 			}
 			p.Pos += size
@@ -796,7 +791,7 @@ func e18(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	L9:
 		p.Reset(x7)
 		if !p.HasCharOrdinary(92, false) && p.Depth <= p.MaxDepth {
-			p.ExpectOrdinary(p.Pos, 14)
+			p.Expect(p.Pos, 14)
 			goto L11
 		}
 		if _, ok = r19(p); !ok {
@@ -877,7 +872,7 @@ func e23(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	x1 = p.Pos
 	x2 = p.Mark()
 	if !p.HasCharOrdinary(116, false) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 25)
+		p.Expect(p.Pos, 25)
 		goto L4
 	}
 	if p.Pos+4 <= len(p.In) && p.In[p.Pos] == 116 && p.In[p.Pos+1] == 114 && p.In[p.Pos+2] == 117 && p.In[p.Pos+3] == 101 {
@@ -891,7 +886,7 @@ L5:
 	p.Reset(x2)
 L4:
 	if !p.HasCharOrdinary(102, false) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 26)
+		p.Expect(p.Pos, 26)
 		goto L6
 	}
 	if _, ok = p.MatchLiteralLogical(lit22, "false", 26, false); !ok {
@@ -1008,7 +1003,7 @@ func r18(p *rt.Parser) (*sxirvalue.Node, bool) {
 		}
 		ch, size, ok = p.NextOrdinary()
 		if !ok || !(ch == 32 || ch == 9 || ch == 13 || ch == 10) {
-			p.ExpectOrdinary(p.Pos, 27)
+			p.Expect(p.Pos, 27)
 			break
 		}
 		p.Pos += size
@@ -1041,7 +1036,7 @@ func r19(p *rt.Parser) (*sxirvalue.Node, bool) {
 	x1 = p.Pos
 	x3, x9, x4 = p.NextOrdinary()
 	if !(x4 && (x3 == 34 || x3 == 92 || x3 == 47 || x3 == 98 || x3 == 102 || x3 == 110 || x3 == 114 || x3 == 116)) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 15)
+		p.Expect(p.Pos, 15)
 		goto L5
 	}
 	p.Pos += x9
@@ -1049,7 +1044,7 @@ func r19(p *rt.Parser) (*sxirvalue.Node, bool) {
 	goto L2
 L5:
 	if !p.HasCharOrdinary(117, false) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 16)
+		p.Expect(p.Pos, 16)
 		goto L7
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 117 {
@@ -1092,7 +1087,7 @@ func r20(p *rt.Parser) (*sxirvalue.Node, bool) {
 	start = p.Pos
 	x1 = p.Pos
 	if !p.HasCharOrdinary(48, false) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 19)
+		p.Expect(p.Pos, 19)
 		goto L3
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 48 {
@@ -1107,7 +1102,7 @@ L4:
 L3:
 	x5, x11, x6 = p.NextOrdinary()
 	if !(x6 && (x5 >= 49 && x5 <= 57)) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 20)
+		p.Expect(p.Pos, 20)
 		goto L7
 	}
 	p.Pos += x11
@@ -1120,7 +1115,7 @@ L3:
 		}
 		ch, size, ok = p.NextOrdinary()
 		if !ok || !(ch >= 48 && ch <= 57) {
-			p.ExpectOrdinary(p.Pos, 21)
+			p.Expect(p.Pos, 21)
 			break
 		}
 		p.Pos += size
@@ -1165,7 +1160,7 @@ func r21(p *rt.Parser) (*sxirvalue.Node, bool) {
 		}
 		ch, size, ok = p.NextOrdinary()
 		if !ok || !(ch >= 48 && ch <= 57) {
-			p.ExpectOrdinary(p.Pos, 21)
+			p.Expect(p.Pos, 21)
 			break
 		}
 		p.Pos += size
@@ -1197,7 +1192,7 @@ func r22(p *rt.Parser) (*sxirvalue.Node, bool) {
 	start = p.Pos
 	ch, size, ok = p.NextOrdinary()
 	if !ok || !(ch == 101 || ch == 69) {
-		p.ExpectOrdinary(p.Pos, 23)
+		p.Expect(p.Pos, 23)
 		goto fail
 	}
 	p.Pos += size
@@ -1205,7 +1200,7 @@ func r22(p *rt.Parser) (*sxirvalue.Node, bool) {
 	x1 = p.Pos
 	ch, size, ok = p.NextOrdinary()
 	if !ok || !(ch == 43 || ch == 45) {
-		p.ExpectOrdinary(p.Pos, 24)
+		p.Expect(p.Pos, 24)
 		goto L2
 	}
 	p.Pos += size
@@ -1222,7 +1217,7 @@ L3:
 		}
 		ch, size, ok = p.NextOrdinary()
 		if !ok || !(ch >= 48 && ch <= 57) {
-			p.ExpectOrdinary(p.Pos, 21)
+			p.Expect(p.Pos, 21)
 			break
 		}
 		p.Pos += size
@@ -1254,7 +1249,7 @@ func r23(p *rt.Parser) (*sxirvalue.Node, bool) {
 	start = p.Pos
 	ch, size, ok = p.NextOrdinary()
 	if !ok || !(ch >= 48 && ch <= 57 || ch >= 97 && ch <= 102 || ch >= 65 && ch <= 70) {
-		p.ExpectOrdinary(p.Pos, 17)
+		p.Expect(p.Pos, 17)
 		goto fail
 	}
 	p.Pos += size
@@ -1296,7 +1291,7 @@ func i0(p *rt.TParser) (any, bool) {
 		goto fail
 	}
 	if !p.AtEndBatchOrdinary() {
-		p.ExpectOrdinary(p.Pos, rt.IdEndInput)
+		p.Expect(p.Pos, rt.IdEndInput)
 		goto fail
 	}
 	c = p.UseCtx(rt.TActCtx{P: p, Start: start, End: p.Pos, Cbase: len(p.Created)})
@@ -1334,7 +1329,7 @@ func v1(p *rt.TParser) (any, bool) {
 	p.Enter()
 	x1 = p.Pos
 	if !p.HasCharOrdinary(123, false) && p.Depth+1 <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 5)
+		p.Expect(p.Pos, 5)
 		goto L4
 	}
 	if v6, ok = u2(p); !ok {
@@ -1346,7 +1341,7 @@ L5:
 	p.Pos = x1
 L4:
 	if !p.HasCharOrdinary(91, false) && p.Depth+1 <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 6)
+		p.Expect(p.Pos, 6)
 		goto L7
 	}
 	if v9, ok = u5(p); !ok {
@@ -1358,7 +1353,7 @@ L8:
 	p.Pos = x1
 L7:
 	if !p.HasCharOrdinary(34, false) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 7)
+		p.Expect(p.Pos, 7)
 		goto L10
 	}
 	if v12, ok = u7(p); !ok {
@@ -1384,7 +1379,7 @@ L13:
 L15:
 	p.Pos = x1
 	if !p.HasCharOrdinary(110, false) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 8)
+		p.Expect(p.Pos, 8)
 		goto L17
 	}
 	if v19, ok = s16(p); !ok {
@@ -1469,7 +1464,7 @@ L6:
 			if tf2 != nil {
 				c.ActionRaise(tf2)
 			}
-			tk3 := c.P.ElemsAbove(tm1)
+			tk3 := c.P.Kids(tm1)
 			tn4 := c.P.ActionHullLogical(c, false, tk3)
 			tv5 := tmk_Object(c, true, any(tn4))
 			tr8 = tv5
@@ -1558,7 +1553,7 @@ func i3(p *rt.TParser) (any, bool) {
 			if tf3 != nil {
 				c.ActionRaise(tf3)
 			}
-			tk4 := c.P.ElemsAbove(tm1)
+			tk4 := c.P.Kids(tm1)
 			tn5 := c.P.ActionHullLogical(c, false, tk4)
 			tr9 = any(tn5)
 		}
@@ -1693,7 +1688,7 @@ L6:
 			if tf2 != nil {
 				c.ActionRaise(tf2)
 			}
-			tk3 := c.P.ElemsAbove(tm1)
+			tk3 := c.P.Kids(tm1)
 			tn4 := c.P.ActionHullLogical(c, false, tk3)
 			tv5 := tmk_Array(c, true, any(tn4))
 			tr11 = tv5
@@ -1782,7 +1777,7 @@ func i6(p *rt.TParser) (any, bool) {
 			if tf3 != nil {
 				c.ActionRaise(tf3)
 			}
-			tk4 := c.P.ElemsAbove(tm1)
+			tk4 := c.P.Kids(tm1)
 			tn5 := c.P.ActionHullLogical(c, false, tk4)
 			tr12 = any(tn5)
 		}
@@ -1879,7 +1874,7 @@ func s8(p *rt.TParser) (any, bool) {
 			}
 			ch, size, ok = p.NextOrdinary()
 			if !ok || (ch == 34 || ch == 92 || ch >= 0 && ch <= 31) {
-				p.ExpectOrdinary(p.Pos, 13)
+				p.Expect(p.Pos, 13)
 				break
 			}
 			p.Pos += size
@@ -1893,7 +1888,7 @@ func s8(p *rt.TParser) (any, bool) {
 	L9:
 		p.Pos = x7
 		if !p.HasCharOrdinary(92, false) && p.Depth <= p.MaxDepth {
-			p.ExpectOrdinary(p.Pos, 14)
+			p.Expect(p.Pos, 14)
 			goto L11
 		}
 		if _, ok = s19(p); !ok {
@@ -1989,7 +1984,7 @@ func s15(p *rt.TParser) (any, bool) {
 	x1 = p.Pos
 	x2 = p.Pos
 	if !p.HasCharOrdinary(116, false) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 25)
+		p.Expect(p.Pos, 25)
 		goto L4
 	}
 	if p.Pos+4 <= len(p.In) && p.In[p.Pos] == 116 && p.In[p.Pos+1] == 114 && p.In[p.Pos+2] == 117 && p.In[p.Pos+3] == 101 {
@@ -2003,7 +1998,7 @@ L5:
 	p.Pos = x2
 L4:
 	if !p.HasCharOrdinary(102, false) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 26)
+		p.Expect(p.Pos, 26)
 		goto L6
 	}
 	if _, ok = p.Parser.MatchLiteralLogical(lit22, "false", 26, false); !ok {
@@ -2068,7 +2063,7 @@ func s18(p *rt.TParser) (any, bool) {
 		}
 		ch, size, ok = p.NextOrdinary()
 		if !ok || !(ch == 32 || ch == 9 || ch == 13 || ch == 10) {
-			p.ExpectOrdinary(p.Pos, 27)
+			p.Expect(p.Pos, 27)
 			break
 		}
 		p.Pos += size
@@ -2101,7 +2096,7 @@ func s19(p *rt.TParser) (any, bool) {
 	x1 = p.Pos
 	x3, x9, x4 = p.NextOrdinary()
 	if !(x4 && (x3 == 34 || x3 == 92 || x3 == 47 || x3 == 98 || x3 == 102 || x3 == 110 || x3 == 114 || x3 == 116)) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 15)
+		p.Expect(p.Pos, 15)
 		goto L5
 	}
 	p.Pos += x9
@@ -2109,7 +2104,7 @@ func s19(p *rt.TParser) (any, bool) {
 	goto L2
 L5:
 	if !p.HasCharOrdinary(117, false) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 16)
+		p.Expect(p.Pos, 16)
 		goto L7
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 117 {
@@ -2152,7 +2147,7 @@ func s20(p *rt.TParser) (any, bool) {
 	start = p.Pos
 	x1 = p.Pos
 	if !p.HasCharOrdinary(48, false) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 19)
+		p.Expect(p.Pos, 19)
 		goto L3
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 48 {
@@ -2167,7 +2162,7 @@ L4:
 L3:
 	x5, x11, x6 = p.NextOrdinary()
 	if !(x6 && (x5 >= 49 && x5 <= 57)) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 20)
+		p.Expect(p.Pos, 20)
 		goto L7
 	}
 	p.Pos += x11
@@ -2180,7 +2175,7 @@ L3:
 		}
 		ch, size, ok = p.NextOrdinary()
 		if !ok || !(ch >= 48 && ch <= 57) {
-			p.ExpectOrdinary(p.Pos, 21)
+			p.Expect(p.Pos, 21)
 			break
 		}
 		p.Pos += size
@@ -2225,7 +2220,7 @@ func s21(p *rt.TParser) (any, bool) {
 		}
 		ch, size, ok = p.NextOrdinary()
 		if !ok || !(ch >= 48 && ch <= 57) {
-			p.ExpectOrdinary(p.Pos, 21)
+			p.Expect(p.Pos, 21)
 			break
 		}
 		p.Pos += size
@@ -2257,7 +2252,7 @@ func s22(p *rt.TParser) (any, bool) {
 	start = p.Pos
 	ch, size, ok = p.NextOrdinary()
 	if !ok || !(ch == 101 || ch == 69) {
-		p.ExpectOrdinary(p.Pos, 23)
+		p.Expect(p.Pos, 23)
 		goto fail
 	}
 	p.Pos += size
@@ -2265,7 +2260,7 @@ func s22(p *rt.TParser) (any, bool) {
 	x1 = p.Pos
 	ch, size, ok = p.NextOrdinary()
 	if !ok || !(ch == 43 || ch == 45) {
-		p.ExpectOrdinary(p.Pos, 24)
+		p.Expect(p.Pos, 24)
 		goto L2
 	}
 	p.Pos += size
@@ -2282,7 +2277,7 @@ L3:
 		}
 		ch, size, ok = p.NextOrdinary()
 		if !ok || !(ch >= 48 && ch <= 57) {
-			p.ExpectOrdinary(p.Pos, 21)
+			p.Expect(p.Pos, 21)
 			break
 		}
 		p.Pos += size
@@ -2314,7 +2309,7 @@ func s23(p *rt.TParser) (any, bool) {
 	start = p.Pos
 	ch, size, ok = p.NextOrdinary()
 	if !ok || !(ch >= 48 && ch <= 57 || ch >= 97 && ch <= 102 || ch >= 65 && ch <= 70) {
-		p.ExpectOrdinary(p.Pos, 17)
+		p.Expect(p.Pos, 17)
 		goto fail
 	}
 	p.Pos += size
@@ -2326,6 +2321,6 @@ fail:
 	return nil, false
 }
 
-const _ = types.SXIRSchema_154a89c58b1cf47c
+const _ = types.SXIRSchema_295688d8137b3fd4
 
 const _ = rt.Protocol32

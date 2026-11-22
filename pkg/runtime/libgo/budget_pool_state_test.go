@@ -6,14 +6,13 @@ import (
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 )
 
-// TestFirstCallChargeIndependentOfReusedStorage checks that the steps charged and the memory counted
-// for the first-call record of a controlled parse are the same on a fresh parser and on one that a
-// parse released with its storage, for dense and sparse tables.
+// TestFirstCallChargeIndependentOfReusedStorage checks that the memory counted for the first-call
+// record of a controlled parse is the same on a fresh parser and on one that a parse released with its
+// storage, for dense and sparse tables.
 func TestFirstCallChargeIndependentOfReusedStorage(t *testing.T) {
 	for _, stride := range []int{10, 65, 130} {
-		type charge struct{ steps, bytes uint64 }
-		run := func(p *Parser, n int) charge {
-			p.Control = newBudgetControl(nil, sxirruntime.Limits{Compute: 1 << 40})
+		run := func(p *Parser, n int) uint64 {
+			p.Control = newBudgetControl(sxirruntime.Limits{Memory: 1 << 40})
 			p.n, p.memo.stride, p.memo.sparse, p.deferMemo = n, stride, stride > 64, true
 			for _, pos := range []int{0, 1, 63, 64, 1024, 1025, 3000, n - 1} {
 				p.Pos = pos
@@ -21,7 +20,7 @@ func TestFirstCallChargeIndependentOfReusedStorage(t *testing.T) {
 					p.FirstCall(&Rule{Seen: r})
 				}
 			}
-			return charge{p.Control.budgetUsed(), p.memo.chargedBytes()}
+			return p.memo.chargedBytes()
 		}
 		const n = 4096
 		fresh := run(&Parser{}, n)
@@ -29,11 +28,11 @@ func TestFirstCallChargeIndependentOfReusedStorage(t *testing.T) {
 		run(p, 2*n) // a larger parse leaves bigger storage and set bits
 		p.release()
 		if got := run(p, n); got != fresh {
-			t.Errorf("stride %d: reused parser charged %+v, fresh %+v", stride, got, fresh)
+			t.Errorf("stride %d: reused parser charged %d bytes, fresh %d", stride, got, fresh)
 		}
 		p.release()
 		if got := run(p, n); got != fresh {
-			t.Errorf("stride %d: parser reused twice charged %+v, fresh %+v", stride, got, fresh)
+			t.Errorf("stride %d: parser reused twice charged %d bytes, fresh %d", stride, got, fresh)
 		}
 	}
 }

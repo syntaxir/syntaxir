@@ -59,7 +59,7 @@ func newActionStateMachine(cfg ref.Config, typed, controlled bool) conform.Impl 
 		m.binder = conform.Binder{Methods: confActionStateBindings(x.p), Conv: actionStateConv{}}
 	}
 	if controlled {
-		m.used = func() uint64 { return m.p.Control.budgetUsed() }
+		m.used = func() uint64 { return m.p.Units }
 		return meteredActionState{m}
 	}
 	return m
@@ -174,7 +174,7 @@ func (actionStateConv) FromImpl(v reflect.Value) (any, bool) {
 }
 
 // actionStateSuite is the suite of the operations of the elements gathered or the values made of the node or
-// the typed library, metered if controlled; a metered library charges each drop and copy to the unit.
+// the typed library, metered if controlled; a metered library counts no unit for a drop or a copy.
 func actionStateSuite(ops []string, typed, controlled bool) conform.Suite {
 	name := "runtime action expressions"
 	if typed {
@@ -185,7 +185,9 @@ func actionStateSuite(ops []string, typed, controlled bool) conform.Suite {
 	}
 	s := conform.Suite{Name: name, Ops: ops, New: func(c ref.Config) conform.Impl { return newActionStateMachine(c, typed, controlled) }}
 	if controlled {
-		s.Exact = []string{"act.pushAll", "action.dropKids", "action.elemsAbove", "action.keep", "action.dropCreated"}
+		// Gathering and dropping the values of an action are no events: the action counts the elements
+		// it builds (units.items, units.since).
+		s.Free = []string{"act.pushAll", "action.dropKids", "action.elemsAbove", "action.keep", "action.dropCreated"}
 	}
 	return s
 }
@@ -259,63 +261,30 @@ func (b brokenActionState) Call(o *code.Op, args []any) []any {
 	return b.edit(func(op string, a ...any) []any { return b.actionStateMachine.Call(mod.Op(op), a) }, args)
 }
 
-// brokenActionStateCharge is the metered library whose op does its work without charging, as a printed line
-// without the charge would, or, if copy is set, charging only for the copy: action.elemsAbove that takes the
-// elements off for free.
+// brokenActionStateCharge is the metered library whose op, which is no event, counts a unit, or two if
+// twice is set: a drop or copy charged as the budget charged it before compute units were logical.
 type brokenActionStateCharge struct {
 	meteredActionState
-	op   string
-	copy bool
+	op    string
+	twice bool
 }
 
 func (b brokenActionStateCharge) Call(o *code.Op, args []any) []any {
 	if o.Name != b.op {
 		return b.meteredActionState.Call(o, args)
 	}
-	m, tp := b.actionStateMachine, b.tp
-	switch o.Name {
-	case "act.pushAll":
-		box := args[1].(*itemsBox)
-		if tp != nil {
-			tp.KidStack = append(tp.KidStack, box.vals...)
-		} else {
-			m.p.KidStack = append(m.p.KidStack, box.nodes...)
+	defer func() {
+		b.p.unitsSized(1)
+		if b.twice {
+			b.p.unitsSized(1)
 		}
-	case "action.dropKids":
-		if k := int(args[0].(int64)); tp != nil {
-			tp.KidStack = tp.KidStack[:k]
-		} else {
-			m.p.KidStack = m.p.KidStack[:k]
-		}
-	case "action.dropCreated":
-		if k := int(args[0].(int64)); tp != nil {
-			tp.Created = tp.Created[:k]
-		} else {
-			m.p.created = m.p.created[:k]
-		}
-	case "action.elemsAbove":
-		k := int(args[0].(int64))
-		if tp != nil {
-			vs := slices.Clone(tp.KidStack[k:])
-			if b.copy {
-				copySpend(tp.Parser, vs, tp.KidStack[k:])
-			}
-			tp.KidStack = tp.KidStack[:k]
-			return []any{&itemsBox{vals: vs}}
-		}
-		ns := slices.Clone(m.p.KidStack[k:])
-		if b.copy {
-			copySpend(m.p, ns, m.p.KidStack[k:])
-		}
-		m.p.KidStack = m.p.KidStack[:k]
-		return []any{&itemsBox{nodes: ns}}
-	}
-	return nil
+	}()
+	return b.meteredActionState.Call(o, args)
 }
 
 // TestExecConformanceActionStateDetectsBrokenLib is the negative control: the node and the typed library with
 // one operation broken, as a wrong line of its printed code would break it, or with a drop or copy that
-// charges nothing, fail the suite.
+// counts units, which no event makes, fail the suite.
 func TestExecConformanceActionStateDetectsBrokenLib(t *testing.T) {
 	for _, fam := range actionStateFamilies {
 		for _, typed := range []bool{false, true} {
@@ -331,20 +300,20 @@ func TestExecConformanceActionStateDetectsBrokenLib(t *testing.T) {
 				})
 			}
 			for _, br := range []struct {
-				op   string
-				copy bool
+				op    string
+				twice bool
 			}{{"act.pushAll", false}, {"action.dropKids", false}, {"action.elemsAbove", false}, {"action.elemsAbove", true}, {"action.dropCreated", false}} {
 				if !slices.Contains(fam.ops, br.op) {
 					continue
 				}
-				what := " charges nothing"
-				if br.copy {
-					what = " charges only the copy"
+				what := " counts a unit"
+				if br.twice {
+					what = " counts two units"
 				}
 				t.Run(fmt.Sprint(br.op, what, " typed=", typed), func(t *testing.T) {
 					s := actionStateSuite(fam.ops, typed, true)
 					s.New = func(c ref.Config) conform.Impl {
-						return brokenActionStateCharge{newActionStateMachine(c, typed, true).(meteredActionState), br.op, br.copy}
+						return brokenActionStateCharge{newActionStateMachine(c, typed, true).(meteredActionState), br.op, br.twice}
 					}
 					if fails, _ := actionStateConformanceFailures(fam, s, 30, 120); len(fails) == 0 {
 						t.Fatal("no case detected the broken library")

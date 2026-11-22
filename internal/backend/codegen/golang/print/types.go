@@ -454,7 +454,7 @@ type listConv struct {
 // it, and the name of the embedded Span; a field of the same name gets a "_" suffix in Go.
 var LibMethodNames = map[string]bool{
 	"TName": true, "TText": true, "TKids": true, "TStruct": true, "TFresh": true, "TSetFresh": true,
-	"TField": true, "TFieldSpend": true, "TStrField": true, "TZeroField": true, "TSpan": true, "TSetSpan": true, "Range": true,
+	"TField": true, "TStrField": true, "TZeroField": true, "TSpan": true, "TSetSpan": true, "Range": true,
 	"Span": true, "Start": true, "End": true,
 }
 
@@ -1315,7 +1315,7 @@ func (t *TypedGen) valueMethods(b *strings.Builder) {
 		fmt.Fprintf(b, "func (v *%s) TField(name string) (any, bool) {\n\tswitch name {\n", g)
 		for _, f := range t.Info.Fields[name] {
 			if t.representable(f.T) {
-				fmt.Fprintf(b, "\tcase %q:\n%s\t\treturn %s, true\n", f.Name, t.unsetField(f.Name, f.T), t.readField(f.Name, f.T, "v", false))
+				fmt.Fprintf(b, "\tcase %q:\n%s\t\treturn %s, true\n", f.Name, t.unsetField(f.Name, f.T), t.readField(f.Name, f.T, "v"))
 			} else {
 				fmt.Fprintf(b, "\tcase %q:\n\t\treturn nil, true\n", f.Name)
 			}
@@ -1334,15 +1334,6 @@ func (t *TypedGen) valueMethods(b *strings.Builder) {
 			}
 			b.WriteString("\t}\n\treturn \"\", false\n}\n\n")
 		}
-		fmt.Fprintf(b, "func (v *%s) TFieldSpend(p *"+libAlias+".TParser, name string) (any, bool) {\n\tswitch name {\n", g)
-		for _, f := range t.Info.Fields[name] {
-			if t.representable(f.T) {
-				fmt.Fprintf(b, "\tcase %q:\n%s\t\treturn %s, true\n", f.Name, t.unsetField(f.Name, f.T), t.readField(f.Name, f.T, "v", true))
-			} else {
-				fmt.Fprintf(b, "\tcase %q:\n\t\treturn nil, true\n", f.Name)
-			}
-		}
-		b.WriteString("\t}\n\treturn nil, false\n}\n\n")
 		fmt.Fprintf(b, "func (v *%s) TZeroField(c *"+libAlias+".TActCtx, name string) (any, bool) {\n\tswitch name {\n", g)
 		for _, f := range t.Info.Fields[name] {
 			if !t.representable(f.T) {
@@ -1450,23 +1441,6 @@ func (t *TypedGen) back(x types.Ty, v string) string {
 		return fmt.Sprintf("func() any { if %[1]s == nil { return nil }; kids := make([]any, len(%[1]s)); for i, x := range %[1]s { kids[i] = %[2]s }; return %[3]s.TListOf(kids) }()", v, t.back(x.Elem, "x"), libAlias)
 	}
 	return "nil"
-}
-
-// backSpend preserves back's values while accounting for list materialization.
-func (t *TypedGen) backSpend(x types.Ty, v string) string {
-	switch x := x.(type) {
-	case types.ListTy:
-		return fmt.Sprintf("func() any { if %[1]s == nil { return nil }; kids := make([]any, len(%[1]s)); for i, x := range %[1]s { %[3]skids[i] = %[2]s }; return p.ListField(kids) }()", v, t.backSpend(x.Elem, "x"), strings.ReplaceAll(t.G.step("p"), "\n", "; "))
-	case types.OptTy:
-		if b, ok := x.Elem.(types.BasicTy); ok && (b == types.TyInt || b == types.TyString || b == types.TyBool) {
-			return t.back(x, v)
-		}
-		if _, ok := x.Elem.(types.TupleTy); ok {
-			return t.back(x, v) // a pointer to a tuple, which back's helper dereferences
-		}
-		return t.backSpend(x.Elem, v)
-	}
-	return t.back(x, v)
 }
 
 // dconv returns a Go expression of type goType(x) converting v, a value of the typed library,
@@ -1642,7 +1616,7 @@ func (t *TypedGen) typedLib(b *strings.Builder) {
 	for _, l := range t.tlistOrder {
 		fmt.Fprintf(b, "\t%sChunk astChunk[%s]\n", l.name, t.goType(l.elem))
 	}
-	b.WriteString("}\n\nfunc (a *tslabs) SetBudgetControl(c *BudgetControl) { a.control = c }\n// spend charges a unit for a step of a conversion during the parse. In the conversion of the result it\n// charges nothing and observes cancellation and the memory limit every 256 steps.\nfunc (a *tslabs) spend() {\n\tif a.control == nil {\n\t\treturn\n\t}\n\tif a.result {\n\t\ta.steps++\n\t\tif a.steps%256 == 0 {\n\t\t\ta.control.Check()\n\t\t}\n\t\treturn\n\t}\n\ta.control.Charge(1)\n}\n\n")
+	b.WriteString("}\n\nfunc (a *tslabs) SetBudgetControl(c *BudgetControl) { a.control = c }\n// spend is a step of a conversion. A step during the parse is no event of logical units, whose checks\n// observe the memory limit; in the conversion of the result it observes the memory limit every 256 steps.\nfunc (a *tslabs) spend() {\n\tif a.control == nil || !a.result {\n\t\treturn\n\t}\n\ta.steps++\n\tif a.steps%256 == 0 {\n\t\ta.control.Check()\n\t}\n}\n\n")
 	// MemoryBytes sums the chunks for the memory limit, which reads it at its checks. The local
 	// chunk helpers of the measurement references do not count, and their values are not charged.
 	if !t.G.chunksInLib {

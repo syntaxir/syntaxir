@@ -279,7 +279,6 @@ docs/design/records/066-limits-by-purpose.md	unexport	markSeen	1
 docs/design/records/066-limits-by-purpose.md	unexport	memoPutControlled	1
 docs/design/records/066-limits-by-purpose.md	unexport	memoTable	10
 docs/design/records/066-limits-by-purpose.md	unexport	memoryUsed	1
-docs/design/records/066-limits-by-purpose.md	unexport	setControlledSource	1
 docs/design/records/066-limits-by-purpose.md	unexport	setSource	1
 docs/design/records/066-limits-by-purpose.md	unexport	skipSlots	1
 docs/design/records/066-limits-by-purpose.md	unexport	sparsePage	1
@@ -339,10 +338,6 @@ docs/optimizations/095-attribute-copy-on-change.md	gofile	normalize_attributes_t
 docs/optimizations/095-attribute-copy-on-change.md	unexport	normalizeAttributes	2
 docs/optimizations/096-specialize-generated-go-method-helpers.md	unexport	setCapture	1
 docs/optimizations/102-read-text-struct-fields-without-a-struct-lookup.md	unexport	structFields	2
-docs/optimizations/103-inline-the-common-budget-spend.md	unexport	budgetUsed	1
-docs/optimizations/103-inline-the-common-budget-spend.md	unexport	chargeStep	4
-docs/optimizations/103-inline-the-common-budget-spend.md	unexport	setControlledSource	1
-docs/optimizations/103-inline-the-common-budget-spend.md	unexport	takeSlow	1
 docs/optimizations/108-prologue-and-rollback-helpers.md	gofile	pkg/runtime/libgo/inline_test.go	1
 docs/optimizations/111-terminal-programs.md	gofile	pkg/runtime/libgo/terminal.go	1
 docs/optimizations/113-action-rule-name-set-once.md	unexport	evalError	4
@@ -377,7 +372,6 @@ docs/optimizations/126-unreachable-rule-bodies-typescript.md	qualified	core.Modu
 docs/optimizations/126-unreachable-rule-bodies-typescript.md	unexport	rulesExtras	1
 docs/optimizations/126-unreachable-rule-bodies-typescript.md	unexport	rulesSpec	1
 docs/optimizations/126-unreachable-rule-bodies-typescript.md	unexport	rulesStrs	1
-docs/optimizations/129-opt-in-expectations.md	unexport	expectOrdinarySlow	1
 docs/optimizations/130-memoizing-members-of-left-recursion-cycles.md	unexport	callBody	1
 docs/optimizations/134-records-of-single-character-scans.md	gofile	state/scan_sites.go	1
 docs/optimizations/134-records-of-single-character-scans.md	gofile	internal/runtime/state/scan_sites_test.go	1

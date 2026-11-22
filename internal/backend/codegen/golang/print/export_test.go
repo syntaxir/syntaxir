@@ -19,6 +19,9 @@ type (
 
 const LibImportPath = libImportPath
 
+// ClassReject is the condition that a character is not in a class.
+var ClassReject = classReject
+
 // ExecVarsError returns the error that the check of the variables of a printed body gives, for a body
 // whose text is text and whose locals dead are not declared.
 func ExecVarsError(text string, dead ...string) error {

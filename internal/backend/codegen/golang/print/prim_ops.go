@@ -25,10 +25,9 @@ func (p *primPrinter) op(c *code.Call, args []string) string {
 	switch name := c.Callee; name {
 	// Statements.
 	case prim.OpStep:
-		if g.Logical {
-			return logicalPoll
-		}
-		return "p.Spend()"
+		// Only the lowering of logical units steps (lowerdata.Options.Logical): the parser charges no
+		// budget.
+		return logicalPoll
 	case prim.OpSilent:
 		s := c.Imm.(prim.Silence)
 		if s.Delta > 0 {
@@ -186,7 +185,7 @@ func (p *primPrinter) op(c *code.Call, args []string) string {
 		return fmt.Sprintf("%s.%s(%s, %q, %d, false)", p.matcher(), p.helper("MatchLiteral"), name, lit.Text, desc)
 	case prim.OpGuardFails:
 		guard := c.Imm.(*core.First)
-		cond := NegateCondition(g.ControlledClassReject(grammarClass(guard.Class)))
+		cond := NegateCondition(classReject(grammarClass(guard.Class)))
 		return fmt.Sprintf("!(%s && (%s)) && %s", args[1], chIdent.ReplaceAllString(cond, args[0]), depthLimit(guard.Depth))
 	case prim.OpGuardLitFails:
 		guard := c.Imm.(*core.First)
@@ -256,7 +255,7 @@ func (p *primPrinter) op(c *code.Call, args []string) string {
 	case prim.OpMakeError:
 		return fmt.Sprintf("p.MakeError(%s, %s)", args[0], args[1])
 	case prim.OpErrorValue:
-		return fmt.Sprintf("NewTError(%s, p.Pos, p.RecoveryErrorText(%s))", args[0], args[1])
+		return fmt.Sprintf("NewTError(%s, p.Pos, %s.Error())", args[0], args[1])
 	case prim.OpNewErrorNode:
 		return fmt.Sprintf("p.NewErrorNode(%s, %s)", args[0], args[1])
 	case prim.OpFreshNode:
@@ -313,23 +312,9 @@ func (p *primPrinter) hasLit(lit *core.Lit) string {
 		}
 	}
 	if p.document {
-		if g.NoBudget {
-			return "p.Document == nil && (" + cond + ")"
-		}
-		return "p.Document == nil && (" + cond + ") && p.Control.Take(" + strconv.Itoa(len(rs)) + ")"
+		return "p.Document == nil && (" + cond + ")"
 	}
-	if p.untyped() && !p.budget {
-		// The Node library's generated code of a parser without budget controls has no such check.
-		return cond
-	}
-	if g.Ordinary {
-		return cond
-	}
-	if p.budget {
-		// The literal is charged one unit per code point, as MatchLiteral does when every one matches.
-		return "(" + cond + ") && p.Control.Take(" + strconv.Itoa(len(rs)) + ")"
-	}
-	return "p.Control == nil && (" + cond + ")"
+	return cond
 }
 
 // negate returns the negation of the call c of a primitive operation with the printed arguments args.
