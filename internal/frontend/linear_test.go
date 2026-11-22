@@ -1,4 +1,4 @@
-package compile
+package frontend
 
 import (
 	"strings"
@@ -7,6 +7,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/middleend/checkfacts"
 )
 
 // TestLinearKeepsSites checks that @linear, which only adds a check, leaves the sites of a program
@@ -20,11 +21,11 @@ func TestLinearKeepsSites(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		prog, err := Check(g, check.Options{}, nil, desugar.InlineNames{}, nil)
+		prog, err := Check(g, check.Options{}, nil, desugar.InlineNames{}, checkfacts.Source{}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
-		return prog.NumRunSites, prog.NumScanSites
+		return prog.Runtime().NumRunSites, prog.Runtime().NumScanSites
 	}
 	run, scan := sites("")
 	if run != 1 {

@@ -132,7 +132,7 @@ func TestClassifierFactsMatchProgram(t *testing.T) {
 				}
 				g, rules := testClassifierRules(t, g)
 				rf := testRuleFacts(t, g, rules)
-				want, ok := programRuleFacts(prog, rules)
+				want, ok := programRuleFacts(prog.Program, rules)
 				if !ok {
 					t.Fatalf("a rule of the classifier is not compiled")
 				}

@@ -1,4 +1,4 @@
-package compile
+package frontend
 
 import (
 	"testing"
@@ -6,6 +6,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/middleend/checkfacts"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 )
 
@@ -31,7 +32,7 @@ func TestRunSitesNeedRecordedReach(t *testing.T) {
 			if err != nil {
 				t.Fatalf("%s: %v", tc.name, err)
 			}
-			prog, err := Check(g, check.Options{}, nil, desugar.InlineNames{}, nil)
+			prog, err := Check(g, check.Options{}, nil, desugar.InlineNames{}, checkfacts.Source{}, nil)
 			if err != nil {
 				t.Fatalf("%s: %v", tc.name, err)
 			}
@@ -39,8 +40,8 @@ func TestRunSitesNeedRecordedReach(t *testing.T) {
 			if without {
 				want = tc.without
 			}
-			if prog.NumRunSites != want {
-				t.Errorf("%s (without the condition: %v): %d run sites, want %d", tc.name, without, prog.NumRunSites, want)
+			if prog.Runtime().NumRunSites != want {
+				t.Errorf("%s (without the condition: %v): %d run sites, want %d", tc.name, without, prog.Runtime().NumRunSites, want)
 			}
 		}
 	}

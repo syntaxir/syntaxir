@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"syntaxir.dev/sxir/internal/cancel"
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/checked"
+	"syntaxir.dev/sxir/internal/frontend"
 	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/schemaexport"
 	"syntaxir.dev/sxir/internal/runtime/program"
@@ -61,11 +61,11 @@ func build(g *ast.Grammar, opts checkpkg.Options, flags []checkpkg.RuleFlags) (*
 }
 
 // checkedProgram returns the program that runs the checked program sp.
-func checkedProgram(sp *compile.Program) *Program { return New(checked.Of(sp)) }
+func checkedProgram(sp *frontend.Result) *Program { return New(checked.Of(sp)) }
 
 // Static returns the checked program that p was compiled from, or nil for a program loaded from a
 // compiled grammar.
-func (p *Program) Static() *compile.Program {
+func (p *Program) Static() *frontend.Result {
 	if s, ok := p.src.(*checked.Source); ok {
 		return s.Checked()
 	}

@@ -49,8 +49,8 @@ rule item = [a-z]+
 		if vr.BodyExpr() != r.BodyExpr() {
 			t.Errorf("rule %s (%d): body differs", r.Name, r.ID)
 		}
-		if !maps.Equal(vr.Projections, compile.RuleProjections(p, r)) {
-			t.Errorf("rule %s (%d): projections %v, want %v", r.Name, r.ID, vr.Projections, compile.RuleProjections(p, r))
+		if !maps.Equal(vr.Projections, compile.RuleProjections(p.Program, r)) {
+			t.Errorf("rule %s (%d): projections %v, want %v", r.Name, r.ID, vr.Projections, compile.RuleProjections(p.Program, r))
 		}
 	}
 	projected, twins := false, 0

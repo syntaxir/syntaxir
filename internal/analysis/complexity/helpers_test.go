@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
@@ -12,7 +12,7 @@ import (
 )
 
 // compileStatic compiles g as the engine does, without building matchers.
-func compileStatic(g *ast.Grammar) (*compile.Program, error) {
+func compileStatic(g *ast.Grammar) (*frontend.Result, error) {
 	return compiletest.Compile(g, check.Options{})
 }
 

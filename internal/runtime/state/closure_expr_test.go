@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/closure"
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend"
 	irbuild "syntaxir.dev/sxir/internal/frontend/elaborate"
 	ir "syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
@@ -15,7 +15,7 @@ import (
 // closureExprMatcher returns the closure that the closure backend builds for the expression e of
 // the program prog, from the program's Core IR after the closure pipeline. The expression must be
 // one that a node of Core IR is built from.
-func closureExprMatcher(t *testing.T, prog *compile.Program, e ast.Expr, plainDispatch bool) state.Matcher {
+func closureExprMatcher(t *testing.T, prog *frontend.Result, e ast.Expr, plainDispatch bool) state.Matcher {
 	t.Helper()
 	m, found := closureExprCore(t, prog, e)
 	f, err := closure.Matcher(prog.Runtime(), prog.Checker(), m, found, nil, plainDispatch)
@@ -26,13 +26,13 @@ func closureExprMatcher(t *testing.T, prog *compile.Program, e ast.Expr, plainDi
 }
 
 // closureExprNode returns the Core IR node, after the passes, that closureExprMatcher builds for e.
-func closureExprNode(t *testing.T, prog *compile.Program, e ast.Expr) ir.Node {
+func closureExprNode(t *testing.T, prog *frontend.Result, e ast.Expr) ir.Node {
 	t.Helper()
 	_, n := closureExprCore(t, prog, e)
 	return n
 }
 
-func closureExprCore(t *testing.T, prog *compile.Program, e ast.Expr) (*ir.Module, ir.Node) {
+func closureExprCore(t *testing.T, prog *frontend.Result, e ast.Expr) (*ir.Module, ir.Node) {
 	t.Helper()
 	m, err := irbuild.CoreFrom(prog, true)
 	if err != nil {

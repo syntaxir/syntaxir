@@ -118,7 +118,7 @@ func TestCompileContextPhaseCancellation(t *testing.T) {
 				corepass.ComputeSites(structuralModule(t, g), make([]corepass.SiteRule, len(g.Rules())), control)
 			case "type-checking":
 				var diagnostics diagnostic.ErrorList
-				compile.CheckTypesControlled(entry.Checked(p), &diagnostics, control)
+				compile.CheckTypesControlled(entry.Checked(p).Program, &diagnostics, control)
 			case "type-inference":
 				fcheck.ValueTypes(entry.Checked(p).Checker(), control)
 			case "list-constructor-type":
@@ -128,7 +128,7 @@ func TestCompileContextPhaseCancellation(t *testing.T) {
 				for range 1024 {
 					elem = &ast.ListType{Elem: elem}
 				}
-				c := &compile.Compiler{Prog: entry.Checked(p), Control: control}
+				c := &compile.Compiler{Prog: entry.Checked(p).Program, Control: control}
 				c.CheckActionExpr(&ast.ListConstructor{Elem: elem}, fcheck.NewScope(), nil)
 			case "core-build":
 				_, _ = corebuild.CoreControlled(entry.Checked(p), control)

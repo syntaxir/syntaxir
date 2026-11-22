@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/core"
@@ -17,7 +17,7 @@ import (
 
 // structuralInput returns the input of an untyped module of the rules of the compiled program:
 // no twins, and none of the flags the compiler computes.
-func structuralInput(prog *compile.Program) *elaborate.Input {
+func structuralInput(prog *frontend.Result) *elaborate.Input {
 	typed := prog.CoreInput()
 	in := &elaborate.Input{ByName: map[string]*elaborate.Rule{}, Vars: typed.Vars}
 	for _, r := range typed.Rules[:len(prog.RuleList)] {

@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
@@ -16,7 +16,7 @@ import (
 // corpus grammar, and of a grammar of nested splice rules, the facts ShapeFacts computes from
 // scratch, whether the cache meets the expressions inside an expression before or after it.
 func TestShapeCacheFacts(t *testing.T) {
-	progs := map[string]*compile.Program{
+	progs := map[string]*frontend.Result{
 		"splices": coreProgram(t, "rule main = x:\"a\" _m (y:\"c\" / \"d\")? z:(\"e\" _m)* _m\nrule _m = \"b\" _m?"),
 	}
 	for _, path := range factstest.Corpus {

@@ -11,7 +11,6 @@ import (
 	goprint "syntaxir.dev/sxir/internal/backend/codegen/golang/print"
 	tslib "syntaxir.dev/sxir/internal/backend/codegen/typescript/lib"
 	tsprint "syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/frontend"
 	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
@@ -41,12 +40,12 @@ var compileForGenerator = checked.GeneratorCompiler(checkForGenerator)
 // checkForGenerator checks g to its static program, which is all a generator reads, and checks
 // the recognizer of the program (as the engine's Program.Recognizer makes it) on first use. No
 // backend of the engine is built.
-func checkForGenerator(g *ast.Grammar, opts checkpkg.Options) (*compile.Program, func() (*compile.Program, error), error) {
+func checkForGenerator(g *ast.Grammar, opts checkpkg.Options) (*frontend.Result, func() (*frontend.Result, error), error) {
 	prog, err := check(g, opts, nil)
 	if err != nil {
 		return nil, nil, err
 	}
-	recognizer := func() (*compile.Program, error) {
+	recognizer := func() (*frontend.Result, error) {
 		source := prog.Grammar
 		if prog.Source != nil {
 			source = prog.Source
@@ -60,7 +59,7 @@ func checkForGenerator(g *ast.Grammar, opts checkpkg.Options) (*compile.Program,
 
 // check checks g with opts and, if not nil, the rule flags flags, naming the hidden rules of
 // inline actions in errors as written.
-func check(g *ast.Grammar, opts checkpkg.Options, flags []checkpkg.RuleFlags) (*compile.Program, error) {
+func check(g *ast.Grammar, opts checkpkg.Options, flags []checkpkg.RuleFlags) (*frontend.Result, error) {
 	names := desugar.InlineNames{}
 	prog, err := frontend.Check(g, opts, flags, names, checkfacts.Source{}, nil)
 	if err != nil {

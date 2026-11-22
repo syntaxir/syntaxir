@@ -10,6 +10,7 @@ import (
 	"syntaxir.dev/sxir/internal/diagnostic"
 	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
@@ -48,7 +49,7 @@ func TestDuplicateCaptureTypes(t *testing.T) {
 				t.Fatal(err)
 			}
 			var errs diagnostic.ErrorList
-			compile.CheckTypes(entry.Checked(p), &errs)
+			compile.CheckTypes(entry.Checked(p).Program, &errs)
 			got, ok := captureType(p, "main", "x")
 			if tc.action {
 				got, ok = inferredType(p, "main")
@@ -72,7 +73,7 @@ func captureCheckProgram(src string) (*engine.Program, error) {
 	for _, d := range g.Types() {
 		sp.Types[d.DeclName()] = d
 	}
-	return engine.New(checked.Of(sp)), nil
+	return engine.New(checked.Of(frontend.NewResult(sp, check.Sites{}))), nil
 }
 
 func captureCheckSource(n int, shape string) string {
@@ -120,7 +121,7 @@ func BenchmarkCaptureChecking(b *testing.B) {
 			b.ResetTimer()
 			for range b.N {
 				var errs diagnostic.ErrorList
-				compile.CheckTypes(entry.Checked(p), &errs)
+				compile.CheckTypes(entry.Checked(p).Program, &errs)
 				if len(errs) != 0 {
 					b.Fatal(errs)
 				}
@@ -138,7 +139,7 @@ func BenchmarkCaptureChecking(b *testing.B) {
 				b.ResetTimer()
 				for range b.N {
 					var errs diagnostic.ErrorList
-					compile.CheckTypes(entry.Checked(p), &errs)
+					compile.CheckTypes(entry.Checked(p).Program, &errs)
 					if len(errs) != 0 {
 						b.Fatal(errs)
 					}
@@ -155,7 +156,7 @@ func BenchmarkCaptureChecking(b *testing.B) {
 		b.ResetTimer()
 		for range b.N {
 			var errs diagnostic.ErrorList
-			compile.CheckTypes(entry.Checked(p), &errs)
+			compile.CheckTypes(entry.Checked(p).Program, &errs)
 			if len(errs) != 0 {
 				b.Fatal(errs)
 			}

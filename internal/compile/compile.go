@@ -16,9 +16,10 @@ import (
 )
 
 // Program is the checked program: what the compiler found out about a grammar, its rules with
-// their static facts, its types and expectations. It keeps no output of a backend; the compiler
-// side that holds a program builds those (internal/driver/checked.Source). Every backend and
-// generator reads it, and its run-time program (Runtime) is what the parser runs.
+// their static facts, its types and expectations. It keeps no output of a backend and no site
+// numbers: the front end's Result adds the site numbers and the run-time program
+// (internal/frontend.Result), and the compiler side that holds a Result builds the outputs of the
+// backends (internal/driver/checked.Source).
 type Program struct {
 	// Model is the semantic model of the grammar: the grammar, its types, variables and start
 	// rules. Check always sets it.
@@ -26,13 +27,6 @@ type Program struct {
 	// chk checks the types of the program (Checker), made on first use.
 	chk         *check.Checker
 	checkerOnce sync.Once
-	// sites numbers the skip-run, run and scan sites of the program's repetitions (SetSites).
-	sites check.Sites
-	// NumSkipSites, NumRunSites and NumScanSites count the sites (Sites).
-	NumSkipSites, NumRunSites, NumScanSites int
-	// runtime is the run-time program (Runtime), made once under runtimeOnce.
-	runtimeOnce sync.Once
-	runtime     *program.Program
 }
 
 // Reserved type names.
@@ -239,7 +233,7 @@ func Canonicalize(g *ast.Grammar, opts check.Options, names desugar.InlineNames,
 // it). The rule flags come from facts, the facts of canon's rules. names receives the hidden rules
 // that the lowering of inline actions generates. If flags is not nil, it skips type checking and
 // the checks of the facts and takes the flags of a compiled grammar instead; facts still give the
-// other rule facts. The site numbers are set afterwards (SetSites).
+// other rule facts. The front end numbers the sites afterwards (frontend.NewResult).
 func CheckCanonical(canon *Canonical, opts check.Options, flags []check.RuleFlags, names desugar.InlineNames, facts *check.RuleFacts, control *cancel.Control) (*Program, error) {
 	g, source, starts, defaultStart, startErrors := canon.Grammar, canon.Source, canon.Starts, canon.DefaultStart, canon.StartErrors
 	m := check.NewModel(g, source)

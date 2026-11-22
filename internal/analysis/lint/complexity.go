@@ -37,7 +37,7 @@ func (l *linter) complexity(res *frontend.Result, start string) {
 		return // a start that is not a start rule is not classified
 	}
 	defs := map[string]*ast.RuleDef{}
-	for _, r := range l.control.rules(res.Grammar()) {
+	for _, r := range l.control.rules(res.Grammar) {
 		defs[r.Name] = r
 	}
 	add := func(check string, sev Severity, rule string, pos ast.Pos, msg string) {

@@ -1,7 +1,6 @@
 package frontend
 
 import (
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/parser"
@@ -18,7 +17,7 @@ func parseMarked(src string) (*ast.Grammar, error) {
 	return starttest.MarkAll(g), err
 }
 
-func compileGrammar(g *ast.Grammar, opts check.Options) (*compile.Program, error) {
+func compileGrammar(g *ast.Grammar, opts check.Options) (*Result, error) {
 	names := desugar.InlineNames{}
 	p, err := Check(g, opts, nil, names, checkfacts.Source{}, nil)
 	if err != nil {

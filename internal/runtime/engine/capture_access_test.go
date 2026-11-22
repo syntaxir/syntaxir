@@ -73,7 +73,7 @@ rule num Num = t:([0-9]+ #atomic) => Num{Text: text($t)}`)
 func TestCaptureAccessMatchesField(t *testing.T) {
 	t.Parallel()
 	access := mustCompile(t, `rule main = xs:(-"," y:[a-z])* $$ => map($xs, (i) => i.$y)`)
-	if a := compile.RuleProjections(access.Static(), access.Static().RuleList[0]); a["xs"] != "y" {
+	if a := compile.RuleProjections(access.Static().Program, access.Static().RuleList[0]); a["xs"] != "y" {
 		t.Fatalf("projection: %v", a)
 	}
 	g, err := parseTest(`rule main = xs:(-"," y:[a-z])* $$ => map($xs, (i) => i.$y)`)

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/actionlower"
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
 	ir "syntaxir.dev/sxir/internal/ir/core"
@@ -57,7 +57,7 @@ func TestEngineValueIterTable(t *testing.T) {
 // compiled and run by the engine, so the loop that runs is the production loop. The action expression's own charges (its
 // subexpressions) are part of what the parser spends, so the table's steps are not checked here; the charge of each
 // element is held by the action expression charge goldens.
-func iterate(c *state.EvalCtx, cp *compile.Program, call string, x any) (any, error) {
+func iterate(c *state.EvalCtx, cp *frontend.Result, call string, x any) (any, error) {
 	op := func(name string) *ir.Local { return &ir.Local{Kind: ir.LocalOp, Name: name} }
 	lambda := func(params ...string) (*ir.Lambda, *ir.Local) {
 		l := &ir.Lambda{Params: params}

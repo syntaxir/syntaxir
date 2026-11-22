@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/vmlower"
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/checked"
+	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/runtime/program"
@@ -18,7 +18,7 @@ import (
 	"syntaxir.dev/sxir/pkg/bytecode"
 )
 
-func grammarProgram(t *testing.T, path string) *compile.Program {
+func grammarProgram(t *testing.T, path string) *frontend.Result {
 	t.Helper()
 	src, err := os.ReadFile(path)
 	if err != nil {
@@ -29,7 +29,7 @@ func grammarProgram(t *testing.T, path string) *compile.Program {
 
 // flowTable returns the planned Node table of prog (checked.Source.FlowTable) and a module compiled
 // from prog to select its bodies into.
-func flowTable(t *testing.T, prog *compile.Program) (*checked.FlowTable, *bytecode.Module) {
+func flowTable(t *testing.T, prog *frontend.Result) (*checked.FlowTable, *bytecode.Module) {
 	t.Helper()
 	ft, err := checked.Of(prog).FlowTable()
 	if err != nil {
@@ -55,7 +55,7 @@ func ruleID(t *testing.T, ft *checked.FlowTable, name string) int {
 }
 
 // selectRule selects the body of the rule id of the table into bc.
-func selectRule(prog *compile.Program, ft *checked.FlowTable, bc *bytecode.Module, id int) error {
+func selectRule(prog *frontend.Result, ft *checked.FlowTable, bc *bytecode.Module, id int) error {
 	return vmlower.SelectFlows(bc, vmlower.Input{Run: prog.Runtime(), Elab: prog}, ft.IR.M, ft.Plan, map[int]*code.Module{id: ft.Bodies[id]})
 }
 

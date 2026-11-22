@@ -31,10 +31,10 @@ type FactSource interface {
 // every rule fact from the Core facts. names receives the hidden rules that the lowering of inline
 // actions generates. If flags is not nil, the rules take the flags of a compiled grammar
 // (compile.Program.Flags), and the sites are numbered with them. A non-nil control polls for
-// cancellation.
-func Check(g *ast.Grammar, opts check.Options, flags []check.RuleFlags, names desugar.InlineNames, facts FactSource, control *cancel.Control) (*compile.Program, error) {
-	prog, _, err := CheckStructural(g, opts, flags, names, facts, control)
-	return prog, err
+// cancellation. The Result has no Core IR module (Result.WithModule).
+func Check(g *ast.Grammar, opts check.Options, flags []check.RuleFlags, names desugar.InlineNames, facts FactSource, control *cancel.Control) (*Result, error) {
+	r, _, err := CheckStructural(g, opts, flags, names, facts, control)
+	return r, err
 }
 
 // Structural is the untyped Core IR module of the canonical rules of a grammar, from which Check
@@ -59,7 +59,7 @@ type Structural struct {
 // CheckStructural is Check that also returns the structural module the facts were taken from, so
 // that a caller reads them without building the module and computing them again. The module is
 // returned with an error too, unless canonicalization failed.
-func CheckStructural(g *ast.Grammar, opts check.Options, flags []check.RuleFlags, names desugar.InlineNames, facts FactSource, control *cancel.Control) (*compile.Program, *Structural, error) {
+func CheckStructural(g *ast.Grammar, opts check.Options, flags []check.RuleFlags, names desugar.InlineNames, facts FactSource, control *cancel.Control) (*Result, *Structural, error) {
 	s, err := buildStructural(g, opts, names, control)
 	if err != nil {
 		return nil, nil, err
@@ -90,8 +90,7 @@ func CheckStructural(g *ast.Grammar, opts check.Options, flags []check.RuleFlags
 	if fe := s.errors(opts, names, facts); len(fe) > 0 {
 		return nil, s, fe
 	}
-	prog.SetSites(facts.Sites(s.Module, prog, control))
-	return prog, s, nil
+	return NewResult(prog, facts.Sites(s.Module, prog, control)), s, nil
 }
 
 // CheckDefault is CheckStructural with the default options and no rule flags, for an analysis of

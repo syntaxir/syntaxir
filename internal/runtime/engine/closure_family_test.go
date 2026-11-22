@@ -15,7 +15,7 @@ import (
 	"weak"
 
 	"syntaxir.dev/sxir/internal/backend/closure"
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend"
 	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	irbuild "syntaxir.dev/sxir/internal/frontend/elaborate"
 	ir "syntaxir.dev/sxir/internal/ir/core"
@@ -402,7 +402,7 @@ func TestMeteredProgramSharesTheCoreIR(t *testing.T) {
 
 // buildClosureCore builds the Core IR of the program prog for the closures, as the parse that first
 // needs a family does (checked.Source.Core).
-func buildClosureCore(prog *compile.Program) (*ir.Module, error) {
+func buildClosureCore(prog *frontend.Result) (*ir.Module, error) {
 	m, err := irbuild.CoreControlled(prog, nil)
 	if err != nil {
 		return nil, err
@@ -559,7 +559,7 @@ func TestClosureCoreBuildContextPanic(t *testing.T) {
 func TestClosureCoreBuildPanicIsAnError(t *testing.T) {
 	t.Parallel()
 	prog := mustCompile(t, `rule main = "a" $$`)
-	// A rule list with a nil rule makes the Core IR builder panic (compile.Program.CoreInput).
+	// A rule list with a nil rule makes the Core IR builder panic (frontend.Result.CoreInput).
 	prog.Static().RuleList = append(prog.Static().RuleList, nil)
 	func() {
 		defer func() {

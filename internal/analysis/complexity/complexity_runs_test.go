@@ -81,8 +81,8 @@ func TestRunSitesMatchClassifier(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
-		t.Logf("%s: %d run sites, %d skip-run sites", name, prog.NumRunSites, prog.NumSkipSites)
-		if got := prog.NumRunSites; got != classifier {
+		t.Logf("%s: %d run sites, %d skip-run sites", name, prog.Runtime().NumRunSites, prog.Runtime().NumSkipSites)
+		if got := prog.Runtime().NumRunSites; got != classifier {
 			t.Errorf("%s: the engine marks %d run sites, the classifier %d", name, got, classifier)
 		}
 	}

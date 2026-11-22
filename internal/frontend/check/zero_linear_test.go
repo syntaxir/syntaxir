@@ -37,7 +37,7 @@ func deepStructProgram(t *testing.T, depth int) *compile.Program {
 	}
 	fmt.Fprintf(&src, "type S%d = { V int }\ntype Top = { K node[string]; In S0 }\n", depth)
 	src.WriteString("@start\nrule main Top = k:\"x\" => Top{K: $k}\n")
-	return compiletest.Program(t, src.String(), check.Options{})
+	return compiletest.Program(t, src.String(), check.Options{}).Program
 }
 
 // growsLinearly reports whether a count for twice the depth is at most three times the count for the

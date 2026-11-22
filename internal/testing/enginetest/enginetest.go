@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/frontend/schemaexport"
@@ -145,12 +145,12 @@ var CompileForGenerator = checked.GeneratorCompiler(compileForGenerator)
 
 // compileForGenerator compiles g with the engine and returns its checked program and a function that
 // returns that of its recognizer.
-func compileForGenerator(g *ast.Grammar, opts check.Options) (*compile.Program, func() (*compile.Program, error), error) {
+func compileForGenerator(g *ast.Grammar, opts check.Options) (*frontend.Result, func() (*frontend.Result, error), error) {
 	prog, err := entry.Compile(g, opts)
 	if err != nil {
 		return nil, nil, err
 	}
-	recognizer := func() (*compile.Program, error) {
+	recognizer := func() (*frontend.Result, error) {
 		rec, err := prog.Recognizer()
 		if err != nil {
 			return nil, err

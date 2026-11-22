@@ -110,7 +110,7 @@ type FrontResult = frontend.Result
 // FrontResultOf returns the front-end result of p from the checked program that p keeps, without
 // compiling the grammar again.
 func FrontResultOf(p *Program) (*FrontResult, error) {
-	return frontend.FromProgram(entry.Checked(p), nil)
+	return entry.Checked(p).WithModule(nil)
 }
 
 // Lint.

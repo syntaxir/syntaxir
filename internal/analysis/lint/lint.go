@@ -249,7 +249,7 @@ func run(res *frontend.Result, g *ast.Grammar, start string, opts options, contr
 	// Each inline action is a rule of its own with its captures and cuts: lint the grammar that the
 	// front end checked, with them lowered to hidden rules, and report their findings as the inline
 	// actions written.
-	names := res.InlineNames()
+	names := res.InlineNames
 	l := &linter{control: control, opts: opts, an: newAnalysisControlled(res, control)}
 	for _, c := range []struct {
 		name string

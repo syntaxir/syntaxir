@@ -1,10 +1,11 @@
-package compile
+package frontend
 
 import (
 	"slices"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -37,7 +38,14 @@ func TestSkipSites(t *testing.T) {
 		{"cut in a lookahead", `rule main = "b" #recover(skip=(&("a" #cut) "a")*)`, []string{`(&("a" #cut) "a")*`}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			prog := compileBare(t, tc.src)
+			g, err := parseMarked(tc.src)
+			if err != nil {
+				t.Fatal(err)
+			}
+			prog, err := compileGrammar(g, check.Options{})
+			if err != nil {
+				t.Fatal(err)
+			}
 			var got []string
 			n := 0
 			for _, r := range prog.RuleList {
@@ -53,8 +61,8 @@ func TestSkipSites(t *testing.T) {
 					}
 				})
 			}
-			if !slices.Equal(got, tc.sites) || prog.NumSkipSites != len(tc.sites) {
-				t.Errorf("sites %q (%d), want %q", got, prog.NumSkipSites, tc.sites)
+			if !slices.Equal(got, tc.sites) || prog.Runtime().NumSkipSites != len(tc.sites) {
+				t.Errorf("sites %q (%d), want %q", got, prog.Runtime().NumSkipSites, tc.sites)
 			}
 		})
 	}

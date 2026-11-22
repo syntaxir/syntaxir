@@ -65,7 +65,7 @@ func TestFactsRandom(t *testing.T) {
 		if got := factstest.Render(factstest.CoreRules(sm, structural)); got != want {
 			t.Fatalf("seed %d: facts differ\n%s\ntyped:\n%s\nuntyped:\n%s", seed, src, want, got)
 		}
-		if err := checkProgramFlags(prog, structural); err != nil {
+		if err := checkProgramFlags(prog.Program, structural); err != nil {
 			t.Fatalf("seed %d: %v\n%s", seed, err, src)
 		}
 		if err := checkFactInvariants(sm, structural); err != nil {

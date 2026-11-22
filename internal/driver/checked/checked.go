@@ -15,7 +15,6 @@ import (
 	"syntaxir.dev/sxir/internal/backend/closure"
 	"syntaxir.dev/sxir/internal/backend/vmlower"
 	"syntaxir.dev/sxir/internal/cancel"
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
@@ -35,7 +34,7 @@ import (
 // under moduleOnce, with the internal error of its compilation, if any, kept beside it so that
 // every parse that runs this source reports it.
 type Source struct {
-	prog *compile.Program
+	prog *frontend.Result
 
 	moduleOnce sync.Once
 	module     *bytecode.Module
@@ -72,11 +71,11 @@ func Check(g *ast.Grammar, opts check.Options, flags []check.RuleFlags, control 
 }
 
 // Of returns the Source of the checked program prog.
-func Of(prog *compile.Program) *Source { return &Source{prog: prog} }
+func Of(prog *frontend.Result) *Source { return &Source{prog: prog} }
 
 // Checked returns the checked program, which the generators, the analyses and the output schema
 // read.
-func (s *Source) Checked() *compile.Program { return s.prog }
+func (s *Source) Checked() *frontend.Result { return s.prog }
 
 // Schema returns the checked grammar that the output schema is exported from.
 func (s *Source) Schema() schemaexport.Source {
@@ -131,7 +130,7 @@ func (s *Source) Core(ctx context.Context) (m any, err error) {
 // (core.Analyze) and optimizes it for the closures (closure.Core). The build and the passes poll control (nil for none), and a cancellation unwinds
 // as cancel.Cancellation. A failure is an internal error: the program compiled, so its Core IR
 // builds.
-func closureCore(prog *compile.Program, control *cancel.Control) (*ir.Module, error) {
+func closureCore(prog *frontend.Result, control *cancel.Control) (*ir.Module, error) {
 	m, err := elaborate.CoreControlled(prog, control)
 	if err != nil {
 		return nil, fmt.Errorf("internal error: Core IR: %w", err)

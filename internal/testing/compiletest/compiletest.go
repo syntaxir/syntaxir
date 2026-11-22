@@ -7,7 +7,6 @@ package compiletest
 import (
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
@@ -26,7 +25,7 @@ func Parse(src string) (*ast.Grammar, error) {
 
 // Compile compiles g as the engine does, without building matchers. The errors name the hidden
 // rules of inline actions as the engine's do.
-func Compile(g *ast.Grammar, opts check.Options) (*compile.Program, error) {
+func Compile(g *ast.Grammar, opts check.Options) (*frontend.Result, error) {
 	names := desugar.InlineNames{}
 	p, err := frontend.Check(g, opts, nil, names, checkfacts.Source{}, nil)
 	if err != nil {
@@ -36,7 +35,7 @@ func Compile(g *ast.Grammar, opts check.Options) (*compile.Program, error) {
 }
 
 // Program parses and compiles src with opts, failing the test on an error.
-func Program(tb testing.TB, src string, opts check.Options) *compile.Program {
+func Program(tb testing.TB, src string, opts check.Options) *frontend.Result {
 	tb.Helper()
 	g, err := Parse(src)
 	if err != nil {

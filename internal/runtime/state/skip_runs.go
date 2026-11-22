@@ -292,7 +292,7 @@ type skipWalk struct {
 	// (program.Program.EnvFree): its records hold for every environment, which a walk keeps. A
 	// walk that reuses the record of a keyed site binds the variables of the key's Bind to the
 	// values the walk of the record left in them. The program says which sites are free (the
-	// closure backend asks compile.Program, a module marks them in its instructions), and the
+	// closure backend asks the run-time program, a module marks them in its instructions), and the
 	// program's RunKey gives the variables of the others.
 	key *runKeySlots
 	// recording reports that the walk records its visits (it met a position that is not fresh).

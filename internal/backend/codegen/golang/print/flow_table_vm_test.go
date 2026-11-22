@@ -9,8 +9,8 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/checked"
+	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/middleend/flowpass"
@@ -82,7 +82,7 @@ func TestFlowTableFollowsGoNodeTable(t *testing.T) {
 			if gen == nil || len(routes) == 0 {
 				t.Fatal("the Node table prints no rule from Flow IR")
 			}
-			ft, err := checked.Of(gen.Prog.Elab.(*compile.Program)).FlowTable()
+			ft, err := checked.Of(gen.Prog.Elab.(*frontend.Result)).FlowTable()
 			if err != nil {
 				t.Fatal(err)
 			}

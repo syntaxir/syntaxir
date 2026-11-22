@@ -12,8 +12,8 @@ import (
 	"unicode/utf8"
 
 	"syntaxir.dev/sxir/internal/backend/vmlower"
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/checked"
+	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/runtime/state"
@@ -111,7 +111,7 @@ func flowPrograms(t *testing.T, path string, pick func(rule string) bool, mutate
 func flowProgramsOf(t testing.TB, src string, pick func(rule string) bool, mutate func(rule string, f *bytecode.Flow)) (old, flows *Program, n int) {
 	t.Helper()
 	old = mustCompile(t, src)
-	cp := old.src.(interface{ Checked() *compile.Program }).Checked()
+	cp := old.src.(interface{ Checked() *frontend.Result }).Checked()
 	ft, err := checked.Of(cp).FlowTable()
 	if err != nil {
 		t.Fatal(err)

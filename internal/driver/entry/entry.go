@@ -8,8 +8,8 @@ import (
 	"context"
 
 	"syntaxir.dev/sxir/internal/cancel"
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/checked"
+	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/frontend/schemaexport"
@@ -93,7 +93,7 @@ func Source(p *engine.Program) *checked.Source {
 
 // Checked returns the checked program that p was compiled from, or nil for a program loaded from a
 // compiled grammar.
-func Checked(p *engine.Program) *compile.Program {
+func Checked(p *engine.Program) *frontend.Result {
 	if s := Source(p); s != nil {
 		return s.Checked()
 	}

@@ -12,10 +12,10 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
@@ -108,7 +108,7 @@ func coreGenerate(src string, opts common.GenOptions) (*print.Generator, bool) {
 // compiled as Program.Recognizer compiles it. The view's elaboration input is the checked program
 // that the test compiled.
 func recognizerOf(g *print.Generator) (*common.Program, error) {
-	rec, err := engine.New(checked.Of(g.Prog.Elab.(*compile.Program))).Recognizer()
+	rec, err := engine.New(checked.Of(g.Prog.Elab.(*frontend.Result))).Recognizer()
 	if err != nil {
 		return nil, err
 	}

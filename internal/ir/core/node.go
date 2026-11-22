@@ -190,9 +190,9 @@ type Repeat struct {
 	// that span RunHotSpan characters or more record the rest of them. A repetition that delivers
 	// stream elements is none.
 	Run int
-	// RunEnvFree reports that the run site Run is free of the environment (compile.Program.EnvFree):
+	// RunEnvFree reports that the run site Run is free of the environment (frontend.Result.EnvFree):
 	// its records are kept by position alone. The records of any other run site are keyed by the
-	// values of the variables of its run key (compile.Program.RunKey).
+	// values of the variables of its run key (frontend.Result.RunKey).
 	RunEnvFree bool
 	// Resume, if not 0, numbers the repetition among those of the module that an engine Document
 	// can resume: a later parse reuses the elements that an edit leaves intact. Shiftable reports

@@ -14,8 +14,8 @@ import (
 	"unicode/utf8"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
 	"syntaxir.dev/sxir/internal/runtime/engine"
@@ -885,7 +885,7 @@ func referenceCaptures(caps map[string]codegentest.Capture, in string, bytes, ex
 // referenceZeros returns the zero values of the fields of the struct types names that the grammar declares for the reference
 // evaluator, decoded from the zero descriptors that the compiled program holds
 // (check.Checker.StructZeroOf). A struct field holds the struct with no field set.
-func referenceZeros(t testing.TB, prog *compile.Program, names ...string) map[string]map[string]ref.V {
+func referenceZeros(t testing.TB, prog *frontend.Result, names ...string) map[string]map[string]ref.V {
 	t.Helper()
 	var decode func(d string) (ref.V, string)
 	decode = func(d string) (ref.V, string) {

@@ -12,6 +12,10 @@ import (
 
 func init() {
 	compile.CheckGrammar = func(g *ast.Grammar, opts check.Options, flags []check.RuleFlags, names desugar.InlineNames, control *cancel.Control) (*compile.Program, error) {
-		return frontend.Check(g, opts, flags, names, checkfacts.Source{}, control)
+		r, err := frontend.Check(g, opts, flags, names, checkfacts.Source{}, control)
+		if err != nil {
+			return nil, err
+		}
+		return r.Program, nil
 	}
 }
