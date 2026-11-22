@@ -1,3 +1,5 @@
+//go:build !sxir_budget_controls_reference
+
 package bench
 
 import (

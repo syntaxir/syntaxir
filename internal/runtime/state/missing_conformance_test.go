@@ -197,8 +197,12 @@ func TestEngineMissingConformanceDetectsBrokenEngine(t *testing.T) {
 
 // TestEngineMissingChargesArePinned is the negative control of the charges: the engine whose
 // missing.reset or missing.replay charges one unit more or nothing at all fails the controlled suite,
-// so that a change of what they charge for the tokens and the errors fails a test.
+// so that a change of what they charge for the tokens and the errors fails a test. The reference
+// build charges nothing, having no budget controls.
 func TestEngineMissingChargesArePinned(t *testing.T) {
+	if !BudgetControlsEnabled {
+		t.Skip("budget controls are unavailable in the reference build")
+	}
 	uncharged := func(f func(m *missingMachine, args []any)) func(m *missingMachine, args []any) []any {
 		return func(m *missingMachine, args []any) []any {
 			c := m.p.Control

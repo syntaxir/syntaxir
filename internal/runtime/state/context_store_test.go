@@ -69,13 +69,14 @@ func contextStoreBounded(t *testing.T, prog *engine.Program, s codegentest.Depen
 // TestContextStoreBounds checks on every backend that a context with more dependencies or more
 // leaders than the fixed-size keys of the context store hold still has its results reused: the
 // evaluations of a rule at one position do not grow with the input. The parses run under the limit
-// of the controls (TestContextStoreBoundsControls), which they must not reach.
+// of the controls (TestContextStoreBoundsControls), which they must not reach, and without a limit in
+// the reference build, which has no budget controls.
 func TestContextStoreBounds(t *testing.T) {
 	t.Parallel()
 	for _, s := range codegentest.ContextStoreShapes {
 		prog := enginetest.MustCompile(t, "@start\nrule main = "+s.Rules, check.Options{SourceInfo: true})
 		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
-			if msg, ok := contextStoreBounded(t, prog, s, engine.ParseOptions{Backend: b}, true); !ok {
+			if msg, ok := contextStoreBounded(t, prog, s, engine.ParseOptions{Backend: b}, state.BudgetControlsEnabled); !ok {
 				t.Error(msg)
 			}
 		}
@@ -84,8 +85,11 @@ func TestContextStoreBounds(t *testing.T) {
 
 // TestContextStoreBoundsControls checks that TestContextStoreBounds detects a context store that
 // drops what its fixed-size keys cannot hold. The broken stores may make the parses exponential, so
-// they run under a compute limit.
+// they run under a compute limit, which the reference build does not have.
 func TestContextStoreBoundsControls(t *testing.T) {
+	if !state.BudgetControlsEnabled {
+		t.Skip("budget controls are unavailable in the reference build")
+	}
 	for _, c := range []struct {
 		mutation int
 		shape    string
