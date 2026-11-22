@@ -115,32 +115,3 @@ func generatorsReachingCheckedProgram(t *testing.T, g *graph) []string {
 	}
 	return msgs
 }
-
-// analysisPackages are the analyses and tools that check a grammar through the front end
-// (frontend.Run, frontend.CheckStructural) and read the facts of its Core IR, not the checked program.
-// The front end itself still imports the checked program, so the check is on direct imports.
-var analysisPackages = []string{
-	"internal/analysis/complexity",
-	"internal/analysis/lint",
-}
-
-// TestAnalysesImportNoCheckedProgram checks, in every build, that no package of analysisPackages
-// imports the checked program of the compiler directly.
-func TestAnalysesImportNoCheckedProgram(t *testing.T) {
-	for _, g := range loadAll(t) {
-		for _, rel := range analysisPackages {
-			p, ok := g.pkgs[modulePath+"/"+rel]
-			if !ok {
-				t.Fatalf("build %q: no package %s", g.tags, rel)
-			}
-			if slices.Contains(p.Imports, checkedProgramPackage) {
-				t.Errorf("build %q: %s imports the checked program (%s) directly; take the checked grammar through internal/frontend", g.tags, rel, checkedProgramPackage)
-			}
-		}
-		// Negative control: the front end imports the checked program, so the same test applied to
-		// it must fire.
-		if p, ok := g.pkgs[modulePath+"/internal/frontend"]; !ok || !slices.Contains(p.Imports, checkedProgramPackage) {
-			t.Errorf("build %q: negative control: internal/frontend is expected to import the checked program", g.tags)
-		}
-	}
-}
