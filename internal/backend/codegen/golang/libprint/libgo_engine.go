@@ -11,27 +11,26 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/action"
 	"syntaxir.dev/sxir/internal/ir/code/exec"
-	"syntaxir.dev/sxir/internal/ir/code/exec/compose"
 )
 
-// engineFile is the file of the printed compositions of the engine, relative to the directory of
-// this package.
-const engineFile = "../../../../runtime/state/call_exec.go"
+// engineFile is the file of the printed compositions of the engine, relative to the root of
+// the module.
+const engineFile = "internal/runtime/state/call_exec.go"
 
 // engineOperatorsFile is the file of the printed Operators Rule compositions of the engine.
-const engineOperatorsFile = "../../../../runtime/state/operators_exec.go"
+const engineOperatorsFile = "internal/runtime/state/operators_exec.go"
 
 // engineStreamFile is the file of the printed stream compositions of the engine.
-const engineStreamFile = "../../../../runtime/state/stream_exec.go"
+const engineStreamFile = "internal/runtime/state/stream_exec.go"
 
 // engineDocumentFile is the file of the printed Document compositions of the engine.
-const engineDocumentFile = "../../../../runtime/state/document_exec.go"
+const engineDocumentFile = "internal/runtime/state/document_exec.go"
 
 // engineClosureActionFile is the file of the printed action expression compositions of the closure backend.
-const engineClosureActionFile = "../../../closure/action_exec.go"
+const engineClosureActionFile = "internal/backend/closure/action_exec.go"
 
 // engineVMActionFile is the file of the printed action expression compositions of the bytecode VM.
-const engineVMActionFile = "../../../../runtime/vm/action_exec.go"
+const engineVMActionFile = "internal/runtime/vm/action_exec.go"
 
 // engineOn are the features of the engine's specializations: it keeps the bookkeeping of the
 // examined input in every parse, has the missing-token mode and counts logical compute units. Its
@@ -105,48 +104,57 @@ var engineDocumentSpecs = []goSpec{
 var runOn = []string{exec.Document, exec.Budget}
 
 // printEngine returns the Go file of the printed compositions for package state of the engine.
-func printEngine() (string, error) {
-	return printEngineSpecs(engineSpecs)
+func printEngine(u file) (string, error) {
+	return printEngineSpecs(u, engineSpecs)
 }
 
 // printEngineOperators returns the Go file of the printed Operators Rule compositions for package state of
 // the engine.
-func printEngineOperators() (string, error) {
-	return printEngineSpecs(engineOperatorSpecs)
+func printEngineOperators(u file) (string, error) {
+	return printEngineSpecs(u, engineOperatorSpecs)
 }
 
 // printEngineStream returns the Go file of the printed stream compositions for package state of the engine.
-func printEngineStream() (string, error) {
-	return printEngineSpecs(engineStreamSpecs)
+func printEngineStream(u file) (string, error) {
+	return printEngineSpecs(u, engineStreamSpecs)
 }
 
 // printEngineDocument returns the Go file of the printed Document compositions for package state of the
 // engine.
-func printEngineDocument() (string, error) { return printEngineSpecs(engineDocumentSpecs) }
+func printEngineDocument(u file) (string, error) { return printEngineSpecs(u, engineDocumentSpecs) }
 
 // printEngineClosureActions returns the Go file of the action expression compositions for the closure backend, which
 // holds an action expression as a site of its matcher with the action expression's program (state.ActionProgram).
-func printEngineClosureActions() (string, error) {
-	return engineActions("closure", &print.Target{Params: "p *state.Parser"}, "*actionSite", func(t, ctx string) string { return t + ".actionExpr.Eval(" + ctx + ")" })
+func printEngineClosureActions(u file) (string, error) {
+	return engineActions(u, "closure", &print.Target{Params: "p *state.Parser"}, "*actionSite", func(t, ctx string) string { return t + ".actionExpr.Eval(" + ctx + ")" })
 }
 
 // printEngineVMActions returns the Go file of the action expression compositions for the bytecode VM, which holds an action expression
 // as its index in the module's action expressions, whose programs (state.ActionProgram) it loads with the module.
-func printEngineVMActions() (string, error) {
-	return engineActions("vm", &print.Target{Recv: "vm *Program", Params: "p *state.Parser"}, "int", func(t, ctx string) string { return "vm.actionExprs[" + t + "].Eval(" + ctx + ")" })
+func printEngineVMActions(u file) (string, error) {
+	return engineActions(u, "vm", &print.Target{Recv: "vm *Program", Params: "p *state.Parser"}, "int", func(t, ctx string) string { return "vm.actionExprs[" + t + "].Eval(" + ctx + ")" })
 }
 
 // engineBackendFuncs are the compositions that each backend of the engine prints into its own
 // package, without features, by engineActions.
 var engineBackendFuncs = []string{"predicate", "bind"}
 
+// engineBackendSpecs are the specializations of engineBackendFuncs.
+var engineBackendSpecs = func() []goSpec {
+	var specs []goSpec
+	for _, fn := range engineBackendFuncs {
+		specs = append(specs, goSpec{fn: fn})
+	}
+	return specs
+}()
+
 // engineActions prints the action expression compositions into a backend's own package, over what the backend
 // calls an action expression: a backend evaluates action expressions in its own form, so a printed function reaches the
 // evaluation with a direct call, and the composition costs no indirection on the path of a matcher.
 // apply returns the application of the action expression t, printed, to the context ctx, printed: the one entry
 // into the backend's action programs.
-func engineActions(pkg string, t *print.Target, actionExpr string, apply func(t, ctx string) string) (string, error) {
-	m := compose.Build()
+func engineActions(u file, pkg string, t *print.Target, actionExpr string, apply func(t, ctx string) string) (string, error) {
+	m := u.module()
 	var b strings.Builder
 	fmt.Fprintf(&b, "// Code generated by internal/backend/codegen/golang/libprint; DO NOT EDIT.\n\npackage %s\n\nimport \"syntaxir.dev/sxir/internal/runtime/state\"\n", pkg)
 	t.Source = "internal/ir/code/exec/compose"
@@ -166,8 +174,8 @@ func engineActions(pkg string, t *print.Target, actionExpr string, apply func(t,
 		}
 		panic("core: no engine action expression implementation of " + c.Callee)
 	}
-	for _, fn := range engineBackendFuncs {
-		f, err := specialize(m, fn, nil)
+	for _, s := range engineBackendSpecs {
+		f, err := u.fn(s)
 		if err != nil {
 			return "", err
 		}
@@ -207,11 +215,11 @@ func engineActionOp(callee string, a []string, qual string) (string, bool) {
 
 // printEngineSpecs returns the Go file of the printed functions specs, importing the packages that
 // they name.
-func printEngineSpecs(specs []goSpec) (string, error) {
-	m := compose.Build()
+func printEngineSpecs(u file, specs []goSpec) (string, error) {
+	m := u.module()
 	var b strings.Builder
 	for _, s := range specs {
-		f, err := specialize(m, s.fn, s.on)
+		f, err := u.fn(s)
 		if err != nil {
 			return "", err
 		}

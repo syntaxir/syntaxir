@@ -21,6 +21,7 @@ import (
 // printPackages are the packages that the import rules of the printers cover.
 var printPackages = []string{
 	"internal/backend/codegen/common",
+	"internal/backend/codegen/golang/libprint",
 	"internal/backend/codegen/golang/print",
 	"internal/backend/codegen/typescript/print",
 }

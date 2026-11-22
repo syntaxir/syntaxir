@@ -3,6 +3,7 @@ package archtest
 import (
 	"fmt"
 	"go/ast"
+	"go/build/constraint"
 	"go/parser"
 	"go/token"
 	"io/fs"
@@ -19,8 +20,29 @@ import (
 // The tests here check the rules of the pass pipeline that Go cannot enforce (record 074, "What
 // Makes the Wrong Shape Impossible"): which packages execute a pipeline, what the driver exports,
 // which functions the packages that declare passes export, and who sets the printers' test hooks.
-// They read the non-test Go files of the module, under every build tag, with the parser alone: the
-// rules are about names and calls that the syntax shows.
+// They read the non-test Go files of the module, under every build tag but ignore, with the parser
+// alone: the rules are about names and calls that the syntax shows. A file built only under the
+// ignore tag is a program of its own, such as a go generate program, and no part of the package of
+// its directory.
+
+// ignored reports whether the build constraint of the file f, parsed with its comments, is the tag
+// ignore: whether it is a program of its own, which go run or go generate runs.
+func ignored(f *ast.File) bool {
+	for _, g := range f.Comments {
+		if g.Pos() > f.Package {
+			break
+		}
+		for _, c := range g.List {
+			if !constraint.IsGoBuild(c.Text) {
+				continue
+			}
+			x, err := constraint.Parse(c.Text)
+			tag, ok := x.(*constraint.TagExpr)
+			return err == nil && ok && tag.Tag == "ignore"
+		}
+	}
+	return false
+}
 
 // pipePath is the pass manager, whose Execute runs a pipeline.
 const pipePath = modulePath + "/internal/pass/pipe"
@@ -35,7 +57,8 @@ type sourcePackage struct {
 }
 
 // loadSources parses the non-test Go files of the packages under root, whose import paths start
-// with module: every directory but testdata, hidden ones and those of another module.
+// with module: every directory but testdata, hidden ones and those of another module, and every file
+// but those built only under the ignore tag (ignored).
 func loadSources(root, module string) (map[string]*sourcePackage, error) {
 	pkgs := map[string]*sourcePackage{}
 	fset := token.NewFileSet()
@@ -54,6 +77,13 @@ func loadSources(root, module string) (map[string]*sourcePackage, error) {
 			return nil
 		}
 		if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
+			return nil
+		}
+		head, err := parser.ParseFile(fset, p, nil, parser.PackageClauseOnly|parser.ParseComments)
+		if err != nil {
+			return err
+		}
+		if ignored(head) {
 			return nil
 		}
 		f, err := parser.ParseFile(fset, p, nil, parser.SkipObjectResolution)
@@ -163,9 +193,6 @@ var pipelineExecutors = map[string]string{
 	// package's own internal tests use it, and a shared helper in test support would import
 	// flowpass, which those internal tests cannot import back without an import cycle.
 	"internal/middleend/flowpass": "tests",
-	// The Go library specializes and lowers its functions with its own pipeline until migration
-	// step 10 prints it through the library route of the driver.
-	"internal/backend/codegen/golang/libprint": "step 10",
 }
 
 // TestOnlyTheDriverExecutesPipelines checks that outside internal/pass, the driver package itself
@@ -193,8 +220,8 @@ func TestOnlyTheDriverExecutesPipelines(t *testing.T) {
 // API, the slot keys of its edits and the vocabulary of the settings. A new export fails the test.
 var driverExports = []string{
 	// The compilation API.
-	"Backend", "Check", "CheckWith", "Compile", "CompileOptions", "Compiler", "Describe", "FlowTable",
-	"Options", "Output", "Program", "Target", "View",
+	"Backend", "Check", "CheckWith", "Compile", "CompileOptions", "Compiler", "Describe", "DescribeGoLibrary",
+	"FlowTable", "GoLibrary", "Options", "Output", "Program", "Target", "View",
 	// The slot keys.
 	"CoreSlot", "ExecSlot", "FlowSlot", "TargetSlot",
 	// The settings: profiles, their documentation and values, the parsing of overrides and dump

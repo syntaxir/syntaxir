@@ -1,34 +1,27 @@
 package libprint
 
 import (
-	"context"
 	"fmt"
 	"slices"
 	"strings"
 
-	gopass "syntaxir.dev/sxir/internal/backend/codegen/golang/pass"
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/action"
 	"syntaxir.dev/sxir/internal/ir/code/exec"
-	"syntaxir.dev/sxir/internal/ir/code/exec/compose"
-	"syntaxir.dev/sxir/internal/ir/code/exec/library"
-	"syntaxir.dev/sxir/internal/middleend/codepass"
-	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
-	"syntaxir.dev/sxir/internal/pass/pipe"
 )
 
 // libGoFile is the file of the printed compositions in the Go library of generated parsers,
-// relative to the directory of this package, which go generate in this directory writes.
-const libGoFile = "../../../../../pkg/runtime/libgo/call_exec.go"
+// relative to the root of the module, which go generate in this directory writes.
+const libGoFile = "pkg/runtime/libgo/call_exec.go"
 
 // goStreamFile is the file of the printed stream compositions in the Go library, relative
-// to the directory of this package.
-const goStreamFile = "../../../../../pkg/runtime/libgo/stream_exec.go"
+// to the root of the module.
+const goStreamFile = "pkg/runtime/libgo/stream_exec.go"
 
 // goOperatorsFile is the file of the printed Operators Rule compositions in the generated Go library,
-// relative to the directory of this package.
-const goOperatorsFile = "../../../../../pkg/runtime/libgo/operators_exec.go"
+// relative to the root of the module.
+const goOperatorsFile = "pkg/runtime/libgo/operators_exec.go"
 
 // goSpec is a printed function of the Go library: a specialization of a composition for the node
 // Parser or the typed TParser.
@@ -41,7 +34,9 @@ type goSpec struct {
 	// doc, if not empty, replaces the Doc of the function; the Go library names the form of an
 	// ordinary parse, which no Exec IR function describes.
 	doc string
-	// cold is the Go name of the function that the cold path of fn is split into (gopass.ColdPaths).
+	// cold, if not empty, is the Go name of the function that the cold path of fn is split into, which
+	// the request asks for (library.Request.Cold) and the pipeline of the library makes
+	// (gopass.ColdPath).
 	cold string
 }
 
@@ -135,14 +130,14 @@ var goOperatorSpecs = []goSpec{
 }
 
 // printGoOperators returns the Go file of the printed Operators Rule compositions for package libgo.
-func printGoOperators() (string, error) { return goFile(goOperatorSpecs) }
+func printGoOperators(u file) (string, error) { return goFile(u, goOperatorSpecs) }
 
 // printGoStream returns the Go file of the printed stream compositions for package libgo.
-func printGoStream() (string, error) {
-	m := compose.Build()
+func printGoStream(u file) (string, error) {
+	m := u.module()
 	var b strings.Builder
 	for _, s := range goStreamSpecs {
-		f, err := specialize(m, s.fn, s.on)
+		f, err := u.fn(s)
 		if err != nil {
 			return "", err
 		}
@@ -163,8 +158,8 @@ func libFileHeader(body string, std []string) string {
 }
 
 // printLibGo returns the Go file of the printed compositions for package libgo.
-func printLibGo() (string, error) {
-	body, err := goBody(goSpecs)
+func printLibGo(u file) (string, error) {
+	body, err := goBody(u, goSpecs)
 	if err != nil {
 		return "", err
 	}
@@ -184,8 +179,8 @@ const minRecordedRun = %d
 }
 
 // goFile returns the Go file of the printed functions specs for package libgo.
-func goFile(specs []goSpec) (string, error) {
-	body, err := goBody(specs)
+func goFile(u file, specs []goSpec) (string, error) {
+	body, err := goBody(u, specs)
 	if err != nil {
 		return "", err
 	}
@@ -193,17 +188,31 @@ func goFile(specs []goSpec) (string, error) {
 }
 
 // goBody returns the printed functions specs for package libgo.
-func goBody(specs []goSpec) (string, error) {
-	m := compose.Build()
+func goBody(u file, specs []goSpec) (string, error) {
+	m := u.module()
 	var b strings.Builder
 	for _, s := range specs {
-		fs, err := goFuncs(m, s)
+		fs, err := goFuncs(u, s)
 		if err != nil {
 			return "", err
 		}
 		t := goTarget(s)
 		if s.plain {
 			t.Recv = ""
+		}
+		if made := fs[1:]; len(made) > 0 {
+			// The function that the cold path is split into, which the guard calls, has the Go name
+			// that the request asked for (library.Request.Cold), s.cold, and is printed under it.
+			if len(made) > 1 || made[0].Name != s.cold {
+				return "", fmt.Errorf("no Go name for the functions %d made of %s", len(made), s.name)
+			}
+			name := t.FuncName
+			t.FuncName = func(n string) string {
+				if n == s.cold {
+					return n
+				}
+				return name(n)
+			}
 		}
 		for _, f := range fs {
 			src, err := print.Func(m, f, t)
@@ -216,36 +225,22 @@ func goBody(specs []goSpec) (string, error) {
 	return b.String(), nil
 }
 
-// specialize returns the composition fn of the module m specialized for the features on, under its
-// own name, as the pass specialize makes it.
-func specialize(m *code.Module, fn string, on []string) (*code.Func, error) {
-	l, err := pipe.Execute(context.Background(), &pipe.Run{}, pipe.Of(codepass.Specialization),
-		&library.Library{Module: m, Requests: []library.Request{{Fn: fn, On: on, Name: fn}}})
-	if err != nil {
-		return nil, err
-	}
-	return l.Funcs[0], nil
-}
-
 // goFuncs returns the functions that the Go library prints for s: the function of the composition
-// specialized for its features, and the functions that the Go Exec passes of the library (gopass.Library)
-// make of it, such as the cold path that they split from its guard.
-func goFuncs(m *code.Module, s goSpec) ([]*code.Func, error) {
-	f, err := specialize(m, s.fn, s.on)
+// specialized for its features, and the functions that the Go passes of the library's pipeline made
+// of it, such as the cold path that go-cold-path splits from its guard (gopass.ColdPath).
+func goFuncs(u file, s goSpec) ([]*code.Func, error) {
+	f, err := u.fn(s)
 	if err != nil {
 		return nil, err
 	}
 	if s.doc != "" {
 		f.Doc = s.doc
 	}
-	with := *m
-	with.Funcs = append(slices.Clone(m.Funcs), f)
-	l, err := pipe.Execute(context.Background(), &pipe.Run{}, gopass.Library, &execdata.Lowered{Module: &with, Func: f})
+	made, err := u.made(s)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", s.fn, err)
+		return nil, err
 	}
-	// The passes add the functions they make after the functions of the module and the specialized one.
-	return append([]*code.Func{l.Func}, l.Module.Funcs[len(m.Funcs)+1:]...), nil
+	return append([]*code.Func{f}, made...), nil
 }
 
 // goTarget returns the Go implementation of the operations in the node or the typed library, for
@@ -306,9 +301,6 @@ func goTarget(s goSpec) *print.Target {
 		}
 	}
 	names[s.fn] = s.name
-	if s.cold != "" {
-		names[gopass.ColdPaths[s.fn]] = s.cold
-	}
 	t.Handle = func(name string) string { return handles[name] }
 	t.FuncName = func(name string) string { return names[name] }
 	t.Reg = func(name string) string {

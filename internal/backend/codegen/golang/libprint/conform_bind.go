@@ -17,8 +17,8 @@ import (
 // (internal/ir/code/exec/conform) runs the code that the target's compositions run, not a copy of it.
 
 // engineExpBindingsFile is the file of the engine's conformance bindings of the expectation record,
-// relative to the directory of this package. It is a test file of package state of the engine.
-const engineExpBindingsFile = "../../../../runtime/state/exp_bind_exec_test.go"
+// relative to the root of the module. It is a test file of package state of the engine.
+const engineExpBindingsFile = "internal/runtime/state/exp_bind_exec_test.go"
 
 // expBindingMemoOps are the operations of the memo that keep the expectations of an entry.
 var expBindingMemoOps = []string{"memo.far", "memo.expected", "memo.setExpected"}
@@ -57,10 +57,10 @@ var oprBindingDescriptorOps = []string{
 // descriptors, those that run the grammar code of a rule (conform.OprMatchOps), those that make its
 // values (conform.OprValueBuildOps), those of the missing-token mode (conform.OprMissingOps), and the
 // records.
-func oprBindingEngineOps() []string {
+func oprBindingEngineOps(m *code.Module) []string {
 	names := append(slices.Clone(oprBindingDescriptorOps), "opr.skip", "opr.match", "opr.lineValue", "opr.build",
 		"opr.attemptMissing", "opr.replay")
-	for _, o := range compose.Build().Ops {
+	for _, o := range m.Ops {
 		if o.Component == exec.Suspended && strings.HasPrefix(o.Name, "opr") {
 			names = append(names, o.Name)
 		}
@@ -68,10 +68,11 @@ func oprBindingEngineOps() []string {
 	return names
 }
 
-// expBindingOps returns the operations of the expectation record and of expBindingMemoOps.
-func expBindingOps() []string {
+// expBindingOps returns the operations of the expectation record of the compositions module m and of
+// expBindingMemoOps.
+func expBindingOps(m *code.Module) []string {
 	var names []string
-	for _, o := range compose.Build().Ops {
+	for _, o := range m.Ops {
 		if o.Component == exec.Exp {
 			names = append(names, o.Name)
 		}
@@ -79,12 +80,12 @@ func expBindingOps() []string {
 	return append(names, expBindingMemoOps...)
 }
 
-// bindings returns the module of the compositions with a binding function for each operation of
-// names, and the bindings in that order. A context state (exec.Ctx) and a growth (exec.Grow) are values
+// bindings returns a copy of the compositions module m with a binding function for each operation
+// of names, and the bindings in that order. A context state (exec.Ctx) and a growth (exec.Grow) are values
 // that the operations change in place, so a binding returns each one it takes after its results, for
 // the harness to keep.
-func bindings(names []string) (*code.Module, []*code.Func) {
-	m := compose.Build()
+func bindings(m *code.Module, names []string) (*code.Module, []*code.Func) {
+	m = m.Clone()
 	var fs []*code.Func
 	for _, name := range names {
 		o := m.Op(name)
@@ -135,10 +136,11 @@ func bindings(names []string) (*code.Module, []*code.Func) {
 // place: a context state or a growth.
 func isState(t code.Type) bool { return t == code.THandle(exec.Ctx) || t == code.THandle(exec.Grow) }
 
-// bindingFile prints the bindings with the target t into a Go file of package pkg. A file of the
+// bindingFile prints the bindings of the compositions module m with the target t into a Go file of
+// package pkg. A file of the
 // engine's package state or of the library imports the packages that it names.
-func bindingFile(pkg string, names []string, t *print.Target, table string) (string, error) {
-	m, fs := bindings(names)
+func bindingFile(m *code.Module, pkg string, names []string, t *print.Target, table string) (string, error) {
+	m, fs := bindings(m, names)
 	name := t.FuncName
 	t.FuncName = func(n string) string {
 		if strings.HasPrefix(n, "conf") {
@@ -178,48 +180,48 @@ func bindingFile(pkg string, names []string, t *print.Target, table string) (str
 
 // printEngineExpBindings returns the Go test file of the conformance bindings of the expectation record
 // for package state of the engine.
-func printEngineExpBindings() (string, error) {
-	return bindingFile("state", expBindingOps(), engineTarget(), "")
+func printEngineExpBindings(u file) (string, error) {
+	return bindingFile(u.module(), "state", expBindingOps(u.module()), engineTarget(), "")
 }
 
 // GoExpBindings returns the Go test file of the conformance bindings of the expectation record for
 // package libgo, for the node library's Parser.
 func GoExpBindings() (string, error) {
-	return bindingFile("libgo", expBindingOps(), goTarget(goSpec{fn: "expect", name: "Expect"}), "")
+	return bindingFile(compose.Build(), "libgo", expBindingOps(compose.Build()), goTarget(goSpec{fn: "expect", name: "Expect"}), "")
 }
 
 // GoTypedExpBindings returns the Go test file of the conformance bindings of the operations of the memo
 // that keep the expectations of an entry for package libgo, for the typed library's TParser, whose
 // entries differ from the node library's; the record itself is the node Parser's (GoExpBindings).
 func GoTypedExpBindings() (string, error) {
-	return bindingFile("libgo", expBindingMemoOps, goTarget(goSpec{fn: "reset", typed: true, name: "Reset"}), "")
+	return bindingFile(compose.Build(), "libgo", expBindingMemoOps, goTarget(goSpec{fn: "reset", typed: true, name: "Reset"}), "")
 }
 
 // engineDocBindingsFile is the file of the engine's conformance bindings of the doc operations,
-// relative to the directory of this package. It is a test file of package state of the engine.
-const engineDocBindingsFile = "../../../../runtime/state/doc_bind_exec_test.go"
+// relative to the root of the module. It is a test file of package state of the engine.
+const engineDocBindingsFile = "internal/runtime/state/doc_bind_exec_test.go"
 
 // printEngineDocBindings returns the Go test file of the conformance bindings of the doc operations for
 // package state of the engine.
-func printEngineDocBindings() (string, error) {
-	return bindingFile("state", docBindingEngineOps, engineTarget(), "")
+func printEngineDocBindings(u file) (string, error) {
+	return bindingFile(u.module(), "state", docBindingEngineOps, engineTarget(), "")
 }
 
 // GoDocBindings returns the Go test file of the conformance bindings of the doc operations for
 // package libgo, for the node library's Parser.
 func GoDocBindings() (string, error) {
-	return bindingFile("libgo", docBindingOps, goTarget(goSpec{fn: "expect", name: "Expect"}), "")
+	return bindingFile(compose.Build(), "libgo", docBindingOps, goTarget(goSpec{fn: "expect", name: "Expect"}), "")
 }
 
 // engineOprBindingsFile is the file of the engine's conformance bindings of the Operators Rule
-// operations, relative to the directory of this package. It is a test file of package state of the
+// operations, relative to the root of the module. It is a test file of package state of the
 // engine.
-const engineOprBindingsFile = "../../../../runtime/state/opr_bind_exec_test.go"
+const engineOprBindingsFile = "internal/runtime/state/opr_bind_exec_test.go"
 
 // printEngineOprBindings returns the Go test file of the conformance bindings of the Operators Rule
 // operations for package state of the engine.
-func printEngineOprBindings() (string, error) {
-	return bindingFile("state", oprBindingEngineOps(), engineTarget(), "confOprBindings")
+func printEngineOprBindings(u file) (string, error) {
+	return bindingFile(u.module(), "state", oprBindingEngineOps(u.module()), engineTarget(), "confOprBindings")
 }
 
 // oprBindingGoOps returns the Operators Rule operations of a Go library: the descriptors, those that run
@@ -237,13 +239,13 @@ func oprBindingGoOps(typed bool) []string {
 // GoOprBindings returns the Go test file of the conformance bindings of the Operators Rule operations
 // for package libgo, for the node library's Parser.
 func GoOprBindings() (string, error) {
-	return bindingFile("libgo", oprBindingGoOps(false), goTarget(goSpec{fn: "expect", name: "Expect"}), "confOprBindings")
+	return bindingFile(compose.Build(), "libgo", oprBindingGoOps(false), goTarget(goSpec{fn: "expect", name: "Expect"}), "confOprBindings")
 }
 
 // GoTypedOprBindings returns the Go test file of the conformance bindings of the Operators Rule
 // operations for package libgo, for the typed library's TParser.
 func GoTypedOprBindings() (string, error) {
-	return bindingFile("libgo", oprBindingGoOps(true), goTarget(goSpec{fn: "reset", typed: true, name: "Reset"}), "confTOprBindings")
+	return bindingFile(compose.Build(), "libgo", oprBindingGoOps(true), goTarget(goSpec{fn: "reset", typed: true, name: "Reset"}), "confTOprBindings")
 }
 
 // ctxBindingOps are the operations of the dependency memo of left recursion and of the growth outside
@@ -256,17 +258,17 @@ var ctxBindingOps = []string{
 }
 
 // engineCtxBindingsFile is the file of the engine's conformance bindings of the dependency memo,
-// relative to the directory of this package. It is a test file of package state of the engine.
-const engineCtxBindingsFile = "../../../../runtime/state/ctx_bind_exec_test.go"
+// relative to the root of the module. It is a test file of package state of the engine.
+const engineCtxBindingsFile = "internal/runtime/state/ctx_bind_exec_test.go"
 
 // printEngineCtxBindings returns the Go test file of the conformance bindings of the dependency memo for
 // package state of the engine.
 //
 // The engine's grow.end is not here: its printed call names the rule of the enclosing composition, which
 // the operation does not take, so the suite binds it by hand (ctxMachine.growEnd).
-func printEngineCtxBindings() (string, error) {
+func printEngineCtxBindings(u file) (string, error) {
 	ops := slices.DeleteFunc(slices.Clone(ctxBindingOps), func(n string) bool { return n == "grow.end" })
-	return bindingFile("state", ops, engineTarget(), "confCtxBindings")
+	return bindingFile(u.module(), "state", ops, engineTarget(), "confCtxBindings")
 }
 
 // GoCtxBindings returns the Go test file of the conformance bindings of the dependency memo for
@@ -275,7 +277,7 @@ func GoCtxBindings() (string, error) {
 	// The library's growEnd returns the result by value, where the operation's result is the handle of
 	// a result, so the suite binds grow.end by hand (ctxMachine.growEnd).
 	ops := slices.DeleteFunc(slices.Clone(ctxBindingOps), func(n string) bool { return n == "grow.end" })
-	return bindingFile("libgo", ops, goTarget(goSpec{fn: "expect", name: "Expect"}), "confCtxBindings")
+	return bindingFile(compose.Build(), "libgo", ops, goTarget(goSpec{fn: "expect", name: "Expect"}), "confCtxBindings")
 }
 
 // frameBindingOps are the frame operations that conformance cases cover.
@@ -289,30 +291,30 @@ var frameBindingOps = []string{
 var frameBindingGoOps = slices.DeleteFunc(slices.Clone(frameBindingOps), func(n string) bool { return n == "frame.markMissing" })
 
 // engineFrameBindingsFile is the file of the engine's conformance bindings of the capture frames,
-// relative to the directory of this package. It is a test file of package state of the engine.
-const engineFrameBindingsFile = "../../../../runtime/state/frame_bind_exec_test.go"
+// relative to the root of the module. It is a test file of package state of the engine.
+const engineFrameBindingsFile = "internal/runtime/state/frame_bind_exec_test.go"
 
 // printEngineFrameBindings returns the Go test file of the conformance bindings of the capture frames for
 // package state of the engine.
-func printEngineFrameBindings() (string, error) {
-	return bindingFile("state", frameBindingOps, engineTarget(), "confFrameBindings")
+func printEngineFrameBindings(u file) (string, error) {
+	return bindingFile(u.module(), "state", frameBindingOps, engineTarget(), "confFrameBindings")
 }
 
 // GoFrameBindings returns the Go test file of the conformance bindings of the capture frames for
 // package libgo, for the node library's Parser.
 func GoFrameBindings() (string, error) {
-	return bindingFile("libgo", frameBindingGoOps, goTarget(goSpec{fn: "expect", name: "Expect"}), "confFrameBindings")
+	return bindingFile(compose.Build(), "libgo", frameBindingGoOps, goTarget(goSpec{fn: "expect", name: "Expect"}), "confFrameBindings")
 }
 
 // GoTypedFrameBindings returns the Go test file of the conformance bindings of the capture frames for
 // package libgo, for the typed library's TParser.
 func GoTypedFrameBindings() (string, error) {
-	return bindingFile("libgo", frameBindingGoOps, goTarget(goSpec{fn: "reset", typed: true, name: "Reset"}), "confTFrameBindings")
+	return bindingFile(compose.Build(), "libgo", frameBindingGoOps, goTarget(goSpec{fn: "reset", typed: true, name: "Reset"}), "confTFrameBindings")
 }
 
 // engineRuleBindingsFile is the file of the engine's conformance bindings of the operations of the
-// rules, relative to the directory of this package. It is a test file of package state of the engine.
-const engineRuleBindingsFile = "../../../../runtime/state/rule_bind_exec_test.go"
+// rules, relative to the root of the module. It is a test file of package state of the engine.
+const engineRuleBindingsFile = "internal/runtime/state/rule_bind_exec_test.go"
 
 // ruleBindingEngineOps are the operations of the rules that the engine provides, with those of the
 // deferral of memoization (seen.defers, seen.first), which firstCall composes with rule.seen.
@@ -326,21 +328,21 @@ var ruleBindingOps = []string{"rule.memo", "rule.leader", "rule.plain", "rule.do
 
 // printEngineRuleBindings returns the Go test file of the conformance bindings of the operations of the rules
 // for package state of the engine.
-func printEngineRuleBindings() (string, error) {
-	return bindingFile("state", ruleBindingEngineOps, engineTarget(), "")
+func printEngineRuleBindings(u file) (string, error) {
+	return bindingFile(u.module(), "state", ruleBindingEngineOps, engineTarget(), "")
 }
 
 // GoRuleBindings returns the Go test file of the conformance bindings of the operations of the rules for
 // package libgo, for the node library's Parser.
 func GoRuleBindings() (string, error) {
-	return bindingFile("libgo", ruleBindingOps, goTarget(goSpec{fn: "expect", name: "Expect"}), "")
+	return bindingFile(compose.Build(), "libgo", ruleBindingOps, goTarget(goSpec{fn: "expect", name: "Expect"}), "")
 }
 
 // GoTypedRuleBindings returns the Go test file of the conformance bindings of the operations of the
 // rules for package libgo, for the typed library's TParser, with rule.run, which runs the invocation
 // that a generated typed call passes.
 func GoTypedRuleBindings() (string, error) {
-	return bindingFile("libgo", append(slices.Clone(ruleBindingOps), "rule.run"), goTarget(goSpec{fn: "reset", typed: true, name: "Reset"}), "")
+	return bindingFile(compose.Build(), "libgo", append(slices.Clone(ruleBindingOps), "rule.run"), goTarget(goSpec{fn: "reset", typed: true, name: "Reset"}), "")
 }
 
 // obsBindingOps are the operations of the observation of a parse.
@@ -354,25 +356,25 @@ const GoObsBindingsFile = "obs_bind_exec_test.go"
 // runtime, for the node library's Parser. The engine has no observation of this kind: it traces a call
 // on a path of its own.
 func GoObsBindings() (string, error) {
-	return bindingFile("libgo", obsBindingOps, goTarget(goSpec{fn: "expect", name: "Expect"}), "")
+	return bindingFile(compose.Build(), "libgo", obsBindingOps, goTarget(goSpec{fn: "expect", name: "Expect"}), "")
 }
 
 // engineMissingBindingsFile is the file of the engine's conformance bindings of the missing-token
-// mode, relative to the directory of this package. It is a test file of package state of the engine.
-const engineMissingBindingsFile = "../../../../runtime/state/missing_bind_exec_test.go"
+// mode, relative to the root of the module. It is a test file of package state of the engine.
+const engineMissingBindingsFile = "internal/runtime/state/missing_bind_exec_test.go"
 
 // missingBindingOps are the operations of the missing-token mode.
 var missingBindingOps = []string{"missing.active", "missing.recompute", "missing.mark", "missing.reset", "missing.replay"}
 
 // printEngineMissingBindings returns the Go test file of the conformance bindings of the missing-token mode
 // for package state of the engine, the only target that has the mode.
-func printEngineMissingBindings() (string, error) {
-	return bindingFile("state", missingBindingOps, engineTarget(), "")
+func printEngineMissingBindings(u file) (string, error) {
+	return bindingFile(u.module(), "state", missingBindingOps, engineTarget(), "")
 }
 
 // engineCallBindingsFile is the file of the engine's conformance bindings of the traced call path,
-// relative to the directory of this package. It is a test file of package state of the engine.
-const engineCallBindingsFile = "../../../../runtime/state/call_bind_exec_test.go"
+// relative to the root of the module. It is a test file of package state of the engine.
+const engineCallBindingsFile = "internal/runtime/state/call_bind_exec_test.go"
 
 // callBindingOps are the operations of the traced call path.
 var callBindingOps = []string{"call.tracked", "call.track"}
@@ -380,32 +382,32 @@ var callBindingOps = []string{"call.tracked", "call.track"}
 // printEngineCallBindings returns the Go test file of the conformance bindings of the traced call path
 // for package state of the engine, the only target that has the path: the generated runtimes observe a
 // call with obs and doc operations of their own.
-func printEngineCallBindings() (string, error) {
-	return bindingFile("state", callBindingOps, engineTarget(), "")
+func printEngineCallBindings(u file) (string, error) {
+	return bindingFile(u.module(), "state", callBindingOps, engineTarget(), "")
 }
 
 // actionStateBindingOps are the operations of the elements gathered and the values made.
 var actionStateBindingOps = []string{"act.push", "act.pushAll", "action.kids", "action.dropKids", "action.elemsAbove", "action.keep", "act.made", "action.created", "action.dropCreated"}
 
 // engineActionStateBindingsFile is the file of the engine's conformance bindings of the elements gathered and the
-// values made, relative to the directory of this package. It is a test file of package state of the engine.
-const engineActionStateBindingsFile = "../../../../runtime/state/actions_bind_exec_test.go"
+// values made, relative to the root of the module. It is a test file of package state of the engine.
+const engineActionStateBindingsFile = "internal/runtime/state/actions_bind_exec_test.go"
 
 // printEngineActionStateBindings returns the Go test file of the conformance bindings of the elements gathered
 // and the values made for package state of the engine, printed as the backends print them into their own
 // packages (engineActionOp).
-func printEngineActionStateBindings() (string, error) {
-	return bindingFile("state", actionStateBindingOps, engineTarget(), "confActionStateBindings")
+func printEngineActionStateBindings(u file) (string, error) {
+	return bindingFile(u.module(), "state", actionStateBindingOps, engineTarget(), "confActionStateBindings")
 }
 
 // GoActionStateBindings returns the Go test file of the conformance bindings of the elements gathered and the
 // values made for package libgo, for the node library's Parser.
 func GoActionStateBindings() (string, error) {
-	return bindingFile("libgo", actionStateBindingOps, goTarget(goSpec{fn: "expect", name: "Expect"}), "confActionStateBindings")
+	return bindingFile(compose.Build(), "libgo", actionStateBindingOps, goTarget(goSpec{fn: "expect", name: "Expect"}), "confActionStateBindings")
 }
 
 // GoTypedActionStateBindings returns the Go test file of the conformance bindings of the elements gathered and
 // the values made for package libgo, for the typed library's TParser.
 func GoTypedActionStateBindings() (string, error) {
-	return bindingFile("libgo", actionStateBindingOps, goTarget(goSpec{fn: "reset", typed: true, name: "Reset"}), "confTActionStateBindings")
+	return bindingFile(compose.Build(), "libgo", actionStateBindingOps, goTarget(goSpec{fn: "reset", typed: true, name: "Reset"}), "confTActionStateBindings")
 }

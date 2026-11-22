@@ -117,7 +117,8 @@ var specFeatures = map[string]common.Feature{exec.Document: common.FeatureDocume
 // LibraryRequests returns the specializations that the TypeScript library of a parser with the
 // features fs requests of the compositions (library.Request), one per method of tsSpecs, in its
 // order: each is specialized for the features of its specification that fs has, under the name of
-// its composition, which the calls of the other methods take.
+// its method, which is unique in the library; the printer prints it under the name of its
+// composition, which the calls of the other methods take.
 func LibraryRequests(fs common.FeatureSet) ([]library.Request, error) {
 	rs := make([]library.Request, len(tsSpecs))
 	for i, s := range tsSpecs {
@@ -131,7 +132,7 @@ func LibraryRequests(fs common.FeatureSet) ([]library.Request, error) {
 				on = append(on, o)
 			}
 		}
-		rs[i] = library.Request{Fn: s.fn, On: on, Name: s.fn}
+		rs[i] = library.Request{Fn: s.fn, On: on, Name: s.name}
 	}
 	return rs, nil
 }
@@ -145,10 +146,13 @@ func tsMethodsFor(lib *library.Library) ([]tsMethod, error) {
 	m := lib.Module
 	var out []tsMethod
 	for i, s := range tsSpecs {
-		f := lib.Funcs[i]
-		if lib.Requests[i].Fn != s.fn || f.Name != s.fn {
+		if f := lib.Funcs[i]; lib.Requests[i].Fn != s.fn || f.Name != s.name {
 			return nil, fmt.Errorf("tslib: the specialized function %d of the library is %s of %s, not the method %s", i, f.Name, lib.Requests[i].Fn, s.name)
 		}
+		// The method is printed from a copy named after its composition, whose name the printer maps
+		// to the name that calls of the composition take (FuncName).
+		f := *lib.Funcs[i]
+		f.Name = s.fn
 		t := tsTarget
 		switch s.target {
 		case tsDocClass:
@@ -156,7 +160,7 @@ func tsMethodsFor(lib *library.Library) ([]tsMethod, error) {
 		case tsObsClass:
 			t = tsObsTarget
 		}
-		src, err := Method(m, f, t)
+		src, err := Method(m, &f, t)
 		if err != nil {
 			return nil, err
 		}

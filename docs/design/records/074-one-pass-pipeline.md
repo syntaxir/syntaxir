@@ -972,6 +972,7 @@ settings profile=speed opt= no-opt=
 debug verify-each=false
 pipeline library -> output {
   specialize!
+  go-cold-path!
   print-libgo!
 }
 ```
@@ -982,16 +983,27 @@ share the `specialize` pass.
 
 - The source unit is `library`: the driver makes it from the compositions module and the specializations that the
   library printer's specification tables list, which it exports as data, grouped by output file.
-- `specialize` is the one pass that both libraries run. A request names the composition, the features and the name of
-  the copy. The unit keeps one specialized function per request, in request order, outside the compositions module, so
-  the module does not change and many requests of one composition with different features do not collide.
+- `specialize` is the one pass that both libraries run. A request names the composition, the features, the name of
+  the copy and the file it is printed into; the name is unique within its file. The unit keeps one specialized function
+  per request, in request order, outside the compositions module, so the module does not change and many requests of
+  one composition with different features do not collide.
+- `go-cold-path` is a required step of the Go library: it splits the cold path off each guard that generated code
+  inlines, as it did inside the library printer. A request asks for the split by naming the cold function, and only
+  such requests are split, so the engine's copy of the same composition stays whole. The function that a pass makes of
+  a copy belongs to the request of the copy, and the unit keeps it beside the copies; the verifier checks that a
+  requested cold function has no name of a composition and none of another request or cold function of its file, and
+  that a made function belongs to a request, has no name of a composition and has a name unique among the functions
+  made for its file. (Amended: the record first listed
+  `specialize` and `print-libgo` only, leaving the split to the printer.)
 - `print-libgo` is a printing pass of the Go backend package, beside `print-go`, which takes `library` and returns the
   files that the library printer writes. The library printer builds no module, runs no pass and writes no file; a
   printer that edits a function copies it first, so an edit of a documentation comment for one output file does not
   reach another file that prints the same composition. The `go generate` program writes the files of the output, and
   the generated files do not change.
 - A library text has the headers `sxir`, `settings` and `debug` only, and its `pipeline` line starts at `library`. The
-  reader selects the reference pipeline by that source kind. The library pipeline has no slots, so an edit that names a
+  reader selects the reference pipeline by that source kind and the absence of a `target` header, since the text of
+  the TypeScript library alone also starts at `library` but is a TypeScript target with its options. (Amended: the
+  record first selected by the source kind alone.) The library pipeline has no slots, so an edit that names a
   slot fails before any step, naming the slot. A program text given to the library route, and a library text given to
   `Compile`, fail before any step, naming the source kind.
 - The library printer is a print package: every import rule of the print packages applies to it, and its references
@@ -1288,7 +1300,10 @@ the attributes of its nodes computed, since a kind's verifier checks the unit an
 10. **The Go library route**, with the library text door and `print-libgo`; the library printer joins the import rules.
     (Amended: the library kind, the `specialize` pass, the deletion of the exported specialization function and the
     printing-pass kind rule land with step 7, with the TypeScript library's route; until step 10 the Go library's
-    printer runs the pass through its own pipeline.)
+    printer runs the pass through its own pipeline. At step 10 the split of the cold paths becomes the required step
+    `go-cold-path` of the route, the requests name their files, and the `go generate` program of the library printer
+    writes the files that the route returns. The architecture tests read no file built only under the tag
+    `ignore`, such as a `go generate` program, as part of the package of its directory.)
 11. **Several targets from the command line and the API.**
 12. **The VM and the closure backend through `Compile`** with the parser's settings: first the settings carrier, with
     unchanged outputs; then `ProgramOf` and the run-time builds through the driver, the `program` header and its reader,

@@ -1,12 +1,15 @@
 package generate
 
 import (
+	"context"
 	"fmt"
 	"io"
+	"slices"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/driver/result"
+	"syntaxir.dev/sxir/internal/ir/code/exec/library"
 	"syntaxir.dev/sxir/internal/pass/pipe"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -38,6 +41,56 @@ func headerLines(b result.Backend, o common.GenOptions) []pipe.Line {
 	return lines
 }
 
+// libraryWords are the header words of the text of the Go library, after sxir: it has no program and
+// no target, so its text gives only the settings and the debugging settings.
+var libraryWords = []string{"settings", "debug"}
+
+// DescribeGoLibrary returns the pipeline text of the Go library under the settings and the debugging
+// settings of o and the edits or the text of x: the headers sxir, settings and debug, then the
+// pipeline that driver.GoLibrary runs, which starts at the library. Read reads it back.
+func DescribeGoLibrary(o common.GenOptions, x driver.Options) (string, error) {
+	d, err := driver.DescribeGoLibrary(x)
+	if err != nil {
+		return "", err
+	}
+	d.Header = []pipe.Line{{Word: "sxir", Label: common.Version()}}
+	for _, w := range libraryWords {
+		d.Header = append(d.Header, Header.Line(w, "", o))
+	}
+	return d.String(), nil
+}
+
+// GoLibrary generates the files of the Go library, the engine and their conformance bindings
+// (driver.GoLibrary), with paths relative to the root of the module, running the passes that o
+// selects (Settings) with the debugging settings of o; no other option of o applies, since no
+// program and no target determine the library.
+func GoLibrary(o common.GenOptions) ([]common.GeneratedFile, error) {
+	return goLibrary(o, driver.Options{})
+}
+
+// goLibrary is GoLibrary with the edits, the text and the observers of x.
+func goLibrary(o common.GenOptions, x driver.Options) ([]common.GeneratedFile, error) {
+	var err error
+	if x.Settings, err = Settings(o); err != nil {
+		return nil, err
+	}
+	x.Debug = o.Debug
+	if o.Debug.PrintPipeline {
+		text, err := DescribeGoLibrary(o, x)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := io.WriteString(o.Debug.Output, text); err != nil {
+			return nil, err
+		}
+	}
+	out, err := driver.GoLibrary(context.Background(), x)
+	if err != nil {
+		return nil, err
+	}
+	return out.(*result.Files).Files, nil
+}
+
 // writePipeline writes the pipeline text of the generation of the target t of p under x to the
 // debugging output when the debugging settings ask for it (common.Debug.PrintPipeline), before the
 // build, so that a build that fails still shows what it ran.
@@ -54,9 +107,13 @@ func writePipeline(p *driver.Program, x driver.Options, t driver.Target) error {
 }
 
 // Build is a generation that a pipeline text describes: its backend, its options and the text,
-// whose pipeline replaces the assembled one (driver.Options.Pipeline).
+// whose pipeline replaces the assembled one (driver.Options.Pipeline). A text of the Go library is a
+// build of its own (Library), which GoLibrary runs and Generate does not.
 type Build struct {
 	Backend result.Backend
+	// Library is set for a text of the Go library, whose Backend is result.Go and whose options are
+	// those of the settings and the debugging settings only.
+	Library bool
 	// Gen holds the options of the headers. The fields that no header writes (Header.Omit) are
 	// zero: the libraries are those of this version, which Generate supplies, and the writer of the
 	// debugging output is the caller's.
@@ -67,22 +124,31 @@ type Build struct {
 	Pipeline string
 }
 
-// Read reads the headers of a pipeline text that Describe wrote: the version of sxir, one line of
-// each word of Header, and one target. A word that the scheme does not know, a word given twice, a
-// key that its word does not have and a missing key are errors. The pipeline is checked when the
-// build runs, against the pipeline assembled for its options.
+// Read reads the headers of a pipeline text that Describe or DescribeGoLibrary wrote: the version of
+// sxir, then one line of each word of Header, and one target, or, for a text of the Go library, whose
+// pipeline starts at the library and which gives no target, one line of each of its words
+// (libraryWords). A word that the scheme does not know, a word given twice, a word that the text
+// does not take, a key that its word does not have and a missing key are errors. The pipeline is
+// checked when the build runs, against the pipeline assembled for its options.
 func Read(text string) (*Build, error) {
 	d, err := pipe.Parse(text)
 	if err != nil {
 		return nil, err
 	}
 	b := &Build{Pipeline: text}
+	words := headerWords()
+	if d.In == library.IR.Name && !slices.ContainsFunc(d.Header, func(l pipe.Line) bool { return l.Word == "target" }) {
+		b.Backend, b.Library, words = result.Go, true, libraryWords
+	}
 	seen := map[string]bool{}
 	for _, l := range d.Header {
 		if seen[l.Word] {
 			return nil, fmt.Errorf("pipeline text: the header %s is given twice", l.Word)
 		}
 		seen[l.Word] = true
+		if l.Word != "sxir" && b.Library && !slices.Contains(words, l.Word) {
+			return nil, fmt.Errorf("pipeline text: the text of the Go library has no header %s", l.Word)
+		}
 		switch l.Word {
 		case "sxir":
 			if l.Label == "" || len(l.Fields) > 0 {
@@ -104,7 +170,7 @@ func Read(text string) (*Build, error) {
 			return nil, fmt.Errorf("pipeline text: %w", err)
 		}
 	}
-	for _, w := range append([]string{"sxir"}, headerWords()...) {
+	for _, w := range append([]string{"sxir"}, words...) {
 		if !seen[w] {
 			return nil, fmt.Errorf("pipeline text: the header %s is missing", w)
 		}
@@ -134,6 +200,9 @@ func (b *Build) Warning() string {
 // observers of x and the writer of the debugging output out, which the debugging settings of the
 // headers need when they write. The settings, the debugging settings and the pipeline of x come from b.
 func (b *Build) Generate(g *ast.Grammar, x driver.Options, out io.Writer) ([]common.GeneratedFile, error) {
+	if b.Library {
+		return nil, fmt.Errorf("the pipeline text builds the Go library, which takes no grammar")
+	}
 	o := b.Gen
 	o.Debug.Output = out
 	x.Pipeline = b.Pipeline
@@ -146,4 +215,17 @@ func (b *Build) Generate(g *ast.Grammar, x driver.Options, out io.Writer) ([]com
 		return TypeScriptWith(checkForGenerator, g, o, x, nil)
 	}
 	return nil, fmt.Errorf("internal error: no generation for the backend %s", b.Backend)
+}
+
+// GoLibrary generates the files of the Go library of the build b, a text of the Go library, with the
+// observers of x and the writer of the debugging output out, which the debugging settings of the
+// headers need when they write. The settings, the debugging settings and the pipeline of x come from b.
+func (b *Build) GoLibrary(x driver.Options, out io.Writer) ([]common.GeneratedFile, error) {
+	if !b.Library {
+		return nil, fmt.Errorf("the pipeline text builds a parser for the target %s, not the Go library", b.Backend)
+	}
+	o := b.Gen
+	o.Debug.Output = out
+	x.Pipeline = b.Pipeline
+	return goLibrary(o, x)
 }

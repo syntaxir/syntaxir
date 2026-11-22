@@ -279,10 +279,10 @@ in [Package Layering](layering.md), and the public packages are described in [Th
 | `internal/backend/llvm` | The future native-code backend |
 | `internal/backend/codegen` | What the generating backends declare alike: the checked program as a backend reads it (the printers' view and the input of the elaboration of its tables), the target of the pipeline, and the parameters that both printers read, which each printing step gives its printer as data |
 | `internal/backend/codegen/common` | Options and parts shared by the host languages, the view of a checked grammar that the generators read (`Program`, which `internal/driver/checked` builds from the semantic model, the checker and the runtime program); see [Code Generation for Host Languages](host-code-generation.md) |
-| `internal/backend/codegen/golang` | The Go backend: the tables of a Go parser, what they are planned from, and the step `print-go` |
-| `internal/backend/codegen/golang/pass` | The Go passes on the Exec stage |
+| `internal/backend/codegen/golang` | The Go backend: the tables of a Go parser, what they are planned from, and the steps `print-go` and `print-libgo` (the Go library, the engine state and their bindings) |
+| `internal/backend/codegen/golang/pass` | The Go passes on the Exec stage, and the step `go-cold-path` of the Go library |
 | `internal/backend/codegen/golang/print` | The printer of Go parsers, which prints a parser from its tables at the Exec stage and runs no step |
-| `internal/backend/codegen/golang/libprint` | The printer of the Exec compositions into the Go library and the shared engine state |
+| `internal/backend/codegen/golang/libprint` | The printer of the Exec compositions into the Go library, the shared engine state and their conformance bindings, which prints the files from the library unit of the Go library's route and runs no step |
 | `internal/backend/codegen/golang/libsrc` | The go:generate copy of the Go library, used when the library is embedded |
 | `internal/backend/codegen/typescript` | The TypeScript backend: the tables of a TypeScript parser, what they are planned from, the step `ts-library` that requests the library's compositions for the parser's features, and the steps `print-ts` and `print-ts-lib` (the library alone) |
 | `internal/backend/codegen/typescript/pass` | The TypeScript passes on the Exec stage |

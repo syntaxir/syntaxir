@@ -7,12 +7,11 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
 	"syntaxir.dev/sxir/internal/ir/code/action"
-	"syntaxir.dev/sxir/internal/ir/code/exec/compose"
 )
 
 // goActionsFile is the file of the printed action expression compositions in the generated Go library, relative to
-// the directory of this package.
-const goActionsFile = "../../../../../pkg/runtime/libgo/action_exec.go"
+// the root of the module.
+const goActionsFile = "pkg/runtime/libgo/action_exec.go"
 
 // actionFuncs are the compositions of the operators of action expressions, in the order they are printed.
 var actionFuncs = []struct{ fn, name string }{
@@ -30,6 +29,15 @@ var goActionSpecs = func() []goSpec {
 		for _, f := range actionFuncs {
 			specs = append(specs, goSpec{fn: f.fn, typed: typed, name: libGoActionName(f.fn, f.name)})
 		}
+	}
+	return specs
+}()
+
+// engineActionSpecs are the compositions of the operators of action expressions in the engine.
+var engineActionSpecs = func() []goSpec {
+	var specs []goSpec
+	for _, f := range actionFuncs {
+		specs = append(specs, goSpec{fn: f.fn, name: f.name})
 	}
 	return specs
 }()
@@ -185,14 +193,14 @@ func goActionError(recv, typeName string) string {
 }
 
 // printGoActions returns the Go file of the printed action expression compositions for package libgo.
-func printGoActions() (string, error) {
-	m := compose.Build()
+func printGoActions(u file) (string, error) {
+	m := u.module()
 	var b strings.Builder
 	b.WriteString(goActionConsts())
 	b.WriteString(goActionError("*Parser", "typeName"))
 	b.WriteString(goActionError("*TParser", "ttypeName"))
 	for _, s := range goActionSpecs {
-		f, err := specialize(m, s.fn, s.on)
+		f, err := u.fn(s)
 		if err != nil {
 			return "", err
 		}
@@ -420,17 +428,17 @@ func goValueOp(callee string, a []string, typed bool) (string, bool) {
 }
 
 // engineActionsFile is the file of the printed action expression operator compositions of the engine.
-const engineActionsFile = "../../../../runtime/state/action_exec.go"
+const engineActionsFile = "internal/runtime/state/action_exec.go"
 
 // printEngineActions returns the Go file of the printed action expression operator compositions for package state of the
 // engine.
-func printEngineActions() (string, error) {
-	m := compose.Build()
+func printEngineActions(u file) (string, error) {
+	m := u.module()
 	var b strings.Builder
 	b.WriteString(goActionConsts())
 	b.WriteString(engineActionError())
-	for _, f := range actionFuncs {
-		fn, err := specialize(m, f.fn, nil)
+	for _, s := range engineActionSpecs {
+		fn, err := u.fn(s)
 		if err != nil {
 			return "", err
 		}

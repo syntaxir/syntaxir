@@ -338,9 +338,10 @@ sharing of helpers, stay passes with names of their own.
 
 The runtime libraries are written once as compositions of the Exec dialect, and a library is a set of copies of them,
 each specialized for some of the features: every feature expression of the copy becomes a constant. The unit of a
-library, `library`, holds the compositions module, the requests of the library (the composition, the features and the
-name of each copy) and the copies, kept outside the module, so that two requests of one composition under different
-features do not collide and the module never changes. The required pass `specialize` makes one copy per request, in
+library, `library`, holds the compositions module, the requests of the library (the composition, the features, the
+name of each copy and the file it is printed into, within which the name is unique), the copies, kept outside the
+module, so that two requests of one composition under different features do not collide and the module never changes,
+and the functions that later passes make of a copy, each tied to the request of its copy. The required pass `specialize` makes one copy per request, in
 request order. A copy is a function of its composition and its features alone, so the pass reuses the copies of an
 earlier compilation with the same module and requests, from a memo of the most recent ones that a bound keeps
 small.
@@ -349,7 +350,27 @@ The TypeScript library of a parser is specialized for the parser's features insi
 tables are lowered, the required step `ts-library` requests the compositions that the library replaces for the features
 that the used-features analysis of the plan finds, `within ts-library { specialize! }` makes the copies, and, after `ts-printable`, `print-ts`
 prints them into the parser's library. The library alone (`-lib only`) has no grammar: its pipeline starts at the
-library, with every feature requested, and runs `specialize` and `print-ts-lib`. Instruction selection in `vmlower` is a table of local patterns
+library, with every feature requested, and runs `specialize` and `print-ts-lib`.
+
+The Go library, the parse state of the engine and their conformance bindings are checked-in files that no grammar
+determines either; `go generate` in the library printer's package writes them through the Go library's route:
+
+```text
+pipeline library -> output {
+  specialize!
+  go-cold-path!
+  print-libgo!
+}
+```
+
+Its source unit holds the compositions with the requests of every file that the library printer prints, grouped by
+file. `go-cold-path` splits the cold path off each guard that generated code inlines into a function of its own, named by the request that asks for it, which
+the unit keeps beside the copy of its request, and `print-libgo` prints the files as the output, with paths from the
+root of the module. Its text has the headers `sxir`, `settings` and `debug` only, and the reader tells it from the
+TypeScript library's text, which also starts at `library`, by its lack of a target. The route has no slot, so an edit
+that names a slot of the parser pipelines fails before any step.
+
+Instruction selection in `vmlower` is a table of local patterns
 of the same kind: it is deterministic and counts the matches of each pattern.
 
 ## The Registry

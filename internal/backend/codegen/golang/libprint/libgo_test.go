@@ -1,104 +1,50 @@
 package libprint
 
-import (
-	"os"
-	"testing"
-)
+import "testing"
 
 // TestLibGoCurrent checks that the printed compositions in the Go library are those the
 // compositions print now.
 func TestLibGoCurrent(t *testing.T) {
-	want, err := printLibGo()
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := os.ReadFile(libGoFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(got) != want {
-		t.Errorf("%s is stale; run go generate ./internal/backend/codegen/golang/libprint", libGoFile)
-	}
+	checkCurrent(t, libGoFile)
 }
 
 // TestGoActionsCurrent checks that the printed action expression compositions in the Go library are those the
 // compositions print now. The generated library's copy is held equal to this file by the library
 // copy test of the generator.
 func TestGoActionsCurrent(t *testing.T) {
-	want, err := printGoActions()
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := os.ReadFile(goActionsFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(got) != want {
-		t.Errorf("%s is stale; run go generate ./internal/backend/codegen/golang/libprint", goActionsFile)
-	}
+	checkCurrent(t, goActionsFile)
 }
 
 // TestGoStreamCurrent checks that the printed stream compositions in the Go library are those the
 // compositions print now.
 func TestGoStreamCurrent(t *testing.T) {
-	want, err := printGoStream()
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := os.ReadFile(goStreamFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(got) != want {
-		t.Errorf("%s is stale; run go generate ./internal/backend/codegen/golang/libprint", goStreamFile)
-	}
+	checkCurrent(t, goStreamFile)
 }
 
 // TestEngineCurrent checks that the printed compositions in the engine are those the compositions
 // print now.
 func TestEngineCurrent(t *testing.T) {
-	for _, f := range []struct {
-		file string
-		gen  func() (string, error)
-	}{
-		{engineFile, printEngine},
-		{engineActionsFile, printEngineActions},
-		{engineOperatorsFile, printEngineOperators},
-		{engineStreamFile, printEngineStream},
-		{engineDocumentFile, printEngineDocument},
-		{engineClosureActionFile, printEngineClosureActions},
-		{engineVMActionFile, printEngineVMActions},
+	for _, f := range []string{
+		engineFile,
+		engineActionsFile,
+		engineOperatorsFile,
+		engineStreamFile,
+		engineDocumentFile,
+		engineClosureActionFile,
+		engineVMActionFile,
 	} {
-		want, err := f.gen()
-		if err != nil {
-			t.Fatal(err)
-		}
-		got, err := os.ReadFile(f.file)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if string(got) != want {
-			t.Errorf("%s is stale; run go generate ./internal/backend/codegen/golang/libprint", f.file)
-		}
+		checkCurrent(t, f)
 	}
 }
 
 // TestSpecializationsVerify checks that the functions verify for every specialization the Go
-// library and the engine print.
+// library and the engine print: the run of testLibrary verifies every unit, and the printers verify
+// the functions they print.
 func TestSpecializationsVerify(t *testing.T) {
-	if _, err := printLibGo(); err != nil {
+	if _, err := testLibrary(); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := printGoStream(); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := printEngine(); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := printEngineOperators(); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := printEngineDocument(); err != nil {
-		t.Fatal(err)
+	for _, f := range []string{libGoFile, goStreamFile, engineFile, engineOperatorsFile, engineDocumentFile} {
+		printOutput(t, f)
 	}
 }

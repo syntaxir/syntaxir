@@ -34,7 +34,7 @@ func TestPrintingPassesTakeExecStageUnits(t *testing.T) {
 		}
 	}
 	// The rule proves nothing without the printing passes registered.
-	for _, want := range []string{"print-go", "print-ts", "print-ts-lib"} {
+	for _, want := range []string{"print-go", "print-ts", "print-ts-lib", "print-libgo"} {
 		if !slices.Contains(printing, want) {
 			t.Errorf("the printing pass %s is not registered; registered printing passes: %v", want, printing)
 		}

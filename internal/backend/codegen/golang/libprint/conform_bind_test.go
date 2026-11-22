@@ -1,150 +1,57 @@
 package libprint
 
-import (
-	"os"
-	"testing"
-)
+import "testing"
 
 // TestEngineExpBindingsCurrent checks that the engine's conformance bindings of the expectation record
 // are those the engine's printer prints now.
 func TestEngineExpBindingsCurrent(t *testing.T) {
-	want, err := printEngineExpBindings()
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := os.ReadFile(engineExpBindingsFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(got) != want {
-		t.Errorf("%s is stale; run go generate ./internal/backend/codegen/golang/libprint", engineExpBindingsFile)
-	}
+	checkCurrent(t, engineExpBindingsFile)
 }
 
 // TestEngineDocBindingsCurrent checks that the engine's conformance bindings of the doc operations are
 // those the engine's printer prints now.
 func TestEngineDocBindingsCurrent(t *testing.T) {
-	want, err := printEngineDocBindings()
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := os.ReadFile(engineDocBindingsFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(got) != want {
-		t.Errorf("%s is stale; run go generate ./internal/backend/codegen/golang/libprint", engineDocBindingsFile)
-	}
+	checkCurrent(t, engineDocBindingsFile)
 }
 
 // TestEngineOprBindingsCurrent checks that the engine's conformance bindings of the Operators Rule
 // operations are those the engine's printer prints now.
 func TestEngineOprBindingsCurrent(t *testing.T) {
-	want, err := printEngineOprBindings()
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := os.ReadFile(engineOprBindingsFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(got) != want {
-		t.Errorf("%s is stale; run go generate ./internal/backend/codegen/golang/libprint", engineOprBindingsFile)
-	}
+	checkCurrent(t, engineOprBindingsFile)
 }
 
 // TestEngineCtxBindingsCurrent checks that the engine's conformance bindings of the dependency memo
 // are those the engine's printer prints now.
 func TestEngineCtxBindingsCurrent(t *testing.T) {
-	want, err := printEngineCtxBindings()
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := os.ReadFile(engineCtxBindingsFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(got) != want {
-		t.Errorf("%s is stale; run go generate ./internal/backend/codegen/golang/libprint", engineCtxBindingsFile)
-	}
+	checkCurrent(t, engineCtxBindingsFile)
 }
 
 // TestEngineFrameBindingsCurrent checks that the engine's conformance bindings of the capture frames
 // are those the engine's printer prints now.
 func TestEngineFrameBindingsCurrent(t *testing.T) {
-	want, err := printEngineFrameBindings()
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := os.ReadFile(engineFrameBindingsFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(got) != want {
-		t.Errorf("%s is stale; run go generate ./internal/backend/codegen/golang/libprint", engineFrameBindingsFile)
-	}
+	checkCurrent(t, engineFrameBindingsFile)
 }
 
 // TestEngineRuleBindingsCurrent checks that the engine's conformance bindings of the operations of the
 // rules are those the engine's printer prints now.
 func TestEngineRuleBindingsCurrent(t *testing.T) {
-	want, err := printEngineRuleBindings()
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := os.ReadFile(engineRuleBindingsFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(got) != want {
-		t.Errorf("%s is stale; run go generate ./internal/backend/codegen/golang/libprint", engineRuleBindingsFile)
-	}
+	checkCurrent(t, engineRuleBindingsFile)
 }
 
 // TestEngineMissingBindingsCurrent checks that the engine's conformance bindings of the missing-token
 // mode are those the engine's printer prints now.
 func TestEngineMissingBindingsCurrent(t *testing.T) {
-	want, err := printEngineMissingBindings()
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := os.ReadFile(engineMissingBindingsFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(got) != want {
-		t.Errorf("%s is stale; run go generate ./internal/backend/codegen/golang/libprint", engineMissingBindingsFile)
-	}
+	checkCurrent(t, engineMissingBindingsFile)
 }
 
 // TestEngineCallBindingsCurrent checks that the engine's conformance bindings of the traced call path
 // are those the engine's printer prints now.
 func TestEngineCallBindingsCurrent(t *testing.T) {
-	want, err := printEngineCallBindings()
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := os.ReadFile(engineCallBindingsFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(got) != want {
-		t.Errorf("%s is stale; run go generate ./internal/backend/codegen/golang/libprint", engineCallBindingsFile)
-	}
+	checkCurrent(t, engineCallBindingsFile)
 }
 
 // TestEngineActionStateBindingsCurrent checks that the engine's conformance bindings of the elements gathered
 // and the values made are those the engine's printer prints now.
 func TestEngineActionStateBindingsCurrent(t *testing.T) {
-	want, err := printEngineActionStateBindings()
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := os.ReadFile(engineActionStateBindingsFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(got) != want {
-		t.Errorf("%s is stale; run go generate ./internal/backend/codegen/golang/libprint", engineActionStateBindingsFile)
-	}
+	checkCurrent(t, engineActionStateBindingsFile)
 }

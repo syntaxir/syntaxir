@@ -1,0 +1,9 @@
+sxir-pipeline 1.0
+sxir (devel)
+settings profile= opt= no-opt=
+debug verify-each=false print-after= print-changed=false stats=false time-passes=false print-before= print-pipeline=true
+pipeline library -> output {
+  specialize!
+  go-cold-path!
+  print-libgo!
+}

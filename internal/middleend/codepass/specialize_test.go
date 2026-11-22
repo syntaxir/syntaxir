@@ -18,8 +18,9 @@ func specializeLibrary(m *Module, rs []library.Request) (*library.Library, error
 		&library.Library{Module: m, Requests: rs})
 }
 
-// Two requests of one composition under different features keep two functions of one name beside the
-// module, which does not change, and a later compilation with the same requests gets its own copies.
+// Two requests of one composition under different features keep two functions of one name, for two
+// files, beside the module, which does not change, and a later compilation with the same requests
+// gets its own copies.
 func TestSpecializationKeepsOneFunctionPerRequest(t *testing.T) {
 	m := module()
 	m.AddFunc("f", nil, nil, []string{"budget"}, func(b *Builder) {
@@ -30,7 +31,7 @@ func TestSpecializationKeepsOneFunctionPerRequest(t *testing.T) {
 		t.Fatal(err)
 	}
 	before := FuncString(m.Funcs[0])
-	rs := []library.Request{{Fn: "f", On: []string{"budget"}, Name: "f"}, {Fn: "f", Name: "f"}}
+	rs := []library.Request{{File: "a.go", Fn: "f", On: []string{"budget"}, Name: "f"}, {File: "b.go", Fn: "f", Name: "f"}}
 	l, err := specializeLibrary(m, rs)
 	if err != nil {
 		t.Fatal(err)

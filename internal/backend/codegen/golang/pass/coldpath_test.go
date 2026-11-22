@@ -7,7 +7,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec"
-	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
+	"syntaxir.dev/sxir/internal/ir/code/exec/library"
 	"syntaxir.dev/sxir/internal/pass/pipe"
 )
 
@@ -22,9 +22,19 @@ func coldModule(name string, features []string, body func(b *code.Builder)) (*co
 	return m, f
 }
 
-func runCold(t *testing.T, m *code.Module, f *code.Func) (*execdata.Lowered, error) {
+// runCold runs the step go-cold-path on a library of m whose one request is the function f of the
+// module, as specialized, printed into the file a.go, which asks for the cold function expectSlow.
+func runCold(t *testing.T, m *code.Module, f *code.Func) (*library.Library, error) {
 	t.Helper()
-	return pipe.Execute(context.Background(), &pipe.Run{VerifyEach: true}, Library, &execdata.Lowered{Module: m, Func: f})
+	return runColdRequest(t, m, f, "expectSlow")
+}
+
+// runColdRequest is runCold with the request asking for the cold function cold, or for none if cold
+// is empty.
+func runColdRequest(t *testing.T, m *code.Module, f *code.Func, cold string) (*library.Library, error) {
+	t.Helper()
+	l := &library.Library{Module: m, Requests: []library.Request{{File: "a.go", Fn: f.Name, On: f.Features, Name: f.Name, Cold: cold}}, Funcs: []*code.Func{f}}
+	return pipe.Execute(context.Background(), &pipe.Run{VerifyEach: true}, pipe.Of(ColdPath), l)
 }
 
 func TestColdPathSplitsTheGuard(t *testing.T) {
@@ -37,10 +47,11 @@ func TestColdPathSplitsTheGuard(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if l.Func.Name != "expect" || len(l.Func.Locals) != 0 || l.Func.NoInline {
-		t.Errorf("guard %s locals %v noinline %v", l.Func.Name, l.Func.Locals, l.Func.NoInline)
+	guard := l.Funcs[0]
+	if guard.Name != "expect" || len(guard.Locals) != 0 || guard.NoInline {
+		t.Errorf("guard %s locals %v noinline %v", guard.Name, guard.Locals, guard.NoInline)
 	}
-	stmts := l.Func.Body.Stmts
+	stmts := guard.Body.Stmts
 	if len(stmts) != 2 {
 		t.Fatalf("the guard has %d statements, want the guard and the call", len(stmts))
 	}
@@ -48,8 +59,11 @@ func TestColdPathSplitsTheGuard(t *testing.T) {
 	if !ok || call.Call.Callee != "expectSlow" || len(call.Call.Args) != 1 {
 		t.Fatalf("the guard ends with %#v, want a call of expectSlow with pos", stmts[1])
 	}
-	slow := l.Module.Func("expectSlow")
-	if slow == nil || !slow.NoInline || len(slow.Locals) != 1 || len(slow.Params) != 1 || len(slow.Body.Stmts) != 2 {
+	if len(l.Made) != 1 || l.Made[0].Request != 0 {
+		t.Fatalf("made %+v, want the cold function of the request", l.Made)
+	}
+	slow := l.Made[0].Func
+	if slow.Name != "expectSlow" || !slow.NoInline || len(slow.Locals) != 1 || len(slow.Params) != 1 || len(slow.Body.Stmts) != 2 {
 		t.Fatalf("cold function %#v", slow)
 	}
 	if slow.Derived == nil || slow.Derived.Pass != PassColdPath || slow.Derived.From != "expect" {
@@ -64,23 +78,29 @@ func TestColdPathSplitsTheGuard(t *testing.T) {
 }
 
 func TestColdPathLeavesOtherForms(t *testing.T) {
-	// A function that is not listed stays as it is; every form of a listed one is split, the form that
-	// counts compute units among them, since no form charges inside the record.
+	// A request that asks for no cold function stays as it is, such as the engine's expect, which
+	// generated code does not inline; every request that asks for one is split under that name,
+	// whatever its composition, and the form that counts compute units among them, since no form
+	// charges inside the record.
 	for _, c := range []struct {
 		name     string
 		features []string
+		cold     string
 		split    bool
-	}{{"other", nil, false}, {"expect", []string{exec.Units}, true}} {
+	}{{"other", nil, "", false}, {"other", nil, "otherCold", true}, {"expect", []string{exec.Units}, "expectSlow", true}, {"expect", []string{exec.Units}, "", false}} {
 		m, f := coldModule(c.name, c.features, func(b *code.Builder) {
 			b.If(code.Lt(code.L("pos"), code.Int(0)), func(b *code.Builder) { b.Return() })
 			b.Do("o", code.L("pos"))
 		})
-		l, err := runCold(t, m, f)
+		l, err := runColdRequest(t, m, f, c.cold)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if split := len(l.Module.Funcs) != 1 || len(l.Func.Body.Stmts) != 2; split != c.split {
-			t.Errorf("%s %v: split %v, want %v", c.name, c.features, split, c.split)
+		if split := len(l.Made) != 0 || len(l.Funcs[0].Body.Stmts) != 2; split != c.split {
+			t.Errorf("%s %v cold %q: split %v, want %v", c.name, c.features, c.cold, split, c.split)
+		}
+		if c.split && (len(l.Made) != 1 || l.Made[0].Func.Name != c.cold) {
+			t.Errorf("%s %v: made %+v, want the cold function %s", c.name, c.features, l.Made, c.cold)
 		}
 	}
 }
@@ -100,5 +120,33 @@ func TestColdPathRejectsWhatItCannotSplit(t *testing.T) {
 		if _, err := runCold(t, m, f); err == nil || !strings.Contains(err.Error(), "go cold path") {
 			t.Errorf("%s: error %v", name, err)
 		}
+	}
+}
+
+// A cold function whose name a composition of the module or a function made for the same file has
+// is refused, and the requests of other files may make one of the same name.
+func TestColdPathKeepsTheNamesApart(t *testing.T) {
+	split := func(b *code.Builder) {
+		b.If(code.Lt(code.L("pos"), code.Int(0)), func(b *code.Builder) { b.Return() })
+		b.Do("o", code.L("pos"))
+	}
+	m, f := coldModule("expect", nil, split)
+	m.AddFunc("expectSlow", nil, nil, nil, func(b *code.Builder) {})
+	if _, err := runCold(t, m, f); err == nil || !strings.Contains(err.Error(), "declares expectSlow already") {
+		t.Errorf("a composition named expectSlow: %v", err)
+	}
+	m, f = coldModule("expect", nil, split)
+	two := func(files ...string) (*library.Library, error) {
+		g := *f
+		g.Name = "expect2"
+		l := &library.Library{Module: m, Requests: []library.Request{{File: files[0], Fn: "expect", Name: "expect", Cold: "expectSlow"}, {File: files[1], Fn: "expect", Name: "expect2", Cold: "expectSlow"}}, Funcs: []*code.Func{f, &g}}
+		return pipe.Execute(context.Background(), &pipe.Run{VerifyEach: true}, pipe.Of(ColdPath), l)
+	}
+	if _, err := two("a.go", "a.go"); err == nil || !strings.Contains(err.Error(), "declares expectSlow already") {
+		t.Errorf("two cold functions for one file: %v", err)
+	}
+	l, err := two("a.go", "b.go")
+	if err != nil || len(l.Made) != 2 || l.Made[1].Request != 1 {
+		t.Errorf("two files: %+v, %v", l, err)
 	}
 }
