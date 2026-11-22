@@ -395,56 +395,6 @@ func (p *Parser) growBegin(r *Rule, min int) growState {
 	return g
 }
 
-// growMemoStep takes the steps of a growth in a context that its table gives, from the jumps and the
-// memoized steps, replaying their dependencies and merging their expectations, and adopts each step that
-// grew. It returns the first memoized step that did not grow, or nil when the table keeps no step from
-// the seed.
-func (p *Parser) growMemoStep(g *growState) *ctxResult {
-	for {
-		id := p.gamma[g.gi].id
-		if j := p.findJump(g, id); j != nil {
-			p.seedRead(g.gp)
-			p.replayDeps(g.start, g.gp, g.present, j.deps)
-			p.MergeExpected(j.far, j.exp)
-			// The step after the jump reads the seed it lands on, whose examined range is the jump's
-			// (recordJumps), so this touch only keeps the jump a complete replay of its steps.
-			p.documentTouch(j.examined)
-			p.documentTouchFrom(j.from)
-			p.setSeed(g, j.end, j.id)
-			continue
-		}
-		h := ctxHeadKey{kind: ctxStep, id: g.rule, min: g.min, present: g.present}
-		s := p.ctxFind(g.start, g.gp, h, nil)
-		if s == nil || !p.reusable(s.silent) {
-			return nil
-		}
-		p.seedRead(g.gp)
-		p.replayDeps(g.start, g.gp, g.present, s.deps)
-		p.MergeExpected(s.far, s.exp)
-		// A step taken from the context records what it examined, like every other reuse: the last step
-		// of a growth, which does not grow, can be taken from the context, and nothing else records how
-		// far it examined.
-		p.documentTouch(s.examined)
-		p.documentTouchFrom(s.from)
-		if !p.growGrew(g, s.e) {
-			return s.e
-		}
-		p.adoptGrownStep(g, s.e, s.id, runStep{seed: id, far: s.far, exp: s.exp, examined: s.examined, from: s.from, silent: s.silent, deps: s.deps})
-	}
-}
-
-// growIsolate starts evaluating a step of a growth in a context, with its own frame, examined end and
-// expectations.
-func (p *Parser) growIsolate(g *growState) {
-	g.evaluated = true
-	p.pushFrame(g.start, g.gp)
-	if p.track {
-		g.savedExamined, g.savedFrom = p.docExamined, p.docLow
-		p.docExamined, p.docLow = g.start, g.start
-	}
-	g.exp = p.Isolate(g.start)
-}
-
 // growLonger reports whether a step of a growth outside a context, with success ok and ending at the
 // position, matched more than the seed.
 func (p *Parser) growLonger(g *growState, ok bool) bool {
@@ -467,73 +417,24 @@ func (p *Parser) growAdopt(g *growState, node *sxirvalue.Node, val any, errs rec
 // in the table of the context and returns it. It does not change the recovered errors: the printed growth
 // lists the errors of the step with recSince and drops them after the step.
 func (p *Parser) growKeepStep(g *growState, node *sxirvalue.Node, val any, ok bool, errs recEntry) *ctxResult {
-	id := p.gamma[g.gi].id
-	_, ds := p.popFrame()
-	far, inner := p.Unisolate(g.exp)
-	exp := p.Keep(inner)
-	examined, from := p.examinedNow(), p.fromNow()
-	p.MergeExpected(far, inner)
-	if p.track {
-		p.docExamined, p.docLow = max(g.savedExamined, p.docExamined), min(g.savedFrom, p.docLow)
-	}
-	res := &ctxResult{node: node, val: val, ok: ok, end: p.Pos, examined: examined, from: from, silent: p.Silent > 0}
+	ds, st := p.growStepEnd(g)
+	res := &ctxResult{node: node, val: val, ok: ok, end: p.Pos, examined: st.examined, from: st.from, silent: st.silent}
 	if ok {
 		res.errs = errs
 	} else {
 		res.end = g.start
 	}
-	res, rid := p.canonicalSeed(g.start, g.gp, g.growKey(), res)
-	sd, _ := p.stored(ds)
-	h := ctxHeadKey{kind: ctxStep, id: g.rule, min: g.min, present: g.present}
-	p.ctxStore(g.start, g.gp, h, sd, &ctxSlot{e: res, id: rid, far: far, exp: exp, examined: examined, from: from, silent: p.Silent > 0})
-	p.mergeDeps(ds)
-	g.pendID = rid
-	g.pendStep = runStep{seed: id, far: far, exp: exp, examined: examined, from: from, silent: p.Silent > 0, deps: sd}
-	return res
+	return p.growKeep(g, res, ds, st)
 }
 
-// growGrew reports whether the step s of a growth in a context matched more than the seed.
-func (p *Parser) growGrew(g *growState, s *ctxResult) bool {
-	best := p.gamma[g.gi].seed
-	return s.ok && (!best.ok || s.end > best.end)
-}
+// growth is the state of a growth that the shared steps read (context_grow.go).
+type growth = growState
 
-// growAdoptStep adopts the step s of a growth in a context that grew, which growKeepStep returned last,
-// as the seed.
-func (p *Parser) growAdoptStep(g *growState, s *ctxResult) {
-	p.adoptGrownStep(g, s, g.pendID, g.pendStep)
-}
-
-// adoptGrownStep adopts the step s of a growth in a context that grew, with identity id and what it
-// recorded st, as the seed, and returns to the start of the growth. It extends the run of steps that read
-// no other seed with the step, or ends it.
-func (p *Parser) adoptGrownStep(g *growState, s *ctxResult, id uint64, st runStep) {
-	own := g.growKey()
-	other := false
-	var obs []sdep
-	for _, d := range st.deps {
-		switch {
-		case d.kind == depSeed && (growKey{rule: d.rule, min: d.min, ms: d.ms}) != own:
-			other = true
-		case d.kind == depShadow && (growKey{rule: d.rule, min: d.min, ms: d.ms}) == own:
-			// A lookahead of the step read the growth's own seed: its outcome holds for this seed
-			// only, while a jump checks its observations under the first seed of the run.
-			other = true
-		case d.kind == depObs || d.kind == depShadow:
-			obs = append(obs, d)
-		}
-	}
-	if !other && s.errs.none() {
-		st.deps = obs
-		c := cap(g.run)
-		g.run = append(g.run, st)
-		p.memUsed += uint64(cap(g.run)-c)*runStepBytes + uint64(cap(obs))*sdepBytes
-	} else {
-		p.recordJumps(g)
-	}
-	p.Spend()
-	p.setSeed(g, s, id)
-	p.Pos = g.start
+// touchRange extends the examined range of the current evaluation in a Document parse by a reused
+// result's.
+func (p *Parser) touchRange(examined, from int) {
+	p.documentTouch(examined)
+	p.documentTouchFrom(from)
 }
 
 // setSeed makes e, with identity id, the seed of the growth in a context.
@@ -564,145 +465,6 @@ func (p *Parser) growEnd(g *growState) ctxResult {
 	}
 	p.Pos = best.end
 	return best
-}
-
-// recordJumps records, for each seed of the run, a jump to the current seed with what the steps
-// from that seed on recorded, and starts a new run.
-func (p *Parser) recordJumps(g *growState) {
-	if len(g.run) == 0 {
-		return
-	}
-	t := p.table(g.start, g.gp, true)
-	if t.jumps == nil {
-		t.jumps = map[jumpKey][]jumpRec{}
-	}
-	cur := &p.gamma[g.gi]
-	acc := jumpRec{end: cur.seed, id: cur.id, far: -1, examined: g.start, from: g.start}
-	for i := len(g.run) - 1; i >= 0; i-- {
-		s := &g.run[i]
-		p.Spend()
-		switch {
-		case s.far > acc.far:
-			acc.far, acc.exp = s.far, s.exp
-		case s.far == acc.far:
-			acc.exp = p.unionExpected(acc.exp, s.exp)
-		}
-		acc.examined, acc.from = max(acc.examined, s.examined), min(acc.from, s.from)
-		acc.silent = acc.silent || s.silent
-		acc.deps = mergeSdeps(acc.deps, s.deps)
-		k := jumpKey{g: g.growKey(), present: g.present, seed: s.seed}
-		if !p.jumpShadowed(t.jumps[k], &acc) {
-			t.jumps[k] = append(t.jumps[k], acc)
-			t.bytes += jumpBytes + uint64(len(acc.deps))*sdepBytes + uint64(len(acc.exp))*expIDBytes
-		}
-	}
-	g.run = g.run[:0]
-}
-
-// jumpShadowed reports whether findJump never returns the jump j after the jumps js: one of them
-// is used wherever j is, since its observations are among j's and it is not inside a lookahead
-// where j is not. Leaving such jumps out keeps the list of a seed from growing in each growth
-// that ends its run there again, with the same observations and other shadows.
-func (p *Parser) jumpShadowed(js []jumpRec, j *jumpRec) bool {
-next:
-	for i := range js {
-		e := &js[i]
-		p.Spend()
-		if e.silent && !j.silent {
-			continue
-		}
-		for _, d := range e.deps {
-			if d.kind == depObs && !hasSdep(j.deps, d) {
-				continue next
-			}
-		}
-		return true
-	}
-	return false
-}
-
-// hasSdep reports whether ds holds d.
-func hasSdep(ds []sdep, d sdep) bool {
-	for _, x := range ds {
-		if x == d {
-			return true
-		}
-	}
-	return false
-}
-
-// findJump returns a jump from the seed with identity id that holds in the current context.
-func (p *Parser) findJump(g *growState, id uint64) *jumpRec {
-	t := p.table(g.start, g.gp, false)
-	if t == nil || t.jumps == nil {
-		return nil
-	}
-	p.Spend()
-	js := t.jumps[jumpKey{g: g.growKey(), present: g.present, seed: id}]
-next:
-	for i := range js {
-		j := &js[i]
-		p.Spend()
-		if j.silent && p.Silent == 0 {
-			continue
-		}
-		// Each step of the jump made its observations under its own seed, and the jump is taken
-		// from the first: an observation holds for the jump only if its outcome is the same for
-		// every seed of the growth.
-		for _, d := range j.deps {
-			if d.kind != depObs {
-				continue
-			}
-			if v, free := p.obsFree(g.start, g.gp, g.present, d.site, g.growKey()); v != d.val || !free {
-				continue next
-			}
-		}
-		return j
-	}
-	return nil
-}
-
-// mergeSdeps returns the union of two lists of stored dependencies.
-func mergeSdeps(a, b []sdep) []sdep {
-	if len(b) == 0 {
-		return a
-	}
-	out := append([]sdep(nil), a...)
-	for _, d := range b {
-		found := false
-		for _, x := range out {
-			if x == d {
-				found = true
-				break
-			}
-		}
-		if !found {
-			out = append(out, d)
-		}
-	}
-	return out
-}
-
-// unionExpected returns the expectations of a and b, at the same farthest position.
-func (p *Parser) unionExpected(a, b []ExpID) []ExpID {
-	if len(b) == 0 {
-		return a
-	}
-	out := append([]ExpID(nil), a...)
-	for _, x := range b {
-		p.Spend()
-		found := false
-		for _, y := range out {
-			if y == x {
-				found = true
-				break
-			}
-		}
-		if !found {
-			out = append(out, x)
-		}
-	}
-	return out
 }
 
 // nodesEqual reports whether two trees are equal, comparing at most *budget pairs of distinct nodes

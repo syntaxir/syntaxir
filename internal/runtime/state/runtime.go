@@ -2,7 +2,6 @@ package state
 
 import (
 	"fmt"
-	"slices"
 	"sync"
 
 	"syntaxir.dev/sxir/internal/runtime/nodes"
@@ -567,8 +566,8 @@ type GrowState struct {
 	evaluated bool
 	// The step being evaluated in a context: the examined range and expectation record it is kept
 	// apart from.
-	savedHW, savedLW int
-	exp              ExpMark
+	savedExamined, savedFrom int
+	exp                      ExpMark
 	// run holds the steps since the last step that read a seed other than the leader's own.
 	run []runStep
 	// The step that growKeepStep returned last, until growAdoptStep adopts it: its identity as a seed
@@ -606,65 +605,6 @@ func (g *GrowState) growKey() growKey {
 	return growKey{rule: int32(g.Key.Rule), min: int32(g.Key.Min), ms: g.Key.MissingSilent}
 }
 
-// growMemoStep takes the steps of a growth in a context that its table gives, from the jumps and the
-// memoized steps, replaying their dependencies and merging their expectations, and adopts each step
-// that grew. It returns the first memoized step that did not grow, or no result when the table keeps
-// no step from the seed.
-func (p *Parser) growMemoStep(g *GrowState) *MemoEntry {
-	if p.tune.MemoMut == CtxNoStepMemo {
-		return nil
-	}
-	gp := g.gp
-	for {
-		id := p.gamma[g.gi].id
-		if j := p.findJump(g, gp, id); j != nil {
-			if p.tune.MemoMut != CtxNoJumpSeedRead {
-				p.seedRead(gp)
-			}
-			if p.tune.MemoMut != CtxNoJumpReplayDeps {
-				p.replayDeps(g.start, gp, g.present, j.deps)
-			}
-			if p.tune.MemoMut != CtxNoJumpMergeExp {
-				p.MergeExpected(j.far, j.exp)
-			}
-			p.touch(j.examined)
-			p.lw = Min2(p.lw, j.from)
-			p.setSeed(g, j.end, j.id)
-			continue
-		}
-		h := ctxHeadKey{kind: ctxStep, id: int32(g.Key.Rule), min: int32(g.Key.Min), ms: g.Key.MissingSilent, present: g.present}
-		s := p.ctxFind(g.start, gp, h, nil)
-		if s == nil || !p.reusable(s.silent) {
-			return nil
-		}
-		if p.tune.MemoMut != CtxNoStepSeedRead {
-			p.seedRead(gp)
-		}
-		if p.tune.MemoMut != CtxNoStepReplayDeps {
-			p.replayDeps(g.start, gp, g.present, s.deps)
-		}
-		if p.tune.MemoMut != CtxNoStepMergeExp {
-			p.MergeExpected(s.far, s.exp)
-		}
-		p.touch(s.examined)
-		p.lw = Min2(p.lw, s.from)
-		if !p.growGrew(g, s.e) {
-			return s.e
-		}
-		p.adoptGrownStep(g, s.e, s.id, runStep{seed: id, far: s.far, exp: s.exp, examined: s.examined, from: s.from, silent: s.silent, deps: s.deps})
-	}
-}
-
-// growIsolate starts evaluating a step of a growth in a context, with its own frame, examined range
-// and expectations.
-func (p *Parser) growIsolate(g *GrowState) {
-	g.evaluated = true
-	p.pushFrame(g.start, g.gp)
-	g.savedHW, g.savedLW = p.Hw, p.lw
-	p.Hw, p.lw = g.start, g.start
-	g.exp = p.Isolate(g.start)
-}
-
 // growLonger reports whether a step of a growth outside a context, with success ok and ending at
 // the position, matched more than the seed.
 func (p *Parser) growLonger(g *GrowState, ok bool) bool {
@@ -695,201 +635,30 @@ func (p *Parser) growAdopt(g *GrowState, v *value.Node, errs RecEntry) {
 // table of the context and returns it. It does not change the recovered errors: the printed growth
 // lists the errors of the step with recSince and drops them after the step.
 func (p *Parser) growKeepStep(g *GrowState, v *value.Node, ok bool, errs RecEntry) *MemoEntry {
-	id := p.gamma[g.gi].id
-	_, ds := p.popFrame()
-	far, inner := p.Unisolate(g.exp)
-	exp := p.Keep(inner)
-	examined, from := p.Hw, p.lw
-	p.MergeExpected(far, inner)
-	p.Hw, p.lw = max(g.savedHW, p.Hw), Min2(g.savedLW, p.lw)
+	ds, st := p.growStepEnd(g)
 	res := new(MemoEntry)
-	*res = MemoEntry{Node: v, Ok: ok, End: p.Pos, Examined: examined, From: from, Growing: true, silent: p.Silent > 0, Gen: p.Gen, Vgen: p.Gen}
+	*res = MemoEntry{Node: v, Ok: ok, End: p.Pos, Examined: st.examined, From: st.from, Growing: true, silent: st.silent, Gen: p.Gen, Vgen: p.Gen}
 	if ok {
 		res.Errs = errs
 	} else {
 		res.End = g.start
 	}
-	res, rid := p.canonicalSeed(g.start, g.gp, g.growKey(), res)
-	sd, _ := p.stored(ds)
-	h := ctxHeadKey{kind: ctxStep, id: int32(g.Key.Rule), min: int32(g.Key.Min), ms: g.Key.MissingSilent, present: g.present}
-	p.ctxStore(g.start, g.gp, h, sd, &ctxSlot{e: res, id: rid, far: far, exp: exp, examined: examined, from: from, silent: p.Silent > 0})
-	p.mergeDeps(ds)
-	g.pendID = rid
-	g.pendStep = runStep{seed: id, far: far, exp: exp, examined: examined, from: from, silent: p.Silent > 0, deps: sd}
-	return res
+	return p.growKeep(g, res, ds, st)
 }
 
-// growGrew reports whether the step s of a growth in a context matched more than the seed.
-func (p *Parser) growGrew(g *GrowState, s *MemoEntry) bool {
-	return s.Ok && (!g.Best.Ok || s.End > g.Best.End)
-}
+// growth is the state of a growth that the shared steps read (context_grow.go).
+type growth = GrowState
 
-// growAdoptStep adopts the step s of a growth in a context that grew, which growKeepStep returned
-// last, as the seed.
-func (p *Parser) growAdoptStep(g *GrowState, s *MemoEntry) {
-	p.adoptGrownStep(g, s, g.pendID, g.pendStep)
-}
-
-// adoptGrownStep adopts the step e of a growth in a context that grew, with identity id and what it
-// recorded st, as the seed, and returns to the start of the growth. It extends the run of steps that
-// read no other seed with the step, or ends it.
-func (p *Parser) adoptGrownStep(g *GrowState, e *MemoEntry, id uint64, st runStep) {
-	own := g.growKey()
-	other := false
-	var obs []sdep
-	for _, d := range st.deps {
-		switch {
-		case d.kind == depSeed && (growKey{rule: d.rule, min: d.min, ms: d.ms}) != own:
-			other = true
-		case d.kind == depShadow && (growKey{rule: d.rule, min: d.min, ms: d.ms}) == own:
-			// A lookahead of the step read the growth's own seed: its outcome holds for this seed
-			// only, while a jump checks its observations under the first seed of the run.
-			other = true
-		case d.kind == depObs || d.kind == depShadow:
-			obs = append(obs, d)
-		}
-	}
-	if !other && e.Errs.None() {
-		st.deps = obs
-		c := cap(g.run)
-		g.run = append(g.run, st)
-		p.MemUsed += uint64(cap(g.run)-c)*runStepBytes + uint64(cap(obs))*sdepBytes
-	} else {
-		p.recordJumps(g)
-	}
-	p.Spend()
-	p.setSeed(g, e, id)
-	p.Pos = g.start
+// touchRange extends the examined range of the current evaluation by a reused result's.
+func (p *Parser) touchRange(examined, from int) {
+	p.touch(examined)
+	p.lw = Min2(p.lw, from)
 }
 
 // setSeed makes e, with identity id, the seed of the growth.
 func (p *Parser) setSeed(g *GrowState, e *MemoEntry, id uint64) {
 	g.Best = e
 	p.gamma[g.gi].seed, p.gamma[g.gi].id = e, id
-}
-
-// recordJumps records, for each seed of the run, a jump to the current seed with what the steps
-// from that seed on recorded, and starts a new run.
-func (p *Parser) recordJumps(g *GrowState) {
-	if len(g.run) == 0 {
-		return
-	}
-	t := p.table(g.start, g.gp, true)
-	if t.jumps == nil {
-		t.jumps = map[jumpKey][]jumpRec{}
-	}
-	end, id := g.Best, p.gamma[g.gi].id
-	acc := jumpRec{end: end, id: id, far: -1, examined: g.start, from: g.start}
-	for i := len(g.run) - 1; i >= 0; i-- {
-		s := &g.run[i]
-		p.Spend()
-		switch {
-		case s.far > acc.far:
-			acc.far, acc.exp = s.far, s.exp
-		case s.far == acc.far:
-			acc.exp = p.unionExpected(acc.exp, s.exp)
-		}
-		acc.examined, acc.from = max(acc.examined, s.examined), Min2(acc.from, s.from)
-		acc.silent = acc.silent || s.silent
-		acc.deps = mergeSdeps(acc.deps, s.deps)
-		k := jumpKey{g: g.growKey(), present: g.present, seed: s.seed}
-		if !p.jumpShadowed(t.jumps[k], &acc) {
-			t.jumps[k] = append(t.jumps[k], acc)
-			t.bytes += jumpBytes + uint64(len(acc.deps))*sdepBytes + uint64(len(acc.exp))*expIDBytes
-		}
-	}
-	g.run = g.run[:0]
-}
-
-// jumpShadowed reports whether findJump never returns the jump j after the jumps js: one of them
-// is used wherever j is, since its observations are among j's and it is not inside a lookahead
-// where j is not. Leaving such jumps out keeps the list of a seed from growing in each growth
-// that ends its run there again, with the same observations and other shadows.
-func (p *Parser) jumpShadowed(js []jumpRec, j *jumpRec) bool {
-next:
-	for i := range js {
-		e := &js[i]
-		p.Spend()
-		if e.silent && !j.silent {
-			continue
-		}
-		for _, d := range e.deps {
-			if d.kind == depObs && !slicesContains(j.deps, d) {
-				continue next
-			}
-		}
-		return true
-	}
-	return false
-}
-
-// findJump returns a jump from the seed with identity id that holds in the current context.
-func (p *Parser) findJump(g *GrowState, gp int, id uint64) *jumpRec {
-	t := p.table(g.start, g.gp, false)
-	if t == nil || t.jumps == nil {
-		return nil
-	}
-	p.Spend()
-	js := t.jumps[jumpKey{g: g.growKey(), present: g.present, seed: id}]
-next:
-	for i := range js {
-		j := &js[i]
-		p.Spend()
-		if j.silent && p.Silent == 0 {
-			continue
-		}
-		// Each step of the jump made its observations under its own seed, and the jump is taken
-		// from the first: an observation holds for the jump only if its outcome is the same for
-		// every seed of the growth.
-		for _, d := range j.deps {
-			if d.kind != depObs || p.tune.MemoMut == CtxIgnoreObs {
-				continue
-			}
-			if v, free := p.obsFree(g.start, gp, g.present, d.site, g.growKey()); v != d.val || !free && p.tune.MemoMut != CtxJumpAnySeed {
-				continue next
-			}
-		}
-		return j
-	}
-	return nil
-}
-
-// mergeSdeps returns the union of two lists of stored dependencies.
-func mergeSdeps(a, b []sdep) []sdep {
-	if len(b) == 0 {
-		return a
-	}
-	out := append([]sdep(nil), a...)
-	for _, d := range b {
-		if !slicesContains(out, d) {
-			out = append(out, d)
-		}
-	}
-	return out
-}
-
-func slicesContains(ds []sdep, d sdep) bool {
-	for _, x := range ds {
-		if x == d {
-			return true
-		}
-	}
-	return false
-}
-
-// unionExpected returns the expectations of a and b, at the same farthest position.
-func (p *Parser) unionExpected(a, b []ExpID) []ExpID {
-	if len(b) == 0 {
-		return a
-	}
-	out := append([]ExpID(nil), a...)
-	for _, x := range b {
-		p.Spend()
-		if !slices.Contains(out, x) {
-			out = append(out, x)
-		}
-	}
-	return out
 }
 
 // GrowEnd finalizes and returns the last result. CallEnd stores it (Parser.grown). It does not change
