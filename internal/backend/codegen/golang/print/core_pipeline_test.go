@@ -8,6 +8,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
 	"syntaxir.dev/sxir/internal/driver"
+	"syntaxir.dev/sxir/internal/driver/generate"
 	irbuild "syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
@@ -65,13 +66,19 @@ func TestCorePipelineVerifiesEveryPass(t *testing.T) {
 				if err != nil {
 					return
 				}
-				var g *print.Generator
 				opts := mode.opts
 				opts.Module = "example.com/p"
-				if _, err := generateGo(pg, opts, driver.Options{}, &print.Hooks{Generator: func(x *print.Generator) { g = x }}); err != nil || g == nil {
+				settings, err := generate.Settings(opts)
+				if err != nil {
+					t.Fatalf("%s: %v", mode.name, err)
+				}
+				// The checked program that the generation compiled is what its Core steps elaborate the
+				// typed table from.
+				_, prog, err := generateGoChecked(pg, opts, driver.Options{}, nil)
+				if err != nil {
 					return
 				}
-				want, err := typedCore(g, corepass.RunOptions{})
+				want, err := typedCoreOf(prog, settings, corepass.RunOptions{})
 				if err != nil {
 					t.Errorf("%s: %s: %v", mode.name, c.Name, err)
 					return
@@ -79,7 +86,7 @@ func TestCorePipelineVerifiesEveryPass(t *testing.T) {
 				if len(want.Rules) == 0 {
 					return
 				}
-				got, err := typedCore(g, corepass.RunOptions{VerifyEach: true})
+				got, err := typedCoreOf(prog, settings, corepass.RunOptions{VerifyEach: true})
 				if err != nil {
 					t.Errorf("%s: %s: %v", mode.name, c.Name, err)
 					return
