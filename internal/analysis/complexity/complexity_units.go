@@ -1287,14 +1287,14 @@ func (k *classifier) repeatCost(e ast.Expr) *source {
 		if r, call := x.(*ast.Ref); call {
 			if (k.srcExprs[r] || k.ruleSrc[r.Name] != nil) && !(k.memoAt(r) && len(k.vars[r.Name]) == 0) && !k.scanOnly(r.Name) {
 				if found = k.local[r.Name]; found == nil {
-					found = k.sourceIn(r)
+					found = k.sourceIn(k.nodeOf(r))
 				}
 			}
 			return
 		}
 		if k.srcExprs[x] {
-			if found = k.walkedAt(x); found == nil {
-				found = k.sourceIn(x)
+			if found = k.walkedAt(k.nodeOf(x)); found == nil {
+				found = k.sourceIn(k.nodeOf(x))
 			}
 		}
 	}, k.control.Poll)

@@ -3,8 +3,7 @@ package complexity
 import (
 	"fmt"
 
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
-	"syntaxir.dev/sxir/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/ir/core"
 )
 
 // --- Steps of a growth ---
@@ -70,9 +69,12 @@ func (k *classifier) addStepUnits() {
 			for c := t; c != nil; c = c.next {
 				for _, it := range c.items {
 					if it != nil {
-						for _, n := range astfacts.AllCallsControlled(it, nil, k.control) {
-							u.calls[n] = true
-						}
+						walkNodes(k.nodeOf(it), func(x core.Node) {
+							k.control.Poll()
+							if rule, ok := k.calledRule(x); ok {
+								u.calls[rule] = true
+							}
+						})
 					}
 				}
 			}
@@ -86,23 +88,23 @@ func (k *classifier) addStepUnits() {
 // source when one of its items can, or when an item that can fail follows one that contains a
 // source.
 func (k *classifier) tailFailsAfterSource(t *cont) *source {
-	var items []ast.Expr
+	var items []core.Node
 	for c := t; c != nil; c = c.next {
 		for _, it := range c.items {
 			if it != nil {
-				items = append(items, it)
+				items = append(items, k.nodeOf(it))
 			}
 		}
 	}
 	for i, it := range items {
-		if k.failsAfterSource(k.nodeOf(it)) {
+		if k.failsAfterSource(it) {
 			return k.sourceIn(it)
 		}
-		if !k.containsSource(k.nodeOf(it)) {
+		if !k.containsSource(it) {
 			continue
 		}
 		for _, later := range items[i+1:] {
-			if !k.succeeds(later) {
+			if !k.succeedsOf(later) {
 				return k.sourceIn(it)
 			}
 		}
@@ -110,36 +112,38 @@ func (k *classifier) tailFailsAfterSource(t *cont) *source {
 	return nil
 }
 
-// sourceIn returns the first scanning source in e: one that the walk recorded at an expression
-// in e, or the source of a rule that e calls.
-func (k *classifier) sourceIn(e ast.Expr) *source {
+// sourceIn returns the first scanning source in n: one that the walk recorded at a node in n, or
+// the source of a rule that n calls.
+func (k *classifier) sourceIn(n core.Node) *source {
 	var found *source
-	astfacts.WalkExpr(e, func(x ast.Expr) {
+	walkNodes(n, func(x core.Node) {
 		if found != nil {
 			return
 		}
-		if k.srcExprs[x] {
+		if k.srcExprs[k.exprOf(x)] {
 			found = k.walkedAt(x)
 			if found != nil {
 				return
 			}
 		}
-		if r, ok := x.(*ast.Ref); ok && k.ruleSrc[r.Name] != nil {
-			found = k.ruleSrc[r.Name]
+		if rule, ok := k.calledRule(x); ok && k.ruleSrc[rule] != nil {
+			found = k.ruleSrc[rule]
 		}
 	})
 	if found == nil {
+		e := k.exprOf(n)
 		found = &source{pos: exprPos(e), what: k.show(e)}
 	}
 	return found
 }
 
-// walkedAt returns the source that the walk recorded at the expression x, or nil.
-func (k *classifier) walkedAt(x ast.Expr) *source {
-	pos := exprPos(x)
+// walkedAt returns the source that the walk recorded at the node n, or nil.
+func (k *classifier) walkedAt(n core.Node) *source {
+	e := k.exprOf(n)
+	pos := exprPos(e)
 	for _, r := range k.rules {
 		for _, s := range k.walked[r.Name] {
-			if s.pos == pos && (s.scan == nil || s.scan == x) {
+			if s.pos == pos && (s.scan == nil || s.scan == e) {
 				return s
 			}
 		}
