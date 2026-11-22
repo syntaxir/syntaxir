@@ -1,11 +1,6 @@
 package compile
 
-import (
-	"slices"
-
-	"syntaxir.dev/sxir/internal/frontend/check"
-	"syntaxir.dev/sxir/pkg/bytecode"
-)
+import "syntaxir.dev/sxir/internal/frontend/check"
 
 // CheckStart reports why name cannot begin a parse of prog: it is empty and there is no default
 // start rule, it is hidden, it is not defined, or it is not a start rule (check.CheckStartName).
@@ -21,12 +16,5 @@ func (prog *Program) StartRule(name string) (*Rule, error) {
 	return prog.ByName[prog.ResolveStart(name)], nil
 }
 
-// definesRule reports whether the grammar defines the rule name, without preparing a backend.
-func (prog *Program) definesRule(name string) bool {
-	if prog.Grammar != nil {
-		return prog.ByName[name] != nil
-	}
-	// A program without a grammar was loaded from its module.
-	m := prog.Bytecode
-	return slices.ContainsFunc(m.Rules, func(r bytecode.RuleInfo) bool { return m.Strings[r.Name] == name })
-}
+// definesRule reports whether the grammar defines the rule name.
+func (prog *Program) definesRule(name string) bool { return prog.ByName[name] != nil }

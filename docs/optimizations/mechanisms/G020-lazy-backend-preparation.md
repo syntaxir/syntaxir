@@ -30,7 +30,7 @@ There is no numbered optimization record or isolated timing/allocation
 measurement. Warm parse results do not quantify avoided setup, and first-use
 timing must separate preparation from steady-state matching.
 
-Source owners: [`Program.BytecodeOnce`](../../../internal/compile/compile.go),
+Source owners: the driver's compiler side of a checked program, which builds the bytecode module once,
 [`Program.recOnce, vms, prepareVM and Module`](../../../internal/runtime/engine/program.go),
 the engine program's bytecode module, [`Program.Recognizer
 and rule`](../../../internal/runtime/engine/program_parse.go).

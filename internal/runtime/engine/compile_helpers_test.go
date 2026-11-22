@@ -98,8 +98,8 @@ func (p *Program) SchemaSource(start string) (schemaexport.Source, error) {
 // lazyModule returns the bytecode module that p holds: for a program compiled from a grammar, the
 // module that its compiler side has built on first use (checked.Source.Module), or nil before that.
 func lazyModule(p *Program) *bytecode.Module {
-	if sp := p.Static(); sp != nil {
-		return sp.Bytecode
+	if s, ok := p.src.(*checked.Source); ok {
+		return s.BuiltModule()
 	}
 	return p.Bytecode
 }

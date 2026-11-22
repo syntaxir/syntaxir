@@ -594,10 +594,8 @@ docs/optimizations/mechanisms/G010-generated-helper-sharing.md	codelink	internal
 docs/optimizations/mechanisms/G010-generated-helper-sharing.md	gofile	internal/backend/codegen/common/generator.go	1
 docs/optimizations/mechanisms/G010-generated-helper-sharing.md	gofile	internal/backend/codegen/golang/print/generator.go	1
 docs/optimizations/mechanisms/G010-generated-helper-sharing.md	gofile	internal/backend/codegen/typescript/print/generator.go	1
-docs/optimizations/mechanisms/G020-lazy-backend-preparation.md	codelink	internal/compile/compile.go	1
 docs/optimizations/mechanisms/G020-lazy-backend-preparation.md	codelink	internal/runtime/engine/program.go	1
 docs/optimizations/mechanisms/G020-lazy-backend-preparation.md	codelink	internal/runtime/engine/program_parse.go	1
-docs/optimizations/mechanisms/G020-lazy-backend-preparation.md	gofile	internal/compile/compile.go	1
 docs/optimizations/mechanisms/G020-lazy-backend-preparation.md	gofile	internal/runtime/engine/program.go	1
 docs/optimizations/mechanisms/G020-lazy-backend-preparation.md	gofile	internal/runtime/engine/program_parse.go	1
 docs/optimizations/mechanisms/G030-constructor-dependency-analysis.md	codelink	pkg/sample/analysis.go	1

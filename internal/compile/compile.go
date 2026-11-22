@@ -12,17 +12,17 @@ import (
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/program"
-	"syntaxir.dev/sxir/pkg/bytecode"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
-// Program is what the compiler found out about a grammar: its rules with their static facts,
-// its types and expectations, and its bytecode module. Every backend and generator reads it; the
-// engine's Program adds what the parser runs.
+// Program is the checked program: what the compiler found out about a grammar, its rules with
+// their static facts, its types and expectations. It keeps no output of a backend; the compiler
+// side that holds a program builds those (internal/driver/checked.Source). Every backend and
+// generator reads it, and its run-time program (Runtime) is what the parser runs.
 type Program struct {
 	// Model is the semantic model of the grammar: the grammar, its types, variables and start
-	// rules. Check and the loading of a compiled grammar always set it.
+	// rules. Check always sets it.
 	*check.Model
 	HasMissing bool // immutable syntax metadata; bytecode/generation are unsupported
 	// chk checks the types of the program (Checker), made on first use.
@@ -53,14 +53,6 @@ type Program struct {
 	// from these, so that none is lost (engine.Program.lazyOptions).
 	Opts Options
 
-	// Bytecode is the program's bytecode module, made once under BytecodeOnce: the module a
-	// program loaded from a compiled grammar was read from, or the engine's compilation of the
-	// program's Core IR (vm.Compile) once a VM or a save first needs it. BytecodeErr is the internal
-	// error of that compilation, if any, kept beside the module so that every program sharing this
-	// one reports it.
-	BytecodeOnce sync.Once
-	Bytecode     *bytecode.Module
-	BytecodeErr  error
 	// typeKinds holds the node kinds of the grammar's types (TypeKind), made with the program from
 	// the checker's (check.Checker.Kinds).
 	typeKinds map[string]*valueimpl.Kind

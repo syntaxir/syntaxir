@@ -9,6 +9,8 @@ package checked
 import (
 	"context"
 	"fmt"
+	"sync"
+	"sync/atomic"
 
 	"syntaxir.dev/sxir/internal/backend/closure"
 	"syntaxir.dev/sxir/internal/backend/vmlower"
@@ -27,9 +29,18 @@ import (
 	"syntaxir.dev/sxir/pkg/runtime/schema"
 )
 
-// Source is the compiler side of a checked program (state.Source).
+// Source is the compiler side of a checked program (state.Source). It holds what the backends
+// build from the checked program, which keeps no output of a backend: the bytecode module, made once
+// under moduleOnce, with the internal error of its compilation, if any, kept beside it so that
+// every parse that runs this source reports it.
 type Source struct {
 	prog *compile.Program
+
+	moduleOnce sync.Once
+	module     *bytecode.Module
+	moduleErr  error
+	// built is module once Module has made it, for BuiltModule.
+	built atomic.Pointer[bytecode.Module]
 }
 
 var _ state.Source = (*Source)(nil)
@@ -85,10 +96,17 @@ func (s *Source) Runtime() *program.Program { return s.prog.Runtime() }
 
 // Module compiles the program to a bytecode module (vmlower.Compile), once.
 func (s *Source) Module() (*bytecode.Module, error) {
-	p := s.prog
-	p.BytecodeOnce.Do(func() { p.Bytecode, p.BytecodeErr = vmlower.Compile(vmlower.Input{Run: p.Runtime(), Elab: p}) })
-	return p.Bytecode, p.BytecodeErr
+	s.moduleOnce.Do(func() {
+		p := s.prog
+		s.module, s.moduleErr = vmlower.Compile(vmlower.Input{Run: p.Runtime(), Elab: p})
+		s.built.Store(s.module)
+	})
+	return s.module, s.moduleErr
 }
+
+// BuiltModule returns the module that Module has made, or nil before it has: it builds nothing,
+// so a caller observes whether a program is still cold.
+func (s *Source) BuiltModule() *bytecode.Module { return s.built.Load() }
 
 // Core builds the Core IR of the program for the closures (elaborate.CoreControlled, then
 // closure.Core), polling ctx (nil for none): an ended context returns a state.BuildCancelled.
