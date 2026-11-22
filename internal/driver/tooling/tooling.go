@@ -10,12 +10,12 @@ import (
 	"context"
 
 	"syntaxir.dev/sxir/internal/analysis/lint"
-	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/parser"
-	"syntaxir.dev/sxir/internal/runtime/engine"
 	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -92,15 +92,16 @@ func FormatTypeContext(ctx context.Context, t ast.TypeExpr) (string, error) {
 
 // Compilation.
 
-// A Program is a compiled grammar; CompileOptions are the options of its compilation.
+// A Program is a checked grammar, the compiler side of a compiled program without the runtime
+// that runs it; CompileOptions are the options of its compilation.
 type (
-	Program        = engine.Program
-	CompileOptions = entry.Options
+	Program        = checked.Source
+	CompileOptions = check.Options
 )
 
 // CompileContext compiles g, with cancellation.
 func CompileContext(ctx context.Context, g *ast.Grammar, opts CompileOptions) (*Program, error) {
-	return entry.CompileContext(ctx, g, opts)
+	return checked.CompileContext(ctx, g, opts)
 }
 
 // A FrontResult is the checked front-end result of a compiled grammar: its semantic model and Core
@@ -110,7 +111,7 @@ type FrontResult = frontend.Result
 // FrontResultOf returns the front-end result of p from the checked program that p keeps, without
 // compiling the grammar again.
 func FrontResultOf(p *Program) (*FrontResult, error) {
-	return entry.Checked(p).WithModule(nil)
+	return p.Checked().WithModule(nil)
 }
 
 // Lint.

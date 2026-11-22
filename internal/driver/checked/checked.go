@@ -9,6 +9,7 @@ package checked
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 	"sync/atomic"
 
@@ -58,6 +59,32 @@ func Compile(g *ast.Grammar, opts check.Options, control *cancel.Control) (*Sour
 	return s, nil
 }
 
+// CompileContext is Compile under ctx, the compilation of an editor: a cancellation of ctx
+// discards the whole program with the diagnostics it gathered and returns the error of ctx. The
+// polls cover the validation of the grammar AST, the normalization of the source, the loops over
+// rules and their dependencies, the shared proofs of success, and the checks of expressions and
+// types; shared metadata and single operations still have stretches that do not poll, so it is no
+// guarantee of latency. The Core IR and what the backends build from it are made when a parse
+// first needs them, outside the compilation, under the context of that parse.
+func CompileContext(ctx context.Context, g *ast.Grammar, opts check.Options) (s *Source, err error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if ctx.Done() == nil {
+		return Compile(g, opts, nil)
+	}
+	defer func() {
+		if failure := recover(); failure != nil {
+			if cancelled, ok := failure.(cancel.Cancellation); ok {
+				s, err = nil, cancelled.Err
+			} else {
+				panic(failure)
+			}
+		}
+	}()
+	return Compile(g, opts, &cancel.Control{Ctx: ctx})
+}
+
 // Check compiles the grammar to a checked program without checking its declarations of linear
 // cost. If flags is not nil, it skips the static analysis of the rules and uses flags instead. The
 // errors name the rules as written, not the hidden rules that inline actions are lowered to.
@@ -93,6 +120,14 @@ func (s *Source) Grammar() *ast.Grammar {
 
 // Runtime returns the run-time program of the checked program.
 func (s *Source) Runtime() *program.Program { return s.prog.Runtime() }
+
+// Starts returns the start rules of the grammar, the rules marked @start where parsing may begin,
+// in declaration order.
+func (s *Source) Starts() []string { return slices.Clone(s.Runtime().StartRules) }
+
+// DefaultStart returns the default start rule: the one marked @start(default), or the only start
+// rule.
+func (s *Source) DefaultStart() string { return s.Runtime().DefaultStartRule }
 
 // Module compiles the program to a bytecode module (vmlower.Compile) from its planned Node table
 // (VMInput), once.

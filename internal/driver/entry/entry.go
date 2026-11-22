@@ -7,7 +7,6 @@ package entry
 import (
 	"context"
 
-	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/check"
@@ -52,33 +51,9 @@ func CompileSource(src, start string, opts Options) (*engine.Parser, error) {
 	return CompileParser(g, start, opts)
 }
 
-// CompileContext is the internal editor compilation entry point. Cancellation
-// discards the entire program and accumulated diagnostics. Existing Compile and
-// saved-program loading keep their ordinary path with no active control.
-// Polls cover grammar AST validation, source normalization, rule/dependency
-// loops, shared success proofs, expression checking and type checking. The Core
-// IR and the closures built from it are made when a parse first needs them,
-// outside the compilation: the parse's own context interrupts the Core IR build
-// and its passes, not the closures. Shared metadata and individual operations
-// still have uncancellable stretches.
-// This is not a wall-clock latency guarantee.
-func CompileContext(ctx context.Context, g *ast.Grammar, opts Options) (prog *engine.Program, err error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	if ctx.Done() == nil {
-		return Compile(g, opts)
-	}
-	defer func() {
-		if failure := recover(); failure != nil {
-			if cancelled, ok := failure.(cancel.Cancellation); ok {
-				prog, err = nil, cancelled.Err
-			} else {
-				panic(failure)
-			}
-		}
-	}()
-	s, err := checked.Compile(g, opts, &cancel.Control{Ctx: ctx})
+// CompileContext is Compile under ctx, with the cancellation of checked.CompileContext.
+func CompileContext(ctx context.Context, g *ast.Grammar, opts Options) (*engine.Program, error) {
+	s, err := checked.CompileContext(ctx, g, opts)
 	if err != nil {
 		return nil, err
 	}
