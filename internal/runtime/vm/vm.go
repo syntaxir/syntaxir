@@ -321,7 +321,7 @@ type Machine struct {
 	scans    []scanWalk        // the walks of scan sites in progress that gather a list
 	posSlab  []int             // positions pushed as values (newPos); stream splits keep it
 	freeRuns []*state.RunState // runStates of finished repetitions (newRunState)
-	regs     regStack          // the register files of the running Flow bodies (recursive model)
+	regs     regStack          // the register files of the running Flow bodies
 	driver   vmDriverState
 }
 

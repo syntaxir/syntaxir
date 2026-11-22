@@ -39,7 +39,7 @@ func flowBody(vm *Program, r *state.Rule, f *bytecode.Flow) func(p *state.Parser
 	}
 }
 
-// regStack holds the register files of the Flow bodies that the recursive model runs, one above the
+// regStack holds the register files of the Flow bodies that a VM runs, in either model, one above the
 // other as the calls nest, so that a call takes its registers without allocating them. It is a list of
 // chunks that never move: a register file stays where it is while the calls it makes push theirs.
 type regStack struct {
@@ -110,12 +110,6 @@ type flowRun struct {
 	pc   int
 	v    *value.Node
 	ok   bool
-}
-
-// start makes fr a run of f from its first instruction, reusing the registers of fr, which need not
-// be cleared: a body reads no register before it writes it (bytecode.Flow.Unassigned).
-func (fr *flowRun) start(f *bytecode.Flow) {
-	*fr = flowRun{f: f, regs: slices.Grow(fr.regs[:0], f.Regs)[:f.Regs]}
 }
 
 // call returns the immediate of the CALL that fr is suspended at.

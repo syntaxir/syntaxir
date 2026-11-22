@@ -237,14 +237,14 @@ func (mc *ivmMachine) ruleBodyFrame(r *state.Rule, min int) iframe {
 	return mc.bodyFrame(r.Entry, r, min, false)
 }
 
-// flowFrame returns a frame that runs the Flow body f of r, with the registers of a frame that ran
-// before.
+// flowFrame returns a frame that runs the Flow body f of r, with its registers pushed on the
+// register stack of the machine, as the recursive model pushes them. The frames of the VM stack nest
+// as the calls of the recursive model do, so the frame returns the stack to its mark when it is
+// popped (releaseFrame), and the memory count holds the registers as it does for the recursive model.
 func (mc *ivmMachine) flowFrame(r *state.Rule, f *bytecode.Flow) *flowFrame {
 	ff := reuse(&mc.p.MemKept, &mc.pool.flows)
-	regs := ff.run.regs
-	*ff = flowFrame{r: r}
-	ff.run.regs = regs
-	ff.run.start(f)
+	mark := mc.regs.mark()
+	*ff = flowFrame{r: r, mark: mark, run: flowRun{f: f, regs: mc.regs.push(f.Regs)}}
 	return ff
 }
 
@@ -253,6 +253,7 @@ func (mc *ivmMachine) flowFrame(r *state.Rule, f *bytecode.Flow) *flowFrame {
 type flowFrame struct {
 	r       *state.Rule
 	run     flowRun
+	mark    regMark // the top of the register stack below the registers of run
 	started bool
 	call    bool      // a plain call of r: run the end of InvokePlain (plain) when the body finishes
 	plain   plainCall // call: the state saved by the call
@@ -373,6 +374,8 @@ func (mc *ivmMachine) releaseFrame(f iframe) {
 	case *nudFrame:
 		mc.pool.nuds = append(mc.pool.nuds, f)
 	case *flowFrame:
+		mc.regs.release(f.mark)
+		*f = flowFrame{} // keeps neither the registers nor the result
 		mc.pool.flows = append(mc.pool.flows, f)
 	case *operatorsRuleFrame:
 		mc.p.Depth--
