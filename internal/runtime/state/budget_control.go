@@ -55,6 +55,8 @@ type BudgetControl struct {
 	// keeps; otherwise the errors stay held to the end of the parse.
 	errs uint64
 	memP *Parser
+	// hotP is the parser whose profile names the hotspot of an exceeded compute limit.
+	hotP *Parser
 }
 
 // ResolveLimits returns the limits a parse runs under for an input of n units of its position
@@ -296,10 +298,10 @@ func (c *BudgetControl) chargeSlow(n uint64, poll, exceeded bool) {
 // hotspot returns the hotspot of the profile that records the parse the control belongs to, or the
 // empty string without one (Parser.Hotspot). It runs only when a limit is exceeded.
 func (c *BudgetControl) hotspot() string {
-	if c.memP == nil {
+	if c.hotP == nil {
 		return ""
 	}
-	return c.memP.Hotspot()
+	return c.hotP.Hotspot()
 }
 
 // InputUnits returns the length of s in units of the position unit. Below the size at which the

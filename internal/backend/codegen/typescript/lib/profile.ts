@@ -47,6 +47,20 @@ export interface ProfileData { totals: ProfileSnapshot; rows: Map<string, RulePr
 // Weak keys let a discarded sink be collected; values contain only scalar rows.
 export const profileData = new WeakMap<Profile, ProfileData>();
 
+/**
+ * hotspotOf returns the rule of the profile with the most repeated evaluations at one position and level
+ * (maxEvals, at least 2), a tie going to more repeats and then to the smaller name; "" if there is none.
+ */
+export function hotspotOf(profile: Profile): string {
+  let best: RuleProfile | null = null;
+  for (const row of profileData.get(profile)!.rows.values()) {
+    if (row.maxEvals < 2) continue;
+    if (best === null || row.maxEvals > best.maxEvals ||
+      row.maxEvals === best.maxEvals && (row.repeats > best.repeats || row.repeats === best.repeats && row.rule < best.rule)) best = row;
+  }
+  return best === null ? "" : best.rule;
+}
+
 /** Accumulates the cost of each rule over the parses it is given to, without retaining input, nodes or call history. */
 export class Profile {
   constructor() {

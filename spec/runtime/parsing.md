@@ -2816,7 +2816,7 @@ the rule with the highest `MaxEvals`, the most evaluating calls at one position
 and level, at least 2; a tie goes to the rule with more `Repeats`, then to the
 first name in order. `Hotspot` is empty when the parse has no profile, when no
 rule evaluated twice at one position and level, and on a backend that does not
-record the profile while the parse runs. The message of the error names it
+record the profile while the parse runs; a profile that earlier parses also filled ranks all of them. The message of the error names it
 (`, hotspot rule R`). It is not the rule that the parse was evaluating when the
 check found the limit exceeded.
 

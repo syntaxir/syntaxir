@@ -1,10 +1,12 @@
 package engine
 
 import (
+	"errors"
 	"runtime"
 	"strings"
 	"testing"
 
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/instrument"
 	"syntaxir.dev/sxir/pkg/runtime/value"
@@ -196,6 +198,42 @@ rule line = [a-z]* #atomic "\n"`)
 		// over the lines between the two measurements.
 		if early == 0 || late == 0 || late > early+1<<20 || line == nil || line.Calls != lines+1 || line.Repeats != 0 {
 			t.Errorf("%v: heap %d then %d, line %+v", back, early, late, line)
+		}
+	}
+}
+
+// TestLimitHotspot checks that a compute limit error names the rule that the profile of the parse
+// ranks first, on each backend, and that a parse without a profile leaves it empty.
+func TestLimitHotspot(t *testing.T) {
+	t.Parallel()
+	prog := mustCompile(t, `rule main = y / x "a" / x "b" / x "c"
+rule y = "x"+ "!"
+rule x = "x"+`)
+	in := strings.Repeat("x", 40) + "c"
+	for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
+		// One unit less than the parse needs, so the check that fails comes after every evaluation.
+		need := uint64(1)
+		for {
+			if _, err := prog.ParseWith("main", in, ParseOptions{Backend: b, Limits: sxirruntime.Limits{Compute: need}}); err == nil {
+				break
+			}
+			if need++; need > 5000 {
+				t.Fatalf("%v: the parse needs more than 5000 units", b)
+			}
+		}
+		limits := sxirruntime.Limits{Compute: need - 1}
+		var prof instrument.Profile
+		_, err := prog.ParseWith("main", in, ParseOptions{Backend: b, Limits: limits, Profiles: []*instrument.Profile{&prof}})
+		var le *sxirruntime.LimitError
+		if !errors.As(err, &le) || le.Kind != sxirruntime.LimitCompute {
+			t.Fatalf("%v: error %v, want a compute limit error", b, err)
+		}
+		if le.Hotspot != "x" || !strings.Contains(le.Error(), "hotspot rule x") {
+			t.Errorf("%v: hotspot %q, error %q", b, le.Hotspot, le.Error())
+		}
+		_, err = prog.ParseWith("main", in, ParseOptions{Backend: b, Limits: limits})
+		if !errors.As(err, &le) || le.Hotspot != "" || strings.Contains(le.Error(), "hotspot") {
+			t.Errorf("%v: without a profile: %v", b, err)
 		}
 	}
 }

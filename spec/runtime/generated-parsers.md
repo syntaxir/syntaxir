@@ -192,7 +192,8 @@ const (
   [default](parsing.md#default-limits) and `Unlimited` disables it.
   An exhausted limit matches `ErrLimit`, and `errors.As` retrieves a
   `*LimitError` with `Kind` (`LimitCompute`, `LimitInput` or `LimitMemory`), `Limit`, `Used`
-  and `Requested`. A finite `Memory` bounds the storage of the parse as the
+  and `Requested`, and for `LimitCompute` also `Hotspot`, which names the rule that the
+  [profile of the parse](parsing.md#cancellation-and-compute-limits) ranks first. A finite `Memory` bounds the storage of the parse as the
   [memory limit](parsing.md#memory-limit) defines; the typed values of `-types` count too. An input longer than `Input` fails with `LimitInput` before any
   matching, in every entry point, and a generated stream fails when the parser reaches a
   unit beyond it. An interrupted entry point returns its zero result, and
@@ -387,6 +388,7 @@ export class ParseInterruptionError extends Error {
   readonly limit: number;
   readonly used: number;
   readonly requested: number;
+  readonly hotspot: string; // "" unless a compute-limit with a profile
   readonly cause: unknown;
 }
 export type Unit = 0 | 1;
@@ -462,7 +464,8 @@ export function marshal(n: Node | null): string;
 - An interrupted parse returns `node` as `null` and `error` as a `ParseInterruptionError`
   whose `kind` is `"canceled"`, `"compute-limit"`, `"memory-limit"` or `"input-limit"`. For a limit,
   `limit`, `used` and `requested` give the accounting, with the meaning that
-  [a `LimitError` reports](parsing.md#cancellation-and-compute-limits); for cancellation, `cause` is the
+  [a `LimitError` reports](parsing.md#cancellation-and-compute-limits), and for a
+  `"compute-limit"` `hotspot` is the `Hotspot` of that error, the empty string without a profile; for cancellation, `cause` is the
   `reason` of the signal. Recovery does not turn an interruption into a partial result,
   and the parser keeps no reference to the signal after the call returns. Typed
   conversion (`parseValue`) and recognition report interruptions the same way.

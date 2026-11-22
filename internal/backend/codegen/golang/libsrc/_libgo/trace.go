@@ -123,6 +123,15 @@ func (o *observation) release() {
 	}
 }
 
+// hotspot returns the hotspot rule of the first profile of the parse (Profile.Hotspot), or the empty
+// string without one.
+func (o *observation) hotspot() string {
+	if o == nil || len(o.profiles) == 0 {
+		return ""
+	}
+	return o.profiles[0].Hotspot()
+}
+
 // dropDiscarded forgets the profile's evaluation counts before pos, which a
 // stream discarded: no rule is evaluated there again.
 func (o *observation) dropDiscarded(pos int) {

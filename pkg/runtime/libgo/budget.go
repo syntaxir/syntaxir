@@ -118,8 +118,10 @@ type BudgetControl struct {
 	// errs counts the syntax errors the parse builds. A stream returns it at a commit that
 	// releases the recovered errors to the diagnostic tail, which counts those it keeps; otherwise
 	// the errors stay held to the end of the parse.
-	errs   uint64
-	memP   *Parser
+	errs uint64
+	memP *Parser
+	// obs is the observation of the parse, which names the hotspot of an exceeded compute limit.
+	obs    *observation
 	memT   *TParser
 	memExt memoryCounter
 }
@@ -153,6 +155,15 @@ func newBudgetControl(ctx context.Context, limits sxirruntime.Limits) *BudgetCon
 	c := &BudgetControl{ctx: ctx, limits: limits, polled: ctx != nil || limits.Memory != 0}
 	c.refill()
 	return c
+}
+
+// observe records obs, the observation of the parse, as the one whose profile names the hotspot of a
+// compute limit error, and returns it. A nil control records nothing.
+func (c *BudgetControl) observe(obs *observation) *observation {
+	if c != nil {
+		c.obs = obs
+	}
+	return obs
 }
 
 // budgetUsed returns the compute units reserved so far.
@@ -386,7 +397,7 @@ func (c *BudgetControl) chargeSlow(n uint64) {
 		c.interrupted = true
 		panic(fatal{err: &sxirruntime.LimitError{
 			Kind: sxirruntime.LimitCompute, Limit: c.limits.Compute - c.doc,
-			Used: c.base - c.doc, Requested: n,
+			Used: c.base - c.doc, Requested: n, Hotspot: c.obs.hotspot(),
 		}})
 	}
 

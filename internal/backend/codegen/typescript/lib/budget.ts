@@ -14,14 +14,17 @@ export class ParseInterruptionError extends Error {
   readonly limit: number;
   readonly used: number;
   readonly requested: number;
+  /** For a compute-limit, the rule that the profile of the parse ranks first (most repeated evaluations at one position and level), or "" without a profile or a repeated evaluation. */
+  readonly hotspot: string;
 
-  constructor(kind: ParseInterruptionKind, limit = 0, used = 0, requested = 0, cause: unknown = undefined) {
-    super(kind === "canceled" ? "parse canceled" : kind === "input-limit" ? `input-limit exceeded: limit ${limit}, length ${requested}` : kind === "depth-limit" ? `nesting too deep: more than ${limit} nested recursive rule calls` : kind === "memory-limit" ? `memory-limit exceeded: limit ${limit}, used ${used}` : `${kind} exceeded: limit ${limit}, used ${used}, requested ${requested}`);
+  constructor(kind: ParseInterruptionKind, limit = 0, used = 0, requested = 0, cause: unknown = undefined, hotspot = "") {
+    super(kind === "canceled" ? "parse canceled" : kind === "input-limit" ? `input-limit exceeded: limit ${limit}, length ${requested}` : kind === "depth-limit" ? `nesting too deep: more than ${limit} nested recursive rule calls` : kind === "memory-limit" ? `memory-limit exceeded: limit ${limit}, used ${used}` : `${kind} exceeded: limit ${limit}, used ${used}, requested ${requested}${kind === "compute-limit" && hotspot !== "" ? `, hotspot rule ${hotspot}` : ""}`);
     this.name = "ParseInterruptionError";
     this.kind = kind;
     this.limit = limit;
     this.used = used;
     this.requested = requested;
+    this.hotspot = hotspot;
     Object.defineProperty(this, "cause", { value: cause, configurable: true });
   }
 }
@@ -57,6 +60,7 @@ export class BudgetControl {
   private budgetUsed = 0;
   private sinceCheck = 0;
   private readonly memory: number;
+  private readonly profile: Profile | null;
   /** The bytes of storage the parse has taken into use at the sites that allocate it (Parser.alloc). */
   mem = 0;
   /** held returns the bytes the parser's working stacks hold now; the count takes its largest value at a poll. */
@@ -67,6 +71,7 @@ export class BudgetControl {
     this.signal = o.signal;
     this.budget = o.budget;
     this.memory = o.memory;
+    this.profile = o.profiles.length === 0 ? null : o.profiles[0];
   }
 
   release(): void { this.signal = null; }
@@ -107,7 +112,7 @@ export class BudgetControl {
     }
     if (this.budget !== 0 && n > this.budget - this.budgetUsed) {
       this.check();
-      throw new Fatal(new ParseInterruptionError("compute-limit", this.budget, this.budgetUsed, n));
+      throw new Fatal(new ParseInterruptionError("compute-limit", this.budget, this.budgetUsed, n, undefined, this.profile === null ? "" : hotspotOf(this.profile)));
     }
     // Unlimited spend needs no cumulative number that could lose safe-integer precision.
     if (this.budget !== 0) this.budgetUsed += n;

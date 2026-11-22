@@ -78,7 +78,11 @@ const (
 // chunk or stack from an earlier parse, so the count does not depend on what a pooled parser was
 // used for. It is safe on a nil receiver.
 func (c *BudgetControl) AttachMemory(p *Parser) {
-	if c == nil || c.Limits.Memory == 0 {
+	if c == nil {
+		return
+	}
+	c.hotP = p // whatever the memory limit, the profile of p names the hotspot of a compute error
+	if c.Limits.Memory == 0 {
 		return
 	}
 	c.memP = p
