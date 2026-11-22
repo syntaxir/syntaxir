@@ -95,7 +95,9 @@ a { color: var(--link); text-decoration: none; }
 a:hover { text-decoration: underline; }
 .prose a { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; text-decoration-color: var(--ink-faint); }
 .prose a:hover { text-decoration-color: currentColor; }
-code, kbd, pre { font-family: var(--font-mono); font-size: 0.9em; }
+/* Code shows the characters written: programming ligatures would draw -> or != as one glyph, so every
+   rule that sets the monospace face also turns them off (font-variant-ligatures: none covers liga and calt). */
+code, kbd, pre, samp { font-family: var(--font-mono); font-size: 0.9em; font-variant-ligatures: none; }
 h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.02em; }
 
 /* Keyboard focus is always visible, in the accent color. */
@@ -441,7 +443,7 @@ h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.02em; }
 .ref-index { font-size: 14px; columns: 2; column-gap: 32px; }
 .ref-index ul { padding-left: 18px; }
 .symbol { margin: 1.6em 0; }
-.symbol h3, .symbol h4 { display: flex; align-items: baseline; gap: 8px; font-family: var(--font-mono); font-size: 1em; position: relative; }
+.symbol h3, .symbol h4 { display: flex; align-items: baseline; gap: 8px; font-family: var(--font-mono); font-size: 1em; position: relative; font-variant-ligatures: none; }
 .symbol .source { margin-left: auto; font: 12px var(--font-body); color: var(--ink-faint); }
 pre.decl { font-size: 13.5px; }
 .alias-target { border-left: 3px solid var(--line); padding-left: 14px; margin: 0 0 1.6em; }
