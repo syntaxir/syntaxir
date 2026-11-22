@@ -11,12 +11,13 @@ import (
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
-// TestClassifierNodeBridge requires, for every corpus grammar classified from its default start
-// rule with every rule a start rule, that every expression of the cost view that the classifier
-// reads stands for a Core IR node (classifier.nodes), whose facts the classifier reads, and that
-// every node of the rule bodies stands for an expression (classifier.exprs) that stands for the
-// node again. TestClassifierHelperAnswers pins what they answer.
-func TestClassifierNodeBridge(t *testing.T) {
+// TestWrittenViewNodes requires, for every corpus grammar classified from its default start rule
+// with every rule a start rule, that every expression of the cost view that the classifier reads,
+// written as grammar rules (View.written), stands for a Core IR node (writtenView.nodes), and that
+// every node of the rule bodies stands for an expression (writtenView.exprs) that stands for the
+// node again. TestClassifierHelperAnswers pins what the classifier answers for the nodes of the
+// expressions.
+func TestWrittenViewNodes(t *testing.T) {
 	t.Parallel()
 	for _, path := range factstest.Corpus {
 		g, err := parser.Parse(factstest.Read(t, path))

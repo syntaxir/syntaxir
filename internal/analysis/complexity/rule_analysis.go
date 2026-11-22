@@ -6,8 +6,8 @@ import (
 )
 
 // ruleAnalysis holds the rule facts that the classifier reads by rule name, taken from the facts
-// of the Core IR module of the rules (sourceFacts). The classifier asks the facts of an expression
-// of the module's node (classifier.nodeOf).
+// of the Core IR module of the rules (sourceFacts). The classifier asks the facts of the module
+// (corepass.Facts) about the nodes of the module and of its view.
 type ruleAnalysis struct {
 	control *cancel.Control
 	// Nullable and Succeeding are the nullable and always-succeeding rules.

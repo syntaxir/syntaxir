@@ -163,3 +163,56 @@ func valueLines(pr *core.OperatorsRule) []*core.OpLine {
 	}
 	return ls
 }
+
+// callOf returns a call of rule.
+func (k *classifier) callOf(rule string) *core.Call {
+	n := &core.Call{Rule: k.ruleIDs[rule]}
+	k.spell(n, &ast.Ref{Name: rule})
+	return n
+}
+
+// rightOperand returns the node that stands for a right operand of an operator part of the
+// Operators Rule of rule. The runtime parses it with the loop of the Operators Rule at a new
+// position, in the scope of a call but without the memo: the node is the inlined call of the rule
+// whose body is the Operators Rule (core.Nest). The classifier tells no level of operators apart,
+// so it stands for what the right operand of any operator part parses.
+func (k *classifier) rightOperand(rule string) *core.Nest {
+	n := &core.Nest{Rule: k.ruleIDs[rule], Body: k.operatorsOf(rule)}
+	k.spell(n, &ast.Ref{Name: rule, Level: rhsLevel})
+	return n
+}
+
+// isRightOperand reports whether the node n stands for a right operand of an operator part: an
+// inlined call whose body is the loop of an Operators Rule (rightOperand).
+func isRightOperand(n core.Node) bool {
+	nest, ok := n.(*core.Nest)
+	if !ok {
+		return false
+	}
+	_, ok = nest.Body.(*core.OperatorsRule)
+	return ok
+}
+
+// prefixOf returns the sequence of the items of s before index cut, which stands for the
+// sequence of their expressions.
+func (k *classifier) prefixOf(s *core.Seq, cut int) *core.Seq {
+	items := s.Items[:cut:cut]
+	exprs := make([]ast.Expr, cut)
+	for i, it := range items {
+		exprs[i] = k.spelling(it)
+	}
+	e := k.spelling(s).(*ast.Seq)
+	n := &core.Seq{Items: items}
+	k.spell(n, &ast.Seq{SourceInfo: e.SourceInfo, Items: exprs})
+	return n
+}
+
+// literalRest returns the literal node of the characters rest, the rest of a literal after a
+// prefix the exclusion analysis compared, matched without case if fold, which stands for a literal
+// of them. The runes give valid UTF-8, the text of the node as the front end builds it.
+func (k *classifier) literalRest(rest []rune, fold bool) *core.Lit {
+	text := string(rest)
+	n := &core.Lit{Text: text, Fold: fold}
+	k.spell(n, &ast.Literal{Value: text, IgnoreCase: fold})
+	return n
+}

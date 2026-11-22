@@ -100,12 +100,9 @@ func asciiFold(r rune) charset {
 	return charOf(r)
 }
 
-// literalFirst is the first character of a literal, or the empty set for the empty literal. A
-// literal that holds a replacement character also matches input that is not valid UTF-8, which
-// decodes to that character.
-func literalFirst(l *ast.Literal) charset { return litFirst(l.Value, l.IgnoreCase) }
-
-// litFirst is the first character of a literal of text, matched without case if fold.
+// litFirst is the first character of a literal of text, matched without case if fold, or the
+// empty set for the empty literal. A literal that holds a replacement character also matches input
+// that is not valid UTF-8, which decodes to that character.
 func litFirst(text string, fold bool) charset {
 	if text == "" {
 		return nil
@@ -129,13 +126,6 @@ func coreClassChars(c *core.Class) charset {
 	}
 	return s
 }
-
-// nullable reports whether e can succeed without consuming input when token insertion is enabled
-// (nullableOf of its node).
-func (k *classifier) nullable(e ast.Expr) bool { return k.nullableOf(k.nodeOf(e)) }
-
-// first returns the first characters of e (firstOf of its node).
-func (k *classifier) first(e ast.Expr) charset { return k.firstOf(k.nodeOf(e)) }
 
 // firstOf returns the first characters of n: the characters that an evaluation of n can examine
 // beyond its start, as it consumes them or as a lookahead that it evaluates before it consumes
@@ -260,10 +250,6 @@ func (k *classifier) computeFirst() {
 		}
 	}
 }
-
-// bounded reports whether every match of e is shorter than a constant of the grammar (boundedOf
-// its node).
-func (k *classifier) bounded(e ast.Expr) bool { return k.boundedOf(k.nodeOf(e)) }
 
 // boundedOf reports whether every match of n is shorter than a constant of the grammar.
 func (k *classifier) boundedOf(n core.Node) bool {

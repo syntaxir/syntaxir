@@ -14,7 +14,6 @@ import (
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/checkfacts"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
-	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -228,7 +227,7 @@ func (in *classifierInput) growingBindings(start string, control *cancel.Control
 }
 
 // classifier returns the classifier that build makes of the rules of in from start.
-func (in *classifierInput) classifier(start string, control *cancel.Control, build func(*ast.Grammar, []*ast.RuleDef, *ruleFacts, string, *cancel.Control) *classifier) (*classifier, error) {
+func (in *classifierInput) classifier(start string, control *cancel.Control, build func(*ast.Grammar, *ruleFacts, string, *cancel.Control) *classifier) (*classifier, error) {
 	control.Check()
 	st := in.structural
 	if len(st.Canonical.StartErrors) > 0 {
@@ -245,7 +244,7 @@ func (in *classifierInput) classifier(start string, control *cancel.Control, bui
 		start = st.Canonical.DefaultStart
 	}
 	rf := sourceFacts(&Source{Module: st.Module, Facts: corepass.FactsOf(st.Analyses, st.Module).WithControl(control)}, rules, control)
-	k := build(st.Canonical.Grammar, rules, rf, start, control)
+	k := build(st.Canonical.Grammar, rf, start, control)
 	k.types = in.types
 	k.inlineNames = in.names
 	return k, nil
@@ -266,7 +265,7 @@ func prepareBaseClassifier(g *ast.Grammar, start string, control *cancel.Control
 	return prepareClassifierWith(g, start, control, newClassifier)
 }
 
-func prepareClassifierWith(g *ast.Grammar, start string, control *cancel.Control, build func(*ast.Grammar, []*ast.RuleDef, *ruleFacts, string, *cancel.Control) *classifier) (*classifier, desugar.InlineNames, error) {
+func prepareClassifierWith(g *ast.Grammar, start string, control *cancel.Control, build func(*ast.Grammar, *ruleFacts, string, *cancel.Control) *classifier) (*classifier, desugar.InlineNames, error) {
 	in, err := checkedInput(g, control)
 	if err != nil {
 		return nil, nil, err
@@ -278,20 +277,13 @@ func prepareClassifierWith(g *ast.Grammar, start string, control *cancel.Control
 	return k, in.names, nil
 }
 
-// newViewClassifier returns a classifier of the cost view of rules (internal/analysis/complexity) from
-// start, with the rule facts rf of rules. What the runtime decides by the grammar as it is written
-// stays decided by rules: the left-recursion cycles and their leaders, the memoized rules, the
-// variables that key the memo, and the run sites.
-func newViewClassifier(g *ast.Grammar, rules []*ast.RuleDef, rf *ruleFacts, start string, control *cancel.Control) *classifier {
+// newViewClassifier returns a classifier of the cost view (Build) of the module of the rule facts
+// rf from start. What the runtime decides by the grammar as it is written stays decided by rf: the
+// left-recursion cycles and their leaders, the memoized rules, the variables that key the memo,
+// and the run sites.
+func newViewClassifier(g *ast.Grammar, rf *ruleFacts, start string, control *cancel.Control) *classifier {
 	v := Build(rf.source, Options{}, control)
-	w, err := v.written(rules)
-	if err != nil {
-		// Every node the view builds has a grammar spelling; an error is a defect of the view.
-		panic("compile: cost view: " + err.Error())
-	}
-	k := newClassifierOf(g, v, nodeMap{nodes: w.nodes, exprs: w.exprs}, rf, start, control)
-	k.viewText = w.text
-	return k
+	return newClassifierOf(g, v, rf, start, control)
 }
 
 // written describes the causes as the grammar is written: a cause in the hidden rule of an inline
@@ -415,14 +407,6 @@ type classifier struct {
 
 	causes, reasons, env []ComplexityCause
 
-	// viewText gives the text of the grammar that an expression of the view stands for.
-	viewText map[ast.Expr]string
-	// nodes gives, for each expression of rules, the Core IR node that it stands for: a node of
-	// the view when rules are a view, else of the module of the rules (originNodes). An expression
-	// that the classifier builds stands for a node that it builds with it (nodeOf). exprs gives
-	// each such node the expression back (exprOf).
-	nodes map[ast.Expr]core.Node
-	exprs map[core.Node]ast.Expr
 	// ruleIDs numbers the rules by name, as the rules of the module are numbered.
 	ruleIDs map[string]int
 	// view is the cost view whose rules the classifier reads, or a view of the module of the rules
@@ -433,16 +417,17 @@ type classifier struct {
 	spelled map[core.Node]ast.Expr
 }
 
-func newClassifier(g *ast.Grammar, rules []*ast.RuleDef, rf *ruleFacts, start string, control *cancel.Control) *classifier {
+// newClassifier returns a classifier of the rules of the module of the rule facts rf, as the grammar
+// writes them, from start.
+func newClassifier(g *ast.Grammar, rf *ruleFacts, start string, control *cancel.Control) *classifier {
 	m := rf.source.Module
-	return newClassifierOf(g, &View{Module: m, chains: attrChains(m)}, originNodes(m), rf, start, control)
+	return newClassifierOf(g, &View{Module: m, chains: attrChains(m)}, rf, start, control)
 }
 
 // newClassifierOf returns a classifier of the rules of view, the cost view of the module of the
-// grammar or a view that changes none of its rules, whose grammar expressions stand for the Core IR
-// nodes that nm gives (classifier.nodes). The rule facts rf of the module stand for the grammar:
-// its analysis, its variables, its memoization and its nullable rules.
-func newClassifierOf(g *ast.Grammar, view *View, nm nodeMap, rf *ruleFacts, start string, control *cancel.Control) *classifier {
+// grammar or a view that changes none of its rules. The rule facts rf of the module stand for the
+// grammar: its analysis, its variables, its memoization and its nullable rules.
+func newClassifierOf(g *ast.Grammar, view *View, rf *ruleFacts, start string, control *cancel.Control) *classifier {
 	rules := view.Module.Rules
 	k := &classifier{control: control, g: g, rules: rules, start: start, byName: map[string]*core.Rule{},
 		calls: map[string][]string{}, scc: map[string]int{}, recursive: map[string]bool{}, memo: map[string]bool{},
@@ -457,7 +442,6 @@ func newClassifierOf(g *ast.Grammar, view *View, nm nodeMap, rf *ruleFacts, star
 		k.byName[r.Name] = r
 		k.ruleIDs[r.Name] = i
 	}
-	k.nodes, k.exprs = nm.nodes, nm.exprs
 	k.view = view
 	k.an, k.facts = rf.an, rf
 	k.vars = rf.vars
@@ -665,13 +649,6 @@ func at(rule string, p ast.Pos) string {
 		return fmt.Sprintf("%d:%d in rule %s", p.Line, p.Col, rule)
 	}
 	return "rule " + rule
-}
-
-func (k *classifier) show(e ast.Expr) string {
-	if t, ok := k.viewText[e]; ok {
-		return abbreviate(t)
-	}
-	return abbreviate(syntaxfmt.FormatExpr(e))
 }
 
 // abbreviate collapses the white space of the source text s and shortens it to at most 40 bytes,
