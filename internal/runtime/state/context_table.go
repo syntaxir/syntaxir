@@ -672,3 +672,90 @@ func (p *Parser) ctxStore(pos, gp int, h ctxHeadKey, ds []sdep, slot *ctxSlot) {
 		t.bytes += added
 	}
 }
+
+// ctxSlot is a result in a context table: the result, and for a growth step the identity of its
+// result and what the step itself recorded (its result is a seed shared by equal results).
+type ctxSlot struct {
+	e              *ctxRes
+	id             uint64 // the identity of a step result; the outcome of a lookahead (obsOutcome)
+	far            int
+	exp            []ExpID
+	examined, from int
+	silent         bool
+	env            []any
+	deps           []sdep
+	next           *ctxSlot
+}
+
+// jumpRec takes a growth from a seed to the seed at the end of a run of steps that read no other
+// seed, with what those steps recorded.
+type jumpRec struct {
+	end            *ctxRes
+	id             uint64
+	far            int
+	exp            []ExpID
+	examined, from int
+	silent         bool
+	deps           []sdep
+}
+
+// canonKey keys the canonical results of growth steps (canonicalSeed): the leader and the end of
+// a successful result.
+type canonKey struct {
+	g   growKey
+	end int
+}
+
+// canonRec is a canonical result of a growth step and its identity as a seed.
+type canonRec struct {
+	e  *ctxRes
+	id uint64
+}
+
+// runStep is a step of a run of a growth: the seed it started from and what it recorded.
+type runStep struct {
+	seed           uint64
+	far            int
+	exp            []ExpID
+	examined, from int
+	silent         bool
+	deps           []sdep
+}
+
+// nextSeedID returns a new seed identity.
+func (p *Parser) nextSeedID() uint64 {
+	p.seedSeq++
+	return p.seedSeq + failSeed
+}
+
+// canonicalSeed returns the identity of the result e of a growth step of the leader g at pos, in the
+// context of the growths gamma[gp:] there: the same as an earlier equal result's, whose result it
+// then returns instead of e. Only a successful result without errors is shared; results are equal
+// when they examined the same range (where results record it, rangeKept) and sameResult shows
+// them equal.
+func (p *Parser) canonicalSeed(pos, gp int, g growKey, e *ctxRes) (*ctxRes, uint64) {
+	id := p.nextSeedID()
+	if !e.succeeded() || !e.errFree() {
+		return e, id
+	}
+	t := p.table(pos, gp, true)
+	if t.canon == nil {
+		t.canon = map[canonKey]canonRec{}
+	}
+	ck := canonKey{g: g, end: e.resultEnd()}
+	p.Spend()
+	if c, ok := t.canon[ck]; ok {
+		if p.ctxMut(ctxMutNoCanonical) {
+			return c.e, c.id
+		}
+		budget := 64
+		if (!p.rangeKept() || c.e.examinedEnd() == e.examinedEnd() && c.e.examinedFrom() == e.examinedFrom()) && c.e.errFree() && p.sameResult(c.e, e, &budget) {
+			return c.e, c.id
+		}
+	}
+	if _, ok := t.canon[ck]; !ok {
+		t.bytes += canonBytes
+	}
+	t.canon[ck] = canonRec{e: e, id: id}
+	return e, id
+}

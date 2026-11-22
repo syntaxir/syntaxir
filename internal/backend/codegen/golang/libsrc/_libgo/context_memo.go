@@ -95,42 +95,6 @@ type growRec struct {
 	inl       ctxResult
 }
 
-// ctxSlot is a result in a context table: the result, and for a growth step the identity of its
-// result and what the step itself recorded (its result is a seed shared by equal results).
-type ctxSlot struct {
-	e              *ctxResult
-	id             uint64 // the identity of a step result; the outcome of a lookahead (obsOutcome)
-	far            int
-	exp            []ExpID
-	examined, from int
-	silent         bool
-	env            []any
-	deps           []sdep
-	next           *ctxSlot
-}
-
-// jumpRec takes a growth from a seed to the seed at the end of a run of steps that read no other
-// seed, with what those steps recorded.
-type jumpRec struct {
-	end            *ctxResult
-	id             uint64
-	far            int
-	exp            []ExpID
-	examined, from int
-	silent         bool
-	deps           []sdep
-}
-
-type canonKey struct {
-	g   growKey
-	end int
-}
-
-type canonRec struct {
-	e  *ctxResult
-	id uint64
-}
-
 // lookRec is a lookahead in progress: its site (-1 for one that records nothing) and the Document
 // examined range from before it.
 type lookRec struct {
@@ -190,6 +154,32 @@ func (*Parser) ctxMut(int) bool { return false }
 
 // useMem charges n bytes to the memory used (memUsed).
 func (p *Parser) useMem(n uint64) { p.memUsed += n }
+
+// ctxRes is the result type of the shared context memo (context_table.go).
+type ctxRes = ctxResult
+
+// succeeded reports whether the result matched.
+func (e *ctxResult) succeeded() bool { return e.ok }
+
+// resultEnd returns the end of the result.
+func (e *ctxResult) resultEnd() int { return e.end }
+
+// errFree reports whether the result recovered no errors.
+func (e *ctxResult) errFree() bool { return e.errs.none() }
+
+// examinedEnd and examinedFrom return the range of input that the result examined in a Document
+// parse; both are 0 in a parse that does not track it.
+func (e *ctxResult) examinedEnd() int  { return e.examined }
+func (e *ctxResult) examinedFrom() int { return e.from }
+
+// rangeKept reports whether results record the range of input they examined: in a Document parse.
+func (p *Parser) rangeKept() bool { return p.track }
+
+// sameResult reports whether two results are equal, comparing at most *budget pairs of distinct
+// nodes and values (nodesEqual, valuesEqual).
+func (p *Parser) sameResult(a, b *ctxResult, budget *int) bool {
+	return p.nodesEqual(a.node, b.node, budget) && p.valuesEqual(reflect.ValueOf(a.val), reflect.ValueOf(b.val), budget)
+}
 
 // gkey returns the key of the growth's leader.
 func (g *growRec) gkey() growKey { return growKey{rule: g.rule, min: g.min} }
@@ -417,16 +407,6 @@ type growState struct {
 	pendStep runStep
 }
 
-// runStep is a step of a run of a growth: the seed it started from and what it recorded.
-type runStep struct {
-	seed           uint64
-	far            int
-	exp            []ExpID
-	examined, from int
-	silent         bool
-	deps           []sdep
-}
-
 func (g *growState) growKey() growKey { return growKey{rule: g.rule, min: g.min} }
 
 // growBegin starts the growth of the leader r at level min at the current position from a failure.
@@ -550,7 +530,7 @@ func (p *Parser) growKeepStep(g *growState, node *sxirvalue.Node, val any, ok bo
 	} else {
 		res.end = g.start
 	}
-	res, rid := p.canonicalSeed(g, res)
+	res, rid := p.canonicalSeed(g.start, g.gp, g.growKey(), res)
 	sd, _ := p.stored(ds)
 	h := ctxHeadKey{kind: ctxStep, id: g.rule, min: g.min, present: g.present}
 	p.ctxStore(g.start, g.gp, h, sd, &ctxSlot{e: res, id: rid, far: far, exp: exp, examined: examined, from: from, silent: p.Silent > 0})
@@ -564,12 +544,6 @@ func (p *Parser) growKeepStep(g *growState, node *sxirvalue.Node, val any, ok bo
 func (p *Parser) growGrew(g *growState, s *ctxResult) bool {
 	best := p.gamma[g.gi].seed
 	return s.ok && (!best.ok || s.end > best.end)
-}
-
-// nextSeedID returns a new seed identity.
-func (p *Parser) nextSeedID() uint64 {
-	p.seedSeq++
-	return p.seedSeq + failSeed
 }
 
 // growAdoptStep adopts the step s of a growth in a context that grew, which growKeepStep returned last,
@@ -777,32 +751,6 @@ func (p *Parser) unionExpected(a, b []ExpID) []ExpID {
 		}
 	}
 	return out
-}
-
-// canonicalSeed returns the identity of the result e of a growth step, the same as an earlier
-// equal result's of the leader at the position, whose result it then returns instead of e.
-func (p *Parser) canonicalSeed(g *growState, e *ctxResult) (*ctxResult, uint64) {
-	id := p.nextSeedID()
-	if !e.ok || !e.errs.none() {
-		return e, id
-	}
-	t := p.table(g.start, g.gp, true)
-	if t.canon == nil {
-		t.canon = map[canonKey]canonRec{}
-	}
-	ck := canonKey{g: g.growKey(), end: e.end}
-	p.Spend()
-	if c, ok := t.canon[ck]; ok {
-		budget := 64
-		if c.e.examined == e.examined && c.e.from == e.from && c.e.errs.none() && p.nodesEqual(c.e.node, e.node, &budget) && p.valuesEqual(reflect.ValueOf(c.e.val), reflect.ValueOf(e.val), &budget) {
-			return c.e, c.id
-		}
-	}
-	if _, ok := t.canon[ck]; !ok {
-		t.bytes += canonBytes
-	}
-	t.canon[ck] = canonRec{e: e, id: id}
-	return e, id
 }
 
 // nodesEqual reports whether two trees are equal, comparing at most *budget pairs of distinct nodes

@@ -577,16 +577,6 @@ type GrowState struct {
 	pendStep runStep
 }
 
-// runStep is a step of a run of a growth: the seed it started from and what it recorded.
-type runStep struct {
-	seed           uint64
-	far            int
-	exp            []ExpID
-	examined, from int
-	silent         bool
-	deps           []sdep
-}
-
 // GrowBegin starts the growth of a leader at the current position from a failure. A growth in a
 // context, where another leader grows, memoizes its steps (growMemoStep, growKeepStep); the body is evaluated
 // repeatedly, and the result at the point where the match stops growing is adopted.
@@ -696,8 +686,7 @@ func (p *Parser) growAdopt(g *GrowState, v *value.Node, errs RecEntry) {
 	if p.Missing != nil {
 		p.RecordMissingSeed(g.Best, g.missing)
 	}
-	p.seedSeq++
-	p.gamma[g.gi].seed, p.gamma[g.gi].id = g.Best, p.seedSeq+failSeed
+	p.gamma[g.gi].seed, p.gamma[g.gi].id = g.Best, p.nextSeedID()
 	p.Pos = g.start
 }
 

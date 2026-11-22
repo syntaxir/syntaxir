@@ -78,43 +78,6 @@ type growRec struct {
 	cycle int32  // Rule.Cycle
 }
 
-// ctxSlot is a result in a context table: the entry, and for a growth step the identity of its
-// result and what the step itself recorded (its result entry is a seed shared by equal results).
-type ctxSlot struct {
-	e              *MemoEntry
-	id             uint64 // the identity of a step result; the outcome of a lookahead (obsOutcome)
-	far            int
-	exp            []ExpID
-	examined, from int
-	silent         bool
-	env            []any
-	deps           []sdep
-	next           *ctxSlot
-}
-
-// jumpRec takes a growth from a seed to the seed at the end of a run of steps that read no other
-// seed, with what those steps recorded.
-type jumpRec struct {
-	end            *MemoEntry
-	id             uint64
-	far            int
-	exp            []ExpID
-	examined, from int
-	silent         bool
-	deps           []sdep
-}
-
-type canonKey struct {
-	g   growKey
-	end int
-	ok  bool
-}
-
-type canonRec struct {
-	e  *MemoEntry
-	id uint64
-}
-
 // keptSeedResult is a result that read a seed, kept for CtxKeepSeedResults.
 type keptSeedResult struct {
 	key MemoKey
@@ -155,6 +118,34 @@ func (p *Parser) ctxMut(m int) bool { return p.tune.MemoMut == m }
 
 // useMem charges n bytes to the memory used (MemUsed).
 func (p *Parser) useMem(n uint64) { p.MemUsed += n }
+
+// ctxRes is a result that a context keeps: a seed, the result of a growth step, or the result of a
+// call that read a seed. The engine keeps memo entries.
+type ctxRes = MemoEntry
+
+// succeeded reports whether the result matched.
+func (e *MemoEntry) succeeded() bool { return e.Ok }
+
+// resultEnd returns the end of the result.
+func (e *MemoEntry) resultEnd() int { return e.End }
+
+// errFree reports whether the result recovered no errors.
+func (e *MemoEntry) errFree() bool { return e.Errs.None() }
+
+// examinedEnd and examinedFrom return the range of input that the result examined.
+func (e *MemoEntry) examinedEnd() int  { return e.Examined }
+func (e *MemoEntry) examinedFrom() int { return e.From }
+
+// rangeKept reports whether results record the range of input they examined, so that two results
+// that examined different ranges differ (ContextMemoUnexamined turns it off for the tests that
+// show the records are needed).
+func (p *Parser) rangeKept() bool { return !p.ContextMemoUnexamined }
+
+// sameResult reports whether two results are equal, comparing at most *budget pairs of nodes
+// (nodesEqual).
+func (p *Parser) sameResult(a, b *MemoEntry, budget *int) bool {
+	return nodesEqual(p, a.Node, b.Node, budget)
+}
 
 // gkey returns the key of the growth's leader.
 func (g *growRec) gkey() growKey {
@@ -289,36 +280,6 @@ func (p *Parser) LookEnd(ok bool) {
 		}
 	}
 	p.mergeDeps(out)
-}
-
-// canonicalSeed returns the identity of the result e of a growth step of the leader of g, the
-// same as an earlier equal result's, whose entry it then returns instead of e.
-func (p *Parser) canonicalSeed(pos, gp int, g growKey, e *MemoEntry) (*MemoEntry, uint64) {
-	p.seedSeq++
-	id := p.seedSeq + failSeed
-	if !e.Ok || !e.Errs.None() {
-		return e, id
-	}
-	t := p.table(pos, gp, true)
-	if t.canon == nil {
-		t.canon = map[canonKey]canonRec{}
-	}
-	ck := canonKey{g: g, end: e.End, ok: e.Ok}
-	p.Spend()
-	if c, ok := t.canon[ck]; ok {
-		if p.tune.MemoMut == CtxNoCanonical {
-			return c.e, c.id
-		}
-		budget := 64
-		if (p.ContextMemoUnexamined || c.e.Examined == e.Examined && c.e.From == e.From) && c.e.Errs.None() && nodesEqual(p, c.e.Node, e.Node, &budget) {
-			return c.e, c.id
-		}
-	}
-	if _, ok := t.canon[ck]; !ok {
-		t.bytes += canonBytes
-	}
-	t.canon[ck] = canonRec{e: e, id: id}
-	return e, id
 }
 
 // nodesEqual reports whether two trees are equal, comparing at most *budget pairs of distinct nodes
