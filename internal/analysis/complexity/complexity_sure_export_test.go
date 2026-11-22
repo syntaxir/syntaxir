@@ -1,6 +1,9 @@
 package complexity
 
-import "syntaxir.dev/sxir/pkg/grammar/ast"
+import (
+	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+)
 
 // SurelyConsumed returns the characters of chars on which the classifier of g proves that a call of
 // each rule surely consumes.
@@ -13,7 +16,7 @@ func SurelyConsumed(g *ast.Grammar, chars string) (map[string]string, error) {
 	k.computeBoundedScans()
 	out := map[string]string{}
 	for _, r := range k.rules {
-		s := k.sure(&ast.Ref{Name: r.Name})
+		s := k.sure(&core.Call{Rule: k.ruleIDs[r.Name]})
 		for _, c := range chars {
 			if s.intersects(charOf(c)) {
 				out[r.Name] += string(c)

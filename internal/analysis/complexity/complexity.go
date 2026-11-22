@@ -396,13 +396,13 @@ type classifier struct {
 	again           map[*ast.Repeat]*ast.Repeat      // the rest of each repetition (againOf)
 	captures        map[string]map[string][]ast.Expr // captured expressions by rule and name
 
-	scanRun     map[*ast.Repeat]int  // the longest run before each repetition (computeBoundedScans)
-	scanCounted map[*ast.Repeat]bool // the repetitions with a constant number of evaluations at a position
-	regionScan  map[*ast.Repeat]bool // the bodies of trivia rules with the region bound (regionScans)
-	stepRules   map[string]bool      // the rules called in a repetition that each step of a growth evaluates
-	sureMemo    map[ast.Expr]charset // what sureOf has found
-	sureRule    map[string]charset   // what sure has found for the body of each rule
-	rigidRule   map[string]bool      // what rigid has found for the body of each rule
+	scanRun     map[*core.Repeat]int  // the longest run before each repetition (computeBoundedScans)
+	scanCounted map[*core.Repeat]bool // the repetitions with a constant number of evaluations at a position
+	regionScan  map[*core.Repeat]bool // the bodies of trivia rules with the region bound (regionScans)
+	stepRules   map[string]bool       // the rules called in a repetition that each step of a growth evaluates
+	sureMemo    map[core.Node]charset // what sureOf has found
+	sureRule    map[string]charset    // what sure has found for the body of each rule
+	rigidRule   map[string]bool       // what rigid has found for the body of each rule
 
 	trivia map[string]bool // the trivia rules among the rules asked about (isTrivia)
 	// exclOverBudget counts the comparisons of the exclusion analysis that exceeded exclBudget

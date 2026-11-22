@@ -28,7 +28,7 @@ func regionCredit(t *testing.T, src string) bool {
 		t.Fatal("no rule ws")
 	}
 	rep, ok := triviaUnwrap(ws.Expr).(*ast.Repeat)
-	return ok && k.regionScan[rep]
+	return ok && k.regionScan[k.repeatOf(rep)]
 }
 
 // regionSource is a grammar of sums whose blanks hold comments: the lookahead !(ws ".") fails

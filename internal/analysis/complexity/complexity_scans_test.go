@@ -205,7 +205,7 @@ func TestScanRuns(t *testing.T) {
 			}
 			found := false
 			for r, d := range k.scanRun {
-				if text := syntaxfmt.FormatExpr(r); text == name || c.rep != "" && strings.Contains(text, name) {
+				if text := syntaxfmt.FormatExpr(k.exprOf(r)); text == name || c.rep != "" && strings.Contains(text, name) {
 					found = true
 					if d != c.want {
 						t.Errorf("run %d, want %d", d, c.want)

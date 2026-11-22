@@ -6,6 +6,7 @@ import (
 	"unicode/utf8"
 
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -33,7 +34,7 @@ import (
 
 // regionScans returns the repetitions that are the bodies of trivia rules with the region bound.
 // It runs after the run analysis, whose open runs pick the candidates.
-func (k *classifier) regionScans() map[*ast.Repeat]bool {
+func (k *classifier) regionScans() map[*core.Repeat]bool {
 	regions := map[string]bool{} // the region rules; true for a trivia rule
 	for _, r := range k.rules {
 		k.control.Poll()
@@ -41,7 +42,7 @@ func (k *classifier) regionScans() map[*ast.Repeat]bool {
 			continue
 		}
 		sigma := triviaUnwrap(r.Expr).(*ast.Repeat)
-		if d, ok := k.scanRun[sigma]; ok && d >= runOpen && k.srcExprs[sigma] {
+		if d, ok := k.scanRun[k.repeatOf(sigma)]; ok && d >= runOpen && k.srcExprs[sigma] {
 			regions[r.Name] = true
 		}
 	}
@@ -60,10 +61,10 @@ func (k *classifier) regionScans() map[*ast.Repeat]bool {
 			tried[n] = true
 		}
 	}
-	out := map[*ast.Repeat]bool{}
+	out := map[*core.Repeat]bool{}
 	for n, trivia := range regions {
 		if trivia {
-			out[triviaUnwrap(k.byName[n].Expr).(*ast.Repeat)] = true
+			out[k.repeatOf(triviaUnwrap(k.byName[n].Expr).(*ast.Repeat))] = true
 		}
 	}
 	return out
@@ -780,7 +781,7 @@ func (g *guardPass) cross(t ast.Expr, in bitset, next *ast.Not) {
 			ok = g.regions[r] && in.has(g.index[r])
 			if !ok {
 				f := g.nfa.follow(r, cs)
-				ok = len(f) == 0 || next != nil && g.k.subset(f, g.k.sure(next.Expr))
+				ok = len(f) == 0 || next != nil && g.k.subset(f, g.k.sure(g.k.nodeOf(next.Expr)))
 			}
 		}
 		if v := (regionViolation{r, g.rule}); !ok && !g.seen[v] {
