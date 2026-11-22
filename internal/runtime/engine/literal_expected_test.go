@@ -4,7 +4,8 @@ import (
 	"strconv"
 	"testing"
 
-	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
+	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // literalExpectedCases are literals with the text that a syntax error shows for each of them.
@@ -45,7 +46,7 @@ func TestLiteralExpectedTextNegativeControl(t *testing.T) {
 	t.Parallel()
 	for _, v := range []string{"\x00", "\x01", "\x7f", "\U0001f4a9\u0080"} {
 		goText := strconv.Quote(v)
-		if got := syntaxfmt.LiteralText(v, false); got == goText {
+		if got := core.LiteralDesc(&ast.Literal{Value: v}); got == goText {
 			t.Errorf("%q: the grammar spelling equals the Go quoting %s", v, goText)
 		}
 	}

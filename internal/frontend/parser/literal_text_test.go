@@ -5,7 +5,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
+	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -18,7 +18,7 @@ func TestLiteralTextRoundTrip(t *testing.T) {
 		"é", "😀", "�", "\U0001f4a9", "\U000e0001", "Ab", "select", "a b", "\U0010ffff", "﷐"}
 	for _, v := range values {
 		for _, fold := range []bool{false, true} {
-			text := syntaxfmt.LiteralText(v, fold)
+			text := core.LiteralDesc(&ast.Literal{Value: v, IgnoreCase: fold})
 			g, err := Parse("rule main = " + text + "\n")
 			if err != nil {
 				t.Errorf("%q: %s: %v", v, text, err)

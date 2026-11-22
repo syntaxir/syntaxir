@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -2172,43 +2173,13 @@ func formatAttributeValue(value any, control *formatControl) string {
 	return fmt.Sprintf("<%T>", value)
 }
 
-// LiteralText returns the text of a string literal as the grammar writes it, with the suffix i of
-// a case-insensitive literal. It is the text of a literal in syntax errors.
-func LiteralText(value string, ignoreCase bool) string {
-	if ignoreCase {
-		return quote(value, nil) + "i"
-	}
-	return quote(value, nil)
-}
-
-// quote returns s as a SyntaxIR string literal.
+// quote returns s as a grammar string literal, polling the control before each character.
 func quote(s string, control *formatControl) string {
 	pollFormat(control)
-	var b strings.Builder
-	b.WriteByte('"')
-	for _, r := range s {
-		pollFormat(control)
-		switch r {
-		case '"':
-			writeFormatString(&b, `\"`, control)
-		case '\\':
-			writeFormatString(&b, `\\`, control)
-		case '\n':
-			writeFormatString(&b, `\n`, control)
-		case '\t':
-			writeFormatString(&b, `\t`, control)
-		case '\r':
-			writeFormatString(&b, `\r`, control)
-		default:
-			if strconv.IsPrint(r) {
-				b.WriteRune(r)
-			} else {
-				fmt.Fprintf(&b, `\u{%x}`, r)
-			}
-		}
+	if control == nil {
+		return core.Quote(s, nil)
 	}
-	b.WriteByte('"')
-	return b.String()
+	return core.Quote(s, control.poll)
 }
 
 func formatCharClass(e *ast.CharClass, control *formatControl) string {

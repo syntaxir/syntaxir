@@ -4,7 +4,6 @@ import (
 	"strconv"
 	"strings"
 
-	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -14,7 +13,48 @@ var FixedDescs = []string{"any character", "beginning of input", "end of input",
 
 // LiteralDesc is the expectation text of a literal, as written: a case-insensitive literal keeps its
 // suffix i.
-func LiteralDesc(e *ast.Literal) string { return syntaxfmt.LiteralText(e.Value, e.IgnoreCase) }
+func LiteralDesc(e *ast.Literal) string {
+	if e.IgnoreCase {
+		return Quote(e.Value, nil) + "i"
+	}
+	return Quote(e.Value, nil)
+}
+
+// Quote returns s as a grammar string literal: \" and \\, \n \t \r, \u{h} for every other
+// character that strconv.IsPrint rejects, and every other character as itself. The formatter writes
+// literals with it, so a grammar and its expected items spell a literal alike. A non-nil poll is
+// called before each character, which lets a caller interrupt the quoting of a long literal.
+func Quote(s string, poll func()) string {
+	var b strings.Builder
+	b.WriteByte('"')
+	for _, r := range s {
+		if poll != nil {
+			poll()
+		}
+		switch r {
+		case '"':
+			b.WriteString(`\"`)
+		case '\\':
+			b.WriteString(`\\`)
+		case '\n':
+			b.WriteString(`\n`)
+		case '\t':
+			b.WriteString(`\t`)
+		case '\r':
+			b.WriteString(`\r`)
+		default:
+			if strconv.IsPrint(r) {
+				b.WriteRune(r)
+			} else {
+				b.WriteString(`\u{`)
+				b.WriteString(strconv.FormatInt(int64(r), 16))
+				b.WriteByte('}')
+			}
+		}
+	}
+	b.WriteByte('"')
+	return b.String()
+}
 
 // CharClassString returns the character class as grammar syntax writes it, which names the class
 // in expectations.
