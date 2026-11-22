@@ -337,11 +337,15 @@ func observationMismatches(t *testing.T, cases []codegentest.Case, start string,
 	reports := detailReports(t, lines)
 	var out []string
 	events, checked := 0, 0
-	// The engine parses without limit controls, under which a guard skips an alternative whatever
-	// calls the skip leaves out, as the guards of the generated parsers do in either form: a parse
-	// under limit controls counts exact units, so it evaluates an alternative whose skip would leave
-	// out a memoized call (state.Parser.SkipGuarded), and its memo hits differ.
+	// The engine parses in the form of the generated parsers. Without limit controls a guard skips an
+	// alternative whatever calls the skip leaves out. Under them the skip of a memoized call leaves the
+	// memo entries that its evaluation does (Parser.SkipCall of the library), and the engine evaluates an
+	// alternative whose skip would leave out a memoized call (state.Parser.SkipGuarded), so the memo hits
+	// of the two agree only when both parse with limit controls or both without.
 	limits := sxirruntime.Limits{Compute: sxirruntime.Unlimited, Memory: sxirruntime.Unlimited}
+	if codegentest.FixtureBudgetControls(t) {
+		limits.Compute = 1 << 40
+	}
 	for i, c := range cases {
 		prog := mustCompile(t, c.Src)
 		for j := 0; j < detail[i] && j < len(c.Inputs); j++ {
