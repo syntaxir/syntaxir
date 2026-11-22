@@ -234,6 +234,41 @@ func TestCompiledCorruptionDoesNotPanic(t *testing.T) {
 	for source := int64(1); source <= corruptionSources; source++ {
 		corruptSeeds(t, seeds, rand.New(rand.NewSource(source)))
 	}
+	corruptActionJumps(t)
+}
+
+// corruptActionJumps checks that a module does not load when an instruction of its action code is
+// made a jump back to the instruction before it. Such a corruption of the action of main of the
+// integer boundary grammar, its BINARY at 15 made a JUMP to 14, came from the thirteenth random
+// source; it loaded, and the evaluation of the action ran forever, since action code charges no
+// step. Each instruction of each action, but the first, is corrupted so in turn; the module as
+// compiled loads.
+func corruptActionJumps(t *testing.T) {
+	t.Helper()
+	prog := mustCompile(t, codegentest.IntegerBoundaryGrammar)
+	m := prog.Module()
+	if _, _, err := LoadProgram(marshalWithTrailing(prog, "main", nil)); err != nil {
+		t.Fatal(err)
+	}
+	if len(m.Actions) == 0 {
+		t.Fatal("the integer boundary grammar has no action code")
+	}
+	for i := range m.Actions {
+		code := m.Actions[i].Code
+		for pc := 1; pc < len(code); pc++ {
+			in := code[pc]
+			code[pc] = bytecode.ActionInstr{Op: uint8(state.TJump), Dst: int32(pc - 1)}
+			_, _, err := LoadProgram(marshalWithTrailing(prog, "main", nil))
+			code[pc] = in
+			want := "back to"
+			if pc == len(code)-1 {
+				want = "does not end with a return"
+			}
+			if err == nil || !strings.Contains(err.Error(), want) {
+				t.Fatalf("action %d: instruction %d made a JUMP to %d: got %v, want a rejection", i, pc, pc-1, err)
+			}
+		}
+	}
 }
 
 // corruptionSources is the number of random sources that TestCompiledCorruptionDoesNotPanic

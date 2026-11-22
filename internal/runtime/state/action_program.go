@@ -99,8 +99,8 @@ const (
 	TCover    // n[dst] = cover(a[a], a[b], n[c])
 	TMade     // made(a[a], n[b])
 	// Control.
-	TJump   // continue at dst
-	TJumpF  // continue at dst if n[a] is false
+	TJump   // continue at dst, which follows
+	TJumpF  // continue at dst, which follows, if n[a] is false
 	TRet    // return a[a]
 	TRetErr // return the failure a[a]
 	// Fused.
@@ -110,6 +110,9 @@ const (
 	TUnits      // count a units (units.add)
 	TUnitsOf    // count b units for each element of the list or tuple a[a] (units.items)
 	TUnitsSince // count a unit for each element gathered above n[a] (units.since)
+	// Counted loops, the only backward jumps (checkActionLoops).
+	TLoop    // n[c] = len(s[a]); n[b] = 0; continue at dst if n[c] is 0
+	TEndLoop // n[b]++; continue at dst if n[b] < n[c]
 )
 
 type ActionInstr struct {

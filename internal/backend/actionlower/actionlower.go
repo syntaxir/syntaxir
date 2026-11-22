@@ -149,10 +149,66 @@ func (c *actionCompiler) emit(in state.ActionInstr) int {
 	return k
 }
 
+// counted returns the index and the list of the loop x, which must count over the elements of a list:
+//
+//	for i < seq.len(items); i = i + 1 { body }
+//
+// with neither i nor items assigned in the body. It is the one loop that the lowering of action
+// expressions makes (an iteration of map, filter, foldl or foldr), and the only one that action code
+// has: TLoop and TEndLoop run it over the elements counted when it starts, so that every evaluation
+// of action code ends (state.checkActionLoops).
+func (c *actionCompiler) counted(x *code.Loop) (index, items actionReg, err error) {
+	bad := func() (actionReg, actionReg, error) {
+		return actionReg{}, actionReg{}, fmt.Errorf("a loop that does not count over the elements of a list")
+	}
+	lt, ok := x.Cond.(*code.Binary)
+	if x.Init != nil || !ok || lt.Op != "<" {
+		return bad()
+	}
+	i, ok := lt.X.(*code.Local)
+	n, isCall := lt.Y.(*code.Call)
+	if !ok || !isCall || n.Callee != "seq.len" || len(n.Args) != 1 {
+		return bad()
+	}
+	l, ok := n.Args[0].(*code.Local)
+	if !ok || x.Post == nil || len(x.Post.Dst) != 1 || x.Post.Dst[0].Reg || x.Post.Dst[0].Name != i.Name || len(x.Post.Values) != 1 {
+		return bad()
+	}
+	inc, ok := x.Post.Values[0].(*code.Binary)
+	if !ok || inc.Op != "+" {
+		return bad()
+	}
+	if v, isLocal := inc.X.(*code.Local); !isLocal || v.Name != i.Name {
+		return bad()
+	}
+	if one, isConst := inc.Y.(*code.Const); !isConst || one.Value != int64(1) {
+		return bad()
+	}
+	assigned := false
+	code.Walk(x.Body, func(st code.Stmt) {
+		switch st := st.(type) {
+		case *code.Set:
+			for _, p := range st.Dst {
+				assigned = assigned || p.Name == i.Name || p.Name == l.Name
+			}
+		case *code.Let:
+			for _, name := range st.Names {
+				assigned = assigned || name == i.Name || name == l.Name
+			}
+		}
+	}, nil)
+	index, okI := c.locals[i.Name]
+	items, okL := c.locals[l.Name]
+	if assigned || !okI || !okL || index.file != fileN || items.file != fileS {
+		return bad()
+	}
+	return index, items, nil
+}
+
 // jumpsTo reports whether a jump of the code emitted so far goes to the instruction at pc.
 func (c *actionCompiler) jumpsTo(pc int32) bool {
 	for _, in := range c.prog.Code {
-		if (in.Op == state.TJump || in.Op == state.TJumpF) && in.Dst == pc {
+		if (in.Op == state.TJump || in.Op == state.TJumpF || in.Op == state.TLoop || in.Op == state.TEndLoop) && in.Dst == pc {
 			return true
 		}
 	}
@@ -259,25 +315,17 @@ func (c *actionCompiler) block(b *code.Block) error {
 				c.prog.Code[jf].Dst = int32(len(c.prog.Code))
 			}
 		case *code.Loop:
-			if s.Init != nil || s.Cond == nil {
-				return fmt.Errorf("loop without the form of a for loop")
-			}
-			top := int32(len(c.prog.Code))
-			cond, err := c.expr(s.Cond)
+			index, items, err := c.counted(s)
 			if err != nil {
 				return err
 			}
-			jf := c.emit(state.ActionInstr{Op: state.TJumpF, A: cond.r})
+			count := c.reg(fileN)
+			loop := c.emit(state.ActionInstr{Op: state.TLoop, A: items.r, B: index.r, C: count.r})
 			if err := c.block(s.Body); err != nil {
 				return err
 			}
-			if s.Post != nil {
-				if err := c.block(&code.Block{Stmts: []code.Stmt{s.Post}}); err != nil {
-					return err
-				}
-			}
-			c.emit(state.ActionInstr{Op: state.TJump, Dst: top})
-			c.prog.Code[jf].Dst = int32(len(c.prog.Code))
+			c.emit(state.ActionInstr{Op: state.TEndLoop, Dst: int32(loop + 1), B: index.r, C: count.r})
+			c.prog.Code[loop].Dst = int32(len(c.prog.Code))
 		case *code.Return:
 			if len(s.Values) != 2 {
 				return fmt.Errorf("return of %d values", len(s.Values))

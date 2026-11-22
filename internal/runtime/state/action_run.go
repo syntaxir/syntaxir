@@ -195,6 +195,16 @@ func (t *ActionProgram) run(c *EvalCtx, a []any, n []int, s [][]*value.Node, ts 
 			if n[in.A] == 0 {
 				pc = int(in.Dst) - 1
 			}
+		case TLoop:
+			n[in.C], n[in.B] = len(s[in.A]), 0
+			if n[in.C] == 0 {
+				pc = int(in.Dst) - 1
+			}
+		case TEndLoop:
+			n[in.B]++
+			if n[in.B] < n[in.C] {
+				pc = int(in.Dst) - 1
+			}
 		case TRet:
 			return a[in.A], nil
 		case TRetErr:

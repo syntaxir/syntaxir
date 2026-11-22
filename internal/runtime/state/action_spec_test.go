@@ -20,7 +20,7 @@ var actionOpNames = map[string]ActionOp{
 	"HULL": THull, "ITEMS": TItems, "ITEMAT": TItemAt, "SEQLEN": TSeqLen, "STEP": TStep,
 	"KEEP": TKeep, "FILTER": TFilter, "COPY": TCopy, "STRUCT": TStruct, "SETFIELD": TSetField,
 	"COVER": TCover, "MADE": TMade, "JUMP": TJump, "JUMPF": TJumpF, "RET": TRet, "RETERR": TRetErr,
-	"FIELD": TField,
+	"FIELD": TField, "LOOP": TLoop, "ENDLOOP": TEndLoop,
 }
 
 // TestSpecActionOpcodes checks that the opcodes of action code are those of the table in

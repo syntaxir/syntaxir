@@ -148,6 +148,8 @@ var actionOperands = map[ActionOp][4]uint8{
 	TUnits:      {oNone, oCount},
 	TUnitsOf:    {oNone, oA, oCount},
 	TUnitsSince: {oNone, oN},
+	TLoop:       {oJump, oS, oN, oN},
+	TEndLoop:    {oJump, oNone, oN, oN},
 }
 
 // LoadAction makes the ActionProgram of the action code x of a module with the string table strs and
@@ -344,9 +346,85 @@ func loadAction(t *ActionProgram, x *bytecode.Action, strs []string, vars int, t
 		t.Code[pc] = ActionInstr{Op: ActionOp(in.Op), Dst: in.Dst, A: in.A, B: in.B, C: in.C}
 	}
 	switch t.Code[n-1].Op {
-	case TRet, TRetErr, TJump:
+	case TRet, TRetErr:
 	default:
-		return fmt.Errorf("action code does not end with a return or a jump")
+		return fmt.Errorf("action code does not end with a return")
+	}
+	return checkActionLoops(t.Code)
+}
+
+// checkActionLoops checks that the evaluation of code ends whatever its registers hold: every jump
+// but the back edge of a counted loop goes forward, and a loop runs at most the number of elements
+// that its TLoop counted. A TLoop at l whose exit is e+1 pairs with the TEndLoop at e, which jumps
+// back to l+1 and names the same index and count registers; the loops nest; no jump from outside a
+// loop's body goes into it; and no instruction of the body writes the loop's index or count, so the
+// body is entered only through its TLoop, and each pass of its back edge increments an index that
+// nothing else changes towards a count that nothing else changes.
+func checkActionLoops(code []ActionInstr) error {
+	type loop struct{ start, end int } // the body: from start to the TEndLoop at end
+	var loops []loop
+	for pc, in := range code {
+		switch {
+		case in.Op == TEndLoop:
+			// Checked against its TLoop below.
+		case actionOperands[in.Op][0] == oJump && int(in.Dst) <= pc:
+			return fmt.Errorf("action jump from %d back to %d", pc, in.Dst)
+		}
+		if in.Op == TLoop {
+			e := int(in.Dst) - 1
+			if e <= pc || code[e].Op != TEndLoop || int(code[e].Dst) != pc+1 || code[e].B != in.B || code[e].C != in.C || in.B == in.C {
+				return fmt.Errorf("action loop at %d has no matching end", pc)
+			}
+			loops = append(loops, loop{pc + 1, e})
+		}
+	}
+	paired := make(map[int]bool, len(loops))
+	for _, l := range loops {
+		if paired[l.end] {
+			return fmt.Errorf("action loop end at %d shared by two loops", l.end)
+		}
+		paired[l.end] = true
+	}
+	for pc, in := range code {
+		if in.Op == TEndLoop && !paired[pc] {
+			return fmt.Errorf("action loop end at %d without a loop", pc)
+		}
+	}
+	// writes returns the integer registers that in writes.
+	writes := func(in ActionInstr) []int32 {
+		switch in.Op {
+		case TLoop, TEndLoop:
+			return []int32{in.B, in.C}
+		}
+		if actionOperands[in.Op][0] == oN {
+			return []int32{in.Dst}
+		}
+		return nil
+	}
+	for _, l := range loops {
+		inside := func(pc int) bool { return l.start <= pc && pc <= l.end }
+		b, c := code[l.end].B, code[l.end].C
+		for _, m := range loops {
+			// Two loops, each from its TLoop to its TEndLoop, are apart or one is in the body of the
+			// other.
+			apart := m.end < l.start-1 || l.end < m.start-1
+			if m != l && !apart && !(inside(m.start-1) && inside(m.end)) && !(m.start <= l.start-1 && l.end <= m.end) {
+				return fmt.Errorf("action loops at %d and %d do not nest", l.start-1, m.start-1)
+			}
+		}
+		for pc, in := range code {
+			if actionOperands[in.Op][0] == oJump && inside(int(in.Dst)) && !inside(pc) {
+				return fmt.Errorf("action jump from %d into the loop at %d", pc, l.start-1)
+			}
+			if !inside(pc) || pc == l.end {
+				continue
+			}
+			for _, r := range writes(in) {
+				if r == b || r == c {
+					return fmt.Errorf("instruction %d writes the index or count of the loop at %d", pc, l.start-1)
+				}
+			}
+		}
 	}
 	return nil
 }

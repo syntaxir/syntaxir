@@ -331,16 +331,18 @@ func TestActionCodeValidation(t *testing.T) {
 // module's action code whose only operand is a jump target, found by loading variants.
 func jumpOp(t *testing.T, m *bytecode.Module) uint8 {
 	t.Helper()
+	ret := m.Actions[0].Code[len(m.Actions[0].Code)-1]
+	ret.A = 0
 	for op := 0; op < 256; op++ {
-		x := bytecode.Action{Regs: [4]int{1, 1, 1, 1}, Code: []bytecode.ActionInstr{{Op: uint8(op), Dst: 0}}}
-		y := bytecode.Action{Regs: [4]int{1, 1, 1, 1}, Code: []bytecode.ActionInstr{{Op: uint8(op), Dst: 1}}}
+		x := bytecode.Action{Regs: [4]int{1, 1, 1, 1}, Code: []bytecode.ActionInstr{{Op: uint8(op), Dst: 1}, ret}}
+		y := bytecode.Action{Regs: [4]int{1, 1, 1, 1}, Code: []bytecode.ActionInstr{{Op: uint8(op), Dst: 2}, ret}}
 		mx, my := *m, *m
 		mx.Actions, my.Actions = []bytecode.Action{x}, []bytecode.Action{y}
 		if _, err := vm.LoadActions(&mx); err != nil {
 			continue
 		}
 		if _, err := vm.LoadActions(&my); err != nil {
-			return uint8(op) // a jump to 0 loads and ends the code; a jump past it does not
+			return uint8(op) // a jump to the return loads; a jump past it does not
 		}
 	}
 	t.Fatal("no jump instruction")

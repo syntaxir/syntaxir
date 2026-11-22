@@ -189,6 +189,9 @@ a boolean as 0 or 1), sequences of elements (`s`) and strings (`t`). An action e
 starts as nil, 0, an empty sequence or the empty string. An instruction has an opcode, a destination D and operands
 A, B and C; the table names the file of each register operand (`a[A]` is register A of the values) and the pool of
 each pool operand. Lambdas are evaluated in place, so no value of an action expression is a function.
+Action code has one loop, a counted loop over the elements of a sequence: `LOOP` counts them and
+starts the index at 0, the body runs once for each element, and `ENDLOOP` advances the index and goes back to the start
+of the body until the index reaches the count. Every other jump goes forward, so each evaluation of action code ends.
 
 | Code | Instruction | Behavior |
 |--:|:--|:--|
@@ -231,14 +234,16 @@ each pool operand. Lambdas are evaluated in place, so no value of an action expr
 | 41 | `SETFIELD` | Set field name C of the struct a[A] to a[B]. |
 | 42 | `COVER` | n[D] = `cover`(a[A], a[B], n[C] ≠ 0). |
 | 43 | `MADE` | `made`(a[A], n[B] ≠ 0). |
-| 44 | `JUMP` | Continue at instruction D. |
-| 45 | `JUMPF` | Continue at instruction D if n[A] is 0. |
+| 44 | `JUMP` | Continue at instruction D, which follows it. |
+| 45 | `JUMPF` | Continue at instruction D, which follows it, if n[A] is 0. |
 | 46 | `RET` | End the evaluation with the value a[A]. |
 | 47 | `RETERR` | End the evaluation with the failure a[A]. |
 | 48 | `FIELD` | Set field name C of the struct a[A] to a[B], and n[D] = `cover`(a[A], a[B], n[D] ≠ 0): `SETFIELD` and `COVER` with D = C in one instruction. |
 | 49 | `UNITS` | Count A compute units (`units.add`); A is not negative. |
 | 50 | `UNITSOF` | Count B compute units for each element of the list or tuple a[A], none if a[A] is neither (`units.items`); B is not negative. |
 | 51 | `UNITSSINCE` | Count one compute unit for each element gathered above n[A] (`units.since`). |
+| 52 | `LOOP` | n[C] = the number of elements of s[A] and n[B] = 0; continue at instruction D if n[C] is 0. |
+| 53 | `ENDLOOP` | n[B] = n[B] + 1; continue at instruction D if n[B] < n[C]. |
 
 The pools of an action expression hold its constants (nil, an int, a string or a bool), its names (the names of built-in functions,
 Operators Rule locals and struct fields), its member reads (the [member kind](../exec-ir/values.md#member-kinds), the
@@ -252,8 +257,13 @@ to strings of the string table, a conversion to a named node type, a struct lite
 text of the form the load-time checks of casts accept, and a member read to a member kind; an action expression has code; every
 opcode is in the table; every operand is in range for its kind: a register within its file, a pool operand within its
 pool, a jump target within the code, a variable within the variable table, an operator within its operators, a flag 0
-or 1 and a capture slot not negative; and the code ends with `JUMP`, `RET` or `RETERR`, so that evaluation cannot run
-past it. A runtime does not check that registers hold what an instruction reads.
+or 1 and a capture slot not negative; the code ends with `RET` or `RETERR`, so that evaluation cannot run
+past it; and its loops are counted loops. That is, every `JUMP` and `JUMPF` goes forward; a `LOOP` at L continues at
+E + 1, where the `ENDLOOP` at E is the end of no other loop, continues at L + 1 and names the same index B and count C,
+two distinct registers; every `ENDLOOP` ends a loop; the instructions from L + 1 to E, the loop's body, write neither
+n[B] nor n[C]; no instruction outside the body jumps into it; and two loops are apart or one is in the body of the
+other. A body is thus entered only at its start with the index at 0, and goes back at most as many times as the count
+that its `LOOP` fixed, so that evaluation ends. A runtime does not check that registers hold what an instruction reads.
 
 ## Flow Bodies
 
