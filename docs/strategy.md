@@ -466,11 +466,12 @@ A target that the first cross-tool baseline shows to be wrong is revised in this
   although the type checker knows each type; removing the boxing targets typed time and bytes.
 - **One budget.** Two counters are charged today; one budget simplifies the API and the charging code on the
   controlled path.
-- **Cheaper budget spending.** A controlled generated parse charges every unit it reads and polls at every rule call;
-  inlining the common charge left 1.30–1.47× on `Parse`. Charging the input by position change at rewinds and rule
-  exits counts the same reads deterministically (forward reads equal the end position plus the rewound distance),
-  a straight-line block can be charged once with its static count, and the context needs polling only on recursive
-  cycles and loop back-edges. None of these has a measured prototype yet.
+- **Cheaper budget spending.** A controlled generated parse counts
+  [compute units](../spec/runtime/parsing.md#compute-units) at logical events: each is a plain addition to one counter,
+  often of a static count for a whole block, and the counter is compared with the limit only at the entries of rules on
+  recursive cycles, at loop iterations, before charges whose size depends on the input and at deliveries
+  ([record 076](design/records/076-logical-compute-units.md)). Its overhead against the target above is still to be
+  measured.
 - **Depth checks only where recursion is possible.** Every rule entry checks the depth today. Only rules on a
   recursive cycle can exhaust the stack, so the other checks are removable code and time.
 - **Expected sets on request.** A recorded experiment that skipped expected sets saved about 10% time on Minilang and
