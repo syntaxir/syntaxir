@@ -1012,7 +1012,7 @@ type tmemoEntry struct {
 
 func (p *TParser) memoGet(rule, pos, min int, env []any, docOnly bool) *tmemoEntry {
 	p.use(featureMemo)
-	if usedFeatures&featureBudget != 0 && p.Control != nil {
+	if p.memoControlled() {
 		return p.memoGetControlled(rule, pos, min, env, docOnly)
 	}
 	pos = p.memoGap.slot(pos)
@@ -1102,7 +1102,7 @@ func (p *TParser) unlinkLagged(i int, link **tmemoEntry, limit int) **tmemoEntry
 // memoPut stores e under the key, unless the join with the entry stored there keeps that entry
 // (joinStored), and returns the entry it keeps.
 func (p *TParser) memoPut(rule, pos, min int, env []any, docOnly bool, e *tmemoEntry) *tmemoEntry {
-	if usedFeatures&featureBudget != 0 && p.Control != nil {
+	if p.memoControlled() {
 		return p.memoPutControlled(rule, pos, min, env, docOnly, e)
 	}
 	i := p.memoGap.slot(pos)

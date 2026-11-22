@@ -150,6 +150,15 @@ func conversionControl(ctx context.Context, c *BudgetControl) (_ *BudgetControl,
 // values it builds.
 func (p *Parser) controlled() bool { return usedFeatures&featureBudget != 0 && p.Control != nil }
 
+// memoControlled reports whether the memo of the parse takes the lookups and stores of a parse with
+// controls (memoGetControlled, memoPutControlled), as the engine's memo does whenever the parse has
+// a control: one with a memory limit, or one that counts logical compute units. A rule that only a
+// Document memoizes is then looked up by the identity of its key, so that its hits, and with them the
+// units the parse counts, are those of the engine.
+func (p *Parser) memoControlled() bool {
+	return usedFeatures&featureBudget != 0 && (p.Control != nil || p.units.on)
+}
+
 // The members of the shared mechanisms (core.go) that charge their steps: in the library, as in the
 // engine, the work they step through is no event of logical units (spec/runtime/parsing.md#compute-units),
 // so they count nothing. A parse with limit controls counts the events of that work itself.
@@ -320,7 +329,7 @@ func (p *Parser) memoGet(rule, pos, min int, key []any, docOnly bool) *memoEntry
 			return nil
 		}
 	}
-	if usedFeatures&featureBudget != 0 && p.Control != nil {
+	if p.memoControlled() {
 		return p.memoGetControlled(rule, pos, min, key, docOnly)
 	}
 	return p.memo.get(rule, pos, min, key)
@@ -435,7 +444,7 @@ func (p *Parser) memoPut(rule, pos, min int, key []any, docOnly bool, e *memoEnt
 			return e
 		}
 	}
-	if usedFeatures&featureBudget != 0 && p.Control != nil {
+	if p.memoControlled() {
 		return p.memoPutControlled(rule, pos, min, key, docOnly, e)
 	}
 	return p.memo.put(rule, pos, min, key, e, p.joinStored)
