@@ -1,4 +1,4 @@
-protocol 28
+protocol 29
 const BaseString untyped int = 0
 const ExpFar ExpID = 536870912
 const IdAny ExpID = 0
@@ -173,6 +173,9 @@ method (*Parser) Expect(int, ExpID)
 method (*Parser) ExpectOrdinary(int, ExpID)
 method (*Parser) Finish(*Rule, *CaptureFrame, *syntaxir.dev/sxir/pkg/runtime/value.Node, int) *syntaxir.dev/sxir/pkg/runtime/value.Node
 method (*Parser) FirstCall(*Rule) bool
+method (*Parser) HasChar(rune, bool) bool
+method (*Parser) HasCharOrdinary(rune, bool) bool
+method (*Parser) HasCharTraced(rune, bool) bool
 method (*Parser) InvokePlain(*Rule, int) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) Isolate(int) ExpMark
 method (*Parser) Keep([]ExpID) []ExpID
@@ -186,6 +189,8 @@ method (*Parser) Mark() Mark
 method (*Parser) MatchAny(bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) MatchAnyLogical(bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) MatchAnyOrdinary(bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
+method (*Parser) MatchChar(rune, bool) (int, bool)
+method (*Parser) MatchCharTraced(rune, bool) (int, bool)
 method (*Parser) MatchLiteral([]rune, string, ExpID, bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) MatchLiteralFold([]rune, ExpID, bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) MatchLiteralFoldLogical([]rune, ExpID, bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)

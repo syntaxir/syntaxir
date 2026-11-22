@@ -190,13 +190,14 @@ func (m *Module) flowOperands(in *FlowInstr, str func(int) string) string {
 		parts = append(parts, fmt.Sprintf("var=%d action=%d", x.Var, x.Action))
 	case FlowGuardOf:
 		g := fmt.Sprintf("class=%d", x.Class)
-		switch {
-		case x.Lit && x.Fold:
-			g = strconv.QuoteRune(x.Rune) + " fold"
-		case x.Lit:
-			g = strconv.QuoteRune(x.Rune)
-		case x.Class >= 0 && x.Class < len(m.Classes):
+		if x.Class >= 0 && x.Class < len(m.Classes) {
 			g = str(m.Classes[x.Class].Expectation)
+		}
+		parts = append(parts, fmt.Sprintf("%s depth=%d", g, x.Depth))
+	case FlowLitGuardOf:
+		g := strconv.QuoteRune(x.Rune)
+		if x.Fold {
+			g += " fold"
 		}
 		parts = append(parts, fmt.Sprintf("%s depth=%d", g, x.Depth))
 	case FlowExpectOf:

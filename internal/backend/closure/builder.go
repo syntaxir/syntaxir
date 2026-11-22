@@ -231,20 +231,15 @@ func (b *Builder) choice(alts []*ir.Alt, ms []state.Matcher, build bool) state.M
 			ms[i] = singleMatcher(alt.Body.Attrs().Shape, ms[i])
 		}
 		guards[i] = b.guard(alt.Guard)
-		guarded = guarded || guards[i].accept != nil
+		guarded = guarded || guards[i].admits != nil
 	}
 	if guarded {
 		return func(p *state.Parser) (*value.Node, bool) {
 			m0 := p.Mark()
-			var ch rune
-			more, peeked := false, false
+			var read state.ChoiceRead
 			for i, m := range ms {
-				if g := &guards[i]; g.accept != nil && p.Missing == nil {
-					if !peeked {
-						ch, _, more = p.Peek()
-						peeked = true
-					}
-					if !(more && g.accept(p, ch)) && p.Depth+g.depth <= p.MaxDepth {
+				if g := &guards[i]; g.admits != nil && p.Missing == nil {
+					if !g.admits(p, &read) && p.Depth+g.depth <= p.MaxDepth {
 						p.Expect(p.Pos, g.desc) // what the alternative would record
 						continue
 					}
@@ -288,24 +283,29 @@ func (b *Builder) choice(alts []*ir.Alt, ms []state.Matcher, build bool) state.M
 // firstGuard tells when an alternative of a choice can be skipped (the guard of the alternative in
 // Core IR).
 type firstGuard struct {
-	accept func(*state.Parser, rune) bool // nil if it cannot be
+	// admits reports whether the next character, which the guards of the choice read through read,
+	// can begin the alternative; nil if the alternative cannot be skipped.
+	admits func(*state.Parser, *state.ChoiceRead) bool
 	desc   state.ExpID
 	depth  int
 }
 
-// guard returns the test of the next character that the alternative guarded by f needs.
+// guard returns the test of the next character that the alternative guarded by f needs. The guard
+// of a literal compares the literal's first character as the literal does (state.MatchChar), so
+// that it examines no more than the literal would; the guard of a class decodes the character.
 func (b *Builder) guard(f *ir.First) firstGuard {
 	switch {
 	case f == nil:
 		return firstGuard{}
-	case f.Lit && f.Fold:
-		f0 := f.Rune
-		return firstGuard{func(_ *state.Parser, r rune) bool { return state.FoldASCIIRune(r) == f0 }, b.desc(f.Exp), f.Depth}
 	case f.Lit:
-		r0 := f.Rune
-		return firstGuard{func(_ *state.Parser, r rune) bool { return r == r0 }, b.desc(f.Exp), f.Depth}
+		r0, fold := f.Rune, f.Fold
+		return firstGuard{func(p *state.Parser, read *state.ChoiceRead) bool { return read.Literal(p, r0, fold) }, b.desc(f.Exp), f.Depth}
 	}
-	return firstGuard{b.accept(f.Class), b.desc(f.Exp), f.Depth}
+	accept := b.accept(f.Class)
+	return firstGuard{func(p *state.Parser, read *state.ChoiceRead) bool {
+		ch, ok := read.Char(p)
+		return ok && accept(p, ch)
+	}, b.desc(f.Exp), f.Depth}
 }
 
 func (b *Builder) optional(body ir.Node, m state.Matcher, build bool) state.Matcher {
@@ -425,10 +425,7 @@ func (b *Builder) anchor(kind ir.AnchorKind, desc state.ExpID) state.Matcher {
 	case ir.BeginLine:
 		return anchor(func(p *state.Parser) bool { return p.AtLineStart() }, desc)
 	}
-	return anchor(func(p *state.Parser) bool {
-		ch, _, ok := p.Peek()
-		return !ok || ch == '\n' || ch == '\r'
-	}, desc)
+	return anchor(func(p *state.Parser) bool { return p.AtLineEnd() }, desc)
 }
 
 func anchor(cond func(p *state.Parser) bool, desc state.ExpID) state.Matcher {

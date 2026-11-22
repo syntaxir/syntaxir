@@ -19,7 +19,7 @@ Go modules give a v0 version no compatibility guarantee. SyntaxIR states its int
 | The fixture suites of `sxir test` (the JSON format) | Unstable: may change in any release; the runner is internal, not a Go API |
 | The packages `syntaxir.dev/sxir/pkg/runtime`, `syntaxir.dev/sxir/pkg/runtime/value`, `syntaxir.dev/sxir/pkg/runtime/input` and `syntaxir.dev/sxir/pkg/runtime/instrument`: the nodes, limits, positions, errors, edits and statistics that `sxir` and generated Go parsers share | Stable in intent, as part of the API of generated parsers |
 | The packages `syntaxir.dev/sxir/pkg/runtime/libgo` and `syntaxir.dev/sxir/pkg/runtime/value/impl`, as generated code uses them with `sxir gen -lib import` | Not a stable API. Judged by the protocol version (see [the library protocol](#the-library-protocol)), not by the release version |
-| Compiled grammars (`.sxirc`) and the bytecode: container version 8, instruction-set version 37 ([bytecode specification](../spec/bytecode/README.md)) | Unstable: may change in any release. A loader accepts only its own versions and asks for the grammar to be compiled again |
+| Compiled grammars (`.sxirc`) and the bytecode: container version 8, instruction-set version 38 ([bytecode specification](../spec/bytecode/README.md)) | Unstable: may change in any release. A loader accepts only its own versions and asks for the grammar to be compiled again |
 | The JSON forms of grammars and nodes | Unstable: may change in any release |
 | Ready-made parsers (`syntaxir.dev/alpha-parsers`) | Not part of a release: a separate repository, used from a checkout next to this one with a `go.work` |
 
@@ -37,7 +37,7 @@ pass to the library.
 
 - The library declares a constant `ProtocolN` for each protocol version N it implements.
 - A parser generated with `-lib import` refers to the constant of the protocol it was generated for, so a parser
-  and a library that do not match fail to build (`undefined: rt.Protocol27`), never at run time.
+  and a library that do not match fail to build (`undefined: rt.Protocol29`), never at run time.
 - The package `syntaxir.dev/sxir/pkg/runtime/value/impl` declares exactly one constant `ProtocolN`, where N is the protocol
   version that introduced the node representation it serves, and the library refers to that constant. A copy of the
   library embedded in a generated parser and a `value/impl` package that do not match therefore fail to build

@@ -546,11 +546,10 @@ fail:
 
 func e10(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	var x1 rt.Mark
-	var v2, v7, v9, v10, v11, v17 *sxirvalue.Node
-	var x5, x8, x16 int
+	var v2, v7, v9, v10, v11, v15 *sxirvalue.Node
+	var x5, x8, x14 int
 	var x6 []*sxirvalue.Node
-	var ok, x13 bool
-	var x12 rune
+	var ok bool
 	x1 = p.Mark()
 	x5 = p.Pos
 	x6 = p.Nodes(2)[:0]
@@ -573,24 +572,23 @@ func e10(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	goto L3
 L4:
 	p.Reset(x1)
-	x12, _, x13 = p.NextOrdinary()
-	if !(x13 && (x12 == 99)) && p.Depth <= p.MaxDepth {
+	if !p.HasCharOrdinary(99, false) && p.Depth <= p.MaxDepth {
 		p.ExpectOrdinary(p.Pos, 9)
-		goto L14
+		goto L12
 	}
-	x16 = p.Pos
+	x14 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 99 {
 		p.Pos++
 		p.Units += 1
 	} else if _, ok = p.MatchLiteralLogical(lit9, "c", 9, false); !ok {
-		goto L15
+		goto L13
 	}
-	v17 = p.NewTerminalOrdinary(x16, "c")
-	v2 = v17
+	v15 = p.NewTerminalOrdinary(x14, "c")
+	v2 = v15
 	goto L3
-L15:
+L13:
 	p.Reset(x1)
-L14:
+L12:
 	goto fail
 L3:
 	return v2, true
@@ -600,11 +598,10 @@ fail:
 
 func e13(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	var x1 rt.Mark
-	var v2, v7, v9, v10, v11, v17 *sxirvalue.Node
-	var x5, x8, x16 int
+	var v2, v7, v9, v10, v11, v15 *sxirvalue.Node
+	var x5, x8, x14 int
 	var x6 []*sxirvalue.Node
-	var ok, x13 bool
-	var x12 rune
+	var ok bool
 	x1 = p.Mark()
 	x5 = p.Pos
 	x6 = p.Nodes(2)[:0]
@@ -627,24 +624,23 @@ func e13(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	goto L3
 L4:
 	p.Reset(x1)
-	x12, _, x13 = p.NextOrdinary()
-	if !(x13 && (x12 == 98)) && p.Depth <= p.MaxDepth {
+	if !p.HasCharOrdinary(98, false) && p.Depth <= p.MaxDepth {
 		p.ExpectOrdinary(p.Pos, 11)
-		goto L14
+		goto L12
 	}
-	x16 = p.Pos
+	x14 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 98 {
 		p.Pos++
 		p.Units += 1
 	} else if _, ok = p.MatchLiteralLogical(lit12, "b", 11, false); !ok {
-		goto L15
+		goto L13
 	}
-	v17 = p.NewTerminalOrdinary(x16, "b")
-	v2 = v17
+	v15 = p.NewTerminalOrdinary(x14, "b")
+	v2 = v15
 	goto L3
-L15:
+L13:
 	p.Reset(x1)
-L14:
+L12:
 	goto fail
 L3:
 	return v2, true
@@ -1014,11 +1010,10 @@ fail:
 
 func s2(p *rt.TParser) (any, bool) {
 	p.Units++
-	var start, x1, x5, x8, x16 int
-	var v, v2, v7, v9, v10, v11, v17 any
+	var start, x1, x5, x8, x14 int
+	var v, v2, v7, v9, v10, v11, v15 any
 	var x6 []any
-	var ok, x13 bool
-	var x12 rune
+	var ok bool
 	start = p.Pos
 	x1 = p.Pos
 	x5 = p.Pos
@@ -1042,24 +1037,23 @@ func s2(p *rt.TParser) (any, bool) {
 	goto L3
 L4:
 	p.Pos = x1
-	x12, _, x13 = p.NextOrdinary()
-	if !(x13 && (x12 == 99)) && p.Depth <= p.MaxDepth {
+	if !p.HasCharOrdinary(99, false) && p.Depth <= p.MaxDepth {
 		p.ExpectOrdinary(p.Pos, 9)
-		goto L14
+		goto L12
 	}
-	x16 = p.Pos
+	x14 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 99 {
 		p.Pos++
 		p.Units += 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit9, "c", 9, false); !ok {
-		goto L15
+		goto L13
 	}
-	v17 = p.NewMatchOrdinary(x16, p.Pos, "c", true)
-	v2 = v17
+	v15 = p.NewMatchOrdinary(x14, p.Pos, "c", true)
+	v2 = v15
 	goto L3
-L15:
+L13:
 	p.Pos = x1
-L14:
+L12:
 	goto fail
 L3:
 	v = p.ScopeValue(sh1, v2, start)
@@ -1074,11 +1068,10 @@ fail:
 
 func s3(p *rt.TParser) (any, bool) {
 	p.Units++
-	var start, x1, x5, x8, x16 int
-	var v, v2, v7, v9, v10, v11, v17 any
+	var start, x1, x5, x8, x14 int
+	var v, v2, v7, v9, v10, v11, v15 any
 	var x6 []any
-	var ok, x13 bool
-	var x12 rune
+	var ok bool
 	start = p.Pos
 	x1 = p.Pos
 	x5 = p.Pos
@@ -1102,24 +1095,23 @@ func s3(p *rt.TParser) (any, bool) {
 	goto L3
 L4:
 	p.Pos = x1
-	x12, _, x13 = p.NextOrdinary()
-	if !(x13 && (x12 == 98)) && p.Depth <= p.MaxDepth {
+	if !p.HasCharOrdinary(98, false) && p.Depth <= p.MaxDepth {
 		p.ExpectOrdinary(p.Pos, 11)
-		goto L14
+		goto L12
 	}
-	x16 = p.Pos
+	x14 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 98 {
 		p.Pos++
 		p.Units += 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit12, "b", 11, false); !ok {
-		goto L15
+		goto L13
 	}
-	v17 = p.NewMatchOrdinary(x16, p.Pos, "b", true)
-	v2 = v17
+	v15 = p.NewMatchOrdinary(x14, p.Pos, "b", true)
+	v2 = v15
 	goto L3
-L15:
+L13:
 	p.Pos = x1
-L14:
+L12:
 	goto fail
 L3:
 	v = p.ScopeValue(sh1, v2, start)
@@ -1275,4 +1267,4 @@ func s6(p *rt.TParser) (any, bool) {
 
 const _ = types.SXIRSchema_a78c5dc69004a17f
 
-const _ = rt.Protocol28
+const _ = rt.Protocol29

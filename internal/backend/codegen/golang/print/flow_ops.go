@@ -168,16 +168,11 @@ func (p *flowPrinter) op(c *code.Call, args []string) string {
 		return fmt.Sprintf("%s.%s(%s, %q, %d, false)", p.matcher(), p.helper("MatchLiteral"), name, lit.Text, desc)
 	case flow.OpGuardFails:
 		guard := c.Imm.(*core.First)
-		var cond string
-		if guard.Lit {
-			cond = fmt.Sprintf("ch == %d", guard.Rune)
-			if guard.Fold {
-				cond = fmt.Sprintf("ch == %d || ch == %d", guard.Rune, guard.Rune-('a'-'A'))
-			}
-		} else {
-			cond = NegateCondition(g.ControlledClassReject(grammarClass(guard.Class)))
-		}
+		cond := NegateCondition(g.ControlledClassReject(grammarClass(guard.Class)))
 		return fmt.Sprintf("!(%s && (%s)) && %s", args[1], chIdent.ReplaceAllString(cond, args[0]), depthLimit(guard.Depth))
+	case flow.OpGuardLitFails:
+		guard := c.Imm.(*core.First)
+		return fmt.Sprintf("!p.%s(%d, %t) && %s", g.helper("HasChar"), guard.Rune, guard.Fold, depthLimit(guard.Depth))
 	case flow.OpCallRule:
 		x := c.Imm.(prim.RuleCall)
 		return g.ruleCall(g.Flow.Rules[x.Rule], x.Level)

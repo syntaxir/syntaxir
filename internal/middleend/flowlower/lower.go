@@ -848,10 +848,13 @@ func (l *lowerer) choice(n *core.Choice, s *scope, build bool, fail string) code
 		var guarded *core.ClassNode
 		guard, skipped := l.guard(a)
 		if guard {
-			// The alternative is skipped when the next character cannot begin it. With budget controls
-			// each guard reads the character again, as the guard of each alternative is a terminal that
-			// examines it (spec/runtime/parsing.md#cost); without them one read serves all the guards.
-			if ch == "" || l.opts.Budget {
+			// The alternative is skipped when the next character cannot begin it, and the guard examines
+			// what the alternative would examine there. The guard of a literal compares the literal's first
+			// character as the literal does (flow.guardLitFails), reading no further than the first byte
+			// that differs. The guard of a class decodes the character: with budget controls each such
+			// guard reads it again, as the guard of each alternative is a terminal that examines it
+			// (spec/runtime/parsing.md#cost); without them one read serves all of them.
+			if !a.Guard.Lit && (ch == "" || l.opts.Budget) {
 				if ch == "" {
 					ch, more = l.decl("x", prim.TypeRune), l.decl("x", prim.TypeBool)
 				}
@@ -873,7 +876,11 @@ func (l *lowerer) choice(n *core.Choice, s *scope, build bool, fail string) code
 			if l.opts.Observe {
 				pre = append(pre, do(flow.OpObserveSkip, a.Body))
 			}
-			l.failIf(nil, call(flow.OpGuardFails, a.Guard, use(ch), use(more)), skip, pre...)
+			if a.Guard.Lit {
+				l.failIf(nil, call(flow.OpGuardLitFails, a.Guard), skip, pre...)
+			} else {
+				l.failIf(nil, call(flow.OpGuardFails, a.Guard, use(ch), use(more)), skip, pre...)
+			}
 		}
 		f := l.label()
 		bf := l.open(f)

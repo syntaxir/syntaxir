@@ -289,57 +289,55 @@ fail:
 
 func e6(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	var x1 rt.Mark
-	var v2, v10, v12, v13, v14, v18 *sxirvalue.Node
-	var x4 rune
-	var x5, ok bool
-	var x8, x11, x17 int
-	var x9 []*sxirvalue.Node
+	var v2, v8, v10, v11, v12, v16 *sxirvalue.Node
+	var x6, x9, x15 int
+	var x7 []*sxirvalue.Node
+	var ok bool
 	x1 = p.Mark()
-	x4, _, x5 = p.NextOrdinary()
-	if !(x5 && (x4 == 97)) && p.Depth <= p.MaxDepth {
+	if !p.HasCharOrdinary(97, false) && p.Depth <= p.MaxDepth {
 		p.ExpectOrdinary(p.Pos, 5)
 		p.SkipCall(rules[3], 5)
-		goto L6
+		goto L4
 	}
-	x8 = p.Pos
-	x9 = p.Nodes(2)[:0]
-	if v10, ok = p.CallLogical(rules[3], 0); !ok {
-		goto L7
+	x6 = p.Pos
+	x7 = p.Nodes(2)[:0]
+	if v8, ok = p.CallLogical(rules[3], 0); !ok {
+		goto L5
 	}
-	x9 = append(x9, v10)
-	x11 = p.Pos
+	x7 = append(x7, v8)
+	x9 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 33 {
 		p.Pos++
 		p.Units += 1
 	} else if _, ok = p.MatchLiteralLogical(lit3, "!", 6, false); !ok {
-		goto L7
+		goto L5
 	}
-	v12 = p.NewTerminalOrdinary(x11, "!")
-	x9 = append(x9, v12)
-	v13 = p.NewBranchOrdinary(rt.SeqKind, x8, x9)
-	v14, _ = p.ShapeSingle(sh4, v13, x1.Pos)
-	v2 = v14
+	v10 = p.NewTerminalOrdinary(x9, "!")
+	x7 = append(x7, v10)
+	v11 = p.NewBranchOrdinary(rt.SeqKind, x6, x7)
+	v12, _ = p.ShapeSingle(sh4, v11, x1.Pos)
+	v2 = v12
 	goto L3
-L7:
+L5:
 	p.Reset(x1)
-L6:
-	if !(x5 && (x4 == 99)) && p.Depth <= p.MaxDepth {
+L4:
+	if !p.HasCharOrdinary(99, false) && p.Depth <= p.MaxDepth {
 		p.ExpectOrdinary(p.Pos, 7)
-		goto L15
+		goto L13
 	}
-	x17 = p.Pos
+	x15 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 99 {
 		p.Pos++
 		p.Units += 1
 	} else if _, ok = p.MatchLiteralLogical(lit5, "c", 7, false); !ok {
-		goto L16
+		goto L14
 	}
-	v18 = p.NewTerminalOrdinary(x17, "c")
-	v2 = v18
+	v16 = p.NewTerminalOrdinary(x15, "c")
+	v2 = v16
 	goto L3
-L16:
+L14:
 	p.Reset(x1)
-L15:
+L13:
 	goto fail
 L3:
 	return v2, true
@@ -349,57 +347,55 @@ fail:
 
 func e9(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	var x1 rt.Mark
-	var v2, v10, v12, v13, v14, v18 *sxirvalue.Node
-	var x4 rune
-	var x5, ok bool
-	var x8, x11, x17 int
-	var x9 []*sxirvalue.Node
+	var v2, v8, v10, v11, v12, v16 *sxirvalue.Node
+	var x6, x9, x15 int
+	var x7 []*sxirvalue.Node
+	var ok bool
 	x1 = p.Mark()
-	x4, _, x5 = p.NextOrdinary()
-	if !(x5 && (x4 == 97)) && p.Depth <= p.MaxDepth {
+	if !p.HasCharOrdinary(97, false) && p.Depth <= p.MaxDepth {
 		p.ExpectOrdinary(p.Pos, 5)
 		p.SkipCall(rules[3], 5)
-		goto L6
+		goto L4
 	}
-	x8 = p.Pos
-	x9 = p.Nodes(2)[:0]
-	if v10, ok = p.CallLogical(rules[3], 0); !ok {
-		goto L7
+	x6 = p.Pos
+	x7 = p.Nodes(2)[:0]
+	if v8, ok = p.CallLogical(rules[3], 0); !ok {
+		goto L5
 	}
-	x9 = append(x9, v10)
-	x11 = p.Pos
+	x7 = append(x7, v8)
+	x9 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 46 {
 		p.Pos++
 		p.Units += 1
 	} else if _, ok = p.MatchLiteralLogical(lit7, ".", 8, false); !ok {
-		goto L7
+		goto L5
 	}
-	v12 = p.NewTerminalOrdinary(x11, ".")
-	x9 = append(x9, v12)
-	v13 = p.NewBranchOrdinary(rt.SeqKind, x8, x9)
-	v14, _ = p.ShapeSingle(sh4, v13, x1.Pos)
-	v2 = v14
+	v10 = p.NewTerminalOrdinary(x9, ".")
+	x7 = append(x7, v10)
+	v11 = p.NewBranchOrdinary(rt.SeqKind, x6, x7)
+	v12, _ = p.ShapeSingle(sh4, v11, x1.Pos)
+	v2 = v12
 	goto L3
-L7:
+L5:
 	p.Reset(x1)
-L6:
-	if !(x5 && (x4 == 98)) && p.Depth <= p.MaxDepth {
+L4:
+	if !p.HasCharOrdinary(98, false) && p.Depth <= p.MaxDepth {
 		p.ExpectOrdinary(p.Pos, 9)
-		goto L15
+		goto L13
 	}
-	x17 = p.Pos
+	x15 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 98 {
 		p.Pos++
 		p.Units += 1
 	} else if _, ok = p.MatchLiteralLogical(lit8, "b", 9, false); !ok {
-		goto L16
+		goto L14
 	}
-	v18 = p.NewTerminalOrdinary(x17, "b")
-	v2 = v18
+	v16 = p.NewTerminalOrdinary(x15, "b")
+	v2 = v16
 	goto L3
-L16:
+L14:
 	p.Reset(x1)
-L15:
+L13:
 	goto fail
 L3:
 	return v2, true
@@ -583,58 +579,56 @@ fail:
 
 func s1(p *rt.TParser) (any, bool) {
 	p.Units++
-	var start, x1, x8, x11, x17 int
-	var v, v2, v10, v12, v13, v14, v18 any
-	var x4 rune
-	var x5, ok bool
-	var x9 []any
+	var start, x1, x6, x9, x15 int
+	var v, v2, v8, v10, v11, v12, v16 any
+	var x7 []any
+	var ok bool
 	start = p.Pos
 	x1 = p.Pos
-	x4, _, x5 = p.NextOrdinary()
-	if !(x5 && (x4 == 97)) && p.Depth <= p.MaxDepth {
+	if !p.HasCharOrdinary(97, false) && p.Depth <= p.MaxDepth {
 		p.ExpectOrdinary(p.Pos, 5)
 		p.SkipCall(rules[3], 5)
-		goto L6
+		goto L4
 	}
-	x8 = p.Pos
-	x9 = p.NewVals(2)[:0]
-	if v10, ok = u3(p); !ok {
-		goto L7
+	x6 = p.Pos
+	x7 = p.NewVals(2)[:0]
+	if v8, ok = u3(p); !ok {
+		goto L5
 	}
-	x9 = append(x9, v10)
-	x11 = p.Pos
+	x7 = append(x7, v8)
+	x9 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 33 {
 		p.Pos++
 		p.Units += 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit3, "!", 6, false); !ok {
-		goto L7
+		goto L5
 	}
-	v12 = p.NewMatchOrdinary(x11, p.Pos, "!", true)
-	x9 = append(x9, v12)
-	v13 = p.NewNodeOrdinary("tuple", x8, p.Pos, x9)
-	v14, _ = p.ShapeSingle(sh4, v13, x1)
-	v2 = v14
+	v10 = p.NewMatchOrdinary(x9, p.Pos, "!", true)
+	x7 = append(x7, v10)
+	v11 = p.NewNodeOrdinary("tuple", x6, p.Pos, x7)
+	v12, _ = p.ShapeSingle(sh4, v11, x1)
+	v2 = v12
 	goto L3
-L7:
+L5:
 	p.Pos = x1
-L6:
-	if !(x5 && (x4 == 99)) && p.Depth <= p.MaxDepth {
+L4:
+	if !p.HasCharOrdinary(99, false) && p.Depth <= p.MaxDepth {
 		p.ExpectOrdinary(p.Pos, 7)
-		goto L15
+		goto L13
 	}
-	x17 = p.Pos
+	x15 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 99 {
 		p.Pos++
 		p.Units += 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit5, "c", 7, false); !ok {
-		goto L16
+		goto L14
 	}
-	v18 = p.NewMatchOrdinary(x17, p.Pos, "c", true)
-	v2 = v18
+	v16 = p.NewMatchOrdinary(x15, p.Pos, "c", true)
+	v2 = v16
 	goto L3
-L16:
+L14:
 	p.Pos = x1
-L15:
+L13:
 	goto fail
 L3:
 	v = p.ScopeValue(sh1, v2, start)
@@ -649,58 +643,56 @@ fail:
 
 func s2(p *rt.TParser) (any, bool) {
 	p.Units++
-	var start, x1, x8, x11, x17 int
-	var v, v2, v10, v12, v13, v14, v18 any
-	var x4 rune
-	var x5, ok bool
-	var x9 []any
+	var start, x1, x6, x9, x15 int
+	var v, v2, v8, v10, v11, v12, v16 any
+	var x7 []any
+	var ok bool
 	start = p.Pos
 	x1 = p.Pos
-	x4, _, x5 = p.NextOrdinary()
-	if !(x5 && (x4 == 97)) && p.Depth <= p.MaxDepth {
+	if !p.HasCharOrdinary(97, false) && p.Depth <= p.MaxDepth {
 		p.ExpectOrdinary(p.Pos, 5)
 		p.SkipCall(rules[3], 5)
-		goto L6
+		goto L4
 	}
-	x8 = p.Pos
-	x9 = p.NewVals(2)[:0]
-	if v10, ok = u3(p); !ok {
-		goto L7
+	x6 = p.Pos
+	x7 = p.NewVals(2)[:0]
+	if v8, ok = u3(p); !ok {
+		goto L5
 	}
-	x9 = append(x9, v10)
-	x11 = p.Pos
+	x7 = append(x7, v8)
+	x9 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 46 {
 		p.Pos++
 		p.Units += 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit7, ".", 8, false); !ok {
-		goto L7
+		goto L5
 	}
-	v12 = p.NewMatchOrdinary(x11, p.Pos, ".", true)
-	x9 = append(x9, v12)
-	v13 = p.NewNodeOrdinary("tuple", x8, p.Pos, x9)
-	v14, _ = p.ShapeSingle(sh4, v13, x1)
-	v2 = v14
+	v10 = p.NewMatchOrdinary(x9, p.Pos, ".", true)
+	x7 = append(x7, v10)
+	v11 = p.NewNodeOrdinary("tuple", x6, p.Pos, x7)
+	v12, _ = p.ShapeSingle(sh4, v11, x1)
+	v2 = v12
 	goto L3
-L7:
+L5:
 	p.Pos = x1
-L6:
-	if !(x5 && (x4 == 98)) && p.Depth <= p.MaxDepth {
+L4:
+	if !p.HasCharOrdinary(98, false) && p.Depth <= p.MaxDepth {
 		p.ExpectOrdinary(p.Pos, 9)
-		goto L15
+		goto L13
 	}
-	x17 = p.Pos
+	x15 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 98 {
 		p.Pos++
 		p.Units += 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit8, "b", 9, false); !ok {
-		goto L16
+		goto L14
 	}
-	v18 = p.NewMatchOrdinary(x17, p.Pos, "b", true)
-	v2 = v18
+	v16 = p.NewMatchOrdinary(x15, p.Pos, "b", true)
+	v2 = v16
 	goto L3
-L16:
+L14:
 	p.Pos = x1
-L15:
+L13:
 	goto fail
 L3:
 	v = p.ScopeValue(sh1, v2, start)
@@ -797,4 +789,4 @@ func s4(p *rt.TParser) (any, bool) {
 
 const _ = types.SXIRSchema_1c8d4a14d8862fa8
 
-const _ = rt.Protocol28
+const _ = rt.Protocol29

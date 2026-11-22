@@ -42,8 +42,8 @@ const (
 	// FlowPeek sets Dst[0] to the character, Dst[1] to its width and Dst[2] to whether there is one
 	// (flow.peek); a Dst of -1 is discarded.
 	FlowPeek
-	// FlowGuard sets Dst[0] to whether the guard of the immediate FlowGuardOf fails for the
-	// character Args[0] that was read when Args[1] (the peek's ok) holds (flow.guardFails).
+	// FlowGuard sets Dst[0] to whether the guard of a class of the immediate FlowGuardOf fails for
+	// the character Args[0] that was read when Args[1] (the peek's ok) holds (flow.guardFails).
 	FlowGuard
 	// FlowExpect records the expectation of the immediate FlowExpectOf at the position Args[0]
 	// (flow.expect).
@@ -217,6 +217,11 @@ const (
 	// FlowRestore sets the position to the int Args[0] and drops the recovered errors after the first
 	// int Args[1] (flow.restore).
 	FlowRestore
+	// FlowGuardLit sets Dst[0] to whether the guard of a literal of the immediate FlowLitGuardOf
+	// fails: the input at the position does not begin with the literal's first character, compared
+	// as the literal compares it (state.Parser.MatchChar), and the nesting limit allows the guard's
+	// depth (flow.guardLitFails).
+	FlowGuardLit
 )
 
 // FlowImm is the kind of immediate of an operation.
@@ -264,6 +269,8 @@ const (
 	FlowImmAction
 	// FlowImmBind is a FlowBindOf.
 	FlowImmBind
+	// FlowImmLitGuard is a FlowLitGuardOf.
+	FlowImmLitGuard
 )
 
 // FlowShape is what the instructions of an operation hold: the number of destination and argument
@@ -354,6 +361,7 @@ var FlowShapes = [...]FlowShape{
 	FlowNewErrorNode:  {Name: "NEWERRORNODE", Dst: 1, Args: 2},
 	FlowRecLen:        {Name: "RECLEN", Dst: 1},
 	FlowRestore:       {Name: "RESTORE", Args: 2},
+	FlowGuardLit:      {Name: "GUARDLIT", Dst: 1, Imm: FlowImmLitGuard},
 }
 
 // Shape returns the shape of o; ok is false for an operation that does not exist.
@@ -382,14 +390,18 @@ type FlowInstr struct {
 	Imm    any
 }
 
-// FlowGuardOf is the immediate of FlowGuard: a literal's first rune (Lit, with Fold for a
-// case-insensitive literal), or the class Class (an index of Module.Classes), and the depth the
-// guard adds to the parser's depth.
+// FlowGuardOf is the immediate of FlowGuard: the class Class (an index of Module.Classes) and the
+// depth the guard adds to the parser's depth.
 type FlowGuardOf struct {
-	Lit   bool
+	Class int
+	Depth int
+}
+
+// FlowLitGuardOf is the immediate of FlowGuardLit: the first character of the literal (Rune, folded
+// for a case-insensitive literal, Fold) and the depth the guard adds to the parser's depth.
+type FlowLitGuardOf struct {
 	Rune  rune
 	Fold  bool
-	Class int
 	Depth int
 }
 

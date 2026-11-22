@@ -500,55 +500,42 @@ fail:
 func e14(p *rt.Parser) (*sxirvalue.Node, bool) {
 	p.Spend()
 	var x1 rt.Mark
-	var v2, v9, v13 *sxirvalue.Node
-	var x4 rune
-	var x5, ok bool
-	var x8, x12 int
+	var v2, v7, v11 *sxirvalue.Node
+	var x6, x10 int
+	var ok bool
 	x1 = p.Mark()
-	if p.Pos < len(p.In) {
-		p.Control.Take(1)
-		x4, _, x5 = p.In[p.Pos], 1, true
-	} else {
-		x4, _, x5 = p.Peek()
-	}
-	if !(x5 && (x4 == 43)) && p.Depth <= p.MaxDepth {
+	if !p.HasChar(43, false) && p.Depth <= p.MaxDepth {
 		p.Expect(p.Pos, 10)
-		goto L6
+		goto L4
 	}
-	x8 = p.Pos
+	x6 = p.Pos
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 43) && p.Control.Take(1) {
 		p.Pos++
 	} else if _, ok = p.MatchLiteral(lit12, "+", 10, false); !ok {
-		goto L7
+		goto L5
 	}
-	v9 = p.NewTerminal(x8, "+")
-	v2 = v9
+	v7 = p.NewTerminal(x6, "+")
+	v2 = v7
 	goto L3
-L7:
+L5:
 	p.Reset(x1)
-L6:
-	if p.Pos < len(p.In) {
-		p.Control.Take(1)
-		x4, _, x5 = p.In[p.Pos], 1, true
-	} else {
-		x4, _, x5 = p.Peek()
-	}
-	if !(x5 && (x4 == 45)) && p.Depth <= p.MaxDepth {
+L4:
+	if !p.HasChar(45, false) && p.Depth <= p.MaxDepth {
 		p.Expect(p.Pos, 11)
-		goto L10
+		goto L8
 	}
-	x12 = p.Pos
+	x10 = p.Pos
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 45) && p.Control.Take(1) {
 		p.Pos++
 	} else if _, ok = p.MatchLiteral(lit13, "-", 11, false); !ok {
-		goto L11
+		goto L9
 	}
-	v13 = p.NewTerminal(x12, "-")
-	v2 = v13
+	v11 = p.NewTerminal(x10, "-")
+	v2 = v11
 	goto L3
-L11:
+L9:
 	p.Reset(x1)
-L10:
+L8:
 	goto fail
 L3:
 	return v2, true
@@ -559,77 +546,58 @@ fail:
 func e18(p *rt.Parser) (*sxirvalue.Node, bool) {
 	p.Spend()
 	var x1 rt.Mark
-	var v2, v9, v13, v17 *sxirvalue.Node
-	var x4 rune
-	var x5, ok bool
-	var x8, x12, x16 int
+	var v2, v7, v11, v15 *sxirvalue.Node
+	var x6, x10, x14 int
+	var ok bool
 	x1 = p.Mark()
-	if p.Pos < len(p.In) {
-		p.Control.Take(1)
-		x4, _, x5 = p.In[p.Pos], 1, true
-	} else {
-		x4, _, x5 = p.Peek()
-	}
-	if !(x5 && (x4 == 42)) && p.Depth <= p.MaxDepth {
+	if !p.HasChar(42, false) && p.Depth <= p.MaxDepth {
 		p.Expect(p.Pos, 12)
-		goto L6
+		goto L4
 	}
-	x8 = p.Pos
+	x6 = p.Pos
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 42) && p.Control.Take(1) {
 		p.Pos++
 	} else if _, ok = p.MatchLiteral(lit15, "*", 12, false); !ok {
-		goto L7
+		goto L5
 	}
-	v9 = p.NewTerminal(x8, "*")
-	v2 = v9
+	v7 = p.NewTerminal(x6, "*")
+	v2 = v7
 	goto L3
-L7:
+L5:
 	p.Reset(x1)
-L6:
-	if p.Pos < len(p.In) {
-		p.Control.Take(1)
-		x4, _, x5 = p.In[p.Pos], 1, true
-	} else {
-		x4, _, x5 = p.Peek()
-	}
-	if !(x5 && (x4 == 47)) && p.Depth <= p.MaxDepth {
+L4:
+	if !p.HasChar(47, false) && p.Depth <= p.MaxDepth {
 		p.Expect(p.Pos, 13)
-		goto L10
+		goto L8
 	}
-	x12 = p.Pos
+	x10 = p.Pos
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 47) && p.Control.Take(1) {
 		p.Pos++
 	} else if _, ok = p.MatchLiteral(lit16, "/", 13, false); !ok {
-		goto L11
+		goto L9
 	}
-	v13 = p.NewTerminal(x12, "/")
-	v2 = v13
+	v11 = p.NewTerminal(x10, "/")
+	v2 = v11
 	goto L3
-L11:
+L9:
 	p.Reset(x1)
-L10:
-	if p.Pos < len(p.In) {
-		p.Control.Take(1)
-		x4, _, x5 = p.In[p.Pos], 1, true
-	} else {
-		x4, _, x5 = p.Peek()
-	}
-	if !(x5 && (x4 == 37)) && p.Depth <= p.MaxDepth {
+L8:
+	if !p.HasChar(37, false) && p.Depth <= p.MaxDepth {
 		p.Expect(p.Pos, 14)
-		goto L14
+		goto L12
 	}
-	x16 = p.Pos
+	x14 = p.Pos
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 37) && p.Control.Take(1) {
 		p.Pos++
 	} else if _, ok = p.MatchLiteral(lit17, "%", 14, false); !ok {
-		goto L15
+		goto L13
 	}
-	v17 = p.NewTerminal(x16, "%")
-	v2 = v17
+	v15 = p.NewTerminal(x14, "%")
+	v2 = v15
 	goto L3
-L15:
+L13:
 	p.Reset(x1)
-L14:
+L12:
 	goto fail
 L3:
 	return v2, true
@@ -640,55 +608,42 @@ fail:
 func e19(p *rt.Parser) (*sxirvalue.Node, bool) {
 	p.Spend()
 	var x1 rt.Mark
-	var v2, v9, v13 *sxirvalue.Node
-	var x4 rune
-	var x5, ok bool
-	var x8, x12 int
+	var v2, v7, v11 *sxirvalue.Node
+	var x6, x10 int
+	var ok bool
 	x1 = p.Mark()
-	if p.Pos < len(p.In) {
-		p.Control.Take(1)
-		x4, _, x5 = p.In[p.Pos], 1, true
-	} else {
-		x4, _, x5 = p.Peek()
-	}
-	if !(x5 && (x4 == 45)) && p.Depth <= p.MaxDepth {
+	if !p.HasChar(45, false) && p.Depth <= p.MaxDepth {
 		p.Expect(p.Pos, 11)
-		goto L6
+		goto L4
 	}
-	x8 = p.Pos
+	x6 = p.Pos
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 45) && p.Control.Take(1) {
 		p.Pos++
 	} else if _, ok = p.MatchLiteral(lit13, "-", 11, false); !ok {
-		goto L7
+		goto L5
 	}
-	v9 = p.NewTerminal(x8, "-")
-	v2 = v9
+	v7 = p.NewTerminal(x6, "-")
+	v2 = v7
 	goto L3
-L7:
+L5:
 	p.Reset(x1)
-L6:
-	if p.Pos < len(p.In) {
-		p.Control.Take(1)
-		x4, _, x5 = p.In[p.Pos], 1, true
-	} else {
-		x4, _, x5 = p.Peek()
-	}
-	if !(x5 && (x4 == 43)) && p.Depth <= p.MaxDepth {
+L4:
+	if !p.HasChar(43, false) && p.Depth <= p.MaxDepth {
 		p.Expect(p.Pos, 10)
-		goto L10
+		goto L8
 	}
-	x12 = p.Pos
+	x10 = p.Pos
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 43) && p.Control.Take(1) {
 		p.Pos++
 	} else if _, ok = p.MatchLiteral(lit12, "+", 10, false); !ok {
-		goto L11
+		goto L9
 	}
-	v13 = p.NewTerminal(x12, "+")
-	v2 = v13
+	v11 = p.NewTerminal(x10, "+")
+	v2 = v11
 	goto L3
-L11:
+L9:
 	p.Reset(x1)
-L10:
+L8:
 	goto fail
 L3:
 	return v2, true
@@ -833,47 +788,34 @@ fail:
 func e26(p *rt.Parser) (*sxirvalue.Node, bool) {
 	p.Spend()
 	var x1 rt.Mark
-	var x3 rune
-	var x4, ok bool
+	var ok bool
 	x1 = p.Mark()
-	if p.Pos < len(p.In) {
-		p.Control.Take(1)
-		x3, _, x4 = p.In[p.Pos], 1, true
-	} else {
-		x3, _, x4 = p.Peek()
-	}
-	if !(x4 && (x3 == 43)) && p.Depth <= p.MaxDepth {
+	if !p.HasChar(43, false) && p.Depth <= p.MaxDepth {
 		p.Expect(p.Pos, 10)
-		goto L5
+		goto L3
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 43) && p.Control.Take(1) {
 		p.Pos++
 	} else if _, ok = p.MatchLiteral(lit12, "+", 10, false); !ok {
+		goto L4
+	}
+	goto L2
+L4:
+	p.Reset(x1)
+L3:
+	if !p.HasChar(45, false) && p.Depth <= p.MaxDepth {
+		p.Expect(p.Pos, 11)
+		goto L5
+	}
+	if (p.Pos < len(p.In) && p.In[p.Pos] == 45) && p.Control.Take(1) {
+		p.Pos++
+	} else if _, ok = p.MatchLiteral(lit13, "-", 11, false); !ok {
 		goto L6
 	}
 	goto L2
 L6:
 	p.Reset(x1)
 L5:
-	if p.Pos < len(p.In) {
-		p.Control.Take(1)
-		x3, _, x4 = p.In[p.Pos], 1, true
-	} else {
-		x3, _, x4 = p.Peek()
-	}
-	if !(x4 && (x3 == 45)) && p.Depth <= p.MaxDepth {
-		p.Expect(p.Pos, 11)
-		goto L7
-	}
-	if (p.Pos < len(p.In) && p.In[p.Pos] == 45) && p.Control.Take(1) {
-		p.Pos++
-	} else if _, ok = p.MatchLiteral(lit13, "-", 11, false); !ok {
-		goto L8
-	}
-	goto L2
-L8:
-	p.Reset(x1)
-L7:
 	goto fail
 L2:
 	return nil, true
@@ -884,66 +826,47 @@ fail:
 func e27(p *rt.Parser) (*sxirvalue.Node, bool) {
 	p.Spend()
 	var x1 rt.Mark
-	var x3 rune
-	var x4, ok bool
+	var ok bool
 	x1 = p.Mark()
-	if p.Pos < len(p.In) {
-		p.Control.Take(1)
-		x3, _, x4 = p.In[p.Pos], 1, true
-	} else {
-		x3, _, x4 = p.Peek()
-	}
-	if !(x4 && (x3 == 42)) && p.Depth <= p.MaxDepth {
+	if !p.HasChar(42, false) && p.Depth <= p.MaxDepth {
 		p.Expect(p.Pos, 12)
-		goto L5
+		goto L3
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 42) && p.Control.Take(1) {
 		p.Pos++
 	} else if _, ok = p.MatchLiteral(lit15, "*", 12, false); !ok {
+		goto L4
+	}
+	goto L2
+L4:
+	p.Reset(x1)
+L3:
+	if !p.HasChar(47, false) && p.Depth <= p.MaxDepth {
+		p.Expect(p.Pos, 13)
+		goto L5
+	}
+	if (p.Pos < len(p.In) && p.In[p.Pos] == 47) && p.Control.Take(1) {
+		p.Pos++
+	} else if _, ok = p.MatchLiteral(lit16, "/", 13, false); !ok {
 		goto L6
 	}
 	goto L2
 L6:
 	p.Reset(x1)
 L5:
-	if p.Pos < len(p.In) {
-		p.Control.Take(1)
-		x3, _, x4 = p.In[p.Pos], 1, true
-	} else {
-		x3, _, x4 = p.Peek()
-	}
-	if !(x4 && (x3 == 47)) && p.Depth <= p.MaxDepth {
-		p.Expect(p.Pos, 13)
+	if !p.HasChar(37, false) && p.Depth <= p.MaxDepth {
+		p.Expect(p.Pos, 14)
 		goto L7
 	}
-	if (p.Pos < len(p.In) && p.In[p.Pos] == 47) && p.Control.Take(1) {
+	if (p.Pos < len(p.In) && p.In[p.Pos] == 37) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.MatchLiteral(lit16, "/", 13, false); !ok {
+	} else if _, ok = p.MatchLiteral(lit17, "%", 14, false); !ok {
 		goto L8
 	}
 	goto L2
 L8:
 	p.Reset(x1)
 L7:
-	if p.Pos < len(p.In) {
-		p.Control.Take(1)
-		x3, _, x4 = p.In[p.Pos], 1, true
-	} else {
-		x3, _, x4 = p.Peek()
-	}
-	if !(x4 && (x3 == 37)) && p.Depth <= p.MaxDepth {
-		p.Expect(p.Pos, 14)
-		goto L9
-	}
-	if (p.Pos < len(p.In) && p.In[p.Pos] == 37) && p.Control.Take(1) {
-		p.Pos++
-	} else if _, ok = p.MatchLiteral(lit17, "%", 14, false); !ok {
-		goto L10
-	}
-	goto L2
-L10:
-	p.Reset(x1)
-L9:
 	goto fail
 L2:
 	return nil, true
@@ -954,47 +877,34 @@ fail:
 func e28(p *rt.Parser) (*sxirvalue.Node, bool) {
 	p.Spend()
 	var x1 rt.Mark
-	var x3 rune
-	var x4, ok bool
+	var ok bool
 	x1 = p.Mark()
-	if p.Pos < len(p.In) {
-		p.Control.Take(1)
-		x3, _, x4 = p.In[p.Pos], 1, true
-	} else {
-		x3, _, x4 = p.Peek()
-	}
-	if !(x4 && (x3 == 45)) && p.Depth <= p.MaxDepth {
+	if !p.HasChar(45, false) && p.Depth <= p.MaxDepth {
 		p.Expect(p.Pos, 11)
-		goto L5
+		goto L3
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 45) && p.Control.Take(1) {
 		p.Pos++
 	} else if _, ok = p.MatchLiteral(lit13, "-", 11, false); !ok {
+		goto L4
+	}
+	goto L2
+L4:
+	p.Reset(x1)
+L3:
+	if !p.HasChar(43, false) && p.Depth <= p.MaxDepth {
+		p.Expect(p.Pos, 10)
+		goto L5
+	}
+	if (p.Pos < len(p.In) && p.In[p.Pos] == 43) && p.Control.Take(1) {
+		p.Pos++
+	} else if _, ok = p.MatchLiteral(lit12, "+", 10, false); !ok {
 		goto L6
 	}
 	goto L2
 L6:
 	p.Reset(x1)
 L5:
-	if p.Pos < len(p.In) {
-		p.Control.Take(1)
-		x3, _, x4 = p.In[p.Pos], 1, true
-	} else {
-		x3, _, x4 = p.Peek()
-	}
-	if !(x4 && (x3 == 43)) && p.Depth <= p.MaxDepth {
-		p.Expect(p.Pos, 10)
-		goto L7
-	}
-	if (p.Pos < len(p.In) && p.In[p.Pos] == 43) && p.Control.Take(1) {
-		p.Pos++
-	} else if _, ok = p.MatchLiteral(lit12, "+", 10, false); !ok {
-		goto L8
-	}
-	goto L2
-L8:
-	p.Reset(x1)
-L7:
 	goto fail
 L2:
 	return nil, true
@@ -1224,55 +1134,42 @@ fail:
 func e33(p *rt.TParser) (any, bool) {
 	p.Spend()
 	var x1 rt.Mark
-	var v2, v9, v13 any
-	var x4 rune
-	var x5, ok bool
-	var x8, x12 int
+	var v2, v7, v11 any
+	var x6, x10 int
+	var ok bool
 	x1 = p.Mark()
-	if p.Pos < len(p.In) {
-		p.Control.Take(1)
-		x4, _, x5 = p.In[p.Pos], 1, true
-	} else {
-		x4, _, x5 = p.Peek()
-	}
-	if !(x5 && (x4 == 43)) && p.Depth <= p.MaxDepth {
+	if !p.HasChar(43, false) && p.Depth <= p.MaxDepth {
 		p.Expect(p.Pos, 10)
-		goto L6
+		goto L4
 	}
-	x8 = p.Pos
+	x6 = p.Pos
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 43) && p.Control.Take(1) {
 		p.Pos++
 	} else if _, ok = p.Parser.MatchLiteral(lit12, "+", 10, false); !ok {
-		goto L7
+		goto L5
 	}
-	v9 = p.NewMatch(x8, p.Pos, "+", true)
-	v2 = v9
+	v7 = p.NewMatch(x6, p.Pos, "+", true)
+	v2 = v7
 	goto L3
-L7:
+L5:
 	p.Reset(x1)
-L6:
-	if p.Pos < len(p.In) {
-		p.Control.Take(1)
-		x4, _, x5 = p.In[p.Pos], 1, true
-	} else {
-		x4, _, x5 = p.Peek()
-	}
-	if !(x5 && (x4 == 45)) && p.Depth <= p.MaxDepth {
+L4:
+	if !p.HasChar(45, false) && p.Depth <= p.MaxDepth {
 		p.Expect(p.Pos, 11)
-		goto L10
+		goto L8
 	}
-	x12 = p.Pos
+	x10 = p.Pos
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 45) && p.Control.Take(1) {
 		p.Pos++
 	} else if _, ok = p.Parser.MatchLiteral(lit13, "-", 11, false); !ok {
-		goto L11
+		goto L9
 	}
-	v13 = p.NewMatch(x12, p.Pos, "-", true)
-	v2 = v13
+	v11 = p.NewMatch(x10, p.Pos, "-", true)
+	v2 = v11
 	goto L3
-L11:
+L9:
 	p.Reset(x1)
-L10:
+L8:
 	goto fail
 L3:
 	return v2, true
@@ -1283,77 +1180,58 @@ fail:
 func e34(p *rt.TParser) (any, bool) {
 	p.Spend()
 	var x1 rt.Mark
-	var v2, v9, v13, v17 any
-	var x4 rune
-	var x5, ok bool
-	var x8, x12, x16 int
+	var v2, v7, v11, v15 any
+	var x6, x10, x14 int
+	var ok bool
 	x1 = p.Mark()
-	if p.Pos < len(p.In) {
-		p.Control.Take(1)
-		x4, _, x5 = p.In[p.Pos], 1, true
-	} else {
-		x4, _, x5 = p.Peek()
-	}
-	if !(x5 && (x4 == 42)) && p.Depth <= p.MaxDepth {
+	if !p.HasChar(42, false) && p.Depth <= p.MaxDepth {
 		p.Expect(p.Pos, 12)
-		goto L6
+		goto L4
 	}
-	x8 = p.Pos
+	x6 = p.Pos
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 42) && p.Control.Take(1) {
 		p.Pos++
 	} else if _, ok = p.Parser.MatchLiteral(lit15, "*", 12, false); !ok {
-		goto L7
+		goto L5
 	}
-	v9 = p.NewMatch(x8, p.Pos, "*", true)
-	v2 = v9
+	v7 = p.NewMatch(x6, p.Pos, "*", true)
+	v2 = v7
 	goto L3
-L7:
+L5:
 	p.Reset(x1)
-L6:
-	if p.Pos < len(p.In) {
-		p.Control.Take(1)
-		x4, _, x5 = p.In[p.Pos], 1, true
-	} else {
-		x4, _, x5 = p.Peek()
-	}
-	if !(x5 && (x4 == 47)) && p.Depth <= p.MaxDepth {
+L4:
+	if !p.HasChar(47, false) && p.Depth <= p.MaxDepth {
 		p.Expect(p.Pos, 13)
-		goto L10
+		goto L8
 	}
-	x12 = p.Pos
+	x10 = p.Pos
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 47) && p.Control.Take(1) {
 		p.Pos++
 	} else if _, ok = p.Parser.MatchLiteral(lit16, "/", 13, false); !ok {
-		goto L11
+		goto L9
 	}
-	v13 = p.NewMatch(x12, p.Pos, "/", true)
-	v2 = v13
+	v11 = p.NewMatch(x10, p.Pos, "/", true)
+	v2 = v11
 	goto L3
-L11:
+L9:
 	p.Reset(x1)
-L10:
-	if p.Pos < len(p.In) {
-		p.Control.Take(1)
-		x4, _, x5 = p.In[p.Pos], 1, true
-	} else {
-		x4, _, x5 = p.Peek()
-	}
-	if !(x5 && (x4 == 37)) && p.Depth <= p.MaxDepth {
+L8:
+	if !p.HasChar(37, false) && p.Depth <= p.MaxDepth {
 		p.Expect(p.Pos, 14)
-		goto L14
+		goto L12
 	}
-	x16 = p.Pos
+	x14 = p.Pos
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 37) && p.Control.Take(1) {
 		p.Pos++
 	} else if _, ok = p.Parser.MatchLiteral(lit17, "%", 14, false); !ok {
-		goto L15
+		goto L13
 	}
-	v17 = p.NewMatch(x16, p.Pos, "%", true)
-	v2 = v17
+	v15 = p.NewMatch(x14, p.Pos, "%", true)
+	v2 = v15
 	goto L3
-L15:
+L13:
 	p.Reset(x1)
-L14:
+L12:
 	goto fail
 L3:
 	return v2, true
@@ -1364,55 +1242,42 @@ fail:
 func e35(p *rt.TParser) (any, bool) {
 	p.Spend()
 	var x1 rt.Mark
-	var v2, v9, v13 any
-	var x4 rune
-	var x5, ok bool
-	var x8, x12 int
+	var v2, v7, v11 any
+	var x6, x10 int
+	var ok bool
 	x1 = p.Mark()
-	if p.Pos < len(p.In) {
-		p.Control.Take(1)
-		x4, _, x5 = p.In[p.Pos], 1, true
-	} else {
-		x4, _, x5 = p.Peek()
-	}
-	if !(x5 && (x4 == 45)) && p.Depth <= p.MaxDepth {
+	if !p.HasChar(45, false) && p.Depth <= p.MaxDepth {
 		p.Expect(p.Pos, 11)
-		goto L6
+		goto L4
 	}
-	x8 = p.Pos
+	x6 = p.Pos
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 45) && p.Control.Take(1) {
 		p.Pos++
 	} else if _, ok = p.Parser.MatchLiteral(lit13, "-", 11, false); !ok {
-		goto L7
+		goto L5
 	}
-	v9 = p.NewMatch(x8, p.Pos, "-", true)
-	v2 = v9
+	v7 = p.NewMatch(x6, p.Pos, "-", true)
+	v2 = v7
 	goto L3
-L7:
+L5:
 	p.Reset(x1)
-L6:
-	if p.Pos < len(p.In) {
-		p.Control.Take(1)
-		x4, _, x5 = p.In[p.Pos], 1, true
-	} else {
-		x4, _, x5 = p.Peek()
-	}
-	if !(x5 && (x4 == 43)) && p.Depth <= p.MaxDepth {
+L4:
+	if !p.HasChar(43, false) && p.Depth <= p.MaxDepth {
 		p.Expect(p.Pos, 10)
-		goto L10
+		goto L8
 	}
-	x12 = p.Pos
+	x10 = p.Pos
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 43) && p.Control.Take(1) {
 		p.Pos++
 	} else if _, ok = p.Parser.MatchLiteral(lit12, "+", 10, false); !ok {
-		goto L11
+		goto L9
 	}
-	v13 = p.NewMatch(x12, p.Pos, "+", true)
-	v2 = v13
+	v11 = p.NewMatch(x10, p.Pos, "+", true)
+	v2 = v11
 	goto L3
-L11:
+L9:
 	p.Reset(x1)
-L10:
+L8:
 	goto fail
 L3:
 	return v2, true
@@ -1557,4 +1422,4 @@ func s4(p *rt.TParser) (any, bool) {
 
 const _ = types.SXIRSchema_c64e72272c66f4eb
 
-const _ = rt.Protocol28
+const _ = rt.Protocol29

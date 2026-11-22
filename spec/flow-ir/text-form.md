@@ -24,33 +24,30 @@ and no recovery.
 func r() (value, bool) {
   var x1 mark
   var v2 value
-  var x4 rune
-  var x5 bool
-  var x8 int
+  var x6 int
   var ok bool
-  var v9 value
-  var x12 int
-  var v13 value
+  var v7 value
+  var x10 int
+  var v11 value
   block fail {
     x1 = flow.markState([state pos])
     block L3 {
-      x4, _, x5 = flow.peek()
-      block L6 {
-        if flow.guardFails([guard exp 5 depth 0], x4, x5) {
+      block L4 {
+        if flow.guardLitFails([guard exp 5 depth 0]) {
           flow.expect([exp 5], $pos)
-          exit L6
+          exit L4
         }
-        block L7 {
-          x8 = $pos
+        block L5 {
+          x6 = $pos
           if flow.hasLit(["a"]) {
             flow.advance(1)
           } else {
             if _, ok = flow.matchLit(["a"]); !ok {
-              exit L7
+              exit L5
             }
           }
-          v9 = flow.newTerminalNode(x8, flow.str(["a"]))
-          v2 = v9
+          v7 = flow.newTerminalNode(x6, flow.str(["a"]))
+          v2 = v7
           exit L3
         }
         flow.reset(x1)

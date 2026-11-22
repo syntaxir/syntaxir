@@ -2516,6 +2516,14 @@ export interface Lit {
   bytes: number[];
 }
 
+// utf8Byte returns byte k of the n-byte UTF-8 encoding of the code point r.
+function utf8Byte(r: number, n: number, k: number): number {
+  if (k === 0) {
+    return n === 2 ? 0xc0 | (r >> 6) : n === 3 ? 0xe0 | (r >> 12) : 0xf0 | (r >> 18);
+  }
+  return 0x80 | ((r >> (6 * (n - 1 - k))) & 0x3f);
+}
+
 // foldASCII maps A-Z to a-z and leaves every other code point as it is.
 function foldASCII(r: number): number {
   return r >= 65 && r <= 90 ? r + 32 : r;
@@ -5437,17 +5445,18 @@ export class Parser {
   }
 
   // matchLiteralFold matches a case-insensitive literal. lit.cps holds the literal with each ASCII
-  // letter lowercased; each input character is folded the same way before it is compared.
+  // letter lowercased; each character is compared as matchChar compares it, with an ASCII letter of
+  // the input folded the same way.
   matchLiteralFold(lit: Lit, desc: number, build: boolean): R {
     this.spend();
     const start = this.pos;
     for (const want of lit.cps) {
-      const got = this.peek();
-      if (got < 0 || foldASCII(got) !== want) {
+      const size = this.matchChar(want, true);
+      if (size < 0) {
         this.expect(start, desc);
         return undefined;
       }
-      this.pos += this.psize;
+      this.pos += size;
     }
     if (!build) {
       return null;
@@ -5473,17 +5482,48 @@ export class Parser {
       return undefined;
     }
     for (const want of lit.cps) {
-      if (this.peek() !== want) {
+      const size = this.matchChar(want, false);
+      if (size < 0) {
         this.expect(start, desc);
         return undefined;
       }
-      this.pos += this.psize;
+      this.pos += size;
     }
     if (!build) {
       return null;
     }
     this.alloc(nodeBytes);
     return new Node("string", "", start, this.pos, this.text(start, this.pos), noNodes, noFields, true, true);
+  }
+
+  // matchChar compares the character want of a literal with the input at the position, as a literal
+  // compares each of its characters (spec/runtime/documents.md#reuse-model, Slots), and returns its
+  // size in units if it matches, or -1. In code points it reads the character at the position. In
+  // bytes it compares the UTF-8 encoding of want with the input byte by byte and stops at the first
+  // byte that differs: no character that begins with other bytes can be want, so the bytes after it
+  // are not examined. U+FFFD also matches one invalid byte, which only decoding tells, so it decodes
+  // the character. With fold, want is folded (foldASCII) and an ASCII letter of the input matches it
+  // in either case. It records the input it examined and consumes nothing; it charges a unit for
+  // reading the character, as peek does, and what decoding charges when it decodes. It is also the
+  // guard of an alternative that begins with a literal whose first character is want.
+  matchChar(want: number, fold: boolean): number {
+    if (this.unit !== Bytes || want === 0xfffd) {
+      const got = this.peek();
+      return got >= 0 && (got === want || (fold && foldASCII(got) === want)) ? this.psize : -1;
+    }
+    this.control?.charge(1);
+    const n = want < 0x80 ? 1 : want < 0x800 ? 2 : want < 0x10000 ? 3 : 4;
+    for (let k = 0; k < n; k++) {
+      const i = this.pos + k;
+      const b = i < this.n ? this.bs[i]! : -1;
+      const e = n === 1 ? want : utf8Byte(want, n, k);
+      if (b !== e && !(n === 1 && fold && b >= 0 && foldASCII(b) === want)) {
+        this.documentTouch(i + 1);
+        return -1;
+      }
+    }
+    this.documentTouch(this.pos + n);
+    return n;
   }
 
   atLineStart(): boolean {
@@ -5494,9 +5534,19 @@ export class Parser {
     return (this.unit === Bytes ? this.bs[this.pos - 1] : this.cps[this.pos - 1]) === 0x0a;
   }
 
+  // atLineEnd reports whether a line ends at the position (`$`): the input ends there or a line feed
+  // or a carriage return follows. It examines the slot at the position alone
+  // (spec/runtime/documents.md, Slots): a line feed and a carriage return are one byte each, so in
+  // bytes the byte at the position decides it and no character is decoded. It charges a unit for
+  // reading the slot.
   atLineEnd(): boolean {
-    const ch = this.peek();
-    return ch < 0 || ch === 0x0a || ch === 0x0d;
+    this.control?.charge(1);
+    this.documentTouch(this.pos + 1);
+    if (this.pos >= this.n) {
+      return true;
+    }
+    const c = this.unit === Bytes ? this.bs[this.pos]! : this.cps[this.pos]!;
+    return c === 0x0a || c === 0x0d;
   }
 
   atEnd(): boolean {

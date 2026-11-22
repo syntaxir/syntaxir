@@ -483,6 +483,12 @@ func (in *Input) read() {
 // range.
 func (in *Input) Decode(i int) (r rune, size, examined int, ok bool) {
 	in.spendRead(1)
+	return in.decodeRest(i)
+}
+
+// decodeRest is Decode without the unit that reading the character charges: what decoding a
+// character of several bytes charges on top of it.
+func (in *Input) decodeRest(i int) (r rune, size, examined int, ok bool) {
 	if i < in.Base {
 		return 0, 0, i + 1, false
 	}
@@ -531,6 +537,12 @@ func invalidLen(b []byte) int {
 // byteAt returns the byte at position i when the unit is Bytes.
 func (in *Input) byteAt(i int) (byte, bool) {
 	in.spendRead(1)
+	return in.byteRest(i)
+}
+
+// byteRest is byteAt without its charge, for a comparison that charges the read of a character
+// once (Parser.MatchChar).
+func (in *Input) byteRest(i int) (byte, bool) {
 	if i < in.Base || !in.Fill(i+1) {
 		return 0, false
 	}
@@ -828,13 +840,13 @@ func (p *Parser) MatchLiteral(rs []rune, bs []byte) bool {
 }
 
 // MatchLiteralFold advances past a case-insensitive literal if the input matches it. rs are the
-// folded runes of the literal (foldedRunes), and each input rune is folded before the comparison.
-// It decodes the input rune by rune, as matchLiteralRunes does, so both position units agree.
+// folded runes of the literal (foldedRunes). It compares them one at a time as MatchChar does, so
+// that only ASCII letters ignore case and a mismatch examines what the plain literal's would.
 func (p *Parser) MatchLiteralFold(rs []rune) bool {
 	for _, want := range rs {
 		p.spendRead(1)
-		got, size, ok := p.Peek()
-		if !ok || FoldASCIIRune(got) != want {
+		size, ok := p.MatchChar(want, true)
+		if !ok {
 			return false
 		}
 		p.Pos += size
@@ -867,11 +879,12 @@ func (p *Parser) LiteralText(start int, text string) string {
 }
 
 // matchLiteralRunes handles replacement characters that can occupy one invalid
-// input byte or three valid UTF-8 bytes. peek records decoding dependencies.
+// input byte or three valid UTF-8 bytes. It compares the characters one at a time as MatchChar
+// does: only U+FFFD decodes, and the others examine their bytes up to the first that differs.
 func (p *Parser) matchLiteralRunes(rs []rune) bool {
 	for _, want := range rs {
-		got, size, ok := p.Peek()
-		if !ok || got != want {
+		size, ok := p.MatchChar(want, false)
+		if !ok {
 			return false
 		}
 		p.Pos += size

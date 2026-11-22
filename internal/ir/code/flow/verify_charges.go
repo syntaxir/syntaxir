@@ -9,8 +9,9 @@ import (
 
 // verifyCharges checks the budget-charging invariants of a function lowered with budget controls
 // (Attrs.Budget), which keep the spend of a parse bounded by its limits and the context polled (the
-// runtime polls every 256 units of spend). A charge is a step, a peek (which charges the spend of the
-// character it reads), or a rule call (which the runtime charges as a rule call):
+// runtime polls every 256 units of spend). A charge is a step, a peek or the guard of a literal (which
+// charge the spend of the character they read), or a rule call (which the runtime charges as a rule
+// call):
 //
 //   - the function charges before it consumes input: before an advance or a call of an operation in
 //     opsConsume;
@@ -50,7 +51,7 @@ func (w *chargeVerifier) expr(charged bool, xs ...code.Expr) bool {
 		if !charged && hasCall(x, func(c *code.Call) bool { return slices.Contains(opsConsume, c.Callee) }) {
 			w.fail("an expression consumes input before a charge")
 		}
-		charged = charged || hasCall(x, func(c *code.Call) bool { return c.Callee == OpCallRule })
+		charged = charged || hasCall(x, func(c *code.Call) bool { return c.Callee == OpCallRule || c.Callee == OpGuardLitFails })
 	}
 	return charged
 }

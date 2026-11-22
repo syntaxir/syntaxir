@@ -77,34 +77,27 @@ func init() {
 
 func e2(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	p.Spend()
-	var x1, x2, size, x15 int
+	var x1, x2, size, x13 int
 	var x4, x6 rt.Mark
-	var v7, v13, v16, v17, v18 *sxirvalue.Node
-	var x9 rune
-	var x10, ok bool
+	var v7, v11, v14, v15, v16 *sxirvalue.Node
+	var ok bool
 	x1, x2 = p.Pos, len(p.KidStack)
 	for {
 		p.Spend()
 		x4 = p.Mark()
 		x6 = p.Mark()
-		if p.Pos < len(p.In) {
-			p.Control.Take(1)
-			x9, _, x10 = p.In[p.Pos], 1, true
-		} else {
-			x9, _, x10 = p.Peek()
-		}
-		if !(x10 && (x9 == 91)) && p.Depth <= p.MaxDepth {
+		if !p.HasChar(91, false) && p.Depth <= p.MaxDepth {
 			p.Expect(p.Pos, 5)
-			goto L11
+			goto L9
 		}
-		if v13, ok = r1(p); !ok {
-			goto L12
+		if v11, ok = r1(p); !ok {
+			goto L10
 		}
-		v7 = v13
+		v7 = v11
 		goto L8
-	L12:
+	L10:
 		p.Reset(x6)
-	L11:
+	L9:
 		if p.Pos < len(p.In) {
 			p.Control.Take(1)
 			_, size, ok = p.In[p.Pos], 1, true
@@ -113,19 +106,19 @@ func e2(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		}
 		if !ok {
 			p.Expect(p.Pos, rt.IdAny)
-			goto L14
+			goto L12
 		}
-		x15 = p.Pos
+		x13 = p.Pos
 		p.Pos += size
-		v16 = p.NewTerminal(x15, p.Text(x15, p.Pos))
-		v7 = v16
+		v14 = p.NewTerminal(x13, p.Text(x13, p.Pos))
+		v7 = v14
 		goto L8
-	L14:
+	L12:
 		p.Reset(x6)
 		goto L5
 	L8:
-		v17 = p.ScopeValue(sh1, v7, x4.Pos)
-		p.KidStack = append(p.KidStack, v17)
+		v15 = p.ScopeValue(sh1, v7, x4.Pos)
+		p.KidStack = append(p.KidStack, v15)
 		if p.Pos == x4.Pos {
 			break
 		}
@@ -134,18 +127,18 @@ func e2(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		p.Reset(x4)
 		break
 	}
-	v18 = p.NewBranch(rt.ListKind, x1, p.Kids(x2))
-	return v18, true
+	v16 = p.NewBranch(rt.ListKind, x1, p.Kids(x2))
+	return v16, true
 }
 
 func e7(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	p.Spend()
-	var x1, x3, x5, x6, x8, x18, x20, size, x22, x28, x32 int
-	var x2, x19 []*sxirvalue.Node
-	var ok, x15 bool
-	var v4, v12, v21, v23, v24, v25, v29, v30, v31, v33, v34 *sxirvalue.Node
+	var x1, x3, x5, x6, x8, x16, x18, size, x20, x28, x32 int
+	var x2, x17 []*sxirvalue.Node
+	var ok, x25 bool
+	var v4, v12, v19, v21, v22, v23, v29, v30, v31, v33, v34 *sxirvalue.Node
 	var x9, x11 rt.Mark
-	var x14, ch rune
+	var x24, ch rune
 	x1 = p.Pos
 	x2 = p.Nodes(3)[:0]
 	x3 = p.Pos
@@ -161,26 +154,20 @@ func e7(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		p.Spend()
 		x9 = p.Mark()
 		x11 = p.Mark()
-		if p.Pos < len(p.In) {
-			p.Control.Take(1)
-			x14, _, x15 = p.In[p.Pos], 1, true
-		} else {
-			x14, _, x15 = p.Peek()
-		}
-		if !(x15 && (x14 == 92)) && p.Depth <= p.MaxDepth {
+		if !p.HasChar(92, false) && p.Depth <= p.MaxDepth {
 			p.Expect(p.Pos, 6)
-			goto L16
+			goto L14
 		}
+		x16 = p.Pos
+		x17 = p.Nodes(2)[:0]
 		x18 = p.Pos
-		x19 = p.Nodes(2)[:0]
-		x20 = p.Pos
 		if (p.Pos < len(p.In) && p.In[p.Pos] == 92) && p.Control.Take(1) {
 			p.Pos++
 		} else if _, ok = p.MatchLiteral(lit4, "\\", 6, false); !ok {
-			goto L17
+			goto L15
 		}
-		v21 = p.NewTerminal(x20, "\\")
-		x19 = append(x19, v21)
+		v19 = p.NewTerminal(x18, "\\")
+		x17 = append(x17, v19)
 		if p.Pos < len(p.In) {
 			p.Control.Take(1)
 			_, size, ok = p.In[p.Pos], 1, true
@@ -189,26 +176,26 @@ func e7(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		}
 		if !ok {
 			p.Expect(p.Pos, rt.IdAny)
-			goto L17
+			goto L15
 		}
-		x22 = p.Pos
+		x20 = p.Pos
 		p.Pos += size
-		v23 = p.NewTerminal(x22, p.Text(x22, p.Pos))
-		x19 = append(x19, v23)
-		v24 = p.NewBranch(rt.SeqKind, x18, x19)
-		v25, _ = p.ShapeSingle(sh5, v24, x11.Pos)
-		v12 = v25
+		v21 = p.NewTerminal(x20, p.Text(x20, p.Pos))
+		x17 = append(x17, v21)
+		v22 = p.NewBranch(rt.SeqKind, x16, x17)
+		v23, _ = p.ShapeSingle(sh5, v22, x11.Pos)
+		v12 = v23
 		goto L13
-	L17:
+	L15:
 		p.Reset(x11)
-	L16:
+	L14:
 		if p.Pos < len(p.In) {
 			p.Control.Take(1)
-			x14, _, x15 = p.In[p.Pos], 1, true
+			x24, _, x25 = p.In[p.Pos], 1, true
 		} else {
-			x14, _, x15 = p.Peek()
+			x24, _, x25 = p.Peek()
 		}
-		if !(x15 && (!(x14 == 93 || x14 == 92 || x14 == 10))) && p.Depth <= p.MaxDepth {
+		if !(x25 && (!(x24 == 93 || x24 == 92 || x24 == 10))) && p.Depth <= p.MaxDepth {
 			p.Expect(p.Pos, 7)
 			goto L26
 		}
@@ -275,4 +262,4 @@ func r1(p *rt.Parser) (*sxirvalue.Node, bool) {
 	return v, ok
 }
 
-const _ = rt.Protocol28
+const _ = rt.Protocol29

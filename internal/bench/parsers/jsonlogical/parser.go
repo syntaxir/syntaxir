@@ -443,77 +443,75 @@ fail:
 
 func e2(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	var x1 rt.Mark
-	var v2, v8, v11, v14, v16, v18, v21 *sxirvalue.Node
-	var x4 rune
-	var x5, ok bool
+	var v2, v6, v9, v12, v14, v16, v19 *sxirvalue.Node
+	var ok bool
 	x1 = p.Mark()
-	x4, _, x5 = p.NextOrdinary()
-	if !(x5 && (x4 == 123)) && p.Depth+1 <= p.MaxDepth {
+	if !p.HasCharOrdinary(123, false) && p.Depth+1 <= p.MaxDepth {
 		p.ExpectOrdinary(p.Pos, 5)
 		p.SkipUnits(1)
-		goto L6
+		goto L4
 	}
-	if v8, ok = p.CallLogical(rules[2], 0); !ok {
-		goto L7
+	if v6, ok = p.CallLogical(rules[2], 0); !ok {
+		goto L5
 	}
-	v2 = v8
+	v2 = v6
 	goto L3
-L7:
+L5:
 	p.Reset(x1)
-L6:
-	if !(x5 && (x4 == 91)) && p.Depth+1 <= p.MaxDepth {
+L4:
+	if !p.HasCharOrdinary(91, false) && p.Depth+1 <= p.MaxDepth {
 		p.ExpectOrdinary(p.Pos, 6)
 		p.SkipUnits(1)
-		goto L9
+		goto L7
 	}
-	if v11, ok = p.CallLogical(rules[5], 0); !ok {
-		goto L10
+	if v9, ok = p.CallLogical(rules[5], 0); !ok {
+		goto L8
 	}
-	v2 = v11
+	v2 = v9
 	goto L3
-L10:
+L8:
 	p.Reset(x1)
-L9:
-	if !(x5 && (x4 == 34)) && p.Depth <= p.MaxDepth {
+L7:
+	if !p.HasCharOrdinary(34, false) && p.Depth <= p.MaxDepth {
 		p.ExpectOrdinary(p.Pos, 7)
 		p.SkipCall(rules[7], 7)
-		goto L12
+		goto L10
 	}
-	if v14, ok = p.CallLogical(rules[7], 0); !ok {
+	if v12, ok = p.CallLogical(rules[7], 0); !ok {
+		goto L11
+	}
+	v2 = v12
+	goto L3
+L11:
+	p.Reset(x1)
+L10:
+	if v14, ok = r11(p); !ok {
 		goto L13
 	}
 	v2 = v14
 	goto L3
 L13:
 	p.Reset(x1)
-L12:
-	if v16, ok = r11(p); !ok {
+	if v16, ok = r15(p); !ok {
 		goto L15
 	}
 	v2 = v16
 	goto L3
 L15:
 	p.Reset(x1)
-	if v18, ok = r15(p); !ok {
-		goto L17
-	}
-	v2 = v18
-	goto L3
-L17:
-	p.Reset(x1)
-	if !(x5 && (x4 == 110)) && p.Depth <= p.MaxDepth {
+	if !p.HasCharOrdinary(110, false) && p.Depth <= p.MaxDepth {
 		p.ExpectOrdinary(p.Pos, 8)
 		p.SkipUnits(1)
-		goto L19
+		goto L17
 	}
-	if v21, ok = r16(p); !ok {
-		goto L20
+	if v19, ok = r16(p); !ok {
+		goto L18
 	}
-	v2 = v21
+	v2 = v19
 	goto L3
-L20:
+L18:
 	p.Reset(x1)
-L19:
+L17:
 	goto fail
 L3:
 	return v2, true
@@ -759,10 +757,10 @@ fail:
 
 func e18(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	var x1, x3, size, x10 int
-	var x2, ok, x12 bool
+	var x2, ok bool
 	var x5, x7 rt.Mark
-	var ch, x11 rune
-	var v15 *sxirvalue.Node
+	var ch rune
+	var v13 *sxirvalue.Node
 	x1 = p.Pos
 	x3 = p.Pos
 	x2 = p.RunHot(3)
@@ -801,19 +799,18 @@ func e18(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		goto L8
 	L9:
 		p.Reset(x7)
-		x11, _, x12 = p.NextOrdinary()
-		if !(x12 && (x11 == 92)) && p.Depth <= p.MaxDepth {
+		if !p.HasCharOrdinary(92, false) && p.Depth <= p.MaxDepth {
 			p.ExpectOrdinary(p.Pos, 14)
 			p.SkipUnits(1)
-			goto L13
+			goto L11
 		}
 		if _, ok = r19(p); !ok {
-			goto L14
+			goto L12
 		}
 		goto L8
-	L14:
+	L12:
 		p.Reset(x7)
-	L13:
+	L11:
 		goto L6
 	L8:
 		if p.Pos == x5.Pos {
@@ -831,8 +828,8 @@ func e18(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 			p.RunWalked(3, x3)
 		}
 	}
-	v15 = p.NewTerminalOrdinary(x1, p.Text(x1, p.Pos))
-	return v15, true
+	v13 = p.NewTerminalOrdinary(x1, p.Text(x1, p.Pos))
+	return v13, true
 }
 
 func e20(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
@@ -880,41 +877,39 @@ fail:
 func e23(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	var x1 int
 	var x2 rt.Mark
-	var x4 rune
-	var x5, ok bool
-	var v10 *sxirvalue.Node
+	var ok bool
+	var v8 *sxirvalue.Node
 	x1 = p.Pos
 	x2 = p.Mark()
-	x4, _, x5 = p.NextOrdinary()
-	if !(x5 && (x4 == 116)) && p.Depth <= p.MaxDepth {
+	if !p.HasCharOrdinary(116, false) && p.Depth <= p.MaxDepth {
 		p.ExpectOrdinary(p.Pos, 25)
-		goto L6
+		goto L4
 	}
 	if p.Pos+4 <= len(p.In) && p.In[p.Pos] == 116 && p.In[p.Pos+1] == 114 && p.In[p.Pos+2] == 117 && p.In[p.Pos+3] == 101 {
 		p.Pos += 4
 		p.Units += 4
 	} else if _, ok = p.MatchLiteralLogical(lit21, "true", 25, false); !ok {
+		goto L5
+	}
+	goto L3
+L5:
+	p.Reset(x2)
+L4:
+	if !p.HasCharOrdinary(102, false) && p.Depth <= p.MaxDepth {
+		p.ExpectOrdinary(p.Pos, 26)
+		goto L6
+	}
+	if _, ok = p.MatchLiteralLogical(lit22, "false", 26, false); !ok {
 		goto L7
 	}
 	goto L3
 L7:
 	p.Reset(x2)
 L6:
-	if !(x5 && (x4 == 102)) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 26)
-		goto L8
-	}
-	if _, ok = p.MatchLiteralLogical(lit22, "false", 26, false); !ok {
-		goto L9
-	}
-	goto L3
-L9:
-	p.Reset(x2)
-L8:
 	goto fail
 L3:
-	v10 = p.NewTerminalOrdinary(x1, p.Text(x1, p.Pos))
-	return v10, true
+	v8 = p.NewTerminalOrdinary(x1, p.Text(x1, p.Pos))
+	return v8, true
 fail:
 	return nil, false
 }
@@ -1058,7 +1053,7 @@ func r19(p *rt.Parser) (*sxirvalue.Node, bool) {
 	p.Units += uint64(x9)
 	goto L2
 L5:
-	if !(x4 && (x3 == 117)) && p.Depth <= p.MaxDepth {
+	if !p.HasCharOrdinary(117, false) && p.Depth <= p.MaxDepth {
 		p.ExpectOrdinary(p.Pos, 16)
 		goto L7
 	}
@@ -1097,26 +1092,26 @@ func r20(p *rt.Parser) (*sxirvalue.Node, bool) {
 	p.Units++
 	var start, x1, x11, size, x9, x10 int
 	var v *sxirvalue.Node
-	var x3, ch rune
-	var x4, ok bool
+	var ok, x6 bool
+	var x5, ch rune
 	start = p.Pos
 	x1 = p.Pos
-	x3, x11, x4 = p.NextOrdinary()
-	if !(x4 && (x3 == 48)) && p.Depth <= p.MaxDepth {
+	if !p.HasCharOrdinary(48, false) && p.Depth <= p.MaxDepth {
 		p.ExpectOrdinary(p.Pos, 19)
-		goto L5
+		goto L3
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 48 {
 		p.Pos++
 		p.Units += 1
 	} else if _, ok = p.MatchLiteralLogical(lit28, "0", 19, false); !ok {
-		goto L6
+		goto L4
 	}
 	goto L2
-L6:
+L4:
 	p.Pos = x1
-L5:
-	if !(x4 && (x3 >= 49 && x3 <= 57)) && p.Depth <= p.MaxDepth {
+L3:
+	x5, x11, x6 = p.NextOrdinary()
+	if !(x6 && (x5 >= 49 && x5 <= 57)) && p.Depth <= p.MaxDepth {
 		p.ExpectOrdinary(p.Pos, 20)
 		goto L7
 	}
@@ -1338,79 +1333,77 @@ func u1(p *rt.TParser) (any, bool) {
 
 func v1(p *rt.TParser) (any, bool) {
 	var start, x1 int
-	var v, v2, v8, v11, v14, v16, v18, v21 any
-	var x4 rune
-	var x5, ok bool
+	var v, v2, v6, v9, v12, v14, v16, v19 any
+	var ok bool
 	start = p.Pos
 	p.Enter()
 	x1 = p.Pos
-	x4, _, x5 = p.NextOrdinary()
-	if !(x5 && (x4 == 123)) && p.Depth+1 <= p.MaxDepth {
+	if !p.HasCharOrdinary(123, false) && p.Depth+1 <= p.MaxDepth {
 		p.ExpectOrdinary(p.Pos, 5)
 		p.SkipUnits(1)
-		goto L6
+		goto L4
 	}
-	if v8, ok = u2(p); !ok {
-		goto L7
+	if v6, ok = u2(p); !ok {
+		goto L5
 	}
-	v2 = v8
+	v2 = v6
 	goto L3
-L7:
+L5:
 	p.Pos = x1
-L6:
-	if !(x5 && (x4 == 91)) && p.Depth+1 <= p.MaxDepth {
+L4:
+	if !p.HasCharOrdinary(91, false) && p.Depth+1 <= p.MaxDepth {
 		p.ExpectOrdinary(p.Pos, 6)
 		p.SkipUnits(1)
-		goto L9
+		goto L7
 	}
-	if v11, ok = u5(p); !ok {
-		goto L10
+	if v9, ok = u5(p); !ok {
+		goto L8
 	}
-	v2 = v11
+	v2 = v9
 	goto L3
-L10:
+L8:
 	p.Pos = x1
-L9:
-	if !(x5 && (x4 == 34)) && p.Depth <= p.MaxDepth {
+L7:
+	if !p.HasCharOrdinary(34, false) && p.Depth <= p.MaxDepth {
 		p.ExpectOrdinary(p.Pos, 7)
 		p.SkipCall(rules[7], 7)
-		goto L12
+		goto L10
 	}
-	if v14, ok = u7(p); !ok {
+	if v12, ok = u7(p); !ok {
+		goto L11
+	}
+	v2 = v12
+	goto L3
+L11:
+	p.Pos = x1
+L10:
+	if v14, ok = s11(p); !ok {
 		goto L13
 	}
 	v2 = v14
 	goto L3
 L13:
 	p.Pos = x1
-L12:
-	if v16, ok = s11(p); !ok {
+	if v16, ok = s15(p); !ok {
 		goto L15
 	}
 	v2 = v16
 	goto L3
 L15:
 	p.Pos = x1
-	if v18, ok = s15(p); !ok {
-		goto L17
-	}
-	v2 = v18
-	goto L3
-L17:
-	p.Pos = x1
-	if !(x5 && (x4 == 110)) && p.Depth <= p.MaxDepth {
+	if !p.HasCharOrdinary(110, false) && p.Depth <= p.MaxDepth {
 		p.ExpectOrdinary(p.Pos, 8)
 		p.SkipUnits(1)
-		goto L19
+		goto L17
 	}
-	if v21, ok = s16(p); !ok {
-		goto L20
+	if v19, ok = s16(p); !ok {
+		goto L18
 	}
-	v2 = v21
+	v2 = v19
 	goto L3
-L20:
+L18:
 	p.Pos = x1
-L19:
+L17:
 	goto fail
 L3:
 	v = p.ScopeValue(sh31, v2, start)
@@ -1866,9 +1859,9 @@ fail:
 func s8(p *rt.TParser) (any, bool) {
 	p.Units++
 	var start, x1, x3, x5, x7, size, x10 int
-	var v, v15, bv any
-	var x2, ok, x12 bool
-	var ch, x11 rune
+	var v, v13, bv any
+	var x2, ok bool
+	var ch rune
 	start = p.Pos
 	x1 = p.Pos
 	x3 = p.Pos
@@ -1908,19 +1901,18 @@ func s8(p *rt.TParser) (any, bool) {
 		goto L8
 	L9:
 		p.Pos = x7
-		x11, _, x12 = p.NextOrdinary()
-		if !(x12 && (x11 == 92)) && p.Depth <= p.MaxDepth {
+		if !p.HasCharOrdinary(92, false) && p.Depth <= p.MaxDepth {
 			p.ExpectOrdinary(p.Pos, 14)
 			p.SkipUnits(1)
-			goto L13
+			goto L11
 		}
 		if _, ok = s19(p); !ok {
-			goto L14
+			goto L12
 		}
 		goto L8
-	L14:
+	L12:
 		p.Pos = x7
-	L13:
+	L11:
 		goto L6
 	L8:
 		if p.Pos == x5 {
@@ -1938,9 +1930,9 @@ func s8(p *rt.TParser) (any, bool) {
 			p.RunWalked(3, x3)
 		}
 	}
-	v15 = p.NewMatchOrdinary(x1, p.Pos, p.Text(x1, p.Pos), true)
-	bv = rt.TFreshNode(v15)
-	v = p.ScopeValue(sh31, v15, start)
+	v13 = p.NewMatchOrdinary(x1, p.Pos, p.Text(x1, p.Pos), true)
+	bv = rt.TFreshNode(v13)
+	v = p.ScopeValue(sh31, v13, start)
 	if n := rt.AsTval(v); n != nil {
 		n.TSetFresh(false)
 	}
@@ -2001,43 +1993,41 @@ fail:
 func s15(p *rt.TParser) (any, bool) {
 	p.Units++
 	var start, x1, x2 int
-	var v, v10, bv any
-	var x4 rune
-	var x5, ok bool
+	var v, v8, bv any
+	var ok bool
 	start = p.Pos
 	x1 = p.Pos
 	x2 = p.Pos
-	x4, _, x5 = p.NextOrdinary()
-	if !(x5 && (x4 == 116)) && p.Depth <= p.MaxDepth {
+	if !p.HasCharOrdinary(116, false) && p.Depth <= p.MaxDepth {
 		p.ExpectOrdinary(p.Pos, 25)
-		goto L6
+		goto L4
 	}
 	if p.Pos+4 <= len(p.In) && p.In[p.Pos] == 116 && p.In[p.Pos+1] == 114 && p.In[p.Pos+2] == 117 && p.In[p.Pos+3] == 101 {
 		p.Pos += 4
 		p.Units += 4
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit21, "true", 25, false); !ok {
+		goto L5
+	}
+	goto L3
+L5:
+	p.Pos = x2
+L4:
+	if !p.HasCharOrdinary(102, false) && p.Depth <= p.MaxDepth {
+		p.ExpectOrdinary(p.Pos, 26)
+		goto L6
+	}
+	if _, ok = p.Parser.MatchLiteralLogical(lit22, "false", 26, false); !ok {
 		goto L7
 	}
 	goto L3
 L7:
 	p.Pos = x2
 L6:
-	if !(x5 && (x4 == 102)) && p.Depth <= p.MaxDepth {
-		p.ExpectOrdinary(p.Pos, 26)
-		goto L8
-	}
-	if _, ok = p.Parser.MatchLiteralLogical(lit22, "false", 26, false); !ok {
-		goto L9
-	}
-	goto L3
-L9:
-	p.Pos = x2
-L8:
 	goto fail
 L3:
-	v10 = p.NewMatchOrdinary(x1, p.Pos, p.Text(x1, p.Pos), true)
-	bv = rt.TFreshNode(v10)
-	v = p.ScopeValue(sh31, v10, start)
+	v8 = p.NewMatchOrdinary(x1, p.Pos, p.Text(x1, p.Pos), true)
+	bv = rt.TFreshNode(v8)
+	v = p.ScopeValue(sh31, v8, start)
 	if n := rt.AsTval(v); n != nil {
 		n.TSetFresh(false)
 	}
@@ -2128,7 +2118,7 @@ func s19(p *rt.TParser) (any, bool) {
 	p.Units += uint64(x9)
 	goto L2
 L5:
-	if !(x4 && (x3 == 117)) && p.Depth <= p.MaxDepth {
+	if !p.HasCharOrdinary(117, false) && p.Depth <= p.MaxDepth {
 		p.ExpectOrdinary(p.Pos, 16)
 		goto L7
 	}
@@ -2167,26 +2157,26 @@ func s20(p *rt.TParser) (any, bool) {
 	p.Units++
 	var start, x1, x11, size, x9, x10 int
 	var v any
-	var x3, ch rune
-	var x4, ok bool
+	var ok, x6 bool
+	var x5, ch rune
 	start = p.Pos
 	x1 = p.Pos
-	x3, x11, x4 = p.NextOrdinary()
-	if !(x4 && (x3 == 48)) && p.Depth <= p.MaxDepth {
+	if !p.HasCharOrdinary(48, false) && p.Depth <= p.MaxDepth {
 		p.ExpectOrdinary(p.Pos, 19)
-		goto L5
+		goto L3
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 48 {
 		p.Pos++
 		p.Units += 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit28, "0", 19, false); !ok {
-		goto L6
+		goto L4
 	}
 	goto L2
-L6:
+L4:
 	p.Pos = x1
-L5:
-	if !(x4 && (x3 >= 49 && x3 <= 57)) && p.Depth <= p.MaxDepth {
+L3:
+	x5, x11, x6 = p.NextOrdinary()
+	if !(x6 && (x5 >= 49 && x5 <= 57)) && p.Depth <= p.MaxDepth {
 		p.ExpectOrdinary(p.Pos, 20)
 		goto L7
 	}
@@ -2348,4 +2338,4 @@ fail:
 
 const _ = types.SXIRSchema_154a89c58b1cf47c
 
-const _ = rt.Protocol28
+const _ = rt.Protocol29

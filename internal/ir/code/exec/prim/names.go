@@ -64,6 +64,7 @@ const (
 	OpMatchClass      = "runtime.matchClass"
 	OpInClass         = "runtime.inClass"
 	OpGuardFails      = "runtime.guardFails"
+	OpGuardLitFails   = "runtime.guardLitFails"
 	OpAtAnchor        = "runtime.atAnchor"
 	OpSkipTerminal    = "runtime.skipTerminal"
 	OpSkipClasses     = "runtime.skipClasses"
@@ -153,6 +154,7 @@ var imms = map[string]reflect.Type{
 	OpMatchClass:      reflect.TypeFor[*core.Class](),
 	OpInClass:         reflect.TypeFor[*core.Class](),
 	OpGuardFails:      reflect.TypeFor[*core.First](),
+	OpGuardLitFails:   reflect.TypeFor[*core.First](),
 	OpAtAnchor:        reflect.TypeFor[core.AnchorKind](),
 	OpSkipTerminal:    reflect.TypeFor[*core.Terminal](),
 	OpSkipClasses:     reflect.TypeFor[*core.ClassRun](),

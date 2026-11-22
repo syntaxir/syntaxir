@@ -4,7 +4,7 @@ package print
 // a parser without budget controls and Documents calls instead (the library writes them by hand).
 func ordinaryHelperName(name string) bool {
 	switch name {
-	case "NewNode", "NewTerminal", "NewBranch", "NewMatch", "Expect", "Peek", "MatchLiteral", "MatchLiteralFold", "MatchAny",
+	case "NewNode", "NewTerminal", "NewBranch", "NewMatch", "Expect", "Peek", "HasChar", "MatchLiteral", "MatchLiteralFold", "MatchAny",
 		"AtEnd", "AtLineStart", "AtEndBatch", "AtLineStartBatch", "AtLineEnd", "SpendRead":
 		return true
 	}
@@ -15,7 +15,7 @@ func ordinaryHelperName(name string) bool {
 // the examined end of a stream read, for the traced Node bodies (the library writes them by hand).
 func tracedHelperName(name string) bool {
 	switch name {
-	case "Peek", "MatchLiteral", "MatchLiteralFold", "AtLineEnd":
+	case "Peek", "HasChar", "MatchLiteral", "MatchLiteralFold", "AtLineEnd":
 		return true
 	}
 	return false

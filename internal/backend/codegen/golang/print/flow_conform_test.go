@@ -1057,12 +1057,7 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 		}
 		admits := false
 		if ch, ok := argInt(e, 0); more && ok {
-			r := rune(ch)
-			if g.Lit {
-				admits = r == g.Rune || g.Fold && r == g.Rune-('a'-'A')
-			} else {
-				admits = classOf(g.Class).Contains(r)
-			}
+			admits = classOf(g.Class).Contains(rune(ch))
 		} else if more {
 			return
 		}
@@ -1071,6 +1066,23 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 		}
 		if !got && !admits && g.Depth == 0 {
 			fail("keeps an alternative that the character cannot begin")
+		}
+	},
+	flow.OpGuardLitFails: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		g := c.Imm.(*core.First)
+		got, known := resBool(e, 0)
+		if !known {
+			return
+		}
+		admits := in.HasPrefix(e.Pos, string(g.Rune), g.Fold)
+		if got && admits {
+			fail("skips an alternative that the character can begin")
+		}
+		if !got && !admits && g.Depth == 0 {
+			fail("keeps an alternative that the character cannot begin")
+		}
+		if e.PosAfter != e.Pos {
+			fail("moved the position from %d to %d", e.Pos, e.PosAfter)
 		}
 	},
 	flow.OpAtAnchor: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {

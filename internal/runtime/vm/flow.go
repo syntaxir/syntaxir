@@ -118,14 +118,11 @@ func (vm *Program) runFlow(p *state.Parser, fr *flowRun) (call bool) {
 		case bytecode.FlowGuard:
 			g := in.Imm.(bytecode.FlowGuardOf)
 			ch, ok := regs[in.Args[0]].(rune), regs[in.Args[1]].(bool)
-			var hit bool
-			switch {
-			case !ok:
-			case g.Lit:
-				hit = ch == g.Rune || g.Fold && ch == g.Rune-('a'-'A')
-			default:
-				hit = vm.has(p, int32(g.Class), ch)
-			}
+			hit := ok && vm.has(p, int32(g.Class), ch)
+			fr.set(in.Dst[0], !hit && p.Depth+g.Depth <= p.MaxDepth)
+		case bytecode.FlowGuardLit:
+			g := in.Imm.(bytecode.FlowLitGuardOf)
+			_, hit := p.MatchChar(g.Rune, g.Fold)
 			fr.set(in.Dst[0], !hit && p.Depth+g.Depth <= p.MaxDepth)
 		case bytecode.FlowExpect:
 			x := in.Imm.(bytecode.FlowExpectOf)
@@ -180,8 +177,7 @@ func (vm *Program) runFlow(p *state.Parser, fr *flowRun) (call bool) {
 			case 2:
 				at = p.AtLineStart()
 			default:
-				ch, _, more := p.Peek()
-				at = !more || ch == '\n' || ch == '\r'
+				at = p.AtLineEnd()
 			}
 			fr.set(in.Dst[0], at)
 		case bytecode.FlowMatchLit:

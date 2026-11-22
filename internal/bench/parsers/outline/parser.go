@@ -683,35 +683,28 @@ func r9(p *rt.Parser) (*sxirvalue.Node, bool) {
 	p.Spend()
 	var start, x1 int
 	var v *sxirvalue.Node
-	var x3 rune
-	var x4, ok bool
+	var ok bool
 	start = p.Pos
 	x1 = p.Pos
-	if p.Pos < len(p.In) {
-		p.Control.Take(1)
-		x3, _, x4 = p.In[p.Pos], 1, true
-	} else {
-		x3, _, x4 = p.Peek()
-	}
-	if !(x4 && (x3 == 10)) && p.Depth <= p.MaxDepth {
+	if !p.HasChar(10, false) && p.Depth <= p.MaxDepth {
 		p.Expect(p.Pos, 7)
-		goto L5
+		goto L3
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 10) && p.Control.Take(1) {
 		p.Pos++
 	} else if _, ok = p.MatchLiteral(lit9, "\n", 7, false); !ok {
-		goto L6
+		goto L4
 	}
 	goto L2
-L6:
+L4:
 	p.Pos = x1
-L5:
+L3:
 	if !p.AtEndBatch() {
 		p.Expect(p.Pos, rt.IdEndInput)
-		goto L7
+		goto L5
 	}
 	goto L2
-L7:
+L5:
 	p.Pos = x1
 	goto fail
 L2:
@@ -1035,35 +1028,28 @@ func q6(p *rt.Parser) (*sxirvalue.Node, bool) {
 	p.Spend()
 	var start, x1 int
 	var v *sxirvalue.Node
-	var x3 rune
-	var x4, ok bool
+	var ok bool
 	start = p.Pos
 	x1 = p.Pos
-	if p.Pos < len(p.In) {
-		p.Control.Take(1)
-		x3, _, x4 = p.In[p.Pos], 1, true
-	} else {
-		x3, _, x4 = p.Peek()
-	}
-	if !(x4 && (x3 == 10)) && p.Depth <= p.MaxDepth {
+	if !p.HasChar(10, false) && p.Depth <= p.MaxDepth {
 		p.Expect(p.Pos, 7)
-		goto L5
+		goto L3
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 10) && p.Control.Take(1) {
 		p.Pos++
 	} else if _, ok = p.MatchLiteral(lit9, "\n", 7, false); !ok {
-		goto L6
+		goto L4
 	}
 	goto L2
-L6:
+L4:
 	p.Pos = x1
-L5:
+L3:
 	if !p.AtEndBatch() {
 		p.Expect(p.Pos, rt.IdEndInput)
-		goto L7
+		goto L5
 	}
 	goto L2
-L7:
+L5:
 	p.Pos = x1
 	goto fail
 L2:
@@ -1622,35 +1608,28 @@ func s9(p *rt.TParser) (any, bool) {
 	p.Spend()
 	var start, x1 int
 	var v any
-	var x3 rune
-	var x4, ok bool
+	var ok bool
 	start = p.Pos
 	x1 = p.Pos
-	if p.Pos < len(p.In) {
-		p.Control.Take(1)
-		x3, _, x4 = p.In[p.Pos], 1, true
-	} else {
-		x3, _, x4 = p.Peek()
-	}
-	if !(x4 && (x3 == 10)) && p.Depth <= p.MaxDepth {
+	if !p.HasChar(10, false) && p.Depth <= p.MaxDepth {
 		p.Expect(p.Pos, 7)
-		goto L5
+		goto L3
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 10) && p.Control.Take(1) {
 		p.Pos++
 	} else if _, ok = p.Parser.MatchLiteral(lit9, "\n", 7, false); !ok {
-		goto L6
+		goto L4
 	}
 	goto L2
-L6:
+L4:
 	p.Pos = x1
-L5:
+L3:
 	if !p.AtEndBatch() {
 		p.Expect(p.Pos, rt.IdEndInput)
-		goto L7
+		goto L5
 	}
 	goto L2
-L7:
+L5:
 	p.Pos = x1
 	goto fail
 L2:
@@ -1663,4 +1642,4 @@ fail:
 
 const _ = types.SXIRSchema_e75e5689b88357fb
 
-const _ = rt.Protocol28
+const _ = rt.Protocol29

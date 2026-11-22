@@ -150,6 +150,7 @@ const (
 	OpMatchClass      = "flow.matchClass"
 	OpInClass         = "flow.inClass"
 	OpGuardFails      = "flow.guardFails"
+	OpGuardLitFails   = "flow.guardLitFails"
 	OpAtAnchor        = "flow.atAnchor"
 	OpSkipTerminal    = "flow.skipTerminal"
 	OpSkipClasses     = "flow.skipClasses"
@@ -417,8 +418,18 @@ what recording the expectation charges.`}),
 	withImm(op(&code.Op{Name: OpInClass, NoReturn: true, Params: []code.Param{P("ch", runeT)}, Results: []code.Type{b}, Cost: per(QRanges),
 		Contract: "Reports whether the code point ch is in the class. With budget controls it charges at most a unit for each range of the class that it compares, a constant of the grammar for the character examined (spec/runtime/parsing.md#cost).", Laws: []string{pure}}), "the class (*core.Class)", immOf[*core.Class]())
 	withImm(op(&code.Op{Name: OpGuardFails, NoReturn: true, Params: []code.Param{P("ch", runeT), P("more", b)}, Results: []code.Type{b}, Cost: per(QRanges),
-		Contract: "Reports that the guard skips its alternative: the character that more (there is one) and ch describe cannot begin it, and the nesting limit allows the guard's depth of calls. Testing the character against a class charges a unit for each range it tests (spec/runtime/parsing.md#cancellation-and-compute-limits); a literal's character charges nothing.",
+		Contract: "Reports that the guard of a class skips its alternative: the character that more (there is one) and ch describe is not in the class, and the nesting limit allows the guard's depth of calls. Testing the character against the class charges a unit for each range it tests (spec/runtime/parsing.md#cancellation-and-compute-limits).",
 		Laws:     []string{pure}}), "the guard (*core.First)", immOf[*core.First]())
+	withImm(op(&code.Op{Name: OpGuardLitFails, Results: []code.Type{b}, Reads: pos, Writes: []string{State}, NoReturn: true, Cost: plus(unit, QStream),
+		Contract: `Reports that the guard of a literal skips its alternative: the input at the position does not begin with
+the literal's first character, and the nesting limit allows the guard's depth of calls. It compares the character
+as the literal does and examines what the literal would: in code points the character at the position; in bytes
+the UTF-8 encoding of the character byte by byte, up to the first byte that differs, or the end of the input,
+except U+FFFD, which also matches one invalid byte and so decodes the character; a folded character matches an
+ASCII letter in either case. It reads no further input than it examines. The read charges one unit in a function
+with budget controls, and decoding what flow.peek charges for it (spec/runtime/parsing.md#cost); in a stream
+parse what loading the input charges; in a Document parse it records how far the parse examined the input.`}),
+		"the guard (*core.First)", immOf[*core.First]())
 	withImm(op(&code.Op{Name: OpAtAnchor, NoReturn: true, Results: []code.Type{b}, Reads: pos, Cost: unit,
 		Contract: "Reports whether the position is at the anchor. Reading the character at the position for the end of a line charges a unit (spec/runtime/parsing.md#cost).", Laws: []string{pure}}), "the anchor (core.AnchorKind)", immOf[core.AnchorKind]())
 	withImm(op(&code.Op{Name: OpSkipTerminal, Results: []code.Type{b}, Reads: pos, Writes: []string{State, prim.Pos}, NoReturn: true, Cost: per(QTerminal),

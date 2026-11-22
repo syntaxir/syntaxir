@@ -285,20 +285,10 @@ func (p *tsFlowPrinter) expr(c *code.Call, args func() []string) string {
 		guard := c.Imm.(*core.First)
 		a := args()
 		ch, more := a[0], a[1]
-		var cond string
-		if guard.Lit {
-			cond = fmt.Sprintf("%s === %d", ch, guard.Rune)
-			if guard.Fold {
-				cond = fmt.Sprintf("%s === %d || %s === %d", ch, guard.Rune, ch, guard.Rune-('a'-'A'))
-			}
-		} else {
-			cond = tsClassIn(guard.Class, ch)
-		}
-		depth := "p.depth <= p.maxDepth"
-		if guard.Depth != 0 {
-			depth = fmt.Sprintf("p.depth + %d <= p.maxDepth", guard.Depth)
-		}
-		return fmt.Sprintf("!(%s && (%s)) && %s", more, cond, depth)
+		return fmt.Sprintf("!(%s && (%s)) && %s", more, tsClassIn(guard.Class, ch), tsDepthLimit(guard.Depth))
+	case flow.OpGuardLitFails:
+		guard := c.Imm.(*core.First)
+		return fmt.Sprintf("p.matchChar(%d, %t) < 0 && %s", guard.Rune, guard.Fold, tsDepthLimit(guard.Depth))
 	case flow.OpInClass:
 		return tsClassIn(c.Imm.(*core.Class), args()[0])
 	case flow.OpAtAnchor:
@@ -642,4 +632,12 @@ func (p *tsFlowPrinter) outline(c *code.Call) string {
 	}
 	p.outlined[c] = call
 	return call
+}
+
+// tsDepthLimit returns the condition that the nesting limit allows depth more calls.
+func tsDepthLimit(depth int) string {
+	if depth == 0 {
+		return "p.depth <= p.maxDepth"
+	}
+	return fmt.Sprintf("p.depth + %d <= p.maxDepth", depth)
 }

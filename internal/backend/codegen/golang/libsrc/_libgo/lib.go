@@ -1901,6 +1901,152 @@ func (p *Parser) PeekOrdinary() (rune, int, bool) {
 	return p.In[p.Pos], 1, true
 }
 
+// HasChar reports whether the input at the position begins with the character want, compared as a
+// literal compares each of its characters (MatchChar); it is the guard of an alternative that
+// begins with a literal whose first character is want (the Flow operation guardLitFails).
+//
+// HasChar is for generated parsers; not a stable API.
+func (p *Parser) HasChar(want rune, fold bool) bool {
+	_, ok := p.MatchChar(want, fold)
+	return ok
+}
+
+// HasCharTraced is HasChar in a traced rule body.
+//
+// HasCharTraced is for generated parsers; not a stable API.
+func (p *Parser) HasCharTraced(want rune, fold bool) bool {
+	_, ok := p.MatchCharTraced(want, fold)
+	return ok
+}
+
+// HasCharOrdinary is HasChar in an ordinary parse (ExpectOrdinary), with the common case, a
+// code-point input, written so that the compiler inlines it.
+//
+// HasCharOrdinary is for generated parsers; not a stable API.
+func (p *Parser) HasCharOrdinary(want rune, fold bool) bool {
+	if p.Pos < len(p.In) {
+		r := p.In[p.Pos]
+		return r == want || fold && foldASCIIRune(r) == want
+	}
+	_, _, ok := p.compareChar(want, fold, false)
+	return ok
+}
+
+// MatchChar compares the character want of a literal with the input at the position, as a literal
+// compares each of its characters (spec/runtime/documents.md#reuse-model, Slots), and returns its
+// size in units if it matches. In code points it reads the character at the position. In bytes it
+// compares the UTF-8 encoding of want with the input byte by byte and stops at the first byte that
+// differs: no character that begins with other bytes can be want, so the bytes after it are not
+// examined, and a stream reads none of them. U+FFFD also matches one invalid byte, which only
+// decoding tells, so it decodes the character. With fold, want is folded (foldASCIIRune) and an
+// ASCII letter of the input matches it in either case.
+//
+// It records the input it examined, as Peek does, and consumes nothing. It charges a unit for
+// reading the character, as Peek does, and what decoding charges when it decodes; comparing bytes
+// charges nothing more.
+func (p *Parser) MatchChar(want rune, fold bool) (int, bool) {
+	p.SpendRead(1)
+	size, end, ok := p.compareChar(want, fold, true)
+	if p.Stream == nil {
+		p.documentTouch(end)
+	}
+	return size, ok
+}
+
+// MatchCharTraced is MatchChar in a traced rule body, which records the examined end of a stream
+// read too.
+func (p *Parser) MatchCharTraced(want rune, fold bool) (int, bool) {
+	p.SpendRead(1)
+	size, end, ok := p.compareChar(want, fold, true)
+	p.documentTouch(end)
+	return size, ok
+}
+
+// matchCharOrdinary is MatchChar in an ordinary parse, which charges and records nothing.
+func (p *Parser) matchCharOrdinary(want rune, fold bool) (int, bool) {
+	size, _, ok := p.compareChar(want, fold, false)
+	return size, ok
+}
+
+// compareChar is MatchChar without the unit of the read and without recording: it returns the size
+// of the character if it matches, and the end of the input that the comparison examined. With
+// spend, decoding charges what Peek charges for it.
+func (p *Parser) compareChar(want rune, fold, spend bool) (size, end int, ok bool) {
+	if p.unit != sxirinput.Bytes || want == utf8.RuneError {
+		got, size, end, ok := p.decodeChar(spend)
+		if !ok || got != want && !(fold && foldASCIIRune(got) == want) {
+			return 0, end, false
+		}
+		return size, end, true
+	}
+	var enc [utf8.UTFMax]byte
+	n := utf8.EncodeRune(enc[:], want)
+	for k := range n {
+		b, ok := p.inputByte(p.Pos + k)
+		if !ok || b != enc[k] && !(n == 1 && fold && foldASCIIRune(rune(b)) == want) {
+			return 0, p.Pos + k + 1, false
+		}
+	}
+	return n, p.Pos + n, true
+}
+
+// decodeChar decodes the character at the position, as Peek does without the unit of the read and
+// without recording: it returns the character, its size, the end of the input that decoding
+// examined and whether there is one. With spend it charges what Peek charges for decoding a
+// character of several bytes.
+func (p *Parser) decodeChar(spend bool) (r rune, size, end int, ok bool) {
+	if s := p.Stream; s != nil {
+		if p.Pos < s.base || !p.streamFill(p.Pos+1) {
+			return 0, 0, p.Pos + 1, false
+		}
+		if p.unit == sxirinput.CodePoints {
+			return s.in[p.Pos-s.base], 1, p.Pos + 1, true
+		}
+		b := s.bs[p.Pos-s.base:]
+		if b[0] < utf8.RuneSelf {
+			return rune(b[0]), 1, p.Pos + 1, true
+		}
+		for !s.eof && !utf8.FullRune(b) {
+			p.streamFillTo(s.loaded() + 1)
+			b = s.bs[p.Pos-s.base:]
+		}
+		if spend {
+			p.SpendRead(uint64(min(utf8.UTFMax, len(b))))
+		}
+		r, size := utf8.DecodeRune(b)
+		return r, size, decodedEndBytes(b, p.Pos, size), true
+	}
+	if p.Pos >= p.n {
+		return 0, 0, p.Pos + 1, false
+	}
+	if p.unit != sxirinput.Bytes {
+		return p.In[p.Pos], 1, p.Pos + 1, true
+	}
+	if c := p.bs[p.Pos]; c < utf8.RuneSelf {
+		return rune(c), 1, p.Pos + 1, true
+	}
+	if spend {
+		p.SpendRead(uint64(min(utf8.UTFMax, p.n-p.Pos)))
+	}
+	r, size = utf8.DecodeRuneInString(p.bs[p.Pos:])
+	return r, size, decodedEnd(p.bs[p.Pos:], p.Pos, size), true
+}
+
+// inputByte returns the byte at position i of a byte input, loading a stream up to it, without
+// charging.
+func (p *Parser) inputByte(i int) (byte, bool) {
+	if s := p.Stream; s != nil {
+		if i < s.base || !p.streamFill(i+1) {
+			return 0, false
+		}
+		return s.bs[i-s.base], true
+	}
+	if i >= p.n {
+		return 0, false
+	}
+	return p.bs[i], true
+}
+
 func (p *Parser) unitLen(s string) int {
 	if usedFeatures&featureBudget != 0 && p.Control != nil && p.unit != sxirinput.Bytes {
 		count := 0
@@ -2379,14 +2525,15 @@ func (p *Parser) MatchLiteral(rs []rune, text string, desc ExpID, build bool) (*
 }
 
 // MatchLiteralFold is MatchLiteral for a case-insensitive literal. rs is the literal with each ASCII
-// letter lowercased, and each input character is folded the same way before it is compared, so
-// only ASCII letters ignore case. The node text is the consumed input. Peek records the examined
-// characters and the work of each one, so the loop needs no bookkeeping of its own.
+// letter lowercased, and each character is compared as MatchChar compares it, with an ASCII letter of
+// the input folded the same way, so only ASCII letters ignore case. The node text is the consumed
+// input. MatchChar records the examined input and the work of each character, so the loop needs no
+// bookkeeping of its own.
 func (p *Parser) MatchLiteralFold(rs []rune, desc ExpID, build bool) (*sxirvalue.Node, bool) {
 	start := p.Pos
 	for _, want := range rs {
-		got, size, ok := p.Peek()
-		if !ok || foldASCIIRune(got) != want {
+		size, ok := p.MatchChar(want, true)
+		if !ok {
 			p.Expect(start, desc)
 			return nil, false
 		}
@@ -2402,8 +2549,8 @@ func (p *Parser) MatchLiteralFold(rs []rune, desc ExpID, build bool) (*sxirvalue
 func (p *Parser) MatchLiteralFoldOrdinary(rs []rune, desc ExpID, build bool) (*sxirvalue.Node, bool) {
 	start := p.Pos
 	for _, want := range rs {
-		got, size, ok := p.PeekOrdinary()
-		if !ok || foldASCIIRune(got) != want {
+		size, ok := p.matchCharOrdinary(want, true)
+		if !ok {
 			p.ExpectOrdinary(start, desc)
 			return nil, false
 		}
@@ -2432,8 +2579,8 @@ func (p *Parser) matchReplacementLiteral(rs []rune, text string, desc ExpID, bui
 		return nil, false
 	}
 	for _, want := range rs {
-		got, size, ok := p.Peek()
-		if !ok || got != want {
+		size, ok := p.MatchChar(want, false)
+		if !ok {
 			p.Expect(start, desc)
 			return nil, false
 		}
@@ -2537,10 +2684,7 @@ func (p *Parser) AtLineStartOrdinary() bool {
 }
 
 // AtLineEndOrdinary is AtLineEnd in an ordinary parse (ExpectOrdinary).
-func (p *Parser) AtLineEndOrdinary() bool {
-	ch, _, ok := p.PeekOrdinary()
-	return !ok || ch == '\n' || ch == '\r'
-}
+func (p *Parser) AtLineEndOrdinary() bool { return p.lineEnd() }
 
 // AtEndOrdinary is AtEnd in an ordinary parse (ExpectOrdinary).
 func (p *Parser) AtEndOrdinary() bool {
@@ -2550,8 +2694,25 @@ func (p *Parser) AtEndOrdinary() bool {
 	return p.Pos == p.n
 }
 
+// AtLineEnd reports whether a line ends at the position (`$`): the input ends there or a line feed or
+// a carriage return follows. It examines the slot at the position alone (spec/runtime/documents.md,
+// Slots) and charges a unit for reading it.
 func (p *Parser) AtLineEnd() bool {
-	ch, _, ok := p.Peek()
+	p.SpendRead(1)
+	if p.Stream == nil {
+		p.documentTouch(p.Pos + 1)
+	}
+	return p.lineEnd()
+}
+
+// lineEnd is AtLineEnd without charging and recording. A line feed and a carriage return are one
+// byte each, so in bytes the byte at the position decides it, and no character is decoded.
+func (p *Parser) lineEnd() bool {
+	if p.unit == sxirinput.Bytes {
+		b, ok := p.inputByte(p.Pos)
+		return !ok || b == '\n' || b == '\r'
+	}
+	ch, _, _, ok := p.decodeChar(false)
 	return !ok || ch == '\n' || ch == '\r'
 }
 

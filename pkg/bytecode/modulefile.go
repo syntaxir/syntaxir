@@ -6,6 +6,7 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"unicode/utf8"
 )
 
 // Reading and writing modules and validating loaded modules.
@@ -189,9 +190,6 @@ func (w *Encoder) flowImm(k FlowImm, v any) {
 		if !ok {
 			bad()
 		}
-		w.Bool(x.Lit)
-		w.Int(int(x.Rune))
-		w.Bool(x.Fold)
 		w.Int(x.Class)
 		w.Int(x.Depth)
 	case FlowImmExpect:
@@ -245,6 +243,14 @@ func (w *Encoder) flowImm(k FlowImm, v any) {
 		}
 		w.Int(x.Var)
 		w.Int(x.Action)
+	case FlowImmLitGuard:
+		x, ok := v.(FlowLitGuardOf)
+		if !ok {
+			bad()
+		}
+		w.Int(int(x.Rune))
+		w.Bool(x.Fold)
+		w.Int(x.Depth)
 	case FlowImmCount, FlowImmStr, FlowImmSlot, FlowImmScope, FlowImmRunSite, FlowImmScanSite, FlowImmAction:
 		x, ok := v.(int)
 		if !ok {
@@ -532,7 +538,9 @@ func (r *Decoder) flowImm(k FlowImm) any {
 		}
 		r.Fail("invalid flow constant %d of kind %d", x, kind)
 	case FlowImmGuard:
-		return FlowGuardOf{Lit: r.Bool(), Rune: r.int32(), Fold: r.Bool(), Class: int(r.int32()), Depth: int(r.int32())}
+		return FlowGuardOf{Class: int(r.int32()), Depth: int(r.int32())}
+	case FlowImmLitGuard:
+		return FlowLitGuardOf{Rune: r.int32(), Fold: r.Bool(), Depth: int(r.int32())}
 	case FlowImmExpect:
 		return FlowExpectOf{Exp: int(r.int32()), Message: r.Bool()}
 	case FlowImmCall:
@@ -1153,8 +1161,19 @@ func validateFlowImm(m *Module, slots int, k FlowImm, v any) error {
 			break
 		}
 		switch {
-		case x.Lit && x.Class != -1, !x.Lit && (x.Class < 0 || x.Class >= len(m.Classes) || x.Fold):
+		case x.Class < 0 || x.Class >= len(m.Classes):
 			return fmt.Errorf("invalid guard class %d", x.Class)
+		case x.Depth < 0:
+			return fmt.Errorf("invalid guard depth %d", x.Depth)
+		}
+	case FlowImmLitGuard:
+		var x FlowLitGuardOf
+		if x, ok = v.(FlowLitGuardOf); !ok {
+			break
+		}
+		switch {
+		case !utf8.ValidRune(x.Rune) || x.Fold && x.Rune >= 'A' && x.Rune <= 'Z':
+			return fmt.Errorf("invalid guard character %U", x.Rune)
 		case x.Depth < 0:
 			return fmt.Errorf("invalid guard depth %d", x.Depth)
 		}

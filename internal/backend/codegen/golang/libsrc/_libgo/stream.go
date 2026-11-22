@@ -704,8 +704,8 @@ func (p *Parser) matchReplacementLiteralTraced(rs []rune, text string, desc ExpI
 		return nil, false
 	}
 	for _, want := range rs {
-		got, size, ok := p.PeekTraced()
-		if !ok || got != want {
+		size, ok := p.MatchCharTraced(want, false)
+		if !ok {
 			p.Expect(start, desc)
 			return nil, false
 		}
@@ -726,8 +726,8 @@ func (p *Parser) MatchLiteralFoldTraced(rs []rune, desc ExpID, build bool) (*sxi
 	}
 	start := p.Pos
 	for _, want := range rs {
-		got, size, ok := p.PeekTraced()
-		if !ok || foldASCIIRune(got) != want {
+		size, ok := p.MatchCharTraced(want, true)
+		if !ok {
 			p.Expect(start, desc)
 			return nil, false
 		}
@@ -746,8 +746,9 @@ func (p *Parser) AtLineEndTraced() bool {
 	if p.Stream == nil {
 		return p.AtLineEnd()
 	}
-	ch, _, ok := p.PeekTraced()
-	return !ok || ch == '\n' || ch == '\r'
+	p.SpendRead(1)
+	p.documentTouch(p.Pos + 1)
+	return p.lineEnd()
 }
 
 // decodedEndBytes is decodedEnd for the loaded bytes b of a stream.

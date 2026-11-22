@@ -555,11 +555,17 @@ func (s *flowSel) call(c *code.Call, dst []int) error {
 		if err != nil {
 			return err
 		}
-		of := bytecode.FlowGuardOf{Lit: g.Lit, Rune: g.Rune, Fold: g.Fold, Class: -1, Depth: g.Depth}
-		if !g.Lit {
-			of.Class = int(s.c.class(g.Class))
+		if g.Lit {
+			return fmt.Errorf("flow.guardFails with the guard of a literal")
 		}
+		of := bytecode.FlowGuardOf{Class: int(s.c.class(g.Class)), Depth: g.Depth}
 		s.emit(bytecode.FlowInstr{Op: bytecode.FlowGuard, Dst: dst, Args: a, Imm: of})
+	case flowpkg.OpGuardLitFails:
+		g := c.Imm.(*ir.First)
+		if !g.Lit {
+			return fmt.Errorf("flow.guardLitFails with the guard of a class")
+		}
+		s.emit(bytecode.FlowInstr{Op: bytecode.FlowGuardLit, Dst: dst, Imm: bytecode.FlowLitGuardOf{Rune: g.Rune, Fold: g.Fold, Depth: g.Depth}})
 	case flowpkg.OpExpect:
 		x := c.Imm.(prim.Expectation)
 		a, err := args(c.Args)

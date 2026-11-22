@@ -24,7 +24,7 @@ func flowModule() *bytecode.Module {
 		{Op: bytecode.FlowPos, Dst: []int{1}},
 		{Op: bytecode.FlowMark, Dst: []int{4}},
 		{Op: bytecode.FlowPeek, Dst: []int{5, -1, 6}},
-		{Op: bytecode.FlowGuard, Dst: []int{7}, Args: []int{5, 6}, Imm: bytecode.FlowGuardOf{Lit: true, Rune: 'é', Fold: true, Class: -1, Depth: 2}},
+		{Op: bytecode.FlowGuardLit, Dst: []int{7}, Imm: bytecode.FlowLitGuardOf{Rune: 'é', Fold: true, Depth: 2}},
 		{Op: bytecode.FlowGuard, Dst: []int{7}, Args: []int{5, 6}, Imm: bytecode.FlowGuardOf{Class: 0}},
 		{Op: bytecode.FlowJumpFalse, Args: []int{7}, Target: 14},
 		{Op: bytecode.FlowExpect, Args: []int{1}, Imm: bytecode.FlowExpectOf{Exp: bytecode.FixedExps + 1, Message: true}},
@@ -208,8 +208,15 @@ func TestFlowBodyValidation(t *testing.T) {
 		{"immediate of no kind", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[15].Imm = 1 }, "invalid immediate"},
 		{"guard kind", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[7].Imm = bytecode.FlowCallOf{} }, "invalid immediate"},
 		{"class", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[8].Imm = bytecode.FlowGuardOf{Class: 1} }, "invalid guard class 1"},
-		{"class of a literal", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[7].Imm = bytecode.FlowGuardOf{Lit: true} }, "invalid guard class 0"},
-		{"folded class", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[8].Imm = bytecode.FlowGuardOf{Fold: true} }, "invalid guard class 0"},
+		{"guard of a literal with a class", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[7].Imm = bytecode.FlowGuardOf{} }, "invalid immediate"},
+		{"guard of a class with a literal", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[8].Imm = bytecode.FlowLitGuardOf{} }, "invalid immediate"},
+		{"folded upper-case letter", func(m *bytecode.Module, f *bytecode.Flow) {
+			f.Code[7].Imm = bytecode.FlowLitGuardOf{Rune: 'A', Fold: true}
+		}, "invalid guard character U+0041"},
+		{"guarded surrogate", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[7].Imm = bytecode.FlowLitGuardOf{Rune: 0xd800} }, "invalid guard character U+D800"},
+		{"literal guard depth", func(m *bytecode.Module, f *bytecode.Flow) {
+			f.Code[7].Imm = bytecode.FlowLitGuardOf{Rune: 'a', Depth: -1}
+		}, "invalid guard depth"},
 		{"depth", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[8].Imm = bytecode.FlowGuardOf{Depth: -1} }, "invalid guard depth"},
 		{"expectation", func(m *bytecode.Module, f *bytecode.Flow) {
 			f.Code[10].Imm = bytecode.FlowExpectOf{Exp: bytecode.FixedExps + len(m.Strings)}
@@ -307,7 +314,7 @@ func TestFlowBodyDisassembly(t *testing.T) {
 		"     0  CONST      r0 = nil\n",
 		"     1  CONST      r1 = -1099511627776\n",
 		"     6  PEEK       r5,_,r6 =\n",
-		"     7  GUARD      r7 = r5 r6 'é' fold depth=2\n",
+		"     7  GUARDLIT   r7 = 'é' fold depth=2\n",
 		"     8  GUARD      r7 = r5 r6 \"[a-z]\" depth=0\n",
 		"     9  JUMPFALSE  r7 -> 14\n",
 		"    10  EXPECT     r1 \"b\" message\n",
