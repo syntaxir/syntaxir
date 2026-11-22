@@ -484,7 +484,7 @@ func (k *classifier) lambdaCtx(call *ast.Call, i int, lam *ast.Lambda, tc action
 // complexity_sizes.go).
 func (k *classifier) ownExprs(exprs []ast.Expr, rule string) bool {
 	for _, e := range exprs {
-		if !k.ownExpr(e, rule, k.ownRules()) {
+		if !k.ownExpr(k.nodeOf(e), rule, k.ownRules()) {
 			return false
 		}
 	}
@@ -975,7 +975,7 @@ func (k *classifier) exprSize(e ast.Expr, tc actionCtx, mode sizeMode, name stri
 // anything that e matches or calls.
 func (k *classifier) deepSize(e ast.Expr, tc actionCtx, name string) content {
 	k.lookedRules()
-	look := k.exprLooks(e, tc.rule)
+	look := k.exprLooks(k.nodeOf(e), tc.rule)
 	c := content{unbounded: !k.bounded(e) || look, look: look}
 	found := false
 	astfacts.WalkExpr(e, func(x ast.Expr) {
