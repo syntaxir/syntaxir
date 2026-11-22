@@ -141,10 +141,17 @@ func (c *compiler) flow(fn *code.Func, rule int) (*bytecode.Flow, error) {
 	s := &flowSel{c: c, rule: rule, f: &bytecode.Flow{}, regs: map[string]int{}, labels: map[string][]int{}, conts: map[string][]int{}, scopes: map[*prim.Names]int{}}
 	// The locals have registers of their own, below the temporaries of the statements, which each
 	// statement reuses (stmt).
+	// A loop that steps has a register of its own for the position of its last step (loop).
+	s.progress = map[string]int{}
 	code.Walk(fn.Body, func(st code.Stmt) {
-		if l, ok := st.(*code.Let); ok {
-			for _, n := range l.Names {
+		switch x := st.(type) {
+		case *code.Let:
+			for _, n := range x.Names {
 				s.local(n)
+			}
+		case *code.Loop:
+			if hasStep(x) {
+				s.progress[x.Label] = s.local("\x00progress " + x.Label)
 			}
 		}
 	}, nil)
@@ -250,6 +257,19 @@ type flowSel struct {
 	scopes map[*prim.Names]int
 	// next is the first register that no local and no live temporary holds.
 	next int
+	// progress holds the register of the step of each loop whose body steps (hasStep), by label, and
+	// loops the labels of the loops that enclose the current statement, innermost last.
+	progress map[string]int
+	loops    []string
+}
+
+// hasStep reports whether the loop x steps: whether a statement of its body is a call of flow.step.
+// The lowering puts the step of a loop in its body, not in a block within it.
+func hasStep(x *code.Loop) bool {
+	return slices.ContainsFunc(x.Body.Stmts, func(st code.Stmt) bool {
+		d, ok := st.(*code.Do)
+		return ok && d.Call.Callee == flowpkg.OpStep
+	})
 }
 
 // scope returns the entry of the module's scope table that holds the names n, adding it on first use.
@@ -391,13 +411,20 @@ func (s *flowSel) stmt(st code.Stmt) error {
 }
 
 // loop emits the loop x: Init, then at the top the check of Cond, the body, and Post, which a
-// Continue reaches, before the jump back to the top. A Break or an Exit to its label leaves it.
+// Continue reaches, before the jump back to the top. A Break or an Exit to its label leaves it. A
+// loop that steps first sets the register of its step to -1, below every position, so that its first
+// step passes and each later one requires the position to have advanced (bytecode.FlowStep).
 func (s *flowSel) loop(x *code.Loop) error {
 	if x.Init != nil {
 		if err := s.set(x.Init); err != nil {
 			return err
 		}
 	}
+	if r, ok := s.progress[x.Label]; ok {
+		s.emit(bytecode.FlowInstr{Op: bytecode.FlowConst, Dst: []int{r}, Imm: -1})
+	}
+	s.loops = append(s.loops, x.Label)
+	defer func() { s.loops = s.loops[:len(s.loops)-1] }()
 	top := len(s.f.Code)
 	var jf []int
 	if x.Cond != nil {

@@ -86,7 +86,16 @@ func init() {
 			return nil
 		}},
 		{Op: flowpkg.OpStep, Sel: func(s *flowSel, c *code.Call, dst []int) error {
-			s.emit(bytecode.FlowInstr{Op: bytecode.FlowStep})
+			// The step of the innermost loop, whose register holds the position of its last step.
+			var r int
+			ok := len(s.loops) > 0
+			if ok {
+				r, ok = s.progress[s.loops[len(s.loops)-1]]
+			}
+			if !ok {
+				return fmt.Errorf("flow.step outside the body of a loop")
+			}
+			s.emit(bytecode.FlowInstr{Op: bytecode.FlowStep, Dst: []int{r}, Args: []int{r}})
 			return nil
 		}},
 		{Op: flowpkg.OpSilent, Sel: func(s *flowSel, c *code.Call, dst []int) error {

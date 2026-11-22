@@ -221,15 +221,22 @@ func TestNegativeMaximumWithWideMinimum(t *testing.T) {
 }
 
 // flowConsts returns the immediates of the CONST instructions of the Flow bodies of m: those of its
-// rules, stream bodies, and Operators Rule skips and lines.
+// rules, stream bodies, and Operators Rule skips and lines. The CONST that sets the register of a
+// STEP to -1 before a loop's first step marks no position and bounds nothing, so it is left out.
 func flowConsts(m *bytecode.Module) []any {
 	var out []any
 	add := func(f *bytecode.Flow) {
 		if f == nil {
 			return
 		}
+		steps := map[int]bool{}
 		for _, in := range f.Code {
-			if in.Op == bytecode.FlowConst {
+			if in.Op == bytecode.FlowStep && len(in.Dst) == 1 {
+				steps[in.Dst[0]] = true
+			}
+		}
+		for _, in := range f.Code {
+			if in.Op == bytecode.FlowConst && !(len(in.Dst) == 1 && steps[in.Dst[0]] && in.Imm == -1) {
 				out = append(out, in.Imm)
 			}
 		}

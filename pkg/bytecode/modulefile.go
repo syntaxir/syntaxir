@@ -1091,7 +1091,7 @@ func validateFlow(m *Module, slots int, f *Flow) error {
 		return fmt.Errorf("%v at %d may restore a state saved before an EMITSTREAM", f.Code[pc].Op, pc)
 	}
 	if pc, ok := f.UnboundedCycle(); ok {
-		return fmt.Errorf("%v at %d is on a cycle that charges no step", f.Code[pc].Op, pc)
+		return fmt.Errorf("%v at %d is on a cycle that no step bounds", f.Code[pc].Op, pc)
 	}
 	return nil
 }

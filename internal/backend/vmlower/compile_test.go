@@ -25,49 +25,50 @@ rule key = [a-z]+ @error(message="expected a key") #atomic`).Disassemble()
 actions:
 main.action:
   action 0 `
-	main := `flow main regs=12:
-     0  POS        r10 =
-     1  MOVE       r0 = r10
-     2  CALLJUMP   r2,r1 = -> 38 key level=0
-     3  SETCAPTURE r2 slot=0
-     4  MATCHLITJUMP _,r1 = -> 38 "=" "\"=\""
-     5  POS        r10 =
-     6  MOVE       r3 = r10
-     7  POS        r10 =
-     8  MOVE       r4 = r10
-     9  CONST      r10 = 0
-    10  MOVE       r7 = r10
-    11  STEP       
-    12  MATCHCLASS r5,r6,r1 = -> 18 "[0-9]" "[0-9]"
-    13  ADVANCE    r6
-    14  CONST      r10 = 1
-    15  ADD        r11 = r7 r10
-    16  MOVE       r7 = r11
-    17  JUMP       -> 11
-    18  CONST      r10 = 1
-    19  LT         r11 = r7 r10
-    20  JUMPFALSE  r11 -> 22
-    21  JUMP       -> 38
-    22  TEXT       r11 = r4
-    23  NEWTERMINAL r10 = r4 r11
-    24  MOVE       r8 = r10
-    25  SETCAPTURE r8 slot=1
-    26  MARK       r10 =
-    27  MOVE       r9 = r10
-    28  GUARDLITJUMP -> 32 ';' depth=0 "\";\""
-    29  MATCHLITJUMP _,r1 = -> 31 ";" "\";\""
-    30  JUMP       -> 35
-    31  RESET      r9
-    32  JUMP       -> 35
-    33  RESET      r9
-    34  JUMP       -> 38
-    35  CONST      r10 = nil
-    36  CONST      r11 = true
-    37  RETURN     r10 r11
-    38  CONST      r10 = nil
-    39  CONST      r11 = false
-    40  RETURN     r10 r11
-flow key regs=12:
+	main := `flow main regs=13:
+     0  POS        r11 =
+     1  MOVE       r1 = r11
+     2  CALLJUMP   r3,r2 = -> 39 key level=0
+     3  SETCAPTURE r3 slot=0
+     4  MATCHLITJUMP _,r2 = -> 39 "=" "\"=\""
+     5  POS        r11 =
+     6  MOVE       r4 = r11
+     7  POS        r11 =
+     8  MOVE       r5 = r11
+     9  CONST      r11 = 0
+    10  MOVE       r8 = r11
+    11  CONST      r0 = -1
+    12  STEP       r0 = r0
+    13  MATCHCLASS r6,r7,r2 = -> 19 "[0-9]" "[0-9]"
+    14  ADVANCE    r7
+    15  CONST      r11 = 1
+    16  ADD        r12 = r8 r11
+    17  MOVE       r8 = r12
+    18  JUMP       -> 12
+    19  CONST      r11 = 1
+    20  LT         r12 = r8 r11
+    21  JUMPFALSE  r12 -> 23
+    22  JUMP       -> 39
+    23  TEXT       r12 = r5
+    24  NEWTERMINAL r11 = r5 r12
+    25  MOVE       r9 = r11
+    26  SETCAPTURE r9 slot=1
+    27  MARK       r11 =
+    28  MOVE       r10 = r11
+    29  GUARDLITJUMP -> 33 ';' depth=0 "\";\""
+    30  MATCHLITJUMP _,r2 = -> 32 ";" "\";\""
+    31  JUMP       -> 36
+    32  RESET      r10
+    33  JUMP       -> 36
+    34  RESET      r10
+    35  JUMP       -> 39
+    36  CONST      r11 = nil
+    37  CONST      r12 = true
+    38  RETURN     r11 r12
+    39  CONST      r11 = nil
+    40  CONST      r12 = false
+    41  RETURN     r11 r12
+flow key regs=13:
 `
 	// The action code is the engine's translation of the action's Core IR, which the action tests pin.
 	if !strings.HasPrefix(got, rules) || !strings.Contains(got, main) {

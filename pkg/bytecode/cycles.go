@@ -2,19 +2,24 @@ package bytecode
 
 import "slices"
 
-// UnboundedCycle returns an instruction of f on a cycle that may repeat without end under a finite
-// compute limit, and ok false if there is none. A cycle is bounded when it charges a step (STEP), so
-// that a finite compute limit stops it, or when every pass of it reuses an element of a run
-// (RESUMENEXT) that the cycle does not start (RESUMESTART): a run holds finitely many elements, and
-// a RESUMENEXT bounds a cycle only if the next instruction is a JUMPFALSE that tests its success
-// and leaves the cycle when the run has no element left. A loaded module has no unbounded cycle
-// (ValidateModule), so a parse of it ends under a finite compute limit.
+// UnboundedCycle returns an instruction of f on a cycle that may repeat without end, and ok false if
+// there is none. A cycle is bounded when it passes through a step (STEP) that no other instruction of
+// the cycle writes the register of: a step requires the position to have advanced past the one its
+// register holds, which the previous run of the step wrote, so the position strictly increases from
+// one run of the step to the next and the finite input bounds the runs. A cycle is also bounded when
+// every pass of it reuses an element of a run (RESUMENEXT) that the cycle does not start
+// (RESUMESTART): a run holds finitely many elements, and a RESUMENEXT bounds a cycle only if the next
+// instruction is a JUMPFALSE that tests its success and leaves the cycle when the run has no element
+// left. A loaded module has no unbounded cycle (ValidateModule), so a run of each of its bodies ends,
+// whatever the limits of the parse.
 //
-// The check is structural and conservative: it considers the cycles of f that avoid STEP together,
-// as the strongly connected components of the body without its STEP instructions. A RESUMENEXT
-// bounds a component only if the component has no RESUMESTART and its JUMPFALSE leaves the
-// component, which the body can then enter again only through a STEP; every cycle of the component
-// must pass through such a RESUMENEXT.
+// The check is structural and conservative, on the strongly connected components of the body: in a
+// component, the steps whose register no other instruction of the component writes, and, if the
+// component has no RESUMESTART, the RESUMENEXTs whose JUMPFALSE leaves it, bound every cycle through
+// them. A component with none of these is unbounded; otherwise the check goes on in the components
+// of what remains without them. An execution that does not end eventually stays in a strongly
+// connected set of instructions, which lies in one component at each level of the check and passes
+// through none of the instructions that bound it, so it lies in a component with none.
 //
 // An instruction continues at the next one unless it is JUMP or RETURN, and at its target if its
 // operation has one (FlowShape.Target). The operations, registers and targets must be in range.
@@ -30,26 +35,52 @@ func (f *Flow) UnboundedCycle() (pc int, ok bool) {
 		}
 	}
 	in := make([]bool, n) // the instructions of the graph that cycles are looked for in
-	for pc := range f.Code {
-		in[pc] = f.Code[pc].Op != FlowStep
+	for pc := range in {
+		in[pc] = true
 	}
+	return f.unboundedIn(in, succ)
+}
+
+// unboundedIn returns an instruction on an unbounded cycle among the instructions in, with the edges
+// succ between them (UnboundedCycle).
+func (f *Flow) unboundedIn(in []bool, succ func(int, func(int))) (pc int, ok bool) {
+	n := len(f.Code)
 	for _, comp := range components(n, in, succ) {
 		member := make(map[int]bool, len(comp))
 		starts := false
+		writers := map[int]int{} // the number of instructions of the component that write a register
 		for _, pc := range comp {
 			member[pc] = true
 			starts = starts || f.Code[pc].Op == FlowResumeStart
+			for _, d := range f.Code[pc].Dst {
+				if d >= 0 {
+					writers[d]++
+				}
+			}
 		}
-		// The component without the RESUMENEXTs that bound it must have no cycle.
-		sub := make([]bool, n)
+		rest := make([]bool, n)
+		bounded := false
 		for _, pc := range comp {
-			sub[pc] = starts || !f.boundsByRun(pc, member)
+			cut := f.boundsByProgress(pc, writers) || !starts && f.boundsByRun(pc, member)
+			rest[pc] = !cut
+			bounded = bounded || cut
 		}
-		if rest := components(n, sub, succ); len(rest) > 0 {
-			return rest[0][0], true
+		if !bounded {
+			return comp[0], true
+		}
+		if pc, ok := f.unboundedIn(rest, succ); ok {
+			return pc, true
 		}
 	}
 	return 0, false
+}
+
+// boundsByProgress reports whether the instruction pc is a step that reads and writes one register,
+// which no other instruction writes as writers counts them.
+func (f *Flow) boundsByProgress(pc int, writers map[int]int) bool {
+	in := &f.Code[pc]
+	return in.Op == FlowStep && len(in.Args) == 1 && len(in.Dst) == 1 && in.Args[0] == in.Dst[0] &&
+		in.Dst[0] >= 0 && writers[in.Dst[0]] == 1
 }
 
 // boundsByRun reports whether the instruction pc is a RESUMENEXT whose success the next instruction

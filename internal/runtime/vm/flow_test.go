@@ -87,3 +87,72 @@ func TestFlowKeepCopies(t *testing.T) {
 		t.Errorf("KEEP of no expectations = %v, want nil", regs[1])
 	}
 }
+
+// stepLoop returns the body of a loop that moves the position by register 1 at each iteration until
+// it reaches register 2, and then returns, with a step at the top of each iteration when step is set and a MOVE of
+// another register in its place otherwise: register 0 is the loop's progress measure.
+func stepLoop(step bool) []bytecode.FlowInstr {
+	top := bytecode.FlowInstr{Op: bytecode.FlowMove, Dst: []int{5}, Args: []int{5}}
+	if step {
+		top = bytecode.FlowInstr{Op: bytecode.FlowStep, Dst: []int{0}, Args: []int{0}}
+	}
+	return []bytecode.FlowInstr{
+		top,
+		{Op: bytecode.FlowAdd, Dst: []int{4}, Args: []int{4, 1}},
+		{Op: bytecode.FlowSetPos, Args: []int{4}},
+		{Op: bytecode.FlowLt, Dst: []int{3}, Args: []int{4, 2}},
+		{Op: bytecode.FlowJumpFalse, Args: []int{3}, Target: 6},
+		{Op: bytecode.FlowJump, Target: 0},
+		{Op: bytecode.FlowReturn, Args: []int{5, 3}},
+	}
+}
+
+// runStepLoop runs code, a stepLoop, from position 0 with a move of by and an end of end, returning the
+// fatal error of the run or nil; it releases the registers and step positions the run takes.
+func runStepLoop(p *state.Parser, code []bytecode.FlowInstr, measure any, by, end int) (err error) {
+	mc := machineOf(p)
+	mark := mc.regs.mark()
+	defer mc.regs.release(mark)
+	defer func() {
+		if x := recover(); x != nil {
+			f, ok := x.(state.Fatal)
+			if !ok {
+				panic(x)
+			}
+			err = f.Err
+		}
+	}()
+	p.Pos = 0
+	regs := mc.regs.push(6)
+	copy(regs, []any{measure, by, end, nil, 0, nil})
+	fr := flowRun{f: &bytecode.Flow{Regs: len(regs), Code: code}, regs: regs}
+	if (&Program{}).runFlow(p, &fr) {
+		panic("the body stopped at a CALL")
+	}
+	return nil
+}
+
+// TestFlowStep checks STEP directly: a loop that advances at each iteration runs to its end, one
+// that does not ends with the error of a step without progress at its second step, a measure that
+// is no position of a step ends with an error too, and the steps store their positions without
+// allocating.
+func TestFlowStep(t *testing.T) {
+	p := stateBudgetParser(runtime.Limits{})
+	steps, moves := stepLoop(true), stepLoop(false)
+	if err := runStepLoop(p, steps, -1, 1, 1000); err != nil || p.Pos != 1000 {
+		t.Fatalf("advancing loop: %v at %d", err, p.Pos)
+	}
+	err := runStepLoop(p, steps, -1, 0, 1000)
+	if err == nil || err.Error() != "invalid bytecode: STEP at 0: the position 0 is not past 0, the position of the loop's last step" {
+		t.Errorf("loop without progress: %v", err)
+	}
+	if err := runStepLoop(p, steps, "text", 1, 1000); err == nil || err.Error() != "invalid bytecode: STEP at 0: register 0 holds no position of a step" {
+		t.Errorf("measure of another type: %v", err)
+	}
+	// The positions past 255 are not among the ints that an interface holds without allocating.
+	with := testing.AllocsPerRun(20, func() { runStepLoop(p, steps, -1, 1, 1000) })
+	without := testing.AllocsPerRun(20, func() { runStepLoop(p, moves, -1, 1, 1000) })
+	if with != without {
+		t.Errorf("the loop allocates %v times with its steps and %v times without them", with, without)
+	}
+}

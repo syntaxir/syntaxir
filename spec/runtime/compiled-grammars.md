@@ -117,11 +117,12 @@ the instruction-set version and the structure of the module (every index is in
 range, every jump targets an instruction of its body, the start rule is a start
 rule of the module, and no bytes trail the module). It also rejects a recovery
 region that encloses a streaming commitment, including files that were made with
-`#recover` on the `#stream` repetition, and a body with a cycle that charges no
-compute step and reuses no element of a run it leaves at the run's end
-([Flow Bodies](../bytecode/README.md#flow-bodies)). A parse of a loaded module
-therefore ends under any finite compute limit, the default one among them, even
-when the bytecode was made up; with an `Unlimited` compute limit it MAY run
+`#recover` on the `#stream` repetition, and a body with a cycle that passes
+through no step that requires progress and reuses no element of a run it leaves
+at the run's end ([Flow Bodies](../bytecode/README.md#flow-bodies)). A run of a
+body of a loaded module therefore ends whatever the compute limit, even when the
+bytecode was made up: a step whose loop made no progress ends the parse with an
+error of invalid bytecode. Made-up action code has no such bound and MAY run
 without end.
 
 Loading does not type-check the grammar again and does not verify that the
@@ -130,8 +131,8 @@ it trusts the module's types: it checks that the mode is known, not that the
 module is the one compiled for that mode, so a file that labels a recognize-mode
 module as parse mode MAY return no value and no error. Load compiled grammars
 only from trusted sources. A file that was made to contain type errors
-MAY make actions fail while parsing, and made-up bytecode MAY run until a limit
-stops it. The checksum detects accidents, not tampering, and is not a signature.
+MAY make actions fail while parsing, and made-up action code MAY run without
+end. The checksum detects accidents, not tampering, and is not a signature.
 A file from a source that is not trusted therefore cannot be verified by SyntaxIR;
 authenticating it, or accepting grammar source and compiling it with `compiler.Compile`,
 is up to the program.

@@ -267,7 +267,11 @@ func Ops() []*code.Op {
 		Contract: `In a function with budget controls (Attrs.Budget), charges one step of budget and ends the parse
 when the budget is exhausted. In a function lowered with logical units it counts nothing: the step of an
 iteration is no event (spec/runtime/parsing.md#compute-units), and it checks the counter of the units, which a
-target whose counter checks itself at each event it counts may leave out.`})
+target whose counter checks itself at each event it counts may leave out. It is the step of the loop whose
+body holds it, once per iteration, and an iteration that goes on to the next step has advanced the position, so
+each step of a loop finds the position past the one of the loop's last step; a target that runs code it did not
+make itself, as the bytecode machines do, requires it and ends the parse with an error of invalid code
+otherwise (spec/bytecode/README.md#flow-bodies).`})
 	withImm(op(&code.Op{Name: OpSilent, Writes: []string{State}, NoReturn: true,
 		Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QTable}, {Coef: 1, Quantity: QDeps}}},
 		Contract: `Adds Delta to the silent depth, inside which expectations are not recorded. For a lookahead

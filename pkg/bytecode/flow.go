@@ -66,7 +66,10 @@ const (
 	FlowLt
 	// FlowLe sets Dst[0] to whether the integer Args[0] is at most Args[1].
 	FlowLe
-	// FlowStep charges one step of budget (flow.step).
+	// FlowStep is the step of an iteration of a loop (flow.step): it requires the position to be past
+	// the int Args[0], the position of the loop's last step or -1 before its first, and sets Dst[0],
+	// the same register, to the position. Otherwise the code is invalid and the parse ends with an
+	// error. The step counts no compute unit.
 	FlowStep
 	// FlowSilent enters or leaves the lookahead of the immediate FlowSilenceOf (flow.silent).
 	FlowSilent
@@ -401,7 +404,7 @@ var FlowShapes = [...]FlowShape{
 	FlowNe:            {Name: "NE", Dst: 1, Args: 2},
 	FlowLt:            {Name: "LT", Dst: 1, Args: 2},
 	FlowLe:            {Name: "LE", Dst: 1, Args: 2},
-	FlowStep:          {Name: "STEP"},
+	FlowStep:          {Name: "STEP", Dst: 1, Args: 1},
 	FlowSilent:        {Name: "SILENT", Imm: FlowImmSilence},
 	FlowAdvance:       {Name: "ADVANCE", Args: 1},
 	FlowInClass:       {Name: "INCLASS", Dst: 1, Args: 1, Imm: FlowImmClass},

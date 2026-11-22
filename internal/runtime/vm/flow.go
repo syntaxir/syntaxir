@@ -50,17 +50,18 @@ type regStack struct {
 	cur    int // the chunk the next file is taken from
 	top    int // the first free register of the chunk cur
 	high   int // the registers of the chunk cur from top below high may hold values (clearInactive)
+	steps  stepStack
 }
 
 // regMark is the top of a regStack, which release returns to.
-type regMark struct{ cur, top int }
+type regMark struct{ cur, top, stepCur, stepTop int }
 
 // MinRegChunk is the least number of registers of a chunk of a regStack. The first chunk, which a
 // Document keeps between parses, holds at most MinRegChunk registers or the registers of the largest
 // Flow body of the module, whichever is more.
 const MinRegChunk = 1024
 
-func (s *regStack) mark() regMark { return regMark{s.cur, s.top} }
+func (s *regStack) mark() regMark { return regMark{s.cur, s.top, s.steps.cur, s.steps.top} }
 
 // push returns a register file of n registers above the files in use. The registers hold what the
 // last files there held: a body reads no register before it writes it (bytecode.Flow.Unassigned).
@@ -89,6 +90,7 @@ func (s *regStack) release(m regMark) {
 		s.high = len(s.chunks[m.cur]) // the files of chunk m.cur above m.top are unknown
 	}
 	s.cur, s.top = m.cur, m.top
+	s.steps.cur, s.steps.top = m.stepCur, m.stepTop
 }
 
 // clearInactive clears the registers above the files in use, so that they keep no value of a
@@ -113,6 +115,7 @@ func (s *regStack) drop() {
 		s.chunks = s.chunks[:1]
 	}
 	s.cur, s.top, s.high = 0, 0, 0
+	s.steps.drop()
 }
 
 // bytes returns the bytes the stack holds.
@@ -121,7 +124,54 @@ func (s *regStack) bytes() uint64 {
 	for _, c := range s.chunks {
 		n += len(c)
 	}
-	return uint64(n) * uint64(unsafe.Sizeof(any(nil)))
+	return uint64(n)*uint64(unsafe.Sizeof(any(nil))) + s.steps.bytes()
+}
+
+// stepStack holds the positions of the last steps (bytecode.FlowStep) of the loops of the running
+// Flow bodies that step, beside their register files, as ints, so that a step stores its position
+// without allocating it. A body takes a file of len(regs) positions, indexed by register, at its
+// first step; a file is a part of a chunk that never moves, as in regStack.
+type stepStack struct {
+	chunks [][]int
+	cur    int // the chunk the next file is taken from
+	top    int // the first free position of the chunk cur
+}
+
+// push returns a file of n positions above the files in use.
+func (s *stepStack) push(n int) []int {
+	if len(s.chunks) == 0 || s.top+n > len(s.chunks[s.cur]) {
+		if len(s.chunks) > 0 {
+			s.cur++
+		}
+		for s.cur < len(s.chunks) && len(s.chunks[s.cur]) < n {
+			s.chunks = slices.Delete(s.chunks, s.cur, s.cur+1) // too small for this file
+		}
+		if s.cur == len(s.chunks) {
+			s.chunks = append(s.chunks, make([]int, max(n, MinRegChunk)))
+		}
+		s.top = 0
+	}
+	f := s.chunks[s.cur][s.top : s.top+n : s.top+n]
+	s.top += n
+	return f
+}
+
+// drop empties the stack for the next parse, keeping its first chunk.
+func (s *stepStack) drop() {
+	if len(s.chunks) > 0 {
+		clear(s.chunks[1:])
+		s.chunks = s.chunks[:1]
+	}
+	s.cur, s.top = 0, 0
+}
+
+// bytes returns the bytes the stack holds.
+func (s *stepStack) bytes() uint64 {
+	var n int
+	for _, c := range s.chunks {
+		n += len(c)
+	}
+	return uint64(n) * uint64(unsafe.Sizeof(0))
 }
 
 // flowRun is a run of a Flow body: its registers and the instruction it is at. A run that reaches a
@@ -131,9 +181,12 @@ func (s *regStack) bytes() uint64 {
 type flowRun struct {
 	f    *bytecode.Flow
 	regs []any
-	pc   int
-	v    *value.Node
-	ok   bool
+	// steps holds, by register, the position of the last step of each loop of the body that has
+	// stepped, from the run's first step on (stepStack); nil before it.
+	steps []int
+	pc    int
+	v     *value.Node
+	ok    bool
 }
 
 // call returns the immediate of the CALL or CALLJUMP that fr is suspended at.
@@ -267,9 +320,29 @@ func (vm *Program) runFlow(p *state.Parser, fr *flowRun) (call bool) {
 		case bytecode.FlowLe:
 			fr.set(in.Dst[0], flowInt(regs[in.Args[0]]) <= flowInt(regs[in.Args[1]]))
 		case bytecode.FlowStep:
-			// The step of a loop iteration is no event (spec/runtime/parsing.md#compute-units). It
-			// would check the counter, and the counter of the machine checks itself at each event it
-			// counts, so the step does nothing.
+			// The step of a loop iteration is no event (spec/runtime/parsing.md#compute-units) and
+			// counts nothing: the counter of the machine checks itself at each event it counts. The
+			// step requires the position to have advanced past the one of the loop's last step,
+			// which bounds the loop by the input whatever the limits (bytecode.FlowStep).
+			// The register holds the int that the loop's entry sets, or stepped after a step, which
+			// keeps the position in steps.
+			last, ok := regs[in.Args[0]].(int)
+			if !ok {
+				if regs[in.Args[0]] != stepped || fr.steps == nil {
+					noMeasure(p, pc-1, in.Args[0])
+				}
+				last = fr.steps[in.Args[0]]
+			}
+			if p.Pos <= last {
+				noProgress(p, pc-1, last)
+			}
+			if d := in.Dst[0]; d >= 0 {
+				if fr.steps == nil {
+					fr.steps = machineOf(p).regs.steps.push(len(regs))
+				}
+				fr.steps[d] = p.Pos
+				regs[d] = stepped
+			}
 		case bytecode.FlowSilent:
 			// Enters or leaves a lookahead that records no expectations (flow.silent).
 			x := in.Imm.(bytecode.FlowSilenceOf)
@@ -486,6 +559,24 @@ func (vm *Program) runFlow(p *state.Parser, fr *flowRun) (call bool) {
 	}
 	// A loaded body ends with JUMP or RETURN (bytecode.ValidateModule), so it never gets here.
 	panic("internal error: vm: a Flow body ran past its end")
+}
+
+// noProgress ends the parse with the error of invalid bytecode: the step at pc found the position
+// not past last, the position of the loop's last step. Compiled code advances the position from
+// one step of a loop to the next, so only made-up code gets here.
+//
+//go:noinline
+func noProgress(p *state.Parser, pc, last int) {
+	p.Fail("invalid bytecode: STEP at %d: the position %d is not past %d, the position of the loop's last step", pc, p.Pos, last)
+}
+
+// stepped is the value of a register of a loop that has stepped: its run keeps the position of the
+// step in flowRun.steps.
+var stepped any = new(struct{ stepped bool })
+
+//go:noinline
+func noMeasure(p *state.Parser, pc, r int) {
+	p.Fail("invalid bytecode: STEP at %d: register %d holds no position of a step", pc, r)
 }
 
 // expID returns the parser's ID of the expectation x.

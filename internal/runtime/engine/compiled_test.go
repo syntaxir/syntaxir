@@ -263,9 +263,9 @@ func corruptSeeds(t *testing.T, seeds [][]byte, rng *rand.Rand) {
 			}()
 			prog, start, err := LoadProgram(b)
 			// Non-terminating recursion, for example from corrupted left-recursion marks, fails at the
-			// nesting depth limit, and a loop of a Flow body, which charges a step, at the default
-			// compute limit. A build without budget controls has no compute limit, so such a loop
-			// would not end there: it only loads.
+			// nesting depth limit, and a loop of a Flow body at its step, which requires progress.
+			// Action code has no such bound and may loop until the default compute limit; a build
+			// without budget controls has none, so there a corrupted module only loads.
 			if err == nil && start != "" && state.BudgetControlsEnabled {
 				for _, b := range []Backend{Default, Bytecode, BytecodeIterative} {
 					for _, mode := range allModes {
@@ -364,8 +364,8 @@ func TestCompiledUnmarkedCycleRejected(t *testing.T) {
 	}
 }
 
-// TestCompiledStepFreeCycleRejected checks that a module whose Flow body has a cycle that charges no
-// step does not load. A corrupted module whose first conditional jump of main went back to the start
+// TestCompiledStepFreeCycleRejected checks that a module whose Flow body has a cycle that no step
+// bounds does not load. A corrupted module whose first conditional jump of main went back to the start
 // of the body, before its first STEP, made a parse run forever: no limit stops a cycle that neither
 // charges nor reaches a call. The same module loads and parses with the jump as compiled.
 func TestCompiledStepFreeCycleRejected(t *testing.T) {
@@ -388,7 +388,7 @@ func TestCompiledStepFreeCycleRejected(t *testing.T) {
 		}
 		loaded, start, err := LoadProgram(marshalWithTrailing(prog, "main", nil))
 		if corrupt {
-			if err == nil || !strings.Contains(err.Error(), "is on a cycle that charges no step") {
+			if err == nil || !strings.Contains(err.Error(), "is on a cycle that no step bounds") {
 				t.Fatalf("JUMPFALSE at %d back to 0: got %v, want a rejection", jump, err)
 			}
 			continue
@@ -398,6 +398,45 @@ func TestCompiledStepFreeCycleRejected(t *testing.T) {
 		}
 		if got := resultWith(loaded, "ab,c", ParseOptions{Backend: Bytecode}); strings.HasPrefix(got, "error") {
 			t.Errorf("%s: %s", start, got)
+		}
+	}
+}
+
+// TestCompiledStepWithoutProgressFails checks that a loop of a corrupted module whose step finds the
+// position where its last step left it ends the parse with an error of invalid bytecode, under the
+// default compute limit and under none: a step counts no compute unit, so only its requirement of
+// progress stops the loop. The class test of the loop of item jumps back to the step when it fails
+// instead of leaving the loop; the cycle passes through the step, so the module loads.
+func TestCompiledStepWithoutProgressFails(t *testing.T) {
+	t.Parallel()
+	prog := mustCompile(t, "rule main = item* $$\nrule item = [a-z]+ \",\"?\n")
+	m := prog.Module()
+	item := slices.IndexFunc(m.Rules, func(r bytecode.RuleInfo) bool { return m.Strings[r.Name] == "item" })
+	f := m.Flows[item]
+	if f == nil {
+		t.Fatal("item has no Flow body")
+	}
+	step := slices.IndexFunc(f.Code, func(in bytecode.FlowInstr) bool { return in.Op == bytecode.FlowStep })
+	exit := -1
+	for pc := step + 1; step >= 0 && pc < len(f.Code) && exit < 0; pc++ {
+		if s, _ := f.Code[pc].Op.Shape(); s.Target && f.Code[pc].Op != bytecode.FlowJump && f.Code[pc].Target > pc {
+			exit = pc
+		}
+	}
+	if exit < 0 {
+		t.Fatalf("item has no conditional jump out of its loop after a STEP\n%s", m.Disassemble())
+	}
+	f.Code[exit].Target = step
+	loaded, _, err := LoadProgram(marshalWithTrailing(prog, "main", nil))
+	if err != nil {
+		t.Fatalf("%v at %d back to the STEP at %d: %v", f.Code[exit].Op, exit, step, err)
+	}
+	for _, b := range []Backend{Bytecode, BytecodeIterative} {
+		for _, lim := range []runtime.Limits{{}, {Compute: runtime.Unlimited}} {
+			got := resultWith(loaded, "ab,c", ParseOptions{Backend: b, Limits: lim})
+			if !strings.HasPrefix(got, "error: invalid bytecode: STEP at ") {
+				t.Errorf("backend %v, limits %+v: got %s, want the error of a step without progress", b, lim, got)
+			}
 		}
 	}
 }
